@@ -34,7 +34,7 @@
 #if !defined(__aarch64__) && !defined(WOLFSSL_ARMASM_THUMB2)
 #ifndef WOLFSSL_ARMASM_INLINE
 #ifndef NO_SHA256
-#ifdef WOLFSSL_ARMASM_NO_NEON
+#if !defined(WOLFSSL_ARMASM_NO_BASE_IMPL) || defined(WOLFSSL_ARMASM_NO_NEON)
 #ifndef __APPLE__
 	.text
 	.type	L_SHA256_transform_len_k, %object
@@ -68,6 +68,7 @@ L_SHA256_transform_len_k:
 	.text
 	.align	4
 	.globl	Transform_Sha256_Len_base
+	WC_ASM_ATT_HIDDEN(Transform_Sha256_Len_base)
 	.type	Transform_Sha256_Len_base, %function
 Transform_Sha256_Len_base:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -2530,8 +2531,9 @@ L_SHA256_transform_len_blk_end_15:
 	add	sp, sp, #0xc0
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	Transform_Sha256_Len_base,.-Transform_Sha256_Len_base
-#else
-#ifdef WOLFSSL_ARMASM_NO_HW_CRYPTO
+#endif /* !WOLFSSL_ARMASM_NO_BASE_IMPL || WOLFSSL_ARMASM_NO_NEON */
+#ifndef WOLFSSL_ARMASM_NO_NEON
+#if !defined(WOLFSSL_ARMASM_NO_NEON_IMPL) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
 #ifndef __APPLE__
 	.text
 	.type	L_SHA256_transform_neon_len_k, %object
@@ -2566,6 +2568,7 @@ L_SHA256_transform_neon_len_k:
 	.align	4
 	.fpu	neon
 	.globl	Transform_Sha256_Len_neon
+	WC_ASM_ATT_HIDDEN(Transform_Sha256_Len_neon)
 	.type	Transform_Sha256_Len_neon, %function
 Transform_Sha256_Len_neon:
 	push	{r4, r5, r6, r7, r8, r9, r10, lr}
@@ -3591,7 +3594,8 @@ L_SHA256_transform_neon_len_start:
 	vpop	{d8-d11}
 	pop	{r4, r5, r6, r7, r8, r9, r10, pc}
 	.size	Transform_Sha256_Len_neon,.-Transform_Sha256_Len_neon
-#else
+#endif /* !WOLFSSL_ARMASM_NO_NEON_IMPL || WOLFSSL_ARMASM_NO_HW_CRYPTO */
+#ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
 #ifndef __APPLE__
 	.text
 	.type	L_SHA256_trans_crypto_len_k, %object
@@ -3624,7 +3628,9 @@ L_SHA256_trans_crypto_len_k:
 	.long	0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
 	.text
 	.align	4
+	.fpu	crypto-neon-fp-armv8
 	.globl	Transform_Sha256_Len_crypto
+	WC_ASM_ATT_HIDDEN(Transform_Sha256_Len_crypto)
 	.type	Transform_Sha256_Len_crypto, %function
 Transform_Sha256_Len_crypto:
 	vpush	{d8-d15}

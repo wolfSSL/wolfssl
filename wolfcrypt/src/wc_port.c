@@ -242,7 +242,6 @@ Threading/Mutex options:
 #if defined(WOLFSSL_ZEPHYR)
 #if defined(CONFIG_BOARD_NATIVE_POSIX) || defined(CONFIG_BOARD_NATIVE_SIM)
 #include "native_rtc.h"
-#define CONFIG_RTC
 #endif
 #endif
 
@@ -579,8 +578,7 @@ int wolfCrypt_Init(void)
     #endif
 
     /* Register the Versal Gen2 ASU device so wolfCrypt operations route to the
-     * ASU hardware. The ASU client must already be initialized by the
-     * application with XAsu_ClientInit. */
+     * ASU hardware. Registering also brings the ASU client up. */
     #if defined(WOLFSSL_VERSAL_GEN2_ASU) && defined(WOLF_CRYPTO_CB)
         ret = wc_AsuCryptoCb_RegisterDevice(WOLFSSL_VERSAL_GEN2_ASU_DEVID);
         if (ret != 0) {
@@ -1562,34 +1560,52 @@ char* wc_strsep(char **stringp, const char *delim)
 #ifdef USE_WOLF_STRLCPY
 size_t wc_strlcpy(char *dst, const char *src, size_t dstSize)
 {
-    size_t i;
+    size_t i = 0;
 
-    if (!dstSize)
-        return 0;
-
-    /* Always have to leave a space for NULL */
-    for (i = 0; i < (dstSize - 1) && *src != '\0'; i++) {
-        *dst++ = *src++;
+    if (dstSize != 0) {
+        /* Always have to leave a space for NULL */
+        for (; i < (dstSize - 1) && *src != '\0'; i++) {
+            *dst++ = *src++;
+        }
+        *dst = '\0';
     }
-    *dst = '\0';
 
-    return i; /* return length without NULL */
+    /* strlcpy() returns the length of src, not the number of bytes copied, so
+     * that a caller can detect truncation with (ret >= dstSize). Walk whatever
+     * did not fit -- src already points at the first byte not copied, and at
+     * the whole string when dstSize was 0 (which writes nothing). */
+    while (*src != '\0') {
+        i++;
+        src++;
+    }
+
+    return i; /* length of src, excluding the NULL */
 }
 #endif /* USE_WOLF_STRLCPY */
 
 #ifdef USE_WOLF_STRLCAT
 size_t wc_strlcat(char *dst, const char *src, size_t dstSize)
 {
-    size_t dstLen;
+    size_t dstLen = 0;
 
-    if (!dstSize)
-        return 0;
+    /* Find the end of dst without going past dstSize. XSTRLEN() would run off
+     * the end of a dst that holds no NUL within dstSize -- the very case this
+     * bound exists to contain. */
+    while (dstLen < dstSize && dst[dstLen] != '\0') {
+        dstLen++;
+    }
 
-    dstLen = XSTRLEN(dst);
+    if (dstLen == dstSize) {
+        /* No NUL within dstSize: the length of dst is taken to be dstSize,
+         * nothing is appended, and dst is left un-terminated because there is
+         * no room for the NUL. Only reachable when dstSize is wrong or dst is
+         * not a C string; returning here is what stops the append from running
+         * off the end. */
+        return dstSize + XSTRLEN(src);
+    }
 
-    if (dstSize < dstLen)
-        return dstLen + XSTRLEN(src);
-
+    /* Total length attempted: the initial length of dst plus the length of
+     * src, which is what wc_strlcpy() returns. */
     return dstLen + wc_strlcpy(dst + dstLen, src, dstSize - dstLen);
 }
 #endif /* USE_WOLF_STRLCAT */
@@ -2541,6 +2557,58 @@ int wolfSSL_HwPkMutexUnLock(void)
         return compat_mutex_cb;
     }
 #endif /* defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) */
+
+#ifndef WOLFSSL_MUTEX_INITIALIZER
+/* Initialize a static mutex exactly once.
+ *
+ * Backstop for callers that reach a subsystem without wolfCrypt_Init(). One
+ * atomic with three states: 0 = uninitialized, 1 = in progress, 2 = ready.
+ * Losers of the race wait for the winner rather than failing, so callers do
+ * not need a retry path. Same pattern as the SP ECC cache locks.
+ *
+ * @param [in]      m     Mutex to initialize.
+ * @param [in, out] flag  Election state, statically zero initialized.
+ * @return  0 on success, or when the mutex is already initialized.
+ * @return  Error from wc_InitMutex() otherwise.
+ */
+int wc_local_InitMutexOnce(wolfSSL_Mutex* m, wc_MutexOnceFlag* flag)
+{
+    int ret = 0;
+#if defined(WOLFSSL_ATOMIC_OPS) && !defined(SINGLE_THREADED)
+    WC_ATOMIC_UINT_ARG expected;
+
+    if (WOLFSSL_ATOMIC_LOAD(*flag) == 2) {
+        return 0;
+    }
+
+    for (;;) {
+        expected = 0;
+        if (wolfSSL_Atomic_Uint_CompareExchange(flag, &expected, 1) == 1) {
+            /* Won the race. On failure reset to 0 so a later call retries. */
+            ret = wc_InitMutex(m);
+            WOLFSSL_ATOMIC_STORE(*flag, (ret == 0) ? 2U : 0U);
+            break;
+        }
+        if (expected == 2) {
+            /* Another thread completed the initialization. */
+            break;
+        }
+        /* Initialization in progress in another thread. */
+        WC_RELAX_LONG_LOOP();
+    }
+#else
+    /* No atomics to elect with: single-threaded cannot race, and opt-out
+     * builds keep their existing behavior. */
+    if (*flag != 2) {
+        ret = wc_InitMutex(m);
+        if (ret == 0) {
+            *flag = 2;
+        }
+    }
+#endif
+    return ret;
+}
+#endif /* !WOLFSSL_MUTEX_INITIALIZER */
 
 #if defined(WC_MUTEX_OPS_INLINE)
 
@@ -4451,16 +4519,13 @@ time_t xilinx_time(time_t * timer)
 
 time_t z_time(time_t * timer)
 {
-    struct timespec ts;
-
-    #if defined(CONFIG_RTC) && \
-        (defined(CONFIG_PICOLIBC) || defined(CONFIG_NEWLIB_LIBC))
-
     #if defined(CONFIG_BOARD_NATIVE_POSIX) || defined(CONFIG_BOARD_NATIVE_SIM)
 
-    /* When using native sim, get time from simulator rtc */
+    /* native_sim: read the simulator RTC for a real host wall-clock. The
+     * real-target RTC/libc gate below is compiled out under the host libc. */
     uint32_t nsec = 0;
     uint64_t sec = 0;
+
     native_rtc_gettime(RTC_CLOCK_PSEUDOHOSTREALTIME, &nsec, &sec);
 
     if (timer != NULL)
@@ -4469,6 +4534,11 @@ time_t z_time(time_t * timer)
     return sec;
 
     #else
+
+    struct timespec ts = { 0 };
+
+    #if defined(CONFIG_RTC) && \
+        (defined(CONFIG_PICOLIBC) || defined(CONFIG_NEWLIB_LIBC))
 
     /* Try to obtain the actual time from an RTC */
     static const struct device *rtc = DEVICE_DT_GET(DT_NODELABEL(rtc));
@@ -4488,8 +4558,7 @@ time_t z_time(time_t * timer)
             return epochTime;
         }
     }
-    #endif /* CONFIG_BOARD_NATIVE_POSIX || CONFIG_BOARD_NATIVE_SIM */
-    #endif
+    #endif /* CONFIG_RTC && (CONFIG_PICOLIBC || CONFIG_NEWLIB_LIBC) */
 
     /* Fallback to uptime since boot. This works for relative times, but
      * not for ASN.1 date validation */
@@ -4498,6 +4567,8 @@ time_t z_time(time_t * timer)
             *timer = ts.tv_sec;
 
     return ts.tv_sec;
+
+    #endif /* CONFIG_BOARD_NATIVE_POSIX || CONFIG_BOARD_NATIVE_SIM */
 }
 
 #endif /* WOLFSSL_ZEPHYR */
@@ -5154,11 +5225,19 @@ char* wolfSSL_strnstr(const char* s1, const char* s2, size_t n)
 
         XMEMSET(thread, 0, sizeof(*thread));
 
+        thread->tid = (TX_THREAD *)XMALLOC(sizeof(TX_THREAD), NULL,
+                DYNAMIC_TYPE_OS_BUF);
+        if (thread->tid == NULL)
+            return MEMORY_E;
+        XMEMSET(thread->tid, 0, sizeof(TX_THREAD));
+
         thread->threadStack = (void *)XMALLOC(WOLFSSL_NETOS_STACK_SZ, NULL,
                 DYNAMIC_TYPE_OS_BUF);
-        if (thread->threadStack == NULL)
+        if (thread->threadStack == NULL) {
+            XFREE(thread->tid, NULL, DYNAMIC_TYPE_OS_BUF);
+            thread->tid = NULL;
             return MEMORY_E;
-
+        }
 
         /* first create the idle thread:
          * ARGS:
@@ -5169,7 +5248,7 @@ char* wolfSSL_strnstr(const char* s1, const char* s2, size_t n)
          * Param6: stack size
          * Param7 and 8: priority level and preempt threshold
          * Param9 and 10: time slice and auto-start indicator */
-        result = tx_thread_create(&thread->tid,
+        result = tx_thread_create(thread->tid,
                            "wolfSSL thread",
                            (entry_functionType)cb, (ULONG)arg,
                            thread->threadStack,
@@ -5179,6 +5258,8 @@ char* wolfSSL_strnstr(const char* s1, const char* s2, size_t n)
         if (result != TX_SUCCESS) {
             XFREE(thread->threadStack, NULL, DYNAMIC_TYPE_OS_BUF);
             thread->threadStack = NULL;
+            XFREE(thread->tid, NULL, DYNAMIC_TYPE_OS_BUF);
+            thread->tid = NULL;
             return MEMORY_E;
         }
 
@@ -5187,10 +5268,42 @@ char* wolfSSL_strnstr(const char* s1, const char* s2, size_t n)
 
     int wolfSSL_JoinThread(THREAD_TYPE thread)
     {
-        /* TODO: maybe have to use tx_thread_delete? */
+        UINT state = TX_READY;
+        int ret = 0;
+
+        if (thread.tid == NULL)
+            return BAD_FUNC_ARG;
+
+        /* The thread runs on threadStack, so it has to be done with it before
+         * the stack is released. Wait for the entry function to return, or for
+         * the thread to be terminated by someone else. */
+        while (ret == 0 && state != TX_COMPLETED && state != TX_TERMINATED) {
+            if (tx_thread_info_get(thread.tid, TX_NULL, &state, TX_NULL,
+                        TX_NULL, TX_NULL, TX_NULL, TX_NULL, TX_NULL)
+                    != TX_SUCCESS) {
+                /* The control block is not a thread ThreadX knows about, so
+                 * nothing is running on the stack either. */
+                ret = BAD_STATE_E;
+            }
+            else if (state != TX_COMPLETED && state != TX_TERMINATED) {
+                tx_thread_sleep(1);
+            }
+        }
+
+        /* Unregister the thread before its control block and stack go away. */
+        if (ret == 0 && tx_thread_delete(thread.tid) != TX_SUCCESS) {
+            /* ThreadX still owns the control block and the thread may still be
+             * running on the stack, so neither can be released here. */
+            WOLFSSL_MSG("tx_thread_delete failed, leaking thread resources");
+            return BAD_STATE_E;
+        }
+
         XFREE(thread.threadStack, NULL, DYNAMIC_TYPE_OS_BUF);
         thread.threadStack = NULL;
-        return 0;
+        XFREE(thread.tid, NULL, DYNAMIC_TYPE_OS_BUF);
+        thread.tid = NULL;
+
+        return ret;
     }
 
 #elif defined(WOLFSSL_ZEPHYR)
@@ -5273,8 +5386,78 @@ char* wolfSSL_strnstr(const char* s1, const char* s2, size_t n)
     }
 
 #ifdef WOLFSSL_COND
-    /* Use the pthreads translation layer for signaling */
+    /* Native Zephyr condition variables (k_condvar) over a k_mutex; no POSIX
+     * pthread layer required. Semantics mirror the pthread implementation. */
+    int wolfSSL_CondInit(COND_TYPE* cond)
+    {
+        int ret;
 
+        if (cond == NULL)
+            return BAD_FUNC_ARG;
+
+        ret = wc_InitMutex(&cond->mutex);
+        if (ret == 0) {
+            /* k_condvar_init always returns 0 on Zephyr. */
+            (void)k_condvar_init(&cond->cond);
+        }
+
+        return ret;
+    }
+
+    int wolfSSL_CondFree(COND_TYPE* cond)
+    {
+        if (cond == NULL)
+            return BAD_FUNC_ARG;
+
+        /* k_condvar has no destroy; just release the backing mutex. */
+        return wc_FreeMutex(&cond->mutex);
+    }
+
+    int wolfSSL_CondStart(COND_TYPE* cond)
+    {
+        if (cond == NULL)
+            return BAD_FUNC_ARG;
+
+        if (wc_LockMutex(&cond->mutex) != 0)
+            return BAD_MUTEX_E;
+
+        return 0;
+    }
+
+    int wolfSSL_CondSignal(COND_TYPE* cond)
+    {
+        if (cond == NULL)
+            return BAD_FUNC_ARG;
+
+        /* Caller holds cond->mutex; wake a single waiter. */
+        (void)k_condvar_signal(&cond->cond);
+
+        return 0;
+    }
+
+    int wolfSSL_CondWait(COND_TYPE* cond)
+    {
+        if (cond == NULL)
+            return BAD_FUNC_ARG;
+
+        /* Atomically releases the mutex, blocks, and re-acquires it on wake,
+         * matching pthread_cond_wait semantics. */
+        if (k_condvar_wait(&cond->cond, &cond->mutex, K_FOREVER) != 0)
+            return BAD_MUTEX_E;
+
+        return 0;
+    }
+
+    int wolfSSL_CondEnd(COND_TYPE* cond)
+    {
+        if (cond == NULL)
+            return BAD_FUNC_ARG;
+
+        if (wc_UnLockMutex(&cond->mutex) != 0)
+            return BAD_MUTEX_E;
+
+        return 0;
+    }
 #endif /* WOLFSSL_COND */
 
 #elif defined(WOLFSSL_PTHREADS) || \

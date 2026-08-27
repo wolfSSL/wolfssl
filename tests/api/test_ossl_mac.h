@@ -24,12 +24,16 @@
 
 #include <tests/api/api_decl.h>
 
+int test_wolfSSL_hmac_includes_evp(void);
 int test_wolfSSL_HMAC_CTX(void);
+int test_wolfSSL_HMAC_CTX_cleanup_zeroize(void);
 int test_wolfSSL_HMAC(void);
 int test_wolfSSL_CMAC(void);
 
 #define TEST_OSSL_MAC_DECLS                             \
+    TEST_DECL_GROUP("ossl_mac", test_wolfSSL_hmac_includes_evp), \
     TEST_DECL_GROUP("ossl_mac", test_wolfSSL_HMAC_CTX), \
+    TEST_DECL_GROUP("ossl_mac", test_wolfSSL_HMAC_CTX_cleanup_zeroize), \
     TEST_DECL_GROUP("ossl_mac", test_wolfSSL_HMAC),     \
     TEST_DECL_GROUP("ossl_mac", test_wolfSSL_CMAC)
 

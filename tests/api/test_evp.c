@@ -584,6 +584,33 @@ int test_wolfSSL_EVP_DecodeUpdate(void)
             0);
     }
 
+    /* decode input holding a NUL byte at the start of a 4 byte group, followed
+     * by more data than the context buffer can hold */
+
+    {
+        unsigned char enc5[64];
+
+        XMEMSET(enc5, 'A', sizeof(enc5));
+        enc5[0] = '\0';
+
+        EVP_DecodeInit(ctx);
+
+        ExpectIntEQ(
+            EVP_DecodeUpdate(
+                ctx,
+                decOutBuff,
+                &outl,
+                enc5,
+                (int)sizeof(enc5)),
+            1                    /* expected result code 1: success */
+            );
+        ExpectIntEQ(outl, 0);
+        /* Before the fix all 64 input bytes were buffered into the 48 byte
+         * ctx->data. The NUL byte ends the input, so nothing may be buffered
+         * at all. */
+        ExpectIntEQ(ctx->remaining, 0);
+    }
+
     EVP_ENCODE_CTX_free(ctx);
 #endif /* OPENSSL && WOLFSSL_BASE_DECODE */
     return EXPECT_RESULT();

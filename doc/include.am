@@ -6,7 +6,9 @@ dist_doc_DATA+= doc/README.txt \
 	doc/QUIC.md \
 	doc/dilithium-to-mldsa-migration.md \
 	doc/SBOM.md \
-	doc/CRA.md
+	doc/CRA.md \
+	doc/ASM_AND_MATH_DEFINES.md \
+	doc/ALGORITHM_DEFINES.md
 
 
 dox-pdf:

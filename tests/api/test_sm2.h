@@ -28,6 +28,7 @@ int test_wc_ecc_sm2_make_key(void);
 int test_wc_ecc_sm2_shared_secret(void);
 int test_wc_ecc_sm2_create_digest(void);
 int test_wc_ecc_sm2_verify_hash_ex(void);
+int test_wc_ecc_sm2_verify_hash_ex_degenerate(void);
 int test_wc_ecc_sm2_verify_hash(void);
 int test_wc_ecc_sm2_sign_hash_ex(void);
 int test_wc_ecc_sm2_sign_hash(void);
@@ -37,6 +38,7 @@ int test_wc_ecc_sm2_sign_hash(void);
     TEST_DECL_GROUP("sm2", test_wc_ecc_sm2_shared_secret),      \
     TEST_DECL_GROUP("sm2", test_wc_ecc_sm2_create_digest),      \
     TEST_DECL_GROUP("sm2", test_wc_ecc_sm2_verify_hash_ex),     \
+    TEST_DECL_GROUP("sm2", test_wc_ecc_sm2_verify_hash_ex_degenerate), \
     TEST_DECL_GROUP("sm2", test_wc_ecc_sm2_verify_hash),        \
     TEST_DECL_GROUP("sm2", test_wc_ecc_sm2_sign_hash_ex),       \
     TEST_DECL_GROUP("sm2", test_wc_ecc_sm2_sign_hash)

@@ -478,8 +478,10 @@ typedef struct Flags {
 
 /* Out of Order FIN capture */
 typedef struct FinCapture {
-    word32 cliFinSeq;               /* client relative sequence FIN  0 is no */
-    word32 srvFinSeq;               /* server relative sequence FIN, 0 is no */
+    word32 cliFinSeq;               /* client relative sequence FIN (may be 0) */
+    word32 srvFinSeq;               /* server relative sequence FIN (may be 0) */
+    byte   cliHasFin;               /* client FIN captured (seq value may be 0) */
+    byte   srvHasFin;               /* server FIN captured (seq value may be 0) */
     byte   cliCounted;              /* did we count yet, detects duplicates */
     byte   srvCounted;              /* did we count yet, detects duplicates */
 } FinCapture;
@@ -3006,7 +3008,7 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
                 ret = BUFFER_E;
             }
             if (ret == 0) {
-                ret = wc_curve448_init(&args->key->priv.x448);
+                ret = wc_curve448_init_ex(&args->key->priv.x448, NULL, devId);
                 if (ret == 0) {
                     args->key->type = WC_PK_TYPE_CURVE448;
                     args->key->initPriv = 1;
@@ -3055,8 +3057,11 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
     #endif /* HAVE_CURVE448 */
 
     #if defined(WOLFSSL_STATIC_EPHEMERAL) && !defined(SINGLE_THREADED)
+        /* release early so the lock is not held during key agreement,
+         * the exit path below covers the error cases */
         if (args->keyLocked) {
             wc_UnLockMutex(&ctx->staticKELock);
+            args->keyLocked = 0;
         }
     #endif
 
@@ -3277,7 +3282,22 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
 
 #ifdef WOLFSSL_ASYNC_CRYPT
 exit_sk:
+#endif
 
+#if defined(WOLFSSL_STATIC_EPHEMERAL) && !defined(SINGLE_THREADED)
+    /* release the lock if an error path left the key state locked */
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if ((args != NULL) && (args->keyLocked))
+#else
+    if (args->keyLocked)
+#endif
+    {
+        wc_UnLockMutex(&ctx->staticKELock);
+        args->keyLocked = 0;
+    }
+#endif
+
+#ifdef WOLFSSL_ASYNC_CRYPT
     /* Handle async pending response */
     if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
         return ret;
@@ -4494,6 +4514,10 @@ static int ProcessCertificate(const byte* input, int* sslBytes,
     }
 #endif
 
+    if (OPAQUE24_LEN > *sslBytes) {
+        SetError(BAD_CERT_MSG_STR, error, session, FATAL_ERROR_STATE);
+        return WOLFSSL_FATAL_ERROR;
+    }
     ato24(input, &certChainSz);
     *sslBytes -= CERT_HEADER_SZ;
     input += CERT_HEADER_SZ;
@@ -4503,6 +4527,10 @@ static int ProcessCertificate(const byte* input, int* sslBytes,
         return WOLFSSL_FATAL_ERROR;
     }
 
+    if (OPAQUE24_LEN > *sslBytes) {
+        SetError(BAD_CERT_MSG_STR, error, session, FATAL_ERROR_STATE);
+        return WOLFSSL_FATAL_ERROR;
+    }
     ato24(input, &certSz);
     input += OPAQUE24_LEN;
     if (*sslBytes < (int)certSz) {
@@ -5586,6 +5614,11 @@ static int CheckHeaders(IpInfo* ipInfo, TcpInfo* tcpInfo, const byte* packet,
      * data after the IP record for the FCS for Ethernet. */
     *sslBytes = (int)(packet + ipInfo->total - *sslFrame);
 
+    if (*sslBytes < 0) {
+        SetError(PACKET_HDR_SHORT_STR, error, NULL, 0);
+        return WOLFSSL_FATAL_ERROR;
+    }
+
     /* Ensure sslBytes does not exceed the actual size. */
     if (*sslBytes > (int)(length - (ipInfo->length + tcpInfo->length))) {
         SetError(PACKET_HDR_SHORT_STR, error, NULL, 0);
@@ -5795,12 +5828,16 @@ static int AddToReassembly(byte from, word32 seq, const byte* sslFrame,
 static int AddFinCapture(SnifferSession* session, word32 sequence)
 {
     if (session->flags.side == WOLFSSL_SERVER_END) {
-        if (session->finCapture.cliCounted == 0)
+        if (session->finCapture.cliCounted == 0) {
             session->finCapture.cliFinSeq = sequence;
+            session->finCapture.cliHasFin = 1;
+        }
     }
     else {
-        if (session->finCapture.srvCounted == 0)
+        if (session->finCapture.srvCounted == 0) {
             session->finCapture.srvFinSeq = sequence;
+            session->finCapture.srvHasFin = 1;
+        }
     }
     return 1;
 }
@@ -5811,6 +5848,7 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
                           int* sslBytes, const byte** sslFrame, char* error)
 {
     int ret = 0;
+    sword32 seqDiff;
     word32  seqStart = (session->flags.side == WOLFSSL_SERVER_END) ?
                                     session->cliSeqStart : session->srvSeqStart;
     word32* seqLast = (session->flags.side == WOLFSSL_SERVER_END) ?
@@ -5828,12 +5866,17 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
     if (tcpInfo->sequence < seqStart)
         real = 0xffffffffU - seqStart + tcpInfo->sequence + 1;
 
+    /* Relative sequence numbers wrap at 2^32, so order them with signed
+     * (RFC 1982) serial-number arithmetic; plain unsigned </> mis-handles
+     * the wrap boundary and would drop wrapped segments as already-seen. */
+    seqDiff = (sword32)(real - *expected);
+
     TraceRelativeSequence(*expected, real);
 
-    if (real < *expected) {
+    if (seqDiff < 0) {
         int overlap = *expected - real;
 
-        if (real + *sslBytes > *expected) {
+        if ((sword32)(real + (word32)*sslBytes - *expected) > 0) {
         #ifdef WOLFSSL_ASYNC_CRYPT
             if (session->sslServer->error != WC_NO_ERR_TRACE(WC_PENDING_E) &&
                 session->pendSeq != tcpInfo->sequence)
@@ -5875,7 +5918,7 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
                 }
             }
             else if (*sslBytes > 0) {
-                if (real + *sslBytes - 1 > *seqLast) {
+                if ((sword32)(real + (word32)*sslBytes - 1 - *seqLast) > 0) {
                     /* fix segment overlap */
                 #ifdef DEBUG_SNIFFER
                     WOLFSSL* ssl = (session->flags.side == WOLFSSL_SERVER_END) ?
@@ -5905,7 +5948,7 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
                     session->sslServer->error != WC_NO_ERR_TRACE(WC_PENDING_E) &&
                     session->pendSeq != tcpInfo->sequence &&
                 #endif
-                    real + *sslBytes -1 <= *seqLast) {
+                    (sword32)(real + (word32)*sslBytes - 1 - *seqLast) <= 0) {
                     Trace(DUPLICATE_STR);
                     ret = 1;
                 }
@@ -5921,7 +5964,7 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
             }
         }
     }
-    else if (real > *expected) {
+    else if (seqDiff > 0) {
         Trace(OUT_OF_ORDER_STR);
         if (*sslBytes > 0) {
             int addResult = AddToReassembly(session->flags.side, real,
@@ -6115,7 +6158,13 @@ static int CheckAck(TcpInfo* tcpInfo, SnifferSession* session)
 
         TraceAck(real, expected);
 
-        if (real > expected)
+        /* Relative sequence numbers wrap at 2^32; compare with signed
+         * (RFC 1982) serial-number arithmetic to avoid a false positive at
+         * the wrap boundary. Expected is still 0 when that side's SYN was
+         * never seen, leaving no base to be relative to, so any data being
+         * ACKed there is data we missed. */
+        if ((expected == 0) ? (real != 0) :
+                ((sword32)(real - expected) > 0))
             return WOLFSSL_FATAL_ERROR;  /* we missed a packet, ACKing data we never saw */
     }
     return 0;
@@ -6154,6 +6203,12 @@ static int CheckSequence(IpInfo* ipInfo, TcpInfo* tcpInfo,
 
     /* adjust potential ethernet trailer */
     actualLen = ipInfo->total - ipInfo->length - tcpInfo->length;
+    /* CheckHeaders already rejects this for the current callers; kept so the
+     * clamp below cannot be reached with a negative bound. */
+    if (actualLen < 0) {
+        SetError(PACKET_HDR_SHORT_STR, error, session, FATAL_ERROR_STATE);
+        return WOLFSSL_FATAL_ERROR;
+    }
     if (*sslBytes > actualLen) {
         *sslBytes = actualLen;
     }
@@ -6699,8 +6754,13 @@ static int CheckFinCapture(IpInfo* ipInfo, TcpInfo* tcpInfo,
                             SnifferSession* session)
 {
     int ret = 0;
-    if (session->finCapture.cliFinSeq && session->finCapture.cliFinSeq <=
-                                         session->cliExpected) {
+    /* FIN sequences are relative and wrap at 2^32, so compare "reached" with
+     * signed (RFC 1982) serial-number arithmetic. A dedicated has-FIN flag
+     * marks capture, since a relative sequence of 0 is itself a valid FIN
+     * position at the wrap boundary. */
+    if (session->finCapture.cliHasFin &&
+            (sword32)(session->finCapture.cliFinSeq - session->cliExpected)
+                <= 0) {
         if (session->finCapture.cliCounted == 0) {
             session->flags.finCount += 1;
             session->finCapture.cliCounted = 1;
@@ -6708,8 +6768,9 @@ static int CheckFinCapture(IpInfo* ipInfo, TcpInfo* tcpInfo,
         }
     }
 
-    if (session->finCapture.srvFinSeq && session->finCapture.srvFinSeq <=
-                                         session->srvExpected) {
+    if (session->finCapture.srvHasFin &&
+            (sword32)(session->finCapture.srvFinSeq - session->srvExpected)
+                <= 0) {
         if (session->finCapture.srvCounted == 0) {
             session->flags.finCount += 1;
             session->finCapture.srvCounted = 1;

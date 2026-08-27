@@ -41,6 +41,28 @@
  * to the portable C transform and Transform_Sha512_Len_p to NULL (routing
  * every block through the per-block path that reads intel_flags) -- which is
  * also crash-safe: the C transform runs whatever intel_flags claims.
+ *
+ * Second supplement: Sha512Update()'s save-remainder guard (line ~2185)
+ *
+ *     if (ret == 0 && len > 0)
+ *
+ * idx0 ("ret == 0") FALSE half. ret is 0 everywhere on the path to that guard
+ * except where the block transform writes it: the two earlier error exits
+ * (buffLen >= block size -> BUFFER_E, and wc_Sha512Update's argument checks)
+ * return before the guard is reached. In the plain C / ARMASM variants
+ * Transform_Sha512() resolves to a transform with no failing return, so the
+ * FALSE half is only reachable where the transform is dispatched through the
+ * file-static Transform_Sha512_p -- i.e. exactly this USE_INTEL_SPEEDUP build.
+ * Retargeting that pointer at a stub returning BAD_FUNC_ARG (and NULLing
+ * Transform_Sha512_Len_p so the per-block loop, not the Len transform, runs)
+ * makes the first loop iteration break with ret != 0; the guard is then
+ * evaluated with idx0 FALSE and idx1 short-circuited (never read).
+ * Vectors, all in this one binary:
+ *     stub + 3 whole blocks          -> (F, -)   [the residual]
+ *     C transform + 1 block + 5      -> (T, T)
+ *     C transform + exactly 1 block  -> (T, F)
+ * No digest is taken from the faulted context: it is freed and re-initialised
+ * before the baseline vectors run.
  */
 
 #include <wolfcrypt/src/sha512.c>
@@ -128,6 +150,109 @@ static void wb_intel_dispatch(void)
 
 #endif
 
+/* --------------------------------------------------------------------------
+ * Sha512Update(): "ret == 0" half of the save-remainder guard (~line 2185).
+ * ----------------------------------------------------------------------- */
+#if !defined(NO_SHA512) && defined(WOLFSSL_SHA512) && \
+    defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
+    !defined(WC_C_DYNAMIC_FALLBACK) && \
+    !defined(WC_NO_INTERNAL_FUNCTION_POINTERS) && \
+    (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
+
+static int wb_transform_fails(wc_Sha512* sha512)
+{
+    (void)sha512;
+    return BAD_FUNC_ARG;
+}
+
+static void wb_update_transform_err(void)
+{
+    /* Three whole blocks: the loop breaks on the first transform (len is
+     * decremented before it), leaving len == 2 * block size at the guard --
+     * immaterial, since idx1 is short-circuited when idx0 is FALSE. */
+    byte  buf[3 * WC_SHA512_BLOCK_SIZE];
+    byte  hash[WC_SHA512_DIGEST_SIZE];
+    int (*saved_p)(wc_Sha512*)             = Transform_Sha512_p;
+    int (*saved_len_p)(wc_Sha512*, word32) = Transform_Sha512_Len_p;
+    cpuid_flags_t saved_flags = intel_flags;
+    wc_Sha512 sha;
+    int ret;
+
+    XMEMSET(buf, 0x5a, sizeof(buf));
+
+    /* idx0 FALSE: the transform fails on the first block. */
+    if (wc_InitSha512_ex(&sha, NULL, INVALID_DEVID) != 0) {
+        WB_NOTE("wc_InitSha512_ex failed (transform-error case skipped)");
+        wb_fail = 1;
+    }
+    else {
+        /* Pin the per-block route, then make that block transform fail.
+         * intel_flags is zeroed so the C transform the baselines use sees a
+         * byte-reversed block; it is restored at the end. */
+        Transform_Sha512_Len_p = NULL;
+        Transform_Sha512_p     = wb_transform_fails;
+        intel_flags            = 0;
+
+        ret = wc_Sha512Update(&sha, buf, (word32)sizeof(buf));
+        if (ret == 0) {
+            WB_NOTE("faulted wc_Sha512Update unexpectedly succeeded");
+            wb_fail = 1;
+        }
+        /* The context is poisoned; no digest is taken from it. */
+        Transform_Sha512_p = _Transform_Sha512;
+        wc_Sha512Free(&sha);
+    }
+
+    /* idx0 TRUE, idx1 TRUE: one whole block plus a 5-byte remainder. */
+    if (wc_InitSha512_ex(&sha, NULL, INVALID_DEVID) != 0) {
+        WB_NOTE("wc_InitSha512_ex failed (remainder baseline skipped)");
+        wb_fail = 1;
+    }
+    else {
+        Transform_Sha512_Len_p = NULL;
+        Transform_Sha512_p     = _Transform_Sha512;
+        ret = wc_Sha512Update(&sha, buf, WC_SHA512_BLOCK_SIZE + 5);
+        if (ret != 0) {
+            WB_NOTE("wc_Sha512Update remainder baseline failed");
+            wb_fail = 1;
+        }
+        (void)wc_Sha512Final(&sha, hash);
+        wc_Sha512Free(&sha);
+    }
+
+    /* idx0 TRUE, idx1 FALSE: an exact whole number of blocks, no remainder. */
+    if (wc_InitSha512_ex(&sha, NULL, INVALID_DEVID) != 0) {
+        WB_NOTE("wc_InitSha512_ex failed (exact-block baseline skipped)");
+        wb_fail = 1;
+    }
+    else {
+        Transform_Sha512_Len_p = NULL;
+        Transform_Sha512_p     = _Transform_Sha512;
+        ret = wc_Sha512Update(&sha, buf, WC_SHA512_BLOCK_SIZE);
+        if (ret != 0) {
+            WB_NOTE("wc_Sha512Update exact-block baseline failed");
+            wb_fail = 1;
+        }
+        (void)wc_Sha512Final(&sha, hash);
+        wc_Sha512Free(&sha);
+    }
+
+    Transform_Sha512_p     = saved_p;
+    Transform_Sha512_Len_p = saved_len_p;
+    intel_flags            = saved_flags;
+    WB_NOTE("Sha512Update save-remainder ret==0 pair exercised");
+}
+
+#else
+
+static void wb_update_transform_err(void)
+{
+    WB_NOTE("no retargetable sha512 transform pointer in this variant; "
+            "save-remainder ret==0 skipped");
+}
+
+#endif
+
 int main(void)
 {
     printf("sha512.c white-box MC/DC supplement\n");
@@ -136,6 +261,7 @@ int main(void)
     return 0;
 #else
     wb_intel_dispatch();
+    wb_update_transform_err();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     return 0;
 #endif

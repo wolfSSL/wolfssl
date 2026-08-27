@@ -75,6 +75,12 @@
 
 #define WOLFSSL_BIO_FP_WRITE               0x04
 
+#define WOLFSSL_BIO_TYPE_DESCRIPTOR  0x0100
+#define WOLFSSL_BIO_TYPE_SOURCE_SINK 0x0400
+/* Application BIO type indexes are handed out starting after this value
+ * by wolfSSL_BIO_get_new_index(), like OpenSSL's BIO_TYPE_START. */
+#define WOLFSSL_BIO_TYPE_START       128
+
 #ifndef OPENSSL_COEXIST
 
 #define BIO_FLAGS_BASE64_NO_NL WOLFSSL_BIO_FLAG_BASE64_NO_NL
@@ -187,6 +193,27 @@
 #define BIO_meth_set_ctrl          wolfSSL_BIO_meth_set_ctrl
 #define BIO_meth_set_create        wolfSSL_BIO_meth_set_create
 #define BIO_meth_set_destroy       wolfSSL_BIO_meth_set_destroy
+
+#define BIO_TYPE_DESCRIPTOR        WOLFSSL_BIO_TYPE_DESCRIPTOR
+#define BIO_TYPE_SOURCE_SINK       WOLFSSL_BIO_TYPE_SOURCE_SINK
+#define BIO_TYPE_START             WOLFSSL_BIO_TYPE_START
+
+/* Like OpenSSL, back app_data with BIO ex_data slot 0 so it does not share
+ * storage with BIO_get_data()/BIO_set_data(). Left undefined without
+ * HAVE_EX_DATA so use of app_data fails loudly at compile time. */
+#ifdef HAVE_EX_DATA
+#define BIO_get_app_data(bio)       wolfSSL_BIO_get_ex_data((bio), 0)
+#define BIO_set_app_data(bio, data) wolfSSL_BIO_set_ex_data((bio), 0, (data))
+#endif
+
+#define BIO_get_new_index          wolfSSL_BIO_get_new_index
+#define BIO_meth_get_gets          wolfSSL_BIO_meth_get_gets
+#define BIO_meth_get_puts          wolfSSL_BIO_meth_get_puts
+#define BIO_meth_get_ctrl          wolfSSL_BIO_meth_get_ctrl
+#define BIO_meth_get_create        wolfSSL_BIO_meth_get_create
+#define BIO_meth_get_destroy       wolfSSL_BIO_meth_get_destroy
+#define BIO_meth_get_callback_ctrl wolfSSL_BIO_meth_get_callback_ctrl
+#define BIO_meth_set_callback_ctrl wolfSSL_BIO_meth_set_callback_ctrl
 
 #define BIO_snprintf               XSNPRINTF
 

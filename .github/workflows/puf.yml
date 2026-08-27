@@ -18,18 +18,49 @@ permissions:
 
 jobs:
   puf_host_test:
-    name: PUF host test
+    name: PUF host test (${{ matrix.config }})
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 6
+    strategy:
+      fail-fast: false
+      matrix:
+        # Cover every shipped BCH profile (t=7/10/13/15) and a non-default
+        # codeword count so the profile-specific genpoly, parity register and
+        # bit-packed paths are all built and exercised, not just t=10.
+        config:
+          - "--enable-puf --enable-puf-test"
+          - "--enable-puf=small --enable-puf-test"
+          - "--enable-puf=strong --enable-puf-test"
+          - "--enable-puf=strongest --enable-puf-test"
+          - "--enable-puf --enable-puf-test CPPFLAGS=-DWC_PUF_NUM_CODEWORDS=32"
+          # Odd codeword count: every other entry has k*codewords a multiple
+          # of 8, so the byte-rounded tails of stableBits/helperData carry no
+          # padding and the copyBits trailing-bit branch never runs. 3 x k=78
+          # (234 bits) and 3 x n=127 (381 bits) both leave pad bits.
+          - "--enable-puf=small --enable-puf-test CPPFLAGS=-DWC_PUF_NUM_CODEWORDS=3"
+          # Opt-in compact helper layout (parity bits only).
+          - "--enable-puf=strong --enable-puf-test CPPFLAGS=-DWC_PUF_HELPER_COMPACT"
+          # Non-default readout health-test band. puf_test() derives the
+          # expected verdict from the configured band, and two of its bias
+          # fixtures (~25% and ~72% ones) sit between this band and the
+          # 35/65 default, so they are rejected there and accepted here:
+          # the entry exercises the tunable path rather than just building
+          # it. WOLFSSL_PUF_TEST_BAND_WIDE makes puf_test() pin these exact
+          # percentages, so a misspelled or mistyped band -D is a build
+          # failure here instead of a green run against some other band.
+          - "--enable-puf --enable-puf-test CPPFLAGS=\"-DWC_PUF_HW_MIN_PCT=20 -DWC_PUF_HW_MAX_PCT=80 -DWOLFSSL_PUF_TEST_BAND_WIDE\""
     steps:
       - uses: actions/checkout@v5
         name: Checkout wolfSSL
 
+      - name: Validate BCH generator polynomials against puf.c
+        run: python3 scripts/puf_bch_genpoly.py --check
+
       - name: Build and test PUF
         run: |
           ./autogen.sh
-          ./configure --enable-puf --enable-puf-test
+          ./configure ${{ matrix.config }}
           make
           ./wolfcrypt/test/testwolfcrypt
 
@@ -39,3 +70,34 @@ jobs:
           if [ -f test-suite.log ] ; then
             cat test-suite.log
           fi
+
+  puf_cmake_options:
+    name: PUF CMake options.h propagation
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v5
+        name: Checkout wolfSSL
+
+      # wc_PufCtx is sized from these macros, so if a profile fails to reach
+      # the generated options.h the application and library disagree on
+      # sizeof(wc_PufCtx). Assert they are actually emitted.
+      - name: Configure with a non-default profile
+        run: |
+          cmake -S . -B build_puf -DWOLFSSL_PUF=yes \
+              -DWOLFSSL_PUF_PROFILE=strong \
+              -DWOLFSSL_PUF_NUM_CODEWORDS=32 \
+              -DWOLFSSL_PUF_HW_MIN_PCT=20 \
+              -DWOLFSSL_PUF_HW_MAX_PCT=80
+
+      - name: Assert profile reached options.h
+        run: |
+          grep -q '^#define WC_PUF_BCH_T 13$' build_puf/wolfssl/options.h
+          grep -q '^#define WC_PUF_NUM_CODEWORDS 32$' build_puf/wolfssl/options.h
+          grep -q '^#define WC_PUF_HW_MIN_PCT 20$' build_puf/wolfssl/options.h
+          grep -q '^#define WC_PUF_HW_MAX_PCT 80$' build_puf/wolfssl/options.h
+          grep -q '^#define WOLFSSL_PUF$' build_puf/wolfssl/options.h
+
+      - name: Build
+        run: cmake --build build_puf -j

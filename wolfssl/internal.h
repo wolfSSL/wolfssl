@@ -129,6 +129,9 @@
 #ifdef WOLFSSL_HAVE_MLDSA
     #include <wolfssl/wolfcrypt/wc_mldsa.h>
 #endif
+#ifdef WOLFSSL_HAVE_SLHDSA
+    #include <wolfssl/wolfcrypt/wc_slhdsa.h>
+#endif
 #ifdef HAVE_HKDF
     #include <wolfssl/wolfcrypt/kdf.h>
 #endif
@@ -216,6 +219,17 @@
 
 #ifdef __cplusplus
     extern "C" {
+#endif
+
+/* ML-KEM client support requires generating a key pair (encapsulation key) and
+ * decapsulating the server's ciphertext. */
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
+    #define WOLFSSL_HAVE_MLKEM_CLIENT_SUPPORT
+#endif
+/* ML-KEM server support requires encapsulating to the client's key. */
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE)
+    #define WOLFSSL_HAVE_MLKEM_SERVER_SUPPORT
 #endif
 
 /* Define or comment out the cipher suites you'd like to be compiled in
@@ -851,7 +865,10 @@
 #if !defined(WOLFCRYPT_ONLY) && defined(NO_PSK) && \
     (defined(NO_DH) || !defined(HAVE_ANON)) && \
     defined(NO_RSA) && !defined(HAVE_ECC) && \
-    !defined(HAVE_ED25519) && !defined(HAVE_ED448)
+    !defined(HAVE_ED25519) && !defined(HAVE_ED448) && \
+    (!defined(WOLFSSL_TLS13) || \
+     (!defined(HAVE_FALCON) && !defined(WOLFSSL_HAVE_MLDSA) && \
+      !defined(WOLFSSL_HAVE_SLHDSA)))
    #error "No cipher suites available with this build"
 #endif
 
@@ -1801,6 +1818,23 @@ enum Misc {
     MLDSA_87_SA_MAJOR = 0x09,
     MLDSA_87_SA_MINOR = 0x06,
 
+    /* These values for SLH-DSA correspond to the code points assigned in
+     * draft-reddy-tls-slhdsa (0x0911-0x091C) and match what oqs-provider uses.
+     * The major byte (0x09) is shared with ML-DSA. */
+    SLHDSA_SA_MAJOR             = 0x09,
+    SLHDSA_SHA2_128S_SA_MINOR   = 0x11,
+    SLHDSA_SHA2_128F_SA_MINOR   = 0x12,
+    SLHDSA_SHA2_192S_SA_MINOR   = 0x13,
+    SLHDSA_SHA2_192F_SA_MINOR   = 0x14,
+    SLHDSA_SHA2_256S_SA_MINOR   = 0x15,
+    SLHDSA_SHA2_256F_SA_MINOR   = 0x16,
+    SLHDSA_SHAKE_128S_SA_MINOR  = 0x17,
+    SLHDSA_SHAKE_128F_SA_MINOR  = 0x18,
+    SLHDSA_SHAKE_192S_SA_MINOR  = 0x19,
+    SLHDSA_SHAKE_192F_SA_MINOR  = 0x1A,
+    SLHDSA_SHAKE_256S_SA_MINOR  = 0x1B,
+    SLHDSA_SHAKE_256F_SA_MINOR  = 0x1C,
+
     MIN_RSA_SHA512_PSS_BITS = 512 * 2 + 8 * 8, /* Min key size */
     MIN_RSA_SHA384_PSS_BITS = 384 * 2 + 8 * 8, /* Min key size */
 
@@ -1901,7 +1935,8 @@ WOLFSSL_LOCAL int NamedGroupIsPqcHybrid(int group);
 /* number of items in the signature algo list */
 #ifndef WOLFSSL_MAX_SIGALGO
 #if (defined(WOLFSSL_LEANPSK) || defined(WOLFSSL_LEANTLS)) && \
-    !defined(HAVE_FALCON) && !defined(WOLFSSL_HAVE_MLDSA)
+    !defined(HAVE_FALCON) && !defined(WOLFSSL_HAVE_MLDSA) && \
+    !defined(WOLFSSL_HAVE_SLHDSA)
     /* Lean builds keep the list small to minimize the memory footprint, unless
      * they are post-quantum builds: those want to inter-op with OQS's OpenSSL
      * that sends a lot more sigalgs, so they fall through to the larger default.
@@ -1980,13 +2015,43 @@ WOLFSSL_LOCAL int NamedGroupIsPqcHybrid(int group);
 #define SESSIDX_IDX_MASK  0x0F
 #endif
 
+/* Size of the static per-certificate slot in a cached session's chain. This is
+ * embedded by value MAX_CHAIN_DEPTH times in every WOLFSSL_SESSION, so it is
+ * deliberately not sized from a post-quantum signature: a certificate too
+ * large for a slot is simply not recorded in the chain. Use
+ * MAX_CERT_WIRE_SZ for anything bounding a certificate on the wire. */
 #ifndef MAX_X509_SIZE
-    #if defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA)
-        #define MAX_X509_SIZE   (8*1024) /* max static x509 buffer size; ML-DSA is big */
+    /* 9 KB holds the largest ML-DSA certificate (ML-DSA-87: 4627 byte signature
+     * plus 2592 byte public key, ~7.6 KB in practice) and an ML-DSA-44 dual
+     * algorithm certificate, which carries a second key and signature. Not
+     * derived from the enabled parameter set: the slot holds any certificate in
+     * a peer's chain, so tying it to the local ML-DSA level would make a
+     * level-restricted build silently drop certificates a full build kept. */
+    #if defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) || \
+        defined(WOLFSSL_HAVE_SLHDSA)
+        #define MAX_X509_SIZE   (9*1024) /* max static x509 buffer size; ML-DSA is big */
     #elif defined(WOLFSSL_HAPROXY)
         #define MAX_X509_SIZE   3072 /* max static x509 buffer size */
     #else
         #define MAX_X509_SIZE   2048 /* max static x509 buffer size */
+    #endif
+#endif
+
+/* Largest single certificate that may appear in a handshake message. A
+ * post-quantum certificate's DER size is dominated by the issuer signature
+ * embedded in it, whose length depends on the parameter sets compiled in, plus
+ * headroom for the subject public key (largest is ML-DSA-87 at 2592 bytes) and
+ * the rest of the TBSCertificate. A leaf may be signed by a root of a larger
+ * parameter set, so the signature maximum is taken family-wide. */
+#ifndef MAX_CERT_WIRE_SZ
+    #if defined(WOLFSSL_HAVE_SLHDSA) && \
+        ((WC_SLHDSA_MAX_SIG_LEN + 4096) > MAX_X509_SIZE)
+        #define MAX_CERT_WIRE_SZ    (WC_SLHDSA_MAX_SIG_LEN + 4096)
+    #elif defined(WOLFSSL_HAVE_MLDSA) && \
+        ((MLDSA_MAX_SIG_SIZE + 4096) > MAX_X509_SIZE)
+        #define MAX_CERT_WIRE_SZ    (MLDSA_MAX_SIG_SIZE + 4096)
+    #else
+        #define MAX_CERT_WIRE_SZ    MAX_X509_SIZE
     #endif
 #endif
 
@@ -2011,12 +2076,34 @@ WOLFSSL_LOCAL int NamedGroupIsPqcHybrid(int group);
     #define MAX_CERT_EXTENSIONS 1
 #endif
 
+/* Chain depth assumed when sizing the certificate message. Deliberately not
+ * MAX_CHAIN_DEPTH: that bounds how deep a chain may be verified, while this
+ * sizes a buffer an unauthenticated peer can make us allocate. Only reduced
+ * when a post-quantum certificate has inflated the per-certificate size, where
+ * the full verification depth would reserve hundreds of kilobytes and chains
+ * that deep are not realistic. Classic builds keep the historical depth, since
+ * the resulting buffer is small either way. Raise it for a deployment that
+ * presents deeper chains of post-quantum certificates. */
+#ifndef MAX_CERT_MSG_DEPTH
+    /* Trim only once a single certificate is large enough that the full
+     * verification depth would reserve an unreasonable amount for an
+     * unauthenticated peer. The threshold sits above any classic or ML-DSA
+     * certificate, so those builds keep the historical depth, and the test is
+     * on the size itself rather than on which macro produced it, so raising
+     * MAX_X509_SIZE cannot disengage the trim. */
+    #if (MAX_CERT_WIRE_SZ > (16*1024)) && (MAX_CHAIN_DEPTH > 5)
+        #define MAX_CERT_MSG_DEPTH 5
+    #else
+        #define MAX_CERT_MSG_DEPTH MAX_CHAIN_DEPTH
+    #endif
+#endif
+
 /* max size of a certificate message payload */
-/* assumes MAX_CHAIN_DEPTH number of certificates at 2kb per certificate */
+/* assumes MAX_CERT_MSG_DEPTH certificates of MAX_CERT_WIRE_SZ each */
 #ifndef MAX_CERTIFICATE_SZ
     #define MAX_CERTIFICATE_SZ \
                 (CERT_HEADER_SZ + \
-                (MAX_X509_SIZE + CERT_HEADER_SZ) * MAX_CHAIN_DEPTH)
+                (MAX_CERT_WIRE_SZ + CERT_HEADER_SZ) * MAX_CERT_MSG_DEPTH)
 #endif
 
 /* max size of a handshake message, currently set to the certificate */
@@ -2203,9 +2290,11 @@ WOLFSSL_LOCAL int  CheckVersion(WOLFSSL *ssl, ProtocolVersion pv);
 WOLFSSL_LOCAL int  PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
                                    word32 hashSigAlgoSz, int matchSuites);
 #if defined(WOLF_PRIVATE_KEY_ID) && !defined(NO_CHECK_PRIVATE_KEY)
+/* slhParam is the enum SlhDsaParam for DYNAMIC_TYPE_SLHDSA, whose parameter
+ * set cannot be derived from a device-side identifier. Pass -1 otherwise. */
 WOLFSSL_LOCAL int  CreateDevPrivateKey(void** pkey, byte* data, word32 length,
                                        int hsType, int label, int id,
-                                       void* heap, int devId);
+                                       void* heap, int devId, int slhParam);
 #endif
 #ifdef WOLFSSL_BLIND_PRIVATE_KEY
 WOLFSSL_LOCAL int wolfssl_priv_der_blind(WC_RNG* rng, DerBuffer* key,
@@ -2246,7 +2335,8 @@ WOLFSSL_TEST_VIS int  MatchDomainName(const char* pattern, int len,
 WOLFSSL_LOCAL int  CheckForAltNames(DecodedCert* dCert, const char* domain,
                                     word32 domainLen, int* checkCN,
                                     unsigned int flags, byte isIP);
-WOLFSSL_LOCAL int  CheckIPAddr(DecodedCert* dCert, const char* ipasc);
+WOLFSSL_LOCAL int  CheckIPAddr(DecodedCert* dCert, const char* ipasc,
+                               size_t ipascLen);
 WOLFSSL_LOCAL void CopyDecodedName(WOLFSSL_X509_NAME* name, DecodedCert* dCert, int nameType);
 #endif
 WOLFSSL_LOCAL int  SetupTicket(WOLFSSL* ssl);
@@ -2434,6 +2524,7 @@ WOLFSSL_TEST_VIS void InitSuitesHashSigAlgo(byte* hashSigAlgo, int have,
                                        int tls1_2, int tls1_3, int keySz,
                                        word16* len);
 WOLFSSL_LOCAL int AllocateCtxSuites(WOLFSSL_CTX* ctx);
+WOLFSSL_LOCAL int InitCtxSuitesWithMutex(WOLFSSL_CTX* ctx);
 WOLFSSL_LOCAL int AllocateSuites(WOLFSSL* ssl);
 WOLFSSL_LOCAL void InitSuites(Suites* suites, ProtocolVersion pv, int keySz,
                               word16 haveRSA, word16 havePSK, word16 haveDH,
@@ -2554,9 +2645,16 @@ struct CRL_Entry {
     WOLFSSL_X509_NAME*    issuer;     /* X509_NAME type issuer */
 #endif
     CRL_Entry* next;                      /* next entry */
+#ifdef CRL_STATIC_REVOKED_LIST
+    RevokedCert certs[CRL_MAX_REVOKED_CERTS];
+#else
+    RevokedCert* certs;             /* revoked cert list  */
+#endif
     wolfSSL_Mutex verifyMutex;
-    /* DupCRL_Entry copies data after the `verifyMutex` member. Using the mutex
-     * as the marker because clang-tidy doesn't like taking the sizeof a
+    /* DupCRL_Entry bulk copies the data after the `verifyMutex` member, so
+     * only self-contained value data belongs below it. Anything holding a
+     * pointer goes above, where DupCRL_Entry copies it explicitly. Using the
+     * mutex as the marker because clang-tidy doesn't like taking the sizeof a
      * pointer. */
     char    crlNumber[CRL_MAX_NUM_HEX_STR_SZ];    /* CRL number extension */
     byte    issuerHash[CRL_DIGEST_SIZE];  /* issuer hash                 */
@@ -2569,11 +2667,6 @@ struct CRL_Entry {
 #if defined(OPENSSL_EXTRA)
     WOLFSSL_ASN1_TIME lastDateAsn1;  /* last date updated  */
     WOLFSSL_ASN1_TIME nextDateAsn1;  /* next update date   */
-#endif
-#ifdef CRL_STATIC_REVOKED_LIST
-    RevokedCert certs[CRL_MAX_REVOKED_CERTS];
-#else
-    RevokedCert* certs;             /* revoked cert list  */
 #endif
     int     totalCerts;             /* number on list     */
     int     version;                /* version of certificate */
@@ -3489,8 +3582,7 @@ WOLFSSL_LOCAL int ProcessChainOCSPRequest(WOLFSSL* ssl);
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
 WOLFSSL_LOCAL int CreateOcspRequest(WOLFSSL* ssl, OcspRequest* request,
-                             DecodedCert* cert, byte* certData, word32 length,
-                             byte *ctxOwnsRequest);
+                             DecodedCert* cert, byte* certData, word32 length);
 #endif
 /** Certificate Status Request v2 - RFC 6961 */
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
@@ -3611,6 +3703,11 @@ typedef struct SecureRenegotiation {
    WC_BITFIELD          renegInfoSeen:1; /* renegotiation_info ext seen this
                                           * handshake (RFC 5746 3.7) */
    WC_BITFIELD          subject_hash_set:1; /* if peer cert hash is set */
+#ifdef HAVE_SECURE_RENEGOTIATION
+   WC_BITFIELD          advertiseOnly:1; /* extension advertised for the RFC
+                                          * 5746 initial-handshake check only;
+                                          * refuse peer-initiated renegotiation */
+#endif
    enum key_cache_state cache_status;  /* track key cache state */
    byte                 client_verify_data[TLS_FINISHED_SZ];  /* cached */
    byte                 server_verify_data[TLS_FINISHED_SZ];  /* cached */
@@ -3623,6 +3720,8 @@ WOLFSSL_LOCAL int TLSX_UseSecureRenegotiation(TLSX** extensions, void* heap);
 #ifdef HAVE_SERVER_RENEGOTIATION_INFO
 WOLFSSL_LOCAL int TLSX_AddEmptyRenegotiationInfo(TLSX** extensions, void* heap);
 #endif
+
+WOLFSSL_LOCAL int SetupClientSecureRenegotiation(WOLFSSL* ssl);
 
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
@@ -3801,6 +3900,23 @@ int TLSX_EncryptThenMac_Respond(WOLFSSL* ssl);
 #endif
 
 #ifdef WOLFSSL_TLS13
+
+/* Cookie support is mandatory per RFC 8446 9.2 */
+#if !defined(NO_WOLFSSL_CLIENT) || defined(WOLFSSL_SEND_HRR_COOKIE)
+    #define WOLFSSL_TLS13_COOKIE
+#endif
+
+/* Largest cookie a client stores from a HelloRetryRequest to echo back in the
+ * second ClientHello. RFC 8446 4.2.2 allows up to 2^16-1 bytes, but the cookie
+ * sits inside an extension body of that same size, so its own two byte length
+ * prefix leaves 65533. */
+#ifndef WOLFSSL_MAX_TLS13_COOKIE_SZ
+    #define WOLFSSL_MAX_TLS13_COOKIE_SZ 4096
+#endif
+#if WOLFSSL_MAX_TLS13_COOKIE_SZ > 65533
+    #error "WOLFSSL_MAX_TLS13_COOKIE_SZ must be <= 65533"
+#endif
+
 /* Cookie extension information - cookie data. */
 typedef struct Cookie {
     word16 len;
@@ -3862,6 +3978,9 @@ WOLFSSL_LOCAL int TLSX_KeyShare_Parse_ClientHello(const WOLFSSL* ssl,
 WOLFSSL_LOCAL int TLSX_KeyShare_HandlePqcHybridKeyServer(WOLFSSL* ssl,
         KeyShareEntry* keyShareEntry, byte* data, word16 len);
 #ifdef WOLFSSL_DUAL_ALG_CERTS
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define TLSX_CKS_Parse wolfSSL_TLSX_CKS_Parse
+#endif
 WOLFSSL_TEST_VIS int TLSX_CKS_Parse(WOLFSSL* ssl, byte* input,
                                  word16 length, TLSX** extensions);
 WOLFSSL_LOCAL int TLSX_CKS_Set(WOLFSSL* ssl, TLSX** extensions);
@@ -4107,6 +4226,7 @@ struct WOLFSSL_CTX {
     byte        haveECDSAsig:1;   /* server cert signed w/ ECDSA */
     byte        haveFalconSig:1;  /* server cert signed w/ Falcon */
     byte        haveMlDsaSig:1;   /* server cert signed w/ ML-DSA */
+    byte        haveSlhDsaSig:1;  /* server cert signed w/ SLH-DSA */
     byte        haveStaticECC:1;  /* static server ECC private key */
     byte        partialWrite:1;   /* only one msg per write call */
     byte        autoRetry:1;      /* retry read/write on a WANT_{READ|WRITE} */
@@ -4147,6 +4267,13 @@ struct WOLFSSL_CTX {
 #endif
 #if defined(HAVE_SECURE_RENEGOTIATION) || defined(HAVE_SERVER_RENEGOTIATION_INFO)
     byte        useSecureReneg:1; /* when set will set WOLFSSL objects generated to enable */
+#endif
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_SERVER_RENEGOTIATION_INFO) && \
+    !defined(WOLFSSL_HARDEN_TLS_NO_SCR_CHECK)
+    byte        scr_check_enabled:1; /* require server renegotiation_info on the
+                                      * initial handshake (RFC 5746/9325);
+                                      * inherited by WOLFSSL objects */
 #endif
 #ifdef HAVE_ENCRYPT_THEN_MAC
     byte        disallowEncThenMac:1;  /* Don't do Encrypt-Then-MAC */
@@ -4254,7 +4381,8 @@ struct WOLFSSL_CTX {
     word16          eccTempKeySz;       /* in octets 20 - 66 */
 #endif
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
-    defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA)
+    defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) || \
+    defined(WOLFSSL_HAVE_SLHDSA)
     word32          pkCurveOID;         /* curve Ecc_Sum */
 #endif
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
@@ -4275,6 +4403,16 @@ struct WOLFSSL_CTX {
 #endif
 #ifdef WOLFSSL_EARLY_DATA
     word32          maxEarlyDataSz;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && !defined(NO_TLS)
+    /* RFC 8446 Section 8.2: reject 0-RTT for tickets minted before this
+     * context was created. */
+#ifdef WOLFSSL_32BIT_MILLI_TIME
+    word32          ticketStartTime;    /* Ctx creation time (ms) */
+#else
+    sword64         ticketStartTime;    /* Ctx creation time (ms) */
+#endif
+    byte            noFreshStartCheck:1; /* Skip the fresh start check */
+#endif
 #endif
 #ifdef HAVE_ANON
     byte        useAnon;               /* User wants to allow Anon suites */
@@ -4581,9 +4719,10 @@ enum KeyExchangeAlgorithm {
 #define SIG_FALCON      0x08
 #define SIG_MLDSA       0x10
 #define SIG_ANON        0x20
+#define SIG_SLHDSA      0x40
 /* SIG_ANON is omitted by default */
 #define SIG_ALL         (SIG_ECDSA | SIG_RSA | SIG_SM2 | SIG_FALCON | \
-                         SIG_MLDSA)
+                         SIG_MLDSA | SIG_SLHDSA)
 
 /* Supported Authentication Schemes */
 enum SignatureAlgorithm {
@@ -4603,6 +4742,18 @@ enum SignatureAlgorithm {
     sm2_sa_algo                  = 17,
     any_sa_algo                  = 18,
     ecc_brainpool_sa_algo        = 19,
+    slhdsa_sha2_128s_sa_algo     = 20,
+    slhdsa_sha2_128f_sa_algo     = 21,
+    slhdsa_sha2_192s_sa_algo     = 22,
+    slhdsa_sha2_192f_sa_algo     = 23,
+    slhdsa_sha2_256s_sa_algo     = 24,
+    slhdsa_sha2_256f_sa_algo     = 25,
+    slhdsa_shake_128s_sa_algo    = 26,
+    slhdsa_shake_128f_sa_algo    = 27,
+    slhdsa_shake_192s_sa_algo    = 28,
+    slhdsa_shake_192f_sa_algo    = 29,
+    slhdsa_shake_256s_sa_algo    = 30,
+    slhdsa_shake_256f_sa_algo    = 31,
     invalid_sa_algo              = 255
 };
 
@@ -5095,6 +5246,25 @@ typedef struct ThreadCrypt {
 
 #endif
 
+/* Streamed TLS 1.3 CertificateVerify send. When the CertificateVerify body
+ * (the signature) does not fit in a single record - a post-quantum signature
+ * such as SLH-DSA or ML-DSA, or any signature under a small
+ * max_fragment_length - it is generated once into a connection-level buffer and
+ * emitted one record at a time, so the output buffer never has to hold the
+ * whole signature. The assembled body must be held at the connection level
+ * (not on the stack) because these signatures are randomized: a non-blocking
+ * WANT_WRITE can return control mid-send, and the records already sent are
+ * bound into the transcript, so the resumed send must continue emitting the
+ * exact same signature - it cannot be regenerated. This is algorithm-neutral;
+ * it applies to any signature scheme whose CertificateVerify can exceed a
+ * record. It is not used with WOLFSSL_ASYNC_CRYPT, whose record-AEAD pends are
+ * handled by the existing in-place fragmented path. */
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_ASYNC_CRYPT) && \
+    (defined(WOLFSSL_HAVE_SLHDSA) || defined(WOLFSSL_HAVE_MLDSA) || \
+     defined(HAVE_FALCON))
+    #define WOLFSSL_TLS13_STREAM_CERT_VERIFY
+#endif
+
 /* buffers for struct WOLFSSL */
 typedef struct Buffers {
     bufferStatic    inputBuffer;
@@ -5156,11 +5326,22 @@ typedef struct Buffers {
 #endif
 #ifdef WOLFSSL_SEND_HRR_COOKIE
     buffer          tls13CookieSecret;     /* HRR cookie secret */
+    /* Secondary HRR cookie secret, used only when verifying a cookie if the
+     * primary secret fails.  Lets a stateless DTLS 1.3 server keep accepting
+     * cookies issued under the secret it had before an application-driven
+     * rotation.  DTLS only - never used to issue cookies. */
+    buffer          tls13CookieSecretSecondary;
 #endif
 #ifdef WOLFSSL_DTLS
     WOLFSSL_DTLS_CTX dtlsCtx;              /* DTLS connection context */
     #ifndef NO_WOLFSSL_SERVER
         buffer       dtlsCookieSecret;     /* DTLS cookie secret */
+        /* Secondary DTLS 1.2 cookie secret, used only when verifying a
+         * received HelloVerifyRequest cookie if the primary secret fails.
+         * Lets a stateless server keep accepting cookies issued under the
+         * secret it had before an application-driven rotation.  Never used to
+         * issue cookies. */
+        buffer       dtlsCookieSecretSecondary;
     #endif /* NO_WOLFSSL_SERVER */
 #endif
 #ifdef HAVE_PK_CALLBACKS
@@ -5177,6 +5358,13 @@ typedef struct Buffers {
         buffer peerRsaKey;                 /* we own for Rsa Verify Callbacks */
     #endif /* NO_RSA */
 #endif /* HAVE_PK_CALLBACKS */
+#ifdef WOLFSSL_TLS13_STREAM_CERT_VERIFY
+    /* Assembled TLS 1.3 CertificateVerify body (sig-alg | length | signature)
+     * held across records while it is streamed, so a non-blocking WANT_WRITE
+     * can resume the send without recomputing the signature. NULL when idle;
+     * freed by wolfSSL_ResourceFree. See WOLFSSL_TLS13_STREAM_CERT_VERIFY. */
+    buffer          certVerifyMsg;
+#endif
 } Buffers;
 
 /* sub-states for send/do key share (key exchange) */
@@ -5273,6 +5461,7 @@ struct Options {
     word16            haveStaticECC:1;    /* static server ECC private key */
     word16            haveFalconSig:1;    /* server Falcon signed cert */
     word16            haveMlDsaSig:1;     /* server ML-DSA signed cert */
+    word16            haveSlhDsaSig:1;    /* server SLH-DSA signed cert */
     word16            havePeerCert:1;     /* do we have peer's cert */
     word16            havePeerVerify:1;   /* and peer's cert verify */
     word16            usingPSK_cipher:1;  /* are using psk as cipher */
@@ -5306,6 +5495,9 @@ struct Options {
     word16            noTicketTls12:1;    /* TLS 1.2 server won't send ticket */
 #ifdef WOLFSSL_TLS13
     word16            noTicketTls13:1;    /* Server won't create new Ticket */
+#ifdef WOLFSSL_EARLY_DATA
+    word16            ticketPredatesCtx:1; /* PSK ticket minted before ctx */
+#endif
 #endif
 #endif
 #ifdef WOLFSSL_DTLS
@@ -5397,7 +5589,7 @@ struct Options {
     word16            cookieGood:1;
 #endif
 #ifdef WOLFSSL_TLS13
-#ifdef WOLFSSL_SEND_HRR_COOKIE
+#ifdef WOLFSSL_TLS13_COOKIE
     word16            hrrSentCookie:1;    /* HRR sent with cookie */
 #endif
     word16            hrrSentKeyShare:1;  /* HRR sent with key share */
@@ -5416,6 +5608,10 @@ struct Options {
 
 #ifdef WOLFSSL_EARLY_DATA
     word16            clientInEarlyData:1; /* Client is in wolfSSL_read_early_data */
+#endif
+#if defined(WOLFSSL_TLS13) && !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
+    word16            peerSha1CertOk:1;   /* Peer advertised a SHA-1 signature
+                                           * scheme for certificates */
 #endif
 #ifdef WOLFSSL_DTLS
     byte              haveMcast;          /* using multicast ? */
@@ -5681,7 +5877,8 @@ struct WOLFSSL_X509 {
     int              pubKeyOID;
     DNS_entry*       altNamesNext;                   /* hint for retrieval */
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
-    defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA)
+    defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) || \
+    defined(WOLFSSL_HAVE_SLHDSA)
     word32       pkCurveOID;
 #endif
 #ifndef NO_CERTS
@@ -6023,6 +6220,9 @@ typedef struct BuildMsgArgs {
         byte postHandshakeSendVerify;    /* ssl->options.sendVerify */
         byte postHandshakeSigAlgo;       /* ssl->options.sigAlgo */
         byte postHandshakeHashAlgo;      /* ssl->options.hashAlgo */
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
+        byte postHandshakeSha1CertOk;    /* ssl->options.peerSha1CertOk */
+#endif
         /* After the write side sends the PHA response, it stores its updated
          * transcript here so the read side can resume from it on the next
          * CertificateRequest (keeps client/server transcript in sync). */
@@ -6143,6 +6343,11 @@ typedef struct Dtls13Epoch {
 
 #ifndef DTLS13_EPOCH_SIZE
 #define DTLS13_EPOCH_SIZE 4
+#endif
+
+/* our epoch, peer epoch, peer epoch - 1 and a free slot for a new epoch */
+#if DTLS13_EPOCH_SIZE < 4
+#error "DTLS13_EPOCH_SIZE must be at least 4"
 #endif
 
 #ifndef DTLS13_RETRANS_RN_SIZE
@@ -6411,7 +6616,8 @@ struct WOLFSSL {
 #endif
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || \
     defined(HAVE_CURVE448) || defined(HAVE_ED448) || \
-    defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA)
+    defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) || \
+    defined(WOLFSSL_HAVE_SLHDSA)
     word32          pkCurveOID;              /* curve Ecc_Sum     */
 #endif
 #ifdef HAVE_ED25519
@@ -6437,6 +6643,10 @@ struct WOLFSSL {
 #ifdef WOLFSSL_HAVE_MLDSA
     wc_MlDsaKey*    peerMlDsaKey;
     byte            peerMlDsaKeyPresent;
+#endif
+#ifdef WOLFSSL_HAVE_SLHDSA
+    SlhDsaKey*      peerSlhDsaKey;
+    byte            peerSlhDsaKeyPresent;
 #endif
 #ifdef HAVE_LIBZ
     z_stream        c_stream;           /* compression   stream */
@@ -6786,7 +6996,8 @@ struct WOLFSSL {
     int secLevel; /* The security level of system-wide crypto policy. */
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12) && \
-    defined(WOLFSSL_HARDEN_TLS) && !defined(WOLFSSL_HARDEN_TLS_NO_SCR_CHECK)
+    defined(HAVE_SERVER_RENEGOTIATION_INFO) && \
+    !defined(WOLFSSL_HARDEN_TLS_NO_SCR_CHECK)
     WC_BITFIELD          scr_check_enabled:1;  /* enable/disable SCR check */
 #endif
 #ifdef HAVE_WRITE_DUP
@@ -7045,7 +7256,7 @@ WOLFSSL_LOCAL int SendCertificateRequest(WOLFSSL* ssl);
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
  || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
 WOLFSSL_LOCAL int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
-                       buffer* response);
+                       buffer* response, byte* ctxOwnsRequest);
 #endif
 #if defined(HAVE_SECURE_RENEGOTIATION) && \
     !defined(NO_WOLFSSL_SERVER)
@@ -7285,6 +7496,10 @@ WOLFSSL_LOCAL word32 MacSize(const WOLFSSL* ssl);
                                                 word32 fragOffset);
     WOLFSSL_LOCAL int  VerifyForTxDtlsMsgDelete(WOLFSSL* ssl, DtlsMsg* item);
     WOLFSSL_LOCAL void DtlsMsgPoolReset(WOLFSSL* ssl);
+    WOLFSSL_LOCAL int  wolfssl_local_SockAddrSet(WOLFSSL_SOCKADDR* sockAddr,
+                                                 void* peer,
+                                                 unsigned int peerSz,
+                                                 void* heap);
     WOLFSSL_LOCAL int  DtlsMsgPoolSend(WOLFSSL* ssl, int sendOnlyFirstPacket);
     WOLFSSL_LOCAL void DtlsMsgDestroyFragBucket(DtlsFragBucket* fragBucket, void* heap);
     WOLFSSL_LOCAL int GetDtlsHandShakeHeader(WOLFSSL *ssl, const byte *input,
@@ -7333,6 +7548,12 @@ WOLFSSL_LOCAL int FindSuite(const Suites* suites, byte first, byte second);
 
 WOLFSSL_LOCAL void DecodeSigAlg(const byte* input, byte* hashAlgo,
         byte* hsType);
+#ifdef WOLFSSL_HAVE_SLHDSA
+WOLFSSL_LOCAL byte SlhDsaSigMinorToType(byte minor);
+WOLFSSL_LOCAL int SlhDsaTypeToParam(byte hsType);
+WOLFSSL_LOCAL int IsSlhDsaSigAlgo(byte hsType);
+WOLFSSL_LOCAL byte SlhDsaParamToType(int param);
+#endif
 WOLFSSL_LOCAL enum wc_HashType HashAlgoToType(int hashAlgo);
 
 #ifndef NO_CERTS
@@ -7342,6 +7563,7 @@ WOLFSSL_LOCAL enum wc_HashType HashAlgoToType(int hashAlgo);
     WOLFSSL_LOCAL void InitX509(WOLFSSL_X509* x509, int dynamicFlag,
                                 void* heap);
     WOLFSSL_LOCAL void FreeX509(WOLFSSL_X509* x509);
+    WOLFSSL_LOCAL void ReinitX509(WOLFSSL_X509* x509);
     #ifndef NO_ASN
     WOLFSSL_LOCAL int  CopyDecodedToX509(WOLFSSL_X509* x509,
                                          DecodedCert* dCert);
@@ -7544,6 +7766,7 @@ WOLFSSL_LOCAL void DtlsSetSeqNumForReply(WOLFSSL* ssl);
 #ifdef WOLFSSL_DTLS13
     #ifdef WOLFSSL_API_PREFIX_MAP
         #define Dtls13GetEpoch wolfSSL_Dtls13GetEpoch
+        #define Dtls13NewEpoch wolfSSL_Dtls13NewEpoch
         #define Dtls13CheckEpoch wolfSSL_Dtls13CheckEpoch
         #define Dtls13HandshakeRecv wolfSSL_Dtls13HandshakeRecv
         #define Dtls13WriteAckMessage wolfSSL_Dtls13WriteAckMessage
@@ -7555,7 +7778,7 @@ WOLFSSL_TEST_VIS struct Dtls13Epoch* Dtls13GetEpoch(WOLFSSL* ssl,
     w64wrapper epochNumber);
 WOLFSSL_LOCAL void Dtls13SetOlderEpochSide(WOLFSSL* ssl, w64wrapper epochNumber,
     int side);
-WOLFSSL_LOCAL int Dtls13NewEpoch(WOLFSSL* ssl, w64wrapper epochNumber,
+WOLFSSL_TEST_VIS int Dtls13NewEpoch(WOLFSSL* ssl, w64wrapper epochNumber,
     int side);
 WOLFSSL_LOCAL int Dtls13SetEpochKeys(WOLFSSL* ssl, w64wrapper epochNumber,
     enum encrypt_side side);

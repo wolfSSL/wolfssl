@@ -43,15 +43,24 @@
 #endif /* HAVE_INTEL_AVX512 */
 #endif /* NO_AVX512_SUPPORT */
 
+#ifndef NO_AVX512_SUPPORT
+#ifndef NO_AVX512_IFMA_SUPPORT
+#ifndef HAVE_INTEL_AVX512_IFMA
+#define HAVE_INTEL_AVX512_IFMA
+#endif /* HAVE_INTEL_AVX512_IFMA */
+#endif /* NO_AVX512_IFMA_SUPPORT */
+#endif /* NO_AVX512_SUPPORT */
 #ifndef __APPLE__
 .text
 .globl	fe_init
+WC_ASM_ATT_HIDDEN(fe_init)
 .type	fe_init,@function
 .align	16
 fe_init:
 #else
 .section	__TEXT,__text
 .globl	_fe_init
+WC_ASM_ATT_HIDDEN(_fe_init)
 .p2align	4
 _fe_init:
 #endif /* __APPLE__ */
@@ -295,6 +304,74 @@ L_fe_init_get_flags:
         movq	%rax, _sc_muladd_p(%rip)
 #endif /* __APPLE__ */
 #endif /* HAVE_ED25519 */
+#ifdef HAVE_INTEL_AVX512_IFMA
+#ifndef __APPLE__
+        movq	intelFlags@GOTPCREL(%rip), %rax
+        movl	(%rax), %eax
+#else
+        movl	_intelFlags(%rip), %eax
+#endif /* __APPLE__ */
+        andl	$0x30800, %eax
+        cmpl	$0x30800, %eax
+        jne	L_fe_init_flags_done
+#ifndef __APPLE__
+        movq	curve25519_avx512_ifma@GOTPCREL(%rip), %rax
+#else
+        leaq	_curve25519_avx512_ifma(%rip), %rax
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+        movq	curve25519_p@GOTPCREL(%rip), %rdx
+        movq	%rax, (%rdx)
+#else
+        movq	%rax, _curve25519_p(%rip)
+#endif /* __APPLE__ */
+#if defined(WOLFSSL_CURVE25519_NOT_USE_ED25519)
+#ifndef __APPLE__
+        movq	curve25519_base_avx512_ifma@GOTPCREL(%rip), %rax
+#else
+        leaq	_curve25519_base_avx512_ifma(%rip), %rax
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+        movq	curve25519_base_p@GOTPCREL(%rip), %rdx
+        movq	%rax, (%rdx)
+#else
+        movq	%rax, _curve25519_base_p(%rip)
+#endif /* __APPLE__ */
+#endif /* WOLFSSL_CURVE25519_NOT_USE_ED25519 */
+#ifndef __APPLE__
+        movq	intelFlags@GOTPCREL(%rip), %rax
+        movl	(%rax), %eax
+#else
+        movl	_intelFlags(%rip), %eax
+#endif /* __APPLE__ */
+        andl	$0x72800, %eax
+        cmpl	$0x72800, %eax
+        jne	L_fe_init_flags_done
+#ifndef __APPLE__
+        movq	curve25519_avx512_ifma_dq@GOTPCREL(%rip), %rax
+#else
+        leaq	_curve25519_avx512_ifma_dq(%rip), %rax
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+        movq	curve25519_p@GOTPCREL(%rip), %rdx
+        movq	%rax, (%rdx)
+#else
+        movq	%rax, _curve25519_p(%rip)
+#endif /* __APPLE__ */
+#if defined(WOLFSSL_CURVE25519_NOT_USE_ED25519)
+#ifndef __APPLE__
+        movq	curve25519_base_avx512_ifma_dq@GOTPCREL(%rip), %rax
+#else
+        leaq	_curve25519_base_avx512_ifma_dq(%rip), %rax
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+        movq	curve25519_base_p@GOTPCREL(%rip), %rdx
+        movq	%rax, (%rdx)
+#else
+        movq	%rax, _curve25519_base_p(%rip)
+#endif /* __APPLE__ */
+#endif /* WOLFSSL_CURVE25519_NOT_USE_ED25519 */
+#endif /* HAVE_INTEL_AVX512_IFMA */
 L_fe_init_flags_done:
 #ifndef __APPLE__
         movq	cpuFlagsSet@GOTPCREL(%rip), %rdx
@@ -310,12 +387,14 @@ L_fe_init_flags_done:
 #ifndef __APPLE__
 .text
 .globl	fe_frombytes
+WC_ASM_ATT_HIDDEN(fe_frombytes)
 .type	fe_frombytes,@function
 .align	16
 fe_frombytes:
 #else
 .section	__TEXT,__text
 .globl	_fe_frombytes
+WC_ASM_ATT_HIDDEN(_fe_frombytes)
 .p2align	4
 _fe_frombytes:
 #endif /* __APPLE__ */
@@ -336,12 +415,14 @@ _fe_frombytes:
 #ifndef __APPLE__
 .text
 .globl	fe_tobytes
+WC_ASM_ATT_HIDDEN(fe_tobytes)
 .type	fe_tobytes,@function
 .align	16
 fe_tobytes:
 #else
 .section	__TEXT,__text
 .globl	_fe_tobytes
+WC_ASM_ATT_HIDDEN(_fe_tobytes)
 .p2align	4
 _fe_tobytes:
 #endif /* __APPLE__ */
@@ -376,12 +457,14 @@ _fe_tobytes:
 #ifndef __APPLE__
 .text
 .globl	fe_1
+WC_ASM_ATT_HIDDEN(fe_1)
 .type	fe_1,@function
 .align	16
 fe_1:
 #else
 .section	__TEXT,__text
 .globl	_fe_1
+WC_ASM_ATT_HIDDEN(_fe_1)
 .p2align	4
 _fe_1:
 #endif /* __APPLE__ */
@@ -397,12 +480,14 @@ _fe_1:
 #ifndef __APPLE__
 .text
 .globl	fe_0
+WC_ASM_ATT_HIDDEN(fe_0)
 .type	fe_0,@function
 .align	16
 fe_0:
 #else
 .section	__TEXT,__text
 .globl	_fe_0
+WC_ASM_ATT_HIDDEN(_fe_0)
 .p2align	4
 _fe_0:
 #endif /* __APPLE__ */
@@ -418,12 +503,14 @@ _fe_0:
 #ifndef __APPLE__
 .text
 .globl	fe_copy
+WC_ASM_ATT_HIDDEN(fe_copy)
 .type	fe_copy,@function
 .align	16
 fe_copy:
 #else
 .section	__TEXT,__text
 .globl	_fe_copy
+WC_ASM_ATT_HIDDEN(_fe_copy)
 .p2align	4
 _fe_copy:
 #endif /* __APPLE__ */
@@ -443,12 +530,14 @@ _fe_copy:
 #ifndef __APPLE__
 .text
 .globl	fe_sub
+WC_ASM_ATT_HIDDEN(fe_sub)
 .type	fe_sub,@function
 .align	16
 fe_sub:
 #else
 .section	__TEXT,__text
 .globl	_fe_sub
+WC_ASM_ATT_HIDDEN(_fe_sub)
 .p2align	4
 _fe_sub:
 #endif /* __APPLE__ */
@@ -481,12 +570,14 @@ _fe_sub:
 #ifndef __APPLE__
 .text
 .globl	fe_add
+WC_ASM_ATT_HIDDEN(fe_add)
 .type	fe_add,@function
 .align	16
 fe_add:
 #else
 .section	__TEXT,__text
 .globl	_fe_add
+WC_ASM_ATT_HIDDEN(_fe_add)
 .p2align	4
 _fe_add:
 #endif /* __APPLE__ */
@@ -520,12 +611,14 @@ _fe_add:
 #ifndef __APPLE__
 .text
 .globl	fe_neg
+WC_ASM_ATT_HIDDEN(fe_neg)
 .type	fe_neg,@function
 .align	16
 fe_neg:
 #else
 .section	__TEXT,__text
 .globl	_fe_neg
+WC_ASM_ATT_HIDDEN(_fe_neg)
 .p2align	4
 _fe_neg:
 #endif /* __APPLE__ */
@@ -548,12 +641,14 @@ _fe_neg:
 #ifndef __APPLE__
 .text
 .globl	fe_cmov
+WC_ASM_ATT_HIDDEN(fe_cmov)
 .type	fe_cmov,@function
 .align	16
 fe_cmov:
 #else
 .section	__TEXT,__text
 .globl	_fe_cmov
+WC_ASM_ATT_HIDDEN(_fe_cmov)
 .p2align	4
 _fe_cmov:
 #endif /* __APPLE__ */
@@ -577,12 +672,14 @@ _fe_cmov:
 #ifndef __APPLE__
 .text
 .globl	fe_isnonzero
+WC_ASM_ATT_HIDDEN(fe_isnonzero)
 .type	fe_isnonzero,@function
 .align	16
 fe_isnonzero:
 #else
 .section	__TEXT,__text
 .globl	_fe_isnonzero
+WC_ASM_ATT_HIDDEN(_fe_isnonzero)
 .p2align	4
 _fe_isnonzero:
 #endif /* __APPLE__ */
@@ -616,12 +713,14 @@ _fe_isnonzero:
 #ifndef __APPLE__
 .text
 .globl	fe_isnegative
+WC_ASM_ATT_HIDDEN(fe_isnegative)
 .type	fe_isnegative,@function
 .align	16
 fe_isnegative:
 #else
 .section	__TEXT,__text
 .globl	_fe_isnegative
+WC_ASM_ATT_HIDDEN(_fe_isnegative)
 .p2align	4
 _fe_isnegative:
 #endif /* __APPLE__ */
@@ -646,12 +745,14 @@ _fe_isnegative:
 #ifndef __APPLE__
 .text
 .globl	fe_cmov_table
+WC_ASM_ATT_HIDDEN(fe_cmov_table)
 .type	fe_cmov_table,@function
 .align	16
 fe_cmov_table:
 #else
 .section	__TEXT,__text
 .globl	_fe_cmov_table
+WC_ASM_ATT_HIDDEN(_fe_cmov_table)
 .p2align	4
 _fe_cmov_table:
 #endif /* __APPLE__ */
@@ -666,12 +767,14 @@ _fe_cmov_table:
 #ifndef __APPLE__
 .text
 .globl	fe_mul
+WC_ASM_ATT_HIDDEN(fe_mul)
 .type	fe_mul,@function
 .align	16
 fe_mul:
 #else
 .section	__TEXT,__text
 .globl	_fe_mul
+WC_ASM_ATT_HIDDEN(_fe_mul)
 .p2align	4
 _fe_mul:
 #endif /* __APPLE__ */
@@ -686,12 +789,14 @@ _fe_mul:
 #ifndef __APPLE__
 .text
 .globl	fe_sq
+WC_ASM_ATT_HIDDEN(fe_sq)
 .type	fe_sq,@function
 .align	16
 fe_sq:
 #else
 .section	__TEXT,__text
 .globl	_fe_sq
+WC_ASM_ATT_HIDDEN(_fe_sq)
 .p2align	4
 _fe_sq:
 #endif /* __APPLE__ */
@@ -706,12 +811,14 @@ _fe_sq:
 #ifndef __APPLE__
 .text
 .globl	fe_mul121666
+WC_ASM_ATT_HIDDEN(fe_mul121666)
 .type	fe_mul121666,@function
 .align	16
 fe_mul121666:
 #else
 .section	__TEXT,__text
 .globl	_fe_mul121666
+WC_ASM_ATT_HIDDEN(_fe_mul121666)
 .p2align	4
 _fe_mul121666:
 #endif /* __APPLE__ */
@@ -726,12 +833,14 @@ _fe_mul121666:
 #ifndef __APPLE__
 .text
 .globl	fe_invert
+WC_ASM_ATT_HIDDEN(fe_invert)
 .type	fe_invert,@function
 .align	16
 fe_invert:
 #else
 .section	__TEXT,__text
 .globl	_fe_invert
+WC_ASM_ATT_HIDDEN(_fe_invert)
 .p2align	4
 _fe_invert:
 #endif /* __APPLE__ */
@@ -746,12 +855,14 @@ _fe_invert:
 #ifndef __APPLE__
 .text
 .globl	curve25519
+WC_ASM_ATT_HIDDEN(curve25519)
 .type	curve25519,@function
 .align	16
 curve25519:
 #else
 .section	__TEXT,__text
 .globl	_curve25519
+WC_ASM_ATT_HIDDEN(_curve25519)
 .p2align	4
 _curve25519:
 #endif /* __APPLE__ */
@@ -766,12 +877,14 @@ _curve25519:
 #ifndef __APPLE__
 .text
 .globl	fe_pow22523
+WC_ASM_ATT_HIDDEN(fe_pow22523)
 .type	fe_pow22523,@function
 .align	16
 fe_pow22523:
 #else
 .section	__TEXT,__text
 .globl	_fe_pow22523
+WC_ASM_ATT_HIDDEN(_fe_pow22523)
 .p2align	4
 _fe_pow22523:
 #endif /* __APPLE__ */
@@ -786,12 +899,14 @@ _fe_pow22523:
 #ifndef __APPLE__
 .text
 .globl	ge_p1p1_to_p2
+WC_ASM_ATT_HIDDEN(ge_p1p1_to_p2)
 .type	ge_p1p1_to_p2,@function
 .align	16
 ge_p1p1_to_p2:
 #else
 .section	__TEXT,__text
 .globl	_ge_p1p1_to_p2
+WC_ASM_ATT_HIDDEN(_ge_p1p1_to_p2)
 .p2align	4
 _ge_p1p1_to_p2:
 #endif /* __APPLE__ */
@@ -806,12 +921,14 @@ _ge_p1p1_to_p2:
 #ifndef __APPLE__
 .text
 .globl	ge_p1p1_to_p3
+WC_ASM_ATT_HIDDEN(ge_p1p1_to_p3)
 .type	ge_p1p1_to_p3,@function
 .align	16
 ge_p1p1_to_p3:
 #else
 .section	__TEXT,__text
 .globl	_ge_p1p1_to_p3
+WC_ASM_ATT_HIDDEN(_ge_p1p1_to_p3)
 .p2align	4
 _ge_p1p1_to_p3:
 #endif /* __APPLE__ */
@@ -826,12 +943,14 @@ _ge_p1p1_to_p3:
 #ifndef __APPLE__
 .text
 .globl	ge_p2_dbl
+WC_ASM_ATT_HIDDEN(ge_p2_dbl)
 .type	ge_p2_dbl,@function
 .align	16
 ge_p2_dbl:
 #else
 .section	__TEXT,__text
 .globl	_ge_p2_dbl
+WC_ASM_ATT_HIDDEN(_ge_p2_dbl)
 .p2align	4
 _ge_p2_dbl:
 #endif /* __APPLE__ */
@@ -846,12 +965,14 @@ _ge_p2_dbl:
 #ifndef __APPLE__
 .text
 .globl	ge_madd
+WC_ASM_ATT_HIDDEN(ge_madd)
 .type	ge_madd,@function
 .align	16
 ge_madd:
 #else
 .section	__TEXT,__text
 .globl	_ge_madd
+WC_ASM_ATT_HIDDEN(_ge_madd)
 .p2align	4
 _ge_madd:
 #endif /* __APPLE__ */
@@ -866,12 +987,14 @@ _ge_madd:
 #ifndef __APPLE__
 .text
 .globl	ge_msub
+WC_ASM_ATT_HIDDEN(ge_msub)
 .type	ge_msub,@function
 .align	16
 ge_msub:
 #else
 .section	__TEXT,__text
 .globl	_ge_msub
+WC_ASM_ATT_HIDDEN(_ge_msub)
 .p2align	4
 _ge_msub:
 #endif /* __APPLE__ */
@@ -886,12 +1009,14 @@ _ge_msub:
 #ifndef __APPLE__
 .text
 .globl	ge_add
+WC_ASM_ATT_HIDDEN(ge_add)
 .type	ge_add,@function
 .align	16
 ge_add:
 #else
 .section	__TEXT,__text
 .globl	_ge_add
+WC_ASM_ATT_HIDDEN(_ge_add)
 .p2align	4
 _ge_add:
 #endif /* __APPLE__ */
@@ -906,12 +1031,14 @@ _ge_add:
 #ifndef __APPLE__
 .text
 .globl	ge_sub
+WC_ASM_ATT_HIDDEN(ge_sub)
 .type	ge_sub,@function
 .align	16
 ge_sub:
 #else
 .section	__TEXT,__text
 .globl	_ge_sub
+WC_ASM_ATT_HIDDEN(_ge_sub)
 .p2align	4
 _ge_sub:
 #endif /* __APPLE__ */
@@ -928,12 +1055,14 @@ _ge_sub:
 #ifndef __APPLE__
 .text
 .globl	curve25519_base
+WC_ASM_ATT_HIDDEN(curve25519_base)
 .type	curve25519_base,@function
 .align	16
 curve25519_base:
 #else
 .section	__TEXT,__text
 .globl	_curve25519_base
+WC_ASM_ATT_HIDDEN(_curve25519_base)
 .p2align	4
 _curve25519_base:
 #endif /* __APPLE__ */
@@ -952,12 +1081,14 @@ _curve25519_base:
 #ifndef __APPLE__
 .text
 .globl	fe_sq2
+WC_ASM_ATT_HIDDEN(fe_sq2)
 .type	fe_sq2,@function
 .align	16
 fe_sq2:
 #else
 .section	__TEXT,__text
 .globl	_fe_sq2
+WC_ASM_ATT_HIDDEN(_fe_sq2)
 .p2align	4
 _fe_sq2:
 #endif /* __APPLE__ */
@@ -974,12 +1105,14 @@ _fe_sq2:
 #ifndef __APPLE__
 .text
 .globl	fe_invert_nct
+WC_ASM_ATT_HIDDEN(fe_invert_nct)
 .type	fe_invert_nct,@function
 .align	16
 fe_invert_nct:
 #else
 .section	__TEXT,__text
 .globl	_fe_invert_nct
+WC_ASM_ATT_HIDDEN(_fe_invert_nct)
 .p2align	4
 _fe_invert_nct:
 #endif /* __APPLE__ */
@@ -996,12 +1129,14 @@ _fe_invert_nct:
 #ifndef __APPLE__
 .text
 .globl	sc_reduce
+WC_ASM_ATT_HIDDEN(sc_reduce)
 .type	sc_reduce,@function
 .align	16
 sc_reduce:
 #else
 .section	__TEXT,__text
 .globl	_sc_reduce
+WC_ASM_ATT_HIDDEN(_sc_reduce)
 .p2align	4
 _sc_reduce:
 #endif /* __APPLE__ */
@@ -1018,12 +1153,14 @@ _sc_reduce:
 #ifndef __APPLE__
 .text
 .globl	sc_muladd
+WC_ASM_ATT_HIDDEN(sc_muladd)
 .type	sc_muladd,@function
 .align	16
 sc_muladd:
 #else
 .section	__TEXT,__text
 .globl	_sc_muladd
+WC_ASM_ATT_HIDDEN(_sc_muladd)
 .p2align	4
 _sc_muladd:
 #endif /* __APPLE__ */
@@ -1296,12 +1433,14 @@ _sc_muladd_p:
 #ifndef __APPLE__
 .text
 .globl	fe_cmov_table_x64
+WC_ASM_ATT_HIDDEN(fe_cmov_table_x64)
 .type	fe_cmov_table_x64,@function
 .align	16
 fe_cmov_table_x64:
 #else
 .section	__TEXT,__text
 .globl	_fe_cmov_table_x64
+WC_ASM_ATT_HIDDEN(_fe_cmov_table_x64)
 .p2align	4
 _fe_cmov_table_x64:
 #endif /* __APPLE__ */
@@ -1584,12 +1723,14 @@ _fe_cmov_table_x64:
 #ifndef __APPLE__
 .text
 .globl	fe_mul_x64
+WC_ASM_ATT_HIDDEN(fe_mul_x64)
 .type	fe_mul_x64,@function
 .align	16
 fe_mul_x64:
 #else
 .section	__TEXT,__text
 .globl	_fe_mul_x64
+WC_ASM_ATT_HIDDEN(_fe_mul_x64)
 .p2align	4
 _fe_mul_x64:
 #endif /* __APPLE__ */
@@ -1752,12 +1893,14 @@ _fe_mul_x64:
 #ifndef __APPLE__
 .text
 .globl	fe_sq_x64
+WC_ASM_ATT_HIDDEN(fe_sq_x64)
 .type	fe_sq_x64,@function
 .align	16
 fe_sq_x64:
 #else
 .section	__TEXT,__text
 .globl	_fe_sq_x64
+WC_ASM_ATT_HIDDEN(_fe_sq_x64)
 .p2align	4
 _fe_sq_x64:
 #endif /* __APPLE__ */
@@ -1890,12 +2033,14 @@ _fe_sq_x64:
 #ifndef __APPLE__
 .text
 .globl	fe_sq_n_x64
+WC_ASM_ATT_HIDDEN(fe_sq_n_x64)
 .type	fe_sq_n_x64,@function
 .align	16
 fe_sq_n_x64:
 #else
 .section	__TEXT,__text
 .globl	_fe_sq_n_x64
+WC_ASM_ATT_HIDDEN(_fe_sq_n_x64)
 .p2align	4
 _fe_sq_n_x64:
 #endif /* __APPLE__ */
@@ -2025,12 +2170,14 @@ L_fe_sq_n_x64:
 #ifndef __APPLE__
 .text
 .globl	fe_mul121666_x64
+WC_ASM_ATT_HIDDEN(fe_mul121666_x64)
 .type	fe_mul121666_x64,@function
 .align	16
 fe_mul121666_x64:
 #else
 .section	__TEXT,__text
 .globl	_fe_mul121666_x64
+WC_ASM_ATT_HIDDEN(_fe_mul121666_x64)
 .p2align	4
 _fe_mul121666_x64:
 #endif /* __APPLE__ */
@@ -2076,12 +2223,14 @@ _fe_mul121666_x64:
 #ifndef __APPLE__
 .text
 .globl	fe_invert_x64
+WC_ASM_ATT_HIDDEN(fe_invert_x64)
 .type	fe_invert_x64,@function
 .align	16
 fe_invert_x64:
 #else
 .section	__TEXT,__text
 .globl	_fe_invert_x64
+WC_ASM_ATT_HIDDEN(_fe_invert_x64)
 .p2align	4
 _fe_invert_x64:
 #endif /* __APPLE__ */
@@ -2349,12 +2498,14 @@ L_curve25519_base_x64_x2:
 #ifndef __APPLE__
 .text
 .globl	curve25519_base_x64
+WC_ASM_ATT_HIDDEN(curve25519_base_x64)
 .type	curve25519_base_x64,@function
 .align	16
 curve25519_base_x64:
 #else
 .section	__TEXT,__text
 .globl	_curve25519_base_x64
+WC_ASM_ATT_HIDDEN(_curve25519_base_x64)
 .p2align	4
 _curve25519_base_x64:
 #endif /* __APPLE__ */
@@ -4662,12 +4813,14 @@ L_curve25519_base_x64_3:
 #ifndef __APPLE__
 .text
 .globl	curve25519_x64
+WC_ASM_ATT_HIDDEN(curve25519_x64)
 .type	curve25519_x64,@function
 .align	16
 curve25519_x64:
 #else
 .section	__TEXT,__text
 .globl	_curve25519_x64
+WC_ASM_ATT_HIDDEN(_curve25519_x64)
 .p2align	4
 _curve25519_x64:
 #endif /* __APPLE__ */
@@ -7086,12 +7239,14 @@ L_curve25519_x64_3:
 #ifndef __APPLE__
 .text
 .globl	fe_pow22523_x64
+WC_ASM_ATT_HIDDEN(fe_pow22523_x64)
 .type	fe_pow22523_x64,@function
 .align	16
 fe_pow22523_x64:
 #else
 .section	__TEXT,__text
 .globl	_fe_pow22523_x64
+WC_ASM_ATT_HIDDEN(_fe_pow22523_x64)
 .p2align	4
 _fe_pow22523_x64:
 #endif /* __APPLE__ */
@@ -7344,12 +7499,14 @@ _fe_pow22523_x64:
 #ifndef __APPLE__
 .text
 .globl	ge_p1p1_to_p2_x64
+WC_ASM_ATT_HIDDEN(ge_p1p1_to_p2_x64)
 .type	ge_p1p1_to_p2_x64,@function
 .align	16
 ge_p1p1_to_p2_x64:
 #else
 .section	__TEXT,__text
 .globl	_ge_p1p1_to_p2_x64
+WC_ASM_ATT_HIDDEN(_ge_p1p1_to_p2_x64)
 .p2align	4
 _ge_p1p1_to_p2_x64:
 #endif /* __APPLE__ */
@@ -7777,12 +7934,14 @@ _ge_p1p1_to_p2_x64:
 #ifndef __APPLE__
 .text
 .globl	ge_p1p1_to_p3_x64
+WC_ASM_ATT_HIDDEN(ge_p1p1_to_p3_x64)
 .type	ge_p1p1_to_p3_x64,@function
 .align	16
 ge_p1p1_to_p3_x64:
 #else
 .section	__TEXT,__text
 .globl	_ge_p1p1_to_p3_x64
+WC_ASM_ATT_HIDDEN(_ge_p1p1_to_p3_x64)
 .p2align	4
 _ge_p1p1_to_p3_x64:
 #endif /* __APPLE__ */
@@ -8345,12 +8504,14 @@ _ge_p1p1_to_p3_x64:
 #ifndef __APPLE__
 .text
 .globl	ge_p2_dbl_x64
+WC_ASM_ATT_HIDDEN(ge_p2_dbl_x64)
 .type	ge_p2_dbl_x64,@function
 .align	16
 ge_p2_dbl_x64:
 #else
 .section	__TEXT,__text
 .globl	_ge_p2_dbl_x64
+WC_ASM_ATT_HIDDEN(_ge_p2_dbl_x64)
 .p2align	4
 _ge_p2_dbl_x64:
 #endif /* __APPLE__ */
@@ -8911,12 +9072,14 @@ _ge_p2_dbl_x64:
 #ifndef __APPLE__
 .text
 .globl	ge_madd_x64
+WC_ASM_ATT_HIDDEN(ge_madd_x64)
 .type	ge_madd_x64,@function
 .align	16
 ge_madd_x64:
 #else
 .section	__TEXT,__text
 .globl	_ge_madd_x64
+WC_ASM_ATT_HIDDEN(_ge_madd_x64)
 .p2align	4
 _ge_madd_x64:
 #endif /* __APPLE__ */
@@ -9502,12 +9665,14 @@ _ge_madd_x64:
 #ifndef __APPLE__
 .text
 .globl	ge_msub_x64
+WC_ASM_ATT_HIDDEN(ge_msub_x64)
 .type	ge_msub_x64,@function
 .align	16
 ge_msub_x64:
 #else
 .section	__TEXT,__text
 .globl	_ge_msub_x64
+WC_ASM_ATT_HIDDEN(_ge_msub_x64)
 .p2align	4
 _ge_msub_x64:
 #endif /* __APPLE__ */
@@ -10093,12 +10258,14 @@ _ge_msub_x64:
 #ifndef __APPLE__
 .text
 .globl	ge_add_x64
+WC_ASM_ATT_HIDDEN(ge_add_x64)
 .type	ge_add_x64,@function
 .align	16
 ge_add_x64:
 #else
 .section	__TEXT,__text
 .globl	_ge_add_x64
+WC_ASM_ATT_HIDDEN(_ge_add_x64)
 .p2align	4
 _ge_add_x64:
 #endif /* __APPLE__ */
@@ -10810,12 +10977,14 @@ _ge_add_x64:
 #ifndef __APPLE__
 .text
 .globl	ge_sub_x64
+WC_ASM_ATT_HIDDEN(ge_sub_x64)
 .type	ge_sub_x64,@function
 .align	16
 ge_sub_x64:
 #else
 .section	__TEXT,__text
 .globl	_ge_sub_x64
+WC_ASM_ATT_HIDDEN(_ge_sub_x64)
 .p2align	4
 _ge_sub_x64:
 #endif /* __APPLE__ */
@@ -11527,12 +11696,14 @@ _ge_sub_x64:
 #ifndef __APPLE__
 .text
 .globl	fe_sq2_x64
+WC_ASM_ATT_HIDDEN(fe_sq2_x64)
 .type	fe_sq2_x64,@function
 .align	16
 fe_sq2_x64:
 #else
 .section	__TEXT,__text
 .globl	_fe_sq2_x64
+WC_ASM_ATT_HIDDEN(_fe_sq2_x64)
 .p2align	4
 _fe_sq2_x64:
 #endif /* __APPLE__ */
@@ -11669,12 +11840,14 @@ _fe_sq2_x64:
 #ifndef __APPLE__
 .text
 .globl	sc_reduce_x64
+WC_ASM_ATT_HIDDEN(sc_reduce_x64)
 .type	sc_reduce_x64,@function
 .align	16
 sc_reduce_x64:
 #else
 .section	__TEXT,__text
 .globl	_sc_reduce_x64
+WC_ASM_ATT_HIDDEN(_sc_reduce_x64)
 .p2align	4
 _sc_reduce_x64:
 #endif /* __APPLE__ */
@@ -11854,12 +12027,14 @@ _sc_reduce_x64:
 #ifndef __APPLE__
 .text
 .globl	sc_muladd_x64
+WC_ASM_ATT_HIDDEN(sc_muladd_x64)
 .type	sc_muladd_x64,@function
 .align	16
 sc_muladd_x64:
 #else
 .section	__TEXT,__text
 .globl	_sc_muladd_x64
+WC_ASM_ATT_HIDDEN(_sc_muladd_x64)
 .p2align	4
 _sc_muladd_x64:
 #endif /* __APPLE__ */
@@ -12146,12 +12321,14 @@ _sc_muladd_x64:
 #ifndef __APPLE__
 .text
 .globl	fe_invert_nct_x64
+WC_ASM_ATT_HIDDEN(fe_invert_nct_x64)
 .type	fe_invert_nct_x64,@function
 .align	16
 fe_invert_nct_x64:
 #else
 .section	__TEXT,__text
 .globl	_fe_invert_nct_x64
+WC_ASM_ATT_HIDDEN(_fe_invert_nct_x64)
 .p2align	4
 _fe_invert_nct_x64:
 #endif /* __APPLE__ */
@@ -12372,12 +12549,14 @@ L_fe_invert_nct_store_end:
 #ifndef __APPLE__
 .text
 .globl	fe_cmov_table_avx2
+WC_ASM_ATT_HIDDEN(fe_cmov_table_avx2)
 .type	fe_cmov_table_avx2,@function
 .align	16
 fe_cmov_table_avx2:
 #else
 .section	__TEXT,__text
 .globl	_fe_cmov_table_avx2
+WC_ASM_ATT_HIDDEN(_fe_cmov_table_avx2)
 .p2align	4
 _fe_cmov_table_avx2:
 #endif /* __APPLE__ */
@@ -12393,9 +12572,9 @@ _fe_cmov_table_avx2:
         xorb	%dl, %al
         subb	%dl, %al
         movb	%al, %bl
-        movd	%ebx, %xmm7
+        vmovd	%ebx, %xmm7
         movq	$0x01, %rbx
-        movd	%rbx, %xmm9
+        vmovq	%rbx, %xmm9
         vmovdqa	%ymm9, %ymm3
         vmovdqa	%ymm9, %ymm4
         vpxor	%ymm8, %ymm8, %ymm8
@@ -12543,12 +12722,14 @@ _fe_cmov_table_avx2:
 #ifndef __APPLE__
 .text
 .globl	fe_mul_avx2
+WC_ASM_ATT_HIDDEN(fe_mul_avx2)
 .type	fe_mul_avx2,@function
 .align	16
 fe_mul_avx2:
 #else
 .section	__TEXT,__text
 .globl	_fe_mul_avx2
+WC_ASM_ATT_HIDDEN(_fe_mul_avx2)
 .p2align	4
 _fe_mul_avx2:
 #endif /* __APPLE__ */
@@ -12684,12 +12865,14 @@ _fe_mul_avx2:
 #ifndef __APPLE__
 .text
 .globl	fe_sq_avx2
+WC_ASM_ATT_HIDDEN(fe_sq_avx2)
 .type	fe_sq_avx2,@function
 .align	16
 fe_sq_avx2:
 #else
 .section	__TEXT,__text
 .globl	_fe_sq_avx2
+WC_ASM_ATT_HIDDEN(_fe_sq_avx2)
 .p2align	4
 _fe_sq_avx2:
 #endif /* __APPLE__ */
@@ -12799,12 +12982,14 @@ _fe_sq_avx2:
 #ifndef __APPLE__
 .text
 .globl	fe_sq_n_avx2
+WC_ASM_ATT_HIDDEN(fe_sq_n_avx2)
 .type	fe_sq_n_avx2,@function
 .align	16
 fe_sq_n_avx2:
 #else
 .section	__TEXT,__text
 .globl	_fe_sq_n_avx2
+WC_ASM_ATT_HIDDEN(_fe_sq_n_avx2)
 .p2align	4
 _fe_sq_n_avx2:
 #endif /* __APPLE__ */
@@ -12911,12 +13096,14 @@ L_fe_sq_n_avx2:
 #ifndef __APPLE__
 .text
 .globl	fe_mul121666_avx2
+WC_ASM_ATT_HIDDEN(fe_mul121666_avx2)
 .type	fe_mul121666_avx2,@function
 .align	16
 fe_mul121666_avx2:
 #else
 .section	__TEXT,__text
 .globl	_fe_mul121666_avx2
+WC_ASM_ATT_HIDDEN(_fe_mul121666_avx2)
 .p2align	4
 _fe_mul121666_avx2:
 #endif /* __APPLE__ */
@@ -12951,12 +13138,14 @@ _fe_mul121666_avx2:
 #ifndef __APPLE__
 .text
 .globl	fe_invert_avx2
+WC_ASM_ATT_HIDDEN(fe_invert_avx2)
 .type	fe_invert_avx2,@function
 .align	16
 fe_invert_avx2:
 #else
 .section	__TEXT,__text
 .globl	_fe_invert_avx2
+WC_ASM_ATT_HIDDEN(_fe_invert_avx2)
 .p2align	4
 _fe_invert_avx2:
 #endif /* __APPLE__ */
@@ -13224,12 +13413,14 @@ L_curve25519_base_avx2_x2:
 #ifndef __APPLE__
 .text
 .globl	curve25519_base_avx2
+WC_ASM_ATT_HIDDEN(curve25519_base_avx2)
 .type	curve25519_base_avx2,@function
 .align	16
 curve25519_base_avx2:
 #else
 .section	__TEXT,__text
 .globl	_curve25519_base_avx2
+WC_ASM_ATT_HIDDEN(_curve25519_base_avx2)
 .p2align	4
 _curve25519_base_avx2:
 #endif /* __APPLE__ */
@@ -15147,12 +15338,14 @@ L_curve25519_base_avx2_last_3:
 #ifndef __APPLE__
 .text
 .globl	curve25519_avx2
+WC_ASM_ATT_HIDDEN(curve25519_avx2)
 .type	curve25519_avx2,@function
 .align	16
 curve25519_avx2:
 #else
 .section	__TEXT,__text
 .globl	_curve25519_avx2
+WC_ASM_ATT_HIDDEN(_curve25519_avx2)
 .p2align	4
 _curve25519_avx2:
 #endif /* __APPLE__ */
@@ -17165,12 +17358,14 @@ L_curve25519_avx2_last_3:
 #ifndef __APPLE__
 .text
 .globl	fe_pow22523_avx2
+WC_ASM_ATT_HIDDEN(fe_pow22523_avx2)
 .type	fe_pow22523_avx2,@function
 .align	16
 fe_pow22523_avx2:
 #else
 .section	__TEXT,__text
 .globl	_fe_pow22523_avx2
+WC_ASM_ATT_HIDDEN(_fe_pow22523_avx2)
 .p2align	4
 _fe_pow22523_avx2:
 #endif /* __APPLE__ */
@@ -17423,12 +17618,14 @@ _fe_pow22523_avx2:
 #ifndef __APPLE__
 .text
 .globl	ge_p1p1_to_p2_avx2
+WC_ASM_ATT_HIDDEN(ge_p1p1_to_p2_avx2)
 .type	ge_p1p1_to_p2_avx2,@function
 .align	16
 ge_p1p1_to_p2_avx2:
 #else
 .section	__TEXT,__text
 .globl	_ge_p1p1_to_p2_avx2
+WC_ASM_ATT_HIDDEN(_ge_p1p1_to_p2_avx2)
 .p2align	4
 _ge_p1p1_to_p2_avx2:
 #endif /* __APPLE__ */
@@ -17769,12 +17966,14 @@ _ge_p1p1_to_p2_avx2:
 #ifndef __APPLE__
 .text
 .globl	ge_p1p1_to_p3_avx2
+WC_ASM_ATT_HIDDEN(ge_p1p1_to_p3_avx2)
 .type	ge_p1p1_to_p3_avx2,@function
 .align	16
 ge_p1p1_to_p3_avx2:
 #else
 .section	__TEXT,__text
 .globl	_ge_p1p1_to_p3_avx2
+WC_ASM_ATT_HIDDEN(_ge_p1p1_to_p3_avx2)
 .p2align	4
 _ge_p1p1_to_p3_avx2:
 #endif /* __APPLE__ */
@@ -18220,12 +18419,14 @@ _ge_p1p1_to_p3_avx2:
 #ifndef __APPLE__
 .text
 .globl	ge_p2_dbl_avx2
+WC_ASM_ATT_HIDDEN(ge_p2_dbl_avx2)
 .type	ge_p2_dbl_avx2,@function
 .align	16
 ge_p2_dbl_avx2:
 #else
 .section	__TEXT,__text
 .globl	_ge_p2_dbl_avx2
+WC_ASM_ATT_HIDDEN(_ge_p2_dbl_avx2)
 .p2align	4
 _ge_p2_dbl_avx2:
 #endif /* __APPLE__ */
@@ -18685,12 +18886,14 @@ _ge_p2_dbl_avx2:
 #ifndef __APPLE__
 .text
 .globl	ge_madd_avx2
+WC_ASM_ATT_HIDDEN(ge_madd_avx2)
 .type	ge_madd_avx2,@function
 .align	16
 ge_madd_avx2:
 #else
 .section	__TEXT,__text
 .globl	_ge_madd_avx2
+WC_ASM_ATT_HIDDEN(_ge_madd_avx2)
 .p2align	4
 _ge_madd_avx2:
 #endif /* __APPLE__ */
@@ -19190,12 +19393,14 @@ _ge_madd_avx2:
 #ifndef __APPLE__
 .text
 .globl	ge_msub_avx2
+WC_ASM_ATT_HIDDEN(ge_msub_avx2)
 .type	ge_msub_avx2,@function
 .align	16
 ge_msub_avx2:
 #else
 .section	__TEXT,__text
 .globl	_ge_msub_avx2
+WC_ASM_ATT_HIDDEN(_ge_msub_avx2)
 .p2align	4
 _ge_msub_avx2:
 #endif /* __APPLE__ */
@@ -19696,12 +19901,14 @@ _ge_msub_avx2:
 #ifndef __APPLE__
 .text
 .globl	ge_add_avx2
+WC_ASM_ATT_HIDDEN(ge_add_avx2)
 .type	ge_add_avx2,@function
 .align	16
 ge_add_avx2:
 #else
 .section	__TEXT,__text
 .globl	_ge_add_avx2
+WC_ASM_ATT_HIDDEN(_ge_add_avx2)
 .p2align	4
 _ge_add_avx2:
 #endif /* __APPLE__ */
@@ -20306,12 +20513,14 @@ _ge_add_avx2:
 #ifndef __APPLE__
 .text
 .globl	ge_sub_avx2
+WC_ASM_ATT_HIDDEN(ge_sub_avx2)
 .type	ge_sub_avx2,@function
 .align	16
 ge_sub_avx2:
 #else
 .section	__TEXT,__text
 .globl	_ge_sub_avx2
+WC_ASM_ATT_HIDDEN(_ge_sub_avx2)
 .p2align	4
 _ge_sub_avx2:
 #endif /* __APPLE__ */
@@ -20918,12 +21127,14 @@ _ge_sub_avx2:
 #ifndef __APPLE__
 .text
 .globl	fe_sq2_avx2
+WC_ASM_ATT_HIDDEN(fe_sq2_avx2)
 .type	fe_sq2_avx2,@function
 .align	16
 fe_sq2_avx2:
 #else
 .section	__TEXT,__text
 .globl	_fe_sq2_avx2
+WC_ASM_ATT_HIDDEN(_fe_sq2_avx2)
 .p2align	4
 _fe_sq2_avx2:
 #endif /* __APPLE__ */
@@ -21037,12 +21248,14 @@ _fe_sq2_avx2:
 #ifndef __APPLE__
 .text
 .globl	sc_reduce_avx2
+WC_ASM_ATT_HIDDEN(sc_reduce_avx2)
 .type	sc_reduce_avx2,@function
 .align	16
 sc_reduce_avx2:
 #else
 .section	__TEXT,__text
 .globl	_sc_reduce_avx2
+WC_ASM_ATT_HIDDEN(_sc_reduce_avx2)
 .p2align	4
 _sc_reduce_avx2:
 #endif /* __APPLE__ */
@@ -21201,12 +21414,14 @@ _sc_reduce_avx2:
 #ifndef __APPLE__
 .text
 .globl	sc_muladd_avx2
+WC_ASM_ATT_HIDDEN(sc_muladd_avx2)
 .type	sc_muladd_avx2,@function
 .align	16
 sc_muladd_avx2:
 #else
 .section	__TEXT,__text
 .globl	_sc_muladd_avx2
+WC_ASM_ATT_HIDDEN(_sc_muladd_avx2)
 .p2align	4
 _sc_muladd_avx2:
 #endif /* __APPLE__ */
@@ -21558,12 +21773,14 @@ L_fe_invert_nct_avx2_mask26:
 #ifndef __APPLE__
 .text
 .globl	fe_invert_nct_avx2
+WC_ASM_ATT_HIDDEN(fe_invert_nct_avx2)
 .type	fe_invert_nct_avx2,@function
 .align	16
 fe_invert_nct_avx2:
 #else
 .section	__TEXT,__text
 .globl	_fe_invert_nct_avx2
+WC_ASM_ATT_HIDDEN(_fe_invert_nct_avx2)
 .p2align	4
 _fe_invert_nct_avx2:
 #endif /* __APPLE__ */
@@ -21857,6 +22074,8989 @@ L_fe_invert_nct_avx2_uv_start_no_add_prime:
 .size	fe_invert_nct_avx2,.-fe_invert_nct_avx2
 #endif /* __APPLE__ */
 #endif /* HAVE_ED25519 */
+#ifdef HAVE_INTEL_AVX512_IFMA
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_x25519_ifma_consts:
+.quad	0x0007ffffffffffff,0x000fffffffffffda
+.quad	0x000ffffffffffffe,0x0000000000000013
+.quad	0x000000000001db41
+#if defined(WOLFSSL_CURVE25519_NOT_USE_ED25519)
+#ifndef __APPLE__
+.text
+.globl	curve25519_base_avx512_ifma
+WC_ASM_ATT_HIDDEN(curve25519_base_avx512_ifma)
+.type	curve25519_base_avx512_ifma,@function
+.align	16
+curve25519_base_avx512_ifma:
+#else
+.section	__TEXT,__text
+.globl	_curve25519_base_avx512_ifma
+WC_ASM_ATT_HIDDEN(_curve25519_base_avx512_ifma)
+.p2align	4
+_curve25519_base_avx512_ifma:
+#endif /* __APPLE__ */
+        pushq	%r12
+        pushq	%r13
+        pushq	%r14
+        subq	$0x2e0, %rsp
+        movq	%rdi, 712(%rsp)
+        movq	$0x7ffffffffffff, %r13
+        movq	$9, %r10
+        movq	%r10, (%rsp)
+        movq	%r10, 8(%rsp)
+        movq	%r10, 16(%rsp)
+        movq	%r10, 24(%rsp)
+        movq	$0x01, 480(%rsp)
+        movq	$0x00, 488(%rsp)
+        movq	%r10, 496(%rsp)
+        movq	$0x01, 504(%rsp)
+        movq	$0x00, %r10
+        movq	%r10, 32(%rsp)
+        movq	%r10, 40(%rsp)
+        movq	%r10, 48(%rsp)
+        movq	%r10, 56(%rsp)
+        movq	$0x00, 512(%rsp)
+        movq	$0x00, 520(%rsp)
+        movq	%r10, 528(%rsp)
+        movq	$0x00, 536(%rsp)
+        movq	%r10, 64(%rsp)
+        movq	%r10, 72(%rsp)
+        movq	%r10, 80(%rsp)
+        movq	%r10, 88(%rsp)
+        movq	$0x00, 544(%rsp)
+        movq	$0x00, 552(%rsp)
+        movq	%r10, 560(%rsp)
+        movq	$0x00, 568(%rsp)
+        movq	%r10, 96(%rsp)
+        movq	%r10, 104(%rsp)
+        movq	%r10, 112(%rsp)
+        movq	%r10, 120(%rsp)
+        movq	$0x00, 576(%rsp)
+        movq	$0x00, 584(%rsp)
+        movq	%r10, 592(%rsp)
+        movq	$0x00, 600(%rsp)
+        movq	%r10, 128(%rsp)
+        movq	%r10, 136(%rsp)
+        movq	%r10, 144(%rsp)
+        movq	%r10, 152(%rsp)
+        movq	$0x00, 608(%rsp)
+        movq	$0x00, 616(%rsp)
+        movq	%r10, 624(%rsp)
+        movq	$0x00, 632(%rsp)
+        leaq	L_x25519_ifma_consts(%rip), %r11
+        vpbroadcastq	(%r11), %ymm28
+        vpbroadcastq	8(%r11), %ymm29
+        vpbroadcastq	16(%r11), %ymm30
+        vpbroadcastq	24(%r11), %ymm31
+        movl	$10, %r10d
+        kmovw	%r10d, %k1
+        movl	$5, %r10d
+        kmovw	%r10d, %k2
+        movl	$4, %r10d
+        kmovw	%r10d, %k3
+        movl	$8, %r10d
+        kmovw	%r10d, %k4
+        movl	$2, %r10d
+        kmovw	%r10d, %k5
+        movl	$6, %r10d
+        kmovw	%r10d, %k7
+        vmovdqu64	480(%rsp), %ymm18
+        vmovdqu64	512(%rsp), %ymm19
+        vmovdqu64	544(%rsp), %ymm20
+        vmovdqu64	576(%rsp), %ymm21
+        vmovdqu64	608(%rsp), %ymm22
+        movq	$0x00, %r8
+        movq	$0xfe, %rdx
+L_curve25519_base_avx512_ifma_bits:
+        # Conditionally swap (x2, z2) with (x3, z3)
+        movq	%rdx, 704(%rsp)
+        movq	%rdx, %rcx
+        andq	$63, %rcx
+        shrq	$6, %rdx
+        movq	(%rsi,%rdx,8), %rax
+        shrq	%cl, %rax
+        andq	$0x01, %rax
+        movq	%rax, %r9
+        xorq	%rax, %r8
+        negq	%r8
+        andq	$15, %r8
+        kmovw	%r8d, %k6
+        movq	%r9, %r8
+        vpermq	$0x4e, %ymm18, %ymm18{%k6}
+        vpermq	$0x4e, %ymm19, %ymm19{%k6}
+        vpermq	$0x4e, %ymm20, %ymm20{%k6}
+        vpermq	$0x4e, %ymm21, %ymm21{%k6}
+        vpermq	$0x4e, %ymm22, %ymm22{%k6}
+        # A = x2 + z2, B = x2 - z2, C = x3 + z3, D = x3 - z3
+        vpermq	$0xb1, %ymm18, %ymm0
+        vpermq	$0xb1, %ymm19, %ymm1
+        vpermq	$0xb1, %ymm20, %ymm2
+        vpermq	$0xb1, %ymm21, %ymm3
+        vpermq	$0xb1, %ymm22, %ymm4
+        vpaddq	%ymm18, %ymm0, %ymm23
+        vpaddq	%ymm19, %ymm1, %ymm24
+        vpaddq	%ymm20, %ymm2, %ymm25
+        vpaddq	%ymm21, %ymm3, %ymm26
+        vpaddq	%ymm22, %ymm4, %ymm27
+        vpaddq	%ymm29, %ymm0, %ymm0{%k1}
+        vpaddq	%ymm30, %ymm1, %ymm1{%k1}
+        vpaddq	%ymm30, %ymm2, %ymm2{%k1}
+        vpaddq	%ymm30, %ymm3, %ymm3{%k1}
+        vpaddq	%ymm30, %ymm4, %ymm4{%k1}
+        vpsubq	%ymm18, %ymm0, %ymm23{%k1}
+        vpsubq	%ymm19, %ymm1, %ymm24{%k1}
+        vpsubq	%ymm20, %ymm2, %ymm25{%k1}
+        vpsubq	%ymm21, %ymm3, %ymm26{%k1}
+        vpsubq	%ymm22, %ymm4, %ymm27{%k1}
+        vpsrlq	$51, %ymm23, %ymm5
+        vpandq	%ymm28, %ymm23, %ymm23
+        vpsrlq	$51, %ymm24, %ymm6
+        vpandq	%ymm28, %ymm24, %ymm24
+        vpsrlq	$51, %ymm25, %ymm7
+        vpandq	%ymm28, %ymm25, %ymm25
+        vpsrlq	$51, %ymm26, %ymm8
+        vpandq	%ymm28, %ymm26, %ymm26
+        vpsrlq	$51, %ymm27, %ymm9
+        vpandq	%ymm28, %ymm27, %ymm27
+        vpmadd52luq	%ymm31, %ymm9, %ymm23
+        vpaddq	%ymm5, %ymm24, %ymm24
+        vpaddq	%ymm6, %ymm25, %ymm25
+        vpaddq	%ymm7, %ymm26, %ymm26
+        vpaddq	%ymm8, %ymm27, %ymm27
+        # [AA, BB, CB, DA] = [A, B, C, D] * [A, B, B, A]
+        vpermq	$20, %ymm23, %ymm18
+        vpermq	$20, %ymm24, %ymm19
+        vpermq	$20, %ymm25, %ymm20
+        vpermq	$20, %ymm26, %ymm21
+        vpermq	$20, %ymm27, %ymm22
+        # Multiply 4 field elements
+        vpxorq	%ymm0, %ymm0, %ymm0
+        vpxorq	%ymm9, %ymm9, %ymm9
+        vpxorq	%ymm1, %ymm1, %ymm1
+        vpxorq	%ymm10, %ymm10, %ymm10
+        vpxorq	%ymm2, %ymm2, %ymm2
+        vpxorq	%ymm11, %ymm11, %ymm11
+        vpxorq	%ymm3, %ymm3, %ymm3
+        vpxorq	%ymm12, %ymm12, %ymm12
+        vpxorq	%ymm4, %ymm4, %ymm4
+        vpxorq	%ymm13, %ymm13, %ymm13
+        vpxorq	%ymm5, %ymm5, %ymm5
+        vpxorq	%ymm14, %ymm14, %ymm14
+        vpxorq	%ymm6, %ymm6, %ymm6
+        vpxorq	%ymm15, %ymm15, %ymm15
+        vpxorq	%ymm7, %ymm7, %ymm7
+        vpxorq	%ymm16, %ymm16, %ymm16
+        vpxorq	%ymm8, %ymm8, %ymm8
+        vpxorq	%ymm17, %ymm17, %ymm17
+        vpmadd52luq	%ymm23, %ymm18, %ymm0
+        vpmadd52huq	%ymm23, %ymm18, %ymm9
+        vpmadd52luq	%ymm24, %ymm18, %ymm1
+        vpmadd52huq	%ymm24, %ymm18, %ymm10
+        vpmadd52luq	%ymm25, %ymm18, %ymm2
+        vpmadd52huq	%ymm25, %ymm18, %ymm11
+        vpmadd52luq	%ymm26, %ymm18, %ymm3
+        vpmadd52huq	%ymm26, %ymm18, %ymm12
+        vpmadd52luq	%ymm27, %ymm18, %ymm4
+        vpmadd52huq	%ymm27, %ymm18, %ymm13
+        vpmadd52luq	%ymm23, %ymm19, %ymm1
+        vpmadd52huq	%ymm23, %ymm19, %ymm10
+        vpmadd52luq	%ymm24, %ymm19, %ymm2
+        vpmadd52huq	%ymm24, %ymm19, %ymm11
+        vpmadd52luq	%ymm25, %ymm19, %ymm3
+        vpmadd52huq	%ymm25, %ymm19, %ymm12
+        vpmadd52luq	%ymm26, %ymm19, %ymm4
+        vpmadd52huq	%ymm26, %ymm19, %ymm13
+        vpmadd52luq	%ymm27, %ymm19, %ymm5
+        vpmadd52huq	%ymm27, %ymm19, %ymm14
+        vpmadd52luq	%ymm23, %ymm20, %ymm2
+        vpmadd52huq	%ymm23, %ymm20, %ymm11
+        vpmadd52luq	%ymm24, %ymm20, %ymm3
+        vpmadd52huq	%ymm24, %ymm20, %ymm12
+        vpmadd52luq	%ymm25, %ymm20, %ymm4
+        vpmadd52huq	%ymm25, %ymm20, %ymm13
+        vpmadd52luq	%ymm26, %ymm20, %ymm5
+        vpmadd52huq	%ymm26, %ymm20, %ymm14
+        vpmadd52luq	%ymm27, %ymm20, %ymm6
+        vpmadd52huq	%ymm27, %ymm20, %ymm15
+        vpmadd52luq	%ymm23, %ymm21, %ymm3
+        vpmadd52huq	%ymm23, %ymm21, %ymm12
+        vpmadd52luq	%ymm24, %ymm21, %ymm4
+        vpmadd52huq	%ymm24, %ymm21, %ymm13
+        vpmadd52luq	%ymm25, %ymm21, %ymm5
+        vpmadd52huq	%ymm25, %ymm21, %ymm14
+        vpmadd52luq	%ymm26, %ymm21, %ymm6
+        vpmadd52huq	%ymm26, %ymm21, %ymm15
+        vpmadd52luq	%ymm27, %ymm21, %ymm7
+        vpmadd52huq	%ymm27, %ymm21, %ymm16
+        vpmadd52luq	%ymm23, %ymm22, %ymm4
+        vpmadd52huq	%ymm23, %ymm22, %ymm13
+        vpmadd52luq	%ymm24, %ymm22, %ymm5
+        vpmadd52huq	%ymm24, %ymm22, %ymm14
+        vpmadd52luq	%ymm25, %ymm22, %ymm6
+        vpmadd52huq	%ymm25, %ymm22, %ymm15
+        vpmadd52luq	%ymm26, %ymm22, %ymm7
+        vpmadd52huq	%ymm26, %ymm22, %ymm16
+        vpmadd52luq	%ymm27, %ymm22, %ymm8
+        vpmadd52huq	%ymm27, %ymm22, %ymm17
+        vpaddq	%ymm9, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpaddq	%ymm10, %ymm10, %ymm10
+        vpaddq	%ymm10, %ymm2, %ymm2
+        vpaddq	%ymm11, %ymm11, %ymm11
+        vpaddq	%ymm11, %ymm3, %ymm3
+        vpaddq	%ymm12, %ymm12, %ymm12
+        vpaddq	%ymm12, %ymm4, %ymm4
+        vpaddq	%ymm13, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm5, %ymm5
+        vpaddq	%ymm14, %ymm14, %ymm14
+        vpaddq	%ymm14, %ymm6, %ymm6
+        vpaddq	%ymm15, %ymm15, %ymm15
+        vpaddq	%ymm15, %ymm7, %ymm7
+        vpaddq	%ymm16, %ymm16, %ymm16
+        vpaddq	%ymm16, %ymm8, %ymm8
+        vpaddq	%ymm17, %ymm17, %ymm17
+        # Reduce
+        vpsllq	$4, %ymm5, %ymm9
+        vpsllq	$0x01, %ymm5, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm5, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm0, %ymm0
+        vpsllq	$4, %ymm6, %ymm9
+        vpsllq	$0x01, %ymm6, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm6, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpsllq	$4, %ymm7, %ymm9
+        vpsllq	$0x01, %ymm7, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm7, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm2, %ymm2
+        vpsllq	$4, %ymm8, %ymm9
+        vpsllq	$0x01, %ymm8, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm8, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm3, %ymm3
+        vpsllq	$4, %ymm17, %ymm9
+        vpsllq	$0x01, %ymm17, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm17, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm4, %ymm4
+        vpsrlq	$51, %ymm0, %ymm23
+        vpandq	%ymm28, %ymm0, %ymm0
+        vpsrlq	$51, %ymm1, %ymm24
+        vpandq	%ymm28, %ymm1, %ymm1
+        vpsrlq	$51, %ymm2, %ymm25
+        vpandq	%ymm28, %ymm2, %ymm2
+        vpsrlq	$51, %ymm3, %ymm26
+        vpandq	%ymm28, %ymm3, %ymm3
+        vpsrlq	$51, %ymm4, %ymm27
+        vpandq	%ymm28, %ymm4, %ymm4
+        vmovdqa64	%ymm0, %ymm18
+        vpmadd52luq	%ymm31, %ymm27, %ymm18
+        vpaddq	%ymm23, %ymm1, %ymm19
+        vpaddq	%ymm24, %ymm2, %ymm20
+        vpaddq	%ymm25, %ymm3, %ymm21
+        vpaddq	%ymm26, %ymm4, %ymm22
+        # U = [AA, DA-CB, DA+CB, AA-BB], V = [BB, DA-CB, DA+CB, a24]
+        vpermq	$0x69, %ymm18, %ymm23
+        vpermq	$0x69, %ymm19, %ymm24
+        vpermq	$0x69, %ymm20, %ymm25
+        vpermq	$0x69, %ymm21, %ymm26
+        vpermq	$0x69, %ymm22, %ymm27
+        vpermq	$60, %ymm18, %ymm18
+        vpermq	$60, %ymm19, %ymm19
+        vpermq	$60, %ymm20, %ymm20
+        vpermq	$60, %ymm21, %ymm21
+        vpermq	$60, %ymm22, %ymm22
+        vpaddq	%ymm23, %ymm18, %ymm18{%k3}
+        vpaddq	%ymm24, %ymm19, %ymm19{%k3}
+        vpaddq	%ymm25, %ymm20, %ymm20{%k3}
+        vpaddq	%ymm26, %ymm21, %ymm21{%k3}
+        vpaddq	%ymm27, %ymm22, %ymm22{%k3}
+        vpaddq	%ymm29, %ymm18, %ymm18{%k1}
+        vpaddq	%ymm30, %ymm19, %ymm19{%k1}
+        vpaddq	%ymm30, %ymm20, %ymm20{%k1}
+        vpaddq	%ymm30, %ymm21, %ymm21{%k1}
+        vpaddq	%ymm30, %ymm22, %ymm22{%k1}
+        vpsubq	%ymm23, %ymm18, %ymm18{%k1}
+        vpsubq	%ymm24, %ymm19, %ymm19{%k1}
+        vpsubq	%ymm25, %ymm20, %ymm20{%k1}
+        vpsubq	%ymm26, %ymm21, %ymm21{%k1}
+        vpsubq	%ymm27, %ymm22, %ymm22{%k1}
+        vpsrlq	$51, %ymm18, %ymm0
+        vpandq	%ymm28, %ymm18, %ymm18
+        vpsrlq	$51, %ymm19, %ymm1
+        vpandq	%ymm28, %ymm19, %ymm19
+        vpsrlq	$51, %ymm20, %ymm2
+        vpandq	%ymm28, %ymm20, %ymm20
+        vpsrlq	$51, %ymm21, %ymm3
+        vpandq	%ymm28, %ymm21, %ymm21
+        vpsrlq	$51, %ymm22, %ymm4
+        vpandq	%ymm28, %ymm22, %ymm22
+        vpmadd52luq	%ymm31, %ymm4, %ymm18
+        vpaddq	%ymm0, %ymm19, %ymm19
+        vpaddq	%ymm1, %ymm20, %ymm20
+        vpaddq	%ymm2, %ymm21, %ymm21
+        vpaddq	%ymm3, %ymm22, %ymm22
+        vmovdqu64	%ymm18, 160(%rsp)
+        vmovdqu64	%ymm19, 192(%rsp)
+        vmovdqu64	%ymm20, 224(%rsp)
+        vmovdqu64	%ymm21, 256(%rsp)
+        vmovdqu64	%ymm22, 288(%rsp)
+        vmovdqa64	%ymm18, %ymm23{%k7}
+        vmovdqa64	%ymm19, %ymm24{%k7}
+        vmovdqa64	%ymm20, %ymm25{%k7}
+        vmovdqa64	%ymm21, %ymm26{%k7}
+        vmovdqa64	%ymm22, %ymm27{%k7}
+        vpbroadcastq	32(%r11), %ymm23{%k4}
+        vpxorq	%ymm24, %ymm24, %ymm24{%k4}
+        vpxorq	%ymm25, %ymm25, %ymm25{%k4}
+        vpxorq	%ymm26, %ymm26, %ymm26{%k4}
+        vpxorq	%ymm27, %ymm27, %ymm27{%k4}
+        # [AA.BB, GG, FF, a24.E] = U * V
+        # Multiply 4 field elements
+        vpxorq	%ymm0, %ymm0, %ymm0
+        vpxorq	%ymm9, %ymm9, %ymm9
+        vpxorq	%ymm1, %ymm1, %ymm1
+        vpxorq	%ymm10, %ymm10, %ymm10
+        vpxorq	%ymm2, %ymm2, %ymm2
+        vpxorq	%ymm11, %ymm11, %ymm11
+        vpxorq	%ymm3, %ymm3, %ymm3
+        vpxorq	%ymm12, %ymm12, %ymm12
+        vpxorq	%ymm4, %ymm4, %ymm4
+        vpxorq	%ymm13, %ymm13, %ymm13
+        vpxorq	%ymm5, %ymm5, %ymm5
+        vpxorq	%ymm14, %ymm14, %ymm14
+        vpxorq	%ymm6, %ymm6, %ymm6
+        vpxorq	%ymm15, %ymm15, %ymm15
+        vpxorq	%ymm7, %ymm7, %ymm7
+        vpxorq	%ymm16, %ymm16, %ymm16
+        vpxorq	%ymm8, %ymm8, %ymm8
+        vpxorq	%ymm17, %ymm17, %ymm17
+        vpmadd52luq	%ymm23, %ymm18, %ymm0
+        vpmadd52huq	%ymm23, %ymm18, %ymm9
+        vpmadd52luq	%ymm24, %ymm18, %ymm1
+        vpmadd52huq	%ymm24, %ymm18, %ymm10
+        vpmadd52luq	%ymm25, %ymm18, %ymm2
+        vpmadd52huq	%ymm25, %ymm18, %ymm11
+        vpmadd52luq	%ymm26, %ymm18, %ymm3
+        vpmadd52huq	%ymm26, %ymm18, %ymm12
+        vpmadd52luq	%ymm27, %ymm18, %ymm4
+        vpmadd52huq	%ymm27, %ymm18, %ymm13
+        vpmadd52luq	%ymm23, %ymm19, %ymm1
+        vpmadd52huq	%ymm23, %ymm19, %ymm10
+        vpmadd52luq	%ymm24, %ymm19, %ymm2
+        vpmadd52huq	%ymm24, %ymm19, %ymm11
+        vpmadd52luq	%ymm25, %ymm19, %ymm3
+        vpmadd52huq	%ymm25, %ymm19, %ymm12
+        vpmadd52luq	%ymm26, %ymm19, %ymm4
+        vpmadd52huq	%ymm26, %ymm19, %ymm13
+        vpmadd52luq	%ymm27, %ymm19, %ymm5
+        vpmadd52huq	%ymm27, %ymm19, %ymm14
+        vpmadd52luq	%ymm23, %ymm20, %ymm2
+        vpmadd52huq	%ymm23, %ymm20, %ymm11
+        vpmadd52luq	%ymm24, %ymm20, %ymm3
+        vpmadd52huq	%ymm24, %ymm20, %ymm12
+        vpmadd52luq	%ymm25, %ymm20, %ymm4
+        vpmadd52huq	%ymm25, %ymm20, %ymm13
+        vpmadd52luq	%ymm26, %ymm20, %ymm5
+        vpmadd52huq	%ymm26, %ymm20, %ymm14
+        vpmadd52luq	%ymm27, %ymm20, %ymm6
+        vpmadd52huq	%ymm27, %ymm20, %ymm15
+        vpmadd52luq	%ymm23, %ymm21, %ymm3
+        vpmadd52huq	%ymm23, %ymm21, %ymm12
+        vpmadd52luq	%ymm24, %ymm21, %ymm4
+        vpmadd52huq	%ymm24, %ymm21, %ymm13
+        vpmadd52luq	%ymm25, %ymm21, %ymm5
+        vpmadd52huq	%ymm25, %ymm21, %ymm14
+        vpmadd52luq	%ymm26, %ymm21, %ymm6
+        vpmadd52huq	%ymm26, %ymm21, %ymm15
+        vpmadd52luq	%ymm27, %ymm21, %ymm7
+        vpmadd52huq	%ymm27, %ymm21, %ymm16
+        vpmadd52luq	%ymm23, %ymm22, %ymm4
+        vpmadd52huq	%ymm23, %ymm22, %ymm13
+        vpmadd52luq	%ymm24, %ymm22, %ymm5
+        vpmadd52huq	%ymm24, %ymm22, %ymm14
+        vpmadd52luq	%ymm25, %ymm22, %ymm6
+        vpmadd52huq	%ymm25, %ymm22, %ymm15
+        vpmadd52luq	%ymm26, %ymm22, %ymm7
+        vpmadd52huq	%ymm26, %ymm22, %ymm16
+        vpmadd52luq	%ymm27, %ymm22, %ymm8
+        vpmadd52huq	%ymm27, %ymm22, %ymm17
+        vpaddq	%ymm9, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpaddq	%ymm10, %ymm10, %ymm10
+        vpaddq	%ymm10, %ymm2, %ymm2
+        vpaddq	%ymm11, %ymm11, %ymm11
+        vpaddq	%ymm11, %ymm3, %ymm3
+        vpaddq	%ymm12, %ymm12, %ymm12
+        vpaddq	%ymm12, %ymm4, %ymm4
+        vpaddq	%ymm13, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm5, %ymm5
+        vpaddq	%ymm14, %ymm14, %ymm14
+        vpaddq	%ymm14, %ymm6, %ymm6
+        vpaddq	%ymm15, %ymm15, %ymm15
+        vpaddq	%ymm15, %ymm7, %ymm7
+        vpaddq	%ymm16, %ymm16, %ymm16
+        vpaddq	%ymm16, %ymm8, %ymm8
+        vpaddq	%ymm17, %ymm17, %ymm17
+        # Reduce
+        vpsllq	$4, %ymm5, %ymm9
+        vpsllq	$0x01, %ymm5, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm5, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm0, %ymm0
+        vpsllq	$4, %ymm6, %ymm9
+        vpsllq	$0x01, %ymm6, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm6, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpsllq	$4, %ymm7, %ymm9
+        vpsllq	$0x01, %ymm7, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm7, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm2, %ymm2
+        vpsllq	$4, %ymm8, %ymm9
+        vpsllq	$0x01, %ymm8, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm8, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm3, %ymm3
+        vpsllq	$4, %ymm17, %ymm9
+        vpsllq	$0x01, %ymm17, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm17, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm4, %ymm4
+        vpsrlq	$51, %ymm0, %ymm23
+        vpandq	%ymm28, %ymm0, %ymm0
+        vpsrlq	$51, %ymm1, %ymm24
+        vpandq	%ymm28, %ymm1, %ymm1
+        vpsrlq	$51, %ymm2, %ymm25
+        vpandq	%ymm28, %ymm2, %ymm2
+        vpsrlq	$51, %ymm3, %ymm26
+        vpandq	%ymm28, %ymm3, %ymm3
+        vpsrlq	$51, %ymm4, %ymm27
+        vpandq	%ymm28, %ymm4, %ymm4
+        vmovdqa64	%ymm0, %ymm18
+        vpmadd52luq	%ymm31, %ymm27, %ymm18
+        vpaddq	%ymm23, %ymm1, %ymm19
+        vpaddq	%ymm24, %ymm2, %ymm20
+        vpaddq	%ymm25, %ymm3, %ymm21
+        vpaddq	%ymm26, %ymm4, %ymm22
+        # U3 = [E, E, E, x1], V3 = [aE, AA + a24.E, T, T]
+        vpermq	$0x5f, %ymm18, %ymm23
+        vpermq	$0x5f, %ymm19, %ymm24
+        vpermq	$0x5f, %ymm20, %ymm25
+        vpermq	$0x5f, %ymm21, %ymm26
+        vpermq	$0x5f, %ymm22, %ymm27
+        vmovdqu64	%ymm18, 320(%rsp)
+        vmovdqu64	%ymm19, 352(%rsp)
+        vmovdqu64	%ymm20, 384(%rsp)
+        vmovdqu64	%ymm21, 416(%rsp)
+        vmovdqu64	%ymm22, 448(%rsp)
+        vpbroadcastq	160(%rsp), %ymm5
+        vpbroadcastq	192(%rsp), %ymm6
+        vpbroadcastq	224(%rsp), %ymm7
+        vpbroadcastq	256(%rsp), %ymm8
+        vpbroadcastq	288(%rsp), %ymm9
+        vpaddq	%ymm5, %ymm23, %ymm23{%k5}
+        vpaddq	%ymm6, %ymm24, %ymm24{%k5}
+        vpaddq	%ymm7, %ymm25, %ymm25{%k5}
+        vpaddq	%ymm8, %ymm26, %ymm26{%k5}
+        vpaddq	%ymm9, %ymm27, %ymm27{%k5}
+        vpsrlq	$51, %ymm23, %ymm10
+        vpandq	%ymm28, %ymm23, %ymm23
+        vpsrlq	$51, %ymm24, %ymm11
+        vpandq	%ymm28, %ymm24, %ymm24
+        vpsrlq	$51, %ymm25, %ymm12
+        vpandq	%ymm28, %ymm25, %ymm25
+        vpsrlq	$51, %ymm26, %ymm13
+        vpandq	%ymm28, %ymm26, %ymm26
+        vpsrlq	$51, %ymm27, %ymm14
+        vpandq	%ymm28, %ymm27, %ymm27
+        vpmadd52luq	%ymm31, %ymm14, %ymm23
+        vpaddq	%ymm10, %ymm24, %ymm24
+        vpaddq	%ymm11, %ymm25, %ymm25
+        vpaddq	%ymm12, %ymm26, %ymm26
+        vpaddq	%ymm13, %ymm27, %ymm27
+        vpbroadcastq	184(%rsp), %ymm18
+        vpbroadcastq	216(%rsp), %ymm19
+        vpbroadcastq	248(%rsp), %ymm20
+        vpbroadcastq	280(%rsp), %ymm21
+        vpbroadcastq	312(%rsp), %ymm22
+        vmovdqu64	(%rsp), %ymm18{%k4}
+        vmovdqu64	32(%rsp), %ymm19{%k4}
+        vmovdqu64	64(%rsp), %ymm20{%k4}
+        vmovdqu64	96(%rsp), %ymm21{%k4}
+        vmovdqu64	128(%rsp), %ymm22{%k4}
+        # [-, E.H, -, x1.T] = U3 * V3
+        # Multiply 4 field elements
+        vpxorq	%ymm0, %ymm0, %ymm0
+        vpxorq	%ymm9, %ymm9, %ymm9
+        vpxorq	%ymm1, %ymm1, %ymm1
+        vpxorq	%ymm10, %ymm10, %ymm10
+        vpxorq	%ymm2, %ymm2, %ymm2
+        vpxorq	%ymm11, %ymm11, %ymm11
+        vpxorq	%ymm3, %ymm3, %ymm3
+        vpxorq	%ymm12, %ymm12, %ymm12
+        vpxorq	%ymm4, %ymm4, %ymm4
+        vpxorq	%ymm13, %ymm13, %ymm13
+        vpxorq	%ymm5, %ymm5, %ymm5
+        vpxorq	%ymm14, %ymm14, %ymm14
+        vpxorq	%ymm6, %ymm6, %ymm6
+        vpxorq	%ymm15, %ymm15, %ymm15
+        vpxorq	%ymm7, %ymm7, %ymm7
+        vpxorq	%ymm16, %ymm16, %ymm16
+        vpxorq	%ymm8, %ymm8, %ymm8
+        vpxorq	%ymm17, %ymm17, %ymm17
+        vpmadd52luq	%ymm23, %ymm18, %ymm0
+        vpmadd52huq	%ymm23, %ymm18, %ymm9
+        vpmadd52luq	%ymm24, %ymm18, %ymm1
+        vpmadd52huq	%ymm24, %ymm18, %ymm10
+        vpmadd52luq	%ymm25, %ymm18, %ymm2
+        vpmadd52huq	%ymm25, %ymm18, %ymm11
+        vpmadd52luq	%ymm26, %ymm18, %ymm3
+        vpmadd52huq	%ymm26, %ymm18, %ymm12
+        vpmadd52luq	%ymm27, %ymm18, %ymm4
+        vpmadd52huq	%ymm27, %ymm18, %ymm13
+        vpmadd52luq	%ymm23, %ymm19, %ymm1
+        vpmadd52huq	%ymm23, %ymm19, %ymm10
+        vpmadd52luq	%ymm24, %ymm19, %ymm2
+        vpmadd52huq	%ymm24, %ymm19, %ymm11
+        vpmadd52luq	%ymm25, %ymm19, %ymm3
+        vpmadd52huq	%ymm25, %ymm19, %ymm12
+        vpmadd52luq	%ymm26, %ymm19, %ymm4
+        vpmadd52huq	%ymm26, %ymm19, %ymm13
+        vpmadd52luq	%ymm27, %ymm19, %ymm5
+        vpmadd52huq	%ymm27, %ymm19, %ymm14
+        vpmadd52luq	%ymm23, %ymm20, %ymm2
+        vpmadd52huq	%ymm23, %ymm20, %ymm11
+        vpmadd52luq	%ymm24, %ymm20, %ymm3
+        vpmadd52huq	%ymm24, %ymm20, %ymm12
+        vpmadd52luq	%ymm25, %ymm20, %ymm4
+        vpmadd52huq	%ymm25, %ymm20, %ymm13
+        vpmadd52luq	%ymm26, %ymm20, %ymm5
+        vpmadd52huq	%ymm26, %ymm20, %ymm14
+        vpmadd52luq	%ymm27, %ymm20, %ymm6
+        vpmadd52huq	%ymm27, %ymm20, %ymm15
+        vpmadd52luq	%ymm23, %ymm21, %ymm3
+        vpmadd52huq	%ymm23, %ymm21, %ymm12
+        vpmadd52luq	%ymm24, %ymm21, %ymm4
+        vpmadd52huq	%ymm24, %ymm21, %ymm13
+        vpmadd52luq	%ymm25, %ymm21, %ymm5
+        vpmadd52huq	%ymm25, %ymm21, %ymm14
+        vpmadd52luq	%ymm26, %ymm21, %ymm6
+        vpmadd52huq	%ymm26, %ymm21, %ymm15
+        vpmadd52luq	%ymm27, %ymm21, %ymm7
+        vpmadd52huq	%ymm27, %ymm21, %ymm16
+        vpmadd52luq	%ymm23, %ymm22, %ymm4
+        vpmadd52huq	%ymm23, %ymm22, %ymm13
+        vpmadd52luq	%ymm24, %ymm22, %ymm5
+        vpmadd52huq	%ymm24, %ymm22, %ymm14
+        vpmadd52luq	%ymm25, %ymm22, %ymm6
+        vpmadd52huq	%ymm25, %ymm22, %ymm15
+        vpmadd52luq	%ymm26, %ymm22, %ymm7
+        vpmadd52huq	%ymm26, %ymm22, %ymm16
+        vpmadd52luq	%ymm27, %ymm22, %ymm8
+        vpmadd52huq	%ymm27, %ymm22, %ymm17
+        vpaddq	%ymm9, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpaddq	%ymm10, %ymm10, %ymm10
+        vpaddq	%ymm10, %ymm2, %ymm2
+        vpaddq	%ymm11, %ymm11, %ymm11
+        vpaddq	%ymm11, %ymm3, %ymm3
+        vpaddq	%ymm12, %ymm12, %ymm12
+        vpaddq	%ymm12, %ymm4, %ymm4
+        vpaddq	%ymm13, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm5, %ymm5
+        vpaddq	%ymm14, %ymm14, %ymm14
+        vpaddq	%ymm14, %ymm6, %ymm6
+        vpaddq	%ymm15, %ymm15, %ymm15
+        vpaddq	%ymm15, %ymm7, %ymm7
+        vpaddq	%ymm16, %ymm16, %ymm16
+        vpaddq	%ymm16, %ymm8, %ymm8
+        vpaddq	%ymm17, %ymm17, %ymm17
+        # Reduce
+        vpsllq	$4, %ymm5, %ymm9
+        vpsllq	$0x01, %ymm5, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm5, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm0, %ymm0
+        vpsllq	$4, %ymm6, %ymm9
+        vpsllq	$0x01, %ymm6, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm6, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpsllq	$4, %ymm7, %ymm9
+        vpsllq	$0x01, %ymm7, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm7, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm2, %ymm2
+        vpsllq	$4, %ymm8, %ymm9
+        vpsllq	$0x01, %ymm8, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm8, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm3, %ymm3
+        vpsllq	$4, %ymm17, %ymm9
+        vpsllq	$0x01, %ymm17, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm17, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm4, %ymm4
+        vpsrlq	$51, %ymm0, %ymm23
+        vpandq	%ymm28, %ymm0, %ymm0
+        vpsrlq	$51, %ymm1, %ymm24
+        vpandq	%ymm28, %ymm1, %ymm1
+        vpsrlq	$51, %ymm2, %ymm25
+        vpandq	%ymm28, %ymm2, %ymm2
+        vpsrlq	$51, %ymm3, %ymm26
+        vpandq	%ymm28, %ymm3, %ymm3
+        vpsrlq	$51, %ymm4, %ymm27
+        vpandq	%ymm28, %ymm4, %ymm4
+        vmovdqa64	%ymm0, %ymm18
+        vpmadd52luq	%ymm31, %ymm27, %ymm18
+        vpaddq	%ymm23, %ymm1, %ymm19
+        vpaddq	%ymm24, %ymm2, %ymm20
+        vpaddq	%ymm25, %ymm3, %ymm21
+        vpaddq	%ymm26, %ymm4, %ymm22
+        # [x2, z2, x3, z3] = [AA.BB, E.H, FF, x1.T]
+        vmovdqu64	320(%rsp), %ymm0
+        vmovdqu64	352(%rsp), %ymm1
+        vmovdqu64	384(%rsp), %ymm2
+        vmovdqu64	416(%rsp), %ymm3
+        vmovdqu64	448(%rsp), %ymm4
+        vmovdqa64	%ymm0, %ymm18{%k2}
+        vmovdqa64	%ymm1, %ymm19{%k2}
+        vmovdqa64	%ymm2, %ymm20{%k2}
+        vmovdqa64	%ymm3, %ymm21{%k2}
+        vmovdqa64	%ymm4, %ymm22{%k2}
+        movq	704(%rsp), %rdx
+        decq	%rdx
+        jge	L_curve25519_base_avx512_ifma_bits
+        vmovdqu64	%ymm18, 480(%rsp)
+        vmovdqu64	%ymm19, 512(%rsp)
+        vmovdqu64	%ymm20, 544(%rsp)
+        vmovdqu64	%ymm21, 576(%rsp)
+        vmovdqu64	%ymm22, 608(%rsp)
+        vzeroupper
+        # Convert to 4 x 64-bit field elements
+        movq	$0x7ffffffffffff, %r13
+        movq	480(%rsp), %rdx
+        movq	512(%rsp), %rax
+        movq	544(%rsp), %r8
+        movq	576(%rsp), %r9
+        movq	608(%rsp), %r10
+        movq	%rdx, %r11
+        shrq	$51, %r11
+        andq	%r13, %rdx
+        addq	%r11, %rax
+        movq	%rax, %r11
+        shrq	$51, %r11
+        andq	%r13, %rax
+        addq	%r11, %r8
+        movq	%r8, %r11
+        shrq	$51, %r11
+        andq	%r13, %r8
+        addq	%r11, %r9
+        movq	%r9, %r11
+        shrq	$51, %r11
+        andq	%r13, %r9
+        addq	%r11, %r10
+        movq	%r10, %r11
+        shrq	$51, %r11
+        andq	%r13, %r10
+        imulq	$19, %r11, %r11
+        addq	%r11, %rdx
+        movq	%rax, %r11
+        shlq	$51, %r11
+        movq	%rax, %r12
+        shrq	$13, %r12
+        addq	%r11, %rdx
+        adcq	$0x00, %r12
+        movq	%rdx, 640(%rsp)
+        movq	%r8, %r11
+        shlq	$38, %r11
+        movq	%r8, %rdx
+        shrq	$26, %rdx
+        addq	%r11, %r12
+        adcq	$0x00, %rdx
+        movq	%r12, 648(%rsp)
+        movq	%r9, %r11
+        shlq	$25, %r11
+        movq	%r9, %r12
+        shrq	$39, %r12
+        addq	%r11, %rdx
+        adcq	$0x00, %r12
+        movq	%rdx, 656(%rsp)
+        movq	%r10, %r11
+        shlq	$12, %r11
+        addq	%r11, %r12
+        movq	%r12, 664(%rsp)
+        movq	488(%rsp), %rdx
+        movq	520(%rsp), %rax
+        movq	552(%rsp), %r8
+        movq	584(%rsp), %r9
+        movq	616(%rsp), %r10
+        movq	%rdx, %r11
+        shrq	$51, %r11
+        andq	%r13, %rdx
+        addq	%r11, %rax
+        movq	%rax, %r11
+        shrq	$51, %r11
+        andq	%r13, %rax
+        addq	%r11, %r8
+        movq	%r8, %r11
+        shrq	$51, %r11
+        andq	%r13, %r8
+        addq	%r11, %r9
+        movq	%r9, %r11
+        shrq	$51, %r11
+        andq	%r13, %r9
+        addq	%r11, %r10
+        movq	%r10, %r11
+        shrq	$51, %r11
+        andq	%r13, %r10
+        imulq	$19, %r11, %r11
+        addq	%r11, %rdx
+        movq	%rax, %r11
+        shlq	$51, %r11
+        movq	%rax, %r12
+        shrq	$13, %r12
+        addq	%r11, %rdx
+        adcq	$0x00, %r12
+        movq	%rdx, 672(%rsp)
+        movq	%r8, %r11
+        shlq	$38, %r11
+        movq	%r8, %rdx
+        shrq	$26, %rdx
+        addq	%r11, %r12
+        adcq	$0x00, %rdx
+        movq	%r12, 680(%rsp)
+        movq	%r9, %r11
+        shlq	$25, %r11
+        movq	%r9, %r12
+        shrq	$39, %r12
+        addq	%r11, %rdx
+        adcq	$0x00, %r12
+        movq	%rdx, 688(%rsp)
+        movq	%r10, %r11
+        shlq	$12, %r11
+        addq	%r11, %r12
+        movq	%r12, 696(%rsp)
+        # z2 = 1 / z2
+        leaq	672(%rsp), %rdi
+        leaq	672(%rsp), %rsi
+#ifndef __APPLE__
+        callq	fe_invert_avx2@plt
+#else
+        callq	_fe_invert_avx2
+#endif /* __APPLE__ */
+        # x2 = x2 * z2
+        leaq	640(%rsp), %rdi
+        leaq	640(%rsp), %rsi
+        leaq	672(%rsp), %rdx
+#ifndef __APPLE__
+        callq	fe_mul_avx2@plt
+#else
+        callq	_fe_mul_avx2
+#endif /* __APPLE__ */
+        # Store fully reduced result
+        movq	712(%rsp), %rdi
+        leaq	640(%rsp), %rsi
+#ifndef __APPLE__
+        callq	fe_tobytes@plt
+#else
+        callq	_fe_tobytes
+#endif /* __APPLE__ */
+        xorq	%rax, %rax
+        addq	$0x2e0, %rsp
+        popq	%r14
+        popq	%r13
+        popq	%r12
+        repz retq
+#ifndef __APPLE__
+.size	curve25519_base_avx512_ifma,.-curve25519_base_avx512_ifma
+#endif /* __APPLE__ */
+#endif /* WOLFSSL_CURVE25519_NOT_USE_ED25519 */
+#ifndef __APPLE__
+.text
+.globl	curve25519_avx512_ifma
+WC_ASM_ATT_HIDDEN(curve25519_avx512_ifma)
+.type	curve25519_avx512_ifma,@function
+.align	16
+curve25519_avx512_ifma:
+#else
+.section	__TEXT,__text
+.globl	_curve25519_avx512_ifma
+WC_ASM_ATT_HIDDEN(_curve25519_avx512_ifma)
+.p2align	4
+_curve25519_avx512_ifma:
+#endif /* __APPLE__ */
+        pushq	%r12
+        pushq	%r13
+        pushq	%r14
+        pushq	%r15
+        movq	%rdx, %r15
+        subq	$0x2e8, %rsp
+        movq	%rdi, 712(%rsp)
+        movq	$0x7ffffffffffff, %r13
+        movq	(%r15), %rdx
+        movq	8(%r15), %rax
+        movq	16(%r15), %r8
+        movq	24(%r15), %r9
+        movq	%r9, %r10
+        shrq	$63, %r10
+        imulq	$19, %r10, %r10
+        shlq	$1, %r9
+        shrq	$1, %r9
+        movq	%rdx, %r12
+        andq	%r13, %r12
+        addq	%r10, %r12
+        movq	%r12, (%rsp)
+        movq	%r12, 8(%rsp)
+        movq	%r12, 16(%rsp)
+        movq	%r12, 24(%rsp)
+        movq	$0x01, 480(%rsp)
+        movq	$0x00, 488(%rsp)
+        movq	%r12, 496(%rsp)
+        movq	$0x01, 504(%rsp)
+        shrdq	$51, %rax, %rdx
+        movq	%rdx, %r10
+        andq	%r13, %r10
+        movq	%r10, 32(%rsp)
+        movq	%r10, 40(%rsp)
+        movq	%r10, 48(%rsp)
+        movq	%r10, 56(%rsp)
+        movq	$0x00, 512(%rsp)
+        movq	$0x00, 520(%rsp)
+        movq	%r10, 528(%rsp)
+        movq	$0x00, 536(%rsp)
+        shrdq	$38, %r8, %rax
+        movq	%rax, %r10
+        andq	%r13, %r10
+        movq	%r10, 64(%rsp)
+        movq	%r10, 72(%rsp)
+        movq	%r10, 80(%rsp)
+        movq	%r10, 88(%rsp)
+        movq	$0x00, 544(%rsp)
+        movq	$0x00, 552(%rsp)
+        movq	%r10, 560(%rsp)
+        movq	$0x00, 568(%rsp)
+        shrdq	$25, %r9, %r8
+        movq	%r8, %r10
+        andq	%r13, %r10
+        movq	%r10, 96(%rsp)
+        movq	%r10, 104(%rsp)
+        movq	%r10, 112(%rsp)
+        movq	%r10, 120(%rsp)
+        movq	$0x00, 576(%rsp)
+        movq	$0x00, 584(%rsp)
+        movq	%r10, 592(%rsp)
+        movq	$0x00, 600(%rsp)
+        shrq	$12, %r9
+        movq	%r9, 128(%rsp)
+        movq	%r9, 136(%rsp)
+        movq	%r9, 144(%rsp)
+        movq	%r9, 152(%rsp)
+        movq	$0x00, 608(%rsp)
+        movq	$0x00, 616(%rsp)
+        movq	%r9, 624(%rsp)
+        movq	$0x00, 632(%rsp)
+        leaq	L_x25519_ifma_consts(%rip), %r11
+        vpbroadcastq	(%r11), %ymm28
+        vpbroadcastq	8(%r11), %ymm29
+        vpbroadcastq	16(%r11), %ymm30
+        vpbroadcastq	24(%r11), %ymm31
+        movl	$10, %r10d
+        kmovw	%r10d, %k1
+        movl	$5, %r10d
+        kmovw	%r10d, %k2
+        movl	$4, %r10d
+        kmovw	%r10d, %k3
+        movl	$8, %r10d
+        kmovw	%r10d, %k4
+        movl	$2, %r10d
+        kmovw	%r10d, %k5
+        movl	$6, %r10d
+        kmovw	%r10d, %k7
+        vmovdqu64	480(%rsp), %ymm18
+        vmovdqu64	512(%rsp), %ymm19
+        vmovdqu64	544(%rsp), %ymm20
+        vmovdqu64	576(%rsp), %ymm21
+        vmovdqu64	608(%rsp), %ymm22
+        movq	$0x00, %r8
+        movq	$0xfe, %rdx
+L_curve25519_avx512_ifma_bits:
+        # Conditionally swap (x2, z2) with (x3, z3)
+        movq	%rdx, 704(%rsp)
+        movq	%rdx, %rcx
+        andq	$63, %rcx
+        shrq	$6, %rdx
+        movq	(%rsi,%rdx,8), %rax
+        shrq	%cl, %rax
+        andq	$0x01, %rax
+        movq	%rax, %r9
+        xorq	%rax, %r8
+        negq	%r8
+        andq	$15, %r8
+        kmovw	%r8d, %k6
+        movq	%r9, %r8
+        vpermq	$0x4e, %ymm18, %ymm18{%k6}
+        vpermq	$0x4e, %ymm19, %ymm19{%k6}
+        vpermq	$0x4e, %ymm20, %ymm20{%k6}
+        vpermq	$0x4e, %ymm21, %ymm21{%k6}
+        vpermq	$0x4e, %ymm22, %ymm22{%k6}
+        # A = x2 + z2, B = x2 - z2, C = x3 + z3, D = x3 - z3
+        vpermq	$0xb1, %ymm18, %ymm0
+        vpermq	$0xb1, %ymm19, %ymm1
+        vpermq	$0xb1, %ymm20, %ymm2
+        vpermq	$0xb1, %ymm21, %ymm3
+        vpermq	$0xb1, %ymm22, %ymm4
+        vpaddq	%ymm18, %ymm0, %ymm23
+        vpaddq	%ymm19, %ymm1, %ymm24
+        vpaddq	%ymm20, %ymm2, %ymm25
+        vpaddq	%ymm21, %ymm3, %ymm26
+        vpaddq	%ymm22, %ymm4, %ymm27
+        vpaddq	%ymm29, %ymm0, %ymm0{%k1}
+        vpaddq	%ymm30, %ymm1, %ymm1{%k1}
+        vpaddq	%ymm30, %ymm2, %ymm2{%k1}
+        vpaddq	%ymm30, %ymm3, %ymm3{%k1}
+        vpaddq	%ymm30, %ymm4, %ymm4{%k1}
+        vpsubq	%ymm18, %ymm0, %ymm23{%k1}
+        vpsubq	%ymm19, %ymm1, %ymm24{%k1}
+        vpsubq	%ymm20, %ymm2, %ymm25{%k1}
+        vpsubq	%ymm21, %ymm3, %ymm26{%k1}
+        vpsubq	%ymm22, %ymm4, %ymm27{%k1}
+        vpsrlq	$51, %ymm23, %ymm5
+        vpandq	%ymm28, %ymm23, %ymm23
+        vpsrlq	$51, %ymm24, %ymm6
+        vpandq	%ymm28, %ymm24, %ymm24
+        vpsrlq	$51, %ymm25, %ymm7
+        vpandq	%ymm28, %ymm25, %ymm25
+        vpsrlq	$51, %ymm26, %ymm8
+        vpandq	%ymm28, %ymm26, %ymm26
+        vpsrlq	$51, %ymm27, %ymm9
+        vpandq	%ymm28, %ymm27, %ymm27
+        vpmadd52luq	%ymm31, %ymm9, %ymm23
+        vpaddq	%ymm5, %ymm24, %ymm24
+        vpaddq	%ymm6, %ymm25, %ymm25
+        vpaddq	%ymm7, %ymm26, %ymm26
+        vpaddq	%ymm8, %ymm27, %ymm27
+        # [AA, BB, CB, DA] = [A, B, C, D] * [A, B, B, A]
+        vpermq	$20, %ymm23, %ymm18
+        vpermq	$20, %ymm24, %ymm19
+        vpermq	$20, %ymm25, %ymm20
+        vpermq	$20, %ymm26, %ymm21
+        vpermq	$20, %ymm27, %ymm22
+        # Multiply 4 field elements
+        vpxorq	%ymm0, %ymm0, %ymm0
+        vpxorq	%ymm9, %ymm9, %ymm9
+        vpxorq	%ymm1, %ymm1, %ymm1
+        vpxorq	%ymm10, %ymm10, %ymm10
+        vpxorq	%ymm2, %ymm2, %ymm2
+        vpxorq	%ymm11, %ymm11, %ymm11
+        vpxorq	%ymm3, %ymm3, %ymm3
+        vpxorq	%ymm12, %ymm12, %ymm12
+        vpxorq	%ymm4, %ymm4, %ymm4
+        vpxorq	%ymm13, %ymm13, %ymm13
+        vpxorq	%ymm5, %ymm5, %ymm5
+        vpxorq	%ymm14, %ymm14, %ymm14
+        vpxorq	%ymm6, %ymm6, %ymm6
+        vpxorq	%ymm15, %ymm15, %ymm15
+        vpxorq	%ymm7, %ymm7, %ymm7
+        vpxorq	%ymm16, %ymm16, %ymm16
+        vpxorq	%ymm8, %ymm8, %ymm8
+        vpxorq	%ymm17, %ymm17, %ymm17
+        vpmadd52luq	%ymm23, %ymm18, %ymm0
+        vpmadd52huq	%ymm23, %ymm18, %ymm9
+        vpmadd52luq	%ymm24, %ymm18, %ymm1
+        vpmadd52huq	%ymm24, %ymm18, %ymm10
+        vpmadd52luq	%ymm25, %ymm18, %ymm2
+        vpmadd52huq	%ymm25, %ymm18, %ymm11
+        vpmadd52luq	%ymm26, %ymm18, %ymm3
+        vpmadd52huq	%ymm26, %ymm18, %ymm12
+        vpmadd52luq	%ymm27, %ymm18, %ymm4
+        vpmadd52huq	%ymm27, %ymm18, %ymm13
+        vpmadd52luq	%ymm23, %ymm19, %ymm1
+        vpmadd52huq	%ymm23, %ymm19, %ymm10
+        vpmadd52luq	%ymm24, %ymm19, %ymm2
+        vpmadd52huq	%ymm24, %ymm19, %ymm11
+        vpmadd52luq	%ymm25, %ymm19, %ymm3
+        vpmadd52huq	%ymm25, %ymm19, %ymm12
+        vpmadd52luq	%ymm26, %ymm19, %ymm4
+        vpmadd52huq	%ymm26, %ymm19, %ymm13
+        vpmadd52luq	%ymm27, %ymm19, %ymm5
+        vpmadd52huq	%ymm27, %ymm19, %ymm14
+        vpmadd52luq	%ymm23, %ymm20, %ymm2
+        vpmadd52huq	%ymm23, %ymm20, %ymm11
+        vpmadd52luq	%ymm24, %ymm20, %ymm3
+        vpmadd52huq	%ymm24, %ymm20, %ymm12
+        vpmadd52luq	%ymm25, %ymm20, %ymm4
+        vpmadd52huq	%ymm25, %ymm20, %ymm13
+        vpmadd52luq	%ymm26, %ymm20, %ymm5
+        vpmadd52huq	%ymm26, %ymm20, %ymm14
+        vpmadd52luq	%ymm27, %ymm20, %ymm6
+        vpmadd52huq	%ymm27, %ymm20, %ymm15
+        vpmadd52luq	%ymm23, %ymm21, %ymm3
+        vpmadd52huq	%ymm23, %ymm21, %ymm12
+        vpmadd52luq	%ymm24, %ymm21, %ymm4
+        vpmadd52huq	%ymm24, %ymm21, %ymm13
+        vpmadd52luq	%ymm25, %ymm21, %ymm5
+        vpmadd52huq	%ymm25, %ymm21, %ymm14
+        vpmadd52luq	%ymm26, %ymm21, %ymm6
+        vpmadd52huq	%ymm26, %ymm21, %ymm15
+        vpmadd52luq	%ymm27, %ymm21, %ymm7
+        vpmadd52huq	%ymm27, %ymm21, %ymm16
+        vpmadd52luq	%ymm23, %ymm22, %ymm4
+        vpmadd52huq	%ymm23, %ymm22, %ymm13
+        vpmadd52luq	%ymm24, %ymm22, %ymm5
+        vpmadd52huq	%ymm24, %ymm22, %ymm14
+        vpmadd52luq	%ymm25, %ymm22, %ymm6
+        vpmadd52huq	%ymm25, %ymm22, %ymm15
+        vpmadd52luq	%ymm26, %ymm22, %ymm7
+        vpmadd52huq	%ymm26, %ymm22, %ymm16
+        vpmadd52luq	%ymm27, %ymm22, %ymm8
+        vpmadd52huq	%ymm27, %ymm22, %ymm17
+        vpaddq	%ymm9, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpaddq	%ymm10, %ymm10, %ymm10
+        vpaddq	%ymm10, %ymm2, %ymm2
+        vpaddq	%ymm11, %ymm11, %ymm11
+        vpaddq	%ymm11, %ymm3, %ymm3
+        vpaddq	%ymm12, %ymm12, %ymm12
+        vpaddq	%ymm12, %ymm4, %ymm4
+        vpaddq	%ymm13, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm5, %ymm5
+        vpaddq	%ymm14, %ymm14, %ymm14
+        vpaddq	%ymm14, %ymm6, %ymm6
+        vpaddq	%ymm15, %ymm15, %ymm15
+        vpaddq	%ymm15, %ymm7, %ymm7
+        vpaddq	%ymm16, %ymm16, %ymm16
+        vpaddq	%ymm16, %ymm8, %ymm8
+        vpaddq	%ymm17, %ymm17, %ymm17
+        # Reduce
+        vpsllq	$4, %ymm5, %ymm9
+        vpsllq	$0x01, %ymm5, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm5, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm0, %ymm0
+        vpsllq	$4, %ymm6, %ymm9
+        vpsllq	$0x01, %ymm6, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm6, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpsllq	$4, %ymm7, %ymm9
+        vpsllq	$0x01, %ymm7, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm7, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm2, %ymm2
+        vpsllq	$4, %ymm8, %ymm9
+        vpsllq	$0x01, %ymm8, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm8, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm3, %ymm3
+        vpsllq	$4, %ymm17, %ymm9
+        vpsllq	$0x01, %ymm17, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm17, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm4, %ymm4
+        vpsrlq	$51, %ymm0, %ymm23
+        vpandq	%ymm28, %ymm0, %ymm0
+        vpsrlq	$51, %ymm1, %ymm24
+        vpandq	%ymm28, %ymm1, %ymm1
+        vpsrlq	$51, %ymm2, %ymm25
+        vpandq	%ymm28, %ymm2, %ymm2
+        vpsrlq	$51, %ymm3, %ymm26
+        vpandq	%ymm28, %ymm3, %ymm3
+        vpsrlq	$51, %ymm4, %ymm27
+        vpandq	%ymm28, %ymm4, %ymm4
+        vmovdqa64	%ymm0, %ymm18
+        vpmadd52luq	%ymm31, %ymm27, %ymm18
+        vpaddq	%ymm23, %ymm1, %ymm19
+        vpaddq	%ymm24, %ymm2, %ymm20
+        vpaddq	%ymm25, %ymm3, %ymm21
+        vpaddq	%ymm26, %ymm4, %ymm22
+        # U = [AA, DA-CB, DA+CB, AA-BB], V = [BB, DA-CB, DA+CB, a24]
+        vpermq	$0x69, %ymm18, %ymm23
+        vpermq	$0x69, %ymm19, %ymm24
+        vpermq	$0x69, %ymm20, %ymm25
+        vpermq	$0x69, %ymm21, %ymm26
+        vpermq	$0x69, %ymm22, %ymm27
+        vpermq	$60, %ymm18, %ymm18
+        vpermq	$60, %ymm19, %ymm19
+        vpermq	$60, %ymm20, %ymm20
+        vpermq	$60, %ymm21, %ymm21
+        vpermq	$60, %ymm22, %ymm22
+        vpaddq	%ymm23, %ymm18, %ymm18{%k3}
+        vpaddq	%ymm24, %ymm19, %ymm19{%k3}
+        vpaddq	%ymm25, %ymm20, %ymm20{%k3}
+        vpaddq	%ymm26, %ymm21, %ymm21{%k3}
+        vpaddq	%ymm27, %ymm22, %ymm22{%k3}
+        vpaddq	%ymm29, %ymm18, %ymm18{%k1}
+        vpaddq	%ymm30, %ymm19, %ymm19{%k1}
+        vpaddq	%ymm30, %ymm20, %ymm20{%k1}
+        vpaddq	%ymm30, %ymm21, %ymm21{%k1}
+        vpaddq	%ymm30, %ymm22, %ymm22{%k1}
+        vpsubq	%ymm23, %ymm18, %ymm18{%k1}
+        vpsubq	%ymm24, %ymm19, %ymm19{%k1}
+        vpsubq	%ymm25, %ymm20, %ymm20{%k1}
+        vpsubq	%ymm26, %ymm21, %ymm21{%k1}
+        vpsubq	%ymm27, %ymm22, %ymm22{%k1}
+        vpsrlq	$51, %ymm18, %ymm0
+        vpandq	%ymm28, %ymm18, %ymm18
+        vpsrlq	$51, %ymm19, %ymm1
+        vpandq	%ymm28, %ymm19, %ymm19
+        vpsrlq	$51, %ymm20, %ymm2
+        vpandq	%ymm28, %ymm20, %ymm20
+        vpsrlq	$51, %ymm21, %ymm3
+        vpandq	%ymm28, %ymm21, %ymm21
+        vpsrlq	$51, %ymm22, %ymm4
+        vpandq	%ymm28, %ymm22, %ymm22
+        vpmadd52luq	%ymm31, %ymm4, %ymm18
+        vpaddq	%ymm0, %ymm19, %ymm19
+        vpaddq	%ymm1, %ymm20, %ymm20
+        vpaddq	%ymm2, %ymm21, %ymm21
+        vpaddq	%ymm3, %ymm22, %ymm22
+        vmovdqu64	%ymm18, 160(%rsp)
+        vmovdqu64	%ymm19, 192(%rsp)
+        vmovdqu64	%ymm20, 224(%rsp)
+        vmovdqu64	%ymm21, 256(%rsp)
+        vmovdqu64	%ymm22, 288(%rsp)
+        vmovdqa64	%ymm18, %ymm23{%k7}
+        vmovdqa64	%ymm19, %ymm24{%k7}
+        vmovdqa64	%ymm20, %ymm25{%k7}
+        vmovdqa64	%ymm21, %ymm26{%k7}
+        vmovdqa64	%ymm22, %ymm27{%k7}
+        vpbroadcastq	32(%r11), %ymm23{%k4}
+        vpxorq	%ymm24, %ymm24, %ymm24{%k4}
+        vpxorq	%ymm25, %ymm25, %ymm25{%k4}
+        vpxorq	%ymm26, %ymm26, %ymm26{%k4}
+        vpxorq	%ymm27, %ymm27, %ymm27{%k4}
+        # [AA.BB, GG, FF, a24.E] = U * V
+        # Multiply 4 field elements
+        vpxorq	%ymm0, %ymm0, %ymm0
+        vpxorq	%ymm9, %ymm9, %ymm9
+        vpxorq	%ymm1, %ymm1, %ymm1
+        vpxorq	%ymm10, %ymm10, %ymm10
+        vpxorq	%ymm2, %ymm2, %ymm2
+        vpxorq	%ymm11, %ymm11, %ymm11
+        vpxorq	%ymm3, %ymm3, %ymm3
+        vpxorq	%ymm12, %ymm12, %ymm12
+        vpxorq	%ymm4, %ymm4, %ymm4
+        vpxorq	%ymm13, %ymm13, %ymm13
+        vpxorq	%ymm5, %ymm5, %ymm5
+        vpxorq	%ymm14, %ymm14, %ymm14
+        vpxorq	%ymm6, %ymm6, %ymm6
+        vpxorq	%ymm15, %ymm15, %ymm15
+        vpxorq	%ymm7, %ymm7, %ymm7
+        vpxorq	%ymm16, %ymm16, %ymm16
+        vpxorq	%ymm8, %ymm8, %ymm8
+        vpxorq	%ymm17, %ymm17, %ymm17
+        vpmadd52luq	%ymm23, %ymm18, %ymm0
+        vpmadd52huq	%ymm23, %ymm18, %ymm9
+        vpmadd52luq	%ymm24, %ymm18, %ymm1
+        vpmadd52huq	%ymm24, %ymm18, %ymm10
+        vpmadd52luq	%ymm25, %ymm18, %ymm2
+        vpmadd52huq	%ymm25, %ymm18, %ymm11
+        vpmadd52luq	%ymm26, %ymm18, %ymm3
+        vpmadd52huq	%ymm26, %ymm18, %ymm12
+        vpmadd52luq	%ymm27, %ymm18, %ymm4
+        vpmadd52huq	%ymm27, %ymm18, %ymm13
+        vpmadd52luq	%ymm23, %ymm19, %ymm1
+        vpmadd52huq	%ymm23, %ymm19, %ymm10
+        vpmadd52luq	%ymm24, %ymm19, %ymm2
+        vpmadd52huq	%ymm24, %ymm19, %ymm11
+        vpmadd52luq	%ymm25, %ymm19, %ymm3
+        vpmadd52huq	%ymm25, %ymm19, %ymm12
+        vpmadd52luq	%ymm26, %ymm19, %ymm4
+        vpmadd52huq	%ymm26, %ymm19, %ymm13
+        vpmadd52luq	%ymm27, %ymm19, %ymm5
+        vpmadd52huq	%ymm27, %ymm19, %ymm14
+        vpmadd52luq	%ymm23, %ymm20, %ymm2
+        vpmadd52huq	%ymm23, %ymm20, %ymm11
+        vpmadd52luq	%ymm24, %ymm20, %ymm3
+        vpmadd52huq	%ymm24, %ymm20, %ymm12
+        vpmadd52luq	%ymm25, %ymm20, %ymm4
+        vpmadd52huq	%ymm25, %ymm20, %ymm13
+        vpmadd52luq	%ymm26, %ymm20, %ymm5
+        vpmadd52huq	%ymm26, %ymm20, %ymm14
+        vpmadd52luq	%ymm27, %ymm20, %ymm6
+        vpmadd52huq	%ymm27, %ymm20, %ymm15
+        vpmadd52luq	%ymm23, %ymm21, %ymm3
+        vpmadd52huq	%ymm23, %ymm21, %ymm12
+        vpmadd52luq	%ymm24, %ymm21, %ymm4
+        vpmadd52huq	%ymm24, %ymm21, %ymm13
+        vpmadd52luq	%ymm25, %ymm21, %ymm5
+        vpmadd52huq	%ymm25, %ymm21, %ymm14
+        vpmadd52luq	%ymm26, %ymm21, %ymm6
+        vpmadd52huq	%ymm26, %ymm21, %ymm15
+        vpmadd52luq	%ymm27, %ymm21, %ymm7
+        vpmadd52huq	%ymm27, %ymm21, %ymm16
+        vpmadd52luq	%ymm23, %ymm22, %ymm4
+        vpmadd52huq	%ymm23, %ymm22, %ymm13
+        vpmadd52luq	%ymm24, %ymm22, %ymm5
+        vpmadd52huq	%ymm24, %ymm22, %ymm14
+        vpmadd52luq	%ymm25, %ymm22, %ymm6
+        vpmadd52huq	%ymm25, %ymm22, %ymm15
+        vpmadd52luq	%ymm26, %ymm22, %ymm7
+        vpmadd52huq	%ymm26, %ymm22, %ymm16
+        vpmadd52luq	%ymm27, %ymm22, %ymm8
+        vpmadd52huq	%ymm27, %ymm22, %ymm17
+        vpaddq	%ymm9, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpaddq	%ymm10, %ymm10, %ymm10
+        vpaddq	%ymm10, %ymm2, %ymm2
+        vpaddq	%ymm11, %ymm11, %ymm11
+        vpaddq	%ymm11, %ymm3, %ymm3
+        vpaddq	%ymm12, %ymm12, %ymm12
+        vpaddq	%ymm12, %ymm4, %ymm4
+        vpaddq	%ymm13, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm5, %ymm5
+        vpaddq	%ymm14, %ymm14, %ymm14
+        vpaddq	%ymm14, %ymm6, %ymm6
+        vpaddq	%ymm15, %ymm15, %ymm15
+        vpaddq	%ymm15, %ymm7, %ymm7
+        vpaddq	%ymm16, %ymm16, %ymm16
+        vpaddq	%ymm16, %ymm8, %ymm8
+        vpaddq	%ymm17, %ymm17, %ymm17
+        # Reduce
+        vpsllq	$4, %ymm5, %ymm9
+        vpsllq	$0x01, %ymm5, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm5, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm0, %ymm0
+        vpsllq	$4, %ymm6, %ymm9
+        vpsllq	$0x01, %ymm6, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm6, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpsllq	$4, %ymm7, %ymm9
+        vpsllq	$0x01, %ymm7, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm7, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm2, %ymm2
+        vpsllq	$4, %ymm8, %ymm9
+        vpsllq	$0x01, %ymm8, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm8, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm3, %ymm3
+        vpsllq	$4, %ymm17, %ymm9
+        vpsllq	$0x01, %ymm17, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm17, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm4, %ymm4
+        vpsrlq	$51, %ymm0, %ymm23
+        vpandq	%ymm28, %ymm0, %ymm0
+        vpsrlq	$51, %ymm1, %ymm24
+        vpandq	%ymm28, %ymm1, %ymm1
+        vpsrlq	$51, %ymm2, %ymm25
+        vpandq	%ymm28, %ymm2, %ymm2
+        vpsrlq	$51, %ymm3, %ymm26
+        vpandq	%ymm28, %ymm3, %ymm3
+        vpsrlq	$51, %ymm4, %ymm27
+        vpandq	%ymm28, %ymm4, %ymm4
+        vmovdqa64	%ymm0, %ymm18
+        vpmadd52luq	%ymm31, %ymm27, %ymm18
+        vpaddq	%ymm23, %ymm1, %ymm19
+        vpaddq	%ymm24, %ymm2, %ymm20
+        vpaddq	%ymm25, %ymm3, %ymm21
+        vpaddq	%ymm26, %ymm4, %ymm22
+        # U3 = [E, E, E, x1], V3 = [aE, AA + a24.E, T, T]
+        vpermq	$0x5f, %ymm18, %ymm23
+        vpermq	$0x5f, %ymm19, %ymm24
+        vpermq	$0x5f, %ymm20, %ymm25
+        vpermq	$0x5f, %ymm21, %ymm26
+        vpermq	$0x5f, %ymm22, %ymm27
+        vmovdqu64	%ymm18, 320(%rsp)
+        vmovdqu64	%ymm19, 352(%rsp)
+        vmovdqu64	%ymm20, 384(%rsp)
+        vmovdqu64	%ymm21, 416(%rsp)
+        vmovdqu64	%ymm22, 448(%rsp)
+        vpbroadcastq	160(%rsp), %ymm5
+        vpbroadcastq	192(%rsp), %ymm6
+        vpbroadcastq	224(%rsp), %ymm7
+        vpbroadcastq	256(%rsp), %ymm8
+        vpbroadcastq	288(%rsp), %ymm9
+        vpaddq	%ymm5, %ymm23, %ymm23{%k5}
+        vpaddq	%ymm6, %ymm24, %ymm24{%k5}
+        vpaddq	%ymm7, %ymm25, %ymm25{%k5}
+        vpaddq	%ymm8, %ymm26, %ymm26{%k5}
+        vpaddq	%ymm9, %ymm27, %ymm27{%k5}
+        vpsrlq	$51, %ymm23, %ymm10
+        vpandq	%ymm28, %ymm23, %ymm23
+        vpsrlq	$51, %ymm24, %ymm11
+        vpandq	%ymm28, %ymm24, %ymm24
+        vpsrlq	$51, %ymm25, %ymm12
+        vpandq	%ymm28, %ymm25, %ymm25
+        vpsrlq	$51, %ymm26, %ymm13
+        vpandq	%ymm28, %ymm26, %ymm26
+        vpsrlq	$51, %ymm27, %ymm14
+        vpandq	%ymm28, %ymm27, %ymm27
+        vpmadd52luq	%ymm31, %ymm14, %ymm23
+        vpaddq	%ymm10, %ymm24, %ymm24
+        vpaddq	%ymm11, %ymm25, %ymm25
+        vpaddq	%ymm12, %ymm26, %ymm26
+        vpaddq	%ymm13, %ymm27, %ymm27
+        vpbroadcastq	184(%rsp), %ymm18
+        vpbroadcastq	216(%rsp), %ymm19
+        vpbroadcastq	248(%rsp), %ymm20
+        vpbroadcastq	280(%rsp), %ymm21
+        vpbroadcastq	312(%rsp), %ymm22
+        vmovdqu64	(%rsp), %ymm18{%k4}
+        vmovdqu64	32(%rsp), %ymm19{%k4}
+        vmovdqu64	64(%rsp), %ymm20{%k4}
+        vmovdqu64	96(%rsp), %ymm21{%k4}
+        vmovdqu64	128(%rsp), %ymm22{%k4}
+        # [-, E.H, -, x1.T] = U3 * V3
+        # Multiply 4 field elements
+        vpxorq	%ymm0, %ymm0, %ymm0
+        vpxorq	%ymm9, %ymm9, %ymm9
+        vpxorq	%ymm1, %ymm1, %ymm1
+        vpxorq	%ymm10, %ymm10, %ymm10
+        vpxorq	%ymm2, %ymm2, %ymm2
+        vpxorq	%ymm11, %ymm11, %ymm11
+        vpxorq	%ymm3, %ymm3, %ymm3
+        vpxorq	%ymm12, %ymm12, %ymm12
+        vpxorq	%ymm4, %ymm4, %ymm4
+        vpxorq	%ymm13, %ymm13, %ymm13
+        vpxorq	%ymm5, %ymm5, %ymm5
+        vpxorq	%ymm14, %ymm14, %ymm14
+        vpxorq	%ymm6, %ymm6, %ymm6
+        vpxorq	%ymm15, %ymm15, %ymm15
+        vpxorq	%ymm7, %ymm7, %ymm7
+        vpxorq	%ymm16, %ymm16, %ymm16
+        vpxorq	%ymm8, %ymm8, %ymm8
+        vpxorq	%ymm17, %ymm17, %ymm17
+        vpmadd52luq	%ymm23, %ymm18, %ymm0
+        vpmadd52huq	%ymm23, %ymm18, %ymm9
+        vpmadd52luq	%ymm24, %ymm18, %ymm1
+        vpmadd52huq	%ymm24, %ymm18, %ymm10
+        vpmadd52luq	%ymm25, %ymm18, %ymm2
+        vpmadd52huq	%ymm25, %ymm18, %ymm11
+        vpmadd52luq	%ymm26, %ymm18, %ymm3
+        vpmadd52huq	%ymm26, %ymm18, %ymm12
+        vpmadd52luq	%ymm27, %ymm18, %ymm4
+        vpmadd52huq	%ymm27, %ymm18, %ymm13
+        vpmadd52luq	%ymm23, %ymm19, %ymm1
+        vpmadd52huq	%ymm23, %ymm19, %ymm10
+        vpmadd52luq	%ymm24, %ymm19, %ymm2
+        vpmadd52huq	%ymm24, %ymm19, %ymm11
+        vpmadd52luq	%ymm25, %ymm19, %ymm3
+        vpmadd52huq	%ymm25, %ymm19, %ymm12
+        vpmadd52luq	%ymm26, %ymm19, %ymm4
+        vpmadd52huq	%ymm26, %ymm19, %ymm13
+        vpmadd52luq	%ymm27, %ymm19, %ymm5
+        vpmadd52huq	%ymm27, %ymm19, %ymm14
+        vpmadd52luq	%ymm23, %ymm20, %ymm2
+        vpmadd52huq	%ymm23, %ymm20, %ymm11
+        vpmadd52luq	%ymm24, %ymm20, %ymm3
+        vpmadd52huq	%ymm24, %ymm20, %ymm12
+        vpmadd52luq	%ymm25, %ymm20, %ymm4
+        vpmadd52huq	%ymm25, %ymm20, %ymm13
+        vpmadd52luq	%ymm26, %ymm20, %ymm5
+        vpmadd52huq	%ymm26, %ymm20, %ymm14
+        vpmadd52luq	%ymm27, %ymm20, %ymm6
+        vpmadd52huq	%ymm27, %ymm20, %ymm15
+        vpmadd52luq	%ymm23, %ymm21, %ymm3
+        vpmadd52huq	%ymm23, %ymm21, %ymm12
+        vpmadd52luq	%ymm24, %ymm21, %ymm4
+        vpmadd52huq	%ymm24, %ymm21, %ymm13
+        vpmadd52luq	%ymm25, %ymm21, %ymm5
+        vpmadd52huq	%ymm25, %ymm21, %ymm14
+        vpmadd52luq	%ymm26, %ymm21, %ymm6
+        vpmadd52huq	%ymm26, %ymm21, %ymm15
+        vpmadd52luq	%ymm27, %ymm21, %ymm7
+        vpmadd52huq	%ymm27, %ymm21, %ymm16
+        vpmadd52luq	%ymm23, %ymm22, %ymm4
+        vpmadd52huq	%ymm23, %ymm22, %ymm13
+        vpmadd52luq	%ymm24, %ymm22, %ymm5
+        vpmadd52huq	%ymm24, %ymm22, %ymm14
+        vpmadd52luq	%ymm25, %ymm22, %ymm6
+        vpmadd52huq	%ymm25, %ymm22, %ymm15
+        vpmadd52luq	%ymm26, %ymm22, %ymm7
+        vpmadd52huq	%ymm26, %ymm22, %ymm16
+        vpmadd52luq	%ymm27, %ymm22, %ymm8
+        vpmadd52huq	%ymm27, %ymm22, %ymm17
+        vpaddq	%ymm9, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpaddq	%ymm10, %ymm10, %ymm10
+        vpaddq	%ymm10, %ymm2, %ymm2
+        vpaddq	%ymm11, %ymm11, %ymm11
+        vpaddq	%ymm11, %ymm3, %ymm3
+        vpaddq	%ymm12, %ymm12, %ymm12
+        vpaddq	%ymm12, %ymm4, %ymm4
+        vpaddq	%ymm13, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm5, %ymm5
+        vpaddq	%ymm14, %ymm14, %ymm14
+        vpaddq	%ymm14, %ymm6, %ymm6
+        vpaddq	%ymm15, %ymm15, %ymm15
+        vpaddq	%ymm15, %ymm7, %ymm7
+        vpaddq	%ymm16, %ymm16, %ymm16
+        vpaddq	%ymm16, %ymm8, %ymm8
+        vpaddq	%ymm17, %ymm17, %ymm17
+        # Reduce
+        vpsllq	$4, %ymm5, %ymm9
+        vpsllq	$0x01, %ymm5, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm5, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm0, %ymm0
+        vpsllq	$4, %ymm6, %ymm9
+        vpsllq	$0x01, %ymm6, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm6, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpsllq	$4, %ymm7, %ymm9
+        vpsllq	$0x01, %ymm7, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm7, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm2, %ymm2
+        vpsllq	$4, %ymm8, %ymm9
+        vpsllq	$0x01, %ymm8, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm8, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm3, %ymm3
+        vpsllq	$4, %ymm17, %ymm9
+        vpsllq	$0x01, %ymm17, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm17, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm4, %ymm4
+        vpsrlq	$51, %ymm0, %ymm23
+        vpandq	%ymm28, %ymm0, %ymm0
+        vpsrlq	$51, %ymm1, %ymm24
+        vpandq	%ymm28, %ymm1, %ymm1
+        vpsrlq	$51, %ymm2, %ymm25
+        vpandq	%ymm28, %ymm2, %ymm2
+        vpsrlq	$51, %ymm3, %ymm26
+        vpandq	%ymm28, %ymm3, %ymm3
+        vpsrlq	$51, %ymm4, %ymm27
+        vpandq	%ymm28, %ymm4, %ymm4
+        vmovdqa64	%ymm0, %ymm18
+        vpmadd52luq	%ymm31, %ymm27, %ymm18
+        vpaddq	%ymm23, %ymm1, %ymm19
+        vpaddq	%ymm24, %ymm2, %ymm20
+        vpaddq	%ymm25, %ymm3, %ymm21
+        vpaddq	%ymm26, %ymm4, %ymm22
+        # [x2, z2, x3, z3] = [AA.BB, E.H, FF, x1.T]
+        vmovdqu64	320(%rsp), %ymm0
+        vmovdqu64	352(%rsp), %ymm1
+        vmovdqu64	384(%rsp), %ymm2
+        vmovdqu64	416(%rsp), %ymm3
+        vmovdqu64	448(%rsp), %ymm4
+        vmovdqa64	%ymm0, %ymm18{%k2}
+        vmovdqa64	%ymm1, %ymm19{%k2}
+        vmovdqa64	%ymm2, %ymm20{%k2}
+        vmovdqa64	%ymm3, %ymm21{%k2}
+        vmovdqa64	%ymm4, %ymm22{%k2}
+        movq	704(%rsp), %rdx
+        decq	%rdx
+        jge	L_curve25519_avx512_ifma_bits
+        vmovdqu64	%ymm18, 480(%rsp)
+        vmovdqu64	%ymm19, 512(%rsp)
+        vmovdqu64	%ymm20, 544(%rsp)
+        vmovdqu64	%ymm21, 576(%rsp)
+        vmovdqu64	%ymm22, 608(%rsp)
+        vzeroupper
+        # Convert to 4 x 64-bit field elements
+        movq	$0x7ffffffffffff, %r13
+        movq	480(%rsp), %rdx
+        movq	512(%rsp), %rax
+        movq	544(%rsp), %r8
+        movq	576(%rsp), %r9
+        movq	608(%rsp), %r10
+        movq	%rdx, %r11
+        shrq	$51, %r11
+        andq	%r13, %rdx
+        addq	%r11, %rax
+        movq	%rax, %r11
+        shrq	$51, %r11
+        andq	%r13, %rax
+        addq	%r11, %r8
+        movq	%r8, %r11
+        shrq	$51, %r11
+        andq	%r13, %r8
+        addq	%r11, %r9
+        movq	%r9, %r11
+        shrq	$51, %r11
+        andq	%r13, %r9
+        addq	%r11, %r10
+        movq	%r10, %r11
+        shrq	$51, %r11
+        andq	%r13, %r10
+        imulq	$19, %r11, %r11
+        addq	%r11, %rdx
+        movq	%rax, %r11
+        shlq	$51, %r11
+        movq	%rax, %r12
+        shrq	$13, %r12
+        addq	%r11, %rdx
+        adcq	$0x00, %r12
+        movq	%rdx, 640(%rsp)
+        movq	%r8, %r11
+        shlq	$38, %r11
+        movq	%r8, %rdx
+        shrq	$26, %rdx
+        addq	%r11, %r12
+        adcq	$0x00, %rdx
+        movq	%r12, 648(%rsp)
+        movq	%r9, %r11
+        shlq	$25, %r11
+        movq	%r9, %r12
+        shrq	$39, %r12
+        addq	%r11, %rdx
+        adcq	$0x00, %r12
+        movq	%rdx, 656(%rsp)
+        movq	%r10, %r11
+        shlq	$12, %r11
+        addq	%r11, %r12
+        movq	%r12, 664(%rsp)
+        movq	488(%rsp), %rdx
+        movq	520(%rsp), %rax
+        movq	552(%rsp), %r8
+        movq	584(%rsp), %r9
+        movq	616(%rsp), %r10
+        movq	%rdx, %r11
+        shrq	$51, %r11
+        andq	%r13, %rdx
+        addq	%r11, %rax
+        movq	%rax, %r11
+        shrq	$51, %r11
+        andq	%r13, %rax
+        addq	%r11, %r8
+        movq	%r8, %r11
+        shrq	$51, %r11
+        andq	%r13, %r8
+        addq	%r11, %r9
+        movq	%r9, %r11
+        shrq	$51, %r11
+        andq	%r13, %r9
+        addq	%r11, %r10
+        movq	%r10, %r11
+        shrq	$51, %r11
+        andq	%r13, %r10
+        imulq	$19, %r11, %r11
+        addq	%r11, %rdx
+        movq	%rax, %r11
+        shlq	$51, %r11
+        movq	%rax, %r12
+        shrq	$13, %r12
+        addq	%r11, %rdx
+        adcq	$0x00, %r12
+        movq	%rdx, 672(%rsp)
+        movq	%r8, %r11
+        shlq	$38, %r11
+        movq	%r8, %rdx
+        shrq	$26, %rdx
+        addq	%r11, %r12
+        adcq	$0x00, %rdx
+        movq	%r12, 680(%rsp)
+        movq	%r9, %r11
+        shlq	$25, %r11
+        movq	%r9, %r12
+        shrq	$39, %r12
+        addq	%r11, %rdx
+        adcq	$0x00, %r12
+        movq	%rdx, 688(%rsp)
+        movq	%r10, %r11
+        shlq	$12, %r11
+        addq	%r11, %r12
+        movq	%r12, 696(%rsp)
+        # z2 = 1 / z2
+        leaq	672(%rsp), %rdi
+        leaq	672(%rsp), %rsi
+#ifndef __APPLE__
+        callq	fe_invert_avx2@plt
+#else
+        callq	_fe_invert_avx2
+#endif /* __APPLE__ */
+        # x2 = x2 * z2
+        leaq	640(%rsp), %rdi
+        leaq	640(%rsp), %rsi
+        leaq	672(%rsp), %rdx
+#ifndef __APPLE__
+        callq	fe_mul_avx2@plt
+#else
+        callq	_fe_mul_avx2
+#endif /* __APPLE__ */
+        # Store fully reduced result
+        movq	712(%rsp), %rdi
+        leaq	640(%rsp), %rsi
+#ifndef __APPLE__
+        callq	fe_tobytes@plt
+#else
+        callq	_fe_tobytes
+#endif /* __APPLE__ */
+        xorq	%rax, %rax
+        addq	$0x2e8, %rsp
+        popq	%r15
+        popq	%r14
+        popq	%r13
+        popq	%r12
+        repz retq
+#ifndef __APPLE__
+.size	curve25519_avx512_ifma,.-curve25519_avx512_ifma
+#endif /* __APPLE__ */
+#if defined(WOLFSSL_CURVE25519_NOT_USE_ED25519)
+#ifndef __APPLE__
+.text
+.globl	curve25519_base_avx512_ifma_dq
+WC_ASM_ATT_HIDDEN(curve25519_base_avx512_ifma_dq)
+.type	curve25519_base_avx512_ifma_dq,@function
+.align	16
+curve25519_base_avx512_ifma_dq:
+#else
+.section	__TEXT,__text
+.globl	_curve25519_base_avx512_ifma_dq
+WC_ASM_ATT_HIDDEN(_curve25519_base_avx512_ifma_dq)
+.p2align	4
+_curve25519_base_avx512_ifma_dq:
+#endif /* __APPLE__ */
+        pushq	%r12
+        pushq	%r13
+        pushq	%r14
+        subq	$0x2e0, %rsp
+        movq	%rdi, 712(%rsp)
+        movq	$0x7ffffffffffff, %r13
+        movq	$9, %r10
+        movq	%r10, (%rsp)
+        movq	%r10, 8(%rsp)
+        movq	%r10, 16(%rsp)
+        movq	%r10, 24(%rsp)
+        movq	$0x01, 480(%rsp)
+        movq	$0x00, 488(%rsp)
+        movq	%r10, 496(%rsp)
+        movq	$0x01, 504(%rsp)
+        movq	$0x00, %r10
+        movq	%r10, 32(%rsp)
+        movq	%r10, 40(%rsp)
+        movq	%r10, 48(%rsp)
+        movq	%r10, 56(%rsp)
+        movq	$0x00, 512(%rsp)
+        movq	$0x00, 520(%rsp)
+        movq	%r10, 528(%rsp)
+        movq	$0x00, 536(%rsp)
+        movq	%r10, 64(%rsp)
+        movq	%r10, 72(%rsp)
+        movq	%r10, 80(%rsp)
+        movq	%r10, 88(%rsp)
+        movq	$0x00, 544(%rsp)
+        movq	$0x00, 552(%rsp)
+        movq	%r10, 560(%rsp)
+        movq	$0x00, 568(%rsp)
+        movq	%r10, 96(%rsp)
+        movq	%r10, 104(%rsp)
+        movq	%r10, 112(%rsp)
+        movq	%r10, 120(%rsp)
+        movq	$0x00, 576(%rsp)
+        movq	$0x00, 584(%rsp)
+        movq	%r10, 592(%rsp)
+        movq	$0x00, 600(%rsp)
+        movq	%r10, 128(%rsp)
+        movq	%r10, 136(%rsp)
+        movq	%r10, 144(%rsp)
+        movq	%r10, 152(%rsp)
+        movq	$0x00, 608(%rsp)
+        movq	$0x00, 616(%rsp)
+        movq	%r10, 624(%rsp)
+        movq	$0x00, 632(%rsp)
+        leaq	L_x25519_ifma_consts(%rip), %r11
+        vpbroadcastq	(%r11), %ymm28
+        vpbroadcastq	8(%r11), %ymm29
+        vpbroadcastq	16(%r11), %ymm30
+        vpbroadcastq	24(%r11), %ymm31
+        movl	$10, %r10d
+        kmovw	%r10d, %k1
+        movl	$5, %r10d
+        kmovw	%r10d, %k2
+        movl	$4, %r10d
+        kmovw	%r10d, %k3
+        movl	$8, %r10d
+        kmovw	%r10d, %k4
+        movl	$2, %r10d
+        kmovw	%r10d, %k5
+        movl	$6, %r10d
+        kmovw	%r10d, %k7
+        vmovdqu64	480(%rsp), %ymm18
+        vmovdqu64	512(%rsp), %ymm19
+        vmovdqu64	544(%rsp), %ymm20
+        vmovdqu64	576(%rsp), %ymm21
+        vmovdqu64	608(%rsp), %ymm22
+        movq	$0x00, %r8
+        movq	$0xfe, %rdx
+L_curve25519_base_avx512_ifma_dq_bits:
+        # Conditionally swap (x2, z2) with (x3, z3)
+        movq	%rdx, 704(%rsp)
+        movq	%rdx, %rcx
+        andq	$63, %rcx
+        shrq	$6, %rdx
+        movq	(%rsi,%rdx,8), %rax
+        shrq	%cl, %rax
+        andq	$0x01, %rax
+        movq	%rax, %r9
+        xorq	%rax, %r8
+        negq	%r8
+        andq	$15, %r8
+        kmovw	%r8d, %k6
+        movq	%r9, %r8
+        vpermq	$0x4e, %ymm18, %ymm18{%k6}
+        vpermq	$0x4e, %ymm19, %ymm19{%k6}
+        vpermq	$0x4e, %ymm20, %ymm20{%k6}
+        vpermq	$0x4e, %ymm21, %ymm21{%k6}
+        vpermq	$0x4e, %ymm22, %ymm22{%k6}
+        # A = x2 + z2, B = x2 - z2, C = x3 + z3, D = x3 - z3
+        vpermq	$0xb1, %ymm18, %ymm0
+        vpermq	$0xb1, %ymm19, %ymm1
+        vpermq	$0xb1, %ymm20, %ymm2
+        vpermq	$0xb1, %ymm21, %ymm3
+        vpermq	$0xb1, %ymm22, %ymm4
+        vpaddq	%ymm18, %ymm0, %ymm23
+        vpaddq	%ymm19, %ymm1, %ymm24
+        vpaddq	%ymm20, %ymm2, %ymm25
+        vpaddq	%ymm21, %ymm3, %ymm26
+        vpaddq	%ymm22, %ymm4, %ymm27
+        vpaddq	%ymm29, %ymm0, %ymm0{%k1}
+        vpaddq	%ymm30, %ymm1, %ymm1{%k1}
+        vpaddq	%ymm30, %ymm2, %ymm2{%k1}
+        vpaddq	%ymm30, %ymm3, %ymm3{%k1}
+        vpaddq	%ymm30, %ymm4, %ymm4{%k1}
+        vpsubq	%ymm18, %ymm0, %ymm23{%k1}
+        vpsubq	%ymm19, %ymm1, %ymm24{%k1}
+        vpsubq	%ymm20, %ymm2, %ymm25{%k1}
+        vpsubq	%ymm21, %ymm3, %ymm26{%k1}
+        vpsubq	%ymm22, %ymm4, %ymm27{%k1}
+        vpsrlq	$51, %ymm23, %ymm5
+        vpandq	%ymm28, %ymm23, %ymm23
+        vpsrlq	$51, %ymm24, %ymm6
+        vpandq	%ymm28, %ymm24, %ymm24
+        vpsrlq	$51, %ymm25, %ymm7
+        vpandq	%ymm28, %ymm25, %ymm25
+        vpsrlq	$51, %ymm26, %ymm8
+        vpandq	%ymm28, %ymm26, %ymm26
+        vpsrlq	$51, %ymm27, %ymm9
+        vpandq	%ymm28, %ymm27, %ymm27
+        vpmadd52luq	%ymm31, %ymm9, %ymm23
+        vpaddq	%ymm5, %ymm24, %ymm24
+        vpaddq	%ymm6, %ymm25, %ymm25
+        vpaddq	%ymm7, %ymm26, %ymm26
+        vpaddq	%ymm8, %ymm27, %ymm27
+        # [AA, BB, CB, DA] = [A, B, C, D] * [A, B, B, A]
+        vpermq	$20, %ymm23, %ymm18
+        vpermq	$20, %ymm24, %ymm19
+        vpermq	$20, %ymm25, %ymm20
+        vpermq	$20, %ymm26, %ymm21
+        vpermq	$20, %ymm27, %ymm22
+        # Multiply 4 field elements
+        vpxorq	%ymm0, %ymm0, %ymm0
+        vpxorq	%ymm9, %ymm9, %ymm9
+        vpxorq	%ymm1, %ymm1, %ymm1
+        vpxorq	%ymm10, %ymm10, %ymm10
+        vpxorq	%ymm2, %ymm2, %ymm2
+        vpxorq	%ymm11, %ymm11, %ymm11
+        vpxorq	%ymm3, %ymm3, %ymm3
+        vpxorq	%ymm12, %ymm12, %ymm12
+        vpxorq	%ymm4, %ymm4, %ymm4
+        vpxorq	%ymm13, %ymm13, %ymm13
+        vpxorq	%ymm5, %ymm5, %ymm5
+        vpxorq	%ymm14, %ymm14, %ymm14
+        vpxorq	%ymm6, %ymm6, %ymm6
+        vpxorq	%ymm15, %ymm15, %ymm15
+        vpxorq	%ymm7, %ymm7, %ymm7
+        vpxorq	%ymm16, %ymm16, %ymm16
+        vpxorq	%ymm8, %ymm8, %ymm8
+        vpxorq	%ymm17, %ymm17, %ymm17
+        vpmadd52luq	%ymm23, %ymm18, %ymm0
+        vpmadd52huq	%ymm23, %ymm18, %ymm9
+        vpmadd52luq	%ymm24, %ymm18, %ymm1
+        vpmadd52huq	%ymm24, %ymm18, %ymm10
+        vpmadd52luq	%ymm25, %ymm18, %ymm2
+        vpmadd52huq	%ymm25, %ymm18, %ymm11
+        vpmadd52luq	%ymm26, %ymm18, %ymm3
+        vpmadd52huq	%ymm26, %ymm18, %ymm12
+        vpmadd52luq	%ymm27, %ymm18, %ymm4
+        vpmadd52huq	%ymm27, %ymm18, %ymm13
+        vpmadd52luq	%ymm23, %ymm19, %ymm1
+        vpmadd52huq	%ymm23, %ymm19, %ymm10
+        vpmadd52luq	%ymm24, %ymm19, %ymm2
+        vpmadd52huq	%ymm24, %ymm19, %ymm11
+        vpmadd52luq	%ymm25, %ymm19, %ymm3
+        vpmadd52huq	%ymm25, %ymm19, %ymm12
+        vpmadd52luq	%ymm26, %ymm19, %ymm4
+        vpmadd52huq	%ymm26, %ymm19, %ymm13
+        vpmadd52luq	%ymm27, %ymm19, %ymm5
+        vpmadd52huq	%ymm27, %ymm19, %ymm14
+        vpmadd52luq	%ymm23, %ymm20, %ymm2
+        vpmadd52huq	%ymm23, %ymm20, %ymm11
+        vpmadd52luq	%ymm24, %ymm20, %ymm3
+        vpmadd52huq	%ymm24, %ymm20, %ymm12
+        vpmadd52luq	%ymm25, %ymm20, %ymm4
+        vpmadd52huq	%ymm25, %ymm20, %ymm13
+        vpmadd52luq	%ymm26, %ymm20, %ymm5
+        vpmadd52huq	%ymm26, %ymm20, %ymm14
+        vpmadd52luq	%ymm27, %ymm20, %ymm6
+        vpmadd52huq	%ymm27, %ymm20, %ymm15
+        vpmadd52luq	%ymm23, %ymm21, %ymm3
+        vpmadd52huq	%ymm23, %ymm21, %ymm12
+        vpmadd52luq	%ymm24, %ymm21, %ymm4
+        vpmadd52huq	%ymm24, %ymm21, %ymm13
+        vpmadd52luq	%ymm25, %ymm21, %ymm5
+        vpmadd52huq	%ymm25, %ymm21, %ymm14
+        vpmadd52luq	%ymm26, %ymm21, %ymm6
+        vpmadd52huq	%ymm26, %ymm21, %ymm15
+        vpmadd52luq	%ymm27, %ymm21, %ymm7
+        vpmadd52huq	%ymm27, %ymm21, %ymm16
+        vpmadd52luq	%ymm23, %ymm22, %ymm4
+        vpmadd52huq	%ymm23, %ymm22, %ymm13
+        vpmadd52luq	%ymm24, %ymm22, %ymm5
+        vpmadd52huq	%ymm24, %ymm22, %ymm14
+        vpmadd52luq	%ymm25, %ymm22, %ymm6
+        vpmadd52huq	%ymm25, %ymm22, %ymm15
+        vpmadd52luq	%ymm26, %ymm22, %ymm7
+        vpmadd52huq	%ymm26, %ymm22, %ymm16
+        vpmadd52luq	%ymm27, %ymm22, %ymm8
+        vpmadd52huq	%ymm27, %ymm22, %ymm17
+        vpaddq	%ymm9, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpaddq	%ymm10, %ymm10, %ymm10
+        vpaddq	%ymm10, %ymm2, %ymm2
+        vpaddq	%ymm11, %ymm11, %ymm11
+        vpaddq	%ymm11, %ymm3, %ymm3
+        vpaddq	%ymm12, %ymm12, %ymm12
+        vpaddq	%ymm12, %ymm4, %ymm4
+        vpaddq	%ymm13, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm5, %ymm5
+        vpaddq	%ymm14, %ymm14, %ymm14
+        vpaddq	%ymm14, %ymm6, %ymm6
+        vpaddq	%ymm15, %ymm15, %ymm15
+        vpaddq	%ymm15, %ymm7, %ymm7
+        vpaddq	%ymm16, %ymm16, %ymm16
+        vpaddq	%ymm16, %ymm8, %ymm8
+        vpaddq	%ymm17, %ymm17, %ymm17
+        # Reduce
+        vpmullq	%ymm31, %ymm5, %ymm9
+        vpaddq	%ymm9, %ymm0, %ymm0
+        vpmullq	%ymm31, %ymm6, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpmullq	%ymm31, %ymm7, %ymm9
+        vpaddq	%ymm9, %ymm2, %ymm2
+        vpmullq	%ymm31, %ymm8, %ymm9
+        vpaddq	%ymm9, %ymm3, %ymm3
+        vpmullq	%ymm31, %ymm17, %ymm9
+        vpaddq	%ymm9, %ymm4, %ymm4
+        vpsrlq	$51, %ymm0, %ymm23
+        vpandq	%ymm28, %ymm0, %ymm0
+        vpsrlq	$51, %ymm1, %ymm24
+        vpandq	%ymm28, %ymm1, %ymm1
+        vpsrlq	$51, %ymm2, %ymm25
+        vpandq	%ymm28, %ymm2, %ymm2
+        vpsrlq	$51, %ymm3, %ymm26
+        vpandq	%ymm28, %ymm3, %ymm3
+        vpsrlq	$51, %ymm4, %ymm27
+        vpandq	%ymm28, %ymm4, %ymm4
+        vmovdqa64	%ymm0, %ymm18
+        vpmadd52luq	%ymm31, %ymm27, %ymm18
+        vpaddq	%ymm23, %ymm1, %ymm19
+        vpaddq	%ymm24, %ymm2, %ymm20
+        vpaddq	%ymm25, %ymm3, %ymm21
+        vpaddq	%ymm26, %ymm4, %ymm22
+        # U = [AA, DA-CB, DA+CB, AA-BB], V = [BB, DA-CB, DA+CB, a24]
+        vpermq	$0x69, %ymm18, %ymm23
+        vpermq	$0x69, %ymm19, %ymm24
+        vpermq	$0x69, %ymm20, %ymm25
+        vpermq	$0x69, %ymm21, %ymm26
+        vpermq	$0x69, %ymm22, %ymm27
+        vpermq	$60, %ymm18, %ymm18
+        vpermq	$60, %ymm19, %ymm19
+        vpermq	$60, %ymm20, %ymm20
+        vpermq	$60, %ymm21, %ymm21
+        vpermq	$60, %ymm22, %ymm22
+        vpaddq	%ymm23, %ymm18, %ymm18{%k3}
+        vpaddq	%ymm24, %ymm19, %ymm19{%k3}
+        vpaddq	%ymm25, %ymm20, %ymm20{%k3}
+        vpaddq	%ymm26, %ymm21, %ymm21{%k3}
+        vpaddq	%ymm27, %ymm22, %ymm22{%k3}
+        vpaddq	%ymm29, %ymm18, %ymm18{%k1}
+        vpaddq	%ymm30, %ymm19, %ymm19{%k1}
+        vpaddq	%ymm30, %ymm20, %ymm20{%k1}
+        vpaddq	%ymm30, %ymm21, %ymm21{%k1}
+        vpaddq	%ymm30, %ymm22, %ymm22{%k1}
+        vpsubq	%ymm23, %ymm18, %ymm18{%k1}
+        vpsubq	%ymm24, %ymm19, %ymm19{%k1}
+        vpsubq	%ymm25, %ymm20, %ymm20{%k1}
+        vpsubq	%ymm26, %ymm21, %ymm21{%k1}
+        vpsubq	%ymm27, %ymm22, %ymm22{%k1}
+        vpsrlq	$51, %ymm18, %ymm0
+        vpandq	%ymm28, %ymm18, %ymm18
+        vpsrlq	$51, %ymm19, %ymm1
+        vpandq	%ymm28, %ymm19, %ymm19
+        vpsrlq	$51, %ymm20, %ymm2
+        vpandq	%ymm28, %ymm20, %ymm20
+        vpsrlq	$51, %ymm21, %ymm3
+        vpandq	%ymm28, %ymm21, %ymm21
+        vpsrlq	$51, %ymm22, %ymm4
+        vpandq	%ymm28, %ymm22, %ymm22
+        vpmadd52luq	%ymm31, %ymm4, %ymm18
+        vpaddq	%ymm0, %ymm19, %ymm19
+        vpaddq	%ymm1, %ymm20, %ymm20
+        vpaddq	%ymm2, %ymm21, %ymm21
+        vpaddq	%ymm3, %ymm22, %ymm22
+        vmovdqu64	%ymm18, 160(%rsp)
+        vmovdqu64	%ymm19, 192(%rsp)
+        vmovdqu64	%ymm20, 224(%rsp)
+        vmovdqu64	%ymm21, 256(%rsp)
+        vmovdqu64	%ymm22, 288(%rsp)
+        vmovdqa64	%ymm18, %ymm23{%k7}
+        vmovdqa64	%ymm19, %ymm24{%k7}
+        vmovdqa64	%ymm20, %ymm25{%k7}
+        vmovdqa64	%ymm21, %ymm26{%k7}
+        vmovdqa64	%ymm22, %ymm27{%k7}
+        vpbroadcastq	32(%r11), %ymm23{%k4}
+        vpxorq	%ymm24, %ymm24, %ymm24{%k4}
+        vpxorq	%ymm25, %ymm25, %ymm25{%k4}
+        vpxorq	%ymm26, %ymm26, %ymm26{%k4}
+        vpxorq	%ymm27, %ymm27, %ymm27{%k4}
+        # [AA.BB, GG, FF, a24.E] = U * V
+        # Multiply 4 field elements
+        vpxorq	%ymm0, %ymm0, %ymm0
+        vpxorq	%ymm9, %ymm9, %ymm9
+        vpxorq	%ymm1, %ymm1, %ymm1
+        vpxorq	%ymm10, %ymm10, %ymm10
+        vpxorq	%ymm2, %ymm2, %ymm2
+        vpxorq	%ymm11, %ymm11, %ymm11
+        vpxorq	%ymm3, %ymm3, %ymm3
+        vpxorq	%ymm12, %ymm12, %ymm12
+        vpxorq	%ymm4, %ymm4, %ymm4
+        vpxorq	%ymm13, %ymm13, %ymm13
+        vpxorq	%ymm5, %ymm5, %ymm5
+        vpxorq	%ymm14, %ymm14, %ymm14
+        vpxorq	%ymm6, %ymm6, %ymm6
+        vpxorq	%ymm15, %ymm15, %ymm15
+        vpxorq	%ymm7, %ymm7, %ymm7
+        vpxorq	%ymm16, %ymm16, %ymm16
+        vpxorq	%ymm8, %ymm8, %ymm8
+        vpxorq	%ymm17, %ymm17, %ymm17
+        vpmadd52luq	%ymm23, %ymm18, %ymm0
+        vpmadd52huq	%ymm23, %ymm18, %ymm9
+        vpmadd52luq	%ymm24, %ymm18, %ymm1
+        vpmadd52huq	%ymm24, %ymm18, %ymm10
+        vpmadd52luq	%ymm25, %ymm18, %ymm2
+        vpmadd52huq	%ymm25, %ymm18, %ymm11
+        vpmadd52luq	%ymm26, %ymm18, %ymm3
+        vpmadd52huq	%ymm26, %ymm18, %ymm12
+        vpmadd52luq	%ymm27, %ymm18, %ymm4
+        vpmadd52huq	%ymm27, %ymm18, %ymm13
+        vpmadd52luq	%ymm23, %ymm19, %ymm1
+        vpmadd52huq	%ymm23, %ymm19, %ymm10
+        vpmadd52luq	%ymm24, %ymm19, %ymm2
+        vpmadd52huq	%ymm24, %ymm19, %ymm11
+        vpmadd52luq	%ymm25, %ymm19, %ymm3
+        vpmadd52huq	%ymm25, %ymm19, %ymm12
+        vpmadd52luq	%ymm26, %ymm19, %ymm4
+        vpmadd52huq	%ymm26, %ymm19, %ymm13
+        vpmadd52luq	%ymm27, %ymm19, %ymm5
+        vpmadd52huq	%ymm27, %ymm19, %ymm14
+        vpmadd52luq	%ymm23, %ymm20, %ymm2
+        vpmadd52huq	%ymm23, %ymm20, %ymm11
+        vpmadd52luq	%ymm24, %ymm20, %ymm3
+        vpmadd52huq	%ymm24, %ymm20, %ymm12
+        vpmadd52luq	%ymm25, %ymm20, %ymm4
+        vpmadd52huq	%ymm25, %ymm20, %ymm13
+        vpmadd52luq	%ymm26, %ymm20, %ymm5
+        vpmadd52huq	%ymm26, %ymm20, %ymm14
+        vpmadd52luq	%ymm27, %ymm20, %ymm6
+        vpmadd52huq	%ymm27, %ymm20, %ymm15
+        vpmadd52luq	%ymm23, %ymm21, %ymm3
+        vpmadd52huq	%ymm23, %ymm21, %ymm12
+        vpmadd52luq	%ymm24, %ymm21, %ymm4
+        vpmadd52huq	%ymm24, %ymm21, %ymm13
+        vpmadd52luq	%ymm25, %ymm21, %ymm5
+        vpmadd52huq	%ymm25, %ymm21, %ymm14
+        vpmadd52luq	%ymm26, %ymm21, %ymm6
+        vpmadd52huq	%ymm26, %ymm21, %ymm15
+        vpmadd52luq	%ymm27, %ymm21, %ymm7
+        vpmadd52huq	%ymm27, %ymm21, %ymm16
+        vpmadd52luq	%ymm23, %ymm22, %ymm4
+        vpmadd52huq	%ymm23, %ymm22, %ymm13
+        vpmadd52luq	%ymm24, %ymm22, %ymm5
+        vpmadd52huq	%ymm24, %ymm22, %ymm14
+        vpmadd52luq	%ymm25, %ymm22, %ymm6
+        vpmadd52huq	%ymm25, %ymm22, %ymm15
+        vpmadd52luq	%ymm26, %ymm22, %ymm7
+        vpmadd52huq	%ymm26, %ymm22, %ymm16
+        vpmadd52luq	%ymm27, %ymm22, %ymm8
+        vpmadd52huq	%ymm27, %ymm22, %ymm17
+        vpaddq	%ymm9, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpaddq	%ymm10, %ymm10, %ymm10
+        vpaddq	%ymm10, %ymm2, %ymm2
+        vpaddq	%ymm11, %ymm11, %ymm11
+        vpaddq	%ymm11, %ymm3, %ymm3
+        vpaddq	%ymm12, %ymm12, %ymm12
+        vpaddq	%ymm12, %ymm4, %ymm4
+        vpaddq	%ymm13, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm5, %ymm5
+        vpaddq	%ymm14, %ymm14, %ymm14
+        vpaddq	%ymm14, %ymm6, %ymm6
+        vpaddq	%ymm15, %ymm15, %ymm15
+        vpaddq	%ymm15, %ymm7, %ymm7
+        vpaddq	%ymm16, %ymm16, %ymm16
+        vpaddq	%ymm16, %ymm8, %ymm8
+        vpaddq	%ymm17, %ymm17, %ymm17
+        # Reduce
+        vpmullq	%ymm31, %ymm5, %ymm9
+        vpaddq	%ymm9, %ymm0, %ymm0
+        vpmullq	%ymm31, %ymm6, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpmullq	%ymm31, %ymm7, %ymm9
+        vpaddq	%ymm9, %ymm2, %ymm2
+        vpmullq	%ymm31, %ymm8, %ymm9
+        vpaddq	%ymm9, %ymm3, %ymm3
+        vpmullq	%ymm31, %ymm17, %ymm9
+        vpaddq	%ymm9, %ymm4, %ymm4
+        vpsrlq	$51, %ymm0, %ymm23
+        vpandq	%ymm28, %ymm0, %ymm0
+        vpsrlq	$51, %ymm1, %ymm24
+        vpandq	%ymm28, %ymm1, %ymm1
+        vpsrlq	$51, %ymm2, %ymm25
+        vpandq	%ymm28, %ymm2, %ymm2
+        vpsrlq	$51, %ymm3, %ymm26
+        vpandq	%ymm28, %ymm3, %ymm3
+        vpsrlq	$51, %ymm4, %ymm27
+        vpandq	%ymm28, %ymm4, %ymm4
+        vmovdqa64	%ymm0, %ymm18
+        vpmadd52luq	%ymm31, %ymm27, %ymm18
+        vpaddq	%ymm23, %ymm1, %ymm19
+        vpaddq	%ymm24, %ymm2, %ymm20
+        vpaddq	%ymm25, %ymm3, %ymm21
+        vpaddq	%ymm26, %ymm4, %ymm22
+        # U3 = [E, E, E, x1], V3 = [aE, AA + a24.E, T, T]
+        vpermq	$0x5f, %ymm18, %ymm23
+        vpermq	$0x5f, %ymm19, %ymm24
+        vpermq	$0x5f, %ymm20, %ymm25
+        vpermq	$0x5f, %ymm21, %ymm26
+        vpermq	$0x5f, %ymm22, %ymm27
+        vmovdqu64	%ymm18, 320(%rsp)
+        vmovdqu64	%ymm19, 352(%rsp)
+        vmovdqu64	%ymm20, 384(%rsp)
+        vmovdqu64	%ymm21, 416(%rsp)
+        vmovdqu64	%ymm22, 448(%rsp)
+        vpbroadcastq	160(%rsp), %ymm5
+        vpbroadcastq	192(%rsp), %ymm6
+        vpbroadcastq	224(%rsp), %ymm7
+        vpbroadcastq	256(%rsp), %ymm8
+        vpbroadcastq	288(%rsp), %ymm9
+        vpaddq	%ymm5, %ymm23, %ymm23{%k5}
+        vpaddq	%ymm6, %ymm24, %ymm24{%k5}
+        vpaddq	%ymm7, %ymm25, %ymm25{%k5}
+        vpaddq	%ymm8, %ymm26, %ymm26{%k5}
+        vpaddq	%ymm9, %ymm27, %ymm27{%k5}
+        vpsrlq	$51, %ymm23, %ymm10
+        vpandq	%ymm28, %ymm23, %ymm23
+        vpsrlq	$51, %ymm24, %ymm11
+        vpandq	%ymm28, %ymm24, %ymm24
+        vpsrlq	$51, %ymm25, %ymm12
+        vpandq	%ymm28, %ymm25, %ymm25
+        vpsrlq	$51, %ymm26, %ymm13
+        vpandq	%ymm28, %ymm26, %ymm26
+        vpsrlq	$51, %ymm27, %ymm14
+        vpandq	%ymm28, %ymm27, %ymm27
+        vpmadd52luq	%ymm31, %ymm14, %ymm23
+        vpaddq	%ymm10, %ymm24, %ymm24
+        vpaddq	%ymm11, %ymm25, %ymm25
+        vpaddq	%ymm12, %ymm26, %ymm26
+        vpaddq	%ymm13, %ymm27, %ymm27
+        vpbroadcastq	184(%rsp), %ymm18
+        vpbroadcastq	216(%rsp), %ymm19
+        vpbroadcastq	248(%rsp), %ymm20
+        vpbroadcastq	280(%rsp), %ymm21
+        vpbroadcastq	312(%rsp), %ymm22
+        vmovdqu64	(%rsp), %ymm18{%k4}
+        vmovdqu64	32(%rsp), %ymm19{%k4}
+        vmovdqu64	64(%rsp), %ymm20{%k4}
+        vmovdqu64	96(%rsp), %ymm21{%k4}
+        vmovdqu64	128(%rsp), %ymm22{%k4}
+        # [-, E.H, -, x1.T] = U3 * V3
+        # Multiply 4 field elements
+        vpxorq	%ymm0, %ymm0, %ymm0
+        vpxorq	%ymm9, %ymm9, %ymm9
+        vpxorq	%ymm1, %ymm1, %ymm1
+        vpxorq	%ymm10, %ymm10, %ymm10
+        vpxorq	%ymm2, %ymm2, %ymm2
+        vpxorq	%ymm11, %ymm11, %ymm11
+        vpxorq	%ymm3, %ymm3, %ymm3
+        vpxorq	%ymm12, %ymm12, %ymm12
+        vpxorq	%ymm4, %ymm4, %ymm4
+        vpxorq	%ymm13, %ymm13, %ymm13
+        vpxorq	%ymm5, %ymm5, %ymm5
+        vpxorq	%ymm14, %ymm14, %ymm14
+        vpxorq	%ymm6, %ymm6, %ymm6
+        vpxorq	%ymm15, %ymm15, %ymm15
+        vpxorq	%ymm7, %ymm7, %ymm7
+        vpxorq	%ymm16, %ymm16, %ymm16
+        vpxorq	%ymm8, %ymm8, %ymm8
+        vpxorq	%ymm17, %ymm17, %ymm17
+        vpmadd52luq	%ymm23, %ymm18, %ymm0
+        vpmadd52huq	%ymm23, %ymm18, %ymm9
+        vpmadd52luq	%ymm24, %ymm18, %ymm1
+        vpmadd52huq	%ymm24, %ymm18, %ymm10
+        vpmadd52luq	%ymm25, %ymm18, %ymm2
+        vpmadd52huq	%ymm25, %ymm18, %ymm11
+        vpmadd52luq	%ymm26, %ymm18, %ymm3
+        vpmadd52huq	%ymm26, %ymm18, %ymm12
+        vpmadd52luq	%ymm27, %ymm18, %ymm4
+        vpmadd52huq	%ymm27, %ymm18, %ymm13
+        vpmadd52luq	%ymm23, %ymm19, %ymm1
+        vpmadd52huq	%ymm23, %ymm19, %ymm10
+        vpmadd52luq	%ymm24, %ymm19, %ymm2
+        vpmadd52huq	%ymm24, %ymm19, %ymm11
+        vpmadd52luq	%ymm25, %ymm19, %ymm3
+        vpmadd52huq	%ymm25, %ymm19, %ymm12
+        vpmadd52luq	%ymm26, %ymm19, %ymm4
+        vpmadd52huq	%ymm26, %ymm19, %ymm13
+        vpmadd52luq	%ymm27, %ymm19, %ymm5
+        vpmadd52huq	%ymm27, %ymm19, %ymm14
+        vpmadd52luq	%ymm23, %ymm20, %ymm2
+        vpmadd52huq	%ymm23, %ymm20, %ymm11
+        vpmadd52luq	%ymm24, %ymm20, %ymm3
+        vpmadd52huq	%ymm24, %ymm20, %ymm12
+        vpmadd52luq	%ymm25, %ymm20, %ymm4
+        vpmadd52huq	%ymm25, %ymm20, %ymm13
+        vpmadd52luq	%ymm26, %ymm20, %ymm5
+        vpmadd52huq	%ymm26, %ymm20, %ymm14
+        vpmadd52luq	%ymm27, %ymm20, %ymm6
+        vpmadd52huq	%ymm27, %ymm20, %ymm15
+        vpmadd52luq	%ymm23, %ymm21, %ymm3
+        vpmadd52huq	%ymm23, %ymm21, %ymm12
+        vpmadd52luq	%ymm24, %ymm21, %ymm4
+        vpmadd52huq	%ymm24, %ymm21, %ymm13
+        vpmadd52luq	%ymm25, %ymm21, %ymm5
+        vpmadd52huq	%ymm25, %ymm21, %ymm14
+        vpmadd52luq	%ymm26, %ymm21, %ymm6
+        vpmadd52huq	%ymm26, %ymm21, %ymm15
+        vpmadd52luq	%ymm27, %ymm21, %ymm7
+        vpmadd52huq	%ymm27, %ymm21, %ymm16
+        vpmadd52luq	%ymm23, %ymm22, %ymm4
+        vpmadd52huq	%ymm23, %ymm22, %ymm13
+        vpmadd52luq	%ymm24, %ymm22, %ymm5
+        vpmadd52huq	%ymm24, %ymm22, %ymm14
+        vpmadd52luq	%ymm25, %ymm22, %ymm6
+        vpmadd52huq	%ymm25, %ymm22, %ymm15
+        vpmadd52luq	%ymm26, %ymm22, %ymm7
+        vpmadd52huq	%ymm26, %ymm22, %ymm16
+        vpmadd52luq	%ymm27, %ymm22, %ymm8
+        vpmadd52huq	%ymm27, %ymm22, %ymm17
+        vpaddq	%ymm9, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpaddq	%ymm10, %ymm10, %ymm10
+        vpaddq	%ymm10, %ymm2, %ymm2
+        vpaddq	%ymm11, %ymm11, %ymm11
+        vpaddq	%ymm11, %ymm3, %ymm3
+        vpaddq	%ymm12, %ymm12, %ymm12
+        vpaddq	%ymm12, %ymm4, %ymm4
+        vpaddq	%ymm13, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm5, %ymm5
+        vpaddq	%ymm14, %ymm14, %ymm14
+        vpaddq	%ymm14, %ymm6, %ymm6
+        vpaddq	%ymm15, %ymm15, %ymm15
+        vpaddq	%ymm15, %ymm7, %ymm7
+        vpaddq	%ymm16, %ymm16, %ymm16
+        vpaddq	%ymm16, %ymm8, %ymm8
+        vpaddq	%ymm17, %ymm17, %ymm17
+        # Reduce
+        vpmullq	%ymm31, %ymm5, %ymm9
+        vpaddq	%ymm9, %ymm0, %ymm0
+        vpmullq	%ymm31, %ymm6, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpmullq	%ymm31, %ymm7, %ymm9
+        vpaddq	%ymm9, %ymm2, %ymm2
+        vpmullq	%ymm31, %ymm8, %ymm9
+        vpaddq	%ymm9, %ymm3, %ymm3
+        vpmullq	%ymm31, %ymm17, %ymm9
+        vpaddq	%ymm9, %ymm4, %ymm4
+        vpsrlq	$51, %ymm0, %ymm23
+        vpandq	%ymm28, %ymm0, %ymm0
+        vpsrlq	$51, %ymm1, %ymm24
+        vpandq	%ymm28, %ymm1, %ymm1
+        vpsrlq	$51, %ymm2, %ymm25
+        vpandq	%ymm28, %ymm2, %ymm2
+        vpsrlq	$51, %ymm3, %ymm26
+        vpandq	%ymm28, %ymm3, %ymm3
+        vpsrlq	$51, %ymm4, %ymm27
+        vpandq	%ymm28, %ymm4, %ymm4
+        vmovdqa64	%ymm0, %ymm18
+        vpmadd52luq	%ymm31, %ymm27, %ymm18
+        vpaddq	%ymm23, %ymm1, %ymm19
+        vpaddq	%ymm24, %ymm2, %ymm20
+        vpaddq	%ymm25, %ymm3, %ymm21
+        vpaddq	%ymm26, %ymm4, %ymm22
+        # [x2, z2, x3, z3] = [AA.BB, E.H, FF, x1.T]
+        vmovdqu64	320(%rsp), %ymm0
+        vmovdqu64	352(%rsp), %ymm1
+        vmovdqu64	384(%rsp), %ymm2
+        vmovdqu64	416(%rsp), %ymm3
+        vmovdqu64	448(%rsp), %ymm4
+        vmovdqa64	%ymm0, %ymm18{%k2}
+        vmovdqa64	%ymm1, %ymm19{%k2}
+        vmovdqa64	%ymm2, %ymm20{%k2}
+        vmovdqa64	%ymm3, %ymm21{%k2}
+        vmovdqa64	%ymm4, %ymm22{%k2}
+        movq	704(%rsp), %rdx
+        decq	%rdx
+        jge	L_curve25519_base_avx512_ifma_dq_bits
+        vmovdqu64	%ymm18, 480(%rsp)
+        vmovdqu64	%ymm19, 512(%rsp)
+        vmovdqu64	%ymm20, 544(%rsp)
+        vmovdqu64	%ymm21, 576(%rsp)
+        vmovdqu64	%ymm22, 608(%rsp)
+        vzeroupper
+        # Convert to 4 x 64-bit field elements
+        movq	$0x7ffffffffffff, %r13
+        movq	480(%rsp), %rdx
+        movq	512(%rsp), %rax
+        movq	544(%rsp), %r8
+        movq	576(%rsp), %r9
+        movq	608(%rsp), %r10
+        movq	%rdx, %r11
+        shrq	$51, %r11
+        andq	%r13, %rdx
+        addq	%r11, %rax
+        movq	%rax, %r11
+        shrq	$51, %r11
+        andq	%r13, %rax
+        addq	%r11, %r8
+        movq	%r8, %r11
+        shrq	$51, %r11
+        andq	%r13, %r8
+        addq	%r11, %r9
+        movq	%r9, %r11
+        shrq	$51, %r11
+        andq	%r13, %r9
+        addq	%r11, %r10
+        movq	%r10, %r11
+        shrq	$51, %r11
+        andq	%r13, %r10
+        imulq	$19, %r11, %r11
+        addq	%r11, %rdx
+        movq	%rax, %r11
+        shlq	$51, %r11
+        movq	%rax, %r12
+        shrq	$13, %r12
+        addq	%r11, %rdx
+        adcq	$0x00, %r12
+        movq	%rdx, 640(%rsp)
+        movq	%r8, %r11
+        shlq	$38, %r11
+        movq	%r8, %rdx
+        shrq	$26, %rdx
+        addq	%r11, %r12
+        adcq	$0x00, %rdx
+        movq	%r12, 648(%rsp)
+        movq	%r9, %r11
+        shlq	$25, %r11
+        movq	%r9, %r12
+        shrq	$39, %r12
+        addq	%r11, %rdx
+        adcq	$0x00, %r12
+        movq	%rdx, 656(%rsp)
+        movq	%r10, %r11
+        shlq	$12, %r11
+        addq	%r11, %r12
+        movq	%r12, 664(%rsp)
+        movq	488(%rsp), %rdx
+        movq	520(%rsp), %rax
+        movq	552(%rsp), %r8
+        movq	584(%rsp), %r9
+        movq	616(%rsp), %r10
+        movq	%rdx, %r11
+        shrq	$51, %r11
+        andq	%r13, %rdx
+        addq	%r11, %rax
+        movq	%rax, %r11
+        shrq	$51, %r11
+        andq	%r13, %rax
+        addq	%r11, %r8
+        movq	%r8, %r11
+        shrq	$51, %r11
+        andq	%r13, %r8
+        addq	%r11, %r9
+        movq	%r9, %r11
+        shrq	$51, %r11
+        andq	%r13, %r9
+        addq	%r11, %r10
+        movq	%r10, %r11
+        shrq	$51, %r11
+        andq	%r13, %r10
+        imulq	$19, %r11, %r11
+        addq	%r11, %rdx
+        movq	%rax, %r11
+        shlq	$51, %r11
+        movq	%rax, %r12
+        shrq	$13, %r12
+        addq	%r11, %rdx
+        adcq	$0x00, %r12
+        movq	%rdx, 672(%rsp)
+        movq	%r8, %r11
+        shlq	$38, %r11
+        movq	%r8, %rdx
+        shrq	$26, %rdx
+        addq	%r11, %r12
+        adcq	$0x00, %rdx
+        movq	%r12, 680(%rsp)
+        movq	%r9, %r11
+        shlq	$25, %r11
+        movq	%r9, %r12
+        shrq	$39, %r12
+        addq	%r11, %rdx
+        adcq	$0x00, %r12
+        movq	%rdx, 688(%rsp)
+        movq	%r10, %r11
+        shlq	$12, %r11
+        addq	%r11, %r12
+        movq	%r12, 696(%rsp)
+        # z2 = 1 / z2
+        leaq	672(%rsp), %rdi
+        leaq	672(%rsp), %rsi
+#ifndef __APPLE__
+        callq	fe_invert_avx2@plt
+#else
+        callq	_fe_invert_avx2
+#endif /* __APPLE__ */
+        # x2 = x2 * z2
+        leaq	640(%rsp), %rdi
+        leaq	640(%rsp), %rsi
+        leaq	672(%rsp), %rdx
+#ifndef __APPLE__
+        callq	fe_mul_avx2@plt
+#else
+        callq	_fe_mul_avx2
+#endif /* __APPLE__ */
+        # Store fully reduced result
+        movq	712(%rsp), %rdi
+        leaq	640(%rsp), %rsi
+#ifndef __APPLE__
+        callq	fe_tobytes@plt
+#else
+        callq	_fe_tobytes
+#endif /* __APPLE__ */
+        xorq	%rax, %rax
+        addq	$0x2e0, %rsp
+        popq	%r14
+        popq	%r13
+        popq	%r12
+        repz retq
+#ifndef __APPLE__
+.size	curve25519_base_avx512_ifma_dq,.-curve25519_base_avx512_ifma_dq
+#endif /* __APPLE__ */
+#endif /* WOLFSSL_CURVE25519_NOT_USE_ED25519 */
+#ifndef __APPLE__
+.text
+.globl	curve25519_avx512_ifma_dq
+WC_ASM_ATT_HIDDEN(curve25519_avx512_ifma_dq)
+.type	curve25519_avx512_ifma_dq,@function
+.align	16
+curve25519_avx512_ifma_dq:
+#else
+.section	__TEXT,__text
+.globl	_curve25519_avx512_ifma_dq
+WC_ASM_ATT_HIDDEN(_curve25519_avx512_ifma_dq)
+.p2align	4
+_curve25519_avx512_ifma_dq:
+#endif /* __APPLE__ */
+        pushq	%r12
+        pushq	%r13
+        pushq	%r14
+        pushq	%r15
+        movq	%rdx, %r15
+        subq	$0x2e8, %rsp
+        movq	%rdi, 712(%rsp)
+        movq	$0x7ffffffffffff, %r13
+        movq	(%r15), %rdx
+        movq	8(%r15), %rax
+        movq	16(%r15), %r8
+        movq	24(%r15), %r9
+        movq	%r9, %r10
+        shrq	$63, %r10
+        imulq	$19, %r10, %r10
+        shlq	$1, %r9
+        shrq	$1, %r9
+        movq	%rdx, %r12
+        andq	%r13, %r12
+        addq	%r10, %r12
+        movq	%r12, (%rsp)
+        movq	%r12, 8(%rsp)
+        movq	%r12, 16(%rsp)
+        movq	%r12, 24(%rsp)
+        movq	$0x01, 480(%rsp)
+        movq	$0x00, 488(%rsp)
+        movq	%r12, 496(%rsp)
+        movq	$0x01, 504(%rsp)
+        shrdq	$51, %rax, %rdx
+        movq	%rdx, %r10
+        andq	%r13, %r10
+        movq	%r10, 32(%rsp)
+        movq	%r10, 40(%rsp)
+        movq	%r10, 48(%rsp)
+        movq	%r10, 56(%rsp)
+        movq	$0x00, 512(%rsp)
+        movq	$0x00, 520(%rsp)
+        movq	%r10, 528(%rsp)
+        movq	$0x00, 536(%rsp)
+        shrdq	$38, %r8, %rax
+        movq	%rax, %r10
+        andq	%r13, %r10
+        movq	%r10, 64(%rsp)
+        movq	%r10, 72(%rsp)
+        movq	%r10, 80(%rsp)
+        movq	%r10, 88(%rsp)
+        movq	$0x00, 544(%rsp)
+        movq	$0x00, 552(%rsp)
+        movq	%r10, 560(%rsp)
+        movq	$0x00, 568(%rsp)
+        shrdq	$25, %r9, %r8
+        movq	%r8, %r10
+        andq	%r13, %r10
+        movq	%r10, 96(%rsp)
+        movq	%r10, 104(%rsp)
+        movq	%r10, 112(%rsp)
+        movq	%r10, 120(%rsp)
+        movq	$0x00, 576(%rsp)
+        movq	$0x00, 584(%rsp)
+        movq	%r10, 592(%rsp)
+        movq	$0x00, 600(%rsp)
+        shrq	$12, %r9
+        movq	%r9, 128(%rsp)
+        movq	%r9, 136(%rsp)
+        movq	%r9, 144(%rsp)
+        movq	%r9, 152(%rsp)
+        movq	$0x00, 608(%rsp)
+        movq	$0x00, 616(%rsp)
+        movq	%r9, 624(%rsp)
+        movq	$0x00, 632(%rsp)
+        leaq	L_x25519_ifma_consts(%rip), %r11
+        vpbroadcastq	(%r11), %ymm28
+        vpbroadcastq	8(%r11), %ymm29
+        vpbroadcastq	16(%r11), %ymm30
+        vpbroadcastq	24(%r11), %ymm31
+        movl	$10, %r10d
+        kmovw	%r10d, %k1
+        movl	$5, %r10d
+        kmovw	%r10d, %k2
+        movl	$4, %r10d
+        kmovw	%r10d, %k3
+        movl	$8, %r10d
+        kmovw	%r10d, %k4
+        movl	$2, %r10d
+        kmovw	%r10d, %k5
+        movl	$6, %r10d
+        kmovw	%r10d, %k7
+        vmovdqu64	480(%rsp), %ymm18
+        vmovdqu64	512(%rsp), %ymm19
+        vmovdqu64	544(%rsp), %ymm20
+        vmovdqu64	576(%rsp), %ymm21
+        vmovdqu64	608(%rsp), %ymm22
+        movq	$0x00, %r8
+        movq	$0xfe, %rdx
+L_curve25519_avx512_ifma_dq_bits:
+        # Conditionally swap (x2, z2) with (x3, z3)
+        movq	%rdx, 704(%rsp)
+        movq	%rdx, %rcx
+        andq	$63, %rcx
+        shrq	$6, %rdx
+        movq	(%rsi,%rdx,8), %rax
+        shrq	%cl, %rax
+        andq	$0x01, %rax
+        movq	%rax, %r9
+        xorq	%rax, %r8
+        negq	%r8
+        andq	$15, %r8
+        kmovw	%r8d, %k6
+        movq	%r9, %r8
+        vpermq	$0x4e, %ymm18, %ymm18{%k6}
+        vpermq	$0x4e, %ymm19, %ymm19{%k6}
+        vpermq	$0x4e, %ymm20, %ymm20{%k6}
+        vpermq	$0x4e, %ymm21, %ymm21{%k6}
+        vpermq	$0x4e, %ymm22, %ymm22{%k6}
+        # A = x2 + z2, B = x2 - z2, C = x3 + z3, D = x3 - z3
+        vpermq	$0xb1, %ymm18, %ymm0
+        vpermq	$0xb1, %ymm19, %ymm1
+        vpermq	$0xb1, %ymm20, %ymm2
+        vpermq	$0xb1, %ymm21, %ymm3
+        vpermq	$0xb1, %ymm22, %ymm4
+        vpaddq	%ymm18, %ymm0, %ymm23
+        vpaddq	%ymm19, %ymm1, %ymm24
+        vpaddq	%ymm20, %ymm2, %ymm25
+        vpaddq	%ymm21, %ymm3, %ymm26
+        vpaddq	%ymm22, %ymm4, %ymm27
+        vpaddq	%ymm29, %ymm0, %ymm0{%k1}
+        vpaddq	%ymm30, %ymm1, %ymm1{%k1}
+        vpaddq	%ymm30, %ymm2, %ymm2{%k1}
+        vpaddq	%ymm30, %ymm3, %ymm3{%k1}
+        vpaddq	%ymm30, %ymm4, %ymm4{%k1}
+        vpsubq	%ymm18, %ymm0, %ymm23{%k1}
+        vpsubq	%ymm19, %ymm1, %ymm24{%k1}
+        vpsubq	%ymm20, %ymm2, %ymm25{%k1}
+        vpsubq	%ymm21, %ymm3, %ymm26{%k1}
+        vpsubq	%ymm22, %ymm4, %ymm27{%k1}
+        vpsrlq	$51, %ymm23, %ymm5
+        vpandq	%ymm28, %ymm23, %ymm23
+        vpsrlq	$51, %ymm24, %ymm6
+        vpandq	%ymm28, %ymm24, %ymm24
+        vpsrlq	$51, %ymm25, %ymm7
+        vpandq	%ymm28, %ymm25, %ymm25
+        vpsrlq	$51, %ymm26, %ymm8
+        vpandq	%ymm28, %ymm26, %ymm26
+        vpsrlq	$51, %ymm27, %ymm9
+        vpandq	%ymm28, %ymm27, %ymm27
+        vpmadd52luq	%ymm31, %ymm9, %ymm23
+        vpaddq	%ymm5, %ymm24, %ymm24
+        vpaddq	%ymm6, %ymm25, %ymm25
+        vpaddq	%ymm7, %ymm26, %ymm26
+        vpaddq	%ymm8, %ymm27, %ymm27
+        # [AA, BB, CB, DA] = [A, B, C, D] * [A, B, B, A]
+        vpermq	$20, %ymm23, %ymm18
+        vpermq	$20, %ymm24, %ymm19
+        vpermq	$20, %ymm25, %ymm20
+        vpermq	$20, %ymm26, %ymm21
+        vpermq	$20, %ymm27, %ymm22
+        # Multiply 4 field elements
+        vpxorq	%ymm0, %ymm0, %ymm0
+        vpxorq	%ymm9, %ymm9, %ymm9
+        vpxorq	%ymm1, %ymm1, %ymm1
+        vpxorq	%ymm10, %ymm10, %ymm10
+        vpxorq	%ymm2, %ymm2, %ymm2
+        vpxorq	%ymm11, %ymm11, %ymm11
+        vpxorq	%ymm3, %ymm3, %ymm3
+        vpxorq	%ymm12, %ymm12, %ymm12
+        vpxorq	%ymm4, %ymm4, %ymm4
+        vpxorq	%ymm13, %ymm13, %ymm13
+        vpxorq	%ymm5, %ymm5, %ymm5
+        vpxorq	%ymm14, %ymm14, %ymm14
+        vpxorq	%ymm6, %ymm6, %ymm6
+        vpxorq	%ymm15, %ymm15, %ymm15
+        vpxorq	%ymm7, %ymm7, %ymm7
+        vpxorq	%ymm16, %ymm16, %ymm16
+        vpxorq	%ymm8, %ymm8, %ymm8
+        vpxorq	%ymm17, %ymm17, %ymm17
+        vpmadd52luq	%ymm23, %ymm18, %ymm0
+        vpmadd52huq	%ymm23, %ymm18, %ymm9
+        vpmadd52luq	%ymm24, %ymm18, %ymm1
+        vpmadd52huq	%ymm24, %ymm18, %ymm10
+        vpmadd52luq	%ymm25, %ymm18, %ymm2
+        vpmadd52huq	%ymm25, %ymm18, %ymm11
+        vpmadd52luq	%ymm26, %ymm18, %ymm3
+        vpmadd52huq	%ymm26, %ymm18, %ymm12
+        vpmadd52luq	%ymm27, %ymm18, %ymm4
+        vpmadd52huq	%ymm27, %ymm18, %ymm13
+        vpmadd52luq	%ymm23, %ymm19, %ymm1
+        vpmadd52huq	%ymm23, %ymm19, %ymm10
+        vpmadd52luq	%ymm24, %ymm19, %ymm2
+        vpmadd52huq	%ymm24, %ymm19, %ymm11
+        vpmadd52luq	%ymm25, %ymm19, %ymm3
+        vpmadd52huq	%ymm25, %ymm19, %ymm12
+        vpmadd52luq	%ymm26, %ymm19, %ymm4
+        vpmadd52huq	%ymm26, %ymm19, %ymm13
+        vpmadd52luq	%ymm27, %ymm19, %ymm5
+        vpmadd52huq	%ymm27, %ymm19, %ymm14
+        vpmadd52luq	%ymm23, %ymm20, %ymm2
+        vpmadd52huq	%ymm23, %ymm20, %ymm11
+        vpmadd52luq	%ymm24, %ymm20, %ymm3
+        vpmadd52huq	%ymm24, %ymm20, %ymm12
+        vpmadd52luq	%ymm25, %ymm20, %ymm4
+        vpmadd52huq	%ymm25, %ymm20, %ymm13
+        vpmadd52luq	%ymm26, %ymm20, %ymm5
+        vpmadd52huq	%ymm26, %ymm20, %ymm14
+        vpmadd52luq	%ymm27, %ymm20, %ymm6
+        vpmadd52huq	%ymm27, %ymm20, %ymm15
+        vpmadd52luq	%ymm23, %ymm21, %ymm3
+        vpmadd52huq	%ymm23, %ymm21, %ymm12
+        vpmadd52luq	%ymm24, %ymm21, %ymm4
+        vpmadd52huq	%ymm24, %ymm21, %ymm13
+        vpmadd52luq	%ymm25, %ymm21, %ymm5
+        vpmadd52huq	%ymm25, %ymm21, %ymm14
+        vpmadd52luq	%ymm26, %ymm21, %ymm6
+        vpmadd52huq	%ymm26, %ymm21, %ymm15
+        vpmadd52luq	%ymm27, %ymm21, %ymm7
+        vpmadd52huq	%ymm27, %ymm21, %ymm16
+        vpmadd52luq	%ymm23, %ymm22, %ymm4
+        vpmadd52huq	%ymm23, %ymm22, %ymm13
+        vpmadd52luq	%ymm24, %ymm22, %ymm5
+        vpmadd52huq	%ymm24, %ymm22, %ymm14
+        vpmadd52luq	%ymm25, %ymm22, %ymm6
+        vpmadd52huq	%ymm25, %ymm22, %ymm15
+        vpmadd52luq	%ymm26, %ymm22, %ymm7
+        vpmadd52huq	%ymm26, %ymm22, %ymm16
+        vpmadd52luq	%ymm27, %ymm22, %ymm8
+        vpmadd52huq	%ymm27, %ymm22, %ymm17
+        vpaddq	%ymm9, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpaddq	%ymm10, %ymm10, %ymm10
+        vpaddq	%ymm10, %ymm2, %ymm2
+        vpaddq	%ymm11, %ymm11, %ymm11
+        vpaddq	%ymm11, %ymm3, %ymm3
+        vpaddq	%ymm12, %ymm12, %ymm12
+        vpaddq	%ymm12, %ymm4, %ymm4
+        vpaddq	%ymm13, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm5, %ymm5
+        vpaddq	%ymm14, %ymm14, %ymm14
+        vpaddq	%ymm14, %ymm6, %ymm6
+        vpaddq	%ymm15, %ymm15, %ymm15
+        vpaddq	%ymm15, %ymm7, %ymm7
+        vpaddq	%ymm16, %ymm16, %ymm16
+        vpaddq	%ymm16, %ymm8, %ymm8
+        vpaddq	%ymm17, %ymm17, %ymm17
+        # Reduce
+        vpmullq	%ymm31, %ymm5, %ymm9
+        vpaddq	%ymm9, %ymm0, %ymm0
+        vpmullq	%ymm31, %ymm6, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpmullq	%ymm31, %ymm7, %ymm9
+        vpaddq	%ymm9, %ymm2, %ymm2
+        vpmullq	%ymm31, %ymm8, %ymm9
+        vpaddq	%ymm9, %ymm3, %ymm3
+        vpmullq	%ymm31, %ymm17, %ymm9
+        vpaddq	%ymm9, %ymm4, %ymm4
+        vpsrlq	$51, %ymm0, %ymm23
+        vpandq	%ymm28, %ymm0, %ymm0
+        vpsrlq	$51, %ymm1, %ymm24
+        vpandq	%ymm28, %ymm1, %ymm1
+        vpsrlq	$51, %ymm2, %ymm25
+        vpandq	%ymm28, %ymm2, %ymm2
+        vpsrlq	$51, %ymm3, %ymm26
+        vpandq	%ymm28, %ymm3, %ymm3
+        vpsrlq	$51, %ymm4, %ymm27
+        vpandq	%ymm28, %ymm4, %ymm4
+        vmovdqa64	%ymm0, %ymm18
+        vpmadd52luq	%ymm31, %ymm27, %ymm18
+        vpaddq	%ymm23, %ymm1, %ymm19
+        vpaddq	%ymm24, %ymm2, %ymm20
+        vpaddq	%ymm25, %ymm3, %ymm21
+        vpaddq	%ymm26, %ymm4, %ymm22
+        # U = [AA, DA-CB, DA+CB, AA-BB], V = [BB, DA-CB, DA+CB, a24]
+        vpermq	$0x69, %ymm18, %ymm23
+        vpermq	$0x69, %ymm19, %ymm24
+        vpermq	$0x69, %ymm20, %ymm25
+        vpermq	$0x69, %ymm21, %ymm26
+        vpermq	$0x69, %ymm22, %ymm27
+        vpermq	$60, %ymm18, %ymm18
+        vpermq	$60, %ymm19, %ymm19
+        vpermq	$60, %ymm20, %ymm20
+        vpermq	$60, %ymm21, %ymm21
+        vpermq	$60, %ymm22, %ymm22
+        vpaddq	%ymm23, %ymm18, %ymm18{%k3}
+        vpaddq	%ymm24, %ymm19, %ymm19{%k3}
+        vpaddq	%ymm25, %ymm20, %ymm20{%k3}
+        vpaddq	%ymm26, %ymm21, %ymm21{%k3}
+        vpaddq	%ymm27, %ymm22, %ymm22{%k3}
+        vpaddq	%ymm29, %ymm18, %ymm18{%k1}
+        vpaddq	%ymm30, %ymm19, %ymm19{%k1}
+        vpaddq	%ymm30, %ymm20, %ymm20{%k1}
+        vpaddq	%ymm30, %ymm21, %ymm21{%k1}
+        vpaddq	%ymm30, %ymm22, %ymm22{%k1}
+        vpsubq	%ymm23, %ymm18, %ymm18{%k1}
+        vpsubq	%ymm24, %ymm19, %ymm19{%k1}
+        vpsubq	%ymm25, %ymm20, %ymm20{%k1}
+        vpsubq	%ymm26, %ymm21, %ymm21{%k1}
+        vpsubq	%ymm27, %ymm22, %ymm22{%k1}
+        vpsrlq	$51, %ymm18, %ymm0
+        vpandq	%ymm28, %ymm18, %ymm18
+        vpsrlq	$51, %ymm19, %ymm1
+        vpandq	%ymm28, %ymm19, %ymm19
+        vpsrlq	$51, %ymm20, %ymm2
+        vpandq	%ymm28, %ymm20, %ymm20
+        vpsrlq	$51, %ymm21, %ymm3
+        vpandq	%ymm28, %ymm21, %ymm21
+        vpsrlq	$51, %ymm22, %ymm4
+        vpandq	%ymm28, %ymm22, %ymm22
+        vpmadd52luq	%ymm31, %ymm4, %ymm18
+        vpaddq	%ymm0, %ymm19, %ymm19
+        vpaddq	%ymm1, %ymm20, %ymm20
+        vpaddq	%ymm2, %ymm21, %ymm21
+        vpaddq	%ymm3, %ymm22, %ymm22
+        vmovdqu64	%ymm18, 160(%rsp)
+        vmovdqu64	%ymm19, 192(%rsp)
+        vmovdqu64	%ymm20, 224(%rsp)
+        vmovdqu64	%ymm21, 256(%rsp)
+        vmovdqu64	%ymm22, 288(%rsp)
+        vmovdqa64	%ymm18, %ymm23{%k7}
+        vmovdqa64	%ymm19, %ymm24{%k7}
+        vmovdqa64	%ymm20, %ymm25{%k7}
+        vmovdqa64	%ymm21, %ymm26{%k7}
+        vmovdqa64	%ymm22, %ymm27{%k7}
+        vpbroadcastq	32(%r11), %ymm23{%k4}
+        vpxorq	%ymm24, %ymm24, %ymm24{%k4}
+        vpxorq	%ymm25, %ymm25, %ymm25{%k4}
+        vpxorq	%ymm26, %ymm26, %ymm26{%k4}
+        vpxorq	%ymm27, %ymm27, %ymm27{%k4}
+        # [AA.BB, GG, FF, a24.E] = U * V
+        # Multiply 4 field elements
+        vpxorq	%ymm0, %ymm0, %ymm0
+        vpxorq	%ymm9, %ymm9, %ymm9
+        vpxorq	%ymm1, %ymm1, %ymm1
+        vpxorq	%ymm10, %ymm10, %ymm10
+        vpxorq	%ymm2, %ymm2, %ymm2
+        vpxorq	%ymm11, %ymm11, %ymm11
+        vpxorq	%ymm3, %ymm3, %ymm3
+        vpxorq	%ymm12, %ymm12, %ymm12
+        vpxorq	%ymm4, %ymm4, %ymm4
+        vpxorq	%ymm13, %ymm13, %ymm13
+        vpxorq	%ymm5, %ymm5, %ymm5
+        vpxorq	%ymm14, %ymm14, %ymm14
+        vpxorq	%ymm6, %ymm6, %ymm6
+        vpxorq	%ymm15, %ymm15, %ymm15
+        vpxorq	%ymm7, %ymm7, %ymm7
+        vpxorq	%ymm16, %ymm16, %ymm16
+        vpxorq	%ymm8, %ymm8, %ymm8
+        vpxorq	%ymm17, %ymm17, %ymm17
+        vpmadd52luq	%ymm23, %ymm18, %ymm0
+        vpmadd52huq	%ymm23, %ymm18, %ymm9
+        vpmadd52luq	%ymm24, %ymm18, %ymm1
+        vpmadd52huq	%ymm24, %ymm18, %ymm10
+        vpmadd52luq	%ymm25, %ymm18, %ymm2
+        vpmadd52huq	%ymm25, %ymm18, %ymm11
+        vpmadd52luq	%ymm26, %ymm18, %ymm3
+        vpmadd52huq	%ymm26, %ymm18, %ymm12
+        vpmadd52luq	%ymm27, %ymm18, %ymm4
+        vpmadd52huq	%ymm27, %ymm18, %ymm13
+        vpmadd52luq	%ymm23, %ymm19, %ymm1
+        vpmadd52huq	%ymm23, %ymm19, %ymm10
+        vpmadd52luq	%ymm24, %ymm19, %ymm2
+        vpmadd52huq	%ymm24, %ymm19, %ymm11
+        vpmadd52luq	%ymm25, %ymm19, %ymm3
+        vpmadd52huq	%ymm25, %ymm19, %ymm12
+        vpmadd52luq	%ymm26, %ymm19, %ymm4
+        vpmadd52huq	%ymm26, %ymm19, %ymm13
+        vpmadd52luq	%ymm27, %ymm19, %ymm5
+        vpmadd52huq	%ymm27, %ymm19, %ymm14
+        vpmadd52luq	%ymm23, %ymm20, %ymm2
+        vpmadd52huq	%ymm23, %ymm20, %ymm11
+        vpmadd52luq	%ymm24, %ymm20, %ymm3
+        vpmadd52huq	%ymm24, %ymm20, %ymm12
+        vpmadd52luq	%ymm25, %ymm20, %ymm4
+        vpmadd52huq	%ymm25, %ymm20, %ymm13
+        vpmadd52luq	%ymm26, %ymm20, %ymm5
+        vpmadd52huq	%ymm26, %ymm20, %ymm14
+        vpmadd52luq	%ymm27, %ymm20, %ymm6
+        vpmadd52huq	%ymm27, %ymm20, %ymm15
+        vpmadd52luq	%ymm23, %ymm21, %ymm3
+        vpmadd52huq	%ymm23, %ymm21, %ymm12
+        vpmadd52luq	%ymm24, %ymm21, %ymm4
+        vpmadd52huq	%ymm24, %ymm21, %ymm13
+        vpmadd52luq	%ymm25, %ymm21, %ymm5
+        vpmadd52huq	%ymm25, %ymm21, %ymm14
+        vpmadd52luq	%ymm26, %ymm21, %ymm6
+        vpmadd52huq	%ymm26, %ymm21, %ymm15
+        vpmadd52luq	%ymm27, %ymm21, %ymm7
+        vpmadd52huq	%ymm27, %ymm21, %ymm16
+        vpmadd52luq	%ymm23, %ymm22, %ymm4
+        vpmadd52huq	%ymm23, %ymm22, %ymm13
+        vpmadd52luq	%ymm24, %ymm22, %ymm5
+        vpmadd52huq	%ymm24, %ymm22, %ymm14
+        vpmadd52luq	%ymm25, %ymm22, %ymm6
+        vpmadd52huq	%ymm25, %ymm22, %ymm15
+        vpmadd52luq	%ymm26, %ymm22, %ymm7
+        vpmadd52huq	%ymm26, %ymm22, %ymm16
+        vpmadd52luq	%ymm27, %ymm22, %ymm8
+        vpmadd52huq	%ymm27, %ymm22, %ymm17
+        vpaddq	%ymm9, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpaddq	%ymm10, %ymm10, %ymm10
+        vpaddq	%ymm10, %ymm2, %ymm2
+        vpaddq	%ymm11, %ymm11, %ymm11
+        vpaddq	%ymm11, %ymm3, %ymm3
+        vpaddq	%ymm12, %ymm12, %ymm12
+        vpaddq	%ymm12, %ymm4, %ymm4
+        vpaddq	%ymm13, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm5, %ymm5
+        vpaddq	%ymm14, %ymm14, %ymm14
+        vpaddq	%ymm14, %ymm6, %ymm6
+        vpaddq	%ymm15, %ymm15, %ymm15
+        vpaddq	%ymm15, %ymm7, %ymm7
+        vpaddq	%ymm16, %ymm16, %ymm16
+        vpaddq	%ymm16, %ymm8, %ymm8
+        vpaddq	%ymm17, %ymm17, %ymm17
+        # Reduce
+        vpmullq	%ymm31, %ymm5, %ymm9
+        vpaddq	%ymm9, %ymm0, %ymm0
+        vpmullq	%ymm31, %ymm6, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpmullq	%ymm31, %ymm7, %ymm9
+        vpaddq	%ymm9, %ymm2, %ymm2
+        vpmullq	%ymm31, %ymm8, %ymm9
+        vpaddq	%ymm9, %ymm3, %ymm3
+        vpmullq	%ymm31, %ymm17, %ymm9
+        vpaddq	%ymm9, %ymm4, %ymm4
+        vpsrlq	$51, %ymm0, %ymm23
+        vpandq	%ymm28, %ymm0, %ymm0
+        vpsrlq	$51, %ymm1, %ymm24
+        vpandq	%ymm28, %ymm1, %ymm1
+        vpsrlq	$51, %ymm2, %ymm25
+        vpandq	%ymm28, %ymm2, %ymm2
+        vpsrlq	$51, %ymm3, %ymm26
+        vpandq	%ymm28, %ymm3, %ymm3
+        vpsrlq	$51, %ymm4, %ymm27
+        vpandq	%ymm28, %ymm4, %ymm4
+        vmovdqa64	%ymm0, %ymm18
+        vpmadd52luq	%ymm31, %ymm27, %ymm18
+        vpaddq	%ymm23, %ymm1, %ymm19
+        vpaddq	%ymm24, %ymm2, %ymm20
+        vpaddq	%ymm25, %ymm3, %ymm21
+        vpaddq	%ymm26, %ymm4, %ymm22
+        # U3 = [E, E, E, x1], V3 = [aE, AA + a24.E, T, T]
+        vpermq	$0x5f, %ymm18, %ymm23
+        vpermq	$0x5f, %ymm19, %ymm24
+        vpermq	$0x5f, %ymm20, %ymm25
+        vpermq	$0x5f, %ymm21, %ymm26
+        vpermq	$0x5f, %ymm22, %ymm27
+        vmovdqu64	%ymm18, 320(%rsp)
+        vmovdqu64	%ymm19, 352(%rsp)
+        vmovdqu64	%ymm20, 384(%rsp)
+        vmovdqu64	%ymm21, 416(%rsp)
+        vmovdqu64	%ymm22, 448(%rsp)
+        vpbroadcastq	160(%rsp), %ymm5
+        vpbroadcastq	192(%rsp), %ymm6
+        vpbroadcastq	224(%rsp), %ymm7
+        vpbroadcastq	256(%rsp), %ymm8
+        vpbroadcastq	288(%rsp), %ymm9
+        vpaddq	%ymm5, %ymm23, %ymm23{%k5}
+        vpaddq	%ymm6, %ymm24, %ymm24{%k5}
+        vpaddq	%ymm7, %ymm25, %ymm25{%k5}
+        vpaddq	%ymm8, %ymm26, %ymm26{%k5}
+        vpaddq	%ymm9, %ymm27, %ymm27{%k5}
+        vpsrlq	$51, %ymm23, %ymm10
+        vpandq	%ymm28, %ymm23, %ymm23
+        vpsrlq	$51, %ymm24, %ymm11
+        vpandq	%ymm28, %ymm24, %ymm24
+        vpsrlq	$51, %ymm25, %ymm12
+        vpandq	%ymm28, %ymm25, %ymm25
+        vpsrlq	$51, %ymm26, %ymm13
+        vpandq	%ymm28, %ymm26, %ymm26
+        vpsrlq	$51, %ymm27, %ymm14
+        vpandq	%ymm28, %ymm27, %ymm27
+        vpmadd52luq	%ymm31, %ymm14, %ymm23
+        vpaddq	%ymm10, %ymm24, %ymm24
+        vpaddq	%ymm11, %ymm25, %ymm25
+        vpaddq	%ymm12, %ymm26, %ymm26
+        vpaddq	%ymm13, %ymm27, %ymm27
+        vpbroadcastq	184(%rsp), %ymm18
+        vpbroadcastq	216(%rsp), %ymm19
+        vpbroadcastq	248(%rsp), %ymm20
+        vpbroadcastq	280(%rsp), %ymm21
+        vpbroadcastq	312(%rsp), %ymm22
+        vmovdqu64	(%rsp), %ymm18{%k4}
+        vmovdqu64	32(%rsp), %ymm19{%k4}
+        vmovdqu64	64(%rsp), %ymm20{%k4}
+        vmovdqu64	96(%rsp), %ymm21{%k4}
+        vmovdqu64	128(%rsp), %ymm22{%k4}
+        # [-, E.H, -, x1.T] = U3 * V3
+        # Multiply 4 field elements
+        vpxorq	%ymm0, %ymm0, %ymm0
+        vpxorq	%ymm9, %ymm9, %ymm9
+        vpxorq	%ymm1, %ymm1, %ymm1
+        vpxorq	%ymm10, %ymm10, %ymm10
+        vpxorq	%ymm2, %ymm2, %ymm2
+        vpxorq	%ymm11, %ymm11, %ymm11
+        vpxorq	%ymm3, %ymm3, %ymm3
+        vpxorq	%ymm12, %ymm12, %ymm12
+        vpxorq	%ymm4, %ymm4, %ymm4
+        vpxorq	%ymm13, %ymm13, %ymm13
+        vpxorq	%ymm5, %ymm5, %ymm5
+        vpxorq	%ymm14, %ymm14, %ymm14
+        vpxorq	%ymm6, %ymm6, %ymm6
+        vpxorq	%ymm15, %ymm15, %ymm15
+        vpxorq	%ymm7, %ymm7, %ymm7
+        vpxorq	%ymm16, %ymm16, %ymm16
+        vpxorq	%ymm8, %ymm8, %ymm8
+        vpxorq	%ymm17, %ymm17, %ymm17
+        vpmadd52luq	%ymm23, %ymm18, %ymm0
+        vpmadd52huq	%ymm23, %ymm18, %ymm9
+        vpmadd52luq	%ymm24, %ymm18, %ymm1
+        vpmadd52huq	%ymm24, %ymm18, %ymm10
+        vpmadd52luq	%ymm25, %ymm18, %ymm2
+        vpmadd52huq	%ymm25, %ymm18, %ymm11
+        vpmadd52luq	%ymm26, %ymm18, %ymm3
+        vpmadd52huq	%ymm26, %ymm18, %ymm12
+        vpmadd52luq	%ymm27, %ymm18, %ymm4
+        vpmadd52huq	%ymm27, %ymm18, %ymm13
+        vpmadd52luq	%ymm23, %ymm19, %ymm1
+        vpmadd52huq	%ymm23, %ymm19, %ymm10
+        vpmadd52luq	%ymm24, %ymm19, %ymm2
+        vpmadd52huq	%ymm24, %ymm19, %ymm11
+        vpmadd52luq	%ymm25, %ymm19, %ymm3
+        vpmadd52huq	%ymm25, %ymm19, %ymm12
+        vpmadd52luq	%ymm26, %ymm19, %ymm4
+        vpmadd52huq	%ymm26, %ymm19, %ymm13
+        vpmadd52luq	%ymm27, %ymm19, %ymm5
+        vpmadd52huq	%ymm27, %ymm19, %ymm14
+        vpmadd52luq	%ymm23, %ymm20, %ymm2
+        vpmadd52huq	%ymm23, %ymm20, %ymm11
+        vpmadd52luq	%ymm24, %ymm20, %ymm3
+        vpmadd52huq	%ymm24, %ymm20, %ymm12
+        vpmadd52luq	%ymm25, %ymm20, %ymm4
+        vpmadd52huq	%ymm25, %ymm20, %ymm13
+        vpmadd52luq	%ymm26, %ymm20, %ymm5
+        vpmadd52huq	%ymm26, %ymm20, %ymm14
+        vpmadd52luq	%ymm27, %ymm20, %ymm6
+        vpmadd52huq	%ymm27, %ymm20, %ymm15
+        vpmadd52luq	%ymm23, %ymm21, %ymm3
+        vpmadd52huq	%ymm23, %ymm21, %ymm12
+        vpmadd52luq	%ymm24, %ymm21, %ymm4
+        vpmadd52huq	%ymm24, %ymm21, %ymm13
+        vpmadd52luq	%ymm25, %ymm21, %ymm5
+        vpmadd52huq	%ymm25, %ymm21, %ymm14
+        vpmadd52luq	%ymm26, %ymm21, %ymm6
+        vpmadd52huq	%ymm26, %ymm21, %ymm15
+        vpmadd52luq	%ymm27, %ymm21, %ymm7
+        vpmadd52huq	%ymm27, %ymm21, %ymm16
+        vpmadd52luq	%ymm23, %ymm22, %ymm4
+        vpmadd52huq	%ymm23, %ymm22, %ymm13
+        vpmadd52luq	%ymm24, %ymm22, %ymm5
+        vpmadd52huq	%ymm24, %ymm22, %ymm14
+        vpmadd52luq	%ymm25, %ymm22, %ymm6
+        vpmadd52huq	%ymm25, %ymm22, %ymm15
+        vpmadd52luq	%ymm26, %ymm22, %ymm7
+        vpmadd52huq	%ymm26, %ymm22, %ymm16
+        vpmadd52luq	%ymm27, %ymm22, %ymm8
+        vpmadd52huq	%ymm27, %ymm22, %ymm17
+        vpaddq	%ymm9, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpaddq	%ymm10, %ymm10, %ymm10
+        vpaddq	%ymm10, %ymm2, %ymm2
+        vpaddq	%ymm11, %ymm11, %ymm11
+        vpaddq	%ymm11, %ymm3, %ymm3
+        vpaddq	%ymm12, %ymm12, %ymm12
+        vpaddq	%ymm12, %ymm4, %ymm4
+        vpaddq	%ymm13, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm5, %ymm5
+        vpaddq	%ymm14, %ymm14, %ymm14
+        vpaddq	%ymm14, %ymm6, %ymm6
+        vpaddq	%ymm15, %ymm15, %ymm15
+        vpaddq	%ymm15, %ymm7, %ymm7
+        vpaddq	%ymm16, %ymm16, %ymm16
+        vpaddq	%ymm16, %ymm8, %ymm8
+        vpaddq	%ymm17, %ymm17, %ymm17
+        # Reduce
+        vpmullq	%ymm31, %ymm5, %ymm9
+        vpaddq	%ymm9, %ymm0, %ymm0
+        vpmullq	%ymm31, %ymm6, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpmullq	%ymm31, %ymm7, %ymm9
+        vpaddq	%ymm9, %ymm2, %ymm2
+        vpmullq	%ymm31, %ymm8, %ymm9
+        vpaddq	%ymm9, %ymm3, %ymm3
+        vpmullq	%ymm31, %ymm17, %ymm9
+        vpaddq	%ymm9, %ymm4, %ymm4
+        vpsrlq	$51, %ymm0, %ymm23
+        vpandq	%ymm28, %ymm0, %ymm0
+        vpsrlq	$51, %ymm1, %ymm24
+        vpandq	%ymm28, %ymm1, %ymm1
+        vpsrlq	$51, %ymm2, %ymm25
+        vpandq	%ymm28, %ymm2, %ymm2
+        vpsrlq	$51, %ymm3, %ymm26
+        vpandq	%ymm28, %ymm3, %ymm3
+        vpsrlq	$51, %ymm4, %ymm27
+        vpandq	%ymm28, %ymm4, %ymm4
+        vmovdqa64	%ymm0, %ymm18
+        vpmadd52luq	%ymm31, %ymm27, %ymm18
+        vpaddq	%ymm23, %ymm1, %ymm19
+        vpaddq	%ymm24, %ymm2, %ymm20
+        vpaddq	%ymm25, %ymm3, %ymm21
+        vpaddq	%ymm26, %ymm4, %ymm22
+        # [x2, z2, x3, z3] = [AA.BB, E.H, FF, x1.T]
+        vmovdqu64	320(%rsp), %ymm0
+        vmovdqu64	352(%rsp), %ymm1
+        vmovdqu64	384(%rsp), %ymm2
+        vmovdqu64	416(%rsp), %ymm3
+        vmovdqu64	448(%rsp), %ymm4
+        vmovdqa64	%ymm0, %ymm18{%k2}
+        vmovdqa64	%ymm1, %ymm19{%k2}
+        vmovdqa64	%ymm2, %ymm20{%k2}
+        vmovdqa64	%ymm3, %ymm21{%k2}
+        vmovdqa64	%ymm4, %ymm22{%k2}
+        movq	704(%rsp), %rdx
+        decq	%rdx
+        jge	L_curve25519_avx512_ifma_dq_bits
+        vmovdqu64	%ymm18, 480(%rsp)
+        vmovdqu64	%ymm19, 512(%rsp)
+        vmovdqu64	%ymm20, 544(%rsp)
+        vmovdqu64	%ymm21, 576(%rsp)
+        vmovdqu64	%ymm22, 608(%rsp)
+        vzeroupper
+        # Convert to 4 x 64-bit field elements
+        movq	$0x7ffffffffffff, %r13
+        movq	480(%rsp), %rdx
+        movq	512(%rsp), %rax
+        movq	544(%rsp), %r8
+        movq	576(%rsp), %r9
+        movq	608(%rsp), %r10
+        movq	%rdx, %r11
+        shrq	$51, %r11
+        andq	%r13, %rdx
+        addq	%r11, %rax
+        movq	%rax, %r11
+        shrq	$51, %r11
+        andq	%r13, %rax
+        addq	%r11, %r8
+        movq	%r8, %r11
+        shrq	$51, %r11
+        andq	%r13, %r8
+        addq	%r11, %r9
+        movq	%r9, %r11
+        shrq	$51, %r11
+        andq	%r13, %r9
+        addq	%r11, %r10
+        movq	%r10, %r11
+        shrq	$51, %r11
+        andq	%r13, %r10
+        imulq	$19, %r11, %r11
+        addq	%r11, %rdx
+        movq	%rax, %r11
+        shlq	$51, %r11
+        movq	%rax, %r12
+        shrq	$13, %r12
+        addq	%r11, %rdx
+        adcq	$0x00, %r12
+        movq	%rdx, 640(%rsp)
+        movq	%r8, %r11
+        shlq	$38, %r11
+        movq	%r8, %rdx
+        shrq	$26, %rdx
+        addq	%r11, %r12
+        adcq	$0x00, %rdx
+        movq	%r12, 648(%rsp)
+        movq	%r9, %r11
+        shlq	$25, %r11
+        movq	%r9, %r12
+        shrq	$39, %r12
+        addq	%r11, %rdx
+        adcq	$0x00, %r12
+        movq	%rdx, 656(%rsp)
+        movq	%r10, %r11
+        shlq	$12, %r11
+        addq	%r11, %r12
+        movq	%r12, 664(%rsp)
+        movq	488(%rsp), %rdx
+        movq	520(%rsp), %rax
+        movq	552(%rsp), %r8
+        movq	584(%rsp), %r9
+        movq	616(%rsp), %r10
+        movq	%rdx, %r11
+        shrq	$51, %r11
+        andq	%r13, %rdx
+        addq	%r11, %rax
+        movq	%rax, %r11
+        shrq	$51, %r11
+        andq	%r13, %rax
+        addq	%r11, %r8
+        movq	%r8, %r11
+        shrq	$51, %r11
+        andq	%r13, %r8
+        addq	%r11, %r9
+        movq	%r9, %r11
+        shrq	$51, %r11
+        andq	%r13, %r9
+        addq	%r11, %r10
+        movq	%r10, %r11
+        shrq	$51, %r11
+        andq	%r13, %r10
+        imulq	$19, %r11, %r11
+        addq	%r11, %rdx
+        movq	%rax, %r11
+        shlq	$51, %r11
+        movq	%rax, %r12
+        shrq	$13, %r12
+        addq	%r11, %rdx
+        adcq	$0x00, %r12
+        movq	%rdx, 672(%rsp)
+        movq	%r8, %r11
+        shlq	$38, %r11
+        movq	%r8, %rdx
+        shrq	$26, %rdx
+        addq	%r11, %r12
+        adcq	$0x00, %rdx
+        movq	%r12, 680(%rsp)
+        movq	%r9, %r11
+        shlq	$25, %r11
+        movq	%r9, %r12
+        shrq	$39, %r12
+        addq	%r11, %rdx
+        adcq	$0x00, %r12
+        movq	%rdx, 688(%rsp)
+        movq	%r10, %r11
+        shlq	$12, %r11
+        addq	%r11, %r12
+        movq	%r12, 696(%rsp)
+        # z2 = 1 / z2
+        leaq	672(%rsp), %rdi
+        leaq	672(%rsp), %rsi
+#ifndef __APPLE__
+        callq	fe_invert_avx2@plt
+#else
+        callq	_fe_invert_avx2
+#endif /* __APPLE__ */
+        # x2 = x2 * z2
+        leaq	640(%rsp), %rdi
+        leaq	640(%rsp), %rsi
+        leaq	672(%rsp), %rdx
+#ifndef __APPLE__
+        callq	fe_mul_avx2@plt
+#else
+        callq	_fe_mul_avx2
+#endif /* __APPLE__ */
+        # Store fully reduced result
+        movq	712(%rsp), %rdi
+        leaq	640(%rsp), %rsi
+#ifndef __APPLE__
+        callq	fe_tobytes@plt
+#else
+        callq	_fe_tobytes
+#endif /* __APPLE__ */
+        xorq	%rax, %rax
+        addq	$0x2e8, %rsp
+        popq	%r15
+        popq	%r14
+        popq	%r13
+        popq	%r12
+        repz retq
+#ifndef __APPLE__
+.size	curve25519_avx512_ifma_dq,.-curve25519_avx512_ifma_dq
+#endif /* __APPLE__ */
+#ifdef HAVE_ED25519
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_ge_ifma_consts:
+.quad	0x0007ffffffffffff,0x000fffffffffffda
+.quad	0x000ffffffffffffe,0x0000000000000013
+.quad	0x0000000000000001,0x0000000000000001
+.quad	0x00069b9426b2f159,0x0000000000000001
+.quad	0x0000000000000000,0x0000000000000000
+.quad	0x00035050762add7a,0x0000000000000000
+.quad	0x0000000000000000,0x0000000000000000
+.quad	0x0003cf44c0038052,0x0000000000000000
+.quad	0x0000000000000000,0x0000000000000000
+.quad	0x0006738cc7407977,0x0000000000000000
+.quad	0x0000000000000000,0x0000000000000000
+.quad	0x0002406d9dc56dff,0x0000000000000000
+#ifndef __APPLE__
+.text
+.globl	ge_double_scalarmult_vartime_avx512_ifma
+WC_ASM_ATT_HIDDEN(ge_double_scalarmult_vartime_avx512_ifma)
+.type	ge_double_scalarmult_vartime_avx512_ifma,@function
+.align	16
+ge_double_scalarmult_vartime_avx512_ifma:
+#else
+.section	__TEXT,__text
+.globl	_ge_double_scalarmult_vartime_avx512_ifma
+WC_ASM_ATT_HIDDEN(_ge_double_scalarmult_vartime_avx512_ifma)
+.p2align	4
+_ge_double_scalarmult_vartime_avx512_ifma:
+#endif /* __APPLE__ */
+        pushq	%r12
+        pushq	%r13
+        pushq	%r14
+        pushq	%r15
+        pushq	%rbx
+        pushq	%rbp
+        movq	%rdx, %r14
+        movq	%rcx, %r15
+        movq	%r8, %rbx
+        movq	%r9, %rbp
+        # Window digits of the scalar multiplying A
+        # One digit per bit of the scalar
+        xorq	%rdx, %rdx
+        xorq	%r11, %r11
+L_ge_dsm_a_avx512_ifma_slide_bytes:
+        movzbq	(%rsi,%r11,1), %rax
+        movq	%rax, %rcx
+        andq	$0x01, %rcx
+        movb	%cl, 1920(%rbp,%rdx,1)
+        shrq	$1, %rax
+        incq	%rdx
+        movq	%rax, %rcx
+        andq	$0x01, %rcx
+        movb	%cl, 1920(%rbp,%rdx,1)
+        shrq	$1, %rax
+        incq	%rdx
+        movq	%rax, %rcx
+        andq	$0x01, %rcx
+        movb	%cl, 1920(%rbp,%rdx,1)
+        shrq	$1, %rax
+        incq	%rdx
+        movq	%rax, %rcx
+        andq	$0x01, %rcx
+        movb	%cl, 1920(%rbp,%rdx,1)
+        shrq	$1, %rax
+        incq	%rdx
+        movq	%rax, %rcx
+        andq	$0x01, %rcx
+        movb	%cl, 1920(%rbp,%rdx,1)
+        shrq	$1, %rax
+        incq	%rdx
+        movq	%rax, %rcx
+        andq	$0x01, %rcx
+        movb	%cl, 1920(%rbp,%rdx,1)
+        shrq	$1, %rax
+        incq	%rdx
+        movq	%rax, %rcx
+        andq	$0x01, %rcx
+        movb	%cl, 1920(%rbp,%rdx,1)
+        shrq	$1, %rax
+        incq	%rdx
+        movq	%rax, %rcx
+        andq	$0x01, %rcx
+        movb	%cl, 1920(%rbp,%rdx,1)
+        shrq	$1, %rax
+        incq	%rdx
+        incq	%r11
+        cmpq	$32, %r11
+        jne	L_ge_dsm_a_avx512_ifma_slide_bytes
+        # Fold each run of digits down to one odd digit
+        xorq	%r11, %r11
+L_ge_dsm_a_avx512_ifma_slide_digit:
+        movsbq	1920(%rbp,%r11,1), %rcx
+        testq	%rcx, %rcx
+        je	L_ge_dsm_a_avx512_ifma_slide_next_digit
+        movq	$0x01, %r12
+L_ge_dsm_a_avx512_ifma_slide_window:
+        movq	%r11, %rdx
+        addq	%r12, %rdx
+        cmpq	$0x100, %rdx
+        jge	L_ge_dsm_a_avx512_ifma_slide_next_digit
+        movsbq	1920(%rbp,%rdx,1), %r8
+        testq	%r8, %r8
+        je	L_ge_dsm_a_avx512_ifma_slide_next_window
+        # Weight of the digit at i + b, relative to the one at i
+        movq	%r8, %r9
+        movq	%r12, %r8
+L_ge_dsm_a_avx512_ifma_slide_shift:
+        addq	%r9, %r9
+        decq	%r8
+        jne	L_ge_dsm_a_avx512_ifma_slide_shift
+        movsbq	%r9b, %r9
+        # Fold it in if the digit at i stays within range
+        movq	%rcx, %r10
+        addq	%r9, %r10
+        cmpq	$15, %r10
+        jg	L_ge_dsm_a_avx512_ifma_slide_sub
+        movq	%r10, %rcx
+        movb	%cl, 1920(%rbp,%r11,1)
+        movb	$0x00, 1920(%rbp,%rdx,1)
+        jmp	L_ge_dsm_a_avx512_ifma_slide_next_window
+L_ge_dsm_a_avx512_ifma_slide_sub:
+        movq	%rcx, %r10
+        subq	%r9, %r10
+        cmpq	$-15, %r10
+        jl	L_ge_dsm_a_avx512_ifma_slide_next_digit
+        movq	%r10, %rcx
+        movb	%cl, 1920(%rbp,%r11,1)
+        # Subtracting it borrows from the digits above
+L_ge_dsm_a_avx512_ifma_slide_carry:
+        cmpq	$0x100, %rdx
+        jge	L_ge_dsm_a_avx512_ifma_slide_next_window
+        movsbq	1920(%rbp,%rdx,1), %r10
+        testq	%r10, %r10
+        je	L_ge_dsm_a_avx512_ifma_slide_set
+        movb	$0x00, 1920(%rbp,%rdx,1)
+        incq	%rdx
+        jmp	L_ge_dsm_a_avx512_ifma_slide_carry
+L_ge_dsm_a_avx512_ifma_slide_set:
+        movb	$0x01, 1920(%rbp,%rdx,1)
+L_ge_dsm_a_avx512_ifma_slide_next_window:
+        incq	%r12
+        cmpq	$6, %r12
+        jle	L_ge_dsm_a_avx512_ifma_slide_window
+L_ge_dsm_a_avx512_ifma_slide_next_digit:
+        incq	%r11
+        cmpq	$0x100, %r11
+        jl	L_ge_dsm_a_avx512_ifma_slide_digit
+        # Window digits of the base point scalar
+        # One digit per bit of the scalar
+        xorq	%rdx, %rdx
+        xorq	%r11, %r11
+L_ge_dsm_b_avx512_ifma_slide_bytes:
+        movzbq	(%r15,%r11,1), %rax
+        movq	%rax, %rcx
+        andq	$0x01, %rcx
+        movb	%cl, 2176(%rbp,%rdx,1)
+        shrq	$1, %rax
+        incq	%rdx
+        movq	%rax, %rcx
+        andq	$0x01, %rcx
+        movb	%cl, 2176(%rbp,%rdx,1)
+        shrq	$1, %rax
+        incq	%rdx
+        movq	%rax, %rcx
+        andq	$0x01, %rcx
+        movb	%cl, 2176(%rbp,%rdx,1)
+        shrq	$1, %rax
+        incq	%rdx
+        movq	%rax, %rcx
+        andq	$0x01, %rcx
+        movb	%cl, 2176(%rbp,%rdx,1)
+        shrq	$1, %rax
+        incq	%rdx
+        movq	%rax, %rcx
+        andq	$0x01, %rcx
+        movb	%cl, 2176(%rbp,%rdx,1)
+        shrq	$1, %rax
+        incq	%rdx
+        movq	%rax, %rcx
+        andq	$0x01, %rcx
+        movb	%cl, 2176(%rbp,%rdx,1)
+        shrq	$1, %rax
+        incq	%rdx
+        movq	%rax, %rcx
+        andq	$0x01, %rcx
+        movb	%cl, 2176(%rbp,%rdx,1)
+        shrq	$1, %rax
+        incq	%rdx
+        movq	%rax, %rcx
+        andq	$0x01, %rcx
+        movb	%cl, 2176(%rbp,%rdx,1)
+        shrq	$1, %rax
+        incq	%rdx
+        incq	%r11
+        cmpq	$32, %r11
+        jne	L_ge_dsm_b_avx512_ifma_slide_bytes
+        # Fold each run of digits down to one odd digit
+        xorq	%r11, %r11
+L_ge_dsm_b_avx512_ifma_slide_digit:
+        movsbq	2176(%rbp,%r11,1), %rcx
+        testq	%rcx, %rcx
+        je	L_ge_dsm_b_avx512_ifma_slide_next_digit
+        movq	$0x01, %r12
+L_ge_dsm_b_avx512_ifma_slide_window:
+        movq	%r11, %rdx
+        addq	%r12, %rdx
+        cmpq	$0x100, %rdx
+        jge	L_ge_dsm_b_avx512_ifma_slide_next_digit
+        movsbq	2176(%rbp,%rdx,1), %r8
+        testq	%r8, %r8
+        je	L_ge_dsm_b_avx512_ifma_slide_next_window
+        # Weight of the digit at i + b, relative to the one at i
+        movq	%r8, %r9
+        movq	%r12, %r8
+L_ge_dsm_b_avx512_ifma_slide_shift:
+        addq	%r9, %r9
+        decq	%r8
+        jne	L_ge_dsm_b_avx512_ifma_slide_shift
+        movsbq	%r9b, %r9
+        # Fold it in if the digit at i stays within range
+        movq	%rcx, %r10
+        addq	%r9, %r10
+        cmpq	$63, %r10
+        jg	L_ge_dsm_b_avx512_ifma_slide_sub
+        movq	%r10, %rcx
+        movb	%cl, 2176(%rbp,%r11,1)
+        movb	$0x00, 2176(%rbp,%rdx,1)
+        jmp	L_ge_dsm_b_avx512_ifma_slide_next_window
+L_ge_dsm_b_avx512_ifma_slide_sub:
+        movq	%rcx, %r10
+        subq	%r9, %r10
+        cmpq	$-63, %r10
+        jl	L_ge_dsm_b_avx512_ifma_slide_next_digit
+        movq	%r10, %rcx
+        movb	%cl, 2176(%rbp,%r11,1)
+        # Subtracting it borrows from the digits above
+L_ge_dsm_b_avx512_ifma_slide_carry:
+        cmpq	$0x100, %rdx
+        jge	L_ge_dsm_b_avx512_ifma_slide_next_window
+        movsbq	2176(%rbp,%rdx,1), %r10
+        testq	%r10, %r10
+        je	L_ge_dsm_b_avx512_ifma_slide_set
+        movb	$0x00, 2176(%rbp,%rdx,1)
+        incq	%rdx
+        jmp	L_ge_dsm_b_avx512_ifma_slide_carry
+L_ge_dsm_b_avx512_ifma_slide_set:
+        movb	$0x01, 2176(%rbp,%rdx,1)
+L_ge_dsm_b_avx512_ifma_slide_next_window:
+        incq	%r12
+        cmpq	$6, %r12
+        jle	L_ge_dsm_b_avx512_ifma_slide_window
+L_ge_dsm_b_avx512_ifma_slide_next_digit:
+        incq	%r11
+        cmpq	$0x100, %r11
+        jl	L_ge_dsm_b_avx512_ifma_slide_digit
+        leaq	L_ge_ifma_consts(%rip), %r15
+        vpbroadcastq	(%r15), %ymm28
+        vpbroadcastq	8(%r15), %ymm29
+        vpbroadcastq	16(%r15), %ymm30
+        vpbroadcastq	24(%r15), %ymm31
+        movl	$8, %r9d
+        kmovw	%r9d, %k1
+        movl	$12, %r9d
+        kmovw	%r9d, %k2
+        movl	$9, %r9d
+        kmovw	%r9d, %k3
+        movl	$6, %r9d
+        kmovw	%r9d, %k4
+        movl	$0x01, %r9d
+        kmovw	%r9d, %k5
+        movl	$2, %r9d
+        kmovw	%r9d, %k6
+        movl	$4, %r9d
+        kmovw	%r9d, %k7
+        # Odd multiples of A, cached and in limb form
+        movq	$0x7ffffffffffff, %r10
+        # A in limb form: [X, Y, Z, T]
+        movq	(%r14), %rdx
+        movq	8(%r14), %rax
+        movq	16(%r14), %rcx
+        movq	24(%r14), %r8
+        movq	%r8, %r9
+        shrq	$63, %r9
+        imulq	$19, %r9, %r9
+        shlq	$1, %r8
+        shrq	$1, %r8
+        movq	%rdx, %r13
+        andq	%r10, %r13
+        addq	%r9, %r13
+        movq	%r13, 1440(%rbp)
+        shrdq	$51, %rax, %rdx
+        movq	%rdx, %r9
+        andq	%r10, %r9
+        movq	%r9, 1472(%rbp)
+        shrdq	$38, %rcx, %rax
+        movq	%rax, %r9
+        andq	%r10, %r9
+        movq	%r9, 1504(%rbp)
+        shrdq	$25, %r8, %rcx
+        movq	%rcx, %r9
+        andq	%r10, %r9
+        movq	%r9, 1536(%rbp)
+        shrq	$12, %r8
+        movq	%r8, 1568(%rbp)
+        movq	32(%r14), %rdx
+        movq	40(%r14), %rax
+        movq	48(%r14), %rcx
+        movq	56(%r14), %r8
+        movq	%r8, %r9
+        shrq	$63, %r9
+        imulq	$19, %r9, %r9
+        shlq	$1, %r8
+        shrq	$1, %r8
+        movq	%rdx, %r13
+        andq	%r10, %r13
+        addq	%r9, %r13
+        movq	%r13, 1448(%rbp)
+        shrdq	$51, %rax, %rdx
+        movq	%rdx, %r9
+        andq	%r10, %r9
+        movq	%r9, 1480(%rbp)
+        shrdq	$38, %rcx, %rax
+        movq	%rax, %r9
+        andq	%r10, %r9
+        movq	%r9, 1512(%rbp)
+        shrdq	$25, %r8, %rcx
+        movq	%rcx, %r9
+        andq	%r10, %r9
+        movq	%r9, 1544(%rbp)
+        shrq	$12, %r8
+        movq	%r8, 1576(%rbp)
+        movq	64(%r14), %rdx
+        movq	72(%r14), %rax
+        movq	80(%r14), %rcx
+        movq	88(%r14), %r8
+        movq	%r8, %r9
+        shrq	$63, %r9
+        imulq	$19, %r9, %r9
+        shlq	$1, %r8
+        shrq	$1, %r8
+        movq	%rdx, %r13
+        andq	%r10, %r13
+        addq	%r9, %r13
+        movq	%r13, 1456(%rbp)
+        shrdq	$51, %rax, %rdx
+        movq	%rdx, %r9
+        andq	%r10, %r9
+        movq	%r9, 1488(%rbp)
+        shrdq	$38, %rcx, %rax
+        movq	%rax, %r9
+        andq	%r10, %r9
+        movq	%r9, 1520(%rbp)
+        shrdq	$25, %r8, %rcx
+        movq	%rcx, %r9
+        andq	%r10, %r9
+        movq	%r9, 1552(%rbp)
+        shrq	$12, %r8
+        movq	%r8, 1584(%rbp)
+        movq	96(%r14), %rdx
+        movq	104(%r14), %rax
+        movq	112(%r14), %rcx
+        movq	120(%r14), %r8
+        movq	%r8, %r9
+        shrq	$63, %r9
+        imulq	$19, %r9, %r9
+        shlq	$1, %r8
+        shrq	$1, %r8
+        movq	%rdx, %r13
+        andq	%r10, %r13
+        addq	%r9, %r13
+        movq	%r13, 1464(%rbp)
+        shrdq	$51, %rax, %rdx
+        movq	%rdx, %r9
+        andq	%r10, %r9
+        movq	%r9, 1496(%rbp)
+        shrdq	$38, %rcx, %rax
+        movq	%rax, %r9
+        andq	%r10, %r9
+        movq	%r9, 1528(%rbp)
+        shrdq	$25, %r8, %rcx
+        movq	%rcx, %r9
+        andq	%r10, %r9
+        movq	%r9, 1560(%rbp)
+        shrq	$12, %r8
+        movq	%r8, 1592(%rbp)
+        # Ai[0] = A
+        vmovdqu64	1440(%rbp), %ymm18
+        vmovdqu64	1472(%rbp), %ymm19
+        vmovdqu64	1504(%rbp), %ymm20
+        vmovdqu64	1536(%rbp), %ymm21
+        vmovdqu64	1568(%rbp), %ymm22
+        # To cached
+        vpermq	$0xb0, %ymm18, %ymm23
+        vpermq	$0xb0, %ymm19, %ymm24
+        vpermq	$0xb0, %ymm20, %ymm25
+        vpermq	$0xb0, %ymm21, %ymm26
+        vpermq	$0xb0, %ymm22, %ymm27
+        vpermq	$0xb5, %ymm18, %ymm18
+        vpermq	$0xb5, %ymm19, %ymm19
+        vpermq	$0xb5, %ymm20, %ymm20
+        vpermq	$0xb5, %ymm21, %ymm21
+        vpermq	$0xb5, %ymm22, %ymm22
+        vpaddq	%ymm23, %ymm18, %ymm18{%k5}
+        vpaddq	%ymm24, %ymm19, %ymm19{%k5}
+        vpaddq	%ymm25, %ymm20, %ymm20{%k5}
+        vpaddq	%ymm26, %ymm21, %ymm21{%k5}
+        vpaddq	%ymm27, %ymm22, %ymm22{%k5}
+        vpaddq	%ymm29, %ymm18, %ymm18{%k6}
+        vpaddq	%ymm30, %ymm19, %ymm19{%k6}
+        vpaddq	%ymm30, %ymm20, %ymm20{%k6}
+        vpaddq	%ymm30, %ymm21, %ymm21{%k6}
+        vpaddq	%ymm30, %ymm22, %ymm22{%k6}
+        vpsubq	%ymm23, %ymm18, %ymm18{%k6}
+        vpsubq	%ymm24, %ymm19, %ymm19{%k6}
+        vpsubq	%ymm25, %ymm20, %ymm20{%k6}
+        vpsubq	%ymm26, %ymm21, %ymm21{%k6}
+        vpsubq	%ymm27, %ymm22, %ymm22{%k6}
+        vpsrlq	$51, %ymm18, %ymm0
+        vpandq	%ymm28, %ymm18, %ymm18
+        vpsrlq	$51, %ymm19, %ymm1
+        vpandq	%ymm28, %ymm19, %ymm19
+        vpsrlq	$51, %ymm20, %ymm2
+        vpandq	%ymm28, %ymm20, %ymm20
+        vpsrlq	$51, %ymm21, %ymm3
+        vpandq	%ymm28, %ymm21, %ymm21
+        vpsrlq	$51, %ymm22, %ymm4
+        vpandq	%ymm28, %ymm22, %ymm22
+        vpmadd52luq	%ymm31, %ymm4, %ymm18
+        vpaddq	%ymm0, %ymm19, %ymm19
+        vpaddq	%ymm1, %ymm20, %ymm20
+        vpaddq	%ymm2, %ymm21, %ymm21
+        vpaddq	%ymm3, %ymm22, %ymm22
+        vmovdqu64	32(%r15), %ymm23
+        vmovdqu64	64(%r15), %ymm24
+        vmovdqu64	96(%r15), %ymm25
+        vmovdqu64	128(%r15), %ymm26
+        vmovdqu64	160(%r15), %ymm27
+        # Multiply 4 field elements
+        vpxorq	%ymm0, %ymm0, %ymm0
+        vpxorq	%ymm9, %ymm9, %ymm9
+        vpxorq	%ymm1, %ymm1, %ymm1
+        vpxorq	%ymm10, %ymm10, %ymm10
+        vpxorq	%ymm2, %ymm2, %ymm2
+        vpxorq	%ymm11, %ymm11, %ymm11
+        vpxorq	%ymm3, %ymm3, %ymm3
+        vpxorq	%ymm12, %ymm12, %ymm12
+        vpxorq	%ymm4, %ymm4, %ymm4
+        vpxorq	%ymm13, %ymm13, %ymm13
+        vpxorq	%ymm5, %ymm5, %ymm5
+        vpxorq	%ymm14, %ymm14, %ymm14
+        vpxorq	%ymm6, %ymm6, %ymm6
+        vpxorq	%ymm15, %ymm15, %ymm15
+        vpxorq	%ymm7, %ymm7, %ymm7
+        vpxorq	%ymm16, %ymm16, %ymm16
+        vpxorq	%ymm8, %ymm8, %ymm8
+        vpxorq	%ymm17, %ymm17, %ymm17
+        vpmadd52luq	%ymm23, %ymm18, %ymm0
+        vpmadd52huq	%ymm23, %ymm18, %ymm9
+        vpmadd52luq	%ymm24, %ymm18, %ymm1
+        vpmadd52huq	%ymm24, %ymm18, %ymm10
+        vpmadd52luq	%ymm25, %ymm18, %ymm2
+        vpmadd52huq	%ymm25, %ymm18, %ymm11
+        vpmadd52luq	%ymm26, %ymm18, %ymm3
+        vpmadd52huq	%ymm26, %ymm18, %ymm12
+        vpmadd52luq	%ymm27, %ymm18, %ymm4
+        vpmadd52huq	%ymm27, %ymm18, %ymm13
+        vpmadd52luq	%ymm23, %ymm19, %ymm1
+        vpmadd52huq	%ymm23, %ymm19, %ymm10
+        vpmadd52luq	%ymm24, %ymm19, %ymm2
+        vpmadd52huq	%ymm24, %ymm19, %ymm11
+        vpmadd52luq	%ymm25, %ymm19, %ymm3
+        vpmadd52huq	%ymm25, %ymm19, %ymm12
+        vpmadd52luq	%ymm26, %ymm19, %ymm4
+        vpmadd52huq	%ymm26, %ymm19, %ymm13
+        vpmadd52luq	%ymm27, %ymm19, %ymm5
+        vpmadd52huq	%ymm27, %ymm19, %ymm14
+        vpmadd52luq	%ymm23, %ymm20, %ymm2
+        vpmadd52huq	%ymm23, %ymm20, %ymm11
+        vpmadd52luq	%ymm24, %ymm20, %ymm3
+        vpmadd52huq	%ymm24, %ymm20, %ymm12
+        vpmadd52luq	%ymm25, %ymm20, %ymm4
+        vpmadd52huq	%ymm25, %ymm20, %ymm13
+        vpmadd52luq	%ymm26, %ymm20, %ymm5
+        vpmadd52huq	%ymm26, %ymm20, %ymm14
+        vpmadd52luq	%ymm27, %ymm20, %ymm6
+        vpmadd52huq	%ymm27, %ymm20, %ymm15
+        vpmadd52luq	%ymm23, %ymm21, %ymm3
+        vpmadd52huq	%ymm23, %ymm21, %ymm12
+        vpmadd52luq	%ymm24, %ymm21, %ymm4
+        vpmadd52huq	%ymm24, %ymm21, %ymm13
+        vpmadd52luq	%ymm25, %ymm21, %ymm5
+        vpmadd52huq	%ymm25, %ymm21, %ymm14
+        vpmadd52luq	%ymm26, %ymm21, %ymm6
+        vpmadd52huq	%ymm26, %ymm21, %ymm15
+        vpmadd52luq	%ymm27, %ymm21, %ymm7
+        vpmadd52huq	%ymm27, %ymm21, %ymm16
+        vpmadd52luq	%ymm23, %ymm22, %ymm4
+        vpmadd52huq	%ymm23, %ymm22, %ymm13
+        vpmadd52luq	%ymm24, %ymm22, %ymm5
+        vpmadd52huq	%ymm24, %ymm22, %ymm14
+        vpmadd52luq	%ymm25, %ymm22, %ymm6
+        vpmadd52huq	%ymm25, %ymm22, %ymm15
+        vpmadd52luq	%ymm26, %ymm22, %ymm7
+        vpmadd52huq	%ymm26, %ymm22, %ymm16
+        vpmadd52luq	%ymm27, %ymm22, %ymm8
+        vpmadd52huq	%ymm27, %ymm22, %ymm17
+        vpaddq	%ymm9, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpaddq	%ymm10, %ymm10, %ymm10
+        vpaddq	%ymm10, %ymm2, %ymm2
+        vpaddq	%ymm11, %ymm11, %ymm11
+        vpaddq	%ymm11, %ymm3, %ymm3
+        vpaddq	%ymm12, %ymm12, %ymm12
+        vpaddq	%ymm12, %ymm4, %ymm4
+        vpaddq	%ymm13, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm5, %ymm5
+        vpaddq	%ymm14, %ymm14, %ymm14
+        vpaddq	%ymm14, %ymm6, %ymm6
+        vpaddq	%ymm15, %ymm15, %ymm15
+        vpaddq	%ymm15, %ymm7, %ymm7
+        vpaddq	%ymm16, %ymm16, %ymm16
+        vpaddq	%ymm16, %ymm8, %ymm8
+        vpaddq	%ymm17, %ymm17, %ymm17
+        # Reduce
+        vpsllq	$4, %ymm5, %ymm9
+        vpsllq	$0x01, %ymm5, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm5, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm0, %ymm0
+        vpsllq	$4, %ymm6, %ymm9
+        vpsllq	$0x01, %ymm6, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm6, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpsllq	$4, %ymm7, %ymm9
+        vpsllq	$0x01, %ymm7, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm7, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm2, %ymm2
+        vpsllq	$4, %ymm8, %ymm9
+        vpsllq	$0x01, %ymm8, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm8, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm3, %ymm3
+        vpsllq	$4, %ymm17, %ymm9
+        vpsllq	$0x01, %ymm17, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm17, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm4, %ymm4
+        vpsrlq	$51, %ymm0, %ymm23
+        vpandq	%ymm28, %ymm0, %ymm0
+        vpsrlq	$51, %ymm1, %ymm24
+        vpandq	%ymm28, %ymm1, %ymm1
+        vpsrlq	$51, %ymm2, %ymm25
+        vpandq	%ymm28, %ymm2, %ymm2
+        vpsrlq	$51, %ymm3, %ymm26
+        vpandq	%ymm28, %ymm3, %ymm3
+        vpsrlq	$51, %ymm4, %ymm27
+        vpandq	%ymm28, %ymm4, %ymm4
+        vmovdqa64	%ymm0, %ymm18
+        vpmadd52luq	%ymm31, %ymm27, %ymm18
+        vpaddq	%ymm23, %ymm1, %ymm19
+        vpaddq	%ymm24, %ymm2, %ymm20
+        vpaddq	%ymm25, %ymm3, %ymm21
+        vpaddq	%ymm26, %ymm4, %ymm22
+        vmovdqu64	%ymm18, (%rbp)
+        vmovdqu64	%ymm19, 32(%rbp)
+        vmovdqu64	%ymm20, 64(%rbp)
+        vmovdqu64	%ymm21, 96(%rbp)
+        vmovdqu64	%ymm22, 128(%rbp)
+        # A2 = 2.A
+        vmovdqu64	1440(%rbp), %ymm18
+        vmovdqu64	1472(%rbp), %ymm19
+        vmovdqu64	1504(%rbp), %ymm20
+        vmovdqu64	1536(%rbp), %ymm21
+        vmovdqu64	1568(%rbp), %ymm22
+        # Double
+        vpermq	$0x64, %ymm18, %ymm23
+        vpermq	$0x64, %ymm19, %ymm24
+        vpermq	$0x64, %ymm20, %ymm25
+        vpermq	$0x64, %ymm21, %ymm26
+        vpermq	$0x64, %ymm22, %ymm27
+        vpermq	$36, %ymm18, %ymm18
+        vpermq	$36, %ymm19, %ymm19
+        vpermq	$36, %ymm20, %ymm20
+        vpermq	$36, %ymm21, %ymm21
+        vpermq	$36, %ymm22, %ymm22
+        vpaddq	%ymm23, %ymm18, %ymm18{%k1}
+        vpaddq	%ymm24, %ymm19, %ymm19{%k1}
+        vpaddq	%ymm25, %ymm20, %ymm20{%k1}
+        vpaddq	%ymm26, %ymm21, %ymm21{%k1}
+        vpaddq	%ymm27, %ymm22, %ymm22{%k1}
+        vpsrlq	$51, %ymm18, %ymm0
+        vpandq	%ymm28, %ymm18, %ymm18
+        vpsrlq	$51, %ymm19, %ymm1
+        vpandq	%ymm28, %ymm19, %ymm19
+        vpsrlq	$51, %ymm20, %ymm2
+        vpandq	%ymm28, %ymm20, %ymm20
+        vpsrlq	$51, %ymm21, %ymm3
+        vpandq	%ymm28, %ymm21, %ymm21
+        vpsrlq	$51, %ymm22, %ymm4
+        vpandq	%ymm28, %ymm22, %ymm22
+        vpmadd52luq	%ymm31, %ymm4, %ymm18
+        vpaddq	%ymm0, %ymm19, %ymm19
+        vpaddq	%ymm1, %ymm20, %ymm20
+        vpaddq	%ymm2, %ymm21, %ymm21
+        vpaddq	%ymm3, %ymm22, %ymm22
+        vmovdqa64	%ymm18, %ymm23
+        vmovdqa64	%ymm19, %ymm24
+        vmovdqa64	%ymm20, %ymm25
+        vmovdqa64	%ymm21, %ymm26
+        vmovdqa64	%ymm22, %ymm27
+        # Multiply 4 field elements
+        vpxorq	%ymm0, %ymm0, %ymm0
+        vpxorq	%ymm9, %ymm9, %ymm9
+        vpxorq	%ymm1, %ymm1, %ymm1
+        vpxorq	%ymm10, %ymm10, %ymm10
+        vpxorq	%ymm2, %ymm2, %ymm2
+        vpxorq	%ymm11, %ymm11, %ymm11
+        vpxorq	%ymm3, %ymm3, %ymm3
+        vpxorq	%ymm12, %ymm12, %ymm12
+        vpxorq	%ymm4, %ymm4, %ymm4
+        vpxorq	%ymm13, %ymm13, %ymm13
+        vpxorq	%ymm5, %ymm5, %ymm5
+        vpxorq	%ymm14, %ymm14, %ymm14
+        vpxorq	%ymm6, %ymm6, %ymm6
+        vpxorq	%ymm15, %ymm15, %ymm15
+        vpxorq	%ymm7, %ymm7, %ymm7
+        vpxorq	%ymm16, %ymm16, %ymm16
+        vpxorq	%ymm8, %ymm8, %ymm8
+        vpxorq	%ymm17, %ymm17, %ymm17
+        vpmadd52luq	%ymm23, %ymm18, %ymm0
+        vpmadd52huq	%ymm23, %ymm18, %ymm9
+        vpmadd52luq	%ymm24, %ymm18, %ymm1
+        vpmadd52huq	%ymm24, %ymm18, %ymm10
+        vpmadd52luq	%ymm25, %ymm18, %ymm2
+        vpmadd52huq	%ymm25, %ymm18, %ymm11
+        vpmadd52luq	%ymm26, %ymm18, %ymm3
+        vpmadd52huq	%ymm26, %ymm18, %ymm12
+        vpmadd52luq	%ymm27, %ymm18, %ymm4
+        vpmadd52huq	%ymm27, %ymm18, %ymm13
+        vpmadd52luq	%ymm23, %ymm19, %ymm1
+        vpmadd52huq	%ymm23, %ymm19, %ymm10
+        vpmadd52luq	%ymm24, %ymm19, %ymm2
+        vpmadd52huq	%ymm24, %ymm19, %ymm11
+        vpmadd52luq	%ymm25, %ymm19, %ymm3
+        vpmadd52huq	%ymm25, %ymm19, %ymm12
+        vpmadd52luq	%ymm26, %ymm19, %ymm4
+        vpmadd52huq	%ymm26, %ymm19, %ymm13
+        vpmadd52luq	%ymm27, %ymm19, %ymm5
+        vpmadd52huq	%ymm27, %ymm19, %ymm14
+        vpmadd52luq	%ymm23, %ymm20, %ymm2
+        vpmadd52huq	%ymm23, %ymm20, %ymm11
+        vpmadd52luq	%ymm24, %ymm20, %ymm3
+        vpmadd52huq	%ymm24, %ymm20, %ymm12
+        vpmadd52luq	%ymm25, %ymm20, %ymm4
+        vpmadd52huq	%ymm25, %ymm20, %ymm13
+        vpmadd52luq	%ymm26, %ymm20, %ymm5
+        vpmadd52huq	%ymm26, %ymm20, %ymm14
+        vpmadd52luq	%ymm27, %ymm20, %ymm6
+        vpmadd52huq	%ymm27, %ymm20, %ymm15
+        vpmadd52luq	%ymm23, %ymm21, %ymm3
+        vpmadd52huq	%ymm23, %ymm21, %ymm12
+        vpmadd52luq	%ymm24, %ymm21, %ymm4
+        vpmadd52huq	%ymm24, %ymm21, %ymm13
+        vpmadd52luq	%ymm25, %ymm21, %ymm5
+        vpmadd52huq	%ymm25, %ymm21, %ymm14
+        vpmadd52luq	%ymm26, %ymm21, %ymm6
+        vpmadd52huq	%ymm26, %ymm21, %ymm15
+        vpmadd52luq	%ymm27, %ymm21, %ymm7
+        vpmadd52huq	%ymm27, %ymm21, %ymm16
+        vpmadd52luq	%ymm23, %ymm22, %ymm4
+        vpmadd52huq	%ymm23, %ymm22, %ymm13
+        vpmadd52luq	%ymm24, %ymm22, %ymm5
+        vpmadd52huq	%ymm24, %ymm22, %ymm14
+        vpmadd52luq	%ymm25, %ymm22, %ymm6
+        vpmadd52huq	%ymm25, %ymm22, %ymm15
+        vpmadd52luq	%ymm26, %ymm22, %ymm7
+        vpmadd52huq	%ymm26, %ymm22, %ymm16
+        vpmadd52luq	%ymm27, %ymm22, %ymm8
+        vpmadd52huq	%ymm27, %ymm22, %ymm17
+        vpaddq	%ymm9, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpaddq	%ymm10, %ymm10, %ymm10
+        vpaddq	%ymm10, %ymm2, %ymm2
+        vpaddq	%ymm11, %ymm11, %ymm11
+        vpaddq	%ymm11, %ymm3, %ymm3
+        vpaddq	%ymm12, %ymm12, %ymm12
+        vpaddq	%ymm12, %ymm4, %ymm4
+        vpaddq	%ymm13, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm5, %ymm5
+        vpaddq	%ymm14, %ymm14, %ymm14
+        vpaddq	%ymm14, %ymm6, %ymm6
+        vpaddq	%ymm15, %ymm15, %ymm15
+        vpaddq	%ymm15, %ymm7, %ymm7
+        vpaddq	%ymm16, %ymm16, %ymm16
+        vpaddq	%ymm16, %ymm8, %ymm8
+        vpaddq	%ymm17, %ymm17, %ymm17
+        # Reduce
+        vpsllq	$4, %ymm5, %ymm9
+        vpsllq	$0x01, %ymm5, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm5, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm0, %ymm0
+        vpsllq	$4, %ymm6, %ymm9
+        vpsllq	$0x01, %ymm6, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm6, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpsllq	$4, %ymm7, %ymm9
+        vpsllq	$0x01, %ymm7, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm7, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm2, %ymm2
+        vpsllq	$4, %ymm8, %ymm9
+        vpsllq	$0x01, %ymm8, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm8, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm3, %ymm3
+        vpsllq	$4, %ymm17, %ymm9
+        vpsllq	$0x01, %ymm17, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm17, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm4, %ymm4
+        vpsrlq	$51, %ymm0, %ymm23
+        vpandq	%ymm28, %ymm0, %ymm0
+        vpsrlq	$51, %ymm1, %ymm24
+        vpandq	%ymm28, %ymm1, %ymm1
+        vpsrlq	$51, %ymm2, %ymm25
+        vpandq	%ymm28, %ymm2, %ymm2
+        vpsrlq	$51, %ymm3, %ymm26
+        vpandq	%ymm28, %ymm3, %ymm3
+        vpsrlq	$51, %ymm4, %ymm27
+        vpandq	%ymm28, %ymm4, %ymm4
+        vmovdqa64	%ymm0, %ymm18
+        vpmadd52luq	%ymm31, %ymm27, %ymm18
+        vpaddq	%ymm23, %ymm1, %ymm19
+        vpaddq	%ymm24, %ymm2, %ymm20
+        vpaddq	%ymm25, %ymm3, %ymm21
+        vpaddq	%ymm26, %ymm4, %ymm22
+        # Y3 = YY + XX, Z3 = YY - XX
+        vpermq	$0x55, %ymm18, %ymm23
+        vpermq	$0x55, %ymm19, %ymm24
+        vpermq	$0x55, %ymm20, %ymm25
+        vpermq	$0x55, %ymm21, %ymm26
+        vpermq	$0x55, %ymm22, %ymm27
+        vpermq	$0x00, %ymm18, %ymm0
+        vpermq	$0x00, %ymm19, %ymm1
+        vpermq	$0x00, %ymm20, %ymm2
+        vpermq	$0x00, %ymm21, %ymm3
+        vpermq	$0x00, %ymm22, %ymm4
+        vpaddq	%ymm0, %ymm23, %ymm5
+        vpaddq	%ymm1, %ymm24, %ymm6
+        vpaddq	%ymm2, %ymm25, %ymm7
+        vpaddq	%ymm3, %ymm26, %ymm8
+        vpaddq	%ymm4, %ymm27, %ymm9
+        vpaddq	%ymm29, %ymm23, %ymm23{%k2}
+        vpaddq	%ymm30, %ymm24, %ymm24{%k2}
+        vpaddq	%ymm30, %ymm25, %ymm25{%k2}
+        vpaddq	%ymm30, %ymm26, %ymm26{%k2}
+        vpaddq	%ymm30, %ymm27, %ymm27{%k2}
+        vpsubq	%ymm0, %ymm23, %ymm5{%k2}
+        vpsubq	%ymm1, %ymm24, %ymm6{%k2}
+        vpsubq	%ymm2, %ymm25, %ymm7{%k2}
+        vpsubq	%ymm3, %ymm26, %ymm8{%k2}
+        vpsubq	%ymm4, %ymm27, %ymm9{%k2}
+        vpsrlq	$51, %ymm5, %ymm23
+        vpandq	%ymm28, %ymm5, %ymm5
+        vpsrlq	$51, %ymm6, %ymm24
+        vpandq	%ymm28, %ymm6, %ymm6
+        vpsrlq	$51, %ymm7, %ymm25
+        vpandq	%ymm28, %ymm7, %ymm7
+        vpsrlq	$51, %ymm8, %ymm26
+        vpandq	%ymm28, %ymm8, %ymm8
+        vpsrlq	$51, %ymm9, %ymm27
+        vpandq	%ymm28, %ymm9, %ymm9
+        vpmadd52luq	%ymm31, %ymm27, %ymm5
+        vpaddq	%ymm23, %ymm6, %ymm6
+        vpaddq	%ymm24, %ymm7, %ymm7
+        vpaddq	%ymm25, %ymm8, %ymm8
+        vpaddq	%ymm26, %ymm9, %ymm9
+        # X3 = AA - Y3, T3 = 2.ZZ - Z3
+        vpermq	$0xaf, %ymm18, %ymm23
+        vpermq	$0xaf, %ymm19, %ymm24
+        vpermq	$0xaf, %ymm20, %ymm25
+        vpermq	$0xaf, %ymm21, %ymm26
+        vpermq	$0xaf, %ymm22, %ymm27
+        vpaddq	%ymm23, %ymm23, %ymm23{%k2}
+        vpaddq	%ymm24, %ymm24, %ymm24{%k2}
+        vpaddq	%ymm25, %ymm25, %ymm25{%k2}
+        vpaddq	%ymm26, %ymm26, %ymm26{%k2}
+        vpaddq	%ymm27, %ymm27, %ymm27{%k2}
+        vpaddq	%ymm29, %ymm23, %ymm23{%k3}
+        vpaddq	%ymm30, %ymm24, %ymm24{%k3}
+        vpaddq	%ymm30, %ymm25, %ymm25{%k3}
+        vpaddq	%ymm30, %ymm26, %ymm26{%k3}
+        vpaddq	%ymm30, %ymm27, %ymm27{%k3}
+        vpsubq	%ymm5, %ymm23, %ymm23{%k3}
+        vpsubq	%ymm6, %ymm24, %ymm24{%k3}
+        vpsubq	%ymm7, %ymm25, %ymm25{%k3}
+        vpsubq	%ymm8, %ymm26, %ymm26{%k3}
+        vpsubq	%ymm9, %ymm27, %ymm27{%k3}
+        vpsrlq	$51, %ymm23, %ymm0
+        vpandq	%ymm28, %ymm23, %ymm23
+        vpsrlq	$51, %ymm24, %ymm1
+        vpandq	%ymm28, %ymm24, %ymm24
+        vpsrlq	$51, %ymm25, %ymm2
+        vpandq	%ymm28, %ymm25, %ymm25
+        vpsrlq	$51, %ymm26, %ymm3
+        vpandq	%ymm28, %ymm26, %ymm26
+        vpsrlq	$51, %ymm27, %ymm4
+        vpandq	%ymm28, %ymm27, %ymm27
+        vpmadd52luq	%ymm31, %ymm4, %ymm23
+        vpaddq	%ymm0, %ymm24, %ymm24
+        vpaddq	%ymm1, %ymm25, %ymm25
+        vpaddq	%ymm2, %ymm26, %ymm26
+        vpaddq	%ymm3, %ymm27, %ymm27
+        vmovdqa64	%ymm5, %ymm23{%k4}
+        vmovdqa64	%ymm6, %ymm24{%k4}
+        vmovdqa64	%ymm7, %ymm25{%k4}
+        vmovdqa64	%ymm8, %ymm26{%k4}
+        vmovdqa64	%ymm9, %ymm27{%k4}
+        # To p3
+        vpermq	$36, %ymm23, %ymm18
+        vpermq	$36, %ymm24, %ymm19
+        vpermq	$36, %ymm25, %ymm20
+        vpermq	$36, %ymm26, %ymm21
+        vpermq	$36, %ymm27, %ymm22
+        vpermq	$0x7b, %ymm23, %ymm23
+        vpermq	$0x7b, %ymm24, %ymm24
+        vpermq	$0x7b, %ymm25, %ymm25
+        vpermq	$0x7b, %ymm26, %ymm26
+        vpermq	$0x7b, %ymm27, %ymm27
+        # Multiply 4 field elements
+        vpxorq	%ymm0, %ymm0, %ymm0
+        vpxorq	%ymm9, %ymm9, %ymm9
+        vpxorq	%ymm1, %ymm1, %ymm1
+        vpxorq	%ymm10, %ymm10, %ymm10
+        vpxorq	%ymm2, %ymm2, %ymm2
+        vpxorq	%ymm11, %ymm11, %ymm11
+        vpxorq	%ymm3, %ymm3, %ymm3
+        vpxorq	%ymm12, %ymm12, %ymm12
+        vpxorq	%ymm4, %ymm4, %ymm4
+        vpxorq	%ymm13, %ymm13, %ymm13
+        vpxorq	%ymm5, %ymm5, %ymm5
+        vpxorq	%ymm14, %ymm14, %ymm14
+        vpxorq	%ymm6, %ymm6, %ymm6
+        vpxorq	%ymm15, %ymm15, %ymm15
+        vpxorq	%ymm7, %ymm7, %ymm7
+        vpxorq	%ymm16, %ymm16, %ymm16
+        vpxorq	%ymm8, %ymm8, %ymm8
+        vpxorq	%ymm17, %ymm17, %ymm17
+        vpmadd52luq	%ymm23, %ymm18, %ymm0
+        vpmadd52huq	%ymm23, %ymm18, %ymm9
+        vpmadd52luq	%ymm24, %ymm18, %ymm1
+        vpmadd52huq	%ymm24, %ymm18, %ymm10
+        vpmadd52luq	%ymm25, %ymm18, %ymm2
+        vpmadd52huq	%ymm25, %ymm18, %ymm11
+        vpmadd52luq	%ymm26, %ymm18, %ymm3
+        vpmadd52huq	%ymm26, %ymm18, %ymm12
+        vpmadd52luq	%ymm27, %ymm18, %ymm4
+        vpmadd52huq	%ymm27, %ymm18, %ymm13
+        vpmadd52luq	%ymm23, %ymm19, %ymm1
+        vpmadd52huq	%ymm23, %ymm19, %ymm10
+        vpmadd52luq	%ymm24, %ymm19, %ymm2
+        vpmadd52huq	%ymm24, %ymm19, %ymm11
+        vpmadd52luq	%ymm25, %ymm19, %ymm3
+        vpmadd52huq	%ymm25, %ymm19, %ymm12
+        vpmadd52luq	%ymm26, %ymm19, %ymm4
+        vpmadd52huq	%ymm26, %ymm19, %ymm13
+        vpmadd52luq	%ymm27, %ymm19, %ymm5
+        vpmadd52huq	%ymm27, %ymm19, %ymm14
+        vpmadd52luq	%ymm23, %ymm20, %ymm2
+        vpmadd52huq	%ymm23, %ymm20, %ymm11
+        vpmadd52luq	%ymm24, %ymm20, %ymm3
+        vpmadd52huq	%ymm24, %ymm20, %ymm12
+        vpmadd52luq	%ymm25, %ymm20, %ymm4
+        vpmadd52huq	%ymm25, %ymm20, %ymm13
+        vpmadd52luq	%ymm26, %ymm20, %ymm5
+        vpmadd52huq	%ymm26, %ymm20, %ymm14
+        vpmadd52luq	%ymm27, %ymm20, %ymm6
+        vpmadd52huq	%ymm27, %ymm20, %ymm15
+        vpmadd52luq	%ymm23, %ymm21, %ymm3
+        vpmadd52huq	%ymm23, %ymm21, %ymm12
+        vpmadd52luq	%ymm24, %ymm21, %ymm4
+        vpmadd52huq	%ymm24, %ymm21, %ymm13
+        vpmadd52luq	%ymm25, %ymm21, %ymm5
+        vpmadd52huq	%ymm25, %ymm21, %ymm14
+        vpmadd52luq	%ymm26, %ymm21, %ymm6
+        vpmadd52huq	%ymm26, %ymm21, %ymm15
+        vpmadd52luq	%ymm27, %ymm21, %ymm7
+        vpmadd52huq	%ymm27, %ymm21, %ymm16
+        vpmadd52luq	%ymm23, %ymm22, %ymm4
+        vpmadd52huq	%ymm23, %ymm22, %ymm13
+        vpmadd52luq	%ymm24, %ymm22, %ymm5
+        vpmadd52huq	%ymm24, %ymm22, %ymm14
+        vpmadd52luq	%ymm25, %ymm22, %ymm6
+        vpmadd52huq	%ymm25, %ymm22, %ymm15
+        vpmadd52luq	%ymm26, %ymm22, %ymm7
+        vpmadd52huq	%ymm26, %ymm22, %ymm16
+        vpmadd52luq	%ymm27, %ymm22, %ymm8
+        vpmadd52huq	%ymm27, %ymm22, %ymm17
+        vpaddq	%ymm9, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpaddq	%ymm10, %ymm10, %ymm10
+        vpaddq	%ymm10, %ymm2, %ymm2
+        vpaddq	%ymm11, %ymm11, %ymm11
+        vpaddq	%ymm11, %ymm3, %ymm3
+        vpaddq	%ymm12, %ymm12, %ymm12
+        vpaddq	%ymm12, %ymm4, %ymm4
+        vpaddq	%ymm13, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm5, %ymm5
+        vpaddq	%ymm14, %ymm14, %ymm14
+        vpaddq	%ymm14, %ymm6, %ymm6
+        vpaddq	%ymm15, %ymm15, %ymm15
+        vpaddq	%ymm15, %ymm7, %ymm7
+        vpaddq	%ymm16, %ymm16, %ymm16
+        vpaddq	%ymm16, %ymm8, %ymm8
+        vpaddq	%ymm17, %ymm17, %ymm17
+        # Reduce
+        vpsllq	$4, %ymm5, %ymm9
+        vpsllq	$0x01, %ymm5, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm5, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm0, %ymm0
+        vpsllq	$4, %ymm6, %ymm9
+        vpsllq	$0x01, %ymm6, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm6, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpsllq	$4, %ymm7, %ymm9
+        vpsllq	$0x01, %ymm7, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm7, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm2, %ymm2
+        vpsllq	$4, %ymm8, %ymm9
+        vpsllq	$0x01, %ymm8, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm8, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm3, %ymm3
+        vpsllq	$4, %ymm17, %ymm9
+        vpsllq	$0x01, %ymm17, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm17, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm4, %ymm4
+        vpsrlq	$51, %ymm0, %ymm23
+        vpandq	%ymm28, %ymm0, %ymm0
+        vpsrlq	$51, %ymm1, %ymm24
+        vpandq	%ymm28, %ymm1, %ymm1
+        vpsrlq	$51, %ymm2, %ymm25
+        vpandq	%ymm28, %ymm2, %ymm2
+        vpsrlq	$51, %ymm3, %ymm26
+        vpandq	%ymm28, %ymm3, %ymm3
+        vpsrlq	$51, %ymm4, %ymm27
+        vpandq	%ymm28, %ymm4, %ymm4
+        vmovdqa64	%ymm0, %ymm18
+        vpmadd52luq	%ymm31, %ymm27, %ymm18
+        vpaddq	%ymm23, %ymm1, %ymm19
+        vpaddq	%ymm24, %ymm2, %ymm20
+        vpaddq	%ymm25, %ymm3, %ymm21
+        vpaddq	%ymm26, %ymm4, %ymm22
+        vmovdqu64	%ymm18, 1280(%rbp)
+        vmovdqu64	%ymm19, 1312(%rbp)
+        vmovdqu64	%ymm20, 1344(%rbp)
+        vmovdqu64	%ymm21, 1376(%rbp)
+        vmovdqu64	%ymm22, 1408(%rbp)
+        # Ai[j] = A2 + Ai[j-1]
+        leaq	(%rbp), %r12
+        movq	$7, %r11
+L_ge_dsm_avx512_ifma_table:
+        vmovdqu64	1280(%rbp), %ymm18
+        vmovdqu64	1312(%rbp), %ymm19
+        vmovdqu64	1344(%rbp), %ymm20
+        vmovdqu64	1376(%rbp), %ymm21
+        vmovdqu64	1408(%rbp), %ymm22
+        # Add
+        vpermq	$0xb0, %ymm18, %ymm23
+        vpermq	$0xb0, %ymm19, %ymm24
+        vpermq	$0xb0, %ymm20, %ymm25
+        vpermq	$0xb0, %ymm21, %ymm26
+        vpermq	$0xb0, %ymm22, %ymm27
+        vpermq	$0xb5, %ymm18, %ymm18
+        vpermq	$0xb5, %ymm19, %ymm19
+        vpermq	$0xb5, %ymm20, %ymm20
+        vpermq	$0xb5, %ymm21, %ymm21
+        vpermq	$0xb5, %ymm22, %ymm22
+        vpaddq	%ymm23, %ymm18, %ymm18{%k5}
+        vpaddq	%ymm24, %ymm19, %ymm19{%k5}
+        vpaddq	%ymm25, %ymm20, %ymm20{%k5}
+        vpaddq	%ymm26, %ymm21, %ymm21{%k5}
+        vpaddq	%ymm27, %ymm22, %ymm22{%k5}
+        vpaddq	%ymm29, %ymm18, %ymm18{%k6}
+        vpaddq	%ymm30, %ymm19, %ymm19{%k6}
+        vpaddq	%ymm30, %ymm20, %ymm20{%k6}
+        vpaddq	%ymm30, %ymm21, %ymm21{%k6}
+        vpaddq	%ymm30, %ymm22, %ymm22{%k6}
+        vpsubq	%ymm23, %ymm18, %ymm18{%k6}
+        vpsubq	%ymm24, %ymm19, %ymm19{%k6}
+        vpsubq	%ymm25, %ymm20, %ymm20{%k6}
+        vpsubq	%ymm26, %ymm21, %ymm21{%k6}
+        vpsubq	%ymm27, %ymm22, %ymm22{%k6}
+        vpsrlq	$51, %ymm18, %ymm0
+        vpandq	%ymm28, %ymm18, %ymm18
+        vpsrlq	$51, %ymm19, %ymm1
+        vpandq	%ymm28, %ymm19, %ymm19
+        vpsrlq	$51, %ymm20, %ymm2
+        vpandq	%ymm28, %ymm20, %ymm20
+        vpsrlq	$51, %ymm21, %ymm3
+        vpandq	%ymm28, %ymm21, %ymm21
+        vpsrlq	$51, %ymm22, %ymm4
+        vpandq	%ymm28, %ymm22, %ymm22
+        vpmadd52luq	%ymm31, %ymm4, %ymm18
+        vpaddq	%ymm0, %ymm19, %ymm19
+        vpaddq	%ymm1, %ymm20, %ymm20
+        vpaddq	%ymm2, %ymm21, %ymm21
+        vpaddq	%ymm3, %ymm22, %ymm22
+        vmovdqu64	(%r12), %ymm23
+        vmovdqu64	32(%r12), %ymm24
+        vmovdqu64	64(%r12), %ymm25
+        vmovdqu64	96(%r12), %ymm26
+        vmovdqu64	128(%r12), %ymm27
+        # Multiply 4 field elements
+        vpxorq	%ymm0, %ymm0, %ymm0
+        vpxorq	%ymm9, %ymm9, %ymm9
+        vpxorq	%ymm1, %ymm1, %ymm1
+        vpxorq	%ymm10, %ymm10, %ymm10
+        vpxorq	%ymm2, %ymm2, %ymm2
+        vpxorq	%ymm11, %ymm11, %ymm11
+        vpxorq	%ymm3, %ymm3, %ymm3
+        vpxorq	%ymm12, %ymm12, %ymm12
+        vpxorq	%ymm4, %ymm4, %ymm4
+        vpxorq	%ymm13, %ymm13, %ymm13
+        vpxorq	%ymm5, %ymm5, %ymm5
+        vpxorq	%ymm14, %ymm14, %ymm14
+        vpxorq	%ymm6, %ymm6, %ymm6
+        vpxorq	%ymm15, %ymm15, %ymm15
+        vpxorq	%ymm7, %ymm7, %ymm7
+        vpxorq	%ymm16, %ymm16, %ymm16
+        vpxorq	%ymm8, %ymm8, %ymm8
+        vpxorq	%ymm17, %ymm17, %ymm17
+        vpmadd52luq	%ymm23, %ymm18, %ymm0
+        vpmadd52huq	%ymm23, %ymm18, %ymm9
+        vpmadd52luq	%ymm24, %ymm18, %ymm1
+        vpmadd52huq	%ymm24, %ymm18, %ymm10
+        vpmadd52luq	%ymm25, %ymm18, %ymm2
+        vpmadd52huq	%ymm25, %ymm18, %ymm11
+        vpmadd52luq	%ymm26, %ymm18, %ymm3
+        vpmadd52huq	%ymm26, %ymm18, %ymm12
+        vpmadd52luq	%ymm27, %ymm18, %ymm4
+        vpmadd52huq	%ymm27, %ymm18, %ymm13
+        vpmadd52luq	%ymm23, %ymm19, %ymm1
+        vpmadd52huq	%ymm23, %ymm19, %ymm10
+        vpmadd52luq	%ymm24, %ymm19, %ymm2
+        vpmadd52huq	%ymm24, %ymm19, %ymm11
+        vpmadd52luq	%ymm25, %ymm19, %ymm3
+        vpmadd52huq	%ymm25, %ymm19, %ymm12
+        vpmadd52luq	%ymm26, %ymm19, %ymm4
+        vpmadd52huq	%ymm26, %ymm19, %ymm13
+        vpmadd52luq	%ymm27, %ymm19, %ymm5
+        vpmadd52huq	%ymm27, %ymm19, %ymm14
+        vpmadd52luq	%ymm23, %ymm20, %ymm2
+        vpmadd52huq	%ymm23, %ymm20, %ymm11
+        vpmadd52luq	%ymm24, %ymm20, %ymm3
+        vpmadd52huq	%ymm24, %ymm20, %ymm12
+        vpmadd52luq	%ymm25, %ymm20, %ymm4
+        vpmadd52huq	%ymm25, %ymm20, %ymm13
+        vpmadd52luq	%ymm26, %ymm20, %ymm5
+        vpmadd52huq	%ymm26, %ymm20, %ymm14
+        vpmadd52luq	%ymm27, %ymm20, %ymm6
+        vpmadd52huq	%ymm27, %ymm20, %ymm15
+        vpmadd52luq	%ymm23, %ymm21, %ymm3
+        vpmadd52huq	%ymm23, %ymm21, %ymm12
+        vpmadd52luq	%ymm24, %ymm21, %ymm4
+        vpmadd52huq	%ymm24, %ymm21, %ymm13
+        vpmadd52luq	%ymm25, %ymm21, %ymm5
+        vpmadd52huq	%ymm25, %ymm21, %ymm14
+        vpmadd52luq	%ymm26, %ymm21, %ymm6
+        vpmadd52huq	%ymm26, %ymm21, %ymm15
+        vpmadd52luq	%ymm27, %ymm21, %ymm7
+        vpmadd52huq	%ymm27, %ymm21, %ymm16
+        vpmadd52luq	%ymm23, %ymm22, %ymm4
+        vpmadd52huq	%ymm23, %ymm22, %ymm13
+        vpmadd52luq	%ymm24, %ymm22, %ymm5
+        vpmadd52huq	%ymm24, %ymm22, %ymm14
+        vpmadd52luq	%ymm25, %ymm22, %ymm6
+        vpmadd52huq	%ymm25, %ymm22, %ymm15
+        vpmadd52luq	%ymm26, %ymm22, %ymm7
+        vpmadd52huq	%ymm26, %ymm22, %ymm16
+        vpmadd52luq	%ymm27, %ymm22, %ymm8
+        vpmadd52huq	%ymm27, %ymm22, %ymm17
+        vpaddq	%ymm9, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpaddq	%ymm10, %ymm10, %ymm10
+        vpaddq	%ymm10, %ymm2, %ymm2
+        vpaddq	%ymm11, %ymm11, %ymm11
+        vpaddq	%ymm11, %ymm3, %ymm3
+        vpaddq	%ymm12, %ymm12, %ymm12
+        vpaddq	%ymm12, %ymm4, %ymm4
+        vpaddq	%ymm13, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm5, %ymm5
+        vpaddq	%ymm14, %ymm14, %ymm14
+        vpaddq	%ymm14, %ymm6, %ymm6
+        vpaddq	%ymm15, %ymm15, %ymm15
+        vpaddq	%ymm15, %ymm7, %ymm7
+        vpaddq	%ymm16, %ymm16, %ymm16
+        vpaddq	%ymm16, %ymm8, %ymm8
+        vpaddq	%ymm17, %ymm17, %ymm17
+        # Reduce
+        vpsllq	$4, %ymm5, %ymm9
+        vpsllq	$0x01, %ymm5, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm5, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm0, %ymm0
+        vpsllq	$4, %ymm6, %ymm9
+        vpsllq	$0x01, %ymm6, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm6, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpsllq	$4, %ymm7, %ymm9
+        vpsllq	$0x01, %ymm7, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm7, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm2, %ymm2
+        vpsllq	$4, %ymm8, %ymm9
+        vpsllq	$0x01, %ymm8, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm8, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm3, %ymm3
+        vpsllq	$4, %ymm17, %ymm9
+        vpsllq	$0x01, %ymm17, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm17, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm4, %ymm4
+        vpsrlq	$51, %ymm0, %ymm23
+        vpandq	%ymm28, %ymm0, %ymm0
+        vpsrlq	$51, %ymm1, %ymm24
+        vpandq	%ymm28, %ymm1, %ymm1
+        vpsrlq	$51, %ymm2, %ymm25
+        vpandq	%ymm28, %ymm2, %ymm2
+        vpsrlq	$51, %ymm3, %ymm26
+        vpandq	%ymm28, %ymm3, %ymm3
+        vpsrlq	$51, %ymm4, %ymm27
+        vpandq	%ymm28, %ymm4, %ymm4
+        vmovdqa64	%ymm0, %ymm18
+        vpmadd52luq	%ymm31, %ymm27, %ymm18
+        vpaddq	%ymm23, %ymm1, %ymm19
+        vpaddq	%ymm24, %ymm2, %ymm20
+        vpaddq	%ymm25, %ymm3, %ymm21
+        vpaddq	%ymm26, %ymm4, %ymm22
+        # X3 = B - A, Y3 = B + A, Z3 = D + C, T3 = D - C
+        vpermq	$0xf0, %ymm18, %ymm23
+        vpermq	$0xf0, %ymm19, %ymm24
+        vpermq	$0xf0, %ymm20, %ymm25
+        vpermq	$0xf0, %ymm21, %ymm26
+        vpermq	$0xf0, %ymm22, %ymm27
+        vpaddq	%ymm23, %ymm23, %ymm23{%k2}
+        vpaddq	%ymm24, %ymm24, %ymm24{%k2}
+        vpaddq	%ymm25, %ymm25, %ymm25{%k2}
+        vpaddq	%ymm26, %ymm26, %ymm26{%k2}
+        vpaddq	%ymm27, %ymm27, %ymm27{%k2}
+        vpermq	$0xa5, %ymm18, %ymm0
+        vpermq	$0xa5, %ymm19, %ymm1
+        vpermq	$0xa5, %ymm20, %ymm2
+        vpermq	$0xa5, %ymm21, %ymm3
+        vpermq	$0xa5, %ymm22, %ymm4
+        vpaddq	%ymm0, %ymm23, %ymm18
+        vpaddq	%ymm1, %ymm24, %ymm19
+        vpaddq	%ymm2, %ymm25, %ymm20
+        vpaddq	%ymm3, %ymm26, %ymm21
+        vpaddq	%ymm4, %ymm27, %ymm22
+        vpaddq	%ymm29, %ymm23, %ymm23{%k3}
+        vpaddq	%ymm30, %ymm24, %ymm24{%k3}
+        vpaddq	%ymm30, %ymm25, %ymm25{%k3}
+        vpaddq	%ymm30, %ymm26, %ymm26{%k3}
+        vpaddq	%ymm30, %ymm27, %ymm27{%k3}
+        vpsubq	%ymm0, %ymm23, %ymm18{%k3}
+        vpsubq	%ymm1, %ymm24, %ymm19{%k3}
+        vpsubq	%ymm2, %ymm25, %ymm20{%k3}
+        vpsubq	%ymm3, %ymm26, %ymm21{%k3}
+        vpsubq	%ymm4, %ymm27, %ymm22{%k3}
+        vpsrlq	$51, %ymm18, %ymm5
+        vpandq	%ymm28, %ymm18, %ymm18
+        vpsrlq	$51, %ymm19, %ymm6
+        vpandq	%ymm28, %ymm19, %ymm19
+        vpsrlq	$51, %ymm20, %ymm7
+        vpandq	%ymm28, %ymm20, %ymm20
+        vpsrlq	$51, %ymm21, %ymm8
+        vpandq	%ymm28, %ymm21, %ymm21
+        vpsrlq	$51, %ymm22, %ymm9
+        vpandq	%ymm28, %ymm22, %ymm22
+        vpmadd52luq	%ymm31, %ymm9, %ymm18
+        vpaddq	%ymm5, %ymm19, %ymm19
+        vpaddq	%ymm6, %ymm20, %ymm20
+        vpaddq	%ymm7, %ymm21, %ymm21
+        vpaddq	%ymm8, %ymm22, %ymm22
+        vmovdqa64	%ymm18, %ymm23
+        vmovdqa64	%ymm19, %ymm24
+        vmovdqa64	%ymm20, %ymm25
+        vmovdqa64	%ymm21, %ymm26
+        vmovdqa64	%ymm22, %ymm27
+        # To p3
+        vpermq	$36, %ymm23, %ymm18
+        vpermq	$36, %ymm24, %ymm19
+        vpermq	$36, %ymm25, %ymm20
+        vpermq	$36, %ymm26, %ymm21
+        vpermq	$36, %ymm27, %ymm22
+        vpermq	$0x7b, %ymm23, %ymm23
+        vpermq	$0x7b, %ymm24, %ymm24
+        vpermq	$0x7b, %ymm25, %ymm25
+        vpermq	$0x7b, %ymm26, %ymm26
+        vpermq	$0x7b, %ymm27, %ymm27
+        # Multiply 4 field elements
+        vpxorq	%ymm0, %ymm0, %ymm0
+        vpxorq	%ymm9, %ymm9, %ymm9
+        vpxorq	%ymm1, %ymm1, %ymm1
+        vpxorq	%ymm10, %ymm10, %ymm10
+        vpxorq	%ymm2, %ymm2, %ymm2
+        vpxorq	%ymm11, %ymm11, %ymm11
+        vpxorq	%ymm3, %ymm3, %ymm3
+        vpxorq	%ymm12, %ymm12, %ymm12
+        vpxorq	%ymm4, %ymm4, %ymm4
+        vpxorq	%ymm13, %ymm13, %ymm13
+        vpxorq	%ymm5, %ymm5, %ymm5
+        vpxorq	%ymm14, %ymm14, %ymm14
+        vpxorq	%ymm6, %ymm6, %ymm6
+        vpxorq	%ymm15, %ymm15, %ymm15
+        vpxorq	%ymm7, %ymm7, %ymm7
+        vpxorq	%ymm16, %ymm16, %ymm16
+        vpxorq	%ymm8, %ymm8, %ymm8
+        vpxorq	%ymm17, %ymm17, %ymm17
+        vpmadd52luq	%ymm23, %ymm18, %ymm0
+        vpmadd52huq	%ymm23, %ymm18, %ymm9
+        vpmadd52luq	%ymm24, %ymm18, %ymm1
+        vpmadd52huq	%ymm24, %ymm18, %ymm10
+        vpmadd52luq	%ymm25, %ymm18, %ymm2
+        vpmadd52huq	%ymm25, %ymm18, %ymm11
+        vpmadd52luq	%ymm26, %ymm18, %ymm3
+        vpmadd52huq	%ymm26, %ymm18, %ymm12
+        vpmadd52luq	%ymm27, %ymm18, %ymm4
+        vpmadd52huq	%ymm27, %ymm18, %ymm13
+        vpmadd52luq	%ymm23, %ymm19, %ymm1
+        vpmadd52huq	%ymm23, %ymm19, %ymm10
+        vpmadd52luq	%ymm24, %ymm19, %ymm2
+        vpmadd52huq	%ymm24, %ymm19, %ymm11
+        vpmadd52luq	%ymm25, %ymm19, %ymm3
+        vpmadd52huq	%ymm25, %ymm19, %ymm12
+        vpmadd52luq	%ymm26, %ymm19, %ymm4
+        vpmadd52huq	%ymm26, %ymm19, %ymm13
+        vpmadd52luq	%ymm27, %ymm19, %ymm5
+        vpmadd52huq	%ymm27, %ymm19, %ymm14
+        vpmadd52luq	%ymm23, %ymm20, %ymm2
+        vpmadd52huq	%ymm23, %ymm20, %ymm11
+        vpmadd52luq	%ymm24, %ymm20, %ymm3
+        vpmadd52huq	%ymm24, %ymm20, %ymm12
+        vpmadd52luq	%ymm25, %ymm20, %ymm4
+        vpmadd52huq	%ymm25, %ymm20, %ymm13
+        vpmadd52luq	%ymm26, %ymm20, %ymm5
+        vpmadd52huq	%ymm26, %ymm20, %ymm14
+        vpmadd52luq	%ymm27, %ymm20, %ymm6
+        vpmadd52huq	%ymm27, %ymm20, %ymm15
+        vpmadd52luq	%ymm23, %ymm21, %ymm3
+        vpmadd52huq	%ymm23, %ymm21, %ymm12
+        vpmadd52luq	%ymm24, %ymm21, %ymm4
+        vpmadd52huq	%ymm24, %ymm21, %ymm13
+        vpmadd52luq	%ymm25, %ymm21, %ymm5
+        vpmadd52huq	%ymm25, %ymm21, %ymm14
+        vpmadd52luq	%ymm26, %ymm21, %ymm6
+        vpmadd52huq	%ymm26, %ymm21, %ymm15
+        vpmadd52luq	%ymm27, %ymm21, %ymm7
+        vpmadd52huq	%ymm27, %ymm21, %ymm16
+        vpmadd52luq	%ymm23, %ymm22, %ymm4
+        vpmadd52huq	%ymm23, %ymm22, %ymm13
+        vpmadd52luq	%ymm24, %ymm22, %ymm5
+        vpmadd52huq	%ymm24, %ymm22, %ymm14
+        vpmadd52luq	%ymm25, %ymm22, %ymm6
+        vpmadd52huq	%ymm25, %ymm22, %ymm15
+        vpmadd52luq	%ymm26, %ymm22, %ymm7
+        vpmadd52huq	%ymm26, %ymm22, %ymm16
+        vpmadd52luq	%ymm27, %ymm22, %ymm8
+        vpmadd52huq	%ymm27, %ymm22, %ymm17
+        vpaddq	%ymm9, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpaddq	%ymm10, %ymm10, %ymm10
+        vpaddq	%ymm10, %ymm2, %ymm2
+        vpaddq	%ymm11, %ymm11, %ymm11
+        vpaddq	%ymm11, %ymm3, %ymm3
+        vpaddq	%ymm12, %ymm12, %ymm12
+        vpaddq	%ymm12, %ymm4, %ymm4
+        vpaddq	%ymm13, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm5, %ymm5
+        vpaddq	%ymm14, %ymm14, %ymm14
+        vpaddq	%ymm14, %ymm6, %ymm6
+        vpaddq	%ymm15, %ymm15, %ymm15
+        vpaddq	%ymm15, %ymm7, %ymm7
+        vpaddq	%ymm16, %ymm16, %ymm16
+        vpaddq	%ymm16, %ymm8, %ymm8
+        vpaddq	%ymm17, %ymm17, %ymm17
+        # Reduce
+        vpsllq	$4, %ymm5, %ymm9
+        vpsllq	$0x01, %ymm5, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm5, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm0, %ymm0
+        vpsllq	$4, %ymm6, %ymm9
+        vpsllq	$0x01, %ymm6, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm6, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpsllq	$4, %ymm7, %ymm9
+        vpsllq	$0x01, %ymm7, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm7, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm2, %ymm2
+        vpsllq	$4, %ymm8, %ymm9
+        vpsllq	$0x01, %ymm8, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm8, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm3, %ymm3
+        vpsllq	$4, %ymm17, %ymm9
+        vpsllq	$0x01, %ymm17, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm17, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm4, %ymm4
+        vpsrlq	$51, %ymm0, %ymm23
+        vpandq	%ymm28, %ymm0, %ymm0
+        vpsrlq	$51, %ymm1, %ymm24
+        vpandq	%ymm28, %ymm1, %ymm1
+        vpsrlq	$51, %ymm2, %ymm25
+        vpandq	%ymm28, %ymm2, %ymm2
+        vpsrlq	$51, %ymm3, %ymm26
+        vpandq	%ymm28, %ymm3, %ymm3
+        vpsrlq	$51, %ymm4, %ymm27
+        vpandq	%ymm28, %ymm4, %ymm4
+        vmovdqa64	%ymm0, %ymm18
+        vpmadd52luq	%ymm31, %ymm27, %ymm18
+        vpaddq	%ymm23, %ymm1, %ymm19
+        vpaddq	%ymm24, %ymm2, %ymm20
+        vpaddq	%ymm25, %ymm3, %ymm21
+        vpaddq	%ymm26, %ymm4, %ymm22
+        addq	$0xa0, %r12
+        # To cached
+        vpermq	$0xb0, %ymm18, %ymm23
+        vpermq	$0xb0, %ymm19, %ymm24
+        vpermq	$0xb0, %ymm20, %ymm25
+        vpermq	$0xb0, %ymm21, %ymm26
+        vpermq	$0xb0, %ymm22, %ymm27
+        vpermq	$0xb5, %ymm18, %ymm18
+        vpermq	$0xb5, %ymm19, %ymm19
+        vpermq	$0xb5, %ymm20, %ymm20
+        vpermq	$0xb5, %ymm21, %ymm21
+        vpermq	$0xb5, %ymm22, %ymm22
+        vpaddq	%ymm23, %ymm18, %ymm18{%k5}
+        vpaddq	%ymm24, %ymm19, %ymm19{%k5}
+        vpaddq	%ymm25, %ymm20, %ymm20{%k5}
+        vpaddq	%ymm26, %ymm21, %ymm21{%k5}
+        vpaddq	%ymm27, %ymm22, %ymm22{%k5}
+        vpaddq	%ymm29, %ymm18, %ymm18{%k6}
+        vpaddq	%ymm30, %ymm19, %ymm19{%k6}
+        vpaddq	%ymm30, %ymm20, %ymm20{%k6}
+        vpaddq	%ymm30, %ymm21, %ymm21{%k6}
+        vpaddq	%ymm30, %ymm22, %ymm22{%k6}
+        vpsubq	%ymm23, %ymm18, %ymm18{%k6}
+        vpsubq	%ymm24, %ymm19, %ymm19{%k6}
+        vpsubq	%ymm25, %ymm20, %ymm20{%k6}
+        vpsubq	%ymm26, %ymm21, %ymm21{%k6}
+        vpsubq	%ymm27, %ymm22, %ymm22{%k6}
+        vpsrlq	$51, %ymm18, %ymm0
+        vpandq	%ymm28, %ymm18, %ymm18
+        vpsrlq	$51, %ymm19, %ymm1
+        vpandq	%ymm28, %ymm19, %ymm19
+        vpsrlq	$51, %ymm20, %ymm2
+        vpandq	%ymm28, %ymm20, %ymm20
+        vpsrlq	$51, %ymm21, %ymm3
+        vpandq	%ymm28, %ymm21, %ymm21
+        vpsrlq	$51, %ymm22, %ymm4
+        vpandq	%ymm28, %ymm22, %ymm22
+        vpmadd52luq	%ymm31, %ymm4, %ymm18
+        vpaddq	%ymm0, %ymm19, %ymm19
+        vpaddq	%ymm1, %ymm20, %ymm20
+        vpaddq	%ymm2, %ymm21, %ymm21
+        vpaddq	%ymm3, %ymm22, %ymm22
+        vmovdqu64	32(%r15), %ymm23
+        vmovdqu64	64(%r15), %ymm24
+        vmovdqu64	96(%r15), %ymm25
+        vmovdqu64	128(%r15), %ymm26
+        vmovdqu64	160(%r15), %ymm27
+        # Multiply 4 field elements
+        vpxorq	%ymm0, %ymm0, %ymm0
+        vpxorq	%ymm9, %ymm9, %ymm9
+        vpxorq	%ymm1, %ymm1, %ymm1
+        vpxorq	%ymm10, %ymm10, %ymm10
+        vpxorq	%ymm2, %ymm2, %ymm2
+        vpxorq	%ymm11, %ymm11, %ymm11
+        vpxorq	%ymm3, %ymm3, %ymm3
+        vpxorq	%ymm12, %ymm12, %ymm12
+        vpxorq	%ymm4, %ymm4, %ymm4
+        vpxorq	%ymm13, %ymm13, %ymm13
+        vpxorq	%ymm5, %ymm5, %ymm5
+        vpxorq	%ymm14, %ymm14, %ymm14
+        vpxorq	%ymm6, %ymm6, %ymm6
+        vpxorq	%ymm15, %ymm15, %ymm15
+        vpxorq	%ymm7, %ymm7, %ymm7
+        vpxorq	%ymm16, %ymm16, %ymm16
+        vpxorq	%ymm8, %ymm8, %ymm8
+        vpxorq	%ymm17, %ymm17, %ymm17
+        vpmadd52luq	%ymm23, %ymm18, %ymm0
+        vpmadd52huq	%ymm23, %ymm18, %ymm9
+        vpmadd52luq	%ymm24, %ymm18, %ymm1
+        vpmadd52huq	%ymm24, %ymm18, %ymm10
+        vpmadd52luq	%ymm25, %ymm18, %ymm2
+        vpmadd52huq	%ymm25, %ymm18, %ymm11
+        vpmadd52luq	%ymm26, %ymm18, %ymm3
+        vpmadd52huq	%ymm26, %ymm18, %ymm12
+        vpmadd52luq	%ymm27, %ymm18, %ymm4
+        vpmadd52huq	%ymm27, %ymm18, %ymm13
+        vpmadd52luq	%ymm23, %ymm19, %ymm1
+        vpmadd52huq	%ymm23, %ymm19, %ymm10
+        vpmadd52luq	%ymm24, %ymm19, %ymm2
+        vpmadd52huq	%ymm24, %ymm19, %ymm11
+        vpmadd52luq	%ymm25, %ymm19, %ymm3
+        vpmadd52huq	%ymm25, %ymm19, %ymm12
+        vpmadd52luq	%ymm26, %ymm19, %ymm4
+        vpmadd52huq	%ymm26, %ymm19, %ymm13
+        vpmadd52luq	%ymm27, %ymm19, %ymm5
+        vpmadd52huq	%ymm27, %ymm19, %ymm14
+        vpmadd52luq	%ymm23, %ymm20, %ymm2
+        vpmadd52huq	%ymm23, %ymm20, %ymm11
+        vpmadd52luq	%ymm24, %ymm20, %ymm3
+        vpmadd52huq	%ymm24, %ymm20, %ymm12
+        vpmadd52luq	%ymm25, %ymm20, %ymm4
+        vpmadd52huq	%ymm25, %ymm20, %ymm13
+        vpmadd52luq	%ymm26, %ymm20, %ymm5
+        vpmadd52huq	%ymm26, %ymm20, %ymm14
+        vpmadd52luq	%ymm27, %ymm20, %ymm6
+        vpmadd52huq	%ymm27, %ymm20, %ymm15
+        vpmadd52luq	%ymm23, %ymm21, %ymm3
+        vpmadd52huq	%ymm23, %ymm21, %ymm12
+        vpmadd52luq	%ymm24, %ymm21, %ymm4
+        vpmadd52huq	%ymm24, %ymm21, %ymm13
+        vpmadd52luq	%ymm25, %ymm21, %ymm5
+        vpmadd52huq	%ymm25, %ymm21, %ymm14
+        vpmadd52luq	%ymm26, %ymm21, %ymm6
+        vpmadd52huq	%ymm26, %ymm21, %ymm15
+        vpmadd52luq	%ymm27, %ymm21, %ymm7
+        vpmadd52huq	%ymm27, %ymm21, %ymm16
+        vpmadd52luq	%ymm23, %ymm22, %ymm4
+        vpmadd52huq	%ymm23, %ymm22, %ymm13
+        vpmadd52luq	%ymm24, %ymm22, %ymm5
+        vpmadd52huq	%ymm24, %ymm22, %ymm14
+        vpmadd52luq	%ymm25, %ymm22, %ymm6
+        vpmadd52huq	%ymm25, %ymm22, %ymm15
+        vpmadd52luq	%ymm26, %ymm22, %ymm7
+        vpmadd52huq	%ymm26, %ymm22, %ymm16
+        vpmadd52luq	%ymm27, %ymm22, %ymm8
+        vpmadd52huq	%ymm27, %ymm22, %ymm17
+        vpaddq	%ymm9, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpaddq	%ymm10, %ymm10, %ymm10
+        vpaddq	%ymm10, %ymm2, %ymm2
+        vpaddq	%ymm11, %ymm11, %ymm11
+        vpaddq	%ymm11, %ymm3, %ymm3
+        vpaddq	%ymm12, %ymm12, %ymm12
+        vpaddq	%ymm12, %ymm4, %ymm4
+        vpaddq	%ymm13, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm5, %ymm5
+        vpaddq	%ymm14, %ymm14, %ymm14
+        vpaddq	%ymm14, %ymm6, %ymm6
+        vpaddq	%ymm15, %ymm15, %ymm15
+        vpaddq	%ymm15, %ymm7, %ymm7
+        vpaddq	%ymm16, %ymm16, %ymm16
+        vpaddq	%ymm16, %ymm8, %ymm8
+        vpaddq	%ymm17, %ymm17, %ymm17
+        # Reduce
+        vpsllq	$4, %ymm5, %ymm9
+        vpsllq	$0x01, %ymm5, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm5, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm0, %ymm0
+        vpsllq	$4, %ymm6, %ymm9
+        vpsllq	$0x01, %ymm6, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm6, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpsllq	$4, %ymm7, %ymm9
+        vpsllq	$0x01, %ymm7, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm7, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm2, %ymm2
+        vpsllq	$4, %ymm8, %ymm9
+        vpsllq	$0x01, %ymm8, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm8, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm3, %ymm3
+        vpsllq	$4, %ymm17, %ymm9
+        vpsllq	$0x01, %ymm17, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm17, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm4, %ymm4
+        vpsrlq	$51, %ymm0, %ymm23
+        vpandq	%ymm28, %ymm0, %ymm0
+        vpsrlq	$51, %ymm1, %ymm24
+        vpandq	%ymm28, %ymm1, %ymm1
+        vpsrlq	$51, %ymm2, %ymm25
+        vpandq	%ymm28, %ymm2, %ymm2
+        vpsrlq	$51, %ymm3, %ymm26
+        vpandq	%ymm28, %ymm3, %ymm3
+        vpsrlq	$51, %ymm4, %ymm27
+        vpandq	%ymm28, %ymm4, %ymm4
+        vmovdqa64	%ymm0, %ymm18
+        vpmadd52luq	%ymm31, %ymm27, %ymm18
+        vpaddq	%ymm23, %ymm1, %ymm19
+        vpaddq	%ymm24, %ymm2, %ymm20
+        vpaddq	%ymm25, %ymm3, %ymm21
+        vpaddq	%ymm26, %ymm4, %ymm22
+        vmovdqu64	%ymm18, (%r12)
+        vmovdqu64	%ymm19, 32(%r12)
+        vmovdqu64	%ymm20, 64(%r12)
+        vmovdqu64	%ymm21, 96(%r12)
+        vmovdqu64	%ymm22, 128(%r12)
+        decq	%r11
+        jne	L_ge_dsm_avx512_ifma_table
+        # R = identity: X = 0, Y = 1, Z = 1, T = 0
+        movq	$0x01, %r9
+        movq	%r9, 1608(%rbp)
+        movq	$0x00, %r9
+        movq	%r9, 1640(%rbp)
+        movq	%r9, 1672(%rbp)
+        movq	%r9, 1704(%rbp)
+        movq	%r9, 1736(%rbp)
+        movq	$0x01, %r9
+        movq	%r9, 1616(%rbp)
+        movq	$0x00, %r9
+        movq	%r9, 1648(%rbp)
+        movq	%r9, 1680(%rbp)
+        movq	%r9, 1712(%rbp)
+        movq	%r9, 1744(%rbp)
+        movq	$0x00, %r9
+        movq	%r9, 1600(%rbp)
+        movq	%r9, 1624(%rbp)
+        movq	%r9, 1632(%rbp)
+        movq	%r9, 1656(%rbp)
+        movq	%r9, 1664(%rbp)
+        movq	%r9, 1688(%rbp)
+        movq	%r9, 1696(%rbp)
+        movq	%r9, 1720(%rbp)
+        movq	%r9, 1728(%rbp)
+        movq	%r9, 1752(%rbp)
+        movq	$0x7ffffffffffff, %r10
+        vmovdqu64	1600(%rbp), %ymm18
+        vmovdqu64	1632(%rbp), %ymm19
+        vmovdqu64	1664(%rbp), %ymm20
+        vmovdqu64	1696(%rbp), %ymm21
+        vmovdqu64	1728(%rbp), %ymm22
+        movq	$0xff, %r11
+L_ge_dsm_avx512_ifma_bits:
+        # Double
+        vpermq	$0x64, %ymm18, %ymm23
+        vpermq	$0x64, %ymm19, %ymm24
+        vpermq	$0x64, %ymm20, %ymm25
+        vpermq	$0x64, %ymm21, %ymm26
+        vpermq	$0x64, %ymm22, %ymm27
+        vpermq	$36, %ymm18, %ymm18
+        vpermq	$36, %ymm19, %ymm19
+        vpermq	$36, %ymm20, %ymm20
+        vpermq	$36, %ymm21, %ymm21
+        vpermq	$36, %ymm22, %ymm22
+        vpaddq	%ymm23, %ymm18, %ymm18{%k1}
+        vpaddq	%ymm24, %ymm19, %ymm19{%k1}
+        vpaddq	%ymm25, %ymm20, %ymm20{%k1}
+        vpaddq	%ymm26, %ymm21, %ymm21{%k1}
+        vpaddq	%ymm27, %ymm22, %ymm22{%k1}
+        vpsrlq	$51, %ymm18, %ymm0
+        vpandq	%ymm28, %ymm18, %ymm18
+        vpsrlq	$51, %ymm19, %ymm1
+        vpandq	%ymm28, %ymm19, %ymm19
+        vpsrlq	$51, %ymm20, %ymm2
+        vpandq	%ymm28, %ymm20, %ymm20
+        vpsrlq	$51, %ymm21, %ymm3
+        vpandq	%ymm28, %ymm21, %ymm21
+        vpsrlq	$51, %ymm22, %ymm4
+        vpandq	%ymm28, %ymm22, %ymm22
+        vpmadd52luq	%ymm31, %ymm4, %ymm18
+        vpaddq	%ymm0, %ymm19, %ymm19
+        vpaddq	%ymm1, %ymm20, %ymm20
+        vpaddq	%ymm2, %ymm21, %ymm21
+        vpaddq	%ymm3, %ymm22, %ymm22
+        vmovdqa64	%ymm18, %ymm23
+        vmovdqa64	%ymm19, %ymm24
+        vmovdqa64	%ymm20, %ymm25
+        vmovdqa64	%ymm21, %ymm26
+        vmovdqa64	%ymm22, %ymm27
+        # Multiply 4 field elements
+        vpxorq	%ymm0, %ymm0, %ymm0
+        vpxorq	%ymm9, %ymm9, %ymm9
+        vpxorq	%ymm1, %ymm1, %ymm1
+        vpxorq	%ymm10, %ymm10, %ymm10
+        vpxorq	%ymm2, %ymm2, %ymm2
+        vpxorq	%ymm11, %ymm11, %ymm11
+        vpxorq	%ymm3, %ymm3, %ymm3
+        vpxorq	%ymm12, %ymm12, %ymm12
+        vpxorq	%ymm4, %ymm4, %ymm4
+        vpxorq	%ymm13, %ymm13, %ymm13
+        vpxorq	%ymm5, %ymm5, %ymm5
+        vpxorq	%ymm14, %ymm14, %ymm14
+        vpxorq	%ymm6, %ymm6, %ymm6
+        vpxorq	%ymm15, %ymm15, %ymm15
+        vpxorq	%ymm7, %ymm7, %ymm7
+        vpxorq	%ymm16, %ymm16, %ymm16
+        vpxorq	%ymm8, %ymm8, %ymm8
+        vpxorq	%ymm17, %ymm17, %ymm17
+        vpmadd52luq	%ymm23, %ymm18, %ymm0
+        vpmadd52huq	%ymm23, %ymm18, %ymm9
+        vpmadd52luq	%ymm24, %ymm18, %ymm1
+        vpmadd52huq	%ymm24, %ymm18, %ymm10
+        vpmadd52luq	%ymm25, %ymm18, %ymm2
+        vpmadd52huq	%ymm25, %ymm18, %ymm11
+        vpmadd52luq	%ymm26, %ymm18, %ymm3
+        vpmadd52huq	%ymm26, %ymm18, %ymm12
+        vpmadd52luq	%ymm27, %ymm18, %ymm4
+        vpmadd52huq	%ymm27, %ymm18, %ymm13
+        vpmadd52luq	%ymm23, %ymm19, %ymm1
+        vpmadd52huq	%ymm23, %ymm19, %ymm10
+        vpmadd52luq	%ymm24, %ymm19, %ymm2
+        vpmadd52huq	%ymm24, %ymm19, %ymm11
+        vpmadd52luq	%ymm25, %ymm19, %ymm3
+        vpmadd52huq	%ymm25, %ymm19, %ymm12
+        vpmadd52luq	%ymm26, %ymm19, %ymm4
+        vpmadd52huq	%ymm26, %ymm19, %ymm13
+        vpmadd52luq	%ymm27, %ymm19, %ymm5
+        vpmadd52huq	%ymm27, %ymm19, %ymm14
+        vpmadd52luq	%ymm23, %ymm20, %ymm2
+        vpmadd52huq	%ymm23, %ymm20, %ymm11
+        vpmadd52luq	%ymm24, %ymm20, %ymm3
+        vpmadd52huq	%ymm24, %ymm20, %ymm12
+        vpmadd52luq	%ymm25, %ymm20, %ymm4
+        vpmadd52huq	%ymm25, %ymm20, %ymm13
+        vpmadd52luq	%ymm26, %ymm20, %ymm5
+        vpmadd52huq	%ymm26, %ymm20, %ymm14
+        vpmadd52luq	%ymm27, %ymm20, %ymm6
+        vpmadd52huq	%ymm27, %ymm20, %ymm15
+        vpmadd52luq	%ymm23, %ymm21, %ymm3
+        vpmadd52huq	%ymm23, %ymm21, %ymm12
+        vpmadd52luq	%ymm24, %ymm21, %ymm4
+        vpmadd52huq	%ymm24, %ymm21, %ymm13
+        vpmadd52luq	%ymm25, %ymm21, %ymm5
+        vpmadd52huq	%ymm25, %ymm21, %ymm14
+        vpmadd52luq	%ymm26, %ymm21, %ymm6
+        vpmadd52huq	%ymm26, %ymm21, %ymm15
+        vpmadd52luq	%ymm27, %ymm21, %ymm7
+        vpmadd52huq	%ymm27, %ymm21, %ymm16
+        vpmadd52luq	%ymm23, %ymm22, %ymm4
+        vpmadd52huq	%ymm23, %ymm22, %ymm13
+        vpmadd52luq	%ymm24, %ymm22, %ymm5
+        vpmadd52huq	%ymm24, %ymm22, %ymm14
+        vpmadd52luq	%ymm25, %ymm22, %ymm6
+        vpmadd52huq	%ymm25, %ymm22, %ymm15
+        vpmadd52luq	%ymm26, %ymm22, %ymm7
+        vpmadd52huq	%ymm26, %ymm22, %ymm16
+        vpmadd52luq	%ymm27, %ymm22, %ymm8
+        vpmadd52huq	%ymm27, %ymm22, %ymm17
+        vpaddq	%ymm9, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpaddq	%ymm10, %ymm10, %ymm10
+        vpaddq	%ymm10, %ymm2, %ymm2
+        vpaddq	%ymm11, %ymm11, %ymm11
+        vpaddq	%ymm11, %ymm3, %ymm3
+        vpaddq	%ymm12, %ymm12, %ymm12
+        vpaddq	%ymm12, %ymm4, %ymm4
+        vpaddq	%ymm13, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm5, %ymm5
+        vpaddq	%ymm14, %ymm14, %ymm14
+        vpaddq	%ymm14, %ymm6, %ymm6
+        vpaddq	%ymm15, %ymm15, %ymm15
+        vpaddq	%ymm15, %ymm7, %ymm7
+        vpaddq	%ymm16, %ymm16, %ymm16
+        vpaddq	%ymm16, %ymm8, %ymm8
+        vpaddq	%ymm17, %ymm17, %ymm17
+        # Reduce
+        vpsllq	$4, %ymm5, %ymm9
+        vpsllq	$0x01, %ymm5, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm5, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm0, %ymm0
+        vpsllq	$4, %ymm6, %ymm9
+        vpsllq	$0x01, %ymm6, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm6, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpsllq	$4, %ymm7, %ymm9
+        vpsllq	$0x01, %ymm7, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm7, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm2, %ymm2
+        vpsllq	$4, %ymm8, %ymm9
+        vpsllq	$0x01, %ymm8, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm8, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm3, %ymm3
+        vpsllq	$4, %ymm17, %ymm9
+        vpsllq	$0x01, %ymm17, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm17, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm4, %ymm4
+        vpsrlq	$51, %ymm0, %ymm23
+        vpandq	%ymm28, %ymm0, %ymm0
+        vpsrlq	$51, %ymm1, %ymm24
+        vpandq	%ymm28, %ymm1, %ymm1
+        vpsrlq	$51, %ymm2, %ymm25
+        vpandq	%ymm28, %ymm2, %ymm2
+        vpsrlq	$51, %ymm3, %ymm26
+        vpandq	%ymm28, %ymm3, %ymm3
+        vpsrlq	$51, %ymm4, %ymm27
+        vpandq	%ymm28, %ymm4, %ymm4
+        vmovdqa64	%ymm0, %ymm18
+        vpmadd52luq	%ymm31, %ymm27, %ymm18
+        vpaddq	%ymm23, %ymm1, %ymm19
+        vpaddq	%ymm24, %ymm2, %ymm20
+        vpaddq	%ymm25, %ymm3, %ymm21
+        vpaddq	%ymm26, %ymm4, %ymm22
+        # Y3 = YY + XX, Z3 = YY - XX
+        vpermq	$0x55, %ymm18, %ymm23
+        vpermq	$0x55, %ymm19, %ymm24
+        vpermq	$0x55, %ymm20, %ymm25
+        vpermq	$0x55, %ymm21, %ymm26
+        vpermq	$0x55, %ymm22, %ymm27
+        vpermq	$0x00, %ymm18, %ymm0
+        vpermq	$0x00, %ymm19, %ymm1
+        vpermq	$0x00, %ymm20, %ymm2
+        vpermq	$0x00, %ymm21, %ymm3
+        vpermq	$0x00, %ymm22, %ymm4
+        vpaddq	%ymm0, %ymm23, %ymm5
+        vpaddq	%ymm1, %ymm24, %ymm6
+        vpaddq	%ymm2, %ymm25, %ymm7
+        vpaddq	%ymm3, %ymm26, %ymm8
+        vpaddq	%ymm4, %ymm27, %ymm9
+        vpaddq	%ymm29, %ymm23, %ymm23{%k2}
+        vpaddq	%ymm30, %ymm24, %ymm24{%k2}
+        vpaddq	%ymm30, %ymm25, %ymm25{%k2}
+        vpaddq	%ymm30, %ymm26, %ymm26{%k2}
+        vpaddq	%ymm30, %ymm27, %ymm27{%k2}
+        vpsubq	%ymm0, %ymm23, %ymm5{%k2}
+        vpsubq	%ymm1, %ymm24, %ymm6{%k2}
+        vpsubq	%ymm2, %ymm25, %ymm7{%k2}
+        vpsubq	%ymm3, %ymm26, %ymm8{%k2}
+        vpsubq	%ymm4, %ymm27, %ymm9{%k2}
+        vpsrlq	$51, %ymm5, %ymm23
+        vpandq	%ymm28, %ymm5, %ymm5
+        vpsrlq	$51, %ymm6, %ymm24
+        vpandq	%ymm28, %ymm6, %ymm6
+        vpsrlq	$51, %ymm7, %ymm25
+        vpandq	%ymm28, %ymm7, %ymm7
+        vpsrlq	$51, %ymm8, %ymm26
+        vpandq	%ymm28, %ymm8, %ymm8
+        vpsrlq	$51, %ymm9, %ymm27
+        vpandq	%ymm28, %ymm9, %ymm9
+        vpmadd52luq	%ymm31, %ymm27, %ymm5
+        vpaddq	%ymm23, %ymm6, %ymm6
+        vpaddq	%ymm24, %ymm7, %ymm7
+        vpaddq	%ymm25, %ymm8, %ymm8
+        vpaddq	%ymm26, %ymm9, %ymm9
+        # X3 = AA - Y3, T3 = 2.ZZ - Z3
+        vpermq	$0xaf, %ymm18, %ymm23
+        vpermq	$0xaf, %ymm19, %ymm24
+        vpermq	$0xaf, %ymm20, %ymm25
+        vpermq	$0xaf, %ymm21, %ymm26
+        vpermq	$0xaf, %ymm22, %ymm27
+        vpaddq	%ymm23, %ymm23, %ymm23{%k2}
+        vpaddq	%ymm24, %ymm24, %ymm24{%k2}
+        vpaddq	%ymm25, %ymm25, %ymm25{%k2}
+        vpaddq	%ymm26, %ymm26, %ymm26{%k2}
+        vpaddq	%ymm27, %ymm27, %ymm27{%k2}
+        vpaddq	%ymm29, %ymm23, %ymm23{%k3}
+        vpaddq	%ymm30, %ymm24, %ymm24{%k3}
+        vpaddq	%ymm30, %ymm25, %ymm25{%k3}
+        vpaddq	%ymm30, %ymm26, %ymm26{%k3}
+        vpaddq	%ymm30, %ymm27, %ymm27{%k3}
+        vpsubq	%ymm5, %ymm23, %ymm23{%k3}
+        vpsubq	%ymm6, %ymm24, %ymm24{%k3}
+        vpsubq	%ymm7, %ymm25, %ymm25{%k3}
+        vpsubq	%ymm8, %ymm26, %ymm26{%k3}
+        vpsubq	%ymm9, %ymm27, %ymm27{%k3}
+        vpsrlq	$51, %ymm23, %ymm0
+        vpandq	%ymm28, %ymm23, %ymm23
+        vpsrlq	$51, %ymm24, %ymm1
+        vpandq	%ymm28, %ymm24, %ymm24
+        vpsrlq	$51, %ymm25, %ymm2
+        vpandq	%ymm28, %ymm25, %ymm25
+        vpsrlq	$51, %ymm26, %ymm3
+        vpandq	%ymm28, %ymm26, %ymm26
+        vpsrlq	$51, %ymm27, %ymm4
+        vpandq	%ymm28, %ymm27, %ymm27
+        vpmadd52luq	%ymm31, %ymm4, %ymm23
+        vpaddq	%ymm0, %ymm24, %ymm24
+        vpaddq	%ymm1, %ymm25, %ymm25
+        vpaddq	%ymm2, %ymm26, %ymm26
+        vpaddq	%ymm3, %ymm27, %ymm27
+        vmovdqa64	%ymm5, %ymm23{%k4}
+        vmovdqa64	%ymm6, %ymm24{%k4}
+        vmovdqa64	%ymm7, %ymm25{%k4}
+        vmovdqa64	%ymm8, %ymm26{%k4}
+        vmovdqa64	%ymm9, %ymm27{%k4}
+        # Add the multiple of A selected by this window digit
+        movsbq	1920(%rbp,%r11,1), %r12
+        testq	%r12, %r12
+        je	L_ge_dsm_avx512_ifma_skip_a
+        movq	%r12, %rsi
+        sarq	$63, %rsi
+        xorq	%rsi, %r12
+        subq	%rsi, %r12
+        shrq	$1, %r12
+        imulq	$0xa0, %r12, %r12
+        leaq	(%rbp), %r14
+        addq	%r12, %r14
+        vmovdqu64	(%r14), %ymm18
+        vmovdqu64	32(%r14), %ymm19
+        vmovdqu64	64(%r14), %ymm20
+        vmovdqu64	96(%r14), %ymm21
+        vmovdqu64	128(%r14), %ymm22
+        testq	%rsi, %rsi
+        je	L_ge_dsm_avx512_ifma_noswap_a
+        vpermq	$0xe1, %ymm18, %ymm18
+        vpermq	$0xe1, %ymm19, %ymm19
+        vpermq	$0xe1, %ymm20, %ymm20
+        vpermq	$0xe1, %ymm21, %ymm21
+        vpermq	$0xe1, %ymm22, %ymm22
+L_ge_dsm_avx512_ifma_noswap_a:
+        vmovdqu64	%ymm18, 1760(%rbp)
+        vmovdqu64	%ymm19, 1792(%rbp)
+        vmovdqu64	%ymm20, 1824(%rbp)
+        vmovdqu64	%ymm21, 1856(%rbp)
+        vmovdqu64	%ymm22, 1888(%rbp)
+        # To p3
+        vpermq	$36, %ymm23, %ymm18
+        vpermq	$36, %ymm24, %ymm19
+        vpermq	$36, %ymm25, %ymm20
+        vpermq	$36, %ymm26, %ymm21
+        vpermq	$36, %ymm27, %ymm22
+        vpermq	$0x7b, %ymm23, %ymm23
+        vpermq	$0x7b, %ymm24, %ymm24
+        vpermq	$0x7b, %ymm25, %ymm25
+        vpermq	$0x7b, %ymm26, %ymm26
+        vpermq	$0x7b, %ymm27, %ymm27
+        # Multiply 4 field elements
+        vpxorq	%ymm0, %ymm0, %ymm0
+        vpxorq	%ymm9, %ymm9, %ymm9
+        vpxorq	%ymm1, %ymm1, %ymm1
+        vpxorq	%ymm10, %ymm10, %ymm10
+        vpxorq	%ymm2, %ymm2, %ymm2
+        vpxorq	%ymm11, %ymm11, %ymm11
+        vpxorq	%ymm3, %ymm3, %ymm3
+        vpxorq	%ymm12, %ymm12, %ymm12
+        vpxorq	%ymm4, %ymm4, %ymm4
+        vpxorq	%ymm13, %ymm13, %ymm13
+        vpxorq	%ymm5, %ymm5, %ymm5
+        vpxorq	%ymm14, %ymm14, %ymm14
+        vpxorq	%ymm6, %ymm6, %ymm6
+        vpxorq	%ymm15, %ymm15, %ymm15
+        vpxorq	%ymm7, %ymm7, %ymm7
+        vpxorq	%ymm16, %ymm16, %ymm16
+        vpxorq	%ymm8, %ymm8, %ymm8
+        vpxorq	%ymm17, %ymm17, %ymm17
+        vpmadd52luq	%ymm23, %ymm18, %ymm0
+        vpmadd52huq	%ymm23, %ymm18, %ymm9
+        vpmadd52luq	%ymm24, %ymm18, %ymm1
+        vpmadd52huq	%ymm24, %ymm18, %ymm10
+        vpmadd52luq	%ymm25, %ymm18, %ymm2
+        vpmadd52huq	%ymm25, %ymm18, %ymm11
+        vpmadd52luq	%ymm26, %ymm18, %ymm3
+        vpmadd52huq	%ymm26, %ymm18, %ymm12
+        vpmadd52luq	%ymm27, %ymm18, %ymm4
+        vpmadd52huq	%ymm27, %ymm18, %ymm13
+        vpmadd52luq	%ymm23, %ymm19, %ymm1
+        vpmadd52huq	%ymm23, %ymm19, %ymm10
+        vpmadd52luq	%ymm24, %ymm19, %ymm2
+        vpmadd52huq	%ymm24, %ymm19, %ymm11
+        vpmadd52luq	%ymm25, %ymm19, %ymm3
+        vpmadd52huq	%ymm25, %ymm19, %ymm12
+        vpmadd52luq	%ymm26, %ymm19, %ymm4
+        vpmadd52huq	%ymm26, %ymm19, %ymm13
+        vpmadd52luq	%ymm27, %ymm19, %ymm5
+        vpmadd52huq	%ymm27, %ymm19, %ymm14
+        vpmadd52luq	%ymm23, %ymm20, %ymm2
+        vpmadd52huq	%ymm23, %ymm20, %ymm11
+        vpmadd52luq	%ymm24, %ymm20, %ymm3
+        vpmadd52huq	%ymm24, %ymm20, %ymm12
+        vpmadd52luq	%ymm25, %ymm20, %ymm4
+        vpmadd52huq	%ymm25, %ymm20, %ymm13
+        vpmadd52luq	%ymm26, %ymm20, %ymm5
+        vpmadd52huq	%ymm26, %ymm20, %ymm14
+        vpmadd52luq	%ymm27, %ymm20, %ymm6
+        vpmadd52huq	%ymm27, %ymm20, %ymm15
+        vpmadd52luq	%ymm23, %ymm21, %ymm3
+        vpmadd52huq	%ymm23, %ymm21, %ymm12
+        vpmadd52luq	%ymm24, %ymm21, %ymm4
+        vpmadd52huq	%ymm24, %ymm21, %ymm13
+        vpmadd52luq	%ymm25, %ymm21, %ymm5
+        vpmadd52huq	%ymm25, %ymm21, %ymm14
+        vpmadd52luq	%ymm26, %ymm21, %ymm6
+        vpmadd52huq	%ymm26, %ymm21, %ymm15
+        vpmadd52luq	%ymm27, %ymm21, %ymm7
+        vpmadd52huq	%ymm27, %ymm21, %ymm16
+        vpmadd52luq	%ymm23, %ymm22, %ymm4
+        vpmadd52huq	%ymm23, %ymm22, %ymm13
+        vpmadd52luq	%ymm24, %ymm22, %ymm5
+        vpmadd52huq	%ymm24, %ymm22, %ymm14
+        vpmadd52luq	%ymm25, %ymm22, %ymm6
+        vpmadd52huq	%ymm25, %ymm22, %ymm15
+        vpmadd52luq	%ymm26, %ymm22, %ymm7
+        vpmadd52huq	%ymm26, %ymm22, %ymm16
+        vpmadd52luq	%ymm27, %ymm22, %ymm8
+        vpmadd52huq	%ymm27, %ymm22, %ymm17
+        vpaddq	%ymm9, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpaddq	%ymm10, %ymm10, %ymm10
+        vpaddq	%ymm10, %ymm2, %ymm2
+        vpaddq	%ymm11, %ymm11, %ymm11
+        vpaddq	%ymm11, %ymm3, %ymm3
+        vpaddq	%ymm12, %ymm12, %ymm12
+        vpaddq	%ymm12, %ymm4, %ymm4
+        vpaddq	%ymm13, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm5, %ymm5
+        vpaddq	%ymm14, %ymm14, %ymm14
+        vpaddq	%ymm14, %ymm6, %ymm6
+        vpaddq	%ymm15, %ymm15, %ymm15
+        vpaddq	%ymm15, %ymm7, %ymm7
+        vpaddq	%ymm16, %ymm16, %ymm16
+        vpaddq	%ymm16, %ymm8, %ymm8
+        vpaddq	%ymm17, %ymm17, %ymm17
+        # Reduce
+        vpsllq	$4, %ymm5, %ymm9
+        vpsllq	$0x01, %ymm5, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm5, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm0, %ymm0
+        vpsllq	$4, %ymm6, %ymm9
+        vpsllq	$0x01, %ymm6, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm6, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpsllq	$4, %ymm7, %ymm9
+        vpsllq	$0x01, %ymm7, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm7, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm2, %ymm2
+        vpsllq	$4, %ymm8, %ymm9
+        vpsllq	$0x01, %ymm8, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm8, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm3, %ymm3
+        vpsllq	$4, %ymm17, %ymm9
+        vpsllq	$0x01, %ymm17, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm17, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm4, %ymm4
+        vpsrlq	$51, %ymm0, %ymm23
+        vpandq	%ymm28, %ymm0, %ymm0
+        vpsrlq	$51, %ymm1, %ymm24
+        vpandq	%ymm28, %ymm1, %ymm1
+        vpsrlq	$51, %ymm2, %ymm25
+        vpandq	%ymm28, %ymm2, %ymm2
+        vpsrlq	$51, %ymm3, %ymm26
+        vpandq	%ymm28, %ymm3, %ymm3
+        vpsrlq	$51, %ymm4, %ymm27
+        vpandq	%ymm28, %ymm4, %ymm4
+        vmovdqa64	%ymm0, %ymm18
+        vpmadd52luq	%ymm31, %ymm27, %ymm18
+        vpaddq	%ymm23, %ymm1, %ymm19
+        vpaddq	%ymm24, %ymm2, %ymm20
+        vpaddq	%ymm25, %ymm3, %ymm21
+        vpaddq	%ymm26, %ymm4, %ymm22
+        # Add
+        vpermq	$0xb0, %ymm18, %ymm23
+        vpermq	$0xb0, %ymm19, %ymm24
+        vpermq	$0xb0, %ymm20, %ymm25
+        vpermq	$0xb0, %ymm21, %ymm26
+        vpermq	$0xb0, %ymm22, %ymm27
+        vpermq	$0xb5, %ymm18, %ymm18
+        vpermq	$0xb5, %ymm19, %ymm19
+        vpermq	$0xb5, %ymm20, %ymm20
+        vpermq	$0xb5, %ymm21, %ymm21
+        vpermq	$0xb5, %ymm22, %ymm22
+        vpaddq	%ymm23, %ymm18, %ymm18{%k5}
+        vpaddq	%ymm24, %ymm19, %ymm19{%k5}
+        vpaddq	%ymm25, %ymm20, %ymm20{%k5}
+        vpaddq	%ymm26, %ymm21, %ymm21{%k5}
+        vpaddq	%ymm27, %ymm22, %ymm22{%k5}
+        vpaddq	%ymm29, %ymm18, %ymm18{%k6}
+        vpaddq	%ymm30, %ymm19, %ymm19{%k6}
+        vpaddq	%ymm30, %ymm20, %ymm20{%k6}
+        vpaddq	%ymm30, %ymm21, %ymm21{%k6}
+        vpaddq	%ymm30, %ymm22, %ymm22{%k6}
+        vpsubq	%ymm23, %ymm18, %ymm18{%k6}
+        vpsubq	%ymm24, %ymm19, %ymm19{%k6}
+        vpsubq	%ymm25, %ymm20, %ymm20{%k6}
+        vpsubq	%ymm26, %ymm21, %ymm21{%k6}
+        vpsubq	%ymm27, %ymm22, %ymm22{%k6}
+        vpsrlq	$51, %ymm18, %ymm0
+        vpandq	%ymm28, %ymm18, %ymm18
+        vpsrlq	$51, %ymm19, %ymm1
+        vpandq	%ymm28, %ymm19, %ymm19
+        vpsrlq	$51, %ymm20, %ymm2
+        vpandq	%ymm28, %ymm20, %ymm20
+        vpsrlq	$51, %ymm21, %ymm3
+        vpandq	%ymm28, %ymm21, %ymm21
+        vpsrlq	$51, %ymm22, %ymm4
+        vpandq	%ymm28, %ymm22, %ymm22
+        vpmadd52luq	%ymm31, %ymm4, %ymm18
+        vpaddq	%ymm0, %ymm19, %ymm19
+        vpaddq	%ymm1, %ymm20, %ymm20
+        vpaddq	%ymm2, %ymm21, %ymm21
+        vpaddq	%ymm3, %ymm22, %ymm22
+        vmovdqu64	1760(%rbp), %ymm23
+        vmovdqu64	1792(%rbp), %ymm24
+        vmovdqu64	1824(%rbp), %ymm25
+        vmovdqu64	1856(%rbp), %ymm26
+        vmovdqu64	1888(%rbp), %ymm27
+        # Multiply 4 field elements
+        vpxorq	%ymm0, %ymm0, %ymm0
+        vpxorq	%ymm9, %ymm9, %ymm9
+        vpxorq	%ymm1, %ymm1, %ymm1
+        vpxorq	%ymm10, %ymm10, %ymm10
+        vpxorq	%ymm2, %ymm2, %ymm2
+        vpxorq	%ymm11, %ymm11, %ymm11
+        vpxorq	%ymm3, %ymm3, %ymm3
+        vpxorq	%ymm12, %ymm12, %ymm12
+        vpxorq	%ymm4, %ymm4, %ymm4
+        vpxorq	%ymm13, %ymm13, %ymm13
+        vpxorq	%ymm5, %ymm5, %ymm5
+        vpxorq	%ymm14, %ymm14, %ymm14
+        vpxorq	%ymm6, %ymm6, %ymm6
+        vpxorq	%ymm15, %ymm15, %ymm15
+        vpxorq	%ymm7, %ymm7, %ymm7
+        vpxorq	%ymm16, %ymm16, %ymm16
+        vpxorq	%ymm8, %ymm8, %ymm8
+        vpxorq	%ymm17, %ymm17, %ymm17
+        vpmadd52luq	%ymm23, %ymm18, %ymm0
+        vpmadd52huq	%ymm23, %ymm18, %ymm9
+        vpmadd52luq	%ymm24, %ymm18, %ymm1
+        vpmadd52huq	%ymm24, %ymm18, %ymm10
+        vpmadd52luq	%ymm25, %ymm18, %ymm2
+        vpmadd52huq	%ymm25, %ymm18, %ymm11
+        vpmadd52luq	%ymm26, %ymm18, %ymm3
+        vpmadd52huq	%ymm26, %ymm18, %ymm12
+        vpmadd52luq	%ymm27, %ymm18, %ymm4
+        vpmadd52huq	%ymm27, %ymm18, %ymm13
+        vpmadd52luq	%ymm23, %ymm19, %ymm1
+        vpmadd52huq	%ymm23, %ymm19, %ymm10
+        vpmadd52luq	%ymm24, %ymm19, %ymm2
+        vpmadd52huq	%ymm24, %ymm19, %ymm11
+        vpmadd52luq	%ymm25, %ymm19, %ymm3
+        vpmadd52huq	%ymm25, %ymm19, %ymm12
+        vpmadd52luq	%ymm26, %ymm19, %ymm4
+        vpmadd52huq	%ymm26, %ymm19, %ymm13
+        vpmadd52luq	%ymm27, %ymm19, %ymm5
+        vpmadd52huq	%ymm27, %ymm19, %ymm14
+        vpmadd52luq	%ymm23, %ymm20, %ymm2
+        vpmadd52huq	%ymm23, %ymm20, %ymm11
+        vpmadd52luq	%ymm24, %ymm20, %ymm3
+        vpmadd52huq	%ymm24, %ymm20, %ymm12
+        vpmadd52luq	%ymm25, %ymm20, %ymm4
+        vpmadd52huq	%ymm25, %ymm20, %ymm13
+        vpmadd52luq	%ymm26, %ymm20, %ymm5
+        vpmadd52huq	%ymm26, %ymm20, %ymm14
+        vpmadd52luq	%ymm27, %ymm20, %ymm6
+        vpmadd52huq	%ymm27, %ymm20, %ymm15
+        vpmadd52luq	%ymm23, %ymm21, %ymm3
+        vpmadd52huq	%ymm23, %ymm21, %ymm12
+        vpmadd52luq	%ymm24, %ymm21, %ymm4
+        vpmadd52huq	%ymm24, %ymm21, %ymm13
+        vpmadd52luq	%ymm25, %ymm21, %ymm5
+        vpmadd52huq	%ymm25, %ymm21, %ymm14
+        vpmadd52luq	%ymm26, %ymm21, %ymm6
+        vpmadd52huq	%ymm26, %ymm21, %ymm15
+        vpmadd52luq	%ymm27, %ymm21, %ymm7
+        vpmadd52huq	%ymm27, %ymm21, %ymm16
+        vpmadd52luq	%ymm23, %ymm22, %ymm4
+        vpmadd52huq	%ymm23, %ymm22, %ymm13
+        vpmadd52luq	%ymm24, %ymm22, %ymm5
+        vpmadd52huq	%ymm24, %ymm22, %ymm14
+        vpmadd52luq	%ymm25, %ymm22, %ymm6
+        vpmadd52huq	%ymm25, %ymm22, %ymm15
+        vpmadd52luq	%ymm26, %ymm22, %ymm7
+        vpmadd52huq	%ymm26, %ymm22, %ymm16
+        vpmadd52luq	%ymm27, %ymm22, %ymm8
+        vpmadd52huq	%ymm27, %ymm22, %ymm17
+        vpaddq	%ymm9, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpaddq	%ymm10, %ymm10, %ymm10
+        vpaddq	%ymm10, %ymm2, %ymm2
+        vpaddq	%ymm11, %ymm11, %ymm11
+        vpaddq	%ymm11, %ymm3, %ymm3
+        vpaddq	%ymm12, %ymm12, %ymm12
+        vpaddq	%ymm12, %ymm4, %ymm4
+        vpaddq	%ymm13, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm5, %ymm5
+        vpaddq	%ymm14, %ymm14, %ymm14
+        vpaddq	%ymm14, %ymm6, %ymm6
+        vpaddq	%ymm15, %ymm15, %ymm15
+        vpaddq	%ymm15, %ymm7, %ymm7
+        vpaddq	%ymm16, %ymm16, %ymm16
+        vpaddq	%ymm16, %ymm8, %ymm8
+        vpaddq	%ymm17, %ymm17, %ymm17
+        # Reduce
+        vpsllq	$4, %ymm5, %ymm9
+        vpsllq	$0x01, %ymm5, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm5, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm0, %ymm0
+        vpsllq	$4, %ymm6, %ymm9
+        vpsllq	$0x01, %ymm6, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm6, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpsllq	$4, %ymm7, %ymm9
+        vpsllq	$0x01, %ymm7, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm7, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm2, %ymm2
+        vpsllq	$4, %ymm8, %ymm9
+        vpsllq	$0x01, %ymm8, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm8, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm3, %ymm3
+        vpsllq	$4, %ymm17, %ymm9
+        vpsllq	$0x01, %ymm17, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm17, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm4, %ymm4
+        vpsrlq	$51, %ymm0, %ymm23
+        vpandq	%ymm28, %ymm0, %ymm0
+        vpsrlq	$51, %ymm1, %ymm24
+        vpandq	%ymm28, %ymm1, %ymm1
+        vpsrlq	$51, %ymm2, %ymm25
+        vpandq	%ymm28, %ymm2, %ymm2
+        vpsrlq	$51, %ymm3, %ymm26
+        vpandq	%ymm28, %ymm3, %ymm3
+        vpsrlq	$51, %ymm4, %ymm27
+        vpandq	%ymm28, %ymm4, %ymm4
+        vmovdqa64	%ymm0, %ymm18
+        vpmadd52luq	%ymm31, %ymm27, %ymm18
+        vpaddq	%ymm23, %ymm1, %ymm19
+        vpaddq	%ymm24, %ymm2, %ymm20
+        vpaddq	%ymm25, %ymm3, %ymm21
+        vpaddq	%ymm26, %ymm4, %ymm22
+        # X3 = B - A, Y3 = B + A, Z3 = D + C, T3 = D - C
+        vpermq	$0xf0, %ymm18, %ymm23
+        vpermq	$0xf0, %ymm19, %ymm24
+        vpermq	$0xf0, %ymm20, %ymm25
+        vpermq	$0xf0, %ymm21, %ymm26
+        vpermq	$0xf0, %ymm22, %ymm27
+        vpaddq	%ymm23, %ymm23, %ymm23{%k2}
+        vpaddq	%ymm24, %ymm24, %ymm24{%k2}
+        vpaddq	%ymm25, %ymm25, %ymm25{%k2}
+        vpaddq	%ymm26, %ymm26, %ymm26{%k2}
+        vpaddq	%ymm27, %ymm27, %ymm27{%k2}
+        vpermq	$0xa5, %ymm18, %ymm0
+        vpermq	$0xa5, %ymm19, %ymm1
+        vpermq	$0xa5, %ymm20, %ymm2
+        vpermq	$0xa5, %ymm21, %ymm3
+        vpermq	$0xa5, %ymm22, %ymm4
+        vpaddq	%ymm0, %ymm23, %ymm18
+        vpaddq	%ymm1, %ymm24, %ymm19
+        vpaddq	%ymm2, %ymm25, %ymm20
+        vpaddq	%ymm3, %ymm26, %ymm21
+        vpaddq	%ymm4, %ymm27, %ymm22
+        vpaddq	%ymm29, %ymm23, %ymm23{%k3}
+        vpaddq	%ymm30, %ymm24, %ymm24{%k3}
+        vpaddq	%ymm30, %ymm25, %ymm25{%k3}
+        vpaddq	%ymm30, %ymm26, %ymm26{%k3}
+        vpaddq	%ymm30, %ymm27, %ymm27{%k3}
+        vpsubq	%ymm0, %ymm23, %ymm18{%k3}
+        vpsubq	%ymm1, %ymm24, %ymm19{%k3}
+        vpsubq	%ymm2, %ymm25, %ymm20{%k3}
+        vpsubq	%ymm3, %ymm26, %ymm21{%k3}
+        vpsubq	%ymm4, %ymm27, %ymm22{%k3}
+        vpsrlq	$51, %ymm18, %ymm5
+        vpandq	%ymm28, %ymm18, %ymm18
+        vpsrlq	$51, %ymm19, %ymm6
+        vpandq	%ymm28, %ymm19, %ymm19
+        vpsrlq	$51, %ymm20, %ymm7
+        vpandq	%ymm28, %ymm20, %ymm20
+        vpsrlq	$51, %ymm21, %ymm8
+        vpandq	%ymm28, %ymm21, %ymm21
+        vpsrlq	$51, %ymm22, %ymm9
+        vpandq	%ymm28, %ymm22, %ymm22
+        vpmadd52luq	%ymm31, %ymm9, %ymm18
+        vpaddq	%ymm5, %ymm19, %ymm19
+        vpaddq	%ymm6, %ymm20, %ymm20
+        vpaddq	%ymm7, %ymm21, %ymm21
+        vpaddq	%ymm8, %ymm22, %ymm22
+        testq	%rsi, %rsi
+        je	L_ge_dsm_avx512_ifma_nores_a
+        vpermq	$0xb4, %ymm18, %ymm18
+        vpermq	$0xb4, %ymm19, %ymm19
+        vpermq	$0xb4, %ymm20, %ymm20
+        vpermq	$0xb4, %ymm21, %ymm21
+        vpermq	$0xb4, %ymm22, %ymm22
+L_ge_dsm_avx512_ifma_nores_a:
+        vmovdqa64	%ymm18, %ymm23
+        vmovdqa64	%ymm19, %ymm24
+        vmovdqa64	%ymm20, %ymm25
+        vmovdqa64	%ymm21, %ymm26
+        vmovdqa64	%ymm22, %ymm27
+L_ge_dsm_avx512_ifma_skip_a:
+        # Add the multiple of the base point
+        movsbq	2176(%rbp,%r11,1), %r12
+        testq	%r12, %r12
+        je	L_ge_dsm_avx512_ifma_skip_b
+        movq	%r12, %rsi
+        sarq	$63, %rsi
+        xorq	%rsi, %r12
+        subq	%rsi, %r12
+        shrq	$1, %r12
+        imulq	$0x60, %r12, %r12
+        movq	%rbx, %r14
+        addq	%r12, %r14
+        movq	(%r14), %rdx
+        movq	8(%r14), %rax
+        movq	16(%r14), %rcx
+        movq	24(%r14), %r8
+        movq	%r8, %r9
+        shrq	$63, %r9
+        imulq	$19, %r9, %r9
+        shlq	$1, %r8
+        shrq	$1, %r8
+        movq	%rdx, %r13
+        andq	%r10, %r13
+        addq	%r9, %r13
+        movq	%r13, 1760(%rbp)
+        shrdq	$51, %rax, %rdx
+        movq	%rdx, %r9
+        andq	%r10, %r9
+        movq	%r9, 1792(%rbp)
+        shrdq	$38, %rcx, %rax
+        movq	%rax, %r9
+        andq	%r10, %r9
+        movq	%r9, 1824(%rbp)
+        shrdq	$25, %r8, %rcx
+        movq	%rcx, %r9
+        andq	%r10, %r9
+        movq	%r9, 1856(%rbp)
+        shrq	$12, %r8
+        movq	%r8, 1888(%rbp)
+        movq	32(%r14), %rdx
+        movq	40(%r14), %rax
+        movq	48(%r14), %rcx
+        movq	56(%r14), %r8
+        movq	%r8, %r9
+        shrq	$63, %r9
+        imulq	$19, %r9, %r9
+        shlq	$1, %r8
+        shrq	$1, %r8
+        movq	%rdx, %r13
+        andq	%r10, %r13
+        addq	%r9, %r13
+        movq	%r13, 1768(%rbp)
+        shrdq	$51, %rax, %rdx
+        movq	%rdx, %r9
+        andq	%r10, %r9
+        movq	%r9, 1800(%rbp)
+        shrdq	$38, %rcx, %rax
+        movq	%rax, %r9
+        andq	%r10, %r9
+        movq	%r9, 1832(%rbp)
+        shrdq	$25, %r8, %rcx
+        movq	%rcx, %r9
+        andq	%r10, %r9
+        movq	%r9, 1864(%rbp)
+        shrq	$12, %r8
+        movq	%r8, 1896(%rbp)
+        movq	64(%r14), %rdx
+        movq	72(%r14), %rax
+        movq	80(%r14), %rcx
+        movq	88(%r14), %r8
+        movq	%r8, %r9
+        shrq	$63, %r9
+        imulq	$19, %r9, %r9
+        shlq	$1, %r8
+        shrq	$1, %r8
+        movq	%rdx, %r13
+        andq	%r10, %r13
+        addq	%r9, %r13
+        movq	%r13, 1776(%rbp)
+        shrdq	$51, %rax, %rdx
+        movq	%rdx, %r9
+        andq	%r10, %r9
+        movq	%r9, 1808(%rbp)
+        shrdq	$38, %rcx, %rax
+        movq	%rax, %r9
+        andq	%r10, %r9
+        movq	%r9, 1840(%rbp)
+        shrdq	$25, %r8, %rcx
+        movq	%rcx, %r9
+        andq	%r10, %r9
+        movq	%r9, 1872(%rbp)
+        shrq	$12, %r8
+        movq	%r8, 1904(%rbp)
+        movq	$0x01, %rdx
+        movq	%rdx, 1784(%rbp)
+        movq	$0x00, %rdx
+        movq	%rdx, 1816(%rbp)
+        movq	%rdx, 1848(%rbp)
+        movq	%rdx, 1880(%rbp)
+        movq	%rdx, 1912(%rbp)
+        testq	%rsi, %rsi
+        je	L_ge_dsm_avx512_ifma_noswap_b
+        vmovdqu64	1760(%rbp), %ymm18
+        vmovdqu64	1792(%rbp), %ymm19
+        vmovdqu64	1824(%rbp), %ymm20
+        vmovdqu64	1856(%rbp), %ymm21
+        vmovdqu64	1888(%rbp), %ymm22
+        vpermq	$0xe1, %ymm18, %ymm18
+        vpermq	$0xe1, %ymm19, %ymm19
+        vpermq	$0xe1, %ymm20, %ymm20
+        vpermq	$0xe1, %ymm21, %ymm21
+        vpermq	$0xe1, %ymm22, %ymm22
+        vmovdqu64	%ymm18, 1760(%rbp)
+        vmovdqu64	%ymm19, 1792(%rbp)
+        vmovdqu64	%ymm20, 1824(%rbp)
+        vmovdqu64	%ymm21, 1856(%rbp)
+        vmovdqu64	%ymm22, 1888(%rbp)
+L_ge_dsm_avx512_ifma_noswap_b:
+        # To p3
+        vpermq	$36, %ymm23, %ymm18
+        vpermq	$36, %ymm24, %ymm19
+        vpermq	$36, %ymm25, %ymm20
+        vpermq	$36, %ymm26, %ymm21
+        vpermq	$36, %ymm27, %ymm22
+        vpermq	$0x7b, %ymm23, %ymm23
+        vpermq	$0x7b, %ymm24, %ymm24
+        vpermq	$0x7b, %ymm25, %ymm25
+        vpermq	$0x7b, %ymm26, %ymm26
+        vpermq	$0x7b, %ymm27, %ymm27
+        # Multiply 4 field elements
+        vpxorq	%ymm0, %ymm0, %ymm0
+        vpxorq	%ymm9, %ymm9, %ymm9
+        vpxorq	%ymm1, %ymm1, %ymm1
+        vpxorq	%ymm10, %ymm10, %ymm10
+        vpxorq	%ymm2, %ymm2, %ymm2
+        vpxorq	%ymm11, %ymm11, %ymm11
+        vpxorq	%ymm3, %ymm3, %ymm3
+        vpxorq	%ymm12, %ymm12, %ymm12
+        vpxorq	%ymm4, %ymm4, %ymm4
+        vpxorq	%ymm13, %ymm13, %ymm13
+        vpxorq	%ymm5, %ymm5, %ymm5
+        vpxorq	%ymm14, %ymm14, %ymm14
+        vpxorq	%ymm6, %ymm6, %ymm6
+        vpxorq	%ymm15, %ymm15, %ymm15
+        vpxorq	%ymm7, %ymm7, %ymm7
+        vpxorq	%ymm16, %ymm16, %ymm16
+        vpxorq	%ymm8, %ymm8, %ymm8
+        vpxorq	%ymm17, %ymm17, %ymm17
+        vpmadd52luq	%ymm23, %ymm18, %ymm0
+        vpmadd52huq	%ymm23, %ymm18, %ymm9
+        vpmadd52luq	%ymm24, %ymm18, %ymm1
+        vpmadd52huq	%ymm24, %ymm18, %ymm10
+        vpmadd52luq	%ymm25, %ymm18, %ymm2
+        vpmadd52huq	%ymm25, %ymm18, %ymm11
+        vpmadd52luq	%ymm26, %ymm18, %ymm3
+        vpmadd52huq	%ymm26, %ymm18, %ymm12
+        vpmadd52luq	%ymm27, %ymm18, %ymm4
+        vpmadd52huq	%ymm27, %ymm18, %ymm13
+        vpmadd52luq	%ymm23, %ymm19, %ymm1
+        vpmadd52huq	%ymm23, %ymm19, %ymm10
+        vpmadd52luq	%ymm24, %ymm19, %ymm2
+        vpmadd52huq	%ymm24, %ymm19, %ymm11
+        vpmadd52luq	%ymm25, %ymm19, %ymm3
+        vpmadd52huq	%ymm25, %ymm19, %ymm12
+        vpmadd52luq	%ymm26, %ymm19, %ymm4
+        vpmadd52huq	%ymm26, %ymm19, %ymm13
+        vpmadd52luq	%ymm27, %ymm19, %ymm5
+        vpmadd52huq	%ymm27, %ymm19, %ymm14
+        vpmadd52luq	%ymm23, %ymm20, %ymm2
+        vpmadd52huq	%ymm23, %ymm20, %ymm11
+        vpmadd52luq	%ymm24, %ymm20, %ymm3
+        vpmadd52huq	%ymm24, %ymm20, %ymm12
+        vpmadd52luq	%ymm25, %ymm20, %ymm4
+        vpmadd52huq	%ymm25, %ymm20, %ymm13
+        vpmadd52luq	%ymm26, %ymm20, %ymm5
+        vpmadd52huq	%ymm26, %ymm20, %ymm14
+        vpmadd52luq	%ymm27, %ymm20, %ymm6
+        vpmadd52huq	%ymm27, %ymm20, %ymm15
+        vpmadd52luq	%ymm23, %ymm21, %ymm3
+        vpmadd52huq	%ymm23, %ymm21, %ymm12
+        vpmadd52luq	%ymm24, %ymm21, %ymm4
+        vpmadd52huq	%ymm24, %ymm21, %ymm13
+        vpmadd52luq	%ymm25, %ymm21, %ymm5
+        vpmadd52huq	%ymm25, %ymm21, %ymm14
+        vpmadd52luq	%ymm26, %ymm21, %ymm6
+        vpmadd52huq	%ymm26, %ymm21, %ymm15
+        vpmadd52luq	%ymm27, %ymm21, %ymm7
+        vpmadd52huq	%ymm27, %ymm21, %ymm16
+        vpmadd52luq	%ymm23, %ymm22, %ymm4
+        vpmadd52huq	%ymm23, %ymm22, %ymm13
+        vpmadd52luq	%ymm24, %ymm22, %ymm5
+        vpmadd52huq	%ymm24, %ymm22, %ymm14
+        vpmadd52luq	%ymm25, %ymm22, %ymm6
+        vpmadd52huq	%ymm25, %ymm22, %ymm15
+        vpmadd52luq	%ymm26, %ymm22, %ymm7
+        vpmadd52huq	%ymm26, %ymm22, %ymm16
+        vpmadd52luq	%ymm27, %ymm22, %ymm8
+        vpmadd52huq	%ymm27, %ymm22, %ymm17
+        vpaddq	%ymm9, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpaddq	%ymm10, %ymm10, %ymm10
+        vpaddq	%ymm10, %ymm2, %ymm2
+        vpaddq	%ymm11, %ymm11, %ymm11
+        vpaddq	%ymm11, %ymm3, %ymm3
+        vpaddq	%ymm12, %ymm12, %ymm12
+        vpaddq	%ymm12, %ymm4, %ymm4
+        vpaddq	%ymm13, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm5, %ymm5
+        vpaddq	%ymm14, %ymm14, %ymm14
+        vpaddq	%ymm14, %ymm6, %ymm6
+        vpaddq	%ymm15, %ymm15, %ymm15
+        vpaddq	%ymm15, %ymm7, %ymm7
+        vpaddq	%ymm16, %ymm16, %ymm16
+        vpaddq	%ymm16, %ymm8, %ymm8
+        vpaddq	%ymm17, %ymm17, %ymm17
+        # Reduce
+        vpsllq	$4, %ymm5, %ymm9
+        vpsllq	$0x01, %ymm5, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm5, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm0, %ymm0
+        vpsllq	$4, %ymm6, %ymm9
+        vpsllq	$0x01, %ymm6, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm6, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpsllq	$4, %ymm7, %ymm9
+        vpsllq	$0x01, %ymm7, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm7, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm2, %ymm2
+        vpsllq	$4, %ymm8, %ymm9
+        vpsllq	$0x01, %ymm8, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm8, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm3, %ymm3
+        vpsllq	$4, %ymm17, %ymm9
+        vpsllq	$0x01, %ymm17, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm17, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm4, %ymm4
+        vpsrlq	$51, %ymm0, %ymm23
+        vpandq	%ymm28, %ymm0, %ymm0
+        vpsrlq	$51, %ymm1, %ymm24
+        vpandq	%ymm28, %ymm1, %ymm1
+        vpsrlq	$51, %ymm2, %ymm25
+        vpandq	%ymm28, %ymm2, %ymm2
+        vpsrlq	$51, %ymm3, %ymm26
+        vpandq	%ymm28, %ymm3, %ymm3
+        vpsrlq	$51, %ymm4, %ymm27
+        vpandq	%ymm28, %ymm4, %ymm4
+        vmovdqa64	%ymm0, %ymm18
+        vpmadd52luq	%ymm31, %ymm27, %ymm18
+        vpaddq	%ymm23, %ymm1, %ymm19
+        vpaddq	%ymm24, %ymm2, %ymm20
+        vpaddq	%ymm25, %ymm3, %ymm21
+        vpaddq	%ymm26, %ymm4, %ymm22
+        # Add
+        vpermq	$0xb0, %ymm18, %ymm23
+        vpermq	$0xb0, %ymm19, %ymm24
+        vpermq	$0xb0, %ymm20, %ymm25
+        vpermq	$0xb0, %ymm21, %ymm26
+        vpermq	$0xb0, %ymm22, %ymm27
+        vpermq	$0xb5, %ymm18, %ymm18
+        vpermq	$0xb5, %ymm19, %ymm19
+        vpermq	$0xb5, %ymm20, %ymm20
+        vpermq	$0xb5, %ymm21, %ymm21
+        vpermq	$0xb5, %ymm22, %ymm22
+        vpaddq	%ymm23, %ymm18, %ymm18{%k5}
+        vpaddq	%ymm24, %ymm19, %ymm19{%k5}
+        vpaddq	%ymm25, %ymm20, %ymm20{%k5}
+        vpaddq	%ymm26, %ymm21, %ymm21{%k5}
+        vpaddq	%ymm27, %ymm22, %ymm22{%k5}
+        vpaddq	%ymm29, %ymm18, %ymm18{%k6}
+        vpaddq	%ymm30, %ymm19, %ymm19{%k6}
+        vpaddq	%ymm30, %ymm20, %ymm20{%k6}
+        vpaddq	%ymm30, %ymm21, %ymm21{%k6}
+        vpaddq	%ymm30, %ymm22, %ymm22{%k6}
+        vpsubq	%ymm23, %ymm18, %ymm18{%k6}
+        vpsubq	%ymm24, %ymm19, %ymm19{%k6}
+        vpsubq	%ymm25, %ymm20, %ymm20{%k6}
+        vpsubq	%ymm26, %ymm21, %ymm21{%k6}
+        vpsubq	%ymm27, %ymm22, %ymm22{%k6}
+        vpsrlq	$51, %ymm18, %ymm0
+        vpandq	%ymm28, %ymm18, %ymm18
+        vpsrlq	$51, %ymm19, %ymm1
+        vpandq	%ymm28, %ymm19, %ymm19
+        vpsrlq	$51, %ymm20, %ymm2
+        vpandq	%ymm28, %ymm20, %ymm20
+        vpsrlq	$51, %ymm21, %ymm3
+        vpandq	%ymm28, %ymm21, %ymm21
+        vpsrlq	$51, %ymm22, %ymm4
+        vpandq	%ymm28, %ymm22, %ymm22
+        vpmadd52luq	%ymm31, %ymm4, %ymm18
+        vpaddq	%ymm0, %ymm19, %ymm19
+        vpaddq	%ymm1, %ymm20, %ymm20
+        vpaddq	%ymm2, %ymm21, %ymm21
+        vpaddq	%ymm3, %ymm22, %ymm22
+        vmovdqu64	1760(%rbp), %ymm23
+        vmovdqu64	1792(%rbp), %ymm24
+        vmovdqu64	1824(%rbp), %ymm25
+        vmovdqu64	1856(%rbp), %ymm26
+        vmovdqu64	1888(%rbp), %ymm27
+        # Multiply 4 field elements
+        vpxorq	%ymm0, %ymm0, %ymm0
+        vpxorq	%ymm9, %ymm9, %ymm9
+        vpxorq	%ymm1, %ymm1, %ymm1
+        vpxorq	%ymm10, %ymm10, %ymm10
+        vpxorq	%ymm2, %ymm2, %ymm2
+        vpxorq	%ymm11, %ymm11, %ymm11
+        vpxorq	%ymm3, %ymm3, %ymm3
+        vpxorq	%ymm12, %ymm12, %ymm12
+        vpxorq	%ymm4, %ymm4, %ymm4
+        vpxorq	%ymm13, %ymm13, %ymm13
+        vpxorq	%ymm5, %ymm5, %ymm5
+        vpxorq	%ymm14, %ymm14, %ymm14
+        vpxorq	%ymm6, %ymm6, %ymm6
+        vpxorq	%ymm15, %ymm15, %ymm15
+        vpxorq	%ymm7, %ymm7, %ymm7
+        vpxorq	%ymm16, %ymm16, %ymm16
+        vpxorq	%ymm8, %ymm8, %ymm8
+        vpxorq	%ymm17, %ymm17, %ymm17
+        vpmadd52luq	%ymm23, %ymm18, %ymm0
+        vpmadd52huq	%ymm23, %ymm18, %ymm9
+        vpmadd52luq	%ymm24, %ymm18, %ymm1
+        vpmadd52huq	%ymm24, %ymm18, %ymm10
+        vpmadd52luq	%ymm25, %ymm18, %ymm2
+        vpmadd52huq	%ymm25, %ymm18, %ymm11
+        vpmadd52luq	%ymm26, %ymm18, %ymm3
+        vpmadd52huq	%ymm26, %ymm18, %ymm12
+        vpmadd52luq	%ymm27, %ymm18, %ymm4
+        vpmadd52huq	%ymm27, %ymm18, %ymm13
+        vpmadd52luq	%ymm23, %ymm19, %ymm1
+        vpmadd52huq	%ymm23, %ymm19, %ymm10
+        vpmadd52luq	%ymm24, %ymm19, %ymm2
+        vpmadd52huq	%ymm24, %ymm19, %ymm11
+        vpmadd52luq	%ymm25, %ymm19, %ymm3
+        vpmadd52huq	%ymm25, %ymm19, %ymm12
+        vpmadd52luq	%ymm26, %ymm19, %ymm4
+        vpmadd52huq	%ymm26, %ymm19, %ymm13
+        vpmadd52luq	%ymm27, %ymm19, %ymm5
+        vpmadd52huq	%ymm27, %ymm19, %ymm14
+        vpmadd52luq	%ymm23, %ymm20, %ymm2
+        vpmadd52huq	%ymm23, %ymm20, %ymm11
+        vpmadd52luq	%ymm24, %ymm20, %ymm3
+        vpmadd52huq	%ymm24, %ymm20, %ymm12
+        vpmadd52luq	%ymm25, %ymm20, %ymm4
+        vpmadd52huq	%ymm25, %ymm20, %ymm13
+        vpmadd52luq	%ymm26, %ymm20, %ymm5
+        vpmadd52huq	%ymm26, %ymm20, %ymm14
+        vpmadd52luq	%ymm27, %ymm20, %ymm6
+        vpmadd52huq	%ymm27, %ymm20, %ymm15
+        vpmadd52luq	%ymm23, %ymm21, %ymm3
+        vpmadd52huq	%ymm23, %ymm21, %ymm12
+        vpmadd52luq	%ymm24, %ymm21, %ymm4
+        vpmadd52huq	%ymm24, %ymm21, %ymm13
+        vpmadd52luq	%ymm25, %ymm21, %ymm5
+        vpmadd52huq	%ymm25, %ymm21, %ymm14
+        vpmadd52luq	%ymm26, %ymm21, %ymm6
+        vpmadd52huq	%ymm26, %ymm21, %ymm15
+        vpmadd52luq	%ymm27, %ymm21, %ymm7
+        vpmadd52huq	%ymm27, %ymm21, %ymm16
+        vpmadd52luq	%ymm23, %ymm22, %ymm4
+        vpmadd52huq	%ymm23, %ymm22, %ymm13
+        vpmadd52luq	%ymm24, %ymm22, %ymm5
+        vpmadd52huq	%ymm24, %ymm22, %ymm14
+        vpmadd52luq	%ymm25, %ymm22, %ymm6
+        vpmadd52huq	%ymm25, %ymm22, %ymm15
+        vpmadd52luq	%ymm26, %ymm22, %ymm7
+        vpmadd52huq	%ymm26, %ymm22, %ymm16
+        vpmadd52luq	%ymm27, %ymm22, %ymm8
+        vpmadd52huq	%ymm27, %ymm22, %ymm17
+        vpaddq	%ymm9, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpaddq	%ymm10, %ymm10, %ymm10
+        vpaddq	%ymm10, %ymm2, %ymm2
+        vpaddq	%ymm11, %ymm11, %ymm11
+        vpaddq	%ymm11, %ymm3, %ymm3
+        vpaddq	%ymm12, %ymm12, %ymm12
+        vpaddq	%ymm12, %ymm4, %ymm4
+        vpaddq	%ymm13, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm5, %ymm5
+        vpaddq	%ymm14, %ymm14, %ymm14
+        vpaddq	%ymm14, %ymm6, %ymm6
+        vpaddq	%ymm15, %ymm15, %ymm15
+        vpaddq	%ymm15, %ymm7, %ymm7
+        vpaddq	%ymm16, %ymm16, %ymm16
+        vpaddq	%ymm16, %ymm8, %ymm8
+        vpaddq	%ymm17, %ymm17, %ymm17
+        # Reduce
+        vpsllq	$4, %ymm5, %ymm9
+        vpsllq	$0x01, %ymm5, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm5, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm0, %ymm0
+        vpsllq	$4, %ymm6, %ymm9
+        vpsllq	$0x01, %ymm6, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm6, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpsllq	$4, %ymm7, %ymm9
+        vpsllq	$0x01, %ymm7, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm7, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm2, %ymm2
+        vpsllq	$4, %ymm8, %ymm9
+        vpsllq	$0x01, %ymm8, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm8, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm3, %ymm3
+        vpsllq	$4, %ymm17, %ymm9
+        vpsllq	$0x01, %ymm17, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm17, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm4, %ymm4
+        vpsrlq	$51, %ymm0, %ymm23
+        vpandq	%ymm28, %ymm0, %ymm0
+        vpsrlq	$51, %ymm1, %ymm24
+        vpandq	%ymm28, %ymm1, %ymm1
+        vpsrlq	$51, %ymm2, %ymm25
+        vpandq	%ymm28, %ymm2, %ymm2
+        vpsrlq	$51, %ymm3, %ymm26
+        vpandq	%ymm28, %ymm3, %ymm3
+        vpsrlq	$51, %ymm4, %ymm27
+        vpandq	%ymm28, %ymm4, %ymm4
+        vmovdqa64	%ymm0, %ymm18
+        vpmadd52luq	%ymm31, %ymm27, %ymm18
+        vpaddq	%ymm23, %ymm1, %ymm19
+        vpaddq	%ymm24, %ymm2, %ymm20
+        vpaddq	%ymm25, %ymm3, %ymm21
+        vpaddq	%ymm26, %ymm4, %ymm22
+        # X3 = B - A, Y3 = B + A, Z3 = D + C, T3 = D - C
+        vpermq	$0xf0, %ymm18, %ymm23
+        vpermq	$0xf0, %ymm19, %ymm24
+        vpermq	$0xf0, %ymm20, %ymm25
+        vpermq	$0xf0, %ymm21, %ymm26
+        vpermq	$0xf0, %ymm22, %ymm27
+        vpaddq	%ymm23, %ymm23, %ymm23{%k2}
+        vpaddq	%ymm24, %ymm24, %ymm24{%k2}
+        vpaddq	%ymm25, %ymm25, %ymm25{%k2}
+        vpaddq	%ymm26, %ymm26, %ymm26{%k2}
+        vpaddq	%ymm27, %ymm27, %ymm27{%k2}
+        vpermq	$0xa5, %ymm18, %ymm0
+        vpermq	$0xa5, %ymm19, %ymm1
+        vpermq	$0xa5, %ymm20, %ymm2
+        vpermq	$0xa5, %ymm21, %ymm3
+        vpermq	$0xa5, %ymm22, %ymm4
+        vpaddq	%ymm0, %ymm23, %ymm18
+        vpaddq	%ymm1, %ymm24, %ymm19
+        vpaddq	%ymm2, %ymm25, %ymm20
+        vpaddq	%ymm3, %ymm26, %ymm21
+        vpaddq	%ymm4, %ymm27, %ymm22
+        vpaddq	%ymm29, %ymm23, %ymm23{%k3}
+        vpaddq	%ymm30, %ymm24, %ymm24{%k3}
+        vpaddq	%ymm30, %ymm25, %ymm25{%k3}
+        vpaddq	%ymm30, %ymm26, %ymm26{%k3}
+        vpaddq	%ymm30, %ymm27, %ymm27{%k3}
+        vpsubq	%ymm0, %ymm23, %ymm18{%k3}
+        vpsubq	%ymm1, %ymm24, %ymm19{%k3}
+        vpsubq	%ymm2, %ymm25, %ymm20{%k3}
+        vpsubq	%ymm3, %ymm26, %ymm21{%k3}
+        vpsubq	%ymm4, %ymm27, %ymm22{%k3}
+        vpsrlq	$51, %ymm18, %ymm5
+        vpandq	%ymm28, %ymm18, %ymm18
+        vpsrlq	$51, %ymm19, %ymm6
+        vpandq	%ymm28, %ymm19, %ymm19
+        vpsrlq	$51, %ymm20, %ymm7
+        vpandq	%ymm28, %ymm20, %ymm20
+        vpsrlq	$51, %ymm21, %ymm8
+        vpandq	%ymm28, %ymm21, %ymm21
+        vpsrlq	$51, %ymm22, %ymm9
+        vpandq	%ymm28, %ymm22, %ymm22
+        vpmadd52luq	%ymm31, %ymm9, %ymm18
+        vpaddq	%ymm5, %ymm19, %ymm19
+        vpaddq	%ymm6, %ymm20, %ymm20
+        vpaddq	%ymm7, %ymm21, %ymm21
+        vpaddq	%ymm8, %ymm22, %ymm22
+        testq	%rsi, %rsi
+        je	L_ge_dsm_avx512_ifma_nores_b
+        vpermq	$0xb4, %ymm18, %ymm18
+        vpermq	$0xb4, %ymm19, %ymm19
+        vpermq	$0xb4, %ymm20, %ymm20
+        vpermq	$0xb4, %ymm21, %ymm21
+        vpermq	$0xb4, %ymm22, %ymm22
+L_ge_dsm_avx512_ifma_nores_b:
+        vmovdqa64	%ymm18, %ymm23
+        vmovdqa64	%ymm19, %ymm24
+        vmovdqa64	%ymm20, %ymm25
+        vmovdqa64	%ymm21, %ymm26
+        vmovdqa64	%ymm22, %ymm27
+L_ge_dsm_avx512_ifma_skip_b:
+        # To p3
+        vpermq	$36, %ymm23, %ymm18
+        vpermq	$36, %ymm24, %ymm19
+        vpermq	$36, %ymm25, %ymm20
+        vpermq	$36, %ymm26, %ymm21
+        vpermq	$36, %ymm27, %ymm22
+        vpermq	$0x7b, %ymm23, %ymm23
+        vpermq	$0x7b, %ymm24, %ymm24
+        vpermq	$0x7b, %ymm25, %ymm25
+        vpermq	$0x7b, %ymm26, %ymm26
+        vpermq	$0x7b, %ymm27, %ymm27
+        # Multiply 4 field elements
+        vpxorq	%ymm0, %ymm0, %ymm0
+        vpxorq	%ymm9, %ymm9, %ymm9
+        vpxorq	%ymm1, %ymm1, %ymm1
+        vpxorq	%ymm10, %ymm10, %ymm10
+        vpxorq	%ymm2, %ymm2, %ymm2
+        vpxorq	%ymm11, %ymm11, %ymm11
+        vpxorq	%ymm3, %ymm3, %ymm3
+        vpxorq	%ymm12, %ymm12, %ymm12
+        vpxorq	%ymm4, %ymm4, %ymm4
+        vpxorq	%ymm13, %ymm13, %ymm13
+        vpxorq	%ymm5, %ymm5, %ymm5
+        vpxorq	%ymm14, %ymm14, %ymm14
+        vpxorq	%ymm6, %ymm6, %ymm6
+        vpxorq	%ymm15, %ymm15, %ymm15
+        vpxorq	%ymm7, %ymm7, %ymm7
+        vpxorq	%ymm16, %ymm16, %ymm16
+        vpxorq	%ymm8, %ymm8, %ymm8
+        vpxorq	%ymm17, %ymm17, %ymm17
+        vpmadd52luq	%ymm23, %ymm18, %ymm0
+        vpmadd52huq	%ymm23, %ymm18, %ymm9
+        vpmadd52luq	%ymm24, %ymm18, %ymm1
+        vpmadd52huq	%ymm24, %ymm18, %ymm10
+        vpmadd52luq	%ymm25, %ymm18, %ymm2
+        vpmadd52huq	%ymm25, %ymm18, %ymm11
+        vpmadd52luq	%ymm26, %ymm18, %ymm3
+        vpmadd52huq	%ymm26, %ymm18, %ymm12
+        vpmadd52luq	%ymm27, %ymm18, %ymm4
+        vpmadd52huq	%ymm27, %ymm18, %ymm13
+        vpmadd52luq	%ymm23, %ymm19, %ymm1
+        vpmadd52huq	%ymm23, %ymm19, %ymm10
+        vpmadd52luq	%ymm24, %ymm19, %ymm2
+        vpmadd52huq	%ymm24, %ymm19, %ymm11
+        vpmadd52luq	%ymm25, %ymm19, %ymm3
+        vpmadd52huq	%ymm25, %ymm19, %ymm12
+        vpmadd52luq	%ymm26, %ymm19, %ymm4
+        vpmadd52huq	%ymm26, %ymm19, %ymm13
+        vpmadd52luq	%ymm27, %ymm19, %ymm5
+        vpmadd52huq	%ymm27, %ymm19, %ymm14
+        vpmadd52luq	%ymm23, %ymm20, %ymm2
+        vpmadd52huq	%ymm23, %ymm20, %ymm11
+        vpmadd52luq	%ymm24, %ymm20, %ymm3
+        vpmadd52huq	%ymm24, %ymm20, %ymm12
+        vpmadd52luq	%ymm25, %ymm20, %ymm4
+        vpmadd52huq	%ymm25, %ymm20, %ymm13
+        vpmadd52luq	%ymm26, %ymm20, %ymm5
+        vpmadd52huq	%ymm26, %ymm20, %ymm14
+        vpmadd52luq	%ymm27, %ymm20, %ymm6
+        vpmadd52huq	%ymm27, %ymm20, %ymm15
+        vpmadd52luq	%ymm23, %ymm21, %ymm3
+        vpmadd52huq	%ymm23, %ymm21, %ymm12
+        vpmadd52luq	%ymm24, %ymm21, %ymm4
+        vpmadd52huq	%ymm24, %ymm21, %ymm13
+        vpmadd52luq	%ymm25, %ymm21, %ymm5
+        vpmadd52huq	%ymm25, %ymm21, %ymm14
+        vpmadd52luq	%ymm26, %ymm21, %ymm6
+        vpmadd52huq	%ymm26, %ymm21, %ymm15
+        vpmadd52luq	%ymm27, %ymm21, %ymm7
+        vpmadd52huq	%ymm27, %ymm21, %ymm16
+        vpmadd52luq	%ymm23, %ymm22, %ymm4
+        vpmadd52huq	%ymm23, %ymm22, %ymm13
+        vpmadd52luq	%ymm24, %ymm22, %ymm5
+        vpmadd52huq	%ymm24, %ymm22, %ymm14
+        vpmadd52luq	%ymm25, %ymm22, %ymm6
+        vpmadd52huq	%ymm25, %ymm22, %ymm15
+        vpmadd52luq	%ymm26, %ymm22, %ymm7
+        vpmadd52huq	%ymm26, %ymm22, %ymm16
+        vpmadd52luq	%ymm27, %ymm22, %ymm8
+        vpmadd52huq	%ymm27, %ymm22, %ymm17
+        vpaddq	%ymm9, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpaddq	%ymm10, %ymm10, %ymm10
+        vpaddq	%ymm10, %ymm2, %ymm2
+        vpaddq	%ymm11, %ymm11, %ymm11
+        vpaddq	%ymm11, %ymm3, %ymm3
+        vpaddq	%ymm12, %ymm12, %ymm12
+        vpaddq	%ymm12, %ymm4, %ymm4
+        vpaddq	%ymm13, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm5, %ymm5
+        vpaddq	%ymm14, %ymm14, %ymm14
+        vpaddq	%ymm14, %ymm6, %ymm6
+        vpaddq	%ymm15, %ymm15, %ymm15
+        vpaddq	%ymm15, %ymm7, %ymm7
+        vpaddq	%ymm16, %ymm16, %ymm16
+        vpaddq	%ymm16, %ymm8, %ymm8
+        vpaddq	%ymm17, %ymm17, %ymm17
+        # Reduce
+        vpsllq	$4, %ymm5, %ymm9
+        vpsllq	$0x01, %ymm5, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm5, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm0, %ymm0
+        vpsllq	$4, %ymm6, %ymm9
+        vpsllq	$0x01, %ymm6, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm6, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpsllq	$4, %ymm7, %ymm9
+        vpsllq	$0x01, %ymm7, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm7, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm2, %ymm2
+        vpsllq	$4, %ymm8, %ymm9
+        vpsllq	$0x01, %ymm8, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm8, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm3, %ymm3
+        vpsllq	$4, %ymm17, %ymm9
+        vpsllq	$0x01, %ymm17, %ymm10
+        vpaddq	%ymm10, %ymm9, %ymm9
+        vpaddq	%ymm17, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm4, %ymm4
+        vpsrlq	$51, %ymm0, %ymm23
+        vpandq	%ymm28, %ymm0, %ymm0
+        vpsrlq	$51, %ymm1, %ymm24
+        vpandq	%ymm28, %ymm1, %ymm1
+        vpsrlq	$51, %ymm2, %ymm25
+        vpandq	%ymm28, %ymm2, %ymm2
+        vpsrlq	$51, %ymm3, %ymm26
+        vpandq	%ymm28, %ymm3, %ymm3
+        vpsrlq	$51, %ymm4, %ymm27
+        vpandq	%ymm28, %ymm4, %ymm4
+        vmovdqa64	%ymm0, %ymm18
+        vpmadd52luq	%ymm31, %ymm27, %ymm18
+        vpaddq	%ymm23, %ymm1, %ymm19
+        vpaddq	%ymm24, %ymm2, %ymm20
+        vpaddq	%ymm25, %ymm3, %ymm21
+        vpaddq	%ymm26, %ymm4, %ymm22
+        decq	%r11
+        jge	L_ge_dsm_avx512_ifma_bits
+        vmovdqu64	%ymm18, 1600(%rbp)
+        vmovdqu64	%ymm19, 1632(%rbp)
+        vmovdqu64	%ymm20, 1664(%rbp)
+        vmovdqu64	%ymm21, 1696(%rbp)
+        vmovdqu64	%ymm22, 1728(%rbp)
+        vzeroupper
+        # Convert X, Y and Z back to 4 x 64-bit field elements
+        movq	$0x7ffffffffffff, %r10
+        movq	1600(%rbp), %rdx
+        movq	1632(%rbp), %rax
+        movq	1664(%rbp), %rcx
+        movq	1696(%rbp), %r8
+        movq	1728(%rbp), %r9
+        movq	%rdx, %r11
+        shrq	$51, %r11
+        andq	%r10, %rdx
+        addq	%r11, %rax
+        movq	%rax, %r11
+        shrq	$51, %r11
+        andq	%r10, %rax
+        addq	%r11, %rcx
+        movq	%rcx, %r11
+        shrq	$51, %r11
+        andq	%r10, %rcx
+        addq	%r11, %r8
+        movq	%r8, %r11
+        shrq	$51, %r11
+        andq	%r10, %r8
+        addq	%r11, %r9
+        movq	%r9, %r11
+        shrq	$51, %r11
+        andq	%r10, %r9
+        imulq	$19, %r11, %r11
+        addq	%r11, %rdx
+        movq	%rax, %r11
+        shlq	$51, %r11
+        movq	%rax, %r12
+        shrq	$13, %r12
+        addq	%r11, %rdx
+        adcq	$0x00, %r12
+        movq	%rdx, (%rdi)
+        movq	%rcx, %r11
+        shlq	$38, %r11
+        movq	%rcx, %rdx
+        shrq	$26, %rdx
+        addq	%r11, %r12
+        adcq	$0x00, %rdx
+        movq	%r12, 8(%rdi)
+        movq	%r8, %r11
+        shlq	$25, %r11
+        movq	%r8, %r12
+        shrq	$39, %r12
+        addq	%r11, %rdx
+        adcq	$0x00, %r12
+        movq	%rdx, 16(%rdi)
+        movq	%r9, %r11
+        shlq	$12, %r11
+        addq	%r11, %r12
+        movq	%r12, 24(%rdi)
+        movq	1608(%rbp), %rdx
+        movq	1640(%rbp), %rax
+        movq	1672(%rbp), %rcx
+        movq	1704(%rbp), %r8
+        movq	1736(%rbp), %r9
+        movq	%rdx, %r11
+        shrq	$51, %r11
+        andq	%r10, %rdx
+        addq	%r11, %rax
+        movq	%rax, %r11
+        shrq	$51, %r11
+        andq	%r10, %rax
+        addq	%r11, %rcx
+        movq	%rcx, %r11
+        shrq	$51, %r11
+        andq	%r10, %rcx
+        addq	%r11, %r8
+        movq	%r8, %r11
+        shrq	$51, %r11
+        andq	%r10, %r8
+        addq	%r11, %r9
+        movq	%r9, %r11
+        shrq	$51, %r11
+        andq	%r10, %r9
+        imulq	$19, %r11, %r11
+        addq	%r11, %rdx
+        movq	%rax, %r11
+        shlq	$51, %r11
+        movq	%rax, %r12
+        shrq	$13, %r12
+        addq	%r11, %rdx
+        adcq	$0x00, %r12
+        movq	%rdx, 32(%rdi)
+        movq	%rcx, %r11
+        shlq	$38, %r11
+        movq	%rcx, %rdx
+        shrq	$26, %rdx
+        addq	%r11, %r12
+        adcq	$0x00, %rdx
+        movq	%r12, 40(%rdi)
+        movq	%r8, %r11
+        shlq	$25, %r11
+        movq	%r8, %r12
+        shrq	$39, %r12
+        addq	%r11, %rdx
+        adcq	$0x00, %r12
+        movq	%rdx, 48(%rdi)
+        movq	%r9, %r11
+        shlq	$12, %r11
+        addq	%r11, %r12
+        movq	%r12, 56(%rdi)
+        movq	1616(%rbp), %rdx
+        movq	1648(%rbp), %rax
+        movq	1680(%rbp), %rcx
+        movq	1712(%rbp), %r8
+        movq	1744(%rbp), %r9
+        movq	%rdx, %r11
+        shrq	$51, %r11
+        andq	%r10, %rdx
+        addq	%r11, %rax
+        movq	%rax, %r11
+        shrq	$51, %r11
+        andq	%r10, %rax
+        addq	%r11, %rcx
+        movq	%rcx, %r11
+        shrq	$51, %r11
+        andq	%r10, %rcx
+        addq	%r11, %r8
+        movq	%r8, %r11
+        shrq	$51, %r11
+        andq	%r10, %r8
+        addq	%r11, %r9
+        movq	%r9, %r11
+        shrq	$51, %r11
+        andq	%r10, %r9
+        imulq	$19, %r11, %r11
+        addq	%r11, %rdx
+        movq	%rax, %r11
+        shlq	$51, %r11
+        movq	%rax, %r12
+        shrq	$13, %r12
+        addq	%r11, %rdx
+        adcq	$0x00, %r12
+        movq	%rdx, 64(%rdi)
+        movq	%rcx, %r11
+        shlq	$38, %r11
+        movq	%rcx, %rdx
+        shrq	$26, %rdx
+        addq	%r11, %r12
+        adcq	$0x00, %rdx
+        movq	%r12, 72(%rdi)
+        movq	%r8, %r11
+        shlq	$25, %r11
+        movq	%r8, %r12
+        shrq	$39, %r12
+        addq	%r11, %rdx
+        adcq	$0x00, %r12
+        movq	%rdx, 80(%rdi)
+        movq	%r9, %r11
+        shlq	$12, %r11
+        addq	%r11, %r12
+        movq	%r12, 88(%rdi)
+        xorq	%rax, %rax
+        popq	%rbp
+        popq	%rbx
+        popq	%r15
+        popq	%r14
+        popq	%r13
+        popq	%r12
+        repz retq
+#ifndef __APPLE__
+.size	ge_double_scalarmult_vartime_avx512_ifma,.-ge_double_scalarmult_vartime_avx512_ifma
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	ge_double_scalarmult_vartime_avx512_ifma_dq
+WC_ASM_ATT_HIDDEN(ge_double_scalarmult_vartime_avx512_ifma_dq)
+.type	ge_double_scalarmult_vartime_avx512_ifma_dq,@function
+.align	16
+ge_double_scalarmult_vartime_avx512_ifma_dq:
+#else
+.section	__TEXT,__text
+.globl	_ge_double_scalarmult_vartime_avx512_ifma_dq
+WC_ASM_ATT_HIDDEN(_ge_double_scalarmult_vartime_avx512_ifma_dq)
+.p2align	4
+_ge_double_scalarmult_vartime_avx512_ifma_dq:
+#endif /* __APPLE__ */
+        pushq	%r12
+        pushq	%r13
+        pushq	%r14
+        pushq	%r15
+        pushq	%rbx
+        pushq	%rbp
+        movq	%rdx, %r14
+        movq	%rcx, %r15
+        movq	%r8, %rbx
+        movq	%r9, %rbp
+        # Window digits of the scalar multiplying A
+        # One digit per bit of the scalar
+        xorq	%rdx, %rdx
+        xorq	%r11, %r11
+L_ge_dsm_dq_a_avx512_ifma_slide_bytes:
+        movzbq	(%rsi,%r11,1), %rax
+        movq	%rax, %rcx
+        andq	$0x01, %rcx
+        movb	%cl, 1920(%rbp,%rdx,1)
+        shrq	$1, %rax
+        incq	%rdx
+        movq	%rax, %rcx
+        andq	$0x01, %rcx
+        movb	%cl, 1920(%rbp,%rdx,1)
+        shrq	$1, %rax
+        incq	%rdx
+        movq	%rax, %rcx
+        andq	$0x01, %rcx
+        movb	%cl, 1920(%rbp,%rdx,1)
+        shrq	$1, %rax
+        incq	%rdx
+        movq	%rax, %rcx
+        andq	$0x01, %rcx
+        movb	%cl, 1920(%rbp,%rdx,1)
+        shrq	$1, %rax
+        incq	%rdx
+        movq	%rax, %rcx
+        andq	$0x01, %rcx
+        movb	%cl, 1920(%rbp,%rdx,1)
+        shrq	$1, %rax
+        incq	%rdx
+        movq	%rax, %rcx
+        andq	$0x01, %rcx
+        movb	%cl, 1920(%rbp,%rdx,1)
+        shrq	$1, %rax
+        incq	%rdx
+        movq	%rax, %rcx
+        andq	$0x01, %rcx
+        movb	%cl, 1920(%rbp,%rdx,1)
+        shrq	$1, %rax
+        incq	%rdx
+        movq	%rax, %rcx
+        andq	$0x01, %rcx
+        movb	%cl, 1920(%rbp,%rdx,1)
+        shrq	$1, %rax
+        incq	%rdx
+        incq	%r11
+        cmpq	$32, %r11
+        jne	L_ge_dsm_dq_a_avx512_ifma_slide_bytes
+        # Fold each run of digits down to one odd digit
+        xorq	%r11, %r11
+L_ge_dsm_dq_a_avx512_ifma_slide_digit:
+        movsbq	1920(%rbp,%r11,1), %rcx
+        testq	%rcx, %rcx
+        je	L_ge_dsm_dq_a_avx512_ifma_slide_next_digit
+        movq	$0x01, %r12
+L_ge_dsm_dq_a_avx512_ifma_slide_window:
+        movq	%r11, %rdx
+        addq	%r12, %rdx
+        cmpq	$0x100, %rdx
+        jge	L_ge_dsm_dq_a_avx512_ifma_slide_next_digit
+        movsbq	1920(%rbp,%rdx,1), %r8
+        testq	%r8, %r8
+        je	L_ge_dsm_dq_a_avx512_ifma_slide_next_window
+        # Weight of the digit at i + b, relative to the one at i
+        movq	%r8, %r9
+        movq	%r12, %r8
+L_ge_dsm_dq_a_avx512_ifma_slide_shift:
+        addq	%r9, %r9
+        decq	%r8
+        jne	L_ge_dsm_dq_a_avx512_ifma_slide_shift
+        movsbq	%r9b, %r9
+        # Fold it in if the digit at i stays within range
+        movq	%rcx, %r10
+        addq	%r9, %r10
+        cmpq	$15, %r10
+        jg	L_ge_dsm_dq_a_avx512_ifma_slide_sub
+        movq	%r10, %rcx
+        movb	%cl, 1920(%rbp,%r11,1)
+        movb	$0x00, 1920(%rbp,%rdx,1)
+        jmp	L_ge_dsm_dq_a_avx512_ifma_slide_next_window
+L_ge_dsm_dq_a_avx512_ifma_slide_sub:
+        movq	%rcx, %r10
+        subq	%r9, %r10
+        cmpq	$-15, %r10
+        jl	L_ge_dsm_dq_a_avx512_ifma_slide_next_digit
+        movq	%r10, %rcx
+        movb	%cl, 1920(%rbp,%r11,1)
+        # Subtracting it borrows from the digits above
+L_ge_dsm_dq_a_avx512_ifma_slide_carry:
+        cmpq	$0x100, %rdx
+        jge	L_ge_dsm_dq_a_avx512_ifma_slide_next_window
+        movsbq	1920(%rbp,%rdx,1), %r10
+        testq	%r10, %r10
+        je	L_ge_dsm_dq_a_avx512_ifma_slide_set
+        movb	$0x00, 1920(%rbp,%rdx,1)
+        incq	%rdx
+        jmp	L_ge_dsm_dq_a_avx512_ifma_slide_carry
+L_ge_dsm_dq_a_avx512_ifma_slide_set:
+        movb	$0x01, 1920(%rbp,%rdx,1)
+L_ge_dsm_dq_a_avx512_ifma_slide_next_window:
+        incq	%r12
+        cmpq	$6, %r12
+        jle	L_ge_dsm_dq_a_avx512_ifma_slide_window
+L_ge_dsm_dq_a_avx512_ifma_slide_next_digit:
+        incq	%r11
+        cmpq	$0x100, %r11
+        jl	L_ge_dsm_dq_a_avx512_ifma_slide_digit
+        # Window digits of the base point scalar
+        # One digit per bit of the scalar
+        xorq	%rdx, %rdx
+        xorq	%r11, %r11
+L_ge_dsm_dq_b_avx512_ifma_slide_bytes:
+        movzbq	(%r15,%r11,1), %rax
+        movq	%rax, %rcx
+        andq	$0x01, %rcx
+        movb	%cl, 2176(%rbp,%rdx,1)
+        shrq	$1, %rax
+        incq	%rdx
+        movq	%rax, %rcx
+        andq	$0x01, %rcx
+        movb	%cl, 2176(%rbp,%rdx,1)
+        shrq	$1, %rax
+        incq	%rdx
+        movq	%rax, %rcx
+        andq	$0x01, %rcx
+        movb	%cl, 2176(%rbp,%rdx,1)
+        shrq	$1, %rax
+        incq	%rdx
+        movq	%rax, %rcx
+        andq	$0x01, %rcx
+        movb	%cl, 2176(%rbp,%rdx,1)
+        shrq	$1, %rax
+        incq	%rdx
+        movq	%rax, %rcx
+        andq	$0x01, %rcx
+        movb	%cl, 2176(%rbp,%rdx,1)
+        shrq	$1, %rax
+        incq	%rdx
+        movq	%rax, %rcx
+        andq	$0x01, %rcx
+        movb	%cl, 2176(%rbp,%rdx,1)
+        shrq	$1, %rax
+        incq	%rdx
+        movq	%rax, %rcx
+        andq	$0x01, %rcx
+        movb	%cl, 2176(%rbp,%rdx,1)
+        shrq	$1, %rax
+        incq	%rdx
+        movq	%rax, %rcx
+        andq	$0x01, %rcx
+        movb	%cl, 2176(%rbp,%rdx,1)
+        shrq	$1, %rax
+        incq	%rdx
+        incq	%r11
+        cmpq	$32, %r11
+        jne	L_ge_dsm_dq_b_avx512_ifma_slide_bytes
+        # Fold each run of digits down to one odd digit
+        xorq	%r11, %r11
+L_ge_dsm_dq_b_avx512_ifma_slide_digit:
+        movsbq	2176(%rbp,%r11,1), %rcx
+        testq	%rcx, %rcx
+        je	L_ge_dsm_dq_b_avx512_ifma_slide_next_digit
+        movq	$0x01, %r12
+L_ge_dsm_dq_b_avx512_ifma_slide_window:
+        movq	%r11, %rdx
+        addq	%r12, %rdx
+        cmpq	$0x100, %rdx
+        jge	L_ge_dsm_dq_b_avx512_ifma_slide_next_digit
+        movsbq	2176(%rbp,%rdx,1), %r8
+        testq	%r8, %r8
+        je	L_ge_dsm_dq_b_avx512_ifma_slide_next_window
+        # Weight of the digit at i + b, relative to the one at i
+        movq	%r8, %r9
+        movq	%r12, %r8
+L_ge_dsm_dq_b_avx512_ifma_slide_shift:
+        addq	%r9, %r9
+        decq	%r8
+        jne	L_ge_dsm_dq_b_avx512_ifma_slide_shift
+        movsbq	%r9b, %r9
+        # Fold it in if the digit at i stays within range
+        movq	%rcx, %r10
+        addq	%r9, %r10
+        cmpq	$63, %r10
+        jg	L_ge_dsm_dq_b_avx512_ifma_slide_sub
+        movq	%r10, %rcx
+        movb	%cl, 2176(%rbp,%r11,1)
+        movb	$0x00, 2176(%rbp,%rdx,1)
+        jmp	L_ge_dsm_dq_b_avx512_ifma_slide_next_window
+L_ge_dsm_dq_b_avx512_ifma_slide_sub:
+        movq	%rcx, %r10
+        subq	%r9, %r10
+        cmpq	$-63, %r10
+        jl	L_ge_dsm_dq_b_avx512_ifma_slide_next_digit
+        movq	%r10, %rcx
+        movb	%cl, 2176(%rbp,%r11,1)
+        # Subtracting it borrows from the digits above
+L_ge_dsm_dq_b_avx512_ifma_slide_carry:
+        cmpq	$0x100, %rdx
+        jge	L_ge_dsm_dq_b_avx512_ifma_slide_next_window
+        movsbq	2176(%rbp,%rdx,1), %r10
+        testq	%r10, %r10
+        je	L_ge_dsm_dq_b_avx512_ifma_slide_set
+        movb	$0x00, 2176(%rbp,%rdx,1)
+        incq	%rdx
+        jmp	L_ge_dsm_dq_b_avx512_ifma_slide_carry
+L_ge_dsm_dq_b_avx512_ifma_slide_set:
+        movb	$0x01, 2176(%rbp,%rdx,1)
+L_ge_dsm_dq_b_avx512_ifma_slide_next_window:
+        incq	%r12
+        cmpq	$6, %r12
+        jle	L_ge_dsm_dq_b_avx512_ifma_slide_window
+L_ge_dsm_dq_b_avx512_ifma_slide_next_digit:
+        incq	%r11
+        cmpq	$0x100, %r11
+        jl	L_ge_dsm_dq_b_avx512_ifma_slide_digit
+        leaq	L_ge_ifma_consts(%rip), %r15
+        vpbroadcastq	(%r15), %ymm28
+        vpbroadcastq	8(%r15), %ymm29
+        vpbroadcastq	16(%r15), %ymm30
+        vpbroadcastq	24(%r15), %ymm31
+        movl	$8, %r9d
+        kmovw	%r9d, %k1
+        movl	$12, %r9d
+        kmovw	%r9d, %k2
+        movl	$9, %r9d
+        kmovw	%r9d, %k3
+        movl	$6, %r9d
+        kmovw	%r9d, %k4
+        movl	$0x01, %r9d
+        kmovw	%r9d, %k5
+        movl	$2, %r9d
+        kmovw	%r9d, %k6
+        movl	$4, %r9d
+        kmovw	%r9d, %k7
+        # Odd multiples of A, cached and in limb form
+        movq	$0x7ffffffffffff, %r10
+        # A in limb form: [X, Y, Z, T]
+        movq	(%r14), %rdx
+        movq	8(%r14), %rax
+        movq	16(%r14), %rcx
+        movq	24(%r14), %r8
+        movq	%r8, %r9
+        shrq	$63, %r9
+        imulq	$19, %r9, %r9
+        shlq	$1, %r8
+        shrq	$1, %r8
+        movq	%rdx, %r13
+        andq	%r10, %r13
+        addq	%r9, %r13
+        movq	%r13, 1440(%rbp)
+        shrdq	$51, %rax, %rdx
+        movq	%rdx, %r9
+        andq	%r10, %r9
+        movq	%r9, 1472(%rbp)
+        shrdq	$38, %rcx, %rax
+        movq	%rax, %r9
+        andq	%r10, %r9
+        movq	%r9, 1504(%rbp)
+        shrdq	$25, %r8, %rcx
+        movq	%rcx, %r9
+        andq	%r10, %r9
+        movq	%r9, 1536(%rbp)
+        shrq	$12, %r8
+        movq	%r8, 1568(%rbp)
+        movq	32(%r14), %rdx
+        movq	40(%r14), %rax
+        movq	48(%r14), %rcx
+        movq	56(%r14), %r8
+        movq	%r8, %r9
+        shrq	$63, %r9
+        imulq	$19, %r9, %r9
+        shlq	$1, %r8
+        shrq	$1, %r8
+        movq	%rdx, %r13
+        andq	%r10, %r13
+        addq	%r9, %r13
+        movq	%r13, 1448(%rbp)
+        shrdq	$51, %rax, %rdx
+        movq	%rdx, %r9
+        andq	%r10, %r9
+        movq	%r9, 1480(%rbp)
+        shrdq	$38, %rcx, %rax
+        movq	%rax, %r9
+        andq	%r10, %r9
+        movq	%r9, 1512(%rbp)
+        shrdq	$25, %r8, %rcx
+        movq	%rcx, %r9
+        andq	%r10, %r9
+        movq	%r9, 1544(%rbp)
+        shrq	$12, %r8
+        movq	%r8, 1576(%rbp)
+        movq	64(%r14), %rdx
+        movq	72(%r14), %rax
+        movq	80(%r14), %rcx
+        movq	88(%r14), %r8
+        movq	%r8, %r9
+        shrq	$63, %r9
+        imulq	$19, %r9, %r9
+        shlq	$1, %r8
+        shrq	$1, %r8
+        movq	%rdx, %r13
+        andq	%r10, %r13
+        addq	%r9, %r13
+        movq	%r13, 1456(%rbp)
+        shrdq	$51, %rax, %rdx
+        movq	%rdx, %r9
+        andq	%r10, %r9
+        movq	%r9, 1488(%rbp)
+        shrdq	$38, %rcx, %rax
+        movq	%rax, %r9
+        andq	%r10, %r9
+        movq	%r9, 1520(%rbp)
+        shrdq	$25, %r8, %rcx
+        movq	%rcx, %r9
+        andq	%r10, %r9
+        movq	%r9, 1552(%rbp)
+        shrq	$12, %r8
+        movq	%r8, 1584(%rbp)
+        movq	96(%r14), %rdx
+        movq	104(%r14), %rax
+        movq	112(%r14), %rcx
+        movq	120(%r14), %r8
+        movq	%r8, %r9
+        shrq	$63, %r9
+        imulq	$19, %r9, %r9
+        shlq	$1, %r8
+        shrq	$1, %r8
+        movq	%rdx, %r13
+        andq	%r10, %r13
+        addq	%r9, %r13
+        movq	%r13, 1464(%rbp)
+        shrdq	$51, %rax, %rdx
+        movq	%rdx, %r9
+        andq	%r10, %r9
+        movq	%r9, 1496(%rbp)
+        shrdq	$38, %rcx, %rax
+        movq	%rax, %r9
+        andq	%r10, %r9
+        movq	%r9, 1528(%rbp)
+        shrdq	$25, %r8, %rcx
+        movq	%rcx, %r9
+        andq	%r10, %r9
+        movq	%r9, 1560(%rbp)
+        shrq	$12, %r8
+        movq	%r8, 1592(%rbp)
+        # Ai[0] = A
+        vmovdqu64	1440(%rbp), %ymm18
+        vmovdqu64	1472(%rbp), %ymm19
+        vmovdqu64	1504(%rbp), %ymm20
+        vmovdqu64	1536(%rbp), %ymm21
+        vmovdqu64	1568(%rbp), %ymm22
+        # To cached
+        vpermq	$0xb0, %ymm18, %ymm23
+        vpermq	$0xb0, %ymm19, %ymm24
+        vpermq	$0xb0, %ymm20, %ymm25
+        vpermq	$0xb0, %ymm21, %ymm26
+        vpermq	$0xb0, %ymm22, %ymm27
+        vpermq	$0xb5, %ymm18, %ymm18
+        vpermq	$0xb5, %ymm19, %ymm19
+        vpermq	$0xb5, %ymm20, %ymm20
+        vpermq	$0xb5, %ymm21, %ymm21
+        vpermq	$0xb5, %ymm22, %ymm22
+        vpaddq	%ymm23, %ymm18, %ymm18{%k5}
+        vpaddq	%ymm24, %ymm19, %ymm19{%k5}
+        vpaddq	%ymm25, %ymm20, %ymm20{%k5}
+        vpaddq	%ymm26, %ymm21, %ymm21{%k5}
+        vpaddq	%ymm27, %ymm22, %ymm22{%k5}
+        vpaddq	%ymm29, %ymm18, %ymm18{%k6}
+        vpaddq	%ymm30, %ymm19, %ymm19{%k6}
+        vpaddq	%ymm30, %ymm20, %ymm20{%k6}
+        vpaddq	%ymm30, %ymm21, %ymm21{%k6}
+        vpaddq	%ymm30, %ymm22, %ymm22{%k6}
+        vpsubq	%ymm23, %ymm18, %ymm18{%k6}
+        vpsubq	%ymm24, %ymm19, %ymm19{%k6}
+        vpsubq	%ymm25, %ymm20, %ymm20{%k6}
+        vpsubq	%ymm26, %ymm21, %ymm21{%k6}
+        vpsubq	%ymm27, %ymm22, %ymm22{%k6}
+        vpsrlq	$51, %ymm18, %ymm0
+        vpandq	%ymm28, %ymm18, %ymm18
+        vpsrlq	$51, %ymm19, %ymm1
+        vpandq	%ymm28, %ymm19, %ymm19
+        vpsrlq	$51, %ymm20, %ymm2
+        vpandq	%ymm28, %ymm20, %ymm20
+        vpsrlq	$51, %ymm21, %ymm3
+        vpandq	%ymm28, %ymm21, %ymm21
+        vpsrlq	$51, %ymm22, %ymm4
+        vpandq	%ymm28, %ymm22, %ymm22
+        vpmadd52luq	%ymm31, %ymm4, %ymm18
+        vpaddq	%ymm0, %ymm19, %ymm19
+        vpaddq	%ymm1, %ymm20, %ymm20
+        vpaddq	%ymm2, %ymm21, %ymm21
+        vpaddq	%ymm3, %ymm22, %ymm22
+        vmovdqu64	32(%r15), %ymm23
+        vmovdqu64	64(%r15), %ymm24
+        vmovdqu64	96(%r15), %ymm25
+        vmovdqu64	128(%r15), %ymm26
+        vmovdqu64	160(%r15), %ymm27
+        # Multiply 4 field elements
+        vpxorq	%ymm0, %ymm0, %ymm0
+        vpxorq	%ymm9, %ymm9, %ymm9
+        vpxorq	%ymm1, %ymm1, %ymm1
+        vpxorq	%ymm10, %ymm10, %ymm10
+        vpxorq	%ymm2, %ymm2, %ymm2
+        vpxorq	%ymm11, %ymm11, %ymm11
+        vpxorq	%ymm3, %ymm3, %ymm3
+        vpxorq	%ymm12, %ymm12, %ymm12
+        vpxorq	%ymm4, %ymm4, %ymm4
+        vpxorq	%ymm13, %ymm13, %ymm13
+        vpxorq	%ymm5, %ymm5, %ymm5
+        vpxorq	%ymm14, %ymm14, %ymm14
+        vpxorq	%ymm6, %ymm6, %ymm6
+        vpxorq	%ymm15, %ymm15, %ymm15
+        vpxorq	%ymm7, %ymm7, %ymm7
+        vpxorq	%ymm16, %ymm16, %ymm16
+        vpxorq	%ymm8, %ymm8, %ymm8
+        vpxorq	%ymm17, %ymm17, %ymm17
+        vpmadd52luq	%ymm23, %ymm18, %ymm0
+        vpmadd52huq	%ymm23, %ymm18, %ymm9
+        vpmadd52luq	%ymm24, %ymm18, %ymm1
+        vpmadd52huq	%ymm24, %ymm18, %ymm10
+        vpmadd52luq	%ymm25, %ymm18, %ymm2
+        vpmadd52huq	%ymm25, %ymm18, %ymm11
+        vpmadd52luq	%ymm26, %ymm18, %ymm3
+        vpmadd52huq	%ymm26, %ymm18, %ymm12
+        vpmadd52luq	%ymm27, %ymm18, %ymm4
+        vpmadd52huq	%ymm27, %ymm18, %ymm13
+        vpmadd52luq	%ymm23, %ymm19, %ymm1
+        vpmadd52huq	%ymm23, %ymm19, %ymm10
+        vpmadd52luq	%ymm24, %ymm19, %ymm2
+        vpmadd52huq	%ymm24, %ymm19, %ymm11
+        vpmadd52luq	%ymm25, %ymm19, %ymm3
+        vpmadd52huq	%ymm25, %ymm19, %ymm12
+        vpmadd52luq	%ymm26, %ymm19, %ymm4
+        vpmadd52huq	%ymm26, %ymm19, %ymm13
+        vpmadd52luq	%ymm27, %ymm19, %ymm5
+        vpmadd52huq	%ymm27, %ymm19, %ymm14
+        vpmadd52luq	%ymm23, %ymm20, %ymm2
+        vpmadd52huq	%ymm23, %ymm20, %ymm11
+        vpmadd52luq	%ymm24, %ymm20, %ymm3
+        vpmadd52huq	%ymm24, %ymm20, %ymm12
+        vpmadd52luq	%ymm25, %ymm20, %ymm4
+        vpmadd52huq	%ymm25, %ymm20, %ymm13
+        vpmadd52luq	%ymm26, %ymm20, %ymm5
+        vpmadd52huq	%ymm26, %ymm20, %ymm14
+        vpmadd52luq	%ymm27, %ymm20, %ymm6
+        vpmadd52huq	%ymm27, %ymm20, %ymm15
+        vpmadd52luq	%ymm23, %ymm21, %ymm3
+        vpmadd52huq	%ymm23, %ymm21, %ymm12
+        vpmadd52luq	%ymm24, %ymm21, %ymm4
+        vpmadd52huq	%ymm24, %ymm21, %ymm13
+        vpmadd52luq	%ymm25, %ymm21, %ymm5
+        vpmadd52huq	%ymm25, %ymm21, %ymm14
+        vpmadd52luq	%ymm26, %ymm21, %ymm6
+        vpmadd52huq	%ymm26, %ymm21, %ymm15
+        vpmadd52luq	%ymm27, %ymm21, %ymm7
+        vpmadd52huq	%ymm27, %ymm21, %ymm16
+        vpmadd52luq	%ymm23, %ymm22, %ymm4
+        vpmadd52huq	%ymm23, %ymm22, %ymm13
+        vpmadd52luq	%ymm24, %ymm22, %ymm5
+        vpmadd52huq	%ymm24, %ymm22, %ymm14
+        vpmadd52luq	%ymm25, %ymm22, %ymm6
+        vpmadd52huq	%ymm25, %ymm22, %ymm15
+        vpmadd52luq	%ymm26, %ymm22, %ymm7
+        vpmadd52huq	%ymm26, %ymm22, %ymm16
+        vpmadd52luq	%ymm27, %ymm22, %ymm8
+        vpmadd52huq	%ymm27, %ymm22, %ymm17
+        vpaddq	%ymm9, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpaddq	%ymm10, %ymm10, %ymm10
+        vpaddq	%ymm10, %ymm2, %ymm2
+        vpaddq	%ymm11, %ymm11, %ymm11
+        vpaddq	%ymm11, %ymm3, %ymm3
+        vpaddq	%ymm12, %ymm12, %ymm12
+        vpaddq	%ymm12, %ymm4, %ymm4
+        vpaddq	%ymm13, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm5, %ymm5
+        vpaddq	%ymm14, %ymm14, %ymm14
+        vpaddq	%ymm14, %ymm6, %ymm6
+        vpaddq	%ymm15, %ymm15, %ymm15
+        vpaddq	%ymm15, %ymm7, %ymm7
+        vpaddq	%ymm16, %ymm16, %ymm16
+        vpaddq	%ymm16, %ymm8, %ymm8
+        vpaddq	%ymm17, %ymm17, %ymm17
+        # Reduce
+        vpmullq	%ymm31, %ymm5, %ymm9
+        vpaddq	%ymm9, %ymm0, %ymm0
+        vpmullq	%ymm31, %ymm6, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpmullq	%ymm31, %ymm7, %ymm9
+        vpaddq	%ymm9, %ymm2, %ymm2
+        vpmullq	%ymm31, %ymm8, %ymm9
+        vpaddq	%ymm9, %ymm3, %ymm3
+        vpmullq	%ymm31, %ymm17, %ymm9
+        vpaddq	%ymm9, %ymm4, %ymm4
+        vpsrlq	$51, %ymm0, %ymm23
+        vpandq	%ymm28, %ymm0, %ymm0
+        vpsrlq	$51, %ymm1, %ymm24
+        vpandq	%ymm28, %ymm1, %ymm1
+        vpsrlq	$51, %ymm2, %ymm25
+        vpandq	%ymm28, %ymm2, %ymm2
+        vpsrlq	$51, %ymm3, %ymm26
+        vpandq	%ymm28, %ymm3, %ymm3
+        vpsrlq	$51, %ymm4, %ymm27
+        vpandq	%ymm28, %ymm4, %ymm4
+        vmovdqa64	%ymm0, %ymm18
+        vpmadd52luq	%ymm31, %ymm27, %ymm18
+        vpaddq	%ymm23, %ymm1, %ymm19
+        vpaddq	%ymm24, %ymm2, %ymm20
+        vpaddq	%ymm25, %ymm3, %ymm21
+        vpaddq	%ymm26, %ymm4, %ymm22
+        vmovdqu64	%ymm18, (%rbp)
+        vmovdqu64	%ymm19, 32(%rbp)
+        vmovdqu64	%ymm20, 64(%rbp)
+        vmovdqu64	%ymm21, 96(%rbp)
+        vmovdqu64	%ymm22, 128(%rbp)
+        # A2 = 2.A
+        vmovdqu64	1440(%rbp), %ymm18
+        vmovdqu64	1472(%rbp), %ymm19
+        vmovdqu64	1504(%rbp), %ymm20
+        vmovdqu64	1536(%rbp), %ymm21
+        vmovdqu64	1568(%rbp), %ymm22
+        # Double
+        vpermq	$0x64, %ymm18, %ymm23
+        vpermq	$0x64, %ymm19, %ymm24
+        vpermq	$0x64, %ymm20, %ymm25
+        vpermq	$0x64, %ymm21, %ymm26
+        vpermq	$0x64, %ymm22, %ymm27
+        vpermq	$36, %ymm18, %ymm18
+        vpermq	$36, %ymm19, %ymm19
+        vpermq	$36, %ymm20, %ymm20
+        vpermq	$36, %ymm21, %ymm21
+        vpermq	$36, %ymm22, %ymm22
+        vpaddq	%ymm23, %ymm18, %ymm18{%k1}
+        vpaddq	%ymm24, %ymm19, %ymm19{%k1}
+        vpaddq	%ymm25, %ymm20, %ymm20{%k1}
+        vpaddq	%ymm26, %ymm21, %ymm21{%k1}
+        vpaddq	%ymm27, %ymm22, %ymm22{%k1}
+        vpsrlq	$51, %ymm18, %ymm0
+        vpandq	%ymm28, %ymm18, %ymm18
+        vpsrlq	$51, %ymm19, %ymm1
+        vpandq	%ymm28, %ymm19, %ymm19
+        vpsrlq	$51, %ymm20, %ymm2
+        vpandq	%ymm28, %ymm20, %ymm20
+        vpsrlq	$51, %ymm21, %ymm3
+        vpandq	%ymm28, %ymm21, %ymm21
+        vpsrlq	$51, %ymm22, %ymm4
+        vpandq	%ymm28, %ymm22, %ymm22
+        vpmadd52luq	%ymm31, %ymm4, %ymm18
+        vpaddq	%ymm0, %ymm19, %ymm19
+        vpaddq	%ymm1, %ymm20, %ymm20
+        vpaddq	%ymm2, %ymm21, %ymm21
+        vpaddq	%ymm3, %ymm22, %ymm22
+        vmovdqa64	%ymm18, %ymm23
+        vmovdqa64	%ymm19, %ymm24
+        vmovdqa64	%ymm20, %ymm25
+        vmovdqa64	%ymm21, %ymm26
+        vmovdqa64	%ymm22, %ymm27
+        # Multiply 4 field elements
+        vpxorq	%ymm0, %ymm0, %ymm0
+        vpxorq	%ymm9, %ymm9, %ymm9
+        vpxorq	%ymm1, %ymm1, %ymm1
+        vpxorq	%ymm10, %ymm10, %ymm10
+        vpxorq	%ymm2, %ymm2, %ymm2
+        vpxorq	%ymm11, %ymm11, %ymm11
+        vpxorq	%ymm3, %ymm3, %ymm3
+        vpxorq	%ymm12, %ymm12, %ymm12
+        vpxorq	%ymm4, %ymm4, %ymm4
+        vpxorq	%ymm13, %ymm13, %ymm13
+        vpxorq	%ymm5, %ymm5, %ymm5
+        vpxorq	%ymm14, %ymm14, %ymm14
+        vpxorq	%ymm6, %ymm6, %ymm6
+        vpxorq	%ymm15, %ymm15, %ymm15
+        vpxorq	%ymm7, %ymm7, %ymm7
+        vpxorq	%ymm16, %ymm16, %ymm16
+        vpxorq	%ymm8, %ymm8, %ymm8
+        vpxorq	%ymm17, %ymm17, %ymm17
+        vpmadd52luq	%ymm23, %ymm18, %ymm0
+        vpmadd52huq	%ymm23, %ymm18, %ymm9
+        vpmadd52luq	%ymm24, %ymm18, %ymm1
+        vpmadd52huq	%ymm24, %ymm18, %ymm10
+        vpmadd52luq	%ymm25, %ymm18, %ymm2
+        vpmadd52huq	%ymm25, %ymm18, %ymm11
+        vpmadd52luq	%ymm26, %ymm18, %ymm3
+        vpmadd52huq	%ymm26, %ymm18, %ymm12
+        vpmadd52luq	%ymm27, %ymm18, %ymm4
+        vpmadd52huq	%ymm27, %ymm18, %ymm13
+        vpmadd52luq	%ymm23, %ymm19, %ymm1
+        vpmadd52huq	%ymm23, %ymm19, %ymm10
+        vpmadd52luq	%ymm24, %ymm19, %ymm2
+        vpmadd52huq	%ymm24, %ymm19, %ymm11
+        vpmadd52luq	%ymm25, %ymm19, %ymm3
+        vpmadd52huq	%ymm25, %ymm19, %ymm12
+        vpmadd52luq	%ymm26, %ymm19, %ymm4
+        vpmadd52huq	%ymm26, %ymm19, %ymm13
+        vpmadd52luq	%ymm27, %ymm19, %ymm5
+        vpmadd52huq	%ymm27, %ymm19, %ymm14
+        vpmadd52luq	%ymm23, %ymm20, %ymm2
+        vpmadd52huq	%ymm23, %ymm20, %ymm11
+        vpmadd52luq	%ymm24, %ymm20, %ymm3
+        vpmadd52huq	%ymm24, %ymm20, %ymm12
+        vpmadd52luq	%ymm25, %ymm20, %ymm4
+        vpmadd52huq	%ymm25, %ymm20, %ymm13
+        vpmadd52luq	%ymm26, %ymm20, %ymm5
+        vpmadd52huq	%ymm26, %ymm20, %ymm14
+        vpmadd52luq	%ymm27, %ymm20, %ymm6
+        vpmadd52huq	%ymm27, %ymm20, %ymm15
+        vpmadd52luq	%ymm23, %ymm21, %ymm3
+        vpmadd52huq	%ymm23, %ymm21, %ymm12
+        vpmadd52luq	%ymm24, %ymm21, %ymm4
+        vpmadd52huq	%ymm24, %ymm21, %ymm13
+        vpmadd52luq	%ymm25, %ymm21, %ymm5
+        vpmadd52huq	%ymm25, %ymm21, %ymm14
+        vpmadd52luq	%ymm26, %ymm21, %ymm6
+        vpmadd52huq	%ymm26, %ymm21, %ymm15
+        vpmadd52luq	%ymm27, %ymm21, %ymm7
+        vpmadd52huq	%ymm27, %ymm21, %ymm16
+        vpmadd52luq	%ymm23, %ymm22, %ymm4
+        vpmadd52huq	%ymm23, %ymm22, %ymm13
+        vpmadd52luq	%ymm24, %ymm22, %ymm5
+        vpmadd52huq	%ymm24, %ymm22, %ymm14
+        vpmadd52luq	%ymm25, %ymm22, %ymm6
+        vpmadd52huq	%ymm25, %ymm22, %ymm15
+        vpmadd52luq	%ymm26, %ymm22, %ymm7
+        vpmadd52huq	%ymm26, %ymm22, %ymm16
+        vpmadd52luq	%ymm27, %ymm22, %ymm8
+        vpmadd52huq	%ymm27, %ymm22, %ymm17
+        vpaddq	%ymm9, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpaddq	%ymm10, %ymm10, %ymm10
+        vpaddq	%ymm10, %ymm2, %ymm2
+        vpaddq	%ymm11, %ymm11, %ymm11
+        vpaddq	%ymm11, %ymm3, %ymm3
+        vpaddq	%ymm12, %ymm12, %ymm12
+        vpaddq	%ymm12, %ymm4, %ymm4
+        vpaddq	%ymm13, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm5, %ymm5
+        vpaddq	%ymm14, %ymm14, %ymm14
+        vpaddq	%ymm14, %ymm6, %ymm6
+        vpaddq	%ymm15, %ymm15, %ymm15
+        vpaddq	%ymm15, %ymm7, %ymm7
+        vpaddq	%ymm16, %ymm16, %ymm16
+        vpaddq	%ymm16, %ymm8, %ymm8
+        vpaddq	%ymm17, %ymm17, %ymm17
+        # Reduce
+        vpmullq	%ymm31, %ymm5, %ymm9
+        vpaddq	%ymm9, %ymm0, %ymm0
+        vpmullq	%ymm31, %ymm6, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpmullq	%ymm31, %ymm7, %ymm9
+        vpaddq	%ymm9, %ymm2, %ymm2
+        vpmullq	%ymm31, %ymm8, %ymm9
+        vpaddq	%ymm9, %ymm3, %ymm3
+        vpmullq	%ymm31, %ymm17, %ymm9
+        vpaddq	%ymm9, %ymm4, %ymm4
+        vpsrlq	$51, %ymm0, %ymm23
+        vpandq	%ymm28, %ymm0, %ymm0
+        vpsrlq	$51, %ymm1, %ymm24
+        vpandq	%ymm28, %ymm1, %ymm1
+        vpsrlq	$51, %ymm2, %ymm25
+        vpandq	%ymm28, %ymm2, %ymm2
+        vpsrlq	$51, %ymm3, %ymm26
+        vpandq	%ymm28, %ymm3, %ymm3
+        vpsrlq	$51, %ymm4, %ymm27
+        vpandq	%ymm28, %ymm4, %ymm4
+        vmovdqa64	%ymm0, %ymm18
+        vpmadd52luq	%ymm31, %ymm27, %ymm18
+        vpaddq	%ymm23, %ymm1, %ymm19
+        vpaddq	%ymm24, %ymm2, %ymm20
+        vpaddq	%ymm25, %ymm3, %ymm21
+        vpaddq	%ymm26, %ymm4, %ymm22
+        # Y3 = YY + XX, Z3 = YY - XX
+        vpermq	$0x55, %ymm18, %ymm23
+        vpermq	$0x55, %ymm19, %ymm24
+        vpermq	$0x55, %ymm20, %ymm25
+        vpermq	$0x55, %ymm21, %ymm26
+        vpermq	$0x55, %ymm22, %ymm27
+        vpermq	$0x00, %ymm18, %ymm0
+        vpermq	$0x00, %ymm19, %ymm1
+        vpermq	$0x00, %ymm20, %ymm2
+        vpermq	$0x00, %ymm21, %ymm3
+        vpermq	$0x00, %ymm22, %ymm4
+        vpaddq	%ymm0, %ymm23, %ymm5
+        vpaddq	%ymm1, %ymm24, %ymm6
+        vpaddq	%ymm2, %ymm25, %ymm7
+        vpaddq	%ymm3, %ymm26, %ymm8
+        vpaddq	%ymm4, %ymm27, %ymm9
+        vpaddq	%ymm29, %ymm23, %ymm23{%k2}
+        vpaddq	%ymm30, %ymm24, %ymm24{%k2}
+        vpaddq	%ymm30, %ymm25, %ymm25{%k2}
+        vpaddq	%ymm30, %ymm26, %ymm26{%k2}
+        vpaddq	%ymm30, %ymm27, %ymm27{%k2}
+        vpsubq	%ymm0, %ymm23, %ymm5{%k2}
+        vpsubq	%ymm1, %ymm24, %ymm6{%k2}
+        vpsubq	%ymm2, %ymm25, %ymm7{%k2}
+        vpsubq	%ymm3, %ymm26, %ymm8{%k2}
+        vpsubq	%ymm4, %ymm27, %ymm9{%k2}
+        vpsrlq	$51, %ymm5, %ymm23
+        vpandq	%ymm28, %ymm5, %ymm5
+        vpsrlq	$51, %ymm6, %ymm24
+        vpandq	%ymm28, %ymm6, %ymm6
+        vpsrlq	$51, %ymm7, %ymm25
+        vpandq	%ymm28, %ymm7, %ymm7
+        vpsrlq	$51, %ymm8, %ymm26
+        vpandq	%ymm28, %ymm8, %ymm8
+        vpsrlq	$51, %ymm9, %ymm27
+        vpandq	%ymm28, %ymm9, %ymm9
+        vpmadd52luq	%ymm31, %ymm27, %ymm5
+        vpaddq	%ymm23, %ymm6, %ymm6
+        vpaddq	%ymm24, %ymm7, %ymm7
+        vpaddq	%ymm25, %ymm8, %ymm8
+        vpaddq	%ymm26, %ymm9, %ymm9
+        # X3 = AA - Y3, T3 = 2.ZZ - Z3
+        vpermq	$0xaf, %ymm18, %ymm23
+        vpermq	$0xaf, %ymm19, %ymm24
+        vpermq	$0xaf, %ymm20, %ymm25
+        vpermq	$0xaf, %ymm21, %ymm26
+        vpermq	$0xaf, %ymm22, %ymm27
+        vpaddq	%ymm23, %ymm23, %ymm23{%k2}
+        vpaddq	%ymm24, %ymm24, %ymm24{%k2}
+        vpaddq	%ymm25, %ymm25, %ymm25{%k2}
+        vpaddq	%ymm26, %ymm26, %ymm26{%k2}
+        vpaddq	%ymm27, %ymm27, %ymm27{%k2}
+        vpaddq	%ymm29, %ymm23, %ymm23{%k3}
+        vpaddq	%ymm30, %ymm24, %ymm24{%k3}
+        vpaddq	%ymm30, %ymm25, %ymm25{%k3}
+        vpaddq	%ymm30, %ymm26, %ymm26{%k3}
+        vpaddq	%ymm30, %ymm27, %ymm27{%k3}
+        vpsubq	%ymm5, %ymm23, %ymm23{%k3}
+        vpsubq	%ymm6, %ymm24, %ymm24{%k3}
+        vpsubq	%ymm7, %ymm25, %ymm25{%k3}
+        vpsubq	%ymm8, %ymm26, %ymm26{%k3}
+        vpsubq	%ymm9, %ymm27, %ymm27{%k3}
+        vpsrlq	$51, %ymm23, %ymm0
+        vpandq	%ymm28, %ymm23, %ymm23
+        vpsrlq	$51, %ymm24, %ymm1
+        vpandq	%ymm28, %ymm24, %ymm24
+        vpsrlq	$51, %ymm25, %ymm2
+        vpandq	%ymm28, %ymm25, %ymm25
+        vpsrlq	$51, %ymm26, %ymm3
+        vpandq	%ymm28, %ymm26, %ymm26
+        vpsrlq	$51, %ymm27, %ymm4
+        vpandq	%ymm28, %ymm27, %ymm27
+        vpmadd52luq	%ymm31, %ymm4, %ymm23
+        vpaddq	%ymm0, %ymm24, %ymm24
+        vpaddq	%ymm1, %ymm25, %ymm25
+        vpaddq	%ymm2, %ymm26, %ymm26
+        vpaddq	%ymm3, %ymm27, %ymm27
+        vmovdqa64	%ymm5, %ymm23{%k4}
+        vmovdqa64	%ymm6, %ymm24{%k4}
+        vmovdqa64	%ymm7, %ymm25{%k4}
+        vmovdqa64	%ymm8, %ymm26{%k4}
+        vmovdqa64	%ymm9, %ymm27{%k4}
+        # To p3
+        vpermq	$36, %ymm23, %ymm18
+        vpermq	$36, %ymm24, %ymm19
+        vpermq	$36, %ymm25, %ymm20
+        vpermq	$36, %ymm26, %ymm21
+        vpermq	$36, %ymm27, %ymm22
+        vpermq	$0x7b, %ymm23, %ymm23
+        vpermq	$0x7b, %ymm24, %ymm24
+        vpermq	$0x7b, %ymm25, %ymm25
+        vpermq	$0x7b, %ymm26, %ymm26
+        vpermq	$0x7b, %ymm27, %ymm27
+        # Multiply 4 field elements
+        vpxorq	%ymm0, %ymm0, %ymm0
+        vpxorq	%ymm9, %ymm9, %ymm9
+        vpxorq	%ymm1, %ymm1, %ymm1
+        vpxorq	%ymm10, %ymm10, %ymm10
+        vpxorq	%ymm2, %ymm2, %ymm2
+        vpxorq	%ymm11, %ymm11, %ymm11
+        vpxorq	%ymm3, %ymm3, %ymm3
+        vpxorq	%ymm12, %ymm12, %ymm12
+        vpxorq	%ymm4, %ymm4, %ymm4
+        vpxorq	%ymm13, %ymm13, %ymm13
+        vpxorq	%ymm5, %ymm5, %ymm5
+        vpxorq	%ymm14, %ymm14, %ymm14
+        vpxorq	%ymm6, %ymm6, %ymm6
+        vpxorq	%ymm15, %ymm15, %ymm15
+        vpxorq	%ymm7, %ymm7, %ymm7
+        vpxorq	%ymm16, %ymm16, %ymm16
+        vpxorq	%ymm8, %ymm8, %ymm8
+        vpxorq	%ymm17, %ymm17, %ymm17
+        vpmadd52luq	%ymm23, %ymm18, %ymm0
+        vpmadd52huq	%ymm23, %ymm18, %ymm9
+        vpmadd52luq	%ymm24, %ymm18, %ymm1
+        vpmadd52huq	%ymm24, %ymm18, %ymm10
+        vpmadd52luq	%ymm25, %ymm18, %ymm2
+        vpmadd52huq	%ymm25, %ymm18, %ymm11
+        vpmadd52luq	%ymm26, %ymm18, %ymm3
+        vpmadd52huq	%ymm26, %ymm18, %ymm12
+        vpmadd52luq	%ymm27, %ymm18, %ymm4
+        vpmadd52huq	%ymm27, %ymm18, %ymm13
+        vpmadd52luq	%ymm23, %ymm19, %ymm1
+        vpmadd52huq	%ymm23, %ymm19, %ymm10
+        vpmadd52luq	%ymm24, %ymm19, %ymm2
+        vpmadd52huq	%ymm24, %ymm19, %ymm11
+        vpmadd52luq	%ymm25, %ymm19, %ymm3
+        vpmadd52huq	%ymm25, %ymm19, %ymm12
+        vpmadd52luq	%ymm26, %ymm19, %ymm4
+        vpmadd52huq	%ymm26, %ymm19, %ymm13
+        vpmadd52luq	%ymm27, %ymm19, %ymm5
+        vpmadd52huq	%ymm27, %ymm19, %ymm14
+        vpmadd52luq	%ymm23, %ymm20, %ymm2
+        vpmadd52huq	%ymm23, %ymm20, %ymm11
+        vpmadd52luq	%ymm24, %ymm20, %ymm3
+        vpmadd52huq	%ymm24, %ymm20, %ymm12
+        vpmadd52luq	%ymm25, %ymm20, %ymm4
+        vpmadd52huq	%ymm25, %ymm20, %ymm13
+        vpmadd52luq	%ymm26, %ymm20, %ymm5
+        vpmadd52huq	%ymm26, %ymm20, %ymm14
+        vpmadd52luq	%ymm27, %ymm20, %ymm6
+        vpmadd52huq	%ymm27, %ymm20, %ymm15
+        vpmadd52luq	%ymm23, %ymm21, %ymm3
+        vpmadd52huq	%ymm23, %ymm21, %ymm12
+        vpmadd52luq	%ymm24, %ymm21, %ymm4
+        vpmadd52huq	%ymm24, %ymm21, %ymm13
+        vpmadd52luq	%ymm25, %ymm21, %ymm5
+        vpmadd52huq	%ymm25, %ymm21, %ymm14
+        vpmadd52luq	%ymm26, %ymm21, %ymm6
+        vpmadd52huq	%ymm26, %ymm21, %ymm15
+        vpmadd52luq	%ymm27, %ymm21, %ymm7
+        vpmadd52huq	%ymm27, %ymm21, %ymm16
+        vpmadd52luq	%ymm23, %ymm22, %ymm4
+        vpmadd52huq	%ymm23, %ymm22, %ymm13
+        vpmadd52luq	%ymm24, %ymm22, %ymm5
+        vpmadd52huq	%ymm24, %ymm22, %ymm14
+        vpmadd52luq	%ymm25, %ymm22, %ymm6
+        vpmadd52huq	%ymm25, %ymm22, %ymm15
+        vpmadd52luq	%ymm26, %ymm22, %ymm7
+        vpmadd52huq	%ymm26, %ymm22, %ymm16
+        vpmadd52luq	%ymm27, %ymm22, %ymm8
+        vpmadd52huq	%ymm27, %ymm22, %ymm17
+        vpaddq	%ymm9, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpaddq	%ymm10, %ymm10, %ymm10
+        vpaddq	%ymm10, %ymm2, %ymm2
+        vpaddq	%ymm11, %ymm11, %ymm11
+        vpaddq	%ymm11, %ymm3, %ymm3
+        vpaddq	%ymm12, %ymm12, %ymm12
+        vpaddq	%ymm12, %ymm4, %ymm4
+        vpaddq	%ymm13, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm5, %ymm5
+        vpaddq	%ymm14, %ymm14, %ymm14
+        vpaddq	%ymm14, %ymm6, %ymm6
+        vpaddq	%ymm15, %ymm15, %ymm15
+        vpaddq	%ymm15, %ymm7, %ymm7
+        vpaddq	%ymm16, %ymm16, %ymm16
+        vpaddq	%ymm16, %ymm8, %ymm8
+        vpaddq	%ymm17, %ymm17, %ymm17
+        # Reduce
+        vpmullq	%ymm31, %ymm5, %ymm9
+        vpaddq	%ymm9, %ymm0, %ymm0
+        vpmullq	%ymm31, %ymm6, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpmullq	%ymm31, %ymm7, %ymm9
+        vpaddq	%ymm9, %ymm2, %ymm2
+        vpmullq	%ymm31, %ymm8, %ymm9
+        vpaddq	%ymm9, %ymm3, %ymm3
+        vpmullq	%ymm31, %ymm17, %ymm9
+        vpaddq	%ymm9, %ymm4, %ymm4
+        vpsrlq	$51, %ymm0, %ymm23
+        vpandq	%ymm28, %ymm0, %ymm0
+        vpsrlq	$51, %ymm1, %ymm24
+        vpandq	%ymm28, %ymm1, %ymm1
+        vpsrlq	$51, %ymm2, %ymm25
+        vpandq	%ymm28, %ymm2, %ymm2
+        vpsrlq	$51, %ymm3, %ymm26
+        vpandq	%ymm28, %ymm3, %ymm3
+        vpsrlq	$51, %ymm4, %ymm27
+        vpandq	%ymm28, %ymm4, %ymm4
+        vmovdqa64	%ymm0, %ymm18
+        vpmadd52luq	%ymm31, %ymm27, %ymm18
+        vpaddq	%ymm23, %ymm1, %ymm19
+        vpaddq	%ymm24, %ymm2, %ymm20
+        vpaddq	%ymm25, %ymm3, %ymm21
+        vpaddq	%ymm26, %ymm4, %ymm22
+        vmovdqu64	%ymm18, 1280(%rbp)
+        vmovdqu64	%ymm19, 1312(%rbp)
+        vmovdqu64	%ymm20, 1344(%rbp)
+        vmovdqu64	%ymm21, 1376(%rbp)
+        vmovdqu64	%ymm22, 1408(%rbp)
+        # Ai[j] = A2 + Ai[j-1]
+        leaq	(%rbp), %r12
+        movq	$7, %r11
+L_ge_dsm_dq_avx512_ifma_table:
+        vmovdqu64	1280(%rbp), %ymm18
+        vmovdqu64	1312(%rbp), %ymm19
+        vmovdqu64	1344(%rbp), %ymm20
+        vmovdqu64	1376(%rbp), %ymm21
+        vmovdqu64	1408(%rbp), %ymm22
+        # Add
+        vpermq	$0xb0, %ymm18, %ymm23
+        vpermq	$0xb0, %ymm19, %ymm24
+        vpermq	$0xb0, %ymm20, %ymm25
+        vpermq	$0xb0, %ymm21, %ymm26
+        vpermq	$0xb0, %ymm22, %ymm27
+        vpermq	$0xb5, %ymm18, %ymm18
+        vpermq	$0xb5, %ymm19, %ymm19
+        vpermq	$0xb5, %ymm20, %ymm20
+        vpermq	$0xb5, %ymm21, %ymm21
+        vpermq	$0xb5, %ymm22, %ymm22
+        vpaddq	%ymm23, %ymm18, %ymm18{%k5}
+        vpaddq	%ymm24, %ymm19, %ymm19{%k5}
+        vpaddq	%ymm25, %ymm20, %ymm20{%k5}
+        vpaddq	%ymm26, %ymm21, %ymm21{%k5}
+        vpaddq	%ymm27, %ymm22, %ymm22{%k5}
+        vpaddq	%ymm29, %ymm18, %ymm18{%k6}
+        vpaddq	%ymm30, %ymm19, %ymm19{%k6}
+        vpaddq	%ymm30, %ymm20, %ymm20{%k6}
+        vpaddq	%ymm30, %ymm21, %ymm21{%k6}
+        vpaddq	%ymm30, %ymm22, %ymm22{%k6}
+        vpsubq	%ymm23, %ymm18, %ymm18{%k6}
+        vpsubq	%ymm24, %ymm19, %ymm19{%k6}
+        vpsubq	%ymm25, %ymm20, %ymm20{%k6}
+        vpsubq	%ymm26, %ymm21, %ymm21{%k6}
+        vpsubq	%ymm27, %ymm22, %ymm22{%k6}
+        vpsrlq	$51, %ymm18, %ymm0
+        vpandq	%ymm28, %ymm18, %ymm18
+        vpsrlq	$51, %ymm19, %ymm1
+        vpandq	%ymm28, %ymm19, %ymm19
+        vpsrlq	$51, %ymm20, %ymm2
+        vpandq	%ymm28, %ymm20, %ymm20
+        vpsrlq	$51, %ymm21, %ymm3
+        vpandq	%ymm28, %ymm21, %ymm21
+        vpsrlq	$51, %ymm22, %ymm4
+        vpandq	%ymm28, %ymm22, %ymm22
+        vpmadd52luq	%ymm31, %ymm4, %ymm18
+        vpaddq	%ymm0, %ymm19, %ymm19
+        vpaddq	%ymm1, %ymm20, %ymm20
+        vpaddq	%ymm2, %ymm21, %ymm21
+        vpaddq	%ymm3, %ymm22, %ymm22
+        vmovdqu64	(%r12), %ymm23
+        vmovdqu64	32(%r12), %ymm24
+        vmovdqu64	64(%r12), %ymm25
+        vmovdqu64	96(%r12), %ymm26
+        vmovdqu64	128(%r12), %ymm27
+        # Multiply 4 field elements
+        vpxorq	%ymm0, %ymm0, %ymm0
+        vpxorq	%ymm9, %ymm9, %ymm9
+        vpxorq	%ymm1, %ymm1, %ymm1
+        vpxorq	%ymm10, %ymm10, %ymm10
+        vpxorq	%ymm2, %ymm2, %ymm2
+        vpxorq	%ymm11, %ymm11, %ymm11
+        vpxorq	%ymm3, %ymm3, %ymm3
+        vpxorq	%ymm12, %ymm12, %ymm12
+        vpxorq	%ymm4, %ymm4, %ymm4
+        vpxorq	%ymm13, %ymm13, %ymm13
+        vpxorq	%ymm5, %ymm5, %ymm5
+        vpxorq	%ymm14, %ymm14, %ymm14
+        vpxorq	%ymm6, %ymm6, %ymm6
+        vpxorq	%ymm15, %ymm15, %ymm15
+        vpxorq	%ymm7, %ymm7, %ymm7
+        vpxorq	%ymm16, %ymm16, %ymm16
+        vpxorq	%ymm8, %ymm8, %ymm8
+        vpxorq	%ymm17, %ymm17, %ymm17
+        vpmadd52luq	%ymm23, %ymm18, %ymm0
+        vpmadd52huq	%ymm23, %ymm18, %ymm9
+        vpmadd52luq	%ymm24, %ymm18, %ymm1
+        vpmadd52huq	%ymm24, %ymm18, %ymm10
+        vpmadd52luq	%ymm25, %ymm18, %ymm2
+        vpmadd52huq	%ymm25, %ymm18, %ymm11
+        vpmadd52luq	%ymm26, %ymm18, %ymm3
+        vpmadd52huq	%ymm26, %ymm18, %ymm12
+        vpmadd52luq	%ymm27, %ymm18, %ymm4
+        vpmadd52huq	%ymm27, %ymm18, %ymm13
+        vpmadd52luq	%ymm23, %ymm19, %ymm1
+        vpmadd52huq	%ymm23, %ymm19, %ymm10
+        vpmadd52luq	%ymm24, %ymm19, %ymm2
+        vpmadd52huq	%ymm24, %ymm19, %ymm11
+        vpmadd52luq	%ymm25, %ymm19, %ymm3
+        vpmadd52huq	%ymm25, %ymm19, %ymm12
+        vpmadd52luq	%ymm26, %ymm19, %ymm4
+        vpmadd52huq	%ymm26, %ymm19, %ymm13
+        vpmadd52luq	%ymm27, %ymm19, %ymm5
+        vpmadd52huq	%ymm27, %ymm19, %ymm14
+        vpmadd52luq	%ymm23, %ymm20, %ymm2
+        vpmadd52huq	%ymm23, %ymm20, %ymm11
+        vpmadd52luq	%ymm24, %ymm20, %ymm3
+        vpmadd52huq	%ymm24, %ymm20, %ymm12
+        vpmadd52luq	%ymm25, %ymm20, %ymm4
+        vpmadd52huq	%ymm25, %ymm20, %ymm13
+        vpmadd52luq	%ymm26, %ymm20, %ymm5
+        vpmadd52huq	%ymm26, %ymm20, %ymm14
+        vpmadd52luq	%ymm27, %ymm20, %ymm6
+        vpmadd52huq	%ymm27, %ymm20, %ymm15
+        vpmadd52luq	%ymm23, %ymm21, %ymm3
+        vpmadd52huq	%ymm23, %ymm21, %ymm12
+        vpmadd52luq	%ymm24, %ymm21, %ymm4
+        vpmadd52huq	%ymm24, %ymm21, %ymm13
+        vpmadd52luq	%ymm25, %ymm21, %ymm5
+        vpmadd52huq	%ymm25, %ymm21, %ymm14
+        vpmadd52luq	%ymm26, %ymm21, %ymm6
+        vpmadd52huq	%ymm26, %ymm21, %ymm15
+        vpmadd52luq	%ymm27, %ymm21, %ymm7
+        vpmadd52huq	%ymm27, %ymm21, %ymm16
+        vpmadd52luq	%ymm23, %ymm22, %ymm4
+        vpmadd52huq	%ymm23, %ymm22, %ymm13
+        vpmadd52luq	%ymm24, %ymm22, %ymm5
+        vpmadd52huq	%ymm24, %ymm22, %ymm14
+        vpmadd52luq	%ymm25, %ymm22, %ymm6
+        vpmadd52huq	%ymm25, %ymm22, %ymm15
+        vpmadd52luq	%ymm26, %ymm22, %ymm7
+        vpmadd52huq	%ymm26, %ymm22, %ymm16
+        vpmadd52luq	%ymm27, %ymm22, %ymm8
+        vpmadd52huq	%ymm27, %ymm22, %ymm17
+        vpaddq	%ymm9, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpaddq	%ymm10, %ymm10, %ymm10
+        vpaddq	%ymm10, %ymm2, %ymm2
+        vpaddq	%ymm11, %ymm11, %ymm11
+        vpaddq	%ymm11, %ymm3, %ymm3
+        vpaddq	%ymm12, %ymm12, %ymm12
+        vpaddq	%ymm12, %ymm4, %ymm4
+        vpaddq	%ymm13, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm5, %ymm5
+        vpaddq	%ymm14, %ymm14, %ymm14
+        vpaddq	%ymm14, %ymm6, %ymm6
+        vpaddq	%ymm15, %ymm15, %ymm15
+        vpaddq	%ymm15, %ymm7, %ymm7
+        vpaddq	%ymm16, %ymm16, %ymm16
+        vpaddq	%ymm16, %ymm8, %ymm8
+        vpaddq	%ymm17, %ymm17, %ymm17
+        # Reduce
+        vpmullq	%ymm31, %ymm5, %ymm9
+        vpaddq	%ymm9, %ymm0, %ymm0
+        vpmullq	%ymm31, %ymm6, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpmullq	%ymm31, %ymm7, %ymm9
+        vpaddq	%ymm9, %ymm2, %ymm2
+        vpmullq	%ymm31, %ymm8, %ymm9
+        vpaddq	%ymm9, %ymm3, %ymm3
+        vpmullq	%ymm31, %ymm17, %ymm9
+        vpaddq	%ymm9, %ymm4, %ymm4
+        vpsrlq	$51, %ymm0, %ymm23
+        vpandq	%ymm28, %ymm0, %ymm0
+        vpsrlq	$51, %ymm1, %ymm24
+        vpandq	%ymm28, %ymm1, %ymm1
+        vpsrlq	$51, %ymm2, %ymm25
+        vpandq	%ymm28, %ymm2, %ymm2
+        vpsrlq	$51, %ymm3, %ymm26
+        vpandq	%ymm28, %ymm3, %ymm3
+        vpsrlq	$51, %ymm4, %ymm27
+        vpandq	%ymm28, %ymm4, %ymm4
+        vmovdqa64	%ymm0, %ymm18
+        vpmadd52luq	%ymm31, %ymm27, %ymm18
+        vpaddq	%ymm23, %ymm1, %ymm19
+        vpaddq	%ymm24, %ymm2, %ymm20
+        vpaddq	%ymm25, %ymm3, %ymm21
+        vpaddq	%ymm26, %ymm4, %ymm22
+        # X3 = B - A, Y3 = B + A, Z3 = D + C, T3 = D - C
+        vpermq	$0xf0, %ymm18, %ymm23
+        vpermq	$0xf0, %ymm19, %ymm24
+        vpermq	$0xf0, %ymm20, %ymm25
+        vpermq	$0xf0, %ymm21, %ymm26
+        vpermq	$0xf0, %ymm22, %ymm27
+        vpaddq	%ymm23, %ymm23, %ymm23{%k2}
+        vpaddq	%ymm24, %ymm24, %ymm24{%k2}
+        vpaddq	%ymm25, %ymm25, %ymm25{%k2}
+        vpaddq	%ymm26, %ymm26, %ymm26{%k2}
+        vpaddq	%ymm27, %ymm27, %ymm27{%k2}
+        vpermq	$0xa5, %ymm18, %ymm0
+        vpermq	$0xa5, %ymm19, %ymm1
+        vpermq	$0xa5, %ymm20, %ymm2
+        vpermq	$0xa5, %ymm21, %ymm3
+        vpermq	$0xa5, %ymm22, %ymm4
+        vpaddq	%ymm0, %ymm23, %ymm18
+        vpaddq	%ymm1, %ymm24, %ymm19
+        vpaddq	%ymm2, %ymm25, %ymm20
+        vpaddq	%ymm3, %ymm26, %ymm21
+        vpaddq	%ymm4, %ymm27, %ymm22
+        vpaddq	%ymm29, %ymm23, %ymm23{%k3}
+        vpaddq	%ymm30, %ymm24, %ymm24{%k3}
+        vpaddq	%ymm30, %ymm25, %ymm25{%k3}
+        vpaddq	%ymm30, %ymm26, %ymm26{%k3}
+        vpaddq	%ymm30, %ymm27, %ymm27{%k3}
+        vpsubq	%ymm0, %ymm23, %ymm18{%k3}
+        vpsubq	%ymm1, %ymm24, %ymm19{%k3}
+        vpsubq	%ymm2, %ymm25, %ymm20{%k3}
+        vpsubq	%ymm3, %ymm26, %ymm21{%k3}
+        vpsubq	%ymm4, %ymm27, %ymm22{%k3}
+        vpsrlq	$51, %ymm18, %ymm5
+        vpandq	%ymm28, %ymm18, %ymm18
+        vpsrlq	$51, %ymm19, %ymm6
+        vpandq	%ymm28, %ymm19, %ymm19
+        vpsrlq	$51, %ymm20, %ymm7
+        vpandq	%ymm28, %ymm20, %ymm20
+        vpsrlq	$51, %ymm21, %ymm8
+        vpandq	%ymm28, %ymm21, %ymm21
+        vpsrlq	$51, %ymm22, %ymm9
+        vpandq	%ymm28, %ymm22, %ymm22
+        vpmadd52luq	%ymm31, %ymm9, %ymm18
+        vpaddq	%ymm5, %ymm19, %ymm19
+        vpaddq	%ymm6, %ymm20, %ymm20
+        vpaddq	%ymm7, %ymm21, %ymm21
+        vpaddq	%ymm8, %ymm22, %ymm22
+        vmovdqa64	%ymm18, %ymm23
+        vmovdqa64	%ymm19, %ymm24
+        vmovdqa64	%ymm20, %ymm25
+        vmovdqa64	%ymm21, %ymm26
+        vmovdqa64	%ymm22, %ymm27
+        # To p3
+        vpermq	$36, %ymm23, %ymm18
+        vpermq	$36, %ymm24, %ymm19
+        vpermq	$36, %ymm25, %ymm20
+        vpermq	$36, %ymm26, %ymm21
+        vpermq	$36, %ymm27, %ymm22
+        vpermq	$0x7b, %ymm23, %ymm23
+        vpermq	$0x7b, %ymm24, %ymm24
+        vpermq	$0x7b, %ymm25, %ymm25
+        vpermq	$0x7b, %ymm26, %ymm26
+        vpermq	$0x7b, %ymm27, %ymm27
+        # Multiply 4 field elements
+        vpxorq	%ymm0, %ymm0, %ymm0
+        vpxorq	%ymm9, %ymm9, %ymm9
+        vpxorq	%ymm1, %ymm1, %ymm1
+        vpxorq	%ymm10, %ymm10, %ymm10
+        vpxorq	%ymm2, %ymm2, %ymm2
+        vpxorq	%ymm11, %ymm11, %ymm11
+        vpxorq	%ymm3, %ymm3, %ymm3
+        vpxorq	%ymm12, %ymm12, %ymm12
+        vpxorq	%ymm4, %ymm4, %ymm4
+        vpxorq	%ymm13, %ymm13, %ymm13
+        vpxorq	%ymm5, %ymm5, %ymm5
+        vpxorq	%ymm14, %ymm14, %ymm14
+        vpxorq	%ymm6, %ymm6, %ymm6
+        vpxorq	%ymm15, %ymm15, %ymm15
+        vpxorq	%ymm7, %ymm7, %ymm7
+        vpxorq	%ymm16, %ymm16, %ymm16
+        vpxorq	%ymm8, %ymm8, %ymm8
+        vpxorq	%ymm17, %ymm17, %ymm17
+        vpmadd52luq	%ymm23, %ymm18, %ymm0
+        vpmadd52huq	%ymm23, %ymm18, %ymm9
+        vpmadd52luq	%ymm24, %ymm18, %ymm1
+        vpmadd52huq	%ymm24, %ymm18, %ymm10
+        vpmadd52luq	%ymm25, %ymm18, %ymm2
+        vpmadd52huq	%ymm25, %ymm18, %ymm11
+        vpmadd52luq	%ymm26, %ymm18, %ymm3
+        vpmadd52huq	%ymm26, %ymm18, %ymm12
+        vpmadd52luq	%ymm27, %ymm18, %ymm4
+        vpmadd52huq	%ymm27, %ymm18, %ymm13
+        vpmadd52luq	%ymm23, %ymm19, %ymm1
+        vpmadd52huq	%ymm23, %ymm19, %ymm10
+        vpmadd52luq	%ymm24, %ymm19, %ymm2
+        vpmadd52huq	%ymm24, %ymm19, %ymm11
+        vpmadd52luq	%ymm25, %ymm19, %ymm3
+        vpmadd52huq	%ymm25, %ymm19, %ymm12
+        vpmadd52luq	%ymm26, %ymm19, %ymm4
+        vpmadd52huq	%ymm26, %ymm19, %ymm13
+        vpmadd52luq	%ymm27, %ymm19, %ymm5
+        vpmadd52huq	%ymm27, %ymm19, %ymm14
+        vpmadd52luq	%ymm23, %ymm20, %ymm2
+        vpmadd52huq	%ymm23, %ymm20, %ymm11
+        vpmadd52luq	%ymm24, %ymm20, %ymm3
+        vpmadd52huq	%ymm24, %ymm20, %ymm12
+        vpmadd52luq	%ymm25, %ymm20, %ymm4
+        vpmadd52huq	%ymm25, %ymm20, %ymm13
+        vpmadd52luq	%ymm26, %ymm20, %ymm5
+        vpmadd52huq	%ymm26, %ymm20, %ymm14
+        vpmadd52luq	%ymm27, %ymm20, %ymm6
+        vpmadd52huq	%ymm27, %ymm20, %ymm15
+        vpmadd52luq	%ymm23, %ymm21, %ymm3
+        vpmadd52huq	%ymm23, %ymm21, %ymm12
+        vpmadd52luq	%ymm24, %ymm21, %ymm4
+        vpmadd52huq	%ymm24, %ymm21, %ymm13
+        vpmadd52luq	%ymm25, %ymm21, %ymm5
+        vpmadd52huq	%ymm25, %ymm21, %ymm14
+        vpmadd52luq	%ymm26, %ymm21, %ymm6
+        vpmadd52huq	%ymm26, %ymm21, %ymm15
+        vpmadd52luq	%ymm27, %ymm21, %ymm7
+        vpmadd52huq	%ymm27, %ymm21, %ymm16
+        vpmadd52luq	%ymm23, %ymm22, %ymm4
+        vpmadd52huq	%ymm23, %ymm22, %ymm13
+        vpmadd52luq	%ymm24, %ymm22, %ymm5
+        vpmadd52huq	%ymm24, %ymm22, %ymm14
+        vpmadd52luq	%ymm25, %ymm22, %ymm6
+        vpmadd52huq	%ymm25, %ymm22, %ymm15
+        vpmadd52luq	%ymm26, %ymm22, %ymm7
+        vpmadd52huq	%ymm26, %ymm22, %ymm16
+        vpmadd52luq	%ymm27, %ymm22, %ymm8
+        vpmadd52huq	%ymm27, %ymm22, %ymm17
+        vpaddq	%ymm9, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpaddq	%ymm10, %ymm10, %ymm10
+        vpaddq	%ymm10, %ymm2, %ymm2
+        vpaddq	%ymm11, %ymm11, %ymm11
+        vpaddq	%ymm11, %ymm3, %ymm3
+        vpaddq	%ymm12, %ymm12, %ymm12
+        vpaddq	%ymm12, %ymm4, %ymm4
+        vpaddq	%ymm13, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm5, %ymm5
+        vpaddq	%ymm14, %ymm14, %ymm14
+        vpaddq	%ymm14, %ymm6, %ymm6
+        vpaddq	%ymm15, %ymm15, %ymm15
+        vpaddq	%ymm15, %ymm7, %ymm7
+        vpaddq	%ymm16, %ymm16, %ymm16
+        vpaddq	%ymm16, %ymm8, %ymm8
+        vpaddq	%ymm17, %ymm17, %ymm17
+        # Reduce
+        vpmullq	%ymm31, %ymm5, %ymm9
+        vpaddq	%ymm9, %ymm0, %ymm0
+        vpmullq	%ymm31, %ymm6, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpmullq	%ymm31, %ymm7, %ymm9
+        vpaddq	%ymm9, %ymm2, %ymm2
+        vpmullq	%ymm31, %ymm8, %ymm9
+        vpaddq	%ymm9, %ymm3, %ymm3
+        vpmullq	%ymm31, %ymm17, %ymm9
+        vpaddq	%ymm9, %ymm4, %ymm4
+        vpsrlq	$51, %ymm0, %ymm23
+        vpandq	%ymm28, %ymm0, %ymm0
+        vpsrlq	$51, %ymm1, %ymm24
+        vpandq	%ymm28, %ymm1, %ymm1
+        vpsrlq	$51, %ymm2, %ymm25
+        vpandq	%ymm28, %ymm2, %ymm2
+        vpsrlq	$51, %ymm3, %ymm26
+        vpandq	%ymm28, %ymm3, %ymm3
+        vpsrlq	$51, %ymm4, %ymm27
+        vpandq	%ymm28, %ymm4, %ymm4
+        vmovdqa64	%ymm0, %ymm18
+        vpmadd52luq	%ymm31, %ymm27, %ymm18
+        vpaddq	%ymm23, %ymm1, %ymm19
+        vpaddq	%ymm24, %ymm2, %ymm20
+        vpaddq	%ymm25, %ymm3, %ymm21
+        vpaddq	%ymm26, %ymm4, %ymm22
+        addq	$0xa0, %r12
+        # To cached
+        vpermq	$0xb0, %ymm18, %ymm23
+        vpermq	$0xb0, %ymm19, %ymm24
+        vpermq	$0xb0, %ymm20, %ymm25
+        vpermq	$0xb0, %ymm21, %ymm26
+        vpermq	$0xb0, %ymm22, %ymm27
+        vpermq	$0xb5, %ymm18, %ymm18
+        vpermq	$0xb5, %ymm19, %ymm19
+        vpermq	$0xb5, %ymm20, %ymm20
+        vpermq	$0xb5, %ymm21, %ymm21
+        vpermq	$0xb5, %ymm22, %ymm22
+        vpaddq	%ymm23, %ymm18, %ymm18{%k5}
+        vpaddq	%ymm24, %ymm19, %ymm19{%k5}
+        vpaddq	%ymm25, %ymm20, %ymm20{%k5}
+        vpaddq	%ymm26, %ymm21, %ymm21{%k5}
+        vpaddq	%ymm27, %ymm22, %ymm22{%k5}
+        vpaddq	%ymm29, %ymm18, %ymm18{%k6}
+        vpaddq	%ymm30, %ymm19, %ymm19{%k6}
+        vpaddq	%ymm30, %ymm20, %ymm20{%k6}
+        vpaddq	%ymm30, %ymm21, %ymm21{%k6}
+        vpaddq	%ymm30, %ymm22, %ymm22{%k6}
+        vpsubq	%ymm23, %ymm18, %ymm18{%k6}
+        vpsubq	%ymm24, %ymm19, %ymm19{%k6}
+        vpsubq	%ymm25, %ymm20, %ymm20{%k6}
+        vpsubq	%ymm26, %ymm21, %ymm21{%k6}
+        vpsubq	%ymm27, %ymm22, %ymm22{%k6}
+        vpsrlq	$51, %ymm18, %ymm0
+        vpandq	%ymm28, %ymm18, %ymm18
+        vpsrlq	$51, %ymm19, %ymm1
+        vpandq	%ymm28, %ymm19, %ymm19
+        vpsrlq	$51, %ymm20, %ymm2
+        vpandq	%ymm28, %ymm20, %ymm20
+        vpsrlq	$51, %ymm21, %ymm3
+        vpandq	%ymm28, %ymm21, %ymm21
+        vpsrlq	$51, %ymm22, %ymm4
+        vpandq	%ymm28, %ymm22, %ymm22
+        vpmadd52luq	%ymm31, %ymm4, %ymm18
+        vpaddq	%ymm0, %ymm19, %ymm19
+        vpaddq	%ymm1, %ymm20, %ymm20
+        vpaddq	%ymm2, %ymm21, %ymm21
+        vpaddq	%ymm3, %ymm22, %ymm22
+        vmovdqu64	32(%r15), %ymm23
+        vmovdqu64	64(%r15), %ymm24
+        vmovdqu64	96(%r15), %ymm25
+        vmovdqu64	128(%r15), %ymm26
+        vmovdqu64	160(%r15), %ymm27
+        # Multiply 4 field elements
+        vpxorq	%ymm0, %ymm0, %ymm0
+        vpxorq	%ymm9, %ymm9, %ymm9
+        vpxorq	%ymm1, %ymm1, %ymm1
+        vpxorq	%ymm10, %ymm10, %ymm10
+        vpxorq	%ymm2, %ymm2, %ymm2
+        vpxorq	%ymm11, %ymm11, %ymm11
+        vpxorq	%ymm3, %ymm3, %ymm3
+        vpxorq	%ymm12, %ymm12, %ymm12
+        vpxorq	%ymm4, %ymm4, %ymm4
+        vpxorq	%ymm13, %ymm13, %ymm13
+        vpxorq	%ymm5, %ymm5, %ymm5
+        vpxorq	%ymm14, %ymm14, %ymm14
+        vpxorq	%ymm6, %ymm6, %ymm6
+        vpxorq	%ymm15, %ymm15, %ymm15
+        vpxorq	%ymm7, %ymm7, %ymm7
+        vpxorq	%ymm16, %ymm16, %ymm16
+        vpxorq	%ymm8, %ymm8, %ymm8
+        vpxorq	%ymm17, %ymm17, %ymm17
+        vpmadd52luq	%ymm23, %ymm18, %ymm0
+        vpmadd52huq	%ymm23, %ymm18, %ymm9
+        vpmadd52luq	%ymm24, %ymm18, %ymm1
+        vpmadd52huq	%ymm24, %ymm18, %ymm10
+        vpmadd52luq	%ymm25, %ymm18, %ymm2
+        vpmadd52huq	%ymm25, %ymm18, %ymm11
+        vpmadd52luq	%ymm26, %ymm18, %ymm3
+        vpmadd52huq	%ymm26, %ymm18, %ymm12
+        vpmadd52luq	%ymm27, %ymm18, %ymm4
+        vpmadd52huq	%ymm27, %ymm18, %ymm13
+        vpmadd52luq	%ymm23, %ymm19, %ymm1
+        vpmadd52huq	%ymm23, %ymm19, %ymm10
+        vpmadd52luq	%ymm24, %ymm19, %ymm2
+        vpmadd52huq	%ymm24, %ymm19, %ymm11
+        vpmadd52luq	%ymm25, %ymm19, %ymm3
+        vpmadd52huq	%ymm25, %ymm19, %ymm12
+        vpmadd52luq	%ymm26, %ymm19, %ymm4
+        vpmadd52huq	%ymm26, %ymm19, %ymm13
+        vpmadd52luq	%ymm27, %ymm19, %ymm5
+        vpmadd52huq	%ymm27, %ymm19, %ymm14
+        vpmadd52luq	%ymm23, %ymm20, %ymm2
+        vpmadd52huq	%ymm23, %ymm20, %ymm11
+        vpmadd52luq	%ymm24, %ymm20, %ymm3
+        vpmadd52huq	%ymm24, %ymm20, %ymm12
+        vpmadd52luq	%ymm25, %ymm20, %ymm4
+        vpmadd52huq	%ymm25, %ymm20, %ymm13
+        vpmadd52luq	%ymm26, %ymm20, %ymm5
+        vpmadd52huq	%ymm26, %ymm20, %ymm14
+        vpmadd52luq	%ymm27, %ymm20, %ymm6
+        vpmadd52huq	%ymm27, %ymm20, %ymm15
+        vpmadd52luq	%ymm23, %ymm21, %ymm3
+        vpmadd52huq	%ymm23, %ymm21, %ymm12
+        vpmadd52luq	%ymm24, %ymm21, %ymm4
+        vpmadd52huq	%ymm24, %ymm21, %ymm13
+        vpmadd52luq	%ymm25, %ymm21, %ymm5
+        vpmadd52huq	%ymm25, %ymm21, %ymm14
+        vpmadd52luq	%ymm26, %ymm21, %ymm6
+        vpmadd52huq	%ymm26, %ymm21, %ymm15
+        vpmadd52luq	%ymm27, %ymm21, %ymm7
+        vpmadd52huq	%ymm27, %ymm21, %ymm16
+        vpmadd52luq	%ymm23, %ymm22, %ymm4
+        vpmadd52huq	%ymm23, %ymm22, %ymm13
+        vpmadd52luq	%ymm24, %ymm22, %ymm5
+        vpmadd52huq	%ymm24, %ymm22, %ymm14
+        vpmadd52luq	%ymm25, %ymm22, %ymm6
+        vpmadd52huq	%ymm25, %ymm22, %ymm15
+        vpmadd52luq	%ymm26, %ymm22, %ymm7
+        vpmadd52huq	%ymm26, %ymm22, %ymm16
+        vpmadd52luq	%ymm27, %ymm22, %ymm8
+        vpmadd52huq	%ymm27, %ymm22, %ymm17
+        vpaddq	%ymm9, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpaddq	%ymm10, %ymm10, %ymm10
+        vpaddq	%ymm10, %ymm2, %ymm2
+        vpaddq	%ymm11, %ymm11, %ymm11
+        vpaddq	%ymm11, %ymm3, %ymm3
+        vpaddq	%ymm12, %ymm12, %ymm12
+        vpaddq	%ymm12, %ymm4, %ymm4
+        vpaddq	%ymm13, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm5, %ymm5
+        vpaddq	%ymm14, %ymm14, %ymm14
+        vpaddq	%ymm14, %ymm6, %ymm6
+        vpaddq	%ymm15, %ymm15, %ymm15
+        vpaddq	%ymm15, %ymm7, %ymm7
+        vpaddq	%ymm16, %ymm16, %ymm16
+        vpaddq	%ymm16, %ymm8, %ymm8
+        vpaddq	%ymm17, %ymm17, %ymm17
+        # Reduce
+        vpmullq	%ymm31, %ymm5, %ymm9
+        vpaddq	%ymm9, %ymm0, %ymm0
+        vpmullq	%ymm31, %ymm6, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpmullq	%ymm31, %ymm7, %ymm9
+        vpaddq	%ymm9, %ymm2, %ymm2
+        vpmullq	%ymm31, %ymm8, %ymm9
+        vpaddq	%ymm9, %ymm3, %ymm3
+        vpmullq	%ymm31, %ymm17, %ymm9
+        vpaddq	%ymm9, %ymm4, %ymm4
+        vpsrlq	$51, %ymm0, %ymm23
+        vpandq	%ymm28, %ymm0, %ymm0
+        vpsrlq	$51, %ymm1, %ymm24
+        vpandq	%ymm28, %ymm1, %ymm1
+        vpsrlq	$51, %ymm2, %ymm25
+        vpandq	%ymm28, %ymm2, %ymm2
+        vpsrlq	$51, %ymm3, %ymm26
+        vpandq	%ymm28, %ymm3, %ymm3
+        vpsrlq	$51, %ymm4, %ymm27
+        vpandq	%ymm28, %ymm4, %ymm4
+        vmovdqa64	%ymm0, %ymm18
+        vpmadd52luq	%ymm31, %ymm27, %ymm18
+        vpaddq	%ymm23, %ymm1, %ymm19
+        vpaddq	%ymm24, %ymm2, %ymm20
+        vpaddq	%ymm25, %ymm3, %ymm21
+        vpaddq	%ymm26, %ymm4, %ymm22
+        vmovdqu64	%ymm18, (%r12)
+        vmovdqu64	%ymm19, 32(%r12)
+        vmovdqu64	%ymm20, 64(%r12)
+        vmovdqu64	%ymm21, 96(%r12)
+        vmovdqu64	%ymm22, 128(%r12)
+        decq	%r11
+        jne	L_ge_dsm_dq_avx512_ifma_table
+        # R = identity: X = 0, Y = 1, Z = 1, T = 0
+        movq	$0x01, %r9
+        movq	%r9, 1608(%rbp)
+        movq	$0x00, %r9
+        movq	%r9, 1640(%rbp)
+        movq	%r9, 1672(%rbp)
+        movq	%r9, 1704(%rbp)
+        movq	%r9, 1736(%rbp)
+        movq	$0x01, %r9
+        movq	%r9, 1616(%rbp)
+        movq	$0x00, %r9
+        movq	%r9, 1648(%rbp)
+        movq	%r9, 1680(%rbp)
+        movq	%r9, 1712(%rbp)
+        movq	%r9, 1744(%rbp)
+        movq	$0x00, %r9
+        movq	%r9, 1600(%rbp)
+        movq	%r9, 1624(%rbp)
+        movq	%r9, 1632(%rbp)
+        movq	%r9, 1656(%rbp)
+        movq	%r9, 1664(%rbp)
+        movq	%r9, 1688(%rbp)
+        movq	%r9, 1696(%rbp)
+        movq	%r9, 1720(%rbp)
+        movq	%r9, 1728(%rbp)
+        movq	%r9, 1752(%rbp)
+        movq	$0x7ffffffffffff, %r10
+        vmovdqu64	1600(%rbp), %ymm18
+        vmovdqu64	1632(%rbp), %ymm19
+        vmovdqu64	1664(%rbp), %ymm20
+        vmovdqu64	1696(%rbp), %ymm21
+        vmovdqu64	1728(%rbp), %ymm22
+        movq	$0xff, %r11
+L_ge_dsm_dq_avx512_ifma_bits:
+        # Double
+        vpermq	$0x64, %ymm18, %ymm23
+        vpermq	$0x64, %ymm19, %ymm24
+        vpermq	$0x64, %ymm20, %ymm25
+        vpermq	$0x64, %ymm21, %ymm26
+        vpermq	$0x64, %ymm22, %ymm27
+        vpermq	$36, %ymm18, %ymm18
+        vpermq	$36, %ymm19, %ymm19
+        vpermq	$36, %ymm20, %ymm20
+        vpermq	$36, %ymm21, %ymm21
+        vpermq	$36, %ymm22, %ymm22
+        vpaddq	%ymm23, %ymm18, %ymm18{%k1}
+        vpaddq	%ymm24, %ymm19, %ymm19{%k1}
+        vpaddq	%ymm25, %ymm20, %ymm20{%k1}
+        vpaddq	%ymm26, %ymm21, %ymm21{%k1}
+        vpaddq	%ymm27, %ymm22, %ymm22{%k1}
+        vpsrlq	$51, %ymm18, %ymm0
+        vpandq	%ymm28, %ymm18, %ymm18
+        vpsrlq	$51, %ymm19, %ymm1
+        vpandq	%ymm28, %ymm19, %ymm19
+        vpsrlq	$51, %ymm20, %ymm2
+        vpandq	%ymm28, %ymm20, %ymm20
+        vpsrlq	$51, %ymm21, %ymm3
+        vpandq	%ymm28, %ymm21, %ymm21
+        vpsrlq	$51, %ymm22, %ymm4
+        vpandq	%ymm28, %ymm22, %ymm22
+        vpmadd52luq	%ymm31, %ymm4, %ymm18
+        vpaddq	%ymm0, %ymm19, %ymm19
+        vpaddq	%ymm1, %ymm20, %ymm20
+        vpaddq	%ymm2, %ymm21, %ymm21
+        vpaddq	%ymm3, %ymm22, %ymm22
+        vmovdqa64	%ymm18, %ymm23
+        vmovdqa64	%ymm19, %ymm24
+        vmovdqa64	%ymm20, %ymm25
+        vmovdqa64	%ymm21, %ymm26
+        vmovdqa64	%ymm22, %ymm27
+        # Multiply 4 field elements
+        vpxorq	%ymm0, %ymm0, %ymm0
+        vpxorq	%ymm9, %ymm9, %ymm9
+        vpxorq	%ymm1, %ymm1, %ymm1
+        vpxorq	%ymm10, %ymm10, %ymm10
+        vpxorq	%ymm2, %ymm2, %ymm2
+        vpxorq	%ymm11, %ymm11, %ymm11
+        vpxorq	%ymm3, %ymm3, %ymm3
+        vpxorq	%ymm12, %ymm12, %ymm12
+        vpxorq	%ymm4, %ymm4, %ymm4
+        vpxorq	%ymm13, %ymm13, %ymm13
+        vpxorq	%ymm5, %ymm5, %ymm5
+        vpxorq	%ymm14, %ymm14, %ymm14
+        vpxorq	%ymm6, %ymm6, %ymm6
+        vpxorq	%ymm15, %ymm15, %ymm15
+        vpxorq	%ymm7, %ymm7, %ymm7
+        vpxorq	%ymm16, %ymm16, %ymm16
+        vpxorq	%ymm8, %ymm8, %ymm8
+        vpxorq	%ymm17, %ymm17, %ymm17
+        vpmadd52luq	%ymm23, %ymm18, %ymm0
+        vpmadd52huq	%ymm23, %ymm18, %ymm9
+        vpmadd52luq	%ymm24, %ymm18, %ymm1
+        vpmadd52huq	%ymm24, %ymm18, %ymm10
+        vpmadd52luq	%ymm25, %ymm18, %ymm2
+        vpmadd52huq	%ymm25, %ymm18, %ymm11
+        vpmadd52luq	%ymm26, %ymm18, %ymm3
+        vpmadd52huq	%ymm26, %ymm18, %ymm12
+        vpmadd52luq	%ymm27, %ymm18, %ymm4
+        vpmadd52huq	%ymm27, %ymm18, %ymm13
+        vpmadd52luq	%ymm23, %ymm19, %ymm1
+        vpmadd52huq	%ymm23, %ymm19, %ymm10
+        vpmadd52luq	%ymm24, %ymm19, %ymm2
+        vpmadd52huq	%ymm24, %ymm19, %ymm11
+        vpmadd52luq	%ymm25, %ymm19, %ymm3
+        vpmadd52huq	%ymm25, %ymm19, %ymm12
+        vpmadd52luq	%ymm26, %ymm19, %ymm4
+        vpmadd52huq	%ymm26, %ymm19, %ymm13
+        vpmadd52luq	%ymm27, %ymm19, %ymm5
+        vpmadd52huq	%ymm27, %ymm19, %ymm14
+        vpmadd52luq	%ymm23, %ymm20, %ymm2
+        vpmadd52huq	%ymm23, %ymm20, %ymm11
+        vpmadd52luq	%ymm24, %ymm20, %ymm3
+        vpmadd52huq	%ymm24, %ymm20, %ymm12
+        vpmadd52luq	%ymm25, %ymm20, %ymm4
+        vpmadd52huq	%ymm25, %ymm20, %ymm13
+        vpmadd52luq	%ymm26, %ymm20, %ymm5
+        vpmadd52huq	%ymm26, %ymm20, %ymm14
+        vpmadd52luq	%ymm27, %ymm20, %ymm6
+        vpmadd52huq	%ymm27, %ymm20, %ymm15
+        vpmadd52luq	%ymm23, %ymm21, %ymm3
+        vpmadd52huq	%ymm23, %ymm21, %ymm12
+        vpmadd52luq	%ymm24, %ymm21, %ymm4
+        vpmadd52huq	%ymm24, %ymm21, %ymm13
+        vpmadd52luq	%ymm25, %ymm21, %ymm5
+        vpmadd52huq	%ymm25, %ymm21, %ymm14
+        vpmadd52luq	%ymm26, %ymm21, %ymm6
+        vpmadd52huq	%ymm26, %ymm21, %ymm15
+        vpmadd52luq	%ymm27, %ymm21, %ymm7
+        vpmadd52huq	%ymm27, %ymm21, %ymm16
+        vpmadd52luq	%ymm23, %ymm22, %ymm4
+        vpmadd52huq	%ymm23, %ymm22, %ymm13
+        vpmadd52luq	%ymm24, %ymm22, %ymm5
+        vpmadd52huq	%ymm24, %ymm22, %ymm14
+        vpmadd52luq	%ymm25, %ymm22, %ymm6
+        vpmadd52huq	%ymm25, %ymm22, %ymm15
+        vpmadd52luq	%ymm26, %ymm22, %ymm7
+        vpmadd52huq	%ymm26, %ymm22, %ymm16
+        vpmadd52luq	%ymm27, %ymm22, %ymm8
+        vpmadd52huq	%ymm27, %ymm22, %ymm17
+        vpaddq	%ymm9, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpaddq	%ymm10, %ymm10, %ymm10
+        vpaddq	%ymm10, %ymm2, %ymm2
+        vpaddq	%ymm11, %ymm11, %ymm11
+        vpaddq	%ymm11, %ymm3, %ymm3
+        vpaddq	%ymm12, %ymm12, %ymm12
+        vpaddq	%ymm12, %ymm4, %ymm4
+        vpaddq	%ymm13, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm5, %ymm5
+        vpaddq	%ymm14, %ymm14, %ymm14
+        vpaddq	%ymm14, %ymm6, %ymm6
+        vpaddq	%ymm15, %ymm15, %ymm15
+        vpaddq	%ymm15, %ymm7, %ymm7
+        vpaddq	%ymm16, %ymm16, %ymm16
+        vpaddq	%ymm16, %ymm8, %ymm8
+        vpaddq	%ymm17, %ymm17, %ymm17
+        # Reduce
+        vpmullq	%ymm31, %ymm5, %ymm9
+        vpaddq	%ymm9, %ymm0, %ymm0
+        vpmullq	%ymm31, %ymm6, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpmullq	%ymm31, %ymm7, %ymm9
+        vpaddq	%ymm9, %ymm2, %ymm2
+        vpmullq	%ymm31, %ymm8, %ymm9
+        vpaddq	%ymm9, %ymm3, %ymm3
+        vpmullq	%ymm31, %ymm17, %ymm9
+        vpaddq	%ymm9, %ymm4, %ymm4
+        vpsrlq	$51, %ymm0, %ymm23
+        vpandq	%ymm28, %ymm0, %ymm0
+        vpsrlq	$51, %ymm1, %ymm24
+        vpandq	%ymm28, %ymm1, %ymm1
+        vpsrlq	$51, %ymm2, %ymm25
+        vpandq	%ymm28, %ymm2, %ymm2
+        vpsrlq	$51, %ymm3, %ymm26
+        vpandq	%ymm28, %ymm3, %ymm3
+        vpsrlq	$51, %ymm4, %ymm27
+        vpandq	%ymm28, %ymm4, %ymm4
+        vmovdqa64	%ymm0, %ymm18
+        vpmadd52luq	%ymm31, %ymm27, %ymm18
+        vpaddq	%ymm23, %ymm1, %ymm19
+        vpaddq	%ymm24, %ymm2, %ymm20
+        vpaddq	%ymm25, %ymm3, %ymm21
+        vpaddq	%ymm26, %ymm4, %ymm22
+        # Y3 = YY + XX, Z3 = YY - XX
+        vpermq	$0x55, %ymm18, %ymm23
+        vpermq	$0x55, %ymm19, %ymm24
+        vpermq	$0x55, %ymm20, %ymm25
+        vpermq	$0x55, %ymm21, %ymm26
+        vpermq	$0x55, %ymm22, %ymm27
+        vpermq	$0x00, %ymm18, %ymm0
+        vpermq	$0x00, %ymm19, %ymm1
+        vpermq	$0x00, %ymm20, %ymm2
+        vpermq	$0x00, %ymm21, %ymm3
+        vpermq	$0x00, %ymm22, %ymm4
+        vpaddq	%ymm0, %ymm23, %ymm5
+        vpaddq	%ymm1, %ymm24, %ymm6
+        vpaddq	%ymm2, %ymm25, %ymm7
+        vpaddq	%ymm3, %ymm26, %ymm8
+        vpaddq	%ymm4, %ymm27, %ymm9
+        vpaddq	%ymm29, %ymm23, %ymm23{%k2}
+        vpaddq	%ymm30, %ymm24, %ymm24{%k2}
+        vpaddq	%ymm30, %ymm25, %ymm25{%k2}
+        vpaddq	%ymm30, %ymm26, %ymm26{%k2}
+        vpaddq	%ymm30, %ymm27, %ymm27{%k2}
+        vpsubq	%ymm0, %ymm23, %ymm5{%k2}
+        vpsubq	%ymm1, %ymm24, %ymm6{%k2}
+        vpsubq	%ymm2, %ymm25, %ymm7{%k2}
+        vpsubq	%ymm3, %ymm26, %ymm8{%k2}
+        vpsubq	%ymm4, %ymm27, %ymm9{%k2}
+        vpsrlq	$51, %ymm5, %ymm23
+        vpandq	%ymm28, %ymm5, %ymm5
+        vpsrlq	$51, %ymm6, %ymm24
+        vpandq	%ymm28, %ymm6, %ymm6
+        vpsrlq	$51, %ymm7, %ymm25
+        vpandq	%ymm28, %ymm7, %ymm7
+        vpsrlq	$51, %ymm8, %ymm26
+        vpandq	%ymm28, %ymm8, %ymm8
+        vpsrlq	$51, %ymm9, %ymm27
+        vpandq	%ymm28, %ymm9, %ymm9
+        vpmadd52luq	%ymm31, %ymm27, %ymm5
+        vpaddq	%ymm23, %ymm6, %ymm6
+        vpaddq	%ymm24, %ymm7, %ymm7
+        vpaddq	%ymm25, %ymm8, %ymm8
+        vpaddq	%ymm26, %ymm9, %ymm9
+        # X3 = AA - Y3, T3 = 2.ZZ - Z3
+        vpermq	$0xaf, %ymm18, %ymm23
+        vpermq	$0xaf, %ymm19, %ymm24
+        vpermq	$0xaf, %ymm20, %ymm25
+        vpermq	$0xaf, %ymm21, %ymm26
+        vpermq	$0xaf, %ymm22, %ymm27
+        vpaddq	%ymm23, %ymm23, %ymm23{%k2}
+        vpaddq	%ymm24, %ymm24, %ymm24{%k2}
+        vpaddq	%ymm25, %ymm25, %ymm25{%k2}
+        vpaddq	%ymm26, %ymm26, %ymm26{%k2}
+        vpaddq	%ymm27, %ymm27, %ymm27{%k2}
+        vpaddq	%ymm29, %ymm23, %ymm23{%k3}
+        vpaddq	%ymm30, %ymm24, %ymm24{%k3}
+        vpaddq	%ymm30, %ymm25, %ymm25{%k3}
+        vpaddq	%ymm30, %ymm26, %ymm26{%k3}
+        vpaddq	%ymm30, %ymm27, %ymm27{%k3}
+        vpsubq	%ymm5, %ymm23, %ymm23{%k3}
+        vpsubq	%ymm6, %ymm24, %ymm24{%k3}
+        vpsubq	%ymm7, %ymm25, %ymm25{%k3}
+        vpsubq	%ymm8, %ymm26, %ymm26{%k3}
+        vpsubq	%ymm9, %ymm27, %ymm27{%k3}
+        vpsrlq	$51, %ymm23, %ymm0
+        vpandq	%ymm28, %ymm23, %ymm23
+        vpsrlq	$51, %ymm24, %ymm1
+        vpandq	%ymm28, %ymm24, %ymm24
+        vpsrlq	$51, %ymm25, %ymm2
+        vpandq	%ymm28, %ymm25, %ymm25
+        vpsrlq	$51, %ymm26, %ymm3
+        vpandq	%ymm28, %ymm26, %ymm26
+        vpsrlq	$51, %ymm27, %ymm4
+        vpandq	%ymm28, %ymm27, %ymm27
+        vpmadd52luq	%ymm31, %ymm4, %ymm23
+        vpaddq	%ymm0, %ymm24, %ymm24
+        vpaddq	%ymm1, %ymm25, %ymm25
+        vpaddq	%ymm2, %ymm26, %ymm26
+        vpaddq	%ymm3, %ymm27, %ymm27
+        vmovdqa64	%ymm5, %ymm23{%k4}
+        vmovdqa64	%ymm6, %ymm24{%k4}
+        vmovdqa64	%ymm7, %ymm25{%k4}
+        vmovdqa64	%ymm8, %ymm26{%k4}
+        vmovdqa64	%ymm9, %ymm27{%k4}
+        # Add the multiple of A selected by this window digit
+        movsbq	1920(%rbp,%r11,1), %r12
+        testq	%r12, %r12
+        je	L_ge_dsm_dq_avx512_ifma_skip_a
+        movq	%r12, %rsi
+        sarq	$63, %rsi
+        xorq	%rsi, %r12
+        subq	%rsi, %r12
+        shrq	$1, %r12
+        imulq	$0xa0, %r12, %r12
+        leaq	(%rbp), %r14
+        addq	%r12, %r14
+        vmovdqu64	(%r14), %ymm18
+        vmovdqu64	32(%r14), %ymm19
+        vmovdqu64	64(%r14), %ymm20
+        vmovdqu64	96(%r14), %ymm21
+        vmovdqu64	128(%r14), %ymm22
+        testq	%rsi, %rsi
+        je	L_ge_dsm_dq_avx512_ifma_noswap_a
+        vpermq	$0xe1, %ymm18, %ymm18
+        vpermq	$0xe1, %ymm19, %ymm19
+        vpermq	$0xe1, %ymm20, %ymm20
+        vpermq	$0xe1, %ymm21, %ymm21
+        vpermq	$0xe1, %ymm22, %ymm22
+L_ge_dsm_dq_avx512_ifma_noswap_a:
+        vmovdqu64	%ymm18, 1760(%rbp)
+        vmovdqu64	%ymm19, 1792(%rbp)
+        vmovdqu64	%ymm20, 1824(%rbp)
+        vmovdqu64	%ymm21, 1856(%rbp)
+        vmovdqu64	%ymm22, 1888(%rbp)
+        # To p3
+        vpermq	$36, %ymm23, %ymm18
+        vpermq	$36, %ymm24, %ymm19
+        vpermq	$36, %ymm25, %ymm20
+        vpermq	$36, %ymm26, %ymm21
+        vpermq	$36, %ymm27, %ymm22
+        vpermq	$0x7b, %ymm23, %ymm23
+        vpermq	$0x7b, %ymm24, %ymm24
+        vpermq	$0x7b, %ymm25, %ymm25
+        vpermq	$0x7b, %ymm26, %ymm26
+        vpermq	$0x7b, %ymm27, %ymm27
+        # Multiply 4 field elements
+        vpxorq	%ymm0, %ymm0, %ymm0
+        vpxorq	%ymm9, %ymm9, %ymm9
+        vpxorq	%ymm1, %ymm1, %ymm1
+        vpxorq	%ymm10, %ymm10, %ymm10
+        vpxorq	%ymm2, %ymm2, %ymm2
+        vpxorq	%ymm11, %ymm11, %ymm11
+        vpxorq	%ymm3, %ymm3, %ymm3
+        vpxorq	%ymm12, %ymm12, %ymm12
+        vpxorq	%ymm4, %ymm4, %ymm4
+        vpxorq	%ymm13, %ymm13, %ymm13
+        vpxorq	%ymm5, %ymm5, %ymm5
+        vpxorq	%ymm14, %ymm14, %ymm14
+        vpxorq	%ymm6, %ymm6, %ymm6
+        vpxorq	%ymm15, %ymm15, %ymm15
+        vpxorq	%ymm7, %ymm7, %ymm7
+        vpxorq	%ymm16, %ymm16, %ymm16
+        vpxorq	%ymm8, %ymm8, %ymm8
+        vpxorq	%ymm17, %ymm17, %ymm17
+        vpmadd52luq	%ymm23, %ymm18, %ymm0
+        vpmadd52huq	%ymm23, %ymm18, %ymm9
+        vpmadd52luq	%ymm24, %ymm18, %ymm1
+        vpmadd52huq	%ymm24, %ymm18, %ymm10
+        vpmadd52luq	%ymm25, %ymm18, %ymm2
+        vpmadd52huq	%ymm25, %ymm18, %ymm11
+        vpmadd52luq	%ymm26, %ymm18, %ymm3
+        vpmadd52huq	%ymm26, %ymm18, %ymm12
+        vpmadd52luq	%ymm27, %ymm18, %ymm4
+        vpmadd52huq	%ymm27, %ymm18, %ymm13
+        vpmadd52luq	%ymm23, %ymm19, %ymm1
+        vpmadd52huq	%ymm23, %ymm19, %ymm10
+        vpmadd52luq	%ymm24, %ymm19, %ymm2
+        vpmadd52huq	%ymm24, %ymm19, %ymm11
+        vpmadd52luq	%ymm25, %ymm19, %ymm3
+        vpmadd52huq	%ymm25, %ymm19, %ymm12
+        vpmadd52luq	%ymm26, %ymm19, %ymm4
+        vpmadd52huq	%ymm26, %ymm19, %ymm13
+        vpmadd52luq	%ymm27, %ymm19, %ymm5
+        vpmadd52huq	%ymm27, %ymm19, %ymm14
+        vpmadd52luq	%ymm23, %ymm20, %ymm2
+        vpmadd52huq	%ymm23, %ymm20, %ymm11
+        vpmadd52luq	%ymm24, %ymm20, %ymm3
+        vpmadd52huq	%ymm24, %ymm20, %ymm12
+        vpmadd52luq	%ymm25, %ymm20, %ymm4
+        vpmadd52huq	%ymm25, %ymm20, %ymm13
+        vpmadd52luq	%ymm26, %ymm20, %ymm5
+        vpmadd52huq	%ymm26, %ymm20, %ymm14
+        vpmadd52luq	%ymm27, %ymm20, %ymm6
+        vpmadd52huq	%ymm27, %ymm20, %ymm15
+        vpmadd52luq	%ymm23, %ymm21, %ymm3
+        vpmadd52huq	%ymm23, %ymm21, %ymm12
+        vpmadd52luq	%ymm24, %ymm21, %ymm4
+        vpmadd52huq	%ymm24, %ymm21, %ymm13
+        vpmadd52luq	%ymm25, %ymm21, %ymm5
+        vpmadd52huq	%ymm25, %ymm21, %ymm14
+        vpmadd52luq	%ymm26, %ymm21, %ymm6
+        vpmadd52huq	%ymm26, %ymm21, %ymm15
+        vpmadd52luq	%ymm27, %ymm21, %ymm7
+        vpmadd52huq	%ymm27, %ymm21, %ymm16
+        vpmadd52luq	%ymm23, %ymm22, %ymm4
+        vpmadd52huq	%ymm23, %ymm22, %ymm13
+        vpmadd52luq	%ymm24, %ymm22, %ymm5
+        vpmadd52huq	%ymm24, %ymm22, %ymm14
+        vpmadd52luq	%ymm25, %ymm22, %ymm6
+        vpmadd52huq	%ymm25, %ymm22, %ymm15
+        vpmadd52luq	%ymm26, %ymm22, %ymm7
+        vpmadd52huq	%ymm26, %ymm22, %ymm16
+        vpmadd52luq	%ymm27, %ymm22, %ymm8
+        vpmadd52huq	%ymm27, %ymm22, %ymm17
+        vpaddq	%ymm9, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpaddq	%ymm10, %ymm10, %ymm10
+        vpaddq	%ymm10, %ymm2, %ymm2
+        vpaddq	%ymm11, %ymm11, %ymm11
+        vpaddq	%ymm11, %ymm3, %ymm3
+        vpaddq	%ymm12, %ymm12, %ymm12
+        vpaddq	%ymm12, %ymm4, %ymm4
+        vpaddq	%ymm13, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm5, %ymm5
+        vpaddq	%ymm14, %ymm14, %ymm14
+        vpaddq	%ymm14, %ymm6, %ymm6
+        vpaddq	%ymm15, %ymm15, %ymm15
+        vpaddq	%ymm15, %ymm7, %ymm7
+        vpaddq	%ymm16, %ymm16, %ymm16
+        vpaddq	%ymm16, %ymm8, %ymm8
+        vpaddq	%ymm17, %ymm17, %ymm17
+        # Reduce
+        vpmullq	%ymm31, %ymm5, %ymm9
+        vpaddq	%ymm9, %ymm0, %ymm0
+        vpmullq	%ymm31, %ymm6, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpmullq	%ymm31, %ymm7, %ymm9
+        vpaddq	%ymm9, %ymm2, %ymm2
+        vpmullq	%ymm31, %ymm8, %ymm9
+        vpaddq	%ymm9, %ymm3, %ymm3
+        vpmullq	%ymm31, %ymm17, %ymm9
+        vpaddq	%ymm9, %ymm4, %ymm4
+        vpsrlq	$51, %ymm0, %ymm23
+        vpandq	%ymm28, %ymm0, %ymm0
+        vpsrlq	$51, %ymm1, %ymm24
+        vpandq	%ymm28, %ymm1, %ymm1
+        vpsrlq	$51, %ymm2, %ymm25
+        vpandq	%ymm28, %ymm2, %ymm2
+        vpsrlq	$51, %ymm3, %ymm26
+        vpandq	%ymm28, %ymm3, %ymm3
+        vpsrlq	$51, %ymm4, %ymm27
+        vpandq	%ymm28, %ymm4, %ymm4
+        vmovdqa64	%ymm0, %ymm18
+        vpmadd52luq	%ymm31, %ymm27, %ymm18
+        vpaddq	%ymm23, %ymm1, %ymm19
+        vpaddq	%ymm24, %ymm2, %ymm20
+        vpaddq	%ymm25, %ymm3, %ymm21
+        vpaddq	%ymm26, %ymm4, %ymm22
+        # Add
+        vpermq	$0xb0, %ymm18, %ymm23
+        vpermq	$0xb0, %ymm19, %ymm24
+        vpermq	$0xb0, %ymm20, %ymm25
+        vpermq	$0xb0, %ymm21, %ymm26
+        vpermq	$0xb0, %ymm22, %ymm27
+        vpermq	$0xb5, %ymm18, %ymm18
+        vpermq	$0xb5, %ymm19, %ymm19
+        vpermq	$0xb5, %ymm20, %ymm20
+        vpermq	$0xb5, %ymm21, %ymm21
+        vpermq	$0xb5, %ymm22, %ymm22
+        vpaddq	%ymm23, %ymm18, %ymm18{%k5}
+        vpaddq	%ymm24, %ymm19, %ymm19{%k5}
+        vpaddq	%ymm25, %ymm20, %ymm20{%k5}
+        vpaddq	%ymm26, %ymm21, %ymm21{%k5}
+        vpaddq	%ymm27, %ymm22, %ymm22{%k5}
+        vpaddq	%ymm29, %ymm18, %ymm18{%k6}
+        vpaddq	%ymm30, %ymm19, %ymm19{%k6}
+        vpaddq	%ymm30, %ymm20, %ymm20{%k6}
+        vpaddq	%ymm30, %ymm21, %ymm21{%k6}
+        vpaddq	%ymm30, %ymm22, %ymm22{%k6}
+        vpsubq	%ymm23, %ymm18, %ymm18{%k6}
+        vpsubq	%ymm24, %ymm19, %ymm19{%k6}
+        vpsubq	%ymm25, %ymm20, %ymm20{%k6}
+        vpsubq	%ymm26, %ymm21, %ymm21{%k6}
+        vpsubq	%ymm27, %ymm22, %ymm22{%k6}
+        vpsrlq	$51, %ymm18, %ymm0
+        vpandq	%ymm28, %ymm18, %ymm18
+        vpsrlq	$51, %ymm19, %ymm1
+        vpandq	%ymm28, %ymm19, %ymm19
+        vpsrlq	$51, %ymm20, %ymm2
+        vpandq	%ymm28, %ymm20, %ymm20
+        vpsrlq	$51, %ymm21, %ymm3
+        vpandq	%ymm28, %ymm21, %ymm21
+        vpsrlq	$51, %ymm22, %ymm4
+        vpandq	%ymm28, %ymm22, %ymm22
+        vpmadd52luq	%ymm31, %ymm4, %ymm18
+        vpaddq	%ymm0, %ymm19, %ymm19
+        vpaddq	%ymm1, %ymm20, %ymm20
+        vpaddq	%ymm2, %ymm21, %ymm21
+        vpaddq	%ymm3, %ymm22, %ymm22
+        vmovdqu64	1760(%rbp), %ymm23
+        vmovdqu64	1792(%rbp), %ymm24
+        vmovdqu64	1824(%rbp), %ymm25
+        vmovdqu64	1856(%rbp), %ymm26
+        vmovdqu64	1888(%rbp), %ymm27
+        # Multiply 4 field elements
+        vpxorq	%ymm0, %ymm0, %ymm0
+        vpxorq	%ymm9, %ymm9, %ymm9
+        vpxorq	%ymm1, %ymm1, %ymm1
+        vpxorq	%ymm10, %ymm10, %ymm10
+        vpxorq	%ymm2, %ymm2, %ymm2
+        vpxorq	%ymm11, %ymm11, %ymm11
+        vpxorq	%ymm3, %ymm3, %ymm3
+        vpxorq	%ymm12, %ymm12, %ymm12
+        vpxorq	%ymm4, %ymm4, %ymm4
+        vpxorq	%ymm13, %ymm13, %ymm13
+        vpxorq	%ymm5, %ymm5, %ymm5
+        vpxorq	%ymm14, %ymm14, %ymm14
+        vpxorq	%ymm6, %ymm6, %ymm6
+        vpxorq	%ymm15, %ymm15, %ymm15
+        vpxorq	%ymm7, %ymm7, %ymm7
+        vpxorq	%ymm16, %ymm16, %ymm16
+        vpxorq	%ymm8, %ymm8, %ymm8
+        vpxorq	%ymm17, %ymm17, %ymm17
+        vpmadd52luq	%ymm23, %ymm18, %ymm0
+        vpmadd52huq	%ymm23, %ymm18, %ymm9
+        vpmadd52luq	%ymm24, %ymm18, %ymm1
+        vpmadd52huq	%ymm24, %ymm18, %ymm10
+        vpmadd52luq	%ymm25, %ymm18, %ymm2
+        vpmadd52huq	%ymm25, %ymm18, %ymm11
+        vpmadd52luq	%ymm26, %ymm18, %ymm3
+        vpmadd52huq	%ymm26, %ymm18, %ymm12
+        vpmadd52luq	%ymm27, %ymm18, %ymm4
+        vpmadd52huq	%ymm27, %ymm18, %ymm13
+        vpmadd52luq	%ymm23, %ymm19, %ymm1
+        vpmadd52huq	%ymm23, %ymm19, %ymm10
+        vpmadd52luq	%ymm24, %ymm19, %ymm2
+        vpmadd52huq	%ymm24, %ymm19, %ymm11
+        vpmadd52luq	%ymm25, %ymm19, %ymm3
+        vpmadd52huq	%ymm25, %ymm19, %ymm12
+        vpmadd52luq	%ymm26, %ymm19, %ymm4
+        vpmadd52huq	%ymm26, %ymm19, %ymm13
+        vpmadd52luq	%ymm27, %ymm19, %ymm5
+        vpmadd52huq	%ymm27, %ymm19, %ymm14
+        vpmadd52luq	%ymm23, %ymm20, %ymm2
+        vpmadd52huq	%ymm23, %ymm20, %ymm11
+        vpmadd52luq	%ymm24, %ymm20, %ymm3
+        vpmadd52huq	%ymm24, %ymm20, %ymm12
+        vpmadd52luq	%ymm25, %ymm20, %ymm4
+        vpmadd52huq	%ymm25, %ymm20, %ymm13
+        vpmadd52luq	%ymm26, %ymm20, %ymm5
+        vpmadd52huq	%ymm26, %ymm20, %ymm14
+        vpmadd52luq	%ymm27, %ymm20, %ymm6
+        vpmadd52huq	%ymm27, %ymm20, %ymm15
+        vpmadd52luq	%ymm23, %ymm21, %ymm3
+        vpmadd52huq	%ymm23, %ymm21, %ymm12
+        vpmadd52luq	%ymm24, %ymm21, %ymm4
+        vpmadd52huq	%ymm24, %ymm21, %ymm13
+        vpmadd52luq	%ymm25, %ymm21, %ymm5
+        vpmadd52huq	%ymm25, %ymm21, %ymm14
+        vpmadd52luq	%ymm26, %ymm21, %ymm6
+        vpmadd52huq	%ymm26, %ymm21, %ymm15
+        vpmadd52luq	%ymm27, %ymm21, %ymm7
+        vpmadd52huq	%ymm27, %ymm21, %ymm16
+        vpmadd52luq	%ymm23, %ymm22, %ymm4
+        vpmadd52huq	%ymm23, %ymm22, %ymm13
+        vpmadd52luq	%ymm24, %ymm22, %ymm5
+        vpmadd52huq	%ymm24, %ymm22, %ymm14
+        vpmadd52luq	%ymm25, %ymm22, %ymm6
+        vpmadd52huq	%ymm25, %ymm22, %ymm15
+        vpmadd52luq	%ymm26, %ymm22, %ymm7
+        vpmadd52huq	%ymm26, %ymm22, %ymm16
+        vpmadd52luq	%ymm27, %ymm22, %ymm8
+        vpmadd52huq	%ymm27, %ymm22, %ymm17
+        vpaddq	%ymm9, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpaddq	%ymm10, %ymm10, %ymm10
+        vpaddq	%ymm10, %ymm2, %ymm2
+        vpaddq	%ymm11, %ymm11, %ymm11
+        vpaddq	%ymm11, %ymm3, %ymm3
+        vpaddq	%ymm12, %ymm12, %ymm12
+        vpaddq	%ymm12, %ymm4, %ymm4
+        vpaddq	%ymm13, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm5, %ymm5
+        vpaddq	%ymm14, %ymm14, %ymm14
+        vpaddq	%ymm14, %ymm6, %ymm6
+        vpaddq	%ymm15, %ymm15, %ymm15
+        vpaddq	%ymm15, %ymm7, %ymm7
+        vpaddq	%ymm16, %ymm16, %ymm16
+        vpaddq	%ymm16, %ymm8, %ymm8
+        vpaddq	%ymm17, %ymm17, %ymm17
+        # Reduce
+        vpmullq	%ymm31, %ymm5, %ymm9
+        vpaddq	%ymm9, %ymm0, %ymm0
+        vpmullq	%ymm31, %ymm6, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpmullq	%ymm31, %ymm7, %ymm9
+        vpaddq	%ymm9, %ymm2, %ymm2
+        vpmullq	%ymm31, %ymm8, %ymm9
+        vpaddq	%ymm9, %ymm3, %ymm3
+        vpmullq	%ymm31, %ymm17, %ymm9
+        vpaddq	%ymm9, %ymm4, %ymm4
+        vpsrlq	$51, %ymm0, %ymm23
+        vpandq	%ymm28, %ymm0, %ymm0
+        vpsrlq	$51, %ymm1, %ymm24
+        vpandq	%ymm28, %ymm1, %ymm1
+        vpsrlq	$51, %ymm2, %ymm25
+        vpandq	%ymm28, %ymm2, %ymm2
+        vpsrlq	$51, %ymm3, %ymm26
+        vpandq	%ymm28, %ymm3, %ymm3
+        vpsrlq	$51, %ymm4, %ymm27
+        vpandq	%ymm28, %ymm4, %ymm4
+        vmovdqa64	%ymm0, %ymm18
+        vpmadd52luq	%ymm31, %ymm27, %ymm18
+        vpaddq	%ymm23, %ymm1, %ymm19
+        vpaddq	%ymm24, %ymm2, %ymm20
+        vpaddq	%ymm25, %ymm3, %ymm21
+        vpaddq	%ymm26, %ymm4, %ymm22
+        # X3 = B - A, Y3 = B + A, Z3 = D + C, T3 = D - C
+        vpermq	$0xf0, %ymm18, %ymm23
+        vpermq	$0xf0, %ymm19, %ymm24
+        vpermq	$0xf0, %ymm20, %ymm25
+        vpermq	$0xf0, %ymm21, %ymm26
+        vpermq	$0xf0, %ymm22, %ymm27
+        vpaddq	%ymm23, %ymm23, %ymm23{%k2}
+        vpaddq	%ymm24, %ymm24, %ymm24{%k2}
+        vpaddq	%ymm25, %ymm25, %ymm25{%k2}
+        vpaddq	%ymm26, %ymm26, %ymm26{%k2}
+        vpaddq	%ymm27, %ymm27, %ymm27{%k2}
+        vpermq	$0xa5, %ymm18, %ymm0
+        vpermq	$0xa5, %ymm19, %ymm1
+        vpermq	$0xa5, %ymm20, %ymm2
+        vpermq	$0xa5, %ymm21, %ymm3
+        vpermq	$0xa5, %ymm22, %ymm4
+        vpaddq	%ymm0, %ymm23, %ymm18
+        vpaddq	%ymm1, %ymm24, %ymm19
+        vpaddq	%ymm2, %ymm25, %ymm20
+        vpaddq	%ymm3, %ymm26, %ymm21
+        vpaddq	%ymm4, %ymm27, %ymm22
+        vpaddq	%ymm29, %ymm23, %ymm23{%k3}
+        vpaddq	%ymm30, %ymm24, %ymm24{%k3}
+        vpaddq	%ymm30, %ymm25, %ymm25{%k3}
+        vpaddq	%ymm30, %ymm26, %ymm26{%k3}
+        vpaddq	%ymm30, %ymm27, %ymm27{%k3}
+        vpsubq	%ymm0, %ymm23, %ymm18{%k3}
+        vpsubq	%ymm1, %ymm24, %ymm19{%k3}
+        vpsubq	%ymm2, %ymm25, %ymm20{%k3}
+        vpsubq	%ymm3, %ymm26, %ymm21{%k3}
+        vpsubq	%ymm4, %ymm27, %ymm22{%k3}
+        vpsrlq	$51, %ymm18, %ymm5
+        vpandq	%ymm28, %ymm18, %ymm18
+        vpsrlq	$51, %ymm19, %ymm6
+        vpandq	%ymm28, %ymm19, %ymm19
+        vpsrlq	$51, %ymm20, %ymm7
+        vpandq	%ymm28, %ymm20, %ymm20
+        vpsrlq	$51, %ymm21, %ymm8
+        vpandq	%ymm28, %ymm21, %ymm21
+        vpsrlq	$51, %ymm22, %ymm9
+        vpandq	%ymm28, %ymm22, %ymm22
+        vpmadd52luq	%ymm31, %ymm9, %ymm18
+        vpaddq	%ymm5, %ymm19, %ymm19
+        vpaddq	%ymm6, %ymm20, %ymm20
+        vpaddq	%ymm7, %ymm21, %ymm21
+        vpaddq	%ymm8, %ymm22, %ymm22
+        testq	%rsi, %rsi
+        je	L_ge_dsm_dq_avx512_ifma_nores_a
+        vpermq	$0xb4, %ymm18, %ymm18
+        vpermq	$0xb4, %ymm19, %ymm19
+        vpermq	$0xb4, %ymm20, %ymm20
+        vpermq	$0xb4, %ymm21, %ymm21
+        vpermq	$0xb4, %ymm22, %ymm22
+L_ge_dsm_dq_avx512_ifma_nores_a:
+        vmovdqa64	%ymm18, %ymm23
+        vmovdqa64	%ymm19, %ymm24
+        vmovdqa64	%ymm20, %ymm25
+        vmovdqa64	%ymm21, %ymm26
+        vmovdqa64	%ymm22, %ymm27
+L_ge_dsm_dq_avx512_ifma_skip_a:
+        # Add the multiple of the base point
+        movsbq	2176(%rbp,%r11,1), %r12
+        testq	%r12, %r12
+        je	L_ge_dsm_dq_avx512_ifma_skip_b
+        movq	%r12, %rsi
+        sarq	$63, %rsi
+        xorq	%rsi, %r12
+        subq	%rsi, %r12
+        shrq	$1, %r12
+        imulq	$0x60, %r12, %r12
+        movq	%rbx, %r14
+        addq	%r12, %r14
+        movq	(%r14), %rdx
+        movq	8(%r14), %rax
+        movq	16(%r14), %rcx
+        movq	24(%r14), %r8
+        movq	%r8, %r9
+        shrq	$63, %r9
+        imulq	$19, %r9, %r9
+        shlq	$1, %r8
+        shrq	$1, %r8
+        movq	%rdx, %r13
+        andq	%r10, %r13
+        addq	%r9, %r13
+        movq	%r13, 1760(%rbp)
+        shrdq	$51, %rax, %rdx
+        movq	%rdx, %r9
+        andq	%r10, %r9
+        movq	%r9, 1792(%rbp)
+        shrdq	$38, %rcx, %rax
+        movq	%rax, %r9
+        andq	%r10, %r9
+        movq	%r9, 1824(%rbp)
+        shrdq	$25, %r8, %rcx
+        movq	%rcx, %r9
+        andq	%r10, %r9
+        movq	%r9, 1856(%rbp)
+        shrq	$12, %r8
+        movq	%r8, 1888(%rbp)
+        movq	32(%r14), %rdx
+        movq	40(%r14), %rax
+        movq	48(%r14), %rcx
+        movq	56(%r14), %r8
+        movq	%r8, %r9
+        shrq	$63, %r9
+        imulq	$19, %r9, %r9
+        shlq	$1, %r8
+        shrq	$1, %r8
+        movq	%rdx, %r13
+        andq	%r10, %r13
+        addq	%r9, %r13
+        movq	%r13, 1768(%rbp)
+        shrdq	$51, %rax, %rdx
+        movq	%rdx, %r9
+        andq	%r10, %r9
+        movq	%r9, 1800(%rbp)
+        shrdq	$38, %rcx, %rax
+        movq	%rax, %r9
+        andq	%r10, %r9
+        movq	%r9, 1832(%rbp)
+        shrdq	$25, %r8, %rcx
+        movq	%rcx, %r9
+        andq	%r10, %r9
+        movq	%r9, 1864(%rbp)
+        shrq	$12, %r8
+        movq	%r8, 1896(%rbp)
+        movq	64(%r14), %rdx
+        movq	72(%r14), %rax
+        movq	80(%r14), %rcx
+        movq	88(%r14), %r8
+        movq	%r8, %r9
+        shrq	$63, %r9
+        imulq	$19, %r9, %r9
+        shlq	$1, %r8
+        shrq	$1, %r8
+        movq	%rdx, %r13
+        andq	%r10, %r13
+        addq	%r9, %r13
+        movq	%r13, 1776(%rbp)
+        shrdq	$51, %rax, %rdx
+        movq	%rdx, %r9
+        andq	%r10, %r9
+        movq	%r9, 1808(%rbp)
+        shrdq	$38, %rcx, %rax
+        movq	%rax, %r9
+        andq	%r10, %r9
+        movq	%r9, 1840(%rbp)
+        shrdq	$25, %r8, %rcx
+        movq	%rcx, %r9
+        andq	%r10, %r9
+        movq	%r9, 1872(%rbp)
+        shrq	$12, %r8
+        movq	%r8, 1904(%rbp)
+        movq	$0x01, %rdx
+        movq	%rdx, 1784(%rbp)
+        movq	$0x00, %rdx
+        movq	%rdx, 1816(%rbp)
+        movq	%rdx, 1848(%rbp)
+        movq	%rdx, 1880(%rbp)
+        movq	%rdx, 1912(%rbp)
+        testq	%rsi, %rsi
+        je	L_ge_dsm_dq_avx512_ifma_noswap_b
+        vmovdqu64	1760(%rbp), %ymm18
+        vmovdqu64	1792(%rbp), %ymm19
+        vmovdqu64	1824(%rbp), %ymm20
+        vmovdqu64	1856(%rbp), %ymm21
+        vmovdqu64	1888(%rbp), %ymm22
+        vpermq	$0xe1, %ymm18, %ymm18
+        vpermq	$0xe1, %ymm19, %ymm19
+        vpermq	$0xe1, %ymm20, %ymm20
+        vpermq	$0xe1, %ymm21, %ymm21
+        vpermq	$0xe1, %ymm22, %ymm22
+        vmovdqu64	%ymm18, 1760(%rbp)
+        vmovdqu64	%ymm19, 1792(%rbp)
+        vmovdqu64	%ymm20, 1824(%rbp)
+        vmovdqu64	%ymm21, 1856(%rbp)
+        vmovdqu64	%ymm22, 1888(%rbp)
+L_ge_dsm_dq_avx512_ifma_noswap_b:
+        # To p3
+        vpermq	$36, %ymm23, %ymm18
+        vpermq	$36, %ymm24, %ymm19
+        vpermq	$36, %ymm25, %ymm20
+        vpermq	$36, %ymm26, %ymm21
+        vpermq	$36, %ymm27, %ymm22
+        vpermq	$0x7b, %ymm23, %ymm23
+        vpermq	$0x7b, %ymm24, %ymm24
+        vpermq	$0x7b, %ymm25, %ymm25
+        vpermq	$0x7b, %ymm26, %ymm26
+        vpermq	$0x7b, %ymm27, %ymm27
+        # Multiply 4 field elements
+        vpxorq	%ymm0, %ymm0, %ymm0
+        vpxorq	%ymm9, %ymm9, %ymm9
+        vpxorq	%ymm1, %ymm1, %ymm1
+        vpxorq	%ymm10, %ymm10, %ymm10
+        vpxorq	%ymm2, %ymm2, %ymm2
+        vpxorq	%ymm11, %ymm11, %ymm11
+        vpxorq	%ymm3, %ymm3, %ymm3
+        vpxorq	%ymm12, %ymm12, %ymm12
+        vpxorq	%ymm4, %ymm4, %ymm4
+        vpxorq	%ymm13, %ymm13, %ymm13
+        vpxorq	%ymm5, %ymm5, %ymm5
+        vpxorq	%ymm14, %ymm14, %ymm14
+        vpxorq	%ymm6, %ymm6, %ymm6
+        vpxorq	%ymm15, %ymm15, %ymm15
+        vpxorq	%ymm7, %ymm7, %ymm7
+        vpxorq	%ymm16, %ymm16, %ymm16
+        vpxorq	%ymm8, %ymm8, %ymm8
+        vpxorq	%ymm17, %ymm17, %ymm17
+        vpmadd52luq	%ymm23, %ymm18, %ymm0
+        vpmadd52huq	%ymm23, %ymm18, %ymm9
+        vpmadd52luq	%ymm24, %ymm18, %ymm1
+        vpmadd52huq	%ymm24, %ymm18, %ymm10
+        vpmadd52luq	%ymm25, %ymm18, %ymm2
+        vpmadd52huq	%ymm25, %ymm18, %ymm11
+        vpmadd52luq	%ymm26, %ymm18, %ymm3
+        vpmadd52huq	%ymm26, %ymm18, %ymm12
+        vpmadd52luq	%ymm27, %ymm18, %ymm4
+        vpmadd52huq	%ymm27, %ymm18, %ymm13
+        vpmadd52luq	%ymm23, %ymm19, %ymm1
+        vpmadd52huq	%ymm23, %ymm19, %ymm10
+        vpmadd52luq	%ymm24, %ymm19, %ymm2
+        vpmadd52huq	%ymm24, %ymm19, %ymm11
+        vpmadd52luq	%ymm25, %ymm19, %ymm3
+        vpmadd52huq	%ymm25, %ymm19, %ymm12
+        vpmadd52luq	%ymm26, %ymm19, %ymm4
+        vpmadd52huq	%ymm26, %ymm19, %ymm13
+        vpmadd52luq	%ymm27, %ymm19, %ymm5
+        vpmadd52huq	%ymm27, %ymm19, %ymm14
+        vpmadd52luq	%ymm23, %ymm20, %ymm2
+        vpmadd52huq	%ymm23, %ymm20, %ymm11
+        vpmadd52luq	%ymm24, %ymm20, %ymm3
+        vpmadd52huq	%ymm24, %ymm20, %ymm12
+        vpmadd52luq	%ymm25, %ymm20, %ymm4
+        vpmadd52huq	%ymm25, %ymm20, %ymm13
+        vpmadd52luq	%ymm26, %ymm20, %ymm5
+        vpmadd52huq	%ymm26, %ymm20, %ymm14
+        vpmadd52luq	%ymm27, %ymm20, %ymm6
+        vpmadd52huq	%ymm27, %ymm20, %ymm15
+        vpmadd52luq	%ymm23, %ymm21, %ymm3
+        vpmadd52huq	%ymm23, %ymm21, %ymm12
+        vpmadd52luq	%ymm24, %ymm21, %ymm4
+        vpmadd52huq	%ymm24, %ymm21, %ymm13
+        vpmadd52luq	%ymm25, %ymm21, %ymm5
+        vpmadd52huq	%ymm25, %ymm21, %ymm14
+        vpmadd52luq	%ymm26, %ymm21, %ymm6
+        vpmadd52huq	%ymm26, %ymm21, %ymm15
+        vpmadd52luq	%ymm27, %ymm21, %ymm7
+        vpmadd52huq	%ymm27, %ymm21, %ymm16
+        vpmadd52luq	%ymm23, %ymm22, %ymm4
+        vpmadd52huq	%ymm23, %ymm22, %ymm13
+        vpmadd52luq	%ymm24, %ymm22, %ymm5
+        vpmadd52huq	%ymm24, %ymm22, %ymm14
+        vpmadd52luq	%ymm25, %ymm22, %ymm6
+        vpmadd52huq	%ymm25, %ymm22, %ymm15
+        vpmadd52luq	%ymm26, %ymm22, %ymm7
+        vpmadd52huq	%ymm26, %ymm22, %ymm16
+        vpmadd52luq	%ymm27, %ymm22, %ymm8
+        vpmadd52huq	%ymm27, %ymm22, %ymm17
+        vpaddq	%ymm9, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpaddq	%ymm10, %ymm10, %ymm10
+        vpaddq	%ymm10, %ymm2, %ymm2
+        vpaddq	%ymm11, %ymm11, %ymm11
+        vpaddq	%ymm11, %ymm3, %ymm3
+        vpaddq	%ymm12, %ymm12, %ymm12
+        vpaddq	%ymm12, %ymm4, %ymm4
+        vpaddq	%ymm13, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm5, %ymm5
+        vpaddq	%ymm14, %ymm14, %ymm14
+        vpaddq	%ymm14, %ymm6, %ymm6
+        vpaddq	%ymm15, %ymm15, %ymm15
+        vpaddq	%ymm15, %ymm7, %ymm7
+        vpaddq	%ymm16, %ymm16, %ymm16
+        vpaddq	%ymm16, %ymm8, %ymm8
+        vpaddq	%ymm17, %ymm17, %ymm17
+        # Reduce
+        vpmullq	%ymm31, %ymm5, %ymm9
+        vpaddq	%ymm9, %ymm0, %ymm0
+        vpmullq	%ymm31, %ymm6, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpmullq	%ymm31, %ymm7, %ymm9
+        vpaddq	%ymm9, %ymm2, %ymm2
+        vpmullq	%ymm31, %ymm8, %ymm9
+        vpaddq	%ymm9, %ymm3, %ymm3
+        vpmullq	%ymm31, %ymm17, %ymm9
+        vpaddq	%ymm9, %ymm4, %ymm4
+        vpsrlq	$51, %ymm0, %ymm23
+        vpandq	%ymm28, %ymm0, %ymm0
+        vpsrlq	$51, %ymm1, %ymm24
+        vpandq	%ymm28, %ymm1, %ymm1
+        vpsrlq	$51, %ymm2, %ymm25
+        vpandq	%ymm28, %ymm2, %ymm2
+        vpsrlq	$51, %ymm3, %ymm26
+        vpandq	%ymm28, %ymm3, %ymm3
+        vpsrlq	$51, %ymm4, %ymm27
+        vpandq	%ymm28, %ymm4, %ymm4
+        vmovdqa64	%ymm0, %ymm18
+        vpmadd52luq	%ymm31, %ymm27, %ymm18
+        vpaddq	%ymm23, %ymm1, %ymm19
+        vpaddq	%ymm24, %ymm2, %ymm20
+        vpaddq	%ymm25, %ymm3, %ymm21
+        vpaddq	%ymm26, %ymm4, %ymm22
+        # Add
+        vpermq	$0xb0, %ymm18, %ymm23
+        vpermq	$0xb0, %ymm19, %ymm24
+        vpermq	$0xb0, %ymm20, %ymm25
+        vpermq	$0xb0, %ymm21, %ymm26
+        vpermq	$0xb0, %ymm22, %ymm27
+        vpermq	$0xb5, %ymm18, %ymm18
+        vpermq	$0xb5, %ymm19, %ymm19
+        vpermq	$0xb5, %ymm20, %ymm20
+        vpermq	$0xb5, %ymm21, %ymm21
+        vpermq	$0xb5, %ymm22, %ymm22
+        vpaddq	%ymm23, %ymm18, %ymm18{%k5}
+        vpaddq	%ymm24, %ymm19, %ymm19{%k5}
+        vpaddq	%ymm25, %ymm20, %ymm20{%k5}
+        vpaddq	%ymm26, %ymm21, %ymm21{%k5}
+        vpaddq	%ymm27, %ymm22, %ymm22{%k5}
+        vpaddq	%ymm29, %ymm18, %ymm18{%k6}
+        vpaddq	%ymm30, %ymm19, %ymm19{%k6}
+        vpaddq	%ymm30, %ymm20, %ymm20{%k6}
+        vpaddq	%ymm30, %ymm21, %ymm21{%k6}
+        vpaddq	%ymm30, %ymm22, %ymm22{%k6}
+        vpsubq	%ymm23, %ymm18, %ymm18{%k6}
+        vpsubq	%ymm24, %ymm19, %ymm19{%k6}
+        vpsubq	%ymm25, %ymm20, %ymm20{%k6}
+        vpsubq	%ymm26, %ymm21, %ymm21{%k6}
+        vpsubq	%ymm27, %ymm22, %ymm22{%k6}
+        vpsrlq	$51, %ymm18, %ymm0
+        vpandq	%ymm28, %ymm18, %ymm18
+        vpsrlq	$51, %ymm19, %ymm1
+        vpandq	%ymm28, %ymm19, %ymm19
+        vpsrlq	$51, %ymm20, %ymm2
+        vpandq	%ymm28, %ymm20, %ymm20
+        vpsrlq	$51, %ymm21, %ymm3
+        vpandq	%ymm28, %ymm21, %ymm21
+        vpsrlq	$51, %ymm22, %ymm4
+        vpandq	%ymm28, %ymm22, %ymm22
+        vpmadd52luq	%ymm31, %ymm4, %ymm18
+        vpaddq	%ymm0, %ymm19, %ymm19
+        vpaddq	%ymm1, %ymm20, %ymm20
+        vpaddq	%ymm2, %ymm21, %ymm21
+        vpaddq	%ymm3, %ymm22, %ymm22
+        vmovdqu64	1760(%rbp), %ymm23
+        vmovdqu64	1792(%rbp), %ymm24
+        vmovdqu64	1824(%rbp), %ymm25
+        vmovdqu64	1856(%rbp), %ymm26
+        vmovdqu64	1888(%rbp), %ymm27
+        # Multiply 4 field elements
+        vpxorq	%ymm0, %ymm0, %ymm0
+        vpxorq	%ymm9, %ymm9, %ymm9
+        vpxorq	%ymm1, %ymm1, %ymm1
+        vpxorq	%ymm10, %ymm10, %ymm10
+        vpxorq	%ymm2, %ymm2, %ymm2
+        vpxorq	%ymm11, %ymm11, %ymm11
+        vpxorq	%ymm3, %ymm3, %ymm3
+        vpxorq	%ymm12, %ymm12, %ymm12
+        vpxorq	%ymm4, %ymm4, %ymm4
+        vpxorq	%ymm13, %ymm13, %ymm13
+        vpxorq	%ymm5, %ymm5, %ymm5
+        vpxorq	%ymm14, %ymm14, %ymm14
+        vpxorq	%ymm6, %ymm6, %ymm6
+        vpxorq	%ymm15, %ymm15, %ymm15
+        vpxorq	%ymm7, %ymm7, %ymm7
+        vpxorq	%ymm16, %ymm16, %ymm16
+        vpxorq	%ymm8, %ymm8, %ymm8
+        vpxorq	%ymm17, %ymm17, %ymm17
+        vpmadd52luq	%ymm23, %ymm18, %ymm0
+        vpmadd52huq	%ymm23, %ymm18, %ymm9
+        vpmadd52luq	%ymm24, %ymm18, %ymm1
+        vpmadd52huq	%ymm24, %ymm18, %ymm10
+        vpmadd52luq	%ymm25, %ymm18, %ymm2
+        vpmadd52huq	%ymm25, %ymm18, %ymm11
+        vpmadd52luq	%ymm26, %ymm18, %ymm3
+        vpmadd52huq	%ymm26, %ymm18, %ymm12
+        vpmadd52luq	%ymm27, %ymm18, %ymm4
+        vpmadd52huq	%ymm27, %ymm18, %ymm13
+        vpmadd52luq	%ymm23, %ymm19, %ymm1
+        vpmadd52huq	%ymm23, %ymm19, %ymm10
+        vpmadd52luq	%ymm24, %ymm19, %ymm2
+        vpmadd52huq	%ymm24, %ymm19, %ymm11
+        vpmadd52luq	%ymm25, %ymm19, %ymm3
+        vpmadd52huq	%ymm25, %ymm19, %ymm12
+        vpmadd52luq	%ymm26, %ymm19, %ymm4
+        vpmadd52huq	%ymm26, %ymm19, %ymm13
+        vpmadd52luq	%ymm27, %ymm19, %ymm5
+        vpmadd52huq	%ymm27, %ymm19, %ymm14
+        vpmadd52luq	%ymm23, %ymm20, %ymm2
+        vpmadd52huq	%ymm23, %ymm20, %ymm11
+        vpmadd52luq	%ymm24, %ymm20, %ymm3
+        vpmadd52huq	%ymm24, %ymm20, %ymm12
+        vpmadd52luq	%ymm25, %ymm20, %ymm4
+        vpmadd52huq	%ymm25, %ymm20, %ymm13
+        vpmadd52luq	%ymm26, %ymm20, %ymm5
+        vpmadd52huq	%ymm26, %ymm20, %ymm14
+        vpmadd52luq	%ymm27, %ymm20, %ymm6
+        vpmadd52huq	%ymm27, %ymm20, %ymm15
+        vpmadd52luq	%ymm23, %ymm21, %ymm3
+        vpmadd52huq	%ymm23, %ymm21, %ymm12
+        vpmadd52luq	%ymm24, %ymm21, %ymm4
+        vpmadd52huq	%ymm24, %ymm21, %ymm13
+        vpmadd52luq	%ymm25, %ymm21, %ymm5
+        vpmadd52huq	%ymm25, %ymm21, %ymm14
+        vpmadd52luq	%ymm26, %ymm21, %ymm6
+        vpmadd52huq	%ymm26, %ymm21, %ymm15
+        vpmadd52luq	%ymm27, %ymm21, %ymm7
+        vpmadd52huq	%ymm27, %ymm21, %ymm16
+        vpmadd52luq	%ymm23, %ymm22, %ymm4
+        vpmadd52huq	%ymm23, %ymm22, %ymm13
+        vpmadd52luq	%ymm24, %ymm22, %ymm5
+        vpmadd52huq	%ymm24, %ymm22, %ymm14
+        vpmadd52luq	%ymm25, %ymm22, %ymm6
+        vpmadd52huq	%ymm25, %ymm22, %ymm15
+        vpmadd52luq	%ymm26, %ymm22, %ymm7
+        vpmadd52huq	%ymm26, %ymm22, %ymm16
+        vpmadd52luq	%ymm27, %ymm22, %ymm8
+        vpmadd52huq	%ymm27, %ymm22, %ymm17
+        vpaddq	%ymm9, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpaddq	%ymm10, %ymm10, %ymm10
+        vpaddq	%ymm10, %ymm2, %ymm2
+        vpaddq	%ymm11, %ymm11, %ymm11
+        vpaddq	%ymm11, %ymm3, %ymm3
+        vpaddq	%ymm12, %ymm12, %ymm12
+        vpaddq	%ymm12, %ymm4, %ymm4
+        vpaddq	%ymm13, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm5, %ymm5
+        vpaddq	%ymm14, %ymm14, %ymm14
+        vpaddq	%ymm14, %ymm6, %ymm6
+        vpaddq	%ymm15, %ymm15, %ymm15
+        vpaddq	%ymm15, %ymm7, %ymm7
+        vpaddq	%ymm16, %ymm16, %ymm16
+        vpaddq	%ymm16, %ymm8, %ymm8
+        vpaddq	%ymm17, %ymm17, %ymm17
+        # Reduce
+        vpmullq	%ymm31, %ymm5, %ymm9
+        vpaddq	%ymm9, %ymm0, %ymm0
+        vpmullq	%ymm31, %ymm6, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpmullq	%ymm31, %ymm7, %ymm9
+        vpaddq	%ymm9, %ymm2, %ymm2
+        vpmullq	%ymm31, %ymm8, %ymm9
+        vpaddq	%ymm9, %ymm3, %ymm3
+        vpmullq	%ymm31, %ymm17, %ymm9
+        vpaddq	%ymm9, %ymm4, %ymm4
+        vpsrlq	$51, %ymm0, %ymm23
+        vpandq	%ymm28, %ymm0, %ymm0
+        vpsrlq	$51, %ymm1, %ymm24
+        vpandq	%ymm28, %ymm1, %ymm1
+        vpsrlq	$51, %ymm2, %ymm25
+        vpandq	%ymm28, %ymm2, %ymm2
+        vpsrlq	$51, %ymm3, %ymm26
+        vpandq	%ymm28, %ymm3, %ymm3
+        vpsrlq	$51, %ymm4, %ymm27
+        vpandq	%ymm28, %ymm4, %ymm4
+        vmovdqa64	%ymm0, %ymm18
+        vpmadd52luq	%ymm31, %ymm27, %ymm18
+        vpaddq	%ymm23, %ymm1, %ymm19
+        vpaddq	%ymm24, %ymm2, %ymm20
+        vpaddq	%ymm25, %ymm3, %ymm21
+        vpaddq	%ymm26, %ymm4, %ymm22
+        # X3 = B - A, Y3 = B + A, Z3 = D + C, T3 = D - C
+        vpermq	$0xf0, %ymm18, %ymm23
+        vpermq	$0xf0, %ymm19, %ymm24
+        vpermq	$0xf0, %ymm20, %ymm25
+        vpermq	$0xf0, %ymm21, %ymm26
+        vpermq	$0xf0, %ymm22, %ymm27
+        vpaddq	%ymm23, %ymm23, %ymm23{%k2}
+        vpaddq	%ymm24, %ymm24, %ymm24{%k2}
+        vpaddq	%ymm25, %ymm25, %ymm25{%k2}
+        vpaddq	%ymm26, %ymm26, %ymm26{%k2}
+        vpaddq	%ymm27, %ymm27, %ymm27{%k2}
+        vpermq	$0xa5, %ymm18, %ymm0
+        vpermq	$0xa5, %ymm19, %ymm1
+        vpermq	$0xa5, %ymm20, %ymm2
+        vpermq	$0xa5, %ymm21, %ymm3
+        vpermq	$0xa5, %ymm22, %ymm4
+        vpaddq	%ymm0, %ymm23, %ymm18
+        vpaddq	%ymm1, %ymm24, %ymm19
+        vpaddq	%ymm2, %ymm25, %ymm20
+        vpaddq	%ymm3, %ymm26, %ymm21
+        vpaddq	%ymm4, %ymm27, %ymm22
+        vpaddq	%ymm29, %ymm23, %ymm23{%k3}
+        vpaddq	%ymm30, %ymm24, %ymm24{%k3}
+        vpaddq	%ymm30, %ymm25, %ymm25{%k3}
+        vpaddq	%ymm30, %ymm26, %ymm26{%k3}
+        vpaddq	%ymm30, %ymm27, %ymm27{%k3}
+        vpsubq	%ymm0, %ymm23, %ymm18{%k3}
+        vpsubq	%ymm1, %ymm24, %ymm19{%k3}
+        vpsubq	%ymm2, %ymm25, %ymm20{%k3}
+        vpsubq	%ymm3, %ymm26, %ymm21{%k3}
+        vpsubq	%ymm4, %ymm27, %ymm22{%k3}
+        vpsrlq	$51, %ymm18, %ymm5
+        vpandq	%ymm28, %ymm18, %ymm18
+        vpsrlq	$51, %ymm19, %ymm6
+        vpandq	%ymm28, %ymm19, %ymm19
+        vpsrlq	$51, %ymm20, %ymm7
+        vpandq	%ymm28, %ymm20, %ymm20
+        vpsrlq	$51, %ymm21, %ymm8
+        vpandq	%ymm28, %ymm21, %ymm21
+        vpsrlq	$51, %ymm22, %ymm9
+        vpandq	%ymm28, %ymm22, %ymm22
+        vpmadd52luq	%ymm31, %ymm9, %ymm18
+        vpaddq	%ymm5, %ymm19, %ymm19
+        vpaddq	%ymm6, %ymm20, %ymm20
+        vpaddq	%ymm7, %ymm21, %ymm21
+        vpaddq	%ymm8, %ymm22, %ymm22
+        testq	%rsi, %rsi
+        je	L_ge_dsm_dq_avx512_ifma_nores_b
+        vpermq	$0xb4, %ymm18, %ymm18
+        vpermq	$0xb4, %ymm19, %ymm19
+        vpermq	$0xb4, %ymm20, %ymm20
+        vpermq	$0xb4, %ymm21, %ymm21
+        vpermq	$0xb4, %ymm22, %ymm22
+L_ge_dsm_dq_avx512_ifma_nores_b:
+        vmovdqa64	%ymm18, %ymm23
+        vmovdqa64	%ymm19, %ymm24
+        vmovdqa64	%ymm20, %ymm25
+        vmovdqa64	%ymm21, %ymm26
+        vmovdqa64	%ymm22, %ymm27
+L_ge_dsm_dq_avx512_ifma_skip_b:
+        # To p3
+        vpermq	$36, %ymm23, %ymm18
+        vpermq	$36, %ymm24, %ymm19
+        vpermq	$36, %ymm25, %ymm20
+        vpermq	$36, %ymm26, %ymm21
+        vpermq	$36, %ymm27, %ymm22
+        vpermq	$0x7b, %ymm23, %ymm23
+        vpermq	$0x7b, %ymm24, %ymm24
+        vpermq	$0x7b, %ymm25, %ymm25
+        vpermq	$0x7b, %ymm26, %ymm26
+        vpermq	$0x7b, %ymm27, %ymm27
+        # Multiply 4 field elements
+        vpxorq	%ymm0, %ymm0, %ymm0
+        vpxorq	%ymm9, %ymm9, %ymm9
+        vpxorq	%ymm1, %ymm1, %ymm1
+        vpxorq	%ymm10, %ymm10, %ymm10
+        vpxorq	%ymm2, %ymm2, %ymm2
+        vpxorq	%ymm11, %ymm11, %ymm11
+        vpxorq	%ymm3, %ymm3, %ymm3
+        vpxorq	%ymm12, %ymm12, %ymm12
+        vpxorq	%ymm4, %ymm4, %ymm4
+        vpxorq	%ymm13, %ymm13, %ymm13
+        vpxorq	%ymm5, %ymm5, %ymm5
+        vpxorq	%ymm14, %ymm14, %ymm14
+        vpxorq	%ymm6, %ymm6, %ymm6
+        vpxorq	%ymm15, %ymm15, %ymm15
+        vpxorq	%ymm7, %ymm7, %ymm7
+        vpxorq	%ymm16, %ymm16, %ymm16
+        vpxorq	%ymm8, %ymm8, %ymm8
+        vpxorq	%ymm17, %ymm17, %ymm17
+        vpmadd52luq	%ymm23, %ymm18, %ymm0
+        vpmadd52huq	%ymm23, %ymm18, %ymm9
+        vpmadd52luq	%ymm24, %ymm18, %ymm1
+        vpmadd52huq	%ymm24, %ymm18, %ymm10
+        vpmadd52luq	%ymm25, %ymm18, %ymm2
+        vpmadd52huq	%ymm25, %ymm18, %ymm11
+        vpmadd52luq	%ymm26, %ymm18, %ymm3
+        vpmadd52huq	%ymm26, %ymm18, %ymm12
+        vpmadd52luq	%ymm27, %ymm18, %ymm4
+        vpmadd52huq	%ymm27, %ymm18, %ymm13
+        vpmadd52luq	%ymm23, %ymm19, %ymm1
+        vpmadd52huq	%ymm23, %ymm19, %ymm10
+        vpmadd52luq	%ymm24, %ymm19, %ymm2
+        vpmadd52huq	%ymm24, %ymm19, %ymm11
+        vpmadd52luq	%ymm25, %ymm19, %ymm3
+        vpmadd52huq	%ymm25, %ymm19, %ymm12
+        vpmadd52luq	%ymm26, %ymm19, %ymm4
+        vpmadd52huq	%ymm26, %ymm19, %ymm13
+        vpmadd52luq	%ymm27, %ymm19, %ymm5
+        vpmadd52huq	%ymm27, %ymm19, %ymm14
+        vpmadd52luq	%ymm23, %ymm20, %ymm2
+        vpmadd52huq	%ymm23, %ymm20, %ymm11
+        vpmadd52luq	%ymm24, %ymm20, %ymm3
+        vpmadd52huq	%ymm24, %ymm20, %ymm12
+        vpmadd52luq	%ymm25, %ymm20, %ymm4
+        vpmadd52huq	%ymm25, %ymm20, %ymm13
+        vpmadd52luq	%ymm26, %ymm20, %ymm5
+        vpmadd52huq	%ymm26, %ymm20, %ymm14
+        vpmadd52luq	%ymm27, %ymm20, %ymm6
+        vpmadd52huq	%ymm27, %ymm20, %ymm15
+        vpmadd52luq	%ymm23, %ymm21, %ymm3
+        vpmadd52huq	%ymm23, %ymm21, %ymm12
+        vpmadd52luq	%ymm24, %ymm21, %ymm4
+        vpmadd52huq	%ymm24, %ymm21, %ymm13
+        vpmadd52luq	%ymm25, %ymm21, %ymm5
+        vpmadd52huq	%ymm25, %ymm21, %ymm14
+        vpmadd52luq	%ymm26, %ymm21, %ymm6
+        vpmadd52huq	%ymm26, %ymm21, %ymm15
+        vpmadd52luq	%ymm27, %ymm21, %ymm7
+        vpmadd52huq	%ymm27, %ymm21, %ymm16
+        vpmadd52luq	%ymm23, %ymm22, %ymm4
+        vpmadd52huq	%ymm23, %ymm22, %ymm13
+        vpmadd52luq	%ymm24, %ymm22, %ymm5
+        vpmadd52huq	%ymm24, %ymm22, %ymm14
+        vpmadd52luq	%ymm25, %ymm22, %ymm6
+        vpmadd52huq	%ymm25, %ymm22, %ymm15
+        vpmadd52luq	%ymm26, %ymm22, %ymm7
+        vpmadd52huq	%ymm26, %ymm22, %ymm16
+        vpmadd52luq	%ymm27, %ymm22, %ymm8
+        vpmadd52huq	%ymm27, %ymm22, %ymm17
+        vpaddq	%ymm9, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpaddq	%ymm10, %ymm10, %ymm10
+        vpaddq	%ymm10, %ymm2, %ymm2
+        vpaddq	%ymm11, %ymm11, %ymm11
+        vpaddq	%ymm11, %ymm3, %ymm3
+        vpaddq	%ymm12, %ymm12, %ymm12
+        vpaddq	%ymm12, %ymm4, %ymm4
+        vpaddq	%ymm13, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm5, %ymm5
+        vpaddq	%ymm14, %ymm14, %ymm14
+        vpaddq	%ymm14, %ymm6, %ymm6
+        vpaddq	%ymm15, %ymm15, %ymm15
+        vpaddq	%ymm15, %ymm7, %ymm7
+        vpaddq	%ymm16, %ymm16, %ymm16
+        vpaddq	%ymm16, %ymm8, %ymm8
+        vpaddq	%ymm17, %ymm17, %ymm17
+        # Reduce
+        vpmullq	%ymm31, %ymm5, %ymm9
+        vpaddq	%ymm9, %ymm0, %ymm0
+        vpmullq	%ymm31, %ymm6, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpmullq	%ymm31, %ymm7, %ymm9
+        vpaddq	%ymm9, %ymm2, %ymm2
+        vpmullq	%ymm31, %ymm8, %ymm9
+        vpaddq	%ymm9, %ymm3, %ymm3
+        vpmullq	%ymm31, %ymm17, %ymm9
+        vpaddq	%ymm9, %ymm4, %ymm4
+        vpsrlq	$51, %ymm0, %ymm23
+        vpandq	%ymm28, %ymm0, %ymm0
+        vpsrlq	$51, %ymm1, %ymm24
+        vpandq	%ymm28, %ymm1, %ymm1
+        vpsrlq	$51, %ymm2, %ymm25
+        vpandq	%ymm28, %ymm2, %ymm2
+        vpsrlq	$51, %ymm3, %ymm26
+        vpandq	%ymm28, %ymm3, %ymm3
+        vpsrlq	$51, %ymm4, %ymm27
+        vpandq	%ymm28, %ymm4, %ymm4
+        vmovdqa64	%ymm0, %ymm18
+        vpmadd52luq	%ymm31, %ymm27, %ymm18
+        vpaddq	%ymm23, %ymm1, %ymm19
+        vpaddq	%ymm24, %ymm2, %ymm20
+        vpaddq	%ymm25, %ymm3, %ymm21
+        vpaddq	%ymm26, %ymm4, %ymm22
+        decq	%r11
+        jge	L_ge_dsm_dq_avx512_ifma_bits
+        vmovdqu64	%ymm18, 1600(%rbp)
+        vmovdqu64	%ymm19, 1632(%rbp)
+        vmovdqu64	%ymm20, 1664(%rbp)
+        vmovdqu64	%ymm21, 1696(%rbp)
+        vmovdqu64	%ymm22, 1728(%rbp)
+        vzeroupper
+        # Convert X, Y and Z back to 4 x 64-bit field elements
+        movq	$0x7ffffffffffff, %r10
+        movq	1600(%rbp), %rdx
+        movq	1632(%rbp), %rax
+        movq	1664(%rbp), %rcx
+        movq	1696(%rbp), %r8
+        movq	1728(%rbp), %r9
+        movq	%rdx, %r11
+        shrq	$51, %r11
+        andq	%r10, %rdx
+        addq	%r11, %rax
+        movq	%rax, %r11
+        shrq	$51, %r11
+        andq	%r10, %rax
+        addq	%r11, %rcx
+        movq	%rcx, %r11
+        shrq	$51, %r11
+        andq	%r10, %rcx
+        addq	%r11, %r8
+        movq	%r8, %r11
+        shrq	$51, %r11
+        andq	%r10, %r8
+        addq	%r11, %r9
+        movq	%r9, %r11
+        shrq	$51, %r11
+        andq	%r10, %r9
+        imulq	$19, %r11, %r11
+        addq	%r11, %rdx
+        movq	%rax, %r11
+        shlq	$51, %r11
+        movq	%rax, %r12
+        shrq	$13, %r12
+        addq	%r11, %rdx
+        adcq	$0x00, %r12
+        movq	%rdx, (%rdi)
+        movq	%rcx, %r11
+        shlq	$38, %r11
+        movq	%rcx, %rdx
+        shrq	$26, %rdx
+        addq	%r11, %r12
+        adcq	$0x00, %rdx
+        movq	%r12, 8(%rdi)
+        movq	%r8, %r11
+        shlq	$25, %r11
+        movq	%r8, %r12
+        shrq	$39, %r12
+        addq	%r11, %rdx
+        adcq	$0x00, %r12
+        movq	%rdx, 16(%rdi)
+        movq	%r9, %r11
+        shlq	$12, %r11
+        addq	%r11, %r12
+        movq	%r12, 24(%rdi)
+        movq	1608(%rbp), %rdx
+        movq	1640(%rbp), %rax
+        movq	1672(%rbp), %rcx
+        movq	1704(%rbp), %r8
+        movq	1736(%rbp), %r9
+        movq	%rdx, %r11
+        shrq	$51, %r11
+        andq	%r10, %rdx
+        addq	%r11, %rax
+        movq	%rax, %r11
+        shrq	$51, %r11
+        andq	%r10, %rax
+        addq	%r11, %rcx
+        movq	%rcx, %r11
+        shrq	$51, %r11
+        andq	%r10, %rcx
+        addq	%r11, %r8
+        movq	%r8, %r11
+        shrq	$51, %r11
+        andq	%r10, %r8
+        addq	%r11, %r9
+        movq	%r9, %r11
+        shrq	$51, %r11
+        andq	%r10, %r9
+        imulq	$19, %r11, %r11
+        addq	%r11, %rdx
+        movq	%rax, %r11
+        shlq	$51, %r11
+        movq	%rax, %r12
+        shrq	$13, %r12
+        addq	%r11, %rdx
+        adcq	$0x00, %r12
+        movq	%rdx, 32(%rdi)
+        movq	%rcx, %r11
+        shlq	$38, %r11
+        movq	%rcx, %rdx
+        shrq	$26, %rdx
+        addq	%r11, %r12
+        adcq	$0x00, %rdx
+        movq	%r12, 40(%rdi)
+        movq	%r8, %r11
+        shlq	$25, %r11
+        movq	%r8, %r12
+        shrq	$39, %r12
+        addq	%r11, %rdx
+        adcq	$0x00, %r12
+        movq	%rdx, 48(%rdi)
+        movq	%r9, %r11
+        shlq	$12, %r11
+        addq	%r11, %r12
+        movq	%r12, 56(%rdi)
+        movq	1616(%rbp), %rdx
+        movq	1648(%rbp), %rax
+        movq	1680(%rbp), %rcx
+        movq	1712(%rbp), %r8
+        movq	1744(%rbp), %r9
+        movq	%rdx, %r11
+        shrq	$51, %r11
+        andq	%r10, %rdx
+        addq	%r11, %rax
+        movq	%rax, %r11
+        shrq	$51, %r11
+        andq	%r10, %rax
+        addq	%r11, %rcx
+        movq	%rcx, %r11
+        shrq	$51, %r11
+        andq	%r10, %rcx
+        addq	%r11, %r8
+        movq	%r8, %r11
+        shrq	$51, %r11
+        andq	%r10, %r8
+        addq	%r11, %r9
+        movq	%r9, %r11
+        shrq	$51, %r11
+        andq	%r10, %r9
+        imulq	$19, %r11, %r11
+        addq	%r11, %rdx
+        movq	%rax, %r11
+        shlq	$51, %r11
+        movq	%rax, %r12
+        shrq	$13, %r12
+        addq	%r11, %rdx
+        adcq	$0x00, %r12
+        movq	%rdx, 64(%rdi)
+        movq	%rcx, %r11
+        shlq	$38, %r11
+        movq	%rcx, %rdx
+        shrq	$26, %rdx
+        addq	%r11, %r12
+        adcq	$0x00, %rdx
+        movq	%r12, 72(%rdi)
+        movq	%r8, %r11
+        shlq	$25, %r11
+        movq	%r8, %r12
+        shrq	$39, %r12
+        addq	%r11, %rdx
+        adcq	$0x00, %r12
+        movq	%rdx, 80(%rdi)
+        movq	%r9, %r11
+        shlq	$12, %r11
+        addq	%r11, %r12
+        movq	%r12, 88(%rdi)
+        xorq	%rax, %rax
+        popq	%rbp
+        popq	%rbx
+        popq	%r15
+        popq	%r14
+        popq	%r13
+        popq	%r12
+        repz retq
+#ifndef __APPLE__
+.size	ge_double_scalarmult_vartime_avx512_ifma_dq,.-ge_double_scalarmult_vartime_avx512_ifma_dq
+#endif /* __APPLE__ */
+#endif /* HAVE_ED25519 */
+#endif /* HAVE_INTEL_AVX512_IFMA */
 #endif /* HAVE_INTEL_AVX2 */
 
 #if defined(__linux__) && defined(__ELF__)

@@ -1210,6 +1210,7 @@ int se050_rsa_sign(const byte* in, word32 inLen, byte* out,
     sss_asymmetric_t ctx_asymm;
     byte* derBuf = NULL;
     int derSz = 0;
+    int derBufSz = 0;
 
     /* SE050 does not support optional label */
     (void)label;
@@ -1291,6 +1292,9 @@ int se050_rsa_sign(const byte* in, word32 inLen, byte* out,
                     status = kStatus_SSS_Fail;
                     ret = MEMORY_E;
                 }
+                else {
+                    derBufSz = derSz;
+                }
             }
             if (status == kStatus_SSS_Success) {
                 derSz = wc_RsaKeyToDer(key, derBuf, derSz);
@@ -1334,6 +1338,12 @@ int se050_rsa_sign(const byte* in, word32 inLen, byte* out,
 #endif
             }
 
+            if ((derBuf != NULL) && (derBufSz > 0)) {
+                /* Private key encoding sent to the SE. Wipe the whole
+                 * allocation: a failed encode leaves derSz negative having
+                 * possibly already written to the buffer. */
+                ForceZero(derBuf, (word32)derBufSz);
+            }
             XFREE(derBuf, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
         else {
@@ -1427,6 +1437,7 @@ int se050_rsa_verify(const byte* in, word32 inLen, byte* out, word32 outLen,
     smStatus_t       smStatus = SM_NOT_OK;
     byte* pad    = NULL;
     byte* derBuf = NULL;
+    byte* decBuf = NULL;
     int derSz = 0;
 
 #ifdef SE050_DEBUG
@@ -1529,22 +1540,42 @@ int se050_rsa_verify(const byte* in, word32 inLen, byte* out, word32 outLen,
         status = sss_asymmetric_context_init(&ctx_asymm, cfg_se050_i2c_pi,
                                     &newKey, algorithm, kMode_SSS_Verify);
         if (status == kStatus_SSS_Success) {
+            /* The raw RSA public operation always produces keySz bytes, but
+             * callers such as PKCS#7 signature verify pass an out buffer
+             * sized for the unpadded payload only. Decrypt into a
+             * keySz-sized scratch buffer, then unpad and copy the payload
+             * to out. */
+            decBuf = (byte*)XMALLOC((size_t)keySz, key->heap,
+                                    DYNAMIC_TYPE_TMP_BUFFER);
+            if (decBuf == NULL) {
+                status = kStatus_SSS_Fail;
+                ret = MEMORY_E;
+            }
+        }
+        if (status == kStatus_SSS_Success) {
             /* Use lower Se05x API instead of sss_asymmetric_verify_digest()
              * since we need to return decoded data not just verify result */
-            decLen = outLen;
+            decLen = (size_t)keySz;
             se050_ctx_asymm = (sss_se05x_asymmetric_t*)&ctx_asymm;
             smStatus = Se05x_API_RSAEncrypt(&se050_ctx_asymm->session->s_ctx,
                                             se050_ctx_asymm->keyObject->keyId,
                                             kSE05x_RSAEncryptionAlgo_NO_PAD,
-                                            in, inLen, out, &decLen);
+                                            in, inLen, decBuf, &decLen);
             if (smStatus == SM_OK) {
                 /* find end of padding, pad points to start of actual data */
-                ret = wc_RsaUnPad_ex(out, decLen, &pad, pad_value,
+                ret = wc_RsaUnPad_ex(decBuf, decLen, &pad, pad_value,
                         pad_type, hash, mgf,
                         label, labelSz, RSA_PSS_SALT_LEN_DEFAULT, (keySz * 8),
                         key->heap);
                 if (ret >= 0) {
-                    XMEMCPY(out, pad, ret);
+                    if ((word32)ret > outLen) {
+                        WOLFSSL_MSG("Output buffer too small for RSA verify");
+                        ret = RSA_BUFFER_E;
+                        status = kStatus_SSS_Fail;
+                    }
+                    else {
+                        XMEMCPY(out, pad, ret);
+                    }
                 }
                 else {
                     WOLFSSL_MSG("Error in wc_RsaUnPad_ex for RSA verify");
@@ -1556,6 +1587,7 @@ int se050_rsa_verify(const byte* in, word32 inLen, byte* out, word32 outLen,
                 status = kStatus_SSS_Fail;
             }
         }
+        XFREE(decBuf, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
         sss_asymmetric_context_free(&ctx_asymm);
     }
@@ -1810,6 +1842,7 @@ int se050_rsa_private_decrypt(const byte* in, word32 inLen, byte* out,
     sss_asymmetric_t ctx_asymm;
     byte* derBuf = NULL;
     int derSz = 0;
+    int derBufSz = 0;
 
     /* SE050 does not support optional label */
     (void)label;
@@ -1881,6 +1914,9 @@ int se050_rsa_private_decrypt(const byte* in, word32 inLen, byte* out,
                     status = kStatus_SSS_Fail;
                     ret = MEMORY_E;
                 }
+                else {
+                    derBufSz = derSz;
+                }
             }
             if (status == kStatus_SSS_Success) {
                 derSz = wc_RsaKeyToDer(key, derBuf, derSz);
@@ -1909,6 +1945,12 @@ int se050_rsa_private_decrypt(const byte* in, word32 inLen, byte* out,
             status = sss_key_object_get_handle(&newKey, keyId);
         }
 
+        if ((derBuf != NULL) && (derBufSz > 0)) {
+            /* Private key encoding sent to the SE. Wipe the whole allocation:
+             * a failed encode leaves derSz negative having possibly already
+             * written to the buffer. */
+            ForceZero(derBuf, (word32)derBufSz);
+        }
         XFREE(derBuf, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
@@ -2251,6 +2293,8 @@ int se050_ecc_sign_hash_ex(const byte* in, word32 inLen, MATH_INT_T* r, MATH_INT
                 status = sss_key_store_set_key(&host_keystore, &newKey, derBuf,
                                                 derSz, keySizeBits, NULL, 0);
             }
+            /* Private scalar encoding sent to the SE. */
+            ForceZero(derBuf, sizeof(derBuf));
         }
         else {
             status = sss_key_object_get_handle(&newKey, keyId);
@@ -2754,14 +2798,16 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
     sss_key_store_t     host_keystore;
     sss_object_t        ref_private_key;
     sss_object_t        ref_public_key;
-    sss_object_t        deriveKey;
-    sss_derive_key_t    ctx_derive_key;
-    word32              keyId = 0;
     int                 keySize;
     int                 keySizeBits;
     sss_cipher_type_t   curveType;
+#if !(defined(SSS_HAVE_SE05X_VER_GTE_07_02) && SSS_HAVE_SE05X_VER_GTE_07_02)
+    sss_object_t        deriveKey;
+    sss_derive_key_t    ctx_derive_key;
+    word32              keyId = 0;
     int                 keyCreated = 0;
     int                 deriveKeyCreated = 0;
+#endif
 
 #ifdef SE050_DEBUG
     printf("se050_ecc_shared_secret: priv %p, pub %p, out %p (%d)\n",
@@ -2801,6 +2847,7 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
     if (status == kStatus_SSS_Success) {
         status = sss_key_object_init(&ref_public_key, &host_keystore);
     }
+#if !(defined(SSS_HAVE_SE05X_VER_GTE_07_02) && SSS_HAVE_SE05X_VER_GTE_07_02)
     if (status == kStatus_SSS_Success) {
         keyId = public_key->keyId;
         if (public_key->keyIdSet == 0) {
@@ -2850,6 +2897,9 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
         status = sss_key_object_allocate_handle(&deriveKey,
             keyIdAes,
             kSSS_KeyPart_Default,
+            /* The applet denies ReadObject on a symmetric key object no
+             * matter what policy is attached, so the derive target must
+             * be a Binary object, which ReadObject allows by default */
             kSSS_CipherType_Binary,
             keySize,
             kKeyObject_Mode_Transient);
@@ -2882,8 +2932,70 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
         sss_key_store_erase_key(&host_keystore, &deriveKey);
         sss_key_object_free(&deriveKey);
     }
+#else
+    /* The direct APDU carries the peer public point in the command, so
+     * the peer key is never uploaded to the SE050 on this path; a
+     * reference object is only needed when the peer public key is
+     * already SE050-resident. */
+    if (status == kStatus_SSS_Success && public_key->keyIdSet != 0) {
+        status = sss_key_object_get_handle(&ref_public_key,
+            public_key->keyId);
+    }
+    if (status == kStatus_SSS_Success) {
+        /* Middleware built for applet >= 7.2 derives into an SE05x
+         * resident object, but the applet refuses to export a symmetric
+         * key object regardless of the policy attached at its creation
+         * (verified on SE051 applet 7.2.0 hardware), so a derived secret
+         * stored in an object can never be read back. Use the direct
+         * APDU that returns the shared secret in the response instead,
+         * as the middleware itself does whenever the derived key lives
+         * in a host keystore. */
+        byte peerPoint[SE050_ECC_DER_MAX];
+        word32 peerPointSz = (word32)sizeof(peerPoint);
+        smStatus_t sm;
+
+        if (public_key->keyIdSet == 0) {
+            ret = wc_ecc_export_x963(public_key, peerPoint, &peerPointSz);
+            if (ret != 0) {
+                status = kStatus_SSS_Fail;
+            }
+        }
+        else {
+            /* Peer public key is SE050-resident: read the DER encoding
+             * back and use the trailing uncompressed point */
+            size_t derSz = sizeof(peerPoint);
+            size_t derSzBits = derSz * 8;
+            word32 pointSz = (word32)(1 + 2 * keySize);
+            status = sss_key_store_get_key(&host_keystore, &ref_public_key,
+                peerPoint, &derSz, &derSzBits);
+            if (status == kStatus_SSS_Success && derSz >= pointSz &&
+                    peerPoint[derSz - pointSz] == 0x04) {
+                XMEMMOVE(peerPoint, peerPoint + derSz - pointSz, pointSz);
+                peerPointSz = pointSz;
+            }
+            else {
+                status = kStatus_SSS_Fail;
+            }
+        }
+        if (status == kStatus_SSS_Success) {
+            size_t outSz = (size_t)*outlen;
+            sm = Se05x_API_ECDHGenerateSharedSecret(
+                &((sss_se05x_session_t*)cfg_se050_i2c_pi)->s_ctx,
+                private_key->keyId, peerPoint, peerPointSz, out, &outSz);
+            /* a NIST curve shared secret is always exactly keySize
+             * bytes; anything else indicates a malformed response */
+            if (sm == SM_OK && outSz == (size_t)keySize) {
+                *outlen = (word32)outSz;
+            }
+            else {
+                status = kStatus_SSS_Fail;
+            }
+        }
+    }
+#endif
 
     if (status == kStatus_SSS_Success) {
+#if !(defined(SSS_HAVE_SE05X_VER_GTE_07_02) && SSS_HAVE_SE05X_VER_GTE_07_02)
 #ifdef WOLFSSL_SE050_ONLY_KEY_ID
         if (keyCreated) {
             /* The peer's public key was uploaded for this derivation only. */
@@ -2896,13 +3008,16 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
             public_key->keyId = keyId;
             public_key->keyIdSet = 1;
         }
+#endif /* !SSS_HAVE_SE05X_VER_GTE_07_02 */
         ret = 0;
     }
     else {
+#if !(defined(SSS_HAVE_SE05X_VER_GTE_07_02) && SSS_HAVE_SE05X_VER_GTE_07_02)
         if (keyCreated) {
             sss_key_store_erase_key(&host_keystore, &ref_public_key);
             sss_key_object_free(&ref_public_key);
         }
+#endif
         if (ret == 0) {
             ret = WC_HW_E;
         }
@@ -3359,12 +3474,14 @@ int se050_curve25519_shared_secret(curve25519_key* private_key,
     sss_key_store_t   host_keystore;
     sss_object_t      ref_private_key;
     sss_object_t      ref_public_key;
+#if !(defined(SSS_HAVE_SE05X_VER_GTE_07_02) && SSS_HAVE_SE05X_VER_GTE_07_02)
+    int               keySize = CURVE25519_KEYSIZE;
     sss_object_t      deriveKey;
     sss_derive_key_t  ctx_derive_key;
     word32            keyId;
-    int               keySize = CURVE25519_KEYSIZE;
     int               keyCreated = 0;
     int               deriveKeyCreated = 0;
+#endif
 
 #ifdef SE050_DEBUG
     printf("se050_curve25519_shared_secret: priv %p, pub %p, out %p (%d)\n",
@@ -3399,6 +3516,7 @@ int se050_curve25519_shared_secret(curve25519_key* private_key,
     if (status == kStatus_SSS_Success) {
         status = sss_key_object_init(&ref_public_key, &host_keystore);
     }
+#if !(defined(SSS_HAVE_SE05X_VER_GTE_07_02) && SSS_HAVE_SE05X_VER_GTE_07_02)
     if (status == kStatus_SSS_Success) {
         keyId = public_key->keyId;
         if (public_key->keyIdSet == 0) {
@@ -3441,10 +3559,12 @@ int se050_curve25519_shared_secret(curve25519_key* private_key,
     }
     if (status == kStatus_SSS_Success) {
         word32 keyIdAes = se050_allocate_key(SE050_AES_KEY);
-        deriveKeyCreated = 1;
         status = sss_key_object_allocate_handle(&deriveKey,
             keyIdAes,
             kSSS_KeyPart_Default,
+            /* The applet denies ReadObject on a symmetric key object no
+             * matter what policy is attached, so the derive target must
+             * be a Binary object, which ReadObject allows by default */
             kSSS_CipherType_Binary,
             keySize,
             kKeyObject_Mode_Transient);
@@ -3454,12 +3574,16 @@ int se050_curve25519_shared_secret(curve25519_key* private_key,
                                     &ref_private_key, kAlgorithm_SSS_ECDH,
                                     kMode_SSS_ComputeSharedSecret);
         if (status == kStatus_SSS_Success) {
+            /* Try to delete existing key first, ignore return since will
+             * fail if no key exists yet */
+            sss_key_store_erase_key(&host_keystore, &deriveKey);
             status = sss_derive_key_dh(&ctx_derive_key, &ref_public_key,
                 &deriveKey);
         }
         if (status == kStatus_SSS_Success) {
             size_t outlenSz = sizeof(out->point);
             size_t outlenSzBits = outlenSz * 8;
+            deriveKeyCreated = 1;
             /* derived key export */
             status = sss_key_store_get_key(&host_keystore, &deriveKey,
                 out->point, &outlenSz, &outlenSzBits);
@@ -3473,8 +3597,85 @@ int se050_curve25519_shared_secret(curve25519_key* private_key,
         sss_key_store_erase_key(&host_keystore, &deriveKey);
         sss_key_object_free(&deriveKey);
     }
+#else
+    /* The direct APDU carries the peer public point in the command, so
+     * the peer key is never uploaded to the SE050 on this path; a
+     * reference object is only needed when the peer public key is
+     * already SE050-resident. */
+    if (status == kStatus_SSS_Success && public_key->keyIdSet != 0) {
+        status = sss_key_object_get_handle(&ref_public_key,
+            public_key->keyId);
+    }
+    if (status == kStatus_SSS_Success) {
+        /* Middleware built for applet >= 7.2 derives into an SE05x
+         * resident object, but the applet refuses to export a symmetric
+         * key object regardless of the policy attached at its creation
+         * (verified on SE051 applet 7.2.0 hardware), so a derived secret
+         * stored in an object can never be read back. Use the direct
+         * APDU that returns the shared secret in the response instead,
+         * as the middleware itself does whenever the derived key lives
+         * in a host keystore. The applet speaks big endian for
+         * Montgomery keys, so the peer point and the returned secret are
+         * both byte swapped, matching sss_se05x_derive_key_dh. */
+        byte peerPoint[CURVE25519_KEYSIZE];
+        word32 peerPointSz = (word32)sizeof(peerPoint);
+        smStatus_t sm;
+        int i;
+        byte swp;
+
+        if (public_key->keyIdSet == 0) {
+            ret = wc_curve25519_export_public_ex(public_key, peerPoint,
+                &peerPointSz, EC25519_LITTLE_ENDIAN);
+            if (ret != 0) {
+                status = kStatus_SSS_Fail;
+            }
+        }
+        else {
+            /* Peer public key is SE050-resident: read the DER encoding
+             * back; the raw little endian point is the trailing bytes */
+            byte derBuf[CURVE25519_PUB_KEY_SIZE + 12];
+            size_t derSz = sizeof(derBuf);
+            size_t derSzBits = derSz * 8;
+            status = sss_key_store_get_key(&host_keystore, &ref_public_key,
+                derBuf, &derSz, &derSzBits);
+            if (status == kStatus_SSS_Success &&
+                    derSz >= CURVE25519_KEYSIZE) {
+                XMEMCPY(peerPoint, derBuf + derSz - CURVE25519_KEYSIZE,
+                    CURVE25519_KEYSIZE);
+                peerPointSz = CURVE25519_KEYSIZE;
+            }
+            else {
+                status = kStatus_SSS_Fail;
+            }
+        }
+        if (status == kStatus_SSS_Success) {
+            size_t outSz = sizeof(out->point);
+            for (i = 0; i < CURVE25519_KEYSIZE / 2; i++) {
+                swp = peerPoint[i];
+                peerPoint[i] = peerPoint[CURVE25519_KEYSIZE - 1 - i];
+                peerPoint[CURVE25519_KEYSIZE - 1 - i] = swp;
+            }
+            sm = Se05x_API_ECDHGenerateSharedSecret(
+                &((sss_se05x_session_t*)cfg_se050_i2c_pi)->s_ctx,
+                private_key->keyId, peerPoint, peerPointSz,
+                out->point, &outSz);
+            if (sm == SM_OK && outSz == CURVE25519_KEYSIZE) {
+                for (i = 0; i < CURVE25519_KEYSIZE / 2; i++) {
+                    swp = out->point[i];
+                    out->point[i] = out->point[CURVE25519_KEYSIZE - 1 - i];
+                    out->point[CURVE25519_KEYSIZE - 1 - i] = swp;
+                }
+                out->pointSz = (word32)outSz;
+            }
+            else {
+                status = kStatus_SSS_Fail;
+            }
+        }
+    }
+#endif
 
     if (status == kStatus_SSS_Success) {
+#if !(defined(SSS_HAVE_SE05X_VER_GTE_07_02) && SSS_HAVE_SE05X_VER_GTE_07_02)
 #ifdef WOLFSSL_SE050_ONLY_KEY_ID
         if (keyCreated) {
             /* The peer's public key was uploaded for this derivation only.*/
@@ -3487,13 +3688,16 @@ int se050_curve25519_shared_secret(curve25519_key* private_key,
             public_key->keyId = keyId;
             public_key->keyIdSet = 1;
         }
+#endif /* !SSS_HAVE_SE05X_VER_GTE_07_02 */
         ret = 0;
     }
     else {
+#if !(defined(SSS_HAVE_SE05X_VER_GTE_07_02) && SSS_HAVE_SE05X_VER_GTE_07_02)
         if (keyCreated) {
             sss_key_store_erase_key(&host_keystore, &ref_public_key);
             sss_key_object_free(&ref_public_key);
         }
+#endif
         if (ret == 0)
             ret = WC_HW_E;
     }

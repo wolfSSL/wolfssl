@@ -398,19 +398,19 @@ impl ECC {
 
     /// Allocate and initialize a new `sys::ecc_key` on the C heap.
     fn new_ecc_key(heap: *mut core::ffi::c_void, dev_id: i32) -> Result<*mut sys::ecc_key, i32> {
+        #[cfg(ecc_key_new_ex)]
+        let key = unsafe { sys::wc_ecc_key_new_ex(heap, dev_id) };
+        #[cfg(not(ecc_key_new_ex))]
         let key = unsafe { sys::wc_ecc_key_new(heap) };
         if key.is_null() {
             return Err(sys::wolfCrypt_ErrorCodes_MEMORY_E);
         }
-        // wc_ecc_key_new() always initializes the key with INVALID_DEVID.
-        // Calling wc_ecc_init_ex() a second time to install the user's dev_id
-        // would re-run every initialization step (including allocations under
-        // some build configurations such as async crypto without WOLF_CRYPTO_CB)
-        // and orphan resources from the first init. Instead, just patch devId
-        // in place for WOLF_CRYPTO_CB builds.
-        #[cfg(wolf_crypto_cb)]
+        // wc_ecc_key_new() does not take a devId argument. Patch devId in
+        // place for WOLF_CRYPTO_CB builds where wc_ecc_key_new_ex() is not
+        // available.
+        #[cfg(all(not(ecc_key_new_ex), wolf_crypto_cb))]
         unsafe { (*key).devId = dev_id; }
-        #[cfg(not(wolf_crypto_cb))]
+        #[cfg(all(not(ecc_key_new_ex), not(wolf_crypto_cb)))]
         let _ = dev_id;
         Ok(key)
     }
@@ -1343,7 +1343,7 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(ecc_import, random))]
+    /// #[cfg(all(ecc_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
@@ -1358,7 +1358,7 @@ impl ECC {
     /// ecc.export(&mut qx, &mut qx_len, &mut qy, &mut qy_len, &mut d, &mut d_len).expect("Error with export()");
     /// }
     /// ```
-    #[cfg(ecc_import)]
+    #[cfg(ecc_export)]
     pub fn export(&mut self, qx: &mut [u8], qx_len: &mut u32,
             qy: &mut [u8], qy_len: &mut u32, d: &mut [u8], d_len: &mut u32) -> Result<(), i32> {
         *qx_len = crate::buffer_len_to_u32(qx.len())?;
@@ -1398,7 +1398,7 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(ecc_import, random))]
+    /// #[cfg(all(ecc_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
@@ -1413,7 +1413,7 @@ impl ECC {
     /// ecc.export_ex(&mut qx, &mut qx_len, &mut qy, &mut qy_len, &mut d, &mut d_len, false).expect("Error with export_ex()");
     /// }
     /// ```
-    #[cfg(ecc_import)]
+    #[cfg(ecc_export)]
     #[allow(clippy::too_many_arguments)]
     pub fn export_ex(&mut self, qx: &mut [u8], qx_len: &mut u32,
             qy: &mut [u8], qy_len: &mut u32, d: &mut [u8], d_len: &mut u32,

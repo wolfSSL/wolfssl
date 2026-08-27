@@ -58,8 +58,17 @@ extern "C" {
 
     typedef unsigned char sp_uint7;
     typedef          char  sp_int7;
+#elif UCHAR_MAX == 65535
+    /* CHAR_BIT == 16 (e.g. TI C28x): the smallest addressable type is 16-bit,
+     * so there is no native 8-bit type.  An "8-bit" SP value is a 16-bit char
+     * cell holding an octet (0..255); byte I/O masks to an octet (the same
+     * CHAR_BIT!=8 handling used elsewhere - see WOLFSSL_WIDE_BYTE). */
+    #define SP_UCHAR_BITS    16
+
+    typedef unsigned char sp_uint8;
+    typedef          char  sp_int8;
 #else
-    #error "Size of unsigned short not detected"
+    #error "Size of unsigned char not detected"
 #endif
 
 #if USHRT_MAX == 65535
@@ -195,7 +204,8 @@ extern "C" {
 #if !defined(WOLFSSL_SP_ASM) && ( \
       defined(WOLFSSL_SP_X86_64_ASM) || defined(WOLFSSL_SP_ARM32_ASM) || \
       defined(WOLFSSL_SP_ARM64_ASM)  || defined(WOLFSSL_SP_ARM_THUMB_ASM) || \
-      defined(WOLFSSL_SP_ARM_CORTEX_M_ASM))
+      defined(WOLFSSL_SP_ARM_CORTEX_M_ASM) || \
+      defined(WOLFSSL_SP_RISCV64_ASM))
     #define WOLFSSL_SP_ASM
 #endif
 
@@ -241,7 +251,7 @@ extern "C" {
     #define SP_WORD_SIZE 64
 #elif defined(WOLFSSL_SP_RISCV32)
     #define SP_WORD_SIZE 32
-#elif defined(WOLFSSL_SP_RISCV64)
+#elif defined(WOLFSSL_SP_RISCV64_ASM) || defined(WOLFSSL_SP_RISCV64)
     #define SP_WORD_SIZE 64
 #elif defined(WOLFSSL_SP_S390X)
     #define SP_WORD_SIZE 64
@@ -395,6 +405,9 @@ typedef struct sp_ecc_ctx {
     XALIGNED(4) byte data[66*80]; /* stack data */
     #elif defined(WOLFSSL_SP_384)
     XALIGNED(4) byte data[48*80]; /* stack data */
+    #elif SP_WORD_SIZE == 64
+    /* C64 P-256 sp_ecc_verify_256_ctx is 2640 bytes */
+    XALIGNED(4) byte data[32*84]; /* stack data */
     #else
     XALIGNED(4) byte data[32*80]; /* stack data */
     #endif
@@ -466,8 +479,14 @@ typedef struct sp_dh_ctx {
                 #elif !defined(NO_DH) && defined(HAVE_FFDHE_4096)
                     #define SP_INT_BITS     4096
                 #else
-                    /* Default to max 3072 for general RSA and DH. */
-                    #define SP_INT_BITS     3072
+                    /* No FFDHE parameters that big, but WOLFSSL_SP_4096 is
+                     * set when 4096 bit RSA/DH is wanted. */
+                    #ifdef WOLFSSL_SP_4096
+                        #define SP_INT_BITS 4096
+                    #else
+                        /* Default to max 3072 for general RSA and DH. */
+                        #define SP_INT_BITS 3072
+                    #endif
                 #endif
             #elif defined(WOLFCRYPT_HAVE_SAKKE)
                 #define SP_INT_BITS     1024

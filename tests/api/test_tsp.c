@@ -117,7 +117,9 @@ int test_wc_TspRequest_SetHashType(void)
 #if defined(WOLFSSL_TSP) && !defined(NO_SHA256) && \
     defined(WOLFSSL_TSP_REQUESTER)
     TspRequest req;
+    byte zeros[WC_SHA256_DIGEST_SIZE];
 
+    XMEMSET(zeros, 0, sizeof(zeros));
     ExpectIntEQ(wc_TspRequest_Init(&req), 0);
 
     /* Bad argument. */
@@ -126,18 +128,36 @@ int test_wc_TspRequest_SetHashType(void)
     /* Hash type that is not a usable algorithm. */
     ExpectIntEQ(wc_TspRequest_SetHashType(&req, WC_HASH_TYPE_NONE),
         WC_NO_ERR_TRACE(HASH_TYPE_E));
+#if !defined(NO_MD5) && !defined(NO_SHA)
+    /* MD5_SHA has no OID of its own - it maps to the MD5 OID. */
+    ExpectIntEQ(wc_TspRequest_SetHashType(&req, WC_HASH_TYPE_MD5_SHA),
+        WC_NO_ERR_TRACE(HASH_TYPE_E));
+#endif
+#ifndef NO_MD5
+    /* Plain MD5 has its own OID and is still accepted. */
+    ExpectIntEQ(wc_TspRequest_SetHashType(&req, WC_HASH_TYPE_MD5), 0);
+    ExpectIntEQ(req.imprint.hashAlgOID, MD5h);
+#endif
 
-    /* SHA-256 sets the algorithm OID and the digest size. */
+    /* SHA-256 sets the algorithm OID - the digest is set separately. */
     ExpectIntEQ(wc_TspRequest_SetHashType(&req, WC_HASH_TYPE_SHA256), 0);
     ExpectIntEQ(req.imprint.hashAlgOID, SHA256h);
-    ExpectIntEQ(req.imprint.hashSz, WC_SHA256_DIGEST_SIZE);
+    ExpectIntEQ(req.imprint.hashSz, 0);
 
 #ifdef WOLFSSL_SHA384
-    /* A different algorithm sets a different OID and size. */
+    /* A different algorithm sets a different OID. */
     ExpectIntEQ(wc_TspRequest_SetHashType(&req, WC_HASH_TYPE_SHA384), 0);
     ExpectIntEQ(req.imprint.hashAlgOID, SHA384h);
-    ExpectIntEQ(req.imprint.hashSz, WC_SHA384_DIGEST_SIZE);
+    ExpectIntEQ(req.imprint.hashSz, 0);
 #endif
+
+    /* Setting the algorithm discards a digest already set. */
+    ExpectIntEQ(wc_TspRequest_SetHashType(&req, WC_HASH_TYPE_SHA256), 0);
+    ExpectIntEQ(wc_TspRequest_SetHash(&req, tsHashedMsg,
+        (word32)sizeof(tsHashedMsg)), 0);
+    ExpectIntEQ(wc_TspRequest_SetHashType(&req, WC_HASH_TYPE_SHA256), 0);
+    ExpectIntEQ(req.imprint.hashSz, 0);
+    ExpectBufEQ(req.imprint.hash, zeros, (int)sizeof(zeros));
 #endif
     return EXPECT_RESULT();
 }
@@ -199,6 +219,14 @@ int test_wc_TspRequest_GetSetHash(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     /* Hash too big for the message imprint. */
     ExpectIntEQ(wc_TspRequest_SetHash(&req, hash, WC_TSP_MAX_HASH_SZ + 1),
+        WC_NO_ERR_TRACE(BUFFER_E));
+    /* Hash algorithm not set yet. */
+    ExpectIntEQ(wc_TspRequest_SetHash(&req, hash, (word32)sizeof(hash)),
+        WC_NO_ERR_TRACE(HASH_TYPE_E));
+
+    ExpectIntEQ(wc_TspRequest_SetHashType(&req, WC_HASH_TYPE_SHA256), 0);
+    /* One byte short of the algorithm's digest size. */
+    ExpectIntEQ(wc_TspRequest_SetHash(&req, hash, (word32)sizeof(hash) - 1),
         WC_NO_ERR_TRACE(BUFFER_E));
 
     /* Set the hash and length. */
@@ -434,7 +462,22 @@ int test_wc_TspRequest_Encode(void)
     req.imprint.hashSz = WC_TSP_MAX_HASH_SZ + 1;
     ExpectIntEQ(wc_TspRequest_Encode(&req, enc, &encSz),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    req.imprint.hashSz = (word32)sizeof(tsHashedMsg);
+    /* Hash length that is not the algorithm's digest size. */
+    req.imprint.hashSz = (word32)sizeof(tsHashedMsg) - 1;
+    ExpectIntEQ(wc_TspRequest_Encode(&req, enc, &encSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Algorithm set but the digest never supplied - not encoded. */
+    ExpectIntEQ(wc_TspRequest_Init(&req), 0);
+    ExpectIntEQ(wc_TspRequest_SetHashType(&req, WC_HASH_TYPE_SHA256), 0);
+    ExpectIntEQ(wc_TspRequest_Encode(&req, enc, &encSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Setting the algorithm after the digest discards the digest. */
+    ExpectIntEQ(wc_TspRequest_SetHash(&req, tsHashedMsg,
+        (word32)sizeof(tsHashedMsg)), 0);
+    ExpectIntEQ(wc_TspRequest_SetHashType(&req, WC_HASH_TYPE_SHA256), 0);
+    ExpectIntEQ(wc_TspRequest_Encode(&req, enc, &encSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    test_tsp_set_hash(&req.imprint);
     /* Policy too long. */
     req.policySz = MAX_OID_SZ + 1;
     ExpectIntEQ(wc_TspRequest_Encode(&req, enc, &encSz),
@@ -483,6 +526,19 @@ int test_wc_TspRequest_Encode(void)
     sz = (word32)sizeof(enc);
     ExpectIntEQ(wc_TspRequest_Encode(&req, enc, &sz), 0);
     ExpectIntGT(sz, (word32)sizeof(tsMinReqDer));
+
+#if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    !defined(HAVE_SELFTEST) && defined(WOLFSSL_SHA512) && \
+    !defined(WOLFSSL_NOSHA512_224)
+    /* SHA-512/224 imprint - the OID maps back to the algorithm. */
+    ExpectIntEQ(wc_TspRequest_Init(&req), 0);
+    ExpectIntEQ(wc_TspRequest_SetHashType(&req, WC_HASH_TYPE_SHA512_224), 0);
+    ExpectIntEQ(req.imprint.hashAlgOID, SHA512_224h);
+    ExpectIntEQ(wc_TspRequest_SetHash(&req, tsHashedMsg,
+        WC_SHA512_224_DIGEST_SIZE), 0);
+    sz = (word32)sizeof(enc);
+    ExpectIntEQ(wc_TspRequest_Encode(&req, enc, &sz), 0);
+#endif
 #endif
     return EXPECT_RESULT();
 }
@@ -867,7 +923,8 @@ int test_wc_TspTstInfo_Setters(void)
     static const byte policy[] = {
         0x2b, 0x06, 0x01, 0x04, 0x01, 0x87, 0x67, 0x01
     };
-    static const byte hash[] = { 0xde, 0xad, 0xbe, 0xef };
+    /* SHA-256 sized hash - the length must match the algorithm. */
+    static const byte hash[32] = { 0xde, 0xad, 0xbe, 0xef };
     static const byte genTime[] = "20260610120000Z";
     static const byte nonce[] = { 0x12, 0x34 };
     /* Name of TSA: dNSName GeneralName. */
@@ -876,7 +933,9 @@ int test_wc_TspTstInfo_Setters(void)
     byte bigHash[WC_TSP_MAX_HASH_SZ + 1];
     const byte* out = NULL;
     word32 outSz = 0;
+#ifndef NO_SHA256
     word32 hashOID = 0;
+#endif
     word32 seconds = 0;
     word16 millis = 0;
     word16 micros = 0;
@@ -906,12 +965,22 @@ int test_wc_TspTstInfo_Setters(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_TspTstInfo_SetMsgImprint(&tst, SHA256h, bigHash,
         (word32)sizeof(bigHash)), WC_NO_ERR_TRACE(BUFFER_E));
+#ifndef NO_SHA256
+    /* One byte short of the digest size of the algorithm. */
+    ExpectIntEQ(wc_TspTstInfo_SetMsgImprint(&tst, SHA256h, hash,
+        (word32)sizeof(hash) - 1), WC_NO_ERR_TRACE(BUFFER_E));
+#endif
+    /* An unknown algorithm has no digest size to check the length against. */
+    ExpectIntEQ(wc_TspTstInfo_SetMsgImprint(&tst, 1, hash,
+        (word32)sizeof(hash) - 1), WC_NO_ERR_TRACE(HASH_TYPE_E));
+#ifndef NO_SHA256
     ExpectIntEQ(wc_TspTstInfo_SetMsgImprint(&tst, SHA256h, hash,
         (word32)sizeof(hash)), 0);
     ExpectIntEQ(wc_TspTstInfo_GetMsgImprint(&tst, &hashOID, &out, &outSz), 0);
     ExpectIntEQ(hashOID, SHA256h);
     ExpectIntEQ(outSz, (word32)sizeof(hash));
     ExpectBufEQ(out, hash, (int)sizeof(hash));
+#endif
 
     /* Time of the time-stamp - referenced, round trips. */
     ExpectIntEQ(wc_TspTstInfo_SetGenTime(NULL, genTime,
@@ -1020,6 +1089,36 @@ int test_wc_TspTstInfo_Encode(void)
     tst.genTimeSz = 17;
     ExpectIntEQ(wc_TspTstInfo_Encode(&tst, enc, &encSz), 0);
     encSz = (word32)sizeof(enc);
+    /* Date and time must be digits - a character below '0'. */
+    tst.genTime = (const byte*)"2026060/120000Z";
+    tst.genTimeSz = 15;
+    ExpectIntEQ(wc_TspTstInfo_Encode(&tst, enc, &encSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Date and time must be digits - a character above '9'. */
+    tst.genTime = (const byte*)"2026060:120000Z";
+    tst.genTimeSz = 15;
+    ExpectIntEQ(wc_TspTstInfo_Encode(&tst, enc, &encSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Day out of range - every other date and time field in range. */
+    tst.genTime = (const byte*)"20260632120000Z";
+    tst.genTimeSz = 15;
+    ExpectIntEQ(wc_TspTstInfo_Encode(&tst, enc, &encSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Fraction of seconds run stops on a character below '0'. */
+    tst.genTime = (const byte*)"20260604120000.5/Z";
+    tst.genTimeSz = 18;
+    ExpectIntEQ(wc_TspTstInfo_Encode(&tst, enc, &encSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Fraction of seconds run stops on a character above '9'. */
+    tst.genTime = (const byte*)"20260604120000.5:Z";
+    tst.genTimeSz = 18;
+    ExpectIntEQ(wc_TspTstInfo_Encode(&tst, enc, &encSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Nothing may follow the Zulu indicator. */
+    tst.genTime = (const byte*)"20260604120000ZZ";
+    tst.genTimeSz = 16;
+    ExpectIntEQ(wc_TspTstInfo_Encode(&tst, enc, &encSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     tst.genTime = tsGenTime;
     tst.genTimeSz = (word32)sizeof(tsGenTime) - 1;
     /* Empty TSA name - not allowed. */
@@ -1033,6 +1132,10 @@ int test_wc_TspTstInfo_Encode(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     /* Hash too long. */
     tst.imprint.hashSz = WC_TSP_MAX_HASH_SZ + 1;
+    ExpectIntEQ(wc_TspTstInfo_Encode(&tst, enc, &encSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Hash length that is not the algorithm's digest size. */
+    tst.imprint.hashSz = (word32)sizeof(tsHashedMsg) - 1;
     ExpectIntEQ(wc_TspTstInfo_Encode(&tst, enc, &encSz),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     tst.imprint.hashSz = (word32)sizeof(tsHashedMsg);
@@ -1136,6 +1239,18 @@ int test_wc_TspTstInfo_Encode(void)
     ExpectIntEQ(tstDec.accuracy.millis, 500);
     ExpectIntEQ(tstDec.accuracy.micros, 0);
 
+    /* Accuracy with only micros - accuracy is still encoded. */
+    tst.accuracy.seconds = 0;
+    tst.accuracy.millis = 0;
+    tst.accuracy.micros = 5;
+    sz = (word32)sizeof(enc);
+    ExpectIntEQ(wc_TspTstInfo_Encode(&tst, enc, &sz), 0);
+    ExpectIntEQ(wc_TspTstInfo_Decode(&tstDec, enc, sz), 0);
+    ExpectIntEQ(tstDec.accuracy.seconds, 0);
+    ExpectIntEQ(tstDec.accuracy.millis, 0);
+    ExpectIntEQ(tstDec.accuracy.micros, 5);
+    tst.accuracy.micros = 0;
+
     /* Accuracy seconds needing a zero byte to be positive. */
     tst.accuracy.seconds = 200;
     tst.accuracy.millis = 0;
@@ -1224,6 +1339,29 @@ int test_wc_TspTstInfo_Decode(void)
             (word32)sizeof(extsTstDer)), WC_NO_ERR_TRACE(ASN_PARSE_E));
     }
 
+    /* Message imprint hash must not be empty. */
+    {
+        static const byte emptyHashTstDer[] = {
+            0x30, 0x35,                                     /* TSTInfo */
+            0x02, 0x01, 0x01,                               /* version 1 */
+            0x06, 0x08,                                     /* policy */
+            0x2b, 0x06, 0x01, 0x04, 0x01, 0x87, 0x67, 0x01,
+            0x30, 0x11,                                     /* messageImprint */
+            0x30, 0x0d,                                     /* hashAlgorithm */
+            0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, /* sha256 */
+            0x04, 0x02, 0x01,
+            0x05, 0x00,                                     /* NULL */
+            0x04, 0x00,                                     /* hashedMessage */
+            0x02, 0x02, 0x9a, 0x33,                         /* serialNumber */
+            0x18, 0x0f,                                     /* genTime */
+            '2', '0', '2', '6', '0', '6', '0', '4',
+            '1', '2', '0', '0', '0', '0', 'Z'
+        };
+
+        ExpectIntEQ(wc_TspTstInfo_Decode(&tstDec, emptyHashTstDer,
+            (word32)sizeof(emptyHashTstDer)), WC_NO_ERR_TRACE(ASN_PARSE_E));
+    }
+
     /* Accuracy millis and micros must be 1..999 when present. */
     {
         static const byte accTstDer[] = {
@@ -1264,6 +1402,18 @@ int test_wc_TspTstInfo_Decode(void)
         ExpectIntEQ(wc_TspTstInfo_Decode(&tstDec, accEnc,
             (word32)sizeof(accEnc)), WC_NO_ERR_TRACE(ASN_PARSE_E));
         /* micros of zero - out of range. */
+        accEnc[sizeof(accEnc) - 2] = 0x00;
+        accEnc[sizeof(accEnc) - 1] = 0x00;
+        ExpectIntEQ(wc_TspTstInfo_Decode(&tstDec, accEnc,
+            (word32)sizeof(accEnc)), WC_NO_ERR_TRACE(ASN_PARSE_E));
+        /* micros in range - decodes. */
+        accEnc[sizeof(accEnc) - 2] = 0x01;
+        accEnc[sizeof(accEnc) - 1] = 0xf4;
+        ExpectIntEQ(wc_TspTstInfo_Decode(&tstDec, accEnc,
+            (word32)sizeof(accEnc)), 0);
+        ExpectIntEQ(tstDec.accuracy.micros, 500);
+        /* millis of zero - out of range. */
+        accEnc[sizeof(accEnc) - 4] = 0x80;
         accEnc[sizeof(accEnc) - 2] = 0x00;
         accEnc[sizeof(accEnc) - 1] = 0x00;
         ExpectIntEQ(wc_TspTstInfo_Decode(&tstDec, accEnc,
@@ -2698,24 +2848,27 @@ int test_wc_TspResponse_Verify(void)
         TEST_SUCCESS);
 
     /* Bad arguments. */
-    ExpectIntEQ(wc_TspResponse_Verify(NULL, NULL, 0, &tstDec),
+    ExpectIntEQ(wc_TspResponse_Verify(NULL, tsa_cert_der_2048,
+        sizeof_tsa_cert_der_2048, &tstDec), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* The trusted TSA certificate is required - the certificate in the token
+     * is not a trust anchor. */
+    ExpectIntEQ(wc_TspResponse_Verify(&resp, NULL, 0, &tstDec),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_TspResponse_Verify(&resp, tsa_cert_der_2048, 0, &tstDec),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
-    /* Verifies with the certificate in the token - no certificate needed.
-     * The returned TSTInfo references the response's token, which is still
-     * available after the call. */
-    ExpectIntEQ(wc_TspResponse_Verify(&resp, NULL, 0, &tstDec), 0);
+    /* The signer matches the trusted TSA certificate. The returned TSTInfo
+     * references the response's token, still available after the call. */
+    ExpectIntEQ(wc_TspResponse_Verify(&resp, tsa_cert_der_2048,
+        sizeof_tsa_cert_der_2048, &tstDec), 0);
     ExpectIntEQ(tstDec.version, 1);
     ExpectIntEQ(tstDec.genTimeSz, (word32)sizeof(tsGenTime) - 1);
     ExpectBufEQ(tstDec.genTime, tsGenTime, (int)sizeof(tsGenTime) - 1);
     ExpectIntEQ(tstDec.serialSz, (word32)sizeof(tsSerial));
     ExpectBufEQ(tstDec.serial, tsSerial, (int)sizeof(tsSerial));
     /* The TSTInfo object is optional. */
-    ExpectIntEQ(wc_TspResponse_Verify(&resp, NULL, 0, NULL), 0);
-
-    /* The signer matches the trusted TSA certificate. */
     ExpectIntEQ(wc_TspResponse_Verify(&resp, tsa_cert_der_2048,
-        sizeof_tsa_cert_der_2048, &tstDec), 0);
+        sizeof_tsa_cert_der_2048, NULL), 0);
 
     wc_FreeRng(&rng);
 #endif
@@ -2779,17 +2932,18 @@ int test_wc_TspResponse_Verify_status(void)
 
     /* A response that was not granted has no token to trust. */
     resp.status = WC_TSP_PKISTATUS_REJECTION;
-    ExpectIntEQ(wc_TspResponse_Verify(&resp, NULL, 0, &tstDec),
-        WC_NO_ERR_TRACE(TSP_VERIFY_E));
+    ExpectIntEQ(wc_TspResponse_Verify(&resp, tsa_cert_der_2048,
+        sizeof_tsa_cert_der_2048, &tstDec), WC_NO_ERR_TRACE(TSP_VERIFY_E));
     resp.status = WC_TSP_PKISTATUS_GRANTED_WITH_MODS;
-    ExpectIntEQ(wc_TspResponse_Verify(&resp, NULL, 0, &tstDec), 0);
+    ExpectIntEQ(wc_TspResponse_Verify(&resp, tsa_cert_der_2048,
+        sizeof_tsa_cert_der_2048, &tstDec), 0);
 
     /* A granted response with no token does not verify. */
     resp.status = WC_TSP_PKISTATUS_GRANTED;
     resp.token = NULL;
     resp.tokenSz = 0;
-    ExpectIntEQ(wc_TspResponse_Verify(&resp, NULL, 0, &tstDec),
-        WC_NO_ERR_TRACE(TSP_VERIFY_E));
+    ExpectIntEQ(wc_TspResponse_Verify(&resp, tsa_cert_der_2048,
+        sizeof_tsa_cert_der_2048, &tstDec), WC_NO_ERR_TRACE(TSP_VERIFY_E));
 
     wc_FreeRng(&rng);
 #endif
@@ -2816,7 +2970,8 @@ int test_wc_TspResponse_Verify_modified(void)
     if (EXPECT_SUCCESS()) {
         token[tokenSz - 5] ^= 0x80;
     }
-    ExpectIntLT(wc_TspResponse_Verify(&resp, NULL, 0, &tstDec), 0);
+    ExpectIntLT(wc_TspResponse_Verify(&resp, tsa_cert_der_2048,
+        sizeof_tsa_cert_der_2048, &tstDec), 0);
 
     wc_FreeRng(&rng);
 #endif
@@ -2844,11 +2999,55 @@ int test_wc_TspResponse_Verify_nocerts(void)
     resp.token = token;
     resp.tokenSz = tokenSz;
 
-    /* Cannot verify without the TSA's certificate. */
-    ExpectIntLT(wc_TspResponse_Verify(&resp, NULL, 0, &tstDec), 0);
+    /* The TSA's certificate is required - the token-level case with no
+     * certificate is covered by test_wc_TspTstInfo_VerifyWithPKCS7_nocerts. */
+    ExpectIntEQ(wc_TspResponse_Verify(&resp, NULL, 0, &tstDec),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     /* Verifies when the TSA's certificate is supplied. */
     ExpectIntEQ(wc_TspResponse_Verify(&resp, tsa_cert_der_2048,
         sizeof_tsa_cert_der_2048, &tstDec), 0);
+    /* A different certificate is not the signer. */
+    ExpectIntLT(wc_TspResponse_Verify(&resp, client_cert_der_2048,
+        sizeof_client_cert_der_2048, &tstDec), 0);
+
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wc_TspResponse_Verify_no_anchor(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TSP) && defined(HAVE_PKCS7) && defined(HAVE_ECC) && \
+    defined(USE_CERT_BUFFERS_256) && !defined(NO_RSA) && \
+    !defined(NO_SHA256) && !defined(WC_NO_RNG) && \
+    defined(WOLFSSL_TSP_REQUESTER) && defined(WOLFSSL_TSP_RESPONDER)
+    WC_RNG rng;
+    TspTstInfo tstDec;
+    TspResponse resp;
+    byte token[3072];
+    word32 tokenSz = (word32)sizeof(token);
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    /* A granted response signed by a TSA the caller does not trust. */
+    ExpectIntEQ(test_tsp_make_token(token, &tokenSz, tsa_ecc_cert_der_256,
+        sizeof_tsa_ecc_cert_der_256, tsa_ecc_key_der_256,
+        sizeof_tsa_ecc_key_der_256, ECDSAk, &rng), TEST_SUCCESS);
+    ExpectIntEQ(wc_TspResponse_Init(&resp), 0);
+    resp.status = WC_TSP_PKISTATUS_GRANTED;
+    resp.token = token;
+    resp.tokenSz = tokenSz;
+
+    /* The token carries a self-signed certificate with the time-stamping EKU
+     * that verifies its own signature - it is not a trust anchor. */
+    ExpectIntEQ(wc_TspResponse_Verify(&resp, NULL, 0, &tstDec),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* The trusted TSA is not the signer of this token. */
+    ExpectIntEQ(wc_TspResponse_Verify(&resp, tsa_cert_der_2048,
+        sizeof_tsa_cert_der_2048, &tstDec), WC_NO_ERR_TRACE(TSP_VERIFY_E));
+    /* Pinning the certificate that actually signed the token verifies. */
+    ExpectIntEQ(wc_TspResponse_Verify(&resp, tsa_ecc_cert_der_256,
+        sizeof_tsa_ecc_cert_der_256, &tstDec), 0);
 
     wc_FreeRng(&rng);
 #endif
@@ -2892,23 +3091,30 @@ int test_wc_TspResponse_VerifyData(void)
     resp.tokenSz = tokenSz;
 
     /* Bad arguments. */
-    ExpectIntEQ(wc_TspResponse_VerifyData(NULL, NULL, 0, data,
-        (word32)sizeof(data) - 1, &tstDec), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_TspResponse_VerifyData(&resp, NULL, 0, NULL, 0, &tstDec),
+    ExpectIntEQ(wc_TspResponse_VerifyData(NULL, tsa_cert_der_2048,
+        sizeof_tsa_cert_der_2048, data, (word32)sizeof(data) - 1, &tstDec),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_TspResponse_VerifyData(&resp, tsa_cert_der_2048,
+        sizeof_tsa_cert_der_2048, NULL, 0, &tstDec),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* The trusted TSA certificate is required. */
+    ExpectIntEQ(wc_TspResponse_VerifyData(&resp, NULL, 0, data,
+        (word32)sizeof(data) - 1, &tstDec), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_TspResponse_VerifyData(&resp, tsa_cert_der_2048, 0, data,
+        (word32)sizeof(data) - 1, &tstDec), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     /* Verifies the token and that it is over the data - no hashing by the
      * caller. */
-    ExpectIntEQ(wc_TspResponse_VerifyData(&resp, NULL, 0, data,
-        (word32)sizeof(data) - 1, &tstDec), 0);
+    ExpectIntEQ(wc_TspResponse_VerifyData(&resp, tsa_cert_der_2048,
+        sizeof_tsa_cert_der_2048, data, (word32)sizeof(data) - 1, &tstDec), 0);
     ExpectIntEQ(tstDec.imprint.hashSz, (word32)sizeof(dataHash));
     /* The TSTInfo object is optional. */
-    ExpectIntEQ(wc_TspResponse_VerifyData(&resp, NULL, 0, data,
-        (word32)sizeof(data) - 1, NULL), 0);
+    ExpectIntEQ(wc_TspResponse_VerifyData(&resp, tsa_cert_der_2048,
+        sizeof_tsa_cert_der_2048, data, (word32)sizeof(data) - 1, NULL), 0);
 
     /* Different data does not match the message imprint. */
-    ExpectIntEQ(wc_TspResponse_VerifyData(&resp, NULL, 0,
-        (const byte*)"different data", 14, &tstDec),
+    ExpectIntEQ(wc_TspResponse_VerifyData(&resp, tsa_cert_der_2048,
+        sizeof_tsa_cert_der_2048, (const byte*)"different data", 14, &tstDec),
         WC_NO_ERR_TRACE(TSP_VERIFY_E));
 
     /* wc_TspTstInfo_VerifyData directly - bad args and match/mismatch. */
@@ -3525,6 +3731,216 @@ int test_wc_TspTstInfo_VerifyWithPKCS7_tsa_name_dirname(void)
         sizeof_client_cert_der_2048, dirName, &dirNameSz), TEST_SUCCESS);
     ExpectIntEQ(test_tsp_tsa_name(&rng, dirName, dirNameSz,
         WC_NO_ERR_TRACE(TSP_VERIFY_E)), TEST_SUCCESS);
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* TspEncodeSigningCertV2(), TspCheckSigningCertAttr(), TspCheckOneSignerInfo()
+ * and tspSigningCertV2Oid are WOLFSSL_LOCAL (hidden visibility): they only link
+ * into the test binary when the library is built static, so the blocks below
+ * are additionally guarded on WOLFSSL_TEST_STATIC_BUILD. */
+#if defined(WOLFSSL_TSP) && defined(HAVE_PKCS7) && !defined(NO_SHA256) && \
+    defined(WOLFSSL_TSP_RESPONDER) && defined(WOLFSSL_TEST_STATIC_BUILD)
+/* Opaque certificate bytes - only their hash matters to the attribute. */
+static const byte tsEssCert[16] = {
+    0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+    0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10
+};
+#endif
+
+int test_wc_TspEncodeSigningCertV2(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TSP) && defined(HAVE_PKCS7) && !defined(NO_SHA256) && \
+    defined(WOLFSSL_TSP_RESPONDER) && defined(WOLFSSL_TEST_STATIC_BUILD)
+    byte essCert[128];
+    word32 essCertSz;
+    word32 lenOnly = 0;
+
+    /* Length of encoding only - no buffer to write into. */
+    ExpectIntEQ(TspEncodeSigningCertV2(SHA256h, tsEssCert,
+        (word32)sizeof(tsEssCert), NULL, &lenOnly, NULL), 0);
+    ExpectIntGT(lenOnly, 0);
+    /* Same encoding written out. */
+    essCertSz = (word32)sizeof(essCert);
+    ExpectIntEQ(TspEncodeSigningCertV2(SHA256h, tsEssCert,
+        (word32)sizeof(tsEssCert), essCert, &essCertSz, NULL), 0);
+    ExpectIntEQ(essCertSz, lenOnly);
+    /* Buffer too small for the encoding. */
+    essCertSz = lenOnly - 1;
+    ExpectIntEQ(TspEncodeSigningCertV2(SHA256h, tsEssCert,
+        (word32)sizeof(tsEssCert), essCert, &essCertSz, NULL),
+        WC_NO_ERR_TRACE(BUFFER_E));
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wc_TspCheckSigningCertAttr(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TSP) && defined(HAVE_PKCS7) && !defined(NO_SHA256) && \
+    defined(WOLFSSL_TSP_RESPONDER) && defined(WOLFSSL_TSP_VERIFIER) && \
+    defined(WOLFSSL_TEST_STATIC_BUILD)
+    /* SigningCertificateV2 with no hashAlgorithm - SHA-256 by default - and
+     * a 16 byte certHash, which is not the SHA-256 digest length. */
+    static const byte shortHashAttrib[] = {
+        0x30, 0x16,                                     /* SigningCertV2 */
+        0x30, 0x14,                                     /* certs */
+        0x30, 0x12,                                     /* ESSCertIDv2 */
+        0x04, 0x10,                                     /* certHash */
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
+    };
+    wc_PKCS7 pkcs7;
+    PKCS7DecodedAttrib attrib;
+    byte cert[sizeof(tsEssCert)];
+    byte oid[sizeof(tspSigningCertV2Oid)];
+    byte essCert[128];
+    word32 essCertSz = (word32)sizeof(essCert);
+
+    XMEMSET(&pkcs7, 0, sizeof(pkcs7));
+    XMEMSET(&attrib, 0, sizeof(attrib));
+    XMEMCPY(cert, tsEssCert, sizeof(cert));
+    XMEMCPY(oid, tspSigningCertV2Oid, sizeof(oid));
+
+    ExpectIntEQ(TspEncodeSigningCertV2(SHA256h, cert, (word32)sizeof(cert),
+        essCert, &essCertSz, NULL), 0);
+
+    attrib.oid = oid;
+    attrib.oidSz = (word32)sizeof(oid);
+    attrib.value = essCert;
+    attrib.valueSz = essCertSz;
+    pkcs7.decodedAttrib = &attrib;
+    pkcs7.verifyCert = cert;
+    pkcs7.verifyCertSz = (word32)sizeof(cert);
+
+    /* Attribute holds the hash of the verifying certificate. */
+    ExpectIntEQ(TspCheckSigningCertAttr(&pkcs7), 0);
+    /* certHash is not the length of a SHA-256 digest. */
+    attrib.value = (byte*)shortHashAttrib;
+    attrib.valueSz = (word32)sizeof(shortHashAttrib);
+    ExpectIntEQ(TspCheckSigningCertAttr(&pkcs7),
+        WC_NO_ERR_TRACE(TSP_VERIFY_E));
+    /* certHash is the right length but not the hash of the certificate. */
+    attrib.value = essCert;
+    attrib.valueSz = essCertSz;
+    cert[0] ^= 0xff;
+    ExpectIntEQ(TspCheckSigningCertAttr(&pkcs7),
+        WC_NO_ERR_TRACE(TSP_VERIFY_E));
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wc_TspCheckOneSignerInfo(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TSP) && defined(HAVE_PKCS7) && \
+    defined(WOLFSSL_TSP_VERIFIER) && defined(WOLFSSL_TEST_STATIC_BUILD)
+    /* Minimal ContentInfo/SignedData wrappers parsed only as far as the
+     * signerInfos SET - the SET content is what each case varies. */
+    static const byte oneSigner[] = {
+        0x30, 0x1a, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01,
+        0x07, 0x02, 0xa0, 0x0d, 0x30, 0x0b, 0x02, 0x01, 0x01, 0x31, 0x00,
+        0x30, 0x00, 0x31, 0x02, 0x30, 0x00
+    }; /* signerInfos content = one empty SEQUENCE */
+    static const byte twoSigners[] = {
+        0x30, 0x1c, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01,
+        0x07, 0x02, 0xa0, 0x0f, 0x30, 0x0d, 0x02, 0x01, 0x01, 0x31, 0x00,
+        0x30, 0x00, 0x31, 0x04, 0x30, 0x00, 0x30, 0x00
+    }; /* signerInfos content = two empty SEQUENCEs */
+    static const byte tagMismatch[] = {
+        0x30, 0x1a, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01,
+        0x07, 0x02, 0xa0, 0x0d, 0x30, 0x0b, 0x02, 0x01, 0x01, 0x31, 0x00,
+        0x30, 0x00, 0x31, 0x02, 0x02, 0x00
+    }; /* signerInfos content = { 0x02, 0x00 } - INTEGER, not SEQUENCE */
+    static const byte badLength[] = {
+        0x30, 0x1a, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01,
+        0x07, 0x02, 0xa0, 0x0d, 0x30, 0x0b, 0x02, 0x01, 0x01, 0x31, 0x00,
+        0x30, 0x00, 0x31, 0x02, 0x30, 0x82
+    }; /* signerInfos content = SEQUENCE tag, truncated long-form length */
+
+    /* Exactly one SignerInfo. */
+    ExpectIntEQ(TspCheckOneSignerInfo(oneSigner, (word32)sizeof(oneSigner),
+        NULL), 0);
+    /* Two SignerInfos - the walk completes and the count is rejected. */
+    ExpectIntEQ(TspCheckOneSignerInfo(twoSigners, (word32)sizeof(twoSigners),
+        NULL), WC_NO_ERR_TRACE(TSP_VERIFY_E));
+    /* Entry is not a SEQUENCE - the walk stops and the count is not used. */
+    ExpectIntEQ(TspCheckOneSignerInfo(tagMismatch,
+        (word32)sizeof(tagMismatch), NULL), WC_NO_ERR_TRACE(ASN_PARSE_E));
+    /* Entry has a SEQUENCE tag but no length left to read. */
+    ExpectIntEQ(TspCheckOneSignerInfo(badLength, (word32)sizeof(badLength),
+        NULL), WC_NO_ERR_TRACE(ASN_PARSE_E));
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(WOLFSSL_TSP) && defined(HAVE_PKCS7) && !defined(NO_RSA) && \
+    !defined(NO_SHA256) && !defined(WC_NO_RNG) && \
+    defined(WOLFSSL_TSP_REQUESTER) && defined(WOLFSSL_TSP_RESPONDER) && \
+    defined(WOLFSSL_TSP_VERIFIER)
+/* id-ct-TSTInfo with the last arc changed: encodes to the same length as the
+ * time-stamp token content type but is a different OID. */
+static const byte tsOtherContentOid[] = {
+    0x06, 0x0b,
+    0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x09, 0x10, 0x01, 0x05
+};
+
+/* Sign a TSTInfo as CMS SignedData under that other content type. */
+static int test_tsp_make_other_content_token(byte* token, word32* tokenSz,
+    WC_RNG* rng)
+{
+    EXPECT_DECLS;
+    wc_PKCS7* pkcs7 = NULL;
+    TspTstInfo tst;
+    byte tstDer[512];
+    word32 tstDerSz = (word32)sizeof(tstDer);
+    int sz = 0;
+
+    test_tsp_set_tstinfo(&tst);
+    ExpectIntEQ(wc_TspTstInfo_Encode(&tst, tstDer, &tstDerSz), 0);
+    ExpectIntEQ(test_tsp_new_tsa_signer(&pkcs7, rng), TEST_SUCCESS);
+    if (EXPECT_SUCCESS()) {
+        pkcs7->content = tstDer;
+        pkcs7->contentSz = tstDerSz;
+        pkcs7->contentOID = TSTINFO_DATA;
+    }
+    ExpectIntEQ(wc_PKCS7_SetContentType(pkcs7, (byte*)tsOtherContentOid,
+        (word32)sizeof(tsOtherContentOid)), 0);
+    ExpectIntGT(sz = wc_PKCS7_EncodeSignedData(pkcs7, token, *tokenSz), 0);
+    if (EXPECT_SUCCESS()) {
+        *tokenSz = (word32)sz;
+    }
+    wc_PKCS7_Free(pkcs7);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+int test_wc_TspTstInfo_VerifyWithPKCS7_other_content(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TSP) && defined(HAVE_PKCS7) && !defined(NO_RSA) && \
+    !defined(NO_SHA256) && !defined(WC_NO_RNG) && \
+    defined(WOLFSSL_TSP_REQUESTER) && defined(WOLFSSL_TSP_RESPONDER) && \
+    defined(WOLFSSL_TSP_VERIFIER)
+    wc_PKCS7* pkcs7 = NULL;
+    WC_RNG rng;
+    byte token[3072];
+    word32 tokenSz = (word32)sizeof(token);
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(test_tsp_make_other_content_token(token, &tokenSz, &rng),
+        TEST_SUCCESS);
+
+    /* Content type is the same length as id-ct-TSTInfo but not equal to it. */
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, INVALID_DEVID));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntEQ(wc_TspTstInfo_VerifyWithPKCS7(pkcs7, token, tokenSz, NULL),
+        WC_NO_ERR_TRACE(PKCS7_OID_E));
+    wc_PKCS7_Free(pkcs7);
+
     wc_FreeRng(&rng);
 #endif
     return EXPECT_RESULT();

@@ -264,7 +264,6 @@ static int _PublicOperation(const byte* in, word32 inlen, byte* out,
 
     dev = &key->ctx;
 
-    key->ctx.cfd = -1;
     if (wc_DevCryptoCreate(dev, CRYPTO_ASYM_RSA_PUBLIC, NULL, 0) != 0) {
         WOLFSSL_MSG("Error getting RSA public session");
         return WC_DEVCRYPTO_E;
@@ -439,7 +438,6 @@ int wc_DevCrypto_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     byte eBuf[8];
     int  eBufSz;
 
-    key->ctx.cfd = -1;
     nSz = dSz = bSz;
     cSz = pSz = qSz = dpSz = dqSz = bSz/2;
 

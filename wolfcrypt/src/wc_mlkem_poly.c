@@ -67,6 +67,7 @@
  *   some platforms and is smaller in code size.
  */
 
+#define WC_FIPS_LL_CRYPTO
 #define _WC_BUILDING_WC_MLKEM_POLY_C
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
@@ -126,7 +127,7 @@ static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
  * => r = a - ((V * a) >> 26) * q), as V based on 2^26
  * V is the multiplier that gets the quotient after shifting.
  */
-#define MLKEM_V          (((1U << 26) + (MLKEM_Q / 2)) / MLKEM_Q)
+#define MLKEM_V          (((1UL << 26) + (MLKEM_Q / 2)) / MLKEM_Q)
 
 /* Used in converting to Montgomery form.
  * f is the normalizer = 2^k % m.
@@ -1257,6 +1258,55 @@ void mlkem_init(void)
 
 #if defined(__aarch64__) && defined(WOLFSSL_ARMASM)
 
+/* The three-way Keccak helpers have a NEON implementation and one using the
+ * SHA-3 crypto extension instructions (EOR3/RAX1/XAR/BCAX). Those instructions
+ * are OPTIONAL in ARMv8.2 and are absent on Cortex-A55 parts such as the NXP
+ * i.MX95, so the choice has to be made from the CPU ID flags at run time -- the
+ * same way sha3.c selects between BlockSha3_crypto and BlockSha3_base.
+ * Selecting at build time made ML-KEM abort with SIGILL on any aarch64 CPU
+ * without FEAT_SHA3 whenever wolfSSL was configured
+ * --enable-armasm=sha3-crypto, even though SHA-3 itself fell back correctly.
+ */
+#ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
+
+static void mlkem_sha3_blocksx3(word64* state)
+{
+    if (IS_AARCH64_SHA3(cpuid_flags)) {
+        mlkem_sha3_blocksx3_crypto(state);
+    }
+    else {
+        mlkem_sha3_blocksx3_neon(state);
+    }
+}
+
+static void mlkem_shake128_blocksx3_seed(word64* state, byte* seed)
+{
+    if (IS_AARCH64_SHA3(cpuid_flags)) {
+        mlkem_shake128_blocksx3_seed_crypto(state, seed);
+    }
+    else {
+        mlkem_shake128_blocksx3_seed_neon(state, seed);
+    }
+}
+
+static void mlkem_shake256_blocksx3_seed(word64* state, byte* seed)
+{
+    if (IS_AARCH64_SHA3(cpuid_flags)) {
+        mlkem_shake256_blocksx3_seed_crypto(state, seed);
+    }
+    else {
+        mlkem_shake256_blocksx3_seed_neon(state, seed);
+    }
+}
+
+#else
+
+#define mlkem_sha3_blocksx3             mlkem_sha3_blocksx3_neon
+#define mlkem_shake128_blocksx3_seed    mlkem_shake128_blocksx3_seed_neon
+#define mlkem_shake256_blocksx3_seed    mlkem_shake256_blocksx3_seed_neon
+
+#endif /* WOLFSSL_ARMASM_CRYPTO_SHA3 */
+
 #ifndef WOLFSSL_MLKEM_NO_MAKE_KEY
 /* Generate a public-private key pair from randomly generated data.
  *
@@ -1870,7 +1920,7 @@ void mlkem_keygen(sword16* s, sword16* t, sword16* e, const sword16* a, int k)
 {
 #ifdef USE_INTEL_SPEEDUP
 #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
-    if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         /* Alg 13: Steps 16-18 */
         mlkem_keygen_avx512(s, t, e, a, k);
         RESTORE_VECTOR_REGISTERS();
@@ -2083,7 +2133,7 @@ void mlkem_encapsulate(const sword16* pub, sword16* u, sword16* v,
 {
 #ifdef USE_INTEL_SPEEDUP
 #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
-    if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         mlkem_encapsulate_avx512(pub, u, v, a, y, e1, e2, m, k);
         RESTORE_VECTOR_REGISTERS();
     }
@@ -2190,7 +2240,7 @@ int mlkem_encapsulate_seeds(const sword16* pub, MLKEM_PRF_T* prf, sword16* u,
     mlkem_from_msg(m, msg);
 
     /* Generate noise using PRF. */
-    coins[WC_ML_KEM_SYM_SZ] = (byte)(2 * k);
+    coins[WC_ML_KEM_SYM_SZ] = WC_OCTET(2 * k);
     ret = mlkem_get_noise_eta2_c(prf, e2, coins);
     if (ret == 0) {
         /* Add errors and message to v and reduce. */
@@ -2286,7 +2336,7 @@ void mlkem_decapsulate(const sword16* s, sword16* w, sword16* u,
 {
 #ifdef USE_INTEL_SPEEDUP
 #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
-    if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         mlkem_decapsulate_avx512(s, w, u, v, k);
         RESTORE_VECTOR_REGISTERS();
     }
@@ -2324,7 +2374,7 @@ void mlkem_decapsulate(const sword16* s, sword16* w, sword16* u,
 static WC_INLINE unsigned int mlkem_rej_uniform_n_ins(sword16* p,
     unsigned int len, const byte* r, unsigned int rLen)
 {
-    if (IS_INTEL_AVX512(cpuid_flags)) {
+    if (USE_INTEL_AVX512(cpuid_flags)) {
 #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI2
 #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI
         if (IS_INTEL_AVX512_VBMI(cpuid_flags) &&
@@ -2348,7 +2398,7 @@ static WC_INLINE unsigned int mlkem_rej_uniform_n_ins(sword16* p,
 static WC_INLINE unsigned int mlkem_rej_uniform_ins(sword16* p,
     unsigned int len, const byte* r, unsigned int rLen)
 {
-    if (IS_INTEL_AVX512(cpuid_flags)) {
+    if (USE_INTEL_AVX512(cpuid_flags)) {
 #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI2
 #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI
         if (IS_INTEL_AVX512_VBMI(cpuid_flags) &&
@@ -2380,7 +2430,7 @@ static WC_INLINE unsigned int mlkem_rej_uniform_ins(sword16* p,
 static WC_INLINE void mlkem_redistribute_##N##_rand_ins(const word64* s,       \
     byte* r0, byte* r1, byte* r2, byte* r3)                                    \
 {                                                                              \
-    if (IS_INTEL_AVX512(cpuid_flags)) {                                        \
+    if (USE_INTEL_AVX512(cpuid_flags)) {                                       \
         mlkem_redistribute_##N##_rand_avx512(s, r0, r1, r2, r3);               \
         return;                                                                \
     }                                                                          \
@@ -2401,7 +2451,7 @@ MLKEM_REDIST_INS(21)
 #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
 static WC_INLINE void mlkem_cbd_eta2_ins(sword16* p, const byte* r)
 {
-    if (IS_INTEL_AVX512(cpuid_flags)) {
+    if (USE_INTEL_AVX512(cpuid_flags)) {
         mlkem_cbd_eta2_avx512(p, r);
         return;
     }
@@ -2409,7 +2459,7 @@ static WC_INLINE void mlkem_cbd_eta2_ins(sword16* p, const byte* r)
 }
 static WC_INLINE void mlkem_cbd_eta3_ins(sword16* p, const byte* r)
 {
-    if (IS_INTEL_AVX512(cpuid_flags)) {
+    if (USE_INTEL_AVX512(cpuid_flags)) {
         mlkem_cbd_eta3_avx512(p, r);
         return;
     }
@@ -3139,7 +3189,7 @@ static int mlkem_gen_matrix_k2_aarch64(sword16* a, byte* seed, int transposed)
         state[2*25 + 4] = 0x1f0000 + (0 << 8) + 1;
     }
 
-    mlkem_shake128_blocksx3_seed_neon(state, seed);
+    mlkem_shake128_blocksx3_seed(state, seed);
     /* Sample random bytes to create a polynomial. */
     p = (byte*)st;
     ctr0 = mlkem_rej_uniform_neon(a + 0 * MLKEM_N, MLKEM_N, p, XOF_BLOCK_SIZE);
@@ -3148,7 +3198,7 @@ static int mlkem_gen_matrix_k2_aarch64(sword16* a, byte* seed, int transposed)
     p += 25 * 8;
     ctr2 = mlkem_rej_uniform_neon(a + 2 * MLKEM_N, MLKEM_N, p, XOF_BLOCK_SIZE);
     while ((ctr0 < MLKEM_N) || (ctr1 < MLKEM_N) || (ctr2 < MLKEM_N)) {
-        mlkem_sha3_blocksx3_neon(st);
+        mlkem_sha3_blocksx3(st);
 
         p = (byte*)st;
         ctr0 += mlkem_rej_uniform_neon(a + 0 * MLKEM_N + ctr0, MLKEM_N - ctr0,
@@ -3212,7 +3262,7 @@ static int mlkem_gen_matrix_k3_aarch64(sword16* a, byte* seed, int transposed)
             }
         }
 
-        mlkem_shake128_blocksx3_seed_neon(state, seed);
+        mlkem_shake128_blocksx3_seed(state, seed);
         /* Sample random bytes to create a polynomial. */
         p = (byte*)st;
         ctr0 = mlkem_rej_uniform_neon(a + 0 * MLKEM_N, MLKEM_N, p,
@@ -3225,7 +3275,7 @@ static int mlkem_gen_matrix_k3_aarch64(sword16* a, byte* seed, int transposed)
             XOF_BLOCK_SIZE);
         /* Create more blocks if too many rejected. */
         while ((ctr0 < MLKEM_N) || (ctr1 < MLKEM_N) || (ctr2 < MLKEM_N)) {
-            mlkem_sha3_blocksx3_neon(st);
+            mlkem_sha3_blocksx3(st);
 
             p = (byte*)st;
             ctr0 += mlkem_rej_uniform_neon(a + 0 * MLKEM_N + ctr0,
@@ -3278,7 +3328,7 @@ static int mlkem_gen_matrix_k4_aarch64(sword16* a, byte* seed, int transposed)
             }
         }
 
-        mlkem_shake128_blocksx3_seed_neon(state, seed);
+        mlkem_shake128_blocksx3_seed(state, seed);
         /* Sample random bytes to create a polynomial. */
         p = (byte*)st;
         ctr0 = mlkem_rej_uniform_neon(a + 0 * MLKEM_N, MLKEM_N, p,
@@ -3291,7 +3341,7 @@ static int mlkem_gen_matrix_k4_aarch64(sword16* a, byte* seed, int transposed)
             XOF_BLOCK_SIZE);
         /* Create more blocks if too many rejected. */
         while ((ctr0 < MLKEM_N) || (ctr1 < MLKEM_N) || (ctr2 < MLKEM_N)) {
-            mlkem_sha3_blocksx3_neon(st);
+            mlkem_sha3_blocksx3(st);
 
             p = (byte*)st;
             ctr0 += mlkem_rej_uniform_neon(a + 0 * MLKEM_N + ctr0,
@@ -3670,6 +3720,28 @@ int mlkem_derive_secret(wc_Shake* prf, const byte* z, const byte* ct,
     int ret;
 
 #ifdef USE_INTEL_SPEEDUP
+    #ifdef WC_C_DYNAMIC_FALLBACK
+    /* The buffer-stuffing shortcut below assumes a freshly initialized object
+     * (zeroed sponge state).  When WC_C_DYNAMIC_FALLBACK, that doesn't
+     * generally hold: other users of the shared object - e.g. the C fallback
+     * legs of mlkem_gen_matrix()/mlkem_get_noise() reached when
+     * SAVE_VECTOR_REGISTERS2() fails (kernel context, or
+     * DEBUG_VECTOR_REGISTER_ACCESS_FUZZING) - drive the XOF on the object via
+     * absorb/squeeze and leave it mid-squeeze.
+     *
+     * Without WC_C_DYNAMIC_FALLBACK, SAVE_VECTOR_REGISTERS2() cannot fail in
+     * supported configurations and the asm legs keep their working state in
+     * local buffers, so the object provably stays pristine and the
+     * re-initialization is safely skipped.
+     *
+     * TL;DR: when WC_C_DYNAMIC_FALLBACK, re-initialize, as the
+     * non-USE_INTEL_SPEEDUP path does.
+     */
+    ret = wc_InitShake256(prf, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return ret;
+    #endif /* WC_C_DYNAMIC_FALLBACK */
+
     XMEMCPY(prf->t, z, WC_ML_KEM_SYM_SZ);
     XMEMCPY(prf->t + WC_ML_KEM_SYM_SZ, ct,
         WC_SHA3_256_COUNT * 8 - WC_ML_KEM_SYM_SZ);
@@ -3733,7 +3805,7 @@ static unsigned int mlkem_rej_uniform_c(sword16* p, unsigned int len,
     unsigned int j;
 
 #if defined(WOLFSSL_MLKEM_SMALL) || !defined(WC_64BIT_CPU) || \
-    defined(BIG_ENDIAN_ORDER)
+    defined(BIG_ENDIAN_ORDER) || defined(WOLFSSL_WIDE_BYTE)
     /* Keep sampling until max number of integers reached or buffer is used up.
      * Step 4. */
     for (i = 0, j = 0; (i < len) && (j <= rLen - 3); j += 3) {
@@ -4015,7 +4087,7 @@ int mlkem_gen_matrix(MLKEM_PRF_T* prf, sword16* a, int k, byte* seed,
 #else
     #if defined(USE_INTEL_SPEEDUP) && !defined(WC_SHA3_NO_ASM)
     #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
-        if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
             ret = mlkem_gen_matrix_k2_avx512(a, seed, transposed);
             RESTORE_VECTOR_REGISTERS();
         }
@@ -4041,7 +4113,7 @@ int mlkem_gen_matrix(MLKEM_PRF_T* prf, sword16* a, int k, byte* seed,
 #else
     #if defined(USE_INTEL_SPEEDUP) && !defined(WC_SHA3_NO_ASM)
     #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
-        if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
             ret = mlkem_gen_matrix_k3_avx512(a, seed, transposed);
             RESTORE_VECTOR_REGISTERS();
         }
@@ -4067,7 +4139,7 @@ int mlkem_gen_matrix(MLKEM_PRF_T* prf, sword16* a, int k, byte* seed,
 #else
     #if defined(USE_INTEL_SPEEDUP) && !defined(WC_SHA3_NO_ASM)
     #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
-        if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
             ret = mlkem_gen_matrix_k4_avx512(a, seed, transposed);
             RESTORE_VECTOR_REGISTERS();
         }
@@ -4358,7 +4430,7 @@ static void mlkem_cbd_eta3(sword16* p, const byte* r)
     unsigned int i;
 
 #if defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_MLKEM_NO_LARGE_CODE) || \
-    defined(BIG_ENDIAN_ORDER)
+    defined(BIG_ENDIAN_ORDER) || defined(WOLFSSL_WIDE_BYTE)
 #ifndef WORD64_AVAILABLE
     /* Calculate four integer coefficients at a time. */
     for (i = 0; i < MLKEM_N; i += 4) {
@@ -4436,12 +4508,14 @@ static void mlkem_cbd_eta3(sword16* p, const byte* r)
 #else
     /* Calculate eight integer coefficients at a time. */
     for (i = 0; i < MLKEM_N; i += 16) {
-        const word32* r32 = (const word32*)r;
+        word32 r0 = readUnalignedWord32(r);
+        word32 r1 = readUnalignedWord32(r + 4);
+        word32 r2 = readUnalignedWord32(r + 8);
         /* Take the next 12 bytes, little endian, as 24 bit values. */
-        word32 t0 =   r32[0]                          & 0xffffff;
-        word32 t1 = ((r32[0] >> 24) | (r32[1] <<  8)) & 0xffffff;
-        word32 t2 = ((r32[1] >> 16) | (r32[2] << 16)) & 0xffffff;
-        word32 t3 =   r32[2] >>  8                              ;
+        word32 t0 =   r0                      & 0xffffff;
+        word32 t1 = ((r0 >> 24) | (r1 <<  8)) & 0xffffff;
+        word32 t2 = ((r1 >> 16) | (r2 << 16)) & 0xffffff;
+        word32 t3 =   r2 >>  8                          ;
         word32 d0;
         word32 d1;
         word32 d2;
@@ -5102,19 +5176,20 @@ static int mlkem_get_noise_k4_avx512(MLKEM_PRF_T* prf, sword16* vec1,
  *  17:     e2 <- SamplePolyCBD_eta_2(PRF_eta_2(r, N))
  *   ...
  *
- * @param  [out]  rand  Random number byte array.
+ * @param  [out]  rand  Random number word64 array. Used as the SHAKE-256
+ *                      state - the random is squeezed into it in place.
  * @param  [in]   seed  Seed to generate random from.
  * @param  [in]   o     Offset of seed count.
  */
-static void mlkem_get_noise_x3_eta2_aarch64(byte* rand, byte* seed, byte o)
+static void mlkem_get_noise_x3_eta2_aarch64(word64* rand, byte* seed, byte o)
 {
-    word64* state = (word64*)rand;
+    /* Only rand[i*25 + 4] is set here - the rest of the state is zeroed in
+     * registers by the assembly. */
+    rand[0*25 + 4] = 0x1f00 + 0 + o;
+    rand[1*25 + 4] = 0x1f00 + 1 + o;
+    rand[2*25 + 4] = 0x1f00 + 2 + o;
 
-    state[0*25 + 4] = 0x1f00 + 0 + o;
-    state[1*25 + 4] = 0x1f00 + 1 + o;
-    state[2*25 + 4] = 0x1f00 + 2 + o;
-
-    mlkem_shake256_blocksx3_seed_neon(state, seed);
+    mlkem_shake256_blocksx3_seed(rand, seed);
 }
 
 #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512)
@@ -5137,17 +5212,19 @@ static void mlkem_get_noise_x3_eta2_aarch64(byte* rand, byte* seed, byte o)
  */
 static void mlkem_get_noise_x3_eta3_aarch64(byte* rand, byte* seed, byte o)
 {
+    /* Only state[i*25 + 4] is read by the assembly - the rest of the state is
+     * zeroed in registers there. */
     word64 state[3 * 25];
 
     state[0*25 + 4] = 0x1f00 + 0 + o;
     state[1*25 + 4] = 0x1f00 + 1 + o;
     state[2*25 + 4] = 0x1f00 + 2 + o;
 
-    mlkem_shake256_blocksx3_seed_neon(state, seed);
+    mlkem_shake256_blocksx3_seed(state, seed);
     XMEMCPY(rand + 0 * ETA3_RAND_SIZE, state + 0*25, SHA3_256_BYTES);
     XMEMCPY(rand + 1 * ETA3_RAND_SIZE, state + 1*25, SHA3_256_BYTES);
     XMEMCPY(rand + 2 * ETA3_RAND_SIZE, state + 2*25, SHA3_256_BYTES);
-    mlkem_sha3_blocksx3_neon(state);
+    mlkem_sha3_blocksx3(state);
     rand += SHA3_256_BYTES;
     XMEMCPY(rand + 0 * ETA3_RAND_SIZE, state + 0*25,
         ETA3_RAND_SIZE - SHA3_256_BYTES);
@@ -5179,12 +5256,11 @@ static void mlkem_get_noise_x3_eta3_aarch64(byte* rand, byte* seed, byte o)
  */
 static void mlkem_get_noise_eta3_aarch64(byte* rand, byte* seed, byte o)
 {
+    /* ETA3_RAND_SIZE is larger than the SHAKE-256 rate - two squeezes are
+     * needed, so the state cannot be squeezed in place over the output. */
     word64 state[25];
 
-    state[0] = ((word64*)seed)[0];
-    state[1] = ((word64*)seed)[1];
-    state[2] = ((word64*)seed)[2];
-    state[3] = ((word64*)seed)[3];
+    readUnalignedWords64(state, seed, 4);
     state[4] = 0x1f00 + o;
     XMEMSET(state + 5, 0, sizeof(*state) * (25 - 5));
     state[16] = W64LIT(0x8000000000000000);
@@ -5216,21 +5292,21 @@ static int mlkem_get_noise_k2_aarch64(sword16* vec1, sword16* vec2,
     sword16* poly, byte* seed)
 {
     int ret = 0;
-    byte rand[3 * 25 * 8];
+    word64 rand[3 * 25];
 
-    mlkem_get_noise_x3_eta3_aarch64(rand, seed, 0);
-    mlkem_cbd_eta3(vec1          , rand + 0 * ETA3_RAND_SIZE);
-    mlkem_cbd_eta3(vec1 + MLKEM_N, rand + 1 * ETA3_RAND_SIZE);
+    mlkem_get_noise_x3_eta3_aarch64((byte*)rand, seed, 0);
+    mlkem_cbd_eta3(vec1          , (byte*)rand + 0 * ETA3_RAND_SIZE);
+    mlkem_cbd_eta3(vec1 + MLKEM_N, (byte*)rand + 1 * ETA3_RAND_SIZE);
     if (poly == NULL) {
-        mlkem_cbd_eta3(vec2          , rand + 2 * ETA3_RAND_SIZE);
-        mlkem_get_noise_eta3_aarch64(rand, seed, 3);
-        mlkem_cbd_eta3(vec2 + MLKEM_N, rand                     );
+        mlkem_cbd_eta3(vec2          , (byte*)rand + 2 * ETA3_RAND_SIZE);
+        mlkem_get_noise_eta3_aarch64((byte*)rand, seed, 3);
+        mlkem_cbd_eta3(vec2 + MLKEM_N, (byte*)rand                     );
     }
     else {
         mlkem_get_noise_x3_eta2_aarch64(rand, seed, 2);
-        mlkem_cbd_eta2(vec2          , rand + 0 * 25 * 8);
-        mlkem_cbd_eta2(vec2 + MLKEM_N, rand + 1 * 25 * 8);
-        mlkem_cbd_eta2(poly          , rand + 2 * 25 * 8);
+        mlkem_cbd_eta2(vec2          , (byte*)rand + 0 * 25 * 8);
+        mlkem_cbd_eta2(vec2 + MLKEM_N, (byte*)rand + 1 * 25 * 8);
+        mlkem_cbd_eta2(poly          , (byte*)rand + 2 * 25 * 8);
     }
 
     /* rand holds secret noise. */
@@ -5255,23 +5331,18 @@ static int mlkem_get_noise_k2_aarch64(sword16* vec1, sword16* vec2,
  *  17:     e2 <- SamplePolyCBD_eta_2(PRF_eta_2(r, N))
  *   ...
  *
- * @param  [out]  rand  Random number byte array.
+ * @param  [out]  rand  Random number word64 array.
  * @param  [in]   seed  Seed to generate random from.
  * @param  [in]   o     Offset of seed count.
  */
-static void mlkem_get_noise_eta2_aarch64(byte* rand, byte* seed, byte o)
+static void mlkem_get_noise_eta2_aarch64(word64* rand, byte* seed, byte o)
 {
-    word64* state = (word64*)rand;
-
-    state[0] = ((word64*)seed)[0];
-    state[1] = ((word64*)seed)[1];
-    state[2] = ((word64*)seed)[2];
-    state[3] = ((word64*)seed)[3];
+    readUnalignedWords64(rand, seed, 4);
     /* Transposed value same as not. */
-    state[4] = 0x1f00 + o;
-    XMEMSET(state + 5, 0, sizeof(*state) * (25 - 5));
-    state[16] = W64LIT(0x8000000000000000);
-    BlockSha3(state);
+    rand[4] = 0x1f00 + o;
+    XMEMSET(rand + 5, 0, sizeof(*rand) * (25 - 5));
+    rand[16] = W64LIT(0x8000000000000000);
+    BlockSha3(rand);
 }
 
 /* Get the noise/error by calculating random bytes and sampling to a binomial
@@ -5286,19 +5357,19 @@ static void mlkem_get_noise_eta2_aarch64(byte* rand, byte* seed, byte o)
 static int mlkem_get_noise_k3_aarch64(sword16* vec1, sword16* vec2,
      sword16* poly, byte* seed)
 {
-    byte rand[3 * 25 * 8];
+    word64 rand[3 * 25];
 
     mlkem_get_noise_x3_eta2_aarch64(rand, seed, 0);
-    mlkem_cbd_eta2(vec1              , rand + 0 * 25 * 8);
-    mlkem_cbd_eta2(vec1 + 1 * MLKEM_N, rand + 1 * 25 * 8);
-    mlkem_cbd_eta2(vec1 + 2 * MLKEM_N, rand + 2 * 25 * 8);
+    mlkem_cbd_eta2(vec1              , (byte*)rand + 0 * 25 * 8);
+    mlkem_cbd_eta2(vec1 + 1 * MLKEM_N, (byte*)rand + 1 * 25 * 8);
+    mlkem_cbd_eta2(vec1 + 2 * MLKEM_N, (byte*)rand + 2 * 25 * 8);
     mlkem_get_noise_x3_eta2_aarch64(rand, seed, 3);
-    mlkem_cbd_eta2(vec2              , rand + 0 * 25 * 8);
-    mlkem_cbd_eta2(vec2 + 1 * MLKEM_N, rand + 1 * 25 * 8);
-    mlkem_cbd_eta2(vec2 + 2 * MLKEM_N, rand + 2 * 25 * 8);
+    mlkem_cbd_eta2(vec2              , (byte*)rand + 0 * 25 * 8);
+    mlkem_cbd_eta2(vec2 + 1 * MLKEM_N, (byte*)rand + 1 * 25 * 8);
+    mlkem_cbd_eta2(vec2 + 2 * MLKEM_N, (byte*)rand + 2 * 25 * 8);
     if (poly != NULL) {
         mlkem_get_noise_eta2_aarch64(rand, seed, 6);
-        mlkem_cbd_eta2(poly              , rand + 0 * 25 * 8);
+        mlkem_cbd_eta2(poly              , (byte*)rand + 0 * 25 * 8);
     }
 
     /* rand holds secret noise. */
@@ -5327,21 +5398,21 @@ static int mlkem_get_noise_k4_aarch64(sword16* vec1, sword16* vec2,
     sword16* poly, byte* seed)
 {
     int ret = 0;
-    byte rand[3 * 25 * 8];
+    word64 rand[3 * 25];
 
     mlkem_get_noise_x3_eta2_aarch64(rand, seed, 0);
-    mlkem_cbd_eta2(vec1              , rand + 0 * 25 * 8);
-    mlkem_cbd_eta2(vec1 + 1 * MLKEM_N, rand + 1 * 25 * 8);
-    mlkem_cbd_eta2(vec1 + 2 * MLKEM_N, rand + 2 * 25 * 8);
+    mlkem_cbd_eta2(vec1              , (byte*)rand + 0 * 25 * 8);
+    mlkem_cbd_eta2(vec1 + 1 * MLKEM_N, (byte*)rand + 1 * 25 * 8);
+    mlkem_cbd_eta2(vec1 + 2 * MLKEM_N, (byte*)rand + 2 * 25 * 8);
     mlkem_get_noise_x3_eta2_aarch64(rand, seed, 3);
-    mlkem_cbd_eta2(vec1 + 3 * MLKEM_N, rand + 0 * 25 * 8);
-    mlkem_cbd_eta2(vec2              , rand + 1 * 25 * 8);
-    mlkem_cbd_eta2(vec2 + 1 * MLKEM_N, rand + 2 * 25 * 8);
+    mlkem_cbd_eta2(vec1 + 3 * MLKEM_N, (byte*)rand + 0 * 25 * 8);
+    mlkem_cbd_eta2(vec2              , (byte*)rand + 1 * 25 * 8);
+    mlkem_cbd_eta2(vec2 + 1 * MLKEM_N, (byte*)rand + 2 * 25 * 8);
     mlkem_get_noise_x3_eta2_aarch64(rand, seed, 6);
-    mlkem_cbd_eta2(vec2 + 2 * MLKEM_N, rand + 0 * 25 * 8);
-    mlkem_cbd_eta2(vec2 + 3 * MLKEM_N, rand + 1 * 25 * 8);
+    mlkem_cbd_eta2(vec2 + 2 * MLKEM_N, (byte*)rand + 0 * 25 * 8);
+    mlkem_cbd_eta2(vec2 + 3 * MLKEM_N, (byte*)rand + 1 * 25 * 8);
     if (poly != NULL) {
-        mlkem_cbd_eta2(poly,               rand + 2 * 25 * 8);
+        mlkem_cbd_eta2(poly,               (byte*)rand + 2 * 25 * 8);
     }
 
     /* rand holds secret noise. */
@@ -5398,7 +5469,7 @@ static int mlkem_get_noise_c(MLKEM_PRF_T* prf, int k, sword16* vec1, int eta1,
         }
     }
     else {
-        seed[WC_ML_KEM_SYM_SZ] = (byte)(2 * k);
+        seed[WC_ML_KEM_SYM_SZ] = WC_OCTET(2 * k);
     }
     if ((ret == 0) && (poly != NULL)) {
         /* Generating random error polynomial. */
@@ -5433,7 +5504,7 @@ int mlkem_get_noise(MLKEM_PRF_T* prf, int k, sword16* vec1, sword16* vec2,
 #else
     #if defined(USE_INTEL_SPEEDUP) && !defined(WC_SHA3_NO_ASM)
     #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
-        if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
             ret = mlkem_get_noise_k2_avx512(prf, vec1, vec2, poly, seed);
             RESTORE_VECTOR_REGISTERS();
         }
@@ -5464,7 +5535,7 @@ int mlkem_get_noise(MLKEM_PRF_T* prf, int k, sword16* vec1, sword16* vec2,
 #else
     #if defined(USE_INTEL_SPEEDUP) && !defined(WC_SHA3_NO_ASM)
     #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
-        if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
             ret = mlkem_get_noise_k3_avx512(vec1, vec2, poly, seed);
             RESTORE_VECTOR_REGISTERS();
         }
@@ -5491,7 +5562,7 @@ int mlkem_get_noise(MLKEM_PRF_T* prf, int k, sword16* vec1, sword16* vec2,
 #else
     #if defined(USE_INTEL_SPEEDUP) && !defined(WC_SHA3_NO_ASM)
     #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
-        if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
             ret = mlkem_get_noise_k4_avx512(prf, vec1, vec2, poly, seed);
             RESTORE_VECTOR_REGISTERS();
         }
@@ -5543,7 +5614,7 @@ static int mlkem_get_noise_i(MLKEM_PRF_T* prf, int k, sword16* vec2,
     mlkem_prf_init(prf);
 
     /* Set index of polynomial of second vector into seed. */
-    seed[WC_ML_KEM_SYM_SZ] = (byte)(k + i);
+    seed[WC_ML_KEM_SYM_SZ] = WC_OCTET(k + i);
 #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512)
     if ((k == WC_ML_KEM_512_K) && make) {
         ret = mlkem_get_noise_eta1_c(prf, vec2, seed, MLKEM_CBD_ETA3);
@@ -5600,7 +5671,7 @@ int mlkem_cmp(const byte* a, const byte* b, int sz)
 
 #ifdef USE_INTEL_SPEEDUP
 #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
-    if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         fail = mlkem_cmp_avx512(a, b, sz);
         RESTORE_VECTOR_REGISTERS();
     }
@@ -5806,7 +5877,7 @@ static void mlkem_vec_compress_10_c(byte* r, sword16* v, unsigned int k)
     /* Each polynomial. */
     for (i = 0; i < k; i++) {
 #if defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_MLKEM_NO_LARGE_CODE) || \
-    defined(BIG_ENDIAN_ORDER)
+    defined(BIG_ENDIAN_ORDER) || defined(WOLFSSL_WIDE_BYTE)
         /* Each 4 polynomial coefficients. */
         for (j = 0; j < MLKEM_N; j += 4) {
         #ifdef WOLFSSL_MLKEM_SMALL
@@ -5818,11 +5889,11 @@ static void mlkem_vec_compress_10_c(byte* r, sword16* v, unsigned int k)
             }
 
             /* Pack four 10-bit values into byte array. */
-            r[ 0] = (t[0] >> 0);
-            r[ 1] = (t[0] >> 8) | (t[1] << 2);
-            r[ 2] = (t[1] >> 6) | (t[2] << 4);
-            r[ 3] = (t[2] >> 4) | (t[3] << 6);
-            r[ 4] = (t[3] >> 2);
+            r[ 0] = WC_OCTET( t[0] >> 0);
+            r[ 1] = WC_OCTET((t[0] >> 8) | (t[1] << 2));
+            r[ 2] = WC_OCTET((t[1] >> 6) | (t[2] << 4));
+            r[ 3] = WC_OCTET((t[2] >> 4) | (t[3] << 6));
+            r[ 4] = WC_OCTET( t[3] >> 2);
         #else
             /* Compress four polynomial values to 10 bits each. */
             sword16 t0 = TO_COMP_WORD_10(v, i, j, 0);
@@ -5831,11 +5902,11 @@ static void mlkem_vec_compress_10_c(byte* r, sword16* v, unsigned int k)
             sword16 t3 = TO_COMP_WORD_10(v, i, j, 3);
 
             /* Pack four 10-bit values into byte array. */
-            r[ 0] = (byte)( t0 >> 0);
-            r[ 1] = (byte)((t0 >> 8) | (t1 << 2));
-            r[ 2] = (byte)((t1 >> 6) | (t2 << 4));
-            r[ 3] = (byte)((t2 >> 4) | (t3 << 6));
-            r[ 4] = (byte)( t3 >> 2);
+            r[ 0] = WC_OCTET( t0 >> 0);
+            r[ 1] = WC_OCTET((t0 >> 8) | (t1 << 2));
+            r[ 2] = WC_OCTET((t1 >> 6) | (t2 << 4));
+            r[ 3] = WC_OCTET((t2 >> 4) | (t3 << 6));
+            r[ 4] = WC_OCTET( t3 >> 2);
         #endif
 
             /* Move over set bytes. */
@@ -5862,18 +5933,22 @@ static void mlkem_vec_compress_10_c(byte* r, sword16* v, unsigned int k)
             sword16 t14 = TO_COMP_WORD_10(v, i, j, 14);
             sword16 t15 = TO_COMP_WORD_10(v, i, j, 15);
 
-            word32* r32 = (word32*)r;
             /* Pack sixteen 10-bit values into byte array. */
-            r32[0] =  (word32)t0         | ((word32)t1  << 10) |
-                     ((word32)t2  << 20) | ((word32)t3  << 30);
-            r32[1] = ((word32)t3  >>  2) | ((word32)t4  <<  8) |
-                     ((word32)t5  << 18) | ((word32)t6  << 28);
-            r32[2] = ((word32)t6  >>  4) | ((word32)t7  <<  6) |
-                     ((word32)t8  << 16) | ((word32)t9  << 26);
-            r32[3] = ((word32)t9  >>  6) | ((word32)t10 <<  4) |
-                     ((word32)t11 << 14) | ((word32)t12 << 24);
-            r32[4] = ((word32)t12 >>  8) | ((word32)t13 <<  2) |
-                     ((word32)t14 << 12) | ((word32)t15 << 22);
+            writeUnalignedWord32(r +  0,
+                 (word32)t0         | ((word32)t1  << 10) |
+                ((word32)t2  << 20) | ((word32)t3  << 30));
+            writeUnalignedWord32(r +  4,
+                ((word32)t3  >>  2) | ((word32)t4  <<  8) |
+                ((word32)t5  << 18) | ((word32)t6  << 28));
+            writeUnalignedWord32(r +  8,
+                ((word32)t6  >>  4) | ((word32)t7  <<  6) |
+                ((word32)t8  << 16) | ((word32)t9  << 26));
+            writeUnalignedWord32(r + 12,
+                ((word32)t9  >>  6) | ((word32)t10 <<  4) |
+                ((word32)t11 << 14) | ((word32)t12 << 24));
+            writeUnalignedWord32(r + 16,
+                ((word32)t12 >>  8) | ((word32)t13 <<  2) |
+                ((word32)t14 << 12) | ((word32)t15 << 22));
 
             /* Move over set bytes. */
             r += 20;
@@ -5894,7 +5969,7 @@ void mlkem_vec_compress_10(byte* r, sword16* v, unsigned int k)
 {
 #ifdef USE_INTEL_SPEEDUP
 #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI
-    if (IS_INTEL_AVX512(cpuid_flags) &&
+    if (USE_INTEL_AVX512(cpuid_flags) &&
             IS_INTEL_AVX512_VBMI(cpuid_flags) &&
             (SAVE_VECTOR_REGISTERS2() == 0)) {
         mlkem_compress_10_avx512_vbmi(r, v, (int)k);
@@ -5903,7 +5978,7 @@ void mlkem_vec_compress_10(byte* r, sword16* v, unsigned int k)
     else
 #endif
 #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
-    if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         mlkem_compress_10_avx512(r, v, (int)k);
         RESTORE_VECTOR_REGISTERS();
     }
@@ -5955,17 +6030,17 @@ static void mlkem_vec_compress_11_c(byte* r, sword16* v)
             }
 
             /* Pack eight 11-bit values into byte array. */
-            r[ 0] = (byte)( t[0] >>  0);
-            r[ 1] = (byte)((t[0] >>  8) | (t[1] << 3));
-            r[ 2] = (byte)((t[1] >>  5) | (t[2] << 6));
-            r[ 3] = (byte)( t[2] >>  2);
-            r[ 4] = (byte)((t[2] >> 10) | (t[3] << 1));
-            r[ 5] = (byte)((t[3] >>  7) | (t[4] << 4));
-            r[ 6] = (byte)((t[4] >>  4) | (t[5] << 7));
-            r[ 7] = (byte)( t[5] >>  1);
-            r[ 8] = (byte)((t[5] >>  9) | (t[6] << 2));
-            r[ 9] = (byte)((t[6] >>  6) | (t[7] << 5));
-            r[10] = (byte)( t[7] >>  3);
+            r[ 0] = WC_OCTET( t[0] >>  0);
+            r[ 1] = WC_OCTET((t[0] >>  8) | (t[1] << 3));
+            r[ 2] = WC_OCTET((t[1] >>  5) | (t[2] << 6));
+            r[ 3] = WC_OCTET( t[2] >>  2);
+            r[ 4] = WC_OCTET((t[2] >> 10) | (t[3] << 1));
+            r[ 5] = WC_OCTET((t[3] >>  7) | (t[4] << 4));
+            r[ 6] = WC_OCTET((t[4] >>  4) | (t[5] << 7));
+            r[ 7] = WC_OCTET( t[5] >>  1);
+            r[ 8] = WC_OCTET((t[5] >>  9) | (t[6] << 2));
+            r[ 9] = WC_OCTET((t[6] >>  6) | (t[7] << 5));
+            r[10] = WC_OCTET( t[7] >>  3);
         #else
             /* Compress eight polynomial values to 11 bits each. */
             sword16 t0 = TO_COMP_WORD_11(v, i, j, 0);
@@ -5978,17 +6053,17 @@ static void mlkem_vec_compress_11_c(byte* r, sword16* v)
             sword16 t7 = TO_COMP_WORD_11(v, i, j, 7);
 
             /* Pack eight 11-bit values into byte array. */
-            r[ 0] = (byte)( t0 >>  0);
-            r[ 1] = (byte)((t0 >>  8) | (t1 << 3));
-            r[ 2] = (byte)((t1 >>  5) | (t2 << 6));
-            r[ 3] = (byte)( t2 >>  2);
-            r[ 4] = (byte)((t2 >> 10) | (t3 << 1));
-            r[ 5] = (byte)((t3 >>  7) | (t4 << 4));
-            r[ 6] = (byte)((t4 >>  4) | (t5 << 7));
-            r[ 7] = (byte)( t5 >>  1);
-            r[ 8] = (byte)((t5 >>  9) | (t6 << 2));
-            r[ 9] = (byte)((t6 >>  6) | (t7 << 5));
-            r[10] = (byte)( t7 >>  3);
+            r[ 0] = WC_OCTET( t0 >>  0);
+            r[ 1] = WC_OCTET((t0 >>  8) | (t1 << 3));
+            r[ 2] = WC_OCTET((t1 >>  5) | (t2 << 6));
+            r[ 3] = WC_OCTET( t2 >>  2);
+            r[ 4] = WC_OCTET((t2 >> 10) | (t3 << 1));
+            r[ 5] = WC_OCTET((t3 >>  7) | (t4 << 4));
+            r[ 6] = WC_OCTET((t4 >>  4) | (t5 << 7));
+            r[ 7] = WC_OCTET( t5 >>  1);
+            r[ 8] = WC_OCTET((t5 >>  9) | (t6 << 2));
+            r[ 9] = WC_OCTET((t6 >>  6) | (t7 << 5));
+            r[10] = WC_OCTET( t7 >>  3);
         #endif
 
             /* Move over set bytes. */
@@ -6008,7 +6083,7 @@ void mlkem_vec_compress_11(byte* r, sword16* v)
 {
 #ifdef USE_INTEL_SPEEDUP
 #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
-    if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         mlkem_compress_11_avx512(r, v, 4);
         RESTORE_VECTOR_REGISTERS();
     }
@@ -6121,7 +6196,7 @@ void mlkem_vec_decompress_10(sword16* v, const byte* b, unsigned int k)
 {
 #ifdef USE_INTEL_SPEEDUP
 #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI
-    if (IS_INTEL_AVX512(cpuid_flags) &&
+    if (USE_INTEL_AVX512(cpuid_flags) &&
             IS_INTEL_AVX512_VBMI(cpuid_flags) &&
             (SAVE_VECTOR_REGISTERS2() == 0)) {
         mlkem_decompress_10_avx512_vbmi(v, b, (int)k);
@@ -6130,7 +6205,7 @@ void mlkem_vec_decompress_10(sword16* v, const byte* b, unsigned int k)
     else
 #endif
 #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
-    if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         mlkem_decompress_10_avx512(v, b, (int)k);
         RESTORE_VECTOR_REGISTERS();
     }
@@ -6225,7 +6300,7 @@ void mlkem_vec_decompress_11(sword16* v, const byte* b)
 {
 #ifdef USE_INTEL_SPEEDUP
 #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI
-    if (IS_INTEL_AVX512(cpuid_flags) &&
+    if (USE_INTEL_AVX512(cpuid_flags) &&
             IS_INTEL_AVX512_VBMI(cpuid_flags) &&
             (SAVE_VECTOR_REGISTERS2() == 0)) {
         mlkem_decompress_11_avx512_vbmi(v, b, 4);
@@ -6234,7 +6309,7 @@ void mlkem_vec_decompress_11(sword16* v, const byte* b)
     else
 #endif
 #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
-    if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         mlkem_decompress_11_avx512(v, b, 4);
         RESTORE_VECTOR_REGISTERS();
     }
@@ -6302,12 +6377,12 @@ void mlkem_vec_decompress_11(sword16* v, const byte* b)
 #else
 
 /* Multiplier that does div q. */
-#define MLKEM_V28         ((word32)(((1U << 28) + MLKEM_Q_HALF)) / MLKEM_Q)
+#define MLKEM_V28         ((word32)(((1UL << 28) + MLKEM_Q_HALF)) / MLKEM_Q)
 /* Multiplier times half of q plus one. */
 #define MLKEM_V28_HALF    ((word32)(MLKEM_V28 * (MLKEM_Q_HALF + 1)))
 
 /* Multiplier that does div q. */
-#define MLKEM_V27         ((word32)(((1U << 27) + MLKEM_Q_HALF)) / MLKEM_Q)
+#define MLKEM_V27         ((word32)(((1UL << 27) + MLKEM_Q_HALF)) / MLKEM_Q)
 /* Multiplier times half of q. */
 #define MLKEM_V27_HALF    ((word32)(MLKEM_V27 * MLKEM_Q_HALF))
 
@@ -6372,10 +6447,10 @@ static void mlkem_compress_4_c(byte* b, sword16* p)
             t[j] = TO_COMP_WORD_4(p, i, j);
         }
 
-        b[0] = (byte)(t[0] | (t[1] << 4));
-        b[1] = (byte)(t[2] | (t[3] << 4));
-        b[2] = (byte)(t[4] | (t[5] << 4));
-        b[3] = (byte)(t[6] | (t[7] << 4));
+        b[0] = WC_OCTET(t[0] | (t[1] << 4));
+        b[1] = WC_OCTET(t[2] | (t[3] << 4));
+        b[2] = WC_OCTET(t[4] | (t[5] << 4));
+        b[3] = WC_OCTET(t[6] | (t[7] << 4));
     #else
         /* Compress eight polynomial values to 4 bits each. */
         byte t0 = TO_COMP_WORD_4(p, i, 0);
@@ -6388,10 +6463,10 @@ static void mlkem_compress_4_c(byte* b, sword16* p)
         byte t7 = TO_COMP_WORD_4(p, i, 7);
 
         /* Pack eight 4-bit values into byte array. */
-        b[0] = (byte)(t0 | (t1 << 4));
-        b[1] = (byte)(t2 | (t3 << 4));
-        b[2] = (byte)(t4 | (t5 << 4));
-        b[3] = (byte)(t6 | (t7 << 4));
+        b[0] = WC_OCTET(t0 | (t1 << 4));
+        b[1] = WC_OCTET(t2 | (t3 << 4));
+        b[2] = WC_OCTET(t4 | (t5 << 4));
+        b[3] = WC_OCTET(t6 | (t7 << 4));
     #endif
 
         /* Move over set bytes. */
@@ -6410,7 +6485,7 @@ void mlkem_compress_4(byte* b, sword16* p)
 {
 #ifdef USE_INTEL_SPEEDUP
 #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI
-    if (IS_INTEL_AVX512(cpuid_flags) &&
+    if (USE_INTEL_AVX512(cpuid_flags) &&
             IS_INTEL_AVX512_VBMI(cpuid_flags) &&
             (SAVE_VECTOR_REGISTERS2() == 0)) {
         mlkem_compress_4_avx512_vbmi(b, p);
@@ -6419,7 +6494,7 @@ void mlkem_compress_4(byte* b, sword16* p)
     else
 #endif
 #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
-    if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         mlkem_compress_4_avx512(b, p);
         RESTORE_VECTOR_REGISTERS();
     }
@@ -6464,11 +6539,11 @@ static void mlkem_compress_5_c(byte* b, sword16* p)
         }
 
         /* Pack 5 bits into byte array. */
-        b[0] = (byte)((t[0] >> 0) | (t[1] << 5));
-        b[1] = (byte)((t[1] >> 3) | (t[2] << 2) | (t[3] << 7));
-        b[2] = (byte)((t[3] >> 1) | (t[4] << 4));
-        b[3] = (byte)((t[4] >> 4) | (t[5] << 1) | (t[6] << 6));
-        b[4] = (byte)((t[6] >> 2) | (t[7] << 3));
+        b[0] = WC_OCTET((t[0] >> 0) | (t[1] << 5));
+        b[1] = WC_OCTET((t[1] >> 3) | (t[2] << 2) | (t[3] << 7));
+        b[2] = WC_OCTET((t[3] >> 1) | (t[4] << 4));
+        b[3] = WC_OCTET((t[4] >> 4) | (t[5] << 1) | (t[6] << 6));
+        b[4] = WC_OCTET((t[6] >> 2) | (t[7] << 3));
     #else
         /* Compress eight polynomial values to 5 bits each. */
         byte t0 = TO_COMP_WORD_5(p, i, 0);
@@ -6481,11 +6556,11 @@ static void mlkem_compress_5_c(byte* b, sword16* p)
         byte t7 = TO_COMP_WORD_5(p, i, 7);
 
         /* Pack eight 5-bit values into byte array. */
-        b[0] = (byte)((t0 >> 0) | (t1 << 5));
-        b[1] = (byte)((t1 >> 3) | (t2 << 2) | (t3 << 7));
-        b[2] = (byte)((t3 >> 1) | (t4 << 4));
-        b[3] = (byte)((t4 >> 4) | (t5 << 1) | (t6 << 6));
-        b[4] = (byte)((t6 >> 2) | (t7 << 3));
+        b[0] = WC_OCTET((t0 >> 0) | (t1 << 5));
+        b[1] = WC_OCTET((t1 >> 3) | (t2 << 2) | (t3 << 7));
+        b[2] = WC_OCTET((t3 >> 1) | (t4 << 4));
+        b[3] = WC_OCTET((t4 >> 4) | (t5 << 1) | (t6 << 6));
+        b[4] = WC_OCTET((t6 >> 2) | (t7 << 3));
     #endif
 
         /* Move over set bytes. */
@@ -6504,7 +6579,7 @@ void mlkem_compress_5(byte* b, sword16* p)
 {
 #ifdef USE_INTEL_SPEEDUP
 #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI
-    if (IS_INTEL_AVX512(cpuid_flags) &&
+    if (USE_INTEL_AVX512(cpuid_flags) &&
             IS_INTEL_AVX512_VBMI(cpuid_flags) &&
             (SAVE_VECTOR_REGISTERS2() == 0)) {
         mlkem_compress_5_avx512_vbmi(b, p);
@@ -6513,7 +6588,7 @@ void mlkem_compress_5(byte* b, sword16* p)
     else
 #endif
 #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
-    if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         mlkem_compress_5_avx512(b, p);
         RESTORE_VECTOR_REGISTERS();
     }
@@ -6590,7 +6665,7 @@ void mlkem_decompress_4(sword16* p, const byte* b)
 {
 #ifdef USE_INTEL_SPEEDUP
 #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
-    if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         mlkem_decompress_4_avx512(p, b);
         RESTORE_VECTOR_REGISTERS();
     }
@@ -6627,12 +6702,12 @@ static void mlkem_decompress_5_c(sword16* p, const byte* b)
 
         /* Extract out 8 values of 5 bits each. */
         t[0] = (b[0] >> 0);
-        t[1] = (byte)((b[0] >> 5) | (b[1] << 3));
+        t[1] = WC_OCTET((b[0] >> 5) | (b[1] << 3));
         t[2] = (b[1] >> 2);
-        t[3] = (byte)((b[1] >> 7) | (b[2] << 1));
-        t[4] = (byte)((b[2] >> 4) | (b[3] << 4));
+        t[3] = WC_OCTET((b[1] >> 7) | (b[2] << 1));
+        t[4] = WC_OCTET((b[2] >> 4) | (b[3] << 4));
         t[5] = (b[3] >> 1);
-        t[6] = (byte)((b[3] >> 6) | (b[4] << 2));
+        t[6] = WC_OCTET((b[3] >> 6) | (b[4] << 2));
         t[7] = (b[4] >> 3);
         b += 5;
 
@@ -6676,7 +6751,7 @@ void mlkem_decompress_5(sword16* p, const byte* b)
 {
 #ifdef USE_INTEL_SPEEDUP
 #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
-    if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         mlkem_decompress_5_avx512(p, b);
         RESTORE_VECTOR_REGISTERS();
     }
@@ -6760,7 +6835,7 @@ void mlkem_from_msg(sword16* p, const byte* msg)
 {
 #ifdef USE_INTEL_SPEEDUP
 #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
-    if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         mlkem_from_msg_avx512(p, msg);
         RESTORE_VECTOR_REGISTERS();
     }
@@ -6798,7 +6873,7 @@ void mlkem_from_msg(sword16* p, const byte* msg)
 #else
 
 /* Multiplier that does div q. */
-#define MLKEM_V31       (((1U << 31) + (MLKEM_Q / 2)) / MLKEM_Q)
+#define MLKEM_V31       (((1UL << 31) + (MLKEM_Q / 2)) / MLKEM_Q)
 /* 2 * multiplier that does div q. Only need bit 32 of result. */
 #define MLKEM_V31_2     ((word32)(MLKEM_V31 * 2))
 /* Multiplier times half of q. */
@@ -6816,7 +6891,7 @@ void mlkem_from_msg(sword16* p, const byte* msg)
  * @param  [in]       j   Index of bit in byte.
  */
 #define TO_MSG_BIT(m, p, i, j) \
-    (m)[i] |= (byte)((((MLKEM_V31_2 * (word16)(p)[8 * (i) + (j)]) + \
+    (m)[i] |= WC_OCTET((((MLKEM_V31_2 * (word16)(p)[8 * (i) + (j)]) + \
                        MLKEM_V31_HALF) >> 31) << (j))
 
 #endif /* CONV_WITH_DIV */
@@ -6868,7 +6943,7 @@ void mlkem_to_msg(byte* msg, sword16* p)
 {
 #ifdef USE_INTEL_SPEEDUP
 #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
-    if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         /* Convert the polynomial into an array of bytes (message). */
         mlkem_to_msg_avx512(msg, p);
         RESTORE_VECTOR_REGISTERS();
@@ -6963,7 +7038,7 @@ void mlkem_from_bytes(sword16* p, const byte* b, int k)
 {
 #ifdef USE_INTEL_SPEEDUP
 #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI
-    if (IS_INTEL_AVX512(cpuid_flags) &&
+    if (USE_INTEL_AVX512(cpuid_flags) &&
             IS_INTEL_AVX512_VBMI(cpuid_flags) &&
             (SAVE_VECTOR_REGISTERS2() == 0)) {
         int i;
@@ -6979,7 +7054,7 @@ void mlkem_from_bytes(sword16* p, const byte* b, int k)
     else
 #endif
 #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
-    if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         int i;
 
         for (i = 0; i < k; i++) {
@@ -7034,9 +7109,9 @@ static void mlkem_to_bytes_c(byte* b, sword16* p, int k)
         for (i = 0; i < MLKEM_N / 2; i++) {
             word16 t0 = (word16)p[2 * i];
             word16 t1 = (word16)p[2 * i + 1];
-            b[3 * i + 0] = (byte)(t0 >> 0);
-            b[3 * i + 1] = (byte)((t0 >> 8) | (t1 << 4));
-            b[3 * i + 2] = (byte)(t1 >> 4);
+            b[3 * i + 0] = WC_OCTET(t0 >> 0);
+            b[3 * i + 1] = WC_OCTET((t0 >> 8) | (t1 << 4));
+            b[3 * i + 2] = WC_OCTET(t1 >> 4);
         }
         p += MLKEM_N;
         b += WC_ML_KEM_POLY_SIZE;
@@ -7058,7 +7133,7 @@ void mlkem_to_bytes(byte* b, sword16* p, int k)
 {
 #ifdef USE_INTEL_SPEEDUP
 #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI
-    if (IS_INTEL_AVX512(cpuid_flags) &&
+    if (USE_INTEL_AVX512(cpuid_flags) &&
             IS_INTEL_AVX512_VBMI(cpuid_flags) &&
             (SAVE_VECTOR_REGISTERS2() == 0)) {
         int i;
@@ -7074,7 +7149,7 @@ void mlkem_to_bytes(byte* b, sword16* p, int k)
     else
 #endif
 #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
-    if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         int i;
 
         for (i = 0; i < k; i++) {

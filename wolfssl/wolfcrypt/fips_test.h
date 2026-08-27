@@ -119,6 +119,19 @@ enum FipsModeId {
 /* FIPS failure callback */
 typedef void(*wolfCrypt_fips_cb)(int ok, int err, const char* hash);
 
+#ifdef WOLFSSL_FIPS_DEV_NO_POST
+    #define wc_RunAllCast_fips() 0
+    static WC_INLINE int wolfCrypt_SetCb_fips(wolfCrypt_fips_cb cbf) {
+        (void)cbf;
+        return 0;
+    }
+    #define wolfCrypt_GetVersion_fips() "wolfCrypt DEV_NO_POST"
+    #define wolfCrypt_GetStatus_fips() 0
+    #define wolfCrypt_GetCoreHash_fips() ""
+    #define wolfCrypt_IntegrityTest_fips() 0
+    #define fipsEntry() WC_DO_NOTHING
+#else /* !WOLFSSL_FIPS_DEV_NO_POST */
+
 /* Public set function */
 WOLFSSL_API int wolfCrypt_SetCb_fips(wolfCrypt_fips_cb cbf);
 
@@ -147,6 +160,8 @@ WOLFSSL_API int wc_RunAllCast_fips(void);
      * this is outside user-control if called by the OS */
     void fipsEntry(void);
 #endif
+
+#endif /* !WOLFSSL_FIPS_DEV_NO_POST */
 
 #ifdef __cplusplus
     } /* extern "C" */

@@ -577,6 +577,69 @@ int test_wc_curve25519_make_pub(void)
 } /* END test_wc_curve25519_make_pub */
 
 /*
+ * Positive cross-check of the make_pub, generic and keygen paths (and the
+ * crypto-callback dispatch for each under WOLF_CRYPTO_CB_ONLY_CURVE25519):
+ * a public key from make_pub or from generic against base point 9 must match
+ * the make_key public point, and a shared secret must round trip.
+ */
+int test_wc_curve25519_make_pub_generic(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_SHARED_SECRET)
+    curve25519_key keyA;
+    curve25519_key keyB;
+    WC_RNG         rng;
+    byte           pubM[CURVE25519_KEYSIZE];
+    byte           pubG[CURVE25519_KEYSIZE];
+    const byte     base9[CURVE25519_KEYSIZE] = { 9 };
+    byte           genAB[CURVE25519_KEYSIZE];
+    byte           ssAB[CURVE25519_KEYSIZE];
+    byte           ssBA[CURVE25519_KEYSIZE];
+    word32         ssABLen  = (word32)sizeof(ssAB);
+    word32         ssBALen  = (word32)sizeof(ssBA);
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+
+    ExpectIntEQ(wc_curve25519_init(&keyA), 0);
+    ExpectIntEQ(wc_curve25519_init(&keyB), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    ExpectIntEQ(wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &keyA), 0);
+    ExpectIntEQ(wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &keyB), 0);
+
+    /* make_pub from the private scalar must match the keygen public point */
+    ExpectIntEQ(wc_curve25519_make_pub((int)sizeof(pubM), pubM,
+        (int)sizeof(keyA.k), keyA.k), 0);
+    ExpectBufEQ(pubM, keyA.p.point, CURVE25519_KEYSIZE);
+
+    /* generic against base point 9 is the same operation as make_pub */
+    ExpectIntEQ(wc_curve25519_generic((int)sizeof(pubG), pubG,
+        (int)sizeof(keyA.k), keyA.k, (int)sizeof(base9), base9), 0);
+    ExpectBufEQ(pubG, pubM, CURVE25519_KEYSIZE);
+
+    /* generic against B's public point must equal the A-B shared secret,
+     * proving generic actually uses the supplied base point */
+    ExpectIntEQ(wc_curve25519_generic((int)sizeof(genAB), genAB,
+        (int)sizeof(keyA.k), keyA.k,
+        (int)sizeof(keyB.p.point), keyB.p.point), 0);
+    ExpectIntEQ(wc_curve25519_shared_secret_ex(&keyA, &keyB, ssAB, &ssABLen,
+        EC25519_LITTLE_ENDIAN), 0);
+    ExpectBufEQ(genAB, ssAB, CURVE25519_KEYSIZE);
+
+    /* shared secret must agree both ways, proving the generated keys are
+     * mutually consistent (a degenerate result is rejected by shared_secret) */
+    ExpectIntEQ(wc_curve25519_shared_secret_ex(&keyB, &keyA, ssBA, &ssBALen,
+        EC25519_LITTLE_ENDIAN), 0);
+    ExpectBufEQ(ssBA, ssAB, CURVE25519_KEYSIZE);
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_curve25519_free(&keyA);
+    wc_curve25519_free(&keyB);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_curve25519_make_pub_generic */
+
+/*
  * Testing test_wc_curve25519_export_public_ex
  */
 int test_wc_curve25519_export_public_ex(void)

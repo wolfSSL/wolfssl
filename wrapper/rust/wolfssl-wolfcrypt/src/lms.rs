@@ -765,6 +765,7 @@ impl Lms {
     ///
     /// Returns either Ok(usize) containing the key ID length on success,
     /// or Err(e) containing the wolfSSL library error code value.
+    #[cfg(lms_make_key)]
     pub fn get_kid(&mut self, kid: &mut [u8]) -> Result<usize, i32> {
         let mut kid_ptr: *const u8 = core::ptr::null();
         let mut kid_sz: u32 = 0;

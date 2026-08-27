@@ -34,6 +34,7 @@
 #ifdef __aarch64__
 #ifndef WOLFSSL_ARMASM_INLINE
 #if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
+#ifndef WOLFSSL_ARMASM_NO_NEON
 #ifndef __APPLE__
 	.text
 	.section	.rodata
@@ -108,12 +109,14 @@ L_SHA512_transform_neon_len_r8:
 #ifndef __APPLE__
 .text
 .globl	Transform_Sha512_Len_neon
+WC_ASM_ATT_HIDDEN(Transform_Sha512_Len_neon)
 .type	Transform_Sha512_Len_neon,@function
 .align	2
 Transform_Sha512_Len_neon:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha512_Len_neon
+WC_ASM_ATT_HIDDEN(_Transform_Sha512_Len_neon)
 .p2align	2
 _Transform_Sha512_Len_neon:
 #endif /* __APPLE__ */
@@ -1109,12 +1112,14 @@ L_SHA512_trans_crypto_len_k:
 #ifndef __APPLE__
 .text
 .globl	Transform_Sha512_Len_crypto
+WC_ASM_ATT_HIDDEN(Transform_Sha512_Len_crypto)
 .type	Transform_Sha512_Len_crypto,@function
 .align	2
 Transform_Sha512_Len_crypto:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha512_Len_crypto
+WC_ASM_ATT_HIDDEN(_Transform_Sha512_Len_crypto)
 .p2align	2
 _Transform_Sha512_Len_crypto:
 #endif /* __APPLE__ */
@@ -1649,6 +1654,7 @@ L_sha512_len_crypto_begin:
 	.size	Transform_Sha512_Len_crypto,.-Transform_Sha512_Len_crypto
 #endif /* __APPLE__ */
 #endif /* WOLFSSL_ARMASM_CRYPTO_SHA512 */
+#endif /* !WOLFSSL_ARMASM_NO_NEON */
 #endif /* WOLFSSL_SHA512 || WOLFSSL_SHA384 */
 #endif /* __aarch64__ */
 #endif /* WOLFSSL_ARMASM */

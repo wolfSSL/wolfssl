@@ -53,16 +53,6 @@
     #endif
 #endif
 
-/* Minimum hash strength accepted by the wc_SignatureVerify/Generate
- * convenience APIs. Default is SHA-256 to keep MD5 and SHA-1 (both with
- * known collision attacks) out of new code. Define WC_SIG_MIN_HASH_TYPE
- * to a weaker wc_HashType (e.g. WC_HASH_TYPE_SHA) to opt back into legacy
- * behavior. The lower-level wc_SignatureVerifyHash/wc_SignatureGenerateHash
- * APIs are unaffected. */
-#ifndef WC_SIG_MIN_HASH_TYPE
-    #define WC_SIG_MIN_HASH_TYPE WC_HASH_TYPE_SHA256
-#endif
-
 static int wc_SignatureCheckHashStrength(enum wc_HashType hash_type)
 {
     int min_sz, this_sz;
@@ -213,7 +203,7 @@ int wc_SignatureVerifyHash(
         return ret;
     }
 
-#if !defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+#if !defined(NO_RSA) && !defined(NO_ASN)
     /* For WC_SIGNATURE_TYPE_RSA_W_ENC, we need to extract the actual size of
      * the ASN.1-encoded hash.
      */

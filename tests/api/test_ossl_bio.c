@@ -1660,6 +1660,16 @@ static long custom_bio_ctrlCb(WOLFSSL_BIO* bio, int cmd, long larg, void* parg)
     }
 }
 
+/* only used to check that a non-NULL callback_ctrl is rejected */
+static long custom_bio_info_cb(WOLFSSL_BIO* bio, int cmd,
+    wolfSSL_BIO_info_cb* cb)
+{
+    (void)bio;
+    (void)cmd;
+    (void)cb;
+    return 0;
+}
+
 #endif /* OPENSSL_EXTRA */
 
 int test_wolfSSL_BIO_custom_method(void)
@@ -1688,6 +1698,23 @@ int test_wolfSSL_BIO_custom_method(void)
             WOLFSSL_SUCCESS);
     ExpectIntEQ(BIO_meth_set_ctrl(method, custom_bio_ctrlCb),
             WOLFSSL_SUCCESS);
+
+    /* Getters return the stored callbacks with their proper types */
+    ExpectTrue(BIO_meth_get_create(method) == custom_bio_createCb);
+    ExpectTrue(BIO_meth_get_destroy(method) == custom_bio_destroyCb);
+    ExpectTrue(BIO_meth_get_puts(method) == custom_bio_putsCb);
+    ExpectTrue(BIO_meth_get_gets(method) == custom_bio_getsCb);
+    ExpectTrue(BIO_meth_get_ctrl(method) == custom_bio_ctrlCb);
+    ExpectTrue(BIO_meth_get_create(NULL) == NULL);
+
+    /* callback_ctrl round-trips like OpenSSL, though wolfSSL never
+     * invokes the stored callback */
+    ExpectIntEQ(BIO_meth_set_callback_ctrl(method, custom_bio_info_cb),
+            WOLFSSL_SUCCESS);
+    ExpectTrue(BIO_meth_get_callback_ctrl(method) == custom_bio_info_cb);
+    ExpectIntEQ(BIO_meth_set_callback_ctrl(method, NULL), WOLFSSL_SUCCESS);
+    ExpectTrue(BIO_meth_get_callback_ctrl(method) == NULL);
+    ExpectIntEQ(BIO_meth_set_callback_ctrl(NULL, NULL), WOLFSSL_FAILURE);
 
     /* Create BIO - should invoke createCb */
     ExpectNotNull(bio = BIO_new(method));
@@ -1895,6 +1922,103 @@ int test_wolfSSL_BIO_get_init(void)
 
     BIO_free(bio);
     BIO_meth_free(method);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_BIO_app_data(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_EX_DATA)
+    BIO* bio = NULL;
+    int meth_data = 0;
+    int app_data = 0;
+
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+
+    /* app_data lives in ex_data slot 0, independent of the method data
+     * pointer accessed through BIO_{get,set}_data(). */
+    BIO_set_data(bio, &meth_data);
+    ExpectIntEQ(BIO_set_app_data(bio, &app_data), WOLFSSL_SUCCESS);
+    ExpectTrue(BIO_get_data(bio) == &meth_data);
+    ExpectTrue(BIO_get_app_data(bio) == &app_data);
+
+    BIO_free(bio);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_BIO_get_new_index(void)
+{
+    EXPECT_DECLS;
+#ifdef OPENSSL_EXTRA
+    BIO_METHOD* method = NULL;
+    BIO* bio = NULL;
+    int prev;
+
+    /* First call hands out BIO_TYPE_START, later calls increment by one.
+     * The index counter is process-global, so this test must stay the first
+     * consumer in the test suite. */
+    ExpectIntEQ(prev = BIO_get_new_index(), BIO_TYPE_START);
+
+    /* A returned index is usable as a custom method type. */
+    ExpectNotNull(method = BIO_meth_new(prev, "new_index_test"));
+    ExpectNotNull(bio = BIO_new(method));
+    ExpectIntEQ(BIO_method_type(bio), prev);
+    BIO_free(bio);
+    BIO_meth_free(method);
+
+    ExpectIntEQ(BIO_get_new_index(), prev + 1);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(OPENSSL_EXTRA) && !defined(SINGLE_THREADED)
+
+#define TEST_BIO_NEW_INDEX_THREADS     4
+#define TEST_BIO_NEW_INDEX_PER_THREAD 16
+
+static int bio_new_index_results[TEST_BIO_NEW_INDEX_THREADS]
+                                [TEST_BIO_NEW_INDEX_PER_THREAD];
+
+static THREAD_RETURN WOLFSSL_THREAD test_BIO_get_new_index_worker(void* args)
+{
+    int tno = ((func_args*)args)->argc;
+    int i;
+
+    for (i = 0; i < TEST_BIO_NEW_INDEX_PER_THREAD; i++)
+        bio_new_index_results[tno][i] = BIO_get_new_index();
+    WOLFSSL_RETURN_FROM_THREAD(0);
+}
+#endif
+
+int test_wolfSSL_BIO_get_new_index_threaded(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(SINGLE_THREADED)
+    THREAD_TYPE threads[TEST_BIO_NEW_INDEX_THREADS];
+    func_args   args[TEST_BIO_NEW_INDEX_THREADS];
+    int total = TEST_BIO_NEW_INDEX_THREADS * TEST_BIO_NEW_INDEX_PER_THREAD;
+    int i, j;
+
+    XMEMSET(args, 0, sizeof(args));
+    for (i = 0; i < TEST_BIO_NEW_INDEX_THREADS; i++) {
+        args[i].argc = i;
+        start_thread(test_BIO_get_new_index_worker, &args[i], &threads[i]);
+    }
+    for (i = 0; i < TEST_BIO_NEW_INDEX_THREADS; i++)
+        join_thread(threads[i]);
+
+    /* Concurrent callers must never receive the same type index. */
+    for (i = 0; i < total; i++) {
+        for (j = i + 1; j < total; j++) {
+            ExpectIntNE(
+                bio_new_index_results[i / TEST_BIO_NEW_INDEX_PER_THREAD]
+                                     [i % TEST_BIO_NEW_INDEX_PER_THREAD],
+                bio_new_index_results[j / TEST_BIO_NEW_INDEX_PER_THREAD]
+                                     [j % TEST_BIO_NEW_INDEX_PER_THREAD]);
+        }
+    }
 #endif
     return EXPECT_RESULT();
 }

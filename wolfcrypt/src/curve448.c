@@ -44,6 +44,9 @@
 #ifdef HAVE_CURVE448
 
 #include <wolfssl/wolfcrypt/curve448.h>
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -51,11 +54,34 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-int wc_curve448_make_pub(int public_size, byte* pub, int private_size,
-    const byte* priv)
+/* Check the private scalar is clamped per RFC 7748 section 5:
+ * low two bits of byte 0 clear and top bit of byte 55 set. */
+static WC_INLINE int curve448_priv_clamp_check(const byte* priv)
+{
+    int ret = 0;
+    if ((priv[0] & 0x03) || !(priv[CURVE448_KEY_SIZE-1] & 0x80)) {
+        ret = ECC_BAD_ARG_E;
+    }
+    return ret;
+}
+
+/* Compute pub = priv * basepoint(5).
+ *
+ * devId  [in]  Device to offload to, INVALID_DEVID for the caller's choice.
+ * cbOk   [in]  Whether the private scalar may be offered to a crypto
+ *              callback at all.  The keyless public API sets this, since it
+ *              has no key to take a devId from; a key-owned scalar only sets
+ *              it when the key is actually bound to a device, so an unbound
+ *              key is never offloaded to whichever device happens to be
+ *              registered first.
+ */
+static int curve448_make_pub_ex(int public_size, byte* pub, int private_size,
+    const byte* priv, int devId, int cbOk)
 {
     int ret;
+#ifndef WOLF_CRYPTO_CB_ONLY_CURVE448
     unsigned char basepoint[CURVE448_KEY_SIZE] = {5};
+#endif
 
     if ((pub == NULL) || (priv == NULL)) {
         return ECC_BAD_ARG_E;
@@ -65,10 +91,139 @@ int wc_curve448_make_pub(int public_size, byte* pub, int private_size,
         return ECC_BAD_ARG_E;
     }
 
+    /* check clamping */
+    ret = curve448_priv_clamp_check(priv);
+    if (ret != 0)
+        return ret;
+
+#ifdef WOLF_CRYPTO_CB
+    if (cbOk) {
+        ret = wc_CryptoCb_Curve448MakePub(devId, public_size, pub,
+            private_size, priv);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret;
+        /* fall-through when unavailable */
+    }
+#else
+    (void)devId;
+    (void)cbOk;
+#endif
+
+#ifdef WOLF_CRYPTO_CB_ONLY_CURVE448
+    ret = NO_VALID_DEVID;
+#else
     fe448_init();
 
     /* compute public key */
     ret = curve448(pub, priv, basepoint);
+#endif /* WOLF_CRYPTO_CB_ONLY_CURVE448 */
+
+    return ret;
+}
+
+/* Derive a key's public point from its own private scalar.
+ *
+ * Only wc_curve448_make_key() and the public key export use this, so it is
+ * unreferenced when the software key generation is stripped out and export is
+ * disabled.
+ */
+#if !defined(WOLF_CRYPTO_CB_ONLY_CURVE448) || \
+    defined(HAVE_CURVE448_KEY_EXPORT)
+static int curve448_key_make_pub(curve448_key* key)
+{
+#ifdef WOLF_CRYPTO_CB
+    #ifdef WOLF_CRYPTO_CB_FIND
+    /* the find callback gets to route unbound keys */
+    const int cbOk = 1;
+    #else
+    const int cbOk = (key->devId != INVALID_DEVID);
+    #endif
+
+    return curve448_make_pub_ex((int)sizeof(key->p), key->p,
+        (int)sizeof(key->k), key->k, key->devId, cbOk);
+#else
+    return curve448_make_pub_ex((int)sizeof(key->p), key->p,
+        (int)sizeof(key->k), key->k, INVALID_DEVID, 0);
+#endif
+}
+#endif /* !WOLF_CRYPTO_CB_ONLY_CURVE448 || HAVE_CURVE448_KEY_EXPORT */
+
+int wc_curve448_make_pub(int public_size, byte* pub, int private_size,
+    const byte* priv)
+{
+    /* no key, so no device was selected: any registered one may serve it */
+    return curve448_make_pub_ex(public_size, pub, private_size, priv,
+        INVALID_DEVID, 1);
+}
+
+/* Is every byte of the curve448 result zero? Only reached when the caller's
+ * basepoint is of small order, which leaks the result to anyone watching. */
+#ifndef WOLFSSL_NO_ECDHX_SHARED_ZERO_CHECK
+static WC_INLINE int curve448_result_is_zero(const byte* out)
+{
+    int i;
+    byte t = 0;
+    for (i = 0; i < CURVE448_PUB_KEY_SIZE; i++) {
+        t |= out[i];
+    }
+    return (t == 0);
+}
+#endif
+
+/* Multiply a scalar (private key) against any basepoint over curve448.
+ *
+ * An all-zero result is rejected with ECC_OUT_OF_RANGE_E, matching
+ * wc_curve448_shared_secret_ex; define WOLFSSL_NO_ECDHX_SHARED_ZERO_CHECK to
+ * get the raw scalar multiplication result instead.
+ */
+int wc_curve448_generic(int public_size, byte* pub,
+                        int private_size, const byte* priv,
+                        int basepoint_size, const byte* basepoint)
+{
+    int ret;
+
+    if ((pub == NULL) || (priv == NULL) || (basepoint == NULL)) {
+        return ECC_BAD_ARG_E;
+    }
+    if ((public_size    != CURVE448_PUB_KEY_SIZE) ||
+        (private_size   != CURVE448_KEY_SIZE) ||
+        (basepoint_size != CURVE448_KEY_SIZE)) {
+        return ECC_BAD_ARG_E;
+    }
+
+    /* check clamping */
+    ret = curve448_priv_clamp_check(priv);
+    if (ret != 0)
+        return ret;
+
+#ifdef WOLF_CRYPTO_CB
+    /* no key, so no device was selected: any registered one may serve it */
+    ret = wc_CryptoCb_Curve448Generic(INVALID_DEVID, public_size, pub,
+        private_size, priv, basepoint_size, basepoint);
+    if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+    #ifndef WOLFSSL_NO_ECDHX_SHARED_ZERO_CHECK
+        /* RFC 7748: reject an all-zero result from the callback too */
+        if ((ret == 0) && curve448_result_is_zero(pub)) {
+            ret = ECC_OUT_OF_RANGE_E;
+        }
+    #endif
+        return ret;
+    }
+    /* fall-through when unavailable */
+#endif
+
+#ifdef WOLF_CRYPTO_CB_ONLY_CURVE448
+    ret = NO_VALID_DEVID;
+#else
+    fe448_init();
+
+    ret = curve448(pub, priv, basepoint);
+#ifndef WOLFSSL_NO_ECDHX_SHARED_ZERO_CHECK
+    if ((ret == 0) && curve448_result_is_zero(pub)) {
+        ret = ECC_OUT_OF_RANGE_E;
+    }
+#endif
+#endif /* WOLF_CRYPTO_CB_ONLY_CURVE448 */
 
     return ret;
 }
@@ -96,6 +251,27 @@ int wc_curve448_make_key(WC_RNG* rng, int keysize, curve448_key* key)
         ret = ECC_BAD_ARG_E;
     }
 
+#ifdef WOLF_CRYPTO_CB
+    if (ret == 0) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+        if (key->devId != INVALID_DEVID)
+    #endif
+        {
+            ret = wc_CryptoCb_Curve448Gen(rng, keysize, key);
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                return ret;
+            /* fall-through when unavailable */
+            ret = 0;
+        }
+    }
+#endif
+
+#ifdef WOLF_CRYPTO_CB_ONLY_CURVE448
+    /* software path stripped; callback is the only provider */
+    if (ret == 0) {
+        ret = NO_VALID_DEVID;
+    }
+#else
     if (ret == 0) {
         /* random number for private key */
         ret = wc_RNG_GenerateBlock(rng, key->k, (word32)keysize);
@@ -108,8 +284,7 @@ int wc_curve448_make_key(WC_RNG* rng, int keysize, curve448_key* key)
         key->k[CURVE448_KEY_SIZE-1] |= 0x80;
 
         /* compute public */
-        ret = wc_curve448_make_pub((int)sizeof(key->p), key->p,
-                                   (int)sizeof(key->k), key->k);
+        ret = curve448_key_make_pub(key);
         if (ret == 0) {
             key->pubSet = 1;
         }
@@ -118,6 +293,7 @@ int wc_curve448_make_key(WC_RNG* rng, int keysize, curve448_key* key)
             XMEMSET(key->p, 0, sizeof(key->p));
         }
     }
+#endif /* WOLF_CRYPTO_CB_ONLY_CURVE448 */
 
     return ret;
 }
@@ -162,26 +338,62 @@ int wc_curve448_shared_secret_ex(curve448_key* private_key,
                                  curve448_key* public_key,
                                  byte* out, word32* outLen, int endian)
 {
+#ifndef WOLF_CRYPTO_CB_ONLY_CURVE448
     unsigned char o[CURVE448_PUB_KEY_SIZE];
-    int ret = 0;
     int i;
-
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-    /* Register the shared-secret buffer up front (no early return bypasses the
-     * cleanup ForceZero) so every path is checked. XMEMSET makes it defined. */
-    XMEMSET(o, 0, sizeof(o));
-    wc_MemZero_Add("wc_curve448_shared_secret_ex o", o, CURVE448_PUB_KEY_SIZE);
 #endif
+    int ret = 0;
 
     /* sanity check */
     if ((private_key == NULL) || (public_key == NULL) || (out == NULL) ||
                         (outLen == NULL) || (*outLen < CURVE448_PUB_KEY_SIZE)) {
-        ret = BAD_FUNC_ARG;
+        return BAD_FUNC_ARG;
     }
     /* make sure we have a populated private and public key */
-    if (ret == 0 && (!private_key->privSet || !public_key->pubSet)) {
-        ret = ECC_BAD_ARG_E;
+    if (!private_key->privSet || !public_key->pubSet) {
+        return ECC_BAD_ARG_E;
     }
+
+#ifdef WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (private_key->devId != INVALID_DEVID)
+    #endif
+    {
+        ret = wc_CryptoCb_Curve448(private_key, public_key, out, outLen,
+            endian);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+#ifndef WOLFSSL_NO_ECDHX_SHARED_ZERO_CHECK
+            /* RFC 7748: reject an all-zero secret from the callback too */
+            if (ret == 0) {
+                int j;
+                byte t = 0;
+                for (j = 0; j < CURVE448_PUB_KEY_SIZE; j++) {
+                    t |= out[j];
+                }
+                if (t == 0) {
+                    ret = ECC_OUT_OF_RANGE_E;
+                }
+            }
+#endif
+            return ret;
+        }
+        /* fall-through when unavailable */
+        ret = 0;
+    }
+#endif
+
+#ifdef WOLF_CRYPTO_CB_ONLY_CURVE448
+    /* software path stripped; callback is the only provider */
+    if (ret == 0) {
+        ret = NO_VALID_DEVID;
+    }
+#else
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* Register the buffer after the early returns so every later path
+     * reaches the cleanup ForceZero. XMEMSET makes it defined. */
+    XMEMSET(o, 0, sizeof(o));
+    wc_MemZero_Add("wc_curve448_shared_secret_ex o", o, CURVE448_PUB_KEY_SIZE);
+#endif
 
     if (ret == 0) {
         ret = curve448(o, private_key->k, public_key->p);
@@ -216,6 +428,7 @@ int wc_curve448_shared_secret_ex(curve448_key* private_key,
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(o, CURVE448_PUB_KEY_SIZE);
 #endif
+#endif /* WOLF_CRYPTO_CB_ONLY_CURVE448 */
 
     return ret;
 }
@@ -232,7 +445,8 @@ int wc_curve448_shared_secret_ex(curve448_key* private_key,
  * outLen  [in/out]  On in, the number of bytes in array.
  *                   On out, the number bytes put into array.
  * returns BAD_FUNC_ARG when a parameter is NULL,
- *         ECC_BAD_ARG_E when outLen is less than CURVE448_PUB_KEY_SIZE,
+ *         ECC_BAD_ARG_E when outLen is less than CURVE448_PUB_KEY_SIZE or
+ *         neither the public nor the private key has been set,
  *         0 otherwise.
  */
 int wc_curve448_export_public(curve448_key* key, byte* out, word32* outLen)
@@ -248,7 +462,8 @@ int wc_curve448_export_public(curve448_key* key, byte* out, word32* outLen)
  *                   On out, the number bytes put into array.
  * endian  [in]      Endianness to use when encoding number in array.
  * returns BAD_FUNC_ARG when a parameter is NULL,
- *         ECC_BAD_ARG_E when outLen is less than CURVE448_PUB_KEY_SIZE,
+ *         ECC_BAD_ARG_E when outLen is less than CURVE448_PUB_KEY_SIZE or
+ *         neither the public nor the private key has been set,
  *         0 otherwise.
  */
 int wc_curve448_export_public_ex(curve448_key* key, byte* out, word32* outLen,
@@ -265,11 +480,15 @@ int wc_curve448_export_public_ex(curve448_key* key, byte* out, word32* outLen,
         *outLen = CURVE448_PUB_KEY_SIZE;
         ret = ECC_BAD_ARG_E;
     }
+
+    /* no public key to export and no private key to derive it from */
+    if ((ret == 0) && (!key->pubSet) && (!key->privSet)) {
+        ret = ECC_BAD_ARG_E;
+    }
     if (ret == 0) {
         /* calculate public if missing */
         if (!key->pubSet) {
-            ret = wc_curve448_make_pub((int)sizeof(key->p), key->p,
-                                       (int)sizeof(key->k), key->k);
+            ret = curve448_key_make_pub(key);
             key->pubSet = (ret == 0);
         }
     }
@@ -690,13 +909,44 @@ int wc_curve448_import_private_ex(const byte* priv, word32 privSz,
 #endif /* HAVE_CURVE448_KEY_IMPORT */
 
 
-/* Initialize the curve448 key.
- *
- * key  [in]  Curve448 key object.
- * returns BAD_FUNC_ARG when key is NULL,
- *         0 otherwise.
- */
-int wc_curve448_init(curve448_key* key)
+#ifndef WC_NO_CONSTRUCTORS
+curve448_key* wc_curve448_new(void* heap, int devId, int* result_code)
+{
+    int ret;
+    curve448_key* key = (curve448_key*)XMALLOC(sizeof(curve448_key), heap,
+                         DYNAMIC_TYPE_CURVE448);
+    if (key == NULL) {
+        ret = MEMORY_E;
+    }
+    else {
+        ret = wc_curve448_init_ex(key, heap, devId);
+        if (ret != 0) {
+            XFREE(key, heap, DYNAMIC_TYPE_CURVE448);
+            key = NULL;
+        }
+    }
+
+    if (result_code != NULL)
+        *result_code = ret;
+
+    return key;
+}
+
+int wc_curve448_delete(curve448_key* key, curve448_key** key_p) {
+    void* heap;
+    if (key == NULL)
+        return BAD_FUNC_ARG;
+    heap = key->heap;
+    wc_curve448_free(key);
+    XFREE(key, heap, DYNAMIC_TYPE_CURVE448);
+    if (key_p != NULL)
+        *key_p = NULL;
+    return 0;
+}
+#endif /* !WC_NO_CONSTRUCTORS */
+
+/* Initialize the curve448 key with a heap hint and crypto callback devId. */
+int wc_curve448_init_ex(curve448_key* key, void* heap, int devId)
 {
     int ret = 0;
 
@@ -707,7 +957,17 @@ int wc_curve448_init(curve448_key* key)
     if (ret == 0) {
         XMEMSET(key, 0, sizeof(*key));
 
+    #ifdef WOLF_CRYPTO_CB
+        key->devId = devId;
+    #else
+        (void)devId;
+    #endif
+        key->heap = heap;
+
+    /* field math is implemented in the callback in crypto cb only */
+    #ifndef WOLF_CRYPTO_CB_ONLY_CURVE448
         fe448_init();
+    #endif
 
     #ifdef WOLFSSL_CHECK_MEM_ZERO
         wc_MemZero_Add("wc_curve448_init key->k", &key->k, CURVE448_KEY_SIZE);
@@ -715,6 +975,17 @@ int wc_curve448_init(curve448_key* key)
     }
 
     return ret;
+}
+
+/* Initialize the curve448 key.
+ *
+ * key  [in]  Curve448 key object.
+ * returns BAD_FUNC_ARG when key is NULL,
+ *         0 otherwise.
+ */
+int wc_curve448_init(curve448_key* key)
+{
+    return wc_curve448_init_ex(key, NULL, INVALID_DEVID);
 }
 
 

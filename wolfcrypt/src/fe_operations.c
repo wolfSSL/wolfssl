@@ -23,9 +23,7 @@
 
  /* Based On Daniel J Bernstein's curve25519 Public Domain ref10 work. */
 
-/* under WOLF_CRYPTO_CB_ONLY_ED25519 the callback device does all Ed25519
- * field math, so Ed25519 alone no longer pulls this file in */
-#if defined(HAVE_CURVE25519) || \
+#if (defined(HAVE_CURVE25519) && !defined(WOLF_CRYPTO_CB_ONLY_CURVE25519)) || \
     (defined(HAVE_ED25519) && !defined(WOLF_CRYPTO_CB_ONLY_ED25519))
 #if !defined(CURVE25519_SMALL) && !defined(ED25519_SMALL)
 
@@ -528,6 +526,9 @@ void fe_tobytes(unsigned char *s,const fe h)
   sword32 carry7;
   sword32 carry8;
   sword32 carry9;
+#ifdef WOLFSSL_WIDE_BYTE
+  int i;
+#endif
 
   q = (19 * h9 + (sword32)(((word32) 1) << 24)) >> 25;
   q = (h0 + q) >> 26;
@@ -596,6 +597,11 @@ void fe_tobytes(unsigned char *s,const fe h)
   s[29] = (byte)(h9 >> 2);
   s[30] = (byte)(h9 >> 10);
   s[31] = (byte)(h9 >> 18);
+#ifdef WOLFSSL_WIDE_BYTE
+  /* CHAR_BIT != 8: (byte) does not truncate to an octet; mask each output. */
+  for (i = 0; i < 32; i++)
+    s[i] = WC_OCTET(s[i]);
+#endif
 }
 
 

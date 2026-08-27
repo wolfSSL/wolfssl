@@ -270,9 +270,15 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng);
     The same parameter set selected at key-generation time must be
     reapplied with wc_XmssKey_SetParamStr() before calling Reload.
 
-    \return 0 on success.
+    With WOLF_CRYPTO_CB, a key on a devId with no read callback is
+    taken to be device-backed and Reload is a no-op. With a read
+    callback the software reload runs as usual, which needs the write
+    callback set too.
+
+    \return 0 on success, including the device-backed no-op.
     \return BAD_FUNC_ARG if any required pointer is NULL.
     \return WC_XMSS_RC_* mapped error if the read callback fails.
+    \return IO_FAILED_E if the private key could not be read.
 
     \param [in,out] key Pointer to an XmssKey with parameters and
     read callback set.

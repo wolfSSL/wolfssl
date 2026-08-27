@@ -52,6 +52,7 @@ static int check_cert_key_dev(word32 keyOID, byte* privKey, word32 privSz,
 {
     int ret = 0;
     int type = 0;
+    int slhParam = -1;
     void *pkey = NULL;
 
     if (privKey == NULL) {
@@ -90,10 +91,32 @@ static int check_cert_key_dev(word32 keyOID, byte* privKey, word32 privSz,
                 type = DYNAMIC_TYPE_FALCON;
                 break;
     #endif
+    #if defined(WOLFSSL_HAVE_SLHDSA)
+            case SLH_DSA_SHA2_128Sk:
+            case SLH_DSA_SHA2_128Fk:
+            case SLH_DSA_SHA2_192Sk:
+            case SLH_DSA_SHA2_192Fk:
+            case SLH_DSA_SHA2_256Sk:
+            case SLH_DSA_SHA2_256Fk:
+            case SLH_DSA_SHAKE_128Sk:
+            case SLH_DSA_SHAKE_128Fk:
+            case SLH_DSA_SHAKE_192Sk:
+            case SLH_DSA_SHAKE_192Fk:
+            case SLH_DSA_SHAKE_256Sk:
+            case SLH_DSA_SHAKE_256Fk:
+                type = DYNAMIC_TYPE_SLHDSA;
+                slhParam = wc_SlhDsaOidToParam((int)keyOID);
+                if (slhParam < 0) {
+                    ret = ALGO_ID_E;
+                }
+                break;
+    #endif
         }
 
-        ret = CreateDevPrivateKey(&pkey, privKey, privSz, type, label, id, heap,
-            devId);
+        if (ret == 0) {
+            ret = CreateDevPrivateKey(&pkey, privKey, privSz, type, label, id,
+                heap, devId, slhParam);
+        }
     }
 #ifdef WOLF_CRYPTO_CB
     if (ret == 0) {
@@ -130,6 +153,23 @@ static int check_cert_key_dev(word32 keyOID, byte* privKey, word32 privSz,
             case FALCON_LEVEL5k:
                 ret = wc_CryptoCb_PqcSignatureCheckPrivKey(pkey,
                     WC_PQC_SIG_TYPE_FALCON, pubKey, pubSz);
+                break;
+    #endif
+    #if defined(WOLFSSL_HAVE_SLHDSA)
+            case SLH_DSA_SHA2_128Sk:
+            case SLH_DSA_SHA2_128Fk:
+            case SLH_DSA_SHA2_192Sk:
+            case SLH_DSA_SHA2_192Fk:
+            case SLH_DSA_SHA2_256Sk:
+            case SLH_DSA_SHA2_256Fk:
+            case SLH_DSA_SHAKE_128Sk:
+            case SLH_DSA_SHAKE_128Fk:
+            case SLH_DSA_SHAKE_192Sk:
+            case SLH_DSA_SHAKE_192Fk:
+            case SLH_DSA_SHAKE_256Sk:
+            case SLH_DSA_SHAKE_256Fk:
+                ret = wc_CryptoCb_PqcSignatureCheckPrivKey(pkey,
+                    WC_PQC_SIG_TYPE_SLHDSA, pubKey, pubSz);
                 break;
     #endif
             default:
@@ -173,6 +213,22 @@ static int check_cert_key_dev(word32 keyOID, byte* privKey, word32 privSz,
         case FALCON_LEVEL1k:
         case FALCON_LEVEL5k:
             wc_falcon_free((falcon_key*)pkey);
+            break;
+    #endif
+    #if defined(WOLFSSL_HAVE_SLHDSA)
+        case SLH_DSA_SHA2_128Sk:
+        case SLH_DSA_SHA2_128Fk:
+        case SLH_DSA_SHA2_192Sk:
+        case SLH_DSA_SHA2_192Fk:
+        case SLH_DSA_SHA2_256Sk:
+        case SLH_DSA_SHA2_256Fk:
+        case SLH_DSA_SHAKE_128Sk:
+        case SLH_DSA_SHAKE_128Fk:
+        case SLH_DSA_SHAKE_192Sk:
+        case SLH_DSA_SHAKE_192Fk:
+        case SLH_DSA_SHAKE_256Sk:
+        case SLH_DSA_SHAKE_256Fk:
+            wc_SlhDsaKey_Free((SlhDsaKey*)pkey);
             break;
     #endif
         default:
@@ -393,7 +449,7 @@ int wolfSSL_CTX_check_private_key(const WOLFSSL_CTX* ctx)
             res = check_cert_key(ctx->certificate, privateKey, altPrivateKey,
                 ctx->heap, ctx->privateKeyDevId, ctx->privateKeyLabel,
                 ctx->privateKeyId, ctx->altPrivateKeyDevId,
-                ctx->altPrivateKeyLabel, ctx->altPrivateKeyId) != 0;
+                ctx->altPrivateKeyLabel, ctx->altPrivateKeyId) == 1;
         }
     #ifdef WOLFSSL_BLIND_PRIVATE_KEY
         /* Dispose of the unblinded buffers. */
@@ -795,7 +851,8 @@ void* wolfSSL_CTX_GetEccSignCtx(WOLFSSL_CTX* ctx)
  * @param [in] ctx  SSL/TLS context.
  * @param [in] cb   ECC sign callback.
  */
-WOLFSSL_ABI void wolfSSL_CTX_SetEccSignCb(WOLFSSL_CTX* ctx, CallbackEccSign cb)
+WOLFSSL_ABI
+void wolfSSL_CTX_SetEccSignCb(WOLFSSL_CTX* ctx, CallbackEccSign cb)
 {
     if (ctx != NULL) {
         ctx->EccSignCb = cb;
@@ -2022,6 +2079,42 @@ static int SaToNid(byte sa, int* nid)
         case mldsa_87_sa_algo:
             *nid = CTC_ML_DSA_87;
             break;
+        case slhdsa_sha2_128s_sa_algo:
+            *nid = CTC_SLH_DSA_SHA2_128S;
+            break;
+        case slhdsa_sha2_128f_sa_algo:
+            *nid = CTC_SLH_DSA_SHA2_128F;
+            break;
+        case slhdsa_sha2_192s_sa_algo:
+            *nid = CTC_SLH_DSA_SHA2_192S;
+            break;
+        case slhdsa_sha2_192f_sa_algo:
+            *nid = CTC_SLH_DSA_SHA2_192F;
+            break;
+        case slhdsa_sha2_256s_sa_algo:
+            *nid = CTC_SLH_DSA_SHA2_256S;
+            break;
+        case slhdsa_sha2_256f_sa_algo:
+            *nid = CTC_SLH_DSA_SHA2_256F;
+            break;
+        case slhdsa_shake_128s_sa_algo:
+            *nid = CTC_SLH_DSA_SHAKE_128S;
+            break;
+        case slhdsa_shake_128f_sa_algo:
+            *nid = CTC_SLH_DSA_SHAKE_128F;
+            break;
+        case slhdsa_shake_192s_sa_algo:
+            *nid = CTC_SLH_DSA_SHAKE_192S;
+            break;
+        case slhdsa_shake_192f_sa_algo:
+            *nid = CTC_SLH_DSA_SHAKE_192F;
+            break;
+        case slhdsa_shake_256s_sa_algo:
+            *nid = CTC_SLH_DSA_SHAKE_256S;
+            break;
+        case slhdsa_shake_256f_sa_algo:
+            *nid = CTC_SLH_DSA_SHAKE_256F;
+            break;
         case sm2_sa_algo:
             *nid = WC_NID_sm2;
             break;
@@ -2336,7 +2429,7 @@ static int DetectStaticEphemeralKeyType(const byte* keyBuf, unsigned int keySz,
         WC_ALLOC_VAR_EX(x448Key, curve448_key, 1, heap,
                         DYNAMIC_TYPE_CURVE448, ret = MEMORY_E);
         if (ret == 0) {
-            ret = wc_curve448_init(x448Key);
+            ret = wc_curve448_init_ex(x448Key, heap, INVALID_DEVID);
         }
         if (ret == 0) {
             ret = wc_Curve448PrivateKeyDecode(keyBuf, &idx, x448Key,

@@ -1614,3 +1614,128 @@ int test_wolfSSL_SESSION_get_ex_new_index(void)
     return TEST_SKIPPED;
 }
 #endif
+
+/*----------------------------------------------------------------------------*/
+/* wolfSSL_GetSessionAtIndex                                                  */
+/*----------------------------------------------------------------------------*/
+
+#if defined(SESSION_INDEX) && defined(HAVE_SESSION_TICKET) && \
+    !defined(NO_SESSION_CACHE) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_TLS)
+
+/* Cache a client session under id with a ticLen byte ticket of fill bytes.
+ * ticLen over SESSION_TICKET_LEN makes the cache allocate a ticket buffer. */
+static int test_session_at_index_add(WOLFSSL_CTX* ctx, const byte* id,
+    word16 ticLen, byte fill, int* idx)
+{
+    EXPECT_DECLS;
+    WOLFSSL_SESSION* sess = NULL;
+    byte* tic = NULL;
+
+    ExpectNotNull(tic = (byte*)XMALLOC(ticLen, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(sess = wolfSSL_SESSION_new());
+    if (EXPECT_SUCCESS()) {
+        XMEMSET(tic, fill, ticLen);
+        XMEMCPY(sess->sessionID, id, ID_LEN);
+        sess->sessionIDSz = ID_LEN;
+        sess->side = WOLFSSL_CLIENT_END;
+        sess->isSetup = 1;
+        /* Borrowed buffer - ticketLenAlloc stays 0 so sess does not free it. */
+        sess->ticket = tic;
+        sess->ticketLen = ticLen;
+    }
+    ExpectIntEQ(AddSessionToCache(ctx, sess, id, ID_LEN, idx,
+        WOLFSSL_CLIENT_END, 1, NULL), 0);
+
+    if (sess != NULL) {
+        sess->ticket = sess->staticTicket;
+        sess->ticketLen = 0;
+        wolfSSL_SESSION_free(sess);
+    }
+    XFREE(tic, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return EXPECT_RESULT();
+}
+
+static int test_session_at_index_ticket_is(const WOLFSSL_SESSION* sess,
+    word16 ticLen, byte fill)
+{
+    word16 i;
+
+    if ((sess == NULL) || (sess->ticket == NULL) || (sess->ticketLen != ticLen))
+        return 0;
+    for (i = 0; i < ticLen; i++) {
+        if (sess->ticket[i] != fill)
+            return 0;
+    }
+    return 1;
+}
+
+int test_wolfSSL_GetSessionAtIndex(void)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL_SESSION* copy = NULL;
+    WOLFSSL_SESSION* copy2 = NULL;
+    byte id[ID_LEN];
+    word16 ticLen = (word16)(SESSION_TICKET_LEN + 128);
+    int idx = -1;
+
+    XMEMSET(id, 0x5A, sizeof(id));
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectIntEQ(test_session_at_index_add(ctx, id, ticLen, 0xA1, &idx),
+        TEST_SUCCESS);
+    ExpectIntGE(idx, 0);
+
+    ExpectNotNull(copy = wolfSSL_SESSION_new());
+#ifdef HAVE_EX_DATA
+    if (copy != NULL) {
+        copy->ex_data.ex_data[0] = (void*)copy;
+    }
+#endif
+    ExpectIntEQ(wolfSSL_GetSessionAtIndex(idx, copy), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_session_at_index_ticket_is(copy, ticLen, 0xA1), 1);
+#ifdef HAVE_EX_DATA
+    /* The copy keeps its own ex_data and the right to free it. */
+    if (copy != NULL) {
+        ExpectPtrEq(copy->ex_data.ex_data[0], (void*)copy);
+        ExpectIntEQ(copy->ownExData, 1);
+    }
+#endif
+
+    /* Each copy owns its ticket rather than pointing into the cache. */
+    ExpectNotNull(copy2 = wolfSSL_SESSION_new());
+    ExpectIntEQ(wolfSSL_GetSessionAtIndex(idx, copy2), WOLFSSL_SUCCESS);
+    if ((copy != NULL) && (copy2 != NULL)) {
+        ExpectPtrNE(copy->ticket, copy2->ticket);
+    }
+
+    /* Same length overwrite reuses the cache buffer - copies keep their
+     * bytes. */
+    ExpectIntEQ(test_session_at_index_add(ctx, id, ticLen, 0xB2, NULL),
+        TEST_SUCCESS);
+    ExpectIntEQ(test_session_at_index_ticket_is(copy, ticLen, 0xA1), 1);
+    ExpectIntEQ(test_session_at_index_ticket_is(copy2, ticLen, 0xA1), 1);
+
+    /* Longer ticket makes the cache free its buffer, and releasing a copy must
+     * not free a buffer the cache still uses. */
+    wolfSSL_SESSION_free(copy2);
+    copy2 = NULL;
+    ExpectIntEQ(test_session_at_index_add(ctx, id, (word16)(ticLen + 512),
+        0xC3, NULL), TEST_SUCCESS);
+    ExpectIntEQ(test_session_at_index_ticket_is(copy, ticLen, 0xA1), 1);
+
+    wolfSSL_SESSION_free(copy);
+    wolfSSL_CTX_free(ctx);
+    return EXPECT_RESULT();
+}
+
+#else
+
+int test_wolfSSL_GetSessionAtIndex(void)
+{
+    return TEST_SKIPPED;
+}
+
+#endif /* SESSION_INDEX && HAVE_SESSION_TICKET && !NO_SESSION_CACHE &&
+        * !NO_WOLFSSL_CLIENT && !NO_TLS */

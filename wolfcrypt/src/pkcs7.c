@@ -245,15 +245,22 @@ static void wc_PKCS7_ResetStream(wc_PKCS7* pkcs7)
         XFREE(pkcs7->stream->tag, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         XFREE(pkcs7->stream->nonce, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         XFREE(pkcs7->stream->buffer, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        /* stream->bufferPt holds the AuthEnvelopedData encryptedContent
+         * buffer across WANT_READ re-entries. wc_PKCS7_DecodeAuthEnveloped
+         * Data() only frees it on its own error paths; if the stream is torn
+         * down while a decode is still pending (e.g. wc_PKCS7_Free() called
+         * after a WANT_READ), it must be freed here or it leaks. */
+        XFREE(pkcs7->stream->bufferPt, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         /* stream->key is always allocated with MAX_ENCRYPTED_KEY_SZ */
         if (pkcs7->stream->key != NULL)
             ForceZero(pkcs7->stream->key, MAX_ENCRYPTED_KEY_SZ);
         XFREE(pkcs7->stream->key, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-        pkcs7->stream->aad    = NULL;
-        pkcs7->stream->tag    = NULL;
-        pkcs7->stream->nonce  = NULL;
-        pkcs7->stream->buffer = NULL;
-        pkcs7->stream->key    = NULL;
+        pkcs7->stream->aad      = NULL;
+        pkcs7->stream->tag      = NULL;
+        pkcs7->stream->nonce    = NULL;
+        pkcs7->stream->buffer   = NULL;
+        pkcs7->stream->bufferPt = NULL;
+        pkcs7->stream->key      = NULL;
 
         /* reset values, note that content and tmpCert are saved */
         pkcs7->stream->maxLen   = 0;
@@ -1755,9 +1762,8 @@ typedef struct ESD {
                         byte issuerSnSeq[MAX_SEQ_SZ];
                             byte issuerName[MAX_SEQ_SZ];
                             byte issuerSn[MAX_SN_SZ];
-                        /* OR subjectKeyIdentifier */
+                        /* OR subjectKeyIdentifier (implicit [0] header) */
                         byte issuerSKIDSeq[MAX_SEQ_SZ];
-                            byte issuerSKID[MAX_OCTET_STR_SZ];
                         byte signerDigAlgoId[MAX_ALGO_SZ];
 #if defined(WC_RSA_PSS)
                         byte digEncAlgoId[128]; /* RSASSA-PSS needs full params */
@@ -1778,7 +1784,7 @@ typedef struct ESD {
     word32 outerSeqSz, outerContentSz, innerSeqSz, versionSz, digAlgoIdSetSz,
            singleDigAlgoIdSz, certsSetSz;
     word32 signerInfoSetSz, signerInfoSeqSz, signerVersionSz,
-           issuerSnSeqSz, issuerNameSz, issuerSnSz, issuerSKIDSz,
+           issuerSnSeqSz, issuerNameSz, issuerSnSz,
            issuerSKIDSeqSz, signerDigAlgoIdSz, digEncAlgoIdSz, signerDigestSz;
     word32 encContentDigestSz, signedAttribsSz, signedAttribsCount,
            signedAttribSetSz, signedAttribsCap;
@@ -3705,13 +3711,13 @@ static int PKCS7_EncodeSigned(wc_PKCS7* pkcs7,
         }
 
     } else if (pkcs7->sidType == CMS_SKID) {
-        /* SubjectKeyIdentifier */
-        esd->issuerSKIDSz = SetOctetString((word32)keyIdSize, esd->issuerSKID);
-        esd->issuerSKIDSeqSz = SetExplicit(0, esd->issuerSKIDSz +
+        /* SubjectKeyIdentifier is implicit [0] tagged, RFC 5652 uses IMPLICIT
+         * TAGS. The context tag replaces the OCTET STRING tag (0x80 len value)
+         * instead of an explicit [0] wrapper. */
+        esd->issuerSKIDSeqSz = SetImplicit(ASN_OCTET_STRING, 0,
                                            (word32)keyIdSize,
                                            esd->issuerSKIDSeq, 0);
-        signerInfoSz += (esd->issuerSKIDSz + esd->issuerSKIDSeqSz +
-                         (word32)keyIdSize);
+        signerInfoSz += (esd->issuerSKIDSeqSz + (word32)keyIdSize);
 
         /* version MUST be 3 */
         esd->signerVersionSz = (word32)SetMyVersion(3, esd->signerVersion, 0);
@@ -4145,13 +4151,11 @@ static int PKCS7_EncodeSigned(wc_PKCS7* pkcs7,
                 esd->issuerSn, esd->issuerSnSz);
         idx += (int)esd->issuerSnSz;
     } else if (pkcs7->sidType == CMS_SKID) {
-        /* SubjectKeyIdentifier */
+        /* SubjectKeyIdentifier, the implicit [0] header directly precedes the
+         * raw key identifier value (no inner OCTET STRING header). */
         wc_PKCS7_WriteOut(pkcs7, (output2)? (output2 + idx) : NULL,
                 esd->issuerSKIDSeq, esd->issuerSKIDSeqSz);
         idx += (int)esd->issuerSKIDSeqSz;
-        wc_PKCS7_WriteOut(pkcs7, (output2)? (output2 + idx) : NULL,
-                esd->issuerSKID, esd->issuerSKIDSz);
-        idx += (int)esd->issuerSKIDSz;
 
         if (pkcs7->customSKID) {
             wc_PKCS7_WriteOut(pkcs7, (output2)? (output2 + idx) : NULL,
@@ -6391,7 +6395,7 @@ static int wc_PKCS7_ParseSignerInfo(wc_PKCS7* pkcs7, byte* in, word32 inSz,
 
     WOLFSSL_ENTER("wc_PKCS7_ParseSignerInfo");
     /* require a signer if degenerate case not allowed */
-    if (inSz == 0 && pkcs7->noDegenerate == 1) {
+    if (pkcs7->noDegenerate == 1 && (inSz == 0 || degenerate == 1)) {
         WOLFSSL_MSG("Set to not allow degenerate cases");
         return PKCS7_NO_SIGNER_E;
     }
@@ -6662,6 +6666,13 @@ static int wc_PKCS7_HandleOctetStrings(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                             pkcs7->stream->expected, &msg, idx)) != 0) {
             break;
         }
+        /* re-sync totalRd baseline to the fresh idx. Without this, a byte
+         * that wc_PKCS7_AddDataToStream() already charged to totalRd while
+         * buffering (growing stream->length) gets charged again below when
+         * this loop switches to reading directly from "in" starting at
+         * that same position, since *tmpIdx would still hold a position
+         * from before the buffered run started. */
+        *tmpIdx = *idx;
 
         msgSz = (pkcs7->stream->length > 0)? pkcs7->stream->length:inSz;
 
@@ -6794,6 +6805,17 @@ static int wc_PKCS7_HandleOctetStrings(wc_PKCS7* pkcs7, byte* in, word32 inSz,
 
                     /* grow content buffer */
                     contBufSz = pkcs7->stream->accumContSz;
+                    /* Reject before the word32 add wraps and yields a tiny alloc for an oversized copy. */
+                    if (pkcs7->stream->expected >
+                            WOLFSSL_PKCS7_MAX_STREAM_ALLOC -
+                            pkcs7->stream->accumContSz) {
+                        WOLFSSL_MSG("PKCS7 accumulated content size too large");
+                        if (tempBuf != NULL) {
+                            XFREE(tempBuf, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                        }
+                        ret = BUFFER_E;
+                        break;
+                    }
                     pkcs7->stream->accumContSz += pkcs7->stream->expected;
 
                     pkcs7->stream->content =
@@ -7506,26 +7528,38 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                 pkcs7->content   = pkcs7->contentDynamic;
             }
 
-            /* check if bundle has more elements or footer, if not, set content
-             * to pkcs7->content and hash to pkcs7->hash.
-             *
-             * NOTE: this check returns success whenever fewer than 6 bytes
-             * follow the content within the outer ContentInfo, which also
-             * accepts truncated bundles whose footer was cut short (e.g. a
-             * lone certificates [0] tag with no length). Distinguishing a
-             * legitimate degenerate end (such as an empty signerInfos SET
-             * "31 00") from truncated junk would require peeking at the
-             * remaining bytes or making stage 4's `expected` window smaller.
+            /* expect data length to be enough to check set and seq of certs,
+             * but never request more than the bundle has left. The old code
+             * unconditionally requested this much and silently treated a
+             * short read here as a successful degenerate end, which also
+             * accepted a truncated bundle. Capping the request lets stage
+             * 4/5/6's existing bounds checks and noDegenerate enforcement
+             * run instead: a genuine short degenerate end (empty signerInfos
+             * SET) still parses and succeeds, while anything truncated or
+             * malformed fails there with a real parse error.
              */
-            if (ret == 0 && pkcs7->stream->maxLen > 0 &&
-                    (pkcs7->stream->maxLen - pkcs7->stream->totalRd)
-                                                < ASN_TAG_SZ + MAX_LENGTH_SZ) {
-
-                ret = 0;
-                break;
-            }
-            /* expect data length to be enough to check set and seq of certs */
             pkcs7->stream->expected = (ASN_TAG_SZ + MAX_LENGTH_SZ) * 2;
+            if (!pkcs7->stream->indefLen) {
+                /* cap to what can actually still show up: bytes already
+                 * buffered (stream->length) plus whatever the outer
+                 * length still allows past totalRd. Matches the same
+                 * (maxLen - totalRd) + length expression used at every
+                 * other stage in this function. For indefinite-length
+                 * (BER) bundles maxLen is only a running estimate, so
+                 * this cap does not apply. */
+                if (pkcs7->stream->totalRd >= pkcs7->stream->maxLen) {
+                    if (pkcs7->stream->expected > pkcs7->stream->length) {
+                        pkcs7->stream->expected = pkcs7->stream->length;
+                    }
+                }
+                else if (pkcs7->stream->expected >
+                        (pkcs7->stream->maxLen - pkcs7->stream->totalRd) +
+                            pkcs7->stream->length) {
+                    pkcs7->stream->expected =
+                        (pkcs7->stream->maxLen - pkcs7->stream->totalRd) +
+                            pkcs7->stream->length;
+                }
+            }
 
         #else
             /* Break out before content because it can be optional in degenerate
@@ -7666,6 +7700,11 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             }
 
             maxIdx = idx + pkcs7->stream->expected;
+
+            /* re-sync totalRd baseline to the fresh idx, same as STAGE6
+             * does; otherwise it can still hold a stale position left
+             * over from stage 3's internal stream buffer. */
+            stateIdx = idx;
         #endif /* !NO_PKCS7_STREAM */
 
             if (pkiMsg2 == NULL || pkiMsg2Sz == 0) {
@@ -7774,6 +7813,11 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             }
             pkiMsg2Sz = (pkcs7->stream->length > 0)? pkcs7->stream->length:
                                                                         srcSz;
+
+            /* re-sync totalRd baseline to the fresh idx, same as STAGE4
+             * and STAGE6 do; otherwise it can still hold a stale position
+             * left over from STAGE4's internal stream buffer. */
+            stateIdx = idx;
 
             wc_PKCS7_StreamGetVar(pkcs7, &pkiMsg2Sz, 0, &length);
 
@@ -8078,6 +8122,30 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             if (ret == 0 && GetSet_ex(pkiMsg2, &idx, &length, maxIdx,
                         NO_USER_CHECK) < 0)
                 ret = ASN_PARSE_E;
+
+        #ifndef NO_PKCS7_STREAM
+            /* claimed signerInfos content must fit in what can still
+             * arrive, or stage 7 stalls on WANT_READ_E forever */
+            if (ret == 0 && !pkcs7->stream->indefLen) {
+                word32 avail;
+                if (pkcs7->stream->length > 0) {
+                    avail = pkcs7->stream->length - idx;
+                    if (pkcs7->stream->totalRd < pkcs7->stream->maxLen) {
+                        avail += pkcs7->stream->maxLen -
+                                 pkcs7->stream->totalRd;
+                    }
+                }
+                else {
+                    word32 used = pkcs7->stream->totalRd +
+                                  (idx - stateIdx);
+                    avail = (used < pkcs7->stream->maxLen) ?
+                            pkcs7->stream->maxLen - used : 0;
+                }
+                if ((word32)length > avail) {
+                    ret = ASN_PARSE_E;
+                }
+            }
+        #endif
 
             /* Update degenerate flag based on if signerInfos SET is empty.
              * The earlier degenerate check at digestAlgorithms is an early
@@ -16424,6 +16492,9 @@ authenv_atrbend:
             ForceZero(encryptedContent, (word32)encryptedContentSz);
             XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
             encryptedContent = NULL;
+        #ifndef NO_PKCS7_STREAM
+            pkcs7->stream->bufferPt = NULL;
+        #endif
             ForceZero(decryptedKey, MAX_ENCRYPTED_KEY_SZ);
             XFREE(decryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
             decryptedKey = NULL;

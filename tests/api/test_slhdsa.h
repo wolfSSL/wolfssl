@@ -42,6 +42,14 @@ int test_wc_slhdsa_param_disabled(void);
 int test_wc_slhdsa_decoder_disabled_oid(void);
 int test_wc_SlhdsaDecisionCoverage(void);
 int test_wc_SlhdsaFeatureCoverage(void);
+int test_slhdsa_tls13_certverify_want_write(void);
+int test_slhdsa_get_sigalg_info(void);
+int test_slhdsa_tls12_client_cert_rejected(void);
+int test_slhdsa_tls13_certverify_multi_stall(void);
+int test_mldsa_tls13_certverify_maxfrag_stream(void);
+int test_slhdsa_dev_private_key(void);
+int test_slhdsa_tls13_certverify_bad_signature(void);
+int test_slhdsa_cb_free(void);
 
 #define TEST_SLHDSA_DECLS                                                      \
     TEST_DECL_GROUP("slhdsa", test_wc_slhdsa),                                 \
@@ -61,6 +69,14 @@ int test_wc_SlhdsaFeatureCoverage(void);
     TEST_DECL_GROUP("slhdsa", test_wc_slhdsa_param_disabled),                  \
     TEST_DECL_GROUP("slhdsa", test_wc_slhdsa_decoder_disabled_oid),            \
     TEST_DECL_GROUP("slhdsa", test_wc_SlhdsaDecisionCoverage),                 \
-    TEST_DECL_GROUP("slhdsa", test_wc_SlhdsaFeatureCoverage)
+    TEST_DECL_GROUP("slhdsa", test_wc_SlhdsaFeatureCoverage),                  \
+    TEST_DECL_GROUP("slhdsa", test_slhdsa_tls13_certverify_want_write),        \
+    TEST_DECL_GROUP("slhdsa", test_slhdsa_get_sigalg_info),                    \
+    TEST_DECL_GROUP("slhdsa", test_slhdsa_tls12_client_cert_rejected),        \
+    TEST_DECL_GROUP("slhdsa", test_slhdsa_tls13_certverify_multi_stall),      \
+    TEST_DECL_GROUP("slhdsa", test_mldsa_tls13_certverify_maxfrag_stream),   \
+    TEST_DECL_GROUP("slhdsa", test_slhdsa_dev_private_key),                   \
+    TEST_DECL_GROUP("slhdsa", test_slhdsa_tls13_certverify_bad_signature),     \
+    TEST_DECL_GROUP("slhdsa", test_slhdsa_cb_free)
 
 #endif /* WOLFCRYPT_TEST_SLHDSA_H */

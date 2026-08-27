@@ -30,6 +30,9 @@
 
 #include <wolfssl/wolfcrypt/ed448.h>
 #include <wolfssl/wolfcrypt/types.h>
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
 #include <tests/api/api.h>
 #include <tests/api/test_ed448.h>
 
@@ -176,6 +179,115 @@ int test_wc_ed448_sign_msg(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_ed448_sign_msg */
+
+/*
+ * RFC 8032 requires the Ed448 signature scalar S to be canonical (S < L).
+ * Because L times the base point is the identity, a malleated signature with
+ * S' = S + L recomputes the same R, so the S-range check is the only guard
+ * against it. Confirm a signature with S >= L (including the malleability case
+ * S + L) is rejected with BAD_FUNC_ARG, while an in-range but wrong S fails
+ * verification with SIG_VERIFY_E.
+ */
+int test_wc_ed448_verify_sig_S_range(void)
+{
+    EXPECT_DECLS;
+    /* The S-range rejection may be absent in the frozen ed448.c of older
+     * FIPS-certified modules, so restrict to non-FIPS or FIPS v7 and later. */
+#if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    defined(HAVE_ED448) && defined(HAVE_ED448_SIGN) && \
+    defined(HAVE_ED448_VERIFY)
+    ed448_key key;
+    WC_RNG    rng;
+    byte      msg[] = "Everybody gets Friday off.\n";
+    byte      sig[ED448_SIG_SIZE];
+    byte      badSig[ED448_SIG_SIZE];
+    word32    msglen = sizeof(msg);
+    word32    siglen = sizeof(sig);
+    int       verify_ok = 0;
+    int       i;
+    int       carry;
+    int       sum;
+    /* Ed448 group order L, little-endian, 57 bytes. */
+    static const byte order[] = {
+        0xf3, 0x44, 0x58, 0xab, 0x92, 0xc2, 0x78, 0x23,
+        0x55, 0x8f, 0xc5, 0x8d, 0x72, 0xc2, 0x6c, 0x21,
+        0x90, 0x36, 0xd6, 0xae, 0x49, 0xdb, 0x4e, 0xc4,
+        0xe9, 0x23, 0xca, 0x7c, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x3f,
+        0x00
+    };
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(sig, 0, sizeof(sig));
+
+    ExpectIntEQ(wc_ed448_init(&key), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key), 0);
+
+    /* Produce a valid signature and confirm it verifies. */
+    ExpectIntEQ(wc_ed448_sign_msg(msg, msglen, sig, &siglen, &key, NULL, 0), 0);
+    ExpectIntEQ(siglen, ED448_SIG_SIZE);
+    ExpectIntEQ(wc_ed448_verify_msg(sig, siglen, msg, msglen, &verify_ok, &key,
+        NULL, 0), 0);
+    ExpectIntEQ(verify_ok, 1);
+
+    /* Malleability: S' = S + L. The same R is recomputed, so only the S-range
+     * check can reject it. */
+    XMEMCPY(badSig, sig, ED448_SIG_SIZE);
+    carry = 0;
+    for (i = 0; i < (int)sizeof(order); i++) {
+        sum = (int)badSig[ED448_SIG_SIZE / 2 + i] + (int)order[i] + carry;
+        badSig[ED448_SIG_SIZE / 2 + i] = (byte)(sum & 0xff);
+        carry = sum >> 8;
+    }
+    verify_ok = 1;
+    ExpectIntEQ(wc_ed448_verify_msg(badSig, ED448_SIG_SIZE, msg, msglen,
+        &verify_ok, &key, NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(verify_ok, 0);
+
+    /* S exactly equal to L. */
+    XMEMCPY(badSig, sig, ED448_SIG_SIZE);
+    XMEMCPY(badSig + ED448_SIG_SIZE / 2, order, sizeof(order));
+    verify_ok = 1;
+    ExpectIntEQ(wc_ed448_verify_msg(badSig, ED448_SIG_SIZE, msg, msglen,
+        &verify_ok, &key, NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(verify_ok, 0);
+
+    /* S greater than L in a high byte. */
+    XMEMCPY(badSig, sig, ED448_SIG_SIZE);
+    XMEMCPY(badSig + ED448_SIG_SIZE / 2, order, sizeof(order));
+    badSig[ED448_SIG_SIZE / 2 + 55] = 0x40;
+    verify_ok = 1;
+    ExpectIntEQ(wc_ed448_verify_msg(badSig, ED448_SIG_SIZE, msg, msglen,
+        &verify_ok, &key, NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(verify_ok, 0);
+
+    /* S greater than L in a low byte. */
+    XMEMCPY(badSig, sig, ED448_SIG_SIZE);
+    XMEMCPY(badSig + ED448_SIG_SIZE / 2, order, sizeof(order));
+    badSig[ED448_SIG_SIZE / 2 + 0] = 0xf4;
+    verify_ok = 1;
+    ExpectIntEQ(wc_ed448_verify_msg(badSig, ED448_SIG_SIZE, msg, msglen,
+        &verify_ok, &key, NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(verify_ok, 0);
+
+    /* S below L: passes the range check, fails verification instead. */
+    XMEMCPY(badSig, sig, ED448_SIG_SIZE);
+    XMEMCPY(badSig + ED448_SIG_SIZE / 2, order, sizeof(order));
+    badSig[ED448_SIG_SIZE / 2 + 0] = 0xf2;
+    verify_ok = 1;
+    ExpectIntEQ(wc_ed448_verify_msg(badSig, ED448_SIG_SIZE, msg, msglen,
+        &verify_ok, &key, NULL, 0), WC_NO_ERR_TRACE(SIG_VERIFY_E));
+    ExpectIntEQ(verify_ok, 0);
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_ed448_free(&key);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ed448_verify_sig_S_range */
 
 /*
  * Test that wc_ed448_sign_msg() rejects a public-key-only key object.
@@ -753,6 +865,67 @@ int test_wc_Ed448KeyToDer_oneasymkey_version(void)
     ExpectIntGT(refSz = wc_Ed448PrivateKeyToDer(&key, ref,
         (word32)sizeof(ref)), 0);
     ExpectIntEQ(test_pkcs8_get_version_byte(ref, (word32)refSz), 0);
+
+    wc_ed448_free(&key);
+    wc_ed448_free(&key2);
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The trusted flag controls whether a public key bundled in the DER is
+ * checked against the private key during decode. */
+int test_wc_Ed448PrivateKeyDecode_ex(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT) && \
+    defined(HAVE_ED448_KEY_IMPORT)
+    ed448_key key;
+    ed448_key key2;
+    WC_RNG rng;
+    byte der[512];
+    int  derSz = 0;
+    word32 idx;
+
+    XMEMSET(&key,  0, sizeof(key));
+    XMEMSET(&key2, 0, sizeof(key2));
+    XMEMSET(&rng,  0, sizeof(rng));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ed448_init(&key), 0);
+    ExpectIntEQ(wc_ed448_init(&key2), 0);
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key), 0);
+
+    /* Bundled private+public DER; public key is the trailing
+     * ED448_PUB_KEY_SIZE bytes. */
+    ExpectIntGT(derSz = wc_Ed448KeyToDer(&key, der, (word32)sizeof(der)), 0);
+
+    /* Intact DER decodes with either trust setting. */
+    idx = 0;
+    ExpectIntEQ(wc_Ed448PrivateKeyDecode_ex(der, &idx, &key2,
+        (word32)derSz, 0), 0);
+    idx = 0;
+    ExpectIntEQ(wc_Ed448PrivateKeyDecode_ex(der, &idx, &key2,
+        (word32)derSz, 1), 0);
+
+    /* Corrupt the bundled public key. */
+    if (derSz > 0) {
+        der[derSz - 1] ^= 0x01;
+    }
+
+    /* Untrusted decode checks the public key and must reject it, as must
+     * the non-ex decode. */
+    idx = 0;
+    ExpectIntEQ(wc_Ed448PrivateKeyDecode_ex(der, &idx, &key2,
+        (word32)derSz, 0), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+    idx = 0;
+    ExpectIntEQ(wc_Ed448PrivateKeyDecode(der, &idx, &key2, (word32)derSz),
+        WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+
+    /* Trusted decode skips the check. */
+    idx = 0;
+    ExpectIntEQ(wc_Ed448PrivateKeyDecode_ex(der, &idx, &key2,
+        (word32)derSz, 1), 0);
 
     wc_ed448_free(&key);
     wc_ed448_free(&key2);
@@ -1386,3 +1559,126 @@ int test_wc_ed448_check_key_decisions(void)
     return EXPECT_RESULT();
 } /* END test_wc_ed448_check_key_decisions */
 
+/* Test Ed448 sign/verify routed through a crypto callback (CryptoCb) device. */
+#if defined(WOLF_CRYPTO_CB) && defined(HAVE_ED448) && \
+    defined(HAVE_ED448_SIGN) && defined(HAVE_ED448_VERIFY) && \
+    !defined(WC_NO_RNG)
+typedef struct ed448SpyCtx {
+    int signSeen;
+    int verifySeen;
+} ed448SpyCtx;
+
+/* Spy device: services Ed448 sign/verify in software (devId cleared) and counts
+ * each; declines everything else so make_key runs in software. */
+static int ed448_test_crypto_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    ed448SpyCtx* spy = (ed448SpyCtx*)ctx;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+
+    (void)devIdArg;
+
+    if (info == NULL || spy == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (info->algo_type == WC_ALGO_TYPE_PK) {
+    #ifdef HAVE_ED448_SIGN
+        if (info->pk.type == WC_PK_TYPE_ED448) {
+            int save = info->pk.ed448sign.key->devId;
+            info->pk.ed448sign.key->devId = INVALID_DEVID;
+            ret = wc_ed448_sign_msg_ex(
+                info->pk.ed448sign.in, info->pk.ed448sign.inLen,
+                info->pk.ed448sign.out, info->pk.ed448sign.outLen,
+                info->pk.ed448sign.key, info->pk.ed448sign.type,
+                info->pk.ed448sign.context, info->pk.ed448sign.contextLen);
+            info->pk.ed448sign.key->devId = save;
+            spy->signSeen++;
+        }
+    #endif
+    #ifdef HAVE_ED448_VERIFY
+        if (info->pk.type == WC_PK_TYPE_ED448_VERIFY) {
+            int save = info->pk.ed448verify.key->devId;
+            info->pk.ed448verify.key->devId = INVALID_DEVID;
+            ret = wc_ed448_verify_msg_ex(
+                info->pk.ed448verify.sig, info->pk.ed448verify.sigLen,
+                info->pk.ed448verify.msg, info->pk.ed448verify.msgLen,
+                info->pk.ed448verify.res, info->pk.ed448verify.key,
+                info->pk.ed448verify.type, info->pk.ed448verify.context,
+                info->pk.ed448verify.contextLen);
+            info->pk.ed448verify.key->devId = save;
+            spy->verifySeen++;
+        }
+    #endif
+    }
+
+    return ret;
+}
+#endif
+
+int test_wc_ed448_cryptocb(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLF_CRYPTO_CB) && defined(HAVE_ED448) && \
+    defined(HAVE_ED448_SIGN) && defined(HAVE_ED448_VERIFY) && \
+    !defined(WC_NO_RNG)
+    int devId = 4448;
+    ed448SpyCtx spy;
+    WC_RNG rng;
+    byte   msg[32];
+    word32 sigLen = ED448_SIG_SIZE;
+    int    verify = 0;
+    WC_DECLARE_VAR(key, ed448_key, 1, HEAP_HINT);
+    WC_DECLARE_VAR(sig, byte, ED448_SIG_SIZE, HEAP_HINT);
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&spy, 0, sizeof(spy));
+    XMEMSET(msg, 0x5a, sizeof(msg));
+
+    WC_ALLOC_VAR(key, ed448_key, 1, HEAP_HINT);
+    WC_ALLOC_VAR(sig, byte, ED448_SIG_SIZE, HEAP_HINT);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    ExpectNotNull(key);
+    ExpectNotNull(sig);
+#endif
+    if (WC_VAR_OK(sig)) {
+        XMEMSET(sig, 0, ED448_SIG_SIZE);
+    }
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId, ed448_test_crypto_cb, &spy),
+                0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ed448_init_ex(key, HEAP_HINT, devId), 0);
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, key), 0);
+
+    /* Sign routes through the device callback. */
+    ExpectIntEQ(wc_ed448_sign_msg(msg, (word32)sizeof(msg), sig, &sigLen, key,
+                                  NULL, 0), 0);
+    ExpectIntGE(spy.signSeen, 1);
+
+    /* Verify routes through the device callback. */
+    ExpectIntEQ(wc_ed448_verify_msg(sig, sigLen, msg, (word32)sizeof(msg),
+                                    &verify, key, NULL, 0), 0);
+    ExpectIntGE(spy.verifySeen, 1);
+    ExpectIntEQ(verify, 1);
+
+    /* Negative: corrupt the signature.  Ed448 reports a bad signature as
+     * SIG_VERIFY_E, exercising the device verify error path (verify == 0). */
+    if (WC_VAR_OK(sig)) {
+        sig[0] ^= 0xFF;
+    }
+    verify = 1;
+    ExpectIntEQ(wc_ed448_verify_msg(sig, sigLen, msg, (word32)sizeof(msg),
+                                    &verify, key, NULL, 0),
+                WC_NO_ERR_TRACE(SIG_VERIFY_E));
+    ExpectIntGE(spy.verifySeen, 2);
+    ExpectIntEQ(verify, 0);
+
+    wc_ed448_free(key);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_CryptoCb_UnRegisterDevice(devId);
+
+    WC_FREE_VAR(sig, HEAP_HINT);
+    WC_FREE_VAR(key, HEAP_HINT);
+#endif
+    return EXPECT_RESULT();
+}

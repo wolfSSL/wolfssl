@@ -316,6 +316,8 @@ void wc_ecc_key_free(ecc_key* key);
     shared key
     \return MP_MEM may be returned if there is an error while computing the
     shared key
+    \return ECC_INF_E returned when the computed shared secret is the point at
+    infinity
 
     \param private_key pointer to the ecc_key structure containing the local
     private key
@@ -680,7 +682,8 @@ int wc_ecc_init(ecc_key* key);
 
     \param key pointer to the ecc_key object to initialize
     \param heap pointer to a heap identifier
-    \param devId ID to use with crypto callbacks or async hardware. Set to INVALID_DEVID (-2) if not used
+    \param devId ID to use with crypto callbacks or async hardware. Set to
+    INVALID_DEVID if not used
 
     _Example_
     \code
@@ -701,8 +704,11 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId);
     \brief This function uses a user defined heap and allocates space for the
     key structure.
 
-    \return 0 Returned upon successfully initializing the ecc_key object
-    \return MEMORY_E Returned if there is an error allocating memory
+    \param heap pointer to a heap identifier
+
+    \return Non-null returned upon successfully allocating and initializing the
+    ecc_key object
+    \return NULL returned if there is an error allocating memory
 
 
     _Example_
@@ -710,12 +716,41 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId);
     wc_ecc_key_new(&heap);
     \endcode
 
+    \sa wc_ecc_key_new_ex
     \sa wc_ecc_make_key
     \sa wc_ecc_key_free
     \sa wc_ecc_init
 */
 
 ecc_key* wc_ecc_key_new(void* heap);
+
+/*!
+    \ingroup ECC
+
+    \brief This function uses a user defined heap and allocates space for the
+    key structure.
+
+    \param heap pointer to a heap identifier
+    \param devId ID to use with crypto callbacks or async hardware. Set to
+    INVALID_DEVID if not used
+
+    \return Non-null returned upon successfully allocating and initializing the
+    ecc_key object
+    \return NULL returned if there is an error allocating memory
+
+
+    _Example_
+    \code
+    wc_ecc_key_new_ex(&heap, MY_DEVID);
+    \endcode
+
+    \sa wc_ecc_key_new
+    \sa wc_ecc_make_key
+    \sa wc_ecc_key_free
+    \sa wc_ecc_init
+*/
+
+ecc_key* wc_ecc_key_new_ex(void* heap, int devId);
 
 /*!
     \ingroup ECC
@@ -1451,7 +1486,11 @@ int wc_ecc_rs_to_sig(const char* r, const char* s, byte* out, word32* outlen);
     \ingroup ECC
 
     \brief This function fills an ecc_key structure with the raw components
-    of an ECC signature.
+    of an ECC key.
+
+    \note This function does not check that the imported public point lies on
+    the curve. Define WOLFSSL_VALIDATE_ECC_IMPORT to validate the point on
+    import, or call wc_ecc_check_key before the key is used.
 
     \return 0 Returned upon successfully importing into the ecc_key structure
     \return ECC_BAD_ARG_E Returned if any of the input values evaluate to NULL
@@ -2294,28 +2333,6 @@ mp_int* wc_ecc_key_get_priv(ecc_key* key);
 
 /*!
     \ingroup ECC
-    \brief Allocates and initializes new ECC key.
-
-    \return ecc_key pointer on success
-    \return NULL on failure
-
-    \param heap Heap hint for memory allocation
-
-    _Example_
-    \code
-    ecc_key* key = wc_ecc_key_new(NULL);
-    if (key != NULL) {
-        // use key
-        wc_ecc_key_free(key);
-    }
-    \endcode
-
-    \sa wc_ecc_key_free
-*/
-ecc_key* wc_ecc_key_new(void* heap);
-
-/*!
-    \ingroup ECC
     \brief Returns number of supported ECC curve sets.
 
     \return Number of curve sets
@@ -3036,6 +3053,10 @@ int wc_ecc_sig_to_rs(const byte* sig, word32 sigLen, byte* r,
     \ingroup ECC
     \brief Imports raw key with curve ID.
 
+    \note This function does not check that the imported public point lies on
+    the curve. Define WOLFSSL_VALIDATE_ECC_IMPORT to validate the point on
+    import, or call wc_ecc_check_key before the key is used.
+
     \return 0 on success
     \return negative on error
 
@@ -3060,6 +3081,10 @@ int wc_ecc_import_raw_ex(ecc_key* key, const char* qx,
 /*!
     \ingroup ECC
     \brief Imports unsigned key with curve ID.
+
+    \note This function does not check that the imported public point lies on
+    the curve. Define WOLFSSL_VALIDATE_ECC_IMPORT to validate the point on
+    import, or call wc_ecc_check_key before the key is used.
 
     \return 0 on success
     \return negative on error

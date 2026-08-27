@@ -2119,6 +2119,38 @@ long wolfSSL_BIO_set_nbio(WOLFSSL_BIO* bio, long on)
     return WOLFSSL_SUCCESS;
 }
 
+/* Return a new type index for a custom BIO, starting at
+ * WOLFSSL_BIO_TYPE_START like OpenSSL's BIO_get_new_index().
+ * Thread-safe when atomic operations are available; otherwise falls
+ * back to a plain counter.
+ *
+ * Both branches stop at INT_MAX and return WOLFSSL_FATAL_ERROR rather than
+ * incrementing past it: signed overflow is undefined and would hand out
+ * negative type numbers. Like OpenSSL, exhaustion is reported as -1. */
+int wolfSSL_BIO_get_new_index(void)
+{
+#if !defined(SINGLE_THREADED) && defined(WOLFSSL_ATOMIC_OPS) && \
+    defined(WOLFSSL_ATOMIC_INITIALIZER)
+    static wolfSSL_Atomic_Int bio_idx =
+        WOLFSSL_ATOMIC_INITIALIZER(WOLFSSL_BIO_TYPE_START);
+    WC_ATOMIC_INT_ARG cur = wolfSSL_Atomic_Int_FetchAdd(&bio_idx, 0);
+
+    /* Claim the slot with compare-exchange so the counter saturates instead
+     * of being bumped past INT_MAX by a racing caller. */
+    do {
+        if (cur == INT_MAX)
+            return WOLFSSL_FATAL_ERROR;
+    } while (!wolfSSL_Atomic_Int_CompareExchange(&bio_idx, &cur, cur + 1));
+
+    return (int)cur;
+#else
+    static int bio_idx = WOLFSSL_BIO_TYPE_START;
+    if (bio_idx == INT_MAX)
+        return WOLFSSL_FATAL_ERROR;
+    return bio_idx++;
+#endif
+}
+
 /* creates a new custom WOLFSSL_BIO_METHOD */
 WOLFSSL_BIO_METHOD *wolfSSL_BIO_meth_new(int type, const char *name)
 {
@@ -2228,6 +2260,90 @@ int wolfSSL_BIO_meth_set_destroy(WOLFSSL_BIO_METHOD *biom,
         return WOLFSSL_SUCCESS;
     }
     return WOLFSSL_FAILURE;
+}
+
+
+wolfSSL_BIO_meth_gets_cb wolfSSL_BIO_meth_get_gets(
+        const WOLFSSL_BIO_METHOD *biom)
+{
+    WOLFSSL_ENTER("wolfSSL_BIO_meth_get_gets");
+    if (biom != NULL) {
+        return biom->getsCb;
+    }
+    return NULL;
+}
+
+
+wolfSSL_BIO_meth_puts_cb wolfSSL_BIO_meth_get_puts(
+        const WOLFSSL_BIO_METHOD *biom)
+{
+    WOLFSSL_ENTER("wolfSSL_BIO_meth_get_puts");
+    if (biom != NULL) {
+        return biom->putsCb;
+    }
+    return NULL;
+}
+
+
+wolfSSL_BIO_meth_ctrl_get_cb wolfSSL_BIO_meth_get_ctrl(
+        const WOLFSSL_BIO_METHOD *biom)
+{
+    WOLFSSL_ENTER("wolfSSL_BIO_meth_get_ctrl");
+    if (biom != NULL) {
+        return biom->ctrlCb;
+    }
+    return NULL;
+}
+
+
+wolfSSL_BIO_meth_create_cb wolfSSL_BIO_meth_get_create(
+        const WOLFSSL_BIO_METHOD *biom)
+{
+    WOLFSSL_ENTER("wolfSSL_BIO_meth_get_create");
+    if (biom != NULL) {
+        return biom->createCb;
+    }
+    return NULL;
+}
+
+
+wolfSSL_BIO_meth_destroy_cb wolfSSL_BIO_meth_get_destroy(
+        const WOLFSSL_BIO_METHOD *biom)
+{
+    WOLFSSL_ENTER("wolfSSL_BIO_meth_get_destroy");
+    if (biom != NULL) {
+        return biom->freeCb;
+    }
+    return NULL;
+}
+
+
+wolfssl_BIO_meth_ctrl_info_cb wolfSSL_BIO_meth_get_callback_ctrl(
+        const WOLFSSL_BIO_METHOD *biom)
+{
+    WOLFSSL_ENTER("wolfSSL_BIO_meth_get_callback_ctrl");
+    if (biom != NULL) {
+        return biom->ctrlInfoCb;
+    }
+    return NULL;
+}
+
+
+/* Store the callback so it round-trips through
+ * wolfSSL_BIO_meth_get_callback_ctrl() like OpenSSL. wolfSSL BIO
+ * processing never invokes the stored callback. */
+int wolfSSL_BIO_meth_set_callback_ctrl(WOLFSSL_BIO_METHOD *biom,
+        wolfssl_BIO_meth_ctrl_info_cb biom_callback_ctrl)
+{
+    WOLFSSL_ENTER("wolfSSL_BIO_meth_set_callback_ctrl");
+    if (biom == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+    if (biom_callback_ctrl != NULL) {
+        WOLFSSL_MSG("callback_ctrl stored but never invoked by wolfSSL");
+    }
+    biom->ctrlInfoCb = biom_callback_ctrl;
+    return WOLFSSL_SUCCESS;
 }
 
 
@@ -2456,6 +2572,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
         bio = wolfSSL_BIO_new(wolfSSL_BIO_s_socket());
         if (bio) {
             const char* port;
+            int portVal = 0;
 #ifdef WOLFSSL_IPV6
             const char* ipv6Start = XSTRSTR(str, "[");
             const char* ipv6End = XSTRSTR(str, "]");
@@ -2466,8 +2583,13 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
 #endif
                 port = XSTRSTR(str, ":");
 
-            if (port != NULL)
-                bio->port = (word16)XATOI(port + 1);
+            if (port != NULL) {
+                portVal = XATOI(port + 1);
+                /* Reject out-of-range ports instead of truncating to word16. */
+                if ((portVal < 0) || (portVal > 65535))
+                    portVal = 0;
+                bio->port = (word16)portVal;
+            }
             else
                 port = str + XSTRLEN(str); /* point to null terminator */
 

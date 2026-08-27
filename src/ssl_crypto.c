@@ -1845,6 +1845,18 @@ int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
             WOLFSSL_MSG("hmac set key error");
             WOLFSSL_ERROR(rc);
             wc_HmacFree(&ctx->hmac);
+            /* Context is no longer keyed, so drop any previous key's pads
+             * and mark it unkeyed so a later init with no key is rejected
+             * rather than recovering from the pads just wiped. */
+            ForceZero(ctx->save_ipad, sizeof(ctx->save_ipad));
+            ForceZero(ctx->save_opad, sizeof(ctx->save_opad));
+            /* As in wolfSSL_HMAC_cleanup, the hash type in the wolfSSL HMAC
+             * object has to say unkeyed as well. wc_HmacFree only zeroes it,
+             * which does not read as none in every hash type enum layout.
+             * That alone gates the recover-from-pads path, so ctx->type keeps
+             * the digest the caller chose and a retry with a longer key, which
+             * is what the FIPS failure above asks for, still works. */
+            ctx->hmac.macType = WC_HASH_TYPE_NONE;
             ret = 0;
         }
         if (ret == 1) {
@@ -1984,6 +1996,21 @@ int wolfSSL_HMAC_cleanup(WOLFSSL_HMAC_CTX* ctx)
     if (ctx != NULL) {
         /* Free the dynamic data in the wolfSSL HMAC object. */
         wc_HmacFree(&ctx->hmac);
+        /* The pads saved for re-init are derived from the key and live
+         * outside the wolfSSL HMAC object, so wipe them here. */
+        ForceZero(ctx->save_ipad, sizeof(ctx->save_ipad));
+        ForceZero(ctx->save_opad, sizeof(ctx->save_opad));
+        /* Mark the context unkeyed so a later init with no key is rejected
+         * rather than recovering from the pads just wiped. Relying on the
+         * hash type in the wolfSSL HMAC object is not enough: a zeroed
+         * macType does not read as none in every hash type enum layout. */
+        ctx->type = WC_HASH_TYPE_NONE;
+        /* The wolfCrypt object's type has to say unkeyed as well. wc_HmacFree
+         * zeroes it, which only reads as none where that enum value is 0; in
+         * the FIPS and selftest layout zero is MD5, so an init that supplies a
+         * digest but no key would take the recover path and MAC with the pads
+         * just wiped. */
+        ctx->hmac.macType = WC_HASH_TYPE_NONE;
     }
 
     return 1;
@@ -2645,6 +2672,12 @@ WOLFSSL_DES_LONG wolfSSL_DES_cbc_cksum(const unsigned char* in,
  *       we are padding the last block. This is not a padding API.
  * TODO: Validate parameters?
  *
+ * A length that is not a multiple of DES_BLOCK_SIZE is rounded up to a whole
+ * block: on encrypt the trailing partial block is 0 padded and a full block is
+ * written to output, and on decrypt a full block is read from input. Both
+ * buffers must therefore hold length rounded up to DES_BLOCK_SIZE, not just
+ * length bytes.
+ *
  * @param [in]  input     Data to encipher.
  * @param [out] output    Enciphered data.
  * @param [in]  length    Length of data to encipher.
@@ -2713,6 +2746,10 @@ void wolfSSL_DES_cbc_encrypt(const unsigned char* input, unsigned char* output,
  *       we are padding the last block. This is not a padding API.
  * TODO: Validate parameters?
  *
+ * A length that is not a multiple of DES_BLOCK_SIZE is rounded up to a whole
+ * block, and the new IV is taken from that last whole block. Both buffers must
+ * therefore hold length rounded up to DES_BLOCK_SIZE, not just length bytes.
+ *
  * @param [in]      input     Data to encipher.
  * @param [out]     output    Enciphered data.
  * @param [in]      length    Length of data to encipher.
@@ -2765,10 +2802,18 @@ void wolfSSL_DES_ncbc_encrypt(const unsigned char* input, unsigned char* output,
  *       we are padding the last block. This is not a padding API.
  * TODO: Validate parameters?
  *
+ * A size that is not a multiple of DES_BLOCK_SIZE is rounded up to a whole
+ * block: on encrypt the trailing partial block is 0 padded and a full block is
+ * written to output, and on decrypt a full block is read from input. Both
+ * buffers must therefore hold sz rounded up to DES_BLOCK_SIZE, not just sz
+ * bytes.
+ *
  * @param [in]      input     Data to encipher.
  * @param [out]     output    Enciphered data.
- * @param [in]      length    Length of data to encipher.
- * @param [in]      schedule  Key schedule.
+ * @param [in]      sz        Length of data to encipher.
+ * @param [in]      ks1       First key schedule.
+ * @param [in]      ks2       Second key schedule.
+ * @param [in]      ks3       Third key schedule.
  * @param [in, out] ivec      IV for CBC operation.
  * @param [in]      enc       Whether to encrypt.
  */
@@ -2880,6 +2925,8 @@ void wolfSSL_DES_ede3_cbc_encrypt(const unsigned char* input,
             }
         }
         wc_Des3Free(des3);
+
+        ForceZero(key, DES3_KEY_SIZE);
     }
 
     WC_FREE_VAR_EX(des3, NULL, DYNAMIC_TYPE_CIPHER);

@@ -162,11 +162,13 @@ int wc_Sha3_224_GetHash(wc_Sha3* sha3, byte* hash);
 
     \param sha3 pointer to the sha3 structure to copy
     \param dst  pointer to the sha3 structure to copy into
+    (must be zeroed or previously initialized)
 
     _Example_
     \code
     wc_Sha3 sha3[1];
     wc_Sha3 sha3_dup[1];
+    memset(sha3_dup, 0, sizeof(*sha3_dup));
     if ((ret = wc_InitSha3_224(sha3, NULL, INVALID_DEVID)) != 0) {
        WOLFSSL_MSG("wc_InitSha3_224 failed");
     }
@@ -347,11 +349,13 @@ int wc_Sha3_256_GetHash(wc_Sha3* sha3, byte* hash);
 
     \param sha3 pointer to the sha3 structure to copy
     \param dst  pointer to the sha3 structure to copy into
+    (must be zeroed or previously initialized)
 
     _Example_
     \code
     wc_Sha3 sha3[1];
     wc_Sha3 sha3_dup[1];
+    memset(sha3_dup, 0, sizeof(*sha3_dup));
     if ((ret = wc_InitSha3_256(sha3, NULL, INVALID_DEVID)) != 0) {
        WOLFSSL_MSG("wc_InitSha3_256 failed");
     }
@@ -532,11 +536,13 @@ int wc_Sha3_384_GetHash(wc_Sha3* sha3, byte* hash);
 
     \param sha3 pointer to the sha3 structure to copy
     \param dst  pointer to the sha3 structure to copy into
+    (must be zeroed or previously initialized)
 
     _Example_
     \code
     wc_Sha3 sha3[1];
     wc_Sha3 sha3_dup[1];
+    memset(sha3_dup, 0, sizeof(*sha3_dup));
     if ((ret = wc_InitSha3_384(sha3, NULL, INVALID_DEVID)) != 0) {
        WOLFSSL_MSG("wc_InitSha3_384 failed");
     }
@@ -717,11 +723,13 @@ int wc_Sha3_512_GetHash(wc_Sha3* sha3, byte* hash);
 
     \param sha3 pointer to the sha3 structure to copy
     \param dst  pointer to the sha3 structure to copy into
+    (must be zeroed or previously initialized)
 
     _Example_
     \code
     wc_Sha3 sha3[1];
     wc_Sha3 sha3_dup[1];
+    memset(sha3_dup, 0, sizeof(*sha3_dup));
     if ((ret = wc_InitSha3_512(sha3, NULL, INVALID_DEVID)) != 0) {
        WOLFSSL_MSG("wc_InitSha3_512 failed");
     }
@@ -972,11 +980,13 @@ int wc_Shake128_GetHash(wc_Shake* shake, byte* hash);
 
     \param shake pointer to the shake structure to copy
     \param dst  pointer to the shake structure to copy into
+    (must be zeroed or previously initialized)
 
     _Example_
     \code
     wc_Shake shake[1];
     wc_Shake shake_dup[1];
+    memset(shake_dup, 0, sizeof(*shake_dup));
     if ((ret = wc_InitShake128(shake, NULL, INVALID_DEVID)) != 0) {
        WOLFSSL_MSG("wc_InitShake128 failed");
     }
@@ -1227,11 +1237,13 @@ int wc_Shake256_GetHash(wc_Shake* shake, byte* hash);
 
     \param shake pointer to the shake structure to copy
     \param dst  pointer to the shake structure to copy into
+    (must be zeroed or previously initialized)
 
     _Example_
     \code
     wc_Shake shake[1];
     wc_Shake shake_dup[1];
+    memset(shake_dup, 0, sizeof(*shake_dup));
     if ((ret = wc_InitShake256(shake, NULL, INVALID_DEVID)) != 0) {
        WOLFSSL_MSG("wc_InitShake256 failed");
     }

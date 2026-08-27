@@ -23,14 +23,26 @@ EXTRA_DIST += \
          certs/slhdsa/root-slhdsa-shake-128s.pem \
          certs/slhdsa/root-slhdsa-shake-128s.der \
          certs/slhdsa/server-mldsa44-shake.pem \
-         certs/slhdsa/server-mldsa44-shake.der \
          certs/slhdsa/client-mldsa44-shake.pem \
-         certs/slhdsa/client-mldsa44-shake.der \
          certs/slhdsa/root-slhdsa-sha2-128s-priv.pem \
          certs/slhdsa/root-slhdsa-sha2-128s-priv.der \
          certs/slhdsa/root-slhdsa-sha2-128s.pem \
          certs/slhdsa/root-slhdsa-sha2-128s.der \
          certs/slhdsa/server-mldsa44-sha2.pem \
-         certs/slhdsa/server-mldsa44-sha2.der \
          certs/slhdsa/client-mldsa44-sha2.pem \
-         certs/slhdsa/client-mldsa44-sha2.der
+         certs/slhdsa/server-slhdsa-shake-128f-priv.pem \
+         certs/slhdsa/server-slhdsa-shake-128f.pem \
+         certs/slhdsa/client-slhdsa-shake-128f-priv.pem \
+         certs/slhdsa/client-slhdsa-shake-128f.pem \
+         certs/slhdsa/server-slhdsa-shake-128s-priv.pem \
+         certs/slhdsa/server-slhdsa-shake-128s.pem \
+         certs/slhdsa/client-slhdsa-shake-128s-priv.pem \
+         certs/slhdsa/client-slhdsa-shake-128s.pem \
+         certs/slhdsa/server-slhdsa-sha2-128f-priv.pem \
+         certs/slhdsa/server-slhdsa-sha2-128f.pem \
+         certs/slhdsa/client-slhdsa-sha2-128f-priv.pem \
+         certs/slhdsa/client-slhdsa-sha2-128f.pem \
+         certs/slhdsa/server-slhdsa-sha2-128s-priv.pem \
+         certs/slhdsa/server-slhdsa-sha2-128s.pem \
+         certs/slhdsa/client-slhdsa-sha2-128s-priv.pem \
+         certs/slhdsa/client-slhdsa-sha2-128s.pem

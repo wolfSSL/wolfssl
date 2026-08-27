@@ -32,6 +32,8 @@
     extern "C" {
 #endif
 
+#ifndef NO_CODING
+
 #ifdef WOLFSSL_API_PREFIX_MAP
     #define Base64_Decode wc_Base64_Decode
     #define Base64_Decode_nonCT wc_Base64_Decode_nonCT
@@ -90,9 +92,33 @@ WOLFSSL_API int Base64_Decode_nonCT(const byte* in, word32 inLen, byte* out,
 WOLFSSL_LOCAL int Base64_SkipNewline(const byte* in, word32* inLen,
             word32* outJ);
 
+#endif /* !NO_CODING */
+
+/* Largest code point Unicode assigns. */
+#define WC_UNICODE_MAX_CODEPOINT    0x10FFFF
+/* Code points reserved for the UTF-16 surrogate pairs. They are not
+ * characters and never appear in a well formed UTF-8 encoding. */
+#define WC_UTF16_HI_SURROGATE_MIN   0xD800
+#define WC_UTF16_HI_SURROGATE_MAX   0xDBFF
+#define WC_UTF16_LO_SURROGATE_MIN   0xDC00
+#define WC_UTF16_LO_SURROGATE_MAX   0xDFFF
+
+/* Certificate name comparison decodes UTF8String attribute values. */
+#if !defined(NO_ASN) && !defined(NO_CERTS) && \
+        !defined(IGNORE_NAME_CONSTRAINTS)
+    #ifndef WOLFSSL_UTF8_DECODE
+        #define WOLFSSL_UTF8_DECODE
+    #endif
+#endif
+
+#ifdef WOLFSSL_UTF8_DECODE
+    WOLFSSL_API
+    int wc_Utf8_DecodeChar(const byte* in, word32 inLen, word32* inOutIdx,
+                           word32* cp);
+#endif
+
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
 
 #endif /* WOLF_CRYPT_CODING_H */
-

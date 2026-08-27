@@ -96,15 +96,27 @@
 /* file-static injector state (one TU per white-box, so file scope is fine) */
 static unsigned long   mcdc_fa_count   = 0;  /* allocations seen since arm    */
 static unsigned long   mcdc_fa_fail_at = 0;  /* fail from this index; 0 = off  */
+static int             mcdc_fa_only    = 0;  /* fail ONLY that index?          */
 static int             mcdc_fa_saved   = 0;  /* originals captured?            */
 static wolfSSL_Malloc_cb  mcdc_fa_orig_mf = NULL;
 static wolfSSL_Free_cb    mcdc_fa_orig_ff = NULL;
 static wolfSSL_Realloc_cb mcdc_fa_orig_rf = NULL;
 
+/* Shared trip test. Counts only while armed, exactly as before. */
+static int mcdc_fa_trip(void)
+{
+    if (mcdc_fa_fail_at == 0)
+        return 0;
+    ++mcdc_fa_count;
+    if (mcdc_fa_only)
+        return mcdc_fa_count == mcdc_fa_fail_at;
+    return mcdc_fa_count >= mcdc_fa_fail_at;
+}
+
 /* n-th (and every later) allocation returns NULL while armed. */
 static void* mcdc_fa_malloc(size_t size)
 {
-    if (mcdc_fa_fail_at != 0 && ++mcdc_fa_count >= mcdc_fa_fail_at)
+    if (mcdc_fa_trip())
         return NULL;
     return malloc(size);
 }
@@ -117,7 +129,7 @@ static void mcdc_fa_free(void* ptr)
 /* realloc honours the same fail counter so growth paths can be faulted too. */
 static void* mcdc_fa_realloc(void* ptr, size_t size)
 {
-    if (mcdc_fa_fail_at != 0 && ++mcdc_fa_count >= mcdc_fa_fail_at)
+    if (mcdc_fa_trip())
         return NULL;
     return realloc(ptr, size);
 }
@@ -139,6 +151,31 @@ static void mcdc_fa_install(void)
 static void mcdc_fa_arm(int n)
 {
     mcdc_fa_count   = 0;
+    mcdc_fa_only    = 0;
+    mcdc_fa_fail_at = (n > 0) ? (unsigned long)n : 0;
+}
+
+/* Arm one-shot: ONLY the n-th allocation returns NULL; everything after it
+ * succeeds again. Still exactly one failed operation per armed call, so the
+ * "one armed operation at a time" discipline holds -- what changes is which
+ * guard operand becomes reachable.
+ *
+ * Needed where a NULL-guard chain allocates the pointer that its CLEANUP tests
+ * LAST, e.g. dsa.c's wc_DsaVerify_ex:
+ *     w,u1,u2,v,r,s = XMALLOC(...)          s is allocated last
+ *     if (w==NULL || ... || s==NULL) ret = MEMORY_E;
+ *     ...
+ *     if (s) { if (ret is neither init- nor memory-error) mp_clear(s); XFREE(s) }
+ * With the monotone arm above, any index that makes ret MEMORY_E also makes s
+ * NULL, so the memory-error operand is never evaluated. Failing only an
+ * EARLIER index leaves s allocated and reaches it. Cleanup stays safe for the
+ * same reason it is safe under the monotone arm: the guard skips every mp_clear
+ * on the MEMORY_E path, and XFREE of an allocated-but-uninitialised block is
+ * well defined. */
+static void mcdc_fa_arm_only(int n)
+{
+    mcdc_fa_count   = 0;
+    mcdc_fa_only    = 1;
     mcdc_fa_fail_at = (n > 0) ? (unsigned long)n : 0;
 }
 
@@ -147,6 +184,7 @@ static void mcdc_fa_disarm(void)
 {
     mcdc_fa_fail_at = 0;
     mcdc_fa_count   = 0;
+    mcdc_fa_only    = 0;
 }
 
 /* Restore the originally-installed allocators, if they were non-NULL. A
@@ -165,10 +203,11 @@ static void mcdc_fa_restore(void)
 
 #else /* MCDC_FA_UNAVAILABLE: incompatible allocator signature -- no-op API */
 
-static void mcdc_fa_install(void) {}
-static void mcdc_fa_arm(int n)    { (void)n; }
-static void mcdc_fa_disarm(void)  {}
-static void mcdc_fa_restore(void) {}
+static void mcdc_fa_install(void)   {}
+static void mcdc_fa_arm(int n)      { (void)n; }
+static void mcdc_fa_arm_only(int n) { (void)n; }
+static void mcdc_fa_disarm(void)    {}
+static void mcdc_fa_restore(void)   {}
 
 #endif /* MCDC_FA_UNAVAILABLE */
 

@@ -1645,6 +1645,335 @@ int test_tls_fallback_scsv_no_downgrade_runtime_max(void)
     return EXPECT_RESULT();
 }
 
+/* RFC 5246 Section 7.2.2 and RFC 8446 Section 4.1.3: a server that cannot
+ * negotiate any version at or below ClientHello.client_version MUST abort with
+ * a fatal protocol_version alert.
+ *
+ * The dead end comes from runtime restrictions: a downgrade-capable method
+ * with a minimum of TLS 1.2 but both TLS 1.3 and TLS 1.2 masked off. Masking
+ * TLS 1.3 also keeps the ClientHello on the TLS 1.2 message path, since the
+ * TLS 1.3 handler alerts on its own and would hide the defect.
+ *
+ * Built only without WOLFSSL_EXTRA_ALERTS; with it the SendFatalAlertOnly()
+ * fallback emits the same alert and the test would pass either way. See
+ * test_tls_version_error_alert_mapping() for that build.
+ */
+int test_tls_no_acceptable_version_alert(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_EXTRA_ALERTS)
+    const byte clientHello[] = {
+        /* record header: handshake, TLS 1.2, length 45 */
+        0x16, 0x03, 0x03, 0x00, 0x2d,
+        /* handshake header: ClientHello, length 41 */
+        0x01, 0x00, 0x00, 0x29,
+        /* client version: TLS 1.2 */
+        0x03, 0x03,
+        /* random: 32 bytes */
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+        0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+        /* session id length: 0 */
+        0x00,
+        /* cipher suites length: 2, TLS_RSA_WITH_AES_128_CBC_SHA */
+        0x00, 0x02, 0x00, 0x2f,
+        /* compression methods: 1 entry, null */
+        0x01, 0x00,
+    };
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 0,
+            (const char*)clientHello, sizeof(clientHello)), 0);
+    ExpectIntEQ(test_memio_setup(&test_ctx, NULL, &ctx_s, NULL, &ssl_s,
+                    NULL, wolfSSLv23_server_method), 0);
+    /* Minimum TLS 1.2, but both TLS 1.3 and TLS 1.2 are disabled, so the
+     * server has no version left at or below the offered TLS 1.2. */
+    ExpectIntEQ(wolfSSL_SetMinVersion(ssl_s, WOLFSSL_TLSV1_2), WOLFSSL_SUCCESS);
+    if (ssl_s != NULL) {
+        wolfSSL_set_options(ssl_s,
+                WOLFSSL_OP_NO_TLSv1_3 | WOLFSSL_OP_NO_TLSv1_2);
+        ExpectIntNE(wolfSSL_get_options(ssl_s) & WOLFSSL_OP_NO_TLSv1_2, 0);
+        ExpectIntNE(wolfSSL_get_options(ssl_s) & WOLFSSL_OP_NO_TLSv1_3, 0);
+    }
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+            WC_NO_ERR_TRACE(VERSION_ERROR));
+    /* A fatal protocol_version (70) alert must be on the wire.  Check by
+     * offset rather than comparing the whole record: the version in the alert
+     * record header follows whatever the downgrade logic last settled on. */
+    ExpectIntGE(test_ctx.c_len, 7);
+    ExpectIntEQ((byte)test_ctx.c_buff[0], 0x15); /* alert content type */
+    ExpectIntEQ((byte)test_ctx.c_buff[5], 0x02); /* level: fatal */
+    ExpectIntEQ((byte)test_ctx.c_buff[6], 0x46); /* protocol_version (70) */
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_EXTRA_ALERTS)
+/* Drive a raw ClientHello offering client_version TLS 1.<clientMinor> at a
+ * server built from `method`, with `minVersion` as its minimum version (0 for
+ * the method default), and require a fatal protocol_version alert back.
+ *
+ * `noTls13` masks TLS 1.3 off.  A TLS 1.3 capable server routes the
+ * ClientHello to the TLS 1.3 handler, which refuses it there and never gets to
+ * the version checks in DoClientHello; masking TLS 1.3 keeps the message on
+ * the TLS 1.2 path, like test_tls_no_acceptable_version_alert does. */
+static int test_tls_lesser_version_alert_case(byte clientMinor,
+    method_provider method, int minVersion, int noTls13)
+{
+    EXPECT_DECLS;
+    byte clientHello[] = {
+        /* record header: handshake, TLS 1.2, length 45.  The record version
+         * is not what is under test; only client_version below is. */
+        0x16, 0x03, 0x03, 0x00, 0x2d,
+        /* handshake header: ClientHello, length 41 */
+        0x01, 0x00, 0x00, 0x29,
+        /* client version: minor patched below */
+        0x03, 0x03,
+        /* random: 32 bytes */
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+        0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+        /* session id length: 0 */
+        0x00,
+        /* cipher suites length: 2, TLS_RSA_WITH_AES_128_CBC_SHA */
+        0x00, 0x02, 0x00, 0x2f,
+        /* compression methods: 1 entry, null */
+        0x01, 0x00,
+    };
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    clientHello[10] = clientMinor;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 0,
+            (const char*)clientHello, sizeof(clientHello)), 0);
+    ExpectIntEQ(test_memio_setup(&test_ctx, NULL, &ctx_s, NULL, &ssl_s,
+                    NULL, method), 0);
+    if (minVersion != 0) {
+        ExpectIntEQ(wolfSSL_SetMinVersion(ssl_s, minVersion),
+                WOLFSSL_SUCCESS);
+    }
+    if (noTls13 && ssl_s != NULL) {
+        wolfSSL_set_options(ssl_s, WOLFSSL_OP_NO_TLSv1_3);
+        ExpectIntNE(wolfSSL_get_options(ssl_s) & WOLFSSL_OP_NO_TLSv1_3, 0);
+    }
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+            WC_NO_ERR_TRACE(VERSION_ERROR));
+    /* A fatal protocol_version (70) alert must be on the wire.  Check by
+     * offset rather than comparing the whole record: the version in the alert
+     * record header follows whatever the server settled on. */
+    ExpectIntGE(test_ctx.c_len, 7);
+    ExpectIntEQ((byte)test_ctx.c_buff[0], 0x15); /* alert content type */
+    ExpectIntEQ((byte)test_ctx.c_buff[5], 0x02); /* level: fatal */
+    ExpectIntEQ((byte)test_ctx.c_buff[6], 0x46); /* protocol_version (70) */
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* DoClientHello refuses a client_version it cannot come down to at four
+ * points; each must alert with protocol_version (RFC 5246 7.2.2).  This covers
+ * the two that reject the offered version outright - the server does not
+ * downgrade at all, and the offer is below its minimum - while
+ * test_tls_no_acceptable_version_alert covers the one where the version mask
+ * lowers the server below its own minimum.
+ *
+ * The remaining one, behind WOLFSSL_OP_NO_SSLv3, is left out on purpose: it is
+ * only reached once the downgrade logic has settled on SSLv3, which no build
+ * of the test suite negotiates.
+ *
+ * Built only without WOLFSSL_EXTRA_ALERTS, for the reason given on
+ * test_tls_no_acceptable_version_alert.
+ */
+int test_tls_lesser_version_alerts(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_EXTRA_ALERTS)
+    /* A method fixed to TLS 1.2 does not downgrade, so a client offering
+     * TLS 1.1 has to be refused outright. */
+    ExpectIntEQ(test_tls_lesser_version_alert_case(TLSv1_1_MINOR,
+            wolfTLSv1_2_server_method, 0, 0), TEST_SUCCESS);
+    /* A downgrade-capable server can come down, but not below its configured
+     * minimum of TLS 1.2.  TLS 1.3 is masked off only where it exists, to
+     * keep the ClientHello on the TLS 1.2 message path. */
+#ifdef WOLFSSL_TLS13
+    ExpectIntEQ(test_tls_lesser_version_alert_case(TLSv1_1_MINOR,
+            wolfSSLv23_server_method, WOLFSSL_TLSV1_2, 1), TEST_SUCCESS);
+#else
+    ExpectIntEQ(test_tls_lesser_version_alert_case(TLSv1_1_MINOR,
+            wolfSSLv23_server_method, WOLFSSL_TLSV1_2, 0), TEST_SUCCESS);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Two properties of the alert DoClientHello sends when the version mask walks
+ * the server below its own minimum, both invisible to the tests above:
+ *
+ *  - The record carries the TLS 1.2 the client offered, not the TLS 1.1 the
+ *    mask walk stepped down to before giving up.  A peer is entitled to
+ *    discard a record announcing a version it never proposed, which would
+ *    leave it unable to tell a version mismatch from a dropped connection -
+ *    the whole point of alerting here.
+ *
+ *  - Exactly one fatal alert goes out.  DoClientHello alerts itself, so the
+ *    generic handler it returns through must not append a second one.
+ *
+ * The server is TLS 1.3 capable and only TLS 1.2 is masked off, so the TLS 1.3
+ * handler hands the TLS 1.2 ClientHello down to DoClientHello - which is also
+ * what puts a second alert within reach.  Masking TLS 1.3 as well, the way the
+ * tests above do, would keep the message off that path and cover neither.
+ */
+int test_tls_version_mask_alert_record(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    !defined(WOLFSSL_NO_TLS12)
+    const byte clientHello[] = {
+        /* record header: handshake, TLS 1.2, length 45 */
+        0x16, 0x03, 0x03, 0x00, 0x2d,
+        /* handshake header: ClientHello, length 41 */
+        0x01, 0x00, 0x00, 0x29,
+        /* client version: TLS 1.2 */
+        0x03, 0x03,
+        /* random: 32 bytes */
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+        0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+        /* session id length: 0 */
+        0x00,
+        /* cipher suites length: 2, TLS_RSA_WITH_AES_128_CBC_SHA */
+        0x00, 0x02, 0x00, 0x2f,
+        /* compression methods: 1 entry, null */
+        0x01, 0x00,
+    };
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 0,
+            (const char*)clientHello, sizeof(clientHello)), 0);
+    ExpectIntEQ(test_memio_setup(&test_ctx, NULL, &ctx_s, NULL, &ssl_s,
+                    NULL, wolfSSLv23_server_method), 0);
+    /* Only TLS 1.2 is masked off.  The server's version is still TLS 1.3 when
+     * the mask is applied, so nothing is lowered until DoClientHello has
+     * downgraded to the offered TLS 1.2 - which is what makes the mask walk
+     * run there and step down to TLS 1.1, below the TLS 1.2 minimum.
+     *
+     * The minimum is pinned rather than left at the build default: without
+     * NO_OLD_TLS that default is TLS 1.0, so the walk would settle on TLS 1.1
+     * and negotiate instead of failing. */
+    if (ssl_s != NULL) {
+        ExpectIntEQ(wolfSSL_SetMinVersion(ssl_s, WOLFSSL_TLSV1_2),
+                WOLFSSL_SUCCESS);
+        wolfSSL_set_options(ssl_s, WOLFSSL_OP_NO_TLSv1_2);
+        ExpectIntNE(wolfSSL_get_options(ssl_s) & WOLFSSL_OP_NO_TLSv1_2, 0);
+    }
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+            WC_NO_ERR_TRACE(VERSION_ERROR));
+    /* One fatal alert record and nothing else: 5 byte header plus level and
+     * description.  Nothing is encrypted this early, so a second alert would
+     * show up as another 7 bytes. */
+    ExpectIntEQ(test_ctx.c_len, 7);
+    ExpectIntEQ((byte)test_ctx.c_buff[0], 0x15); /* alert content type */
+    ExpectIntEQ((byte)test_ctx.c_buff[1], 0x03); /* record version: TLS 1.2, */
+    ExpectIntEQ((byte)test_ctx.c_buff[2], 0x03); /* not the TLS 1.1 walked to */
+    ExpectIntEQ((byte)test_ctx.c_buff[5], 0x02); /* level: fatal */
+    ExpectIntEQ((byte)test_ctx.c_buff[6], 0x46); /* protocol_version (70) */
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Companion to test_tls_no_acceptable_version_alert covering the
+ * SendFatalAlertOnly() fallback (WOLFSSL_EXTRA_ALERTS builds only): a
+ * VERSION_ERROR must map to protocol_version, not handshake_failure.
+ *
+ * Reaching the mapping takes a rejection that does not alert on its own, and
+ * DTLS is where one is left.  The TLS version checks all alert first, and
+ * SendFatalAlertOnly() bails out once a fatal alert has been sent.
+ * DoHelloVerifyRequest() does not alert: a HelloVerifyRequest carrying a
+ * non-DTLS version returns VERSION_ERROR straight up to ProcessReply.
+ */
+int test_tls_version_error_alert_mapping(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_EXTRA_ALERTS) && defined(WOLFSSL_DTLS) && \
+    !defined(WOLFSSL_NO_TLS12)
+    const byte helloVerifyRequest[] = {
+        /* record header: handshake, DTLS 1.0, epoch 0, sequence 0, length 15.
+         * A handshake record's version is not checked by GetRecordHeader(). */
+        0x16, 0xfe, 0xff,
+        0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x0f,
+        /* handshake header: HelloVerifyRequest, length 3, message_seq 0,
+         * fragment offset 0, fragment length 3 */
+        0x03, 0x00, 0x00, 0x03,
+        0x00, 0x00,
+        0x00, 0x00, 0x00,
+        0x00, 0x00, 0x03,
+        /* server version: TLS 1.2, i.e. not a DTLS version at all */
+        0x03, 0x03,
+        /* cookie length: 0 */
+        0x00,
+    };
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL *ssl_c = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_ALERT_HISTORY h;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, NULL, &ssl_c, NULL,
+                    wolfDTLSv1_2_client_method, NULL), 0);
+
+    /* First call sends the ClientHello and blocks with nothing to read. */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+            WOLFSSL_ERROR_WANT_READ);
+
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 1,
+            (const char*)helloVerifyRequest, sizeof(helloVerifyRequest)), 0);
+
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+            WC_NO_ERR_TRACE(VERSION_ERROR));
+
+    /* The mapping is what picks the description here. */
+    XMEMSET(&h, 0, sizeof(h));
+    ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
+    ExpectIntEQ(h.last_tx.level, alert_fatal);
+    ExpectIntEQ(h.last_tx.code, 70); /* protocol_version */
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test that set_curves_list correctly resolves ECC curve names that fall
  * through the kNistCurves table and reach the wc_ecc_get_curve_idx_from_name
  * fallback path.  The kNistCurves lookup uses a case-sensitive XSTRNCMP, so
@@ -2924,6 +3253,86 @@ int test_record_size_matches_build_message(void)
         }
     }
 #endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES */
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+        defined(WOLFSSL_ASYNC_CRYPT)
+/* SendData() sizes the output buffer on every retry, including while an
+ * asynchronous BuildMessage is suspended part way through a record. Sizing
+ * runs the same build state machine, so the probe must not re-enter it: it
+ * would rewind buildMsgState, clear buildArgsSet, and the resumed record would
+ * be sized a second time. Check that a suspended build survives a probe, and
+ * that a probe from a clean state still returns the exact record size. */
+static int record_size_state_check(method_provider client_method,
+        method_provider server_method)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    int expectedSz = 0, cleanSz = 0, busySz = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            client_method, server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    if (ssl_c != NULL) {
+        expectedSz = BuildMessage(ssl_c, NULL, 0, NULL, 256,
+                application_data, 0, 1, 0, CUR_ORDER);
+        ssl_c->options.buildMsgState = BUILD_MSG_BEGIN;
+        ssl_c->options.buildArgsSet = 0;
+        ExpectIntGT(expectedSz, 256);
+
+        /* Clearing the cache is what forces the BuildMessage path; an AEAD
+         * suite would otherwise answer from ssl->recordSzOverhead and the
+         * assertions below would hold no matter what the probe did. */
+        ssl_c->recordSzOverhead = 0;
+        cleanSz = wolfssl_local_GetRecordSize(ssl_c, 256, 1);
+        ExpectIntEQ(cleanSz, expectedSz);
+
+        /* Same probe with a build suspended mid-record. */
+        ssl_c->recordSzOverhead = 0;
+        ssl_c->options.buildMsgState = BUILD_MSG_ENCRYPT;
+        ssl_c->options.buildArgsSet = 1;
+
+        busySz = wolfssl_local_GetRecordSize(ssl_c, 256, 1);
+
+        ExpectIntEQ(ssl_c->options.buildMsgState, BUILD_MSG_ENCRYPT);
+        ExpectIntEQ(ssl_c->options.buildArgsSet, 1);
+        /* Still exact: wolfssl_local_GetMaxPlaintextSize() sizes DTLS
+         * fragments from this, so it may not degrade to an upper bound. */
+        ExpectIntEQ(busySz, expectedSz);
+
+        ssl_c->options.buildMsgState = BUILD_MSG_BEGIN;
+        ssl_c->options.buildArgsSet = 0;
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES && WOLFSSL_ASYNC_CRYPT */
+
+int test_record_size_preserves_build_msg_state(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+        defined(WOLFSSL_ASYNC_CRYPT)
+#ifndef WOLFSSL_NO_TLS12
+    ExpectIntEQ(record_size_state_check(wolfTLSv1_2_client_method,
+            wolfTLSv1_2_server_method), TEST_SUCCESS);
+#endif
+#ifdef WOLFSSL_TLS13
+    /* BuildTls13Message() clobbers buildMsgState by a different route: its
+     * sizeOnly return bypasses exit_buildmsg entirely. */
+    ExpectIntEQ(record_size_state_check(wolfTLSv1_3_client_method,
+            wolfTLSv1_3_server_method), TEST_SUCCESS);
+#endif
+#endif
     return EXPECT_RESULT();
 }
 

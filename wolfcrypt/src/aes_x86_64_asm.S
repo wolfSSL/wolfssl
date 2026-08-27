@@ -47,12 +47,14 @@
 #ifndef __APPLE__
 .text
 .globl	AES_128_Key_Expansion_AESNI
+WC_ASM_ATT_HIDDEN(AES_128_Key_Expansion_AESNI)
 .type	AES_128_Key_Expansion_AESNI,@function
 .align	16
 AES_128_Key_Expansion_AESNI:
 #else
 .section	__TEXT,__text
 .globl	_AES_128_Key_Expansion_AESNI
+WC_ASM_ATT_HIDDEN(_AES_128_Key_Expansion_AESNI)
 .p2align	4
 _AES_128_Key_Expansion_AESNI:
 #endif /* __APPLE__ */
@@ -175,12 +177,14 @@ _AES_128_Key_Expansion_AESNI:
 #ifndef __APPLE__
 .text
 .globl	AES_192_Key_Expansion_AESNI
+WC_ASM_ATT_HIDDEN(AES_192_Key_Expansion_AESNI)
 .type	AES_192_Key_Expansion_AESNI,@function
 .align	16
 AES_192_Key_Expansion_AESNI:
 #else
 .section	__TEXT,__text
 .globl	_AES_192_Key_Expansion_AESNI
+WC_ASM_ATT_HIDDEN(_AES_192_Key_Expansion_AESNI)
 .p2align	4
 _AES_192_Key_Expansion_AESNI:
 #endif /* __APPLE__ */
@@ -344,12 +348,14 @@ _AES_192_Key_Expansion_AESNI:
 #ifndef __APPLE__
 .text
 .globl	AES_256_Key_Expansion_AESNI
+WC_ASM_ATT_HIDDEN(AES_256_Key_Expansion_AESNI)
 .type	AES_256_Key_Expansion_AESNI,@function
 .align	16
 AES_256_Key_Expansion_AESNI:
 #else
 .section	__TEXT,__text
 .globl	_AES_256_Key_Expansion_AESNI
+WC_ASM_ATT_HIDDEN(_AES_256_Key_Expansion_AESNI)
 .p2align	4
 _AES_256_Key_Expansion_AESNI:
 #endif /* __APPLE__ */
@@ -507,19 +513,21 @@ _AES_256_Key_Expansion_AESNI:
 #ifndef __APPLE__
 .text
 .globl	AES_ECB_encrypt_AESNI
+WC_ASM_ATT_HIDDEN(AES_ECB_encrypt_AESNI)
 .type	AES_ECB_encrypt_AESNI,@function
 .align	16
 AES_ECB_encrypt_AESNI:
 #else
 .section	__TEXT,__text
 .globl	_AES_ECB_encrypt_AESNI
+WC_ASM_ATT_HIDDEN(_AES_ECB_encrypt_AESNI)
 .p2align	4
 _AES_ECB_encrypt_AESNI:
 #endif /* __APPLE__ */
         xorl	%eax, %eax
         cmpl	$0x40, %edx
         movl	%edx, %r9d
-        jl	L_AES_ECB_encrypt_AESNI_done_64
+        jb	L_AES_ECB_encrypt_AESNI_done_64
         andl	$0xffffffc0, %r9d
 L_AES_ECB_encrypt_AESNI_enc_64:
         # 64 bytes of input
@@ -617,7 +625,7 @@ L_AES_ECB_encrypt_AESNI_64_aes_enc_block_last:
         movdqu	%xmm3, 48(%r11)
         addl	$0x40, %eax
         cmpl	%r9d, %eax
-        jl	L_AES_ECB_encrypt_AESNI_enc_64
+        jb	L_AES_ECB_encrypt_AESNI_enc_64
 L_AES_ECB_encrypt_AESNI_done_64:
         cmpl	%edx, %eax
         movl	%edx, %r9d
@@ -666,7 +674,7 @@ L_AES_ECB_encrypt_AESNI_16_aes_enc_block_last:
         movdqu	%xmm0, (%r10)
         addl	$16, %eax
         cmpl	%r9d, %eax
-        jl	L_AES_ECB_encrypt_AESNI_enc_16
+        jb	L_AES_ECB_encrypt_AESNI_enc_16
 L_AES_ECB_encrypt_AESNI_done_enc:
         repz retq
 #ifndef __APPLE__
@@ -675,19 +683,21 @@ L_AES_ECB_encrypt_AESNI_done_enc:
 #ifndef __APPLE__
 .text
 .globl	AES_ECB_decrypt_AESNI
+WC_ASM_ATT_HIDDEN(AES_ECB_decrypt_AESNI)
 .type	AES_ECB_decrypt_AESNI,@function
 .align	16
 AES_ECB_decrypt_AESNI:
 #else
 .section	__TEXT,__text
 .globl	_AES_ECB_decrypt_AESNI
+WC_ASM_ATT_HIDDEN(_AES_ECB_decrypt_AESNI)
 .p2align	4
 _AES_ECB_decrypt_AESNI:
 #endif /* __APPLE__ */
         xorl	%eax, %eax
         cmpl	$0x40, %edx
         movl	%edx, %r9d
-        jl	L_AES_ECB_decrypt_AESNI_done_64
+        jb	L_AES_ECB_decrypt_AESNI_done_64
         andl	$0xffffffc0, %r9d
 L_AES_ECB_decrypt_AESNI_dec_64:
         # 64 bytes of input
@@ -785,7 +795,7 @@ L_AES_ECB_decrypt_AESNI_64_aes_dec_block_last:
         movdqu	%xmm3, 48(%r11)
         addl	$0x40, %eax
         cmpl	%r9d, %eax
-        jl	L_AES_ECB_decrypt_AESNI_dec_64
+        jb	L_AES_ECB_decrypt_AESNI_dec_64
 L_AES_ECB_decrypt_AESNI_done_64:
         cmpl	%edx, %eax
         movl	%edx, %r9d
@@ -834,7 +844,7 @@ L_AES_ECB_decrypt_AESNI_16_aes_dec_block_last:
         movdqu	%xmm0, (%r10)
         addl	$16, %eax
         cmpl	%r9d, %eax
-        jl	L_AES_ECB_decrypt_AESNI_dec_16
+        jb	L_AES_ECB_decrypt_AESNI_dec_16
 L_AES_ECB_decrypt_AESNI_done_dec:
         repz retq
 #ifndef __APPLE__
@@ -843,12 +853,14 @@ L_AES_ECB_decrypt_AESNI_done_dec:
 #ifndef __APPLE__
 .text
 .globl	AES_CBC_encrypt_AESNI
+WC_ASM_ATT_HIDDEN(AES_CBC_encrypt_AESNI)
 .type	AES_CBC_encrypt_AESNI,@function
 .align	16
 AES_CBC_encrypt_AESNI:
 #else
 .section	__TEXT,__text
 .globl	_AES_CBC_encrypt_AESNI
+WC_ASM_ATT_HIDDEN(_AES_CBC_encrypt_AESNI)
 .p2align	4
 _AES_CBC_encrypt_AESNI:
 #endif /* __APPLE__ */
@@ -901,7 +913,7 @@ L_AES_CBC_encrypt_AESNI_aes_enc_block_last:
         movdqa	%xmm1, %xmm0
         addl	$16, %eax
         cmpl	%ecx, %eax
-        jl	L_AES_CBC_encrypt_AESNI_loop
+        jb	L_AES_CBC_encrypt_AESNI_loop
 L_AES_CBC_encrypt_AESNI_done:
         movdqu	%xmm0, (%rdx)
         repz retq
@@ -911,12 +923,14 @@ L_AES_CBC_encrypt_AESNI_done:
 #ifndef __APPLE__
 .text
 .globl	AES_CBC_decrypt_AESNI
+WC_ASM_ATT_HIDDEN(AES_CBC_decrypt_AESNI)
 .type	AES_CBC_decrypt_AESNI,@function
 .align	16
 AES_CBC_decrypt_AESNI:
 #else
 .section	__TEXT,__text
 .globl	_AES_CBC_decrypt_AESNI
+WC_ASM_ATT_HIDDEN(_AES_CBC_decrypt_AESNI)
 .p2align	4
 _AES_CBC_decrypt_AESNI:
 #endif /* __APPLE__ */
@@ -925,7 +939,7 @@ _AES_CBC_decrypt_AESNI:
         xorl	%eax, %eax
         cmpl	$0x40, %ecx
         movl	%ecx, %r10d
-        jl	L_AES_CBC_decrypt_AESNI_done_64
+        jb	L_AES_CBC_decrypt_AESNI_done_64
         andl	$0xffffffc0, %r10d
 L_AES_CBC_decrypt_AESNI_dec_64:
         # 64 bytes of input
@@ -1031,7 +1045,7 @@ L_AES_CBC_decrypt_AESNI_64_aes_dec_block_last:
         movdqu	%xmm3, 48(%r12)
         addl	$0x40, %eax
         cmpl	%r10d, %eax
-        jl	L_AES_CBC_decrypt_AESNI_dec_64
+        jb	L_AES_CBC_decrypt_AESNI_dec_64
 L_AES_CBC_decrypt_AESNI_done_64:
         cmpl	%ecx, %eax
         movl	%ecx, %r10d
@@ -1083,7 +1097,7 @@ L_AES_CBC_decrypt_AESNI_16_aes_dec_block_last:
         movdqu	%xmm0, (%r11)
         addl	$16, %eax
         cmpl	%r10d, %eax
-        jl	L_AES_CBC_decrypt_AESNI_dec_16
+        jb	L_AES_CBC_decrypt_AESNI_dec_16
 L_AES_CBC_decrypt_AESNI_done_dec:
         movdqu	%xmm4, (%rdx)
         popq	%r12
@@ -1118,12 +1132,14 @@ L_aes_ctr_aesni_one:
 #ifndef __APPLE__
 .text
 .globl	AES_CTR_encrypt_AESNI
+WC_ASM_ATT_HIDDEN(AES_CTR_encrypt_AESNI)
 .type	AES_CTR_encrypt_AESNI,@function
 .align	16
 AES_CTR_encrypt_AESNI:
 #else
 .section	__TEXT,__text
 .globl	_AES_CTR_encrypt_AESNI
+WC_ASM_ATT_HIDDEN(_AES_CTR_encrypt_AESNI)
 .p2align	4
 _AES_CTR_encrypt_AESNI:
 #endif /* __APPLE__ */
@@ -1136,7 +1152,7 @@ _AES_CTR_encrypt_AESNI:
         xorl	%eax, %eax
         cmpl	$0x40, %edx
         movl	%edx, %r10d
-        jl	L_AES_CTR_encrypt_AESNI_done_64
+        jb	L_AES_CTR_encrypt_AESNI_done_64
         andl	$0xffffffc0, %r10d
 L_AES_CTR_encrypt_AESNI_enc_64:
         # 64 bytes of input
@@ -1270,7 +1286,7 @@ L_AES_CTR_encrypt_AESNI_64_aes_enc_block_last:
         movdqu	%xmm3, 48(%r12)
         addl	$0x40, %eax
         cmpl	%r10d, %eax
-        jl	L_AES_CTR_encrypt_AESNI_enc_64
+        jb	L_AES_CTR_encrypt_AESNI_enc_64
 L_AES_CTR_encrypt_AESNI_done_64:
         cmpl	%edx, %eax
         movl	%edx, %r10d
@@ -1328,7 +1344,7 @@ L_AES_CTR_encrypt_AESNI_16_aes_enc_block_last:
         movdqu	%xmm0, (%r11)
         addl	$16, %eax
         cmpl	%r10d, %eax
-        jl	L_AES_CTR_encrypt_AESNI_enc_16
+        jb	L_AES_CTR_encrypt_AESNI_enc_16
 L_AES_CTR_encrypt_AESNI_done_enc:
         pshufb	%xmm8, %xmm7
         movdqu	%xmm7, (%r9)
@@ -1341,19 +1357,21 @@ L_AES_CTR_encrypt_AESNI_done_enc:
 #ifndef __APPLE__
 .text
 .globl	AES_ECB_encrypt_avx1
+WC_ASM_ATT_HIDDEN(AES_ECB_encrypt_avx1)
 .type	AES_ECB_encrypt_avx1,@function
 .align	16
 AES_ECB_encrypt_avx1:
 #else
 .section	__TEXT,__text
 .globl	_AES_ECB_encrypt_avx1
+WC_ASM_ATT_HIDDEN(_AES_ECB_encrypt_avx1)
 .p2align	4
 _AES_ECB_encrypt_avx1:
 #endif /* __APPLE__ */
         xorl	%eax, %eax
         cmpl	$0x40, %edx
         movl	%edx, %r9d
-        jl	L_AES_ECB_encrypt_avx1_done_64
+        jb	L_AES_ECB_encrypt_avx1_done_64
         andl	$0xffffffc0, %r9d
 L_AES_ECB_encrypt_avx1_enc_64:
         # 64 bytes of input
@@ -1451,7 +1469,7 @@ L_AES_ECB_encrypt_avx1_64_aes_enc_block_last:
         vmovdqu	%xmm3, 48(%r11)
         addl	$0x40, %eax
         cmpl	%r9d, %eax
-        jl	L_AES_ECB_encrypt_avx1_enc_64
+        jb	L_AES_ECB_encrypt_avx1_enc_64
 L_AES_ECB_encrypt_avx1_done_64:
         cmpl	%edx, %eax
         movl	%edx, %r9d
@@ -1500,7 +1518,7 @@ L_AES_ECB_encrypt_avx1_16_aes_enc_block_last:
         vmovdqu	%xmm0, (%r10)
         addl	$16, %eax
         cmpl	%r9d, %eax
-        jl	L_AES_ECB_encrypt_avx1_enc_16
+        jb	L_AES_ECB_encrypt_avx1_enc_16
 L_AES_ECB_encrypt_avx1_done_enc:
         repz retq
 #ifndef __APPLE__
@@ -1509,19 +1527,21 @@ L_AES_ECB_encrypt_avx1_done_enc:
 #ifndef __APPLE__
 .text
 .globl	AES_ECB_decrypt_avx1
+WC_ASM_ATT_HIDDEN(AES_ECB_decrypt_avx1)
 .type	AES_ECB_decrypt_avx1,@function
 .align	16
 AES_ECB_decrypt_avx1:
 #else
 .section	__TEXT,__text
 .globl	_AES_ECB_decrypt_avx1
+WC_ASM_ATT_HIDDEN(_AES_ECB_decrypt_avx1)
 .p2align	4
 _AES_ECB_decrypt_avx1:
 #endif /* __APPLE__ */
         xorl	%eax, %eax
         cmpl	$0x40, %edx
         movl	%edx, %r9d
-        jl	L_AES_ECB_decrypt_avx1_done_64
+        jb	L_AES_ECB_decrypt_avx1_done_64
         andl	$0xffffffc0, %r9d
 L_AES_ECB_decrypt_avx1_dec_64:
         # 64 bytes of input
@@ -1619,7 +1639,7 @@ L_AES_ECB_decrypt_avx1_64_aes_dec_block_last:
         vmovdqu	%xmm3, 48(%r11)
         addl	$0x40, %eax
         cmpl	%r9d, %eax
-        jl	L_AES_ECB_decrypt_avx1_dec_64
+        jb	L_AES_ECB_decrypt_avx1_dec_64
 L_AES_ECB_decrypt_avx1_done_64:
         cmpl	%edx, %eax
         movl	%edx, %r9d
@@ -1668,7 +1688,7 @@ L_AES_ECB_decrypt_avx1_16_aes_dec_block_last:
         vmovdqu	%xmm0, (%r10)
         addl	$16, %eax
         cmpl	%r9d, %eax
-        jl	L_AES_ECB_decrypt_avx1_dec_16
+        jb	L_AES_ECB_decrypt_avx1_dec_16
 L_AES_ECB_decrypt_avx1_done_dec:
         repz retq
 #ifndef __APPLE__
@@ -1677,12 +1697,14 @@ L_AES_ECB_decrypt_avx1_done_dec:
 #ifndef __APPLE__
 .text
 .globl	AES_CBC_encrypt_avx1
+WC_ASM_ATT_HIDDEN(AES_CBC_encrypt_avx1)
 .type	AES_CBC_encrypt_avx1,@function
 .align	16
 AES_CBC_encrypt_avx1:
 #else
 .section	__TEXT,__text
 .globl	_AES_CBC_encrypt_avx1
+WC_ASM_ATT_HIDDEN(_AES_CBC_encrypt_avx1)
 .p2align	4
 _AES_CBC_encrypt_avx1:
 #endif /* __APPLE__ */
@@ -1735,7 +1757,7 @@ L_AES_CBC_encrypt_avx1_aes_enc_block_last:
         vmovdqa	%xmm1, %xmm0
         addl	$16, %eax
         cmpl	%ecx, %eax
-        jl	L_AES_CBC_encrypt_avx1_loop
+        jb	L_AES_CBC_encrypt_avx1_loop
 L_AES_CBC_encrypt_avx1_done:
         vmovdqu	%xmm0, (%rdx)
         repz retq
@@ -1745,12 +1767,14 @@ L_AES_CBC_encrypt_avx1_done:
 #ifndef __APPLE__
 .text
 .globl	AES_CBC_decrypt_avx1
+WC_ASM_ATT_HIDDEN(AES_CBC_decrypt_avx1)
 .type	AES_CBC_decrypt_avx1,@function
 .align	16
 AES_CBC_decrypt_avx1:
 #else
 .section	__TEXT,__text
 .globl	_AES_CBC_decrypt_avx1
+WC_ASM_ATT_HIDDEN(_AES_CBC_decrypt_avx1)
 .p2align	4
 _AES_CBC_decrypt_avx1:
 #endif /* __APPLE__ */
@@ -1759,7 +1783,7 @@ _AES_CBC_decrypt_avx1:
         xorl	%eax, %eax
         cmpl	$0x40, %ecx
         movl	%ecx, %r10d
-        jl	L_AES_CBC_decrypt_avx1_done_64
+        jb	L_AES_CBC_decrypt_avx1_done_64
         andl	$0xffffffc0, %r10d
 L_AES_CBC_decrypt_avx1_dec_64:
         # 64 bytes of input
@@ -1862,7 +1886,7 @@ L_AES_CBC_decrypt_avx1_64_aes_dec_block_last:
         vmovdqu	%xmm3, 48(%r12)
         addl	$0x40, %eax
         cmpl	%r10d, %eax
-        jl	L_AES_CBC_decrypt_avx1_dec_64
+        jb	L_AES_CBC_decrypt_avx1_dec_64
 L_AES_CBC_decrypt_avx1_done_64:
         cmpl	%ecx, %eax
         movl	%ecx, %r10d
@@ -1914,7 +1938,7 @@ L_AES_CBC_decrypt_avx1_16_aes_dec_block_last:
         vmovdqu	%xmm0, (%r11)
         addl	$16, %eax
         cmpl	%r10d, %eax
-        jl	L_AES_CBC_decrypt_avx1_dec_16
+        jb	L_AES_CBC_decrypt_avx1_dec_16
 L_AES_CBC_decrypt_avx1_done_dec:
         vmovdqu	%xmm4, (%rdx)
         popq	%r12
@@ -1949,12 +1973,14 @@ L_aes_ctr_avx1_one:
 #ifndef __APPLE__
 .text
 .globl	AES_CTR_encrypt_avx1
+WC_ASM_ATT_HIDDEN(AES_CTR_encrypt_avx1)
 .type	AES_CTR_encrypt_avx1,@function
 .align	16
 AES_CTR_encrypt_avx1:
 #else
 .section	__TEXT,__text
 .globl	_AES_CTR_encrypt_avx1
+WC_ASM_ATT_HIDDEN(_AES_CTR_encrypt_avx1)
 .p2align	4
 _AES_CTR_encrypt_avx1:
 #endif /* __APPLE__ */
@@ -1967,7 +1993,7 @@ _AES_CTR_encrypt_avx1:
         xorl	%eax, %eax
         cmpl	$0x40, %edx
         movl	%edx, %r10d
-        jl	L_AES_CTR_encrypt_avx1_done_64
+        jb	L_AES_CTR_encrypt_avx1_done_64
         andl	$0xffffffc0, %r10d
 L_AES_CTR_encrypt_avx1_enc_64:
         # 64 bytes of input
@@ -2089,7 +2115,7 @@ L_AES_CTR_encrypt_avx1_64_aes_enc_block_last:
         vmovdqu	%xmm3, 48(%r12)
         addl	$0x40, %eax
         cmpl	%r10d, %eax
-        jl	L_AES_CTR_encrypt_avx1_enc_64
+        jb	L_AES_CTR_encrypt_avx1_enc_64
 L_AES_CTR_encrypt_avx1_done_64:
         cmpl	%edx, %eax
         movl	%edx, %r10d
@@ -2144,7 +2170,7 @@ L_AES_CTR_encrypt_avx1_16_aes_enc_block_last:
         vmovdqu	%xmm0, (%r11)
         addl	$16, %eax
         cmpl	%r10d, %eax
-        jl	L_AES_CTR_encrypt_avx1_enc_16
+        jb	L_AES_CTR_encrypt_avx1_enc_16
 L_AES_CTR_encrypt_avx1_done_enc:
         vpshufb	%xmm8, %xmm7, %xmm7
         vmovdqu	%xmm7, (%r9)
@@ -2158,19 +2184,21 @@ L_AES_CTR_encrypt_avx1_done_enc:
 #ifndef __APPLE__
 .text
 .globl	AES_ECB_encrypt_vaes
+WC_ASM_ATT_HIDDEN(AES_ECB_encrypt_vaes)
 .type	AES_ECB_encrypt_vaes,@function
 .align	16
 AES_ECB_encrypt_vaes:
 #else
 .section	__TEXT,__text
 .globl	_AES_ECB_encrypt_vaes
+WC_ASM_ATT_HIDDEN(_AES_ECB_encrypt_vaes)
 .p2align	4
 _AES_ECB_encrypt_vaes:
 #endif /* __APPLE__ */
         xorl	%eax, %eax
         cmpl	$0x80, %edx
         movl	%edx, %r9d
-        jl	L_AES_ECB_encrypt_vaes_done_128
+        jb	L_AES_ECB_encrypt_vaes_done_128
         andl	$0xffffff80, %r9d
 L_AES_ECB_encrypt_vaes_enc_128:
         # 128 bytes of input
@@ -2268,12 +2296,12 @@ L_AES_ECB_encrypt_vaes_128_aes_enc_block_last:
         vmovdqu	%ymm3, 96(%r11)
         addl	$0x80, %eax
         cmpl	%r9d, %eax
-        jl	L_AES_ECB_encrypt_vaes_enc_128
+        jb	L_AES_ECB_encrypt_vaes_enc_128
 L_AES_ECB_encrypt_vaes_done_128:
         movl	%edx, %r9d
         subl	%eax, %r9d
         cmpl	$0x40, %r9d
-        jl	L_AES_ECB_encrypt_vaes_done_64
+        jb	L_AES_ECB_encrypt_vaes_done_64
         # 64 bytes of input
         # aes_ecb_enc_64
         leaq	(%rdi,%rax,1), %r10
@@ -2384,7 +2412,7 @@ L_AES_ECB_encrypt_vaes_32_aes_enc_block_last:
         vmovdqu	%ymm0, (%r11)
         addl	$32, %eax
         cmpl	%r9d, %eax
-        jl	L_AES_ECB_encrypt_vaes_enc_32
+        jb	L_AES_ECB_encrypt_vaes_enc_32
 L_AES_ECB_encrypt_vaes_done_32:
         cmpl	%edx, %eax
         movl	%edx, %r9d
@@ -2433,7 +2461,7 @@ L_AES_ECB_encrypt_vaes_16_aes_enc_block_last:
         vmovdqu	%xmm0, (%r10)
         addl	$16, %eax
         cmpl	%r9d, %eax
-        jl	L_AES_ECB_encrypt_vaes_enc_16
+        jb	L_AES_ECB_encrypt_vaes_enc_16
 L_AES_ECB_encrypt_vaes_done_enc:
         repz retq
 #ifndef __APPLE__
@@ -2442,19 +2470,21 @@ L_AES_ECB_encrypt_vaes_done_enc:
 #ifndef __APPLE__
 .text
 .globl	AES_ECB_decrypt_vaes
+WC_ASM_ATT_HIDDEN(AES_ECB_decrypt_vaes)
 .type	AES_ECB_decrypt_vaes,@function
 .align	16
 AES_ECB_decrypt_vaes:
 #else
 .section	__TEXT,__text
 .globl	_AES_ECB_decrypt_vaes
+WC_ASM_ATT_HIDDEN(_AES_ECB_decrypt_vaes)
 .p2align	4
 _AES_ECB_decrypt_vaes:
 #endif /* __APPLE__ */
         xorl	%eax, %eax
         cmpl	$0x80, %edx
         movl	%edx, %r9d
-        jl	L_AES_ECB_decrypt_vaes_done_128
+        jb	L_AES_ECB_decrypt_vaes_done_128
         andl	$0xffffff80, %r9d
 L_AES_ECB_decrypt_vaes_dec_128:
         # 128 bytes of input
@@ -2552,12 +2582,12 @@ L_AES_ECB_decrypt_vaes_128_aes_dec_block_last:
         vmovdqu	%ymm3, 96(%r11)
         addl	$0x80, %eax
         cmpl	%r9d, %eax
-        jl	L_AES_ECB_decrypt_vaes_dec_128
+        jb	L_AES_ECB_decrypt_vaes_dec_128
 L_AES_ECB_decrypt_vaes_done_128:
         movl	%edx, %r9d
         subl	%eax, %r9d
         cmpl	$0x40, %r9d
-        jl	L_AES_ECB_decrypt_vaes_done_64
+        jb	L_AES_ECB_decrypt_vaes_done_64
         # 64 bytes of input
         # aes_ecb_dec_64
         leaq	(%rdi,%rax,1), %r10
@@ -2668,7 +2698,7 @@ L_AES_ECB_decrypt_vaes_32_aes_dec_block_last:
         vmovdqu	%ymm0, (%r11)
         addl	$32, %eax
         cmpl	%r9d, %eax
-        jl	L_AES_ECB_decrypt_vaes_dec_32
+        jb	L_AES_ECB_decrypt_vaes_dec_32
 L_AES_ECB_decrypt_vaes_done_32:
         cmpl	%edx, %eax
         movl	%edx, %r9d
@@ -2717,7 +2747,7 @@ L_AES_ECB_decrypt_vaes_16_aes_dec_block_last:
         vmovdqu	%xmm0, (%r10)
         addl	$16, %eax
         cmpl	%r9d, %eax
-        jl	L_AES_ECB_decrypt_vaes_dec_16
+        jb	L_AES_ECB_decrypt_vaes_dec_16
 L_AES_ECB_decrypt_vaes_done_dec:
         repz retq
 #ifndef __APPLE__
@@ -2726,12 +2756,14 @@ L_AES_ECB_decrypt_vaes_done_dec:
 #ifndef __APPLE__
 .text
 .globl	AES_CBC_encrypt_vaes
+WC_ASM_ATT_HIDDEN(AES_CBC_encrypt_vaes)
 .type	AES_CBC_encrypt_vaes,@function
 .align	16
 AES_CBC_encrypt_vaes:
 #else
 .section	__TEXT,__text
 .globl	_AES_CBC_encrypt_vaes
+WC_ASM_ATT_HIDDEN(_AES_CBC_encrypt_vaes)
 .p2align	4
 _AES_CBC_encrypt_vaes:
 #endif /* __APPLE__ */
@@ -2784,7 +2816,7 @@ L_AES_CBC_encrypt_vaes_aes_enc_block_last:
         vmovdqa	%xmm1, %xmm0
         addl	$16, %eax
         cmpl	%ecx, %eax
-        jl	L_AES_CBC_encrypt_vaes_loop
+        jb	L_AES_CBC_encrypt_vaes_loop
 L_AES_CBC_encrypt_vaes_done:
         vmovdqu	%xmm0, (%rdx)
         repz retq
@@ -2794,12 +2826,14 @@ L_AES_CBC_encrypt_vaes_done:
 #ifndef __APPLE__
 .text
 .globl	AES_CBC_decrypt_vaes
+WC_ASM_ATT_HIDDEN(AES_CBC_decrypt_vaes)
 .type	AES_CBC_decrypt_vaes,@function
 .align	16
 AES_CBC_decrypt_vaes:
 #else
 .section	__TEXT,__text
 .globl	_AES_CBC_decrypt_vaes
+WC_ASM_ATT_HIDDEN(_AES_CBC_decrypt_vaes)
 .p2align	4
 _AES_CBC_decrypt_vaes:
 #endif /* __APPLE__ */
@@ -2808,7 +2842,7 @@ _AES_CBC_decrypt_vaes:
         xorl	%eax, %eax
         cmpl	$0x80, %ecx
         movl	%ecx, %r10d
-        jl	L_AES_CBC_decrypt_vaes_done_128
+        jb	L_AES_CBC_decrypt_vaes_done_128
         andl	$0xffffff80, %r10d
 L_AES_CBC_decrypt_vaes_dec_128:
         # 128 bytes of input
@@ -2915,12 +2949,12 @@ L_AES_CBC_decrypt_vaes_128_aes_dec_block_last:
         vmovdqu	%ymm3, 96(%r12)
         addl	$0x80, %eax
         cmpl	%r10d, %eax
-        jl	L_AES_CBC_decrypt_vaes_dec_128
+        jb	L_AES_CBC_decrypt_vaes_dec_128
 L_AES_CBC_decrypt_vaes_done_128:
         movl	%ecx, %r10d
         subl	%eax, %r10d
         cmpl	$0x40, %r10d
-        jl	L_AES_CBC_decrypt_vaes_done_64
+        jb	L_AES_CBC_decrypt_vaes_done_64
         # 64 bytes of input
         # aes_cbc_dec_64
         leaq	(%rdi,%rax,1), %r11
@@ -3039,7 +3073,7 @@ L_AES_CBC_decrypt_vaes_32_aes_dec_block_last:
         vmovdqu	%ymm0, (%r12)
         addl	$32, %eax
         cmpl	%r10d, %eax
-        jl	L_AES_CBC_decrypt_vaes_dec_32
+        jb	L_AES_CBC_decrypt_vaes_dec_32
 L_AES_CBC_decrypt_vaes_done_32:
         cmpl	%ecx, %eax
         movl	%ecx, %r10d
@@ -3091,7 +3125,7 @@ L_AES_CBC_decrypt_vaes_16_aes_dec_block_last:
         vmovdqu	%xmm0, (%r11)
         addl	$16, %eax
         cmpl	%r10d, %eax
-        jl	L_AES_CBC_decrypt_vaes_dec_16
+        jb	L_AES_CBC_decrypt_vaes_dec_16
 L_AES_CBC_decrypt_vaes_done_dec:
         vmovdqu	%xmm8, (%rdx)
         popq	%r12
@@ -3142,12 +3176,14 @@ L_aes_ctr_inc_vaes:
 #ifndef __APPLE__
 .text
 .globl	AES_CTR_encrypt_vaes
+WC_ASM_ATT_HIDDEN(AES_CTR_encrypt_vaes)
 .type	AES_CTR_encrypt_vaes,@function
 .align	16
 AES_CTR_encrypt_vaes:
 #else
 .section	__TEXT,__text
 .globl	_AES_CTR_encrypt_vaes
+WC_ASM_ATT_HIDDEN(_AES_CTR_encrypt_vaes)
 .p2align	4
 _AES_CTR_encrypt_vaes:
 #endif /* __APPLE__ */
@@ -3160,7 +3196,7 @@ _AES_CTR_encrypt_vaes:
         xorl	%eax, %eax
         cmpl	$0x80, %edx
         movl	%edx, %r10d
-        jl	L_AES_CTR_encrypt_vaes_done_128
+        jb	L_AES_CTR_encrypt_vaes_done_128
         andl	$0xffffff80, %r10d
         vbroadcasti128	128+L_aes_ctr_inc_vaes(%rip), %ymm10
         vmovdqa	%ymm7, %ymm9
@@ -3334,13 +3370,13 @@ L_AES_CTR_encrypt_vaes_128_aes_enc_block_last:
         vmovdqu	%ymm3, 96(%r12)
         addl	$0x80, %eax
         cmpl	%r10d, %eax
-        jl	L_AES_CTR_encrypt_vaes_enc_128
+        jb	L_AES_CTR_encrypt_vaes_enc_128
         vperm2i128	$0x00, %ymm4, %ymm4, %ymm7
 L_AES_CTR_encrypt_vaes_done_128:
         movl	%edx, %r10d
         subl	%eax, %r10d
         cmpl	$0x40, %r10d
-        jl	L_AES_CTR_encrypt_vaes_done_64
+        jb	L_AES_CTR_encrypt_vaes_done_64
         # 64 bytes of input
         vbroadcasti128	64+L_aes_ctr_inc_vaes(%rip), %ymm11
         # aes_ctr_enc_64
@@ -3500,7 +3536,7 @@ L_AES_CTR_encrypt_vaes_32_aes_enc_block_last:
         vmovdqu	%ymm0, (%r12)
         addl	$32, %eax
         cmpl	%r10d, %eax
-        jl	L_AES_CTR_encrypt_vaes_enc_32
+        jb	L_AES_CTR_encrypt_vaes_enc_32
 L_AES_CTR_encrypt_vaes_done_32:
         cmpl	%edx, %eax
         movl	%edx, %r10d
@@ -3559,7 +3595,7 @@ L_AES_CTR_encrypt_vaes_16_aes_enc_block_last:
         vmovdqu	%xmm0, (%r11)
         addl	$16, %eax
         cmpl	%r10d, %eax
-        jl	L_AES_CTR_encrypt_vaes_enc_16
+        jb	L_AES_CTR_encrypt_vaes_enc_16
 L_AES_CTR_encrypt_vaes_done_enc:
         vpshufb	%xmm8, %xmm7, %xmm0
         vmovdqu	%xmm0, (%r9)
@@ -3573,18 +3609,20 @@ L_AES_CTR_encrypt_vaes_done_enc:
 #ifndef __APPLE__
 .text
 .globl	AES_ECB_encrypt_avx512
+WC_ASM_ATT_HIDDEN(AES_ECB_encrypt_avx512)
 .type	AES_ECB_encrypt_avx512,@function
 .align	16
 AES_ECB_encrypt_avx512:
 #else
 .section	__TEXT,__text
 .globl	_AES_ECB_encrypt_avx512
+WC_ASM_ATT_HIDDEN(_AES_ECB_encrypt_avx512)
 .p2align	4
 _AES_ECB_encrypt_avx512:
 #endif /* __APPLE__ */
         xorl	%eax, %eax
         cmpl	$32, %edx
-        jl	L_AES_ECB_encrypt_avx512_done_32
+        jb	L_AES_ECB_encrypt_avx512_done_32
         vbroadcasti32x4	(%rcx), %zmm8
         vbroadcasti32x4	16(%rcx), %zmm9
         vbroadcasti32x4	32(%rcx), %zmm10
@@ -3607,7 +3645,7 @@ _AES_ECB_encrypt_avx512:
 L_AES_ECB_encrypt_avx512_key_cached:
         cmpl	$0x100, %edx
         movl	%edx, %r9d
-        jl	L_AES_ECB_encrypt_avx512_done_256
+        jb	L_AES_ECB_encrypt_avx512_done_256
         andl	$0xffffff00, %r9d
 L_AES_ECB_encrypt_avx512_enc_256:
         # 256 bytes of input
@@ -3693,12 +3731,12 @@ L_AES_ECB_encrypt_avx512_256_aes_enc_block_last:
         vmovdqu64	%zmm3, 192(%r11)
         addl	$0x100, %eax
         cmpl	%r9d, %eax
-        jl	L_AES_ECB_encrypt_avx512_enc_256
+        jb	L_AES_ECB_encrypt_avx512_enc_256
 L_AES_ECB_encrypt_avx512_done_256:
         movl	%edx, %r9d
         subl	%eax, %r9d
         cmpl	$0x80, %r9d
-        jl	L_AES_ECB_encrypt_avx512_done_128
+        jb	L_AES_ECB_encrypt_avx512_done_128
         # 128 bytes of input
         # aes_ecb_enc_128
         leaq	(%rdi,%rax,1), %r10
@@ -3785,12 +3823,12 @@ L_AES_ECB_encrypt_avx512_64_aes_enc_block_last:
         vmovdqu64	%zmm0, (%r11)
         addl	$0x40, %eax
         cmpl	%r9d, %eax
-        jl	L_AES_ECB_encrypt_avx512_enc_64
+        jb	L_AES_ECB_encrypt_avx512_enc_64
 L_AES_ECB_encrypt_avx512_done_64:
         movl	%edx, %r9d
         subl	%eax, %r9d
         cmpl	$32, %r9d
-        jl	L_AES_ECB_encrypt_avx512_done_32
+        jb	L_AES_ECB_encrypt_avx512_done_32
         # 32 bytes of input
         leaq	(%rdi,%rax,1), %r10
         vmovdqu	(%r10), %ymm0
@@ -3869,7 +3907,7 @@ L_AES_ECB_encrypt_avx512_16_aes_enc_block_last:
         vmovdqu	%xmm0, (%r10)
         addl	$16, %eax
         cmpl	%r9d, %eax
-        jl	L_AES_ECB_encrypt_avx512_enc_16
+        jb	L_AES_ECB_encrypt_avx512_enc_16
 L_AES_ECB_encrypt_avx512_done_enc:
         repz retq
 #ifndef __APPLE__
@@ -3878,18 +3916,20 @@ L_AES_ECB_encrypt_avx512_done_enc:
 #ifndef __APPLE__
 .text
 .globl	AES_ECB_decrypt_avx512
+WC_ASM_ATT_HIDDEN(AES_ECB_decrypt_avx512)
 .type	AES_ECB_decrypt_avx512,@function
 .align	16
 AES_ECB_decrypt_avx512:
 #else
 .section	__TEXT,__text
 .globl	_AES_ECB_decrypt_avx512
+WC_ASM_ATT_HIDDEN(_AES_ECB_decrypt_avx512)
 .p2align	4
 _AES_ECB_decrypt_avx512:
 #endif /* __APPLE__ */
         xorl	%eax, %eax
         cmpl	$32, %edx
-        jl	L_AES_ECB_decrypt_avx512_done_32
+        jb	L_AES_ECB_decrypt_avx512_done_32
         vbroadcasti32x4	(%rcx), %zmm8
         vbroadcasti32x4	16(%rcx), %zmm9
         vbroadcasti32x4	32(%rcx), %zmm10
@@ -3912,7 +3952,7 @@ _AES_ECB_decrypt_avx512:
 L_AES_ECB_decrypt_avx512_key_cached:
         cmpl	$0x100, %edx
         movl	%edx, %r9d
-        jl	L_AES_ECB_decrypt_avx512_done_256
+        jb	L_AES_ECB_decrypt_avx512_done_256
         andl	$0xffffff00, %r9d
 L_AES_ECB_decrypt_avx512_dec_256:
         # 256 bytes of input
@@ -3998,12 +4038,12 @@ L_AES_ECB_decrypt_avx512_256_aes_dec_block_last:
         vmovdqu64	%zmm3, 192(%r11)
         addl	$0x100, %eax
         cmpl	%r9d, %eax
-        jl	L_AES_ECB_decrypt_avx512_dec_256
+        jb	L_AES_ECB_decrypt_avx512_dec_256
 L_AES_ECB_decrypt_avx512_done_256:
         movl	%edx, %r9d
         subl	%eax, %r9d
         cmpl	$0x80, %r9d
-        jl	L_AES_ECB_decrypt_avx512_done_128
+        jb	L_AES_ECB_decrypt_avx512_done_128
         # 128 bytes of input
         # aes_ecb_dec_128
         leaq	(%rdi,%rax,1), %r10
@@ -4090,12 +4130,12 @@ L_AES_ECB_decrypt_avx512_64_aes_dec_block_last:
         vmovdqu64	%zmm0, (%r11)
         addl	$0x40, %eax
         cmpl	%r9d, %eax
-        jl	L_AES_ECB_decrypt_avx512_dec_64
+        jb	L_AES_ECB_decrypt_avx512_dec_64
 L_AES_ECB_decrypt_avx512_done_64:
         movl	%edx, %r9d
         subl	%eax, %r9d
         cmpl	$32, %r9d
-        jl	L_AES_ECB_decrypt_avx512_done_32
+        jb	L_AES_ECB_decrypt_avx512_done_32
         # 32 bytes of input
         leaq	(%rdi,%rax,1), %r10
         vmovdqu	(%r10), %ymm0
@@ -4174,7 +4214,7 @@ L_AES_ECB_decrypt_avx512_16_aes_dec_block_last:
         vmovdqu	%xmm0, (%r10)
         addl	$16, %eax
         cmpl	%r9d, %eax
-        jl	L_AES_ECB_decrypt_avx512_dec_16
+        jb	L_AES_ECB_decrypt_avx512_dec_16
 L_AES_ECB_decrypt_avx512_done_dec:
         repz retq
 #ifndef __APPLE__
@@ -4183,12 +4223,14 @@ L_AES_ECB_decrypt_avx512_done_dec:
 #ifndef __APPLE__
 .text
 .globl	AES_CBC_encrypt_avx512
+WC_ASM_ATT_HIDDEN(AES_CBC_encrypt_avx512)
 .type	AES_CBC_encrypt_avx512,@function
 .align	16
 AES_CBC_encrypt_avx512:
 #else
 .section	__TEXT,__text
 .globl	_AES_CBC_encrypt_avx512
+WC_ASM_ATT_HIDDEN(_AES_CBC_encrypt_avx512)
 .p2align	4
 _AES_CBC_encrypt_avx512:
 #endif /* __APPLE__ */
@@ -4240,7 +4282,7 @@ L_AES_CBC_encrypt_avx512_aes_enc_block_last:
         vmovdqa	%xmm1, %xmm0
         addl	$16, %eax
         cmpl	%ecx, %eax
-        jl	L_AES_CBC_encrypt_avx512_loop
+        jb	L_AES_CBC_encrypt_avx512_loop
 L_AES_CBC_encrypt_avx512_done:
         vmovdqu	%xmm0, (%rdx)
         repz retq
@@ -4250,12 +4292,14 @@ L_AES_CBC_encrypt_avx512_done:
 #ifndef __APPLE__
 .text
 .globl	AES_CBC_decrypt_avx512
+WC_ASM_ATT_HIDDEN(AES_CBC_decrypt_avx512)
 .type	AES_CBC_decrypt_avx512,@function
 .align	16
 AES_CBC_decrypt_avx512:
 #else
 .section	__TEXT,__text
 .globl	_AES_CBC_decrypt_avx512
+WC_ASM_ATT_HIDDEN(_AES_CBC_decrypt_avx512)
 .p2align	4
 _AES_CBC_decrypt_avx512:
 #endif /* __APPLE__ */
@@ -4263,7 +4307,7 @@ _AES_CBC_decrypt_avx512:
         vmovdqu	(%rdx), %xmm8
         xorl	%eax, %eax
         cmpl	$32, %ecx
-        jl	L_AES_CBC_decrypt_avx512_done_32
+        jb	L_AES_CBC_decrypt_avx512_done_32
         vbroadcasti32x4	(%r8), %zmm14
         vbroadcasti32x4	16(%r8), %zmm15
         vbroadcasti32x4	32(%r8), %zmm16
@@ -4286,7 +4330,7 @@ _AES_CBC_decrypt_avx512:
 L_AES_CBC_decrypt_avx512_key_cached:
         cmpl	$0x100, %ecx
         movl	%ecx, %r10d
-        jl	L_AES_CBC_decrypt_avx512_done_256
+        jb	L_AES_CBC_decrypt_avx512_done_256
         andl	$0xffffff00, %r10d
 L_AES_CBC_decrypt_avx512_dec_256:
         # 256 bytes of input
@@ -4382,12 +4426,12 @@ L_AES_CBC_decrypt_avx512_256_aes_dec_block_last:
         vmovdqu64	%zmm3, 192(%r12)
         addl	$0x100, %eax
         cmpl	%r10d, %eax
-        jl	L_AES_CBC_decrypt_avx512_dec_256
+        jb	L_AES_CBC_decrypt_avx512_dec_256
 L_AES_CBC_decrypt_avx512_done_256:
         movl	%ecx, %r10d
         subl	%eax, %r10d
         cmpl	$0x80, %r10d
-        jl	L_AES_CBC_decrypt_avx512_done_128
+        jb	L_AES_CBC_decrypt_avx512_done_128
         # 128 bytes of input
         # aes_cbc_dec_128
         leaq	(%rdi,%rax,1), %r11
@@ -4484,12 +4528,12 @@ L_AES_CBC_decrypt_avx512_64_aes_dec_block_last:
         vmovdqu64	%zmm0, (%r12)
         addl	$0x40, %eax
         cmpl	%r10d, %eax
-        jl	L_AES_CBC_decrypt_avx512_dec_64
+        jb	L_AES_CBC_decrypt_avx512_dec_64
 L_AES_CBC_decrypt_avx512_done_64:
         movl	%ecx, %r10d
         subl	%eax, %r10d
         cmpl	$32, %r10d
-        jl	L_AES_CBC_decrypt_avx512_done_32
+        jb	L_AES_CBC_decrypt_avx512_done_32
         # 32 bytes of input
         leaq	(%rdi,%rax,1), %r11
         vmovdqu	(%r11), %ymm0
@@ -4574,7 +4618,7 @@ L_AES_CBC_decrypt_avx512_16_aes_dec_block_last:
         vmovdqu	%xmm0, (%r11)
         addl	$16, %eax
         cmpl	%r10d, %eax
-        jl	L_AES_CBC_decrypt_avx512_dec_16
+        jb	L_AES_CBC_decrypt_avx512_dec_16
 L_AES_CBC_decrypt_avx512_done_dec:
         vmovdqu	%xmm8, (%rdx)
         popq	%r12
@@ -4625,12 +4669,14 @@ L_aes_ctr_inc_avx512:
 #ifndef __APPLE__
 .text
 .globl	AES_CTR_encrypt_avx512
+WC_ASM_ATT_HIDDEN(AES_CTR_encrypt_avx512)
 .type	AES_CTR_encrypt_avx512,@function
 .align	16
 AES_CTR_encrypt_avx512:
 #else
 .section	__TEXT,__text
 .globl	_AES_CTR_encrypt_avx512
+WC_ASM_ATT_HIDDEN(_AES_CTR_encrypt_avx512)
 .p2align	4
 _AES_CTR_encrypt_avx512:
 #endif /* __APPLE__ */
@@ -4642,7 +4688,7 @@ _AES_CTR_encrypt_avx512:
         vbroadcasti32x4	16+L_aes_ctr_inc_avx512(%rip), %zmm13
         xorl	%eax, %eax
         cmpl	$32, %edx
-        jl	L_AES_CTR_encrypt_avx512_done_32
+        jb	L_AES_CTR_encrypt_avx512_done_32
         vbroadcasti32x4	(%rcx), %zmm15
         vbroadcasti32x4	16(%rcx), %zmm16
         vbroadcasti32x4	32(%rcx), %zmm17
@@ -4665,7 +4711,7 @@ _AES_CTR_encrypt_avx512:
 L_AES_CTR_encrypt_avx512_key_cached:
         cmpl	$0x100, %edx
         movl	%edx, %r10d
-        jl	L_AES_CTR_encrypt_avx512_done_256
+        jb	L_AES_CTR_encrypt_avx512_done_256
         andl	$0xffffff00, %r10d
         vbroadcasti32x4	256+L_aes_ctr_inc_avx512(%rip), %zmm10
         vmovdqa64	%zmm7, %zmm9
@@ -4803,13 +4849,13 @@ L_AES_CTR_encrypt_avx512_256_aes_enc_block_last:
         vmovdqu64	%zmm3, 192(%r12)
         addl	$0x100, %eax
         cmpl	%r10d, %eax
-        jl	L_AES_CTR_encrypt_avx512_enc_256
+        jb	L_AES_CTR_encrypt_avx512_enc_256
         vshufi64x2	$0x00, %zmm4, %zmm4, %zmm7
 L_AES_CTR_encrypt_avx512_done_256:
         movl	%edx, %r10d
         subl	%eax, %r10d
         cmpl	$0x80, %r10d
-        jl	L_AES_CTR_encrypt_avx512_done_128
+        jb	L_AES_CTR_encrypt_avx512_done_128
         # 128 bytes of input
         vbroadcasti32x4	128+L_aes_ctr_inc_avx512(%rip), %zmm11
         # aes_ctr_enc_128
@@ -4930,12 +4976,12 @@ L_AES_CTR_encrypt_avx512_64_aes_enc_block_last:
         vmovdqu64	%zmm0, (%r12)
         addl	$0x40, %eax
         cmpl	%r10d, %eax
-        jl	L_AES_CTR_encrypt_avx512_enc_64
+        jb	L_AES_CTR_encrypt_avx512_enc_64
 L_AES_CTR_encrypt_avx512_done_64:
         movl	%edx, %r10d
         subl	%eax, %r10d
         cmpl	$32, %r10d
-        jl	L_AES_CTR_encrypt_avx512_done_32
+        jb	L_AES_CTR_encrypt_avx512_done_32
         # 32 bytes of input
         vbroadcasti32x4	32+L_aes_ctr_inc_avx512(%rip), %zmm4
         vpaddq	0+L_aes_ctr_inc_avx512(%rip), %ymm7, %ymm0
@@ -5035,7 +5081,7 @@ L_AES_CTR_encrypt_avx512_16_aes_enc_block_last:
         vmovdqu	%xmm0, (%r11)
         addl	$16, %eax
         cmpl	%r10d, %eax
-        jl	L_AES_CTR_encrypt_avx512_enc_16
+        jb	L_AES_CTR_encrypt_avx512_enc_16
 L_AES_CTR_encrypt_avx512_done_enc:
         vpshufb	%xmm8, %xmm7, %xmm0
         vmovdqu	%xmm0, (%r9)

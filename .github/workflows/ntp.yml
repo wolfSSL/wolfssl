@@ -32,7 +32,9 @@ jobs:
         uses: wolfSSL/actions-build-autotools-project@v1
         with:
           path: wolfssl
-          configure: --enable-all
+          # NTP 4.2.8p18 needs OPENSSL_EXTRA_BSD (MD5Init/MD5Update/MD5Final)
+          # and MD4 (tests), neither of which --enable-all provides
+          configure: --enable-all --enable-md4 CFLAGS="-DOPENSSL_EXTRA_BSD"
           install: true
           check: false
 

@@ -71,8 +71,14 @@
 #ifdef HAVE_ED25519
     #include <wolfssl/wolfcrypt/ed25519.h>
 #endif
+#ifdef HAVE_ED448
+    #include <wolfssl/wolfcrypt/ed448.h>
+#endif
 #ifdef HAVE_CURVE25519
     #include <wolfssl/wolfcrypt/curve25519.h>
+#endif
+#ifdef HAVE_CURVE448
+    #include <wolfssl/wolfcrypt/curve448.h>
 #endif
 #if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
     #include <wolfssl/wolfcrypt/sha512.h>
@@ -197,6 +203,25 @@ typedef struct wc_CryptoInfo {
                 const RsaKey* key;
                 int*          keySize;
             } rsa_get_size;
+        #ifdef WOLF_CRYPTO_CB_RSA_PAD
+            /* WC_PK_TYPE_RSA_PSS_VERIFY handler: return 0 with *res set
+             * (1 good, 0 bad), or a negative error. Anything positive is
+             * counted as a failed verify. Filling out is optional. */
+            struct {
+                const byte*      sig;
+                word32           sigSz;
+                const byte*      digest;
+                word32           digestSz;
+                enum wc_HashType hash;
+                int              mgf;
+                int              saltLen;
+                RsaKey*          key;
+                int*             res;
+                byte*            out;
+                word32           outSz;
+                word32*          outLen;
+            } rsa_pss_verify;
+        #endif
         #endif
         #ifdef HAVE_ECC
             #ifdef HAVE_ECC_DHE
@@ -303,6 +328,20 @@ typedef struct wc_CryptoInfo {
                 word32*  outlen;
                 int      endian;
             } curve25519;
+            struct {
+                byte*        pub;
+                word32       pubSz;
+                const byte*  priv;
+                word32       privSz;
+            } curve25519makepub;
+            struct {
+                byte*        pub;
+                word32       pubSz;
+                const byte*  priv;
+                word32       privSz;
+                const byte*  basepoint;
+                word32       basepointSz;
+            } curve25519generic;
         #endif
         #ifdef HAVE_ED25519
             struct {
@@ -345,6 +384,58 @@ typedef struct wc_CryptoInfo {
                 int          checkPriv; /* 1: private key present; also check
                                          * priv/pub consistency              */
             } ed25519checkkey;
+        #endif
+        #ifdef HAVE_CURVE448
+            struct {
+                WC_RNG*  rng;
+                int      size;
+                curve448_key* key;
+                int      curveId;
+            } curve448kg;
+            struct {
+                curve448_key* private_key;
+                curve448_key* public_key;
+                byte*    out;
+                word32*  outlen;
+                int      endian;
+            } curve448;
+            struct {
+                byte*        pub;
+                word32       pubSz;
+                const byte*  priv;
+                word32       privSz;
+            } curve448makepub;
+            struct {
+                byte*        pub;
+                word32       pubSz;
+                const byte*  priv;
+                word32       privSz;
+                const byte*  basepoint;
+                word32       basepointSz;
+            } curve448generic;
+        #endif /* HAVE_CURVE448 */
+        #ifdef HAVE_ED448
+            struct {
+                const byte*  in;
+                word32       inLen;
+                byte*        out;
+                word32*      outLen;
+                ed448_key*   key;
+                byte         type;
+                const byte*  context;
+                byte         contextLen;
+            } ed448sign;
+            struct {
+                const byte*  sig;
+                word32       sigLen;
+                const byte*  msg;
+                word32       msgLen;
+                int*         res;
+                ed448_key*   key;
+                byte         type;
+                const byte*  context;
+                byte         contextLen;
+            } ed448verify;
         #endif
         #if defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_FRODOKEM)
             struct {
@@ -513,6 +604,18 @@ typedef struct wc_CryptoInfo {
                 const byte* key;
                 word32      keySz;
             } aessetkey;
+        #endif
+        #if !defined(NO_AES) && defined(HAVE_AES_KEYWRAP)
+            struct {
+                Aes*        aes;
+                const byte* in;
+                word32      inSz;
+                byte*       out;
+                word32      outSz;    /* size of out buffer (input) */
+                word32      outResSz; /* bytes produced (output, set by cb) */
+                const byte* iv;
+                int         pad;      /* 1 = RFC 5649 padded, 0 = RFC 3394 */
+            } aeskeywrap;
         #endif
             void* ctx;
 #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
@@ -780,6 +883,13 @@ typedef int (*CryptoDevCallbackFind)(int devId, int algoType);
 WOLFSSL_API void wc_CryptoCb_SetDeviceFindCb(CryptoDevCallbackFind cb);
 #endif
 
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WOLF_CRYPTO_CB_ASYNC_POLL)
+/* Poll completion for bulk cipher ops: on WC_PENDING_E the callback saves
+ * the output pointers; wolfSSL_AsyncPoll() re-enters it with
+ * WC_ALGO_TYPE_ASYNC_POLL to finish the job and fill the buffer. */
+WOLFSSL_LOCAL int wc_CryptoCb_Poll(int devId);
+#endif
+
 #ifdef DEBUG_CRYPTOCB
 WOLFSSL_API void wc_CryptoCb_InfoString(wc_CryptoInfo* info);
 #endif
@@ -796,6 +906,10 @@ WOLFSSL_LOCAL int wc_CryptoCb_Rsa(const byte* in, word32 inLen, byte* out,
 #ifdef WOLF_CRYPTO_CB_RSA_PAD
 WOLFSSL_LOCAL int wc_CryptoCb_RsaPad(const byte* in, word32 inLen, byte* out,
     word32* outLen, int type, RsaKey* key, WC_RNG* rng, RsaPadding *padding);
+WOLFSSL_LOCAL int wc_CryptoCb_RsaPssVerify(const byte* sig, word32 sigSz,
+    const byte* digest, word32 digestSz, enum wc_HashType hash, int mgf,
+    int saltLen, RsaKey* key, int* res, byte* out, word32 outSz,
+    word32* outLen);
 #endif
 
 #ifdef WOLFSSL_KEY_GEN
@@ -847,6 +961,13 @@ WOLFSSL_LOCAL int wc_CryptoCb_Curve25519Gen(WC_RNG* rng, int keySize,
 
 WOLFSSL_LOCAL int wc_CryptoCb_Curve25519(curve25519_key* private_key,
     curve25519_key* public_key, byte* out, word32* outlen, int endian);
+
+WOLFSSL_LOCAL int wc_CryptoCb_Curve25519MakePub(int public_size, byte* pub,
+    int private_size, const byte* priv);
+
+WOLFSSL_LOCAL int wc_CryptoCb_Curve25519Generic(int public_size, byte* pub,
+    int private_size, const byte* priv, int basepoint_size,
+    const byte* basepoint);
 #endif /* HAVE_CURVE25519 */
 
 #ifdef HAVE_ED25519
@@ -862,6 +983,27 @@ WOLFSSL_LOCAL int wc_CryptoCb_Ed25519MakePub(ed25519_key* key, byte* pubKey,
     word32 pubKeySz);
 WOLFSSL_LOCAL int wc_CryptoCb_Ed25519CheckKey(ed25519_key* key);
 #endif /* HAVE_ED25519 */
+
+#ifdef HAVE_CURVE448
+WOLFSSL_LOCAL int wc_CryptoCb_Curve448Gen(WC_RNG* rng, int keySize,
+    curve448_key* key);
+WOLFSSL_LOCAL int wc_CryptoCb_Curve448(curve448_key* private_key,
+    curve448_key* public_key, byte* out, word32* outlen, int endian);
+WOLFSSL_LOCAL int wc_CryptoCb_Curve448MakePub(int devId, int public_size,
+    byte* pub, int private_size, const byte* priv);
+WOLFSSL_LOCAL int wc_CryptoCb_Curve448Generic(int devId, int public_size,
+    byte* pub, int private_size, const byte* priv, int basepoint_size,
+    const byte* basepoint);
+#endif /* HAVE_CURVE448 */
+
+#ifdef HAVE_ED448
+WOLFSSL_LOCAL int wc_CryptoCb_Ed448Sign(const byte* in, word32 inLen,
+    byte* out, word32 *outLen, ed448_key* key, byte type, const byte* context,
+    byte contextLen);
+WOLFSSL_LOCAL int wc_CryptoCb_Ed448Verify(const byte* sig, word32 sigLen,
+    const byte* msg, word32 msgLen, int* res, ed448_key* key, byte type,
+    const byte* context, byte contextLen);
+#endif /* HAVE_ED448 */
 
 #if defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS)
 WOLFSSL_LOCAL int wc_CryptoCb_PqcStatefulSigGetDevId(int type, void* key);
@@ -967,6 +1109,12 @@ WOLFSSL_LOCAL int wc_CryptoCb_AesEcbDecrypt(Aes* aes, byte* out,
 #ifdef WOLF_CRYPTO_CB_AES_SETKEY
 WOLFSSL_API int wc_CryptoCb_AesSetKey(Aes* aes, const byte* key, word32 keySz);
 #endif /* WOLF_CRYPTO_CB_AES_SETKEY */
+#ifdef HAVE_AES_KEYWRAP
+WOLFSSL_LOCAL int wc_CryptoCb_AesKeyWrap(Aes* aes, const byte* in,
+    word32 inSz, byte* out, word32 outSz, const byte* iv, int pad);
+WOLFSSL_LOCAL int wc_CryptoCb_AesKeyUnWrap(Aes* aes, const byte* in,
+    word32 inSz, byte* out, word32 outSz, const byte* iv, int pad);
+#endif /* HAVE_AES_KEYWRAP */
 #endif /* !NO_AES */
 
 #ifndef NO_DES3

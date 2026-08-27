@@ -61,7 +61,10 @@ Block counter is located at index 12.
 
 /* Size of ChaCha chunks */
 #define CHACHA_CHUNK_WORDS 16
-#define CHACHA_CHUNK_BYTES (CHACHA_CHUNK_WORDS * (word32)sizeof(word32))
+/* A ChaCha word is 4 octets by definition; do not use sizeof(word32) here - it
+ * is the number of addressable cells (2), not octets, where CHAR_BIT != 8 (e.g.
+ * TI C28x), which would halve the block size and desync the block counter. */
+#define CHACHA_CHUNK_BYTES (CHACHA_CHUNK_WORDS * 4U)
 
 #ifdef WOLFSSL_X86_64_BUILD
 #if defined(USE_INTEL_SPEEDUP) && !defined(NO_CHACHA_ASM)
@@ -95,6 +98,7 @@ typedef struct ChaCha {
 #elif defined(USE_RISCV_CHACHA_SPEEDUP)
     ALIGN8 word32 over[CHACHA_CHUNK_WORDS];
 #endif
+    WC_BITFIELD keySet:1;                    /* set to 1 once a key is set */
 } ChaCha;
 
 /**

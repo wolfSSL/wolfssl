@@ -343,15 +343,19 @@ enum wc_DrbgType {
 #endif
 
 /* RNG health states */
-#define WC_DRBG_NOT_INIT     0
-#define WC_DRBG_OK           1
-#define WC_DRBG_FAILED       2
-#define WC_DRBG_CONT_FAILED  3
+enum wc_RngHealthState {
+    WC_DRBG_NOT_INIT =    0,
+    WC_DRBG_OK =          1,
+    WC_DRBG_FAILED =      2,
+    WC_DRBG_CONT_FAILED = 3,
 #ifdef WC_RNG_BANK_SUPPORT
-    #define WC_DRBG_BANKREF  4 /* Marks the WC_RNG as a ref to a wc_rng_bank,
-                                * with no usable DRBG of its own.
-                                */
+    WC_DRBG_BANKREF =     4, /* Marks the WC_RNG as a ref to a wc_rng_bank,
+                              * with no usable DRBG of its own.
+                              */
+    #define WC_HAVE_RNG_BANKREF
 #endif
+    WOLF_ENUM_DUMMY_LAST_ELEMENT(wc_RngHealthState)
+};
 
 /* RNG context */
 struct WC_RNG {

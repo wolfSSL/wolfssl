@@ -29,16 +29,16 @@
  * white-box (test_integer_whitebox.c) can reach is the FALSE (short-circuit)
  * half of the allocation success-chains inside mp_div's binary long-division:
  *
- *   if (((res = mp_abs(a, &ta))    != MP_OKAY) ||     -- 1611:*:0
- *       ((res = mp_abs(b, &tb))    != MP_OKAY) ||     -- 1611:*:1
- *       ((res = mp_mul_2d(&tb, n, &tb)) != MP_OKAY) ||-- 1611:*:2
- *       ((res = mp_mul_2d(&tq, n, &tq)) != MP_OKAY))  -- 1611:*:3
+ *   if (((res = mp_abs(a, &ta))    != MP_OKAY) ||     -- 1592:*:0
+ *       ((res = mp_abs(b, &tb))    != MP_OKAY) ||     -- 1592:*:1
+ *       ((res = mp_mul_2d(&tb, n, &tb)) != MP_OKAY) ||-- 1592:*:2
+ *       ((res = mp_mul_2d(&tq, n, &tq)) != MP_OKAY))  -- 1592:*:3
  *   ...
- *       if (((res = mp_sub(&ta, &tb, &ta)) != MP_OKAY) ||  -- 1620:*:0
- *           ((res = mp_add(&q,  &tq, &q))  != MP_OKAY))     -- 1620:*:1
+ *       if (((res = mp_sub(&ta, &tb, &ta)) != MP_OKAY) ||  -- 1601:*:0
+ *           ((res = mp_add(&q,  &tq, &q))  != MP_OKAY))     -- 1601:*:1
  *   ...
- *       if (((res = mp_div_2d(&tb, 1, &tb, NULL)) != MP_OKAY) || -- 1625:*:0
- *           ((res = mp_div_2d(&tq, 1, &tq, NULL)) != MP_OKAY))   -- 1625:*:1
+ *       if (((res = mp_div_2d(&tb, 1, &tb, NULL)) != MP_OKAY) || -- 1606:*:0
+ *           ((res = mp_div_2d(&tq, 1, &tq, NULL)) != MP_OKAY))   -- 1606:*:1
  *
  * In normal execution every allocation succeeds, so `res` stays MP_OKAY and
  * each operand's TRUE (failure) side is never shown; and because these are OR
@@ -58,12 +58,40 @@
  *
  * Which operands are alloc-closable: mp_abs (grows a fresh temp from NULL),
  * mp_mul_2d (left-shift grows the temp), and mp_add (grows q from its
- * never-grown NULL dp on the first loop iteration) all allocate, so 1611:0-3
- * and 1620:1 are closable. mp_sub (1620:0) and both mp_div_2d (1625:0/1)
- * operate strictly in place on already-sized, shrinking temporaries and never
- * (re)allocate on this path, so their TRUE sides are NOT reachable through a
- * pass-through fault allocator -- documented as structural residuals, same
- * class as the tfm.c/sp-math in-place-shrink residuals.
+ * never-grown NULL dp on the first loop iteration) all allocate, so 1592:0-3
+ * and 1601:1 are closable.
+ *
+ * mp_sub (1601:0) and both mp_div_2d (1606:0 and 1606:1) are EXCLUDED. Their
+ * TRUE sides are not merely hard to reach with an allocation fault; on this
+ * call site the callee has no failing return at all:
+ *
+ *   mp_div_2d(&x, 1, &x, NULL) with c == a and d == NULL executes, in order,
+ *   the b<=0 early-out (not taken, b == 1), mp_init(&t) at :431 -- which
+ *   :128 implements as "defer allocation until mp_grow", so it assigns
+ *   dp=NULL/used=0/alloc=0 and returns MP_OKAY unconditionally -- then skips
+ *   mp_mod_2d because d == NULL, then mp_copy(a, c) at :445, which returns
+ *   MP_OKAY at :345 on the "if (a == b)" identity check before it can grow
+ *   anything, then void mp_rshd/mp_rshb/mp_clamp/mp_clear and "return
+ *   MP_OKAY". No XMALLOC/XREALLOC is issued and no fallible call is made, so
+ *   res is MP_OKAY on every iteration for every input.
+ *
+ *   mp_sub(&ta, &tb, &ta): ta and tb are both MP_ZPOS (mp_abs results;
+ *   mp_mul_2d, s_mp_sub and mp_clamp all preserve/reassert MP_ZPOS), so
+ *   mp_sub takes the sa == sb arm at :1913; the loop guard at :1600
+ *   (mp_cmp(&tb,&ta) != MP_GT, which for two MP_ZPOS values is
+ *   mp_cmp_mag) guarantees mp_cmp_mag(ta,tb) != MP_LT, so it dispatches to
+ *   s_mp_sub(ta, tb, ta) at :1921. There c == a, so "c->alloc < max_a"
+ *   (:1834) is "ta->alloc < ta->used", false under the mp_int invariant
+ *   alloc >= used -- mp_grow is never called. The two sanity returns cannot
+ *   fire either: ta->dp is non-NULL because mp_abs -> mp_copy -> mp_grow
+ *   always allocates into a zero-alloc destination (:350, :392), and tb->dp
+ *   is non-NULL for the same reason whenever min_b = tb->used > 0.
+ *   s_mp_sub therefore returns MP_OKAY at :1896 unconditionally.
+ *
+ * The allocation injector cannot change this: the only allocation-bearing op
+ * inside the loop is the mp_add at :1602, and its failure goes straight to
+ * LBL_ERR, so no faulted iteration ever falls through to a subsequent mp_sub
+ * or mp_div_2d with damaged temporaries.
  *
  * A second, small section closes a handful of API-reachable ARGUMENT residuals
  * (NOT allocation-related) that the existing suites simply never pass the

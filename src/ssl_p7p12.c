@@ -903,6 +903,7 @@ int wolfSSL_PKCS7_encode_certs(PKCS7* pkcs7, WOLFSSL_STACK* certs,
 {
     int ret;
     WOLFSSL_PKCS7* p7;
+    WOLFSSL_STACK* certHead = certs;
     WOLFSSL_ENTER("wolfSSL_PKCS7_encode_certs");
 
     if (!pkcs7 || !certs || !out) {
@@ -911,10 +912,6 @@ int wolfSSL_PKCS7_encode_certs(PKCS7* pkcs7, WOLFSSL_STACK* certs,
     }
 
     p7 = (WOLFSSL_PKCS7*)pkcs7;
-
-    /* take ownership of certs */
-    p7->certs = certs;
-    /* TODO: takes ownership even on failure below but not on above failure. */
 
     if (pkcs7->certList) {
         WOLFSSL_MSG("wolfSSL_PKCS7_encode_certs called multiple times on same "
@@ -963,6 +960,12 @@ int wolfSSL_PKCS7_encode_certs(PKCS7* pkcs7, WOLFSSL_STACK* certs,
     }
 
     ret = wolfSSL_i2d_PKCS7_bio(out, pkcs7);
+
+    /* Transfer stack ownership only on full success; every failure path leaves
+     * p7->certs NULL so the caller still owns certs and cannot double-free. */
+    if (ret == WOLFSSL_SUCCESS) {
+        p7->certs = certHead;
+    }
 
     return ret;
 }
@@ -1090,8 +1093,7 @@ error:
 * RETURNS:
 * returns pointer to a PKCS7 structure on success, otherwise returns NULL
 */
-PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in,
-        WOLFSSL_BIO** bcont)
+PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in, WOLFSSL_BIO** bcont)
 {
     MimeHdr* allHdrs = NULL;
     MimeHdr* curHdr = NULL;

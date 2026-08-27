@@ -141,30 +141,16 @@ jobs:
       # List order is schedule order: the worker threads take configs from
       # the top, so keep the slowest first or they straggle at the end on an
       # otherwise idle runner. Order by the Minutes column of the step
-      # summary from a recent (warm-cache) run.
+      # summary from a recent (warm-cache) run. The list lives in
+      # .github/configs/smoke-test.json rather than inline here: GitHub caps
+      # a single `run:` step at 21000 characters, and an inlined heredoc is
+      # what silently pushed os-check.yml past that cap - the whole file then
+      # failed to load and every run reported zero jobs.
       - name: Build and make check all configs (parallel, out-of-tree)
         if: steps.merge_check.outputs.skip != 'true'
         run: |
-          cat > "$RUNNER_TEMP/smoke-configs.json" <<'EOF'
-          [
-            {"name": "sanitize-asan", "configure": ["--enable-all"],
-             "cflags": "-fsanitize=address -fno-omit-frame-pointer -g -O1",
-             "ldflags": "-fsanitize=address"},
-            {"name": "opensslextra-norealloc-asan", "configure": ["--enable-opensslextra"],
-             "cflags": "-DWOLFSSL_NO_REALLOC -fsanitize=address -fno-omit-frame-pointer -g -O1",
-             "ldflags": "-fsanitize=address"},
-            {"name": "enable-all-smallstack", "configure": ["--enable-all", "--enable-smallstack"]},
-            {"name": "enable-all", "configure": ["--enable-all"]},
-            {"name": "integration", "configure": ["--enable-openssh", "--enable-lighty", "--enable-stunnel", "--enable-opensslextra"]},
-            {"name": "dtls-suite", "configure": ["--enable-psk", "--enable-dtls", "--enable-dtls13", "--enable-dtls-mtu", "--enable-aesccm", "--enable-opensslextra"]},
-            {"name": "opensslextra", "configure": ["--enable-opensslextra"]},
-            {"name": "default"},
-            {"name": "cryptonly", "configure": ["--enable-cryptonly"]},
-            {"name": "leantls-extra", "configure": ["--enable-leantls", "--enable-session-ticket", "--enable-sni", "--enable-opensslextra"]}
-          ]
-          EOF
           .github/scripts/parallel-make-check.py ${{ github.event_name == 'schedule' && '--build-only' || '' }} --cflags=-Werror \
-            --private-dir=certs "$RUNNER_TEMP/smoke-configs.json"
+            --private-dir=certs .github/configs/smoke-test.json
 
       # Seed (master pushes + the weekday cron) writes the master-scoped
       # ccache that PR runs restore; PRs never save.

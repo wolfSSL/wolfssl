@@ -66,6 +66,11 @@
 
 void DtlsResetState(WOLFSSL* ssl)
 {
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID) && \
+    defined(WOLFSSL_RW_THREADED)
+    int locked;
+#endif
+
     /* Reset the state so that we can statelessly await the
      * ClientHello that contains the cookie. Don't gate on IsAtLeastTLSv1_3
      * to handle the edge case when the peer wants a lower version. */
@@ -98,6 +103,17 @@ void DtlsResetState(WOLFSSL* ssl)
     ssl->options.tls1_1 = 0;
     ssl->options.tls1_3 = 0;
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
+#ifdef WOLFSSL_RW_THREADED
+    /* wolfSSL_dtls_set_pending_peer() may run on another thread, so take the
+     * lock the record layer uses for these two fields before dropping what
+     * that call left behind. Callers must not already hold peerLock:
+     * re-acquiring a write lock is undefined and deadlocks rather than fails,
+     * so the only failure this can report is a broken or uninitialised lock.
+     * Clear the fields anyway in that case, since resetting the state is the
+     * whole point of this call and leaving a pending peer behind is worse than
+     * the race. dtlsProcessPendingPeer() and ProcessReplyEx() do the same. */
+    locked = (wc_LockRwLock_Wr(&ssl->buffers.dtlsCtx.peerLock) == 0);
+#endif
     ssl->buffers.dtlsCtx.processingPendingRecord = 0;
     /* Clear the pending peer in case user set */
     XFREE(ssl->buffers.dtlsCtx.pendingPeer.sa, ssl->heap,
@@ -105,6 +121,10 @@ void DtlsResetState(WOLFSSL* ssl)
     ssl->buffers.dtlsCtx.pendingPeer.sa = NULL;
     ssl->buffers.dtlsCtx.pendingPeer.sz = 0;
     ssl->buffers.dtlsCtx.pendingPeer.bufSz = 0;
+#ifdef WOLFSSL_RW_THREADED
+    if (locked)
+        (void)wc_UnLockRwLock(&ssl->buffers.dtlsCtx.peerLock);
+#endif
 #endif
 }
 
@@ -209,13 +229,12 @@ static word32 ReadVector16(const byte* input, WolfSSL_ConstVector* v)
 }
 
 static int CreateDtls12Cookie(const WOLFSSL* ssl, const WolfSSL_CH* ch,
-                              byte* cookie)
+                              const byte* secret, word32 secretSz, byte* cookie)
 {
     int ret;
     WC_DECLARE_VAR(cookieHmac, Hmac, 1, ssl->heap);
 
-    if (ssl->buffers.dtlsCookieSecret.buffer == NULL ||
-            ssl->buffers.dtlsCookieSecret.length == 0) {
+    if (secret == NULL || secretSz == 0) {
         WOLFSSL_MSG("Missing DTLS 1.2 cookie secret");
         return COOKIE_ERROR;
     }
@@ -225,9 +244,7 @@ static int CreateDtls12Cookie(const WOLFSSL* ssl, const WolfSSL_CH* ch,
 
     ret = wc_HmacInit(cookieHmac, ssl->heap, ssl->devId);
     if (ret == 0) {
-        ret = wc_HmacSetKey(cookieHmac, DTLS_COOKIE_TYPE,
-            ssl->buffers.dtlsCookieSecret.buffer,
-            ssl->buffers.dtlsCookieSecret.length);
+        ret = wc_HmacSetKey(cookieHmac, DTLS_COOKIE_TYPE, secret, secretSz);
         if (ret == 0) {
             /* peerLock not necessary. Still in handshake phase. */
             ret = wc_HmacUpdate(cookieHmac,
@@ -288,13 +305,30 @@ static int CheckDtlsCookie(const WOLFSSL* ssl, WolfSSL_CH* ch,
         if (ch->cookie.size != DTLS_COOKIE_SZ)
             return 0;
         if (!ch->dtls12cookieSet) {
-            ret = CreateDtls12Cookie(ssl, ch, ch->dtls12cookie);
+            ret = CreateDtls12Cookie(ssl, ch,
+                    ssl->buffers.dtlsCookieSecret.buffer,
+                    ssl->buffers.dtlsCookieSecret.length, ch->dtls12cookie);
             if (ret != 0)
                 return ret;
             ch->dtls12cookieSet = 1;
         }
         *cookieGood = ConstantCompare(ch->cookie.elements, ch->dtls12cookie,
                                       DTLS_COOKIE_SZ) == 0;
+        /* If the primary secret didn't match, try the secondary (verify-only)
+         * secret.  This lets a stateless server keep accepting cookies issued
+         * under the secret it held before an application-driven rotation. */
+        if (!*cookieGood &&
+                ssl->buffers.dtlsCookieSecretSecondary.buffer != NULL &&
+                ssl->buffers.dtlsCookieSecretSecondary.length > 0) {
+            byte altCookie[DTLS_COOKIE_SZ];
+            ret = CreateDtls12Cookie(ssl, ch,
+                    ssl->buffers.dtlsCookieSecretSecondary.buffer,
+                    ssl->buffers.dtlsCookieSecretSecondary.length, altCookie);
+            if (ret != 0)
+                return ret;
+            *cookieGood = ConstantCompare(ch->cookie.elements, altCookie,
+                                          DTLS_COOKIE_SZ) == 0;
+        }
     }
     return ret;
 }
@@ -417,9 +451,11 @@ static int TlsTicketIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector exts,
 static int TlsSessionIdIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector sessionID,
                                int* resume)
 {
+#ifndef NO_SESSION_CACHE
     const WOLFSSL_SESSION* sess;
     word32 sessRow;
     int ret;
+#endif
 #ifdef HAVE_EXT_CACHE
     int copy;
 #endif
@@ -454,6 +490,7 @@ static int TlsSessionIdIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector sessionID
 #endif
 
 
+#ifndef NO_SESSION_CACHE
     ret = TlsSessionCacheGetAndRdLock(sessionID.elements, &sess, &sessRow,
             ssl->options.side);
     if (ret == 0 && sess != NULL) {
@@ -466,6 +503,7 @@ static int TlsSessionIdIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector sessionID
             *resume = TRUE;
         TlsSessionCacheUnlockRow(sessRow);
     }
+#endif /* !NO_SESSION_CACHE */
 
     return 0;
 }
@@ -918,7 +956,9 @@ static int SendStatelessReply(const WOLFSSL* ssl, WolfSSL_CH* ch, byte isTls13)
     {
 #if !defined(WOLFSSL_NO_TLS12)
         if (!ch->dtls12cookieSet) {
-            ret = CreateDtls12Cookie(ssl, ch, ch->dtls12cookie);
+            ret = CreateDtls12Cookie(ssl, ch,
+                    ssl->buffers.dtlsCookieSecret.buffer,
+                    ssl->buffers.dtlsCookieSecret.length, ch->dtls12cookie);
             if (ret != 0)
                 return ret;
             ch->dtls12cookieSet = 1;

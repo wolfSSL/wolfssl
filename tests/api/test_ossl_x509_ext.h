@@ -37,6 +37,7 @@ int test_wolfSSL_X509_EXTENSION_new(void);
 int test_wolfSSL_X509_EXTENSION_dup(void);
 int test_wolfSSL_X509_EXTENSION_get_object(void);
 int test_wolfSSL_X509_EXTENSION_get_data(void);
+int test_wolfSSL_X509_EXTENSION_set_data(void);
 int test_wolfSSL_X509_EXTENSION_get_critical(void);
 int test_wolfSSL_X509_EXTENSION_create_by_OBJ(void);
 int test_wolfSSL_X509V3_set_ctx(void);
@@ -57,6 +58,7 @@ int test_wolfSSL_NAME_CONSTRAINTS_check_name(void);
 int test_wolfSSL_NAME_CONSTRAINTS_manual_paths(void);
 int test_wolfSSL_NAME_CONSTRAINTS_dns(void);
 int test_wolfSSL_NAME_CONSTRAINTS_excluded(void);
+int test_wolfSSL_X509_set_ext_oid_collision(void);
 
 #define TEST_OSSL_X509_EXT_DECLS                                               \
     TEST_DECL_GROUP("ossl_x509_ext", test_wolfSSL_X509_get_extension_flags),   \
@@ -73,6 +75,7 @@ int test_wolfSSL_NAME_CONSTRAINTS_excluded(void);
     TEST_DECL_GROUP("ossl_x509_ext", test_wolfSSL_X509_EXTENSION_dup),         \
     TEST_DECL_GROUP("ossl_x509_ext", test_wolfSSL_X509_EXTENSION_get_object),  \
     TEST_DECL_GROUP("ossl_x509_ext", test_wolfSSL_X509_EXTENSION_get_data),    \
+    TEST_DECL_GROUP("ossl_x509_ext", test_wolfSSL_X509_EXTENSION_set_data),    \
     TEST_DECL_GROUP("ossl_x509_ext",                                           \
                                     test_wolfSSL_X509_EXTENSION_get_critical), \
     TEST_DECL_GROUP("ossl_x509_ext",                                           \
@@ -96,6 +99,8 @@ int test_wolfSSL_NAME_CONSTRAINTS_excluded(void);
     TEST_DECL_GROUP("ossl_x509_ext", test_wolfSSL_NAME_CONSTRAINTS_check_name),\
     TEST_DECL_GROUP("ossl_x509_ext", test_wolfSSL_NAME_CONSTRAINTS_manual_paths),\
     TEST_DECL_GROUP("ossl_x509_ext", test_wolfSSL_NAME_CONSTRAINTS_dns),       \
-    TEST_DECL_GROUP("ossl_x509_ext", test_wolfSSL_NAME_CONSTRAINTS_excluded)
+    TEST_DECL_GROUP("ossl_x509_ext", test_wolfSSL_NAME_CONSTRAINTS_excluded),  \
+    TEST_DECL_GROUP("ossl_x509_ext",                                           \
+                                  test_wolfSSL_X509_set_ext_oid_collision)
 
 #endif /* WOLFCRYPT_TEST_OSSL_X509_EXT_H */

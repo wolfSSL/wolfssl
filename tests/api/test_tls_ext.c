@@ -649,6 +649,81 @@ int test_helloRequest_no_renegotiation_option(void)
     return EXPECT_RESULT();
 }
 
+/* A client that advertises renegotiation_info only for the RFC 5746 initial
+ * handshake check (the default, with no wolfSSL_UseSecureRenegotiation() opt-in)
+ * must still refuse a server-initiated renegotiation rather than perform one,
+ * even without WOLFSSL_OP_NO_RENEGOTIATION. */
+int test_helloRequest_advertise_only_refused(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SECURE_RENEGOTIATION) && !defined(WOLFSSL_NO_TLS12) && \
+        defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    WOLFSSL_ALERT_HISTORY history;
+    byte readBuf[16];
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(&history, 0, sizeof(history));
+    test_ctx.c_ciphers = test_ctx.s_ciphers = "ECDHE-RSA-AES128-GCM-SHA256";
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+            &ssl_s, wolfTLSv1_2_client_method,
+            wolfTLSv1_2_server_method), 0);
+    /* Server opts into secure renegotiation so it can send a HelloRequest. The
+     * client does NOT opt in: it only advertises renegotiation_info by default
+     * for the RFC 5746 check. */
+    ExpectIntEQ(wolfSSL_CTX_UseSecureRenegotiation(ctx_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_s), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* The client negotiated renegotiation_info (the RFC 5746 check passed) but
+     * must not be willing to renegotiate on the server's request. */
+    ExpectIntNE(0, (int)wolfSSL_SSL_get_secure_renegotiation_support(ssl_c));
+
+    /* advertiseOnly clients do not retain handshake resources for a
+     * renegotiation that will never happen. Unless the build deliberately
+     * keeps the arrays for another reason (saveArrays, e.g. keying material),
+     * the master secret and arrays are released after the handshake. */
+    if (ssl_c != NULL && ssl_c->options.saveArrays == 0) {
+        ExpectNull(ssl_c->arrays);
+    }
+
+    /* Server asks the client to renegotiate, then waits for a ClientHello. */
+    ExpectIntLT(wolfSSL_Rehandshake(ssl_s), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* Client processes the HelloRequest and refuses without renegotiating. */
+    ExpectIntLT(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* The refusal was a warning-level no_renegotiation alert. */
+    ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &history), WOLFSSL_SUCCESS);
+    ExpectIntEQ(history.last_tx.level, alert_warning);
+    ExpectIntEQ(history.last_tx.code, no_renegotiation);
+
+    /* The connection is still active and passes data. */
+    ExpectIntEQ(wolfSSL_write(ssl_c, "hello", 5), 5);
+    for (i = 0; i < 10 && ret != 5; i++)
+        ret = wolfSSL_read(ssl_s, readBuf, sizeof(readBuf));
+    ExpectIntEQ(ret, 5);
+    ExpectIntEQ(XMEMCMP(readBuf, "hello", 5), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* F-2126: DoTls13ClientHello must reject a second ClientHello whose
  * cipher suite does not match the server's HelloRetryRequest. The
  * client offers two suites in CH1 and only a different one in CH2. */
@@ -1799,6 +1874,52 @@ int test_wolfSSL_custom_ext_ticket_fallback(void)
     /* Avoid the test teardown treating the bogus length as a real ticket. */
     if (ssl != NULL && ssl->session != NULL)
         ssl->session->ticketLen = 0;
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* RFC 8446 Section 4.4.2.1: status_request_v2 is not used in TLS 1.3. Only a
+ * ClientHello may still carry it, since the peer can negotiate a lower version
+ * where it does apply - every other message type is rejected, so that
+ * TLSX_CSR2_Parse() never gets to set ssl->status_request_v2 on a TLS 1.3
+ * connection. */
+int test_TLSX_CSR2_tls13_msg_type_validation(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    /* type = TLSX_STATUS_REQUEST_V2 (0x0011), size = 0x0000 */
+    const byte extBytes[] = { 0x00, 0x11, 0x00, 0x00 };
+    Suites suites;
+
+    XMEMSET(&suites, 0, sizeof(suites));
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    ExpectIntEQ(TLSX_Parse(ssl, extBytes, (word16)sizeof(extBytes),
+                           encrypted_extensions, NULL),
+                WC_NO_ERR_TRACE(EXT_NOT_ALLOWED));
+    /* certificate_request is parsed as a request, so it needs a suites list. */
+    ExpectIntEQ(TLSX_Parse(ssl, extBytes, (word16)sizeof(extBytes),
+                           certificate_request, &suites),
+                WC_NO_ERR_TRACE(EXT_NOT_ALLOWED));
+    /* In a Certificate message the earlier RFC 8446 4.4.2 gate fires first,
+     * because nothing offered status_request_v2 in the ClientHello. Either way
+     * it never reaches TLSX_CSR2_Parse(). */
+    ExpectIntEQ(TLSX_Parse(ssl, extBytes, (word16)sizeof(extBytes),
+                           certificate, NULL),
+                WC_NO_ERR_TRACE(UNSUPPORTED_EXTENSION));
+
+    /* Nothing was recorded on the way out. */
+    if (ssl != NULL) {
+        ExpectIntEQ(ssl->status_request_v2, 0);
+    }
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);

@@ -103,14 +103,14 @@ int wc_TspRequest_GetHashType(const TspRequest* req, enum wc_HashType* hashType)
 #ifdef WOLFSSL_TSP_REQUESTER
 /* Set the message imprint hash algorithm of a TimeStampReq.
  *
- * Sets the hash algorithm OID and hash size from the hash type. The caller
- * fills req->imprint.hash with the digest of the data to be time-stamped.
+ * Sets the hash algorithm OID and discards any digest already set.
  *
  * @param [in, out] req       TimeStampReq object.
  * @param [in]      hashType  Hash algorithm to use - e.g. WC_HASH_TYPE_SHA256.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when req is NULL.
- * @return  HASH_TYPE_E when the hash algorithm is not available.
+ * @return  HASH_TYPE_E when the hash algorithm is not available or is not
+ *          identified by its OID.
  * @return  BUFFER_E when the digest is too big for the message imprint.
  */
 int wc_TspRequest_SetHashType(TspRequest* req, enum wc_HashType hashType)
@@ -130,6 +130,11 @@ int wc_TspRequest_SetHashType(TspRequest* req, enum wc_HashType hashType)
         if (oid <= 0) {
             ret = HASH_TYPE_E;
         }
+        /* The OID must name the same algorithm - WC_HASH_TYPE_MD5_SHA shares
+         * the MD5 OID and cannot be identified in an imprint. */
+        else if (wc_OidGetHash(oid) != hashType) {
+            ret = HASH_TYPE_E;
+        }
     }
     if (ret == 0) {
         /* The digest size is the length of the message imprint hash. */
@@ -143,7 +148,9 @@ int wc_TspRequest_SetHashType(TspRequest* req, enum wc_HashType hashType)
     }
     if (ret == 0) {
         req->imprint.hashAlgOID = (word32)oid;
-        req->imprint.hashSz = (word32)digestSz;
+        /* A digest of the previous algorithm is no longer valid. */
+        XMEMSET(req->imprint.hash, 0, sizeof(req->imprint.hash));
+        req->imprint.hashSz = 0;
     }
 
     return ret;
@@ -188,18 +195,22 @@ int wc_TspRequest_GetHash(const TspRequest* req, byte* hash, word32* hashSz)
 /* Set the message imprint hash of a TimeStampReq.
  *
  * Copies the hash and its length into the message imprint. The hash algorithm
- * is set separately - see wc_TspRequest_SetHashType().
+ * must be set first with wc_TspRequest_SetHashType() and hashSz must be its
+ * digest size.
  *
  * @param [in, out] req     TimeStampReq object.
  * @param [in]      hash    Hash of the data to be time-stamped.
  * @param [in]      hashSz  Length of hash in bytes.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when req or hash is NULL or hashSz is 0.
- * @return  BUFFER_E when hashSz is too big for the message imprint.
+ * @return  HASH_TYPE_E when the hash algorithm is not set or not available.
+ * @return  BUFFER_E when hashSz is not the algorithm's digest size or is too
+ *          big for the message imprint.
  */
 int wc_TspRequest_SetHash(TspRequest* req, const byte* hash, word32 hashSz)
 {
     int ret = 0;
+    int digestSz = 0;
 
     /* Validate parameters. */
     if ((req == NULL) || (hash == NULL) || (hashSz == 0)) {
@@ -209,6 +220,17 @@ int wc_TspRequest_SetHash(TspRequest* req, const byte* hash, word32 hashSz)
         ret = BUFFER_E;
     }
 
+    if (ret == 0) {
+        /* The digest must be the length of the algorithm already set. */
+        digestSz = wc_HashGetDigestSize(
+            wc_OidGetHash((int)req->imprint.hashAlgOID));
+        if (digestSz <= 0) {
+            ret = HASH_TYPE_E;
+        }
+        else if (hashSz != (word32)digestSz) {
+            ret = BUFFER_E;
+        }
+    }
     if (ret == 0) {
         XMEMCPY(req->imprint.hash, hash, hashSz);
         req->imprint.hashSz = hashSz;
@@ -594,16 +616,29 @@ int wc_TspTstInfo_GetMsgImprint(const TspTstInfo* tstInfo, word32* hashOID,
  * @param [in]      hashSz   Length of hash in bytes.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when tstInfo or hash is NULL or hashSz is 0.
- * @return  BUFFER_E when hashSz is too big for the message imprint.
+ * @return  HASH_TYPE_E when the hash algorithm is not known or not available.
+ * @return  BUFFER_E when hashSz is too big for the message imprint or not
+ *          the digest size of hashOID.
  */
 int wc_TspTstInfo_SetMsgImprint(TspTstInfo* tstInfo, word32 hashOID,
     const byte* hash, word32 hashSz)
 {
+    int digestSz;
+
     /* Validate parameters. */
     if ((tstInfo == NULL) || (hash == NULL) || (hashSz == 0)) {
         return BAD_FUNC_ARG;
     }
     if (hashSz > sizeof(tstInfo->imprint.hash)) {
+        return BUFFER_E;
+    }
+    /* The algorithm must be one with a known digest size and the imprint
+     * must be that length. */
+    digestSz = wc_HashGetDigestSize(wc_OidGetHash((int)hashOID));
+    if (digestSz <= 0) {
+        return HASH_TYPE_E;
+    }
+    if (hashSz != (word32)digestSz) {
         return BUFFER_E;
     }
 
@@ -2089,13 +2124,13 @@ static int Tsp_VerifyCertChain(const byte* cert, word32 certSz, void* cm,
 }
 
 /* Verify the time-stamp token of a TimeStampResp, establishing trust in the
- * signer by either pinning a certificate or chaining to a certificate
- * manager. Used by wc_TspResponse_Verify() and wc_TspResponse_VerifyWithCm().
+ * signer by pinning a certificate (cert) or chaining to a certificate manager
+ * (cm). Callers pass exactly one - wc_TspResponse_Verify[WithCm]() enforce it.
  *
  * @param [in]  resp     TimeStampResp object with a token to verify.
- * @param [in]  cert     DER encoded trusted TSA certificate to pin, or NULL.
+ * @param [in]  cert     Trusted TSA certificate to pin, NULL when cm is used.
  * @param [in]  certSz   Length of certificate in bytes.
- * @param [in]  cm       Certificate manager to chain against, or NULL.
+ * @param [in]  cm       Certificate manager to chain to, NULL when cert used.
  * @param [out] tstInfo  TSTInfo object to fill. May be NULL.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when resp is NULL.
@@ -2242,30 +2277,23 @@ static int TspResponse_Verify(TspResponse* resp, const byte* cert,
  * response must have a token. The token's signature is verified and the
  * signer's certificate checked - see wc_TspTstInfo_VerifyWithPKCS7().
  *
- * When a certificate is given it is the trusted TSA - the signer of the token
+ * The certificate is required and is the trusted TSA - the signer of the token
  * must be that certificate. This establishes trust by pinning the TSA's
  * certificate. The certificate is also used to verify the signature when the
  * token does not include the signer's certificate - certReq was not set in
- * the request. When the certificate is NULL the token must include the
- * signer's certificate: the token's signature is verified against that
- * embedded certificate but no trust anchoring is performed - any self-signed
- * certificate carrying the time-stamping EKU is accepted. The NULL-cert form
- * verifies the signature only; the caller must trust the signer by other
- * means. To anchor the signer to a trusted CA, use
+ * the request. To anchor the signer to a trusted CA instead, use
  * wc_TspResponse_VerifyWithCm().
  *
  * Pointers in tstInfo reference the token of the response - the response and
  * its token buffer must remain available while tstInfo is in use.
  *
  * @param [in]  resp     TimeStampResp object with a token to verify.
- * @param [in]  cert     DER encoded certificate of the trusted TSA. May be
- *                       NULL when the token includes the signer's certificate
- *                       - the NULL-cert form verifies the signature only and
- *                       establishes no trust.
- * @param [in]  certSz   Length of certificate in bytes.
+ * @param [in]  cert     DER encoded certificate of the trusted TSA. Must not
+ *                       be NULL.
+ * @param [in]  certSz   Length of certificate in bytes. Must not be 0.
  * @param [out] tstInfo  TSTInfo object to fill. May be NULL.
  * @return  0 on success.
- * @return  BAD_FUNC_ARG when resp is NULL.
+ * @return  BAD_FUNC_ARG when resp or cert is NULL, or certSz is 0.
  * @return  TSP_VERIFY_E when the response was not granted, has no token, the
  *          token does not verify - see wc_TspTstInfo_VerifyWithPKCS7() - or the
  *          signer is not the trusted TSA certificate.
@@ -2277,6 +2305,12 @@ int wc_TspResponse_Verify(TspResponse* resp, const byte* cert, word32 certSz,
     int ret;
 
     WOLFSSL_ENTER("wc_TspResponse_Verify");
+
+    /* A trusted TSA certificate is required - one carried in the token is not
+     * a trust anchor as it would verify its own signature. */
+    if ((cert == NULL) || (certSz == 0)) {
+        return BAD_FUNC_ARG;
+    }
 
     /* Pin the signer to the given certificate - no certificate manager. */
     ret = TspResponse_Verify(resp, cert, certSz, NULL, tstInfo);
@@ -2340,14 +2374,14 @@ int wc_TspResponse_VerifyWithCm(TspResponse* resp, void* cm,
  * algorithm and comparing to the imprint. The caller does not hash the data.
  *
  * @param [in]  resp     TimeStampResp object with a token to verify.
- * @param [in]  cert     DER encoded certificate of the trusted TSA. May be
- *                       NULL - see wc_TspResponse_Verify().
- * @param [in]  certSz   Length of certificate in bytes.
+ * @param [in]  cert     DER encoded certificate of the trusted TSA. Must not
+ *                       be NULL - see wc_TspResponse_Verify().
+ * @param [in]  certSz   Length of certificate in bytes. Must not be 0.
  * @param [in]  data     Data that was time-stamped.
  * @param [in]  dataSz   Length of data in bytes.
  * @param [out] tstInfo  TSTInfo object to fill. May be NULL.
  * @return  0 on success.
- * @return  BAD_FUNC_ARG when resp or data is NULL.
+ * @return  BAD_FUNC_ARG when resp, cert or data is NULL, or certSz is 0.
  * @return  TSP_VERIFY_E when the token does not verify or the data does not
  *          match the message imprint.
  * @return  HASH_TYPE_E when the imprint's hash algorithm is not supported.
@@ -2361,8 +2395,8 @@ int wc_TspResponse_VerifyData(TspResponse* resp, const byte* cert,
 
     WOLFSSL_ENTER("wc_TspResponse_VerifyData");
 
-    /* Validate parameter - resp is checked by wc_TspResponse_Verify(). */
-    if (data == NULL) {
+    /* Validate parameters - resp is checked by wc_TspResponse_Verify(). */
+    if ((data == NULL) || (cert == NULL) || (certSz == 0)) {
         return BAD_FUNC_ARG;
     }
     /* A TSTInfo is needed for the data check - use a local when not wanted. */

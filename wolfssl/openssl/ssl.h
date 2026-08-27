@@ -44,6 +44,7 @@
 #include <wolfssl/openssl/evp.h>
 #endif
 #include <wolfssl/openssl/bio.h>
+#include <wolfssl/openssl/err.h>
 #ifdef OPENSSL_EXTRA
 #include <wolfssl/openssl/crypto.h>
 #endif
@@ -128,6 +129,12 @@
     WOLFSSL_MYSQL_COMPATIBLE || OPENSSL_EXTRA || \
     HAVE_LIGHTY || HAVE_STUNNEL || \
     WOLFSSL_WPAS_SMALL */
+
+/* Must equal HANDSHAKE_DONE in the internal 'enum states'
+ * (wolfssl/internal.h), returned by wolfSSL_get_state(); enforced by a
+ * wc_static_assert in src/ssl.c. */
+#define WOLFSSL_TLS_ST_OK               16
+#define WOLFSSL_SSL_ST_OK               WOLFSSL_TLS_ST_OK
 
 #if !defined(OPENSSL_COEXIST) && \
     (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
@@ -273,6 +280,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_CTX_set_ecdh_auto           wolfSSL_CTX_set_ecdh_auto
 
 #define i2d_PUBKEY                      wolfSSL_i2d_PUBKEY
+#define i2d_PUBKEY_bio                  wolfSSL_i2d_PUBKEY_bio
 #define i2d_X509_PUBKEY                 wolfSSL_i2d_X509_PUBKEY
 #define d2i_PUBKEY                      wolfSSL_d2i_PUBKEY
 #define d2i_PUBKEY_bio                  wolfSSL_d2i_PUBKEY_bio
@@ -1379,6 +1387,13 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define sk_SSL_CIPHER_dup               wolfSSL_shallow_sk_dup
 #define sk_SSL_CIPHER_free              wolfSSL_sk_SSL_CIPHER_free
 #define sk_SSL_CIPHER_find              wolfSSL_sk_SSL_CIPHER_find
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
+#define sk_SSL_CIPHER_delete            wolfSSL_sk_SSL_CIPHER_delete
+#endif
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
+    defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)
+#define SSL_CIPHER_find                 wolfSSL_SSL_CIPHER_find
+#endif
 
 #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
 #define SSL_get0_peername wolfSSL_get0_peername
@@ -1395,6 +1410,7 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define SSL_CTRL_CLEAR_EXTRA_CHAIN_CERTS        83
 
 #define SSL_CTX_clear_chain_certs(ctx) SSL_CTX_set0_chain(ctx,NULL)
+#define SSL_clear_chain_certs           wolfSSL_clear_chain_certs
 #define d2i_RSAPrivateKey_bio           wolfSSL_d2i_RSAPrivateKey_bio
 #define SSL_CTX_use_RSAPrivateKey       wolfSSL_CTX_use_RSAPrivateKey
 #define d2i_PrivateKey_bio              wolfSSL_d2i_PrivateKey_bio
@@ -1582,6 +1598,10 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define SSL_get_state                   wolfSSL_get_state
 #define SSL_state_string_long           wolfSSL_state_string_long
 
+#define TLS_ST_OK                       WOLFSSL_TLS_ST_OK
+#define SSL_ST_OK                       WOLFSSL_SSL_ST_OK
+#define SSL_F_SSL_SET_FD                WOLFSSL_SSL_F_SSL_SET_FD
+
 #define GENERAL_NAME_new                wolfSSL_GENERAL_NAME_new
 #define GENERAL_NAME_free               wolfSSL_GENERAL_NAME_free
 #define GENERAL_NAME_dup                wolfSSL_GENERAL_NAME_dup
@@ -1752,12 +1772,22 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define SSL_R_DATA_LENGTH_TOO_LONG                 BUFFER_ERROR
 #define SSL_R_ENCRYPTED_LENGTH_TOO_LONG            BUFFER_ERROR
 #define SSL_R_BAD_LENGTH                           BUFFER_ERROR
-#define SSL_R_UNKNOWN_PROTOCOL                     VERSION_ERROR
-#define SSL_R_WRONG_VERSION_NUMBER                 VERSION_ERROR
+#define SSL_R_UNKNOWN_PROTOCOL WOLFSSL_SSL_R_UNKNOWN_PROTOCOL
+#define SSL_R_WRONG_VERSION_NUMBER WOLFSSL_SSL_R_WRONG_VERSION_NUMBER
 #define SSL_R_DECRYPTION_FAILED_OR_BAD_RECORD_MAC  ENCRYPT_ERROR
 #define SSL_R_HTTPS_PROXY_REQUEST                  PARSE_ERROR
 #define SSL_R_HTTP_REQUEST                         PARSE_ERROR
-#define SSL_R_UNSUPPORTED_PROTOCOL                 VERSION_ERROR
+#define SSL_R_UNSUPPORTED_PROTOCOL WOLFSSL_SSL_R_UNSUPPORTED_PROTOCOL
+#define SSL_R_NO_PROTOCOLS_AVAILABLE \
+    WOLFSSL_SSL_R_NO_PROTOCOLS_AVAILABLE
+#define SSL_R_BAD_PROTOCOL_VERSION_NUMBER \
+    WOLFSSL_SSL_R_BAD_PROTOCOL_VERSION_NUMBER
+#define SSL_R_UNKNOWN_SSL_VERSION WOLFSSL_SSL_R_UNKNOWN_SSL_VERSION
+#define SSL_R_UNSUPPORTED_SSL_VERSION \
+    WOLFSSL_SSL_R_UNSUPPORTED_SSL_VERSION
+#define SSL_R_WRONG_SSL_VERSION WOLFSSL_SSL_R_WRONG_SSL_VERSION
+#define SSL_R_TLSV1_ALERT_PROTOCOL_VERSION \
+    WOLFSSL_SSL_R_TLSV1_ALERT_PROTOCOL_VERSION
 #define SSL_R_CERTIFICATE_VERIFY_FAILED            VERIFY_CERT_ERROR
 #define SSL_R_CERT_CB_ERROR                        CLIENT_CERT_CB_ERROR
 #define SSL_R_NULL_SSL_METHOD_PASSED               BAD_FUNC_ARG
@@ -1877,11 +1907,7 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define X509_OBJECT_new                 wolfSSL_X509_OBJECT_new
 #define X509_OBJECT_free                wolfSSL_X509_OBJECT_free
 #define X509_OBJECT_get_type            wolfSSL_X509_OBJECT_get_type
-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
 #define OpenSSL_version(x)              wolfSSL_OpenSSL_version(x)
-#else
-#define OpenSSL_version(x)              wolfSSL_OpenSSL_version()
-#endif
 
 #define X509_OBJECT_retrieve_by_subject wolfSSL_X509_OBJECT_retrieve_by_subject
 

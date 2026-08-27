@@ -5270,9 +5270,9 @@ void AES_GCM_encrypt_AARCH64(const byte* in, byte* out, word32 sz,
         "ushr	v27.2d, v27.2d, #56\n\t"
         "ld1	{v22.2d}, [%x[gcm_h]]\n\t"
         "cmp	%w[aadSz], #0x40\n\t"
-        "csetm	x16, lt\n\t"
+        "csetm	x16, cc\n\t"
         "cmp	%w[sz], #32\n\t"
-        "csetm	x17, lt\n\t"
+        "csetm	x17, cc\n\t"
         "ands	x16, x16, x17\n\t"
         "b.ne	L_aes_gcm_encrypt_arm64_crypto_h_done_%=\n\t"
         /* Square H => H^2 */
@@ -5285,9 +5285,9 @@ void AES_GCM_encrypt_AARCH64(const byte* in, byte* out, word32 sz,
         "mov	v30.d[1], v29.d[0]\n\t"
         "eor	v23.16b, v30.16b, v31.16b\n\t"
         "cmp	%w[aadSz], #0x100\n\t"
-        "csetm	x16, lt\n\t"
+        "csetm	x16, cc\n\t"
         "cmp	%w[sz], #0x40\n\t"
-        "csetm	x17, lt\n\t"
+        "csetm	x17, cc\n\t"
         "ands	x16, x16, x17\n\t"
         "b.ne	L_aes_gcm_encrypt_arm64_crypto_h_done_%=\n\t"
         /* Multiply H and H^2  => H^3 */
@@ -5316,9 +5316,9 @@ void AES_GCM_encrypt_AARCH64(const byte* in, byte* out, word32 sz,
         "eor	v25.16b, v30.16b, v31.16b\n\t"
         /* Done */
         "cmp	%w[aadSz], #0x400\n\t"
-        "csetm	x16, lt\n\t"
+        "csetm	x16, cc\n\t"
         "cmp	%w[sz], #0x200\n\t"
-        "csetm	x17, lt\n\t"
+        "csetm	x17, cc\n\t"
         "ands	x16, x16, x17\n\t"
         "b.ne	L_aes_gcm_encrypt_arm64_crypto_h_done_%=\n\t"
         /* Multiply H and H^4  => H^5 */
@@ -10133,7 +10133,7 @@ void AES_GCM_encrypt_AARCH64(const byte* in, byte* out, word32 sz,
     );
 }
 
-#ifdef HAVE_AES_DECRYPT
+#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AESGCM_DECRYPT)
 int AES_GCM_decrypt_AARCH64(const byte* in, byte* out, word32 sz,
     const byte* nonce, word32 nonceSz, const byte* tag, word32 tagSz,
     const byte* aad, word32 aadSz, byte* key, byte* gcm_h, byte* tmp, byte* reg,
@@ -10145,9 +10145,9 @@ int AES_GCM_decrypt_AARCH64(const byte* in, byte* out, word32 sz,
         "ushr	v27.2d, v27.2d, #56\n\t"
         "ld1	{v22.2d}, [%x[gcm_h]]\n\t"
         "cmp	%w[aadSz], #0x40\n\t"
-        "csetm	x16, lt\n\t"
+        "csetm	x16, cc\n\t"
         "cmp	%w[sz], #32\n\t"
-        "csetm	x17, lt\n\t"
+        "csetm	x17, cc\n\t"
         "ands	x16, x16, x17\n\t"
         "b.ne	L_aes_gcm_decrypt_arm64_crypto_h_done_%=\n\t"
         /* Square H => H^2 */
@@ -10160,9 +10160,9 @@ int AES_GCM_decrypt_AARCH64(const byte* in, byte* out, word32 sz,
         "mov	v30.d[1], v29.d[0]\n\t"
         "eor	v23.16b, v30.16b, v31.16b\n\t"
         "cmp	%w[aadSz], #0x100\n\t"
-        "csetm	x16, lt\n\t"
+        "csetm	x16, cc\n\t"
         "cmp	%w[sz], #0x40\n\t"
-        "csetm	x17, lt\n\t"
+        "csetm	x17, cc\n\t"
         "ands	x16, x16, x17\n\t"
         "b.ne	L_aes_gcm_decrypt_arm64_crypto_h_done_%=\n\t"
         /* Multiply H and H^2  => H^3 */
@@ -10191,9 +10191,9 @@ int AES_GCM_decrypt_AARCH64(const byte* in, byte* out, word32 sz,
         "eor	v25.16b, v30.16b, v31.16b\n\t"
         /* Done */
         "cmp	%w[aadSz], #0x400\n\t"
-        "csetm	x16, lt\n\t"
+        "csetm	x16, cc\n\t"
         "cmp	%w[sz], #0x200\n\t"
-        "csetm	x17, lt\n\t"
+        "csetm	x17, cc\n\t"
         "ands	x16, x16, x17\n\t"
         "b.ne	L_aes_gcm_decrypt_arm64_crypto_h_done_%=\n\t"
         /* Multiply H and H^4  => H^5 */
@@ -15061,7 +15061,7 @@ int AES_GCM_decrypt_AARCH64(const byte* in, byte* out, word32 sz,
     return (word32)(size_t)in;
 }
 
-#endif /* HAVE_AES_DECRYPT */
+#endif /* HAVE_AES_DECRYPT || HAVE_AESGCM_DECRYPT */
 #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
 void AES_GCM_encrypt_AARCH64_EOR3(const byte* in, byte* out, word32 sz,
     const byte* nonce, word32 nonceSz, byte* tag, word32 tagSz, const byte* aad,
@@ -15073,9 +15073,9 @@ void AES_GCM_encrypt_AARCH64_EOR3(const byte* in, byte* out, word32 sz,
         "ushr	v27.2d, v27.2d, #56\n\t"
         "ld1	{v22.2d}, [%x[gcm_h]]\n\t"
         "cmp	%w[aadSz], #0x40\n\t"
-        "csetm	x16, lt\n\t"
+        "csetm	x16, cc\n\t"
         "cmp	%w[sz], #32\n\t"
-        "csetm	x17, lt\n\t"
+        "csetm	x17, cc\n\t"
         "ands	x16, x16, x17\n\t"
         "b.ne	L_aes_gcm_encrypt_arm64_crypto_eor3_h_done_%=\n\t"
         /* Square H => H^2 */
@@ -15088,9 +15088,9 @@ void AES_GCM_encrypt_AARCH64_EOR3(const byte* in, byte* out, word32 sz,
         "mov	v30.d[1], v29.d[0]\n\t"
         "eor	v23.16b, v30.16b, v31.16b\n\t"
         "cmp	%w[aadSz], #0x100\n\t"
-        "csetm	x16, lt\n\t"
+        "csetm	x16, cc\n\t"
         "cmp	%w[sz], #0x40\n\t"
-        "csetm	x17, lt\n\t"
+        "csetm	x17, cc\n\t"
         "ands	x16, x16, x17\n\t"
         "b.ne	L_aes_gcm_encrypt_arm64_crypto_eor3_h_done_%=\n\t"
         /* Multiply H and H^2  => H^3 */
@@ -15118,9 +15118,9 @@ void AES_GCM_encrypt_AARCH64_EOR3(const byte* in, byte* out, word32 sz,
         "eor	v25.16b, v30.16b, v31.16b\n\t"
         /* Done */
         "cmp	%w[aadSz], #0x400\n\t"
-        "csetm	x16, lt\n\t"
+        "csetm	x16, cc\n\t"
         "cmp	%w[sz], #0x200\n\t"
-        "csetm	x17, lt\n\t"
+        "csetm	x17, cc\n\t"
         "ands	x16, x16, x17\n\t"
         "b.ne	L_aes_gcm_encrypt_arm64_crypto_eor3_h_done_%=\n\t"
         /* Multiply H and H^4  => H^5 */
@@ -16971,7 +16971,8 @@ void AES_GCM_encrypt_AARCH64_EOR3(const byte* in, byte* out, word32 sz,
         "strh	w16, [%x[tag]], #2\n\t"
         "\n"
     "L_aes_gcm_encrypt_arm64_crypto_eor3_192_tag_start_byte_%=:\n\t"
-        "cbz	%w[tagSz], L_aes_gcm_encrypt_arm64_crypto_eor3_192_tag_end_bytes_%=\n\t"
+        "cbz	%w[tagSz], "
+            "L_aes_gcm_encrypt_arm64_crypto_eor3_192_tag_end_bytes_%=\n\t"
         "ldrb	w16, [%x[tmp]], #1\n\t"
         "subs	%w[tagSz], %w[tagSz], #1\n\t"
         "strb	w16, [%x[tag]], #1\n\t"
@@ -18513,7 +18514,8 @@ void AES_GCM_encrypt_AARCH64_EOR3(const byte* in, byte* out, word32 sz,
         "strh	w16, [%x[tag]], #2\n\t"
         "\n"
     "L_aes_gcm_encrypt_arm64_crypto_eor3_256_tag_start_byte_%=:\n\t"
-        "cbz	%w[tagSz], L_aes_gcm_encrypt_arm64_crypto_eor3_256_tag_end_bytes_%=\n\t"
+        "cbz	%w[tagSz], "
+            "L_aes_gcm_encrypt_arm64_crypto_eor3_256_tag_end_bytes_%=\n\t"
         "ldrb	w16, [%x[tmp]], #1\n\t"
         "subs	%w[tagSz], %w[tagSz], #1\n\t"
         "strb	w16, [%x[tag]], #1\n\t"
@@ -19804,7 +19806,8 @@ void AES_GCM_encrypt_AARCH64_EOR3(const byte* in, byte* out, word32 sz,
         "strh	w16, [%x[tag]], #2\n\t"
         "\n"
     "L_aes_gcm_encrypt_arm64_crypto_eor3_128_tag_start_byte_%=:\n\t"
-        "cbz	%w[tagSz], L_aes_gcm_encrypt_arm64_crypto_eor3_128_tag_end_bytes_%=\n\t"
+        "cbz	%w[tagSz], "
+            "L_aes_gcm_encrypt_arm64_crypto_eor3_128_tag_end_bytes_%=\n\t"
         "ldrb	w16, [%x[tmp]], #1\n\t"
         "subs	%w[tagSz], %w[tagSz], #1\n\t"
         "strb	w16, [%x[tag]], #1\n\t"
@@ -19827,7 +19830,7 @@ void AES_GCM_encrypt_AARCH64_EOR3(const byte* in, byte* out, word32 sz,
     );
 }
 
-#ifdef HAVE_AES_DECRYPT
+#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AESGCM_DECRYPT)
 int AES_GCM_decrypt_AARCH64_EOR3(const byte* in, byte* out, word32 sz,
     const byte* nonce, word32 nonceSz, const byte* tag, word32 tagSz,
     const byte* aad, word32 aadSz, byte* key, byte* gcm_h, byte* tmp, byte* reg,
@@ -19839,9 +19842,9 @@ int AES_GCM_decrypt_AARCH64_EOR3(const byte* in, byte* out, word32 sz,
         "ushr	v27.2d, v27.2d, #56\n\t"
         "ld1	{v22.2d}, [%x[gcm_h]]\n\t"
         "cmp	%w[aadSz], #0x40\n\t"
-        "csetm	x16, lt\n\t"
+        "csetm	x16, cc\n\t"
         "cmp	%w[sz], #32\n\t"
-        "csetm	x17, lt\n\t"
+        "csetm	x17, cc\n\t"
         "ands	x16, x16, x17\n\t"
         "b.ne	L_aes_gcm_decrypt_arm64_crypto_eor3_h_done_%=\n\t"
         /* Square H => H^2 */
@@ -19854,9 +19857,9 @@ int AES_GCM_decrypt_AARCH64_EOR3(const byte* in, byte* out, word32 sz,
         "mov	v30.d[1], v29.d[0]\n\t"
         "eor	v23.16b, v30.16b, v31.16b\n\t"
         "cmp	%w[aadSz], #0x100\n\t"
-        "csetm	x16, lt\n\t"
+        "csetm	x16, cc\n\t"
         "cmp	%w[sz], #0x40\n\t"
-        "csetm	x17, lt\n\t"
+        "csetm	x17, cc\n\t"
         "ands	x16, x16, x17\n\t"
         "b.ne	L_aes_gcm_decrypt_arm64_crypto_eor3_h_done_%=\n\t"
         /* Multiply H and H^2  => H^3 */
@@ -19884,9 +19887,9 @@ int AES_GCM_decrypt_AARCH64_EOR3(const byte* in, byte* out, word32 sz,
         "eor	v25.16b, v30.16b, v31.16b\n\t"
         /* Done */
         "cmp	%w[aadSz], #0x400\n\t"
-        "csetm	x16, lt\n\t"
+        "csetm	x16, cc\n\t"
         "cmp	%w[sz], #0x200\n\t"
-        "csetm	x17, lt\n\t"
+        "csetm	x17, cc\n\t"
         "ands	x16, x16, x17\n\t"
         "b.ne	L_aes_gcm_decrypt_arm64_crypto_eor3_h_done_%=\n\t"
         /* Multiply H and H^4  => H^5 */
@@ -24646,7 +24649,7 @@ int AES_GCM_decrypt_AARCH64_EOR3(const byte* in, byte* out, word32 sz,
     return (word32)(size_t)in;
 }
 
-#endif /* HAVE_AES_DECRYPT */
+#endif /* HAVE_AES_DECRYPT || HAVE_AESGCM_DECRYPT */
 #endif /* !WOLFSSL_ARMASM_CRYPTO_SHA3 */
 #ifdef WOLFSSL_AESGCM_STREAM
 void AES_GCM_init_AARCH64(byte* key, int nr, const byte* nonce, word32 nonceSz,
@@ -25278,7 +25281,7 @@ void AES_GCM_encrypt_update_AARCH64(const byte* key, int nr, byte* out,
         "mov	w9, v13.s[3]\n\t"
         "rev	w9, w9\n\t"
         "cmp	%w[nbytes], #32\n\t"
-        "b.lt	L_aes_gcm_encrypt_update_arm64_crypto_h_done_%=\n\t"
+        "bcc	L_aes_gcm_encrypt_update_arm64_crypto_h_done_%=\n\t"
         /* Square H => H^2 */
         "pmull2	v31.1q, v22.2d, v22.2d\n\t"
         "pmull	v30.1q, v22.1d, v22.1d\n\t"
@@ -25289,7 +25292,7 @@ void AES_GCM_encrypt_update_AARCH64(const byte* key, int nr, byte* out,
         "mov	v30.d[1], v29.d[0]\n\t"
         "eor	v23.16b, v30.16b, v31.16b\n\t"
         "cmp	%w[nbytes], #0x40\n\t"
-        "b.lt	L_aes_gcm_encrypt_update_arm64_crypto_h_done_%=\n\t"
+        "bcc	L_aes_gcm_encrypt_update_arm64_crypto_h_done_%=\n\t"
         /* Multiply H and H^2  => H^3 */
         "pmull	v28.1q, v22.1d, v23.1d\n\t"
         "pmull2	v29.1q, v22.2d, v23.2d\n\t"
@@ -25316,7 +25319,7 @@ void AES_GCM_encrypt_update_AARCH64(const byte* key, int nr, byte* out,
         "eor	v25.16b, v30.16b, v31.16b\n\t"
         /* Done */
         "cmp	%w[nbytes], #0x200\n\t"
-        "b.lt	L_aes_gcm_encrypt_update_arm64_crypto_h_done_%=\n\t"
+        "bcc	L_aes_gcm_encrypt_update_arm64_crypto_h_done_%=\n\t"
         /* Multiply H and H^4  => H^5 */
         "pmull	v28.1q, v22.1d, v25.1d\n\t"
         "pmull2	v29.1q, v22.2d, v25.2d\n\t"
@@ -29153,7 +29156,8 @@ void AES_GCM_encrypt_final_AARCH64(byte* tag, byte* authTag, word32 tbytes,
         "strh	w8, [%x[authTag]], #2\n\t"
         "\n"
     "L_aes_gcm_encrypt_final_arm64_crypto_tag_start_byte_%=:\n\t"
-        "cbz	%w[tbytes], L_aes_gcm_encrypt_final_arm64_crypto_tag_end_bytes_%=\n\t"
+        "cbz	%w[tbytes], "
+            "L_aes_gcm_encrypt_final_arm64_crypto_tag_end_bytes_%=\n\t"
         "ldrb	w8, [%x[tag]], #1\n\t"
         "subs	%w[tbytes], %w[tbytes], #1\n\t"
         "strb	w8, [%x[authTag]], #1\n\t"
@@ -29171,6 +29175,7 @@ void AES_GCM_encrypt_final_AARCH64(byte* tag, byte* authTag, word32 tbytes,
     );
 }
 
+#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AESGCM_DECRYPT)
 void AES_GCM_decrypt_update_AARCH64(const byte* key, int nr, byte* out,
     const byte* in, word32 nbytes, byte* tag, byte* h, byte* counter)
 {
@@ -29183,7 +29188,7 @@ void AES_GCM_decrypt_update_AARCH64(const byte* key, int nr, byte* out,
         "mov	w9, v13.s[3]\n\t"
         "rev	w9, w9\n\t"
         "cmp	%w[nbytes], #32\n\t"
-        "b.lt	L_aes_gcm_decrypt_update_arm64_crypto_h_done_%=\n\t"
+        "bcc	L_aes_gcm_decrypt_update_arm64_crypto_h_done_%=\n\t"
         /* Square H => H^2 */
         "pmull2	v31.1q, v22.2d, v22.2d\n\t"
         "pmull	v30.1q, v22.1d, v22.1d\n\t"
@@ -29194,7 +29199,7 @@ void AES_GCM_decrypt_update_AARCH64(const byte* key, int nr, byte* out,
         "mov	v30.d[1], v29.d[0]\n\t"
         "eor	v23.16b, v30.16b, v31.16b\n\t"
         "cmp	%w[nbytes], #0x40\n\t"
-        "b.lt	L_aes_gcm_decrypt_update_arm64_crypto_h_done_%=\n\t"
+        "bcc	L_aes_gcm_decrypt_update_arm64_crypto_h_done_%=\n\t"
         /* Multiply H and H^2  => H^3 */
         "pmull	v28.1q, v22.1d, v23.1d\n\t"
         "pmull2	v29.1q, v22.2d, v23.2d\n\t"
@@ -29221,7 +29226,7 @@ void AES_GCM_decrypt_update_AARCH64(const byte* key, int nr, byte* out,
         "eor	v25.16b, v30.16b, v31.16b\n\t"
         /* Done */
         "cmp	%w[nbytes], #0x200\n\t"
-        "b.lt	L_aes_gcm_decrypt_update_arm64_crypto_h_done_%=\n\t"
+        "bcc	L_aes_gcm_decrypt_update_arm64_crypto_h_done_%=\n\t"
         /* Multiply H and H^4  => H^5 */
         "pmull	v28.1q, v22.1d, v25.1d\n\t"
         "pmull2	v29.1q, v22.2d, v25.2d\n\t"
@@ -33104,6 +33109,7 @@ void AES_GCM_decrypt_final_AARCH64(byte* tag, const byte* authTag,
     );
 }
 
+#endif /* HAVE_AES_DECRYPT || HAVE_AESGCM_DECRYPT */
 #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
 void AES_GCM_init_AARCH64_EOR3(byte* key, int nr, const byte* nonce,
     word32 nonceSz, byte* gcm_h, byte* counter, byte* initCtr)
@@ -33712,7 +33718,7 @@ void AES_GCM_encrypt_update_AARCH64_EOR3(const byte* key, int nr, byte* out,
         "mov	w9, v13.s[3]\n\t"
         "rev	w9, w9\n\t"
         "cmp	%w[nbytes], #32\n\t"
-        "b.lt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_h_done_%=\n\t"
+        "bcc	L_aes_gcm_encrypt_update_arm64_crypto_eor3_h_done_%=\n\t"
         /* Square H => H^2 */
         "pmull2	v31.1q, v22.2d, v22.2d\n\t"
         "pmull	v30.1q, v22.1d, v22.1d\n\t"
@@ -33723,7 +33729,7 @@ void AES_GCM_encrypt_update_AARCH64_EOR3(const byte* key, int nr, byte* out,
         "mov	v30.d[1], v29.d[0]\n\t"
         "eor	v23.16b, v30.16b, v31.16b\n\t"
         "cmp	%w[nbytes], #0x40\n\t"
-        "b.lt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_h_done_%=\n\t"
+        "bcc	L_aes_gcm_encrypt_update_arm64_crypto_eor3_h_done_%=\n\t"
         /* Multiply H and H^2  => H^3 */
         "pmull	v28.1q, v22.1d, v23.1d\n\t"
         "pmull2	v29.1q, v22.2d, v23.2d\n\t"
@@ -33749,7 +33755,7 @@ void AES_GCM_encrypt_update_AARCH64_EOR3(const byte* key, int nr, byte* out,
         "eor	v25.16b, v30.16b, v31.16b\n\t"
         /* Done */
         "cmp	%w[nbytes], #0x200\n\t"
-        "b.lt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_h_done_%=\n\t"
+        "bcc	L_aes_gcm_encrypt_update_arm64_crypto_eor3_h_done_%=\n\t"
         /* Multiply H and H^4  => H^5 */
         "pmull	v28.1q, v22.1d, v25.1d\n\t"
         "pmull2	v29.1q, v22.2d, v25.2d\n\t"
@@ -37502,7 +37508,8 @@ void AES_GCM_encrypt_final_AARCH64_EOR3(byte* tag, byte* authTag, word32 tbytes,
         "strh	w8, [%x[authTag]], #2\n\t"
         "\n"
     "L_aes_gcm_encrypt_final_arm64_crypto_eor3_tag_start_byte_%=:\n\t"
-        "cbz	%w[tbytes], L_aes_gcm_encrypt_final_arm64_crypto_eor3_tag_end_bytes_%=\n\t"
+        "cbz	%w[tbytes], "
+            "L_aes_gcm_encrypt_final_arm64_crypto_eor3_tag_end_bytes_%=\n\t"
         "ldrb	w8, [%x[tag]], #1\n\t"
         "subs	%w[tbytes], %w[tbytes], #1\n\t"
         "strb	w8, [%x[authTag]], #1\n\t"
@@ -37520,6 +37527,7 @@ void AES_GCM_encrypt_final_AARCH64_EOR3(byte* tag, byte* authTag, word32 tbytes,
     );
 }
 
+#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AESGCM_DECRYPT)
 void AES_GCM_decrypt_update_AARCH64_EOR3(const byte* key, int nr, byte* out,
     const byte* in, word32 nbytes, byte* tag, byte* h, byte* counter)
 {
@@ -37532,7 +37540,7 @@ void AES_GCM_decrypt_update_AARCH64_EOR3(const byte* key, int nr, byte* out,
         "mov	w9, v13.s[3]\n\t"
         "rev	w9, w9\n\t"
         "cmp	%w[nbytes], #32\n\t"
-        "b.lt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_h_done_%=\n\t"
+        "bcc	L_aes_gcm_decrypt_update_arm64_crypto_eor3_h_done_%=\n\t"
         /* Square H => H^2 */
         "pmull2	v31.1q, v22.2d, v22.2d\n\t"
         "pmull	v30.1q, v22.1d, v22.1d\n\t"
@@ -37543,7 +37551,7 @@ void AES_GCM_decrypt_update_AARCH64_EOR3(const byte* key, int nr, byte* out,
         "mov	v30.d[1], v29.d[0]\n\t"
         "eor	v23.16b, v30.16b, v31.16b\n\t"
         "cmp	%w[nbytes], #0x40\n\t"
-        "b.lt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_h_done_%=\n\t"
+        "bcc	L_aes_gcm_decrypt_update_arm64_crypto_eor3_h_done_%=\n\t"
         /* Multiply H and H^2  => H^3 */
         "pmull	v28.1q, v22.1d, v23.1d\n\t"
         "pmull2	v29.1q, v22.2d, v23.2d\n\t"
@@ -37569,7 +37577,7 @@ void AES_GCM_decrypt_update_AARCH64_EOR3(const byte* key, int nr, byte* out,
         "eor	v25.16b, v30.16b, v31.16b\n\t"
         /* Done */
         "cmp	%w[nbytes], #0x200\n\t"
-        "b.lt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_h_done_%=\n\t"
+        "bcc	L_aes_gcm_decrypt_update_arm64_crypto_eor3_h_done_%=\n\t"
         /* Multiply H and H^4  => H^5 */
         "pmull	v28.1q, v22.1d, v25.1d\n\t"
         "pmull2	v29.1q, v22.2d, v25.2d\n\t"
@@ -41327,7 +41335,8 @@ void AES_GCM_decrypt_final_AARCH64_EOR3(byte* tag, const byte* authTag,
         "strh	w9, [%x[tag]], #2\n\t"
         "\n"
     "L_aes_gcm_decrypt_final_arm64_crypto_eor3_tag_start_byte_%=:\n\t"
-        "cbz	x10, L_aes_gcm_decrypt_final_arm64_crypto_eor3_tag_end_bytes_%=\n\t"
+        "cbz	x10, "
+            "L_aes_gcm_decrypt_final_arm64_crypto_eor3_tag_end_bytes_%=\n\t"
         "ldrb	w9, [%x[authTag]], #1\n\t"
         "subs	x10, x10, #1\n\t"
         "strb	w9, [%x[tag]], #1\n\t"
@@ -41368,6 +41377,7 @@ void AES_GCM_decrypt_final_AARCH64_EOR3(byte* tag, const byte* authTag,
     );
 }
 
+#endif /* HAVE_AES_DECRYPT || HAVE_AESGCM_DECRYPT */
 #endif /* !WOLFSSL_ARMASM_CRYPTO_SHA3 */
 #endif /* WOLFSSL_AESGCM_STREAM */
 #endif /* HAVE_AESGCM */
@@ -44930,7 +44940,7 @@ void AES_ECB_encrypt_NEON(const unsigned char* in, unsigned char* out,
         "ld1	{v24.16b, v25.16b, v26.16b, v27.16b}, [%[te]], #0x40\n\t"
         "ld1	{v28.16b, v29.16b, v30.16b, v31.16b}, [%[te]]\n\t"
         "cmp	%x[len], #0x40\n\t"
-        "b.lt	L_AES_ECB_encrypt_NEON_start_2_%=\n\t"
+        "bcc	L_AES_ECB_encrypt_NEON_start_2_%=\n\t"
         "\n"
     "L_AES_ECB_encrypt_NEON_loop_4_%=:\n\t"
         "mov	x8, %x[ks]\n\t"
@@ -45336,7 +45346,7 @@ void AES_ECB_encrypt_NEON(const unsigned char* in, unsigned char* out,
         "st1	{v0.16b, v1.16b, v2.16b, v3.16b}, [%x[out]], #0x40\n\t"
         "sub	%x[len], %x[len], #0x40\n\t"
         "cmp	%x[len], #0x40\n\t"
-        "b.ge	L_AES_ECB_encrypt_NEON_loop_4_%=\n\t"
+        "bcs	L_AES_ECB_encrypt_NEON_loop_4_%=\n\t"
         "\n"
     "L_AES_ECB_encrypt_NEON_start_2_%=:\n\t"
         "movi	v12.16b, #0x40\n\t"
@@ -45345,7 +45355,7 @@ void AES_ECB_encrypt_NEON(const unsigned char* in, unsigned char* out,
         "movi	v15.16b, #27\n\t"
         "cmp	%x[len], #16\n\t"
         "b.eq	L_AES_ECB_encrypt_NEON_start_1_%=\n\t"
-        "b.lt	L_AES_ECB_encrypt_NEON_data_done_%=\n\t"
+        "bcc	L_AES_ECB_encrypt_NEON_data_done_%=\n\t"
         "\n"
     "L_AES_ECB_encrypt_NEON_loop_2_%=:\n\t"
         "mov	x8, %x[ks]\n\t"
@@ -45843,7 +45853,7 @@ void AES_CTR_encrypt_NEON(const unsigned char* in, unsigned char* out,
         "mov	x10, v8.d[1]\n\t"
         "mov	x11, v8.d[0]\n\t"
         "cmp	%x[len], #0x40\n\t"
-        "b.lt	L_AES_CTR_encrypt_NEON_start_2_%=\n\t"
+        "bcc	L_AES_CTR_encrypt_NEON_start_2_%=\n\t"
         "\n"
     "L_AES_CTR_encrypt_NEON_loop_4_%=:\n\t"
         "mov	x9, %x[ks]\n\t"
@@ -46272,7 +46282,7 @@ void AES_CTR_encrypt_NEON(const unsigned char* in, unsigned char* out,
         "st1	{v0.16b, v1.16b, v2.16b, v3.16b}, [%x[out]], #0x40\n\t"
         "sub	%x[len], %x[len], #0x40\n\t"
         "cmp	%x[len], #0x40\n\t"
-        "b.ge	L_AES_CTR_encrypt_NEON_loop_4_%=\n\t"
+        "bcs	L_AES_CTR_encrypt_NEON_loop_4_%=\n\t"
         "mov	v2.d[1], x10\n\t"
         "mov	v2.d[0], x11\n\t"
         "rev64	v2.4s, v2.4s\n\t"
@@ -46284,7 +46294,7 @@ void AES_CTR_encrypt_NEON(const unsigned char* in, unsigned char* out,
         "movi	v15.16b, #27\n\t"
         "cmp	%x[len], #16\n\t"
         "b.eq	L_AES_CTR_encrypt_NEON_start_1_%=\n\t"
-        "b.lt	L_AES_CTR_encrypt_NEON_data_done_%=\n\t"
+        "bcc	L_AES_CTR_encrypt_NEON_data_done_%=\n\t"
         "\n"
     "L_AES_CTR_encrypt_NEON_loop_2_%=:\n\t"
         "mov	x9, %x[ks]\n\t"
@@ -46694,7 +46704,7 @@ void AES_ECB_decrypt_NEON(const unsigned char* in, unsigned char* out,
         "ld1	{v24.16b, v25.16b, v26.16b, v27.16b}, [%[td]], #0x40\n\t"
         "ld1	{v28.16b, v29.16b, v30.16b, v31.16b}, [%[td]]\n\t"
         "cmp	%x[len], #0x40\n\t"
-        "b.lt	L_AES_ECB_decrypt_NEON_start_2_%=\n\t"
+        "bcc	L_AES_ECB_decrypt_NEON_start_2_%=\n\t"
         "\n"
     "L_AES_ECB_decrypt_NEON_loop_4_%=:\n\t"
         "mov	x8, %x[ks]\n\t"
@@ -47247,12 +47257,12 @@ void AES_ECB_decrypt_NEON(const unsigned char* in, unsigned char* out,
         "st1	{v0.16b, v1.16b, v2.16b, v3.16b}, [%x[out]], #0x40\n\t"
         "sub	%x[len], %x[len], #0x40\n\t"
         "cmp	%x[len], #0x40\n\t"
-        "b.ge	L_AES_ECB_decrypt_NEON_loop_4_%=\n\t"
+        "bcs	L_AES_ECB_decrypt_NEON_loop_4_%=\n\t"
         "\n"
     "L_AES_ECB_decrypt_NEON_start_2_%=:\n\t"
         "cmp	%x[len], #16\n\t"
         "b.eq	L_AES_ECB_decrypt_NEON_start_1_%=\n\t"
-        "b.lt	L_AES_ECB_decrypt_NEON_data_done_%=\n\t"
+        "bcc	L_AES_ECB_decrypt_NEON_data_done_%=\n\t"
         "\n"
     "L_AES_ECB_decrypt_NEON_loop_2_%=:\n\t"
         "mov	x8, %x[ks]\n\t"
@@ -47733,7 +47743,7 @@ void AES_CBC_decrypt_NEON(const unsigned char* in, unsigned char* out,
         "ld1	{v3.2d}, [%x[iv]]\n\t"
         "add	x10, x29, #16\n\t"
         "cmp	%x[len], #0x40\n\t"
-        "b.lt	L_AES_CBC_decrypt_NEON_start_2_%=\n\t"
+        "bcc	L_AES_CBC_decrypt_NEON_start_2_%=\n\t"
         "\n"
     "L_AES_CBC_decrypt_NEON_loop_4_%=:\n\t"
         "mov	x9, %x[ks]\n\t"
@@ -48294,12 +48304,12 @@ void AES_CBC_decrypt_NEON(const unsigned char* in, unsigned char* out,
         "st1	{v4.16b, v5.16b, v6.16b, v7.16b}, [%x[out]], #0x40\n\t"
         "sub	%x[len], %x[len], #0x40\n\t"
         "cmp	%x[len], #0x40\n\t"
-        "b.ge	L_AES_CBC_decrypt_NEON_loop_4_%=\n\t"
+        "bcs	L_AES_CBC_decrypt_NEON_loop_4_%=\n\t"
         "\n"
     "L_AES_CBC_decrypt_NEON_start_2_%=:\n\t"
         "cmp	%x[len], #16\n\t"
         "b.eq	L_AES_CBC_decrypt_NEON_start_1_%=\n\t"
-        "b.lt	L_AES_CBC_decrypt_NEON_data_done_%=\n\t"
+        "bcc	L_AES_CBC_decrypt_NEON_data_done_%=\n\t"
         "\n"
     "L_AES_CBC_decrypt_NEON_loop_2_%=:\n\t"
         "mov	x9, %x[ks]\n\t"
@@ -48601,7 +48611,7 @@ void AES_CBC_decrypt_NEON(const unsigned char* in, unsigned char* out,
         "st1	{v4.16b, v5.16b}, [%x[out]], #32\n\t"
         "sub	%x[len], %x[len], #32\n\t"
         "cmp	%x[len], #32\n\t"
-        "b.ge	L_AES_CBC_decrypt_NEON_loop_2_%=\n\t"
+        "bcs	L_AES_CBC_decrypt_NEON_loop_2_%=\n\t"
         "cmp	%x[len], #0\n\t"
         "b.eq	L_AES_CBC_decrypt_NEON_data_done_%=\n\t"
         "\n"
@@ -49124,7 +49134,7 @@ void AES_GCM_encrypt_NEON(const unsigned char* in, unsigned char* out,
         "rev32	v2.16b, v2.16b\n\t"
         "mov	w6, v2.s[3]\n\t"
         "cmp	%x[len], #0x40\n\t"
-        "b.lt	L_AES_GCM_encrypt_NEON_start_2_%=\n\t"
+        "bcc	L_AES_GCM_encrypt_NEON_start_2_%=\n\t"
         "mov	x7, v2.d[0]\n\t"
         "mov	x8, v2.d[1]\n\t"
         "\n"
@@ -49542,7 +49552,7 @@ void AES_GCM_encrypt_NEON(const unsigned char* in, unsigned char* out,
         "st1	{v0.16b, v1.16b, v2.16b, v3.16b}, [%x[out]], #0x40\n\t"
         "sub	%x[len], %x[len], #0x40\n\t"
         "cmp	%x[len], #0x40\n\t"
-        "b.ge	L_AES_GCM_encrypt_NEON_loop_4_%=\n\t"
+        "bcs	L_AES_GCM_encrypt_NEON_loop_4_%=\n\t"
         "mov	v2.d[0], x7\n\t"
         "mov	v2.d[1], x8\n\t"
         "mov	v2.s[3], w6\n\t"
@@ -49554,7 +49564,7 @@ void AES_GCM_encrypt_NEON(const unsigned char* in, unsigned char* out,
         "movi	v15.16b, #27\n\t"
         "cmp	%x[len], #16\n\t"
         "b.eq	L_AES_GCM_encrypt_NEON_start_1_%=\n\t"
-        "b.lt	L_AES_GCM_encrypt_NEON_data_done_%=\n\t"
+        "bcc	L_AES_GCM_encrypt_NEON_data_done_%=\n\t"
         "\n"
     "L_AES_GCM_encrypt_NEON_loop_2_%=:\n\t"
         "mov	x12, %x[ks]\n\t"
@@ -50025,7 +50035,7 @@ void AES_XTS_encrypt_NEON(const byte* in, byte* out, word32 sz, const byte* i,
         "mov	x8, v2.d[0]\n\t"
         "mov	x9, v2.d[1]\n\t"
         "cmp	%w[sz], #0x40\n\t"
-        "b.lt	L_AES_XTS_encrypt_NEON_start_2_%=\n\t"
+        "bcc	L_AES_XTS_encrypt_NEON_start_2_%=\n\t"
         "\n"
     "L_AES_XTS_encrypt_NEON_loop_4_%=:\n\t"
         "mov	x22, %x[key]\n\t"
@@ -50466,7 +50476,7 @@ void AES_XTS_encrypt_NEON(const byte* in, byte* out, word32 sz, const byte* i,
         "eor	x8, x16, x14, lsl 1\n\t"
         "sub	%w[sz], %w[sz], #0x40\n\t"
         "cmp	%w[sz], #0x40\n\t"
-        "b.ge	L_AES_XTS_encrypt_NEON_loop_4_%=\n\t"
+        "bcs	L_AES_XTS_encrypt_NEON_loop_4_%=\n\t"
         "movi	v12.16b, #0x40\n\t"
         "movi	v13.16b, #0x80\n\t"
         "movi	v14.16b, #0xc0\n\t"
@@ -50474,7 +50484,7 @@ void AES_XTS_encrypt_NEON(const byte* in, byte* out, word32 sz, const byte* i,
         "\n"
     "L_AES_XTS_encrypt_NEON_start_2_%=:\n\t"
         "cmp	%w[sz], #32\n\t"
-        "b.lt	L_AES_XTS_encrypt_NEON_start_1_%=\n\t"
+        "bcc	L_AES_XTS_encrypt_NEON_start_1_%=\n\t"
         "mov	x22, %x[key]\n\t"
         "ld1	{v0.16b, v1.16b}, [%x[in]], #32\n\t"
         "ld1	{v4.16b}, [x22], #16\n\t"
@@ -50704,7 +50714,7 @@ void AES_XTS_encrypt_NEON(const byte* in, byte* out, word32 sz, const byte* i,
         "mov	v2.d[0], x8\n\t"
         "mov	v2.d[1], x9\n\t"
         "cmp	%w[sz], #16\n\t"
-        "b.lt	L_AES_XTS_encrypt_NEON_start_partial_%=\n\t"
+        "bcc	L_AES_XTS_encrypt_NEON_start_partial_%=\n\t"
         "mov	x22, %x[key]\n\t"
         "ld1	{v0.16b}, [%x[in]], #16\n\t"
         "ld1	{v4.2d}, [x22], #16\n\t"
@@ -51098,7 +51108,7 @@ void AES_XTS_decrypt_NEON(const byte* in, byte* out, word32 sz, const byte* i,
         "ld1	{v28.16b, v29.16b, v30.16b, v31.16b}, [%[td]]\n\t"
         "ld1	{v3.2d}, [%[invshuffle]]\n\t"
         "cmp	%w[sz], #0x40\n\t"
-        "b.lt	L_AES_XTS_decrypt_NEON_start_2_%=\n\t"
+        "bcc	L_AES_XTS_decrypt_NEON_start_2_%=\n\t"
         "\n"
     "L_AES_XTS_decrypt_NEON_loop_4_%=:\n\t"
         "mov	x25, %x[key]\n\t"
@@ -51686,7 +51696,7 @@ void AES_XTS_decrypt_NEON(const byte* in, byte* out, word32 sz, const byte* i,
         "eor	x8, x16, x14, lsl 1\n\t"
         "sub	%w[sz], %w[sz], #0x40\n\t"
         "cmp	%w[sz], #0x40\n\t"
-        "b.ge	L_AES_XTS_decrypt_NEON_loop_4_%=\n\t"
+        "bcs	L_AES_XTS_decrypt_NEON_loop_4_%=\n\t"
         "movi	v12.16b, #0x40\n\t"
         "movi	v13.16b, #0x80\n\t"
         "movi	v14.16b, #0xc0\n\t"
@@ -51694,7 +51704,7 @@ void AES_XTS_decrypt_NEON(const byte* in, byte* out, word32 sz, const byte* i,
         "\n"
     "L_AES_XTS_decrypt_NEON_start_2_%=:\n\t"
         "cmp	%w[sz], #32\n\t"
-        "b.lt	L_AES_XTS_decrypt_NEON_start_1_%=\n\t"
+        "bcc	L_AES_XTS_decrypt_NEON_start_1_%=\n\t"
         "mov	x25, %x[key]\n\t"
         "ld1	{v0.16b, v1.16b}, [%x[in]], #32\n\t"
         "ld1	{v4.16b}, [x25], #16\n\t"
@@ -52011,7 +52021,7 @@ void AES_XTS_decrypt_NEON(const byte* in, byte* out, word32 sz, const byte* i,
         "mov	v2.d[0], x8\n\t"
         "mov	v2.d[1], x9\n\t"
         "cmp	%w[sz], #16\n\t"
-        "b.lt	L_AES_XTS_decrypt_NEON_start_partial_%=\n\t"
+        "bcc	L_AES_XTS_decrypt_NEON_start_partial_%=\n\t"
         "mov	x25, %x[key]\n\t"
         "ld1	{v0.16b}, [%x[in]], #16\n\t"
         "ld1	{v4.2d}, [x25], #16\n\t"
@@ -52878,7 +52888,7 @@ void AES_GCMSIV_ctr_neon(const unsigned char* in, unsigned char* out,
         "ld1	{v28.16b, v29.16b, v30.16b, v31.16b}, [%[te]]\n\t"
         "ldr	w10, [%x[ctr]]\n\t"
         "cmp	%x[length], #0x40\n\t"
-        "b.lt	L_AES_GCMSIV_ctr_neon_start_2_%=\n\t"
+        "bcc	L_AES_GCMSIV_ctr_neon_start_2_%=\n\t"
         "\n"
     "L_AES_GCMSIV_ctr_neon_loop_4_%=:\n\t"
         "mov	x9, %x[KS]\n\t"
@@ -53300,7 +53310,7 @@ void AES_GCMSIV_ctr_neon(const unsigned char* in, unsigned char* out,
         "st1	{v0.16b, v1.16b, v2.16b, v3.16b}, [%x[out]], #0x40\n\t"
         "sub	%x[length], %x[length], #0x40\n\t"
         "cmp	%x[length], #0x40\n\t"
-        "b.ge	L_AES_GCMSIV_ctr_neon_loop_4_%=\n\t"
+        "bcs	L_AES_GCMSIV_ctr_neon_loop_4_%=\n\t"
         "\n"
     "L_AES_GCMSIV_ctr_neon_start_2_%=:\n\t"
         "movi	v12.16b, #0x40\n\t"
@@ -53309,7 +53319,7 @@ void AES_GCMSIV_ctr_neon(const unsigned char* in, unsigned char* out,
         "movi	v15.16b, #27\n\t"
         "cmp	%x[length], #16\n\t"
         "b.eq	L_AES_GCMSIV_ctr_neon_start_1_%=\n\t"
-        "b.lt	L_AES_GCMSIV_ctr_neon_data_done_%=\n\t"
+        "bcc	L_AES_GCMSIV_ctr_neon_data_done_%=\n\t"
         "\n"
     "L_AES_GCMSIV_ctr_neon_loop_2_%=:\n\t"
         "mov	x9, %x[KS]\n\t"
@@ -56069,6 +56079,7 @@ void AES_CBC_decrypt(const unsigned char* in, unsigned char* out,
         * HAVE_AES_ECB */
 #endif /* HAVE_AES_DECRYPT */
 #ifdef HAVE_AESGCM
+#if !defined(GCM_SMALL) && !defined(GCM_TABLE)
 XALIGNED(8) static const word32 L_GCM_gmult_len_r[] = {
     0x00000000, 0x1c200000, 0x38400000, 0x24600000,
     0x70800000, 0x6ca00000, 0x48c00000, 0x54e00000,
@@ -56494,6 +56505,367 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m,
     );
 }
 
+#endif /* !defined(GCM_SMALL) && !defined(GCM_TABLE) */
+#ifdef GCM_TABLE
+XALIGNED(4) static const word8 L_GCM_gmult_len_r[] = {
+    0x00, 0x00, 0x01, 0xc2, 0x03, 0x84, 0x02, 0x46,
+    0x07, 0x08, 0x06, 0xca, 0x04, 0x8c, 0x05, 0x4e,
+    0x0e, 0x10, 0x0f, 0xd2, 0x0d, 0x94, 0x0c, 0x56,
+    0x09, 0x18, 0x08, 0xda, 0x0a, 0x9c, 0x0b, 0x5e,
+    0x1c, 0x20, 0x1d, 0xe2, 0x1f, 0xa4, 0x1e, 0x66,
+    0x1b, 0x28, 0x1a, 0xea, 0x18, 0xac, 0x19, 0x6e,
+    0x12, 0x30, 0x13, 0xf2, 0x11, 0xb4, 0x10, 0x76,
+    0x15, 0x38, 0x14, 0xfa, 0x16, 0xbc, 0x17, 0x7e,
+    0x38, 0x40, 0x39, 0x82, 0x3b, 0xc4, 0x3a, 0x06,
+    0x3f, 0x48, 0x3e, 0x8a, 0x3c, 0xcc, 0x3d, 0x0e,
+    0x36, 0x50, 0x37, 0x92, 0x35, 0xd4, 0x34, 0x16,
+    0x31, 0x58, 0x30, 0x9a, 0x32, 0xdc, 0x33, 0x1e,
+    0x24, 0x60, 0x25, 0xa2, 0x27, 0xe4, 0x26, 0x26,
+    0x23, 0x68, 0x22, 0xaa, 0x20, 0xec, 0x21, 0x2e,
+    0x2a, 0x70, 0x2b, 0xb2, 0x29, 0xf4, 0x28, 0x36,
+    0x2d, 0x78, 0x2c, 0xba, 0x2e, 0xfc, 0x2f, 0x3e,
+    0x70, 0x80, 0x71, 0x42, 0x73, 0x04, 0x72, 0xc6,
+    0x77, 0x88, 0x76, 0x4a, 0x74, 0x0c, 0x75, 0xce,
+    0x7e, 0x90, 0x7f, 0x52, 0x7d, 0x14, 0x7c, 0xd6,
+    0x79, 0x98, 0x78, 0x5a, 0x7a, 0x1c, 0x7b, 0xde,
+    0x6c, 0xa0, 0x6d, 0x62, 0x6f, 0x24, 0x6e, 0xe6,
+    0x6b, 0xa8, 0x6a, 0x6a, 0x68, 0x2c, 0x69, 0xee,
+    0x62, 0xb0, 0x63, 0x72, 0x61, 0x34, 0x60, 0xf6,
+    0x65, 0xb8, 0x64, 0x7a, 0x66, 0x3c, 0x67, 0xfe,
+    0x48, 0xc0, 0x49, 0x02, 0x4b, 0x44, 0x4a, 0x86,
+    0x4f, 0xc8, 0x4e, 0x0a, 0x4c, 0x4c, 0x4d, 0x8e,
+    0x46, 0xd0, 0x47, 0x12, 0x45, 0x54, 0x44, 0x96,
+    0x41, 0xd8, 0x40, 0x1a, 0x42, 0x5c, 0x43, 0x9e,
+    0x54, 0xe0, 0x55, 0x22, 0x57, 0x64, 0x56, 0xa6,
+    0x53, 0xe8, 0x52, 0x2a, 0x50, 0x6c, 0x51, 0xae,
+    0x5a, 0xf0, 0x5b, 0x32, 0x59, 0x74, 0x58, 0xb6,
+    0x5d, 0xf8, 0x5c, 0x3a, 0x5e, 0x7c, 0x5f, 0xbe,
+    0xe1, 0x00, 0xe0, 0xc2, 0xe2, 0x84, 0xe3, 0x46,
+    0xe6, 0x08, 0xe7, 0xca, 0xe5, 0x8c, 0xe4, 0x4e,
+    0xef, 0x10, 0xee, 0xd2, 0xec, 0x94, 0xed, 0x56,
+    0xe8, 0x18, 0xe9, 0xda, 0xeb, 0x9c, 0xea, 0x5e,
+    0xfd, 0x20, 0xfc, 0xe2, 0xfe, 0xa4, 0xff, 0x66,
+    0xfa, 0x28, 0xfb, 0xea, 0xf9, 0xac, 0xf8, 0x6e,
+    0xf3, 0x30, 0xf2, 0xf2, 0xf0, 0xb4, 0xf1, 0x76,
+    0xf4, 0x38, 0xf5, 0xfa, 0xf7, 0xbc, 0xf6, 0x7e,
+    0xd9, 0x40, 0xd8, 0x82, 0xda, 0xc4, 0xdb, 0x06,
+    0xde, 0x48, 0xdf, 0x8a, 0xdd, 0xcc, 0xdc, 0x0e,
+    0xd7, 0x50, 0xd6, 0x92, 0xd4, 0xd4, 0xd5, 0x16,
+    0xd0, 0x58, 0xd1, 0x9a, 0xd3, 0xdc, 0xd2, 0x1e,
+    0xc5, 0x60, 0xc4, 0xa2, 0xc6, 0xe4, 0xc7, 0x26,
+    0xc2, 0x68, 0xc3, 0xaa, 0xc1, 0xec, 0xc0, 0x2e,
+    0xcb, 0x70, 0xca, 0xb2, 0xc8, 0xf4, 0xc9, 0x36,
+    0xcc, 0x78, 0xcd, 0xba, 0xcf, 0xfc, 0xce, 0x3e,
+    0x91, 0x80, 0x90, 0x42, 0x92, 0x04, 0x93, 0xc6,
+    0x96, 0x88, 0x97, 0x4a, 0x95, 0x0c, 0x94, 0xce,
+    0x9f, 0x90, 0x9e, 0x52, 0x9c, 0x14, 0x9d, 0xd6,
+    0x98, 0x98, 0x99, 0x5a, 0x9b, 0x1c, 0x9a, 0xde,
+    0x8d, 0xa0, 0x8c, 0x62, 0x8e, 0x24, 0x8f, 0xe6,
+    0x8a, 0xa8, 0x8b, 0x6a, 0x89, 0x2c, 0x88, 0xee,
+    0x83, 0xb0, 0x82, 0x72, 0x80, 0x34, 0x81, 0xf6,
+    0x84, 0xb8, 0x85, 0x7a, 0x87, 0x3c, 0x86, 0xfe,
+    0xa9, 0xc0, 0xa8, 0x02, 0xaa, 0x44, 0xab, 0x86,
+    0xae, 0xc8, 0xaf, 0x0a, 0xad, 0x4c, 0xac, 0x8e,
+    0xa7, 0xd0, 0xa6, 0x12, 0xa4, 0x54, 0xa5, 0x96,
+    0xa0, 0xd8, 0xa1, 0x1a, 0xa3, 0x5c, 0xa2, 0x9e,
+    0xb5, 0xe0, 0xb4, 0x22, 0xb6, 0x64, 0xb7, 0xa6,
+    0xb2, 0xe8, 0xb3, 0x2a, 0xb1, 0x6c, 0xb0, 0xae,
+    0xbb, 0xf0, 0xba, 0x32, 0xb8, 0x74, 0xb9, 0xb6,
+    0xbc, 0xf8, 0xbd, 0x3a, 0xbf, 0x7c, 0xbe, 0xbe,
+};
+
+void GCM_gmult_len(unsigned char* x, const unsigned char** m,
+    const unsigned char* data, unsigned long len);
+void GCM_gmult_len(unsigned char* x, const unsigned char** m,
+    const unsigned char* data, unsigned long len)
+{
+    const word8* r = L_GCM_gmult_len_r;
+    __asm__ __volatile__ (
+        "\n"
+    "L_GCM_gmult_len_start_block_%=:\n\t"
+        "ldp	x6, x7, [%x[x]]\n\t"
+        "ldp	x8, x9, [%x[data]]\n\t"
+        "eor	x6, x6, x8\n\t"
+        "eor	x7, x7, x9\n\t"
+        "mov	x4, #0\n\t"
+        "mov	x5, #0\n\t"
+        /* Byte 15 */
+        "ubfx	x12, x7, #56, #8\n\t"
+        "add	x11, %x[m], x12, lsl 4\n\t"
+        "ldp	x8, x9, [x11]\n\t"
+        "rev	x8, x8\n\t"
+        "rev	x9, x9\n\t"
+        "eor	x4, x4, x8\n\t"
+        "eor	x5, x5, x9\n\t"
+        "and	x13, x5, #0xff\n\t"
+        "lsr	x5, x5, #8\n\t"
+        "orr	x5, x5, x4, lsl 56\n\t"
+        "lsr	x4, x4, #8\n\t"
+        "add	x11, %[r], x13, lsl 1\n\t"
+        "ldrb	w8, [x11], #1\n\t"
+        "ldrb	w9, [x11]\n\t"
+        "orr	x4, x4, x8, lsl 56\n\t"
+        "eor	x4, x4, x9, lsl 48\n\t"
+        /* Byte 14 */
+        "ubfx	x12, x7, #48, #8\n\t"
+        "add	x11, %x[m], x12, lsl 4\n\t"
+        "ldp	x8, x9, [x11]\n\t"
+        "rev	x8, x8\n\t"
+        "rev	x9, x9\n\t"
+        "eor	x4, x4, x8\n\t"
+        "eor	x5, x5, x9\n\t"
+        "and	x13, x5, #0xff\n\t"
+        "lsr	x5, x5, #8\n\t"
+        "orr	x5, x5, x4, lsl 56\n\t"
+        "lsr	x4, x4, #8\n\t"
+        "add	x11, %[r], x13, lsl 1\n\t"
+        "ldrb	w8, [x11], #1\n\t"
+        "ldrb	w9, [x11]\n\t"
+        "orr	x4, x4, x8, lsl 56\n\t"
+        "eor	x4, x4, x9, lsl 48\n\t"
+        /* Byte 13 */
+        "ubfx	x12, x7, #40, #8\n\t"
+        "add	x11, %x[m], x12, lsl 4\n\t"
+        "ldp	x8, x9, [x11]\n\t"
+        "rev	x8, x8\n\t"
+        "rev	x9, x9\n\t"
+        "eor	x4, x4, x8\n\t"
+        "eor	x5, x5, x9\n\t"
+        "and	x13, x5, #0xff\n\t"
+        "lsr	x5, x5, #8\n\t"
+        "orr	x5, x5, x4, lsl 56\n\t"
+        "lsr	x4, x4, #8\n\t"
+        "add	x11, %[r], x13, lsl 1\n\t"
+        "ldrb	w8, [x11], #1\n\t"
+        "ldrb	w9, [x11]\n\t"
+        "orr	x4, x4, x8, lsl 56\n\t"
+        "eor	x4, x4, x9, lsl 48\n\t"
+        /* Byte 12 */
+        "ubfx	x12, x7, #32, #8\n\t"
+        "add	x11, %x[m], x12, lsl 4\n\t"
+        "ldp	x8, x9, [x11]\n\t"
+        "rev	x8, x8\n\t"
+        "rev	x9, x9\n\t"
+        "eor	x4, x4, x8\n\t"
+        "eor	x5, x5, x9\n\t"
+        "and	x13, x5, #0xff\n\t"
+        "lsr	x5, x5, #8\n\t"
+        "orr	x5, x5, x4, lsl 56\n\t"
+        "lsr	x4, x4, #8\n\t"
+        "add	x11, %[r], x13, lsl 1\n\t"
+        "ldrb	w8, [x11], #1\n\t"
+        "ldrb	w9, [x11]\n\t"
+        "orr	x4, x4, x8, lsl 56\n\t"
+        "eor	x4, x4, x9, lsl 48\n\t"
+        /* Byte 11 */
+        "ubfx	x12, x7, #24, #8\n\t"
+        "add	x11, %x[m], x12, lsl 4\n\t"
+        "ldp	x8, x9, [x11]\n\t"
+        "rev	x8, x8\n\t"
+        "rev	x9, x9\n\t"
+        "eor	x4, x4, x8\n\t"
+        "eor	x5, x5, x9\n\t"
+        "and	x13, x5, #0xff\n\t"
+        "lsr	x5, x5, #8\n\t"
+        "orr	x5, x5, x4, lsl 56\n\t"
+        "lsr	x4, x4, #8\n\t"
+        "add	x11, %[r], x13, lsl 1\n\t"
+        "ldrb	w8, [x11], #1\n\t"
+        "ldrb	w9, [x11]\n\t"
+        "orr	x4, x4, x8, lsl 56\n\t"
+        "eor	x4, x4, x9, lsl 48\n\t"
+        /* Byte 10 */
+        "ubfx	x12, x7, #16, #8\n\t"
+        "add	x11, %x[m], x12, lsl 4\n\t"
+        "ldp	x8, x9, [x11]\n\t"
+        "rev	x8, x8\n\t"
+        "rev	x9, x9\n\t"
+        "eor	x4, x4, x8\n\t"
+        "eor	x5, x5, x9\n\t"
+        "and	x13, x5, #0xff\n\t"
+        "lsr	x5, x5, #8\n\t"
+        "orr	x5, x5, x4, lsl 56\n\t"
+        "lsr	x4, x4, #8\n\t"
+        "add	x11, %[r], x13, lsl 1\n\t"
+        "ldrb	w8, [x11], #1\n\t"
+        "ldrb	w9, [x11]\n\t"
+        "orr	x4, x4, x8, lsl 56\n\t"
+        "eor	x4, x4, x9, lsl 48\n\t"
+        /* Byte 9 */
+        "ubfx	x12, x7, #8, #8\n\t"
+        "add	x11, %x[m], x12, lsl 4\n\t"
+        "ldp	x8, x9, [x11]\n\t"
+        "rev	x8, x8\n\t"
+        "rev	x9, x9\n\t"
+        "eor	x4, x4, x8\n\t"
+        "eor	x5, x5, x9\n\t"
+        "and	x13, x5, #0xff\n\t"
+        "lsr	x5, x5, #8\n\t"
+        "orr	x5, x5, x4, lsl 56\n\t"
+        "lsr	x4, x4, #8\n\t"
+        "add	x11, %[r], x13, lsl 1\n\t"
+        "ldrb	w8, [x11], #1\n\t"
+        "ldrb	w9, [x11]\n\t"
+        "orr	x4, x4, x8, lsl 56\n\t"
+        "eor	x4, x4, x9, lsl 48\n\t"
+        /* Byte 8 */
+        "ubfx	x12, x7, #0, #8\n\t"
+        "add	x11, %x[m], x12, lsl 4\n\t"
+        "ldp	x8, x9, [x11]\n\t"
+        "rev	x8, x8\n\t"
+        "rev	x9, x9\n\t"
+        "eor	x4, x4, x8\n\t"
+        "eor	x5, x5, x9\n\t"
+        "and	x13, x5, #0xff\n\t"
+        "lsr	x5, x5, #8\n\t"
+        "orr	x5, x5, x4, lsl 56\n\t"
+        "lsr	x4, x4, #8\n\t"
+        "add	x11, %[r], x13, lsl 1\n\t"
+        "ldrb	w8, [x11], #1\n\t"
+        "ldrb	w9, [x11]\n\t"
+        "orr	x4, x4, x8, lsl 56\n\t"
+        "eor	x4, x4, x9, lsl 48\n\t"
+        /* Byte 7 */
+        "ubfx	x12, x6, #56, #8\n\t"
+        "add	x11, %x[m], x12, lsl 4\n\t"
+        "ldp	x8, x9, [x11]\n\t"
+        "rev	x8, x8\n\t"
+        "rev	x9, x9\n\t"
+        "eor	x4, x4, x8\n\t"
+        "eor	x5, x5, x9\n\t"
+        "and	x13, x5, #0xff\n\t"
+        "lsr	x5, x5, #8\n\t"
+        "orr	x5, x5, x4, lsl 56\n\t"
+        "lsr	x4, x4, #8\n\t"
+        "add	x11, %[r], x13, lsl 1\n\t"
+        "ldrb	w8, [x11], #1\n\t"
+        "ldrb	w9, [x11]\n\t"
+        "orr	x4, x4, x8, lsl 56\n\t"
+        "eor	x4, x4, x9, lsl 48\n\t"
+        /* Byte 6 */
+        "ubfx	x12, x6, #48, #8\n\t"
+        "add	x11, %x[m], x12, lsl 4\n\t"
+        "ldp	x8, x9, [x11]\n\t"
+        "rev	x8, x8\n\t"
+        "rev	x9, x9\n\t"
+        "eor	x4, x4, x8\n\t"
+        "eor	x5, x5, x9\n\t"
+        "and	x13, x5, #0xff\n\t"
+        "lsr	x5, x5, #8\n\t"
+        "orr	x5, x5, x4, lsl 56\n\t"
+        "lsr	x4, x4, #8\n\t"
+        "add	x11, %[r], x13, lsl 1\n\t"
+        "ldrb	w8, [x11], #1\n\t"
+        "ldrb	w9, [x11]\n\t"
+        "orr	x4, x4, x8, lsl 56\n\t"
+        "eor	x4, x4, x9, lsl 48\n\t"
+        /* Byte 5 */
+        "ubfx	x12, x6, #40, #8\n\t"
+        "add	x11, %x[m], x12, lsl 4\n\t"
+        "ldp	x8, x9, [x11]\n\t"
+        "rev	x8, x8\n\t"
+        "rev	x9, x9\n\t"
+        "eor	x4, x4, x8\n\t"
+        "eor	x5, x5, x9\n\t"
+        "and	x13, x5, #0xff\n\t"
+        "lsr	x5, x5, #8\n\t"
+        "orr	x5, x5, x4, lsl 56\n\t"
+        "lsr	x4, x4, #8\n\t"
+        "add	x11, %[r], x13, lsl 1\n\t"
+        "ldrb	w8, [x11], #1\n\t"
+        "ldrb	w9, [x11]\n\t"
+        "orr	x4, x4, x8, lsl 56\n\t"
+        "eor	x4, x4, x9, lsl 48\n\t"
+        /* Byte 4 */
+        "ubfx	x12, x6, #32, #8\n\t"
+        "add	x11, %x[m], x12, lsl 4\n\t"
+        "ldp	x8, x9, [x11]\n\t"
+        "rev	x8, x8\n\t"
+        "rev	x9, x9\n\t"
+        "eor	x4, x4, x8\n\t"
+        "eor	x5, x5, x9\n\t"
+        "and	x13, x5, #0xff\n\t"
+        "lsr	x5, x5, #8\n\t"
+        "orr	x5, x5, x4, lsl 56\n\t"
+        "lsr	x4, x4, #8\n\t"
+        "add	x11, %[r], x13, lsl 1\n\t"
+        "ldrb	w8, [x11], #1\n\t"
+        "ldrb	w9, [x11]\n\t"
+        "orr	x4, x4, x8, lsl 56\n\t"
+        "eor	x4, x4, x9, lsl 48\n\t"
+        /* Byte 3 */
+        "ubfx	x12, x6, #24, #8\n\t"
+        "add	x11, %x[m], x12, lsl 4\n\t"
+        "ldp	x8, x9, [x11]\n\t"
+        "rev	x8, x8\n\t"
+        "rev	x9, x9\n\t"
+        "eor	x4, x4, x8\n\t"
+        "eor	x5, x5, x9\n\t"
+        "and	x13, x5, #0xff\n\t"
+        "lsr	x5, x5, #8\n\t"
+        "orr	x5, x5, x4, lsl 56\n\t"
+        "lsr	x4, x4, #8\n\t"
+        "add	x11, %[r], x13, lsl 1\n\t"
+        "ldrb	w8, [x11], #1\n\t"
+        "ldrb	w9, [x11]\n\t"
+        "orr	x4, x4, x8, lsl 56\n\t"
+        "eor	x4, x4, x9, lsl 48\n\t"
+        /* Byte 2 */
+        "ubfx	x12, x6, #16, #8\n\t"
+        "add	x11, %x[m], x12, lsl 4\n\t"
+        "ldp	x8, x9, [x11]\n\t"
+        "rev	x8, x8\n\t"
+        "rev	x9, x9\n\t"
+        "eor	x4, x4, x8\n\t"
+        "eor	x5, x5, x9\n\t"
+        "and	x13, x5, #0xff\n\t"
+        "lsr	x5, x5, #8\n\t"
+        "orr	x5, x5, x4, lsl 56\n\t"
+        "lsr	x4, x4, #8\n\t"
+        "add	x11, %[r], x13, lsl 1\n\t"
+        "ldrb	w8, [x11], #1\n\t"
+        "ldrb	w9, [x11]\n\t"
+        "orr	x4, x4, x8, lsl 56\n\t"
+        "eor	x4, x4, x9, lsl 48\n\t"
+        /* Byte 1 */
+        "ubfx	x12, x6, #8, #8\n\t"
+        "add	x11, %x[m], x12, lsl 4\n\t"
+        "ldp	x8, x9, [x11]\n\t"
+        "rev	x8, x8\n\t"
+        "rev	x9, x9\n\t"
+        "eor	x4, x4, x8\n\t"
+        "eor	x5, x5, x9\n\t"
+        "and	x13, x5, #0xff\n\t"
+        "lsr	x5, x5, #8\n\t"
+        "orr	x5, x5, x4, lsl 56\n\t"
+        "lsr	x4, x4, #8\n\t"
+        "add	x11, %[r], x13, lsl 1\n\t"
+        "ldrb	w8, [x11], #1\n\t"
+        "ldrb	w9, [x11]\n\t"
+        "orr	x4, x4, x8, lsl 56\n\t"
+        "eor	x4, x4, x9, lsl 48\n\t"
+        /* Byte 0 */
+        "ubfx	x12, x6, #0, #8\n\t"
+        "add	x11, %x[m], x12, lsl 4\n\t"
+        "ldp	x8, x9, [x11]\n\t"
+        "rev	x8, x8\n\t"
+        "rev	x9, x9\n\t"
+        "eor	x4, x4, x8\n\t"
+        "eor	x5, x5, x9\n\t"
+        "rev	x4, x4\n\t"
+        "rev	x5, x5\n\t"
+        "stp	x4, x5, [%x[x]]\n\t"
+        "subs	%x[len], %x[len], #16\n\t"
+        "add	%x[data], %x[data], #16\n\t"
+        "b.ne	L_GCM_gmult_len_start_block_%=\n\t"
+        : [x] "+r" (x), [data] "+r" (data), [len] "+r" (len)
+        : [m] "r" (m), [r] "r" (r)
+        : "memory", "cc", "x4", "x5", "x6", "x7", "x8", "x9", "x11", "x12",
+            "x13"
+    );
+}
+
+#endif /* GCM_TABLE */
 void AES_GCM_encrypt(const unsigned char* in, unsigned char* out,
     unsigned long len, const unsigned char* ks, int nr, unsigned char* ctr);
 void AES_GCM_encrypt(const unsigned char* in, unsigned char* out,
@@ -57433,7 +57805,7 @@ void AES_XTS_encrypt(const byte* in, byte* out, word32 sz, const byte* i,
         "add	%x[in], %x[in], #16\n\t"
         "add	%x[out], %x[out], #16\n\t"
         "cmp	%w[sz], #16\n\t"
-        "b.ge	L_AES_XTS_encrypt_loop_block_%=\n\t"
+        "bcs	L_AES_XTS_encrypt_loop_block_%=\n\t"
         "cbz	%w[sz], L_AES_XTS_encrypt_done_data_%=\n\t"
         "mov	x26, %x[key]\n\t"
         "sub	%x[out], %x[out], #16\n\t"
@@ -58068,7 +58440,7 @@ void AES_XTS_decrypt(const byte* in, byte* out, word32 sz, const byte* i,
         "rev32	x23, x23\n\t"
         "rev32	x24, x24\n\t"
         "cmp	%w[sz], #16\n\t"
-        "b.lt	L_AES_XTS_decrypt_start_partail_%=\n\t"
+        "bcc	L_AES_XTS_decrypt_start_partail_%=\n\t"
         "\n"
     "L_AES_XTS_decrypt_loop_block_%=:\n\t"
         "mov	x28, %x[key]\n\t"
@@ -58350,7 +58722,7 @@ void AES_XTS_decrypt(const byte* in, byte* out, word32 sz, const byte* i,
         "add	%x[in], %x[in], #16\n\t"
         "add	%x[out], %x[out], #16\n\t"
         "cmp	%w[sz], #16\n\t"
-        "b.ge	L_AES_XTS_decrypt_loop_block_%=\n\t"
+        "bcs	L_AES_XTS_decrypt_loop_block_%=\n\t"
         "cbz	%w[sz], L_AES_XTS_decrypt_done_data_%=\n\t"
         "\n"
     "L_AES_XTS_decrypt_start_partail_%=:\n\t"

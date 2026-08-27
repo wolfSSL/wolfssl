@@ -63,6 +63,7 @@ L_SHA3_transform_base_r:
 #if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	BlockSha3_base
+WC_ASM_ATT_HIDDEN(BlockSha3_base)
 .type	BlockSha3_base,@function
 .align	16
 BlockSha3_base:
@@ -74,6 +75,7 @@ BlockSha3_base:
 	 * points at the code (.L.BlockSha3_base) and the TOC base. */
 .section	.opd,"aw",@progbits
 .globl	BlockSha3_base
+WC_ASM_ATT_HIDDEN(BlockSha3_base)
 .type	BlockSha3_base,@function
 .align	3
 BlockSha3_base:
@@ -86,6 +88,7 @@ BlockSha3_base:
 #else
 .section	__TEXT,__text
 .globl	_BlockSha3_base
+WC_ASM_ATT_HIDDEN(_BlockSha3_base)
 .p2align	4
 _BlockSha3_base:
 #endif /* __APPLE__ */
@@ -386,6 +389,7 @@ L_SHA3_transform_power8_r:
 #if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	BlockSha3_power8
+WC_ASM_ATT_HIDDEN(BlockSha3_power8)
 .type	BlockSha3_power8,@function
 .align	16
 BlockSha3_power8:
@@ -397,6 +401,7 @@ BlockSha3_power8:
 	 * points at the code (.L.BlockSha3_power8) and the TOC base. */
 .section	.opd,"aw",@progbits
 .globl	BlockSha3_power8
+WC_ASM_ATT_HIDDEN(BlockSha3_power8)
 .type	BlockSha3_power8,@function
 .align	3
 BlockSha3_power8:
@@ -409,6 +414,7 @@ BlockSha3_power8:
 #else
 .section	__TEXT,__text
 .globl	_BlockSha3_power8
+WC_ASM_ATT_HIDDEN(_BlockSha3_power8)
 .p2align	4
 _BlockSha3_power8:
 #endif /* __APPLE__ */
@@ -832,6 +838,7 @@ L_SHA3_blocksx2_power8_r:
 #if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	sha3_blocksx2_power8
+WC_ASM_ATT_HIDDEN(sha3_blocksx2_power8)
 .type	sha3_blocksx2_power8,@function
 .align	16
 sha3_blocksx2_power8:
@@ -843,6 +850,7 @@ sha3_blocksx2_power8:
 	 * points at the code (.L.sha3_blocksx2_power8) and the TOC base. */
 .section	.opd,"aw",@progbits
 .globl	sha3_blocksx2_power8
+WC_ASM_ATT_HIDDEN(sha3_blocksx2_power8)
 .type	sha3_blocksx2_power8,@function
 .align	3
 sha3_blocksx2_power8:
@@ -855,6 +863,7 @@ sha3_blocksx2_power8:
 #else
 .section	__TEXT,__text
 .globl	_sha3_blocksx2_power8
+WC_ASM_ATT_HIDDEN(_sha3_blocksx2_power8)
 .p2align	4
 _sha3_blocksx2_power8:
 #endif /* __APPLE__ */
@@ -1280,6 +1289,7 @@ L_SHA3_blocksx3_power8_r:
 #if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	sha3_blocksx3_power8
+WC_ASM_ATT_HIDDEN(sha3_blocksx3_power8)
 .type	sha3_blocksx3_power8,@function
 .align	16
 sha3_blocksx3_power8:
@@ -1291,6 +1301,7 @@ sha3_blocksx3_power8:
 	 * points at the code (.L.sha3_blocksx3_power8) and the TOC base. */
 .section	.opd,"aw",@progbits
 .globl	sha3_blocksx3_power8
+WC_ASM_ATT_HIDDEN(sha3_blocksx3_power8)
 .type	sha3_blocksx3_power8,@function
 .align	3
 sha3_blocksx3_power8:
@@ -1303,6 +1314,7 @@ sha3_blocksx3_power8:
 #else
 .section	__TEXT,__text
 .globl	_sha3_blocksx3_power8
+WC_ASM_ATT_HIDDEN(_sha3_blocksx3_power8)
 .p2align	4
 _sha3_blocksx3_power8:
 #endif /* __APPLE__ */

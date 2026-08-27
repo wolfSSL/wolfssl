@@ -635,7 +635,7 @@ out:
 static inline int km_rsa_ctx_init_rng(struct km_rsa_ctx * ctx) {
     switch (ctx->rng.status) {
     case WC_DRBG_OK:
-#ifdef WC_RNG_BANK_SUPPORT
+#ifdef WC_HAVE_RNG_BANKREF
     case WC_DRBG_BANKREF:
 #endif
         return 0;

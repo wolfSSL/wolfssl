@@ -1,0 +1,178 @@
+name: "CHAR_BIT != 8 (wide byte) guards"
+
+# Guards for the CHAR_BIT != 8 (WOLFSSL_WIDE_BYTE) support added for the TI
+# C2000 C28x, where a char is a 16-bit cell.  Three independent jobs:
+#
+#   ti_c2000_compile     cl2000 compile-only over the C28x wolfCrypt subset.
+#                        Needs the TI CGT, so it self-skips when that is not
+#                        configured (see the job's env block).
+#   sha3_split64_host    x86-64 build + wolfCrypt KAT run with WC_SHA3_SPLIT64
+#                        forced.  Always runs.
+#   wide_byte_be_compile x86-64 syntax-only check of WOLFSSL_WIDE_BYTE combined
+#                        with BIG_ENDIAN_ORDER.  Always runs.
+#
+# Only the first job involves TI tooling or the C28x at all; the other two are
+# plain host jobs covering code paths this port introduced.  On-target
+# run-tests live on a hardware-in-the-loop runner (there is no public C28x
+# simulator).
+
+# START OF COMMON SECTION
+on:
+  # Only build when something that can affect the C28x compile changes, so the
+  # job (and the CGT it pulls) does not burn runner minutes on unrelated PRs.
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+    paths:
+      - 'wolfcrypt/src/**'
+      - 'wolfssl/wolfcrypt/**'
+      - 'IDE/C2000/**'
+      - '.github/workflows/ti-c2000-compile.yml'
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ '**' ]
+    paths:
+      - 'wolfcrypt/src/**'
+      - 'wolfssl/wolfcrypt/**'
+      - 'IDE/C2000/**'
+      - '.github/workflows/ti-c2000-compile.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  # WHAT: compiles - does not link - the wolfCrypt subset carrying the
+  #       CHAR_BIT != 8 gated fixes, using the TI cl2000 code generation tools.
+  #       Catches compile regressions in the octet/SP/ML-DSA gated paths.
+  # NOT:  no run-tests, no C2000Ware, no hardware.
+  ti_c2000_compile:
+    name: cl2000 compile-only
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    env:
+      # TI C2000 code generation tools (cl2000).  TI now gates the CGT download
+      # behind a login (login.ti.com), so there is no stable public direct URL.
+      # Mirror the installer - ti_cgt_c2000_<ver>_linux-x64_installer.bin - to a
+      # location CI can fetch (a wolfSSL release asset or internal server) and
+      # set the repo/org variable TI_C2000_CGT_URL to it (optionally
+      # TI_C2000_CGT_SHA256 to pin its hash).  When TI_C2000_CGT_URL is unset the
+      # compile-only guard is skipped and the job succeeds with a notice, so the
+      # gate never blocks a PR on this external dependency.
+      CGT_VER: "22.6.2.LTS"
+      CGT_URL: "${{ vars.TI_C2000_CGT_URL }}"
+      CGT_SHA256: "${{ vars.TI_C2000_CGT_SHA256 }}"
+      CGT_DIR: "${{ github.workspace }}/ti-cgt-c2000"
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout wolfSSL
+
+      - name: Check CGT source is configured
+        id: gate
+        run: |
+          if [ -z "$CGT_URL" ]; then
+            echo "::notice::TI_C2000_CGT_URL repo variable is not set - skipping the C2000 cl2000 compile-only guard.  TI gates the CGT download behind a login; mirror the installer and set TI_C2000_CGT_URL (and optionally TI_C2000_CGT_SHA256) to enable this job."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Cache TI C2000 CGT
+        if: steps.gate.outputs.skip != 'true'
+        id: cgt-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CGT_DIR }}
+          key: ti-cgt-c2000-${{ env.CGT_VER }}
+
+      - name: Download + install TI C2000 CGT
+        if: steps.gate.outputs.skip != 'true' && steps.cgt-cache.outputs.cache-hit != 'true'
+        run: |
+          set -e
+          curl -fSL "$CGT_URL" -o /tmp/cgt.bin
+          # A gated/expired link answers with an HTML login or 404 page (often
+          # HTTP 200), which would be saved as a bogus "installer"; reject it.
+          if head -c 512 /tmp/cgt.bin | grep -qiE '<!doctype html|<html'; then
+            echo "::error::TI_C2000_CGT_URL returned an HTML page, not the CGT installer (the link likely needs a login or has moved).  Point it at a direct mirror of ti_cgt_c2000_${CGT_VER}_linux-x64_installer.bin."
+            exit 1
+          fi
+          if [ -n "$CGT_SHA256" ]; then
+            echo "$CGT_SHA256  /tmp/cgt.bin" | sha256sum -c -
+          else
+            echo "::warning::TI_C2000_CGT_SHA256 is unset - the installer is not integrity-checked.  Pin it with the hash below."
+            sha256sum /tmp/cgt.bin
+          fi
+          chmod +x /tmp/cgt.bin
+          /tmp/cgt.bin --mode unattended --prefix "$CGT_DIR"
+
+      - name: Locate cl2000
+        if: steps.gate.outputs.skip != 'true'
+        id: find-cl
+        run: |
+          CL=$(find "$CGT_DIR" -type f -name cl2000 | head -1)
+          test -n "$CL" || { echo "cl2000 not found under $CGT_DIR"; exit 1; }
+          echo "cgt_root=$(dirname "$(dirname "$CL")")" >> "$GITHUB_OUTPUT"
+
+      - name: Compile-only guard
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          CGT_ROOT="${{ steps.find-cl.outputs.cgt_root }}" \
+            IDE/C2000/compile.sh
+
+  # WHAT: builds x86-64 with WC_SHA3_SPLIT64 forced and RUNS the wolfCrypt KATs
+  #       (SHA-3/SHAKE plus the SHAKE-heavy ML-DSA/ML-KEM) that exercise it.
+  #       This one is a real correctness test, not a compile guard.
+  # NOT:  nothing TI-specific here, and no hardware or TI CGT needed - so
+  #       unlike the job above, this always runs.
+  # WHY:  the WC_SHA3_SPLIT64 Keccak permutation was added for CHAR_BIT != 8
+  #       targets, but it is pure C and therefore testable on any host.
+  #       Without this it would only ever execute on hardware CI cannot reach.
+  sha3_split64_host:
+    name: SHA-3 split-64 host test
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout wolfSSL
+
+      - name: Build + run crypto KATs with WC_SHA3_SPLIT64 forced
+        run: |
+          ./autogen.sh
+          ./configure --enable-dilithium --enable-mlkem --enable-experimental \
+              --enable-shake128 --enable-shake256 CPPFLAGS="-DWC_SHA3_SPLIT64"
+          make
+          ./wolfcrypt/test/testwolfcrypt
+
+  # WHAT: gcc -fsyntax-only -Werror over the octet paths with both
+  #       WOLFSSL_WIDE_BYTE and BIG_ENDIAN_ORDER defined.  A pure compile
+  #       smoke test: it only catches "that arm does not compile".
+  # NOT:  not a correctness test.  Nothing is linked and nothing is run, and
+  #       CHAR_BIT stays 8 on an x86-64 runner, so the octet helpers here
+  #       degenerate to the 8-bit identity.  No hardware or TI CGT needed, so
+  #       like the job above this always runs.
+  # WHY:  WOLFSSL_WIDE_BYTE is derived from CHAR_BIT != 8 alone (types.h) with
+  #       no endianness condition, so wide-byte + big-endian is a valid config
+  #       even though the C28x itself is little-endian.  Those arms are
+  #       otherwise unreachable in CI, which is how a WIDE_BYTE arm
+  #       referencing a LITTLE_ENDIAN_ORDER-only local once went unnoticed.
+  wide_byte_be_compile:
+    name: WIDE_BYTE + big-endian compile guard
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout wolfSSL
+
+      - name: Syntax-check the octet paths with WIDE_BYTE + BIG_ENDIAN_ORDER
+        run: |
+          set -e
+          for f in sha sha256 sha512 sha3 misc aes chacha random; do
+            echo "== wolfcrypt/src/$f.c =="
+            gcc -fsyntax-only -Werror -I. \
+                -DWOLFSSL_WIDE_BYTE -DBIG_ENDIAN_ORDER \
+                -Wno-error=cpp \
+                "wolfcrypt/src/$f.c"
+          done

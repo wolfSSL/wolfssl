@@ -259,11 +259,21 @@ int wc_AesCbcEncryptWithKey(byte* out, const byte* in, word32 inSz,
 /*!
     \ingroup Crypto
     \brief This function decrypts an encrypted key buffer using the
-    provided password. It supports various encryption algorithms
-    including DES, 3DES, and AES. The encryption information is
+    provided password. It supports encryption algorithms
+    DES, 3DES, and AES. The encryption information is
     provided in the EncryptedInfo structure.
 
-    \return Length of decrypted key on success
+    \return 0 on success
+    \return BAD_FUNC_ARG if der is NULL
+    \return BAD_FUNC_ARG if password is NULL
+    \return BAD_FUNC_ARG if info is NULL
+    \return BAD_FUNC_ARG if info->keySz is 0
+    \return BAD_FUNC_ARG if info->keySz > WC_MAX_SYM_KEY_SIZE
+    \return ALGO_ID_E if info->cipherType is not one of the cipher types
+    this function handles
+    \return BUFFER_E if IV buffer is too small
+    \return NOT_COMPILED_IN if info->cipherType is a cipher type this
+    function handles, but support for it was disabled in this build
     \return Negative value on error
 
     \param info pointer to EncryptedInfo structure containing encryption
@@ -277,13 +287,24 @@ int wc_AesCbcEncryptWithKey(byte* out, const byte* in, word32 inSz,
     _Example_
     \code
     EncryptedInfo info;
-    byte encryptedKey[]; // encrypted key data
+    byte encryptedKey[32]; // encrypted key data, decrypted in place
     byte password[] = "mypassword";
+
+    XMEMSET(&info, 0, sizeof(info));
+    info.cipherType = WC_CIPHER_AES_CBC;
+    info.keySz = 16;       // size of the key derived from the password
+
+    // info.iv holds the IV as hex characters, the way it appears in a PEM
+    // DEK-Info header.  It is Base16-decoded in place, and must decode to
+    // at least PKCS5_SALT_SZ bytes.  The decoded bytes are used both as the
+    // key derivation salt and as the cipher IV.
+    XMEMCPY(info.iv, "0123456789ABCDEF0123456789ABCDEF", 32);
+    info.ivSz = 32;        // length of the hex string, not the decoded IV
 
     int ret = wc_BufferKeyDecrypt(&info, encryptedKey,
                                   sizeof(encryptedKey), password,
                                   sizeof(password)-1, WC_SHA256);
-    if (ret < 0) {
+    if (ret != 0) {
         // decryption error
     }
     \endcode
@@ -297,11 +318,21 @@ int wc_BufferKeyDecrypt(struct EncryptedInfo* info, byte* der,
 /*!
     \ingroup Crypto
     \brief This function encrypts a key buffer using the provided
-    password. It supports various encryption algorithms including DES,
+    password. It supports encryption algorithms DES,
     3DES, and AES. The encryption information is provided in the
     EncryptedInfo structure.
 
-    \return Length of encrypted key on success
+    \return 0 on success
+    \return BAD_FUNC_ARG if der is NULL
+    \return BAD_FUNC_ARG if password is NULL
+    \return BAD_FUNC_ARG if info is NULL
+    \return BAD_FUNC_ARG if info->keySz is 0
+    \return BAD_FUNC_ARG if info->keySz > WC_MAX_SYM_KEY_SIZE
+    \return BAD_FUNC_ARG if info->ivSz < PKCS5_SALT_SZ
+    \return ALGO_ID_E if info->cipherType is not one of the cipher types
+    this function handles
+    \return NOT_COMPILED_IN if info->cipherType is a cipher type this
+    function handles, but support for it was disabled in this build
     \return Negative value on error
 
     \param info pointer to EncryptedInfo structure containing encryption
@@ -315,15 +346,28 @@ int wc_BufferKeyDecrypt(struct EncryptedInfo* info, byte* der,
     _Example_
     \code
     EncryptedInfo info;
-    byte key[]; // key data to encrypt
+    byte key[32]; // key data to encrypt, encrypted in place
     byte password[] = "mypassword";
 
-    info.algo = AES256CBCb;
+    XMEMSET(&info, 0, sizeof(info));
+    info.cipherType = WC_CIPHER_AES_CBC;
+    info.keySz = 16;   // size of the key derived from the password
+    info.ivSz  = 16;   // must be at least PKCS5_SALT_SZ
+
+    // Unlike wc_BufferKeyDecrypt, info.iv holds raw bytes here.  Fill it
+    // with info.ivSz random bytes; the first PKCS5_SALT_SZ of them are used
+    // as the key derivation salt, and the buffer is also used as the
+    // cipher IV.
+    WC_RNG rng;
+    wc_InitRng(&rng);
+    wc_RNG_GenerateBlock(&rng, info.iv, info.ivSz);
+
     int ret = wc_BufferKeyEncrypt(&info, key, sizeof(key), password,
                                   sizeof(password)-1, WC_SHA256);
-    if (ret < 0) {
+    if (ret != 0) {
         // encryption error
     }
+    wc_FreeRng(&rng);
     \endcode
 
     \sa wc_BufferKeyDecrypt

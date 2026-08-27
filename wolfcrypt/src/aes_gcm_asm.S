@@ -71,12 +71,14 @@ L_GCM_generate_m0_aesni_mod2_128:
 #ifndef __APPLE__
 .text
 .globl	GCM_generate_m0_aesni
+WC_ASM_ATT_HIDDEN(GCM_generate_m0_aesni)
 .type	GCM_generate_m0_aesni,@function
 .align	16
 GCM_generate_m0_aesni:
 #else
 .section	__TEXT,__text
 .globl	_GCM_generate_m0_aesni
+WC_ASM_ATT_HIDDEN(_GCM_generate_m0_aesni)
 .p2align	4
 _GCM_generate_m0_aesni:
 #endif /* __APPLE__ */
@@ -445,12 +447,14 @@ L_aes_gcm_mod2_128:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_encrypt_aesni
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_aesni)
 .type	AES_GCM_encrypt_aesni,@function
 .align	16
 AES_GCM_encrypt_aesni:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_encrypt_aesni
+WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt_aesni)
 .p2align	4
 _AES_GCM_encrypt_aesni:
 #endif /* __APPLE__ */
@@ -565,7 +569,7 @@ L_AES_GCM_encrypt_aesni_calc_iv_1_aesenc_avx_last:
         movq	$0x00, %rcx
         je	L_AES_GCM_encrypt_aesni_calc_iv_done
         cmpl	$16, %edx
-        jl	L_AES_GCM_encrypt_aesni_calc_iv_lt16
+        jb	L_AES_GCM_encrypt_aesni_calc_iv_lt16
         andl	$0xfffffff0, %edx
 L_AES_GCM_encrypt_aesni_calc_iv_16_loop:
         movdqu	(%rax,%rcx,1), %xmm8
@@ -627,7 +631,7 @@ L_AES_GCM_encrypt_aesni_calc_iv_16_loop:
         pxor	%xmm2, %xmm4
         addl	$16, %ecx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_encrypt_aesni_calc_iv_16_loop
+        jb	L_AES_GCM_encrypt_aesni_calc_iv_16_loop
         movl	%ebx, %edx
         cmpl	%edx, %ecx
         je	L_AES_GCM_encrypt_aesni_calc_iv_done
@@ -642,7 +646,7 @@ L_AES_GCM_encrypt_aesni_calc_iv_loop:
         incl	%ecx
         incl	%ebx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_encrypt_aesni_calc_iv_loop
+        jb	L_AES_GCM_encrypt_aesni_calc_iv_loop
         movdqu	(%rsp), %xmm8
         addq	$16, %rsp
         pshufb	L_aes_gcm_bswap_mask(%rip), %xmm8
@@ -795,7 +799,7 @@ L_AES_GCM_encrypt_aesni_iv_done:
         je	L_AES_GCM_encrypt_aesni_calc_aad_done
         xorl	%ecx, %ecx
         cmpl	$16, %edx
-        jl	L_AES_GCM_encrypt_aesni_calc_aad_lt16
+        jb	L_AES_GCM_encrypt_aesni_calc_aad_lt16
         andl	$0xfffffff0, %edx
 L_AES_GCM_encrypt_aesni_calc_aad_16_loop:
         movdqu	(%r12,%rcx,1), %xmm8
@@ -857,7 +861,7 @@ L_AES_GCM_encrypt_aesni_calc_aad_16_loop:
         pxor	%xmm2, %xmm6
         addl	$16, %ecx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_encrypt_aesni_calc_aad_16_loop
+        jb	L_AES_GCM_encrypt_aesni_calc_aad_16_loop
         movl	%r11d, %edx
         cmpl	%edx, %ecx
         je	L_AES_GCM_encrypt_aesni_calc_aad_done
@@ -872,7 +876,7 @@ L_AES_GCM_encrypt_aesni_calc_aad_loop:
         incl	%ecx
         incl	%ebx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_encrypt_aesni_calc_aad_loop
+        jb	L_AES_GCM_encrypt_aesni_calc_aad_loop
         movdqu	(%rsp), %xmm8
         addq	$16, %rsp
         pshufb	L_aes_gcm_bswap_mask(%rip), %xmm8
@@ -949,7 +953,7 @@ L_AES_GCM_encrypt_aesni_calc_aad_done:
         xorq	%rbx, %rbx
         cmpl	$0x80, %r9d
         movl	%r9d, %r13d
-        jl	L_AES_GCM_encrypt_aesni_done_128
+        jb	L_AES_GCM_encrypt_aesni_done_128
         andl	$0xffffff80, %r13d
         movdqa	%xmm6, %xmm2
         # H ^ 1
@@ -1442,7 +1446,7 @@ L_AES_GCM_encrypt_aesni_enc_done:
         movdqu	%xmm15, 112(%rsi)
         cmpl	$0x80, %r13d
         movl	$0x80, %ebx
-        jle	L_AES_GCM_encrypt_aesni_end_128
+        jbe	L_AES_GCM_encrypt_aesni_end_128
         # More 128 bytes of input
 L_AES_GCM_encrypt_aesni_ghash_128:
         leaq	(%rdi,%rbx,1), %rcx
@@ -1786,7 +1790,7 @@ L_AES_GCM_encrypt_aesni_aesenc_128_ghash_avx_done:
         movdqu	%xmm15, 112(%rdx)
         addl	$0x80, %ebx
         cmpl	%r13d, %ebx
-        jl	L_AES_GCM_encrypt_aesni_ghash_128
+        jb	L_AES_GCM_encrypt_aesni_ghash_128
 L_AES_GCM_encrypt_aesni_end_128:
         movdqa	L_aes_gcm_bswap_mask(%rip), %xmm4
         pshufb	%xmm4, %xmm8
@@ -1977,11 +1981,11 @@ L_AES_GCM_encrypt_aesni_end_128:
 L_AES_GCM_encrypt_aesni_done_128:
         movl	%r9d, %edx
         cmpl	%edx, %ebx
-        jge	L_AES_GCM_encrypt_aesni_done_enc
+        jae	L_AES_GCM_encrypt_aesni_done_enc
         movl	%r9d, %r13d
         andl	$0xfffffff0, %r13d
         cmpl	%r13d, %ebx
-        jge	L_AES_GCM_encrypt_aesni_last_block_done
+        jae	L_AES_GCM_encrypt_aesni_last_block_done
         leaq	(%rdi,%rbx,1), %rcx
         leaq	(%rsi,%rbx,1), %rdx
         movdqu	128(%rsp), %xmm8
@@ -2019,7 +2023,7 @@ L_AES_GCM_encrypt_aesni_aesenc_block_aesenc_avx_last:
         pxor	%xmm8, %xmm6
         addl	$16, %ebx
         cmpl	%r13d, %ebx
-        jge	L_AES_GCM_encrypt_aesni_last_block_ghash
+        jae	L_AES_GCM_encrypt_aesni_last_block_ghash
 L_AES_GCM_encrypt_aesni_last_block_start:
         leaq	(%rdi,%rbx,1), %rcx
         leaq	(%rsi,%rbx,1), %rdx
@@ -2083,7 +2087,7 @@ L_AES_GCM_encrypt_aesni_aesenc_gfmul_last:
         pxor	%xmm8, %xmm6
         addl	$16, %ebx
         cmpl	%r13d, %ebx
-        jl	L_AES_GCM_encrypt_aesni_last_block_start
+        jb	L_AES_GCM_encrypt_aesni_last_block_start
 L_AES_GCM_encrypt_aesni_last_block_ghash:
         pshufd	$0x4e, %xmm5, %xmm9
         pshufd	$0x4e, %xmm6, %xmm10
@@ -2166,7 +2170,7 @@ L_AES_GCM_encrypt_aesni_aesenc_last15_enc_avx_loop:
         incl	%ebx
         incl	%ecx
         cmpl	%edx, %ebx
-        jl	L_AES_GCM_encrypt_aesni_aesenc_last15_enc_avx_loop
+        jb	L_AES_GCM_encrypt_aesni_aesenc_last15_enc_avx_loop
         xorq	%r13, %r13
         cmpl	$16, %ecx
         je	L_AES_GCM_encrypt_aesni_aesenc_last15_enc_avx_finish_enc
@@ -2174,7 +2178,7 @@ L_AES_GCM_encrypt_aesni_aesenc_last15_enc_avx_byte_loop:
         movb	%r13b, (%rsp,%rcx,1)
         incl	%ecx
         cmpl	$16, %ecx
-        jl	L_AES_GCM_encrypt_aesni_aesenc_last15_enc_avx_byte_loop
+        jb	L_AES_GCM_encrypt_aesni_aesenc_last15_enc_avx_byte_loop
 L_AES_GCM_encrypt_aesni_aesenc_last15_enc_avx_finish_enc:
         movdqu	(%rsp), %xmm4
         addq	$16, %rsp
@@ -2299,12 +2303,14 @@ L_AES_GCM_encrypt_aesni_store_tag_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_decrypt_aesni
+WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_aesni)
 .type	AES_GCM_decrypt_aesni,@function
 .align	16
 AES_GCM_decrypt_aesni:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_decrypt_aesni
+WC_ASM_ATT_HIDDEN(_AES_GCM_decrypt_aesni)
 .p2align	4
 _AES_GCM_decrypt_aesni:
 #endif /* __APPLE__ */
@@ -2421,7 +2427,7 @@ L_AES_GCM_decrypt_aesni_calc_iv_1_aesenc_avx_last:
         movq	$0x00, %rcx
         je	L_AES_GCM_decrypt_aesni_calc_iv_done
         cmpl	$16, %edx
-        jl	L_AES_GCM_decrypt_aesni_calc_iv_lt16
+        jb	L_AES_GCM_decrypt_aesni_calc_iv_lt16
         andl	$0xfffffff0, %edx
 L_AES_GCM_decrypt_aesni_calc_iv_16_loop:
         movdqu	(%rax,%rcx,1), %xmm8
@@ -2483,7 +2489,7 @@ L_AES_GCM_decrypt_aesni_calc_iv_16_loop:
         pxor	%xmm2, %xmm4
         addl	$16, %ecx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_decrypt_aesni_calc_iv_16_loop
+        jb	L_AES_GCM_decrypt_aesni_calc_iv_16_loop
         movl	%ebx, %edx
         cmpl	%edx, %ecx
         je	L_AES_GCM_decrypt_aesni_calc_iv_done
@@ -2498,7 +2504,7 @@ L_AES_GCM_decrypt_aesni_calc_iv_loop:
         incl	%ecx
         incl	%ebx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_decrypt_aesni_calc_iv_loop
+        jb	L_AES_GCM_decrypt_aesni_calc_iv_loop
         movdqu	(%rsp), %xmm8
         addq	$16, %rsp
         pshufb	L_aes_gcm_bswap_mask(%rip), %xmm8
@@ -2651,7 +2657,7 @@ L_AES_GCM_decrypt_aesni_iv_done:
         je	L_AES_GCM_decrypt_aesni_calc_aad_done
         xorl	%ecx, %ecx
         cmpl	$16, %edx
-        jl	L_AES_GCM_decrypt_aesni_calc_aad_lt16
+        jb	L_AES_GCM_decrypt_aesni_calc_aad_lt16
         andl	$0xfffffff0, %edx
 L_AES_GCM_decrypt_aesni_calc_aad_16_loop:
         movdqu	(%r12,%rcx,1), %xmm8
@@ -2713,7 +2719,7 @@ L_AES_GCM_decrypt_aesni_calc_aad_16_loop:
         pxor	%xmm2, %xmm6
         addl	$16, %ecx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_decrypt_aesni_calc_aad_16_loop
+        jb	L_AES_GCM_decrypt_aesni_calc_aad_16_loop
         movl	%r11d, %edx
         cmpl	%edx, %ecx
         je	L_AES_GCM_decrypt_aesni_calc_aad_done
@@ -2728,7 +2734,7 @@ L_AES_GCM_decrypt_aesni_calc_aad_loop:
         incl	%ecx
         incl	%ebx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_decrypt_aesni_calc_aad_loop
+        jb	L_AES_GCM_decrypt_aesni_calc_aad_loop
         movdqu	(%rsp), %xmm8
         addq	$16, %rsp
         pshufb	L_aes_gcm_bswap_mask(%rip), %xmm8
@@ -2805,7 +2811,7 @@ L_AES_GCM_decrypt_aesni_calc_aad_done:
         xorl	%ebx, %ebx
         cmpl	$0x80, %r9d
         movl	%r9d, %r13d
-        jl	L_AES_GCM_decrypt_aesni_done_128
+        jb	L_AES_GCM_decrypt_aesni_done_128
         andl	$0xffffff80, %r13d
         movdqa	%xmm6, %xmm2
         # H ^ 1
@@ -3446,17 +3452,17 @@ L_AES_GCM_decrypt_aesni_aesenc_128_ghash_avx_done:
         movdqu	%xmm15, 112(%rdx)
         addl	$0x80, %ebx
         cmpl	%r13d, %ebx
-        jl	L_AES_GCM_decrypt_aesni_ghash_128
+        jb	L_AES_GCM_decrypt_aesni_ghash_128
         movdqa	%xmm2, %xmm6
         movdqu	(%rsp), %xmm5
 L_AES_GCM_decrypt_aesni_done_128:
         movl	%r9d, %edx
         cmpl	%edx, %ebx
-        jge	L_AES_GCM_decrypt_aesni_done_dec
+        jae	L_AES_GCM_decrypt_aesni_done_dec
         movl	%r9d, %r13d
         andl	$0xfffffff0, %r13d
         cmpl	%r13d, %ebx
-        jge	L_AES_GCM_decrypt_aesni_last_block_done
+        jae	L_AES_GCM_decrypt_aesni_last_block_done
 L_AES_GCM_decrypt_aesni_last_block_start:
         leaq	(%rdi,%rbx,1), %rcx
         leaq	(%rsi,%rbx,1), %rdx
@@ -3521,7 +3527,7 @@ L_AES_GCM_decrypt_aesni_aesenc_gfmul_last:
         movdqu	%xmm8, (%rdx)
         addl	$16, %ebx
         cmpl	%r13d, %ebx
-        jl	L_AES_GCM_decrypt_aesni_last_block_start
+        jb	L_AES_GCM_decrypt_aesni_last_block_start
 L_AES_GCM_decrypt_aesni_last_block_done:
         movl	%r9d, %ecx
         movl	%ecx, %edx
@@ -3565,7 +3571,7 @@ L_AES_GCM_decrypt_aesni_aesenc_last15_dec_avx_loop:
         incl	%ebx
         incl	%ecx
         cmpl	%edx, %ebx
-        jl	L_AES_GCM_decrypt_aesni_aesenc_last15_dec_avx_loop
+        jb	L_AES_GCM_decrypt_aesni_aesenc_last15_dec_avx_loop
         movdqu	16(%rsp), %xmm4
         addq	$32, %rsp
         pshufb	L_aes_gcm_bswap_mask(%rip), %xmm4
@@ -3705,12 +3711,14 @@ L_AES_GCM_decrypt_aesni_cmp_tag_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_init_aesni
+WC_ASM_ATT_HIDDEN(AES_GCM_init_aesni)
 .type	AES_GCM_init_aesni,@function
 .align	16
 AES_GCM_init_aesni:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_init_aesni
+WC_ASM_ATT_HIDDEN(_AES_GCM_init_aesni)
 .p2align	4
 _AES_GCM_init_aesni:
 #endif /* __APPLE__ */
@@ -3818,7 +3826,7 @@ L_AES_GCM_init_aesni_calc_iv_1_aesenc_avx_last:
         movq	$0x00, %rcx
         je	L_AES_GCM_init_aesni_calc_iv_done
         cmpl	$16, %edx
-        jl	L_AES_GCM_init_aesni_calc_iv_lt16
+        jb	L_AES_GCM_init_aesni_calc_iv_lt16
         andl	$0xfffffff0, %edx
 L_AES_GCM_init_aesni_calc_iv_16_loop:
         movdqu	(%r10,%rcx,1), %xmm7
@@ -3880,7 +3888,7 @@ L_AES_GCM_init_aesni_calc_iv_16_loop:
         pxor	%xmm2, %xmm4
         addl	$16, %ecx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_init_aesni_calc_iv_16_loop
+        jb	L_AES_GCM_init_aesni_calc_iv_16_loop
         movl	%r11d, %edx
         cmpl	%edx, %ecx
         je	L_AES_GCM_init_aesni_calc_iv_done
@@ -3895,7 +3903,7 @@ L_AES_GCM_init_aesni_calc_iv_loop:
         incl	%ecx
         incl	%r13d
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_init_aesni_calc_iv_loop
+        jb	L_AES_GCM_init_aesni_calc_iv_loop
         movdqu	(%rsp), %xmm7
         addq	$16, %rsp
         pshufb	L_aes_gcm_bswap_mask(%rip), %xmm7
@@ -4058,12 +4066,14 @@ L_AES_GCM_init_aesni_iv_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_aad_update_aesni
+WC_ASM_ATT_HIDDEN(AES_GCM_aad_update_aesni)
 .type	AES_GCM_aad_update_aesni,@function
 .align	16
 AES_GCM_aad_update_aesni:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_aad_update_aesni
+WC_ASM_ATT_HIDDEN(_AES_GCM_aad_update_aesni)
 .p2align	4
 _AES_GCM_aad_update_aesni:
 #endif /* __APPLE__ */
@@ -4131,7 +4141,7 @@ L_AES_GCM_aad_update_aesni_16_loop:
         pxor	%xmm2, %xmm5
         addl	$16, %ecx
         cmpl	%esi, %ecx
-        jl	L_AES_GCM_aad_update_aesni_16_loop
+        jb	L_AES_GCM_aad_update_aesni_16_loop
         movdqa	%xmm5, (%rdx)
         repz retq
 #ifndef __APPLE__
@@ -4140,12 +4150,14 @@ L_AES_GCM_aad_update_aesni_16_loop:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_encrypt_block_aesni
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_block_aesni)
 .type	AES_GCM_encrypt_block_aesni,@function
 .align	16
 AES_GCM_encrypt_block_aesni:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_encrypt_block_aesni
+WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt_block_aesni)
 .p2align	4
 _AES_GCM_encrypt_block_aesni:
 #endif /* __APPLE__ */
@@ -4190,12 +4202,14 @@ L_AES_GCM_encrypt_block_aesni_aesenc_block_aesenc_avx_last:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_ghash_block_aesni
+WC_ASM_ATT_HIDDEN(AES_GCM_ghash_block_aesni)
 .type	AES_GCM_ghash_block_aesni,@function
 .align	16
 AES_GCM_ghash_block_aesni:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_ghash_block_aesni
+WC_ASM_ATT_HIDDEN(_AES_GCM_ghash_block_aesni)
 .p2align	4
 _AES_GCM_ghash_block_aesni:
 #endif /* __APPLE__ */
@@ -4266,12 +4280,14 @@ _AES_GCM_ghash_block_aesni:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_encrypt_update_aesni
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_update_aesni)
 .type	AES_GCM_encrypt_update_aesni,@function
 .align	16
 AES_GCM_encrypt_update_aesni:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_encrypt_update_aesni
+WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt_update_aesni)
 .p2align	4
 _AES_GCM_encrypt_update_aesni:
 #endif /* __APPLE__ */
@@ -4298,7 +4314,7 @@ _AES_GCM_encrypt_update_aesni:
         xorq	%r14, %r14
         cmpl	$0x80, %r8d
         movl	%r8d, %r13d
-        jl	L_AES_GCM_encrypt_update_aesni_done_128
+        jb	L_AES_GCM_encrypt_update_aesni_done_128
         andl	$0xffffff80, %r13d
         movdqa	%xmm6, %xmm2
         # H ^ 1
@@ -4791,7 +4807,7 @@ L_AES_GCM_encrypt_update_aesni_enc_done:
         movdqu	%xmm15, 112(%r10)
         cmpl	$0x80, %r13d
         movl	$0x80, %r14d
-        jle	L_AES_GCM_encrypt_update_aesni_end_128
+        jbe	L_AES_GCM_encrypt_update_aesni_end_128
         # More 128 bytes of input
 L_AES_GCM_encrypt_update_aesni_ghash_128:
         leaq	(%r11,%r14,1), %rcx
@@ -5135,7 +5151,7 @@ L_AES_GCM_encrypt_update_aesni_aesenc_128_ghash_avx_done:
         movdqu	%xmm15, 112(%rdx)
         addl	$0x80, %r14d
         cmpl	%r13d, %r14d
-        jl	L_AES_GCM_encrypt_update_aesni_ghash_128
+        jb	L_AES_GCM_encrypt_update_aesni_ghash_128
 L_AES_GCM_encrypt_update_aesni_end_128:
         movdqa	L_aes_gcm_bswap_mask(%rip), %xmm4
         pshufb	%xmm4, %xmm8
@@ -5326,11 +5342,11 @@ L_AES_GCM_encrypt_update_aesni_end_128:
 L_AES_GCM_encrypt_update_aesni_done_128:
         movl	%r8d, %edx
         cmpl	%edx, %r14d
-        jge	L_AES_GCM_encrypt_update_aesni_done_enc
+        jae	L_AES_GCM_encrypt_update_aesni_done_enc
         movl	%r8d, %r13d
         andl	$0xfffffff0, %r13d
         cmpl	%r13d, %r14d
-        jge	L_AES_GCM_encrypt_update_aesni_last_block_done
+        jae	L_AES_GCM_encrypt_update_aesni_last_block_done
         leaq	(%r11,%r14,1), %rcx
         leaq	(%r10,%r14,1), %rdx
         movdqu	(%r12), %xmm8
@@ -5368,7 +5384,7 @@ L_AES_GCM_encrypt_update_aesni_aesenc_block_aesenc_avx_last:
         pxor	%xmm8, %xmm6
         addl	$16, %r14d
         cmpl	%r13d, %r14d
-        jge	L_AES_GCM_encrypt_update_aesni_last_block_ghash
+        jae	L_AES_GCM_encrypt_update_aesni_last_block_ghash
 L_AES_GCM_encrypt_update_aesni_last_block_start:
         leaq	(%r11,%r14,1), %rcx
         leaq	(%r10,%r14,1), %rdx
@@ -5432,7 +5448,7 @@ L_AES_GCM_encrypt_update_aesni_aesenc_gfmul_last:
         pxor	%xmm8, %xmm6
         addl	$16, %r14d
         cmpl	%r13d, %r14d
-        jl	L_AES_GCM_encrypt_update_aesni_last_block_start
+        jb	L_AES_GCM_encrypt_update_aesni_last_block_start
 L_AES_GCM_encrypt_update_aesni_last_block_ghash:
         pshufd	$0x4e, %xmm5, %xmm9
         pshufd	$0x4e, %xmm6, %xmm10
@@ -5488,12 +5504,14 @@ L_AES_GCM_encrypt_update_aesni_done_enc:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_encrypt_final_aesni
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_final_aesni)
 .type	AES_GCM_encrypt_final_aesni,@function
 .align	16
 AES_GCM_encrypt_final_aesni:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_encrypt_final_aesni
+WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt_final_aesni)
 .p2align	4
 _AES_GCM_encrypt_final_aesni:
 #endif /* __APPLE__ */
@@ -5589,12 +5607,14 @@ L_AES_GCM_encrypt_final_aesni_store_tag_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_decrypt_update_aesni
+WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_update_aesni)
 .type	AES_GCM_decrypt_update_aesni,@function
 .align	16
 AES_GCM_decrypt_update_aesni:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_decrypt_update_aesni
+WC_ASM_ATT_HIDDEN(_AES_GCM_decrypt_update_aesni)
 .p2align	4
 _AES_GCM_decrypt_update_aesni:
 #endif /* __APPLE__ */
@@ -5622,7 +5642,7 @@ _AES_GCM_decrypt_update_aesni:
         xorl	%r14d, %r14d
         cmpl	$0x80, %r8d
         movl	%r8d, %r13d
-        jl	L_AES_GCM_decrypt_update_aesni_done_128
+        jb	L_AES_GCM_decrypt_update_aesni_done_128
         andl	$0xffffff80, %r13d
         movdqa	%xmm6, %xmm2
         # H ^ 1
@@ -6263,17 +6283,17 @@ L_AES_GCM_decrypt_update_aesni_aesenc_128_ghash_avx_done:
         movdqu	%xmm15, 112(%rdx)
         addl	$0x80, %r14d
         cmpl	%r13d, %r14d
-        jl	L_AES_GCM_decrypt_update_aesni_ghash_128
+        jb	L_AES_GCM_decrypt_update_aesni_ghash_128
         movdqa	%xmm2, %xmm6
         movdqu	(%rsp), %xmm5
 L_AES_GCM_decrypt_update_aesni_done_128:
         movl	%r8d, %edx
         cmpl	%edx, %r14d
-        jge	L_AES_GCM_decrypt_update_aesni_done_dec
+        jae	L_AES_GCM_decrypt_update_aesni_done_dec
         movl	%r8d, %r13d
         andl	$0xfffffff0, %r13d
         cmpl	%r13d, %r14d
-        jge	L_AES_GCM_decrypt_update_aesni_last_block_done
+        jae	L_AES_GCM_decrypt_update_aesni_last_block_done
 L_AES_GCM_decrypt_update_aesni_last_block_start:
         leaq	(%r11,%r14,1), %rcx
         leaq	(%r10,%r14,1), %rdx
@@ -6338,7 +6358,7 @@ L_AES_GCM_decrypt_update_aesni_aesenc_gfmul_last:
         movdqu	%xmm8, (%rdx)
         addl	$16, %r14d
         cmpl	%r13d, %r14d
-        jl	L_AES_GCM_decrypt_update_aesni_last_block_start
+        jb	L_AES_GCM_decrypt_update_aesni_last_block_start
 L_AES_GCM_decrypt_update_aesni_last_block_done:
 L_AES_GCM_decrypt_update_aesni_done_dec:
         movdqa	%xmm6, (%r9)
@@ -6354,12 +6374,14 @@ L_AES_GCM_decrypt_update_aesni_done_dec:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_decrypt_final_aesni
+WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_final_aesni)
 .type	AES_GCM_decrypt_final_aesni,@function
 .align	16
 AES_GCM_decrypt_final_aesni:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_decrypt_final_aesni
+WC_ASM_ATT_HIDDEN(_AES_GCM_decrypt_final_aesni)
 .p2align	4
 _AES_GCM_decrypt_final_aesni:
 #endif /* __APPLE__ */
@@ -6488,12 +6510,14 @@ L_aes_gcm_siv_bswap_mask:
 #ifndef __APPLE__
 .text
 .globl	AES_GCMSIV_polyval_aesni
+WC_ASM_ATT_HIDDEN(AES_GCMSIV_polyval_aesni)
 .type	AES_GCMSIV_polyval_aesni,@function
 .align	16
 AES_GCMSIV_polyval_aesni:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCMSIV_polyval_aesni
+WC_ASM_ATT_HIDDEN(_AES_GCMSIV_polyval_aesni)
 .p2align	4
 _AES_GCMSIV_polyval_aesni:
 #endif /* __APPLE__ */
@@ -6768,12 +6792,13 @@ L_AES_GCMSIV_polyval_aesni_four:
         movdqa	%xmm10, %xmm0
         addl	$0x40, %eax
         cmpl	%r9d, %eax
-        jl	L_AES_GCMSIV_polyval_aesni_four
+        jb	L_AES_GCMSIV_polyval_aesni_four
 L_AES_GCMSIV_polyval_aesni_four_done:
 L_AES_GCMSIV_polyval_aesni_rem:
         cmpl	%r8d, %eax
-        jge	L_AES_GCMSIV_polyval_aesni_done
-        pxor	(%rdx,%rax,1), %xmm0
+        jae	L_AES_GCMSIV_polyval_aesni_done
+        movdqu	(%rdx,%rax,1), %xmm5
+        pxor	%xmm5, %xmm0
         movdqa	%xmm0, %xmm9
         pclmulqdq	$0x00, %xmm1, %xmm9
         movdqa	%xmm0, %xmm10
@@ -6849,12 +6874,14 @@ L_aes_gcmsiv_ctr_aesni_one:
 #ifndef __APPLE__
 .text
 .globl	AES_GCMSIV_ctr_aesni
+WC_ASM_ATT_HIDDEN(AES_GCMSIV_ctr_aesni)
 .type	AES_GCMSIV_ctr_aesni,@function
 .align	16
 AES_GCMSIV_ctr_aesni:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCMSIV_ctr_aesni
+WC_ASM_ATT_HIDDEN(_AES_GCMSIV_ctr_aesni)
 .p2align	4
 _AES_GCMSIV_ctr_aesni:
 #endif /* __APPLE__ */
@@ -6864,7 +6891,7 @@ _AES_GCMSIV_ctr_aesni:
         xorl	%eax, %eax
         cmpl	$0x40, %edx
         movl	%edx, %r10d
-        jl	L_AES_GCMSIV_ctr_aesni_done_64
+        jb	L_AES_GCMSIV_ctr_aesni_done_64
         andl	$0xffffffc0, %r10d
 L_AES_GCMSIV_ctr_aesni_enc_64:
         # 64 bytes of input
@@ -6974,7 +7001,7 @@ L_AES_GCMSIV_ctr_aesni_64_aes_enc_block_last:
         movdqu	%xmm3, 48(%r12)
         addl	$0x40, %eax
         cmpl	%r10d, %eax
-        jl	L_AES_GCMSIV_ctr_aesni_enc_64
+        jb	L_AES_GCMSIV_ctr_aesni_enc_64
 L_AES_GCMSIV_ctr_aesni_done_64:
         cmpl	%edx, %eax
         movl	%edx, %r10d
@@ -7026,7 +7053,7 @@ L_AES_GCMSIV_ctr_aesni_16_aes_enc_block_last:
         movdqu	%xmm0, (%r11)
         addl	$16, %eax
         cmpl	%r10d, %eax
-        jl	L_AES_GCMSIV_ctr_aesni_enc_16
+        jb	L_AES_GCMSIV_ctr_aesni_enc_16
 L_AES_GCMSIV_ctr_aesni_done_enc:
         movdqu	%xmm7, (%r9)
         popq	%r12
@@ -7063,12 +7090,14 @@ L_GCM_generate_m0_avx1_mod2_128:
 #ifndef __APPLE__
 .text
 .globl	GCM_generate_m0_avx1
+WC_ASM_ATT_HIDDEN(GCM_generate_m0_avx1)
 .type	GCM_generate_m0_avx1,@function
 .align	16
 GCM_generate_m0_avx1:
 #else
 .section	__TEXT,__text
 .globl	_GCM_generate_m0_avx1
+WC_ASM_ATT_HIDDEN(_GCM_generate_m0_avx1)
 .p2align	4
 _GCM_generate_m0_avx1:
 #endif /* __APPLE__ */
@@ -7403,12 +7432,14 @@ L_avx1_aes_gcm_mod2_128:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_encrypt_avx1
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_avx1)
 .type	AES_GCM_encrypt_avx1,@function
 .align	16
 AES_GCM_encrypt_avx1:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_encrypt_avx1
+WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt_avx1)
 .p2align	4
 _AES_GCM_encrypt_avx1:
 #endif /* __APPLE__ */
@@ -7522,7 +7553,7 @@ L_AES_GCM_encrypt_avx1_calc_iv_1_aesenc_avx_last:
         movq	$0x00, %rcx
         je	L_AES_GCM_encrypt_avx1_calc_iv_done
         cmpl	$16, %edx
-        jl	L_AES_GCM_encrypt_avx1_calc_iv_lt16
+        jb	L_AES_GCM_encrypt_avx1_calc_iv_lt16
         andl	$0xfffffff0, %edx
 L_AES_GCM_encrypt_avx1_calc_iv_16_loop:
         vmovdqu	(%rax,%rcx,1), %xmm8
@@ -7573,7 +7604,7 @@ L_AES_GCM_encrypt_avx1_calc_iv_16_loop:
         vpxor	%xmm2, %xmm4, %xmm4
         addl	$16, %ecx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_encrypt_avx1_calc_iv_16_loop
+        jb	L_AES_GCM_encrypt_avx1_calc_iv_16_loop
         movl	%ebx, %edx
         cmpl	%edx, %ecx
         je	L_AES_GCM_encrypt_avx1_calc_iv_done
@@ -7588,7 +7619,7 @@ L_AES_GCM_encrypt_avx1_calc_iv_loop:
         incl	%ecx
         incl	%ebx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_encrypt_avx1_calc_iv_loop
+        jb	L_AES_GCM_encrypt_avx1_calc_iv_loop
         vmovdqu	(%rsp), %xmm8
         addq	$16, %rsp
         vpshufb	L_avx1_aes_gcm_bswap_mask(%rip), %xmm8, %xmm8
@@ -7719,7 +7750,7 @@ L_AES_GCM_encrypt_avx1_iv_done:
         je	L_AES_GCM_encrypt_avx1_calc_aad_done
         xorl	%ecx, %ecx
         cmpl	$16, %edx
-        jl	L_AES_GCM_encrypt_avx1_calc_aad_lt16
+        jb	L_AES_GCM_encrypt_avx1_calc_aad_lt16
         andl	$0xfffffff0, %edx
 L_AES_GCM_encrypt_avx1_calc_aad_16_loop:
         vmovdqu	(%r12,%rcx,1), %xmm8
@@ -7770,7 +7801,7 @@ L_AES_GCM_encrypt_avx1_calc_aad_16_loop:
         vpxor	%xmm2, %xmm6, %xmm6
         addl	$16, %ecx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_encrypt_avx1_calc_aad_16_loop
+        jb	L_AES_GCM_encrypt_avx1_calc_aad_16_loop
         movl	%r11d, %edx
         cmpl	%edx, %ecx
         je	L_AES_GCM_encrypt_avx1_calc_aad_done
@@ -7785,7 +7816,7 @@ L_AES_GCM_encrypt_avx1_calc_aad_loop:
         incl	%ecx
         incl	%ebx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_encrypt_avx1_calc_aad_loop
+        jb	L_AES_GCM_encrypt_avx1_calc_aad_loop
         vmovdqu	(%rsp), %xmm8
         addq	$16, %rsp
         vpshufb	L_avx1_aes_gcm_bswap_mask(%rip), %xmm8, %xmm8
@@ -7849,7 +7880,7 @@ L_AES_GCM_encrypt_avx1_calc_aad_done:
         xorl	%ebx, %ebx
         cmpl	$0x80, %r9d
         movl	%r9d, %r13d
-        jl	L_AES_GCM_encrypt_avx1_done_128
+        jb	L_AES_GCM_encrypt_avx1_done_128
         andl	$0xffffff80, %r13d
         vmovdqa	%xmm6, %xmm2
         # H ^ 1
@@ -8216,7 +8247,7 @@ L_AES_GCM_encrypt_avx1_aesenc_128_enc_done:
         vmovdqu	%xmm15, 112(%rsi)
         cmpl	$0x80, %r13d
         movl	$0x80, %ebx
-        jle	L_AES_GCM_encrypt_avx1_end_128
+        jbe	L_AES_GCM_encrypt_avx1_end_128
         # More 128 bytes of input
 L_AES_GCM_encrypt_avx1_ghash_128:
         leaq	(%rdi,%rbx,1), %rcx
@@ -8535,7 +8566,7 @@ L_AES_GCM_encrypt_avx1_aesenc_128_ghash_avx_done:
         vmovdqu	%xmm15, 112(%rdx)
         addl	$0x80, %ebx
         cmpl	%r13d, %ebx
-        jl	L_AES_GCM_encrypt_avx1_ghash_128
+        jb	L_AES_GCM_encrypt_avx1_ghash_128
 L_AES_GCM_encrypt_avx1_end_128:
         vmovdqa	L_avx1_aes_gcm_bswap_mask(%rip), %xmm4
         vpshufb	%xmm4, %xmm8, %xmm8
@@ -8704,11 +8735,11 @@ L_AES_GCM_encrypt_avx1_end_128:
 L_AES_GCM_encrypt_avx1_done_128:
         movl	%r9d, %edx
         cmpl	%edx, %ebx
-        jge	L_AES_GCM_encrypt_avx1_done_enc
+        jae	L_AES_GCM_encrypt_avx1_done_enc
         movl	%r9d, %r13d
         andl	$0xfffffff0, %r13d
         cmpl	%r13d, %ebx
-        jge	L_AES_GCM_encrypt_avx1_last_block_done
+        jae	L_AES_GCM_encrypt_avx1_last_block_done
         vmovdqu	128(%rsp), %xmm9
         vpshufb	L_avx1_aes_gcm_bswap_epi64(%rip), %xmm9, %xmm8
         vpaddd	L_avx1_aes_gcm_one(%rip), %xmm9, %xmm9
@@ -8743,7 +8774,7 @@ L_AES_GCM_encrypt_avx1_aesenc_block_last:
         vpxor	%xmm8, %xmm6, %xmm6
         addl	$16, %ebx
         cmpl	%r13d, %ebx
-        jge	L_AES_GCM_encrypt_avx1_last_block_ghash
+        jae	L_AES_GCM_encrypt_avx1_last_block_ghash
 L_AES_GCM_encrypt_avx1_last_block_start:
         vmovdqu	(%rdi,%rbx,1), %xmm13
         vmovdqu	128(%rsp), %xmm9
@@ -8797,7 +8828,7 @@ L_AES_GCM_encrypt_avx1_aesenc_gfmul_last:
         addl	$16, %ebx
         vpxor	%xmm8, %xmm6, %xmm6
         cmpl	%r13d, %ebx
-        jl	L_AES_GCM_encrypt_avx1_last_block_start
+        jb	L_AES_GCM_encrypt_avx1_last_block_start
 L_AES_GCM_encrypt_avx1_last_block_ghash:
         # ghash_gfmul_red_avx
         vpshufd	$0x4e, %xmm5, %xmm9
@@ -8870,7 +8901,7 @@ L_AES_GCM_encrypt_avx1_aesenc_last15_enc_avx_loop:
         incl	%ebx
         incl	%ecx
         cmpl	%edx, %ebx
-        jl	L_AES_GCM_encrypt_avx1_aesenc_last15_enc_avx_loop
+        jb	L_AES_GCM_encrypt_avx1_aesenc_last15_enc_avx_loop
         xorq	%r13, %r13
         cmpl	$16, %ecx
         je	L_AES_GCM_encrypt_avx1_aesenc_last15_enc_avx_finish_enc
@@ -8878,7 +8909,7 @@ L_AES_GCM_encrypt_avx1_aesenc_last15_enc_avx_byte_loop:
         movb	%r13b, (%rsp,%rcx,1)
         incl	%ecx
         cmpl	$16, %ecx
-        jl	L_AES_GCM_encrypt_avx1_aesenc_last15_enc_avx_byte_loop
+        jb	L_AES_GCM_encrypt_avx1_aesenc_last15_enc_avx_byte_loop
 L_AES_GCM_encrypt_avx1_aesenc_last15_enc_avx_finish_enc:
         vmovdqu	(%rsp), %xmm4
         addq	$16, %rsp
@@ -8985,12 +9016,14 @@ L_AES_GCM_encrypt_avx1_store_tag_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_decrypt_avx1
+WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_avx1)
 .type	AES_GCM_decrypt_avx1,@function
 .align	16
 AES_GCM_decrypt_avx1:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_decrypt_avx1
+WC_ASM_ATT_HIDDEN(_AES_GCM_decrypt_avx1)
 .p2align	4
 _AES_GCM_decrypt_avx1:
 #endif /* __APPLE__ */
@@ -9106,7 +9139,7 @@ L_AES_GCM_decrypt_avx1_calc_iv_1_aesenc_avx_last:
         movq	$0x00, %rcx
         je	L_AES_GCM_decrypt_avx1_calc_iv_done
         cmpl	$16, %edx
-        jl	L_AES_GCM_decrypt_avx1_calc_iv_lt16
+        jb	L_AES_GCM_decrypt_avx1_calc_iv_lt16
         andl	$0xfffffff0, %edx
 L_AES_GCM_decrypt_avx1_calc_iv_16_loop:
         vmovdqu	(%rax,%rcx,1), %xmm8
@@ -9157,7 +9190,7 @@ L_AES_GCM_decrypt_avx1_calc_iv_16_loop:
         vpxor	%xmm2, %xmm4, %xmm4
         addl	$16, %ecx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_decrypt_avx1_calc_iv_16_loop
+        jb	L_AES_GCM_decrypt_avx1_calc_iv_16_loop
         movl	%ebx, %edx
         cmpl	%edx, %ecx
         je	L_AES_GCM_decrypt_avx1_calc_iv_done
@@ -9172,7 +9205,7 @@ L_AES_GCM_decrypt_avx1_calc_iv_loop:
         incl	%ecx
         incl	%ebx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_decrypt_avx1_calc_iv_loop
+        jb	L_AES_GCM_decrypt_avx1_calc_iv_loop
         vmovdqu	(%rsp), %xmm8
         addq	$16, %rsp
         vpshufb	L_avx1_aes_gcm_bswap_mask(%rip), %xmm8, %xmm8
@@ -9303,7 +9336,7 @@ L_AES_GCM_decrypt_avx1_iv_done:
         je	L_AES_GCM_decrypt_avx1_calc_aad_done
         xorl	%ecx, %ecx
         cmpl	$16, %edx
-        jl	L_AES_GCM_decrypt_avx1_calc_aad_lt16
+        jb	L_AES_GCM_decrypt_avx1_calc_aad_lt16
         andl	$0xfffffff0, %edx
 L_AES_GCM_decrypt_avx1_calc_aad_16_loop:
         vmovdqu	(%r12,%rcx,1), %xmm8
@@ -9354,7 +9387,7 @@ L_AES_GCM_decrypt_avx1_calc_aad_16_loop:
         vpxor	%xmm2, %xmm6, %xmm6
         addl	$16, %ecx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_decrypt_avx1_calc_aad_16_loop
+        jb	L_AES_GCM_decrypt_avx1_calc_aad_16_loop
         movl	%r11d, %edx
         cmpl	%edx, %ecx
         je	L_AES_GCM_decrypt_avx1_calc_aad_done
@@ -9369,7 +9402,7 @@ L_AES_GCM_decrypt_avx1_calc_aad_loop:
         incl	%ecx
         incl	%ebx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_decrypt_avx1_calc_aad_loop
+        jb	L_AES_GCM_decrypt_avx1_calc_aad_loop
         vmovdqu	(%rsp), %xmm8
         addq	$16, %rsp
         vpshufb	L_avx1_aes_gcm_bswap_mask(%rip), %xmm8, %xmm8
@@ -9433,7 +9466,7 @@ L_AES_GCM_decrypt_avx1_calc_aad_done:
         xorl	%ebx, %ebx
         cmpl	$0x80, %r9d
         movl	%r9d, %r13d
-        jl	L_AES_GCM_decrypt_avx1_done_128
+        jb	L_AES_GCM_decrypt_avx1_done_128
         andl	$0xffffff80, %r13d
         vmovdqa	%xmm6, %xmm2
         # H ^ 1
@@ -9931,17 +9964,17 @@ L_AES_GCM_decrypt_avx1_aesenc_128_ghash_avx_done:
         vmovdqu	%xmm15, 112(%rdx)
         addl	$0x80, %ebx
         cmpl	%r13d, %ebx
-        jl	L_AES_GCM_decrypt_avx1_ghash_128
+        jb	L_AES_GCM_decrypt_avx1_ghash_128
         vmovdqa	%xmm2, %xmm6
         vmovdqu	(%rsp), %xmm5
 L_AES_GCM_decrypt_avx1_done_128:
         movl	%r9d, %edx
         cmpl	%edx, %ebx
-        jge	L_AES_GCM_decrypt_avx1_done_dec
+        jae	L_AES_GCM_decrypt_avx1_done_dec
         movl	%r9d, %r13d
         andl	$0xfffffff0, %r13d
         cmpl	%r13d, %ebx
-        jge	L_AES_GCM_decrypt_avx1_last_block_done
+        jae	L_AES_GCM_decrypt_avx1_last_block_done
 L_AES_GCM_decrypt_avx1_last_block_start:
         vmovdqu	(%rdi,%rbx,1), %xmm13
         vmovdqa	%xmm5, %xmm0
@@ -9996,7 +10029,7 @@ L_AES_GCM_decrypt_avx1_aesenc_gfmul_last:
         vmovdqu	%xmm8, (%rsi,%rbx,1)
         addl	$16, %ebx
         cmpl	%r13d, %ebx
-        jl	L_AES_GCM_decrypt_avx1_last_block_start
+        jb	L_AES_GCM_decrypt_avx1_last_block_start
 L_AES_GCM_decrypt_avx1_last_block_done:
         movl	%r9d, %ecx
         movl	%ecx, %edx
@@ -10040,7 +10073,7 @@ L_AES_GCM_decrypt_avx1_aesenc_last15_dec_avx_loop:
         incl	%ebx
         incl	%ecx
         cmpl	%edx, %ebx
-        jl	L_AES_GCM_decrypt_avx1_aesenc_last15_dec_avx_loop
+        jb	L_AES_GCM_decrypt_avx1_aesenc_last15_dec_avx_loop
         vmovdqu	16(%rsp), %xmm4
         addq	$32, %rsp
         vpshufb	L_avx1_aes_gcm_bswap_mask(%rip), %xmm4, %xmm4
@@ -10162,12 +10195,14 @@ L_AES_GCM_decrypt_avx1_cmp_tag_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_init_avx1
+WC_ASM_ATT_HIDDEN(AES_GCM_init_avx1)
 .type	AES_GCM_init_avx1,@function
 .align	16
 AES_GCM_init_avx1:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_init_avx1
+WC_ASM_ATT_HIDDEN(_AES_GCM_init_avx1)
 .p2align	4
 _AES_GCM_init_avx1:
 #endif /* __APPLE__ */
@@ -10273,7 +10308,7 @@ L_AES_GCM_init_avx1_calc_iv_1_aesenc_avx_last:
         movq	$0x00, %rcx
         je	L_AES_GCM_init_avx1_calc_iv_done
         cmpl	$16, %edx
-        jl	L_AES_GCM_init_avx1_calc_iv_lt16
+        jb	L_AES_GCM_init_avx1_calc_iv_lt16
         andl	$0xfffffff0, %edx
 L_AES_GCM_init_avx1_calc_iv_16_loop:
         vmovdqu	(%r10,%rcx,1), %xmm7
@@ -10324,7 +10359,7 @@ L_AES_GCM_init_avx1_calc_iv_16_loop:
         vpxor	%xmm2, %xmm4, %xmm4
         addl	$16, %ecx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_init_avx1_calc_iv_16_loop
+        jb	L_AES_GCM_init_avx1_calc_iv_16_loop
         movl	%r11d, %edx
         cmpl	%edx, %ecx
         je	L_AES_GCM_init_avx1_calc_iv_done
@@ -10339,7 +10374,7 @@ L_AES_GCM_init_avx1_calc_iv_loop:
         incl	%ecx
         incl	%r13d
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_init_avx1_calc_iv_loop
+        jb	L_AES_GCM_init_avx1_calc_iv_loop
         vmovdqu	(%rsp), %xmm7
         addq	$16, %rsp
         vpshufb	L_avx1_aes_gcm_bswap_mask(%rip), %xmm7, %xmm7
@@ -10479,12 +10514,14 @@ L_AES_GCM_init_avx1_iv_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_aad_update_avx1
+WC_ASM_ATT_HIDDEN(AES_GCM_aad_update_avx1)
 .type	AES_GCM_aad_update_avx1,@function
 .align	16
 AES_GCM_aad_update_avx1:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_aad_update_avx1
+WC_ASM_ATT_HIDDEN(_AES_GCM_aad_update_avx1)
 .p2align	4
 _AES_GCM_aad_update_avx1:
 #endif /* __APPLE__ */
@@ -10541,7 +10578,7 @@ L_AES_GCM_aad_update_avx1_16_loop:
         vpxor	%xmm2, %xmm5, %xmm5
         addl	$16, %ecx
         cmpl	%esi, %ecx
-        jl	L_AES_GCM_aad_update_avx1_16_loop
+        jb	L_AES_GCM_aad_update_avx1_16_loop
         vmovdqa	%xmm5, (%rdx)
         repz retq
 #ifndef __APPLE__
@@ -10550,12 +10587,14 @@ L_AES_GCM_aad_update_avx1_16_loop:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_encrypt_block_avx1
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_block_avx1)
 .type	AES_GCM_encrypt_block_avx1,@function
 .align	16
 AES_GCM_encrypt_block_avx1:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_encrypt_block_avx1
+WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt_block_avx1)
 .p2align	4
 _AES_GCM_encrypt_block_avx1:
 #endif /* __APPLE__ */
@@ -10600,12 +10639,14 @@ L_AES_GCM_encrypt_block_avx1_aesenc_block_last:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_ghash_block_avx1
+WC_ASM_ATT_HIDDEN(AES_GCM_ghash_block_avx1)
 .type	AES_GCM_ghash_block_avx1,@function
 .align	16
 AES_GCM_ghash_block_avx1:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_ghash_block_avx1
+WC_ASM_ATT_HIDDEN(_AES_GCM_ghash_block_avx1)
 .p2align	4
 _AES_GCM_ghash_block_avx1:
 #endif /* __APPLE__ */
@@ -10666,12 +10707,14 @@ _AES_GCM_ghash_block_avx1:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_encrypt_update_avx1
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_update_avx1)
 .type	AES_GCM_encrypt_update_avx1,@function
 .align	16
 AES_GCM_encrypt_update_avx1:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_encrypt_update_avx1
+WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt_update_avx1)
 .p2align	4
 _AES_GCM_encrypt_update_avx1:
 #endif /* __APPLE__ */
@@ -10696,7 +10739,7 @@ _AES_GCM_encrypt_update_avx1:
         xorl	%r14d, %r14d
         cmpl	$0x80, %r8d
         movl	%r8d, %r13d
-        jl	L_AES_GCM_encrypt_update_avx1_done_128
+        jb	L_AES_GCM_encrypt_update_avx1_done_128
         andl	$0xffffff80, %r13d
         vmovdqa	%xmm6, %xmm2
         # H ^ 1
@@ -11063,7 +11106,7 @@ L_AES_GCM_encrypt_update_avx1_aesenc_128_enc_done:
         vmovdqu	%xmm15, 112(%r10)
         cmpl	$0x80, %r13d
         movl	$0x80, %r14d
-        jle	L_AES_GCM_encrypt_update_avx1_end_128
+        jbe	L_AES_GCM_encrypt_update_avx1_end_128
         # More 128 bytes of input
 L_AES_GCM_encrypt_update_avx1_ghash_128:
         leaq	(%r11,%r14,1), %rcx
@@ -11382,7 +11425,7 @@ L_AES_GCM_encrypt_update_avx1_aesenc_128_ghash_avx_done:
         vmovdqu	%xmm15, 112(%rdx)
         addl	$0x80, %r14d
         cmpl	%r13d, %r14d
-        jl	L_AES_GCM_encrypt_update_avx1_ghash_128
+        jb	L_AES_GCM_encrypt_update_avx1_ghash_128
 L_AES_GCM_encrypt_update_avx1_end_128:
         vmovdqa	L_avx1_aes_gcm_bswap_mask(%rip), %xmm4
         vpshufb	%xmm4, %xmm8, %xmm8
@@ -11551,11 +11594,11 @@ L_AES_GCM_encrypt_update_avx1_end_128:
 L_AES_GCM_encrypt_update_avx1_done_128:
         movl	%r8d, %edx
         cmpl	%edx, %r14d
-        jge	L_AES_GCM_encrypt_update_avx1_done_enc
+        jae	L_AES_GCM_encrypt_update_avx1_done_enc
         movl	%r8d, %r13d
         andl	$0xfffffff0, %r13d
         cmpl	%r13d, %r14d
-        jge	L_AES_GCM_encrypt_update_avx1_last_block_done
+        jae	L_AES_GCM_encrypt_update_avx1_last_block_done
         vmovdqu	(%r12), %xmm9
         vpshufb	L_avx1_aes_gcm_bswap_epi64(%rip), %xmm9, %xmm8
         vpaddd	L_avx1_aes_gcm_one(%rip), %xmm9, %xmm9
@@ -11590,7 +11633,7 @@ L_AES_GCM_encrypt_update_avx1_aesenc_block_last:
         vpxor	%xmm8, %xmm6, %xmm6
         addl	$16, %r14d
         cmpl	%r13d, %r14d
-        jge	L_AES_GCM_encrypt_update_avx1_last_block_ghash
+        jae	L_AES_GCM_encrypt_update_avx1_last_block_ghash
 L_AES_GCM_encrypt_update_avx1_last_block_start:
         vmovdqu	(%r11,%r14,1), %xmm13
         vmovdqu	(%r12), %xmm9
@@ -11644,7 +11687,7 @@ L_AES_GCM_encrypt_update_avx1_aesenc_gfmul_last:
         addl	$16, %r14d
         vpxor	%xmm8, %xmm6, %xmm6
         cmpl	%r13d, %r14d
-        jl	L_AES_GCM_encrypt_update_avx1_last_block_start
+        jb	L_AES_GCM_encrypt_update_avx1_last_block_start
 L_AES_GCM_encrypt_update_avx1_last_block_ghash:
         # ghash_gfmul_red_avx
         vpshufd	$0x4e, %xmm5, %xmm9
@@ -11691,12 +11734,14 @@ L_AES_GCM_encrypt_update_avx1_done_enc:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_encrypt_final_avx1
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_final_avx1)
 .type	AES_GCM_encrypt_final_avx1,@function
 .align	16
 AES_GCM_encrypt_final_avx1:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_encrypt_final_avx1
+WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt_final_avx1)
 .p2align	4
 _AES_GCM_encrypt_final_avx1:
 #endif /* __APPLE__ */
@@ -11781,12 +11826,14 @@ L_AES_GCM_encrypt_final_avx1_store_tag_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_decrypt_update_avx1
+WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_update_avx1)
 .type	AES_GCM_decrypt_update_avx1,@function
 .align	16
 AES_GCM_decrypt_update_avx1:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_decrypt_update_avx1
+WC_ASM_ATT_HIDDEN(_AES_GCM_decrypt_update_avx1)
 .p2align	4
 _AES_GCM_decrypt_update_avx1:
 #endif /* __APPLE__ */
@@ -11811,7 +11858,7 @@ _AES_GCM_decrypt_update_avx1:
         xorl	%r14d, %r14d
         cmpl	$0x80, %r8d
         movl	%r8d, %r13d
-        jl	L_AES_GCM_decrypt_update_avx1_done_128
+        jb	L_AES_GCM_decrypt_update_avx1_done_128
         andl	$0xffffff80, %r13d
         vmovdqa	%xmm6, %xmm2
         # H ^ 1
@@ -12309,17 +12356,17 @@ L_AES_GCM_decrypt_update_avx1_aesenc_128_ghash_avx_done:
         vmovdqu	%xmm15, 112(%rdx)
         addl	$0x80, %r14d
         cmpl	%r13d, %r14d
-        jl	L_AES_GCM_decrypt_update_avx1_ghash_128
+        jb	L_AES_GCM_decrypt_update_avx1_ghash_128
         vmovdqa	%xmm2, %xmm6
         vmovdqu	(%rsp), %xmm5
 L_AES_GCM_decrypt_update_avx1_done_128:
         movl	%r8d, %edx
         cmpl	%edx, %r14d
-        jge	L_AES_GCM_decrypt_update_avx1_done_dec
+        jae	L_AES_GCM_decrypt_update_avx1_done_dec
         movl	%r8d, %r13d
         andl	$0xfffffff0, %r13d
         cmpl	%r13d, %r14d
-        jge	L_AES_GCM_decrypt_update_avx1_last_block_done
+        jae	L_AES_GCM_decrypt_update_avx1_last_block_done
 L_AES_GCM_decrypt_update_avx1_last_block_start:
         vmovdqu	(%r11,%r14,1), %xmm13
         vmovdqa	%xmm5, %xmm0
@@ -12374,7 +12421,7 @@ L_AES_GCM_decrypt_update_avx1_aesenc_gfmul_last:
         vmovdqu	%xmm8, (%r10,%r14,1)
         addl	$16, %r14d
         cmpl	%r13d, %r14d
-        jl	L_AES_GCM_decrypt_update_avx1_last_block_start
+        jb	L_AES_GCM_decrypt_update_avx1_last_block_start
 L_AES_GCM_decrypt_update_avx1_last_block_done:
 L_AES_GCM_decrypt_update_avx1_done_dec:
         vmovdqa	%xmm6, (%r9)
@@ -12390,12 +12437,14 @@ L_AES_GCM_decrypt_update_avx1_done_dec:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_decrypt_final_avx1
+WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_final_avx1)
 .type	AES_GCM_decrypt_final_avx1,@function
 .align	16
 AES_GCM_decrypt_final_avx1:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_decrypt_final_avx1
+WC_ASM_ATT_HIDDEN(_AES_GCM_decrypt_final_avx1)
 .p2align	4
 _AES_GCM_decrypt_final_avx1:
 #endif /* __APPLE__ */
@@ -12513,12 +12562,14 @@ L_aes_gcm_siv_bswap_mask_avx1:
 #ifndef __APPLE__
 .text
 .globl	AES_GCMSIV_polyval_avx1
+WC_ASM_ATT_HIDDEN(AES_GCMSIV_polyval_avx1)
 .type	AES_GCMSIV_polyval_avx1,@function
 .align	16
 AES_GCMSIV_polyval_avx1:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCMSIV_polyval_avx1
+WC_ASM_ATT_HIDDEN(_AES_GCMSIV_polyval_avx1)
 .p2align	4
 _AES_GCMSIV_polyval_avx1:
 #endif /* __APPLE__ */
@@ -12714,11 +12765,11 @@ L_AES_GCMSIV_polyval_avx1_four:
         vpxor	%xmm5, %xmm6, %xmm0
         addl	$0x40, %eax
         cmpl	%r9d, %eax
-        jl	L_AES_GCMSIV_polyval_avx1_four
+        jb	L_AES_GCMSIV_polyval_avx1_four
 L_AES_GCMSIV_polyval_avx1_four_done:
 L_AES_GCMSIV_polyval_avx1_rem:
         cmpl	%r8d, %eax
-        jge	L_AES_GCMSIV_polyval_avx1_done
+        jae	L_AES_GCMSIV_polyval_avx1_done
         vpxor	(%rdx,%rax,1), %xmm0, %xmm0
         vpclmulqdq	$0x00, %xmm1, %xmm0, %xmm5
         vpclmulqdq	$0x11, %xmm1, %xmm0, %xmm6
@@ -12779,12 +12830,14 @@ L_aes_gcmsiv_ctr_avx1_one:
 #ifndef __APPLE__
 .text
 .globl	AES_GCMSIV_ctr_avx1
+WC_ASM_ATT_HIDDEN(AES_GCMSIV_ctr_avx1)
 .type	AES_GCMSIV_ctr_avx1,@function
 .align	16
 AES_GCMSIV_ctr_avx1:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCMSIV_ctr_avx1
+WC_ASM_ATT_HIDDEN(_AES_GCMSIV_ctr_avx1)
 .p2align	4
 _AES_GCMSIV_ctr_avx1:
 #endif /* __APPLE__ */
@@ -12794,7 +12847,7 @@ _AES_GCMSIV_ctr_avx1:
         xorl	%eax, %eax
         cmpl	$0x40, %edx
         movl	%edx, %r10d
-        jl	L_AES_GCMSIV_ctr_avx1_done_64
+        jb	L_AES_GCMSIV_ctr_avx1_done_64
         andl	$0xffffffc0, %r10d
 L_AES_GCMSIV_ctr_avx1_enc_64:
         # 64 bytes of input
@@ -12900,7 +12953,7 @@ L_AES_GCMSIV_ctr_avx1_64_aes_enc_block_last:
         vmovdqu	%xmm3, 48(%r12)
         addl	$0x40, %eax
         cmpl	%r10d, %eax
-        jl	L_AES_GCMSIV_ctr_avx1_enc_64
+        jb	L_AES_GCMSIV_ctr_avx1_enc_64
 L_AES_GCMSIV_ctr_avx1_done_64:
         cmpl	%edx, %eax
         movl	%edx, %r10d
@@ -12951,7 +13004,7 @@ L_AES_GCMSIV_ctr_avx1_16_aes_enc_block_last:
         vmovdqu	%xmm0, (%r11)
         addl	$16, %eax
         cmpl	%r10d, %eax
-        jl	L_AES_GCMSIV_ctr_avx1_enc_16
+        jb	L_AES_GCMSIV_ctr_avx1_enc_16
 L_AES_GCMSIV_ctr_avx1_done_enc:
         vmovdqu	%xmm7, (%r9)
         popq	%r12
@@ -12989,12 +13042,14 @@ L_GCM_generate_m0_avx2_mod2_128:
 #ifndef __APPLE__
 .text
 .globl	GCM_generate_m0_avx2
+WC_ASM_ATT_HIDDEN(GCM_generate_m0_avx2)
 .type	GCM_generate_m0_avx2,@function
 .align	16
 GCM_generate_m0_avx2:
 #else
 .section	__TEXT,__text
 .globl	_GCM_generate_m0_avx2
+WC_ASM_ATT_HIDDEN(_GCM_generate_m0_avx2)
 .p2align	4
 _GCM_generate_m0_avx2:
 #endif /* __APPLE__ */
@@ -13341,12 +13396,14 @@ L_avx2_aes_gcm_mod2_128:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_encrypt_avx2
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_avx2)
 .type	AES_GCM_encrypt_avx2,@function
 .align	16
 AES_GCM_encrypt_avx2:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_encrypt_avx2
+WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt_avx2)
 .p2align	4
 _AES_GCM_encrypt_avx2:
 #endif /* __APPLE__ */
@@ -13403,7 +13460,7 @@ L_AES_GCM_encrypt_avx2_calc_iv_1_aesenc_avx_last:
         movq	$0x00, %rcx
         je	L_AES_GCM_encrypt_avx2_calc_iv_done
         cmpl	$16, %edx
-        jl	L_AES_GCM_encrypt_avx2_calc_iv_lt16
+        jb	L_AES_GCM_encrypt_avx2_calc_iv_lt16
         andl	$0xfffffff0, %edx
 L_AES_GCM_encrypt_avx2_calc_iv_16_loop:
         vmovdqu	(%rax,%rcx,1), %xmm0
@@ -13441,7 +13498,7 @@ L_AES_GCM_encrypt_avx2_calc_iv_16_loop:
         vpxor	%xmm1, %xmm4, %xmm4
         addl	$16, %ecx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_encrypt_avx2_calc_iv_16_loop
+        jb	L_AES_GCM_encrypt_avx2_calc_iv_16_loop
         movl	%ebx, %edx
         cmpl	%edx, %ecx
         je	L_AES_GCM_encrypt_avx2_calc_iv_done
@@ -13455,7 +13512,7 @@ L_AES_GCM_encrypt_avx2_calc_iv_loop:
         incl	%ecx
         incl	%ebx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_encrypt_avx2_calc_iv_loop
+        jb	L_AES_GCM_encrypt_avx2_calc_iv_loop
         vmovdqu	(%rsp), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm0, %xmm0
         vpxor	%xmm0, %xmm4, %xmm4
@@ -13615,7 +13672,7 @@ L_AES_GCM_encrypt_avx2_iv_done:
         je	L_AES_GCM_encrypt_avx2_calc_aad_done
         xorl	%ecx, %ecx
         cmpl	$0x80, %edx
-        jl	L_AES_GCM_encrypt_avx2_calc_aad_after_agg
+        jb	L_AES_GCM_encrypt_avx2_calc_aad_after_agg
         movl	%edx, %r13d
         andl	$0xffffffc0, %r13d
         vmovdqu	%xmm5, 168(%rsp)
@@ -13784,7 +13841,7 @@ L_AES_GCM_encrypt_avx2_calc_aad_agg:
         vpxor	%xmm1, %xmm6, %xmm6
         addl	$0x40, %ecx
         cmpl	%r13d, %ecx
-        jl	L_AES_GCM_encrypt_avx2_calc_aad_agg
+        jb	L_AES_GCM_encrypt_avx2_calc_aad_agg
         vmovdqu	168(%rsp), %xmm5
 L_AES_GCM_encrypt_avx2_calc_aad_after_agg:
         movl	%r11d, %edx
@@ -13827,7 +13884,7 @@ L_AES_GCM_encrypt_avx2_calc_aad_16_loop:
         vpxor	%xmm1, %xmm6, %xmm6
         addl	$16, %ecx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_encrypt_avx2_calc_aad_16_loop
+        jb	L_AES_GCM_encrypt_avx2_calc_aad_16_loop
 L_AES_GCM_encrypt_avx2_calc_aad_partial:
         movl	%r11d, %edx
         cmpl	%edx, %ecx
@@ -13842,7 +13899,7 @@ L_AES_GCM_encrypt_avx2_calc_aad_loop:
         incl	%ecx
         incl	%ebx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_encrypt_avx2_calc_aad_loop
+        jb	L_AES_GCM_encrypt_avx2_calc_aad_loop
         vmovdqu	(%rsp), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm0, %xmm0
         vpxor	%xmm0, %xmm6, %xmm6
@@ -13891,7 +13948,7 @@ L_AES_GCM_encrypt_avx2_calc_aad_done:
         xorl	%ebx, %ebx
         cmpl	$0x80, %r10d
         movl	%r10d, %r13d
-        jl	L_AES_GCM_encrypt_avx2_done_128
+        jb	L_AES_GCM_encrypt_avx2_done_128
         andl	$0xffffff80, %r13d
         vmovdqu	%xmm4, 128(%rsp)
         vmovdqu	%xmm15, 144(%rsp)
@@ -14182,7 +14239,7 @@ L_AES_GCM_encrypt_avx2_aesenc_128_enc_done:
         vmovdqu	%xmm15, 112(%r8)
         cmpl	$0x80, %r13d
         movl	$0x80, %ebx
-        jle	L_AES_GCM_encrypt_avx2_end_128
+        jbe	L_AES_GCM_encrypt_avx2_end_128
         # More 128 bytes of input
 L_AES_GCM_encrypt_avx2_ghash_128:
         # aesenc_128_ghash
@@ -14484,7 +14541,7 @@ L_AES_GCM_encrypt_avx2_aesenc_128_ghash_avx_done:
         # aesenc_128_ghash - end
         addl	$0x80, %ebx
         cmpl	%r13d, %ebx
-        jl	L_AES_GCM_encrypt_avx2_ghash_128
+        jb	L_AES_GCM_encrypt_avx2_ghash_128
 L_AES_GCM_encrypt_avx2_end_128:
         vmovdqu	L_avx2_aes_gcm_bswap_mask(%rip), %xmm4
         vpshufb	%xmm4, %xmm8, %xmm8
@@ -14587,7 +14644,7 @@ L_AES_GCM_encrypt_avx2_done_128:
         movl	%r10d, %r13d
         andl	$0xfffffff0, %r13d
         cmpl	%r13d, %ebx
-        jge	L_AES_GCM_encrypt_avx2_last_block_done
+        jae	L_AES_GCM_encrypt_avx2_last_block_done
         # aesenc_block
         vmovdqu	%xmm4, %xmm1
         vpshufb	L_avx2_aes_gcm_bswap_epi64(%rip), %xmm1, %xmm0
@@ -14634,7 +14691,7 @@ L_AES_GCM_encrypt_avx2_aesenc_block_last:
         vpxor	%xmm0, %xmm6, %xmm6
         addl	$16, %ebx
         cmpl	%r13d, %ebx
-        jge	L_AES_GCM_encrypt_avx2_last_block_ghash
+        jae	L_AES_GCM_encrypt_avx2_last_block_ghash
 L_AES_GCM_encrypt_avx2_last_block_start:
         vmovdqu	(%rdi,%rbx,1), %xmm12
         vpshufb	L_avx2_aes_gcm_bswap_epi64(%rip), %xmm4, %xmm11
@@ -14685,7 +14742,7 @@ L_AES_GCM_encrypt_avx2_aesenc_gfmul_sb_last:
         vpxor	%xmm11, %xmm6, %xmm6
         addl	$16, %ebx
         cmpl	%r13d, %ebx
-        jl	L_AES_GCM_encrypt_avx2_last_block_start
+        jb	L_AES_GCM_encrypt_avx2_last_block_start
 L_AES_GCM_encrypt_avx2_last_block_ghash:
         # ghash_gfmul_red
         vpclmulqdq	$16, %xmm5, %xmm6, %xmm10
@@ -14746,7 +14803,7 @@ L_AES_GCM_encrypt_avx2_aesenc_last15_enc_avx_loop:
         incl	%ebx
         incl	%ecx
         cmpl	%edx, %ebx
-        jl	L_AES_GCM_encrypt_avx2_aesenc_last15_enc_avx_loop
+        jb	L_AES_GCM_encrypt_avx2_aesenc_last15_enc_avx_loop
 L_AES_GCM_encrypt_avx2_aesenc_last15_enc_avx_finish_enc:
         vmovdqu	16(%rsp), %xmm4
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm4, %xmm4
@@ -14824,12 +14881,14 @@ L_AES_GCM_encrypt_avx2_store_tag_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_decrypt_avx2
+WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_avx2)
 .type	AES_GCM_decrypt_avx2,@function
 .align	16
 AES_GCM_decrypt_avx2:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_decrypt_avx2
+WC_ASM_ATT_HIDDEN(_AES_GCM_decrypt_avx2)
 .p2align	4
 _AES_GCM_decrypt_avx2:
 #endif /* __APPLE__ */
@@ -14888,7 +14947,7 @@ L_AES_GCM_decrypt_avx2_calc_iv_1_aesenc_avx_last:
         movq	$0x00, %rcx
         je	L_AES_GCM_decrypt_avx2_calc_iv_done
         cmpl	$16, %edx
-        jl	L_AES_GCM_decrypt_avx2_calc_iv_lt16
+        jb	L_AES_GCM_decrypt_avx2_calc_iv_lt16
         andl	$0xfffffff0, %edx
 L_AES_GCM_decrypt_avx2_calc_iv_16_loop:
         vmovdqu	(%rax,%rcx,1), %xmm0
@@ -14926,7 +14985,7 @@ L_AES_GCM_decrypt_avx2_calc_iv_16_loop:
         vpxor	%xmm1, %xmm4, %xmm4
         addl	$16, %ecx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_decrypt_avx2_calc_iv_16_loop
+        jb	L_AES_GCM_decrypt_avx2_calc_iv_16_loop
         movl	%ebx, %edx
         cmpl	%edx, %ecx
         je	L_AES_GCM_decrypt_avx2_calc_iv_done
@@ -14940,7 +14999,7 @@ L_AES_GCM_decrypt_avx2_calc_iv_loop:
         incl	%ecx
         incl	%ebx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_decrypt_avx2_calc_iv_loop
+        jb	L_AES_GCM_decrypt_avx2_calc_iv_loop
         vmovdqu	(%rsp), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm0, %xmm0
         vpxor	%xmm0, %xmm4, %xmm4
@@ -15100,7 +15159,7 @@ L_AES_GCM_decrypt_avx2_iv_done:
         je	L_AES_GCM_decrypt_avx2_calc_aad_done
         xorl	%ecx, %ecx
         cmpl	$0x80, %edx
-        jl	L_AES_GCM_decrypt_avx2_calc_aad_after_agg
+        jb	L_AES_GCM_decrypt_avx2_calc_aad_after_agg
         movl	%edx, %r13d
         andl	$0xffffffc0, %r13d
         vmovdqu	%xmm5, 168(%rsp)
@@ -15269,7 +15328,7 @@ L_AES_GCM_decrypt_avx2_calc_aad_agg:
         vpxor	%xmm1, %xmm6, %xmm6
         addl	$0x40, %ecx
         cmpl	%r13d, %ecx
-        jl	L_AES_GCM_decrypt_avx2_calc_aad_agg
+        jb	L_AES_GCM_decrypt_avx2_calc_aad_agg
         vmovdqu	168(%rsp), %xmm5
 L_AES_GCM_decrypt_avx2_calc_aad_after_agg:
         movl	%r11d, %edx
@@ -15312,7 +15371,7 @@ L_AES_GCM_decrypt_avx2_calc_aad_16_loop:
         vpxor	%xmm1, %xmm6, %xmm6
         addl	$16, %ecx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_decrypt_avx2_calc_aad_16_loop
+        jb	L_AES_GCM_decrypt_avx2_calc_aad_16_loop
 L_AES_GCM_decrypt_avx2_calc_aad_partial:
         movl	%r11d, %edx
         cmpl	%edx, %ecx
@@ -15327,7 +15386,7 @@ L_AES_GCM_decrypt_avx2_calc_aad_loop:
         incl	%ecx
         incl	%ebx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_decrypt_avx2_calc_aad_loop
+        jb	L_AES_GCM_decrypt_avx2_calc_aad_loop
         vmovdqu	(%rsp), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm0, %xmm0
         vpxor	%xmm0, %xmm6, %xmm6
@@ -15376,7 +15435,7 @@ L_AES_GCM_decrypt_avx2_calc_aad_done:
         xorl	%ebx, %ebx
         cmpl	$0x80, %r10d
         movl	%r10d, %r13d
-        jl	L_AES_GCM_decrypt_avx2_done_128
+        jb	L_AES_GCM_decrypt_avx2_done_128
         andl	$0xffffff80, %r13d
         vmovdqu	%xmm4, 128(%rsp)
         vmovdqu	%xmm15, 144(%rsp)
@@ -15777,17 +15836,17 @@ L_AES_GCM_decrypt_avx2_aesenc_128_ghash_avx_done:
         # aesenc_128_ghash - end
         addl	$0x80, %ebx
         cmpl	%r13d, %ebx
-        jl	L_AES_GCM_decrypt_avx2_ghash_128
+        jb	L_AES_GCM_decrypt_avx2_ghash_128
         vmovdqu	(%rsp), %xmm5
         vmovdqu	128(%rsp), %xmm4
         vmovdqu	144(%rsp), %xmm15
 L_AES_GCM_decrypt_avx2_done_128:
         cmpl	%r10d, %ebx
-        jge	L_AES_GCM_decrypt_avx2_done_dec
+        jae	L_AES_GCM_decrypt_avx2_done_dec
         movl	%r10d, %r13d
         andl	$0xfffffff0, %r13d
         cmpl	%r13d, %ebx
-        jge	L_AES_GCM_decrypt_avx2_last_block_done
+        jae	L_AES_GCM_decrypt_avx2_last_block_done
 L_AES_GCM_decrypt_avx2_last_block_start:
         vmovdqu	(%rdi,%rbx,1), %xmm11
         vpshufb	L_avx2_aes_gcm_bswap_epi64(%rip), %xmm4, %xmm10
@@ -15838,7 +15897,7 @@ L_AES_GCM_decrypt_avx2_aesenc_gfmul_sb_last:
         vmovdqu	%xmm10, (%r8,%rbx,1)
         addl	$16, %ebx
         cmpl	%r13d, %ebx
-        jl	L_AES_GCM_decrypt_avx2_last_block_start
+        jb	L_AES_GCM_decrypt_avx2_last_block_start
 L_AES_GCM_decrypt_avx2_last_block_done:
         movl	%r10d, %ecx
         movl	%r10d, %edx
@@ -15881,7 +15940,7 @@ L_AES_GCM_decrypt_avx2_aesenc_last15_dec_avx_loop:
         incl	%ebx
         incl	%ecx
         cmpl	%edx, %ebx
-        jl	L_AES_GCM_decrypt_avx2_aesenc_last15_dec_avx_loop
+        jb	L_AES_GCM_decrypt_avx2_aesenc_last15_dec_avx_loop
         vmovdqu	16(%rsp), %xmm4
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm4, %xmm4
         vpxor	%xmm4, %xmm6, %xmm6
@@ -15971,12 +16030,14 @@ L_AES_GCM_decrypt_avx2_cmp_tag_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_init_avx2
+WC_ASM_ATT_HIDDEN(AES_GCM_init_avx2)
 .type	AES_GCM_init_avx2,@function
 .align	16
 AES_GCM_init_avx2:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_init_avx2
+WC_ASM_ATT_HIDDEN(_AES_GCM_init_avx2)
 .p2align	4
 _AES_GCM_init_avx2:
 #endif /* __APPLE__ */
@@ -16022,7 +16083,7 @@ L_AES_GCM_init_avx2_calc_iv_1_aesenc_avx_last:
         movq	$0x00, %rcx
         je	L_AES_GCM_init_avx2_calc_iv_done
         cmpl	$16, %edx
-        jl	L_AES_GCM_init_avx2_calc_iv_lt16
+        jb	L_AES_GCM_init_avx2_calc_iv_lt16
         andl	$0xfffffff0, %edx
 L_AES_GCM_init_avx2_calc_iv_16_loop:
         vmovdqu	(%r10,%rcx,1), %xmm0
@@ -16060,7 +16121,7 @@ L_AES_GCM_init_avx2_calc_iv_16_loop:
         vpxor	%xmm1, %xmm4, %xmm4
         addl	$16, %ecx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_init_avx2_calc_iv_16_loop
+        jb	L_AES_GCM_init_avx2_calc_iv_16_loop
         movl	%r11d, %edx
         cmpl	%edx, %ecx
         je	L_AES_GCM_init_avx2_calc_iv_done
@@ -16074,7 +16135,7 @@ L_AES_GCM_init_avx2_calc_iv_loop:
         incl	%ecx
         incl	%ebx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_init_avx2_calc_iv_loop
+        jb	L_AES_GCM_init_avx2_calc_iv_loop
         vmovdqu	(%rsp), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm0, %xmm0
         vpxor	%xmm0, %xmm4, %xmm4
@@ -16244,12 +16305,14 @@ L_AES_GCM_init_avx2_iv_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_aad_update_avx2
+WC_ASM_ATT_HIDDEN(AES_GCM_aad_update_avx2)
 .type	AES_GCM_aad_update_avx2,@function
 .align	16
 AES_GCM_aad_update_avx2:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_aad_update_avx2
+WC_ASM_ATT_HIDDEN(_AES_GCM_aad_update_avx2)
 .p2align	4
 _AES_GCM_aad_update_avx2:
 #endif /* __APPLE__ */
@@ -16293,7 +16356,7 @@ L_AES_GCM_aad_update_avx2_16_loop:
         vpxor	%xmm1, %xmm4, %xmm4
         addl	$16, %ecx
         cmpl	%esi, %ecx
-        jl	L_AES_GCM_aad_update_avx2_16_loop
+        jb	L_AES_GCM_aad_update_avx2_16_loop
         vmovdqu	%xmm4, (%rdx)
         vzeroupper
         repz retq
@@ -16303,12 +16366,14 @@ L_AES_GCM_aad_update_avx2_16_loop:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_encrypt_block_avx2
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_block_avx2)
 .type	AES_GCM_encrypt_block_avx2,@function
 .align	16
 AES_GCM_encrypt_block_avx2:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_encrypt_block_avx2
+WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt_block_avx2)
 .p2align	4
 _AES_GCM_encrypt_block_avx2:
 #endif /* __APPLE__ */
@@ -16368,12 +16433,14 @@ L_AES_GCM_encrypt_block_avx2_aesenc_block_last:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_ghash_block_avx2
+WC_ASM_ATT_HIDDEN(AES_GCM_ghash_block_avx2)
 .type	AES_GCM_ghash_block_avx2,@function
 .align	16
 AES_GCM_ghash_block_avx2:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_ghash_block_avx2
+WC_ASM_ATT_HIDDEN(_AES_GCM_ghash_block_avx2)
 .p2align	4
 _AES_GCM_ghash_block_avx2:
 #endif /* __APPLE__ */
@@ -16421,12 +16488,14 @@ _AES_GCM_ghash_block_avx2:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_encrypt_update_avx2
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_update_avx2)
 .type	AES_GCM_encrypt_update_avx2,@function
 .align	16
 AES_GCM_encrypt_update_avx2:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_encrypt_update_avx2
+WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt_update_avx2)
 .p2align	4
 _AES_GCM_encrypt_update_avx2:
 #endif /* __APPLE__ */
@@ -16452,7 +16521,7 @@ _AES_GCM_encrypt_update_avx2:
         xorl	%r14d, %r14d
         cmpl	$0x80, %r8d
         movl	%r8d, %r13d
-        jl	L_AES_GCM_encrypt_update_avx2_done_128
+        jb	L_AES_GCM_encrypt_update_avx2_done_128
         andl	$0xffffff80, %r13d
         vmovdqu	%xmm4, 128(%rsp)
         vmovdqu	L_avx2_aes_gcm_mod2_128(%rip), %xmm3
@@ -16742,7 +16811,7 @@ L_AES_GCM_encrypt_update_avx2_aesenc_128_enc_done:
         vmovdqu	%xmm15, 112(%r10)
         cmpl	$0x80, %r13d
         movl	$0x80, %r14d
-        jle	L_AES_GCM_encrypt_update_avx2_end_128
+        jbe	L_AES_GCM_encrypt_update_avx2_end_128
         # More 128 bytes of input
 L_AES_GCM_encrypt_update_avx2_ghash_128:
         # aesenc_128_ghash
@@ -17044,7 +17113,7 @@ L_AES_GCM_encrypt_update_avx2_aesenc_128_ghash_avx_done:
         # aesenc_128_ghash - end
         addl	$0x80, %r14d
         cmpl	%r13d, %r14d
-        jl	L_AES_GCM_encrypt_update_avx2_ghash_128
+        jb	L_AES_GCM_encrypt_update_avx2_ghash_128
 L_AES_GCM_encrypt_update_avx2_end_128:
         vmovdqu	L_avx2_aes_gcm_bswap_mask(%rip), %xmm4
         vpshufb	%xmm4, %xmm8, %xmm8
@@ -17146,7 +17215,7 @@ L_AES_GCM_encrypt_update_avx2_done_128:
         movl	%r8d, %r13d
         andl	$0xfffffff0, %r13d
         cmpl	%r13d, %r14d
-        jge	L_AES_GCM_encrypt_update_avx2_last_block_done
+        jae	L_AES_GCM_encrypt_update_avx2_last_block_done
         # aesenc_block
         vmovdqu	%xmm4, %xmm1
         vpshufb	L_avx2_aes_gcm_bswap_epi64(%rip), %xmm1, %xmm0
@@ -17193,7 +17262,7 @@ L_AES_GCM_encrypt_update_avx2_aesenc_block_last:
         vpxor	%xmm0, %xmm6, %xmm6
         addl	$16, %r14d
         cmpl	%r13d, %r14d
-        jge	L_AES_GCM_encrypt_update_avx2_last_block_ghash
+        jae	L_AES_GCM_encrypt_update_avx2_last_block_ghash
 L_AES_GCM_encrypt_update_avx2_last_block_start:
         vmovdqu	(%r11,%r14,1), %xmm12
         vpshufb	L_avx2_aes_gcm_bswap_epi64(%rip), %xmm4, %xmm11
@@ -17244,7 +17313,7 @@ L_AES_GCM_encrypt_update_avx2_aesenc_gfmul_sb_last:
         vpxor	%xmm11, %xmm6, %xmm6
         addl	$16, %r14d
         cmpl	%r13d, %r14d
-        jl	L_AES_GCM_encrypt_update_avx2_last_block_start
+        jb	L_AES_GCM_encrypt_update_avx2_last_block_start
 L_AES_GCM_encrypt_update_avx2_last_block_ghash:
         # ghash_gfmul_red
         vpclmulqdq	$16, %xmm5, %xmm6, %xmm10
@@ -17279,12 +17348,14 @@ L_AES_GCM_encrypt_update_avx2_done_enc:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_encrypt_final_avx2
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_final_avx2)
 .type	AES_GCM_encrypt_final_avx2,@function
 .align	16
 AES_GCM_encrypt_final_avx2:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_encrypt_final_avx2
+WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt_final_avx2)
 .p2align	4
 _AES_GCM_encrypt_final_avx2:
 #endif /* __APPLE__ */
@@ -17351,12 +17422,14 @@ L_AES_GCM_encrypt_final_avx2_store_tag_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_decrypt_update_avx2
+WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_update_avx2)
 .type	AES_GCM_decrypt_update_avx2,@function
 .align	16
 AES_GCM_decrypt_update_avx2:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_decrypt_update_avx2
+WC_ASM_ATT_HIDDEN(_AES_GCM_decrypt_update_avx2)
 .p2align	4
 _AES_GCM_decrypt_update_avx2:
 #endif /* __APPLE__ */
@@ -17383,7 +17456,7 @@ _AES_GCM_decrypt_update_avx2:
         xorl	%r14d, %r14d
         cmpl	$0x80, %r8d
         movl	%r8d, %r13d
-        jl	L_AES_GCM_decrypt_update_avx2_done_128
+        jb	L_AES_GCM_decrypt_update_avx2_done_128
         andl	$0xffffff80, %r13d
         vmovdqu	%xmm4, 128(%rsp)
         vmovdqu	%xmm15, 144(%rsp)
@@ -17784,17 +17857,17 @@ L_AES_GCM_decrypt_update_avx2_aesenc_128_ghash_avx_done:
         # aesenc_128_ghash - end
         addl	$0x80, %r14d
         cmpl	%r13d, %r14d
-        jl	L_AES_GCM_decrypt_update_avx2_ghash_128
+        jb	L_AES_GCM_decrypt_update_avx2_ghash_128
         vmovdqu	(%rsp), %xmm5
         vmovdqu	128(%rsp), %xmm4
         vmovdqu	144(%rsp), %xmm15
 L_AES_GCM_decrypt_update_avx2_done_128:
         cmpl	%r8d, %r14d
-        jge	L_AES_GCM_decrypt_update_avx2_done_dec
+        jae	L_AES_GCM_decrypt_update_avx2_done_dec
         movl	%r8d, %r13d
         andl	$0xfffffff0, %r13d
         cmpl	%r13d, %r14d
-        jge	L_AES_GCM_decrypt_update_avx2_last_block_done
+        jae	L_AES_GCM_decrypt_update_avx2_last_block_done
 L_AES_GCM_decrypt_update_avx2_last_block_start:
         vmovdqu	(%r11,%r14,1), %xmm11
         vpshufb	L_avx2_aes_gcm_bswap_epi64(%rip), %xmm4, %xmm10
@@ -17845,7 +17918,7 @@ L_AES_GCM_decrypt_update_avx2_aesenc_gfmul_sb_last:
         vmovdqu	%xmm10, (%r10,%r14,1)
         addl	$16, %r14d
         cmpl	%r13d, %r14d
-        jl	L_AES_GCM_decrypt_update_avx2_last_block_start
+        jb	L_AES_GCM_decrypt_update_avx2_last_block_start
 L_AES_GCM_decrypt_update_avx2_last_block_done:
 L_AES_GCM_decrypt_update_avx2_done_dec:
         vmovdqu	%xmm6, (%r9)
@@ -17862,12 +17935,14 @@ L_AES_GCM_decrypt_update_avx2_done_dec:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_decrypt_final_avx2
+WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_final_avx2)
 .type	AES_GCM_decrypt_final_avx2,@function
 .align	16
 AES_GCM_decrypt_final_avx2:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_decrypt_final_avx2
+WC_ASM_ATT_HIDDEN(_AES_GCM_decrypt_final_avx2)
 .p2align	4
 _AES_GCM_decrypt_final_avx2:
 #endif /* __APPLE__ */
@@ -18027,12 +18102,14 @@ L_GCM_generate_m0_vaes_mod2_128:
 #ifndef __APPLE__
 .text
 .globl	GCM_generate_m0_vaes
+WC_ASM_ATT_HIDDEN(GCM_generate_m0_vaes)
 .type	GCM_generate_m0_vaes,@function
 .align	16
 GCM_generate_m0_vaes:
 #else
 .section	__TEXT,__text
 .globl	_GCM_generate_m0_vaes
+WC_ASM_ATT_HIDDEN(_GCM_generate_m0_vaes)
 .p2align	4
 _GCM_generate_m0_vaes:
 #endif /* __APPLE__ */
@@ -18367,12 +18444,14 @@ L_vaes_aes_gcm_mod2_128:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_encrypt_vaes
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_vaes)
 .type	AES_GCM_encrypt_vaes,@function
 .align	16
 AES_GCM_encrypt_vaes:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_encrypt_vaes
+WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt_vaes)
 .p2align	4
 _AES_GCM_encrypt_vaes:
 #endif /* __APPLE__ */
@@ -18486,7 +18565,7 @@ L_AES_GCM_encrypt_vaes_calc_iv_1_aesenc_avx_last:
         movq	$0x00, %rcx
         je	L_AES_GCM_encrypt_vaes_calc_iv_done
         cmpl	$16, %edx
-        jl	L_AES_GCM_encrypt_vaes_calc_iv_lt16
+        jb	L_AES_GCM_encrypt_vaes_calc_iv_lt16
         andl	$0xfffffff0, %edx
 L_AES_GCM_encrypt_vaes_calc_iv_16_loop:
         vmovdqu	(%rax,%rcx,1), %xmm7
@@ -18537,7 +18616,7 @@ L_AES_GCM_encrypt_vaes_calc_iv_16_loop:
         vpxor	%xmm2, %xmm5, %xmm5
         addl	$16, %ecx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_encrypt_vaes_calc_iv_16_loop
+        jb	L_AES_GCM_encrypt_vaes_calc_iv_16_loop
         movl	%ebx, %edx
         cmpl	%edx, %ecx
         je	L_AES_GCM_encrypt_vaes_calc_iv_done
@@ -18552,7 +18631,7 @@ L_AES_GCM_encrypt_vaes_calc_iv_loop:
         incl	%ecx
         incl	%ebx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_encrypt_vaes_calc_iv_loop
+        jb	L_AES_GCM_encrypt_vaes_calc_iv_loop
         vmovdqu	(%rsp), %xmm7
         addq	$16, %rsp
         vpshufb	L_vaes_aes_gcm_bswap_mask(%rip), %xmm7, %xmm7
@@ -18683,7 +18762,7 @@ L_AES_GCM_encrypt_vaes_iv_done:
         je	L_AES_GCM_encrypt_vaes_calc_aad_done
         xorl	%ecx, %ecx
         cmpl	$0x80, %edx
-        jl	L_AES_GCM_encrypt_vaes_calc_aad_ser
+        jb	L_AES_GCM_encrypt_vaes_calc_aad_ser
         vmovdqu	%xmm6, 560(%rsp)
         vmovdqu	%xmm5, 576(%rsp)
         vpsrlq	$63, %xmm6, %xmm8
@@ -18812,7 +18891,7 @@ L_AES_GCM_encrypt_vaes_iv_done:
         vmovdqa	%xmm10, %xmm4
         vmovdqu	%xmm4, 112(%rsp)
         cmpl	$0x100, %edx
-        jl	L_AES_GCM_encrypt_vaes_calc_aad_no_ext
+        jb	L_AES_GCM_encrypt_vaes_calc_aad_no_ext
         # H ^ 9
         vmovdqu	48(%rsp), %xmm0
         vmovdqu	64(%rsp), %xmm1
@@ -18986,7 +19065,7 @@ L_AES_GCM_encrypt_vaes_calc_aad_no_ext:
         movl	%r11d, %r13d
         andl	$0xffffff00, %r13d
         cmpl	%r13d, %ecx
-        jge	L_AES_GCM_encrypt_vaes_calc_aad_a256
+        jae	L_AES_GCM_encrypt_vaes_calc_aad_a256
 L_AES_GCM_encrypt_vaes_calc_aad_l256:
         # 256 bytes of AAD
         leaq	(%r12,%rcx,1), %rbx
@@ -19093,12 +19172,12 @@ L_AES_GCM_encrypt_vaes_calc_aad_l256:
         vpxor	%xmm0, %xmm13, %xmm15
         addl	$0x100, %ecx
         cmpl	%r13d, %ecx
-        jl	L_AES_GCM_encrypt_vaes_calc_aad_l256
+        jb	L_AES_GCM_encrypt_vaes_calc_aad_l256
 L_AES_GCM_encrypt_vaes_calc_aad_a256:
         movl	%r11d, %r13d
         andl	$0xffffff80, %r13d
         cmpl	%r13d, %ecx
-        jge	L_AES_GCM_encrypt_vaes_calc_aad_a128
+        jae	L_AES_GCM_encrypt_vaes_calc_aad_a128
         # 128 bytes of AAD
         leaq	(%r12,%rcx,1), %rbx
         vmovdqu	96(%rsp), %ymm7
@@ -19167,7 +19246,7 @@ L_AES_GCM_encrypt_vaes_calc_aad_a128:
         movl	%r11d, %r13d
         andl	$0xfffffff0, %r13d
         cmpl	%r13d, %ecx
-        jge	L_AES_GCM_encrypt_vaes_calc_aad_arem
+        jae	L_AES_GCM_encrypt_vaes_calc_aad_arem
         vmovdqu	(%rsp), %xmm6
 L_AES_GCM_encrypt_vaes_calc_aad_rem:
         # 16 bytes of AAD
@@ -19193,7 +19272,7 @@ L_AES_GCM_encrypt_vaes_calc_aad_rem:
         vmovdqa	%xmm10, %xmm15
         addl	$16, %ecx
         cmpl	%r13d, %ecx
-        jl	L_AES_GCM_encrypt_vaes_calc_aad_rem
+        jb	L_AES_GCM_encrypt_vaes_calc_aad_rem
 L_AES_GCM_encrypt_vaes_calc_aad_arem:
         vmovdqu	560(%rsp), %xmm6
         vmovdqu	576(%rsp), %xmm5
@@ -19252,7 +19331,7 @@ L_AES_GCM_encrypt_vaes_calc_aad_16_loop:
         vpxor	%xmm2, %xmm15, %xmm15
         addl	$16, %ecx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_encrypt_vaes_calc_aad_16_loop
+        jb	L_AES_GCM_encrypt_vaes_calc_aad_16_loop
 L_AES_GCM_encrypt_vaes_calc_aad_partial:
         movl	%r11d, %edx
         cmpl	%edx, %ecx
@@ -19268,7 +19347,7 @@ L_AES_GCM_encrypt_vaes_calc_aad_loop:
         incl	%ecx
         incl	%ebx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_encrypt_vaes_calc_aad_loop
+        jb	L_AES_GCM_encrypt_vaes_calc_aad_loop
         vmovdqu	(%rsp), %xmm7
         addq	$16, %rsp
         vpshufb	L_vaes_aes_gcm_bswap_mask(%rip), %xmm7, %xmm7
@@ -19331,7 +19410,7 @@ L_AES_GCM_encrypt_vaes_calc_aad_done:
         vmovdqu	%xmm5, 512(%rsp)
         xorl	%ebx, %ebx
         cmpl	$0x80, %r9d
-        jl	L_AES_GCM_encrypt_vaes_done_128
+        jb	L_AES_GCM_encrypt_vaes_done_128
         vmovdqa	%xmm15, %xmm2
         # H ^ 1
         vmovdqu	%xmm6, (%rsp)
@@ -19450,7 +19529,7 @@ L_AES_GCM_encrypt_vaes_calc_aad_done:
         vmovdqa	%xmm10, %xmm4
         vmovdqu	%xmm4, 112(%rsp)
         cmpl	$0x100, %r9d
-        jl	L_AES_GCM_encrypt_vaes_no_ext
+        jb	L_AES_GCM_encrypt_vaes_no_ext
         # H ^ 9
         vmovdqu	48(%rsp), %xmm0
         vmovdqu	64(%rsp), %xmm1
@@ -19622,7 +19701,7 @@ L_AES_GCM_encrypt_vaes_calc_aad_done:
 L_AES_GCM_encrypt_vaes_no_ext:
         vbroadcasti128	L_vaes_aes_gcm_mod2_128(%rip), %ymm14
         cmpl	$0x100, %r9d
-        jl	L_AES_GCM_encrypt_vaes_after_256
+        jb	L_AES_GCM_encrypt_vaes_after_256
         movl	%r9d, %r13d
         andl	$0xffffff00, %r13d
 L_AES_GCM_encrypt_vaes_loop_256:
@@ -19947,12 +20026,12 @@ L_AES_GCM_encrypt_vaes_p2_vaes_ctr8_last:
         vextracti128	$0x01, %ymm13, %xmm0
         vpxor	%xmm0, %xmm13, %xmm15
         cmpl	%r13d, %ebx
-        jl	L_AES_GCM_encrypt_vaes_loop_256
+        jb	L_AES_GCM_encrypt_vaes_loop_256
 L_AES_GCM_encrypt_vaes_after_256:
         movl	%r9d, %r13d
         andl	$0xffffff80, %r13d
         cmpl	%r13d, %ebx
-        jge	L_AES_GCM_encrypt_vaes_after_128
+        jae	L_AES_GCM_encrypt_vaes_after_128
         # 128 bytes of input
         leaq	(%rsi,%rbx,1), %rcx
         movq	%rcx, 544(%rsp)
@@ -20131,11 +20210,11 @@ L_AES_GCM_encrypt_vaes_after_128:
 L_AES_GCM_encrypt_vaes_done_128:
         movl	%r9d, %edx
         cmpl	%edx, %ebx
-        jge	L_AES_GCM_encrypt_vaes_done_enc
+        jae	L_AES_GCM_encrypt_vaes_done_enc
         movl	%r9d, %r13d
         andl	$0xfffffff0, %r13d
         cmpl	%r13d, %ebx
-        jge	L_AES_GCM_encrypt_vaes_last_block_done
+        jae	L_AES_GCM_encrypt_vaes_last_block_done
         vmovdqu	512(%rsp), %xmm8
         vpshufb	L_vaes_aes_gcm_bswap_epi64(%rip), %xmm8, %xmm7
         vpaddd	L_vaes_aes_gcm_one(%rip), %xmm8, %xmm8
@@ -20170,7 +20249,7 @@ L_AES_GCM_encrypt_vaes_aesenc_block_last:
         vpxor	%xmm7, %xmm15, %xmm15
         addl	$16, %ebx
         cmpl	%r13d, %ebx
-        jge	L_AES_GCM_encrypt_vaes_last_block_ghash
+        jae	L_AES_GCM_encrypt_vaes_last_block_ghash
 L_AES_GCM_encrypt_vaes_last_block_start:
         vmovdqu	(%rdi,%rbx,1), %xmm12
         vmovdqu	512(%rsp), %xmm8
@@ -20224,7 +20303,7 @@ L_AES_GCM_encrypt_vaes_aesenc_gfmul_last:
         addl	$16, %ebx
         vpxor	%xmm7, %xmm15, %xmm15
         cmpl	%r13d, %ebx
-        jl	L_AES_GCM_encrypt_vaes_last_block_start
+        jb	L_AES_GCM_encrypt_vaes_last_block_start
 L_AES_GCM_encrypt_vaes_last_block_ghash:
         # ghash_gfmul_red_avx
         vpclmulqdq	$0x00, %xmm6, %xmm15, %xmm7
@@ -20283,7 +20362,7 @@ L_AES_GCM_encrypt_vaes_aesenc_last15_enc_avx_loop:
         incl	%ebx
         incl	%ecx
         cmpl	%edx, %ebx
-        jl	L_AES_GCM_encrypt_vaes_aesenc_last15_enc_avx_loop
+        jb	L_AES_GCM_encrypt_vaes_aesenc_last15_enc_avx_loop
         xorq	%r13, %r13
         cmpl	$16, %ecx
         je	L_AES_GCM_encrypt_vaes_aesenc_last15_enc_avx_finish_enc
@@ -20291,7 +20370,7 @@ L_AES_GCM_encrypt_vaes_aesenc_last15_enc_avx_byte_loop:
         movb	%r13b, (%rsp,%rcx,1)
         incl	%ecx
         cmpl	$16, %ecx
-        jl	L_AES_GCM_encrypt_vaes_aesenc_last15_enc_avx_byte_loop
+        jb	L_AES_GCM_encrypt_vaes_aesenc_last15_enc_avx_byte_loop
 L_AES_GCM_encrypt_vaes_aesenc_last15_enc_avx_finish_enc:
         vmovdqu	(%rsp), %xmm5
         addq	$16, %rsp
@@ -20370,12 +20449,14 @@ L_AES_GCM_encrypt_vaes_store_tag_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_decrypt_vaes
+WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_vaes)
 .type	AES_GCM_decrypt_vaes,@function
 .align	16
 AES_GCM_decrypt_vaes:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_decrypt_vaes
+WC_ASM_ATT_HIDDEN(_AES_GCM_decrypt_vaes)
 .p2align	4
 _AES_GCM_decrypt_vaes:
 #endif /* __APPLE__ */
@@ -20491,7 +20572,7 @@ L_AES_GCM_decrypt_vaes_calc_iv_1_aesenc_avx_last:
         movq	$0x00, %rcx
         je	L_AES_GCM_decrypt_vaes_calc_iv_done
         cmpl	$16, %edx
-        jl	L_AES_GCM_decrypt_vaes_calc_iv_lt16
+        jb	L_AES_GCM_decrypt_vaes_calc_iv_lt16
         andl	$0xfffffff0, %edx
 L_AES_GCM_decrypt_vaes_calc_iv_16_loop:
         vmovdqu	(%rax,%rcx,1), %xmm7
@@ -20542,7 +20623,7 @@ L_AES_GCM_decrypt_vaes_calc_iv_16_loop:
         vpxor	%xmm2, %xmm5, %xmm5
         addl	$16, %ecx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_decrypt_vaes_calc_iv_16_loop
+        jb	L_AES_GCM_decrypt_vaes_calc_iv_16_loop
         movl	%ebx, %edx
         cmpl	%edx, %ecx
         je	L_AES_GCM_decrypt_vaes_calc_iv_done
@@ -20557,7 +20638,7 @@ L_AES_GCM_decrypt_vaes_calc_iv_loop:
         incl	%ecx
         incl	%ebx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_decrypt_vaes_calc_iv_loop
+        jb	L_AES_GCM_decrypt_vaes_calc_iv_loop
         vmovdqu	(%rsp), %xmm7
         addq	$16, %rsp
         vpshufb	L_vaes_aes_gcm_bswap_mask(%rip), %xmm7, %xmm7
@@ -20688,7 +20769,7 @@ L_AES_GCM_decrypt_vaes_iv_done:
         je	L_AES_GCM_decrypt_vaes_calc_aad_done
         xorl	%ecx, %ecx
         cmpl	$0x80, %edx
-        jl	L_AES_GCM_decrypt_vaes_calc_aad_ser
+        jb	L_AES_GCM_decrypt_vaes_calc_aad_ser
         vmovdqu	%xmm6, 560(%rsp)
         vmovdqu	%xmm5, 576(%rsp)
         vpsrlq	$63, %xmm6, %xmm8
@@ -20817,7 +20898,7 @@ L_AES_GCM_decrypt_vaes_iv_done:
         vmovdqa	%xmm10, %xmm4
         vmovdqu	%xmm4, 112(%rsp)
         cmpl	$0x100, %edx
-        jl	L_AES_GCM_decrypt_vaes_calc_aad_no_ext
+        jb	L_AES_GCM_decrypt_vaes_calc_aad_no_ext
         # H ^ 9
         vmovdqu	48(%rsp), %xmm0
         vmovdqu	64(%rsp), %xmm1
@@ -20991,7 +21072,7 @@ L_AES_GCM_decrypt_vaes_calc_aad_no_ext:
         movl	%r11d, %r13d
         andl	$0xffffff00, %r13d
         cmpl	%r13d, %ecx
-        jge	L_AES_GCM_decrypt_vaes_calc_aad_a256
+        jae	L_AES_GCM_decrypt_vaes_calc_aad_a256
 L_AES_GCM_decrypt_vaes_calc_aad_l256:
         # 256 bytes of AAD
         leaq	(%r12,%rcx,1), %rbx
@@ -21098,12 +21179,12 @@ L_AES_GCM_decrypt_vaes_calc_aad_l256:
         vpxor	%xmm0, %xmm13, %xmm15
         addl	$0x100, %ecx
         cmpl	%r13d, %ecx
-        jl	L_AES_GCM_decrypt_vaes_calc_aad_l256
+        jb	L_AES_GCM_decrypt_vaes_calc_aad_l256
 L_AES_GCM_decrypt_vaes_calc_aad_a256:
         movl	%r11d, %r13d
         andl	$0xffffff80, %r13d
         cmpl	%r13d, %ecx
-        jge	L_AES_GCM_decrypt_vaes_calc_aad_a128
+        jae	L_AES_GCM_decrypt_vaes_calc_aad_a128
         # 128 bytes of AAD
         leaq	(%r12,%rcx,1), %rbx
         vmovdqu	96(%rsp), %ymm7
@@ -21172,7 +21253,7 @@ L_AES_GCM_decrypt_vaes_calc_aad_a128:
         movl	%r11d, %r13d
         andl	$0xfffffff0, %r13d
         cmpl	%r13d, %ecx
-        jge	L_AES_GCM_decrypt_vaes_calc_aad_arem
+        jae	L_AES_GCM_decrypt_vaes_calc_aad_arem
         vmovdqu	(%rsp), %xmm6
 L_AES_GCM_decrypt_vaes_calc_aad_rem:
         # 16 bytes of AAD
@@ -21198,7 +21279,7 @@ L_AES_GCM_decrypt_vaes_calc_aad_rem:
         vmovdqa	%xmm10, %xmm15
         addl	$16, %ecx
         cmpl	%r13d, %ecx
-        jl	L_AES_GCM_decrypt_vaes_calc_aad_rem
+        jb	L_AES_GCM_decrypt_vaes_calc_aad_rem
 L_AES_GCM_decrypt_vaes_calc_aad_arem:
         vmovdqu	560(%rsp), %xmm6
         vmovdqu	576(%rsp), %xmm5
@@ -21257,7 +21338,7 @@ L_AES_GCM_decrypt_vaes_calc_aad_16_loop:
         vpxor	%xmm2, %xmm15, %xmm15
         addl	$16, %ecx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_decrypt_vaes_calc_aad_16_loop
+        jb	L_AES_GCM_decrypt_vaes_calc_aad_16_loop
 L_AES_GCM_decrypt_vaes_calc_aad_partial:
         movl	%r11d, %edx
         cmpl	%edx, %ecx
@@ -21273,7 +21354,7 @@ L_AES_GCM_decrypt_vaes_calc_aad_loop:
         incl	%ecx
         incl	%ebx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_decrypt_vaes_calc_aad_loop
+        jb	L_AES_GCM_decrypt_vaes_calc_aad_loop
         vmovdqu	(%rsp), %xmm7
         addq	$16, %rsp
         vpshufb	L_vaes_aes_gcm_bswap_mask(%rip), %xmm7, %xmm7
@@ -21336,7 +21417,7 @@ L_AES_GCM_decrypt_vaes_calc_aad_done:
         vmovdqu	%xmm5, 512(%rsp)
         xorl	%ebx, %ebx
         cmpl	$0x80, %r9d
-        jl	L_AES_GCM_decrypt_vaes_done_128
+        jb	L_AES_GCM_decrypt_vaes_done_128
         vmovdqa	%xmm15, %xmm2
         # H ^ 1
         vmovdqu	%xmm6, (%rsp)
@@ -21455,7 +21536,7 @@ L_AES_GCM_decrypt_vaes_calc_aad_done:
         vmovdqa	%xmm10, %xmm4
         vmovdqu	%xmm4, 112(%rsp)
         cmpl	$0x100, %r9d
-        jl	L_AES_GCM_decrypt_vaes_no_ext
+        jb	L_AES_GCM_decrypt_vaes_no_ext
         # H ^ 9
         vmovdqu	48(%rsp), %xmm0
         vmovdqu	64(%rsp), %xmm1
@@ -21627,7 +21708,7 @@ L_AES_GCM_decrypt_vaes_calc_aad_done:
 L_AES_GCM_decrypt_vaes_no_ext:
         vbroadcasti128	L_vaes_aes_gcm_mod2_128(%rip), %ymm14
         cmpl	$0x100, %r9d
-        jl	L_AES_GCM_decrypt_vaes_after_256
+        jb	L_AES_GCM_decrypt_vaes_after_256
         movl	%r9d, %r13d
         andl	$0xffffff00, %r13d
 L_AES_GCM_decrypt_vaes_loop_256:
@@ -21950,7 +22031,7 @@ L_AES_GCM_decrypt_vaes_l2_vaes_ctr8_last:
         vmovdqu	%ymm3, 96(%rdx)
         addl	$0x80, %ebx
         cmpl	%r13d, %ebx
-        jl	L_AES_GCM_decrypt_vaes_loop_256
+        jb	L_AES_GCM_decrypt_vaes_loop_256
 L_AES_GCM_decrypt_vaes_after_256:
         vmovdqu	96(%rsp), %ymm7
         vpermq	$0x4e, %ymm7, %ymm7
@@ -21963,7 +22044,7 @@ L_AES_GCM_decrypt_vaes_after_256:
         movl	%r9d, %r13d
         andl	$0xffffff80, %r13d
         cmpl	%r13d, %ebx
-        jge	L_AES_GCM_decrypt_vaes_after_128
+        jae	L_AES_GCM_decrypt_vaes_after_128
         # 128 bytes of input
         leaq	(%rdi,%rbx,1), %rax
         vbroadcasti128	L_vaes_aes_gcm_bswap_mask(%rip), %ymm6
@@ -22132,11 +22213,11 @@ L_AES_GCM_decrypt_vaes_after_128:
 L_AES_GCM_decrypt_vaes_done_128:
         movl	%r9d, %edx
         cmpl	%edx, %ebx
-        jge	L_AES_GCM_decrypt_vaes_done_dec
+        jae	L_AES_GCM_decrypt_vaes_done_dec
         movl	%r9d, %r13d
         andl	$0xfffffff0, %r13d
         cmpl	%r13d, %ebx
-        jge	L_AES_GCM_decrypt_vaes_last_block_done
+        jae	L_AES_GCM_decrypt_vaes_last_block_done
 L_AES_GCM_decrypt_vaes_last_block_start:
         vmovdqu	(%rdi,%rbx,1), %xmm12
         vmovdqa	%xmm6, %xmm0
@@ -22191,7 +22272,7 @@ L_AES_GCM_decrypt_vaes_aesenc_gfmul_last:
         vmovdqu	%xmm7, (%rsi,%rbx,1)
         addl	$16, %ebx
         cmpl	%r13d, %ebx
-        jl	L_AES_GCM_decrypt_vaes_last_block_start
+        jb	L_AES_GCM_decrypt_vaes_last_block_start
 L_AES_GCM_decrypt_vaes_last_block_done:
         movl	%r9d, %ecx
         movl	%ecx, %edx
@@ -22235,7 +22316,7 @@ L_AES_GCM_decrypt_vaes_aesenc_last15_dec_avx_loop:
         incl	%ebx
         incl	%ecx
         cmpl	%edx, %ebx
-        jl	L_AES_GCM_decrypt_vaes_aesenc_last15_dec_avx_loop
+        jb	L_AES_GCM_decrypt_vaes_aesenc_last15_dec_avx_loop
         vmovdqu	16(%rsp), %xmm5
         addq	$32, %rsp
         vpshufb	L_vaes_aes_gcm_bswap_mask(%rip), %xmm5, %xmm5
@@ -22329,12 +22410,14 @@ L_AES_GCM_decrypt_vaes_cmp_tag_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_init_vaes
+WC_ASM_ATT_HIDDEN(AES_GCM_init_vaes)
 .type	AES_GCM_init_vaes,@function
 .align	16
 AES_GCM_init_vaes:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_init_vaes
+WC_ASM_ATT_HIDDEN(_AES_GCM_init_vaes)
 .p2align	4
 _AES_GCM_init_vaes:
 #endif /* __APPLE__ */
@@ -22440,7 +22523,7 @@ L_AES_GCM_init_vaes_calc_iv_1_aesenc_avx_last:
         movq	$0x00, %rcx
         je	L_AES_GCM_init_vaes_calc_iv_done
         cmpl	$16, %edx
-        jl	L_AES_GCM_init_vaes_calc_iv_lt16
+        jb	L_AES_GCM_init_vaes_calc_iv_lt16
         andl	$0xfffffff0, %edx
 L_AES_GCM_init_vaes_calc_iv_16_loop:
         vmovdqu	(%r10,%rcx,1), %xmm7
@@ -22491,7 +22574,7 @@ L_AES_GCM_init_vaes_calc_iv_16_loop:
         vpxor	%xmm2, %xmm4, %xmm4
         addl	$16, %ecx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_init_vaes_calc_iv_16_loop
+        jb	L_AES_GCM_init_vaes_calc_iv_16_loop
         movl	%r11d, %edx
         cmpl	%edx, %ecx
         je	L_AES_GCM_init_vaes_calc_iv_done
@@ -22506,7 +22589,7 @@ L_AES_GCM_init_vaes_calc_iv_loop:
         incl	%ecx
         incl	%r13d
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_init_vaes_calc_iv_loop
+        jb	L_AES_GCM_init_vaes_calc_iv_loop
         vmovdqu	(%rsp), %xmm7
         addq	$16, %rsp
         vpshufb	L_vaes_aes_gcm_bswap_mask(%rip), %xmm7, %xmm7
@@ -22646,12 +22729,14 @@ L_AES_GCM_init_vaes_iv_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_aad_update_vaes
+WC_ASM_ATT_HIDDEN(AES_GCM_aad_update_vaes)
 .type	AES_GCM_aad_update_vaes,@function
 .align	16
 AES_GCM_aad_update_vaes:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_aad_update_vaes
+WC_ASM_ATT_HIDDEN(_AES_GCM_aad_update_vaes)
 .p2align	4
 _AES_GCM_aad_update_vaes:
 #endif /* __APPLE__ */
@@ -22787,7 +22872,7 @@ _AES_GCM_aad_update_vaes:
         vmovdqa	%xmm10, %xmm4
         vmovdqu	%xmm4, 112(%rsp)
         cmpl	$0x100, %esi
-        jl	L_AES_GCM_aad_update_vaes_no_ext
+        jb	L_AES_GCM_aad_update_vaes_no_ext
         # H ^ 9
         vmovdqu	48(%rsp), %xmm0
         vmovdqu	64(%rsp), %xmm1
@@ -22961,7 +23046,7 @@ L_AES_GCM_aad_update_vaes_no_ext:
         movl	%esi, %eax
         andl	$0xffffff00, %eax
         cmpl	%eax, %edx
-        jge	L_AES_GCM_aad_update_vaes_after_256
+        jae	L_AES_GCM_aad_update_vaes_after_256
 L_AES_GCM_aad_update_vaes_loop_256:
         # 256 bytes of input
         leaq	(%rdi,%rdx,1), %rcx
@@ -23068,12 +23153,12 @@ L_AES_GCM_aad_update_vaes_loop_256:
         vpxor	%xmm0, %xmm13, %xmm15
         addl	$0x100, %edx
         cmpl	%eax, %edx
-        jl	L_AES_GCM_aad_update_vaes_loop_256
+        jb	L_AES_GCM_aad_update_vaes_loop_256
 L_AES_GCM_aad_update_vaes_after_256:
         movl	%esi, %eax
         andl	$0xffffff80, %eax
         cmpl	%eax, %edx
-        jge	L_AES_GCM_aad_update_vaes_after_128
+        jae	L_AES_GCM_aad_update_vaes_after_128
         # 128 bytes of input
         leaq	(%rdi,%rdx,1), %rcx
         vmovdqu	96(%rsp), %ymm7
@@ -23143,7 +23228,7 @@ L_AES_GCM_aad_update_vaes_after_128:
         movl	%esi, %eax
         andl	$0xfffffff0, %eax
         cmpl	%eax, %edx
-        jge	L_AES_GCM_aad_update_vaes_done
+        jae	L_AES_GCM_aad_update_vaes_done
 L_AES_GCM_aad_update_vaes_tail:
         # 16 bytes of input
         vmovdqu	(%rdi,%rdx,1), %xmm7
@@ -23167,7 +23252,7 @@ L_AES_GCM_aad_update_vaes_tail:
         vmovdqa	%xmm10, %xmm15
         addl	$16, %edx
         cmpl	%eax, %edx
-        jl	L_AES_GCM_aad_update_vaes_tail
+        jb	L_AES_GCM_aad_update_vaes_tail
 L_AES_GCM_aad_update_vaes_done:
         vmovdqa	%xmm15, (%r8)
         vzeroupper
@@ -23179,12 +23264,14 @@ L_AES_GCM_aad_update_vaes_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_encrypt_block_vaes
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_block_vaes)
 .type	AES_GCM_encrypt_block_vaes,@function
 .align	16
 AES_GCM_encrypt_block_vaes:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_encrypt_block_vaes
+WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt_block_vaes)
 .p2align	4
 _AES_GCM_encrypt_block_vaes:
 #endif /* __APPLE__ */
@@ -23229,12 +23316,14 @@ L_AES_GCM_encrypt_block_vaes_aesenc_block_last:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_ghash_block_vaes
+WC_ASM_ATT_HIDDEN(AES_GCM_ghash_block_vaes)
 .type	AES_GCM_ghash_block_vaes,@function
 .align	16
 AES_GCM_ghash_block_vaes:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_ghash_block_vaes
+WC_ASM_ATT_HIDDEN(_AES_GCM_ghash_block_vaes)
 .p2align	4
 _AES_GCM_ghash_block_vaes:
 #endif /* __APPLE__ */
@@ -23295,12 +23384,14 @@ _AES_GCM_ghash_block_vaes:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_encrypt_update_vaes
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_update_vaes)
 .type	AES_GCM_encrypt_update_vaes,@function
 .align	16
 AES_GCM_encrypt_update_vaes:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_encrypt_update_vaes
+WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt_update_vaes)
 .p2align	4
 _AES_GCM_encrypt_update_vaes:
 #endif /* __APPLE__ */
@@ -23326,7 +23417,7 @@ _AES_GCM_encrypt_update_vaes:
         vpxor	%xmm7, %xmm6, %xmm6
         xorl	%r14d, %r14d
         cmpl	$0x80, %r8d
-        jl	L_AES_GCM_encrypt_update_vaes_done_128
+        jb	L_AES_GCM_encrypt_update_vaes_done_128
         vmovdqa	%xmm15, %xmm2
         # H ^ 1
         vmovdqu	%xmm6, (%rsp)
@@ -23445,7 +23536,7 @@ _AES_GCM_encrypt_update_vaes:
         vmovdqa	%xmm10, %xmm4
         vmovdqu	%xmm4, 112(%rsp)
         cmpl	$0x100, %r8d
-        jl	L_AES_GCM_encrypt_update_vaes_no_ext
+        jb	L_AES_GCM_encrypt_update_vaes_no_ext
         # H ^ 9
         vmovdqu	48(%rsp), %xmm0
         vmovdqu	64(%rsp), %xmm1
@@ -23617,7 +23708,7 @@ _AES_GCM_encrypt_update_vaes:
 L_AES_GCM_encrypt_update_vaes_no_ext:
         vbroadcasti128	L_vaes_aes_gcm_mod2_128(%rip), %ymm14
         cmpl	$0x100, %r8d
-        jl	L_AES_GCM_encrypt_update_vaes_after_256
+        jb	L_AES_GCM_encrypt_update_vaes_after_256
         movl	%r8d, %r13d
         andl	$0xffffff00, %r13d
 L_AES_GCM_encrypt_update_vaes_loop_256:
@@ -23940,12 +24031,12 @@ L_AES_GCM_encrypt_update_vaes_p2_vaes_ctr8_last:
         vextracti128	$0x01, %ymm13, %xmm0
         vpxor	%xmm0, %xmm13, %xmm15
         cmpl	%r13d, %r14d
-        jl	L_AES_GCM_encrypt_update_vaes_loop_256
+        jb	L_AES_GCM_encrypt_update_vaes_loop_256
 L_AES_GCM_encrypt_update_vaes_after_256:
         movl	%r8d, %r13d
         andl	$0xffffff80, %r13d
         cmpl	%r13d, %r14d
-        jge	L_AES_GCM_encrypt_update_vaes_after_128
+        jae	L_AES_GCM_encrypt_update_vaes_after_128
         # 128 bytes of input
         leaq	(%r10,%r14,1), %r15
         vbroadcasti128	L_vaes_aes_gcm_bswap_epi64(%rip), %ymm6
@@ -24122,11 +24213,11 @@ L_AES_GCM_encrypt_update_vaes_after_128:
 L_AES_GCM_encrypt_update_vaes_done_128:
         movl	%r8d, %edx
         cmpl	%edx, %r14d
-        jge	L_AES_GCM_encrypt_update_vaes_done_enc
+        jae	L_AES_GCM_encrypt_update_vaes_done_enc
         movl	%r8d, %r13d
         andl	$0xfffffff0, %r13d
         cmpl	%r13d, %r14d
-        jge	L_AES_GCM_encrypt_update_vaes_last_block_done
+        jae	L_AES_GCM_encrypt_update_vaes_last_block_done
         vmovdqu	(%r12), %xmm8
         vpshufb	L_vaes_aes_gcm_bswap_epi64(%rip), %xmm8, %xmm7
         vpaddd	L_vaes_aes_gcm_one(%rip), %xmm8, %xmm8
@@ -24161,7 +24252,7 @@ L_AES_GCM_encrypt_update_vaes_aesenc_block_last:
         vpxor	%xmm7, %xmm15, %xmm15
         addl	$16, %r14d
         cmpl	%r13d, %r14d
-        jge	L_AES_GCM_encrypt_update_vaes_last_block_ghash
+        jae	L_AES_GCM_encrypt_update_vaes_last_block_ghash
 L_AES_GCM_encrypt_update_vaes_last_block_start:
         vmovdqu	(%r11,%r14,1), %xmm12
         vmovdqu	(%r12), %xmm8
@@ -24215,7 +24306,7 @@ L_AES_GCM_encrypt_update_vaes_aesenc_gfmul_last:
         addl	$16, %r14d
         vpxor	%xmm7, %xmm15, %xmm15
         cmpl	%r13d, %r14d
-        jl	L_AES_GCM_encrypt_update_vaes_last_block_start
+        jb	L_AES_GCM_encrypt_update_vaes_last_block_start
 L_AES_GCM_encrypt_update_vaes_last_block_ghash:
         # ghash_gfmul_red_avx
         vpclmulqdq	$0x00, %xmm6, %xmm15, %xmm7
@@ -24250,12 +24341,14 @@ L_AES_GCM_encrypt_update_vaes_done_enc:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_encrypt_final_vaes
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_final_vaes)
 .type	AES_GCM_encrypt_final_vaes,@function
 .align	16
 AES_GCM_encrypt_final_vaes:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_encrypt_final_vaes
+WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt_final_vaes)
 .p2align	4
 _AES_GCM_encrypt_final_vaes:
 #endif /* __APPLE__ */
@@ -24326,12 +24419,14 @@ L_AES_GCM_encrypt_final_vaes_store_tag_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_decrypt_update_vaes
+WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_update_vaes)
 .type	AES_GCM_decrypt_update_vaes,@function
 .align	16
 AES_GCM_decrypt_update_vaes:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_decrypt_update_vaes
+WC_ASM_ATT_HIDDEN(_AES_GCM_decrypt_update_vaes)
 .p2align	4
 _AES_GCM_decrypt_update_vaes:
 #endif /* __APPLE__ */
@@ -24357,7 +24452,7 @@ _AES_GCM_decrypt_update_vaes:
         vpxor	%xmm7, %xmm6, %xmm6
         xorl	%r14d, %r14d
         cmpl	$0x80, %r8d
-        jl	L_AES_GCM_decrypt_update_vaes_done_128
+        jb	L_AES_GCM_decrypt_update_vaes_done_128
         vmovdqa	%xmm15, %xmm2
         # H ^ 1
         vmovdqu	%xmm6, (%rsp)
@@ -24476,7 +24571,7 @@ _AES_GCM_decrypt_update_vaes:
         vmovdqa	%xmm10, %xmm4
         vmovdqu	%xmm4, 112(%rsp)
         cmpl	$0x100, %r8d
-        jl	L_AES_GCM_decrypt_update_vaes_no_ext
+        jb	L_AES_GCM_decrypt_update_vaes_no_ext
         # H ^ 9
         vmovdqu	48(%rsp), %xmm0
         vmovdqu	64(%rsp), %xmm1
@@ -24648,7 +24743,7 @@ _AES_GCM_decrypt_update_vaes:
 L_AES_GCM_decrypt_update_vaes_no_ext:
         vbroadcasti128	L_vaes_aes_gcm_mod2_128(%rip), %ymm14
         cmpl	$0x100, %r8d
-        jl	L_AES_GCM_decrypt_update_vaes_after_256
+        jb	L_AES_GCM_decrypt_update_vaes_after_256
         movl	%r8d, %r13d
         andl	$0xffffff00, %r13d
 L_AES_GCM_decrypt_update_vaes_loop_256:
@@ -24971,7 +25066,7 @@ L_AES_GCM_decrypt_update_vaes_l2_vaes_ctr8_last:
         vmovdqu	%ymm3, 96(%rdx)
         addl	$0x80, %r14d
         cmpl	%r13d, %r14d
-        jl	L_AES_GCM_decrypt_update_vaes_loop_256
+        jb	L_AES_GCM_decrypt_update_vaes_loop_256
 L_AES_GCM_decrypt_update_vaes_after_256:
         vmovdqu	96(%rsp), %ymm7
         vpermq	$0x4e, %ymm7, %ymm7
@@ -24984,7 +25079,7 @@ L_AES_GCM_decrypt_update_vaes_after_256:
         movl	%r8d, %r13d
         andl	$0xffffff80, %r13d
         cmpl	%r13d, %r14d
-        jge	L_AES_GCM_decrypt_update_vaes_after_128
+        jae	L_AES_GCM_decrypt_update_vaes_after_128
         # 128 bytes of input
         leaq	(%r11,%r14,1), %rbx
         vbroadcasti128	L_vaes_aes_gcm_bswap_mask(%rip), %ymm6
@@ -25153,11 +25248,11 @@ L_AES_GCM_decrypt_update_vaes_after_128:
 L_AES_GCM_decrypt_update_vaes_done_128:
         movl	%r8d, %edx
         cmpl	%edx, %r14d
-        jge	L_AES_GCM_decrypt_update_vaes_done_dec
+        jae	L_AES_GCM_decrypt_update_vaes_done_dec
         movl	%r8d, %r13d
         andl	$0xfffffff0, %r13d
         cmpl	%r13d, %r14d
-        jge	L_AES_GCM_decrypt_update_vaes_last_block_done
+        jae	L_AES_GCM_decrypt_update_vaes_last_block_done
 L_AES_GCM_decrypt_update_vaes_last_block_start:
         vmovdqu	(%r11,%r14,1), %xmm12
         vmovdqa	%xmm6, %xmm0
@@ -25212,7 +25307,7 @@ L_AES_GCM_decrypt_update_vaes_aesenc_gfmul_last:
         vmovdqu	%xmm7, (%r10,%r14,1)
         addl	$16, %r14d
         cmpl	%r13d, %r14d
-        jl	L_AES_GCM_decrypt_update_vaes_last_block_start
+        jb	L_AES_GCM_decrypt_update_vaes_last_block_start
 L_AES_GCM_decrypt_update_vaes_last_block_done:
 L_AES_GCM_decrypt_update_vaes_done_dec:
         vmovdqa	%xmm15, (%r9)
@@ -25230,12 +25325,14 @@ L_AES_GCM_decrypt_update_vaes_done_dec:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_decrypt_final_vaes
+WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_final_vaes)
 .type	AES_GCM_decrypt_final_vaes,@function
 .align	16
 AES_GCM_decrypt_final_vaes:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_decrypt_final_vaes
+WC_ASM_ATT_HIDDEN(_AES_GCM_decrypt_final_vaes)
 .p2align	4
 _AES_GCM_decrypt_final_vaes:
 #endif /* __APPLE__ */
@@ -25339,12 +25436,14 @@ L_aes_gcm_siv_bswap_mask_vaes:
 #ifndef __APPLE__
 .text
 .globl	AES_GCMSIV_polyval_vaes
+WC_ASM_ATT_HIDDEN(AES_GCMSIV_polyval_vaes)
 .type	AES_GCMSIV_polyval_vaes,@function
 .align	16
 AES_GCMSIV_polyval_vaes:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCMSIV_polyval_vaes
+WC_ASM_ATT_HIDDEN(_AES_GCMSIV_polyval_vaes)
 .p2align	4
 _AES_GCMSIV_polyval_vaes:
 #endif /* __APPLE__ */
@@ -25690,7 +25789,7 @@ L_AES_GCMSIV_polyval_vaes_eight:
         vpxor	%xmm14, %xmm15, %xmm0
         addl	$0x80, %eax
         cmpl	%r9d, %eax
-        jl	L_AES_GCMSIV_polyval_vaes_eight
+        jb	L_AES_GCMSIV_polyval_vaes_eight
 L_AES_GCMSIV_polyval_vaes_eight_done:
         movl	%r8d, %r9d
         andl	$0xffffffc0, %r9d
@@ -25755,7 +25854,7 @@ L_AES_GCMSIV_polyval_vaes_four:
         vpxor	%xmm14, %xmm15, %xmm0
         addl	$0x40, %eax
         cmpl	%r9d, %eax
-        jl	L_AES_GCMSIV_polyval_vaes_four
+        jb	L_AES_GCMSIV_polyval_vaes_four
 L_AES_GCMSIV_polyval_vaes_four_done:
         movl	%r8d, %r9d
         andl	$0xffffffe0, %r9d
@@ -25807,7 +25906,7 @@ L_AES_GCMSIV_polyval_vaes_pair:
         vpxor	%xmm14, %xmm15, %xmm0
         addl	$32, %eax
         cmpl	%r9d, %eax
-        jl	L_AES_GCMSIV_polyval_vaes_pair
+        jb	L_AES_GCMSIV_polyval_vaes_pair
 L_AES_GCMSIV_polyval_vaes_pair_done:
         cmpl	%r8d, %eax
         je	L_AES_GCMSIV_polyval_vaes_done
@@ -25885,12 +25984,14 @@ L_aes_gcmsiv_ctr_inc_vaes:
 #ifndef __APPLE__
 .text
 .globl	AES_GCMSIV_ctr_vaes
+WC_ASM_ATT_HIDDEN(AES_GCMSIV_ctr_vaes)
 .type	AES_GCMSIV_ctr_vaes,@function
 .align	16
 AES_GCMSIV_ctr_vaes:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCMSIV_ctr_vaes
+WC_ASM_ATT_HIDDEN(_AES_GCMSIV_ctr_vaes)
 .p2align	4
 _AES_GCMSIV_ctr_vaes:
 #endif /* __APPLE__ */
@@ -25902,7 +26003,7 @@ _AES_GCMSIV_ctr_vaes:
         xorl	%eax, %eax
         cmpl	$0x80, %edx
         movl	%edx, %r10d
-        jl	L_AES_GCMSIV_ctr_vaes_done_128
+        jb	L_AES_GCMSIV_ctr_vaes_done_128
         andl	$0xffffff80, %r10d
         vpaddd	0+L_aes_gcmsiv_ctr_inc_vaes(%rip), %ymm7, %ymm4
         vpaddd	32+L_aes_gcmsiv_ctr_inc_vaes(%rip), %ymm7, %ymm5
@@ -26011,7 +26112,7 @@ L_AES_GCMSIV_ctr_vaes_128_aes_enc_block_last:
         vmovdqu	%ymm3, 96(%r12)
         addl	$0x80, %eax
         cmpl	%r10d, %eax
-        jl	L_AES_GCMSIV_ctr_vaes_enc_128
+        jb	L_AES_GCMSIV_ctr_vaes_enc_128
         vperm2i128	$0x00, %ymm4, %ymm4, %ymm7
 L_AES_GCMSIV_ctr_vaes_done_128:
         movl	%edx, %r10d
@@ -26065,7 +26166,7 @@ L_AES_GCMSIV_ctr_vaes_32_aes_enc_block_last:
         vmovdqu	%ymm0, (%r12)
         addl	$32, %eax
         cmpl	%r10d, %eax
-        jl	L_AES_GCMSIV_ctr_vaes_enc_32
+        jb	L_AES_GCMSIV_ctr_vaes_enc_32
 L_AES_GCMSIV_ctr_vaes_done_32:
         cmpl	%edx, %eax
         movl	%edx, %r10d
@@ -26116,7 +26217,7 @@ L_AES_GCMSIV_ctr_vaes_16_aes_enc_block_last:
         vmovdqu	%xmm0, (%r11)
         addl	$16, %eax
         cmpl	%r10d, %eax
-        jl	L_AES_GCMSIV_ctr_vaes_enc_16
+        jb	L_AES_GCMSIV_ctr_vaes_enc_16
 L_AES_GCMSIV_ctr_vaes_done_enc:
         vmovdqu	%xmm7, (%r9)
         popq	%r12
@@ -26226,12 +26327,14 @@ L_GCM_generate_m0_avx512_mod2_128:
 #ifndef __APPLE__
 .text
 .globl	GCM_generate_m0_avx512
+WC_ASM_ATT_HIDDEN(GCM_generate_m0_avx512)
 .type	GCM_generate_m0_avx512,@function
 .align	16
 GCM_generate_m0_avx512:
 #else
 .section	__TEXT,__text
 .globl	_GCM_generate_m0_avx512
+WC_ASM_ATT_HIDDEN(_GCM_generate_m0_avx512)
 .p2align	4
 _GCM_generate_m0_avx512:
 #endif /* __APPLE__ */
@@ -26566,12 +26669,14 @@ L_avx512_aes_gcm_mod2_128:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_encrypt_avx512
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_avx512)
 .type	AES_GCM_encrypt_avx512,@function
 .align	16
 AES_GCM_encrypt_avx512:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_encrypt_avx512
+WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt_avx512)
 .p2align	4
 _AES_GCM_encrypt_avx512:
 #endif /* __APPLE__ */
@@ -26685,7 +26790,7 @@ L_AES_GCM_encrypt_avx512_calc_iv_1_aesenc_avx_last:
         movq	$0x00, %rcx
         je	L_AES_GCM_encrypt_avx512_calc_iv_done
         cmpl	$16, %edx
-        jl	L_AES_GCM_encrypt_avx512_calc_iv_lt16
+        jb	L_AES_GCM_encrypt_avx512_calc_iv_lt16
         andl	$0xfffffff0, %edx
 L_AES_GCM_encrypt_avx512_calc_iv_16_loop:
         vmovdqu	(%rax,%rcx,1), %xmm8
@@ -26736,7 +26841,7 @@ L_AES_GCM_encrypt_avx512_calc_iv_16_loop:
         vpxor	%xmm2, %xmm4, %xmm4
         addl	$16, %ecx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_encrypt_avx512_calc_iv_16_loop
+        jb	L_AES_GCM_encrypt_avx512_calc_iv_16_loop
         movl	%ebx, %edx
         cmpl	%edx, %ecx
         je	L_AES_GCM_encrypt_avx512_calc_iv_done
@@ -26751,7 +26856,7 @@ L_AES_GCM_encrypt_avx512_calc_iv_loop:
         incl	%ecx
         incl	%ebx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_encrypt_avx512_calc_iv_loop
+        jb	L_AES_GCM_encrypt_avx512_calc_iv_loop
         vmovdqu	(%rsp), %xmm8
         addq	$16, %rsp
         vpshufb	L_avx512_aes_gcm_bswap_mask(%rip), %xmm8, %xmm8
@@ -26882,7 +26987,7 @@ L_AES_GCM_encrypt_avx512_iv_done:
         je	L_AES_GCM_encrypt_avx512_calc_aad_done
         xorl	%ecx, %ecx
         cmpl	$0x80, %edx
-        jl	L_AES_GCM_encrypt_avx512_calc_aad_ser
+        jb	L_AES_GCM_encrypt_avx512_calc_aad_ser
         vmovdqu	%xmm5, 1088(%rsp)
         vmovdqu	%xmm4, 1104(%rsp)
         vpsrlq	$63, %xmm5, %xmm9
@@ -27158,7 +27263,7 @@ L_AES_GCM_encrypt_avx512_iv_done:
         movl	%r11d, %r13d
         andl	$0xffffff00, %r13d
         cmpl	%r13d, %ecx
-        jge	L_AES_GCM_encrypt_avx512_calc_aad_a256
+        jae	L_AES_GCM_encrypt_avx512_calc_aad_a256
 L_AES_GCM_encrypt_avx512_calc_aad_l256:
         # 256 bytes of AAD
         leaq	(%r12,%rcx,1), %rbx
@@ -27214,12 +27319,12 @@ L_AES_GCM_encrypt_avx512_calc_aad_l256:
         vpternlogq	$0x96, %xmm4, %xmm5, %xmm6
         addl	$0x100, %ecx
         cmpl	%r13d, %ecx
-        jl	L_AES_GCM_encrypt_avx512_calc_aad_l256
+        jb	L_AES_GCM_encrypt_avx512_calc_aad_l256
 L_AES_GCM_encrypt_avx512_calc_aad_a256:
         movl	%r11d, %r13d
         andl	$0xffffff80, %r13d
         cmpl	%r13d, %ecx
-        jge	L_AES_GCM_encrypt_avx512_calc_aad_a128
+        jae	L_AES_GCM_encrypt_avx512_calc_aad_a128
         # 128 bytes of AAD
         leaq	(%r12,%rcx,1), %rbx
         vmovdqu64	64(%rsp), %zmm23
@@ -27264,7 +27369,7 @@ L_AES_GCM_encrypt_avx512_calc_aad_a128:
         movl	%r11d, %r13d
         andl	$0xfffffff0, %r13d
         cmpl	%r13d, %ecx
-        jge	L_AES_GCM_encrypt_avx512_calc_aad_arem
+        jae	L_AES_GCM_encrypt_avx512_calc_aad_arem
         vmovdqu	(%rsp), %xmm5
 L_AES_GCM_encrypt_avx512_calc_aad_rem:
         # 16 bytes of AAD
@@ -27291,7 +27396,7 @@ L_AES_GCM_encrypt_avx512_calc_aad_rem:
         vmovdqa	%xmm11, %xmm6
         addl	$16, %ecx
         cmpl	%r13d, %ecx
-        jl	L_AES_GCM_encrypt_avx512_calc_aad_rem
+        jb	L_AES_GCM_encrypt_avx512_calc_aad_rem
 L_AES_GCM_encrypt_avx512_calc_aad_arem:
         vmovdqu	1088(%rsp), %xmm5
         vmovdqu	1104(%rsp), %xmm4
@@ -27350,7 +27455,7 @@ L_AES_GCM_encrypt_avx512_calc_aad_16_loop:
         vpxor	%xmm2, %xmm6, %xmm6
         addl	$16, %ecx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_encrypt_avx512_calc_aad_16_loop
+        jb	L_AES_GCM_encrypt_avx512_calc_aad_16_loop
 L_AES_GCM_encrypt_avx512_calc_aad_partial:
         movl	%r11d, %edx
         cmpl	%edx, %ecx
@@ -27366,7 +27471,7 @@ L_AES_GCM_encrypt_avx512_calc_aad_loop:
         incl	%ecx
         incl	%ebx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_encrypt_avx512_calc_aad_loop
+        jb	L_AES_GCM_encrypt_avx512_calc_aad_loop
         vmovdqu	(%rsp), %xmm8
         addq	$16, %rsp
         vpshufb	L_avx512_aes_gcm_bswap_mask(%rip), %xmm8, %xmm8
@@ -27429,7 +27534,7 @@ L_AES_GCM_encrypt_avx512_calc_aad_done:
         vmovdqu	%xmm4, 1024(%rsp)
         xorl	%ebx, %ebx
         cmpl	$0x80, %r9d
-        jl	L_AES_GCM_encrypt_avx512_done_128
+        jb	L_AES_GCM_encrypt_avx512_done_128
         vmovdqa	%xmm6, %xmm2
         # H ^ 1
         vmovdqu	%xmm5, (%rsp)
@@ -27543,7 +27648,7 @@ L_AES_GCM_encrypt_avx512_calc_aad_done:
         vmovdqa	%xmm11, %xmm7
         vmovdqu	%xmm7, 112(%rsp)
         cmpl	$0x100, %r9d
-        jl	L_AES_GCM_encrypt_avx512_no_ext2
+        jb	L_AES_GCM_encrypt_avx512_no_ext2
         # H ^ 9
         vmovdqu	48(%rsp), %xmm0
         vmovdqu	64(%rsp), %xmm1
@@ -27685,7 +27790,7 @@ L_AES_GCM_encrypt_avx512_calc_aad_done:
         vmovdqa	%xmm11, %xmm7
         vmovdqu	%xmm7, 240(%rsp)
         cmpl	$0x200, %r9d
-        jl	L_AES_GCM_encrypt_avx512_no_ext
+        jb	L_AES_GCM_encrypt_avx512_no_ext
         # H ^ 17
         vmovdqu	112(%rsp), %xmm0
         vmovdqu	128(%rsp), %xmm1
@@ -27982,7 +28087,7 @@ L_AES_GCM_encrypt_avx512_no_ext2:
         vbroadcasti32x4	128(%r15), %zmm2
         vbroadcasti32x4	144(%r15), %zmm3
         cmpl	$0x200, %r9d
-        jl	L_AES_GCM_encrypt_avx512_no_windows
+        jb	L_AES_GCM_encrypt_avx512_no_windows
         movl	%r9d, %r13d
         andl	$0xfffffe00, %r13d
         vmovdqu64	448(%rsp), %zmm23
@@ -28207,7 +28312,7 @@ L_AES_GCM_encrypt_avx512_p2_avx512_ctr16_last:
         vmovdqu64	%zmm19, 192(%rdx)
         addl	$0x100, %ebx
         cmpl	%r13d, %ebx
-        jge	L_AES_GCM_encrypt_avx512_last_win
+        jae	L_AES_GCM_encrypt_avx512_last_win
 L_AES_GCM_encrypt_avx512_win_loop:
         leaq	(%rsi,%rbx,1), %rcx
         movq	%rcx, 1072(%rsp)
@@ -28496,7 +28601,7 @@ L_AES_GCM_encrypt_avx512_b_il_last:
         movq	1072(%rsp), %rcx
         movq	%rcx, 1056(%rsp)
         cmpl	%r13d, %ebx
-        jl	L_AES_GCM_encrypt_avx512_win_loop
+        jb	L_AES_GCM_encrypt_avx512_win_loop
 L_AES_GCM_encrypt_avx512_last_win:
         movq	1056(%rsp), %rcx
         vpxorq	%zmm20, %zmm20, %zmm20
@@ -28605,7 +28710,7 @@ L_AES_GCM_encrypt_avx512_no_windows:
         movl	%r9d, %r13d
         andl	$0xffffff00, %r13d
         cmpl	%r13d, %ebx
-        jge	L_AES_GCM_encrypt_avx512_after_256
+        jae	L_AES_GCM_encrypt_avx512_after_256
         # 256 bytes of input
         vbroadcasti32x4	1024(%rsp), %zmm20
         vpaddd	L_avx512_aes_gcm_inc_z0(%rip), %zmm20, %zmm16
@@ -28706,7 +28811,7 @@ L_AES_GCM_encrypt_avx512_pro_avx512_ctr16_last:
         movq	%rdx, 1056(%rsp)
         addl	$0x100, %ebx
         cmpl	%r13d, %ebx
-        jge	L_AES_GCM_encrypt_avx512_last_ghash
+        jae	L_AES_GCM_encrypt_avx512_last_ghash
 L_AES_GCM_encrypt_avx512_ghash_128:
         vbroadcasti32x4	1024(%rsp), %zmm20
         vpaddd	L_avx512_aes_gcm_inc_z0(%rip), %zmm20, %zmm16
@@ -28858,7 +28963,7 @@ L_AES_GCM_encrypt_avx512_pip_avx512_ctr16_last:
         movq	%rdx, 1056(%rsp)
         addl	$0x100, %ebx
         cmpl	%r13d, %ebx
-        jl	L_AES_GCM_encrypt_avx512_ghash_128
+        jb	L_AES_GCM_encrypt_avx512_ghash_128
 L_AES_GCM_encrypt_avx512_last_ghash:
         movq	1056(%rsp), %rcx
         vpxorq	%zmm20, %zmm20, %zmm20
@@ -28915,7 +29020,7 @@ L_AES_GCM_encrypt_avx512_after_256:
         movl	%r9d, %r13d
         andl	$0xffffff80, %r13d
         cmpl	%r13d, %ebx
-        jge	L_AES_GCM_encrypt_avx512_after_128
+        jae	L_AES_GCM_encrypt_avx512_after_128
         # 128 bytes of input
         vbroadcasti32x4	(%r15), %zmm9
         vbroadcasti32x4	16(%r15), %zmm10
@@ -29026,11 +29131,11 @@ L_AES_GCM_encrypt_avx512_after_128:
 L_AES_GCM_encrypt_avx512_done_128:
         movl	%r9d, %edx
         cmpl	%edx, %ebx
-        jge	L_AES_GCM_encrypt_avx512_done_enc
+        jae	L_AES_GCM_encrypt_avx512_done_enc
         movl	%r9d, %r13d
         andl	$0xfffffff0, %r13d
         cmpl	%r13d, %ebx
-        jge	L_AES_GCM_encrypt_avx512_last_block_done
+        jae	L_AES_GCM_encrypt_avx512_last_block_done
         vmovdqu	1024(%rsp), %xmm9
         vpshufb	L_avx512_aes_gcm_bswap_epi64(%rip), %xmm9, %xmm8
         vpaddd	L_avx512_aes_gcm_one(%rip), %xmm9, %xmm9
@@ -29065,7 +29170,7 @@ L_AES_GCM_encrypt_avx512_aesenc_block_last:
         vpxor	%xmm8, %xmm6, %xmm6
         addl	$16, %ebx
         cmpl	%r13d, %ebx
-        jge	L_AES_GCM_encrypt_avx512_last_block_ghash
+        jae	L_AES_GCM_encrypt_avx512_last_block_ghash
 L_AES_GCM_encrypt_avx512_last_block_start:
         vmovdqu	(%rdi,%rbx,1), %xmm13
         vmovdqu	1024(%rsp), %xmm9
@@ -29119,7 +29224,7 @@ L_AES_GCM_encrypt_avx512_aesenc_gfmul_last:
         addl	$16, %ebx
         vpxor	%xmm8, %xmm6, %xmm6
         cmpl	%r13d, %ebx
-        jl	L_AES_GCM_encrypt_avx512_last_block_start
+        jb	L_AES_GCM_encrypt_avx512_last_block_start
 L_AES_GCM_encrypt_avx512_last_block_ghash:
         # ghash_gfmul_red_avx
         vpshufd	$0x4e, %xmm5, %xmm9
@@ -29179,7 +29284,7 @@ L_AES_GCM_encrypt_avx512_aesenc_last15_enc_avx_loop:
         incl	%ebx
         incl	%ecx
         cmpl	%edx, %ebx
-        jl	L_AES_GCM_encrypt_avx512_aesenc_last15_enc_avx_loop
+        jb	L_AES_GCM_encrypt_avx512_aesenc_last15_enc_avx_loop
         xorq	%r13, %r13
         cmpl	$16, %ecx
         je	L_AES_GCM_encrypt_avx512_aesenc_last15_enc_avx_finish_enc
@@ -29187,7 +29292,7 @@ L_AES_GCM_encrypt_avx512_aesenc_last15_enc_avx_byte_loop:
         movb	%r13b, (%rsp,%rcx,1)
         incl	%ecx
         cmpl	$16, %ecx
-        jl	L_AES_GCM_encrypt_avx512_aesenc_last15_enc_avx_byte_loop
+        jb	L_AES_GCM_encrypt_avx512_aesenc_last15_enc_avx_byte_loop
 L_AES_GCM_encrypt_avx512_aesenc_last15_enc_avx_finish_enc:
         vmovdqu	(%rsp), %xmm4
         addq	$16, %rsp
@@ -29268,12 +29373,14 @@ L_AES_GCM_encrypt_avx512_store_tag_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_decrypt_avx512
+WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_avx512)
 .type	AES_GCM_decrypt_avx512,@function
 .align	16
 AES_GCM_decrypt_avx512:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_decrypt_avx512
+WC_ASM_ATT_HIDDEN(_AES_GCM_decrypt_avx512)
 .p2align	4
 _AES_GCM_decrypt_avx512:
 #endif /* __APPLE__ */
@@ -29389,7 +29496,7 @@ L_AES_GCM_decrypt_avx512_calc_iv_1_aesenc_avx_last:
         movq	$0x00, %rcx
         je	L_AES_GCM_decrypt_avx512_calc_iv_done
         cmpl	$16, %edx
-        jl	L_AES_GCM_decrypt_avx512_calc_iv_lt16
+        jb	L_AES_GCM_decrypt_avx512_calc_iv_lt16
         andl	$0xfffffff0, %edx
 L_AES_GCM_decrypt_avx512_calc_iv_16_loop:
         vmovdqu	(%rax,%rcx,1), %xmm8
@@ -29440,7 +29547,7 @@ L_AES_GCM_decrypt_avx512_calc_iv_16_loop:
         vpxor	%xmm2, %xmm4, %xmm4
         addl	$16, %ecx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_decrypt_avx512_calc_iv_16_loop
+        jb	L_AES_GCM_decrypt_avx512_calc_iv_16_loop
         movl	%ebx, %edx
         cmpl	%edx, %ecx
         je	L_AES_GCM_decrypt_avx512_calc_iv_done
@@ -29455,7 +29562,7 @@ L_AES_GCM_decrypt_avx512_calc_iv_loop:
         incl	%ecx
         incl	%ebx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_decrypt_avx512_calc_iv_loop
+        jb	L_AES_GCM_decrypt_avx512_calc_iv_loop
         vmovdqu	(%rsp), %xmm8
         addq	$16, %rsp
         vpshufb	L_avx512_aes_gcm_bswap_mask(%rip), %xmm8, %xmm8
@@ -29586,7 +29693,7 @@ L_AES_GCM_decrypt_avx512_iv_done:
         je	L_AES_GCM_decrypt_avx512_calc_aad_done
         xorl	%ecx, %ecx
         cmpl	$0x80, %edx
-        jl	L_AES_GCM_decrypt_avx512_calc_aad_ser
+        jb	L_AES_GCM_decrypt_avx512_calc_aad_ser
         vmovdqu	%xmm5, 1088(%rsp)
         vmovdqu	%xmm4, 1104(%rsp)
         vpsrlq	$63, %xmm5, %xmm9
@@ -29862,7 +29969,7 @@ L_AES_GCM_decrypt_avx512_iv_done:
         movl	%r11d, %r13d
         andl	$0xffffff00, %r13d
         cmpl	%r13d, %ecx
-        jge	L_AES_GCM_decrypt_avx512_calc_aad_a256
+        jae	L_AES_GCM_decrypt_avx512_calc_aad_a256
 L_AES_GCM_decrypt_avx512_calc_aad_l256:
         # 256 bytes of AAD
         leaq	(%r12,%rcx,1), %rbx
@@ -29918,12 +30025,12 @@ L_AES_GCM_decrypt_avx512_calc_aad_l256:
         vpternlogq	$0x96, %xmm4, %xmm5, %xmm6
         addl	$0x100, %ecx
         cmpl	%r13d, %ecx
-        jl	L_AES_GCM_decrypt_avx512_calc_aad_l256
+        jb	L_AES_GCM_decrypt_avx512_calc_aad_l256
 L_AES_GCM_decrypt_avx512_calc_aad_a256:
         movl	%r11d, %r13d
         andl	$0xffffff80, %r13d
         cmpl	%r13d, %ecx
-        jge	L_AES_GCM_decrypt_avx512_calc_aad_a128
+        jae	L_AES_GCM_decrypt_avx512_calc_aad_a128
         # 128 bytes of AAD
         leaq	(%r12,%rcx,1), %rbx
         vmovdqu64	64(%rsp), %zmm23
@@ -29968,7 +30075,7 @@ L_AES_GCM_decrypt_avx512_calc_aad_a128:
         movl	%r11d, %r13d
         andl	$0xfffffff0, %r13d
         cmpl	%r13d, %ecx
-        jge	L_AES_GCM_decrypt_avx512_calc_aad_arem
+        jae	L_AES_GCM_decrypt_avx512_calc_aad_arem
         vmovdqu	(%rsp), %xmm5
 L_AES_GCM_decrypt_avx512_calc_aad_rem:
         # 16 bytes of AAD
@@ -29995,7 +30102,7 @@ L_AES_GCM_decrypt_avx512_calc_aad_rem:
         vmovdqa	%xmm11, %xmm6
         addl	$16, %ecx
         cmpl	%r13d, %ecx
-        jl	L_AES_GCM_decrypt_avx512_calc_aad_rem
+        jb	L_AES_GCM_decrypt_avx512_calc_aad_rem
 L_AES_GCM_decrypt_avx512_calc_aad_arem:
         vmovdqu	1088(%rsp), %xmm5
         vmovdqu	1104(%rsp), %xmm4
@@ -30054,7 +30161,7 @@ L_AES_GCM_decrypt_avx512_calc_aad_16_loop:
         vpxor	%xmm2, %xmm6, %xmm6
         addl	$16, %ecx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_decrypt_avx512_calc_aad_16_loop
+        jb	L_AES_GCM_decrypt_avx512_calc_aad_16_loop
 L_AES_GCM_decrypt_avx512_calc_aad_partial:
         movl	%r11d, %edx
         cmpl	%edx, %ecx
@@ -30070,7 +30177,7 @@ L_AES_GCM_decrypt_avx512_calc_aad_loop:
         incl	%ecx
         incl	%ebx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_decrypt_avx512_calc_aad_loop
+        jb	L_AES_GCM_decrypt_avx512_calc_aad_loop
         vmovdqu	(%rsp), %xmm8
         addq	$16, %rsp
         vpshufb	L_avx512_aes_gcm_bswap_mask(%rip), %xmm8, %xmm8
@@ -30133,7 +30240,7 @@ L_AES_GCM_decrypt_avx512_calc_aad_done:
         vmovdqu	%xmm4, 1024(%rsp)
         xorl	%ebx, %ebx
         cmpl	$0x80, %r9d
-        jl	L_AES_GCM_decrypt_avx512_done_128
+        jb	L_AES_GCM_decrypt_avx512_done_128
         vmovdqa	%xmm6, %xmm2
         # H ^ 1
         vmovdqu	%xmm5, (%rsp)
@@ -30247,7 +30354,7 @@ L_AES_GCM_decrypt_avx512_calc_aad_done:
         vmovdqa	%xmm11, %xmm7
         vmovdqu	%xmm7, 112(%rsp)
         cmpl	$0x100, %r9d
-        jl	L_AES_GCM_decrypt_avx512_no_ext2
+        jb	L_AES_GCM_decrypt_avx512_no_ext2
         # H ^ 9
         vmovdqu	48(%rsp), %xmm0
         vmovdqu	64(%rsp), %xmm1
@@ -30389,7 +30496,7 @@ L_AES_GCM_decrypt_avx512_calc_aad_done:
         vmovdqa	%xmm11, %xmm7
         vmovdqu	%xmm7, 240(%rsp)
         cmpl	$0x200, %r9d
-        jl	L_AES_GCM_decrypt_avx512_no_ext
+        jb	L_AES_GCM_decrypt_avx512_no_ext
         # H ^ 17
         vmovdqu	112(%rsp), %xmm0
         vmovdqu	128(%rsp), %xmm1
@@ -30686,7 +30793,7 @@ L_AES_GCM_decrypt_avx512_no_ext2:
         vbroadcasti32x4	128(%r15), %zmm2
         vbroadcasti32x4	144(%r15), %zmm3
         cmpl	$0x200, %r9d
-        jl	L_AES_GCM_decrypt_avx512_no_windows
+        jb	L_AES_GCM_decrypt_avx512_no_windows
         movl	%r9d, %r13d
         andl	$0xfffffe00, %r13d
         vmovdqu64	448(%rsp), %zmm23
@@ -30812,7 +30919,7 @@ L_AES_GCM_decrypt_avx512_no_ext2:
         vpternlogq	$0x96, %xmm4, %xmm5, %xmm6
         addl	$0x200, %ebx
         cmpl	%r13d, %ebx
-        jge	L_AES_GCM_decrypt_avx512_last_aes
+        jae	L_AES_GCM_decrypt_avx512_last_aes
 L_AES_GCM_decrypt_avx512_win_loop:
         leaq	(%rdi,%rbx,1), %rax
         vpxorq	%zmm21, %zmm21, %zmm21
@@ -31098,7 +31205,7 @@ L_AES_GCM_decrypt_avx512_b_il_last:
         vpternlogq	$0x96, %xmm4, %xmm5, %xmm6
         addl	$0x200, %ebx
         cmpl	%r13d, %ebx
-        jl	L_AES_GCM_decrypt_avx512_win_loop
+        jb	L_AES_GCM_decrypt_avx512_win_loop
 L_AES_GCM_decrypt_avx512_last_aes:
         vbroadcasti32x4	1024(%rsp), %zmm20
         vpaddd	L_avx512_aes_gcm_inc_z0(%rip), %zmm20, %zmm16
@@ -31306,7 +31413,7 @@ L_AES_GCM_decrypt_avx512_no_windows:
         movl	%r9d, %r13d
         andl	$0xffffff00, %r13d
         cmpl	%r13d, %ebx
-        jge	L_AES_GCM_decrypt_avx512_after_256
+        jae	L_AES_GCM_decrypt_avx512_after_256
         # 256 bytes of input
         leaq	(%rdi,%rbx,1), %rax
         vpxorq	%zmm20, %zmm20, %zmm20
@@ -31460,7 +31567,7 @@ L_AES_GCM_decrypt_avx512_after_256:
         movl	%r9d, %r13d
         andl	$0xffffff80, %r13d
         cmpl	%r13d, %ebx
-        jge	L_AES_GCM_decrypt_avx512_after_128
+        jae	L_AES_GCM_decrypt_avx512_after_128
         # 128 bytes of input
         leaq	(%rdi,%rbx,1), %rax
         vmovdqu64	64(%rsp), %zmm23
@@ -31572,11 +31679,11 @@ L_AES_GCM_decrypt_avx512_after_128:
 L_AES_GCM_decrypt_avx512_done_128:
         movl	%r9d, %edx
         cmpl	%edx, %ebx
-        jge	L_AES_GCM_decrypt_avx512_done_dec
+        jae	L_AES_GCM_decrypt_avx512_done_dec
         movl	%r9d, %r13d
         andl	$0xfffffff0, %r13d
         cmpl	%r13d, %ebx
-        jge	L_AES_GCM_decrypt_avx512_last_block_done
+        jae	L_AES_GCM_decrypt_avx512_last_block_done
 L_AES_GCM_decrypt_avx512_last_block_start:
         vmovdqu	(%rdi,%rbx,1), %xmm13
         vmovdqa	%xmm5, %xmm0
@@ -31631,7 +31738,7 @@ L_AES_GCM_decrypt_avx512_aesenc_gfmul_last:
         vmovdqu	%xmm8, (%rsi,%rbx,1)
         addl	$16, %ebx
         cmpl	%r13d, %ebx
-        jl	L_AES_GCM_decrypt_avx512_last_block_start
+        jb	L_AES_GCM_decrypt_avx512_last_block_start
 L_AES_GCM_decrypt_avx512_last_block_done:
         movl	%r9d, %ecx
         movl	%ecx, %edx
@@ -31675,7 +31782,7 @@ L_AES_GCM_decrypt_avx512_aesenc_last15_dec_avx_loop:
         incl	%ebx
         incl	%ecx
         cmpl	%edx, %ebx
-        jl	L_AES_GCM_decrypt_avx512_aesenc_last15_dec_avx_loop
+        jb	L_AES_GCM_decrypt_avx512_aesenc_last15_dec_avx_loop
         vmovdqu	16(%rsp), %xmm4
         addq	$32, %rsp
         vpshufb	L_avx512_aes_gcm_bswap_mask(%rip), %xmm4, %xmm4
@@ -31771,12 +31878,14 @@ L_AES_GCM_decrypt_avx512_cmp_tag_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_init_avx512
+WC_ASM_ATT_HIDDEN(AES_GCM_init_avx512)
 .type	AES_GCM_init_avx512,@function
 .align	16
 AES_GCM_init_avx512:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_init_avx512
+WC_ASM_ATT_HIDDEN(_AES_GCM_init_avx512)
 .p2align	4
 _AES_GCM_init_avx512:
 #endif /* __APPLE__ */
@@ -31882,7 +31991,7 @@ L_AES_GCM_init_avx512_calc_iv_1_aesenc_avx_last:
         movq	$0x00, %rcx
         je	L_AES_GCM_init_avx512_calc_iv_done
         cmpl	$16, %edx
-        jl	L_AES_GCM_init_avx512_calc_iv_lt16
+        jb	L_AES_GCM_init_avx512_calc_iv_lt16
         andl	$0xfffffff0, %edx
 L_AES_GCM_init_avx512_calc_iv_16_loop:
         vmovdqu	(%r10,%rcx,1), %xmm7
@@ -31933,7 +32042,7 @@ L_AES_GCM_init_avx512_calc_iv_16_loop:
         vpxor	%xmm2, %xmm4, %xmm4
         addl	$16, %ecx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_init_avx512_calc_iv_16_loop
+        jb	L_AES_GCM_init_avx512_calc_iv_16_loop
         movl	%r11d, %edx
         cmpl	%edx, %ecx
         je	L_AES_GCM_init_avx512_calc_iv_done
@@ -31948,7 +32057,7 @@ L_AES_GCM_init_avx512_calc_iv_loop:
         incl	%ecx
         incl	%r13d
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_init_avx512_calc_iv_loop
+        jb	L_AES_GCM_init_avx512_calc_iv_loop
         vmovdqu	(%rsp), %xmm7
         addq	$16, %rsp
         vpshufb	L_avx512_aes_gcm_bswap_mask(%rip), %xmm7, %xmm7
@@ -32088,12 +32197,14 @@ L_AES_GCM_init_avx512_iv_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_aad_update_avx512
+WC_ASM_ATT_HIDDEN(AES_GCM_aad_update_avx512)
 .type	AES_GCM_aad_update_avx512,@function
 .align	16
 AES_GCM_aad_update_avx512:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_aad_update_avx512
+WC_ASM_ATT_HIDDEN(_AES_GCM_aad_update_avx512)
 .p2align	4
 _AES_GCM_aad_update_avx512:
 #endif /* __APPLE__ */
@@ -32376,7 +32487,7 @@ _AES_GCM_aad_update_avx512:
         movl	%esi, %eax
         andl	$0xffffff00, %eax
         cmpl	%eax, %edx
-        jge	L_AES_GCM_aad_update_avx512_after_256
+        jae	L_AES_GCM_aad_update_avx512_after_256
 L_AES_GCM_aad_update_avx512_loop_256:
         # 256 bytes of input
         leaq	(%rdi,%rdx,1), %rcx
@@ -32432,12 +32543,12 @@ L_AES_GCM_aad_update_avx512_loop_256:
         vpternlogq	$0x96, %xmm4, %xmm5, %xmm6
         addl	$0x100, %edx
         cmpl	%eax, %edx
-        jl	L_AES_GCM_aad_update_avx512_loop_256
+        jb	L_AES_GCM_aad_update_avx512_loop_256
 L_AES_GCM_aad_update_avx512_after_256:
         movl	%esi, %eax
         andl	$0xffffff80, %eax
         cmpl	%eax, %edx
-        jge	L_AES_GCM_aad_update_avx512_after_128
+        jae	L_AES_GCM_aad_update_avx512_after_128
         # 128 bytes of input
         leaq	(%rdi,%rdx,1), %rcx
         vmovdqu64	64(%rsp), %zmm24
@@ -32482,7 +32593,7 @@ L_AES_GCM_aad_update_avx512_after_128:
         movl	%esi, %eax
         andl	$0xfffffff0, %eax
         cmpl	%eax, %edx
-        jge	L_AES_GCM_aad_update_avx512_done
+        jae	L_AES_GCM_aad_update_avx512_done
         vmovdqu	(%rsp), %xmm7
 L_AES_GCM_aad_update_avx512_tail:
         # 16 bytes of input
@@ -32508,7 +32619,7 @@ L_AES_GCM_aad_update_avx512_tail:
         vmovdqa	%xmm12, %xmm6
         addl	$16, %edx
         cmpl	%eax, %edx
-        jl	L_AES_GCM_aad_update_avx512_tail
+        jb	L_AES_GCM_aad_update_avx512_tail
 L_AES_GCM_aad_update_avx512_done:
         vmovdqa	%xmm6, (%r8)
         vzeroupper
@@ -32520,12 +32631,14 @@ L_AES_GCM_aad_update_avx512_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_encrypt_block_avx512
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_block_avx512)
 .type	AES_GCM_encrypt_block_avx512,@function
 .align	16
 AES_GCM_encrypt_block_avx512:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_encrypt_block_avx512
+WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt_block_avx512)
 .p2align	4
 _AES_GCM_encrypt_block_avx512:
 #endif /* __APPLE__ */
@@ -32570,12 +32683,14 @@ L_AES_GCM_encrypt_block_avx512_aesenc_block_last:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_ghash_block_avx512
+WC_ASM_ATT_HIDDEN(AES_GCM_ghash_block_avx512)
 .type	AES_GCM_ghash_block_avx512,@function
 .align	16
 AES_GCM_ghash_block_avx512:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_ghash_block_avx512
+WC_ASM_ATT_HIDDEN(_AES_GCM_ghash_block_avx512)
 .p2align	4
 _AES_GCM_ghash_block_avx512:
 #endif /* __APPLE__ */
@@ -32636,12 +32751,14 @@ _AES_GCM_ghash_block_avx512:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_encrypt_update_avx512
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_update_avx512)
 .type	AES_GCM_encrypt_update_avx512,@function
 .align	16
 AES_GCM_encrypt_update_avx512:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_encrypt_update_avx512
+WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt_update_avx512)
 .p2align	4
 _AES_GCM_encrypt_update_avx512:
 #endif /* __APPLE__ */
@@ -32668,7 +32785,7 @@ _AES_GCM_encrypt_update_avx512:
         vpxor	%xmm8, %xmm5, %xmm5
         xorl	%r14d, %r14d
         cmpl	$0x80, %r8d
-        jl	L_AES_GCM_encrypt_update_avx512_done_128
+        jb	L_AES_GCM_encrypt_update_avx512_done_128
         vmovdqa	%xmm6, %xmm2
         # H ^ 1
         vmovdqu	%xmm5, (%rsp)
@@ -32782,7 +32899,7 @@ _AES_GCM_encrypt_update_avx512:
         vmovdqa	%xmm11, %xmm7
         vmovdqu	%xmm7, 112(%rsp)
         cmpl	$0x100, %r8d
-        jl	L_AES_GCM_encrypt_update_avx512_no_ext2
+        jb	L_AES_GCM_encrypt_update_avx512_no_ext2
         # H ^ 9
         vmovdqu	48(%rsp), %xmm0
         vmovdqu	64(%rsp), %xmm1
@@ -32924,7 +33041,7 @@ _AES_GCM_encrypt_update_avx512:
         vmovdqa	%xmm11, %xmm7
         vmovdqu	%xmm7, 240(%rsp)
         cmpl	$0x200, %r8d
-        jl	L_AES_GCM_encrypt_update_avx512_no_ext
+        jb	L_AES_GCM_encrypt_update_avx512_no_ext
         # H ^ 17
         vmovdqu	112(%rsp), %xmm0
         vmovdqu	128(%rsp), %xmm1
@@ -33221,7 +33338,7 @@ L_AES_GCM_encrypt_update_avx512_no_ext2:
         vbroadcasti32x4	128(%rdi), %zmm2
         vbroadcasti32x4	144(%rdi), %zmm3
         cmpl	$0x200, %r8d
-        jl	L_AES_GCM_encrypt_update_avx512_no_windows
+        jb	L_AES_GCM_encrypt_update_avx512_no_windows
         movl	%r8d, %ebp
         andl	$0xfffffe00, %ebp
         vmovdqu64	448(%rsp), %zmm23
@@ -33445,7 +33562,7 @@ L_AES_GCM_encrypt_update_avx512_p2_avx512_ctr16_last:
         vmovdqu64	%zmm19, 192(%rdx)
         addl	$0x100, %r14d
         cmpl	%ebp, %r14d
-        jge	L_AES_GCM_encrypt_update_avx512_last_win
+        jae	L_AES_GCM_encrypt_update_avx512_last_win
 L_AES_GCM_encrypt_update_avx512_win_loop:
         leaq	(%r10,%r14,1), %rbx
         vpxorq	%zmm21, %zmm21, %zmm21
@@ -33731,7 +33848,7 @@ L_AES_GCM_encrypt_update_avx512_b_il_last:
         vpternlogq	$0x96, %xmm4, %xmm5, %xmm6
         movq	%rbx, %r15
         cmpl	%ebp, %r14d
-        jl	L_AES_GCM_encrypt_update_avx512_win_loop
+        jb	L_AES_GCM_encrypt_update_avx512_win_loop
 L_AES_GCM_encrypt_update_avx512_last_win:
         vpxorq	%zmm20, %zmm20, %zmm20
         vinserti32x4	$0x00, %xmm6, %zmm20, %zmm20
@@ -33839,7 +33956,7 @@ L_AES_GCM_encrypt_update_avx512_no_windows:
         movl	%r8d, %r13d
         andl	$0xffffff00, %r13d
         cmpl	%r13d, %r14d
-        jge	L_AES_GCM_encrypt_update_avx512_after_256
+        jae	L_AES_GCM_encrypt_update_avx512_after_256
         # 256 bytes of input
         vbroadcasti32x4	(%r12), %zmm20
         vpaddd	L_avx512_aes_gcm_inc_z0(%rip), %zmm20, %zmm16
@@ -33940,7 +34057,7 @@ L_AES_GCM_encrypt_update_avx512_pro_avx512_ctr16_last:
         movq	%rdx, %r15
         addl	$0x100, %r14d
         cmpl	%r13d, %r14d
-        jge	L_AES_GCM_encrypt_update_avx512_last_ghash
+        jae	L_AES_GCM_encrypt_update_avx512_last_ghash
 L_AES_GCM_encrypt_update_avx512_ghash_128:
         vbroadcasti32x4	(%r12), %zmm20
         vpaddd	L_avx512_aes_gcm_inc_z0(%rip), %zmm20, %zmm16
@@ -34091,7 +34208,7 @@ L_AES_GCM_encrypt_update_avx512_pip_avx512_ctr16_last:
         movq	%rdx, %r15
         addl	$0x100, %r14d
         cmpl	%r13d, %r14d
-        jl	L_AES_GCM_encrypt_update_avx512_ghash_128
+        jb	L_AES_GCM_encrypt_update_avx512_ghash_128
 L_AES_GCM_encrypt_update_avx512_last_ghash:
         vpxorq	%zmm20, %zmm20, %zmm20
         vinserti32x4	$0x00, %xmm6, %zmm20, %zmm20
@@ -34147,7 +34264,7 @@ L_AES_GCM_encrypt_update_avx512_after_256:
         movl	%r8d, %r13d
         andl	$0xffffff80, %r13d
         cmpl	%r13d, %r14d
-        jge	L_AES_GCM_encrypt_update_avx512_after_128
+        jae	L_AES_GCM_encrypt_update_avx512_after_128
         # 128 bytes of input
         vbroadcasti32x4	(%rdi), %zmm9
         vbroadcasti32x4	16(%rdi), %zmm10
@@ -34259,11 +34376,11 @@ L_AES_GCM_encrypt_update_avx512_after_128:
 L_AES_GCM_encrypt_update_avx512_done_128:
         movl	%r8d, %edx
         cmpl	%edx, %r14d
-        jge	L_AES_GCM_encrypt_update_avx512_done_enc
+        jae	L_AES_GCM_encrypt_update_avx512_done_enc
         movl	%r8d, %r13d
         andl	$0xfffffff0, %r13d
         cmpl	%r13d, %r14d
-        jge	L_AES_GCM_encrypt_update_avx512_last_block_done
+        jae	L_AES_GCM_encrypt_update_avx512_last_block_done
         vmovdqu	(%r12), %xmm9
         vpshufb	L_avx512_aes_gcm_bswap_epi64(%rip), %xmm9, %xmm8
         vpaddd	L_avx512_aes_gcm_one(%rip), %xmm9, %xmm9
@@ -34298,7 +34415,7 @@ L_AES_GCM_encrypt_update_avx512_aesenc_block_last:
         vpxor	%xmm8, %xmm6, %xmm6
         addl	$16, %r14d
         cmpl	%r13d, %r14d
-        jge	L_AES_GCM_encrypt_update_avx512_last_block_ghash
+        jae	L_AES_GCM_encrypt_update_avx512_last_block_ghash
 L_AES_GCM_encrypt_update_avx512_last_block_start:
         vmovdqu	(%r11,%r14,1), %xmm13
         vmovdqu	(%r12), %xmm9
@@ -34352,7 +34469,7 @@ L_AES_GCM_encrypt_update_avx512_aesenc_gfmul_last:
         addl	$16, %r14d
         vpxor	%xmm8, %xmm6, %xmm6
         cmpl	%r13d, %r14d
-        jl	L_AES_GCM_encrypt_update_avx512_last_block_start
+        jb	L_AES_GCM_encrypt_update_avx512_last_block_start
 L_AES_GCM_encrypt_update_avx512_last_block_ghash:
         # ghash_gfmul_red_avx
         vpshufd	$0x4e, %xmm5, %xmm9
@@ -34389,12 +34506,14 @@ L_AES_GCM_encrypt_update_avx512_done_enc:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_encrypt_final_avx512
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_final_avx512)
 .type	AES_GCM_encrypt_final_avx512,@function
 .align	16
 AES_GCM_encrypt_final_avx512:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_encrypt_final_avx512
+WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt_final_avx512)
 .p2align	4
 _AES_GCM_encrypt_final_avx512:
 #endif /* __APPLE__ */
@@ -34466,12 +34585,14 @@ L_AES_GCM_encrypt_final_avx512_store_tag_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_decrypt_update_avx512
+WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_update_avx512)
 .type	AES_GCM_decrypt_update_avx512,@function
 .align	16
 AES_GCM_decrypt_update_avx512:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_decrypt_update_avx512
+WC_ASM_ATT_HIDDEN(_AES_GCM_decrypt_update_avx512)
 .p2align	4
 _AES_GCM_decrypt_update_avx512:
 #endif /* __APPLE__ */
@@ -34497,7 +34618,7 @@ _AES_GCM_decrypt_update_avx512:
         vpxor	%xmm8, %xmm5, %xmm5
         xorl	%r14d, %r14d
         cmpl	$0x80, %r8d
-        jl	L_AES_GCM_decrypt_update_avx512_done_128
+        jb	L_AES_GCM_decrypt_update_avx512_done_128
         vmovdqa	%xmm6, %xmm2
         # H ^ 1
         vmovdqu	%xmm5, (%rsp)
@@ -34611,7 +34732,7 @@ _AES_GCM_decrypt_update_avx512:
         vmovdqa	%xmm11, %xmm7
         vmovdqu	%xmm7, 112(%rsp)
         cmpl	$0x100, %r8d
-        jl	L_AES_GCM_decrypt_update_avx512_no_ext2
+        jb	L_AES_GCM_decrypt_update_avx512_no_ext2
         # H ^ 9
         vmovdqu	48(%rsp), %xmm0
         vmovdqu	64(%rsp), %xmm1
@@ -34753,7 +34874,7 @@ _AES_GCM_decrypt_update_avx512:
         vmovdqa	%xmm11, %xmm7
         vmovdqu	%xmm7, 240(%rsp)
         cmpl	$0x200, %r8d
-        jl	L_AES_GCM_decrypt_update_avx512_no_ext
+        jb	L_AES_GCM_decrypt_update_avx512_no_ext
         # H ^ 17
         vmovdqu	112(%rsp), %xmm0
         vmovdqu	128(%rsp), %xmm1
@@ -35050,7 +35171,7 @@ L_AES_GCM_decrypt_update_avx512_no_ext2:
         vbroadcasti32x4	128(%rdi), %zmm2
         vbroadcasti32x4	144(%rdi), %zmm3
         cmpl	$0x200, %r8d
-        jl	L_AES_GCM_decrypt_update_avx512_no_windows
+        jb	L_AES_GCM_decrypt_update_avx512_no_windows
         movl	%r8d, %r13d
         andl	$0xfffffe00, %r13d
         vmovdqu64	448(%rsp), %zmm23
@@ -35176,7 +35297,7 @@ L_AES_GCM_decrypt_update_avx512_no_ext2:
         vpternlogq	$0x96, %xmm4, %xmm5, %xmm6
         addl	$0x200, %r14d
         cmpl	%r13d, %r14d
-        jge	L_AES_GCM_decrypt_update_avx512_last_aes
+        jae	L_AES_GCM_decrypt_update_avx512_last_aes
 L_AES_GCM_decrypt_update_avx512_win_loop:
         leaq	(%r11,%r14,1), %rbx
         vpxorq	%zmm21, %zmm21, %zmm21
@@ -35462,7 +35583,7 @@ L_AES_GCM_decrypt_update_avx512_b_il_last:
         vpternlogq	$0x96, %xmm4, %xmm5, %xmm6
         addl	$0x200, %r14d
         cmpl	%r13d, %r14d
-        jl	L_AES_GCM_decrypt_update_avx512_win_loop
+        jb	L_AES_GCM_decrypt_update_avx512_win_loop
 L_AES_GCM_decrypt_update_avx512_last_aes:
         vbroadcasti32x4	(%r12), %zmm20
         vpaddd	L_avx512_aes_gcm_inc_z0(%rip), %zmm20, %zmm16
@@ -35670,7 +35791,7 @@ L_AES_GCM_decrypt_update_avx512_no_windows:
         movl	%r8d, %r13d
         andl	$0xffffff00, %r13d
         cmpl	%r13d, %r14d
-        jge	L_AES_GCM_decrypt_update_avx512_after_256
+        jae	L_AES_GCM_decrypt_update_avx512_after_256
         # 256 bytes of input
         leaq	(%r11,%r14,1), %rbx
         vpxorq	%zmm20, %zmm20, %zmm20
@@ -35824,7 +35945,7 @@ L_AES_GCM_decrypt_update_avx512_after_256:
         movl	%r8d, %r13d
         andl	$0xffffff80, %r13d
         cmpl	%r13d, %r14d
-        jge	L_AES_GCM_decrypt_update_avx512_after_128
+        jae	L_AES_GCM_decrypt_update_avx512_after_128
         # 128 bytes of input
         leaq	(%r11,%r14,1), %rbx
         vmovdqu64	64(%rsp), %zmm23
@@ -35936,11 +36057,11 @@ L_AES_GCM_decrypt_update_avx512_after_128:
 L_AES_GCM_decrypt_update_avx512_done_128:
         movl	%r8d, %edx
         cmpl	%edx, %r14d
-        jge	L_AES_GCM_decrypt_update_avx512_done_dec
+        jae	L_AES_GCM_decrypt_update_avx512_done_dec
         movl	%r8d, %r13d
         andl	$0xfffffff0, %r13d
         cmpl	%r13d, %r14d
-        jge	L_AES_GCM_decrypt_update_avx512_last_block_done
+        jae	L_AES_GCM_decrypt_update_avx512_last_block_done
 L_AES_GCM_decrypt_update_avx512_last_block_start:
         vmovdqu	(%r11,%r14,1), %xmm13
         vmovdqa	%xmm5, %xmm0
@@ -35995,7 +36116,7 @@ L_AES_GCM_decrypt_update_avx512_aesenc_gfmul_last:
         vmovdqu	%xmm8, (%r10,%r14,1)
         addl	$16, %r14d
         cmpl	%r13d, %r14d
-        jl	L_AES_GCM_decrypt_update_avx512_last_block_start
+        jb	L_AES_GCM_decrypt_update_avx512_last_block_start
 L_AES_GCM_decrypt_update_avx512_last_block_done:
 L_AES_GCM_decrypt_update_avx512_done_dec:
         vmovdqa	%xmm6, (%r9)
@@ -36013,12 +36134,14 @@ L_AES_GCM_decrypt_update_avx512_done_dec:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_decrypt_final_avx512
+WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_final_avx512)
 .type	AES_GCM_decrypt_final_avx512,@function
 .align	16
 AES_GCM_decrypt_final_avx512:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_decrypt_final_avx512
+WC_ASM_ATT_HIDDEN(_AES_GCM_decrypt_final_avx512)
 .p2align	4
 _AES_GCM_decrypt_final_avx512:
 #endif /* __APPLE__ */
@@ -36123,12 +36246,14 @@ L_aes_gcm_siv_bswap_mask_avx512:
 #ifndef __APPLE__
 .text
 .globl	AES_GCMSIV_polyval_avx512
+WC_ASM_ATT_HIDDEN(AES_GCMSIV_polyval_avx512)
 .type	AES_GCMSIV_polyval_avx512,@function
 .align	16
 AES_GCMSIV_polyval_avx512:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCMSIV_polyval_avx512
+WC_ASM_ATT_HIDDEN(_AES_GCMSIV_polyval_avx512)
 .p2align	4
 _AES_GCMSIV_polyval_avx512:
 #endif /* __APPLE__ */
@@ -36725,12 +36850,12 @@ L_AES_GCMSIV_polyval_avx512_sixteen:
         vpxorq	%xmm17, %xmm18, %xmm0
         addl	$0x100, %eax
         cmpl	%r9d, %eax
-        jl	L_AES_GCMSIV_polyval_avx512_sixteen
+        jb	L_AES_GCMSIV_polyval_avx512_sixteen
 L_AES_GCMSIV_polyval_avx512_sixteen_done:
         movl	%r8d, %r9d
         andl	$0xffffff80, %r9d
         cmpl	%r9d, %eax
-        jge	L_AES_GCMSIV_polyval_avx512_eight_done
+        jae	L_AES_GCMSIV_polyval_avx512_eight_done
         leaq	(%rdx,%rax,1), %r10
         vmovdqu64	(%r10), %zmm6
         vmovdqu64	64(%r10), %zmm7
@@ -36794,7 +36919,7 @@ L_AES_GCMSIV_polyval_avx512_sixteen_done:
 L_AES_GCMSIV_polyval_avx512_eight_done:
 L_AES_GCMSIV_polyval_avx512_rem:
         cmpl	%r8d, %eax
-        jge	L_AES_GCMSIV_polyval_avx512_done
+        jae	L_AES_GCMSIV_polyval_avx512_done
         vpxorq	(%rdx,%rax,1), %xmm0, %xmm0
         vpclmulqdq	$0x00, %xmm1, %xmm0, %xmm17
         vpclmulqdq	$0x11, %xmm1, %xmm0, %xmm18
@@ -36868,12 +36993,14 @@ L_aes_gcmsiv_ctr_inc_avx512:
 #ifndef __APPLE__
 .text
 .globl	AES_GCMSIV_ctr_avx512
+WC_ASM_ATT_HIDDEN(AES_GCMSIV_ctr_avx512)
 .type	AES_GCMSIV_ctr_avx512,@function
 .align	16
 AES_GCMSIV_ctr_avx512:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCMSIV_ctr_avx512
+WC_ASM_ATT_HIDDEN(_AES_GCMSIV_ctr_avx512)
 .p2align	4
 _AES_GCMSIV_ctr_avx512:
 #endif /* __APPLE__ */
@@ -36884,7 +37011,7 @@ _AES_GCMSIV_ctr_avx512:
         vbroadcasti32x4	16+L_aes_gcmsiv_ctr_inc_avx512(%rip), %zmm10
         xorl	%eax, %eax
         cmpl	$0x40, %edx
-        jl	L_AES_GCMSIV_ctr_avx512_done_64
+        jb	L_AES_GCMSIV_ctr_avx512_done_64
         vbroadcasti32x4	(%rcx), %zmm12
         vbroadcasti32x4	16(%rcx), %zmm13
         vbroadcasti32x4	32(%rcx), %zmm14
@@ -36907,7 +37034,7 @@ _AES_GCMSIV_ctr_avx512:
 L_AES_GCMSIV_ctr_avx512_key_cached:
         cmpl	$0x100, %edx
         movl	%edx, %r10d
-        jl	L_AES_GCMSIV_ctr_avx512_done_256
+        jb	L_AES_GCMSIV_ctr_avx512_done_256
         andl	$0xffffff00, %r10d
         vpaddd	0+L_aes_gcmsiv_ctr_inc_avx512(%rip), %zmm7, %zmm4
         vpaddd	64+L_aes_gcmsiv_ctr_inc_avx512(%rip), %zmm7, %zmm5
@@ -37004,7 +37131,7 @@ L_AES_GCMSIV_ctr_avx512_256_aes_enc_block_last:
         vmovdqu64	%zmm3, 192(%r12)
         addl	$0x100, %eax
         cmpl	%r10d, %eax
-        jl	L_AES_GCMSIV_ctr_avx512_enc_256
+        jb	L_AES_GCMSIV_ctr_avx512_enc_256
         vshufi64x2	$0x00, %zmm4, %zmm4, %zmm7
 L_AES_GCMSIV_ctr_avx512_done_256:
         movl	%edx, %r10d
@@ -37046,7 +37173,7 @@ L_AES_GCMSIV_ctr_avx512_64_aes_enc_block_last:
         vmovdqu64	%zmm0, (%r12)
         addl	$0x40, %eax
         cmpl	%r10d, %eax
-        jl	L_AES_GCMSIV_ctr_avx512_enc_64
+        jb	L_AES_GCMSIV_ctr_avx512_enc_64
 L_AES_GCMSIV_ctr_avx512_done_64:
         cmpl	%edx, %eax
         movl	%edx, %r10d
@@ -37097,7 +37224,7 @@ L_AES_GCMSIV_ctr_avx512_16_aes_enc_block_last:
         vmovdqu	%xmm0, (%r11)
         addl	$16, %eax
         cmpl	%r10d, %eax
-        jl	L_AES_GCMSIV_ctr_avx512_enc_16
+        jb	L_AES_GCMSIV_ctr_avx512_enc_16
 L_AES_GCMSIV_ctr_avx512_done_enc:
         vmovdqu	%xmm7, (%r9)
         popq	%r12

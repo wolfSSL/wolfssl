@@ -26,3 +26,5 @@ target_sources(app PRIVATE ${ZEPHYR_WOLFSSL_MODULE_DIR}/wolfcrypt/benchmark/benc
 target_include_directories(app PRIVATE ${ZEPHYR_WOLFSSL_MODULE_DIR}/wolfcrypt/benchmark)
 target_sources(app PRIVATE ${app_sources})
 add_definitions(-DWOLFSSL_USER_SETTINGS)
+# Report the benchmark thread's peak stack usage.
+add_definitions(-DHAVE_STACK_SIZE)

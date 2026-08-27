@@ -647,7 +647,7 @@ static const char* client_bench_conmsg[][5] = {
 static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
     int dtlsUDP, int dtlsSCTP, int benchmark, int resumeSession, int useX25519,
     int useX448, int usePqc, char* pqcAlg, int helloRetry, int onlyKeyShare,
-    int version, int earlyData, int useBp)
+    int version, int earlyData, int useBp, void* pkCbInfo)
 {
     /* time passed in number of connects give average */
     int times = benchmark, skip = (int)((double)times * 0.1);
@@ -671,6 +671,7 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
     (void)version;
     (void)earlyData;
     (void)useBp;
+    (void)pkCbInfo;
 
     while (loops--) {
     #ifndef NO_SESSION_CACHE
@@ -689,6 +690,11 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
             if (ssl == NULL)
                 err_sys("unable to get SSL object");
 
+        #ifdef HAVE_PK_CALLBACKS
+            /* This must be before SetKeyShare */
+            if (pkCbInfo != NULL)
+                SetupPkCallbackContexts(ssl, pkCbInfo);
+        #endif
         #ifndef NO_SESSION_CACHE
             if (benchResume)
                 wolfSSL_set_session(ssl, benchSession);
@@ -778,7 +784,7 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
 static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
     int dtlsUDP, int dtlsSCTP, int block, size_t throughput, int useX25519,
     int useX448, int usePqc, char* pqcAlg, int exitWithRet, int version,
-    int onlyKeyShare, int useBp)
+    int onlyKeyShare, int useBp, void* pkCbInfo)
 {
     double start, conn_time = 0, tx_time = 0, rx_time = 0;
     SOCKET_T sockfd = WOLFSSL_SOCKET_INVALID;
@@ -789,6 +795,14 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
     ssl = wolfSSL_new(ctx);
     if (ssl == NULL)
         err_sys("unable to get SSL object");
+
+#ifdef HAVE_PK_CALLBACKS
+    /* This must be before SetKeyShare */
+    if (pkCbInfo != NULL)
+        SetupPkCallbackContexts(ssl, pkCbInfo);
+#else
+    (void)pkCbInfo;
+#endif
 
 #if defined(WOLFSSL_TLS_READ_AHEAD) && !defined(NO_FILESYSTEM) && \
     !defined(NO_STDIO_FILESYSTEM)
@@ -2414,6 +2428,14 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         verifyCert = caEd448CertFile;
         ourCert    = cliEd448CertFile;
         ourKey     = cliEd448KeyFile;
+    #elif defined(TEST_HAVE_MLDSA_CERTS)
+        verifyCert = caMldsaCertFile;
+        ourCert    = cliMldsaCertFile;
+        ourKey     = cliMldsaKeyFile;
+    #elif defined(TEST_HAVE_SLHDSA_CERTS)
+        verifyCert = caSlhdsaCertFile;
+        ourCert    = cliSlhdsaCertFile;
+        ourKey     = cliSlhdsaKeyFile;
     #else
         verifyCert = NULL;
         ourCert    = NULL;
@@ -3486,8 +3508,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 #endif
 
-#if defined(NO_RSA) && !defined(HAVE_ECC) && !defined(HAVE_ED25519) && \
-                                                            !defined(HAVE_ED448)
+#if defined(TEST_NO_CLASSIC_AUTH) && !defined(TEST_HAVE_PQC_CERT_AUTH)
     if (!usePsk) {
         usePsk = 1;
     }
@@ -3928,13 +3949,26 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 #endif
 
+#ifdef HAVE_PK_CALLBACKS
+    /* Must be before the benchmark and throughput runs below - both build
+     * their own WOLFSSL objects and then exit. */
+    if (pkCallbacks)
+        SetupPkCallbacks(ctx);
+#endif
+
     if (benchmark) {
         ((func_args*)args)->return_code =
             ClientBenchmarkConnections(ctx, host, port, dtlsUDP, dtlsSCTP,
                                        benchmark, resumeSession, useX25519,
                                        useX448, usePqc, pqcAlg, helloRetry,
                                        onlyKeyShare, version, earlyData,
-                                       useBrainpool);
+                                       useBrainpool,
+                                   #ifdef HAVE_PK_CALLBACKS
+                                       pkCallbacks ? &pkCbInfo : NULL
+                                   #else
+                                       NULL
+                                   #endif
+                                       );
         wolfSSL_CTX_free(ctx); ctx = NULL;
         XEXIT_T(EXIT_SUCCESS);
     }
@@ -3944,7 +3978,13 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             ClientBenchmarkThroughput(ctx, host, port, dtlsUDP, dtlsSCTP,
                                       block, throughput, useX25519, useX448,
                                       usePqc, pqcAlg, exitWithRet, version,
-                                      onlyKeyShare, useBrainpool);
+                                      onlyKeyShare, useBrainpool,
+                                  #ifdef HAVE_PK_CALLBACKS
+                                      pkCallbacks ? &pkCbInfo : NULL
+                                  #else
+                                      NULL
+                                  #endif
+                                      );
         wolfSSL_CTX_free(ctx); ctx = NULL;
         if (((func_args*)args)->return_code != EXIT_SUCCESS && !exitWithRet)
             XEXIT_T(EXIT_SUCCESS);
@@ -3986,11 +4026,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         }
 #endif
     }
-
-#ifdef HAVE_PK_CALLBACKS
-    if (pkCallbacks)
-        SetupPkCallbacks(ctx);
-#endif
 
     ssl = wolfSSL_new(ctx);
     if (ssl == NULL) {

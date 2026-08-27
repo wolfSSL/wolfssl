@@ -32,6 +32,7 @@ int test_wc_SHE_ImportM1M2M3(void);
 int test_wc_SHE_AesMp16(void);
 int test_wc_SHE_GenerateM1M2M3(void);
 int test_wc_SHE_GenerateM4M5(void);
+int test_wc_SHE_DecisionCoverage(void);
 #ifdef WOLFSSL_SHE_EXTENDED
 int test_wc_SHE_SetKdfConstants(void);
 int test_wc_SHE_SetM2M4Header(void);
@@ -52,7 +53,8 @@ int test_wc_SHE_LoadKey_Verify(void);
     TEST_DECL_GROUP("she", test_wc_SHE_ImportM1M2M3),               \
     TEST_DECL_GROUP("she", test_wc_SHE_AesMp16),                    \
     TEST_DECL_GROUP("she", test_wc_SHE_GenerateM1M2M3),             \
-    TEST_DECL_GROUP("she", test_wc_SHE_GenerateM4M5)
+    TEST_DECL_GROUP("she", test_wc_SHE_GenerateM4M5),               \
+    TEST_DECL_GROUP("she", test_wc_SHE_DecisionCoverage)
 
 #ifdef WOLFSSL_SHE_EXTENDED
 #define TEST_SHE_EXT_DECLS                                          \

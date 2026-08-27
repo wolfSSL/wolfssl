@@ -41,6 +41,7 @@
 #if defined(USE_INTEL_SPEEDUP) || defined(FRODOKEM_HAVE_SVE) || \
     (defined(FRODOKEM_HAVE_NEON_ASM) && defined(__aarch64__))
 #include <wolfssl/wolfcrypt/cpuid.h>
+
 #endif
 #ifdef WOLFSSL_FRODOKEM_AES
     #include <wolfssl/wolfcrypt/aes.h>
@@ -932,7 +933,7 @@ static void frodokem_sample_matrix(word16* mat, int cnt, const byte* r,
     else
 #endif
 #ifdef FRODOKEM_HAVE_MATRIX_ASM_AVX512
-    if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         frodokem_sample_avx512(mat, cnt, p->cdf, p->cdfLen);
         RESTORE_VECTOR_REGISTERS();
     }
@@ -1727,9 +1728,21 @@ static int frodokem_mul_add_as_plus_e_aes(word16* out, const word16* s,
     /* Generate the A rows in batches matching the fused asm accumulate (eight
      * with AVX512, four with AVX2); n is a multiple of 8 for every set. */
 #ifdef FRODOKEM_HAVE_MATRIX_ASM_AVX512
-    if ((ret == 0) && IS_INTEL_AVX512(cpuid_flags) &&
+    if ((ret == 0) && USE_INTEL_AVX512(cpuid_flags) &&
             (SAVE_VECTOR_REGISTERS2() == 0)) {
-        for (i = 0; i < n; i += 8) {
+        /* The AES-NI/VAES row kernels below consume aes->key directly, which
+         * holds a valid AES-NI-layout key schedule only when the
+         * wc_AesSetKeyDirect() above ran with vector registers available
+         * (aes->use_aesni nonzero).  Under WC_C_DYNAMIC_FALLBACK a failed
+         * SAVE_VECTOR_REGISTERS2() inside SetKey returns success having keyed
+         * only the C-fallback schedule (aes->key_C_fallback) - re-key under
+         * the held region, where the nested SAVE_VECTOR_REGISTERS2() always
+         * succeeds, so aes->key is valid for the kernels. */
+        if (IS_INTEL_AESNI(cpuid_flags) && (! aes->use_aesni)) {
+            ret = wc_AesSetKeyDirect(aes, seedA, FRODOKEM_SEEDA_SZ, NULL,
+                AES_ENCRYPTION);
+        }
+        for (i = 0; (ret == 0) && (i < n); i += 8) {
             /* Widest matrix-A generator available at run time (cf. aes.c):
              * VAES (whole batch in one asm call), else the AES-NI register
              * kernel, else the per-row C generator. */
@@ -1759,7 +1772,13 @@ static int frodokem_mul_add_as_plus_e_aes(word16* out, const word16* s,
 #ifdef FRODOKEM_HAVE_MATRIX_ASM
     if ((ret == 0) && IS_INTEL_AVX2(cpuid_flags) &&
             (SAVE_VECTOR_REGISTERS2() == 0)) {
-        for (i = 0; i < n; i += 4) {
+        /* Re-key if SetKey lacked vector registers - see the note in the
+         * AVX512 branch above (or in frodokem_mul_add_as_plus_e_aes). */
+        if (IS_INTEL_AESNI(cpuid_flags) && (! aes->use_aesni)) {
+            ret = wc_AesSetKeyDirect(aes, seedA, FRODOKEM_SEEDA_SZ, NULL,
+                AES_ENCRYPTION);
+        }
+        for (i = 0; (ret == 0) && (i < n); i += 4) {
             /* Widest matrix-A generator available at run time (cf. aes.c):
              * VAES (whole batch in one asm call), else the AES-NI register
              * kernel, else the per-row C generator. */
@@ -1857,7 +1876,7 @@ static int frodokem_mul_add_as_plus_e_shake(word16* out, const word16* s,
     /* When AVX512 is available, generate and consume eight A rows at a time
      * with the 8-way SHAKE permutation. n is a multiple of 8 for every param
      * set, so there is no remainder loop. */
-    if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         ret = 0;
         for (i = 0; i < n; i += 8) {
             ret = frodokem_gen_a_row_shake_x8(row, seedA, i, p);
@@ -2031,9 +2050,21 @@ static int frodokem_mul_add_sa_plus_e_aes(word16* out, const word16* s,
     /* Generate the A rows in batches matching the fused asm accumulate (eight
      * with AVX512, four with AVX2); n is a multiple of 8 for every set. */
 #ifdef FRODOKEM_HAVE_MATRIX_ASM_AVX512
-    if ((ret == 0) && IS_INTEL_AVX512(cpuid_flags) &&
+    if ((ret == 0) && USE_INTEL_AVX512(cpuid_flags) &&
             (SAVE_VECTOR_REGISTERS2() == 0)) {
-        for (j = 0; j < n; j += 8) {
+        /* The AES-NI/VAES row kernels below consume aes->key directly, which
+         * holds a valid AES-NI-layout key schedule only when the
+         * wc_AesSetKeyDirect() above ran with vector registers available
+         * (aes->use_aesni nonzero).  Under WC_C_DYNAMIC_FALLBACK a failed
+         * SAVE_VECTOR_REGISTERS2() inside SetKey returns success having keyed
+         * only the C-fallback schedule (aes->key_C_fallback) - re-key under
+         * the held region, where the nested SAVE_VECTOR_REGISTERS2() always
+         * succeeds, so aes->key is valid for the kernels. */
+        if (IS_INTEL_AESNI(cpuid_flags) && (! aes->use_aesni)) {
+            ret = wc_AesSetKeyDirect(aes, seedA, FRODOKEM_SEEDA_SZ, NULL,
+                AES_ENCRYPTION);
+        }
+        for (j = 0; (ret == 0) && (j < n); j += 8) {
             /* Widest matrix-A generator available at run time (cf. aes.c):
              * VAES (whole batch in one asm call), else the AES-NI register
              * kernel, else the per-row C generator. */
@@ -2063,7 +2094,13 @@ static int frodokem_mul_add_sa_plus_e_aes(word16* out, const word16* s,
 #ifdef FRODOKEM_HAVE_MATRIX_ASM
     if ((ret == 0) && IS_INTEL_AVX2(cpuid_flags) &&
             (SAVE_VECTOR_REGISTERS2() == 0)) {
-        for (j = 0; j < n; j += 4) {
+        /* Re-key if SetKey lacked vector registers - see the note in the
+         * AVX512 branch above (or in frodokem_mul_add_as_plus_e_aes). */
+        if (IS_INTEL_AESNI(cpuid_flags) && (! aes->use_aesni)) {
+            ret = wc_AesSetKeyDirect(aes, seedA, FRODOKEM_SEEDA_SZ, NULL,
+                AES_ENCRYPTION);
+        }
+        for (j = 0; (ret == 0) && (j < n); j += 4) {
             /* Widest matrix-A generator available at run time (cf. aes.c):
              * VAES (whole batch in one asm call), else the AES-NI register
              * kernel, else the per-row C generator. */
@@ -2165,7 +2202,7 @@ static int frodokem_mul_add_sa_plus_e_shake(word16* out, const word16* s,
     /* When AVX512 is available, generate and consume eight A rows at a time
      * with the 8-way SHAKE permutation. n is a multiple of 8 for every param
      * set, so there is no remainder loop. */
-    if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         ret = 0;
         for (j = 0; j < n; j += 8) {
             ret = frodokem_gen_a_row_shake_x8(row, seedA, j, p);
@@ -2331,7 +2368,7 @@ void frodokem_mul_add_sb_plus_e(word16* out, const word16* b, const word16* s,
     else
 #endif
 #ifdef FRODOKEM_HAVE_MATRIX_ASM_AVX512
-    if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         frodokem_mul_add_sb_plus_e_avx512(out, b, s, n, qmask);
         RESTORE_VECTOR_REGISTERS();
     }
@@ -2609,7 +2646,7 @@ void frodokem_mul_bs(word16* out, const word16* b, const word16* s,
     else
 #endif
 #ifdef FRODOKEM_HAVE_MATRIX_ASM_AVX512
-    if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         frodokem_mul_bs_avx512(out, b, s, n, qmask);
         RESTORE_VECTOR_REGISTERS();
     }
@@ -2870,7 +2907,7 @@ void frodokem_add(word16* a, const word16* b, int qmask)
     else
 #endif
 #ifdef FRODOKEM_HAVE_MATRIX_ASM_AVX512
-    if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         frodokem_add_avx512(a, b, qmask);
         RESTORE_VECTOR_REGISTERS();
     }

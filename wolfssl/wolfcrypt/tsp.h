@@ -424,10 +424,9 @@ WOLFSSL_API int wc_TspResponse_SetStatus(TspResponse* resp, word32 status,
 WOLFSSL_API const char* wc_TspStatus_ToString(word32 status);
 WOLFSSL_API const char* wc_TspFailInfo_ToString(word32 failInfo);
 #ifdef HAVE_PKCS7
-/* Verify a response's token with the TSA's certificate - manages the PKCS7
- * object. A NULL cert verifies the signature against the token's embedded
- * certificate only and establishes no trust; use wc_TspResponse_VerifyWithCm()
- * to anchor the signer to a trusted CA. */
+/* Verify a response's token against the trusted TSA certificate - manages the
+ * PKCS7 object. The certificate is required: one in the token is no anchor.
+ * See wc_TspResponse_VerifyWithCm() to anchor the signer to a trusted CA. */
 #ifdef WOLFSSL_TSP_VERIFIER
 WOLFSSL_API int wc_TspResponse_Verify(TspResponse* resp, const byte* cert,
     word32 certSz, TspTstInfo* tstInfo);
@@ -438,7 +437,8 @@ WOLFSSL_API int wc_TspResponse_Verify(TspResponse* resp, const byte* cert,
 WOLFSSL_API int wc_TspResponse_VerifyWithCm(TspResponse* resp, void* cm,
     TspTstInfo* tstInfo);
 #endif /* WOLFSSL_TSP_VERIFIER */
-/* Verify a response's token and that it is over the given data. */
+/* Verify a response's token and that it is over the given data. The trusted
+ * TSA certificate is required. */
 #ifdef WOLFSSL_TSP_VERIFIER
 WOLFSSL_API int wc_TspResponse_VerifyData(TspResponse* resp, const byte* cert,
     word32 certSz, const byte* data, word32 dataSz, TspTstInfo* tstInfo);

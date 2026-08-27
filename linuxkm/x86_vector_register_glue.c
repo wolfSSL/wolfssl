@@ -136,6 +136,9 @@ static struct wc_thread_fpu_count_ent *wc_linuxkm_fpu_state_assoc_unlikely(int c
                 if (_warned_on_null == 0) {
                     pr_err("BUG: wc_linuxkm_fpu_state_assoc called by PID %d"
                            " before allocate_wolfcrypt_linuxkm_fpu_states.\n", my_pid);
+                    #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+                    dump_stack();
+                    #endif
                     _warned_on_null = 1;
                 }
                 return NULL;
@@ -152,6 +155,9 @@ static struct wc_thread_fpu_count_ent *wc_linuxkm_fpu_state_assoc_unlikely(int c
                 pr_err("BUG: wc_linuxkm_fpu_state_assoc called with create_p=1 by"
                        " PID %d on CPU %d with CPU slot already reserved by"
                        " said PID.\n", my_pid, my_cpu);
+                #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+                dump_stack();
+                #endif
                 ++_warned_on_redundant_create_p;
             }
         }
@@ -186,6 +192,9 @@ static struct wc_thread_fpu_count_ent *wc_linuxkm_fpu_state_assoc_unlikely(int c
                     pr_warn("WARNING: wc_linuxkm_fpu_state_assoc called by pid %d on CPU %d"
                             " but CPU slot already reserved by pid %d.\n",
                             my_pid, my_cpu, slot_pid);
+                    #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+                    dump_stack();
+                    #endif
                     ++_warned_on_mismatched_pid;
                 }
             }
@@ -343,8 +352,12 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
      * a second look at preempt_count().
      */
     if (((preempt_count() & (NMI_MASK | HARDIRQ_MASK)) != 0) || (task_pid_nr(current) == 0)) {
-        if (! (flags & WC_SVR_FLAG_INHIBIT))
+        if (! (flags & (WC_SVR_FLAG_INHIBIT | WC_SVR_FLAG_MAYBE_INHIBIT))) {
             VRG_PR_WARN_X("WARNING: wc_save_vector_registers_x86(0x%x) called with preempt_count 0x%x and pid %d on CPU %d.\n", (unsigned)flags, preempt_count(), task_pid_nr(current), raw_smp_processor_id());
+            #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+            dump_stack();
+            #endif
+        }
         return WC_ACCEL_INHIBIT_E;
     }
 
@@ -352,6 +365,16 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
 
     /* allow for nested calls */
     if (pstate && (pstate->fpu_state != 0U)) {
+        if (flags & WC_SVR_FLAG_MAYBE_INHIBIT) {
+            VRG_PR_WARN_X("BUG: wc_save_vector_registers_x86() called by pid %d on CPU %d "
+                          "with _MAYBE_INHIBIT flag at non-outermost depth %u.\n", task_pid_nr(current),
+                          raw_smp_processor_id(),
+                          (pstate->fpu_state & WC_FPU_COUNT_MASK));
+            #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+            dump_stack();
+            #endif
+            return BAD_STATE_E;
+        }
         if (pstate->fpu_state & WC_FPU_INHIBITED_FLAG) {
             /* don't allow recursive inhibit calls when already inhibited --
              * it would add no functionality and require keeping a separate
@@ -378,13 +401,39 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
         __builtin_unreachable();
     }
 
+#ifndef DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON
+    /* EINTR during optest, which is exercised by the kernel test harness, acts
+     * like a failed save, which would emit (and indeed be) an ERROR in
+     * DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON builds.
+     */
     {
         int ret = WC_CHECK_FOR_INTR_SIGNALS();
         if (ret)
             return ret;
     }
+#endif
 
     WC_RELAX_LONG_LOOP();
+
+#ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
+    if (flags & WC_SVR_FLAG_FUZZ) {
+        int ret = SAVE_VECTOR_REGISTERS2_fuzzer();
+        if (ret != 0) {
+            if (flags & WC_SVR_FLAG_MAYBE_INHIBIT)
+                flags |= WC_SVR_FLAG_INHIBIT;
+            else
+                return ret;
+        }
+    }
+#endif
+
+    if ((flags & WC_SVR_FLAG_MAYBE_INHIBIT) &&
+        ((preempt_count() != 0) && !may_use_simd()))
+    {
+        return WC_ACCEL_INHIBIT_E; /* not an error here, just a
+                                    * short-circuit result.
+                                    */
+    }
 
     if (flags & WC_SVR_FLAG_INHIBIT) {
         if ((preempt_count() != 0) && !may_use_simd())
@@ -427,14 +476,6 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
 
         return 0;
     }
-
-#ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
-    if (flags & WC_SVR_FLAG_FUZZ) {
-        int ret = SAVE_VECTOR_REGISTERS2_fuzzer();
-        if (ret != 0)
-            return ret;
-    }
-#endif
 
     if ((preempt_count() == 0) || may_use_simd()) {
         /* fpregs_lock() calls either local_bh_disable() or preempt_disable()
@@ -504,17 +545,33 @@ void wc_restore_vector_registers_x86(enum wc_svr_flags flags)
         VRG_PR_WARN_X("BUG: wc_restore_vector_registers_x86() called by pid %d on CPU %d "
                "with no saved state.\n", task_pid_nr(current),
                raw_smp_processor_id());
+        #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+        dump_stack();
+        #endif
         return;
     }
 
     if ((--pstate->fpu_state & WC_FPU_COUNT_MASK) > 0U) {
+        if (flags & WC_SVR_FLAG_MAYBE_INHIBIT) {
+                VRG_PR_WARN_X("BUG: wc_restore_vector_registers_x86() called by pid %d on CPU %d "
+                              "with _MAYBE_INHIBIT flag at non-outermost depth %u.\n", task_pid_nr(current),
+                              raw_smp_processor_id(),
+                              (pstate->fpu_state & WC_FPU_COUNT_MASK) + 1U);
+                #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+                dump_stack();
+                #endif
+        }
         if (flags & WC_SVR_FLAG_INHIBIT) {
             if (pstate->fpu_state & WC_FPU_INHIBITED_FLAG)
                 pstate->fpu_state &= ~WC_FPU_INHIBITED_FLAG;
-            else
+            else {
                 VRG_PR_WARN_X("BUG: wc_restore_vector_registers_x86() called by pid %d on CPU %d "
                               "with _INHIBIT flag but saved state isn't _INHIBITED_.\n", task_pid_nr(current),
                               raw_smp_processor_id());
+                #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+                dump_stack();
+                #endif
+            }
         }
         return;
     }
@@ -527,10 +584,14 @@ void wc_restore_vector_registers_x86(enum wc_svr_flags flags)
         #endif
         local_bh_enable();
     } else if (unlikely(pstate->fpu_state & WC_FPU_INHIBITED_FLAG)) {
-        if (unlikely(! (flags & WC_SVR_FLAG_INHIBIT)))
+        if (unlikely(! (flags & (WC_SVR_FLAG_INHIBIT | WC_SVR_FLAG_MAYBE_INHIBIT)))) {
             VRG_PR_WARN_X("BUG: wc_restore_vector_registers_x86() called by pid %d on CPU %d "
                           "without _INHIBIT flag but saved state is _INHIBITED_.\n", task_pid_nr(current),
                           raw_smp_processor_id());
+            #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+            dump_stack();
+            #endif
+        }
         pstate->fpu_state = 0U;
         wc_linuxkm_fpu_state_release(pstate);
         local_bh_enable();

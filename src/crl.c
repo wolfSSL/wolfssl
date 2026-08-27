@@ -86,6 +86,11 @@ int InitCRL(WOLFSSL_CRL* crl, WOLFSSL_CERT_MANAGER* cm)
 #endif
     if (wc_InitRwLock(&crl->crlLock) != 0) {
         WOLFSSL_MSG("Init Mutex failed");
+    #ifdef HAVE_CRL_MONITOR
+        /* Undo the condition variable created above: a failed InitCRL() must
+         * leave nothing behind, since callers only free the memory. */
+        wolfSSL_CondFree(&crl->cond);
+    #endif
         return BAD_MUTEX_E;
     }
 #ifdef OPENSSL_ALL
@@ -1326,65 +1331,77 @@ static WOLFSSL_X509_CRL* wolfSSL_X509_crl_new(WOLFSSL_CERT_MANAGER* cm)
     return ret;
 }
 
-#ifndef CRL_STATIC_REVOKED_LIST
-/* returns head of copied list that was alloc'd */
-static RevokedCert *DupRevokedCertList(RevokedCert* in, void* heap)
+/* Copy a single revoked cert, deep copying any entry extensions.
+ * returns 0 on success and MEMORY_E on fail */
+static int DupRevokedCert(RevokedCert* out, const RevokedCert* in, void* heap)
 {
-    RevokedCert* head = NULL;
-    RevokedCert* current = in;
-    RevokedCert* prev = NULL;
-    while (current) {
-        RevokedCert* tmp = (RevokedCert*)XMALLOC(sizeof(RevokedCert), heap,
-                DYNAMIC_TYPE_REVOKED);
-        if (tmp != NULL) {
-            XMEMCPY(tmp->serialNumber, current->serialNumber,
-                    EXTERNAL_SERIAL_SIZE);
-            tmp->serialSz = current->serialSz;
-            XMEMCPY(tmp->revDate, current->revDate,
-                    MAX_DATE_SIZE);
-            tmp->revDateFormat = current->revDateFormat;
-            tmp->reasonCode = current->reasonCode;
+    XMEMCPY(out->serialNumber, in->serialNumber, EXTERNAL_SERIAL_SIZE);
+    out->serialSz = in->serialSz;
+    XMEMCPY(out->revDate, in->revDate, MAX_DATE_SIZE);
+    out->revDateFormat = in->revDateFormat;
+    out->reasonCode = in->reasonCode;
+    out->next = NULL;
 #if defined(OPENSSL_EXTRA)
-            tmp->extensions = NULL;
-            tmp->extensionsSz = 0;
-            if (current->extensions != NULL && current->extensionsSz > 0) {
-                tmp->extensions = (byte*)XMALLOC(current->extensionsSz, heap,
-                                                 DYNAMIC_TYPE_REVOKED);
-                if (tmp->extensions != NULL) {
-                    XMEMCPY(tmp->extensions, current->extensions,
-                            current->extensionsSz);
-                    tmp->extensionsSz = current->extensionsSz;
-                }
-            }
-#endif
-            tmp->next = NULL;
-            if (prev != NULL)
-                prev->next = tmp;
-            if (head == NULL)
-                head = tmp;
-            prev = tmp;
+    out->extensions = NULL;
+    out->extensionsSz = 0;
+    if (in->extensions != NULL && in->extensionsSz > 0) {
+        out->extensions = (byte*)XMALLOC(in->extensionsSz, heap,
+                                         DYNAMIC_TYPE_REVOKED);
+        if (out->extensions == NULL) {
+            WOLFSSL_MSG("Failed to allocate revoked cert extensions");
+            return MEMORY_E;
         }
-        else {
-            WOLFSSL_MSG("Failed to allocate new RevokedCert structure");
-            /* free up any existing list */
-            while (head != NULL) {
-                current = head;
-                head = head->next;
-#if defined(OPENSSL_EXTRA)
-                XFREE(current->extensions, heap, DYNAMIC_TYPE_REVOKED);
-#endif
-                XFREE(current, heap, DYNAMIC_TYPE_REVOKED);
-            }
-            return NULL;
-        }
-        current = current->next;
+        XMEMCPY(out->extensions, in->extensions, in->extensionsSz);
+        out->extensionsSz = in->extensionsSz;
     }
+#endif
 
     (void)heap;
-    return head;
+    return 0;
 }
 
-#endif /* CRL_STATIC_REVOKED_LIST */
+/* Copy the revoked certs of ent into dupl. On fail the certs copied so far are
+ * left owned by dupl, for CRL_Entry_free() to release.
+ * returns 0 on success and MEMORY_E on fail */
+static int DupRevokedCertList(CRL_Entry* dupl, const CRL_Entry* ent, void* heap)
+{
+#ifdef CRL_STATIC_REVOKED_LIST
+    int i;
+
+    /* CRL_Entry_new() zeroed the array, so only the used entries need to be
+     * filled in. */
+    for (i = 0; i < ent->totalCerts; i++) {
+        if (DupRevokedCert(&dupl->certs[i], &ent->certs[i], heap) != 0)
+            return MEMORY_E;
+    }
+#else
+    RevokedCert* current;
+    RevokedCert* prev = NULL;
+
+    for (current = ent->certs; current != NULL; current = current->next) {
+        RevokedCert* tmp = (RevokedCert*)XMALLOC(sizeof(RevokedCert), heap,
+                DYNAMIC_TYPE_REVOKED);
+        if (tmp == NULL) {
+            WOLFSSL_MSG("Failed to allocate new RevokedCert structure");
+            return MEMORY_E;
+        }
+        if (DupRevokedCert(tmp, current, heap) != 0) {
+            XFREE(tmp, heap, DYNAMIC_TYPE_REVOKED);
+            return MEMORY_E;
+        }
+        /* link it in before copying the next one so that a later failure
+         * doesn't leak it */
+        if (prev != NULL)
+            prev->next = tmp;
+        else
+            dupl->certs = tmp;
+        prev = tmp;
+    }
+#endif
+
+    return 0;
+}
+
 /* returns a deep copy of ent on success and null on fail */
 static CRL_Entry* DupCRL_Entry(const CRL_Entry* ent, void* heap)
 {
@@ -1405,13 +1422,11 @@ static CRL_Entry* DupCRL_Entry(const CRL_Entry* ent, void* heap)
     XMEMCPY((byte*)dupl + copyOffset, (byte*)ent + copyOffset,
             sizeof(CRL_Entry) - copyOffset);
 
-#ifndef CRL_STATIC_REVOKED_LIST
-    dupl->certs = DupRevokedCertList(ent->certs, heap);
-    if (ent->certs != NULL && dupl->certs == NULL) {
+    /* certs is not part of the bulk copy above so we copy it explicitly */
+    if (DupRevokedCertList(dupl, ent, heap) != 0) {
         CRL_Entry_free(dupl, heap);
         return NULL;
     }
-#endif
 #ifdef OPENSSL_EXTRA
     dupl->issuer = wolfSSL_X509_NAME_dup(ent->issuer);
     if (ent->issuer != NULL && dupl->issuer == NULL) {

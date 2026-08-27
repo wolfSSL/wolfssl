@@ -850,6 +850,52 @@ int test_wolfSSL_X509_EXTENSION_get_data(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_X509_EXTENSION_set_data(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
+    WOLFSSL_X509_EXTENSION* ext = NULL;
+    WOLFSSL_ASN1_STRING* str = NULL;
+#ifndef WOLFSSL_OLD_EXTDATA_FMT
+    WOLFSSL_ASN1_STRING* cur = NULL;
+#endif
+    /* Long enough that the ASN.1 STRING data is dynamically allocated. */
+    byte longData[CTC_NAME_SIZE * 2];
+
+    XMEMSET(longData, 'A', sizeof(longData));
+
+    ExpectNotNull(ext = wolfSSL_X509_EXTENSION_new());
+    ExpectNotNull(str = wolfSSL_ASN1_STRING_new());
+    ExpectIntEQ(wolfSSL_ASN1_STRING_set(str, longData, (int)sizeof(longData)),
+        1);
+
+    ExpectIntEQ(wolfSSL_X509_EXTENSION_set_data(NULL, NULL),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(wolfSSL_X509_EXTENSION_set_data(ext, NULL),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(wolfSSL_X509_EXTENSION_set_data(NULL, str),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+
+    /* Replace a dynamically allocated value with another one. */
+    ExpectIntEQ(wolfSSL_X509_EXTENSION_set_data(ext, str), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_EXTENSION_set_data(ext, str), WOLFSSL_SUCCESS);
+
+#ifndef WOLFSSL_OLD_EXTDATA_FMT
+    /* Set the value from itself. */
+    ExpectNotNull(cur = wolfSSL_X509_EXTENSION_get_data(ext));
+    ExpectIntEQ(wolfSSL_X509_EXTENSION_set_data(ext, cur), WOLFSSL_SUCCESS);
+
+    ExpectNotNull(cur = wolfSSL_X509_EXTENSION_get_data(ext));
+    ExpectIntEQ(cur->length, (int)sizeof(longData));
+    ExpectBufEQ(cur->data, longData, sizeof(longData));
+#endif
+
+    wolfSSL_ASN1_STRING_free(str);
+    wolfSSL_X509_EXTENSION_free(ext);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_X509_EXTENSION_get_critical(void)
 {
     EXPECT_DECLS;
@@ -2637,5 +2683,51 @@ int test_wolfSSL_NAME_CONSTRAINTS_excluded(void)
 
 #endif /* OPENSSL_EXTRA && !NO_FILESYSTEM && !NO_CERTS && !NO_RSA &&
         * !IGNORE_NAME_CONSTRAINTS */
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_X509_set_ext_oid_collision(void)
+{
+    EXPECT_DECLS;
+/* The fixture's OID collides under wc_oid_sum() only. With WOLFSSL_OLD_OID_SUM
+ * it maps elsewhere, no canonical OID is cached, and there is nothing to
+ * shrink. */
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    defined(HAVE_ECC) && !defined(WOLFSSL_OLD_OID_SUM)
+    /* The fixture's extension OID, tag and length included. */
+    static const unsigned char certOid[] = {
+        0x06, 0x04, 0xE8, 0x85, 0xB6, 0x49
+    };
+    X509* x509 = NULL;
+    int count = 0;
+    int i;
+
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(
+        "./certs/test/cert-ext-oid-collide.der", WOLFSSL_FILETYPE_ASN1));
+    ExpectIntEQ((count = X509_get_ext_count(x509)), 1);
+
+    for (i = 0; i < count; i++) {
+        X509_EXTENSION* ext = NULL;
+        ASN1_OBJECT* obj = NULL;
+        ASN1_OBJECT* canonical = NULL;
+
+        ExpectNotNull(ext = X509_get_ext(x509, i));
+        ExpectNotNull(obj = X509_EXTENSION_get_object(ext));
+
+        /* Must be the certificate's OID, byte for byte. */
+        ExpectIntEQ((int)obj->objSz, (int)sizeof(certOid));
+        ExpectBufEQ(obj->obj, certOid, sizeof(certOid));
+
+        /* Premise: the mapped NID's canonical OID is still longer, so the
+         * shrink is exercised. If this fails, regenerate the fixture with
+         * certs/test/gen-oid-collide-cert.sh. */
+        ExpectNotNull(canonical = wolfSSL_OBJ_nid2obj(obj->nid));
+        ExpectIntGT((int)canonical->objSz, (int)obj->objSz);
+        ASN1_OBJECT_free(canonical);
+    }
+
+    X509_free(x509);
+#endif /* OPENSSL_EXTRA && !NO_FILESYSTEM && !NO_CERTS && HAVE_ECC &&
+        * !WOLFSSL_OLD_OID_SUM */
     return EXPECT_RESULT();
 }

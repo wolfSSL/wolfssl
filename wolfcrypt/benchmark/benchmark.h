@@ -56,8 +56,10 @@ void bench_aesccm(int useDeviceID);
 void bench_aesecb(int useDeviceID);
 void bench_aesxts(void);
 void bench_aesctr(int useDeviceID);
-void bench_aescfb(void);
-void bench_aesofb(void);
+void bench_aescfb(int useDeviceID);
+void bench_aesofb(int useDeviceID);
+void bench_aeskeywrap(int useDeviceID);
+void bench_aeskeywrap_pad(int useDeviceID);
 void bench_aessiv(void);
 void bench_aesgcmsiv(void);
 void bench_poly1305(void);
@@ -107,6 +109,7 @@ void bench_rsaKeyGen(int useDeviceID);
 void bench_rsaKeyGen_size(int useDeviceID, word32 keySz);
 void bench_rsa(int useDeviceID);
 void bench_rsa_key(int useDeviceID, word32 keySz);
+void bench_rsa_pad(void);
 void bench_dh(int useDeviceID);
 void bench_mlkem(int type);
 void bench_frodokem(int type);
@@ -116,16 +119,19 @@ void bench_slhdsa(int param);
 void bench_ecc_curve(int curveId);
 void bench_eccMakeKey(int useDeviceID, int curveId);
 void bench_ecc(int useDeviceID, int curveId);
-void bench_eccEncrypt(int curveId);
+void bench_eccEncrypt(int useDeviceID, int curveId);
+#ifdef WC_BENCH_ECIES_KDF
+void bench_eccEncryptKdf(int useDeviceID, int curveId);
+#endif
 void bench_sm2(int useDeviceID);
 void bench_curve25519KeyGen(int useDeviceID);
 void bench_curve25519KeyAgree(int useDeviceID);
 void bench_ed25519KeyGen(int useDeviceID);
 void bench_ed25519KeySign(int useDeviceID);
-void bench_curve448KeyGen(void);
-void bench_curve448KeyAgree(void);
+void bench_curve448KeyGen(int useDeviceID);
+void bench_curve448KeyAgree(int useDeviceID);
 void bench_ed448KeyGen(void);
-void bench_ed448KeySign(void);
+void bench_ed448KeySign(int useDeviceID);
 void bench_eccsiKeyGen(void);
 void bench_eccsiPairGen(void);
 void bench_eccsiValidate(void);
@@ -134,12 +140,12 @@ void bench_sakkeKeyGen(void);
 void bench_sakkeRskGen(void);
 void bench_sakkeValidate(void);
 void bench_sakke(void);
-void bench_rng(void);
+void bench_rng(int useDeviceID);
 void bench_rng_init(void);
 #if defined(WOLFSSL_DRBG_SHA512) && !defined(WC_NO_RNG) && \
     !defined(HAVE_SELFTEST) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
-void bench_rng_sha512(void);
+void bench_rng_sha512(int useDeviceID);
 void bench_rng_sha512_init(void);
 #endif
 void bench_blake2b(void);

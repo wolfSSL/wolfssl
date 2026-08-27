@@ -1586,7 +1586,9 @@ int test_wc_frodokem_asn1(void)
     !defined(WOLFSSL_FRODOKEM_NO_DECAPSULATE)
     int i;
     FrodoKemKey* key = NULL;
+    int key_inited = 0;
     FrodoKemKey* key2 = NULL;
+    int key2_inited = 0;
     WC_RNG rng;
     byte* der = NULL;
     byte* ct = NULL;
@@ -1618,6 +1620,8 @@ int test_wc_frodokem_asn1(void)
         int type = frodokem_types[i];
 
         ExpectIntEQ(wc_FrodoKemKey_Init(key, type, NULL, INVALID_DEVID), 0);
+        if (EXPECT_SUCCESS())
+            key_inited = 1;
         ExpectIntEQ(wc_FrodoKemKey_MakeKey(key, &rng), 0);
         ExpectIntEQ(wc_FrodoKemKey_CipherTextSize(key, &ctLen), 0);
         ExpectIntEQ(wc_FrodoKemKey_SharedSecretSize(key, &ssLen), 0);
@@ -1630,7 +1634,10 @@ int test_wc_frodokem_asn1(void)
             ExpectIntEQ(wc_FrodoKemKey_PrivateKeyToDer(key, der,
                 FRODOKEM_MAX_PRV_KEY_DER_SIZE),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-            wc_FrodoKemKey_Free(key);
+            if (key_inited) {
+                wc_FrodoKemKey_Free(key);
+                key_inited = 0;
+            }
             continue;
         }
 
@@ -1642,12 +1649,17 @@ int test_wc_frodokem_asn1(void)
         idx = 0;
         ExpectIntEQ(wc_FrodoKemKey_PublicKeyDecode(key2, der, (word32)derLen,
             &idx), 0);
+        if (EXPECT_SUCCESS())
+            key2_inited = 1;
         ExpectIntEQ(key2->type, type);
         /* Encapsulate to the decoded public key; original decapsulates. */
         ExpectIntEQ(wc_FrodoKemKey_Encapsulate(key2, ct, ss, &rng), 0);
         ExpectIntEQ(wc_FrodoKemKey_Decapsulate(key, ssDec, ct, ctLen), 0);
         ExpectIntEQ(XMEMCMP(ss, ssDec, ssLen), 0);
-        wc_FrodoKemKey_Free(key2);
+        if (key2_inited) {
+            wc_FrodoKemKey_Free(key2);
+            key2_inited = 0;
+        }
 
         /* Private key: PKCS#8 round trip; decoded key can decapsulate. */
         ExpectIntGT((derLen = wc_FrodoKemKey_PrivateKeyToDer(key, der,
@@ -1657,11 +1669,16 @@ int test_wc_frodokem_asn1(void)
         idx = 0;
         ExpectIntEQ(wc_FrodoKemKey_PrivateKeyDecode(key2, der, (word32)derLen,
             &idx), 0);
+        if (EXPECT_SUCCESS())
+            key2_inited = 1;
         ExpectIntEQ(key2->type, type);
         ExpectIntEQ(wc_FrodoKemKey_Encapsulate(key, ct, ss, &rng), 0);
         ExpectIntEQ(wc_FrodoKemKey_Decapsulate(key2, ssDec, ct, ctLen), 0);
         ExpectIntEQ(XMEMCMP(ss, ssDec, ssLen), 0);
-        wc_FrodoKemKey_Free(key2);
+        if (key2_inited) {
+            wc_FrodoKemKey_Free(key2);
+            key2_inited = 0;
+        }
 
         /* Strict validation: decoding this key's DER into a key that was
          * initialized as a DIFFERENT variant must be rejected. */
@@ -1682,10 +1699,15 @@ int test_wc_frodokem_asn1(void)
                     FRODOKEM_MAX_PUB_KEY_DER_SIZE, 1)), 0);
                 ExpectIntEQ(wc_FrodoKemKey_Init(key2, other, NULL,
                     INVALID_DEVID), 0);
+                if (EXPECT_SUCCESS())
+                    key2_inited = 1;
                 idx = 0;
                 ExpectIntNE(wc_FrodoKemKey_PublicKeyDecode(key2, der,
                     (word32)derLen, &idx), 0);
-                wc_FrodoKemKey_Free(key2);
+                if (key2_inited) {
+                    wc_FrodoKemKey_Free(key2);
+                    key2_inited = 0;
+                }
             }
         }
 
@@ -1697,9 +1719,10 @@ int test_wc_frodokem_asn1(void)
         idx = 0;
         ExpectIntNE(wc_FrodoKemKey_PublicKeyDecode(key2, der,
             (word32)derLen / 2, &idx), 0);
-        wc_FrodoKemKey_Free(key2);
-
-        wc_FrodoKemKey_Free(key);
+        if (key_inited) {
+            wc_FrodoKemKey_Free(key);
+            key_inited = 0;
+        }
     }
 
     /* NULL-argument checks. */

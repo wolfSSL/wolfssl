@@ -168,13 +168,28 @@ jobs:
 
           make test-lib SIGN=ED25519 HASH=SHA256
 
-          # test-lib (hal/library.c) always returns 0; success vs failure is
-          # signalled by stdout: "Firmware Valid" on the golden path,
-          # "Failure %d: Hdr %d, Hash %d, Sig %d" when verification rejects
-          # the image. Assert on output, not on exit status.
+          # test-lib (hal/library.c) signals the verdict two ways: the golden
+          # path prints "Firmware Valid" and exits 0, a rejected image prints
+          # "Failure %d: Hdr %d, Hash %d, Sig %d" and exits non-zero (255,
+          # from the -1 the verify path returns). The exit code only became
+          # meaningful in wolfBoot 2e918de2; before that every run exited 0
+          # and this step asserted on output alone.
+          #
+          # Both runs disable errexit so the status can be captured and
+          # asserted. A bare $(...) under "set -e" aborts the step at the
+          # assignment, before the output is ever printed -- which is what
+          # made the tamper run look like a golden-path failure.
 
+          set +e
           success_output=$(./test-lib test_v1_signed.bin 2>&1)
+          success_status=$?
+          set -e
+
           printf '%s\n' "$success_output"
+          if [ "$success_status" -ne 0 ]; then
+            echo "Expected golden-path success, but test-lib exited $success_status"
+            exit 1
+          fi
           if ! printf '%s\n' "$success_output" | grep -qF "Firmware Valid"; then
             echo "Expected golden-path success, but test-lib did not print \"Firmware Valid\""
             exit 1
@@ -183,8 +198,16 @@ jobs:
           truncate -s -1 test_v1_signed.bin
           printf 'A' >> test_v1_signed.bin
 
+          set +e
           tamper_output=$(./test-lib test_v1_signed.bin 2>&1)
+          tamper_status=$?
+          set -e
+
           printf '%s\n' "$tamper_output"
+          if [ "$tamper_status" -eq 0 ]; then
+            echo "Expected tamper rejection, but test-lib exited 0"
+            exit 1
+          fi
           if printf '%s\n' "$tamper_output" | grep -qF "Firmware Valid"; then
             echo "Expected tamper rejection, but test-lib reported \"Firmware Valid\""
             exit 1

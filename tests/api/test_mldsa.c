@@ -43,6 +43,7 @@
 #endif
 
 #include <wolfssl/wolfcrypt/asn_public.h>
+#include <wolfssl/wolfcrypt/cryptocb.h>
 #ifdef WOLFSSL_HAVE_MLDSA
     #include <wolfssl/wolfcrypt/wc_mldsa.h>
 #endif
@@ -723,6 +724,9 @@ int test_mldsa_sign_pubonly_fails(void)
     byte msg[] = "test message for pubonly check";
     byte* sig = NULL;
     word32 sigLen = MLDSA_MAX_SIG_SIZE;
+    byte seed[MLDSA_RND_SZ];
+    byte hash[64]; /* WC_SHA3_512_DIGEST_SIZE */
+    byte mu[MLDSA_MU_SZ];
 
     key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), NULL,
         DYNAMIC_TYPE_TMP_BUFFER);
@@ -742,6 +746,9 @@ int test_mldsa_sign_pubonly_fails(void)
     if (pubOnlyKey != NULL)
         XMEMSET(pubOnlyKey, 0, sizeof(*pubOnlyKey));
     XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(seed, 0, sizeof(seed));
+    XMEMSET(hash, 'H', sizeof(hash));
+    XMEMSET(mu, 0, sizeof(mu));
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
@@ -767,6 +774,19 @@ int test_mldsa_sign_pubonly_fails(void)
 
     /* Signing with a public-key-only object must fail. */
     ExpectIntEQ(wc_MlDsaKey_SignCtx(pubOnlyKey, NULL, 0, sig, &sigLen, msg, sizeof(msg), &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* The pre-hash and caller-seeded variants must fail the same way. */
+    sigLen = MLDSA_MAX_SIG_SIZE;
+    ExpectIntEQ(wc_MlDsaKey_SignCtxHash(pubOnlyKey, NULL, 0, sig, &sigLen,
+        hash, sizeof(hash), WC_HASH_TYPE_SHA3_512, &rng),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(pubOnlyKey, NULL, 0, sig,
+        &sigLen, msg, sizeof(msg), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlDsaKey_SignCtxHashWithSeed(pubOnlyKey, NULL, 0, sig,
+        &sigLen, hash, sizeof(hash), WC_HASH_TYPE_SHA3_512, seed),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlDsaKey_SignMuWithSeed(pubOnlyKey, sig, &sigLen, mu,
+        sizeof(mu), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_MlDsaKey_Free(pubOnlyKey);
@@ -30036,6 +30056,14 @@ int test_mldsa_encode_w1_large_values(void)
     };
     const int n_patterns = (int)(sizeof(patterns) / sizeof(patterns[0]));
 
+#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && \
+    defined(DEBUG_VECTOR_REGISTER_ACCESS_FUZZING)
+    /* Pin dispatch to the C path: under SVR2 fuzzing the two calls can
+     * otherwise take different (AVX2 vs C) implementations, which are only
+     * specified - and only equal - on the valid input domain. */
+    WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(WC_NO_ERR_TRACE(SYSLIB_FAILED_E));
+#endif
+
     /* ---- 6-bit encoding (mldsa_encode_w1_88 path) ---- */
 #ifndef WOLFSSL_NO_ML_DSA_44
     {
@@ -30120,6 +30148,11 @@ int test_mldsa_encode_w1_large_values(void)
         ExpectIntEQ(XMEMCMP(enc_a, enc_b, sizeof(enc_a)), 0);
     }
 #endif /* !WOLFSSL_NO_ML_DSA_65 || !WOLFSSL_NO_ML_DSA_87 */
+
+#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && \
+    defined(DEBUG_VECTOR_REGISTER_ACCESS_FUZZING)
+    WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(0);
+#endif
 
 #endif /* WOLFSSL_HAVE_MLDSA && sign/verify */
     return EXPECT_RESULT();
@@ -30935,7 +30968,8 @@ int test_wc_MldsaDecisionCoverage2(void)
             hash, sizeof(hash), WC_HASH_TYPE_SHA3_512, &rng),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
-        /* wc_MlDsaKey_SignCtxWithSeed: four-way NULL OR + ctx/ctxLen. */
+        /* wc_MlDsaKey_SignCtxWithSeed: five-way NULL OR (incl. seed)
+         * + ctx/ctxLen. */
         sigLen = (word32)sizeof(sig);
         ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(NULL, NULL, 0, sig, &sigLen,
             msg, (word32)sizeof(msg), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -30945,8 +30979,25 @@ int test_wc_MldsaDecisionCoverage2(void)
             msg, (word32)sizeof(msg), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(&key, NULL, 0, sig, &sigLen,
             NULL, (word32)sizeof(msg), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(&key, NULL, 0, sig, &sigLen,
+            msg, (word32)sizeof(msg), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(&key, NULL, 1, sig, &sigLen,
             msg, (word32)sizeof(msg), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+#ifdef WOLFSSL_MLDSA_NO_CTX
+        /* wc_MlDsaKey_SignWithSeed: five-way NULL OR (incl. seed). */
+        sigLen = (word32)sizeof(sig);
+        ExpectIntEQ(wc_MlDsaKey_SignWithSeed(NULL, sig, &sigLen, msg,
+            (word32)sizeof(msg), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignWithSeed(&key, NULL, &sigLen, msg,
+            (word32)sizeof(msg), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignWithSeed(&key, sig, NULL, msg,
+            (word32)sizeof(msg), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignWithSeed(&key, sig, &sigLen, NULL,
+            (word32)sizeof(msg), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignWithSeed(&key, sig, &sigLen, msg,
+            (word32)sizeof(msg), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
 
         /* wc_MlDsaKey_SignCtxHashWithSeed: five-way NULL OR (incl. seed)
          * + ctx/ctxLen. */
@@ -30985,6 +31036,62 @@ int test_wc_MldsaDecisionCoverage2(void)
         /* All five non-NULL, muLen != MLDSA_MU_SZ -> BAD_FUNC_ARG. */
         ExpectIntEQ(wc_MlDsaKey_SignMuWithSeed(&key, sig, &sigLen, mu,
             sizeof(mu) - 1, seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* Sign entry points on a key with the level set but no private
+         * key generated or imported -> BAD_FUNC_ARG. All other operands
+         * valid, so only the !prvKeySet guard can fail. */
+        sigLen = (word32)sizeof(sig);
+#ifdef WOLFSSL_MLDSA_NO_CTX
+        ExpectIntEQ(wc_MlDsaKey_Sign(&key, sig, &sigLen, msg,
+            (word32)sizeof(msg), &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignWithSeed(&key, sig, &sigLen, msg,
+            (word32)sizeof(msg), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+        ExpectIntEQ(wc_MlDsaKey_SignCtxHash(&key, ctx, (byte)sizeof(ctx),
+            sig, &sigLen, hash, sizeof(hash), WC_HASH_TYPE_SHA3_512, &rng),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(&key, ctx, (byte)sizeof(ctx),
+            sig, &sigLen, msg, (word32)sizeof(msg), seed),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignCtxHashWithSeed(&key, ctx,
+            (byte)sizeof(ctx), sig, &sigLen, hash, sizeof(hash),
+            WC_HASH_TYPE_SHA3_512, seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignMuWithSeed(&key, sig, &sigLen, mu,
+            sizeof(mu), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* Set a private key so the guards past !prvKeySet are reachable
+         * (zero-filled s1/s2 are within the eta range check). */
+        {
+            byte* priv = (byte*)XMALLOC(MLDSA_MAX_KEY_SIZE, NULL,
+                DYNAMIC_TYPE_TMP_BUFFER);
+            int privLen = 0;
+
+            ExpectNotNull(priv);
+            privLen = wc_MlDsaKey_Size(&key);
+            ExpectIntGT(privLen, 0);
+            if (priv != NULL) {
+                XMEMSET(priv, 0, MLDSA_MAX_KEY_SIZE);
+                ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(&key, priv,
+                    (word32)privLen), 0);
+            }
+            XFREE(priv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+
+        /* Seed NULL guard, now that !prvKeySet no longer masks it: the
+         * seed is copied before any length check, so only this guard
+         * stands between a NULL seed and the copy. */
+        sigLen = (word32)sizeof(sig);
+#ifdef WOLFSSL_MLDSA_NO_CTX
+        ExpectIntEQ(wc_MlDsaKey_SignWithSeed(&key, sig, &sigLen, msg,
+            (word32)sizeof(msg), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+        ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(&key, NULL, 0, sig, &sigLen,
+            msg, (word32)sizeof(msg), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignCtxHashWithSeed(&key, NULL, 0, sig,
+            &sigLen, hash, sizeof(hash), WC_HASH_TYPE_SHA3_512, NULL),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignMuWithSeed(&key, sig, &sigLen, mu,
+            sizeof(mu), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
         /* Sign path's too-small sigLen buffer guard (*sigLen <
          * params->sigSz -> BUFFER_E), independent of the muLen guard
@@ -31293,5 +31400,107 @@ int test_wc_MldsaDerDecisionCoverage(void)
 
     wc_MlDsaKey_Free(&key);
 #endif /* WOLFSSL_HAVE_MLDSA && WOLFSSL_MLDSA_NO_ASN1 && ... */
+    return EXPECT_RESULT();
+}
+
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WOLF_CRYPTO_CB) && \
+    defined(WOLF_CRYPTO_CB_FREE)
+    #define TEST_MLDSA_CB_FREE
+    #define TEST_MLDSA_CB_FREE_DEVID 0x4D4C4453
+#endif
+
+#ifdef TEST_MLDSA_CB_FREE
+/* What the free callback saw, so the test can check the contract rather than
+ * just that something fired. */
+typedef struct {
+    int frees;        /* matching free callbacks seen */
+    int badObj;       /* callback was handed the wrong object */
+    int wiped;        /* callback saw a key already cleaned up */
+    int ret;          /* what the callback returns */
+    const void* obj;  /* object the free is expected to name */
+} MlDsaCbFreeCtx;
+
+/* Stands in for a device holding state for the key. Counting the call proves
+ * wc_MlDsaKey_Free told the device rather than only cleaning up in software,
+ * which would leave the device side of the key behind. */
+static int mldsa_cb_free_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    MlDsaCbFreeCtx* seen = (MlDsaCbFreeCtx*)ctx;
+
+    (void)devIdArg;
+
+    if ((seen != NULL) && (info != NULL) &&
+            (info->algo_type == WC_ALGO_TYPE_FREE) &&
+            (info->free.algo == WC_ALGO_TYPE_PK) &&
+            (info->free.type == WC_PK_TYPE_PQC_SIG_KEYGEN) &&
+            (info->free.subType == WC_PQC_SIG_TYPE_MLDSA)) {
+        const wc_MlDsaKey* dil = (const wc_MlDsaKey*)info->free.obj;
+
+        seen->frees++;
+        if ((dil == NULL) || ((const void*)dil != seen->obj)) {
+            seen->badObj++;
+        }
+        /* The device gets the key while it is still whole: it may need to
+         * read it to release the right resource, so the software wipe has
+         * to come after this call, not before. */
+        else if (dil->devId != TEST_MLDSA_CB_FREE_DEVID) {
+            seen->wiped++;
+        }
+        return seen->ret;
+    }
+
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif /* TEST_MLDSA_CB_FREE */
+
+/* Freeing a key that names a device has to tell that device, so it can
+ * release what it holds. A key with no device must not, and neither must a
+ * second free of a key already freed: a freed key names no device. A device
+ * that reports an error does not stop the software cleanup. */
+int test_mldsa_cb_free(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_MLDSA_CB_FREE
+    wc_MlDsaKey* key = NULL;
+    MlDsaCbFreeCtx seen;
+
+    XMEMSET(&seen, 0, sizeof(seen));
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_MLDSA_CB_FREE_DEVID,
+        mldsa_cb_free_cb, &seen), 0);
+
+    ExpectNotNull(key = (wc_MlDsaKey*)XMALLOC(sizeof(wc_MlDsaKey), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    seen.obj = key;
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, TEST_MLDSA_CB_FREE_DEVID), 0);
+    wc_MlDsaKey_Free(key);
+    ExpectIntEQ(seen.frees, 1);
+    ExpectIntEQ(seen.badObj, 0);
+    ExpectIntEQ(seen.wiped, 0);
+    if (key != NULL) {
+        ExpectIntEQ(key->devId, INVALID_DEVID);
+        ExpectIntEQ(key->shake.devId, INVALID_DEVID);
+    }
+
+    wc_MlDsaKey_Free(key);
+    ExpectIntEQ(seen.frees, 1);
+
+    /* A device that fails still leaves the key cleaned up locally. */
+    seen.ret = WC_NO_ERR_TRACE(WC_HW_E);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, TEST_MLDSA_CB_FREE_DEVID), 0);
+    wc_MlDsaKey_Free(key);
+    ExpectIntEQ(seen.frees, 2);
+    if (key != NULL) {
+        ExpectIntEQ(key->devId, INVALID_DEVID);
+    }
+    seen.ret = 0;
+
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    wc_MlDsaKey_Free(key);
+    ExpectIntEQ(seen.frees, 2);
+
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_CryptoCb_UnRegisterDevice(TEST_MLDSA_CB_FREE_DEVID);
+#endif
     return EXPECT_RESULT();
 }

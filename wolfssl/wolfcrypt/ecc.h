@@ -71,6 +71,17 @@
     #include <wolfssl/wolfcrypt/port/xilinx/xil-versal-glue.h>
 #endif
 
+#if defined(WOLFSSL_DHUK) || defined(WOLFSSL_STM32U5_DHUK)
+    /* wc_ecc_import_wrapped_private below is gated on WC_STM32_HAS_DHUK, which
+     * only stm32.h defines. Pull it in here so the prototype and the ecc.c
+     * definition are always gated identically -- otherwise the guard silently
+     * evaluates false in any translation unit that has not seen stm32.h.
+     * WOLFSSL_STM32U5_DHUK is the documented legacy spelling; stm32.h maps it
+     * to WOLFSSL_DHUK, so it has to be tested here too or the include is
+     * skipped for exactly the users following the older docs. */
+    #include <wolfssl/wolfcrypt/port/st/stm32.h>
+#endif
+
 #ifdef WOLFSSL_HAVE_SP_ECC
     #include <wolfssl/wolfcrypt/sp_int.h>
 #endif
@@ -478,7 +489,22 @@ struct ecc_point {
 enum {
     WC_ECC_FLAG_NONE     = 0x00,
     WC_ECC_FLAG_COFACTOR = 0x01,
-    WC_ECC_FLAG_DEC_SIGN = 0x02
+    WC_ECC_FLAG_DEC_SIGN = 0x02,
+    /* Add key derivation to a PKCS#11 token-generated key, so the same key can
+     * do both ECDH and ECDSA on a token that grants only what was explicitly
+     * requested.
+     *
+     * Consumed ONLY by PKCS#11-backed key generation; it has no effect on any
+     * software or other hardware ECC path.
+     *
+     * IGNORED unless WC_ECC_FLAG_DEC_SIGN is also set. Setting it on its own
+     * changes nothing, because a generated key is already derive-only by
+     * default - so the meaningful use is:
+     *
+     *     wc_ecc_make_key_ex2(rng, keysize, key, curve_id,
+     *                         WC_ECC_FLAG_DEC_SIGN | WC_ECC_FLAG_DERIVE);
+     */
+    WC_ECC_FLAG_DERIVE   = 0x04
 };
 
 /* ECC non-blocking */
@@ -661,20 +687,29 @@ struct ecc_key {
 #define ecc_get_k(key)              (key)->k
 #define ecc_blind_k(key, b)         (void)b
 #define ecc_blind_k_rng(key, rng)   0
+#define ecc_forcezero_k(key)        mp_forcezero((key)->k)
 
 #define wc_ecc_key_get_priv(key)    (key)->k
 #else
 mp_int* ecc_get_k(ecc_key* key);
 void ecc_blind_k(ecc_key* key, mp_int* b);
 int ecc_blind_k_rng(ecc_key* key, WC_RNG* rng);
+WOLFSSL_LOCAL void ecc_forcezero_k(ecc_key* key);
 
 WOLFSSL_API mp_int* wc_ecc_key_get_priv(ecc_key* key);
 #endif
+/* Writable handle on the stored private scalar. With blinding enabled,
+ * wc_ecc_key_get_priv() returns a value regenerated into scratch, so it is
+ * read-only: writes through it are discarded and erasing it leaves the
+ * secret in place. Write a new scalar through this instead, then install a
+ * fresh blind with ecc_blind_k_rng(); erase with ecc_forcezero_k(). */
+#define ecc_get_k_raw(key)          (key)->k
 
 #define WOLFSSL_HAVE_ECC_KEY_GET_PRIV
 
 
 WOLFSSL_ABI WOLFSSL_API ecc_key* wc_ecc_key_new(void* heap);
+WOLFSSL_ABI WOLFSSL_API ecc_key* wc_ecc_key_new_ex(void* heap, int devId);
 WOLFSSL_ABI WOLFSSL_API void wc_ecc_key_free(ecc_key* key);
 
 
@@ -763,8 +798,8 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
 WOLFSSL_API
 int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
                         ecc_key* key, mp_int *r, mp_int *s);
-#if defined(WOLFSSL_DHUK) && defined(WOLFSSL_STM32_BARE) && \
-    defined(WC_STM32_HAS_DHUK)
+#if defined(WOLFSSL_DHUK) && defined(WC_STM32_HAS_DHUK) && \
+    (defined(WOLFSSL_STM32_BARE) || defined(WOLFSSL_STM32_CUBEMX))
 /* DHUK ECC sign: import a hardware-wrapped ECC private scalar + its derivation
  * seed onto the ecc_key for the crypto-callback sign path. The caller MUST also
  * populate key->pubkey (via wc_ecc_import_x963) so verify can use the
@@ -1098,6 +1133,12 @@ WOLFSSL_API
 int wc_ecc_ctx_get_kdf_salt(ecEncCtx* ctx, const byte** salt, word32* sz);
 WOLFSSL_API
 int wc_ecc_ctx_get_info(ecEncCtx* ctx, const byte** info, word32* sz);
+WOLFSSL_API
+int wc_ecc_ctx_get_mac_salt(ecEncCtx* ctx, const byte** salt, word32* sz);
+WOLFSSL_API
+int wc_ecc_ctx_get_protocol(ecEncCtx* ctx, int* protocol);
+WOLFSSL_API
+int wc_ecc_ctx_get_rng(ecEncCtx* ctx, WC_RNG** rng);
 #endif /* WOLF_CRYPTO_CB */
 WOLFSSL_API
 const byte* wc_ecc_ctx_get_own_salt(ecEncCtx* ctx);

@@ -33,6 +33,7 @@ int wc_Chacha_SetIV(ChaCha* ctx, const byte* inIv, word32 counter);
 
     \return 0 入力の暗号化または復号に成功した場合に返されます
     \return BAD_FUNC_ARG ctx入力引数の処理中にエラーが発生した場合に返されます
+    \return MISSING_KEY 処理前にwc_Chacha_SetKeyでキーが設定されていない場合に返されます
 
     \param ctx ivを設定するChaCha構造体へのポインタ
     \param output 出力暗号文または復号された平文を格納するバッファへのポインタ

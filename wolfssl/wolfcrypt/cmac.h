@@ -49,6 +49,7 @@
 #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(2,0,0)
 
 typedef enum CmacType {
+    WC_CMAC_NONE = 0,
     WC_CMAC_AES = 1
 } CmacType;
 
@@ -98,14 +99,21 @@ struct Cmac {
 
 
 
-
-#ifndef NO_AES
-#define WC_CMAC_TAG_MAX_SZ WC_AES_BLOCK_SIZE
-#define WC_CMAC_TAG_MIN_SZ (WC_AES_BLOCK_SIZE/4)
-#else
 /* Reasonable defaults */
-#define WC_CMAC_TAG_MAX_SZ 16
-#define WC_CMAC_TAG_MIN_SZ 4
+#ifndef WC_CMAC_TAG_MAX_SZ
+    #define WC_CMAC_TAG_MAX_SZ 16
+#endif
+
+#if !defined(NO_AES) && (WC_CMAC_TAG_MAX_SZ > 16)
+    #error WC_CMAC_TAG_MAX_SZ cannot exceed WC_AES_BLOCK_SIZE
+#endif
+
+/* SP800-38b recommends a minimum tag length of 64-bits */
+#if FIPS_VERSION3_GE(7,0,0)
+    #undef WC_CMAC_TAG_MIN_SZ
+    #define WC_CMAC_TAG_MIN_SZ 8
+#elif !defined(WC_CMAC_TAG_MIN_SZ)
+    #define WC_CMAC_TAG_MIN_SZ 4
 #endif
 
 #if FIPS_VERSION3_GE(6,0,0)

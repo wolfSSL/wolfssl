@@ -37,6 +37,7 @@
 	.text
 	.align	4
 	.globl	poly1305_arm32_blocks_16
+	WC_ASM_ATT_HIDDEN(poly1305_arm32_blocks_16)
 	.type	poly1305_arm32_blocks_16, %function
 poly1305_arm32_blocks_16:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -266,6 +267,7 @@ L_poly1305_arm32_clamp:
 	.text
 	.align	4
 	.globl	poly1305_set_key
+	WC_ASM_ATT_HIDDEN(poly1305_set_key)
 	.type	poly1305_set_key, %function
 poly1305_set_key:
 	push	{r4, r5, r6, r7, r8, lr}
@@ -305,6 +307,7 @@ poly1305_set_key:
 	.text
 	.align	4
 	.globl	poly1305_final
+	WC_ASM_ATT_HIDDEN(poly1305_final)
 	.type	poly1305_final, %function
 poly1305_final:
 	push	{r4, r5, r6, r7, r8, r9, lr}
@@ -357,6 +360,7 @@ poly1305_final:
 	.text
 	.align	4
 	.globl	poly1305_arm32_blocks_16
+	WC_ASM_ATT_HIDDEN(poly1305_arm32_blocks_16)
 	.type	poly1305_arm32_blocks_16, %function
 poly1305_arm32_blocks_16:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -571,6 +575,7 @@ L_poly1305_arm32_16_done:
 	.text
 	.align	4
 	.globl	poly1305_arm32_blocks
+	WC_ASM_ATT_HIDDEN(poly1305_arm32_blocks)
 	.type	poly1305_arm32_blocks, %function
 poly1305_arm32_blocks:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -1030,6 +1035,7 @@ L_poly1305_arm32_clamp:
 	.text
 	.align	4
 	.globl	poly1305_set_key
+	WC_ASM_ATT_HIDDEN(poly1305_set_key)
 	.type	poly1305_set_key, %function
 poly1305_set_key:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -1248,6 +1254,7 @@ poly1305_set_key:
 	.text
 	.align	4
 	.globl	poly1305_final
+	WC_ASM_ATT_HIDDEN(poly1305_final)
 	.type	poly1305_final, %function
 poly1305_final:
 	push	{r4, r5, r6, r7, r8, r9, lr}

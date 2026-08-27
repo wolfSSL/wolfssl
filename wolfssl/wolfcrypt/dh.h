@@ -161,6 +161,18 @@ enum {
     WOLFSSL_LOCAL int wolfCrypt_FIPS_DH_sanity(void);
 #endif
 
+#if FIPS_VERSION3_GE(7,0,0) || defined(WC_DH_INITIAL_RUNTIME_ENABLEMENT)
+    #ifndef WC_DH_INITIAL_RUNTIME_ENABLEMENT
+        #define WC_DH_INITIAL_RUNTIME_ENABLEMENT 0
+    #endif
+    #define WC_DH_HAVE_RUNTIME_ENABLEMENT
+    WOLFSSL_API int wc_dh_enable(void);
+    WOLFSSL_API int wc_dh_disable(void);
+    WOLFSSL_API int wc_dh_is_enabled(void);
+#else
+    #undef WC_DH_HAVE_RUNTIME_ENABLEMENT
+#endif
+
 #ifdef HAVE_PUBLIC_FFDHE
 #ifdef HAVE_FFDHE_2048
 WOLFSSL_API const DhParams* wc_Dh_ffdhe2048_Get(void);

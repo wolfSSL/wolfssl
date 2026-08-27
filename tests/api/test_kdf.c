@@ -135,17 +135,19 @@ int test_wc_KdfDecisionCoverage(void)
 #if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC) && !defined(NO_OLD_TLS) && \
     !defined(NO_MD5) && !defined(NO_SHA)
     {
-        /* MAX_PRF_HALF is 260 in the default configuration (no
-         * HAVE_FFDHE_6144/8192). half = (secLen+1)/2, so secLen=521 gives
-         * half=261 (>260). */
-        static byte secretBig[600] = {0};
+        /* half = (secLen+1)/2, so secLen = 2*MAX_PRF_HALF + 1 forces
+         * half = MAX_PRF_HALF + 1 in every configuration (the limit
+         * varies with HAVE_FFDHE_6144/8192).
+         */
+        static byte secretBig[2*MAX_PRF_HALF + 2] = {0};
         static byte labelBuf[150] = {0};
         static byte seedBuf[150] = {0};
         static byte digestBuf[300] = {0};
 
         /* c0 = half > MAX_PRF_HALF: true, others held at trivial values. */
-        ExpectIntEQ(wc_PRF_TLSv1(digestBuf, 16, secretBig, 521, labelBuf, 4,
-            seedBuf, 4, HEAP_HINT, INVALID_DEVID), WC_NO_ERR_TRACE(BUFFER_E));
+        ExpectIntEQ(wc_PRF_TLSv1(digestBuf, 16, secretBig, 2*MAX_PRF_HALF + 1,
+                           labelBuf, 4, seedBuf, 4, HEAP_HINT, INVALID_DEVID),
+            WC_NO_ERR_TRACE(BUFFER_E));
 
         /* c0 false (small secLen), c1 = labLen+seedLen > MAX_PRF_LABSEED
          * (128): true. */

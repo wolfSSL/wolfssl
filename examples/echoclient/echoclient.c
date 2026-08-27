@@ -121,8 +121,8 @@ void echoclient_test(void* args)
 #ifdef WOLFSSL_LEANPSK
     doPSK = 1;
 #endif
-#if defined(NO_CERTS) || (defined(NO_RSA) && !defined(HAVE_ECC) && \
-                          !defined(HAVE_ED25519) && !defined(HAVE_ED448))
+#if defined(NO_CERTS) || \
+    (defined(TEST_NO_CLASSIC_AUTH) && !defined(TEST_HAVE_PQC_CERT_AUTH))
     doPSK = 1;
 #endif
     (void)doPSK;
@@ -159,6 +159,12 @@ void echoclient_test(void* args)
             err_sys("can't load ca file, Please run from wolfSSL home dir");
     #elif defined(HAVE_ED448)
         if (SSL_CTX_load_verify_locations(ctx, caEd448CertFile, 0) != WOLFSSL_SUCCESS)
+            err_sys("can't load ca file, Please run from wolfSSL home dir");
+    #elif defined(NO_RSA) && defined(TEST_HAVE_MLDSA_CERTS)
+        if (SSL_CTX_load_verify_locations(ctx, caMldsaCertFile, 0) != WOLFSSL_SUCCESS)
+            err_sys("can't load ca file, Please run from wolfSSL home dir");
+    #elif defined(NO_RSA) && defined(TEST_HAVE_SLHDSA_CERTS)
+        if (SSL_CTX_load_verify_locations(ctx, caSlhdsaCertFile, 0) != WOLFSSL_SUCCESS)
             err_sys("can't load ca file, Please run from wolfSSL home dir");
     #endif
 #elif !defined(NO_CERTS)

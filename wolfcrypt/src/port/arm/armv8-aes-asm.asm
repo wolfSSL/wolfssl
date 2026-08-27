@@ -5161,9 +5161,9 @@ AES_GCM_encrypt_AARCH64 PROC
 	ushr	V27.2D, V27.2D, #56
 	ld1	{V22.2D}, [x10]
 	cmp	w8, #0x40
-	csetm	x16, lt
+	csetm	x16, cc
 	cmp	w2, #32
-	csetm	x17, lt
+	csetm	x17, cc
 	ands	x16, x16, x17
 	bne	L_aes_gcm_encrypt_arm64_crypto_h_done
 	; Square H => H^2
@@ -5176,9 +5176,9 @@ AES_GCM_encrypt_AARCH64 PROC
 	mov	V30.D[1], V29.D[0]
 	eor	V23.16B, V30.16B, V31.16B
 	cmp	w8, #0x100
-	csetm	x16, lt
+	csetm	x16, cc
 	cmp	w2, #0x40
-	csetm	x17, lt
+	csetm	x17, cc
 	ands	x16, x16, x17
 	bne	L_aes_gcm_encrypt_arm64_crypto_h_done
 	; Multiply H and H^2  => H^3
@@ -5207,9 +5207,9 @@ AES_GCM_encrypt_AARCH64 PROC
 	eor	V25.16B, V30.16B, V31.16B
 	; Done
 	cmp	w8, #0x400
-	csetm	x16, lt
+	csetm	x16, cc
 	cmp	w2, #0x200
-	csetm	x17, lt
+	csetm	x17, cc
 	ands	x16, x16, x17
 	bne	L_aes_gcm_encrypt_arm64_crypto_h_done
 	; Multiply H and H^4  => H^5
@@ -9926,7 +9926,7 @@ L_aes_gcm_encrypt_arm64_crypto_done
 	ldp	x29, x30, [sp], #0x90
 	ret
 	ENDP
-	IF :DEF:HAVE_AES_DECRYPT
+	IF :DEF:HAVE_AES_DECRYPT :LOR: :DEF:HAVE_AESGCM_DECRYPT
 	AREA	|.text|, CODE, READONLY
 	ALIGN	4
 	EXPORT	AES_GCM_decrypt_AARCH64
@@ -9952,9 +9952,9 @@ AES_GCM_decrypt_AARCH64 PROC
 	ushr	V27.2D, V27.2D, #56
 	ld1	{V22.2D}, [x10]
 	cmp	w8, #0x40
-	csetm	x16, lt
+	csetm	x16, cc
 	cmp	w2, #32
-	csetm	x17, lt
+	csetm	x17, cc
 	ands	x16, x16, x17
 	bne	L_aes_gcm_decrypt_arm64_crypto_h_done
 	; Square H => H^2
@@ -9967,9 +9967,9 @@ AES_GCM_decrypt_AARCH64 PROC
 	mov	V30.D[1], V29.D[0]
 	eor	V23.16B, V30.16B, V31.16B
 	cmp	w8, #0x100
-	csetm	x16, lt
+	csetm	x16, cc
 	cmp	w2, #0x40
-	csetm	x17, lt
+	csetm	x17, cc
 	ands	x16, x16, x17
 	bne	L_aes_gcm_decrypt_arm64_crypto_h_done
 	; Multiply H and H^2  => H^3
@@ -9998,9 +9998,9 @@ AES_GCM_decrypt_AARCH64 PROC
 	eor	V25.16B, V30.16B, V31.16B
 	; Done
 	cmp	w8, #0x400
-	csetm	x16, lt
+	csetm	x16, cc
 	cmp	w2, #0x200
-	csetm	x17, lt
+	csetm	x17, cc
 	ands	x16, x16, x17
 	bne	L_aes_gcm_decrypt_arm64_crypto_h_done
 	; Multiply H and H^4  => H^5
@@ -14793,9 +14793,9 @@ AES_GCM_encrypt_AARCH64_EOR3 PROC
 	ushr	V27.2D, V27.2D, #56
 	ld1	{V22.2D}, [x10]
 	cmp	w8, #0x40
-	csetm	x16, lt
+	csetm	x16, cc
 	cmp	w2, #32
-	csetm	x17, lt
+	csetm	x17, cc
 	ands	x16, x16, x17
 	bne	L_aes_gcm_encrypt_arm64_crypto_eor3_h_done
 	; Square H => H^2
@@ -14808,9 +14808,9 @@ AES_GCM_encrypt_AARCH64_EOR3 PROC
 	mov	V30.D[1], V29.D[0]
 	eor	V23.16B, V30.16B, V31.16B
 	cmp	w8, #0x100
-	csetm	x16, lt
+	csetm	x16, cc
 	cmp	w2, #0x40
-	csetm	x17, lt
+	csetm	x17, cc
 	ands	x16, x16, x17
 	bne	L_aes_gcm_encrypt_arm64_crypto_eor3_h_done
 	; Multiply H and H^2  => H^3
@@ -14838,9 +14838,9 @@ AES_GCM_encrypt_AARCH64_EOR3 PROC
 	eor	V25.16B, V30.16B, V31.16B
 	; Done
 	cmp	w8, #0x400
-	csetm	x16, lt
+	csetm	x16, cc
 	cmp	w2, #0x200
-	csetm	x17, lt
+	csetm	x17, cc
 	ands	x16, x16, x17
 	bne	L_aes_gcm_encrypt_arm64_crypto_eor3_h_done
 	; Multiply H and H^4  => H^5
@@ -19449,7 +19449,7 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_done
 	ldp	x29, x30, [sp], #0x90
 	ret
 	ENDP
-	IF :DEF:HAVE_AES_DECRYPT
+	IF :DEF:HAVE_AES_DECRYPT :LOR: :DEF:HAVE_AESGCM_DECRYPT
 	AREA	|.text|, CODE, READONLY
 	ALIGN	4
 	EXPORT	AES_GCM_decrypt_AARCH64_EOR3
@@ -19475,9 +19475,9 @@ AES_GCM_decrypt_AARCH64_EOR3 PROC
 	ushr	V27.2D, V27.2D, #56
 	ld1	{V22.2D}, [x10]
 	cmp	w8, #0x40
-	csetm	x16, lt
+	csetm	x16, cc
 	cmp	w2, #32
-	csetm	x17, lt
+	csetm	x17, cc
 	ands	x16, x16, x17
 	bne	L_aes_gcm_decrypt_arm64_crypto_eor3_h_done
 	; Square H => H^2
@@ -19490,9 +19490,9 @@ AES_GCM_decrypt_AARCH64_EOR3 PROC
 	mov	V30.D[1], V29.D[0]
 	eor	V23.16B, V30.16B, V31.16B
 	cmp	w8, #0x100
-	csetm	x16, lt
+	csetm	x16, cc
 	cmp	w2, #0x40
-	csetm	x17, lt
+	csetm	x17, cc
 	ands	x16, x16, x17
 	bne	L_aes_gcm_decrypt_arm64_crypto_eor3_h_done
 	; Multiply H and H^2  => H^3
@@ -19520,9 +19520,9 @@ AES_GCM_decrypt_AARCH64_EOR3 PROC
 	eor	V25.16B, V30.16B, V31.16B
 	; Done
 	cmp	w8, #0x400
-	csetm	x16, lt
+	csetm	x16, cc
 	cmp	w2, #0x200
-	csetm	x17, lt
+	csetm	x17, cc
 	ands	x16, x16, x17
 	bne	L_aes_gcm_decrypt_arm64_crypto_eor3_h_done
 	; Multiply H and H^4  => H^5
@@ -24804,7 +24804,7 @@ AES_GCM_encrypt_update_AARCH64 PROC
 	mov	w9, V13.S[3]
 	rev	w9, w9
 	cmp	w4, #32
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_h_done
+	bcc	L_aes_gcm_encrypt_update_arm64_crypto_h_done
 	; Square H => H^2
 	pmull2	V31.1Q, V22.2D, V22.2D
 	pmull	V30.1Q, V22.1D, V22.1D
@@ -24815,7 +24815,7 @@ AES_GCM_encrypt_update_AARCH64 PROC
 	mov	V30.D[1], V29.D[0]
 	eor	V23.16B, V30.16B, V31.16B
 	cmp	w4, #0x40
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_h_done
+	bcc	L_aes_gcm_encrypt_update_arm64_crypto_h_done
 	; Multiply H and H^2  => H^3
 	pmull	V28.1Q, V22.1D, V23.1D
 	pmull2	V29.1Q, V22.2D, V23.2D
@@ -24842,7 +24842,7 @@ AES_GCM_encrypt_update_AARCH64 PROC
 	eor	V25.16B, V30.16B, V31.16B
 	; Done
 	cmp	w4, #0x200
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_h_done
+	bcc	L_aes_gcm_encrypt_update_arm64_crypto_h_done
 	; Multiply H and H^4  => H^5
 	pmull	V28.1Q, V22.1D, V25.1D
 	pmull2	V29.1Q, V22.2D, V25.2D
@@ -28650,6 +28650,7 @@ L_aes_gcm_encrypt_final_arm64_crypto_tag_end_bytes
 L_aes_gcm_encrypt_final_arm64_crypto_done
 	ret
 	ENDP
+	IF :DEF:HAVE_AES_DECRYPT :LOR: :DEF:HAVE_AESGCM_DECRYPT
 	AREA	|.text|, CODE, READONLY
 	ALIGN	4
 	EXPORT	AES_GCM_decrypt_update_AARCH64
@@ -28669,7 +28670,7 @@ AES_GCM_decrypt_update_AARCH64 PROC
 	mov	w9, V13.S[3]
 	rev	w9, w9
 	cmp	w4, #32
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_h_done
+	bcc	L_aes_gcm_decrypt_update_arm64_crypto_h_done
 	; Square H => H^2
 	pmull2	V31.1Q, V22.2D, V22.2D
 	pmull	V30.1Q, V22.1D, V22.1D
@@ -28680,7 +28681,7 @@ AES_GCM_decrypt_update_AARCH64 PROC
 	mov	V30.D[1], V29.D[0]
 	eor	V23.16B, V30.16B, V31.16B
 	cmp	w4, #0x40
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_h_done
+	bcc	L_aes_gcm_decrypt_update_arm64_crypto_h_done
 	; Multiply H and H^2  => H^3
 	pmull	V28.1Q, V22.1D, V23.1D
 	pmull2	V29.1Q, V22.2D, V23.2D
@@ -28707,7 +28708,7 @@ AES_GCM_decrypt_update_AARCH64 PROC
 	eor	V25.16B, V30.16B, V31.16B
 	; Done
 	cmp	w4, #0x200
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_h_done
+	bcc	L_aes_gcm_decrypt_update_arm64_crypto_h_done
 	; Multiply H and H^4  => H^5
 	pmull	V28.1Q, V22.1D, V25.1D
 	pmull2	V29.1Q, V22.2D, V25.2D
@@ -32541,6 +32542,7 @@ L_aes_gcm_decrypt_final_arm64_crypto_tag_loaded
 	str	w8, [x7]
 	ret
 	ENDP
+	ENDIF
 	IF :DEF:WOLFSSL_ARMASM_CRYPTO_SHA3
 	AREA	|.text|, CODE, READONLY
 	ALIGN	4
@@ -33141,7 +33143,7 @@ AES_GCM_encrypt_update_AARCH64_EOR3 PROC
 	mov	w9, V13.S[3]
 	rev	w9, w9
 	cmp	w4, #32
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_h_done
+	bcc	L_aes_gcm_encrypt_update_arm64_crypto_eor3_h_done
 	; Square H => H^2
 	pmull2	V31.1Q, V22.2D, V22.2D
 	pmull	V30.1Q, V22.1D, V22.1D
@@ -33152,7 +33154,7 @@ AES_GCM_encrypt_update_AARCH64_EOR3 PROC
 	mov	V30.D[1], V29.D[0]
 	eor	V23.16B, V30.16B, V31.16B
 	cmp	w4, #0x40
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_h_done
+	bcc	L_aes_gcm_encrypt_update_arm64_crypto_eor3_h_done
 	; Multiply H and H^2  => H^3
 	pmull	V28.1Q, V22.1D, V23.1D
 	pmull2	V29.1Q, V22.2D, V23.2D
@@ -33178,7 +33180,7 @@ AES_GCM_encrypt_update_AARCH64_EOR3 PROC
 	eor	V25.16B, V30.16B, V31.16B
 	; Done
 	cmp	w4, #0x200
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_h_done
+	bcc	L_aes_gcm_encrypt_update_arm64_crypto_eor3_h_done
 	; Multiply H and H^4  => H^5
 	pmull	V28.1Q, V22.1D, V25.1D
 	pmull2	V29.1Q, V22.2D, V25.2D
@@ -36902,6 +36904,7 @@ L_aes_gcm_encrypt_final_arm64_crypto_eor3_tag_end_bytes
 L_aes_gcm_encrypt_final_arm64_crypto_eor3_done
 	ret
 	ENDP
+	IF :DEF:HAVE_AES_DECRYPT :LOR: :DEF:HAVE_AESGCM_DECRYPT
 	AREA	|.text|, CODE, READONLY
 	ALIGN	4
 	EXPORT	AES_GCM_decrypt_update_AARCH64_EOR3
@@ -36921,7 +36924,7 @@ AES_GCM_decrypt_update_AARCH64_EOR3 PROC
 	mov	w9, V13.S[3]
 	rev	w9, w9
 	cmp	w4, #32
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_h_done
+	bcc	L_aes_gcm_decrypt_update_arm64_crypto_eor3_h_done
 	; Square H => H^2
 	pmull2	V31.1Q, V22.2D, V22.2D
 	pmull	V30.1Q, V22.1D, V22.1D
@@ -36932,7 +36935,7 @@ AES_GCM_decrypt_update_AARCH64_EOR3 PROC
 	mov	V30.D[1], V29.D[0]
 	eor	V23.16B, V30.16B, V31.16B
 	cmp	w4, #0x40
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_h_done
+	bcc	L_aes_gcm_decrypt_update_arm64_crypto_eor3_h_done
 	; Multiply H and H^2  => H^3
 	pmull	V28.1Q, V22.1D, V23.1D
 	pmull2	V29.1Q, V22.2D, V23.2D
@@ -36958,7 +36961,7 @@ AES_GCM_decrypt_update_AARCH64_EOR3 PROC
 	eor	V25.16B, V30.16B, V31.16B
 	; Done
 	cmp	w4, #0x200
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_h_done
+	bcc	L_aes_gcm_decrypt_update_arm64_crypto_eor3_h_done
 	; Multiply H and H^4  => H^5
 	pmull	V28.1Q, V22.1D, V25.1D
 	pmull2	V29.1Q, V22.2D, V25.2D
@@ -40711,6 +40714,7 @@ L_aes_gcm_decrypt_final_arm64_crypto_eor3_tag_loaded
 	ENDIF
 	ENDIF
 	ENDIF
+	ENDIF
 	IF :DEF:WOLFSSL_AES_XTS
 	AREA	|.text|, CODE, READONLY
 	ALIGN	4
@@ -44203,7 +44207,7 @@ AES_ECB_encrypt_NEON PROC
 	ld1	{V24.16B, V25.16B, V26.16B, V27.16B}, [x5], #0x40
 	ld1	{V28.16B, V29.16B, V30.16B, V31.16B}, [x5]
 	cmp	x2, #0x40
-	blt	L_AES_ECB_encrypt_NEON_start_2
+	bcc	L_AES_ECB_encrypt_NEON_start_2
 L_AES_ECB_encrypt_NEON_loop_4
 	mov	x8, x3
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
@@ -44607,7 +44611,7 @@ L_AES_ECB_encrypt_NEON_loop_nr_4
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	sub	x2, x2, #0x40
 	cmp	x2, #0x40
-	bge	L_AES_ECB_encrypt_NEON_loop_4
+	bcs	L_AES_ECB_encrypt_NEON_loop_4
 L_AES_ECB_encrypt_NEON_start_2
 	movi	V12.16B, #0x40
 	movi	V13.16B, #0x80
@@ -44615,7 +44619,7 @@ L_AES_ECB_encrypt_NEON_start_2
 	movi	V15.16B, #27
 	cmp	x2, #16
 	beq	L_AES_ECB_encrypt_NEON_start_1
-	blt	L_AES_ECB_encrypt_NEON_data_done
+	bcc	L_AES_ECB_encrypt_NEON_data_done
 L_AES_ECB_encrypt_NEON_loop_2
 	mov	x8, x3
 	ld1	{V0.16B, V1.16B}, [x0], #32
@@ -45113,7 +45117,7 @@ AES_CTR_encrypt_NEON PROC
 	mov	x10, V8.D[1]
 	mov	x11, V8.D[0]
 	cmp	x2, #0x40
-	blt	L_AES_CTR_encrypt_NEON_start_2
+	bcc	L_AES_CTR_encrypt_NEON_start_2
 L_AES_CTR_encrypt_NEON_loop_4
 	mov	x9, x3
 	ld1	{V4.2D}, [x9], #16
@@ -45540,7 +45544,7 @@ L_AES_CTR_encrypt_NEON_loop_nr_4
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	sub	x2, x2, #0x40
 	cmp	x2, #0x40
-	bge	L_AES_CTR_encrypt_NEON_loop_4
+	bcs	L_AES_CTR_encrypt_NEON_loop_4
 	mov	V2.D[1], x10
 	mov	V2.D[0], x11
 	rev64	V2.4S, V2.4S
@@ -45551,7 +45555,7 @@ L_AES_CTR_encrypt_NEON_start_2
 	movi	V15.16B, #27
 	cmp	x2, #16
 	beq	L_AES_CTR_encrypt_NEON_start_1
-	blt	L_AES_CTR_encrypt_NEON_data_done
+	bcc	L_AES_CTR_encrypt_NEON_data_done
 L_AES_CTR_encrypt_NEON_loop_2
 	mov	x9, x3
 	ld1	{V4.2D}, [x9], #16
@@ -45958,7 +45962,7 @@ AES_ECB_decrypt_NEON PROC
 	ld1	{V24.16B, V25.16B, V26.16B, V27.16B}, [x5], #0x40
 	ld1	{V28.16B, V29.16B, V30.16B, V31.16B}, [x5]
 	cmp	x2, #0x40
-	blt	L_AES_ECB_decrypt_NEON_start_2
+	bcc	L_AES_ECB_decrypt_NEON_start_2
 L_AES_ECB_decrypt_NEON_loop_4
 	mov	x8, x3
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
@@ -46509,11 +46513,11 @@ L_AES_ECB_decrypt_NEON_loop_nr_4
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	sub	x2, x2, #0x40
 	cmp	x2, #0x40
-	bge	L_AES_ECB_decrypt_NEON_loop_4
+	bcs	L_AES_ECB_decrypt_NEON_loop_4
 L_AES_ECB_decrypt_NEON_start_2
 	cmp	x2, #16
 	beq	L_AES_ECB_decrypt_NEON_start_1
-	blt	L_AES_ECB_decrypt_NEON_data_done
+	bcc	L_AES_ECB_decrypt_NEON_data_done
 L_AES_ECB_decrypt_NEON_loop_2
 	mov	x8, x3
 	ld1	{V0.16B, V1.16B}, [x0], #32
@@ -46990,7 +46994,7 @@ AES_CBC_decrypt_NEON PROC
 	ld1	{V3.2D}, [x5]
 	add	x10, x29, #16
 	cmp	x2, #0x40
-	blt	L_AES_CBC_decrypt_NEON_start_2
+	bcc	L_AES_CBC_decrypt_NEON_start_2
 L_AES_CBC_decrypt_NEON_loop_4
 	mov	x9, x3
 	ld1	{V4.16B, V5.16B, V6.16B, V7.16B}, [x0], #0x40
@@ -47549,11 +47553,11 @@ L_AES_CBC_decrypt_NEON_loop_nr_4
 	st1	{V4.16B, V5.16B, V6.16B, V7.16B}, [x1], #0x40
 	sub	x2, x2, #0x40
 	cmp	x2, #0x40
-	bge	L_AES_CBC_decrypt_NEON_loop_4
+	bcs	L_AES_CBC_decrypt_NEON_loop_4
 L_AES_CBC_decrypt_NEON_start_2
 	cmp	x2, #16
 	beq	L_AES_CBC_decrypt_NEON_start_1
-	blt	L_AES_CBC_decrypt_NEON_data_done
+	bcc	L_AES_CBC_decrypt_NEON_data_done
 L_AES_CBC_decrypt_NEON_loop_2
 	mov	x9, x3
 	ld1	{V4.16B, V5.16B}, [x0], #32
@@ -47853,7 +47857,7 @@ L_AES_CBC_decrypt_NEON_loop_nr_2
 	st1	{V4.16B, V5.16B}, [x1], #32
 	sub	x2, x2, #32
 	cmp	x2, #32
-	bge	L_AES_CBC_decrypt_NEON_loop_2
+	bcs	L_AES_CBC_decrypt_NEON_loop_2
 	cmp	x2, #0
 	beq	L_AES_CBC_decrypt_NEON_data_done
 L_AES_CBC_decrypt_NEON_start_1
@@ -48376,7 +48380,7 @@ AES_GCM_encrypt_NEON PROC
 	rev32	V2.16B, V2.16B
 	mov	w6, V2.S[3]
 	cmp	x2, #0x40
-	blt	L_AES_GCM_encrypt_NEON_start_2
+	bcc	L_AES_GCM_encrypt_NEON_start_2
 	mov	x7, V2.D[0]
 	mov	x8, V2.D[1]
 L_AES_GCM_encrypt_NEON_loop_4
@@ -48792,7 +48796,7 @@ L_AES_GCM_encrypt_NEON_loop_nr_4
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	sub	x2, x2, #0x40
 	cmp	x2, #0x40
-	bge	L_AES_GCM_encrypt_NEON_loop_4
+	bcs	L_AES_GCM_encrypt_NEON_loop_4
 	mov	V2.D[0], x7
 	mov	V2.D[1], x8
 	mov	V2.S[3], w6
@@ -48803,7 +48807,7 @@ L_AES_GCM_encrypt_NEON_start_2
 	movi	V15.16B, #27
 	cmp	x2, #16
 	beq	L_AES_GCM_encrypt_NEON_start_1
-	blt	L_AES_GCM_encrypt_NEON_data_done
+	bcc	L_AES_GCM_encrypt_NEON_data_done
 L_AES_GCM_encrypt_NEON_loop_2
 	mov	x12, x3
 	ld1	{V4.2D}, [x12], #16
@@ -49276,7 +49280,7 @@ L_AES_XTS_encrypt_NEON_loop_nr_tweak
 	mov	x8, V2.D[0]
 	mov	x9, V2.D[1]
 	cmp	w2, #0x40
-	blt	L_AES_XTS_encrypt_NEON_start_2
+	bcc	L_AES_XTS_encrypt_NEON_start_2
 L_AES_XTS_encrypt_NEON_loop_4
 	mov	x22, x4
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
@@ -49715,14 +49719,14 @@ L_AES_XTS_encrypt_NEON_loop_nr_4
 	eor	x8, x16, x14, lsl 1
 	sub	w2, w2, #0x40
 	cmp	w2, #0x40
-	bge	L_AES_XTS_encrypt_NEON_loop_4
+	bcs	L_AES_XTS_encrypt_NEON_loop_4
 	movi	V12.16B, #0x40
 	movi	V13.16B, #0x80
 	movi	V14.16B, #0xc0
 	movi	V15.16B, #27
 L_AES_XTS_encrypt_NEON_start_2
 	cmp	w2, #32
-	blt	L_AES_XTS_encrypt_NEON_start_1
+	bcc	L_AES_XTS_encrypt_NEON_start_1
 	mov	x22, x4
 	ld1	{V0.16B, V1.16B}, [x0], #32
 	ld1	{V4.16B}, [x22], #16
@@ -49950,7 +49954,7 @@ L_AES_XTS_encrypt_NEON_start_1
 	mov	V2.D[0], x8
 	mov	V2.D[1], x9
 	cmp	w2, #16
-	blt	L_AES_XTS_encrypt_NEON_start_partial
+	bcc	L_AES_XTS_encrypt_NEON_start_partial
 	mov	x22, x4
 	ld1	{V0.16B}, [x0], #16
 	ld1	{V4.2D}, [x22], #16
@@ -50351,7 +50355,7 @@ L_AES_XTS_decrypt_NEON_loop_nr_tweak
 	ld1	{V28.16B, V29.16B, V30.16B, V31.16B}, [x21]
 	ld1	{V3.2D}, [x23]
 	cmp	w2, #0x40
-	blt	L_AES_XTS_decrypt_NEON_start_2
+	bcc	L_AES_XTS_decrypt_NEON_start_2
 L_AES_XTS_decrypt_NEON_loop_4
 	mov	x25, x4
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
@@ -50937,14 +50941,14 @@ L_AES_XTS_decrypt_NEON_loop_nr_4
 	eor	x8, x16, x14, lsl 1
 	sub	w2, w2, #0x40
 	cmp	w2, #0x40
-	bge	L_AES_XTS_decrypt_NEON_loop_4
+	bcs	L_AES_XTS_decrypt_NEON_loop_4
 	movi	V12.16B, #0x40
 	movi	V13.16B, #0x80
 	movi	V14.16B, #0xc0
 	movi	V15.16B, #27
 L_AES_XTS_decrypt_NEON_start_2
 	cmp	w2, #32
-	blt	L_AES_XTS_decrypt_NEON_start_1
+	bcc	L_AES_XTS_decrypt_NEON_start_1
 	mov	x25, x4
 	ld1	{V0.16B, V1.16B}, [x0], #32
 	ld1	{V4.16B}, [x25], #16
@@ -51259,7 +51263,7 @@ L_AES_XTS_decrypt_NEON_start_1
 	mov	V2.D[0], x8
 	mov	V2.D[1], x9
 	cmp	w2, #16
-	blt	L_AES_XTS_decrypt_NEON_start_partial
+	bcc	L_AES_XTS_decrypt_NEON_start_partial
 	mov	x25, x4
 	ld1	{V0.16B}, [x0], #16
 	ld1	{V4.2D}, [x25], #16
@@ -52130,7 +52134,7 @@ AES_GCMSIV_ctr_neon PROC
 	ld1	{V28.16B, V29.16B, V30.16B, V31.16B}, [x6]
 	ldr	w10, [x5]
 	cmp	x2, #0x40
-	blt	L_AES_GCMSIV_ctr_neon_start_2
+	bcc	L_AES_GCMSIV_ctr_neon_start_2
 L_AES_GCMSIV_ctr_neon_loop_4
 	mov	x9, x3
 	ld1	{V4.2D}, [x9], #16
@@ -52550,7 +52554,7 @@ L_AES_GCMSIV_ctr_neon_loop_nr_4
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	sub	x2, x2, #0x40
 	cmp	x2, #0x40
-	bge	L_AES_GCMSIV_ctr_neon_loop_4
+	bcs	L_AES_GCMSIV_ctr_neon_loop_4
 L_AES_GCMSIV_ctr_neon_start_2
 	movi	V12.16B, #0x40
 	movi	V13.16B, #0x80
@@ -52558,7 +52562,7 @@ L_AES_GCMSIV_ctr_neon_start_2
 	movi	V15.16B, #27
 	cmp	x2, #16
 	beq	L_AES_GCMSIV_ctr_neon_start_1
-	blt	L_AES_GCMSIV_ctr_neon_data_done
+	bcc	L_AES_GCMSIV_ctr_neon_data_done
 L_AES_GCMSIV_ctr_neon_loop_2
 	mov	x9, x3
 	ld1	{V4.2D}, [x9], #16
@@ -55274,6 +55278,7 @@ L_AES_CBC_decrypt_end_dec
 	ENDIF
 	ENDIF
 	IF :DEF:HAVE_AESGCM
+	IF :LNOT::DEF:GCM_SMALL :LAND: :LNOT::DEF:GCM_TABLE
 	AREA	|.rodata|, DATA, READONLY, ALIGN=4
 	ALIGN	8
 L_GCM_gmult_len_r
@@ -55693,6 +55698,360 @@ L_GCM_gmult_len_start_block
 	bne	L_GCM_gmult_len_start_block
 	ret
 	ENDP
+	ENDIF
+	IF :DEF:GCM_TABLE
+	AREA	|.rodata|, DATA, READONLY, ALIGN=4
+	ALIGN	8
+L_GCM_gmult_len_r
+	DCB	0x00, 0x00, 0x01, 0xc2, 0x03, 0x84, 0x02, 0x46
+	DCB	0x07, 0x08, 0x06, 0xca, 0x04, 0x8c, 0x05, 0x4e
+	DCB	0x0e, 0x10, 0x0f, 0xd2, 0x0d, 0x94, 0x0c, 0x56
+	DCB	0x09, 0x18, 0x08, 0xda, 0x0a, 0x9c, 0x0b, 0x5e
+	DCB	0x1c, 0x20, 0x1d, 0xe2, 0x1f, 0xa4, 0x1e, 0x66
+	DCB	0x1b, 0x28, 0x1a, 0xea, 0x18, 0xac, 0x19, 0x6e
+	DCB	0x12, 0x30, 0x13, 0xf2, 0x11, 0xb4, 0x10, 0x76
+	DCB	0x15, 0x38, 0x14, 0xfa, 0x16, 0xbc, 0x17, 0x7e
+	DCB	0x38, 0x40, 0x39, 0x82, 0x3b, 0xc4, 0x3a, 0x06
+	DCB	0x3f, 0x48, 0x3e, 0x8a, 0x3c, 0xcc, 0x3d, 0x0e
+	DCB	0x36, 0x50, 0x37, 0x92, 0x35, 0xd4, 0x34, 0x16
+	DCB	0x31, 0x58, 0x30, 0x9a, 0x32, 0xdc, 0x33, 0x1e
+	DCB	0x24, 0x60, 0x25, 0xa2, 0x27, 0xe4, 0x26, 0x26
+	DCB	0x23, 0x68, 0x22, 0xaa, 0x20, 0xec, 0x21, 0x2e
+	DCB	0x2a, 0x70, 0x2b, 0xb2, 0x29, 0xf4, 0x28, 0x36
+	DCB	0x2d, 0x78, 0x2c, 0xba, 0x2e, 0xfc, 0x2f, 0x3e
+	DCB	0x70, 0x80, 0x71, 0x42, 0x73, 0x04, 0x72, 0xc6
+	DCB	0x77, 0x88, 0x76, 0x4a, 0x74, 0x0c, 0x75, 0xce
+	DCB	0x7e, 0x90, 0x7f, 0x52, 0x7d, 0x14, 0x7c, 0xd6
+	DCB	0x79, 0x98, 0x78, 0x5a, 0x7a, 0x1c, 0x7b, 0xde
+	DCB	0x6c, 0xa0, 0x6d, 0x62, 0x6f, 0x24, 0x6e, 0xe6
+	DCB	0x6b, 0xa8, 0x6a, 0x6a, 0x68, 0x2c, 0x69, 0xee
+	DCB	0x62, 0xb0, 0x63, 0x72, 0x61, 0x34, 0x60, 0xf6
+	DCB	0x65, 0xb8, 0x64, 0x7a, 0x66, 0x3c, 0x67, 0xfe
+	DCB	0x48, 0xc0, 0x49, 0x02, 0x4b, 0x44, 0x4a, 0x86
+	DCB	0x4f, 0xc8, 0x4e, 0x0a, 0x4c, 0x4c, 0x4d, 0x8e
+	DCB	0x46, 0xd0, 0x47, 0x12, 0x45, 0x54, 0x44, 0x96
+	DCB	0x41, 0xd8, 0x40, 0x1a, 0x42, 0x5c, 0x43, 0x9e
+	DCB	0x54, 0xe0, 0x55, 0x22, 0x57, 0x64, 0x56, 0xa6
+	DCB	0x53, 0xe8, 0x52, 0x2a, 0x50, 0x6c, 0x51, 0xae
+	DCB	0x5a, 0xf0, 0x5b, 0x32, 0x59, 0x74, 0x58, 0xb6
+	DCB	0x5d, 0xf8, 0x5c, 0x3a, 0x5e, 0x7c, 0x5f, 0xbe
+	DCB	0xe1, 0x00, 0xe0, 0xc2, 0xe2, 0x84, 0xe3, 0x46
+	DCB	0xe6, 0x08, 0xe7, 0xca, 0xe5, 0x8c, 0xe4, 0x4e
+	DCB	0xef, 0x10, 0xee, 0xd2, 0xec, 0x94, 0xed, 0x56
+	DCB	0xe8, 0x18, 0xe9, 0xda, 0xeb, 0x9c, 0xea, 0x5e
+	DCB	0xfd, 0x20, 0xfc, 0xe2, 0xfe, 0xa4, 0xff, 0x66
+	DCB	0xfa, 0x28, 0xfb, 0xea, 0xf9, 0xac, 0xf8, 0x6e
+	DCB	0xf3, 0x30, 0xf2, 0xf2, 0xf0, 0xb4, 0xf1, 0x76
+	DCB	0xf4, 0x38, 0xf5, 0xfa, 0xf7, 0xbc, 0xf6, 0x7e
+	DCB	0xd9, 0x40, 0xd8, 0x82, 0xda, 0xc4, 0xdb, 0x06
+	DCB	0xde, 0x48, 0xdf, 0x8a, 0xdd, 0xcc, 0xdc, 0x0e
+	DCB	0xd7, 0x50, 0xd6, 0x92, 0xd4, 0xd4, 0xd5, 0x16
+	DCB	0xd0, 0x58, 0xd1, 0x9a, 0xd3, 0xdc, 0xd2, 0x1e
+	DCB	0xc5, 0x60, 0xc4, 0xa2, 0xc6, 0xe4, 0xc7, 0x26
+	DCB	0xc2, 0x68, 0xc3, 0xaa, 0xc1, 0xec, 0xc0, 0x2e
+	DCB	0xcb, 0x70, 0xca, 0xb2, 0xc8, 0xf4, 0xc9, 0x36
+	DCB	0xcc, 0x78, 0xcd, 0xba, 0xcf, 0xfc, 0xce, 0x3e
+	DCB	0x91, 0x80, 0x90, 0x42, 0x92, 0x04, 0x93, 0xc6
+	DCB	0x96, 0x88, 0x97, 0x4a, 0x95, 0x0c, 0x94, 0xce
+	DCB	0x9f, 0x90, 0x9e, 0x52, 0x9c, 0x14, 0x9d, 0xd6
+	DCB	0x98, 0x98, 0x99, 0x5a, 0x9b, 0x1c, 0x9a, 0xde
+	DCB	0x8d, 0xa0, 0x8c, 0x62, 0x8e, 0x24, 0x8f, 0xe6
+	DCB	0x8a, 0xa8, 0x8b, 0x6a, 0x89, 0x2c, 0x88, 0xee
+	DCB	0x83, 0xb0, 0x82, 0x72, 0x80, 0x34, 0x81, 0xf6
+	DCB	0x84, 0xb8, 0x85, 0x7a, 0x87, 0x3c, 0x86, 0xfe
+	DCB	0xa9, 0xc0, 0xa8, 0x02, 0xaa, 0x44, 0xab, 0x86
+	DCB	0xae, 0xc8, 0xaf, 0x0a, 0xad, 0x4c, 0xac, 0x8e
+	DCB	0xa7, 0xd0, 0xa6, 0x12, 0xa4, 0x54, 0xa5, 0x96
+	DCB	0xa0, 0xd8, 0xa1, 0x1a, 0xa3, 0x5c, 0xa2, 0x9e
+	DCB	0xb5, 0xe0, 0xb4, 0x22, 0xb6, 0x64, 0xb7, 0xa6
+	DCB	0xb2, 0xe8, 0xb3, 0x2a, 0xb1, 0x6c, 0xb0, 0xae
+	DCB	0xbb, 0xf0, 0xba, 0x32, 0xb8, 0x74, 0xb9, 0xb6
+	DCB	0xbc, 0xf8, 0xbd, 0x3a, 0xbf, 0x7c, 0xbe, 0xbe
+	AREA	|.text|, CODE, READONLY
+	ALIGN	4
+	EXPORT	GCM_gmult_len
+GCM_gmult_len PROC
+	adrp	x10, L_GCM_gmult_len_r
+	add	x10, x10, L_GCM_gmult_len_r
+L_GCM_gmult_len_start_block
+	ldp	x6, x7, [x0]
+	ldp	x8, x9, [x2]
+	eor	x6, x6, x8
+	eor	x7, x7, x9
+	mov	x4, #0
+	mov	x5, #0
+	; Byte 15
+	ubfx	x12, x7, #56, #8
+	add	x11, x1, x12, lsl 4
+	ldp	x8, x9, [x11]
+	rev	x8, x8
+	rev	x9, x9
+	eor	x4, x4, x8
+	eor	x5, x5, x9
+	and	x13, x5, #0xff
+	lsr	x5, x5, #8
+	orr	x5, x5, x4, lsl 56
+	lsr	x4, x4, #8
+	add	x11, x10, x13, lsl 1
+	ldrb	w8, [x11], #1
+	ldrb	w9, [x11]
+	orr	x4, x4, x8, lsl 56
+	eor	x4, x4, x9, lsl 48
+	; Byte 14
+	ubfx	x12, x7, #48, #8
+	add	x11, x1, x12, lsl 4
+	ldp	x8, x9, [x11]
+	rev	x8, x8
+	rev	x9, x9
+	eor	x4, x4, x8
+	eor	x5, x5, x9
+	and	x13, x5, #0xff
+	lsr	x5, x5, #8
+	orr	x5, x5, x4, lsl 56
+	lsr	x4, x4, #8
+	add	x11, x10, x13, lsl 1
+	ldrb	w8, [x11], #1
+	ldrb	w9, [x11]
+	orr	x4, x4, x8, lsl 56
+	eor	x4, x4, x9, lsl 48
+	; Byte 13
+	ubfx	x12, x7, #40, #8
+	add	x11, x1, x12, lsl 4
+	ldp	x8, x9, [x11]
+	rev	x8, x8
+	rev	x9, x9
+	eor	x4, x4, x8
+	eor	x5, x5, x9
+	and	x13, x5, #0xff
+	lsr	x5, x5, #8
+	orr	x5, x5, x4, lsl 56
+	lsr	x4, x4, #8
+	add	x11, x10, x13, lsl 1
+	ldrb	w8, [x11], #1
+	ldrb	w9, [x11]
+	orr	x4, x4, x8, lsl 56
+	eor	x4, x4, x9, lsl 48
+	; Byte 12
+	ubfx	x12, x7, #32, #8
+	add	x11, x1, x12, lsl 4
+	ldp	x8, x9, [x11]
+	rev	x8, x8
+	rev	x9, x9
+	eor	x4, x4, x8
+	eor	x5, x5, x9
+	and	x13, x5, #0xff
+	lsr	x5, x5, #8
+	orr	x5, x5, x4, lsl 56
+	lsr	x4, x4, #8
+	add	x11, x10, x13, lsl 1
+	ldrb	w8, [x11], #1
+	ldrb	w9, [x11]
+	orr	x4, x4, x8, lsl 56
+	eor	x4, x4, x9, lsl 48
+	; Byte 11
+	ubfx	x12, x7, #24, #8
+	add	x11, x1, x12, lsl 4
+	ldp	x8, x9, [x11]
+	rev	x8, x8
+	rev	x9, x9
+	eor	x4, x4, x8
+	eor	x5, x5, x9
+	and	x13, x5, #0xff
+	lsr	x5, x5, #8
+	orr	x5, x5, x4, lsl 56
+	lsr	x4, x4, #8
+	add	x11, x10, x13, lsl 1
+	ldrb	w8, [x11], #1
+	ldrb	w9, [x11]
+	orr	x4, x4, x8, lsl 56
+	eor	x4, x4, x9, lsl 48
+	; Byte 10
+	ubfx	x12, x7, #16, #8
+	add	x11, x1, x12, lsl 4
+	ldp	x8, x9, [x11]
+	rev	x8, x8
+	rev	x9, x9
+	eor	x4, x4, x8
+	eor	x5, x5, x9
+	and	x13, x5, #0xff
+	lsr	x5, x5, #8
+	orr	x5, x5, x4, lsl 56
+	lsr	x4, x4, #8
+	add	x11, x10, x13, lsl 1
+	ldrb	w8, [x11], #1
+	ldrb	w9, [x11]
+	orr	x4, x4, x8, lsl 56
+	eor	x4, x4, x9, lsl 48
+	; Byte 9
+	ubfx	x12, x7, #8, #8
+	add	x11, x1, x12, lsl 4
+	ldp	x8, x9, [x11]
+	rev	x8, x8
+	rev	x9, x9
+	eor	x4, x4, x8
+	eor	x5, x5, x9
+	and	x13, x5, #0xff
+	lsr	x5, x5, #8
+	orr	x5, x5, x4, lsl 56
+	lsr	x4, x4, #8
+	add	x11, x10, x13, lsl 1
+	ldrb	w8, [x11], #1
+	ldrb	w9, [x11]
+	orr	x4, x4, x8, lsl 56
+	eor	x4, x4, x9, lsl 48
+	; Byte 8
+	ubfx	x12, x7, #0, #8
+	add	x11, x1, x12, lsl 4
+	ldp	x8, x9, [x11]
+	rev	x8, x8
+	rev	x9, x9
+	eor	x4, x4, x8
+	eor	x5, x5, x9
+	and	x13, x5, #0xff
+	lsr	x5, x5, #8
+	orr	x5, x5, x4, lsl 56
+	lsr	x4, x4, #8
+	add	x11, x10, x13, lsl 1
+	ldrb	w8, [x11], #1
+	ldrb	w9, [x11]
+	orr	x4, x4, x8, lsl 56
+	eor	x4, x4, x9, lsl 48
+	; Byte 7
+	ubfx	x12, x6, #56, #8
+	add	x11, x1, x12, lsl 4
+	ldp	x8, x9, [x11]
+	rev	x8, x8
+	rev	x9, x9
+	eor	x4, x4, x8
+	eor	x5, x5, x9
+	and	x13, x5, #0xff
+	lsr	x5, x5, #8
+	orr	x5, x5, x4, lsl 56
+	lsr	x4, x4, #8
+	add	x11, x10, x13, lsl 1
+	ldrb	w8, [x11], #1
+	ldrb	w9, [x11]
+	orr	x4, x4, x8, lsl 56
+	eor	x4, x4, x9, lsl 48
+	; Byte 6
+	ubfx	x12, x6, #48, #8
+	add	x11, x1, x12, lsl 4
+	ldp	x8, x9, [x11]
+	rev	x8, x8
+	rev	x9, x9
+	eor	x4, x4, x8
+	eor	x5, x5, x9
+	and	x13, x5, #0xff
+	lsr	x5, x5, #8
+	orr	x5, x5, x4, lsl 56
+	lsr	x4, x4, #8
+	add	x11, x10, x13, lsl 1
+	ldrb	w8, [x11], #1
+	ldrb	w9, [x11]
+	orr	x4, x4, x8, lsl 56
+	eor	x4, x4, x9, lsl 48
+	; Byte 5
+	ubfx	x12, x6, #40, #8
+	add	x11, x1, x12, lsl 4
+	ldp	x8, x9, [x11]
+	rev	x8, x8
+	rev	x9, x9
+	eor	x4, x4, x8
+	eor	x5, x5, x9
+	and	x13, x5, #0xff
+	lsr	x5, x5, #8
+	orr	x5, x5, x4, lsl 56
+	lsr	x4, x4, #8
+	add	x11, x10, x13, lsl 1
+	ldrb	w8, [x11], #1
+	ldrb	w9, [x11]
+	orr	x4, x4, x8, lsl 56
+	eor	x4, x4, x9, lsl 48
+	; Byte 4
+	ubfx	x12, x6, #32, #8
+	add	x11, x1, x12, lsl 4
+	ldp	x8, x9, [x11]
+	rev	x8, x8
+	rev	x9, x9
+	eor	x4, x4, x8
+	eor	x5, x5, x9
+	and	x13, x5, #0xff
+	lsr	x5, x5, #8
+	orr	x5, x5, x4, lsl 56
+	lsr	x4, x4, #8
+	add	x11, x10, x13, lsl 1
+	ldrb	w8, [x11], #1
+	ldrb	w9, [x11]
+	orr	x4, x4, x8, lsl 56
+	eor	x4, x4, x9, lsl 48
+	; Byte 3
+	ubfx	x12, x6, #24, #8
+	add	x11, x1, x12, lsl 4
+	ldp	x8, x9, [x11]
+	rev	x8, x8
+	rev	x9, x9
+	eor	x4, x4, x8
+	eor	x5, x5, x9
+	and	x13, x5, #0xff
+	lsr	x5, x5, #8
+	orr	x5, x5, x4, lsl 56
+	lsr	x4, x4, #8
+	add	x11, x10, x13, lsl 1
+	ldrb	w8, [x11], #1
+	ldrb	w9, [x11]
+	orr	x4, x4, x8, lsl 56
+	eor	x4, x4, x9, lsl 48
+	; Byte 2
+	ubfx	x12, x6, #16, #8
+	add	x11, x1, x12, lsl 4
+	ldp	x8, x9, [x11]
+	rev	x8, x8
+	rev	x9, x9
+	eor	x4, x4, x8
+	eor	x5, x5, x9
+	and	x13, x5, #0xff
+	lsr	x5, x5, #8
+	orr	x5, x5, x4, lsl 56
+	lsr	x4, x4, #8
+	add	x11, x10, x13, lsl 1
+	ldrb	w8, [x11], #1
+	ldrb	w9, [x11]
+	orr	x4, x4, x8, lsl 56
+	eor	x4, x4, x9, lsl 48
+	; Byte 1
+	ubfx	x12, x6, #8, #8
+	add	x11, x1, x12, lsl 4
+	ldp	x8, x9, [x11]
+	rev	x8, x8
+	rev	x9, x9
+	eor	x4, x4, x8
+	eor	x5, x5, x9
+	and	x13, x5, #0xff
+	lsr	x5, x5, #8
+	orr	x5, x5, x4, lsl 56
+	lsr	x4, x4, #8
+	add	x11, x10, x13, lsl 1
+	ldrb	w8, [x11], #1
+	ldrb	w9, [x11]
+	orr	x4, x4, x8, lsl 56
+	eor	x4, x4, x9, lsl 48
+	; Byte 0
+	ubfx	x12, x6, #0, #8
+	add	x11, x1, x12, lsl 4
+	ldp	x8, x9, [x11]
+	rev	x8, x8
+	rev	x9, x9
+	eor	x4, x4, x8
+	eor	x5, x5, x9
+	rev	x4, x4
+	rev	x5, x5
+	stp	x4, x5, [x0]
+	subs	x3, x3, #16
+	add	x2, x2, #16
+	bne	L_GCM_gmult_len_start_block
+	ret
+	ENDP
+	ENDIF
 	AREA	|.text|, CODE, READONLY
 	ALIGN	4
 	EXPORT	AES_GCM_encrypt
@@ -56636,7 +56995,7 @@ L_AES_XTS_encrypt_loop_nr
 	add	x0, x0, #16
 	add	x1, x1, #16
 	cmp	w2, #16
-	bge	L_AES_XTS_encrypt_loop_block
+	bcs	L_AES_XTS_encrypt_loop_block
 	cbz	w2, L_AES_XTS_encrypt_done_data
 	mov	x26, x4
 	sub	x1, x1, #16
@@ -57278,7 +57637,7 @@ L_AES_XTS_decrypt_loop_nr_tweak
 	rev32	x23, x23
 	rev32	x24, x24
 	cmp	w2, #16
-	blt	L_AES_XTS_decrypt_start_partail
+	bcc	L_AES_XTS_decrypt_start_partail
 L_AES_XTS_decrypt_loop_block
 	mov	x28, x4
 	ldp	x12, x13, [x0]
@@ -57558,7 +57917,7 @@ L_AES_XTS_decrypt_loop_nr
 	add	x0, x0, #16
 	add	x1, x1, #16
 	cmp	w2, #16
-	bge	L_AES_XTS_decrypt_loop_block
+	bcs	L_AES_XTS_decrypt_loop_block
 	cbz	w2, L_AES_XTS_decrypt_done_data
 L_AES_XTS_decrypt_start_partail
 	and	x21, x11, x24, asr 63

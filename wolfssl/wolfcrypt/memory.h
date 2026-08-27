@@ -360,6 +360,12 @@ WOLFSSL_LOCAL WC_DEBUG_CIPHERLIFECYCLE_WUR int wc_debug_CipherLifecycleFree
         ((void)(CipherLifecycleTag), (void)(heap), (void)(abort_p), 0)
 #endif
 
+#if (defined(DEBUG_VECTOR_REGISTER_ACCESS) || \
+     defined(DEBUG_VECTOR_REGISTER_ACCESS_FUZZING)) && \
+    !defined(WC_HAVE_VECTOR_SPEEDUPS)
+    #error DEBUG_VECTOR_REGISTER_ACCESS requires WC_HAVE_VECTOR_SPEEDUPS.
+#endif
+
 #ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
     WOLFSSL_LOCAL int SAVE_VECTOR_REGISTERS2_fuzzer(void);
     #ifndef WC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED
@@ -433,7 +439,7 @@ WOLFSSL_LOCAL WC_DEBUG_CIPHERLIFECYCLE_WUR int wc_debug_CipherLifecycleFree
             SAVE_VECTOR_REGISTERS2_fuzzer() == 0)
     #endif
 
-    #define SAVE_VECTOR_REGISTERS2(...) ({                          \
+    #define SAVE_VECTOR_REGISTERS2(...) __extension__ ({            \
         int _svr2_val;                                              \
         if (wc_svr_count > 0)                                       \
             _svr2_val = 0;                                          \
@@ -462,7 +468,7 @@ WOLFSSL_LOCAL WC_DEBUG_CIPHERLIFECYCLE_WUR int wc_debug_CipherLifecycleFree
 
 #else
 
-    #define SAVE_VECTOR_REGISTERS2(...) ({                          \
+    #define SAVE_VECTOR_REGISTERS2(...) __extension__ ({            \
         int _svr2_val;                                              \
         if (wc_debug_vector_registers_retval != 0) {                \
             if (wc_svr_count > 0) {                                 \
@@ -550,9 +556,15 @@ WOLFSSL_LOCAL WC_DEBUG_CIPHERLIFECYCLE_WUR int wc_debug_CipherLifecycleFree
 
 #else /* !DEBUG_VECTOR_REGISTER_ACCESS */
     #if !defined(SAVE_VECTOR_REGISTERS2) && defined(DEBUG_VECTOR_REGISTER_ACCESS_FUZZING)
-        #define SAVE_VECTOR_REGISTERS2(...) SAVE_VECTOR_REGISTERS2_fuzzer()
+        /* The fuzzer's forced-retval override
+         * (WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL()) is part of the
+         * DEBUG_VECTOR_REGISTER_ACCESS machinery, and is required in user mode
+         * for the unit tests.  Kernel module builds don't reach this clause
+         * because their setup headers define SAVE_VECTOR_REGISTERS2().
+         */
+        #error User-mode DEBUG_VECTOR_REGISTER_ACCESS_FUZZING requires DEBUG_VECTOR_REGISTER_ACCESS.
     #endif
-#endif
+#endif /* !DEBUG_VECTOR_REGISTER_ACCESS */
 
 #if defined(WOLFSSL_LINUXKM) || defined(WC_SYM_RELOC_TABLES) || \
     defined(WC_SYM_RELOC_TABLES_SUPPORT)

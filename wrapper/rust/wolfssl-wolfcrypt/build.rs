@@ -355,7 +355,8 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "wc_AesCfbEncrypt", "aes_cfb");
     check_cfg(&binding, "wc_AesCtrEncrypt", "aes_ctr");
     check_cfg(&binding, "wc_AesCtsEncrypt", "aes_cts");
-    check_cfg(&binding, "wc_AesCfbDecrypt", "aes_decrypt");
+    check_cfg(&binding, "wc_AesCfbDecrypt", "aes_cfb_decrypt");
+    check_cfg(&binding, "wc_AesOfbDecrypt", "aes_ofb_decrypt");
     check_cfg(&binding, "wc_AesEaxInit", "aes_eax");
     check_cfg(&binding, "wc_AesEcbEncrypt", "aes_ecb");
     check_cfg(&binding, "wc_AesGcmSetKey", "aes_gcm");
@@ -396,6 +397,7 @@ fn scan_cfg() -> Result<()> {
 
     /* ecc */
     check_cfg(&binding, "wc_ecc_init", "ecc");
+    check_cfg(&binding, "wc_ecc_key_new_ex", "ecc_key_new_ex");
     check_cfg(&binding, "wc_ecc_export_point_der_compressed", "ecc_comp_key");
     check_cfg(&binding, "wc_ecc_shared_secret", "ecc_dh");
     check_cfg(&binding, "wc_ecc_sign_hash", "ecc_sign");
@@ -520,7 +522,10 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "wc_InitSha512", "sha512");
     check_cfg(&binding, "wc_HashType_WC_HASH_TYPE_SHA512_224", "sha512_224");
     check_cfg(&binding, "wc_HashType_WC_HASH_TYPE_SHA512_256", "sha512_256");
-    check_cfg(&binding, "wc_InitSha3_224", "sha3");
+    check_cfg(&binding, "wc_InitSha3_224", "sha3_224");
+    check_cfg(&binding, "wc_InitSha3_256", "sha3_256");
+    check_cfg(&binding, "wc_InitSha3_384", "sha3_384");
+    check_cfg(&binding, "wc_InitSha3_512", "sha3_512");
     check_cfg(&binding, "wc_InitShake128", "shake128");
     check_cfg(&binding, "wc_InitShake256", "shake256");
 

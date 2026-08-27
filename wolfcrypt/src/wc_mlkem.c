@@ -70,6 +70,7 @@
  *   Cannot be used with WOLFSSL_NO_MALLOC.
  */
 
+#define WC_FIPS_LL_CRYPTO
 #define _WC_BUILDING_WC_MLKEM_C
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
@@ -78,11 +79,6 @@
     #undef USE_INTEL_SPEEDUP
     #undef WOLFSSL_ARMASM
     #undef WOLFSSL_RISCV_ASM
-#endif
-
-#if FIPS_VERSION3_GE(2,0,0)
-    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
-    #define FIPS_NO_WRAPPERS
 #endif
 
 #include <wolfssl/wolfcrypt/wc_mlkem.h>
@@ -595,6 +591,10 @@ int wc_MlKemKey_Free(MlKemKey* key)
         /* Ensure all private data is zeroed. */
         ForceZero(&key->hash, sizeof(key->hash));
         ForceZero(&key->prf, sizeof(key->prf));
+#ifdef WOLF_CRYPTO_CB
+        key->hash.devId = INVALID_DEVID;
+        key->prf.devId = INVALID_DEVID;
+#endif
 #ifdef WOLFSSL_MLKEM_DYNAMIC_KEYS
         if (key->priv != NULL) {
             ForceZero(key->priv, key->privAllocSz);
@@ -619,6 +619,12 @@ int wc_MlKemKey_Free(MlKemKey* key)
 
         /* Clear flags as values are no longer set. */
         key->flags = 0;
+#ifdef WOLF_CRYPTO_CB
+        /* Mark the key as having no device so a second free does not call
+         * out to it again. */
+        key->devCtx = NULL;
+        key->devId = INVALID_DEVID;
+#endif
     }
 
     return 0;

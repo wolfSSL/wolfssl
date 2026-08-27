@@ -64,6 +64,7 @@ L_sha3_arm32_neon_rt:
 	.text
 	.align	4
 	.globl	BlockSha3
+	WC_ASM_ATT_HIDDEN(BlockSha3)
 	.type	BlockSha3, %function
 BlockSha3:
 	vpush	{d8-d15}
@@ -358,6 +359,7 @@ L_sha3_arm32_rt:
 	.text
 	.align	4
 	.globl	BlockSha3
+	WC_ASM_ATT_HIDDEN(BlockSha3)
 	.type	BlockSha3, %function
 BlockSha3:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}

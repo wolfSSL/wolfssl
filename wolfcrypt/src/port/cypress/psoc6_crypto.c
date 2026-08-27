@@ -181,7 +181,7 @@ int wc_Psoc6_Sha1_Sha2_Init(void* sha, wc_psoc6_hash_sha1_sha2_t hash_mode,
                 res = Cy_Crypto_Core_Sha_Start(crypto_base,
                                                &((wc_Sha512*)sha)->hash_state);
             break;
-#endif /* WOLFSSL_SHA512_224 */
+#endif /* !WOLFSSL_NOSHA512_224 */
 
 #if !defined(WOLFSSL_NOSHA512_256)
         case WC_PSOC6_SHA512_256:
@@ -192,7 +192,7 @@ int wc_Psoc6_Sha1_Sha2_Init(void* sha, wc_psoc6_hash_sha1_sha2_t hash_mode,
                 res = Cy_Crypto_Core_Sha_Start(crypto_base,
                                                &((wc_Sha512*)sha)->hash_state);
             break;
-#endif /* WOLFSSL_SHA512_256 */
+#endif /* !WOLFSSL_NOSHA512_256 */
 
 #endif /* WOLFSSL_SHA512 */
 
@@ -2093,7 +2093,11 @@ int psoc6_ecc_verify_hash_ex(MATH_INT_T* r, MATH_INT_T* s, const byte* hash,
     uint8_t k[MAX_ECC_KEYSIZE] = { 0 };
 
     if (!key || !verif_res || !r || !s || !hash)
-        return -BAD_FUNC_ARG;
+        return BAD_FUNC_ARG;
+
+    /* Fail closed on both channels: every early return below leaves the
+     * caller's result flag in the failed state. */
+    *verif_res = 0;
 
     /* Enable CRYPTO block if not enabled */
     if (!Cy_Crypto_Core_IsEnabled(crypto_base)) {
@@ -2105,7 +2109,12 @@ int psoc6_ecc_verify_hash_ex(MATH_INT_T* r, MATH_INT_T* s, const byte* hash,
     sSz   = mp_unsigned_bin_size(s);
 
     if (keySz > MAX_ECC_KEYSIZE)
-        return -BAD_FUNC_ARG;
+        return BAD_FUNC_ARG;
+
+    /* Reject r or s values that would overflow their keySz slot in
+     * signature_buf when serialized. */
+    if (rSz > keySz || sSz > keySz)
+        return BAD_FUNC_ARG;
 
     /* Prepare ECC key */
     ecc_key.type     = PK_PUBLIC;

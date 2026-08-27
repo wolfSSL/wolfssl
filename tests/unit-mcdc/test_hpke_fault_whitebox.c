@@ -119,6 +119,116 @@ int main(void)
 
 #else
 
+/* wc_HpkeCopyPrivateKey() post-switch cleanup:
+ *
+ *     if (ret != 0 && *copy != NULL) { free; *copy = NULL; }
+ *
+ * Encap/Decap only reach this on the blinding path where the copy succeeds, so
+ * only the all-false row is ever seen and neither operand gets a pair. Both
+ * operands need the (T,T) row -- a failure AFTER the copy was allocated --
+ * which no allocation fault can produce here: mcdc_fault_alloc.h only
+ * redefines XMALLOC for this TU, and the ECC branch allocates inside
+ * wc_ecc_key_new() over in ecc.c. Two crafted source keys give both rows
+ * deterministically instead.
+ *
+ *   (T,F)  a key whose dp is NULL leaves the switch on its first line with
+ *          ret still NOT_COMPILED_IN and *copy never assigned.
+ *   (T,T)  a real key whose dp->id names no curve in the table: dp->size is
+ *          untouched so the private-only export still succeeds and
+ *          wc_ecc_key_new() still returns a copy, then the import rejects the
+ *          curve id and the cleanup runs with *copy non-NULL.
+ *
+ * The function is static, so it is called directly.
+ */
+static void sweep_copy_private_key(void)
+{
+#if defined(HAVE_ECC) && defined(ECC_TIMING_RESISTANT)
+    Hpke   hpke;
+    WC_RNG rng;
+    void*  key  = NULL;
+    void*  copy = NULL;
+    ecc_key emptyKey;
+    static ecc_set_type badDp;
+    const ecc_set_type* realDp;
+    int ret;
+
+    XMEMSET(&hpke, 0, sizeof(hpke));
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    if (wc_HpkeInit(&hpke, DHKEM_P256_HKDF_SHA256, HKDF_SHA256,
+            HPKE_AES_128_GCM, NULL) != 0) {
+        WB_NOTE("wc_HpkeInit failed; copy-private-key rows skipped");
+        return;
+    }
+    if (wc_InitRng(&rng) != 0) {
+        WB_NOTE("wc_InitRng failed; copy-private-key rows skipped");
+        return;
+    }
+
+    /* ---- (T,F): no curve set, so nothing was allocated ---- */
+    XMEMSET(&emptyKey, 0, sizeof(emptyKey));
+    if (wc_ecc_init(&emptyKey) == 0) {
+        copy = NULL;
+        (void)wc_HpkeCopyPrivateKey(&hpke, &emptyKey, &copy);
+        if (copy != NULL) {
+            WB_NOTE("dp==NULL key unexpectedly produced a copy");
+            wc_HpkeFreeKey(&hpke, hpke.kem, copy, hpke.heap);
+            copy = NULL;
+            wb_fail = 1;
+        }
+        wc_ecc_free(&emptyKey);
+    }
+
+    if (wc_HpkeGenerateKeyPair(&hpke, &key, &rng) != 0 || key == NULL) {
+        WB_NOTE("keypair prep failed; remaining copy rows skipped");
+        wc_FreeRng(&rng);
+        return;
+    }
+
+    /* ---- all-false: a clean copy. Returns "ret == 0", so non-zero on
+     *      success. ---- */
+    copy = NULL;
+    if (!wc_HpkeCopyPrivateKey(&hpke, key, &copy)) {
+        WB_NOTE("wc_HpkeCopyPrivateKey(valid key) failed");
+        wb_fail = 1;
+    }
+    if (copy != NULL) {
+        wc_HpkeFreeKey(&hpke, hpke.kem, copy, hpke.heap);
+        copy = NULL;
+    }
+
+    /* ---- (T,T): export and allocate succeed, import rejects the curve ---- */
+    realDp = ((ecc_key*)key)->dp;
+    XMEMCPY(&badDp, realDp, sizeof(badDp));
+    badDp.id = 0x7FFF;                 /* matches no ecc_sets[] entry */
+    ((ecc_key*)key)->dp = &badDp;
+
+    copy = NULL;
+    ret = wc_HpkeCopyPrivateKey(&hpke, key, &copy);
+
+    ((ecc_key*)key)->dp = realDp;      /* restore before any free */
+
+    if (ret) {
+        WB_NOTE("unknown curve id unexpectedly copied successfully");
+        wb_fail = 1;
+    }
+    if (copy != NULL) {
+        /* The cleanup NULLs *copy when it runs; a survivor means the (T,T)
+         * row was not reached and the pair is still open. */
+        WB_NOTE("copy survived a failed import: cleanup guard not exercised");
+        wc_HpkeFreeKey(&hpke, hpke.kem, copy, hpke.heap);
+        copy = NULL;
+        wb_fail = 1;
+    }
+
+    wc_HpkeFreeKey(&hpke, hpke.kem, key, hpke.heap);
+    wc_FreeRng(&rng);
+    WB_NOTE("wc_HpkeCopyPrivateKey cleanup-guard rows exercised");
+#else
+    WB_NOTE("ECC blinding path not built; copy-private-key rows skipped");
+#endif
+}
+
 /* Sweep the two post-alloc cleanup decision pairs of a single KEM suite.
  *
  * Prepares (DISARMED) a valid Hpke for `kem` and a serialized public key, then:
@@ -318,6 +428,9 @@ int main(int argc, char** argv)
         WB_NOTE("X25519 GenerateKeyPair/Deserialize fault sweep done");
     }
 #endif
+
+    if (!do_baseline)
+        sweep_copy_private_key();
 
     mcdc_fa_disarm();
     mcdc_fa_restore();

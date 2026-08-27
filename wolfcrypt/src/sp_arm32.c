@@ -193,15 +193,15 @@ static void sp_2048_from_bin(sp_digit* r, int size, const byte* a, int n)
         d = (byte*)(r + j);
 #ifdef BIG_ENDIAN_ORDER
         switch (i) {
-            case 2: d[1] = *(a++); //fallthrough
-            case 1: d[2] = *(a++); //fallthrough
-            case 0: d[3] = *a    ; //fallthrough
+            case 2: d[1] = *(a++); FALL_THROUGH;
+            case 1: d[2] = *(a++); FALL_THROUGH;
+            case 0: d[3] = *a    ;
         }
 #else
         switch (i) {
-            case 2: d[i-2] = a[2]; //fallthrough
-            case 1: d[i-1] = a[1]; //fallthrough
-            case 0: d[i-0] = a[0]; //fallthrough
+            case 2: d[i-2] = a[2]; FALL_THROUGH;
+            case 1: d[i-1] = a[1]; FALL_THROUGH;
+            case 0: d[i-0] = a[0];
         }
 #endif
         j++;
@@ -10003,15 +10003,15 @@ WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_2048_mont_reduce_32(
 #endif
         "ldr	r10, [%[a], #124]\n\t"
         "lsl	r6, r8, #16\n\t"
-        "lsl	r7, r7, #16\n\t"
+        "lsl	r7, r11, #16\n\t"
         "lsr	r6, r6, #16\n\t"
         "lsr	r7, r7, #16\n\t"
         "mul	r7, r6, r7\n\t"
         "adds	r5, r5, r7\n\t"
-        "adcs	r4, r4, #0\n\t"
+        "adcs	r4, r3, #0\n\t"
         "mov	r3, #0\n\t"
         "adc	r3, r3, r3\n\t"
-        "lsr	r7, r7, #16\n\t"
+        "lsr	r7, r11, #16\n\t"
         "mul	r6, r7, r6\n\t"
         "lsr	r7, r6, #16\n\t"
         "lsl	r6, r6, #16\n\t"
@@ -10019,11 +10019,11 @@ WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_2048_mont_reduce_32(
         "adcs	r4, r4, r7\n\t"
         "adc	r3, r3, #0\n\t"
         "mov	r6, r8\n\t"
-        "lsr	r7, r7, #16\n\t"
+        "lsr	r7, r11, #16\n\t"
         "lsr	r6, r6, #16\n\t"
         "mul	r7, r6, r7\n\t"
         "adds	r4, r4, r7\n\t"
-        "lsl	r7, r7, #16\n\t"
+        "lsl	r7, r11, #16\n\t"
         "adc	r3, r3, #0\n\t"
         "lsr	r7, r7, #16\n\t"
         "mul	r6, r7, r6\n\t"
@@ -15086,15 +15086,15 @@ WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_2048_mont_reduce_64(
 #endif
         "ldr	r10, [%[a], #252]\n\t"
         "lsl	r6, r8, #16\n\t"
-        "lsl	r7, r7, #16\n\t"
+        "lsl	r7, r11, #16\n\t"
         "lsr	r6, r6, #16\n\t"
         "lsr	r7, r7, #16\n\t"
         "mul	r7, r6, r7\n\t"
         "adds	r5, r5, r7\n\t"
-        "adcs	r4, r4, #0\n\t"
+        "adcs	r4, r3, #0\n\t"
         "mov	r3, #0\n\t"
         "adc	r3, r3, r3\n\t"
-        "lsr	r7, r7, #16\n\t"
+        "lsr	r7, r11, #16\n\t"
         "mul	r6, r7, r6\n\t"
         "lsr	r7, r6, #16\n\t"
         "lsl	r6, r6, #16\n\t"
@@ -15102,11 +15102,11 @@ WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_2048_mont_reduce_64(
         "adcs	r4, r4, r7\n\t"
         "adc	r3, r3, #0\n\t"
         "mov	r6, r8\n\t"
-        "lsr	r7, r7, #16\n\t"
+        "lsr	r7, r11, #16\n\t"
         "lsr	r6, r6, #16\n\t"
         "mul	r7, r6, r7\n\t"
         "adds	r4, r4, r7\n\t"
-        "lsl	r7, r7, #16\n\t"
+        "lsl	r7, r11, #16\n\t"
         "adc	r3, r3, #0\n\t"
         "lsr	r7, r7, #16\n\t"
         "mul	r6, r7, r6\n\t"
@@ -19176,15 +19176,15 @@ static void sp_3072_from_bin(sp_digit* r, int size, const byte* a, int n)
         d = (byte*)(r + j);
 #ifdef BIG_ENDIAN_ORDER
         switch (i) {
-            case 2: d[1] = *(a++); //fallthrough
-            case 1: d[2] = *(a++); //fallthrough
-            case 0: d[3] = *a    ; //fallthrough
+            case 2: d[1] = *(a++); FALL_THROUGH;
+            case 1: d[2] = *(a++); FALL_THROUGH;
+            case 0: d[3] = *a    ;
         }
 #else
         switch (i) {
-            case 2: d[i-2] = a[2]; //fallthrough
-            case 1: d[i-1] = a[1]; //fallthrough
-            case 0: d[i-0] = a[0]; //fallthrough
+            case 2: d[i-2] = a[2]; FALL_THROUGH;
+            case 1: d[i-1] = a[1]; FALL_THROUGH;
+            case 0: d[i-0] = a[0];
         }
 #endif
         j++;
@@ -35240,15 +35240,15 @@ WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_3072_mont_reduce_48(
 #endif
         "ldr	r10, [%[a], #188]\n\t"
         "lsl	r6, r8, #16\n\t"
-        "lsl	r7, r7, #16\n\t"
+        "lsl	r7, r11, #16\n\t"
         "lsr	r6, r6, #16\n\t"
         "lsr	r7, r7, #16\n\t"
         "mul	r7, r6, r7\n\t"
         "adds	r5, r5, r7\n\t"
-        "adcs	r4, r4, #0\n\t"
+        "adcs	r4, r3, #0\n\t"
         "mov	r3, #0\n\t"
         "adc	r3, r3, r3\n\t"
-        "lsr	r7, r7, #16\n\t"
+        "lsr	r7, r11, #16\n\t"
         "mul	r6, r7, r6\n\t"
         "lsr	r7, r6, #16\n\t"
         "lsl	r6, r6, #16\n\t"
@@ -35256,11 +35256,11 @@ WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_3072_mont_reduce_48(
         "adcs	r4, r4, r7\n\t"
         "adc	r3, r3, #0\n\t"
         "mov	r6, r8\n\t"
-        "lsr	r7, r7, #16\n\t"
+        "lsr	r7, r11, #16\n\t"
         "lsr	r6, r6, #16\n\t"
         "mul	r7, r6, r7\n\t"
         "adds	r4, r4, r7\n\t"
-        "lsl	r7, r7, #16\n\t"
+        "lsl	r7, r11, #16\n\t"
         "adc	r3, r3, #0\n\t"
         "lsr	r7, r7, #16\n\t"
         "mul	r6, r7, r6\n\t"
@@ -42259,15 +42259,15 @@ WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_3072_mont_reduce_96(
 #endif
         "ldr	r10, [%[a], #380]\n\t"
         "lsl	r6, r8, #16\n\t"
-        "lsl	r7, r7, #16\n\t"
+        "lsl	r7, r11, #16\n\t"
         "lsr	r6, r6, #16\n\t"
         "lsr	r7, r7, #16\n\t"
         "mul	r7, r6, r7\n\t"
         "adds	r5, r5, r7\n\t"
-        "adcs	r4, r4, #0\n\t"
+        "adcs	r4, r3, #0\n\t"
         "mov	r3, #0\n\t"
         "adc	r3, r3, r3\n\t"
-        "lsr	r7, r7, #16\n\t"
+        "lsr	r7, r11, #16\n\t"
         "mul	r6, r7, r6\n\t"
         "lsr	r7, r6, #16\n\t"
         "lsl	r6, r6, #16\n\t"
@@ -42275,11 +42275,11 @@ WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_3072_mont_reduce_96(
         "adcs	r4, r4, r7\n\t"
         "adc	r3, r3, #0\n\t"
         "mov	r6, r8\n\t"
-        "lsr	r7, r7, #16\n\t"
+        "lsr	r7, r11, #16\n\t"
         "lsr	r6, r6, #16\n\t"
         "mul	r7, r6, r7\n\t"
         "adds	r4, r4, r7\n\t"
-        "lsl	r7, r7, #16\n\t"
+        "lsl	r7, r11, #16\n\t"
         "adc	r3, r3, #0\n\t"
         "lsr	r7, r7, #16\n\t"
         "mul	r6, r7, r6\n\t"
@@ -47426,15 +47426,15 @@ static void sp_4096_from_bin(sp_digit* r, int size, const byte* a, int n)
         d = (byte*)(r + j);
 #ifdef BIG_ENDIAN_ORDER
         switch (i) {
-            case 2: d[1] = *(a++); //fallthrough
-            case 1: d[2] = *(a++); //fallthrough
-            case 0: d[3] = *a    ; //fallthrough
+            case 2: d[1] = *(a++); FALL_THROUGH;
+            case 1: d[2] = *(a++); FALL_THROUGH;
+            case 0: d[3] = *a    ;
         }
 #else
         switch (i) {
-            case 2: d[i-2] = a[2]; //fallthrough
-            case 1: d[i-1] = a[1]; //fallthrough
-            case 0: d[i-0] = a[0]; //fallthrough
+            case 2: d[i-2] = a[2]; FALL_THROUGH;
+            case 1: d[i-1] = a[1]; FALL_THROUGH;
+            case 0: d[i-0] = a[0];
         }
 #endif
         j++;
@@ -57204,15 +57204,15 @@ WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_4096_mont_reduce_128(
 #endif
         "ldr	r10, [%[a], #508]\n\t"
         "lsl	r6, r8, #16\n\t"
-        "lsl	r7, r7, #16\n\t"
+        "lsl	r7, r11, #16\n\t"
         "lsr	r6, r6, #16\n\t"
         "lsr	r7, r7, #16\n\t"
         "mul	r7, r6, r7\n\t"
         "adds	r5, r5, r7\n\t"
-        "adcs	r4, r4, #0\n\t"
+        "adcs	r4, r3, #0\n\t"
         "mov	r3, #0\n\t"
         "adc	r3, r3, r3\n\t"
-        "lsr	r7, r7, #16\n\t"
+        "lsr	r7, r11, #16\n\t"
         "mul	r6, r7, r6\n\t"
         "lsr	r7, r6, #16\n\t"
         "lsl	r6, r6, #16\n\t"
@@ -57220,11 +57220,11 @@ WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_4096_mont_reduce_128(
         "adcs	r4, r4, r7\n\t"
         "adc	r3, r3, #0\n\t"
         "mov	r6, r8\n\t"
-        "lsr	r7, r7, #16\n\t"
+        "lsr	r7, r11, #16\n\t"
         "lsr	r6, r6, #16\n\t"
         "mul	r7, r6, r7\n\t"
         "adds	r4, r4, r7\n\t"
-        "lsl	r7, r7, #16\n\t"
+        "lsl	r7, r11, #16\n\t"
         "adc	r3, r3, #0\n\t"
         "lsr	r7, r7, #16\n\t"
         "mul	r6, r7, r6\n\t"
@@ -70665,7 +70665,7 @@ WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_mont_mul_8(sp_digit* r,
         : [r] "r" (r), [a] "r" (a), [b] "r" (b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "lr",
-            "r12"
+            "r12", "r11"
     );
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     (void)m_p;
@@ -71480,7 +71480,6 @@ WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_mont_sqr_8(sp_digit* r,
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
-        "sub	sp, sp, #0x44\n\t"
         "sub	sp, sp, #0x44\n\t"
         "mov	r5, #0\n\t"
         /* A[0] * A[1] */
@@ -72663,7 +72662,7 @@ WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_mont_sqr_8(sp_digit* r,
         : [r] "r" (r), [a] "r" (a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r12", "r8", "r9",
-            "r10", "lr"
+            "r10", "lr", "r11"
     );
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     (void)m_p;
@@ -73946,15 +73945,15 @@ WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_mont_reduce_8(sp_digit* a,
 #endif
         "ldr	r10, [%[a], #28]\n\t"
         "lsl	r6, r8, #16\n\t"
-        "lsl	r7, r7, #16\n\t"
+        "lsl	r7, r11, #16\n\t"
         "lsr	r6, r6, #16\n\t"
         "lsr	r7, r7, #16\n\t"
         "mul	r7, r6, r7\n\t"
         "adds	r5, r5, r7\n\t"
-        "adcs	r4, r4, #0\n\t"
+        "adcs	r4, r3, #0\n\t"
         "mov	r3, #0\n\t"
         "adc	r3, r3, r3\n\t"
-        "lsr	r7, r7, #16\n\t"
+        "lsr	r7, r11, #16\n\t"
         "mul	r6, r7, r6\n\t"
         "lsr	r7, r6, #16\n\t"
         "lsl	r6, r6, #16\n\t"
@@ -73962,11 +73961,11 @@ WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_mont_reduce_8(sp_digit* a,
         "adcs	r4, r4, r7\n\t"
         "adc	r3, r3, #0\n\t"
         "mov	r6, r8\n\t"
-        "lsr	r7, r7, #16\n\t"
+        "lsr	r7, r11, #16\n\t"
         "lsr	r6, r6, #16\n\t"
         "mul	r7, r6, r7\n\t"
         "adds	r4, r4, r7\n\t"
-        "lsl	r7, r7, #16\n\t"
+        "lsl	r7, r11, #16\n\t"
         "adc	r3, r3, #0\n\t"
         "lsr	r7, r7, #16\n\t"
         "mul	r6, r7, r6\n\t"
@@ -74638,15 +74637,15 @@ WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_mont_reduce_order_8(
 #endif
         "ldr	r10, [%[a], #28]\n\t"
         "lsl	r6, r8, #16\n\t"
-        "lsl	r7, r7, #16\n\t"
+        "lsl	r7, r11, #16\n\t"
         "lsr	r6, r6, #16\n\t"
         "lsr	r7, r7, #16\n\t"
         "mul	r7, r6, r7\n\t"
         "adds	r5, r5, r7\n\t"
-        "adcs	r4, r4, #0\n\t"
+        "adcs	r4, r3, #0\n\t"
         "mov	r3, #0\n\t"
         "adc	r3, r3, r3\n\t"
-        "lsr	r7, r7, #16\n\t"
+        "lsr	r7, r11, #16\n\t"
         "mul	r6, r7, r6\n\t"
         "lsr	r7, r6, #16\n\t"
         "lsl	r6, r6, #16\n\t"
@@ -74654,11 +74653,11 @@ WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_mont_reduce_order_8(
         "adcs	r4, r4, r7\n\t"
         "adc	r3, r3, #0\n\t"
         "mov	r6, r8\n\t"
-        "lsr	r7, r7, #16\n\t"
+        "lsr	r7, r11, #16\n\t"
         "lsr	r6, r6, #16\n\t"
         "mul	r7, r6, r7\n\t"
         "adds	r4, r4, r7\n\t"
-        "lsl	r7, r7, #16\n\t"
+        "lsl	r7, r11, #16\n\t"
         "adc	r3, r3, #0\n\t"
         "lsr	r7, r7, #16\n\t"
         "mul	r6, r7, r6\n\t"
@@ -75552,7 +75551,7 @@ static int sp_256_proj_point_dbl_8_nb(sp_ecc_ctx_t* sp_ctx, sp_point_256* r,
         /* Y = Y - T2 */
         sp_256_mont_sub_8(ctx->y, ctx->y, ctx->t2, p256_mod);
         ctx->state = 19;
-        /* fall-through */
+        FALL_THROUGH;
     case 19:
         err = MP_OKAY;
         break;
@@ -78806,15 +78805,15 @@ static void sp_256_from_bin(sp_digit* r, int size, const byte* a, int n)
         d = (byte*)(r + j);
 #ifdef BIG_ENDIAN_ORDER
         switch (i) {
-            case 2: d[1] = *(a++); //fallthrough
-            case 1: d[2] = *(a++); //fallthrough
-            case 0: d[3] = *a    ; //fallthrough
+            case 2: d[1] = *(a++); FALL_THROUGH;
+            case 1: d[2] = *(a++); FALL_THROUGH;
+            case 0: d[3] = *a    ;
         }
 #else
         switch (i) {
-            case 2: d[i-2] = a[2]; //fallthrough
-            case 1: d[i-1] = a[1]; //fallthrough
-            case 0: d[i-0] = a[0]; //fallthrough
+            case 2: d[i-2] = a[2]; FALL_THROUGH;
+            case 1: d[i-1] = a[1]; FALL_THROUGH;
+            case 0: d[i-0] = a[0];
         }
 #endif
         j++;
@@ -92181,15 +92180,15 @@ WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_384_mont_reduce_12(sp_digit* a,
 #endif
         "ldr	r10, [%[a], #44]\n\t"
         "lsl	r6, r8, #16\n\t"
-        "lsl	r7, r7, #16\n\t"
+        "lsl	r7, r11, #16\n\t"
         "lsr	r6, r6, #16\n\t"
         "lsr	r7, r7, #16\n\t"
         "mul	r7, r6, r7\n\t"
         "adds	r5, r5, r7\n\t"
-        "adcs	r4, r4, #0\n\t"
+        "adcs	r4, r3, #0\n\t"
         "mov	r3, #0\n\t"
         "adc	r3, r3, r3\n\t"
-        "lsr	r7, r7, #16\n\t"
+        "lsr	r7, r11, #16\n\t"
         "mul	r6, r7, r6\n\t"
         "lsr	r7, r6, #16\n\t"
         "lsl	r6, r6, #16\n\t"
@@ -92197,11 +92196,11 @@ WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_384_mont_reduce_12(sp_digit* a,
         "adcs	r4, r4, r7\n\t"
         "adc	r3, r3, #0\n\t"
         "mov	r6, r8\n\t"
-        "lsr	r7, r7, #16\n\t"
+        "lsr	r7, r11, #16\n\t"
         "lsr	r6, r6, #16\n\t"
         "mul	r7, r6, r7\n\t"
         "adds	r4, r4, r7\n\t"
-        "lsl	r7, r7, #16\n\t"
+        "lsl	r7, r11, #16\n\t"
         "adc	r3, r3, #0\n\t"
         "lsr	r7, r7, #16\n\t"
         "mul	r6, r7, r6\n\t"
@@ -93814,7 +93813,7 @@ static int sp_384_proj_point_dbl_12_nb(sp_ecc_ctx_t* sp_ctx, sp_point_384* r,
         /* Y = Y - T2 */
         sp_384_mont_sub_12(ctx->y, ctx->y, ctx->t2, p384_mod);
         ctx->state = 19;
-        /* fall-through */
+        FALL_THROUGH;
     case 19:
         err = MP_OKAY;
         break;
@@ -97132,15 +97131,15 @@ static void sp_384_from_bin(sp_digit* r, int size, const byte* a, int n)
         d = (byte*)(r + j);
 #ifdef BIG_ENDIAN_ORDER
         switch (i) {
-            case 2: d[1] = *(a++); //fallthrough
-            case 1: d[2] = *(a++); //fallthrough
-            case 0: d[3] = *a    ; //fallthrough
+            case 2: d[1] = *(a++); FALL_THROUGH;
+            case 1: d[2] = *(a++); FALL_THROUGH;
+            case 0: d[3] = *a    ;
         }
 #else
         switch (i) {
-            case 2: d[i-2] = a[2]; //fallthrough
-            case 1: d[i-1] = a[1]; //fallthrough
-            case 0: d[i-0] = a[0]; //fallthrough
+            case 2: d[i-2] = a[2]; FALL_THROUGH;
+            case 1: d[i-1] = a[1]; FALL_THROUGH;
+            case 0: d[i-0] = a[0];
         }
 #endif
         j++;
@@ -119379,15 +119378,15 @@ WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_521_mont_reduce_order_17(
 #endif
         "ldr	r10, [%[a], #64]\n\t"
         "lsl	r6, r8, #16\n\t"
-        "lsl	r7, r7, #16\n\t"
+        "lsl	r7, r11, #16\n\t"
         "lsr	r6, r6, #16\n\t"
         "lsr	r7, r7, #16\n\t"
         "mul	r7, r6, r7\n\t"
         "adds	r4, r4, r7\n\t"
-        "adcs	r5, r5, #0\n\t"
+        "adcs	r5, r3, #0\n\t"
         "mov	r3, #0\n\t"
         "adc	r3, r3, r3\n\t"
-        "lsr	r7, r7, #16\n\t"
+        "lsr	r7, r11, #16\n\t"
         "mul	r6, r7, r6\n\t"
         "lsr	r7, r6, #16\n\t"
         "lsl	r6, r6, #16\n\t"
@@ -119395,11 +119394,11 @@ WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_521_mont_reduce_order_17(
         "adcs	r5, r5, r7\n\t"
         "adc	r3, r3, #0\n\t"
         "mov	r6, r8\n\t"
-        "lsr	r7, r7, #16\n\t"
+        "lsr	r7, r11, #16\n\t"
         "lsr	r6, r6, #16\n\t"
         "mul	r7, r6, r7\n\t"
         "adds	r5, r5, r7\n\t"
-        "lsl	r7, r7, #16\n\t"
+        "lsl	r7, r11, #16\n\t"
         "adc	r3, r3, #0\n\t"
         "lsr	r7, r7, #16\n\t"
         "mul	r6, r7, r6\n\t"
@@ -121173,7 +121172,7 @@ static int sp_521_proj_point_dbl_17_nb(sp_ecc_ctx_t* sp_ctx, sp_point_521* r,
         /* Y = Y - T2 */
         sp_521_mont_sub_17(ctx->y, ctx->y, ctx->t2, p521_mod);
         ctx->state = 19;
-        /* fall-through */
+        FALL_THROUGH;
     case 19:
         err = MP_OKAY;
         break;
@@ -125131,15 +125130,15 @@ static void sp_521_from_bin(sp_digit* r, int size, const byte* a, int n)
         d = (byte*)(r + j);
 #ifdef BIG_ENDIAN_ORDER
         switch (i) {
-            case 2: d[1] = *(a++); //fallthrough
-            case 1: d[2] = *(a++); //fallthrough
-            case 0: d[3] = *a    ; //fallthrough
+            case 2: d[1] = *(a++); FALL_THROUGH;
+            case 1: d[2] = *(a++); FALL_THROUGH;
+            case 0: d[3] = *a    ;
         }
 #else
         switch (i) {
-            case 2: d[i-2] = a[2]; //fallthrough
-            case 1: d[i-1] = a[1]; //fallthrough
-            case 0: d[i-0] = a[0]; //fallthrough
+            case 2: d[i-2] = a[2]; FALL_THROUGH;
+            case 1: d[i-1] = a[1]; FALL_THROUGH;
+            case 0: d[i-0] = a[0];
         }
 #endif
         j++;
@@ -149317,15 +149316,15 @@ WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_1024_mont_reduce_32(
 #endif
         "ldr	r10, [%[a], #124]\n\t"
         "lsl	r6, r8, #16\n\t"
-        "lsl	r7, r7, #16\n\t"
+        "lsl	r7, r11, #16\n\t"
         "lsr	r6, r6, #16\n\t"
         "lsr	r7, r7, #16\n\t"
         "mul	r7, r6, r7\n\t"
         "adds	r5, r5, r7\n\t"
-        "adcs	r4, r4, #0\n\t"
+        "adcs	r4, r3, #0\n\t"
         "mov	r3, #0\n\t"
         "adc	r3, r3, r3\n\t"
-        "lsr	r7, r7, #16\n\t"
+        "lsr	r7, r11, #16\n\t"
         "mul	r6, r7, r6\n\t"
         "lsr	r7, r6, #16\n\t"
         "lsl	r6, r6, #16\n\t"
@@ -149333,11 +149332,11 @@ WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_1024_mont_reduce_32(
         "adcs	r4, r4, r7\n\t"
         "adc	r3, r3, #0\n\t"
         "mov	r6, r8\n\t"
-        "lsr	r7, r7, #16\n\t"
+        "lsr	r7, r11, #16\n\t"
         "lsr	r6, r6, #16\n\t"
         "mul	r7, r6, r7\n\t"
         "adds	r4, r4, r7\n\t"
-        "lsl	r7, r7, #16\n\t"
+        "lsl	r7, r11, #16\n\t"
         "adc	r3, r3, #0\n\t"
         "lsr	r7, r7, #16\n\t"
         "mul	r6, r7, r6\n\t"
@@ -151490,7 +151489,7 @@ static int sp_1024_proj_point_dbl_32_nb(sp_ecc_ctx_t* sp_ctx, sp_point_1024* r,
         /* Y = Y - T2 */
         sp_1024_mont_sub_32(ctx->y, ctx->y, ctx->t2, p1024_mod);
         ctx->state = 19;
-        /* fall-through */
+        FALL_THROUGH;
     case 19:
         err = MP_OKAY;
         break;
@@ -160133,15 +160132,15 @@ static void sp_1024_from_bin(sp_digit* r, int size, const byte* a, int n)
         d = (byte*)(r + j);
 #ifdef BIG_ENDIAN_ORDER
         switch (i) {
-            case 2: d[1] = *(a++); //fallthrough
-            case 1: d[2] = *(a++); //fallthrough
-            case 0: d[3] = *a    ; //fallthrough
+            case 2: d[1] = *(a++); FALL_THROUGH;
+            case 1: d[2] = *(a++); FALL_THROUGH;
+            case 0: d[3] = *a    ;
         }
 #else
         switch (i) {
-            case 2: d[i-2] = a[2]; //fallthrough
-            case 1: d[i-1] = a[1]; //fallthrough
-            case 0: d[i-0] = a[0]; //fallthrough
+            case 2: d[i-2] = a[2]; FALL_THROUGH;
+            case 1: d[i-1] = a[1]; FALL_THROUGH;
+            case 0: d[i-0] = a[0];
         }
 #endif
         j++;

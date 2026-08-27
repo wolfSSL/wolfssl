@@ -30,15 +30,13 @@
  *     Check that the private key didn't change during the signing operations.
  */
 
+#define WC_FIPS_LL_CRYPTO
 #define _WC_BUILDING_ED448_C
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef HAVE_ED448
 #if FIPS_VERSION3_GE(6,0,0)
-    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
-    #define FIPS_NO_WRAPPERS
-
        #ifdef USE_WINDOWS_API
                #pragma code_seg(".fipsA$f")
                #pragma const_seg(".fipsB$f")
@@ -47,6 +45,9 @@
 
 #include <wolfssl/wolfcrypt/ed448.h>
 #include <wolfssl/wolfcrypt/hash.h>
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -445,6 +446,31 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
     WC_DECLARE_VAR(sha, wc_Shake, 1, key ? key->heap : NULL);
 #endif
 
+    /* sanity check on arguments */
+    if ((in == NULL) || (out == NULL) || (outLen == NULL) || (key == NULL) ||
+                                     ((context == NULL) && (contextLen != 0))) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    if ((ret == 0) && (type == Ed448ph) && (inLen != ED448_PREHASH_SIZE)) {
+        ret = BAD_LENGTH_E;
+    }
+
+#ifdef WOLF_CRYPTO_CB
+    if (ret == 0) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+        if (key->devId != INVALID_DEVID)
+    #endif
+        {
+            ret = wc_CryptoCb_Ed448Sign(in, inLen, out, outLen, key, type,
+                context, contextLen);
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                return ret;
+            ret = 0; /* fall-through when unavailable */
+        }
+    }
+#endif
+
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     /* Register the secret nonce/expanded-key buffers up front so that any exit
      * path from here to the ForceZero below is checked for proper zeroization.
@@ -459,21 +485,11 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 #endif
 #endif
 
-    /* sanity check on arguments */
-    if ((in == NULL) || (out == NULL) || (outLen == NULL) || (key == NULL) ||
-                                     ((context == NULL) && (contextLen != 0))) {
-        ret = BAD_FUNC_ARG;
-    }
     if ((ret == 0) && (!key->pubKeySet)) {
         ret = BAD_FUNC_ARG;
     }
     if ((ret == 0) && (!key->privKeySet)) {
         ret = BAD_FUNC_ARG;
-    }
-
-    if ((ret == 0) && (type == Ed448ph) && (inLen != ED448_PREHASH_SIZE))
-    {
-        ret = BAD_LENGTH_E;
     }
 
     /* check and set up out length */
@@ -925,6 +941,21 @@ int wc_ed448_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
     {
         return BAD_LENGTH_E;
     }
+
+#ifdef WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+    #endif
+    {
+        if (res != NULL)
+            *res = 0;
+        ret = wc_CryptoCb_Ed448Verify(sig, sigLen, msg, msgLen, res, key, type,
+            context, contextLen);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret;
+        /* fall-through when unavailable */
+    }
+#endif
 
 #ifdef WOLFSSL_ED448_PERSISTENT_SHA
     sha = &key->sha;

@@ -76,11 +76,12 @@ extern "C" {
 /* ML-KEM / Kyber (Key Encapsulation) */
 /* ------------------------------------------------- */
 #if 1 /* ML-KEM (FIPS 203) */
-    #define WOLFSSL_HAVE_KYBER
-    #define WOLFSSL_WC_KYBER
-    #define WOLFSSL_KYBER512   /* Level 1: 128-bit security */
-    #define WOLFSSL_KYBER768   /* Level 3: 192-bit security */
-    #define WOLFSSL_KYBER1024  /* Level 5: 256-bit security */
+    #define WOLFSSL_HAVE_MLKEM
+    /* All three parameter sets are built by default - Level 1 (ML-KEM-512),
+     * Level 3 (768) and Level 5 (1024). Remove one with the matching
+     * WOLFSSL_NO_ML_KEM_512 / _768 / _1024. */
+    #define WOLFSSL_SHAKE128
+    #define WOLFSSL_SHAKE256
 #endif
 
 /* ------------------------------------------------- */

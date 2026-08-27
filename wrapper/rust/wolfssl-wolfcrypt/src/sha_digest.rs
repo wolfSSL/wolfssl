@@ -122,21 +122,21 @@ impl_digest_traits! {
 }
 
 impl_digest_traits! {
-    #[cfg(sha3)]
+    #[cfg(sha3_224)]
     crate::sha::SHA3_224, out = U28, block = U144
 }
 
 impl_digest_traits! {
-    #[cfg(sha3)]
+    #[cfg(sha3_256)]
     crate::sha::SHA3_256, out = U32, block = U136
 }
 
 impl_digest_traits! {
-    #[cfg(sha3)]
+    #[cfg(sha3_384)]
     crate::sha::SHA3_384, out = U48, block = U104
 }
 
 impl_digest_traits! {
-    #[cfg(sha3)]
+    #[cfg(sha3_512)]
     crate::sha::SHA3_512, out = U64, block = U72
 }

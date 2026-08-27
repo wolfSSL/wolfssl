@@ -320,25 +320,23 @@
     #else
         #include <version.h>
     #endif
-    /* Include sys/types.h early so host libc sets __timer_t_defined
-     * before Zephyr's posix_types.h can define a conflicting timer_t */
+    /* Include sys/types.h early so host libc sets __timer_t_defined before any
+     * later Zephyr posix_types.h (pulled in by an application POSIX layer, e.g.
+     * CONFIG_POSIX_API) can define a conflicting timer_t. wolfCrypt itself does
+     * not include posix_types.h on Zephyr; this include is purely defensive. */
     #include <sys/types.h>
     #ifndef SINGLE_THREADED
-        #if !defined(CONFIG_PTHREAD_IPC) && !defined(CONFIG_POSIX_THREADS)
-            #error "Threading needs CONFIG_PTHREAD_IPC / CONFIG_POSIX_THREADS"
-        #endif
+        /* wolfCrypt's threading primitives on Zephyr are backed by native
+         * kernel objects: k_mutex for wolfSSL_Mutex, k_thread for thread
+         * creation, and k_condvar for condition variables. These all come from
+         * <zephyr/kernel.h> and do NOT require the POSIX compatibility layer,
+         * so a multi-threaded wolfCrypt build does not need
+         * CONFIG_POSIX_THREADS / CONFIG_PTHREAD_IPC and pulls in no pthread
+         * headers of its own. */
         #if KERNEL_VERSION_NUMBER >= 0x30100
             #include <zephyr/kernel.h>
-            #ifndef CONFIG_ARCH_POSIX
-                #include <zephyr/posix/posix_types.h>
-                #include <zephyr/posix/pthread.h>
-            #endif
         #else
             #include <kernel.h>
-            #ifndef CONFIG_ARCH_POSIX
-                #include <posix/posix_types.h>
-                #include <posix/pthread.h>
-            #endif
         #endif
     #endif
 
@@ -1026,6 +1024,18 @@ WOLFSSL_LOCAL void wolfSSL_RefWithMutexDec_IfEquals(wolfSSL_RefWithMutex* ref,
     WOLFSSL_API int wc_UnLockMutex(wolfSSL_Mutex* m);
 #endif
 WOLFSSL_API wolfSSL_Mutex* wc_InitAndAllocMutex(void);
+#ifndef WOLFSSL_MUTEX_INITIALIZER
+    /* Election state for wc_local_InitMutexOnce(). Define objects with
+     * WOLFSSL_ATOMIC_INITIALIZER(0) and only touch them through
+     * WOLFSSL_ATOMIC_LOAD/STORE. */
+    #if defined(WOLFSSL_ATOMIC_OPS) && !defined(SINGLE_THREADED)
+        typedef wolfSSL_Atomic_Uint wc_MutexOnceFlag;
+    #else
+        typedef unsigned int wc_MutexOnceFlag;
+    #endif
+    WOLFSSL_LOCAL int wc_local_InitMutexOnce(wolfSSL_Mutex* m,
+        wc_MutexOnceFlag* flag);
+#endif
 #ifndef WC_RWLOCK_OPS_INLINE
     /* RwLock functions. Fallback to Mutex when not implemented explicitly. */
     WOLFSSL_API int wc_InitRwLock(wolfSSL_RwLock* m);

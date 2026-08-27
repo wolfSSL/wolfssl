@@ -450,6 +450,72 @@ static int test_quic_record_cap(void) {
     return EXPECT_RESULT();
 }
 
+/* size of a handshake message that does not fit into a single TLS record,
+ * yet stays below what the record layer accepts for one message */
+#define QUIC_SPLIT_MSG_SZ  ((word32)MAX_RECORD_SIZE + 1024)
+
+static int test_quic_record_split(void) {
+    EXPECT_DECLS;
+    static const byte tp_params[] = {0, 1, 2, 3, 4, 5, 6, 7};
+    /* message sizes around the point where a second TLS record is needed,
+     * the +1..+4 tails are shorter than a record header */
+    static const word32 msg_sizes[] = {
+        (word32)MAX_RECORD_SIZE - HANDSHAKE_HEADER_SZ,     /* one record */
+        (word32)MAX_RECORD_SIZE - HANDSHAKE_HEADER_SZ + 1,
+        (word32)MAX_RECORD_SIZE - HANDSHAKE_HEADER_SZ + 2,
+        (word32)MAX_RECORD_SIZE - HANDSHAKE_HEADER_SZ + 3,
+        (word32)MAX_RECORD_SIZE - HANDSHAKE_HEADER_SZ + 4,
+        QUIC_SPLIT_MSG_SZ
+    };
+    WOLFSSL_CTX * ctx = NULL;
+    WOLFSSL *     ssl = NULL;
+    uint8_t *     msg = NULL;
+    size_t        len = 0;
+    size_t        i;
+
+    ExpectNotNull(msg = (uint8_t*)XMALLOC(
+        QUIC_SPLIT_MSG_SZ + HANDSHAKE_HEADER_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectTrue(wolfSSL_CTX_set_quic_method(ctx, &dummy_method)
+               == WOLFSSL_SUCCESS);
+
+    for (i = 0; i < XELEM_CNT(msg_sizes); i++) {
+        if (msg != NULL) {
+            XMEMSET(msg, 0, msg_sizes[i] + HANDSHAKE_HEADER_SZ);
+            len = fake_record(server_hello, msg_sizes[i], msg);
+        }
+        ExpectNotNull(ssl = wolfSSL_new(ctx));
+        ExpectTrue(wolfSSL_set_quic_transport_params(ssl, tp_params,
+                                                     sizeof(tp_params))
+                   == WOLFSSL_SUCCESS);
+
+        /* send the ClientHello, then wait for the server flight */
+        ExpectIntNE(wolfSSL_connect(ssl), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_get_error(ssl, 0),
+                    WC_NO_ERR_TRACE(SSL_ERROR_WANT_READ));
+
+        ExpectTrue(provide_data(ssl, wolfssl_encryption_initial, msg, len, 0));
+
+        /* every record handed to the record layer must be complete, so the
+         * zeroed ServerHello is parsed and rejected on its version */
+        ExpectIntNE(wolfSSL_connect(ssl), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_get_error(ssl, 0),
+                    WC_NO_ERR_TRACE(VERSION_ERROR));
+
+        wolfSSL_free(ssl);
+        ssl = NULL;
+    }
+
+    wolfSSL_CTX_free(ctx);
+    XFREE(msg, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    printf("    test_quic_record_split: %s\n",
+           (EXPECT_SUCCESS()) ? pass : fail);
+    return EXPECT_RESULT();
+}
+
 static int test_quic_crypt(void) {
     EXPECT_DECLS;
     WOLFSSL_CTX * ctx = NULL;
@@ -1120,7 +1186,8 @@ typedef struct {
     char rec_log[16*1024];
     int sent_early_data;
     int accept_early_data;
-    char early_data[16*1024];
+    /* holds more than one TLS record worth of early data */
+    char early_data[32*1024];
     size_t early_data_len;
 } QuicConversation;
 
@@ -1420,6 +1487,241 @@ static int test_quic_server_hello(int verbose) {
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_CTX_free(ctx_s);
     printf("    test_quic_server_hello: %s\n", EXPECT_RESULT() ? pass : fail);
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_EARLY_DATA)
+#define QUIC_CLEAR_REUSE_0RTT
+#endif
+
+/* wolfSSL_clear() resets a WOLFSSL for the next connection, the second
+ * handshake uses 0-RTT because the early data key is the only one reaching
+ * wolfSSL_quic_keys_active() without enc_level_*_next being staged first. */
+static int test_quic_clear_reuse(int verbose) {
+    EXPECT_DECLS;
+    WOLFSSL_CTX * ctx_c = NULL;
+    WOLFSSL_CTX * ctx_s = NULL;
+    QuicTestContext tclient, tserver;
+    QuicConversation conv;
+#ifdef QUIC_CLEAR_REUSE_0RTT
+    WOLFSSL_SESSION * session = NULL;
+    const byte        early_data[] = "Nulla dies sine linea!";
+    size_t            ed_written = 0;
+#endif
+
+    ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile,
+                                                WOLFSSL_FILETYPE_PEM));
+    ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile,
+                                               WOLFSSL_FILETYPE_PEM));
+
+    QuicTestContext_init(&tclient, ctx_c, "client", verbose);
+    QuicTestContext_init(&tserver, ctx_s, "server", verbose);
+#ifdef QUIC_CLEAR_REUSE_0RTT
+    /* so the ticket this hands out lets the second handshake use 0-RTT */
+    wolfSSL_set_quic_early_data_enabled(tserver.ssl, 1);
+#endif
+
+    /* run a complete handshake, it leaves both ends at application level */
+    QuicConversation_init(&conv, &tclient, &tserver);
+    QuicConversation_do(&conv);
+    ExpectIntEQ(tclient.output.len, 0);
+    ExpectIntEQ(tserver.output.len, 0);
+    ExpectTrue(wolfSSL_quic_read_level(tclient.ssl)
+               == wolfssl_encryption_application);
+    ExpectTrue(wolfSSL_quic_write_level(tclient.ssl)
+               == wolfssl_encryption_application);
+#ifdef QUIC_CLEAR_REUSE_0RTT
+    ExpectTrue(tclient.ticket_len > 0);
+    ExpectNotNull(session = wolfSSL_get1_session(tclient.ssl));
+#endif
+
+    /* hand both objects back for the next connection */
+    ExpectIntEQ(wolfSSL_clear(tclient.ssl), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_clear(tserver.ssl), WOLFSSL_SUCCESS);
+
+    /* both levels are where a fresh object starts */
+    ExpectTrue(wolfSSL_quic_read_level(tclient.ssl)
+               == wolfssl_encryption_initial);
+    ExpectTrue(wolfSSL_quic_write_level(tclient.ssl)
+               == wolfssl_encryption_initial);
+    ExpectTrue(wolfSSL_quic_read_level(tserver.ssl)
+               == wolfssl_encryption_initial);
+    ExpectTrue(wolfSSL_quic_write_level(tserver.ssl)
+               == wolfssl_encryption_initial);
+
+    /* the enc_level_*_next fields have no getter, so run a second, complete
+     * handshake and let it copy them into the levels that do */
+    QuicConversation_init(&conv, &tclient, &tserver);
+#ifdef QUIC_CLEAR_REUSE_0RTT
+    ExpectIntEQ(wolfSSL_set_session(tclient.ssl, session), WOLFSSL_SUCCESS);
+    wolfSSL_set_quic_early_data_enabled(tserver.ssl, 1);
+    conv.accept_early_data = 1;
+
+    /* client writes the ClientHello and the early data after it */
+    QuicConversation_start(&conv, early_data, sizeof(early_data), &ed_written);
+    ExpectIntEQ(ed_written, sizeof(early_data));
+    /* installing the early data write key must not move the write level */
+    ExpectTrue(wolfSSL_quic_write_level(tclient.ssl)
+               == wolfssl_encryption_initial);
+
+    /* server is still reading with the early data key here, so installing
+     * it must not have moved the read level either */
+    ExpectIntEQ(QuicConversation_step(&conv, 0), 1);
+    ExpectTrue(wolfSSL_quic_read_level(tserver.ssl)
+               == wolfssl_encryption_initial);
+#endif
+    QuicConversation_do(&conv);
+    ExpectIntEQ(tclient.output.len, 0);
+    ExpectIntEQ(tserver.output.len, 0);
+#ifdef QUIC_CLEAR_REUSE_0RTT
+    ExpectIntEQ(wolfSSL_get_early_data_status(tclient.ssl),
+                WOLFSSL_EARLY_DATA_ACCEPTED);
+    ExpectIntEQ(conv.early_data_len, sizeof(early_data));
+    ExpectStrEQ(conv.early_data, (const char*)early_data);
+    wolfSSL_SESSION_free(session);
+#endif
+
+    /* and the reused objects end up where the fresh ones did */
+    ExpectTrue(wolfSSL_quic_read_level(tclient.ssl)
+               == wolfssl_encryption_application);
+    ExpectTrue(wolfSSL_quic_write_level(tclient.ssl)
+               == wolfssl_encryption_application);
+    ExpectTrue(wolfSSL_quic_read_level(tserver.ssl)
+               == wolfssl_encryption_application);
+    ExpectTrue(wolfSSL_quic_write_level(tserver.ssl)
+               == wolfssl_encryption_application);
+
+    QuicTestContext_free(&tclient);
+    QuicTestContext_free(&tserver);
+
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    printf("    test_quic_clear_reuse: %s\n", EXPECT_RESULT() ? pass : fail);
+    return EXPECT_RESULT();
+}
+#undef QUIC_CLEAR_REUSE_0RTT
+
+/* how far the ClientHello is driven past MAX_RECORD_SIZE, and the payload
+ * the probe run uses to measure everything else in it */
+#define QUIC_BIG_TP_MARGIN  1024
+#define QUIC_TP_PROBE_SZ    16
+/* wolfSSL rejects a transport parameter payload above this */
+#define QUIC_TP_MAX_SZ      65535
+
+/* length of the ClientHello this client sends with a payload of tp_sz
+ * transport parameter bytes in it */
+static size_t quic_client_hello_len(WOLFSSL_CTX *ctx, const byte *tp,
+                                    size_t tp_sz, int verbose)
+{
+    QuicTestContext tctx;
+    size_t          len;
+
+    QuicTestContext_init(&tctx, ctx, "probe", verbose);
+    wolfSSL_set_quic_transport_version(tctx.ssl, TLSX_KEY_QUIC_TP_PARAMS);
+    AssertIntEQ(wolfSSL_set_quic_transport_params(tctx.ssl, tp, tp_sz),
+                WOLFSSL_SUCCESS);
+    AssertIntNE(wolfSSL_connect(tctx.ssl), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_get_error(tctx.ssl, 0),
+                WC_NO_ERR_TRACE(SSL_ERROR_WANT_READ));
+    len = tctx.output.len;
+    QuicTestContext_free(&tctx);
+    return len;
+}
+
+static int test_quic_big_client_hello(int verbose) {
+    EXPECT_DECLS;
+    WOLFSSL_CTX * ctx_c = NULL;
+    WOLFSSL_CTX * ctx_s = NULL;
+    QuicTestContext tclient, tserver;
+    QuicConversation conv;
+    byte            probe[QUIC_TP_PROBE_SZ];
+    byte *          tp_params = NULL;
+    const uint8_t * peer_params = NULL;
+    size_t          peer_len = 0;
+    size_t          base_len = 0;
+    size_t          tp_sz = 0;
+    size_t          i;
+
+    ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile,
+                                                WOLFSSL_FILETYPE_PEM));
+    ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile,
+                                               WOLFSSL_FILETYPE_PEM));
+
+    /* the size of a ClientHello varies a lot with the enabled key shares,
+     * so measure one and size the transport parameters from that */
+    XMEMSET(probe, 0x42, sizeof(probe));
+    if (ctx_c != NULL) {
+        base_len = quic_client_hello_len(ctx_c, probe, sizeof(probe), verbose);
+    }
+    ExpectTrue(base_len > (size_t)QUIC_TP_PROBE_SZ);
+    ExpectTrue(base_len < (size_t)MAX_RECORD_SIZE);
+    if (base_len > (size_t)QUIC_TP_PROBE_SZ &&
+        base_len < (size_t)MAX_RECORD_SIZE) {
+        tp_sz = (size_t)MAX_RECORD_SIZE + QUIC_BIG_TP_MARGIN
+                - (base_len - (size_t)QUIC_TP_PROBE_SZ);
+    }
+    ExpectTrue(tp_sz > 0);
+    ExpectTrue(tp_sz <= (size_t)QUIC_TP_MAX_SZ);
+    /* the ClientHello still has to fit into a single handshake message */
+    ExpectTrue((size_t)MAX_RECORD_SIZE + QUIC_BIG_TP_MARGIN
+               < (size_t)MAX_HANDSHAKE_SZ);
+
+    if (tp_sz > 0) {
+        ExpectNotNull(tp_params = (byte*)XMALLOC(tp_sz, NULL,
+                                                 DYNAMIC_TYPE_TMP_BUFFER));
+    }
+    if (tp_params != NULL) {
+        /* a pattern, so a mis-ordered reassembly is detected as well */
+        for (i = 0; i < tp_sz; i++) {
+            tp_params[i] = (byte)(i & 0xff);
+        }
+    }
+
+    QuicTestContext_init(&tclient, ctx_c, "client", verbose);
+    QuicTestContext_init(&tserver, ctx_s, "server", verbose);
+    /* a single transport parameter extension, the default sends both the
+     * v1 and the draft one */
+    wolfSSL_set_quic_transport_version(tclient.ssl, TLSX_KEY_QUIC_TP_PARAMS);
+    ExpectTrue(wolfSSL_set_quic_transport_params(tclient.ssl, tp_params,
+                                                 tp_sz)
+               == WOLFSSL_SUCCESS);
+
+    /* the ClientHello has to span more than one TLS record, or this test
+     * checks nothing */
+    ExpectIntNE(wolfSSL_connect(tclient.ssl), WOLFSSL_SUCCESS);
+    ExpectTrue(tclient.output.len > (size_t)MAX_RECORD_SIZE);
+
+    /* the server reassembles the ClientHello from several TLS records */
+    QuicConversation_init(&conv, &tclient, &tserver);
+    conv.started = 1;
+    QuicConversation_do(&conv);
+    ExpectIntEQ(tclient.output.len, 0);
+    ExpectIntEQ(tserver.output.len, 0);
+    ExpectTrue(wolfSSL_quic_read_level(tclient.ssl)
+               == wolfssl_encryption_application);
+    ExpectTrue(wolfSSL_quic_read_level(tserver.ssl)
+               == wolfssl_encryption_application);
+
+    /* and got the parameters out of it unchanged */
+    wolfSSL_get_peer_quic_transport_params(tserver.ssl, &peer_params,
+                                           &peer_len);
+    ExpectIntEQ(peer_len, tp_sz);
+    ExpectNotNull(peer_params);
+    ExpectIntEQ(XMEMCMP(peer_params, tp_params, tp_sz), 0);
+
+    QuicTestContext_free(&tclient);
+    QuicTestContext_free(&tserver);
+
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    XFREE(tp_params, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    printf("    test_quic_big_client_hello: %s\n",
+           EXPECT_SUCCESS() ? pass : fail);
     return EXPECT_RESULT();
 }
 
@@ -1928,6 +2230,98 @@ static int test_quic_early_data(int verbose) {
     printf("    test_quic_early_data: %s\n", EXPECT_SUCCESS() ? pass : fail);
     return EXPECT_RESULT();
 }
+
+/* early data that does not fit into a single TLS record */
+#define QUIC_BIG_ED_SZ  ((size_t)MAX_RECORD_SIZE + 1024)
+
+static size_t output_level_len(const QuicTestContext *ctx,
+                               WOLFSSL_ENCRYPTION_LEVEL level)
+{
+    const OutputBuffer * out = &ctx->output;
+    size_t               len = 0;
+
+    while (out != NULL) {
+        if (out->level == level) {
+            len += out->len;
+        }
+        out = out->next;
+    }
+    return len;
+}
+
+static int test_quic_big_early_data(int verbose) {
+    EXPECT_DECLS;
+    WOLFSSL_CTX *     ctx_c = NULL;
+    WOLFSSL_CTX *     ctx_s = NULL;
+    QuicTestContext   tclient, tserver;
+    QuicConversation  conv;
+    byte *            early_data = NULL;
+    size_t            ed_written = 0;
+    WOLFSSL_SESSION * session = NULL;
+    size_t            i;
+
+    ExpectNotNull(early_data = (byte*)XMALLOC(QUIC_BIG_ED_SZ, NULL,
+                                              DYNAMIC_TYPE_TMP_BUFFER));
+    if (early_data != NULL) {
+        /* a pattern, so a mis-ordered reassembly is detected as well */
+        for (i = 0; i < QUIC_BIG_ED_SZ; i++) {
+            early_data[i] = (byte)(i & 0xff);
+        }
+    }
+
+    ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    wolfSSL_CTX_UseSessionTicket(ctx_c);
+    ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile,
+               WOLFSSL_FILETYPE_PEM));
+    ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile,
+               WOLFSSL_FILETYPE_PEM));
+
+    /* a first handshake, only to obtain a session ticket */
+    QuicTestContext_init(&tclient, ctx_c, "client", verbose);
+    QuicTestContext_init(&tserver, ctx_s, "server", verbose);
+    wolfSSL_set_quic_early_data_enabled(tserver.ssl, 1);
+    QuicConversation_init(&conv, &tclient, &tserver);
+    QuicConversation_do(&conv);
+    ExpectTrue(tclient.ticket_len > 0);
+    ExpectNotNull(session = wolfSSL_get1_session(tclient.ssl));
+    QuicTestContext_free(&tclient);
+    QuicTestContext_free(&tserver);
+
+    /* resume, sending early data over more than one TLS record */
+    QuicTestContext_init(&tserver, ctx_s, "server", verbose);
+    QuicTestContext_init(&tclient, ctx_c, "client", verbose);
+    ExpectIntEQ(wolfSSL_set_session(tclient.ssl, session), WOLFSSL_SUCCESS);
+    wolfSSL_set_quic_early_data_enabled(tserver.ssl, 1);
+    QuicConversation_init(&conv, &tclient, &tserver);
+    /* make QuicConversation_do() use wolfSSL_read_early_data() */
+    conv.accept_early_data = 1;
+    QuicConversation_start(&conv, early_data, QUIC_BIG_ED_SZ, &ed_written);
+    ExpectIntEQ(ed_written, QUIC_BIG_ED_SZ);
+    /* the early data has to span more than one record, or the split path
+     * this exercises is never reached */
+    ExpectTrue(output_level_len(&tclient, wolfssl_encryption_early_data)
+               > (size_t)MAX_RECORD_SIZE);
+
+    QuicConversation_do(&conv);
+    ExpectIntEQ(wolfSSL_get_early_data_status(tclient.ssl),
+                WOLFSSL_EARLY_DATA_ACCEPTED);
+    /* the server reassembled it byte-identically */
+    ExpectIntEQ(conv.early_data_len, QUIC_BIG_ED_SZ);
+    ExpectIntEQ(XMEMCMP(conv.early_data, early_data, QUIC_BIG_ED_SZ), 0);
+
+    QuicTestContext_free(&tclient);
+    QuicTestContext_free(&tserver);
+
+    wolfSSL_SESSION_free(session);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    XFREE(early_data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    printf("    test_quic_big_early_data: %s\n",
+           EXPECT_SUCCESS() ? pass : fail);
+    return EXPECT_RESULT();
+}
 #endif /* WOLFSSL_EARLY_DATA */
 
 static int new_session_cb(WOLFSSL *ssl, WOLFSSL_SESSION *session)
@@ -2049,11 +2443,14 @@ int QuicTest(void)
 #ifndef NO_WOLFSSL_CLIENT
     if ((ret = test_provide_quic_data()) != TEST_SUCCESS) goto leave;
     if ((ret = test_quic_record_cap()) != TEST_SUCCESS) goto leave;
+    if ((ret = test_quic_record_split()) != TEST_SUCCESS) goto leave;
     if ((ret = test_quic_crypt()) != TEST_SUCCESS) goto leave;
     if ((ret = test_quic_client_hello(verbose)) != TEST_SUCCESS) goto leave;
 #endif
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
     if ((ret = test_quic_server_hello(verbose)) != TEST_SUCCESS) goto leave;
+    if ((ret = test_quic_clear_reuse(verbose)) != TEST_SUCCESS) goto leave;
+    if ((ret = test_quic_big_client_hello(verbose)) != TEST_SUCCESS) goto leave;
     if ((ret = test_quic_server_hello_fail(verbose)) != TEST_SUCCESS) goto leave;
     if ((ret = test_quic_key_update_rejected(verbose)) != TEST_SUCCESS) goto leave;
 #ifdef REALLY_HAVE_ALPN_AND_SNI
@@ -2064,6 +2461,7 @@ int QuicTest(void)
     if ((ret = test_quic_resumption(verbose)) != TEST_SUCCESS) goto leave;
 #ifdef WOLFSSL_EARLY_DATA
     if ((ret = test_quic_early_data(verbose)) != TEST_SUCCESS) goto leave;
+    if ((ret = test_quic_big_early_data(verbose)) != TEST_SUCCESS) goto leave;
 #endif /* WOLFSSL_EARLY_DATA */
     if ((ret = test_quic_session_export(verbose)) != TEST_SUCCESS) goto leave;
 #endif /* HAVE_SESSION_TICKET */

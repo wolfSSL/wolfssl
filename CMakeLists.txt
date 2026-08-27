@@ -1,6 +1,6 @@
 # CMakeLists.txt
 #
-# Copyright (C) 2006-2024 wolfSSL Inc.
+# Copyright (C) 2006-2026 wolfSSL Inc.
 #
 # This file is part of wolfSSL. (formerly known as CyaSSL)
 #
@@ -101,6 +101,7 @@ check_include_file("time.h" HAVE_TIME_H)
 check_include_file("sys/ioctl.h" HAVE_SYS_IOCTL_H)
 check_include_file("sys/socket.h" HAVE_SYS_SOCKET_H)
 check_include_file("sys/time.h" HAVE_SYS_TIME_H)
+check_include_file("sys/un.h" HAVE_SYS_UN_H)
 check_include_file("errno.h" HAVE_ERRNO_H)
 check_include_file("dlfcn.h" HAVE_DLFCN_H)
 check_include_file("inttypes.h" HAVE_INTTYPES_H)
@@ -113,12 +114,20 @@ check_include_file("sys/stat.h" HAVE_SYS_STAT_H)
 check_include_file("sys/types.h" HAVE_SYS_TYPES_H)
 check_include_file("unistd.h" HAVE_UNISTD_H)
 
-# types.h depends on HAVE_LIMITS_H, and it is defined in options.h (rather than
-# config.h) so that applications consuming wolfSSL headers see it. The in-tree
-# build, however, is configured through config.h/compile definitions and does
-# not include options.h, so define it here as well.
+# types.h depends on HAVE_LIMITS_H, and callbacks.h sizes WOLFSSL_TIMEVAL with
+# HAVE_SYS_TIME_H. Both are defined in options.h (rather than config.h) so that
+# applications consuming wolfSSL headers see the same value the library was
+# built with. The in-tree build, however, is configured through
+# config.h/compile definitions and does not include options.h, so define them
+# here as well.
 if(HAVE_LIMITS_H)
     add_definitions("-DHAVE_LIMITS_H")
+endif()
+if(HAVE_SYS_TIME_H)
+    add_definitions("-DHAVE_SYS_TIME_H")
+endif()
+if(HAVE_SYS_UN_H)
+    add_definitions("-DHAVE_SYS_UN_H")
 endif()
 
 include(CheckFunctionExists)
@@ -521,6 +530,16 @@ if(WOLFSSL_IOTSAFE)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_IOTSAFE")
 endif()
 
+add_option("WOLFSSL_VAULTIC" "Enable WISeKey/SealSQ VaultIC support (default: disabled)" "no" "yes;no")
+if(WOLFSSL_VAULTIC)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_VAULTIC")
+    # VaultIC port supports PK callbacks and crypto callbacks (mirror autotools
+    # --enable-vaultic). These options are declared later, so force them before
+    # their add_option() calls.
+    force_option(WOLFSSL_PKCALLBACKS "yes")
+    force_option(WOLFSSL_CRYPTOCB "yes")
+endif()
+
 add_option("WOLFSSL_WOLFSENTRY" "Enable wolfSentry support (default: disabled)" "no" "yes;no")
 if(WOLFSSL_WOLFSENTRY)
     foreach(_o WOLFSSL_MD5)
@@ -693,7 +712,7 @@ endif()
 
 # Hello Retry Request Cookie
 add_option("WOLFSSL_HRR_COOKIE"
-    "Enable the server to send Cookie Extension in HRR with state (default: disabled)"
+    "Enable the server to send Cookie Extension in HRR with state. A client always echoes back a cookie it is sent (default: disabled)"
     "undefined" "yes;no;undefined")
 
 if("${WOLFSSL_HRR_COOKIE}" STREQUAL "yes")
@@ -703,6 +722,32 @@ if("${WOLFSSL_HRR_COOKIE}" STREQUAL "yes")
     else()
         list(APPEND WOLFSSL_DEFINITIONS
             "-DWOLFSSL_SEND_HRR_COOKIE")
+    endif()
+endif()
+
+# TLS v1.3 middlebox compatibility (RFC 8446 Appendix D.4)
+add_option("WOLFSSL_TLS13_MIDDLEBOX_COMPAT"
+    "Enable TLS v1.3 middlebox compatibility mode (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_TLS13_MIDDLEBOX_COMPAT)
+    if(NOT WOLFSSL_TLS13)
+        message(WARNING "TLS 1.3 is disabled - disabling middlebox compatibility")
+        override_cache(WOLFSSL_TLS13_MIDDLEBOX_COMPAT "no")
+    else()
+        list(APPEND WOLFSSL_DEFINITIONS
+            "-DWOLFSSL_TLS13_MIDDLEBOX_COMPAT")
+    endif()
+elseif("-DWOLFSSL_TLS13_MIDDLEBOX_COMPAT" IN_LIST WOLFSSL_DEFINITIONS)
+    # A bundle (WOLFSSL_JNI) appends the define straight to the list. Sync the
+    # option with it, otherwise the conflict checks below - ECH - test a
+    # variable that is still "no" and leave both features enabled.
+    if(WOLFSSL_TLS13)
+        override_cache(WOLFSSL_TLS13_MIDDLEBOX_COMPAT "yes")
+    else()
+        message(WARNING "TLS 1.3 is disabled - disabling middlebox compatibility")
+        list(REMOVE_ITEM WOLFSSL_DEFINITIONS
+            "-DWOLFSSL_TLS13_MIDDLEBOX_COMPAT")
     endif()
 endif()
 
@@ -2316,10 +2361,72 @@ add_option("WOLFSSL_PUF"
     "no" "yes;no")
 
 if(WOLFSSL_PUF)
+    # PUF BCH error-correction profile (only surfaced when PUF is enabled).
+    # Other t values and WC_PUF_NUM_CODEWORDS can still be set via CFLAGS.
+    add_option("WOLFSSL_PUF_PROFILE"
+        "PUF BCH profile: balanced (t=10), small (t=7), strong (t=13), strongest (t=15)"
+        "balanced" "balanced;small;strong;strongest")
+
+    # Codeword count. Plain cache STRING (not add_option) so a number is kept
+    # rather than reduced to yes/no. The cache name deliberately differs from
+    # the C macro: the loop that turns WOLFSSL_DEFINITIONS into CMake vars
+    # before configure_file() would otherwise clobber this cache entry.
+    # NOTE: setting WC_PUF_NUM_CODEWORDS through raw CMAKE_C_FLAGS bypasses
+    # WOLFSSL_DEFINITIONS and so can never reach the generated options.h,
+    # leaving the application and library with different sizeof(wc_PufCtx).
+    # Use this option instead.
+    set(WOLFSSL_PUF_NUM_CODEWORDS "" CACHE STRING
+        "Number of PUF BCH codewords (1-4095, default: 16)")
+
+    # Readout health-test band, same cache-name reasoning as above. An
+    # application that measures a region with wc_PufCheckSram needs the same
+    # band as the library, so route it through options.h rather than CFLAGS.
+    set(WOLFSSL_PUF_HW_MIN_PCT "" CACHE STRING
+        "PUF readout minimum Hamming weight, percent (1-98, default: 35)")
+    set(WOLFSSL_PUF_HW_MAX_PCT "" CACHE STRING
+        "PUF readout maximum Hamming weight, percent (2-99, default: 65)")
+
     list(APPEND WOLFSSL_DEFINITIONS
         "-DWOLFSSL_PUF"
         "-DWOLFSSL_PUF_SRAM"
         "-DHAVE_HKDF")
+    if(WOLFSSL_PUF_NUM_CODEWORDS)
+        if(NOT WOLFSSL_PUF_NUM_CODEWORDS MATCHES "^[0-9]+$" OR
+           WOLFSSL_PUF_NUM_CODEWORDS LESS 1 OR
+           WOLFSSL_PUF_NUM_CODEWORDS GREATER 4095)
+            message(FATAL_ERROR
+                "WOLFSSL_PUF_NUM_CODEWORDS must be an integer from 1 to 4095")
+        endif()
+        list(APPEND WOLFSSL_DEFINITIONS
+            "-DWC_PUF_NUM_CODEWORDS=${WOLFSSL_PUF_NUM_CODEWORDS}")
+    endif()
+    foreach(pufBand MIN MAX)
+        if(WOLFSSL_PUF_HW_${pufBand}_PCT)
+            if(NOT WOLFSSL_PUF_HW_${pufBand}_PCT MATCHES "^[0-9]+$" OR
+               WOLFSSL_PUF_HW_${pufBand}_PCT LESS 1 OR
+               WOLFSSL_PUF_HW_${pufBand}_PCT GREATER 99)
+                message(FATAL_ERROR
+                    "WOLFSSL_PUF_HW_${pufBand}_PCT must be an integer from 1 to 99")
+            endif()
+            list(APPEND WOLFSSL_DEFINITIONS
+                "-DWC_PUF_HW_${pufBand}_PCT=${WOLFSSL_PUF_HW_${pufBand}_PCT}")
+        endif()
+    endforeach()
+    if(WOLFSSL_PUF_HW_MIN_PCT AND WOLFSSL_PUF_HW_MAX_PCT AND
+       NOT WOLFSSL_PUF_HW_MIN_PCT LESS WOLFSSL_PUF_HW_MAX_PCT)
+        message(FATAL_ERROR
+            "WOLFSSL_PUF_HW_MIN_PCT must be less than WOLFSSL_PUF_HW_MAX_PCT")
+    endif()
+    if(WOLFSSL_PUF_PROFILE STREQUAL "small")
+        list(APPEND WOLFSSL_DEFINITIONS "-DWC_PUF_BCH_T=7")
+    elseif(WOLFSSL_PUF_PROFILE STREQUAL "strong")
+        list(APPEND WOLFSSL_DEFINITIONS "-DWC_PUF_BCH_T=13")
+    elseif(WOLFSSL_PUF_PROFILE STREQUAL "strongest")
+        list(APPEND WOLFSSL_DEFINITIONS "-DWC_PUF_BCH_T=15")
+    elseif(NOT WOLFSSL_PUF_PROFILE STREQUAL "balanced")
+        message(FATAL_ERROR
+            "WOLFSSL_PUF_PROFILE must be balanced, small, strong, or strongest")
+    endif()
     override_cache(WOLFSSL_HKDF "yes")
 endif()
 
@@ -2982,6 +3089,13 @@ if(WOLFSSL_ECH)
         message(FATAL_ERROR "ECH supported only with SNI (WOLFSSL_SNI)")
     endif()
     list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_ECH")
+    if(WOLFSSL_TLS13_MIDDLEBOX_COMPAT)
+        message(WARNING
+            "ECH is incompatible with middlebox compatibility - disabling middlebox compatibility")
+        override_cache(WOLFSSL_TLS13_MIDDLEBOX_COMPAT "no")
+        list(REMOVE_ITEM WOLFSSL_DEFINITIONS
+            "-DWOLFSSL_TLS13_MIDDLEBOX_COMPAT")
+    endif()
 endif()
 
 if(WOLFSSL_KEYING_MATERIAL)
@@ -3687,6 +3801,14 @@ if(WOLFSSL_ECC AND WOLFSSL_ECC_MIN_KEY_SZ)
     list(APPEND WOLFSSL_DEFINITIONS "-DECC_MIN_KEY_SZ=${WOLFSSL_ECC_MIN_KEY_SZ}")
 endif()
 
+# RNG seed device (best effort, falls back to the default sources)
+set(WOLFSSL_RNG_SEED_DEVICE "" CACHE STRING
+    "Seed the RNG from this device before the default sources, e.g. /dev/hwrng (default: disabled)")
+if(WOLFSSL_RNG_SEED_DEVICE)
+    list(APPEND WOLFSSL_DEFINITIONS
+         "-DWC_RNG_SEED_DEVICE=\"${WOLFSSL_RNG_SEED_DEVICE}\"")
+endif()
+
 
 ####################################################
 # Additional crypto/TLS feature options (parity with configure.ac)
@@ -4380,6 +4502,7 @@ if(WOLFSSL_EXAMPLES)
         tests/api/test_hpke.c
         tests/api/test_kdf.c
         tests/api/test_she.c
+        tests/api/test_async.c
         tests/api/test_des3.c
         tests/api/test_chacha.c
         tests/api/test_poly1305.c
@@ -4396,6 +4519,8 @@ if(WOLFSSL_EXAMPLES)
         tests/api/test_random.c
         tests/api/test_wolfentropy.c
         tests/api/test_wolfevent.c
+        tests/api/test_port.c
+        tests/api/test_compress.c
         tests/api/test_wolfmath.c
         tests/api/test_rsa.c
         tests/api/test_dsa.c
@@ -4417,8 +4542,11 @@ if(WOLFSSL_EXAMPLES)
         tests/api/test_dtls.c
         tests/api/test_dtls13.c
         tests/api/test_ssl_cert.c
+        tests/api/test_ssl_crl_ocsp.c
         tests/api/test_ssl_pk.c
         tests/api/test_ssl_ext.c
+        tests/api/test_ssl_rw.c
+        tests/api/test_ssl_hs.c
         tests/api/test_ocsp.c
         tests/api/test_evp.c
         tests/api/test_tls_ext.c
@@ -4585,6 +4713,11 @@ endif()
 if(NOT BUILD_CRYPTOAUTHLIB)
   list(APPEND HEADER_EXCLUDE
     "wolfssl/wolfcrypt/port/atmel")
+endif()
+
+if(NOT BUILD_VAULTIC)
+  list(APPEND HEADER_EXCLUDE
+    "wolfssl/wolfcrypt/port/sealsq")
 endif()
 
 if(NOT BUILD_AFALG)

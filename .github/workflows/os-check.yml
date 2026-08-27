@@ -19,10 +19,31 @@ on:
   # Weekday-morning cron (10:00 UTC) seeds the master-scoped ccache that PR runs restore: the
   # linux and macOS jobs re-run --build-only (compile only, no tests) on the
   # default branch, where their ccache writes are visible to every PR. Only
-  # Windows is skipped on schedule (see its job `if`) - seeding the linux and
-  # macOS shards is where the cold-cache cost lives.
+  # Windows is skipped on a seed run (see its job `if`) - seeding the linux
+  # and macOS shards is where the cold-cache cost lives.
+  #
+  # The two platforms do not seed identically, so do not read "the seed" as
+  # one mechanism. Linux sets CCACHE_RECACHE on a seed run and saves only on
+  # one, so its cache is rebuilt from scratch by seed runs alone. macOS does
+  # neither: it never sets CCACHE_RECACHE, so a macOS seed only accumulates
+  # deltas, and its ccache-setup step is read-only purely on pull_request, so
+  # any non-PR run writes it. Left as-is deliberately; the note is here so
+  # the difference is not rediscovered from a surprising cache.
   schedule:
     - cron: '0 10 * * 1-5'
+  # Runs the same seed on demand. Needed whenever the cache is empty and
+  # waiting up to a day for the next cron is not acceptable - after a
+  # stretch where this workflow was not running, for instance, since a
+  # cache untouched for 7 days is evicted and only the seed refills it.
+  # Every PR run stays cold until it is refilled.
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: >
+          Seed the ccache: compile only, no tests, and save the result.
+          Untick to run the full checks instead.
+        type: boolean
+        default: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -57,11 +78,14 @@ jobs:
         shard: [1, 2, 3, 4]
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
-    # The full set measures ~272 thread-minutes cold (~90 warm), i.e. about
-    # 68 thread-minutes per shard / 4 worker threads: ~20 min of wall per
-    # shard cold and well under 10 warm, plus ~2-3 min of
-    # checkout/deps/autogen overhead.
-    timeout-minutes: 30
+    # Measured cold on a completely empty cache (2026-08-03): ~102
+    # thread-minutes per shard / 4 worker threads, i.e. 24-27 min of wall
+    # per shard including checkout/deps/autogen; warm is well under 10.
+    # The timeout is set well above the cold figure on purpose - a cold
+    # run is normal whenever the seed has not run recently, and a shard
+    # dying on the timeout would look like a test failure rather than a
+    # cold cache.
+    timeout-minutes: 40
     env:
       CCACHE_MAXSIZE: 500M
     steps:
@@ -77,7 +101,7 @@ jobs:
       - name: Install dependencies
         uses: ./.github/actions/install-apt-deps
         with:
-          packages: autoconf automake libtool build-essential bubblewrap ccache
+          packages: autoconf automake libtool build-essential bubblewrap ccache gcc-multilib
           ghcr-debs-tag: ubuntu-24.04-minimal
 
       # Ubuntu 24.04 can restrict unprivileged user namespaces via AppArmor,
@@ -92,9 +116,9 @@ jobs:
       - name: Pin ccache directory
         run: echo "CCACHE_DIR=$HOME/.cache/ccache" >> "$GITHUB_ENV"
 
-      # PRs restore the cache the weekday seed writes but never save it, so
-      # PR runs add no per-shard ccache entries to the Actions cache. The
-      # seed (schedule) saves below.
+      # PRs restore the cache a seed run writes but never save it, so PR
+      # runs add no per-shard ccache entries to the Actions cache. Only a
+      # seed run (the cron, or a manual dispatch) saves, below.
       - name: Restore ccache
         uses: actions/cache/restore@v5
         with:
@@ -108,11 +132,11 @@ jobs:
             os-check-linux-ccache-${{ matrix.shard }}-
             os-check-linux-ccache-
 
-      # On the weekday seed, force clean recompiles (CCACHE_RECACHE) so the
-      # saved master ccache is reseeded from scratch rather than only
-      # accumulating deltas. PR/push runs leave it unset and keep their warm hits.
-      - name: Force fresh compiles on scheduled reseed
-        if: github.event_name == 'schedule'
+      # On a seed run, force clean recompiles (CCACHE_RECACHE) so the saved
+      # master ccache is reseeded from scratch rather than only accumulating
+      # deltas. PR/push runs leave it unset and keep their warm hits.
+      - name: Force fresh compiles on a reseed
+        if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.seed != 'false') }}
         run: echo "CCACHE_RECACHE=1" >> "$GITHUB_ENV"
 
       - name: autogen
@@ -120,8 +144,12 @@ jobs:
           ccache -z
           ./autogen.sh
 
-      # The JSON list below is the former runner-per-config matrix; add new
-      # configs here as new entries (a "comment" key is allowed for notes).
+      # The config list lives in .github/configs/os-check-linux.json; add new
+      # configs there as new entries (a "comment" key is allowed for notes).
+      # It is kept out of this file on purpose: a single `run:` step is
+      # capped at 21000 characters by GitHub, and inlining the list as a
+      # heredoc silently pushed this workflow past that cap - GitHub then
+      # refused to load the whole file and every run failed with zero jobs.
       # "minutes" is the expected duration driving longest-first scheduling
       # and shard balancing: take it from the Minutes column of a previous
       # run's step summary, or omit it for a new config (defaults to 1) and
@@ -135,347 +163,17 @@ jobs:
       # certs symlink.
       - name: Build and make check this shard's configs (parallel, out-of-tree)
         run: |
-          cat > "$RUNNER_TEMP/os-check-configs.json" <<'EOF'
-          [
-          {"name": "all-no-client-auth", "minutes": 9.0,
-           "configure": ["--enable-all", "CPPFLAGS=-DWOLFSSL_NO_CLIENT_AUTH"]},
-          {"name": "all-dilithium-cryptocb", "minutes": 8.9,
-           "configure": ["--enable-all", "--enable-dilithium", "--enable-cryptocb",
-            "--enable-cryptocbutils", "--enable-pkcallbacks"]},
-          {"name": "all-haproxy-quic", "minutes": 8.6,
-           "configure": ["--enable-all", "--enable-haproxy", "--enable-quic"]},
-          {"name": "all-asn-template", "minutes": 8.5,
-           "configure": ["--enable-all", "--enable-asn=template"]},
-          {"name": "all-asn-template-old-oid-sum", "minutes": 8.5,
-           "configure": ["--enable-all", "--enable-asn=template", "CPPFLAGS=-DWOLFSSL_OLD_OID_SUM"]},
-          {"name": "all-asn-original-old-oid-sum", "minutes": 8.4,
-           "configure": ["--enable-all", "--enable-asn=original", "CPPFLAGS=-DWOLFSSL_OLD_OID_SUM"]},
-          {"name": "all-asn-original", "minutes": 8.3,
-           "configure": ["--enable-all", "--enable-asn=original"]},
-          {"name": "all-certgencache", "minutes": 8.3,
-           "configure": ["--enable-all", "--enable-certgencache"]},
-          {"name": "all-dtls13-frag-ch-no-mlkem", "minutes": 8.2,
-           "configure": ["--enable-all", "--enable-dtls13", "--enable-dtls-frag-ch",
-            "--disable-mlkem"]},
-          {"name": "all-check-mem-zero", "minutes": 7.9,
-           "configure": ["--enable-all", "CPPFLAGS=-DWOLFSSL_CHECK_MEM_ZERO"]},
-          {"name": "all-secure-renegotiation", "minutes": 7.8,
-           "configure": ["--enable-all", "--enable-secure-renegotiation"]},
-          {"name": "all-debug-certs", "minutes": 7.8,
-           "configure": ["--enable-all", "CPPFLAGS=-DWOLFSSL_DEBUG_CERTS"]},
-          {"name": "all-hash-keep", "minutes": 7.8,
-           "configure": ["--enable-all", "CPPFLAGS=-DWOLFSSL_HASH_KEEP"]},
-          {"name": "all-no-pkcs7-stream", "minutes": 7.0,
-           "comment": "Non-streaming PKCS#7 exercises the multi-certificate decode bound in pkcs7_signed_multi_cert_test(); the streaming default cannot reach that off-by-idx path.",
-           "configure": ["--enable-all", "CPPFLAGS=-DNO_PKCS7_STREAM"]},
-          {"name": "all-no-aes-192-256", "minutes": 7.5,
-           "configure": ["--enable-all", "CPPFLAGS=-DNO_AES_192 -DNO_AES_256"]},
-          {"name": "all-writedup", "minutes": 6.9,
-           "configure": ["--enable-all", "--enable-writedup"]},
-          {"name": "all-no-server", "minutes": 5.0,
-           "configure": ["--enable-all", "CPPFLAGS=-DNO_WOLFSSL_SERVER"]},
-          {"name": "nonblock-sp-c32", "minutes": 5.0,
-           "comment": "Same but forcing SP_WORD_SIZE=32 to exercise sp_c32.c on a 64-bit host; the two builds together cover both generated variants of mod_exp_<words>_nb / RSA / DH wrappers.",
-           "configure": ["--enable-curve25519=nonblock", "--enable-ecc=nonblock",
-            "--enable-rsa=nonblock", "--enable-dh=nonblock", "--enable-sp=yes,nonblock",
-            "CPPFLAGS=-DWOLFSSL_PUBLIC_MP -DWOLFSSL_DEBUG_NONBLOCK -DRSA_LOW_MEM -DSP_WORD_SIZE=32"]},
-          {"name": "all-no-server-no-client-auth", "minutes": 4.8,
-           "configure": ["--enable-all", "CPPFLAGS=-DNO_WOLFSSL_SERVER -DWOLFSSL_NO_CLIENT_AUTH"]},
-          {"name": "all-no-client-no-client-auth", "minutes": 4.4,
-           "configure": ["--enable-all", "CPPFLAGS=-DNO_WOLFSSL_CLIENT -DWOLFSSL_NO_CLIENT_AUTH"]},
-          {"name": "all-no-client", "minutes": 4.2,
-           "configure": ["--enable-all", "CPPFLAGS=-DNO_WOLFSSL_CLIENT"]},
-          {"name": "nonblock-sp-c64", "minutes": 4.2,
-           "comment": "Non-blocking ECC/Curve25519/RSA/DH on the host default SP word size (sp_c64.c on x86_64); RSA/DH non-block require RSA_LOW_MEM (the CRT path is not supported in non-block mode).",
-           "configure": ["--enable-curve25519=nonblock", "--enable-ecc=nonblock",
-            "--enable-rsa=nonblock", "--enable-dh=nonblock", "--enable-sp=yes,nonblock",
-            "CPPFLAGS=-DWOLFSSL_PUBLIC_MP -DWOLFSSL_DEBUG_NONBLOCK -DRSA_LOW_MEM"]},
-          {"name": "tls13-dtls13-session-misc", "minutes": 3.3,
-           "configure": ["--enable-tls13", "--enable-session-ticket", "--enable-dtls",
-            "--enable-dtls13", "--enable-opensslextra", "--enable-sessioncerts",
-            "CPPFLAGS=-DWOLFSSL_DTLS_NO_HVR_ON_RESUME -DHAVE_EXT_CACHE -DWOLFSSL_TICKET_HAVE_ID -DHAVE_EX_DATA -DSESSION_CACHE_DYNAMIC_MEM"]},
-          {"name": "dtls-cid-renego-psk", "minutes": 3.3,
-           "configure": ["--enable-dtls", "--enable-dtlscid", "--enable-dtls13",
-            "--enable-secure-renegotiation", "--enable-psk", "--enable-aesccm",
-            "--enable-nullcipher", "CPPFLAGS=-DWOLFSSL_STATIC_RSA"]},
-          {"name": "dtls13-ocspstapling-cert-cb", "minutes": 3.1,
-           "configure": ["--enable-dtls", "--enable-dtls13", "--enable-ocspstapling",
-            "--enable-ocspstapling2", "--enable-cert-setup-cb", "--enable-sessioncerts"]},
-          {"name": "user-settings-all-compat", "minutes": 3.0,
-           "comment": "user_settings_all.h with the compatibility layer enabled by flipping its \"#if 0\" block, as a build-dir copy.",
-           "user_settings": "examples/configs/user_settings_all.h",
-           "cflags": "",
-           "configure": ["--enable-usersettings"], "prepare": [["sed", "-i", "s/if 0/if 1/", "user_settings.h"]]},
-          {"name": "dtls13-earlydata-psk-no-hrr", "minutes": 2.9,
-           "configure": ["--enable-dtls", "--enable-dtls13", "--enable-earlydata",
-            "--enable-session-ticket", "--enable-psk", "CPPFLAGS=-DWOLFSSL_DTLS13_NO_HRR_ON_RESUME"]},
-          {"name": "ocsp-responder-nonblock-maxfrag", "minutes": 2.8,
-           "configure": ["--enable-ocsp", "--enable-ocsp-responder", "--enable-ocspstapling",
-            "CPPFLAGS=-DWOLFSSL_NONBLOCK_OCSP", "--enable-maxfragment"]},
-          {"name": "dtls-records-span-datagrams", "minutes": 2.7,
-           "configure": ["--enable-dtls", "--enable-dtls13", "--enable-dtls-frag-ch",
-            "--enable-dtls-mtu", "CPPFLAGS=-DWOLFSSL_DTLS_RECORDS_CAN_SPAN_DATAGRAMS"]},
-          {"name": "opensslextra-no-ca-names", "minutes": 2.6,
-           "configure": ["--enable-opensslextra", "CPPFLAGS=-DWOLFSSL_NO_CA_NAMES"]},
-          {"name": "sessionexport-dtls13", "minutes": 2.6,
-           "configure": ["--enable-sessionexport", "--enable-dtls", "--enable-dtls13"]},
-          {"name": "lms-xmss-verify-only", "minutes": 2.5,
-           "configure": ["--enable-lms=small,verify-only", "--enable-xmss=small,verify-only"]},
-          {"name": "opensslall-rng-seed-cb", "minutes": 2.2,
-           "configure": ["--enable-opensslall", "--enable-opensslextra", "CPPFLAGS=-DWC_RNG_SEED_CB"]},
-          {"name": "opensslall-ecc-zero-hash", "minutes": 2.2,
-           "configure": ["--enable-opensslall", "--enable-ecc", "CPPFLAGS=-DWC_ALLOW_ECC_ZERO_HASH"]},
-          {"name": "she-ext-cmac-no-she-misc", "minutes": 2.2,
-           "configure": ["--enable-she=extended", "--enable-cmac", "--enable-cryptocb",
-            "--enable-cryptocbutils",
-            "CPPFLAGS=-DNO_WC_SHE_GETUID -DNO_WC_SHE_GETCOUNTER -DNO_WC_SHE_EXPORTKEY"]},
-          {"name": "she-std-cmac-cryptocb-sw-default", "minutes": 2.2,
-           "configure": ["--enable-she=standard", "--enable-cmac", "--enable-cryptocb",
-            "--enable-cryptocbutils", "CPPFLAGS=-DWC_SHE_SW_DEFAULT"]},
-          {"name": "sniffer-curves-enckeys", "minutes": 2.2,
-           "configure": ["--enable-sniffer", "--enable-curve25519", "--enable-curve448",
-            "--enable-enckeys", "CPPFLAGS=-DWOLFSSL_DH_EXTRA"]},
-          {"name": "cryptocb-keygen-utils-aes-setkey", "minutes": 2.2,
-           "configure": ["--enable-cryptocb", "--enable-keygen", "--enable-cryptocbutils",
-            "CPPFLAGS=-DWOLF_CRYPTO_CB_AES_SETKEY"]},
-          {"name": "cryptocb-utils-setkey-free", "minutes": 2.2,
-           "configure": ["--enable-cryptocb", "--enable-keygen", "--enable-aesgcm",
-            "--enable-cryptocbutils=setkey,free", "CPPFLAGS=-DWOLF_CRYPTO_CB_AES_SETKEY"]},
-          {"name": "cryptocb-keygen-utils-export", "minutes": 2.2,
-           "configure": ["--enable-cryptocb", "--enable-keygen", "--enable-cryptocbutils=export"]},
-          {"name": "cryptocb-keygen-export-key", "minutes": 2.2,
-           "configure": ["--enable-cryptocb", "--enable-keygen",
-            "CPPFLAGS=-DWOLF_CRYPTO_CB_EXPORT_KEY"]},
-          {"name": "cryptocb-utils-setkey-export-find", "minutes": 2.2,
-           "configure": ["--enable-cryptocb", "--enable-keygen",
-            "--enable-cryptocbutils=setkey,export", "CPPFLAGS=-DWOLF_CRYPTO_CB_FIND"]},
-          {"name": "cryptocb-shake", "minutes": 2.2,
-           "comment": "Exercises the SHAKE128/SHAKE256 crypto callback wiring (wc_CryptoCb_Shake, the sha3.c Update/Final hooks, and the dedicated offload unit tests). A normal (non-ONLY) cryptocb build keeps the host software SHA3/SHAKE present as the callbacks' offload fallback.",
-           "configure": ["--enable-cryptocb", "--enable-sha3",
-            "--enable-shake128", "--enable-shake256"]},
-          {"name": "cryptocb-aes-cfb-ofb", "minutes": 2.2,
-           "comment": "Exercises the AES-CFB/OFB crypto callback wiring (wc_CryptoCb_AesCfb/Ofb Encrypt/Decrypt, the aes.c hooks, and the dedicated offload unit tests). A normal (non-ONLY) cryptocb build keeps the host software AES present as the callbacks' offload fallback; WOLF_CRYPTO_CB_ONLY_AES (no software fallback) is covered separately by cryptocb-only.yml via swdev.",
-           "configure": ["--enable-cryptocb", "--enable-aescfb",
-            "--enable-aesofb", "--enable-aesctr"]},
-          {"name": "opensslall-rng-seed-cb-no-getpid", "minutes": 2.1,
-           "configure": ["--enable-opensslall", "--enable-opensslextra",
-            "CPPFLAGS=-DWC_RNG_SEED_CB -DWOLFSSL_NO_GETPID"]},
-          {"name": "dtls13-ignore-pt-alert", "minutes": 2.1,
-           "configure": ["--enable-dtls", "--enable-dtls13", "--enable-tls13",
-            "CPPFLAGS=-DWOLFSSL_TLS13_IGNORE_PT_ALERT_ON_ENC"]},
-          {"name": "cryptocb-utils-setkey-free-export", "minutes": 2.1,
-           "configure": ["--enable-cryptocb", "--enable-keygen", "--enable-aesgcm",
-            "--enable-cryptocbutils=setkey,free,export", "CPPFLAGS=-DWOLF_CRYPTO_CB_AES_SETKEY"]},
-          {"name": "cryptocb-aesgcm-setkey-free", "minutes": 2.1,
-           "configure": ["--enable-cryptocb", "--enable-aesgcm",
-            "CPPFLAGS=-DWOLF_CRYPTO_CB_AES_SETKEY -DWOLF_CRYPTO_CB_FREE"]},
-          {"name": "ecies-sec1-gcm-static-nonce", "minutes": 2.0,
-           "comment": "ECIES with the AES-GCM DEM in the default SEC1 IV mode; WOLFSSL_ECIES_STATIC_GCM_NONCE opts into the fixed-nonce GCM path so the GCM KAT/round-trip and cryptocb tests run.",
-           "configure": ["--enable-eccencrypt", "--enable-aesgcm", "--enable-aesctr",
-            "--enable-x963kdf", "--enable-cryptocb", "--enable-keygen",
-            "CPPFLAGS=-DWOLFSSL_ECIES_STATIC_GCM_NONCE"]},
-          {"name": "ecies-geniv-gcm-static-nonce", "minutes": 2.0,
-           "comment": "Same ECIES-GCM coverage in the WOLFSSL_ECIES_GEN_IV mode (random embedded nonce).",
-           "configure": ["--enable-eccencrypt=geniv", "--enable-aesgcm", "--enable-aesctr",
-            "--enable-x963kdf", "--enable-cryptocb", "--enable-keygen",
-            "CPPFLAGS=-DWOLFSSL_ECIES_STATIC_GCM_NONCE"]},
-          {"name": "ecies-old-gcm-static-nonce", "minutes": 2.0,
-           "comment": "Same ECIES-GCM coverage in the legacy WOLFSSL_ECIES_OLD mode (KDF-derived nonce, no ephemeral pubkey prepended).",
-           "configure": ["--enable-eccencrypt=old", "--enable-aesgcm", "--enable-aesctr",
-            "--enable-x963kdf", "--enable-cryptocb", "--enable-keygen",
-            "CPPFLAGS=-DWOLFSSL_ECIES_STATIC_GCM_NONCE"]},
-          {"name": "opensslextra-x509small", "minutes": 2.0,
-           "configure": ["--enable-opensslextra=x509small"]},
-          {"name": "cryptocb-keygen-find", "minutes": 2.0,
-           "configure": ["--enable-cryptocb", "--enable-keygen", "CPPFLAGS=-DWOLF_CRYPTO_CB_FIND"]},
-          {"name": "user-settings-all", "minutes": 2.0,
-           "comment": "The user_settings.h header-driven build path is distinct from the autotools-driven --enable-all path; full make check.",
-           "user_settings": "examples/configs/user_settings_all.h",
-           "cflags": "",
-           "configure": ["--enable-usersettings"]},
-          {"name": "she-ext-cryptocb-sw-default", "minutes": 1.9,
-           "configure": ["--enable-she=extended", "--enable-cryptocb", "--enable-cryptocbutils",
-            "CPPFLAGS=-DWC_SHE_SW_DEFAULT"]},
-          {"name": "cryptocb-aesgcm-aes-setkey", "minutes": 1.9,
-           "configure": ["--enable-cryptocb", "--enable-aesgcm",
-            "CPPFLAGS=-DWOLF_CRYPTO_CB_AES_SETKEY"]},
-          {"name": "cryptocb-keygen-utils-setkey", "minutes": 1.9,
-           "configure": ["--enable-cryptocb", "--enable-keygen", "--enable-cryptocbutils=setkey"]},
-          {"name": "pkcs7-rsa-pss", "minutes": 1.9,
-           "comment": "PKCS#7 with RSA-PSS (CMS RSASSA-PSS signers)",
-           "configure": ["--enable-pkcs7", "CPPFLAGS=-DWC_RSA_PSS"]},
-          {"name": "blind-private-key", "minutes": 1.9,
-           "configure": ["CPPFLAGS=-DWOLFSSL_BLIND_PRIVATE_KEY"]},
-          {"name": "certgen-no-tls", "minutes": 1.9,
-           "configure": ["--enable-certreq", "--enable-certext", "--enable-certgen",
-            "--disable-secure-renegotiation-info", "CPPFLAGS=-DNO_TLS"]},
-          {"name": "no-sys-ca-certs", "minutes": 1.8, "configure": ["--disable-sys-ca-certs"]},
-          {"name": "no-client-auth", "minutes": 1.8,
-           "configure": ["CPPFLAGS=-DWOLFSSL_NO_CLIENT_AUTH"]},
-          {"name": "harden-tls", "minutes": 1.7, "configure": ["--enable-harden-tls"]},
-          {"name": "no-sni-ecc-tls13-scr-info", "minutes": 1.7,
-           "configure": ["--disable-sni", "--disable-ecc", "--disable-tls13",
-            "--disable-secure-renegotiation-info"]},
-          {"name": "default", "minutes": 1.6},
-          {"name": "no-client-no-client-auth", "minutes": 1.6,
-           "configure": ["CPPFLAGS=-DNO_WOLFSSL_CLIENT -DWOLFSSL_NO_CLIENT_AUTH"]},
-          {"name": "ascon-experimental", "minutes": 1.6,
-           "configure": ["--enable-ascon", "--enable-experimental"]},
-          {"name": "ascon-unroll-experimental", "minutes": 1.6,
-           "configure": ["--enable-ascon", "CPPFLAGS=-DWOLFSSL_ASCON_UNROLL",
-            "--enable-experimental"]},
-          {"name": "wolfssl-extra", "minutes": 1.6, "configure": ["CPPFLAGS=-DWOLFSSL_EXTRA"]},
-          {"name": "coding-no", "minutes": 1.5, "configure": ["--enable-coding=no"]},
-          {"name": "she-ext-cmac-cryptocb", "minutes": 1.3,
-           "configure": ["--enable-she=extended", "--enable-cmac", "--enable-cryptocb",
-            "--enable-cryptocbutils"]},
-          {"name": "she-std-cmac-no-import-m123", "minutes": 1.3,
-           "configure": ["--enable-she=standard", "--enable-cmac",
-            "CPPFLAGS=-DNO_WC_SHE_IMPORT_M123"]},
-          {"name": "pkcs7", "minutes": 1.3,
-           "comment": "PKCS#7 without RSA-PSS",
-           "configure": ["--enable-pkcs7"]},
-          {"name": "tsp", "minutes": 1.3,
-           "comment": "Time-Stamp Protocol",
-           "configure": ["--enable-tsp"]},
-          {"name": "tsp-openssl", "minutes": 1.3,
-           "comment": "Time-Stamp Protocol with OpenSSL compat",
-           "configure": ["--enable-tsp", "--enable-opensslall"]},
-          {"name": "tsp-no-ecc", "minutes": 1.3,
-           "comment": "Time-Stamp Protocol without ECC",
-           "configure": ["--enable-tsp", "--disable-ecc"]},
-          {"name": "tsp-no-rsa", "minutes": 1.3,
-           "comment": "Time-Stamp Protocol without RSA",
-           "configure": ["--enable-tsp", "--disable-rsa"]},
-          {"name": "tsp-smallstack", "minutes": 1.3,
-           "comment": "Time-Stamp Protocol Small Stack",
-           "configure": ["--enable-tsp", "CPPFLAGS=-DWOLFSSL_SMALL_STACK"]},
-          {"name": "tsp-min-hash-str", "minutes": 2.7,
-           "comment": "Time-Stamp Protocol Minimum 128-bit hash strength",
-           "configure": ["--enable-tsp",
-           "CPPFLAGS=-DWC_TSP_MIN_HASH_STRENGTH_BITS=128"]},
-          {"name": "tsp-requester", "minutes": 1.3,
-           "comment": "Time-Stamp Protocol Requester",
-           "configure": ["--enable-tsp", "--enable-opensslall",
-           "CPPFLAGS=-DWOLFSSL_TSP_REQUESTER"]},
-          {"name": "tsp-responder", "minutes": 1.3,
-           "comment": "Time-Stamp Protocol Responder",
-           "configure": ["--enable-tsp", "--enable-opensslall",
-           "CPPFLAGS=-DWOLFSSL_TSP_RESPONDER"]},
-          {"name": "tsp-verifier", "minutes": 1.3,
-           "comment": "Time-Stamp Protocol Verifier",
-           "configure": ["--enable-tsp", "--enable-opensslall",
-           "CPPFLAGS=-DWOLFSSL_TSP_VERIFIER"]},
-          {"name": "no-tls-cryptocb-aesgcm-setkey-free", "minutes": 1.3,
-           "configure": ["--disable-tls", "--enable-cryptocb", "--enable-aesgcm",
-            "CPPFLAGS=-DWOLF_CRYPTO_CB_AES_SETKEY -DWOLF_CRYPTO_CB_FREE"]},
-          {"name": "she-std-cmac", "minutes": 1.2,
-           "configure": ["--enable-she=standard", "--enable-cmac"]},
-          {"name": "no-verify-oid-fpki", "minutes": 1.2,
-           "configure": ["CPPFLAGS=-DNO_VERIFY_OID -DWOLFSSL_FPKI"]},
-          {"name": "no-verify-oid", "minutes": 1.1, "configure": ["CPPFLAGS=-DNO_VERIFY_OID"]},
-          {"name": "no-server-no-client-auth", "minutes": 1.0,
-           "configure": ["CPPFLAGS=-DNO_WOLFSSL_SERVER -DWOLFSSL_NO_CLIENT_AUTH"]},
-          {"name": "no-wolfssl-client", "minutes": 1.0,
-           "configure": ["CPPFLAGS=-DNO_WOLFSSL_CLIENT"]},
-          {"name": "testwolfcrypt-ca", "minutes": 1.0,
-           "comment": "user_settings.h builds running only testwolfcrypt: pure crypto, no platform-specific features, so Linux-only coverage is sufficient. Not converted: user_settings_pq.h (requires --enable-experimental) and user_settings_baremetal.h (static memory, custom platform).",
-           "user_settings": "examples/configs/user_settings_ca.h",
-           "cflags": "",
-           "configure": ["--enable-usersettings", "--disable-examples"], "check": false, "run": [["wolfcrypt/test/testwolfcrypt"]]},
-          {"name": "testwolfcrypt-dtls13", "minutes": 1.0,
-           "user_settings": "examples/configs/user_settings_dtls13.h",
-           "cflags": "",
-           "configure": ["--enable-usersettings", "--disable-examples"], "check": false, "run": [["wolfcrypt/test/testwolfcrypt"]]},
-          {"name": "testwolfcrypt-ebsnet", "minutes": 1.0,
-           "user_settings": "examples/configs/user_settings_EBSnet.h",
-           "cflags": "",
-           "configure": ["--enable-usersettings", "--disable-examples"], "check": false, "run": [["wolfcrypt/test/testwolfcrypt"]]},
-          {"name": "testwolfcrypt-eccnonblock", "minutes": 1.0,
-           "user_settings": "examples/configs/user_settings_eccnonblock.h",
-           "cflags": "",
-           "configure": ["--enable-usersettings", "--disable-examples"], "check": false, "run": [["wolfcrypt/test/testwolfcrypt"]]},
-          {"name": "testwolfcrypt-curve25519nonblock", "minutes": 1.0,
-           "user_settings": "examples/configs/user_settings_curve25519nonblock.h",
-           "cflags": "",
-           "configure": ["--enable-usersettings", "--disable-examples"], "check": false, "run": [["wolfcrypt/test/testwolfcrypt"]]},
-          {"name": "testwolfcrypt-min-ecc", "minutes": 1.0,
-           "user_settings": "examples/configs/user_settings_min_ecc.h",
-           "cflags": "",
-           "configure": ["--enable-usersettings", "--disable-examples"], "check": false, "run": [["wolfcrypt/test/testwolfcrypt"]]},
-          {"name": "testwolfcrypt-openssl-compat", "minutes": 1.0,
-           "user_settings": "examples/configs/user_settings_openssl_compat.h",
-           "cflags": "",
-           "configure": ["--enable-usersettings", "--disable-examples"], "check": false, "run": [["wolfcrypt/test/testwolfcrypt"]]},
-          {"name": "testwolfcrypt-pkcs7", "minutes": 1.0,
-           "user_settings": "examples/configs/user_settings_pkcs7.h",
-           "cflags": "",
-           "configure": ["--enable-usersettings", "--disable-examples"], "check": false, "run": [["wolfcrypt/test/testwolfcrypt"]]},
-          {"name": "testwolfcrypt-rsa-only", "minutes": 1.0,
-           "user_settings": "examples/configs/user_settings_rsa_only.h",
-           "cflags": "",
-           "configure": ["--enable-usersettings", "--disable-examples"], "check": false, "run": [["wolfcrypt/test/testwolfcrypt"]]},
-          {"name": "testwolfcrypt-template", "minutes": 1.0,
-           "user_settings": "examples/configs/user_settings_template.h",
-           "cflags": "",
-           "configure": ["--enable-usersettings", "--disable-examples"], "check": false, "run": [["wolfcrypt/test/testwolfcrypt"]]},
-          {"name": "testwolfcrypt-tls12", "minutes": 1.0,
-           "user_settings": "examples/configs/user_settings_tls12.h",
-           "cflags": "",
-           "configure": ["--enable-usersettings", "--disable-examples"], "check": false, "run": [["wolfcrypt/test/testwolfcrypt"]]},
-          {"name": "testwolfcrypt-tls13", "minutes": 1.0,
-           "user_settings": "examples/configs/user_settings_tls13.h",
-           "cflags": "",
-           "configure": ["--enable-usersettings", "--disable-examples"], "check": false, "run": [["wolfcrypt/test/testwolfcrypt"]]},
-          {"name": "testwolfcrypt-wolfboot-keytools", "minutes": 1.0,
-           "user_settings": "examples/configs/user_settings_wolfboot_keytools.h",
-           "cflags": "",
-           "configure": ["--enable-usersettings", "--disable-examples"], "check": false, "run": [["wolfcrypt/test/testwolfcrypt"]]},
-          {"name": "testwolfcrypt-wolfssh", "minutes": 1.0,
-           "user_settings": "examples/configs/user_settings_wolfssh.h",
-           "cflags": "",
-           "configure": ["--enable-usersettings", "--disable-examples"], "check": false, "run": [["wolfcrypt/test/testwolfcrypt"]]},
-          {"name": "testwolfcrypt-wolftpm", "minutes": 1.0,
-           "user_settings": "examples/configs/user_settings_wolftpm.h",
-           "cflags": "",
-           "configure": ["--enable-usersettings", "--disable-examples"], "check": false, "run": [["wolfcrypt/test/testwolfcrypt"]]},
-          {"name": "no-wolfssl-server", "minutes": 0.9,
-           "configure": ["CPPFLAGS=-DNO_WOLFSSL_SERVER"]},
-          {"name": "dtls13-client-minimal", "minutes": 0.9,
-           "comment": "Minimal DTLS 1.3 client-only build with the SHA-224/384/512/3 hash families disabled. SHA-256 (used by TLS_AES_128_GCM_SHA256) and SHA-1 remain enabled.",
-           "configure": ["--enable-dtls13", "--disable-tlsv12", "--disable-oldtls", "--disable-rsa",
-            "--disable-dh", "--disable-aescbc", "--disable-aesecb", "--disable-md5",
-            "--disable-chacha", "--disable-poly1305", "--disable-errorstrings",
-            "--disable-asn-print", "--disable-eccshamir", "--disable-base64encode",
-            "--disable-coding", "--disable-sni", "--disable-sha224", "--disable-sha384",
-            "--disable-sha512", "--disable-sha3", "--enable-aesgcm=small", "--enable-sp-math",
-            "--enable-sp=smallec256", "--disable-sp-asm",
-            "CPPFLAGS=-DNO_WOLFSSL_SERVER -DWOLFSSL_NO_TLS12 -DNO_SESSION_CACHE -DWOLFSSL_AES_NO_UNROLL -DUSE_SLOW_SHA256 -DWOLFSSL_NO_ASYNC_IO -DWOLFSSL_DTLS_ONLY"]},
-          {"name": "opensslextra-no-filesystem-no-bio", "minutes": 0.9,
-           "configure": ["--enable-opensslextra", "--disable-filesystem", "CPPFLAGS=-DNO_BIO"]},
-          {"name": "no-examples-no-malloc", "minutes": 0.8,
-           "configure": ["--disable-examples", "CPPFLAGS=-DWOLFSSL_NO_MALLOC"]},
-          {"comment": "WOLFSSL_NO_ASN_STRICT still enforces the RFC 5280 4.2 and 4.2.1.10 MUSTs",
-           "name": "no-asn-strict-certs",
-           "configure": ["--enable-testcert", "--enable-opensslextra", "--enable-certgen",
-            "--enable-certreq", "--enable-certext", "--enable-ecc",
-            "CPPFLAGS=-DWOLFSSL_NO_ASN_STRICT -DWOLFSSL_CUSTOM_OID -DHAVE_OID_ENCODING -DWOLFSSL_ALT_NAMES"]},
-          {"comment": "wolfSSL <= 5.9.0 DTLS 1.3 legacy_session_id echo compatibility shim",
-           "name": "dtls13-echo-legacy-session-id",
-           "configure": ["--enable-dtls", "--enable-dtls13", "--enable-session-ticket",
-            "--enable-ecc", "CPPFLAGS=-DWOLFSSL_DTLS13_ECHO_LEGACY_SESSION_ID"]}
-          ]
-          EOF
           .github/scripts/parallel-make-check.py \
-            ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
+            ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.seed != 'false')) && '--build-only' || '' }} \
             --shard "${{ matrix.shard }}/${{ strategy.job-total }}" \
             --cflags='-pedantic -Wdeclaration-after-statement -Wnull-dereference -Wno-overlength-strings -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE' \
-            --private-dir=certs "$RUNNER_TEMP/os-check-configs.json"
+            --private-dir=certs .github/configs/os-check-linux.json
 
-      # Seed runs (schedule) refresh the master-scoped ccache that PR runs
-      # restore above; PR/push runs never save, so PRs add nothing.
+      # Seed runs (the cron, or a manual dispatch with `seed` ticked) refresh
+      # the master-scoped ccache that PR runs restore above; PR/push runs
+      # never save, so PRs add nothing.
       - name: Save ccache (seed only)
-        if: github.event_name == 'schedule'
+        if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.seed != 'false') }}
         uses: actions/cache/save@v5
         with:
           path: ~/.cache/ccache
@@ -511,9 +209,9 @@ jobs:
   # macos-apple-native-cert-validation.yml workflow.
   make_check_macos:
     name: make check macos
-    # Runs on PRs/pushes and on the weekday ccache-seed cron, where it
-    # --build-only-seeds the macOS ccache (like the linux shards). Only
-    # Windows is skipped on schedule (no ccache to seed).
+    # Runs on PRs/pushes and on a seed run (the cron or a manual dispatch),
+    # where it --build-only-seeds the macOS ccache like the linux shards.
+    # Windows is the only job skipped on a seed run (no ccache to seed).
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: macos-latest
     # Serial checks: roughly the sum of the per-config minutes plus
@@ -543,48 +241,23 @@ jobs:
         with:
           workflow-id: os-check-macos
           max-size: 500M
-          # PRs read the weekday-seeded macOS ccache; only the seed saves.
+          # PRs read the seeded macOS ccache and never write it. Note this
+          # is not the linux rule: there, saving is gated to seed runs, so
+          # a push writes nothing. Here every non-PR run writes, seed or
+          # not, so a release/** push and a dispatch with `seed` unticked
+          # both land in the shared macOS cache.
           read-only: ${{ github.event_name == 'pull_request' }}
 
-      # Same JSON config format as make_check_linux above; "minutes" only
-      # orders the serial schedule here (longest first).
+      # Same JSON config format as make_check_linux above, in
+      # .github/configs/os-check-macos.json; "minutes" only orders the
+      # serial schedule here (longest first).
       - name: Build and make check all configs (serial checks, out-of-tree)
         run: |
-          cat > "$RUNNER_TEMP/os-check-macos-configs.json" <<'EOF'
-          [
-          {"name": "all-asn-template", "minutes": 3.0,
-           "comment": "Broad key-crypto + Security.framework + opensslextra in one run (RSA, ECC, AES, SHA-2/3, ChaCha20-Poly1305, Curve25519/448, HMAC, sniffer, DTLS, OCSP, ...). Note: --enable-all does NOT enable cryptocb or SHE, so those have their own entries.",
-           "configure": ["--enable-all", "--enable-asn=template"]},
-          {"name": "dtls-cid-renego-psk", "minutes": 1.5,
-           "comment": "DTLS over BSD sockets on Darwin: connection-ID, fragmented ClientHello, secure renegotiation, PSK, AES-CCM, null cipher - exercises recvmsg/MTU/datagram handling that differs from Linux.",
-           "configure": ["--enable-dtls", "--enable-dtlscid", "--enable-dtls13",
-            "--enable-secure-renegotiation", "--enable-psk", "--enable-aesccm",
-            "--enable-nullcipher", "CPPFLAGS=-DWOLFSSL_STATIC_RSA"]},
-          {"name": "user-settings-all", "minutes": 1.5,
-           "comment": "The user_settings.h header-driven build path under Apple clang: macOS-specific guard ordering (e.g. WOLFSSL_SYS_CA_CERTS pulling in Security.framework) is distinct from the autotools --enable-all path above.",
-           "user_settings": "examples/configs/user_settings_all.h",
-           "cflags": "",
-           "configure": ["--enable-usersettings"]},
-          {"name": "apple-native-cert-validation", "minutes": 1.5,
-           "comment": "Former macos-apple-native-cert-validation.yml workflow: WOLFSSL_APPLE_NATIVE_CERT_VALIDATION delegates chain verification to Security.framework instead of wolfSSL's verifier, and the TEST define enables its client tests in make check. CFLAGS go to configure (with \"cflags\": \"\" so the make-time --cflags do not override them), exactly like the old standalone job.",
-           "cflags": "",
-           "configure": ["CFLAGS=-DWOLFSSL_APPLE_NATIVE_CERT_VALIDATION -DWOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION -DRSA_MIN_SIZE=2048 -DNO_WOLFSSL_CIPHER_SUITE_TEST"]},
-          {"name": "cryptocb-keygen-utils-setkey", "minutes": 1.0,
-           "comment": "Crypto-callback dispatcher under Apple clang. Not covered by --enable-all; verifies the cryptocb find/setkey/keygen path compiles and runs on the macOS toolchain.",
-           "configure": ["--enable-cryptocb", "--enable-keygen", "--enable-cryptocbutils=setkey"]},
-          {"name": "default", "minutes": 0.5,
-           "comment": "Default build: --enable-sys-ca-certs is auto-on on macOS, so this exercises Apple keychain / system trust loading in src/ssl_load.c that has no Linux equivalent.",
-           "configure": []},
-          {"name": "no-sys-ca-certs", "minutes": 0.5,
-           "comment": "Validates the configure-time auto-enable override and that the build compiles out the Security.framework code path cleanly - macOS is the only OS where sys-ca-certs is auto-on by default.",
-           "configure": ["--disable-sys-ca-certs"]}
-          ]
-          EOF
           .github/scripts/parallel-make-check.py \
-            ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
+            ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.seed != 'false')) && '--build-only' || '' }} \
             --threads 1 --cc= \
             --cflags='-pedantic -Wdeclaration-after-statement -Wnull-dereference -Wno-overlength-strings -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE' \
-            --private-dir=certs "$RUNNER_TEMP/os-check-macos-configs.json"
+            --private-dir=certs .github/configs/os-check-macos.json
 
       - name: ccache stats
         if: always()
@@ -604,8 +277,9 @@ jobs:
 
   windows_build:
     name: Windows Build Test
-    # Skipped on the weekday ccache-seed cron: no ccache to seed here.
-    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'schedule') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    # Skipped on any seed run - the cron, or a manual dispatch that left
+    # `seed` ticked: there is no ccache to seed here.
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'schedule') && (github.event_name != 'workflow_dispatch' || github.event.inputs.seed == 'false') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: windows-latest
     strategy:
       fail-fast: false

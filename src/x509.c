@@ -1115,12 +1115,11 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
             (ext->obj->obj == NULL)) {
             byte* tmp;
         #ifdef WOLFSSL_NO_REALLOC
+            /* Don't carry the old OID over: objSz is the mapped NID's
+             * canonical length, which can exceed the certificate's OID. The
+             * buffer is rewritten from oidBuf below. */
             tmp = (byte*)XMALLOC(objSz, NULL, DYNAMIC_TYPE_ASN1);
-            if (tmp != NULL && ext->obj->obj != NULL) {
-                XMEMCPY(tmp, ext->obj->obj, ext->obj->objSz);
-                XFREE((byte*)ext->obj->obj, NULL, DYNAMIC_TYPE_ASN1);
-            }
-            else if (tmp == NULL) {
+            if (ext->obj->obj != NULL) {
                 XFREE((byte*)ext->obj->obj, NULL, DYNAMIC_TYPE_ASN1);
             }
             ext->obj->obj = tmp;
@@ -3776,16 +3775,14 @@ WOLFSSL_ASN1_STRING* wolfSSL_X509_EXTENSION_get_data(
 int wolfSSL_X509_EXTENSION_set_data(WOLFSSL_X509_EXTENSION* ext,
         WOLFSSL_ASN1_STRING* data)
 {
-    WOLFSSL_ASN1_STRING* current;
-
     if (ext == NULL || data == NULL)
         return WOLFSSL_FAILURE;
 
-    current = wolfSSL_X509_EXTENSION_get_data_internal(ext);
-    if (current->length > 0 && current->data != NULL && current->isDynamic) {
-        XFREE(current->data, NULL, DYNAMIC_TYPE_OPENSSL);
-    }
-
+    /* wolfSSL_ASN1_STRING_copy() defers to wolfSSL_ASN1_STRING_set(), which
+     * owns the free of any existing dynamic buffer and only releases it once
+     * the new contents have been copied.  Freeing it here as well would leave
+     * ext->value.data dangling for that copy, so leave the buffer alone; the
+     * self-aliased case (data == &ext->value) keeps working too. */
     return wolfSSL_ASN1_STRING_copy(&ext->value, data);
 }
 
@@ -6183,25 +6180,19 @@ static WOLFSSL_X509* loadX509orX509REQFromBuffer(
     /* ready to be decoded. */
     if (der != NULL && der->buffer != NULL) {
         WC_DECLARE_VAR(cert, DecodedCert, 1, 0);
-        /* For TRUSTED_CERT_TYPE, the DER buffer contains the certificate
-         * followed by auxiliary trust info. ParseCertRelative expects CERT_TYPE
-         * and will parse only the certificate portion, ignoring the rest. */
-        int parseType = (type == TRUSTED_CERT_TYPE) ? CERT_TYPE : type;
 
         WC_ALLOC_VAR_EX(cert, DecodedCert, 1, NULL, DYNAMIC_TYPE_DCERT,
             ret=MEMORY_ERROR);
         if (WC_VAR_OK(cert))
         {
             InitDecodedCert(cert, der->buffer, der->length, NULL);
-            ret = ParseCertRelative(cert, parseType, 0, NULL, NULL);
+            /* For TRUSTED_CERT_TYPE the DER buffer holds the certificate
+             * followed by auxiliary trust info. ParseCertRelative() recognizes
+             * the type: it parses only the certificate, permits the trailing
+             * aux data, and treats it as CERT_TYPE for verification.
+             * CopyDecodedToX509() bounds the stored DER to the certificate. */
+            ret = ParseCertRelative(cert, type, 0, NULL, NULL);
             if (ret == 0) {
-                /* For TRUSTED_CERT_TYPE, truncate the DER buffer to exclude
-                 * auxiliary trust data. ParseCertRelative sets srcIdx to the
-                 * end of the certificate, so we adjust cert->maxIdx accordingly. */
-                if (type == TRUSTED_CERT_TYPE && cert->srcIdx < cert->maxIdx) {
-                    cert->maxIdx = cert->srcIdx;
-                }
-
                 x509 = (WOLFSSL_X509*)XMALLOC(sizeof(WOLFSSL_X509), NULL,
                                                              DYNAMIC_TYPE_X509);
                 if (x509 != NULL) {
@@ -6859,7 +6850,7 @@ static int X509PrintDirType(char * dst, int max_len, const DNS_entry * entry)
     word32       k = 0;
     word32       i = 0;
     const char * src = entry->name;
-    word32       src_len = (word32)XSTRLEN(src);
+    word32       src_len = 0;
     int          total_len = 0;
     int          bytes_left = max_len;
     int          fld_len = 0;
@@ -6867,14 +6858,24 @@ static int X509PrintDirType(char * dst, int max_len, const DNS_entry * entry)
 
     XMEMSET(dst, 0, max_len);
 
+    /* The entry holds raw DER which may contain zero bytes, and under
+     * WC_ASN_NO_HEAP it is not NUL terminated, so use the stored length. */
+    if (entry->len > 0) {
+        src_len = (word32)entry->len;
+    }
+
     /* loop over printable DIR tags. */
     for (k = 0; k < ACERT_NUM_DIR_TAGS; ++k) {
         const char * pfx = acert_dir_print[k].pfx;
         const byte * tag = acert_dir_print[k].tag;
         byte         asn_tag;
 
-        /* walk through entry looking for matches. */
-        for (i = 0; i < src_len - 5; ++i) {
+        /* Walk through entry looking for matches. A match needs three bytes
+         * of name OID plus a tag and a length, so the last offset worth
+         * testing is the one with exactly five bytes left. Written as an
+         * addition so a short entry simply skips the loop rather than
+         * underflowing the bound. */
+        for (i = 0; i + 5 <= src_len; ++i) {
             if (XMEMCMP(tag, &src[i], 3) == 0) {
                 if (bytes_left < 5) {
                     /* Not enough space left for name oid + tag + len. */
@@ -6994,6 +6995,12 @@ static int X509_print_name_entry(WOLFSSL_BIO* bio,
         }
         else if (entry->type == ASN_DIR_TYPE) {
             len = X509PrintDirType(scratch, MAX_WIDTH, entry);
+            if (len == 0) {
+                /* Nothing in the encoding was printable. Emit a placeholder,
+                 * as the other unsupported entry types do, rather than
+                 * failing the print of the whole certificate. */
+                len = XSNPRINTF(scratch, MAX_WIDTH, "DirName:<unprintable>");
+            }
         }
         else if (entry->type == ASN_URI_TYPE) {
             len = XSNPRINTF(scratch, MAX_WIDTH, "URI:%s",
@@ -9480,6 +9487,12 @@ WOLFSSL_X509_CRL* wolfSSL_d2i_X509_CRL(WOLFSSL_X509_CRL** crl,
             ret = InitCRL(newcrl, NULL);
             if (ret < 0) {
                 WOLFSSL_MSG("Init tmp CRL failed");
+                /* A failed InitCRL() has already released whatever it took,
+                 * so dispose of the memory here and keep this object away
+                 * from the wolfSSL_X509_CRL_free() below, which would destroy
+                 * the lock and the condition variable a second time. */
+                XFREE(newcrl, NULL, DYNAMIC_TYPE_CRL);
+                newcrl = NULL;
             }
             else {
                 ret = BufferLoadCRL(newcrl, in, len, WOLFSSL_FILETYPE_ASN1,
@@ -11846,6 +11859,18 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_sk_X509_OBJECT_deep_copy(
             cert->version = req->version;
             cert->isCA = req->isCa;
             cert->basicConstSet = req->basicConstSet;
+            cert->basicConstCrit = req->basicConstCrit;
+            if (req->pathLengthSet) {
+                if (req->pathLength > WOLFSSL_MAX_PATH_LEN) {
+                    WOLFSSL_MSG("Basic Constraints path length too large");
+                    WOLFSSL_ERROR_VERBOSE(ASN_PATHLEN_SIZE_E);
+                    ret = WOLFSSL_FAILURE;
+                }
+                else {
+                    cert->pathLen = (byte)req->pathLength;
+                    cert->pathLenSet = req->pathLengthSet;
+                }
+            }
     #ifdef WOLFSSL_CERT_EXT
             if (req->subjKeyIdSz != 0) {
                 if (req->subjKeyIdSz > CTC_MAX_SKID_SIZE) {
@@ -11859,8 +11884,7 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_sk_X509_OBJECT_deep_copy(
                     ret = WOLFSSL_FAILURE;
                 }
                 else {
-                    XMEMCPY(cert->skid, req->subjKeyId,
-                            req->subjKeyIdSz);
+                    XMEMCPY(cert->skid, req->subjKeyId, req->subjKeyIdSz);
                     cert->skidSz = (int)req->subjKeyIdSz;
                 }
             }
@@ -12009,8 +12033,15 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
     cert->isCA    = wolfSSL_X509_get_isCA(x509);
     cert->basicConstCrit = x509->basicConstCrit;
     cert->basicConstSet = x509->basicConstSet;
-    cert->pathLen = (byte)x509->pathLength;
-    cert->pathLenSet = x509->pathLengthSet;
+    if (x509->pathLengthSet) {
+        if (x509->pathLength > WOLFSSL_MAX_PATH_LEN) {
+            WOLFSSL_MSG("Basic Constraints path length too large");
+            WOLFSSL_ERROR_VERBOSE(ASN_PATHLEN_SIZE_E);
+            return WOLFSSL_FAILURE;
+        }
+        cert->pathLen = (byte)x509->pathLength;
+        cert->pathLenSet = x509->pathLengthSet;
+    }
 
 #ifdef WOLFSSL_CERT_EXT
     if (x509->subjKeyIdSz <= CTC_MAX_SKID_SIZE) {
@@ -12185,6 +12216,14 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
 }
 
 
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_ASN1) && !defined(WOLFSSL_MLDSA_NO_SIGN)
+    /* ML-DSA X.509 signing needs private key decode and sign support; keep
+     * every gate that decides "can we sign with ML-DSA" identical so that
+     * verify-only builds reject the key type up front. */
+    #define WOLFSSL_MLDSA_X509_SIGN
+#endif
+
     /* returns the sig type to use on success i.e CTC_SHAwRSA and WOLFSSL_FALURE
      * on fail case */
     static int wolfSSL_sigTypeFromPKEY(WOLFSSL_EVP_MD* md,
@@ -12193,6 +12232,43 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
     #if !defined(NO_PWDBASED) && defined(OPENSSL_EXTRA)
         int hashType;
         int sigType = WOLFSSL_FAILURE;
+
+    #ifdef WOLFSSL_MLDSA_X509_SIGN
+        if (pkey->type == WC_EVP_PKEY_DILITHIUM) {
+            /* ML-DSA does not use a separate hash. A NULL md matches
+             * OpenSSL's X509_sign(x, pkey, NULL); unlike OpenSSL, a
+             * non-NULL md is deliberately ignored rather than rejected to
+             * keep hash-passing callers working. */
+            if (md != NULL) {
+                WOLFSSL_MSG("Ignoring md for ML-DSA signing");
+            }
+            switch (WOLFSSL_ATOMIC_LOAD(pkey->mldsaOID)) {
+                case ML_DSA_44k:
+                    sigType = CTC_ML_DSA_44;
+                    break;
+                case ML_DSA_65k:
+                    sigType = CTC_ML_DSA_65;
+                    break;
+                case ML_DSA_87k:
+                    sigType = CTC_ML_DSA_87;
+                    break;
+            #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
+                case DILITHIUM_LEVEL2k:
+                    sigType = CTC_DILITHIUM_LEVEL2;
+                    break;
+                case DILITHIUM_LEVEL3k:
+                    sigType = CTC_DILITHIUM_LEVEL3;
+                    break;
+                case DILITHIUM_LEVEL5k:
+                    sigType = CTC_DILITHIUM_LEVEL5;
+                    break;
+            #endif
+                default:
+                    return WOLFSSL_FAILURE;
+            }
+            return sigType;
+        }
+    #endif /* WOLFSSL_MLDSA_X509_SIGN */
 
         /* Convert key type and hash algorithm to a signature algorithm */
         if (wolfSSL_EVP_get_hashinfo(md, &hashType, NULL)
@@ -12752,6 +12828,9 @@ cleanup:
         int type = -1;
         int sigType;
         WC_RNG rng;
+    #ifdef WOLFSSL_MLDSA_X509_SIGN
+        wc_MlDsaKey* mldsa = NULL;
+    #endif
 
         (void)req;
         WOLFSSL_ENTER("wolfSSL_X509_resign_cert");
@@ -12776,14 +12855,100 @@ cleanup:
             key = pkey->ecc->internal;
         }
     #endif
+    #ifdef WOLFSSL_MLDSA_X509_SIGN
+        if (pkey->type == WC_EVP_PKEY_DILITHIUM) {
+            /* Decode the ML-DSA private key held as DER in pkey.ptr. */
+            word32 idx = 0;
+            int oidSum = 0;
+            int decRet;
+
+            mldsa = (wc_MlDsaKey*)XMALLOC(sizeof(wc_MlDsaKey), x509->heap,
+                    DYNAMIC_TYPE_MLDSA);
+            if (mldsa == NULL) {
+                WOLFSSL_MSG("Failed to allocate memory for wc_MlDsaKey");
+                return WOLFSSL_FATAL_ERROR;
+            }
+            if (wc_MlDsaKey_Init(mldsa, x509->heap, INVALID_DEVID) != 0) {
+                WOLFSSL_MSG("wc_MlDsaKey_Init error");
+                XFREE(mldsa, x509->heap, DYNAMIC_TYPE_MLDSA);
+                return WOLFSSL_FATAL_ERROR;
+            }
+            PRIVATE_KEY_UNLOCK();
+            decRet = wc_MlDsaKey_PrivateKeyDecode(mldsa,
+                    (const byte*)pkey->pkey.ptr, (word32)pkey->pkey_sz,
+                    &idx);
+            PRIVATE_KEY_LOCK();
+            /* Map the parameter set to its OID with mldsa_get_oid_sum():
+             * unlike wc_MlDsaKey_GetParams() it distinguishes FIPS204-draft
+             * levels. */
+            if (decRet != 0 ||
+                    mldsa_get_oid_sum(mldsa, &oidSum) != 0) {
+                WOLFSSL_MSG("Error decoding ML-DSA private key");
+                wc_MlDsaKey_Free(mldsa);
+                XFREE(mldsa, x509->heap, DYNAMIC_TYPE_MLDSA);
+                return WOLFSSL_FATAL_ERROR;
+            }
+            /* sigType above came from the cached pkey->mldsaOID; require
+             * the decoded key to agree so a stale cache cannot emit a
+             * certificate whose signatureAlgorithm disagrees with the
+             * actual signature. */
+            if (oidSum != WOLFSSL_ATOMIC_LOAD(pkey->mldsaOID)) {
+                WOLFSSL_MSG("ML-DSA key does not match cached pkey OID");
+                wc_MlDsaKey_Free(mldsa);
+                XFREE(mldsa, x509->heap, DYNAMIC_TYPE_MLDSA);
+                return WOLFSSL_FATAL_ERROR;
+            }
+            switch (oidSum) {
+                case ML_DSA_44k:
+                    type = ML_DSA_44_TYPE;
+                    break;
+                case ML_DSA_65k:
+                    type = ML_DSA_65_TYPE;
+                    break;
+                case ML_DSA_87k:
+                    type = ML_DSA_87_TYPE;
+                    break;
+            #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
+                case DILITHIUM_LEVEL2k:
+                    type = DILITHIUM_LEVEL2_TYPE;
+                    break;
+                case DILITHIUM_LEVEL3k:
+                    type = DILITHIUM_LEVEL3_TYPE;
+                    break;
+                case DILITHIUM_LEVEL5k:
+                    type = DILITHIUM_LEVEL5_TYPE;
+                    break;
+            #endif
+                default:
+                    WOLFSSL_MSG("Unsupported ML-DSA parameter set");
+                    wc_MlDsaKey_Free(mldsa);
+                    XFREE(mldsa, x509->heap, DYNAMIC_TYPE_MLDSA);
+                    return WOLFSSL_FATAL_ERROR;
+            }
+            key = mldsa;
+        }
+    #endif /* WOLFSSL_MLDSA_X509_SIGN */
 
         /* Sign the certificate (request) body. */
         ret = wc_InitRng(&rng);
-        if (ret != 0)
+        if (ret != 0) {
+        #ifdef WOLFSSL_MLDSA_X509_SIGN
+            if (mldsa != NULL) {
+                wc_MlDsaKey_Free(mldsa);
+                XFREE(mldsa, x509->heap, DYNAMIC_TYPE_MLDSA);
+            }
+        #endif
             return ret;
+        }
         ret = wc_SignCert_ex(certBodySz, sigType, der, (word32)derSz, type, key,
             &rng);
         wc_FreeRng(&rng);
+    #ifdef WOLFSSL_MLDSA_X509_SIGN
+        if (mldsa != NULL) {
+            wc_MlDsaKey_Free(mldsa);
+            XFREE(mldsa, x509->heap, DYNAMIC_TYPE_MLDSA);
+        }
+    #endif
         if (ret < 0) {
             WOLFSSL_LEAVE("wolfSSL_X509_resign_cert", ret);
             return ret;
@@ -12852,24 +13017,76 @@ cleanup:
     /* able to override max size until dynamic buffer created */
     #define WC_MAX_X509_GEN 4096
 #endif
+#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WC_MAX_X509_GEN_MLDSA)
+    /* Base size plus the largest compiled-in ML-DSA signature and its
+     * ASN.1 overhead; the subject key is added in x509_gen_buf_sz(). */
+    #define WC_MAX_X509_GEN_MLDSA \
+        (WC_MAX_X509_GEN + MLDSA_MAX_SIG_SIZE + MAX_ALGO_SZ + \
+         MAX_SEQ_SZ * 2)
+#endif
+
+/* DER buffer size for certificate/CSR signing: chosen from the signing
+ * key type, plus the subject public key held in the x509 so that a
+ * large (e.g. ML-DSA) SPKI fits under a classic signing key too. */
+static int x509_gen_buf_sz(const WOLFSSL_X509* x509,
+    const WOLFSSL_EVP_PKEY* pkey)
+{
+    int sz = WC_MAX_X509_GEN;
+
+#ifdef WOLFSSL_HAVE_MLDSA
+    if (pkey != NULL && pkey->type == WC_EVP_PKEY_DILITHIUM) {
+        sz = WC_MAX_X509_GEN_MLDSA;
+    }
+#else
+    (void)pkey;
+#endif
+    return sz + (int)x509->pubKey.length;
+}
 
 /* returns the size of signature on success */
 int wolfSSL_X509_sign(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey,
         const WOLFSSL_EVP_MD* md)
 {
     int  ret;
-    /* @TODO dynamic set based on expected cert size */
-    byte *der = (byte *)XMALLOC(WC_MAX_X509_GEN, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    int  derSz = WC_MAX_X509_GEN;
+    byte *der = NULL;
+    int  bufSz = 0;
+    int  derSz = 0;
+    int  sigType;
 
     WOLFSSL_ENTER("wolfSSL_X509_sign");
 
-    if (x509 == NULL || pkey == NULL || md == NULL) {
+    if (x509 == NULL || pkey == NULL) {
+        ret = WOLFSSL_FAILURE;
+        goto out;
+    }
+    /* md may be NULL for hash-free algorithms (ML-DSA), as in OpenSSL's
+     * X509_sign(x, pkey, NULL). */
+    if (md == NULL
+#ifdef WOLFSSL_MLDSA_X509_SIGN
+        && pkey->type != WC_EVP_PKEY_DILITHIUM
+#endif
+        ) {
         ret = WOLFSSL_FAILURE;
         goto out;
     }
 
-    x509->sigOID = wolfSSL_sigTypeFromPKEY((WOLFSSL_EVP_MD*)md, pkey);
+    bufSz = x509_gen_buf_sz(x509, pkey);
+    derSz = bufSz;
+    der = (byte *)XMALLOC((size_t)bufSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (der == NULL) {
+        ret = WOLFSSL_FAILURE;
+        goto out;
+    }
+
+    /* Only update sigOID on success to keep the object unmodified on a
+     * rejected key/md combination. */
+    sigType = wolfSSL_sigTypeFromPKEY((WOLFSSL_EVP_MD*)md, pkey);
+    if (sigType == WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
+        WOLFSSL_MSG("Unsupported key/md combination for signing");
+        ret = WOLFSSL_FAILURE;
+        goto out;
+    }
+    x509->sigOID = sigType;
     if ((ret = wolfssl_x509_make_der(x509, 0, der, &derSz, 0)) !=
             WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("Unable to make DER for X509");
@@ -12879,7 +13096,7 @@ int wolfSSL_X509_sign(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey,
         goto out;
     }
 
-    ret = wolfSSL_X509_resign_cert(x509, 0, der, WC_MAX_X509_GEN, derSz,
+    ret = wolfSSL_X509_resign_cert(x509, 0, der, bufSz, derSz,
             (WOLFSSL_EVP_MD*)md, pkey);
     if (ret <= 0) {
         WOLFSSL_LEAVE("wolfSSL_X509_sign", ret);
@@ -12939,6 +13156,7 @@ static int ConvertNIDToWolfSSL(int nid)
         case WC_NID_pkcs9_contentType: return ASN_CONTENT_TYPE;
         case WC_NID_serialNumber: return ASN_SERIAL_NUMBER;
         case WC_NID_userId: return ASN_USER_ID;
+        case WC_NID_x500UniqueIdentifier: return ASN_X500_UNIQUE_ID;
         case WC_NID_businessCategory: return ASN_BUS_CAT;
         case WC_NID_domainComponent: return ASN_DOMAIN_COMPONENT;
         case WC_NID_postalCode: return ASN_POSTAL_CODE;
@@ -15241,6 +15459,10 @@ static int get_dn_attr_by_nid(int n, const char** buf)
             str = "UID";
             len = 3;
             break;
+        case WC_NID_x500UniqueIdentifier:
+            str = "x500UniqueIdentifier";
+            len = 20;
+            break;
         case WC_NID_serialNumber:
             str = "serialNumber";
             len = 12;
@@ -15721,7 +15943,7 @@ int wolfSSL_X509_check_host(WOLFSSL_X509 *x, const char *chk, size_t chklen,
     }
 
 #ifdef WOLFSSL_IP_ALT_NAME
-    ret = CheckIPAddr(dCert, (char *)chk);
+    ret = CheckIPAddr(dCert, (char *)chk, chklen);
     if (ret == 0) {
         goto out;
     }
@@ -15776,7 +15998,7 @@ int wolfSSL_X509_check_ip_asc(WOLFSSL_X509 *x, const char *ipasc,
             ret = WOLFSSL_FAILURE;
         }
         else {
-            ret = CheckIPAddr(dCert, ipasc);
+            ret = CheckIPAddr(dCert, ipasc, (size_t)XSTRLEN(ipasc));
             if (ret != 0) {
                 ret = WOLFSSL_FAILURE;
             }
@@ -16378,6 +16600,90 @@ int wolfSSL_X509_set_pubkey(WOLFSSL_X509 *cert, WOLFSSL_EVP_PKEY *pkey)
         }
         break;
 #endif
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_ASN1) && defined(WC_ENABLE_ASYM_KEY_EXPORT)
+    case WC_EVP_PKEY_DILITHIUM:
+        {
+            /* Decode key DER (private or public) and export public part. */
+            wc_MlDsaKey* mldsa;
+            word32 idx = 0;
+            int oidSum = 0;
+            int decodeOk = 0;
+
+            mldsa = (wc_MlDsaKey*)XMALLOC(sizeof(wc_MlDsaKey), cert->heap,
+                    DYNAMIC_TYPE_MLDSA);
+            if (mldsa == NULL) {
+                WOLFSSL_MSG("Failed to allocate memory for wc_MlDsaKey");
+                return WOLFSSL_FAILURE;
+            }
+            if (wc_MlDsaKey_Init(mldsa, cert->heap, INVALID_DEVID) != 0) {
+                WOLFSSL_MSG("wc_MlDsaKey_Init error");
+                XFREE(mldsa, cert->heap, DYNAMIC_TYPE_MLDSA);
+                return WOLFSSL_FAILURE;
+            }
+        #ifdef WOLFSSL_MLDSA_PRIVATE_KEY
+            PRIVATE_KEY_UNLOCK();
+            if (wc_MlDsaKey_PrivateKeyDecode(mldsa,
+                    (const byte*)pkey->pkey.ptr, (word32)pkey->pkey_sz,
+                    &idx) == 0) {
+                decodeOk = 1;
+            }
+            PRIVATE_KEY_LOCK();
+        #endif
+            if (!decodeOk) {
+            #ifdef WOLFSSL_MLDSA_PRIVATE_KEY
+                /* A failed PrivateKeyDecode may leave the level pinned;
+                 * reset the key so PublicKeyDecode auto-detects it from
+                 * the SPKI OID. */
+                wc_MlDsaKey_Free(mldsa);
+                if (wc_MlDsaKey_Init(mldsa, cert->heap, INVALID_DEVID) != 0) {
+                    WOLFSSL_MSG("wc_MlDsaKey_Init error");
+                    XFREE(mldsa, cert->heap, DYNAMIC_TYPE_MLDSA);
+                    return WOLFSSL_FAILURE;
+                }
+            #endif
+                idx = 0;
+                if (wc_MlDsaKey_PublicKeyDecode(mldsa,
+                        (const byte*)pkey->pkey.ptr, (word32)pkey->pkey_sz,
+                        &idx) != 0) {
+                    WOLFSSL_MSG("Error decoding ML-DSA public key");
+                    wc_MlDsaKey_Free(mldsa);
+                    XFREE(mldsa, cert->heap, DYNAMIC_TYPE_MLDSA);
+                    return WOLFSSL_FAILURE;
+                }
+            }
+            /* Map the parameter set to its OID with mldsa_get_oid_sum():
+             * unlike wc_MlDsaKey_GetParams() it distinguishes FIPS204-draft
+             * levels, keeping pubKeyOID consistent with the SPKI encoded
+             * by wc_MlDsaKey_PublicKeyToDer(). */
+            if (mldsa_get_oid_sum(mldsa, &oidSum) != 0) {
+                WOLFSSL_MSG("Error getting ML-DSA OID");
+                wc_MlDsaKey_Free(mldsa);
+                XFREE(mldsa, cert->heap, DYNAMIC_TYPE_MLDSA);
+                return WOLFSSL_FAILURE;
+            }
+
+            derSz = MLDSA_MAX_PUB_KEY_DER_SIZE;
+            p = (byte*)XMALLOC(derSz, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+            if (p == NULL) {
+                WOLFSSL_MSG("malloc error");
+                wc_MlDsaKey_Free(mldsa);
+                XFREE(mldsa, cert->heap, DYNAMIC_TYPE_MLDSA);
+                return WOLFSSL_FAILURE;
+            }
+            derSz = wc_MlDsaKey_PublicKeyToDer(mldsa, p, (word32)derSz, 1);
+            wc_MlDsaKey_Free(mldsa);
+            XFREE(mldsa, cert->heap, DYNAMIC_TYPE_MLDSA);
+            if (derSz <= 0) {
+                WOLFSSL_MSG("Error making ML-DSA public key DER");
+                XFREE(p, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                return WOLFSSL_FAILURE;
+            }
+            cert->pubKeyOID = oidSum;
+        }
+        break;
+#endif /* WOLFSSL_HAVE_MLDSA && WOLFSSL_MLDSA_PUBLIC_KEY &&
+        * !WOLFSSL_MLDSA_NO_ASN1 && WC_ENABLE_ASYM_KEY_EXPORT */
     default:
         return WOLFSSL_FAILURE;
     }
@@ -16727,33 +17033,53 @@ int wolfSSL_X509_REQ_sign(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey,
                           const WOLFSSL_EVP_MD *md)
 {
     int ret;
-    WC_DECLARE_VAR(der, byte, 2048, 0);
-    int derSz = 2048;
+    byte* der = NULL;
+    int bufSz;
+    int derSz;
+    int sigType;
 
-    if (req == NULL || pkey == NULL || md == NULL) {
+    /* md may be NULL for hash-free algorithms (ML-DSA), as in OpenSSL's
+     * X509_REQ_sign(req, pkey, NULL). */
+    if (req == NULL || pkey == NULL || (md == NULL
+#ifdef WOLFSSL_MLDSA_X509_SIGN
+        && pkey->type != WC_EVP_PKEY_DILITHIUM
+#endif
+        )) {
         WOLFSSL_LEAVE("wolfSSL_X509_REQ_sign", BAD_FUNC_ARG);
         return WOLFSSL_FAILURE;
     }
 
-    WC_ALLOC_VAR_EX(der, byte, derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER,
-        return WOLFSSL_FAILURE);
+    bufSz = x509_gen_buf_sz(req, pkey);
+    derSz = bufSz;
+    der = (byte*)XMALLOC((size_t)bufSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (der == NULL) {
+        return WOLFSSL_FAILURE;
+    }
 
-    /* Create a Cert that has the certificate request fields. */
-    req->sigOID = wolfSSL_sigTypeFromPKEY((WOLFSSL_EVP_MD*)md, pkey);
+    /* Create a Cert that has the certificate request fields. Only update
+     * sigOID on success to keep the object unmodified on a rejected
+     * key/md combination. */
+    sigType = wolfSSL_sigTypeFromPKEY((WOLFSSL_EVP_MD*)md, pkey);
+    if (sigType == WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
+        WOLFSSL_MSG("Unsupported key/md combination for signing");
+        XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return WOLFSSL_FAILURE;
+    }
+    req->sigOID = sigType;
     ret = wolfssl_x509_make_der(req, 1, der, &derSz, 0);
     if (ret != WOLFSSL_SUCCESS) {
-        WC_FREE_VAR_EX(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         WOLFSSL_MSG("Unable to make DER for X509");
         WOLFSSL_LEAVE("wolfSSL_X509_REQ_sign", ret);
         return WOLFSSL_FAILURE;
     }
 
-    if (wolfSSL_X509_resign_cert(req, 1, der, 2048, derSz,
+    if (wolfSSL_X509_resign_cert(req, 1, der, bufSz, derSz,
             (WOLFSSL_EVP_MD*)md, pkey) <= 0) {
-        WC_FREE_VAR_EX(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return WOLFSSL_FAILURE;
     }
-    WC_FREE_VAR_EX(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return WOLFSSL_SUCCESS;
 }
 

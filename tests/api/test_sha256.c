@@ -214,6 +214,85 @@ int test_wc_Sha256Transform(void)
     return EXPECT_RESULT();
 }
 
+/* Same bytes at an aligned and an unaligned offset must hash the same. The
+ * offset comparison alone cannot fail where unaligned word loads are
+ * tolerated, so the block is also pinned to a known answer. */
+int test_wc_Sha256HashBlock_unaligned(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_FULL_HASH) && \
+    !defined(NO_SHA256) && !defined(WOLFSSL_KCAPI_HASH) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_SHA256)
+    wc_Sha256 sha256;
+    byte      buf[WC_SHA256_BLOCK_SIZE * 2];
+    byte      aligned[WC_SHA256_DIGEST_SIZE];
+    byte      unaligned[WC_SHA256_DIGEST_SIZE];
+    int       initDone = 0;
+    int       initRet;
+    int       off;
+    word32    i;
+
+    for (i = 0; i < (word32)sizeof(buf); i++) {
+        buf[i] = (byte)(i * 7 + 1);
+    }
+
+    XMEMSET(&sha256, 0, sizeof(sha256));
+    initRet = wc_InitSha256_ex(&sha256, HEAP_HINT, testDevId);
+    ExpectIntEQ(initRet, 0);
+    if (initRet == 0) initDone = 1;
+
+    /* Bad arguments - neither touches the hash state. */
+    ExpectIntEQ(wc_Sha256HashBlock(NULL, buf, aligned),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Sha256HashBlock(&sha256, NULL, aligned),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* Reference digest at offset 0. This is the FIPS 180-4 compression of
+     * the block from the standard initial state, not a padded SHA-256 of
+     * it, so it is reproducible from the spec alone. */
+    ExpectIntEQ(wc_Sha256HashBlock(&sha256, buf, aligned), 0);
+    ExpectBufEQ(aligned,
+        "\x17\x6c\x96\x15\x3a\x1e\x47\xe6"
+        "\x54\x65\x59\x49\xa2\xa3\x4f\xa0"
+        "\x0a\x62\xd2\x43\x51\x46\xce\x18"
+        "\x3c\x51\xd9\xd2\x85\x0e\x1a\x5f",
+        WC_SHA256_DIGEST_SIZE);
+
+    /* Same bytes at every non-zero offset within a word. */
+    for (off = 1; off < 4; off++) {
+        if (!EXPECT_SUCCESS()) break;
+
+        for (i = 0; i < (word32)WC_SHA256_BLOCK_SIZE; i++) {
+            buf[(word32)off + i] = (byte)(i * 7 + 1);
+        }
+        if (initDone) {
+            wc_Sha256Free(&sha256);
+            initDone = 0;
+        }
+        initRet = wc_InitSha256_ex(&sha256, HEAP_HINT, testDevId);
+        ExpectIntEQ(initRet, 0);
+        if (initRet == 0) initDone = 1;
+        ExpectIntEQ(wc_Sha256HashBlock(&sha256, buf + off, unaligned), 0);
+        ExpectBufEQ(unaligned, aligned, WC_SHA256_DIGEST_SIZE);
+    }
+
+    /* hash is optional - block absorbed, no digest written out. */
+    if (initDone) {
+        wc_Sha256Free(&sha256);
+        initDone = 0;
+    }
+    initRet = wc_InitSha256_ex(&sha256, HEAP_HINT, testDevId);
+    ExpectIntEQ(initRet, 0);
+    if (initRet == 0) initDone = 1;
+    ExpectIntEQ(wc_Sha256HashBlock(&sha256, buf, NULL), 0);
+
+    if (initDone) {
+        wc_Sha256Free(&sha256);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wc_Sha256_Flags(void)
 {
     EXPECT_DECLS;

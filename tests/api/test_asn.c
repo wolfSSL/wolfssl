@@ -825,6 +825,102 @@ int test_wc_IndexSequenceOf(void)
     return EXPECT_RESULT();
 }
 
+#if !defined(NO_CERTS) && !defined(NO_ASN) && !defined(IGNORE_NAME_CONSTRAINTS)
+/* One AttributeTypeAndValue for the directoryName cases below. */
+typedef struct DirTestAttr {
+    byte        oid;   /* Last octet of the 2.5.4.x attribute type OID. */
+    byte        tag;   /* ASN.1 string tag of the value. */
+    const byte* val;   /* Value content octets. */
+    word32      valSz;
+} DirTestAttr;
+
+#define DIR_OID_CN 0x03  /* 2.5.4.3  commonName */
+#define DIR_OID_O  0x0a  /* 2.5.4.10 organizationName */
+/* OR into the oid field to put the attribute in the same RDN as the one
+ * before it, making a multi-valued RDN. The 2.5.4.x attribute types are all
+ * well below this bit. */
+#define DIR_JOIN   0x80
+
+/* Encode the content octets of an RDNSequence, i.e. what GetCertName()
+ * stores in cert->subjectRaw and what DecodeSubtreeGeneralName() stores for
+ * a directoryName subtree (the outer SEQUENCE header is stripped in both).
+ * Each attribute starts a new RDN unless its oid carries DIR_JOIN, which
+ * puts it in the RDN before it. The attributes of a multi-valued RDN are
+ * emitted in the order
+ * given rather than in DER SET OF order, which is what lets the cases below
+ * present the same RDN two ways. Only short form lengths are needed here.
+ * Returns the encoded length or -1 if it does not fit. */
+static int dirNameEnc(byte* out, word32 outSz, const DirTestAttr* attrs,
+                      int cnt)
+{
+    word32 idx = 0;
+    int    i = 0;
+
+    while (i < cnt) {
+        word32 setLenIdx;
+        word32 setSz = 0;
+
+        if ((idx + 2) > outSz) {
+            return -1;
+        }
+        out[idx++] = 0x31;                  /* SET OF */
+        setLenIdx = idx++;                  /* Length, filled in below. */
+
+        do {
+            /* AttributeTypeAndValue content: the OID TLV plus the value TLV.
+             */
+            word32 avaSz = (2 + 3) + (2 + attrs[i].valSz);
+
+            if ((attrs[i].valSz > 127) || (avaSz > 127) ||
+                    ((idx + 2 + avaSz) > outSz)) {
+                return -1;
+            }
+
+            out[idx++] = 0x30;              /* SEQUENCE */
+            out[idx++] = (byte)avaSz;
+            out[idx++] = 0x06;              /* OBJECT IDENTIFIER */
+            out[idx++] = 0x03;
+            out[idx++] = 0x55;              /* 2.5.4.x */
+            out[idx++] = 0x04;
+            out[idx++] = (byte)(attrs[i].oid & (byte)~DIR_JOIN);
+            out[idx++] = attrs[i].tag;
+            out[idx++] = (byte)attrs[i].valSz;
+            XMEMCPY(out + idx, attrs[i].val, attrs[i].valSz);
+            idx += attrs[i].valSz;
+
+            setSz += 2 + avaSz;
+            i++;
+        } while ((i < cnt) && ((attrs[i].oid & DIR_JOIN) != 0));
+
+        if (setSz > 127) {
+            return -1;
+        }
+        out[setLenIdx] = (byte)setSz;
+    }
+
+    return (int)idx;
+}
+
+/* Encode both names and run them through the directoryName matcher. */
+static int dirMatch(const DirTestAttr* nm, int nmCnt, const DirTestAttr* bs,
+                    int bsCnt)
+{
+    byte nameDer[128];
+    byte baseDer[128];
+    int  nameSz;
+    int  baseSz;
+
+    nameSz = dirNameEnc(nameDer, (word32)sizeof(nameDer), nm, nmCnt);
+    baseSz = dirNameEnc(baseDer, (word32)sizeof(baseDer), bs, bsCnt);
+    if ((nameSz < 0) || (baseSz < 0)) {
+        return -1;
+    }
+
+    return wolfssl_local_MatchBaseName(ASN_DIR_TYPE, (const char*)nameDer,
+        nameSz, (const char*)baseDer, baseSz);
+}
+#endif /* !NO_CERTS && !NO_ASN && !IGNORE_NAME_CONSTRAINTS */
+
 int test_wolfssl_local_MatchBaseName(void)
 {
     EXPECT_DECLS;
@@ -940,25 +1036,510 @@ int test_wolfssl_local_MatchBaseName(void)
     ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
                 "user@domain.com", 15, "user@", 5), 0);
 
+    /* Regression: the scan for '@' in the base must test the length bound
+     * before dereferencing. The base is passed with an explicit length and
+     * is not required to be NUL terminated, so a bare-domain constraint
+     * (no '@' anywhere in it) used to read base[baseSz]. Run the same
+     * cases against a heap buffer holding exactly baseSz bytes with no
+     * terminator, so that the over-read is a heap overflow that ASAN or
+     * valgrind will catch. */
+    {
+        const char* bases[] = { "domain.com", ".domain.com", "user@domain.com" };
+        const int   expect[] = { 1, 0, 1 };
+        size_t      i;
+
+        for (i = 0; i < XELEM_CNT(bases); i++) {
+            char* base = NULL;
+            int   baseSz = (int)XSTRLEN(bases[i]);
+
+            ExpectNotNull(base = (char*)XMALLOC((size_t)baseSz, NULL,
+                DYNAMIC_TYPE_TMP_BUFFER));
+            if (base != NULL) {
+                XMEMCPY(base, bases[i], (size_t)baseSz);
+                ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
+                    "user@domain.com", 15, base, baseSz), expect[i]);
+                XFREE(base, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            }
+        }
+    }
+
     /*
      * Tests for directory type (ASN_DIR_TYPE = 0x04)
+     *
+     * A directoryName subtree matches when its RDN sequence is an initial
+     * subsequence of the certificate DN (RFC 5280 Sec. 4.2.1.10), with RDNs
+     * compared using the Sec. 7.1 name matching rules: the attribute type
+     * OID must be identical, but the value is compared by folded code point
+     * so that letter case, the ASN.1 string type used and insignificant
+     * spacing do not matter. Comparing the DER directly used to let a
+     * semantically equal name slip past an excluded subtree.
      */
+    {
+        static const byte forbidden[]   =
+            { 'F','o','r','b','i','d','d','e','n' };
+        static const byte forbiddenUp[] =
+            { 'F','O','R','B','I','D','D','E','N' };
+        static const byte forbiddenSp[] =
+            { ' ','F','o','r','b','i','d','d','e','n',' ',' ' };
+        static const byte forbid[]      = { 'F','o','r','b','i','d' };
+        static const byte allowed[]     = { 'A','l','l','o','w','e','d' };
+        static const byte leaf[]        = { 'l','e','a','f' };
+        static const byte other[]       = { 'o','t','h','e','r' };
+        static const byte forBid[]      = { 'F','o','r',' ','b','i','d' };
+        static const byte forBid2[]     = { 'F','o','r',' ',' ','b','i','d' };
+        /* "Forbidden" as BMPString (UCS-2) and UniversalString (UCS-4). */
+        static const byte forbiddenBmp[] = {
+            0,'F', 0,'o', 0,'r', 0,'b', 0,'i', 0,'d', 0,'d', 0,'e', 0,'n'
+        };
+        static const byte forbiddenUcs[] = {
+            0,0,0,'F', 0,0,0,'o', 0,0,0,'r', 0,0,0,'b', 0,0,0,'i',
+            0,0,0,'d', 0,0,0,'d', 0,0,0,'e', 0,0,0,'n'
+        };
+        /* U+00C4 and U+00E4 (A with diaeresis, upper and lower case) in
+         * UTF-8 and as a BMPString. */
+        static const byte upperAeUtf8[] = { 0xc3, 0x84 };
+        static const byte upperAeBmp[]  = { 0x00, 0xc4 };
+        static const byte lowerAeUtf8[] = { 0xc3, 0xa4 };
 
-    /* Positive tests - should match */
-    /* Exact match */
-    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DIR_TYPE,
-                "CN=test", 7, "CN=test", 7), 1);
-    /* Prefix match (name longer than base) */
-    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DIR_TYPE,
-                "CN=test,O=org", 13, "CN=test", 7), 1);
+        /* base: O=Forbidden */
+        const DirTestAttr bForbidden[] = {
+            { DIR_OID_O, ASN_UTF8STRING, forbidden, sizeof(forbidden) }
+        };
+        /* base: O=Forbidden, CN=leaf */
+        const DirTestAttr bForbiddenLeaf[] = {
+            { DIR_OID_O,  ASN_UTF8STRING, forbidden, sizeof(forbidden) },
+            { DIR_OID_CN, ASN_UTF8STRING, leaf,      sizeof(leaf) }
+        };
 
-    /* Negative tests - should NOT match */
-    /* Different content */
+        /* Exact encoding, subtree is a proper prefix of the DN. */
+        {
+            const DirTestAttr nm[] = {
+                { DIR_OID_O,  ASN_UTF8STRING, forbidden, sizeof(forbidden) },
+                { DIR_OID_CN, ASN_UTF8STRING, leaf,      sizeof(leaf) }
+            };
+            ExpectIntEQ(dirMatch(nm, 2, bForbidden, 1), 1);
+        }
+        /* Whole DN equals the subtree. */
+        ExpectIntEQ(dirMatch(bForbiddenLeaf, 2, bForbiddenLeaf, 2), 1);
+
+        /* Letter case is ignored. Byte comparison used to miss this and
+         * accept the certificate. */
+        {
+            const DirTestAttr nm[] = {
+                { DIR_OID_O,  ASN_UTF8STRING, forbiddenUp,
+                  sizeof(forbiddenUp) },
+                { DIR_OID_CN, ASN_UTF8STRING, leaf, sizeof(leaf) }
+            };
+            ExpectIntEQ(dirMatch(nm, 2, bForbidden, 1), 1);
+        }
+        /* A different string type holding the same characters is the same
+         * name: PrintableString, BMPString and UniversalString against a
+         * UTF8String subtree. */
+        {
+            const DirTestAttr nm[] = {
+                { DIR_OID_O,  ASN_PRINTABLE_STRING, forbidden,
+                  sizeof(forbidden) },
+                { DIR_OID_CN, ASN_UTF8STRING, leaf, sizeof(leaf) }
+            };
+            ExpectIntEQ(dirMatch(nm, 2, bForbidden, 1), 1);
+        }
+        {
+            const DirTestAttr nm[] = {
+                { DIR_OID_O, ASN_BMPSTRING, forbiddenBmp,
+                  sizeof(forbiddenBmp) }
+            };
+            ExpectIntEQ(dirMatch(nm, 1, bForbidden, 1), 1);
+        }
+        {
+            const DirTestAttr nm[] = {
+                { DIR_OID_O, ASN_UNIVERSALSTRING, forbiddenUcs,
+                  sizeof(forbiddenUcs) }
+            };
+            ExpectIntEQ(dirMatch(nm, 1, bForbidden, 1), 1);
+        }
+        /* Non-ASCII characters compare across string types too. */
+        {
+            const DirTestAttr nm[] = {
+                { DIR_OID_O, ASN_BMPSTRING, upperAeBmp, sizeof(upperAeBmp) }
+            };
+            const DirTestAttr bs[] = {
+                { DIR_OID_O, ASN_UTF8STRING, upperAeUtf8,
+                  sizeof(upperAeUtf8) }
+            };
+            ExpectIntEQ(dirMatch(nm, 1, bs, 1), 1);
+        }
+        /* Leading and trailing spaces are insignificant, in either operand.
+         * The DN encoding being shorter than the subtree encoding must not
+         * short-circuit the comparison. */
+        {
+            const DirTestAttr nm[] = {
+                { DIR_OID_O,  ASN_UTF8STRING, forbiddenSp,
+                  sizeof(forbiddenSp) },
+                { DIR_OID_CN, ASN_UTF8STRING, leaf, sizeof(leaf) }
+            };
+            const DirTestAttr bs[] = {
+                { DIR_OID_O, ASN_UTF8STRING, forbiddenSp,
+                  sizeof(forbiddenSp) }
+            };
+            ExpectIntEQ(dirMatch(nm, 2, bForbidden, 1), 1);
+            ExpectIntEQ(dirMatch(bForbidden, 1, bs, 1), 1);
+        }
+        /* An inner run of spaces collapses to one. */
+        {
+            const DirTestAttr nm[] = {
+                { DIR_OID_O, ASN_UTF8STRING, forBid2, sizeof(forBid2) }
+            };
+            const DirTestAttr bs[] = {
+                { DIR_OID_O, ASN_UTF8STRING, forBid, sizeof(forBid) }
+            };
+            ExpectIntEQ(dirMatch(nm, 1, bs, 1), 1);
+        }
+
+        /* RFC 4518 Sec. 2.2 maps a fixed set of code points to SPACE and
+         * another to nothing, so that names differing only in the width of
+         * a space or in characters that carry no meaning of their own are
+         * the same name. Leaving them unmapped would let a subordinate CA
+         * sidestep an excluded subtree with a name that renders the same as
+         * the excluded one. */
+        {
+            /* "For" + NO-BREAK SPACE (U+00A0) + "bid". */
+            static const byte forNbspBid[] =
+                { 'F','o','r', 0xc2,0xa0, 'b','i','d' };
+            /* "For" + CHARACTER TABULATION + "bid". */
+            static const byte forTabBid[] =
+                { 'F','o','r', 0x09, 'b','i','d' };
+            /* "For" + IDEOGRAPHIC SPACE (U+3000) + "bid". */
+            static const byte forIdeoBid[] =
+                { 'F','o','r', 0xe3,0x80,0x80, 'b','i','d' };
+            /* NO-BREAK SPACE either side of "Forbidden". */
+            static const byte nbspForbidden[] = {
+                0xc2,0xa0, 'F','o','r','b','i','d','d','e','n', 0xc2,0xa0
+            };
+            /* "For" SPACE SOFT HYPHEN (U+00AD) SPACE "bid": a code point
+             * that maps to nothing does not break the run of spaces. */
+            static const byte forShyBid[] =
+                { 'F','o','r', ' ', 0xc2,0xad, ' ', 'b','i','d' };
+            /* "Forbid" with a ZERO WIDTH SPACE (U+200B) in the middle,
+             * which maps to nothing rather than to a space. */
+            static const byte forZwspBid[] =
+                { 'F','o','r', 0xe2,0x80,0x8b, 'b','i','d' };
+            /* "Forbidden" with VARIATION SELECTOR-1 (U+FE00) in it. */
+            static const byte forbidVsDen[] = {
+                'F','o','r','b','i','d', 0xef,0xb8,0x80, 'd','e','n'
+            };
+            /* "For" + the octet 0xa0 + "bid". */
+            static const byte forA0Bid[] =
+                { 'F','o','r', 0xa0, 'b','i','d' };
+
+            /* base: O=For bid */
+            const DirTestAttr bForBid[] = {
+                { DIR_OID_O, ASN_UTF8STRING, forBid, sizeof(forBid) }
+            };
+            /* base: O=Forbid */
+            const DirTestAttr bForbid[] = {
+                { DIR_OID_O, ASN_UTF8STRING, forbid, sizeof(forbid) }
+            };
+
+            /* Code points that stand in for a space. */
+            {
+                const DirTestAttr nm[] = {
+                    { DIR_OID_O, ASN_UTF8STRING, forNbspBid,
+                      sizeof(forNbspBid) }
+                };
+                ExpectIntEQ(dirMatch(nm, 1, bForBid, 1), 1);
+                ExpectIntEQ(dirMatch(bForBid, 1, nm, 1), 1);
+            }
+            {
+                const DirTestAttr nm[] = {
+                    { DIR_OID_O, ASN_UTF8STRING, forTabBid,
+                      sizeof(forTabBid) }
+                };
+                ExpectIntEQ(dirMatch(nm, 1, bForBid, 1), 1);
+            }
+            {
+                const DirTestAttr nm[] = {
+                    { DIR_OID_O, ASN_UTF8STRING, forIdeoBid,
+                      sizeof(forIdeoBid) }
+                };
+                ExpectIntEQ(dirMatch(nm, 1, bForBid, 1), 1);
+            }
+            /* They are insignificant leading and trailing, as a space is. */
+            {
+                const DirTestAttr nm[] = {
+                    { DIR_OID_O, ASN_UTF8STRING, nbspForbidden,
+                      sizeof(nbspForbidden) }
+                };
+                ExpectIntEQ(dirMatch(nm, 1, bForbidden, 1), 1);
+            }
+            /* Code points that map to nothing drop out, leaving the spaces
+             * on either side of them one run. */
+            {
+                const DirTestAttr nm[] = {
+                    { DIR_OID_O, ASN_UTF8STRING, forShyBid,
+                      sizeof(forShyBid) }
+                };
+                ExpectIntEQ(dirMatch(nm, 1, bForBid, 1), 1);
+            }
+            {
+                const DirTestAttr nm[] = {
+                    { DIR_OID_O, ASN_UTF8STRING, forbidVsDen,
+                      sizeof(forbidVsDen) }
+                };
+                ExpectIntEQ(dirMatch(nm, 1, bForbidden, 1), 1);
+            }
+            /* ZERO WIDTH SPACE maps to nothing and not to a space, whatever
+             * its name suggests: it joins the two halves rather than
+             * separating them. */
+            {
+                const DirTestAttr nm[] = {
+                    { DIR_OID_O, ASN_UTF8STRING, forZwspBid,
+                      sizeof(forZwspBid) }
+                };
+                ExpectIntEQ(dirMatch(nm, 1, bForbid, 1), 1);
+                ExpectIntEQ(dirMatch(nm, 1, bForBid, 1), 0);
+            }
+            /* Only the Unicode string types are mapped beyond ASCII. The
+             * octet 0xa0 of a T61String is not NO-BREAK SPACE, and in a
+             * UTF8String it is not a character at all. */
+            {
+                const DirTestAttr nm[] = {
+                    { DIR_OID_O, ASN_T61STRING, forA0Bid, sizeof(forA0Bid) }
+                };
+                ExpectIntEQ(dirMatch(nm, 1, bForBid, 1), 0);
+            }
+            {
+                const DirTestAttr nm[] = {
+                    { DIR_OID_O, ASN_UTF8STRING, forA0Bid,
+                      sizeof(forA0Bid) }
+                };
+                ExpectIntEQ(dirMatch(nm, 1, bForBid, 1),
+                            WC_NO_ERR_TRACE(ASN_PARSE_E));
+            }
+        }
+
+        /* Negative tests - should NOT match */
+
+        /* Different value. */
+        {
+            const DirTestAttr nm[] = {
+                { DIR_OID_O,  ASN_UTF8STRING, allowed, sizeof(allowed) },
+                { DIR_OID_CN, ASN_UTF8STRING, leaf,    sizeof(leaf) }
+            };
+            ExpectIntEQ(dirMatch(nm, 2, bForbidden, 1), 0);
+        }
+        /* A value the subtree value is a prefix of is a different name. */
+        {
+            const DirTestAttr nm[] = {
+                { DIR_OID_O,  ASN_UTF8STRING, forbid, sizeof(forbid) },
+                { DIR_OID_CN, ASN_UTF8STRING, leaf,   sizeof(leaf) }
+            };
+            ExpectIntEQ(dirMatch(nm, 2, bForbidden, 1), 0);
+        }
+        /* Same value under a different attribute type. */
+        {
+            const DirTestAttr nm[] = {
+                { DIR_OID_CN, ASN_UTF8STRING, forbidden, sizeof(forbidden) }
+            };
+            ExpectIntEQ(dirMatch(nm, 1, bForbidden, 1), 0);
+        }
+        /* The DN has fewer RDNs than the subtree. */
+        ExpectIntEQ(dirMatch(bForbidden, 1, bForbiddenLeaf, 2), 0);
+        /* The subtree is not an initial subsequence of the DN. */
+        {
+            const DirTestAttr nm[] = {
+                { DIR_OID_O,  ASN_UTF8STRING, forbidden, sizeof(forbidden) },
+                { DIR_OID_CN, ASN_UTF8STRING, other,     sizeof(other) }
+            };
+            ExpectIntEQ(dirMatch(nm, 2, bForbiddenLeaf, 2), 0);
+        }
+        /* An inner space is significant, only runs of them collapse. */
+        {
+            const DirTestAttr nm[] = {
+                { DIR_OID_O, ASN_UTF8STRING, forbid, sizeof(forbid) }
+            };
+            const DirTestAttr bs[] = {
+                { DIR_OID_O, ASN_UTF8STRING, forBid, sizeof(forBid) }
+            };
+            ExpectIntEQ(dirMatch(nm, 1, bs, 1), 0);
+        }
+        /* Case folding is ASCII only, matching what other implementations
+         * canonicalize. U+00C4 and U+00E4 stay distinct. */
+        {
+            const DirTestAttr nm[] = {
+                { DIR_OID_O, ASN_UTF8STRING, lowerAeUtf8,
+                  sizeof(lowerAeUtf8) }
+            };
+            const DirTestAttr bs[] = {
+                { DIR_OID_O, ASN_UTF8STRING, upperAeUtf8,
+                  sizeof(upperAeUtf8) }
+            };
+            ExpectIntEQ(dirMatch(nm, 1, bs, 1), 0);
+        }
+
+        /* An RDN holding several attributes is a set: RFC 5280 Sec. 7.1
+         * matches two RDNs when their attributes pair up one for one, in
+         * whatever order they were encoded. DER sorts the components of a
+         * SET OF by encoding, but the sort key is the encoding while the
+         * comparison is deliberately insensitive to it, so equal names can
+         * still list their attributes in different orders. */
+        {
+            /* One RDN: O=Forbidden + CN=leaf. */
+            const DirTestAttr mv[] = {
+                { DIR_OID_O,  ASN_UTF8STRING, forbidden, sizeof(forbidden) },
+                { DIR_OID_CN | DIR_JOIN, ASN_UTF8STRING, leaf, sizeof(leaf) }
+            };
+            /* The same RDN with the attributes the other way around. */
+            const DirTestAttr mvRev[] = {
+                { DIR_OID_CN, ASN_UTF8STRING, leaf, sizeof(leaf) },
+                { DIR_OID_O | DIR_JOIN, ASN_UTF8STRING, forbidden,
+                  sizeof(forbidden) }
+            };
+
+            /* Order within the RDN does not matter, in either operand. */
+            ExpectIntEQ(dirMatch(mv, 2, mvRev, 2), 1);
+            ExpectIntEQ(dirMatch(mvRev, 2, mv, 2), 1);
+            /* Reordering and the Sec. 7.1 value rules apply together. */
+            {
+                const DirTestAttr nm[] = {
+                    { DIR_OID_CN, ASN_PRINTABLE_STRING, leaf, sizeof(leaf) },
+                    { DIR_OID_O | DIR_JOIN, ASN_UTF8STRING, forbiddenUp,
+                      sizeof(forbiddenUp) }
+                };
+                ExpectIntEQ(dirMatch(nm, 2, mv, 2), 1);
+            }
+            /* A reordered multi-valued RDN still only matches as a whole
+             * RDN of the subtree, with any further DN RDNs ignored. */
+            {
+                const DirTestAttr nm[] = {
+                    { DIR_OID_O,  ASN_UTF8STRING, forbidden,
+                      sizeof(forbidden) },
+                    { DIR_OID_CN | DIR_JOIN, ASN_UTF8STRING, leaf,
+                      sizeof(leaf) },
+                    { DIR_OID_CN, ASN_UTF8STRING, other, sizeof(other) }
+                };
+                ExpectIntEQ(dirMatch(nm, 3, mvRev, 2), 1);
+            }
+
+            /* An attribute of the subtree RDN that the DN RDN does not hold
+             * means the RDNs differ, however they are ordered. */
+            ExpectIntEQ(dirMatch(bForbidden, 1, mv, 2), 0);
+            ExpectIntEQ(dirMatch(mv, 2, bForbidden, 1), 0);
+            {
+                const DirTestAttr nm[] = {
+                    { DIR_OID_CN, ASN_UTF8STRING, other, sizeof(other) },
+                    { DIR_OID_O | DIR_JOIN, ASN_UTF8STRING, forbidden,
+                      sizeof(forbidden) }
+                };
+                ExpectIntEQ(dirMatch(nm, 2, mv, 2), 0);
+            }
+            /* The attributes must pair up one for one: a repeated attribute
+             * cannot stand in for two different ones. */
+            {
+                const DirTestAttr twice[] = {
+                    { DIR_OID_O, ASN_UTF8STRING, forbidden,
+                      sizeof(forbidden) },
+                    { DIR_OID_O | DIR_JOIN, ASN_UTF8STRING, forbidden,
+                      sizeof(forbidden) }
+                };
+                const DirTestAttr pair[] = {
+                    { DIR_OID_O, ASN_UTF8STRING, forbidden,
+                      sizeof(forbidden) },
+                    { DIR_OID_O | DIR_JOIN, ASN_UTF8STRING, allowed,
+                      sizeof(allowed) }
+                };
+                ExpectIntEQ(dirMatch(twice, 2, pair, 2), 0);
+                ExpectIntEQ(dirMatch(pair, 2, twice, 2), 0);
+                ExpectIntEQ(dirMatch(twice, 2, twice, 2), 1);
+            }
+        }
+
+        /* Malformed encodings - neither "match" nor "no match" is safe, so
+         * the error is returned and the caller rejects the certificate. */
+        {
+            /* Overlong two octet encoding of "F": it must not decode to a
+             * character, or it could impersonate the plain spelling. */
+            static const byte overlongF[] =
+                { 0xc1, 0x86, 'o','r','b','i','d','d','e','n' };
+            /* Truncated two octet sequence. */
+            static const byte truncUtf8[] = { 'F', 0xc3 };
+            /* Continuation octet with no lead octet. */
+            static const byte loneCont[]  = { 0x80, 'F' };
+            /* BMPString with an odd number of octets. */
+            static const byte oddBmp[]    = { 0x00, 'F', 0x00 };
+            /* BMPString high surrogate with no low surrogate after it. */
+            static const byte loneHiBmp[] = { 0xd8, 0x00, 0x00, 'F' };
+            /* BMPString low surrogate with no high surrogate before it. */
+            static const byte loneLoBmp[] = { 0xdc, 0x00, 0x00, 'F' };
+            /* UniversalString with a length that is not a multiple of 4. */
+            static const byte shortUcs[]  = { 0x00, 0x00, 0x00 };
+            /* UniversalString code point past the end of Unicode. */
+            static const byte bigUcs[]    = { 0x00, 0x11, 0x00, 0x00 };
+            static const struct {
+                byte        tag;
+                const byte* val;
+                word32      valSz;
+            } bad[] = {
+                { ASN_UTF8STRING,      overlongF, sizeof(overlongF) },
+                { ASN_UTF8STRING,      truncUtf8, sizeof(truncUtf8) },
+                { ASN_UTF8STRING,      loneCont,  sizeof(loneCont)  },
+                { ASN_BMPSTRING,       oddBmp,    sizeof(oddBmp)    },
+                { ASN_BMPSTRING,       loneHiBmp, sizeof(loneHiBmp) },
+                { ASN_BMPSTRING,       loneLoBmp, sizeof(loneLoBmp) },
+                { ASN_UNIVERSALSTRING, shortUcs,  sizeof(shortUcs)  },
+                { ASN_UNIVERSALSTRING, bigUcs,    sizeof(bigUcs)    }
+            };
+            int i;
+
+            for (i = 0; i < (int)(sizeof(bad) / sizeof(bad[0])); i++) {
+                DirTestAttr one[] = {
+                    { DIR_OID_O, bad[i].tag, bad[i].val, bad[i].valSz }
+                };
+
+                /* Malformed in the certificate DN. */
+                ExpectIntEQ(dirMatch(one, 1, bForbidden, 1),
+                            WC_NO_ERR_TRACE(ASN_PARSE_E));
+                /* Malformed in the constraint subtree. */
+                ExpectIntEQ(dirMatch(bForbidden, 1, one, 1),
+                            WC_NO_ERR_TRACE(ASN_PARSE_E));
+            }
+
+            /* A malformed value is only decoded once the attribute type
+             * matches, so a different OID still answers "no match". */
+            {
+                const DirTestAttr one[] = {
+                    { DIR_OID_CN, ASN_UTF8STRING, truncUtf8,
+                      sizeof(truncUtf8) }
+                };
+                ExpectIntEQ(dirMatch(one, 1, bForbidden, 1), 0);
+            }
+
+            /* A malformed attribute inside a multi-valued RDN is reported
+             * even though the other attribute of that RDN pairs up. */
+            {
+                const DirTestAttr nm[] = {
+                    { DIR_OID_CN, ASN_UTF8STRING, leaf, sizeof(leaf) },
+                    { DIR_OID_O | DIR_JOIN, ASN_UTF8STRING, truncUtf8,
+                      sizeof(truncUtf8) }
+                };
+                const DirTestAttr bs[] = {
+                    { DIR_OID_O,  ASN_UTF8STRING, forbidden,
+                      sizeof(forbidden) },
+                    { DIR_OID_CN | DIR_JOIN, ASN_UTF8STRING, leaf,
+                      sizeof(leaf) }
+                };
+                ExpectIntEQ(dirMatch(nm, 2, bs, 2),
+                            WC_NO_ERR_TRACE(ASN_PARSE_E));
+            }
+        }
+    }
+
+    /* Neither operand is a parsable RDNSequence. Reporting "no match" would
+     * be fail-open for an excluded subtree and "match" fail-open for a
+     * permitted one, so the error is returned instead. */
     ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DIR_TYPE,
-                "CN=other", 8, "CN=test", 7), 0);
-    /* Case sensitive for directory */
+                "CN=test", 7, "CN=test", 7), WC_NO_ERR_TRACE(ASN_PARSE_E));
     ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DIR_TYPE,
-                "CN=TEST", 7, "CN=test", 7), 0);
+                "CN=other", 8, "CN=test", 7), WC_NO_ERR_TRACE(ASN_PARSE_E));
 
     /*
      * Edge cases and error handling
@@ -2515,6 +3096,366 @@ int test_ToTraditional_ex_mldsa_bad_params(void)
     algId = 0;
     ExpectIntLT(ToTraditional_ex(copy, sz, &algId), 0);
 #endif
+    return EXPECT_RESULT();
+}
+
+/* What wc_SignCert() bounds testing needs regardless of the signing algorithm.
+ * Each algorithm then gates on its own key type and certificate buffers, so an
+ * RSA-less build still gets the ECDSA sweep and vice versa. */
+#if defined(WOLFSSL_CERT_GEN) && !defined(NO_SHA256) && !defined(WC_NO_RNG) && \
+    !defined(NO_ASN_TIME) && !defined(NO_ASN_CRYPT)
+    #if !defined(NO_RSA) && defined(USE_CERT_BUFFERS_2048)
+        #define TEST_SIGN_CERT_BOUNDS_RSA
+    #endif
+    #if defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)
+        #define TEST_SIGN_CERT_BOUNDS_ECC
+    #endif
+#endif
+
+#if defined(TEST_SIGN_CERT_BOUNDS_RSA) || defined(TEST_SIGN_CERT_BOUNDS_ECC)
+
+#define SIGN_CERT_SCRATCH_SZ 4096
+/* Number of capacities below the exact encoding size to try. Has to be wider
+ * than the AlgorithmIdentifier plus BIT STRING header that a sequence-headers
+ * only estimate leaves out. */
+#define SIGN_CERT_BAND_SZ    24
+/* Bytes kept past the advertised capacity to catch a write past the end. */
+#define SIGN_CERT_GUARD_SZ   32
+#define SIGN_CERT_GUARD_BYTE 0xA5
+
+#ifdef TEST_SIGN_CERT_BOUNDS_RSA
+/* Build the certificate body used by test_wc_SignCert_buffer_bounds().
+ * wc_SignCert() rewrites the buffer in place, so it has to be rebuilt for
+ * every capacity tried. Returns the body size or a negative error.
+ *
+ * The serial is fixed rather than left for wc_MakeCert() to generate. A
+ * generated serial is random, and GenerateInteger() does not shrink its length
+ * after dropping leading zero bytes, so the promoted byte can carry the MSB and
+ * make the encoder pad the INTEGER with an extra 0x00. That changes the body
+ * size for about one certificate in 250, which would make the swept capacities
+ * below disagree with the reference size. */
+static int test_wc_SignCert_makeBody(Cert* cert, RsaKey* key, WC_RNG* rng,
+    byte* out, word32 outSz)
+{
+    static const byte serial[] = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+                                   0x08 };
+    int ret;
+
+    ret = wc_InitCert(cert);
+    if (ret != 0)
+        return ret;
+
+    cert->sigType = CTC_SHA256wRSA;
+    cert->isCA = 0;
+    XMEMCPY(cert->serial, serial, sizeof(serial));
+    cert->serialSz = (int)sizeof(serial);
+    XSTRNCPY(cert->subject.country, "US", CTC_NAME_SIZE);
+    XSTRNCPY(cert->subject.state, "MT", CTC_NAME_SIZE);
+    XSTRNCPY(cert->subject.org, "wolfSSL", CTC_NAME_SIZE);
+    XSTRNCPY(cert->subject.commonName, "signcert-bounds", CTC_NAME_SIZE);
+
+    return wc_MakeCert(cert, out, outSz, key, NULL, rng);
+}
+#endif /* TEST_SIGN_CERT_BOUNDS_RSA */
+
+#ifdef TEST_SIGN_CERT_BOUNDS_ECC
+/* ECDSA r and s are DER INTEGERs whose length changes with the leading zero
+ * bytes of each new signature, so an ECDSA encoding size measured once does not
+ * repeat. The sweep copes with that by asserting an invariant that holds for
+ * either outcome rather than a fixed return, so only the accept case needs a
+ * capacity clear of anything the jitter can reach. */
+#define SIGN_CERT_ECC_SLACK 8
+
+/* ECDSA counterpart of test_wc_SignCert_makeBody(). */
+static int test_wc_SignCert_makeBodyEcc(Cert* cert, ecc_key* key, WC_RNG* rng,
+    byte* out, word32 outSz)
+{
+    static const byte serial[] = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+                                   0x08 };
+    int ret;
+
+    ret = wc_InitCert(cert);
+    if (ret != 0)
+        return ret;
+
+    cert->sigType = CTC_SHA256wECDSA;
+    cert->isCA = 0;
+    XMEMCPY(cert->serial, serial, sizeof(serial));
+    cert->serialSz = (int)sizeof(serial);
+    XSTRNCPY(cert->subject.country, "US", CTC_NAME_SIZE);
+    XSTRNCPY(cert->subject.state, "MT", CTC_NAME_SIZE);
+    XSTRNCPY(cert->subject.org, "wolfSSL", CTC_NAME_SIZE);
+    XSTRNCPY(cert->subject.commonName, "signcert-bounds-ecc", CTC_NAME_SIZE);
+
+    return wc_MakeCert(cert, out, outSz, NULL, key, rng);
+}
+#endif /* TEST_SIGN_CERT_BOUNDS_ECC */
+#endif /* TEST_SIGN_CERT_BOUNDS_RSA || TEST_SIGN_CERT_BOUNDS_ECC */
+
+/*
+ * wc_SignCert() must never write past the capacity it was given.
+ *
+ * SignCert() hands the buffer to AddSignature(), which appends the
+ * signatureAlgorithm AlgorithmIdentifier and the signatureValue BIT STRING as
+ * well as wrapping everything in the outer SEQUENCE. A size check that only
+ * accounts for sequence headers under-counts by the algorithm identifier and
+ * bit string header, so capacities in a narrow band just below the exact
+ * encoding size get accepted and overrun.
+ */
+#if !defined(NO_ASN) && !defined(NO_RSA) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    !defined(NO_SHA256) && defined(USE_CERT_BUFFERS_2048) && \
+    !defined(NO_ASN_TIME) && !defined(WC_NO_RNG) && !defined(NO_ASN_CRYPT)
+    #define TEST_KEYUSAGE_DECIPHER_ONLY
+#endif
+
+/*
+ * decipherOnly is bit 8, the only KeyUsage value landing in the second byte
+ * of the BIT STRING - so the only one needing a second content byte to encode
+ * and the high-byte shift to decode. Round-trip it alone and combined with a
+ * first-byte bit to cover both halves.
+ */
+int test_wc_DecodeKeyUsage_decipherOnly(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_KEYUSAGE_DECIPHER_ONLY
+    static const struct {
+        const char* str;
+        word16      expected;
+    } kuCases[] = {
+        { "decipherOnly",                  KEYUSE_DECIPHER_ONLY },
+        { "digitalSignature,decipherOnly", (word16)(KEYUSE_DIGITAL_SIG |
+                                                    KEYUSE_DECIPHER_ONLY) },
+        { "encipherOnly,decipherOnly",     (word16)(KEYUSE_ENCIPHER_ONLY |
+                                                    KEYUSE_DECIPHER_ONLY) },
+        /* A first-byte-only value must keep encoding in a single byte. */
+        { "digitalSignature",              KEYUSE_DIGITAL_SIG },
+    };
+    WC_RNG      rng;
+    RsaKey      key;
+    byte*       der = NULL;
+    word32      idx = 0;
+    int         rngInit = 0;
+    int         keyInit = 0;
+    size_t      c;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&key, 0, sizeof(key));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) rngInit = 1;
+
+    ExpectNotNull(der = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+
+    ExpectIntEQ(wc_InitRsaKey_ex(&key, HEAP_HINT, testDevId), 0);
+    if (EXPECT_SUCCESS()) keyInit = 1;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(server_key_der_2048, &idx, &key,
+        sizeof_server_key_der_2048), 0);
+
+    for (c = 0; c < XELEM_CNT(kuCases); c++) {
+        Cert        cert;
+        DecodedCert dCert;
+        int         dCertInit = 0;
+        int         derSz = 0;
+
+        if (!EXPECT_SUCCESS()) break;
+
+        XMEMSET(&cert, 0, sizeof(cert));
+        ExpectIntEQ(wc_InitCert(&cert), 0);
+        if (EXPECT_SUCCESS()) {
+            cert.sigType = CTC_SHA256wRSA;
+            cert.isCA = 0;
+            XSTRNCPY(cert.subject.country, "US", CTC_NAME_SIZE);
+            XSTRNCPY(cert.subject.org, "wolfSSL", CTC_NAME_SIZE);
+            XSTRNCPY(cert.subject.commonName, "keyUsage", CTC_NAME_SIZE);
+        }
+        ExpectIntEQ(wc_SetKeyUsage(&cert, kuCases[c].str), 0);
+        ExpectIntGT(derSz = wc_MakeSelfCert(&cert, der, FOURK_BUF, &key, &rng),
+            0);
+
+        if (EXPECT_SUCCESS() && (der != NULL)) {
+            wc_InitDecodedCert(&dCert, der, (word32)derSz, HEAP_HINT);
+            dCertInit = 1;
+            ExpectIntEQ(wc_ParseCert(&dCert, CERT_TYPE, NO_VERIFY, NULL), 0);
+            /* Every requested bit must survive and nothing else be set - a
+             * byte-order slip silently yields a first-byte usage. */
+            ExpectIntEQ(dCert.extKeyUsage, kuCases[c].expected);
+        }
+        if (dCertInit) wc_FreeDecodedCert(&dCert);
+    }
+
+    if (keyInit) wc_FreeRsaKey(&key);
+    if (rngInit) wc_FreeRng(&rng);
+    XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif /* TEST_KEYUSAGE_DECIPHER_ONLY */
+    return EXPECT_RESULT();
+}
+
+int test_wc_SignCert_buffer_bounds(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_SIGN_CERT_BOUNDS_RSA) || defined(TEST_SIGN_CERT_BOUNDS_ECC)
+    WC_RNG rng;
+    Cert   cert;
+    byte*  scratch = NULL;
+    byte*  buf = NULL;
+    int    rngInit = 0;
+    int    bodySz = 0;
+    int    cap;
+    int    i;
+#ifdef TEST_SIGN_CERT_BOUNDS_RSA
+    RsaKey key;
+    word32 idx = 0;
+    int    keyInit = 0;
+    int    exactSz = 0;
+#endif
+#ifdef TEST_SIGN_CERT_BOUNDS_ECC
+    ecc_key eccKey;
+    word32 eccIdx = 0;
+    int    eccInit = 0;
+    int    eccExactSz = 0;
+    int    eccSignedSz = 0;
+    int    k;
+#endif
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&cert, 0, sizeof(cert));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) rngInit = 1;
+
+    ExpectNotNull(scratch = (byte*)XMALLOC(SIGN_CERT_SCRATCH_SZ, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(buf = (byte*)XMALLOC(SIGN_CERT_SCRATCH_SZ, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+
+#ifdef TEST_SIGN_CERT_BOUNDS_RSA
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_InitRsaKey_ex(&key, HEAP_HINT, testDevId), 0);
+    if (EXPECT_SUCCESS()) keyInit = 1;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(server_key_der_2048, &idx, &key,
+        sizeof_server_key_der_2048), 0);
+
+    /* Sign into a roomy buffer once to learn the exact encoding size. */
+    ExpectIntGT(bodySz = test_wc_SignCert_makeBody(&cert, &key, &rng, scratch,
+        SIGN_CERT_SCRATCH_SZ), 0);
+    ExpectIntGT(exactSz = wc_SignCert(bodySz, cert.sigType, scratch,
+        SIGN_CERT_SCRATCH_SZ, &key, NULL, &rng), 0);
+    ExpectIntLT(exactSz + SIGN_CERT_GUARD_SZ, SIGN_CERT_SCRATCH_SZ);
+
+    /* Every capacity below the exact size has to be rejected, and rejected
+     * without touching a byte beyond it. */
+    for (cap = exactSz - SIGN_CERT_BAND_SZ; cap < exactSz; cap++) {
+        if (!EXPECT_SUCCESS()) break;
+
+        ExpectIntGT(bodySz = test_wc_SignCert_makeBody(&cert, &key, &rng,
+            scratch, SIGN_CERT_SCRATCH_SZ), 0);
+        if (!EXPECT_SUCCESS()) break;
+
+        XMEMCPY(buf, scratch, (size_t)bodySz);
+        XMEMSET(buf + cap, SIGN_CERT_GUARD_BYTE, SIGN_CERT_GUARD_SZ);
+
+        ExpectIntEQ(wc_SignCert(bodySz, cert.sigType, buf, (word32)cap, &key,
+            NULL, &rng), WC_NO_ERR_TRACE(BUFFER_E));
+
+        for (i = 0; i < SIGN_CERT_GUARD_SZ; i++) {
+            ExpectIntEQ(buf[cap + i], SIGN_CERT_GUARD_BYTE);
+        }
+    }
+
+    /* The exact size still has to be accepted - the check must not be made
+     * conservative instead of correct. */
+    ExpectIntGT(bodySz = test_wc_SignCert_makeBody(&cert, &key, &rng, scratch,
+        SIGN_CERT_SCRATCH_SZ), 0);
+    if (EXPECT_SUCCESS() && (buf != NULL)) {
+        XMEMCPY(buf, scratch, (size_t)bodySz);
+        XMEMSET(buf + exactSz, SIGN_CERT_GUARD_BYTE, SIGN_CERT_GUARD_SZ);
+    }
+    ExpectIntEQ(wc_SignCert(bodySz, cert.sigType, buf, (word32)exactSz, &key,
+        NULL, &rng), exactSz);
+    for (i = 0; i < SIGN_CERT_GUARD_SZ; i++) {
+        ExpectIntEQ(buf[exactSz + i], SIGN_CERT_GUARD_BYTE);
+    }
+#endif /* TEST_SIGN_CERT_BOUNDS_RSA */
+
+#ifdef TEST_SIGN_CERT_BOUNDS_ECC
+    /* Same sweep for ECDSA. IsSigAlgoNoParams() drops the NULL parameters from
+     * the AlgorithmIdentifier, so the under-count an estimate makes has a
+     * different width here than it does for RSA. */
+    XMEMSET(&eccKey, 0, sizeof(eccKey));
+    ExpectIntEQ(wc_ecc_init_ex(&eccKey, HEAP_HINT, testDevId), 0);
+    if (EXPECT_SUCCESS()) eccInit = 1;
+    ExpectIntEQ(wc_EccPrivateKeyDecode(ecc_key_der_256, &eccIdx, &eccKey,
+        sizeof_ecc_key_der_256), 0);
+
+    for (k = 1; k < SIGN_CERT_BAND_SZ; k++) {
+        if (!EXPECT_SUCCESS()) break;
+
+        /* Measured fresh every iteration: the previous signature's length
+         * says nothing about the next one's. */
+        ExpectIntGT(bodySz = test_wc_SignCert_makeBodyEcc(&cert, &eccKey, &rng,
+            scratch, SIGN_CERT_SCRATCH_SZ), 0);
+        ExpectIntGT(eccExactSz = wc_SignCert(bodySz, cert.sigType, scratch,
+            SIGN_CERT_SCRATCH_SZ, NULL, &eccKey, &rng), 0);
+        if (!EXPECT_SUCCESS()) break;
+
+        cap = eccExactSz - k;
+        ExpectIntGT(bodySz = test_wc_SignCert_makeBodyEcc(&cert, &eccKey, &rng,
+            scratch, SIGN_CERT_SCRATCH_SZ), 0);
+        if (!EXPECT_SUCCESS()) break;
+
+        XMEMCPY(buf, scratch, (size_t)bodySz);
+        XMEMSET(buf + cap, SIGN_CERT_GUARD_BYTE, SIGN_CERT_GUARD_SZ);
+
+        eccSignedSz = wc_SignCert(bodySz, cert.sigType, buf, (word32)cap, NULL,
+            &eccKey, &rng);
+        /* The signature this call produces is not the one the capacity was
+         * derived from, so a capacity below the measured size is not always
+         * too small. Both outcomes are legitimate; what must hold either way
+         * is that nothing was written past the capacity. */
+        ExpectTrue((eccSignedSz == WC_NO_ERR_TRACE(BUFFER_E)) ||
+                   ((eccSignedSz > 0) && (eccSignedSz <= cap)));
+
+        for (i = 0; i < SIGN_CERT_GUARD_SZ; i++) {
+            ExpectIntEQ(buf[cap + i], SIGN_CERT_GUARD_BYTE);
+        }
+    }
+
+    /* A capacity above anything the signature length can reach still has to be
+     * accepted, so the check is not merely conservative. */
+    ExpectIntGT(bodySz = test_wc_SignCert_makeBodyEcc(&cert, &eccKey, &rng,
+        scratch, SIGN_CERT_SCRATCH_SZ), 0);
+    ExpectIntGT(eccExactSz = wc_SignCert(bodySz, cert.sigType, scratch,
+        SIGN_CERT_SCRATCH_SZ, NULL, &eccKey, &rng), 0);
+    cap = eccExactSz + SIGN_CERT_ECC_SLACK;
+    ExpectIntGT(bodySz = test_wc_SignCert_makeBodyEcc(&cert, &eccKey, &rng,
+        scratch, SIGN_CERT_SCRATCH_SZ), 0);
+    if (EXPECT_SUCCESS() && (buf != NULL)) {
+        XMEMCPY(buf, scratch, (size_t)bodySz);
+        XMEMSET(buf + cap, SIGN_CERT_GUARD_BYTE, SIGN_CERT_GUARD_SZ);
+    }
+    ExpectIntGT(eccSignedSz = wc_SignCert(bodySz, cert.sigType, buf,
+        (word32)cap, NULL, &eccKey, &rng), 0);
+    ExpectIntLE(eccSignedSz, cap);
+    for (i = 0; i < SIGN_CERT_GUARD_SZ; i++) {
+        ExpectIntEQ(buf[cap + i], SIGN_CERT_GUARD_BYTE);
+    }
+#endif /* TEST_SIGN_CERT_BOUNDS_ECC */
+
+    XFREE(buf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(scratch, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef TEST_SIGN_CERT_BOUNDS_ECC
+    if (eccInit)
+        wc_ecc_free(&eccKey);
+#endif
+#ifdef TEST_SIGN_CERT_BOUNDS_RSA
+    if (keyInit)
+        wc_FreeRsaKey(&key);
+#endif
+    if (rngInit)
+        wc_FreeRng(&rng);
+#endif /* TEST_SIGN_CERT_BOUNDS_RSA || TEST_SIGN_CERT_BOUNDS_ECC */
     return EXPECT_RESULT();
 }
 

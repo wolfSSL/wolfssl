@@ -33,8 +33,11 @@ jobs:
     name: make check
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
-    # Generous for a cold ccache; warm reruns finish in a fraction.
-    timeout-minutes: 15
+    # Generous for a cold ccache; warm reruns finish in a fraction. The
+    # configs alone take ~14 min of wall time on the 4 CPUs of a standard
+    # runner, so this leaves room for a cold cache rather than just clearing
+    # the warm case.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
         name: Checkout wolfSSL
@@ -63,16 +66,17 @@ jobs:
       # The JSON below feeds .github/scripts/parallel-make-check.py: a shared
       # "base" of the common configure flags, then one entry per ONLY_* macro
       # whose "configure" (CPPFLAGS) is appended to the base. Add configs
-      # as new entries. "minutes" (set once in base) drives longest-first
-      # scheduling: refresh it from a previous run's step-summary Minutes.
+      # as new entries. "minutes" drives longest-first scheduling: set it per
+      # config, refreshed from a previous run's step-summary Minutes column.
+      # The value in "base" is only the default for a config that omits one.
       - name: Build and make check all configs (parallel, out-of-tree)
         run: |
           cat > "$RUNNER_TEMP/cryptocb-only-configs.json" <<'EOF'
-          {"base": {"minutes": 2, "configure": [
+          {"base": {"minutes": 4, "configure": [
             "--enable-swdev", "--enable-cryptocb", "--enable-ecc",
             "--enable-rsa", "--enable-dh", "--enable-aesgcm",
             "--enable-aesccm", "--enable-aesctr", "--enable-aescfb",
-            "--enable-aeskeywrap", "--enable-aessiv", "--enable-aesofb",
+            "--enable-aeskeywrap=padding", "--enable-aessiv", "--enable-aesofb",
             "--enable-aesxts", "--enable-camellia", "--enable-chacha",
             "--enable-poly1305", "--enable-sha", "--enable-sha3",
             "--enable-shake128", "--enable-shake256", "--enable-blake2",
@@ -87,39 +91,48 @@ jobs:
             "--enable-ocspstapling2", "--enable-dtls", "--enable-dtls13",
             "--enable-tls13"]},
            "configs": [
-          {"name": "ecc",
+          {"name": "ecc", "minutes": 6.2,
            "comment": "WOLF_CRYPTO_CB_ONLY_ECC: strips software ECC; swdev provides the software path via cryptocb. FP_ECC / ECCSI / SAKKE / deterministic-k test / OPENSSL_EXTRA compat layer all reference stripped primitives directly, so they stay off.",
            "configure": ["CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_ECC"]},
-          {"name": "rsa",
+          {"name": "rsa", "minutes": 6.2,
            "comment": "WOLF_CRYPTO_CB_ONLY_RSA: strips software RSA; swdev provides the software path via cryptocb.",
            "configure": ["CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_RSA"]},
-          {"name": "sha256",
+          {"name": "sha256", "minutes": 6.3,
            "comment": "WOLF_CRYPTO_CB_ONLY_SHA256: strips software SHA-256; swdev provides the software path via cryptocb.",
            "configure": ["CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_SHA256"]},
-          {"name": "sha512",
+          {"name": "sha512", "minutes": 6.4,
            "comment": "WOLF_CRYPTO_CB_ONLY_SHA512: strips software SHA-512 family (SHA-384, SHA-512/224, SHA-512/256, SHA-512); swdev handles every variant explicitly via cryptocb.",
            "configure": ["CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_SHA512"]},
-          {"name": "sha512-via-general",
+          {"name": "sha512-via-general", "minutes": 4.0,
            "comment": "Same as sha512 but tells swdev to refuse the SHA-384 / SHA-512/224 / SHA-512/256 variant callbacks (WOLFSSL_SWDEV_SHA512_GENERAL_ONLY). That forces the cryptocb dispatcher's fallback-to-plain-SHA-512-with-truncation path. The sha512 entry above instead has swdev handle every variant end-to-end, so the dispatcher fallback is otherwise uncovered.",
            "configure": ["CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_SHA512 -DWOLFSSL_SWDEV_SHA512_GENERAL_ONLY"]},
-          {"name": "aes",
-           "comment": "WOLF_CRYPTO_CB_ONLY_AES: strips software AES; swdev provides the software path via cryptocb.",
+          {"name": "aes", "minutes": 4.0,
+           "comment": "WOLF_CRYPTO_CB_ONLY_AES: strips software AES; swdev provides the software path via cryptocb. aeskeywrap=padding covers RFC 3394 + RFC 5649 key wrap via swdev_aes_keywrap.",
            "configure": ["CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_AES"]},
-          {"name": "aes-gcm-via-ecb",
+          {"name": "aes-gcm-via-ecb", "minutes": 4.1,
            "comment": "Same as aes but tells swdev to refuse AES-GCM (SWDEV_AES_ONLYECB). That forces the parent's CB_ONLY_AES host-side GCM software path: GHASH runs on the host while AES-CTR blocks dispatch back through cryptocb ECB. The aes entry instead has swdev handle GCM end-to-end, so the host-side GCM path is otherwise uncovered.",
            "configure": ["CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_AES -DSWDEV_AES_ONLYECB"]},
-          {"name": "ed25519",
+          {"name": "ed25519", "minutes": 4.0,
            "comment": "WOLF_CRYPTO_CB_ONLY_ED25519: strips software Ed25519 (keygen/sign/verify/make-pub/check-key) including the ge/fe curve math and tables; swdev provides the software path via cryptocb. Streaming verify has no callback path and is left disabled.",
            "configure": ["CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_ED25519"]},
-          {"name": "ed25519-no-curve25519",
+          {"name": "ed25519-no-curve25519", "minutes": 4.0,
            "comment": "Same as ed25519 but with curve25519 off. curve25519 is the only other user of the ge/fe math, so without it the strip is complete and nothing must pull the math back in. The ed25519 entry above keeps curve25519 enabled, which leaves fe_operations.c compiled and would hide such a regression at link time.",
            "configure": ["--disable-curve25519", "CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_ED25519"]},
-          {"name": "curve25519",
+          {"name": "curve25519", "minutes": 3.6,
            "comment": "WOLF_CRYPTO_CB_ONLY_CURVE25519: strips software X25519 (keygen/shared-secret); swdev provides the software path via cryptocb. Nonblock and async X25519 have no callback path and are left disabled.",
            "configure": ["CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_CURVE25519"]},
-          {"name": "all",
-           "comment": "All seven ONLY_* macros at once: every supported software primitive is stripped and dispatched through cryptocb. Catches any cross-algorithm call that a single-strip entry would still resolve via the remaining software paths.",
-           "configure": ["CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_ECC -DWOLF_CRYPTO_CB_ONLY_RSA -DWOLF_CRYPTO_CB_ONLY_SHA256 -DWOLF_CRYPTO_CB_ONLY_SHA512 -DWOLF_CRYPTO_CB_ONLY_AES -DWOLF_CRYPTO_CB_ONLY_ED25519 -DWOLF_CRYPTO_CB_ONLY_CURVE25519"]}
+          {"name": "curve448", "minutes": 4.0,
+           "comment": "WOLF_CRYPTO_CB_ONLY_CURVE448: strips software X448 (keygen/shared-secret/make-pub/generic) including the fe448 field math; swdev provides the software path via cryptocb.",
+           "configure": ["CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_CURVE448"]},
+          {"name": "curve448-no-ed448", "minutes": 4.0,
+           "comment": "Same as curve448 but with ed448 off. ed448 is the only other user of the fe448 math, so without it the strip is complete and nothing must pull the math back in. The curve448 entry above keeps ed448 enabled, which leaves fe_448.c compiled and would hide such a regression at link time.",
+           "configure": ["--disable-ed448", "CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_CURVE448"]},
+          {"name": "curve448-onlycb-no-swdev", "minutes": 2.5,
+           "comment": "CB_ONLY_CURVE448 without swdev: runs curve448_onlycb_test, the only coverage of the cb-handled/cb-delegated (exampleVar 99/1) dispatch incl. make_pub/generic. cryptonly drops TLS so make check needs no software X448 provider.",
+           "configure": ["--disable-swdev", "--enable-cryptonly", "CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_CURVE448"]},
+          {"name": "all", "minutes": 4.3,
+           "comment": "All eight ONLY_* macros at once: every supported software primitive is stripped and dispatched through cryptocb. Catches any cross-algorithm call that a single-strip entry would still resolve via the remaining software paths.",
+           "configure": ["CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_ECC -DWOLF_CRYPTO_CB_ONLY_RSA -DWOLF_CRYPTO_CB_ONLY_SHA256 -DWOLF_CRYPTO_CB_ONLY_SHA512 -DWOLF_CRYPTO_CB_ONLY_AES -DWOLF_CRYPTO_CB_ONLY_ED25519 -DWOLF_CRYPTO_CB_ONLY_CURVE25519 -DWOLF_CRYPTO_CB_ONLY_CURVE448"]}
           ]}
           EOF
           .github/scripts/parallel-make-check.py \

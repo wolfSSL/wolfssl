@@ -35,6 +35,16 @@
     extern "C" {
 #endif
 
+/* Minimum hash strength accepted by the wc_SignatureVerify/Generate
+ * convenience APIs. Default is SHA-256 to keep MD5 and SHA-1 (both with
+ * known collision attacks) out of new code. Define WC_SIG_MIN_HASH_TYPE
+ * to a weaker wc_HashType (e.g. WC_HASH_TYPE_SHA) to opt back into legacy
+ * behavior. The lower-level wc_SignatureVerifyHash/wc_SignatureGenerateHash
+ * APIs are unaffected. */
+#ifndef WC_SIG_MIN_HASH_TYPE
+    #define WC_SIG_MIN_HASH_TYPE WC_HASH_TYPE_SHA256
+#endif
+
 enum wc_SignatureType {
     WC_SIGNATURE_TYPE_NONE = 0,
     WC_SIGNATURE_TYPE_ECC = 1,

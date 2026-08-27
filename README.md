@@ -19,7 +19,10 @@ information, visit the [wolfCrypt FIPS FAQ](https://www.wolfssl.com/license/fips
 or contact fips@wolfssl.com.
 
 wolfCrypt also includes support for deriving device-unique keys from hardware entropy
-(`--enable-puf`). An example exists at
+(`--enable-puf[=small|balanced|strong|strongest]`, selecting the BCH error-correction
+strength). Each raw SRAM readout is health tested before use, so a degenerate readout -
+all zero, all ones, a repeating block, or an implausible bit bias - cannot silently
+produce a device-independent key. An example exists at
 [SRAM PUF](https://github.com/wolfSSL/wolfssl-examples/tree/master/puf).
 
 ## Why Choose wolfSSL?
@@ -261,6 +264,15 @@ PR stands for Pull Request, and PR <NUMBER> references a GitHub pull request num
   AES-GCM encryption/decryption with extremely large cumulative single message sizes (>64 GiB) were not properly rejected by the streaming APIs, allowing counter wrap, keystream reuse, and consequent plaintext recovery. Thanks to NVIDIA Project Vanessa for the report. Fixed in PR 10709.
 
 ## Enhancements
+
+* **Behavioral change (`WC_MAX_CERT_VERIFY_SZ` with SLH-DSA)**: when SLH-DSA is
+  compiled in, `WC_MAX_CERT_VERIFY_SZ` is now sized from the largest enabled
+  SLH-DSA signature (`WC_SLHDSA_MAX_SIG_LEN + 1024`, up to roughly 50 KB) rather
+  than the previous 2048/6000. wolfSSL itself no longer uses the macro, but it
+  remains public: downstream code that declares a stack buffer with it, such as
+  `byte der[WC_MAX_CERT_VERIFY_SZ];`, grows that stack frame accordingly and
+  should allocate from the heap or size from the parameter set actually in use.
+  Builds without SLH-DSA are unaffected.
 
 * **BREAKING (FIPS 205 SLH-DSA)**: `wc_SlhDsaKey_SignHash`, `wc_SlhDsaKey_SignHashDeterministic`, `wc_SlhDsaKey_SignHashWithRandom`, and `wc_SlhDsaKey_VerifyHash` now take the **caller-pre-hashed message digest** via `hash`/`hashSz` parameters (renamed from `msg`/`msgSz`), aligned with ML-DSA's `wc_dilithium_sign_ctx_hash` / `wc_dilithium_verify_ctx_hash` semantics, and NIST ACVP `signatureInterface=external` / `preHash=preHash` test vectors. `hashSz` must equal `wc_HashGetDigestSize(hashType)` (32 bytes for SHAKE128, 64 bytes for SHAKE256 per FIPS 205 Section 10.2.2); otherwise `BAD_LENGTH_E` is returned. Migration: hash the message yourself before the call (callers using positional arguments are source-compatible; only the parameter names changed). Caveat: callers who today pass a raw message whose length happens to equal the digest size for the chosen `hashType` (e.g., signing a 32-byte handle/IV/seed with `WC_HASH_TYPE_SHA256`) will not trip `BAD_LENGTH_E`; the resulting signature is syntactically valid but is over the wrong bytes. The pre-existing `wc_SlhDsaKey_SignMsgDeterministic` and `wc_SlhDsaKey_SignMsgWithRandom` retain their M'-supplied-directly contract (FIPS 205 internal interface, Algorithm 19); their input validation is hardened with the same NULL/length/`MISSING_KEY` checks as the `*Hash*` family. `wc_SlhDsaKey_VerifyMsg` is unchanged. All three gain doxygen coverage. (PR 10450, PR 10465)
 

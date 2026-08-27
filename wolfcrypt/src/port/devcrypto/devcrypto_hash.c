@@ -135,20 +135,14 @@ int wc_Sha256Update(wc_Sha256* sha, const byte* in, word32 sz)
 #ifdef WOLFSSL_DEVCRYPTO_HASH_KEEP
     /* keep full message to hash at end instead of incremental updates */
     if (sha->len < sha->used + sz) {
-        if (sha->msg == NULL) {
-            sha->msg = (byte*)XMALLOC(sha->used + sz, sha->heap,
-                    DYNAMIC_TYPE_TMP_BUFFER);
-        } else {
-            byte* pt = (byte*)XREALLOC(sha->msg, sha->used + sz, sha->heap,
-                    DYNAMIC_TYPE_TMP_BUFFER);
-            if (pt == NULL) {
-                return MEMORY_E;
-        }
-            sha->msg = pt;
-        }
-        if (sha->msg == NULL) {
+        byte* pt = (byte*)XREALLOC(sha->msg, sha->used + sz, sha->heap,
+                DYNAMIC_TYPE_TMP_BUFFER);
+        if (pt == NULL) {
             return MEMORY_E;
         }
+
+        sha->msg = pt;
+
         sha->len = sha->used + sz;
     }
     XMEMCPY(sha->msg + sha->used, in, sz);
@@ -163,16 +157,23 @@ int wc_Sha256Update(wc_Sha256* sha, const byte* in, word32 sz)
 int wc_Sha256Final(wc_Sha256* sha, byte* hash)
 {
     int ret;
+    void* heap;
 
     if (sha == NULL || hash == NULL) {
         return BAD_FUNC_ARG;
     }
+
+    /* Cache the heap hint so the re-init below does not read it back out of a
+     * struct that wc_Sha256Free() has already torn down. */
+    heap = sha->heap;
 
     /* help static analysis tools out */
     XMEMSET(hash, 0, WC_SHA256_DIGEST_SIZE);
 #ifdef WOLFSSL_DEVCRYPTO_HASH_KEEP
     /* keep full message to hash at end instead of incremental updates */
     if ((ret = HashUpdate(sha, CRYPTO_SHA2_256, sha->msg, sha->used)) < 0) {
+        wc_Sha256Free(sha);
+        (void)wc_InitSha256_ex(sha, heap, 0);
         return ret;
     }
     XFREE(sha->msg, sha->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -180,11 +181,13 @@ int wc_Sha256Final(wc_Sha256* sha, byte* hash)
 #endif
     ret = GetDigest(sha, CRYPTO_SHA2_256, hash);
     if (ret != 0) {
-       return ret;
+        wc_Sha256Free(sha);
+        (void)wc_InitSha256_ex(sha, heap, 0);
+        return ret;
     }
 
     wc_Sha256Free(sha);
-    return wc_InitSha256_ex(sha, sha->heap, 0);
+    return wc_InitSha256_ex(sha, heap, 0);
 }
 
 
@@ -198,9 +201,11 @@ int wc_Sha256GetHash(wc_Sha256* sha, byte* hash)
     {
         int ret;
         wc_Sha256 cpy;
-        wc_Sha256Copy(sha, &cpy);
+        XMEMSET(&cpy, 0, sizeof(cpy));
+        ret = wc_Sha256Copy(sha, &cpy);
 
-        if ((ret = HashUpdate(&cpy, CRYPTO_SHA2_256, cpy.msg, cpy.used)) == 0) {
+        if (ret == 0 && (ret = HashUpdate(&cpy,
+                        CRYPTO_SHA2_256, cpy.msg, cpy.used)) == 0) {
             /* help static analysis tools out */
             XMEMSET(hash, 0, WC_SHA256_DIGEST_SIZE);
             ret = GetDigest(&cpy, CRYPTO_SHA2_256, hash);
@@ -219,22 +224,40 @@ int wc_Sha256GetHash(wc_Sha256* sha, byte* hash)
 
 int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
 {
+    int ret = 0;
+
     if (src == NULL || dst == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    wc_InitSha256_ex(dst, src->heap, 0);
 #ifdef WOLFSSL_DEVCRYPTO_HASH_KEEP
+    wc_Sha256Free(dst);
+    if ((ret = wc_InitSha256_ex(dst, src->heap, 0)) != 0) {
+        return ret;
+    }
+
+    if (src->len > 0) {
+        dst->msg = (byte*)XMALLOC(src->len, dst->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (dst->msg == NULL) {
+            wc_Sha256Free(dst);
+            return MEMORY_E;
+        }
+        XMEMCPY(dst->msg, src->msg, src->len);
+    }
+
     dst->len  = src->len;
     dst->used = src->used;
-    dst->msg = (byte*)XMALLOC(src->len, dst->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (dst->msg == NULL) {
-        return MEMORY_E;
-    }
-    XMEMCPY(dst->msg, src->msg, src->len);
-#endif
 
-    return 0;
+    return ret;
+#else
+    /* dst is left untouched: nothing is copied or re-initialized here, so
+     * tearing it down would destroy a live caller object on a path that only
+     * reports "not supported". */
+    (void)ret;
+
+    WOLFSSL_MSG("Compile with WOLFSSL_DEVCRYPTO_HASH_KEEP for this feature");
+    return NOT_COMPILED_IN;
+#endif
 }
 
 #endif /* !NO_SHA256 */

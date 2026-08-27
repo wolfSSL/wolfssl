@@ -326,23 +326,21 @@ const WOLFSSL_BIGNUM* wolfSSL_BN_value_one(void)
             wolfSSL_BN_free(one);
             one = NULL;
         }
-        else
+        else {
     #ifndef SINGLE_THREADED
-        /* Ensure global has not been set by another thread. */
-        if (bn_one == NULL)
-    #endif
-        {
+            void* expected = NULL;
+            /* Publish atomically so a losing thread frees only its own object,
+             * never a pointer already handed to another thread. */
+            if (!wolfSSL_Atomic_Ptr_CompareExchange((void* volatile*)&bn_one,
+                    &expected, one)) {
+                wolfSSL_BN_free(one);
+                one = (WOLFSSL_BIGNUM*)expected;
+            }
+    #else
             /* Set this big number as the global. */
             bn_one = one;
-        }
-    #ifndef SINGLE_THREADED
-        /* Check if another thread has set the global. */
-        if (bn_one != one) {
-            /* Dispose of this big number and return the global.  */
-            wolfSSL_BN_free(one);
-            one = bn_one;
-        }
     #endif
+        }
     }
 
     return one;
@@ -2146,10 +2144,19 @@ int wolfSSL_BN_rand(WOLFSSL_BIGNUM* bn, int bits, int top, int bottom)
             WOLFSSL_MSG("Failed to allocate buffer.");
             ret = 0;
         }
-        /* Generate bytes to cover bits. */
-        if ((ret == 1) && wc_RNG_GenerateBlock(rng, buff, len) != 0) {
-            WOLFSSL_MSG("wc_RNG_GenerateBlock failed");
+        /* Global RNG is shared, lock it while generating. */
+        if ((ret == 1) && (wc_LockMutex(&globalRNGMutex) != 0)) {
+            WOLFSSL_MSG("Bad Lock Mutex rng");
             ret = 0;
+        }
+
+        /* Generate bytes to cover bits. */
+        if (ret == 1) {
+            if (wc_RNG_GenerateBlock(rng, buff, len) != 0) {
+                WOLFSSL_MSG("wc_RNG_GenerateBlock failed");
+                ret = 0;
+            }
+            wc_UnLockMutex(&globalRNGMutex);
         }
         /* Read bytes in to big number. */
         if ((ret == 1) && mp_read_unsigned_bin((mp_int*)bn->internal, buff, len)

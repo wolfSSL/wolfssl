@@ -1045,6 +1045,97 @@ static int ProcessBufferTryDecodeMlDsa(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
 }
 #endif /* WOLFSSL_HAVE_MLDSA */
 
+#if defined(WOLFSSL_HAVE_SLHDSA) && !defined(WOLFSSL_SLHDSA_VERIFY_ONLY)
+/* Try to decode the DER encoding as an SLH-DSA private key.
+ *
+ * @param [in]      ctx        SSL context object.
+ * @param [in]      ssl        SSL object.
+ * @param [in]      der        DER encoding.
+ * @param [in, out] keyFormat  On in, expected format. 0 means unknown.
+ * @param [in]      heap       Dynamic memory allocation hint.
+ * @param [out]     keyType    Type of key (an slhdsa_*_sa_algo).
+ * @param [out]     keySize    Size of the private key.
+ * @return  0 on success or when not an SLH-DSA key (with keyFormat 0).
+ */
+static int ProcessBufferTryDecodeSlhDsa(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
+    DerBuffer* der, int* keyFormat, void* heap, byte* keyType, int* keySize)
+{
+    int ret;
+    word32 idx;
+    SlhDsaKey* key;
+    int keyTypeTemp = 0;
+    int keySizeTemp = 0;
+
+    (void)ctx;
+    (void)ssl;
+
+    /* Allocate an SLH-DSA key to parse into. */
+    key = (SlhDsaKey*)XMALLOC(sizeof(SlhDsaKey), heap, DYNAMIC_TYPE_SLHDSA);
+    if (key == NULL) {
+        return MEMORY_E;
+    }
+
+    /* wc_SlhDsaKey_Init returns NOT_COMPILED_IN before it zeroes the key, so
+     * clear it here to keep the unconditional Free below well defined. */
+    XMEMSET(key, 0, sizeof(SlhDsaKey));
+
+    /* Initialise with an always-present placeholder parameter set;
+     * wc_SlhDsaKey_PrivateKeyDecode selects the real one from the key's
+     * algorithm OID. */
+    ret = wc_SlhDsaKey_Init(key, WC_SLHDSA_DEFAULT_PARAM, heap, INVALID_DEVID);
+    if (ret == 0) {
+        idx = 0;
+        PRIVATE_KEY_UNLOCK();
+        ret = wc_SlhDsaKey_PrivateKeyDecode(der->buffer, &idx, key,
+            der->length);
+        PRIVATE_KEY_LOCK();
+        if (ret == 0) {
+            int param = (int)key->params->param;
+
+            keyTypeTemp = SlhDsaParamToType(param);
+            if (keyTypeTemp == (byte)invalid_sa_algo) {
+                ret = ALGO_ID_E;
+            }
+            else {
+                keySizeTemp = wc_SlhDsaKey_PrivateSize(key);
+                if (keySizeTemp <= 0) {
+                    ret = ALGO_ID_E;
+                }
+            }
+
+            if (ret == 0) {
+                int oidSum = wc_SlhDsaParamToOid((enum SlhDsaParam)param);
+
+                /* Negative for an unknown or disabled parameter set; storing it
+                 * would leave a nonsense key format behind a zero return. */
+                if (oidSum <= 0) {
+                    ret = ALGO_ID_E;
+                }
+                else {
+                    *keyFormat = oidSum;
+                    *keyType = (byte)keyTypeTemp;
+                    *keySize = keySizeTemp;
+                }
+            }
+        }
+        else if (*keyFormat == 0) {
+            WOLFSSL_MSG("Not an SLH-DSA key");
+            /* Unknown format wasn't SLH-DSA, so keep trying other formats. */
+            ret = 0;
+        }
+    }
+
+    /* Free any data allocated by wc_SlhDsaKey_Init(). This also runs when Init
+     * failed part way through, releasing any hash objects allocated before the
+     * failure; it is a no-op once the key's parameter set has been cleared. */
+    wc_SlhDsaKey_Free(key);
+
+    /* Dispose of allocated key. */
+    XFREE(key, heap, DYNAMIC_TYPE_SLHDSA);
+    return ret;
+}
+#endif /* WOLFSSL_HAVE_SLHDSA */
+
 /* Try to decode DER data is a known private key.
  *
  * Checks size meets minimum for key type.
@@ -1073,6 +1164,9 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     (void)heap;
     (void)devId;
     (void)type;
+    /* Only the per-algorithm decoders below read these back. */
+    (void)keyType;
+    (void)keySz;
 
     /* Validate parameters. */
     if ((der == NULL) || (keyFormat == NULL)) {
@@ -1188,6 +1282,27 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         matchAnyKey = 1;
     }
 #endif /* WOLFSSL_HAVE_MLDSA */
+#if defined(WOLFSSL_HAVE_SLHDSA) && !defined(WOLFSSL_SLHDSA_VERIFY_ONLY)
+    /* Try SLH-DSA if key format is an SLH-DSA key OID or yet unknown. */
+    if ((ret == 0) &&
+        ((*keyFormat == 0) ||
+         (*keyFormat == SLH_DSA_SHA2_128Sk) ||
+         (*keyFormat == SLH_DSA_SHA2_128Fk) ||
+         (*keyFormat == SLH_DSA_SHA2_192Sk) ||
+         (*keyFormat == SLH_DSA_SHA2_192Fk) ||
+         (*keyFormat == SLH_DSA_SHA2_256Sk) ||
+         (*keyFormat == SLH_DSA_SHA2_256Fk) ||
+         (*keyFormat == SLH_DSA_SHAKE_128Sk) ||
+         (*keyFormat == SLH_DSA_SHAKE_128Fk) ||
+         (*keyFormat == SLH_DSA_SHAKE_192Sk) ||
+         (*keyFormat == SLH_DSA_SHAKE_192Fk) ||
+         (*keyFormat == SLH_DSA_SHAKE_256Sk) ||
+         (*keyFormat == SLH_DSA_SHAKE_256Fk))) {
+        ret = ProcessBufferTryDecodeSlhDsa(ctx, ssl, der, keyFormat, heap,
+            keyType, keySz);
+        matchAnyKey = 1;
+    }
+#endif /* WOLFSSL_HAVE_SLHDSA */
 
     /* Check we know the format. */
     if ((ret == 0) &&
@@ -1513,6 +1628,27 @@ static void wolfssl_set_have_from_key_oid(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
             }
             break;
     #endif /* WOLFSSL_HAVE_MLDSA */
+    #ifdef WOLFSSL_HAVE_SLHDSA
+        case SLH_DSA_SHA2_128Sk:
+        case SLH_DSA_SHA2_128Fk:
+        case SLH_DSA_SHA2_192Sk:
+        case SLH_DSA_SHA2_192Fk:
+        case SLH_DSA_SHA2_256Sk:
+        case SLH_DSA_SHA2_256Fk:
+        case SLH_DSA_SHAKE_128Sk:
+        case SLH_DSA_SHAKE_128Fk:
+        case SLH_DSA_SHAKE_192Sk:
+        case SLH_DSA_SHAKE_192Fk:
+        case SLH_DSA_SHAKE_256Sk:
+        case SLH_DSA_SHAKE_256Fk:
+            if (ssl != NULL) {
+                ssl->options.haveSlhDsaSig = 1;
+            }
+            else {
+                ctx->haveSlhDsaSig = 1;
+            }
+            break;
+    #endif /* WOLFSSL_HAVE_SLHDSA */
         default:
             WOLFSSL_MSG("Cert key not supported");
             break;
@@ -1535,6 +1671,7 @@ static void ProcessBufferCertSetHave(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         ssl->options.haveECDSAsig = 0;
         ssl->options.haveFalconSig = 0;
         ssl->options.haveMlDsaSig = 0;
+        ssl->options.haveSlhDsaSig = 0;
     }
 
     /* Set which signature we have based on the type in the cert. */
@@ -1590,15 +1727,39 @@ static void ProcessBufferCertSetHave(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
             }
             break;
     #endif
+    #ifdef WOLFSSL_HAVE_SLHDSA
+        case CTC_SLH_DSA_SHA2_128S:
+        case CTC_SLH_DSA_SHA2_128F:
+        case CTC_SLH_DSA_SHA2_192S:
+        case CTC_SLH_DSA_SHA2_192F:
+        case CTC_SLH_DSA_SHA2_256S:
+        case CTC_SLH_DSA_SHA2_256F:
+        case CTC_SLH_DSA_SHAKE_128S:
+        case CTC_SLH_DSA_SHAKE_128F:
+        case CTC_SLH_DSA_SHAKE_192S:
+        case CTC_SLH_DSA_SHAKE_192F:
+        case CTC_SLH_DSA_SHAKE_256S:
+        case CTC_SLH_DSA_SHAKE_256F:
+            WOLFSSL_MSG("SLH-DSA cert signature");
+            if (ssl) {
+                ssl->options.haveSlhDsaSig = 1;
+            }
+            else if (ctx) {
+                ctx->haveSlhDsaSig = 1;
+            }
+            break;
+    #endif
         default:
             WOLFSSL_MSG("Cert signature not supported");
             break;
     }
 
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
-    defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) || !defined(NO_RSA)
+    defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) || \
+    defined(WOLFSSL_HAVE_SLHDSA) || !defined(NO_RSA)
     #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
-        defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA)
+        defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) || \
+        defined(WOLFSSL_HAVE_SLHDSA)
     /* Set the private key curve OID. */
     if (ssl != NULL) {
         ssl->pkCurveOID = cert->pkCurveOID;
@@ -1826,6 +1987,48 @@ static int ProcessBufferCertPublicKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
             }
             break;
     #endif /* WOLFSSL_HAVE_MLDSA */
+    #if defined(WOLFSSL_HAVE_SLHDSA)
+        case SLH_DSA_SHA2_128Sk:
+        case SLH_DSA_SHA2_128Fk:
+        case SLH_DSA_SHA2_192Sk:
+        case SLH_DSA_SHA2_192Fk:
+        case SLH_DSA_SHA2_256Sk:
+        case SLH_DSA_SHA2_256Fk:
+        case SLH_DSA_SHAKE_128Sk:
+        case SLH_DSA_SHAKE_128Fk:
+        case SLH_DSA_SHAKE_192Sk:
+        case SLH_DSA_SHAKE_192Fk:
+        case SLH_DSA_SHAKE_256Sk:
+        case SLH_DSA_SHAKE_256Fk:
+        {
+            int slhParam = wc_SlhDsaOidToParam((int)cert->keyOID);
+            int keySzTemp;
+
+            if (slhParam < 0) {
+                ret = ALGO_ID_E;
+                break;
+            }
+            keyType = SlhDsaParamToType(slhParam);
+            if (keyType == (byte)invalid_sa_algo) {
+                ret = ALGO_ID_E;
+                break;
+            }
+            /* SLH-DSA has fixed, small public keys and no minimum-size
+             * option; store the public key size for reference. checkKeySz is
+             * unused for SLH-DSA (this is the only key type without a size
+             * check, so mark it used to avoid -Wunused-parameter in a build
+             * where SLH-DSA is the only certificate signature algorithm). */
+            keySzTemp = wc_SlhDsaKey_PublicSizeFromParam(
+                            (enum SlhDsaParam)slhParam);
+            if (keySzTemp <= 0) {
+                ret = ALGO_ID_E;
+                break;
+            }
+            keySz = keySzTemp;
+            (void)checkKeySz;
+            break;
+        }
+    #endif /* WOLFSSL_HAVE_SLHDSA */
 
         default:
             WOLFSSL_MSG("No key size check done on public key in certificate");
@@ -2036,6 +2239,45 @@ static int ProcessBufferCertAltPublicKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
             }
             break;
     #endif /* WOLFSSL_HAVE_MLDSA */
+    #if defined(WOLFSSL_HAVE_SLHDSA)
+        case SLH_DSA_SHA2_128Sk:
+        case SLH_DSA_SHA2_128Fk:
+        case SLH_DSA_SHA2_192Sk:
+        case SLH_DSA_SHA2_192Fk:
+        case SLH_DSA_SHA2_256Sk:
+        case SLH_DSA_SHA2_256Fk:
+        case SLH_DSA_SHAKE_128Sk:
+        case SLH_DSA_SHAKE_128Fk:
+        case SLH_DSA_SHAKE_192Sk:
+        case SLH_DSA_SHAKE_192Fk:
+        case SLH_DSA_SHAKE_256Sk:
+        case SLH_DSA_SHAKE_256Fk:
+        {
+            /* This switch is over the alternative key's OID, so the
+             * parameter set comes from sapkiOID; keyOID describes the native
+             * key and would name a different algorithm entirely. */
+            int slhParam = wc_SlhDsaOidToParam((int)cert->sapkiOID);
+            int keySzTemp;
+
+            if (slhParam < 0) {
+                ret = ALGO_ID_E;
+                break;
+            }
+            keyType = SlhDsaParamToType(slhParam);
+            if (keyType == (byte)invalid_sa_algo) {
+                ret = ALGO_ID_E;
+                break;
+            }
+            keySzTemp = wc_SlhDsaKey_PublicSizeFromParam(
+                            (enum SlhDsaParam)slhParam);
+            if (keySzTemp <= 0) {
+                ret = ALGO_ID_E;
+                break;
+            }
+            keySz = keySzTemp;
+            break;
+        }
+    #endif /* WOLFSSL_HAVE_SLHDSA */
 
         default:
             /* In this case, there was an OID that we didn't recognize.
@@ -2564,19 +2806,29 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff, long sz,
 static int ProcessChainBufferCRL(WOLFSSL_CTX* ctx, const unsigned char* buff,
     long sz, long* consumed)
 {
-    int           ret;
-    DerBuffer*    der = NULL;
-    EncryptedInfo info;
+    int        ret = 0;
+    DerBuffer* der = NULL;
+    WC_DECLARE_VAR(info, EncryptedInfo, 1, 0);
 
     WOLFSSL_MSG("Trying a CRL");
-    ret = PemToDer(buff, sz, CRL_TYPE, &der, NULL, &info, NULL);
+
+    /* A PEM CRL has no Proc-Type header, so the encryption information must
+     * start zeroed or PemToDer() acts on a stale encrypted-key flag. */
+    WC_CALLOC_VAR_EX(info, EncryptedInfo, 1, ctx->heap,
+        DYNAMIC_TYPE_ENCRYPTEDINFO, ret = MEMORY_E);
+
+    if (ret == 0) {
+        ret = PemToDer(buff, sz, CRL_TYPE, &der, NULL, info, NULL);
+    }
     if (ret == 0) {
         WOLFSSL_MSG("   Processed a CRL");
         wolfSSL_CertManagerLoadCRLBuffer(ctx->cm, der->buffer, der->length,
             WOLFSSL_FILETYPE_ASN1);
         FreeDer(&der);
-        *consumed = info.consumed;
+        *consumed = info->consumed;
     }
+
+    WC_FREE_VAR_EX(info, ctx->heap, DYNAMIC_TYPE_ENCRYPTEDINFO);
 
     return ret;
 }
@@ -4973,10 +5225,7 @@ static int wolfssl_ctx_add_to_chain(WOLFSSL_CTX* ctx, const byte* der,
          /* Add chain to DER buffer. */
          res = wolfssl_add_to_chain(&ctx->certChain, 1, der, (word32)derSz,
              ctx->heap);
-    #ifdef WOLFSSL_TLS13
-        /* Update count of certificates. */
         ctx->certChainCnt++;
-    #endif
     }
 
     return res;
@@ -5232,6 +5481,8 @@ int wolfSSL_add0_chain_cert(WOLFSSL* ssl, WOLFSSL_X509* x509)
         if (ret == 1) {
             /* We now own cert chain. */
             ssl->buffers.weOwnCertChain = 1;
+            /* Account for the certificate just added to the chain. */
+            ssl->buffers.certChainCnt++;
             /* Create a stack to put certificate into. */
             if (ssl->ourCertChain == NULL) {
                 ssl->ourCertChain = wolfSSL_sk_X509_new_null();
@@ -5281,6 +5532,42 @@ int wolfSSL_add1_chain_cert(WOLFSSL* ssl, WOLFSSL_X509* x509)
     }
 
     return ret;
+}
+
+/* Clear all extra chain certificates set on the SSL object.
+ *
+ * Mirrors OpenSSL's SSL_clear_chain_certs(): drops the chain this SSL will
+ * send, whether it was added via SSL_add0_chain_cert / SSL_add1_chain_cert or
+ * inherited from the WOLFSSL_CTX. A chain still owned by the WOLFSSL_CTX is
+ * only detached, not freed, so the context is left usable. The leaf
+ * certificate and the private key are not affected.
+ *
+ * @param [in, out] ssl  SSL object.
+ * @return  1 on success.
+ * @return  0 when ssl is NULL.
+ */
+int wolfSSL_clear_chain_certs(WOLFSSL* ssl)
+{
+    WOLFSSL_ENTER("wolfSSL_clear_chain_certs");
+
+    if (ssl == NULL)
+        return 0;
+
+    /* Free the DER-encoded chain buffer if this SSL owns it. */
+    if (ssl->buffers.weOwnCertChain) {
+        FreeDer(&ssl->buffers.certChain);
+        ssl->buffers.weOwnCertChain = 0;
+    }
+    ssl->buffers.certChain = NULL;
+    ssl->buffers.certChainCnt = 0;
+
+    /* Free the X509 stack used to track ownership of added chain certs. */
+    if (ssl->ourCertChain != NULL) {
+        wolfSSL_sk_X509_pop_free(ssl->ourCertChain, NULL);
+        ssl->ourCertChain = NULL;
+    }
+
+    return 1;
 }
 #endif /* KEEP_OUR_CERT */
 #endif /* OPENSSL_EXTRA, HAVE_LIGHTY, WOLFSSL_MYSQL_COMPATIBLE, HAVE_STUNNEL,

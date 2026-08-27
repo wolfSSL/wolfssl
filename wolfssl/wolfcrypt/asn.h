@@ -261,7 +261,12 @@ enum ASNItem_DataType {
 #endif
 };
 
-/* A template entry describing an ASN.1 item. */
+/* A template entry describing an ASN.1 item.
+ *
+ * Templates are tables of these, used by both GetASN_Items() to decode and
+ * SizeASN_Items()/SetASN_Items() to encode. How to write one is documented
+ * in wolfcrypt/src/ASN_TEMPLATE.md - read that before adding a template.
+ */
 typedef struct ASNItem {
     /* Depth of ASN.1 item - how many constructed ASN.1 items above. */
     byte depth;
@@ -813,6 +818,7 @@ enum DN_Tags {
     ASN_BUS_CAT       = 0x0f,   /* businessCategory */
     ASN_POSTAL_CODE   = 0x11,   /* postalCode */
     ASN_USER_ID       = 0x12,   /* UserID */
+    ASN_X500_UNIQUE_ID = 0x2d,  /* x500UniqueIdentifier (2.5.4.45) */
 #ifdef WOLFSSL_CERT_NAME_ALL
     ASN_NAME          = 0x29,   /* name */
     ASN_GIVEN_NAME    = 0x2a,   /* GN */
@@ -883,6 +889,7 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
 #define WOLFSSL_RFC822_MAILBOX   "/rfc822Mailbox="
 #define WOLFSSL_FAVOURITE_DRINK  "/favouriteDrink="
 #define WOLFSSL_CONTENT_TYPE     "/contentType="
+#define WOLFSSL_X500_UNIQUE_ID   "/x500UniqueIdentifier="
 
 #if defined(WOLFSSL_APACHE_HTTPD)
     /* otherName strings */
@@ -936,7 +943,16 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
     #endif
 #endif
 
-#if defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA)
+/* Maximum size of a CertificateVerify signature buffer. Retained as public API
+ * for backward compatibility; wolfSSL no longer uses it internally. The TLS and
+ * certificate-generation paths now size their buffers from the actual signature
+ * length instead of this worst case, which balloons to ~50KB when SLH-DSA is
+ * enabled. Downstream code that sizes a stack buffer with this should account
+ * for that when SLH-DSA is compiled in. */
+#if defined(WOLFSSL_HAVE_SLHDSA)
+    /* SLH-DSA signatures are large (up to ~50KB for the 'f' parameter sets). */
+    #define WC_MAX_CERT_VERIFY_SZ (WC_SLHDSA_MAX_SIG_LEN + 1024)
+#elif defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA)
     #define WC_MAX_CERT_VERIFY_SZ 6000            /* For ML-DSA */
 #elif defined(WOLFSSL_CERT_EXT)
     #define WC_MAX_CERT_VERIFY_SZ 2048            /* For larger extensions */
@@ -1092,6 +1108,10 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
 #define WC_LN_userId "userId"
 #define WC_NID_userId 458
 
+#define WC_SN_x500UniqueIdentifier "x500UniqueIdentifier"
+#define WC_LN_x500UniqueIdentifier "X500 unique identifier"
+#define WC_NID_x500UniqueIdentifier 503     /* 2.5.4.45 */
+
 #define WC_LN_registeredAddress "registeredAddress"
 #define WC_NID_registeredAddress 870
 
@@ -1228,6 +1248,10 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
 #define SN_userId WC_SN_userId
 #define LN_userId WC_LN_userId
 #define NID_userId WC_NID_userId
+
+#define SN_x500UniqueIdentifier WC_SN_x500UniqueIdentifier
+#define LN_x500UniqueIdentifier WC_LN_x500UniqueIdentifier
+#define NID_x500UniqueIdentifier WC_NID_x500UniqueIdentifier
 
 #define LN_registeredAddress WC_LN_registeredAddress
 #define NID_registeredAddress WC_NID_registeredAddress
@@ -2163,7 +2187,10 @@ struct DecodedCert {
     WC_BITFIELD extPolicyConstIpmSet:1; /* inhibitPolicyMapping set */
     WC_BITFIELD extSubjAltNameSet:1;
     WC_BITFIELD inhibitAnyOidSet:1;
-    WC_BITFIELD selfSigned:1;           /* Indicates subject and issuer are same */
+#ifndef IGNORE_NETSCAPE_CERT_TYPE
+    WC_BITFIELD extNetscapeCertTypeSet:1;  /* Netscape certificate type seen */
+#endif
+    WC_BITFIELD selfSigned:1;          /* Indicates subject and issuer are same */
 #if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT)
     WC_BITFIELD extCertPolicySet:1;
 #endif
@@ -2210,6 +2237,10 @@ struct DecodedCert {
 #ifdef HAVE_RPK
     WC_BITFIELD isRPK:1;   /* indicate the cert is Raw-Public-Key cert in RFC7250 */
 #endif
+    WC_BITFIELD allowTrailing:1;        /* permit data after the cert's outer
+                                         * SEQUENCE. Used internally for the
+                                         * TRUSTED CERTIFICATE auxiliary trust
+                                         * info. */
 #ifdef WC_ASN_UNKNOWN_EXT_CB
     wc_UnknownExtCallback unknownExtCallback;
     wc_UnknownExtCallbackEx unknownExtCallbackEx;
@@ -3099,7 +3130,6 @@ struct OcspRequest {
     byte   nonce[MAX_OCSP_NONCE_SZ];
     int    nonceSz;
     void*  heap;
-    void*  ssl;
 };
 
 WOLFSSL_LOCAL void InitOcspResponse(OcspResponse* resp, OcspEntry* single,

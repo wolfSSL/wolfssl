@@ -146,14 +146,34 @@ static void wb_ed448_hash(void)
  * non-streaming entry point (wc_ed448_verify_msg_ex()) checks key == NULL
  * itself first, and the streaming wrappers dereference key (to take
  * &key->sha) before ever calling these static functions. Call the static functions directly.
+ *
+ *   ~718  if ((sig == NULL) || (key == NULL) ||
+ *             ((context == NULL) && (contextLen != 0)))      operand 1
+ *   ~767  if (msgSegment == NULL || key == NULL)             operand 1
+ *   ~807  if ((sig == NULL) || (res == NULL) || (key == NULL)) operand 2
+ *
+ * For an OR chain the independence pair of the "key == NULL" operand is the
+ * key==NULL row (decision TRUE) against an ALL-FALSE row (decision FALSE), and
+ * llvm-cov derives that pair per binary -- so each rejection below is followed
+ * immediately by its accepting partner in this same TU.
+ *
+ * The accepting partners are memory-safe by construction:
+ *   - init:   sigLen 0 stops at the "sigLen != ED448_SIG_SIZE" check that sits
+ *             directly after the guard, before ed448_hash_reset() or any
+ *             key->p read;
+ *   - update: a plain ed448_hash_update() into the locally initialised SHAKE
+ *             context -- no key material, no curve arithmetic;
+ *   - final:  *res = 0 then the same sigLen check, again before key->p, the
+ *             order scan or any point decompression.
  * ------------------------------------------------------------------------- */
 static void wb_ed448_verify_key_null(void)
 {
-    wc_Shake sha;
-    byte     sig[ED448_SIG_SIZE];
-    byte     msg[8];
-    int      res;
-    int      ret;
+    ed448_key key;
+    wc_Shake  sha;
+    byte      sig[ED448_SIG_SIZE];
+    byte      msg[8];
+    int       res;
+    int       ret;
 
     XMEMSET(&sha, 0, sizeof(sha));
     XMEMSET(sig, 0, sizeof(sig));
@@ -191,7 +211,50 @@ static void wb_ed448_verify_key_null(void)
         wb_fail = 1;
     }
 
-    WB_NOTE("ed448 verify_*_with_sha key==NULL guards exercised");
+    /* --- the all-false partners of the three vectors above --- */
+    if (wc_ed448_init(&key) != 0) {
+        WB_NOTE("wc_ed448_init failed; verify_*_with_sha all-false partners "
+                "skipped");
+        wb_fail = 1;
+        return;
+    }
+    if (wc_InitShake256(&sha, NULL, INVALID_DEVID) != 0) {
+        WB_NOTE("wc_InitShake256 failed; verify_*_with_sha all-false partners "
+                "skipped");
+        wb_fail = 1;
+        wc_ed448_free(&key);
+        return;
+    }
+
+    /* init, all-false: context NULL with contextLen 0 keeps the third operand
+     * false; sigLen 0 then trips the length check right after the guard. */
+    ret = ed448_verify_msg_init_with_sha(sig, 0, &key, &sha, Ed448, NULL, 0);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("ed448_verify_msg_init_with_sha(all-false) did not stop at the "
+                "length check");
+        wb_fail = 1;
+    }
+
+    /* update, all-false: a real SHAKE absorb of the message segment. */
+    ret = ed448_verify_msg_update_with_sha(msg, sizeof(msg), &key, &sha);
+    if (ret != 0) {
+        WB_NOTE("ed448_verify_msg_update_with_sha(all-false) unexpected error");
+        wb_fail = 1;
+    }
+
+    /* final, all-false: *res is cleared, then sigLen 0 trips the length check
+     * before key->p or any curve arithmetic is touched. */
+    res = 1;
+    ret = ed448_verify_msg_final_with_sha(sig, 0, &res, &key, &sha);
+    if ((ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) || (res != 0)) {
+        WB_NOTE("ed448_verify_msg_final_with_sha(all-false) did not stop at "
+                "the length check");
+        wb_fail = 1;
+    }
+
+    wc_Shake256_Free(&sha);
+    wc_ed448_free(&key);
+    WB_NOTE("ed448 verify_*_with_sha key==NULL pairs exercised");
 }
 
 #else

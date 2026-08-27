@@ -792,6 +792,121 @@ static void wb_TfmExptModDecisionCoverage(void)
 
 #endif /* USE_FAST_MATH && WOLFSSL_PUBLIC_MP */
 
+/* ------------------------------------------------------------------------
+ * Public-entry ARGUMENT-GUARD residuals.
+ *
+ * campaign/reports/bigint-tfm/GAPS.md lists several multi-operand OR guards at
+ * the top of public entry points whose operands the ordinary tests only ever
+ * present all-false (they always pass valid arguments), so no operand's
+ * independence pair is shown. Each is closed here by calling the entry point
+ * once per operand with exactly THAT operand true and the rest false, against
+ * the all-false row that the same calls' valid form provides -- both halves in
+ * this one binary.
+ *
+ * These need no fault injection: they are pure argument shapes.
+ * ---------------------------------------------------------------------- */
+static void wb_entry_arg_guards(void)
+{
+#ifdef WOLFSSL_PUBLIC_MP
+    fp_int a;
+    fp_int b;
+    fp_int c;
+    unsigned char out[64];
+    int    res = 0;
+    int    ret;
+
+    fp_init(&a);
+    fp_init(&b);
+    fp_init(&c);
+    fp_set(&a, 7);
+    fp_set(&b, 11);
+    XMEMSET(out, 0, sizeof(out));
+
+    /* 3918: fp_to_unsigned_bin_len_ct():
+     *   if ((a == NULL) || (out == NULL) || (outSz < 0))
+     * all-false row plus one row per operand. */
+    ret = fp_to_unsigned_bin_len_ct(&a, out, (int)sizeof(out));
+    if (ret != MP_OKAY) {
+        WB_NOTE("fp_to_unsigned_bin_len_ct(valid) unexpectedly failed");
+        wb_fail = 1;
+    }
+    if (fp_to_unsigned_bin_len_ct(NULL, out, (int)sizeof(out)) !=
+            WC_NO_ERR_TRACE(MP_VAL) ||
+        fp_to_unsigned_bin_len_ct(&a, NULL, (int)sizeof(out)) !=
+            WC_NO_ERR_TRACE(MP_VAL) ||
+        fp_to_unsigned_bin_len_ct(&a, out, -1) != WC_NO_ERR_TRACE(MP_VAL)) {
+        WB_NOTE("fp_to_unsigned_bin_len_ct arg guard did not reject");
+        wb_fail = 1;
+    }
+
+    /* 5480: fp_lcm():
+     *   if (fp_iszero(a) == FP_YES || fp_iszero(b) == FP_YES)
+     * a=0 isolates operand 0; b=0 isolates operand 1; (7, 11) is all-false. */
+    if (fp_lcm(&a, &b, &c) != FP_OKAY) {
+        WB_NOTE("fp_lcm(valid) unexpectedly failed");
+        wb_fail = 1;
+    }
+    {
+        fp_int z;
+        fp_init(&z);                 /* zero */
+        if (fp_lcm(&z, &b, &c) != FP_VAL ||
+            fp_lcm(&a, &z, &c) != FP_VAL) {
+            WB_NOTE("fp_lcm zero guard did not reject");
+            wb_fail = 1;
+        }
+    }
+
+#if !defined(WC_NO_RNG)
+    /* 5222: mp_prime_is_prime_ex():
+     *   if (a == NULL || result == NULL || rng == NULL)
+     * 5226: same function:
+     *   if (t <= 0 || t > FP_PRIME_SIZE)
+     * One row per operand plus the all-false valid call. */
+    {
+        WC_RNG rng;
+
+        XMEMSET(&rng, 0, sizeof(rng));
+        if (wc_InitRng(&rng) != 0) {
+            WB_NOTE("wc_InitRng failed; prime_is_prime_ex guards skipped");
+        }
+        else {
+            /* all-false: valid pointers and 0 < t <= FP_PRIME_SIZE */
+            (void)mp_prime_is_prime_ex(&a, 8, &res, &rng);
+
+            if (mp_prime_is_prime_ex(NULL, 8, &res, &rng) != FP_VAL ||
+                mp_prime_is_prime_ex(&a, 8, NULL, &rng) != FP_VAL ||
+                mp_prime_is_prime_ex(&a, 8, &res, NULL) != FP_VAL) {
+                WB_NOTE("mp_prime_is_prime_ex NULL guard did not reject");
+                wb_fail = 1;
+            }
+            if (mp_prime_is_prime_ex(&a, 0, &res, &rng) != FP_VAL ||
+                mp_prime_is_prime_ex(&a, FP_PRIME_SIZE + 1, &res, &rng)
+                    != FP_VAL) {
+                WB_NOTE("mp_prime_is_prime_ex t-range guard did not reject");
+                wb_fail = 1;
+            }
+            wc_FreeRng(&rng);
+        }
+    }
+#endif /* !WC_NO_RNG */
+
+    /* 2858: fp_exptmod()'s
+     *   if (fp_iszero(P) || (P->used > (FP_SIZE/2)))
+     * P == 0 isolates operand 0 against the ordinary valid-modulus row. */
+    {
+        fp_int zeroP;
+        fp_int r;
+
+        fp_init(&zeroP);
+        fp_init(&r);
+        (void)fp_exptmod(&a, &b, &zeroP, &r);   /* operand 0 true  */
+        (void)fp_exptmod(&a, &b, &b, &r);       /* both false      */
+    }
+
+    WB_NOTE("public-entry argument-guard rows driven");
+#endif /* WOLFSSL_PUBLIC_MP */
+}
+
 int main(void)
 {
     printf("tfm.c white-box MC/DC supplement\n");
@@ -817,6 +932,7 @@ int main(void)
     wb_TfmDecisionCoverage();
     wb_TfmExptModDecisionCoverage();
 #endif
+    wb_entry_arg_guards();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup failures surface as skips, not failures: a nonzero exit makes the
      * campaign discard this variant's coverage. */

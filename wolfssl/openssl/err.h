@@ -38,10 +38,22 @@
 #define WOLFSSL_SSL_F_SSL_CTX_USE_CERTIFICATE_FILE      2
 #define WOLFSSL_SSL_F_SSL_USE_PRIVATEKEY                3
 #define WOLFSSL_EC_F_EC_GFP_SIMPLE_POINT2OCT            4
+#define WOLFSSL_SSL_F_SSL_SET_FD                        5
 
 /* reasons */
 #define WOLFSSL_ERR_R_SYS_LIB                           1
 #define WOLFSSL_PKCS12_R_MAC_VERIFY_FAILURE             2
+/* Matches OpenSSL's ERR_R_BUF_LIB (= ERR_LIB_BUF, 7). */
+#define WOLFSSL_ERR_R_BUF_LIB                           7
+#define WOLFSSL_SSL_R_UNKNOWN_PROTOCOL                  252
+#define WOLFSSL_SSL_R_WRONG_VERSION_NUMBER              267
+#define WOLFSSL_SSL_R_UNSUPPORTED_PROTOCOL              258
+#define WOLFSSL_SSL_R_NO_PROTOCOLS_AVAILABLE            194
+#define WOLFSSL_SSL_R_BAD_PROTOCOL_VERSION_NUMBER       182
+#define WOLFSSL_SSL_R_UNKNOWN_SSL_VERSION               254
+#define WOLFSSL_SSL_R_UNSUPPORTED_SSL_VERSION           259
+#define WOLFSSL_SSL_R_WRONG_SSL_VERSION                 266
+#define WOLFSSL_SSL_R_TLSV1_ALERT_PROTOCOL_VERSION      1070
 
 #ifndef OPENSSL_COEXIST
 
@@ -71,6 +83,7 @@
 
 /* reasons */
 #define ERR_R_SYS_LIB                            WOLFSSL_ERR_R_SYS_LIB
+#define ERR_R_BUF_LIB                            WOLFSSL_ERR_R_BUF_LIB
 #define PKCS12_R_MAC_VERIFY_FAILURE              WOLFSSL_PKCS12_R_MAC_VERIFY_FAILURE
 
 #define RSAerr(f,r)  wolfSSL_RSAerr(f,r)

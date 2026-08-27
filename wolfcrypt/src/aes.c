@@ -56,6 +56,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
  * WOLFSSL_CMAC:            Enable AES-CMAC (RFC 4493)            default: off
  * HAVE_AESCCM:             Enable AES-CCM mode                   default: off
  * HAVE_AES_KEYWRAP:        Enable AES key wrap (RFC 3394)        default: off
+ * WOLFSSL_AES_KEYWRAP_PADDING: AES key wrap padding (RFC 5649) default: off
  * WOLFSSL_AES_CBC_LENGTH_CHECKS: Validate CBC input length       default: off
  *
  * AES-GCM:
@@ -93,6 +94,13 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
  * WC_AES_BITSLICED:        Use bitsliced AES implementation      default: off
  * AES_GCM_GMULT_NCT:       GCM GMULT non-constant-time          default: off
  * NO_WOLFSSL_ALLOC_ALIGN:  Disable aligned memory allocation     default: off
+ * WOLFSSL_AES_REQUIRE_KEY_SET:
+ *                          Reject mode calls made before a key    default: on,
+ *                            is installed. Off automatically on      see aes.h
+ *                            backends that replace the mode
+ *                            entry points.
+ * WOLFSSL_NO_AES_KEY_SET_CHECK:
+ *                          Force the above check off              default: off
  *
  * Hardware Acceleration (AES-specific):
  * WC_ASYNC_ENABLE_AES:     Enable async AES operations           default: off
@@ -114,6 +122,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
  * WOLFSSL_HW_METRICS:      Track hardware acceleration usage     default: off
  */
 
+#define WC_FIPS_LL_CRYPTO
 #define _WC_BUILDING_AES_C
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
@@ -123,9 +132,6 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 /* Tip: Locate the software cipher modes by searching for "Software AES" */
 
 #if FIPS_VERSION3_GE(2,0,0)
-    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
-    #define FIPS_NO_WRAPPERS
-
     #ifdef USE_WINDOWS_API
         #pragma code_seg(".fipsA$b")
         #pragma const_seg(".fipsB$b")
@@ -228,6 +234,43 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     }
 #endif
 
+/* Select the base or the crypto-extension AES at run time on 32-bit Arm.  Same
+ * test as WOLFSSL_ARM32_AES_HW_FLAGS in aes.h - which documents it - plus the
+ * run-time detection needed to make the choice. */
+#if defined(WOLFSSL_ARMASM) && !defined(__aarch64__) && \
+    !defined(WOLFSSL_ARMASM_THUMB2) && \
+    !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) && \
+    !defined(WOLFSSL_ARMASM_NO_BASE_IMPL) && defined(HAVE_CPUID_ARM32)
+    #define WOLFSSL_ARM32_AES_DISPATCH
+#endif
+
+#if defined(STM32_CRYPTO) && !defined(WOLFSSL_STM32_BARE) && \
+    !defined(WOLFSSL_STM32_CUBEMX)
+/* Push one AES block through CRYP. CRYP_DataIn/Out work in 32-bit words,
+ * so stage the caller's byte buffers through an aligned local. */
+static WC_INLINE void wc_Stm32_CrypAesBlock(const byte* in, byte* out)
+{
+    uint32_t tmp[WC_AES_BLOCK_SIZE / sizeof(uint32_t)];
+
+    XMEMCPY(tmp, in, WC_AES_BLOCK_SIZE);
+
+    CRYP_DataIn(tmp[0]);
+    CRYP_DataIn(tmp[1]);
+    CRYP_DataIn(tmp[2]);
+    CRYP_DataIn(tmp[3]);
+
+    /* wait until the complete message has been processed */
+    while (CRYP_GetFlagStatus(CRYP_FLAG_BUSY) != RESET) {}
+
+    tmp[0] = CRYP_DataOut();
+    tmp[1] = CRYP_DataOut();
+    tmp[2] = CRYP_DataOut();
+    tmp[3] = CRYP_DataOut();
+
+    XMEMCPY(out, tmp, WC_AES_BLOCK_SIZE);
+}
+#endif
+
 /* Define AES implementation includes and functions */
 #if defined(STM32_CRYPTO) && !defined(WOLF_CRYPTO_CB_ONLY_AES)
      /* STM32F2/F4/F7/L4/L5/H7/WB55 hardware AES support for ECB, CBC, CTR and GCM modes */
@@ -319,18 +362,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
         /* flush IN/OUT FIFOs */
         CRYP_FIFOFlush();
 
-        CRYP_DataIn(*(uint32_t*)&inBlock[0]);
-        CRYP_DataIn(*(uint32_t*)&inBlock[4]);
-        CRYP_DataIn(*(uint32_t*)&inBlock[8]);
-        CRYP_DataIn(*(uint32_t*)&inBlock[12]);
-
-        /* wait until the complete message has been processed */
-        while (CRYP_GetFlagStatus(CRYP_FLAG_BUSY) != RESET) {}
-
-        *(uint32_t*)&outBlock[0]  = CRYP_DataOut();
-        *(uint32_t*)&outBlock[4]  = CRYP_DataOut();
-        *(uint32_t*)&outBlock[8]  = CRYP_DataOut();
-        *(uint32_t*)&outBlock[12] = CRYP_DataOut();
+        wc_Stm32_CrypAesBlock(inBlock, outBlock);
 
         /* disable crypto processor */
         CRYP_Cmd(DISABLE);
@@ -434,18 +466,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
         /* flush IN/OUT FIFOs */
         CRYP_FIFOFlush();
 
-        CRYP_DataIn(*(uint32_t*)&inBlock[0]);
-        CRYP_DataIn(*(uint32_t*)&inBlock[4]);
-        CRYP_DataIn(*(uint32_t*)&inBlock[8]);
-        CRYP_DataIn(*(uint32_t*)&inBlock[12]);
-
-        /* wait until the complete message has been processed */
-        while (CRYP_GetFlagStatus(CRYP_FLAG_BUSY) != RESET) {}
-
-        *(uint32_t*)&outBlock[0]  = CRYP_DataOut();
-        *(uint32_t*)&outBlock[4]  = CRYP_DataOut();
-        *(uint32_t*)&outBlock[8]  = CRYP_DataOut();
-        *(uint32_t*)&outBlock[12] = CRYP_DataOut();
+        wc_Stm32_CrypAesBlock(inBlock, outBlock);
 
         /* disable crypto processor */
         CRYP_Cmd(DISABLE);
@@ -1085,6 +1106,10 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #endif /* HAVE_AES_DECRYPT */
 
 #elif defined(WOLFSSL_ARMASM)
+/* WOLFSSL_ARM32_AES_DISPATCH - run-time selection between the base and the
+ * crypto-extension AES on 32-bit Arm - is defined at the top of this file.  See
+ * WOLFSSL_ARM32_AES_HW_FLAGS in aes.h for how the two relate. */
+
 #if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
 static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
 
@@ -1098,7 +1123,35 @@ static void Check_CPU_support_HwCrypto(Aes* aes)
     aes->use_sha3_hw_crypto = IS_AARCH64_SHA3(cpuid_flags);
 #endif
 }
-#endif /* __aarch64__ && !WOLFSSL_ARMASM_NO_HW_CRYPTO */
+#elif defined(WOLFSSL_ARM32_AES_DISPATCH)
+static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
+
+/* Record on the Aes object whether this CPU implements the Armv8 AES and PMULL
+ * crypto-extension instructions, so the per-operation code can select the
+ * crypto or the base assembly at run time.  Called from key setup.
+ *
+ * @param [in, out] aes  AES object whose use_aes_hw_crypto /
+ *                       use_pmull_hw_crypto flags are set. */
+static void Check_CPU_support_HwCrypto(Aes* aes)
+{
+    if (cpuid_flags == WC_CPUID_INITIALIZER)
+        cpuid_get_flags_ex(&cpuid_flags);
+#ifdef HAVE_AESGCM
+    aes->use_pmull_hw_crypto = IS_ARM32_PMULL(cpuid_flags);
+    /* The crypto and base AES key schedules are incompatible.  When PMULL is
+     * absent, AES-GCM (and AES-GCM-SIV) fall back to the base (software) path,
+     * which drives its AES through the base AES_ECB_encrypt and so needs the
+     * base key schedule.  Only take the crypto AES path when PMULL is present
+     * too, so the whole cipher stays consistent.  (A CPU implementing AES but
+     * not PMULL is rare - the crypto extension provides them together.) */
+    aes->use_aes_hw_crypto = IS_ARM32_AES(cpuid_flags) &&
+                             aes->use_pmull_hw_crypto;
+#else
+    aes->use_aes_hw_crypto = IS_ARM32_AES(cpuid_flags);
+#endif
+}
+#endif /* (__aarch64__ && !WOLFSSL_ARMASM_NO_HW_CRYPTO) ||
+        * WOLFSSL_ARM32_AES_DISPATCH */
 
 #if defined(WOLFSSL_AES_DIRECT) || defined(HAVE_AESCCM) || \
     defined(WOLFSSL_AESGCM_STREAM) || defined(WOLFSSL_AESGCM_SIV)
@@ -1107,7 +1160,15 @@ static WARN_UNUSED_RESULT int wc_AesEncrypt(Aes* aes, const byte* inBlock,
 {
 #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
 #if !defined(__aarch64__)
+#ifdef WOLFSSL_ARM32_AES_DISPATCH
+    if (aes->use_aes_hw_crypto) {
+        AES_encrypt_AARCH32(inBlock, outBlock, (byte*)aes->key,
+            (int)aes->rounds);
+    }
+    else
+#else
     AES_encrypt_AARCH32(inBlock, outBlock, (byte*)aes->key, (int)aes->rounds);
+#endif /* WOLFSSL_ARM32_AES_DISPATCH */
 #else
     if (aes->use_aes_hw_crypto) {
         AES_encrypt_AARCH64(inBlock, outBlock, (byte*)aes->key,
@@ -1122,7 +1183,8 @@ static WARN_UNUSED_RESULT int wc_AesEncrypt(Aes* aes, const byte* inBlock,
         AES_ECB_encrypt_NEON(inBlock, outBlock, WC_AES_BLOCK_SIZE,
             (const unsigned char*)aes->key, aes->rounds);
     }
-#elif defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+#elif defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) || \
+      defined(WOLFSSL_ARM32_AES_DISPATCH)
     {
         AES_ECB_encrypt(inBlock, outBlock, WC_AES_BLOCK_SIZE, (byte*)aes->key,
             (int)aes->rounds);
@@ -1139,7 +1201,15 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
 {
 #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
 #if !defined(__aarch64__)
+#ifdef WOLFSSL_ARM32_AES_DISPATCH
+    if (aes->use_aes_hw_crypto) {
+        AES_decrypt_AARCH32(inBlock, outBlock, (byte*)aes->key,
+            (int)aes->rounds);
+    }
+    else
+#else
     AES_decrypt_AARCH32(inBlock, outBlock, (byte*)aes->key, (int)aes->rounds);
+#endif /* WOLFSSL_ARM32_AES_DISPATCH */
 #else
     if (aes->use_aes_hw_crypto) {
         AES_decrypt_AARCH64(inBlock, outBlock, (byte*)aes->key,
@@ -1154,7 +1224,8 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
         AES_ECB_decrypt_NEON(inBlock, outBlock, WC_AES_BLOCK_SIZE,
             (byte*)aes->key, (int)aes->rounds);
     }
-#elif defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+#elif defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) || \
+      defined(WOLFSSL_ARM32_AES_DISPATCH)
     {
         AES_ECB_decrypt(inBlock, outBlock, WC_AES_BLOCK_SIZE, (byte*)aes->key,
             (int)aes->rounds);
@@ -1374,57 +1445,62 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
     static WARN_UNUSED_RESULT int AES_ECB_encrypt(
         Aes* aes, const byte* inBlock, byte* outBlock, int sz)
     {
-        word32 ret;
+        word32 ret = SSP_SUCCESS;
+        /* The SCE driver needs 32-bit words: stage the caller's byte
+         * buffers through aligned locals, leaving the input untouched. */
+        word32 in32[WC_AES_BLOCK_SIZE / sizeof(word32)];
+        word32 out32[WC_AES_BLOCK_SIZE / sizeof(word32)];
+        int bigEndian = (WOLFSSL_SCE_GSCE_HANDLE.p_cfg->endian_flag ==
+                CRYPTO_WORD_ENDIAN_BIG);
+        int i;
 
-        if (WOLFSSL_SCE_GSCE_HANDLE.p_cfg->endian_flag ==
-                CRYPTO_WORD_ENDIAN_BIG) {
-            ByteReverseWords((word32*)inBlock, (word32*)inBlock, sz);
+        if ((sz % WC_AES_BLOCK_SIZE) != 0) {
+            return BAD_FUNC_ARG;
         }
 
-        switch (aes->keylen) {
+        for (i = 0; i < sz; i += WC_AES_BLOCK_SIZE) {
+            XMEMCPY(in32, inBlock + i, WC_AES_BLOCK_SIZE);
+            if (bigEndian) {
+                ByteReverseWords(in32, in32, WC_AES_BLOCK_SIZE);
+            }
+
+            switch (aes->keylen) {
         #ifdef WOLFSSL_AES_128
-            case AES_128_KEY_SIZE:
-                ret = WOLFSSL_SCE_AES128_HANDLE.p_api->encrypt(
-                        WOLFSSL_SCE_AES128_HANDLE.p_ctrl, aes->key,
-                        NULL, (sz / sizeof(word32)), (word32*)inBlock,
-                        (word32*)outBlock);
-                break;
+                case AES_128_KEY_SIZE:
+                    ret = WOLFSSL_SCE_AES128_HANDLE.p_api->encrypt(
+                            WOLFSSL_SCE_AES128_HANDLE.p_ctrl, aes->key, NULL,
+                            (WC_AES_BLOCK_SIZE / sizeof(word32)), in32, out32);
+                    break;
         #endif
         #ifdef WOLFSSL_AES_192
-            case AES_192_KEY_SIZE:
-                ret = WOLFSSL_SCE_AES192_HANDLE.p_api->encrypt(
-                        WOLFSSL_SCE_AES192_HANDLE.p_ctrl, aes->key,
-                        NULL, (sz / sizeof(word32)), (word32*)inBlock,
-                        (word32*)outBlock);
-                break;
+                case AES_192_KEY_SIZE:
+                    ret = WOLFSSL_SCE_AES192_HANDLE.p_api->encrypt(
+                            WOLFSSL_SCE_AES192_HANDLE.p_ctrl, aes->key, NULL,
+                            (WC_AES_BLOCK_SIZE / sizeof(word32)), in32, out32);
+                    break;
         #endif
         #ifdef WOLFSSL_AES_256
-            case AES_256_KEY_SIZE:
-                ret = WOLFSSL_SCE_AES256_HANDLE.p_api->encrypt(
-                        WOLFSSL_SCE_AES256_HANDLE.p_ctrl, aes->key,
-                        NULL, (sz / sizeof(word32)), (word32*)inBlock,
-                        (word32*)outBlock);
-                break;
+                case AES_256_KEY_SIZE:
+                    ret = WOLFSSL_SCE_AES256_HANDLE.p_api->encrypt(
+                            WOLFSSL_SCE_AES256_HANDLE.p_ctrl, aes->key, NULL,
+                            (WC_AES_BLOCK_SIZE / sizeof(word32)), in32, out32);
+                    break;
         #endif
-            default:
-                WOLFSSL_MSG("Unknown key size");
-                return BAD_FUNC_ARG;
-        }
-
-        if (ret != SSP_SUCCESS) {
-            /* revert input */
-            ByteReverseWords((word32*)inBlock, (word32*)inBlock, sz);
-            return WC_HW_E;
-        }
-
-        if (WOLFSSL_SCE_GSCE_HANDLE.p_cfg->endian_flag ==
-                CRYPTO_WORD_ENDIAN_BIG) {
-            ByteReverseWords((word32*)outBlock, (word32*)outBlock, sz);
-            if (inBlock != outBlock) {
-                /* revert input */
-                ByteReverseWords((word32*)inBlock, (word32*)inBlock, sz);
+                default:
+                    WOLFSSL_MSG("Unknown key size");
+                    return BAD_FUNC_ARG;
             }
+
+            if (ret != SSP_SUCCESS) {
+                return WC_HW_E;
+            }
+
+            if (bigEndian) {
+                ByteReverseWords(out32, out32, WC_AES_BLOCK_SIZE);
+            }
+            XMEMCPY(outBlock + i, out32, WC_AES_BLOCK_SIZE);
         }
+
         return 0;
     }
 
@@ -1432,53 +1508,63 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
     static WARN_UNUSED_RESULT int AES_ECB_decrypt(
         Aes* aes, const byte* inBlock, byte* outBlock, int sz)
     {
-        word32 ret;
+        word32 ret = SSP_SUCCESS;
+        /* The SCE driver needs 32-bit words: stage the caller's byte
+         * buffers through aligned locals, leaving the input untouched. */
+        word32 in32[WC_AES_BLOCK_SIZE / sizeof(word32)];
+        word32 out32[WC_AES_BLOCK_SIZE / sizeof(word32)];
+        int bigEndian = (WOLFSSL_SCE_GSCE_HANDLE.p_cfg->endian_flag ==
+                CRYPTO_WORD_ENDIAN_BIG);
+        int i;
 
-        if (WOLFSSL_SCE_GSCE_HANDLE.p_cfg->endian_flag ==
-                CRYPTO_WORD_ENDIAN_BIG) {
-            ByteReverseWords((word32*)inBlock, (word32*)inBlock, sz);
+        if ((sz % WC_AES_BLOCK_SIZE) != 0) {
+            return BAD_FUNC_ARG;
         }
 
-        switch (aes->keylen) {
+        for (i = 0; i < sz; i += WC_AES_BLOCK_SIZE) {
+            XMEMCPY(in32, inBlock + i, WC_AES_BLOCK_SIZE);
+            if (bigEndian) {
+                ByteReverseWords(in32, in32, WC_AES_BLOCK_SIZE);
+            }
+
+            switch (aes->keylen) {
         #ifdef WOLFSSL_AES_128
-            case AES_128_KEY_SIZE:
-                ret = WOLFSSL_SCE_AES128_HANDLE.p_api->decrypt(
-                        WOLFSSL_SCE_AES128_HANDLE.p_ctrl, aes->key, aes->reg,
-                        (sz / sizeof(word32)), (word32*)inBlock,
-                        (word32*)outBlock);
-                break;
+                case AES_128_KEY_SIZE:
+                    ret = WOLFSSL_SCE_AES128_HANDLE.p_api->decrypt(
+                            WOLFSSL_SCE_AES128_HANDLE.p_ctrl, aes->key,
+                            aes->reg,
+                            (WC_AES_BLOCK_SIZE / sizeof(word32)), in32, out32);
+                    break;
         #endif
         #ifdef WOLFSSL_AES_192
-            case AES_192_KEY_SIZE:
-                ret = WOLFSSL_SCE_AES192_HANDLE.p_api->decrypt(
-                        WOLFSSL_SCE_AES192_HANDLE.p_ctrl, aes->key, aes->reg,
-                        (sz / sizeof(word32)), (word32*)inBlock,
-                        (word32*)outBlock);
-                break;
+                case AES_192_KEY_SIZE:
+                    ret = WOLFSSL_SCE_AES192_HANDLE.p_api->decrypt(
+                            WOLFSSL_SCE_AES192_HANDLE.p_ctrl, aes->key,
+                            aes->reg,
+                            (WC_AES_BLOCK_SIZE / sizeof(word32)), in32, out32);
+                    break;
         #endif
         #ifdef WOLFSSL_AES_256
-            case AES_256_KEY_SIZE:
-                ret = WOLFSSL_SCE_AES256_HANDLE.p_api->decrypt(
-                        WOLFSSL_SCE_AES256_HANDLE.p_ctrl, aes->key, aes->reg,
-                        (sz / sizeof(word32)), (word32*)inBlock,
-                        (word32*)outBlock);
-                break;
+                case AES_256_KEY_SIZE:
+                    ret = WOLFSSL_SCE_AES256_HANDLE.p_api->decrypt(
+                            WOLFSSL_SCE_AES256_HANDLE.p_ctrl, aes->key,
+                            aes->reg,
+                            (WC_AES_BLOCK_SIZE / sizeof(word32)), in32, out32);
+                    break;
         #endif
-            default:
-                WOLFSSL_MSG("Unknown key size");
-                return BAD_FUNC_ARG;
-        }
-        if (ret != SSP_SUCCESS) {
-            return WC_HW_E;
-        }
-
-        if (WOLFSSL_SCE_GSCE_HANDLE.p_cfg->endian_flag ==
-                CRYPTO_WORD_ENDIAN_BIG) {
-            ByteReverseWords((word32*)outBlock, (word32*)outBlock, sz);
-            if (inBlock != outBlock) {
-                /* revert input */
-                ByteReverseWords((word32*)inBlock, (word32*)inBlock, sz);
+                default:
+                    WOLFSSL_MSG("Unknown key size");
+                    return BAD_FUNC_ARG;
             }
+
+            if (ret != SSP_SUCCESS) {
+                return WC_HW_E;
+            }
+
+            if (bigEndian) {
+                ByteReverseWords(out32, out32, WC_AES_BLOCK_SIZE);
+            }
+            XMEMCPY(outBlock + i, out32, WC_AES_BLOCK_SIZE);
         }
 
         return 0;
@@ -2200,7 +2286,10 @@ static const FLASH_QUALIFIER byte Td4[256] =
 #endif /* HAVE_AES_CBC || WOLFSSL_AES_DIRECT */
 #endif /* HAVE_AES_DECRYPT */
 
-#define GETBYTE(x, y) (word32)((byte)((x) >> (8 * (y))))
+/* Extract octet y of word x.  Mask with 0xFF explicitly: a (byte) cast only
+ * truncates to 8 bits where a byte is 8 bits; on a wider-byte target (C28x,
+ * CHAR_BIT==16) it would leave a >8-bit Te/Td table index. */
+#define GETBYTE(x, y) (word32)(((x) >> (8 * (y))) & 0xFFU)
 
 #ifdef WOLFSSL_AES_SMALL_TABLES
 static const byte Tsbox[256] = {
@@ -2568,6 +2657,9 @@ static void AesEncrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
     word32 s0 = 0, s1 = 0, s2 = 0, s3 = 0;
     word32 t0 = 0, t1 = 0, t2 = 0, t3 = 0;
     const word32* rk;
+#ifdef WOLFSSL_WIDE_BYTE
+    word32 stw[4]; /* octet-wise block I/O scratch (CHAR_BIT != 8) */
+#endif
 
 #ifdef WC_C_DYNAMIC_FALLBACK
     rk = aes->key_C_fallback;
@@ -2579,6 +2671,12 @@ static void AesEncrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
      * map byte array block to cipher state
      * and add initial round key:
      */
+#ifdef WOLFSSL_WIDE_BYTE
+    /* A C byte is wider than an octet here: the block is one octet per cell, so
+     * assemble the 4 big-endian state words octet-wise (no aliasing/reverse). */
+    WordsFromBytesBE32(stw, inBlock, 4);
+    s0 = stw[0]; s1 = stw[1]; s2 = stw[2]; s3 = stw[3];
+#else
     XMEMCPY(&s0, inBlock,                  sizeof(s0));
     XMEMCPY(&s1, inBlock +     sizeof(s0), sizeof(s1));
     XMEMCPY(&s2, inBlock + 2 * sizeof(s0), sizeof(s2));
@@ -2590,6 +2688,7 @@ static void AesEncrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
     s2 = ByteReverseWord32(s2);
     s3 = ByteReverseWord32(s3);
 #endif
+#endif /* WOLFSSL_WIDE_BYTE */
 
     /* AddRoundKey */
     s0 ^= rk[0];
@@ -2838,6 +2937,10 @@ static void AesEncrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
 #endif /* WOLFSSL_AES_SMALL_TABLES */
 
     /* write out */
+#ifdef WOLFSSL_WIDE_BYTE
+    stw[0] = s0; stw[1] = s1; stw[2] = s2; stw[3] = s3;
+    BytesFromWordsBE32(outBlock, stw, WC_AES_BLOCK_SIZE);
+#else
 #ifdef LITTLE_ENDIAN_ORDER
     s0 = ByteReverseWord32(s0);
     s1 = ByteReverseWord32(s1);
@@ -2849,6 +2952,7 @@ static void AesEncrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
     XMEMCPY(outBlock +     sizeof(s0), &s1, sizeof(s1));
     XMEMCPY(outBlock + 2 * sizeof(s0), &s2, sizeof(s2));
     XMEMCPY(outBlock + 3 * sizeof(s0), &s3, sizeof(s3));
+#endif /* WOLFSSL_WIDE_BYTE */
 }
 
 #if defined(HAVE_AES_ECB) && !(defined(WOLFSSL_IMX6_CAAM) && \
@@ -3255,15 +3359,24 @@ static void bs_ke_sub_bytes(unsigned char* out, unsigned char *in) {
 }
 
 static void bs_ke_transform(unsigned char* out, unsigned char *in, word8 i) {
-    /* Rotate the input 8 bits to the left */
+    /* Rotate left 8 bits. The key schedule is a byte array, so use the
+     * unaligned accessors. */
 #ifdef LITTLE_ENDIAN_ORDER
-    *(word32*)out = rotrFixed(*(word32*)in, 8);
+    (void)writeUnalignedWord32(out, rotrFixed(readUnalignedWord32(in), 8));
 #else
-    *(word32*)out = rotlFixed(*(word32*)in, 8);
+    (void)writeUnalignedWord32(out, rotlFixed(readUnalignedWord32(in), 8));
 #endif
     bs_ke_sub_bytes(out, out);
     /* On just the first byte, add 2^i to the byte */
     out[0] ^= bs_rcon[i];
+}
+
+/* r = a ^ b, on schedule words in byte arrays of unknown alignment. */
+static void bs_ke_xor(unsigned char* r, const unsigned char* a,
+    const unsigned char* b)
+{
+    (void)writeUnalignedWord32(r,
+        readUnalignedWord32(a) ^ readUnalignedWord32(b));
 }
 
 static void bs_expand_key(unsigned char *in, word32 sz) {
@@ -3276,14 +3389,10 @@ static void bs_expand_key(unsigned char *in, word32 sz) {
         for (o = 16; o < sz; o += 16) {
             bs_ke_transform(t, in + o - 4, i);
             i++;
-            *(word32*)(in + o +  0) = *(word32*)(in + o - 16) ^
-                                      *(word32*) t;
-            *(word32*)(in + o +  4) = *(word32*)(in + o - 12) ^
-                                      *(word32*)(in + o +  0);
-            *(word32*)(in + o +  8) = *(word32*)(in + o -  8) ^
-                                      *(word32*)(in + o +  4);
-            *(word32*)(in + o + 12) = *(word32*)(in + o -  4) ^
-                                      *(word32*)(in + o +  8);
+            bs_ke_xor(in + o +  0, in + o - 16, t);
+            bs_ke_xor(in + o +  4, in + o - 12, in + o +  0);
+            bs_ke_xor(in + o +  8, in + o -  8, in + o +  4);
+            bs_ke_xor(in + o + 12, in + o -  4, in + o +  8);
         }
     }
     else if (sz == 208) {
@@ -3291,18 +3400,12 @@ static void bs_expand_key(unsigned char *in, word32 sz) {
         for (o = 24; o < sz; o += 24) {
             bs_ke_transform(t, in + o - 4, i);
             i++;
-            *(word32*)(in + o +  0) = *(word32*)(in + o - 24) ^
-                                      *(word32*) t;
-            *(word32*)(in + o +  4) = *(word32*)(in + o - 20) ^
-                                      *(word32*)(in + o +  0);
-            *(word32*)(in + o +  8) = *(word32*)(in + o - 16) ^
-                                      *(word32*)(in + o +  4);
-            *(word32*)(in + o + 12) = *(word32*)(in + o - 12) ^
-                                      *(word32*)(in + o +  8);
-            *(word32*)(in + o + 16) = *(word32*)(in + o -  8) ^
-                                      *(word32*)(in + o + 12);
-            *(word32*)(in + o + 20) = *(word32*)(in + o -  4) ^
-                                      *(word32*)(in + o + 16);
+            bs_ke_xor(in + o +  0, in + o - 24, t);
+            bs_ke_xor(in + o +  4, in + o - 20, in + o +  0);
+            bs_ke_xor(in + o +  8, in + o - 16, in + o +  4);
+            bs_ke_xor(in + o + 12, in + o - 12, in + o +  8);
+            bs_ke_xor(in + o + 16, in + o -  8, in + o + 12);
+            bs_ke_xor(in + o + 20, in + o -  4, in + o + 16);
         }
     }
     else if (sz == 240) {
@@ -3315,14 +3418,10 @@ static void bs_expand_key(unsigned char *in, word32 sz) {
             else {
                 bs_ke_sub_bytes(t, in + o - 4);
             }
-            *(word32*)(in + o +  0) = *(word32*)(in + o - 32) ^
-                                      *(word32*) t;
-            *(word32*)(in + o +  4) = *(word32*)(in + o - 28) ^
-                                      *(word32*)(in + o +  0);
-            *(word32*)(in + o +  8) = *(word32*)(in + o - 24) ^
-                                      *(word32*)(in + o +  4);
-            *(word32*)(in + o + 12) = *(word32*)(in + o - 20) ^
-                                      *(word32*)(in + o +  8);
+            bs_ke_xor(in + o +  0, in + o - 32, t);
+            bs_ke_xor(in + o +  4, in + o - 28, in + o +  0);
+            bs_ke_xor(in + o +  8, in + o - 24, in + o +  4);
+            bs_ke_xor(in + o + 12, in + o - 20, in + o +  8);
         }
     }
 }
@@ -3517,7 +3616,15 @@ WC_ALL_ARGS_NOT_NULL static WARN_UNUSED_RESULT int wc_AesEncrypt(
 #elif defined(WOLFSSL_ARMASM)
 #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
 #if !defined(__aarch64__)
+#ifdef WOLFSSL_ARM32_AES_DISPATCH
+    if (aes->use_aes_hw_crypto) {
+        AES_encrypt_AARCH32(inBlock, outBlock, (byte*)aes->key,
+            (int)aes->rounds);
+    }
+    else
+#else
     AES_encrypt_AARCH32(inBlock, outBlock, (byte*)aes->key, (int)aes->rounds);
+#endif /* WOLFSSL_ARM32_AES_DISPATCH */
 #else
     if (aes->use_aes_hw_crypto) {
         AES_encrypt_AARCH64(inBlock, outBlock, (byte*)aes->key,
@@ -3532,7 +3639,8 @@ WC_ALL_ARGS_NOT_NULL static WARN_UNUSED_RESULT int wc_AesEncrypt(
         AES_ECB_encrypt_NEON(inBlock, outBlock, WC_AES_BLOCK_SIZE,
             (const unsigned char*)aes->key, aes->rounds);
     }
-#elif defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+#elif defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) || \
+      defined(WOLFSSL_ARM32_AES_DISPATCH)
     {
         AES_ECB_encrypt(inBlock, outBlock, WC_AES_BLOCK_SIZE,
             (const unsigned char*)aes->key, aes->rounds);
@@ -3668,6 +3776,9 @@ static void AesDecrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
     word32 s0 = 0, s1 = 0, s2 = 0, s3 = 0;
     word32 t0 = 0, t1 = 0, t2 = 0, t3 = 0;
     const word32* rk;
+#ifdef WOLFSSL_WIDE_BYTE
+    word32 stw[4]; /* octet-wise block I/O scratch (CHAR_BIT != 8) */
+#endif
 
 #ifdef WC_C_DYNAMIC_FALLBACK
     rk = aes->key_C_fallback;
@@ -3679,6 +3790,12 @@ static void AesDecrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
      * map byte array block to cipher state
      * and add initial round key:
      */
+#ifdef WOLFSSL_WIDE_BYTE
+    /* A C byte is wider than an octet here: the block is one octet per cell, so
+     * assemble the 4 big-endian state words octet-wise (no aliasing/reverse). */
+    WordsFromBytesBE32(stw, inBlock, 4);
+    s0 = stw[0]; s1 = stw[1]; s2 = stw[2]; s3 = stw[3];
+#else
     XMEMCPY(&s0, inBlock,                  sizeof(s0));
     XMEMCPY(&s1, inBlock + sizeof(s0),     sizeof(s1));
     XMEMCPY(&s2, inBlock + 2 * sizeof(s0), sizeof(s2));
@@ -3690,6 +3807,7 @@ static void AesDecrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
     s2 = ByteReverseWord32(s2);
     s3 = ByteReverseWord32(s3);
 #endif
+#endif /* WOLFSSL_WIDE_BYTE */
 
     s0 ^= rk[0];
     s1 ^= rk[1];
@@ -3896,6 +4014,10 @@ static void AesDecrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
 #endif /* WOLFSSL_AES_SMALL_TABLES */
 
     /* write out */
+#ifdef WOLFSSL_WIDE_BYTE
+    stw[0] = s0; stw[1] = s1; stw[2] = s2; stw[3] = s3;
+    BytesFromWordsBE32(outBlock, stw, WC_AES_BLOCK_SIZE);
+#else
 #ifdef LITTLE_ENDIAN_ORDER
     s0 = ByteReverseWord32(s0);
     s1 = ByteReverseWord32(s1);
@@ -3907,6 +4029,7 @@ static void AesDecrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
     XMEMCPY(outBlock + sizeof(s0),     &s1, sizeof(s1));
     XMEMCPY(outBlock + 2 * sizeof(s0), &s2, sizeof(s2));
     XMEMCPY(outBlock + 3 * sizeof(s0), &s3, sizeof(s3));
+#endif /* WOLFSSL_WIDE_BYTE */
 
 }
 
@@ -4344,7 +4467,15 @@ WC_ALL_ARGS_NOT_NULL static WARN_UNUSED_RESULT int wc_AesDecrypt(
 #elif defined(WOLFSSL_ARMASM)
 #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
 #if !defined(__aarch64__)
+#ifdef WOLFSSL_ARM32_AES_DISPATCH
+    if (aes->use_aes_hw_crypto) {
+        AES_decrypt_AARCH32(inBlock, outBlock, (byte*)aes->key,
+            (int)aes->rounds);
+    }
+    else
+#else
     AES_decrypt_AARCH32(inBlock, outBlock, (byte*)aes->key, (int)aes->rounds);
+#endif /* WOLFSSL_ARM32_AES_DISPATCH */
 #else
     if (aes->use_aes_hw_crypto) {
         AES_decrypt_AARCH64(inBlock, outBlock, (byte*)aes->key,
@@ -4359,7 +4490,8 @@ WC_ALL_ARGS_NOT_NULL static WARN_UNUSED_RESULT int wc_AesDecrypt(
         AES_ECB_decrypt_NEON(inBlock, outBlock, WC_AES_BLOCK_SIZE,
             (const unsigned char*)aes->key, aes->rounds);
     }
-#elif defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+#elif defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) || \
+      defined(WOLFSSL_ARM32_AES_DISPATCH)
     {
         AES_ECB_decrypt(inBlock, outBlock, WC_AES_BLOCK_SIZE,
             (const unsigned char*)aes->key, aes->rounds);
@@ -4516,6 +4648,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
 
         rk = aes->key;
         aes->keylen = keylen;
+        aes->keyInstalled = 1;
         aes->rounds = keylen/4 + 6;
         XMEMCPY(rk, userKey, keylen);
     #ifdef WOLF_CRYPTO_CB
@@ -4605,6 +4738,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
 #endif
 
         aes->keylen = keylen;
+        aes->keyInstalled = 1;
         aes->rounds = keylen/4 + 6;
         XMEMCPY(aes->key, userKey, keylen);
 
@@ -4642,6 +4776,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
 
         aes->rounds = keylen/4 + 6;
         XMEMCPY(aes->key, userKey, keylen);
+        aes->keyInstalled = 1;
 
     #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
         defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS) || \
@@ -4689,6 +4824,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
 #endif
 
         aes->keylen = keylen;
+        aes->keyInstalled = 1;
         aes->rounds = keylen/4 + 6;
         XMEMCPY(aes->key, userKey, keylen);
         ret = nrf51_aes_set_key(userKey);
@@ -4748,6 +4884,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
     #endif
 
         aes->keylen = keylen;
+        aes->keyInstalled = 1;
         aes->rounds = keylen/4 + 6;
 
         XMEMCPY(aes->key, userKey, keylen);
@@ -4810,6 +4947,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
         }
 
         aes->keylen = keylen;
+        aes->keyInstalled = 1;
         aes->rounds = keylen/4 + 6;
         XMEMCPY(aes->key, userKey, keylen);
 
@@ -4875,19 +5013,31 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
 
         aes->keylen = (int)keylen;
         aes->rounds = (keylen/4) + 6;
+        aes->keyInstalled = 1;
 
 #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
-        AES_set_key_AARCH32(userKey, keylen, (byte*)aes->key, dir);
-#else
-        AES_set_encrypt_key(userKey, keylen * 8, (byte*)aes->key);
-
-    #ifdef HAVE_AES_DECRYPT
-        if (dir == AES_DECRYPTION) {
-            AES_invert_key((byte*)aes->key, aes->rounds);
+#ifdef WOLFSSL_ARM32_AES_DISPATCH
+        Check_CPU_support_HwCrypto(aes);
+        if (aes->use_aes_hw_crypto) {
+            AES_set_key_AARCH32(userKey, keylen, (byte*)aes->key, dir);
         }
-    #else
-        (void)dir;
-    #endif
+        else
+#else
+        AES_set_key_AARCH32(userKey, keylen, (byte*)aes->key, dir);
+#endif /* WOLFSSL_ARM32_AES_DISPATCH */
+#endif /* !WOLFSSL_ARMASM_NO_HW_CRYPTO */
+#if defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) || defined(WOLFSSL_ARM32_AES_DISPATCH)
+        {
+            AES_set_encrypt_key(userKey, keylen * 8, (byte*)aes->key);
+
+        #ifdef HAVE_AES_DECRYPT
+            if (dir == AES_DECRYPTION) {
+                AES_invert_key((byte*)aes->key, aes->rounds);
+            }
+        #else
+            (void)dir;
+        #endif
+        }
 #endif
         return wc_AesSetIV(aes, iv);
     }
@@ -4927,6 +5077,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
             if (ret == 0) {
                 /* Callback succeeded - SE owns the key */
                 aes->keylen = (int)keylen;
+                aes->keyInstalled = 1;
                 if (iv != NULL)
                     XMEMCPY(aes->reg, iv, WC_AES_BLOCK_SIZE);
                 else
@@ -4944,8 +5095,15 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
                 WC_SETKEY_AES, aes, (void*)userKey, keylen,
                 (void*)iv,
                 (iv != NULL) ? WC_AES_BLOCK_SIZE : 0, dir);
-            if (cbRet != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            if (cbRet != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+                if (cbRet == 0) {
+                    /* Callback succeeded - the device owns the key, so mark it
+                     * installed like the AES_SETKEY path above. */
+                    aes->keylen = (int)keylen;
+                    aes->keyInstalled = 1;
+                }
                 return cbRet;
+            }
             /* CRYPTOCB_UNAVAILABLE: fall through to software setup */
         #endif /* WOLF_CRYPTO_CB_SETKEY */
             /* Standard CryptoCB path - copy key to devKey for encrypt/decrypt offload */
@@ -4987,6 +5145,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
 
         aes->keylen = (int)keylen;
         aes->rounds = (keylen/4) + 6;
+        aes->keyInstalled = 1;
 
         /* Determine base vs vector-crypto before the (dispatched) key setup so
          * the schedule matches the mode functions that later consume it. */
@@ -5035,6 +5194,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
             if (ret == 0) {
                 /* Callback succeeded - SE owns the key */
                 aes->keylen = (int)keylen;
+                aes->keyInstalled = 1;
                 if (iv != NULL)
                     XMEMCPY(aes->reg, iv, WC_AES_BLOCK_SIZE);
                 else
@@ -5143,6 +5303,8 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
         #endif
             wolfSSL_CryptHwMutexUnLock();
 
+            aes->keyInstalled = 1;
+
             ret = wc_AesSetIV(aes, iv);
         }
 
@@ -5170,7 +5332,15 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
     int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
         const byte* iv, int dir)
     {
-        return wc_Psoc6_Aes_SetKey(aes, userKey, keylen, iv, dir);
+        int ret;
+
+        if (aes == NULL)
+            return BAD_FUNC_ARG;
+
+        ret = wc_Psoc6_Aes_SetKey(aes, userKey, keylen, iv, dir);
+        if (ret == 0)
+            aes->keyInstalled = 1;
+        return ret;
     }
 
     #if defined(WOLFSSL_AES_DIRECT)
@@ -5210,8 +5380,15 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
     word32 temp;
     unsigned int i = 0;
 
+#ifdef WOLFSSL_WIDE_BYTE
+    /* A C byte is wider than an octet: assemble the big-endian key schedule
+     * words octet-wise rather than aliasing the key byte buffer as word32. */
+    WordsFromBytesBE32(rk, key, keySz / 4);
+#else
     XMEMCPY(rk, key, keySz);
-#if defined(LITTLE_ENDIAN_ORDER) && !defined(WOLFSSL_PIC32MZ_CRYPT) && \
+#endif
+#if defined(LITTLE_ENDIAN_ORDER) && !defined(WOLFSSL_WIDE_BYTE) && \
+    !defined(WOLFSSL_PIC32MZ_CRYPT) && \
     (!defined(WOLFSSL_ESP32_CRYPT) || defined(NO_WOLFSSL_ESP32_CRYPT_AES)) && \
     !defined(MAX3266X_AES)
     /* Always reverse words when using only SW */
@@ -5436,8 +5613,34 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
 
 #endif /* NEED_AES_TABLES */
 
-    /* AES - SetKey (block schedule via generated asm on RISC-V) */
+    static WARN_UNUSED_RESULT int AesSetKeyLocal_body(
+        Aes* aes, const byte* userKey, word32 keylen, const byte* iv, int dir,
+        int checkKeyLen);
+
+    /* AES - SetKey (block schedule via generated asm on RISC-V)
+     *
+     * keyInstalled is derived from the return value here rather than set
+     * inside the body. The body has failure returns after the point where the
+     * key material is accepted (AES-NI SAVE_VECTOR_REGISTERS2/BAD_ALIGN_E, the
+     * hardware key installs), and marking the context keyed on those paths
+     * would let it pass WC_AES_KEY_IS_SET with an all-zero key schedule. */
     static WARN_UNUSED_RESULT int wc_AesSetKeyLocal(
+        Aes* aes, const byte* userKey, word32 keylen, const byte* iv, int dir,
+        int checkKeyLen)
+    {
+        int ret;
+
+        if (aes == NULL)
+            return BAD_FUNC_ARG;
+
+        aes->keyInstalled = 0;
+        ret = AesSetKeyLocal_body(aes, userKey, keylen, iv, dir, checkKeyLen);
+        aes->keyInstalled = (ret == 0) ? 1 : 0;
+
+        return ret;
+    }
+
+    static WARN_UNUSED_RESULT int AesSetKeyLocal_body(
         Aes* aes, const byte* userKey, word32 keylen, const byte* iv, int dir,
         int checkKeyLen)
     {
@@ -5503,8 +5706,15 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
                 WC_SETKEY_AES, aes, (void*)userKey, keylen,
                 (void*)iv,
                 (iv != NULL) ? WC_AES_BLOCK_SIZE : 0, dir);
-            if (cbRet != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            if (cbRet != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+                if (cbRet == 0) {
+                    /* Callback succeeded - the device owns the key. rounds is
+                     * left at 0: there is no software key schedule, and the
+                     * XTS entry points use that to reject the context. */
+                    aes->keylen = (int)keylen;
+                }
                 return cbRet;
+            }
             /* CRYPTOCB_UNAVAILABLE: fall through to software setup */
         #endif /* WOLF_CRYPTO_CB_SETKEY */
             /* Standard CryptoCB path - copy key to devKey */
@@ -5746,7 +5956,15 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
 #elif defined(WOLFSSL_ARMASM)
 #if !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
     #ifndef __aarch64__
+      #ifdef WOLFSSL_ARM32_AES_DISPATCH
+        Check_CPU_support_HwCrypto(aes);
+        if (aes->use_aes_hw_crypto) {
+            AES_set_key_AARCH32(userKey, keylen, (byte*)aes->key, dir);
+        }
+        else
+      #else
         AES_set_key_AARCH32(userKey, keylen, (byte*)aes->key, dir);
+      #endif /* WOLFSSL_ARM32_AES_DISPATCH */
     #else
         Check_CPU_support_HwCrypto(aes);
         if (aes->use_aes_hw_crypto) {
@@ -5767,7 +5985,8 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
             (void)dir;
         #endif
         }
-    #elif defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+    #elif defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) || \
+          defined(WOLFSSL_ARM32_AES_DISPATCH)
         {
             AES_set_encrypt_key(userKey, keylen * 8, (byte*)aes->key);
         #ifdef HAVE_AES_DECRYPT
@@ -5877,7 +6096,13 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
 
     #if defined(WOLFSSL_DEVCRYPTO) && \
         (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC))
-        aes->ctx.cfd = -1;
+        /* Release any session already held. The session was created with the
+         * previous key, so re-keying must tear it down rather than just mark
+         * the context uninitialized, which would orphan the descriptor and
+         * leave the stale key in use. */
+        wc_DevCryptoFree(&aes->ctx);
+        aes->ctx.inited = 0;
+        aes->ctx.cfd = -1; /* not set when no session was open */
     #endif
     #ifdef WOLFSSL_IMX6_CAAM_BLOB
     #ifdef WOLFSSL_CHECK_MEM_ZERO
@@ -5972,6 +6197,27 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     defined(WOLFSSL_AES_CTS)
     /* Clear any unused bytes from last cipher op. */
     aes->left = 0;
+#endif
+
+#ifdef WOLFSSL_KCAPI_AES
+    /* The kernel keeps the chaining state and takes the IV at stream setup
+     * time only, so tear the stream down for the new IV to take effect. It is
+     * set up again, from aes->reg, on the next cipher operation. */
+    if (aes->init != 0) {
+        kcapi_cipher_destroy(aes->handle);
+        aes->handle = NULL;
+        aes->init = 0;
+    }
+#endif
+
+#if defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_AES)
+    {
+        /* PSA takes the IV at operation setup time only, so an operation
+         * already in progress must be aborted for the new IV to take effect. */
+        int ret = wc_psa_aes_reset_ctx(aes);
+        if (ret != 0)
+            return ret;
+    }
 #endif
 
     return 0;
@@ -6074,6 +6320,10 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
             if (aes == NULL || out == NULL || in == NULL)
                 return BAD_FUNC_ARG;
+            if (!WC_AES_KEY_IS_SET(aes)) {
+                WOLFSSL_MSG("AES key not set");
+                return MISSING_KEY;
+            }
             VECTOR_REGISTERS_PUSH;
             ret = wc_AesEncrypt(aes, in, out);
             VECTOR_REGISTERS_POP;
@@ -6095,6 +6345,10 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
             if (aes == NULL)
                 return BAD_FUNC_ARG;
+            if (!WC_AES_KEY_IS_SET(aes)) {
+                WOLFSSL_MSG("AES key not set");
+                return MISSING_KEY;
+            }
             VECTOR_REGISTERS_PUSH;
             ret = wc_AesDecrypt(aes, in, out);
             VECTOR_REGISTERS_POP;
@@ -6374,18 +6628,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             /* flush IN/OUT FIFOs */
             CRYP_FIFOFlush();
 
-            CRYP_DataIn(*(uint32_t*)&in[0]);
-            CRYP_DataIn(*(uint32_t*)&in[4]);
-            CRYP_DataIn(*(uint32_t*)&in[8]);
-            CRYP_DataIn(*(uint32_t*)&in[12]);
-
-            /* wait until the complete message has been processed */
-            while (CRYP_GetFlagStatus(CRYP_FLAG_BUSY) != RESET) {}
-
-            *(uint32_t*)&out[0]  = CRYP_DataOut();
-            *(uint32_t*)&out[4]  = CRYP_DataOut();
-            *(uint32_t*)&out[8]  = CRYP_DataOut();
-            *(uint32_t*)&out[12] = CRYP_DataOut();
+            wc_Stm32_CrypAesBlock(in, out);
 
             /* store iv for next call */
             XMEMCPY(aes->reg, out + sz - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
@@ -6470,18 +6713,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             /* flush IN/OUT FIFOs */
             CRYP_FIFOFlush();
 
-            CRYP_DataIn(*(uint32_t*)&in[0]);
-            CRYP_DataIn(*(uint32_t*)&in[4]);
-            CRYP_DataIn(*(uint32_t*)&in[8]);
-            CRYP_DataIn(*(uint32_t*)&in[12]);
-
-            /* wait until the complete message has been processed */
-            while (CRYP_GetFlagStatus(CRYP_FLAG_BUSY) != RESET) {}
-
-            *(uint32_t*)&out[0]  = CRYP_DataOut();
-            *(uint32_t*)&out[4]  = CRYP_DataOut();
-            *(uint32_t*)&out[8]  = CRYP_DataOut();
-            *(uint32_t*)&out[12] = CRYP_DataOut();
+            wc_Stm32_CrypAesBlock(in, out);
 
             /* store iv for next call */
             XMEMCPY(aes->reg, aes->tmp, WC_AES_BLOCK_SIZE);
@@ -6869,6 +7101,14 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     {
         int ret;
 
+        if (aes == NULL)
+            return BAD_FUNC_ARG;
+
+        if (!WC_AES_KEY_IS_SET(aes)) {
+            WOLFSSL_MSG("AES key not set");
+            return MISSING_KEY;
+        }
+
         if (sz == 0)
             return 0;
 
@@ -6898,6 +7138,14 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     {
         int ret;
         byte scratch[WC_AES_BLOCK_SIZE];
+
+        if (aes == NULL)
+            return BAD_FUNC_ARG;
+
+        if (!WC_AES_KEY_IS_SET(aes)) {
+            WOLFSSL_MSG("AES key not set");
+            return MISSING_KEY;
+        }
 
         if (sz == 0)
             return 0;
@@ -6969,12 +7217,24 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
     int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
+        if (aes == NULL)
+            return BAD_FUNC_ARG;
+        if (!WC_AES_KEY_IS_SET(aes)) {
+            WOLFSSL_MSG("AES key not set");
+            return MISSING_KEY;
+        }
         return wc_Psoc6_Aes_CbcEncrypt(aes, out, in, sz);
     }
 
     #if defined(HAVE_AES_DECRYPT)
     int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
+        if (aes == NULL)
+            return BAD_FUNC_ARG;
+        if (!WC_AES_KEY_IS_SET(aes)) {
+            WOLFSSL_MSG("AES key not set");
+            return MISSING_KEY;
+        }
         return wc_Psoc6_Aes_CbcDecrypt(aes, out, in, sz);
     }
     #endif /* HAVE_AES_DECRYPT */
@@ -7000,6 +7260,8 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         }
 
         if (sz == 0) {
+            /* Keep above the DCP/crypto-cb dispatches: they must not see
+             * sz == 0. A missing key is only reported when there is work. */
             return 0;
         }
 
@@ -7011,14 +7273,6 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             WOLFSSL_ERROR_VERBOSE(BAD_LENGTH_E);
             return BAD_LENGTH_E;
         }
-#endif
-
-#if defined(WOLFSSL_RISCV_ASM)
-        AES_CBC_encrypt_RISCV64(in, out, sz, (byte*)aes->reg, (byte*)aes->key,
-            (int)aes->rounds);
-        (void)blocks;
-        (void)ret;
-        return 0;
 #endif
 
     #ifdef WOLFSSL_IMXRT_DCP
@@ -7038,6 +7292,21 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             /* fall-through when unavailable */
         }
     #endif
+
+        /* Single key guard after all offload dispatches. */
+        if (!WC_AES_KEY_IS_SET(aes)) {
+            WOLFSSL_MSG("AES key not set");
+            return MISSING_KEY;
+        }
+
+#if defined(WOLFSSL_RISCV_ASM)
+        AES_CBC_encrypt_RISCV64(in, out, sz, (byte*)aes->reg, (byte*)aes->key,
+            (int)aes->rounds);
+        (void)blocks;
+        (void)ret;
+        return 0;
+#endif
+
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
         /* if async and byte count above threshold */
         if (aes->asyncDev.marker == WOLFSSL_ASYNC_MARKER_AES &&
@@ -7064,8 +7333,16 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 #if defined(WOLFSSL_ARMASM)
 #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
     #if !defined(__aarch64__)
+      #ifdef WOLFSSL_ARM32_AES_DISPATCH
+        if (aes->use_aes_hw_crypto) {
+            AES_CBC_encrypt_AARCH32(in, out, sz, (byte*)aes->reg,
+                (byte*)aes->key, (int)aes->rounds);
+        }
+        else
+      #else
         AES_CBC_encrypt_AARCH32(in, out, sz, (byte*)aes->reg, (byte*)aes->key,
             (int)aes->rounds);
+      #endif /* WOLFSSL_ARM32_AES_DISPATCH */
     #else
         if (aes->use_aes_hw_crypto) {
             AES_CBC_encrypt_AARCH64(in, out, sz, (byte*)aes->reg,
@@ -7080,7 +7357,8 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             AES_CBC_encrypt_NEON(in, out, sz, (const unsigned char*)aes->key,
                 aes->rounds, (unsigned char*)aes->reg);
         }
-    #elif defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+    #elif defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) || \
+          defined(WOLFSSL_ARM32_AES_DISPATCH)
         {
             AES_CBC_encrypt(in, out, sz, (const unsigned char*)aes->key,
                 aes->rounds, (unsigned char*)aes->reg);
@@ -7212,6 +7490,8 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         }
 
         if (sz == 0) {
+            /* Keep above the DCP/crypto-cb dispatches: they must not see
+             * sz == 0. A missing key is only reported when there is work. */
             return 0;
         }
 
@@ -7241,14 +7521,6 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 #endif
         }
 
-#if defined(WOLFSSL_RISCV_ASM)
-        AES_CBC_decrypt_RISCV64(in, out, sz, (byte*)aes->reg, (byte*)aes->key,
-            (int)aes->rounds);
-        (void)blocks;
-        (void)ret;
-        return 0;
-#endif
-
     #ifdef WOLFSSL_IMXRT_DCP
         /* Implemented in wolfcrypt/src/port/nxp/dcp_port.c */
         if (aes->keylen == 16)
@@ -7266,6 +7538,21 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             /* fall-through when unavailable */
         }
     #endif
+
+        /* Single key guard after all offload dispatches. */
+        if (!WC_AES_KEY_IS_SET(aes)) {
+            WOLFSSL_MSG("AES key not set");
+            return MISSING_KEY;
+        }
+
+#if defined(WOLFSSL_RISCV_ASM)
+        AES_CBC_decrypt_RISCV64(in, out, sz, (byte*)aes->reg, (byte*)aes->key,
+            (int)aes->rounds);
+        (void)blocks;
+        (void)ret;
+        return 0;
+#endif
+
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
         /* if async and byte count above threshold */
         if (aes->asyncDev.marker == WOLFSSL_ASYNC_MARKER_AES &&
@@ -7300,8 +7587,16 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 #if defined(WOLFSSL_ARMASM)
 #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
     #if !defined(__aarch64__)
+      #ifdef WOLFSSL_ARM32_AES_DISPATCH
+        if (aes->use_aes_hw_crypto) {
+            AES_CBC_decrypt_AARCH32(in, out, sz, (byte*)aes->reg,
+                (byte*)aes->key, (int)aes->rounds);
+        }
+        else
+      #else
         AES_CBC_decrypt_AARCH32(in, out, sz, (byte*)aes->reg, (byte*)aes->key,
             (int)aes->rounds);
+      #endif /* WOLFSSL_ARM32_AES_DISPATCH */
     #else
         if (aes->use_aes_hw_crypto) {
             AES_CBC_decrypt_AARCH64(in, out, sz, (byte*)aes->reg,
@@ -7321,15 +7616,21 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     #ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
         else
     #endif
-    #endif /* __aarch64__ || WOLFSSL_ARMASM_NO_HW_CRYPTO */
-    #if defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
-    #ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
+    #endif /* __aarch64__ && !WOLFSSL_ARMASM_NO_NEON */
+    #if defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) || \
+        defined(WOLFSSL_ARM32_AES_DISPATCH)
+    /* WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP drops the base (table) AES in favour
+     * of the constant-time NEON one - but only the AArch64 assembly has a NEON
+     * AES to replace it with, and only it leaves the base variants out.  The
+     * AArch32 assembly always provides them, so the call must be kept there. */
+    #if !defined(WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP) || !defined(__aarch64__)
         {
             AES_CBC_decrypt(in, out, sz, (const unsigned char*)aes->key,
                 aes->rounds, (unsigned char*)aes->reg);
         }
     #endif
-    #endif /* __aarch64__ || WOLFSSL_ARMASM_NO_HW_CRYPTO */
+    #endif /* __aarch64__ || WOLFSSL_ARMASM_NO_HW_CRYPTO ||
+            * WOLFSSL_ARM32_AES_DISPATCH */
         return 0;
 #elif (defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
         AES_CBC_decrypt(in, out, sz, (const unsigned char*)aes->key,
@@ -7591,18 +7892,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             /* flush IN/OUT FIFOs */
             CRYP_FIFOFlush();
 
-            CRYP_DataIn(*(uint32_t*)&in[0]);
-            CRYP_DataIn(*(uint32_t*)&in[4]);
-            CRYP_DataIn(*(uint32_t*)&in[8]);
-            CRYP_DataIn(*(uint32_t*)&in[12]);
-
-            /* wait until the complete message has been processed */
-            while (CRYP_GetFlagStatus(CRYP_FLAG_BUSY) != RESET) {}
-
-            *(uint32_t*)&out[0]  = CRYP_DataOut();
-            *(uint32_t*)&out[4]  = CRYP_DataOut();
-            *(uint32_t*)&out[8]  = CRYP_DataOut();
-            *(uint32_t*)&out[12] = CRYP_DataOut();
+            wc_Stm32_CrypAesBlock(in, out);
 
             /* disable crypto processor */
             CRYP_Cmd(DISABLE);
@@ -7739,6 +8029,12 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
                 return BAD_FUNC_ARG;
             }
 
+            if (sz == 0) {
+                /* Keep above the crypto-cb dispatch: it must not see sz == 0.
+                 * A missing key is only reported when there is work. */
+                return 0;
+            }
+
         #ifdef WOLF_CRYPTO_CB
             #ifndef WOLF_CRYPTO_CB_FIND
             if (aes->devId != INVALID_DEVID)
@@ -7750,6 +8046,12 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
                 /* fall-through when unavailable */
             }
         #endif
+
+            /* Software/HW key schedule required from here on. */
+            if (!WC_AES_KEY_IS_SET(aes)) {
+                WOLFSSL_MSG("AES key not set");
+                return MISSING_KEY;
+            }
 
             /* consume any unused bytes left in aes->tmp */
             processed = min(aes->left, sz);
@@ -7774,8 +8076,17 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     #if defined(WOLFSSL_ARMASM)
         #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
             #ifndef __aarch64__
+              #ifdef WOLFSSL_ARM32_AES_DISPATCH
+            if (aes->use_aes_hw_crypto) {
+                AES_CTR_encrypt_AARCH32(in, out, sz, (byte*)aes->reg,
+                    (byte*)aes->key, (byte*)aes->tmp, &aes->left, aes->rounds);
+                return 0;
+            }
+            else
+              #else
             AES_CTR_encrypt_AARCH32(in, out, sz, (byte*)aes->reg,
                 (byte*)aes->key, (byte*)aes->tmp, &aes->left, aes->rounds);
+              #endif /* WOLFSSL_ARM32_AES_DISPATCH */
             #else
             if (aes->use_aes_hw_crypto) {
                 AES_CTR_encrypt_AARCH64(in, out, sz, (byte*)aes->reg,
@@ -7785,7 +8096,8 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             else
             #endif /* !__aarch64__ */
         #endif /* !WOLFSSL_ARMASM_NO_HW_CRYPTO */
-        #if defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+        #if defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) || \
+            defined(WOLFSSL_ARM32_AES_DISPATCH)
             {
                 word32 numBlocks;
                 byte* tmp = (byte*)aes->tmp + WC_AES_BLOCK_SIZE - aes->left;
@@ -7812,7 +8124,10 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
                     else
                 #endif
                 #endif
-                #ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
+                /* Base AES is only left out on AArch64 - see wc_AesCbcDecrypt.
+                 */
+                #if !defined(WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP) || \
+                    !defined(__aarch64__)
                     {
                         AES_CTR_encrypt(in, out, numBlocks * WC_AES_BLOCK_SIZE,
                             (byte*)aes->key, aes->rounds, (byte*)aes->reg);
@@ -7927,11 +8242,17 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
                 /* reset number of blocks and then do encryption */
                 blocks = sz / WC_AES_BLOCK_SIZE;
-                wc_AesEcbEncrypt(aes, out, out, WC_AES_BLOCK_SIZE * blocks);
-                xorbuf(out, in, WC_AES_BLOCK_SIZE * blocks);
-                in += WC_AES_BLOCK_SIZE * blocks;
-                out += WC_AES_BLOCK_SIZE * blocks;
-                sz -= blocks * WC_AES_BLOCK_SIZE;
+                ret = wc_AesEcbEncrypt(aes, out, out,
+                                       WC_AES_BLOCK_SIZE * blocks);
+                if (ret == 0) {
+                    xorbuf(out, in, WC_AES_BLOCK_SIZE * blocks);
+                    in += WC_AES_BLOCK_SIZE * blocks;
+                    out += WC_AES_BLOCK_SIZE * blocks;
+                    sz -= blocks * WC_AES_BLOCK_SIZE;
+                }
+                else {
+                    ForceZero(out, WC_AES_BLOCK_SIZE * blocks);
+                }
             }
             else
         #endif
@@ -8148,8 +8469,19 @@ static WC_INLINE void IncrementGcmCounter(byte* inOutCtr)
 #endif
 #endif /* !FREESCALE_LTC_AES_GCM */
 
-#if !defined(WOLFSSL_ARMASM) || defined(__aarch64__) || \
-    defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+/* Alignment for the GHASH tag held on the stack.
+ *
+ * The tag is a byte array to the C code, but the assembly implementations
+ * transfer it a machine word at a time - the AArch32 and Thumb-2
+ * GCM_gmult_len write it back with stm, which faults on an unaligned address
+ * whatever SCTLR.A says - so it has to be aligned to the word size of the
+ * platform rather than left at the natural alignment of a byte array. */
+#ifdef WC_64BIT_CPU
+    #define ALIGN_GCM_TAG   ALIGN8
+#else
+    #define ALIGN_GCM_TAG   ALIGN4
+#endif
+
 #if defined(GCM_SMALL) || defined(GCM_TABLE) || defined(GCM_TABLE_4BIT)
 
 static WC_INLINE void FlattenSzInBits(byte* buf, word32 sz)
@@ -8285,7 +8617,13 @@ void GenerateM0(Gcm* gcm)
     }
 #endif
 
-#if defined(WOLFSSL_ARMASM) && defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+/* The 32-bit base assembly GHASH (GCM_gmult_len) consumes the M0 table with
+ * byte-reversed words, so apply that whenever it is compiled in: a no-crypto
+ * build, or a crypto build that keeps the base fallback for run-time selection
+ * (WOLFSSL_ARM32_AES_DISPATCH).  On AArch64 only the no-crypto build uses the
+ * M0-table GHASH (the crypto/NEON path hashes H directly). */
+#if defined(WOLFSSL_ARMASM) && (defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) || \
+    defined(WOLFSSL_ARM32_AES_DISPATCH))
     for (i = 0; i < 32; i++) {
     #if !defined(__aarch64__)
         word32* m32 = (word32*)gcm->M0[i];
@@ -8303,7 +8641,6 @@ void GenerateM0(Gcm* gcm)
 }
 
 #endif /* GCM_TABLE */
-#endif
 
 #if defined(WOLFSSL_AESNI) && defined(USE_INTEL_SPEEDUP)
     #define HAVE_INTEL_AVX1
@@ -8333,6 +8670,34 @@ void GCM_generate_m0_avx2(const unsigned char *h, unsigned char *m)
                           XASM_LINK("GCM_generate_m0_avx2");
 #endif
 #endif /* WOLFSSL_AESNI && GCM_TABLE_4BIT && WC_C_DYNAMIC_FALLBACK */
+
+#if defined(WOLFSSL_ARMASM) && !defined(__aarch64__) && \
+    !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) && defined(HAVE_AESGCM)
+/* Reflect the bits of each byte of a hash subkey, in place.
+ *
+ * AES_GCM_set_key_AARCH32 produces H in reflected form - what the PMULL bulk
+ * assembly wants - but the portable GHASH used for AES-GCM streaming needs
+ * plain H.  So the stored aes->gcm.H is un-reflected once at key set, and each
+ * bulk assembly call reflects its own copy.  The operation is its own inverse,
+ * so the same function serves both directions.
+ *
+ * @param [in, out] h  Hash subkey to reflect.
+ */
+static WC_INLINE void GcmReflectH(byte* h)
+{
+    int i;
+    int j;
+    for (i = 0; i < WC_AES_BLOCK_SIZE; i++) {
+        byte b = h[i];
+        byte r = 0;
+        for (j = 0; j < 8; j++) {
+            r = (byte)((r << 1) | (b & 1));
+            b >>= 1;
+        }
+        h[i] = r;
+    }
+}
+#endif
 
 /* Software AES - GCM SetKey */
 int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
@@ -8413,7 +8778,29 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     if (ret == 0) {
 #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
     #if !defined(__aarch64__)
+      #ifdef WOLFSSL_ARM32_AES_DISPATCH
+        if (aes->use_aes_hw_crypto && aes->use_pmull_hw_crypto) {
+            AES_GCM_set_key_AARCH32(iv, (byte*)aes->key, aes->gcm.H,
+                aes->rounds);
+            /* Undo the reflection the assembly applied, so the stored H is
+             * plain H for the portable streaming GHASH and for GenerateM0
+             * below.  Each bulk assembly call reflects its own copy. */
+            GcmReflectH(aes->gcm.H);
+        #if defined(GCM_TABLE) || defined(GCM_TABLE_4BIT)
+            GenerateM0(&aes->gcm);
+        #endif
+        }
+        else
+      #else
         AES_GCM_set_key_AARCH32(iv, (byte*)aes->key, aes->gcm.H, aes->rounds);
+        /* Undo the reflection the assembly applied, so the stored H is plain
+         * H for the portable streaming GHASH and for GenerateM0 below.  Each
+         * bulk assembly call reflects its own copy. */
+        GcmReflectH(aes->gcm.H);
+        #if defined(GCM_TABLE) || defined(GCM_TABLE_4BIT)
+        GenerateM0(&aes->gcm);
+        #endif
+      #endif /* WOLFSSL_ARM32_AES_DISPATCH */
     #else
         if (aes->use_aes_hw_crypto && aes->use_pmull_hw_crypto) {
             AES_GCM_set_key_AARCH64(iv, (byte*)aes->key, aes->gcm.H,
@@ -8428,7 +8815,8 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
             AES_ECB_encrypt_NEON(iv, aes->gcm.H, WC_AES_BLOCK_SIZE,
                 (const unsigned char*)aes->key, aes->rounds);
         }
-#elif defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+#elif defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) || \
+      defined(WOLFSSL_ARM32_AES_DISPATCH)
         {
             AES_ECB_encrypt(iv, aes->gcm.H, WC_AES_BLOCK_SIZE,
                 (const unsigned char*)aes->key, aes->rounds);
@@ -8620,8 +9008,6 @@ void AES_GCM_decrypt_vaes(const unsigned char *in, unsigned char *out,
 
 #endif /* WOLFSSL_AESNI */
 
-#if !defined(WOLFSSL_ARMASM) || defined(__aarch64__) || \
-    defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
 #if defined(WOLFSSL_RISCV_SCALAR_CRYPTO_ASM) && defined(HAVE_AESGCM) && \
     !defined(WOLFSSL_RISCV_VECTOR_CRYPTO_ASM)
 /* GHASH using the RISC-V scalar carryless-multiply (Zbc) helper.  Vector crypto
@@ -8738,7 +9124,7 @@ static void GMULT(byte* X, byte* Y)
 void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
     word32 cSz, byte* s, word32 sSz)
 {
-    byte x[WC_AES_BLOCK_SIZE];
+    ALIGN_GCM_TAG byte x[WC_AES_BLOCK_SIZE];
     byte scratch[WC_AES_BLOCK_SIZE];
     word32 blocks, partial;
     byte* h;
@@ -8814,7 +9200,9 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
 
 #if defined(WOLFSSL_ARMASM) && (!defined(__aarch64__) || \
     defined(WOLFSSL_ARMASM_NO_NEON))
-static void GCM_gmult_len_armasm_C(
+/* Unused when the batch GHASH is done in assembly (32-bit ARMv8 crypto), which
+ * only pulls in the streaming software GMULT. */
+static WC_MAYBE_UNUSED void GCM_gmult_len_armasm_C(
     byte* x, const byte* h, const unsigned char* a, unsigned long len)
 {
     byte Z[AES_BLOCK_SIZE];
@@ -8882,6 +9270,9 @@ static void GCM_gmult_len_armasm_C(
 
 #elif defined(GCM_TABLE)
 
+/* ARM assembly.  A 32-bit run-time dispatch build is deliberately not here: the
+ * generated AArch32 GHASH is for the 4-bit table, not this 256-entry one.  It
+ * gets a C GCM_GMULT_LEN() built on GMULT() below. */
 #if defined(WOLFSSL_ARMASM) && (defined(__aarch64__) || \
     defined(WOLFSSL_ARMASM_NO_HW_CRYPTO))
 #if !defined(WOLFSSL_ARMASM_NO_NEON) && defined(__aarch64__)
@@ -9067,10 +9458,30 @@ static void GMULT(byte *x, byte m[256][WC_AES_BLOCK_SIZE])
 }
 #endif
 
+#if defined(WOLFSSL_ARM32_AES_DISPATCH) && !defined(GCM_GMULT_LEN)
+/* A 32-bit Arm run-time dispatch build reaches AES_GCM_encrypt_ASM() and
+ * AES_GCM_decrypt_ASM() on a CPU without the crypto extension, and they call
+ * GCM_GMULT_LEN() unconditionally.  The generated AArch32 GHASH assembly only
+ * handles the 4-bit table, so hash the blocks with the 256-entry GMULT(). */
+static void GCM_gmult_len_table_C(byte* x, byte m[256][WC_AES_BLOCK_SIZE],
+    const unsigned char* a, unsigned long len)
+{
+    while (len >= WC_AES_BLOCK_SIZE) {
+        xorbuf(x, a, WC_AES_BLOCK_SIZE);
+        GMULT(x, m);
+        len -= WC_AES_BLOCK_SIZE;
+        a += WC_AES_BLOCK_SIZE;
+    }
+}
+
+#define GCM_GMULT_LEN(gcm, x, a, len) \
+    GCM_gmult_len_table_C(x, (gcm)->M0, a, len)
+#endif
+
 void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
     word32 cSz, byte* s, word32 sSz)
 {
-    byte x[WC_AES_BLOCK_SIZE];
+    ALIGN_GCM_TAG byte x[WC_AES_BLOCK_SIZE];
     byte scratch[WC_AES_BLOCK_SIZE];
     word32 blocks, partial;
 
@@ -9155,6 +9566,18 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
  */
 #define GHASH_INIT_EXTRA(aes) WC_DO_NOTHING
 
+#ifdef GCM_GMULT_LEN
+/* GHASH one block of data.
+ *
+ * Defer to the length-based implementation with a length of one block - it
+ * does the XOR into the tag as well as the multiply.
+ *
+ * @param [in, out] aes    AES GCM object.
+ * @param [in]      block  Block of AAD or cipher text.
+ */
+#define GHASH_ONE_BLOCK_SW(aes, block)                                  \
+   GCM_GMULT_LEN(&(aes)->gcm, AES_TAG(aes), block, WC_AES_BLOCK_SIZE)
+#else
 /* GHASH one block of data..
  *
  * XOR block into tag and GMULT with H using pre-computed table.
@@ -9168,12 +9591,14 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
         GMULT(AES_TAG(aes), aes->gcm.M0);               \
     }                                                   \
     while (0)
+#endif
 #endif /* WOLFSSL_AESGCM_STREAM */
 /* end GCM_TABLE */
 #elif defined(GCM_TABLE_4BIT)
 /* ARM assembly */
 #if defined(WOLFSSL_ARMASM) && (defined(__aarch64__) || \
-    defined(WOLFSSL_ARMASM_NO_HW_CRYPTO))
+    defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) || \
+    defined(WOLFSSL_ARM32_AES_DISPATCH))
 #if !defined(WOLFSSL_ARMASM_NO_NEON) && defined(__aarch64__)
 #define GCM_GMULT_LEN(gcm, x, a, len) \
     GCM_gmult_len_NEON(x, (const byte*)((gcm)->H), a, len)
@@ -9558,7 +9983,7 @@ static WC_INLINE void GMULT(byte *x, byte m[32][WC_AES_BLOCK_SIZE])
 void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
     word32 cSz, byte* s, word32 sSz)
 {
-    byte x[WC_AES_BLOCK_SIZE];
+    ALIGN_GCM_TAG byte x[WC_AES_BLOCK_SIZE];
     byte scratch[WC_AES_BLOCK_SIZE];
     word32 blocks, partial;
 
@@ -9645,6 +10070,9 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
 
 #ifdef GCM_GMULT_LEN
 /* GHASH one block of data.
+ *
+ * Defer to the length-based implementation with a length of one block - it
+ * does the XOR into the tag as well as the multiply.
  *
  * @param [in, out] aes    AES GCM object.
  * @param [in]      block  Block of AAD or cipher text.
@@ -10223,7 +10651,6 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
 #endif /* LITTLE_ENDIAN_ORDER */
 #endif /* WOLFSSL_AESGCM_STREAM */
 #endif /* end GCM_WORD32 */
-#endif
 
 #if !defined(WOLFSSL_XILINX_CRYPT) && !defined(WOLFSSL_AFALG_XILINX_AES)
 #ifdef WOLFSSL_AESGCM_STREAM
@@ -10442,8 +10869,69 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
 #ifdef STM32_CRYPTO_AES_GCM
 
+/* The Cube HAL always transfers the GCM auth header to the peripheral one
+ * 32-bit word at a time, including the trailing partial word (ST advisory
+ * SA0076), and casts the header pointer to uint32_t*, so the buffer it is
+ * handed must be both zero padded up to a word and word aligned -- even
+ * where STM_CRYPT_HEADER_WIDTH is 1 and the header size is in bytes.
+ * authPadSz is the length reported to the HAL and is deliberately not
+ * changed here, so the GHASH length block, and with it the hardware tag,
+ * is unaffected.
+ * tmpBuf is a caller supplied word aligned scratch buffer, used when it is
+ * large enough, otherwise the padded copy is allocated and *wasAlloc is set
+ * so the caller frees it. When no padding or realignment is needed
+ * *authInPadded aliases authIn and no copy is made.
+ * Returns 0 on success, MEMORY_E or BAD_FUNC_ARG on failure. */
+static WARN_UNUSED_RESULT int wc_AesGcmAuthPad_STM32(Aes* aes,
+    const byte* authIn, word32 authInSz, word32 authPadSz,
+    word32* tmpBuf, word32 tmpBufSz, byte** authInPadded, int* wasAlloc)
+{
+    word32 padWidth = (word32)STM_CRYPT_HEADER_PAD_WIDTH;
+    word32 authBufSz;
+
+    *wasAlloc = 0;
+
+    /* the HAL reads the larger of the two, and some HAL work arounds leave
+     * authPadSz smaller than authInSz, so cover both */
+    authBufSz = authPadSz;
+    if (authBufSz < authInSz) {
+        authBufSz = authInSz;
+    }
+    if (authBufSz > (WOLFSSL_MAX_32BIT - padWidth)) {
+        return BAD_FUNC_ARG; /* the round up below would wrap */
+    }
+    if ((authBufSz % padWidth) != 0) {
+        authBufSz += padWidth - (authBufSz % padWidth);
+    }
+    if ((authBufSz == authInSz) &&
+            (((wc_ptr_t)authIn % sizeof(word32)) == 0)) {
+        /* whole number of words and word aligned, the HAL can read it */
+        *authInPadded = (byte*)authIn;
+        return 0;
+    }
+
+    if (authBufSz <= tmpBufSz) {
+        *authInPadded = (byte*)tmpBuf;
+    }
+    else {
+        *authInPadded = (byte*)XMALLOC(authBufSz, aes->heap,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        if (*authInPadded == NULL) {
+            return MEMORY_E;
+        }
+        *wasAlloc = 1;
+    }
+    XMEMSET(*authInPadded, 0, authBufSz);
+    if (authIn != NULL) {
+        XMEMCPY(*authInPadded, authIn, authInSz);
+    }
+    return 0;
+}
+
 /* this function supports inline encrypt */
-static WARN_UNUSED_RESULT int wc_AesGcmEncrypt_STM32(
+/* Not static: the CubeMX crypto-callback device (port/st/stm32.c) calls this to
+ * service AES-GCM in-callback on the HAL engine. */
+WOLFSSL_LOCAL WARN_UNUSED_RESULT int wc_AesGcmEncrypt_STM32(
                                   Aes* aes, byte* out, const byte* in, word32 sz,
                                   const byte* iv, word32 ivSz,
                                   byte* authTag, word32 authTagSz,
@@ -10469,7 +10957,8 @@ static WARN_UNUSED_RESULT int wc_AesGcmEncrypt_STM32(
     word32 ctr[WC_AES_BLOCK_SIZE/sizeof(word32)];
     word32 authhdr[WC_AES_BLOCK_SIZE/sizeof(word32)];
     byte* authInPadded = NULL;
-    int authPadSz, wasAlloc = 0, useSwGhash = 0;
+    word32 authPadSz;
+    int wasAlloc = 0, useSwGhash = 0;
 
     ret = wc_AesGetKeySize(aes, &keySize);
     if (ret != 0)
@@ -10509,23 +10998,18 @@ static WARN_UNUSED_RESULT int wc_AesGcmEncrypt_STM32(
         if (authPadSz < authInSz + STM_CRYPT_HEADER_WIDTH) {
             authPadSz = authInSz + STM_CRYPT_HEADER_WIDTH - authPadSz;
         }
-        if (authPadSz <= sizeof(authhdr)) {
-            authInPadded = (byte*)authhdr;
-        }
-        else {
-            authInPadded = (byte*)XMALLOC(authPadSz, aes->heap,
-                DYNAMIC_TYPE_TMP_BUFFER);
-            if (authInPadded == NULL) {
-                wolfSSL_CryptHwMutexUnLock();
-                return MEMORY_E;
-            }
-            wasAlloc = 1;
-        }
-        XMEMSET(authInPadded, 0, authPadSz);
-        XMEMCPY(authInPadded, authIn, authInSz);
-    } else {
+    }
+    else {
         authPadSz = authInSz;
-        authInPadded = (byte*)authIn;
+    }
+    /* Zero pad and word align the buffer the HAL reads the auth header
+     * from (SA0076). authPadSz, the length reported to the HAL, is
+     * unchanged, so the hardware tag is unaffected. */
+    ret = wc_AesGcmAuthPad_STM32(aes, authIn, authInSz, authPadSz,
+        authhdr, (word32)sizeof(authhdr), &authInPadded, &wasAlloc);
+    if (ret != 0) {
+        wc_Stm32_Aes_Cleanup();
+        return ret;
     }
 
     /* for cases where hardware cannot be used for authTag calculate it */
@@ -10548,6 +11032,10 @@ static WARN_UNUSED_RESULT int wc_AesGcmEncrypt_STM32(
 
     ret = wolfSSL_CryptHwMutexLock();
     if (ret != 0) {
+        if (wasAlloc) {
+            XFREE(authInPadded, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+        wc_Stm32_Aes_Cleanup();
         return ret;
     }
 
@@ -10770,7 +11258,11 @@ WARN_UNUSED_RESULT int AES_GCM_encrypt_C(
 
         /* reset number of blocks and then do encryption */
         blocks = sz / WC_AES_BLOCK_SIZE;
-        wc_AesEcbEncrypt(aes, out, out, WC_AES_BLOCK_SIZE * blocks);
+        ret = wc_AesEcbEncrypt(aes, out, out, WC_AES_BLOCK_SIZE * blocks);
+        if (ret != 0) {
+            ForceZero(out, WC_AES_BLOCK_SIZE * blocks);
+            return ret;
+        }
         xorbuf(out, p, WC_AES_BLOCK_SIZE * blocks);
         p += WC_AES_BLOCK_SIZE * blocks;
     }
@@ -10815,6 +11307,7 @@ WARN_UNUSED_RESULT int AES_GCM_encrypt_C(
     return ret;
 }
 #elif (defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)) || \
+      defined(WOLFSSL_ARM32_AES_DISPATCH) || \
       (defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
 static int AES_GCM_encrypt_ASM(Aes* aes, byte* out, const byte* in,
     word32 sz, const byte* iv, word32 ivSz, byte* authTag, word32 authTagSz,
@@ -10824,7 +11317,7 @@ static int AES_GCM_encrypt_ASM(Aes* aes, byte* out, const byte* in,
     word32 partial;
     byte counter[WC_AES_BLOCK_SIZE];
     byte initialCounter[WC_AES_BLOCK_SIZE];
-    byte x[WC_AES_BLOCK_SIZE];
+    ALIGN_GCM_TAG byte x[WC_AES_BLOCK_SIZE];
     byte scratch[WC_AES_BLOCK_SIZE];
 
     XMEMSET(initialCounter, 0, WC_AES_BLOCK_SIZE);
@@ -10869,7 +11362,8 @@ static int AES_GCM_encrypt_ASM(Aes* aes, byte* out, const byte* in,
         else
     #endif
     #endif
-    #ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
+    /* Base AES is only left out on AArch64 - see wc_AesCbcDecrypt. */
+    #if !defined(WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP) || !defined(__aarch64__)
         {
             AES_GCM_encrypt(in, out, blocks * WC_AES_BLOCK_SIZE,
                 (const unsigned char*)aes->key, aes->rounds, counter);
@@ -10970,6 +11464,11 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     if (ret != 0)
         return ret;
 
+#if defined(HAVE_FIPS) && defined(WC_FIPS_AESGCM_NO_SHORT_NONCES)
+    if (ivSz < GCM_NONCE_MID_SZ)
+        return FIPS_BAD_VALUE_E;
+#endif
+
 #ifdef WOLF_CRYPTO_CB
     #ifndef WOLF_CRYPTO_CB_FIND
     if (aes->devId != INVALID_DEVID)
@@ -10983,6 +11482,12 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         /* fall-through when unavailable */
     }
 #endif
+
+    /* Software/HW key schedule (and hash subkey H) required from here on. */
+    if (!WC_AES_KEY_IS_SET(aes)) {
+        WOLFSSL_MSG("AES key not set");
+        return MISSING_KEY;
+    }
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
     /* if async and byte count above threshold */
@@ -11046,14 +11551,18 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 #endif
 
-#if defined(WOLFSSL_STM32_BARE) && defined(STM32_CRYPTO)
+/* Not under WOLF_CRYPTO_CB_ONLY_AES: that mode leaves aes->key empty (the key
+ * lives in aes->devKey), so the HW GCM must be reached through the STM32
+ * crypto-callback device, which stages the key first. */
+#if defined(WOLFSSL_STM32_BARE) && defined(STM32_CRYPTO) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_AES)
     ret = wc_Stm32_Aes_Gcm(aes, out, in, sz, iv, ivSz,
                            authTag, authTagSz,
                            authIn, authInSz, 1 /* enc */);
     if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
         return ret;
     /* fall through to SW GCM (still uses HW AES via wc_AesEncrypt) */
-#endif /* WOLFSSL_STM32_BARE && STM32_CRYPTO */
+#endif /* WOLFSSL_STM32_BARE && STM32_CRYPTO && !WOLF_CRYPTO_CB_ONLY_AES */
 
 
 #ifdef STM32_CRYPTO_AES_GCM
@@ -11085,10 +11594,36 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #if defined(WOLFSSL_ARMASM)
 #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
 #if !defined(__aarch64__)
-    AES_GCM_encrypt_AARCH32(in, out, sz, iv, ivSz, authTag, authTagSz, authIn,
-        authInSz, (byte*)aes->key, aes->gcm.H, (byte*)aes->tmp, (byte*)aes->reg,
-        aes->rounds);
+  #ifdef WOLFSSL_ARM32_AES_DISPATCH
+    if (aes->use_aes_hw_crypto && aes->use_pmull_hw_crypto) {
+        /* Reflect a copy of H into the form the PMULL assembly wants - the
+         * stored H must stay un-reflected for the portable GHASH. */
+        byte h[WC_AES_BLOCK_SIZE];
+
+        XMEMCPY(h, aes->gcm.H, WC_AES_BLOCK_SIZE);
+        GcmReflectH(h);
+        AES_GCM_encrypt_AARCH32(in, out, sz, iv, ivSz, authTag, authTagSz,
+            authIn, authInSz, (byte*)aes->key, h, (byte*)aes->tmp,
+            (byte*)aes->reg, aes->rounds);
+        ForceZero(h, sizeof(h));
+        ret = 0;
+    }
+    else
+  #else
+    {
+        /* Reflect a copy of H into the form the PMULL assembly wants - the
+         * stored H must stay un-reflected for the portable GHASH. */
+        byte h[WC_AES_BLOCK_SIZE];
+
+        XMEMCPY(h, aes->gcm.H, WC_AES_BLOCK_SIZE);
+        GcmReflectH(h);
+        AES_GCM_encrypt_AARCH32(in, out, sz, iv, ivSz, authTag, authTagSz,
+            authIn, authInSz, (byte*)aes->key, h, (byte*)aes->tmp,
+            (byte*)aes->reg, aes->rounds);
+        ForceZero(h, sizeof(h));
+    }
     ret = 0;
+  #endif /* WOLFSSL_ARM32_AES_DISPATCH */
 #else
     if (aes->use_aes_hw_crypto && aes->use_pmull_hw_crypto) {
     #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
@@ -11109,12 +11644,14 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     else
 #endif /* !__aarch64__ */
 #endif /* !WOLFSSL_ARMASM_NO_HW_CRYPTO */
-#if defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+#if defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) || \
+    defined(WOLFSSL_ARM32_AES_DISPATCH)
     {
         ret = AES_GCM_encrypt_ASM(aes, out, in, sz, iv, ivSz, authTag,
             authTagSz, authIn, authInSz);
     }
-#endif /* __aarch64__ || WOLFSSL_ARMASM_NO_HW_CRYPTO */
+#endif /* __aarch64__ || WOLFSSL_ARMASM_NO_HW_CRYPTO ||
+        * WOLFSSL_ARM32_AES_DISPATCH */
 #elif (defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
     ret = AES_GCM_encrypt_ASM(aes, out, in, sz, iv, ivSz, authTag, authTagSz,
         authIn, authInSz);
@@ -11221,7 +11758,8 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
 #ifdef STM32_CRYPTO_AES_GCM
 /* this function supports inline decrypt */
-static WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
+/* Not static: called by the CubeMX crypto-callback device (see encrypt). */
+WOLFSSL_LOCAL WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
                                   Aes* aes, byte* out,
                                   const byte* in, word32 sz,
                                   const byte* iv, word32 ivSz,
@@ -11245,7 +11783,8 @@ static WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
     word32 ctr[WC_AES_BLOCK_SIZE/sizeof(word32)];
     word32 authhdr[WC_AES_BLOCK_SIZE/sizeof(word32)];
     byte* authInPadded = NULL;
-    int authPadSz, wasAlloc = 0, tagComputed = 0;
+    word32 authPadSz;
+    int wasAlloc = 0, tagComputed = 0;
 
     ret = wc_AesGetKeySize(aes, &keySize);
     if (ret != 0)
@@ -11307,30 +11846,27 @@ static WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
     ) {
         GHASH(&aes->gcm, authIn, authInSz, in, sz, (byte*)tag, sizeof(tag));
         ret = wc_AesEncrypt(aes, (byte*)ctr, (byte*)partialBlock);
-        if (ret != 0)
+        if (ret != 0) {
+            wc_Stm32_Aes_Cleanup();
             return ret;
+        }
         xorbuf(tag, partialBlock, sizeof(tag));
         tagComputed = 1;
     }
 
-    /* if using hardware for authentication tag make sure its aligned and zero padded */
-    if (authPadSz != authInSz && !tagComputed) {
-        if (authPadSz <= sizeof(authhdr)) {
-            authInPadded = (byte*)authhdr;
-        }
-        else {
-            authInPadded = (byte*)XMALLOC(authPadSz, aes->heap,
-                DYNAMIC_TYPE_TMP_BUFFER);
-            if (authInPadded == NULL) {
-                wolfSSL_CryptHwMutexUnLock();
-                return MEMORY_E;
-            }
-            wasAlloc = 1;
-        }
-        XMEMSET(authInPadded, 0, authPadSz);
-        XMEMCPY(authInPadded, authIn, authInSz);
-    } else {
-        authInPadded = (byte*)authIn;
+    /* Zero pad and word align the buffer the HAL reads the auth header
+     * from (SA0076). authPadSz, the length reported to the HAL, is
+     * unchanged, so the hardware tag is unaffected.
+     * This must NOT be gated on !tagComputed. tagComputed only selects
+     * who produces the tag; hcryp.Init.Header and HeaderSize are still
+     * handed to the HAL below and are still read during the header phase
+     * of the payload call, which the HAL runs whether or not we later ask
+     * it for the tag. The over read happens on the software tag path too. */
+    ret = wc_AesGcmAuthPad_STM32(aes, authIn, authInSz, authPadSz,
+        authhdr, (word32)sizeof(authhdr), &authInPadded, &wasAlloc);
+    if (ret != 0) {
+        wc_Stm32_Aes_Cleanup();
+        return ret;
     }
 
     /* Hardware requires counter + 1 */
@@ -11341,6 +11877,7 @@ static WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
         if (wasAlloc) {
             XFREE(authInPadded, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
+        wc_Stm32_Aes_Cleanup();
         return ret;
     }
 
@@ -11590,7 +12127,11 @@ int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
         /* reset number of blocks and then do encryption */
         blocks = sz / WC_AES_BLOCK_SIZE;
 
-        wc_AesEcbEncrypt(aes, out, out, WC_AES_BLOCK_SIZE * blocks);
+        ret = wc_AesEcbEncrypt(aes, out, out, WC_AES_BLOCK_SIZE * blocks);
+        if (ret != 0) {
+            ForceZero(out, WC_AES_BLOCK_SIZE * blocks);
+            return ret;
+        }
         xorbuf(out, c, WC_AES_BLOCK_SIZE * blocks);
         c += WC_AES_BLOCK_SIZE * blocks;
     }
@@ -11646,6 +12187,7 @@ int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
     return ret;
 }
 #elif (defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)) || \
+      defined(WOLFSSL_ARM32_AES_DISPATCH) || \
       (defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
 static int AES_GCM_decrypt_ASM(Aes* aes, byte* out, const byte* in,
     word32 sz, const byte* iv, word32 ivSz, const byte* authTag,
@@ -11656,7 +12198,7 @@ static int AES_GCM_decrypt_ASM(Aes* aes, byte* out, const byte* in,
     byte counter[WC_AES_BLOCK_SIZE];
     byte initialCounter[WC_AES_BLOCK_SIZE];
     byte scratch[WC_AES_BLOCK_SIZE];
-    byte x[WC_AES_BLOCK_SIZE];
+    ALIGN_GCM_TAG byte x[WC_AES_BLOCK_SIZE];
 
     XMEMSET(initialCounter, 0, WC_AES_BLOCK_SIZE);
     if (ivSz == GCM_NONCE_MID_SZ) {
@@ -11702,7 +12244,8 @@ static int AES_GCM_decrypt_ASM(Aes* aes, byte* out, const byte* in,
         else
     #endif
     #endif
-    #ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
+    /* Base AES is only left out on AArch64 - see wc_AesCbcDecrypt. */
+    #if !defined(WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP) || !defined(__aarch64__)
         {
             AES_GCM_encrypt(in, out, blocks * WC_AES_BLOCK_SIZE,
                 (const unsigned char*)aes->key, aes->rounds, counter);
@@ -11782,6 +12325,11 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     if (ret != 0)
         return ret;
 
+    /* No FIPS check on ivSz in decrypt mode -- SP 800-38D IV
+     * construction requirements bind encryption only; decryption must
+     * accept externally generated IVs of any supported length.
+     */
+
 #ifdef WOLF_CRYPTO_CB
     #ifndef WOLF_CRYPTO_CB_FIND
     if (aes->devId != INVALID_DEVID)
@@ -11795,6 +12343,12 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         /* fall-through when unavailable */
     }
 #endif
+
+    /* Software/HW key schedule (and hash subkey H) required from here on. */
+    if (!WC_AES_KEY_IS_SET(aes)) {
+        WOLFSSL_MSG("AES key not set");
+        return MISSING_KEY;
+    }
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
     /* if async and byte count above threshold */
@@ -11854,9 +12408,24 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 #endif
 
-    /* BARE: GCM decrypt always uses SW path (with HW AES blocks via
-     * wc_AesEncrypt). Encrypt is HW-accelerated above; decrypt + tag
-     * verification stays in well-tested SW for now. */
+#if defined(WOLFSSL_STM32_BARE) && defined(STM32_CRYPTO) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_AES)
+    /* BARE: HW GCM decrypt-verify on both AES IPs -- the TinyAES GCM engine
+     * (H5/U5/L5/U3/WBA/...) and the CRYP IP (F2/F4/F7/H7/MP13), the latter
+     * validated on NUCLEO-F439ZI against the SP 800-38D vectors;
+     * otherwise wc_Stm32_Aes_Gcm returns CRYPTOCB_UNAVAILABLE and the well-tested
+     * SW path runs (its AES blocks still on HW via wc_AesEncrypt). The received
+     * tag is verified inside wc_Stm32_Aes_Gcm (const cast: it compares, never
+     * writes, on the decrypt path). Excluded under WOLF_CRYPTO_CB_ONLY_AES for
+     * the same reason as the encrypt path above -- the key is only in
+     * aes->devKey there, so HW GCM must go through the crypto-cb device. */
+    ret = wc_Stm32_Aes_Gcm(aes, out, in, sz, iv, ivSz,
+                           (byte*)authTag, authTagSz,
+                           authIn, authInSz, 0 /* dec */);
+    if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+        return ret;
+    /* fall through to SW GCM decrypt */
+#endif /* WOLFSSL_STM32_BARE && STM32_CRYPTO && !WOLF_CRYPTO_CB_ONLY_AES */
 
 #ifdef STM32_CRYPTO_AES_GCM
     /* The STM standard peripheral library API's doesn't support partial blocks */
@@ -11886,18 +12455,33 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #if defined(WOLFSSL_ARMASM)
 #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
 #ifndef __aarch64__
+  #ifdef WOLFSSL_ARM32_AES_DISPATCH
+    if (aes->use_aes_hw_crypto && aes->use_pmull_hw_crypto)
+  #endif
     {
     #ifdef OPENSSL_EXTRA
         word32 reg[WC_AES_BLOCK_SIZE / sizeof(word32)];
+    #endif
+        /* Reflect a copy of H into the form the PMULL assembly wants - the
+         * stored H must stay un-reflected for the portable GHASH. */
+        byte h[WC_AES_BLOCK_SIZE];
+
+    #ifdef OPENSSL_EXTRA
         XMEMCPY(reg, aes->reg, sizeof(reg));
     #endif
+        XMEMCPY(h, aes->gcm.H, WC_AES_BLOCK_SIZE);
+        GcmReflectH(h);
         ret = AES_GCM_decrypt_AARCH32(in, out, sz, iv, ivSz, authTag, authTagSz,
-            authIn, authInSz, (byte*)aes->key, aes->gcm.H, (byte*)aes->tmp,
+            authIn, authInSz, (byte*)aes->key, h, (byte*)aes->tmp,
             (byte*)aes->reg, aes->rounds);
+        ForceZero(h, sizeof(h));
     #ifdef OPENSSL_EXTRA
         XMEMCPY(aes->reg, reg, sizeof(reg));
     #endif
     }
+  #ifdef WOLFSSL_ARM32_AES_DISPATCH
+    else
+  #endif
 #else
     if (aes->use_aes_hw_crypto && aes->use_pmull_hw_crypto) {
     #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
@@ -11917,12 +12501,14 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     else
 #endif /* !__aarch64__ */
 #endif /* !WOLFSSL_ARMASM_NO_HW_CRYPTO */
-#if defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+#if defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) || \
+    defined(WOLFSSL_ARM32_AES_DISPATCH)
     {
         ret = AES_GCM_decrypt_ASM(aes, out, in, sz, iv, ivSz, authTag,
             authTagSz, authIn, authInSz);
     }
-#endif /* __aarch64__ || WOLFSSL_ARMASM_NO_HW_CRYPTO */
+#endif /* __aarch64__ || WOLFSSL_ARMASM_NO_HW_CRYPTO ||
+        * WOLFSSL_ARM32_AES_DISPATCH */
 #elif (defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
     {
         ret = AES_GCM_decrypt_ASM(aes, out, in, sz, iv, ivSz, authTag,
@@ -12099,7 +12685,11 @@ static WARN_UNUSED_RESULT int AesGcmCryptUpdate_C(
         }
 
         /* Encrypt counter blocks. */
-        wc_AesEcbEncrypt(aes, out, out, WC_AES_BLOCK_SIZE * blocks);
+        ret = wc_AesEcbEncrypt(aes, out, out, WC_AES_BLOCK_SIZE * blocks);
+        if (ret != 0) {
+            ForceZero(out, WC_AES_BLOCK_SIZE * blocks);
+            return ret;
+        }
         /* XOR in plaintext. */
         xorbuf(out, in, WC_AES_BLOCK_SIZE * blocks);
         /* Skip over processed data. */
@@ -13992,17 +14582,51 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
         ret = wc_AesGcmSetKey(aes, key, len);
     }
 
+#if defined(WOLFSSL_ARM32_AES_DISPATCH) && defined(WOLFSSL_AESGCM_STREAM)
+    /* Streaming AES-GCM drives the counter through the base AES_ECB_encrypt,
+     * which needs the base key schedule, and there is no AES_GCM_init AArch32
+     * assembly - so an object entering the streaming API has to move to the
+     * base implementation.  Doing it here rather than in wc_AesGcmSetKey()
+     * leaves one-shot AES-GCM on the crypto extension in builds that merely
+     * compile the streaming API in.
+     *
+     * Only the key schedule needs rebuilding: wc_AesGcmSetKey() stores gcm.H
+     * un-reflected whichever path computed it, and the tables derived from it
+     * with it, so the hashing state carries over as-is.  Round key 0 of either
+     * schedule is the cipher key itself, so the base schedule is rebuilt in
+     * place without keeping a copy of the key. */
+    if ((ret == 0) && aes->use_aes_hw_crypto) {
+        byte rawKey[AES_MAX_KEY_SIZE / 8];
+
+        XMEMCPY(rawKey, aes->key, aes->keylen);
+        aes->use_aes_hw_crypto = 0;
+        aes->use_pmull_hw_crypto = 0;
+        AES_set_encrypt_key(rawKey, (word32)aes->keylen * 8, (byte*)aes->key);
+        ForceZero(rawKey, sizeof(rawKey));
+    }
+#endif
+
     if (ret == 0) {
-        /* Set the IV passed in if it is smaller than a block. */
-        if ((iv != NULL) && (ivSz <= WC_AES_BLOCK_SIZE)) {
-            XMEMMOVE((byte*)aes->reg, iv, ivSz);
-            aes->nonceSz = ivSz;
+        if (iv != NULL) {
+            if (ivSz <= WC_AES_BLOCK_SIZE) {
+                /* Set the IV passed in if it is smaller than a block. */
+                XMEMMOVE((byte*)aes->reg, iv, ivSz);
+                aes->nonceSz = ivSz;
+            }
+            else {
+                /* FIPS short-nonce detection depends on aes->nonceSz == 0
+                 * signifying that supplied ivSz > WC_AES_BLOCK_SIZE.
+                 */
+                aes->nonceSz = 0;
+            }
         }
-        /* No IV passed in, check for cached IV. */
-        if ((iv == NULL) && (aes->nonceSz != 0)) {
-            /* Use the cached copy. */
-            iv = (byte*)aes->reg;
-            ivSz = aes->nonceSz;
+        else {
+            /* No IV passed in, check for cached IV. */
+            if (aes->nonceSz != 0) {
+                /* Use the cached copy. */
+                iv = (byte*)aes->reg;
+                ivSz = aes->nonceSz;
+            }
         }
 
         if (iv != NULL) {
@@ -14063,6 +14687,14 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
 int wc_AesGcmEncryptInit(Aes* aes, const byte* key, word32 len, const byte* iv,
     word32 ivSz)
 {
+#if defined(HAVE_FIPS) && defined(WC_FIPS_AESGCM_NO_SHORT_NONCES)
+    /* Note iv is an optional arg to wc_AesGcmEncryptInit(), so we tolerate zero ivSz
+     * here.
+     */
+    if ((ivSz > 0) && (ivSz < GCM_NONCE_MID_SZ))
+        return FIPS_BAD_VALUE_E;
+#endif
+
     return wc_AesGcmInit(aes, key, len, iv, ivSz);
 }
 
@@ -14093,6 +14725,11 @@ int wc_AesGcmEncryptInit_ex(Aes* aes, const byte* key, word32 len, byte* ivOut,
     if ((aes == NULL) || (ivOut == NULL) || (ivOutSz != aes->nonceSz)) {
         ret = BAD_FUNC_ARG;
     }
+#if defined(HAVE_FIPS) && defined(WC_FIPS_AESGCM_NO_SHORT_NONCES)
+    else if (ivOutSz < GCM_NONCE_MID_SZ) {
+        ret = FIPS_BAD_VALUE_E;
+    }
+#endif
     else {
         /* Copy out the IV including generated part for decryption. */
         XMEMCPY(ivOut, aes->reg, ivOutSz);
@@ -14123,6 +14760,11 @@ int wc_AesGcmEncryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
     if ((ret == 0) && (!aes->nonceSet)) {
         ret = MISSING_IV;
     }
+
+#if defined(HAVE_FIPS) && defined(WC_FIPS_AESGCM_NO_SHORT_NONCES)
+    if ((ret == 0) && (aes->nonceSz != 0) && (aes->nonceSz < GCM_NONCE_MID_SZ))
+        ret = FIPS_BAD_VALUE_E;
+#endif
 
     /* Prevent overflow of aes->cSz and ->aSz.  Per NIST SP 800-38D section
      * 5.2.1.1, the maximum allowed ciphertext limit is 2^32 - 2 blocks, but we
@@ -14211,6 +14853,11 @@ int wc_AesGcmEncryptFinal(Aes* aes, byte* authTag, word32 authTagSz)
         ret = MISSING_IV;
     }
 
+#if defined(HAVE_FIPS) && defined(WC_FIPS_AESGCM_NO_SHORT_NONCES)
+    if ((ret == 0) && (aes->nonceSz != 0) && (aes->nonceSz < GCM_NONCE_MID_SZ))
+        ret = FIPS_BAD_VALUE_E;
+#endif
+
     if (ret == 0) {
         /* Calculate authentication tag. */
     #ifdef WOLFSSL_AESNI
@@ -14262,6 +14909,11 @@ int wc_AesGcmEncryptFinal(Aes* aes, byte* authTag, word32 authTagSz)
 int wc_AesGcmDecryptInit(Aes* aes, const byte* key, word32 len, const byte* iv,
     word32 ivSz)
 {
+    /*
+     * There is no FIPS check on ivSz in decrypt mode -- SP
+     * 800-38D IV construction requirements bind encryption only; decryption
+     * must accept externally generated IVs of any supported length.
+     */
     return wc_AesGcmInit(aes, key, len, iv, ivSz);
 }
 
@@ -14489,6 +15141,11 @@ int wc_AesGcmEncrypt_ex(Aes* aes, byte* out, const byte* in, word32 sz,
 
         ret = BAD_FUNC_ARG;
     }
+
+#if defined(HAVE_FIPS) && defined(WC_FIPS_AESGCM_NO_SHORT_NONCES)
+    if ((ret == 0) && (ivOutSz < GCM_NONCE_MID_SZ))
+        ret = FIPS_BAD_VALUE_E;
+#endif
 
     if (ret == 0) {
         aes->invokeCtr[0]++;
@@ -14991,6 +15648,12 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     }
 #endif
 
+    /* Software/HW key schedule required from here on. */
+    if (!WC_AES_KEY_IS_SET(aes)) {
+        WOLFSSL_MSG("AES key not set");
+        return MISSING_KEY;
+    }
+
     XMEMSET(A, 0, sizeof(A));
     XMEMCPY(B+1, nonce, nonceSz);
 
@@ -15155,6 +15818,12 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     }
 #endif
 
+    /* Software/HW key schedule required from here on. */
+    if (!WC_AES_KEY_IS_SET(aes)) {
+        WOLFSSL_MSG("AES key not set");
+        return MISSING_KEY;
+    }
+
     o = out;
     oSz = inSz;
     XMEMSET(A, 0, sizeof A);
@@ -15204,15 +15873,14 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         o += WC_AES_BLOCK_SIZE;
     }
 
-    if ((ret == 0) && (inSz > 0))
+    /* oSz, not inSz, is the count of bytes left after the block loop above --
+     * inSz is kept pristine here for the CBC-MAC phase below. */
+    if ((ret == 0) && (oSz > 0))
         ret = AesEncrypt_preFetchOpt(aes, B, A, &did_prefetches);
 
-    if ((ret == 0) && (inSz > 0)) {
+    if ((ret == 0) && (oSz > 0)) {
         xorbuf(A, in, oSz);
         XMEMCPY(o, A, oSz);
-        for (i = 0; i < lenSz; i++)
-            B[WC_AES_BLOCK_SIZE - 1 - i] = 0;
-        ret = AesEncrypt_preFetchOpt(aes, B, A, &did_prefetches);
     }
 
     if (ret == 0) {
@@ -15478,7 +16146,8 @@ int wc_AesInit(Aes* aes, void* heap, int devId)
 #endif
 #if defined(WOLFSSL_DEVCRYPTO) && \
    (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC))
-    aes->ctx.cfd = -1;
+    aes->ctx.cfd    = -1;
+    aes->ctx.inited = 0;
 #endif
 #if defined(WOLFSSL_IMXRT_DCP)
     DCPAesInit(aes);
@@ -15512,6 +16181,8 @@ int  wc_AesInit_Id(Aes* aes, unsigned char* id, int len, void* heap, int devId)
         XMEMCPY(aes->id, id, (size_t)len);
         aes->idLen = len;
         aes->labelLen = 0;
+        /* keyInstalled stays 0: the key lives on the device, not in the
+         * software schedule. See the field comment in aes.h. */
     }
 
     return ret;
@@ -15536,6 +16207,7 @@ int wc_AesInit_Label(Aes* aes, const char* label, void* heap, int devId)
         XMEMCPY(aes->label, label, labelLen);
         aes->labelLen = (int)labelLen;
         aes->idLen = 0;
+        /* keyInstalled stays 0: see wc_AesInit_Id() above. */
     }
 
     return ret;
@@ -15559,6 +16231,9 @@ void wc_AesFree(Aes* aes)
     #ifdef WOLF_CRYPTO_CB_AES_SETKEY
         aes->devCtx = NULL;  /* Clear device context handle */
     #endif
+        /* This path skips the ForceZero below, so clear the flag here or a
+         * reused context passes the key-set guard with a freed key. */
+        aes->keyInstalled = 0;
         /* If callback wants standard free, it can set devId to INVALID_DEVID.
          * Otherwise assume the callback handled cleanup. */
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
@@ -15782,6 +16457,10 @@ int wc_AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
     if ((in == NULL) || (out == NULL) || (aes == NULL))
         return BAD_FUNC_ARG;
+    if (!WC_AES_KEY_IS_SET(aes)) {
+        WOLFSSL_MSG("AES key not set");
+        return MISSING_KEY;
+    }
 
     return wc_Psoc6_Aes_EcbEncrypt(aes, out, in, sz);
 }
@@ -15793,6 +16472,10 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
     if ((in == NULL) || (out == NULL) || (aes == NULL))
         return BAD_FUNC_ARG;
+    if (!WC_AES_KEY_IS_SET(aes)) {
+        WOLFSSL_MSG("AES key not set");
+        return MISSING_KEY;
+    }
 
     return wc_Psoc6_Aes_EcbDecrypt(aes, out, in, sz);
 }
@@ -15830,12 +16513,27 @@ static WARN_UNUSED_RESULT int _AesEcbEncrypt(
         return DCPAesEcbEncrypt(aes, out, in, sz);
 #endif
 
+    /* Software key schedule required from here on. */
+    if (!WC_AES_KEY_IS_SET(aes)) {
+        WOLFSSL_MSG("AES key not set");
+        return MISSING_KEY;
+    }
+
     VECTOR_REGISTERS_PUSH;
 
 #if defined(WOLFSSL_RISCV_ASM)
     AES_encrypt_blocks_RISCV64(in, out, sz, (byte*)aes->key, (int)aes->rounds);
 #elif !defined(__aarch64__) && defined(WOLFSSL_ARMASM)
-#ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
+#ifdef WOLFSSL_ARM32_AES_DISPATCH
+    if (aes->use_aes_hw_crypto) {
+        AES_encrypt_blocks_AARCH32(in, out, sz, (byte*)aes->key,
+            (int)aes->rounds);
+    }
+    else {
+        AES_ECB_encrypt(in, out, sz, (const unsigned char*)aes->key,
+            aes->rounds);
+    }
+#elif !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
     AES_encrypt_blocks_AARCH32(in, out, sz, (byte*)aes->key, (int)aes->rounds);
 #else
     AES_ECB_encrypt(in, out, sz, (const unsigned char*)aes->key, aes->rounds);
@@ -15931,12 +16629,27 @@ static WARN_UNUSED_RESULT int _AesEcbDecrypt(
         return DCPAesEcbDecrypt(aes, out, in, sz);
 #endif
 
+    /* Software key schedule required from here on. */
+    if (!WC_AES_KEY_IS_SET(aes)) {
+        WOLFSSL_MSG("AES key not set");
+        return MISSING_KEY;
+    }
+
     VECTOR_REGISTERS_PUSH;
 
 #if defined(WOLFSSL_RISCV_ASM)
     AES_decrypt_blocks_RISCV64(in, out, sz, (byte*)aes->key, (int)aes->rounds);
 #elif !defined(__aarch64__) && defined(WOLFSSL_ARMASM)
-#ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
+#ifdef WOLFSSL_ARM32_AES_DISPATCH
+    if (aes->use_aes_hw_crypto) {
+        AES_decrypt_blocks_AARCH32(in, out, sz, (byte*)aes->key,
+            (int)aes->rounds);
+    }
+    else {
+        AES_ECB_decrypt(in, out, sz, (const unsigned char*)aes->key,
+            aes->rounds);
+    }
+#elif !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
     AES_decrypt_blocks_AARCH32(in, out, sz, (byte*)aes->key, (int)aes->rounds);
 #else
     AES_ECB_decrypt(in, out, sz, (const unsigned char*)aes->key, aes->rounds);
@@ -16039,12 +16752,24 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
 int wc_AesCfbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
+    if (aes == NULL)
+        return BAD_FUNC_ARG;
+    if (!WC_AES_KEY_IS_SET(aes)) {
+        WOLFSSL_MSG("AES key not set");
+        return MISSING_KEY;
+    }
     return wc_Psoc6_Aes_CfbEncrypt(aes, out, in, sz);
 }
 
 #ifdef HAVE_AES_DECRYPT
 int wc_AesCfbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
+    if (aes == NULL)
+        return BAD_FUNC_ARG;
+    if (!WC_AES_KEY_IS_SET(aes)) {
+        WOLFSSL_MSG("AES key not set");
+        return MISSING_KEY;
+    }
     return wc_Psoc6_Aes_CfbDecrypt(aes, out, in, sz);
 }
 #endif /* HAVE_AES_DECRYPT */
@@ -16073,6 +16798,10 @@ static WARN_UNUSED_RESULT int AesCfbEncrypt_C(Aes* aes, byte* out,
 
     if ((aes == NULL) || (out == NULL) || (in == NULL)) {
         return BAD_FUNC_ARG;
+    }
+    if (!WC_AES_KEY_IS_SET(aes)) {
+        WOLFSSL_MSG("AES key not set");
+        return MISSING_KEY;
     }
     if (sz == 0) {
         return 0;
@@ -16156,6 +16885,10 @@ static WARN_UNUSED_RESULT int AesCfbDecrypt_C(Aes* aes, byte* out,
 
     if ((aes == NULL) || (out == NULL) || (in == NULL)) {
         return BAD_FUNC_ARG;
+    }
+    if (!WC_AES_KEY_IS_SET(aes)) {
+        WOLFSSL_MSG("AES key not set");
+        return MISSING_KEY;
     }
     if (sz == 0) {
         return 0;
@@ -16385,6 +17118,10 @@ static WARN_UNUSED_RESULT int wc_AesFeedbackCFB8(
         return BAD_FUNC_ARG;
     }
 
+    if (!WC_AES_KEY_IS_SET(aes)) {
+        WOLFSSL_MSG("AES key not set");
+        return MISSING_KEY;
+    }
     if (sz == 0) {
         return 0;
     }
@@ -16445,6 +17182,10 @@ static WARN_UNUSED_RESULT int wc_AesFeedbackCFB1(
         return BAD_FUNC_ARG;
     }
 
+    if (!WC_AES_KEY_IS_SET(aes)) {
+        WOLFSSL_MSG("AES key not set");
+        return MISSING_KEY;
+    }
     if (sz == 0) {
         return 0;
     }
@@ -16603,6 +17344,10 @@ static WARN_UNUSED_RESULT int AesOfbCrypt_C(Aes* aes, byte* out, const byte* in,
     if ((aes == NULL) || (out == NULL) || (in == NULL)) {
         return BAD_FUNC_ARG;
     }
+    if (!WC_AES_KEY_IS_SET(aes)) {
+        WOLFSSL_MSG("AES key not set");
+        return MISSING_KEY;
+    }
     if (sz == 0) {
         return 0;
     }
@@ -16750,8 +17495,9 @@ static WC_INLINE void DecrementKeyWrapCounter(byte* inOutCtr)
     }
 }
 
-int wc_AesKeyWrap_ex(Aes *aes, const byte* in, word32 inSz, byte* out,
-        word32 outSz, const byte* iv)
+/* Core RFC 3394 wrapping loop: plaintext at out+8, initial A in aiv; writes
+ * C[0]=A and wrapped R[i] in place.  Caller owns output-buffer sizing. */
+static int AesKeyWrapRaw(Aes* aes, word32 inSz, byte* out, const byte* aiv)
 {
     word32 i;
     byte* r;
@@ -16761,34 +17507,45 @@ int wc_AesKeyWrap_ex(Aes *aes, const byte* in, word32 inSz, byte* out,
     byte t[KEYWRAP_BLOCK_SIZE];
     byte tmp[WC_AES_BLOCK_SIZE];
 
-    /* n must be at least 2 64-bit blocks, output size is (n + 1) 8 bytes (64-bit) */
-    if (aes == NULL || in  == NULL || inSz < 2*KEYWRAP_BLOCK_SIZE ||
-        out == NULL || outSz < (inSz + KEYWRAP_BLOCK_SIZE))
+    /* at least two 64-bit blocks, on a 64-bit boundary */
+    if (aes == NULL || out == NULL || aiv == NULL ||
+        inSz < 2 * KEYWRAP_BLOCK_SIZE || (inSz % KEYWRAP_BLOCK_SIZE) != 0) {
         return BAD_FUNC_ARG;
-
-    /* input must be multiple of 64-bits */
-    if (inSz % KEYWRAP_BLOCK_SIZE != 0)
-        return BAD_FUNC_ARG;
-
-    r = out + 8;
-    XMEMCPY(r, in, inSz);
-    XMEMSET(t, 0, sizeof(t));
-
-    /* user IV is optional */
-    if (iv == NULL) {
-        XMEMSET(tmp, 0xA6, KEYWRAP_BLOCK_SIZE);
-    } else {
-        XMEMCPY(tmp, iv, KEYWRAP_BLOCK_SIZE);
     }
 
+#ifndef HAVE_AES_ECB
+    /* The block loop below uses the wc_AesEncryptDirect macro, which bypasses
+     * the public function's guard. With HAVE_AES_ECB the loop calls
+     * wc_AesEcbEncrypt instead, whose own guard sits after the crypto
+     * callback dispatch, so a device-held key still reaches the device. */
+    if (!WC_AES_KEY_IS_SET(aes)) {
+        WOLFSSL_MSG("AES key not set");
+        return MISSING_KEY;
+    }
+#endif
+
+    r = out + KEYWRAP_BLOCK_SIZE;
+    XMEMSET(t, 0, sizeof(t));
+
+    /* A = initial value */
+    XMEMCPY(tmp, aiv, KEYWRAP_BLOCK_SIZE);
+
+#ifndef HAVE_AES_ECB
+    /* Direct block access must save vector registers across the loop; with
+     * HAVE_AES_ECB wc_AesEcbEncrypt saves them and can route to an ECB cb. */
     VECTOR_REGISTERS_PUSH;
+#endif
 
     for (j = 0; j <= 5; j++) {
         for (i = 1; i <= inSz / KEYWRAP_BLOCK_SIZE; i++) {
             /* load R[i] */
             XMEMCPY(tmp + KEYWRAP_BLOCK_SIZE, r, KEYWRAP_BLOCK_SIZE);
 
+#ifdef HAVE_AES_ECB
+            ret = wc_AesEcbEncrypt(aes, tmp, tmp, WC_AES_BLOCK_SIZE);
+#else
             ret = wc_AesEncryptDirect(aes, tmp, tmp);
+#endif
             if (ret != 0)
                 break;
 
@@ -16805,13 +17562,64 @@ int wc_AesKeyWrap_ex(Aes *aes, const byte* in, word32 inSz, byte* out,
         r = out + KEYWRAP_BLOCK_SIZE;
     }
 
+#ifndef HAVE_AES_ECB
     VECTOR_REGISTERS_POP;
+#endif
 
     if (ret != 0)
         return ret;
 
     /* C[0] = A */
     XMEMCPY(out, tmp, KEYWRAP_BLOCK_SIZE);
+
+    return 0;
+}
+
+int wc_AesKeyWrap_ex(Aes *aes, const byte* in, word32 inSz, byte* out,
+        word32 outSz, const byte* iv)
+{
+    int ret;
+    byte aiv[KEYWRAP_BLOCK_SIZE];
+
+    /* >= two 64-bit blocks on a 64-bit boundary, output fits outSz; inSz
+     * capped at INT_MAX-8 so the returned inSz+8 stays a non-negative int. */
+    if (aes == NULL || in == NULL || out == NULL ||
+        inSz < 2 * KEYWRAP_BLOCK_SIZE || (inSz % KEYWRAP_BLOCK_SIZE) != 0 ||
+        inSz > 0x7FFFFFFFU - KEYWRAP_BLOCK_SIZE ||
+        outSz < inSz + KEYWRAP_BLOCK_SIZE)
+        return BAD_FUNC_ARG;
+
+#ifdef WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (aes->devId != INVALID_DEVID)
+    #endif
+    {
+        ret = wc_CryptoCb_AesKeyWrap(aes, in, inSz, out, outSz, iv, 0);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            return ret;
+        }
+        /* fall through to software when unavailable */
+    }
+#endif
+
+    /* user IV is optional */
+    if (iv == NULL) {
+        XMEMSET(aiv, 0xA6, KEYWRAP_BLOCK_SIZE);
+    }
+    else {
+        XMEMCPY(aiv, iv, KEYWRAP_BLOCK_SIZE);
+    }
+
+    /* stage plaintext at out+8; XMEMMOVE so in-place wrap (in == out) is safe */
+    XMEMMOVE(out + KEYWRAP_BLOCK_SIZE, in, inSz);
+
+    ret = AesKeyWrapRaw(aes, inSz, out, aiv);
+    if (ret != 0) {
+        /* wipe the plaintext staged at out+8 (and any partial cipher state
+         * left there) so it is not leaked to the caller on failure */
+        ForceZero(out + KEYWRAP_BLOCK_SIZE, inSz);
+        return ret;
+    }
 
     return (int)(inSz + KEYWRAP_BLOCK_SIZE);
 }
@@ -16852,8 +17660,10 @@ int wc_AesKeyWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
     return ret;
 }
 
-int wc_AesKeyUnWrap_ex(Aes *aes, const byte* in, word32 inSz, byte* out,
-        word32 outSz, const byte* iv)
+/* Core RFC 3394 unwrapping loop: decrypts (n+1) blocks in `in` to n blocks in
+ * out and recovered A in aOut.  No integrity check; caller verifies A. */
+static int AesKeyUnWrapRaw(Aes* aes, const byte* in, word32 inSz, byte* out,
+        byte* aOut)
 {
     byte* r;
     word32 i, n;
@@ -16863,31 +17673,33 @@ int wc_AesKeyUnWrap_ex(Aes *aes, const byte* in, word32 inSz, byte* out,
     byte t[KEYWRAP_BLOCK_SIZE];
     byte tmp[WC_AES_BLOCK_SIZE];
 
-    const byte* expIv;
-    const byte defaultIV[] = {
-        0xA6, 0xA6, 0xA6, 0xA6, 0xA6, 0xA6, 0xA6, 0xA6
-    };
-
-    if (aes == NULL || in == NULL || inSz < 3 * KEYWRAP_BLOCK_SIZE ||
-        out == NULL || outSz < (inSz - KEYWRAP_BLOCK_SIZE))
+    /* (n+1) blocks in, n >= 2 recovered blocks out, on a 64-bit boundary */
+    if (aes == NULL || in == NULL || out == NULL || aOut == NULL ||
+        inSz < 3 * KEYWRAP_BLOCK_SIZE || (inSz % KEYWRAP_BLOCK_SIZE) != 0) {
         return BAD_FUNC_ARG;
+    }
 
-    /* input must be multiple of 64-bits */
-    if (inSz % KEYWRAP_BLOCK_SIZE != 0)
-        return BAD_FUNC_ARG;
+#ifndef HAVE_AES_ECB
+    /* The block loop below uses the wc_AesDecryptDirect macro, which bypasses
+     * the public function's guard. With HAVE_AES_ECB the loop calls
+     * wc_AesEcbDecrypt instead, whose own guard sits after the crypto
+     * callback dispatch, so a device-held key still reaches the device. */
+    if (!WC_AES_KEY_IS_SET(aes)) {
+        WOLFSSL_MSG("AES key not set");
+        return MISSING_KEY;
+    }
+#endif
 
-    /* user IV optional */
-    if (iv != NULL)
-        expIv = iv;
-    else
-        expIv = defaultIV;
-
-    /* A = C[0], R[i] = C[i] */
+    /* A = C[0], R[i] = C[i]; XMEMMOVE so in-place unwrap (in == out) is safe */
     XMEMCPY(tmp, in, KEYWRAP_BLOCK_SIZE);
-    XMEMCPY(out, in + KEYWRAP_BLOCK_SIZE, inSz - KEYWRAP_BLOCK_SIZE);
+    XMEMMOVE(out, in + KEYWRAP_BLOCK_SIZE, inSz - KEYWRAP_BLOCK_SIZE);
     XMEMSET(t, 0, sizeof(t));
 
+#ifndef HAVE_AES_ECB
+    /* Like AesKeyWrapRaw: HAVE_AES_ECB routes each block through wc_AesEcbDecrypt
+     * (saves registers + ECB cb); otherwise save vector registers here. */
     VECTOR_REGISTERS_PUSH;
+#endif
 
     /* initialize counter to 6n */
     n = (inSz - 1) / KEYWRAP_BLOCK_SIZE;
@@ -16903,7 +17715,11 @@ int wc_AesKeyUnWrap_ex(Aes *aes, const byte* in, word32 inSz, byte* out,
             /* load R[i], starting at end of R */
             r = out + ((i - 1) * KEYWRAP_BLOCK_SIZE);
             XMEMCPY(tmp + KEYWRAP_BLOCK_SIZE, r, KEYWRAP_BLOCK_SIZE);
+#ifdef HAVE_AES_ECB
+            ret = wc_AesEcbDecrypt(aes, tmp, tmp, WC_AES_BLOCK_SIZE);
+#else
             ret = wc_AesDecryptDirect(aes, tmp, tmp);
+#endif
             if (ret != 0)
                 break;
 
@@ -16914,14 +17730,70 @@ int wc_AesKeyUnWrap_ex(Aes *aes, const byte* in, word32 inSz, byte* out,
             break;
     }
 
+#ifndef HAVE_AES_ECB
     VECTOR_REGISTERS_POP;
+#endif
 
     if (ret != 0)
         return ret;
 
+    /* return recovered A */
+    XMEMCPY(aOut, tmp, KEYWRAP_BLOCK_SIZE);
+
+    return 0;
+}
+
+int wc_AesKeyUnWrap_ex(Aes *aes, const byte* in, word32 inSz, byte* out,
+        word32 outSz, const byte* iv)
+{
+    int ret;
+    byte a[KEYWRAP_BLOCK_SIZE];
+
+    const byte* expIv;
+    const byte defaultIV[] = {
+        0xA6, 0xA6, 0xA6, 0xA6, 0xA6, 0xA6, 0xA6, 0xA6
+    };
+
+    /* (n+1) >= 3 blocks on a 64-bit boundary, n blocks fit outSz; inSz capped
+     * at INT_MAX so the returned inSz-8 stays a non-negative int. */
+    if (aes == NULL || in == NULL || out == NULL ||
+        inSz < 3 * KEYWRAP_BLOCK_SIZE || (inSz % KEYWRAP_BLOCK_SIZE) != 0 ||
+        inSz > 0x7FFFFFFFU || outSz < inSz - KEYWRAP_BLOCK_SIZE)
+        return BAD_FUNC_ARG;
+
+#ifdef WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (aes->devId != INVALID_DEVID)
+    #endif
+    {
+        ret = wc_CryptoCb_AesKeyUnWrap(aes, in, inSz, out, outSz, iv, 0);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            return ret;
+        }
+        /* fall through to software when unavailable */
+    }
+#endif
+
+    /* user IV optional */
+    if (iv != NULL) {
+        expIv = iv;
+    }
+    else {
+        expIv = defaultIV;
+    }
+
+    ret = AesKeyUnWrapRaw(aes, in, inSz, out, a);
+    if (ret != 0) {
+        return ret;
+    }
+
     /* verify IV */
-    if (ConstantCompare(tmp, expIv, KEYWRAP_BLOCK_SIZE) != 0)
+    if (ConstantCompare(a, expIv, KEYWRAP_BLOCK_SIZE) != 0) {
+        /* IV check failed: wipe the recovered plaintext key material left in
+         * out before returning so it is not leaked to the caller */
+        ForceZero(out, inSz - KEYWRAP_BLOCK_SIZE);
         return BAD_KEYWRAP_IV_E;
+    }
 
     return (int)(inSz - KEYWRAP_BLOCK_SIZE);
 }
@@ -16963,6 +17835,301 @@ int wc_AesKeyUnWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
 
     return ret;
 }
+
+#ifdef WOLFSSL_AES_KEYWRAP_PADDING
+
+/* RFC 5649 AIV high-half constant; the low half carries the 32-bit MLI. */
+static const byte kwpAivConst[] = { 0xA6, 0x59, 0x59, 0xA6 };
+
+/* Build the RFC 5649 AIV: 4-byte constant (iv override or default) | 4-byte
+ * big-endian MLI m. */
+static void BuildKwpAiv(byte* aiv, const byte* iv, word32 m)
+{
+    if (iv == NULL) {
+        XMEMCPY(aiv, kwpAivConst, sizeof(kwpAivConst));
+    }
+    else {
+        XMEMCPY(aiv, iv, sizeof(kwpAivConst));
+    }
+
+    aiv[4] = (byte)(m >> 24);
+    aiv[5] = (byte)(m >> 16);
+    aiv[6] = (byte)(m >>  8);
+    aiv[7] = (byte)(m);
+}
+
+int wc_AesKeyWrap_Pad_ex(Aes* aes, const byte* in, word32 inSz, byte* out,
+        word32 outSz, const byte* iv)
+{
+    int ret;
+    word32 n;
+    word32 padSz;
+    byte aiv[KEYWRAP_BLOCK_SIZE];
+
+    /* inSz capped at INT_MAX-(2*8-1) so rounding up to whole blocks plus the
+     * AIV block can't overflow padSz+8; too-small output -> BAD_FUNC_ARG. */
+    if (aes == NULL || in == NULL || inSz == 0 || out == NULL ||
+        inSz > 0x7FFFFFFFU - (2 * KEYWRAP_BLOCK_SIZE - 1))
+        return BAD_FUNC_ARG;
+
+    /* n = ceil(m/8) padded blocks; output is (n+1) blocks */
+    n = (inSz + KEYWRAP_BLOCK_SIZE - 1) / KEYWRAP_BLOCK_SIZE;
+    padSz = n * KEYWRAP_BLOCK_SIZE;
+    if (outSz < padSz + KEYWRAP_BLOCK_SIZE)
+        return BAD_FUNC_ARG;
+
+#ifdef WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (aes->devId != INVALID_DEVID)
+    #endif
+    {
+        ret = wc_CryptoCb_AesKeyWrap(aes, in, inSz, out, outSz, iv, 1);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            return ret;
+        }
+        /* fall through to software when unavailable */
+    }
+#endif
+
+    /* AIV = const | MLI(inSz) */
+    BuildKwpAiv(aiv, iv, inSz);
+
+    /* stage plaintext at out+8 (XMEMMOVE for in-place), zeroing the pad octets */
+    XMEMMOVE(out + KEYWRAP_BLOCK_SIZE, in, inSz);
+    if (padSz > inSz) {
+        XMEMSET(out + KEYWRAP_BLOCK_SIZE + inSz, 0, padSz - inSz);
+    }
+
+    if (n == 1) {
+        /* single block: C[0]|C[1] = ENC(K, AIV | P[1]) */
+        byte tmp[WC_AES_BLOCK_SIZE];
+        XMEMCPY(tmp, aiv, KEYWRAP_BLOCK_SIZE);
+        XMEMCPY(tmp + KEYWRAP_BLOCK_SIZE, out + KEYWRAP_BLOCK_SIZE,
+                KEYWRAP_BLOCK_SIZE);
+#ifdef HAVE_AES_ECB
+        /* Route through wc_AesEcbEncrypt so an ECB crypto callback can service
+         * the block; it saves its own registers. */
+        ret = wc_AesEcbEncrypt(aes, out, tmp, WC_AES_BLOCK_SIZE);
+#else
+        VECTOR_REGISTERS_PUSH;
+        ret = wc_AesEncryptDirect(aes, out, tmp);
+        VECTOR_REGISTERS_POP;
+#endif
+        /* tmp held AIV | plaintext key material */
+        ForceZero(tmp, sizeof(tmp));
+    }
+    else {
+        /* run the RFC 3394 loop with the AIV as the initial value */
+        ret = AesKeyWrapRaw(aes, padSz, out, aiv);
+    }
+    if (ret != 0) {
+        /* wipe the plaintext staged at out+8 (and any partial cipher state)
+         * so it is not leaked to the caller on failure */
+        ForceZero(out + KEYWRAP_BLOCK_SIZE, padSz);
+        return ret;
+    }
+
+    return (int)(padSz + KEYWRAP_BLOCK_SIZE);
+}
+
+int wc_AesKeyWrap_Pad(const byte* key, word32 keySz, const byte* in,
+        word32 inSz, byte* out, word32 outSz, const byte* iv)
+{
+    WC_DECLARE_VAR(aes, Aes, 1, NULL);
+    int ret;
+
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    WC_ALLOC_VAR_EX(aes, Aes, 1, NULL, DYNAMIC_TYPE_AES, return MEMORY_E);
+
+    ret = wc_AesInit(aes, NULL, INVALID_DEVID);
+    if (ret != 0) {
+        goto out;
+    }
+
+    ret = wc_AesSetKey(aes, key, keySz, NULL, AES_ENCRYPTION);
+    if (ret != 0) {
+        wc_AesFree(aes);
+        goto out;
+    }
+
+    ret = wc_AesKeyWrap_Pad_ex(aes, in, inSz, out, outSz, iv);
+
+    wc_AesFree(aes);
+
+  out:
+    WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_AES);
+
+    return ret;
+}
+
+int wc_AesKeyUnWrap_Pad_ex(Aes* aes, const byte* in, word32 inSz, byte* out,
+        word32 outSz, const byte* iv)
+{
+    int ret;
+    word32 n;
+    word32 mli;
+    byte a[KEYWRAP_BLOCK_SIZE];
+    byte expConst[sizeof(kwpAivConst)];
+
+    /* (n+1) >= 2 blocks on a 64-bit boundary; inSz capped at INT_MAX so the
+     * returned MLI stays a non-negative int; too-small output -> BAD_FUNC_ARG. */
+    if (aes == NULL || in == NULL || out == NULL ||
+        inSz < 2 * KEYWRAP_BLOCK_SIZE || (inSz % KEYWRAP_BLOCK_SIZE) != 0 ||
+        inSz > 0x7FFFFFFFU || outSz < inSz - KEYWRAP_BLOCK_SIZE)
+        return BAD_FUNC_ARG;
+
+#ifdef WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (aes->devId != INVALID_DEVID)
+    #endif
+    {
+        ret = wc_CryptoCb_AesKeyUnWrap(aes, in, inSz, out, outSz, iv, 1);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            return ret;
+        }
+        /* fall through to software when unavailable */
+    }
+#endif
+
+    /* number of padded 64-bit plaintext blocks */
+    n = (inSz / KEYWRAP_BLOCK_SIZE) - 1;
+
+    if (n == 1) {
+        /* single block: AIV|P[1] = DEC(K, C[0]|C[1]) */
+        byte tmp[WC_AES_BLOCK_SIZE];
+#ifdef HAVE_AES_ECB
+        /* Route through wc_AesEcbDecrypt so an ECB crypto callback can service
+         * the block; it saves its own registers. */
+        ret = wc_AesEcbDecrypt(aes, tmp, in, WC_AES_BLOCK_SIZE);
+#else
+        VECTOR_REGISTERS_PUSH;
+        ret = wc_AesDecryptDirect(aes, tmp, in);
+        VECTOR_REGISTERS_POP;
+#endif
+        if (ret == 0) {
+            XMEMCPY(a, tmp, KEYWRAP_BLOCK_SIZE);
+            XMEMCPY(out, tmp + KEYWRAP_BLOCK_SIZE, KEYWRAP_BLOCK_SIZE);
+        }
+        /* tmp held AIV | plaintext key material */
+        ForceZero(tmp, sizeof(tmp));
+    }
+    else {
+        /* recover A and padded plaintext via the RFC 3394 loop (no check) */
+        ret = AesKeyUnWrapRaw(aes, in, inSz, out, a);
+    }
+    if (ret != 0) {
+        return ret;
+    }
+
+    /* expected high-half constant (iv override or default) */
+    if (iv == NULL) {
+        XMEMCPY(expConst, kwpAivConst, sizeof(kwpAivConst));
+    }
+    else {
+        XMEMCPY(expConst, iv, sizeof(kwpAivConst));
+    }
+
+    /* MLI = LSB(32,A) in network order */
+    mli = ((word32)a[4] << 24) | ((word32)a[5] << 16) |
+          ((word32)a[6] <<  8) |  (word32)a[7];
+
+    /* Validate the three RFC 5649 checks in constant time: fold failures into
+     * one mask and branch once, so timing does not reveal which check failed. */
+    {
+        word32 dataSz  = inSz - KEYWRAP_BLOCK_SIZE;   /* 8*n plaintext octets */
+        word32 lastBlk = dataSz - KEYWRAP_BLOCK_SIZE; /* offset 8*(n-1)       */
+        word32 fail;
+        word32 j;
+#ifndef WORD64_AVAILABLE
+        byte   lowMask = (byte)~(byte)(0u - ((mli >> 31) & 1u));
+        int    mliInt  = (int)(mli & 0x7FFFFFFFu);
+#endif
+
+        /* check 1: MSB(32,A) == constant */
+        fail = (word32)ctMaskNotEq(ConstantCompare(a, expConst,
+                                           (int)sizeof(kwpAivConst)), 0);
+
+#ifdef WORD64_AVAILABLE
+        /* check 2: 8*(n-1) < MLI <= 8*n */
+        fail |= ~(ctMaskWord32GTE(mli, lastBlk + 1)    /* MLI >= 8*(n-1)+1 */
+                & ctMaskWord32GTE(dataSz, mli));       /* 8*n >= MLI       */
+
+        /* check 3: octets in [MLI, 8*n) are zero.  A valid MLI is in the final
+         * block, so scan it at fixed offsets, requiring zero where off >= MLI. */
+        for (j = 0; j < KEYWRAP_BLOCK_SIZE; j++) {
+            word32 off = lastBlk + j;
+            fail |= ctMaskWord32GTE(off, mli)          /* off >= MLI */
+                    & (word32)ctMaskNotEq((int)out[off], 0);
+        }
+#else
+        /* No word64: compare in int range.  MLI with its high bit set (>= 2^31
+         * > 8*n) is forced to fail so the int compares see valid values. */
+
+        /* check 2: 8*(n-1) < MLI <= 8*n */
+        fail |= (word32)(byte)~(byte)(ctMaskGT(mliInt, (int)lastBlk)
+                                    & ctMaskLTE(mliInt, (int)dataSz)
+                                    & lowMask);
+
+        /* check 3: octets in [MLI, 8*n) are zero (see note above). */
+        for (j = 0; j < KEYWRAP_BLOCK_SIZE; j++) {
+            int  off   = (int)(lastBlk + j);
+            byte isPad = (byte)(ctMaskGTE(off, mliInt) & lowMask);
+            fail |= (word32)(byte)(isPad &
+                                   ctMaskNotEq((int)out[lastBlk + j], 0));
+        }
+#endif
+
+        if (fail != 0) {
+            goto badIv;
+        }
+    }
+
+    return (int)mli;
+
+badIv:
+    /* integrity check failed: wipe the recovered plaintext in out so it is
+     * not leaked to the caller */
+    ForceZero(out, inSz - KEYWRAP_BLOCK_SIZE);
+    return BAD_KEYWRAP_IV_E;
+}
+
+int wc_AesKeyUnWrap_Pad(const byte* key, word32 keySz, const byte* in,
+        word32 inSz, byte* out, word32 outSz, const byte* iv)
+{
+    WC_DECLARE_VAR(aes, Aes, 1, NULL);
+    int ret;
+
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    WC_ALLOC_VAR_EX(aes, Aes, 1, NULL, DYNAMIC_TYPE_AES, return MEMORY_E);
+
+    ret = wc_AesInit(aes, NULL, INVALID_DEVID);
+    if (ret != 0) {
+        goto out;
+    }
+
+    ret = wc_AesSetKey(aes, key, keySz, NULL, AES_DECRYPTION);
+    if (ret != 0) {
+        wc_AesFree(aes);
+        goto out;
+    }
+
+    ret = wc_AesKeyUnWrap_Pad_ex(aes, in, inSz, out, outSz, iv);
+
+    wc_AesFree(aes);
+
+  out:
+    WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_AES);
+
+    return ret;
+}
+
+#endif /* WOLFSSL_AES_KEYWRAP_PADDING */
 
 #endif /* HAVE_AES_KEYWRAP */
 
@@ -17344,7 +18511,8 @@ void AES_XTS_decrypt_update_avx512(const unsigned char *in, unsigned char *out, 
 
 #ifdef HAVE_AES_ECB
 #if (!defined(WOLFSSL_ARMASM) || (!defined(__aarch64__) && \
-    defined(WOLFSSL_ARMASM_NO_HW_CRYPTO))) || defined(WOLFSSL_AESXTS_STREAM)
+    defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)) || \
+    defined(WOLFSSL_ARM32_AES_DISPATCH)) || defined(WOLFSSL_AESXTS_STREAM)
 /* helper function for encrypting / decrypting full buffer at once */
 static WARN_UNUSED_RESULT int _AesXtsHelper(
     Aes* aes, byte* out, const byte* in, word32 sz, int dir)
@@ -17407,7 +18575,8 @@ static WARN_UNUSED_RESULT int _AesXtsHelper(
 /* Software AES - XTS Encrypt  */
 
 #if (!defined(WOLFSSL_ARMASM) || (!defined(__aarch64__) && \
-     defined(WOLFSSL_ARMASM_NO_HW_CRYPTO))) && !defined(WOLFSSL_PPC64_ASM)
+     defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)) || \
+     defined(WOLFSSL_ARM32_AES_DISPATCH)) && !defined(WOLFSSL_PPC64_ASM)
 static int AesXtsEncryptUpdate_sw(XtsAes* xaes, byte* out, const byte* in,
                                   word32 sz,
                                   byte *i);
@@ -17443,7 +18612,8 @@ static int AesXtsInitTweak_sw(XtsAes* xaes, byte* i) {
 #endif /* WOLFSSL_AESXTS_STREAM */
 
 #if !defined(WOLFSSL_ARMASM) || (!defined(__aarch64__) && \
-    defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)) || defined(WOLFSSL_AESXTS_STREAM)
+    defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)) || \
+    defined(WOLFSSL_ARM32_AES_DISPATCH) || defined(WOLFSSL_AESXTS_STREAM)
 /* Block-streaming AES-XTS.
  *
  * Supply block-aligned input data with successive calls.  Final call need not
@@ -17497,7 +18667,7 @@ static int AesXtsEncryptUpdate_sw(XtsAes* xaes, byte* out, const byte* in,
             byte tmpC;
 
             tmpC   = (i[j] >> 7) & 0x01;
-            i[j] = (byte)((i[j] << 1) + carry);
+            i[j] = (byte)(((i[j] << 1) + carry) & 0xFF);
             carry  = tmpC;
         }
         if (carry) {
@@ -17576,7 +18746,9 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
     aes = &xaes->aes;
 
-    if (aes->keylen == 0) {
+    /* rounds == 0 means no software key schedule: XTS has no crypto
+     * callback dispatch, so a device-owned key is unusable here. */
+    if ((aes->keylen == 0) || (aes->rounds == 0)) {
         WOLFSSL_MSG("wc_AesXtsEncrypt called with unset encryption key.");
         return BAD_FUNC_ARG;
     }
@@ -17596,9 +18768,23 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
     ret = 0;
 #elif !defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
       !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+    /* The base 32-bit AES assembly has no XTS variant, so the run-time
+     * fallback is the software XTS (which dispatches per-block via
+     * wc_AesEncrypt). */
+#ifdef WOLFSSL_ARM32_AES_DISPATCH
+    if (xaes->aes.use_aes_hw_crypto) {
+        AES_XTS_encrypt_AARCH32(in, out, sz, i, (byte*)xaes->aes.key,
+            (byte*)xaes->tweak.key, (byte*)xaes->aes.tmp, xaes->aes.rounds);
+        ret = 0;
+    }
+    else {
+        ret = AesXtsEncrypt_sw(xaes, out, in, sz, i);
+    }
+#else
     AES_XTS_encrypt_AARCH32(in, out, sz, i, (byte*)xaes->aes.key,
         (byte*)xaes->tweak.key, (byte*)xaes->aes.tmp, xaes->aes.rounds);
     ret = 0;
+#endif
 #elif defined(WOLFSSL_AESNI) && !defined(WOLFSSL_X86_BUILD)
     if (aes->use_aesni) {
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
@@ -17712,7 +18898,9 @@ int wc_AesXtsEncryptInit(XtsAes* xaes, const byte* i, word32 iSz,
 
     aes = &xaes->aes;
 
-    if (aes->keylen == 0) {
+    /* rounds == 0 means no software key schedule: XTS has no crypto
+     * callback dispatch, so a device-owned key is unusable here. */
+    if ((aes->keylen == 0) || (aes->rounds == 0)) {
         WOLFSSL_MSG("wc_AesXtsEncrypt called with unset encryption key.");
         return BAD_FUNC_ARG;
     }
@@ -17934,7 +19122,8 @@ int wc_AesXtsEncryptFinal(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 /* Software AES - XTS Decrypt */
 
 #if (!defined(WOLFSSL_ARMASM) || (!defined(__aarch64__) && \
-     defined(WOLFSSL_ARMASM_NO_HW_CRYPTO))) && !defined(WOLFSSL_PPC64_ASM)
+     defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)) || \
+     defined(WOLFSSL_ARM32_AES_DISPATCH)) && !defined(WOLFSSL_PPC64_ASM)
 static int AesXtsDecryptUpdate_sw(XtsAes* xaes, byte* out, const byte* in,
                                   word32 sz, byte *i);
 
@@ -17955,7 +19144,8 @@ static int AesXtsDecrypt_sw(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 #endif
 
 #if (!defined(WOLFSSL_ARMASM) || (!defined(__aarch64__) && \
-    defined(WOLFSSL_ARMASM_NO_HW_CRYPTO))) || defined(WOLFSSL_AESXTS_STREAM)
+    defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)) || \
+    defined(WOLFSSL_ARM32_AES_DISPATCH)) || defined(WOLFSSL_AESXTS_STREAM)
 /* Block-streaming AES-XTS.
  *
  * Same process as encryption but use decrypt key.
@@ -18021,7 +19211,7 @@ static int AesXtsDecryptUpdate_sw(XtsAes* xaes, byte* out, const byte* in,
             byte tmpC;
 
             tmpC   = (i[j] >> 7) & 0x01;
-            i[j] = (byte)((i[j] << 1) + carry);
+            i[j] = (byte)(((i[j] << 1) + carry) & 0xFF);
             carry  = tmpC;
         }
         if (carry) {
@@ -18121,7 +19311,9 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
  * not a sequence of complete blocks.
  */
 
-    if (aes->keylen == 0) {
+    /* rounds == 0 means no software key schedule: XTS has no crypto
+     * callback dispatch, so a device-owned key is unusable here. */
+    if ((aes->keylen == 0) || (aes->rounds == 0)) {
         WOLFSSL_MSG("wc_AesXtsDecrypt called with unset decryption key.");
         return BAD_FUNC_ARG;
     }
@@ -18144,9 +19336,23 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
     ret = 0;
 #elif !defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
       !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+    /* The base 32-bit AES assembly has no XTS variant, so the run-time
+     * fallback is the software XTS (which dispatches per-block via
+     * wc_AesDecrypt). */
+#ifdef WOLFSSL_ARM32_AES_DISPATCH
+    if (xaes->aes.use_aes_hw_crypto) {
+        AES_XTS_decrypt_AARCH32(in, out, sz, i, (byte*)xaes->aes.key,
+            (byte*)xaes->tweak.key, (byte*)xaes->aes.tmp, xaes->aes.rounds);
+        ret = 0;
+    }
+    else {
+        ret = AesXtsDecrypt_sw(xaes, out, in, sz, i);
+    }
+#else
     AES_XTS_decrypt_AARCH32(in, out, sz, i, (byte*)xaes->aes.key,
         (byte*)xaes->tweak.key, (byte*)xaes->aes.tmp, xaes->aes.rounds);
     ret = 0;
+#endif
 #elif defined(WOLFSSL_AESNI) && !defined(WOLFSSL_X86_BUILD)
     if (aes->use_aesni) {
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
@@ -18259,7 +19465,9 @@ int wc_AesXtsDecryptInit(XtsAes* xaes, const byte* i, word32 iSz,
     aes = &xaes->aes;
 #endif
 
-    if (aes->keylen == 0) {
+    /* rounds == 0 means no software key schedule: XTS has no crypto
+     * callback dispatch, so a device-owned key is unusable here. */
+    if ((aes->keylen == 0) || (aes->rounds == 0)) {
         WOLFSSL_MSG("wc_AesXtsDecrypt called with unset decryption key.");
         return BAD_FUNC_ARG;
     }
@@ -19083,23 +20291,28 @@ static WC_INLINE void AesGcmSivByteReverse(byte* out, const byte* in)
 #elif defined(WOLFSSL_ARMASM) && !defined(__aarch64__) && \
       !defined(WOLFSSL_ARMASM_THUMB2)
     /* AArch32 (32-bit ARM). The generated armv8-32-aes-asm.S provides POLYVAL
-     * and CTR for the crypto (vmull.p64 / aese) and base (table) variants.
-     * crypto-vs-base is compile-time (WOLFSSL_ARMASM_NO_HW_CRYPTO) with no
-     * runtime fallback - the same as the rest of the AArch32 AES. */
+     * and CTR for the crypto (vmull.p64 / aese) and base (table) variants. In a
+     * run-time dispatch build both are compiled in and the selectors below pick
+     * one per CPU (WOLFSSL_ARM32_AES_DISPATCH); otherwise the choice is fixed
+     * at compile time by WOLFSSL_ARMASM_NO_HW_CRYPTO - matching the rest of the
+     * AArch32 AES. */
     #define WC_POLYVAL_ASM
     #define WC_POLYVAL_ASM_AARCH32
     #define WC_GCMSIV_CTR_ASM
     #define WC_GCMSIV_CTR_ASM_AARCH32
-    /* The base POLYVAL multiplies through the word64 software table poly->m. It
-     * is only compiled in the base (no-crypto) build and only when that table
-     * is built. */
-    #if defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) && defined(WORD64_AVAILABLE) && \
+    /* The base POLYVAL multiplies through the word64 software table poly->m,
+     * compiled when the crypto extension can be absent at run time (no-crypto
+     * build or the run-time dispatch build) and the table is available. */
+    #if (defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) || \
+         defined(WOLFSSL_ARM32_AES_DISPATCH)) && defined(WORD64_AVAILABLE) && \
         !defined(GCM_WORD32) && !defined(GCM_SMALL)
         #define WC_POLYVAL_ASM_AARCH32_BASE
     #endif
 #ifdef __cplusplus
     extern "C" {
 #endif
+    /* Crypto and base variants both exist in a dispatch build; the selectors
+     * below pick one per CPU at run time. */
 #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
     void AES_GCMSIV_polyval_crypto(unsigned char* s, const unsigned char* h,
         const unsigned char* data, word32 blocks)
@@ -19107,7 +20320,8 @@ static WC_INLINE void AesGcmSivByteReverse(byte* out, const byte* in)
     void AES_GCMSIV_ctr_crypto(const unsigned char* in, unsigned char* out,
         unsigned long length, const unsigned char* KS, int nr,
         unsigned char* ctr) XASM_LINK("AES_GCMSIV_ctr_crypto");
-#else
+#endif
+#if defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) || defined(WOLFSSL_ARM32_AES_DISPATCH)
 #ifdef WC_POLYVAL_ASM_AARCH32_BASE
     void AES_GCMSIV_polyval_base(unsigned char* s, const unsigned char* h,
         const unsigned char* data, word32 blocks)
@@ -19516,10 +20730,26 @@ static AesGcmSivPolyvalFn AesGcmSivPolyvalAsm(void)
     return &AES_GCMSIV_polyval_thumb2;
 }
 #elif defined(WC_POLYVAL_ASM_AARCH32)
-/* AArch32: crypto (vmull.p64) or base (table) POLYVAL, chosen at compile time. */
+/* AArch32: crypto (vmull.p64) POLYVAL when the CPU implements PMULL, else the
+ * base (table) variant.  In a run-time dispatch build the choice is made per
+ * CPU - matching the flags Check_CPU_support_HwCrypto set on the Aes object,
+ * which AES-GCM-SIV keys through wc_AesSetKey; otherwise it is fixed at compile
+ * time. */
 static AesGcmSivPolyvalFn AesGcmSivPolyvalAsm(void)
 {
-#ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
+#ifdef WOLFSSL_ARM32_AES_DISPATCH
+    cpuid_get_flags_ex(&cpuid_flags);
+    if (IS_ARM32_PMULL(cpuid_flags)) {
+        return &AES_GCMSIV_polyval_crypto;
+    }
+    /* The base multiply needs the word64 table (poly->m), which is not built
+     * for GCM_SMALL / GCM_WORD32; fall back to the C multiply there. */
+#ifdef WC_POLYVAL_ASM_AARCH32_BASE
+    return &AES_GCMSIV_polyval_base;
+#else
+    return NULL;
+#endif
+#elif !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
     return &AES_GCMSIV_polyval_crypto;
 #elif defined(WC_POLYVAL_ASM_AARCH32_BASE)
     return &AES_GCMSIV_polyval_base;
@@ -19583,10 +20813,19 @@ static AesGcmSivCtrFn AesGcmSivCtrAsm(void)
     return &AES_GCMSIV_ctr_thumb2;
 }
 #elif defined(WC_GCMSIV_CTR_ASM_AARCH32)
-/* AArch32: crypto (aese) or base (table) CTR, chosen at compile time. */
+/* AArch32: crypto (aese) CTR when the CPU implements AES, else the base (table)
+ * variant.  The CTR keystream runs through the AES key schedule, so the variant
+ * must match how the key was expanded (Check_CPU_support_HwCrypto): the crypto
+ * schedule is taken only when both AES and PMULL are present. */
 static AesGcmSivCtrFn AesGcmSivCtrAsm(void)
 {
-#ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
+#ifdef WOLFSSL_ARM32_AES_DISPATCH
+    cpuid_get_flags_ex(&cpuid_flags);
+    if (IS_ARM32_AES(cpuid_flags) && IS_ARM32_PMULL(cpuid_flags)) {
+        return &AES_GCMSIV_ctr_crypto;
+    }
+    return &AES_GCMSIV_ctr_base;
+#elif !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
     return &AES_GCMSIV_ctr_crypto;
 #else
     return &AES_GCMSIV_ctr_base;

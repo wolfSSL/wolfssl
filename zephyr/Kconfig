@@ -67,8 +67,66 @@ config WOLFCRYPT_FIPS
 	bool "wolfCrypt FIPS support"
 	depends on WOLFSSL_BUILTIN
 	help
-	  Enables FIPS support in wolfCrypt. Requires the wolfSSL FIPS ready
-	  download that includes fips.c/fips_test.c.
+	  Enable the wolfCrypt FIPS 140-3 module boundary. Requires the wolfSSL
+	  FIPS bundle (fips.c, fips_test.c, wolfcrypt_first.c, wolfcrypt_last.c)
+	  dropped into wolfcrypt/src/ - the CMake FIPS-boundary block compiles them.
+	  Select the version that matches the bundle under "wolfCrypt FIPS version".
+
+choice
+	prompt "wolfCrypt FIPS version"
+	depends on WOLFCRYPT_FIPS
+	default WOLFCRYPT_FIPS_V6
+	help
+	  Select the FIPS module version. It must match the dropped-in bundle: the
+	  in-core integrity check and the in-boundary algorithm set are keyed to the
+	  version, so a mismatch fails the power-on self test. Values mirror
+	  configure.ac's --enable-fips=VERSION mapping.
+
+config WOLFCRYPT_FIPS_V2
+	bool "FIPS 140-2 (Cert #3389)"
+	help
+	  Legacy FIPS 140-2 validated module (HAVE_FIPS_VERSION 2.0.0).
+
+config WOLFCRYPT_FIPS_V5
+	bool "FIPS 140-3 (Cert #4718)"
+	help
+	  wolfCrypt FIPS 140-3 validated module, Certificate #4718 (version 5.2.1).
+
+config WOLFCRYPT_FIPS_V6
+	bool "FIPS 140-3 (SRTP-KDF full submission)"
+	help
+	  wolfCrypt FIPS 140-3 SRTP-KDF full submission (version 6.0.0).
+
+config WOLFCRYPT_FIPS_V7
+	bool "FIPS 140-3 (v7 full submission)"
+	help
+	  wolfCrypt FIPS 140-3 v7 full submission (version 7.0.0).
+
+config WOLFCRYPT_FIPS_READY
+	bool "FIPS Ready (in-tree, uncertified)"
+	help
+	  FIPS-Ready in-tree sources, feature locked (version 8.0.0 - kept one ahead
+	  of the latest submission). Carries the newest in-boundary algorithms but is
+	  not yet NIST-certified; use it for pre-certification integration.
+
+endchoice
+
+config WOLFSSL_CRYPTO_ONLY
+	bool "Build wolfCrypt only (no TLS layer)"
+	depends on WOLFSSL_BUILTIN
+	help
+	  Define WOLFCRYPT_ONLY: compile only the wolfCrypt crypto library and
+	  leave the wolfSSL TLS layer out of the build.
+
+config WOLFSSL_SINGLE_THREADED
+	bool "wolfCrypt single-threaded"
+	depends on WOLFSSL_BUILTIN
+	default y if !MULTITHREADING
+	help
+	  Define SINGLE_THREADED: build wolfCrypt without internal locking, for a
+	  single-threaded system or when the caller serializes all access. Defaults
+	  on when the kernel has no threading (!MULTITHREADING), so consumers such
+	  as wolfPSA do not need to select it themselves.
 
 config WOLFSSL_DTLS
   bool "wolfSSL DTLS support"
@@ -89,6 +147,68 @@ config WOLFSSL_MLKEM
   bool "wolfSSL PQC ML-KEM support"
   help
     Enable PQC ML-KEM support for Key Exchange
+
+config WOLFSSL_MLDSA
+  bool "wolfSSL PQC ML-DSA support"
+  help
+    Enable PQC ML-DSA (Dilithium) signatures.
+
+config WOLFSSL_LMS
+  bool "wolfSSL LMS/HSS hash-based signatures"
+  help
+    Enable LMS/HSS stateful hash-based signature verification (verify-only).
+
+config WOLFSSL_XMSS
+  bool "wolfSSL XMSS/XMSS^MT hash-based signatures"
+  help
+    Enable XMSS/XMSS^MT stateful hash-based signature verification (verify-only).
+
+config WOLFSSL_FALCON
+  bool "wolfSSL PQC Falcon signatures"
+  help
+    Enable PQC Falcon (FN-DSA) signatures.
+
+config WOLFSSL_RSA
+  bool "wolfCrypt RSA support"
+  default y
+  help
+    Enable RSA (define RSA support; NO_RSA when off).
+
+config WOLFSSL_ECC
+  bool "wolfCrypt ECC support"
+  default y
+  help
+    Enable ECC (HAVE_ECC, SECP256R1).
+
+config WOLFSSL_CHACHA_POLY
+  bool "wolfCrypt ChaCha20-Poly1305 support"
+  default y
+  help
+    Enable ChaCha20 and Poly1305 (HAVE_CHACHA, HAVE_POLY1305).
+
+config WOLFSSL_CURVE25519
+  bool "wolfCrypt Curve25519 / Ed25519 support"
+  default n
+  help
+    Enable Curve25519 and Ed25519 (HAVE_CURVE25519, HAVE_ED25519).
+
+config WOLFSSL_SNI
+  bool "wolfSSL Server Name Indication (SNI)"
+  default y
+  help
+    Enable TLS Server Name Indication (HAVE_SNI).
+
+config WOLFSSL_SESSION_CACHE
+  bool "wolfSSL TLS session cache"
+  default y
+  help
+    Enable the TLS session cache (SMALL_SESSION_CACHE; NO_SESSION_CACHE off).
+
+config WOLFSSL_SESSION_TICKET
+  bool "wolfSSL TLS session tickets"
+  default y
+  help
+    Enable TLS session tickets (HAVE_SESSION_TICKET, TLS 1.3 resumption).
 
 config WOLFSSL_MAX_FRAGMENT_LEN
   int

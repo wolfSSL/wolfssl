@@ -88,7 +88,7 @@ int wc_CheckCertOcspResponse(WOLFSSL_OCSP *ocsp, DecodedCert *cert,
     if (InitOcspRequest(ocspRequest, cert, ocsp->cm->ocspSendNonce,
                                                          ocsp->cm->heap) == 0) {
         ret = CheckOcspResponse(ocsp, response, responseSz, NULL, NULL, NULL,
-                ocspRequest, heap);
+                ocspRequest, heap, NULL);
         FreeOcspRequest(ocspRequest);
     }
 
@@ -212,8 +212,7 @@ int CheckCertOCSP_ex(WOLFSSL_OCSP* ocsp, DecodedCert* cert, WOLFSSL* ssl)
 
     if (InitOcspRequest(ocspRequest, cert, ocsp->cm->ocspSendNonce,
                                                          ocsp->cm->heap) == 0) {
-        ocspRequest->ssl = ssl;
-        ret = CheckOcspRequest(ocsp, ocspRequest, NULL, NULL);
+        ret = CheckOcspRequest(ocsp, ocspRequest, NULL, ssl);
 
         FreeOcspRequest(ocspRequest);
     }
@@ -333,11 +332,13 @@ static int GetOcspStatus(WOLFSSL_OCSP* ocsp, OcspRequest* request,
  * entry          The OCSP entry for this certificate.
  * ocspRequest    Request corresponding to response.
  * heap           Heap hint used for responseBuffer
+ * ssl            Connection the request belongs to, may be NULL.
  * returns OCSP_LOOKUP_FAIL when the response is bad and 0 otherwise.
  */
 int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int responseSz,
                       WOLFSSL_BUFFER_INFO *responseBuffer, CertStatus *status,
-                      OcspEntry *entry, OcspRequest *ocspRequest, void* heap)
+                      OcspEntry *entry, OcspRequest *ocspRequest, void* heap,
+                      WOLFSSL* ssl)
 {
 #ifdef WOLFSSL_SMALL_STACK
     CertStatus*   newStatus;
@@ -373,10 +374,11 @@ int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int responseSz,
     InitOcspResponse(ocspResponse, newSingle, newStatus, response,
                      (word32)responseSz, ocsp->cm->heap);
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && !defined(NO_TLS)
-    if (ocspRequest != NULL && ocspRequest->ssl != NULL &&
-           TLSX_CSR2_IsMulti(((WOLFSSL*)ocspRequest->ssl)->extensions)) {
-        ocspResponse->pendingCAs = TLSX_CSR2_GetPendingSigners(((WOLFSSL*)ocspRequest->ssl)->extensions);
+    if (ssl != NULL && TLSX_CSR2_IsMulti(ssl->extensions)) {
+        ocspResponse->pendingCAs = TLSX_CSR2_GetPendingSigners(ssl->extensions);
     }
+#else
+    (void)ssl;
 #endif
     ret = OcspResponseDecode(ocspResponse, ocsp->cm, ocsp->cm->heap, 0, 0);
     if (ret != 0) {
@@ -480,7 +482,7 @@ end:
 #define OCSP_MAX_REQUEST_SZ 2048
 #endif
 int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
-                     buffer* responseBuffer, void* heap)
+                     buffer* responseBuffer, WOLFSSL* ssl)
 {
     OcspEntry*  entry          = NULL;
     CertStatus* status         = NULL;
@@ -491,8 +493,11 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
     const char* url            = NULL;
     int         urlSz          = 0;
     int         ret            = -1;
-    WOLFSSL*    ssl;
     void*       ioCtx;
+    /* Hint for responseBuffer only, which the caller frees against the same
+     * connection, so take it from there rather than have every caller pass a
+     * heap it has to keep in step with its own free. */
+    void*       heap           = (ssl != NULL) ? ssl->heap : NULL;
 
     WOLFSSL_ENTER("CheckOcspRequest");
 
@@ -518,8 +523,7 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
         responseBuffer->buffer = NULL;
     }
 
-    /* get SSL and IOCtx */
-    ssl = (WOLFSSL*)ocspRequest->ssl;
+    /* get IOCtx */
     ioCtx = (ssl && ssl->ocspIOCtx != NULL) ?
                                         ssl->ocspIOCtx : ocsp->cm->ocspIOCtx;
 
@@ -565,7 +569,7 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
 
     if (responseSz >= 0 && response) {
         ret = CheckOcspResponse(ocsp, response, responseSz, responseBuffer, status,
-                            entry, ocspRequest, heap);
+                            entry, ocspRequest, heap, ssl);
     }
 
     if (response != NULL && ocsp->cm->ocspRespFreeCb)
@@ -1177,7 +1181,7 @@ OcspResponse* wolfSSL_d2i_OCSP_RESPONSE_bio(WOLFSSL_BIO* bio,
             return NULL;
         dataAlloced = 1;
 
-        len = wolfSSL_BIO_read(bio, (char *)data, (int)flen);
+        len = wolfSSL_BIO_read(bio, (char *)data, (int)fcur);
     }
 #endif
     else

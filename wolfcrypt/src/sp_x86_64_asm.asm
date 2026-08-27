@@ -4116,17 +4116,23 @@ sp_2048_mul_32 PROC
         mov	r8, r13
         mov	rdx, r12
         mov	rcx, rsp
+        sub	rsp, 32
         call	sp_2048_mul_16
+        add	rsp, 32
         mov	r8, QWORD PTR [rsp+784]
         mov	rdx, QWORD PTR [rsp+776]
         lea	rcx, QWORD PTR [rsp+256]
         add	r8, 128
         add	rdx, 128
+        sub	rsp, 32
         call	sp_2048_mul_16
+        add	rsp, 32
         mov	r8, QWORD PTR [rsp+784]
         mov	rdx, QWORD PTR [rsp+776]
         mov	rcx, QWORD PTR [rsp+768]
+        sub	rsp, 32
         call	sp_2048_mul_16
+        add	rsp, 32
 IFDEF _WIN64
         mov	r8, QWORD PTR [rsp+784]
         mov	rdx, QWORD PTR [rsp+776]
@@ -4822,17 +4828,23 @@ sp_2048_mul_avx2_32 PROC
         mov	r8, r13
         mov	rdx, r12
         mov	rcx, rsp
+        sub	rsp, 32
         call	sp_2048_mul_avx2_16
+        add	rsp, 32
         mov	r8, QWORD PTR [rsp+784]
         mov	rdx, QWORD PTR [rsp+776]
         lea	rcx, QWORD PTR [rsp+256]
         add	r8, 128
         add	rdx, 128
+        sub	rsp, 32
         call	sp_2048_mul_avx2_16
+        add	rsp, 32
         mov	r8, QWORD PTR [rsp+784]
         mov	rdx, QWORD PTR [rsp+776]
         mov	rcx, QWORD PTR [rsp+768]
+        sub	rsp, 32
         call	sp_2048_mul_avx2_16
+        add	rsp, 32
 IFDEF _WIN64
         mov	r8, QWORD PTR [rsp+784]
         mov	rdx, QWORD PTR [rsp+776]
@@ -7641,15 +7653,21 @@ sp_2048_sqr_32 PROC
         mov	QWORD PTR [r10+120], r8
         mov	rdx, r10
         mov	rcx, rsp
+        sub	rsp, 32
         call	sp_2048_sqr_16
+        add	rsp, 32
         mov	rdx, QWORD PTR [rsp+264]
         mov	rcx, QWORD PTR [rsp+256]
         add	rdx, 128
         add	rcx, 256
+        sub	rsp, 32
         call	sp_2048_sqr_16
+        add	rsp, 32
         mov	rdx, QWORD PTR [rsp+264]
         mov	rcx, QWORD PTR [rsp+256]
+        sub	rsp, 32
         call	sp_2048_sqr_16
+        add	rsp, 32
 IFDEF _WIN64
         mov	rdx, QWORD PTR [rsp+264]
         mov	rcx, QWORD PTR [rsp+256]
@@ -8159,15 +8177,21 @@ sp_2048_sqr_avx2_32 PROC
         mov	QWORD PTR [r10+120], r8
         mov	rdx, r10
         mov	rcx, rsp
+        sub	rsp, 32
         call	sp_2048_sqr_avx2_16
+        add	rsp, 32
         mov	rdx, QWORD PTR [rsp+264]
         mov	rcx, QWORD PTR [rsp+256]
         add	rdx, 128
         add	rcx, 256
+        sub	rsp, 32
         call	sp_2048_sqr_avx2_16
+        add	rsp, 32
         mov	rdx, QWORD PTR [rsp+264]
         mov	rcx, QWORD PTR [rsp+256]
+        sub	rsp, 32
         call	sp_2048_sqr_avx2_16
+        add	rsp, 32
 IFDEF _WIN64
         mov	rdx, QWORD PTR [rsp+264]
         mov	rcx, QWORD PTR [rsp+256]
@@ -9182,9 +9206,9 @@ ELSE
 ENDIF
         mov	rdx, rcx
         sub	rcx, 128
-        sub	rsp, 8
+        sub	rsp, 40
         call	sp_2048_cond_sub_16
-        add	rsp, 8
+        add	rsp, 40
         pop	rsi
         pop	rdi
         pop	r15
@@ -10060,8 +10084,8 @@ sp_2048_get_from_table_avx2_16 PROC
         vmovdqu	OWORD PTR [rsp+104], xmm12
         vmovdqu	OWORD PTR [rsp+120], xmm13
         mov	rax, 1
-        movd	xmm10, r8
-        movd	xmm11, rax
+        vmovq	xmm10, r8
+        vmovq	xmm11, rax
         vpxor	ymm13, ymm13, ymm13
         vpermd	ymm10, ymm13, ymm10
         vpermd	ymm11, ymm13, ymm11
@@ -11199,9 +11223,9 @@ ELSE
 ENDIF
         mov	rdx, rcx
         sub	rcx, 256
-        sub	rsp, 8
+        sub	rsp, 40
         call	sp_2048_cond_sub_32
-        add	rsp, 8
+        add	rsp, 40
         pop	rsi
         pop	rdi
         pop	r15
@@ -12424,8 +12448,8 @@ sp_2048_get_from_table_avx2_32 PROC
         vmovdqu	OWORD PTR [rsp+104], xmm12
         vmovdqu	OWORD PTR [rsp+120], xmm13
         mov	rax, 1
-        movd	xmm10, r8
-        movd	xmm11, rax
+        vmovq	xmm10, r8
+        vmovq	xmm11, rax
         vpxor	ymm13, ymm13, ymm13
         vpermd	ymm10, ymm13, ymm10
         vpermd	ymm11, ymm13, ymm11
@@ -17600,17 +17624,23 @@ sp_3072_mul_24 PROC
         mov	r8, r13
         mov	rdx, r12
         mov	rcx, rsp
+        sub	rsp, 32
         call	sp_3072_mul_12
+        add	rsp, 32
         mov	r8, QWORD PTR [rsp+592]
         mov	rdx, QWORD PTR [rsp+584]
         lea	rcx, QWORD PTR [rsp+192]
         add	r8, 96
         add	rdx, 96
+        sub	rsp, 32
         call	sp_3072_mul_12
+        add	rsp, 32
         mov	r8, QWORD PTR [rsp+592]
         mov	rdx, QWORD PTR [rsp+584]
         mov	rcx, QWORD PTR [rsp+576]
+        sub	rsp, 32
         call	sp_3072_mul_12
+        add	rsp, 32
 IFDEF _WIN64
         mov	r8, QWORD PTR [rsp+592]
         mov	rdx, QWORD PTR [rsp+584]
@@ -18150,17 +18180,23 @@ sp_3072_mul_avx2_24 PROC
         mov	r8, r13
         mov	rdx, r12
         mov	rcx, rsp
+        sub	rsp, 32
         call	sp_3072_mul_avx2_12
+        add	rsp, 32
         mov	r8, QWORD PTR [rsp+592]
         mov	rdx, QWORD PTR [rsp+584]
         lea	rcx, QWORD PTR [rsp+192]
         add	r8, 96
         add	rdx, 96
+        sub	rsp, 32
         call	sp_3072_mul_avx2_12
+        add	rsp, 32
         mov	r8, QWORD PTR [rsp+592]
         mov	rdx, QWORD PTR [rsp+584]
         mov	rcx, QWORD PTR [rsp+576]
+        sub	rsp, 32
         call	sp_3072_mul_avx2_12
+        add	rsp, 32
 IFDEF _WIN64
         mov	r8, QWORD PTR [rsp+592]
         mov	rdx, QWORD PTR [rsp+584]
@@ -19049,17 +19085,23 @@ sp_3072_mul_48 PROC
         mov	r8, r13
         mov	rdx, r12
         mov	rcx, rsp
+        sub	rsp, 32
         call	sp_3072_mul_24
+        add	rsp, 32
         mov	r8, QWORD PTR [rsp+1168]
         mov	rdx, QWORD PTR [rsp+1160]
         lea	rcx, QWORD PTR [rsp+384]
         add	r8, 192
         add	rdx, 192
+        sub	rsp, 32
         call	sp_3072_mul_24
+        add	rsp, 32
         mov	r8, QWORD PTR [rsp+1168]
         mov	rdx, QWORD PTR [rsp+1160]
         mov	rcx, QWORD PTR [rsp+1152]
+        sub	rsp, 32
         call	sp_3072_mul_24
+        add	rsp, 32
 IFDEF _WIN64
         mov	r8, QWORD PTR [rsp+1168]
         mov	rdx, QWORD PTR [rsp+1160]
@@ -20067,17 +20109,23 @@ sp_3072_mul_avx2_48 PROC
         mov	r8, r13
         mov	rdx, r12
         mov	rcx, rsp
+        sub	rsp, 32
         call	sp_3072_mul_avx2_24
+        add	rsp, 32
         mov	r8, QWORD PTR [rsp+1168]
         mov	rdx, QWORD PTR [rsp+1160]
         lea	rcx, QWORD PTR [rsp+384]
         add	r8, 192
         add	rdx, 192
+        sub	rsp, 32
         call	sp_3072_mul_avx2_24
+        add	rsp, 32
         mov	r8, QWORD PTR [rsp+1168]
         mov	rdx, QWORD PTR [rsp+1160]
         mov	rcx, QWORD PTR [rsp+1152]
+        sub	rsp, 32
         call	sp_3072_mul_avx2_24
+        add	rsp, 32
 IFDEF _WIN64
         mov	r8, QWORD PTR [rsp+1168]
         mov	rdx, QWORD PTR [rsp+1160]
@@ -22263,15 +22311,21 @@ sp_3072_sqr_24 PROC
         mov	QWORD PTR [r10+88], r8
         mov	rdx, r10
         mov	rcx, rsp
+        sub	rsp, 32
         call	sp_3072_sqr_12
+        add	rsp, 32
         mov	rdx, QWORD PTR [rsp+200]
         mov	rcx, QWORD PTR [rsp+192]
         add	rdx, 96
         add	rcx, 192
+        sub	rsp, 32
         call	sp_3072_sqr_12
+        add	rsp, 32
         mov	rdx, QWORD PTR [rsp+200]
         mov	rcx, QWORD PTR [rsp+192]
+        sub	rsp, 32
         call	sp_3072_sqr_12
+        add	rsp, 32
 IFDEF _WIN64
         mov	rdx, QWORD PTR [rsp+200]
         mov	rcx, QWORD PTR [rsp+192]
@@ -22665,15 +22719,21 @@ sp_3072_sqr_avx2_24 PROC
         mov	QWORD PTR [r10+88], r8
         mov	rdx, r10
         mov	rcx, rsp
+        sub	rsp, 32
         call	sp_3072_sqr_avx2_12
+        add	rsp, 32
         mov	rdx, QWORD PTR [rsp+200]
         mov	rcx, QWORD PTR [rsp+192]
         add	rdx, 96
         add	rcx, 192
+        sub	rsp, 32
         call	sp_3072_sqr_avx2_12
+        add	rsp, 32
         mov	rdx, QWORD PTR [rsp+200]
         mov	rcx, QWORD PTR [rsp+192]
+        sub	rsp, 32
         call	sp_3072_sqr_avx2_12
+        add	rsp, 32
 IFDEF _WIN64
         mov	rdx, QWORD PTR [rsp+200]
         mov	rcx, QWORD PTR [rsp+192]
@@ -23163,15 +23223,21 @@ sp_3072_sqr_48 PROC
         mov	QWORD PTR [r10+184], r8
         mov	rdx, r10
         mov	rcx, rsp
+        sub	rsp, 32
         call	sp_3072_sqr_24
+        add	rsp, 32
         mov	rdx, QWORD PTR [rsp+392]
         mov	rcx, QWORD PTR [rsp+384]
         add	rdx, 192
         add	rcx, 384
+        sub	rsp, 32
         call	sp_3072_sqr_24
+        add	rsp, 32
         mov	rdx, QWORD PTR [rsp+392]
         mov	rcx, QWORD PTR [rsp+384]
+        sub	rsp, 32
         call	sp_3072_sqr_24
+        add	rsp, 32
 IFDEF _WIN64
         mov	rdx, QWORD PTR [rsp+392]
         mov	rcx, QWORD PTR [rsp+384]
@@ -23913,15 +23979,21 @@ sp_3072_sqr_avx2_48 PROC
         mov	QWORD PTR [r10+184], r8
         mov	rdx, r10
         mov	rcx, rsp
+        sub	rsp, 32
         call	sp_3072_sqr_avx2_24
+        add	rsp, 32
         mov	rdx, QWORD PTR [rsp+392]
         mov	rcx, QWORD PTR [rsp+384]
         add	rdx, 192
         add	rcx, 384
+        sub	rsp, 32
         call	sp_3072_sqr_avx2_24
+        add	rsp, 32
         mov	rdx, QWORD PTR [rsp+392]
         mov	rcx, QWORD PTR [rsp+384]
+        sub	rsp, 32
         call	sp_3072_sqr_avx2_24
+        add	rsp, 32
 IFDEF _WIN64
         mov	rdx, QWORD PTR [rsp+392]
         mov	rcx, QWORD PTR [rsp+384]
@@ -25309,9 +25381,9 @@ ELSE
 ENDIF
         mov	rdx, rcx
         sub	rcx, 192
-        sub	rsp, 8
+        sub	rsp, 40
         call	sp_3072_cond_sub_24
-        add	rsp, 8
+        add	rsp, 40
         pop	rsi
         pop	rdi
         pop	r15
@@ -26390,8 +26462,8 @@ sp_3072_get_from_table_avx2_24 PROC
         vmovdqu	OWORD PTR [rsp+104], xmm12
         vmovdqu	OWORD PTR [rsp+120], xmm13
         mov	rax, 1
-        movd	xmm10, r8
-        movd	xmm11, rax
+        vmovq	xmm10, r8
+        vmovq	xmm11, rax
         vpxor	ymm13, ymm13, ymm13
         vpermd	ymm10, ymm13, ymm10
         vpermd	ymm11, ymm13, ymm11
@@ -28161,9 +28233,9 @@ ELSE
 ENDIF
         mov	rdx, rcx
         sub	rcx, 384
-        sub	rsp, 8
+        sub	rsp, 40
         call	sp_3072_cond_sub_48
-        add	rsp, 8
+        add	rsp, 40
         pop	rsi
         pop	rdi
         pop	r15
@@ -29914,8 +29986,8 @@ sp_3072_get_from_table_avx2_48 PROC
         vmovdqu	OWORD PTR [rsp+104], xmm12
         vmovdqu	OWORD PTR [rsp+120], xmm13
         mov	rax, 1
-        movd	xmm10, r8
-        movd	xmm11, rax
+        vmovq	xmm10, r8
+        vmovq	xmm11, rax
         vpxor	ymm13, ymm13, ymm13
         vpermd	ymm10, ymm13, ymm10
         vpermd	ymm11, ymm13, ymm11
@@ -32405,17 +32477,23 @@ sp_4096_mul_64 PROC
         mov	r8, r13
         mov	rdx, r12
         mov	rcx, rsp
+        sub	rsp, 32
         call	sp_2048_mul_32
+        add	rsp, 32
         mov	r8, QWORD PTR [rsp+1552]
         mov	rdx, QWORD PTR [rsp+1544]
         lea	rcx, QWORD PTR [rsp+512]
         add	r8, 256
         add	rdx, 256
+        sub	rsp, 32
         call	sp_2048_mul_32
+        add	rsp, 32
         mov	r8, QWORD PTR [rsp+1552]
         mov	rdx, QWORD PTR [rsp+1544]
         mov	rcx, QWORD PTR [rsp+1536]
+        sub	rsp, 32
         call	sp_2048_mul_32
+        add	rsp, 32
 IFDEF _WIN64
         mov	r8, QWORD PTR [rsp+1552]
         mov	rdx, QWORD PTR [rsp+1544]
@@ -33735,17 +33813,23 @@ sp_4096_mul_avx2_64 PROC
         mov	r8, r13
         mov	rdx, r12
         mov	rcx, rsp
+        sub	rsp, 32
         call	sp_2048_mul_avx2_32
+        add	rsp, 32
         mov	r8, QWORD PTR [rsp+1552]
         mov	rdx, QWORD PTR [rsp+1544]
         lea	rcx, QWORD PTR [rsp+512]
         add	r8, 256
         add	rdx, 256
+        sub	rsp, 32
         call	sp_2048_mul_avx2_32
+        add	rsp, 32
         mov	r8, QWORD PTR [rsp+1552]
         mov	rdx, QWORD PTR [rsp+1544]
         mov	rcx, QWORD PTR [rsp+1536]
+        sub	rsp, 32
         call	sp_2048_mul_avx2_32
+        add	rsp, 32
 IFDEF _WIN64
         mov	r8, QWORD PTR [rsp+1552]
         mov	rdx, QWORD PTR [rsp+1544]
@@ -35020,15 +35104,21 @@ sp_4096_sqr_64 PROC
         mov	QWORD PTR [r10+248], r8
         mov	rdx, r10
         mov	rcx, rsp
+        sub	rsp, 32
         call	sp_2048_sqr_32
+        add	rsp, 32
         mov	rdx, QWORD PTR [rsp+520]
         mov	rcx, QWORD PTR [rsp+512]
         add	rdx, 256
         add	rcx, 512
+        sub	rsp, 32
         call	sp_2048_sqr_32
+        add	rsp, 32
         mov	rdx, QWORD PTR [rsp+520]
         mov	rcx, QWORD PTR [rsp+512]
+        sub	rsp, 32
         call	sp_2048_sqr_32
+        add	rsp, 32
 IFDEF _WIN64
         mov	rdx, QWORD PTR [rsp+520]
         mov	rcx, QWORD PTR [rsp+512]
@@ -36002,15 +36092,21 @@ sp_4096_sqr_avx2_64 PROC
         mov	QWORD PTR [r10+248], r8
         mov	rdx, r10
         mov	rcx, rsp
+        sub	rsp, 32
         call	sp_2048_sqr_avx2_32
+        add	rsp, 32
         mov	rdx, QWORD PTR [rsp+520]
         mov	rcx, QWORD PTR [rsp+512]
         add	rdx, 256
         add	rcx, 512
+        sub	rsp, 32
         call	sp_2048_sqr_avx2_32
+        add	rsp, 32
         mov	rdx, QWORD PTR [rsp+520]
         mov	rcx, QWORD PTR [rsp+512]
+        sub	rsp, 32
         call	sp_2048_sqr_avx2_32
+        add	rsp, 32
 IFDEF _WIN64
         mov	rdx, QWORD PTR [rsp+520]
         mov	rcx, QWORD PTR [rsp+512]
@@ -38374,9 +38470,9 @@ ELSE
 ENDIF
         mov	rdx, rcx
         sub	rcx, 512
-        sub	rsp, 8
+        sub	rsp, 40
         call	sp_4096_cond_sub_64
-        add	rsp, 8
+        add	rsp, 40
         pop	rsi
         pop	rdi
         pop	r15
@@ -40655,8 +40751,8 @@ sp_4096_get_from_table_avx2_64 PROC
         vmovdqu	OWORD PTR [rsp+104], xmm12
         vmovdqu	OWORD PTR [rsp+120], xmm13
         mov	rax, 1
-        movd	xmm10, r8
-        movd	xmm11, rax
+        vmovq	xmm10, r8
+        vmovq	xmm11, rax
         vpxor	ymm13, ymm13, ymm13
         vpermd	ymm10, ymm13, ymm10
         vpermd	ymm11, ymm13, ymm11
@@ -43984,7 +44080,7 @@ sp_256_get_point_33_4 PROC
         movdqu	OWORD PTR [rsp+136], xmm14
         movdqu	OWORD PTR [rsp+152], xmm15
         mov	rax, 1
-        movd	xmm13, r8d
+        vmovd	xmm13, r8d
         add	rdx, 200
         movd	xmm15, eax
         mov	rax, 32
@@ -44058,9 +44154,9 @@ sp_256_get_point_33_avx2_4 PROC
         vmovdqu	OWORD PTR [rsp+40], xmm8
         vmovdqu	OWORD PTR [rsp+56], xmm9
         mov	rax, 1
-        movd	xmm7, r8d
+        vmovd	xmm7, r8d
         add	rdx, 200
-        movd	xmm9, eax
+        vmovd	xmm9, eax
         mov	rax, 32
         vpxor	ymm8, ymm8, ymm8
         vpermd	ymm7, ymm8, ymm7
@@ -44757,9 +44853,9 @@ sp_256_get_entry_64_avx2_4 PROC
         vmovdqu	OWORD PTR [rsp+8], xmm6
         vmovdqu	OWORD PTR [rsp+24], xmm7
         mov	rax, 1
-        movd	xmm5, r8d
+        vmovd	xmm5, r8d
         add	rdx, 64
-        movd	xmm7, eax
+        vmovd	xmm7, eax
         mov	rax, 64
         vpxor	ymm6, ymm6, ymm6
         vpermd	ymm5, ymm6, ymm5
@@ -44865,9 +44961,9 @@ sp_256_get_entry_65_avx2_4 PROC
         vmovdqu	OWORD PTR [rsp+8], xmm6
         vmovdqu	OWORD PTR [rsp+24], xmm7
         mov	rax, 1
-        movd	xmm5, r8d
+        vmovd	xmm5, r8d
         add	rdx, 64
-        movd	xmm7, eax
+        vmovd	xmm7, eax
         mov	rax, 65
         vpxor	ymm6, ymm6, ymm6
         vpermd	ymm5, ymm6, ymm5
@@ -47564,9 +47660,9 @@ ELSE
 ENDIF
         mov	rdx, rcx
         sub	rcx, 48
-        sub	rsp, 8
+        sub	rsp, 40
         call	sp_384_cond_sub_6
-        add	rsp, 8
+        add	rsp, 40
         pop	rsi
         pop	rdi
         pop	r15
@@ -48011,7 +48107,7 @@ sp_384_get_point_33_6 PROC
         movdqu	OWORD PTR [rsp+136], xmm14
         movdqu	OWORD PTR [rsp+152], xmm15
         mov	rax, 1
-        movd	xmm13, r8d
+        vmovd	xmm13, r8d
         add	rdx, 296
         movd	xmm15, eax
         mov	rax, 32
@@ -48057,7 +48153,7 @@ L_384_get_point_33_6_start_1:
         movdqu	OWORD PTR [rcx+112], xmm4
         movdqu	OWORD PTR [rcx+128], xmm5
         mov	rax, 1
-        movd	xmm13, r8d
+        vmovd	xmm13, r8d
         sub	rdx, 9472
         movd	xmm15, eax
         mov	rax, 32
@@ -48122,9 +48218,9 @@ sp_384_get_point_33_avx2_6 PROC
         vmovdqu	OWORD PTR [rsp+136], xmm14
         vmovdqu	OWORD PTR [rsp+152], xmm15
         mov	rax, 1
-        movd	xmm13, r8d
+        vmovd	xmm13, r8d
         add	rdx, 296
-        movd	xmm15, eax
+        vmovd	xmm15, eax
         mov	rax, 32
         vpxor	ymm14, ymm14, ymm14
         vpermd	ymm13, ymm14, ymm13
@@ -48724,9 +48820,9 @@ sp_384_get_entry_64_avx2_6 PROC
         vmovdqu	OWORD PTR [rsp+72], xmm10
         vmovdqu	OWORD PTR [rsp+88], xmm11
         mov	rax, 1
-        movd	xmm9, r8d
+        vmovd	xmm9, r8d
         add	rdx, 96
-        movd	xmm11, eax
+        vmovd	xmm11, eax
         mov	rax, 64
         vpxor	ymm10, ymm10, ymm10
         vpermd	ymm9, ymm10, ymm9
@@ -48868,9 +48964,9 @@ sp_384_get_entry_65_avx2_6 PROC
         vmovdqu	OWORD PTR [rsp+72], xmm10
         vmovdqu	OWORD PTR [rsp+88], xmm11
         mov	rax, 1
-        movd	xmm9, r8d
+        vmovd	xmm9, r8d
         add	rdx, 96
-        movd	xmm11, eax
+        vmovd	xmm11, eax
         mov	rax, 65
         vpxor	ymm10, ymm10, ymm10
         vpermd	ymm9, ymm10, ymm9
@@ -52987,9 +53083,9 @@ ELSE
         mov	r8, r9
 ENDIF
         mov	rdx, rcx
-        sub	rsp, 8
+        sub	rsp, 40
         call	sp_521_cond_sub_9
-        add	rsp, 8
+        add	rsp, 40
         pop	rsi
         pop	rdi
         pop	r15
@@ -53341,7 +53437,7 @@ sp_521_get_point_33_9 PROC
         movdqu	OWORD PTR [rsp+144], xmm15
         mov	r14, 1
         mov	rax, 1
-        movd	xmm13, r8d
+        vmovd	xmm13, r8d
 IFNDEF SP_ALIGN_16
         add	rdx, 440
 ELSE
@@ -53407,7 +53503,7 @@ ENDIF
         movdqu	OWORD PTR [rcx+160], xmm5
         mov	r14, 1
         mov	rax, 1
-        movd	xmm13, r8d
+        vmovd	xmm13, r8d
 IFNDEF SP_ALIGN_16
         sub	rdx, 14080
 ELSE
@@ -53519,13 +53615,13 @@ sp_521_get_point_33_avx2_9 PROC
         vmovdqu	OWORD PTR [rsp+144], xmm15
         mov	rdi, 1
         mov	rax, 1
-        movd	xmm13, r8d
+        vmovd	xmm13, r8d
 IFNDEF SP_ALIGN_16
         add	rdx, 440
 ELSE
         add	rdx, 448
 ENDIF
-        movd	xmm15, eax
+        vmovd	xmm15, eax
         mov	rax, 32
         vpxor	ymm14, ymm14, ymm14
         vpermd	ymm13, ymm14, ymm13
@@ -55255,9 +55351,9 @@ sp_521_get_entry_64_avx2_9 PROC
         vmovdqu	OWORD PTR [rsp+80], xmm11
         mov	r14, 1
         mov	rax, 1
-        movd	xmm9, r8d
+        vmovd	xmm9, r8d
         add	rdx, 144
-        movd	xmm11, eax
+        vmovd	xmm11, eax
         mov	rax, 64
         vpxor	ymm10, ymm10, ymm10
         vpermd	ymm9, ymm10, ymm9
@@ -55472,9 +55568,9 @@ sp_521_get_entry_65_avx2_9 PROC
         vmovdqu	OWORD PTR [rsp+80], xmm11
         mov	r14, 1
         mov	rax, 1
-        movd	xmm9, r8d
+        vmovd	xmm9, r8d
         add	rdx, 144
-        movd	xmm11, eax
+        vmovd	xmm11, eax
         mov	rax, 65
         vpxor	ymm10, ymm10, ymm10
         vpermd	ymm9, ymm10, ymm9
@@ -62874,9 +62970,9 @@ ELSE
 ENDIF
         mov	rdx, rcx
         sub	rcx, 128
-        sub	rsp, 8
+        sub	rsp, 40
         call	sp_1024_cond_sub_16
-        add	rsp, 8
+        add	rsp, 40
         pop	rsi
         pop	rdi
         pop	r15

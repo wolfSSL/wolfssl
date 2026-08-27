@@ -313,8 +313,14 @@ extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t scrypt_test(void);
 #ifdef WOLFSSL_HAVE_MLKEM
     extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  mlkem_test(void);
 #endif
+#ifdef WOLFSSL_HAVE_FRODOKEM
+    extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  frodokem_test(void);
+#endif
 #ifdef WOLFSSL_HAVE_MLDSA
     extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  mldsa_test(void);
+#endif
+#ifdef HAVE_FALCON
+    extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  falcon_test(void);
 #endif
 #if defined(WOLFSSL_HAVE_XMSS)
     #if !defined(WOLFSSL_SMALL_STACK) && WOLFSSL_XMSS_MIN_HEIGHT <= 10

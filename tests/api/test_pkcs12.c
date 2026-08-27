@@ -1080,3 +1080,63 @@ int test_wc_PKCS12_PBKDF_ex_sha512_256(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/*
+ * MC/DC decision coverage for the PKCS#12 container API
+ * (wolfcrypt/src/pkcs12.c). The pkcs12 group's other tests are almost all
+ * wc_PKCS12_PBKDF_ex, which lives in pwdbased.c, so the container entry points
+ * are otherwise reached only by the pkcs12_test() KAT. This drives their
+ * multi-operand argument guards, each operand flipped independently.
+ */
+int test_wc_PKCS12DecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS12) && !defined(NO_ASN) && !defined(NO_PWDBASED) && \
+    !defined(NO_HMAC) && !defined(NO_CERTS)
+    WC_PKCS12* pkcs12 = NULL;
+    byte  der[8];
+    byte* out = NULL;
+    int   outSz = 0;
+
+    XMEMSET(der, 0, sizeof(der));
+
+    ExpectNotNull(pkcs12 = wc_PKCS12_new());
+
+    /* wc_d2i_PKCS12 "der == NULL || pkcs12 == NULL" */
+    ExpectIntEQ(wc_d2i_PKCS12(NULL, sizeof(der), pkcs12),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_d2i_PKCS12(der, sizeof(der), NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* both operands false: rejected by the parser, not the argument check */
+    ExpectIntNE(wc_d2i_PKCS12(der, sizeof(der), pkcs12),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* wc_i2d_PKCS12 argument guards; a container with no safe/signData
+     * exercises the "pkcs12->safe == NULL" half of the cascade. */
+    ExpectIntLT(wc_i2d_PKCS12(NULL, &out, &outSz), 0);
+    ExpectIntLT(wc_i2d_PKCS12(pkcs12, NULL, &outSz), 0);
+    ExpectIntLT(wc_i2d_PKCS12(pkcs12, &out, NULL), 0);
+
+    /* wc_PKCS12_parse on an empty container: the pkcs12 != NULL operand is
+     * false while the internal state operands decide the outcome. */
+    {
+        byte* pkey = NULL; word32 pkeySz = 0;
+        byte* cert = NULL; word32 certSz = 0;
+        WC_DerCertList* ca = NULL;
+
+        ExpectIntLT(wc_PKCS12_parse(NULL, "pw", &pkey, &pkeySz, &cert, &certSz,
+            &ca), 0);
+        ExpectIntLT(wc_PKCS12_parse(pkcs12, "pw", &pkey, &pkeySz, &cert,
+            &certSz, &ca), 0);
+        if (pkey != NULL) XFREE(pkey, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+        if (cert != NULL) XFREE(cert, NULL, DYNAMIC_TYPE_PKCS);
+        if (ca != NULL) wc_FreeCertList(ca, NULL);
+    }
+
+    XFREE(out, NULL, DYNAMIC_TYPE_PKCS);
+    wc_PKCS12_free(pkcs12);
+    /* wc_PKCS12_free tolerates NULL: the guard's true half. */
+    wc_PKCS12_free(NULL);
+#endif /* HAVE_PKCS12 && ... */
+    return EXPECT_RESULT();
+}

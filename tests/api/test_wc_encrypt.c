@@ -253,6 +253,11 @@ int test_wc_BufferKeyEncryptDecryptDecisionCoverage(void)
     ExpectIntEQ(wc_BufferKeyEncrypt(&info, der, (word32)sizeof(der),
                     pw, (int)sizeof(pw), WC_HASH_TYPE_SHA),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* info->keySz > WC_MAX_SYM_KEY_SIZE */
+    info.keySz = WC_MAX_SYM_KEY_SIZE + 1;
+    ExpectIntEQ(wc_BufferKeyEncrypt(&info, der, (word32)sizeof(der),
+                    pw, (int)sizeof(pw), WC_HASH_TYPE_SHA),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     info.keySz = 16;
     /* info->ivSz < PKCS5_SALT_SZ */
     info.ivSz = PKCS5_SALT_SZ - 1;
@@ -272,6 +277,10 @@ int test_wc_BufferKeyEncryptDecryptDecisionCoverage(void)
                     pw, (int)sizeof(pw), WC_HASH_TYPE_SHA),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     info.keySz = 0;
+    ExpectIntEQ(wc_BufferKeyDecrypt(&info, der, (word32)sizeof(der),
+                    pw, (int)sizeof(pw), WC_HASH_TYPE_SHA),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    info.keySz = WC_MAX_SYM_KEY_SIZE + 1;
     ExpectIntEQ(wc_BufferKeyDecrypt(&info, der, (word32)sizeof(der),
                     pw, (int)sizeof(pw), WC_HASH_TYPE_SHA),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -311,6 +320,28 @@ int test_wc_BufferKeyEncryptDecryptDecisionCoverage(void)
         ExpectIntEQ(wc_BufferKeyEncrypt(&info, der, 24,
                         pw, (int)sizeof(pw), WC_HASH_TYPE_SHA), 0);
     }
+#else
+    {
+        XMEMSET(&info, 0, sizeof(info));
+        info.cipherType = WC_CIPHER_DES3;
+        info.keySz = 16;
+        info.ivSz  = PKCS5_SALT_SZ;
+        XMEMSET(info.iv, 0x25, PKCS5_SALT_SZ);
+        XMEMSET(der, 0x33, 24);
+        ExpectIntEQ(wc_BufferKeyEncrypt(&info, der, 16,
+                    pw, (int)sizeof(pw), WC_HASH_TYPE_SHA),
+                WC_NO_ERR_TRACE(NOT_COMPILED_IN));
+
+        XMEMSET(&info, 0, sizeof(info));
+        info.cipherType = WC_CIPHER_DES;
+        info.keySz = 8;
+        info.ivSz  = PKCS5_SALT_SZ;
+        XMEMSET(info.iv, 0x26, PKCS5_SALT_SZ);
+        XMEMSET(der, 0x33, 24);
+        ExpectIntEQ(wc_BufferKeyEncrypt(&info, der, 24,
+                    pw, (int)sizeof(pw), WC_HASH_TYPE_SHA),
+                WC_NO_ERR_TRACE(NOT_COMPILED_IN));
+    }
 #endif
 
     /* ---- decrypt dispatch: iv is hex (Base16-decoded to the PBKDF salt) ---- */
@@ -342,7 +373,66 @@ int test_wc_BufferKeyEncryptDecryptDecisionCoverage(void)
                     WC_NO_ERR_TRACE(BUFFER_E));
     }
 #endif
+#if !defined(HAVE_AES_CBC) || !defined(HAVE_AES_DECRYPT)
+    {
+        /* 16 hex chars -> 8-byte salt after Base16_Decode */
+        const byte hexIv[16] = {
+            '1','1','2','2','3','3','4','4',
+            '5','5','6','6','7','7','8','8'
+        };
+        XMEMSET(&info, 0, sizeof(info));
+        info.cipherType = WC_CIPHER_AES_CBC;
+        info.keySz = 16;
+        info.ivSz  = 16;
+        XMEMCPY(info.iv, hexIv, 16);
+        XMEMSET(der, 0x33, 16);
+        ExpectIntEQ(wc_BufferKeyDecrypt(&info, der, 16,
+                    pw, (int)sizeof(pw), WC_HASH_TYPE_SHA),
+                WC_NO_ERR_TRACE(NOT_COMPILED_IN));
+    }
+#endif
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_BufferKeyEncryptDecryptDecisionCoverage */
 
+/*
+ * wc_BufferKeyEncrypt / wc_BufferKeyDecrypt: an unknown info->cipherType
+ * value should return ALGO_ID_E.
+ */
+int test_wc_BufferKeyEncryptDecryptUnknownCipher(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_ASN) && defined(WOLFSSL_ENCRYPTED_KEYS) && \
+    !defined(NO_PWDBASED) && !defined(NO_SHA)
+    const byte pw[] = { 'p','a','s','s','w','o','r','d' };
+    /* decrypt Base16-decodes info->iv in place, so it must be hex:
+     * 16 hex chars -> 8-byte salt */
+    const byte hexIv[16] = {
+        '1','1','2','2','3','3','4','4',
+        '5','5','6','6','7','7','8','8'
+    };
+    EncryptedInfo info;
+    byte der[16];
+
+    XMEMSET(&info, 0, sizeof(info));
+    info.cipherType = WC_CIPHER_NONE;
+    info.keySz = 16;
+    info.ivSz  = 16;
+    XMEMSET(info.iv, 0x27, 16);
+    XMEMSET(der, 0x33, sizeof(der));
+    ExpectIntEQ(wc_BufferKeyEncrypt(&info, der, (word32)sizeof(der),
+                    pw, (int)sizeof(pw), WC_HASH_TYPE_SHA),
+                WC_NO_ERR_TRACE(ALGO_ID_E));
+
+    XMEMSET(&info, 0, sizeof(info));
+    info.cipherType = WC_CIPHER_NONE;
+    info.keySz = 16;
+    info.ivSz  = 16;
+    XMEMCPY(info.iv, hexIv, 16);
+    XMEMSET(der, 0x33, sizeof(der));
+    ExpectIntEQ(wc_BufferKeyDecrypt(&info, der, (word32)sizeof(der),
+                    pw, (int)sizeof(pw), WC_HASH_TYPE_SHA),
+                WC_NO_ERR_TRACE(ALGO_ID_E));
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_BufferKeyEncryptDecryptUnknownCipher */

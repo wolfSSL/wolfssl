@@ -38,6 +38,7 @@
 	.text
 	.align	4
 	.globl	frodokem_add_thumb2
+	WC_ASM_ATT_HIDDEN(frodokem_add_thumb2)
 	.type	frodokem_add_thumb2, %function
 frodokem_add_thumb2:
 	PUSH	{r4, r5, lr}
@@ -61,6 +62,7 @@ L_frodokem_add_thumb2_blk:
 	.text
 	.align	4
 	.globl	frodokem_sa_accum_thumb2
+	WC_ASM_ATT_HIDDEN(frodokem_sa_accum_thumb2)
 	.type	frodokem_sa_accum_thumb2, %function
 frodokem_sa_accum_thumb2:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -99,6 +101,7 @@ L_frodokem_sa_accum_thumb2_k:
 	.text
 	.align	4
 	.globl	frodokem_as_accum_thumb2
+	WC_ASM_ATT_HIDDEN(frodokem_as_accum_thumb2)
 	.type	frodokem_as_accum_thumb2, %function
 frodokem_as_accum_thumb2:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -139,6 +142,7 @@ L_frodokem_as_accum_thumb2_j:
 	.text
 	.align	4
 	.globl	frodokem_mul_bs_thumb2
+	WC_ASM_ATT_HIDDEN(frodokem_mul_bs_thumb2)
 	.type	frodokem_mul_bs_thumb2, %function
 frodokem_mul_bs_thumb2:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -187,6 +191,7 @@ L_frodokem_mul_bs_thumb2_j:
 	.text
 	.align	4
 	.globl	frodokem_mul_add_sb_plus_e_thumb2
+	WC_ASM_ATT_HIDDEN(frodokem_mul_add_sb_plus_e_thumb2)
 	.type	frodokem_mul_add_sb_plus_e_thumb2, %function
 frodokem_mul_add_sb_plus_e_thumb2:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}

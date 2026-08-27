@@ -33,6 +33,9 @@
 #ifdef HAVE_ECC
 #include <wolfssl/wolfcrypt/ecc.h>
 #endif
+#ifdef WOLF_CRYPTO_CB
+#include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
 #include <tests/api/api.h>
 #include <tests/utils.h>
 #include <tests/api/test_lms_xmss.h>
@@ -68,10 +71,19 @@ static const char* lms_test_priv_key_file(void)
 }
 #define LMS_TEST_PRIV_KEY_FILE lms_test_priv_key_file()
 
+/* Set to 1 to make test_lms_write_key() simulate a non-volatile storage write
+ * that never completes. */
+static int lms_write_key_fail = 0;
+
 static int test_lms_write_key(const byte* priv, word32 privSz, void* context)
 {
-    FILE* f = fopen((const char*)context, "wb");
+    FILE* f;
     int ret = WC_LMS_RC_SAVED_TO_NV_MEMORY;
+
+    if (lms_write_key_fail)
+        return -1;
+
+    f = fopen((const char*)context, "wb");
     if (f == NULL)
         return -1;
     if (fwrite(priv, 1, privSz, f) != privSz)
@@ -93,19 +105,25 @@ static int test_lms_read_key(byte* priv, word32 privSz, void* context)
     return WC_LMS_RC_READ_TO_MEMORY;
 }
 
-/* Helper: init an LMS key with callbacks and L1-H10-W8 params */
-static int test_lms_init_key(LmsKey* key, WC_RNG* rng)
+/* Helper: set the L1-H10-W8 params the tests share, H5 on small builds */
+static int test_lms_set_params(LmsKey* key)
+{
+#if !defined(WOLFSSL_LMS_MAX_HEIGHT) || (WOLFSSL_LMS_MAX_HEIGHT >= 10)
+    return wc_LmsKey_SetParameters(key, 1, 10, 8);
+#else
+    return wc_LmsKey_SetParameters(key, 1, 5, 8);
+#endif
+}
+
+/* Helper: init an LMS key on devId with callbacks and L1-H10-W8 params */
+static int test_lms_init_key_ex(LmsKey* key, int devId)
 {
     int ret;
 
-    ret = wc_LmsKey_Init(key, NULL, INVALID_DEVID);
+    ret = wc_LmsKey_Init(key, NULL, devId);
     if (ret != 0) return ret;
 
-#if !defined(WOLFSSL_LMS_MAX_HEIGHT) || (WOLFSSL_LMS_MAX_HEIGHT >= 10)
-    ret = wc_LmsKey_SetParameters(key, 1, 10, 8);
-#else
-    ret = wc_LmsKey_SetParameters(key, 1, 5, 8);
-#endif
+    ret = test_lms_set_params(key);
     if (ret != 0) return ret;
 
     ret = wc_LmsKey_SetWriteCb(key, test_lms_write_key);
@@ -117,8 +135,14 @@ static int test_lms_init_key(LmsKey* key, WC_RNG* rng)
     ret = wc_LmsKey_SetContext(key, (void*)LMS_TEST_PRIV_KEY_FILE);
     if (ret != 0) return ret;
 
-    (void)rng;
     return 0;
+}
+
+/* Helper: init an LMS key with callbacks and L1-H10-W8 params */
+static int test_lms_init_key(LmsKey* key, WC_RNG* rng)
+{
+    (void)rng;
+    return test_lms_init_key_ex(key, INVALID_DEVID);
 }
 
 #endif /* WOLFSSL_HAVE_LMS && !WOLFSSL_LMS_VERIFY_ONLY */
@@ -154,6 +178,80 @@ int test_wc_LmsKey_sign_verify(void)
         ExpectIntEQ(wc_LmsKey_Sign(&key, sig, &sigSz, msg, sizeof(msg)), 0);
         ExpectIntEQ(wc_LmsKey_Verify(&key, sig, sigSz, msg, sizeof(msg)), 0);
     }
+
+    wc_LmsKey_Free(&key);
+    wc_FreeRng(&rng);
+    (void)remove(LMS_TEST_PRIV_KEY_FILE);
+#endif
+    return EXPECT_RESULT();
+}
+
+/*
+ * Test that a failed private key write permanently invalidates the key.
+ *
+ * RFC 8554 section 5.4.1 requires the advanced leaf index to be stored before
+ * the signature is released. The signature is computed with the one-time key
+ * at the current leaf and only then is the index advanced and written out, so
+ * a failed write leaves storage pointing at a leaf that has already been used.
+ * The key must refuse to sign again rather than hand out a second signature
+ * from the same one-time key.
+ */
+int test_wc_LmsKey_write_fail(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
+    LmsKey  key;
+    WC_RNG  rng;
+    byte    msg[] = "test message for LMS signing";
+    byte    sig[2048];
+    word32  sigSz;
+    word32  goodSigSz = 0;
+    word32  i;
+    int     nonZero;
+
+    /* Zero so cleanup is safe if an early alloc failure skips init. */
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    (void)remove(LMS_TEST_PRIV_KEY_FILE);
+    ExpectIntEQ(test_lms_init_key(&key, &rng), 0);
+    ExpectIntEQ(wc_LmsKey_MakeKey(&key, &rng), 0);
+
+    sigSz = sizeof(sig);
+    ExpectIntEQ(wc_LmsKey_Sign(&key, sig, &sigSz, msg, sizeof(msg)), 0);
+    goodSigSz = sigSz;
+
+    /* A signature was really produced, so the check below is not vacuous. */
+    nonZero = 0;
+    for (i = 0; i < goodSigSz; i++) {
+        if (sig[i] != 0)
+            nonZero++;
+    }
+    ExpectIntGT(nonZero, 0);
+
+    /* Fail the write of the advanced private key. */
+    lms_write_key_fail = 1;
+    sigSz = sizeof(sig);
+    ExpectIntEQ(wc_LmsKey_Sign(&key, sig, &sigSz, msg, sizeof(msg)),
+        WC_NO_ERR_TRACE(IO_FAILED_E));
+    lms_write_key_fail = 0;
+
+    /* The signature has to be erased as well, not just reported as failed.
+     * The leaf index was never stored, so releasing it would allow the same
+     * one-time key to sign twice. */
+    nonZero = 0;
+    for (i = 0; i < goodSigSz; i++) {
+        if (sig[i] != 0)
+            nonZero++;
+    }
+    ExpectIntEQ(nonZero, 0);
+
+    /* Storage works again but the key must stay unusable. */
+    sigSz = sizeof(sig);
+    ExpectIntEQ(wc_LmsKey_Sign(&key, sig, &sigSz, msg, sizeof(msg)),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
 
     wc_LmsKey_Free(&key);
     wc_FreeRng(&rng);
@@ -240,6 +338,254 @@ int test_wc_LmsKey_reload_cache(void)
     wc_LmsKey_Free(&key);
     wc_FreeRng(&rng);
     (void)remove(LMS_TEST_PRIV_KEY_FILE);
+#endif
+    return EXPECT_RESULT();
+}
+
+/*----------------------------------------------------------------------------*/
+/* Crypto callback devId reload tests                                         */
+/*----------------------------------------------------------------------------*/
+
+/* XMSS-SHA2_10_256 is only in the algorithm table when SHA-256 and a height
+ * of 10 are both compiled in. */
+#if defined(WC_XMSS_SHA256) && \
+    (WOLFSSL_WC_XMSS_MIN_HASH_SIZE <= 256) && \
+    (WOLFSSL_WC_XMSS_MAX_HASH_SIZE >= 256) && \
+    (WOLFSSL_XMSS_MIN_HEIGHT <= 10) && (WOLFSSL_XMSS_MAX_HEIGHT >= 10)
+    #define TEST_XMSS_H10_AVAILABLE
+#endif
+
+/* Must be the exact union of the two test guards below, or the callback has
+ * no caller and -Wunused-function fails the build. */
+#if defined(WOLF_CRYPTO_CB) && \
+    ((defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY) && \
+      !defined(NO_FILESYSTEM)) || \
+     (defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY) && \
+      !defined(NO_FILESYSTEM) && defined(TEST_XMSS_H10_AVAILABLE)))
+
+/* devId of the accelerator registered by the reload tests below. */
+#define TEST_LMS_XMSS_CRYPTOCB_DEVID 0x4C4D5853 /* "LMXS" */
+
+/* An accelerator with no stateful hash-based signature support: declines
+ * everything, so the software implementation is used. */
+static int test_lms_xmss_cryptocb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    (void)devIdArg;
+    (void)info;
+    (void)ctx;
+    return CRYPTOCB_UNAVAILABLE;
+}
+#endif
+
+/*
+ * Test reloading an LMS key on a devId that keeps its state in software, the
+ * case of a devId set only to route other algorithms to an accelerator. The
+ * second half covers the device-backed arm, where no read callback is set.
+ *
+ * Without the fix: Reload does no work, priv_data is left NULL and the
+ *                  following sign dereferences it.
+ * With the fix:    the key is reloaded, and sign/verify succeed.
+ */
+int test_wc_LmsKey_reload_devid(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY) && \
+    defined(WOLF_CRYPTO_CB) && !defined(NO_FILESYSTEM)
+    LmsKey  key;
+    LmsKey  vkey;
+    LmsKey  hsmKey;
+    WC_RNG  rng;
+    byte    msg[] = "test message for LMS signing";
+    byte    sig[2048];
+    word32  sigSz;
+    byte    pub[64];
+    word32  pubSz = sizeof(pub);
+
+    /* Zero so cleanup is safe if an early alloc failure skips init. */
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&vkey, 0, sizeof(vkey));
+    XMEMSET(&hsmKey, 0, sizeof(hsmKey));
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID,
+        test_lms_xmss_cryptocb, NULL), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    /* Generate on the devId. MakeKey falls back to software when the callback
+     * declines. */
+    (void)remove(LMS_TEST_PRIV_KEY_FILE);
+    ExpectIntEQ(test_lms_init_key_ex(&key, TEST_LMS_XMSS_CRYPTOCB_DEVID), 0);
+    ExpectIntEQ(wc_LmsKey_MakeKey(&key, &rng), 0);
+    ExpectIntEQ(wc_LmsKey_ExportPubRaw(&key, pub, &pubSz), 0);
+    wc_LmsKey_Free(&key);
+
+    /* Reload the same key on the same devId. */
+    ExpectIntEQ(test_lms_init_key_ex(&key, TEST_LMS_XMSS_CRYPTOCB_DEVID), 0);
+    ExpectIntEQ(wc_LmsKey_Reload(&key), 0);
+    /* The reload must have expanded the private key, not been skipped. */
+    ExpectNotNull(key.priv_data);
+
+    /* Sign with the reloaded key and verify with a software-only key. */
+    sigSz = sizeof(sig);
+    ExpectIntEQ(wc_LmsKey_Sign(&key, sig, &sigSz, msg, sizeof(msg)), 0);
+
+    ExpectIntEQ(wc_LmsKey_Init(&vkey, NULL, INVALID_DEVID), 0);
+#if !defined(WOLFSSL_LMS_MAX_HEIGHT) || (WOLFSSL_LMS_MAX_HEIGHT >= 10)
+    ExpectIntEQ(wc_LmsKey_SetParameters(&vkey, 1, 10, 8), 0);
+#else
+    ExpectIntEQ(wc_LmsKey_SetParameters(&vkey, 1, 5, 8), 0);
+#endif
+    ExpectIntEQ(wc_LmsKey_ImportPubRaw(&vkey, pub, pubSz), 0);
+    ExpectIntEQ(wc_LmsKey_Verify(&vkey, sig, sigSz, msg, sizeof(msg)), 0);
+
+    /* Device-backed arm: no read callback, so the reload must still be a
+     * no-op. */
+    ExpectIntEQ(wc_LmsKey_Init(&hsmKey, NULL, TEST_LMS_XMSS_CRYPTOCB_DEVID), 0);
+    ExpectIntEQ(test_lms_set_params(&hsmKey), 0);
+    ExpectIntEQ(wc_LmsKey_Reload(&hsmKey), 0);
+    ExpectNull(hsmKey.priv_data);
+
+    wc_LmsKey_Free(&hsmKey);
+    wc_LmsKey_Free(&vkey);
+    wc_LmsKey_Free(&key);
+    wc_FreeRng(&rng);
+    (void)remove(LMS_TEST_PRIV_KEY_FILE);
+    wc_CryptoCb_UnRegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY) && \
+    defined(WOLF_CRYPTO_CB) && !defined(NO_FILESYSTEM) && \
+    defined(TEST_XMSS_H10_AVAILABLE)
+/* Per-process temp file so parallel unit.test runs sharing /tmp do not
+ * clobber each other's stateful XMSS private key. */
+static const char* xmss_devid_priv_key_file(void)
+{
+    static char xmssPath[64];
+    if (xmssPath[0] == '\0') {
+    #if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
+        (void)XSNPRINTF(xmssPath, sizeof(xmssPath),
+            "/tmp/wolfssl_test_xmss_devid_%d.key", (int)getpid());
+    #else
+        (void)XSNPRINTF(xmssPath, sizeof(xmssPath),
+            "/tmp/wolfssl_test_xmss_devid.key");
+    #endif
+    }
+    return xmssPath;
+}
+#define XMSS_DEVID_TEST_PRIV_KEY_FILE xmss_devid_priv_key_file()
+
+static enum wc_XmssRc xmss_devid_write_key(const byte* priv, word32 privSz,
+    void* context)
+{
+    XFILE f = XFOPEN((const char*)context, "wb");
+    enum wc_XmssRc ret = WC_XMSS_RC_SAVED_TO_NV_MEMORY;
+    if (f == XBADFILE)
+        return WC_XMSS_RC_WRITE_FAIL;
+    if (XFWRITE(priv, 1, privSz, f) != privSz)
+        ret = WC_XMSS_RC_WRITE_FAIL;
+    XFCLOSE(f);
+    return ret;
+}
+
+static enum wc_XmssRc xmss_devid_read_key(byte* priv, word32 privSz,
+    void* context)
+{
+    XFILE f = XFOPEN((const char*)context, "rb");
+    enum wc_XmssRc ret = WC_XMSS_RC_READ_TO_MEMORY;
+    if (f == XBADFILE)
+        return WC_XMSS_RC_READ_FAIL;
+    if (XFREAD(priv, 1, privSz, f) != privSz)
+        ret = WC_XMSS_RC_READ_FAIL;
+    XFCLOSE(f);
+    return ret;
+}
+
+/* Init an XMSS key on devId with the reload test's persistence callbacks. */
+static int test_xmss_init_key_ex(XmssKey* key, int devId)
+{
+    int ret = wc_XmssKey_Init(key, NULL, devId);
+    if (ret == 0)
+        ret = wc_XmssKey_SetParamStr(key, "XMSS-SHA2_10_256");
+    if (ret == 0)
+        ret = wc_XmssKey_SetWriteCb(key, xmss_devid_write_key);
+    if (ret == 0)
+        ret = wc_XmssKey_SetReadCb(key, xmss_devid_read_key);
+    if (ret == 0)
+        ret = wc_XmssKey_SetContext(key, (void*)XMSS_DEVID_TEST_PRIV_KEY_FILE);
+    return ret;
+}
+#endif
+
+/*
+ * Same scenario as test_wc_LmsKey_reload_devid, for XMSS.
+ *
+ * Without the fix: Reload does no work, so key->sk is never allocated and the
+ *                  following sign either fails or writes through NULL.
+ * With the fix:    the key is reloaded, and sign/verify succeed.
+ */
+int test_wc_XmssKey_reload_devid(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY) && \
+    defined(WOLF_CRYPTO_CB) && !defined(NO_FILESYSTEM) && \
+    defined(TEST_XMSS_H10_AVAILABLE)
+    XmssKey key;
+    XmssKey vkey;
+    XmssKey hsmKey;
+    WC_RNG  rng;
+    byte    msg[] = "test message for XMSS signing";
+    byte    sig[4096];
+    word32  sigSz;
+    byte    pub[128];
+    word32  pubSz = sizeof(pub);
+
+    /* Zero so cleanup is safe if an early alloc failure skips init. */
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&vkey, 0, sizeof(vkey));
+    XMEMSET(&hsmKey, 0, sizeof(hsmKey));
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID,
+        test_lms_xmss_cryptocb, NULL), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    (void)remove(XMSS_DEVID_TEST_PRIV_KEY_FILE);
+    ExpectIntEQ(test_xmss_init_key_ex(&key, TEST_LMS_XMSS_CRYPTOCB_DEVID), 0);
+    ExpectIntEQ(wc_XmssKey_MakeKey(&key, &rng), 0);
+    ExpectIntEQ(wc_XmssKey_ExportPubRaw(&key, pub, &pubSz), 0);
+    wc_XmssKey_Free(&key);
+
+    /* Reload the same key on the same devId. */
+    ExpectIntEQ(test_xmss_init_key_ex(&key, TEST_LMS_XMSS_CRYPTOCB_DEVID), 0);
+    ExpectIntEQ(wc_XmssKey_Reload(&key), 0);
+    /* The reload must have allocated the secret key, not been skipped. */
+    ExpectNotNull(key.sk);
+
+    /* Sign with the reloaded key and verify with a software-only key. */
+    sigSz = sizeof(sig);
+    ExpectIntEQ(wc_XmssKey_Sign(&key, sig, &sigSz, msg, sizeof(msg)), 0);
+
+    ExpectIntEQ(wc_XmssKey_Init(&vkey, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_XmssKey_SetParamStr(&vkey, "XMSS-SHA2_10_256"), 0);
+    ExpectIntEQ(wc_XmssKey_ImportPubRaw(&vkey, pub, pubSz), 0);
+    ExpectIntEQ(wc_XmssKey_Verify(&vkey, sig, sigSz, msg, sizeof(msg)), 0);
+
+    /* The device-backed arm: no read callback means the device holds the
+     * state, so the reload must still be a no-op. */
+    ExpectIntEQ(wc_XmssKey_Init(&hsmKey, NULL, TEST_LMS_XMSS_CRYPTOCB_DEVID),
+        0);
+    ExpectIntEQ(wc_XmssKey_SetParamStr(&hsmKey, "XMSS-SHA2_10_256"), 0);
+    ExpectIntEQ(wc_XmssKey_Reload(&hsmKey), 0);
+    ExpectNull(hsmKey.sk);
+
+    wc_XmssKey_Free(&hsmKey);
+    wc_XmssKey_Free(&vkey);
+    wc_XmssKey_Free(&key);
+    wc_FreeRng(&rng);
+    (void)remove(XMSS_DEVID_TEST_PRIV_KEY_FILE);
+    wc_CryptoCb_UnRegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID);
 #endif
     return EXPECT_RESULT();
 }

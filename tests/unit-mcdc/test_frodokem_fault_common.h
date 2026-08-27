@@ -63,9 +63,10 @@
  *     FrodoKEM scratch takes the AESNI/C non-allocating path), so NO heap-fault
  *     index can make them fail. The mat file's 13 residuals are therefore NOT
  *     closable by this heap-alloc mock under any x86 variant -- they would need
- *     a primitive-return fault mock (stub wc_Shake*/wc_AesEcbEncrypt), a
- *     separate deferred technique. This driver still exercises the mat file
- *     end to end (its baseline true-chain rows) but closes none of the 13.
+ *     a primitive-return fault mock (stubbing the wc_Shake family and
+ *     wc_AesEcbEncrypt), a separate deferred technique. This driver still
+ *     exercises the mat file end to end (its baseline true-chain rows) but
+ *     closes none of the 13.
  *
  * Crash-safety: every armed call either fails an allocation whose MEMORY_E the
  * FrodoKEM cleanup absorbs (that cleanup is what is under test) or returns

@@ -63,12 +63,14 @@ L_sha3_aarch64_r:
 #ifndef __APPLE__
 .text
 .globl	frodokem_sha3_x2_neon
+WC_ASM_ATT_HIDDEN(frodokem_sha3_x2_neon)
 .type	frodokem_sha3_x2_neon,@function
 .align	2
 frodokem_sha3_x2_neon:
 #else
 .section	__TEXT,__text
 .globl	_frodokem_sha3_x2_neon
+WC_ASM_ATT_HIDDEN(_frodokem_sha3_x2_neon)
 .p2align	2
 _frodokem_sha3_x2_neon:
 #endif /* __APPLE__ */
@@ -300,12 +302,14 @@ L_frodokem_sha3_x2_neon_begin:
 #ifndef __APPLE__
 .text
 .globl	frodokem_sha3_x2_crypto
+WC_ASM_ATT_HIDDEN(frodokem_sha3_x2_crypto)
 .type	frodokem_sha3_x2_crypto,@function
 .align	2
 frodokem_sha3_x2_crypto:
 #else
 .section	__TEXT,__text
 .globl	_frodokem_sha3_x2_crypto
+WC_ASM_ATT_HIDDEN(_frodokem_sha3_x2_crypto)
 .p2align	2
 _frodokem_sha3_x2_crypto:
 #endif /* __APPLE__ */
@@ -455,12 +459,14 @@ L_frodokem_sha3_x2_crypto_begin:
 #ifndef __APPLE__
 .text
 .globl	frodokem_add_neon
+WC_ASM_ATT_HIDDEN(frodokem_add_neon)
 .type	frodokem_add_neon,@function
 .align	2
 frodokem_add_neon:
 #else
 .section	__TEXT,__text
 .globl	_frodokem_add_neon
+WC_ASM_ATT_HIDDEN(_frodokem_add_neon)
 .p2align	2
 _frodokem_add_neon:
 #endif /* __APPLE__ */
@@ -506,12 +512,14 @@ _frodokem_add_neon:
 #ifndef __APPLE__
 .text
 .globl	frodokem_sample_neon
+WC_ASM_ATT_HIDDEN(frodokem_sample_neon)
 .type	frodokem_sample_neon,@function
 .align	2
 frodokem_sample_neon:
 #else
 .section	__TEXT,__text
 .globl	_frodokem_sample_neon
+WC_ASM_ATT_HIDDEN(_frodokem_sample_neon)
 .p2align	2
 _frodokem_sample_neon:
 #endif /* __APPLE__ */
@@ -593,12 +601,14 @@ L_frodokem_sample_neon_done:
 #ifndef __APPLE__
 .text
 .globl	frodokem_sa_accum_neon
+WC_ASM_ATT_HIDDEN(frodokem_sa_accum_neon)
 .type	frodokem_sa_accum_neon,@function
 .align	2
 frodokem_sa_accum_neon:
 #else
 .section	__TEXT,__text
 .globl	_frodokem_sa_accum_neon
+WC_ASM_ATT_HIDDEN(_frodokem_sa_accum_neon)
 .p2align	2
 _frodokem_sa_accum_neon:
 #endif /* __APPLE__ */
@@ -680,12 +690,14 @@ L_frodokem_sa_accum_neon_k:
 #ifndef __APPLE__
 .text
 .globl	frodokem_sa_accum_x4_neon
+WC_ASM_ATT_HIDDEN(frodokem_sa_accum_x4_neon)
 .type	frodokem_sa_accum_x4_neon,@function
 .align	2
 frodokem_sa_accum_x4_neon:
 #else
 .section	__TEXT,__text
 .globl	_frodokem_sa_accum_x4_neon
+WC_ASM_ATT_HIDDEN(_frodokem_sa_accum_x4_neon)
 .p2align	2
 _frodokem_sa_accum_x4_neon:
 #endif /* __APPLE__ */
@@ -799,12 +811,14 @@ L_frodokem_sa_accum_x4_neon_k:
 #ifndef __APPLE__
 .text
 .globl	frodokem_as_accum_neon
+WC_ASM_ATT_HIDDEN(frodokem_as_accum_neon)
 .type	frodokem_as_accum_neon,@function
 .align	2
 frodokem_as_accum_neon:
 #else
 .section	__TEXT,__text
 .globl	_frodokem_as_accum_neon
+WC_ASM_ATT_HIDDEN(_frodokem_as_accum_neon)
 .p2align	2
 _frodokem_as_accum_neon:
 #endif /* __APPLE__ */
@@ -942,12 +956,14 @@ L_frodokem_as_accum_neon_k1:
 #ifndef __APPLE__
 .text
 .globl	frodokem_as_accum_x4_neon
+WC_ASM_ATT_HIDDEN(frodokem_as_accum_x4_neon)
 .type	frodokem_as_accum_x4_neon,@function
 .align	2
 frodokem_as_accum_x4_neon:
 #else
 .section	__TEXT,__text
 .globl	_frodokem_as_accum_x4_neon
+WC_ASM_ATT_HIDDEN(_frodokem_as_accum_x4_neon)
 .p2align	2
 _frodokem_as_accum_x4_neon:
 #endif /* __APPLE__ */
@@ -1175,12 +1191,14 @@ L_frodokem_as_accum_x4_neon_k1:
 #ifndef __APPLE__
 .text
 .globl	frodokem_mul_bs_neon
+WC_ASM_ATT_HIDDEN(frodokem_mul_bs_neon)
 .type	frodokem_mul_bs_neon,@function
 .align	2
 frodokem_mul_bs_neon:
 #else
 .section	__TEXT,__text
 .globl	_frodokem_mul_bs_neon
+WC_ASM_ATT_HIDDEN(_frodokem_mul_bs_neon)
 .p2align	2
 _frodokem_mul_bs_neon:
 #endif /* __APPLE__ */
@@ -1413,12 +1431,14 @@ L_frodokem_mul_bs_neon_k1:
 #ifndef __APPLE__
 .text
 .globl	frodokem_mul_add_sb_plus_e_neon
+WC_ASM_ATT_HIDDEN(frodokem_mul_add_sb_plus_e_neon)
 .type	frodokem_mul_add_sb_plus_e_neon,@function
 .align	2
 frodokem_mul_add_sb_plus_e_neon:
 #else
 .section	__TEXT,__text
 .globl	_frodokem_mul_add_sb_plus_e_neon
+WC_ASM_ATT_HIDDEN(_frodokem_mul_add_sb_plus_e_neon)
 .p2align	2
 _frodokem_mul_add_sb_plus_e_neon:
 #endif /* __APPLE__ */
@@ -1486,12 +1506,14 @@ L_frodokem_mul_add_sb_plus_e_neon_j:
 #ifndef __APPLE__
 .text
 .globl	frodokem_gen_a_rows_aes_arm64
+WC_ASM_ATT_HIDDEN(frodokem_gen_a_rows_aes_arm64)
 .type	frodokem_gen_a_rows_aes_arm64,@function
 .align	2
 frodokem_gen_a_rows_aes_arm64:
 #else
 .section	__TEXT,__text
 .globl	_frodokem_gen_a_rows_aes_arm64
+WC_ASM_ATT_HIDDEN(_frodokem_gen_a_rows_aes_arm64)
 .p2align	2
 _frodokem_gen_a_rows_aes_arm64:
 #endif /* __APPLE__ */
@@ -1810,12 +1832,14 @@ L_frodokem_gen_a_rows_aes_arm64_done:
 #ifndef __APPLE__
 .text
 .globl	frodokem_sa_accum_sve
+WC_ASM_ATT_HIDDEN(frodokem_sa_accum_sve)
 .type	frodokem_sa_accum_sve,@function
 .align	2
 frodokem_sa_accum_sve:
 #else
 .section	__TEXT,__text
 .globl	_frodokem_sa_accum_sve
+WC_ASM_ATT_HIDDEN(_frodokem_sa_accum_sve)
 .p2align	2
 _frodokem_sa_accum_sve:
 #endif /* __APPLE__ */
@@ -1854,12 +1878,14 @@ L_frodokem_sa_accum_sve_k:
 #ifndef __APPLE__
 .text
 .globl	frodokem_as_accum_sve
+WC_ASM_ATT_HIDDEN(frodokem_as_accum_sve)
 .type	frodokem_as_accum_sve,@function
 .align	2
 frodokem_as_accum_sve:
 #else
 .section	__TEXT,__text
 .globl	_frodokem_as_accum_sve
+WC_ASM_ATT_HIDDEN(_frodokem_as_accum_sve)
 .p2align	2
 _frodokem_as_accum_sve:
 #endif /* __APPLE__ */
@@ -2044,12 +2070,14 @@ L_frodokem_as_accum_sve_k:
 #ifndef __APPLE__
 .text
 .globl	frodokem_mul_bs_sve
+WC_ASM_ATT_HIDDEN(frodokem_mul_bs_sve)
 .type	frodokem_mul_bs_sve,@function
 .align	2
 frodokem_mul_bs_sve:
 #else
 .section	__TEXT,__text
 .globl	_frodokem_mul_bs_sve
+WC_ASM_ATT_HIDDEN(_frodokem_mul_bs_sve)
 .p2align	2
 _frodokem_mul_bs_sve:
 #endif /* __APPLE__ */
@@ -2160,12 +2188,14 @@ L_frodokem_mul_bs_sve_k:
 #ifndef __APPLE__
 .text
 .globl	frodokem_add_sve
+WC_ASM_ATT_HIDDEN(frodokem_add_sve)
 .type	frodokem_add_sve,@function
 .align	2
 frodokem_add_sve:
 #else
 .section	__TEXT,__text
 .globl	_frodokem_add_sve
+WC_ASM_ATT_HIDDEN(_frodokem_add_sve)
 .p2align	2
 _frodokem_add_sve:
 #endif /* __APPLE__ */
@@ -2194,12 +2224,14 @@ L_frodokem_add_sve_k:
 #ifndef __APPLE__
 .text
 .globl	frodokem_mul_bs_sme
+WC_ASM_ATT_HIDDEN(frodokem_mul_bs_sme)
 .type	frodokem_mul_bs_sme,@function
 .align	2
 frodokem_mul_bs_sme:
 #else
 .section	__TEXT,__text
 .globl	_frodokem_mul_bs_sme
+WC_ASM_ATT_HIDDEN(_frodokem_mul_bs_sme)
 .p2align	2
 _frodokem_mul_bs_sme:
 #endif /* __APPLE__ */
@@ -2239,12 +2271,14 @@ L_frodokem_mul_bs_sme_e:
 #ifndef __APPLE__
 .text
 .globl	frodokem_sa_accum_sme
+WC_ASM_ATT_HIDDEN(frodokem_sa_accum_sme)
 .type	frodokem_sa_accum_sme,@function
 .align	2
 frodokem_sa_accum_sme:
 #else
 .section	__TEXT,__text
 .globl	_frodokem_sa_accum_sme
+WC_ASM_ATT_HIDDEN(_frodokem_sa_accum_sme)
 .p2align	2
 _frodokem_sa_accum_sme:
 #endif /* __APPLE__ */
@@ -2292,12 +2326,14 @@ L_frodokem_sa_accum_sme_e:
 #ifndef __APPLE__
 .text
 .globl	frodokem_as_accum_sme
+WC_ASM_ATT_HIDDEN(frodokem_as_accum_sme)
 .type	frodokem_as_accum_sme,@function
 .align	2
 frodokem_as_accum_sme:
 #else
 .section	__TEXT,__text
 .globl	_frodokem_as_accum_sme
+WC_ASM_ATT_HIDDEN(_frodokem_as_accum_sme)
 .p2align	2
 _frodokem_as_accum_sme:
 #endif /* __APPLE__ */

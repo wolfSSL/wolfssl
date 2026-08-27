@@ -67,7 +67,6 @@
 #define INITIAL_DEVID 7890
 
 uint32_t   g_CAscm_Idx = (uint32_t)-1; /* index of CM table    */
-static int gdevId = INITIAL_DEVID;     /* initial dev Id for Crypt Callback */
 
 #ifdef WOLF_CRYPTO_CB
 
@@ -76,17 +75,59 @@ FSPSM_ST    *gCbCtx[MAX_FSPSM_CBINDEX];
 
 #include <wolfssl/wolfcrypt/cryptocb.h>
 
+/* Release a callback context slot.
+ *
+ * The hardware lock guards the search for a free slot, so it is taken here as
+ * well. A slot that cannot be locked is still released, since losing it would
+ * make the devId unusable for the rest of the run.
+ *
+ * idx : index into gCbCtx of the slot to release
+ */
+static void cmn_release_cb_slot(int idx)
+{
+    int locked = (cmn_hw_lock() == 0);
+
+    gCbCtx[idx] = NULL;
+
+    if (locked)
+        cmn_hw_unlock();
+    else
+        WOLFSSL_MSG("Failed to lock hw while releasing callback context");
+}
 
 WOLFSSL_LOCAL int Renesas_cmn_Cleanup(struct WOLFSSL* ssl)
 {
     int ret = 0;
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS)
+    FSPSM_ST* cbInfo = NULL;
+    int devId = INVALID_DEVID;
+#endif
+
     WOLFSSL_ENTER("Renesas_cmn_Cleanup");
     (void) ssl;
+
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS)
+    /* The session holds a callback context slot claimed by
+     * wc_CryptoCb_CryptInitRenesasCmn. Remember its devId before the cleanup
+     * below zeroes the user context. */
+    if (ssl != NULL) {
+        cbInfo = (FSPSM_ST*)ssl->RenesasUserCtx;
+        if (cbInfo != NULL)
+            devId = cbInfo->devId;
+    }
+#endif
 
 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
     ret = tsip_TlsCleanup(ssl);
 #elif defined(WOLFSSL_RENESAS_FSPSM_TLS)
     ret = wc_fspsm_TlsCleanup(ssl);
+#endif
+
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS)
+    /* Give the slot back so that later sessions can use it. The internal
+     * instance was already freed by the cleanup above. */
+    if (devId != INVALID_DEVID)
+        wc_CryptoCb_CleanupRenesasCmn(&devId);
 #endif
 
     WOLFSSL_LEAVE("Renesas_cmn_Cleanup", ret);
@@ -393,7 +434,7 @@ int Renesas_cmn_usable(const struct WOLFSSL* ssl, byte session_key_generated)
  */
 WOLFSSL_LOCAL void *Renesas_cmn_GetCbCtxBydevId(int devId)
 {
-    if (devId >= INITIAL_DEVID && devId <= (MAX_FSPSM_CBINDEX + INITIAL_DEVID))
+    if (devId >= INITIAL_DEVID && devId < (MAX_FSPSM_CBINDEX + INITIAL_DEVID))
         return gCbCtx[devId - INITIAL_DEVID];
     else
         return NULL;
@@ -405,8 +446,9 @@ WOLFSSL_LOCAL void *Renesas_cmn_GetCbCtxBydevId(int devId)
  * ssl     : a pointer to WOLFSSL object
  * ctx     : callback context
  * return  valid device Id on success, otherwise INVALID_DEVIID
- *         device Id starts from 7890, and increases + 1 its number
- *         when the method is successfully called.
+ *         device Id starts from 7890 and is derived from the context slot
+ *         the callback context is stored in. At most MAX_FSPSM_CBINDEX
+ *         contexts can be registered at the same time.
  */
 int wc_CryptoCb_CryptInitRenesasCmn(struct WOLFSSL* ssl, void* ctx)
 {
@@ -415,6 +457,9 @@ int wc_CryptoCb_CryptInitRenesasCmn(struct WOLFSSL* ssl, void* ctx)
 
     FSPSM_ST* cbInfo = (FSPSM_ST*)ctx;
     size_t internal_sz = sizeof(FSPSM_ST_Internal);
+    int idx = 0;
+    int devId = INVALID_DEVID;
+    int allocedInternal = 0;
 
     if (cbInfo == NULL
    #if (!defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY) && \
@@ -440,6 +485,7 @@ int wc_CryptoCb_CryptInitRenesasCmn(struct WOLFSSL* ssl, void* ctx)
         if (cbInfo->internal == NULL) {
             return MEMORY_E;
         }
+        allocedInternal = 1;
         ForceZero(cbInfo->internal, internal_sz);
        #if defined(WOLFSSL_RENESAS_FSPSM_TLS) ||\
             defined(WOLFSSL_RENESAS_TSIP_TLS)
@@ -449,22 +495,44 @@ int wc_CryptoCb_CryptInitRenesasCmn(struct WOLFSSL* ssl, void* ctx)
     }
     /* need exclusive control because of static variable */
     if ((cmn_hw_lock()) == 0) {
-        /* sanity check for overflow */
-        if (gdevId < 0) {
-            gdevId = INITIAL_DEVID;
+        /* look for a free context slot and derive the devId from it */
+        for (idx = 0; idx < MAX_FSPSM_CBINDEX; idx++) {
+            if (gCbCtx[idx] == NULL)
+                break;
         }
-        cbInfo->devId = gdevId++;
+        if (idx < MAX_FSPSM_CBINDEX) {
+            devId = INITIAL_DEVID + idx;
+            /* claim the slot while the lock is still held */
+            gCbCtx[idx] = cbInfo;
+        }
+        else {
+            WOLFSSL_MSG("No free crypt callback context slot");
+        }
         cmn_hw_unlock();
     }
     else {
         WOLFSSL_MSG("Failed to lock tsip hw");
-        return INVALID_DEVID;
     }
 
-    if (wc_CryptoCb_RegisterDevice(cbInfo->devId,
-                            Renesas_cmn_CryptoDevCb, cbInfo) < 0) {
-        /* undo devId number */
-        gdevId--;
+    if (devId != INVALID_DEVID) {
+        cbInfo->devId = devId;
+
+        if (wc_CryptoCb_RegisterDevice(devId,
+                                Renesas_cmn_CryptoDevCb, cbInfo) < 0) {
+            /* release the context slot again */
+            cmn_release_cb_slot(idx);
+            cbInfo->devId = INVALID_DEVID;
+            devId = INVALID_DEVID;
+        }
+    }
+
+    if (devId == INVALID_DEVID) {
+        /* only release what this call allocated */
+        if (allocedInternal) {
+            XFREE(cbInfo->internal, (ssl != NULL) ? ssl->heap : NULL,
+                                        DYNAMIC_TYPE_TMP_BUFFER);
+            cbInfo->internal = NULL;
+        }
         return INVALID_DEVID;
     }
 
@@ -472,12 +540,10 @@ int wc_CryptoCb_CryptInitRenesasCmn(struct WOLFSSL* ssl, void* ctx)
        !defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY) && \
        !defined(HAVE_RENESAS_SYNC)
     if (ssl)
-        wolfSSL_SetDevId(ssl, cbInfo->devId);
+        wolfSSL_SetDevId(ssl, devId);
    #endif
 
-    gCbCtx[cbInfo->devId - INITIAL_DEVID] = (void*)cbInfo;
-
-    return cbInfo->devId;
+    return devId;
 }
 
 /* Renesas Security Library Common Method
@@ -490,12 +556,18 @@ void wc_CryptoCb_CleanupRenesasCmn(int* id)
 {
 
     FSPSM_ST* cbInfo = NULL;
+    int idx;
+
+    if (id == NULL)
+        return;
 
     if (*id < INITIAL_DEVID ||
-       (*id  - INITIAL_DEVID) > MAX_FSPSM_CBINDEX)
+       (*id  - INITIAL_DEVID) >= MAX_FSPSM_CBINDEX)
         return;
+
+    idx = *id - INITIAL_DEVID;
     /* retrieve internal instance */
-    cbInfo = (FSPSM_ST*)gCbCtx[*id - INITIAL_DEVID];
+    cbInfo = (FSPSM_ST*)gCbCtx[idx];
 
     if (cbInfo != NULL && cbInfo->internal != NULL) {
      #if defined(WOLFSSL_RENESAS_FSPSM_TLS) && \
@@ -507,7 +579,16 @@ void wc_CryptoCb_CleanupRenesasCmn(int* id)
      #endif
         cbInfo->internal = NULL;
     }
+
+    /* Unregister before the slot is released. A new registration that claims
+     * the slot in between would otherwise be torn down here. */
     wc_CryptoCb_UnRegisterDevice(*id);
+
+    if (cbInfo != NULL)
+        cbInfo->devId = INVALID_DEVID;
+
+    /* release the slot so that it can be used by a new registration */
+    cmn_release_cb_slot(idx);
 }
 
 #endif /* WOLF_CRYPTO_CB */

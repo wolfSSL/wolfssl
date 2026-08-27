@@ -40,14 +40,62 @@
 #ifdef WOLFSSL_VERSAL_GEN2_ASU_HMAC
     #include <wolfssl/wolfcrypt/port/xilinx/versal_gen2_asu/asu_hmac.h>
 #endif
+#ifdef WOLFSSL_VERSAL_GEN2_ASU_CIPHER
+    #include <wolfssl/wolfcrypt/port/xilinx/versal_gen2_asu/asu_cipher.h>
+#endif
+#ifdef WOLFSSL_VERSAL_GEN2_ASU_CMAC
+    #include <wolfssl/wolfcrypt/port/xilinx/versal_gen2_asu/asu_cmac.h>
+#endif
+#if defined(WOLFSSL_VERSAL_GEN2_ASU_RSA) && !defined(NO_RSA)
+    #include <wolfssl/wolfcrypt/port/xilinx/versal_gen2_asu/asu_rsa.h>
+#endif
+#if defined(WOLFSSL_VERSAL_GEN2_ASU_ECC) && defined(HAVE_ECC) && \
+    !defined(NO_ECC)
+    #include <wolfssl/wolfcrypt/port/xilinx/versal_gen2_asu/asu_ecc.h>
+#endif
+#ifdef WOLFSSL_VERSAL_GEN2_ASU_ECDH
+    #include <wolfssl/wolfcrypt/port/xilinx/versal_gen2_asu/asu_ecdh.h>
+#endif
+#ifdef WOLFSSL_VERSAL_GEN2_ASU_ECIES
+    #include <wolfssl/wolfcrypt/port/xilinx/versal_gen2_asu/asu_ecies.h>
+#endif
+
+#ifndef WOLFSSL_VERSAL_GEN2_ASU_NO_CLIENT_INIT
+    #include <wolfssl/wolfcrypt/port/xilinx/versal_gen2_asu/asu_util.h>
+#endif
 
 #ifndef WOLF_CRYPTO_CB
     #error "WOLFSSL_VERSAL_GEN2_ASU requires WOLF_CRYPTO_CB"
 #endif
+#ifndef WOLF_CRYPTO_CB_CMD
+    #error "WOLFSSL_VERSAL_GEN2_ASU requires WOLF_CRYPTO_CB_CMD"
+#endif
 
-/* Route a context copy (WC_ALGO_TYPE_COPY) to the engine that owns the object,
- * keyed on the copy sub-algo. Each engine's single entry handles the copy.
- * Engines added later (cipher, pk) get a case here. */
+/* Device commands. Register starts the ASU client, and an error here undoes
+ * the registration. */
+static int wc_AsuCmd(wc_CryptoInfo* info)
+{
+    int ret = CRYPTOCB_UNAVAILABLE;
+
+    switch (info->cmd.type) {
+        case WC_CRYPTOCB_CMD_TYPE_REGISTER:
+        #ifndef WOLFSSL_VERSAL_GEN2_ASU_NO_CLIENT_INIT
+            ret = wc_AsuClientInit();
+        #else
+            ret = 0; /* application brought the client up before this */
+        #endif
+            break;
+        case WC_CRYPTOCB_CMD_TYPE_UNREGISTER:
+            ret = 0;
+            break;
+        default:
+            break;
+    }
+
+    return ret;
+}
+
+/* Send a context copy to whichever engine owns it. */
 static int wc_AsuCopy(wc_CryptoInfo* info)
 {
     int ret = CRYPTOCB_UNAVAILABLE;
@@ -70,8 +118,7 @@ static int wc_AsuCopy(wc_CryptoInfo* info)
     return ret;
 }
 
-/* Route a context free (WC_ALGO_TYPE_FREE) to the engine that owns the object,
- * keyed on the free sub-algo, the same way as wc_AsuCopy. */
+/* Send a context free to whichever engine owns it. */
 static int wc_AsuFree(wc_CryptoInfo* info)
 {
     int ret = CRYPTOCB_UNAVAILABLE;
@@ -87,6 +134,11 @@ static int wc_AsuFree(wc_CryptoInfo* info)
             ret = wc_AsuHmac(info);
             break;
     #endif
+    #ifdef WOLFSSL_VERSAL_GEN2_ASU_CMAC
+        case WC_ALGO_TYPE_CMAC:
+            ret = wc_AsuCmac(info);
+            break;
+    #endif
         default:
             break;
     }
@@ -94,11 +146,8 @@ static int wc_AsuFree(wc_CryptoInfo* info)
     return ret;
 }
 
-/* Crypto callback dispatcher. Each engine handler runs the full operation
- * (looping over ASU transactions as needed) and returns the wolfCrypt result:
- * 0 when the ASU handled it, CRYPTOCB_UNAVAILABLE to fall back to software, or a
- * negative error. Engine cases are filled in per milestone: M1 hash and rng,
- * M2 aes, M3 public key. */
+/* Main dispatcher. Returns 0 when handled, CRYPTOCB_UNAVAILABLE to use
+ * software, or a negative error. */
 static int wc_AsuCryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
 {
     int ret = CRYPTOCB_UNAVAILABLE;
@@ -111,32 +160,60 @@ static int wc_AsuCryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
     }
 
     switch (info->algo_type) {
-        case WC_ALGO_TYPE_HASH:   /* M1 asu_hash */
+        case WC_ALGO_TYPE_NONE:   /* register/unregister device commands */
+            ret = wc_AsuCmd(info);
+            break;
+        case WC_ALGO_TYPE_HASH:   /* asu_hash */
         #ifdef WOLFSSL_VERSAL_GEN2_ASU_HASH
             ret = wc_AsuHash(info);
         #endif
             break;
-        case WC_ALGO_TYPE_HMAC:   /* M1 asu_hmac */
+        case WC_ALGO_TYPE_HMAC:   /* asu_hmac */
         #ifdef WOLFSSL_VERSAL_GEN2_ASU_HMAC
             ret = wc_AsuHmac(info);
         #endif
             break;
-        case WC_ALGO_TYPE_SEED:   /* M1 asu_rng  */
-        case WC_ALGO_TYPE_RNG:    /* M1 asu_rng  */
+        case WC_ALGO_TYPE_SEED:   /* asu_rng */
+        case WC_ALGO_TYPE_RNG:    /* asu_rng */
         #ifdef WOLFSSL_VERSAL_GEN2_ASU_TRNG
             ret = wc_AsuRng(info);
         #endif
             break;
-        case WC_ALGO_TYPE_CIPHER: /* M2 asu_aes  */
+        case WC_ALGO_TYPE_CIPHER: /* asu_cipher */
+        #ifdef WOLFSSL_VERSAL_GEN2_ASU_CIPHER
+            ret = wc_AsuCipher(info);
+        #endif
             break;
-        case WC_ALGO_TYPE_CMAC:   /* M2 asu_aes  */
+        case WC_ALGO_TYPE_CMAC:   /* asu_cmac */
+        #ifdef WOLFSSL_VERSAL_GEN2_ASU_CMAC
+            ret = wc_AsuCmac(info);
+        #endif
             break;
-        case WC_ALGO_TYPE_PK:     /* M3 asu_rsa and asu_ecc */
+        case WC_ALGO_TYPE_PK:     /* asu_rsa, asu_ecc, asu_ecdh, asu_ecies */
+        #if defined(WOLFSSL_VERSAL_GEN2_ASU_RSA) && !defined(NO_RSA)
+            ret = wc_AsuRsa(info);
+        #endif
+        #if defined(WOLFSSL_VERSAL_GEN2_ASU_ECC) && defined(HAVE_ECC) && \
+            !defined(NO_ECC)
+            if (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+                ret = wc_AsuEcc(info);
+            }
+        #endif
+        #ifdef WC_ASU_ECDH_ENABLED
+            if (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+                ret = wc_AsuEcdh(info);
+            }
+        #endif
+        #ifdef WC_ASU_ECIES_ENABLED
+            if (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+                ret = wc_AsuEcies(info);
+            }
+        #endif
             break;
-        case WC_ALGO_TYPE_COPY:   /* context copy: route by sub-algo to its engine */
+        case WC_ALGO_TYPE_COPY:   /* send the copy to its engine */
             ret = wc_AsuCopy(info);
             break;
-        case WC_ALGO_TYPE_FREE:   /* context free: route by sub-algo to its engine */
+        case WC_ALGO_TYPE_FREE:   /* send the free to its engine */
             ret = wc_AsuFree(info);
             break;
         default:

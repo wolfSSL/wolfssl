@@ -28,11 +28,13 @@ int test_wc_Base64_DecodeDecisionCoverage(void);
 int test_wc_Base64_DecodeWhitespaceCoverage(void);
 int test_wc_Base64_EncodeDecisionCoverage(void);
 int test_wc_Base16DecisionCoverage(void);
+int test_wc_Utf8_DecodeChar(void);
 
 #define TEST_CODING_DECLS                                                    \
     TEST_DECL_GROUP("coding", test_wc_Base64_DecodeDecisionCoverage),        \
     TEST_DECL_GROUP("coding", test_wc_Base64_DecodeWhitespaceCoverage),      \
     TEST_DECL_GROUP("coding", test_wc_Base64_EncodeDecisionCoverage),        \
-    TEST_DECL_GROUP("coding", test_wc_Base16DecisionCoverage)
+    TEST_DECL_GROUP("coding", test_wc_Base16DecisionCoverage),               \
+    TEST_DECL_GROUP("coding", test_wc_Utf8_DecodeChar)
 
 #endif /* WOLFCRYPT_TEST_CODING_H */

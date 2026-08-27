@@ -19,9 +19,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* wolfSSL crypto callback device for the Versal Gen2 ASU. Registering this
- * device routes wolfCrypt operations to the ASU hardware engines, with a
- * software fallback for anything the ASU does not handle. */
+/* Crypto callback device for the ASU. Anything the ASU cannot do falls back
+ * to software. */
 
 #ifndef WOLFSSL_VERSAL_GEN2_ASU_CRYPTOCB_H
 #define WOLFSSL_VERSAL_GEN2_ASU_CRYPTOCB_H
@@ -36,9 +35,8 @@
 extern "C" {
 #endif
 
-/* Register the ASU device with the wolfSSL crypto callback framework. The ASU
- * client must already be initialized with XAsu_ClientInit. Pass the same devId
- * that WC_USE_DEVID is set to so wolfSSL routes operations to this device. */
+/* Register the ASU device, which also starts the ASU client. Use the same
+ * devId as WC_USE_DEVID. */
 WOLFSSL_API int wc_AsuCryptoCb_RegisterDevice(int devId);
 
 /* Remove the ASU device from the crypto callback framework. */

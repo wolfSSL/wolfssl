@@ -273,11 +273,15 @@ int wc_Sha512GetHash(wc_Sha512* sha512, byte* hash);
 
     \param src Source SHA512 structure
     \param dst Destination SHA512 structure
+    (must be zeroed or previously initialized)
 
     _Example_
     \code
     wc_Sha512 src, dst;
-    int ret = wc_Sha512Copy(&src, &dst);
+    memset(&dst, 0, sizeof(dst));
+    int ret = wc_InitSha512(&src);
+    if (ret == 0)
+        ret = wc_Sha512Copy(&src, &dst);
     \endcode
 
     \sa wc_InitSha512
@@ -521,11 +525,15 @@ int wc_Sha512_224GetHash(wc_Sha512* sha512, byte* hash);
 
     \param src Source SHA512 structure
     \param dst Destination SHA512 structure
+    (must be zeroed or previously initialized)
 
     _Example_
     \code
     wc_Sha512 src, dst;
-    int ret = wc_Sha512_224Copy(&src, &dst);
+    memset(&dst, 0, sizeof(dst));
+    int ret = wc_InitSha512_224(&src);
+    if (ret == 0)
+        ret = wc_Sha512_224Copy(&src, &dst);
     \endcode
 
     \sa wc_InitSha512_224
@@ -747,11 +755,15 @@ int wc_Sha512_256GetHash(wc_Sha512* sha512, byte* hash);
 
     \param src Source SHA512 structure
     \param dst Destination SHA512 structure
+    (must be zeroed or previously initialized)
 
     _Example_
     \code
     wc_Sha512 src, dst;
-    int ret = wc_Sha512_256Copy(&src, &dst);
+    memset(&dst, 0, sizeof(dst));
+    int ret = wc_InitSha512_256(&src);
+    if (ret == 0)
+        ret = wc_Sha512_256Copy(&src, &dst);
     \endcode
 
     \sa wc_InitSha512_256
@@ -911,11 +923,15 @@ int wc_Sha384GetHash(wc_Sha384* sha384, byte* hash);
 
     \param src Source SHA384 structure
     \param dst Destination SHA384 structure
+    (must be zeroed or previously initialized)
 
     _Example_
     \code
     wc_Sha384 src, dst;
-    int ret = wc_Sha384Copy(&src, &dst);
+    memset(&dst, 0, sizeof(dst));
+    int ret = wc_InitSha384(&src);
+    if (ret == 0)
+        ret = wc_Sha384Copy(&src, &dst);
     \endcode
 
     \sa wc_InitSha384

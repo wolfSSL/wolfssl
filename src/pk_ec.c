@@ -37,7 +37,9 @@
 #endif
 #ifndef WOLFSSL_HAVE_ECC_KEY_GET_PRIV
     /* FIPS build has replaced ecc.h. */
-    #define wc_ecc_key_get_priv(key) (&((key)->k))
+    #define wc_ecc_key_get_priv(key)  (&((key)->k))
+    #define ecc_get_k_raw(key)        (&((key)->k))
+    #define ecc_blind_k_rng(key, rng) 0
     #define WOLFSSL_HAVE_ECC_KEY_GET_PRIV
 #endif
 
@@ -3161,9 +3163,15 @@ static int wolfssl_ec_key_int_copy(ecc_key* dst, const ecc_key* src)
     }
 
     if (ret == 0) {
-        /* Copy private key. */
-        ret = mp_copy(wc_ecc_key_get_priv((ecc_key*)src),
-            wc_ecc_key_get_priv(dst));
+        /* Copy the stored private scalar, and its blind where the build
+         * keeps one. The wc_ecc_key_get_priv() accessor cannot be used
+         * here: it is read-only, and reading needs dst->dp, not set yet. */
+        ret = mp_copy(ecc_get_k_raw((ecc_key*)src), ecc_get_k_raw(dst));
+    #ifdef WOLFSSL_ECC_BLIND_K
+        if (ret == MP_OKAY) {
+            ret = mp_copy(((ecc_key*)src)->kb, dst->kb);
+        }
+    #endif
         if (ret != MP_OKAY) {
             WOLFSSL_MSG("mp_copy error");
         }
@@ -3453,6 +3461,25 @@ WOLFSSL_EC_KEY* wolfSSL_d2i_ECPrivateKey(WOLFSSL_EC_KEY** key,
         /* Internal EC key setup. */
         ret->inSet = 1;
 
+        /* When the RFC 5915 DER encoding omits the optional publicKey field,
+         * wc_EccPrivateKeyDecode leaves type == ECC_PRIVATEKEY_ONLY with the
+         * public point uninitialised.  Derive the public point now so that
+         * all downstream operations (sign, ECDH, export) have a valid key,
+         * matching the behaviour of OpenSSL's d2i_ECPrivateKey.
+         * In builds without HAVE_ECC_MAKE_PUB (e.g. hardware/CB-only),
+         * keep the historical import behaviour and leave the key as
+         * private-only instead of failing import. */
+    #ifdef HAVE_ECC_MAKE_PUB
+        if (((ecc_key*)ret->internal)->type == ECC_PRIVATEKEY_ONLY) {
+            if (wc_ecc_make_pub((ecc_key*)ret->internal, NULL) != 0) {
+                WOLFSSL_MSG("wc_ecc_make_pub error deriving public key");
+                err = 1;
+            }
+        }
+    #endif
+    }
+
+    if (!err) {
         /* Set the EC key from the internal values. */
         if (SetECKeyExternal(ret) != 1) {
             WOLFSSL_MSG("SetECKeyExternal error");
@@ -4427,9 +4454,15 @@ int SetECKeyInternal(WOLFSSL_EC_KEY* eckey)
 
         /* set privkey */
         if ((ret == 1) && (eckey->priv_key != NULL)) {
+            /* Write the stored scalar, then install a fresh blind so any
+             * blind left from a previous use of this key is replaced. */
             if (wolfssl_bn_get_value(eckey->priv_key,
-                    wc_ecc_key_get_priv(key)) != 1) {
+                    ecc_get_k_raw(key)) != 1) {
                 WOLFSSL_MSG("ec key priv error");
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+            if ((ret == 1) && (ecc_blind_k_rng(key, NULL) != 0)) {
+                WOLFSSL_MSG("ec key priv blind error");
                 ret = WOLFSSL_FATAL_ERROR;
             }
             /* private key */
@@ -5489,7 +5522,10 @@ int wolfSSL_ECDH_compute_key(void *out, size_t outLen,
     ecc_key* key = NULL;
 #if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_SELFTEST) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,0))
-    int setGlobalRNG = 0;
+    WC_RNG* rng = NULL;
+    WC_DECLARE_VAR(tmpRng, WC_RNG, 1, 0);
+    int initTmpRng = 0;
+    int setKeyRng = 0;
 #endif
 
     /* TODO: support using the KDF. */
@@ -5524,30 +5560,44 @@ int wolfSSL_ECDH_compute_key(void *out, size_t outLen,
 
     #if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_SELFTEST) && \
         (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,0))
-        /* An RNG is needed. */
+        /* An RNG is needed - create local or get global. */
         if (key->rng == NULL) {
-            key->rng = wolfssl_make_global_rng();
-            /* RNG set and needs to be unset. */
-            setGlobalRNG = 1;
+            rng = wolfssl_make_rng(tmpRng, &initTmpRng);
+            if (rng == NULL) {
+                WOLFSSL_MSG("wolfSSL_ECDH_compute_key failed to make RNG");
+                err = 1;
+            }
+            else {
+                key->rng = rng;
+                /* RNG set and needs to be unset. */
+                setKeyRng = 1;
+            }
         }
     #endif
 
-        PRIVATE_KEY_UNLOCK();
-        /* Create secret using wolfSSL. */
-        ret = wc_ecc_shared_secret_ex(key, (ecc_point*)pubKey->internal,
-            (byte *)out, &len);
-        PRIVATE_KEY_LOCK();
-        if (ret != MP_OKAY) {
-            WOLFSSL_MSG("wc_ecc_shared_secret failed");
-            err = 1;
+        if (!err) {
+            PRIVATE_KEY_UNLOCK();
+            /* Create secret using wolfSSL. */
+            ret = wc_ecc_shared_secret_ex(key, (ecc_point*)pubKey->internal,
+                (byte *)out, &len);
+            PRIVATE_KEY_LOCK();
+            if (ret != MP_OKAY) {
+                WOLFSSL_MSG("wc_ecc_shared_secret failed");
+                err = 1;
+            }
         }
     }
 
 #if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_SELFTEST) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,0))
-    /* Remove global from key. */
-    if (setGlobalRNG) {
+    /* Clear before the RNG is disposed of - key must not keep a dangling
+     * reference to a local RNG. */
+    if (setKeyRng) {
         key->rng = NULL;
+    }
+    if (initTmpRng) {
+        wc_FreeRng(rng);
+        WC_FREE_VAR_EX(rng, NULL, DYNAMIC_TYPE_RNG);
     }
 #endif
 

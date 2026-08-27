@@ -117,6 +117,46 @@ int wc_psa_aes_get_key_size(Aes *aes, word32 *keySize)
 }
 
 /**
+ * wc_psa_aes_reset_ctx() - abort the cipher operation in progress, if any
+ * @aes: Aes object
+ *
+ * After a successful call the next wc_psa_aes_encrypt_decrypt() sets up a
+ * fresh operation, re-reading the IV from aes->reg. The imported key (if any)
+ * is left untouched.
+ *
+ * If the abort itself fails, psa_ctx may still hold resources and is no longer
+ * trustworthy for a fresh setup, so the whole object is torn down: the next
+ * operation then fails loudly rather than silently carrying on with the stale
+ * chaining state that this function exists to discard.
+ *
+ * returns: 0 on success, BAD_FUNC_ARG for bad argument, WC_HW_E on PSA error
+ */
+int wc_psa_aes_reset_ctx(Aes *aes)
+{
+    psa_status_t s;
+
+    if (aes == NULL)
+        return BAD_FUNC_ARG;
+
+    if (aes->ctx_initialized == 0)
+        return 0;
+
+    PSA_LOCK();
+    s = psa_cipher_abort(&aes->psa_ctx);
+    PSA_UNLOCK();
+
+    /* cleared before the check so wc_psa_aes_free() below doesn't abort twice */
+    aes->ctx_initialized = 0;
+
+    if (s != PSA_SUCCESS) {
+        wc_psa_aes_free(aes);
+        return WC_HW_E;
+    }
+
+    return 0;
+}
+
+/**
  * wc_psa_aes_set_key() - set key / iv to object *aes
  * @aes: object to set the key into
  * @key: key to import
@@ -137,19 +177,12 @@ int wc_psa_aes_get_key_size(Aes *aes, word32 *keySize)
 int wc_psa_aes_set_key(Aes *aes, const uint8_t *key, size_t key_length,
                        uint8_t *iv,  psa_algorithm_t alg, int dir)
 {
-    psa_status_t s;
     int ret;
 
     /* the object was already used for other encryption. Reset the context */
-    if (aes->ctx_initialized) {
-        PSA_LOCK();
-        s = psa_cipher_abort(&aes->psa_ctx);
-        PSA_UNLOCK();
-        if (s != PSA_SUCCESS)
-            return WC_HW_E;
-
-        aes->ctx_initialized = 0;
-    }
+    ret = wc_psa_aes_reset_ctx(aes);
+    if (ret != 0)
+        return ret;
 
     /* a key was already imported, destroy it first */
     if (aes->key_id != PSA_KEY_ID_NULL) {

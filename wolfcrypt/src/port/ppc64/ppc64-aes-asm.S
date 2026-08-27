@@ -201,6 +201,7 @@ L_AES_PPC64_te:
 #if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_invert_key
+WC_ASM_ATT_HIDDEN(AES_invert_key)
 .type	AES_invert_key,@function
 .align	16
 AES_invert_key:
@@ -212,6 +213,7 @@ AES_invert_key:
 	 * points at the code (.L.AES_invert_key) and the TOC base. */
 .section	.opd,"aw",@progbits
 .globl	AES_invert_key
+WC_ASM_ATT_HIDDEN(AES_invert_key)
 .type	AES_invert_key,@function
 .align	3
 AES_invert_key:
@@ -224,6 +226,7 @@ AES_invert_key:
 #else
 .section	__TEXT,__text
 .globl	_AES_invert_key
+WC_ASM_ATT_HIDDEN(_AES_invert_key)
 .p2align	4
 _AES_invert_key:
 #endif /* __APPLE__ */
@@ -436,6 +439,7 @@ L_AES_PPC64_rcon:
 #if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_set_encrypt_key
+WC_ASM_ATT_HIDDEN(AES_set_encrypt_key)
 .type	AES_set_encrypt_key,@function
 .align	16
 AES_set_encrypt_key:
@@ -447,6 +451,7 @@ AES_set_encrypt_key:
 	 * points at the code (.L.AES_set_encrypt_key) and the TOC base. */
 .section	.opd,"aw",@progbits
 .globl	AES_set_encrypt_key
+WC_ASM_ATT_HIDDEN(AES_set_encrypt_key)
 .type	AES_set_encrypt_key,@function
 .align	3
 AES_set_encrypt_key:
@@ -459,6 +464,7 @@ AES_set_encrypt_key:
 #else
 .section	__TEXT,__text
 .globl	_AES_set_encrypt_key
+WC_ASM_ATT_HIDDEN(_AES_set_encrypt_key)
 .p2align	4
 _AES_set_encrypt_key:
 #endif /* __APPLE__ */
@@ -1138,6 +1144,7 @@ L_AES_PPC64_te4_0:
 #if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_ECB_encrypt
+WC_ASM_ATT_HIDDEN(AES_ECB_encrypt)
 .type	AES_ECB_encrypt,@function
 .align	16
 AES_ECB_encrypt:
@@ -1149,6 +1156,7 @@ AES_ECB_encrypt:
 	 * points at the code (.L.AES_ECB_encrypt) and the TOC base. */
 .section	.opd,"aw",@progbits
 .globl	AES_ECB_encrypt
+WC_ASM_ATT_HIDDEN(AES_ECB_encrypt)
 .type	AES_ECB_encrypt,@function
 .align	3
 AES_ECB_encrypt:
@@ -1161,6 +1169,7 @@ AES_ECB_encrypt:
 #else
 .section	__TEXT,__text
 .globl	_AES_ECB_encrypt
+WC_ASM_ATT_HIDDEN(_AES_ECB_encrypt)
 .p2align	4
 _AES_ECB_encrypt:
 #endif /* __APPLE__ */
@@ -1531,6 +1540,7 @@ L_AES_ECB_encrypt_loop_nr:
 #if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_CBC_encrypt
+WC_ASM_ATT_HIDDEN(AES_CBC_encrypt)
 .type	AES_CBC_encrypt,@function
 .align	16
 AES_CBC_encrypt:
@@ -1542,6 +1552,7 @@ AES_CBC_encrypt:
 	 * points at the code (.L.AES_CBC_encrypt) and the TOC base. */
 .section	.opd,"aw",@progbits
 .globl	AES_CBC_encrypt
+WC_ASM_ATT_HIDDEN(AES_CBC_encrypt)
 .type	AES_CBC_encrypt,@function
 .align	3
 AES_CBC_encrypt:
@@ -1554,6 +1565,7 @@ AES_CBC_encrypt:
 #else
 .section	__TEXT,__text
 .globl	_AES_CBC_encrypt
+WC_ASM_ATT_HIDDEN(_AES_CBC_encrypt)
 .p2align	4
 _AES_CBC_encrypt:
 #endif /* __APPLE__ */
@@ -1943,6 +1955,7 @@ L_AES_CBC_encrypt_loop_nr:
 #if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_CTR_encrypt
+WC_ASM_ATT_HIDDEN(AES_CTR_encrypt)
 .type	AES_CTR_encrypt,@function
 .align	16
 AES_CTR_encrypt:
@@ -1954,6 +1967,7 @@ AES_CTR_encrypt:
 	 * points at the code (.L.AES_CTR_encrypt) and the TOC base. */
 .section	.opd,"aw",@progbits
 .globl	AES_CTR_encrypt
+WC_ASM_ATT_HIDDEN(AES_CTR_encrypt)
 .type	AES_CTR_encrypt,@function
 .align	3
 AES_CTR_encrypt:
@@ -1966,6 +1980,7 @@ AES_CTR_encrypt:
 #else
 .section	__TEXT,__text
 .globl	_AES_CTR_encrypt
+WC_ASM_ATT_HIDDEN(_AES_CTR_encrypt)
 .p2align	4
 _AES_CTR_encrypt:
 #endif /* __APPLE__ */
@@ -2361,6 +2376,7 @@ L_AES_CTR_encrypt_loop_nr:
 #if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_GCM_encrypt
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt)
 .type	AES_GCM_encrypt,@function
 .align	16
 AES_GCM_encrypt:
@@ -2372,6 +2388,7 @@ AES_GCM_encrypt:
 	 * points at the code (.L.AES_GCM_encrypt) and the TOC base. */
 .section	.opd,"aw",@progbits
 .globl	AES_GCM_encrypt
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt)
 .type	AES_GCM_encrypt,@function
 .align	3
 AES_GCM_encrypt:
@@ -2384,6 +2401,7 @@ AES_GCM_encrypt:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_encrypt
+WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt)
 .p2align	4
 _AES_GCM_encrypt:
 #endif /* __APPLE__ */
@@ -2779,6 +2797,7 @@ L_AES_GCM_encrypt_loop_nr:
 #if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_XTS_encrypt
+WC_ASM_ATT_HIDDEN(AES_XTS_encrypt)
 .type	AES_XTS_encrypt,@function
 .align	16
 AES_XTS_encrypt:
@@ -2790,6 +2809,7 @@ AES_XTS_encrypt:
 	 * points at the code (.L.AES_XTS_encrypt) and the TOC base. */
 .section	.opd,"aw",@progbits
 .globl	AES_XTS_encrypt
+WC_ASM_ATT_HIDDEN(AES_XTS_encrypt)
 .type	AES_XTS_encrypt,@function
 .align	3
 AES_XTS_encrypt:
@@ -2802,6 +2822,7 @@ AES_XTS_encrypt:
 #else
 .section	__TEXT,__text
 .globl	_AES_XTS_encrypt
+WC_ASM_ATT_HIDDEN(_AES_XTS_encrypt)
 .p2align	4
 _AES_XTS_encrypt:
 #endif /* __APPLE__ */
@@ -3925,6 +3946,7 @@ L_AES_PPC64_td4:
 #if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_ECB_decrypt
+WC_ASM_ATT_HIDDEN(AES_ECB_decrypt)
 .type	AES_ECB_decrypt,@function
 .align	16
 AES_ECB_decrypt:
@@ -3936,6 +3958,7 @@ AES_ECB_decrypt:
 	 * points at the code (.L.AES_ECB_decrypt) and the TOC base. */
 .section	.opd,"aw",@progbits
 .globl	AES_ECB_decrypt
+WC_ASM_ATT_HIDDEN(AES_ECB_decrypt)
 .type	AES_ECB_decrypt,@function
 .align	3
 AES_ECB_decrypt:
@@ -3948,6 +3971,7 @@ AES_ECB_decrypt:
 #else
 .section	__TEXT,__text
 .globl	_AES_ECB_decrypt
+WC_ASM_ATT_HIDDEN(_AES_ECB_decrypt)
 .p2align	4
 _AES_ECB_decrypt:
 #endif /* __APPLE__ */
@@ -4314,6 +4338,7 @@ L_AES_ECB_decrypt_loop_nr:
 #if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_CBC_decrypt
+WC_ASM_ATT_HIDDEN(AES_CBC_decrypt)
 .type	AES_CBC_decrypt,@function
 .align	16
 AES_CBC_decrypt:
@@ -4325,6 +4350,7 @@ AES_CBC_decrypt:
 	 * points at the code (.L.AES_CBC_decrypt) and the TOC base. */
 .section	.opd,"aw",@progbits
 .globl	AES_CBC_decrypt
+WC_ASM_ATT_HIDDEN(AES_CBC_decrypt)
 .type	AES_CBC_decrypt,@function
 .align	3
 AES_CBC_decrypt:
@@ -4337,6 +4363,7 @@ AES_CBC_decrypt:
 #else
 .section	__TEXT,__text
 .globl	_AES_CBC_decrypt
+WC_ASM_ATT_HIDDEN(_AES_CBC_decrypt)
 .p2align	4
 _AES_CBC_decrypt:
 #endif /* __APPLE__ */
@@ -5064,6 +5091,7 @@ L_AES_CBC_decrypt_end_dec:
 #if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_XTS_decrypt
+WC_ASM_ATT_HIDDEN(AES_XTS_decrypt)
 .type	AES_XTS_decrypt,@function
 .align	16
 AES_XTS_decrypt:
@@ -5075,6 +5103,7 @@ AES_XTS_decrypt:
 	 * points at the code (.L.AES_XTS_decrypt) and the TOC base. */
 .section	.opd,"aw",@progbits
 .globl	AES_XTS_decrypt
+WC_ASM_ATT_HIDDEN(AES_XTS_decrypt)
 .type	AES_XTS_decrypt,@function
 .align	3
 AES_XTS_decrypt:
@@ -5087,6 +5116,7 @@ AES_XTS_decrypt:
 #else
 .section	__TEXT,__text
 .globl	_AES_XTS_decrypt
+WC_ASM_ATT_HIDDEN(_AES_XTS_decrypt)
 .p2align	4
 _AES_XTS_decrypt:
 #endif /* __APPLE__ */
@@ -6532,6 +6562,7 @@ L_GCM_gmult_len_r:
 #if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	GCM_gmult_len
+WC_ASM_ATT_HIDDEN(GCM_gmult_len)
 .type	GCM_gmult_len,@function
 .align	16
 GCM_gmult_len:
@@ -6543,6 +6574,7 @@ GCM_gmult_len:
 	 * points at the code (.L.GCM_gmult_len) and the TOC base. */
 .section	.opd,"aw",@progbits
 .globl	GCM_gmult_len
+WC_ASM_ATT_HIDDEN(GCM_gmult_len)
 .type	GCM_gmult_len,@function
 .align	3
 GCM_gmult_len:
@@ -6555,6 +6587,7 @@ GCM_gmult_len:
 #else
 .section	__TEXT,__text
 .globl	_GCM_gmult_len
+WC_ASM_ATT_HIDDEN(_GCM_gmult_len)
 .p2align	4
 _GCM_gmult_len:
 #endif /* __APPLE__ */
@@ -7424,6 +7457,7 @@ L_GCM_gmult_len_r:
 #if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	GCM_gmult_len
+WC_ASM_ATT_HIDDEN(GCM_gmult_len)
 .type	GCM_gmult_len,@function
 .align	16
 GCM_gmult_len:
@@ -7435,6 +7469,7 @@ GCM_gmult_len:
 	 * points at the code (.L.GCM_gmult_len) and the TOC base. */
 .section	.opd,"aw",@progbits
 .globl	GCM_gmult_len
+WC_ASM_ATT_HIDDEN(GCM_gmult_len)
 .type	GCM_gmult_len,@function
 .align	3
 GCM_gmult_len:
@@ -7447,6 +7482,7 @@ GCM_gmult_len:
 #else
 .section	__TEXT,__text
 .globl	_GCM_gmult_len
+WC_ASM_ATT_HIDDEN(_GCM_gmult_len)
 .p2align	4
 _GCM_gmult_len:
 #endif /* __APPLE__ */
@@ -8021,6 +8057,7 @@ L_AES_PPC64_crypto_one:
 #if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_set_encrypt_key_crypto
+WC_ASM_ATT_HIDDEN(AES_set_encrypt_key_crypto)
 .type	AES_set_encrypt_key_crypto,@function
 .align	16
 AES_set_encrypt_key_crypto:
@@ -8032,6 +8069,7 @@ AES_set_encrypt_key_crypto:
 	 * points at the code (.L.AES_set_encrypt_key_crypto) and the TOC base. */
 .section	.opd,"aw",@progbits
 .globl	AES_set_encrypt_key_crypto
+WC_ASM_ATT_HIDDEN(AES_set_encrypt_key_crypto)
 .type	AES_set_encrypt_key_crypto,@function
 .align	3
 AES_set_encrypt_key_crypto:
@@ -8044,6 +8082,7 @@ AES_set_encrypt_key_crypto:
 #else
 .section	__TEXT,__text
 .globl	_AES_set_encrypt_key_crypto
+WC_ASM_ATT_HIDDEN(_AES_set_encrypt_key_crypto)
 .p2align	4
 _AES_set_encrypt_key_crypto:
 #endif /* __APPLE__ */
@@ -8406,6 +8445,7 @@ L_AES_set_encrypt_key_crypto_end:
 #if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_invert_key_crypto
+WC_ASM_ATT_HIDDEN(AES_invert_key_crypto)
 .type	AES_invert_key_crypto,@function
 .align	16
 AES_invert_key_crypto:
@@ -8417,6 +8457,7 @@ AES_invert_key_crypto:
 	 * points at the code (.L.AES_invert_key_crypto) and the TOC base. */
 .section	.opd,"aw",@progbits
 .globl	AES_invert_key_crypto
+WC_ASM_ATT_HIDDEN(AES_invert_key_crypto)
 .type	AES_invert_key_crypto,@function
 .align	3
 AES_invert_key_crypto:
@@ -8429,6 +8470,7 @@ AES_invert_key_crypto:
 #else
 .section	__TEXT,__text
 .globl	_AES_invert_key_crypto
+WC_ASM_ATT_HIDDEN(_AES_invert_key_crypto)
 .p2align	4
 _AES_invert_key_crypto:
 #endif /* __APPLE__ */
@@ -8474,6 +8516,7 @@ L_AES_invert_key_crypto_loop:
 #if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_ECB_encrypt_crypto
+WC_ASM_ATT_HIDDEN(AES_ECB_encrypt_crypto)
 .type	AES_ECB_encrypt_crypto,@function
 .align	16
 AES_ECB_encrypt_crypto:
@@ -8485,6 +8528,7 @@ AES_ECB_encrypt_crypto:
 	 * points at the code (.L.AES_ECB_encrypt_crypto) and the TOC base. */
 .section	.opd,"aw",@progbits
 .globl	AES_ECB_encrypt_crypto
+WC_ASM_ATT_HIDDEN(AES_ECB_encrypt_crypto)
 .type	AES_ECB_encrypt_crypto,@function
 .align	3
 AES_ECB_encrypt_crypto:
@@ -8497,6 +8541,7 @@ AES_ECB_encrypt_crypto:
 #else
 .section	__TEXT,__text
 .globl	_AES_ECB_encrypt_crypto
+WC_ASM_ATT_HIDDEN(_AES_ECB_encrypt_crypto)
 .p2align	4
 _AES_ECB_encrypt_crypto:
 #endif /* __APPLE__ */
@@ -10091,6 +10136,7 @@ L_AES_ECB_encrypt_crypto_alldone:
 #if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_ECB_decrypt_crypto
+WC_ASM_ATT_HIDDEN(AES_ECB_decrypt_crypto)
 .type	AES_ECB_decrypt_crypto,@function
 .align	16
 AES_ECB_decrypt_crypto:
@@ -10102,6 +10148,7 @@ AES_ECB_decrypt_crypto:
 	 * points at the code (.L.AES_ECB_decrypt_crypto) and the TOC base. */
 .section	.opd,"aw",@progbits
 .globl	AES_ECB_decrypt_crypto
+WC_ASM_ATT_HIDDEN(AES_ECB_decrypt_crypto)
 .type	AES_ECB_decrypt_crypto,@function
 .align	3
 AES_ECB_decrypt_crypto:
@@ -10114,6 +10161,7 @@ AES_ECB_decrypt_crypto:
 #else
 .section	__TEXT,__text
 .globl	_AES_ECB_decrypt_crypto
+WC_ASM_ATT_HIDDEN(_AES_ECB_decrypt_crypto)
 .p2align	4
 _AES_ECB_decrypt_crypto:
 #endif /* __APPLE__ */
@@ -11709,6 +11757,7 @@ L_AES_ECB_decrypt_crypto_alldone:
 #if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_CBC_encrypt_crypto
+WC_ASM_ATT_HIDDEN(AES_CBC_encrypt_crypto)
 .type	AES_CBC_encrypt_crypto,@function
 .align	16
 AES_CBC_encrypt_crypto:
@@ -11720,6 +11769,7 @@ AES_CBC_encrypt_crypto:
 	 * points at the code (.L.AES_CBC_encrypt_crypto) and the TOC base. */
 .section	.opd,"aw",@progbits
 .globl	AES_CBC_encrypt_crypto
+WC_ASM_ATT_HIDDEN(AES_CBC_encrypt_crypto)
 .type	AES_CBC_encrypt_crypto,@function
 .align	3
 AES_CBC_encrypt_crypto:
@@ -11732,6 +11782,7 @@ AES_CBC_encrypt_crypto:
 #else
 .section	__TEXT,__text
 .globl	_AES_CBC_encrypt_crypto
+WC_ASM_ATT_HIDDEN(_AES_CBC_encrypt_crypto)
 .p2align	4
 _AES_CBC_encrypt_crypto:
 #endif /* __APPLE__ */
@@ -11983,6 +12034,7 @@ L_AES_CBC_encrypt_crypto_alldone:
 #if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_CBC_decrypt_crypto
+WC_ASM_ATT_HIDDEN(AES_CBC_decrypt_crypto)
 .type	AES_CBC_decrypt_crypto,@function
 .align	16
 AES_CBC_decrypt_crypto:
@@ -11994,6 +12046,7 @@ AES_CBC_decrypt_crypto:
 	 * points at the code (.L.AES_CBC_decrypt_crypto) and the TOC base. */
 .section	.opd,"aw",@progbits
 .globl	AES_CBC_decrypt_crypto
+WC_ASM_ATT_HIDDEN(AES_CBC_decrypt_crypto)
 .type	AES_CBC_decrypt_crypto,@function
 .align	3
 AES_CBC_decrypt_crypto:
@@ -12006,6 +12059,7 @@ AES_CBC_decrypt_crypto:
 #else
 .section	__TEXT,__text
 .globl	_AES_CBC_decrypt_crypto
+WC_ASM_ATT_HIDDEN(_AES_CBC_decrypt_crypto)
 .p2align	4
 _AES_CBC_decrypt_crypto:
 #endif /* __APPLE__ */
@@ -13851,6 +13905,7 @@ L_AES_CBC_decrypt_crypto_alldone:
 #if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_CTR_encrypt_crypto
+WC_ASM_ATT_HIDDEN(AES_CTR_encrypt_crypto)
 .type	AES_CTR_encrypt_crypto,@function
 .align	16
 AES_CTR_encrypt_crypto:
@@ -13862,6 +13917,7 @@ AES_CTR_encrypt_crypto:
 	 * points at the code (.L.AES_CTR_encrypt_crypto) and the TOC base. */
 .section	.opd,"aw",@progbits
 .globl	AES_CTR_encrypt_crypto
+WC_ASM_ATT_HIDDEN(AES_CTR_encrypt_crypto)
 .type	AES_CTR_encrypt_crypto,@function
 .align	3
 AES_CTR_encrypt_crypto:
@@ -13874,6 +13930,7 @@ AES_CTR_encrypt_crypto:
 #else
 .section	__TEXT,__text
 .globl	_AES_CTR_encrypt_crypto
+WC_ASM_ATT_HIDDEN(_AES_CTR_encrypt_crypto)
 .p2align	4
 _AES_CTR_encrypt_crypto:
 #endif /* __APPLE__ */
@@ -15904,6 +15961,7 @@ L_AES_CTR_encrypt_crypto_alldone:
 #if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_GCM_encrypt_crypto
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_crypto)
 .type	AES_GCM_encrypt_crypto,@function
 .align	16
 AES_GCM_encrypt_crypto:
@@ -15915,6 +15973,7 @@ AES_GCM_encrypt_crypto:
 	 * points at the code (.L.AES_GCM_encrypt_crypto) and the TOC base. */
 .section	.opd,"aw",@progbits
 .globl	AES_GCM_encrypt_crypto
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_crypto)
 .type	AES_GCM_encrypt_crypto,@function
 .align	3
 AES_GCM_encrypt_crypto:
@@ -15927,6 +15986,7 @@ AES_GCM_encrypt_crypto:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_encrypt_crypto
+WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt_crypto)
 .p2align	4
 _AES_GCM_encrypt_crypto:
 #endif /* __APPLE__ */
@@ -17957,6 +18017,7 @@ L_AES_GCM_encrypt_crypto_alldone:
 #if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_XTS_encrypt_crypto
+WC_ASM_ATT_HIDDEN(AES_XTS_encrypt_crypto)
 .type	AES_XTS_encrypt_crypto,@function
 .align	16
 AES_XTS_encrypt_crypto:
@@ -17968,6 +18029,7 @@ AES_XTS_encrypt_crypto:
 	 * points at the code (.L.AES_XTS_encrypt_crypto) and the TOC base. */
 .section	.opd,"aw",@progbits
 .globl	AES_XTS_encrypt_crypto
+WC_ASM_ATT_HIDDEN(AES_XTS_encrypt_crypto)
 .type	AES_XTS_encrypt_crypto,@function
 .align	3
 AES_XTS_encrypt_crypto:
@@ -17980,6 +18042,7 @@ AES_XTS_encrypt_crypto:
 #else
 .section	__TEXT,__text
 .globl	_AES_XTS_encrypt_crypto
+WC_ASM_ATT_HIDDEN(_AES_XTS_encrypt_crypto)
 .p2align	4
 _AES_XTS_encrypt_crypto:
 #endif /* __APPLE__ */
@@ -21950,6 +22013,7 @@ L_AES_XTS_encrypt_crypto_alldone:
 #if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_XTS_decrypt_crypto
+WC_ASM_ATT_HIDDEN(AES_XTS_decrypt_crypto)
 .type	AES_XTS_decrypt_crypto,@function
 .align	16
 AES_XTS_decrypt_crypto:
@@ -21961,6 +22025,7 @@ AES_XTS_decrypt_crypto:
 	 * points at the code (.L.AES_XTS_decrypt_crypto) and the TOC base. */
 .section	.opd,"aw",@progbits
 .globl	AES_XTS_decrypt_crypto
+WC_ASM_ATT_HIDDEN(AES_XTS_decrypt_crypto)
 .type	AES_XTS_decrypt_crypto,@function
 .align	3
 AES_XTS_decrypt_crypto:
@@ -21973,6 +22038,7 @@ AES_XTS_decrypt_crypto:
 #else
 .section	__TEXT,__text
 .globl	_AES_XTS_decrypt_crypto
+WC_ASM_ATT_HIDDEN(_AES_XTS_decrypt_crypto)
 .p2align	4
 _AES_XTS_decrypt_crypto:
 #endif /* __APPLE__ */

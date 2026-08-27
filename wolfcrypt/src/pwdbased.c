@@ -19,6 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#define WC_FIPS_LL_CRYPTO
 #define _WC_BUILDING_PWDBASED_C
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
@@ -26,9 +27,6 @@
 #ifndef NO_PWDBASED
 
 #if FIPS_VERSION3_GE(6,0,0)
-    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
-    #define FIPS_NO_WRAPPERS
-
        #ifdef USE_WINDOWS_API
                #pragma code_seg(".fipsA$h")
                #pragma const_seg(".fipsB$h")
@@ -472,6 +470,9 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
     if (ret == 0)
         return BAD_STATE_E;
     v = (word32)ret;
+    /* the block size must not be mistaken for a result when kLen is 0 and the
+     * derivation loop below never runs */
+    ret = 0;
 
 #ifdef WOLFSSL_SMALL_STACK
     Ai = (byte*)XMALLOC(WC_MAX_DIGEST_SIZE, heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -501,7 +502,8 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
         return BAD_FUNC_ARG;
     }
 
-    if (! WC_SAFE_SUM_UNSIGNED(word32, dLen, sLen, totalLen)) {
+    /* the working buffer holds D || S || P, so totalLen is dLen + iLen */
+    if (! WC_SAFE_SUM_UNSIGNED(word32, dLen, iLen, totalLen)) {
         WC_FREE_VAR_EX(Ai, heap, DYNAMIC_TYPE_TMP_BUFFER);
         WC_FREE_VAR_EX(B, heap, DYNAMIC_TYPE_TMP_BUFFER);
         return BAD_FUNC_ARG;
@@ -983,10 +985,12 @@ static void scryptROMix(byte* x, byte* v, byte* y, int r, word32 n)
     for (i = 0; i < n; i++)
     {
 #ifdef LITTLE_ENDIAN_ORDER
-#ifdef WORD64_AVAILABLE
-        j = (word32)(*(word64*)(x + (2*r - 1) * 64) & (n-1));
+        /* x is an allocator byte array; the big-endian path below already
+         * assembles this byte-wise. */
+#if defined(WORD64_AVAILABLE) && !defined(WOLFSSL_NO_WORD64_OPS)
+        j = (word32)(readUnalignedWord64(x + (2*r - 1) * 64) & (n-1));
 #else
-        j = *(word32*)(x + (2*r - 1) * 64) & (n-1);
+        j = readUnalignedWord32(x + (2*r - 1) * 64) & (n-1);
 #endif
 #else
         byte* t = x + (2*r - 1) * 64;

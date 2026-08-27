@@ -422,6 +422,20 @@ int test_wolfSSL_X509_check_host(void)
     ExpectIntEQ(wolfSSL_X509_check_host(x509, altName, XSTRLEN(altName),
         WOLFSSL_MULTI_LABEL_WILDCARDS, NULL), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
 
+    /* chk of exactly chklen bytes with no terminator - every consumer must
+     * stay within the caller's declared length. */
+    {
+        char* bounded = (char*)XMALLOC(XSTRLEN(altName), NULL,
+                                       DYNAMIC_TYPE_TMP_BUFFER);
+        ExpectNotNull(bounded);
+        if (bounded != NULL) {
+            XMEMCPY(bounded, altName, XSTRLEN(altName));
+            ExpectIntEQ(X509_check_host(x509, bounded, XSTRLEN(altName), 0,
+                    NULL), WOLFSSL_SUCCESS);
+            XFREE(bounded, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+    }
+
     X509_free(x509);
 
     ExpectIntEQ(X509_check_host(NULL, altName, XSTRLEN(altName), 0, NULL),
@@ -431,6 +445,40 @@ int test_wolfSSL_X509_check_host(void)
     ExpectIntEQ(X509_check_host(NULL, altName, XSTRLEN(altName),
             WOLFSSL_LEFT_MOST_WILDCARD_ONLY, NULL),
             WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_X509_check_host_len(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) \
+    && !defined(NO_SHA) && !defined(NO_RSA) && defined(WOLFSSL_IP_ALT_NAME)
+    /* chk is length delimited and need not be NUL terminated, so nothing
+     * past chk[chklen - 1] may be read. */
+    X509* x509 = NULL;
+    const char sliced[] = "127.0.0.1extra";
+    const size_t ipLen = 9; /* length of "127.0.0.1" */
+    char* exact = NULL;
+
+    /* cliCertFile has subjectAltName set to 'example.com', '127.0.0.1' */
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(cliCertFile,
+                SSL_FILETYPE_PEM));
+
+    /* An interior slice of a longer buffer must match the iPAddress SAN. */
+    ExpectIntEQ(X509_check_host(x509, sliced, ipLen, 0, NULL),
+            WOLFSSL_SUCCESS);
+
+    /* Same name in a buffer sized exactly to it, with no terminator. */
+    ExpectNotNull(exact = (char*)XMALLOC(ipLen, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    if (exact != NULL) {
+        XMEMCPY(exact, "127.0.0.1", ipLen);
+        ExpectIntEQ(X509_check_host(x509, exact, ipLen, 0, NULL),
+                WOLFSSL_SUCCESS);
+    }
+    XFREE(exact, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    X509_free(x509);
 #endif
     return EXPECT_RESULT();
 }

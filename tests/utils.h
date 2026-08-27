@@ -51,6 +51,24 @@ extern const char* currentTestName;
 #define HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD
 #endif
 
+/* With WOLFSSL_RW_THREADED the read path never transmits, so anything a read
+ * schedules to be sent, an ACK in particular, is only sent from the write
+ * side. Stand in for the application, which is required to pump that work
+ * from its write thread. A no-op in builds where reads send for themselves. */
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_RW_THREADED) && \
+    !defined(WOLFSSL_LEANPSK)
+    #define TEST_DTLS13_PUMP(ssl)                                             \
+        do {                                                                  \
+            ExpectIntEQ(wolfSSL_dtls13_do_scheduled_work(ssl),                \
+                WOLFSSL_SUCCESS);                                             \
+        } while (0)
+#else
+    #define TEST_DTLS13_PUMP(ssl)                                             \
+        do {                                                                  \
+            (void)(ssl);                                                      \
+        } while (0)
+#endif
+
 #ifdef HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD
 #define TEST_MEMIO_BUF_SZ (64 * 1024)
 #define TEST_MEMIO_MAX_MSGS 32

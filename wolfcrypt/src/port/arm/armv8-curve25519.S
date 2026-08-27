@@ -38,12 +38,14 @@
 #ifndef __APPLE__
 .text
 .globl	fe_init
+WC_ASM_ATT_HIDDEN(fe_init)
 .type	fe_init,@function
 .align	2
 fe_init:
 #else
 .section	__TEXT,__text
 .globl	_fe_init
+WC_ASM_ATT_HIDDEN(_fe_init)
 .p2align	2
 _fe_init:
 #endif /* __APPLE__ */
@@ -54,12 +56,14 @@ _fe_init:
 #ifndef __APPLE__
 .text
 .globl	fe_frombytes
+WC_ASM_ATT_HIDDEN(fe_frombytes)
 .type	fe_frombytes,@function
 .align	2
 fe_frombytes:
 #else
 .section	__TEXT,__text
 .globl	_fe_frombytes
+WC_ASM_ATT_HIDDEN(_fe_frombytes)
 .p2align	2
 _fe_frombytes:
 #endif /* __APPLE__ */
@@ -75,12 +79,14 @@ _fe_frombytes:
 #ifndef __APPLE__
 .text
 .globl	fe_tobytes
+WC_ASM_ATT_HIDDEN(fe_tobytes)
 .type	fe_tobytes,@function
 .align	2
 fe_tobytes:
 #else
 .section	__TEXT,__text
 .globl	_fe_tobytes
+WC_ASM_ATT_HIDDEN(_fe_tobytes)
 .p2align	2
 _fe_tobytes:
 #endif /* __APPLE__ */
@@ -106,12 +112,14 @@ _fe_tobytes:
 #ifndef __APPLE__
 .text
 .globl	fe_1
+WC_ASM_ATT_HIDDEN(fe_1)
 .type	fe_1,@function
 .align	2
 fe_1:
 #else
 .section	__TEXT,__text
 .globl	_fe_1
+WC_ASM_ATT_HIDDEN(_fe_1)
 .p2align	2
 _fe_1:
 #endif /* __APPLE__ */
@@ -126,12 +134,14 @@ _fe_1:
 #ifndef __APPLE__
 .text
 .globl	fe_0
+WC_ASM_ATT_HIDDEN(fe_0)
 .type	fe_0,@function
 .align	2
 fe_0:
 #else
 .section	__TEXT,__text
 .globl	_fe_0
+WC_ASM_ATT_HIDDEN(_fe_0)
 .p2align	2
 _fe_0:
 #endif /* __APPLE__ */
@@ -145,12 +155,14 @@ _fe_0:
 #ifndef __APPLE__
 .text
 .globl	fe_copy
+WC_ASM_ATT_HIDDEN(fe_copy)
 .type	fe_copy,@function
 .align	2
 fe_copy:
 #else
 .section	__TEXT,__text
 .globl	_fe_copy
+WC_ASM_ATT_HIDDEN(_fe_copy)
 .p2align	2
 _fe_copy:
 #endif /* __APPLE__ */
@@ -166,12 +178,14 @@ _fe_copy:
 #ifndef __APPLE__
 .text
 .globl	fe_sub
+WC_ASM_ATT_HIDDEN(fe_sub)
 .type	fe_sub,@function
 .align	2
 fe_sub:
 #else
 .section	__TEXT,__text
 .globl	_fe_sub
+WC_ASM_ATT_HIDDEN(_fe_sub)
 .p2align	2
 _fe_sub:
 #endif /* __APPLE__ */
@@ -204,12 +218,14 @@ _fe_sub:
 #ifndef __APPLE__
 .text
 .globl	fe_add
+WC_ASM_ATT_HIDDEN(fe_add)
 .type	fe_add,@function
 .align	2
 fe_add:
 #else
 .section	__TEXT,__text
 .globl	_fe_add
+WC_ASM_ATT_HIDDEN(_fe_add)
 .p2align	2
 _fe_add:
 #endif /* __APPLE__ */
@@ -242,12 +258,14 @@ _fe_add:
 #ifndef __APPLE__
 .text
 .globl	fe_neg
+WC_ASM_ATT_HIDDEN(fe_neg)
 .type	fe_neg,@function
 .align	2
 fe_neg:
 #else
 .section	__TEXT,__text
 .globl	_fe_neg
+WC_ASM_ATT_HIDDEN(_fe_neg)
 .p2align	2
 _fe_neg:
 #endif /* __APPLE__ */
@@ -270,12 +288,14 @@ _fe_neg:
 #ifndef __APPLE__
 .text
 .globl	fe_isnonzero
+WC_ASM_ATT_HIDDEN(fe_isnonzero)
 .type	fe_isnonzero,@function
 .align	2
 fe_isnonzero:
 #else
 .section	__TEXT,__text
 .globl	_fe_isnonzero
+WC_ASM_ATT_HIDDEN(_fe_isnonzero)
 .p2align	2
 _fe_isnonzero:
 #endif /* __APPLE__ */
@@ -302,12 +322,14 @@ _fe_isnonzero:
 #ifndef __APPLE__
 .text
 .globl	fe_isnegative
+WC_ASM_ATT_HIDDEN(fe_isnegative)
 .type	fe_isnegative,@function
 .align	2
 fe_isnegative:
 #else
 .section	__TEXT,__text
 .globl	_fe_isnegative
+WC_ASM_ATT_HIDDEN(_fe_isnegative)
 .p2align	2
 _fe_isnegative:
 #endif /* __APPLE__ */
@@ -327,12 +349,14 @@ _fe_isnegative:
 #ifndef __APPLE__
 .text
 .globl	fe_cmov_table
+WC_ASM_ATT_HIDDEN(fe_cmov_table)
 .type	fe_cmov_table,@function
 .align	2
 fe_cmov_table:
 #else
 .section	__TEXT,__text
 .globl	_fe_cmov_table
+WC_ASM_ATT_HIDDEN(_fe_cmov_table)
 .p2align	2
 _fe_cmov_table:
 #endif /* __APPLE__ */
@@ -560,12 +584,14 @@ _fe_cmov_table:
 #ifndef __APPLE__
 .text
 .globl	fe_invert_nct
+WC_ASM_ATT_HIDDEN(fe_invert_nct)
 .type	fe_invert_nct,@function
 .align	2
 fe_invert_nct:
 #else
 .section	__TEXT,__text
 .globl	_fe_invert_nct
+WC_ASM_ATT_HIDDEN(_fe_invert_nct)
 .p2align	2
 _fe_invert_nct:
 #endif /* __APPLE__ */
@@ -807,12 +833,14 @@ L_fe_invert_nct_done:
 #ifndef __APPLE__
 .text
 .globl	fe_mul
+WC_ASM_ATT_HIDDEN(fe_mul)
 .type	fe_mul,@function
 .align	2
 fe_mul:
 #else
 .section	__TEXT,__text
 .globl	_fe_mul
+WC_ASM_ATT_HIDDEN(_fe_mul)
 .p2align	2
 _fe_mul:
 #endif /* __APPLE__ */
@@ -958,12 +986,14 @@ _fe_mul:
 #ifndef __APPLE__
 .text
 .globl	fe_sq
+WC_ASM_ATT_HIDDEN(fe_sq)
 .type	fe_sq,@function
 .align	2
 fe_sq:
 #else
 .section	__TEXT,__text
 .globl	_fe_sq
+WC_ASM_ATT_HIDDEN(_fe_sq)
 .p2align	2
 _fe_sq:
 #endif /* __APPLE__ */
@@ -1067,12 +1097,14 @@ _fe_sq:
 #ifndef __APPLE__
 .text
 .globl	fe_invert
+WC_ASM_ATT_HIDDEN(fe_invert)
 .type	fe_invert,@function
 .align	2
 fe_invert:
 #else
 .section	__TEXT,__text
 .globl	_fe_invert
+WC_ASM_ATT_HIDDEN(_fe_invert)
 .p2align	2
 _fe_invert:
 #endif /* __APPLE__ */
@@ -1963,12 +1995,14 @@ L_curve25519_base_x2:
 #ifndef __APPLE__
 .text
 .globl	curve25519_base
+WC_ASM_ATT_HIDDEN(curve25519_base)
 .type	curve25519_base,@function
 .align	2
 curve25519_base:
 #else
 .section	__TEXT,__text
 .globl	_curve25519_base
+WC_ASM_ATT_HIDDEN(_curve25519_base)
 .p2align	2
 _curve25519_base:
 #endif /* __APPLE__ */
@@ -4497,12 +4531,14 @@ L_curve25519_base_inv_8:
 #ifndef __APPLE__
 .text
 .globl	curve25519
+WC_ASM_ATT_HIDDEN(curve25519)
 .type	curve25519,@function
 .align	2
 curve25519:
 #else
 .section	__TEXT,__text
 .globl	_curve25519
+WC_ASM_ATT_HIDDEN(_curve25519)
 .p2align	2
 _curve25519:
 #endif /* __APPLE__ */
@@ -7117,12 +7153,14 @@ L_curve25519_inv_8:
 #ifndef __APPLE__
 .text
 .globl	fe_pow22523
+WC_ASM_ATT_HIDDEN(fe_pow22523)
 .type	fe_pow22523,@function
 .align	2
 fe_pow22523:
 #else
 .section	__TEXT,__text
 .globl	_fe_pow22523
+WC_ASM_ATT_HIDDEN(_fe_pow22523)
 .p2align	2
 _fe_pow22523:
 #endif /* __APPLE__ */
@@ -7927,12 +7965,14 @@ L_fe_pow22523_7:
 #ifndef __APPLE__
 .text
 .globl	ge_p1p1_to_p2
+WC_ASM_ATT_HIDDEN(ge_p1p1_to_p2)
 .type	ge_p1p1_to_p2,@function
 .align	2
 ge_p1p1_to_p2:
 #else
 .section	__TEXT,__text
 .globl	_ge_p1p1_to_p2
+WC_ASM_ATT_HIDDEN(_ge_p1p1_to_p2)
 .p2align	2
 _ge_p1p1_to_p2:
 #endif /* __APPLE__ */
@@ -8310,12 +8350,14 @@ _ge_p1p1_to_p2:
 #ifndef __APPLE__
 .text
 .globl	ge_p1p1_to_p3
+WC_ASM_ATT_HIDDEN(ge_p1p1_to_p3)
 .type	ge_p1p1_to_p3,@function
 .align	2
 ge_p1p1_to_p3:
 #else
 .section	__TEXT,__text
 .globl	_ge_p1p1_to_p3
+WC_ASM_ATT_HIDDEN(_ge_p1p1_to_p3)
 .p2align	2
 _ge_p1p1_to_p3:
 #endif /* __APPLE__ */
@@ -8813,12 +8855,14 @@ _ge_p1p1_to_p3:
 #ifndef __APPLE__
 .text
 .globl	ge_p2_dbl
+WC_ASM_ATT_HIDDEN(ge_p2_dbl)
 .type	ge_p2_dbl,@function
 .align	2
 ge_p2_dbl:
 #else
 .section	__TEXT,__text
 .globl	_ge_p2_dbl
+WC_ASM_ATT_HIDDEN(_ge_p2_dbl)
 .p2align	2
 _ge_p2_dbl:
 #endif /* __APPLE__ */
@@ -9293,12 +9337,14 @@ _ge_p2_dbl:
 #ifndef __APPLE__
 .text
 .globl	ge_madd
+WC_ASM_ATT_HIDDEN(ge_madd)
 .type	ge_madd,@function
 .align	2
 ge_madd:
 #else
 .section	__TEXT,__text
 .globl	_ge_madd
+WC_ASM_ATT_HIDDEN(_ge_madd)
 .p2align	2
 _ge_madd:
 #endif /* __APPLE__ */
@@ -9808,12 +9854,14 @@ _ge_madd:
 #ifndef __APPLE__
 .text
 .globl	ge_msub
+WC_ASM_ATT_HIDDEN(ge_msub)
 .type	ge_msub,@function
 .align	2
 ge_msub:
 #else
 .section	__TEXT,__text
 .globl	_ge_msub
+WC_ASM_ATT_HIDDEN(_ge_msub)
 .p2align	2
 _ge_msub:
 #endif /* __APPLE__ */
@@ -10323,12 +10371,14 @@ _ge_msub:
 #ifndef __APPLE__
 .text
 .globl	ge_add
+WC_ASM_ATT_HIDDEN(ge_add)
 .type	ge_add,@function
 .align	2
 ge_add:
 #else
 .section	__TEXT,__text
 .globl	_ge_add
+WC_ASM_ATT_HIDDEN(_ge_add)
 .p2align	2
 _ge_add:
 #endif /* __APPLE__ */
@@ -10964,12 +11014,14 @@ _ge_add:
 #ifndef __APPLE__
 .text
 .globl	ge_sub
+WC_ASM_ATT_HIDDEN(ge_sub)
 .type	ge_sub,@function
 .align	2
 ge_sub:
 #else
 .section	__TEXT,__text
 .globl	_ge_sub
+WC_ASM_ATT_HIDDEN(_ge_sub)
 .p2align	2
 _ge_sub:
 #endif /* __APPLE__ */
@@ -11621,12 +11673,14 @@ _ge_sub:
 #ifndef __APPLE__
 .text
 .globl	sc_reduce
+WC_ASM_ATT_HIDDEN(sc_reduce)
 .type	sc_reduce,@function
 .align	2
 sc_reduce:
 #else
 .section	__TEXT,__text
 .globl	_sc_reduce
+WC_ASM_ATT_HIDDEN(_sc_reduce)
 .p2align	2
 _sc_reduce:
 #endif /* __APPLE__ */
@@ -11820,12 +11874,14 @@ _sc_reduce:
 #ifndef __APPLE__
 .text
 .globl	sc_muladd
+WC_ASM_ATT_HIDDEN(sc_muladd)
 .type	sc_muladd,@function
 .align	2
 sc_muladd:
 #else
 .section	__TEXT,__text
 .globl	_sc_muladd
+WC_ASM_ATT_HIDDEN(_sc_muladd)
 .p2align	2
 _sc_muladd:
 #endif /* __APPLE__ */

@@ -2,6 +2,17 @@
 
 # external.test
 
+# timeout(1) is GNU coreutils and absent on macOS; where it's missing, run the
+# command unbounded (the flaky hang this guards against is Linux-only CI).
+# A prefix variable rather than a shell function: backgrounding a function
+# makes $! the forked subshell, so a later "kill $server_pid" would stop the
+# wrapper and orphan the server it was meant to kill.
+if command -v timeout >/dev/null 2>&1; then
+    TIMEOUT_KILL_2M="timeout -s KILL 2m"
+else
+    TIMEOUT_KILL_2M=""
+fi
+
 SCRIPT_DIR="$(dirname "$0")"
 
 server=www.wolfssl.com
@@ -45,7 +56,7 @@ RESULT=$?
 [ $RESULT -ne 0 ] && exit 0
 
 # client test against the server
-./examples/client/client -X -C -h $server -p 443 -g -A $ca
+$TIMEOUT_KILL_2M ./examples/client/client -X -C -h $server -p 443 -g -A $ca
 RESULT=$?
 [ $RESULT -ne 0 ] && echo -e "\n\nClient connection failed" && exit 1
 

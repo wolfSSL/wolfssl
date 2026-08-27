@@ -1,0 +1,59 @@
+name: Workflow Health
+
+# Catches workflows that GitHub is failing to load.
+#
+# Such a workflow does not fail loudly: its runs end within 0s with zero
+# jobs, no logs and no annotations, so the coverage it provided is gone
+# while the PR page still shows hundreds of green checks. os-check.yml sat
+# broken on master for ten days in July 2026 before anyone noticed.
+#
+# check-source-text.yml lints workflow files pre-merge for the one cause
+# we know about (the 21000 character per-run-step cap). This job is the
+# net underneath that: it looks for the symptom instead of the cause, so a
+# workflow that stops loading for an unanticipated reason is still caught,
+# and it files a GitHub issue rather than adding one more red check that
+# would blend in with the rest.
+#
+# Known gap: this workflow cannot detect its own failure to load. If this
+# file stops loading it goes quiet in exactly the way it exists to
+# prevent, and nothing here reports that. The pre-merge lint covers the
+# size cause for this file as much as any other; the remaining causes are
+# uncovered, and closing that properly needs a checker outside this
+# repository. If the issue this opens has been quiet for a long stretch,
+# confirm the workflow is still running rather than assuming all is well.
+
+on:
+  schedule:
+    # Daily, shortly after the weekday os-check ccache seed at 10:00 UTC
+    # so a load failure there is picked up in the same cycle.
+    - cron: '30 11 * * *'
+  # Lets a maintainer confirm a fix without waiting for the next cron.
+  workflow_dispatch:
+
+concurrency:
+  group: workflow-health
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  # Reading run/job metadata for every workflow in the repo.
+  actions: read
+  # Opening, updating and closing the tracking issue.
+  issues: write
+
+jobs:
+  check:
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      # The script exits non-zero while any workflow is failing to load,
+      # which is what surfaces this run as failed. The issue it files is
+      # the part meant to be noticed; the red run is a backstop.
+      - name: Detect workflows failing to load
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          .github/scripts/check-workflow-health.py --repo "$GITHUB_REPOSITORY"

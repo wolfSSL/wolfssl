@@ -27,6 +27,7 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
 
 */
 
+#define WC_FIPS_LL_CRYPTO
 #define _WC_BUILDING_RSA_C
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
@@ -34,9 +35,6 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
 #ifndef NO_RSA
 
 #if FIPS_VERSION3_GE(2,0,0)
-    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
-    #define FIPS_NO_WRAPPERS
-
        #ifdef USE_WINDOWS_API
                #pragma code_seg(".fipsA$j")
                #pragma const_seg(".fipsB$j")
@@ -387,8 +385,8 @@ int wc_InitRsaKey_Id(RsaKey* key, unsigned char* id, int len, void* heap,
 {
     int ret = 0;
 #if defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_NO_RSA)
-    /* SE050 TLS users store a word32 at id, need to cast back */
-    word32* keyPtr = NULL;
+    /* SE050 TLS users store a word32 at id, need to read it back */
+    word32 keyId = 0;
 #endif
 
     if (key == NULL)
@@ -403,8 +401,8 @@ int wc_InitRsaKey_Id(RsaKey* key, unsigned char* id, int len, void* heap,
     #if defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_NO_RSA)
         /* Set SE050 ID from word32, populate RsaKey with public from SE050 */
         if (len == (int)sizeof(word32)) {
-            keyPtr = (word32*)key->id;
-            ret = wc_RsaUseKeyId(key, *keyPtr, 0);
+            keyId = readUnalignedWord32(key->id);
+            ret = wc_RsaUseKeyId(key, keyId, 0);
         }
     #endif
     }
@@ -1825,7 +1823,7 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
     if (ret != 0) {
         ForceZero(tmp, hLen);
 #ifdef WOLFSSL_SMALL_STACK
-        XFREE(tmp, NULL, DYNAMIC_TYPE_RSA_BUFFER);
+        XFREE(tmp, heap, DYNAMIC_TYPE_RSA_BUFFER);
 #elif defined(WOLFSSL_CHECK_MEM_ZERO)
         wc_MemZero_Check(tmp, hLen);
 #endif
@@ -1979,8 +1977,16 @@ static int RsaUnPad_PSS(byte *pkcsBlock, unsigned int pkcsBlockLen,
         return ret;
     }
 
-    tmp[0] &= (byte)((1 << bits) - 1);
-    pkcsBlock[0] &= (byte)((1 << bits) - 1);
+    /* When bits==0, the modulus bit length is congruent to 1 mod 8, so
+     * the encoded block includes a leading 0x00 byte and pkcsBlock was
+     * already advanced past it (see above); no masking is needed.
+     * (1<<0)-1 == 0 would zero both bytes and corrupt the XOR separator
+     * check below.  RsaPad_PSS guards the same step with "if (hiBits)"
+     * for the same reason. */
+    if (bits) {
+        tmp[0] &= (byte)((1 << bits) - 1);
+        pkcsBlock[0] &= (byte)((1 << bits) - 1);
+    }
 #ifdef WOLFSSL_PSS_SALT_LEN_DISCOVER
     if (saltLen == RSA_PSS_SALT_LEN_DISCOVER) {
         for (i = 0; i < maskLen - 1; i++) {
@@ -2178,6 +2184,12 @@ int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen, byte** out,
     return ret;
 }
 
+#if defined(HAVE_FIPS) && \
+    !defined(WOLFSSL_FIPS_READY) && !defined(WOLFSSL_FIPS_DEV)
+PRAGMA_DIAG_PUSH
+PRAGMA("GCC diagnostic ignored \"-Wswitch-enum\"")
+#endif
+
 int wc_hash2mgf(enum wc_HashType hType)
 {
     switch (hType) {
@@ -2277,6 +2289,11 @@ int wc_hash2mgf(enum wc_HashType hType)
     WOLFSSL_MSG("Unrecognized or unsupported hash function");
     return WC_MGF1NONE;
 }
+
+#if defined(HAVE_FIPS) && \
+    !defined(WOLFSSL_FIPS_READY) && !defined(WOLFSSL_FIPS_DEV)
+PRAGMA_DIAG_POP
+#endif
 
 #ifdef WC_RSA_NONBLOCK
 static int wc_RsaFunctionNonBlock(const byte* in, word32 inLen, byte* out,
@@ -2867,6 +2884,7 @@ static int RsaFunctionPrivate(mp_int* tmp, RsaKey* key, WC_RNG* rng)
     mp_digit mp = 0;
     DECL_MP_INT_SIZE_DYN(rnd, mp_bitsused(&key->n), RSA_MAX_SIZE);
     DECL_MP_INT_SIZE_DYN(rndi, mp_bitsused(&key->n), RSA_MAX_SIZE);
+    DECL_MP_INT_SIZE_DYN(mask, mp_bitsused(&key->n), RSA_MAX_SIZE);
 #endif /* WC_RSA_BLINDING && !WC_NO_RNG */
 
     if (MP_BITS_OVER_MAX(mp_bitsused(&key->n), RSA_MAX_SIZE)) {
@@ -2878,16 +2896,19 @@ static int RsaFunctionPrivate(mp_int* tmp, RsaKey* key, WC_RNG* rng)
 #if defined(WC_RSA_BLINDING) && !defined(WC_NO_RNG)
     NEW_MP_INT_SIZE(rnd, mp_bitsused(&key->n), key->heap, DYNAMIC_TYPE_RSA);
     NEW_MP_INT_SIZE(rndi, mp_bitsused(&key->n), key->heap, DYNAMIC_TYPE_RSA);
+    NEW_MP_INT_SIZE(mask, mp_bitsused(&key->n), key->heap, DYNAMIC_TYPE_RSA);
 #ifdef MP_INT_SIZE_CHECK_NULL
-    if ((rnd == NULL) || (rndi == NULL)) {
+    if ((rnd == NULL) || (rndi == NULL) || (mask == NULL)) {
         FREE_MP_INT_SIZE(rnd, key->heap, DYNAMIC_TYPE_RSA);
         FREE_MP_INT_SIZE(rndi, key->heap, DYNAMIC_TYPE_RSA);
+        FREE_MP_INT_SIZE(mask, key->heap, DYNAMIC_TYPE_RSA);
         return MEMORY_E;
     }
 #endif
 
     if ((INIT_MP_INT_SIZE(rnd, mp_bitsused(&key->n)) != MP_OKAY) ||
-            (INIT_MP_INT_SIZE(rndi, mp_bitsused(&key->n)) != MP_OKAY)) {
+            (INIT_MP_INT_SIZE(rndi, mp_bitsused(&key->n)) != MP_OKAY) ||
+            (INIT_MP_INT_SIZE(mask, mp_bitsused(&key->n)) != MP_OKAY)) {
         ret = MP_INIT_E;
     }
 
@@ -2895,16 +2916,36 @@ static int RsaFunctionPrivate(mp_int* tmp, RsaKey* key, WC_RNG* rng)
         /* blind */
         ret = mp_rand(rnd, mp_get_digit_count(&key->n), rng);
     }
+    /* rndi = 1/rnd mod n
+     *
+     * mp_invmod() is a binary extended Euclidean variant whose iteration
+     * count and branches track its input, and rnd is secret. Invert rnd*mask
+     * for a fresh random mask and divide it back out afterwards:
+     * (rnd*mask)^-1 * mask == rnd^-1 mod n. The inversion then sees a value
+     * independent of rnd. */
     if (ret == 0) {
-        /* rndi = 1/rnd mod n */
-        if (mp_invmod(rnd, &key->n, rndi) != MP_OKAY) {
+        ret = mp_rand(mask, mp_get_digit_count(&key->n), rng);
+    }
+    if (ret == 0) {
+        if (mp_mulmod(rnd, mask, &key->n, rndi) != MP_OKAY) {
+            ret = MP_MULMOD_E;
+        }
+    }
+    if (ret == 0) {
+        if (mp_invmod(rndi, &key->n, rndi) != MP_OKAY) {
             ret = MP_INVMOD_E;
+        }
+    }
+    if (ret == 0) {
+        if (mp_mulmod(rndi, mask, &key->n, rndi) != MP_OKAY) {
+            ret = MP_MULMOD_E;
         }
     }
     if (ret == 0) {
     #ifdef WOLFSSL_CHECK_MEM_ZERO
         mp_memzero_add("RSA Private rnd", rnd);
         mp_memzero_add("RSA Private rndi", rndi);
+        mp_memzero_add("RSA Private mask", mask);
     #endif
 
         /* rnd = rnd^e */
@@ -3033,13 +3074,16 @@ static int RsaFunctionPrivate(mp_int* tmp, RsaKey* key, WC_RNG* rng)
         ret = MP_MULMOD_E;
     }
 
+    mp_forcezero(mask);
     mp_forcezero(rndi);
     mp_forcezero(rnd);
+    FREE_MP_INT_SIZE(mask, key->heap, DYNAMIC_TYPE_RSA);
     FREE_MP_INT_SIZE(rndi, key->heap, DYNAMIC_TYPE_RSA);
     FREE_MP_INT_SIZE(rnd, key->heap, DYNAMIC_TYPE_RSA);
 #if !defined(MP_INT_SIZE_CHECK_NULL) && defined(WOLFSSL_CHECK_MEM_ZERO)
     mp_memzero_check(rnd);
     mp_memzero_check(rndi);
+    mp_memzero_check(mask);
 #endif
 #endif /* WC_RSA_BLINDING && !WC_NO_RNG */
     return ret;
@@ -4622,6 +4666,66 @@ int wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inSz, const byte* sig,
 }
 
 
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_RSA_PAD)
+/* Let a device verify an RSA-PSS signature and its padding in one shot (it gets
+ * the digest, which the RsaPad path does not). Shared by the two verify and
+ * check entry points below.
+ *
+ * out       Buffer the device may write the recovered PSS block into.
+ * outSz     Size of that buffer.
+ * recovered Set to the number of bytes the device wrote, 0 for a verdict only.
+ * returns the length the caller should report, a negative error, or
+ * CRYPTOCB_UNAVAILABLE when no device handled it.
+ */
+static int RsaPssVerifyDevice(const byte* in, word32 inLen, const byte* digest,
+    word32 digestLen, enum wc_HashType hash, int mgf, int saltLen, int hLen,
+    RsaKey* key, byte* out, word32 outSz, word32* recovered)
+{
+    int    ret;
+    int    res = 0;
+    word32 recSz = 0;
+
+    *recovered = 0;
+
+#ifndef WOLF_CRYPTO_CB_FIND
+    if (key == NULL || key->devId == INVALID_DEVID)
+#else
+    if (key == NULL)
+#endif
+    {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+
+    ret = wc_CryptoCb_RsaPssVerify(in, inLen, digest, digestLen, hash, mgf,
+                                   saltLen, key, &res, out, outSz, &recSz);
+    if (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+        return ret;
+    }
+    if (ret > 0) {
+        /* A handler returns 0 with res set, or a negative error. */
+        return SIG_VERIFY_E;
+    }
+    if (ret != 0) {
+        return ret;
+    }
+    if (recSz > outSz) {
+        recSz = 0;
+    }
+    if (res == 0) {
+        return SIG_VERIFY_E;
+    }
+    if (recSz > 0) {
+        *recovered = recSz;
+        return (int)recSz;
+    }
+    if (outSz < (word32)(saltLen + hLen)) {
+        return RSA_BUFFER_E;
+    }
+    return saltLen + hLen;
+}
+#endif
+
+
 /* Verify the message signed with RSA-PSS.
  * The input buffer is reused for the output buffer.
  * Salt length is equal to hash length.
@@ -4635,6 +4739,8 @@ int wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inSz, const byte* sig,
  * mgf    Mask generation function.
  * key    Public RSA key.
  * returns the length of the PSS data on success and negative indicates failure.
+ *
+ * Note: a device that recovers nothing sets *out to NULL, so check *out first.
  */
 int wc_RsaPSS_VerifyCheckInline(byte* in, word32 inLen, byte** out,
                            const byte* digest, word32 digestLen,
@@ -4669,6 +4775,28 @@ int wc_RsaPSS_VerifyCheckInline(byte* in, word32 inLen, byte** out,
         if (bits == 1024 && hLen == WC_SHA512_DIGEST_SIZE)
             saltLen = RSA_PSS_SALT_MAX_SZ;
     #endif
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_RSA_PAD)
+    {
+        word32 recovered = 0;
+
+        ret = RsaPssVerifyDevice(in, inLen, digest, digestLen, hash, mgf,
+                                 saltLen, hLen, key, in, inLen, &recovered);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            if ((ret > 0) && (out != NULL)) {
+                if (recovered > 0) {
+                    *out = in;
+                }
+                else {
+                    /* Device reported a verdict only; nothing to expose. */
+                    *out = NULL;
+                }
+            }
+            return ret;
+        }
+        ret = 0;
+    }
+#endif
 
     verify = wc_RsaPSS_VerifyInline_ex(in, inLen, out, hash, mgf, saltLen, key);
     if (verify > 0)
@@ -4729,6 +4857,23 @@ int wc_RsaPSS_VerifyCheck(const byte* in, word32 inLen, byte* out, word32 outLen
         if (bits == 1024 && hLen == WC_SHA512_DIGEST_SIZE)
             saltLen = RSA_PSS_SALT_MAX_SZ;
     #endif
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_RSA_PAD)
+    {
+        word32 recovered = 0;
+
+        ret = RsaPssVerifyDevice(in, inLen, digest, digestLen, hash, mgf,
+                                 saltLen, hLen, key, out, outLen, &recovered);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            if ((ret > 0) && (recovered == 0) && (out != NULL)) {
+                /* Device gave a verdict only; leave no stale data behind. */
+                XMEMSET(out, 0, (word32)ret);
+            }
+            return ret;
+        }
+        ret = 0;
+    }
+#endif
 
     verify = wc_RsaPSS_Verify_ex(in, inLen, out, outLen, hash,
                                  mgf, saltLen, key);
@@ -5343,6 +5488,7 @@ int wc_CheckProbablePrime_ex(const byte* pRaw, word32 pRawSz,
     }
     else
         ret = 0;
+
     if (ret == 0)
 #endif
         ret = mp_init_multi(p, q, e, NULL, NULL, NULL);
@@ -5473,7 +5619,11 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         goto out;
     }
 
+#if defined(HAVE_FIPS)
+    if (e < WC_RSA_EXPONENT || (e & 1) == 0) {
+#else
     if (e < 3 || (e & 1) == 0) {
+#endif
         err = BAD_FUNC_ARG;
         goto out;
     }

@@ -54,8 +54,8 @@ int wolfSSL_CTX_mutual_auth(WOLFSSL_CTX* ctx, int req)
 /* Set whether mutual authentication is required for the connection.
  * Server side only.
  *
- * @param [in] ssl  The SSL/TLS object.
- * @param [in] req  1 to indicate required and 0 when not.
+ * @param [in, out] ssl  SSL/TLS object.
+ * @param [in]      req  1 to indicate required and 0 when not.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when ssl is NULL.
  * @return  SIDE_ERROR when not a server
@@ -127,11 +127,11 @@ long wolfSSL_CTX_get_verify_depth(WOLFSSL_CTX* ctx)
     else {
         /* A configurable depth is only tracked with the OpenSSL extra APIs;
          * otherwise the fixed maximum chain depth applies. */
-    #ifndef OPENSSL_EXTRA
+        #ifndef OPENSSL_EXTRA
         ret = MAX_CHAIN_DEPTH;
-    #else
+        #else
         ret = ctx->verifyDepth;
-    #endif
+        #endif
     }
 
     return ret;
@@ -153,11 +153,11 @@ long wolfSSL_get_verify_depth(WOLFSSL* ssl)
     else {
         /* A configurable depth is only tracked with the OpenSSL extra APIs;
          * otherwise the fixed maximum chain depth applies. */
-    #ifndef OPENSSL_EXTRA
+        #ifndef OPENSSL_EXTRA
         ret = MAX_CHAIN_DEPTH;
-    #else
+        #else
         ret = ssl->options.verifyDepth;
-    #endif
+        #endif
     }
 
     return ret;
@@ -525,7 +525,7 @@ int wolfSSL_CTX_clear_expected_rpk(WOLFSSL_CTX* ctx)
 /* Remove all pinned expected peer Raw Public Keys from the SSL/TLS object, so
  * the table can be repopulated (e.g. across a peer key rotation).
  *
- * @param [in] ssl  SSL/TLS object.
+ * @param [in, out] ssl  SSL/TLS object.
  * @return  WOLFSSL_SUCCESS on success.
  * @return  BAD_FUNC_ARG when ssl is NULL.
  */
@@ -550,10 +550,10 @@ typedef struct {
     byte failNoCert:1;
     /* Fail when no peer certificate except when PSK handshake performed. */
     byte failNoCertxPSK:1;
-#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
     /* Verify peer certificate post handshake. */
     byte verifyPostHandshake:1;
-#endif
+    #endif
 } SetVerifyOptions;
 
 /* Convert the mode flags into certificate verification options.
@@ -579,10 +579,10 @@ static SetVerifyOptions ModeToVerifyOptions(int mode)
                     (mode & WOLFSSL_VERIFY_FAIL_EXCEPT_PSK) != 0;
             opts.failNoCert          =
                     (mode & WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT) != 0;
-#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+            #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
             opts.verifyPostHandshake =
                     (mode & WOLFSSL_VERIFY_POST_HANDSHAKE) != 0;
-#endif
+            #endif
         }
     }
 
@@ -595,7 +595,8 @@ static SetVerifyOptions ModeToVerifyOptions(int mode)
  * @param [in] mode             Verification mode options.
  * @param [in] verify_callback  Verification callback.
  */
-WOLFSSL_ABI void wolfSSL_CTX_set_verify(WOLFSSL_CTX* ctx, int mode,
+WOLFSSL_ABI
+void wolfSSL_CTX_set_verify(WOLFSSL_CTX* ctx, int mode,
     VerifyCallback verify_callback)
 {
     WOLFSSL_ENTER("wolfSSL_CTX_set_verify");
@@ -609,9 +610,9 @@ WOLFSSL_ABI void wolfSSL_CTX_set_verify(WOLFSSL_CTX* ctx, int mode,
         ctx->verifyPeer     = opts.verifyPeer;
         ctx->failNoCert     = opts.failNoCert;
         ctx->failNoCertxPSK = opts.failNoCertxPSK;
-    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+        #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
         ctx->verifyPostHandshake = opts.verifyPostHandshake;
-    #endif
+        #endif
 
         /* Store the user verification callback against the context. */
         ctx->verifyCallback = verify_callback;
@@ -640,9 +641,9 @@ void wolfSSL_CTX_set_cert_verify_callback(WOLFSSL_CTX* ctx,
 
 /* Set the verification options against the SSL/TLS object.
  *
- * @param [in] ssl              SSL/TLS object.
- * @param [in] mode             Verification mode options.
- * @param [in] verify_callback  Verification callback.
+ * @param [in, out] ssl              SSL/TLS object.
+ * @param [in]      mode             Verification mode options.
+ * @param [in]      verify_callback  Verification callback.
  */
 void wolfSSL_set_verify(WOLFSSL* ssl, int mode, VerifyCallback verify_callback)
 {
@@ -657,9 +658,9 @@ void wolfSSL_set_verify(WOLFSSL* ssl, int mode, VerifyCallback verify_callback)
         ssl->options.verifyPeer = opts.verifyPeer;
         ssl->options.failNoCert = opts.failNoCert;
         ssl->options.failNoCertxPSK = opts.failNoCertxPSK;
-    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+        #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
         ssl->options.verifyPostHandshake = opts.verifyPostHandshake;
-    #endif
+        #endif
 
         /* Store the user verification callback against the object. */
         ssl->verifyCallback = verify_callback;
@@ -668,8 +669,8 @@ void wolfSSL_set_verify(WOLFSSL* ssl, int mode, VerifyCallback verify_callback)
 
 /* Set the certificate verification result for the SSL/TLS object.
  *
- * @param [in] ssl  SSL/TLS object.
- * @param [in] v    Verification result.
+ * @param [in, out] ssl  SSL/TLS object.
+ * @param [in]      v    Verification result.
  */
 void wolfSSL_set_verify_result(WOLFSSL *ssl, long v)
 {
@@ -677,12 +678,12 @@ void wolfSSL_set_verify_result(WOLFSSL *ssl, long v)
 
     /* Ensure we have an SSL/TLS object to work with. */
     if (ssl != NULL) {
-    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+        #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
         ssl->peerVerifyRet = (unsigned long)v;
-    #else
+        #else
         WOLFSSL_STUB("wolfSSL_set_verify_result");
         (void)v;
-    #endif
+        #endif
     }
 }
 
@@ -703,8 +704,8 @@ void wolfSSL_CTX_SetCertCbCtx(WOLFSSL_CTX* ctx, void* userCtx)
 
 /* Store user ctx for verify callback into SSL/TLS object.
  *
- * @param [in] ssl  SSL/TLS object.
- * @param [in] ctx  User context for verify callback.
+ * @param [in, out] ssl  SSL/TLS object.
+ * @param [in]      ctx  User context for verify callback.
  */
 void wolfSSL_SetCertCbCtx(WOLFSSL* ssl, void* ctx)
 {
@@ -718,10 +719,10 @@ void wolfSSL_SetCertCbCtx(WOLFSSL* ssl, void* ctx)
 
 
 
-/* Store context CA Cache addition callback into SSL/TLS context.
+/* Set the callback called when a CA is added to the cache.
  *
- * @param [in] ctx      SSL/TLS context.
- * @param [in] userCtx  User context for verify callback.
+ * @param [in, out] ctx  SSL/TLS context.
+ * @param [in]      cb   Callback to call. NULL to clear.
  */
 void wolfSSL_CTX_SetCACb(WOLFSSL_CTX* ctx, CallbackCACache cb)
 {
@@ -735,6 +736,7 @@ void wolfSSL_CTX_SetCACb(WOLFSSL_CTX* ctx, CallbackCACache cb)
     defined(WOLFSSL_POST_HANDSHAKE_AUTH)
 /* For TLS v1.3, send authentication messages after handshake completes.
  *
+ * @param [in, out] ssl  SSL/TLS object.
  * @return  1 on success.
  * @return  UNSUPPORTED_PROTO_VERSION when not a TLSv1.3 handshake.
  * @return  0 on other failure.
@@ -785,8 +787,8 @@ int wolfSSL_CTX_set_post_handshake_auth(WOLFSSL_CTX* ctx, int val)
 }
 /* Set whether handshakes with this SSL/TLS object allow auth post handshake.
  *
- * @param [in] ctx  SSL/TLS context.
- * @param [in] val  Whether to allow post handshake authentication.
+ * @param [in, out] ssl  SSL/TLS object.
+ * @param [in]      val  Whether to allow post handshake authentication.
  * @return  1 on success.
  * @return  0 on failure.
  */
@@ -900,9 +902,9 @@ int wolfSSL_CTX_memsave_cert_cache(WOLFSSL_CTX* ctx, void* mem,
 
 /* Load certificate cache into SSL/TLS context from memory.
  *
- * @param [in]  ctx   SSL/TLS context.
- * @param [in]  mem   Memory with certificate cache.
- * @param [in]  sz    Size of certificate cache in bytes
+ * @param [in] ctx  SSL/TLS context.
+ * @param [in] mem  Memory with certificate cache.
+ * @param [in] sz   Size of certificate cache in bytes
  * @return  1 on success.
  * @return  BAD_FUNC_ARG when ctx or mem is NULL.
  * @return  BAD_FUNC_ARG when sz is less than or equal to zero.
@@ -957,7 +959,7 @@ int wolfSSL_CTX_get_cert_cache_memsize(WOLFSSL_CTX* ctx)
  *
  * The WOLFSSL_CTX referenced is untouched.
  *
- * @param [in] ssl  SSL/TLS object.
+ * @param [in, out] ssl  SSL/TLS object.
  * @return  1 on success.
  * @return  BAD_FUNC_ARG when ssl is NULL.
  */
@@ -974,10 +976,10 @@ int wolfSSL_UnloadCertsKeys(WOLFSSL* ssl)
         if (ssl->buffers.weOwnCert && (!ssl->keepCert)) {
             WOLFSSL_MSG("Unloading cert");
             FreeDer(&ssl->buffers.certificate);
-        #ifdef KEEP_OUR_CERT
+            #ifdef KEEP_OUR_CERT
             wolfSSL_X509_free(ssl->ourCert);
             ssl->ourCert = NULL;
-        #endif
+            #endif
             ssl->buffers.weOwnCert = 0;
         }
 
@@ -989,16 +991,18 @@ int wolfSSL_UnloadCertsKeys(WOLFSSL* ssl)
 
         if (ssl->buffers.weOwnKey) {
             WOLFSSL_MSG("Unloading key");
-            if ((ssl->buffers.key != NULL) && (ssl->buffers.key->buffer != NULL))
+            if ((ssl->buffers.key != NULL) &&
+                (ssl->buffers.key->buffer != NULL)) {
                 ForceZero(ssl->buffers.key->buffer, ssl->buffers.key->length);
+            }
             FreeDer(&ssl->buffers.key);
-        #ifdef WOLFSSL_BLIND_PRIVATE_KEY
+            #ifdef WOLFSSL_BLIND_PRIVATE_KEY
             FreeDer(&ssl->buffers.keyMask);
-        #endif
+            #endif
             ssl->buffers.weOwnKey = 0;
-    }
+        }
 
-    #ifdef WOLFSSL_DUAL_ALG_CERTS
+        #ifdef WOLFSSL_DUAL_ALG_CERTS
         if (ssl->buffers.weOwnAltKey) {
             WOLFSSL_MSG("Unloading alt key");
             if ((ssl->buffers.altKey != NULL) &&
@@ -1007,12 +1011,12 @@ int wolfSSL_UnloadCertsKeys(WOLFSSL* ssl)
                           ssl->buffers.altKey->length);
             }
             FreeDer(&ssl->buffers.altKey);
-        #ifdef WOLFSSL_BLIND_PRIVATE_KEY
+            #ifdef WOLFSSL_BLIND_PRIVATE_KEY
             FreeDer(&ssl->buffers.altKeyMask);
-        #endif
+            #endif
             ssl->buffers.weOwnAltKey = 0;
         }
-    #endif /* WOLFSSL_DUAL_ALG_CERTS */
+        #endif /* WOLFSSL_DUAL_ALG_CERTS */
     }
 
     return ret;
@@ -1047,6 +1051,7 @@ int wolfSSL_CTX_UnloadCAs(WOLFSSL_CTX* ctx)
  * @param [in] ctx  SSL/TLS context.
  * @return  1 on success.
  * @return  BAD_FUNC_ARG when ctx or ctx->cm is NULL.
+ * @return  BAD_STATE_E when another reference to the context is held.
  * @return  BAD_MUTEX_E when locking fails.
  */
 int wolfSSL_CTX_UnloadIntermediateCerts(WOLFSSL_CTX* ctx)
@@ -1109,7 +1114,7 @@ int wolfSSL_CTX_Unload_trust_peers(WOLFSSL_CTX* ctx)
 #ifdef WOLFSSL_LOCAL_X509_STORE
 /* Unload trusted peers from the certificate manager of the SSL/TLS object.
  *
- * @param [in] ctx  SSL/TLS context.
+ * @param [in, out] ssl  SSL/TLS object.
  * @return  1 on success.
  * @return  BAD_FUNC_ARG when ssl is NULL.
  * @return  BAD_MUTEX_E when locking fails.
@@ -1118,7 +1123,7 @@ int wolfSSL_Unload_trust_peers(WOLFSSL* ssl)
 {
     int ret;
 
-    WOLFSSL_ENTER("wolfSSL_CTX_Unload_trust_peers");
+    WOLFSSL_ENTER("wolfSSL_Unload_trust_peers");
 
     /* Validate parameter. */
     if (ssl == NULL) {
@@ -1200,8 +1205,8 @@ int wolfSSL_CTX_add_client_CA(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509)
 
 /* Add a client's CA to SSL/TLS object.
  *
- * @param [in] ssl   SSL/TLS object.
- * @param [in] x509  X509 certificate.
+ * @param [in, out] ssl   SSL/TLS object.
+ * @param [in]      x509  X509 certificate.
  * @return  1 on success.
  * @return  0 on failure.
  */
@@ -1268,8 +1273,8 @@ int wolfSSL_CTX_add1_to_CA_list(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509)
 
 /* Add a CA to SSL/TLS object.
  *
- * @param [in] ssl   SSL/TLS object.
- * @param [in] x509  X509 certificate.
+ * @param [in, out] ssl   SSL/TLS object.
+ * @param [in]      x509  X509 certificate.
  * @return  1 on success.
  * @return  0 on failure.
  */
@@ -1531,7 +1536,7 @@ WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_load_client_CA_file(const char* fname)
      * for client authentication as an option. Have this return NULL in
      * that case. If OPENSSL_EXTRA is enabled, go ahead and include
      * the function. */
-#ifdef OPENSSL_EXTRA
+    #ifdef OPENSSL_EXTRA
     WOLFSSL_STACK *list = NULL;
     WOLFSSL_BIO* bio = NULL;
     WOLFSSL_X509 *cert = NULL;
@@ -1593,10 +1598,10 @@ WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_load_client_CA_file(const char* fname)
     }
     wolfSSL_BIO_free(bio);
     return list;
-#else
+    #else
     (void)fname;
     return NULL;
-#endif
+    #endif
 }
 #endif /* !NO_BIO */
 #endif /* WOLFSSL_NO_CA_NAMES */
@@ -1630,9 +1635,16 @@ WOLFSSL_X509_STORE* wolfSSL_CTX_get_cert_store(const WOLFSSL_CTX* ctx)
 
 /* Set the certificate store of the SSL/TLS context.
  *
- * @param [in] ctx  SSL/TLS context.
- * @return  X509 certificate store on success.
- * @return  NULL when ctx is NULL.
+ * The store is not taken when it shares the context's certificate manager.
+ *
+ * Ownership: the caller's reference to the store is taken over - no reference
+ * is added here, and the context releases it on free. A caller that means to
+ * keep using the store must take its own reference first with
+ * wolfSSL_X509_STORE_up_ref(). A reference is added to the store's
+ * certificate manager, which the context then uses as its own.
+ *
+ * @param [in, out] ctx  SSL/TLS context.
+ * @param [in]      str  X509 certificate store to use.
  */
 void wolfSSL_CTX_set_cert_store(WOLFSSL_CTX* ctx, WOLFSSL_X509_STORE* str)
 {
@@ -1659,7 +1671,7 @@ void wolfSSL_CTX_set_cert_store(WOLFSSL_CTX* ctx, WOLFSSL_X509_STORE* str)
         /* Context has ownership and free it with context free. */
         ctx->cm->x509_store_p = ctx->x509_store_pt;
 
-#ifdef OPENSSL_EXTRA
+        #ifdef OPENSSL_EXTRA
         /* Non-self-signed certs (intermediates) added via
          * X509_STORE_add_cert only go into store->certs, not the
          * CertManager. Push them into the CM now so that all
@@ -1668,17 +1680,34 @@ void wolfSSL_CTX_set_cert_store(WOLFSSL_CTX* ctx, WOLFSSL_X509_STORE* str)
             WOLFSSL_MSG("wolfSSL_CTX_set_cert_store: failed to push some "
                         "certs to CertManager");
         }
-#endif
+        #endif
     }
 }
 
 #ifdef OPENSSL_ALL
 /* Set certificate store into SSL/TLS context but don't take ownership.
  *
+ * A NULL store is refused, which is a deviation from OpenSSL, where
+ * SSL_CTX_set1_verify_cert_store(ctx, NULL) returns 1 and releases the verify
+ * store so the context falls back to its own. OpenSSL keeps two stores on a
+ * context, the one set by SSL_CTX_set_cert_store() and the verify store this
+ * call sets; both live in ctx->x509_store_pt here, so releasing it on NULL
+ * would also throw away the store handed to wolfSSL_CTX_set_cert_store() and
+ * drop the context back to its own, which is not set up for certificate
+ * lookup by issuer. Until the two are held separately the request cannot be
+ * honoured, and refusing it is what keeps that visible - returning success
+ * without clearing would leave the caller verifying against the store it
+ * asked to be rid of.
+ *
+ * Note the asymmetry with the object-level setters:
+ * wolfSSL_set0_verify_cert_store() and wolfSSL_set1_verify_cert_store() do
+ * clear on NULL, because an object reverts to the context's store rather than
+ * having a second store of its own to throw away.
+ *
  * @param [in] ctx  SSL/TLS context.
- * @param [in] str  Certificate store.
+ * @param [in] str  Certificate store. NULL is refused.
  * @return  1 on success.
- * @return  0 when ctx or str is NULL or on other error.
+ * @return  0 when ctx or str is NULL, or on other error.
  */
 int wolfSSL_CTX_set1_verify_cert_store(WOLFSSL_CTX* ctx,
     WOLFSSL_X509_STORE* str)
@@ -1687,7 +1716,16 @@ int wolfSSL_CTX_set1_verify_cert_store(WOLFSSL_CTX* ctx,
 
     WOLFSSL_ENTER("wolfSSL_CTX_set1_verify_cert_store");
 
-    /* Validate parameters. */
+    /* Validate parameters. A NULL store is refused rather than accepted and
+     * ignored. OpenSSL keeps two stores on a context - the one set by
+     * SSL_CTX_set_cert_store() and the verify store this call sets - and
+     * clearing the verify store leaves the other alone. Both live in
+     * ctx->x509_store_pt here, so releasing it on NULL would throw away the
+     * store handed to wolfSSL_CTX_set_cert_store() and drop the context back
+     * to its own, which is not set up for certificate lookup by issuer.
+     * Reporting failure keeps that unsupported request visible: returning
+     * success without clearing would leave the caller verifying against the
+     * store it asked to be rid of, with no way to tell. */
     if ((ctx == NULL) || (str == NULL)) {
         WOLFSSL_MSG("Bad parameter");
         ret = 0;
@@ -1696,7 +1734,9 @@ int wolfSSL_CTX_set1_verify_cert_store(WOLFSSL_CTX* ctx,
     else if (str == CTX_STORE(ctx)) {
         ret = 1;
     }
-    /* Increase ref so we can store pointer and free it with context free. */
+    /* Take a reference so the pointer can be stored and released with the
+     * context. A store that is part of another object has none to take - the
+     * pointer is then kept without anything protecting it. */
     else if (wolfSSL_X509_STORE_up_ref(str) != 1) {
         WOLFSSL_MSG("wolfSSL_X509_STORE_up_ref error");
         ret = 0;
@@ -1706,6 +1746,18 @@ int wolfSSL_CTX_set1_verify_cert_store(WOLFSSL_CTX* ctx,
         wolfSSL_X509_STORE_free(ctx->x509_store_pt);
         /* Ref count increased - store pointer and free with context free. */
         ctx->x509_store_pt = str;
+        /* As above: the store just released may have been the one this
+         * manager names, which leaves the manager with no store for the
+         * lookup by issuer. Unlike wolfSSL_CTX_set_cert_store(), this setter
+         * does not adopt the new store's manager - str carries its own, and
+         * that is the one verification resolves through, so pairing this
+         * manager with str would cross-link two independent managers. The
+         * context's own store is used instead: what the manager needs is a
+         * store that stays valid for as long as it does, not the one
+         * currently in use. */
+        if ((ctx->cm != NULL) && (ctx->cm->x509_store_p == NULL)) {
+            ctx->cm->x509_store_p = &ctx->x509_store;
+        }
         ret = 1;
     }
 
@@ -1714,13 +1766,50 @@ int wolfSSL_CTX_set1_verify_cert_store(WOLFSSL_CTX* ctx,
 #endif
 
 
-/* Set certificate store into SSL/TLS object.
+/* Set the certificate store used for verification by the SSL/TLS object.
  *
- * @param [in] ssl  SSL/TLS object.
- * @param [in] str  Certificate store.
- * @param [in] ref  Take a reference to passed in certificate store.
+ * Ownership: with ref set, a reference is taken here (set1 semantics);
+ * without it the caller's reference is handed over (set0 semantics). With
+ * ref set the accounting always nets to zero - the reference taken is kept
+ * with the stored pointer, or released again when no pointer is kept.
+ *
+ * A set0 caller's reference is consumed by being kept, except on the two
+ * paths that keep no pointer and cannot safely release it either: being
+ * handed the store the object already uses, and being handed the context's
+ * store while the object holds one of its own. Both leak that reference by
+ * design - see the comments on those branches; releasing it would free a
+ * reference a misusing caller never took.
+ *
+ * A store that is part of another object has no reference count to take, so
+ * nothing keeps it alive for as long as the pointer is held here - see
+ * wolfSSL_X509_STORE_up_ref(). Storing one that belongs to a different
+ * object outlives its owner only by luck.
+ *
+ * A set0 caller must therefore own a reference. Handing over a borrowed
+ * pointer, such as one straight from wolfSSL_CTX_get_cert_store(), releases
+ * a reference the caller never took and can destroy a store still in use.
+ *
+ * The object uses the context's store by keeping no pointer of its own, so
+ * that is how both a NULL store, which clears, and being handed the store the
+ * context already uses are done. Clearing on NULL rather than rejecting it
+ * matches OpenSSL.
+ *
+ * "The store the context already uses" is what CTX_STORE() resolves to, which
+ * is the context's own store when no other has been set on it. So handing
+ * over wolfSSL_CTX_get_cert_store() of such a context makes the object follow
+ * the context rather than pinning that store: a later
+ * wolfSSL_CTX_set1_verify_cert_store() then changes what the object verifies
+ * against. OpenSSL's SSL_set1_verify_cert_store() pins instead, and so did
+ * this before the context's own store was included in the comparison.
+ * Following is the safer of the two here, because a store that is part of
+ * another object has no reference count and pinning it stores a pointer with
+ * nothing keeping it alive.
+ *
+ * @param [in, out] ssl  SSL/TLS object.
+ * @param [in]      str  X509 certificate store to use. NULL to clear.
+ * @param [in]      ref  Whether to take a reference to the store.
  * @return  1 on success.
- * @return  0 when ssl or str is NULL or on other error.
+ * @return  0 when ssl is NULL, or the reference cannot be taken.
  */
 static int wolfssl_set_verify_cert_store(WOLFSSL *ssl, WOLFSSL_X509_STORE* str,
     int ref)
@@ -1730,28 +1819,46 @@ static int wolfssl_set_verify_cert_store(WOLFSSL *ssl, WOLFSSL_X509_STORE* str,
     WOLFSSL_ENTER("wolfssl_set_verify_cert_store");
 
     /* Validate parameters. */
-    if ((ssl == NULL) || (str == NULL)) {
+    if (ssl == NULL) {
         WOLFSSL_MSG("Bad parameter");
         ret = 0;
     }
-    /* Nothing to do when store being set is the same as existing in object. */
+    /* Already the store this object uses - its own, or the context's when it
+     * has none of its own: leave every reference where it is, as the original
+     * code did. Consuming one here would release a reference the object or
+     * the context still relies on when a set0 caller passed a pointer it did
+     * not own, which is a use-after-free for the object's store and a second
+     * free at wolfSSL_CTX_free() for the context's. A leaked reference is the
+     * safer of the two outcomes for an entry point applications reach through
+     * the OpenSSL compatibility layer. */
     else if (str == SSL_STORE(ssl)) {
         ret = 1;
     }
-    else if (ref && (wolfSSL_X509_STORE_up_ref(str) != 1)) {
+    /* Take the reference to become responsible for before releasing the one
+     * the object holds below. The two name different stores - the store the
+     * object already uses is caught by the early exit above. */
+    else if (ref && (str != NULL) && (wolfSSL_X509_STORE_up_ref(str) != 1)) {
         WOLFSSL_MSG("wolfSSL_X509_STORE_up_ref error");
         ret = 0;
     }
     else {
-        /* Free any external store. */
+        /* The object uses the context's store by keeping no pointer, so that
+         * is what being handed that store means here. A NULL store, which
+         * clears, is kept as it is and so keeps no pointer either. */
+        WOLFSSL_X509_STORE* keep = (str == CTX_STORE(ssl->ctx)) ? NULL : str;
+
+        /* Release the store held, if any, and take on the new one. The
+         * reference this call is responsible for - taken above for set1,
+         * handed over for set0 - is consumed by being kept. */
         wolfSSL_X509_STORE_free(ssl->x509_store_pt);
-        if (str == ssl->ctx->x509_store_pt) {
-            /* Setting ctx store - just revert to using that instead. */
-            ssl->x509_store_pt = NULL;
-        }
-        else {
-            /* Ref count increased - store pointer and free with object free. */
-            ssl->x509_store_pt = str;
+        ssl->x509_store_pt = keep;
+        if ((keep == NULL) && ref) {
+            /* Nothing kept the reference taken above, so give it back. Only
+             * set1 gets here: a set0 caller's reference must be left alone,
+             * as the store it named is the context's and releasing it would
+             * leave ctx->x509_store_pt pointing at memory freed a second
+             * time by wolfSSL_CTX_free(). */
+            wolfSSL_X509_STORE_free(str);
         }
         ret = 1;
     }
@@ -1761,10 +1868,19 @@ static int wolfssl_set_verify_cert_store(WOLFSSL *ssl, WOLFSSL_X509_STORE* str,
 
 /* Set certificate store into SSL/TLS object and take ownership.
  *
- * @param [in] ssl  SSL/TLS object.
- * @param [in] str  Certificate store.
+ * The caller must own a reference to the store - it is consumed here. A NULL
+ * store clears any store previously set on the object. *
+ * Passing the store the context is currently using - what
+ * wolfSSL_CTX_get_cert_store() returns - makes the object track the context
+ * instead of pinning that store, so a later
+ * wolfSSL_CTX_set1_verify_cert_store() changes what this object verifies
+ * against. OpenSSL's equivalent pins the store. See
+ * wolfssl_set_verify_cert_store() for why following is preferred here.
+ *
+ * @param [in, out] ssl  SSL/TLS object.
+ * @param [in] str  Certificate store. NULL to clear.
  * @return  1 on success.
- * @return  0 when ssl or str is NULL or on other error.
+ * @return  0 when ssl is NULL or on other error.
  */
 int wolfSSL_set0_verify_cert_store(WOLFSSL *ssl, WOLFSSL_X509_STORE* str)
 {
@@ -1775,10 +1891,18 @@ int wolfSSL_set0_verify_cert_store(WOLFSSL *ssl, WOLFSSL_X509_STORE* str)
 
 /* Set certificate store into SSL/TLS object but don't take ownership.
  *
- * @param [in] ssl  SSL/TLS object.
- * @param [in] str  Certificate store.
+ * A NULL store clears any store previously set on the object. *
+ * Passing the store the context is currently using - what
+ * wolfSSL_CTX_get_cert_store() returns - makes the object track the context
+ * instead of pinning that store, so a later
+ * wolfSSL_CTX_set1_verify_cert_store() changes what this object verifies
+ * against. OpenSSL's equivalent pins the store. See
+ * wolfssl_set_verify_cert_store() for why following is preferred here.
+ *
+ * @param [in, out] ssl  SSL/TLS object.
+ * @param [in] str  Certificate store. NULL to clear.
  * @return  1 on success.
- * @return  0 when ssl or str is NULL or on other error.
+ * @return  0 when ssl is NULL or on other error.
  */
 int wolfSSL_set1_verify_cert_store(WOLFSSL *ssl, WOLFSSL_X509_STORE* str)
 {
@@ -1813,7 +1937,7 @@ WOLFSSL_X509* wolfSSL_CTX_get0_certificate(WOLFSSL_CTX* ctx)
             if (ctx->certificate == NULL) {
                 WOLFSSL_MSG("Ctx Certificate buffer not set!");
             }
-        #ifndef WOLFSSL_X509_STORE_CERTS
+            #ifndef WOLFSSL_X509_STORE_CERTS
             else {
                 /* Create a certificate object from raw data. */
                 ctx->ourCert = wolfSSL_X509_d2i_ex(NULL,
@@ -1821,7 +1945,7 @@ WOLFSSL_X509* wolfSSL_CTX_get0_certificate(WOLFSSL_CTX* ctx)
                     ctx->heap);
                 ctx->ownOurCert = 1;
             }
-        #endif
+            #endif
         }
         /* Return certificate cached against SSL/TLS context. */
         ret = ctx->ourCert;
@@ -1832,7 +1956,7 @@ WOLFSSL_X509* wolfSSL_CTX_get0_certificate(WOLFSSL_CTX* ctx)
 
 /* Get the certificate in the SSL/TLS object.
  *
- * @param [in] ssl  SSL/TLS object.
+ * @param [in, out] ssl  SSL/TLS object.
  * @return  Certificate being sent to peer.
  * @return  NULL when ssl is NULL, no certificate set or on other error.
  */
@@ -1868,14 +1992,14 @@ WOLFSSL_X509* wolfSSL_get_certificate(WOLFSSL* ssl)
             if (ssl->buffers.certificate == NULL) {
                 WOLFSSL_MSG("Certificate buffer not set!");
             }
-        #ifndef WOLFSSL_X509_STORE_CERTS
+            #ifndef WOLFSSL_X509_STORE_CERTS
             else {
                 /* Create a certificate object from raw data. */
                 ssl->ourCert = wolfSSL_X509_d2i_ex(NULL,
                     ssl->buffers.certificate->buffer,
                     (int)ssl->buffers.certificate->length, ssl->heap);
             }
-        #endif
+            #endif
         }
         /* Return certificate cached against SSL/TLS object. */
         ret = ssl->ourCert;
@@ -1957,11 +2081,11 @@ int wolfSSL_cmp_peer_cert_to_file(WOLFSSL* ssl, const char *fname)
         ret = WOLFSSL_FATAL_ERROR;
     }
     else {
-    #ifdef WOLFSSL_SMALL_STACK
+        #ifdef WOLFSSL_SMALL_STACK
         byte staticBuffer[1]; /* force heap usage */
-    #else
+        #else
         byte staticBuffer[FILE_BUFFER_SIZE];
-    #endif
+        #endif
         byte* myBuf = staticBuffer;
         XFILE file;
         long sz = 0;
@@ -2197,7 +2321,7 @@ WOLFSSL_X509* wolfSSL_get_chain_X509(WOLFSSL_X509_CHAIN* chain, int idx)
 int  wolfSSL_get_chain_cert_pem(WOLFSSL_X509_CHAIN* chain, int idx,
                                unsigned char* buf, int inLen, int* outLen)
 {
-#ifdef WOLFSSL_DER_TO_PEM
+    #ifdef WOLFSSL_DER_TO_PEM
     int ret = WOLFSSL_SUCCESS;
 
     WOLFSSL_ENTER("wolfSSL_get_chain_cert_pem");
@@ -2234,7 +2358,7 @@ int  wolfSSL_get_chain_cert_pem(WOLFSSL_X509_CHAIN* chain, int idx,
     }
 
     return ret;
-#elif defined(WOLFSSL_PEM_TO_DER)
+    #elif defined(WOLFSSL_PEM_TO_DER)
     int ret = WOLFSSL_SUCCESS;
     const char* header = NULL;
     const char* footer = NULL;
@@ -2300,14 +2424,14 @@ int  wolfSSL_get_chain_cert_pem(WOLFSSL_X509_CHAIN* chain, int idx,
     }
 
     return ret;
-#else
+    #else
     (void)chain;
     (void)idx;
     (void)buf;
     (void)inLen;
     (void)outLen;
     return WOLFSSL_FAILURE;
-#endif /* WOLFSSL_PEM_TO_DER || WOLFSSL_DER_TO_PEM */
+    #endif /* WOLFSSL_PEM_TO_DER || WOLFSSL_DER_TO_PEM */
 }
 
 #endif /* SESSION_CERTS */
@@ -2409,11 +2533,11 @@ int wolfSSL_get_verify_mode(const WOLFSSL* ssl)
         if (ssl->options.failNoCertxPSK) {
             mode |= WOLFSSL_VERIFY_FAIL_EXCEPT_PSK;
         }
-#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+        #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
         if (ssl->options.verifyPostHandshake) {
             mode |= WOLFSSL_VERIFY_POST_HANDSHAKE;
         }
-#endif
+        #endif
     }
 
     WOLFSSL_LEAVE("wolfSSL_get_verify_mode", mode);
@@ -2450,11 +2574,11 @@ int wolfSSL_CTX_get_verify_mode(const WOLFSSL_CTX* ctx)
         if (ctx->failNoCertxPSK) {
             mode |= WOLFSSL_VERIFY_FAIL_EXCEPT_PSK;
         }
-#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+        #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
         if (ctx->verifyPostHandshake) {
             mode |= WOLFSSL_VERIFY_POST_HANDSHAKE;
         }
-#endif
+        #endif
     }
 
     WOLFSSL_LEAVE("wolfSSL_CTX_get_verify_mode", mode);
@@ -2633,335 +2757,484 @@ int wolfSSL_get0_chain_certs(WOLFSSL *ssl, WOLF_STACK_OF(WOLFSSL_X509) **sk)
 #endif
 
 #ifdef WOLFSSL_CERT_SETUP_CB
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-    /* registers client cert callback, called during handshake if server
-       requests client auth but user has not loaded client cert/key */
-    void wolfSSL_CTX_set_client_cert_cb(WOLFSSL_CTX *ctx, client_cert_cb cb)
-    {
-        WOLFSSL_ENTER("wolfSSL_CTX_set_client_cert_cb");
+/* ctx->CBClientCert is only in the structure under OPENSSL_EXTRA, so the
+ * setter cannot be compiled more widely than that. */
+#ifdef OPENSSL_EXTRA
+/* Set the callback that supplies a client certificate and key.
+ *
+ * Called during the handshake when the server asks for client authentication
+ * and no certificate and key have been loaded.
+ *
+ * @param [in, out] ctx  SSL/TLS CTX object.
+ * @param [in]      cb   Callback to call. NULL to clear.
+ */
+void wolfSSL_CTX_set_client_cert_cb(WOLFSSL_CTX *ctx, client_cert_cb cb)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_set_client_cert_cb");
 
-        if (ctx != NULL) {
-            ctx->CBClientCert = cb;
-        }
+    if (ctx != NULL) {
+        ctx->CBClientCert = cb;
     }
+}
 #endif
 
-    /* Set the certificate setup callback on the SSL/TLS CTX object.
-     *
-     * The callback is called during the handshake to allow the certificate and
-     * key to be chosen or loaded on demand.
-     *
-     * @param [in, out] ctx  SSL/TLS CTX object.
-     * @param [in]      cb   Certificate setup callback. NULL to clear.
-     * @param [in]      arg  Context to pass to the callback.
-     */
-    void wolfSSL_CTX_set_cert_cb(WOLFSSL_CTX* ctx,
-        CertSetupCallback cb, void *arg)
-    {
-        WOLFSSL_ENTER("wolfSSL_CTX_set_cert_cb");
-        if (ctx == NULL)
-            return;
+/* Set the certificate setup callback on the SSL/TLS CTX object.
+ *
+ * The callback is called during the handshake to allow the certificate and
+ * key to be chosen or loaded on demand.
+ *
+ * @param [in, out] ctx  SSL/TLS CTX object.
+ * @param [in]      cb   Certificate setup callback. NULL to clear.
+ * @param [in]      arg  Context to pass to the callback.
+ */
+void wolfSSL_CTX_set_cert_cb(WOLFSSL_CTX* ctx,
+    CertSetupCallback cb, void *arg)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_set_cert_cb");
 
+    if (ctx != NULL) {
         ctx->certSetupCb = cb;
         ctx->certSetupCbArg = arg;
     }
+}
 
-    /**
-     * Internal wrapper for calling certSetupCb
-     * @param ssl The SSL/TLS Object
-     * @return 0 on success
-     */
-    int CertSetupCbWrapper(WOLFSSL* ssl)
-    {
-        int ret = 0;
-        if (ssl->ctx->certSetupCb != NULL) {
-            WOLFSSL_MSG("Calling user cert setup callback");
-            ret = ssl->ctx->certSetupCb(ssl, ssl->ctx->certSetupCbArg);
-            if (ret == 1) {
-                WOLFSSL_MSG("User cert callback returned success");
-                ret = 0;
-            }
-            else if (ret == 0) {
-                SendAlert(ssl, alert_fatal, internal_error);
-                ret = CLIENT_CERT_CB_ERROR;
-            }
-            else if (ret < 0) {
-                ret = WOLFSSL_ERROR_WANT_X509_LOOKUP;
-            }
-            else {
-                WOLFSSL_MSG("Unexpected user callback return");
-                ret = CLIENT_CERT_CB_ERROR;
-            }
+/* Call the certificate setup callback and translate its result.
+ *
+ * @param [in, out] ssl  SSL/TLS object.
+ * @return  0 when no callback is set or the callback reported success.
+ * @return  CLIENT_CERT_CB_ERROR when the callback failed or returned an
+ *          unrecognized value. A fatal alert is sent when it failed.
+ * @return  WOLFSSL_ERROR_WANT_X509_LOOKUP when the callback returned a
+ *          negative value to ask to be called again.
+ */
+int CertSetupCbWrapper(WOLFSSL* ssl)
+{
+    int ret = 0;
+
+    if (ssl->ctx->certSetupCb != NULL) {
+        WOLFSSL_MSG("Calling user cert setup callback");
+        ret = ssl->ctx->certSetupCb(ssl, ssl->ctx->certSetupCbArg);
+        if (ret == 1) {
+            WOLFSSL_MSG("User cert callback returned success");
+            ret = 0;
         }
-        return ret;
+        else if (ret == 0) {
+            SendAlert(ssl, alert_fatal, internal_error);
+            ret = CLIENT_CERT_CB_ERROR;
+        }
+        else if (ret < 0) {
+            ret = WOLFSSL_ERROR_WANT_X509_LOOKUP;
+        }
+        else {
+            WOLFSSL_MSG("Unexpected user callback return");
+            ret = CLIENT_CERT_CB_ERROR;
+        }
     }
+    return ret;
+}
 #endif /* WOLFSSL_CERT_SETUP_CB */
 
 
 #ifdef SESSION_CERTS
-    /* Decode the X509 DER encoded certificate into a WOLFSSL_X509 object.
-     *
-     * x509  WOLFSSL_X509 object to decode into.
-     * in    X509 DER data.
-     * len   Length of the X509 DER data.
-     * returns the new certificate on success, otherwise NULL.
-     */
-    static int DecodeToX509(WOLFSSL_X509* x509, const byte* in, int len)
-    {
-        int          ret;
-        WC_DECLARE_VAR(cert, DecodedCert, 1, 0);
-        if (x509 == NULL || in == NULL || len <= 0)
-            return BAD_FUNC_ARG;
+/* Decode the X509 DER encoded certificate into a WOLFSSL_X509 object.
+ *
+ * @param [in, out] x509  WOLFSSL_X509 object to decode into.
+ * @param [in]      in    X509 DER data.
+ * @param [in]      len   Length of the X509 DER data.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when x509 or in is NULL, or len is not positive.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ * @return  Other negative value when the certificate cannot be parsed.
+ */
+static int DecodeToX509(WOLFSSL_X509* x509, const byte* in, int len)
+{
+    int ret = 0;
+    WC_DECLARE_VAR(cert, DecodedCert, 1, 0);
 
+    /* Validate parameters. */
+    if ((x509 == NULL) || (in == NULL) || (len <= 0)) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0) {
         WC_ALLOC_VAR_EX(cert, DecodedCert, 1, NULL, DYNAMIC_TYPE_DCERT,
-            return MEMORY_E);
+            ret = MEMORY_E);
+    }
 
-        /* Create a DecodedCert object and copy fields into WOLFSSL_X509 object.
-         */
+    if (ret == 0) {
+        /* Create a DecodedCert object and copy fields into WOLFSSL_X509
+         * object. */
         InitDecodedCert(cert, (byte*)in, (word32)len, NULL);
-        if ((ret = ParseCertRelative(cert, CERT_TYPE, 0, NULL, NULL)) == 0) {
+        ret = ParseCertRelative(cert, CERT_TYPE, 0, NULL, NULL);
+        if (ret == 0) {
         /* Check if x509 was not previously initialized by wolfSSL_X509_new() */
-            if (x509->dynamicMemory != TRUE)
-                InitX509(x509, 0, NULL);
+            if (x509->dynamicMemory != TRUE) {
+                /* A non-dynamic x509 (e.g. ssl->peerCert) may already hold
+                 * decoded contents; free them before re-populating. ReinitX509
+                 * keeps the object's heap and reference state, as the object
+                 * may be referenced elsewhere. */
+                ReinitX509(x509);
+            }
             ret = CopyDecodedToX509(x509, cert);
         }
         FreeDecodedCert(cert);
         WC_FREE_VAR_EX(cert, NULL, DYNAMIC_TYPE_DCERT);
-
-        return ret;
     }
+
+    return ret;
+}
 #endif /* SESSION_CERTS */
 
 
 #ifdef KEEP_PEER_CERT
-    /* Get a copy of the peer's certificate.
-     *
-     * The certificate is decoded from the session chain when not already
-     * available on the object. Caller must free the returned certificate with
-     * wolfSSL_X509_free().
-     *
-     * @param [in, out] ssl  SSL/TLS object.
-     * @return  Peer's X509 certificate on success.
-     * @return  NULL when ssl is NULL, no peer certificate was kept or dynamic
-     *          memory allocation fails.
-     */
-    WOLFSSL_ABI
-    WOLFSSL_X509* wolfSSL_get_peer_certificate(WOLFSSL* ssl)
-    {
-        WOLFSSL_X509* ret = NULL;
-        WOLFSSL_ENTER("wolfSSL_get_peer_certificate");
-        if (ssl != NULL) {
-            if (ssl->peerCert.issuer.sz)
-                ret = wolfSSL_X509_dup(&ssl->peerCert);
-#ifdef SESSION_CERTS
-            else if (ssl->session->chain.count > 0) {
-                if (DecodeToX509(&ssl->peerCert,
-                        ssl->session->chain.certs[0].buffer,
-                        ssl->session->chain.certs[0].length) == 0) {
-                    ret = wolfSSL_X509_dup(&ssl->peerCert);
-                }
-            }
-#endif
+/* Get a copy of the peer's certificate.
+ *
+ * The certificate is decoded from the session chain when not already
+ * available on the object. Caller must free the returned certificate with
+ * wolfSSL_X509_free().
+ *
+ * @param [in, out] ssl  SSL/TLS object.
+ * @return  Peer's X509 certificate on success.
+ * @return  NULL when ssl is NULL, no peer certificate was kept or dynamic
+ *          memory allocation fails.
+ */
+WOLFSSL_ABI
+WOLFSSL_X509* wolfSSL_get_peer_certificate(WOLFSSL* ssl)
+{
+    WOLFSSL_X509* ret = NULL;
+
+    WOLFSSL_ENTER("wolfSSL_get_peer_certificate");
+
+    if (ssl != NULL) {
+        if (ssl->peerCert.issuer.sz > 0) {
+            ret = wolfSSL_X509_dup(&ssl->peerCert);
         }
-        WOLFSSL_LEAVE("wolfSSL_get_peer_certificate", ret != NULL);
-        return ret;
+        #ifdef SESSION_CERTS
+        else if (ssl->session->chain.count > 0) {
+            if (DecodeToX509(&ssl->peerCert,
+                    ssl->session->chain.certs[0].buffer,
+                    ssl->session->chain.certs[0].length) == 0) {
+                ret = wolfSSL_X509_dup(&ssl->peerCert);
+            }
+        }
+        #endif
     }
+    WOLFSSL_LEAVE("wolfSSL_get_peer_certificate", ret != NULL);
+    return ret;
+}
 
 #endif /* KEEP_PEER_CERT */
 
-#if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
-/* Return stack of peer certs.
- * Caller does not need to free return. The stack is Free'd when WOLFSSL* ssl
- * is.
+/* NO_CERTS is part of the guard so that the declaration of
+ * x509GetIssuerFromCM() in src/ssl.c, its definition in src/x509_str.c and
+ * the call below all agree on when they exist. */
+#if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
+/* Get the stack of the peer's certificates.
+ *
+ * The stack is owned by the SSL/TLS object and is disposed of with it, so the
+ * caller must not free it.
+ *
+ * @param [in, out] ssl  SSL/TLS object. Declared const, but the chain is
+ *                       built into it on the first call.
+ * @return  Stack of the peer's certificates on success.
+ * @return  NULL when ssl is NULL or no chain was received.
  */
 WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_get_peer_cert_chain(const WOLFSSL* ssl)
 {
+    WOLF_STACK_OF(WOLFSSL_X509)* ret = NULL;
+
     WOLFSSL_ENTER("wolfSSL_get_peer_cert_chain");
 
-    if (ssl == NULL)
-        return NULL;
-
-    /* Try to populate if NULL or empty */
-    if (ssl->peerCertChain == NULL ||
-            wolfSSL_sk_X509_num(ssl->peerCertChain) == 0) {
-        wolfSSL_set_peer_cert_chain((WOLFSSL*) ssl);
+    if (ssl != NULL) {
+        /* Try to populate when not present or empty. */
+        if ((ssl->peerCertChain == NULL) ||
+                (wolfSSL_sk_X509_num(ssl->peerCertChain) == 0)) {
+            wolfSSL_set_peer_cert_chain((WOLFSSL*)ssl);
+        }
+        ret = ssl->peerCertChain;
     }
-    return ssl->peerCertChain;
+
+    return ret;
 }
 
-
-static int x509GetIssuerFromCM(WOLFSSL_X509 **issuer, WOLFSSL_CERT_MANAGER* cm,
-        WOLFSSL_X509 *x);
-/**
- * Recursively push the issuer CA chain onto the stack
- * @param cm The cert manager that is queried for the issuer
- * @param x  This cert's issuer will be queried in cm
- * @param sk The issuer is pushed onto this stack
- * @return 0 on success or no issuer found
- *         WOLFSSL_FATAL_ERROR on a fatal error
+/* Push the chain of issuing CAs onto the stack.
+ *
+ * Each certificate's issuer is looked up in turn, stopping when no further
+ * issuer is known or the maximum chain depth is reached.
+ *
+ * @param [in]      cm  Certificate manager queried for each issuer.
+ * @param [in]      x   Certificate whose issuer is looked up first.
+ * @param [in, out] sk  Stack the issuers are pushed onto.
+ * @return  0 on success or when no issuer was found.
+ * @return  WOLFSSL_FATAL_ERROR when an issuer could not be pushed.
  */
 static int PushCAx509Chain(WOLFSSL_CERT_MANAGER* cm,
         WOLFSSL_X509 *x, WOLFSSL_STACK* sk)
 {
+    int ret = 0;
     int i;
-    for (i = 0; i < MAX_CHAIN_DEPTH; i++) {
+
+    for (i = 0; (ret == 0) && (i < MAX_CHAIN_DEPTH); i++) {
         WOLFSSL_X509* issuer = NULL;
-        if (x509GetIssuerFromCM(&issuer, cm, x) != WOLFSSL_SUCCESS)
+
+        /* No more issuers known - chain is as complete as it can be. */
+        if (x509GetIssuerFromCM(&issuer, cm, x) != WOLFSSL_SUCCESS) {
             break;
-        if (wolfSSL_sk_X509_push(sk, issuer) <= 0) {
-            wolfSSL_X509_free(issuer);
-            issuer = NULL;
-            return WOLFSSL_FATAL_ERROR;
         }
-        x = issuer;
+        if (wolfSSL_sk_X509_push(sk, issuer) <= 0) {
+            /* Not stored on the stack - dispose of it here. */
+            wolfSSL_X509_free(issuer);
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+        else {
+            x = issuer;
+        }
     }
-    return 0;
+
+    return ret;
 }
 
 
-/* Builds up and creates a stack of peer certificates for ssl->peerCertChain
-    or ssl->verifiedChain based off of the ssl session chain. Attempts to place
-    CA certificates at the bottom of the stack for a verified chain. Returns
-    stack of WOLFSSL_X509 certs or NULL on failure */
+/* Decode one certificate of the session chain onto the stack.
+ *
+ * On the last certificate of a verified chain the CA chain known for it is
+ * appended as well.
+ *
+ * @param [in]      ssl           SSL/TLS object.
+ * @param [in]      idx           Index of the certificate in the chain.
+ * @param [in]      verifiedFlag  Whether to append the known CA chain.
+ * @param [in, out] sk            Stack to add the certificate to.
+ * @return  0 on success.
+ * @return  MEMORY_E when the certificate object cannot be created.
+ * @return  Other negative value when the certificate cannot be decoded or
+ *          stored.
+ */
+static int PushPeerCertToChain(const WOLFSSL* ssl, int idx, int verifiedFlag,
+    WOLFSSL_STACK* sk)
+{
+    int ret;
+    WOLFSSL_X509* x509 = wolfSSL_X509_new_ex(ssl->heap);
+
+    if (x509 == NULL) {
+        WOLFSSL_MSG("Error Creating X509");
+        ret = MEMORY_E;
+    }
+    else {
+        ret = DecodeToX509(x509, ssl->session->chain.certs[idx].buffer,
+            ssl->session->chain.certs[idx].length);
+        if (ret == 0) {
+            if (wolfSSL_sk_X509_push(sk, x509) <= 0) {
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+            else {
+                if ((idx == ssl->session->chain.count - 1) &&
+                        (verifiedFlag)) {
+                    /* On the last certificate of a verified chain, append the
+                     * CA chain known for it. The certificate is needed to look
+                     * the issuers up, so this is done before the reference to
+                     * it is dropped below. */
+                    SSL_CM_WARNING(ssl);
+                    ret = PushCAx509Chain(SSL_CM(ssl), x509, sk);
+                }
+                /* The stack owns the certificate from here on. */
+                x509 = NULL;
+            }
+        }
+        if (ret != 0) {
+            WOLFSSL_MSG("Error decoding cert");
+            /* NULL once the stack has taken ownership, and freeing NULL does
+             * nothing, so this only releases a certificate that never got
+             * there. */
+            wolfSSL_X509_free(x509);
+        }
+    }
+
+    return ret;
+}
+
+/* Build a stack of the peer's certificates from the session chain.
+ *
+ * For a verified chain the CA certificates known for the last certificate are
+ * placed at the bottom of the stack.
+ *
+ * @param [in] ssl           SSL/TLS object.
+ * @param [in] verifiedFlag  Whether to append the known CA chain.
+ * @return  Stack of the peer's certificates on success.
+ * @return  NULL when ssl is NULL, the session holds no chain, or a certificate
+ *          cannot be created, decoded or stored.
+ */
 static WOLF_STACK_OF(WOLFSSL_X509)* CreatePeerCertChain(const WOLFSSL* ssl,
     int verifiedFlag)
 {
-    WOLFSSL_STACK* sk;
-    WOLFSSL_X509* x509;
-    int i = 0;
-    int err;
+    WOLFSSL_STACK* sk = NULL;
+    int err = 0;
 
-    WOLFSSL_ENTER("wolfSSL_set_peer_cert_chain");
-    if ((ssl == NULL) || (ssl->session->chain.count == 0))
-        return NULL;
+    WOLFSSL_ENTER("CreatePeerCertChain");
 
-    sk = wolfSSL_sk_X509_new_null();
-    if (sk == NULL) {
-        WOLFSSL_MSG("Error Creating sk");
-        return NULL;
+    /* There is nothing to build from without a session chain. */
+    if ((ssl == NULL) || (ssl->session->chain.count == 0)) {
+        err = 1;
+    }
+    else {
+        sk = wolfSSL_sk_X509_new_null();
+        if (sk == NULL) {
+            WOLFSSL_MSG("Error creating stack");
+            err = 1;
+        }
     }
 
-    for (i = 0; i < ssl->session->chain.count; i++) {
-        x509 = wolfSSL_X509_new_ex(ssl->heap);
-        if (x509 == NULL) {
-            WOLFSSL_MSG("Error Creating X509");
-            wolfSSL_sk_X509_pop_free(sk, NULL);
-            return NULL;
+    if (!err) {
+        int i;
+
+        for (i = 0; i < ssl->session->chain.count; i++) {
+            if (PushPeerCertToChain(ssl, i, verifiedFlag, sk) != 0) {
+                err = 1;
+                break;
+            }
         }
-        err = DecodeToX509(x509, ssl->session->chain.certs[i].buffer,
-                             ssl->session->chain.certs[i].length);
-        if (err == 0 && wolfSSL_sk_X509_push(sk, x509) <= 0)
-            err = WOLFSSL_FATAL_ERROR;
-        if (err == 0 && i == ssl->session->chain.count-1 && verifiedFlag) {
-            /* On the last element in the verified chain try to add the CA chain
-             * if we have one for this cert */
-            SSL_CM_WARNING(ssl);
-            err = PushCAx509Chain(SSL_CM(ssl), x509, sk);
-        }
-        if (err != 0) {
-            WOLFSSL_MSG("Error decoding cert");
-            wolfSSL_X509_free(x509);
-            x509 = NULL;
-            wolfSSL_sk_X509_pop_free(sk, NULL);
-            return NULL;
-        }
+    }
+
+    if (err) {
+        /* Certificates already pushed are freed with the stack. */
+        wolfSSL_sk_X509_pop_free(sk, NULL);
+        sk = NULL;
     }
 
     return sk;
 }
 
 
-/* Builds up and creates a stack of peer certificates for ssl->peerCertChain
-    returns the stack on success and NULL on failure */
+/* Build and store the stack of the peer's certificates.
+ *
+ * On the server the leaf certificate is moved out of the stack and kept as the
+ * session's peer. The stack is disposed of when the SSL/TLS object is.
+ *
+ * @param [in, out] ssl  SSL/TLS object.
+ * @return  Stack of the peer's certificates on success.
+ * @return  NULL when ssl is NULL, the session holds no chain, or the stack
+ *          cannot be built.
+ */
 WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_set_peer_cert_chain(WOLFSSL* ssl)
 {
-    WOLFSSL_STACK* sk;
+    WOLFSSL_STACK* sk = NULL;
 
     WOLFSSL_ENTER("wolfSSL_set_peer_cert_chain");
-    if ((ssl == NULL) || (ssl->session->chain.count == 0))
-        return NULL;
 
-    sk = CreatePeerCertChain(ssl, 0);
+    /* Validate parameters. */
+    if ((ssl != NULL) && (ssl->session->chain.count > 0)) {
+        sk = CreatePeerCertChain(ssl, 0);
+    }
 
     if (sk != NULL) {
         if (ssl->options.side == WOLFSSL_SERVER_END) {
-            if (ssl->session->peer)
+            /* Replace any peer kept from a previous call. */
+            if (ssl->session->peer != NULL) {
                 wolfSSL_X509_free(ssl->session->peer);
+            }
 
             ssl->session->peer = wolfSSL_sk_X509_shift(sk);
             ssl->session->peerVerifyRet = ssl->peerVerifyRet;
         }
-        if (ssl->peerCertChain != NULL)
+        if (ssl->peerCertChain != NULL) {
             wolfSSL_sk_X509_pop_free(ssl->peerCertChain, NULL);
+        }
         /* This is Free'd when ssl is Free'd */
         ssl->peerCertChain = sk;
     }
+
     return sk;
 }
 
 #ifdef KEEP_PEER_CERT
-/**
- * Implemented in a similar way that ngx_ssl_ocsp_validate does it when
- * SSL_get0_verified_chain is not available.
- * @param ssl WOLFSSL object to extract certs from
- * @return Stack of verified certs
+/* Get the peer's certificate chain, verified against the store.
+ *
+ * Implemented in a similar way to ngx_ssl_ocsp_validate() when
+ * SSL_get0_verified_chain is not available. The chain is stored on the SSL/TLS
+ * object and disposed of with it, so the caller must not free it.
+ *
+ * @param [in, out] ssl  SSL/TLS object. Declared const, but the verified
+ *                       chain is stored into it.
+ * @return  Stack of verified certificates on success.
+ * @return  NULL when ssl or its context is NULL, no peer certificate was kept,
+ *          the chain cannot be built, or verification fails.
  */
 WOLF_STACK_OF(WOLFSSL_X509) *wolfSSL_get0_verified_chain(const WOLFSSL *ssl)
 {
     WOLF_STACK_OF(WOLFSSL_X509)* chain = NULL;
     WOLFSSL_X509_STORE_CTX* storeCtx = NULL;
     WOLFSSL_X509* peerCert = NULL;
+    int err = 0;
 
     WOLFSSL_ENTER("wolfSSL_get0_verified_chain");
 
-    if (ssl == NULL || ssl->ctx == NULL) {
+    /* Validate parameters. */
+    if ((ssl == NULL) || (ssl->ctx == NULL)) {
         WOLFSSL_MSG("Bad parameter");
-        return NULL;
+        err = 1;
     }
 
-    peerCert = wolfSSL_get_peer_certificate((WOLFSSL*)ssl);
-    if (peerCert == NULL) {
-        WOLFSSL_MSG("wolfSSL_get_peer_certificate error");
-        return NULL;
-    }
-    /* wolfSSL_get_peer_certificate returns a copy. We want the internal
-     * member so that we don't have to worry about free'ing it. We call
-     * wolfSSL_get_peer_certificate so that we don't have to worry about
-     * setting up the internal pointer. */
-    wolfSSL_X509_free(peerCert);
-    peerCert = (WOLFSSL_X509*)&ssl->peerCert;
-    chain = CreatePeerCertChain((WOLFSSL*)ssl, 1);
-    if (chain == NULL) {
-        WOLFSSL_MSG("wolfSSL_get_peer_cert_chain error");
-        return NULL;
+    if (!err) {
+        peerCert = wolfSSL_get_peer_certificate((WOLFSSL*)ssl);
+        if (peerCert == NULL) {
+            WOLFSSL_MSG("wolfSSL_get_peer_certificate error");
+            err = 1;
+        }
+        else {
+            /* wolfSSL_get_peer_certificate returns a copy. We want the
+             * internal member so that we don't have to worry about free'ing
+             * it. We call wolfSSL_get_peer_certificate so that we don't have
+             * to worry about setting up the internal pointer. */
+            wolfSSL_X509_free(peerCert);
+            peerCert = (WOLFSSL_X509*)&ssl->peerCert;
+        }
     }
 
-    if (ssl->verifiedChain != NULL) {
-        wolfSSL_sk_X509_pop_free(ssl->verifiedChain, NULL);
+    if (!err) {
+        chain = CreatePeerCertChain((WOLFSSL*)ssl, 1);
+        if (chain == NULL) {
+            WOLFSSL_MSG("wolfSSL_get_peer_cert_chain error");
+            err = 1;
+        }
+        else {
+            /* Replace any chain kept from a previous call. */
+            if (ssl->verifiedChain != NULL) {
+                wolfSSL_sk_X509_pop_free(ssl->verifiedChain, NULL);
+            }
+            /* This is Free'd when ssl is Free'd */
+            ((WOLFSSL*)ssl)->verifiedChain = chain;
+        }
     }
-    ((WOLFSSL*)ssl)->verifiedChain = chain;
 
-    storeCtx = wolfSSL_X509_STORE_CTX_new();
-    if (storeCtx == NULL) {
-        WOLFSSL_MSG("wolfSSL_X509_STORE_CTX_new error");
-        return NULL;
+    if (!err) {
+        storeCtx = wolfSSL_X509_STORE_CTX_new();
+        if (storeCtx == NULL) {
+            WOLFSSL_MSG("wolfSSL_X509_STORE_CTX_new error");
+            err = 1;
+        }
     }
-    if (wolfSSL_X509_STORE_CTX_init(storeCtx, SSL_STORE(ssl),
-            peerCert, chain) != WOLFSSL_SUCCESS) {
-        WOLFSSL_MSG("wolfSSL_X509_STORE_CTX_init error");
-        wolfSSL_X509_STORE_CTX_free(storeCtx);
-        return NULL;
+
+    if (!err) {
+        if (wolfSSL_X509_STORE_CTX_init(storeCtx, SSL_STORE(ssl), peerCert,
+                chain) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("wolfSSL_X509_STORE_CTX_init error");
+            err = 1;
+        }
+        else if (wolfSSL_X509_verify_cert(storeCtx) <= 0) {
+            WOLFSSL_MSG("wolfSSL_X509_verify_cert error");
+            err = 1;
+        }
     }
-    if (wolfSSL_X509_verify_cert(storeCtx) <= 0) {
-        WOLFSSL_MSG("wolfSSL_X509_verify_cert error");
-        wolfSSL_X509_STORE_CTX_free(storeCtx);
-        return NULL;
-    }
+
     wolfSSL_X509_STORE_CTX_free(storeCtx);
+    if (err) {
+        /* The chain stays owned by the object; report failure only. */
+        chain = NULL;
+    }
+
     return chain;
 }
 #endif /* KEEP_PEER_CERT */
-#endif /* SESSION_CERTS && OPENSSL_EXTRA */
+#endif /* SESSION_CERTS && OPENSSL_EXTRA && !NO_CERTS */
 
 #endif /* !WOLFCRYPT_ONLY */
 

@@ -149,7 +149,7 @@ L_AES_XTS_encrypt_aesni_tweak_aes_enc_block_last:
         xor	r13d, r13d
         cmp	eax, 64
         mov	r11d, eax
-        jl	L_AES_XTS_encrypt_aesni_done_64
+        jb	L_AES_XTS_encrypt_aesni_done_64
         and	r11d, 4294967232
 L_AES_XTS_encrypt_aesni_enc_64:
         ; 64 bytes of input
@@ -283,7 +283,7 @@ L_AES_XTS_encrypt_aesni_aes_enc_64_aes_enc_block_last:
         pxor	xmm0, xmm4
         add	r13d, 64
         cmp	r13d, r11d
-        jl	L_AES_XTS_encrypt_aesni_enc_64
+        jb	L_AES_XTS_encrypt_aesni_enc_64
 L_AES_XTS_encrypt_aesni_done_64:
         cmp	r13d, eax
         mov	r11d, eax
@@ -291,7 +291,7 @@ L_AES_XTS_encrypt_aesni_done_64:
         sub	r11d, r13d
         cmp	r11d, 16
         mov	r11d, eax
-        jl	L_AES_XTS_encrypt_aesni_last_15
+        jb	L_AES_XTS_encrypt_aesni_last_15
         and	r11d, 4294967280
         ; 16 bytes of input
 L_AES_XTS_encrypt_aesni_enc_16:
@@ -344,7 +344,7 @@ L_AES_XTS_encrypt_aesni_aes_enc_block_last:
         pxor	xmm0, xmm4
         add	r13d, 16
         cmp	r13d, r11d
-        jl	L_AES_XTS_encrypt_aesni_enc_16
+        jb	L_AES_XTS_encrypt_aesni_enc_16
         cmp	r13d, eax
         je	L_AES_XTS_encrypt_aesni_done_enc
 L_AES_XTS_encrypt_aesni_last_15:
@@ -362,7 +362,7 @@ L_AES_XTS_encrypt_aesni_last_15_byte_loop:
         inc	r13d
         inc	edx
         cmp	r13d, eax
-        jl	L_AES_XTS_encrypt_aesni_last_15_byte_loop
+        jb	L_AES_XTS_encrypt_aesni_last_15_byte_loop
         sub	r13, rdx
         movdqu	xmm8, OWORD PTR [rsp]
         sub	r13, 16
@@ -445,7 +445,7 @@ AES_XTS_encrypt_update_aesni PROC
         xor	r12d, r12d
         cmp	eax, 64
         mov	r11d, eax
-        jl	L_AES_XTS_encrypt_update_aesni_done_64
+        jb	L_AES_XTS_encrypt_update_aesni_done_64
         and	r11d, 4294967232
 L_AES_XTS_encrypt_update_aesni_enc_64:
         ; 64 bytes of input
@@ -579,7 +579,7 @@ L_AES_XTS_encrypt_update_aesni_aes_enc_64_aes_enc_block_last:
         pxor	xmm0, xmm4
         add	r12d, 64
         cmp	r12d, r11d
-        jl	L_AES_XTS_encrypt_update_aesni_enc_64
+        jb	L_AES_XTS_encrypt_update_aesni_enc_64
 L_AES_XTS_encrypt_update_aesni_done_64:
         cmp	r12d, eax
         mov	r11d, eax
@@ -587,7 +587,7 @@ L_AES_XTS_encrypt_update_aesni_done_64:
         sub	r11d, r12d
         cmp	r11d, 16
         mov	r11d, eax
-        jl	L_AES_XTS_encrypt_update_aesni_last_15
+        jb	L_AES_XTS_encrypt_update_aesni_last_15
         and	r11d, 4294967280
         ; 16 bytes of input
 L_AES_XTS_encrypt_update_aesni_enc_16:
@@ -640,7 +640,7 @@ L_AES_XTS_encrypt_update_aesni_aes_enc_block_last:
         pxor	xmm0, xmm4
         add	r12d, 16
         cmp	r12d, r11d
-        jl	L_AES_XTS_encrypt_update_aesni_enc_16
+        jb	L_AES_XTS_encrypt_update_aesni_enc_16
         cmp	r12d, eax
         je	L_AES_XTS_encrypt_update_aesni_done_enc
 L_AES_XTS_encrypt_update_aesni_last_15:
@@ -658,7 +658,7 @@ L_AES_XTS_encrypt_update_aesni_last_15_byte_loop:
         inc	r12d
         inc	edx
         cmp	r12d, eax
-        jl	L_AES_XTS_encrypt_update_aesni_last_15_byte_loop
+        jb	L_AES_XTS_encrypt_update_aesni_last_15_byte_loop
         sub	r12, rdx
         movdqu	xmm8, OWORD PTR [rsp]
         sub	r12, 16
@@ -782,10 +782,10 @@ L_AES_XTS_decrypt_aesni_tweak_aes_enc_block_last:
         je	L_AES_XTS_decrypt_aesni_mul16_64
         sub	r11d, 16
         cmp	r11d, 16
-        jl	L_AES_XTS_decrypt_aesni_last_31_start
+        jb	L_AES_XTS_decrypt_aesni_last_31_start
 L_AES_XTS_decrypt_aesni_mul16_64:
         cmp	r11d, 64
-        jl	L_AES_XTS_decrypt_aesni_done_64
+        jb	L_AES_XTS_decrypt_aesni_done_64
         and	r11d, 4294967232
 L_AES_XTS_decrypt_aesni_dec_64:
         ; 64 bytes of input
@@ -919,7 +919,7 @@ L_AES_XTS_decrypt_aesni_aes_dec_64_aes_dec_block_last:
         pxor	xmm0, xmm4
         add	r13d, 64
         cmp	r13d, r11d
-        jl	L_AES_XTS_decrypt_aesni_dec_64
+        jb	L_AES_XTS_decrypt_aesni_dec_64
 L_AES_XTS_decrypt_aesni_done_64:
         cmp	r13d, eax
         mov	r11d, eax
@@ -930,7 +930,7 @@ L_AES_XTS_decrypt_aesni_done_64:
         sub	r11d, 16
         sub	r11d, r13d
         cmp	r11d, 16
-        jl	L_AES_XTS_decrypt_aesni_last_31_start
+        jb	L_AES_XTS_decrypt_aesni_last_31_start
         add	r11d, r13d
 L_AES_XTS_decrypt_aesni_mul16:
 L_AES_XTS_decrypt_aesni_dec_16:
@@ -984,7 +984,7 @@ L_AES_XTS_decrypt_aesni_aes_dec_block_last:
         pxor	xmm0, xmm4
         add	r13d, 16
         cmp	r13d, r11d
-        jl	L_AES_XTS_decrypt_aesni_dec_16
+        jb	L_AES_XTS_decrypt_aesni_dec_16
         cmp	r13d, eax
         je	L_AES_XTS_decrypt_aesni_done_dec
 L_AES_XTS_decrypt_aesni_last_31_start:
@@ -1045,7 +1045,7 @@ L_AES_XTS_decrypt_aesni_last_31_byte_loop:
         inc	r13d
         inc	edx
         cmp	r13d, eax
-        jl	L_AES_XTS_decrypt_aesni_last_31_byte_loop
+        jb	L_AES_XTS_decrypt_aesni_last_31_byte_loop
         sub	r13, rdx
         movdqu	xmm8, OWORD PTR [rsp]
         pxor	xmm8, xmm0
@@ -1132,10 +1132,10 @@ AES_XTS_decrypt_update_aesni PROC
         je	L_AES_XTS_decrypt_update_aesni_mul16_64
         sub	r11d, 16
         cmp	r11d, 16
-        jl	L_AES_XTS_decrypt_update_aesni_last_31_start
+        jb	L_AES_XTS_decrypt_update_aesni_last_31_start
 L_AES_XTS_decrypt_update_aesni_mul16_64:
         cmp	r11d, 64
-        jl	L_AES_XTS_decrypt_update_aesni_done_64
+        jb	L_AES_XTS_decrypt_update_aesni_done_64
         and	r11d, 4294967232
 L_AES_XTS_decrypt_update_aesni_dec_64:
         ; 64 bytes of input
@@ -1269,7 +1269,7 @@ L_AES_XTS_decrypt_update_aesni_aes_dec_64_aes_dec_block_last:
         pxor	xmm0, xmm4
         add	r12d, 64
         cmp	r12d, r11d
-        jl	L_AES_XTS_decrypt_update_aesni_dec_64
+        jb	L_AES_XTS_decrypt_update_aesni_dec_64
 L_AES_XTS_decrypt_update_aesni_done_64:
         cmp	r12d, eax
         mov	r11d, eax
@@ -1280,7 +1280,7 @@ L_AES_XTS_decrypt_update_aesni_done_64:
         sub	r11d, 16
         sub	r11d, r12d
         cmp	r11d, 16
-        jl	L_AES_XTS_decrypt_update_aesni_last_31_start
+        jb	L_AES_XTS_decrypt_update_aesni_last_31_start
         add	r11d, r12d
 L_AES_XTS_decrypt_update_aesni_mul16:
 L_AES_XTS_decrypt_update_aesni_dec_16:
@@ -1334,7 +1334,7 @@ L_AES_XTS_decrypt_update_aesni_aes_dec_block_last:
         pxor	xmm0, xmm4
         add	r12d, 16
         cmp	r12d, r11d
-        jl	L_AES_XTS_decrypt_update_aesni_dec_16
+        jb	L_AES_XTS_decrypt_update_aesni_dec_16
         cmp	r12d, eax
         je	L_AES_XTS_decrypt_update_aesni_done_dec
 L_AES_XTS_decrypt_update_aesni_last_31_start:
@@ -1395,7 +1395,7 @@ L_AES_XTS_decrypt_update_aesni_last_31_byte_loop:
         inc	r12d
         inc	edx
         cmp	r12d, eax
-        jl	L_AES_XTS_decrypt_update_aesni_last_31_byte_loop
+        jb	L_AES_XTS_decrypt_update_aesni_last_31_byte_loop
         sub	r12, rdx
         movdqu	xmm8, OWORD PTR [rsp]
         pxor	xmm8, xmm0
@@ -1563,7 +1563,7 @@ L_AES_XTS_encrypt_avx1_tweak_aes_enc_block_last:
         xor	r13d, r13d
         cmp	eax, 64
         mov	r11d, eax
-        jl	L_AES_XTS_encrypt_avx1_done_64
+        jb	L_AES_XTS_encrypt_avx1_done_64
         and	r11d, 4294967232
 L_AES_XTS_encrypt_avx1_enc_64:
         ; 64 bytes of input
@@ -1689,7 +1689,7 @@ L_AES_XTS_encrypt_avx1_aes_enc_64_aes_enc_block_last:
         vpxor	xmm0, xmm0, xmm4
         add	r13d, 64
         cmp	r13d, r11d
-        jl	L_AES_XTS_encrypt_avx1_enc_64
+        jb	L_AES_XTS_encrypt_avx1_enc_64
 L_AES_XTS_encrypt_avx1_done_64:
         cmp	r13d, eax
         mov	r11d, eax
@@ -1697,7 +1697,7 @@ L_AES_XTS_encrypt_avx1_done_64:
         sub	r11d, r13d
         cmp	r11d, 16
         mov	r11d, eax
-        jl	L_AES_XTS_encrypt_avx1_last_15
+        jb	L_AES_XTS_encrypt_avx1_last_15
         and	r11d, 4294967280
         ; 16 bytes of input
 L_AES_XTS_encrypt_avx1_enc_16:
@@ -1749,7 +1749,7 @@ L_AES_XTS_encrypt_avx1_aes_enc_block_last:
         vpxor	xmm0, xmm0, xmm4
         add	r13d, 16
         cmp	r13d, r11d
-        jl	L_AES_XTS_encrypt_avx1_enc_16
+        jb	L_AES_XTS_encrypt_avx1_enc_16
         cmp	r13d, eax
         je	L_AES_XTS_encrypt_avx1_done_enc
 L_AES_XTS_encrypt_avx1_last_15:
@@ -1767,7 +1767,7 @@ L_AES_XTS_encrypt_avx1_last_15_byte_loop:
         inc	r13d
         inc	edx
         cmp	r13d, eax
-        jl	L_AES_XTS_encrypt_avx1_last_15_byte_loop
+        jb	L_AES_XTS_encrypt_avx1_last_15_byte_loop
         sub	r13, rdx
         vmovdqu	xmm8, OWORD PTR [rsp]
         sub	r13, 16
@@ -1850,7 +1850,7 @@ AES_XTS_encrypt_update_avx1 PROC
         xor	r12d, r12d
         cmp	eax, 64
         mov	r11d, eax
-        jl	L_AES_XTS_encrypt_update_avx1_done_64
+        jb	L_AES_XTS_encrypt_update_avx1_done_64
         and	r11d, 4294967232
 L_AES_XTS_encrypt_update_avx1_enc_64:
         ; 64 bytes of input
@@ -1976,7 +1976,7 @@ L_AES_XTS_encrypt_update_avx1_aes_enc_64_aes_enc_block_last:
         vpxor	xmm0, xmm0, xmm4
         add	r12d, 64
         cmp	r12d, r11d
-        jl	L_AES_XTS_encrypt_update_avx1_enc_64
+        jb	L_AES_XTS_encrypt_update_avx1_enc_64
 L_AES_XTS_encrypt_update_avx1_done_64:
         cmp	r12d, eax
         mov	r11d, eax
@@ -1984,7 +1984,7 @@ L_AES_XTS_encrypt_update_avx1_done_64:
         sub	r11d, r12d
         cmp	r11d, 16
         mov	r11d, eax
-        jl	L_AES_XTS_encrypt_update_avx1_last_15
+        jb	L_AES_XTS_encrypt_update_avx1_last_15
         and	r11d, 4294967280
         ; 16 bytes of input
 L_AES_XTS_encrypt_update_avx1_enc_16:
@@ -2036,7 +2036,7 @@ L_AES_XTS_encrypt_update_avx1_aes_enc_block_last:
         vpxor	xmm0, xmm0, xmm4
         add	r12d, 16
         cmp	r12d, r11d
-        jl	L_AES_XTS_encrypt_update_avx1_enc_16
+        jb	L_AES_XTS_encrypt_update_avx1_enc_16
         cmp	r12d, eax
         je	L_AES_XTS_encrypt_update_avx1_done_enc
 L_AES_XTS_encrypt_update_avx1_last_15:
@@ -2054,7 +2054,7 @@ L_AES_XTS_encrypt_update_avx1_last_15_byte_loop:
         inc	r12d
         inc	edx
         cmp	r12d, eax
-        jl	L_AES_XTS_encrypt_update_avx1_last_15_byte_loop
+        jb	L_AES_XTS_encrypt_update_avx1_last_15_byte_loop
         sub	r12, rdx
         vmovdqu	xmm8, OWORD PTR [rsp]
         sub	r12, 16
@@ -2178,10 +2178,10 @@ L_AES_XTS_decrypt_avx1_tweak_aes_enc_block_last:
         je	L_AES_XTS_decrypt_avx1_mul16_64
         sub	r11d, 16
         cmp	r11d, 16
-        jl	L_AES_XTS_decrypt_avx1_last_31_start
+        jb	L_AES_XTS_decrypt_avx1_last_31_start
 L_AES_XTS_decrypt_avx1_mul16_64:
         cmp	r11d, 64
-        jl	L_AES_XTS_decrypt_avx1_done_64
+        jb	L_AES_XTS_decrypt_avx1_done_64
         and	r11d, 4294967232
 L_AES_XTS_decrypt_avx1_dec_64:
         ; 64 bytes of input
@@ -2307,7 +2307,7 @@ L_AES_XTS_decrypt_avx1_aes_dec_64_aes_dec_block_last:
         vpxor	xmm0, xmm0, xmm4
         add	r13d, 64
         cmp	r13d, r11d
-        jl	L_AES_XTS_decrypt_avx1_dec_64
+        jb	L_AES_XTS_decrypt_avx1_dec_64
 L_AES_XTS_decrypt_avx1_done_64:
         cmp	r13d, eax
         mov	r11d, eax
@@ -2318,7 +2318,7 @@ L_AES_XTS_decrypt_avx1_done_64:
         sub	r11d, 16
         sub	r11d, r13d
         cmp	r11d, 16
-        jl	L_AES_XTS_decrypt_avx1_last_31_start
+        jb	L_AES_XTS_decrypt_avx1_last_31_start
         add	r11d, r13d
 L_AES_XTS_decrypt_avx1_mul16:
 L_AES_XTS_decrypt_avx1_dec_16:
@@ -2371,7 +2371,7 @@ L_AES_XTS_decrypt_avx1_aes_dec_block_last:
         vpxor	xmm0, xmm0, xmm4
         add	r13d, 16
         cmp	r13d, r11d
-        jl	L_AES_XTS_decrypt_avx1_dec_16
+        jb	L_AES_XTS_decrypt_avx1_dec_16
         cmp	r13d, eax
         je	L_AES_XTS_decrypt_avx1_done_dec
 L_AES_XTS_decrypt_avx1_last_31_start:
@@ -2430,7 +2430,7 @@ L_AES_XTS_decrypt_avx1_last_31_byte_loop:
         inc	r13d
         inc	edx
         cmp	r13d, eax
-        jl	L_AES_XTS_decrypt_avx1_last_31_byte_loop
+        jb	L_AES_XTS_decrypt_avx1_last_31_byte_loop
         sub	r13, rdx
         vmovdqu	xmm8, OWORD PTR [rsp]
         vpxor	xmm8, xmm8, xmm0
@@ -2517,10 +2517,10 @@ AES_XTS_decrypt_update_avx1 PROC
         je	L_AES_XTS_decrypt_update_avx1_mul16_64
         sub	r11d, 16
         cmp	r11d, 16
-        jl	L_AES_XTS_decrypt_update_avx1_last_31_start
+        jb	L_AES_XTS_decrypt_update_avx1_last_31_start
 L_AES_XTS_decrypt_update_avx1_mul16_64:
         cmp	r11d, 64
-        jl	L_AES_XTS_decrypt_update_avx1_done_64
+        jb	L_AES_XTS_decrypt_update_avx1_done_64
         and	r11d, 4294967232
 L_AES_XTS_decrypt_update_avx1_dec_64:
         ; 64 bytes of input
@@ -2646,7 +2646,7 @@ L_AES_XTS_decrypt_update_avx1_aes_dec_64_aes_dec_block_last:
         vpxor	xmm0, xmm0, xmm4
         add	r12d, 64
         cmp	r12d, r11d
-        jl	L_AES_XTS_decrypt_update_avx1_dec_64
+        jb	L_AES_XTS_decrypt_update_avx1_dec_64
 L_AES_XTS_decrypt_update_avx1_done_64:
         cmp	r12d, eax
         mov	r11d, eax
@@ -2657,7 +2657,7 @@ L_AES_XTS_decrypt_update_avx1_done_64:
         sub	r11d, 16
         sub	r11d, r12d
         cmp	r11d, 16
-        jl	L_AES_XTS_decrypt_update_avx1_last_31_start
+        jb	L_AES_XTS_decrypt_update_avx1_last_31_start
         add	r11d, r12d
 L_AES_XTS_decrypt_update_avx1_mul16:
 L_AES_XTS_decrypt_update_avx1_dec_16:
@@ -2710,7 +2710,7 @@ L_AES_XTS_decrypt_update_avx1_aes_dec_block_last:
         vpxor	xmm0, xmm0, xmm4
         add	r12d, 16
         cmp	r12d, r11d
-        jl	L_AES_XTS_decrypt_update_avx1_dec_16
+        jb	L_AES_XTS_decrypt_update_avx1_dec_16
         cmp	r12d, eax
         je	L_AES_XTS_decrypt_update_avx1_done_dec
 L_AES_XTS_decrypt_update_avx1_last_31_start:
@@ -2769,7 +2769,7 @@ L_AES_XTS_decrypt_update_avx1_last_31_byte_loop:
         inc	r12d
         inc	edx
         cmp	r12d, eax
-        jl	L_AES_XTS_decrypt_update_avx1_last_31_byte_loop
+        jb	L_AES_XTS_decrypt_update_avx1_last_31_byte_loop
         sub	r12, rdx
         vmovdqu	xmm8, OWORD PTR [rsp]
         vpxor	xmm8, xmm8, xmm0
@@ -2919,7 +2919,7 @@ AES_XTS_encrypt_vaes PROC
         vmovdqu	OWORD PTR [rsp+200], xmm14
         vmovdqu	OWORD PTR [rsp+216], xmm15
         vmovdqu	xmm12, OWORD PTR L_vaes_aes_xts_gc_xts
-        vbroadcasti128	ymm13, ptr_L_vaes_aes_xts_poly
+        vbroadcasti128	ymm13, OWORD PTR L_vaes_aes_xts_poly
         vmovdqu	ymm14, YMMWORD PTR L_vaes_aes_xts_shl
         vmovdqu	ymm15, YMMWORD PTR L_vaes_aes_xts_shr
         vmovdqu	xmm8, OWORD PTR [r12]
@@ -2960,10 +2960,10 @@ L_AES_XTS_encrypt_vaes_tweak_aes_enc_block_last:
         vaesenclast	xmm8, xmm8, xmm5
         xor	r13d, r13d
         cmp	eax, 32
-        jl	L_AES_XTS_encrypt_vaes_done_128
+        jb	L_AES_XTS_encrypt_vaes_done_128
         cmp	eax, 128
         mov	r11d, eax
-        jl	L_AES_XTS_encrypt_vaes_done_128
+        jb	L_AES_XTS_encrypt_vaes_done_128
         and	r11d, 4294967168
         vperm2i128	ymm5, ymm8, ymm8, 0
         vpsrlvq	ymm6, ymm5, ymm15
@@ -3118,7 +3118,7 @@ L_AES_XTS_encrypt_vaes_aes_enc_128_aes_enc_block_last:
         vpxor	ymm7, ymm7, ymm9
         add	r13d, 128
         cmp	r13d, r11d
-        jl	L_AES_XTS_encrypt_vaes_enc_128
+        jb	L_AES_XTS_encrypt_vaes_enc_128
         vextracti128	xmm8, ymm4, 0
 L_AES_XTS_encrypt_vaes_done_128:
         mov	r11d, eax
@@ -3278,7 +3278,7 @@ L_AES_XTS_encrypt_vaes_done_32:
         sub	r11d, r13d
         cmp	r11d, 16
         mov	r11d, eax
-        jl	L_AES_XTS_encrypt_vaes_last_15
+        jb	L_AES_XTS_encrypt_vaes_last_15
         and	r11d, 4294967280
         ; 16 bytes of input
 L_AES_XTS_encrypt_vaes_enc_16:
@@ -3330,7 +3330,7 @@ L_AES_XTS_encrypt_vaes_aes_enc_block_last:
         vpxor	xmm8, xmm8, xmm4
         add	r13d, 16
         cmp	r13d, r11d
-        jl	L_AES_XTS_encrypt_vaes_enc_16
+        jb	L_AES_XTS_encrypt_vaes_enc_16
         cmp	r13d, eax
         je	L_AES_XTS_encrypt_vaes_done_enc
 L_AES_XTS_encrypt_vaes_last_15:
@@ -3348,7 +3348,7 @@ L_AES_XTS_encrypt_vaes_last_15_byte_loop:
         inc	r13d
         inc	edx
         cmp	r13d, eax
-        jl	L_AES_XTS_encrypt_vaes_last_15_byte_loop
+        jb	L_AES_XTS_encrypt_vaes_last_15_byte_loop
         sub	r13, rdx
         vmovdqu	xmm0, OWORD PTR [rsp]
         sub	r13, 16
@@ -3433,16 +3433,16 @@ AES_XTS_encrypt_update_vaes PROC
         vmovdqu	OWORD PTR [rsp+192], xmm14
         vmovdqu	OWORD PTR [rsp+208], xmm15
         vmovdqu	xmm12, OWORD PTR L_vaes_aes_xts_gc_xts
-        vbroadcasti128	ymm13, ptr_L_vaes_aes_xts_poly
+        vbroadcasti128	ymm13, OWORD PTR L_vaes_aes_xts_poly
         vmovdqu	ymm14, YMMWORD PTR L_vaes_aes_xts_shl
         vmovdqu	ymm15, YMMWORD PTR L_vaes_aes_xts_shr
         vmovdqu	xmm8, OWORD PTR [r8]
         xor	r12d, r12d
         cmp	eax, 32
-        jl	L_AES_XTS_encrypt_update_vaes_done_128
+        jb	L_AES_XTS_encrypt_update_vaes_done_128
         cmp	eax, 128
         mov	r11d, eax
-        jl	L_AES_XTS_encrypt_update_vaes_done_128
+        jb	L_AES_XTS_encrypt_update_vaes_done_128
         and	r11d, 4294967168
         vperm2i128	ymm5, ymm8, ymm8, 0
         vpsrlvq	ymm6, ymm5, ymm15
@@ -3597,7 +3597,7 @@ L_AES_XTS_encrypt_update_vaes_aes_enc_128_aes_enc_block_last:
         vpxor	ymm7, ymm7, ymm9
         add	r12d, 128
         cmp	r12d, r11d
-        jl	L_AES_XTS_encrypt_update_vaes_enc_128
+        jb	L_AES_XTS_encrypt_update_vaes_enc_128
         vextracti128	xmm8, ymm4, 0
 L_AES_XTS_encrypt_update_vaes_done_128:
         mov	r11d, eax
@@ -3757,7 +3757,7 @@ L_AES_XTS_encrypt_update_vaes_done_32:
         sub	r11d, r12d
         cmp	r11d, 16
         mov	r11d, eax
-        jl	L_AES_XTS_encrypt_update_vaes_last_15
+        jb	L_AES_XTS_encrypt_update_vaes_last_15
         and	r11d, 4294967280
         ; 16 bytes of input
 L_AES_XTS_encrypt_update_vaes_enc_16:
@@ -3809,7 +3809,7 @@ L_AES_XTS_encrypt_update_vaes_aes_enc_block_last:
         vpxor	xmm8, xmm8, xmm4
         add	r12d, 16
         cmp	r12d, r11d
-        jl	L_AES_XTS_encrypt_update_vaes_enc_16
+        jb	L_AES_XTS_encrypt_update_vaes_enc_16
         cmp	r12d, eax
         je	L_AES_XTS_encrypt_update_vaes_done_enc
 L_AES_XTS_encrypt_update_vaes_last_15:
@@ -3827,7 +3827,7 @@ L_AES_XTS_encrypt_update_vaes_last_15_byte_loop:
         inc	r12d
         inc	edx
         cmp	r12d, eax
-        jl	L_AES_XTS_encrypt_update_vaes_last_15_byte_loop
+        jb	L_AES_XTS_encrypt_update_vaes_last_15_byte_loop
         sub	r12, rdx
         vmovdqu	xmm0, OWORD PTR [rsp]
         sub	r12, 16
@@ -3914,7 +3914,7 @@ AES_XTS_decrypt_vaes PROC
         vmovdqu	OWORD PTR [rsp+200], xmm14
         vmovdqu	OWORD PTR [rsp+216], xmm15
         vmovdqu	xmm12, OWORD PTR L_vaes_aes_xts_gc_xts
-        vbroadcasti128	ymm13, ptr_L_vaes_aes_xts_poly
+        vbroadcasti128	ymm13, OWORD PTR L_vaes_aes_xts_poly
         vmovdqu	ymm14, YMMWORD PTR L_vaes_aes_xts_shl
         vmovdqu	ymm15, YMMWORD PTR L_vaes_aes_xts_shr
         vmovdqu	xmm8, OWORD PTR [r12]
@@ -3960,12 +3960,12 @@ L_AES_XTS_decrypt_vaes_tweak_aes_enc_block_last:
         je	L_AES_XTS_decrypt_vaes_mul16_128
         sub	r11d, 16
         cmp	r11d, 16
-        jl	L_AES_XTS_decrypt_vaes_last_31_start
+        jb	L_AES_XTS_decrypt_vaes_last_31_start
 L_AES_XTS_decrypt_vaes_mul16_128:
         cmp	r11d, 32
-        jl	L_AES_XTS_decrypt_vaes_done_128
+        jb	L_AES_XTS_decrypt_vaes_done_128
         cmp	r11d, 128
-        jl	L_AES_XTS_decrypt_vaes_done_128
+        jb	L_AES_XTS_decrypt_vaes_done_128
         and	r11d, 4294967168
         vperm2i128	ymm5, ymm8, ymm8, 0
         vpsrlvq	ymm6, ymm5, ymm15
@@ -4120,7 +4120,7 @@ L_AES_XTS_decrypt_vaes_aes_dec_128_aes_dec_block_last:
         vpxor	ymm7, ymm7, ymm9
         add	r13d, 128
         cmp	r13d, r11d
-        jl	L_AES_XTS_decrypt_vaes_dec_128
+        jb	L_AES_XTS_decrypt_vaes_dec_128
         vextracti128	xmm8, ymm4, 0
 L_AES_XTS_decrypt_vaes_done_128:
         cmp	r13d, eax
@@ -4132,7 +4132,7 @@ L_AES_XTS_decrypt_vaes_done_128:
         sub	r11d, 16
         sub	r11d, r13d
         cmp	r11d, 16
-        jl	L_AES_XTS_decrypt_vaes_last_31_start
+        jb	L_AES_XTS_decrypt_vaes_last_31_start
         add	r11d, r13d
 L_AES_XTS_decrypt_vaes_mul16_64:
         and	r11d, 4294967232
@@ -4231,7 +4231,7 @@ L_AES_XTS_decrypt_vaes_done_64:
         sub	r11d, 16
         sub	r11d, r13d
         cmp	r11d, 16
-        jl	L_AES_XTS_decrypt_vaes_last_31_start
+        jb	L_AES_XTS_decrypt_vaes_last_31_start
         add	r11d, r13d
 L_AES_XTS_decrypt_vaes_mul16_32:
         and	r11d, 4294967264
@@ -4305,7 +4305,7 @@ L_AES_XTS_decrypt_vaes_done_32:
         sub	r11d, 16
         sub	r11d, r13d
         cmp	r11d, 16
-        jl	L_AES_XTS_decrypt_vaes_last_31_start
+        jb	L_AES_XTS_decrypt_vaes_last_31_start
         add	r11d, r13d
 L_AES_XTS_decrypt_vaes_mul16:
 L_AES_XTS_decrypt_vaes_dec_16:
@@ -4358,7 +4358,7 @@ L_AES_XTS_decrypt_vaes_aes_dec_block_last:
         vpxor	xmm8, xmm8, xmm4
         add	r13d, 16
         cmp	r13d, r11d
-        jl	L_AES_XTS_decrypt_vaes_dec_16
+        jb	L_AES_XTS_decrypt_vaes_dec_16
         cmp	r13d, eax
         je	L_AES_XTS_decrypt_vaes_done_dec
 L_AES_XTS_decrypt_vaes_last_31_start:
@@ -4417,7 +4417,7 @@ L_AES_XTS_decrypt_vaes_last_31_byte_loop:
         inc	r13d
         inc	edx
         cmp	r13d, eax
-        jl	L_AES_XTS_decrypt_vaes_last_31_byte_loop
+        jb	L_AES_XTS_decrypt_vaes_last_31_byte_loop
         sub	r13, rdx
         vmovdqu	xmm0, OWORD PTR [rsp]
         vpxor	xmm0, xmm0, xmm8
@@ -4502,7 +4502,7 @@ AES_XTS_decrypt_update_vaes PROC
         vmovdqu	OWORD PTR [rsp+192], xmm14
         vmovdqu	OWORD PTR [rsp+208], xmm15
         vmovdqu	xmm12, OWORD PTR L_vaes_aes_xts_gc_xts
-        vbroadcasti128	ymm13, ptr_L_vaes_aes_xts_poly
+        vbroadcasti128	ymm13, OWORD PTR L_vaes_aes_xts_poly
         vmovdqu	ymm14, YMMWORD PTR L_vaes_aes_xts_shl
         vmovdqu	ymm15, YMMWORD PTR L_vaes_aes_xts_shr
         vmovdqu	xmm8, OWORD PTR [r8]
@@ -4513,12 +4513,12 @@ AES_XTS_decrypt_update_vaes PROC
         je	L_AES_XTS_decrypt_update_vaes_mul16_128
         sub	r11d, 16
         cmp	r11d, 16
-        jl	L_AES_XTS_decrypt_update_vaes_last_31_start
+        jb	L_AES_XTS_decrypt_update_vaes_last_31_start
 L_AES_XTS_decrypt_update_vaes_mul16_128:
         cmp	r11d, 32
-        jl	L_AES_XTS_decrypt_update_vaes_done_128
+        jb	L_AES_XTS_decrypt_update_vaes_done_128
         cmp	r11d, 128
-        jl	L_AES_XTS_decrypt_update_vaes_done_128
+        jb	L_AES_XTS_decrypt_update_vaes_done_128
         and	r11d, 4294967168
         vperm2i128	ymm5, ymm8, ymm8, 0
         vpsrlvq	ymm6, ymm5, ymm15
@@ -4673,7 +4673,7 @@ L_AES_XTS_decrypt_update_vaes_aes_dec_128_aes_dec_block_last:
         vpxor	ymm7, ymm7, ymm9
         add	r12d, 128
         cmp	r12d, r11d
-        jl	L_AES_XTS_decrypt_update_vaes_dec_128
+        jb	L_AES_XTS_decrypt_update_vaes_dec_128
         vextracti128	xmm8, ymm4, 0
 L_AES_XTS_decrypt_update_vaes_done_128:
         cmp	r12d, eax
@@ -4685,7 +4685,7 @@ L_AES_XTS_decrypt_update_vaes_done_128:
         sub	r11d, 16
         sub	r11d, r12d
         cmp	r11d, 16
-        jl	L_AES_XTS_decrypt_update_vaes_last_31_start
+        jb	L_AES_XTS_decrypt_update_vaes_last_31_start
         add	r11d, r12d
 L_AES_XTS_decrypt_update_vaes_mul16_64:
         and	r11d, 4294967232
@@ -4784,7 +4784,7 @@ L_AES_XTS_decrypt_update_vaes_done_64:
         sub	r11d, 16
         sub	r11d, r12d
         cmp	r11d, 16
-        jl	L_AES_XTS_decrypt_update_vaes_last_31_start
+        jb	L_AES_XTS_decrypt_update_vaes_last_31_start
         add	r11d, r12d
 L_AES_XTS_decrypt_update_vaes_mul16_32:
         and	r11d, 4294967264
@@ -4858,7 +4858,7 @@ L_AES_XTS_decrypt_update_vaes_done_32:
         sub	r11d, 16
         sub	r11d, r12d
         cmp	r11d, 16
-        jl	L_AES_XTS_decrypt_update_vaes_last_31_start
+        jb	L_AES_XTS_decrypt_update_vaes_last_31_start
         add	r11d, r12d
 L_AES_XTS_decrypt_update_vaes_mul16:
 L_AES_XTS_decrypt_update_vaes_dec_16:
@@ -4911,7 +4911,7 @@ L_AES_XTS_decrypt_update_vaes_aes_dec_block_last:
         vpxor	xmm8, xmm8, xmm4
         add	r12d, 16
         cmp	r12d, r11d
-        jl	L_AES_XTS_decrypt_update_vaes_dec_16
+        jb	L_AES_XTS_decrypt_update_vaes_dec_16
         cmp	r12d, eax
         je	L_AES_XTS_decrypt_update_vaes_done_dec
 L_AES_XTS_decrypt_update_vaes_last_31_start:
@@ -4970,7 +4970,7 @@ L_AES_XTS_decrypt_update_vaes_last_31_byte_loop:
         inc	r12d
         inc	edx
         cmp	r12d, eax
-        jl	L_AES_XTS_decrypt_update_vaes_last_31_byte_loop
+        jb	L_AES_XTS_decrypt_update_vaes_last_31_byte_loop
         sub	r12, rdx
         vmovdqu	xmm0, OWORD PTR [rsp]
         vpxor	xmm0, xmm0, xmm8
@@ -5127,9 +5127,9 @@ AES_XTS_encrypt_avx512 PROC
         vmovdqu	OWORD PTR [rsp+200], xmm14
         vmovdqu	OWORD PTR [rsp+216], xmm15
         vmovdqu	xmm12, OWORD PTR L_avx512_aes_xts_gc_xts
-        vbroadcasti32x4	zmm13, ptr_L_avx512_aes_xts_poly
-        vmovdqu64	zmm14, ptr_L_avx512_aes_xts_shl
-        vmovdqu64	zmm15, ptr_L_avx512_aes_xts_shr
+        vbroadcasti32x4	zmm13, OWORD PTR L_avx512_aes_xts_poly
+        vmovdqu64	zmm14, ZMMWORD PTR L_avx512_aes_xts_shl
+        vmovdqu64	zmm15, ZMMWORD PTR L_avx512_aes_xts_shr
         vmovdqu	xmm8, OWORD PTR [r12]
         ; aes_enc_block
         vpxor	xmm8, xmm8, [r9]
@@ -5168,7 +5168,7 @@ L_AES_XTS_encrypt_avx512_tweak_aes_enc_block_last:
         vaesenclast	xmm8, xmm8, xmm5
         xor	r13d, r13d
         cmp	eax, 32
-        jl	L_AES_XTS_encrypt_avx512_done_128
+        jb	L_AES_XTS_encrypt_avx512_done_128
         vbroadcasti32x4	zmm16, OWORD PTR [r8]
         vbroadcasti32x4	zmm17, OWORD PTR [r8+16]
         vbroadcasti32x4	zmm18, OWORD PTR [r8+32]
@@ -5191,7 +5191,7 @@ L_AES_XTS_encrypt_avx512_tweak_aes_enc_block_last:
 L_AES_XTS_encrypt_avx512_key_cached:
         cmp	eax, 256
         mov	r11d, eax
-        jl	L_AES_XTS_encrypt_avx512_done_256
+        jb	L_AES_XTS_encrypt_avx512_done_256
         and	r11d, 4294967040
         vshufi64x2	zmm5, zmm8, zmm8, 0
         vpsrlvq	zmm6, zmm5, zmm15
@@ -5322,7 +5322,7 @@ L_AES_XTS_encrypt_avx512_aes_enc_256_aes_enc_block_last:
         vpternlogq	zmm7, zmm10, zmm9, 150
         add	r13d, 256
         cmp	r13d, r11d
-        jl	L_AES_XTS_encrypt_avx512_enc_256
+        jb	L_AES_XTS_encrypt_avx512_enc_256
         vextracti32x4	xmm8, zmm4, 0
 L_AES_XTS_encrypt_avx512_done_256:
         mov	r11d, eax
@@ -5452,7 +5452,7 @@ L_AES_XTS_encrypt_avx512_done_64:
         ; aes_enc_32
         lea	rcx, QWORD PTR [rdi+r13]
         lea	rdx, QWORD PTR [rsi+r13]
-        vmovdqu64	ymm0, [rcx]
+        vmovdqu64	ymm0, YMMWORD PTR [rcx]
         vshufi64x2	zmm5, zmm8, zmm8, 0
         vpsrlvq	zmm6, zmm5, zmm15
         vpclmulqdq	zmm7, zmm6, zmm13, 1
@@ -5484,7 +5484,7 @@ L_AES_XTS_encrypt_avx512_done_64:
 L_AES_XTS_encrypt_avx512_aes_enc_32_aes_enc_block_last:
         vaesenclast	ymm0, ymm0, ymm9
         vpxorq	ymm0, ymm0, ymm4
-        vmovdqu64	[rdx], ymm0
+        vmovdqu64	YMMWORD PTR [rdx], ymm0
         vextracti32x4	xmm8, zmm4, 2
         add	r13d, 32
 L_AES_XTS_encrypt_avx512_done_32:
@@ -5494,7 +5494,7 @@ L_AES_XTS_encrypt_avx512_done_32:
         sub	r11d, r13d
         cmp	r11d, 16
         mov	r11d, eax
-        jl	L_AES_XTS_encrypt_avx512_last_15
+        jb	L_AES_XTS_encrypt_avx512_last_15
         and	r11d, 4294967280
         ; 16 bytes of input
 L_AES_XTS_encrypt_avx512_enc_16:
@@ -5545,7 +5545,7 @@ L_AES_XTS_encrypt_avx512_aes_enc_block_last:
         vpternlogd	xmm8, xmm4, xmm12, 120
         add	r13d, 16
         cmp	r13d, r11d
-        jl	L_AES_XTS_encrypt_avx512_enc_16
+        jb	L_AES_XTS_encrypt_avx512_enc_16
         cmp	r13d, eax
         je	L_AES_XTS_encrypt_avx512_done_enc
 L_AES_XTS_encrypt_avx512_last_15:
@@ -5563,7 +5563,7 @@ L_AES_XTS_encrypt_avx512_last_15_byte_loop:
         inc	r13d
         inc	edx
         cmp	r13d, eax
-        jl	L_AES_XTS_encrypt_avx512_last_15_byte_loop
+        jb	L_AES_XTS_encrypt_avx512_last_15_byte_loop
         sub	r13, rdx
         vmovdqu	xmm0, OWORD PTR [rsp]
         sub	r13, 16
@@ -5648,13 +5648,13 @@ AES_XTS_encrypt_update_avx512 PROC
         vmovdqu	OWORD PTR [rsp+192], xmm14
         vmovdqu	OWORD PTR [rsp+208], xmm15
         vmovdqu	xmm12, OWORD PTR L_avx512_aes_xts_gc_xts
-        vbroadcasti32x4	zmm13, ptr_L_avx512_aes_xts_poly
-        vmovdqu64	zmm14, ptr_L_avx512_aes_xts_shl
-        vmovdqu64	zmm15, ptr_L_avx512_aes_xts_shr
+        vbroadcasti32x4	zmm13, OWORD PTR L_avx512_aes_xts_poly
+        vmovdqu64	zmm14, ZMMWORD PTR L_avx512_aes_xts_shl
+        vmovdqu64	zmm15, ZMMWORD PTR L_avx512_aes_xts_shr
         vmovdqu	xmm8, OWORD PTR [r8]
         xor	r12d, r12d
         cmp	eax, 32
-        jl	L_AES_XTS_encrypt_update_avx512_done_128
+        jb	L_AES_XTS_encrypt_update_avx512_done_128
         vbroadcasti32x4	zmm16, OWORD PTR [r10]
         vbroadcasti32x4	zmm17, OWORD PTR [r10+16]
         vbroadcasti32x4	zmm18, OWORD PTR [r10+32]
@@ -5677,7 +5677,7 @@ AES_XTS_encrypt_update_avx512 PROC
 L_AES_XTS_encrypt_update_avx512_key_cached:
         cmp	eax, 256
         mov	r11d, eax
-        jl	L_AES_XTS_encrypt_update_avx512_done_256
+        jb	L_AES_XTS_encrypt_update_avx512_done_256
         and	r11d, 4294967040
         vshufi64x2	zmm5, zmm8, zmm8, 0
         vpsrlvq	zmm6, zmm5, zmm15
@@ -5808,7 +5808,7 @@ L_AES_XTS_encrypt_update_avx512_aes_enc_256_aes_enc_block_last:
         vpternlogq	zmm7, zmm10, zmm9, 150
         add	r12d, 256
         cmp	r12d, r11d
-        jl	L_AES_XTS_encrypt_update_avx512_enc_256
+        jb	L_AES_XTS_encrypt_update_avx512_enc_256
         vextracti32x4	xmm8, zmm4, 0
 L_AES_XTS_encrypt_update_avx512_done_256:
         mov	r11d, eax
@@ -5938,7 +5938,7 @@ L_AES_XTS_encrypt_update_avx512_done_64:
         ; aes_enc_32
         lea	rcx, QWORD PTR [rdi+r12]
         lea	rdx, QWORD PTR [rsi+r12]
-        vmovdqu64	ymm0, [rcx]
+        vmovdqu64	ymm0, YMMWORD PTR [rcx]
         vshufi64x2	zmm5, zmm8, zmm8, 0
         vpsrlvq	zmm6, zmm5, zmm15
         vpclmulqdq	zmm7, zmm6, zmm13, 1
@@ -5970,7 +5970,7 @@ L_AES_XTS_encrypt_update_avx512_done_64:
 L_AES_XTS_encrypt_update_avx512_aes_enc_32_aes_enc_block_last:
         vaesenclast	ymm0, ymm0, ymm9
         vpxorq	ymm0, ymm0, ymm4
-        vmovdqu64	[rdx], ymm0
+        vmovdqu64	YMMWORD PTR [rdx], ymm0
         vextracti32x4	xmm8, zmm4, 2
         add	r12d, 32
 L_AES_XTS_encrypt_update_avx512_done_32:
@@ -5980,7 +5980,7 @@ L_AES_XTS_encrypt_update_avx512_done_32:
         sub	r11d, r12d
         cmp	r11d, 16
         mov	r11d, eax
-        jl	L_AES_XTS_encrypt_update_avx512_last_15
+        jb	L_AES_XTS_encrypt_update_avx512_last_15
         and	r11d, 4294967280
         ; 16 bytes of input
 L_AES_XTS_encrypt_update_avx512_enc_16:
@@ -6031,7 +6031,7 @@ L_AES_XTS_encrypt_update_avx512_aes_enc_block_last:
         vpternlogd	xmm8, xmm4, xmm12, 120
         add	r12d, 16
         cmp	r12d, r11d
-        jl	L_AES_XTS_encrypt_update_avx512_enc_16
+        jb	L_AES_XTS_encrypt_update_avx512_enc_16
         cmp	r12d, eax
         je	L_AES_XTS_encrypt_update_avx512_done_enc
 L_AES_XTS_encrypt_update_avx512_last_15:
@@ -6049,7 +6049,7 @@ L_AES_XTS_encrypt_update_avx512_last_15_byte_loop:
         inc	r12d
         inc	edx
         cmp	r12d, eax
-        jl	L_AES_XTS_encrypt_update_avx512_last_15_byte_loop
+        jb	L_AES_XTS_encrypt_update_avx512_last_15_byte_loop
         sub	r12, rdx
         vmovdqu	xmm0, OWORD PTR [rsp]
         sub	r12, 16
@@ -6136,9 +6136,9 @@ AES_XTS_decrypt_avx512 PROC
         vmovdqu	OWORD PTR [rsp+200], xmm14
         vmovdqu	OWORD PTR [rsp+216], xmm15
         vmovdqu	xmm12, OWORD PTR L_avx512_aes_xts_gc_xts
-        vbroadcasti32x4	zmm13, ptr_L_avx512_aes_xts_poly
-        vmovdqu64	zmm14, ptr_L_avx512_aes_xts_shl
-        vmovdqu64	zmm15, ptr_L_avx512_aes_xts_shr
+        vbroadcasti32x4	zmm13, OWORD PTR L_avx512_aes_xts_poly
+        vmovdqu64	zmm14, ZMMWORD PTR L_avx512_aes_xts_shl
+        vmovdqu64	zmm15, ZMMWORD PTR L_avx512_aes_xts_shr
         vmovdqu	xmm8, OWORD PTR [r12]
         ; aes_enc_block
         vpxor	xmm8, xmm8, [r9]
@@ -6182,10 +6182,10 @@ L_AES_XTS_decrypt_avx512_tweak_aes_enc_block_last:
         je	L_AES_XTS_decrypt_avx512_mul16_256
         sub	r11d, 16
         cmp	r11d, 16
-        jl	L_AES_XTS_decrypt_avx512_last_31_start
+        jb	L_AES_XTS_decrypt_avx512_last_31_start
 L_AES_XTS_decrypt_avx512_mul16_256:
         cmp	r11d, 32
-        jl	L_AES_XTS_decrypt_avx512_done_128
+        jb	L_AES_XTS_decrypt_avx512_done_128
         vbroadcasti32x4	zmm16, OWORD PTR [r8]
         vbroadcasti32x4	zmm17, OWORD PTR [r8+16]
         vbroadcasti32x4	zmm18, OWORD PTR [r8+32]
@@ -6207,7 +6207,7 @@ L_AES_XTS_decrypt_avx512_mul16_256:
         vbroadcasti32x4	zmm30, OWORD PTR [r8+224]
 L_AES_XTS_decrypt_avx512_key_cached:
         cmp	r11d, 256
-        jl	L_AES_XTS_decrypt_avx512_done_256
+        jb	L_AES_XTS_decrypt_avx512_done_256
         and	r11d, 4294967040
         vshufi64x2	zmm5, zmm8, zmm8, 0
         vpsrlvq	zmm6, zmm5, zmm15
@@ -6338,7 +6338,7 @@ L_AES_XTS_decrypt_avx512_aes_dec_256_aes_dec_block_last:
         vpternlogq	zmm7, zmm10, zmm9, 150
         add	r13d, 256
         cmp	r13d, r11d
-        jl	L_AES_XTS_decrypt_avx512_dec_256
+        jb	L_AES_XTS_decrypt_avx512_dec_256
         vextracti32x4	xmm8, zmm4, 0
 L_AES_XTS_decrypt_avx512_done_256:
         cmp	r13d, eax
@@ -6350,7 +6350,7 @@ L_AES_XTS_decrypt_avx512_done_256:
         sub	r11d, 16
         sub	r11d, r13d
         cmp	r11d, 16
-        jl	L_AES_XTS_decrypt_avx512_last_31_start
+        jb	L_AES_XTS_decrypt_avx512_last_31_start
         add	r11d, r13d
 L_AES_XTS_decrypt_avx512_mul16_128:
         and	r11d, 4294967168
@@ -6432,7 +6432,7 @@ L_AES_XTS_decrypt_avx512_done_128:
         sub	r11d, 16
         sub	r11d, r13d
         cmp	r11d, 16
-        jl	L_AES_XTS_decrypt_avx512_last_31_start
+        jb	L_AES_XTS_decrypt_avx512_last_31_start
         add	r11d, r13d
 L_AES_XTS_decrypt_avx512_mul16_64:
         and	r11d, 4294967232
@@ -6491,7 +6491,7 @@ L_AES_XTS_decrypt_avx512_done_64:
         sub	r11d, 16
         sub	r11d, r13d
         cmp	r11d, 16
-        jl	L_AES_XTS_decrypt_avx512_last_31_start
+        jb	L_AES_XTS_decrypt_avx512_last_31_start
         add	r11d, r13d
 L_AES_XTS_decrypt_avx512_mul16_32:
         and	r11d, 4294967264
@@ -6501,7 +6501,7 @@ L_AES_XTS_decrypt_avx512_mul16_32:
         ; aes_dec_32
         lea	rcx, QWORD PTR [rdi+r13]
         lea	rdx, QWORD PTR [rsi+r13]
-        vmovdqu64	ymm0, [rcx]
+        vmovdqu64	ymm0, YMMWORD PTR [rcx]
         vshufi64x2	zmm5, zmm8, zmm8, 0
         vpsrlvq	zmm6, zmm5, zmm15
         vpclmulqdq	zmm7, zmm6, zmm13, 1
@@ -6533,7 +6533,7 @@ L_AES_XTS_decrypt_avx512_mul16_32:
 L_AES_XTS_decrypt_avx512_aes_dec_32_aes_dec_block_last:
         vaesdeclast	ymm0, ymm0, ymm9
         vpxorq	ymm0, ymm0, ymm4
-        vmovdqu64	[rdx], ymm0
+        vmovdqu64	YMMWORD PTR [rdx], ymm0
         vextracti32x4	xmm8, zmm4, 2
         add	r13d, 32
 L_AES_XTS_decrypt_avx512_done_32:
@@ -6546,7 +6546,7 @@ L_AES_XTS_decrypt_avx512_done_32:
         sub	r11d, 16
         sub	r11d, r13d
         cmp	r11d, 16
-        jl	L_AES_XTS_decrypt_avx512_last_31_start
+        jb	L_AES_XTS_decrypt_avx512_last_31_start
         add	r11d, r13d
 L_AES_XTS_decrypt_avx512_mul16:
 L_AES_XTS_decrypt_avx512_dec_16:
@@ -6598,7 +6598,7 @@ L_AES_XTS_decrypt_avx512_aes_dec_block_last:
         vpternlogd	xmm8, xmm4, xmm12, 120
         add	r13d, 16
         cmp	r13d, r11d
-        jl	L_AES_XTS_decrypt_avx512_dec_16
+        jb	L_AES_XTS_decrypt_avx512_dec_16
         cmp	r13d, eax
         je	L_AES_XTS_decrypt_avx512_done_dec
 L_AES_XTS_decrypt_avx512_last_31_start:
@@ -6656,7 +6656,7 @@ L_AES_XTS_decrypt_avx512_last_31_byte_loop:
         inc	r13d
         inc	edx
         cmp	r13d, eax
-        jl	L_AES_XTS_decrypt_avx512_last_31_byte_loop
+        jb	L_AES_XTS_decrypt_avx512_last_31_byte_loop
         sub	r13, rdx
         vmovdqu	xmm0, OWORD PTR [rsp]
         vpxor	xmm0, xmm0, xmm8
@@ -6741,9 +6741,9 @@ AES_XTS_decrypt_update_avx512 PROC
         vmovdqu	OWORD PTR [rsp+192], xmm14
         vmovdqu	OWORD PTR [rsp+208], xmm15
         vmovdqu	xmm12, OWORD PTR L_avx512_aes_xts_gc_xts
-        vbroadcasti32x4	zmm13, ptr_L_avx512_aes_xts_poly
-        vmovdqu64	zmm14, ptr_L_avx512_aes_xts_shl
-        vmovdqu64	zmm15, ptr_L_avx512_aes_xts_shr
+        vbroadcasti32x4	zmm13, OWORD PTR L_avx512_aes_xts_poly
+        vmovdqu64	zmm14, ZMMWORD PTR L_avx512_aes_xts_shl
+        vmovdqu64	zmm15, ZMMWORD PTR L_avx512_aes_xts_shr
         vmovdqu	xmm8, OWORD PTR [r8]
         xor	r12d, r12d
         mov	r11d, eax
@@ -6752,10 +6752,10 @@ AES_XTS_decrypt_update_avx512 PROC
         je	L_AES_XTS_decrypt_update_avx512_mul16_256
         sub	r11d, 16
         cmp	r11d, 16
-        jl	L_AES_XTS_decrypt_update_avx512_last_31_start
+        jb	L_AES_XTS_decrypt_update_avx512_last_31_start
 L_AES_XTS_decrypt_update_avx512_mul16_256:
         cmp	r11d, 32
-        jl	L_AES_XTS_decrypt_update_avx512_done_128
+        jb	L_AES_XTS_decrypt_update_avx512_done_128
         vbroadcasti32x4	zmm16, OWORD PTR [r10]
         vbroadcasti32x4	zmm17, OWORD PTR [r10+16]
         vbroadcasti32x4	zmm18, OWORD PTR [r10+32]
@@ -6777,7 +6777,7 @@ L_AES_XTS_decrypt_update_avx512_mul16_256:
         vbroadcasti32x4	zmm30, OWORD PTR [r10+224]
 L_AES_XTS_decrypt_update_avx512_key_cached:
         cmp	r11d, 256
-        jl	L_AES_XTS_decrypt_update_avx512_done_256
+        jb	L_AES_XTS_decrypt_update_avx512_done_256
         and	r11d, 4294967040
         vshufi64x2	zmm5, zmm8, zmm8, 0
         vpsrlvq	zmm6, zmm5, zmm15
@@ -6908,7 +6908,7 @@ L_AES_XTS_decrypt_update_avx512_aes_dec_256_aes_dec_block_last:
         vpternlogq	zmm7, zmm10, zmm9, 150
         add	r12d, 256
         cmp	r12d, r11d
-        jl	L_AES_XTS_decrypt_update_avx512_dec_256
+        jb	L_AES_XTS_decrypt_update_avx512_dec_256
         vextracti32x4	xmm8, zmm4, 0
 L_AES_XTS_decrypt_update_avx512_done_256:
         cmp	r12d, eax
@@ -6920,7 +6920,7 @@ L_AES_XTS_decrypt_update_avx512_done_256:
         sub	r11d, 16
         sub	r11d, r12d
         cmp	r11d, 16
-        jl	L_AES_XTS_decrypt_update_avx512_last_31_start
+        jb	L_AES_XTS_decrypt_update_avx512_last_31_start
         add	r11d, r12d
 L_AES_XTS_decrypt_update_avx512_mul16_128:
         and	r11d, 4294967168
@@ -7002,7 +7002,7 @@ L_AES_XTS_decrypt_update_avx512_done_128:
         sub	r11d, 16
         sub	r11d, r12d
         cmp	r11d, 16
-        jl	L_AES_XTS_decrypt_update_avx512_last_31_start
+        jb	L_AES_XTS_decrypt_update_avx512_last_31_start
         add	r11d, r12d
 L_AES_XTS_decrypt_update_avx512_mul16_64:
         and	r11d, 4294967232
@@ -7061,7 +7061,7 @@ L_AES_XTS_decrypt_update_avx512_done_64:
         sub	r11d, 16
         sub	r11d, r12d
         cmp	r11d, 16
-        jl	L_AES_XTS_decrypt_update_avx512_last_31_start
+        jb	L_AES_XTS_decrypt_update_avx512_last_31_start
         add	r11d, r12d
 L_AES_XTS_decrypt_update_avx512_mul16_32:
         and	r11d, 4294967264
@@ -7071,7 +7071,7 @@ L_AES_XTS_decrypt_update_avx512_mul16_32:
         ; aes_dec_32
         lea	rcx, QWORD PTR [rdi+r12]
         lea	rdx, QWORD PTR [rsi+r12]
-        vmovdqu64	ymm0, [rcx]
+        vmovdqu64	ymm0, YMMWORD PTR [rcx]
         vshufi64x2	zmm5, zmm8, zmm8, 0
         vpsrlvq	zmm6, zmm5, zmm15
         vpclmulqdq	zmm7, zmm6, zmm13, 1
@@ -7103,7 +7103,7 @@ L_AES_XTS_decrypt_update_avx512_mul16_32:
 L_AES_XTS_decrypt_update_avx512_aes_dec_32_aes_dec_block_last:
         vaesdeclast	ymm0, ymm0, ymm9
         vpxorq	ymm0, ymm0, ymm4
-        vmovdqu64	[rdx], ymm0
+        vmovdqu64	YMMWORD PTR [rdx], ymm0
         vextracti32x4	xmm8, zmm4, 2
         add	r12d, 32
 L_AES_XTS_decrypt_update_avx512_done_32:
@@ -7116,7 +7116,7 @@ L_AES_XTS_decrypt_update_avx512_done_32:
         sub	r11d, 16
         sub	r11d, r12d
         cmp	r11d, 16
-        jl	L_AES_XTS_decrypt_update_avx512_last_31_start
+        jb	L_AES_XTS_decrypt_update_avx512_last_31_start
         add	r11d, r12d
 L_AES_XTS_decrypt_update_avx512_mul16:
 L_AES_XTS_decrypt_update_avx512_dec_16:
@@ -7168,7 +7168,7 @@ L_AES_XTS_decrypt_update_avx512_aes_dec_block_last:
         vpternlogd	xmm8, xmm4, xmm12, 120
         add	r12d, 16
         cmp	r12d, r11d
-        jl	L_AES_XTS_decrypt_update_avx512_dec_16
+        jb	L_AES_XTS_decrypt_update_avx512_dec_16
         cmp	r12d, eax
         je	L_AES_XTS_decrypt_update_avx512_done_dec
 L_AES_XTS_decrypt_update_avx512_last_31_start:
@@ -7226,7 +7226,7 @@ L_AES_XTS_decrypt_update_avx512_last_31_byte_loop:
         inc	r12d
         inc	edx
         cmp	r12d, eax
-        jl	L_AES_XTS_decrypt_update_avx512_last_31_byte_loop
+        jb	L_AES_XTS_decrypt_update_avx512_last_31_byte_loop
         sub	r12, rdx
         vmovdqu	xmm0, OWORD PTR [rsp]
         vpxor	xmm0, xmm0, xmm8

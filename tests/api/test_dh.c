@@ -317,6 +317,41 @@ int test_wc_DhSetKey(void)
 }
 
 /*
+ * wc_DhSetKey_ex validates untrusted parameters, so it must reject a composite
+ * modulus even when that composite is a strong pseudoprime to the fixed
+ * small-prime Miller-Rabin bases. n = 341550071728321 = 10670053 * 32010157 is
+ * a strong pseudoprime to bases 2, 3, 5, 7, 11, 13, 17 and 19, which the
+ * deterministic fixed-base test wrongly accepts as prime. Random-witness
+ * testing rejects it. As with the library's own primality check, rejection is
+ * probabilistic: eight random Miller-Rabin rounds leave a negligible
+ * (well under 1e-4) chance of accepting the composite, so a one-off failure
+ * here is statistical, not a regression.
+ */
+int test_wc_DhSetKey_ex_pseudoprime(void)
+{
+    EXPECT_DECLS;
+    /* wc_DhSetKey_ex takes no RNG, so it has to create one to get random
+     * witnesses. Builds that cannot allocate it fall back to the fixed-base
+     * test by design, and that test accepts this composite. */
+#if !defined(NO_DH) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
+    !defined(WC_NO_RNG) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(WOLFSSL_STATIC_MEMORY)
+    DhKey key;
+    /* n = 341550071728321, big-endian. */
+    byte p[] = { 0x01, 0x36, 0xA3, 0x52, 0xB2, 0xC8, 0xC1 };
+    byte g[] = { 0x02 };
+
+    XMEMSET(&key, 0, sizeof(key));
+
+    ExpectIntEQ(wc_InitDhKey(&key), 0);
+    ExpectIntEQ(wc_DhSetKey_ex(&key, p, sizeof(p), g, sizeof(g), NULL, 0),
+        WC_NO_ERR_TRACE(DH_CHECK_PUB_E));
+    wc_FreeDhKey(&key);
+#endif
+    return EXPECT_RESULT();
+}
+
+/*
  * Testing wc_DhSetNamedKey(), wc_DhGetNamedKeyParamSize(),
  * wc_DhCopyNamedKey() and wc_DhCmpNamedKey().
  */
@@ -427,6 +462,10 @@ int test_wc_DhSetNamedKey_and_helpers(void)
             p2048->p_len, p2048->g, p2048->g_len, qOut, p2048->q_len), 0);
         ExpectIntEQ(wc_DhCmpNamedKey(WC_FFDHE_2048, 1, p2048->p,
             p2048->p_len, p2048->g, p2048->g_len, qOut, p2048->q_len), 1);
+        /* q of the wrong length, with p and g matching and q not skipped. */
+        ExpectIntEQ(wc_DhCmpNamedKey(WC_FFDHE_2048, 0, p2048->p,
+            p2048->p_len, p2048->g, p2048->g_len, p2048->q,
+            p2048->q_len - 1), 0);
 #else
         ExpectIntEQ(wc_DhCmpNamedKey(9999, 1, p2048->p, p2048->p_len,
             p2048->g, p2048->g_len, NULL, 0), 0);
@@ -531,7 +570,7 @@ int test_wc_DhGenerateKeyPair_and_Agree(void)
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
 
-    for (i = 0; i < sizeof(groups) / sizeof(groups[0]) - 1; i++) {
+    for (i = 0; i + 1 < sizeof(groups) / sizeof(groups[0]); i++) {
         XMEMSET(&aliceKey, 0, sizeof(aliceKey));
         XMEMSET(&bobKey, 0, sizeof(bobKey));
         ExpectIntEQ(wc_InitDhKey(&aliceKey), 0);

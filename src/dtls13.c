@@ -1152,6 +1152,16 @@ static int Dtls13SendFragmented(WOLFSSL* ssl, byte* message, word16 length,
 
     messageSize = length - rlHeaderLength - DTLS_HANDSHAKE_HEADER_SZ;
 
+    /* This copies the whole message body into a second full-size buffer,
+     * alongside the caller's output buffer that still holds the assembled
+     * message - a transient ~2x peak. For a large post-quantum
+     * CertificateVerify signature (SLH-DSA, ML-DSA) that body dominates RAM.
+     * A future optimization could have the caller assemble the body directly
+     * into this buffer (or sign into it) so the copy is avoided, cutting the
+     * peak toward ~1x. See the TLS 1.3 streamed CertificateVerify path
+     * (WOLFSSL_TLS13_STREAM_CERT_VERIFY) for the equivalent idea over TCP;
+     * note the retransmission copy (Dtls13RtxNewRecord) must remain regardless,
+     * so ~1x retained until ACK is the DTLS floor. */
     ssl->dtls13FragmentsBuffer.buffer =
         (byte*)XMALLOC(messageSize, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
@@ -1480,6 +1490,10 @@ int Dtls13ReconstructEpochNumber(WOLFSSL* ssl, byte epochBits,
         e = &ssl->dtls13Epochs[i];
 
         if (!e->isValid)
+            continue;
+
+        /* consider only epoch that can decrypt */
+        if (e->side == ENCRYPT_SIDE_ONLY)
             continue;
 
         if (Dtls13GetEpochBits(e->epochNumber) != epochBits)
@@ -2399,11 +2413,18 @@ int Dtls13GetSeq(WOLFSSL* ssl, int order, word32* seq, byte increment)
 static Dtls13Epoch* Dtls13NewEpochSlot(WOLFSSL* ssl)
 {
     Dtls13Epoch *e, *oldest = NULL;
-    w64wrapper oldestNumber;
+    w64wrapper oldestNumber, prevPeerEpoch;
     int i;
 
     oldestNumber = w64From32((word32)-1, (word32)-1);
     oldest = NULL;
+
+    /* local peer advances the remote peer epoch when receiving KeyUpdate but
+     * the remote peer advances its own sending epoch only after receiving our
+     * ACK. Preserve peer epoch - 1 in case the ACK gets lost */
+    prevPeerEpoch = ssl->dtls13PeerEpoch;
+    if (!w64IsZero(prevPeerEpoch))
+        w64Decrement(&prevPeerEpoch);
 
     for (i = 0; i < DTLS13_EPOCH_SIZE; ++i) {
         e = &ssl->dtls13Epochs[i];
@@ -2412,6 +2433,7 @@ static Dtls13Epoch* Dtls13NewEpochSlot(WOLFSSL* ssl)
 
         if (!w64Equal(e->epochNumber, ssl->dtls13Epoch) &&
             !w64Equal(e->epochNumber, ssl->dtls13PeerEpoch) &&
+            !w64Equal(e->epochNumber, prevPeerEpoch) &&
             w64LT(e->epochNumber, oldestNumber)) {
             oldest = e;
             oldestNumber = e->epochNumber;
@@ -2426,6 +2448,10 @@ static Dtls13Epoch* Dtls13NewEpochSlot(WOLFSSL* ssl)
 #ifdef WOLFSSL_DEBUG_TLS
     WOLFSSL_MSG_EX("Delete epoch: %d", e->epochNumber);
 #endif /* WOLFSSL_DEBUG_TLS */
+
+    /* invalidate dtls13DecryptEpoch if pointing to the evicted slot */
+    if (ssl->dtls13DecryptEpoch == e)
+        ssl->dtls13DecryptEpoch = NULL;
 
     /* The slot we are reusing holds the previous epoch's symmetric keys, IVs,
      * and sn-keys; use ForceZero so the wipe cannot be elided by the

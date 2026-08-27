@@ -46,6 +46,9 @@
 #ifdef HAVE_CURVE25519
 #include <wolfssl/wolfcrypt/curve25519.h>
 #endif
+#ifdef HAVE_CURVE448
+#include <wolfssl/wolfcrypt/curve448.h>
+#endif
 
 static int swdev_initialized = 0;
 
@@ -336,7 +339,60 @@ static int swdev_curve25519(wc_CryptoInfo* info)
         info->pk.curve25519.outlen, info->pk.curve25519.endian);
 }
 #endif /* HAVE_CURVE25519_SHARED_SECRET */
+
+static int swdev_curve25519_make_pub(wc_CryptoInfo* info)
+{
+    return wc_curve25519_make_pub((int)info->pk.curve25519makepub.pubSz,
+        info->pk.curve25519makepub.pub,
+        (int)info->pk.curve25519makepub.privSz,
+        info->pk.curve25519makepub.priv);
+}
+
+static int swdev_curve25519_generic(wc_CryptoInfo* info)
+{
+    return wc_curve25519_generic((int)info->pk.curve25519generic.pubSz,
+        info->pk.curve25519generic.pub,
+        (int)info->pk.curve25519generic.privSz,
+        info->pk.curve25519generic.priv,
+        (int)info->pk.curve25519generic.basepointSz,
+        info->pk.curve25519generic.basepoint);
+}
 #endif /* HAVE_CURVE25519 */
+
+#ifdef HAVE_CURVE448
+static int swdev_curve448_keygen(wc_CryptoInfo* info)
+{
+    return wc_curve448_make_key(info->pk.curve448kg.rng,
+        info->pk.curve448kg.size, info->pk.curve448kg.key);
+}
+
+#ifdef HAVE_CURVE448_SHARED_SECRET
+static int swdev_curve448(wc_CryptoInfo* info)
+{
+    return wc_curve448_shared_secret_ex(info->pk.curve448.private_key,
+        info->pk.curve448.public_key, info->pk.curve448.out,
+        info->pk.curve448.outlen, info->pk.curve448.endian);
+}
+#endif /* HAVE_CURVE448_SHARED_SECRET */
+
+static int swdev_curve448_make_pub(wc_CryptoInfo* info)
+{
+    return wc_curve448_make_pub((int)info->pk.curve448makepub.pubSz,
+        info->pk.curve448makepub.pub,
+        (int)info->pk.curve448makepub.privSz,
+        info->pk.curve448makepub.priv);
+}
+
+static int swdev_curve448_generic(wc_CryptoInfo* info)
+{
+    return wc_curve448_generic((int)info->pk.curve448generic.pubSz,
+        info->pk.curve448generic.pub,
+        (int)info->pk.curve448generic.privSz,
+        info->pk.curve448generic.priv,
+        (int)info->pk.curve448generic.basepointSz,
+        info->pk.curve448generic.basepoint);
+}
+#endif /* HAVE_CURVE448 */
 
 #ifndef NO_SHA256
 /* Copy hash state between caller's wc_Sha256 and swdev's shadow, leaving
@@ -348,7 +404,7 @@ static void swdev_sha256_copy_state(wc_Sha256* dst, const wc_Sha256* src)
     dst->buffLen = src->buffLen;
     dst->loLen   = src->loLen;
     dst->hiLen   = src->hiLen;
-#ifdef WC_C_DYNAMIC_FALLBACK
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
     dst->sha_method = src->sha_method;
 #endif
 #ifdef WOLFSSL_HASH_FLAGS
@@ -444,7 +500,7 @@ static void swdev_sha512_copy_state(wc_Sha512* dst, const wc_Sha512* src)
     dst->buffLen = src->buffLen;
     dst->loLen   = src->loLen;
     dst->hiLen   = src->hiLen;
-#ifdef WC_C_DYNAMIC_FALLBACK
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
     dst->sha_method = src->sha_method;
 #endif
 #ifdef WOLFSSL_HASH_FLAGS
@@ -811,6 +867,62 @@ static int swdev_aes_ecb(wc_CryptoInfo* info)
 }
 #endif /* HAVE_AES_ECB || WOLFSSL_AES_DIRECT */
 
+#if defined(HAVE_AES_KEYWRAP) && !defined(SWDEV_AES_ONLYECB)
+/* AES Key Wrap (RFC 3394) and, when built, Key Wrap with Padding (RFC 5649).
+ * enc selects wrap (forward cipher) vs unwrap (inverse cipher); pad selects the
+ * RFC 5649 variant. The wrap/unwrap helpers return the produced byte count,
+ * which the cryptocb contract reports via outResSz with a 0 return.  Gated like
+ * swdev_aes_gcm so SWDEV_AES_ONLYECB instead forces the parent's CB_ONLY_AES
+ * host-side key wrap (block ops dispatch back through cryptocb ECB). */
+static int swdev_aes_keywrap(wc_CryptoInfo* info)
+{
+    Aes* aes = info->cipher.aeskeywrap.aes;
+    const byte* in = info->cipher.aeskeywrap.in;
+    word32 inSz = info->cipher.aeskeywrap.inSz;
+    byte* out = info->cipher.aeskeywrap.out;
+    word32 outSz = info->cipher.aeskeywrap.outSz;
+    const byte* iv = info->cipher.aeskeywrap.iv;
+    Aes shadow;
+    int ret;
+    int dir;
+
+    if (info->cipher.enc)
+        dir = AES_ENCRYPTION;
+    else
+        dir = AES_DECRYPTION;
+
+    ret = swdev_aes_shadow_init(&shadow, aes, dir);
+    if (ret != 0)
+        return ret;
+
+    if (info->cipher.enc) {
+#ifdef WOLFSSL_AES_KEYWRAP_PADDING
+        if (info->cipher.aeskeywrap.pad)
+            ret = wc_AesKeyWrap_Pad_ex(&shadow, in, inSz, out, outSz, iv);
+        else
+#endif
+            ret = wc_AesKeyWrap_ex(&shadow, in, inSz, out, outSz, iv);
+    }
+    else {
+#ifdef WOLFSSL_AES_KEYWRAP_PADDING
+        if (info->cipher.aeskeywrap.pad)
+            ret = wc_AesKeyUnWrap_Pad_ex(&shadow, in, inSz, out, outSz, iv);
+        else
+#endif
+            ret = wc_AesKeyUnWrap_ex(&shadow, in, inSz, out, outSz, iv);
+    }
+
+    wc_AesFree(&shadow);
+
+    if (ret < 0)
+        return ret;
+
+    /* success: report produced length; cryptocb returns outResSz on ret==0 */
+    info->cipher.aeskeywrap.outResSz = (word32)ret;
+    return 0;
+}
+#endif /* HAVE_AES_KEYWRAP && !SWDEV_AES_ONLYECB */
+
 /* SWDEV_AES_ONLYECB: when defined, swdev's AES backend returns
  * CRYPTOCB_UNAVAILABLE for AES-GCM so the parent's CB_ONLY_AES host-side
  * GCM software path runs (GHASH on the host; AES-CTR blocks dispatch back
@@ -934,7 +1046,7 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
 
     switch (info->algo_type) {
 #if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
-    defined(HAVE_CURVE25519)
+    defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
     case WC_ALGO_TYPE_PK:
         switch (info->pk.type) {
     #ifndef NO_RSA
@@ -992,7 +1104,23 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
         case WC_PK_TYPE_CURVE25519:
             return swdev_curve25519(info);
         #endif
+        case WC_PK_TYPE_CURVE25519_MAKE_PUB:
+            return swdev_curve25519_make_pub(info);
+        case WC_PK_TYPE_CURVE25519_GENERIC:
+            return swdev_curve25519_generic(info);
     #endif /* HAVE_CURVE25519 */
+    #ifdef HAVE_CURVE448
+        case WC_PK_TYPE_CURVE448_KEYGEN:
+            return swdev_curve448_keygen(info);
+        #ifdef HAVE_CURVE448_SHARED_SECRET
+        case WC_PK_TYPE_CURVE448:
+            return swdev_curve448(info);
+        #endif
+        case WC_PK_TYPE_CURVE448_MAKE_PUB:
+            return swdev_curve448_make_pub(info);
+        case WC_PK_TYPE_CURVE448_GENERIC:
+            return swdev_curve448_generic(info);
+    #endif /* HAVE_CURVE448 */
         default:
             return CRYPTOCB_UNAVAILABLE;
         }
@@ -1061,6 +1189,10 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
     #ifdef HAVE_AESCCM
         case WC_CIPHER_AES_CCM:
             return swdev_aes_ccm(info);
+    #endif
+    #if defined(HAVE_AES_KEYWRAP) && !defined(SWDEV_AES_ONLYECB)
+        case WC_CIPHER_AES_KEYWRAP:
+            return swdev_aes_keywrap(info);
     #endif
         default:
             return CRYPTOCB_UNAVAILABLE;

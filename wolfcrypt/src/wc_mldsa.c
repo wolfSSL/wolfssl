@@ -135,14 +135,10 @@
  *   shift equivalent.
  */
 
+#define WC_FIPS_LL_CRYPTO
 #define _WC_BUILDING_WC_MLDSA_C
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
-
-#if FIPS_VERSION3_GE(2,0,0)
-    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
-    #define FIPS_NO_WRAPPERS
-#endif
 
 #ifndef WOLFSSL_MLDSA_NO_ASN1
 #include <wolfssl/wolfcrypt/asn.h>
@@ -193,6 +189,35 @@
 
 #if defined(USE_INTEL_SPEEDUP)
 static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
+
+/* AVX2 NTT/invNTT flavor selection: the non-full AVX2 NTT/invNTT keep the
+ * NTT-domain coefficients in a permuted (lane-interleaved) order that only
+ * the non-full AVX2 consumers understand, whereas the full variants and the
+ * C implementations all use the standard order.  With WC_C_DYNAMIC_FALLBACK,
+ * SAVE_VECTOR_REGISTERS2() can fail on any call, so NTT-domain data at rest
+ * (cached s1/s2/t0 vectors, the challenge polynomial, etc.) can be produced
+ * and consumed by differently-dispatched calls, and its representation must
+ * be dispatch-invariant, i.e. standard order.  Without WC_C_DYNAMIC_FALLBACK,
+ * SAVE_VECTOR_REGISTERS2() cannot fail intermittently (fuzzing without
+ * fallback is an unsupported contradiction, and kernel-mode intelasm builds
+ * always define WC_C_DYNAMIC_FALLBACK), so dispatch is invariant and the
+ * slightly faster (~2%/~4% on NTT/invNTT) permuted-order variants are safe.
+ * Both pipelines yield bit-identical end results. */
+#ifdef WC_C_DYNAMIC_FALLBACK
+    #define MLDSA_NTT_AVX512(r)        wc_mldsa_ntt_full_1p_avx512(r)
+    #define MLDSA_NTT_SMALL_AVX512(r)  wc_mldsa_ntt_small_full_1p_avx512(r)
+    #define MLDSA_INVNTT_AVX512(r)     wc_mldsa_invntt_full_1p_avx512(r)
+    #define MLDSA_NTT_AVX2(r)          wc_mldsa_ntt_full_avx2(r)
+    #define MLDSA_NTT_SMALL_AVX2(r)    wc_mldsa_ntt_small_full_avx2(r)
+    #define MLDSA_INVNTT_AVX2(r)       wc_mldsa_invntt_full_avx2(r)
+#else
+    #define MLDSA_NTT_AVX512(r)        wc_mldsa_ntt_1p_avx512(r)
+    #define MLDSA_NTT_SMALL_AVX512(r)  wc_mldsa_ntt_small_1p_avx512(r)
+    #define MLDSA_INVNTT_AVX512(r)     wc_mldsa_invntt_1p_avx512(r)
+    #define MLDSA_NTT_AVX2(r)          wc_mldsa_ntt_avx2(r)
+    #define MLDSA_NTT_SMALL_AVX2(r)    wc_mldsa_ntt_small_avx2(r)
+    #define MLDSA_INVNTT_AVX2(r)       wc_mldsa_invntt_avx2(r)
+#endif
 #endif
 
 #ifdef DEBUG_MLDSA
@@ -483,7 +508,7 @@ static int mldsa_shake256(wc_Shake* shake256, const byte* data,
         dataLen -= WC_SHA3_256_COUNT * 8;
         data    += WC_SHA3_256_COUNT * 8;
 #ifndef WC_SHA3_NO_ASM
-        if (IS_INTEL_AVX2(cpuid_flags) &&
+        if (SHA3_USE_AVX2(cpuid_flags) &&
                  (SAVE_VECTOR_REGISTERS2() == 0)) {
             sha3_block_avx2(state);
             RESTORE_VECTOR_REGISTERS();
@@ -499,7 +524,7 @@ static int mldsa_shake256(wc_Shake* shake256, const byte* data,
         if (dataLen >= WC_SHA3_256_COUNT * 8) {
 #ifndef WC_SHA3_NO_ASM
             word32 n = dataLen / (WC_SHA3_256_COUNT * 8);
-            if (IS_INTEL_AVX2(cpuid_flags) &&
+            if (SHA3_USE_AVX2(cpuid_flags) &&
                      (SAVE_VECTOR_REGISTERS2() == 0)) {
                 sha3_block_n_avx2(state, data, n, WC_SHA3_256_COUNT * 8);
                 RESTORE_VECTOR_REGISTERS();
@@ -538,7 +563,7 @@ static int mldsa_shake256(wc_Shake* shake256, const byte* data,
     }
 
 #ifndef WC_SHA3_NO_ASM
-    if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    if (SHA3_USE_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         sha3_block_avx2(state);
         RESTORE_VECTOR_REGISTERS();
     }
@@ -608,7 +633,7 @@ static int mldsa_hash256(wc_Shake* shake256, const byte* data1,
         data2Len -= WC_SHA3_256_COUNT * 8 - data1Len;
         data2    += WC_SHA3_256_COUNT * 8 - data1Len;
 #ifndef WC_SHA3_NO_ASM
-        if (IS_INTEL_AVX2(cpuid_flags) &&
+        if (SHA3_USE_AVX2(cpuid_flags) &&
                  (SAVE_VECTOR_REGISTERS2() == 0)) {
             sha3_block_avx2(state);
             RESTORE_VECTOR_REGISTERS();
@@ -625,7 +650,7 @@ static int mldsa_hash256(wc_Shake* shake256, const byte* data1,
         if (data2Len >= WC_SHA3_256_COUNT * 8) {
 #ifndef WC_SHA3_NO_ASM
             word32 n = data2Len / (WC_SHA3_256_COUNT * 8);
-            if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            if (SHA3_USE_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
                 sha3_block_n_avx2(state, data2, n, WC_SHA3_256_COUNT * 8);
                 RESTORE_VECTOR_REGISTERS();
                 n *= WC_SHA3_256_COUNT * 8;
@@ -667,7 +692,7 @@ static int mldsa_hash256(wc_Shake* shake256, const byte* data1,
     }
 
 #ifndef WC_SHA3_NO_ASM
-    if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    if (SHA3_USE_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         sha3_block_avx2(state);
         RESTORE_VECTOR_REGISTERS();
     }
@@ -910,7 +935,7 @@ static int mldsa_get_hash_oid(int hash, byte* oidBuffer, word32* oidLen)
  * @param [in]      in        Block of data to hash.
  * @param [in]      inLen     Length of data in bytes.
  * @param [out]     out       Buffer to hold hash result.
- * @param [in]      outLen    Number of hash blocks to return.
+ * @param [in]      outBlocks Number of hash blocks to return.
  * @return  0 on success.
  * @return  Negative on error.
  */
@@ -946,7 +971,7 @@ static int mldsa_squeeze128(wc_Shake* shake128, const byte* in,
  * @param [in]      in        Block of data to hash.
  * @param [in]      inLen     Length of data in bytes.
  * @param [out]     out       Buffer to hold hash result.
- * @param [in]      outLen    Number of hash blocks to return.
+ * @param [in]      outBlocks Number of hash blocks to return.
  * @return  0 on success.
  * @return  Negative on hash error.
  */
@@ -965,7 +990,7 @@ static int mldsa_squeeze256(wc_Shake* shake256, const byte* in,
 
     for (; outBlocks > 0; outBlocks--) {
 #ifndef WC_SHA3_NO_ASM
-        if (IS_INTEL_AVX2(cpuid_flags) &&
+        if (SHA3_USE_AVX2(cpuid_flags) &&
                  (SAVE_VECTOR_REGISTERS2() == 0)) {
             sha3_block_avx2(state);
             RESTORE_VECTOR_REGISTERS();
@@ -1060,9 +1085,9 @@ static void mldsa_vec_encode_eta_bits_c(const sword32* s, byte d, byte eta,
                 byte s7 = (byte)(2 - s[j + 7]);
 
                 /* Pack 8 3-bit values into 3 bytes. */
-                p[0] = (byte)((s0 >> 0) | (s1 << 3) | (s2 << 6));
-                p[1] = (byte)((s2 >> 2) | (s3 << 1) | (s4 << 4) | (s5 << 7));
-                p[2] = (byte)((s5 >> 1) | (s6 << 2) | (s7 << 5));
+                p[0] = WC_OCTET((s0 >> 0) | (s1 << 3) | (s2 << 6));
+                p[1] = WC_OCTET((s2 >> 2) | (s3 << 1) | (s4 << 4) | (s5 << 7));
+                p[2] = WC_OCTET((s5 >> 1) | (s6 << 2) | (s7 << 5));
                 /* Move to next place to encode into. */
                 p += MLDSA_ETA_2_BITS;
             }
@@ -1120,6 +1145,37 @@ static void mldsa_vec_encode_eta_bits(const sword32* s, byte d, byte eta,
     byte* p)
 {
 #ifdef USE_INTEL_SPEEDUP
+#if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
+    /* eta = 4 packs one polynomial per call - vpmovqb needs no lane pairing.
+     * eta = 2 still pairs, so an odd trailing polynomial is left to the C
+     * code: the AVX2 entry points take a whole vector, not one polynomial. */
+    if (USE_INTEL_AVX512(cpuid_flags) && (eta == MLDSA_ETA_4) &&
+            (SAVE_VECTOR_REGISTERS2() == 0)) {
+        unsigned int i;
+        for (i = 0; i < d; i++) {
+            wc_mldsa_encode_eta_4_avx512(s, p);
+            s += MLDSA_N;
+            p += MLDSA_N / 2;
+        }
+        RESTORE_VECTOR_REGISTERS();
+    }
+    /* Note the eta check: this arm is also reachable for eta == 4, when the
+     * first arm's SAVE_VECTOR_REGISTERS2() fails (e.g. under
+     * DEBUG_VECTOR_REGISTER_ACCESS_FUZZING), and must not consume that flow.
+     */
+    else if (USE_INTEL_AVX512(cpuid_flags) && (eta == MLDSA_ETA_2) &&
+            ((d & 1) == 0) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        unsigned int i;
+        unsigned int e = MLDSA_ETA_2_BITS * MLDSA_N / 8;
+        for (i = 0; i < d; i += 2) {
+            wc_mldsa_encode_eta_2_x2_avx512(s, s + MLDSA_N, p, p + e);
+            s += 2 * MLDSA_N;
+            p += 2 * e;
+        }
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
     #if !defined(WOLFSSL_NO_ML_DSA_44) || !defined(WOLFSSL_NO_ML_DSA_87)
         /* -2..2 */
@@ -1172,15 +1228,16 @@ static void mldsa_decode_eta_2_bits_c(const byte* p, sword32* s)
      * 3 bits to encode each number.
      * 8 numbers from 3 bytes. (8 * 3 bits = 3 * 8 bits) */
     for (j = 0; j < MLDSA_N; j += 8) {
-        /* Get 3 bits and put in range of -2..2. */
-        s[j + 0] = 2 - ((p[0] >> 0) & 0x7                      );
-        s[j + 1] = 2 - ((p[0] >> 3) & 0x7                      );
-        s[j + 2] = 2 - ((p[0] >> 6)       | ((p[1] << 2) & 0x7));
-        s[j + 3] = 2 - ((p[1] >> 1) & 0x7                      );
-        s[j + 4] = 2 - ((p[1] >> 4) & 0x7                      );
-        s[j + 5] = 2 - ((p[1] >> 7)       | ((p[2] << 1) & 0x7));
-        s[j + 6] = 2 - ((p[2] >> 2) & 0x7                      );
-        s[j + 7] = 2 - ((p[2] >> 5) & 0x7                      );
+        /* Get 3 bits, range -2..2.  Cast to sword32 before the subtract: a
+         * 16-bit-int byte field promotes unsigned and would zero-extend. */
+        s[j + 0] = 2 - (sword32)((p[0] >> 0) & 0x7                      );
+        s[j + 1] = 2 - (sword32)((p[0] >> 3) & 0x7                      );
+        s[j + 2] = 2 - (sword32)((p[0] >> 6)       | ((p[1] << 2) & 0x7));
+        s[j + 3] = 2 - (sword32)((p[1] >> 1) & 0x7                      );
+        s[j + 4] = 2 - (sword32)((p[1] >> 4) & 0x7                      );
+        s[j + 5] = 2 - (sword32)((p[1] >> 7)       | ((p[2] << 1) & 0x7));
+        s[j + 6] = 2 - (sword32)((p[2] >> 2) & 0x7                      );
+        s[j + 7] = 2 - (sword32)((p[2] >> 5) & 0x7                      );
         /* Move to next place to decode from. */
         p += MLDSA_ETA_2_BITS;
     }
@@ -1234,24 +1291,24 @@ static void mldsa_decode_eta_4_bits_c(const byte* p, sword32* s)
      * 4 bits to encode each number.
      * 2 numbers from 1 bytes. (2 * 4 bits = 1 * 8 bits) */
     for (j = 0; j < MLDSA_N / 2; j++) {
-        /* Get 4 bits and put in range of -4..4. */
-        s[j * 2 + 0] = 4 - (p[j] & 0xf);
-        s[j * 2 + 1] = 4 - (p[j] >> 4);
+        /* Get 4 bits and put in range of -4..4. (sword32 cast: see eta-2.) */
+        s[j * 2 + 0] = 4 - (sword32)(p[j] & 0xf);
+        s[j * 2 + 1] = 4 - (sword32)(p[j] >> 4);
     }
 #else
     /* Step 6 or 9.
      * 4 bits to encode each number.
      * 8 numbers from 4 bytes. (8 * 4 bits = 4 * 8 bits) */
     for (j = 0; j < MLDSA_N / 2; j += 4) {
-        /* Get 4 bits and put in range of -4..4. */
-        s[j * 2 + 0] = 4 - (p[j + 0] & 0xf);
-        s[j * 2 + 1] = 4 - (p[j + 0] >> 4);
-        s[j * 2 + 2] = 4 - (p[j + 1] & 0xf);
-        s[j * 2 + 3] = 4 - (p[j + 1] >> 4);
-        s[j * 2 + 4] = 4 - (p[j + 2] & 0xf);
-        s[j * 2 + 5] = 4 - (p[j + 2] >> 4);
-        s[j * 2 + 6] = 4 - (p[j + 3] & 0xf);
-        s[j * 2 + 7] = 4 - (p[j + 3] >> 4);
+        /* Get 4 bits and put in range of -4..4. (sword32 cast: see eta-2.) */
+        s[j * 2 + 0] = 4 - (sword32)(p[j + 0] & 0xf);
+        s[j * 2 + 1] = 4 - (sword32)(p[j + 0] >> 4);
+        s[j * 2 + 2] = 4 - (sword32)(p[j + 1] & 0xf);
+        s[j * 2 + 3] = 4 - (sword32)(p[j + 1] >> 4);
+        s[j * 2 + 4] = 4 - (sword32)(p[j + 2] & 0xf);
+        s[j * 2 + 5] = 4 - (sword32)(p[j + 2] >> 4);
+        s[j * 2 + 6] = 4 - (sword32)(p[j + 3] & 0xf);
+        s[j * 2 + 7] = 4 - (sword32)(p[j + 3] >> 4);
     }
 #endif /* WOLFSSL_MLDSA_SMALL */
 }
@@ -1309,11 +1366,24 @@ static void mldsa_vec_decode_eta_bits(const byte* p, byte eta, sword32* s,
 #if !defined(WOLFSSL_NO_ML_DSA_44) || !defined(WOLFSSL_NO_ML_DSA_87)
     /* -2..2 */
     if (eta == MLDSA_ETA_2) {
+        unsigned int e = MLDSA_ETA_2_BITS * MLDSA_N / 8;
+        i = 0;
+#if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
+        /* Two polynomials per call; an odd trailing one falls through. */
+        if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            for (; i + 1 < d; i += 2) {
+                wc_mldsa_decode_eta_2_x2_avx512(p, p + e, s, s + MLDSA_N);
+                p += 2 * e;
+                s += 2 * MLDSA_N;
+            }
+            RESTORE_VECTOR_REGISTERS();
+        }
+#endif
         /* Step 5 or 8: For each polynomial of vector */
-        for (i = 0; i < d; i++) {
+        for (; i < d; i++) {
             mldsa_decode_eta_2_bits(p, s);
             /* Move to next place to decode from. */
-            p += MLDSA_ETA_2_BITS * MLDSA_N / 8;
+            p += e;
             /* Next polynomial. */
             s += MLDSA_N;
         }
@@ -1322,11 +1392,23 @@ static void mldsa_vec_decode_eta_bits(const byte* p, byte eta, sword32* s,
 #ifndef WOLFSSL_NO_ML_DSA_65
     /* -4..4 */
     if (eta == MLDSA_ETA_4) {
+        unsigned int e = MLDSA_N / 2;
+        i = 0;
+#if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
+        if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            for (; i + 1 < d; i += 2) {
+                wc_mldsa_decode_eta_4_x2_avx512(p, p + e, s, s + MLDSA_N);
+                p += 2 * e;
+                s += 2 * MLDSA_N;
+            }
+            RESTORE_VECTOR_REGISTERS();
+        }
+#endif
         /* Step 5 or 8: For each polynomial of vector */
-        for (i = 0; i < d; i++) {
+        for (; i < d; i++) {
             mldsa_decode_eta_4_bits(p, s);
             /* Move to next place to decode from. */
-            p += MLDSA_N / 2;
+            p += e;
             /* Next polynomial. */
             s += MLDSA_N;
         }
@@ -1391,21 +1473,21 @@ static void mldsa_vec_encode_t0_t1_c(const sword32* t, byte d, byte* t0,
                 MLDSA_D);
             /* Take 8 values of t and take bottom bits and make positive. */
             word16 n0_0 = (word16)(MLDSA_D_MAX_HALF -
-                                   (t[j + 0] - (n1_0 << MLDSA_D)));
+                                   (t[j + 0] - ((sword32)n1_0 << MLDSA_D)));
             word16 n0_1 = (word16)(MLDSA_D_MAX_HALF -
-                                   (t[j + 1] - (n1_1 << MLDSA_D)));
+                                   (t[j + 1] - ((sword32)n1_1 << MLDSA_D)));
             word16 n0_2 = (word16)(MLDSA_D_MAX_HALF -
-                                   (t[j + 2] - (n1_2 << MLDSA_D)));
+                                   (t[j + 2] - ((sword32)n1_2 << MLDSA_D)));
             word16 n0_3 = (word16)(MLDSA_D_MAX_HALF -
-                                   (t[j + 3] - (n1_3 << MLDSA_D)));
+                                   (t[j + 3] - ((sword32)n1_3 << MLDSA_D)));
             word16 n0_4 = (word16)(MLDSA_D_MAX_HALF -
-                                   (t[j + 4] - (n1_4 << MLDSA_D)));
+                                   (t[j + 4] - ((sword32)n1_4 << MLDSA_D)));
             word16 n0_5 = (word16)(MLDSA_D_MAX_HALF -
-                                   (t[j + 5] - (n1_5 << MLDSA_D)));
+                                   (t[j + 5] - ((sword32)n1_5 << MLDSA_D)));
             word16 n0_6 = (word16)(MLDSA_D_MAX_HALF -
-                                   (t[j + 6] - (n1_6 << MLDSA_D)));
+                                   (t[j + 6] - ((sword32)n1_6 << MLDSA_D)));
             word16 n0_7 = (word16)(MLDSA_D_MAX_HALF -
-                                   (t[j + 7] - (n1_7 << MLDSA_D)));
+                                   (t[j + 7] - ((sword32)n1_7 << MLDSA_D)));
 
             /* 13 bits per number.
              * 8 numbers become 13 bytes. (8 * 13 bits = 13 * 8 bits) */
@@ -1417,20 +1499,20 @@ static void mldsa_vec_encode_t0_t1_c(const sword32* t, byte d, byte* t0,
             writeUnalignedWord32(t0+8, (n0_4 >> 12) | ((word32)n0_5 <<  1) |
                 ((word32)n0_6 << 14) | ((word32)n0_7 << 27));
         #else
-            t0[ 0] = (byte)(               (n0_0 <<  0));
-            t0[ 1] = (byte)((n0_0 >>  8) | (n0_1 <<  5));
-            t0[ 2] = (byte)((n0_1 >>  3)               );
-            t0[ 3] = (byte)((n0_1 >> 11) | (n0_2 <<  2));
-            t0[ 4] = (byte)((n0_2 >>  6) | (n0_3 <<  7));
-            t0[ 5] = (byte)((n0_3 >>  1)               );
-            t0[ 6] = (byte)((n0_3 >>  9) | (n0_4 <<  4));
-            t0[ 7] = (byte)((n0_4 >>  4)               );
-            t0[ 8] = (byte)((n0_4 >> 12) | (n0_5 <<  1));
-            t0[ 9] = (byte)((n0_5 >>  7) | (n0_6 <<  6));
-            t0[10] = (byte)((n0_6 >>  2)               );
-            t0[11] = (byte)((n0_6 >> 10) | (n0_7 <<  3));
+            t0[ 0] = WC_OCTET(             (n0_0 <<  0));
+            t0[ 1] = WC_OCTET((n0_0 >>  8) | (n0_1 <<  5));
+            t0[ 2] = WC_OCTET((n0_1 >>  3)               );
+            t0[ 3] = WC_OCTET((n0_1 >> 11) | (n0_2 <<  2));
+            t0[ 4] = WC_OCTET((n0_2 >>  6) | (n0_3 <<  7));
+            t0[ 5] = WC_OCTET((n0_3 >>  1)               );
+            t0[ 6] = WC_OCTET((n0_3 >>  9) | (n0_4 <<  4));
+            t0[ 7] = WC_OCTET((n0_4 >>  4)               );
+            t0[ 8] = WC_OCTET((n0_4 >> 12) | (n0_5 <<  1));
+            t0[ 9] = WC_OCTET((n0_5 >>  7) | (n0_6 <<  6));
+            t0[10] = WC_OCTET((n0_6 >>  2)               );
+            t0[11] = WC_OCTET((n0_6 >> 10) | (n0_7 <<  3));
         #endif
-            t0[12] = (byte)((n0_7 >>  5)               );
+            t0[12] = WC_OCTET((n0_7 >>  5)               );
 
             /* 10 bits per number.
              * 8 bytes become 10 bytes. (8 * 10 bits = 10 * 8 bits) */
@@ -1440,17 +1522,17 @@ static void mldsa_vec_encode_t0_t1_c(const sword32* t, byte d, byte* t0,
             writeUnalignedWord32(t1+4, (n1_3 >>  2) | ((word32)n1_4 <<  8) |
                 ((word32)n1_5 << 18) | ((word32)n1_6 << 28));
         #else
-            t1[0] = (byte)(               (n1_0 << 0));
-            t1[1] = (byte)((n1_0 >> 8) |  (n1_1 << 2));
-            t1[2] = (byte)((n1_1 >> 6) |  (n1_2 << 4));
-            t1[3] = (byte)((n1_2 >> 4) |  (n1_3 << 6));
-            t1[4] = (byte)((n1_3 >> 2)               );
-            t1[5] = (byte)(               (n1_4 << 0));
-            t1[6] = (byte)((n1_4 >> 8) |  (n1_5 << 2));
-            t1[7] = (byte)((n1_5 >> 6) |  (n1_6 << 4));
+            t1[0] = WC_OCTET(             (n1_0 << 0));
+            t1[1] = WC_OCTET((n1_0 >> 8) |  (n1_1 << 2));
+            t1[2] = WC_OCTET((n1_1 >> 6) |  (n1_2 << 4));
+            t1[3] = WC_OCTET((n1_2 >> 4) |  (n1_3 << 6));
+            t1[4] = WC_OCTET((n1_3 >> 2)               );
+            t1[5] = WC_OCTET(             (n1_4 << 0));
+            t1[6] = WC_OCTET((n1_4 >> 8) |  (n1_5 << 2));
+            t1[7] = WC_OCTET((n1_5 >> 6) |  (n1_6 << 4));
         #endif
-            t1[8] = (byte)((n1_6 >> 4) |  (n1_7 << 6));
-            t1[9] = (byte)((n1_7 >> 2)               );
+            t1[8] = WC_OCTET((n1_6 >> 4) |  (n1_7 << 6));
+            t1[9] = WC_OCTET((n1_7 >> 2)               );
 
             /* Move to next place to encode bottom bits to. */
             t0 += MLDSA_D;
@@ -1473,6 +1555,43 @@ static void mldsa_vec_encode_t0_t1(const sword32* t, byte d, byte* t0,
     byte* t1)
 {
 #ifdef USE_INTEL_SPEEDUP
+#if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
+#ifdef WOLFSSL_MLDSA_HAVE_INTEL_AVX512_VBMI
+    /* vpermb gathers a whole register's encoded bytes, so this needs no
+     * polynomial pairing and takes any dimension. */
+    if (IS_INTEL_AVX512_VBMI(cpuid_flags) &&
+            (SAVE_VECTOR_REGISTERS2() == 0)) {
+        unsigned int i;
+        unsigned int e0 = MLDSA_D * MLDSA_N / 8;
+        unsigned int e1 = MLDSA_U * MLDSA_N / 8;
+        for (i = 0; i < d; i++) {
+            wc_mldsa_encode_t0_t1_avx512_vbmi(t, t0, t1);
+            t += MLDSA_N;
+            t0 += e0;
+            t1 += e1;
+        }
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
+    /* Two polynomials per call; the AVX2 entry takes a whole vector, so an
+     * odd dimension stays on it. */
+    if (USE_INTEL_AVX512(cpuid_flags) && ((d & 1) == 0) &&
+            (SAVE_VECTOR_REGISTERS2() == 0)) {
+        unsigned int i;
+        unsigned int e0 = MLDSA_D * MLDSA_N / 8;
+        unsigned int e1 = MLDSA_U * MLDSA_N / 8;
+        for (i = 0; i < d; i += 2) {
+            wc_mldsa_encode_t0_t1_x2_avx512(t, t + MLDSA_N, t0, t0 + e0, t1,
+                t1 + e1);
+            t += 2 * MLDSA_N;
+            t0 += 2 * e0;
+            t1 += 2 * e1;
+        }
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         wc_mldsa_vec_encode_t0_t1_avx2(t, d, t0, t1);
         RESTORE_VECTOR_REGISTERS();
@@ -1494,7 +1613,6 @@ static void mldsa_vec_encode_t0_t1(const sword32* t, byte d, byte* t0,
  *   ...
  *
  * @param [in]  t0  Encoded values of t0.
- * @param [in]  d   Dimensions of vector t0.
  * @param [out] t   Vector of polynomials.
  */
 static void mldsa_decode_t0_c(const byte* t0, sword32* t)
@@ -1536,25 +1654,27 @@ static void mldsa_decode_t0_c(const byte* t0, sword32* t)
         t[j + 7] = MLDSA_D_MAX_HALF - (sword32)
                    (( t32_2 >> 27          ) | ((word32)t0[12] ) <<  5 );
 #else
-        t[j + 0] = MLDSA_D_MAX_HALF -
+        /* sword32 cast on the unpacked field: see eta-2 decode - the subtract
+         * must be signed/32-bit so a negative t0 sign-extends correctly. */
+        t[j + 0] = MLDSA_D_MAX_HALF - (sword32)
                    ((t0[ 0]     ) | (((word16)(t0[ 1] & 0x1f)) <<  8));
-        t[j + 1] = MLDSA_D_MAX_HALF -
+        t[j + 1] = MLDSA_D_MAX_HALF - (sword32)
                    ((t0[ 1] >> 5) | (((word16)(t0[ 2]       )) <<  3) |
                                     (((word16)(t0[ 3] & 0x03)) << 11));
-        t[j + 2] = MLDSA_D_MAX_HALF -
+        t[j + 2] = MLDSA_D_MAX_HALF - (sword32)
                    ((t0[ 3] >> 2) | (((word16)(t0[ 4] & 0x7f)) <<  6));
-        t[j + 3] = MLDSA_D_MAX_HALF -
+        t[j + 3] = MLDSA_D_MAX_HALF - (sword32)
                    ((t0[ 4] >> 7) | (((word16)(t0[ 5]       )) <<  1) |
                                     (((word16)(t0[ 6] & 0x0f)) <<  9));
-        t[j + 4] = MLDSA_D_MAX_HALF -
+        t[j + 4] = MLDSA_D_MAX_HALF - (sword32)
                    ((t0[ 6] >> 4) | (((word16)(t0[ 7]       )) <<  4) |
                                     (((word16)(t0[ 8] & 0x01)) << 12));
-        t[j + 5] = MLDSA_D_MAX_HALF -
+        t[j + 5] = MLDSA_D_MAX_HALF - (sword32)
                    ((t0[ 8] >> 1) | (((word16)(t0[ 9] & 0x3f)) <<  7));
-        t[j + 6] = MLDSA_D_MAX_HALF -
+        t[j + 6] = MLDSA_D_MAX_HALF - (sword32)
                    ((t0[ 9] >> 6) | (((word16)(t0[10]       )) <<  2) |
                                     (((word16)(t0[11] & 0x07)) << 10));
-        t[j + 7] = MLDSA_D_MAX_HALF -
+        t[j + 7] = MLDSA_D_MAX_HALF - (sword32)
                    ((t0[11] >> 3) | (((word16)(t0[12]       )) <<  5));
 #endif
         /* Move to next place to decode from. */
@@ -1565,7 +1685,6 @@ static void mldsa_decode_t0_c(const byte* t0, sword32* t)
 /* Decode bottom D bits of t as t0.
  *
  * @param [in]  t0  Encoded values of t0.
- * @param [in]  d   Dimensions of vector t0.
  * @param [out] t   Vector of polynomials.
  */
 static void mldsa_decode_t0(const byte* t0, sword32* t)
@@ -1603,8 +1722,21 @@ static void mldsa_vec_decode_t0(const byte* t0, byte d, sword32* t)
 {
     unsigned int i;
 
+    i = 0;
+#if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
+    /* Two polynomials per call; an odd trailing one falls through. */
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        for (; i + 1 < d; i += 2) {
+            wc_mldsa_decode_t0_x2_avx512(t0, t0 + MLDSA_D * MLDSA_N / 8, t,
+                t + MLDSA_N);
+            t0 += 2 * (MLDSA_D * MLDSA_N / 8);
+            t += 2 * MLDSA_N;
+        }
+        RESTORE_VECTOR_REGISTERS();
+    }
+#endif
     /* Step 11. For each polynomial of vector. */
-    for (i = 0; i < d; i++) {
+    for (; i < d; i++) {
         mldsa_decode_t0(t0, t);
         t0 += MLDSA_D * MLDSA_N / 8;
         /* Next polynomial. */
@@ -1734,8 +1866,21 @@ static void mldsa_vec_decode_t1(const byte* t1, byte d, sword32* t)
 {
     unsigned int i;
 
+    i = 0;
+#if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
+    /* Two polynomials per call; an odd trailing one falls through. */
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        for (; i + 1 < d; i += 2) {
+            wc_mldsa_decode_t1_x2_avx512(t1, t1 + MLDSA_U * MLDSA_N / 8, t,
+                t + MLDSA_N);
+            t1 += 2 * (MLDSA_U * MLDSA_N / 8);
+            t += 2 * MLDSA_N;
+        }
+        RESTORE_VECTOR_REGISTERS();
+    }
+#endif
     /* Step 3. For each polynomial of vector. */
-    for (i = 0; i < d; i++) {
+    for (; i < d; i++) {
         mldsa_decode_t1(t1, t);
         /* Next polynomial. */
         t1 += MLDSA_U * MLDSA_N / 8;
@@ -1779,16 +1924,16 @@ static void mldsa_encode_gamma1_17_bits_c(const sword32* z, byte* s)
         writeUnalignedWord32(s+4, (z1 >> 14) | (z2 <<  4) | (z3 << 22));
     #endif
 #else
-        s[0] = (byte)( z0                   );
-        s[1] = (byte)( z0 >>  8             );
-        s[2] = (byte)((z0 >> 16) | (z1 << 2));
-        s[3] = (byte)( z1 >>  6             );
-        s[4] = (byte)((z1 >> 14) | (z2 << 4));
-        s[5] = (byte)( z2 >>  4             );
-        s[6] = (byte)((z2 >> 12) | (z3 << 6));
-        s[7] = (byte)( z3 >>  2             );
+        s[0] = WC_OCTET( z0                   );
+        s[1] = WC_OCTET( z0 >>  8             );
+        s[2] = WC_OCTET((z0 >> 16) | (z1 << 2));
+        s[3] = WC_OCTET( z1 >>  6             );
+        s[4] = WC_OCTET((z1 >> 14) | (z2 << 4));
+        s[5] = WC_OCTET( z2 >>  4             );
+        s[6] = WC_OCTET((z2 >> 12) | (z3 << 6));
+        s[7] = WC_OCTET( z3 >>  2             );
 #endif
-        s[8] = (byte)( z3 >> 10             );
+        s[8] = WC_OCTET( z3 >> 10             );
         /* Move to next place to encode to. */
         s += MLDSA_GAMMA1_17_ENC_BITS / 2;
     }
@@ -1801,6 +1946,13 @@ static void mldsa_encode_gamma1_17_bits_c(const sword32* z, byte* s)
  */
 static void mldsa_encode_gamma1_17_bits(const sword32* z, byte* s)
 {
+#if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        wc_mldsa_encode_gamma1_17_avx512(z, s);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
 #ifdef USE_INTEL_SPEEDUP
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         wc_mldsa_encode_gamma1_17_avx2(z, s);
@@ -1830,10 +1982,10 @@ static void mldsa_encode_gamma1_19_bits_c(const sword32* z, byte* s)
 
     /* Step 3. Get 20 bits as a number. */
     for (j = 0; j < MLDSA_N; j += 4) {
-        sword32 z0 = MLDSA_GAMMA1_19 - z[j + 0];
-        sword32 z1 = MLDSA_GAMMA1_19 - z[j + 1];
-        sword32 z2 = MLDSA_GAMMA1_19 - z[j + 2];
-        sword32 z3 = MLDSA_GAMMA1_19 - z[j + 3];
+        word32 z0 = (word32)(MLDSA_GAMMA1_19 - z[j + 0]);
+        word32 z1 = (word32)(MLDSA_GAMMA1_19 - z[j + 1]);
+        word32 z2 = (word32)(MLDSA_GAMMA1_19 - z[j + 2]);
+        word32 z3 = (word32)(MLDSA_GAMMA1_19 - z[j + 3]);
 
         /* 20 bits per number.
          * 4 numbers become 10 bytes. (4 * 20 bits = 10 * 8 bits) */
@@ -1847,16 +1999,16 @@ static void mldsa_encode_gamma1_19_bits_c(const sword32* z, byte* s)
     #endif
         writeUnalignedWord16(s+8, (word16)(z3 >> 4));
 #else
-        s[0] = (byte)  z0                    ;
-        s[1] = (byte) (z0 >>  8)             ;
-        s[2] = (byte)((z0 >> 16) | (z1 << 4));
-        s[3] = (byte) (z1 >>  4)             ;
-        s[4] = (byte) (z1 >> 12)             ;
-        s[5] = (byte)  z2                    ;
-        s[6] = (byte) (z2 >>  8)             ;
-        s[7] = (byte)((z2 >> 16) | (z3 << 4));
-        s[8] = (byte) (z3 >>  4)             ;
-        s[9] = (byte) (z3 >> 12)             ;
+        s[0] = WC_OCTET( z0                    );
+        s[1] = WC_OCTET((z0 >>  8)             );
+        s[2] = WC_OCTET((z0 >> 16) | (z1 << 4));
+        s[3] = WC_OCTET((z1 >>  4)             );
+        s[4] = WC_OCTET((z1 >> 12)             );
+        s[5] = WC_OCTET( z2                    );
+        s[6] = WC_OCTET((z2 >>  8)             );
+        s[7] = WC_OCTET((z2 >> 16) | (z3 << 4));
+        s[8] = WC_OCTET((z3 >>  4)             );
+        s[9] = WC_OCTET((z3 >> 12)             );
 #endif
         /* Move to next place to encode to. */
         s += MLDSA_GAMMA1_19_ENC_BITS / 2;
@@ -1870,6 +2022,13 @@ static void mldsa_encode_gamma1_19_bits_c(const sword32* z, byte* s)
  */
 static void mldsa_encode_gamma1_19_bits(const sword32* z, byte* s)
 {
+#if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        wc_mldsa_encode_gamma1_19_avx512(z, s);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
 #ifdef USE_INTEL_SPEEDUP
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         wc_mldsa_encode_gamma1_19_avx2(z, s);
@@ -1907,6 +2066,9 @@ static void mldsa_vec_encode_gamma1(const sword32* z, byte l, int bits,
 
 #ifndef WOLFSSL_NO_ML_DSA_44
     if (bits == MLDSA_GAMMA1_BITS_17) {
+        /* No AVX512 pair loop here: the gamma1 encoders pack a whole
+         * polynomial per call, so the dispatch is inside the per-polynomial
+         * function. */
         /* Step 2. For each polynomial of vector. */
         for (i = 0; i < PARAMS_ML_DSA_44_L; i++) {
             mldsa_encode_gamma1_17_bits(z, s);
@@ -1919,11 +2081,12 @@ static void mldsa_vec_encode_gamma1(const sword32* z, byte l, int bits,
 #endif
 #if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
     if (bits == MLDSA_GAMMA1_BITS_19) {
+        unsigned int e = MLDSA_GAMMA1_19_ENC_BITS / 2 * MLDSA_N / 4;
         /* Step 2. For each polynomial of vector. */
         for (i = 0; i < l; i++) {
             mldsa_encode_gamma1_19_bits(z, s);
             /* Move to next place to encode to. */
-            s += MLDSA_GAMMA1_19_ENC_BITS / 2 * MLDSA_N / 4;
+            s += e;
             /* Next polynomial. */
             z += MLDSA_N;
         }
@@ -2249,20 +2412,43 @@ static void mldsa_decode_gamma1(const byte* s, int bits, sword32* z)
  * @param [in]  bits  Number of bits used in encoding - GAMMA1 bits.
  * @param [out] z  Vector of polynomials.
  */
+#ifndef WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM
+/* The smallest-mem verify streams z one polynomial at a time with
+ * mldsa_decode_gamma1() directly, so the whole-vector wrapper is unused. */
 static void mldsa_vec_decode_gamma1(const byte* x, byte l, int bits,
     sword32* z)
 {
     unsigned int i;
 
+    unsigned int e = MLDSA_N / 8 * (unsigned int)(bits + 1);
+
+    i = 0;
+#if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
+    /* Two polynomials per call; an odd trailing one falls through. */
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        for (; i + 1 < l; i += 2) {
+            if (bits == MLDSA_GAMMA1_BITS_17) {
+                wc_mldsa_decode_gamma1_17_x2_avx512(x, x + e, z, z + MLDSA_N);
+            }
+            else {
+                wc_mldsa_decode_gamma1_19_x2_avx512(x, x + e, z, z + MLDSA_N);
+            }
+            x += 2 * e;
+            z += 2 * MLDSA_N;
+        }
+        RESTORE_VECTOR_REGISTERS();
+    }
+#endif
     /* Step 3: For each polynomial of vector. */
-    for (i = 0; i < l; i++) {
+    for (; i < l; i++) {
         /* Step 4: Unpack a polynomial. */
         mldsa_decode_gamma1(x, bits, z);
         /* Move pointers on to next polynomial. */
-        x += MLDSA_N / 8 * (bits + 1);
+        x += e;
         z += MLDSA_N;
     }
 }
+#endif /* !WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM */
 #endif
 
 #if !defined(WOLFSSL_MLDSA_NO_SIGN) || !defined(WOLFSSL_MLDSA_NO_VERIFY)
@@ -2276,7 +2462,6 @@ static void mldsa_vec_decode_gamma1(const byte* x, byte l, int bits,
  *   ...
  *
  * @param [in]  w1      Vector of polynomials to encode.
- * @param [in]  gamma2  Maximum value in range.
  * @param [out] w1e     Buffer to encode into.
  */
 static void mldsa_encode_w1_88_c(const sword32* w1, byte* w1e)
@@ -2328,7 +2513,6 @@ static void mldsa_encode_w1_88_c(const sword32* w1, byte* w1e)
 /* Encode w1 with range of 0..((q-1)/(2*GAMMA2)-1).
  *
  * @param [in]  w1      Vector of polynomials to encode.
- * @param [in]  gamma2  Maximum value in range.
  * @param [out] w1e     Buffer to encode into.
  */
 static void mldsa_encode_w1_88(const sword32* w1, byte* w1e)
@@ -2361,7 +2545,6 @@ WOLFSSL_TEST_VIS void wc_mldsa_encode_w1_88(const sword32* w1, byte* w1e)
  *   ...
  *
  * @param [in]  w1      Vector of polynomials to encode.
- * @param [in]  gamma2  Maximum value in range.
  * @param [out] w1e     Buffer to encode into.
  */
 static void mldsa_encode_w1_32_c(const sword32* w1, byte* w1e)
@@ -2407,7 +2590,6 @@ static void mldsa_encode_w1_32_c(const sword32* w1, byte* w1e)
 /* Encode w1 with range of 0..((q-1)/(2*GAMMA2)-1).
  *
  * @param [in]  w1      Vector of polynomials to encode.
- * @param [in]  gamma2  Maximum value in range.
  * @param [out] w1e     Buffer to encode into.
  */
 static void mldsa_encode_w1_32(const sword32* w1, byte* w1e)
@@ -2458,24 +2640,67 @@ static void mldsa_vec_encode_w1(const sword32* w1, byte k, sword32 gamma2,
 
 #ifndef WOLFSSL_NO_ML_DSA_44
     if (gamma2 == MLDSA_Q_LOW_88) {
+        unsigned int e = MLDSA_Q_HI_88_ENC_BITS * 2 * MLDSA_N / 16;
+        i = 0;
+#if defined(USE_INTEL_SPEEDUP) && \
+    defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512_VBMI)
+        /* vpermb gathers the encoded bytes of a whole register, so the VBMI
+         * encoder needs no polynomial pairing and does the entire vector. */
+        if (IS_INTEL_AVX512_VBMI(cpuid_flags) &&
+                (SAVE_VECTOR_REGISTERS2() == 0)) {
+            for (; i < PARAMS_ML_DSA_44_K; i++) {
+                wc_mldsa_encode_w1_88_avx512_vbmi(w1, w1e);
+                w1 += MLDSA_N;
+                w1e += e;
+            }
+            RESTORE_VECTOR_REGISTERS();
+        }
+#endif
+#if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
+        /* Two polynomials per pass; an odd trailing one falls through. */
+        if ((i == 0) && USE_INTEL_AVX512(cpuid_flags) &&
+                (SAVE_VECTOR_REGISTERS2() == 0)) {
+            for (; i + 1 < PARAMS_ML_DSA_44_K; i += 2) {
+                wc_mldsa_encode_w1_88_x2_avx512(w1, w1 + MLDSA_N, w1e,
+                    w1e + e);
+                w1 += 2 * MLDSA_N;
+                w1e += 2 * e;
+            }
+            RESTORE_VECTOR_REGISTERS();
+        }
+#endif
         /* Step 2. For each polynomial of vector. */
-        for (i = 0; i < PARAMS_ML_DSA_44_K; i++) {
+        for (; i < PARAMS_ML_DSA_44_K; i++) {
             mldsa_encode_w1_88(w1, w1e);
             /* Next polynomial. */
             w1 += MLDSA_N;
-            w1e += MLDSA_Q_HI_88_ENC_BITS * 2 * MLDSA_N / 16;
+            w1e += e;
         }
     }
     else
 #endif
 #if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
     if (gamma2 == MLDSA_Q_LOW_32) {
+        unsigned int e = MLDSA_Q_HI_32_ENC_BITS * 2 * MLDSA_N / 16;
+        i = 0;
+#if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
+        /* One polynomial per pass - vpmovqb needs no lane pairing. */
+        if (USE_INTEL_AVX512(cpuid_flags) &&
+                (SAVE_VECTOR_REGISTERS2() == 0)) {
+            for (; i < k; i++) {
+                wc_mldsa_encode_w1_32_avx512(w1, w1e);
+                w1 += MLDSA_N;
+                w1e += e;
+            }
+            RESTORE_VECTOR_REGISTERS();
+        }
+#endif
         /* Step 2. For each polynomial of vector. */
-        for (i = 0; i < k; i++) {
+        for (; i < k; i++) {
             mldsa_encode_w1_32(w1, w1e);
             /* Next polynomial. */
             w1 += MLDSA_N;
-            w1e += MLDSA_Q_HI_32_ENC_BITS * 2 * MLDSA_N / 16;
+            w1e += e;
         }
     }
     else
@@ -2794,6 +3019,14 @@ static int mldsa_rej_ntt_poly(wc_Shake* shake128, byte* seed, sword32* a,
 #define GEN_MATRIX_NBLOCKS  5
 /* Number of bytes to generate for matrix. */
 #define GEN_MATRIX_SIZE     GEN_MATRIX_NBLOCKS * SHA3_128_BYTES
+
+/* wc_mldsa_rej_uniform_n_avx2()'s wide path walks the buffer without
+ * rechecking rLen, so GEN_MATRIX_SIZE has to cover a whole polynomial:
+ * three bytes per candidate for MLDSA_N coefficients, before any are
+ * rejected. Five blocks leaves headroom for the rejections that do
+ * occur; drop GEN_MATRIX_NBLOCKS below that and the sampler reads past
+ * the end of the buffer. */
+wc_static_assert(GEN_MATRIX_SIZE >= MLDSA_N * 3);
 
 #ifndef WOLFSSL_NO_ML_DSA_44
 /* Deterministically generate a matrix (or transpose) of uniform integers mod q.
@@ -3156,6 +3389,124 @@ static int wc_mldsa_gen_matrix_8x7_avx2(sword32* a, byte* seed)
 }
 #endif
 
+#ifdef WOLFSSL_MLDSA_HAVE_INTEL_AVX512
+/* Deterministically generate a matrix (or transpose) of uniform integers mod q.
+ *
+ * Squeezes eight SHAKE-128 instances at a time with the AVX512 Keccak, one per
+ * matrix entry, rather than the four of the AVX2 implementation. Entries are
+ * taken in row-major order, so entry n is row n / l and column n % l. A final
+ * batch with fewer than eight entries still runs all eight lanes - the surplus
+ * lanes are seeded with a harmless nonce and their output ignored, which is
+ * cheaper than dropping back to a narrower permutation.
+ *
+ * @param  [out]  a     Matrix of uniform integers.
+ * @param  [in]   seed  Bytes to seed XOF generation.
+ * @param  [in]   k     First dimension of matrix.
+ * @param  [in]   l     Second dimension of matrix.
+ * @param  [in]   heap  Dynamic memory allocation hint.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails. Only possible when
+ * WOLFSSL_SMALL_STACK is defined.
+ */
+static int wc_mldsa_gen_matrix_avx512(sword32* a, byte* seed, byte k,
+    byte l, void* heap)
+{
+    unsigned int i;
+    unsigned int n;
+    unsigned int cnt;
+    unsigned int done;
+    unsigned int entries = (unsigned int)k * l;
+#ifdef WOLFSSL_SMALL_STACK
+    byte *rand = NULL;
+    word64 *state = NULL;
+#else
+    byte rand[8 * GEN_MATRIX_SIZE + 2];
+    word64 state[25 * 8];
+#endif
+    unsigned int ctr[8];
+
+    (void)heap;
+
+#ifdef WOLFSSL_SMALL_STACK
+    rand = (byte*)XMALLOC(8 * GEN_MATRIX_SIZE + 2, heap,
+                          DYNAMIC_TYPE_TMP_BUFFER);
+    state = (word64*)XMALLOC(sizeof(word64) * 25 * 8, heap,
+                          DYNAMIC_TYPE_TMP_BUFFER);
+    if ((rand == NULL) || (state == NULL)) {
+        XFREE(rand, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(state, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+#endif
+
+    /* Loading 64 bits, only using 48 bits. Loading 2 bytes more than used. */
+    rand[8 * GEN_MATRIX_SIZE + 0] = 0xff;
+    rand[8 * GEN_MATRIX_SIZE + 1] = 0xff;
+
+    for (n = 0; n < entries; n += 8) {
+        cnt = entries - n;
+        if (cnt > 8) {
+            cnt = 8;
+        }
+
+        for (i = 0; i < 8; i++) {
+            if (i < cnt) {
+                unsigned int e = n + i;
+                state[4 * 8 + i] = 0x1f0000U + ((word32)(e / l) << 8) +
+                    (word32)(e % l);
+            }
+            else {
+                /* Unused lane - any nonce will do, the output is discarded. */
+                state[4 * 8 + i] = 0x1f0000U;
+            }
+        }
+
+        sha3_128_blocksx8_seed_avx512(state, seed);
+        wc_mldsa_redistribute_21_rand_x8_avx512(state, rand, GEN_MATRIX_SIZE);
+        for (i = SHA3_128_BYTES; i < GEN_MATRIX_SIZE; i += SHA3_128_BYTES) {
+            sha3_blocksx8_avx512(state);
+            wc_mldsa_redistribute_21_rand_x8_avx512(state, rand + i,
+                GEN_MATRIX_SIZE);
+        }
+
+        /* Sample random bytes to create a polynomial. */
+        for (i = 0; i < cnt; i++) {
+            ctr[i] = (word32)wc_mldsa_rej_uniform_n_avx512(
+                a + (n + i) * MLDSA_N, MLDSA_N, rand + i * GEN_MATRIX_SIZE,
+                GEN_MATRIX_SIZE);
+        }
+
+        /* Create more blocks if too many rejected. */
+        do {
+            done = 1;
+            for (i = 0; i < cnt; i++) {
+                if (ctr[i] < MLDSA_N) {
+                    done = 0;
+                }
+            }
+            if (done) {
+                break;
+            }
+
+            sha3_blocksx8_avx512(state);
+            wc_mldsa_redistribute_21_rand_x8_avx512(state, rand,
+                GEN_MATRIX_SIZE);
+            for (i = 0; i < cnt; i++) {
+                ctr[i] += (word32)wc_mldsa_rej_uniform_avx512(
+                    a + (n + i) * MLDSA_N + ctr[i], MLDSA_N - ctr[i],
+                    rand + i * GEN_MATRIX_SIZE, SHA3_128_BYTES);
+            }
+        }
+        while (!done);
+    }
+
+    WC_FREE_VAR_EX(rand, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(state, heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return 0;
+}
+#endif /* WOLFSSL_MLDSA_HAVE_INTEL_AVX512 */
+
 #endif
 
 /* Expand the seed to create matrix a.
@@ -3235,6 +3586,17 @@ static int mldsa_expand_a(wc_Shake* shake128, const byte* pub_seed,
 #endif
 
 #if defined(USE_INTEL_SPEEDUP) && !defined(WC_SHA3_NO_ASM)
+#ifdef WOLFSSL_MLDSA_HAVE_INTEL_AVX512
+    /* Eight SHAKE-128 instances per permutation instead of four. Handles any
+     * k x l, so it comes before the fixed-size AVX2 implementations. */
+    if (USE_INTEL_AVX512(cpuid_flags) && IS_INTEL_BMI2(cpuid_flags) &&
+            (SAVE_VECTOR_REGISTERS2() == 0)) {
+        XMEMCPY(seed, pub_seed, MLDSA_PUB_SEED_SZ);
+        ret = wc_mldsa_gen_matrix_avx512(a, seed, k, l, heap);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
 #ifndef WOLFSSL_NO_ML_DSA_44
     if ((k == 4) && (l == 4) && IS_INTEL_AVX2(cpuid_flags) &&
             IS_INTEL_BMI2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
@@ -3346,7 +3708,7 @@ static const signed char mldsa_coeff_eta2[] = {
  * @return  Value in range of -ETA..ETA on success.
  */
 #define MLDSA_COEFF_S_VALID(b, eta)                             \
-    (((eta) == MLDSA_ETA_2) ? MLDSA_COEFF_S_VALID_ETA2(b)   \
+    (((eta) == MLDSA_ETA_2) ? MLDSA_COEFF_S_VALID_ETA2(b)       \
                                 : MLDSA_COEFF_S_VALID_ETA4(b))
 
 /* Convert random value 0..15 to a value in range of -ETA..ETA.
@@ -3363,7 +3725,7 @@ static const signed char mldsa_coeff_eta2[] = {
  * @return  Value in range of -ETA..ETA on success.
  */
 #define MLDSA_COEFF_S(b, eta)                               \
-    (((eta) == MLDSA_ETA_2) ? MLDSA_COEFF_S_ETA2(b)     \
+    (((eta) == MLDSA_ETA_2) ? MLDSA_COEFF_S_ETA2(b)         \
                                 : MLDSA_COEFF_S_ETA4(b))
 
 #else
@@ -3438,12 +3800,12 @@ static const signed char mldsa_coeff_eta2[] = {
 #define EXTRACT_COEFF_NIBBLE_CHECK_J(z, rs, t, eta)                     \
         (t) = (sword8)(((z) >> (rs)) & 0xf);                            \
         /* Step 7: Check we have a valid coefficient. */                \
-        if (MLDSA_COEFF_S_VALID(t, eta)) {                          \
-            (t) = (sword8)MLDSA_COEFF_S(t, eta);                    \
+        if (MLDSA_COEFF_S_VALID(t, eta)) {                              \
+            (t) = (sword8)MLDSA_COEFF_S(t, eta);                        \
             /* Step 8: Store coefficient as next polynomial value.      \
              * Step 9: Increment count of polynomial values set. */     \
             s[j++] = (sword32)(t);                                      \
-            if (j == MLDSA_N) {                                     \
+            if (j == MLDSA_N) {                                         \
                 break;                                                  \
             }                                                           \
         }
@@ -3460,8 +3822,8 @@ static const signed char mldsa_coeff_eta2[] = {
 #define EXTRACT_COEFF_NIBBLE(z, rs, t, eta)                             \
         (t) = (sword8)(((z) >> (rs)) & 0xf);                            \
         /* Step 7: Check we have a valid coefficient. */                \
-        if (MLDSA_COEFF_S_VALID(t, eta)) {                          \
-            (t) = (sword8)MLDSA_COEFF_S(t, eta);                    \
+        if (MLDSA_COEFF_S_VALID(t, eta)) {                              \
+            (t) = (sword8)MLDSA_COEFF_S(t, eta);                        \
             /* Step 8: Store coefficient as next polynomial value.      \
              * Step 9: Increment count of polynomial values set. */     \
             s[j++] = (sword32)(t);                                      \
@@ -3598,6 +3960,7 @@ static void mldsa_extract_coeffs(const byte* z, unsigned int zLen,
  *
  * @param [in, out] shake256  SHAKE-256 object.
  * @param [in]      seed      Seed, rho, to hash to generate values.
+ * @param [out]     s         Polynomial with coefficients in -eta..eta.
  * @param [in]      eta       Range specifier of each value.
  * @return  0 on success.
  * @return  Negative on hash error.
@@ -3683,7 +4046,7 @@ static int mldsa_rej_bound_poly(wc_Shake* shake256, byte* seed, sword32* s,
  *
  * Seed used with XOF to generate random bytes.
  *
- * @param  [out]  a           Vectos of uniform integers.
+ * @param  [out]  s           Vectors s1 and s2 of small coefficients.
  * @param  [in]   seed        Bytes to seed XOF generation.
  * @return  0 on success.
  * @return  MEMORY_E when dynamic memory allocation fails. Only possible when
@@ -3791,7 +4154,7 @@ static int wc_mldsa_gen_s_4_4_avx2(sword32* s[2], byte* seed)
  *
  * Seed used with XOF to generate random bytes.
  *
- * @param  [out]  a           Vectos of uniform integers.
+ * @param  [out]  s           Vectors s1 and s2 of small coefficients.
  * @param  [in]   seed        Bytes to seed XOF generation.
  * @return  0 on success.
  * @return  MEMORY_E when dynamic memory allocation fails. Only possible when
@@ -3947,7 +4310,7 @@ static int wc_mldsa_gen_s_5_6_avx2(sword32* s[2], byte* seed)
  *
  * Seed used with XOF to generate random bytes.
  *
- * @param  [out]  a           Vectos of uniform integers.
+ * @param  [out]  s           Vectors s1 and s2 of small coefficients.
  * @param  [in]   seed        Bytes to seed XOF generation.
  * @return  0 on success.
  * @return  MEMORY_E when dynamic memory allocation fails. Only possible when
@@ -4099,6 +4462,128 @@ static int wc_mldsa_gen_s_7_8_avx2(sword32* s[2], byte* seed)
     return 0;
 }
 #endif
+
+#ifdef WOLFSSL_MLDSA_HAVE_INTEL_AVX512
+/* Deterministically generate the secret vectors s1 and s2.
+ *
+ * Squeezes eight SHAKE-256 instances at a time with the AVX512 Keccak rather
+ * than the four of the AVX2 implementation. The two vectors are sampled as one
+ * run of s1Len + s2Len polynomials, nonce n for polynomial n, so a batch may
+ * straddle the boundary between them. A final batch with fewer than eight
+ * polynomials still runs all eight lanes and discards the surplus.
+ *
+ * @param  [out]  s1     First vector of polynomials.
+ * @param  [in]   s1Len  Dimension of first vector.
+ * @param  [out]  s2     Second vector of polynomials.
+ * @param  [in]   s2Len  Dimension of second vector.
+ * @param  [in]   eta    Range specifier of each value.
+ * @param  [in]   seed   Bytes to seed XOF generation.
+ * @param  [in]   heap   Dynamic memory allocation hint.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails. Only possible when
+ * WOLFSSL_SMALL_STACK is defined.
+ */
+static int wc_mldsa_gen_s_avx512(sword32* s1, byte s1Len, sword32* s2,
+    byte s2Len, byte eta, byte* seed, void* heap)
+{
+    unsigned int i;
+    unsigned int n;
+    unsigned int cnt;
+    unsigned int done;
+    unsigned int total = (unsigned int)s1Len + s2Len;
+#ifdef WOLFSSL_SMALL_STACK
+    byte *rand = NULL;
+    word64 *state = NULL;
+#else
+    byte rand[8 * MLDSA_GEN_S_BLOCK_BYTES];
+    word64 state[25 * 8];
+#endif
+    sword32* sp[8];
+    unsigned int ctr[8];
+
+    (void)heap;
+
+#ifdef WOLFSSL_SMALL_STACK
+    rand = (byte*)XMALLOC(8 * MLDSA_GEN_S_BLOCK_BYTES, heap,
+                          DYNAMIC_TYPE_TMP_BUFFER);
+    state = (word64*)XMALLOC(sizeof(word64) * 25 * 8, heap,
+                          DYNAMIC_TYPE_TMP_BUFFER);
+    if ((rand == NULL) || (state == NULL)) {
+        XFREE(rand, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(state, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+#endif
+
+    for (n = 0; n < total; n += 8) {
+        cnt = total - n;
+        if (cnt > 8) {
+            cnt = 8;
+        }
+
+        for (i = 0; i < 8; i++) {
+            ctr[i] = 0;
+            if (i < cnt) {
+                unsigned int e = n + i;
+                if (e < s1Len) {
+                    sp[i] = s1 + e * MLDSA_N;
+                }
+                else {
+                    sp[i] = s2 + (e - s1Len) * MLDSA_N;
+                }
+                state[8 * 8 + i] = 0x1f0000U + e;
+            }
+            else {
+                /* Unused lane - any nonce will do, the output is discarded. */
+                sp[i] = NULL;
+                state[8 * 8 + i] = 0x1f0000U;
+            }
+        }
+
+        sha3_256_blocksx8_seed_64_avx512(state, seed);
+        wc_mldsa_redistribute_17_rand_x8_avx512(state, rand,
+            MLDSA_GEN_S_BLOCK_BYTES);
+
+        do {
+            for (i = 0; i < cnt; i++) {
+                if (ctr[i] < MLDSA_N) {
+                    byte* p = rand + i * MLDSA_GEN_S_BLOCK_BYTES;
+                    if (eta == MLDSA_ETA_2) {
+                        wc_mldsa_extract_coeffs_eta2_avx512(p,
+                            MLDSA_GEN_S_BLOCK_BYTES, sp[i] + ctr[i], &ctr[i]);
+                    }
+                    else {
+                        wc_mldsa_extract_coeffs_eta4_avx512(p,
+                            MLDSA_GEN_S_BLOCK_BYTES, sp[i] + ctr[i], &ctr[i]);
+                    }
+                }
+            }
+
+            done = 1;
+            for (i = 0; i < cnt; i++) {
+                if (ctr[i] < MLDSA_N) {
+                    done = 0;
+                }
+            }
+            if (!done) {
+                sha3_blocksx8_avx512(state);
+                wc_mldsa_redistribute_17_rand_x8_avx512(state, rand,
+                    MLDSA_GEN_S_BLOCK_BYTES);
+            }
+        }
+        /* Create more blocks if too many rejected. */
+        while (!done);
+    }
+
+    /* rand/state hold secret s-vector material. */
+    ForceZero(rand, 8 * MLDSA_GEN_S_BLOCK_BYTES);
+    ForceZero(state, sizeof(word64) * 25 * 8);
+    WC_FREE_VAR_EX(rand, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(state, heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return 0;
+}
+#endif /* WOLFSSL_MLDSA_HAVE_INTEL_AVX512 */
 #endif
 
 /* Expand private seed into vectors s1 and s2.
@@ -4177,15 +4662,28 @@ static int mldsa_expand_s_c(wc_Shake* shake256, byte* priv_seed, byte eta,
  * @param [in]      s1Len      Dimension of first vector.
  * @param [out]     s2         Second vector of polynomials.
  * @param [in]      s2Len      Dimension of second vector.
+ * @param [in]      heap       Dynamic memory allocation hint.
  * @return  0 on success.
  * @return  Negative on hash error.
  */
 static int mldsa_expand_s(wc_Shake* shake256, byte* priv_seed, byte eta,
-    sword32* s1, byte s1Len, sword32* s2, byte s2Len)
+    sword32* s1, byte s1Len, sword32* s2, byte s2Len, void* heap)
 {
     int ret = 0;
 
+    (void)heap;
+
 #if defined(USE_INTEL_SPEEDUP) && !defined(WC_SHA3_NO_ASM)
+    #ifdef WOLFSSL_MLDSA_HAVE_INTEL_AVX512
+    /* Eight SHAKE-256 instances per permutation instead of four. Handles any
+     * vector dimensions, so it comes before the fixed-size AVX2 code. */
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        ret = wc_mldsa_gen_s_avx512(s1, s1Len, s2, s2Len, eta, priv_seed,
+            heap);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+    #endif
     #ifndef WOLFSSL_NO_ML_DSA_44
     if ((s1Len == 4) && IS_INTEL_AVX2(cpuid_flags) &&
         (SAVE_VECTOR_REGISTERS2() == 0))
@@ -4235,8 +4733,9 @@ static int mldsa_expand_s(wc_Shake* shake256, byte* priv_seed, byte eta,
  *
  * Seed used with XOF to generate random bytes.
  *
- * @param  [out]  a           Vectos of uniform integers.
+ * @param  [out]  y           Vector of masking polynomials.
  * @param  [in]   seed        Bytes to seed XOF generation.
+ * @param  [in]   kappa       Base value to append to seed.
  * @return  0 on success.
  * @return  MEMORY_E when dynamic memory allocation fails. Only possible when
  * WOLFSSL_SMALL_STACK is defined.
@@ -4305,8 +4804,10 @@ static int wc_mldsa_gen_y_4_avx2(sword32* y, byte* seed, word16 kappa)
  *
  * Seed used with XOF to generate random bytes.
  *
- * @param  [out]  a           Vectos of uniform integers.
- * @param  [in]   seed        Bytes to seed XOF generation.
+ * @param  [out]      y         Vector of masking polynomials.
+ * @param  [in]       seed      Bytes to seed XOF generation.
+ * @param  [in]       kappa     Base value to append to seed.
+ * @param  [in, out]  shake256  SHAKE-256 object for the odd polynomial.
  * @return  0 on success.
  * @return  MEMORY_E when dynamic memory allocation fails. Only possible when
  * WOLFSSL_SMALL_STACK is defined.
@@ -4388,8 +4889,9 @@ static int wc_mldsa_gen_y_5_avx2(sword32* y, byte* seed, word16 kappa,
  *
  * Seed used with XOF to generate random bytes.
  *
- * @param  [out]  a           Vectos of uniform integers.
+ * @param  [out]  y           Vector of masking polynomials.
  * @param  [in]   seed        Bytes to seed XOF generation.
+ * @param  [in]   kappa       Base value to append to seed.
  * @return  0 on success.
  * @return  MEMORY_E when dynamic memory allocation fails. Only possible when
  * WOLFSSL_SMALL_STACK is defined.
@@ -4480,6 +4982,98 @@ static int wc_mldsa_gen_y_7_avx2(sword32* y, byte* seed, word16 kappa)
     return 0;
 }
 #endif
+
+#ifdef WOLFSSL_MLDSA_HAVE_INTEL_AVX512
+/* Deterministically expand the private random seed into the vector y.
+ *
+ * Every dimension in use (4, 5 or 7) is at most eight, so the whole vector is
+ * squeezed in one eight-way AVX512 SHAKE-256 run - unlike the AVX2 code, which
+ * needs a second four-way run, or a scalar squeeze, for the polynomials past
+ * the fourth. There is no rejection here, so the block count is fixed and no
+ * lane can need a further permutation. Surplus lanes are squeezed with the
+ * nonces of the next kappa round and discarded.
+ *
+ * @param  [out]  y            Vector of polynomials.
+ * @param  [in]   seed         Bytes to seed XOF generation.
+ * @param  [in]   kappa        Base value to append to seed.
+ * @param  [in]   gamma1_bits  Number of bits per value.
+ * @param  [in]   l            Dimension of vector.
+ * @param  [in]   heap         Dynamic memory allocation hint.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails. Only possible when
+ * WOLFSSL_SMALL_STACK is defined.
+ */
+static int wc_mldsa_gen_y_avx512(sword32* y, byte* seed, word16 kappa,
+    byte gamma1_bits, byte l, void* heap)
+{
+    unsigned int i;
+    unsigned int b;
+#ifdef WOLFSSL_SMALL_STACK
+    byte *rand = NULL;
+    word64 *state = NULL;
+#else
+    byte rand[8 * MLDSA_MAX_V];
+    word64 state[25 * 8];
+#endif
+
+    (void)heap;
+
+#ifdef WOLFSSL_SMALL_STACK
+    rand = (byte*)XMALLOC(8 * MLDSA_MAX_V, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    state = (word64*)XMALLOC(sizeof(word64) * 25 * 8, heap,
+                          DYNAMIC_TYPE_TMP_BUFFER);
+    if ((rand == NULL) || (state == NULL)) {
+        XFREE(rand, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(state, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+#endif
+
+    for (i = 0; i < 8; i++) {
+        state[8 * 8 + i] = 0x1f0000U + (word32)kappa + i;
+    }
+
+    sha3_256_blocksx8_seed_64_avx512(state, seed);
+    wc_mldsa_redistribute_17_rand_x8_avx512(state, rand, MLDSA_MAX_V);
+    for (b = 1; b < MLDSA_MAX_V_BLOCKS; b++) {
+        sha3_blocksx8_avx512(state);
+        wc_mldsa_redistribute_17_rand_x8_avx512(state,
+            rand + b * SHA3_256_BYTES, MLDSA_MAX_V);
+    }
+
+    /* Two polynomials per call; an odd trailing one is done singly. */
+    for (i = 0; i + 1 < l; i += 2) {
+        if (gamma1_bits == MLDSA_GAMMA1_BITS_17) {
+            wc_mldsa_decode_gamma1_17_x2_avx512(rand + i * MLDSA_MAX_V,
+                rand + (i + 1) * MLDSA_MAX_V, y + i * MLDSA_N,
+                y + (i + 1) * MLDSA_N);
+        }
+        else {
+            wc_mldsa_decode_gamma1_19_x2_avx512(rand + i * MLDSA_MAX_V,
+                rand + (i + 1) * MLDSA_MAX_V, y + i * MLDSA_N,
+                y + (i + 1) * MLDSA_N);
+        }
+    }
+    for (; i < l; i++) {
+        if (gamma1_bits == MLDSA_GAMMA1_BITS_17) {
+            wc_mldsa_decode_gamma1_17_avx2(rand + i * MLDSA_MAX_V,
+                y + i * MLDSA_N);
+        }
+        else {
+            wc_mldsa_decode_gamma1_19_avx2(rand + i * MLDSA_MAX_V,
+                y + i * MLDSA_N);
+        }
+    }
+
+    /* rand/state hold the secret mask y. */
+    ForceZero(rand, 8 * MLDSA_MAX_V);
+    ForceZero(state, sizeof(word64) * 25 * 8);
+    WC_FREE_VAR_EX(rand, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(state, heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return 0;
+}
+#endif /* WOLFSSL_MLDSA_HAVE_INTEL_AVX512 */
 #endif
 
 /* Expand the private random seed into vector y.
@@ -4547,15 +5141,27 @@ static int mldsa_vec_expand_mask_c(wc_Shake* shake256, byte* seed,
  * @param [in]      gamma1_bits  Number of bits per value.
  * @param [out]     y            Vector of polynomials.
  * @param [in]      l            Dimension of vector.
+ * @param [in]      heap         Dynamic memory allocation hint.
  * @return  0 on success.
  * @return  Negative on hash error.
  */
 static int mldsa_vec_expand_mask(wc_Shake* shake256, byte* seed,
-    word16 kappa, byte gamma1_bits, sword32* y, byte l)
+    word16 kappa, byte gamma1_bits, sword32* y, byte l, void* heap)
 {
     int ret = 0;
 
+    (void)heap;
+
 #if defined(USE_INTEL_SPEEDUP) && !defined(WC_SHA3_NO_ASM)
+#ifdef WOLFSSL_MLDSA_HAVE_INTEL_AVX512
+    /* Whole vector in one eight-way run, whatever the dimension. */
+    if (USE_INTEL_AVX512(cpuid_flags) && IS_INTEL_BMI2(cpuid_flags) &&
+            (SAVE_VECTOR_REGISTERS2() == 0)) {
+        ret = wc_mldsa_gen_y_avx512(y, seed, kappa, gamma1_bits, l, heap);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
     if (IS_INTEL_AVX2(cpuid_flags) && IS_INTEL_BMI2(cpuid_flags) &&
             (SAVE_VECTOR_REGISTERS2() == 0)) {
     #ifndef WOLFSSL_NO_ML_DSA_44
@@ -4603,6 +5209,7 @@ static int mldsa_vec_expand_mask(wc_Shake* shake256, byte* seed,
  *  11: end for
  *  12: return c
  *
+ * @param [in]  level     Security level of the parameter set.
  * @param [in]  shake256  SHAKE-256 object.
  * @param [in]  seed      Buffer containing seed to expand.
  * @param [in]  seedLen   Length of seed in bytes.
@@ -4646,8 +5253,7 @@ static int mldsa_sample_in_ball_ex(int level, wc_Shake* shake256,
     }
 
     /* Step 3: Put in TAU +/- 1s. */
-    for (i = (unsigned int)MLDSA_N - tau;
-                                         (ret == 0) && (i < MLDSA_N); i++) {
+    for (i = (unsigned int)MLDSA_N - tau; (ret == 0) && (i < MLDSA_N); i++) {
         unsigned int j;
         do {
             /* Check whether block is exhausted. */
@@ -4668,8 +5274,12 @@ static int mldsa_sample_in_ball_ex(int level, wc_Shake* shake256,
 
         /* Step 8: Move value from random index to current index. */
         c[i] = c[j];
-        /* Step 9: Set value at random index to +/- 1. */
-        c[j] = 1 - ((((signs[s >> 3]) >> (s & 0x7)) & 0x1) << 1);
+        /* Step 9: Set value at random index to +/- 1.
+         * Cast to sword32 before the subtract: where a byte is as wide as int,
+         * signs[] promotes to unsigned and -1 would widen as 0x0000ffff.
+         * Matches the USE_INTEL_SPEEDUP path. */
+        c[j] = (sword32)1 -
+               (sword32)((((signs[s >> 3]) >> (s & 0x7)) & 0x1) << 1);
         /* Next sign bit index. */
         s++;
     }
@@ -4715,7 +5325,7 @@ static int mldsa_sample_in_ball_ex(int level, wc_Shake* shake256,
                 if (k == MLDSA_GEN_C_BLOCK_BYTES) {
                     /* Generate a new block. */
 #ifndef WC_SHA3_NO_ASM
-                    if (IS_INTEL_AVX2(cpuid_flags) &&
+                    if (SHA3_USE_AVX2(cpuid_flags) &&
                              (SAVE_VECTOR_REGISTERS2() == 0)) {
                         sha3_block_avx2(state);
                         RESTORE_VECTOR_REGISTERS();
@@ -4760,6 +5370,7 @@ static int mldsa_sample_in_ball_ex(int level, wc_Shake* shake256,
      !defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM))
 /* Expand commit to a polynomial.
  *
+ * @param [in]  level     Security level of the parameter set.
  * @param [in]  shake256  SHAKE-256 object.
  * @param [in]  seed      Buffer containing seed to expand.
  * @param [in]  seedLen   Length of seed in bytes.
@@ -4989,6 +5600,22 @@ static void mldsa_vec_decompose(const sword32* r, byte k, sword32 gamma2,
     sword32* r0, sword32* r1)
 {
 #ifdef USE_INTEL_SPEEDUP
+#ifdef WOLFSSL_MLDSA_HAVE_INTEL_AVX512
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    #ifndef WOLFSSL_NO_ML_DSA_44
+        if (gamma2 == MLDSA_Q_LOW_88) {
+            wc_mldsa_decompose_q88_avx512(r, r0, r1);
+        }
+    #endif
+    #if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
+        if (gamma2 == MLDSA_Q_LOW_32) {
+            wc_mldsa_decompose_q32_avx512(r, k, r0, r1);
+        }
+    #endif
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
     #ifndef WOLFSSL_NO_ML_DSA_44
         if (gamma2 == MLDSA_Q_LOW_88) {
@@ -5086,6 +5713,13 @@ static int mldsa_vec_check_low(const sword32* a, byte l, sword32 hi)
 {
     int ret;
 #ifdef USE_INTEL_SPEEDUP
+#ifdef WOLFSSL_MLDSA_HAVE_INTEL_AVX512
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        ret = wc_mldsa_vec_check_low_avx512(a, l, hi);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         ret = wc_mldsa_vec_check_low_avx2(a, l, hi);
         RESTORE_VECTOR_REGISTERS();
@@ -5149,7 +5783,18 @@ static int mldsa_make_hint_88(const sword32* s, const sword32* w1, byte* h,
     byte *idxp)
 {
     unsigned int j;
-    byte idx = *idxp;
+    byte idx;
+
+#if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        int ret = wc_mldsa_make_hint_88_avx512(s, w1, PARAMS_ML_DSA_44_OMEGA,
+            h, idxp);
+        RESTORE_VECTOR_REGISTERS();
+        return ret;
+    }
+#endif
+
+    idx = *idxp;
 
     /* Alg 14, Step 3: For each value of polynomial. */
     for (j = 0; j < MLDSA_N; j++) {
@@ -5221,9 +5866,19 @@ static int mldsa_make_hint_32(const sword32* s, const sword32* w1,
     byte omega, byte* h, byte *idxp)
 {
     unsigned int j;
-    byte idx = *idxp;
+    byte idx;
 
     (void)omega;
+
+#if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        int ret = wc_mldsa_make_hint_32_avx512(s, w1, omega, h, idxp);
+        RESTORE_VECTOR_REGISTERS();
+        return ret;
+    }
+#endif
+
+    idx = *idxp;
 
     /* Alg 14, Step 3: For each value of polynomial. */
     for (j = 0; j < MLDSA_N; j++) {
@@ -5576,6 +6231,14 @@ static void mldsa_vec_use_hint(sword32* w1, byte k, sword32 gamma2,
 #ifndef WOLFSSL_NO_ML_DSA_44
     if (gamma2 == MLDSA_Q_LOW_88) {
     #ifdef USE_INTEL_SPEEDUP
+    #ifdef WOLFSSL_MLDSA_HAVE_INTEL_AVX512
+        if (USE_INTEL_AVX512(cpuid_flags) &&
+                (SAVE_VECTOR_REGISTERS2() == 0)) {
+            wc_mldsa_use_hint_88_avx512(w1, h);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+    #endif
         if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
             wc_mldsa_use_hint_88_avx2(w1, h);
             RESTORE_VECTOR_REGISTERS();
@@ -5594,6 +6257,14 @@ static void mldsa_vec_use_hint(sword32* w1, byte k, sword32 gamma2,
 #if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
     if (gamma2 == MLDSA_Q_LOW_32) {
     #ifdef USE_INTEL_SPEEDUP
+    #ifdef WOLFSSL_MLDSA_HAVE_INTEL_AVX512
+        if (USE_INTEL_AVX512(cpuid_flags) &&
+                (SAVE_VECTOR_REGISTERS2() == 0)) {
+            wc_mldsa_use_hint_32_avx512(w1, k, h);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+    #endif
         if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
             wc_mldsa_use_hint_32_avx2(w1, k, h);
             RESTORE_VECTOR_REGISTERS();
@@ -5628,15 +6299,29 @@ static void mldsa_vec_use_hint(sword32* w1, byte k, sword32 gamma2,
 static sword32 mldsa_mont_red(sword64 a)
 {
 #ifndef MLDSA_MUL_QINV_SLOW
-    sword64 t = (sword32)((sword32)a * (sword32)MLDSA_QINV);
+#ifdef MLDSA_MUL_QINV_WIDE64
+    /* Low 32 bits of the q^-1 product via the 64-bit multiply; see
+     * MLDSA_MUL_QINV_WIDE64 in dilithium.h. */
+    sword64 t = (sword32)((sword64)(sword32)a * (sword64)MLDSA_QINV);
 #else
-    sword64 t = (sword32)((sword32)a + (sword32)((sword32)a << 13) -
-        (sword32)((sword32)a << 23) + (sword32)((sword32)a << 26));
+    sword64 t = (sword32)((sword32)a * (sword32)MLDSA_QINV);
+#endif
+#else
+    /* Shifts are done on word32: a is routinely negative and left-shifting
+     * a negative signed value is UB. Only the low 32 bits are kept, so
+     * unsigned wrap-around gives the identical result. */
+    sword64 t = (sword32)((word32)a + ((word32)a << 13) -
+        ((word32)a << 23) + ((word32)a << 26));
 #endif
 #ifndef MLDSA_MUL_Q_SLOW
     return (sword32)((a - ((sword32)t * (sword64)MLDSA_Q)) >> 32);
 #else
-    return (sword32)((a - (t << 23) + (t << 13) - t) >> 32);
+    /* The whole expression is computed in word64 with a single conversion
+     * back: shifts on word64 avoid the signed-shift UB, |t << 23| < 2^54
+     * keeps every term exact, so the one conversion to sword64 is
+     * value-preserving ahead of the arithmetic >> 32. */
+    return (sword32)((sword64)((word64)a - ((word64)t << 23) +
+        ((word64)t << 13) - (word64)t) >> 32);
 #endif
 }
 
@@ -5660,7 +6345,10 @@ static sword32 mldsa_red(sword32 a)
 #ifndef MLDSA_MUL_Q_SLOW
     return (sword32)(a - (t * MLDSA_Q));
 #else
-    return (sword32)(a - (t << 23) + (t << 13) - t);
+    /* Shifts are done on word32: t is routinely negative and left-shifting
+     * a negative signed value is UB. Result is taken mod 2^32. */
+    return (sword32)((word32)a - ((word32)t << 23) + ((word32)t << 13) -
+        (word32)t);
 #endif
 }
 #endif
@@ -5749,11 +6437,11 @@ static const sword32 zetas_inv[MLDSA_N] = {
  */
 #define NTT(len)                                                            \
 do {                                                                        \
-    for (start = 0; start < MLDSA_N; start += 2 * (len)) {              \
+    for (start = 0; start < MLDSA_N; start += 2 * (len)) {                  \
         zeta = zetas[++k];                                                  \
         for (j = 0; j < (len); ++j) {                                       \
             sword32 t =                                                     \
-                mldsa_mont_red((sword64)zeta * r[start + j + (len)]);   \
+                mldsa_mont_red((sword64)zeta * r[start + j + (len)]);       \
             sword32 rj = r[start + j];                                      \
             r[start + j + (len)] = rj - t;                                  \
             r[start + j] = rj + t;                                          \
@@ -6140,9 +6828,17 @@ static void mldsa_ntt_c(sword32* r)
  */
 static void mldsa_ntt(sword32* r)
 {
+#if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        MLDSA_NTT_AVX512(r);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
 #ifdef USE_INTEL_SPEEDUP
+    /* MLDSA_NTT_AVX2: see the flavor-selection note by its definition. */
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-        wc_mldsa_ntt_avx2(r);
+        MLDSA_NTT_AVX2(r);
         RESTORE_VECTOR_REGISTERS();
     }
     else
@@ -6166,6 +6862,13 @@ static void mldsa_ntt(sword32* r)
  */
 static void mldsa_ntt_full(sword32* r)
 {
+#if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        wc_mldsa_ntt_full_1p_avx512(r);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
 #ifdef USE_INTEL_SPEEDUP
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         wc_mldsa_ntt_full_avx2(r);
@@ -6190,9 +6893,22 @@ static void mldsa_ntt_full(sword32* r)
  */
 static void mldsa_vec_ntt(sword32* r, byte l)
 {
-    unsigned int i;
+    unsigned int i = 0;
 
-    for (i = 0; i < l; i++) {
+#if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
+    /* One polynomial per call, so there is no odd trailing polynomial to
+     * hand back to mldsa_ntt() below. */
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        for (; i < l; i++) {
+            /* MLDSA_NTT_AVX512: see the flavor-selection note by its
+             * definition. */
+            MLDSA_NTT_AVX512(r);
+            r += MLDSA_N;
+        }
+        RESTORE_VECTOR_REGISTERS();
+    }
+#endif
+    for (; i < l; i++) {
         mldsa_ntt(r);
         r += MLDSA_N;
     }
@@ -6228,9 +6944,15 @@ static void mldsa_vec_ntt_full(sword32* r, byte l)
 /* Zeta index value 1 not in montgomery form. */
 #define MLDSA_NTT_ZETA_1    ((sword32)-3572223)
 
-/* Number-Theoretic Transform with small initial values.
+/* Number-Theoretic Transform of a polynomial with small coefficients.
  *
- * @param [in, out] r  Polynomial to transform.
+ * Level 1 uses a plain multiply and Barrett reduction rather than a
+ * Montgomery one. That is only equivalent while the coefficients are small:
+ * the two agree exactly for any |coefficient| up to 26, and diverge silently
+ * above that. Callers pass the challenge polynomial, whose coefficients are
+ * -1, 0 or 1, or a noise vector bounded by eta, which is at most 4.
+ *
+ * @param [in, out] r  Polynomial to transform, coefficients in -26..26.
  */
 static void mldsa_ntt_small_c(sword32* r)
 {
@@ -6574,15 +7296,30 @@ static void mldsa_ntt_small_c(sword32* r)
 
 #if !defined(WOLFSSL_MLDSA_NO_SIGN) || \
      defined(WC_MLDSA_CACHE_PRIV_VECTORS)
-/* Number-Theoretic Transform.
+/* Number-Theoretic Transform of a polynomial with small coefficients.
  *
- * @param [in, out] r  Polynomial to transform.
+ * Level 1 uses a plain multiply and Barrett reduction rather than a
+ * Montgomery one. That is only equivalent while the coefficients are small:
+ * the two agree exactly for any |coefficient| up to 26, and diverge silently
+ * above that. Callers pass the challenge polynomial, whose coefficients are
+ * -1, 0 or 1, or a noise vector bounded by eta, which is at most 4.
+ *
+ * @param [in, out] r  Polynomial to transform, coefficients in -26..26.
  */
 static void mldsa_ntt_small(sword32* r)
 {
+#if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        MLDSA_NTT_SMALL_AVX512(r);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
 #ifdef USE_INTEL_SPEEDUP
+    /* MLDSA_NTT_SMALL_AVX2: see the flavor-selection note by its
+     * definition. */
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-        wc_mldsa_ntt_avx2(r);
+        MLDSA_NTT_SMALL_AVX2(r);
         RESTORE_VECTOR_REGISTERS();
     }
     else
@@ -6596,15 +7333,28 @@ static void mldsa_ntt_small(sword32* r)
 #if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) || \
     !defined(WOLFSSL_MLDSA_NO_VERIFY) || \
      defined(WOLFSSL_MLDSA_CHECK_KEY)
-/* Number-Theoretic Transform.
+/* Number-Theoretic Transform of a polynomial with small coefficients.
  *
- * @param [in, out] r  Polynomial to transform.
+ * Level 1 uses a plain multiply and Barrett reduction rather than a
+ * Montgomery one. That is only equivalent while the coefficients are small:
+ * the two agree exactly for any |coefficient| up to 26, and diverge silently
+ * above that. Callers pass the challenge polynomial, whose coefficients are
+ * -1, 0 or 1, or a noise vector bounded by eta, which is at most 4.
+ *
+ * @param [in, out] r  Polynomial to transform, coefficients in -26..26.
  */
 static void mldsa_ntt_small_full(sword32* r)
 {
+#if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        wc_mldsa_ntt_small_full_1p_avx512(r);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
 #ifdef USE_INTEL_SPEEDUP
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-        wc_mldsa_ntt_full_avx2(r);
+        wc_mldsa_ntt_small_full_avx2(r);
         RESTORE_VECTOR_REGISTERS();
     }
     else
@@ -6688,7 +7438,7 @@ static void mldsa_vec_ntt_small_full(sword32* r, byte l)
  */
 #define INVNTT(len)                                                         \
 do {                                                                        \
-    for (start = 0; start < MLDSA_N; start += 2 * (len)) {              \
+    for (start = 0; start < MLDSA_N; start += 2 * (len)) {                  \
         zeta = zetas_inv[k++];                                              \
         for (j = 0; j < (len); ++j) {                                       \
             sword32 rj = r[start + j];                                      \
@@ -6696,7 +7446,7 @@ do {                                                                        \
             sword32 t = rj + rjl;                                           \
             r[start + j] = t;                                               \
             rjl = rj - rjl;                                                 \
-            r[start + j + (len)] = mldsa_mont_red((sword64)zeta * rjl); \
+            r[start + j + (len)] = mldsa_mont_red((sword64)zeta * rjl);     \
         }                                                                   \
     }                                                                       \
 }                                                                           \
@@ -7107,9 +7857,19 @@ static void mldsa_invntt_c(sword32* r)
  */
 static void mldsa_invntt(sword32* r)
 {
+#if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        /* MLDSA_INVNTT_AVX512: see the flavor-selection note by its
+         * definition. */
+        MLDSA_INVNTT_AVX512(r);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
 #ifdef USE_INTEL_SPEEDUP
+    /* MLDSA_INVNTT_AVX2: see the flavor-selection note by its definition. */
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-        wc_mldsa_invntt_avx2(r);
+        MLDSA_INVNTT_AVX2(r);
         RESTORE_VECTOR_REGISTERS();
     }
     else
@@ -7126,6 +7886,13 @@ static void mldsa_invntt(sword32* r)
  */
 static void mldsa_invntt_full(sword32* r)
 {
+#if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        wc_mldsa_invntt_full_1p_avx512(r);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
 #ifdef USE_INTEL_SPEEDUP
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         wc_mldsa_invntt_full_avx2(r);
@@ -7151,9 +7918,20 @@ static void mldsa_invntt_full(sword32* r)
  */
 static void mldsa_vec_invntt_full(sword32* r, byte l)
 {
-    unsigned int i;
+    unsigned int i = 0;
 
-    for (i = 0; i < l; i++) {
+#if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
+    /* One polynomial per call, so there is no odd trailing polynomial to
+     * hand back to mldsa_invntt_full() below. */
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        for (; i < l; i++) {
+            wc_mldsa_invntt_full_1p_avx512(r);
+            r += MLDSA_N;
+        }
+        RESTORE_VECTOR_REGISTERS();
+    }
+#endif
+    for (; i < l; i++) {
         mldsa_invntt_full(r);
         r += MLDSA_N;
     }
@@ -7340,6 +8118,34 @@ static void mldsa_matrix_mul(sword32* r, const sword32* m, const sword32* v,
      byte k, byte l)
 {
 #ifdef USE_INTEL_SPEEDUP
+#ifdef WOLFSSL_MLDSA_HAVE_INTEL_AVX512
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        int i;
+        if (l == 4) {
+            for (i = 0; i < k; i++) {
+                wc_mldsa_mul_vec_4_avx512(r, m, v);
+                m += l * MLDSA_N;
+                r += MLDSA_N;
+            }
+        }
+        else if (l == 5) {
+            for (i = 0; i < k; i++) {
+                wc_mldsa_mul_vec_5_avx512(r, m, v);
+                m += l * MLDSA_N;
+                r += MLDSA_N;
+            }
+        }
+        else {
+            for (i = 0; i < k; i++) {
+                wc_mldsa_mul_vec_7_avx512(r, m, v);
+                m += l * MLDSA_N;
+                r += MLDSA_N;
+            }
+        }
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         int i;
         if (l == 4) {
@@ -7432,6 +8238,13 @@ static void mldsa_mul_c(sword32* r, sword32* a, sword32* b)
 static void mldsa_mul(sword32* r, sword32* a, sword32* b)
 {
 #ifdef USE_INTEL_SPEEDUP
+#ifdef WOLFSSL_MLDSA_HAVE_INTEL_AVX512
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        wc_mldsa_mul_avx512(r, a, b);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         wc_mldsa_mul_avx2(r, a, b);
         RESTORE_VECTOR_REGISTERS();
@@ -7442,6 +8255,35 @@ static void mldsa_mul(sword32* r, sword32* a, sword32* b)
         mldsa_mul_c(r, a, b);
     }
 }
+
+#ifndef WOLFSSL_MLDSA_SIGN_SMALL_MEM
+/* Multiply the challenge polynomial into one polynomial of a vector and
+ * inverse transform the product.
+ *
+ * @param [out] r  Polynomial that is the result.
+ * @param [in]  c  Challenge polynomial in NTT form.
+ * @param [in]  v  Polynomial of vector in NTT form.
+ */
+static void mldsa_mul_invntt(sword32* r, sword32* c, sword32* v)
+{
+#if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
+    /* Both steps under one save/restore of the vector registers. */
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        wc_mldsa_mul_avx512(r, c, v);
+        /* MLDSA_INVNTT_AVX512: see the flavor-selection note by its
+         * definition.  wc_mldsa_mul_avx512() is positionwise, so its output
+         * order matches its operands' order in both configurations. */
+        MLDSA_INVNTT_AVX512(r);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
+    {
+        mldsa_mul(r, c, v);
+        mldsa_invntt(r);
+    }
+}
+#endif /* !WOLFSSL_MLDSA_SIGN_SMALL_MEM */
 #endif
 
 #if !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
@@ -7458,6 +8300,17 @@ static void mldsa_vec_mul(sword32* r, sword32* a, sword32* b, byte l)
     byte i;
 
 #ifdef USE_INTEL_SPEEDUP
+#ifdef WOLFSSL_MLDSA_HAVE_INTEL_AVX512
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        for (i = 0; i < l; i++) {
+            wc_mldsa_mul_avx512(r, a, b);
+            r += MLDSA_N;
+            b += MLDSA_N;
+        }
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         for (i = 0; i < l; i++) {
             wc_mldsa_mul_avx2(r, a, b);
@@ -7517,6 +8370,13 @@ static void mldsa_poly_red_c(sword32* a)
 static void mldsa_poly_red(sword32* a)
 {
 #ifdef USE_INTEL_SPEEDUP
+#ifdef WOLFSSL_MLDSA_HAVE_INTEL_AVX512
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        wc_mldsa_poly_red_avx512(a);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         wc_mldsa_poly_red_avx2(a);
         RESTORE_VECTOR_REGISTERS();
@@ -7590,6 +8450,13 @@ static void mldsa_sub_c(sword32* r, const sword32* a)
 static void mldsa_sub(sword32* r, const sword32* a)
 {
 #ifdef USE_INTEL_SPEEDUP
+#ifdef WOLFSSL_MLDSA_HAVE_INTEL_AVX512
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        wc_mldsa_poly_sub_avx512(r, a);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         wc_mldsa_poly_sub_avx2(r, a);
         RESTORE_VECTOR_REGISTERS();
@@ -7658,6 +8525,13 @@ static void mldsa_add_c(sword32* r, const sword32* a)
 static void mldsa_add(sword32* r, const sword32* a)
 {
 #ifdef USE_INTEL_SPEEDUP
+#ifdef WOLFSSL_MLDSA_HAVE_INTEL_AVX512
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        wc_mldsa_poly_add_avx512(r, a);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         wc_mldsa_poly_add_avx2(r, a);
         RESTORE_VECTOR_REGISTERS();
@@ -7729,6 +8603,13 @@ static void mldsa_make_pos_c(sword32* a)
 static void mldsa_make_pos(sword32* a)
 {
 #ifdef USE_INTEL_SPEEDUP
+#ifdef WOLFSSL_MLDSA_HAVE_INTEL_AVX512
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        wc_mldsa_poly_make_pos_avx512(a);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         wc_mldsa_poly_make_pos_avx2(a);
         RESTORE_VECTOR_REGISTERS();
@@ -7924,7 +8805,7 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
 
         /* Step 4: Expand private seed into to vectors of polynomials. */
         ret = mldsa_expand_s(&key->shake, priv_seed, params->eta, s1,
-            params->l, s2, params->k);
+            params->l, s2, params->k, key->heap);
     }
     if (ret == 0) {
         byte* k = pub_seed + MLDSA_PUB_SEED_SZ;
@@ -8070,7 +8951,7 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
 
         /* Step 4: Expand private seed into to vectors of polynomials. */
         ret = mldsa_expand_s(&key->shake, priv_seed, params->eta, s1,
-            params->l, s2, params->k);
+            params->l, s2, params->k, key->heap);
     }
     if (ret == 0) {
         byte* k = pub_seed + MLDSA_PUB_SEED_SZ;
@@ -8536,7 +9417,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
 
             /* Step 12: Compute vector y from private random seed and kappa. */
             mldsa_vec_expand_mask(&key->shake, priv_rand_seed, kappa,
-                params->gamma1_bits, y, params->l);
+                params->gamma1_bits, y, params->l, key->heap);
         #ifdef WOLFSSL_MLDSA_SIGN_CHECK_Y
             valid = mldsa_vec_check_low(y, params->l,
                 ((sword32)1 << params->gamma1_bits) - params->beta);
@@ -8594,38 +9475,31 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                     hi = params->gamma2 - params->beta;
                     for (i = 0; valid && i < params->k; i++) {
                         /* Step 20: cs2 = NTT-1(c o s2) */
-                        mldsa_mul(cs2 + i * MLDSA_N, c,
+                        mldsa_mul_invntt(cs2 + i * MLDSA_N, c,
                             s2 + i * MLDSA_N);
-                        mldsa_invntt(cs2 + i * MLDSA_N);
                         /* Step 22: w0 - cs2 */
-                        mldsa_sub(w0 + i * MLDSA_N,
-                            cs2 + i * MLDSA_N);
+                        mldsa_sub(w0 + i * MLDSA_N, cs2 + i * MLDSA_N);
                         /* Step 23: Check w0 - cs2 has low enough values. */
-                        valid = mldsa_vec_check_low(w0 + i * MLDSA_N, 1,
-                            hi);
+                        valid = mldsa_vec_check_low(w0 + i * MLDSA_N, 1, hi);
                     }
                     hi = ((sword32)1 << params->gamma1_bits) - params->beta;
                     for (i = 0; valid && i < params->l; i++) {
                         /* Step 19: cs1 = NTT-1(c o s1) */
-                        mldsa_mul(z + i * MLDSA_N, c,
+                        mldsa_mul_invntt(z + i * MLDSA_N, c,
                             s1 + i * MLDSA_N);
-                        mldsa_invntt(z + i * MLDSA_N);
                         /* Step 21: z = y + cs1 */
                         mldsa_add(z + i * MLDSA_N, y + i * MLDSA_N);
                         mldsa_poly_red(z + i * MLDSA_N);
                         /* Step 23: Check z has low enough values. */
-                        valid = mldsa_vec_check_low(z + i * MLDSA_N, 1,
-                            hi);
+                        valid = mldsa_vec_check_low(z + i * MLDSA_N, 1, hi);
                     }
+                    hi = params->gamma2;
                     for (i = 0; valid && i < params->k; i++) {
                         /* Step 25: ct0 = NTT-1(c o t0) */
-                        mldsa_mul(ct0 + i * MLDSA_N, c,
+                        mldsa_mul_invntt(ct0 + i * MLDSA_N, c,
                             t0 + i * MLDSA_N);
-                        mldsa_invntt(ct0 + i * MLDSA_N);
                         /* Step 27: Check ct0 has low enough values. */
-                        hi = params->gamma2;
-                        valid = mldsa_vec_check_low(ct0 + i * MLDSA_N,
-                            1, hi);
+                        valid = mldsa_vec_check_low(ct0 + i * MLDSA_N, 1, hi);
                     }
                     if (valid) {
                         /* Step 26: ct0 = ct0 + w0 */
@@ -8842,7 +9716,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
             valid = 1;
             /* Step 12: Compute vector y from private random seed and kappa. */
             mldsa_vec_expand_mask(&key->shake, priv_rand_seed, kappa,
-                params->gamma1_bits, y, params->l);
+                params->gamma1_bits, y, params->l, key->heap);
         #ifdef WOLFSSL_MLDSA_SIGN_CHECK_Y
             valid = mldsa_vec_check_low(y, params->l,
                 ((sword32)1 << params->gamma1_bits) - params->beta);
@@ -9901,6 +10775,10 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
     byte o;
     byte* encW1;
     byte* seed = commit_calc;
+#ifdef WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM
+    /* Bytes of encoded z per polynomial - z is streamed one poly at a time. */
+    word32 zStride = (word32)(MLDSA_N / 8) * (word32)(params->gamma1_bits + 1);
+#endif
 
     /* Ensure the signature is the right size for the parameters. */
     if (sigLen != params->sigSz) {
@@ -9955,15 +10833,33 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
 #endif
 
     if (ret == 0) {
-        /* Step 2: Decode z from signature. */
-        mldsa_vec_decode_gamma1(ze, params->l, params->gamma1_bits, z);
         /* Step 13: Check z is valid - values are low enough. */
         hi = ((sword32)1 << params->gamma1_bits) - params->beta;
+#ifdef WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM
+        {
+            /* Step 2/13: Stream z one polynomial at a time for the range check;
+             * the per-poly NTT happens inside the matrix loop below. */
+            const byte*  zp = ze;
+            unsigned int zi;
+
+            valid = 1;
+            for (zi = 0; valid && (zi < params->l); zi++) {
+                mldsa_decode_gamma1(zp, params->gamma1_bits, z);
+                valid = mldsa_check_low(z, hi);
+                zp += zStride;
+            }
+        }
+#else
+        /* Step 2: Decode z from signature. */
+        mldsa_vec_decode_gamma1(ze, params->l, params->gamma1_bits, z);
         valid = mldsa_vec_check_low(z, params->l, hi);
+#endif
     }
     if ((ret == 0) && valid) {
+#ifndef WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM
         /* Step 10: NTT(z) */
         mldsa_vec_ntt_full(z, params->l);
+#endif
 
          /* Step 9: Compute c from first 256 bits of commit. */
 #ifdef WOLFSSL_MLDSA_VERIFY_NO_MALLOC
@@ -10037,6 +10933,14 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
             for (s = 0; (ret == 0) && (s < params->l); s++) {
                 /* Put s into buffer to be hashed. */
                 seed[MLDSA_PUB_SEED_SZ + 0] = (byte)s;
+            #ifdef WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM
+                /* Step 2/10: Decode and NTT this z polynomial on demand (z is
+                 * not kept as a whole vector in this mode). */
+                mldsa_decode_gamma1(ze + (word32)s * zStride,
+                    params->gamma1_bits, z);
+                mldsa_ntt_full(z);
+                zt = z;
+            #endif
                 /* Step 3: Create polynomial from hashing seed. */
             #ifdef WOLFSSL_MLDSA_VERIFY_NO_MALLOC
                 ret = mldsa_rej_ntt_poly_ex(&key->shake, seed, a, key->h);
@@ -10460,7 +11364,7 @@ int wc_MlDsaKey_SignCtx(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
  *  sigLen      [in/out]  On in, size of buffer.
  *                        On out, the length of the signature in bytes.
  *  key         [in]      ML-DSA key to use when signing
- *  returns BAD_FUNC_ARG when a parameter is NULL or public key not set,
+ *  returns BAD_FUNC_ARG when a parameter is NULL or private key not set,
  *          BUFFER_E when outLen is less than WC_MLDSA_44_SIG_SIZE,
  *          0 otherwise.
  * NOTE: This is a pre-FIPS 204 API without context support. New code should
@@ -10492,6 +11396,10 @@ int wc_MlDsaKey_Sign(wc_MlDsaKey* key, byte* sig, word32 *sigLen,
     }
 #endif
 
+    if ((ret == 0) && (!key->prvKeySet)) {
+        ret = BAD_FUNC_ARG;
+    }
+
     if (ret == 0) {
         /* Sign message. */
         ret = mldsa_sign_msg(key, rng, msg, msgLen, sig, sigLen);
@@ -10512,7 +11420,7 @@ int wc_MlDsaKey_Sign(wc_MlDsaKey* key, byte* sig, word32 *sigLen,
  *  sigLen      [in/out]  On in, size of buffer.
  *                        On out, the length of the signature in bytes.
  *  key         [in]      ML-DSA key to use when signing
- *  returns BAD_FUNC_ARG when a parameter is NULL, public key not set
+ *  returns BAD_FUNC_ARG when a parameter is NULL, private key not set
  *          or ctx is NULL and ctxLen is not 0,
  *          BUFFER_E when outLen is less than WC_MLDSA_44_SIG_SIZE,
  *          0 otherwise.
@@ -10547,6 +11455,10 @@ int wc_MlDsaKey_SignCtxHash(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
     }
 #endif
 
+    if ((ret == 0) && (!key->prvKeySet)) {
+        ret = BAD_FUNC_ARG;
+    }
+
     if (ret == 0) {
         /* Sign message. */
         ret = mldsa_sign_ctx_hash(key, rng, ctx, ctxLen, hashAlg, hash,
@@ -10566,7 +11478,7 @@ int wc_MlDsaKey_SignCtxHash(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
  *  sigLen      [in/out]  On in, size of buffer.
  *                        On out, the length of the signature in bytes.
  *  key         [in]      ML-DSA key to use when signing
- *  returns BAD_FUNC_ARG when a parameter is NULL, public key not set
+ *  returns BAD_FUNC_ARG when a parameter is NULL, private key not set
  *          or ctx is NULL and ctxLen is not 0,
  *          BUFFER_E when outLen is less than WC_MLDSA_44_SIG_SIZE,
  *          0 otherwise.
@@ -10578,10 +11490,14 @@ int wc_MlDsaKey_SignCtxWithSeed(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
     int ret = 0;
 
     /* Validate parameters. */
-    if ((msg == NULL) || (sig == NULL) || (sigLen == NULL) || (key == NULL)) {
+    if ((msg == NULL) || (sig == NULL) || (sigLen == NULL) || (key == NULL) ||
+            (seed == NULL)) {
         ret = BAD_FUNC_ARG;
     }
     if ((ret == 0) && (ctx == NULL) && (ctxLen > 0)) {
+        ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && (!key->prvKeySet)) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -10603,7 +11519,7 @@ int wc_MlDsaKey_SignCtxWithSeed(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
  *  sigLen      [in/out]  On in, size of buffer.
  *                        On out, the length of the signature in bytes.
  *  key         [in]      ML-DSA key to use when signing
- *  returns BAD_FUNC_ARG when a parameter is NULL or public key not set,
+ *  returns BAD_FUNC_ARG when a parameter is NULL or private key not set,
  *          BUFFER_E when outLen is less than WC_MLDSA_44_SIG_SIZE,
  *          0 otherwise.
  * NOTE: This is a pre-FIPS 204 API without context support. New code should
@@ -10615,7 +11531,11 @@ int wc_MlDsaKey_SignWithSeed(wc_MlDsaKey* key, byte* sig, word32 *sigLen,
     int ret = 0;
 
     /* Validate parameters. */
-    if ((msg == NULL) || (sig == NULL) || (sigLen == NULL) || (key == NULL)) {
+    if ((msg == NULL) || (sig == NULL) || (sigLen == NULL) || (key == NULL) ||
+            (seed == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && (!key->prvKeySet)) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -10639,7 +11559,7 @@ int wc_MlDsaKey_SignWithSeed(wc_MlDsaKey* key, byte* sig, word32 *sigLen,
  *  sigLen      [in/out]  On in, size of buffer.
  *                        On out, the length of the signature in bytes.
  *  key         [in]      ML-DSA key to use when signing
- *  returns BAD_FUNC_ARG when a parameter is NULL, public key not set
+ *  returns BAD_FUNC_ARG when a parameter is NULL, private key not set
  *          or ctx is NULL and ctxLen is not 0,
  *          BUFFER_E when outLen is less than WC_MLDSA_44_SIG_SIZE,
  *          0 otherwise.
@@ -10656,6 +11576,9 @@ int wc_MlDsaKey_SignCtxHashWithSeed(wc_MlDsaKey* key, const byte* ctx,
         ret = BAD_FUNC_ARG;
     }
     if ((ret == 0) && (ctx == NULL) && (ctxLen > 0)) {
+        ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && (!key->prvKeySet)) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -10681,7 +11604,8 @@ int wc_MlDsaKey_SignCtxHashWithSeed(wc_MlDsaKey* key, const byte* ctx,
  *                        On out, the length of the signature in bytes.
  *  key         [in]      ML-DSA key to use when signing.
  *  seed        [in]      32-byte random seed (rnd).
- *  returns BAD_FUNC_ARG when a parameter is NULL or muLen is not 64,
+ *  returns BAD_FUNC_ARG when a parameter is NULL, muLen is not 64 or
+ *          private key not set,
  *          BUFFER_E when sigLen is too small,
  *          0 otherwise.
  */
@@ -10696,6 +11620,9 @@ int wc_MlDsaKey_SignMuWithSeed(wc_MlDsaKey* key, byte* sig, word32 *sigLen,
         ret = BAD_FUNC_ARG;
     }
     if ((ret == 0) && (muLen != MLDSA_MU_SZ)) {
+        ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && (!key->prvKeySet)) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -11008,6 +11935,20 @@ int wc_MlDsaKey_Init(wc_MlDsaKey* key, void* heap, int devId)
 }
 
 #ifdef WOLF_PRIVATE_KEY_ID
+/* Initialize the ML-DSA key and set the id of the device key.
+ *
+ * The security level is set to the maximum, WC_ML_DSA_87, as the level of the
+ * key held by the device is not known here.
+ *
+ * @param [out] key    ML-DSA key.
+ * @param [in]  id     Identifier of key on device.
+ * @param [in]  len    Length of identifier in bytes.
+ * @param [in]  heap   Dynamic memory allocation hint.
+ * @param [in]  devId  Device identifier.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when key is NULL.
+ * @return  BUFFER_E when len is negative or too long for the id field.
+ */
 int wc_MlDsaKey_InitId(wc_MlDsaKey* key, const unsigned char* id, int len,
     void* heap, int devId)
 {
@@ -11034,6 +11975,19 @@ int wc_MlDsaKey_InitId(wc_MlDsaKey* key, const unsigned char* id, int len,
     return ret;
 }
 
+/* Initialize the ML-DSA key and set the label of the device key.
+ *
+ * The security level is set to the maximum, WC_ML_DSA_87, as the level of the
+ * key held by the device is not known here.
+ *
+ * @param [out] key    ML-DSA key.
+ * @param [in]  label  Label of key on device. NUL terminated.
+ * @param [in]  heap   Dynamic memory allocation hint.
+ * @param [in]  devId  Device identifier.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when key or label is NULL.
+ * @return  BUFFER_E when the label is empty or too long for the label field.
+ */
 int wc_MlDsaKey_InitLabel(wc_MlDsaKey* key, const char* label, void* heap,
     int devId)
 {
@@ -11231,6 +12185,13 @@ void wc_MlDsaKey_Free(wc_MlDsaKey* key)
 #endif
         /* Ensure all private data is zeroized. */
         ForceZero(key, sizeof(*key));
+#ifdef WOLF_CRYPTO_CB
+        /* Zeroing leaves devId at 0, which is a usable device id. Mark the
+         * key and the SHAKE object inside it as having no device: a second
+         * free runs the SHAKE free again and would otherwise call out. */
+        key->devId = INVALID_DEVID;
+        key->shake.devId = INVALID_DEVID;
+#endif
     }
 }
 
@@ -11555,39 +12516,58 @@ int wc_MlDsaKey_CheckKey(wc_MlDsaKey* key)
         /* Get s1, s2 and t0 from private key. */
         mldsa_vec_decode_eta_bits(s1p, params->eta, s1, params->l);
         mldsa_vec_decode_eta_bits(s2p, params->eta, s2, params->k);
-        mldsa_vec_decode_t0(t0p, params->k, t0);
-
-        /* Get t1 from public key. */
-        mldsa_vec_decode_t1(t1p, params->k, t1);
-
-        /* Calcaluate t = NTT-1(A o NTT(s1)) + s2 */
-        mldsa_vec_ntt_small_full(s1, params->l);
-        mldsa_matrix_mul(t, a, s1, params->k, params->l);
-    #ifdef WOLFSSL_MLDSA_SMALL
-        mldsa_vec_red(t, params->k);
-    #endif
-        mldsa_vec_invntt_full(t, params->k);
-        mldsa_vec_add(t, s2, params->k);
-        /* Subtract t0 from t. */
-        mldsa_vec_sub(t, t0, params->k);
-        /* Make t positive to match t1. */
-        mldsa_vec_make_pos(t, params->k);
-
-        /* Check t - t0 and t1 are the same. */
-        for (i = 0; i < params->k; i++) {
-            for (j = 0; j < MLDSA_N; j++) {
-                x |= tt[j] ^ t1[j];
+        /* Validate s1 and s2 coefficients are within [-eta, eta]. */
+        {
+            sword32 eta = (sword32)params->eta;
+            word32 c;
+            for (c = 0; c < (word32)(params->l * MLDSA_N); c++) {
+                if (s1[c] < -eta || s1[c] > eta) {
+                    ret = PUBLIC_KEY_E;
+                    break;
+                }
             }
-            tt += MLDSA_N;
-            t1 += MLDSA_N;
+            for (c = 0; (ret == 0) && (c < (word32)(params->k * MLDSA_N)); c++) {
+                if (s2[c] < -eta || s2[c] > eta) {
+                    ret = PUBLIC_KEY_E;
+                    break;
+                }
+            }
         }
-        /* Check the public seed is the same in private and public key. */
-        for (i = 0; i < MLDSA_PUB_SEED_SZ; i++) {
-            x |= key->p[i] ^ key->k[i];
-        }
+        if (ret == 0) {
+            mldsa_vec_decode_t0(t0p, params->k, t0);
 
-        if (x != 0) {
-            ret = PUBLIC_KEY_E;
+            /* Get t1 from public key. */
+            mldsa_vec_decode_t1(t1p, params->k, t1);
+
+            /* Calculate t = NTT-1(A o NTT(s1)) + s2 */
+            mldsa_vec_ntt_small_full(s1, params->l);
+            mldsa_matrix_mul(t, a, s1, params->k, params->l);
+        #ifdef WOLFSSL_MLDSA_SMALL
+            mldsa_vec_red(t, params->k);
+        #endif
+            mldsa_vec_invntt_full(t, params->k);
+            mldsa_vec_add(t, s2, params->k);
+            /* Subtract t0 from t. */
+            mldsa_vec_sub(t, t0, params->k);
+            /* Make t positive to match t1. */
+            mldsa_vec_make_pos(t, params->k);
+
+            /* Check t - t0 and t1 are the same. */
+            for (i = 0; i < params->k; i++) {
+                for (j = 0; j < MLDSA_N; j++) {
+                    x |= tt[j] ^ t1[j];
+                }
+                tt += MLDSA_N;
+                t1 += MLDSA_N;
+            }
+            /* Check the public seed is the same in private and public key. */
+            for (i = 0; i < MLDSA_PUB_SEED_SZ; i++) {
+                x |= key->p[i] ^ key->k[i];
+            }
+
+            if (x != 0) {
+                ret = PUBLIC_KEY_E;
+            }
         }
     }
 
@@ -11890,7 +12870,7 @@ static int mldsa_check_eta_range(const byte* p, byte eta, word32 len)
  *
  * @param [in]     priv    Private key data.
  * @param [in]     privSz  Size of private key data in bytes.
- * @param in, out] key     ML-DSA key to set into.
+ * @param [in, out] key  ML-DSA key to set into.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when private key size is invalid.
  * @return  MEMORY_E when dynamic memory allocation fails.
@@ -12176,9 +13156,20 @@ int wc_MlDsaKey_ExportKey(wc_MlDsaKey* key, byte* priv, word32 *privSz,
 
 #endif /* WOLFSSL_MLDSA_PRIVATE_KEY */
 
-/* Get OID sum from ML-DSA key. No ASN.1 dependency, so available regardless
- * of WOLFSSL_MLDSA_NO_ASN1. */
-int mldsa_get_oid_sum(wc_MlDsaKey* key, int* keyFormat) {
+/* Get the OID sum that identifies the key's security level.
+ *
+ * Has no ASN.1 dependency, so it is available even when
+ * WOLFSSL_MLDSA_NO_ASN1 is defined.
+ *
+ * @param [in]  key        ML-DSA key.
+ * @param [out] keyFormat  OID sum for the key's security level.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when key has no parameters set. Only possible when
+ * WOLFSSL_MLDSA_FIPS204_DRAFT is defined.
+ * @return  ALGO_ID_E when the security level of key is not set.
+ */
+int mldsa_get_oid_sum(wc_MlDsaKey* key, int* keyFormat)
+{
     int ret = 0;
 
     #if defined(WOLFSSL_MLDSA_FIPS204_DRAFT)
@@ -12215,7 +13206,12 @@ int mldsa_get_oid_sum(wc_MlDsaKey* key, int* keyFormat) {
 
 #ifndef WOLFSSL_MLDSA_NO_ASN1
 
-/* Maps ASN.1 OID to wolfCrypt security level macros */
+/* Map an ASN.1 OID sum to the wolfCrypt security level.
+ *
+ * @param [in]  oid  OID sum from a decoded AlgorithmIdentifier.
+ * @return  Security level - one of the WC_ML_DSA_* values.
+ * @return  ASN_UNKNOWN_OID_E when the OID sum is not an ML-DSA one.
+ */
 static int mapOidToSecLevel(int oid)
 {
     switch (oid) {
@@ -12479,6 +13475,21 @@ static unsigned char mldsa_oid_87[] = {
 #endif
 #endif
 
+/* Get the length of a DER encoded ASN.1 item.
+ *
+ * Handles the short form and the one and two byte long forms. Rejects the
+ * indefinite form, non-minimal encodings and any length that would run past
+ * the end of the buffer.
+ *
+ * @param [in]      input     Array holding DER encoded data.
+ * @param [in, out] inOutIdx  On in, index into array of start of length.
+ *                            On out, index into array after length.
+ * @param [out]     length    Length of the item's content in bytes.
+ * @param [in]      inSz      Number of bytes in array.
+ * @return  0 on success.
+ * @return  ASN_PARSE_E when the length is malformed or too large for the
+ * data available.
+ */
 static int mldsa_get_der_length(const byte* input, word32* inOutIdx,
     int *length, word32 inSz)
 {
@@ -12530,6 +13541,18 @@ static int mldsa_get_der_length(const byte* input, word32* inOutIdx,
     return ret;
 }
 
+/* Check the ASN.1 tag of the next DER encoded item.
+ *
+ * The index is only advanced when the tag matches.
+ *
+ * @param [in]      input     Array holding DER encoded data.
+ * @param [in, out] inOutIdx  On in, index into array of the tag.
+ *                            On out, index into array after the tag.
+ * @param [in]      type      ASN.1 tag expected.
+ * @param [in]      inSz      Number of bytes in array.
+ * @return  0 on success.
+ * @return  ASN_PARSE_E when there is no data left or the tag does not match.
+ */
 static int mldsa_check_type(const byte* input, word32* inOutIdx, byte type,
     word32 inSz)
 {
@@ -12551,7 +13574,15 @@ static int mldsa_check_type(const byte* input, word32* inOutIdx, byte type,
 }
 
 /* Map an AlgorithmIdentifier OID byte string to a security level.
- * Used to auto-detect the level when it is not already set on the key. */
+ *
+ * Used to detect the level when it is not already set on the key.
+ *
+ * @param [in]  oid     Encoded OID from an AlgorithmIdentifier.
+ * @param [in]  oidLen  Length of encoded OID in bytes.
+ * @param [out] level   Security level - one of the WC_ML_DSA_* values.
+ * @return  0 on success.
+ * @return  ASN_PARSE_E when the OID is not a recognised ML-DSA one.
+ */
 static int mldsa_oid_to_level(const byte* oid, word32 oidLen, byte* level)
 {
     int ret = WC_NO_ERR_TRACE(ASN_PARSE_E);

@@ -115,7 +115,13 @@ int wolfSSL_dtls_free_peer(void* addr)
 #ifdef WOLFSSL_DTLS
 /* Store a socket address into a socket address holder, resizing as needed.
  *
- * A NULL or zero-length peer frees the holder's buffer.
+ * A NULL or zero-length peer frees the holder's buffer. An address that fits
+ * the buffer already there is copied over it rather than reallocated:
+ * EmbedSendTo reads peer.sa without taking peerLock, so freeing it on every
+ * update would widen that race rather than leave it as it is.
+ *
+ * The record layer promotes a pending peer through this while already holding
+ * peerLock, so it takes no lock of its own.
  *
  * @param [in, out] sockAddr  Socket address holder.
  * @param [in]      peer      Socket address data, may be NULL to free.
@@ -124,8 +130,8 @@ int wolfSSL_dtls_free_peer(void* addr)
  * @return  WOLFSSL_SUCCESS on success.
  * @return  WOLFSSL_FAILURE on allocation error.
  */
-static int SockAddrSet(WOLFSSL_SOCKADDR* sockAddr, void* peer,
-                       unsigned int peerSz, void* heap)
+int wolfssl_local_SockAddrSet(WOLFSSL_SOCKADDR* sockAddr, void* peer,
+                              unsigned int peerSz, void* heap)
 {
     if (peer == NULL || peerSz == 0) {
         if (sockAddr->sa != NULL)
@@ -174,7 +180,8 @@ int wolfSSL_dtls_set_peer(WOLFSSL* ssl, void* peer, unsigned int peerSz)
     if (wc_LockRwLock_Wr(&ssl->buffers.dtlsCtx.peerLock) != 0)
         return WOLFSSL_FAILURE;
 #endif
-    ret = SockAddrSet(&ssl->buffers.dtlsCtx.peer, peer, peerSz, ssl->heap);
+    ret = wolfssl_local_SockAddrSet(&ssl->buffers.dtlsCtx.peer, peer, peerSz,
+            ssl->heap);
     if (ret == WOLFSSL_SUCCESS && !(peer == NULL || peerSz == 0))
         ssl->buffers.dtlsCtx.userSet = 1;
     else
@@ -212,7 +219,7 @@ int wolfSSL_dtls_set_pending_peer(WOLFSSL* ssl, void* peer, unsigned int peerSz)
     if (ssl == NULL)
         return WOLFSSL_FAILURE;
 #ifdef WOLFSSL_RW_THREADED
-    if (wc_LockRwLock_Rd(&ssl->buffers.dtlsCtx.peerLock) != 0)
+    if (wc_LockRwLock_Wr(&ssl->buffers.dtlsCtx.peerLock) != 0)
         return WOLFSSL_FAILURE;
 #endif
     if (ssl->buffers.dtlsCtx.peer.sa != NULL &&
@@ -232,8 +239,8 @@ int wolfSSL_dtls_set_pending_peer(WOLFSSL* ssl, void* peer, unsigned int peerSz)
         ret = WOLFSSL_SUCCESS;
     }
     else {
-        ret = SockAddrSet(&ssl->buffers.dtlsCtx.pendingPeer, peer, peerSz,
-                ssl->heap);
+        ret = wolfssl_local_SockAddrSet(&ssl->buffers.dtlsCtx.pendingPeer,
+                peer, peerSz, ssl->heap);
     }
     if (ret == WOLFSSL_SUCCESS)
         ssl->buffers.dtlsCtx.processingPendingRecord = 0;
@@ -745,15 +752,17 @@ static WC_INLINE word32 UpdateHighwaterMark(word32 cur, word32 first,
  *
  * Used with multicast to install externally derived keys.
  *
- * @param [in] ssl              SSL/TLS object.
- * @param [in] epoch            DTLS epoch to use.
- * @param [in] preMasterSecret  Pre-master secret data.
- * @param [in] preMasterSz      Length of pre-master secret in bytes.
- * @param [in] clientRandom     Client random data (RAN_LEN bytes).
- * @param [in] serverRandom     Server random data (RAN_LEN bytes).
- * @param [in] suite            Cipher suite bytes (2).
+ * @param [in, out] ssl              SSL/TLS object.
+ * @param [in]      epoch            DTLS epoch to use.
+ * @param [in]      preMasterSecret  Pre-master secret data.
+ * @param [in]      preMasterSz      Length of pre-master secret in bytes.
+ * @param [in]      clientRandom     Client random data (RAN_LEN bytes).
+ * @param [in]      serverRandom     Server random data (RAN_LEN bytes).
+ * @param [in]      suite            Cipher suite bytes (2).
  * @return  WOLFSSL_SUCCESS on success.
- * @return  WOLFSSL_FATAL_ERROR on error, including invalid arguments.
+ * @return  WOLFSSL_FATAL_ERROR on error, including invalid arguments and a
+ *          failure to allocate the pre-master secret. The specific code is
+ *          recorded in ssl->error and can be read with wolfSSL_get_error().
  */
 int wolfSSL_set_secret(WOLFSSL* ssl, word16 epoch,
                        const byte* preMasterSecret, word32 preMasterSz,
@@ -768,6 +777,13 @@ int wolfSSL_set_secret(WOLFSSL* ssl, word16 epoch,
         preMasterSz == 0 || preMasterSz > ENCRYPT_LEN ||
         clientRandom == NULL || serverRandom == NULL || suite == NULL) {
 
+        ret = BAD_FUNC_ARG;
+    }
+
+    /* The handshake arrays are released once the handshake resources are
+     * freed, so a reused object may not have them any more. */
+    if (ret == 0 && ssl->arrays == NULL) {
+        WOLFSSL_MSG("Handshake arrays not available");
         ret = BAD_FUNC_ARG;
     }
 
@@ -1355,6 +1371,227 @@ int wolfSSL_dtls_retransmit(WOLFSSL* ssl)
     return WOLFSSL_SUCCESS;
 }
 
+#ifdef WOLFSSL_DTLS13
+/* Is this object the kind the scheduled-work API operates on?
+ *
+ * A write-dup pair parks the read side's scheduled work in the shared WriteDup
+ * struct, and only wolfSSL_write() reconciles it back onto the write side.
+ * Such applications already have a working drain and are deliberately out of
+ * scope here, on either side of the pair.
+ */
+static int Dtls13ScheduledWorkObject(WOLFSSL* ssl)
+{
+    if (!ssl->options.dtls || !IsAtLeastTLSv1_3(ssl->version))
+        return 0;
+#ifdef HAVE_WRITE_DUP
+    if (ssl->dupWrite != NULL)
+        return 0;
+#endif
+
+    return 1;
+}
+
+/* Is there any point running the scheduled work now?
+ *
+ * While the handshake runs, wolfSSL_connect()/wolfSSL_accept() and
+ * wolfSSL_dtls_retransmit() already drive it. Kept separate from the object
+ * check above so the pump can tell a caller error, which it reports, from
+ * simply having nothing to do yet, which it does not.
+ */
+static int Dtls13ScheduledWorkReady(WOLFSSL* ssl)
+{
+    return Dtls13ScheduledWorkObject(ssl) && ssl->options.handShakeDone;
+}
+
+/* Can a key update be sent right now?
+ *
+ * DTLS must not have two in flight, so not while one of ours is still
+ * unacknowledged. This governs both an update we scheduled ourselves and
+ * answering one the peer asked for, because Tls13UpdateKeys() silently drops
+ * the former in that state. Both entry points ask this same question: the
+ * predicate must not report work the pump then declines or discards, or a
+ * drain loop over the pair never terminates and the caller is misled about
+ * what was done.
+ */
+static int Dtls13CanSendKeyUpdate(WOLFSSL* ssl)
+{
+    return !ssl->dtls13WaitKeyUpdateAck;
+}
+
+/* Check whether the object has DTLS 1.3 work waiting to be sent.
+ *
+ * Only meaningful with WOLFSSL_RW_THREADED, where the read path does not
+ * transmit. The answer is advisory: it can change as soon as it is returned,
+ * and wolfSSL_dtls13_do_scheduled_work() is safe to call regardless.
+ *
+ * Reports only work that wolfSSL_dtls13_do_scheduled_work() can carry out, so
+ * that a drain loop over the pair terminates.
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @return  1 when there is work to send, or when it could not be determined.
+ * @return  0 when there is nothing to do, or ssl is not supported here.
+ */
+int wolfSSL_dtls13_pending_work(WOLFSSL* ssl)
+{
+    int pending = 0;
+
+    WOLFSSL_ENTER("wolfSSL_dtls13_pending_work");
+
+    if (ssl == NULL || !Dtls13ScheduledWorkReady(ssl))
+        return 0;
+
+    /* A record this API built but could only write in part. The pump retries
+     * it, so a drain loop has to be told the retry is still owed. */
+    if (ssl->buffers.outputBuffer.length > 0 && ssl->dtls13SendingAckOrRtx)
+        pending = 1;
+
+    /* dtls13WaitKeyUpdateAck deliberately does not count as work: it says we
+     * are waiting on the peer, not that we have anything to send. */
+    if (!pending && (ssl->dtls13DoKeyUpdate || ssl->options.sendKeyUpdate) &&
+            Dtls13CanSendKeyUpdate(ssl)) {
+        pending = 1;
+    }
+
+    if (!pending) {
+    #ifdef WOLFSSL_RW_THREADED
+        if (wc_LockMutex(&ssl->dtls13Rtx.mutex) != 0) {
+            /* Report work rather than nothing, so a drain loop calls the pump
+             * and surfaces the error instead of stopping silently. */
+            return 1;
+        }
+    #endif
+        pending = ssl->dtls13Rtx.sendAcks || ssl->dtls13Rtx.retransmit;
+    #ifdef WOLFSSL_RW_THREADED
+        (void)wc_UnLockMutex(&ssl->dtls13Rtx.mutex);
+    #endif
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_dtls13_pending_work", pending);
+
+    return pending;
+}
+
+/* Send any DTLS 1.3 work that was scheduled while reading.
+ *
+ * Covers pending ACKs, retransmissions and key updates, including the
+ * KeyUpdate response a peer asked for. With WOLFSSL_RW_THREADED the read path
+ * never transmits, because doing so would race the write thread over the
+ * output buffer and the sending key schedule, so this work is only performed
+ * from the write side. An application that reads without writing has to call
+ * this or those messages are never sent, and the peer keeps retransmitting
+ * what it is waiting to have acknowledged.
+ *
+ * Call it from the same thread used for writing. Calling it concurrently with
+ * a write on another thread has the same effect as two concurrent writes.
+ *
+ * Not for write-dup applications: those park the read side's work in the
+ * shared WriteDup struct, which only wolfSSL_write() reconciles, so they
+ * already have a drain and get WOLFSSL_FATAL_ERROR here rather than a call
+ * that quietly does nothing.
+ *
+ * Note that a key update started from our own side still needs the peer's ACK
+ * to be processed before it completes, and that processing rotates the sending
+ * keys, so it cannot run here.
+ *
+ * A send that only wrote part of a record reports WANT_WRITE through
+ * wolfSSL_get_error(). The record is held and the next call sends the rest,
+ * so that is a retry rather than a reason to stop draining.
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @return  WOLFSSL_SUCCESS on success, including when there was nothing to do.
+ * @return  WOLFSSL_FATAL_ERROR when ssl is NULL, unsupported, or on error.
+ */
+int wolfSSL_dtls13_do_scheduled_work(WOLFSSL* ssl)
+{
+    int ret;
+
+    WOLFSSL_ENTER("wolfSSL_dtls13_do_scheduled_work");
+
+    if (ssl == NULL)
+        return WOLFSSL_FATAL_ERROR;
+
+    /* Rejecting the object is a usage error, not something that happened to
+     * the connection, so leave ssl->error alone. It is sticky: SendData()
+     * only clears it for WANT_WRITE, WC_PENDING_E and the DTLS MAC/decrypt
+     * cases, and wolfSSL_write() skips the write-dup drain entirely while it
+     * is set, so recording one here would disable the very drain a write-dup
+     * application relies on. */
+#ifdef HAVE_WRITE_DUP
+    if (ssl->dupWrite != NULL) {
+        WOLFSSL_MSG("Write dup objects drain through wolfSSL_write");
+        WOLFSSL_LEAVE("wolfSSL_dtls13_do_scheduled_work", WOLFSSL_FATAL_ERROR);
+        return WOLFSSL_FATAL_ERROR;
+    }
+#endif
+
+    if (!Dtls13ScheduledWorkObject(ssl)) {
+        WOLFSSL_MSG("Not a DTLS 1.3 object this API handles");
+        WOLFSSL_LEAVE("wolfSSL_dtls13_do_scheduled_work", WOLFSSL_FATAL_ERROR);
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    if (!Dtls13ScheduledWorkReady(ssl))
+        return WOLFSSL_SUCCESS;
+
+    /* An earlier call may have left a record only partly written. Retry it
+     * first: the request that produced it has already been consumed, so
+     * nothing else would send it, and every other caller of
+     * Dtls13DoScheduledWork() pairs it with this same flush. Only a record
+     * this API built is retried here, which is what dtls13SendingAckOrRtx
+     * marks, so a partly written application record is left to the
+     * wolfSSL_write() the caller has to repeat anyway. */
+    if (ssl->buffers.outputBuffer.length > 0 && ssl->dtls13SendingAckOrRtx) {
+        ret = SendBuffered(ssl);
+        if (ret != 0) {
+            ssl->error = ret;
+            WOLFSSL_ERROR(ret);
+            return WOLFSSL_FATAL_ERROR;
+        }
+        ssl->dtls13SendingAckOrRtx = 0;
+    }
+
+    ret = Dtls13DoScheduledWork(ssl);
+    if (ret < 0) {
+        ssl->error = ret;
+        WOLFSSL_ERROR(ret);
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    /* Answer a KeyUpdate the peer requested. The read path defers this the
+     * same way, and SendData() is otherwise the only thing that clears it.
+     * Skip it while one of ours is still unacknowledged: DTLS must not have
+     * two KeyUpdates in flight, and Dtls13DoScheduledWork() above may have
+     * just started one. */
+    if (ssl->options.sendKeyUpdate && Dtls13CanSendKeyUpdate(ssl)) {
+        /* Drop the request before sending, as SendData() does. DTLS commits
+         * the record to the retransmit queue and consumes the handshake
+         * number on WANT_WRITE as well, and sets dtls13WaitKeyUpdateAck
+         * unconditionally, so the update is under way from that point on.
+         * Leaving the request set would send a second one once the peer
+         * acknowledges the first. */
+        ssl->options.sendKeyUpdate = 0;
+        /* Mark the record as ours so a short write is retried by the flush
+         * above rather than waiting for a retransmission timer. */
+        ssl->dtls13SendingAckOrRtx = 1;
+        ret = SendTls13KeyUpdate(ssl);
+        if (ret != 0) {
+            /* Keep the mark only while there is something left to send, so a
+             * failure that wrote nothing does not leave it standing. */
+            ssl->dtls13SendingAckOrRtx =
+                (ssl->buffers.outputBuffer.length > 0);
+            ssl->error = ret;
+            WOLFSSL_ERROR(ret);
+            return WOLFSSL_FATAL_ERROR;
+        }
+        ssl->dtls13SendingAckOrRtx = 0;
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_dtls13_do_scheduled_work", WOLFSSL_SUCCESS);
+
+    return WOLFSSL_SUCCESS;
+}
+#endif /* WOLFSSL_DTLS13 */
+
 #endif /* DTLS */
 #endif /* LEANPSK */
 
@@ -1540,6 +1777,75 @@ int wolfDTLS_SetChGoodCb(WOLFSSL* ssl, ClientHelloGoodCb cb, void* user_ctx)
     ssl->chGoodCtx = user_ctx;
 
     return WOLFSSL_SUCCESS;
+}
+
+/* Set a secondary DTLS 1.2 cookie secret used only when verifying a received
+ * HelloVerifyRequest cookie, and only if the primary secret (set by
+ * wolfSSL_DTLS_SetCookieSecret()) fails to verify it.
+ *
+ * This supports an application-driven cookie-secret rotation on a stateless
+ * server: after rotating the primary secret, install the previous secret here
+ * so that cookies already issued under it are still accepted for an overlap
+ * window.  It is never used to issue cookies.
+ *
+ * This is the DTLS 1.2 counterpart of wolfSSL_set_hrr_cookie_secret_secondary()
+ * (which covers the DTLS 1.3 HelloRetryRequest cookie); the two cookie
+ * mechanisms keep separate secrets, so a server that handles both versions sets
+ * both secondary secrets.
+ *
+ * @param [in] ssl       SSL/TLS object.
+ * @param [in] secret    Secondary secret to verify cookies against.  A value
+ *                       of NULL (or a secretSz of 0) clears any previously set
+ *                       secondary secret.
+ * @param [in] secretSz  Size of secret data in bytes.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when ssl is NULL.
+ * @return  MEMORY_ERROR on allocation failure.
+ */
+int wolfSSL_DTLS_SetCookieSecretSecondary(WOLFSSL* ssl,
+                                          const byte* secret, word32 secretSz)
+{
+    byte* newSecret;
+
+    WOLFSSL_ENTER("wolfSSL_DTLS_SetCookieSecretSecondary");
+
+    if (ssl == NULL) {
+        WOLFSSL_MSG("need a SSL object");
+        return BAD_FUNC_ARG;
+    }
+
+    /* Clear any existing secondary secret. */
+    if (ssl->buffers.dtlsCookieSecretSecondary.buffer != NULL) {
+        ForceZero(ssl->buffers.dtlsCookieSecretSecondary.buffer,
+                  ssl->buffers.dtlsCookieSecretSecondary.length);
+        XFREE(ssl->buffers.dtlsCookieSecretSecondary.buffer,
+              ssl->heap, DYNAMIC_TYPE_COOKIE_PWD);
+        ssl->buffers.dtlsCookieSecretSecondary.buffer = NULL;
+        ssl->buffers.dtlsCookieSecretSecondary.length = 0;
+    }
+
+    /* A NULL/empty secret just clears the secondary secret. */
+    if (secret == NULL || secretSz == 0) {
+        WOLFSSL_LEAVE("wolfSSL_DTLS_SetCookieSecretSecondary", 0);
+        return 0;
+    }
+
+    newSecret = (byte*)XMALLOC(secretSz, ssl->heap, DYNAMIC_TYPE_COOKIE_PWD);
+    if (newSecret == NULL) {
+        WOLFSSL_MSG("couldn't allocate secondary cookie secret");
+        return MEMORY_ERROR;
+    }
+    XMEMCPY(newSecret, secret, secretSz);
+    ssl->buffers.dtlsCookieSecretSecondary.buffer = newSecret;
+    ssl->buffers.dtlsCookieSecretSecondary.length = secretSz;
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wolfSSL_DTLS_SetCookieSecretSecondary secret",
+        ssl->buffers.dtlsCookieSecretSecondary.buffer,
+        ssl->buffers.dtlsCookieSecretSecondary.length);
+#endif
+
+    WOLFSSL_LEAVE("wolfSSL_DTLS_SetCookieSecretSecondary", 0);
+    return 0;
 }
 
 #endif /* WOLFSSL_DTLS && !NO_WOLFSSL_SERVER */

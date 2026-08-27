@@ -63,6 +63,7 @@ L_sha3_ppc32_rt:
 	.section	".text"
 	.align	4
 	.globl	BlockSha3
+	WC_ASM_ATT_HIDDEN(BlockSha3)
 	.type	BlockSha3, @function
 BlockSha3:
 	stwu	1, -32(1)

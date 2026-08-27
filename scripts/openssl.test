@@ -2,6 +2,37 @@
 
 # openssl.test
 
+# timeout(1) is GNU coreutils and absent on macOS; where it's missing, run the
+# command unbounded (the flaky hang this guards against is Linux-only CI).
+# A prefix rather than a shell function: backgrounding a function makes $! the
+# forked subshell, so a later "kill $server_pid" would stop the wrapper and
+# orphan the server it was meant to kill. It is an array because this script
+# sets IFS=: around its main loops, where an unquoted expansion of a plain
+# string would not split back into separate words.
+if command -v timeout >/dev/null 2>&1; then
+    TIMEOUT_KILL_2M=(timeout -s KILL 2m)
+else
+    TIMEOUT_KILL_2M=()
+fi
+# The same prefix flattened, for the eval call sites: eval re-parses its
+# argument, so the shell grammar splits it there and IFS does not apply. Built
+# here while IFS still holds its default value.
+TIMEOUT_KILL_2M_EVAL="${TIMEOUT_KILL_2M[*]}"
+
+# timeout(1) exits 124, or 128+signal when it must signal the child (137 for
+# the SIGKILL used here). The capability and protocol probes below decide what
+# to test from a command's output, so a killed probe would read as "feature not
+# supported" and silently drop interop coverage instead of failing.
+timed_out() { [ "$1" -eq 124 ] || [ "$1" -eq 137 ]; }
+
+# Abort when the probe named $2 was killed by timeout(1) with status $1.
+abort_if_timed_out() {
+    if timed_out "$1"; then
+        echo "$2 probe timed out"
+        exit 1
+    fi
+}
+
 # Environment variables used:
 # OPENSSL            (openssl app to use)
 # OPENSSL_ENGINE_ID  (engine id if any i.e. "wolfengine")
@@ -303,6 +334,7 @@ start_wolfssl_server() {
 check_server_ready() {
     # server should be ready, let's make sure
     server_ready=0
+    counter=0
     while [ "$counter" -lt 20 ]; do
         echo -e "waiting for $server_name ready..."
         echo -e Checking | nc -4 -w 1 -z localhost "$server_port"
@@ -363,13 +395,13 @@ do_wolfssl_client() {
         echo "#"
         echo "# $WOLFSSL_CLIENT -p $port -g $wolfssl_resume -l $wolfSuite -v $version $psk $adh \"$wolfssl_cert\" \"$wolfssl_key\" \"$wolfssl_caCert\" $crl"
         # shellcheck disable=SC2086
-        $WOLFSSL_CLIENT -p "$port" -g $wolfssl_resume -l "$wolfSuite" -v "$version" $psk $adh "$wolfssl_cert" "$wolfssl_key" "$wolfssl_caCert" $crl
+        "${TIMEOUT_KILL_2M[@]}" $WOLFSSL_CLIENT -p "$port" -g $wolfssl_resume -l "$wolfSuite" -v "$version" $psk $adh "$wolfssl_cert" "$wolfssl_key" "$wolfssl_caCert" $crl
     else
         echo "#"
         echo "# $WOLFSSL_CLIENT -p $port -g $wolfssl_resume -l $wolfSuite $psk $adh \"$wolfssl_cert\" \"$wolfssl_key\" \"$wolfssl_caCert\" $crl"
         # do all versions
         # shellcheck disable=SC2086
-        $WOLFSSL_CLIENT -p "$port" -g $wolfssl_resume -l "$wolfSuite" $psk $adh "$wolfssl_cert" "$wolfssl_key" "$wolfssl_caCert" $crl
+        "${TIMEOUT_KILL_2M[@]}" $WOLFSSL_CLIENT -p "$port" -g $wolfssl_resume -l "$wolfSuite" $psk $adh "$wolfssl_cert" "$wolfssl_key" "$wolfssl_caCert" $crl
     fi
 
     client_result=$?
@@ -425,11 +457,11 @@ do_openssl_client() {
     then
         echo "#"
         echo "# $OPENSSL s_client -connect localhost:$port -reconnect -legacy_renegotiation -cipher $cmpSuite $openssl_version $openssl_psk $openssl_cert1 \"$openssl_cert2\" $openssl_key1 \"$openssl_key2\" $openssl_caCert1 \"$openssl_caCert2\""
-        echo "Hello" | eval "$OPENSSL s_client -connect localhost:$port -reconnect -legacy_renegotiation -cipher $cmpSuite $openssl_version $openssl_psk $openssl_cert1 \"$openssl_cert2\" $openssl_key1 \"$openssl_key2\" $openssl_caCert1 \"$openssl_caCert2\""
+        echo "Hello" | eval "$TIMEOUT_KILL_2M_EVAL $OPENSSL s_client -connect localhost:$port -reconnect -legacy_renegotiation -cipher $cmpSuite $openssl_version $openssl_psk $openssl_cert1 \"$openssl_cert2\" $openssl_key1 \"$openssl_key2\" $openssl_caCert1 \"$openssl_caCert2\""
     else
         echo "#"
         echo "# $OPENSSL s_client -connect localhost:$port -reconnect -legacy_renegotiation -ciphersuites=$cmpSuite $openssl_seclevel $openssl_version $openssl_psk $openssl_cert1 \"$openssl_cert2\" $openssl_key1 \"$openssl_key2\" $openssl_caCert1 \"$openssl_caCert2\""
-        echo "Hello" | eval "$OPENSSL s_client -connect localhost:$port -reconnect -legacy_renegotiation -ciphersuites=$cmpSuite $openssl_seclevel $openssl_version $openssl_psk $openssl_cert1 \"$openssl_cert2\" $openssl_key1 \"$openssl_key2\" $openssl_caCert1 \"$openssl_caCert2\""
+        echo "Hello" | eval "$TIMEOUT_KILL_2M_EVAL $OPENSSL s_client -connect localhost:$port -reconnect -legacy_renegotiation -ciphersuites=$cmpSuite $openssl_seclevel $openssl_version $openssl_psk $openssl_cert1 \"$openssl_cert2\" $openssl_key1 \"$openssl_key2\" $openssl_caCert1 \"$openssl_caCert2\""
     fi
 
     client_result=$?
@@ -536,7 +568,8 @@ if [ "$wolf_certs" != "" ]
 then
     echo
     # Check if RSA certificates supported in wolfSSL
-    wolf_rsa=$($WOLFSSL_CLIENT -A "${CERT_DIR}/ca-cert.pem" 2>&1)
+    wolf_rsa=$("${TIMEOUT_KILL_2M[@]}" $WOLFSSL_CLIENT -A "${CERT_DIR}/ca-cert.pem" 2>&1)
+    abort_if_timed_out $? "wolf_rsa"
     case $wolf_rsa in
     *"ca file"*)
         echo "wolfSSL does not support RSA"
@@ -549,7 +582,8 @@ then
         echo "wolfSSL supports RSA"
     fi
     # Check if RSA-PSS certificates supported in wolfSSL
-    wolf_rsapss=$($WOLFSSL_CLIENT -A "${CERT_DIR}/rsapss/ca-rsapss.pem" 2>&1)
+    wolf_rsapss=$("${TIMEOUT_KILL_2M[@]}" $WOLFSSL_CLIENT -A "${CERT_DIR}/rsapss/ca-rsapss.pem" 2>&1)
+    abort_if_timed_out $? "wolf_rsapss"
     case $wolf_rsapss in
     *"ca file"*)
         echo "wolfSSL does not support RSA-PSS"
@@ -562,7 +596,8 @@ then
         echo "wolfSSL supports RSA-PSS"
     fi
     # Check if ECC certificates supported in wolfSSL
-    wolf_ecc=$($WOLFSSL_CLIENT -A "${CERT_DIR}/ca-ecc-cert.pem" 2>&1)
+    wolf_ecc=$("${TIMEOUT_KILL_2M[@]}" $WOLFSSL_CLIENT -A "${CERT_DIR}/ca-ecc-cert.pem" 2>&1)
+    abort_if_timed_out $? "wolf_ecc"
     case $wolf_ecc in
     *"ca file"*)
         echo "wolfSSL does not support ECDSA"
@@ -575,7 +610,8 @@ then
         echo "wolfSSL supports ECDSA"
     fi
     # Check if Ed25519 certificates supported in wolfSSL
-    wolf_ed25519=$($WOLFSSL_CLIENT -A "${CERT_DIR}/ed25519/root-ed25519.pem" 2>&1)
+    wolf_ed25519=$("${TIMEOUT_KILL_2M[@]}" $WOLFSSL_CLIENT -A "${CERT_DIR}/ed25519/root-ed25519.pem" 2>&1)
+    abort_if_timed_out $? "wolf_ed25519"
     case $wolf_ed25519 in
     *"ca file"*)
         echo "wolfSSL does not support Ed25519"
@@ -588,7 +624,8 @@ then
         echo "wolfSSL supports Ed25519"
     fi
     # Check if Ed25519 certificates supported in OpenSSL
-    openssl_ed25519=$($OPENSSL s_client -cert "${CERT_DIR}/ed25519/client-ed25519.pem" -key "${CERT_DIR}/ed25519/client-ed25519-priv.pem" 2>&1)
+    openssl_ed25519=$("${TIMEOUT_KILL_2M[@]}" $OPENSSL s_client -cert "${CERT_DIR}/ed25519/client-ed25519.pem" -key "${CERT_DIR}/ed25519/client-ed25519-priv.pem" 2>&1)
+    abort_if_timed_out $? "openssl_ed25519"
     case $openssl_ed25519 in
     *"unable to load"*)
         echo "OpenSSL does not support Ed25519"
@@ -601,7 +638,8 @@ then
         echo "OpenSSL supports Ed25519"
     fi
     # Check if Ed448 certificates supported in wolfSSL
-    wolf_ed448=$($WOLFSSL_CLIENT -A "${CERT_DIR}/ed448/root-ed448.pem" 2>&1)
+    wolf_ed448=$("${TIMEOUT_KILL_2M[@]}" $WOLFSSL_CLIENT -A "${CERT_DIR}/ed448/root-ed448.pem" 2>&1)
+    abort_if_timed_out $? "wolf_ed448"
     case $wolf_ed448 in
     *"ca file"*)
         echo "wolfSSL does not support Ed448"
@@ -614,7 +652,8 @@ then
         echo "wolfSSL supports Ed448"
     fi
     # Check if Ed448 certificates supported in OpenSSL
-    openssl_ed448=$($OPENSSL s_client -cert "${CERT_DIR}/ed448/client-ed448.pem" -key "${CERT_DIR}/ed448/client-ed448-priv.pem" 2>&1)
+    openssl_ed448=$("${TIMEOUT_KILL_2M[@]}" $OPENSSL s_client -cert "${CERT_DIR}/ed448/client-ed448.pem" -key "${CERT_DIR}/ed448/client-ed448-priv.pem" 2>&1)
+    abort_if_timed_out $? "openssl_ed448"
     case $openssl_ed448 in
     *"unable to load"*)
         echo "OpenSSL does not support Ed448"
@@ -870,8 +909,9 @@ do
 
         # double check that can actually do a sslv3 connection using
         # client-cert.pem to send but any file with EOF works
-        $OPENSSL s_client -ssl3 -no_ign_eof -host localhost -port "$openssl_port" < "${CERT_DIR}/client-cert.pem"
+        "${TIMEOUT_KILL_2M[@]}" $OPENSSL s_client -ssl3 -no_ign_eof -host localhost -port "$openssl_port" < "${CERT_DIR}/client-cert.pem"
         sslv3_sup=$?
+        abort_if_timed_out $sslv3_sup "SSLv3 connection"
         if [ "$sslv3_sup" != 0 ]
         then
             echo -e "Not testing SSLv3. No OpenSSL support for 'SSLv3' modifier"
@@ -881,8 +921,9 @@ do
         openssl_version="-ssl3"
         ;;
     "1")
-        proto_check=$(echo "hell" | $OPENSSL s_client -connect localhost:"$openssl_port" -tls1 2>&1)
+        proto_check=$(echo "hell" | "${TIMEOUT_KILL_2M[@]}" $OPENSSL s_client -connect localhost:"$openssl_port" -tls1 2>&1)
         tlsv1_sup=$?
+        abort_if_timed_out $tlsv1_sup "TLSv1 connection"
         if [ "$tlsv1_sup" != 0 ]
         then
             echo -e "Not testing TLSv1. No OpenSSL support for '-tls1'"
@@ -902,8 +943,9 @@ do
     "2")
         # Same ciphers for TLSv1.1 as TLSv1
         # shellcheck disable=SC2034
-        proto_check=$(echo "hello" | $OPENSSL s_client -connect localhost:"$openssl_port" -tls1_1 2>&1)
+        proto_check=$(echo "hello" | "${TIMEOUT_KILL_2M[@]}" $OPENSSL s_client -connect localhost:"$openssl_port" -tls1_1 2>&1)
         tlsv1_1_sup=$?
+        abort_if_timed_out $tlsv1_1_sup "TLSv1.1 connection"
         if [ "$tlsv1_1_sup" != 0 ]
         then
             echo -e "Not testing TLSv1.1. No OpenSSL support for 'TLSv1.1' modifier"

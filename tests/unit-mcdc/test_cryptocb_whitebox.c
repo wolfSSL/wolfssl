@@ -68,9 +68,11 @@
  * below is an ordinary devId value that is never registered and is not
  * INVALID_DEVID, which correctly makes wc_CryptoCb_FindDevice() return NULL.
  *
- * Coverage in this file: RSA, ECC, Curve25519, Ed25519, AES (GCM/CCM/CBC/
- * CTR/CFB/OFB/ECB/SetKey), DES3, the hash family (SHA/SHA224/SHA256/SHA384/
- * SHA512/SHA3/SHAKE), HMAC, RNG (RandomBlock/RandomSeed), GetCert, CMAC,
+ * Coverage in this file: RSA (including the WOLF_CRYPTO_CB_RSA_PAD
+ * RsaPad/RsaPssVerify pair), ECC, Curve25519, Ed25519, Ed448, AES (GCM/CCM/
+ * CBC/CTR/CFB/OFB/ECB/SetKey/KeyWrap/KeyUnWrap), DES3, the hash family
+ * (SHA/SHA224/SHA256/SHA384/SHA512/SHA3/SHAKE),
+ * HMAC, RNG (RandomBlock/RandomSeed), GetCert, CMAC,
  * HKDF (extract/expand/two-step-CMAC), the generic Copy/Free/SetKey/
  * ExportKey callbacks, and the ML-KEM / ML-DSA PQC dispatch functions.
  * wc_SHE (WOLFSSL_SHE) and the LMS/XMSS/FALCON/SLHDSA/FRODOKEM PQC families
@@ -95,7 +97,51 @@
  * The SHA-384/SHA-512 post-cb guards additionally need dev->cb to return 0
  * (success) for the fallback attempt specifically - see wb_cb_hash_fallback_ok
  * below for how that is done without needing to inject a fault mid-dispatch.
+ *
+ * Third pass - the "no devId argument" guard at cryptocb.c :1159 / :1189,
+ * `if (dev == NULL || dev->cb == NULL) dev = wc_CryptoCb_FindDeviceByIndex(0);`
+ * in wc_CryptoCb_Curve25519MakePub() and wc_CryptoCb_Curve25519Generic().
+ * These two functions take no key struct, so they resolve their device with
+ * wc_CryptoCb_FindDevice(INVALID_DEVID, WC_ALGO_TYPE_PK) and the guard is
+ * driven purely by the state of the gCryptoDev[] table:
+ *   - (F,T)  at least one free slot exists. wc_CryptoCb_ClearDev() leaves
+ *            free slots at devId == INVALID_DEVID with cb == NULL, so
+ *            wc_CryptoCb_GetDevice(INVALID_DEVID) returns that slot:
+ *            dev != NULL but dev->cb == NULL.
+ *   - (T,-)  every one of MAX_CRYPTO_DEVID_CALLBACKS slots is registered, so
+ *            no slot holds INVALID_DEVID and wc_CryptoCb_GetDevice() returns
+ *            NULL. This is reachable with the public registration API alone.
+ *   - (F,F)  needs a lookup that yields a device with a non-NULL callback.
+ *            wc_CryptoCb_RegisterDevice() explicitly refuses devId ==
+ *            INVALID_DEVID ("INVALID_DEVID marks a free slot"), so no free
+ *            slot can ever carry a callback and the plain lookup cannot
+ *            produce this state. The supported mechanism that can is
+ *            WOLF_CRYPTO_CB_FIND: wc_CryptoCb_FindDevice() first passes the
+ *            requested devId through the registered find callback, so a find
+ *            callback that maps INVALID_DEVID onto a real registered devId
+ *            makes the lookup return a device WITH a callback. Neither infra
+ *            variant's user_settings defines WOLF_CRYPTO_CB_FIND, so this
+ *            file compiles it in for its own translation unit, exactly the
+ *            way test_memory_whitebox.c compiles WOLFSSL_STATIC_MEMORY in for
+ *            memory.c. It costs nothing in denominator: the only code the
+ *            macro adds to cryptocb.c is a file-static pointer, the setter
+ *            wc_CryptoCb_SetDeviceFindCb(), and a SINGLE-condition
+ *            `if (CryptoCb_FindCb != NULL)` inside wc_CryptoCb_FindDevice()
+ *            (single-condition decisions carry no MC/DC conditions), and it
+ *            changes no struct layout shared with the linked archive.
+ *            The find callback is installed only around the (F,F) vectors and
+ *            reset to NULL immediately afterwards, so every other decision in
+ *            this file is evaluated with CryptoCb_FindCb == NULL, i.e. with
+ *            wc_CryptoCb_FindDevice() behaving exactly as in the shipped
+ *            variants.
  */
+
+/* See the "third pass" note above: compiled in for this TU only, so the
+ * :1159/:1189 (F,F) vector can be driven through the public
+ * wc_CryptoCb_SetDeviceFindCb() API. Must precede the #include below. */
+#ifndef WOLF_CRYPTO_CB_FIND
+#define WOLF_CRYPTO_CB_FIND
+#endif
 
 #include <wolfcrypt/src/cryptocb.c>
 
@@ -111,6 +157,11 @@ static int wb_fail = 0;
 #define WB_DEVID       1
 #define WB_DEVID_NOCB  2
 #define WB_DEVID_NONE  424242
+
+/* Base devId for the MAX_CRYPTO_DEVID_CALLBACKS "fill the whole table"
+ * registrations used by the :1159/:1189 (T,-) vector. Distinct from every
+ * other devId in this file and never equal to INVALID_DEVID. */
+#define WB_DEVID_FILL  500
 
 static int wb_cb(int devId, wc_CryptoInfo* info, void* ctx)
 {
@@ -143,6 +194,20 @@ static int wb_cb_hash_fallback_ok(int devId, wc_CryptoInfo* info, void* ctx)
     }
     return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
 }
+
+#ifdef WOLF_CRYPTO_CB_FIND
+/* Find callback used ONLY by the :1159/:1189 (F,F) vectors. It rewrites the
+ * INVALID_DEVID lookup that wc_CryptoCb_Curve25519MakePub/Generic issue into
+ * WB_DEVID, which is registered with wb_cb, so wc_CryptoCb_FindDevice()
+ * returns a device whose ->cb is non-NULL. Installed and removed around
+ * those two calls only. */
+static int wb_find_cb(int devId, int algoType)
+{
+    (void)devId;
+    (void)algoType;
+    return WB_DEVID;
+}
+#endif /* WOLF_CRYPTO_CB_FIND */
 
 /* WB_DRIVE3(lvalue, call): sets `lvalue` (a struct field or plain local
  * devId variable) to each of the three vectors and issues `call` once per
@@ -211,6 +276,11 @@ int main(void)
         outLen = sizeof(out);
         WB_DRIVE3(rsaKey.devId, wc_CryptoCb_RsaPad(in, sizeof(in), out,
             &outLen, RSA_PUBLIC_ENCRYPT, &rsaKey, NULL, NULL));
+
+        outLen = sizeof(out2);
+        WB_DRIVE3(rsaKey.devId, wc_CryptoCb_RsaPssVerify(in, sizeof(in),
+            in, sizeof(in), WC_HASH_TYPE_SHA256, 0, 0, &rsaKey, &res,
+            out2, sizeof(out2), &outLen));
 #endif
 
 #ifdef WOLFSSL_KEY_GEN
@@ -396,6 +466,26 @@ int main(void)
     WB_NOTE("HAVE_ED25519 not defined; Ed25519 dispatch skipped");
 #endif /* HAVE_ED25519 */
 
+    /* ---- Ed448 ---- */
+#ifdef HAVE_ED448
+    {
+        ed448_key e4;
+        XMEMSET(&e4, 0, sizeof(e4));
+        (void)wc_ed448_init_ex(&e4, NULL, 0);
+
+        outLen = sizeof(out);
+        WB_DRIVE3(e4.devId, wc_CryptoCb_Ed448Sign(in, sizeof(in), out,
+            &outLen, &e4, 0, NULL, 0));
+
+        WB_DRIVE3(e4.devId, wc_CryptoCb_Ed448Verify(out, sizeof(out), in,
+            sizeof(in), &res, &e4, 0, NULL, 0));
+
+        WB_NOTE("Ed448: Ed448Sign/Ed448Verify dev&&dev->cb driven");
+    }
+#else
+    WB_NOTE("HAVE_ED448 not defined; Ed448 dispatch skipped");
+#endif /* HAVE_ED448 */
+
     /* ---- AES ---- */
 #ifndef NO_AES
     {
@@ -459,8 +549,20 @@ int main(void)
             wc_CryptoCb_AesSetKey(&aes, smallKey, sizeof(smallKey)));
 #endif
 
-        WB_NOTE("AES: GCM/CCM/CBC/CTR/CFB/OFB/ECB/SetKey (as compiled) "
-                "dev&&dev->cb driven");
+#ifdef HAVE_AES_KEYWRAP
+        /* wc_CryptoCb_AesKeyWrap/AesKeyUnWrap resolve their device from
+         * aes->devId when aes != NULL, so the standard three-vector sweep
+         * applies. wb_cb returns CRYPTOCB_UNAVAILABLE, so the post-dispatch
+         * "device reports the wrapped length" block is not entered and no
+         * payload buffer is read. */
+        WB_DRIVE3(aes.devId, wc_CryptoCb_AesKeyWrap(&aes, in, sizeof(in),
+            out2, sizeof(out2), nonce, 0));
+        WB_DRIVE3(aes.devId, wc_CryptoCb_AesKeyUnWrap(&aes, in, sizeof(in),
+            out2, sizeof(out2), nonce, 0));
+#endif
+
+        WB_NOTE("AES: GCM/CCM/CBC/CTR/CFB/OFB/ECB/SetKey/KeyWrap "
+                "(as compiled) dev&&dev->cb driven");
     }
 #else
     WB_NOTE("NO_AES defined; AES dispatch skipped");
@@ -883,6 +985,185 @@ int main(void)
             "key-slot state, out of scope for this pass");
 #endif
 
+    /* ---- ECIES encrypt/decrypt dispatch (HAVE_ECC_ENCRYPT) ----
+     * Both bodies resolve their device from privKey->devId and then take the
+     * usual `if (dev && dev->cb)` guard, so the standard three-vector sweep
+     * applies. Nothing but privKey->devId is read before the guard, and the
+     * registered callback (wb_cb) ignores the wc_CryptoInfo it is handed and
+     * reports CRYPTOCB_UNAVAILABLE, so a zeroed ecc_key with no key material
+     * is sufficient and safe here -- no curve arithmetic runs. */
+#ifdef HAVE_ECC_ENCRYPT
+    {
+        ecc_key  ecPriv;
+        byte     eciesMsg[16];
+        byte     eciesOut[128];
+        word32   eciesOutSz;
+
+        XMEMSET(&ecPriv, 0, sizeof(ecPriv));
+        XMEMSET(eciesMsg, 0x5e, sizeof(eciesMsg));
+        XMEMSET(eciesOut, 0, sizeof(eciesOut));
+
+        eciesOutSz = (word32)sizeof(eciesOut);
+        WB_DRIVE3(ecPriv.devId,
+            wc_CryptoCb_EciesEncrypt(&ecPriv, NULL, eciesMsg,
+                (word32)sizeof(eciesMsg), eciesOut, &eciesOutSz, NULL, 0));
+
+        eciesOutSz = (word32)sizeof(eciesOut);
+        WB_DRIVE3(ecPriv.devId,
+            wc_CryptoCb_EciesDecrypt(&ecPriv, NULL, eciesMsg,
+                (word32)sizeof(eciesMsg), eciesOut, &eciesOutSz, NULL));
+
+        /* privKey == NULL early return (both entry points). */
+        eciesOutSz = (word32)sizeof(eciesOut);
+        (void)wc_CryptoCb_EciesEncrypt(NULL, NULL, eciesMsg,
+                (word32)sizeof(eciesMsg), eciesOut, &eciesOutSz, NULL, 0);
+        (void)wc_CryptoCb_EciesDecrypt(NULL, NULL, eciesMsg,
+                (word32)sizeof(eciesMsg), eciesOut, &eciesOutSz, NULL);
+
+        WB_NOTE("ECIES Encrypt/Decrypt dev&&dev->cb three-vector driven");
+    }
+#else
+    WB_NOTE("HAVE_ECC_ENCRYPT not defined; ECIES dispatch skipped");
+#endif
+
+    /* ---- Curve25519 MakePub / Generic ----
+     * These take no devId: they resolve a device with FindDevice(INVALID_DEVID)
+     * and fall back to FindDeviceByIndex(0), so their `if (dev && dev->cb)`
+     * guard is driven by what is registered rather than by an argument. Run
+     * last, since the rows below deregister everything. */
+#ifdef HAVE_CURVE25519
+    {
+        byte c25pub[CURVE25519_KEYSIZE];
+        byte c25priv[CURVE25519_KEYSIZE];
+        byte c25base[CURVE25519_KEYSIZE];
+
+        XMEMSET(c25pub, 0, sizeof(c25pub));
+        XMEMSET(c25priv, 1, sizeof(c25priv));
+        XMEMSET(c25base, 9, sizeof(c25base));
+
+        /* Argument guards: one operand true per call, then all false. The
+         * device state is irrelevant here -- each returns before resolving. */
+        (void)wc_CryptoCb_Curve25519MakePub(sizeof(c25pub), NULL,
+                sizeof(c25priv), c25priv);
+        (void)wc_CryptoCb_Curve25519MakePub(sizeof(c25pub), c25pub,
+                sizeof(c25priv), NULL);
+        (void)wc_CryptoCb_Curve25519Generic(sizeof(c25pub), NULL,
+                sizeof(c25priv), c25priv, sizeof(c25base), c25base);
+        (void)wc_CryptoCb_Curve25519Generic(sizeof(c25pub), c25pub,
+                sizeof(c25priv), NULL, sizeof(c25base), c25base);
+        (void)wc_CryptoCb_Curve25519Generic(sizeof(c25pub), c25pub,
+                sizeof(c25priv), c25priv, sizeof(c25base), NULL);
+
+        /* `dev && dev->cb` (T,T): a registered device with a callback is the
+         * first slot FindDeviceByIndex(0) reaches. */
+        (void)wc_CryptoCb_Curve25519MakePub(sizeof(c25pub), c25pub,
+                sizeof(c25priv), c25priv);
+        (void)wc_CryptoCb_Curve25519Generic(sizeof(c25pub), c25pub,
+                sizeof(c25priv), c25priv, sizeof(c25base), c25base);
+
+        /* (T,F): the only registered device has a NULL callback. */
+        wc_CryptoCb_UnRegisterDevice(WB_DEVID);
+        wc_CryptoCb_UnRegisterDevice(WB_DEVID_HASH_OK);
+        (void)wc_CryptoCb_Curve25519MakePub(sizeof(c25pub), c25pub,
+                sizeof(c25priv), c25priv);
+        (void)wc_CryptoCb_Curve25519Generic(sizeof(c25pub), c25pub,
+                sizeof(c25priv), c25priv, sizeof(c25base), c25base);
+
+        /* (F,-): nothing registered at all, so FindDeviceByIndex returns NULL
+         * and the guard short-circuits on its first operand. */
+        wc_CryptoCb_UnRegisterDevice(WB_DEVID_NOCB);
+        (void)wc_CryptoCb_Curve25519MakePub(sizeof(c25pub), c25pub,
+                sizeof(c25priv), c25priv);
+        (void)wc_CryptoCb_Curve25519Generic(sizeof(c25pub), c25pub,
+                sizeof(c25priv), c25priv, sizeof(c25base), c25base);
+
+        /* Put the callback device back for anything that follows. */
+        if (wc_CryptoCb_RegisterDevice(WB_DEVID, wb_cb, NULL) != 0)
+            wb_fail = 1;
+        WB_NOTE("Curve25519MakePub/Generic: arg guards and dev&&dev->cb "
+                "driven across registered/no-callback/none states");
+    }
+#else
+    WB_NOTE("HAVE_CURVE25519 not defined; Curve25519MakePub/Generic skipped");
+#endif
+
+    /* ---- Curve25519MakePub/Generic: `dev == NULL || dev->cb == NULL`
+     * (cryptocb.c :1159 and :1189) ----
+     * Three vectors, all in this binary; see the "third pass" note in the
+     * file header for why each table state produces the operand values it
+     * does. Each vector rebuilds the table from wc_CryptoCb_Init() so the
+     * preceding section's leftovers cannot influence it. Nothing here can
+     * touch the key buffers: whichever device the guard ends up selecting,
+     * its callback is wb_cb, which returns CRYPTOCB_UNAVAILABLE without
+     * reading the wc_CryptoInfo it is handed. */
+#ifdef HAVE_CURVE25519
+    {
+        byte g25pub[CURVE25519_KEYSIZE];
+        byte g25priv[CURVE25519_KEYSIZE];
+        byte g25base[CURVE25519_KEYSIZE];
+        int slot;
+
+        XMEMSET(g25pub, 0, sizeof(g25pub));
+        XMEMSET(g25priv, 1, sizeof(g25priv));
+        XMEMSET(g25base, 9, sizeof(g25base));
+
+        /* (F,T): one device registered, so free slots remain. The
+         * INVALID_DEVID lookup lands on the first free slot: non-NULL, cb
+         * NULL. Guard TRUE, so FindDeviceByIndex(0) supplies the device. */
+        wc_CryptoCb_Init();
+        if (wc_CryptoCb_RegisterDevice(WB_DEVID, wb_cb, NULL) != 0)
+            wb_fail = 1;
+        (void)wc_CryptoCb_Curve25519MakePub(sizeof(g25pub), g25pub,
+                sizeof(g25priv), g25priv);
+        (void)wc_CryptoCb_Curve25519Generic(sizeof(g25pub), g25pub,
+                sizeof(g25priv), g25priv, sizeof(g25base), g25base);
+
+        /* (T,-): every slot registered, so no slot holds INVALID_DEVID and
+         * wc_CryptoCb_GetDevice(INVALID_DEVID) returns NULL. dev == NULL is
+         * TRUE and short-circuits the OR - the independence pair for the
+         * first operand against the (F,T) vector above. */
+        wc_CryptoCb_Init();
+        for (slot = 0; slot < MAX_CRYPTO_DEVID_CALLBACKS; slot++) {
+            if (wc_CryptoCb_RegisterDevice(WB_DEVID_FILL + slot, wb_cb,
+                    NULL) != 0)
+                wb_fail = 1;
+        }
+        (void)wc_CryptoCb_Curve25519MakePub(sizeof(g25pub), g25pub,
+                sizeof(g25priv), g25priv);
+        (void)wc_CryptoCb_Curve25519Generic(sizeof(g25pub), g25pub,
+                sizeof(g25priv), g25priv, sizeof(g25base), g25base);
+
+        /* (F,F): the find callback rewrites the INVALID_DEVID lookup into
+         * WB_DEVID, which is registered with wb_cb, so the lookup returns a
+         * device WITH a callback - the independence pair for the second
+         * operand against the (F,T) vector above. */
+#ifdef WOLF_CRYPTO_CB_FIND
+        wc_CryptoCb_Init();
+        if (wc_CryptoCb_RegisterDevice(WB_DEVID, wb_cb, NULL) != 0)
+            wb_fail = 1;
+        wc_CryptoCb_SetDeviceFindCb(wb_find_cb);
+        (void)wc_CryptoCb_Curve25519MakePub(sizeof(g25pub), g25pub,
+                sizeof(g25priv), g25priv);
+        (void)wc_CryptoCb_Curve25519Generic(sizeof(g25pub), g25pub,
+                sizeof(g25priv), g25priv, sizeof(g25base), g25base);
+        wc_CryptoCb_SetDeviceFindCb(NULL);
+        WB_NOTE("Curve25519MakePub/Generic: dev==NULL||dev->cb==NULL "
+                "[:1159,:1189] driven (F,T) / (T,-) / (F,F)");
+#else
+        WB_NOTE("Curve25519MakePub/Generic: dev==NULL||dev->cb==NULL "
+                "[:1159,:1189] driven (F,T) / (T,-); (F,F) needs "
+                "WOLF_CRYPTO_CB_FIND, not compiled here");
+#endif
+
+        /* Leave the table the way the rest of this file expects it. */
+        wc_CryptoCb_Init();
+        if (wc_CryptoCb_RegisterDevice(WB_DEVID, wb_cb, NULL) != 0)
+            wb_fail = 1;
+    }
+#else
+    WB_NOTE("HAVE_CURVE25519 not defined; :1159/:1189 vectors skipped");
+#endif
+
     wc_CryptoCb_UnRegisterDevice(WB_DEVID);
     wc_CryptoCb_UnRegisterDevice(WB_DEVID_NOCB);
     wc_CryptoCb_UnRegisterDevice(WB_DEVID_HASH_OK);
@@ -890,6 +1171,11 @@ int main(void)
     (void)res;
     (void)intSize;
     (void)devId;
+#ifdef WOLF_CRYPTO_CB_FIND
+    /* Keep wb_find_cb referenced even in a variant without HAVE_CURVE25519,
+     * where the only call site above is preprocessed away. */
+    (void)wb_find_cb;
+#endif
 
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
 #else

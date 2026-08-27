@@ -923,6 +923,9 @@ endif
 if BUILD_SP_ARM_CORTEX
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sp_cortexm.c
 endif
+if BUILD_SP_RISCV64
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sp_riscv64.c
+endif
 endif BUILD_SP
 
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/fips.c \
@@ -933,9 +936,11 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wolfcrypt_last.c
 endif BUILD_FIPS_V6
 
 if BUILD_FIPS_V7_PLUS
+if !BUILD_FIPS_NO_POST
 # FIPS 140-3 v7.0.0+ first file
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += \
                wolfcrypt/src/wolfcrypt_first.c
+endif !BUILD_FIPS_NO_POST
 
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += \
                wolfcrypt/src/hmac.c \
@@ -1301,6 +1306,9 @@ endif
 if BUILD_SP_ARM_CORTEX
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sp_cortexm.c
 endif
+if BUILD_SP_RISCV64
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sp_riscv64.c
+endif
 endif BUILD_SP
 
 # PQ Algorithms (FIPS v7.0.0+)
@@ -1359,13 +1367,17 @@ if BUILD_WC_SLHDSA
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_slhdsa.c
 endif
 
+if !BUILD_FIPS_NO_POST
+
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/fips.c \
                              wolfcrypt/src/fips_test.c
 
 # fips last file
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wolfcrypt_last.c
-endif BUILD_FIPS_V7_PLUS
 
+endif !BUILD_FIPS_NO_POST
+
+endif BUILD_FIPS_V7_PLUS
 
 endif BUILD_FIPS
 
@@ -1541,6 +1553,9 @@ endif
 endif
 if BUILD_SP_ARM_CORTEX
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sp_cortexm.c
+endif
+if BUILD_SP_RISCV64
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sp_riscv64.c
 endif
 endif BUILD_SP
 endif !BUILD_FIPS_V6_PLUS
@@ -1818,6 +1833,9 @@ if BUILD_SP_ARM64
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sp_sm2_arm64.c
 endif
 endif
+if BUILD_SP_RISCV64
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sp_sm2_riscv64.c
+endif
 if BUILD_SP_ARM_CORTEX
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sp_sm2_cortexm.c
 endif
@@ -1923,9 +1941,7 @@ endif
 
 endif !BUILD_FIPS_RAND
 
-if BUILD_CODING
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/coding.c
-endif
 
 if !BUILD_FIPS_RAND
 

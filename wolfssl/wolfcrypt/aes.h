@@ -41,6 +41,32 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #define GCM_TABLE_4BIT
 #endif
 
+/* WOLFSSL_ARM32_AES_HW_FLAGS - whether the Aes object carries the run-time
+ * implementation-selection flags on 32-bit Arm.
+ *
+ * On 32-bit Arm both the base (table) AES and the Armv8 crypto-extension AES
+ * are compiled into one object by default, and the implementation is chosen at
+ * run time through aes->use_aes_hw_crypto - mirroring the AArch64 path.  The
+ * base fallback can be dropped with WOLFSSL_ARMASM_NO_BASE_IMPL (crypto always
+ * present), and WOLFSSL_ARMASM_NO_HW_CRYPTO keeps only the base, both of which
+ * revert to direct calls with no run-time check.  Thumb-2 has base assembly
+ * only - no crypto-extension AES - so it never dispatches either.
+ *
+ * aes.c performs the dispatch under WOLFSSL_ARM32_AES_DISPATCH, deliberately
+ * the same test as here with HAVE_CPUID_ARM32 added: a build with no run-time
+ * detection to dispatch on falls back to the compile-time choice.  The flags
+ * are not conditional on it because HAVE_CPUID_ARM32 depends on __ARM_ARCH,
+ * which comes from -march rather than from options.h, and the layout of a
+ * public structure must not vary with a compiler flag the application is not
+ * obliged to match.  A build with the flags but no run-time detection simply
+ * never reads them. */
+#if defined(WOLFSSL_ARMASM) && !defined(__aarch64__) && \
+    !defined(WOLFSSL_ARMASM_THUMB2) && \
+    !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) && \
+    !defined(WOLFSSL_ARMASM_NO_BASE_IMPL)
+    #define WOLFSSL_ARM32_AES_HW_FLAGS
+#endif
+
 #if !defined(NO_AES) || defined(WOLFSSL_SM4)
 
 typedef struct Gcm {
@@ -67,10 +93,6 @@ typedef struct Gcm {
 #endif
 
 WOLFSSL_LOCAL void GenerateM0(Gcm* gcm);
-#if !defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
-    !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
-WOLFSSL_LOCAL void GMULT(byte* X, byte* Y);
-#endif
 WOLFSSL_LOCAL void WC_ARG_NOT_NULL(1) GHASH(Gcm* gcm, const byte* a,
                                             word32 aSz, const byte* c,
                                             word32 cSz, byte* s, word32 sSz);
@@ -169,6 +191,45 @@ WOLFSSL_LOCAL void WC_ARG_NOT_NULL(1) GHASH(Gcm* gcm, const byte* a,
 
 #ifdef WOLFSSL_TI_AM64X
     #include "security/security_common/drivers/crypto/sa2ul/sa2ul.h"
+#endif
+
+/* Backends that replace one or more AES mode entry points, either with a
+ * hardware arm in aes.c or with a port file. Those entry points do not carry
+ * the key-set guard, so the check is not applied on these builds. */
+#if defined(STM32_CRYPTO) || \
+    defined(HAVE_COLDFIRE_SEC) || \
+    defined(FREESCALE_LTC) || \
+    defined(FREESCALE_MMCAU) || \
+    (defined(MAX3266X_AES) && !defined(MAX3266X_CB)) || \
+    (defined(WOLFSSL_CRYPTOCELL) && defined(WOLFSSL_CRYPTOCELL_AES)) || \
+    (defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_AES)) || \
+    defined(WOLFSSL_SILABS_SE_ACCEL) || \
+    defined(WOLFSSL_TI_CRYPT) || \
+    (defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES) && \
+     !defined(WOLFSSL_QNX_CAAM)) || \
+    defined(WOLFSSL_KCAPI_AES) || \
+    defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC) || \
+    defined(WOLFSSL_NXP_HASHCRYPT_AES) || \
+    (defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_AES)) || \
+    defined(WOLFSSL_XILINX_CRYPT) || \
+    defined(WOLF_CRYPTO_CB_ONLY_AES)
+    #define WC_AES_KEY_SET_CHECK_UNSUPPORTED
+#endif
+
+/* Make the AES mode APIs return MISSING_KEY when called before a key is
+ * installed, instead of running with the all-zero key schedule left by
+ * wc_AesInit. Define WOLFSSL_AES_REQUIRE_KEY_SET to force the check on, or
+ * WOLFSSL_NO_AES_KEY_SET_CHECK to force it off. */
+#if !defined(WOLFSSL_AES_REQUIRE_KEY_SET) && \
+    !defined(WOLFSSL_NO_AES_KEY_SET_CHECK) && \
+    !defined(WC_AES_KEY_SET_CHECK_UNSUPPORTED)
+    #define WOLFSSL_AES_REQUIRE_KEY_SET
+#endif
+
+#ifdef WOLFSSL_AES_REQUIRE_KEY_SET
+    #define WC_AES_KEY_IS_SET(aes)  ((aes)->keyInstalled != 0)
+#else
+    #define WC_AES_KEY_IS_SET(aes)  (1)
 #endif
 
 #ifdef __cplusplus
@@ -335,14 +396,20 @@ struct Aes {
         #define WC_FLAG_DONT_USE_VECTOR_OPS 2
     #endif
 #endif /* WOLFSSL_AESNI */
-#if defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
-    !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+/* Run-time implementation-selection flags.  Present when a hardware-crypto and
+ * a fallback implementation are both compiled in and chosen at run time: always
+ * on AArch64, and on 32-bit Arm when WOLFSSL_ARM32_AES_HW_FLAGS says so. */
+#if (defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) && \
+     defined(__aarch64__)) || defined(WOLFSSL_ARM32_AES_HW_FLAGS)
     byte use_aes_hw_crypto;
 #ifdef HAVE_AESGCM
     byte use_pmull_hw_crypto;
+#ifdef __aarch64__
     byte use_sha3_hw_crypto;
 #endif
-#endif /* __aarch64__ && WOLFSSL_ARMASM && !WOLFSSL_ARMASM_NO_HW_CRYPTO */
+#endif
+#endif /* (WOLFSSL_ARMASM && !WOLFSSL_ARMASM_NO_HW_CRYPTO && __aarch64__) ||
+        * WOLFSSL_ARM32_AES_HW_FLAGS */
 #if defined(WOLF_CRYPTO_CB)
     int    devId;
     void*  devCtx;  /* Opaque handle for CryptoCB device */
@@ -461,6 +528,22 @@ struct Aes {
 #if defined(WOLFSSL_TI_AM64X) && !defined(WOLFSSL_TI_AM64X_NO_AES)
     XALIGNED(16) SA2UL_ContextObject scObj;
 #endif
+
+    /* Set to 1 once a key has been installed (wc_AesSetKey/SetKeyDirect/
+     * GcmSetKey), including when a crypto callback takes ownership of it.
+     * Checked by the mode APIs so they fail instead of running with the
+     * all-zero key schedule left by wc_AesInit. Distinct from the Cavium-only
+     * keySet field. Appended at the end of the struct so existing member
+     * offsets are unchanged. Always maintained, so the layout does not depend
+     * on WOLFSSL_AES_REQUIRE_KEY_SET.
+     *
+     * Deliberately NOT set by wc_AesInit_Id()/wc_AesInit_Label(): those name a
+     * key held by the device and leave the software key schedule empty. The
+     * guard sits after every offload dispatch, so such a context still reaches
+     * its crypto callback; it only fails if it falls through to a software
+     * path, which is exactly the case that would otherwise encrypt with an
+     * all-zero key. */
+    WC_BITFIELD keyInstalled:1;
 };
 
 #ifndef WC_AES_TYPE_DEFINED
@@ -716,6 +799,13 @@ WOLFSSL_API WARN_UNUSED_RESULT int wc_AesGcmDecryptFinal(Aes* aes,
 #endif /* HAVE_AESCCM */
 
 #ifdef HAVE_AES_KEYWRAP
+ /* RFC 3394 AES key wrap.  On success return the produced (wrap) or recovered
+  * (unwrap) byte count (>= 0); on failure a negative error (BAD_FUNC_ARG,
+  * BAD_KEYWRAP_IV_E, ...).  in and out may alias (in-place is supported).  iv is
+  * the optional 8-byte integrity check value; NULL uses the default A6..A6.
+  * The _ex variants take a caller-provided Aes already keyed with the KEK
+  * (AES_ENCRYPTION to wrap, AES_DECRYPTION to unwrap) and, when its devId is set,
+  * route through a registered crypto callback. */
  WOLFSSL_API int  wc_AesKeyWrap(const byte* key, word32 keySz,
                                 const byte* in, word32 inSz,
                                 byte* out, word32 outSz,
@@ -732,6 +822,31 @@ WOLFSSL_API WARN_UNUSED_RESULT int wc_AesGcmDecryptFinal(Aes* aes,
                                 const byte* in, word32 inSz,
                                 byte* out, word32 outSz,
                                 const byte* iv);
+#ifdef WOLFSSL_AES_KEYWRAP_PADDING
+ /* RFC 5649 AES key wrap with padding.  Wrap accepts any inSz >= 1 and produces
+  * ceil(inSz/8)*8 + 8 bytes; unwrap recovers and returns the original inSz.  On
+  * success return that byte count (>= 0); on failure a negative error.  in and
+  * out may alias (in-place is supported).  iv is optional: NULL uses the RFC
+  * 5649 AIV constant (A6 59 59 A6).  If non-NULL it overrides ONLY that 4-byte
+  * high half - the low 4 bytes always carry the computed length indicator.  NOTE
+  * this differs from the non-padded wc_AesKeyWrap* iv, which is a full 8 bytes. */
+ WOLFSSL_API int  wc_AesKeyWrap_Pad(const byte* key, word32 keySz,
+                                const byte* in, word32 inSz,
+                                byte* out, word32 outSz,
+                                const byte* iv);
+ WOLFSSL_API int  wc_AesKeyWrap_Pad_ex(Aes* aes,
+                                const byte* in, word32 inSz,
+                                byte* out, word32 outSz,
+                                const byte* iv);
+ WOLFSSL_API int  wc_AesKeyUnWrap_Pad(const byte* key, word32 keySz,
+                                const byte* in, word32 inSz,
+                                byte* out, word32 outSz,
+                                const byte* iv);
+ WOLFSSL_API int  wc_AesKeyUnWrap_Pad_ex(Aes* aes,
+                                const byte* in, word32 inSz,
+                                byte* out, word32 outSz,
+                                const byte* iv);
+#endif /* WOLFSSL_AES_KEYWRAP_PADDING */
 #endif /* HAVE_AES_KEYWRAP */
 
 #ifdef WOLFSSL_AES_XTS
@@ -944,7 +1059,11 @@ WOLFSSL_API int wc_AesCtsDecryptFinal(Aes* aes, byte* out, word32* outSz);
 #endif
 
 #if defined(WOLFSSL_ARMASM)
-#if defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+/* Base (table) AES is available on AArch64, in a no-crypto build, and in a
+ * 32-bit crypto build that keeps the base fallback for run-time selection
+ * (i.e. unless WOLFSSL_ARMASM_NO_BASE_IMPL drops it). */
+#if defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) || \
+    !defined(WOLFSSL_ARMASM_NO_BASE_IMPL)
 WOLFSSL_LOCAL void AES_set_encrypt_key(const unsigned char* key, word32 len,
     unsigned char* ks);
 WOLFSSL_LOCAL void AES_invert_key(unsigned char* ks, word32 rounds);
@@ -973,7 +1092,8 @@ WOLFSSL_LOCAL void AES_XTS_encrypt(const byte* in, byte* out, word32 sz,
 WOLFSSL_LOCAL void AES_XTS_decrypt(const byte* in, byte* out, word32 sz,
     const byte* i, byte* key, byte* key2, byte* tmp, int nr);
 #endif
-#endif /* __aarch64__ || WOLFSSL_ARMASM_NO_HW_CRYPTO */
+#endif /* __aarch64__ || WOLFSSL_ARMASM_NO_HW_CRYPTO ||
+        * !WOLFSSL_ARMASM_NO_BASE_IMPL */
 
 #if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_NEON)
 WOLFSSL_LOCAL void AES_set_encrypt_key_NEON(const unsigned char* key,
@@ -992,12 +1112,14 @@ WOLFSSL_LOCAL void AES_CBC_decrypt_NEON(const unsigned char* in,
 WOLFSSL_LOCAL void AES_CTR_encrypt_NEON(const unsigned char* in,
     unsigned char* out, unsigned long len, const unsigned char* ks, int nr,
     unsigned char* ctr);
-#if defined(GCM_TABLE) || defined(GCM_TABLE_4BIT)
-/* in pre-C2x C, constness conflicts for dimensioned arrays can't be resolved.
- */
+/* The assembly defines this for every HAVE_AESGCM build, not just the
+ * GCM_TABLE / GCM_TABLE_4BIT ones, as the NEON GHASH is used for every GCM
+ * table layout - so the declaration is not guarded on the table macros.
+ *
+ * h is a flat byte pointer because in pre-C2x C, constness conflicts for
+ * dimensioned arrays can't be resolved. */
 WOLFSSL_LOCAL void GCM_gmult_len_NEON(byte* x, const byte* h,
     const unsigned char* data, unsigned long len);
-#endif
 WOLFSSL_LOCAL void AES_GCM_encrypt_NEON(const unsigned char* in,
     unsigned char* out, unsigned long len, const unsigned char* ks, int nr,
     unsigned char* ctr);

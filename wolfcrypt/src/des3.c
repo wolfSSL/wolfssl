@@ -30,6 +30,9 @@
  * FREESCALE_LTC_DES:        Freescale LTC DES acceleration        default: off
  */
 
+#define WC_FIPS_LL_CRYPTO
+#define _WC_BUILDING_DES3_C
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifndef NO_DES3
@@ -67,6 +70,29 @@
 
 /* Hardware Acceleration */
 #if defined(STM32_CRYPTO) && !defined(STM32_CRYPTO_AES_ONLY)
+
+/* Push one DES block through CRYP. CRYP_DataIn/Out work in 32-bit words,
+ * so stage the caller's byte buffers through an aligned local. */
+#ifndef WOLFSSL_STM32_CUBEMX
+static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
+{
+    uint32_t tmp[DES_BLOCK_SIZE / sizeof(uint32_t)];
+
+    XMEMCPY(tmp, in, DES_BLOCK_SIZE);
+
+    CRYP_DataIn(tmp[0]);
+    CRYP_DataIn(tmp[1]);
+
+    /* wait until the complete message has been processed */
+    while (CRYP_GetFlagStatus(CRYP_FLAG_BUSY) != RESET) {}
+
+    tmp[0] = CRYP_DataOut();
+    tmp[1] = CRYP_DataOut();
+
+    XMEMCPY(out, tmp, DES_BLOCK_SIZE);
+}
+#endif
+
 
     /*
      * STM32F2/F4 hardware DES/3DES support through the standard
@@ -258,14 +284,7 @@
             /* if input and output same will overwrite input iv */
             XMEMCPY(des->tmp, in + sz - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
 
-            CRYP_DataIn(*(uint32_t*)&in[0]);
-            CRYP_DataIn(*(uint32_t*)&in[4]);
-
-            /* wait until the complete message has been processed */
-            while(CRYP_GetFlagStatus(CRYP_FLAG_BUSY) != RESET) {}
-
-            *(uint32_t*)&out[0]  = CRYP_DataOut();
-            *(uint32_t*)&out[4]  = CRYP_DataOut();
+            wc_Stm32_CrypDesBlock(in, out);
 
             /* store iv for next call */
             XMEMCPY(des->reg, des->tmp, DES_BLOCK_SIZE);
@@ -415,14 +434,7 @@
                 /* flush IN/OUT FIFOs */
                 CRYP_FIFOFlush();
 
-                CRYP_DataIn(*(uint32_t*)&in[0]);
-                CRYP_DataIn(*(uint32_t*)&in[4]);
-
-                /* wait until the complete message has been processed */
-                while(CRYP_GetFlagStatus(CRYP_FLAG_BUSY) != RESET) {}
-
-                *(uint32_t*)&out[0]  = CRYP_DataOut();
-                *(uint32_t*)&out[4]  = CRYP_DataOut();
+                wc_Stm32_CrypDesBlock(in, out);
 
                 /* store iv for next call */
                 XMEMCPY(des->reg, out + sz - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
@@ -1565,16 +1577,23 @@
             for (i = 0; i < 16; i++) {            /* key chunk for each iteration */
                 XMEMSET(ks, 0, 8);                /* Clear key schedule */
 
-                for (j = 0; j < 56; j++)          /* rotate pc1 the right amount  */
-                    pcr[j] =
-                          pc1m[(l = j + totrot[i]) < (j < 28 ? 28 : 56) ? l : l-28];
-
                 /* rotate left and right halves independently */
-                for (j = 0; j < 48; j++) {        /* select bits individually     */
-                    if (pcr[pc2[j] - 1]) {        /* check bit that goes to ks[j] */
-                        l= j % 6;                 /* mask it in if it's there     */
-                        ks[j/6] |= (byte)(bytebit[l] >> 2);
-                    }
+                for (j = 0; j < 28; j++) {   /* rotate pc1 the right amount */
+                    l = (j + totrot[i]) % 28;
+                    pcr[j]      = pc1m[l];
+                    pcr[j + 28] = pc1m[l + 28];
+                }
+
+                for (j = 0; j < 48; j++) { /* select bits individually */
+                    byte bit;
+                    byte mask;
+                    bit =
+                        (byte)(pcr[pc2[j] - 1]); /* all pcr values are either 0
+                                                    or 1 */
+                    mask = (byte)(0 - bit);   /* mask is either 0xFF or 0x00 */
+                    /* only set to bytebit value if bit == 1 */
+                    ks[j/6] |=
+                        (byte)((bytebit[j % 6] >> 2) & mask);
                 }
 
                 /* Now convert to odd/even interleaved form for use in F */

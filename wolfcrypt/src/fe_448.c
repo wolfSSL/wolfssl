@@ -26,7 +26,10 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
-#if defined(HAVE_CURVE448) || defined(HAVE_ED448)
+/* under WOLF_CRYPTO_CB_ONLY_CURVE448 the callback device does all the field
+ * math, so curve448 does not pull this file in on its own */
+#if (defined(HAVE_CURVE448) && !defined(WOLF_CRYPTO_CB_ONLY_CURVE448)) || \
+    defined(HAVE_ED448)
 
 #include <wolfssl/wolfcrypt/fe_448.h>
 
@@ -66,7 +69,7 @@ void fe448_norm(word8* a)
     for (i = 0; i < 56; i++) {
         if ((i == 0) || (i == 28)) o += c;
         o += a[i];
-        a[i] = (word8)o;
+        a[i] = WC_OCTET(o);
         o >>= 8;
     }
 }
@@ -120,14 +123,14 @@ void fe448_add(word8* r, const word8* a, const word8* b)
     for (i = 0; i < 56; i++) {
         c += a[i];
         c += b[i];
-        r[i] = (word8)c;
+        r[i] = WC_OCTET(c);
         c >>= 8;
     }
 
     for (i = 0; i < 56; i++) {
         if ((i == 0) || (i == 28)) o += c;
         o += r[i];
-        r[i] = (word8)o;
+        r[i] = WC_OCTET(o);
         o >>= 8;
     }
 }
@@ -151,14 +154,14 @@ void fe448_sub(word8* r, const word8* a, const word8* b)
             c += 0x1fe;
         c += a[i];
         c -= b[i];
-        r[i] = (word8)c;
+        r[i] = WC_OCTET(c);
         c >>= 8;
     }
 
     for (i = 0; i < 56; i++) {
         if ((i == 0) || (i == 28)) o += c;
         o += r[i];
-        r[i] = (word8)o;
+        r[i] = WC_OCTET(o);
         o >>= 8;
     }
 }
@@ -176,14 +179,14 @@ void fe448_mul39081(word8* r, const word8* a)
 
     for (i = 0; i < 56; i++) {
         c += a[i] * (sword32)39081;
-        r[i] = (word8)c;
+        r[i] = WC_OCTET(c);
         c >>= 8;
     }
 
     for (i = 0; i < 56; i++) {
         if ((i == 0) || (i == 28)) o += c;
         o += r[i];
-        r[i] = (word8)o;
+        r[i] = WC_OCTET(o);
         o >>= 8;
     }
 }
@@ -206,7 +209,7 @@ void fe448_mul(word8* r, const word8* a, const word8* b)
         for (; i <= k; i++) {
             c += (sword32)a[i] * b[k - i];
         }
-        t[k] = (word8)c;
+        t[k] = WC_OCTET(c);
         c >>= 8;
     }
     for (; k < 111; k++) {
@@ -214,16 +217,16 @@ void fe448_mul(word8* r, const word8* a, const word8* b)
         for (; i < 56; i++) {
             c += (sword32)a[i] * b[k - i];
         }
-        t[k] = (word8)c;
+        t[k] = WC_OCTET(c);
         c >>= 8;
     }
-    t[k] = (word8)c;
+    t[k] = WC_OCTET(c);
 
     for (i = 0; i < 28; i++) {
         o += t[i];
         o += t[i + 56];
         o += t[i + 84];
-        r[i] = (word8)o;
+        r[i] = WC_OCTET(o);
         o >>= 8;
     }
     for (i = 28; i < 56; i++) {
@@ -231,13 +234,13 @@ void fe448_mul(word8* r, const word8* a, const word8* b)
         o += t[i + 56];
         o += t[i + 28];
         o += t[i + 56];
-        r[i] = (word8)o;
+        r[i] = WC_OCTET(o);
         o >>= 8;
     }
     for (i = 0; i < 56; i++) {
         if ((i == 0) || (i == 28)) cc += o;
         cc += r[i];
-        r[i] = (word8)cc;
+        r[i] = WC_OCTET(cc);
         cc >>= 8;
     }
 }
@@ -265,7 +268,7 @@ void fe448_sqr(word8* r, const word8* a)
                 p *= 2;
             c += p;
         }
-        t[k] = (word8)c;
+        t[k] = WC_OCTET(c);
         c >>= 8;
     }
     for (; k < 111; k++) {
@@ -278,16 +281,16 @@ void fe448_sqr(word8* r, const word8* a)
                 p *= 2;
             c += p;
         }
-        t[k] = (word8)c;
+        t[k] = WC_OCTET(c);
         c >>= 8;
     }
-    t[k] = (word8)c;
+    t[k] = WC_OCTET(c);
 
     for (i = 0; i < 28; i++) {
         o += t[i];
         o += t[i + 56];
         o += t[i + 84];
-        r[i] = (word8)o;
+        r[i] = WC_OCTET(o);
         o >>= 8;
     }
     for (i = 28; i < 56; i++) {
@@ -295,13 +298,13 @@ void fe448_sqr(word8* r, const word8* a)
         o += t[i + 56];
         o += t[i + 28];
         o += t[i + 56];
-        r[i] = (word8)o;
+        r[i] = WC_OCTET(o);
         o >>= 8;
     }
     for (i = 0; i < 56; i++) {
         if ((i == 0) || (i == 28)) cc += o;
         cc += r[i];
-        r[i] = (word8)cc;
+        r[i] = WC_OCTET(cc);
         cc >>= 8;
     }
     fe448_norm(r);
@@ -431,14 +434,14 @@ void fe448_neg(word8* r, const word8* a)
         else
             c += 0x1fe;
         c -= a[i];
-        r[i] = (word8)c;
+        r[i] = WC_OCTET(c);
         c >>= 8;
     }
 
     for (i = 0; i < 56; i++) {
         if ((i == 0) || (i == 28)) o += c;
         o += r[i];
-        r[i] = (word8)o;
+        r[i] = WC_OCTET(o);
         o >>= 8;
     }
 }
@@ -2509,4 +2512,4 @@ void fe448_cmov(sword32* a, const sword32* b, int c)
 #endif /* HAVE_ED448 */
 #endif
 
-#endif /* HAVE_CURVE448 || HAVE_ED448 */
+#endif /* (HAVE_CURVE448 && !WOLF_CRYPTO_CB_ONLY_CURVE448) || HAVE_ED448 */

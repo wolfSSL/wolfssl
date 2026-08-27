@@ -30,6 +30,9 @@
 
 #include <wolfssl/wolfcrypt/curve448.h>
 #include <wolfssl/wolfcrypt/types.h>
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
 #include <tests/api/api.h>
 #include <tests/api/test_curve448.h>
 
@@ -167,18 +170,30 @@ int test_wc_curve448_export_public_ex(void)
 #if defined(HAVE_CURVE448)
     WC_RNG        rng;
     curve448_key  key;
+    curve448_key  unset;
+    curve448_key  pubOnly;
     byte          out[CURVE448_KEY_SIZE];
+    byte          pubOut[CURVE448_KEY_SIZE];
     word32        outLen = sizeof(out);
+    word32        pubOutLen = sizeof(pubOut);
     int           endian = EC448_BIG_ENDIAN;
 
     XMEMSET(&rng, 0, sizeof(WC_RNG));
 
     ExpectIntEQ(wc_curve448_init(&key), 0);
+    ExpectIntEQ(wc_curve448_init(&unset), 0);
+    ExpectIntEQ(wc_curve448_init(&pubOnly), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectIntEQ(wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &key), 0);
 
     ExpectIntEQ(wc_curve448_export_public(&key, out, &outLen), 0);
     ExpectIntEQ(wc_curve448_export_public_ex(&key, out, &outLen, endian), 0);
+    /* a key holding only a public component exports it unchanged */
+    ExpectIntEQ(wc_curve448_import_public(out, outLen, &pubOnly), 0);
+    ExpectIntEQ(wc_curve448_export_public_ex(&pubOnly, pubOut, &pubOutLen,
+        endian), 0);
+    ExpectIntEQ(pubOutLen, CURVE448_PUB_KEY_SIZE);
+    ExpectIntEQ(XMEMCMP(out, pubOut, CURVE448_PUB_KEY_SIZE), 0);
     /* test bad cases */
     ExpectIntEQ(wc_curve448_export_public_ex(NULL, NULL, NULL, endian),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -188,12 +203,19 @@ int test_wc_curve448_export_public_ex(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_curve448_export_public_ex(&key, out, NULL, endian),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* no private or public key set to export */
+    ExpectIntEQ(wc_curve448_export_public(&unset, out, &outLen),
+        WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    ExpectIntEQ(wc_curve448_export_public_ex(&unset, out, &outLen, endian),
+        WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
     outLen = outLen - 2;
     ExpectIntEQ(wc_curve448_export_public_ex(&key, out, &outLen, endian),
         WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_curve448_free(&key);
+    wc_curve448_free(&unset);
+    wc_curve448_free(&pubOnly);
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_curve448_export_public_ex */
@@ -808,4 +830,363 @@ int test_wc_curve448_export_import_endian(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_curve448_export_import_endian */
+
+/* Cross-check make_pub, generic and keygen: public keys must match and a
+ * shared secret must round trip. */
+/* The keys are built with wc_curve448_init (INVALID_DEVID), so under CB-only
+ * the software path is stripped and wc_curve448_make_key only dispatches when
+ * WOLF_CRYPTO_CB_FIND can route to a registered device. */
+int test_wc_curve448_make_pub_generic(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CURVE448) && defined(HAVE_CURVE448_SHARED_SECRET) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_CURVE448) || defined(WOLF_CRYPTO_CB_FIND))
+    curve448_key keyA;
+    curve448_key keyB;
+    WC_RNG       rng;
+    byte         pubM[CURVE448_PUB_KEY_SIZE];
+    byte         pubG[CURVE448_PUB_KEY_SIZE];
+    const byte   base5[CURVE448_KEY_SIZE] = { 5 };
+    byte         genAB[CURVE448_PUB_KEY_SIZE];
+    byte         ssAB[CURVE448_PUB_KEY_SIZE];
+    byte         ssBA[CURVE448_PUB_KEY_SIZE];
+    word32       ssABLen = (word32)sizeof(ssAB);
+    word32       ssBALen = (word32)sizeof(ssBA);
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+
+    ExpectIntEQ(wc_curve448_init(&keyA), 0);
+    ExpectIntEQ(wc_curve448_init(&keyB), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    ExpectIntEQ(wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &keyA), 0);
+    ExpectIntEQ(wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &keyB), 0);
+
+    /* make_pub from the private scalar must match the keygen public point */
+    ExpectIntEQ(wc_curve448_make_pub((int)sizeof(pubM), pubM,
+        (int)sizeof(keyA.k), keyA.k), 0);
+    ExpectBufEQ(pubM, keyA.p, CURVE448_PUB_KEY_SIZE);
+
+    /* generic against base point 5 is the same operation as make_pub */
+    ExpectIntEQ(wc_curve448_generic((int)sizeof(pubG), pubG,
+        (int)sizeof(keyA.k), keyA.k, (int)sizeof(base5), base5), 0);
+    ExpectBufEQ(pubG, pubM, CURVE448_PUB_KEY_SIZE);
+
+    /* generic against B's public point must equal the A-B shared secret,
+     * proving generic actually uses the supplied base point */
+    ExpectIntEQ(wc_curve448_generic((int)sizeof(genAB), genAB,
+        (int)sizeof(keyA.k), keyA.k, (int)sizeof(keyB.p), keyB.p), 0);
+    ExpectIntEQ(wc_curve448_shared_secret_ex(&keyA, &keyB, ssAB, &ssABLen,
+        EC448_LITTLE_ENDIAN), 0);
+    ExpectBufEQ(genAB, ssAB, CURVE448_PUB_KEY_SIZE);
+
+    /* shared secret must agree both ways, proving the generated keys are
+     * mutually consistent (a degenerate result is rejected by shared_secret) */
+    ExpectIntEQ(wc_curve448_shared_secret_ex(&keyB, &keyA, ssBA, &ssBALen,
+        EC448_LITTLE_ENDIAN), 0);
+    ExpectBufEQ(ssBA, ssAB, CURVE448_PUB_KEY_SIZE);
+
+#ifndef WOLFSSL_NO_ECDHX_SHARED_ZERO_CHECK
+    /* an all-zero result (small-order basepoint) must be rejected, matching
+     * wc_curve448_shared_secret_ex */
+    XMEMSET(pubG, 0, sizeof(pubG));
+    {
+        byte baseZero[CURVE448_KEY_SIZE];
+        XMEMSET(baseZero, 0, sizeof(baseZero));
+        ExpectIntEQ(wc_curve448_generic((int)sizeof(pubG), pubG,
+            (int)sizeof(keyA.k), keyA.k, (int)sizeof(baseZero), baseZero),
+            WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+    }
+#endif
+
+    /* argument checks on the new generic API */
+    ExpectIntEQ(wc_curve448_generic((int)sizeof(pubG), NULL,
+        (int)sizeof(keyA.k), keyA.k, (int)sizeof(base5), base5),
+        WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    ExpectIntEQ(wc_curve448_generic((int)sizeof(pubG), pubG,
+        (int)sizeof(keyA.k), NULL, (int)sizeof(base5), base5),
+        WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    ExpectIntEQ(wc_curve448_generic((int)sizeof(pubG), pubG,
+        (int)sizeof(keyA.k), keyA.k, (int)sizeof(base5), NULL),
+        WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    ExpectIntEQ(wc_curve448_generic((int)sizeof(pubG) - 1, pubG,
+        (int)sizeof(keyA.k), keyA.k, (int)sizeof(base5), base5),
+        WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    ExpectIntEQ(wc_curve448_generic((int)sizeof(pubG), pubG,
+        (int)sizeof(keyA.k) - 1, keyA.k, (int)sizeof(base5), base5),
+        WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    ExpectIntEQ(wc_curve448_generic((int)sizeof(pubG), pubG,
+        (int)sizeof(keyA.k), keyA.k, (int)sizeof(base5) - 1, base5),
+        WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+
+    /* unclamped scalars must be rejected: low bits set, then top bit clear */
+    keyA.k[0] |= 0x01;
+    ExpectIntEQ(wc_curve448_make_pub((int)sizeof(pubM), pubM,
+        (int)sizeof(keyA.k), keyA.k), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    ExpectIntEQ(wc_curve448_generic((int)sizeof(pubG), pubG,
+        (int)sizeof(keyA.k), keyA.k, (int)sizeof(base5), base5),
+        WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    keyA.k[0] &= 0xfc;
+    keyA.k[CURVE448_KEY_SIZE-1] &= 0x7f;
+    ExpectIntEQ(wc_curve448_make_pub((int)sizeof(pubM), pubM,
+        (int)sizeof(keyA.k), keyA.k), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    ExpectIntEQ(wc_curve448_generic((int)sizeof(pubG), pubG,
+        (int)sizeof(keyA.k), keyA.k, (int)sizeof(base5), base5),
+        WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    keyA.k[CURVE448_KEY_SIZE-1] |= 0x80;
+    /* restored key must work again */
+    ExpectIntEQ(wc_curve448_make_pub((int)sizeof(pubM), pubM,
+        (int)sizeof(keyA.k), keyA.k), 0);
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_curve448_free(&keyA);
+    wc_curve448_free(&keyB);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_curve448_make_pub_generic */
+
+/* Test Curve448 keygen/shared secret routed through a crypto callback
+ * (CryptoCb) device. */
+/* The spy services ops by re-entering the software API, which is stripped
+ * under CB-only unless WOLF_CRYPTO_CB_FIND can route back to a device. */
+#if defined(WOLF_CRYPTO_CB) && defined(HAVE_CURVE448) && \
+    defined(HAVE_CURVE448_SHARED_SECRET) && !defined(WC_NO_RNG) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_CURVE448) || defined(WOLF_CRYPTO_CB_FIND))
+typedef struct curve448SpyCtx {
+    int kgSeen;
+    int ssSeen;
+    int mpSeen;
+    int genSeen;
+    int decline;
+    int forceErr;
+    int zeroSecret;
+} curve448SpyCtx;
+
+/* Spy device: services Curve448 keygen/shared secret in software (devId
+ * cleared) and counts each; declines everything else. */
+static int curve448_test_crypto_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    curve448SpyCtx* spy = (curve448SpyCtx*)ctx;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+
+    (void)devIdArg;
+
+    if (info == NULL || spy == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (info->algo_type == WC_ALGO_TYPE_PK) {
+        if (info->pk.type == WC_PK_TYPE_CURVE448_KEYGEN) {
+            int save = info->pk.curve448kg.key->devId;
+            spy->kgSeen++;
+            if (spy->decline)
+                return ret;
+            if (spy->forceErr)
+                return WC_NO_ERR_TRACE(WC_HW_E);
+            info->pk.curve448kg.key->devId = INVALID_DEVID;
+            ret = wc_curve448_make_key(info->pk.curve448kg.rng,
+                info->pk.curve448kg.size, info->pk.curve448kg.key);
+            info->pk.curve448kg.key->devId = save;
+        }
+        if (info->pk.type == WC_PK_TYPE_CURVE448_MAKE_PUB) {
+            /* count, then decline so the software path produces the point */
+            spy->mpSeen++;
+        }
+        if (info->pk.type == WC_PK_TYPE_CURVE448_GENERIC) {
+            spy->genSeen++;
+            if (spy->zeroSecret) {
+                /* misbehaving device: all-zero point with success rc */
+                XMEMSET(info->pk.curve448generic.pub, 0,
+                    CURVE448_PUB_KEY_SIZE);
+                return 0;
+            }
+            /* otherwise decline so the software path produces the point */
+        }
+        if (info->pk.type == WC_PK_TYPE_CURVE448) {
+            int save = info->pk.curve448.private_key->devId;
+            spy->ssSeen++;
+            if (spy->decline)
+                return ret;
+            if (spy->forceErr)
+                return WC_NO_ERR_TRACE(WC_HW_E);
+            if (spy->zeroSecret) {
+                /* misbehaving device: all-zero secret with success rc */
+                XMEMSET(info->pk.curve448.out, 0, CURVE448_PUB_KEY_SIZE);
+                *info->pk.curve448.outlen = CURVE448_PUB_KEY_SIZE;
+                return 0;
+            }
+            info->pk.curve448.private_key->devId = INVALID_DEVID;
+            ret = wc_curve448_shared_secret_ex(
+                info->pk.curve448.private_key, info->pk.curve448.public_key,
+                info->pk.curve448.out, info->pk.curve448.outlen,
+                info->pk.curve448.endian);
+            info->pk.curve448.private_key->devId = save;
+        }
+    }
+
+    return ret;
+}
+#endif
+
+int test_wc_curve448_cryptocb(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLF_CRYPTO_CB) && defined(HAVE_CURVE448) && \
+    defined(HAVE_CURVE448_SHARED_SECRET) && !defined(WC_NO_RNG) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_CURVE448) || defined(WOLF_CRYPTO_CB_FIND))
+    int devId = 4485;
+    curve448SpyCtx spy;
+    WC_RNG rng;
+    curve448_key keyB;
+    byte   ssAB[CURVE448_PUB_KEY_SIZE];
+    byte   ssBA[CURVE448_PUB_KEY_SIZE];
+    word32 ssABLen = (word32)sizeof(ssAB);
+    word32 ssBALen = (word32)sizeof(ssBA);
+#ifndef WC_NO_CONSTRUCTORS
+    int ret = 0;
+    curve448_key* keyA = NULL;
+#else
+    curve448_key keyA_stack;
+    curve448_key* keyA = &keyA_stack;
+#endif
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&spy, 0, sizeof(spy));
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId, curve448_test_crypto_cb,
+                &spy), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+#ifndef WC_NO_CONSTRUCTORS
+    /* exercise the new constructor path */
+    ExpectNotNull(keyA = wc_curve448_new(HEAP_HINT, devId, &ret));
+    ExpectIntEQ(ret, 0);
+#else
+    ExpectIntEQ(wc_curve448_init_ex(keyA, HEAP_HINT, devId), 0);
+#endif
+    ExpectIntEQ(wc_curve448_init_ex(&keyB, HEAP_HINT, devId), 0);
+
+    /* keygen routes through the device callback */
+    if (keyA != NULL) {
+        ExpectIntEQ(wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, keyA), 0);
+    }
+    ExpectIntEQ(wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &keyB), 0);
+    ExpectIntGE(spy.kgSeen, 2);
+
+    /* shared secret routes through the device callback both ways */
+    if (keyA != NULL) {
+        ExpectIntEQ(wc_curve448_shared_secret_ex(keyA, &keyB, ssAB, &ssABLen,
+            EC448_LITTLE_ENDIAN), 0);
+        ExpectIntEQ(wc_curve448_shared_secret_ex(&keyB, keyA, ssBA, &ssBALen,
+            EC448_LITTLE_ENDIAN), 0);
+        ExpectBufEQ(ssAB, ssBA, CURVE448_PUB_KEY_SIZE);
+    }
+    ExpectIntGE(spy.ssSeen, 2);
+
+#ifndef WOLF_CRYPTO_CB_ONLY_CURVE448
+    /* device declines: dispatch is seen, software fallback must succeed */
+    spy.decline = 1;
+    ExpectIntEQ(wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &keyB), 0);
+    ExpectIntGE(spy.kgSeen, 3);
+    if (keyA != NULL) {
+        ssABLen = (word32)sizeof(ssAB);
+        ExpectIntEQ(wc_curve448_shared_secret_ex(keyA, &keyB, ssAB, &ssABLen,
+            EC448_LITTLE_ENDIAN), 0);
+    }
+    ExpectIntGE(spy.ssSeen, 3);
+    spy.decline = 0;
+#endif
+
+    /* device errors: the error must propagate, not fall back to software */
+    spy.forceErr = 1;
+    ExpectIntEQ(wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &keyB),
+        WC_NO_ERR_TRACE(WC_HW_E));
+    if (keyA != NULL) {
+        ssABLen = (word32)sizeof(ssAB);
+        ExpectIntEQ(wc_curve448_shared_secret_ex(keyA, &keyB, ssAB, &ssABLen,
+            EC448_LITTLE_ENDIAN), WC_NO_ERR_TRACE(WC_HW_E));
+    }
+    spy.forceErr = 0;
+
+#ifndef WOLFSSL_NO_ECDHX_SHARED_ZERO_CHECK
+    /* device returns an all-zero secret: wrapper must reject it */
+    spy.zeroSecret = 1;
+    if (keyA != NULL) {
+        ssABLen = (word32)sizeof(ssAB);
+        ExpectIntEQ(wc_curve448_shared_secret_ex(keyA, &keyB, ssAB, &ssABLen,
+            EC448_LITTLE_ENDIAN), WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+    }
+    spy.zeroSecret = 0;
+#endif
+
+#if !defined(WOLF_CRYPTO_CB_FIND) && !defined(WOLF_CRYPTO_CB_ONLY_CURVE448)
+    /* a key bound to no device must not have its private scalar handed to
+     * whichever device happens to be registered: keygen derives the public
+     * point in software without dispatching make_pub */
+    {
+        curve448_key unbound;
+        byte pubTmp[CURVE448_PUB_KEY_SIZE];
+        int mpBefore = spy.mpSeen;
+
+        XMEMSET(&unbound, 0, sizeof(unbound));
+        ExpectIntEQ(wc_curve448_init(&unbound), 0);
+        ExpectIntEQ(wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &unbound),
+            0);
+        ExpectIntEQ(spy.mpSeen, mpBefore);
+        /* the keyless public API has no devId to respect, so it still
+         * reaches the device */
+        ExpectIntEQ(wc_curve448_make_pub((int)sizeof(pubTmp), pubTmp,
+            (int)sizeof(unbound.k), unbound.k), 0);
+        ExpectIntGT(spy.mpSeen, mpBefore);
+
+        /* wc_curve448_generic also has no devId to respect, so it reaches
+         * the device; a device that answers with an all-zero point must be
+         * rejected just like the software path's small-order result */
+        {
+            const byte base5[CURVE448_KEY_SIZE] = { 5 };
+            int genBefore = spy.genSeen;
+
+            ExpectIntEQ(wc_curve448_generic((int)sizeof(pubTmp), pubTmp,
+                (int)sizeof(unbound.k), unbound.k, (int)sizeof(base5),
+                base5), 0);
+            ExpectIntGT(spy.genSeen, genBefore);
+#ifndef WOLFSSL_NO_ECDHX_SHARED_ZERO_CHECK
+            spy.zeroSecret = 1;
+            ExpectIntEQ(wc_curve448_generic((int)sizeof(pubTmp), pubTmp,
+                (int)sizeof(unbound.k), unbound.k, (int)sizeof(base5),
+                base5), WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+            spy.zeroSecret = 0;
+#endif
+        }
+        wc_curve448_free(&unbound);
+    }
+#endif
+
+    /* constructor arg checks */
+    ExpectIntEQ(wc_curve448_init_ex(NULL, HEAP_HINT, devId),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    wc_curve448_free(&keyB);
+#ifndef WC_NO_CONSTRUCTORS
+    /* result_code and key_p are both optional */
+    {
+        curve448_key* keyC = NULL;
+        ExpectNotNull(keyC = wc_curve448_new(HEAP_HINT, devId, NULL));
+        if (keyC != NULL) {
+            DoExpectIntEQ(wc_curve448_delete(keyC, NULL), 0);
+        }
+    }
+    if (keyA != NULL) {
+        DoExpectIntEQ(wc_curve448_delete(keyA, &keyA), 0);
+        ExpectNull(keyA);
+    }
+    ExpectIntEQ(wc_curve448_delete(NULL, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#else
+    wc_curve448_free(keyA);
+#endif
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_CryptoCb_UnRegisterDevice(devId);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_curve448_cryptocb */
 

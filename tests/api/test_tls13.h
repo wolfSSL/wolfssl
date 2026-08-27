@@ -26,12 +26,14 @@
 
 int test_tls13_apis(void);
 int test_tls13_cipher_suites(void);
+int test_tls13_cipher_list_no_tls13_ctx(void);
 int test_tls13_bad_psk_binder(void);
 int test_tls13_rpk_handshake(void);
 int test_tls13_rpk_handshake_no_negotiation(void);
 int test_tls13_pha(void);
 int test_tls13_rpk_untrusted(void);
 int test_tls13_rpk_trust(void);
+int test_tls13_rpk_unoffered_cert_type(void);
 int test_tls13_pq_groups(void);
 int test_tls13_multi_pqc_key_share(void);
 int test_tls13_early_data(void);
@@ -44,16 +46,19 @@ int test_tls13_duplicate_extension(void);
 int test_tls13_duplicate_ech_extension(void);
 int test_key_share_mismatch(void);
 int test_tls13_middlebox_compat_empty_session_id(void);
+int test_tls13_middlebox_compat_session_id(void);
 int test_tls13_plaintext_alert(void);
 int test_tls13_warning_alert_is_fatal(void);
 int test_tls13_unknown_ext_rejected(void);
 int test_tls13_hrr_recognized_ext_downgrade(void);
 int test_tls13_cert_req_sigalgs(void);
+int test_tls13_sha1_cert_chain(void);
 int test_tls13_derive_keys_no_key(void);
 int test_tls13_pqc_hybrid_truncated_keyshare(void);
 int test_tls13_pqc_hybrid_malformed_ecdh(void);
 int test_tls13_empty_record_limit(void);
 int test_tls13_short_session_ticket(void);
+int test_tls13_zero_length_session_ticket(void);
 int test_tls13_new_session_ticket_max_lifetime(void);
 int test_tls13_fragmented_session_ticket(void);
 int test_tls13_early_data_0rtt_replay(void);
@@ -61,16 +66,25 @@ int test_tls13_0rtt_default_off(void);
 int test_tls13_0rtt_stateless_replay(void);
 int test_tls13_remove_session_return(void);
 int test_tls13_0rtt_ext_cache_eviction(void);
+int test_tls13_early_data_bad_record_mac(void);
+int test_tls13_0rtt_fresh_start(void);
+int test_tls13_0rtt_fresh_start_check_args(void);
 int test_tls13_corrupted_finished(void);
 int test_tls13_certificate_verify_bad_sigalgo(void);
 int test_tls13_peerauth_failsafe(void);
 int test_tls13_hrr_bad_cookie(void);
+int test_tls13_hrr_cookie_handshake(void);
+int test_tls13_hrr_cookie_only_handshake(void);
+int test_tls13_client_cookie_echo(void);
+int test_tls13_client_cookie_too_big(void);
+int test_tls13_server_cookie_parse(void);
 int test_tls13_zero_inner_content_type(void);
 int test_tls13_post_handshake_auth_no_ext(void);
 int test_tls13_post_handshake_auth_late_allow(void);
 int test_tls13_downgrade_sentinel(void);
 int test_tls13_serverhello_bad_cipher_suites(void);
 int test_tls13_psk_no_cert_bad_binder(void);
+int test_tls13_psk_age_no_identity_oracle(void);
 int test_tls13_cert_with_extern_psk_apis(void);
 int test_tls13_cert_with_extern_psk_handshake(void);
 int test_tls13_cert_with_extern_psk_client_requires_cert(void);
@@ -109,12 +123,14 @@ int test_tls13_pha_status_request(void);
 #define TEST_TLS13_DECLS                                        \
     TEST_DECL_GROUP("tls13", test_tls13_apis),                  \
     TEST_DECL_GROUP("tls13", test_tls13_cipher_suites),         \
+    TEST_DECL_GROUP("tls13", test_tls13_cipher_list_no_tls13_ctx), \
     TEST_DECL_GROUP("tls13", test_tls13_bad_psk_binder),        \
     TEST_DECL_GROUP("tls13", test_tls13_rpk_handshake),         \
     TEST_DECL_GROUP("tls13", test_tls13_rpk_handshake_no_negotiation), \
     TEST_DECL_GROUP("tls13", test_tls13_pha),                   \
     TEST_DECL_GROUP("tls13", test_tls13_rpk_untrusted),         \
     TEST_DECL_GROUP("tls13", test_tls13_rpk_trust),             \
+    TEST_DECL_GROUP("tls13", test_tls13_rpk_unoffered_cert_type), \
     TEST_DECL_GROUP("tls13", test_tls13_pq_groups),             \
     TEST_DECL_GROUP("tls13", test_tls13_multi_pqc_key_share),   \
     TEST_DECL_GROUP("tls13", test_tls13_early_data),            \
@@ -127,14 +143,17 @@ int test_tls13_pha_status_request(void);
     TEST_DECL_GROUP("tls13", test_tls13_duplicate_ech_extension), \
     TEST_DECL_GROUP("tls13", test_key_share_mismatch),          \
     TEST_DECL_GROUP("tls13", test_tls13_middlebox_compat_empty_session_id), \
+    TEST_DECL_GROUP("tls13", test_tls13_middlebox_compat_session_id), \
     TEST_DECL_GROUP("tls13", test_tls13_plaintext_alert),       \
     TEST_DECL_GROUP("tls13", test_tls13_warning_alert_is_fatal), \
     TEST_DECL_GROUP("tls13", test_tls13_cert_req_sigalgs),       \
+    TEST_DECL_GROUP("tls13", test_tls13_sha1_cert_chain),        \
     TEST_DECL_GROUP("tls13", test_tls13_derive_keys_no_key),    \
     TEST_DECL_GROUP("tls13", test_tls13_pqc_hybrid_truncated_keyshare), \
     TEST_DECL_GROUP("tls13", test_tls13_pqc_hybrid_malformed_ecdh), \
     TEST_DECL_GROUP("tls13", test_tls13_empty_record_limit),    \
     TEST_DECL_GROUP("tls13", test_tls13_short_session_ticket),  \
+    TEST_DECL_GROUP("tls13", test_tls13_zero_length_session_ticket),  \
     TEST_DECL_GROUP("tls13", test_tls13_new_session_ticket_max_lifetime), \
     TEST_DECL_GROUP("tls13", test_tls13_fragmented_session_ticket), \
     TEST_DECL_GROUP("tls13", test_tls13_early_data_0rtt_replay), \
@@ -142,18 +161,27 @@ int test_tls13_pha_status_request(void);
     TEST_DECL_GROUP("tls13", test_tls13_0rtt_stateless_replay), \
     TEST_DECL_GROUP("tls13", test_tls13_remove_session_return), \
     TEST_DECL_GROUP("tls13", test_tls13_0rtt_ext_cache_eviction), \
+    TEST_DECL_GROUP("tls13", test_tls13_early_data_bad_record_mac), \
+    TEST_DECL_GROUP("tls13", test_tls13_0rtt_fresh_start), \
+    TEST_DECL_GROUP("tls13", test_tls13_0rtt_fresh_start_check_args), \
     TEST_DECL_GROUP("tls13", test_tls13_unknown_ext_rejected),  \
     TEST_DECL_GROUP("tls13", test_tls13_hrr_recognized_ext_downgrade), \
     TEST_DECL_GROUP("tls13", test_tls13_corrupted_finished),     \
     TEST_DECL_GROUP("tls13", test_tls13_certificate_verify_bad_sigalgo), \
     TEST_DECL_GROUP("tls13", test_tls13_peerauth_failsafe),    \
     TEST_DECL_GROUP("tls13", test_tls13_hrr_bad_cookie), \
+    TEST_DECL_GROUP("tls13", test_tls13_hrr_cookie_handshake), \
+    TEST_DECL_GROUP("tls13", test_tls13_hrr_cookie_only_handshake), \
+    TEST_DECL_GROUP("tls13", test_tls13_client_cookie_echo), \
+    TEST_DECL_GROUP("tls13", test_tls13_client_cookie_too_big), \
+    TEST_DECL_GROUP("tls13", test_tls13_server_cookie_parse), \
     TEST_DECL_GROUP("tls13", test_tls13_zero_inner_content_type), \
     TEST_DECL_GROUP("tls13", test_tls13_post_handshake_auth_no_ext), \
     TEST_DECL_GROUP("tls13", test_tls13_post_handshake_auth_late_allow), \
     TEST_DECL_GROUP("tls13", test_tls13_downgrade_sentinel), \
     TEST_DECL_GROUP("tls13", test_tls13_serverhello_bad_cipher_suites), \
     TEST_DECL_GROUP("tls13", test_tls13_psk_no_cert_bad_binder), \
+    TEST_DECL_GROUP("tls13", test_tls13_psk_age_no_identity_oracle), \
     TEST_DECL_GROUP("tls13", test_tls13_cert_with_extern_psk_apis), \
     TEST_DECL_GROUP("tls13", test_tls13_cert_with_extern_psk_handshake), \
     TEST_DECL_GROUP("tls13", test_tls13_cert_with_extern_psk_client_requires_cert), \

@@ -19,6 +19,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#define _WC_BUILDING_FALCON_C
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #if defined(HAVE_FALCON)
@@ -37,8 +39,6 @@
 #define WOLF_CRYPT_WC_FALCON_FPR_H
 
 #include <wolfssl/wolfcrypt/types.h>
-
-#if defined(HAVE_FALCON)
 
 #ifdef __cplusplus
     extern "C" {
@@ -139,7 +139,6 @@ extern const fpr fpr_ptwo63;       /*  2^63            */
     }    /* extern "C" */
 #endif
 
-#endif /* HAVE_FALCON */
 #endif /* WOLF_CRYPT_WC_FALCON_FPR_H */
 #ifndef WOLF_CRYPT_WC_FALCON_FFT_H
 #define WOLF_CRYPT_WC_FALCON_FFT_H
@@ -268,6 +267,18 @@ WOLFSSL_LOCAL void falcon_poly_merge_fft_avx2(fpr* f, const fpr* f0,
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#if defined(WOLFSSL_FALCON_FPR_ASM) && !defined(__x86_64__)
+    #error "WOLFSSL_FALCON_FPR_ASM requires x86-64 (wc_falcon_fpr_x86_64_asm.S)."
+#endif
+#if defined(WOLFSSL_FALCON_FFT_AVX2) && \
+    !defined(__x86_64__) && !defined(__i386__)
+    #error "WOLFSSL_FALCON_FFT_AVX2 requires an x86 target."
+#endif
+#if defined(WOLFSSL_FALCON_FFT_NEON) && !defined(__aarch64__)
+    /* ARM32 NEON lacks double-precision lanes (used by float64x2_t). */
+    #error "WOLFSSL_FALCON_FFT_NEON requires AArch64."
+#endif
+
 /* Every fpr backend except the default integer-emulated one runs on the
  * FP/vector register file: the scalar-double backend and the generated x86-64
  * fpr asm use x87/SSE (xmm), and the AVX2/NEON FFT uses ymm / Q vector
@@ -310,9 +321,6 @@ typedef struct falcon_small_prime {
     word32 g;
     word32 s;
 } falcon_small_prime;
-
-/* RNS prime table (terminated with a { 0, 0, 0 } sentinel). */
-static const falcon_small_prime FALCON_PRIMES[];
 
 /* ---- modular small-integer helpers (single 31-bit prime modulus) ---- */
 static word32 modp_set(sword32 x, word32 p);
@@ -617,31 +625,31 @@ static int falcon_sign_core(falcon_sampler_ctx* spc, const fpr* expanded,
 
 
 
-/* ------------------------------------------------------------------------ */
+/* ------------------------------------------------------------------------- */
 /* Low-level helpers.                                                        */
 /*                                                                           */
 /* These shift helpers tolerate a (possibly secret) shift count in 0..63 in  */
 /* constant time: a variable shift is split into a fixed conditional 32-bit  */
 /* part plus a 0..31 part, avoiding both undefined behaviour and any         */
 /* operand-dependent timing on platforms whose shift is data dependent.      */
-/* ------------------------------------------------------------------------ */
+/* ------------------------------------------------------------------------- */
 
 /* Right-shift a 64-bit unsigned value by n (0..63), constant-time. */
-static WC_INLINE fpr fpr_ursh(word64 x, int n)
+static WC_MAYBE_UNUSED WC_INLINE fpr fpr_ursh(word64 x, int n)
 {
     x ^= (x ^ (x >> 32)) & ((word64)0 - (word64)(n >> 5));
     return x >> (n & 31);
 }
 
 /* Right-shift a 64-bit signed value by n (0..63), constant-time. */
-static WC_INLINE sword64 fpr_irsh(sword64 x, int n)
+static WC_MAYBE_UNUSED WC_INLINE sword64 fpr_irsh(sword64 x, int n)
 {
     x ^= (x ^ (x >> 32)) & ((sword64)0 - (sword64)(n >> 5));
     return x >> (n & 31);
 }
 
 /* Left-shift a 64-bit unsigned value by n (0..63), constant-time. */
-static WC_INLINE word64 fpr_ulsh(word64 x, int n)
+static WC_MAYBE_UNUSED WC_INLINE word64 fpr_ulsh(word64 x, int n)
 {
     x ^= (x ^ (x << 32)) & ((word64)0 - (word64)(n >> 5));
     return x << (n & 31);
@@ -720,7 +728,7 @@ static WC_INLINE fpr FPR(int s, int e, word64 m)
     } while (0)
 
 /* ------------------------------------------------------------------------ */
-/* Constructors / conversions.                                               */
+/* Constructors / conversions.                                              */
 /* ------------------------------------------------------------------------ */
 
 #ifndef WOLFSSL_FALCON_FPR_DOUBLE   /* inline backend provides fpr_scaled */
@@ -846,7 +854,7 @@ sword64 fpr_trunc(fpr x)
 }
 
 /* ------------------------------------------------------------------------ */
-/* Arithmetic.                                                               */
+/* Arithmetic.                                                              */
 /* ------------------------------------------------------------------------ */
 
 fpr fpr_add(fpr x, fpr y)
@@ -1108,7 +1116,7 @@ fpr fpr_sqrt(fpr x)
 }
 
 /* ------------------------------------------------------------------------ */
-/* Predicates.                                                               */
+/* Predicates.                                                              */
 /* ------------------------------------------------------------------------ */
 
 int fpr_lt(fpr x, fpr y)
@@ -1141,9 +1149,10 @@ int fpr_lt(fpr x, fpr y)
  * targets it is a single multiply instruction; the portable 32x32 fallback
  * (one MUL becomes four) is kept for platforms without a 128-bit integer type
  * (e.g. Cortex-M). Both paths are constant-time and bit-identical. */
-#if defined(__SIZEOF_INT128__)
+#if (defined(HAVE___UINT128_T) || defined(__SIZEOF_INT128__)) && \
+    !defined(NO_INT128)
 #define FALCON_MULHI(z, y) \
-    ((word64)(((unsigned __int128)(word64)(z) * (unsigned __int128)(word64)(y)) >> 64))
+    ((word64)(((__uint128_t)(word64)(z) * (__uint128_t)(word64)(y)) >> 64))
 #else
 static WC_INLINE word64 falcon_mulhi(word64 z, word64 y)
 {
@@ -1167,19 +1176,19 @@ word64 fpr_expm_p63(fpr x, fpr ccs)
      * deviation from the true value over the 0..log(2) range is below
      * 2^(-50). */
     static const word64 C[] = {
-        0x00000004741183A3u,
-        0x00000036548CFC06u,
-        0x0000024FDCBF140Au,
-        0x0000171D939DE045u,
-        0x0000D00CF58F6F84u,
-        0x000680681CF796E3u,
-        0x002D82D8305B0FEAu,
-        0x011111110E066FD0u,
-        0x0555555555070F00u,
-        0x155555555581FF00u,
-        0x400000000002B400u,
-        0x7FFFFFFFFFFF4800u,
-        0x8000000000000000u
+        0x00000004741183A3U,
+        0x00000036548CFC06U,
+        0x0000024FDCBF140AU,
+        0x0000171D939DE045U,
+        0x0000D00CF58F6F84U,
+        0x000680681CF796E3U,
+        0x002D82D8305B0FEAU,
+        0x011111110E066FD0U,
+        0x0555555555070F00U,
+        0x155555555581FF00U,
+        0x400000000002B400U,
+        0x7FFFFFFFFFFF4800U,
+        0x8000000000000000U
     };
 
     word64 z, y;
@@ -1210,7 +1219,7 @@ word64 fpr_expm_p63(fpr x, fpr ccs)
 }
 
 /* ------------------------------------------------------------------------ */
-/* Named constants: IEEE-754 binary64 bit patterns.                          */
+/* Named constants: IEEE-754 binary64 bit patterns.                         */
 /* ------------------------------------------------------------------------ */
 
 const fpr fpr_zero      = 0;
@@ -3947,7 +3956,7 @@ size_t falcon_comp_encode(byte* out, size_t max_out, const sword16* x,
         w = (unsigned)t;
 
         acc <<= 7;
-        acc |= w & 127u;
+        acc |= w & 127U;
         w >>= 7;
         acc_len += 8;
 
@@ -4178,13 +4187,13 @@ size_t falcon_privkey_encode(byte* sk, size_t max_sk, const sword8* f,
 
 
 
-/* ------------------------------------------------------------------------ */
+/* ------------------------------------------------------------------------- */
 /* fpr constants needed by the sampler that are not exported by the seam.    */
 /*                                                                           */
 /* These are IEEE-754 binary64 bit patterns, identical to the values used by */
 /* the Falcon reference (fpr.h). Each has been verified by decoding the bit  */
 /* pattern back to the documented decimal value (shown in the comment).      */
-/* ------------------------------------------------------------------------ */
+/* ------------------------------------------------------------------------- */
 
 /* log(2) = 0.6931471805599453 */
 static const fpr falcon_fpr_log2          = (fpr)4604418534313441775U;
@@ -4212,16 +4221,16 @@ static const fpr falcon_fpr_sigma_min[11] = {
     (fpr)4608525754002622308U     /* logn 10: 1.2982803343  */
 };
 
-/* ------------------------------------------------------------------------ */
-/* SHAKE256 pseudo-random byte stream.                                       */
-/*                                                                           */
+/* -------------------------------------------------------------------------- */
+/* SHAKE256 pseudo-random byte stream.                                        */
+/*                                                                            */
 /* Construction: absorb FALCON_PRNG_SEED_LEN fresh bytes from WC_RNG into a   */
-/* SHAKE256 sponge, then squeeze the output in fixed FALCON_PRNG_BLOCKS-block  */
-/* batches. get_u64 reads 8 stream bytes little-endian; get_u8 reads one.    */
+/* SHAKE256 sponge, then squeeze the output in fixed FALCON_PRNG_BLOCKS-block */
+/* batches. get_u64 reads 8 stream bytes little-endian; get_u8 reads one.     */
 /* The refill is a fixed-size squeeze, hence constant-time; consumption order */
-/* (and thus how many bytes are discarded at a refill boundary) never        */
-/* depends on a secret.                                                      */
-/* ------------------------------------------------------------------------ */
+/* (and thus how many bytes are discarded at a refill boundary) never         */
+/* depends on a secret.                                                       */
+/* -------------------------------------------------------------------------- */
 
 /* Squeeze a fresh batch of blocks into the buffer. Constant-time. */
 static int falcon_prng_refill(falcon_prng* p)
@@ -4329,7 +4338,7 @@ word64 falcon_prng_get_u64(falcon_prng* p)
     return v;
 }
 
-/* ------------------------------------------------------------------------ */
+/* ------------------------------------------------------------------------- */
 /* gaussian0: base half-Gaussian sampler (centered on 0, sigma0 = 1.8205).   */
 /*                                                                           */
 /* Faithful port of Pornin's reference gaussian0_sampler. The RCDT (reverse  */
@@ -4339,31 +4348,31 @@ word64 falcon_prng_get_u64(falcon_prng* p)
 /* same table that appears in PQClean's                                      */
 /*   crypto_sign/falcon-512/clean/sign.c                                     */
 /* and in the original Falcon round-3 reference. Do not edit these numbers.  */
-/* ------------------------------------------------------------------------ */
+/* ------------------------------------------------------------------------- */
 int falcon_gaussian0(falcon_prng* p)
 {
     /* RCDT for the half-Gaussian of standard deviation sigma0 = 1.8205,
      * verbatim from the Falcon reference (Thomas Pornin). Each row holds a
      * 72-bit value as (hi24, mid24, lo24). */
     static const word32 dist[] = {
-        10745844u,  3068844u,  3741698u,
-         5559083u,  1580863u,  8248194u,
-         2260429u, 13669192u,  2736639u,
-          708981u,  4421575u, 10046180u,
-          169348u,  7122675u,  4136815u,
-           30538u, 13063405u,  7650655u,
-            4132u, 14505003u,  7826148u,
-             417u, 16768101u, 11363290u,
-              31u,  8444042u,  8086568u,
-               1u, 12844466u,   265321u,
-               0u,  1232676u, 13644283u,
-               0u,    38047u,  9111839u,
-               0u,      870u,  6138264u,
-               0u,       14u, 12545723u,
-               0u,        0u,  3104126u,
-               0u,        0u,    28824u,
-               0u,        0u,      198u,
-               0u,        0u,        1u
+        10745844U,  3068844U,  3741698U,
+         5559083U,  1580863U,  8248194U,
+         2260429U, 13669192U,  2736639U,
+          708981U,  4421575U, 10046180U,
+          169348U,  7122675U,  4136815U,
+           30538U, 13063405U,  7650655U,
+            4132U, 14505003U,  7826148U,
+             417U, 16768101U, 11363290U,
+              31U,  8444042U,  8086568U,
+               1U, 12844466U,   265321U,
+               0U,  1232676U, 13644283U,
+               0U,    38047U,  9111839U,
+               0U,      870U,  6138264U,
+               0U,       14U, 12545723U,
+               0U,        0U,  3104126U,
+               0U,        0U,    28824U,
+               0U,        0U,      198U,
+               0U,        0U,        1U
     };
 
     word32 v0, v1, v2, hi;
@@ -4374,8 +4383,8 @@ int falcon_gaussian0(falcon_prng* p)
     /* Get a random 72-bit value, into three 24-bit limbs v0..v2. */
     lo = falcon_prng_get_u64(p);
     hi = (word32)falcon_prng_get_u8(p);
-    v0 = (word32)lo & 0xFFFFFFu;
-    v1 = (word32)(lo >> 24) & 0xFFFFFFu;
+    v0 = (word32)lo & 0xFFFFFFU;
+    v1 = (word32)(lo >> 24) & 0xFFFFFFU;
     v2 = (word32)(lo >> 48) | (hi << 16);
 
     /* Sampled value is z, the number of leading table thresholds that the
@@ -4396,13 +4405,13 @@ int falcon_gaussian0(falcon_prng* p)
     return z;
 }
 
-/* ------------------------------------------------------------------------ */
+/* ------------------------------------------------------------------------- */
 /* BerExp: Bernoulli test, returns 1 with probability ccs * exp(-x).         */
 /*                                                                           */
 /* Faithful port of Pornin's reference BerExp. x >= 0 is guaranteed by the   */
 /* caller. The only data-dependent loop is the lazy 8-bit comparison, whose  */
 /* iteration count depends on fresh random bytes, not on secrets.            */
-/* ------------------------------------------------------------------------ */
+/* ------------------------------------------------------------------------- */
 static int falcon_berexp(falcon_prng* p, fpr x, fpr ccs)
 {
     int s, i;
@@ -4418,7 +4427,7 @@ static int falcon_berexp(falcon_prng* p, fpr x, fpr ccs)
     /* It may happen (rarely) that s >= 64; if so, BerExp would be non-zero
      * with probability below 2^-64, so we simply saturate s at 63. */
     sw = (word32)s;
-    sw ^= (sw ^ 63u) & (word32)(0U - ((63u - sw) >> 31));
+    sw ^= (sw ^ 63U) & (word32)(0U - ((63U - sw) >> 31));
     s = (int)sw;
 
     /* exp(-r), scaled to 2^63, scaled up to 2^64, then >> s to obtain
@@ -4430,17 +4439,17 @@ static int falcon_berexp(falcon_prng* p, fpr x, fpr ccs)
     i = 64;
     do {
         i -= 8;
-        w = (word32)falcon_prng_get_u8(p) - ((word32)(z >> i) & 0xFFu);
+        w = (word32)falcon_prng_get_u8(p) - ((word32)(z >> i) & 0xFFU);
     } while ((w == 0) && (i > 0));
 
     return (int)(w >> 31);
 }
 
-/* ------------------------------------------------------------------------ */
-/* sampler (SamplerZ): discrete Gaussian of center mu, std dev 1/isigma.     */
-/*                                                                           */
+/* -------------------------------------------------------------------------- */
+/* sampler (SamplerZ): discrete Gaussian of center mu, std dev 1/isigma.      */
+/*                                                                            */
 /* Faithful port of Pornin's reference sampler. ctx is an falcon_sampler_ctx. */
-/* ------------------------------------------------------------------------ */
+/* -------------------------------------------------------------------------- */
 int falcon_sampler_z(void* ctx, fpr mu, fpr isigma)
 {
     falcon_sampler_ctx* spc = (falcon_sampler_ctx*)ctx;
@@ -4482,7 +4491,7 @@ int falcon_sampler_z(void* ctx, fpr mu, fpr isigma)
          * The sigma_min scaling in ccs decorrelates the rejection rate from
          * mu/sigma, keeping the whole sampler constant-time. */
         x = fpr_mul(fpr_sqr(fpr_sub(fpr_of((sword64)z), r)), dss);
-        x = fpr_sub(x, fpr_mul(fpr_of((sword64)(z0 * z0)),
+        x = fpr_sub(x, fpr_mul(fpr_of(((sword64)z0 * (sword64)z0)),
             falcon_fpr_inv_2sqrsigma0));
         if (falcon_berexp(&spc->p, x, ccs)) {
             /* Rejection was centered on r; the actual center is mu = s + r. */
@@ -4492,7 +4501,7 @@ int falcon_sampler_z(void* ctx, fpr mu, fpr isigma)
 }
 
 /* ------------------------------------------------------------------------ */
-/* Context initialisation.                                                   */
+/* Context initialisation.                                                  */
 /* ------------------------------------------------------------------------ */
 int falcon_sampler_init(falcon_sampler_ctx* spc, int logn, WC_RNG* rng)
 {
@@ -4532,7 +4541,7 @@ static const size_t FALCON_KEYGEN_TEMP[] = {
 };
 
 /* ==================================================================== */
-/* modp helper local to keygen (not part of the shared bigint API).      */
+/* modp helper local to keygen (not part of the shared bigint API).     */
 
 /*
  * Given polynomial f in NTT representation modulo p, compute f' of degree
@@ -4555,13 +4564,13 @@ static void modp_poly_rec_res(word32* f, unsigned logn,
 }
 
 /* ==================================================================== */
-/* SHAKE256 stream RNG (seeded from WC_RNG).                             */
+/* SHAKE256 stream RNG (seeded from WC_RNG).                            */
 
 typedef struct {
     wc_Shake shake;
     byte buf[WC_SHA3_256_BLOCK_SIZE];   /* 136-byte SHAKE256 rate block */
-    size_t ptr;                          /* next unread byte in buf      */
-    int err;                             /* sticky squeeze error         */
+    size_t ptr;                         /* next unread byte in buf      */
+    int err;                            /* sticky squeeze error         */
 } falcon_rng;
 
 static int falcon_rng_init(falcon_rng* r, WC_RNG* rng, void* heap)
@@ -4629,9 +4638,9 @@ static word64 get_rng_u64(falcon_rng* r)
 }
 
 /* ==================================================================== */
-/* Self-contained mod-q (q = 12289) negacyclic NTT used only to compute  */
-/* the public key h = g/f mod q. (modp_* targets 31-bit primes, so a     */
-/* dedicated small-modulus transform is used for q here.)                */
+/* Self-contained mod-q (q = 12289) negacyclic NTT used only to compute */
+/* the public key h = g/f mod q. (modp_* targets 31-bit primes, so a    */
+/* dedicated small-modulus transform is used for q here.)               */
 
 static word32 mq_modpow(word32 b, word32 e)
 {
@@ -4751,7 +4760,7 @@ static int falcon_compute_public(word16* h, const sword8* f, const sword8* g,
     mq_build_tables((int)logn, psi, zetas, izetas);
 
     for (u = 0; u < n; u++) {
-        int xf = f[u], xg = g[u];
+        int xf = (int)f[u], xg = (int)g[u];
         if (xf < 0) {
             xf += FALCON_Q;
         }
@@ -5061,7 +5070,7 @@ static word32 poly_small_sqnorm(const sword8* f, unsigned logn)
     for (u = 0; u < n; u++) {
         sword32 z;
 
-        z = f[u];
+        z = (sword32)f[u];
         s += (word32)(z * z);
         ng |= s;
     }
@@ -6425,16 +6434,16 @@ static const fpr fpr_inv_sigma[] = {
  * common.c l2bound[]. */
 static const word32 l2bound[] = {
     0,        /* unused */
-    101498u,
-    208714u,
-    428865u,
-    892039u,
-    1852696u,
-    3842630u,
-    7959734u,
-    16468416u,
-    34034726u,
-    70265242u
+    101498U,
+    208714U,
+    428865U,
+    892039U,
+    1852696U,
+    3842630U,
+    7959734U,
+    16468416U,
+    34034726U,
+    70265242U
 };
 
 /* ==================================================================== */
@@ -7533,14 +7542,14 @@ static int falcon_sign_dyn_core(falcon_sampler_ctx* spc, const sword8* f,
  * specification / reference implementation (l2bound table). */
 static const word32 falcon_l2bound[] = {
     /* 0..8 unused */ 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    34034726u,   /* logn = 9  (Falcon-512)  */
-    70265242u    /* logn = 10 (Falcon-1024) */
+    34034726U,   /* logn = 9  (Falcon-512)  */
+    70265242U    /* logn = 10 (Falcon-1024) */
 };
 
-/* ------------------------------------------------------------------------ */
-/* Small modular helpers (correctness-first; hot paths are accelerated by the
- * generated per-arch backends in a later phase).                            */
-/* ------------------------------------------------------------------------ */
+/* -------------------------------------------------------------------------- */
+/* Small modular helpers (correctness-first; hot paths are accelerated by the */
+/* generated per-arch backends in a later phase).                             */
+/* -------------------------------------------------------------------------- */
 
 static word32 falcon_modpow(word32 b, word32 e)
 {
@@ -7855,7 +7864,7 @@ static void falcon_get_tables(unsigned logn, const word16** zetas,
  *   falcon_csub:    a in [0, 2q)  -> [0, q). */
 static WC_INLINE word32 falcon_barrett(word32 a)
 {
-    word32 t = (word32)(((word64)a * 349496u) >> 32);
+    word32 t = (word32)(((word64)a * 349496U) >> 32);
     a -= t * FALCON_Q;
     a -= FALCON_Q & (word32)((sword32)(FALCON_Q - 1 - a) >> 31);
     return a;
@@ -7873,12 +7882,16 @@ static WC_INLINE word32 falcon_csub(word32 a)
  * conditional subtract; the squared-norm accumulates two lanes per SMUAD. Every
  * result is bit-identical to the scalar Barrett path below. Define
  * WOLFSSL_FALCON_NO_NTT_DSP to force the portable C path. */
-#if !defined(WOLFSSL_FALCON_NTT_DSP) && defined(__ARM_FEATURE_DSP) && \
+#if !defined(WOLFSSL_FALCON_NTT_DSP) && \
+    defined(__ARM_FEATURE_DSP) && defined(__ARM_FEATURE_SIMD32) && \
     !defined(WOLFSSL_FALCON_NO_NTT_DSP)
     #define WOLFSSL_FALCON_NTT_DSP
 #endif
 
 #ifdef WOLFSSL_FALCON_NTT_DSP
+#if !defined(__ARM_FEATURE_DSP) || !defined(__ARM_FEATURE_SIMD32)
+    #error "WOLFSSL_FALCON_NTT_DSP requires ACLE __ARM_FEATURE_DSP and __ARM_FEATURE_SIMD32."
+#endif
 #include <arm_acle.h>
 /* q replicated into both halfword lanes. */
 #define FALCON_QPK (((word32)FALCON_Q << 16) | (word32)FALCON_Q)
@@ -7890,7 +7903,7 @@ static WC_INLINE word32 falcon_smultb(word32 a, word32 b) /* a.hi * b.lo */
 static WC_INLINE word32 falcon_smultt(word32 a, word32 b) /* a.hi * b.hi */
     { return (word32)__smlatt(a, b, 0); }
 static WC_INLINE word32 falcon_pack(word32 lo, word32 hi)
-    { return (lo & 0xffffu) | (hi << 16); }
+    { return (lo & 0xffffU) | (hi << 16); }
 /* Two packed halfword lanes, each in [0, 2q) -> [0, q): USUB16 sets APSR.GE per
  * lane (set where x >= q), SEL then selects (x - q) on those lanes. */
 static WC_INLINE word32 falcon_pcsub(word32 x)
@@ -7981,7 +7994,7 @@ static void falcon_intt(word16* a, int n, const word16* izetas)
 }
 
 /* ------------------------------------------------------------------------ */
-/* Codec                                                                     */
+/* Codec                                                                    */
 /* ------------------------------------------------------------------------ */
 
 /* Decode the public key polynomial h: n coefficients packed 14 bits each,
@@ -8111,7 +8124,7 @@ static int falcon_hash_to_point(const byte* nonce, const byte* msg,
         w = ((word32)block[bi] << 8) | (word32)block[bi + 1];
         bi += 2;
         /* 61445 == 5 * q: keeps the distribution uniform mod q. */
-        if (w < 61445u) {
+        if (w < 61445U) {
             while (w >= FALCON_Q) {
                 w -= FALCON_Q;
             }
@@ -8138,7 +8151,7 @@ static WC_INLINE sword32 falcon_center(word32 x)
 }
 
 /* ------------------------------------------------------------------------ */
-/* Public API                                                                */
+/* Public API                                                               */
 /* ------------------------------------------------------------------------ */
 
 static int falcon_level_params(byte level, unsigned* logn, int* n, word32* pubSz)
@@ -8260,7 +8273,7 @@ int falcon_native_sign_msg(const byte* in, word32 inLen, byte* out, word32* outL
     fpr* tmp = NULL;
     byte* arena = NULL;             /* single allocation backing all buffers */
     size_t arenaSz = 0;
-    falcon_sampler_ctx spc;
+    WC_DECLARE_VAR(spc, falcon_sampler_ctx, 1, key ? key->heap : NULL);
     byte nonce[FALCON_NONCE_SIZE];
     void* heap;
     int attempt, haveSpc = 0;
@@ -8289,12 +8302,16 @@ int falcon_native_sign_msg(const byte* in, word32 inLen, byte* out, word32* outL
     }
     heap = key->heap;
 
+    WC_ALLOC_VAR(spc, falcon_sampler_ctx, 1, heap);
+    if (!WC_VAR_OK(spc))
+        return MEMORY_E;
+
     /* spc may hold seed-derived sampler state; baseline-zero and register it
      * before the arena/decode/sampler work so every goto-out and any future
      * early-exit path is covered by the check. */
 #ifdef WOLFSSL_CHECK_MEM_ZERO
-    XMEMSET(&spc, 0, sizeof(spc));
-    wc_MemZero_Add("falcon sign spc", &spc, sizeof(spc));
+    XMEMSET(spc, 0, sizeof(*spc));
+    wc_MemZero_Add("falcon sign spc", spc, sizeof(*spc));
 #endif
 
     /* One allocation backs every sign buffer (the working set is >100KB at
@@ -8369,7 +8386,7 @@ int falcon_native_sign_msg(const byte* in, word32 inLen, byte* out, word32* outL
         goto out;
     }
 #endif
-    ret = falcon_sampler_init(&spc, (int)logn, rng);
+    ret = falcon_sampler_init(spc, (int)logn, rng);
     if (ret != 0) {
         goto out;
     }
@@ -8387,9 +8404,9 @@ int falcon_native_sign_msg(const byte* in, word32 inLen, byte* out, word32* outL
             goto out;
         }
 #ifdef WOLFSSL_FALCON_SIGN_SMALL_MEM
-        ret = falcon_sign_dyn_core(&spc, f, g, F, G, c, s2, tmp, logn);
+        ret = falcon_sign_dyn_core(spc, f, g, F, G, c, s2, tmp, logn);
 #else
-        ret = falcon_sign_core(&spc, expanded, c, s2, tmp, logn);
+        ret = falcon_sign_core(spc, expanded, c, s2, tmp, logn);
 #endif
         if (ret != 0) {
             goto out;
@@ -8426,14 +8443,16 @@ out:
      * WOLFSSL_ASYNC_CRYPT builds; without it that context leaks on every sign.
      * Only when falcon_sampler_init succeeded (haveSpc) is the context live. */
     if (haveSpc) {
-        wc_Shake256_Free(&spc.p.shake);
+        wc_Shake256_Free(&spc->p.shake);
     }
     /* Always zeroize: the SHAKE sponge may hold seed-derived state even if
      * falcon_sampler_init failed after absorbing the seed. */
-    ForceZero(&spc, sizeof(spc));
+    ForceZero(spc, sizeof(*spc));
 #ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Check(&spc, sizeof(spc));
+    wc_MemZero_Check(spc, sizeof(*spc));
 #endif
+    WC_FREE_VAR(spc, heap);
+
     /* One ForceZero + free covers every secret in the arena (f/g/F/G, the
      * expanded basis, and the sign scratch). */
     if (arena != NULL) {
@@ -8512,12 +8531,12 @@ int falcon_native_check_key(falcon_key* key)
     }
 
     for (i = 0; i < n; i++) {
-        int x = f[i];
+        int x = (int)f[i];
         if (x < 0) {
             x += FALCON_Q;
         }
         ft[i] = (word16)x;
-        x = g[i];
+        x = (int)g[i];
         if (x < 0) {
             x += FALCON_Q;
         }
@@ -9027,7 +9046,21 @@ int wc_falcon_get_level(falcon_key* key, byte* level)
 void wc_falcon_free(falcon_key* key)
 {
     if (key != NULL) {
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
+        if (key->devId != INVALID_DEVID) {
+            (void)wc_CryptoCb_Free(key->devId, WC_ALGO_TYPE_PK,
+                                   WC_PK_TYPE_PQC_SIG_KEYGEN,
+                                   WC_PQC_SIG_TYPE_FALCON,
+                                   (void*)key);
+            /* always continue to software cleanup */
+        }
+#endif
         ForceZero(key, sizeof(*key));
+#ifdef WOLF_CRYPTO_CB
+        /* Zeroing leaves devId at 0, which is a usable device id. Mark the
+         * key as having no device so a second free does not call out again. */
+        key->devId = INVALID_DEVID;
+#endif
     }
 }
 
@@ -10238,7 +10271,7 @@ void falcon_poly_merge_fft_avx2(fpr* f, const fpr* f0, const fpr* f1,
             /* b = f1 * gm : br=c1r*gcos-c1i*gsin, bi=c1r*gsin+c1i*gcos */
             br = _mm256_fmsub_pd(c1r, gcos, _mm256_mul_pd(c1i, gsin));
             bi = _mm256_fmadd_pd(c1r, gsin, _mm256_mul_pd(c1i, gcos));
-            /* even (index 2u) = a + b ; odd (index 2u+1) = a - b */
+            /* even (index 2U) = a + b ; odd (index 2U+1) = a - b */
             tr = _mm256_add_pd(ar, br);   /* even real */
             ti = _mm256_sub_pd(ar, br);   /* odd real  */
             falcon_int(tr, ti, &v0, &v1);

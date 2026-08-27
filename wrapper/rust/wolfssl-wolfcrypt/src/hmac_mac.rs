@@ -132,21 +132,21 @@ impl_hmac_mac! {
 }
 
 impl_hmac_mac! {
-    #[cfg(sha3)]
+    #[cfg(sha3_224)]
     HmacSha3_224, hmac_type = crate::hmac::HMAC::TYPE_SHA3_224, key = U144, out = U28
 }
 
 impl_hmac_mac! {
-    #[cfg(sha3)]
+    #[cfg(sha3_256)]
     HmacSha3_256, hmac_type = crate::hmac::HMAC::TYPE_SHA3_256, key = U136, out = U32
 }
 
 impl_hmac_mac! {
-    #[cfg(sha3)]
+    #[cfg(sha3_384)]
     HmacSha3_384, hmac_type = crate::hmac::HMAC::TYPE_SHA3_384, key = U104, out = U48
 }
 
 impl_hmac_mac! {
-    #[cfg(sha3)]
+    #[cfg(sha3_512)]
     HmacSha3_512, hmac_type = crate::hmac::HMAC::TYPE_SHA3_512, key = U72, out = U64
 }
