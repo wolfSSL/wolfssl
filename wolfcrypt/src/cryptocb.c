@@ -67,6 +67,7 @@ Crypto Callback Build Options:
  * WOLF_CRYPTO_CB_ONLY_ED25519: Use only callbacks for Ed25519  default: off
  * WOLF_CRYPTO_CB_ONLY_CURVE25519: Use only callbacks for X25519 default: off
  * WOLF_CRYPTO_CB_ONLY_MLKEM: Use only callbacks for ML-KEM    default: off
+ * WOLF_CRYPTO_CB_ONLY_MLDSA: Use only callbacks for ML-DSA    default: off
  * WOLF_CRYPTO_CB_SHAKE_XOF: Dispatch SHAKE absorb and squeeze  default: off
  *                      as well as update and final. Off by
  *                      default because a callback that predates
