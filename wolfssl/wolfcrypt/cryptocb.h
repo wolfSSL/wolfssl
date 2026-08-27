@@ -471,8 +471,8 @@ typedef struct wc_CryptoInfo {
                 int         type; /* enum wc_PqcSignatureType */
                 /* Caller supplied key generation seed, in the order the
                  * algorithm defines. NULL when the device is to generate
-                 * its own from rng. SLH-DSA is SK.seed || SK.prf ||
-                 * PK.seed, each of n bytes. */
+                 * its own from rng. ML-DSA is the 32-byte xi; SLH-DSA is
+                 * SK.seed || SK.prf || PK.seed, each of n bytes. */
                 const byte* seed;
                 word32      seedSz;
             } pqc_sig_kg;

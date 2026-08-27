@@ -8188,6 +8188,7 @@ int wc_SlhDsaKey_VerifyMsg(SlhDsaKey* key, const byte* mprime,
                                          WC_MAX_DIGEST_SIZE)
 wc_static_assert(WC_MAX_DIGEST_SIZE >= SLHDSA_LARGEST_APPROVED_PHM_LEN);
 
+#ifndef WOLF_CRYPTO_CB_ONLY_SLHDSA
 #ifdef WOLFSSL_SHA224
 /* OID for SHA-224 for hash signing/verification. */
 static const byte slhdsakey_oid_sha224[] = {
@@ -8429,6 +8430,7 @@ static int slhdsakey_validate_prehash(word32 hashSz,
 
     return ret;
 }
+#endif /* !WOLF_CRYPTO_CB_ONLY_SLHDSA */
 
 #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
 
