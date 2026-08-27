@@ -24425,7 +24425,8 @@ static int test_wolfSSL_d2i_and_i2d_PublicKey_ecc(void)
     return EXPECT_RESULT();
 }
 
-/* Round-trip test for EC_KEY_oct2key with a P-256 public point. */
+/* Round-trip test for EC_KEY_oct2key with a P-256 public point. The point
+ * conversion form has to follow the encoding that was decoded. */
 static int test_wolfSSL_EC_KEY_oct2key(void)
 {
     EXPECT_DECLS;
@@ -24435,17 +24436,19 @@ static int test_wolfSSL_EC_KEY_oct2key(void)
     const EC_GROUP* group = NULL;
     const EC_POINT* src_pub = NULL;
     const EC_POINT* dst_pub = NULL;
-    unsigned char  buf[1 + 2 * 32];
+    unsigned char  buf[1 + 2 * MAX_ECC_BYTES];
     size_t         enc_len = 0;
+    int            fieldSz = 0;
 
     ExpectNotNull(src = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
     ExpectIntEQ(EC_KEY_generate_key(src), 1);
     ExpectNotNull(group   = EC_KEY_get0_group(src));
     ExpectNotNull(src_pub = EC_KEY_get0_public_key(src));
+    ExpectIntGT(fieldSz = (EC_GROUP_get_degree(group) + 7) / 8, 0);
 
     enc_len = EC_POINT_point2oct(group, src_pub,
         POINT_CONVERSION_UNCOMPRESSED, buf, sizeof(buf), NULL);
-    ExpectIntEQ((int)enc_len, (int)sizeof(buf));
+    ExpectIntEQ((int)enc_len, 1 + 2 * fieldSz);
 
     ExpectNotNull(dst = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
 
@@ -24457,6 +24460,38 @@ static int test_wolfSSL_EC_KEY_oct2key(void)
 
     ExpectNotNull(dst_pub = EC_KEY_get0_public_key(dst));
     ExpectIntEQ(EC_POINT_cmp(group, src_pub, dst_pub, NULL), 0);
+    ExpectIntEQ(EC_KEY_get_conv_form(dst), POINT_CONVERSION_UNCOMPRESSED);
+
+    /* Point compression is what makes the recorded form observable. */
+#if defined(HAVE_COMP_KEY) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0))
+    {
+        unsigned char  comp[1 + MAX_ECC_BYTES];
+        unsigned char* out = NULL;
+        size_t         comp_len;
+
+        comp_len = EC_POINT_point2oct(group, src_pub,
+            POINT_CONVERSION_COMPRESSED, comp, sizeof(comp), NULL);
+        ExpectIntEQ((int)comp_len, 1 + fieldSz);
+
+        ExpectIntEQ(EC_KEY_oct2key(dst, comp, comp_len, NULL), 1);
+        ExpectNotNull(dst_pub = EC_KEY_get0_public_key(dst));
+        ExpectIntEQ(EC_POINT_cmp(group, src_pub, dst_pub, NULL), 0);
+        ExpectIntEQ(EC_KEY_get_conv_form(dst), POINT_CONVERSION_COMPRESSED);
+
+        /* i2o has to re-emit the encoding that was decoded. */
+        ExpectIntEQ(i2o_ECPublicKey(dst, &out), (int)comp_len);
+        ExpectNotNull(out);
+        if (out != NULL) {
+            ExpectBufEQ(out, comp, comp_len);
+            XFREE(out, NULL, DYNAMIC_TYPE_OPENSSL);
+        }
+
+        /* An uncompressed point switches the form back. */
+        ExpectIntEQ(EC_KEY_oct2key(dst, buf, enc_len, NULL), 1);
+        ExpectIntEQ(EC_KEY_get_conv_form(dst), POINT_CONVERSION_UNCOMPRESSED);
+    }
+#endif
 
     EC_KEY_free(dst);
     EC_KEY_free(src);

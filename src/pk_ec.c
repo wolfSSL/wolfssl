@@ -4752,6 +4752,10 @@ int wolfSSL_EC_KEY_set_public_key(WOLFSSL_EC_KEY *key,
 /*
  * Decode an octet-encoded EC public point into @key.
  *
+ * The point conversion form of @key is set from the encoding byte so that
+ * re-encoding with wolfSSL_i2o_ECPublicKey() reproduces @buf. Hybrid
+ * encodings have no wolfSSL equivalent and leave the form unchanged.
+ *
  * Return code compliant with OpenSSL.
  *
  * @param [in, out] key  EC key (must already have a group set).
@@ -4800,6 +4804,12 @@ int wolfSSL_EC_KEY_oct2key(WOLFSSL_EC_KEY *key, const unsigned char *buf,
     if ((ret == 1) && (wolfSSL_EC_KEY_set_public_key(key, point) != 1)) {
         WOLFSSL_MSG("wolfSSL_EC_KEY_set_public_key failed");
         ret = 0;
+    }
+
+    if (ret == 1) {
+        /* SEC 1: 0x02/0x03 compressed, 0x04 uncompressed. Clearing the low
+         * bit turns the leading byte into the conversion form. */
+        wolfSSL_EC_KEY_set_conv_form(key, buf[0] & ~0x01);
     }
 
     wolfSSL_EC_POINT_free(point);
