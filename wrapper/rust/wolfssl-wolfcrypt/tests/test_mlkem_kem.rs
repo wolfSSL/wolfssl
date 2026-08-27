@@ -18,7 +18,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#![cfg(all(mlkem, random, feature = "kem", feature = "rand_core"))]
+#![cfg(all(mlkem_encapsulate, mlkem_decapsulate, mlkem_make_key, random, feature = "kem", feature = "rand_core"))]
 
 mod common;
 
@@ -52,6 +52,7 @@ fn test_sizes_match_runtime() {
 
 /// Generate, encapsulate, and decapsulate with ML-KEM-512 via the kem traits.
 #[test]
+#[cfg(mlkem_512)]
 fn test_kem_512_round_trip() {
     common::setup();
     let mut rng = RNG::new().expect("RNG creation failed");
@@ -64,6 +65,7 @@ fn test_kem_512_round_trip() {
 
 /// Generate, encapsulate, and decapsulate with ML-KEM-768 via the kem traits.
 #[test]
+#[cfg(mlkem_768)]
 fn test_kem_768_round_trip() {
     common::setup();
     let mut rng = RNG::new().expect("RNG creation failed");
@@ -76,6 +78,7 @@ fn test_kem_768_round_trip() {
 
 /// Generate, encapsulate, and decapsulate with ML-KEM-1024 via the kem traits.
 #[test]
+#[cfg(mlkem_1024)]
 fn test_kem_1024_round_trip() {
     common::setup();
     let mut rng = RNG::new().expect("RNG creation failed");
@@ -89,6 +92,7 @@ fn test_kem_1024_round_trip() {
 /// Verify that `Generate::generate_from_rng` produces a usable decapsulation
 /// key and that the associated encapsulation key is consistent.
 #[test]
+#[cfg(mlkem_768)]
 fn test_generate_from_rng() {
     common::setup();
     let mut rng = RNG::new().expect("RNG creation failed");
@@ -104,6 +108,7 @@ fn test_generate_from_rng() {
 /// Verify that a tampered ciphertext produces a different shared secret
 /// (ML-KEM implicit rejection).
 #[test]
+#[cfg(mlkem_768)]
 fn test_implicit_rejection() {
     common::setup();
     let mut rng = RNG::new().expect("RNG creation failed");
@@ -121,6 +126,7 @@ fn test_implicit_rejection() {
 
 /// Verify that `TryKeyInit` and `KeyExport` round-trip the encapsulation key.
 #[test]
+#[cfg(mlkem_768)]
 fn test_ek_export_import() {
     common::setup();
     let mut rng = RNG::new().expect("RNG creation failed");
@@ -154,6 +160,7 @@ fn test_ek_try_new_zeroed_key() {
 /// Verify the `Decapsulator::encapsulation_key` method returns a key that
 /// can be used for encapsulation.
 #[test]
+#[cfg(mlkem_512)]
 fn test_decapsulator_encapsulation_key() {
     common::setup();
     let mut rng = RNG::new().expect("RNG creation failed");

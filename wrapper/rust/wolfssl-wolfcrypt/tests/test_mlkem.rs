@@ -23,7 +23,7 @@
 mod common;
 
 use wolfssl_wolfcrypt::mlkem::MlKem;
-#[cfg(random)]
+#[cfg(all(mlkem_make_key, mlkem_encapsulate, mlkem_decapsulate, random))]
 use wolfssl_wolfcrypt::random::RNG;
 
 /// Verify the type constants have the correct numeric values required by
@@ -85,7 +85,7 @@ fn test_size_queries() {
 /// Encapsulate and decapsulate with ML-KEM-512, verifying that both sides
 /// arrive at the same shared secret.
 #[test]
-#[cfg(random)]
+#[cfg(all(mlkem_make_key, mlkem_encapsulate, mlkem_decapsulate, random))]
 fn test_encap_decap_type512() {
     common::setup();
     let mut rng = RNG::new().expect("Error creating RNG");
@@ -111,7 +111,7 @@ fn test_encap_decap_type512() {
 /// arrive at the same shared secret. Also verifies that a tampered cipher text
 /// produces a different (implicit rejection) shared secret.
 #[test]
-#[cfg(random)]
+#[cfg(all(mlkem_make_key, mlkem_encapsulate, mlkem_decapsulate, random))]
 fn test_encap_decap_type768() {
     common::setup();
     let mut rng = RNG::new().expect("Error creating RNG");
@@ -145,7 +145,7 @@ fn test_encap_decap_type768() {
 /// Encapsulate and decapsulate with ML-KEM-1024, verifying that both sides
 /// arrive at the same shared secret.
 #[test]
-#[cfg(random)]
+#[cfg(all(mlkem_make_key, mlkem_encapsulate, mlkem_decapsulate, random))]
 fn test_encap_decap_type1024() {
     common::setup();
     let mut rng = RNG::new().expect("Error creating RNG");
@@ -170,6 +170,7 @@ fn test_encap_decap_type1024() {
 /// Verify that `generate_with_random()` is deterministic: the same random
 /// bytes produce the same key pair on repeated calls.
 #[test]
+#[cfg(mlkem_make_key)]
 fn test_generate_with_random_determinism() {
     common::setup();
     // MAKEKEY_RAND_SIZE = 64 bytes
@@ -198,6 +199,7 @@ fn test_generate_with_random_determinism() {
 /// Verify that `encapsulate_with_random()` is deterministic: the same public
 /// key and random bytes produce the same cipher text and shared secret.
 #[test]
+#[cfg(all(mlkem_make_key, mlkem_encapsulate, mlkem_decapsulate))]
 fn test_encapsulate_with_random_determinism() {
     common::setup();
     let key_rand = [0x11u8; 64];
@@ -232,7 +234,7 @@ fn test_encapsulate_with_random_determinism() {
 /// Encode and decode the public key for ML-KEM-768, verifying the round-trip
 /// preserves the key bytes and that encapsulation works with the re-imported key.
 #[test]
-#[cfg(random)]
+#[cfg(all(mlkem_make_key, mlkem_encapsulate, mlkem_decapsulate, random))]
 fn test_encode_decode_public_key() {
     common::setup();
     let mut rng = RNG::new().expect("Error creating RNG");
@@ -266,7 +268,7 @@ fn test_encode_decode_public_key() {
 /// Encode and decode the private key for ML-KEM-768, verifying that
 /// decapsulation works with the re-imported key.
 #[test]
-#[cfg(random)]
+#[cfg(all(mlkem_make_key, mlkem_encapsulate, mlkem_decapsulate, random))]
 fn test_encode_decode_private_key() {
     common::setup();
     let mut rng = RNG::new().expect("Error creating RNG");
@@ -300,7 +302,7 @@ fn test_encode_decode_private_key() {
 /// Verify that encapsulate/decapsulate round-trips work across all three
 /// security levels.
 #[test]
-#[cfg(random)]
+#[cfg(all(mlkem_make_key, mlkem_encapsulate, mlkem_decapsulate, random))]
 fn test_encap_decap_all_types() {
     common::setup();
     let mut rng = RNG::new().expect("Error creating RNG");
