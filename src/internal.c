@@ -27329,32 +27329,38 @@ int SendFinished(WOLFSSL* ssl)
         AddSession(ssl);
 #endif
         if (ssl->options.side == WOLFSSL_SERVER_END) {
+            /* Mark the handshake done before the info callback so the
+             * callback (e.g. on WOLFSSL_CB_HANDSHAKE_DONE) can use APIs that
+             * require a completed handshake, such as
+             * wolfSSL_export_keying_material(). */
+            ssl->options.handShakeState = HANDSHAKE_DONE;
+            ssl->options.handShakeDone  = 1;
+#ifdef HAVE_SECURE_RENEGOTIATION
+            ssl->options.resumed = ssl->options.resuming;
+#endif
         #ifdef OPENSSL_EXTRA
             ssl->options.serverState = SERVER_FINISHED_COMPLETE;
             ssl->cbmode = WOLFSSL_CB_MODE_WRITE;
             if (ssl->CBIS != NULL)
                 ssl->CBIS(ssl, WOLFSSL_CB_HANDSHAKE_DONE, WOLFSSL_SUCCESS);
         #endif
+        }
+    }
+    else {
+        if (ssl->options.side == WOLFSSL_CLIENT_END) {
+            /* Same ordering as the server side above: flags first so the
+             * info callback sees a completed handshake. */
             ssl->options.handShakeState = HANDSHAKE_DONE;
             ssl->options.handShakeDone  = 1;
 #ifdef HAVE_SECURE_RENEGOTIATION
             ssl->options.resumed = ssl->options.resuming;
 #endif
-        }
-    }
-    else {
-        if (ssl->options.side == WOLFSSL_CLIENT_END) {
         #ifdef OPENSSL_EXTRA
             ssl->options.clientState = CLIENT_FINISHED_COMPLETE;
             ssl->cbmode = WOLFSSL_CB_MODE_WRITE;
             if (ssl->CBIS != NULL)
                 ssl->CBIS(ssl, WOLFSSL_CB_HANDSHAKE_DONE, WOLFSSL_SUCCESS);
         #endif
-            ssl->options.handShakeState = HANDSHAKE_DONE;
-            ssl->options.handShakeDone  = 1;
-#ifdef HAVE_SECURE_RENEGOTIATION
-            ssl->options.resumed = ssl->options.resuming;
-#endif
         }
     }
 
@@ -34275,7 +34281,7 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
 
 #if !defined(WOLFSSL_NO_TICKET_EXPIRE) && !defined(NO_ASN_TIME)
             /* RFC 5077 Section 3.3 / RFC 8446 Section 4.6.1: a client SHOULD
-             * NOT use a ticket whose lifetime has expired. Delete the expired
+             * NOT use a ticket whose lifetime has expired. Drop the expired
              * ticket and fall back to a full handshake. Skip the check when
              * bornOn or timeout is 0 (unknown lifetime) or a secret callback
              * is set (session is managed externally, e.g. hostap). */
@@ -34287,16 +34293,9 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
                     (ssl->session->bornOn + ssl->session->timeout)) {
                 WOLFSSL_MSG("Stored session ticket expired; full handshake");
                 ssl->options.resuming = 0;
-                /* RFC 5077 Section 3.3: delete the ticket and associated
-                 * state. */
-                ForceZero(ssl->session->ticket, ssl->session->ticketLen);
-                if (ssl->session->ticketLenAlloc > 0) {
-                    XFREE(ssl->session->ticket, NULL,
-                          DYNAMIC_TYPE_SESSION_TICK);
-                    ssl->session->ticket = ssl->session->staticTicket;
-                    ssl->session->ticketLenAlloc = 0;
-                }
-                ssl->session->ticketLen = 0;
+                /* The stale ticket stays on the session object, which may be
+                 * shared with the application; the replacement ticket from
+                 * the full handshake overwrites it in SetTicket(). */
                 /* Send an empty SessionTicket extension (NULL ticket) so the
                  * client still requests a new ticket from the server without
                  * sending the stale one. */

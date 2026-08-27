@@ -2596,11 +2596,12 @@ static int test_wolfSSL_set_cipher_list_tls13_with_version(void)
 static int test_suites_contains(WOLFSSL* ssl, byte s0, byte s1)
 {
     int i;
-    if (ssl == NULL || ssl->suites == NULL)
+    const Suites* suites = (ssl != NULL) ? WOLFSSL_SUITES(ssl) : NULL;
+    if (suites == NULL)
         return 0;
-    for (i = 0; (i + 1) < ssl->suites->suiteSz; i += 2) {
-        if ((ssl->suites->suites[i] == s0) &&
-            (ssl->suites->suites[i + 1] == s1))
+    for (i = 0; (i + 1) < suites->suiteSz; i += 2) {
+        if ((suites->suites[i] == s0) &&
+            (suites->suites[i + 1] == s1))
             return 1;
     }
     return 0;
@@ -2822,6 +2823,42 @@ static int test_tls13_null_cipher_default_list(void)
     wolfSSL_free(ssl_s);
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* An explicitly configured integrity-only suite must survive
+ * wolfSSL_[CTX_]set_options() and wolfSSL_new(): the preserve-overlap
+ * rebuild in wolfSSL_set_options() must keep explicitly requested NULL
+ * suites even though they are not in the default list. */
+static int test_tls13_null_cipher_explicit_keep(void)
+{
+    EXPECT_DECLS;
+#if defined(BUILD_TLS_SHA256_SHA256) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+
+    /* ctx-level cipher list set before ctx-level options */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx, "TLS13-SHA256-SHA256"),
+                WOLFSSL_SUCCESS);
+    wolfSSL_CTX_set_options(ctx, WOLFSSL_OP_NO_SSLv3);
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(test_suites_contains(ssl, ECC_BYTE, TLS_SHA256_SHA256), 1);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    /* ssl-level options after an explicit ssl-level cipher list */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "TLS13-SHA256-SHA256"),
+                WOLFSSL_SUCCESS);
+    wolfSSL_set_options(ssl, WOLFSSL_OP_NO_SSLv3);
+    ExpectIntEQ(test_suites_contains(ssl, ECC_BYTE, TLS_SHA256_SHA256), 1);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    wolfSSL_CTX_free(ctx);
 #endif
     return EXPECT_RESULT();
 }
@@ -30916,6 +30953,18 @@ static int test_export_keying_material_cb(WOLFSSL_CTX *ctx, WOLFSSL *ssl)
     /* Use some random context */
     ExpectIntEQ(wolfSSL_export_keying_material(ssl, ekm, sizeof(ekm),
             "Test label", XSTR_SIZEOF("Test label"), ekm, 10, 1), 1);
+    /* The handshake-complete gate must be the deciding factor: clearing
+     * handShakeDone on this otherwise fully established connection flips an
+     * identical call from success to failure, and restoring it flips it
+     * back. */
+    ssl->options.handShakeDone = 0;
+    ExpectIntEQ(wolfSSL_export_keying_material(ssl, ekm, sizeof(ekm),
+            "Test label", XSTR_SIZEOF("Test label"), NULL, 0, 1),
+            WOLFSSL_FAILURE);
+    ssl->options.handShakeDone = 1;
+    ExpectIntEQ(wolfSSL_export_keying_material(ssl, ekm, sizeof(ekm),
+            "Test label", XSTR_SIZEOF("Test label"), NULL, 0, 1),
+            WOLFSSL_SUCCESS);
     /* Failure cases */
     ExpectIntEQ(wolfSSL_export_keying_material(ssl, ekm, sizeof(ekm),
             "client finished", XSTR_SIZEOF("client finished"), NULL, 0, 0), 0);
@@ -30963,6 +31012,54 @@ static int test_export_keying_material(void)
     ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&clientCb,
         &serverCb, test_export_keying_material_cb), TEST_SUCCESS);
 
+    return EXPECT_RESULT();
+}
+
+#if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_NO_TLS12)
+static int test_ekm_info_cb_result = -1;
+
+static void test_ekm_info_cb(const WOLFSSL* ssl, int type, int val)
+{
+    byte ekm[32];
+    (void)val;
+    if (type == WOLFSSL_CB_HANDSHAKE_DONE) {
+        test_ekm_info_cb_result = wolfSSL_export_keying_material(
+            (WOLFSSL*)ssl, ekm, sizeof(ekm),
+            "Test label", XSTR_SIZEOF("Test label"), NULL, 0, 1);
+    }
+}
+
+static int test_ekm_info_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    wolfSSL_CTX_set_info_callback(ctx, test_ekm_info_cb);
+    return TEST_SUCCESS;
+}
+#endif /* OPENSSL_EXTRA && !WOLFSSL_NO_TLS12 */
+
+/* wolfSSL_export_keying_material() must work from inside the
+ * WOLFSSL_CB_HANDSHAKE_DONE info callback: the handshake-done flags are set
+ * before the callback fires (TLS 1.2 SendFinished, server side here). */
+static int test_export_keying_material_info_cb(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_NO_TLS12)
+    test_ssl_cbf serverCb;
+    test_ssl_cbf clientCb;
+
+    XMEMSET(&serverCb, 0, sizeof(serverCb));
+    XMEMSET(&clientCb, 0, sizeof(clientCb));
+    clientCb.method = wolfTLSv1_2_client_method;
+    serverCb.method = wolfTLSv1_2_server_method;
+    serverCb.ctx_ready = test_ekm_info_ctx_ready;
+    /* exporter needs the handshake arrays kept on the exporting side */
+    serverCb.ssl_ready = test_export_keying_material_ssl_cb;
+
+    test_ekm_info_cb_result = -1;
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&clientCb,
+        &serverCb, NULL), TEST_SUCCESS);
+    /* The callback fired and the export succeeded. */
+    ExpectIntEQ(test_ekm_info_cb_result, WOLFSSL_SUCCESS);
+#endif
     return EXPECT_RESULT();
 }
 #endif /* HAVE_KEYING_MATERIAL */
@@ -41094,6 +41191,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_set_cipher_list_tls13_with_version),
     TEST_DECL(test_wolfSSL_set_cipher_list_exclusions),
     TEST_DECL(test_tls13_null_cipher_default_list),
+    TEST_DECL(test_tls13_null_cipher_explicit_keep),
     TEST_DECL(test_wolfSSL_set_alpn_protos_default_fails),
     TEST_DECL(test_wolfSSL_CTX_use_certificate),
     TEST_DECL(test_wolfSSL_CTX_use_certificate_file),
@@ -41329,6 +41427,7 @@ TEST_CASE testCases[] = {
 
 #if defined(HAVE_KEYING_MATERIAL) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
     TEST_DECL(test_export_keying_material),
+    TEST_DECL(test_export_keying_material_info_cb),
 #endif
 
     /* Can't memory test as client/server Asserts in thread. */

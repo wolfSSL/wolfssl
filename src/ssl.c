@@ -7516,9 +7516,12 @@ long wolfSSL_set_options(WOLFSSL* ssl, long op)
              * options limit the allowed ciphers so let's try to get as many as
              * possible.
              * - haveStaticECC turns off haveRSA
-             * - haveECDSAsig turns off haveRSAsig */
+             * - haveECDSAsig turns off haveRSAsig
+             * - SUITES_NULL_EXPLICIT includes the integrity-only suites, so
+             *   an explicitly configured one is preserved */
             InitSuites(&tmpSuites, ssl->version, 0, 1, 1, 1, haveECDSAsig, 1, 1,
-                    haveStaticECC, 1, 1, 1, 1, 1, ssl->options.side);
+                    haveStaticECC, 1, SUITES_NULL_EXPLICIT, 1, 1, 1,
+                    ssl->options.side);
             for (in = 0, out = 0; in < ssl->suites->suiteSz; in += SUITE_LEN) {
                 if (FindSuite(&tmpSuites, ssl->suites->suites[in],
                         ssl->suites->suites[in+1]) >= 0) {
