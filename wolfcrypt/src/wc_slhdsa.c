@@ -7138,32 +7138,43 @@ int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key, const byte* sk_seed,
     }
 
 #if FIPS_VERSION3_GE(7,0,0)
-    /* Test every new key pair before anyone uses it: recompute the public
-     * root from the private seed and check it matches the one just stored.
-     * ISO/IEC 19790:2012 sec 7.10.3.3.  Here because every generation path
-     * reaches this function.
+    /* Test every new key pair before anyone uses it.  Required on every
+     * generated key pair by ISO/IEC 19790:2012 sec 7.10.3.3.  Here because
+     * every generation path reaches this function.
      *
-     * FIPS 140-3 IG 10.3.A Additional Comment 1 lets an SLH-DSA test be as
-     * little as confirming both keys share PK.SEED.  That is worthless here:
-     * the public key is a slice of the private one, so it would compare
-     * bytes with themselves and could never fail.  Recomputing the root is
-     * the cheapest check that can actually fail, and it is what ties the
-     * public half to the private half.  Signing and verifying would also
-     * work but costs about ten times the key generation.
+     * Two checks.  First the one FIPS 140-3 IG 10.3.A Additional Comment 1
+     * names: for SLH-DSA the test "may be limited to confirming the same key
+     * identifier ... PK.SEED ... is shared by the resulting public and
+     * private key".  That one always passes here, because the public key is
+     * a slice of the private one, so the second does the real work:
+     * recompute the public root from the private seed and compare.  It is
+     * the cheapest check that can actually fail.  Signing and verifying
+     * would also work, at about ten times the cost of generating the key.
      */
     if (ret == 0) {
         byte        n = key->params->n;
         byte        pct_root[SLHDSA_MAX_N];
+        byte        pct_pub[2 * SLHDSA_MAX_N];
+        word32      pct_pubLen = (word32)(n * 2);
         HashAddress pct_adrs;
 
-        HA_Init(pct_adrs);
-        HA_SetLayerAddress(pct_adrs, key->params->d - 1);
-        ret = slhdsakey_xmss_node(key, key->sk, 0, key->params->h_m,
-                key->sk + 2 * n, pct_adrs, pct_root);
-        if ((ret == 0) && (XMEMCMP(pct_root, key->sk + 3 * n, n) != 0)) {
+        /* The key identifier the IG names. */
+        ret = wc_SlhDsaKey_ExportPublic(key, pct_pub, &pct_pubLen);
+        if ((ret == 0) && (XMEMCMP(pct_pub, key->sk + 2 * n, n) != 0)) {
             ret = SLH_DSA_PCT_E;
         }
-        ForceZero(pct_root, sizeof(pct_root));
+
+        /* The public root, recomputed from the private seed. */
+        if (ret == 0) {
+            HA_Init(pct_adrs);
+            HA_SetLayerAddress(pct_adrs, key->params->d - 1);
+            ret = slhdsakey_xmss_node(key, key->sk, 0, key->params->h_m,
+                    key->sk + 2 * n, pct_adrs, pct_root);
+            if ((ret == 0) && (XMEMCMP(pct_root, key->sk + 3 * n, n) != 0)) {
+                ret = SLH_DSA_PCT_E;
+            }
+            ForceZero(pct_root, sizeof(pct_root));
+        }
 
         /* Free a key that failed, so a caller ignoring the return value
          * cannot sign with it.  ISO/IEC 19790:2012 sec 7.10.1 forbids using
