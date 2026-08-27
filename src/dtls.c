@@ -1393,6 +1393,13 @@ void DtlsCIDOnExtensionsParsed(WOLFSSL* ssl)
     }
 }
 
+byte DtlsCIDIsNegotiated(WOLFSSL* ssl)
+{
+    CIDInfo* info = DtlsCidGetInfo(ssl);
+
+    return (byte)(info != NULL && info->negotiated);
+}
+
 byte DtlsCIDCheck(WOLFSSL* ssl, const byte* input, word16 inputSize)
 {
     CIDInfo* info;

@@ -13124,10 +13124,13 @@ static int GetDtlsRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
         if ((cidSz = DtlsGetCidRxSize(ssl)) == 0)
             return DTLS_CID_ERROR;
     }
-    /* RFC 9146 Sec 4: with a receive CID every protected record must use the
-     * dtls12_cid type. The MAC covers the inner content type, not the wire
-     * type, so a record re-framed as application_data still authenticates. */
-    else if (ssl->keys.curEpoch != 0 && DtlsGetCidRxSize(ssl) != 0)
+    /* RFC 9146 Sec 4: once a receive CID is negotiated every protected record
+     * must use the dtls12_cid type. The MAC covers the inner content type, not
+     * the wire type, so a record re-framed as application_data still
+     * authenticates. A CID configured but not accepted by the peer must not
+     * gate anything: the DTLS 1.2 client keeps its unnegotiated rx CID. */
+    else if (ssl->keys.curEpoch != 0 && DtlsCIDIsNegotiated(ssl) &&
+             DtlsGetCidRxSize(ssl) != 0)
         return DTLS_CID_ERROR;
 #endif
 
@@ -34628,6 +34631,15 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
             return SECURE_RENEGOTIATION_E;
         }
 #endif
+
+#ifdef WOLFSSL_DTLS_CID
+        /* RFC 9146 Sect. 3: the CID is only in use when the peer answered with
+         * its own connection_id. Drop the state otherwise, or the record layer
+         * keeps framing and authenticating receives as if a CID were there.
+         * The DTLS 1.3 client does this in DoTls13ServerHello(). */
+        if (ssl->options.dtls && ssl->options.useDtlsCID)
+            DtlsCIDOnExtensionsParsed(ssl);
+#endif /* WOLFSSL_DTLS_CID */
 
         ssl->options.serverState = SERVER_HELLO_COMPLETE;
 
