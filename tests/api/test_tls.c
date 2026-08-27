@@ -736,6 +736,20 @@ int test_tls_shutdown_in_init(void)
     ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_FATAL_ERROR);
     ExpectIntEQ(test_ctx.s_len, len);
 
+#ifdef WOLFSSL_NONBLOCK_OCSP
+    /* A pending non-blocking OCSP lookup is an in-flight handshake too.
+     * ProcessPeerCerts() resumes off this error, so sending the alert - which
+     * overwrites ssl->error - would strand the handshake. */
+    if (ssl_c != NULL)
+        ssl_c->error = WC_NO_ERR_TRACE(OCSP_WANT_READ);
+    ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(test_ctx.s_len, len);
+    if (ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->error, WC_NO_ERR_TRACE(OCSP_WANT_READ));
+        ssl_c->error = WC_NO_ERR_TRACE(WANT_READ);
+    }
+#endif
+
     /* Established connection still shuts down normally. */
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
     ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SHUTDOWN_NOT_DONE);
