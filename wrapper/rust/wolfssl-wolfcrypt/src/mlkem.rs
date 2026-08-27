@@ -38,7 +38,7 @@ construction time:
 # Examples
 
 ```rust
-#[cfg(all(mlkem_make_key, mlkem_encapsulate, mlkem_decapsulate, random))]
+#[cfg(all(mlkem_768, mlkem_make_key, mlkem_encapsulate, mlkem_decapsulate, random))]
 {
 use wolfssl_wolfcrypt::random::RNG;
 use wolfssl_wolfcrypt::mlkem::MlKem;

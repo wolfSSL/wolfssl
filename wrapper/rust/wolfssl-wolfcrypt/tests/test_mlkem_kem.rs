@@ -18,7 +18,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#![cfg(all(mlkem_encapsulate, mlkem_decapsulate, mlkem_make_key, random, feature = "kem", feature = "rand_core"))]
+#![cfg(all(mlkem, mlkem_encapsulate, mlkem_decapsulate, mlkem_make_key, random, feature = "kem", feature = "rand_core"))]
 
 mod common;
 
@@ -147,6 +147,7 @@ fn test_ek_export_import() {
 
 /// Verify that `TryKeyInit` doesn't panic on a zeroed key.
 #[test]
+#[cfg(mlkem_768)]
 fn test_ek_try_new_zeroed_key() {
     common::setup();
 

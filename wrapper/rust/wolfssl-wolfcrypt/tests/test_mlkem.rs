@@ -85,7 +85,7 @@ fn test_size_queries() {
 /// Encapsulate and decapsulate with ML-KEM-512, verifying that both sides
 /// arrive at the same shared secret.
 #[test]
-#[cfg(all(mlkem_make_key, mlkem_encapsulate, mlkem_decapsulate, random))]
+#[cfg(all(mlkem_512, mlkem_make_key, mlkem_encapsulate, mlkem_decapsulate, random))]
 fn test_encap_decap_type512() {
     common::setup();
     let mut rng = RNG::new().expect("Error creating RNG");
@@ -111,7 +111,7 @@ fn test_encap_decap_type512() {
 /// arrive at the same shared secret. Also verifies that a tampered cipher text
 /// produces a different (implicit rejection) shared secret.
 #[test]
-#[cfg(all(mlkem_make_key, mlkem_encapsulate, mlkem_decapsulate, random))]
+#[cfg(all(mlkem_768, mlkem_make_key, mlkem_encapsulate, mlkem_decapsulate, random))]
 fn test_encap_decap_type768() {
     common::setup();
     let mut rng = RNG::new().expect("Error creating RNG");
@@ -145,7 +145,7 @@ fn test_encap_decap_type768() {
 /// Encapsulate and decapsulate with ML-KEM-1024, verifying that both sides
 /// arrive at the same shared secret.
 #[test]
-#[cfg(all(mlkem_make_key, mlkem_encapsulate, mlkem_decapsulate, random))]
+#[cfg(all(mlkem_1024, mlkem_make_key, mlkem_encapsulate, mlkem_decapsulate, random))]
 fn test_encap_decap_type1024() {
     common::setup();
     let mut rng = RNG::new().expect("Error creating RNG");
