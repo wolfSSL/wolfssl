@@ -2809,7 +2809,8 @@ int  wolfSSL_get_alert_history(WOLFSSL* ssl, WOLFSSL_ALERT_HISTORY *h);
 
     \return SSL_SUCCESS will be returned upon successfully setting the session.
     \return SSL_FAILURE will be returned on failure.  This could be caused
-    by the session cache being disabled, or if the session has timed out.
+    by the session cache being disabled, the session having timed out, or an
+    EMS session being declined because EMS is disabled.
 
     \return When OPENSSL_EXTRA and WOLFSSL_ERROR_CODE_OPENSSL are defined,
     SSL_SUCCESS will be returned even if the session has timed out.
@@ -17476,11 +17477,12 @@ int wolfSSL_CTX_DisableExtendedMasterSecret(WOLFSSL_CTX* ctx);
     the SSL object: a client stops advertising it and a server ignores the
     peer's request, so a standard master secret is negotiated. A server also
     declines resumption of sessions or tickets that used EMS and does a full
-    handshake instead. TLS 1.2 and earlier only. Requires
-    HAVE_EXTENDED_MASTER.
+    handshake instead. Call before the handshake starts, or after
+    wolfSSL_clear. TLS 1.2 and earlier only. Requires HAVE_EXTENDED_MASTER.
 
     \return WOLFSSL_SUCCESS on success.
     \return BAD_FUNC_ARG if ssl is NULL.
+    \return BAD_STATE_E if the handshake has started.
 
     \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
 
@@ -17523,11 +17525,12 @@ int wolfSSL_CTX_EnableExtendedMasterSecret(WOLFSSL_CTX* ctx);
     \ingroup Setup
     \brief Re-enables the TLS Extended Master Secret extension (RFC 7627) on
     the SSL object (the default): EMS is used when the peer supports it but
-    is not mandatory. Undoes a previous disable or require. Requires
-    HAVE_EXTENDED_MASTER.
+    is not mandatory. Undoes a previous disable or require. Call before the
+    handshake starts, or after wolfSSL_clear. Requires HAVE_EXTENDED_MASTER.
 
     \return WOLFSSL_SUCCESS on success.
     \return BAD_FUNC_ARG if ssl is NULL.
+    \return BAD_STATE_E if the handshake has started.
 
     \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
 
@@ -17574,11 +17577,13 @@ int wolfSSL_CTX_RequireExtendedMasterSecret(WOLFSSL_CTX* ctx);
     mandatory on the SSL object: if it is not negotiated, including on
     resumption, the connection is aborted with EXT_MASTER_SECRET_NEEDED_E. A
     client advertises the extension even after a previous disable. Sessions
-    using a session-secret callback (EAP-FAST) are exempt. TLS 1.2 and
-    earlier only. Requires HAVE_EXTENDED_MASTER.
+    using a session-secret callback (EAP-FAST) are exempt. Call before the
+    handshake starts, or after wolfSSL_clear. TLS 1.2 and earlier only.
+    Requires HAVE_EXTENDED_MASTER.
 
     \return WOLFSSL_SUCCESS on success.
     \return BAD_FUNC_ARG if ssl is NULL.
+    \return BAD_STATE_E if the handshake has started.
 
     \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
 

@@ -5694,6 +5694,23 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->options.haveSessionId = 0;
         ssl->options.tls = 0;
         ssl->options.tls1_1 = 0;
+#ifdef HAVE_EXTENDED_MASTER
+        /* haveEMS is negotiated per handshake: re-arm an EMS-capable client
+         * unless the user disabled EMS, and clear a server until the next
+         * ClientHello. The requireEMS/disableEMS policy persists. */
+        ssl->options.haveEMS = 0;
+        if (ssl->options.side == WOLFSSL_CLIENT_END &&
+                !ssl->options.disableEMS) {
+            if (ssl->ctx->method->version.major == SSLv3_MAJOR &&
+                    ssl->ctx->method->version.minor >= TLSv1_MINOR) {
+                ssl->options.haveEMS = 1;
+            }
+        #ifdef WOLFSSL_DTLS
+            if (ssl->ctx->method->version.major == DTLS_MAJOR)
+                ssl->options.haveEMS = 1;
+        #endif
+        }
+#endif
     #ifdef WOLFSSL_TLS13
     #ifdef WOLFSSL_TLS13_COOKIE
         ssl->options.hrrSentCookie = 0;

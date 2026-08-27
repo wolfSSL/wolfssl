@@ -1612,11 +1612,13 @@ int wolfSSL_CTX_DisableExtendedMasterSecret(WOLFSSL_CTX* ctx)
  *
  * For a client this stops the extension being advertised. For a server this
  * causes the peer's Extended Master Secret request to be ignored so that a
- * standard master secret is negotiated.
+ * standard master secret is negotiated. Call before the handshake starts, or
+ * after wolfSSL_clear.
  *
  * @param [in, out] ssl  SSL/TLS object.
  * @return  WOLFSSL_SUCCESS on success.
  * @return  BAD_FUNC_ARG when ssl is NULL.
+ * @return  BAD_STATE_E when the handshake has started.
  */
 int wolfSSL_DisableExtendedMasterSecret(WOLFSSL* ssl)
 {
@@ -1624,6 +1626,11 @@ int wolfSSL_DisableExtendedMasterSecret(WOLFSSL* ssl)
 
     if (ssl == NULL) {
         ret = BAD_FUNC_ARG;
+    }
+    else if (ssl->options.connectState != CONNECT_BEGIN ||
+             ssl->options.acceptState != ACCEPT_BEGIN) {
+        /* haveEMS records the negotiated result once the handshake starts. */
+        ret = BAD_STATE_E;
     }
     else {
         ssl->options.haveEMS = 0;
@@ -1670,11 +1677,13 @@ int wolfSSL_CTX_EnableExtendedMasterSecret(WOLFSSL_CTX* ctx)
 /* Re-enable the Extended Master Secret extension on the object (default).
  *
  * Undoes a previous disable or require: EMS is used when the peer supports it
- * but is not mandatory.
+ * but is not mandatory. Call before the handshake starts, or after
+ * wolfSSL_clear.
  *
  * @param [in] ssl  SSL/TLS object.
  * @return  WOLFSSL_SUCCESS on success.
  * @return  BAD_FUNC_ARG when ssl is NULL.
+ * @return  BAD_STATE_E when the handshake has started.
  */
 int wolfSSL_EnableExtendedMasterSecret(WOLFSSL* ssl)
 {
@@ -1682,6 +1691,11 @@ int wolfSSL_EnableExtendedMasterSecret(WOLFSSL* ssl)
 
     if (ssl == NULL) {
         ret = BAD_FUNC_ARG;
+    }
+    else if (ssl->options.connectState != CONNECT_BEGIN ||
+             ssl->options.acceptState != ACCEPT_BEGIN) {
+        /* haveEMS records the negotiated result once the handshake starts. */
+        ret = BAD_STATE_E;
     }
     else {
         ssl->options.disableEMS = 0;
@@ -1737,11 +1751,13 @@ int wolfSSL_CTX_RequireExtendedMasterSecret(WOLFSSL_CTX* ctx)
  *
  * If EMS (RFC 7627) is not negotiated the connection is aborted with
  * EXT_MASTER_SECRET_NEEDED_E instead of deriving a standard master secret.
- * TLS 1.3 has its own key schedule and is unaffected.
+ * TLS 1.3 has its own key schedule and is unaffected. Call before the
+ * handshake starts, or after wolfSSL_clear.
  *
  * @param [in] ssl  SSL/TLS object.
  * @return  WOLFSSL_SUCCESS on success.
  * @return  BAD_FUNC_ARG when ssl is NULL.
+ * @return  BAD_STATE_E when the handshake has started.
  */
 int wolfSSL_RequireExtendedMasterSecret(WOLFSSL* ssl)
 {
@@ -1749,6 +1765,11 @@ int wolfSSL_RequireExtendedMasterSecret(WOLFSSL* ssl)
 
     if (ssl == NULL) {
         ret = BAD_FUNC_ARG;
+    }
+    else if (ssl->options.connectState != CONNECT_BEGIN ||
+             ssl->options.acceptState != ACCEPT_BEGIN) {
+        /* haveEMS records the negotiated result once the handshake starts. */
+        ret = BAD_STATE_E;
     }
     else {
         ssl->options.requireEMS = 1;
