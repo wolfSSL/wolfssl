@@ -245,7 +245,7 @@ static void _64byteReverseWords(uint32_t *dest, uint32_t *src, uint32_t len)
     }
 }
 
-#ifndef NO_AES
+#if !defined(NO_AES) && !defined(WOLFSSL_TI_AM64X_NO_AES)
 static int check_aes_keylength(word32 keylen)
 {
     /* mcuplussdk sa2ul driver only supports key lengths of 128 and 256 */
@@ -601,10 +601,10 @@ static int ti_sa2ul_AesGcmDecrypt(Aes* aes, byte* out,
 }
 #endif /* HAVE_AES_DECRYPT */
 #endif /* HAVE_AESGCM */
-#endif /* !NO_AES */
+#endif /* !NO_AES && !WOLFSSL_TI_AM64X_NO_AES */
 
 
-#if !defined(NO_SHA256) || defined(WOLFSSL_SHA512)
+#if !defined(WOLFSSL_TI_AM64X_NO_SHA) && (!defined(NO_SHA256) || defined(WOLFSSL_SHA512))
 /* The ti mcu plus sdk sa2ul driver requires an output buffer of at least
  * the size of the input buffer, and it will write data to it, though we don't
  * use the data.  So, we consider this a scratch buffer, but it also limits
@@ -871,7 +871,7 @@ static int ti_sa2ul_Sha512Hash(wc_Sha512* sha512, const byte* in,
     return ret;
 }
 #endif /* WOLFSSL_SHA512 */
-#endif /* !NO_SHA256 || WOLFSSL_SHA512  */
+#endif /* !WOLFSSL_TI_AM64X_NO_SHA && (!NO_SHA256 || WOLFSSL_SHA512) */
 
 static int ti_sa2ul_CryptoDevCb(int devId, wc_CryptoInfo* info, void* devCtx)
 {
@@ -892,7 +892,7 @@ static int ti_sa2ul_CryptoDevCb(int devId, wc_CryptoInfo* info, void* devCtx)
 
     if (info->algo_type == WC_ALGO_TYPE_CIPHER)
     {
-#if !defined(NO_AES)
+#if !defined(NO_AES) && !defined(WOLFSSL_TI_AM64X_NO_AES)
         if (0) {
             /* nothing */
         }
@@ -986,11 +986,11 @@ static int ti_sa2ul_CryptoDevCb(int devId, wc_CryptoInfo* info, void* devCtx)
 #  endif /* HAVE_AES_DECRYPT */
         }
 # endif /* HAVE_AESGCM */
-#endif /* !NO_AES */
+#endif /* !NO_AES && !WOLFSSL_TI_AM64X_NO_AES */
     }
     else if (info->algo_type == WC_ALGO_TYPE_HASH)
     {
-#if !defined(NO_SHA256) || defined(WOLFSSL_SHA512)
+#if !defined(WOLFSSL_TI_AM64X_NO_SHA) && (!defined(NO_SHA256) || defined(WOLFSSL_SHA512))
         if (0) {
             /* nothing */
         }
@@ -1015,7 +1015,7 @@ static int ti_sa2ul_CryptoDevCb(int devId, wc_CryptoInfo* info, void* devCtx)
                 }
         }
 # endif /* WOLFSSL_SHA512 */
-#endif /* !NO_SHA256 || WOLFSSL_SHA512 */
+#endif /* !WOLFSSL_TI_AM64X_NO_SHA && (!NO_SHA256 || WOLFSSL_SHA512) */
     }
 #ifndef WC_NO_RNG
 # ifdef WOLFSSL_TI_AM64X_RNG_CTR_DRBG
