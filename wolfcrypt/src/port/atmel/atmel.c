@@ -301,6 +301,9 @@ int atmel_get_random_number(uint32_t count, uint8_t* rand_out)
 #endif
 #else
     /* TODO: Use on-board TRNG */
+    (void)count;
+    (void)rand_out;
+    ret = NOT_COMPILED_IN;
 #endif
     return ret;
 }
