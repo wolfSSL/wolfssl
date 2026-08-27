@@ -493,6 +493,7 @@ static int mldsa_alloc_pub_buf(wc_MlDsaKey* key)
 }
 #endif
 
+#ifndef WOLF_CRYPTO_CB_ONLY_MLDSA
 /******************************************************************************
  * Hash operations
  ******************************************************************************/
@@ -11362,6 +11363,7 @@ static int mldsa_verify_ctx_hash(wc_MlDsaKey* key, const byte* ctx,
     return ret;
 }
 #endif /* WOLFSSL_MLDSA_NO_VERIFY */
+#endif /* !WOLF_CRYPTO_CB_ONLY_MLDSA */
 
 #ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
 int wc_MlDsaKey_MakeKey(wc_MlDsaKey* key, WC_RNG* rng)
@@ -11389,6 +11391,11 @@ int wc_MlDsaKey_MakeKey(wc_MlDsaKey* key, WC_RNG* rng)
     }
 #endif
 
+#ifdef WOLF_CRYPTO_CB_ONLY_MLDSA
+    if (ret == 0) {
+        ret = NO_VALID_DEVID;
+    }
+#else
     if (ret == 0) {
         /* Check the level or parameters have been set. */
         if (key->params == NULL) {
@@ -11399,6 +11406,7 @@ int wc_MlDsaKey_MakeKey(wc_MlDsaKey* key, WC_RNG* rng)
             ret = mldsa_make_key(key, rng);
         }
     }
+#endif /* WOLF_CRYPTO_CB_ONLY_MLDSA */
 
     /* No key-pair test here: wc_MlDsaKey_MakeKeyFromSeed(), reached from
      * mldsa_make_key() above, already runs it on every generation path.
@@ -11408,6 +11416,7 @@ int wc_MlDsaKey_MakeKey(wc_MlDsaKey* key, WC_RNG* rng)
     return ret;
 }
 
+#ifndef WOLF_CRYPTO_CB_ONLY_MLDSA
 /* Expand a seed into an ML-DSA key pair and test it.
  *
  * @param  [in, out]  key   ML-DSA key to fill in.
@@ -11449,10 +11458,24 @@ static int mldsa_key_from_seed_checked(wc_MlDsaKey* key, const byte* seed,
 
     return ret;
 }
+#endif /* !WOLF_CRYPTO_CB_ONLY_MLDSA */
 
 int wc_MlDsaKey_MakeKeyFromSeed(wc_MlDsaKey* key, const byte* seed)
 {
+#ifdef WOLF_CRYPTO_CB_ONLY_MLDSA
+    /* Validate as the software path does, so the reported error stays the
+     * same for a bad call. */
+    if ((key == NULL) || (seed == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+    /* Not NO_VALID_DEVID: no device can service this one. Expanding a seed
+     * is a local computation and the callback protocol has no seed to hand
+     * over, so registering a device would not help. The seed expansion is
+     * part of the software core this build removes. */
+    return NOT_COMPILED_IN;
+#else
     return mldsa_key_from_seed_checked(key, seed, 1);
+#endif /* WOLF_CRYPTO_CB_ONLY_MLDSA */
 }
 #endif
 
@@ -11515,11 +11538,17 @@ int wc_MlDsaKey_SignCtx(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
         ret = BAD_FUNC_ARG;
     }
 
+#ifdef WOLF_CRYPTO_CB_ONLY_MLDSA
+    if (ret == 0) {
+        ret = NO_VALID_DEVID;
+    }
+#else
     if (ret == 0) {
         /* Sign message. */
         ret = mldsa_sign_ctx_msg(key, rng, ctx, ctxLen, msg, msgLen, sig,
             sigLen);
     }
+#endif /* WOLF_CRYPTO_CB_ONLY_MLDSA */
 
     return ret;
 }
@@ -11577,10 +11606,16 @@ int wc_MlDsaKey_Sign(wc_MlDsaKey* key, byte* sig, word32 *sigLen,
         ret = BAD_FUNC_ARG;
     }
 
+#ifdef WOLF_CRYPTO_CB_ONLY_MLDSA
+    if (ret == 0) {
+        ret = NO_VALID_DEVID;
+    }
+#else
     if (ret == 0) {
         /* Sign message. */
         ret = mldsa_sign_msg(key, rng, msg, msgLen, sig, sigLen);
     }
+#endif /* WOLF_CRYPTO_CB_ONLY_MLDSA */
 
     return ret;
 }
@@ -11636,11 +11671,17 @@ int wc_MlDsaKey_SignCtxHash(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
         ret = BAD_FUNC_ARG;
     }
 
+#ifdef WOLF_CRYPTO_CB_ONLY_MLDSA
+    if (ret == 0) {
+        ret = NO_VALID_DEVID;
+    }
+#else
     if (ret == 0) {
         /* Sign message. */
         ret = mldsa_sign_ctx_hash(key, rng, ctx, ctxLen, hashAlg, hash,
             hashLen, sig, sigLen);
     }
+#endif /* WOLF_CRYPTO_CB_ONLY_MLDSA */
 
     return ret;
 }
@@ -11685,11 +11726,18 @@ int wc_MlDsaKey_SignCtxWithSeed(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
         ret = BAD_FUNC_ARG;
     }
 
+#ifdef WOLF_CRYPTO_CB_ONLY_MLDSA
+    if (ret == 0) {
+        ret = NOT_COMPILED_IN;
+    }
+    (void)msgLen;
+#else
     if (ret == 0) {
         /* Sign message. */
         ret = mldsa_sign_ctx_msg_with_seed(key, seed, ctx, ctxLen, msg,
             msgLen, sig, sigLen);
     }
+#endif /* WOLF_CRYPTO_CB_ONLY_MLDSA */
 
     return ret;
 }
@@ -11730,10 +11778,17 @@ int wc_MlDsaKey_SignWithSeed(wc_MlDsaKey* key, byte* sig, word32 *sigLen,
         ret = BAD_FUNC_ARG;
     }
 
+#ifdef WOLF_CRYPTO_CB_ONLY_MLDSA
+    (void)msgLen;
+    if (ret == 0) {
+        ret = NOT_COMPILED_IN;
+    }
+#else
     if (ret == 0) {
         /* Sign message. */
         ret = mldsa_sign_msg_with_seed(key, seed, msg, msgLen, sig, sigLen);
     }
+#endif /* WOLF_CRYPTO_CB_ONLY_MLDSA */
 
     return ret;
 }
@@ -11773,11 +11828,19 @@ int wc_MlDsaKey_SignCtxHashWithSeed(wc_MlDsaKey* key, const byte* ctx,
         ret = BAD_FUNC_ARG;
     }
 
+#ifdef WOLF_CRYPTO_CB_ONLY_MLDSA
+    if (ret == 0) {
+        ret = NOT_COMPILED_IN;
+    }
+    (void)hashLen;
+    (void)hashAlg;
+#else
     if (ret == 0) {
         /* Sign message. */
         ret = mldsa_sign_ctx_hash_with_seed(key, seed, ctx, ctxLen,
             hashAlg, hash, hashLen, sig, sigLen);
     }
+#endif /* WOLF_CRYPTO_CB_ONLY_MLDSA */
 
     return ret;
 }
@@ -11817,6 +11880,11 @@ int wc_MlDsaKey_SignMuWithSeed(wc_MlDsaKey* key, byte* sig, word32 *sigLen,
         ret = BAD_FUNC_ARG;
     }
 
+#ifdef WOLF_CRYPTO_CB_ONLY_MLDSA
+    if (ret == 0) {
+        ret = NOT_COMPILED_IN;
+    }
+#else
     if (ret == 0) {
         /* Build [seed||mu] buffer and call internal sign function. */
         byte seedMu[MLDSA_RND_SZ + MLDSA_MU_SZ];
@@ -11832,6 +11900,7 @@ int wc_MlDsaKey_SignMuWithSeed(wc_MlDsaKey* key, byte* sig, word32 *sigLen,
         wc_MemZero_Check(seedMu, sizeof(seedMu));
 #endif
     }
+#endif /* WOLF_CRYPTO_CB_ONLY_MLDSA */
 
     return ret;
 }
@@ -11894,11 +11963,17 @@ int wc_MlDsaKey_VerifyCtx(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     }
 #endif
 
+#ifdef WOLF_CRYPTO_CB_ONLY_MLDSA
+    if (ret == 0) {
+        ret = NO_VALID_DEVID;
+    }
+#else
     if (ret == 0) {
         /* Verify message with signature. */
         ret = mldsa_verify_ctx_msg(key, ctx, ctxLen, msg, msgLen, sig,
             sigLen, res);
     }
+#endif /* WOLF_CRYPTO_CB_ONLY_MLDSA */
 
     return ret;
 }
@@ -11952,10 +12027,16 @@ int wc_MlDsaKey_Verify(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     }
 #endif
 
+#ifdef WOLF_CRYPTO_CB_ONLY_MLDSA
+    if (ret == 0) {
+        ret = NO_VALID_DEVID;
+    }
+#else
     if (ret == 0) {
         /* Verify message with signature. */
         ret = mldsa_verify_msg(key, msg, msgLen, sig, sigLen, res);
     }
+#endif /* WOLF_CRYPTO_CB_ONLY_MLDSA */
 
     return ret;
 }
@@ -12007,11 +12088,17 @@ int wc_MlDsaKey_VerifyCtxHash(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     }
 #endif
 
+#ifdef WOLF_CRYPTO_CB_ONLY_MLDSA
+    if (ret == 0) {
+        ret = NO_VALID_DEVID;
+    }
+#else
     if (ret == 0) {
         /* Verify message with signature. */
         ret = mldsa_verify_ctx_hash(key, ctx, ctxLen, hashAlg, hash,
             hashLen, sig, sigLen, res);
     }
+#endif /* WOLF_CRYPTO_CB_ONLY_MLDSA */
 
     return ret;
 }
@@ -12081,9 +12168,16 @@ int wc_MlDsaKey_VerifyMu(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
         ret = BAD_FUNC_ARG;
     }
 
+#ifdef WOLF_CRYPTO_CB_ONLY_MLDSA
+    if (ret == 0) {
+        ret = NOT_COMPILED_IN;
+    }
+    (void)sigLen;
+#else
     if (ret == 0) {
         ret = mldsa_verify_with_mu(key, mu, sig, sigLen, res);
     }
+#endif /* WOLF_CRYPTO_CB_ONLY_MLDSA */
 
     return ret;
 }
@@ -12682,6 +12776,7 @@ int wc_MlDsaKey_GetSigLen(wc_MlDsaKey* key, int* len)
 int wc_MlDsaKey_CheckKey(wc_MlDsaKey* key)
 {
     int ret = 0;
+#ifndef WOLF_CRYPTO_CB_ONLY_MLDSA
     const wc_MlDsaParams* params = NULL;
     sword32* a  = NULL;
     sword32* s1 = NULL;
@@ -12689,11 +12784,54 @@ int wc_MlDsaKey_CheckKey(wc_MlDsaKey* key)
     sword32* t  = NULL;
     sword32* t0 = NULL;
     sword32* t1 = NULL;
+#endif
 
     /* Validate parameter. */
     if (key == NULL) {
         ret = BAD_FUNC_ARG;
     }
+
+#ifdef WOLF_CRYPTO_CB
+    /* A device-backed key holds no local private material, so dispatch before
+     * the prvKeySet check the software path makes. */
+    if (ret == 0) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+        if (key->devId != INVALID_DEVID)
+    #endif
+        {
+            const byte* pub = NULL;
+            word32 pubSz = 0;
+            /* Read through a pointer: key->p is an array in the default
+             * layout and a pointer in the dynamic and assign-key ones. */
+            const byte* keyPub = key->p;
+
+            /* pubKeySet only says a public key exists, not that this object
+             * holds its bytes: a device-generated key has none locally. Send
+             * a length only alongside a pointer to go with it. */
+            if (key->pubKeySet && (keyPub != NULL)) {
+                int sz = wc_MlDsaKey_PubSize(key);
+                if (sz > 0) {
+                    pub = keyPub;
+                    pubSz = (word32)sz;
+                }
+            }
+            ret = wc_CryptoCb_PqcSignatureCheckPrivKey(key,
+                WC_PQC_SIG_TYPE_MLDSA, pub, pubSz);
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                return ret;
+            /* fall-through when unavailable */
+            ret = 0;
+        }
+    }
+#endif /* WOLF_CRYPTO_CB */
+
+#ifdef WOLF_CRYPTO_CB_ONLY_MLDSA
+    /* No software fallback: the check recomputes the public key from the
+     * private key, which only the device holding it can do. */
+    if (ret == 0) {
+        ret = NO_VALID_DEVID;
+    }
+#else
     if ((ret == 0) && (!key->prvKeySet)) {
         ret = BAD_FUNC_ARG;
     }
@@ -12830,6 +12968,8 @@ int wc_MlDsaKey_CheckKey(wc_MlDsaKey* key)
         /* Dispose of allocated memory. */
         XFREE(s1, key->heap, DYNAMIC_TYPE_MLDSA);
     }
+#endif /* WOLF_CRYPTO_CB_ONLY_MLDSA */
+
     return ret;
 }
 #endif /* WOLFSSL_MLDSA_CHECK_KEY */
@@ -13013,7 +13153,8 @@ int wc_MlDsaKey_ImportPubRaw(wc_MlDsaKey* key, const byte* in, word32 inLen)
         XMEMCPY(key->p, in, inLen);
     #endif
 
-#ifdef WC_MLDSA_CACHE_PUB_VECTORS
+#if defined(WC_MLDSA_CACHE_PUB_VECTORS) && !defined(WOLF_CRYPTO_CB_ONLY_MLDSA)
+    /* The caches only feed the native signer and verifier. */
     #ifndef WC_MLDSA_FIXED_ARRAY
         /* Allocate t1 if required. */
         if (key->t1 == NULL) {
@@ -13032,7 +13173,7 @@ int wc_MlDsaKey_ImportPubRaw(wc_MlDsaKey* key, const byte* in, word32 inLen)
         /* Compute t1 from public key data. */
         mldsa_make_pub_vec(key, key->t1);
 #endif
-#ifdef WC_MLDSA_CACHE_MATRIX_A
+#if defined(WC_MLDSA_CACHE_MATRIX_A) && !defined(WOLF_CRYPTO_CB_ONLY_MLDSA)
     #ifndef WC_MLDSA_FIXED_ARRAY
         /* Allocate matrix a if required. */
         if (key->a == NULL) {
@@ -13133,7 +13274,9 @@ static int mldsa_set_priv_key(const byte* priv, word32 privSz,
 {
     int ret = 0;
     int expPrivSz;
-#ifdef WC_MLDSA_CACHE_MATRIX_A
+#if (defined(WC_MLDSA_CACHE_MATRIX_A) || \
+     defined(WC_MLDSA_CACHE_PRIV_VECTORS)) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_MLDSA)
     const wc_MlDsaParams* params = key->params;
 #endif
 
@@ -13173,8 +13316,9 @@ static int mldsa_set_priv_key(const byte* priv, word32 privSz,
     #endif
     }
 
-        /* Allocate and create cached values. */
-#ifdef WC_MLDSA_CACHE_MATRIX_A
+        /* Allocate and create cached values. The caches only feed the
+         * native signer and verifier. */
+#if defined(WC_MLDSA_CACHE_MATRIX_A) && !defined(WOLF_CRYPTO_CB_ONLY_MLDSA)
 #ifndef WC_MLDSA_FIXED_ARRAY
     if (ret == 0) {
         /* Allocate matrix a if required. */
@@ -13199,7 +13343,7 @@ static int mldsa_set_priv_key(const byte* priv, word32 privSz,
         }
     }
 #endif
-#ifdef WC_MLDSA_CACHE_PRIV_VECTORS
+#if defined(WC_MLDSA_CACHE_PRIV_VECTORS) && !defined(WOLF_CRYPTO_CB_ONLY_MLDSA)
 #ifndef WC_MLDSA_FIXED_ARRAY
     if ((ret == 0) && (key->s1 == NULL)) {
         /* Allocate L vector s1, K vector s2 and K vector t0 if required. */
@@ -13650,7 +13794,7 @@ int wc_MlDsaKey_PrivateKeyDecode(wc_MlDsaKey* key, const byte* input,
     if (ret == 0) {
         /* Generate a key pair if seed exists and decoded key pair is ignored */
         if (seedLen != 0) {
-#if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
+#if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && !defined(WOLF_CRYPTO_CB_ONLY_MLDSA)
             if (seedLen == MLDSA_SEED_SZ) {
                 /* runPct 0: this is an import, not a generation. */
                 ret = mldsa_key_from_seed_checked(key, seed, 0);
