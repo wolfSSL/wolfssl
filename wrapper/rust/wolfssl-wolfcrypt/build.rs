@@ -420,6 +420,7 @@ fn scan_cfg() -> Result<()> {
 
     /* ed25519 */
     check_cfg(&binding, "wc_ed25519_init", "ed25519");
+    check_cfg(&binding, "wc_ed25519_make_key", "ed25519_make_key");
     check_cfg(&binding, "wc_ed25519_import_public", "ed25519_import");
     check_cfg(&binding, "wc_ed25519_export_public", "ed25519_export");
     check_cfg(&binding, "wc_ed25519_sign_msg", "ed25519_sign");

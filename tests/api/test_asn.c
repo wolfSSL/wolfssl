@@ -440,7 +440,8 @@ int test_DecodeAsymKey_lenient_versions(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT) && \
-    defined(HAVE_ED25519_KEY_IMPORT) && defined(WOLFSSL_KEY_GEN)
+    defined(HAVE_ED25519_KEY_IMPORT) && defined(WOLFSSL_KEY_GEN) && \
+    defined(HAVE_ED25519_MAKE_KEY)
     ed25519_key key;
     ed25519_key parsed;
     WC_RNG rng;
@@ -519,7 +520,8 @@ int test_DecodeAsymKey_negative(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT) && \
-    defined(HAVE_ED25519_KEY_IMPORT) && defined(WOLFSSL_KEY_GEN)
+    defined(HAVE_ED25519_KEY_IMPORT) && defined(WOLFSSL_KEY_GEN) && \
+    defined(HAVE_ED25519_MAKE_KEY)
     ed25519_key key;
     ed25519_key parsed;
     WC_RNG rng;
@@ -2818,7 +2820,7 @@ int test_ToTraditional_ex_roundtrip(void)
      defined(OPENSSL_EXTRA_X509_SMALL) || defined(WOLFSSL_PUBLIC_ASN))
 
 #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT) && \
-    defined(WOLFSSL_KEY_GEN)
+    defined(WOLFSSL_KEY_GEN) && defined(HAVE_ED25519_MAKE_KEY)
     {
         ed25519_key key;
         WC_RNG rng;
@@ -2845,7 +2847,8 @@ int test_ToTraditional_ex_roundtrip(void)
         wc_ed25519_free(&key);
         wc_FreeRng(&rng);
     }
-#endif /* HAVE_ED25519 */
+#endif /* HAVE_ED25519 && HAVE_ED25519_KEY_EXPORT && WOLFSSL_KEY_GEN &&
+          HAVE_ED25519_MAKE_KEY */
 
 #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT) && \
     defined(WOLFSSL_KEY_GEN)
@@ -2948,8 +2951,8 @@ int test_ToTraditional_ex_negative(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_PKCS8) && defined(HAVE_ED25519) && \
-    defined(HAVE_ED25519_KEY_EXPORT) && defined(WOLFSSL_KEY_GEN) && \
-    defined(WOLFSSL_ASN_TEMPLATE) && \
+    defined(HAVE_ED25519_KEY_EXPORT) && defined(HAVE_ED25519_MAKE_KEY) && \
+    defined(WOLFSSL_KEY_GEN) && defined(WOLFSSL_ASN_TEMPLATE) && \
     (defined(WOLFSSL_TEST_CERT) || defined(OPENSSL_EXTRA) || \
      defined(OPENSSL_EXTRA_X509_SMALL) || defined(WOLFSSL_PUBLIC_ASN))
     ed25519_key key;

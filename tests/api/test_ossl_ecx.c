@@ -132,7 +132,7 @@ int test_ED25519(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT) && \
-    defined(WOLFSSL_KEY_GEN)
+    defined(HAVE_ED25519_MAKE_KEY) && defined(WOLFSSL_KEY_GEN)
     byte         priv[ED25519_PRV_KEY_SIZE];
     unsigned int privSz = (unsigned int)sizeof(priv);
     byte         pub[ED25519_PUB_KEY_SIZE];
@@ -240,7 +240,8 @@ int test_ED25519(void)
         sigSz), 0);
 #endif /* HAVE_ED25519_VERIFY */
 #endif /* HAVE_ED25519_SIGN && HAVE_ED25519_KEY_IMPORT */
-#endif /* HAVE_ED25519 && HAVE_ED25519_KEY_EXPORT && WOLFSSL_KEY_GEN */
+#endif /* HAVE_ED25519 && HAVE_ED25519_KEY_EXPORT && HAVE_ED25519_MAKE_KEY &&
+          WOLFSSL_KEY_GEN */
     return EXPECT_RESULT();
 }
 
