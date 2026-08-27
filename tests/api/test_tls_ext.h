@@ -41,6 +41,8 @@ int test_TLSX_SNI_GetSize_overflow(void);
 int test_TLSX_ECH_msg_type_validation(void);
 int test_TLSX_CSR2_tls13_msg_type_validation(void);
 int test_TLSX_SRTP_msg_type_validation(void);
+int test_TLSX_TCA_tls13_msg_type_validation(void);
+int test_TLSX_QUIC_TP_non_quic(void);
 int test_TLSX_ALPN_server_response_count(void);
 int test_TLSX_SupportedCurve_empty_or_unsupported(void);
 int test_TLSX_PointFormat_uncompressed_required(void);

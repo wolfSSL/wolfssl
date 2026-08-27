@@ -1952,6 +1952,68 @@ int test_TLSX_SRTP_msg_type_validation(void)
     return EXPECT_RESULT();
 }
 
+/* trusted_ca_keys is not used in TLS 1.3. It is still tolerated (ignored) in a
+ * ClientHello, since a version-negotiating client may legitimately offer it,
+ * but must be rejected with EXT_NOT_ALLOWED in any other message type. */
+int test_TLSX_TCA_tls13_msg_type_validation(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    Suites* suites = NULL;
+    /* type = TLSX_TRUSTED_CA_KEYS (0x0003), size = 0x0002,
+     * empty trusted_authorities_list (meets the ClientHello minimum size) */
+    const byte extBytes[] = { 0x00, 0x03, 0x00, 0x02, 0x00, 0x00 };
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL)
+        suites = (Suites*)WOLFSSL_SUITES(ssl);
+
+    ExpectIntEQ(TLSX_Parse(ssl, extBytes, (word16)sizeof(extBytes),
+                           client_hello, suites), 0);
+    ExpectIntEQ(TLSX_Parse(ssl, extBytes, (word16)sizeof(extBytes),
+                           encrypted_extensions, NULL),
+                WC_NO_ERR_TRACE(EXT_NOT_ALLOWED));
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* RFC 9001 Section 8.2: an endpoint that receives quic_transport_parameters on
+ * a connection that is not using QUIC must abort with an unsupported_extension
+ * alert, rather than the illegal_parameter implied by EXT_NOT_ALLOWED. */
+int test_TLSX_QUIC_TP_non_quic(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_QUIC) && defined(WOLFSSL_TLS13) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    WOLFSSL_ALERT_HISTORY history;
+    /* type = TLSX_KEY_QUIC_TP_PARAMS (0x0039), size = 0x0000 */
+    const byte extBytes[] = { 0x00, 0x39, 0x00, 0x00 };
+
+    /* No wolfSSL_set_quic_method(): this is a plain TLS connection. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    ExpectIntEQ(TLSX_Parse(ssl, extBytes, (word16)sizeof(extBytes),
+                           encrypted_extensions, NULL),
+                WC_NO_ERR_TRACE(UNSUPPORTED_EXTENSION));
+    ExpectIntEQ(wolfSSL_get_alert_history(ssl, &history), WOLFSSL_SUCCESS);
+    ExpectIntEQ(history.last_tx.level, alert_fatal);
+    ExpectIntEQ(history.last_tx.code, unsupported_extension);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* RFC 7301 Section 3.1: the server's ProtocolNameList in its ALPN response
  * MUST contain exactly one ProtocolName. A ServerHello carrying two entries
  * must be rejected rather than silently accepted. */

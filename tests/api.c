@@ -40551,6 +40551,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_TLSX_ECH_msg_type_validation),
     TEST_DECL(test_TLSX_CSR2_tls13_msg_type_validation),
     TEST_DECL(test_TLSX_SRTP_msg_type_validation),
+    TEST_DECL(test_TLSX_TCA_tls13_msg_type_validation),
+    TEST_DECL(test_TLSX_QUIC_TP_non_quic),
     TEST_DECL(test_TLSX_ALPN_server_response_count),
     TEST_DECL(test_TLSX_SupportedCurve_empty_or_unsupported),
     TEST_DECL(test_TLSX_PointFormat_uncompressed_required),

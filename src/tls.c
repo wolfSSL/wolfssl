@@ -18685,9 +18685,11 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
             #endif
 
 #ifdef WOLFSSL_TLS13
-                /* RFC 8446 4.2.4 states trusted_ca_keys is not used
-                   in TLS 1.3. */
                 if (IsAtLeastTLSv1_3(ssl->version)) {
+                    if (msgType != client_hello) {
+                        WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
+                        return EXT_NOT_ALLOWED;
+                    }
                     break;
                 }
                 else
@@ -19201,7 +19203,9 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                 }
                 else {
                     WOLFSSL_MSG("QUIC transport param TLS extension type, but no QUIC");
-                    return EXT_NOT_ALLOWED; /* be safe, this should not happen */
+                    SendAlert(ssl, alert_fatal, unsupported_extension);
+                    WOLFSSL_ERROR_VERBOSE(UNSUPPORTED_EXTENSION);
+                    return UNSUPPORTED_EXTENSION;
                 }
                 break;
 #endif /* WOLFSSL_QUIC */
