@@ -178,6 +178,15 @@ static int test_set_quic_method(void) {
         ExpectTrue(wolfSSL_set_quic_method(ssl, &dummy_method) == WOLFSSL_SUCCESS);
         ExpectTrue(wolfSSL_is_quic(ssl));
         /* Check some default, initial behaviour */
+#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+        /* RFC 9001 Section 4.4: no post-handshake authentication over QUIC */
+        if (valids[i].is_server) {
+            ExpectIntEQ(wolfSSL_request_certificate(ssl), BAD_FUNC_ARG);
+        }
+        else {
+            ExpectIntEQ(wolfSSL_allow_post_handshake_auth(ssl), BAD_FUNC_ARG);
+        }
+#endif
         ExpectTrue(wolfSSL_set_quic_transport_params(ssl, NULL, 0) == WOLFSSL_SUCCESS);
         wolfSSL_get_peer_quic_transport_params(ssl, &data, &data_len);
         ExpectNull(data);
