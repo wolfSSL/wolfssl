@@ -7279,6 +7279,25 @@ void wolfSSL_set_info_callback(WOLFSSL* ssl,
 
 
 #ifndef NO_TLS
+/* The info callback (DoAlert/SendAlert) passes alerts packed as
+ * (level << 8) | code. Unpack for the string lookups; a raw level or code
+ * (high byte zero) passes through unchanged. */
+static int unpackAlertCode(int alertID)
+{
+    if ((alertID >> 8) != 0)
+        alertID = alertID & 0xff;
+
+    return alertID;
+}
+
+static int unpackAlertLevel(int alertID)
+{
+    if ((alertID >> 8) != 0)
+        alertID = (alertID >> 8) & 0xff;
+
+    return alertID;
+}
+
 /* returns a string that describes the alert
  *
  * alertID the alert value to look up
@@ -7287,14 +7306,14 @@ const char* wolfSSL_alert_type_string_long(int alertID)
 {
     WOLFSSL_ENTER("wolfSSL_alert_type_string_long");
 
-    return AlertTypeToString(alertID);
+    return AlertTypeToString(unpackAlertCode(alertID));
 }
 
 const char* wolfSSL_alert_type_string(int alertID)
 {
     WOLFSSL_ENTER("wolfSSL_alert_type_string");
 
-    switch (alertID) {
+    switch (unpackAlertLevel(alertID)) {
         case alert_warning:
             return "W";
         case alert_fatal:
@@ -7308,14 +7327,14 @@ const char* wolfSSL_alert_desc_string_long(int alertID)
 {
     WOLFSSL_ENTER("wolfSSL_alert_desc_string_long");
 
-    return AlertTypeToString(alertID);
+    return AlertTypeToString(unpackAlertCode(alertID));
 }
 
 const char* wolfSSL_alert_desc_string(int alertID)
 {
     WOLFSSL_ENTER("wolfSSL_alert_desc_string");
 
-    switch (alertID) {
+    switch (unpackAlertCode(alertID)) {
         case close_notify:
             return "CN";
         case unexpected_message:
