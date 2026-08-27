@@ -2332,6 +2332,7 @@ int wc_MXC_MAA_math(mp_int* multiplier, mp_int* multiplicand, mp_int* exp,
     if ((multiplier == result) || (multiplicand == result) || (exp == result) ||
             (mod == result)) {
             MAX3266X_MSG("Creating Temp Result Buffer for Hardware");
+            XMEMSET(&result_tmp, 0, sizeof(mp_int));
             result_tmp_ptr = &result_tmp; /* Assign point to temp struct */
     }
     else {
