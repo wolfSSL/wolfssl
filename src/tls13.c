@@ -16583,9 +16583,9 @@ int wolfSSL_CTX_allow_post_handshake_auth(WOLFSSL_CTX* ctx)
 /* Allow post-handshake authentication in TLS v1.3 connection.
  *
  * ssl  The SSL/TLS object.
- * returns BAD_FUNC_ARG when ssl is NULL, or not using TLS v1.3,
- * SIDE_ERROR when not a client, BAD_STATE_E when called after the handshake
- * has started, and 0 on success.
+ * returns BAD_FUNC_ARG when ssl is NULL, not using TLS v1.3, or running over
+ * QUIC, SIDE_ERROR when not a client, BAD_STATE_E when called after the
+ * handshake has started, and 0 on success.
  *
  * Must be called before wolfSSL_connect() so the post_handshake_auth
  * extension can be included in the ClientHello.
