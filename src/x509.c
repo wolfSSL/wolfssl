@@ -1385,6 +1385,130 @@ static int wolfssl_x509_add_custom_ext(WOLFSSL_X509 *x509,
 }
 #endif /* WOLFSSL_CUSTOM_OID */
 
+/* Map a DER encoded KeyPurposeId to its EXTKEYUSE_* bit.
+ *
+ * @param [in]  der    DER encoded OBJECT IDENTIFIER.
+ * @param [in]  derSz  Length of @der in bytes.
+ * @param [out] bit    Usage bit, 0 when wolfSSL tracks no bit for the OID.
+ * @return  0 on success, ASN_PARSE_E when @der is not one OBJECT IDENTIFIER.
+ */
+static int wolfssl_eku_der_to_bit(const byte* der, word32 derSz, byte* bit)
+{
+    word32 idx = 0;
+    word32 oid = 0;
+
+    *bit = 0;
+
+    /* wolfSSL_d2i_ASN1_OBJECT() reads back at most this much. */
+    if (derSz > (word32)(MAX_OID_SZ + 2)) {
+        return ASN_PARSE_E;
+    }
+    if (GetObjectId(der, &idx, &oid, oidIgnoreType, derSz) != 0) {
+        return ASN_PARSE_E;
+    }
+    /* One OID, no trailing bytes. */
+    if (idx != derSz) {
+        return ASN_PARSE_E;
+    }
+
+    switch (oid) {
+    case EKU_ANY_OID:
+        *bit = EXTKEYUSE_ANY;
+        break;
+    case EKU_SERVER_AUTH_OID:
+        *bit = EXTKEYUSE_SERVER_AUTH;
+        break;
+    case EKU_CLIENT_AUTH_OID:
+        *bit = EXTKEYUSE_CLIENT_AUTH;
+        break;
+    case EKU_CODESIGNING_OID:
+        *bit = EXTKEYUSE_CODESIGN;
+        break;
+    case EKU_EMAILPROTECT_OID:
+        *bit = EXTKEYUSE_EMAILPROT;
+        break;
+    case EKU_TIMESTAMP_OID:
+        *bit = EXTKEYUSE_TIMESTAMP;
+        break;
+    case EKU_OCSP_SIGN_OID:
+        *bit = EXTKEYUSE_OCSP_SIGN;
+        break;
+    default:
+        /* Unknown OID: kept in the list, no bit. */
+        break;
+    }
+
+    return 0;
+}
+
+/* Set the extKeyUsage of @x509 from the stack of ASN.1 OBJECTs that
+ * wolfSSL_X509V3_EXT_i2d() builds for WC_NID_ext_key_usage.
+ *
+ * The KeyPurposeId list is stored as the bare concatenation of its DER
+ * OBJECT IDENTIFIERs, the layout DecodeExtKeyUsage() hands to WOLFSSL_X509,
+ * so that wolfSSL_X509_get_ext_d2i() reads it back. OIDs wolfSSL has no bit
+ * for stay in the list.
+ *
+ * @return  WOLFSSL_SUCCESS on success, WOLFSSL_FAILURE otherwise.
+ */
+static int wolfssl_x509_add_ext_key_usage_sk(WOLFSSL_X509* x509,
+    WOLFSSL_X509_EXTENSION* ext)
+{
+    int i;
+    int num;
+    byte* der;
+    word32 derSz = 0;
+    word32 idx = 0;
+    byte usage = 0;
+    byte bit = 0;
+
+    num = wolfSSL_sk_num(ext->ext_sk);
+    if (num <= 0) {
+        WOLFSSL_MSG("extKeyUsage object stack is empty");
+        return WOLFSSL_FAILURE;
+    }
+
+    /* Validate before allocating so a bad entry changes nothing. */
+    for (i = 0; i < num; i++) {
+        WOLFSSL_ASN1_OBJECT* obj = (WOLFSSL_ASN1_OBJECT*)wolfSSL_sk_value(
+            ext->ext_sk, i);
+
+        if ((obj == NULL) || (obj->obj == NULL) || (obj->objSz == 0)) {
+            WOLFSSL_MSG("extKeyUsage entry has no OID encoding");
+            return WOLFSSL_FAILURE;
+        }
+        if (wolfssl_eku_der_to_bit(obj->obj, obj->objSz, &bit) != 0) {
+            WOLFSSL_MSG("extKeyUsage entry is not a KeyPurposeId");
+            return WOLFSSL_FAILURE;
+        }
+        usage |= bit;
+        derSz += obj->objSz;
+    }
+
+    der = (byte*)XMALLOC(derSz, x509->heap, DYNAMIC_TYPE_X509_EXT);
+    if (der == NULL) {
+        WOLFSSL_MSG("Memory allocation failure");
+        return WOLFSSL_FAILURE;
+    }
+
+    for (i = 0; i < num; i++) {
+        WOLFSSL_ASN1_OBJECT* obj = (WOLFSSL_ASN1_OBJECT*)wolfSSL_sk_value(
+            ext->ext_sk, i);
+
+        XMEMCPY(der + idx, obj->obj, obj->objSz);
+        idx += obj->objSz;
+    }
+
+    XFREE(x509->extKeyUsageSrc, x509->heap, DYNAMIC_TYPE_X509_EXT);
+    x509->extKeyUsageSrc   = der;
+    x509->extKeyUsageSz    = derSz;
+    x509->extKeyUsageCount = (word32)num;
+    x509->extKeyUsage      = usage;
+    x509->extKeyUsageCrit  = (byte)ext->crit;
+
+    return WOLFSSL_SUCCESS;
+}
+
 int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext,
     int loc)
 {
@@ -1474,13 +1598,10 @@ int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext,
             }
         }
         else if (ext && ext->ext_sk != NULL) {
-            /* wolfSSL_X509V3_EXT_i2d() represents extKeyUsage as a stack of
-             * ASN1_OBJECTs in ext_sk, which cannot be mapped back to the
-             * x509->extKeyUsage bitmask here. Fail rather than silently
-             * report success without adding anything. */
-            WOLFSSL_MSG("extKeyUsage object stack not supported by "
-                        "wolfSSL_X509_add_ext");
-            return WOLFSSL_FAILURE;
+            if (wolfssl_x509_add_ext_key_usage_sk(x509, ext) !=
+                    WOLFSSL_SUCCESS) {
+                return WOLFSSL_FAILURE;
+            }
         }
         /* No data and no object stack: nothing to set, treat as no-op like the
          * WC_NID_key_usage case above. */
@@ -3713,8 +3834,7 @@ static int wolfssl_x509_remove_ext(WOLFSSL_X509 *x509, int nid)
  *   X509V3_ADD_KEEP_EXISTING    - keep existing (no-op if present), else add
  *   X509V3_ADD_DELETE           - delete existing, fail if not present
  * X509V3_ADD_SILENT only suppresses error reporting; it does not change the
- * result of the operation. Note that extKeyUsage is not supported by the
- * underlying wolfSSL_X509_add_ext() and will fail.
+ * result of the operation.
  *
  * @return WOLFSSL_SUCCESS on success, WOLFSSL_FAILURE otherwise.
  */
