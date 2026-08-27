@@ -34001,6 +34001,239 @@ static int test_wc_CryptoCb_TLS(int tlsVer,
 }
 #endif /* WOLF_CRYPTO_CB && HAVE_IO_TESTS_DEPENDENCIES */
 
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_CMD)
+    /* The nested scenarios hold up to five devices at once, so skip the
+     * test on smaller tables. */
+    #if MAX_CRYPTO_DEVID_CALLBACKS >= 5
+        #define TEST_CRYPTOCB_NESTED_REGISTER
+    #endif
+#endif
+
+#ifdef TEST_CRYPTOCB_NESTED_REGISTER
+#define TEST_CRYPTOCB_NESTED_PARENT_DEVID    0x5A00
+#define TEST_CRYPTOCB_NESTED_CHILD_DEVID     0x5A10
+/* Grandchild devId is its child's devId plus this offset. */
+#define TEST_CRYPTOCB_NESTED_GRANDCHILD_DIFF 0x20
+#define TEST_CRYPTOCB_NESTED_SELF_DEVID      0x5A40
+#define TEST_CRYPTOCB_NESTED_FILLER_DEVID    0x5A50
+#define TEST_CRYPTOCB_NESTED_NUM_CHILDREN    2
+
+/* Which callback saw the last unregister command: 1 child, 2 parent. */
+static int test_CryptoCb_lastUnregCb;
+
+static int test_CryptoCb_NestedGrandchild_Func(int devId, wc_CryptoInfo* info,
+    void* ctx)
+{
+    (void)devId;
+    (void)info;
+    (void)ctx;
+
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+
+static int test_CryptoCb_NestedChild_Func(int devId, wc_CryptoInfo* info,
+    void* ctx)
+{
+    (void)ctx;
+
+    if (info == NULL || info->algo_type != WC_ALGO_TYPE_NONE)
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+
+    if (info->cmd.type == WC_CRYPTOCB_CMD_TYPE_REGISTER) {
+        /* One level deeper: each child brings up its own sub-device. */
+        return wc_CryptoCb_RegisterDevice(
+            devId + TEST_CRYPTOCB_NESTED_GRANDCHILD_DIFF,
+            test_CryptoCb_NestedGrandchild_Func, NULL);
+    }
+    if (info->cmd.type == WC_CRYPTOCB_CMD_TYPE_UNREGISTER)
+        test_CryptoCb_lastUnregCb = 1;
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+
+static int test_CryptoCb_SelfRegister_Func(int devId, wc_CryptoInfo* info,
+    void* ctx)
+{
+    (void)ctx;
+
+    if (info != NULL && info->algo_type == WC_ALGO_TYPE_NONE &&
+        info->cmd.type == WC_CRYPTOCB_CMD_TYPE_REGISTER) {
+        /* Our own devId is not published yet, so this recurses into a fresh
+         * slot each time until the table fills and BUFFER_E unwinds it. */
+        return wc_CryptoCb_RegisterDevice(devId,
+            test_CryptoCb_SelfRegister_Func, NULL);
+    }
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+
+static int test_CryptoCb_NestedParent_Func(int devId, wc_CryptoInfo* info,
+    void* ctx)
+{
+    int i;
+    (void)devId;
+    (void)ctx;
+
+    if (info == NULL || info->algo_type != WC_ALGO_TYPE_NONE)
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+
+    if (info->cmd.type == WC_CRYPTOCB_CMD_TYPE_REGISTER) {
+        /* Register more devices from inside our own register command, like
+         * ports that expose several devIds from one driver. */
+        for (i = 0; i < TEST_CRYPTOCB_NESTED_NUM_CHILDREN; i++) {
+            int rc = wc_CryptoCb_RegisterDevice(
+                TEST_CRYPTOCB_NESTED_CHILD_DEVID + i,
+                test_CryptoCb_NestedChild_Func, NULL);
+            if (rc != 0)
+                return rc;
+        }
+        return 0;
+    }
+    if (info->cmd.type == WC_CRYPTOCB_CMD_TYPE_UNREGISTER)
+        test_CryptoCb_lastUnregCb = 2;
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif /* TEST_CRYPTOCB_NESTED_REGISTER */
+
+static int test_wc_CryptoCb_nested_register(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_CRYPTOCB_NESTED_REGISTER
+    int i;
+    int rc;
+    int fillers;
+
+    /* Registering devices from inside a register command must not hand a
+     * child (or grandchild) the half filled slot of a caller up the chain. */
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_NESTED_PARENT_DEVID,
+        test_CryptoCb_NestedParent_Func, NULL), 0);
+
+    /* Parent, every child, and every grandchild must all be registered. */
+    ExpectIntEQ(wc_CryptoCb_IsDeviceRegistered(
+        TEST_CRYPTOCB_NESTED_PARENT_DEVID), 1);
+    for (i = 0; i < TEST_CRYPTOCB_NESTED_NUM_CHILDREN; i++) {
+        ExpectIntEQ(wc_CryptoCb_IsDeviceRegistered(
+            TEST_CRYPTOCB_NESTED_CHILD_DEVID + i), 1);
+        ExpectIntEQ(wc_CryptoCb_IsDeviceRegistered(
+            TEST_CRYPTOCB_NESTED_CHILD_DEVID + i +
+            TEST_CRYPTOCB_NESTED_GRANDCHILD_DIFF), 1);
+    }
+
+    for (i = 0; i < TEST_CRYPTOCB_NESTED_NUM_CHILDREN; i++) {
+        wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_NESTED_CHILD_DEVID + i);
+        wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_NESTED_CHILD_DEVID + i +
+            TEST_CRYPTOCB_NESTED_GRANDCHILD_DIFF);
+    }
+
+    /* The parent's slot must still hold the parent's callback, so its own
+     * unregister handler runs, not a child's. */
+    test_CryptoCb_lastUnregCb = 0;
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_NESTED_PARENT_DEVID);
+    ExpectIntEQ(test_CryptoCb_lastUnregCb, 2);
+    ExpectIntEQ(wc_CryptoCb_IsDeviceRegistered(
+        TEST_CRYPTOCB_NESTED_PARENT_DEVID), 0);
+
+    /* A failing nested registration must unwind cleanly: pre-register the
+     * first child devId so the parent's register command hits ALREADY_E. */
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_NESTED_CHILD_DEVID,
+        NULL, NULL), 0);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_NESTED_PARENT_DEVID,
+        test_CryptoCb_NestedParent_Func, NULL), WC_NO_ERR_TRACE(ALREADY_E));
+    ExpectIntEQ(wc_CryptoCb_IsDeviceRegistered(
+        TEST_CRYPTOCB_NESTED_PARENT_DEVID), 0);
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_NESTED_CHILD_DEVID);
+
+    /* Partial success: pre-register the second child so the parent's command
+     * registers child 0 (and its grandchild), then fails on child 1. Only
+     * the parent's own slot is unwound; devices the command already
+     * registered survive and are the caller's to clean up. */
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(
+        TEST_CRYPTOCB_NESTED_CHILD_DEVID + 1, NULL, NULL), 0);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_NESTED_PARENT_DEVID,
+        test_CryptoCb_NestedParent_Func, NULL), WC_NO_ERR_TRACE(ALREADY_E));
+    ExpectIntEQ(wc_CryptoCb_IsDeviceRegistered(
+        TEST_CRYPTOCB_NESTED_PARENT_DEVID), 0);
+    ExpectIntEQ(wc_CryptoCb_IsDeviceRegistered(
+        TEST_CRYPTOCB_NESTED_CHILD_DEVID), 1);
+    ExpectIntEQ(wc_CryptoCb_IsDeviceRegistered(
+        TEST_CRYPTOCB_NESTED_CHILD_DEVID +
+        TEST_CRYPTOCB_NESTED_GRANDCHILD_DIFF), 1);
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_NESTED_CHILD_DEVID);
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_NESTED_CHILD_DEVID +
+        TEST_CRYPTOCB_NESTED_GRANDCHILD_DIFF);
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_NESTED_CHILD_DEVID + 1);
+
+    /* Table-full boundary: leave exactly one free slot, so the parent takes
+     * it and the nested child finds none (the parent's half filled slot must
+     * be skipped, not handed out) and BUFFER_E unwinds the registration. */
+    rc = 0;
+    for (fillers = 0; rc == 0 && fillers <= MAX_CRYPTO_DEVID_CALLBACKS; ) {
+        rc = wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_NESTED_FILLER_DEVID +
+            fillers, NULL, NULL);
+        if (rc == 0)
+            fillers++;
+    }
+    ExpectIntEQ(rc, WC_NO_ERR_TRACE(BUFFER_E));
+    ExpectIntGT(fillers, 0);
+    if (fillers > 0) {
+        fillers--;
+        wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_NESTED_FILLER_DEVID +
+            fillers);
+    }
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_NESTED_PARENT_DEVID,
+        test_CryptoCb_NestedParent_Func, NULL), WC_NO_ERR_TRACE(BUFFER_E));
+    ExpectIntEQ(wc_CryptoCb_IsDeviceRegistered(
+        TEST_CRYPTOCB_NESTED_PARENT_DEVID), 0);
+    ExpectIntEQ(wc_CryptoCb_IsDeviceRegistered(
+        TEST_CRYPTOCB_NESTED_CHILD_DEVID), 0);
+
+    /* Two free slots: the parent and first child each hold a half filled
+     * slot when the grandchild's registration hits BUFFER_E, so the free
+     * slot search must skip both and the error must cascade through both
+     * frames, clearing every half filled slot on the way out. */
+    if (fillers > 0) {
+        fillers--;
+        wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_NESTED_FILLER_DEVID +
+            fillers);
+    }
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_NESTED_PARENT_DEVID,
+        test_CryptoCb_NestedParent_Func, NULL), WC_NO_ERR_TRACE(BUFFER_E));
+    ExpectIntEQ(wc_CryptoCb_IsDeviceRegistered(
+        TEST_CRYPTOCB_NESTED_PARENT_DEVID), 0);
+    ExpectIntEQ(wc_CryptoCb_IsDeviceRegistered(
+        TEST_CRYPTOCB_NESTED_CHILD_DEVID), 0);
+    ExpectIntEQ(wc_CryptoCb_IsDeviceRegistered(
+        TEST_CRYPTOCB_NESTED_CHILD_DEVID +
+        TEST_CRYPTOCB_NESTED_GRANDCHILD_DIFF), 0);
+
+    for (i = 0; i < fillers; i++) {
+        wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_NESTED_FILLER_DEVID + i);
+    }
+
+    /* The unwound slots must be reusable once the table has room again. */
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_NESTED_PARENT_DEVID,
+        test_CryptoCb_NestedParent_Func, NULL), 0);
+    for (i = 0; i < TEST_CRYPTOCB_NESTED_NUM_CHILDREN; i++) {
+        wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_NESTED_CHILD_DEVID + i);
+        wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_NESTED_CHILD_DEVID + i +
+            TEST_CRYPTOCB_NESTED_GRANDCHILD_DIFF);
+    }
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_NESTED_PARENT_DEVID);
+
+    /* Re-registering your own devId from your own register command is
+     * prohibited: the unpublished devId passes the ALREADY_E check, so it
+     * recurses into fresh slots until the table fills, then BUFFER_E
+     * unwinds every one of them. */
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_NESTED_SELF_DEVID,
+        test_CryptoCb_SelfRegister_Func, NULL), WC_NO_ERR_TRACE(BUFFER_E));
+    ExpectIntEQ(wc_CryptoCb_IsDeviceRegistered(
+        TEST_CRYPTOCB_NESTED_SELF_DEVID), 0);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_NESTED_SELF_DEVID,
+        NULL, NULL), 0);
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_NESTED_SELF_DEVID);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_wc_CryptoCb(void)
 {
     EXPECT_DECLS;
@@ -41237,6 +41470,9 @@ TEST_CASE testCases[] = {
      * unconditionally, as on master. */
     /* Can't memory test as client/server hangs. */
     TEST_DECL(test_wc_CryptoCb),
+    /* Unconditional shell (body self-guards on WOLF_CRYPTO_CB &&
+     * WOLF_CRYPTO_CB_CMD and a big-enough callback table). */
+    TEST_DECL(test_wc_CryptoCb_nested_register),
     /* Can't memory test as client/server hangs. */
     TEST_DECL(test_wolfSSL_CTX_StaticMemory),
 #if !defined(NO_FILESYSTEM) &&                                                 \

@@ -84263,6 +84263,261 @@ static wc_test_ret_t shake_cb_copy_free_test(myCryptoDevCtx* myCtx,
 }
 #endif /* WOLFSSL_SHA3 && SHAKE && (CB_COPY || CB_FREE) */
 
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_CMD) && \
+    !defined(WC_TEST_NO_CRYPTOCB_SW_TEST)
+    /* The nested scenarios hold up to five devices at once on top of the
+     * devIds the harness pre-registers (the main test devId, plus the RNG
+     * seed device in no-hashdrbg builds), so skip on smaller tables. */
+    #if MAX_CRYPTO_DEVID_CALLBACKS >= 7
+        #define NESTED_CB_TEST
+    #endif
+#endif
+
+#ifdef NESTED_CB_TEST
+#define NESTED_CB_PARENT_DEVID     0x5A00
+#define NESTED_CB_CHILD_DEVID      0x5A10
+/* Grandchild devId is its child's devId plus this offset. */
+#define NESTED_CB_GRANDCHILD_DIFF  0x20
+#define NESTED_CB_SELF_DEVID       0x5A40
+#define NESTED_CB_FILLER_DEVID     0x5A50
+#define NESTED_CB_NUM_CHILDREN     2
+
+/* Which callback saw the last unregister command: 1 child, 2 parent. */
+static int nestedCbLastUnreg;
+
+static int myNestedGrandchildCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    (void)devIdArg;
+    (void)info;
+    (void)ctx;
+
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+
+static int myNestedChildCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    (void)ctx;
+
+    if (info == NULL || info->algo_type != WC_ALGO_TYPE_NONE)
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+
+    if (info->cmd.type == WC_CRYPTOCB_CMD_TYPE_REGISTER) {
+        /* One level deeper: each child brings up its own sub-device. */
+        return wc_CryptoCb_RegisterDevice(
+            devIdArg + NESTED_CB_GRANDCHILD_DIFF, myNestedGrandchildCb, NULL);
+    }
+    if (info->cmd.type == WC_CRYPTOCB_CMD_TYPE_UNREGISTER)
+        nestedCbLastUnreg = 1;
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+
+static int mySelfRegisterCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    (void)ctx;
+
+    if (info != NULL && info->algo_type == WC_ALGO_TYPE_NONE &&
+        info->cmd.type == WC_CRYPTOCB_CMD_TYPE_REGISTER) {
+        /* Our own devId is not published yet, so this recurses into a fresh
+         * slot each time until the table fills and BUFFER_E unwinds it. */
+        return wc_CryptoCb_RegisterDevice(devIdArg, mySelfRegisterCb, NULL);
+    }
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+
+static int myNestedParentCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    int i;
+    (void)devIdArg;
+    (void)ctx;
+
+    if (info == NULL || info->algo_type != WC_ALGO_TYPE_NONE)
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+
+    if (info->cmd.type == WC_CRYPTOCB_CMD_TYPE_REGISTER) {
+        /* Register more devices from inside our own register command, like
+         * ports that expose several devIds from one driver. */
+        for (i = 0; i < NESTED_CB_NUM_CHILDREN; i++) {
+            int rc = wc_CryptoCb_RegisterDevice(NESTED_CB_CHILD_DEVID + i,
+                myNestedChildCb, NULL);
+            if (rc != 0)
+                return rc;
+        }
+        return 0;
+    }
+    if (info->cmd.type == WC_CRYPTOCB_CMD_TYPE_UNREGISTER)
+        nestedCbLastUnreg = 2;
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+
+/* Registering devices from inside a register command must not hand a child
+ * the parent's half filled slot. */
+static wc_test_ret_t cryptocb_nested_register_test(void)
+{
+    wc_test_ret_t ret = 0;
+    int i;
+    int rc;
+    int fillers;
+
+    rc = wc_CryptoCb_RegisterDevice(NESTED_CB_PARENT_DEVID, myNestedParentCb,
+        NULL);
+    if (rc != 0)
+        ret = WC_TEST_RET_ENC_EC(rc);
+
+    /* Parent, every child, and every grandchild must all be registered. */
+    if (ret == 0 && wc_CryptoCb_IsDeviceRegistered(NESTED_CB_PARENT_DEVID) != 1)
+        ret = WC_TEST_RET_ENC_NC;
+    for (i = 0; ret == 0 && i < NESTED_CB_NUM_CHILDREN; i++) {
+        if (wc_CryptoCb_IsDeviceRegistered(NESTED_CB_CHILD_DEVID + i) != 1 ||
+            wc_CryptoCb_IsDeviceRegistered(NESTED_CB_CHILD_DEVID + i +
+                NESTED_CB_GRANDCHILD_DIFF) != 1)
+            ret = WC_TEST_RET_ENC_NC;
+    }
+
+    for (i = 0; i < NESTED_CB_NUM_CHILDREN; i++) {
+        wc_CryptoCb_UnRegisterDevice(NESTED_CB_CHILD_DEVID + i);
+        wc_CryptoCb_UnRegisterDevice(NESTED_CB_CHILD_DEVID + i +
+            NESTED_CB_GRANDCHILD_DIFF);
+    }
+
+    /* The parent's slot must still hold the parent's callback, so its own
+     * unregister handler runs, not a child's. */
+    nestedCbLastUnreg = 0;
+    wc_CryptoCb_UnRegisterDevice(NESTED_CB_PARENT_DEVID);
+    if (ret == 0 && nestedCbLastUnreg != 2)
+        ret = WC_TEST_RET_ENC_NC;
+    if (ret == 0 && wc_CryptoCb_IsDeviceRegistered(NESTED_CB_PARENT_DEVID) != 0)
+        ret = WC_TEST_RET_ENC_NC;
+
+    /* A failing nested registration must unwind cleanly: pre-register the
+     * first child devId so the parent's register command hits ALREADY_E. */
+    if (ret == 0) {
+        rc = wc_CryptoCb_RegisterDevice(NESTED_CB_CHILD_DEVID, NULL, NULL);
+        if (rc != 0)
+            ret = WC_TEST_RET_ENC_EC(rc);
+    }
+    if (ret == 0) {
+        rc = wc_CryptoCb_RegisterDevice(NESTED_CB_PARENT_DEVID,
+            myNestedParentCb, NULL);
+        if (rc != WC_NO_ERR_TRACE(ALREADY_E))
+            ret = WC_TEST_RET_ENC_NC;
+    }
+    if (ret == 0 && wc_CryptoCb_IsDeviceRegistered(NESTED_CB_PARENT_DEVID) != 0)
+        ret = WC_TEST_RET_ENC_NC;
+    wc_CryptoCb_UnRegisterDevice(NESTED_CB_CHILD_DEVID);
+
+    /* Partial success: pre-register the second child so the parent's command
+     * registers child 0 (and its grandchild), then fails on child 1. Only
+     * the parent's own slot is unwound; devices the command already
+     * registered survive and are the caller's to clean up. */
+    if (ret == 0) {
+        rc = wc_CryptoCb_RegisterDevice(NESTED_CB_CHILD_DEVID + 1, NULL, NULL);
+        if (rc != 0)
+            ret = WC_TEST_RET_ENC_EC(rc);
+    }
+    if (ret == 0) {
+        rc = wc_CryptoCb_RegisterDevice(NESTED_CB_PARENT_DEVID,
+            myNestedParentCb, NULL);
+        if (rc != WC_NO_ERR_TRACE(ALREADY_E))
+            ret = WC_TEST_RET_ENC_NC;
+    }
+    if (ret == 0 &&
+        (wc_CryptoCb_IsDeviceRegistered(NESTED_CB_PARENT_DEVID) != 0 ||
+         wc_CryptoCb_IsDeviceRegistered(NESTED_CB_CHILD_DEVID) != 1 ||
+         wc_CryptoCb_IsDeviceRegistered(NESTED_CB_CHILD_DEVID +
+             NESTED_CB_GRANDCHILD_DIFF) != 1))
+        ret = WC_TEST_RET_ENC_NC;
+    wc_CryptoCb_UnRegisterDevice(NESTED_CB_CHILD_DEVID);
+    wc_CryptoCb_UnRegisterDevice(NESTED_CB_CHILD_DEVID +
+        NESTED_CB_GRANDCHILD_DIFF);
+    wc_CryptoCb_UnRegisterDevice(NESTED_CB_CHILD_DEVID + 1);
+
+    /* Table-full boundary: leave exactly one free slot, so the parent takes
+     * it and the nested child finds none (the parent's half filled slot must
+     * be skipped, not handed out) and BUFFER_E unwinds the registration. */
+    rc = 0;
+    for (fillers = 0; rc == 0 && fillers <= MAX_CRYPTO_DEVID_CALLBACKS; ) {
+        rc = wc_CryptoCb_RegisterDevice(NESTED_CB_FILLER_DEVID + fillers,
+            NULL, NULL);
+        if (rc == 0)
+            fillers++;
+    }
+    if (ret == 0 && (rc != WC_NO_ERR_TRACE(BUFFER_E) || fillers == 0))
+        ret = WC_TEST_RET_ENC_NC;
+    if (fillers > 0) {
+        fillers--;
+        wc_CryptoCb_UnRegisterDevice(NESTED_CB_FILLER_DEVID + fillers);
+    }
+
+    if (ret == 0) {
+        rc = wc_CryptoCb_RegisterDevice(NESTED_CB_PARENT_DEVID,
+            myNestedParentCb, NULL);
+        if (rc != WC_NO_ERR_TRACE(BUFFER_E))
+            ret = WC_TEST_RET_ENC_NC;
+    }
+    if (ret == 0 && (wc_CryptoCb_IsDeviceRegistered(NESTED_CB_PARENT_DEVID) ||
+                     wc_CryptoCb_IsDeviceRegistered(NESTED_CB_CHILD_DEVID)))
+        ret = WC_TEST_RET_ENC_NC;
+
+    /* Two free slots: the parent and first child each hold a half filled
+     * slot when the grandchild's registration hits BUFFER_E, so the free
+     * slot search must skip both and the error must cascade through both
+     * frames, clearing every half filled slot on the way out. */
+    if (fillers > 0) {
+        fillers--;
+        wc_CryptoCb_UnRegisterDevice(NESTED_CB_FILLER_DEVID + fillers);
+    }
+    if (ret == 0) {
+        rc = wc_CryptoCb_RegisterDevice(NESTED_CB_PARENT_DEVID,
+            myNestedParentCb, NULL);
+        if (rc != WC_NO_ERR_TRACE(BUFFER_E))
+            ret = WC_TEST_RET_ENC_NC;
+    }
+    if (ret == 0 && (wc_CryptoCb_IsDeviceRegistered(NESTED_CB_PARENT_DEVID) ||
+                     wc_CryptoCb_IsDeviceRegistered(NESTED_CB_CHILD_DEVID) ||
+                     wc_CryptoCb_IsDeviceRegistered(NESTED_CB_CHILD_DEVID +
+                         NESTED_CB_GRANDCHILD_DIFF)))
+        ret = WC_TEST_RET_ENC_NC;
+
+    for (i = 0; i < fillers; i++)
+        wc_CryptoCb_UnRegisterDevice(NESTED_CB_FILLER_DEVID + i);
+
+    /* The unwound slots must be reusable once the table has room again. */
+    if (ret == 0) {
+        rc = wc_CryptoCb_RegisterDevice(NESTED_CB_PARENT_DEVID,
+            myNestedParentCb, NULL);
+        if (rc != 0)
+            ret = WC_TEST_RET_ENC_EC(rc);
+    }
+    for (i = 0; i < NESTED_CB_NUM_CHILDREN; i++) {
+        wc_CryptoCb_UnRegisterDevice(NESTED_CB_CHILD_DEVID + i);
+        wc_CryptoCb_UnRegisterDevice(NESTED_CB_CHILD_DEVID + i +
+            NESTED_CB_GRANDCHILD_DIFF);
+    }
+    wc_CryptoCb_UnRegisterDevice(NESTED_CB_PARENT_DEVID);
+
+    /* Re-registering your own devId from your own register command is
+     * prohibited: the unpublished devId passes the ALREADY_E check, so it
+     * recurses into fresh slots until the table fills, then BUFFER_E
+     * unwinds every one of them. */
+    if (ret == 0) {
+        rc = wc_CryptoCb_RegisterDevice(NESTED_CB_SELF_DEVID, mySelfRegisterCb,
+            NULL);
+        if (rc != WC_NO_ERR_TRACE(BUFFER_E))
+            ret = WC_TEST_RET_ENC_NC;
+    }
+    if (ret == 0 && wc_CryptoCb_IsDeviceRegistered(NESTED_CB_SELF_DEVID) != 0)
+        ret = WC_TEST_RET_ENC_NC;
+    if (ret == 0) {
+        rc = wc_CryptoCb_RegisterDevice(NESTED_CB_SELF_DEVID, NULL, NULL);
+        if (rc != 0)
+            ret = WC_TEST_RET_ENC_EC(rc);
+    }
+    wc_CryptoCb_UnRegisterDevice(NESTED_CB_SELF_DEVID);
+
+    return ret;
+}
+#endif /* NESTED_CB_TEST */
+
 #if !defined(WC_TEST_NO_CRYPTOCB_SW_TEST)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 {
@@ -84999,6 +85254,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
         WC_FREE_VAR_EX(rsaKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif /* WC_RSA_PSS && WOLF_CRYPTO_CB_RSA_PAD */
+
+#ifdef NESTED_CB_TEST
+    if (ret == 0)
+        ret = cryptocb_nested_register_test();
+#endif
 
     wc_CryptoCb_UnRegisterDevice(devId);
 

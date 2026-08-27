@@ -139,6 +139,15 @@
  *            this file is evaluated with CryptoCb_FindCb == NULL, i.e. with
  *            wc_CryptoCb_FindDevice() behaving exactly as in the shipped
  *            variants.
+ *
+ * Fourth pass - wc_CryptoCb_RegisterDevice()'s free-slot scan,
+ * `devId == INVALID_DEVID && cb == NULL` in wc_CryptoCb_GetFreeDevice().
+ * The (T,F) half of the pair - a slot part way through registration, with
+ * cb already set but devId not yet published - exists only transiently
+ * inside a WOLF_CRYPTO_CB_CMD register command, so the vector plants it
+ * directly in gCryptoDev[]; see the section just before the final
+ * unregisters. (T,T) is every successful registration in this file and
+ * (F,-) every occupied slot the scan walks past.
  */
 
 /* See the "third pass" note above: compiled in for this TU only, so the
@@ -252,7 +261,7 @@ int main(void)
 
     /* gCryptoDev is a plain static array; its BSS zero-init leaves every
      * slot's devId == 0, not INVALID_DEVID. wc_CryptoCb_RegisterDevice()
-     * looks for a free slot via wc_CryptoCb_GetDevice(INVALID_DEVID), so
+     * looks for a free slot via wc_CryptoCb_GetFreeDevice(), so
      * without this call every registration below fails with BUFFER_E ("out
      * of devices") - none of the BSS-zeroed slots match INVALID_DEVID.
      * wc_CryptoCb_Init() marks all slots devId == INVALID_DEVID, matching
@@ -1314,6 +1323,45 @@ int main(void)
 #else
     WB_NOTE("HAVE_CURVE448 not defined; Curve448MakePub/Generic skipped");
 #endif
+
+    /* ---- wc_CryptoCb_GetFreeDevice: `devId == INVALID_DEVID &&
+     * cb == NULL` (cryptocb.c :409) ----
+     * See the "fourth pass" note in the file header: the (T,F) half of the
+     * pair is planted directly, since it only exists transiently inside a
+     * WOLF_CRYPTO_CB_CMD register command. */
+    {
+        int slot;
+
+        /* (T,F): slot 0 half filled. A registration must skip it, land in
+         * a later slot, and leave the half filled slot untouched. */
+        wc_CryptoCb_Init();
+        gCryptoDev[0].cb = wb_cb;
+        if (wc_CryptoCb_RegisterDevice(WB_DEVID, wb_cb, NULL) != 0)
+            wb_fail = 1;
+        if (wc_CryptoCb_GetDevice(WB_DEVID) == &gCryptoDev[0])
+            wb_fail = 1;
+        if (gCryptoDev[0].devId != INVALID_DEVID || gCryptoDev[0].cb != wb_cb)
+            wb_fail = 1;
+
+        /* With every other slot registered, the scan must reject the half
+         * filled slot rather than hand it out: no free slot, BUFFER_E. */
+        for (slot = 0; slot < MAX_CRYPTO_DEVID_CALLBACKS; slot++) {
+            (void)wc_CryptoCb_RegisterDevice(WB_DEVID_FILL + slot, wb_cb,
+                NULL);
+        }
+        if (wc_CryptoCb_RegisterDevice(WB_DEVID_NOCB, NULL, NULL) !=
+                WC_NO_ERR_TRACE(BUFFER_E))
+            wb_fail = 1;
+        if (gCryptoDev[0].devId != INVALID_DEVID || gCryptoDev[0].cb != wb_cb)
+            wb_fail = 1;
+        WB_NOTE("GetFreeDevice: devId==INVALID_DEVID&&cb==NULL [:409] "
+                "(T,F) half filled slot skipped, full-table BUFFER_E");
+
+        /* Leave the table the way the rest of this file expects it. */
+        wc_CryptoCb_Init();
+        if (wc_CryptoCb_RegisterDevice(WB_DEVID, wb_cb, NULL) != 0)
+            wb_fail = 1;
+    }
 
     wc_CryptoCb_UnRegisterDevice(WB_DEVID);
     wc_CryptoCb_UnRegisterDevice(WB_DEVID_NOCB);

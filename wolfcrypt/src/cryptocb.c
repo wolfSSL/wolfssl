@@ -578,7 +578,8 @@ int wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx)
 
     /* Publish the entry last, after everything it points at is in place.
      * The slot is therefore not discoverable from the register command
-     * itself - a handler must not dispatch through its own devId. */
+     * itself - a handler must not dispatch through, or re-register, its
+     * own devId (a nested register of it would claim a second slot). */
     WC_BARRIER();
     dev->devId = devId;
 
