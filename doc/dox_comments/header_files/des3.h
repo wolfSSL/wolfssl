@@ -8,11 +8,11 @@
     the initialization vector defaults to an iv of 0.
 
     \note This function must be called on a Des structure before it is
-    passed to wc_Des_CbcEncrypt(), wc_Des_CbcDecrypt(), or
-    wc_Des_EcbEncrypt(). Unlike the Des3 API, the Des structure has no
-    key-set state, so those functions do not verify that a key has been
-    set and will operate on undefined key material if this precondition
-    is not met.
+    passed to wc_Des_CbcEncrypt(), wc_Des_CbcDecrypt(),
+    wc_Des_EcbEncrypt(), or wc_Des_EcbDecrypt(). Unlike the Des3 API,
+    the Des structure has no key-set state, so those functions do not
+    verify that a key has been set and will operate on undefined key
+    material if this precondition is not met.
 
     \return 0 On successfully setting the key and initialization vector for
     the Des structure
@@ -365,6 +365,10 @@ int  wc_Des3_CbcDecrypt(Des3* des, byte* out,
     with Electronic Codebook (ECB) mode. Warning: In nearly all use
     cases ECB mode is considered to be less secure. Please avoid using
     ECB APIs directly whenever possible.
+
+    \note wc_Des_SetKey() must be called on des before calling this
+    function. This function does not check whether a key has been set
+    and will decrypt using undefined key material if it has not.
 
     \return 0 On successfully decrypting the given ciphertext
 
