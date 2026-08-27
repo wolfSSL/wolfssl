@@ -4821,7 +4821,16 @@ int wolfSSL_get_peer_tmp_key(const WOLFSSL* ssl, WOLFSSL_EVP_PKEY** pkey)
     *pkey = NULL;
 
 #ifdef HAVE_ECC
-    if (ssl->peerEccKey != NULL) {
+    /* Keys kept for this call outlive the connection they came from, so pick
+     * the one the current key exchange used rather than the first one set. */
+    if ((ssl->peerEccKey != NULL) && ssl->peerEccKeyPresent
+#ifdef HAVE_CURVE25519
+        && (ssl->ecdhCurveOID != ECC_X25519_OID)
+#endif
+#ifdef HAVE_CURVE448
+        && (ssl->ecdhCurveOID != ECC_X448_OID)
+#endif
+        ) {
         unsigned char* der;
         const unsigned char* pt;
         unsigned int   derSz = 0;
@@ -4856,8 +4865,8 @@ int wolfSSL_get_peer_tmp_key(const WOLFSSL* ssl, WOLFSSL_EVP_PKEY** pkey)
 #endif
 
 #ifdef HAVE_CURVE25519
-    if ((ret == NULL) && (ssl->peerX25519Key != NULL) &&
-            ssl->peerX25519KeyPresent) {
+    if ((ret == NULL) && (ssl->ecdhCurveOID == ECC_X25519_OID) &&
+            (ssl->peerX25519Key != NULL) && ssl->peerX25519KeyPresent) {
         byte pub[CURVE25519_PUB_KEY_SIZE];
         word32 pubSz = (word32)sizeof(pub);
 
@@ -4873,8 +4882,8 @@ int wolfSSL_get_peer_tmp_key(const WOLFSSL* ssl, WOLFSSL_EVP_PKEY** pkey)
 #endif
 
 #ifdef HAVE_CURVE448
-    if ((ret == NULL) && (ssl->peerX448Key != NULL) &&
-            ssl->peerX448KeyPresent) {
+    if ((ret == NULL) && (ssl->ecdhCurveOID == ECC_X448_OID) &&
+            (ssl->peerX448Key != NULL) && ssl->peerX448KeyPresent) {
         byte pub[CURVE448_PUB_KEY_SIZE];
         word32 pubSz = (word32)sizeof(pub);
 

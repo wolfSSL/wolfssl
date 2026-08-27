@@ -9760,14 +9760,12 @@ static int TLSX_KeyShare_ProcessX25519_ex(WOLFSSL* ssl,
 #endif
     {
     #ifdef HAVE_ECC
-        if (ssl->peerEccKey != NULL) {
-            wc_ecc_free(ssl->peerEccKey);
-            ssl->peerEccKey = NULL;
-            ssl->peerEccKeyPresent = 0;
-        }
+        /* A reused WOLFSSL may already carry a retained peer key. FreeKey()
+         * rather than wc_ecc_free(), which leaves the allocation behind. */
+        FreeKey(ssl, DYNAMIC_TYPE_ECC, (void**)&ssl->peerEccKey);
+        ssl->peerEccKeyPresent = 0;
     #endif
 
-        /* A reused WOLFSSL may already carry a retained peer key. */
         FreeKey(ssl, DYNAMIC_TYPE_CURVE25519, (void**)&ssl->peerX25519Key);
         ssl->peerX25519KeyPresent = 0;
 
@@ -9919,11 +9917,10 @@ static int TLSX_KeyShare_ProcessX448_ex(WOLFSSL* ssl,
     curve448_key* peerX448Key;
 
 #ifdef HAVE_ECC
-    if (ssl->peerEccKey != NULL) {
-        wc_ecc_free(ssl->peerEccKey);
-        ssl->peerEccKey = NULL;
-        ssl->peerEccKeyPresent = 0;
-    }
+    /* A reused WOLFSSL may already carry a retained peer key. FreeKey() rather
+     * than wc_ecc_free(), which leaves the allocation behind. */
+    FreeKey(ssl, DYNAMIC_TYPE_ECC, (void**)&ssl->peerEccKey);
+    ssl->peerEccKeyPresent = 0;
 #endif
 
     /* The key can outlive this function, and FreeKey() then releases it as
