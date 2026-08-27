@@ -62030,7 +62030,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
          * test signing-bound. */
         const int samples = 48;
         int bad = 0;
-    #if WOLFSSL_XMSS_MIN_HEIGHT <= 10
+    /* The small implementation keeps no traversal state in the key, so
+     * there is nothing there to put out of range. */
+    #if !defined(WOLFSSL_WC_XMSS_SMALL) && (WOLFSSL_XMSS_MIN_HEIGHT <= 10)
         /* Single tree, so the BDS block ends the key: its last four bytes are
          * next (3, big-endian) then offset. Setting offset, or either of the
          * top two bytes of next, puts them past the subtree and load must say
@@ -62044,7 +62046,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
 
         for (j = 0; j < bad + samples + 1; j++) {
             XMEMCPY(sk, sk_snapshot, skSz);
-    #if WOLFSSL_XMSS_MIN_HEIGHT <= 10
+    #if !defined(WOLFSSL_WC_XMSS_SMALL) && (WOLFSSL_XMSS_MIN_HEIGHT <= 10)
             if (j < bad) {
                 sk[badPos[j]] = 0xff;
             }
