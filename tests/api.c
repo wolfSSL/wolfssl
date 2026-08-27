@@ -23378,31 +23378,107 @@ static int test_wolfSSL_X509_add1_ext_i2d_basic_constraints(void)
     return EXPECT_RESULT();
 }
 
-/* extKeyUsage is represented as an object stack that wolfSSL_X509_add_ext()
- * cannot map back to the keyUsage bitmask; the wrapper must report failure
- * rather than a silent success that adds nothing. */
-static int test_wolfSSL_X509_add1_ext_i2d_eku_unsupported(void)
+/* extKeyUsage is represented as a stack of ASN1_OBJECTs. Adding it has to set
+ * both the usage bitmask and the encoded KeyPurposeId list, and OIDs wolfSSL
+ * has no bit for must survive in that list. */
+static int test_wolfSSL_X509_add1_ext_i2d_eku(void)
 {
     EXPECT_DECLS;
+/* OBJ_txt2obj() needs WOLFSSL_CERT_EXT and WOLFSSL_CERT_GEN. */
 #if defined(OPENSSL_EXTRA) && defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
-    !defined(NO_ASN)
-    WOLFSSL_X509*           x509 = NULL;
-    WOLFSSL_STACK*          sk   = NULL;
-    WOLFSSL_ASN1_OBJECT*    obj  = NULL;
+    !defined(NO_ASN) && defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN)
+    /* serverAuth, clientAuth and an OID wolfSSL does not track. */
+    static const char* oids[] = { "1.3.6.1.5.5.7.3.1", "1.3.6.1.5.5.7.3.2",
+                                  "1.3.6.1.4.1.311.10.3.4" };
+    WOLFSSL_X509*        x509 = NULL;
+    WOLFSSL_STACK*       sk   = NULL;
+    WOLFSSL_STACK*       rb   = NULL;
+    WOLFSSL_ASN1_OBJECT* obj  = NULL;
+    size_t               i;
 
     ExpectNotNull(x509 = wolfSSL_X509_new());
     ExpectNotNull(sk = wolfSSL_sk_new_asn1_obj());
-    ExpectNotNull(obj = wolfSSL_OBJ_nid2obj(NID_anyExtendedKeyUsage));
-    ExpectIntEQ(wolfSSL_sk_ASN1_OBJECT_push(sk, obj), 1);
-    if (EXPECT_FAIL()) {
-        wolfSSL_ASN1_OBJECT_free(obj);
+    for (i = 0; i < XELEM_CNT(oids); i++) {
+        ExpectNotNull(obj = wolfSSL_OBJ_txt2obj(oids[i], 1));
+        /* push returns the new element count. */
+        ExpectIntEQ(wolfSSL_sk_ASN1_OBJECT_push(sk, obj), (int)i + 1);
+        /* Stack does not own obj on push failure. */
+        if (EXPECT_FAIL()) {
+            wolfSSL_ASN1_OBJECT_free(obj);
+        }
+        obj = NULL;
     }
 
     ExpectIntEQ(wolfSSL_X509_add1_ext_i2d(x509, NID_ext_key_usage, sk, 0,
+                X509V3_ADD_DEFAULT), WOLFSSL_SUCCESS);
+
+    /* Only the two recognized purposes set a bit. */
+    ExpectIntEQ(wolfSSL_X509_get_extended_key_usage(x509),
+                XKU_SSL_SERVER | XKU_SSL_CLIENT);
+
+    /* The whole list, unrecognized OID included, reads back. */
+    ExpectNotNull(rb = (WOLFSSL_STACK*)wolfSSL_X509_get_ext_d2i(x509,
+                NID_ext_key_usage, NULL, NULL));
+    ExpectIntEQ(wolfSSL_sk_num(rb), (int)XELEM_CNT(oids));
+    for (i = 0; i < XELEM_CNT(oids); i++) {
+        char txt[80];
+
+        ExpectNotNull(obj = (WOLFSSL_ASN1_OBJECT*)wolfSSL_sk_value(rb,
+                    (int)i));
+        ExpectIntGT(wolfSSL_OBJ_obj2txt(txt, (int)sizeof(txt), obj, 1), 0);
+        ExpectStrEQ(txt, oids[i]);
+        obj = NULL;
+    }
+    wolfSSL_sk_ASN1_OBJECT_pop_free(rb, NULL);
+    rb = NULL;
+
+    /* Now that it is present, DEFAULT fails and DELETE clears it. */
+    ExpectIntEQ(wolfSSL_X509_add1_ext_i2d(x509, NID_ext_key_usage, sk, 0,
                 X509V3_ADD_DEFAULT), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_X509_add1_ext_i2d(x509, NID_ext_key_usage, NULL, 0,
+                X509V3_ADD_DELETE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_get_extended_key_usage(x509), 0);
+    ExpectNull(rb = (WOLFSSL_STACK*)wolfSSL_X509_get_ext_d2i(x509,
+                NID_ext_key_usage, NULL, NULL));
+    wolfSSL_sk_ASN1_OBJECT_pop_free(rb, NULL);
 
     wolfSSL_sk_ASN1_OBJECT_pop_free(sk, NULL);
     wolfSSL_X509_free(x509);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The stack X509_get_ext_d2i() returns for extKeyUsage has to be usable as
+ * input to X509_add1_ext_i2d() on another certificate. */
+static int test_wolfSSL_X509_add1_ext_i2d_eku_copy(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
+    !defined(NO_ASN) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    WOLFSSL_X509*  src = NULL;
+    WOLFSSL_X509*  dst = NULL;
+    WOLFSSL_STACK* eku = NULL;
+    WOLFSSL_STACK* rb  = NULL;
+
+    ExpectNotNull(src = wolfSSL_X509_load_certificate_file(svrCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(eku = (WOLFSSL_STACK*)wolfSSL_X509_get_ext_d2i(src,
+        NID_ext_key_usage, NULL, NULL));
+
+    ExpectNotNull(dst = wolfSSL_X509_new());
+    ExpectIntEQ(wolfSSL_X509_add1_ext_i2d(dst, NID_ext_key_usage, eku, 0,
+                X509V3_ADD_DEFAULT), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_get_extended_key_usage(dst),
+                wolfSSL_X509_get_extended_key_usage(src));
+
+    ExpectNotNull(rb = (WOLFSSL_STACK*)wolfSSL_X509_get_ext_d2i(dst,
+        NID_ext_key_usage, NULL, NULL));
+    ExpectIntEQ(wolfSSL_sk_num(rb), wolfSSL_sk_num(eku));
+    wolfSSL_sk_ASN1_OBJECT_pop_free(rb, NULL);
+
+    wolfSSL_sk_ASN1_OBJECT_pop_free(eku, NULL);
+    wolfSSL_X509_free(dst);
+    wolfSSL_X509_free(src);
 #endif
     return EXPECT_RESULT();
 }
@@ -41130,7 +41206,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_X509_add1_ext_i2d_flags),
     TEST_DECL(test_wolfSSL_X509_add1_ext_i2d_parsed_cert),
     TEST_DECL(test_wolfSSL_X509_add1_ext_i2d_basic_constraints),
-    TEST_DECL(test_wolfSSL_X509_add1_ext_i2d_eku_unsupported),
+    TEST_DECL(test_wolfSSL_X509_add1_ext_i2d_eku),
+    TEST_DECL(test_wolfSSL_X509_add1_ext_i2d_eku_copy),
     TEST_DECL(test_wolfSSL_X509_set_authority_key_id_roundtrip),
     TEST_DECL(test_wolfSSL_X509_set_authority_key_id_ex_roundtrip),
     TEST_DECL(test_wolfSSL_X509_set_authority_key_id_overwrite),
