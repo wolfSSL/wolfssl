@@ -11283,9 +11283,9 @@ int wc_MlDsaKey_MakeKey(wc_MlDsaKey* key, WC_RNG* rng)
     }
 
 #ifdef HAVE_FIPS
-    /* Pairwise Consistency Test (PCT) per FIPS 140-3 / ISO 19790:2012
-     * Section 7.10.3.3 (TE10.35.02): sign with new sk, verify with pk.
-     * Runs on every key generation. */
+    /* Test every new key pair by signing and verifying with it.
+     * ISO/IEC 19790:2012 sec 7.10.3.3; FIPS 140-3 IG 10.3.A Additional
+     * Comment 1. */
     if (ret == 0) {
         static const byte pct_msg[] = "wolfSSL ML-DSA PCT";
         WC_DECLARE_VAR(pct_sig, byte, MLDSA_MAX_SIG_SIZE, key->heap);
@@ -11310,9 +11310,9 @@ int wc_MlDsaKey_MakeKey(wc_MlDsaKey* key, WC_RNG* rng)
 
         WC_FREE_VAR_EX(pct_sig, key->heap, DYNAMIC_TYPE_MLDSA);
 
-        /* FIPS 140-3 IG 10.3.A (TE10.35.02): a key pair that fails the PCT
-         * must be rendered unusable.  Zeroize the generated key material so
-         * a caller that ignores the return value cannot use it. */
+        /* Free a key that failed, so a caller ignoring the return value
+         * cannot sign with it.  ISO/IEC 19790:2012 sec 7.10.1 forbids using
+         * anything that failed its self-test. */
         if (ret != 0) {
             wc_MlDsaKey_Free(key);
         }

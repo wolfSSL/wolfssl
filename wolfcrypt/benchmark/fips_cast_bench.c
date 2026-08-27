@@ -466,24 +466,22 @@ static int bench_pct_mldsa(int iters)
 
 
 #ifdef WOLFSSL_HAVE_SLHDSA
-/* SLH-DSA is the one where the choice is still open, so three candidates are
- * timed together.  bench_pct_slhdsa_notes() says what each actually proves;
- * read it before using the numbers. */
+/* SLH-DSA elected the root recompute over sign and verify.  This times what
+ * the module costs now, and the alternative it rejected, so the decision can
+ * be rechecked rather than remembered. */
 static void bench_pct_slhdsa_notes(void)
 {
     printf(
-"A  Sign, then verify.  What the module does today.\n"
-"B  Recompute PK.root from SK.seed and compare it with the stored root -- what\n"
-"   wc_SlhDsaKey_CheckKey() already does.  For SLH-DSA, generating the key IS\n"
-"   computing PK.root, so B costs one key generation; column B repeats the\n"
-"   KeyGen raw figure rather than timing the same work twice.\n"
-"C  Compare PK.SEED between the public and private key, the shortcut\n"
-"   FIPS 140-3 IG 10.3.A Additional Comment 1 allows for SLH-DSA.\n"
-"   IT PROVES NOTHING HERE, so do not read the number as an option.  This\n"
-"   implementation keeps one buffer, sk = SK.seed | SK.prf | PK.seed |\n"
-"   PK.root, and the public key is a slice of it, so the two copies of\n"
-"   PK.SEED are the same bytes and the comparison can never fail.  It is\n"
-"   timed only so the claim rests on a measurement rather than an argument.\n");
+"KeyGen+PCT  what the module costs now: generate the key, then recompute the\n"
+"            public root from the private seed and compare.  The recompute is\n"
+"            a second root computation, so this is roughly double a key\n"
+"            generation with no test at all.\n"
+"sign+vfy    the alternative NOT taken.  Compare it with KeyGen+PCT to see\n"
+"            what electing the root recompute saved.\n"
+"PK.seed     the shortcut FIPS 140-3 IG 10.3.A Additional Comment 1 allows for\n"
+"            SLH-DSA.  IT PROVES NOTHING HERE: the public key is a slice of\n"
+"            the private one, so it compares bytes with themselves and can\n"
+"            never fail.  Timed only so the claim rests on a measurement.\n");
 }
 
 static int bench_pct_slhdsa(int iters)
@@ -514,12 +512,12 @@ static int bench_pct_slhdsa(int iters)
     size_t t;
 
     printf("SLH-DSA (FIPS 205)\n");
-    printf("Param           | KeyGen+A | A sign+vfy | KeyGen raw"
-           " | B root recomp | C PK.seed\n");
-    printf("                |     (ms) |       (ms) | (ms) DERIV"
-           " |    (ms) DERIV |      (ms)\n");
-    printf("----------------+----------+------------+-----------"
-           "-+---------------+----------\n");
+    printf("Param           | KeyGen+PCT | sign+vfy | PK.seed |"
+           " elected saves\n");
+    printf("                |       (ms) |     (ms) |    (ms) |"
+           "              \n");
+    printf("----------------+------------+----------+---------+"
+           "--------------\n");
 
     for (t = 0; t < sizeof(params) / sizeof(params[0]); t++) {
         SlhDsaKey key;
@@ -575,7 +573,7 @@ static int bench_pct_slhdsa(int iters)
                 break;
             kg_ns += t1 - t0;
 
-            /* Option A, as the module runs it now. */
+            /* The alternative not taken, timed for comparison. */
             t0 = now_ns();
             rc = wc_SlhDsaKey_SignDeterministic(&key, NULL, 0, pct_msg,
                     (word32)sizeof(pct_msg), sig, &sigSz);
@@ -588,7 +586,7 @@ static int bench_pct_slhdsa(int iters)
                 break;
             a_ns += t1 - t0;
 
-            /* Option C, the IG relaxation.  See bench_pct_slhdsa_notes(). */
+            /* The IG shortcut.  See bench_pct_slhdsa_notes(). */
             t0 = now_ns();
             rc = wc_SlhDsaKey_ExportPrivate(&key, priv, &pl);
             if (rc == 0)
@@ -608,15 +606,23 @@ static int bench_pct_slhdsa(int iters)
             failures++;
         }
         else {
-            double kg  = (double)kg_ns / (double)iters / 1.0e6;
-            double a   = (double)a_ns  / (double)iters / 1.0e6;
-            double c   = (double)c_ns  / (double)iters / 1.0e6;
-            double raw = kg - a;
+            double kg = (double)kg_ns / (double)iters / 1.0e6;
+            double a  = (double)a_ns  / (double)iters / 1.0e6;
+            double c  = (double)c_ns  / (double)iters / 1.0e6;
 
-            printf("%-15s | %8.3f | %10.3f | %10.3f | %13.3f | %9.4f%s\n",
-                   names[t], kg, a, raw, raw, c,
-                   pct_missing(raw, a) ? "   PCT NOT IN KEYGEN" : "");
-            failures += pct_missing(raw, a);
+            /* The elected test must be the cheap one.  If someone puts sign
+             * and verify back inside key generation, KeyGen+PCT swallows it
+             * and stops being the smaller number, which is the one thing
+             * worth failing on here. */
+            if (kg < a) {
+                printf("%-15s | %10.3f | %8.3f | %7.4f | %8.1fx\n",
+                       names[t], kg, a, c, (kg > 0.0) ? (a / kg) : 0.0);
+            }
+            else {
+                printf("%-15s | %10.3f | %8.3f | %7.4f |"
+                       " SIGN+VERIFY IN KEYGEN\n", names[t], kg, a, c);
+                failures++;
+            }
         }
 
         XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);

@@ -708,9 +708,10 @@ int wc_MlKemKey_MakeKey(MlKemKey* key, WC_RNG* rng)
     }
 
 #ifdef HAVE_FIPS
-    /* Pairwise Consistency Test (PCT) per FIPS 140-3 / ISO 19790:2012
-     * Section 7.10.3.3: encapsulate with ek, decapsulate with dk,
-     * verify shared secrets match. */
+    /* Test every new key pair: encapsulate with it, decapsulate with it, and
+     * check the shared secrets match.  ISO/IEC 19790:2012 sec 7.10.3.3;
+     * FIPS 140-3 IG 10.3.A Additional Comment 1 spells this test out for
+     * FIPS 203. */
     if (ret == 0) {
         WC_DECLARE_VAR(pct_ct, byte, WC_ML_KEM_MAX_CIPHER_TEXT_SIZE,
             key->heap);
@@ -721,8 +722,8 @@ int wc_MlKemKey_MakeKey(MlKemKey* key, WC_RNG* rng)
         WC_ALLOC_VAR_EX(pct_ct, byte, WC_ML_KEM_MAX_CIPHER_TEXT_SIZE,
             key->heap, DYNAMIC_TYPE_TMP_BUFFER, ret = MEMORY_E);
 
-        /* pct_ss1/pct_ss2 hold the PCT shared secrets; baseline-zero and
-         * register up front (single-exit block). */
+        /* Zero and register the shared secrets up front so the leak checker
+         * covers them for the whole block. */
 #ifdef WOLFSSL_CHECK_MEM_ZERO
         XMEMSET(pct_ss1, 0, sizeof(pct_ss1));
         XMEMSET(pct_ss2, 0, sizeof(pct_ss2));
@@ -754,9 +755,9 @@ int wc_MlKemKey_MakeKey(MlKemKey* key, WC_RNG* rng)
 
         WC_FREE_VAR_EX(pct_ct, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
-        /* FIPS 140-3 IG 10.3.A (TE10.35.02): a key pair that fails the PCT
-         * must be rendered unusable.  Zeroize the generated key material so
-         * a caller that ignores the return value cannot use it. */
+        /* Free a key that failed, so a caller ignoring the return value
+         * cannot use it.  ISO/IEC 19790:2012 sec 7.10.1 forbids using
+         * anything that failed its self-test. */
         if (ret != 0) {
             wc_MlKemKey_Free(key);
         }

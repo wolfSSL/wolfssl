@@ -7138,41 +7138,33 @@ int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key, const byte* sk_seed,
     }
 
 #if FIPS_VERSION3_GE(7,0,0)
-    /* Test every new key pair by signing and verifying with it.
+    /* Test every new key pair before anyone uses it: recompute the public
+     * root from the private seed and check it matches the one just stored.
      * ISO/IEC 19790:2012 sec 7.10.3.3.  Here because every generation path
      * reaches this function.
      *
-     * FIPS 140-3 IG 10.3.A Additional Comment 1 offers a cheaper test for
-     * SLH-DSA, comparing PK.SEED across the two keys.  It is useless here:
+     * FIPS 140-3 IG 10.3.A Additional Comment 1 lets an SLH-DSA test be as
+     * little as confirming both keys share PK.SEED.  That is worthless here:
      * the public key is a slice of the private one, so it would compare
-     * bytes with themselves and could never fail.  Costs about 10x the key
-     * generation on the 's' sets; the real cheaper option is recomputing
-     * PK.root, as wc_SlhDsaKey_CheckKey() does. */
+     * bytes with themselves and could never fail.  Recomputing the root is
+     * the cheapest check that can actually fail, and it is what ties the
+     * public half to the private half.  Signing and verifying would also
+     * work but costs about ten times the key generation.
+     */
     if (ret == 0) {
-        static const byte pct_msg[] = "wolfSSL SLH-DSA PCT";
-        word32 pct_sigLen = key->params->sigLen;
-        byte* pct_sig = (byte*)XMALLOC(pct_sigLen, key->heap,
-            DYNAMIC_TYPE_TMP_BUFFER);
-        word32 pct_sigSz = pct_sigLen;
+        byte        n = key->params->n;
+        byte        pct_root[SLHDSA_MAX_N];
+        HashAddress pct_adrs;
 
-        if (pct_sig == NULL) {
-            ret = MEMORY_E;
+        HA_Init(pct_adrs);
+        HA_SetLayerAddress(pct_adrs, key->params->d - 1);
+        ret = slhdsakey_xmss_node(key, key->sk, 0, key->params->h_m,
+                key->sk + 2 * n, pct_adrs, pct_root);
+        if ((ret == 0) && (XMEMCMP(pct_root, key->sk + 3 * n, n) != 0)) {
+            ret = SLH_DSA_PCT_E;
         }
-        if (ret == 0) {
-            ret = wc_SlhDsaKey_SignDeterministic(key, NULL, 0,
-                pct_msg, sizeof(pct_msg), pct_sig, &pct_sigSz);
-        }
-        if (ret == 0) {
-            ret = wc_SlhDsaKey_Verify(key, NULL, 0,
-                pct_msg, sizeof(pct_msg), pct_sig, pct_sigSz);
-            if (ret != 0) {
-                ret = SLH_DSA_PCT_E;
-            }
-        }
-        if (pct_sig != NULL) {
-            ForceZero(pct_sig, pct_sigLen);
-            XFREE(pct_sig, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        }
+        ForceZero(pct_root, sizeof(pct_root));
+
         /* Free a key that failed, so a caller ignoring the return value
          * cannot sign with it.  ISO/IEC 19790:2012 sec 7.10.1 forbids using
          * anything that failed its self-test. */
