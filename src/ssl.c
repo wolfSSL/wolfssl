@@ -5742,6 +5742,13 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->options.hrrSentCookie = 0;
     #endif
         ssl->options.hrrSentKeyShare = 0;
+        ssl->options.shSentKeyShare = 0;
+    #endif
+    #if defined(WOLFSSL_TLS13) || defined(HAVE_FFDHE)
+        /* The group the previous connection negotiated. Nothing else clears
+         * it, and a handshake that negotiates none - TLS 1.3 psk_ke - would
+         * leave it readable as this connection's. */
+        ssl->namedGroup = 0;
     #endif
     #ifdef WOLFSSL_DTLS
         ssl->options.dtlsStateful = 0;
@@ -9823,6 +9830,7 @@ leave:
  * wolfSSL gives one, the IANA code point otherwise. NID values are wolfSSL's
  * WC_NID_* (not every one matches OpenSSL's), so compare against those rather
  * than against literals. The result can be passed to wolfSSL_group_to_name().
+ * Only a completed handshake reports a group.
  *
  * @param [in] ssl  SSL/TLS object.
  * @return  Group identifier on success.
@@ -9842,7 +9850,12 @@ int wolfSSL_get_negotiated_group(const WOLFSSL* ssl)
         return 0;
 
 #if defined(WOLFSSL_TLS13) || defined(HAVE_FFDHE)
-    group = ssl->namedGroup;
+    /* Only a completed handshake has a negotiated group. Mid-handshake this
+     * can hold a group no key exchange used: the server seeds it from the
+     * resumed session in CheckPreSharedKeys(), and the client stores the group
+     * a HelloRetryRequest asked for. */
+    if (ssl->options.handShakeDone)
+        group = ssl->namedGroup;
 #endif
 
 #if defined(HAVE_CURVE25519) || defined(HAVE_CURVE448) || defined(HAVE_ECC)
