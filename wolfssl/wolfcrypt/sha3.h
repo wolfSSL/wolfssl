@@ -423,12 +423,103 @@ WOLFSSL_LOCAL void BlockSha3(word64 *s);
         word64 c);
     WOLFSSL_LOCAL void sha3_block_avx2(word64* s);
     WOLFSSL_LOCAL void sha3_blocksx4_avx2(word64* s);
+#ifdef WOLFSSL_HAVE_XMSS
+/* The four-way form of sha3_xmss_blocksx8_avx512(), same parameters.  Sixteen
+ * 256-bit registers cannot hold twenty-five state words, so this one fills
+ * the caller's state in memory and permutes it in place. */
+    WOLFSSL_LOCAL void sha3_xmss_blocksx4_avx2(word64* st, const word64* a,
+        const word64* b, const word32* idxv, word32 ctl);
+#endif
+#ifdef WOLFSSL_HAVE_LMS
+/* The four-way forms of sha3_lms_blocksx8_avx512() and
+ * sha3_lms_chainx8_avx512(), same parameters. */
+    WOLFSSL_LOCAL void sha3_lms_blocksx4_avx2(word64* st, const word64* tmpl,
+        const word32* idxv, const word32* jv, word32 ctl);
+    WOLFSSL_LOCAL void sha3_lms_chainx4_avx2(word64* st, const word64* tmpl,
+        const word32* idxv, word32 max);
+#endif
     WOLFSSL_LOCAL void sha3_blocksx4_out_avx2(word64* s, byte* out,
         word32 len);
     WOLFSSL_LOCAL void sha3_blocksx8_out_avx512(word64* s, byte* out,
         word32 len);
+
+/* Multi-buffer SHAKE: absorb and squeeze several independent short messages
+ * at once, one per lane of the interleaved Keccak state that
+ * sha3_blocksx4_avx2()/sha3_blocksx8_avx512() permute.
+ *
+ * This is the SHAKE counterpart of the multi-buffer SHA-256 in sha256.h and
+ * exists for the same callers: the WOTS+ chains of one LMS or XMSS one-time
+ * signature are independent of each other, so a batch of them can be advanced
+ * together.  There is deliberately no public API - the declarations are
+ * WOLFSSL_LOCAL and only LMS and XMSS use them.
+ *
+ * As with SHA-256 the lane count is a property of the CPU, so it is a runtime
+ * value; WC_SHAKE_N_WAY_MAX_CNT is only for sizing buffers.
+ */
+/* The condition must stay in step with the guard the generator puts around
+ * sha3_blocksx4_avx2()/sha3_blocksx8_avx512() in sha3_asm.S - which now lists
+ * LMS and XMSS among the schemes that need them - and there is no point
+ * building any of it when neither SHAKE size is available for those schemes
+ * to use. */
+#if !defined(WOLFSSL_NO_SHAKE_N_WAY) && defined(WOLFSSL_X86_64_BUILD) && \
+    (defined(WOLFSSL_SHAKE128) || defined(WOLFSSL_SHAKE256)) && \
+    (defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS))
+
+#define WC_SHAKE_N_WAY
+/* Widest batch this build can run. */
+#ifdef NO_AVX512_SUPPORT
+    #define WC_SHAKE_N_WAY_MAX_CNT    4
+#else
+    #define WC_SHAKE_N_WAY_MAX_CNT    8
+#endif
+/* Words of interleaved Keccak state one batch needs. */
+#define WC_SHAKE_N_WAY_MAX_STATE_W    (WC_SHAKE_N_WAY_MAX_CNT * 25)
+
+/* The permutations themselves are declared above; LMS and XMSS absorb into
+ * the interleaved state and squeeze out of it directly, as ML-KEM and SLH-DSA
+ * do.  Measured against one-at-a-time SHAKE-256 on a Zen 5: eight-way 7.1x,
+ * four-way 2.6x - there is no SHA-NI equivalent for Keccak to lose to, so a
+ * caller takes the widest width the CPU has.
+ */
+#endif /* multi-buffer SHAKE */
 #ifndef NO_AVX512_SUPPORT
     WOLFSSL_LOCAL void sha3_blocksx8_avx512(word64* s);
+#ifdef WOLFSSL_HAVE_XMSS
+/* XMSS with SHAKE and n = 32, eight chains at a time.  Both hashes of a chain
+ * step are 96-byte messages - one permutation at either rate - so one
+ * function serves both, the mode selecting how the message words are filled.
+ *
+ * st     - eight interleaved states; in mode 1 words 0..3 are the chain
+ *          value on entry.  The 32-byte digest is left in words 0..3.
+ * a, b   - mode 0: padding || SEED (eight words, alike in every lane) and the
+ *          ADRS template (four words); mode 1: KEY and BM, interleaved.
+ * idxv   - per-lane chain address, then per-lane hash address; mode 0 only.
+ * ctl    - mode in the low byte, index of the final rate word (20 for
+ *          SHAKE-128, 16 for SHAKE-256) in the next.
+ */
+    WOLFSSL_LOCAL void sha3_xmss_blocksx8_avx512(word64* st, const word64* a,
+        const word64* b, const word32* idxv, word32 ctl);
+#endif
+#ifdef WOLFSSL_HAVE_LMS
+/* LM-OTS with SHAKE-256 and a 32-byte hash, eight chains at a time.  The
+ * message is I || u32str(q) || u16str(i) || u8str(j) || tmp, one permutation
+ * at SHAKE-256's rate.  The digest comes out at words 0..3 and goes back in
+ * shifted up seven bytes, so a chain value never becomes bytes in between.
+ *
+ * st    - eight interleaved states; words 0..3 are the chain value in and
+ *         out.  Not read when deriving x from the seed.
+ * tmpl  - I and q as three words, with the fields that vary left clear, then
+ *         the seed as four more (used only when deriving x).
+ * idxv  - per-lane chain index.
+ * jv    - per-lane iteration index; unused when deriving x.
+ * ctl   - bit 0 derives x from the seed (j = 0xff) instead of stepping.
+ * max   - iterations to run, j counting from 0, every lane in step.
+ */
+    WOLFSSL_LOCAL void sha3_lms_blocksx8_avx512(word64* st,
+        const word64* tmpl, const word32* idxv, const word32* jv, word32 ctl);
+    WOLFSSL_LOCAL void sha3_lms_chainx8_avx512(word64* st, const word64* tmpl,
+        const word32* idxv, word32 max);
+#endif
     WOLFSSL_LOCAL void sha3_128_blocksx8_seed_avx512(word64* s, byte* seed);
     WOLFSSL_LOCAL void sha3_256_blocksx8_seed_avx512(word64* s, byte* seed);
     /* 64-byte seed variant - absorbs state words 0..7, nonce in word 8. */
