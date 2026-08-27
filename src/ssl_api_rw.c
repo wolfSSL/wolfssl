@@ -1034,8 +1034,9 @@ int wolfSSL_shutdown(WOLFSSL* ssl)
 }
 
 /* Whether the handshake failed outright rather than being still in flight.
- * WANT_READ/WANT_WRITE (and a pending async operation) mean it can still
- * continue, anything else recorded in ssl->error means it cannot.
+ * WANT_READ/WANT_WRITE, a pending async operation and a pending non-blocking
+ * OCSP/CRL lookup mean it can still continue, anything else recorded in
+ * ssl->error means it cannot.
  *
  * @param [in] ssl  SSL/TLS object.
  * @return  1 when the handshake has failed, 0 when it can still progress.
@@ -1047,6 +1048,11 @@ static int wolfssl_handshake_failed(const WOLFSSL* ssl)
         (ssl->error != WC_NO_ERR_TRACE(WANT_WRITE))
 #ifdef WOLFSSL_ASYNC_CRYPT
         && (ssl->error != WC_NO_ERR_TRACE(WC_PENDING_E))
+#endif
+#ifdef WOLFSSL_NONBLOCK_OCSP
+        /* ProcessPeerCerts() resumes off this error, which sending the alert
+         * would overwrite. */
+        && (ssl->error != WC_NO_ERR_TRACE(OCSP_WANT_READ))
 #endif
         ;
 }
