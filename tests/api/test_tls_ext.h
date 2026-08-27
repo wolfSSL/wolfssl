@@ -29,6 +29,7 @@ int test_tls_ems_server_disable(void);
 int test_tls_ems_server_disable_resumption(void);
 int test_tls_ems_client_disable_resumption(void);
 int test_tls_ems_upgrade_resumption(void);
+int test_tls_ems_clear_reuse(void);
 int test_tls_ems_disable_v23(void);
 int test_tls_require_ems(void);
 int test_tls_require_ems_resumption(void);

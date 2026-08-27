@@ -1614,12 +1614,15 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
     else if (ssl->options.disableEMS) {
         ssl->options.haveEMS = 0;
         /* An EMS session cannot be offered without the extension
-         * (RFC 7627 5.3): decline it and do a full handshake. TLS 1.3
-         * sessions resume independently of EMS; their haveEMS is only the
-         * RFC 8446 Appendix D indicator. */
+         * (RFC 7627 5.3): decline it, without adopting its version and
+         * cipher suite, and report the decline like the minDowngrade check
+         * below. TLS 1.3 sessions resume independently of EMS; their haveEMS
+         * is only the RFC 8446 Appendix D indicator. */
         if (ssl->session->haveEMS &&
-                !IsAtLeastTLSv1_3(ssl->session->version))
+                !IsAtLeastTLSv1_3(ssl->session->version)) {
             ssl->options.resuming = 0;
+            return WOLFSSL_FAILURE;
+        }
     }
     else
 #endif
