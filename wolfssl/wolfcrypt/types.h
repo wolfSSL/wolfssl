@@ -1889,16 +1889,6 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
         * higher alignment. */
     #if defined(__ICCARM__)
         #define WOLFSSL_ALIGN(x) XALIGNED(8)
-    #elif defined(__arm__) && !defined(__aarch64__)
-        /* 32-bit ARM: XMALLOC resolves to malloc, which only guarantees 8
-         * byte alignment here, and the objects carrying these attributes are
-         * heap allocated on the TLS data path (SetKeys() allocates Aes with
-         * XMALLOC). Declaring more alignment than the allocator can deliver
-         * lets the compiler emit alignment-qualified NEON accesses against an
-         * object that does not satisfy them, which faults. Cap the request at
-         * what is actually guaranteed, as the __ICCARM__ case above already
-         * does. */
-        #define WOLFSSL_ALIGN(x) XALIGNED((x) > 8 ? 8 : (x))
     #else
         #define WOLFSSL_ALIGN(x) XALIGNED(x)
     #endif
