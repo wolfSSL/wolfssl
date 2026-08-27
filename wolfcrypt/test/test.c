@@ -23557,6 +23557,56 @@ typedef struct keywrapVector {
     word32 verifyLen;
 } keywrapVector;
 
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+/* Split out of aeskeywrap_test() so the Aes local lives in its own frame: a
+ * plain local is what gives the object the type's alignment, but inside
+ * aeskeywrap_test() it pushed that function's frame past 4096 bytes in some
+ * configurations. The object must NOT come from XMALLOC: struct Aes carries
+ * ALIGN16 members, so _Alignof(Aes) is 16 under the default --enable-aligndata,
+ * while malloc() -- and so wc_AesNew() -- only guarantees 8 on 32-bit targets.
+ * See wc_AesSetIV(), which clang lowers to an alignment-qualified NEON store on
+ * armv8-a+crypto; an 8-aligned Aes faults there (SIGBUS on 32-bit ARM). */
+static wc_test_ret_t aeskeywrap_caller_aes_test(const keywrapVector* v,
+                                                byte* output, word32 outputSz,
+                                                byte* plain, word32 plainBufSz)
+{
+    Aes aes[1];
+    wc_test_ret_t ret = 0;
+    int wrapSz = 0, plainSz;
+
+    XMEMSET(output, 0, outputSz);
+    XMEMSET(plain,  0, plainBufSz);
+
+    if (wc_AesInit(aes, HEAP_HINT, devId) != 0)
+        return WC_TEST_RET_ENC_NC;
+
+    if (wc_AesSetKey(aes, v->kek, v->kekLen, NULL, AES_ENCRYPTION) != 0)
+        ret = WC_TEST_RET_ENC_NC;
+    if (ret == 0) {
+        wrapSz = wc_AesKeyWrap_ex(aes, v->data, v->dataLen, output, outputSz,
+                                  NULL);
+        if ((wrapSz < 0) || (wrapSz != (int)v->verifyLen) ||
+            XMEMCMP(output, v->verify, v->verifyLen) != 0) {
+            ret = WC_TEST_RET_ENC_NC;
+        }
+    }
+    if (ret == 0) {
+        if (wc_AesSetKey(aes, v->kek, v->kekLen, NULL, AES_DECRYPTION) != 0)
+            ret = WC_TEST_RET_ENC_NC;
+    }
+    if (ret == 0) {
+        plainSz = wc_AesKeyUnWrap_ex(aes, output, (word32)wrapSz, plain,
+                                     plainBufSz, NULL);
+        if ((plainSz < 0) || (plainSz != (int)v->dataLen) ||
+            XMEMCMP(plain, v->data, v->dataLen) != 0) {
+            ret = WC_TEST_RET_ENC_NC;
+        }
+    }
+    wc_AesFree(aes);
+    return ret;
+}
+#endif
+
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aeskeywrap_test(void)
 {
     int wrapSz, plainSz, testSz, i;
@@ -23767,56 +23817,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aeskeywrap_test(void)
     /* Drive wc_AesKeyWrap_ex/wc_AesKeyUnWrap_ex directly with a caller Aes; the
      * KAT loop above already covers every vector via the key-based wrappers. */
     {
-        /* struct Aes carries ALIGN16 members, so _Alignof(Aes) is 16 under the
-         * default --enable-aligndata, while malloc() only guarantees 8 on
-         * 32-bit targets; wc_AesSetIV() lowers to an alignment-qualified NEON
-         * store on armv8-a+crypto. wc_AesNew() is the allocator that accounts
-         * for that. A plain local would also be correctly aligned but is large
-         * enough to push this function's frame past 4096 bytes in some
-         * configurations. */
-        Aes* aes;
-        int aesRet = 0;
-        wc_test_ret_t exRet = 0;
-
-        /* wc_AesNew() initialises the object, so no wc_AesInit() here; every
-         * exit below goes through wc_AesDelete(). */
-        aes = wc_AesNew(HEAP_HINT, devId, &aesRet);
-        if (aes == NULL)
-            return WC_TEST_RET_ENC_NC;
-
-        XMEMSET(output, 0, sizeof(output));
-        XMEMSET(plain,  0, sizeof(plain));
-
-        if (wc_AesSetKey(aes, test_wrap[0].kek, test_wrap[0].kekLen, NULL,
-                         AES_ENCRYPTION) != 0) {
-            exRet = WC_TEST_RET_ENC_NC;
-        }
-        if (exRet == 0) {
-            wrapSz = wc_AesKeyWrap_ex(aes, test_wrap[0].data,
-                                      test_wrap[0].dataLen,
-                                      output, sizeof(output), NULL);
-            if ((wrapSz < 0) || (wrapSz != (int)test_wrap[0].verifyLen) ||
-                XMEMCMP(output, test_wrap[0].verify,
-                        test_wrap[0].verifyLen) != 0) {
-                exRet = WC_TEST_RET_ENC_NC;
-            }
-        }
-        if (exRet == 0) {
-            if (wc_AesSetKey(aes, test_wrap[0].kek, test_wrap[0].kekLen, NULL,
-                             AES_DECRYPTION) != 0) {
-                exRet = WC_TEST_RET_ENC_NC;
-            }
-        }
-        if (exRet == 0) {
-            plainSz = wc_AesKeyUnWrap_ex(aes, output, (word32)wrapSz,
-                                         plain, sizeof(plain), NULL);
-            if ((plainSz < 0) || (plainSz != (int)test_wrap[0].dataLen) ||
-                XMEMCMP(plain, test_wrap[0].data,
-                        test_wrap[0].dataLen) != 0) {
-                exRet = WC_TEST_RET_ENC_NC;
-            }
-        }
-        wc_AesDelete(aes, &aes);
+        wc_test_ret_t exRet = aeskeywrap_caller_aes_test(&test_wrap[0],
+                                  output, (word32)sizeof(output),
+                                  plain,  (word32)sizeof(plain));
         if (exRet != 0)
             return exRet;
     }
