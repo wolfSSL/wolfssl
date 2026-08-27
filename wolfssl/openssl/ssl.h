@@ -429,8 +429,11 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
  * - SSL_get_negotiated_group(): nginx keys off the macro to pick an
  *   OpenSSL-only branch of ngx_ssl_get_curve() that needs TLSEXT_nid_unknown,
  *   which wolfSSL does not have. Without the alias nginx keeps using
- *   wolfSSL_get_curve_name(), as it did before this API existed. */
-#ifndef WOLFSSL_NGINX
+ *   wolfSSL_get_curve_name(), as it did before this API existed.
+ * The second condition matches the one the functions are built under, so a
+ * build with neither an EC group nor DH gets no alias to a missing symbol. */
+#if !defined(WOLFSSL_NGINX) && (defined(HAVE_ECC) || \
+    defined(HAVE_CURVE25519) || defined(HAVE_CURVE448) || !defined(NO_DH))
 #define SSL_get_negotiated_group        wolfSSL_get_negotiated_group
 #define SSL_group_to_name               wolfSSL_group_to_name
 #endif

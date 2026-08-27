@@ -9558,8 +9558,10 @@ void wolfSSL_WOLFSSL_STRING_free(WOLFSSL_STRING s)
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
 
-#if (defined(HAVE_ECC) || \
-    defined(HAVE_CURVE25519) || defined(HAVE_CURVE448))
+/* The FFDHE groups have no curve behind them, but they are named and reported
+ * through these same APIs, so an FFDHE-only build needs this block too. */
+#if (defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
+    defined(HAVE_CURVE448) || !defined(NO_DH))
 #define CURVE_NAME(c) XSTR_SIZEOF((c)), (c)
 
 const WOLF_EC_NIST_NAME kNistCurves[] = {
@@ -9985,7 +9987,7 @@ const char* wolfSSL_group_to_name(const WOLFSSL* ssl, int id)
     return NULL;
 }
 
-#endif /* (HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448) */
+#endif /* (HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448 || !NO_DH) */
 #endif /* OPENSSL_EXTRA || HAVE_CURL */
 
 
