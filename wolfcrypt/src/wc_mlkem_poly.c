@@ -73,8 +73,8 @@
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #if FIPS_VERSION3_GE(2,0,0)
-    /* Keep ML-KEM inside the FIPS in-core integrity boundary; Windows sorts
-     * it by section name. */
+    /* Windows orders the module by section name, so this places ML-KEM inside
+     * the range the integrity check covers. */
     #ifdef USE_WINDOWS_API
         #pragma code_seg(".fipsA$nb")
         #pragma const_seg(".fipsB$nb")

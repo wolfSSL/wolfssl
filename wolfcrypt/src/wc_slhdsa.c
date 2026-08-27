@@ -25,8 +25,9 @@
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #if FIPS_VERSION3_GE(2,0,0)
-    /* Keep SLH-DSA inside the FIPS in-core integrity boundary; Windows sorts
-     * it by section name, between sha3 (.fipsA$n) and fips.c (.fipsA$o). */
+    /* Windows orders the module by section name, so this places SLH-DSA
+     * inside the range the integrity check covers: after sha3 (.fipsA$n) and
+     * before fips.c (.fipsA$o). */
     #ifdef USE_WINDOWS_API
         #pragma code_seg(".fipsA$nh")
         #pragma const_seg(".fipsB$nh")
@@ -7137,20 +7138,16 @@ int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key, const byte* sk_seed,
     }
 
 #if FIPS_VERSION3_GE(7,0,0)
-    /* Pairwise Consistency Test (PCT) per FIPS 140-3 IG 10.3.A Additional
-     * Comment 1 (TE10.35.02): sign with the new sk, verify with the matching
-     * pk, on every KeyGen.  SignDeterministic avoids consuming RNG state.
-     * Placed here, not in wc_SlhDsaKey_MakeKey(), because this is the one
-     * function every SLH-DSA generation path reaches.
+    /* Test every new key pair by signing and verifying with it.
+     * ISO/IEC 19790:2012 sec 7.10.3.3.  Here because every generation path
+     * reaches this function.
      *
-     * STRONGER THAN THE IG REQUIRES, DELIBERATELY.  That Additional Comment
-     * names FIPS 205 alongside SP 800-208 and permits the PCT to "be limited
-     * to confirming the same key identifier (I in the case of LMS, SEED in the
-     * case of XMSS and PK.SEED for SLH-DSA) is shared by the resulting public
-     * and private keys".  The relaxation does apply here; a full sign plus
-     * verify simply exceeds it, at the cost of the slowest operation in the
-     * module.  A future reader may shorten this to the PK.SEED comparison and
-     * still be compliant. */
+     * FIPS 140-3 IG 10.3.A Additional Comment 1 offers a cheaper test for
+     * SLH-DSA, comparing PK.SEED across the two keys.  It is useless here:
+     * the public key is a slice of the private one, so it would compare
+     * bytes with themselves and could never fail.  Costs about 10x the key
+     * generation on the 's' sets; the real cheaper option is recomputing
+     * PK.root, as wc_SlhDsaKey_CheckKey() does. */
     if (ret == 0) {
         static const byte pct_msg[] = "wolfSSL SLH-DSA PCT";
         word32 pct_sigLen = key->params->sigLen;
@@ -7176,8 +7173,9 @@ int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key, const byte* sk_seed,
             ForceZero(pct_sig, pct_sigLen);
             XFREE(pct_sig, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
-        /* IG 10.3.A (TE10.35.02): a key pair that fails the PCT must be
-         * rendered unusable. */
+        /* Free a key that failed, so a caller ignoring the return value
+         * cannot sign with it.  ISO/IEC 19790:2012 sec 7.10.1 forbids using
+         * anything that failed its self-test. */
         if (ret != 0) {
             wc_SlhDsaKey_Free(key);
         }

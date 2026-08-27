@@ -19,16 +19,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* FIPS CAST benchmark.
- *
- * Measures the wall-clock cost of each Conditional Algorithm Self-Test (CAST)
- * in the wolfCrypt v7.0.0 FIPS module, so operators can budget power-on
- * latency on constrained OEs.
- *
- * Citations:
- *   FIPS 140-3 sec 7.10 (Self-Tests) - CAST framework
- *   FIPS 140-3 IG 10.3.A             - Algorithm-by-algorithm CAST coverage
- *   ISO/IEC 19790:2012 sec 7.10.2    - Conditional self-test execution
+/* Times the module's self-tests so an operator can budget start-up on slow
+ * hardware.  Two kinds, costing very different amounts:
+ *      per-algorithm known-answer tests, run once each (FIPS 140-3 IG 10.3.A)
+ *   -p key-pair tests, run on EVERY key generation
+ *      (ISO/IEC 19790:2012 sec 7.10.3.3)
  */
 
 #ifdef HAVE_CONFIG_H
@@ -76,13 +71,13 @@
 
 
 #define BENCH_DEFAULT_ITERS 10
-/* Bounds -i.  Keeps iters * sizeof(long long) well inside size_t on a
- * 32-bit target, where SIZE_MAX/8 is about 2.68e8, and is far above any
- * useful benchmark run. */
+/* Upper bound for -i.  Keeps the sample array from overflowing size_t on a
+ * 32-bit target, and is far above any useful run. */
 #define BENCH_MAX_ITERS     1000000
 
-/* Map FIPS_CAST_* enum value to a printable name.  Kept in sync with
- * wolfssl/wolfcrypt/fips_test.h FipsCastId enum. */
+/* Names for the CAST ids in wolfssl/wolfcrypt/fips_test.h.  Hand-maintained,
+ * so an id added there and not here prints "(unknown)" rather than silently
+ * going missing. */
 static const char* cast_name(int id)
 {
     switch (id) {
@@ -206,24 +201,14 @@ static int run_one_cast(int id, int iters,
 
 /* --------------------------------------------------------------- PCT ---
  *
- * The table above measures wc_RunCast_fips(), the per-algorithm Known Answer
- * Test.  A CAST runs once per algorithm; a Pairwise Consistency Test runs on
- * EVERY key generation, so its cost is paid by the application for the life
- * of the process and does not appear anywhere in the CAST numbers.
+ * A CAST runs once at start-up.  This test runs on every key generation, so
+ * the application keeps paying it and none of it shows in the CAST numbers.
+ * ISO/IEC 19790:2012 sec 7.10.3.3.
  *
- * FIPS 140-3 IG 10.3.A Additional Comment 1 (TE10.35.01 for a KEM,
- * TE10.35.02 for a signature) / ISO/IEC 19790:2012 sec 7.10.3.3.
- *
- * Three quantities per algorithm:
- *
- *   KeyGen+PCT  the generation call as the module ships it.  The PCT is
- *               unconditional inside that call, so this is what a caller
- *               actually pays.  MEASURED.
- *   PCT alone   the same operations the module's PCT performs, run again on
- *               the key that generation produced.  MEASURED.
- *   KeyGen raw  KeyGen+PCT minus PCT alone.  DERIVED, and labelled as such
- *               in the header: no build of this module generates a key
- *               without running the PCT, so there is nothing to measure.
+ *   KeyGen+PCT  what a caller pays today.  MEASURED.
+ *   PCT alone   the same test repeated on the finished key.  MEASURED.
+ *   KeyGen raw  the difference.  DERIVED: no build generates a key without
+ *               the test, so it cannot be measured directly.
  */
 
 #define BENCH_PCT_DEFAULT_ITERS 1
@@ -239,20 +224,15 @@ static int run_one_cast(int id, int iters,
 
 #ifdef BENCH_HAVE_PCT
 
-/* Largest n (security parameter) over the FIPS 205 parameter sets, which is
- * 32 for the category 5 sets.  Checked against the key at run time rather
- * than assumed, so a parameter set with a larger n is skipped with a message
- * instead of overflowing the seed buffers. */
+/* Largest seed size over the FIPS 205 parameter sets.  Checked against the
+ * key at run time, so a set with a bigger one is skipped with a message
+ * rather than overflowing these buffers. */
 #define BENCH_SLHDSA_MAX_N 32
 
-/* KeyGen raw is KeyGen+PCT minus PCT alone, so it is positive only while the
- * PCT really is inside the generation call.  Compiling the SLH-DSA PCT out
- * and re-running took KeyGen raw for SHAKE-128s from +54.8 ms to -365.5 ms,
- * which is how this test was calibrated.  Noise cannot produce that: the
- * margin below asks for a deficit worth more than a twentieth of the PCT
- * before it says anything.
- *
- * Returns 1 when key generation does not appear to run the PCT. */
+/* KeyGen raw goes negative if the test is not actually inside key generation.
+ * Compiling the SLH-DSA one out took it from +54.8 ms to -365.5 ms, which set
+ * the margin below; noise cannot swing that far.
+ * Returns 1 when key generation does not appear to run the test. */
 static int pct_missing(double raw_ms, double pct_ms)
 {
     return (raw_ms < 0.0) && ((-raw_ms) > (pct_ms * 0.05));
@@ -299,9 +279,8 @@ static void pct_fail(const char* name, int rc)
 
 
 #ifdef WOLFSSL_HAVE_MLKEM
-/* ML-KEM PCT: encapsulate with ek, decapsulate with dk, compare the two
- * shared secrets.  Mirrors the block in wc_mlkem.c, including the fixed `m`,
- * so the measurement is of the same work and not of a different round trip. */
+/* Repeats what wc_mlkem.c's test does, fixed `m` included, so the number is
+ * for the same work and not a different round trip. */
 static int bench_pct_mlkem(int iters)
 {
     static const int   types[] = { WC_ML_KEM_512, WC_ML_KEM_768,
@@ -348,8 +327,8 @@ static int bench_pct_mlkem(int iters)
             long long t1;
             word32    ctSz = 0;
 
-            /* Different key material each iteration, so no measurement here
-             * can be a repeat of byte-identical work. */
+            /* Vary the key each round so nothing measured is a repeat of
+             * byte-identical work. */
             kgrand[0] = (byte)i;
 
             t0 = now_ns();
@@ -386,9 +365,8 @@ static int bench_pct_mlkem(int iters)
         wc_MlKemKey_Free(&key);
     }
 
-    /* Fixed-seed test material, not live key material, but leaving a shared
-     * secret on the stack of a FIPS benchmark reads badly and costs nothing
-     * to avoid. */
+    /* Fixed-seed material, not a live key, but leaving a shared secret on the
+     * stack of a FIPS benchmark costs nothing to avoid. */
     XMEMSET(ss1, 0, sizeof(ss1));
     XMEMSET(ss2, 0, sizeof(ss2));
     XFREE(ct, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -399,9 +377,8 @@ static int bench_pct_mlkem(int iters)
 
 
 #ifdef WOLFSSL_HAVE_MLDSA
-/* ML-DSA PCT: sign with the new sk, verify with the matching pk.  Mirrors
- * mldsa_pct() in wc_mldsa.c, same message and same all-zero rnd, so the
- * deterministic-signing path measured here is the one the module runs. */
+/* Repeats what mldsa_pct() in wc_mldsa.c does, same message and same all-zero
+ * rnd, so this times the path the module actually runs. */
 static int bench_pct_mldsa(int iters)
 {
     static const byte  levels[] = { WC_ML_DSA_44, WC_ML_DSA_65, WC_ML_DSA_87 };
@@ -489,26 +466,24 @@ static int bench_pct_mldsa(int iters)
 
 
 #ifdef WOLFSSL_HAVE_SLHDSA
-/* SLH-DSA is the one where the choice of PCT is open, so three candidates are
- * timed side by side.  What each one proves is spelled out by
- * bench_pct_slhdsa_notes() below; read that before using the numbers. */
+/* SLH-DSA is the one where the choice is still open, so three candidates are
+ * timed together.  bench_pct_slhdsa_notes() says what each actually proves;
+ * read it before using the numbers. */
 static void bench_pct_slhdsa_notes(void)
 {
     printf(
-"A  sign + verify.  What wc_SlhDsaKey_MakeKeyWithRandom() does today.\n"
-"B  recompute PK.root from SK.seed and compare it with the stored root -- what\n"
-"   wc_SlhDsaKey_CheckKey() already implements.  Its cost is the raw key\n"
-"   generation, because for SLH-DSA generating the key IS computing PK.root,\n"
-"   so column B is the KeyGen raw figure rather than a second measurement of\n"
-"   the same work.\n"
-"C  compare PK.SEED between the public and the private key -- the relaxation\n"
-"   FIPS 140-3 IG 10.3.A Additional Comment 1 permits for SLH-DSA.\n"
-"   VACUOUS IN THIS IMPLEMENTATION, and the number below must not be read as\n"
-"   an option.  SlhDsaKey holds a single buffer, sk = SK.seed | SK.prf |\n"
-"   PK.seed | PK.root; wc_SlhDsaKey_ExportPrivate() returns sk and\n"
-"   wc_SlhDsaKey_ExportPublic() returns sk + 2n.  The two copies of PK.seed\n"
-"   are the same bytes, so the comparison cannot fail and detects nothing.\n"
-"   It is timed only to show it was measured rather than assumed.\n");
+"A  Sign, then verify.  What the module does today.\n"
+"B  Recompute PK.root from SK.seed and compare it with the stored root -- what\n"
+"   wc_SlhDsaKey_CheckKey() already does.  For SLH-DSA, generating the key IS\n"
+"   computing PK.root, so B costs one key generation; column B repeats the\n"
+"   KeyGen raw figure rather than timing the same work twice.\n"
+"C  Compare PK.SEED between the public and private key, the shortcut\n"
+"   FIPS 140-3 IG 10.3.A Additional Comment 1 allows for SLH-DSA.\n"
+"   IT PROVES NOTHING HERE, so do not read the number as an option.  This\n"
+"   implementation keeps one buffer, sk = SK.seed | SK.prf | PK.seed |\n"
+"   PK.root, and the public key is a slice of it, so the two copies of\n"
+"   PK.SEED are the same bytes and the comparison can never fail.  It is\n"
+"   timed only so the claim rests on a measurement rather than an argument.\n");
 }
 
 static int bench_pct_slhdsa(int iters)
@@ -666,13 +641,11 @@ static int bench_pct(int iters, const char* only)
     (void)iters;
 #endif
 
-    /* The replicas below drive private-key operations through the public API
-     * -- ML-KEM decapsulate, ML-DSA and SLH-DSA sign, SLH-DSA ExportPrivate.
-     * In a FIPS build those are gated by the private-key lock
-     * (PRIVATE_KEY_UNLOCK, types.h), and without this they return -287.  The
-     * module's own PCTs run inside the boundary and never meet that gate, so
-     * the unlock is taken here, outside every timed region, rather than
-     * charging a PCT for a check it does not actually pay. */
+    /* The tests below call private-key operations from outside the module,
+     * where a FIPS build gates them behind the private-key lock and they
+     * would return -287.  The module's own tests run inside and never meet
+     * that gate, so unlock here, outside every timed region, rather than
+     * charge them for a check they do not pay. */
 #ifdef BENCH_HAVE_PCT
     PRIVATE_KEY_UNLOCK();
 #endif
@@ -700,8 +673,8 @@ static int bench_pct(int iters, const char* only)
     }
 #endif
 
-    /* Selecting a family that this build does not have would otherwise print
-     * a header and nothing else, which reads as "measured, no cost". */
+    /* Otherwise an algorithm this build lacks prints a header and no rows,
+     * which reads as "measured, costs nothing". */
 #ifdef BENCH_HAVE_PCT
     PRIVATE_KEY_LOCK();
 #endif
@@ -727,11 +700,11 @@ static void usage(const char* prog)
     printf("  -h          show this help\n");
 }
 
-/* atoi() is undefined on a value too large for an int, and the truncation glibc
- * actually performs lands inside the range checks below: "-i 4294967297" ran 1
- * iteration and "-c 4294967296" ran CAST 0, both without complaint. Parse with
- * strtol() so trailing garbage and out-of-range values are rejected instead.
- * Returns 0 and stores the value on success, -1 on any bad input. */
+/* atoi() silently truncates a too-large number, and the wrapped value lands
+ * inside the range checks below: "-i 4294967297" ran 1 iteration and
+ * "-c 4294967296" ran CAST 0, neither complaining.  strtol() lets us reject
+ * both trailing garbage and out-of-range input.
+ * Returns 0 and stores the value, or -1 on bad input. */
 static int parse_int_arg(const char* s, long* out)
 {
     char* end = NULL;
@@ -766,10 +739,9 @@ int main(int argc, char** argv)
     for (i = 1; i < argc; i++) {
         if (XSTRCMP(argv[i], "-i") == 0 && i + 1 < argc) {
             long v = 0;
-            /* Upper bound as well as lower: run_one_cast() allocates
-             * iters * sizeof(long long), and on a 32-bit size_t an iters above
-             * SIZE_MAX/8 wraps that product, yielding a short buffer and an
-             * out-of-bounds write in the sample loop. */
+            /* Needs an upper bound too: the sample array is
+             * iters * sizeof(long long), which wraps on a 32-bit size_t and
+             * would give a short buffer to write past. */
             if ((parse_int_arg(argv[++i], &v) != 0) || (v <= 0) ||
                     (v > BENCH_MAX_ITERS)) {
                 fprintf(stderr, "-i requires an iteration count in 1..%d\n",
@@ -817,9 +789,8 @@ int main(int argc, char** argv)
         fprintf(stderr, "-c names a CAST id and does not apply with -p\n");
         return 2;
     }
-    /* The PCT families are far more expensive per iteration than a CAST --
-     * an SLH-DSA 's' key generation is seconds, not milliseconds -- so -p
-     * defaults lower.  An explicit -i still wins. */
+    /* One round of -p costs far more than one CAST, so it defaults lower.
+     * An explicit -i still wins. */
     if (pct_only && !iters_set)
         iters = BENCH_PCT_DEFAULT_ITERS;
 
@@ -849,8 +820,8 @@ int main(int argc, char** argv)
            );
     printf("\n");
 
-    /* Under WC_RNG_SEED_CB the RNG needs a seed generator before _InitRng can
-     * build a working DRBG (mirrors benchmark.c and wolfcrypt/test/test.c). */
+    /* The RNG needs a seed source registered before it will start, the same
+     * as benchmark.c and wolfcrypt/test/test.c do. */
 #ifdef WC_RNG_SEED_CB
     {
         int seed_cb_rc = wc_SetSeed_Cb(WC_GENERATE_SEED_DEFAULT);
@@ -862,8 +833,8 @@ int main(int argc, char** argv)
     }
 #endif
 
-    /* Prime every CAST once so each reaches FIPS_CAST_STATE_SUCCESS before
-     * measuring, isolating KAT runtime from the cold-CAST init chain. */
+    /* Run every CAST once first, so what we time afterwards is the test
+     * itself and not the one-off set-up behind it. */
     {
         int prime_rc = wc_RunAllCast_fips();
         if (prime_rc != 0) {

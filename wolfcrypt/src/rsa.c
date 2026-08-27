@@ -158,18 +158,10 @@ static void wc_RsaCleanup(RsaKey* key)
     if (key != NULL) {
     #ifndef WOLFSSL_RSA_PUBLIC_ONLY
     #if FIPS_VERSION3_GE(7,0,0)
-        /* SP 800-56B Rev2 sec 7.2.2.4: destroy the recovered keying material on
-         * every exit.  PRIVATE-key operations only: those are the ones that
-         * recover keying material (RSA key transport).  The public-decrypt
-         * (signature verification) path is already excluded by the key->type
-         * test below, so it is not what dataIsAlloc is guarding.
-         *
-         * dataIsAlloc guards the aliasing case in RsaPrivateDecryptEx: when the
-         * caller supplies outPtr, that path takes the "else" branch that sets
-         * key->dataIsAlloc = 0 and key->data = out, so key->data IS the
-         * caller's output buffer.  Zeroizing it there would wipe the plaintext
-         * this call just produced.  Wipe only a buffer this operation
-         * allocated, never a caller-owned one. */
+        /* Erase the recovered plaintext on the way out, success or failure.
+         * SP 800-56B Rev2 sec 7.2.2.4.  Only a buffer we allocated: when the
+         * caller supplies its own, key->data points at it (dataIsAlloc is 0)
+         * and erasing would destroy the answer. */
         if (key->dataIsAlloc && key->data != NULL && key->dataLen > 0 &&
             (key->type == RSA_PRIVATE_DECRYPT ||
              key->type == RSA_PRIVATE_ENCRYPT)) {
@@ -834,9 +826,8 @@ static int _ifc_pairwise_consistency_test(RsaKey* key, WC_RNG* rng)
 #if FIPS_VERSION3_GE(7,0,0) && defined(WOLFSSL_KEY_GEN) && \
     !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 /* Defined with the key generation code below; reused here so that key pair
- * validation applies the same FIPS 186-5 App. A.1.1 prime tests as generation
- * (range against the sqrt(2) lower bound, GCD(p-1,e) = 1, |p-q| separation and
- * Miller-Rabin primality) rather than a weaker approximation. */
+ * validation checks the primes as strictly as generation does.
+ * FIPS 186-5 App. A.1.1. */
 static int _CheckProbablePrime(mp_int* p, mp_int* q, mp_int* e, int nlen,
                                int* isPrime, WC_RNG* rng);
 #endif
@@ -925,19 +916,20 @@ int wc_CheckRsaKey(RsaKey* key)
 
 #if FIPS_VERSION3_GE(7,0,0) && defined(WOLFSSL_KEY_GEN) && \
     !defined(WOLFSSL_RSA_PUBLIC_ONLY)
-    /* SP 800-56B Rev2 sec 6.4.1.4.3 (crt_pkv), inheriting sec 6.4.1.2.1 steps
-     * 1c, 3b/3c, 5 and 6. */
+    /* Validate the key the way SP 800-56B Rev2 sec 6.4.1.4.3 (crt_pkv) does.
+     * Step numbers below are that section's. */
     if (ret == 0) {
         int nBits = mp_count_bits(&key->n);
         int isPrime = 0;
 
-        /* step 3b/3c: nBits shall be an even integer >= 2048 */
+        /* Modulus: even number of bits (item D, step 3c) and at least 2048
+         * (FIPS 186-5 sec 5.1). */
         if ((nBits < RSA_MIN_SIZE) || ((nBits & 1) != 0)) {
             ret = WC_KEY_SIZE_E;
         }
 
-        /* step 1c: e shall be odd with 65537 <= e < 2^256.  e is held in an
-         * mp_int here, so the upper bound is checked explicitly. */
+        /* Public exponent: odd, and 65537 <= e < 2^256 (item B).  e is an
+         * mp_int here, so the upper bound needs an explicit bit count. */
         if (ret == 0) {
             if (mp_iseven(&key->e) || (mp_cmp_d(&key->e, 65537) == MP_LT) ||
                     (mp_count_bits(&key->e) > 256)) {
@@ -945,9 +937,9 @@ int wc_CheckRsaKey(RsaKey* key)
             }
         }
 
-        /* steps 5a/5b/5f/5g for p, then the same for q together with step 5c,
-         * |p - q| > 2^((nBits/2) - 100).  _CheckProbablePrime() applies the
-         * sqrt(2) lower bound, GCD(prime-1, e) = 1 and Miller-Rabin. */
+        /* Primes: right size, coprime to e, far enough apart, and actually
+         * prime (steps 5a-5g).  Checking p alone first, then p with q so the
+         * |p - q| separation test can run. */
         if (ret == 0) {
             ret = _CheckProbablePrime(&key->p, NULL, &key->e, nBits,
                                       &isPrime, rng);
@@ -963,8 +955,8 @@ int wc_CheckRsaKey(RsaKey* key)
             ret = MP_EXPTMOD_E;
         }
 
-        /* step 6: 2^(nBits/2) < d.  A d of at most nBits/2 bits is below
-         * 2^(nBits/2), so the bit count is a sufficient test here. */
+        /* Private exponent must exceed 2^(nBits/2) (step 6a).  A d of that
+         * many bits or fewer cannot, so counting bits settles it. */
         if ((ret == 0) && (mp_count_bits(&key->d) <= (nBits / 2))) {
             ret = MP_EXPTMOD_E;
         }
@@ -990,10 +982,9 @@ int wc_CheckRsaKey(RsaKey* key)
     /* Check dP, dQ and u if they exist */
     if (ret == 0 && !mp_iszero(&key->dP)) {
 #if FIPS_VERSION3_GE(7,0,0)
-        /* SP 800-56B Rev2 sec 6.4.1.4.3 item F, steps 7a/7b/7c: 1 < dP,
-         * 1 < dQ and 1 < qInv.  Not sec 6.4.1.2.1 step 7, which is the single
-         * line "Output an indication that the key pair is valid" and has no
-         * sub-items; crt_pkv replaces it with the CRT-component checks. */
+        /* Each CRT component must be greater than 1.
+         * SP 800-56B Rev2 sec 6.4.1.4.3 item F, steps 7a/7b/7c.
+         * Their upper bounds are checked just below. */
         if ((mp_cmp_d(&key->dP, 1) != MP_GT) ||
             (mp_cmp_d(&key->dQ, 1) != MP_GT) ||
             (mp_cmp_d(&key->u, 1) != MP_GT)) {
@@ -1619,8 +1610,8 @@ static int RsaPad_PSS(const byte* input, word32 inputLen, byte* pkcsBlock,
             }
         #endif
     }
-/* FIPS 186-5 sec 5.4(g): 0 <= sLen <= hLen.  Enforced for v7.0.0+ even when
- * WOLFSSL_PSS_LONG_SALT is defined. */
+/* The salt may not be longer than the hash.  FIPS 186-5 sec 5.4(g) states
+ * this with no exception, so it holds even where long salts are compiled in. */
 #if !defined(WOLFSSL_PSS_LONG_SALT) || FIPS_VERSION3_GE(7,0,0)
     else if (saltLen > hLen) {
         return PSS_SALTLEN_E;
@@ -2029,8 +2020,8 @@ static int RsaUnPad_PSS(byte *pkcsBlock, unsigned int pkcsBlockLen,
                 saltLen = RSA_PSS_SALT_MAX_SZ;
         #endif
     }
-/* FIPS 186-5 sec 5.4(g): 0 <= sLen <= hLen, on verification as well as
- * generation. */
+/* Same salt limit when verifying: FIPS 186-5 sec 5.4(g) says the check
+ * "shall also be checked during the signature verification process". */
 #if !defined(WOLFSSL_PSS_LONG_SALT) || FIPS_VERSION3_GE(7,0,0)
     else if (saltLen > hLen)
         return PSS_SALTLEN_E;
@@ -3740,8 +3731,8 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
 #endif
 
 #if !defined(NO_RSA_BOUNDS_CHECK) && FIPS_VERSION3_GE(7,0,0)
-    /* SP 800-56B Rev2 sec 7.1.1 step 1 (RSAEP) and RFC 8017 sec 5.1.1/5.2.1:
-     * the representative shall satisfy 1 < m < n-1 before exponentiation. */
+    /* Reject a message outside 1 < m < n-1 before exponentiating.
+     * SP 800-56B Rev2 sec 7.1.1 (RSAEP) step 1. */
     if ((type == RSA_PUBLIC_ENCRYPT || type == RSA_PRIVATE_ENCRYPT) &&
         key->state == RSA_STATE_ENCRYPT_EXPTMOD) {
 
@@ -4690,7 +4681,7 @@ int wc_RsaPSS_CheckPadding_ex2(const byte* in, word32 inSz, const byte* sig,
                 }
             #endif
         }
-/* FIPS 186-5 sec 5.4(g): 0 <= sLen <= hLen (inSz is the digest length). */
+/* Same salt limit; here inSz is the hash length.  FIPS 186-5 sec 5.4(g). */
 #if !defined(WOLFSSL_PSS_LONG_SALT) || FIPS_VERSION3_GE(7,0,0)
         else if (saltLen > (int)inSz) {
             ret = PSS_SALTLEN_E;
@@ -5430,8 +5421,10 @@ static WC_INLINE int RsaSizeCheck(int size)
     }
 
 #if FIPS_VERSION3_GE(7,0,0)
-    /* Approved RSA key sizes per FIPS 186-5 sec 5.1 and SP 800-131Ar2 sec 4
-     * Table 2 - 2048, 3072, 4096 only (1024 disallowed since 2014-01-01) */
+    /* Only the sizes this module is validated for.  The standards set a
+     * floor, not a list: at least 2048 bits and even (FIPS 186-5 sec 5.1),
+     * with less disallowed for signing (SP 800-131Ar2 Table 2).  These three
+     * are what wolfSSL holds CAVP certificates for, so this is stricter. */
     switch (size) {
         case 2048:
         case 3072:
@@ -5747,9 +5740,8 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     }
 
 #if FIPS_VERSION3_GE(7,0,0)
-    /* FIPS 186-5 sec 5.2: 2^16 + 1 <= e < 2^256, e odd.  e is a long
-     * (<= 64 bits) so the upper bound holds structurally; enforce the 65537
-     * lower bound explicitly */
+    /* The public exponent must be above 2^16.  FIPS 186-5 sec 5.4(e).
+     * e is a long here, so it cannot reach the 2^256 upper bound. */
     if (e < 65537L) {
         err = BAD_FUNC_ARG;
         goto out;
@@ -5957,10 +5949,11 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 #endif
 
 #if FIPS_VERSION3_GE(7,0,0)
-            /* SP 800-90A Rev1 sec 11.4.2: a DRBG failure shall report its own
-             * error indicator.  Test err before WC_CHECK_FOR_INTR_SIGNALS()
-             * overwrites it, matching the p loop above; otherwise a
-             * DRBG_CONT_FIPS_E here is discarded and surfaces as PRIME_GEN_E */
+            /* Check err before WC_CHECK_FOR_INTR_SIGNALS() overwrites it, as
+             * the p loop above does.  Otherwise a DRBG failure is discarded
+             * and resurfaces as PRIME_GEN_E, hiding what actually went wrong.
+             * SP 800-90A Rev1 sec 11.4.2 requires the DRBG's own error
+             * indicator to reach the caller. */
             if (err != MP_OKAY || isPrime || i >= failCount)
                 break;
 #endif

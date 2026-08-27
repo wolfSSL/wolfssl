@@ -488,22 +488,11 @@ int test_wolfSSL_RSA_print(void)
     return EXPECT_RESULT();
 }
 
-/* RSA_PSS_SALTLEN_MAX_SIGN and RSA_PSS_SALTLEN_MAX ask for the largest salt
- * the modulus allows.  When WOLFSSL_PSS_LONG_SALT is compiled in,
- * rsa_pss_calc_salt() (src/pk_rsa.c) turns both into emLen - hLen - 2, which
- * for the RSA-2048 key and SHA-256 used below is 222 bytes.
- *
- * FIPS 186-5 sec 5.4(g) requires 0 <= sLen <= hLen, and wolfCrypt enforces
- * that from v7.0.0 even when WOLFSSL_PSS_LONG_SALT is defined -- see
- * RsaPad_PSS, RsaUnPad_PSS and wc_RsaPSS_CheckPadding_ex2 in
- * wolfcrypt/src/rsa.c.  So a v7 module MUST reject a 222-byte salt, and the
- * expectation inverts: here a success is the defect, because it would mean
- * the salt-length limit is not being applied.
- *
- * Both terms are needed.  Without WOLFSSL_PSS_LONG_SALT the same request
- * resolves to hLen and is accepted on every version, so keying this on the
- * FIPS version alone would wrongly demand a failure from the plain
- * --enable-fips=v7 build, which does not define it. */
+/* These ask for the longest salt the modulus allows: 222 bytes here, once
+ * long salts are compiled in.  FIPS 186-5 sec 5.4(g) caps the salt at the
+ * hash length, so a v7 module must refuse it and a success is the defect.
+ * Both halves of the test matter: without long salts the same request
+ * resolves to the hash length and is accepted on any version. */
 #if defined(WOLFSSL_PSS_LONG_SALT) && FIPS_VERSION3_GE(7,0,0)
     #define TEST_PSS_MAX_SALT_RESULT 0
 #else
