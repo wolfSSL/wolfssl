@@ -23558,27 +23558,38 @@ typedef struct keywrapVector {
 } keywrapVector;
 
 #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
-/* Split out of aeskeywrap_test() so the Aes local lives in its own frame: a
- * plain local is what gives the object the type's alignment, but inside
- * aeskeywrap_test() it pushed that function's frame past 4096 bytes in some
- * configurations. The object must NOT come from XMALLOC: struct Aes carries
- * ALIGN16 members, so _Alignof(Aes) is 16 under the default --enable-aligndata,
- * while malloc() -- and so wc_AesNew() -- only guarantees 8 on 32-bit targets.
- * See wc_AesSetIV(), which clang lowers to an alignment-qualified NEON store on
- * armv8-a+crypto; an 8-aligned Aes faults there (SIGBUS on 32-bit ARM). */
+/* struct Aes cannot be a local here: with --enable-aesgcm=table its GCM tables
+ * alone are 4096 bytes, past the frame limit CI enforces. It also asks for 16
+ * byte alignment through its ALIGN16 members, which XMALLOC does not guarantee
+ * on 32-bit targets, where malloc only promises 8 -- and wc_AesSetIV() lowers
+ * to an alignment-qualified NEON store when building for armv8-a+crypto, which
+ * faults on an under-aligned object. Neither a plain local nor a plain XMALLOC
+ * (wc_AesNew() included) satisfies both, so allocate with headroom, align by
+ * hand, and keep the base pointer for XFREE. */
+#define AESKEYWRAP_AES_ALIGN 16
 static wc_test_ret_t aeskeywrap_caller_aes_test(const keywrapVector* v,
                                                 byte* output, word32 outputSz,
                                                 byte* plain, word32 plainBufSz)
 {
-    Aes aes[1];
+    void* raw;
+    Aes* aes;
     wc_test_ret_t ret = 0;
     int wrapSz = 0, plainSz;
+
+    raw = XMALLOC(sizeof(Aes) + AESKEYWRAP_AES_ALIGN - 1, HEAP_HINT,
+                  DYNAMIC_TYPE_TMP_BUFFER);
+    if (raw == NULL)
+        return WC_TEST_RET_ENC_NC;
+    aes = (Aes*)(void*)(((wc_ptr_t)raw + (AESKEYWRAP_AES_ALIGN - 1)) &
+                        ~(wc_ptr_t)(AESKEYWRAP_AES_ALIGN - 1));
 
     XMEMSET(output, 0, outputSz);
     XMEMSET(plain,  0, plainBufSz);
 
-    if (wc_AesInit(aes, HEAP_HINT, devId) != 0)
+    if (wc_AesInit(aes, HEAP_HINT, devId) != 0) {
+        XFREE(raw, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return WC_TEST_RET_ENC_NC;
+    }
 
     if (wc_AesSetKey(aes, v->kek, v->kekLen, NULL, AES_ENCRYPTION) != 0)
         ret = WC_TEST_RET_ENC_NC;
@@ -23603,6 +23614,7 @@ static wc_test_ret_t aeskeywrap_caller_aes_test(const keywrapVector* v,
         }
     }
     wc_AesFree(aes);
+    XFREE(raw, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 #endif
