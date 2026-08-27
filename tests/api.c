@@ -23482,6 +23482,39 @@ static int test_wolfSSL_X509_add1_ext_i2d_eku_copy(void)
     return EXPECT_RESULT();
 }
 
+/* wolfSSL_X509V3_EXT_i2d() builds the authorityKeyIdentifier object from the
+ * caller's issuer name when no key ID is given, so the encoded extension can
+ * be a different NID than the one asked for. That must be refused before the
+ * existing extension is removed. */
+static int test_wolfSSL_X509_add1_ext_i2d_nid_mismatch(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
+    !defined(NO_ASN) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    WOLFSSL_X509*             x509 = NULL;
+    WOLFSSL_AUTHORITY_KEYID*  akey = NULL;
+
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(svrCertFile,
+        WOLFSSL_FILETYPE_PEM));
+
+    ExpectNotNull(akey = wolfSSL_AUTHORITY_KEYID_new());
+    if (akey != NULL) {
+        /* No key ID, so the extension carries this object instead. */
+        ExpectNotNull(akey->issuer = wolfSSL_OBJ_nid2obj(NID_commonName));
+    }
+
+    ExpectIntEQ(wolfSSL_X509_add1_ext_i2d(x509, NID_authority_key_identifier,
+                akey, 0, X509V3_ADD_REPLACE), WOLFSSL_FAILURE);
+    /* The authority key identifier the certificate came with is still set. */
+    ExpectIntEQ(wolfSSL_X509_add1_ext_i2d(x509, NID_authority_key_identifier,
+                NULL, 0, X509V3_ADD_DELETE), WOLFSSL_SUCCESS);
+
+    wolfSSL_AUTHORITY_KEYID_free(akey);
+    wolfSSL_X509_free(x509);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* wolfSSL has no typed storage for some of the extensions
  * wolfSSL_X509V3_EXT_i2d() can encode. Presence cannot be determined for
  * those, so every operation but APPEND has to fail up front instead of
@@ -41247,6 +41280,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_X509_add1_ext_i2d_eku),
     TEST_DECL(test_wolfSSL_X509_add1_ext_i2d_eku_copy),
     TEST_DECL(test_wolfSSL_X509_add1_ext_i2d_untracked_nid),
+    TEST_DECL(test_wolfSSL_X509_add1_ext_i2d_nid_mismatch),
     TEST_DECL(test_wolfSSL_X509_set_authority_key_id_roundtrip),
     TEST_DECL(test_wolfSSL_X509_set_authority_key_id_ex_roundtrip),
     TEST_DECL(test_wolfSSL_X509_set_authority_key_id_overwrite),

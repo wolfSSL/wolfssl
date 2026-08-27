@@ -3916,6 +3916,15 @@ int wolfSSL_X509_add1_ext_i2d(WOLFSSL_X509 *x, int nid, void *value,
         return WOLFSSL_FAILURE;
     }
 
+    /* wolfSSL_X509_add_ext() dispatches on the encoded object, which for an
+     * authorityKeyIdentifier built from an issuer name is caller supplied.
+     * Refuse here rather than remove one extension and write another. */
+    if (((ext->obj != NULL) ? ext->obj->type : ext->value.nid) != nid) {
+        WOLFSSL_MSG("Encoded extension is not the requested NID");
+        wolfSSL_X509_EXTENSION_free(ext);
+        return WOLFSSL_FAILURE;
+    }
+
     if (exists && ((op == WOLFSSL_X509V3_ADD_REPLACE) ||
                    (op == WOLFSSL_X509V3_ADD_REPLACE_EXISTING))) {
         if (wolfssl_x509_remove_ext(x, nid) != WOLFSSL_SUCCESS) {
