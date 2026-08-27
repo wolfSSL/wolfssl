@@ -1441,6 +1441,48 @@ static int wolfssl_eku_der_to_bit(const byte* der, word32 derSz, byte* bit)
     return 0;
 }
 
+/* Check that every entry of a KeyPurposeId stack is one DER OBJECT
+ * IDENTIFIER, reporting the size of the encoded list and the usage bits.
+ *
+ * @return  WOLFSSL_SUCCESS on success, WOLFSSL_FAILURE otherwise.
+ */
+static int wolfssl_x509_eku_sk_check(WOLFSSL_STACK* sk, word32* derSz,
+    byte* usage)
+{
+    int i;
+    int num;
+    word32 sz = 0;
+    byte bits = 0;
+    byte bit = 0;
+
+    num = wolfSSL_sk_num(sk);
+    if (num <= 0) {
+        WOLFSSL_MSG("extKeyUsage object stack is empty");
+        return WOLFSSL_FAILURE;
+    }
+
+    for (i = 0; i < num; i++) {
+        WOLFSSL_ASN1_OBJECT* obj = (WOLFSSL_ASN1_OBJECT*)wolfSSL_sk_value(sk,
+            i);
+
+        if ((obj == NULL) || (obj->obj == NULL) || (obj->objSz == 0)) {
+            WOLFSSL_MSG("extKeyUsage entry has no OID encoding");
+            return WOLFSSL_FAILURE;
+        }
+        if (wolfssl_eku_der_to_bit(obj->obj, obj->objSz, &bit) != 0) {
+            WOLFSSL_MSG("extKeyUsage entry is not a KeyPurposeId");
+            return WOLFSSL_FAILURE;
+        }
+        bits |= bit;
+        sz += obj->objSz;
+    }
+
+    *derSz = sz;
+    *usage = bits;
+
+    return WOLFSSL_SUCCESS;
+}
+
 /* Set the extKeyUsage of @x509 from the stack of ASN.1 OBJECTs that
  * wolfSSL_X509V3_EXT_i2d() builds for WC_NID_ext_key_usage.
  *
@@ -1460,30 +1502,13 @@ static int wolfssl_x509_add_ext_key_usage_sk(WOLFSSL_X509* x509,
     word32 derSz = 0;
     word32 idx = 0;
     byte usage = 0;
-    byte bit = 0;
-
-    num = wolfSSL_sk_num(ext->ext_sk);
-    if (num <= 0) {
-        WOLFSSL_MSG("extKeyUsage object stack is empty");
-        return WOLFSSL_FAILURE;
-    }
 
     /* Validate before allocating so a bad entry changes nothing. */
-    for (i = 0; i < num; i++) {
-        WOLFSSL_ASN1_OBJECT* obj = (WOLFSSL_ASN1_OBJECT*)wolfSSL_sk_value(
-            ext->ext_sk, i);
-
-        if ((obj == NULL) || (obj->obj == NULL) || (obj->objSz == 0)) {
-            WOLFSSL_MSG("extKeyUsage entry has no OID encoding");
-            return WOLFSSL_FAILURE;
-        }
-        if (wolfssl_eku_der_to_bit(obj->obj, obj->objSz, &bit) != 0) {
-            WOLFSSL_MSG("extKeyUsage entry is not a KeyPurposeId");
-            return WOLFSSL_FAILURE;
-        }
-        usage |= bit;
-        derSz += obj->objSz;
+    if (wolfssl_x509_eku_sk_check(ext->ext_sk, &derSz, &usage) !=
+            WOLFSSL_SUCCESS) {
+        return WOLFSSL_FAILURE;
     }
+    num = wolfSSL_sk_num(ext->ext_sk);
 
     der = (byte*)XMALLOC(derSz, x509->heap, DYNAMIC_TYPE_X509_EXT);
     if (der == NULL) {
@@ -3923,6 +3948,21 @@ int wolfSSL_X509_add1_ext_i2d(WOLFSSL_X509 *x, int nid, void *value,
         WOLFSSL_MSG("Encoded extension is not the requested NID");
         wolfSSL_X509_EXTENSION_free(ext);
         return WOLFSSL_FAILURE;
+    }
+
+    /* wolfSSL_X509V3_EXT_i2d() copies an extKeyUsage stack without looking
+     * inside it, so encoding is not the check that matters here. Reject a bad
+     * stack before the existing extension is dropped for it. */
+    if ((nid == WC_NID_ext_key_usage) && (ext->value.data == NULL) &&
+            (ext->ext_sk != NULL)) {
+        word32 ekuSz = 0;
+        byte ekuUsage = 0;
+
+        if (wolfssl_x509_eku_sk_check(ext->ext_sk, &ekuSz, &ekuUsage) !=
+                WOLFSSL_SUCCESS) {
+            wolfSSL_X509_EXTENSION_free(ext);
+            return WOLFSSL_FAILURE;
+        }
     }
 
     if (exists && ((op == WOLFSSL_X509V3_ADD_REPLACE) ||

@@ -23482,6 +23482,46 @@ static int test_wolfSSL_X509_add1_ext_i2d_eku_copy(void)
     return EXPECT_RESULT();
 }
 
+/* A REPLACE carrying an extKeyUsage stack that cannot be stored must leave the
+ * certificate's existing extKeyUsage alone. */
+static int test_wolfSSL_X509_add1_ext_i2d_eku_bad_replace(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
+    !defined(NO_ASN) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    WOLFSSL_X509*        x509 = NULL;
+    WOLFSSL_STACK*       sk   = NULL;
+    WOLFSSL_STACK*       rb   = NULL;
+    WOLFSSL_ASN1_OBJECT* obj  = NULL;
+    unsigned int         eku  = 0;
+
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(svrCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectIntGT(eku = wolfSSL_X509_get_extended_key_usage(x509), 0);
+
+    /* A bare object carries no OID encoding. */
+    ExpectNotNull(sk = wolfSSL_sk_new_asn1_obj());
+    ExpectNotNull(obj = wolfSSL_ASN1_OBJECT_new());
+    ExpectIntEQ(wolfSSL_sk_ASN1_OBJECT_push(sk, obj), 1);
+    if (EXPECT_FAIL()) {
+        wolfSSL_ASN1_OBJECT_free(obj);
+    }
+
+    ExpectIntEQ(wolfSSL_X509_add1_ext_i2d(x509, NID_ext_key_usage, sk, 0,
+                X509V3_ADD_REPLACE), WOLFSSL_FAILURE);
+
+    /* The extKeyUsage the certificate came with is untouched. */
+    ExpectIntEQ(wolfSSL_X509_get_extended_key_usage(x509), eku);
+    ExpectNotNull(rb = (WOLFSSL_STACK*)wolfSSL_X509_get_ext_d2i(x509,
+        NID_ext_key_usage, NULL, NULL));
+    wolfSSL_sk_ASN1_OBJECT_pop_free(rb, NULL);
+
+    wolfSSL_sk_ASN1_OBJECT_pop_free(sk, NULL);
+    wolfSSL_X509_free(x509);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* wolfSSL_X509V3_EXT_i2d() builds the authorityKeyIdentifier object from the
  * caller's issuer name when no key ID is given, so the encoded extension can
  * be a different NID than the one asked for. That must be refused before the
@@ -41279,6 +41319,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_X509_add1_ext_i2d_basic_constraints),
     TEST_DECL(test_wolfSSL_X509_add1_ext_i2d_eku),
     TEST_DECL(test_wolfSSL_X509_add1_ext_i2d_eku_copy),
+    TEST_DECL(test_wolfSSL_X509_add1_ext_i2d_eku_bad_replace),
     TEST_DECL(test_wolfSSL_X509_add1_ext_i2d_untracked_nid),
     TEST_DECL(test_wolfSSL_X509_add1_ext_i2d_nid_mismatch),
     TEST_DECL(test_wolfSSL_X509_set_authority_key_id_roundtrip),
