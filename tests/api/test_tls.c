@@ -642,6 +642,12 @@ int test_tls_get_negotiated_group(void)
     /* OpenSSL names this group secp256r1, not by its NIST name P-256. */
     ExpectStrEQ(wolfSSL_group_to_name(ssl_c, group), "secp256r1");
 
+    /* A cleared object has negotiated nothing again. */
+    ExpectIntEQ(wolfSSL_clear(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_clear(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_negotiated_group(ssl_c), 0);
+    ExpectIntEQ(wolfSSL_get_negotiated_group(ssl_s), 0);
+
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);
     wolfSSL_CTX_free(ctx_c);
