@@ -1613,8 +1613,7 @@ int wolfSSL_DisableExtendedMasterSecret(WOLFSSL* ssl)
 
 #ifdef OPENSSL_EXTRA
 
-#ifdef HAVE_PK_CALLBACKS
-/* Set the debug argument passed to the logging callback on the object.
+/* Set the argument passed to the TLS extension debug callback.
  *
  * @param [in, out] ssl  SSL/TLS object.
  * @param [in]      arg  Debug argument.
@@ -1629,7 +1628,7 @@ long wolfSSL_set_tlsext_debug_arg(WOLFSSL* ssl, void *arg)
         ret = WOLFSSL_FAILURE;
     }
     else {
-        ssl->loggingCtx = arg;
+        ssl->tlsextDebugArg = arg;
     }
 
     return ret;
@@ -1657,7 +1656,6 @@ long wolfSSL_set_tlsext_debug_callback(WOLFSSL* ssl,
 
     return ret;
 }
-#endif /* HAVE_PK_CALLBACKS */
 
 #ifndef NO_WOLFSSL_STUB
 /* Get the certificate status request extensions on the object.

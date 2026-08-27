@@ -6580,8 +6580,9 @@ struct WOLFSSL {
 #ifdef OPENSSL_EXTRA
 #ifdef HAVE_PK_CALLBACKS
     void*            loggingCtx;         /* logging callback argument */
-    WOLFSSL_TLSEXT_DEBUG_CB tlsextDebugCb; /* TLS ext debug callback */
 #endif
+    WOLFSSL_TLSEXT_DEBUG_CB tlsextDebugCb; /* TLS ext debug callback */
+    void*            tlsextDebugArg;     /* TLS ext debug callback argument */
 #endif /* OPENSSL_EXTRA */
 #ifndef NO_RSA
     RsaKey*         peerRsaKey;

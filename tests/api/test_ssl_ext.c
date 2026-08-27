@@ -510,7 +510,7 @@ int test_wolfSSL_CTX_set_tlsext_servername_callback_ext(void)
 int test_wolfSSL_set_tlsext_debug_arg_ext(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && defined(HAVE_PK_CALLBACKS) && \
+#if defined(OPENSSL_EXTRA) && \
     !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
@@ -528,7 +528,7 @@ int test_wolfSSL_set_tlsext_debug_arg_ext(void)
     return EXPECT_RESULT();
 }
 
-#if defined(OPENSSL_EXTRA) && defined(HAVE_PK_CALLBACKS) && \
+#if defined(OPENSSL_EXTRA) && \
     !defined(NO_TLS) && \
     (!defined(NO_WOLFSSL_CLIENT) || \
      (defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
@@ -579,7 +579,7 @@ static int test_tlsext_debug_find_len(const struct test_tlsext_debug_data *d,
 int test_wolfSSL_set_tlsext_debug_callback_ext(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && defined(HAVE_PK_CALLBACKS) && \
+#if defined(OPENSSL_EXTRA) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
@@ -613,7 +613,7 @@ int test_wolfSSL_set_tlsext_debug_callback_ext(void)
 int test_wolfSSL_set_tlsext_debug_callback_handshake_ext(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && defined(HAVE_PK_CALLBACKS) && \
+#if defined(OPENSSL_EXTRA) && \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     defined(HAVE_TLS_EXTENSIONS) && !defined(NO_TLS)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
