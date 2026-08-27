@@ -5679,7 +5679,6 @@ int test_tls13_0rtt_remove_cb_replay(void)
     WOLFSSL_SESSION *sess = NULL;
     struct test_memio_ctx test_ctx;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
-    const char earlyMsg[] = "0rtt-replay";
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     test_tls13_0rtt_replay_cache_reset();
@@ -5696,7 +5695,7 @@ int test_tls13_0rtt_remove_cb_replay(void)
     ExpectIntEQ(test_tls13_0rtt_make_session(ctx_c, ctx_s, &sess), 0);
 
     ExpectIntEQ(test_tls13_0rtt_replay_round(ctx_c, ctx_s, sess),
-                (int)sizeof(earlyMsg));
+                (int)sizeof("0rtt-replay"));
     ExpectIntEQ(test_tls13_0rtt_replay_round(ctx_c, ctx_s, sess), 0);
 
     wolfSSL_SESSION_free(sess);

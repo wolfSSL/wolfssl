@@ -14225,12 +14225,17 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
             ssl->session->ticketNonce.data[0]++;
     }
 
-    /* New ID per ticket: its cache entry backs 0-RTT single use (RFC 8446
-     * Sect. 8). Without WOLFSSL_TICKET_HAVE_ID only an ID ticket is cached. */
-#ifdef WOLFSSL_TICKET_HAVE_ID
-    genAltSessionID = 1;
-#else
+    /* Generate a new ID for the new ticket so that we don't overwrite any old
+     * ones. Only an ID ticket is cached without WOLFSSL_TICKET_HAVE_ID. */
     genAltSessionID = (ssl->options.mask & WOLFSSL_OP_NO_TICKET) != 0;
+#if defined(WOLFSSL_TICKET_HAVE_ID) && defined(WOLFSSL_EARLY_DATA) && \
+    !defined(NO_SESSION_CACHE)
+    /* A 0-RTT capable ticket needs a cache entry of its own to back the
+     * single-use bound of RFC 8446 Sect. 8. Sessions that cannot send early
+     * data keep one ID, so state bound to the cache entry (ex_data) survives
+     * a resumption. */
+    if (ssl->options.maxEarlyDataSz > 0)
+        genAltSessionID = 1;
 #endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     /* CreateTicket() already copied the ID into the ticket being encrypted,
