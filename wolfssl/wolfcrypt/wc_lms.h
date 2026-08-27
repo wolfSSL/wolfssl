@@ -158,6 +158,10 @@ enum wc_LmsRc {
  * Not predefining many sets with Winternitz=1, because the signatures
  * will be large. */
 enum wc_LmsParm {
+    /* Not a parameter set.  Always here so that the enum is never empty: a
+     * build can turn every hash family off (--enable-lms=no-sha256-256 with
+     * neither sha256-192 nor shake256), and an empty enum is not valid C. */
+    WC_LMS_PARM_NONE = 0,
 #ifndef WOLFSSL_NO_LMS_SHA256_256
     WC_LMS_PARM_L1_H5_W1 = 1,
     WC_LMS_PARM_L1_H5_W2 = 2,
@@ -644,9 +648,97 @@ typedef struct wc_LmsParamsMap {
     LmsParams params;
 } wc_LmsParamsMap;
 
+/* Step several LM-OTS chains at a time with the multi-buffer SHA-256.
+ *
+ * The chains of one one-time signature are independent of each other, which
+ * is what makes the batch possible; the hash of a chain step is a single
+ * block, so one batched call replaces a lane's worth of them.  The
+ * full-hash build drives
+ * SHA-256 through Update/Final instead of laying the padded block out itself,
+ * and has no block to hand over, so it keeps the one-at-a-time path.
+ */
+#ifdef USE_INTEL_SPEEDUP
+/* AVX-512 assembly for LMS is built (and dispatched at run time on capable
+ * CPUs) whenever the Intel speedups are enabled and AVX-512 is not opted
+ * out.  Matches the HAVE_INTEL_AVX512 guard around the generated
+ * assembly. */
+#ifndef NO_AVX512_SUPPORT
+    #define WOLFSSL_LMS_HAVE_INTEL_AVX512
+#endif
+#endif
+
+#if defined(WC_SHA256_N_WAY) && !defined(WC_LMS_FULL_HASH)
+    #define WC_LMS_SHA256_N_WAY
+#endif
+/* SHAKE parameter sets batch through the multi-buffer Keccak instead.  Their
+ * hash is one permutation - 23 + n bytes in, well under the SHAKE-256 rate -
+ * so a batch is one call, as it is for SHA-256. */
+#if defined(WC_SHAKE_N_WAY) && defined(WOLFSSL_LMS_SHAKE256)
+    #define WC_LMS_SHAKE_N_WAY
+#endif
+
+#if defined(WC_LMS_SHA256_N_WAY) || defined(WC_LMS_SHAKE_N_WAY)
+    #define WC_LMS_N_WAY
+    /* Widest batch either hash can run. */
+    #if !defined(WC_LMS_SHA256_N_WAY)
+        #define WC_LMS_N_WAY_MAX_CNT      WC_SHAKE_N_WAY_MAX_CNT
+    #elif !defined(WC_LMS_SHAKE_N_WAY) || \
+          (WC_SHA256_N_WAY_MAX_CNT >= WC_SHAKE_N_WAY_MAX_CNT)
+        #define WC_LMS_N_WAY_MAX_CNT      WC_SHA256_N_WAY_MAX_CNT
+    #else
+        #define WC_LMS_N_WAY_MAX_CNT      WC_SHAKE_N_WAY_MAX_CNT
+    #endif
+    /* Bytes a lane contributes to a batch: a whole padded block for SHA-256,
+     * the message as it stands for SHAKE, whichever is larger. */
+    #define WC_LMS_N_WAY_MAX_MSG_SZ       WC_SHA256_BLOCK_SIZE
+    /* Chains in flight plus results held back for the chains before them.
+     * Twice the widest batch is enough that a lane only idles when the
+     * oldest chain of all is still running. */
+    /* Whether any fused kernel is built: they need the lane-interleaved
+     * template
+ * kept in the state.  Must match the test wc_lms_impl.c makes. */
+#if (defined(WC_LMS_SHA256_N_WAY) && \
+     defined(WOLFSSL_LMS_HAVE_INTEL_AVX512)) || \
+    defined(WC_LMS_SHAKE_N_WAY)
+    #define WC_LMS_N_WAY_FUSED_STATE
+#endif
+
+#define WC_LMS_N_WAY_WIN              (2 * WC_LMS_N_WAY_MAX_CNT)
+#endif
+
 typedef struct LmsState {
     /* Buffer to hold data to hash. */
     ALIGN16 byte buffer[LMS_MAX_BUFFER_LEN];
+#ifdef WC_LMS_N_WAY
+    /* One hash message per chain being stepped. */
+    ALIGN64 byte n_way_buffer[WC_LMS_N_WAY_MAX_CNT * WC_LMS_N_WAY_MAX_MSG_SZ];
+    /* The digests those messages produce. */
+    ALIGN64 byte n_way_hash[WC_LMS_N_WAY_MAX_CNT * LMS_MAX_NODE_LEN];
+    /* Ring of chain results waiting for the chains before them, for the
+     * cases that hash them into K in chain order. */
+    ALIGN16 byte n_way_win[WC_LMS_N_WAY_WIN * LMS_MAX_NODE_LEN];
+#ifdef WC_LMS_SHAKE_N_WAY
+    /* Interleaved Keccak state the SHAKE batch permutes. */
+    ALIGN64 word64 n_way_state[WC_SHAKE_N_WAY_MAX_STATE_W];
+#endif
+#ifdef WC_LMS_SHA256_N_WAY
+    /* Lane-interleaved SHA-256 state a batch of chains lives in, kept across
+     * the whole chain so no step has to de-interleave it. */
+    ALIGN64 word32 n_way_st[WC_LMS_N_WAY_MAX_CNT * 8];
+#endif
+#ifdef WC_LMS_N_WAY_FUSED_STATE
+    /* Everything in the LM-OTS block that does not vary within one
+     * operation, in the form the kernels for this hash want: message words
+     * for SHA-256, and for SHAKE I and q as three little-endian words with
+     * the fields that vary left clear, then the seed as four more. */
+#if defined(WC_LMS_SHA256_N_WAY) && defined(WOLFSSL_LMS_HAVE_INTEL_AVX512)
+    ALIGN16 word32 n_way_tmpl32[WC_SHA256_BLOCK_SIZE / 4];
+#endif
+#ifdef WC_LMS_SHAKE_N_WAY
+    ALIGN16 word64 n_way_tmpl64[7];
+#endif
+#endif
+#endif
 #ifdef WOLFSSL_SMALL_STACK
     /* Buffer to hold expanded Q coefficients. */
     ALIGN16 byte a[LMS_MAX_P];
@@ -855,6 +947,10 @@ WOLFSSL_API int wc_LmsKey_GetKid(LmsKey* key, const byte** kid,
 WOLFSSL_API const byte* wc_LmsKey_GetKidFromPrivRaw(const byte* priv,
     word32 privSz);
 #endif
+
+/* Work out what the CPU can do; called from wc_LmsKey_Init().  Internal to
+ * the library, not part of the API. */
+WOLFSSL_LOCAL void wc_lms_init(void);
 
 int wc_hss_make_key(LmsState* state, WC_RNG* rng, byte* priv_raw,
     HssPrivKey* priv_key, byte* priv_data, byte* pub);

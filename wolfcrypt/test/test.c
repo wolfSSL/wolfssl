@@ -3310,7 +3310,10 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 #endif
 
 #if defined(WOLFSSL_HAVE_XMSS)
-    #if !defined(WOLFSSL_SMALL_STACK) && WOLFSSL_XMSS_MIN_HEIGHT <= 10
+    #if !defined(WOLFSSL_SMALL_STACK) && WOLFSSL_XMSS_MIN_HEIGHT <= 10 && \
+        defined(WC_XMSS_SHA256) && \
+        WOLFSSL_WC_XMSS_MIN_HASH_SIZE <= 256 && \
+        WOLFSSL_WC_XMSS_MAX_HASH_SIZE >= 256
     if ( (ret = xmss_test_verify_only()) != 0)
         TEST_FAIL("XMSS Vfy test failed!\n", ret);
     else
@@ -62201,7 +62204,21 @@ static int xmss_reload_and_sign(const char* param, byte* skBuf, byte* sig,
     return ret;
 }
 
-WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
+/* Exercise one XMSS parameter set: key generation, signing, verification and
+ * rejection of a corrupted signature.
+ *
+ * @param [in] param     Parameter set name.
+ * @param [in] exp_pkSz  Public key length the set must report - 4 bytes of
+ *                       OID plus the root and the seed, so 4 + 2n.
+ * @param [in] rounds    Signatures to make and verify.
+ * @param [in] required  Whether the set must be present.  Only the primary
+ *                       one is: the others cover the remaining hash families
+ *                       and are skipped when the build leaves them out, or
+ *                       when their signature will not fit a no-malloc build's
+ *                       fixed buffers.
+ */
+static wc_test_ret_t xmss_test_param(const char* param, word32 exp_pkSz,
+    int rounds, int required)
 {
     int             i = 0;
     int             j = 0;
@@ -62219,15 +62236,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
 #endif
     const char *    msg = "XMSS post quantum signature test";
     word32          msgSz = (word32) XSTRLEN(msg);
-#if WOLFSSL_XMSS_MIN_HEIGHT <= 10
-    const char *    param = "XMSS-SHA2_10_256";
-#elif WOLFSSL_XMSS_MIN_HEIGHT <= 20
-    const char *    param = "XMSSMT-SHA2_20/4_256";
-#elif WOLFSSL_XMSS_MIN_HEIGHT <= 40
-    const char *    param = "XMSSMT-SHA2_40/8_256";
-#else
-    const char *    param = "XMSSMT-SHA2_60/12_256";
-#endif
 #ifdef WOLFSSL_NO_MALLOC
     static byte     sig[4096];
     static byte     old_sig[4096];
@@ -62258,12 +62266,21 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
     /* Set the parameter string to the signing key, and
      * get sizes for secret key, pub key, and signature. */
     ret = wc_XmssKey_SetParamStr(&signingKey, param);
-    if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out); }
+    if (ret != 0) {
+        if (!required) {
+            /* Not built in this configuration. */
+            ret = 0;
+        }
+        else {
+            ret = WC_TEST_RET_ENC_EC(ret);
+        }
+        goto out;
+    }
 
     ret = wc_XmssKey_GetPubLen(&signingKey, &pkSz);
     if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out); }
 
-    if (pkSz != XMSS_SHA256_PUBLEN) {
+    if (pkSz != exp_pkSz) {
         ERROR_OUT(WC_TEST_RET_ENC_I(pkSz), out);
     }
 
@@ -62276,8 +62293,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
     /* Allocate signature buffers (current and previous iteration). */
 #ifdef WOLFSSL_NO_MALLOC
 
-    if (sigSz > sizeof(sig))
+    if (sigSz > sizeof(sig)) {
+        if (!required) {
+            ret = 0;
+            goto out;
+        }
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    }
 #else
     sig = (byte *)XMALLOC(sigSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (sig == NULL) { ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out); }
@@ -62298,8 +62320,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
     /* Allocate the secret key buffer used by the software write/read
      * callbacks. */
 #ifdef WOLFSSL_NO_MALLOC
-    if (skSz > sizeof(sk))
+    if (skSz > sizeof(sk)) {
+        if (!required) {
+            ret = 0;
+            goto out;
+        }
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    }
 #else
     sk = (unsigned char *)XMALLOC(skSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (sk == NULL) { ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out); }
@@ -62330,7 +62357,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
      *   2. We can verify each new signature.
      * Only do a few times, because the full signature space
      * for this parameter set is huge. */
-    for (i = 0; i < 10; ++i) {
+    for (i = 0; i < rounds; ++i) {
         ret = wc_XmssKey_Sign(&signingKey, sig, &sigSz, (byte *) msg, msgSz);
         if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_I(i), out); }
         if (sigSz != bufSz) { ERROR_OUT(WC_TEST_RET_ENC_I(i), out); }
@@ -62458,10 +62485,127 @@ out:
 
     return ret;
 }
+
+/* Hash family and size of the primary set below.  Two things decide which sets
+ * a build has: the hash-size range (WOLFSSL_WC_XMSS_MIN_HASH_SIZE and
+ * WOLFSSL_WC_XMSS_MAX_HASH_SIZE), and which hashes are compiled in at all -
+ * NO_SHA256 or WOLFSSL_WC_XMSS_NO_SHA256 removes the SHA-2 32- and 24-byte
+ * sets while leaving the range untouched.  Both have to be consulted, or the
+ * test asks for a parameter set the build does not have. */
+#define XMSS_TEST_PRIMARY_REQ   1
+#if defined(WC_XMSS_SHA256) && WOLFSSL_WC_XMSS_MIN_HASH_SIZE <= 256 && \
+    WOLFSSL_WC_XMSS_MAX_HASH_SIZE >= 256
+    #define XMSS_TEST_FAM       "SHA2"
+    #define XMSS_TEST_SUFFIX    "256"
+    #define XMSS_TEST_N         32
+#elif defined(WC_XMSS_SHA256) && WOLFSSL_WC_XMSS_MAX_HASH_SIZE < 256
+    #define XMSS_TEST_FAM       "SHA2"
+    #define XMSS_TEST_SUFFIX    "192"
+    #define XMSS_TEST_N         24
+#elif defined(WC_XMSS_SHA512) && WOLFSSL_WC_XMSS_MAX_HASH_SIZE >= 512
+    #define XMSS_TEST_FAM       "SHA2"
+    #define XMSS_TEST_SUFFIX    "512"
+    #define XMSS_TEST_N         64
+#elif defined(WC_XMSS_SHAKE128) && WOLFSSL_WC_XMSS_MIN_HASH_SIZE <= 256 && \
+      WOLFSSL_WC_XMSS_MAX_HASH_SIZE >= 256
+    #define XMSS_TEST_FAM       "SHAKE"
+    #define XMSS_TEST_SUFFIX    "256"
+    #define XMSS_TEST_N         32
+#elif defined(WC_XMSS_SHAKE256) && WOLFSSL_WC_XMSS_MAX_HASH_SIZE >= 512
+    /* The "SHAKE" family name covers two hashes: the 32-byte sets are
+     * SHAKE-128, but the 64-byte ones are SHAKE-256, so this branch keys off
+     * SHAKE-256 like the entries in wc_xmss.c do. */
+    #define XMSS_TEST_FAM       "SHAKE"
+    #define XMSS_TEST_SUFFIX    "512"
+    #define XMSS_TEST_N         64
+#elif defined(WC_XMSS_SHAKE256) && WOLFSSL_WC_XMSS_MIN_HASH_SIZE <= 256 && \
+      WOLFSSL_WC_XMSS_MAX_HASH_SIZE >= 256
+    #define XMSS_TEST_FAM       "SHAKE256"
+    #define XMSS_TEST_SUFFIX    "256"
+    #define XMSS_TEST_N         32
+#elif defined(WC_XMSS_SHAKE256) && WOLFSSL_WC_XMSS_MAX_HASH_SIZE < 256
+    #define XMSS_TEST_FAM       "SHAKE256"
+    #define XMSS_TEST_SUFFIX    "192"
+    #define XMSS_TEST_N         24
+#else
+    /* No family this test knows of: name one anyway and let
+     * xmss_test_param() skip it rather than fail the build. */
+    #define XMSS_TEST_FAM       "SHA2"
+    #define XMSS_TEST_SUFFIX    "256"
+    #define XMSS_TEST_N         32
+    #undef  XMSS_TEST_PRIMARY_REQ
+    #define XMSS_TEST_PRIMARY_REQ   0
+#endif
+/* 4 bytes of OID, then root and seed. */
+#define XMSS_TEST_PKSZ          (4 + 2 * XMSS_TEST_N)
+
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
+{
+    wc_test_ret_t ret;
+
+    /* The primary set has to be there; which height and which hash size
+     * depends on the build. */
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 10
+    ret = xmss_test_param("XMSS-" XMSS_TEST_FAM "_10_" XMSS_TEST_SUFFIX,
+        XMSS_TEST_PKSZ, 10, XMSS_TEST_PRIMARY_REQ);
+#elif WOLFSSL_XMSS_MIN_HEIGHT <= 20
+    ret = xmss_test_param("XMSSMT-" XMSS_TEST_FAM "_20/4_" XMSS_TEST_SUFFIX,
+        XMSS_TEST_PKSZ, 10, XMSS_TEST_PRIMARY_REQ);
+#elif WOLFSSL_XMSS_MIN_HEIGHT <= 40
+    ret = xmss_test_param("XMSSMT-" XMSS_TEST_FAM "_40/8_" XMSS_TEST_SUFFIX,
+        XMSS_TEST_PKSZ, 10, XMSS_TEST_PRIMARY_REQ);
+#else
+    ret = xmss_test_param("XMSSMT-" XMSS_TEST_FAM "_60/12_" XMSS_TEST_SUFFIX,
+        XMSS_TEST_PKSZ, 10, XMSS_TEST_PRIMARY_REQ);
+#endif
+    if (ret != 0) {
+        return ret;
+    }
+
+    /* One set for each of the other hash-and-size shapes XMSS defines, so
+     * that every hash family the build has is signed and verified rather
+     * than only SHA-256 with 32-byte hashes.  Each is skipped when the build
+     * does not have it, and a shorter run keeps the cost down: the point is
+     * coverage of the family, which the primary set above already exercises
+     * at length.  Public key length is 4 bytes of OID plus root and seed. */
+    ret = xmss_test_param("XMSS-SHA2_10_192", 4 + 2 * 24, 2, 0);
+    if (ret != 0) {
+        return ret;
+    }
+    ret = xmss_test_param("XMSS-SHA2_10_512", 4 + 2 * 64, 2, 0);
+    if (ret != 0) {
+        return ret;
+    }
+    ret = xmss_test_param("XMSS-SHAKE_10_256", 4 + 2 * 32, 2, 0);
+    if (ret != 0) {
+        return ret;
+    }
+    ret = xmss_test_param("XMSS-SHAKE_10_512", 4 + 2 * 64, 2, 0);
+    if (ret != 0) {
+        return ret;
+    }
+    ret = xmss_test_param("XMSS-SHAKE256_10_256", 4 + 2 * 32, 2, 0);
+    if (ret != 0) {
+        return ret;
+    }
+    ret = xmss_test_param("XMSS-SHAKE256_10_192", 4 + 2 * 24, 2, 0);
+    if (ret != 0) {
+        return ret;
+    }
+
+    return 0;
+}
 #endif /*if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)*/
 
+/* The vectors below are XMSS-SHA2_10_256, so this test needs a build whose
+ * hash-size range includes the 32-byte sets AND that has SHA-256 compiled in:
+ * NO_SHA256 or WOLFSSL_WC_XMSS_NO_SHA256 drops the SHA-2 sets without
+ * narrowing the range. */
 #if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_SMALL_STACK) && \
-    WOLFSSL_XMSS_MIN_HEIGHT <= 10
+    defined(WC_XMSS_SHA256) && \
+    WOLFSSL_XMSS_MIN_HEIGHT <= 10 && \
+    WOLFSSL_WC_XMSS_MIN_HASH_SIZE <= 256 && \
+    WOLFSSL_WC_XMSS_MAX_HASH_SIZE >= 256
 
 /* A simple xmss verify only test using:
  *   XMSS-SHA2_10_256
@@ -62948,9 +63092,15 @@ static int lms_read_key_mem(byte * priv, word32 privSz, void *context)
     return WC_LMS_RC_READ_TO_MEMORY;
 }
 
-/* LMS signature sizes are a function of their parameters. This
- * test has a signature of 8688 bytes. */
-#ifndef WOLFSSL_NO_LMS_SHA256_256
+/* LMS signature sizes are a function of their parameters.  This test asks for
+ * levels 1, height 5, Winternitz 1 and takes the first family in the table
+ * that has it: SHA-256/256, then SHA-256/192, then SHAKE-256/256, then
+ * SHAKE-256/192.  A 32-byte hash gives 8688 bytes and a 24-byte one 4960. */
+#if !defined(WOLFSSL_NO_LMS_SHA256_256)
+#define WC_TEST_LMS_SIG_LEN (8688)
+#elif defined(WOLFSSL_LMS_SHA256_192)
+#define WC_TEST_LMS_SIG_LEN (4960)
+#elif defined(WOLFSSL_LMS_SHAKE256) && !defined(WOLFSSL_NO_LMS_SHAKE256_256)
 #define WC_TEST_LMS_SIG_LEN (8688)
 #else
 #define WC_TEST_LMS_SIG_LEN (4960)

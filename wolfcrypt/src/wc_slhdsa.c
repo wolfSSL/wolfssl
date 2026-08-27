@@ -69,9 +69,23 @@
 #endif
 
 #if defined(USE_INTEL_SPEEDUP)
-/* CPU information for Intel. */
-static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
+/* CPU features this implementation may use.  Filled in by wc_slhdsa_init(),
+ * which wc_SlhDsaKey_Init() calls, so anything below can read it without
+ * checking whether it has been worked out yet. */
+static cpuid_flags_atomic_t cpuid_flags = WC_CPUID_ATOMIC_INITIALIZER;
 #endif
+
+/* Work out what this CPU can do.
+ *
+ * Called once per key from wc_SlhDsaKey_Init().  The getter is idempotent, so
+ * repeated calls cost a load and nothing else.
+ */
+static void wc_slhdsa_init(void)
+{
+#if defined(USE_INTEL_SPEEDUP)
+    cpuid_get_flags_atomic(&cpuid_flags);
+#endif
+}
 
 
 /* Winternitz number. */
@@ -1811,7 +1825,8 @@ static int slhdsakey_chain(SlhDsaKey* key, const byte* x, byte i, byte s,
     return ret;
 }
 
-#if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL)
+#if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL) && \
+    !defined(WOLFSSL_SLHDSA_NO_SHAKE)
 #ifndef WOLFSSL_SLHDSA_PARAM_NO_128
 /* Set into SHAKE-256 x4 state the 16-byte seed and encoded HashAddress.
  *
@@ -2423,8 +2438,1008 @@ static int slhdsakey_chain_idx_x4_32(byte* sk, word32 i, word32 s,
 #endif
 #endif
 
+#if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL) && \
+    !defined(WOLFSSL_SLHDSA_NO_SHAKE)
+#ifdef WOLFSSL_SLHDSA_HAVE_INTEL_AVX512
+/* Eight-way SHAKE-256 for the WOTS+ public key chains.
+ *
+ * The four-way code below works out of memory: sixteen 256-bit registers
+ * cannot hold twenty-five state words.  AVX-512 has thirty-two 512-bit ones,
+ * so the eight-way permutation keeps the whole state in registers - which is
+ * why it is 2.9 times the per-lane rate of the four-way one, not twice.
+ *
+ * These are written once for every hash size rather than per n like the
+ * four-way macros: the marshalling is a small part of a permutation, so the
+ * loops cost less than the duplication would.
+ */
+#define SLHDSA_SHAKE_X8_STATE_W     (25 * 8)
+#define SLHDSA_X8                   8
+
+/* Broadcast the seed and encoded HashAddress into eight interleaved states.
+ *
+ * @param [out] fixed  Message words that do not vary between iterations.
+ * @param [in]  seed   Seed at the start of each hash.
+ * @param [in]  addr   Encoded HashAddress for each hash.
+ * @param [in]  n      Number of bytes of seed.
+ * @return  Interleaved offset after the seed and HashAddress.
+ */
+static word32 slhdsakey_shake256_set_seed_ha_x8(word64* fixed,
+    const byte* seed, const byte* addr, int n)
+{
+    int i;
+    int l;
+    word32 o = 0;
+
+    for (i = 0; i < n; i += 8) {
+        word64 v = readUnalignedWord64(seed + i);
+
+        for (l = 0; l < SLHDSA_X8; l++) {
+            fixed[o + l] = v;
+        }
+        o += SLHDSA_X8;
+    }
+    for (i = 0; i < SLHDSA_HA_SZ; i += 8) {
+        word64 v = readUnalignedWord64(addr + i);
+
+        for (l = 0; l < SLHDSA_X8; l++) {
+            fixed[o + l] = v;
+        }
+        o += SLHDSA_X8;
+    }
+
+    return o;
+}
+
+/* Put hash data into the interleaved states at offset o.
+ *
+ * stride is the distance between one lane's data and the next: n when the
+ * caller has eight separate hashes, 0 when one value goes into every lane.
+ * @param [in, out] state    Interleaved SHAKE-256 x8 state.
+ * @param [in]      o        Offset of state after HashAddress.
+ * @param [out]     hash     Buffer to hold hash output.
+ * @param [in]      n        Number of bytes in hash output.
+ * @param [in]      stride   Bytes between lanes' inputs, 0 to broadcast.
+ */
+static void slhdsakey_shake256_set_hash_x8(word64* state, word32 o,
+    const byte* hash, int n, int stride)
+{
+    int i;
+    int l;
+
+    for (i = 0; i < n / 8; i++) {
+        for (l = 0; l < SLHDSA_X8; l++) {
+            state[o + (word32)i * SLHDSA_X8 + (word32)l] =
+                readUnalignedWord64(hash + l * stride + i * 8);
+        }
+    }
+}
+
+/* Get the eight n-byte hash results.
+ *
+ * @param [in]      state    Interleaved SHAKE-256 x8 state.
+ * @param [out]     hash     Buffer to hold hash output.
+ * @param [in]      n        Number of bytes in hash output.
+ */
+static void slhdsakey_shake256_get_hash_x8(const word64* state, byte* hash,
+    int n)
+{
+    int i;
+    int l;
+
+    for (i = 0; i < n / 8; i++) {
+        for (l = 0; l < SLHDSA_X8; l++) {
+            writeUnalignedWord64(hash + l * n + i * 8,
+                state[(word32)i * SLHDSA_X8 + (word32)l]);
+        }
+    }
+}
+
+/* End the absorbed data at interleaved offset o and pad the rate.
+ *
+ * @param [in, out] state    Interleaved SHAKE-256 x8 state.
+ * @param [in]      o        Offset of state after HashAddress.
+ */
+static void slhdsakey_shake256_set_end_x8(word64* state, word32 o)
+{
+    int l;
+
+    for (l = 0; l < SLHDSA_X8; l++) {
+        state[o + (word32)l] = (word64)0x1f;
+    }
+    XMEMSET(state + o + SLHDSA_X8, 0,
+        (size_t)(SLHDSA_SHAKE_X8_STATE_W - (o + SLHDSA_X8)) * sizeof(word64));
+    /* The rate pad shares a word with the data end marker only for messages
+     * longer than these, so this is an or in all but name. */
+    for (l = 0; l < SLHDSA_X8; l++) {
+        ((word8*)(state + SLHDSA_X8 * WC_SHA3_256_COUNT - SLHDSA_X8 + l))[7]
+            ^= 0x80;
+    }
+}
+
+/* Set the hash address, the same in every lane.
+ *
+ * @param [in, out] state    Interleaved SHAKE-256 x8 state.
+ * @param [in]      o        Offset of state after HashAddress.
+ * @param [in]      a        HashAddress set.
+ */
+static void slhdsakey_shake256_set_ha_x8(word64* state, word32 o, word32 a)
+{
+    int l;
+
+    for (l = 0; l < SLHDSA_X8; l++) {
+        ((word8*)(state + o - SLHDSA_X8 + l))[7] = (word8)a;
+    }
+}
+
+
+/* Set eight chain addresses, one per lane, from an index array.
+ *
+ * @param [in, out] state    Interleaved SHAKE-256 x8 state.
+ * @param [in]      o        Offset of state after HashAddress.
+ * @param [in]      idx      Indices for chain address.
+ */
+static void slhdsakey_shake256_set_ca_idx_x8(word64* state, word32 o,
+    const byte* idx)
+{
+    int l;
+
+    for (l = 0; l < SLHDSA_X8; l++) {
+        ((word8*)(state + o - SLHDSA_X8 + l))[3] = idx[l];
+    }
+}
+
+/* Iterate eight chains s times from iteration i.
+ *
+ * The chains are at unrelated addresses, so the chain address comes from an
+ * index array rather than a run of consecutive values.
+ *
+ * @param [in, out] sk       Eight n-byte hashes to iterate, updated in place.
+ * @param [in]      i        Iteration the chains are at.
+ * @param [in]      s        Number of iterations to run.
+ * @param [in]      pk_seed  Public key seed.
+ * @param [in]      addr     Encoded HashAddress.
+ * @param [in]      idx      Chain address of each lane.
+ * @param [in]      n        Number of bytes in a hash.
+ * @param [in]      heap     Dynamic memory allocation hint.
+ * @return  0 on success.
+ * @return  MEMORY_E on dynamic memory allocation failure.
+ */
+static int slhdsakey_chain_idx_x8(byte* sk, word32 i, word32 s,
+    const byte* pk_seed, byte* addr, const byte* idx, int n, void* heap)
+{
+    int ret = 0;
+    word32 j;
+    word32 o;
+    word32 hw = (word32)(n / 8) * SLHDSA_X8;
+    WC_DECLARE_VAR(fixed, word64, 8 * SLHDSA_X8, heap);
+    WC_DECLARE_VAR(state, word64, SLHDSA_SHAKE_X8_STATE_W, heap);
+
+    (void)heap;
+
+    WC_ALLOC_VAR_EX(fixed, word64, 8 * SLHDSA_X8, heap, DYNAMIC_TYPE_SLHDSA,
+        ret = MEMORY_E);
+    if (ret == 0) {
+        WC_ALLOC_VAR_EX(state, word64, SLHDSA_SHAKE_X8_STATE_W, heap,
+            DYNAMIC_TYPE_SLHDSA, ret = MEMORY_E);
+    }
+    if (ret == 0) {
+        o = slhdsakey_shake256_set_seed_ha_x8(fixed, pk_seed, addr, n);
+        slhdsakey_shake256_set_ca_idx_x8(fixed, o, idx);
+        slhdsakey_shake256_set_hash_x8(state, o, sk, n, n);
+
+        for (j = i; j < i + s; j++) {
+            if (j != i) {
+                XMEMCPY(state + o, state, hw * sizeof(word64));
+            }
+            XMEMCPY(state, fixed, o * sizeof(word64));
+            slhdsakey_shake256_set_ha_x8(state, o, j);
+            slhdsakey_shake256_set_end_x8(state, o + hw);
+            ret = SAVE_VECTOR_REGISTERS2();
+            if (ret != 0) {
+                break;
+            }
+            sha3_blocksx8_avx512(state);
+            RESTORE_VECTOR_REGISTERS();
+        }
+
+        if (ret == 0) {
+            slhdsakey_shake256_get_hash_x8(state, sk, n);
+        }
+    }
+
+    /* state holds the secret WOTS+ chain value; guard against a NULL state
+     * after an allocation failure (WOLFSSL_SMALL_STACK). */
+    if (WC_VAR_OK(state)) {
+        ForceZero(state, sizeof(word64) * SLHDSA_SHAKE_X8_STATE_W);
+    }
+    WC_FREE_VAR_EX(state, heap, DYNAMIC_TYPE_SLHDSA);
+    WC_FREE_VAR_EX(fixed, heap, DYNAMIC_TYPE_SLHDSA);
+    return ret;
+}
+
+/* Run a group of verification chains, joining lanes as they start.
+ *
+ * The reverse shape: every chain ends at w - 1 but starts where the message
+ * says, so idx is ordered by start and a lane joins the group when the rest
+ * reach its starting point.
+ *
+ * @param [in]      key      SLH-DSA key.
+ * @param [out]     sig      Signature buffer.
+ * @param [in]      pk_seed  Public key seed.
+ * @param [in]      adrs     HashAddress set.
+ * @param [in]      msg      Message digest to chain from.
+ * @param [in]      idx      Indices for chain address.
+ * @param [in]      j        Minimum number of iterations across the batch.
+ * @param [in]      cnt      Number of chains in the batch.
+ * @param [out]     nodes    n-byte chain value of each lane.
+ * @return  0 on success.
+ * @return  SHAKE-256 error return code on digest failure.
+ * @return  MEMORY_E on dynamic memory allocation failure.
+ */
+static int slhdsakey_chain_idx_to_max_x8(SlhDsaKey* key, const byte* sig,
+    const byte* pk_seed, word32* adrs, const byte* msg, const byte* idx,
+    int j, int cnt, byte* nodes)
+{
+    int ret = 0;
+    byte n = key->params->n;
+    byte node[SLHDSA_X8 * SLHDSA_MAX_N];
+    byte addr[SLHDSA_HA_SZ];
+    int l;
+
+    XMEMSET(node, 0, sizeof(node));
+    HA_SetChainAddress(adrs, idx[0]);
+    HA_Encode(adrs, addr);
+
+    XMEMCPY(node, sig + idx[0] * n, n);
+    for (l = 0; (ret == 0) && (l < cnt - 1); l++) {
+        if (l != 0) {
+            XMEMCPY(node + l * n, sig + idx[l] * n, n);
+        }
+        if (msg[idx[l]] != msg[idx[l + 1]]) {
+            if (l == 0) {
+                /* Only one chain is running yet. */
+                ret = slhdsakey_chain(key, node, msg[idx[0]],
+                    (byte)(msg[idx[1]] - msg[idx[0]]), pk_seed, adrs, node);
+            }
+            else {
+                ret = slhdsakey_chain_idx_x8(node, msg[idx[l]],
+                    (word32)(msg[idx[l + 1]] - msg[idx[l]]), pk_seed, addr,
+                    idx, n, key->heap);
+            }
+        }
+    }
+    if (ret == 0) {
+        XMEMCPY(node + (cnt - 1) * n, sig + idx[cnt - 1] * n, n);
+        if (j != (int)SLHDSA_WM1) {
+            ret = slhdsakey_chain_idx_x8(node, (word32)j,
+                (word32)(SLHDSA_WM1 - j), pk_seed, addr, idx, n, key->heap);
+        }
+    }
+    if (ret == 0) {
+        for (l = 0; l < cnt; l++) {
+            XMEMCPY(nodes + idx[l] * n, node + l * n, n);
+        }
+    }
+
+    return ret;
+}
+
+/* Recover the WOTS+ public key chains eight at a time.
+ *
+ * @param [in]      key      SLH-DSA key.
+ * @param [out]     sig      Signature buffer.
+ * @param [in]      pk_seed  Public key seed.
+ * @param [in]      adrs     HashAddress set.
+ * @param [in]      msg      Message digest to chain from.
+ * @param [out]     nodes    n-byte chain value of each lane.
+ * @return  0 on success.
+ * @return  SHAKE-256 error return code on digest failure.
+ * @return  MEMORY_E on dynamic memory allocation failure.
+ */
+static int slhdsakey_wots_pk_from_sig_chain_x8(SlhDsaKey* key,
+    const byte* sig, const byte* pk_seed, word32* adrs, const byte* msg,
+    byte* nodes)
+{
+    int ret = 0;
+    int i;
+    sword8 j;
+    byte ii = 0;
+    byte idx[SLHDSA_X8] = {0};
+    byte len = key->params->len;
+
+    for (j = 0; j <= (sword8)SLHDSA_WM1; j++) {
+        for (i = 0; i < len; i++) {
+            if ((sword8)msg[i] == j) {
+                idx[ii++] = (byte)i;
+                if (ii == SLHDSA_X8) {
+                    ret = slhdsakey_chain_idx_to_max_x8(key, sig, pk_seed,
+                        adrs, msg, idx, j, SLHDSA_X8, nodes);
+                    if (ret != 0) {
+                        break;
+                    }
+                    ii = 0;
+                }
+            }
+        }
+        if (ret != 0) {
+            break;
+        }
+    }
+    /* The tail is however many chains did not fill a group. */
+    if ((ret == 0) && (ii > 0)) {
+        j = (sword8)msg[idx[0]];
+        for (i = 1; i < (int)ii; i++) {
+            if ((sword8)msg[idx[i]] > j) {
+                j = (sword8)msg[idx[i]];
+            }
+        }
+        ret = slhdsakey_chain_idx_to_max_x8(key, sig, pk_seed, adrs, msg, idx,
+            j, (int)ii, nodes);
+    }
+
+    return ret;
+}
 #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
-#if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL)
+/* Set eight consecutive chain addresses, the first being ca.
+ *
+ * @param [in, out] state    Interleaved SHAKE-256 x8 state.
+ * @param [in]      o        Offset of state after HashAddress.
+ * @param [in]      ca       Chain address.
+ */
+static void slhdsakey_shake256_set_ca_x8(word64* state, word32 o, byte ca)
+{
+    int l;
+
+    for (l = 0; l < SLHDSA_X8; l++) {
+        ((word8*)(state + o - SLHDSA_X8 + l))[3] = (word8)(ca + l);
+    }
+}
+
+/* PRF eight WOTS+ private key elements at once.
+ *
+ * @param [in]      pk_seed  Public key seed.
+ * @param [in]      sk_seed  Private key seed.
+ * @param [in, out] addr     HashAddress buffer.
+ * @param [in]      n        Number of bytes in hash output.
+ * @param [in]      ca       Chain address.
+ * @param [out]     sk       Private key values.
+ * @param [in]      heap     Dynamic memory allocation hint.
+ * @return  0 on success.
+ * @return  SHAKE-256 error return code on digest failure.
+ * @return  MEMORY_E on dynamic memory allocation failure.
+ */
+static int slhdsakey_hash_prf_x8(const byte* pk_seed, const byte* sk_seed,
+    byte* addr, byte n, byte ca, byte* sk, void* heap)
+{
+    int ret = 0;
+    word32 o;
+    WC_DECLARE_VAR(state, word64, SLHDSA_SHAKE_X8_STATE_W, heap);
+
+    (void)heap;
+
+    WC_ALLOC_VAR_EX(state, word64, SLHDSA_SHAKE_X8_STATE_W, heap,
+        DYNAMIC_TYPE_SLHDSA, ret = MEMORY_E);
+    if (ret == 0) {
+        o = slhdsakey_shake256_set_seed_ha_x8(state, pk_seed, addr, n);
+        slhdsakey_shake256_set_hash_x8(state, o, sk_seed, n, 0);
+        slhdsakey_shake256_set_end_x8(state, o + (word32)(n / 8) * SLHDSA_X8);
+        slhdsakey_shake256_set_ca_x8(state, o, ca);
+        ret = SAVE_VECTOR_REGISTERS2();
+        if (ret == 0) {
+            sha3_blocksx8_avx512(state);
+            slhdsakey_shake256_get_hash_x8(state, sk, n);
+            RESTORE_VECTOR_REGISTERS();
+        }
+
+        /* state holds the secret PRF output (WOTS+ key). */
+        ForceZero(state, sizeof(word64) * SLHDSA_SHAKE_X8_STATE_W);
+        WC_FREE_VAR_EX(state, heap, DYNAMIC_TYPE_SLHDSA);
+    }
+
+    return ret;
+}
+
+/* Run eight WOTS+ chains their full length.
+ *
+ * Public key generation runs every chain the same number of iterations, so
+ * there is nothing to schedule: the chain value goes straight back into the
+ * message each time and the states never leave this buffer.
+ *
+ * @param [in, out] sk       Eight n-byte hashes to iterate, updated in place.
+ * @param [in]      pk_seed  Public key seed.
+ * @param [in]      addr     Encoded HashAddress.
+ * @param [in]      ca       Chain address of the first lane.
+ * @param [in]      n        Number of bytes in a hash.
+ * @param [in]      heap     Dynamic memory allocation hint.
+ * @return  0 on success.
+ * @return  MEMORY_E on dynamic memory allocation failure.
+ */
+static int slhdsakey_chain_x8(byte* sk, const byte* pk_seed, byte* addr,
+    byte ca, int n, void* heap)
+{
+    int ret = 0;
+    int j;
+    word32 o;
+    word32 hw = (word32)(n / 8) * SLHDSA_X8;
+    WC_DECLARE_VAR(fixed, word64, 8 * SLHDSA_X8, heap);
+    WC_DECLARE_VAR(state, word64, SLHDSA_SHAKE_X8_STATE_W, heap);
+
+    (void)heap;
+
+    WC_ALLOC_VAR_EX(fixed, word64, 8 * SLHDSA_X8, heap, DYNAMIC_TYPE_SLHDSA,
+        ret = MEMORY_E);
+    if (ret == 0) {
+        WC_ALLOC_VAR_EX(state, word64, SLHDSA_SHAKE_X8_STATE_W, heap,
+            DYNAMIC_TYPE_SLHDSA, ret = MEMORY_E);
+    }
+    if (ret == 0) {
+        o = slhdsakey_shake256_set_seed_ha_x8(fixed, pk_seed, addr, n);
+        slhdsakey_shake256_set_ca_x8(fixed, o, ca);
+        slhdsakey_shake256_set_hash_x8(state, o, sk, n, n);
+
+        for (j = 0; j < SLHDSA_WM1; j++) {
+            if (j != 0) {
+                /* The digest is the next message's chain value. */
+                XMEMCPY(state + o, state, hw * sizeof(word64));
+            }
+            XMEMCPY(state, fixed, o * sizeof(word64));
+            slhdsakey_shake256_set_ha_x8(state, o, (word32)j);
+            slhdsakey_shake256_set_end_x8(state, o + hw);
+            ret = SAVE_VECTOR_REGISTERS2();
+            if (ret != 0) {
+                break;
+            }
+            sha3_blocksx8_avx512(state);
+            RESTORE_VECTOR_REGISTERS();
+        }
+
+        if (ret == 0) {
+            slhdsakey_shake256_get_hash_x8(state, sk, n);
+        }
+    }
+
+    /* state holds the secret WOTS+ chain value; guard against a NULL state
+     * after an allocation failure (WOLFSSL_SMALL_STACK). */
+    if (WC_VAR_OK(state)) {
+        ForceZero(state, sizeof(word64) * SLHDSA_SHAKE_X8_STATE_W);
+    }
+    WC_FREE_VAR_EX(state, heap, DYNAMIC_TYPE_SLHDSA);
+    WC_FREE_VAR_EX(fixed, heap, DYNAMIC_TYPE_SLHDSA);
+    return ret;
+}
+
+/* Generate the WOTS+ public key chains eight at a time.
+ *
+ * @param [in]      key      SLH-DSA key.
+ * @param [in]      sk_seed  Private key seed.
+ * @param [in]      pk_seed  Public key seed.
+ * @param [in, out] addr     HashAddress buffer.
+ * @param [in, out] sk_addr  WOTS+ PRF HashAddress buffer.
+ * @return  0 on success.
+ * @return  SHAKE-256 error return code on digest failure.
+ * @return  MEMORY_E on dynamic memory allocation failure.
+ */
+static int slhdsakey_wots_pkgen_chain_x8(SlhDsaKey* key, const byte* sk_seed,
+    const byte* pk_seed, byte* addr, byte* sk_addr)
+{
+    int ret = 0;
+    int i;
+    byte n = key->params->n;
+    byte len = key->params->len;
+    WC_DECLARE_VAR(sk, byte, (SLHDSA_MAX_MSG_SZ + 7) * SLHDSA_MAX_N,
+        key->heap);
+
+    WC_ALLOC_VAR_EX(sk, byte, (SLHDSA_MAX_MSG_SZ + 7) * SLHDSA_MAX_N,
+        key->heap, DYNAMIC_TYPE_SLHDSA, ret = MEMORY_E);
+    if (ret == 0) {
+        /* The last group runs past len - the PRF and the chains cover a whole
+         * eight - and the extra results are never read. */
+        for (i = 0; i < len; i += SLHDSA_X8) {
+            ret = slhdsakey_hash_prf_x8(pk_seed, sk_seed, sk_addr, n, (byte)i,
+                sk + i * n, key->heap);
+            if (ret != 0) {
+                break;
+            }
+            ret = slhdsakey_chain_x8(sk + i * n, pk_seed, addr, (byte)i, n,
+                key->heap);
+            if (ret != 0) {
+                break;
+            }
+        }
+    }
+    if (ret == 0) {
+        ret = HASH_T_UPDATE(key, sk, (word32)len * n);
+    }
+
+    /* On error sk still holds secret WOTS+ leaves; on success it is
+     * overwritten with public chain values.  The batch fills up to an
+     * eight-lane multiple beyond len, so wipe the whole buffer. */
+    if ((ret != 0) && WC_VAR_OK(sk)) {
+        ForceZero(sk, (SLHDSA_MAX_MSG_SZ + 7) * SLHDSA_MAX_N);
+    }
+    WC_FREE_VAR_EX(sk, key->heap, DYNAMIC_TYPE_SLHDSA);
+    return ret;
+}
+
+/* PRF eight WOTS+ private key elements whose chain addresses are not
+ * consecutive.  Parameters as slhdsakey_hash_prf_idx_x4().
+ * @param [in]      pk_seed  Public key seed.
+ * @param [in]      sk_seed  Private key seed.
+ * @param [in, out] addr     HashAddress buffer.
+ * @param [in]      n        Number of bytes in hash output.
+ * @param [in]      idx      Indices for chain address.
+ * @param [out]     sk       Private key values.
+ * @param [in]      heap     Dynamic memory allocation hint.
+ * @return  0 on success.
+ * @return  SHAKE-256 error return code on digest failure.
+ * @return  MEMORY_E on dynamic memory allocation failure.
+ */
+static int slhdsakey_hash_prf_idx_x8(const byte* pk_seed, const byte* sk_seed,
+    byte* addr, byte n, const byte* idx, byte* sk, void* heap)
+{
+    int ret = 0;
+    word32 o;
+    WC_DECLARE_VAR(state, word64, SLHDSA_SHAKE_X8_STATE_W, heap);
+
+    (void)heap;
+
+    WC_ALLOC_VAR_EX(state, word64, SLHDSA_SHAKE_X8_STATE_W, heap,
+        DYNAMIC_TYPE_SLHDSA, ret = MEMORY_E);
+    if (ret == 0) {
+        o = slhdsakey_shake256_set_seed_ha_x8(state, pk_seed, addr, n);
+        slhdsakey_shake256_set_hash_x8(state, o, sk_seed, n, 0);
+        slhdsakey_shake256_set_end_x8(state, o + (word32)(n / 8) * SLHDSA_X8);
+        slhdsakey_shake256_set_ca_idx_x8(state, o, idx);
+        ret = SAVE_VECTOR_REGISTERS2();
+        if (ret == 0) {
+            sha3_blocksx8_avx512(state);
+            slhdsakey_shake256_get_hash_x8(state, sk, n);
+            RESTORE_VECTOR_REGISTERS();
+        }
+
+        /* state holds the secret PRF output (WOTS+ key). */
+        ForceZero(state, sizeof(word64) * SLHDSA_SHAKE_X8_STATE_W);
+        WC_FREE_VAR_EX(state, heap, DYNAMIC_TYPE_SLHDSA);
+    }
+
+    return ret;
+}
+
+/* Run a group of signing chains, peeling lanes off as they finish.
+ *
+ * idx is ordered so that the chain needing fewest iterations is last: the
+ * whole group runs to that length, that lane is done, and the rest carry on.
+ * The final lane runs on its own, where one serial chain beats eight lanes of
+ * which seven are wasted.
+ *
+ * @param [in]      key      SLH-DSA key.
+ * @param [out]     sk       Private key values.
+ * @param [in]      pk_seed  Public key seed.
+ * @param [in]      adrs     HashAddress set.
+ * @param [in, out] addr     HashAddress buffer.
+ * @param [in]      msg      Message digest to chain from.
+ * @param [in]      idx      Indices for chain address.
+ * @param [in]      j        Minimum number of iterations across the batch.
+ * @param [in]      cnt      Number of chains in the batch.
+ * @param [out]     sig      Signature buffer.
+ * @return  0 on success.
+ * @return  SHAKE-256 error return code on digest failure.
+ * @return  MEMORY_E on dynamic memory allocation failure.
+ */
+static int slhdsakey_chain_idx_sched_x8(SlhDsaKey* key, byte* sk,
+    const byte* pk_seed, word32* adrs, byte* addr, const byte* msg,
+    const byte* idx, int j, int cnt, byte* sig)
+{
+    int ret = 0;
+    byte n = key->params->n;
+    int l;
+
+    if (j != 0) {
+        ret = slhdsakey_chain_idx_x8(sk, 0U, (word32)j, pk_seed, addr, idx,
+            n, key->heap);
+    }
+    for (l = cnt - 1; (ret == 0) && (l >= 1); l--) {
+        /* This lane has reached its length. */
+        XMEMCPY(sig + idx[l] * n, sk + l * n, n);
+        if (msg[idx[l - 1]] != j) {
+            if (l == 1) {
+                /* One chain left to extend. */
+                HA_SetChainAddress(adrs, idx[0]);
+                ret = slhdsakey_chain(key, sk, (byte)j,
+                    (byte)(msg[idx[0]] - j), pk_seed, adrs, sk);
+            }
+            else {
+                ret = slhdsakey_chain_idx_x8(sk, (word32)j,
+                    (word32)(msg[idx[l - 1]] - j), pk_seed, addr, idx, n,
+                    key->heap);
+            }
+            j = msg[idx[l - 1]];
+        }
+    }
+    if (ret == 0) {
+        XMEMCPY(sig + idx[0] * n, sk + 0 * n, n);
+    }
+
+    return ret;
+}
+
+/* Sign the WOTS+ chains eight at a time.
+ *
+ * Chains are gathered by descending message value so that a group shares the
+ * length its shortest member needs.
+ *
+ * @param [in]      key      SLH-DSA key.
+ * @param [in]      msg      Message digest to chain from.
+ * @param [in]      sk_seed  Private key seed.
+ * @param [in]      pk_seed  Public key seed.
+ * @param [in]      adrs     HashAddress set.
+ * @param [in, out] addr     HashAddress buffer.
+ * @param [in, out] sk_addr  WOTS+ PRF HashAddress buffer.
+ * @param [out]     sig      Signature buffer.
+ * @return  0 on success.
+ * @return  SHAKE-256 error return code on digest failure.
+ * @return  MEMORY_E on dynamic memory allocation failure.
+ */
+static int slhdsakey_wots_sign_chain_x8(SlhDsaKey* key, const byte* msg,
+    const byte* sk_seed, const byte* pk_seed, word32* adrs, byte* addr,
+    byte* sk_addr, byte* sig)
+{
+    int ret = 0;
+    int i;
+    sword8 j;
+    byte ii = 0;
+    byte idx[SLHDSA_X8] = {0};
+    byte n = key->params->n;
+    byte len = key->params->len;
+    WC_DECLARE_VAR(sk, byte, SLHDSA_X8 * SLHDSA_MAX_N, key->heap);
+
+    WC_ALLOC_VAR_EX(sk, byte, SLHDSA_X8 * SLHDSA_MAX_N, key->heap,
+        DYNAMIC_TYPE_SLHDSA, ret = MEMORY_E);
+    if (ret == 0) {
+        for (j = (sword8)SLHDSA_WM1; j >= 0; j--) {
+            for (i = 0; i < len; i++) {
+                if ((sword8)msg[i] == j) {
+                    idx[ii++] = (byte)i;
+                    if (ii == SLHDSA_X8) {
+                        ret = slhdsakey_hash_prf_idx_x8(pk_seed, sk_seed,
+                            sk_addr, n, idx, sk, key->heap);
+                        if (ret != 0) {
+                            break;
+                        }
+                        ret = slhdsakey_chain_idx_sched_x8(key, sk, pk_seed,
+                            adrs, addr, msg, idx, j, SLHDSA_X8, sig);
+                        if (ret != 0) {
+                            break;
+                        }
+                        ii = 0;
+                    }
+                }
+            }
+            if (ret != 0) {
+                break;
+            }
+        }
+    }
+    /* The tail is however many chains did not fill a group - len is 35, 51 or
+     * 67, none of them a multiple of eight - and the lanes past them hold
+     * whatever the last group left, which is hashed and dropped. */
+    if ((ret == 0) && (ii > 0)) {
+        ret = slhdsakey_hash_prf_idx_x8(pk_seed, sk_seed, sk_addr, n, idx, sk,
+            key->heap);
+    }
+    if ((ret == 0) && (ii > 0)) {
+        j = (sword8)msg[idx[0]];
+        for (i = 1; i < (int)ii; i++) {
+            if ((sword8)msg[idx[i]] < j) {
+                j = (sword8)msg[idx[i]];
+            }
+        }
+        ret = slhdsakey_chain_idx_sched_x8(key, sk, pk_seed, adrs, addr, msg,
+            idx, j, (int)ii, sig);
+    }
+
+    /* sk holds the secret WOTS+ leaves. */
+    if (WC_VAR_OK(sk)) {
+        ForceZero(sk, SLHDSA_X8 * SLHDSA_MAX_N);
+    }
+    WC_FREE_VAR_EX(sk, key->heap, DYNAMIC_TYPE_SLHDSA);
+    return ret;
+}
+#endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
+
+#endif /* WOLFSSL_SLHDSA_HAVE_INTEL_AVX512 */
+#endif
+
+#if defined(WOLFSSL_SLHDSA_SHA2) && \
+    defined(WOLFSSL_SLHDSA_HAVE_INTEL_AVX512) && \
+    !defined(WOLFSSL_WC_SLHDSA_SMALL)
+/* Sixteen-way SHA-256 for the SHA-2 parameter sets.
+ *
+ * These sets had no parallel path at all: the four-way SHAKE code cannot
+ * serve them and SHA-NI made the serial path respectable enough that it was
+ * left alone.  The sixteen-way AVX-512 transform still beats SHA-NI, so the
+ * WOTS+ chains are worth batching here too.
+ *
+ * F hashes PK.seed || toByte(0, 64 - n) || ADRS_c || M1.  The first field
+ * fills a whole block and does not change, so the caller's midstate covers
+ * it and every F here is the single block holding the compressed address and
+ * the chain value.
+ */
+#define SLHDSA_SHA2_X16     16
+
+/* Build sixteen F messages and compress them from the midstate.
+ *
+ * @param [in]      mid   Midstate of PK.seed and its padding.
+ * @param [in]      ac    Compressed address shared by the lanes.
+ * @param [in]      cav   Chain address of each lane.
+ * @param [in]      ha    Hash address, the same in every lane.
+ * @param [in, out] val   Sixteen n-byte values, hashed in place.
+ * @param [in]      n     Number of bytes in a hash.
+ * @param [out]     buf   Sixteen 64-byte message blocks.
+ * @param [out]     st    Sixteen interleaved SHA-256 states.
+ */
+static WC_INLINE void slhdsakey_f_sha2_x16(const word32* mid, const byte* ac,
+    const word32* cav, word32 ha, byte* val, byte n, byte* buf, word32* st)
+{
+    int l;
+    int i;
+    /* The message is the midstate's block plus this one. */
+    word32 mlen = (word32)(64 + SLHDSA_HAC_SZ + n) * 8;
+
+    for (l = 0; l < SLHDSA_SHA2_X16; l++) {
+        byte* b = buf + l * WC_SHA256_BLOCK_SIZE;
+
+        XMEMCPY(b, ac, SLHDSA_HAC_SZ);
+        c32toa(cav[l], b + 14);
+        c32toa(ha, b + 18);
+        XMEMCPY(b + SLHDSA_HAC_SZ, val + l * n, n);
+        XMEMSET(b + SLHDSA_HAC_SZ + n, 0,
+            (size_t)WC_SHA256_BLOCK_SIZE - SLHDSA_HAC_SZ - n);
+        b[SLHDSA_HAC_SZ + n] = 0x80;
+        c32toa(mlen, b + WC_SHA256_BLOCK_SIZE - 4);
+    }
+    for (i = 0; i < 8; i++) {
+        for (l = 0; l < SLHDSA_SHA2_X16; l++) {
+            st[i * SLHDSA_SHA2_X16 + l] = mid[i];
+        }
+    }
+#ifndef NO_AVX512BW_SUPPORT
+    /* Same kernel, one-instruction byte swap where the CPU has BW. */
+    if (IS_INTEL_AVX512_BW(cpuid_flags)) {
+        Transform_Sha256_x16_AVX512_BW(st, buf);
+    }
+    else
+#endif
+    {
+        Transform_Sha256_x16_AVX512(st, buf);
+    }
+    /* The digest is truncated to n bytes. */
+    for (l = 0; l < SLHDSA_SHA2_X16; l++) {
+        for (i = 0; i < n / 4; i++) {
+            c32toa(st[i * SLHDSA_SHA2_X16 + l], val + l * n + i * 4);
+        }
+    }
+}
+
+/* Run sixteen WOTS+ chains from iteration i for s iterations.
+ *
+ * @param [in]      key  SLH-DSA key holding the midstate.
+ * @param [in, out] val  Sixteen n-byte chain values.
+ * @param [in]      i    Iteration the chains are at.
+ * @param [in]      s    Number of iterations to run.
+ * @param [in]      ac   Compressed address shared by the lanes.
+ * @param [in]      cav  Chain address of each lane.
+ * @return  0 on success.
+ * @return  MEMORY_E on dynamic memory allocation failure.
+ */
+static WC_INLINE int slhdsakey_chain_sha2_x16(SlhDsaKey* key, byte* val,
+    word32 i, word32 s, const byte* ac, const word32* cav)
+{
+    int ret = 0;
+    word32 j;
+    byte n = key->params->n;
+    const word32* mid = key->hash.sha2.sha256_mid.digest;
+    WC_DECLARE_VAR(buf, byte, SLHDSA_SHA2_X16 * WC_SHA256_BLOCK_SIZE,
+        key->heap);
+    WC_DECLARE_VAR(st, word32, SLHDSA_SHA2_X16 * 8, key->heap);
+
+    WC_ALLOC_VAR_EX(buf, byte, SLHDSA_SHA2_X16 * WC_SHA256_BLOCK_SIZE,
+        key->heap, DYNAMIC_TYPE_SLHDSA, ret = MEMORY_E);
+    if (ret == 0) {
+        WC_ALLOC_VAR_EX(st, word32, SLHDSA_SHA2_X16 * 8, key->heap,
+            DYNAMIC_TYPE_SLHDSA, ret = MEMORY_E);
+    }
+    if (ret == 0) {
+        ret = SAVE_VECTOR_REGISTERS2();
+        if (ret == 0) {
+            for (j = i; j < i + s; j++) {
+                slhdsakey_f_sha2_x16(mid, ac, cav, j, val, n, buf, st);
+            }
+            RESTORE_VECTOR_REGISTERS();
+        }
+    }
+
+    /* buf and st hold the secret WOTS+ chain values. */
+    if (WC_VAR_OK(buf)) {
+        ForceZero(buf, SLHDSA_SHA2_X16 * WC_SHA256_BLOCK_SIZE);
+    }
+    if (WC_VAR_OK(st)) {
+        ForceZero(st, SLHDSA_SHA2_X16 * 8 * sizeof(word32));
+    }
+    WC_FREE_VAR_EX(st, key->heap, DYNAMIC_TYPE_SLHDSA);
+    WC_FREE_VAR_EX(buf, key->heap, DYNAMIC_TYPE_SLHDSA);
+    return ret;
+}
+
+
+/* Run a group of verification chains, joining lanes as they start.
+ *
+ * The SHA-2 twin of slhdsakey_chain_idx_to_max_x8().
+ * @param [in]      key      SLH-DSA key.
+ * @param [out]     sig      Signature buffer.
+ * @param [in]      pk_seed  Public key seed.
+ * @param [in]      adrs     HashAddress set.
+ * @param [in]      ac       HashAddress with the chain address cleared.
+ * @param [in]      msg      Message digest to chain from.
+ * @param [in]      cav      Chain address of each lane.
+ * @param [in]      j        Minimum number of iterations across the batch.
+ * @param [in]      cnt      Number of chains in the batch.
+ * @param [out]     nodes    n-byte chain value of each lane.
+ * @return  0 on success.
+ * @return  MEMORY_E on dynamic memory allocation failure.
+ */
+static int slhdsakey_chain_idx_to_max_sha2_x16(SlhDsaKey* key,
+    const byte* sig, const byte* pk_seed, word32* adrs, const byte* ac,
+    const byte* msg, const word32* cav, int j, int cnt, byte* nodes)
+{
+    int ret = 0;
+    byte n = key->params->n;
+    byte node[SLHDSA_SHA2_X16 * SLHDSA_MAX_N];
+    int l;
+
+    XMEMSET(node, 0, sizeof(node));
+    XMEMCPY(node, sig + cav[0] * n, n);
+    for (l = 0; (ret == 0) && (l < cnt - 1); l++) {
+        if (l != 0) {
+            XMEMCPY(node + l * n, sig + cav[l] * n, n);
+        }
+        if (msg[cav[l]] != msg[cav[l + 1]]) {
+            if (l == 0) {
+                /* Only one chain is running yet. */
+                HA_SetChainAddress(adrs, cav[0]);
+                ret = slhdsakey_chain(key, node, msg[cav[0]],
+                    (byte)(msg[cav[1]] - msg[cav[0]]), pk_seed, adrs, node);
+            }
+            else {
+                ret = slhdsakey_chain_sha2_x16(key, node, msg[cav[l]],
+                    (word32)(msg[cav[l + 1]] - msg[cav[l]]), ac, cav);
+            }
+        }
+    }
+    if (ret == 0) {
+        XMEMCPY(node + (cnt - 1) * n, sig + cav[cnt - 1] * n, n);
+        if (j != (int)SLHDSA_WM1) {
+            ret = slhdsakey_chain_sha2_x16(key, node, (word32)j,
+                (word32)(SLHDSA_WM1 - j), ac, cav);
+        }
+    }
+    if (ret == 0) {
+        for (l = 0; l < cnt; l++) {
+            XMEMCPY(nodes + cav[l] * n, node + l * n, n);
+        }
+    }
+
+    return ret;
+}
+
+/* Recover the WOTS+ public key chains sixteen at a time.
+ *
+ * @param [in]      key      SLH-DSA key.
+ * @param [out]     sig      Signature buffer.
+ * @param [in]      pk_seed  Public key seed.
+ * @param [in]      adrs     HashAddress set.
+ * @param [in]      msg      Message digest to chain from.
+ * @param [out]     nodes    n-byte chain value of each lane.
+ * @return  0 on success.
+ * @return  MEMORY_E on dynamic memory allocation failure.
+ */
+static int slhdsakey_wots_pk_from_sig_chain_sha2_x16(SlhDsaKey* key,
+    const byte* sig, const byte* pk_seed, word32* adrs, const byte* msg,
+    byte* nodes)
+{
+    int ret = 0;
+    int i;
+    sword8 j;
+    int ii = 0;
+    byte len = key->params->len;
+    byte ac[SLHDSA_HAC_SZ];
+    word32 cav[SLHDSA_SHA2_X16];
+
+    XMEMSET(cav, 0, sizeof(cav));
+    HA_SetChainAddress(adrs, 0);
+    HA_Encode_Compressed(adrs, ac);
+
+    for (j = 0; (ret == 0) && (j <= (sword8)SLHDSA_WM1); j++) {
+        for (i = 0; (ret == 0) && (i < len); i++) {
+            if ((sword8)msg[i] != j) {
+                continue;
+            }
+            cav[ii++] = (word32)i;
+            if (ii == SLHDSA_SHA2_X16) {
+                ret = slhdsakey_chain_idx_to_max_sha2_x16(key, sig, pk_seed,
+                    adrs, ac, msg, cav, j, SLHDSA_SHA2_X16, nodes);
+                ii = 0;
+            }
+        }
+    }
+    /* The tail is however many chains did not fill a group. */
+    if ((ret == 0) && (ii > 0)) {
+        int l;
+
+        j = (sword8)msg[cav[0]];
+        for (l = 1; l < ii; l++) {
+            if ((sword8)msg[cav[l]] > j) {
+                j = (sword8)msg[cav[l]];
+            }
+        }
+        ret = slhdsakey_chain_idx_to_max_sha2_x16(key, sig, pk_seed, adrs, ac,
+            msg, cav, j, ii, nodes);
+    }
+
+    return ret;
+}
+
+/* Recover the WOTS+ public key from a signature, sixteen chains at a time.
+ *
+ * @param [in]      key      SLH-DSA key.
+ * @param [out]     sig      Signature buffer.
+ * @param [in]      msg      Message digest to chain from.
+ * @param [in]      pk_seed  Public key seed.
+ * @param [in]      adrs     HashAddress set.
+ * @param [out]     pk_sig   WOTS+ public key from the signature.
+ * @return  0 on success.
+ * @return  MEMORY_E on dynamic memory allocation failure.
+ */
+static int slhdsakey_wots_pk_from_sig_sha2_x16(SlhDsaKey* key, const byte* sig,
+    const byte* msg, const byte* pk_seed, word32* adrs, byte* pk_sig)
+{
+    int ret = 0;
+    HashAddress wotspk_adrs;
+    byte n = key->params->n;
+    byte len = key->params->len;
+    int hash_t_started = 0;
+    WC_DECLARE_VAR(nodes, byte, SLHDSA_MAX_MSG_SZ * SLHDSA_MAX_N, key->heap);
+
+    WC_ALLOC_VAR_EX(nodes, byte, SLHDSA_MAX_MSG_SZ * SLHDSA_MAX_N, key->heap,
+        DYNAMIC_TYPE_SLHDSA, ret = MEMORY_E);
+    if (ret == 0) {
+        ret = slhdsakey_wots_pk_from_sig_chain_sha2_x16(key, sig, pk_seed,
+            adrs, msg, nodes);
+    }
+    if (ret == 0) {
+        HA_Copy(wotspk_adrs, adrs);
+        HA_SetTypeAndClearNotKPA(wotspk_adrs, HA_WOTS_PK);
+        ret = HASH_T_START_ADDR(key, pk_seed, wotspk_adrs, n);
+    }
+    if (ret == 0) {
+        hash_t_started = 1;
+        ret = HASH_T_UPDATE(key, nodes, (word32)len * n);
+    }
+    if (ret == 0) {
+        ret = HASH_T_FINAL(key, pk_sig, n);
+    }
+    if (hash_t_started) {
+        HASH_T_FREE(key);
+    }
+
+    WC_FREE_VAR_EX(nodes, key->heap, DYNAMIC_TYPE_SLHDSA);
+    return ret;
+}
+#endif /* SHA-2 sets, AVX-512 */
+
+#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+#if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL) && \
+    !defined(WOLFSSL_SLHDSA_NO_SHAKE)
 /* PRF hash 4 simultaneously.
  *
  * Each hash varies by the chain address with the first value in sequence passed
@@ -2985,7 +4000,8 @@ static int slhdsakey_chain_idx_32(SlhDsaKey* key, byte* sk,
 #endif
 #endif
 
-#if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL)
+#if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL) && \
+    !defined(WOLFSSL_SLHDSA_NO_SHAKE)
 #if !defined(WOLFSSL_SLHDSA_PARAM_NO_128)
 /* Generate WOTS+ public key, 16-byte hashes - 4 consecutive at a time.
  *
@@ -3246,6 +4262,13 @@ static int slhdsakey_wots_pkgen_chain_x4(SlhDsaKey* key, const byte* sk_seed,
     HA_Encode(sk_adrs, sk_addr);
     HA_Encode(adrs, addr);
 
+#ifdef WOLFSSL_SLHDSA_HAVE_INTEL_AVX512
+    /* Eight lanes when the whole Keccak state fits in registers. */
+    if (IS_INTEL_AVX512(cpuid_flags)) {
+        return slhdsakey_wots_pkgen_chain_x8(key, sk_seed, pk_seed, addr,
+            sk_addr);
+    }
+#endif
 #if !defined(WOLFSSL_SLHDSA_PARAM_NO_128)
     if (n == WC_SLHDSA_N_128) {
         ret = slhdsakey_wots_pkgen_chain_x4_16(key, sk_seed, pk_seed, addr,
@@ -3274,6 +4297,241 @@ static int slhdsakey_wots_pkgen_chain_x4(SlhDsaKey* key, const byte* sk_seed,
     return ret;
 }
 #endif
+
+#if defined(WOLFSSL_SLHDSA_SHA2) && \
+    defined(WOLFSSL_SLHDSA_HAVE_INTEL_AVX512) && \
+    !defined(WOLFSSL_WC_SLHDSA_SMALL)
+/* Generate the WOTS+ public key chains sixteen at a time.
+ *
+ * The PRF that seeds each chain stays serial: it is one hash per chain
+ * against fifteen for the chain itself.
+ *
+ * @param [in]      key      SLH-DSA key.
+ * @param [in]      sk_seed  Private key seed.
+ * @param [in]      pk_seed  Public key seed.
+ * @param [in]      adrs     HashAddress set.
+ * @param [in, out] sk_adrs  WOTS+ PRF HashAddress set.
+ * @return  0 on success.
+ * @return  MEMORY_E on dynamic memory allocation failure.
+ */
+static int slhdsakey_wots_pkgen_chain_sha2_x16(SlhDsaKey* key,
+    const byte* sk_seed, const byte* pk_seed, word32* adrs, word32* sk_adrs)
+{
+    int ret = 0;
+    int i;
+    int l;
+    byte n = key->params->n;
+    byte len = key->params->len;
+    byte ac[SLHDSA_HAC_SZ];
+    word32 cav[SLHDSA_SHA2_X16];
+    WC_DECLARE_VAR(sk, byte, (SLHDSA_MAX_MSG_SZ + 15) * SLHDSA_MAX_N,
+        key->heap);
+    WC_DECLARE_VAR(buf, byte, SLHDSA_SHA2_X16 * WC_SHA256_BLOCK_SIZE,
+        key->heap);
+    WC_DECLARE_VAR(st, word32, SLHDSA_SHA2_X16 * 8, key->heap);
+
+    WC_ALLOC_VAR_EX(sk, byte, (SLHDSA_MAX_MSG_SZ + 15) * SLHDSA_MAX_N,
+        key->heap, DYNAMIC_TYPE_SLHDSA, ret = MEMORY_E);
+    if (ret == 0) {
+        WC_ALLOC_VAR_EX(buf, byte, SLHDSA_SHA2_X16 * WC_SHA256_BLOCK_SIZE,
+            key->heap, DYNAMIC_TYPE_SLHDSA, ret = MEMORY_E);
+    }
+    if (ret == 0) {
+        WC_ALLOC_VAR_EX(st, word32, SLHDSA_SHA2_X16 * 8, key->heap,
+            DYNAMIC_TYPE_SLHDSA, ret = MEMORY_E);
+    }
+    if (ret == 0) {
+        XMEMSET(sk, 0, (SLHDSA_MAX_MSG_SZ + 15) * SLHDSA_MAX_N);
+        for (i = 0; (ret == 0) && (i < len); i++) {
+            HA_SetChainAddress(sk_adrs, (word32)i);
+            ret = HASH_PRF(key, pk_seed, sk_seed, sk_adrs, n, sk + i * n);
+        }
+    }
+    if (ret == 0) {
+        /* The chain address is the only per-lane field, so the rest of the
+         * address is encoded once. */
+        HA_SetChainAddress(adrs, 0);
+        HA_Encode_Compressed(adrs, ac);
+
+        /* Every chain here runs the full length, so the message buffer and
+         * the states are set up once for the whole key rather than once per
+         * group of sixteen. */
+        ret = SAVE_VECTOR_REGISTERS2();
+        if (ret == 0) {
+            const word32* mid = key->hash.sha2.sha256_mid.digest;
+            word32 j;
+
+            for (i = 0; i < len; i += SLHDSA_SHA2_X16) {
+                for (l = 0; l < SLHDSA_SHA2_X16; l++) {
+                    cav[l] = (word32)(i + l);
+                }
+                for (j = 0; j < SLHDSA_WM1; j++) {
+                    slhdsakey_f_sha2_x16(mid, ac, cav, j, sk + i * n, n, buf,
+                        st);
+                }
+            }
+            RESTORE_VECTOR_REGISTERS();
+        }
+    }
+    if (ret == 0) {
+        ret = HASH_T_UPDATE(key, sk, (word32)len * n);
+    }
+
+    /* On error sk still holds secret WOTS+ leaves; on success it is
+     * overwritten with public chain values.  The batch runs past len, so wipe
+     * the whole buffer. */
+    if ((ret != 0) && WC_VAR_OK(sk)) {
+        ForceZero(sk, (SLHDSA_MAX_MSG_SZ + 15) * SLHDSA_MAX_N);
+    }
+    /* buf and st held secret chain values. */
+    if (WC_VAR_OK(buf)) {
+        ForceZero(buf, SLHDSA_SHA2_X16 * WC_SHA256_BLOCK_SIZE);
+    }
+    if (WC_VAR_OK(st)) {
+        ForceZero(st, SLHDSA_SHA2_X16 * 8 * sizeof(word32));
+    }
+    WC_FREE_VAR_EX(st, key->heap, DYNAMIC_TYPE_SLHDSA);
+    WC_FREE_VAR_EX(buf, key->heap, DYNAMIC_TYPE_SLHDSA);
+    WC_FREE_VAR_EX(sk, key->heap, DYNAMIC_TYPE_SLHDSA);
+    return ret;
+}
+
+/* Run a group of signing chains, peeling lanes off as they finish.
+ *
+ * The SHA-2 twin of slhdsakey_chain_idx_sched_x8().
+ * @param [in]      key      SLH-DSA key.
+ * @param [out]     sk       Private key values.
+ * @param [in]      pk_seed  Public key seed.
+ * @param [in]      adrs     HashAddress set.
+ * @param [in]      ac       HashAddress with the chain address cleared.
+ * @param [in]      msg      Message digest to chain from.
+ * @param [in]      cav      Chain address of each lane.
+ * @param [in]      j        Minimum number of iterations across the batch.
+ * @param [in]      cnt      Number of chains in the batch.
+ * @param [out]     sig      Signature buffer.
+ * @return  0 on success.
+ * @return  MEMORY_E on dynamic memory allocation failure.
+ */
+static int slhdsakey_chain_idx_sched_sha2_x16(SlhDsaKey* key, byte* sk,
+    const byte* pk_seed, word32* adrs, const byte* ac, const byte* msg,
+    const word32* cav, int j, int cnt, byte* sig)
+{
+    int ret = 0;
+    byte n = key->params->n;
+    int l;
+
+    if (j != 0) {
+        ret = slhdsakey_chain_sha2_x16(key, sk, 0U, (word32)j, ac, cav);
+    }
+    for (l = cnt - 1; (ret == 0) && (l >= 1); l--) {
+        XMEMCPY(sig + cav[l] * n, sk + l * n, n);
+        if (msg[cav[l - 1]] != j) {
+            if (l == 1) {
+                /* One chain left to extend. */
+                HA_SetChainAddress(adrs, cav[0]);
+                ret = slhdsakey_chain(key, sk, (byte)j,
+                    (byte)(msg[cav[0]] - j), pk_seed, adrs, sk);
+            }
+            else {
+                ret = slhdsakey_chain_sha2_x16(key, sk, (word32)j,
+                    (word32)(msg[cav[l - 1]] - j), ac, cav);
+            }
+            j = msg[cav[l - 1]];
+        }
+    }
+    if (ret == 0) {
+        XMEMCPY(sig + cav[0] * n, sk + 0 * n, n);
+    }
+
+    return ret;
+}
+
+/* Sign the WOTS+ chains sixteen at a time.
+ *
+ * @param [in]      key      SLH-DSA key.
+ * @param [in]      msg      Message digest to chain from.
+ * @param [in]      sk_seed  Private key seed.
+ * @param [in]      pk_seed  Public key seed.
+ * @param [in]      adrs     HashAddress set.
+ * @param [in, out] sk_adrs  WOTS+ PRF HashAddress set.
+ * @param [out]     sig      Signature buffer.
+ * @return  0 on success.
+ * @return  MEMORY_E on dynamic memory allocation failure.
+ */
+static int slhdsakey_wots_sign_chain_sha2_x16(SlhDsaKey* key, const byte* msg,
+    const byte* sk_seed, const byte* pk_seed, word32* adrs, word32* sk_adrs,
+    byte* sig)
+{
+    int ret = 0;
+    int i;
+    sword8 j;
+    int ii = 0;
+    byte n = key->params->n;
+    byte len = key->params->len;
+    byte ac[SLHDSA_HAC_SZ];
+    word32 cav[SLHDSA_SHA2_X16];
+    WC_DECLARE_VAR(sk, byte, SLHDSA_SHA2_X16 * SLHDSA_MAX_N, key->heap);
+
+    XMEMSET(cav, 0, sizeof(cav));
+    WC_ALLOC_VAR_EX(sk, byte, SLHDSA_SHA2_X16 * SLHDSA_MAX_N, key->heap,
+        DYNAMIC_TYPE_SLHDSA, ret = MEMORY_E);
+    if (ret == 0) {
+        HA_SetChainAddress(adrs, 0);
+        HA_Encode_Compressed(adrs, ac);
+
+        for (j = (sword8)SLHDSA_WM1; (ret == 0) && (j >= 0); j--) {
+            for (i = 0; (ret == 0) && (i < len); i++) {
+                if ((sword8)msg[i] != j) {
+                    continue;
+                }
+                cav[ii++] = (word32)i;
+                if (ii == SLHDSA_SHA2_X16) {
+                    int l;
+
+                    for (l = 0; (ret == 0) && (l < SLHDSA_SHA2_X16); l++) {
+                        HA_SetChainAddress(sk_adrs, cav[l]);
+                        ret = HASH_PRF(key, pk_seed, sk_seed, sk_adrs, n,
+                            sk + l * n);
+                    }
+                    if (ret == 0) {
+                        ret = slhdsakey_chain_idx_sched_sha2_x16(key, sk,
+                            pk_seed, adrs, ac, msg, cav, j,
+                            SLHDSA_SHA2_X16, sig);
+                    }
+                    ii = 0;
+                }
+            }
+        }
+    }
+    /* The tail is however many chains did not fill a group. */
+    if ((ret == 0) && (ii > 0)) {
+        int l;
+
+        for (l = 0; (ret == 0) && (l < ii); l++) {
+            HA_SetChainAddress(sk_adrs, cav[l]);
+            ret = HASH_PRF(key, pk_seed, sk_seed, sk_adrs, n, sk + l * n);
+        }
+        if (ret == 0) {
+            j = (sword8)msg[cav[0]];
+            for (l = 1; l < ii; l++) {
+                if ((sword8)msg[cav[l]] < j) {
+                    j = (sword8)msg[cav[l]];
+                }
+            }
+            ret = slhdsakey_chain_idx_sched_sha2_x16(key, sk, pk_seed, adrs,
+                ac, msg, cav, j, ii, sig);
+        }
+    }
+
+    /* sk holds the secret WOTS+ leaves. */
+    if (WC_VAR_OK(sk)) {
+        ForceZero(sk, SLHDSA_SHA2_X16 * SLHDSA_MAX_N);
+    }
+    WC_FREE_VAR_EX(sk, key->heap, DYNAMIC_TYPE_SLHDSA);
+    return ret;
+}
+#endif /* SHA-2 sets, AVX-512 */
+
 
 /* Generate WOTS+ public key.
  *
@@ -3438,12 +4696,26 @@ static int slhdsakey_wots_pkgen(SlhDsaKey* key, const byte* sk_seed,
         HA_Copy(sk_adrs, adrs);
         HA_SetTypeAndClearNotKPA(sk_adrs, HA_WOTS_PRF);
         /* Steps 4-10,13: Generate hashes and update the public key hash. */
-#if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL)
+#if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL) && \
+    !defined(WOLFSSL_SLHDSA_NO_SHAKE)
         if (!SLHDSA_IS_SHA2(key->params->param) &&
                 IS_INTEL_AVX2(cpuid_flags) &&
                 (SAVE_VECTOR_REGISTERS2() == 0)) {
             ret = slhdsakey_wots_pkgen_chain_x4(key, sk_seed, pk_seed, adrs,
                 sk_adrs);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+#if defined(WOLFSSL_SLHDSA_SHA2) && \
+    defined(WOLFSSL_SLHDSA_HAVE_INTEL_AVX512) && \
+    !defined(WOLFSSL_WC_SLHDSA_SMALL)
+        /* The SHA-2 sets batch sixteen chains of SHA-256. */
+        if (SLHDSA_IS_SHA2(key->params->param) &&
+                IS_INTEL_AVX512(cpuid_flags) &&
+                (SAVE_VECTOR_REGISTERS2() == 0)) {
+            ret = slhdsakey_wots_pkgen_chain_sha2_x16(key, sk_seed, pk_seed,
+                adrs, sk_adrs);
             RESTORE_VECTOR_REGISTERS();
         }
         else
@@ -3465,7 +4737,8 @@ static int slhdsakey_wots_pkgen(SlhDsaKey* key, const byte* sk_seed,
     return ret;
 }
 
-#if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL)
+#if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL) && \
+    !defined(WOLFSSL_SLHDSA_NO_SHAKE)
 #if !defined(WOLFSSL_SLHDSA_PARAM_NO_128)
 /* Generate a WOTS+ signature, 32-byte hashed, on msg - iterating 4 hashes.
  *
@@ -3777,6 +5050,13 @@ static int slhdsakey_wots_sign_chain_x4(SlhDsaKey* key, const byte* msg,
     HA_Encode(sk_adrs, sk_addr);
     HA_Encode(adrs, addr);
 
+#ifdef WOLFSSL_SLHDSA_HAVE_INTEL_AVX512
+    /* Eight lanes when the whole Keccak state fits in registers. */
+    if (IS_INTEL_AVX512(cpuid_flags)) {
+        return slhdsakey_wots_sign_chain_x8(key, msg, sk_seed, pk_seed, adrs,
+            addr, sk_addr, sig);
+    }
+#endif
 #if !defined(WOLFSSL_SLHDSA_PARAM_NO_128)
     if (n == WC_SLHDSA_N_128) {
         ret = slhdsakey_wots_sign_chain_x4_16(key, msg, sk_seed, pk_seed, adrs,
@@ -3873,7 +5153,8 @@ static int slhdsakey_wots_sign(SlhDsaKey* key, const byte* m,
     /* Steps 8-10: Copy address for WOTS PRF. */
     HA_Copy(sk_adrs, adrs);
     HA_SetTypeAndClearNotKPA(sk_adrs, HA_WOTS_PRF);
-#if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL)
+#if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL) && \
+    !defined(WOLFSSL_SLHDSA_NO_SHAKE)
     /* Steps 11-17: Generate signature from msg. */
     if (!SLHDSA_IS_SHA2(key->params->param) &&
             IS_INTEL_AVX2(cpuid_flags) &&
@@ -3883,6 +5164,19 @@ static int slhdsakey_wots_sign(SlhDsaKey* key, const byte* m,
         RESTORE_VECTOR_REGISTERS();
     }
     else
+#endif
+#if defined(WOLFSSL_SLHDSA_SHA2) && \
+    defined(WOLFSSL_SLHDSA_HAVE_INTEL_AVX512) && \
+    !defined(WOLFSSL_WC_SLHDSA_SMALL)
+        /* The SHA-2 sets batch sixteen chains of SHA-256. */
+        if (SLHDSA_IS_SHA2(key->params->param) &&
+                IS_INTEL_AVX512(cpuid_flags) &&
+                (SAVE_VECTOR_REGISTERS2() == 0)) {
+            ret = slhdsakey_wots_sign_chain_sha2_x16(key, msg, sk_seed,
+                pk_seed, adrs, sk_adrs, sig);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
 #endif
     {
         byte sk[SLHDSA_MAX_N];
@@ -3926,7 +5220,8 @@ static int slhdsakey_wots_sign(SlhDsaKey* key, const byte* m,
 }
 #endif
 
-#if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL)
+#if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL) && \
+    !defined(WOLFSSL_SLHDSA_NO_SHAKE)
 #if !defined(WOLFSSL_SLHDSA_PARAM_NO_128)
 /* Computes 4 chains simultaneously from starts to w-1 when n=16.
  *
@@ -4153,7 +5448,8 @@ static int slhdsakey_chain_idx_to_max_32(SlhDsaKey* key, const byte* sig,
 #endif
 #endif
 
-#if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL)
+#if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL) && \
+    !defined(WOLFSSL_SLHDSA_NO_SHAKE)
 /* Computes a WOTS+ public key from a message and its signature.
  *
  * Computes four iteration hashes simultaneously.
@@ -4192,6 +5488,14 @@ static int slhdsakey_wots_pk_from_sig_x4(SlhDsaKey* key, const byte* sig,
 
     WC_ALLOC_VAR_EX(nodes, byte, SLHDSA_MAX_MSG_SZ * SLHDSA_MAX_N, key->heap,
         DYNAMIC_TYPE_SLHDSA, ret = MEMORY_E);
+#ifdef WOLFSSL_SLHDSA_HAVE_INTEL_AVX512
+    /* Eight lanes when the whole Keccak state fits in registers. */
+    if ((ret == 0) && IS_INTEL_AVX512(cpuid_flags)) {
+        ret = slhdsakey_wots_pk_from_sig_chain_x8(key, sig, pk_seed, adrs,
+            msg, nodes);
+    }
+    else
+#endif
 #if !defined(WOLFSSL_SLHDSA_PARAM_NO_128)
     if ((ret == 0) && (n == WC_SLHDSA_N_128)) {
         int i;
@@ -4516,12 +5820,26 @@ static int slhdsakey_wots_pk_from_sig(SlhDsaKey* key, const byte* sig,
     msg[i + 2] = (byte)( csum       & 0xf);
 
     /* Steps 8-16. */
-#if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL)
+#if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL) && \
+    !defined(WOLFSSL_SLHDSA_NO_SHAKE)
     if (!SLHDSA_IS_SHA2(key->params->param) &&
             IS_INTEL_AVX2(cpuid_flags) &&
             (SAVE_VECTOR_REGISTERS2() == 0)) {
         ret = slhdsakey_wots_pk_from_sig_x4(key, sig, msg, pk_seed, adrs,
             pk_sig);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
+#if defined(WOLFSSL_SLHDSA_SHA2) && \
+    defined(WOLFSSL_SLHDSA_HAVE_INTEL_AVX512) && \
+    !defined(WOLFSSL_WC_SLHDSA_SMALL)
+        /* The SHA-2 sets batch sixteen chains of SHA-256. */
+    if (SLHDSA_IS_SHA2(key->params->param) &&
+            IS_INTEL_AVX512(cpuid_flags) &&
+            (SAVE_VECTOR_REGISTERS2() == 0)) {
+        ret = slhdsakey_wots_pk_from_sig_sha2_x16(key, sig, msg,
+            pk_seed, adrs, pk_sig);
         RESTORE_VECTOR_REGISTERS();
     }
     else
@@ -5111,7 +6429,8 @@ static int slhdsakey_fors_sk_gen(SlhDsaKey* key, const byte* sk_seed,
         node);
 }
 
-#if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL)
+#if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL) && \
+    !defined(WOLFSSL_SLHDSA_NO_SHAKE)
 /* PRF hash 4 simultaneously.
  *
  * Each hash varies by the tree index with the first value in sequence passed
@@ -5291,6 +6610,263 @@ static int slhdsakey_hash_h_ti_x4(const byte* pk_seed, byte* addr,
 #define SLHDSA_MAX_FORS_NODE_TOP_DEPTH  \
     (SLHDSA_MAX_A - SLHDSA_MAX_FORS_NODE_DEPTH)
 
+#ifdef WOLFSSL_SLHDSA_HAVE_INTEL_AVX512
+/* Set eight tree indices, the first being ti.
+ *
+ * The tree index is the second word of the last address word, big endian.
+ * @param [in, out] state    Interleaved SHAKE-256 x8 state.
+ * @param [in]      o        Offset of state after HashAddress.
+ * @param [in]      ti       Tree index start value.
+ */
+static void slhdsakey_shake256_set_ti_x8(word64* state, word32 o, word32 ti)
+{
+    int l;
+
+    for (l = 0; l < SLHDSA_X8; l++) {
+        c32toa(ti + (word32)l,
+            (byte*)&((word32*)(state + o - SLHDSA_X8 + l))[1]);
+    }
+}
+
+/* PRF eight FORS private key values at once.
+ *
+ * @param [in]      pk_seed  Public key seed.
+ * @param [in]      sk_seed  Private key seed.
+ * @param [in, out] addr     HashAddress buffer.
+ * @param [in]      n        Number of bytes in hash output.
+ * @param [in]      ti       Tree index start value.
+ * @param [out]     node     n-byte node value of each lane.
+ * @param [in]      heap     Dynamic memory allocation hint.
+ * @return  0 on success.
+ * @return  SHAKE-256 error return code on digest failure.
+ * @return  MEMORY_E on dynamic memory allocation failure.
+ */
+static int slhdsakey_hash_prf_ti_x8(const byte* pk_seed, const byte* sk_seed,
+    byte* addr, byte n, word32 ti, byte* node, void* heap)
+{
+    int ret = 0;
+    word32 o;
+    WC_DECLARE_VAR(state, word64, SLHDSA_SHAKE_X8_STATE_W, heap);
+
+    (void)heap;
+
+    WC_ALLOC_VAR_EX(state, word64, SLHDSA_SHAKE_X8_STATE_W, heap,
+        DYNAMIC_TYPE_SLHDSA, ret = MEMORY_E);
+    if (ret == 0) {
+        o = slhdsakey_shake256_set_seed_ha_x8(state, pk_seed, addr, n);
+        slhdsakey_shake256_set_hash_x8(state, o, sk_seed, n, 0);
+        slhdsakey_shake256_set_end_x8(state, o + (word32)(n / 8) * SLHDSA_X8);
+        slhdsakey_shake256_set_ti_x8(state, o, ti);
+        ret = SAVE_VECTOR_REGISTERS2();
+        if (ret == 0) {
+            sha3_blocksx8_avx512(state);
+            RESTORE_VECTOR_REGISTERS();
+            slhdsakey_shake256_get_hash_x8(state, node, n);
+        }
+
+        /* state holds the secret PRF output (FORS key). */
+        ForceZero(state, sizeof(word64) * SLHDSA_SHAKE_X8_STATE_W);
+        WC_FREE_VAR_EX(state, heap, DYNAMIC_TYPE_SLHDSA);
+    }
+
+    return ret;
+}
+
+/* F hash eight FORS leaves at once.
+ *
+ * @param [in]      pk_seed  Public key seed.
+ * @param [in, out] addr     HashAddress buffer.
+ * @param [out]     node     n-byte node value of each lane.
+ * @param [in]      n        Number of bytes in hash output.
+ * @param [in]      ti       Tree index start value.
+ * @param [in]      heap     Dynamic memory allocation hint.
+ * @return  0 on success.
+ * @return  SHAKE-256 error return code on digest failure.
+ * @return  MEMORY_E on dynamic memory allocation failure.
+ */
+static int slhdsakey_hash_f_ti_x8(const byte* pk_seed, byte* addr, byte* node,
+    byte n, word32 ti, void* heap)
+{
+    int ret = 0;
+    word32 o;
+    WC_DECLARE_VAR(state, word64, SLHDSA_SHAKE_X8_STATE_W, heap);
+
+    (void)heap;
+
+    WC_ALLOC_VAR_EX(state, word64, SLHDSA_SHAKE_X8_STATE_W, heap,
+        DYNAMIC_TYPE_SLHDSA, ret = MEMORY_E);
+    if (ret == 0) {
+        o = slhdsakey_shake256_set_seed_ha_x8(state, pk_seed, addr, n);
+        slhdsakey_shake256_set_hash_x8(state, o, node, n, n);
+        slhdsakey_shake256_set_end_x8(state, o + (word32)(n / 8) * SLHDSA_X8);
+        slhdsakey_shake256_set_ti_x8(state, o, ti);
+        ret = SAVE_VECTOR_REGISTERS2();
+        if (ret == 0) {
+            sha3_blocksx8_avx512(state);
+            RESTORE_VECTOR_REGISTERS();
+            slhdsakey_shake256_get_hash_x8(state, node, n);
+        }
+
+        ForceZero(state, sizeof(word64) * SLHDSA_SHAKE_X8_STATE_W);
+        WC_FREE_VAR_EX(state, heap, DYNAMIC_TYPE_SLHDSA);
+    }
+
+    return ret;
+}
+
+/* H hash eight tree nodes at once.
+ *
+ * Each hash takes a pair of child nodes, so a lane's message is 2n bytes.
+ *
+ * @param [in]      pk_seed  Public key seed.
+ * @param [in, out] addr     HashAddress buffer.
+ * @param [in]      m        n-byte message.
+ * @param [in]      n        Number of bytes in hash output.
+ * @param [in]      ti       Tree index start value.
+ * @param [out]     hash     Buffer to hold hash output.
+ * @param [in]      heap     Dynamic memory allocation hint.
+ * @return  0 on success.
+ * @return  SHAKE-256 error return code on digest failure.
+ * @return  MEMORY_E on dynamic memory allocation failure.
+ */
+static int slhdsakey_hash_h_ti_x8(const byte* pk_seed, byte* addr,
+    const byte* m, byte n, word32 ti, byte* hash, void* heap)
+{
+    int ret = 0;
+    word32 o;
+    WC_DECLARE_VAR(state, word64, SLHDSA_SHAKE_X8_STATE_W, heap);
+
+    (void)heap;
+
+    WC_ALLOC_VAR_EX(state, word64, SLHDSA_SHAKE_X8_STATE_W, heap,
+        DYNAMIC_TYPE_SLHDSA, ret = MEMORY_E);
+    if (ret == 0) {
+        o = slhdsakey_shake256_set_seed_ha_x8(state, pk_seed, addr, n);
+        /* A pair of nodes per lane: twice the hash size, so twice the
+         * stride. */
+        slhdsakey_shake256_set_hash_x8(state, o, m, 2 * n, 2 * n);
+        slhdsakey_shake256_set_end_x8(state,
+            o + (word32)(2 * n / 8) * SLHDSA_X8);
+        slhdsakey_shake256_set_ti_x8(state, o, ti);
+        ret = SAVE_VECTOR_REGISTERS2();
+        if (ret == 0) {
+            sha3_blocksx8_avx512(state);
+            RESTORE_VECTOR_REGISTERS();
+            slhdsakey_shake256_get_hash_x8(state, hash, n);
+        }
+
+        ForceZero(state, sizeof(word64) * SLHDSA_SHAKE_X8_STATE_W);
+        WC_FREE_VAR_EX(state, heap, DYNAMIC_TYPE_SLHDSA);
+    }
+
+    return ret;
+}
+#endif /* WOLFSSL_SLHDSA_HAVE_INTEL_AVX512 */
+
+/* Chains to hash at once.
+ *
+ * Eight lanes when the whole Keccak state fits in registers, four otherwise.
+ * Keccak has no hardware single-block form to lose to, so the widest batch
+ * available always wins.
+ *
+ * Never zero: every caller is already behind an IS_INTEL_AVX2() gate, and
+ * they step their loops by this, so a zero would not terminate.
+ *
+ * @return  Number of chains to hash at once.
+ */
+/* The AVX-512 kernels keep to AVX-512F, so the foundation bit alone is the
+ * right test - see the note in wc_lms_impl.c. */
+static int slhdsakey_n_way_lanes(void)
+{
+#ifdef WOLFSSL_SLHDSA_HAVE_INTEL_AVX512
+    if (IS_INTEL_AVX512(cpuid_flags)) {
+        return 8;
+    }
+#endif
+    return 4;
+}
+
+#define SLHDSA_N_WAY_LANES()          slhdsakey_n_way_lanes()
+
+/* PRF a batch of FORS private key values, of whichever width.
+ *
+ * @param [in]      pk_seed  Public key seed.
+ * @param [in]      sk_seed  Private key seed.
+ * @param [in, out] addr     HashAddress buffer.
+ * @param [in]      n        Number of bytes in hash output.
+ * @param [in]      ti       Tree index start value.
+ * @param [out]     node     n-byte node value of each lane.
+ * @param [in]      heap     Dynamic memory allocation hint.
+ * @param [in]      lanes    Width of the batch.
+ * @return  0 on success.
+ * @return  SHAKE-256 error return code on digest failure.
+ * @return  MEMORY_E on dynamic memory allocation failure.
+ */
+static int slhdsakey_hash_prf_ti_n_way(const byte* pk_seed, const byte* sk_seed,
+    byte* addr, byte n, word32 ti, byte* node, void* heap, int lanes)
+{
+#ifdef WOLFSSL_SLHDSA_HAVE_INTEL_AVX512
+    if (lanes == 8) {
+        return slhdsakey_hash_prf_ti_x8(pk_seed, sk_seed, addr, n, ti, node,
+            heap);
+    }
+#endif
+    (void)lanes;
+    return slhdsakey_hash_prf_ti_x4(pk_seed, sk_seed, addr, n, ti, node, heap);
+}
+
+/* F hash a batch of FORS leaves, of whichever width.
+ *
+ * @param [in]      pk_seed  Public key seed.
+ * @param [in, out] addr     HashAddress buffer.
+ * @param [out]     node     n-byte node value of each lane.
+ * @param [in]      n        Number of bytes in hash output.
+ * @param [in]      ti       Tree index start value.
+ * @param [in]      heap     Dynamic memory allocation hint.
+ * @param [in]      lanes    Width of the batch.
+ * @return  0 on success.
+ * @return  SHAKE-256 error return code on digest failure.
+ * @return  MEMORY_E on dynamic memory allocation failure.
+ */
+static int slhdsakey_hash_f_ti_n_way(const byte* pk_seed, byte* addr,
+    byte* node,
+    byte n, word32 ti, void* heap, int lanes)
+{
+#ifdef WOLFSSL_SLHDSA_HAVE_INTEL_AVX512
+    if (lanes == 8) {
+        return slhdsakey_hash_f_ti_x8(pk_seed, addr, node, n, ti, heap);
+    }
+#endif
+    (void)lanes;
+    return slhdsakey_hash_f_ti_x4(pk_seed, addr, node, n, ti, heap);
+}
+
+/* H hash a batch of tree nodes, of whichever width.
+ *
+ * @param [in]      pk_seed  Public key seed.
+ * @param [in, out] addr     HashAddress buffer.
+ * @param [in]      m        n-byte message.
+ * @param [in]      n        Number of bytes in hash output.
+ * @param [in]      ti       Tree index start value.
+ * @param [out]     hash     Buffer to hold hash output.
+ * @param [in]      heap     Dynamic memory allocation hint.
+ * @param [in]      lanes    Width of the batch.
+ * @return  0 on success.
+ * @return  SHAKE-256 error return code on digest failure.
+ * @return  MEMORY_E on dynamic memory allocation failure.
+ */
+static int slhdsakey_hash_h_ti_n_way(const byte* pk_seed, byte* addr,
+    const byte* m, byte n, word32 ti, byte* hash, void* heap, int lanes)
+{
+#ifdef WOLFSSL_SLHDSA_HAVE_INTEL_AVX512
+    if (lanes == 8) {
+        return slhdsakey_hash_h_ti_x8(pk_seed, addr, m, n, ti, hash, heap);
+    }
+#endif
+    (void)lanes;
+    return slhdsakey_hash_h_ti_x4(pk_seed, addr, m, n, ti, hash, heap);
+}
+
 /* Compute the root of a zero height Merkle subtree of FORS public values.
  *
  * Performs 4 hashes at the same time where possible.
@@ -5442,6 +7018,8 @@ static int slhdsakey_fors_node_x4_z1(SlhDsaKey* key, const byte* sk_seed,
 static int slhdsakey_fors_node_x4_low(SlhDsaKey* key, const byte* sk_seed,
     word32 i, word32 z, const byte* pk_seed, word32* adrs, byte* node)
 {
+    int lanes = SLHDSA_N_WAY_LANES();
+    int step;
     int ret = 0;
     byte n = key->params->n;
     HashAddress sk_adrs;
@@ -5467,9 +7045,9 @@ static int slhdsakey_fors_node_x4_low(SlhDsaKey* key, const byte* sk_seed,
         HA_Encode(adrs, addr);
 
         /* Step 2: Generate private key values for leaf indices. */
-        for (j = 0; j < m; j += 4) {
-            ret = slhdsakey_hash_prf_ti_x4(pk_seed, sk_seed, sk_addr, n,
-                m * i + j, nodes + j * n, key->heap);
+        for (j = 0; j < m; j += (word32)lanes) {
+            ret = slhdsakey_hash_prf_ti_n_way(pk_seed, sk_seed, sk_addr, n,
+                m * i + j, nodes + j * n, key->heap, lanes);
             if (ret != 0) {
                 break;
             }
@@ -5479,9 +7057,9 @@ static int slhdsakey_fors_node_x4_low(SlhDsaKey* key, const byte* sk_seed,
         /* Step 3: Set tree height to zero. */
         HA_SetTreeHeight((word32*)addr, 0);
         /* Step 4-5: Set tree indices and compute leaf node. */
-        for (j = 0; j < m; j += 4) {
-            ret = slhdsakey_hash_f_ti_x4(pk_seed, addr, nodes + j * n, n,
-                m * i + j, key->heap);
+        for (j = 0; j < m; j += (word32)lanes) {
+            ret = slhdsakey_hash_f_ti_n_way(pk_seed, addr, nodes + j * n, n,
+                m * i + j, key->heap, lanes);
             if (ret != 0) {
                 break;
             }
@@ -5494,9 +7072,13 @@ static int slhdsakey_fors_node_x4_low(SlhDsaKey* key, const byte* sk_seed,
             /* Step 9: Set tree height. */
             HA_SetTreeHeightBE(addr, k);
             /* Step 10-11: Set tree index and compute nodes. */
-            for (j = 0; j < m; j += 4) {
-                ret = slhdsakey_hash_h_ti_x4(pk_seed, addr, nodes + 2 * j * n,
-                    n, m * i + j, nodes + j * n, key->heap);
+            /* The level with only four nodes left cannot fill eight lanes
+             * without reading past what this level wrote. */
+            step = (m >= 8) ? lanes : 4;
+            for (j = 0; j < m; j += (word32)step) {
+                ret = slhdsakey_hash_h_ti_n_way(pk_seed, addr,
+                    nodes + 2 * j * n,
+                    n, m * i + j, nodes + j * n, key->heap, step);
                 if (ret != 0) {
                     break;
                 }
@@ -5571,6 +7153,8 @@ static int slhdsakey_fors_node_x4_low(SlhDsaKey* key, const byte* sk_seed,
 static int slhdsakey_fors_node_x4_high(SlhDsaKey* key, const byte* sk_seed,
     word32 i, word32 z, const byte* pk_seed, word32* adrs, byte* node)
 {
+    int lanes = SLHDSA_N_WAY_LANES();
+    int step;
     int ret = 0;
     byte n = key->params->n;
     word32 j;
@@ -5606,9 +7190,13 @@ static int slhdsakey_fors_node_x4_high(SlhDsaKey* key, const byte* sk_seed,
             /* Encode FORS tree address for hashing. */
             HA_Encode(adrs, addr);
             /* Step 10-11: Set tree index and compute nodes. */
-            for (j = 0; j < m; j += 4) {
-                ret = slhdsakey_hash_h_ti_x4(pk_seed, addr, nodes + 2 * j * n,
-                    n, m * i + j, nodes + j * n, key->heap);
+            /* The level with only four nodes left cannot fill eight lanes
+             * without reading past what this level wrote. */
+            step = (m >= 8) ? lanes : 4;
+            for (j = 0; j < m; j += (word32)step) {
+                ret = slhdsakey_hash_h_ti_n_way(pk_seed, addr,
+                    nodes + 2 * j * n,
+                    n, m * i + j, nodes + j * n, key->heap, step);
                 if (ret != 0) {
                     break;
                 }
@@ -5962,7 +7550,8 @@ static int slhdsakey_fors_sign(SlhDsaKey* key, const byte* md,
         /* Step 4: Move over private key value. */
         sig_fors += n;
 
-    #if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL)
+    #if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL) && \
+    !defined(WOLFSSL_SLHDSA_NO_SHAKE)
         if (!SLHDSA_IS_SHA2(key->params->param) &&
                 IS_INTEL_AVX2(cpuid_flags) &&
                 (SAVE_VECTOR_REGISTERS2() == 0)) {
@@ -6015,7 +7604,8 @@ static int slhdsakey_fors_sign(SlhDsaKey* key, const byte* md,
 }
 #endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
 
-#if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL)
+#if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL) && \
+    !defined(WOLFSSL_SLHDSA_NO_SHAKE)
 /* F hash 4 simultaneously.
  *
  * Each hash varies by the tree index with the values passed in.
@@ -6093,6 +7683,7 @@ static int slhdsakey_hash_f_ti4_x4(const byte* pk_seed, byte* addr,
  * @param [in]      so        Tree index start value.
  * @param [in]      bit       Bits to indicate which order of node/sig_fors.
  * @param [in]      n         Number of bytes in hash output.
+ * @param [in]      th       Tree height.
  * @param [in]      ti        Tree index start value.
  * @param [in]      heap      Dynamic memory allocation hint.
  * @return  0 on success.
@@ -6155,6 +7746,209 @@ static int slhdsakey_hash_h_2_x4(const byte* pk_seed, byte* addr, byte* node,
 
     return ret;
 }
+
+#ifdef WOLFSSL_SLHDSA_HAVE_INTEL_AVX512
+/* Set eight tree indices, one per lane.
+ *
+ * @param [in, out] state    Interleaved SHAKE-256 x8 state.
+ * @param [in]      o        Offset of state after HashAddress.
+ * @param [in]      ti       Tree index start value.
+ */
+static void slhdsakey_shake256_set_ti_idx_x8(word64* state, word32 o,
+    const word32* ti)
+{
+    int l;
+
+    for (l = 0; l < SLHDSA_X8; l++) {
+        c32toa(ti[l], (byte*)&((word32*)(state + o - SLHDSA_X8 + l))[1]);
+    }
+}
+
+/* Set the tree height, the same in every lane.
+ *
+ * @param [in, out] state    Interleaved SHAKE-256 x8 state.
+ * @param [in]      o        Offset of state after HashAddress.
+ * @param [in]      th       Tree height.
+ */
+static void slhdsakey_shake256_set_th_x8(word64* state, word32 o, word32 th)
+{
+    int l;
+
+    for (l = 0; l < SLHDSA_X8; l++) {
+        c32toa(th, (byte*)&((word32*)(state + o - SLHDSA_X8 + l))[0]);
+    }
+}
+
+/* F hash eight FORS leaves whose tree indices are unrelated.
+ *
+ * @param [in]      pk_seed  Public key seed.
+ * @param [in, out] addr     HashAddress buffer.
+ * @param [in]      sig_fors FORS signature.
+ * @param [in]      so       Tree index start value.
+ * @param [in]      n        Number of bytes in hash output.
+ * @param [in]      ti       Tree index start value.
+ * @param [out]     node     n-byte node value of each lane.
+ * @param [in]      heap     Dynamic memory allocation hint.
+ * @return  0 on success.
+ * @return  SHAKE-256 error return code on digest failure.
+ * @return  MEMORY_E on dynamic memory allocation failure.
+ */
+static int slhdsakey_hash_f_ti8_x8(const byte* pk_seed, byte* addr,
+    const byte* sig_fors, byte so, byte n, const word32* ti, byte* node,
+    void* heap)
+{
+    int ret = 0;
+    word32 o;
+    WC_DECLARE_VAR(state, word64, SLHDSA_SHAKE_X8_STATE_W, heap);
+
+    (void)heap;
+
+    WC_ALLOC_VAR_EX(state, word64, SLHDSA_SHAKE_X8_STATE_W, heap,
+        DYNAMIC_TYPE_SLHDSA, ret = MEMORY_E);
+    if (ret == 0) {
+        o = slhdsakey_shake256_set_seed_ha_x8(state, pk_seed, addr, n);
+        /* One signature per lane, so many hashes apart. */
+        slhdsakey_shake256_set_hash_x8(state, o, sig_fors, n,
+            (int)so * (int)n);
+        slhdsakey_shake256_set_end_x8(state, o + (word32)(n / 8) * SLHDSA_X8);
+        slhdsakey_shake256_set_ti_idx_x8(state, o, ti);
+        ret = SAVE_VECTOR_REGISTERS2();
+        if (ret == 0) {
+            sha3_blocksx8_avx512(state);
+            RESTORE_VECTOR_REGISTERS();
+            slhdsakey_shake256_get_hash_x8(state, node, n);
+        }
+
+        ForceZero(state, sizeof(word64) * SLHDSA_SHAKE_X8_STATE_W);
+        WC_FREE_VAR_EX(state, heap, DYNAMIC_TYPE_SLHDSA);
+    }
+
+    return ret;
+}
+
+/* H hash eight node/authentication-path pairs at once.
+ *
+ * Which of the pair comes first depends on the lane's index bit.
+ *
+ * @param [in]      pk_seed  Public key seed.
+ * @param [in, out] addr     HashAddress buffer.
+ * @param [out]     node     n-byte node value of each lane.
+ * @param [in]      sig_fors FORS signature.
+ * @param [in]      so       Tree index start value.
+ * @param [in]      bit      Bits to indicate which order of node/sig_fors.
+ * @param [in]      n        Number of bytes in hash output.
+ * @param [in]      th       Tree height.
+ * @param [in]      ti       Tree index start value.
+ * @param [in]      heap     Dynamic memory allocation hint.
+ * @return  0 on success.
+ * @return  SHAKE-256 error return code on digest failure.
+ * @return  MEMORY_E on dynamic memory allocation failure.
+ */
+static int slhdsakey_hash_h_2_x8(const byte* pk_seed, byte* addr, byte* node,
+    const byte* sig_fors, byte so, const word32* bit, byte n, word32 th,
+    const word32* ti, void* heap)
+{
+    int ret = 0;
+    word32 o;
+    int i;
+    int j;
+    WC_DECLARE_VAR(state, word64, SLHDSA_SHAKE_X8_STATE_W, heap);
+
+    (void)heap;
+
+    WC_ALLOC_VAR_EX(state, word64, SLHDSA_SHAKE_X8_STATE_W, heap,
+        DYNAMIC_TYPE_SLHDSA, ret = MEMORY_E);
+    if (ret == 0) {
+        o = slhdsakey_shake256_set_seed_ha_x8(state, pk_seed, addr, n);
+        slhdsakey_shake256_set_th_x8(state, o, th);
+        slhdsakey_shake256_set_ti_idx_x8(state, o, ti);
+        for (i = 0; i < n / 8; i++) {
+            for (j = 0; j < SLHDSA_X8; j++) {
+                state[o + j] = (bit[j] == 0) ?
+                    readUnalignedWord64(node + j * n + i * 8) :
+                    readUnalignedWord64(sig_fors + j * (word32)so * n + i * 8);
+            }
+            o += SLHDSA_X8;
+        }
+        for (i = 0; i < n / 8; i++) {
+            for (j = 0; j < SLHDSA_X8; j++) {
+                state[o + j] = (bit[j] == 0) ?
+                    readUnalignedWord64(sig_fors + j * (word32)so * n + i * 8) :
+                    readUnalignedWord64(node + j * n + i * 8);
+            }
+            o += SLHDSA_X8;
+        }
+        slhdsakey_shake256_set_end_x8(state, o);
+        ret = SAVE_VECTOR_REGISTERS2();
+        if (ret == 0) {
+            sha3_blocksx8_avx512(state);
+            RESTORE_VECTOR_REGISTERS();
+            slhdsakey_shake256_get_hash_x8(state, node, n);
+        }
+
+        ForceZero(state, sizeof(word64) * SLHDSA_SHAKE_X8_STATE_W);
+        WC_FREE_VAR_EX(state, heap, DYNAMIC_TYPE_SLHDSA);
+    }
+
+    return ret;
+}
+
+/* Compute eight FORS public key roots from eight FORS signatures.
+ *
+ * @param [in]      key      SLH-DSA key.
+ * @param [in]      sig_fors FORS signature.
+ * @param [in]      pk_seed  Public key seed.
+ * @param [in, out] addr     HashAddress buffer.
+ * @param [in]      indices  FORS message indices.
+ * @param [in]      i        First index of the batch.
+ * @param [out]     node     n-byte node value of each lane.
+ * @return  0 on success.
+ * @return  SHAKE-256 error return code on digest failure.
+ * @return  MEMORY_E on dynamic memory allocation failure.
+ */
+static int slhdsakey_fors_pk_from_sig_i_x8(SlhDsaKey* key,
+    const byte* sig_fors, const byte* pk_seed, byte* addr,
+    const word16* indices, int i, byte* node)
+{
+    int ret;
+    int j;
+    int l;
+    byte n = key->params->n;
+    byte a = key->params->a;
+    word32 ti[SLHDSA_X8];
+    word32 bit[SLHDSA_X8];
+
+    /* Step 5: Calculate the index of each hash. */
+    for (l = 0; l < SLHDSA_X8; l++) {
+        ti[l] = ((word32)(i + l) << a) + indices[i + l];
+    }
+    /* Steps 4-6: Compute nodes. */
+    ret = slhdsakey_hash_f_ti8_x8(pk_seed, addr, sig_fors, (byte)(1 + a), n,
+        ti, node, key->heap);
+    if (ret == 0) {
+        /* Step 7: Move on to authentication nodes. */
+        sig_fors += n;
+        /* Step 8: For each level: */
+        for (j = 0; j < a; j++) {
+            /* Which order of node and sig_fors for each hash. */
+            for (l = 0; l < SLHDSA_X8; l++) {
+                bit[l] = ti[l] & 1;
+                ti[l] /= 2;
+            }
+            /* Steps 9-17: eight hashes with tree indices. */
+            ret = slhdsakey_hash_h_2_x8(pk_seed, addr, node, sig_fors,
+                (byte)(1 + a), bit, n, (word32)(j + 1), ti, key->heap);
+            if (ret != 0) {
+                break;
+            }
+            /* Move on to the next authentication node. */
+            sig_fors += n;
+        }
+    }
+
+    return ret;
+}
+#endif /* WOLFSSL_SLHDSA_HAVE_INTEL_AVX512 */
 
 /* Compute ith FORS public key from ith FORS signature.
  *
@@ -6296,8 +8090,23 @@ static int slhdsakey_fors_pk_from_sig_x4(SlhDsaKey* key, const byte* sig_fors,
         /* Encode address for multiple hashing. */
         HA_Encode(adrs, addr);
 
+        i = 0;
+#ifdef WOLFSSL_SLHDSA_HAVE_INTEL_AVX512
+        /* Step 2: Do multiples of 8 while the whole state fits in
+         * registers. */
+        if (IS_INTEL_AVX512(cpuid_flags)) {
+            for (i = 0; i < k-7; i += 8) {
+                ret = slhdsakey_fors_pk_from_sig_i_x8(key, sig_fors, pk_seed,
+                    addr, indices, i, node + i * n);
+                if (ret != 0) {
+                    break;
+                }
+                sig_fors += 8 * (1 + a) * n;
+            }
+        }
+#endif
         /* Step 2: Do multiple of 4 iterations. */
-        for (i = 0; i < k-3; i += 4) {
+        for (; (ret == 0) && (i < k-3); i += 4) {
             /* Steps 4-19: Compute public key root for signature at index. */
             ret = slhdsakey_fors_pk_from_sig_i_x4(key, sig_fors, pk_seed, addr,
                 indices, i, node + i * n);
@@ -6647,7 +8456,8 @@ static int slhdsakey_fors_pk_from_sig(SlhDsaKey* key, const byte* sig_fors,
     }
 
     /* Steps 2-20: Compute roots and add to hash. */
-#if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL)
+#if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL) && \
+    !defined(WOLFSSL_SLHDSA_NO_SHAKE)
     if ((ret == 0) && !SLHDSA_IS_SHA2(key->params->param) &&
             IS_INTEL_AVX2(cpuid_flags) &&
             (SAVE_VECTOR_REGISTERS2() == 0)) {
@@ -6758,10 +8568,8 @@ int wc_SlhDsaKey_Init(SlhDsaKey* key, enum SlhDsaParam param, void* heap,
     }
     (void)devId;
 
-#if defined(USE_INTEL_SPEEDUP)
     /* Ensure the CPU features are known. */
-    cpuid_get_flags_ex(&cpuid_flags);
-#endif
+    wc_slhdsa_init();
 
     return ret;
 }

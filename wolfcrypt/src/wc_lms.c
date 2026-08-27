@@ -645,6 +645,9 @@ int wc_LmsKey_Init(LmsKey* key, void* heap, int devId)
     #endif
         /* Start in initialized state. */
         key->state = WC_LMS_STATE_INITED;
+
+        /* Ensure the CPU features are known. */
+        wc_lms_init();
     }
 
     return ret;
