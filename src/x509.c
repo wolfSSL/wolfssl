@@ -8552,6 +8552,8 @@ WOLFSSL_X509_LOOKUP_METHOD* wolfSSL_X509_LOOKUP_file(void)
 /* @param argl   file type, either WOLFSSL_FILETYPE_PEM or                  */
 /*                                          WOLFSSL_FILETYPE_ASN1           */
 /* @return WOLFSSL_SUCCESS on successful, otherwise negative or zero        */
+/* Note: on failure, path elements parsed before the failing one have       */
+/*       already been added to ctx->dir_entry                               */
 static int x509AddCertDir(WOLFSSL_BY_DIR *ctx, const char *argc, long argl)
 {
 #if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
@@ -8625,7 +8627,7 @@ static int x509AddCertDir(WOLFSSL_BY_DIR *ctx, const char *argc, long argl)
                     return 0;
                 }
 
-                XSTRNCPY(entry->dir_name, buf, pathLen);
+                XMEMCPY(entry->dir_name, buf, pathLen);
                 entry->dir_name[pathLen] = '\0';
 
                 if (wolfSSL_sk_BY_DIR_entry_push(ctx->dir_entry, entry) <= 0) {
@@ -8641,8 +8643,8 @@ static int x509AddCertDir(WOLFSSL_BY_DIR *ctx, const char *argc, long argl)
             XMEMSET(buf, 0, MAX_FILENAME_SZ);
         }
         if (pathLen >= MAX_FILENAME_SZ) {
-            WOLFSSL_MSG("Could not write full dir name not enough space");
-                WC_FREE_VAR_EX(buf, 0, DYNAMIC_TYPE_OPENSSL);
+            WOLFSSL_MSG("dir name too long for internal buffer");
+            WC_FREE_VAR_EX(buf, 0, DYNAMIC_TYPE_OPENSSL);
             return 0;
         }
         buf[pathLen++] = *c;
@@ -8672,6 +8674,8 @@ static int x509AddCertDir(WOLFSSL_BY_DIR *ctx, const char *argc, long argl)
 /* note: WOLFSSL_X509_L_ADD_STORE and WOLFSSL_X509_L_LOAD_STORE have not*/
 /*       yet implemented. It returns WOLFSSL_NOT_IMPLEMENTED            */
 /*       when those control commands are passed.                        */
+/* Note: on failure, path elements parsed before the failing one have   */
+/*       already been added to ctx->dir_entry                           */
 int wolfSSL_X509_LOOKUP_ctrl(WOLFSSL_X509_LOOKUP *ctx, int cmd,
         const char *argc, long argl, char **ret)
 {

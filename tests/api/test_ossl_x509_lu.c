@@ -303,50 +303,100 @@ int test_wolfSSL_X509_LOOKUP_ctrl_dir_len(void)
     X509_STORE* str = NULL;
     X509_LOOKUP* lookup = NULL;
     char* longPath = NULL;
-    char maxPath[MAX_FILENAME_SZ + 1];
+    const int longPathCap = MAX_FILENAME_SZ + 4;
 
-    /* one element that does not fit in the buffer - must fail */
-    ExpectNotNull(longPath = (char*)XMALLOC(MAX_FILENAME_SZ + 4, NULL,
-        DYNAMIC_TYPE_TMP_BUFFER));
-    if (longPath != NULL) {
-        XMEMSET(longPath, 'a', MAX_FILENAME_SZ + 3);
-        longPath[MAX_FILENAME_SZ + 3] = '\0';
+    ExpectNotNull((longPath = (char*)XMALLOC(longPathCap, HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER)));
+
+    /* One Path One Over Max Size */
+    if (EXPECT_SUCCESS()) {
+        XMEMSET(longPath, 'a', MAX_FILENAME_SZ + 1);
+        XMEMSET(longPath + MAX_FILENAME_SZ + 1, '\0',
+                longPathCap - MAX_FILENAME_SZ - 1);
     }
 
-    ExpectNotNull((str = wolfSSL_X509_STORE_new()));
-    ExpectNotNull(lookup = X509_STORE_add_lookup(str, X509_LOOKUP_file()));
-    ExpectIntEQ(X509_LOOKUP_ctrl(lookup, X509_L_ADD_DIR, longPath,
-        SSL_FILETYPE_PEM, NULL), 0);
+    ExpectNotNull((str = X509_STORE_new()));
+    ExpectNotNull((lookup = X509_STORE_add_lookup(str,
+                    X509_LOOKUP_file())));
+
+    ExpectIntEQ(X509_LOOKUP_ctrl(lookup, X509_L_ADD_DIR,
+                longPath, SSL_FILETYPE_PEM, NULL), 0);
 
     X509_STORE_free(str);
     str = NULL;
 
-    /* oversized element preceded by a valid one - still fails */
-    ExpectNotNull((str = wolfSSL_X509_STORE_new()));
-    ExpectNotNull(lookup = X509_STORE_add_lookup(str, X509_LOOKUP_file()));
-    if (longPath != NULL) {
-        longPath[0] = '.';
-        longPath[1] = SEPARATOR_CHAR;
+    ExpectNotNull((str = X509_STORE_new()));
+    ExpectNotNull((lookup = X509_STORE_add_lookup(str,
+                    X509_LOOKUP_file())));
+
+    /* One Path Max Size */
+    if (EXPECT_SUCCESS()) {
+        XMEMSET(longPath, 'a', MAX_FILENAME_SZ);
+        XMEMSET(longPath + MAX_FILENAME_SZ, '\0',
+                longPathCap - MAX_FILENAME_SZ);
     }
-    ExpectIntEQ(X509_LOOKUP_ctrl(lookup, X509_L_ADD_DIR, longPath,
-        SSL_FILETYPE_PEM, NULL), 0);
+
+    ExpectIntEQ(X509_LOOKUP_ctrl(lookup, X509_L_ADD_DIR,
+                longPath, SSL_FILETYPE_PEM, NULL), WOLFSSL_SUCCESS);
 
     X509_STORE_free(str);
     str = NULL;
 
-    XFREE(longPath, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    longPath = NULL;
+    ExpectNotNull((str = X509_STORE_new()));
+    ExpectNotNull((lookup = X509_STORE_add_lookup(str,
+                    X509_LOOKUP_file())));
 
-    /* an element that exactly fills the buffer is still accepted */
-    XMEMSET(maxPath, 'a', MAX_FILENAME_SZ);
-    maxPath[MAX_FILENAME_SZ] = '\0';
+    /* Second path one too long */
+    if (EXPECT_SUCCESS()) {
+        XMEMSET(longPath, 'a', longPathCap);
+        XMEMSET(longPath, 'b', 2);
+        longPath[2] = SEPARATOR_CHAR;
+    }
 
-    ExpectNotNull((str = wolfSSL_X509_STORE_new()));
-    ExpectNotNull(lookup = X509_STORE_add_lookup(str, X509_LOOKUP_file()));
-    ExpectIntEQ(X509_LOOKUP_ctrl(lookup, X509_L_ADD_DIR, maxPath,
-        SSL_FILETYPE_PEM, NULL), 1);
+    ExpectIntEQ(X509_LOOKUP_ctrl(lookup, X509_L_ADD_DIR,
+                longPath, SSL_FILETYPE_PEM, NULL), 0);
 
     X509_STORE_free(str);
+    str = NULL;
+
+    ExpectNotNull((str = X509_STORE_new()));
+    ExpectNotNull((lookup = X509_STORE_add_lookup(str,
+                    X509_LOOKUP_file())));
+
+    /* Two Paths Correct Size */
+    if (EXPECT_SUCCESS()) {
+        XMEMSET(longPath, 'a', longPathCap);
+        XMEMSET(longPath, 'b', 2);
+        longPath[2] = SEPARATOR_CHAR;
+        longPath[longPathCap - 1] = '\0';
+    }
+
+    ExpectIntEQ(X509_LOOKUP_ctrl(lookup, X509_L_ADD_DIR,
+                longPath, SSL_FILETYPE_PEM, NULL), WOLFSSL_SUCCESS);
+
+    X509_STORE_free(str);
+    str = NULL;
+
+    ExpectNotNull((str = X509_STORE_new()));
+    ExpectNotNull((lookup = X509_STORE_add_lookup(str,
+                    X509_LOOKUP_file())));
+
+    /* path max size terminated by separator char */
+    if (EXPECT_SUCCESS()) {
+        XMEMSET(longPath, 'a', longPathCap);
+        longPath[MAX_FILENAME_SZ] = SEPARATOR_CHAR;
+        longPath[MAX_FILENAME_SZ + 1] = '\0';
+    }
+
+    ExpectIntEQ(X509_LOOKUP_ctrl(lookup, X509_L_ADD_DIR,
+                longPath, SSL_FILETYPE_PEM, NULL), WOLFSSL_SUCCESS);
+
+    X509_STORE_free(str);
+    str = NULL;
+
+    if (longPath != NULL) {
+        XFREE(longPath, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
 #endif
     return EXPECT_RESULT();
 }
