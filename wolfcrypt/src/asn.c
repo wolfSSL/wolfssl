@@ -15097,7 +15097,7 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
         {
             /* Decode OBJECT_ID into dotted form array. */
             ret = DecodeObjectId32((const byte*)(entry->name),
-                    (word32)entry->len, tmpName, (word32*)&tmpSize);
+                    (word32)entry->len, tmpName, &tmpSize);
 
             if (ret == 0) {
                 j = 0;

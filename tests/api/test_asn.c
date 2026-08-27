@@ -2691,13 +2691,13 @@ int test_wc_DecodeObjectId32(void)
         word32 i;
 
         /* Tests multi byte encoding for arc 1 and 2
-         * (only possible when arc 1 is 2 and arc 2 is greater than 48) */
+         * (only possible when arc 1 is 2 and arc 2 is greater than 39) */
         static const word32 oid_dot_2[] = {
             2, 100, 4, 6
         };
 
         /* Tests multi byte encoding for arc 1 and 2
-         * (only possible when arc 1 is 2 and arc 2 is greater than 48) */
+         * (only possible when arc 1 is 2 and arc 2 is greater than 39) */
         static const byte oid_start_with_2[] = {
             0x81, 0x34, 0x04, 0x06
         };
