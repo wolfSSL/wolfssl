@@ -612,50 +612,162 @@ int test_tls_get_peer_tmp_key(void)
     return EXPECT_RESULT();
 }
 
+/* The group APIs are not EC-only, so each part of the test below carries just
+ * the configuration it needs. */
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_TLS13)
+    #if defined(HAVE_ECC) && !defined(NO_ECC_SECP) && \
+        (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES))
+        #define TEST_NEGOTIATED_GROUP_P256
+    #endif
+    #if !defined(NO_DH) && defined(HAVE_FFDHE_2048)
+        #define TEST_NEGOTIATED_GROUP_FFDHE
+    #endif
+    #ifndef NO_PSK
+        #define TEST_NEGOTIATED_GROUP_PSK
+    #endif
+#endif
+
+#ifdef TEST_NEGOTIATED_GROUP_PSK
+static const byte test_tls_group_psk[] = { 0x1a, 0x2b, 0x3c, 0x4d };
+
+static unsigned int test_tls_group_psk_client_cb(WOLFSSL* ssl,
+    const char* hint, char* identity, unsigned int id_max_len,
+    unsigned char* key, unsigned int key_max_len)
+{
+    (void)ssl;
+    (void)hint;
+    if ((id_max_len == 0) || (key_max_len < sizeof(test_tls_group_psk)))
+        return 0;
+    XSTRNCPY(identity, "group_client", id_max_len);
+    XMEMCPY(key, test_tls_group_psk, sizeof(test_tls_group_psk));
+    return (unsigned int)sizeof(test_tls_group_psk);
+}
+
+static unsigned int test_tls_group_psk_server_cb(WOLFSSL* ssl, const char* id,
+    unsigned char* key, unsigned int key_max_len)
+{
+    (void)ssl;
+    if ((id == NULL) || (key_max_len < sizeof(test_tls_group_psk)))
+        return 0;
+    if (XSTRCMP(id, "group_client") != 0)
+        return 0;
+    XMEMCPY(key, test_tls_group_psk, sizeof(test_tls_group_psk));
+    return (unsigned int)sizeof(test_tls_group_psk);
+}
+#endif
+
 /* SSL_get_negotiated_group() and SSL_group_to_name() report the group that was
  * negotiated, using the names OpenSSL gives the TLS supported groups. */
 int test_tls_get_negotiated_group(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
-    defined(WOLFSSL_TLS13) && defined(HAVE_ECC) && !defined(NO_ECC_SECP) && \
-    (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES))
-    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
-    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
-    struct test_memio_ctx test_ctx;
-    int group = 0;
-    int p256[] = {WOLFSSL_ECC_SECP256R1};
+    defined(WOLFSSL_TLS13)
 
-    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
-    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
-    ExpectIntEQ(wolfSSL_set_groups(ssl_c, p256, 1), WOLFSSL_SUCCESS);
-
-    /* Nothing negotiated yet. */
     ExpectIntEQ(wolfSSL_get_negotiated_group(NULL), 0);
-    ExpectIntEQ(wolfSSL_get_negotiated_group(ssl_c), 0);
 
-    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+#ifdef TEST_NEGOTIATED_GROUP_P256
+    {
+        WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+        WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+        struct test_memio_ctx test_ctx;
+        int group = 0;
+        int p256[1];
 
-    ExpectIntNE((group = wolfSSL_get_negotiated_group(ssl_c)), 0);
-    ExpectIntEQ(group, wolfSSL_get_negotiated_group(ssl_s));
-    /* OpenSSL names this group secp256r1, not by its NIST name P-256. */
-    ExpectStrEQ(wolfSSL_group_to_name(ssl_c, group), "secp256r1");
+        p256[0] = WOLFSSL_ECC_SECP256R1;
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method),
+                    0);
+        ExpectIntEQ(wolfSSL_set_groups(ssl_c, p256, 1), WOLFSSL_SUCCESS);
 
-    /* A cleared object has negotiated nothing again. */
-    ExpectIntEQ(wolfSSL_clear(ssl_c), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_clear(ssl_s), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_get_negotiated_group(ssl_c), 0);
-    ExpectIntEQ(wolfSSL_get_negotiated_group(ssl_s), 0);
+        /* Nothing negotiated yet. */
+        ExpectIntEQ(wolfSSL_get_negotiated_group(ssl_c), 0);
 
-    wolfSSL_free(ssl_c);
-    wolfSSL_free(ssl_s);
-    wolfSSL_CTX_free(ctx_c);
-    wolfSSL_CTX_free(ctx_s);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+        ExpectIntNE((group = wolfSSL_get_negotiated_group(ssl_c)), 0);
+        ExpectIntEQ(group, wolfSSL_get_negotiated_group(ssl_s));
+        /* OpenSSL names this group secp256r1, not by its NIST name P-256. */
+        ExpectStrEQ(wolfSSL_group_to_name(ssl_c, group), "secp256r1");
+
+        /* A cleared object has negotiated nothing again. */
+        ExpectIntEQ(wolfSSL_clear(ssl_c), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_clear(ssl_s), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_get_negotiated_group(ssl_c), 0);
+        ExpectIntEQ(wolfSSL_get_negotiated_group(ssl_s), 0);
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+    }
+#endif
+
+#ifdef TEST_NEGOTIATED_GROUP_PSK
+    /* A psk_ke handshake exchanges no key share, so there is no group. */
+    {
+        WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+        WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+        struct test_memio_ctx test_ctx;
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method),
+                    0);
+        wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+        wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_NONE, NULL);
+        wolfSSL_set_psk_client_callback(ssl_c, test_tls_group_psk_client_cb);
+        wolfSSL_set_psk_server_callback(ssl_s, test_tls_group_psk_server_cb);
+        ExpectIntEQ(wolfSSL_no_dhe_psk(ssl_c), 0);
+        ExpectIntEQ(wolfSSL_no_dhe_psk(ssl_s), 0);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 20, NULL), 0);
+        ExpectIntEQ(ssl_c->options.pskNegotiated, 1);
+        ExpectIntEQ(wolfSSL_get_negotiated_group(ssl_c), 0);
+        ExpectIntEQ(wolfSSL_get_negotiated_group(ssl_s), 0);
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+    }
+#endif
+
+#ifdef TEST_NEGOTIATED_GROUP_FFDHE
+    /* A finite field group is negotiated and named the same way. This block
+     * is the only caller in an OPENSSL_EXTRA build with no EC group at all. */
+    {
+        WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+        WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+        struct test_memio_ctx test_ctx;
+        int group = 0;
+        int ffdhe[1];
+
+        ffdhe[0] = WOLFSSL_FFDHE_2048;
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method),
+                    0);
+        ExpectIntEQ(wolfSSL_set_groups(ssl_c, ffdhe, 1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        ExpectIntEQ((group = wolfSSL_get_negotiated_group(ssl_c)),
+            WC_NID_ffdhe2048);
+        ExpectIntEQ(group, wolfSSL_get_negotiated_group(ssl_s));
+        ExpectStrEQ(wolfSSL_group_to_name(ssl_c, group), "ffdhe2048");
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+    }
+#endif
 
     /* Groups can also be named directly by their IANA code point. */
+#ifdef HAVE_ECC
     ExpectStrEQ(wolfSSL_group_to_name(NULL, WOLFSSL_ECC_SECP256R1),
         "secp256r1");
+#endif
 #ifdef HAVE_CURVE25519
     ExpectStrEQ(wolfSSL_group_to_name(NULL, WOLFSSL_ECC_X25519), "x25519");
 #endif
@@ -663,13 +775,17 @@ int test_tls_get_negotiated_group(void)
     ExpectStrEQ(wolfSSL_group_to_name(NULL, WOLFSSL_FFDHE_2048), "ffdhe2048");
     /* ...or by their NID, which RFC 7919 groups have just like curves do. */
     ExpectStrEQ(wolfSSL_group_to_name(NULL, WC_NID_ffdhe2048), "ffdhe2048");
+#ifdef HAVE_ECC
     /* But they are not EC curves, so the EC lookups must not resolve them. */
     ExpectNull(wolfSSL_EC_curve_nid2nist(WC_NID_ffdhe2048));
     ExpectIntEQ(wolfSSL_EC_curve_nist2nid("ffdhe2048"), 0);
 #endif
+#endif
+#ifdef HAVE_ECC
     /* A non-curve NID must not name a curve. WOLFSSL_FFDHE_3072 (257) is
      * WC_NID_md4, which is what made this table's NID column ambiguous. */
     ExpectNull(wolfSSL_EC_curve_nid2nist(WC_NID_md4));
+#endif
 #if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM) && \
     !defined(WOLFSSL_NO_ML_KEM_768)
     /* OpenSSL spells the standalone ML-KEM groups without underscores. */
@@ -677,6 +793,7 @@ int test_tls_get_negotiated_group(void)
 #endif
     ExpectNull(wolfSSL_group_to_name(NULL, 9999));
 
+#ifdef TEST_NEGOTIATED_GROUP_P256
     /* SSL_CTX_set_tmp_ecdh() seeds ctx->ecdhCurveOID, which InitSSL() copies
      * into the SSL. That is a configured preference, not a negotiated group,
      * so it must not be reported before a handshake has run. */
@@ -698,6 +815,7 @@ int test_tls_get_negotiated_group(void)
         wolfSSL_CTX_free(ctx_e);
     }
 #endif
+#endif
     return EXPECT_RESULT();
 }
 
@@ -718,7 +836,6 @@ static void test_alert_info_cb(const WOLFSSL* ssl, int where, int ret)
 }
 #endif
 
-/* An alert has to reach the info callback whichever way it travelled. */
 int test_tls_alert_info_cb(void)
 {
     EXPECT_DECLS;

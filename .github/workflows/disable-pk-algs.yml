@@ -76,6 +76,10 @@ jobs:
            "configs": [
           {"name": "rsa-dh", "minutes": 1.2,
            "configure": ["--enable-rsa", "--enable-dh"]},
+          {"name": "rsa-dh-opensslextra", "minutes": 1.5,
+           "comment": "the group compat APIs with FFDHE as the only group",
+           "configure": ["--enable-rsa", "--enable-dh",
+             "--enable-opensslextra"]},
           {"name": "rsa-key-to-der-original-asn", "minutes": 0.3,
            "check": false,
            "configure": ["--enable-rsa", "--enable-asn=original",
