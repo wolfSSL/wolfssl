@@ -1,0 +1,17 @@
+name: PRB preflight canary
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, converted_to_draft, ready_for_review]
+    branches: [master, main]
+
+permissions: {}
+
+jobs:
+  preflight:
+    name: PRB-master-job-retry-canary/preflight
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mark PRB preflight ready
+        run: echo "PR is ready for Jenkins PRB"
