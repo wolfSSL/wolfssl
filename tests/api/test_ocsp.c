@@ -877,6 +877,9 @@ int test_ocsp_status_request_scr(void)
     char readBuf[16];
 
     XMEMSET(&cb_ctx, 0, sizeof(cb_ctx));
+    /* Zeroed here, not just in the setup helper: the Expect macros below stop
+     * running once one fails, and the cleanup at the end is unconditional. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectTrue((f = XFOPEN(responseFile, "rb")) != XBADFILE);
     if (f != XBADFILE) {
         cb_ctx.ocsp_resp_sz = (int)XFREAD(data, 1, sizeof(data), f);
