@@ -31,6 +31,9 @@ int test_wolfSSL_tls_compression_client_hello(void);
 int test_wolfSSL_tls13_compression_off(void);
 int test_wolfSSL_tls_decompression_no_writeback(void);
 int test_wolfSSL_tls_decompression_limit(void);
+int test_wolfSSL_tls_decompression_lowered_limit(void);
+int test_wolfSSL_tls_compression_output_size(void);
+int test_wolfSSL_dtls_compression_off(void);
 
 #define TEST_COMPRESS_DECLS                                                    \
     TEST_DECL_GROUP("compress", test_wc_CompressDecisionCoverage),             \
@@ -39,6 +42,10 @@ int test_wolfSSL_tls_decompression_limit(void);
     TEST_DECL_GROUP("compress", test_wolfSSL_tls_compression_client_hello),    \
     TEST_DECL_GROUP("compress", test_wolfSSL_tls13_compression_off),           \
     TEST_DECL_GROUP("compress", test_wolfSSL_tls_decompression_no_writeback),  \
-    TEST_DECL_GROUP("compress", test_wolfSSL_tls_decompression_limit)
+    TEST_DECL_GROUP("compress", test_wolfSSL_tls_decompression_limit),         \
+    TEST_DECL_GROUP("compress",                                                \
+        test_wolfSSL_tls_decompression_lowered_limit),                         \
+    TEST_DECL_GROUP("compress", test_wolfSSL_tls_compression_output_size),     \
+    TEST_DECL_GROUP("compress", test_wolfSSL_dtls_compression_off)
 
 #endif /* WOLFCRYPT_TEST_COMPRESS_H */

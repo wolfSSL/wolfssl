@@ -836,10 +836,15 @@ int IsDtlsNotSrtpMode(WOLFSSL* ssl)
      * from one past it.  Grows if a renegotiation raised the fragment size.
      * Not DYNAMIC_TYPE_IN_BUFFER: a static memory build with a fixed IO pool
      * serves that type from the same buffer as ssl->buffers.inputBuffer. */
-    static int EnsureDecompBuffer(WOLFSSL* ssl)
+    static int EnsureDecompBuffer(WOLFSSL* ssl, word32* outSz)
     {
         word32 needed = (word32)wolfSSL_GetMaxFragSize(ssl) + 1;
         byte*  tmp;
+
+        /* Report the current limit, not the allocation.  The buffer only
+         * grows, so a fragment size lowered after it was sized must not
+         * inherit the old one; GetRecordHeader() reads the live value too. */
+        *outSz = needed;
 
         if (ssl->buffers.decompBuffer.length >= needed)
             return 0;
@@ -1742,6 +1747,11 @@ static int ImportOptions(WOLFSSL* ssl, const byte* exp, word32 len, byte ver,
             ssl->version.minor == TLSv1_3_MINOR) {
         options->tls1_3 = 1;
     }
+
+    /* Record layer compression exists in neither DTLS nor TLS 1.3, so an
+     * export blob must not be able to turn it back on. */
+    if (options->dtls || options->tls1_3)
+        options->usingCompression = 0;
 
     return idx;
 }
@@ -23557,6 +23567,9 @@ int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx, int sniff)
     word32 idx     = *inOutIdx;
     int    dataSz;
     byte*  rawData = input + idx;  /* keep current  for hmac */
+#ifdef HAVE_LIBZ
+    word32 decompSz = 0;
+#endif
 #ifdef WOLFSSL_EARLY_DATA
     int    isEarlyData = ssl->options.tls1_3 &&
                          ssl->options.handShakeDone == 0 &&
@@ -23695,7 +23708,7 @@ int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx, int sniff)
              * over 'input': a fragment can decompress to far more than the
              * record it arrived in, and 'input' is only sized for that record
              * and may hold the records queued behind it. */
-            dataSz = EnsureDecompBuffer(ssl);
+            dataSz = EnsureDecompBuffer(ssl, &decompSz);
             if (dataSz != 0) {
                 WOLFSSL_ERROR_VERBOSE(dataSz);
                 return dataSz;
@@ -23703,7 +23716,7 @@ int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx, int sniff)
 
             dataSz = myDeCompress(ssl, rawData, rawSz,
                                   ssl->buffers.decompBuffer.buffer,
-                                  (int)ssl->buffers.decompBuffer.length);
+                                  (int)decompSz);
             if (dataSz < 0) {
                 if (sniff == NO_SNIFF) {
                     SendAlert(ssl, alert_fatal, decompression_failure);

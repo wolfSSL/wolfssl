@@ -553,3 +553,155 @@ int test_wolfSSL_tls_decompression_limit(void)
 #endif /* TEST_TLS_COMPRESSION */
     return EXPECT_RESULT();
 }
+
+/*
+ * The decompression buffer only grows, so the size handed to myDeCompress()
+ * has to be the fragment limit in force now rather than the allocation a
+ * larger limit left behind.  A record is decompressed at the default limit to
+ * size the buffer, the limit is then lowered the way
+ * WOLFSSL_ALLOW_MAX_FRAGMENT_ADJUST does, and a record expanding past the new
+ * limit must be rejected even though the old allocation would still hold it.
+ */
+int test_wolfSSL_tls_decompression_lowered_limit(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_TLS_COMPRESSION) && defined(HAVE_MAX_FRAGMENT)
+    test_ssl_memio_ctx testCtx;
+    WOLFSSL_ALERT_HISTORY alertHistory;
+    byte*  payload = NULL;
+    byte*  readBuf = NULL;
+    word32 payloadSz = 2048;
+    word16 loweredFrag = 1024;
+
+    test_tls_compression_setup(&testCtx);
+
+    ExpectNotNull(payload = (byte*)XMALLOC(payloadSz, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(readBuf = (byte*)XMALLOC(payloadSz, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (payload != NULL)
+        XMEMSET(payload, 'A', payloadSz);
+    if (readBuf != NULL)
+        XMEMSET(readBuf, 0, payloadSz);
+
+    ExpectIntEQ(test_ssl_memio_setup(&testCtx), TEST_SUCCESS);
+    ExpectIntEQ(test_ssl_memio_do_handshake(&testCtx, 10, NULL), TEST_SUCCESS);
+    ExpectIntEQ(testCtx.s_ssl->options.usingCompression, 1);
+
+    /* first record sizes the buffer against the default fragment limit */
+    ExpectIntEQ(wolfSSL_write(testCtx.c_ssl, payload, (int)payloadSz),
+        (int)payloadSz);
+    ExpectIntEQ(wolfSSL_read(testCtx.s_ssl, readBuf, (int)payloadSz),
+        (int)payloadSz);
+    ExpectIntEQ(XMEMCMP(readBuf, payload, payloadSz), 0);
+    ExpectIntGT(testCtx.s_ssl->buffers.decompBuffer.length, loweredFrag);
+
+    /* the receiver drops its limit below what the peer keeps sending */
+    if (EXPECT_SUCCESS()) {
+        testCtx.s_ssl->max_fragment = loweredFrag;
+        testCtx.c_len = 0;
+    }
+
+    /* same record as above, now over the limit and no longer acceptable */
+    ExpectIntEQ(wolfSSL_write(testCtx.c_ssl, payload, (int)payloadSz),
+        (int)payloadSz);
+    ExpectIntLT(wolfSSL_read(testCtx.s_ssl, readBuf, (int)payloadSz), 0);
+
+    /* and the peer is told why, per RFC 5246 7.2.2 */
+    ExpectIntGT(testCtx.c_len, 0);
+    ExpectIntEQ(wolfSSL_read(testCtx.c_ssl, readBuf, (int)payloadSz), -1);
+    ExpectIntEQ(wolfSSL_get_alert_history(testCtx.c_ssl, &alertHistory),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(alertHistory.last_rx.code, decompression_failure);
+    ExpectIntEQ(alertHistory.last_rx.level, alert_fatal);
+
+    XFREE(readBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(payload, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    test_ssl_memio_cleanup(&testCtx);
+#endif /* TEST_TLS_COMPRESSION && HAVE_MAX_FRAGMENT */
+    return EXPECT_RESULT();
+}
+
+/*
+ * wolfSSL_GetOutputSize() tells an application how many transport bytes its
+ * write will produce, so it has to carry the same allowance for deflate
+ * expanding an incompressible fragment that SendData() sizes the record with.
+ */
+int test_wolfSSL_tls_compression_output_size(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_TLS_COMPRESSION
+    test_ssl_memio_ctx testCtx;
+    byte* payload = NULL;
+    byte* readBuf = NULL;
+    int   maxOut = 0;
+    int   reported = 0;
+
+    test_tls_compression_setup(&testCtx);
+
+    ExpectNotNull(payload = (byte*)XMALLOC(TEST_TLS_COMP_PAYLOAD_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(readBuf = (byte*)XMALLOC(TEST_TLS_COMP_PAYLOAD_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (readBuf != NULL)
+        XMEMSET(readBuf, 0, TEST_TLS_COMP_PAYLOAD_SZ);
+
+    ExpectIntEQ(test_ssl_memio_setup(&testCtx), TEST_SUCCESS);
+    ExpectIntEQ(test_ssl_memio_do_handshake(&testCtx, 10, NULL), TEST_SUCCESS);
+    ExpectIntEQ(testCtx.c_ssl->options.usingCompression, 1);
+
+    ExpectIntGT(maxOut = wolfSSL_GetMaxOutputSize(testCtx.c_ssl), 0);
+    ExpectIntLE(maxOut, TEST_TLS_COMP_PAYLOAD_SZ);
+    ExpectIntGT(reported = wolfSSL_GetOutputSize(testCtx.c_ssl, maxOut), 0);
+
+    /* a full fragment deflate cannot shrink, so the record on the wire ends
+     * up carrying more bytes than the plaintext it was built from */
+    if (EXPECT_SUCCESS()) {
+        test_tls_compression_fill_random(payload, (word32)maxOut);
+        testCtx.s_len = 0;
+    }
+    ExpectIntEQ(wolfSSL_write(testCtx.c_ssl, payload, maxOut), maxOut);
+
+    /* sizing from the plaintext length alone, which is all this reported
+     * before the allowance, would have come up short */
+    ExpectIntGT(testCtx.s_len, reported - MAX_COMP_EXTRA);
+    ExpectIntLE(testCtx.s_len, reported);
+
+    ExpectIntEQ(wolfSSL_read(testCtx.s_ssl, readBuf, maxOut), maxOut);
+    ExpectIntEQ(XMEMCMP(readBuf, payload, (word32)maxOut), 0);
+
+    XFREE(readBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(payload, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    test_ssl_memio_cleanup(&testCtx);
+#endif /* TEST_TLS_COMPRESSION */
+    return EXPECT_RESULT();
+}
+
+/*
+ * Compression cannot work over DTLS: zlib keeps one deflate stream running
+ * across records, so a datagram that is lost, duplicated or reordered leaves
+ * the peer's inflate state desynced for the rest of the connection.  The
+ * transport is known when the WOLFSSL object is created, so the request is
+ * reported rather than silently dropped the way a TLS 1.3 one is.
+ */
+int test_wolfSSL_dtls_compression_off(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_LIBZ) && defined(WOLFSSL_DTLS) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL*     ssl = NULL;
+
+    ExpectIntEQ(wolfSSL_set_compression(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_set_compression(ssl), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(ssl->options.usingCompression, 0);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif /* HAVE_LIBZ && WOLFSSL_DTLS && !WOLFSSL_NO_TLS12 &&
+        * !NO_WOLFSSL_CLIENT */
+    return EXPECT_RESULT();
+}

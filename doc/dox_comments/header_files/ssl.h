@@ -7238,9 +7238,16 @@ int wolfSSL_negotiate(WOLFSSL* ssl);
     return value to learn whether compression is actually in use. For the same
     reason a ClientHello that offers TLS 1.3 never advertises zlib.
 
+    Compression is not available over DTLS at all. zlib keeps one deflate
+    stream running across records, so a datagram that is lost, duplicated or
+    reordered would desync the peer for the rest of the connection. Since the
+    transport is known when the WOLFSSL object is created, this is reported
+    rather than dropped.
+
     \return SSL_SUCCESS upon success.
     \return NOT_COMPILED_IN will be returned if compression support wasn’t
     built into the library.
+    \return BAD_FUNC_ARG will be returned if ssl is NULL or is a DTLS session.
 
     \param ssl pointer to the SSL session, created with wolfSSL_new().
 
