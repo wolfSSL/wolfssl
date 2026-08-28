@@ -1898,11 +1898,13 @@ static int do_dual_alg_tls13_repeat_certverify(byte *caCert, word32 caCertSz,
     WOLFSSL *ssl_c = NULL;
     WOLFSSL *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
+#ifdef SESSION_CERTS
     WOLFSSL_X509_CHAIN* chain = NULL;
+    int baseCount = 0;
+#endif
     byte cks[1];
     byte readData[16];
     const char hiWorld[] = "hi world";
-    int baseCount = 0;
     int i;
 
     cks[0] = WOLFSSL_CKS_SIGSPEC_ALTERNATIVE;
@@ -1931,12 +1933,16 @@ static int do_dual_alg_tls13_repeat_certverify(byte *caCert, word32 caCertSz,
 
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
+/* The chain APIs are only built with SESSION_CERTS. They corroborate the
+ * exchange below, which stands on its own, so only they are left out. */
+#ifdef SESSION_CERTS
     /* the handshake may already have asked for a client certificate, so count
      * from what is there rather than from zero */
     ExpectNotNull(chain = wolfSSL_get_peer_chain(ssl_s));
     if (chain != NULL) {
         baseCount = wolfSSL_get_chain_count(chain);
     }
+#endif
 
     /* every request makes the client sign another CertificateVerify */
     for (i = 0; i < 2; i++) {
@@ -1949,9 +1955,11 @@ static int do_dual_alg_tls13_repeat_certverify(byte *caCert, word32 caCertSz,
             sizeof(hiWorld));
         ExpectIntEQ(wolfSSL_read(ssl_s, readData, sizeof(readData)),
             sizeof(hiWorld));
+#ifdef SESSION_CERTS
         /* one more certificate presented for each round */
         ExpectNotNull(chain = wolfSSL_get_peer_chain(ssl_s));
         ExpectIntEQ(wolfSSL_get_chain_count(chain), baseCount + i + 1);
+#endif
     }
 
     wolfSSL_free(ssl_c);
