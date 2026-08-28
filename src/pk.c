@@ -6838,7 +6838,7 @@ static void pem_find_pattern(char* pem, int pemLen, int idx, const char* prefix,
 
     *start = *len = 0;
     /* Find prefix part. */
-    for (; idx < pemLen - prefixLen; idx++) {
+    for (; idx <= pemLen - prefixLen; idx++) {
         if ((pem[idx] == prefix[0]) &&
                 (XMEMCMP(pem + idx, prefix, (size_t)prefixLen) == 0)) {
             idx += prefixLen;
@@ -6847,7 +6847,7 @@ static void pem_find_pattern(char* pem, int pemLen, int idx, const char* prefix,
         }
     }
     /* Find postfix part. */
-    for (; idx < pemLen - postfixLen; idx++) {
+    for (; idx <= pemLen - postfixLen; idx++) {
         if ((pem[idx] == postfix[0]) &&
                 (XMEMCMP(pem + idx, postfix, (size_t)postfixLen) == 0)) {
             *len = idx - *start;
@@ -6900,9 +6900,21 @@ static int pem_read_data(char* pem, int pemLen, char **name, char **header,
         }
     }
     if (ret == 0) {
-        /* Find encryption headers after header. */
+        /* Find footer. */
         start += nameLen + PEM_HDR_FIN_SZ;
-        pem_find_pattern(pem, pemLen, start, "\n", "\n\n", &startHdr, &hdrLen);
+        pem_find_pattern(pem, pemLen, start, PEM_END, PEM_HDR_FIN, &startEnd,
+            &endLen);
+        /* Validate header name and footer name are the same. */
+        if ((endLen != nameLen) ||
+                 (XMEMCMP(*name, pem + startEnd, (size_t)nameLen) != 0)) {
+            ret = ASN_NO_PEM_HEADER;
+        }
+    }
+    if (ret == 0) {
+        /* Find encryption headers - bounded by the footer so that a blank line
+         * after it isn't matched. */
+        pem_find_pattern(pem, startEnd - PEM_END_SZ, start, "\n", "\n\n",
+            &startHdr, &hdrLen);
         if (hdrLen > 0) {
             /* Include first of two '\n' characters. */
             hdrLen++;
@@ -6920,15 +6932,6 @@ static int pem_read_data(char* pem, int pemLen, char **name, char **header,
         if (hdrLen > 0) {
             XMEMCPY(*header, pem + startHdr, (size_t)hdrLen);
             start = startHdr + hdrLen + 1;
-        }
-
-        /* Find footer. */
-        pem_find_pattern(pem, pemLen, start, PEM_END, PEM_HDR_FIN, &startEnd,
-            &endLen);
-        /* Validate header name and footer name are the same. */
-        if ((endLen != nameLen) ||
-                 (XMEMCMP(*name, pem + startEnd, (size_t)nameLen) != 0)) {
-            ret = ASN_NO_PEM_HEADER;
         }
     }
     if (ret == 0) {
