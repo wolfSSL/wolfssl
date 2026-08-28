@@ -4523,6 +4523,133 @@ static int test_wolfSSL_add_to_chain_overflow(void)
     return EXPECT_RESULT();
 }
 
+/* A certificate handed to a CTX chain API is for presentation only. It must
+ * not become a trust anchor that peers can be verified against. */
+static int test_wolfSSL_CTX_chain_cert_not_trust_anchor(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_RSA) && !defined(NO_TLS) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    WOLFSSL_X509* x509 = NULL;
+    /* Issued by ca-int2, which the context only ever presents. */
+    const char* peer = "./certs/intermediate/client-int-cert.pem";
+    const char* chainCert = "./certs/intermediate/ca-int2-cert.pem";
+    int added = 0;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+    /* Set the leaf first, otherwise the first chain add becomes the leaf. */
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx,
+        "./certs/intermediate/server-int-cert.pem", WOLFSSL_FILETYPE_PEM), 1);
+    /* The only CA peers are meant to be verified against. */
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx, "./certs/client-ca.pem",
+        NULL), 1);
+    ExpectNotNull(cm = wolfSSL_CTX_GetCertManager(ctx));
+    ExpectIntNE(wolfSSL_CertManagerVerify(cm, peer, WOLFSSL_FILETYPE_PEM), 1);
+
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(chainCert,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectIntEQ(added = (int)wolfSSL_CTX_add_extra_chain_cert(ctx, x509), 1);
+    /* Ownership of the X509 moves to the context on success. */
+    if (added == 1) {
+        x509 = NULL;
+    }
+    wolfSSL_X509_free(x509);
+    x509 = NULL;
+    ExpectIntNE(wolfSSL_CertManagerVerify(cm, peer, WOLFSSL_FILETYPE_PEM), 1);
+
+    /* add1 takes a reference of its own, the caller keeps one. */
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(chainCert,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectIntEQ(wolfSSL_CTX_add1_chain_cert(ctx, x509), 1);
+    wolfSSL_X509_free(x509);
+    x509 = NULL;
+    ExpectIntNE(wolfSSL_CertManagerVerify(cm, peer, WOLFSSL_FILETYPE_PEM), 1);
+
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_RSA) && !defined(NO_TLS) && \
+    defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
+/* Give the server the two intermediates it needs to present. */
+static int test_chain_cert_trust_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+    WOLFSSL_X509* x509 = NULL;
+    const char* chainCerts[] = {
+        "./certs/intermediate/ca-int2-cert.pem",
+        "./certs/intermediate/ca-int-cert.pem",
+        NULL
+    };
+    const char** cert;
+    int added;
+
+    for (cert = chainCerts; EXPECT_SUCCESS() && *cert != NULL; cert++) {
+        added = 0;
+        ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(*cert,
+            WOLFSSL_FILETYPE_PEM));
+        ExpectIntEQ(added = (int)wolfSSL_CTX_add_extra_chain_cert(ctx, x509),
+            1);
+        if (added == 1) {
+            x509 = NULL;
+        }
+        wolfSSL_X509_free(x509);
+        x509 = NULL;
+    }
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/* The chain a server presents must not widen the set of client certificates
+ * it accepts. */
+static int test_wolfSSL_CTX_chain_cert_not_trust_anchor_handshake(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_RSA) && !defined(NO_TLS) && \
+    defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
+    test_ssl_memio_ctx test_ctx;
+
+    /* A client holding a certificate from the operator's client CA still
+     * connects, so the presented chain keeps doing its job. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.s_cb.method = wolfTLSv1_2_server_method;
+    test_ctx.c_cb.method = wolfTLSv1_2_client_method;
+    test_ctx.s_cb.certPemFile = "./certs/intermediate/server-int-cert.pem";
+    test_ctx.s_cb.keyPemFile = "./certs/server-key.pem";
+    test_ctx.s_cb.caPemFile = "./certs/client-ca.pem";
+    test_ctx.s_cb.ctx_ready = test_chain_cert_trust_ctx_ready;
+    test_ctx.c_cb.caPemFile = "./certs/ca-cert.pem";
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+    ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL),
+        TEST_SUCCESS);
+    test_ssl_memio_cleanup(&test_ctx);
+
+    /* A client whose certificate chains only to an intermediate the server
+     * presents must be turned away. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.s_cb.method = wolfTLSv1_2_server_method;
+    test_ctx.c_cb.method = wolfTLSv1_2_client_method;
+    test_ctx.s_cb.certPemFile = "./certs/intermediate/server-int-cert.pem";
+    test_ctx.s_cb.keyPemFile = "./certs/server-key.pem";
+    test_ctx.s_cb.caPemFile = "./certs/client-ca.pem";
+    test_ctx.s_cb.ctx_ready = test_chain_cert_trust_ctx_ready;
+    test_ctx.c_cb.caPemFile = "./certs/ca-cert.pem";
+    test_ctx.c_cb.certPemFile = "./certs/intermediate/client-int-cert.pem";
+    test_ctx.c_cb.keyPemFile = "./certs/client-key.pem";
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+    ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL),
+        TEST_SUCCESS);
+    test_ssl_memio_cleanup(&test_ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_CTX_use_certificate_chain_buffer_format(void)
 {
     EXPECT_DECLS;
@@ -40483,6 +40610,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_clear_chain_certs),
     TEST_DECL(test_wolfSSL_clear_chain_certs_handshake),
     TEST_DECL(test_wolfSSL_add_to_chain_overflow),
+    TEST_DECL(test_wolfSSL_CTX_chain_cert_not_trust_anchor),
+    TEST_DECL(test_wolfSSL_CTX_chain_cert_not_trust_anchor_handshake),
     TEST_DECL(test_wolfSSL_CTX_use_certificate_chain_buffer_format),
     TEST_DECL(test_wolfSSL_CTX_use_certificate_chain_buffer_max_depth),
     TEST_DECL(test_wolfSSL_get_chain_idx_bounds),
