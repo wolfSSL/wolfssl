@@ -201,13 +201,20 @@
   decrypt output buffer; that overread is confirmed by AddressSanitizer and is
   fixed here.
 
-* **Fix (`snifftest` could not report a failed capture)**: the read loop
-  assigned `hadBadPacket` on every packet instead of accumulating it, so an
-  early error was erased by any later packet that decoded cleanly and the
-  process still exited 0.  A new `-expectdata` option additionally exits
-  non-zero when no application data could be decrypted at all; it is off by
-  default so that a handshake-only capture still exits 0.  The example
-  `WOLFSSL_SNIFFER_STORE_DATA_CB` callback also sized its buffer from the first
+* **Fix (`snifftest` could not report a failed capture, and decrypted nothing
+  when threaded)**: the read loop assigned `hadBadPacket` on every packet
+  instead of accumulating it, so an early error was erased by any later packet
+  that decoded cleanly and the process still exited 0.  A new `-expectdata`
+  option additionally exits non-zero when no application data could be
+  decrypted at all; it is off by default so that a handshake-only capture still
+  exits 0.  Under `THREADED_SNIFFTEST` the worker checked its shutdown flag
+  before draining its packet queue, and reading a capture file normally sets
+  that flag before the worker is first scheduled, so it returned without
+  decoding anything; it now drains whatever is still queued.  The workers also
+  never repeated the keylog setup `main()` does for itself, which the thread
+  local server and secret tables require, so every packet was reported as
+  coming from an unregistered server.  Finally the example
+  `WOLFSSL_SNIFFER_STORE_DATA_CB` callback sized its buffer from the first
   record of a packet and reused it for every later one, even though the offset
   it is handed restarts at zero for each record, so a larger second record
   wrote past the end; it now grows the buffer per record and appends.

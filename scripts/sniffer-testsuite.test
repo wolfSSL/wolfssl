@@ -135,7 +135,8 @@ then
 
     # use grep to only compare against decrypted output
     SEARCH_STRING="SSL App Data"
-    grep "$SEARCH_STRING" $TMPFILE | diff - <(grep "$SEARCH_STRING" scripts/sniffer-tls12-etm.out)
+    grep "$SEARCH_STRING" $TMPFILE | sort \
+        | diff - <(grep "$SEARCH_STRING" scripts/sniffer-tls12-etm.out | sort)
 
     RESULT=$?
     [ $RESULT -ne 0 ] && echo -e "\nsnifftest Encrypt-Then-MAC failed: snifftest diff returned $RESULT\n" && rm $TMPFILE && exit 1
@@ -172,7 +173,8 @@ then
 
     # use grep to only compare against decrypted output
     SEARCH_STRING="SSL App Data"
-    grep "$SEARCH_STRING" $TMPFILE | diff - <(grep "$SEARCH_STRING" scripts/sniffer-tls12-etm-keylog.out)
+    grep "$SEARCH_STRING" $TMPFILE | sort \
+        | diff - <(grep "$SEARCH_STRING" scripts/sniffer-tls12-etm-keylog.out | sort)
 
     RESULT=$?
     [ $RESULT -ne 0 ] && echo -e "\nsnifftest ECDHE Encrypt-Then-MAC failed: snifftest diff returned $RESULT\n" && rm $TMPFILE && exit 1
@@ -207,7 +209,8 @@ then
 
         # use grep to only compare against decrypted output
         SEARCH_STRING="SSL App Data"
-        grep "$SEARCH_STRING" $TMPFILE | diff - <(grep "$SEARCH_STRING" scripts/sniffer-$tlsver-keylog.out)
+        grep "$SEARCH_STRING" $TMPFILE | sort \
+            | diff - <(grep "$SEARCH_STRING" scripts/sniffer-$tlsver-keylog.out | sort)
 
         RESULT=$?
         [ $RESULT -ne 0 ] && echo -e "\n$tlsver snifftest keylog test failed: snifftest diff returned $RESULT\n" && rm $TMPFILE && exit 1
