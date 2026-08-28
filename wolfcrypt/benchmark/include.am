@@ -15,7 +15,7 @@ noinst_HEADERS += wolfcrypt/benchmark/benchmark.h
 if BUILD_FIPS
 noinst_PROGRAMS += wolfcrypt/benchmark/fips_cast_bench
 wolfcrypt_benchmark_fips_cast_bench_SOURCES      = wolfcrypt/benchmark/fips_cast_bench.c
-wolfcrypt_benchmark_fips_cast_bench_LDADD        = src/libwolfssl@LIBSUFFIX@.la $(LIB_STATIC_ADD) -lm
+wolfcrypt_benchmark_fips_cast_bench_LDADD        = src/libwolfssl@LIBSUFFIX@.la $(LIB_STATIC_ADD) $(LIBM)
 wolfcrypt_benchmark_fips_cast_bench_DEPENDENCIES = src/libwolfssl@LIBSUFFIX@.la
 endif
 

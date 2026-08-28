@@ -71,8 +71,7 @@
 
 
 #define BENCH_DEFAULT_ITERS 10
-/* Upper bound for -i.  Keeps the sample array from overflowing size_t on a
- * 32-bit target, and is far above any useful run. */
+/* Upper bound for -i, far above any useful run. */
 #define BENCH_MAX_ITERS     1000000
 
 /* Names for the CAST ids in wolfssl/wolfcrypt/fips_test.h.  Hand-maintained,
@@ -119,23 +118,25 @@ static const char* cast_name(int id)
 }
 
 
-/* Monotonic clock in nanoseconds.  POSIX clock_gettime(CLOCK_MONOTONIC) on
- * Unix-like systems; QueryPerformanceCounter on Windows. */
-static long long now_ns(void)
+/* Wall-clock seconds, the way benchmark.c's current_time() does it: convert
+ * to double before dividing, so no integer overflow is possible. */
+static double bench_now(void)
 {
 #ifdef _WIN32
     static LARGE_INTEGER freq = { 0 };
     LARGE_INTEGER count;
-    if (freq.QuadPart == 0)
-        QueryPerformanceFrequency(&freq);
-    QueryPerformanceCounter(&count);
-    /* Multiply before divide to keep precision; freq is typically 10MHz. */
-    return (long long)((count.QuadPart * 1000000000LL) / freq.QuadPart);
+    if (freq.QuadPart == 0) {
+        if (!QueryPerformanceFrequency(&freq) || (freq.QuadPart == 0))
+            return -1.0;
+    }
+    if (!QueryPerformanceCounter(&count))
+        return -1.0;
+    return (double)count.QuadPart / (double)freq.QuadPart;
 #else
     struct timespec ts;
     if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0)
-        return 0;
-    return (long long)ts.tv_sec * 1000000000LL + (long long)ts.tv_nsec;
+        return -1.0;
+    return (double)ts.tv_sec + (double)ts.tv_nsec / 1000000000.0;
 #endif
 }
 
@@ -147,59 +148,46 @@ static int run_one_cast(int id, int iters,
                         double* out_min_ms, double* out_max_ms)
 {
     int i;
-    long long total = 0;
-    long long mn = LLONG_MAX;
-    long long mx = 0;
-    long long* samples;
-    double mean_ns;
-    double variance_acc = 0.0;
+    double mn = 0.0;
+    double mx = 0.0;
+    double mean = 0.0;   /* running mean, seconds */
+    double m2 = 0.0;     /* running sum of squared deviations */
 
     if (iters <= 0)
         return BAD_FUNC_ARG;
 
-    samples = (long long*)XMALLOC((size_t)iters * sizeof(long long), NULL,
-                                  DYNAMIC_TYPE_TMP_BUFFER);
-    if (samples == NULL)
-        return MEMORY_E;
-
+    /* Welford's method, so the samples need not be kept. */
     for (i = 0; i < iters; i++) {
-        long long t0, t1, dt;
+        double t0, t1, dt, d;
         int rc;
 
-        t0 = now_ns();
+        t0 = bench_now();
         rc = wc_RunCast_fips(id);
-        t1 = now_ns();
-        if (rc != 0) {
-            XFREE(samples, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        t1 = bench_now();
+        if (rc != 0)
             return rc;
-        }
         dt = t1 - t0;
-        if (dt < 0)
-            dt = 0;
-        samples[i] = dt;
-        total += dt;
-        if (dt < mn)
+        if (dt < 0.0)
+            dt = 0.0;
+        if ((i == 0) || (dt < mn))
             mn = dt;
         if (dt > mx)
             mx = dt;
+
+        d = dt - mean;
+        mean += d / (double)(i + 1);
+        m2 += d * (dt - mean);
     }
 
-    mean_ns = (double)total / (double)iters;
-    for (i = 0; i < iters; i++) {
-        double d = (double)samples[i] - mean_ns;
-        variance_acc += d * d;
-    }
-    XFREE(samples, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-
-    *out_mean_ms   = mean_ns / 1.0e6;
-    *out_stddev_ms = sqrt(variance_acc / (double)iters) / 1.0e6;
-    *out_min_ms    = (double)mn / 1.0e6;
-    *out_max_ms    = (double)mx / 1.0e6;
+    *out_mean_ms   = mean * 1000.0;
+    *out_stddev_ms = sqrt(m2 / (double)iters) * 1000.0;
+    *out_min_ms    = mn * 1000.0;
+    *out_max_ms    = mx * 1000.0;
     return 0;
 }
 
 
-/* --------------------------------------------------------------- PCT ---
+/* Pairwise consistency tests.
  *
  * A CAST runs once at start-up.  This test runs on every key generation, so
  * the application keeps paying it and none of it shows in the CAST numbers.
@@ -229,6 +217,7 @@ static int run_one_cast(int id, int iters,
  * rather than overflowing these buffers. */
 #define BENCH_SLHDSA_MAX_N 32
 
+#ifdef BENCH_HAVE_PCT_TABLE
 /* KeyGen raw goes negative if the test is not actually inside key generation.
  * Compiling the SLH-DSA one out took it from +54.8 ms to -365.5 ms, which set
  * the margin below; noise cannot swing that far.
@@ -238,7 +227,6 @@ static int pct_missing(double raw_ms, double pct_ms)
     return (raw_ms < 0.0) && ((-raw_ms) > (pct_ms * 0.05));
 }
 
-#ifdef BENCH_HAVE_PCT_TABLE
 static void pct_hdr(const char* title, const char* what)
 {
     printf("%s\n", title);
@@ -249,11 +237,10 @@ static void pct_hdr(const char* title, const char* what)
 }
 
 /* Returns 1 when the row shows the PCT missing from key generation. */
-static int pct_row(const char* name, long long kg_ns, long long pct_ns,
-                   int iters)
+static int pct_row(const char* name, double kg_s, double pct_s, int iters)
 {
-    double kg    = (double)kg_ns  / (double)iters / 1.0e6;
-    double pct   = (double)pct_ns / (double)iters / 1.0e6;
+    double kg    = kg_s  / (double)iters * 1000.0;
+    double pct   = pct_s / (double)iters * 1000.0;
     double raw   = kg - pct;
     double share = (kg > 0.0) ? (pct * 100.0 / kg) : 0.0;
 
@@ -311,8 +298,8 @@ static int bench_pct_mlkem(int iters)
 
     for (t = 0; t < sizeof(types) / sizeof(types[0]); t++) {
         MlKemKey  key;
-        long long kg_ns = 0;
-        long long pct_ns = 0;
+        double kg_s = 0.0;
+        double pct_s = 0.0;
         int       i;
         int       rc;
 
@@ -323,23 +310,22 @@ static int bench_pct_mlkem(int iters)
         }
 
         for (i = 0; i < iters; i++) {
-            long long t0;
-            long long t1;
+            double t0, t1;
             word32    ctSz = 0;
 
             /* Vary the key each round so nothing measured is a repeat of
              * byte-identical work. */
             kgrand[0] = (byte)i;
 
-            t0 = now_ns();
+            t0 = bench_now();
             rc = wc_MlKemKey_MakeKeyWithRandom(&key, kgrand,
                     (int)sizeof(kgrand));
-            t1 = now_ns();
+            t1 = bench_now();
             if (rc != 0)
                 break;
-            kg_ns += t1 - t0;
+            kg_s += t1 - t0;
 
-            t0 = now_ns();
+            t0 = bench_now();
             rc = wc_MlKemKey_CipherTextSize(&key, &ctSz);
             if (rc == 0) {
                 rc = wc_MlKemKey_EncapsulateWithRandom(&key, ct, ss1, pct_m,
@@ -349,10 +335,10 @@ static int bench_pct_mlkem(int iters)
                 rc = wc_MlKemKey_Decapsulate(&key, ss2, ct, ctSz);
             if ((rc == 0) && (XMEMCMP(ss1, ss2, WC_ML_KEM_SS_SZ) != 0))
                 rc = ML_KEM_PCT_E;
-            t1 = now_ns();
+            t1 = bench_now();
             if (rc != 0)
                 break;
-            pct_ns += t1 - t0;
+            pct_s += t1 - t0;
         }
 
         if (rc != 0) {
@@ -360,7 +346,7 @@ static int bench_pct_mlkem(int iters)
             failures++;
         }
         else {
-            failures += pct_row(names[t], kg_ns, pct_ns, iters);
+            failures += pct_row(names[t], kg_s, pct_s, iters);
         }
         wc_MlKemKey_Free(&key);
     }
@@ -400,8 +386,8 @@ static int bench_pct_mldsa(int iters)
 
     for (t = 0; t < sizeof(levels) / sizeof(levels[0]); t++) {
         wc_MlDsaKey key;
-        long long   kg_ns = 0;
-        long long   pct_ns = 0;
+        double      kg_s = 0.0;
+        double      pct_s = 0.0;
         int         i;
         int         rc;
         int         inited = 0;
@@ -419,21 +405,20 @@ static int bench_pct_mldsa(int iters)
         }
 
         for (i = 0; i < iters; i++) {
-            long long t0;
-            long long t1;
+            double t0, t1;
             word32    sigSz = MLDSA_MAX_SIG_SIZE;
             int       res = 0;
 
             seed[0] = (byte)i;
 
-            t0 = now_ns();
+            t0 = bench_now();
             rc = wc_MlDsaKey_MakeKeyFromSeed(&key, seed);
-            t1 = now_ns();
+            t1 = bench_now();
             if (rc != 0)
                 break;
-            kg_ns += t1 - t0;
+            kg_s += t1 - t0;
 
-            t0 = now_ns();
+            t0 = bench_now();
             rc = wc_MlDsaKey_SignCtxWithSeed(&key, NULL, 0, sig, &sigSz,
                     pct_msg, (word32)sizeof(pct_msg), pct_seed);
             if (rc == 0) {
@@ -442,10 +427,10 @@ static int bench_pct_mldsa(int iters)
             }
             if ((rc == 0) && (res != 1))
                 rc = ML_DSA_PCT_E;
-            t1 = now_ns();
+            t1 = bench_now();
             if (rc != 0)
                 break;
-            pct_ns += t1 - t0;
+            pct_s += t1 - t0;
         }
 
         if (rc != 0) {
@@ -453,7 +438,7 @@ static int bench_pct_mldsa(int iters)
             failures++;
         }
         else {
-            failures += pct_row(names[t], kg_ns, pct_ns, iters);
+            failures += pct_row(names[t], kg_s, pct_s, iters);
         }
         wc_MlDsaKey_Free(&key);
     }
@@ -506,7 +491,6 @@ static int bench_pct_slhdsa(int iters)
     byte   sk_seed[BENCH_SLHDSA_MAX_N];
     byte   sk_prf[BENCH_SLHDSA_MAX_N];
     byte   pk_seed[BENCH_SLHDSA_MAX_N];
-    byte   priv[BENCH_SLHDSA_MAX_N * 4];
     byte   pub[BENCH_SLHDSA_MAX_N * 2];
     int    failures = 0;
     size_t t;
@@ -521,9 +505,9 @@ static int bench_pct_slhdsa(int iters)
 
     for (t = 0; t < sizeof(params) / sizeof(params[0]); t++) {
         SlhDsaKey key;
-        long long kg_ns = 0;
-        long long a_ns = 0;
-        long long c_ns = 0;
+        double kg_s = 0.0;
+        double a_s = 0.0;
+        double c_s = 0.0;
         byte*     sig = NULL;
         int       sigLen;
         int       privLen;
@@ -555,50 +539,46 @@ static int bench_pct_slhdsa(int iters)
         }
 
         for (i = 0; i < iters; i++) {
-            long long t0;
-            long long t1;
+            double t0, t1;
             word32    sigSz = (word32)sigLen;
-            word32    pl = (word32)privLen;
             word32    ul = (word32)(n * 2);
 
             XMEMSET(sk_seed, (byte)(0x11 + i), (size_t)n);
             XMEMSET(sk_prf,  (byte)(0x22 + i), (size_t)n);
             XMEMSET(pk_seed, (byte)(0x33 + i), (size_t)n);
 
-            t0 = now_ns();
+            t0 = bench_now();
             rc = wc_SlhDsaKey_MakeKeyWithRandom(&key, sk_seed, (word32)n,
                     sk_prf, (word32)n, pk_seed, (word32)n);
-            t1 = now_ns();
+            t1 = bench_now();
             if (rc != 0)
                 break;
-            kg_ns += t1 - t0;
+            kg_s += t1 - t0;
 
             /* The alternative not taken, timed for comparison. */
-            t0 = now_ns();
+            t0 = bench_now();
             rc = wc_SlhDsaKey_SignDeterministic(&key, NULL, 0, pct_msg,
                     (word32)sizeof(pct_msg), sig, &sigSz);
             if (rc == 0) {
                 rc = wc_SlhDsaKey_Verify(&key, NULL, 0, pct_msg,
                         (word32)sizeof(pct_msg), sig, sigSz);
             }
-            t1 = now_ns();
+            t1 = bench_now();
             if (rc != 0)
                 break;
-            a_ns += t1 - t0;
+            a_s += t1 - t0;
 
             /* The IG shortcut.  See bench_pct_slhdsa_notes(). */
-            t0 = now_ns();
-            rc = wc_SlhDsaKey_ExportPrivate(&key, priv, &pl);
-            if (rc == 0)
-                rc = wc_SlhDsaKey_ExportPublic(&key, pub, &ul);
-            if ((rc == 0) &&
-                    (XMEMCMP(priv + (size_t)(n * 2), pub, (size_t)n) != 0)) {
+            t0 = bench_now();
+            rc = wc_SlhDsaKey_ExportPublic(&key, pub, &ul);
+            if ((rc == 0) && (XMEMCMP(pub, key.sk + (size_t)(n * 2),
+                    (size_t)n) != 0)) {
                 rc = SLH_DSA_PCT_E;
             }
-            t1 = now_ns();
+            t1 = bench_now();
             if (rc != 0)
                 break;
-            c_ns += t1 - t0;
+            c_s += t1 - t0;
         }
 
         if (rc != 0) {
@@ -606,9 +586,9 @@ static int bench_pct_slhdsa(int iters)
             failures++;
         }
         else {
-            double kg = (double)kg_ns / (double)iters / 1.0e6;
-            double a  = (double)a_ns  / (double)iters / 1.0e6;
-            double c  = (double)c_ns  / (double)iters / 1.0e6;
+            double kg = kg_s / (double)iters * 1000.0;
+            double a  = a_s  / (double)iters * 1000.0;
+            double c  = c_s  / (double)iters * 1000.0;
 
             /* The elected test must be the cheap one.  If someone puts sign
              * and verify back inside key generation, KeyGen+PCT swallows it
@@ -642,6 +622,9 @@ static int bench_pct(int iters, const char* only)
 {
     int failures = 0;
     int ran = 0;
+#ifdef BENCH_HAVE_PCT
+    int rc;
+#endif
 
 #ifndef BENCH_HAVE_PCT
     (void)iters;
@@ -660,21 +643,33 @@ static int bench_pct(int iters, const char* only)
            "the difference, because no build of this module generates a key\n"
            "without running the PCT.\n\n");
 
+    /* Each helper returns a count of failed rows, or a negative wolfCrypt
+     * error if it could not run.  Keep those apart: summing them lets a
+     * -125 cancel real failures and report success. */
 #ifdef WOLFSSL_HAVE_MLKEM
     if ((only == NULL) || (XSTRCMP(only, "mlkem") == 0)) {
-        failures += bench_pct_mlkem(iters);
+        rc = bench_pct_mlkem(iters);
+        if (rc < 0)
+            return rc;
+        failures += rc;
         ran++;
     }
 #endif
 #ifdef WOLFSSL_HAVE_MLDSA
     if ((only == NULL) || (XSTRCMP(only, "mldsa") == 0)) {
-        failures += bench_pct_mldsa(iters);
+        rc = bench_pct_mldsa(iters);
+        if (rc < 0)
+            return rc;
+        failures += rc;
         ran++;
     }
 #endif
 #ifdef WOLFSSL_HAVE_SLHDSA
     if ((only == NULL) || (XSTRCMP(only, "slhdsa") == 0)) {
-        failures += bench_pct_slhdsa(iters);
+        rc = bench_pct_slhdsa(iters);
+        if (rc < 0)
+            return rc;
+        failures += rc;
         ran++;
     }
 #endif
@@ -745,9 +740,6 @@ int main(int argc, char** argv)
     for (i = 1; i < argc; i++) {
         if (XSTRCMP(argv[i], "-i") == 0 && i + 1 < argc) {
             long v = 0;
-            /* Needs an upper bound too: the sample array is
-             * iters * sizeof(long long), which wraps on a 32-bit size_t and
-             * would give a short buffer to write past. */
             if ((parse_int_arg(argv[++i], &v) != 0) || (v <= 0) ||
                     (v > BENCH_MAX_ITERS)) {
                 fprintf(stderr, "-i requires an iteration count in 1..%d\n",

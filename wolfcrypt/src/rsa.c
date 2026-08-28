@@ -159,12 +159,16 @@ static void wc_RsaCleanup(RsaKey* key)
     #ifndef WOLFSSL_RSA_PUBLIC_ONLY
     #if FIPS_VERSION3_GE(7,0,0)
         /* Erase the recovered plaintext on the way out, success or failure.
-         * SP 800-56B Rev2 sec 7.2.2.4.  Only a buffer we allocated: when the
-         * caller supplies its own, key->data points at it (dataIsAlloc is 0)
-         * and erasing would destroy the answer. */
-        if (key->dataIsAlloc && key->data != NULL && key->dataLen > 0 &&
-            (key->type == RSA_PRIVATE_DECRYPT ||
-             key->type == RSA_PRIVATE_ENCRYPT)) {
+         * SP 800-56B Rev2 sec 7.2.2.4.
+         *
+         * Only a buffer we allocated: when the caller supplies its own,
+         * key->data points at it (dataIsAlloc is 0) and erasing would destroy
+         * the answer.  No key->type test: it only ever holds RSA_PRIVATE,
+         * RSA_PUBLIC or RSA_TYPE_UNKNOWN, never RSA_PRIVATE_DECRYPT (3) or
+         * RSA_PRIVATE_ENCRYPT (2), which belong to the operation-type family
+         * sharing that enum (rsa.h:176-183).  Comparing against them is
+         * always false, so the buffer was being freed unwiped. */
+        if (key->dataIsAlloc && key->data != NULL && key->dataLen > 0) {
             ForceZero(key->data, key->dataLen);
         }
     #else
@@ -923,36 +927,33 @@ int wc_CheckRsaKey(RsaKey* key)
         int isPrime = 0;
 
         /* Modulus: even number of bits (item D, step 3c) and at least 2048
-         * (FIPS 186-5 sec 5.1). */
-        if ((nBits < RSA_MIN_SIZE) || ((nBits & 1) != 0)) {
+         * (FIPS 186-5 sec 5.1).  Spelled out rather than using RSA_MIN_SIZE,
+         * which drops to 1024 under HAVE_WOLFENGINE / HAVE_WOLFPROVIDER. */
+        if ((nBits < 2048) || ((nBits & 1) != 0)) {
             ret = WC_KEY_SIZE_E;
         }
 
         /* Public exponent: odd, and 65537 <= e < 2^256 (item B).  e is an
          * mp_int here, so the upper bound needs an explicit bit count. */
-        if (ret == 0) {
-            if (mp_iseven(&key->e) || (mp_cmp_d(&key->e, 65537) == MP_LT) ||
-                    (mp_count_bits(&key->e) > 256)) {
-                ret = MP_EXPTMOD_E;
-            }
+        if ((ret == 0) && (mp_iseven(&key->e) ||
+                (mp_cmp_d(&key->e, 65537) == MP_LT) ||
+                (mp_count_bits(&key->e) > 256))) {
+            ret = MP_EXPTMOD_E;
         }
 
         /* Primes: right size, coprime to e, far enough apart, and actually
-         * prime (steps 5a-5g).  Checking p alone first, then p with q so the
-         * |p - q| separation test can run. */
+         * prime (steps 5a to 5g).  p alone first, then p with q so the
+         * |p - q| separation can be tested. */
         if (ret == 0) {
-            ret = _CheckProbablePrime(&key->p, NULL, &key->e, nBits,
-                                      &isPrime, rng);
-        }
-        if ((ret == 0) && (!isPrime)) {
-            ret = MP_EXPTMOD_E;
-        }
-        if (ret == 0) {
-            ret = _CheckProbablePrime(&key->p, &key->q, &key->e, nBits,
-                                      &isPrime, rng);
-        }
-        if ((ret == 0) && (!isPrime)) {
-            ret = MP_EXPTMOD_E;
+            ret = _CheckProbablePrime(&key->p, NULL, &key->e, nBits, &isPrime,
+                                      rng);
+            if ((ret == 0) && isPrime) {
+                ret = _CheckProbablePrime(&key->p, &key->q, &key->e, nBits,
+                                          &isPrime, rng);
+            }
+            if ((ret == 0) && (!isPrime)) {
+                ret = MP_EXPTMOD_E;
+            }
         }
 
         /* Private exponent must exceed 2^(nBits/2) (step 6a).  A d of that
@@ -1627,6 +1628,13 @@ static int RsaPad_PSS(const byte* input, word32 inputLen, byte* pkcsBlock,
         if (saltLen < 0) {
             return PSS_SALTLEN_E;
         }
+    #if FIPS_VERSION3_GE(7,0,0)
+        /* The sentinel is negative, so it slips past the cap above; the
+         * length derived from it is subject to the same limit. */
+        if (saltLen > hLen) {
+            return PSS_SALTLEN_E;
+        }
+    #endif
     }
     else if (saltLen < RSA_PSS_SALT_LEN_DISCOVER) {
         return PSS_SALTLEN_E;
@@ -2086,6 +2094,16 @@ static int RsaUnPad_PSS(byte *pkcsBlock, unsigned int pkcsBlockLen,
             return PSS_SALTLEN_RECOVER_E;
         }
         saltLen = maskLen - (i + 1);
+    #if FIPS_VERSION3_GE(7,0,0)
+        /* When the length is discovered rather than supplied, it is this
+         * recovered value FIPS 186-5 sec 5.4(g) caps at the hash length. */
+        if (saltLen > hLen) {
+            #if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_STATIC_MEMORY)
+            XFREE(tmp, heap, DYNAMIC_TYPE_RSA_BUFFER);
+            #endif
+            return PSS_SALTLEN_E;
+        }
+    #endif
     }
     else
 #endif
@@ -3732,7 +3750,8 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
 
 #if !defined(NO_RSA_BOUNDS_CHECK) && FIPS_VERSION3_GE(7,0,0)
     /* Reject a message outside 1 < m < n-1 before exponentiating.
-     * SP 800-56B Rev2 sec 7.1.1 (RSAEP) step 1. */
+     * SP 800-56B Rev2 sec 7.1.1 (RSAEP) step 1.  Passed 1 rather than the
+     * caller's checkSmallCt: the standard gives no opt-out on this path. */
     if ((type == RSA_PUBLIC_ENCRYPT || type == RSA_PRIVATE_ENCRYPT) &&
         key->state == RSA_STATE_ENCRYPT_EXPTMOD) {
 
@@ -4694,7 +4713,12 @@ int wc_RsaPSS_CheckPadding_ex2(const byte* in, word32 inSz, const byte* sig,
 #else
         else if (saltLen == RSA_PSS_SALT_LEN_DISCOVER) {
             saltLen = sigSz - inSz;
-            if (saltLen < 0) {
+            /* Same cap on the discovered length; inSz is the hash length. */
+            if ((saltLen < 0)
+        #if FIPS_VERSION3_GE(7,0,0)
+                    || (saltLen > (int)inSz)
+        #endif
+                    ) {
                 ret = PSS_SALTLEN_E;
             }
         }
@@ -5731,6 +5755,9 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     }
 
 #if defined(HAVE_FIPS)
+    /* WC_RSA_EXPONENT is 65537, which is what FIPS 186-5 sec 5.4(e) requires
+     * as the lower bound.  e is a long, so it cannot reach the 2^256 upper
+     * bound the same clause sets. */
     if (e < WC_RSA_EXPONENT || (e & 1) == 0) {
 #else
     if (e < 3 || (e & 1) == 0) {
@@ -5738,15 +5765,6 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         err = BAD_FUNC_ARG;
         goto out;
     }
-
-#if FIPS_VERSION3_GE(7,0,0)
-    /* The public exponent must be above 2^16.  FIPS 186-5 sec 5.4(e).
-     * e is a long here, so it cannot reach the 2^256 upper bound. */
-    if (e < 65537L) {
-        err = BAD_FUNC_ARG;
-        goto out;
-    }
-#endif
 
 #if defined(WOLFSSL_CRYPTOCELL)
     err = cc310_RSA_GenerateKeyPair(key, size, e);

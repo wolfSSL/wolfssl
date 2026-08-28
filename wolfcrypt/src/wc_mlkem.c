@@ -707,62 +707,8 @@ int wc_MlKemKey_MakeKey(MlKemKey* key, WC_RNG* rng)
         ret = wc_MlKemKey_MakeKeyWithRandom(key, rand, sizeof(rand));
     }
 
-#ifdef HAVE_FIPS
-    /* Test every new key pair: encapsulate with it, decapsulate with it, and
-     * check the shared secrets match.  ISO/IEC 19790:2012 sec 7.10.3.3;
-     * FIPS 140-3 IG 10.3.A Additional Comment 1 spells this test out for
-     * FIPS 203. */
-    if (ret == 0) {
-        WC_DECLARE_VAR(pct_ct, byte, WC_ML_KEM_MAX_CIPHER_TEXT_SIZE,
-            key->heap);
-        byte pct_ss1[WC_ML_KEM_SS_SZ];
-        byte pct_ss2[WC_ML_KEM_SS_SZ];
-        word32 ctSz = 0;
-
-        WC_ALLOC_VAR_EX(pct_ct, byte, WC_ML_KEM_MAX_CIPHER_TEXT_SIZE,
-            key->heap, DYNAMIC_TYPE_TMP_BUFFER, ret = MEMORY_E);
-
-        /* Zero and register the shared secrets up front so the leak checker
-         * covers them for the whole block. */
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-        XMEMSET(pct_ss1, 0, sizeof(pct_ss1));
-        XMEMSET(pct_ss2, 0, sizeof(pct_ss2));
-        wc_MemZero_Add("mlkem pct ss1", pct_ss1, sizeof(pct_ss1));
-        wc_MemZero_Add("mlkem pct ss2", pct_ss2, sizeof(pct_ss2));
-#endif
-        if (ret == 0)
-            ret = wc_MlKemKey_CipherTextSize(key, &ctSz);
-
-        if (ret == 0)
-            ret = wc_MlKemKey_Encapsulate(key, pct_ct, pct_ss1, rng);
-
-        if (ret == 0)
-            ret = wc_MlKemKey_Decapsulate(key, pct_ss2, pct_ct, ctSz);
-
-        if (ret == 0) {
-            if (XMEMCMP(pct_ss1, pct_ss2, WC_ML_KEM_SS_SZ) != 0)
-                ret = ML_KEM_PCT_E;
-        }
-
-        ForceZero(pct_ss1, sizeof(pct_ss1));
-        ForceZero(pct_ss2, sizeof(pct_ss2));
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-        wc_MemZero_Check(pct_ss1, sizeof(pct_ss1));
-        wc_MemZero_Check(pct_ss2, sizeof(pct_ss2));
-#endif
-        if (WC_VAR_OK(pct_ct))
-            ForceZero(pct_ct, WC_ML_KEM_MAX_CIPHER_TEXT_SIZE);
-
-        WC_FREE_VAR_EX(pct_ct, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-
-        /* Free a key that failed, so a caller ignoring the return value
-         * cannot use it.  ISO/IEC 19790:2012 sec 7.10.1 forbids using
-         * anything that failed its self-test. */
-        if (ret != 0) {
-            wc_MlKemKey_Free(key);
-        }
-    }
-#endif /* HAVE_FIPS */
+    /* No key-pair test here: wc_MlKemKey_MakeKeyWithRandom(), called above,
+     * already runs it on every generation path. */
 
     /* Ensure seeds are zeroized. */
     ForceZero((void*)rand, (word32)sizeof(rand));
@@ -1044,6 +990,10 @@ int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
 #endif
 
 #if FIPS_VERSION3_GE(7,0,0)
+#if defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
+    #error "FIPS v7 ML-KEM key generation needs encapsulate and decapsulate \
+for the key-pair test required by ISO/IEC 19790:2012 sec 7.10.3.3"
+#endif
     /* Test every new key pair: encapsulate with it, decapsulate with it, and
      * check the shared secrets match.  ISO/IEC 19790:2012 sec 7.10.3.3;
      * FIPS 140-3 IG 10.3.A Additional Comment 1 spells this test out for
@@ -1112,14 +1062,16 @@ int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
 
         WC_FREE_VAR_EX(pct_ct, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
-        /* Free a key that failed, so a caller ignoring the return value
-         * cannot use it.  ISO/IEC 19790:2012 sec 7.10.1 forbids using
-         * anything that failed its self-test. */
-        if (ret != 0) {
+        /* Free a key that failed the test, so a caller ignoring the return
+         * value cannot use it.  ISO/IEC 19790:2012 sec 7.10.1 forbids using
+         * anything that failed a self-test.  Only on ML_KEM_PCT_E: a
+         * MEMORY_E here means the test could not run, and destroying a
+         * good key over a transient allocation failure helps no one. */
+        if (ret == ML_KEM_PCT_E) {
             wc_MlKemKey_Free(key);
         }
     }
-#endif /* HAVE_FIPS */
+#endif /* FIPS_VERSION3_GE(7,0,0) */
 
     return ret;
 }

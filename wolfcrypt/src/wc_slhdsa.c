@@ -7138,19 +7138,14 @@ int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key, const byte* sk_seed,
     }
 
 #if FIPS_VERSION3_GE(7,0,0)
-    /* Test every new key pair before anyone uses it.  Required on every
-     * generated key pair by ISO/IEC 19790:2012 sec 7.10.3.3.  Here because
-     * every generation path reaches this function.
+    /* Test every new key pair.  ISO/IEC 19790:2012 sec 7.10.3.3.  Here
+     * because every generation path reaches this function.
      *
-     * Two checks.  First the one FIPS 140-3 IG 10.3.A Additional Comment 1
-     * names: for SLH-DSA the test "may be limited to confirming the same key
-     * identifier ... PK.SEED ... is shared by the resulting public and
-     * private key".  That one always passes here, because the public key is
-     * a slice of the private one, so the second does the real work:
-     * recompute the public root from the private seed and compare.  It is
-     * the cheapest check that can actually fail.  Signing and verifying
-     * would also work, at about ten times the cost of generating the key.
-     */
+     * The PK.SEED check is the one FIPS 140-3 IG 10.3.A Additional Comment 1
+     * names for SLH-DSA, but it always passes here: the public key is a
+     * slice of the private one.  So the root recompute does the real work.
+     * It is the cheapest check that can fail; signing and verifying costs
+     * about ten times the key generation. */
     if (ret == 0) {
         byte        n = key->params->n;
         byte        pct_root[SLHDSA_MAX_N];
@@ -7176,10 +7171,11 @@ int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key, const byte* sk_seed,
             ForceZero(pct_root, sizeof(pct_root));
         }
 
-        /* Free a key that failed, so a caller ignoring the return value
-         * cannot sign with it.  ISO/IEC 19790:2012 sec 7.10.1 forbids using
-         * anything that failed its self-test. */
-        if (ret != 0) {
+        /* Free a key that failed the test, so a caller ignoring the return
+         * value cannot sign with it.  ISO/IEC 19790:2012 sec 7.10.1 forbids
+         * using anything that failed a self-test.  Only on SLH_DSA_PCT_E:
+         * any other error means the test could not run. */
+        if (ret == SLH_DSA_PCT_E) {
             wc_SlhDsaKey_Free(key);
         }
     }
@@ -8836,17 +8832,22 @@ int wc_SlhDsaKey_CheckKey(SlhDsaKey* key)
         ret = MISSING_KEY;
     }
     if (ret == 0) {
-        byte root[SLHDSA_MAX_N];
-        byte n = key->params->n;
+        byte        n = key->params->n;
+        byte        root[SLHDSA_MAX_N];
+        HashAddress adrs;
 
-        /* Cache the public key root as making the key overwrites. */
-        XMEMCPY(root, key->sk + 3 * n, n);
-        ret = wc_SlhDsaKey_MakeKeyWithRandom(key, key->sk, n, key->sk + n, n,
-                key->sk + 2 * n, n);
-        /* Compare computed root with what was cached. */
+        /* Recompute the public root from the private seed and compare.
+         * Done directly rather than by regenerating the key: regeneration
+         * overwrites the key being checked, and its key-pair test frees the
+         * key on failure, which a validation call must never do. */
+        HA_Init(adrs);
+        HA_SetLayerAddress(adrs, key->params->d - 1);
+        ret = slhdsakey_xmss_node(key, key->sk, 0, key->params->h_m,
+                key->sk + 2 * n, adrs, root);
         if ((ret == 0) && (XMEMCMP(root, key->sk + 3 * n, n) != 0)) {
             ret = WC_KEY_MISMATCH_E;
         }
+        ForceZero(root, sizeof(root));
     }
 
     return ret;
