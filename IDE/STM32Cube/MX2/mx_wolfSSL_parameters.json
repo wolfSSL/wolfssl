@@ -1,0 +1,342 @@
+{
+  "componentid": "::Security:STM32CubeMX2 Config:wolfSSL",
+  "type": "object",
+  "grammarVersion": "3.3",
+  "properties": {
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "info": {
+          "title": "wolfSSL configuration",
+          "type": "object",
+          "properties": {
+            "label": {
+              "type": "string",
+              "title": "User Label",
+              "description": "Adds extra #define in generated code",
+              "default": "MX_WOLFSSL",
+              "pattern": "^([A-Z_][A-Z0-9_]{1,31})?$",
+              "unique": "project",
+              "unicityTag": "middlewares_wolfssl_sw_label",
+              "minLength": 3,
+              "maxLength": 15
+            }
+          }
+        },
+        "basic_config": {
+          "title": "Basic configuration",
+          "type": "object",
+          "properties": {
+            "debugSupport": {
+              "type": "boolean",
+              "title": "Debug support",
+              "description": "Enable debug support",
+              "default": false
+            },
+            "wolfCryptOnly": {
+              "type": "boolean",
+              "title": "wolfCrypt Only",
+              "description": "Enable wolfCrypt only",
+              "default": false
+            },
+            "tlsV13": {
+              "type": "boolean",
+              "title": "TLS v1.3",
+              "description": "Enable TLS v1.3",
+              "default": true
+            },
+            "tlsV12": {
+              "type": "boolean",
+              "title": "TLS v1.2",
+              "description": "Enable TLS v1.2",
+              "default": true
+            },
+            "dtlsSupport": {
+              "type": "boolean",
+              "title": "DTLS Support",
+              "description": "Enable DTLS support",
+              "default": false
+            },
+            "mathConfiguration": {
+              "type": "string",
+              "title": "Math configuration",
+              "description": "Configure math",
+              "default": "6",
+              "oneOf": [
+                {
+                  "const": "1",
+                  "title": "Fast (stack) math"
+                },
+                {
+                  "const": "2",
+                  "title": "Normal (heap) math"
+                },
+                {
+                  "const": "3",
+                  "title": "Single Precision C math (only common curves/key sizes)"
+                },
+                {
+                  "const": "4",
+                  "title": "Single Precision ASM Cortex-M3+ Math"
+                },
+                {
+                  "const": "5",
+                  "title": "Single Precision ASM Cortex-M0 (Generic Thumb) Math"
+                },
+                {
+                  "const": "6",
+                  "title": "Single Precision C all small"
+                },
+                {
+                  "const": "7",
+                  "title": "Single Precision C all big"
+                }
+              ]
+            },
+            "rtos": {
+              "type": "string",
+              "title": "RTOS",
+              "description": "Configure RTOS",
+              "default": "1",
+              "oneOf": [
+                {
+                  "const": "1",
+                  "title": "Single Threaded (no RTOS / Baremetal)"
+                },
+                {
+                  "const": "2",
+                  "title": "FreeRTOS"
+                }
+              ]
+            },
+            "rngSupport": {
+              "type": "boolean",
+              "title": "RNG Support",
+              "description": "Enable RNG support",
+              "default": true
+            },
+            "rsaSupport": {
+              "type": "boolean",
+              "title": "RSA Support",
+              "description": "Enable RSA support",
+              "default": true
+            },
+            "eccSupport": {
+              "type": "boolean",
+              "title": "ECC Support",
+              "description": "Enable ECC support",
+              "default": true
+            },
+            "dhSupport": {
+              "type": "boolean",
+              "title": "DH (Diffie-Hellman) Support",
+              "description": "Enable DH support",
+              "default": true
+            },
+            "aesGCMSupport": {
+              "type": "string",
+              "title": "AES GCM Support",
+              "description": "Configure AES GCM support",
+              "default": "1",
+              "oneOf": [
+                {
+                  "const": "0",
+                  "title": "Disabled"
+                },
+                {
+                  "const": "1",
+                  "title": "GCM_SMALL"
+                },
+                {
+                  "const": "2",
+                  "title": "GCM_TABLE_4BIT"
+                }
+              ]
+            },
+            "aesCBCSupport": {
+              "type": "boolean",
+              "title": "AES CBC Support",
+              "description": "Enable AES CBC support",
+              "default": false
+            },
+            "chaCha20Support": {
+              "type": "boolean",
+              "title": "ChaCha20 / Poly1305 Support",
+              "description": "Enable ChaCha20 / Poly1305 support",
+              "default": true
+            },
+            "ed25519Support": {
+              "type": "boolean",
+              "title": "Ed25519 / Curve25519 Support",
+              "description": "Enable Ed25519 / Curve25519 support",
+              "default": false
+            },
+            "md5Support": {
+              "type": "boolean",
+              "title": "MD5 Support",
+              "description": "Enable MD5 support",
+              "default": false
+            },
+            "sha1Support": {
+              "type": "boolean",
+              "title": "SHA1 Support",
+              "description": "Enable SHA1 support",
+              "default": false
+            },
+            "sha2_224Support": {
+              "type": "boolean",
+              "title": "SHA2-224 Support",
+              "description": "Enable SHA2-224 support",
+              "default": false
+            },
+            "sha2_256Support": {
+              "type": "boolean",
+              "title": "SHA2-256 Support",
+              "description": "Enable SHA2-256 support",
+              "default": true
+            },
+            "sha2_384Support": {
+              "type": "boolean",
+              "title": "SHA2-384 Support",
+              "description": "Enable SHA2-384 support",
+              "default": false
+            },
+            "sha2_512Support": {
+              "type": "boolean",
+              "title": "SHA2-512 Support",
+              "description": "Enable SHA2-512 support",
+              "default": false
+            },
+            "sha3Support": {
+              "type": "boolean",
+              "title": "SHA3 Support",
+              "description": "Enable SHA3 support",
+              "default": false
+            },
+            "preSharedKeySupport": {
+              "type": "boolean",
+              "title": "Pre-Shared-Key Support",
+              "description": "Enable Pre-Shared-Key support",
+              "default": false
+            },
+            "pwdBasedKeyDerivationSupport": {
+              "type": "boolean",
+              "title": "Pwd Based Key Derivation Support",
+              "description": "Enable Pwd Based Key Derivation support",
+              "default": false
+            },
+            "keepPeerCertSupport": {
+              "type": "boolean",
+              "title": "Keep Peer Cert Support",
+              "description": "Enable Keep Peer Cert support",
+              "default": false
+            },
+            "base64EncodeSupport": {
+              "type": "boolean",
+              "title": "Base64 Encode Support",
+              "description": "Enable Base64 Encode support",
+              "default": false
+            },
+            "openSSLExtraSupport": {
+              "type": "string",
+              "title": "OpenSSL Extra Support",
+              "description": "Configure OpenSSL Extra support",
+              "default": "0",
+              "oneOf": [
+                {
+                  "const": "0",
+                  "title": "Disabled"
+                },
+                {
+                  "const": "1",
+                  "title": "Enable basic (OPENSSL_EXTRA)"
+                },
+                {
+                  "const": "2",
+                  "title": "Enable all (OPENSSL_ALL)"
+                }
+              ]
+            },
+            "wolfCryptTestBenchmarkSupport": {
+              "type": "boolean",
+              "title": "WolfCrypt Test / Benchmark Support",
+              "description": "Enable WolfCrypt Test / Benchmark support",
+              "default": true
+            },
+            "kyberMLKemSupport": {
+              "type": "boolean",
+              "title": "KYBER / ML-KEM Post-Quantum Algorithm Support",
+              "description": "Enable KYBER / ML-KEM Post-Quantum Algorithm support",
+              "default": false
+            },
+            "dtls13Support": {
+              "type": "boolean",
+              "title": "DTLS v1.3 Support",
+              "description": "Enable DTLS v1.3 (requires DTLS Support and TLS v1.3)",
+              "default": false
+            },
+            "hwCrypto": {
+              "type": "boolean",
+              "title": "STM32 Hardware Crypto",
+              "description": "Use the STM32 hardware crypto peripherals (RNG, HASH, AES, PKA) where the selected device has wolfSSL support; software fallback otherwise",
+              "default": true
+            },
+            "consoleUart": {
+              "type": "string",
+              "title": "Console UART instance",
+              "description": "Lowercase UART instance the wolfCrypt test/benchmark console uses (matches the STM32CubeMX2 UART user label, e.g. usart2); the generated handle getter mx_<instance>_uart_gethandle() must exist",
+              "default": "usart2",
+              "pattern": "^[a-z0-9_]{3,16}$",
+              "minLength": 3,
+              "maxLength": 16
+            },
+            "armASMSupport": {
+              "type": "boolean",
+              "title": "ARM ASM Support",
+              "description": "Enable ARM ASM support",
+              "default": false
+            },
+            "ioInterfaceConfig": {
+              "type": "string",
+              "title": "IO Interface Configuration",
+              "description": "Configure IO Interface",
+              "default": "1",
+              "oneOf": [
+                {
+                  "const": "1",
+                  "title": "User IO"
+                },
+                {
+                  "const": "2",
+                  "title": "LWIP (posix API)"
+                },
+                {
+                  "const": "3",
+                  "title": "LWIP (native API)"
+                }
+              ]
+            },
+            "sessionCacheSupport": {
+              "type": "boolean",
+              "title": "Session cache / Session tickets Support",
+              "description": "Enable Session cache / Session tickets support",
+              "default": false
+            },
+            "tpmSupport": {
+              "type": "boolean",
+              "title": "TPM Support",
+              "description": "Enable TPM support",
+              "default": false
+            },
+            "tlsKeyCallbacksSupport": {
+              "type": "boolean",
+              "title": "TLS Key Callbacks Support",
+              "description": "Enable TLS Key Callbacks support",
+              "default": false
+            }
+          }
+        }
+      }
+    }
+  }
+}
