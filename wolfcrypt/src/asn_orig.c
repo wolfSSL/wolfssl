@@ -3121,9 +3121,9 @@ static int DecodeConstructedOtherName(DecodedCert* cert, const byte* input,
         dnsEntry->len = strLen;
         dnsEntry->name = (char*)XMALLOC((size_t)strLen + 1, cert->heap,
             DYNAMIC_TYPE_ALTNAME);
-    #ifdef WOLFSSL_FPKI
+    #if defined(WOLFSSL_FPKI) || defined(WOLFSSL_DTN)
         dnsEntry->oidSum = oid;
-    #endif /* WOLFSSL_FPKI */
+    #endif /* WOLFSSL_FPKI || WOLFSSL_DTN */
         if (dnsEntry->name == NULL) {
             WOLFSSL_MSG("\tOut of Memory");
             ret = MEMORY_E;

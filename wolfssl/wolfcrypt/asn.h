@@ -1558,7 +1558,7 @@ struct DNS_entry {
     int        ridStringStored;
 #endif
 
-#ifdef WOLFSSL_FPKI
+#if defined(WOLFSSL_FPKI) || defined(WOLFSSL_DTN)
     int        oidSum; /* provide oid sum for verification */
 #endif
 #ifdef WC_ASN_NO_HEAP
