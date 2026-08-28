@@ -2829,16 +2829,18 @@ int test_wc_EccDecisionCoverage(void)
     !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     WC_RNG  rng;
     ecc_key key;
-    int     ret;
+    int     ret = WC_NO_ERR_TRACE(MEMORY_E);
 
     XMEMSET(&rng, 0, sizeof(WC_RNG));
     XMEMSET(&key, 0, sizeof(ecc_key));
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectIntEQ(wc_ecc_init(&key), 0);
-    ret = wc_ecc_make_key(&rng, KEY32, &key);
+    if (EXPECT_SUCCESS()) {
+        ret = wc_ecc_make_key(&rng, KEY32, &key);
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+        ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
+    }
     ExpectIntEQ(ret, 0);
 
     /* ---- wc_ecc_set_curve: GAPS.md 1927 ----
@@ -2888,13 +2890,15 @@ int test_wc_EccDecisionCoverage(void)
         ExpectNotNull(inf = wc_ecc_new_point());
         ExpectIntEQ(wc_ecc_point_is_at_infinity(inf), 1);
 #if defined(WOLFSSL_PUBLIC_MP)
-        /* x zero, y nonzero: idx0 (x) TRUE, idx1 (y) FALSE. */
-        ExpectIntEQ(mp_set(inf->y, 1), MP_OKAY);
-        ExpectIntEQ(wc_ecc_point_is_at_infinity(inf), 0);
-        /* x nonzero, y zero: idx0 (x) FALSE, idx1 (y) TRUE. */
-        ExpectIntEQ(mp_set(inf->x, 1), MP_OKAY);
-        mp_zero(inf->y);
-        ExpectIntEQ(wc_ecc_point_is_at_infinity(inf), 0);
+        if (inf != NULL) {
+            /* x zero, y nonzero: idx0 (x) TRUE, idx1 (y) FALSE. */
+            ExpectIntEQ(mp_set(inf->y, 1), MP_OKAY);
+            ExpectIntEQ(wc_ecc_point_is_at_infinity(inf), 0);
+            /* x nonzero, y zero: idx0 (x) FALSE, idx1 (y) TRUE. */
+            ExpectIntEQ(mp_set(inf->x, 1), MP_OKAY);
+            mp_zero(inf->y);
+            ExpectIntEQ(wc_ecc_point_is_at_infinity(inf), 0);
+        }
 #endif
         wc_ecc_del_point(inf);
     }
@@ -2907,6 +2911,8 @@ int test_wc_EccDecisionCoverage(void)
 #if !defined(WOLFSSL_ECC_GEN_REJECT_SAMPLING) && defined(WOLFSSL_PUBLIC_MP)
     {
         mp_int k, order;
+        XMEMSET(&k, 0, sizeof(k));
+        XMEMSET(&order, 0, sizeof(order));
         ExpectIntEQ(mp_init(&k), MP_OKAY);
         ExpectIntEQ(mp_init(&order), MP_OKAY);
         ExpectIntEQ(mp_set(&order, 0xFFFFFFFF), MP_OKAY);
@@ -3025,6 +3031,8 @@ int test_wc_EccDecisionCoverage(void)
             byte   longDigest[WC_MAX_DIGEST_SIZE + 1];
 
             XMEMSET(longDigest, 0x24, sizeof(longDigest));
+            XMEMSET(&r, 0, sizeof(r));
+            XMEMSET(&s, 0, sizeof(s));
             ExpectIntEQ(mp_init(&r), MP_OKAY);
             ExpectIntEQ(mp_init(&s), MP_OKAY);
             ExpectIntEQ(wc_ecc_sign_hash_ex(shortDigest, 1, &rng, &key, &r,
@@ -3052,6 +3060,8 @@ int test_wc_EccDecisionCoverage(void)
         byte   longHash[WC_MAX_DIGEST_SIZE + 1];
 
         XMEMSET(longHash, 0x24, sizeof(longHash));
+        XMEMSET(&r, 0, sizeof(r));
+        XMEMSET(&s, 0, sizeof(s));
         ExpectIntEQ(mp_init(&r), MP_OKAY);
         ExpectIntEQ(mp_init(&s), MP_OKAY);
         ExpectIntEQ(wc_ecc_verify_hash_ex(&r, &s, shortHash, 1, &res, &key),
@@ -3087,7 +3097,6 @@ int test_wc_EccDecisionCoverage(void)
 #endif
     wc_ecc_free(&key); /* !deallocSet: FALSE short-circuit */
 
-    wc_ecc_free(&key);
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
 #ifdef FP_ECC
     wc_ecc_fp_free();
@@ -3105,16 +3114,18 @@ int test_wc_EccDecisionCoverage2(void)
     !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     WC_RNG  rng;
     ecc_key key;
-    int     ret;
+    int     ret = WC_NO_ERR_TRACE(MEMORY_E);
 
     XMEMSET(&rng, 0, sizeof(WC_RNG));
     XMEMSET(&key, 0, sizeof(ecc_key));
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectIntEQ(wc_ecc_init(&key), 0);
-    ret = wc_ecc_make_key(&rng, KEY32, &key);
+    if (EXPECT_SUCCESS()) {
+        ret = wc_ecc_make_key(&rng, KEY32, &key);
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+        ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
+    }
     ExpectIntEQ(ret, 0);
 
 #if defined(HAVE_ECC_VERIFY) && !defined(WOLFSSL_SP_MATH) && \
@@ -3132,6 +3143,9 @@ int test_wc_EccDecisionCoverage2(void)
         int    verify = 0;
         byte   digest[] = TEST_STRING;
 
+        XMEMSET(&r, 0, sizeof(r));
+        XMEMSET(&s, 0, sizeof(s));
+        XMEMSET(&bigVal, 0, sizeof(bigVal));
         ExpectIntEQ(mp_init(&r), MP_OKAY);
         ExpectIntEQ(mp_init(&s), MP_OKAY);
         ExpectIntEQ(mp_init(&bigVal), MP_OKAY);
@@ -3230,6 +3244,9 @@ int test_wc_EccDecisionCoverage2(void)
     {
         mp_int a, b, prime;
 
+        XMEMSET(&a, 0, sizeof(a));
+        XMEMSET(&b, 0, sizeof(b));
+        XMEMSET(&prime, 0, sizeof(prime));
         ExpectIntEQ(mp_init(&a), MP_OKAY);
         ExpectIntEQ(mp_init(&b), MP_OKAY);
         ExpectIntEQ(mp_init(&prime), MP_OKAY);
@@ -3272,16 +3289,18 @@ int test_wc_EccDecisionCoverage3(void)
     !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     WC_RNG  rng;
     ecc_key key;
-    int     ret;
+    int     ret = WC_NO_ERR_TRACE(MEMORY_E);
 
     XMEMSET(&rng, 0, sizeof(WC_RNG));
     XMEMSET(&key, 0, sizeof(ecc_key));
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectIntEQ(wc_ecc_init(&key), 0);
-    ret = wc_ecc_make_key(&rng, KEY32, &key);
+    if (EXPECT_SUCCESS()) {
+        ret = wc_ecc_make_key(&rng, KEY32, &key);
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+        ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
+    }
     ExpectIntEQ(ret, 0);
 
     /* ---- wc_ecc_export_public_raw / wc_ecc_export_private_raw:
@@ -3395,16 +3414,18 @@ int test_wc_EccDecisionCoverage4(void)
     !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     WC_RNG  rng;
     ecc_key key;
-    int     ret;
+    int     ret = WC_NO_ERR_TRACE(MEMORY_E);
 
     XMEMSET(&rng, 0, sizeof(WC_RNG));
     XMEMSET(&key, 0, sizeof(ecc_key));
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectIntEQ(wc_ecc_init(&key), 0);
-    ret = wc_ecc_make_key(&rng, KEY32, &key);
+    if (EXPECT_SUCCESS()) {
+        ret = wc_ecc_make_key(&rng, KEY32, &key);
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+        ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
+    }
     ExpectIntEQ(ret, 0);
 
     /* ---- ecc_mul2add argument guard: GAPS.md 8446 ----
