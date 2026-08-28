@@ -232,6 +232,80 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 static WC_THREADSHARED int TraceOn = 0;         /* Trace is off by default */
 static WC_THREADSHARED XFILE TraceFile = 0;
 
+/* ssl_InitSniffer*() may be called from several threads, and each of them
+ * calls ssl_FreeSniffer() when it is done. The session, server and secret
+ * tables are per thread, but the trace file, the mutexes and the crypto
+ * device are shared, so only the last caller out may tear those down. */
+#if defined(WOLFSSL_ATOMIC_OPS) && defined(WOLFSSL_ATOMIC_INITIALIZER) && \
+    !defined(SINGLE_THREADED)
+    static WC_THREADSHARED wolfSSL_Atomic_Int InitRefCount =
+        WOLFSSL_ATOMIC_INITIALIZER(0);
+    #define SNIFFER_INIT_REF_INC() \
+        wolfSSL_Atomic_Int_AddFetch(&InitRefCount, 1)
+    #define SNIFFER_INIT_REF_DEC() \
+        wolfSSL_Atomic_Int_SubFetch(&InitRefCount, 1)
+#else
+    /* No atomics available. The count is then only reliable when the sniffer
+     * is initialized and freed from one thread at a time, so a threaded user
+     * on such a platform has to do its first ssl_InitSniffer*() before it
+     * creates the threads. */
+    static WC_THREADSHARED int InitRefCount = 0;
+    #define SNIFFER_INIT_REF_INC() (++InitRefCount)
+    #define SNIFFER_INIT_REF_DEC() (--InitRefCount)
+#endif
+
+#ifndef WOLFSSL_MUTEX_INITIALIZER
+/* Set once the shared mutexes are usable, so that the callers which lost the
+ * race to initialize them do not return before they exist, and cleared again
+ * when the last caller frees them. Only ever read and written through
+ * WOLFSSL_ATOMIC_LOAD()/WOLFSSL_ATOMIC_STORE(): a plain int would let the
+ * compiler hoist the load out of the wait loop below, and the release/acquire
+ * pair is what publishes the setup to the callers that waited. Not needed when
+ * the platform can initialize the mutexes statically. */
+#if defined(WOLFSSL_ATOMIC_OPS) && !defined(SINGLE_THREADED)
+static WC_THREADSHARED wolfSSL_Atomic_Int SharedInitDone =
+    WOLFSSL_ATOMIC_INITIALIZER(0);
+#else
+static WC_THREADSHARED volatile int SharedInitDone = 0;
+#endif
+#endif
+
+/* Take a reference to the shared state.
+   returns 1 when this caller is the one that has to set it up */
+static int SnifferInitAcquire(void)
+{
+    if (SNIFFER_INIT_REF_INC() == 1)
+        return 1;
+
+#ifndef WOLFSSL_MUTEX_INITIALIZER
+    /* Another caller got there first; wait for it to finish. Startup only, and
+     * only on platforms without a static mutex initializer. */
+    while (!WOLFSSL_ATOMIC_LOAD(SharedInitDone)) {
+        WC_RELAX_LONG_LOOP();
+    }
+#endif
+
+    return 0;
+}
+
+/* Drop a reference to the shared state.
+   returns 1 when this caller is the one that has to release it, 0 when others
+   still hold a reference, and -1 when there was no reference left to drop */
+static int SnifferInitRelease(void)
+{
+    int count = SNIFFER_INIT_REF_DEC();
+
+    if (count < 0) {
+        /* More frees than inits. Put the count back rather than letting it
+           run away: the shared state is already gone, and so are the locks
+           the caller would otherwise take on the way to it. */
+        (void)SNIFFER_INIT_REF_INC();
+        return -1;
+    }
+
+    return (count == 0);
+}
+
 
 /* windows uses .rc table for this */
 #ifndef _WIN32
@@ -699,23 +773,31 @@ static int addKeyLogSnifferServerHelper(const char* address,
 void ssl_InitSniffer_ex(int devId)
 {
     wolfSSL_Init();
+
+    /* Only the first caller sets the shared state up, matching the release in
+     * ssl_FreeSniffer(): re-initializing a mutex another thread already holds
+     * is undefined, and the statistics belong to every thread at once. */
+    if (SnifferInitAcquire()) {
 #ifndef WOLFSSL_MUTEX_INITIALIZER
 #ifndef SNIFFER_LOCKLESS_TABLES
-    wc_InitMutex(&ServerListMutex);
-    wc_InitMutex(&SessionMutex);
+        wc_InitMutex(&ServerListMutex);
+        wc_InitMutex(&SessionMutex);
 #endif
 #ifndef WOLFSSL_SNIFFER_NO_RECOVERY
-    wc_InitMutex(&RecoveryMutex);
+        wc_InitMutex(&RecoveryMutex);
 #endif
 #ifdef WOLFSSL_SNIFFER_STATS
-    XMEMSET(&SnifferStats, 0, sizeof(SSLStats));
-    wc_InitMutex(&StatsMutex);
+        wc_InitMutex(&StatsMutex);
 #endif
 #endif /* !WOLFSSL_MUTEX_INITIALIZER */
 
 #ifdef WOLFSSL_SNIFFER_STATS
-    XMEMSET(&SnifferStats, 0, sizeof(SSLStats));
+        XMEMSET(&SnifferStats, 0, sizeof(SSLStats));
 #endif
+#ifndef WOLFSSL_MUTEX_INITIALIZER
+        WOLFSSL_ATOMIC_STORE(SharedInitDone, 1);
+#endif
+    }
 #if defined(WOLF_CRYPTO_CB) || defined(WOLFSSL_ASYNC_CRYPT)
     CryptoDeviceId = devId;
 #endif
@@ -887,6 +969,14 @@ void ssl_FreeSniffer(void)
     SnifferSession* session;
     SnifferSession* removeSession;
     int i;
+    int releaseShared;
+
+    releaseShared = SnifferInitRelease();
+    if (releaseShared < 0) {
+        /* Nothing was left to release, and the locks below may not exist any
+         * more, so there is nothing safe to do here. */
+        return;
+    }
 
     LOCK_SERVER_LIST();
     LOCK_SESSION();
@@ -921,35 +1011,50 @@ void ssl_FreeSniffer(void)
     freeSecretList();
 #endif /* WOLFSSL_SNIFFER_KEYLOGFILE */
 
-
+    /* What is left is shared by every thread that initialized the sniffer, so
+     * it may only be undone by the last one to get here. Tearing it down from
+     * a thread that finishes early closes the trace file and frees the mutexes
+     * under the threads still running. */
+    if (releaseShared) {
 #ifndef WOLFSSL_MUTEX_INITIALIZER
 #ifndef WOLFSSL_SNIFFER_NO_RECOVERY
-    wc_FreeMutex(&RecoveryMutex);
+        wc_FreeMutex(&RecoveryMutex);
 #endif
 #ifndef SNIFFER_LOCKLESS_TABLES
-    wc_FreeMutex(&SessionMutex);
-    wc_FreeMutex(&ServerListMutex);
+        wc_FreeMutex(&SessionMutex);
+        wc_FreeMutex(&ServerListMutex);
 #endif
+#ifdef WOLFSSL_SNIFFER_STATS
+        wc_FreeMutex(&StatsMutex);
+#endif
+        /* The mutexes are gone, so a later ssl_InitSniffer*() has to build
+           them again. Leaving the flag set would let a caller that lost the
+           race to that re-initialization run on mutexes that do not exist
+           yet. */
+        WOLFSSL_ATOMIC_STORE(SharedInitDone, 0);
 #endif /* !WOLFSSL_MUTEX_INITIALIZER */
 
 #ifdef WOLF_CRYPTO_CB
     #ifdef HAVE_INTEL_QA_SYNC
-    wc_CryptoCb_CleanupIntelQa(&CryptoDeviceId);
+        wc_CryptoCb_CleanupIntelQa(&CryptoDeviceId);
     #endif
     #ifdef HAVE_CAVIUM_OCTEON_SYNC
-    wc_CryptoCb_CleanupOcteon(&CryptoDeviceId);
+        wc_CryptoCb_CleanupOcteon(&CryptoDeviceId);
     #endif
 #endif
 #ifdef WOLFSSL_ASYNC_CRYPT
-    wolfAsync_DevClose(&CryptoDeviceId);
+        wolfAsync_DevClose(&CryptoDeviceId);
 #endif
 
-    if (TraceFile) {
-        TraceOn = 0;
-        XFCLOSE(TraceFile);
-        TraceFile = NULL;
+        if (TraceFile) {
+            TraceOn = 0;
+            XFCLOSE(TraceFile);
+            TraceFile = NULL;
+        }
     }
 
+    /* Matches the wolfSSL_Init() in ssl_InitSniffer_ex(); it keeps its own
+     * count, so every caller has to come through here. */
     wolfSSL_Cleanup();
 }
 

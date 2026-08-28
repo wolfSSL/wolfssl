@@ -201,6 +201,16 @@
   decrypt output buffer; that overread is confirmed by AddressSanitizer and is
   fixed here.
 
+* **Fix (`ssl_FreeSniffer()` tore down state shared by every thread)**: the
+  sniffer's session, server and secret tables are per thread, but its trace
+  file, mutexes and crypto device belong to the whole process, and every call
+  released all of it.  A thread that finished early closed the trace file and
+  freed the mutexes under the threads still running.  The init entry points now
+  count their callers and only the last free releases the shared state; a free
+  with no matching init leaves the count at zero rather than driving it
+  negative.  `StatsMutex` was initialized but never freed, and is now released
+  with the rest.  Single threaded use is unaffected.
+
 * **Fix (`snifftest` could not report a failed capture, and decrypted nothing
   when threaded)**: the read loop assigned `hadBadPacket` on every packet
   instead of accumulating it, so an early error was erased by any later packet

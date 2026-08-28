@@ -232,10 +232,11 @@ static void DumpStats(void)
 static void sig_handler(const int sig)
 {
     printf("SIGINT handled = %d.\n", sig);
-    FreeAll();
 #ifdef WOLFSSL_SNIFFER_STATS
+    /* Read the statistics while the sniffer still holds them. */
     DumpStats();
 #endif
+    FreeAll();
     if (sig)
         exit(EXIT_SUCCESS);
 }
@@ -1138,6 +1139,13 @@ int main(int argc, char** argv)
     ssl_SetStoreDataCallback(myStoreDataCb);
     #endif
 #else
+    /* main() dispatches packets and calls FreeAll(), so it holds a reference
+     * of its own; each worker takes another one for itself. Matched with the
+     * release in FreeAll(), which Windows does from the DLL instead. */
+#ifndef _WIN32
+    ssl_InitSniffer();
+    ssl_Trace(traceFile, err);
+#endif
 #ifdef HAVE_SESSION_TICKET
     /* Multiple threads on resume not yet supported */
     workerThreadCount = 1;
