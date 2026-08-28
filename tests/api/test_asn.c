@@ -3392,6 +3392,9 @@ int test_wc_DecodeObjectId_FIPS16(void)
         ExpectIntEQ(DecodeObjectId(oid_secp112r1,
                     sizeof(oid_secp112r1), out, NULL),
                     WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(DecodeObjectId(oid_secp112r1,
+                    sizeof(oid_secp112r1), NULL, &outSz),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
         /* Test 3 (Bug 1): outSz=1 must return BUFFER_E, not OOB write.
          * The first OID byte decodes into two arcs, so outSz must be >= 2. */
@@ -3518,6 +3521,9 @@ int test_wc_DecodeObjectId32(void)
                     WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(DecodeObjectId32(oid_secp112r1, sizeof(oid_secp112r1),
                                    out, NULL),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(DecodeObjectId32(oid_secp112r1, sizeof(oid_secp112r1),
+                                   NULL, &outSz),
                     WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
         /* Test 3 (Bug 1): outSz=1 must return BUFFER_E, not OOB write.
@@ -3688,6 +3694,14 @@ int test_wc_EncodeObjectId(void)
         outSz = sizeof(out);
         ExpectIntEQ(wc_EncodeObjectId(oid_small, 1, out, &outSz),
                     WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* Test 7: second arc > 39 is invalid when the first arc is 0 or 1 */
+        {
+            static const word16 oid_bad_second[] = { 1U, 40U };
+            outSz = sizeof(out);
+            ExpectIntEQ(wc_EncodeObjectId(oid_bad_second, 2, out, &outSz),
+                        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        }
     }
 #endif /* HAVE_OID_ENCODING && !NO_ASN */
 
@@ -3737,7 +3751,7 @@ int test_wc_EncodeObjectId32(void)
         ExpectIntEQ(wc_EncodeObjectId32(oid_small, oid_small_cnt, out, &outSz),
                     WC_NO_ERR_TRACE(BUFFER_E));
 
-        /* Test 5 : arc greater that SHRT_MAX */
+        /* Test 5 : arc greater than SHRT_MAX */
         {
             static const word32 oid_large[] = {
                 1U, 2U, 840U, 113549U, 1U, 1U, 11U
@@ -3788,6 +3802,14 @@ int test_wc_EncodeObjectId32(void)
             outSz = sizeof(out);
             ExpectIntEQ(wc_EncodeObjectId32(oid_overflow,
                         sizeof(oid_overflow) / sizeof(word32), out, &outSz),
+                        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        }
+
+        /* Test 9: second arc > 39 is invalid when the first arc is 0 or 1 */
+        {
+            static const word32 oid_bad_second[] = { 1U, 40U };
+            outSz = sizeof(out);
+            ExpectIntEQ(wc_EncodeObjectId32(oid_bad_second, 2, out, &outSz),
                         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         }
     }

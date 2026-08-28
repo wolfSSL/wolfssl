@@ -3369,7 +3369,7 @@ int test_wolfSSL_CRL_unknown_ext_cb_rescues_critical_entry_ext(void)
 
     for (CallbackType = Bit16Callback; CallbackType < CallbackTypeEnd;
             CallbackType++) {
-        ForceZero(&ctx, sizeof(ctx));
+        XMEMSET(&ctx, 0, sizeof(ctx));
         ExpectNotNull(cm = wolfSSL_CertManagerNew());
         ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm,
             "./certs/crl/extra-crls/claim-root.pem", NULL), WOLFSSL_SUCCESS);
@@ -3443,7 +3443,7 @@ int test_wolfSSL_CRL_unknown_ext_cb_rescues_critical_crl_ext(void)
      * seen the critical unknown OID. */
     for (CallbackType = Bit16Callback; CallbackType < CallbackTypeEnd;
             CallbackType++) {
-        ForceZero(&ctx, sizeof(ctx));
+        XMEMSET(&ctx, 0, sizeof(ctx));
         ExpectNotNull(cm = wolfSSL_CertManagerNew());
         ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, crl_unk_ca_der,
             sizeof(crl_unk_ca_der), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
@@ -3485,7 +3485,7 @@ int test_wolfSSL_CRL_unknown_ext_cb_rescues_critical_crl_ext(void)
     /* Rejecting callback: the same CRL must fail to load. */
     for (CallbackType = Bit16Callback; CallbackType < CallbackTypeEnd;
             CallbackType++) {
-        ForceZero(&ctx, sizeof(ctx));
+        XMEMSET(&ctx, 0, sizeof(ctx));
         ExpectNotNull(cm = wolfSSL_CertManagerNew());
         ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, crl_unk_ca_der,
             sizeof(crl_unk_ca_der), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
@@ -3546,7 +3546,7 @@ int test_wolfSSL_CRL_unknown_ext_cb_positive_return_fails_load(void)
 
     for (CallbackType = Bit16Callback; CallbackType < CallbackTypeEnd;
             CallbackType++) {
-        ForceZero(&ctx, sizeof(ctx));
+        XMEMSET(&ctx, 0, sizeof(ctx));
         ExpectNotNull(cm = wolfSSL_CertManagerNew());
         ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm,
             "./certs/crl/extra-crls/claim-root.pem", NULL), WOLFSSL_SUCCESS);
@@ -3717,6 +3717,9 @@ static int crl_unk_ext_last_cb = -1;
 static int crl_unk_ext_cb_16_reject(const word16* oid, word32 oidSz,
         int crit, const unsigned char* der, word32 derSz, void* ctxIn)
 {
+    if (ctxIn == NULL) {
+        return BAD_FUNC_ARG;
+    }
     (void)oid; (void)oidSz; (void)crit; (void)der; (void)derSz;
     ((CRLUnkExtCtx*)ctxIn)->calls++;
     crl_unk_ext_last_cb = 0;
@@ -3726,6 +3729,9 @@ static int crl_unk_ext_cb_16_reject(const word16* oid, word32 oidSz,
 static int crl_unk_ext_cb_32_accept(const word32* oid, word32 oidSz,
         int crit, const unsigned char* der, word32 derSz, void* ctxIn)
 {
+    if (ctxIn == NULL) {
+        return BAD_FUNC_ARG;
+    }
     (void)oid; (void)oidSz; (void)crit; (void)der; (void)derSz;
     ((CRLUnkExtCtx*)ctxIn)->calls++;
     crl_unk_ext_last_cb = 1;

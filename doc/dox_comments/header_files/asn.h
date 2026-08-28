@@ -77,8 +77,8 @@ void FreeAltNames(DNS_entry* altNames, void* heap);
     \param cb callback function to handle unknown extensions
     \param ctx context pointer passed to the callback
 
-    \note This API is not public by default. Define WOLFSSL_PUBLIC_ASN to
-    expose APIs marked WOLFSSL_ASN_API.
+    \note This API is available whenever the library is built with
+    WC_ASN_UNKNOWN_EXT_CB defined.
 
     \note The oid argument passed to the callback is an array of word16
     elements, one per OID arc, so arcs with values > 65535 are truncated.
@@ -128,8 +128,8 @@ int wc_SetUnknownExtCallbackEx(DecodedCert* cert,
     \param cb callback function to handle unknown extensions
     \param ctx context pointer passed to the callback
 
-    \note This API is not public by default. Define WOLFSSL_PUBLIC_ASN to
-    expose APIs marked WOLFSSL_ASN_API.
+    \note This API is available whenever the library is built with
+    WC_ASN_UNKNOWN_EXT_CB defined.
 
     \note A word32 callback takes precedence over a word16 one: when both
     wc_SetUnknownExtCallbackEx() and wc_SetUnknownExtCallback32Ex() (or their
@@ -225,7 +225,7 @@ int wc_CheckCertSignature(const byte* cert, word32 certSz, void* heap,
 
     _Example_
     \code
-    word16 oid[] = {1, 2, 840, 113549, 1, 1, 11}; // sha256WithRSAEncryption
+    word16 oid[] = {1, 3, 132, 0, 6}; // secp112r1
     byte encoded[32];
     word32 encodedSz = sizeof(encoded);
 
