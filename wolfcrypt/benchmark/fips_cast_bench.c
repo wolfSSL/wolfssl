@@ -848,6 +848,16 @@ int main(int argc, char** argv)
            );
     printf("\n");
 
+    /* Bring the library up before any wolfCrypt call, as benchmark.c and
+     * wolfcrypt/test/test.c do; some ports set up heap and hardware here. */
+    {
+        int init_rc = wolfCrypt_Init();
+        if (init_rc != 0) {
+            fprintf(stderr, "wolfCrypt_Init returned %d\n", init_rc);
+            return 1;
+        }
+    }
+
     /* The RNG needs a seed source registered before it will start, the same
      * as benchmark.c and wolfcrypt/test/test.c do. */
 #ifdef WC_RNG_SEED_CB
@@ -875,9 +885,8 @@ int main(int argc, char** argv)
 
     if (pct_only) {
         int pct_rc = bench_pct(iters, pct_family);
-        if (pct_rc != 0)
-            return 1;
-        return 0;
+        wolfCrypt_Cleanup();
+        return (pct_rc != 0) ? 1 : 0;
     }
 
     printf("ID | Name                | Mean(ms) | StdDev(ms) | Min(ms) "
@@ -908,6 +917,8 @@ int main(int argc, char** argv)
         printf("Sum of mean CAST times (one wc_RunAllCast_fips() pass): "
                "%.3f ms\n", total_mean_ms);
     }
+    wolfCrypt_Cleanup();
+
     if (failures > 0) {
         printf("WARN: %d CAST(s) failed.\n", failures);
         return 1;
