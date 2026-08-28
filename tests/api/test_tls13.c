@@ -6476,7 +6476,9 @@ int test_key_share_mismatch_psk_dhe(void)
 #if defined(WOLFSSL_TLS13) && !defined(NO_PSK) && \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     defined(HAVE_SUPPORTED_CURVES) && defined(HAVE_ECC) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    (!defined(WOLFSSL_SP_MATH) || (defined(WOLFSSL_SP_521) && \
+     !defined(WOLFSSL_SP_NO_256) && defined(WOLFSSL_SP_384)))
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
