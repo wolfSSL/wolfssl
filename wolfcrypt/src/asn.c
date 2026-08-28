@@ -7676,7 +7676,7 @@ int EncodeObjectId(const word16* in, word32 inSz, byte* out, word32* outSz)
  * @param [in, out] outSz  On in, number of elements in array.
  *                         On out, count of numbers in dotted form.
  * @return  0 on success
- * @return  BAD_FUNC_ARG when in or outSz is NULL.
+ * @return  BAD_FUNC_ARG when in, out or outSz is NULL.
  * @return  BUFFER_E when dotted form buffer too small. At least two elements
  *          are required to hold the two arcs encoded in the first byte.
  * @return  ASN_OBJECT_ID_E when an arc is encoded in more than 4 bytes.
@@ -7688,7 +7688,7 @@ int DecodeObjectId(const byte* in, word32 inSz, word16* out, word32* outSz)
     int cnt = 0;
 
     /* check args */
-    if (in == NULL || outSz == NULL) {
+    if (in == NULL || out == NULL || outSz == NULL) {
         return BAD_FUNC_ARG;
     }
 
@@ -7742,7 +7742,7 @@ int DecodeObjectId(const byte* in, word32 inSz, word16* out, word32* outSz)
  * @param [in, out] outSz  On in, number of elements in array.
  *                         On out, count of numbers in dotted form.
  * @return  0 on success
- * @return  BAD_FUNC_ARG when in or outSz is NULL.
+ * @return  BAD_FUNC_ARG when in, out or outSz is NULL.
  * @return  BUFFER_E when dotted form buffer too small. At least two elements
  *          are required to hold the two arcs encoded in the first byte.
  * @return  ASN_OBJECT_ID_E when an arc value does not fit in a word32.
@@ -7753,7 +7753,7 @@ int DecodeObjectId32(const byte* in, word32 inSz, word32* out, word32* outSz)
     word32 t = 0, cnt = 0;
 
     /* check args */
-    if (in == NULL || outSz == NULL) {
+    if (in == NULL || out == NULL || outSz == NULL) {
         return BAD_FUNC_ARG;
     }
 
@@ -23180,7 +23180,7 @@ static int DecodeCertExtensions(DecodedCert* cert)
             ret = DecodeExtensionType(input + idx, length, oid, critical, cert,
                                       &isUnknownExt);
 #ifdef WC_ASN_UNKNOWN_EXT_CB
-            if (isUnknownExt){
+            if (isUnknownExt) {
                 if (cert->unknownExtCallback32Ex != NULL ||
                         cert->unknownExtCallback32 != NULL) {
                     word32 decOid[MAX_OID_SZ];
