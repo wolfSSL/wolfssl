@@ -767,12 +767,83 @@ const char *wolfSSL_OCSP_cert_status_str(long s)
 int wolfSSL_OCSP_check_validity(WOLFSSL_ASN1_TIME* thisupd,
     WOLFSSL_ASN1_TIME* nextupd, long sec, long maxsec)
 {
+#ifndef NO_ASN_TIME
+    int ret = WOLFSSL_SUCCESS;
+    int thisUpdOk = 0;
+    time_t now = wc_Time(0);
+    time_t cmp;
+
+    /* OpenSSL-compatible OCSP response time validation (see
+     * OCSP_check_validity): `sec` is the permitted clock skew and `maxsec`,
+     * when non-negative, bounds the age of thisUpdate - the only staleness
+     * bound available when nextUpdate is absent, which is exactly the case a
+     * replayed pre-revocation response exploits.
+     *
+     * Unlike OpenSSL, which passes NULL for an absent nextUpdate, wolfSSL's
+     * compat getters (wolfSSL_OCSP_resp_find_status,
+     * wolfSSL_OCSP_single_get0_status) return a zero-length WOLFSSL_ASN1_TIME
+     * when the response omits the optional nextUpdate, so both a NULL and an
+     * empty nextupd are treated as "absent" below. settings.h enables
+     * WOLFSSL_OCSP_PARSE_STATUS whenever HAVE_OCSP && OPENSSL_EXTRA, so those
+     * getters populate the timestamps in every build where this function is
+     * compiled; a NULL thisupd therefore means the caller supplied no time and
+     * validation fails closed.
+     *
+     * A negative `sec` (a nonsensical clock skew) would invert the
+     * comparisons below, so clamp it to zero.
+     *
+     * wolfSSL_X509_cmp_time(t, &cmp) returns 1 when t is after cmp, -1 when t
+     * is at/before cmp, and 0 when t is NULL or malformed. */
+    if (sec < 0)
+        sec = 0;
+
+    /* thisUpdate is required, must be valid, and must not be more than `sec`
+     * seconds in the future. Anything other than "valid and not in the
+     * future" (1 == future, 0 == missing/malformed) is a failure. */
+    cmp = now + sec;
+    if (wolfSSL_X509_cmp_time(thisupd, &cmp) != -1) {
+        WOLFSSL_MSG("OCSP thisUpdate missing, malformed or not yet valid");
+        ret = WOLFSSL_FAILURE;
+    }
+    else {
+        thisUpdOk = 1;
+        /* Bound the age only when maxsec is non-negative (matching OpenSSL). */
+        if (maxsec >= 0) {
+            cmp = now - maxsec;
+            if (wolfSSL_X509_cmp_time(thisupd, &cmp) != 1) {
+                WOLFSSL_MSG("OCSP thisUpdate is too old");
+                ret = WOLFSSL_FAILURE;
+            }
+        }
+    }
+
+    /* nextUpdate is optional; a NULL or zero-length value means absent. When
+     * present it must be valid and must not be more than `sec` seconds in the
+     * past (i.e. the response has expired). */
+    if ((nextupd != NULL) && (nextupd->length > 0)) {
+        cmp = now - sec;
+        if (wolfSSL_X509_cmp_time(nextupd, &cmp) != 1) {
+            WOLFSSL_MSG("OCSP nextUpdate has passed or is malformed");
+            ret = WOLFSSL_FAILURE;
+        }
+        /* nextUpdate must not precede thisUpdate (only meaningful when
+         * thisUpdate was itself a usable time). */
+        else if (thisUpdOk &&
+                 (wolfSSL_ASN1_TIME_compare(nextupd, thisupd) < 0)) {
+            WOLFSSL_MSG("OCSP nextUpdate precedes thisUpdate");
+            ret = WOLFSSL_FAILURE;
+        }
+    }
+
+    return ret;
+#else
     (void)thisupd;
     (void)nextupd;
     (void)sec;
     (void)maxsec;
-    /* Dates validated in DecodeSingleResponse. */
+    /* Without ASN time support the timestamps cannot be validated. */
     return WOLFSSL_SUCCESS;
+#endif /* !NO_ASN_TIME */
 }
 
 void wolfSSL_OCSP_CERTID_free(WOLFSSL_OCSP_CERTID* certId)

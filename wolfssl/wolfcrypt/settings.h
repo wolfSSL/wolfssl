@@ -4290,9 +4290,15 @@
 #endif
 
 #if defined(HAVE_OCSP) && !defined(WOLFCRYPT_ONLY) && \
-    (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
+    (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || defined(WOLFSSL_NGINX) || \
      defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY) || \
      defined(WOLFSSL_APACHE_HTTPD))
+    /* The OpenSSL-compat OCSP timestamp getters (wolfSSL_OCSP_resp_find_status,
+     * wolfSSL_OCSP_single_get0_status) and wolfSSL_OCSP_check_validity are only
+     * useful when thisUpdate/nextUpdate are parsed out, so enable this for any
+     * OPENSSL_EXTRA build with OCSP (e.g. --enable-curl), not just the app
+     * bundles - otherwise those getters return NULL and check_validity cannot
+     * validate. */
     #undef  WOLFSSL_OCSP_PARSE_STATUS
     #define WOLFSSL_OCSP_PARSE_STATUS
 #endif
