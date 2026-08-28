@@ -49627,6 +49627,10 @@ static wc_test_ret_t curve25519_noncanonical_test(WC_RNG* rng)
         XMEMSET(shared, 0, sizeof(shared));
         ret = wc_curve25519_shared_secret_ex(&userA, &userB, shared, &sharedSz,
                                              EC25519_LITTLE_ENDIAN);
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
+            ret = wc_AsyncWait(ret, &userA.asyncDev, WC_ASYNC_FLAG_NONE);
+    #endif
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), done);
         if (sharedSz != CURVE25519_KEYSIZE ||
@@ -52470,6 +52474,10 @@ static wc_test_ret_t curve448_noncanonical_test(void)
         XMEMSET(shared, 0, sizeof(shared));
         ret = wc_curve448_shared_secret_ex(&userA, &userB, shared, &sharedSz,
                                            EC448_LITTLE_ENDIAN);
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
+            ret = wc_AsyncWait(ret, &userA.asyncDev, WC_ASYNC_FLAG_NONE);
+    #endif
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), done);
         if (sharedSz != CURVE448_KEY_SIZE ||
