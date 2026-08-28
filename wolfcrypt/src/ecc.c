@@ -8700,6 +8700,10 @@ static int ecc_cond_copy_point(ecc_point* S, int copy, ecc_point* D)
  *   A = B             -> Doubled by the add itself when the z values match;
  *                        all-zero result when they differ - doubled here.
  *   A + B = infinity  -> Add result has z == 0, x/y not 0; set to infinity.
+ *
+ * The infinity out-flag is set only for the last two cases - a finite pair
+ * whose sum is infinity - matching the original branching version, which
+ * never touched the flag when copying an operand out.
  */
 int ecc_projective_add_point_safe(ecc_point* A, ecc_point* B, ecc_point* R,
     mp_int* a, mp_int* modulus, mp_digit mp, int* infinity)
@@ -8708,6 +8712,7 @@ int ecc_projective_add_point_safe(ecc_point* A, ecc_point* B, ecc_point* R,
     int aInf;
     int bInf;
     int nInf;
+    int rInf = 0;
 #ifdef WOLFSSL_SMALL_STACK
     ecc_point* T = NULL;
 #else
@@ -8770,16 +8775,14 @@ int ecc_projective_add_point_safe(ecc_point* A, ecc_point* B, ecc_point* R,
         /* When only Z zero then result is infinity */
         else {
             err = ecc_set_point_infinity(T);
-            if ((err == MP_OKAY) && (infinity != NULL))
-                *infinity = 1;
+            rInf = 1;
         }
     }
 
     /* A = -B with matching z: replace the double the add produced. */
     if ((err == MP_OKAY) && nInf) {
         err = ecc_set_point_infinity(T);
-        if ((err == MP_OKAY) && (infinity != NULL))
-            *infinity = 1;
+        rInf = 1;
     }
 
     /* Select without branching on which operand was infinity: A infinity
@@ -8791,6 +8794,16 @@ int ecc_projective_add_point_safe(ecc_point* A, ecc_point* B, ecc_point* R,
         err = ecc_cond_copy_point(A, bInf, T);
     if (err == MP_OKAY)
         err = wc_ecc_copy_point(T, R);
+
+    /* An infinity operand feeds the raw formula a shape it cannot represent,
+     * so the add's infinity note may be spurious. The selection above then
+     * replaces the result with the other operand, and that selection
+     * overrides the note as well: the flag reports only a result the add
+     * itself produced. */
+    rInf &= (aInf == 0);
+    rInf &= (bInf == 0);
+    if ((err == MP_OKAY) && (infinity != NULL) && (rInf != 0))
+        *infinity = 1;
 
 #if defined(WOLFSSL_SMALL_STACK_CACHE) && !defined(WOLFSSL_ECC_NO_SMALL_STACK)
     T->key = NULL;
