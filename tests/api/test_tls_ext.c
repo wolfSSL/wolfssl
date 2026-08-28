@@ -573,6 +573,12 @@ int test_tls_ems_clear_reuse(void)
 
     /* Reuse re-arms the client and clears the server. */
     ExpectIntEQ(wolfSSL_clear(ssl_c), WOLFSSL_SUCCESS);
+#ifdef WOLFSSL_BLIND_PRIVATE_KEY
+    /* The handshake unloaded the object-owned blinded key: reload it so the
+     * object can be reused. */
+    ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_s, svrKeyFile, CERT_FILETYPE),
+            WOLFSSL_SUCCESS);
+#endif
     ExpectIntEQ(wolfSSL_clear(ssl_s), WOLFSSL_SUCCESS);
     test_memio_clear_buffer(&test_ctx, 0);
     test_memio_clear_buffer(&test_ctx, 1);
@@ -592,6 +598,10 @@ int test_tls_ems_clear_reuse(void)
     /* Reuse again with the client now disabling EMS: the server must forget
      * the previous peer's EMS rather than echo it unsolicited. */
     ExpectIntEQ(wolfSSL_clear(ssl_c), WOLFSSL_SUCCESS);
+#ifdef WOLFSSL_BLIND_PRIVATE_KEY
+    ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_s, svrKeyFile, CERT_FILETYPE),
+            WOLFSSL_SUCCESS);
+#endif
     ExpectIntEQ(wolfSSL_clear(ssl_s), WOLFSSL_SUCCESS);
     test_memio_clear_buffer(&test_ctx, 0);
     test_memio_clear_buffer(&test_ctx, 1);
