@@ -3844,7 +3844,7 @@ int test_wc_PKCS7_DecodeAuthEnvelopedData_truncated(void)
 #if defined(HAVE_PKCS7) && defined(HAVE_AESGCM) && !defined(NO_RSA) && \
     !defined(NO_AES) && defined(WOLFSSL_AES_128) && !defined(NO_PKCS7_STREAM) \
     && defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_NO_MALLOC) && \
-    !defined(WOLFSSL_STATIC_MEMORY)
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY)
 #define TEST_PKCS7_AUTHENV_LEAK
 
 static long pkcs7_leak_live;    /* outstanding allocations */

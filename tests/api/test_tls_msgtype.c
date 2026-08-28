@@ -2353,7 +2353,8 @@ int test_tls_msgtype_tca_find(void)
     return EXPECT_RESULT();
 }
 
-#if defined(HAVE_TRUSTED_CA) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(HAVE_TRUSTED_CA) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY)
 /* A small counting allocator used to force a single, targeted malloc
  * failure inside TLSX_TCA_New(). Installed narrowly around the call under
  * test and restored immediately after. */
@@ -2399,7 +2400,8 @@ int test_tls_msgtype_tca_new_alloc(void)
 #if defined(HAVE_TRUSTED_CA) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) &&  !defined(NO_SHA) && \
     defined(HAVE_TLS_EXTENSIONS) && \
     !defined(WOLFSSL_NO_TLS12) && \
-    defined(USE_WOLFSSL_MEMORY)
+    defined(USE_WOLFSSL_MEMORY) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     wolfSSL_Malloc_cb prevM = NULL;

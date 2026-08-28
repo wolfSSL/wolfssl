@@ -53,7 +53,8 @@
 #endif
 #if defined(WOLFSSL_TEST_STATIC_BUILD) && defined(WOLFSSL_TLS13) && \
     defined(HAVE_CERTIFICATE_STATUS_REQUEST) && !defined(NO_WOLFSSL_CLIENT) && \
-    !defined(NO_WOLFSSL_SERVER)
+    !defined(NO_WOLFSSL_SERVER) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY)
     #define TEST_TLS_BOUNDS_CSR_PARSE
 #endif
 #if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \

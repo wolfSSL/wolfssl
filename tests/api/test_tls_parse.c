@@ -112,7 +112,8 @@ static word16 test_tls_parse_build_ext(byte* out, word16 outCap,
  * failure. Installed narrowly around the call under test and restored
  * immediately after, so it never affects unrelated allocations.
  */
-#if defined(WOLFSSL_TEST_STATIC_BUILD) && !defined(NO_TLS)
+#if defined(WOLFSSL_TEST_STATIC_BUILD) && !defined(NO_TLS) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY)
 static int tls_parse_fail_after = -1;
 static int tls_parse_alloc_seen = 0;
 
