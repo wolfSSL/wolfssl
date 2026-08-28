@@ -9158,11 +9158,11 @@ static int mldsa_pct(wc_MlDsaKey* key)
         ForceZero(pct_sig, MLDSA_MAX_SIG_SIZE);
     WC_FREE_VAR_EX(pct_sig, key->heap, DYNAMIC_TYPE_MLDSA);
 
-    /* Free a key that failed the test, so a caller ignoring the return value
-     * cannot sign with it.  ISO/IEC 19790:2012 sec 7.10.1 forbids using
-     * anything that failed a self-test.  Only on ML_DSA_PCT_E: a MEMORY_E
-     * here means the test could not run. */
-    if (ret == ML_DSA_PCT_E) {
+    /* Free a key that failed the test, so a caller ignoring the return
+     * value cannot sign with it.  ISO/IEC 19790:2012 sec 7.10.1 forbids using
+     * anything that failed a self-test.  MEMORY_E is excluded: it
+     * means the test never ran, so the key is not implicated. */
+    if ((ret != 0) && (ret != MEMORY_E)) {
         wc_MlDsaKey_Free(key);
     }
 
@@ -11295,6 +11295,16 @@ int wc_MlDsaKey_MakeKey(wc_MlDsaKey* key, WC_RNG* rng)
     return ret;
 }
 
+/* Expand a seed into an ML-DSA key pair and test it.
+ *
+ * @param  [in, out]  key   ML-DSA key to fill in.
+ * @param  [in]       seed  Seed of MLDSA_SEED_SZ bytes.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when key or seed is NULL.
+ * @return  BAD_STATE_E when the parameters have not been set.
+ * @return  ML_DSA_PCT_E when the key pair fails its consistency test.  The
+ *          key is freed in that case and must be re-initialised before reuse.
+ */
 int wc_MlDsaKey_MakeKeyFromSeed(wc_MlDsaKey* key, const byte* seed)
 {
     int ret = 0;

@@ -755,6 +755,8 @@ int wc_MlKemKey_MakeKey(MlKemKey* key, WC_RNG* rng)
  * @return  NOT_COMPILED_IN when key type is not supported.
  * @return  MEMORY_E when dynamic memory allocation failed.
  * @return  BAD_COND_E when fault attack detected.
+ * @return  ML_KEM_PCT_E when the key pair fails its consistency test.  The
+ *          key is freed in that case and must be re-initialised before reuse.
  */
 int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
     int len)
@@ -1064,10 +1066,9 @@ for the key-pair test required by ISO/IEC 19790:2012 sec 7.10.3.3"
 
         /* Free a key that failed the test, so a caller ignoring the return
          * value cannot use it.  ISO/IEC 19790:2012 sec 7.10.1 forbids using
-         * anything that failed a self-test.  Only on ML_KEM_PCT_E: a
-         * MEMORY_E here means the test could not run, and destroying a
-         * good key over a transient allocation failure helps no one. */
-        if (ret == ML_KEM_PCT_E) {
+         * anything that failed a self-test.  MEMORY_E is excluded: it
+         * means the test never ran, so the key is not implicated. */
+        if ((ret != 0) && (ret != MEMORY_E)) {
             wc_MlKemKey_Free(key);
         }
     }

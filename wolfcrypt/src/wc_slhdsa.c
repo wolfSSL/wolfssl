@@ -7080,6 +7080,8 @@ int wc_SlhDsaKey_MakeKey(SlhDsaKey* key, WC_RNG* rng)
  * @return  BAD_FUNC_ARG when pk_seed is NULL or length is not n.
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  SHAKE-256 error return code on digest failure.
+ * @return  SLH_DSA_PCT_E when the key pair fails its consistency test.  The
+ *          key is freed in that case and must be re-initialised before reuse.
  */
 int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key, const byte* sk_seed,
     word32 sk_seed_len, const byte* sk_prf, word32 sk_prf_len,
@@ -7172,10 +7174,10 @@ int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key, const byte* sk_seed,
         }
 
         /* Free a key that failed the test, so a caller ignoring the return
-         * value cannot sign with it.  ISO/IEC 19790:2012 sec 7.10.1 forbids
-         * using anything that failed a self-test.  Only on SLH_DSA_PCT_E:
-         * any other error means the test could not run. */
-        if (ret == SLH_DSA_PCT_E) {
+         * value cannot sign with it.  ISO/IEC 19790:2012 sec 7.10.1 forbids using
+         * anything that failed a self-test.  MEMORY_E is excluded: it
+         * means the test never ran, so the key is not implicated. */
+        if ((ret != 0) && (ret != MEMORY_E)) {
             wc_SlhDsaKey_Free(key);
         }
     }

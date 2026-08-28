@@ -95,13 +95,12 @@ static const char* cast_name(int id)
         case FIPS_CAST_KDF_TLS12:         return "KDF-TLS12";
         case FIPS_CAST_KDF_TLS13:         return "KDF-TLS13";
         case FIPS_CAST_KDF_SSH:           return "KDF-SSH";
-#if defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(6,0)
+        /* No inner version guards: this file only compiles for v7.0.0+
+         * (see the #if at the top), where every id below exists. */
         case FIPS_CAST_KDF_SRTP:          return "KDF-SRTP";
         case FIPS_CAST_ED25519:           return "Ed25519";
         case FIPS_CAST_ED448:             return "Ed448";
         case FIPS_CAST_PBKDF2:            return "PBKDF2";
-#endif
-#if defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(7,0)
         case FIPS_CAST_AES_ECB:           return "AES-ECB";
         case FIPS_CAST_ML_KEM:            return "ML-KEM";
         case FIPS_CAST_ML_DSA:            return "ML-DSA";
@@ -112,7 +111,6 @@ static const char* cast_name(int id)
         case FIPS_CAST_AES_CMAC:          return "AES-CMAC";
         case FIPS_CAST_SHAKE:             return "SHAKE";
         case FIPS_CAST_AES_KW:            return "AES-KW";
-#endif
         default:                          return "(unknown)";
     }
 }
@@ -141,6 +139,15 @@ static double bench_now(void)
 }
 
 
+/* Elapsed seconds, never negative.  bench_now() returns -1.0 if the clock
+ * fails, and a negative interval would corrupt the statistics. */
+static double bench_delta(double t0, double t1)
+{
+    double dt = t1 - t0;
+    return (dt > 0.0) ? dt : 0.0;
+}
+
+
 /* Run a single CAST iters times, populate stats (in milliseconds).
  * Returns 0 on success, non-zero on first CAST failure. */
 static int run_one_cast(int id, int iters,
@@ -166,9 +173,7 @@ static int run_one_cast(int id, int iters,
         t1 = bench_now();
         if (rc != 0)
             return rc;
-        dt = t1 - t0;
-        if (dt < 0.0)
-            dt = 0.0;
+        dt = bench_delta(t0, t1);
         if ((i == 0) || (dt < mn))
             mn = dt;
         if (dt > mx)
@@ -323,7 +328,7 @@ static int bench_pct_mlkem(int iters)
             t1 = bench_now();
             if (rc != 0)
                 break;
-            kg_s += t1 - t0;
+            kg_s += bench_delta(t0, t1);
 
             t0 = bench_now();
             rc = wc_MlKemKey_CipherTextSize(&key, &ctSz);
@@ -338,7 +343,7 @@ static int bench_pct_mlkem(int iters)
             t1 = bench_now();
             if (rc != 0)
                 break;
-            pct_s += t1 - t0;
+            pct_s += bench_delta(t0, t1);
         }
 
         if (rc != 0) {
@@ -416,7 +421,7 @@ static int bench_pct_mldsa(int iters)
             t1 = bench_now();
             if (rc != 0)
                 break;
-            kg_s += t1 - t0;
+            kg_s += bench_delta(t0, t1);
 
             t0 = bench_now();
             rc = wc_MlDsaKey_SignCtxWithSeed(&key, NULL, 0, sig, &sigSz,
@@ -430,7 +435,7 @@ static int bench_pct_mldsa(int iters)
             t1 = bench_now();
             if (rc != 0)
                 break;
-            pct_s += t1 - t0;
+            pct_s += bench_delta(t0, t1);
         }
 
         if (rc != 0) {
@@ -491,6 +496,7 @@ static int bench_pct_slhdsa(int iters)
     byte   sk_seed[BENCH_SLHDSA_MAX_N];
     byte   sk_prf[BENCH_SLHDSA_MAX_N];
     byte   pk_seed[BENCH_SLHDSA_MAX_N];
+    byte   priv[BENCH_SLHDSA_MAX_N * 4];
     byte   pub[BENCH_SLHDSA_MAX_N * 2];
     int    failures = 0;
     size_t t;
@@ -541,6 +547,7 @@ static int bench_pct_slhdsa(int iters)
         for (i = 0; i < iters; i++) {
             double t0, t1;
             word32    sigSz = (word32)sigLen;
+            word32    pl = (word32)privLen;
             word32    ul = (word32)(n * 2);
 
             XMEMSET(sk_seed, (byte)(0x11 + i), (size_t)n);
@@ -553,7 +560,7 @@ static int bench_pct_slhdsa(int iters)
             t1 = bench_now();
             if (rc != 0)
                 break;
-            kg_s += t1 - t0;
+            kg_s += bench_delta(t0, t1);
 
             /* The alternative not taken, timed for comparison. */
             t0 = bench_now();
@@ -566,19 +573,21 @@ static int bench_pct_slhdsa(int iters)
             t1 = bench_now();
             if (rc != 0)
                 break;
-            a_s += t1 - t0;
+            a_s += bench_delta(t0, t1);
 
             /* The IG shortcut.  See bench_pct_slhdsa_notes(). */
             t0 = bench_now();
-            rc = wc_SlhDsaKey_ExportPublic(&key, pub, &ul);
-            if ((rc == 0) && (XMEMCMP(pub, key.sk + (size_t)(n * 2),
+            rc = wc_SlhDsaKey_ExportPrivate(&key, priv, &pl);
+            if (rc == 0)
+                rc = wc_SlhDsaKey_ExportPublic(&key, pub, &ul);
+            if ((rc == 0) && (XMEMCMP(priv + (size_t)(n * 2), pub,
                     (size_t)n) != 0)) {
                 rc = SLH_DSA_PCT_E;
             }
             t1 = bench_now();
             if (rc != 0)
                 break;
-            c_s += t1 - t0;
+            c_s += bench_delta(t0, t1);
         }
 
         if (rc != 0) {
@@ -624,6 +633,7 @@ static int bench_pct(int iters, const char* only)
     int ran = 0;
 #ifdef BENCH_HAVE_PCT
     int rc;
+    int err = 0;
 #endif
 
 #ifndef BENCH_HAVE_PCT
@@ -647,30 +657,36 @@ static int bench_pct(int iters, const char* only)
      * error if it could not run.  Keep those apart: summing them lets a
      * -125 cancel real failures and report success. */
 #ifdef WOLFSSL_HAVE_MLKEM
-    if ((only == NULL) || (XSTRCMP(only, "mlkem") == 0)) {
+    if ((err == 0) && ((only == NULL) || (XSTRCMP(only, "mlkem") == 0))) {
         rc = bench_pct_mlkem(iters);
         if (rc < 0)
-            return rc;
-        failures += rc;
-        ran++;
+            err = rc;
+        else {
+            failures += rc;
+            ran++;
+        }
     }
 #endif
 #ifdef WOLFSSL_HAVE_MLDSA
-    if ((only == NULL) || (XSTRCMP(only, "mldsa") == 0)) {
+    if ((err == 0) && ((only == NULL) || (XSTRCMP(only, "mldsa") == 0))) {
         rc = bench_pct_mldsa(iters);
         if (rc < 0)
-            return rc;
-        failures += rc;
-        ran++;
+            err = rc;
+        else {
+            failures += rc;
+            ran++;
+        }
     }
 #endif
 #ifdef WOLFSSL_HAVE_SLHDSA
-    if ((only == NULL) || (XSTRCMP(only, "slhdsa") == 0)) {
+    if ((err == 0) && ((only == NULL) || (XSTRCMP(only, "slhdsa") == 0))) {
         rc = bench_pct_slhdsa(iters);
         if (rc < 0)
-            return rc;
-        failures += rc;
-        ran++;
+            err = rc;
+        else {
+            failures += rc;
+            ran++;
+        }
     }
 #endif
 
@@ -678,6 +694,10 @@ static int bench_pct(int iters, const char* only)
      * which reads as "measured, costs nothing". */
 #ifdef BENCH_HAVE_PCT
     PRIVATE_KEY_LOCK();
+    /* Returned only after the lock is restored: an early return above would
+     * leave private-key operations unlocked for the whole process. */
+    if (err != 0)
+        return err;
 #endif
 
     if (ran == 0) {
@@ -772,6 +792,11 @@ int main(int argc, char** argv)
                 || XSTRCMP(argv[i], "--help") == 0) {
             usage(argv[0]);
             return 0;
+        } else if ((XSTRCMP(argv[i], "-i") == 0) ||
+                   (XSTRCMP(argv[i], "-c") == 0) ||
+                   (XSTRCMP(argv[i], "-a") == 0)) {
+            fprintf(stderr, "%s requires a value\n", argv[i]);
+            return 2;
         } else {
             fprintf(stderr, "unknown argument: %s\n", argv[i]);
             usage(argv[0]);
@@ -792,17 +817,18 @@ int main(int argc, char** argv)
     if (pct_only && !iters_set)
         iters = BENCH_PCT_DEFAULT_ITERS;
 
+    /* Before -l, so an out-of-range -c is rejected whichever mode runs. */
+    if (single >= FIPS_CAST_COUNT) {   /* -1 when -c was not given */
+        fprintf(stderr, "CAST id %d out of range (0..%d)\n",
+                single, FIPS_CAST_COUNT - 1);
+        return 2;
+    }
+
     if (list_only) {
         printf("FIPS CAST IDs (FIPS_CAST_COUNT = %d):\n", FIPS_CAST_COUNT);
         for (i = 0; i < FIPS_CAST_COUNT; i++)
             printf("  %2d  %s\n", i, cast_name(i));
         return 0;
-    }
-
-    if (single >= 0 && single >= FIPS_CAST_COUNT) {
-        fprintf(stderr, "CAST id %d out of range (0..%d)\n",
-                single, FIPS_CAST_COUNT - 1);
-        return 2;
     }
 
     printf("wolfCrypt FIPS %s benchmark\n", pct_only ? "PCT" : "CAST");

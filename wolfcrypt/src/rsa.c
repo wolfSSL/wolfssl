@@ -933,10 +933,13 @@ int wc_CheckRsaKey(RsaKey* key)
             ret = WC_KEY_SIZE_E;
         }
 
-        /* Public exponent: odd, and 65537 <= e < 2^256 (item B).  e is an
-         * mp_int here, so the upper bound needs an explicit bit count. */
+        /* Public exponent: odd, and 65537 <= e < 2^256 (item B).  Bounds are
+         * bit counts, not mp_cmp_d: a digit can be 8 or 16 bits wide
+         * (sp_int.h), and 65537 would truncate there.  An odd e of at least
+         * 17 bits is >= 65537, because 65536 is the only 17-bit value below
+         * it and that one is even. */
         if ((ret == 0) && (mp_iseven(&key->e) ||
-                (mp_cmp_d(&key->e, 65537) == MP_LT) ||
+                (mp_count_bits(&key->e) < 17) ||
                 (mp_count_bits(&key->e) > 256))) {
             ret = MP_EXPTMOD_E;
         }
@@ -983,7 +986,10 @@ int wc_CheckRsaKey(RsaKey* key)
     /* Check dP, dQ and u if they exist */
     if (ret == 0 && !mp_iszero(&key->dP)) {
 #if FIPS_VERSION3_GE(7,0,0)
-        /* Each CRT component must be greater than 1.
+        /* Guarded on the version alone, unlike the block above: this needs
+         * no WOLFSSL_KEY_GEN because it calls no key-generation helper.
+         *
+         * Each CRT component must be greater than 1.
          * SP 800-56B Rev2 sec 6.4.1.4.3 item F, steps 7a/7b/7c.
          * Their upper bounds are checked just below. */
         if ((mp_cmp_d(&key->dP, 1) != MP_GT) ||
