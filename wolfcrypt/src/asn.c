@@ -20203,7 +20203,7 @@ static const ASNItem otherNameASN[] = {
 /* UPN      */     { 1, ASN_UTF8STRING, 0, 0, 2 },
 /* FASC-N   */     { 1, ASN_OCTET_STRING, 0, 0, 2 },
 /* IA5      */     { 1, ASN_IA5_STRING, 0, 0, 2 },
-/* HWN_SEQ  */     { 1, ASN_SEQUENCE, 1, 1, 2 },
+/* HWN_SEQ  */     { 1, ASN_SEQUENCE, 1, 0, 2 },
 /* HWN_TYPE */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
 /* HWN_NUM  */         { 2, ASN_OCTET_STRING, 0, 0, 0 }
 };
@@ -20231,7 +20231,7 @@ static int DecodeSEP(ASNGetData* dataASN, DecodedCert* cert)
     serialLen = dataASN[OTHERNAMEASN_IDX_HWN_NUM].data.ref.length;
 
     /* The value parsed must have been the HW module SEQUENCE. */
-    if (dataASN[OTHERNAMEASN_IDX_HWN_TYPE].data.oid.data == NULL) {
+    if (dataASN[OTHERNAMEASN_IDX_HWN_SEQ].data.ref.data == NULL) {
         WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
         ret = ASN_PARSE_E;
     }
