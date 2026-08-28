@@ -127,14 +127,14 @@ int test_wc_PKCS7_InitWithCert(void)
         XMEMSET(cert, 0, certSz);
         XMEMCPY(cert, client_cert_der_1024, sizeof_client_cert_der_1024);
     #else
-        unsigned char   cert[ONEK_BUF];
+        /* cert file is larger than ONEK_BUF */
+        unsigned char   cert[TWOK_BUF];
         XFILE           fp = XBADFILE;
         int             certSz;
 
         ExpectTrue((fp = XFOPEN("./certs/1024/client-cert.der", "rb")) !=
             XBADFILE);
-        ExpectIntGT(certSz = (int)XFREAD(cert, 1, sizeof_client_cert_der_1024,
-            fp), 0);
+        ExpectIntGT(certSz = (int)XFREAD(cert, 1, sizeof(cert), fp), 0);
         if (fp != XBADFILE)
             XFCLOSE(fp);
     #endif
@@ -288,15 +288,15 @@ int test_wc_PKCS7_InitWithCert_guardrails(void)
         XMEMSET(cert, 0, sizeof(cert));
         XMEMCPY(cert, client_cert_der_1024, sizeof_client_cert_der_1024);
     #else
-        byte cert[ONEK_BUF];
+        /* cert file is larger than ONEK_BUF */
+        byte cert[TWOK_BUF];
         XFILE fp = XBADFILE;
         int tmpCertSz;
         word32 certSz = 0;
 
         ExpectTrue((fp = XFOPEN("./certs/1024/client-cert.der", "rb")) !=
             XBADFILE);
-        ExpectIntGT(tmpCertSz = (int)XFREAD(cert, 1,
-            sizeof_client_cert_der_1024, fp), 0);
+        ExpectIntGT(tmpCertSz = (int)XFREAD(cert, 1, sizeof(cert), fp), 0);
         certSz = (word32)tmpCertSz;
         if (fp != XBADFILE)
             XFCLOSE(fp);
@@ -368,7 +368,8 @@ int test_wc_PKCS7_EncodeData(void)
         XMEMCPY(cert, client_cert_der_1024, certSz);
         XMEMCPY(key, client_key_der_1024, keySz);
     #else
-        unsigned char cert[ONEK_BUF];
+        /* cert file is larger than ONEK_BUF */
+        unsigned char cert[TWOK_BUF];
         unsigned char key[ONEK_BUF];
         XFILE         fp = XBADFILE;
         int           certSz;
@@ -376,8 +377,7 @@ int test_wc_PKCS7_EncodeData(void)
 
         ExpectTrue((fp = XFOPEN("./certs/1024/client-cert.der", "rb")) !=
             XBADFILE);
-        ExpectIntGT(certSz = (int)XFREAD(cert, 1, sizeof_client_cert_der_1024,
-            fp), 0);
+        ExpectIntGT(certSz = (int)XFREAD(cert, 1, sizeof(cert), fp), 0);
         if (fp != XBADFILE) {
             XFCLOSE(fp);
             fp = XBADFILE;
@@ -385,8 +385,7 @@ int test_wc_PKCS7_EncodeData(void)
 
         ExpectTrue((fp = XFOPEN("./certs/1024/client-key.der", "rb")) !=
             XBADFILE);
-        ExpectIntGT(keySz = (int)XFREAD(key, 1, sizeof_client_key_der_1024, fp),
-            0);
+        ExpectIntGT(keySz = (int)XFREAD(key, 1, sizeof(key), fp), 0);
         if (fp != XBADFILE)
             XFCLOSE(fp);
     #endif
@@ -511,7 +510,8 @@ static int rsaSignRawDigestCb(PKCS7* pkcs7, byte* digest, word32 digestSz,
 #else
     {
         XFILE fp;
-        byte keyBuf[ONEK_BUF];
+        /* key file is larger than ONEK_BUF */
+        byte keyBuf[TWOK_BUF];
         int keySz;
 
         fp = XFOPEN("./certs/client-key.der", "rb");
@@ -713,7 +713,7 @@ int test_wc_PKCS7_EncodeSignedData(void)
         XMEMCPY(cert, client_cert_der_2048, certSz);
     #elif defined(USE_CERT_BUFFERS_1024)
         byte        key[sizeof_client_key_der_1024];
-        byte        cert[sizeof(sizeof_client_cert_der_1024)];
+        byte        cert[sizeof_client_cert_der_1024];
         word32      keySz = (word32)sizeof(key);
         word32      certSz = (word32)sizeof(cert);
         XMEMSET(key, 0, keySz);
@@ -721,7 +721,8 @@ int test_wc_PKCS7_EncodeSignedData(void)
         XMEMCPY(key, client_key_der_1024, keySz);
         XMEMCPY(cert, client_cert_der_1024, certSz);
     #else
-        unsigned char   cert[ONEK_BUF];
+        /* cert file is larger than ONEK_BUF */
+        unsigned char   cert[TWOK_BUF];
         unsigned char   key[ONEK_BUF];
         XFILE           fp = XBADFILE;
         int             certSz;
@@ -729,8 +730,7 @@ int test_wc_PKCS7_EncodeSignedData(void)
 
         ExpectTrue((fp = XFOPEN("./certs/1024/client-cert.der", "rb")) !=
             XBADFILE);
-        ExpectIntGT(certSz = (int)XFREAD(cert, 1, sizeof_client_cert_der_1024,
-            fp), 0);
+        ExpectIntGT(certSz = (int)XFREAD(cert, 1, sizeof(cert), fp), 0);
         if (fp != XBADFILE) {
             XFCLOSE(fp);
             fp = XBADFILE;
@@ -738,8 +738,7 @@ int test_wc_PKCS7_EncodeSignedData(void)
 
         ExpectTrue((fp = XFOPEN("./certs/1024/client-key.der", "rb")) !=
             XBADFILE);
-        ExpectIntGT(keySz = (int)XFREAD(key, 1, sizeof_client_key_der_1024, fp),
-            0);
+        ExpectIntGT(keySz = (int)XFREAD(key, 1, sizeof(key), fp), 0);
         if (fp != XBADFILE)
             XFCLOSE(fp);
     #endif
@@ -1078,7 +1077,8 @@ int test_wc_PKCS7_EncodeSignedData_SKID(void)
     XMEMCPY(key, client_key_der_1024, keySz);
     XMEMCPY(cert, client_cert_der_1024, certSz);
 #else
-    byte   cert[ONEK_BUF];
+    /* cert file is larger than ONEK_BUF */
+    byte   cert[TWOK_BUF];
     byte   key[ONEK_BUF];
     word32 certSz = 0;
     word32 keySz = 0;
@@ -1813,7 +1813,7 @@ int test_wc_PKCS7_EncodeSignedData_ex(void)
         XMEMCPY(cert, client_cert_der_2048, certSz);
     #elif defined(USE_CERT_BUFFERS_1024)
         byte        key[sizeof_client_key_der_1024];
-        byte        cert[sizeof(sizeof_client_cert_der_1024)];
+        byte        cert[sizeof_client_cert_der_1024];
         word32      keySz = (word32)sizeof(key);
         word32      certSz = (word32)sizeof(cert);
         XMEMSET(key, 0, keySz);
@@ -1821,16 +1821,16 @@ int test_wc_PKCS7_EncodeSignedData_ex(void)
         XMEMCPY(key, client_key_der_1024, keySz);
         XMEMCPY(cert, client_cert_der_1024, certSz);
     #else
-        unsigned char  cert[ONEK_BUF];
+        /* cert file is larger than ONEK_BUF */
+        unsigned char  cert[TWOK_BUF];
         unsigned char  key[ONEK_BUF];
         XFILE          fp = XBADFILE;
         int            certSz;
         int            keySz;
 
-        ExpectTure((fp = XFOPEN("./certs/1024/client-cert.der", "rb")) !=
+        ExpectTrue((fp = XFOPEN("./certs/1024/client-cert.der", "rb")) !=
             XBADFILE);
-        ExpectIntGT(certSz = (int)XFREAD(cert, 1, sizeof_client_cert_der_1024,
-            fp), 0);
+        ExpectIntGT(certSz = (int)XFREAD(cert, 1, sizeof(cert), fp), 0);
         if (fp != XBADFILE) {
             XFCLOSE(fp);
             fp = XBADFILE;
@@ -1838,8 +1838,7 @@ int test_wc_PKCS7_EncodeSignedData_ex(void)
 
         ExpectTrue((fp = XFOPEN("./certs/1024/client-key.der", "rb")) !=
             XBADFILE);
-        ExpectIntGT(keySz = (int)XFREAD(key, 1, sizeof_client_key_der_1024, fp),
-            0);
+        ExpectIntGT(keySz = (int)XFREAD(key, 1, sizeof(key), fp), 0);
         if (fp != XBADFILE)
             XFCLOSE(fp);
     #endif
@@ -4687,7 +4686,8 @@ int test_wc_PKCS7_stream_encode_chunk_boundary(void)
         XMEMCPY(cert, client_cert_der_1024, certSz);
         XMEMCPY(key, client_key_der_1024, keySz);
     #else
-        byte   cert[ONEK_BUF];
+        /* cert file is larger than ONEK_BUF */
+        byte   cert[TWOK_BUF];
         byte   key[ONEK_BUF];
         word32 certSz = 0;
         word32 keySz  = 0;
