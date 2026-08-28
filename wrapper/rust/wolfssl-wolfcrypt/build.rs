@@ -5,6 +5,7 @@ use std::env;
 use std::fs;
 use std::io::{self, Read, Result};
 use std::path::{Path,PathBuf};
+use std::sync::OnceLock;
 
 /// Perform crate build.
 fn main() {
@@ -37,33 +38,48 @@ fn wolfssl_repo_lib_dir() -> Result<String> {
     Ok(format!("{}/src/.libs", wolfssl_repo_base_dir()?))
 }
 
-fn wolfssl_user_prefix() -> Option<String> {
-    match env::var("WOLFSSL_PREFIX") {
-        Ok(prefix) => {
-            if !prefix.is_empty() && !prefix.contains('\n') {
-                Some(prefix)
-            } else {
-                println!("cargo:warning=ignoring WOLFSSL_PREFIX");
-                None
-            }
-        }
-        Err(_) => None,
+/// Returns the validated `WOLFSSL_PREFIX` installation prefix, if usable.
+///
+/// A prefix is only accepted if it provides both halves of an installation:
+/// a `lib` directory and an `include/wolfssl` directory.  A prefix holding
+/// only one of them is rejected outright, so that the headers and the library
+/// we build against always come from the same place.
+///
+/// The result is computed once and cached, so any warning is printed once.
+fn wolfssl_prefix() -> Option<&'static str> {
+    static PREFIX: OnceLock<Option<String>> = OnceLock::new();
+    PREFIX.get_or_init(compute_wolfssl_prefix).as_deref()
+}
+
+/// Read `WOLFSSL_PREFIX` from the environment and validate its layout.
+///
+/// Returns `None` (after warning) if the variable is unset, malformed, or
+/// does not point at a directory containing both `lib` and `include/wolfssl`.
+fn compute_wolfssl_prefix() -> Option<String> {
+    let prefix = env::var("WOLFSSL_PREFIX").ok()?;
+    if prefix.is_empty() || prefix.contains('\n') {
+        println!("cargo:warning=ignoring WOLFSSL_PREFIX");
+        return None;
     }
+    let prefix_path = Path::new(&prefix);
+    for subdir in [prefix_path.join("lib"),
+                   prefix_path.join("include").join("wolfssl")] {
+        if !subdir.is_dir() {
+            println!("cargo:warning=ignoring WOLFSSL_PREFIX: {} is not a directory",
+                     subdir.display());
+            return None;
+        }
+    }
+    Some(prefix)
 }
 
 /// Returns the include directory for wolfssl headers.
 ///
-/// If `WOLFSSL_PREFIX` is set, returns `{WOLFSSL_PREFIX}/include`.
+/// If `WOLFSSL_PREFIX` is usable, returns `{WOLFSSL_PREFIX}/include`.
 /// Otherwise falls back to the repo root if it exists (for in-tree host builds).
 fn wolfssl_include_dir() -> Result<Option<String>> {
-    if let Some(prefix) = wolfssl_user_prefix() {
-        let include_dir = format!("{}/include", prefix);
-        let wolfssl_dir = Path::new(&include_dir).join("wolfssl");
-        if !wolfssl_dir.is_dir() {
-            println!("cargo:warning=WOLFSSL_PREFIX is set but {} is not a directory", wolfssl_dir.display());
-            return Ok(None);
-        }
-        Ok(Some(include_dir))
+    if let Some(prefix) = wolfssl_prefix() {
+        Ok(Some(format!("{}/include", prefix)))
     } else {
         let base = wolfssl_repo_base_dir()?;
         let base_path = Path::new(&base);
@@ -80,17 +96,11 @@ fn wolfssl_include_dir() -> Result<Option<String>> {
 
 /// Returns the library directory for libwolfssl.
 ///
-/// If `WOLFSSL_PREFIX` is set, returns `{WOLFSSL_PREFIX}/lib`.
+/// If `WOLFSSL_PREFIX` is usable, returns `{WOLFSSL_PREFIX}/lib`.
 /// Otherwise falls back to the in-tree build output directory if it exists.
 fn wolfssl_lib_dir() -> Result<Option<String>> {
-    if let Some(prefix) = wolfssl_user_prefix() {
-        let lib_dir = format!("{}/lib", prefix);
-        let lib_path = Path::new(&lib_dir);
-        if !lib_path.is_dir() {
-            println!("cargo:warning=WOLFSSL_PREFIX is set but {} is not a directory", lib_dir);
-            return Ok(None);
-        }
-        Ok(Some(lib_dir))
+    if let Some(prefix) = wolfssl_prefix() {
+        Ok(Some(format!("{}/lib", prefix)))
     } else {
         let repo_lib_dir = wolfssl_repo_lib_dir()?;
         if Path::new(&repo_lib_dir).exists() {
