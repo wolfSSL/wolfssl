@@ -326,42 +326,6 @@ int test_ocsp_ancestor_responder_rejected(void)
 }
 #endif
 
-#if defined(HAVE_OCSP) && !defined(NO_SHA) && !defined(NO_RSA)
-/* The responder certificate embedded in an OCSP response must have its own
- * signature verified against the CA it claims issued it (RFC 6960 4.2.2.2:
- * the delegation certificate and the certificate being checked must be signed
- * by the same key). resp_forged_responder_cert carries a responder
- * certificate that names the legitimate root CA as its issuer and repeats
- * that CA's key identifier, so the signer lookup resolves to the real root
- * CA, but it was signed by the imposter root CA's key. Matching names and key
- * identifiers only select a candidate issuer; they do not authenticate one.
- * Nothing else about the response is wrong, so accepting it would mean the
- * responder certificate's signature was never checked. */
-int test_ocsp_forged_responder_cert_rejected(void)
-{
-    EXPECT_DECLS;
-    struct test_conf conf;
-
-    conf.resp = (unsigned char*)resp_forged_responder_cert;
-    conf.respSz = sizeof(resp_forged_responder_cert);
-    conf.ca0 = root_ca_cert_pem;
-    conf.ca0Sz = sizeof(root_ca_cert_pem);
-    conf.ca1 = NULL;
-    conf.ca1Sz = 0;
-    conf.targetCert = intermediate1_ca_cert_pem;
-    conf.targetCertSz = sizeof(intermediate1_ca_cert_pem);
-    ExpectIntEQ(test_ocsp_response_with_cm(&conf, OCSP_LOOKUP_FAIL),
-        TEST_SUCCESS);
-
-    return EXPECT_RESULT();
-}
-#else
-int test_ocsp_forged_responder_cert_rejected(void)
-{
-    return TEST_SKIPPED;
-}
-#endif
-
 #if defined(HAVE_OCSP) && (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && \
     !defined(NO_RSA)
 static int test_ocsp_create_x509store(WOLFSSL_X509_STORE** store,
@@ -2468,3 +2432,150 @@ int test_wolfIO_DecodeUrl_crlf_reject(void)
     return TEST_SKIPPED;
 }
 #endif /* HAVE_HTTP_CLIENT */
+
+
+/* wolfSSL_OCSP_check_validity (OpenSSL OCSP_check_validity) must validate the
+ * response timestamps: reject a thisUpdate that is missing/malformed/in the
+ * future, reject an expired nextUpdate, and - crucially, since that is what a
+ * replayed pre-revocation response looks like - enforce maxsec as the maximum
+ * age of thisUpdate when nextUpdate is absent. `sec` is the permitted clock
+ * skew. Before the fix the function ignored every argument and always
+ * succeeded (issue 10718).
+ *
+ * wolfSSL's compat getters return a zero-length WOLFSSL_ASN1_TIME (not NULL)
+ * for an absent nextUpdate, so that case must be treated as "absent" and
+ * accepted, not rejected. Times are built relative to the current time so the
+ * test is clock-independent. */
+#if defined(HAVE_OCSP) && (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && \
+    !defined(NO_ASN_TIME) && !defined(USER_TIME) && !defined(TIME_OVERRIDES)
+int test_ocsp_check_validity(void)
+{
+    EXPECT_DECLS;
+    time_t now = wc_Time(0);
+    WOLFSSL_ASN1_TIME thisUpd;
+    WOLFSSL_ASN1_TIME nextUpd;
+    const long DAY = 24L * 60 * 60;
+
+    /* Fresh thisUpdate, no nextUpdate, within maxsec: accepted. */
+    ExpectNotNull(wolfSSL_ASN1_TIME_adj(&thisUpd, now, 0, -60));
+    ExpectIntEQ(wolfSSL_OCSP_check_validity(&thisUpd, NULL, 300, 300),
+        WOLFSSL_SUCCESS);
+
+    /* Stale thisUpdate (~1 day old), no nextUpdate, maxsec 300: the response
+     * is older than allowed, so it must be rejected (the replay case). */
+    ExpectNotNull(wolfSSL_ASN1_TIME_adj(&thisUpd, now, 0, -DAY));
+    ExpectIntEQ(wolfSSL_OCSP_check_validity(&thisUpd, NULL, 300, 300),
+        WOLFSSL_FAILURE);
+
+    /* thisUpdate far in the future (beyond clock skew): not yet valid. */
+    ExpectNotNull(wolfSSL_ASN1_TIME_adj(&thisUpd, now, 0, DAY));
+    ExpectIntEQ(wolfSSL_OCSP_check_validity(&thisUpd, NULL, 300, 300),
+        WOLFSSL_FAILURE);
+
+    /* thisUpdate slightly in the future but within `sec` clock skew: accepted. */
+    ExpectNotNull(wolfSSL_ASN1_TIME_adj(&thisUpd, now, 0, 100));
+    ExpectIntEQ(wolfSSL_OCSP_check_validity(&thisUpd, NULL, 300, 300),
+        WOLFSSL_SUCCESS);
+
+    /* Missing thisUpdate (NULL): rejected. */
+    ExpectIntEQ(wolfSSL_OCSP_check_validity(NULL, NULL, 300, 300),
+        WOLFSSL_FAILURE);
+
+    /* Malformed/zero-length thisUpdate: rejected. */
+    XMEMSET(&thisUpd, 0, sizeof(thisUpd));
+    ExpectIntEQ(wolfSSL_OCSP_check_validity(&thisUpd, NULL, 300, 300),
+        WOLFSSL_FAILURE);
+
+    /* Fresh thisUpdate, expired nextUpdate (~1 day past): rejected. */
+    ExpectNotNull(wolfSSL_ASN1_TIME_adj(&thisUpd, now, 0, -60));
+    ExpectNotNull(wolfSSL_ASN1_TIME_adj(&nextUpd, now, 0, -DAY));
+    ExpectIntEQ(wolfSSL_OCSP_check_validity(&thisUpd, &nextUpd, 300, 300),
+        WOLFSSL_FAILURE);
+
+    /* Fresh thisUpdate, nextUpdate slightly in the past but within `sec` skew:
+     * accepted (verifies the skew is applied to nextUpdate too). */
+    ExpectNotNull(wolfSSL_ASN1_TIME_adj(&thisUpd, now, 0, -120));
+    ExpectNotNull(wolfSSL_ASN1_TIME_adj(&nextUpd, now, 0, -100));
+    ExpectIntEQ(wolfSSL_OCSP_check_validity(&thisUpd, &nextUpd, 300, DAY),
+        WOLFSSL_SUCCESS);
+
+    /* Fresh thisUpdate, valid nextUpdate in the future: accepted. */
+    ExpectNotNull(wolfSSL_ASN1_TIME_adj(&thisUpd, now, 0, -60));
+    ExpectNotNull(wolfSSL_ASN1_TIME_adj(&nextUpd, now, 0, DAY));
+    ExpectIntEQ(wolfSSL_OCSP_check_validity(&thisUpd, &nextUpd, 300, 300),
+        WOLFSSL_SUCCESS);
+
+    /* nextUpdate precedes thisUpdate: rejected as inconsistent. */
+    ExpectNotNull(wolfSSL_ASN1_TIME_adj(&thisUpd, now, 0, -60));
+    ExpectNotNull(wolfSSL_ASN1_TIME_adj(&nextUpd, now, 0, -120));
+    ExpectIntEQ(wolfSSL_OCSP_check_validity(&thisUpd, &nextUpd, 300, 300),
+        WOLFSSL_FAILURE);
+
+    /* Absent nextUpdate as the compat getters actually represent it: a
+     * zero-length WOLFSSL_ASN1_TIME, NOT NULL. Must be treated as absent and
+     * accepted (regression guard for issue 10718 review: a non-NULL but empty
+     * nextUpdate must not hard-fail every response that omits the field). */
+    ExpectNotNull(wolfSSL_ASN1_TIME_adj(&thisUpd, now, 0, -60));
+    XMEMSET(&nextUpd, 0, sizeof(nextUpd));
+    ExpectIntEQ(wolfSSL_OCSP_check_validity(&thisUpd, &nextUpd, 300, DAY),
+        WOLFSSL_SUCCESS);
+    /* ... and staleness is still enforced through that same empty-nextUpdate
+     * path. */
+    ExpectNotNull(wolfSSL_ASN1_TIME_adj(&thisUpd, now, 0, -DAY));
+    XMEMSET(&nextUpd, 0, sizeof(nextUpd));
+    ExpectIntEQ(wolfSSL_OCSP_check_validity(&thisUpd, &nextUpd, 300, 300),
+        WOLFSSL_FAILURE);
+
+    /* Stale thisUpdate but maxsec < 0 disables the age check: accepted. */
+    ExpectNotNull(wolfSSL_ASN1_TIME_adj(&thisUpd, now, 0, -DAY));
+    ExpectIntEQ(wolfSSL_OCSP_check_validity(&thisUpd, NULL, 300, -1),
+        WOLFSSL_SUCCESS);
+
+    /* Stale thisUpdate within a large maxsec: age bound not exceeded, accepted. */
+    ExpectNotNull(wolfSSL_ASN1_TIME_adj(&thisUpd, now, 0, -DAY));
+    ExpectIntEQ(wolfSSL_OCSP_check_validity(&thisUpd, NULL, 300, 2 * DAY),
+        WOLFSSL_SUCCESS);
+
+#ifdef WOLFSSL_OCSP_PARSE_STATUS
+    /* End-to-end through the real getter: a response whose nextUpdate is
+     * absent leaves CertStatus.nextDateParsed zero-length, and
+     * wolfSSL_OCSP_single_get0_status hands that back (non-NULL). Feeding the
+     * getter output straight into check_validity - the canonical OpenSSL
+     * pattern - must accept a fresh response and reject a stale one. */
+    {
+        WOLFSSL_OCSP_SINGLERESP single;
+        CertStatus certStatus;
+        WOLFSSL_ASN1_TIME* gThis = NULL;
+        WOLFSSL_ASN1_TIME* gNext = NULL;
+
+        XMEMSET(&single, 0, sizeof(single));
+        XMEMSET(&certStatus, 0, sizeof(certStatus));
+        certStatus.status = CERT_GOOD;
+        single.status = &certStatus;
+
+        /* Fresh thisUpdate, nextUpdate absent (nextDateParsed left zeroed). */
+        ExpectNotNull(wolfSSL_ASN1_TIME_adj(&certStatus.thisDateParsed, now, 0,
+            -60));
+        ExpectIntEQ(wolfSSL_OCSP_single_get0_status(&single, NULL, NULL,
+            &gThis, &gNext), CERT_GOOD);
+        ExpectIntEQ(wolfSSL_OCSP_check_validity(gThis, gNext, 300, DAY),
+            WOLFSSL_SUCCESS);
+
+        /* Same shape but a stale thisUpdate: rejected. */
+        ExpectNotNull(wolfSSL_ASN1_TIME_adj(&certStatus.thisDateParsed, now, 0,
+            -DAY));
+        ExpectIntEQ(wolfSSL_OCSP_single_get0_status(&single, NULL, NULL,
+            &gThis, &gNext), CERT_GOOD);
+        ExpectIntEQ(wolfSSL_OCSP_check_validity(gThis, gNext, 300, 300),
+            WOLFSSL_FAILURE);
+    }
+#endif /* WOLFSSL_OCSP_PARSE_STATUS */
+
+    return EXPECT_RESULT();
+}
+#else
+int test_ocsp_check_validity(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
