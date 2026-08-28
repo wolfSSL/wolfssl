@@ -6035,7 +6035,7 @@ AC_ARG_ENABLE([errorqueue],
 
 # SSLv3
 AC_ARG_ENABLE([sslv3],
-    [AS_HELP_STRING([--enable-sslv3],[Enable SSL version 3.0 (default: disabled). WARNING: SSL 3.0 is deprecated by RFC 7568 and its use violates RFC 9846 and RFC 8996; such a build is not conformant with RFC 9846, RFC 8996 or RFC 9325])],
+    [AS_HELP_STRING([--enable-sslv3],[Enable SSL version 3.0 (default: disabled). NOTE: SSL 3.0 is deprecated by RFC 7568 and its use violates RFC 9846 and RFC 8996; such a build is not conformant with RFC 9846, RFC 8996 or RFC 9325])],
     [ ENABLED_SSLV3=$enableval ],
     [ ENABLED_SSLV3=no]
     )
@@ -6052,12 +6052,12 @@ fi
 if test "$ENABLED_SSLV3" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALLOW_SSLV3"
-    AC_MSG_WARN([SSL 3.0 (WOLFSSL_ALLOW_SSLV3) is enabled. SSL 3.0 is deprecated by RFC 7568 and RFC 8996, and RFC 9846 states it MUST NOT be negotiated for any reason. This build is NOT conformant with RFC 9846, RFC 8996 or RFC 9325.])
+    AC_MSG_NOTICE([SSL 3.0 (WOLFSSL_ALLOW_SSLV3) is enabled. SSL 3.0 is deprecated by RFC 7568 and RFC 8996, and RFC 9846 states it MUST NOT be negotiated for any reason. This build is not conformant with RFC 9846, RFC 8996 or RFC 9325.])
 fi
 
 # TLSv1.0
 AC_ARG_ENABLE([tlsv10],
-    [AS_HELP_STRING([--enable-tlsv10],[Enable old TLS version 1.0 (default: disabled). WARNING: TLS 1.0 is deprecated by RFC 8996 and its use violates RFC 9846; such a build is not conformant with RFC 9846, RFC 8996 or RFC 9325])],
+    [AS_HELP_STRING([--enable-tlsv10],[Enable old TLS version 1.0 (default: disabled). NOTE: TLS 1.0 is deprecated by RFC 8996 and its use violates RFC 9846; such a build is not conformant with RFC 9846, RFC 8996 or RFC 9325])],
     [ ENABLED_TLSV10=$enableval ],
     [ ENABLED_TLSV10=no ]
     )
@@ -6065,13 +6065,13 @@ AC_ARG_ENABLE([tlsv10],
 if test "$ENABLED_TLSV10" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALLOW_TLSV10"
-    AC_MSG_WARN([TLS 1.0 (WOLFSSL_ALLOW_TLSV10) is enabled. TLS 1.0 is deprecated by RFC 8996, and RFC 9846 states it MUST NOT be negotiated for any reason. This build is NOT conformant with RFC 9846, RFC 8996 or RFC 9325.])
+    AC_MSG_NOTICE([TLS 1.0 (WOLFSSL_ALLOW_TLSV10) is enabled. TLS 1.0 is deprecated by RFC 8996, and RFC 9846 states it MUST NOT be negotiated for any reason. This build is not conformant with RFC 9846, RFC 8996 or RFC 9325.])
 fi
 
 
 # OLD TLS
 AC_ARG_ENABLE([oldtls],
-    [AS_HELP_STRING([--enable-oldtls],[Enable old TLS versions < 1.2 (default: disabled). WARNING: TLS 1.1 and earlier are deprecated by RFC 8996, and RFC 9846 states that SSL 2.0, SSL 3.0, TLS 1.0 and TLS 1.1 MUST NOT be negotiated for any reason; such a build is not conformant with RFC 9846, RFC 8996 or RFC 9325])],
+    [AS_HELP_STRING([--enable-oldtls],[Enable old TLS versions < 1.2 (default: disabled). NOTE: TLS 1.1 and earlier are deprecated by RFC 8996, and RFC 9846 states that SSL 2.0, SSL 3.0, TLS 1.0 and TLS 1.1 MUST NOT be negotiated for any reason; such a build is not conformant with RFC 9846, RFC 8996 or RFC 9325])],
     [ ENABLED_OLD_TLS=$enableval ],
     [ ENABLED_OLD_TLS=no ]
     )
@@ -14220,9 +14220,9 @@ fi
 if test "$ENABLED_OLD_TLS" = "yes"
 then
 echo ""
-echo "WARNING: This build enables old TLS versions (< 1.2). TLS 1.1 and earlier"
-echo "         are deprecated by RFC 8996, and RFC 9846 states that"
-echo "         SSL 2.0, SSL 3.0, TLS 1.0 and TLS 1.1 MUST NOT be negotiated for"
-echo "         any reason. This build is NOT conformant with RFC 9846, RFC 8996"
-echo "         or RFC 9325."
+echo "NOTE: This build enables old TLS versions (< 1.2). TLS 1.1 and earlier"
+echo "      are deprecated by RFC 8996, and RFC 9846 states that SSL 2.0,"
+echo "      SSL 3.0, TLS 1.0 and TLS 1.1 MUST NOT be negotiated for any"
+echo "      reason. This build is not conformant with RFC 9846, RFC 8996 or"
+echo "      RFC 9325."
 fi
