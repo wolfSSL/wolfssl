@@ -4328,6 +4328,127 @@ static int test_wolfSSL_add0_add1_chain_cert_increments_count(void)
     return EXPECT_RESULT();
 }
 
+/* The CTX chain APIs must account for every certificate they append. TLS 1.3
+ * sends the chain only when the count is set. */
+static int test_wolfSSL_CTX_add0_add1_chain_cert_increments_count(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(OPENSSL_EXTRA) && \
+    defined(KEEP_OUR_CERT) && !defined(NO_RSA) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL_X509* x509 = NULL;
+    const char* chainCerts[] = {
+        "./certs/intermediate/ca-int2-cert.pem",
+        "./certs/intermediate/ca-int-cert.pem",
+        NULL
+    };
+    const char** cert;
+    int expectedCnt = 0;
+    int added = 0;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+
+    /* Leaf goes to ctx->certificate, not the chain, so the count stays 0. */
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(
+        "./certs/intermediate/client-int-cert.pem", WOLFSSL_FILETYPE_PEM));
+    ExpectIntEQ(wolfSSL_CTX_add1_chain_cert(ctx, x509), 1);
+    wolfSSL_X509_free(x509);
+    x509 = NULL;
+    if (ctx != NULL) {
+        ExpectIntEQ(ctx->certChainCnt, 0);
+    }
+
+    for (cert = chainCerts; EXPECT_SUCCESS() && *cert != NULL; cert++) {
+        added = 0;
+        ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(*cert,
+            WOLFSSL_FILETYPE_PEM));
+        ExpectIntEQ(added = wolfSSL_CTX_add1_chain_cert(ctx, x509), 1);
+        wolfSSL_X509_free(x509);
+        x509 = NULL;
+        if (added == 1) {
+            expectedCnt++;
+        }
+        if (ctx != NULL) {
+            ExpectIntEQ(ctx->certChainCnt, expectedCnt);
+        }
+    }
+
+    /* add0 funnels through add1 and must account the same way. It takes
+     * ownership of the X509 on success. */
+    added = 0;
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(
+        "./certs/ca-cert.pem", WOLFSSL_FILETYPE_PEM));
+    ExpectIntEQ(added = wolfSSL_CTX_add0_chain_cert(ctx, x509), 1);
+    if (added == 1) {
+        x509 = NULL;
+        expectedCnt++;
+    }
+    wolfSSL_X509_free(x509);
+    x509 = NULL;
+    if (ctx != NULL) {
+        ExpectIntEQ(ctx->certChainCnt, expectedCnt);
+    }
+
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(OPENSSL_EXTRA) && \
+    defined(KEEP_OUR_CERT) && !defined(NO_RSA) && !defined(NO_TLS) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
+/* Hand the server its intermediates through the CTX add1 chain API. */
+static int test_ctx_add1_chain_cert_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+    WOLFSSL_X509* x509 = NULL;
+    const char* chainCerts[] = {
+        "./certs/intermediate/ca-int2-cert.pem",
+        "./certs/intermediate/ca-int-cert.pem",
+        NULL
+    };
+    const char** cert;
+
+    for (cert = chainCerts; EXPECT_SUCCESS() && *cert != NULL; cert++) {
+        ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(*cert,
+            WOLFSSL_FILETYPE_PEM));
+        ExpectIntEQ(wolfSSL_CTX_add1_chain_cert(ctx, x509), 1);
+        wolfSSL_X509_free(x509);
+        x509 = NULL;
+    }
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/* A chain built with the CTX add1 API has to reach the peer on TLS 1.3, which
+ * sends the chain only when the certificate count is set. */
+static int test_wolfSSL_CTX_add1_chain_cert_tls13_handshake(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(OPENSSL_EXTRA) && \
+    defined(KEEP_OUR_CERT) && !defined(NO_RSA) && !defined(NO_TLS) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
+    test_ssl_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.s_cb.method = wolfTLSv1_3_server_method;
+    test_ctx.c_cb.method = wolfTLSv1_3_client_method;
+    test_ctx.s_cb.certPemFile = "./certs/intermediate/server-int-cert.pem";
+    test_ctx.s_cb.keyPemFile = "./certs/server-key.pem";
+    test_ctx.s_cb.ctx_ready = test_ctx_add1_chain_cert_ctx_ready;
+    /* Client holds the root only, so it needs the intermediates the server
+     * was told to present. */
+    test_ctx.c_cb.caPemFile = "./certs/ca-cert.pem";
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+    ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL),
+        TEST_SUCCESS);
+    test_ssl_memio_cleanup(&test_ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test SSL_clear_chain_certs: must drop chain certs added via add0/add1,
  * leave leaf certificate intact, and tolerate repeated calls / NULL input. */
 static int test_wolfSSL_clear_chain_certs(void)
@@ -4573,7 +4694,7 @@ static int test_wolfSSL_CTX_chain_cert_not_trust_anchor(void)
 }
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(OPENSSL_EXTRA) && \
-    !defined(NO_RSA) && !defined(NO_TLS) && \
+    !defined(NO_RSA) && !defined(NO_TLS) && !defined(WOLFSSL_NO_CLIENT_AUTH) && \
     defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
 /* Give the server the two intermediates it needs to present. */
 static int test_chain_cert_trust_ctx_ready(WOLFSSL_CTX* ctx)
@@ -4610,8 +4731,10 @@ static int test_chain_cert_trust_ctx_ready(WOLFSSL_CTX* ctx)
 static int test_wolfSSL_CTX_chain_cert_not_trust_anchor_handshake(void)
 {
     EXPECT_DECLS;
+/* Needs client authentication: the point is which client certificates the
+ * server turns away. */
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(OPENSSL_EXTRA) && \
-    !defined(NO_RSA) && !defined(NO_TLS) && \
+    !defined(NO_RSA) && !defined(NO_TLS) && !defined(WOLFSSL_NO_CLIENT_AUTH) && \
     defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
     test_ssl_memio_ctx test_ctx;
 
@@ -40607,6 +40730,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_CTX_load_verify_buffer_pem_crl),
     TEST_DECL(test_wolfSSL_CTX_add1_chain_cert),
     TEST_DECL(test_wolfSSL_add0_add1_chain_cert_increments_count),
+    TEST_DECL(test_wolfSSL_CTX_add0_add1_chain_cert_increments_count),
+    TEST_DECL(test_wolfSSL_CTX_add1_chain_cert_tls13_handshake),
     TEST_DECL(test_wolfSSL_clear_chain_certs),
     TEST_DECL(test_wolfSSL_clear_chain_certs_handshake),
     TEST_DECL(test_wolfSSL_add_to_chain_overflow),

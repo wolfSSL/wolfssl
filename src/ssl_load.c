@@ -5397,6 +5397,9 @@ int wolfSSL_CTX_add1_chain_cert(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509)
          * peer only and must not become a CA to verify peers with. */
         ret = wolfssl_add_to_chain(&ctx->certChain, 1,
             x509->derCert->buffer, x509->derCert->length, ctx->heap);
+        if (ret == 1) {
+            ctx->certChainCnt++;
+        }
         /* Store cert in stack to free it later. */
         if ((ret == 1) && (ctx->x509Chain == NULL)) {
             /* Create a stack for certificates. */
