@@ -182,10 +182,11 @@ int test_wc_Des3_CbcEncryptDecrypt(void)
 } /* END wc_Des3_CbcEncrypt */
 
 /*
- * Regression test for issue 5379: wc_Des3_CbcEncrypt/Decrypt must refuse to
- * run unless a key has been configured with wc_Des3_SetKey(), both before
- * SetKey and after Free. Otherwise the operation would silently run with
- * uninitialized or zeroed key material and return success.
+ * Regression test for issue 5379: the wc_Des3_Cbc* and wc_Des3_Ecb* entry
+ * points must refuse to run unless a key has been configured with
+ * wc_Des3_SetKey(), both before SetKey and after Free. Otherwise the operation
+ * would silently run with uninitialized or zeroed key material and return
+ * success.
  *
  * FIPS builds use the FIPS-certified DES3 implementation which does not track
  * key state, so skip the test for FIPS.
@@ -223,6 +224,18 @@ int test_wc_Des3_CbcEncryptDecrypt_no_key(void)
         WC_NO_ERR_TRACE(MISSING_KEY));
     ExpectIntEQ(wc_Des3_CbcDecrypt(&des, plain, vector, 24),
         WC_NO_ERR_TRACE(MISSING_KEY));
+#ifdef WOLFSSL_DES_ECB
+    /* wc_Des3_EcbDecrypt is a separate function only on FREESCALE_MMCAU;
+     * elsewhere des3.h aliases it to wc_Des3_EcbEncrypt. Both names are
+     * asserted so the alias and the split implementation are each covered. */
+    ExpectIntEQ(wc_Des3_EcbEncrypt(&des, cipher, vector, 24),
+        WC_NO_ERR_TRACE(MISSING_KEY));
+    ExpectIntEQ(wc_Des3_EcbDecrypt(&des, plain, vector, 24),
+        WC_NO_ERR_TRACE(MISSING_KEY));
+    /* A zero-length request must be rejected too, not treated as a no-op. */
+    ExpectIntEQ(wc_Des3_EcbEncrypt(&des, cipher, vector, 0),
+        WC_NO_ERR_TRACE(MISSING_KEY));
+#endif
 
     /* After a key is set, the operations succeed. */
     ExpectIntEQ(wc_Des3_SetKey(&des, key, iv, DES_ENCRYPTION), 0);
@@ -230,6 +243,17 @@ int test_wc_Des3_CbcEncryptDecrypt_no_key(void)
     ExpectIntEQ(wc_Des3_SetKey(&des, key, iv, DES_DECRYPTION), 0);
     ExpectIntEQ(wc_Des3_CbcDecrypt(&des, plain, cipher, 24), 0);
     ExpectIntEQ(XMEMCMP(plain, vector, 24), 0);
+#ifdef WOLFSSL_DES_ECB
+    /* ECB round trip on a keyed context. Done after the CBC comparison above
+     * so its ciphertext is not overwritten, and carried through to plaintext
+     * so a regression in the transform fails here too, not just one in the
+     * keySet gate. */
+    ExpectIntEQ(wc_Des3_SetKey(&des, key, iv, DES_ENCRYPTION), 0);
+    ExpectIntEQ(wc_Des3_EcbEncrypt(&des, cipher, vector, 24), 0);
+    ExpectIntEQ(wc_Des3_SetKey(&des, key, iv, DES_DECRYPTION), 0);
+    ExpectIntEQ(wc_Des3_EcbDecrypt(&des, plain, cipher, 24), 0);
+    ExpectBufEQ(plain, vector, 24);
+#endif
 
     /* After free, the keyed state is cleared and operations must fail again. */
     wc_Des3Free(&des);
@@ -237,6 +261,12 @@ int test_wc_Des3_CbcEncryptDecrypt_no_key(void)
         WC_NO_ERR_TRACE(MISSING_KEY));
     ExpectIntEQ(wc_Des3_CbcDecrypt(&des, plain, vector, 24),
         WC_NO_ERR_TRACE(MISSING_KEY));
+#ifdef WOLFSSL_DES_ECB
+    ExpectIntEQ(wc_Des3_EcbEncrypt(&des, cipher, vector, 24),
+        WC_NO_ERR_TRACE(MISSING_KEY));
+    ExpectIntEQ(wc_Des3_EcbDecrypt(&des, plain, vector, 24),
+        WC_NO_ERR_TRACE(MISSING_KEY));
+#endif
 #endif
     return EXPECT_RESULT();
 
