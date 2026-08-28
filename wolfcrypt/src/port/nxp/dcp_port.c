@@ -119,10 +119,19 @@ static int dcp_status[4] = {0, 0, 0, 0};
 /* Context that reserved each channel: a release only takes effect from
  * the recorded owner, so a stale or uninitialized handle.channel value
  * (a struct never zeroed before init, a freed struct reused) cannot
- * free a channel another live context holds. */
+ * free a channel another live context holds. This table is also what
+ * lets the port answer "does this context already hold a channel?"
+ * without reading the caller's struct, which init is allowed to
+ * receive uninitialized. */
 static void* dcp_owner[4] = {NULL, NULL, NULL, NULL};
 #endif
 
+/* Reserve a channel for owner.
+ * Returns the channel on success, 0 if the pool is exhausted (callers
+ * map it to WC_HW_WAIT_E, "Hardware waiting on resource", the same code
+ * the CAAM and Atmel ports return for an exhausted slot pool), or -1 if
+ * the lock is unusable, which is a hard WC_HW_E rather than a transient
+ * shortage. */
 static int dcp_get_channel(void* owner)
 {
 #ifdef SINGLE_THREADED
@@ -132,17 +141,28 @@ static int dcp_get_channel(void* owner)
     int i;
     int ret = 0;
 
-    /* 0 = no channel available; callers map it to WC_HW_WAIT_E
-     * ("Hardware waiting on resource"), the same code the CAAM and
-     * Atmel ports return when a hardware slot pool is exhausted. */
     if (dcp_lock() != 0)
-        return 0;
+        return -1;
+    /* A context owns at most one channel. If this one already holds a
+     * reservation - a live context being re-initialized, or the
+     * destination of a copy - hand back the same channel instead of
+     * taking a second. Looking the owner up here, in the port's own
+     * table, is what lets the callers avoid reading a handle.channel
+     * that may never have been initialized. */
     for (i = 0; i < 4; i++) {
-        if (dcp_status[i] == 0) {
-            dcp_status[i]++;
-            dcp_owner[i] = owner;
+        if (dcp_status[i] != 0 && dcp_owner[i] == owner) {
             ret = dcp_channels[i];
             break;
+        }
+    }
+    if (ret == 0) {
+        for (i = 0; i < 4; i++) {
+            if (dcp_status[i] == 0) {
+                dcp_status[i]++;
+                dcp_owner[i] = owner;
+                ret = dcp_channels[i];
+                break;
+            }
         }
     }
     dcp_unlock();
@@ -274,6 +294,8 @@ int DCPAesInit(Aes *aes)
     if (!aes)
         return BAD_FUNC_ARG;
     ch = dcp_get_channel(aes);
+    if (ch < 0)
+        return WC_HW_E;
     if (ch == 0)
         return WC_HW_WAIT_E;
     /* dcp_key_slot() fails with -1 if its lock acquisition fails;
@@ -413,12 +435,14 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
     int keyslot;
     if (sha256 == NULL)
         return BAD_FUNC_ARG;
-    /* A context owns at most one DCP channel; drop whatever this struct
-     * recorded before so re-initializing a live context cannot leak its
-     * channel. dcp_free only acts on a channel this struct owns, so a
-     * struct never zeroed before init is harmless. */
-    dcp_free(sha256, sha256->handle.channel);
+    /* Nothing in the supplied struct is read here: init accepts raw
+     * stack or XMALLOC storage, so handle.channel is indeterminate
+     * until the XMEMSET below. dcp_get_channel() hands back the
+     * reservation this pointer already holds, if any, so
+     * re-initializing a live context still cannot leak its channel. */
     ch = dcp_get_channel(sha256);
+    if (ch < 0)
+        return WC_HW_E;
     if (ch == 0)
         return WC_HW_WAIT_E;
     /* dcp_key_slot() fails with -1 if its lock acquisition fails;
@@ -545,10 +569,17 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
     handleWord = dcp_hash_handle_word();
     if (handleWord >= DCP_HASH_CTX_SIZE)
         return WC_HW_E;
-    /* The copy replaces dst (software contract: free dst resources,
-     * then clone); drop any channel dst owns. */
-    dcp_free(dst, dst->handle.channel);
+    /* The copy overwrites dst's hash state, not its channel
+     * reservation: dcp_get_channel() returns the channel dst already
+     * owns, and only reserves a new one when dst holds none. Releasing
+     * first and re-reserving would let another context take the
+     * channel in between, so a copy into a perfectly live dst - what
+     * wc_HmacUpdate() does on every call under WOLFSSL_HMAC_COPY_HASH -
+     * could fail for want of a channel it already had. It also avoids
+     * reading dst->handle, which need not be initialized here. */
     ch = dcp_get_channel(dst);
+    if (ch < 0)
+        return WC_HW_E;
     if (ch == 0)
         return WC_HW_WAIT_E;
     /* dcp_key_slot() fails with -1 if its lock acquisition fails;
@@ -590,12 +621,14 @@ int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
     int keyslot;
     if (sha == NULL)
         return BAD_FUNC_ARG;
-    /* A context owns at most one DCP channel; drop whatever this struct
-     * recorded before so re-initializing a live context cannot leak its
-     * channel. dcp_free only acts on a channel this struct owns, so a
-     * struct never zeroed before init is harmless. */
-    dcp_free(sha, sha->handle.channel);
+    /* Nothing in the supplied struct is read here: init accepts raw
+     * stack or XMALLOC storage, so handle.channel is indeterminate
+     * until the XMEMSET below. dcp_get_channel() hands back the
+     * reservation this pointer already holds, if any, so
+     * re-initializing a live context still cannot leak its channel. */
     ch = dcp_get_channel(sha);
+    if (ch < 0)
+        return WC_HW_E;
     if (ch == 0)
         return WC_HW_WAIT_E;
     /* dcp_key_slot() fails with -1 if its lock acquisition fails;
@@ -723,10 +756,17 @@ int wc_ShaCopy(wc_Sha* src, wc_Sha* dst)
     handleWord = dcp_hash_handle_word();
     if (handleWord >= DCP_HASH_CTX_SIZE)
         return WC_HW_E;
-    /* The copy replaces dst (software contract: free dst resources,
-     * then clone); drop any channel dst owns. */
-    dcp_free(dst, dst->handle.channel);
+    /* The copy overwrites dst's hash state, not its channel
+     * reservation: dcp_get_channel() returns the channel dst already
+     * owns, and only reserves a new one when dst holds none. Releasing
+     * first and re-reserving would let another context take the
+     * channel in between, so a copy into a perfectly live dst - what
+     * wc_HmacUpdate() does on every call under WOLFSSL_HMAC_COPY_HASH -
+     * could fail for want of a channel it already had. It also avoids
+     * reading dst->handle, which need not be initialized here. */
     ch = dcp_get_channel(dst);
+    if (ch < 0)
+        return WC_HW_E;
     if (ch == 0)
         return WC_HW_WAIT_E;
     /* dcp_key_slot() fails with -1 if its lock acquisition fails;
