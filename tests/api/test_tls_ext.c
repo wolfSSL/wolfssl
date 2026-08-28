@@ -576,6 +576,10 @@ int test_tls_ems_clear_reuse(void)
     ExpectIntEQ(wolfSSL_clear(ssl_s), WOLFSSL_SUCCESS);
     test_memio_clear_buffer(&test_ctx, 0);
     test_memio_clear_buffer(&test_ctx, 1);
+#ifndef NO_DH
+    /* The handshake released the DH params: re-arm like test_memio_setup. */
+    SetDH(ssl_s);
+#endif
     ExpectIntEQ(ssl_c->options.haveEMS, 1);
     ExpectIntEQ(ssl_s->options.haveEMS, 0);
 
@@ -591,6 +595,9 @@ int test_tls_ems_clear_reuse(void)
     ExpectIntEQ(wolfSSL_clear(ssl_s), WOLFSSL_SUCCESS);
     test_memio_clear_buffer(&test_ctx, 0);
     test_memio_clear_buffer(&test_ctx, 1);
+#ifndef NO_DH
+    SetDH(ssl_s);
+#endif
     ExpectIntEQ(wolfSSL_DisableExtendedMasterSecret(ssl_c), WOLFSSL_SUCCESS);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
     ExpectIntEQ(ssl_c->options.haveEMS, 0);
