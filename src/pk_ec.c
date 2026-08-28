@@ -42,6 +42,11 @@
     #define ecc_blind_k_rng(key, rng) 0
     #define WOLFSSL_HAVE_ECC_KEY_GET_PRIV
 #endif
+#ifndef ecc_get_k_raw
+    /* FIPS replacement of ecc.h predates ecc_get_k_raw but is new enough to
+     * define WOLFSSL_HAVE_ECC_KEY_GET_PRIV, so the block above was skipped. */
+    #define ecc_get_k_raw(key)        (key)->k
+#endif
 
 #if !defined(WOLFSSL_PK_EC_INCLUDED)
     #ifndef WOLFSSL_IGNORE_FILE_WARN
