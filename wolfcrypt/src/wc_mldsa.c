@@ -6055,8 +6055,12 @@ static int mldsa_check_hint(const byte* h, byte k, byte omega)
             ret = SIG_VERIFY_E;
         }
     }
-    /* Check remaining hints are 0. */
-    for (; (ret == 0) && (i < omega); i++) {
+    /* Check remaining hints are 0.  Start at the total hint count, which is
+     * the last cumulative count, rather than wherever the loop above stopped:
+     * with no hints at all that loop never runs and i is still 1, which left
+     * h[0] unchecked.  FIPS 204 Alg 21 step 8 rejects any non-zero entry from
+     * the count to omega. */
+    for (i = h[omega + k - 1]; (ret == 0) && (i < omega); i++) {
         if (h[i] != 0) {
            ret = SIG_VERIFY_E;
         }
