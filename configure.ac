@@ -495,6 +495,21 @@ AS_IF([test -r "$srcdir/$WOLFSSL_FIPS_BUNDLE_FILE"],
       [FIPS_BUNDLE_OPTION=`sed -n 's/^FIPS_OPTION=//p' "$srcdir/$WOLFSSL_FIPS_BUNDLE_FILE" 2>/dev/null | head -1`
        FIPS_BUNDLE_FLAVOR=`sed -n 's/^FIPS_FLAVOR=//p' "$srcdir/$WOLFSSL_FIPS_BUNDLE_FILE" 2>/dev/null | head -1`])
 
+# The exact module version, where the module states one. Up to FIPS v5.2.5,
+# wolfCrypt_GetVersion_fips() returns a literal naming the certified module,
+# e.g. "wolfCrypt v5.2.3". That is more precise than the --enable-fips option,
+# because several distinct v5 modules share --enable-fips=v5 and therefore
+# share one set of version macros.
+#
+# The "wolfCrypt " prefix is required deliberately: it selects exactly the v5
+# family. Older modules return the wolfCrypt library lineage instead ("v4.0" for
+# wolfRand, "v4.0.0-alpha" for cert 3389), which is not a module version and
+# would mislead. From v6.0.0 the string is built at compile time from the
+# version macros, so there is no literal and the macros are authoritative.
+FIPS_MODULE_VERSION=
+AS_IF([test -s "$srcdir/wolfcrypt/src/fips.c"],
+      [FIPS_MODULE_VERSION=`sed -n 's/^ *return "wolfCrypt \(v@<:@0-9@:>@@<:@^"@:>@*\)";.*$/\1/p' "$srcdir/wolfcrypt/src/fips.c" 2>/dev/null | head -1`])
+
 AS_CASE([$ENABLED_FIPS],
     [yes|auto],[
         AC_MSG_CHECKING([which FIPS module this source tree contains])
@@ -13798,7 +13813,11 @@ else
     echo "   * Experimental settings:      Forbidden"
 fi
 if test "$ENABLED_FIPS" = "yes"; then
-echo "   * FIPS:                       $FIPS_VERSION (module $HAVE_FIPS_VERSION_MAJOR.$HAVE_FIPS_VERSION_MINOR.$HAVE_FIPS_VERSION_PATCH)"
+if test -n "$FIPS_MODULE_VERSION"; then
+echo "   * FIPS:                       $FIPS_VERSION (module $FIPS_MODULE_VERSION)"
+else
+echo "   * FIPS:                       $FIPS_VERSION (module v$HAVE_FIPS_VERSION_MAJOR.$HAVE_FIPS_VERSION_MINOR.$HAVE_FIPS_VERSION_PATCH)"
+fi
 else
 echo "   * FIPS:                       $ENABLED_FIPS"
 fi
@@ -14155,7 +14174,15 @@ echo "      You can define \"WOLFSSL_USE_OPTIONS_H\" in your application to incl
 if test "$ENABLED_FIPS" = "yes"; then
 echo "---"
 echo "FIPS: building with --enable-fips=$FIPS_FLAVOR"
-echo "      wolfCrypt module version: $HAVE_FIPS_VERSION_MAJOR.$HAVE_FIPS_VERSION_MINOR.$HAVE_FIPS_VERSION_PATCH"
+FIPS_MACRO_VERSION="v$HAVE_FIPS_VERSION_MAJOR.$HAVE_FIPS_VERSION_MINOR.$HAVE_FIPS_VERSION_PATCH"
+if test -n "$FIPS_MODULE_VERSION"; then
+    echo "      wolfCrypt module version: $FIPS_MODULE_VERSION"
+    if test "$FIPS_MODULE_VERSION" != "$FIPS_MACRO_VERSION"; then
+        echo "      Version macros:           $FIPS_MACRO_VERSION, as set by --enable-fips=$FIPS_FLAVOR"
+    fi
+else
+    echo "      wolfCrypt module version: $FIPS_MACRO_VERSION"
+fi
 if test -n "$FIPS_BUNDLE_OPTION"; then
     if test -n "$FIPS_BUNDLE_FLAVOR"; then
         echo "      FIPS bundle:              $FIPS_BUNDLE_FLAVOR (per $WOLFSSL_FIPS_BUNDLE_FILE)"
