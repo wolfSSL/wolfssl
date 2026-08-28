@@ -2498,19 +2498,16 @@
 
 #ifdef WOLFSSL_TI_AM64X
     #define HAVE_AES_ECB
-    #define WOLFSSL_AES_128
     #define NO_AES_192
+    #define NO_DEV_RANDOM
+    #define WOLFSSL_AES_128
     #define WOLFSSL_AES_256
     #define WOLFSSL_AES_DIRECT
     #define WOLFSSL_CMAC
     #define WOLFSSL_SHA512
+    #define WOLFSSL_SHA512_HASHTYPE
     #ifndef WOLF_CRYPTO_CB
         #define WOLF_CRYPTO_CB
-    #endif
-    #define WOLFSSL_SHA512_HASHTYPE
-    #ifdef WOLFSSL_TI_AM64X_RNG_CTR_DRBG
-        #undef HAVE_HASHDRBG
-        #define WC_NO_HASHDRBG
     #endif
 #endif
 

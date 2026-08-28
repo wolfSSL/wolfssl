@@ -207,7 +207,7 @@ static void ti_sa2ul_trng_init(void)
 #endif
 }
 
-static int ti_sa2ul_trng_get(byte* output, word32 sz)
+int ti_sa2ul_trng_get(byte* output, word32 sz)
 {
 #ifdef WOLFSSL_TI_AM64X_RNG_CTR_DRBG
     return ti_sa2ul_trng_get_drbg(output, sz);
@@ -215,7 +215,7 @@ static int ti_sa2ul_trng_get(byte* output, word32 sz)
     return ti_sa2ul_trng_get_nrbg(output, sz);
 #endif
 }
-#endif /* WC_NO_RNG */
+#endif /* !WC_NO_RNG */
 
 static void _u8LeToU32(uint32_t *dest, uint8_t *src, uint32_t len)
 {
@@ -1018,17 +1018,14 @@ static int ti_sa2ul_CryptoDevCb(int devId, wc_CryptoInfo* info, void* devCtx)
 #endif /* !WOLFSSL_TI_AM64X_NO_SHA && (!NO_SHA256 || WOLFSSL_SHA512) */
     }
 #ifndef WC_NO_RNG
-# ifdef WOLFSSL_TI_AM64X_RNG_CTR_DRBG
     else if (info->algo_type == WC_ALGO_TYPE_RNG)
     {
         ret = ti_sa2ul_trng_get(info->rng.out, info->rng.sz);
     }
-# else
     else if (info->algo_type == WC_ALGO_TYPE_SEED)
     {
         ret = ti_sa2ul_trng_get(info->seed.seed, info->seed.sz);
     }
-# endif
 #endif /* !WC_NO_RNG */
 
     return ret;

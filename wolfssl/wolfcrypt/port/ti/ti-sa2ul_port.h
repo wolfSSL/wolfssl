@@ -26,8 +26,13 @@
 #define WOLFSSL_TI_SA2UL_DEVID 8888
 #define WC_USE_DEVID WOLFSSL_TI_SA2UL_DEVID
 
+#ifdef WOLFSSL_TI_AM64X_RNG_CTR_DRBG
+    #define CUSTOM_RAND_GENERATE_BLOCK ti_sa2ul_trng_get
+#endif
+
 int ti_sa2ul_port_init(void);
 void ti_sa2ul_soc_uid(uint8_t *uid);
+int ti_sa2ul_trng_get(byte* output, word32 sz);
 
 #endif /* WOLFSSL_TI_AM64X */
 
