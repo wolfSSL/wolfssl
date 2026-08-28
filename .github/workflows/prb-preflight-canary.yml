@@ -1,3 +1,4 @@
+# Temporary workflow used to validate Jenkins PRB aggregate status reporting.
 name: PRB preflight canary
 
 on:
