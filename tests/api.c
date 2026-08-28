@@ -39407,6 +39407,16 @@ static int test_sniffer_reassembly_overlap(void)
         { 1004, 0x18, 64 },  /* out of order, held as [4, 67]         */
         { 1000, 0x18, 72 },  /* in order, runs from 0 past 67         */
     };
+#if defined(WOLFSSL_SESSION_STATS) && !defined(NO_SESSION_CACHE)
+    /* Bytes left on the reassembly list after each segment. The out of order
+     * segment is held whole (64); the overlapping one makes the stream
+     * contiguous again, so the list drains. The middle value is what pins the
+     * segments as having reached AddToReassembly()/TrimAgainstReassembly()
+     * rather than being dropped at the header or session check. */
+    static const unsigned int expReassembly[] = { 0, 64, 0 };
+    unsigned int active = 0, total = 0, peak = 0, maxSessions = 0;
+    unsigned int missedData = 0, reassemblyMem = 0;
+#endif
     char  error[WOLFSSL_MAX_ERROR_SZ];
     byte* data = NULL;
     byte* pkt;
@@ -39424,8 +39434,16 @@ static int test_sniffer_reassembly_overlap(void)
         ExpectNotNull(pkt);
         if (pkt != NULL) {
             XMEMSET(error, 0, sizeof(error));
-            ExpectIntGE(ssl_DecodePacket(pkt, pktSz, &data, error), -1);
+            /* No application data is recovered, so each segment returns 0. */
+            ExpectIntEQ(ssl_DecodePacket(pkt, pktSz, &data, error), 0);
             XFREE(pkt, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+#if defined(WOLFSSL_SESSION_STATS) && !defined(NO_SESSION_CACHE)
+            XMEMSET(error, 0, sizeof(error));
+            ExpectIntEQ(ssl_GetSessionStats(&active, &total, &peak,
+                &maxSessions, &missedData, &reassemblyMem, error), 0);
+            ExpectIntEQ(reassemblyMem, expReassembly[i]);
+#endif
         }
     }
 

@@ -8209,7 +8209,8 @@ int test_dtls_sctp_app_data_size(void)
      * this independently, so this does not isolate the send path - it is here
      * so a change that widens the limit instead of reading it is not silently
      * accepted end to end. */
-    ExpectIntLT(wolfSSL_write(ssl_c, msg, TEST_SCTP_OVER), 0);
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, TEST_SCTP_OVER),
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
     ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
         WC_NO_ERR_TRACE(DTLS_SIZE_ERROR));
 
@@ -8231,7 +8232,8 @@ int test_dtls_sctp_app_data_size(void)
      * datagram MTU it would otherwise have. */
     ExpectIntEQ(wolfSSL_dtls_set_mtu(ssl_c, WOLFSSL_MAX_MTU), WOLFSSL_SUCCESS);
 #endif
-    ExpectIntLT(wolfSSL_write(ssl_c, msg, TEST_SCTP_FITS), 0);
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, TEST_SCTP_FITS),
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
     ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
         WC_NO_ERR_TRACE(DTLS_SIZE_ERROR));
 
