@@ -9162,7 +9162,7 @@ static int mldsa_pct(wc_MlDsaKey* key)
      * value cannot sign with it.  ISO/IEC 19790:2012 sec 7.10.1 forbids using
      * anything that failed a self-test.  MEMORY_E is excluded: it
      * means the test never ran, so the key is not implicated. */
-    if ((ret != 0) && (ret != MEMORY_E)) {
+    if ((ret != 0) && (ret != WC_NO_ERR_TRACE(MEMORY_E))) {
         wc_MlDsaKey_Free(key);
     }
 
@@ -13444,7 +13444,10 @@ int wc_MlDsaKey_PrivateKeyDecode(wc_MlDsaKey* key, const byte* input,
                 /* No key-pair test: FIPS 140-3 IG 10.3.A Additional Comment 1
                  * does not require one for a key imported from outside the
                  * module. */
-                if (key->params == NULL) {
+                if (seed == NULL) {
+                    ret = BAD_FUNC_ARG;
+                }
+                else if (key->params == NULL) {
                     ret = BAD_STATE_E;
                 }
                 else {

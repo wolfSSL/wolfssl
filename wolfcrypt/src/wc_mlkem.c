@@ -1068,7 +1068,7 @@ for the key-pair test required by ISO/IEC 19790:2012 sec 7.10.3.3"
          * value cannot use it.  ISO/IEC 19790:2012 sec 7.10.1 forbids using
          * anything that failed a self-test.  MEMORY_E is excluded: it
          * means the test never ran, so the key is not implicated. */
-        if ((ret != 0) && (ret != MEMORY_E)) {
+        if ((ret != 0) && (ret != WC_NO_ERR_TRACE(MEMORY_E))) {
             wc_MlKemKey_Free(key);
         }
     }

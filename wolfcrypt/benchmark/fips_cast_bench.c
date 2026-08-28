@@ -601,9 +601,13 @@ static int bench_pct_slhdsa(int iters)
 
             /* The elected test must be the cheap one.  If someone puts sign
              * and verify back inside key generation, KeyGen+PCT swallows it
-             * and stops being the smaller number, which is the one thing
-             * worth failing on here. */
-            if (kg < a) {
+             * and stops being the smaller number.
+             *
+             * Demand a 2x margin rather than a bare comparison: the elected
+             * option measures 3.8x to 13.8x cheaper, while a reverted one
+             * costs about 1.1x sign+verify, so 2x separates them with room
+             * for a loaded machine to move both numbers. */
+            if (a > (kg * 2.0)) {
                 printf("%-15s | %10.3f | %8.3f | %7.4f | %8.1fx\n",
                        names[t], kg, a, c, (kg > 0.0) ? (a / kg) : 0.0);
             }
