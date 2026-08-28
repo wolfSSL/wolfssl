@@ -489,14 +489,18 @@ AC_ARG_ENABLE([fips],
 # further below.
 WOLFSSL_FIPS_BUNDLE_FILE=".wolfssl-fips-bundle"
 FIPS_BUNDLE_OPTION=
+FIPS_BUNDLE_FLAVOR=
+FIPS_AUTODETECTED=no
 AS_IF([test -r "$srcdir/$WOLFSSL_FIPS_BUNDLE_FILE"],
-      [FIPS_BUNDLE_OPTION=`sed -n 's/^FIPS_OPTION=//p' "$srcdir/$WOLFSSL_FIPS_BUNDLE_FILE" 2>/dev/null | head -1`])
+      [FIPS_BUNDLE_OPTION=`sed -n 's/^FIPS_OPTION=//p' "$srcdir/$WOLFSSL_FIPS_BUNDLE_FILE" 2>/dev/null | head -1`
+       FIPS_BUNDLE_FLAVOR=`sed -n 's/^FIPS_FLAVOR=//p' "$srcdir/$WOLFSSL_FIPS_BUNDLE_FILE" 2>/dev/null | head -1`])
 
 AS_CASE([$ENABLED_FIPS],
     [yes|auto],[
         AC_MSG_CHECKING([which FIPS module this source tree contains])
         AS_IF([test "x$FIPS_BUNDLE_OPTION" != "x"],
               [ENABLED_FIPS="$FIPS_BUNDLE_OPTION"
+               FIPS_AUTODETECTED=yes
                AC_MSG_RESULT([$ENABLED_FIPS (from $WOLFSSL_FIPS_BUNDLE_FILE)])],
               [AC_MSG_RESULT([unknown])
                AC_MSG_ERROR([--enable-fips cannot auto-detect the FIPS version of this source tree: no $WOLFSSL_FIPS_BUNDLE_FILE manifest was found. Either this tree predates the manifest, or it is not a FIPS bundle. Pass the version explicitly, for example --enable-fips=v5 or --enable-fips=ready.])])
@@ -13794,7 +13798,7 @@ else
     echo "   * Experimental settings:      Forbidden"
 fi
 if test "$ENABLED_FIPS" = "yes"; then
-echo "   * FIPS:                       $FIPS_VERSION"
+echo "   * FIPS:                       $FIPS_VERSION (module $HAVE_FIPS_VERSION_MAJOR.$HAVE_FIPS_VERSION_MINOR.$HAVE_FIPS_VERSION_PATCH)"
 else
 echo "   * FIPS:                       $ENABLED_FIPS"
 fi
@@ -14144,5 +14148,29 @@ if test "$silent" != "yes"; then
 echo "---"
 echo "Note: Make sure your application includes \"wolfssl/options.h\" before any other wolfSSL headers."
 echo "      You can define \"WOLFSSL_USE_OPTIONS_H\" in your application to include this automatically."
+
+# Restate the FIPS version last, where it cannot be missed.  Configuring a FIPS
+# bundle against the wrong --enable-fips version is an easy and expensive
+# mistake, and nothing else in the build output makes it obvious.
+if test "$ENABLED_FIPS" = "yes"; then
+echo "---"
+echo "FIPS: building with --enable-fips=$FIPS_FLAVOR"
+echo "      wolfCrypt module version: $HAVE_FIPS_VERSION_MAJOR.$HAVE_FIPS_VERSION_MINOR.$HAVE_FIPS_VERSION_PATCH"
+if test -n "$FIPS_BUNDLE_OPTION"; then
+    if test -n "$FIPS_BUNDLE_FLAVOR"; then
+        echo "      FIPS bundle:              $FIPS_BUNDLE_FLAVOR (per $WOLFSSL_FIPS_BUNDLE_FILE)"
+    fi
+    if test "$FIPS_AUTODETECTED" = "yes"; then
+        echo "      This version was auto-detected from the bundle in this tree."
+    else
+        echo "      This version matches the bundle in this tree."
+    fi
+else
+    echo "      WARNING: this tree has no $WOLFSSL_FIPS_BUNDLE_FILE manifest, so the"
+    echo "      version above comes from the --enable-fips option alone and has NOT"
+    echo "      been checked against the FIPS module sources present here.  Confirm it"
+    echo "      matches the FIPS bundle you were shipped before relying on this build."
+fi
+fi
 
 fi
