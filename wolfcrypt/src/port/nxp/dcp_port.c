@@ -115,7 +115,13 @@ static const int dcp_channels[4] = {
 };
 
 #ifndef SINGLE_THREADED
-static int dcp_status[4] = {0, 0, 0, 0};
+/* Channel table. dcp_status[i] is the publication flag for entry i: it
+ * is the LAST field written when reserving and when releasing, so an
+ * entry is only ever visible as claimable once dcp_owner[i] already
+ * agrees. dcp_free_unlocked() relies on that ordering to release
+ * without the lock, so both arrays are volatile to stop the compiler
+ * reordering or caching the paired accesses. */
+static volatile int dcp_status[4] = {0, 0, 0, 0};
 /* Context that reserved each channel: a release only takes effect from
  * the recorded owner, so a stale or uninitialized handle.channel value
  * (a struct never zeroed before init, a freed struct reused) cannot
@@ -123,7 +129,7 @@ static int dcp_status[4] = {0, 0, 0, 0};
  * lets the port answer "does this context already hold a channel?"
  * without reading the caller's struct, which init is allowed to
  * receive uninitialized. */
-static void* dcp_owner[4] = {NULL, NULL, NULL, NULL};
+static void* volatile dcp_owner[4] = {NULL, NULL, NULL, NULL};
 #endif
 
 /* Reserve a channel for owner.
@@ -158,8 +164,11 @@ static int dcp_get_channel(void* owner)
     if (ret == 0) {
         for (i = 0; i < 4; i++) {
             if (dcp_status[i] == 0) {
-                dcp_status[i]++;
+                /* Owner first, status last: dcp_status[i] publishes the
+                 * entry, so it must never be set while dcp_owner[i]
+                 * still names somebody else. */
                 dcp_owner[i] = owner;
+                dcp_status[i] = 1;
                 ret = dcp_channels[i];
                 break;
             }
@@ -218,12 +227,26 @@ int wc_dcp_init(void)
     return 0;
 }
 
-/* Release a channel without taking the DCP lock. Safe whenever
- * dcp_lock() is known to be unavailable: a contended lock blocks
- * rather than fails, so a failure means no other thread can be
- * inside the critical section (or the caller already holds the
- * mutex), and the owner check prevents releasing a channel held by
- * another context. */
+/* Release a channel without taking the DCP lock.
+ *
+ * A failed dcp_lock() does not prove the critical section is empty:
+ * wolfSSL_CryptHwMutexLock() can fail before it ever reaches
+ * wc_LockMutex(), because on every port without a static mutex
+ * initializer it first runs the lazy wolfSSL_CryptHwMutexInit(). One
+ * thread can lose that init race, or hit an allocation failure in it,
+ * and be told the lock is unavailable while another thread is inside
+ * the critical section. So this must be correct against a concurrent
+ * locked allocator, not merely against nobody.
+ *
+ * It is, because it only ever publishes a consistent entry: the owner
+ * is cleared while dcp_status[i] still marks the entry busy, so no
+ * allocator can claim it yet, and the single store that frees the
+ * entry is the last thing that happens. An allocator that claims the
+ * entry afterwards owns both fields outright and nothing here writes
+ * to them again. The reverse order would let an allocator claim the
+ * channel between the two stores and then have its fresh owner
+ * overwritten with NULL, leaving the channel busy but ownerless -
+ * unreleasable, and lost for the lifetime of the process. */
 static void dcp_free_unlocked(void* owner, int ch)
 {
 #ifndef SINGLE_THREADED
@@ -231,8 +254,8 @@ static void dcp_free_unlocked(void* owner, int ch)
 
     for (i = 0; i < 4; i++) {
         if (ch == dcp_channels[i] && dcp_owner[i] == owner) {
-            dcp_status[i] = 0;
             dcp_owner[i] = NULL;
+            dcp_status[i] = 0;
             break;
         }
     }
@@ -243,8 +266,11 @@ static void dcp_free_unlocked(void* owner, int ch)
 }
 
 /* Total: always releases, so callers may drop their handle record
- * unconditionally. A lock failure falls back to the unlocked release
- * (safe per dcp_free_unlocked) instead of orphaning the reservation. */
+ * unconditionally. A lock failure falls back to the unlocked release,
+ * which is ordered to be safe against a concurrent locked allocator
+ * (see dcp_free_unlocked), instead of orphaning the reservation - with
+ * only four channels, refusing to release on a lock failure would leak
+ * one permanently. */
 static void dcp_free(void* owner, int ch)
 {
     int locked;
