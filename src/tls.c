@@ -9777,13 +9777,7 @@ static int TLSX_KeyShare_ProcessX25519_ex(WOLFSSL* ssl,
     #endif
 
     #ifndef WOLFSSL_X25519_NO_MASK_PEER
-        if (peerPubLen == CURVE25519_KEYSIZE) {
-            XMEMCPY(maskedPub, peerPub, CURVE25519_KEYSIZE);
-            /* RFC 7748 Section 5: X25519 receivers MUST mask (clear) the
-             * reserved high bit of the final wire byte before use. */
-            maskedPub[CURVE25519_KEYSIZE - 1] &= 0x7f;
-            peerPub = maskedPub;
-        }
+        peerPub = MaskCurve25519PeerKey(peerPub, peerPubLen, maskedPub);
     #endif
 
         if (wc_curve25519_check_public(peerPub, peerPubLen,

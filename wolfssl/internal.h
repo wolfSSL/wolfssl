@@ -2258,6 +2258,11 @@ WOLFSSL_LOCAL int InitSSL_Suites(WOLFSSL* ssl);
 WOLFSSL_LOCAL int InitSSL_Side(WOLFSSL* ssl, word16 side);
 
 
+#if defined(HAVE_CURVE25519) && !defined(WOLFSSL_X25519_NO_MASK_PEER)
+WOLFSSL_LOCAL const byte* MaskCurve25519PeerKey(const byte* pub, word32 pubSz,
+                                               byte maskBuf[CURVE25519_KEYSIZE]);
+#endif
+
 WOLFSSL_LOCAL int DoHandShakeMsgType(WOLFSSL* ssl, byte* input,
         word32* inOutIdx, byte type, word32 size, word32 totalSz);
 /* for sniffer */

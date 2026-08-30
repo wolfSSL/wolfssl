@@ -35494,6 +35494,25 @@ exit_gdpk:
     return ret;
 }
 #endif
+
+#if defined(HAVE_CURVE25519) && !defined(WOLFSSL_X25519_NO_MASK_PEER)
+/* RFC 7748 Section 5 requires X25519 receivers to clear the reserved high bit
+ * of the final u-coordinate byte rather than reject a peer key that sets it.
+ * Returns the pointer the caller should hand to the check and import calls: a
+ * masked copy in maskBuf for a full-length key, otherwise pub unchanged. */
+const byte* MaskCurve25519PeerKey(const byte* pub, word32 pubSz,
+                                  byte maskBuf[CURVE25519_KEYSIZE])
+{
+    if (pubSz != CURVE25519_KEYSIZE) {
+        return pub;
+    }
+
+    XMEMCPY(maskBuf, pub, CURVE25519_KEYSIZE);
+    maskBuf[CURVE25519_KEYSIZE - 1] &= 0x7f;
+    return maskBuf;
+}
+#endif /* HAVE_CURVE25519 && !WOLFSSL_X25519_NO_MASK_PEER */
+
 #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
 static int GetEcDiffieHellmanKea(WOLFSSL *ssl,
                                  const byte *input, word32 size, DskeArgs *args)
@@ -35555,13 +35574,7 @@ static int GetEcDiffieHellmanKea(WOLFSSL *ssl,
 
         peerPub = input + args->idx;
 #ifndef WOLFSSL_X25519_NO_MASK_PEER
-        if (length == CURVE25519_KEYSIZE) {
-            XMEMCPY(maskedPub, peerPub, CURVE25519_KEYSIZE);
-            /* RFC 7748 Section 5: X25519 receivers MUST mask (clear) the
-             * reserved high bit of the final wire byte before use. */
-            maskedPub[CURVE25519_KEYSIZE - 1] &= 0x7f;
-            peerPub = maskedPub;
-        }
+        peerPub = MaskCurve25519PeerKey(peerPub, length, maskedPub);
 #endif
 
         if ((ret = wc_curve25519_check_public(peerPub, length,
@@ -44433,14 +44446,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
 
             peerPub = input + args->idx;
         #ifndef WOLFSSL_X25519_NO_MASK_PEER
-            if (args->length == CURVE25519_KEYSIZE) {
-                XMEMCPY(maskedPub, peerPub, CURVE25519_KEYSIZE);
-                /* RFC 7748 Section 5: X25519 receivers MUST mask (clear)
-                 * the reserved high bit of the final wire byte before
-                 * use. */
-                maskedPub[CURVE25519_KEYSIZE - 1] &= 0x7f;
-                peerPub = maskedPub;
-            }
+            peerPub = MaskCurve25519PeerKey(peerPub, args->length, maskedPub);
         #endif
 
             if ((ret = wc_curve25519_check_public(peerPub,
