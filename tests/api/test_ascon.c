@@ -387,6 +387,7 @@ int test_ascon_aead128_edge_cases(void)
  *   - wc_AsconAEAD128_SetNonce:     a == NULL || nonce == NULL
  *   - wc_AsconAEAD128_SetAD:        a == NULL || (ad == NULL && adSz > 0)
  *                                   !keySet || !nonceSet
+ *                                   adSet (AD must be set in a single call)
  *   - wc_AsconAEAD128_EncryptUpdate: a == NULL || (in == NULL && inSz > 0)
  *                                   !keySet || !nonceSet || !adSet
  *   - wc_AsconAEAD128_EncryptFinal:  a == NULL || tag == NULL
@@ -476,8 +477,12 @@ int test_ascon_decision_coverage(void)
     ExpectIntEQ(wc_AsconAEAD128_SetAD(asconAEAD, NULL, sizeof(ad)),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     /* a != NULL, ad == NULL, adSz == 0 -> inner && false, proceeds past
-     * arg check to the state check (both keySet/nonceSet true here) */
+     * arg check to the state check (both keySet/nonceSet true here); key
+     * and nonce are set above so this succeeds and marks adSet. */
     ExpectIntEQ(wc_AsconAEAD128_SetAD(asconAEAD, NULL, 0), 0);
+    /* adSet now true -> a repeat call is rejected: AD is one-shot */
+    ExpectIntEQ(wc_AsconAEAD128_SetAD(asconAEAD, ad, sizeof(ad)),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
 
     /* State guard on SetAD: !keySet || !nonceSet, using freshly Init'd
      * contexts to isolate each operand. */
@@ -502,12 +507,15 @@ int test_ascon_decision_coverage(void)
         ExpectIntEQ(wc_AsconAEAD128_SetKey(&stateCtx, key), 0);
         ExpectIntEQ(wc_AsconAEAD128_SetNonce(&stateCtx, nonce), 0);
         ExpectIntEQ(wc_AsconAEAD128_SetAD(&stateCtx, ad, sizeof(ad)), 0);
+        /* adSet now true -> a repeat call is rejected: AD is one-shot */
+        ExpectIntEQ(wc_AsconAEAD128_SetAD(&stateCtx, ad, sizeof(ad)),
+            WC_NO_ERR_TRACE(BAD_STATE_E));
         wc_AsconAEAD128_Clear(&stateCtx);
     }
 
-    /* Finish setting up asconAEAD (key+nonce already set above) with AD
-     * so it is fully configured for the Encrypt/Decrypt tests below. */
-    ExpectIntEQ(wc_AsconAEAD128_SetAD(asconAEAD, ad, sizeof(ad)), 0);
+    /* asconAEAD is already fully configured for the Encrypt/Decrypt tests
+     * below: key and nonce set above, and adSet marked by the
+     * SetAD(asconAEAD, NULL, 0) call above. */
 
     /* ---------------------------------------------------------------- */
     /* wc_AsconAEAD128_EncryptUpdate:                                    */
