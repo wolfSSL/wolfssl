@@ -23,16 +23,21 @@
 
 #ifdef WOLFSSL_NXP_CASPER
 
-#if defined(WOLFSSL_CRYPT_HW_MUTEX) && WOLFSSL_CRYPT_HW_MUTEX > 0
-    #error WOLFSSL_CRYPT_HW_MUTEX=1 not supported yet
-#endif
-
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/port/nxp/casper_port.h>
 #include "fsl_casper.h"
 
 int wc_casper_init(void)
 {
+    int ret;
+
+    /* Required, not just defensive: wolfCrypt_Init() initializes only the
+     * global crypt HW mutex and never the per-algorithm ones, so under
+     * WOLFSSL_ALGO_HW_MUTEX this is the only place the PK mutex is set up
+     * ahead of first use.  No-op when WOLFSSL_CRYPT_HW_MUTEX is off. */
+    if ((ret = wolfSSL_HwPkMutexInit()) != 0)
+        return ret;
+
     CASPER_Init(CASPER);
 
     return 0;
@@ -63,19 +68,22 @@ int casper_rsa_public_exptmod(
     if (exp_sz <= 0 || exp_sz > (int)sizeof(exp_buf))
         return BAD_FUNC_ARG;
 
+    if ((res = wolfSSL_HwPkMutexLock()) != 0)
+        return res;
+
     /* casper requires little endian format for inputs/outputs */
     XMEMCPY(sig_buf, in, sig_sz);
     mp_reverse(sig_buf, sig_sz);
 
     if ((res = mp_to_unsigned_bin(&key->n, key_buf)) != MP_OKAY)
-        return res;
+        goto unlock;
     mp_reverse(key_buf, key_sz);
 
     XMEMSET(exp_buf, 0, sizeof(exp_buf));
     if ((res = mp_to_unsigned_bin(&key->e,
                                   exp_buf + sizeof(exp_buf) - exp_sz))
         != MP_OKAY)
-        return res;
+        goto unlock;
     exp = ((uint32_t)exp_buf[0] << 24) | ((uint32_t)exp_buf[1] << 16) |
           ((uint32_t)exp_buf[2] <<  8) | ((uint32_t)exp_buf[3]);
 
@@ -86,8 +94,12 @@ int casper_rsa_public_exptmod(
     XMEMCPY(out, out_buf, sig_sz);
 
     *outLen = inLen;
+    res = 0;
 
-    return 0;
+unlock:
+    wolfSSL_HwPkMutexUnLock();
+
+    return res;
 }
 #endif /* !NO_RSA && WOLFSSL_NXP_CASPER_RSA_PUB_EXPTMOD */
 
@@ -105,64 +117,86 @@ int casper_ecc_mulmod(
     uint32_t X[CASPER_MAX_ECC_SIZE_BYTES / sizeof(uint32_t)] = { 0 };
     uint32_t Y[CASPER_MAX_ECC_SIZE_BYTES / sizeof(uint32_t)] = { 0 };
     int size;
+    int ret;
 
     if (!m || !P || !R)
         return BAD_FUNC_ARG;
 
+    /* Resolve the curve before taking the lock.  An unsupported curve_id is an
+     * argument error, and should not have to wait out an in-flight CASPER
+     * operation just to be rejected. */
     if (curve_id == ECC_SECP256R1)
-    {
         size = 32;
-        CASPER_ecc_init(kCASPER_ECC_P256);
-    }
     else if (curve_id == ECC_SECP384R1)
-    {
         size = 48;
-        CASPER_ecc_init(kCASPER_ECC_P384);
-    }
     else if (curve_id == ECC_SECP521R1)
-    {
         size = 66;
-        CASPER_ecc_init(kCASPER_ECC_P521);
-    }
     else
         return BAD_FUNC_ARG;
 
+    /* CASPER is a single shared peripheral; serialize against the RSA path
+     * and against other ECC callers for the whole hardware sequence. */
+    if ((ret = wolfSSL_HwPkMutexLock()) != 0)
+        return ret;
+
     /* scalar */
     if (mp_to_unsigned_bin(m, (unsigned char *)&M[0]) != MP_OKAY)
-        return MP_TO_E;
+    {
+        ret = MP_TO_E;
+        goto unlock;
+    }
     mp_reverse((unsigned char *)&M[0], size);
 
     /* point */
     if (mp_to_unsigned_bin(P->x, (unsigned char *)&X[0]) != MP_OKAY)
-        return MP_TO_E;
+    {
+        ret = MP_TO_E;
+        goto unlock;
+    }
     mp_reverse((unsigned char *)&X[0], size);
     if (mp_to_unsigned_bin(P->y, (unsigned char *)&Y[0]) != MP_OKAY)
-        return MP_TO_E;
+    {
+        ret = MP_TO_E;
+        goto unlock;
+    }
     mp_reverse((unsigned char *)&Y[0], size);
 
     if (curve_id == ECC_SECP256R1)
     {
+        CASPER_ecc_init(kCASPER_ECC_P256);
         CASPER_ECC_SECP256R1_Mul(CASPER, X, Y, X, Y, (void *)M);
     }
     else if (curve_id == ECC_SECP384R1)
     {
+        CASPER_ecc_init(kCASPER_ECC_P384);
         CASPER_ECC_SECP384R1_Mul(CASPER, X, Y, X, Y, (void *)M);
     }
     else if (curve_id == ECC_SECP521R1)
     {
+        CASPER_ecc_init(kCASPER_ECC_P521);
         CASPER_ECC_SECP521R1_Mul(CASPER, X, Y, X, Y, (void *)M);
     }
 
     /* result */
     mp_reverse((unsigned char *)&X[0], size);
     if (mp_read_unsigned_bin(R->x, (unsigned char *)&X[0], size) != MP_OKAY)
-        return MP_READ_E;
+    {
+        ret = MP_READ_E;
+        goto unlock;
+    }
     mp_reverse((unsigned char *)&Y[0], size);
     if (mp_read_unsigned_bin(R->y, (unsigned char *)&Y[0], size) != MP_OKAY)
-        return MP_READ_E;
+    {
+        ret = MP_READ_E;
+        goto unlock;
+    }
     mp_set(R->z, 1);
+    ret = 0;
 
-    return 0;
+unlock:
+    wolfSSL_HwPkMutexUnLock();
+
+    return ret;
 }
 #endif /* HAVE_ECC && WOLFSSL_NXP_CASPER_ECC_MULMOD */
 
@@ -180,66 +214,87 @@ int casper_ecc_mul2add(
     uint32_t X2[CASPER_MAX_ECC_SIZE_BYTES / sizeof(uint32_t)] = { 0 };
     uint32_t Y2[CASPER_MAX_ECC_SIZE_BYTES / sizeof(uint32_t)] = { 0 };
     int size;
+    int ret;
 
     if (!m || !P || !n || !Q || !R)
         return BAD_FUNC_ARG;
 
+    /* Resolve the curve before taking the lock.  An unsupported curve_id is an
+     * argument error, and should not have to wait out an in-flight CASPER
+     * operation just to be rejected. */
     if (curve_id == ECC_SECP256R1)
-    {
         size = 32;
-        CASPER_ecc_init(kCASPER_ECC_P256);
-    }
     else if (curve_id == ECC_SECP384R1)
-    {
         size = 48;
-        CASPER_ecc_init(kCASPER_ECC_P384);
-    }
     else if (curve_id == ECC_SECP521R1)
-    {
         size = 66;
-        CASPER_ecc_init(kCASPER_ECC_P521);
-    }
     else
         return BAD_FUNC_ARG;
 
+    /* CASPER is a single shared peripheral; serialize against the RSA path
+     * and against other ECC callers for the whole hardware sequence. */
+    if ((ret = wolfSSL_HwPkMutexLock()) != 0)
+        return ret;
+
     /* first scalar */
     if (mp_to_unsigned_bin(m, (unsigned char *)&M[0]) != MP_OKAY)
-        return MP_TO_E;
+    {
+        ret = MP_TO_E;
+        goto unlock;
+    }
     mp_reverse((unsigned char *)&M[0], size);
 
     /* first point */
     if (mp_to_unsigned_bin(P->x, (unsigned char *)&X1[0]) != MP_OKAY)
-        return MP_TO_E;
+    {
+        ret = MP_TO_E;
+        goto unlock;
+    }
     mp_reverse((unsigned char *)&X1[0], size);
     if (mp_to_unsigned_bin(P->y, (unsigned char *)&Y1[0]) != MP_OKAY)
-        return MP_TO_E;
+    {
+        ret = MP_TO_E;
+        goto unlock;
+    }
     mp_reverse((unsigned char *)&Y1[0], size);
 
     /* second scalar */
     if (mp_to_unsigned_bin(n, (unsigned char *)&N[0]) != MP_OKAY)
-        return MP_TO_E;
+    {
+        ret = MP_TO_E;
+        goto unlock;
+    }
     mp_reverse((unsigned char *)&N[0], size);
 
     /* second point */
     if (mp_to_unsigned_bin(Q->x, (unsigned char *)&X2[0]) != MP_OKAY)
-        return MP_TO_E;
+    {
+        ret = MP_TO_E;
+        goto unlock;
+    }
     mp_reverse((unsigned char *)&X2[0], size);
     if (mp_to_unsigned_bin(Q->y, (unsigned char *)&Y2[0]) != MP_OKAY)
-        return MP_TO_E;
+    {
+        ret = MP_TO_E;
+        goto unlock;
+    }
     mp_reverse((unsigned char *)&Y2[0], size);
 
     if (curve_id == ECC_SECP256R1)
     {
+        CASPER_ecc_init(kCASPER_ECC_P256);
         CASPER_ECC_SECP256R1_MulAdd(CASPER, &X1[0], &Y1[0], &X1[0], &Y1[0],
             (void *)M, &X2[0], &Y2[0], (void *)N);
     }
     else if (curve_id == ECC_SECP384R1)
     {
+        CASPER_ecc_init(kCASPER_ECC_P384);
         CASPER_ECC_SECP384R1_MulAdd(CASPER, &X1[0], &Y1[0], &X1[0], &Y1[0],
             (void *)M, &X2[0], &Y2[0], (void *)N);
     }
     else if (curve_id == ECC_SECP521R1)
     {
+        CASPER_ecc_init(kCASPER_ECC_P521);
         CASPER_ECC_SECP521R1_MulAdd(CASPER, &X1[0], &Y1[0], &X1[0], &Y1[0],
             (void *)M, &X2[0], &Y2[0], (void *)N);
     }
@@ -247,13 +302,23 @@ int casper_ecc_mul2add(
     /* result */
     mp_reverse((unsigned char *)&X1[0], size);
     if (mp_read_unsigned_bin(R->x, (unsigned char *)&X1[0], size) != MP_OKAY)
-        return MP_READ_E;
+    {
+        ret = MP_READ_E;
+        goto unlock;
+    }
     mp_reverse((unsigned char *)&Y1[0], size);
     if (mp_read_unsigned_bin(R->y, (unsigned char *)&Y1[0], size) != MP_OKAY)
-        return MP_READ_E;
+    {
+        ret = MP_READ_E;
+        goto unlock;
+    }
     mp_set(R->z, 1);
+    ret = 0;
 
-    return 0;
+unlock:
+    wolfSSL_HwPkMutexUnLock();
+
+    return ret;
 }
 #endif /* HAVE_ECC && WOLFSSL_NXP_CASPER_ECC_MUL2ADD */
 

@@ -918,12 +918,13 @@ WOLFSSL_LOCAL void wolfSSL_RefWithMutexDec_IfEquals(wolfSSL_RefWithMutex* ref,
 #endif
 
 
-/* Enable crypt HW mutex for Freescale MMCAU, PIC32MZ, STM32, MAX3266X or
- * RTL8735B */
+/* Enable crypt HW mutex for Freescale MMCAU, PIC32MZ, STM32, MAX3266X,
+ * RTL8735B, NXP CASPER or NXP HashCrypt */
 #if defined(FREESCALE_MMCAU) || defined(WOLFSSL_MICROCHIP_PIC32MZ) || \
     defined(STM32_CRYPTO) || defined(STM32_HASH) || defined(STM32_RNG) || \
     defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD) || \
-    defined(WOLFSSL_RTL8735B_HUK)
+    defined(WOLFSSL_RTL8735B_HUK) || defined(WOLFSSL_NXP_CASPER) || \
+    defined(WOLFSSL_NXP_HASHCRYPT)
     #ifndef WOLFSSL_CRYPT_HW_MUTEX
         #define WOLFSSL_CRYPT_HW_MUTEX  1
     #endif
@@ -931,6 +932,17 @@ WOLFSSL_LOCAL void wolfSSL_RefWithMutexDec_IfEquals(wolfSSL_RefWithMutex* ref,
 
 #ifndef WOLFSSL_CRYPT_HW_MUTEX
     #define WOLFSSL_CRYPT_HW_MUTEX  0
+#endif
+
+/* The NXP CASPER and HashCrypt ports depend on the crypt HW mutex to serialize
+ * their single shared peripherals and the file-scope state that goes with them
+ * (CASPER's conversion scratch, HashCrypt's AES handle and SHA context).  The
+ * auto-enable above is #ifndef-guarded, so an explicit WOLFSSL_CRYPT_HW_MUTEX
+ * of 0 wins and turns every lock in those ports into a no-op.  Fail loudly
+ * rather than ship a build whose documented serialization is not there. */
+#if (defined(WOLFSSL_NXP_CASPER) || defined(WOLFSSL_NXP_HASHCRYPT)) && \
+    !defined(SINGLE_THREADED) && (WOLFSSL_CRYPT_HW_MUTEX == 0)
+    #error "NXP CASPER/HashCrypt require WOLFSSL_CRYPT_HW_MUTEX unless SINGLE_THREADED"
 #endif
 
 #if WOLFSSL_CRYPT_HW_MUTEX
