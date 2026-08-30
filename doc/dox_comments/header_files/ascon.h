@@ -237,7 +237,8 @@ int wc_AsconAEAD128_SetNonce(wc_AsconAEAD128* a, const byte* nonce);
 
     \return 0 on success.
     \return BAD_FUNC_ARG if the context is NULL, or if the associated data
-            pointer is NULL while the associated data size is greater than 0.
+            pointer is NULL while adSz is greater than 0. A NULL associated
+            data pointer is permitted when adSz is 0.
     \return BAD_STATE_E if the key or nonce has not been set, or if the
             associated data has already been set. The associated data must be
             provided in a single call.
