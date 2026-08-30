@@ -19,3 +19,17 @@ tests:
     extra_args: CONF_FILE="prj-no-malloc.conf"
     integration_platforms:
       - qemu_x86
+  sample.crypto.wolfssl_test_ecc_nist:
+    timeout: 400
+    platform_allow: qemu_x86
+    extra_args: CONF_FILE="prj.conf;prj-ecc-nist.conf"
+    integration_platforms:
+      - qemu_x86
+  sample.crypto.wolfssl_test_ecc_custom:
+    # Brainpool forces the generic SP backend, which is slower than the
+    # per-curve one, and this runs the whole suite over every curve under QEMU.
+    timeout: 600
+    platform_allow: qemu_x86
+    extra_args: CONF_FILE="prj.conf;prj-ecc-custom.conf"
+    integration_platforms:
+      - qemu_x86
