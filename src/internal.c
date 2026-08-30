@@ -35495,24 +35495,6 @@ exit_gdpk:
 }
 #endif
 
-#if defined(HAVE_CURVE25519) && !defined(WOLFSSL_X25519_NO_MASK_PEER)
-/* RFC 7748 Section 5 requires X25519 receivers to clear the reserved high bit
- * of the final u-coordinate byte rather than reject a peer key that sets it.
- * Returns the pointer the caller should hand to the check and import calls: a
- * masked copy in maskBuf for a full-length key, otherwise pub unchanged. */
-const byte* MaskCurve25519PeerKey(const byte* pub, word32 pubSz,
-                                  byte maskBuf[CURVE25519_KEYSIZE])
-{
-    if (pubSz != CURVE25519_KEYSIZE) {
-        return pub;
-    }
-
-    XMEMCPY(maskBuf, pub, CURVE25519_KEYSIZE);
-    maskBuf[CURVE25519_KEYSIZE - 1] &= 0x7f;
-    return maskBuf;
-}
-#endif /* HAVE_CURVE25519 && !WOLFSSL_X25519_NO_MASK_PEER */
-
 #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
 static int GetEcDiffieHellmanKea(WOLFSSL *ssl,
                                  const byte *input, word32 size, DskeArgs *args)
@@ -38208,6 +38190,27 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #endif /* !NO_WOLFSSL_CLIENT && !NO_TLS */
 /* end client only parts */
+
+
+#if defined(HAVE_CURVE25519) && !defined(WOLFSSL_X25519_NO_MASK_PEER)
+/* RFC 7748 Section 5 requires X25519 receivers to clear the reserved high bit
+ * of the final u-coordinate byte rather than reject a peer key that sets it.
+ * Returns the pointer the caller should hand to the check and import calls: a
+ * masked copy in maskBuf for a full-length key, otherwise pub unchanged.
+ * Shared by the TLS 1.2 (client and server) and TLS 1.3 key exchange paths,
+ * so it must sit outside the client-only and !WOLFSSL_NO_TLS12 guards. */
+const byte* MaskCurve25519PeerKey(const byte* pub, word32 pubSz,
+                                  byte maskBuf[CURVE25519_KEYSIZE])
+{
+    if (pubSz != CURVE25519_KEYSIZE) {
+        return pub;
+    }
+
+    XMEMCPY(maskBuf, pub, CURVE25519_KEYSIZE);
+    maskBuf[CURVE25519_KEYSIZE - 1] &= 0x7f;
+    return maskBuf;
+}
+#endif /* HAVE_CURVE25519 && !WOLFSSL_X25519_NO_MASK_PEER */
 
 
 #ifndef NO_CERTS
