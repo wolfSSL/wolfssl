@@ -23,9 +23,7 @@
 
 #ifdef WOLFSSL_NXP_HASHCRYPT
 
-#if defined(WOLFSSL_CRYPT_HW_MUTEX) && WOLFSSL_CRYPT_HW_MUTEX > 0
-    #error WOLFSSL_CRYPT_HW_MUTEX=1 not supported yet
-#endif
+/* AES and SHA share one engine, so both take the global crypt HW mutex */
 
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/sha.h>
@@ -48,6 +46,11 @@ int wc_hashcrypt_init(void)
 #if ((!defined(NO_SHA) || !defined(NO_SHA256)) && \
         defined(WOLFSSL_NXP_HASHCRYPT_SHA)) || \
     (!defined(NO_AES) && defined(WOLFSSL_NXP_HASHCRYPT_AES))
+    int ret;
+
+    if ((ret = wolfSSL_CryptHwMutexInit()) != 0)
+        return ret;
+
     HASHCRYPT_Init(HASHCRYPT);
 #endif
     return 0;
@@ -56,6 +59,8 @@ int wc_hashcrypt_init(void)
 #if !defined(NO_SHA256) && defined(WOLFSSL_NXP_HASHCRYPT_SHA)
 int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
 {
+    int ret;
+
     (void)heap;
     (void)devId;
 
@@ -63,44 +68,65 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
         return BAD_FUNC_ARG;
 
     XMEMSET(sha256, 0, sizeof(wc_Sha256));
+
+    if ((ret = wolfSSL_CryptHwMutexLock()) != 0)
+        return ret;
+
     if (HASHCRYPT_SHA_Init(HASHCRYPT, &hash_ctx, kHASHCRYPT_Sha256)
             != kStatus_Success)
-        return WC_HW_E;
+        ret = WC_HW_E;
+    else
+        finish_called = 0;
 
-    finish_called = 0;
+    wolfSSL_CryptHwMutexUnLock();
 
-    return 0;
+    return ret;
 }
 
 int wc_Sha256Update(wc_Sha256* sha256, const byte* data, word32 len)
 {
+    int ret = 0;
+
     if (sha256 == NULL || (data == NULL && len != 0))
         return BAD_FUNC_ARG;
 
+    if ((ret = wolfSSL_CryptHwMutexLock()) != 0)
+        return ret;
+
     if (finish_called)
     {
-        HASHCRYPT_SHA_Init(HASHCRYPT, &hash_ctx, kHASHCRYPT_Sha256);
-        finish_called = 0;
+        if (HASHCRYPT_SHA_Init(HASHCRYPT, &hash_ctx, kHASHCRYPT_Sha256)
+                != kStatus_Success)
+            ret = WC_HW_E;
+        else
+            finish_called = 0;
     }
-    if (HASHCRYPT_SHA_Update(HASHCRYPT, &hash_ctx, data, len)
+    if (ret == 0 &&
+        HASHCRYPT_SHA_Update(HASHCRYPT, &hash_ctx, data, len)
             != kStatus_Success)
-        return WC_HW_E;
+        ret = WC_HW_E;
 
-    return 0;
+    wolfSSL_CryptHwMutexUnLock();
+
+    return ret;
 }
 
 int wc_Sha256Final(wc_Sha256* sha256, byte* hash)
 {
     size_t outlen = WC_SHA256_DIGEST_SIZE;
     static byte previous_sha256_hash[WC_SHA256_DIGEST_SIZE];
+    int ret = 0;
 
     if (sha256 == NULL || hash == NULL)
         return BAD_FUNC_ARG;
 
+    if ((ret = wolfSSL_CryptHwMutexLock()) != 0)
+        return ret;
+
     if (finish_called)
     {
         memcpy(hash, previous_sha256_hash, WC_SHA256_DIGEST_SIZE);
-        return 0;
+        goto unlock;
     }
 
     if (
@@ -109,12 +135,16 @@ int wc_Sha256Final(wc_Sha256* sha256, byte* hash)
                 || outlen != WC_SHA256_DIGEST_SIZE
     )
     {
-        return WC_HW_E;
+        ret = WC_HW_E;
+        goto unlock;
     }
     memcpy(previous_sha256_hash, hash, WC_SHA256_DIGEST_SIZE);
     finish_called = 1;
 
-    return 0;
+unlock:
+    wolfSSL_CryptHwMutexUnLock();
+
+    return ret;
 }
 #endif /* !defined(NO_SHA256) && defined(WOLFSSL_NXP_HASHCRYPT_SHA) */
 
@@ -122,6 +152,8 @@ int wc_Sha256Final(wc_Sha256* sha256, byte* hash)
 #if !defined(NO_SHA) && defined(WOLFSSL_NXP_HASHCRYPT_SHA)
 int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
 {
+    int ret;
+
     (void)heap;
     (void)devId;
 
@@ -129,44 +161,65 @@ int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
         return BAD_FUNC_ARG;
 
     XMEMSET(sha, 0, sizeof(wc_Sha));
+
+    if ((ret = wolfSSL_CryptHwMutexLock()) != 0)
+        return ret;
+
     if (HASHCRYPT_SHA_Init(HASHCRYPT, &hash_ctx, kHASHCRYPT_Sha1)
             != kStatus_Success)
-        return WC_HW_E;
+        ret = WC_HW_E;
+    else
+        finish_called = 0;
 
-    finish_called = 0;
+    wolfSSL_CryptHwMutexUnLock();
 
-    return 0;
+    return ret;
 }
 
 int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
 {
+    int ret = 0;
+
     if (sha == NULL || (data == NULL && len != 0))
         return BAD_FUNC_ARG;
 
+    if ((ret = wolfSSL_CryptHwMutexLock()) != 0)
+        return ret;
+
     if (finish_called)
     {
-        HASHCRYPT_SHA_Init(HASHCRYPT, &hash_ctx, kHASHCRYPT_Sha1);
-        finish_called = 0;
+        if (HASHCRYPT_SHA_Init(HASHCRYPT, &hash_ctx, kHASHCRYPT_Sha1)
+                != kStatus_Success)
+            ret = WC_HW_E;
+        else
+            finish_called = 0;
     }
-    if (HASHCRYPT_SHA_Update(HASHCRYPT, &hash_ctx, data, len)
+    if (ret == 0 &&
+        HASHCRYPT_SHA_Update(HASHCRYPT, &hash_ctx, data, len)
             != kStatus_Success)
-        return WC_HW_E;
+        ret = WC_HW_E;
 
-    return 0;
+    wolfSSL_CryptHwMutexUnLock();
+
+    return ret;
 }
 
 int wc_ShaFinal(wc_Sha* sha, byte* hash)
 {
     size_t outlen = WC_SHA_DIGEST_SIZE;
     static byte previous_sha_hash[WC_SHA_DIGEST_SIZE];
+    int ret = 0;
 
     if (sha == NULL || hash == NULL)
         return BAD_FUNC_ARG;
 
+    if ((ret = wolfSSL_CryptHwMutexLock()) != 0)
+        return ret;
+
     if (finish_called)
     {
         memcpy(hash, previous_sha_hash, WC_SHA_DIGEST_SIZE);
-        return 0;
+        goto unlock;
     }
 
     if (
@@ -175,12 +228,16 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash)
                 || outlen != WC_SHA_DIGEST_SIZE
     )
     {
-        return WC_HW_E;
+        ret = WC_HW_E;
+        goto unlock;
     }
     memcpy(previous_sha_hash, hash, WC_SHA_DIGEST_SIZE);
     finish_called = 1;
 
-    return 0;
+unlock:
+    wolfSSL_CryptHwMutexUnLock();
+
+    return ret;
 }
 #endif /* !defined(NO_SHA) && defined(WOLFSSL_NXP_HASHCRYPT_SHA) */
 
@@ -219,15 +276,18 @@ int wc_AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     if (sz == 0)
         return 0;
 
-    ret = _hashcrypt_set_key(aes);
-    if (ret)
+    if ((ret = wolfSSL_CryptHwMutexLock()) != 0)
         return ret;
 
-    if (HASHCRYPT_AES_EncryptEcb(HASHCRYPT, &aes_handle, in, out, sz)
+    ret = _hashcrypt_set_key(aes);
+    if (ret == 0 &&
+        HASHCRYPT_AES_EncryptEcb(HASHCRYPT, &aes_handle, in, out, sz)
              != kStatus_Success)
-         return WC_HW_E;
+        ret = WC_HW_E;
 
-    return 0;
+    wolfSSL_CryptHwMutexUnLock();
+
+    return ret;
 }
 
 #ifdef HAVE_AES_DECRYPT
@@ -241,15 +301,18 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     if (sz == 0)
         return 0;
 
-    ret = _hashcrypt_set_key(aes);
-    if (ret)
+    if ((ret = wolfSSL_CryptHwMutexLock()) != 0)
         return ret;
 
-    if (HASHCRYPT_AES_DecryptEcb(HASHCRYPT, &aes_handle, in, out, sz)
+    ret = _hashcrypt_set_key(aes);
+    if (ret == 0 &&
+        HASHCRYPT_AES_DecryptEcb(HASHCRYPT, &aes_handle, in, out, sz)
              != kStatus_Success)
-         return WC_HW_E;
+        ret = WC_HW_E;
 
-    return 0;
+    wolfSSL_CryptHwMutexUnLock();
+
+    return ret;
 }
 #endif
 #endif /* HAVE_AES_ECB */
@@ -265,18 +328,22 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     if (sz == 0)
         return 0;
 
-    ret = _hashcrypt_set_key(aes);
-    if (ret)
+    if ((ret = wolfSSL_CryptHwMutexLock()) != 0)
         return ret;
 
-    if (HASHCRYPT_AES_EncryptCbc(
-            HASHCRYPT, &aes_handle, in, out, sz, (const uint8_t *)aes->reg)
-                != kStatus_Success)
-         return WC_HW_E;
+    ret = _hashcrypt_set_key(aes);
+    if (ret == 0) {
+        if (HASHCRYPT_AES_EncryptCbc(
+                HASHCRYPT, &aes_handle, in, out, sz, (const uint8_t *)aes->reg)
+                    != kStatus_Success)
+            ret = WC_HW_E;
+        else
+            XMEMCPY(aes->reg, out + sz - 16, 16);
+    }
 
-    XMEMCPY(aes->reg, out + sz - 16, 16);
+    wolfSSL_CryptHwMutexUnLock();
 
-    return 0;
+    return ret;
 }
 
 #ifdef HAVE_AES_DECRYPT
@@ -291,20 +358,24 @@ int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     if (sz == 0)
         return 0;
 
-    ret = _hashcrypt_set_key(aes);
-    if (ret)
+    if ((ret = wolfSSL_CryptHwMutexLock()) != 0)
         return ret;
 
-    XMEMCPY(tmp_iv, in + sz - 16, 16);
+    ret = _hashcrypt_set_key(aes);
+    if (ret == 0) {
+        XMEMCPY(tmp_iv, in + sz - 16, 16);
 
-    if (HASHCRYPT_AES_DecryptCbc(
-            HASHCRYPT, &aes_handle, in, out, sz, (const uint8_t *)aes->reg)
-                != kStatus_Success)
-         return WC_HW_E;
+        if (HASHCRYPT_AES_DecryptCbc(
+                HASHCRYPT, &aes_handle, in, out, sz, (const uint8_t *)aes->reg)
+                    != kStatus_Success)
+            ret = WC_HW_E;
+        else
+            XMEMCPY(aes->reg, tmp_iv, 16);
+    }
 
-    XMEMCPY(aes->reg, tmp_iv, 16);
+    wolfSSL_CryptHwMutexUnLock();
 
-    return 0;
+    return ret;
 }
 #endif
 #endif /* HAVE_AES_CBC */
@@ -326,17 +397,19 @@ static int _hashcrypt_aes_ofb(Aes* aes, byte* out, const byte* in, word32 sz)
     if (sz == 0)
         return 0;
 
-    ret = _hashcrypt_set_key(aes);
-    if (ret)
+    if ((ret = wolfSSL_CryptHwMutexLock()) != 0)
         return ret;
 
-    while (sz > 0) {
+    ret = _hashcrypt_set_key(aes);
+    while (ret == 0 && sz > 0) {
         if (aes->left == 0) {
             /* keystream block O = E(reg); OFB feeds O back as the next reg */
             if (HASHCRYPT_AES_EncryptEcb(HASHCRYPT, &aes_handle,
                     (const uint8_t *)aes->reg, (uint8_t *)aes->tmp,
-                    WC_AES_BLOCK_SIZE) != kStatus_Success)
-                return WC_HW_E;
+                    WC_AES_BLOCK_SIZE) != kStatus_Success) {
+                ret = WC_HW_E;
+                break;
+            }
             XMEMCPY(aes->reg, aes->tmp, WC_AES_BLOCK_SIZE);
             aes->left = WC_AES_BLOCK_SIZE;
         }
@@ -348,7 +421,9 @@ static int _hashcrypt_aes_ofb(Aes* aes, byte* out, const byte* in, word32 sz)
         }
     }
 
-    return 0;
+    wolfSSL_CryptHwMutexUnLock();
+
+    return ret;
 }
 
 int wc_AesOfbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
@@ -382,16 +457,18 @@ static int _hashcrypt_aes_cfb(Aes* aes, byte* out, const byte* in, word32 sz,
     if (sz == 0)
         return 0;
 
-    ret = _hashcrypt_set_key(aes);
-    if (ret)
+    if ((ret = wolfSSL_CryptHwMutexLock()) != 0)
         return ret;
 
-    while (sz > 0) {
+    ret = _hashcrypt_set_key(aes);
+    while (ret == 0 && sz > 0) {
         if (aes->left == 0) {
             if (HASHCRYPT_AES_EncryptEcb(HASHCRYPT, &aes_handle,
                     (const uint8_t *)aes->reg, (uint8_t *)aes->tmp,
-                    WC_AES_BLOCK_SIZE) != kStatus_Success)
-                return WC_HW_E;
+                    WC_AES_BLOCK_SIZE) != kStatus_Success) {
+                ret = WC_HW_E;
+                break;
+            }
             aes->left = WC_AES_BLOCK_SIZE;
         }
         idx = WC_AES_BLOCK_SIZE - aes->left;
@@ -406,7 +483,9 @@ static int _hashcrypt_aes_cfb(Aes* aes, byte* out, const byte* in, word32 sz,
         aes->left--;
     }
 
-    return 0;
+    wolfSSL_CryptHwMutexUnLock();
+
+    return ret;
 }
 
 int wc_AesCfbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
@@ -425,7 +504,7 @@ int wc_AesCfbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 #ifdef WOLFSSL_AES_COUNTER
 int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
-    int ret;
+    int ret = 0;
     byte* tmp;
 
     if (aes == NULL || out == NULL || in == NULL) {
@@ -441,18 +520,21 @@ int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     }
 
     if (sz) {
-        ret = _hashcrypt_set_key(aes);
-        if (ret)
+        if ((ret = wolfSSL_CryptHwMutexLock()) != 0)
             return ret;
 
-        if (HASHCRYPT_AES_CryptCtr(
+        ret = _hashcrypt_set_key(aes);
+        if (ret == 0 &&
+            HASHCRYPT_AES_CryptCtr(
                 HASHCRYPT, &aes_handle, in, out, sz, (byte *)aes->reg,
                 (byte *)aes->tmp, (word32 *)&aes->left)
                     != kStatus_Success)
-         return WC_HW_E;
+            ret = WC_HW_E;
+
+        wolfSSL_CryptHwMutexUnLock();
     }
 
-    return 0;
+    return ret;
 }
 #endif /* WOLFSSL_AES_COUNTER */
 
