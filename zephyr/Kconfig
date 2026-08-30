@@ -178,7 +178,63 @@ config WOLFSSL_ECC
   bool "wolfCrypt ECC support"
   default y
   help
-    Enable ECC (HAVE_ECC, SECP256R1).
+    Enable ECC (HAVE_ECC). At least one curve must be selected below - a
+    build with none is rejected, because wolfCrypt has no curve table to
+    size its types from.
+
+if WOLFSSL_ECC
+
+config WOLFSSL_ECC_256
+  bool "SECP256R1 (P-256)"
+  default y
+  help
+    Enable the NIST P-256 curve. This is the curve TLS uses by default, so
+    leave it on unless you know the whole application avoids it.
+
+config WOLFSSL_ECC_384
+  bool "SECP384R1 (P-384)"
+  help
+    Enable the NIST P-384 curve (HAVE_ECC384 and the SP implementation
+    behind WOLFSSL_SP_384).
+
+    Enabling a curve larger than P-256 raises MAX_ECC_BYTES, so every ECC
+    key, signature buffer and temporary grows accordingly - including on the
+    stack. Size thread stacks for the largest curve selected.
+
+config WOLFSSL_ECC_512
+  bool "512-bit curves"
+  help
+    Enable the 512-bit curve size (HAVE_ECC512). There is no NIST curve at
+    this size - it exists for brainpoolP512r1, so it is only useful together
+    with WOLFSSL_ECC_BRAINPOOL. SP math has no implementation at this size,
+    so selecting it forces the generic SP variant.
+
+config WOLFSSL_ECC_521
+  bool "SECP521R1 (P-521)"
+  help
+    Enable the NIST P-521 curve (HAVE_ECC521 and the SP implementation
+    behind WOLFSSL_SP_521). This sets the largest MAX_ECC_BYTES of any
+    supported curve.
+
+    Its SP implementation is also the most stack-hungry: a thread signing on
+    P-521 overflowed a 16 KB stack during bring-up and needed roughly three
+    times that. Raise CONFIG_MAIN_STACK_SIZE and any relevant thread stack,
+    or set WOLFSSL_SMALL_STACK to move the intermediates onto the heap.
+
+config WOLFSSL_ECC_BRAINPOOL
+  bool "Brainpool curves"
+  help
+    Enable the Brainpool curve family (HAVE_ECC_BRAINPOOL). Each curve also
+    needs its matching size enabled: brainpoolP256r1 needs WOLFSSL_ECC_256,
+    brainpoolP384r1 needs WOLFSSL_ECC_384 and brainpoolP512r1 needs
+    WOLFSSL_ECC_512.
+
+    Implies WOLFSSL_CUSTOM_CURVES, which wolfCrypt requires for any
+    non-prime-field curve, and that moves the whole build onto the generic
+    SP variant - slower and larger on the common curves, which is why this
+    is opt-in.
+
+endif # WOLFSSL_ECC
 
 config WOLFSSL_CHACHA_POLY
   bool "wolfCrypt ChaCha20-Poly1305 support"
@@ -281,6 +337,10 @@ config WOLFSSL_INSTALL_PATH
 	  This option holds the path where the wolfSSL libraries and headers are
 	  installed. Make sure this option is properly set when WOLFSSL_LIBRARY
 	  is enabled otherwise the build will fail.
+
+module = WOLFSSL
+module-str = wolfssl
+source "subsys/logging/Kconfig.template.log_config"
 
 config APP_LINK_WITH_WOLFSSL
 	bool "Link 'app' with WOLFSSL"
