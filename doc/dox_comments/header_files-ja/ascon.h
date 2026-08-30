@@ -233,7 +233,8 @@ int wc_AsconAEAD128_SetNonce(wc_AsconAEAD128* a, const byte* nonce);
     \brief この関数は、Ascon AEADコンテキストの関連データを設定します。
 
     \return 0 成功時。
-    \return BAD_FUNC_ARG コンテキストまたは関連データポインタがNULLの場合。
+    \return BAD_FUNC_ARG コンテキストがNULLの場合、または関連データサイズが0より
+            大きいのに関連データポインタがNULLの場合。
     \return BAD_STATE_E 鍵またはnonceが設定されていない場合。
 
     \param a 初期化されたAscon AEADコンテキストへのポインタ。
