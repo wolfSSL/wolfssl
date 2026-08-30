@@ -14214,16 +14214,27 @@ void bench_slhdsa(int param)
        );
     bench_stats_asym_finish(name, len, "vrfy-msg", 0, count, start, ret);
 
-#ifndef NO_SHA256
+#if !defined(NO_SHA256) && defined(WOLFSSL_SHA512)
     /* Pre-hash interface: hash message ONCE outside the timed loop (the
      * bench measures sign/verify, not the application-side hash), then sign
-     * and verify the digest. SHA-256 path: only built when SHA-256 is
-     * available; HashSLH-DSA still works at runtime with any hashType the
-     * build supports, but the bench needs a compile-time choice. */
+     * and verify the digest.  SHA-256 is only strong enough for category 1,
+     * so larger parameter sets pre-hash with SHA-512, which is why both are
+     * required here. */
     {
-        byte digest[WC_SHA256_DIGEST_SIZE];
+        byte digest[WC_SHA512_DIGEST_SIZE];
+        word32 digestSz;
+        enum wc_HashType phType;
 
-        ret = wc_Sha256Hash(msg, (word32)sizeof(msg), digest);
+        if (key->params->n == WC_SLHDSA_N_128) {
+            phType = WC_HASH_TYPE_SHA256;
+            digestSz = WC_SHA256_DIGEST_SIZE;
+            ret = wc_Sha256Hash(msg, (word32)sizeof(msg), digest);
+        }
+        else {
+            phType = WC_HASH_TYPE_SHA512;
+            digestSz = WC_SHA512_DIGEST_SIZE;
+            ret = wc_Sha512Hash(msg, (word32)sizeof(msg), digest);
+        }
         if (ret != 0) {
             goto exit;
         }
@@ -14233,7 +14244,7 @@ void bench_slhdsa(int param)
         do {
             sigLen = WC_SLHDSA_MAX_SIG_LEN;
             ret = wc_SlhDsaKey_SignHashDeterministic(key, ctx, 0, digest,
-                (word32)sizeof(digest), WC_HASH_TYPE_SHA256, sig, &sigLen);
+                digestSz, phType, sig, &sigLen);
             if (ret != 0) {
                 goto exit;
             }
@@ -14250,7 +14261,7 @@ void bench_slhdsa(int param)
         bench_stats_start(&count, &start);
         do {
             ret = wc_SlhDsaKey_VerifyHash(key_vfy, ctx, 0, digest,
-                (word32)sizeof(digest), WC_HASH_TYPE_SHA256, sig, sigLen);
+                digestSz, phType, sig, sigLen);
             if (ret != 0) {
                 goto exit;
             }
@@ -14264,7 +14275,8 @@ void bench_slhdsa(int param)
         bench_stats_asym_finish(name, len, "vrfy-pre", 0, count, start, ret);
     }
 #elif defined(WOLFSSL_SHAKE256)
-    /* SHAKE-only build (NO_SHA256): use SHAKE256 prehash bench instead. */
+    /* Reached without SHA-256, or without the SHA-512 the larger parameter
+     * sets need.  SHAKE256 is strong enough for every parameter set. */
     {
         byte digest[WC_SHA3_512_DIGEST_SIZE];
 

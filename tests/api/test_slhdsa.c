@@ -49,12 +49,14 @@
  * variants in the same order. */
 #if defined(WOLFSSL_SLHDSA_PARAM_128S)
     #define TEST_SLHDSA_DEFAULT_PARAM     SLHDSA_SHAKE128S
+    #define TEST_SLHDSA_DEFAULT_CAT1
     #define TEST_SLHDSA_DEFAULT_SIG_LEN   WC_SLHDSA_SHAKE128S_SIG_LEN
     #define TEST_SLHDSA_DEFAULT_PRIV_LEN  WC_SLHDSA_SHAKE128S_PRIV_LEN
     #define TEST_SLHDSA_DEFAULT_PUB_LEN   WC_SLHDSA_SHAKE128S_PUB_LEN
     #define TEST_SLHDSA_DEFAULT_SEED_LEN  WC_SLHDSA_SHAKE128S_SEED_LEN
 #elif defined(WOLFSSL_SLHDSA_PARAM_128F)
     #define TEST_SLHDSA_DEFAULT_PARAM     SLHDSA_SHAKE128F
+    #define TEST_SLHDSA_DEFAULT_CAT1
     #define TEST_SLHDSA_DEFAULT_SIG_LEN   WC_SLHDSA_SHAKE128F_SIG_LEN
     #define TEST_SLHDSA_DEFAULT_PRIV_LEN  WC_SLHDSA_SHAKE128F_PRIV_LEN
     #define TEST_SLHDSA_DEFAULT_PUB_LEN   WC_SLHDSA_SHAKE128F_PUB_LEN
@@ -85,12 +87,14 @@
     #define TEST_SLHDSA_DEFAULT_SEED_LEN  WC_SLHDSA_SHAKE256F_SEED_LEN
 #elif defined(WOLFSSL_SLHDSA_PARAM_SHA2_128S)
     #define TEST_SLHDSA_DEFAULT_PARAM     SLHDSA_SHA2_128S
+    #define TEST_SLHDSA_DEFAULT_CAT1
     #define TEST_SLHDSA_DEFAULT_SIG_LEN   WC_SLHDSA_SHA2_128S_SIG_LEN
     #define TEST_SLHDSA_DEFAULT_PRIV_LEN  WC_SLHDSA_SHA2_128S_PRIV_LEN
     #define TEST_SLHDSA_DEFAULT_PUB_LEN   WC_SLHDSA_SHA2_128S_PUB_LEN
     #define TEST_SLHDSA_DEFAULT_SEED_LEN  WC_SLHDSA_SHA2_128S_SEED_LEN
 #elif defined(WOLFSSL_SLHDSA_PARAM_SHA2_128F)
     #define TEST_SLHDSA_DEFAULT_PARAM     SLHDSA_SHA2_128F
+    #define TEST_SLHDSA_DEFAULT_CAT1
     #define TEST_SLHDSA_DEFAULT_SIG_LEN   WC_SLHDSA_SHA2_128F_SIG_LEN
     #define TEST_SLHDSA_DEFAULT_PRIV_LEN  WC_SLHDSA_SHA2_128F_PRIV_LEN
     #define TEST_SLHDSA_DEFAULT_PUB_LEN   WC_SLHDSA_SHA2_128F_PUB_LEN
@@ -119,6 +123,31 @@
     #define TEST_SLHDSA_DEFAULT_PRIV_LEN  WC_SLHDSA_SHA2_256F_PRIV_LEN
     #define TEST_SLHDSA_DEFAULT_PUB_LEN   WC_SLHDSA_SHA2_256F_PUB_LEN
     #define TEST_SLHDSA_DEFAULT_SEED_LEN  WC_SLHDSA_SHA2_256F_SEED_LEN
+#endif
+
+/* FIPS 205 sec. 10.2.2 allows SHA-256 and SHAKE128 only at category 1, so a
+ * build whose default parameter set is larger needs a stronger pre-hash. */
+/* The hash, its digest size, the last byte of its FIPS 205 Algorithm 23 OID
+ * and the call that produces the digest are chosen together here, so they
+ * cannot disagree. */
+#ifdef TEST_SLHDSA_DEFAULT_CAT1
+    #define TEST_SLHDSA_PH      WC_HASH_TYPE_SHA256
+    #define TEST_SLHDSA_PH_SZ   32
+    #define TEST_SLHDSA_PH_OID  0x01
+    #define TEST_SLHDSA_PH_HASH(in, inSz, out) \
+        wc_Sha256Hash((in), (inSz), (out))
+#elif defined(WOLFSSL_SHA512)
+    #define TEST_SLHDSA_PH      WC_HASH_TYPE_SHA512
+    #define TEST_SLHDSA_PH_SZ   64
+    #define TEST_SLHDSA_PH_OID  0x03
+    #define TEST_SLHDSA_PH_HASH(in, inSz, out) \
+        wc_Sha512Hash((in), (inSz), (out))
+#else
+    #define TEST_SLHDSA_PH      WC_HASH_TYPE_SHAKE256
+    #define TEST_SLHDSA_PH_SZ   64
+    #define TEST_SLHDSA_PH_OID  0x0C
+    #define TEST_SLHDSA_PH_HASH(in, inSz, out) \
+        wc_Shake256Hash((in), (inSz), (out), TEST_SLHDSA_PH_SZ)
 #endif
 #endif /* WOLFSSL_HAVE_SLHDSA */
 
@@ -1026,7 +1055,9 @@ int test_wc_slhdsa_sign_hash(void)
 #if defined(WOLFSSL_HAVE_SLHDSA) && !defined(WOLFSSL_SLHDSA_VERIFY_ONLY)
     SlhDsaKey key;
     WC_RNG rng;
-    byte hash[64];
+    /* 64 for the SHA-512 and SHAKE256 cases, plus one for the deliberate
+     * too-long case. */
+    byte hash[65];
     byte* sig = NULL;
     word32 sigLen;
     word32 expSigLen;
@@ -1046,83 +1077,89 @@ int test_wc_slhdsa_sign_hash(void)
     expSigLen = TEST_SLHDSA_DEFAULT_SIG_LEN;
     ExpectIntEQ(wc_SlhDsaKey_MakeKey(&key, &rng), 0);
 
-    /* Test SignHash NULL parameter handling. Use 32-byte hash length so the
-     * NULL check trips before the digest-length check (HashSLH-DSA expects
-     * SHA-256 digest = 32 bytes). */
+    /* Test SignHash NULL parameter handling. Use the right digest length so
+     * the NULL check trips before the length check. */
     sigLen = WC_SLHDSA_MAX_SIG_LEN;
     ExpectIntEQ(wc_SlhDsaKey_SignHash(NULL, ctx, sizeof(ctx), hash,
-        32, WC_HASH_TYPE_SHA256, sig, &sigLen, &rng),
+        TEST_SLHDSA_PH_SZ, TEST_SLHDSA_PH, sig, &sigLen, &rng),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_SlhDsaKey_SignHash(&key, ctx, sizeof(ctx), NULL,
-        32, WC_HASH_TYPE_SHA256, sig, &sigLen, &rng),
+        TEST_SLHDSA_PH_SZ, TEST_SLHDSA_PH, sig, &sigLen, &rng),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_SlhDsaKey_SignHash(&key, ctx, sizeof(ctx), hash,
-        32, WC_HASH_TYPE_SHA256, NULL, &sigLen, &rng),
+        TEST_SLHDSA_PH_SZ, TEST_SLHDSA_PH, NULL, &sigLen, &rng),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_SlhDsaKey_SignHash(&key, ctx, sizeof(ctx), hash,
-        32, WC_HASH_TYPE_SHA256, sig, NULL, &rng),
+        TEST_SLHDSA_PH_SZ, TEST_SLHDSA_PH, sig, NULL, &rng),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_SlhDsaKey_SignHash(&key, ctx, sizeof(ctx), hash,
-        32, WC_HASH_TYPE_SHA256, sig, &sigLen, NULL),
+        TEST_SLHDSA_PH_SZ, TEST_SLHDSA_PH, sig, &sigLen, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     /* HashSLH-DSA must reject digest lengths that don't match hashType. */
     sigLen = WC_SLHDSA_MAX_SIG_LEN;
-    ExpectIntEQ(wc_SlhDsaKey_SignHash(&key, ctx, sizeof(ctx), hash, 31,
-        WC_HASH_TYPE_SHA256, sig, &sigLen, &rng),
+    ExpectIntEQ(wc_SlhDsaKey_SignHash(&key, ctx, sizeof(ctx), hash,
+        TEST_SLHDSA_PH_SZ - 1, TEST_SLHDSA_PH, sig, &sigLen, &rng),
         WC_NO_ERR_TRACE(BAD_LENGTH_E));
-    ExpectIntEQ(wc_SlhDsaKey_SignHash(&key, ctx, sizeof(ctx), hash, 33,
-        WC_HASH_TYPE_SHA256, sig, &sigLen, &rng),
+    ExpectIntEQ(wc_SlhDsaKey_SignHash(&key, ctx, sizeof(ctx), hash,
+        TEST_SLHDSA_PH_SZ + 1, TEST_SLHDSA_PH, sig, &sigLen, &rng),
         WC_NO_ERR_TRACE(BAD_LENGTH_E));
     /* Generate a real signature first so VerifyHash gets to its length check
      * rather than failing on signature size. */
-    ExpectIntEQ(wc_SlhDsaKey_SignHash(&key, ctx, sizeof(ctx), hash, 32,
-        WC_HASH_TYPE_SHA256, sig, &sigLen, &rng), 0);
-    ExpectIntEQ(wc_SlhDsaKey_VerifyHash(&key, ctx, sizeof(ctx), hash, 31,
-        WC_HASH_TYPE_SHA256, sig, sigLen),
+    ExpectIntEQ(wc_SlhDsaKey_SignHash(&key, ctx, sizeof(ctx), hash,
+        TEST_SLHDSA_PH_SZ, TEST_SLHDSA_PH, sig, &sigLen, &rng), 0);
+    ExpectIntEQ(wc_SlhDsaKey_VerifyHash(&key, ctx, sizeof(ctx), hash,
+        TEST_SLHDSA_PH_SZ - 1, TEST_SLHDSA_PH, sig, sigLen),
         WC_NO_ERR_TRACE(BAD_LENGTH_E));
-    ExpectIntEQ(wc_SlhDsaKey_VerifyHash(&key, ctx, sizeof(ctx), hash, 33,
-        WC_HASH_TYPE_SHA256, sig, sigLen),
+    ExpectIntEQ(wc_SlhDsaKey_VerifyHash(&key, ctx, sizeof(ctx), hash,
+        TEST_SLHDSA_PH_SZ + 1, TEST_SLHDSA_PH, sig, sigLen),
         WC_NO_ERR_TRACE(BAD_LENGTH_E));
+    /* Verify rejects the no-pre-hash sentinel too. Done while sigLen is
+     * still a real length, or the length check fires first and hides it. */
+    ExpectIntEQ(wc_SlhDsaKey_VerifyHash(&key, ctx, sizeof(ctx), hash,
+        TEST_SLHDSA_PH_SZ, WC_HASH_TYPE_NONE, sig, sigLen),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
-    /* Unsupported hashType (FIPS 205 doesn't list WC_HASH_TYPE_NONE) hits
-     * the default branch of slhdsakey_validate_prehash. */
+    /* WC_HASH_TYPE_NONE means "no pre-hash", so it is never valid here. */
     sigLen = WC_SLHDSA_MAX_SIG_LEN;
-    ExpectIntEQ(wc_SlhDsaKey_SignHash(&key, ctx, sizeof(ctx), hash, 32,
-        WC_HASH_TYPE_NONE, sig, &sigLen, &rng),
-        WC_NO_ERR_TRACE(NOT_COMPILED_IN));
+    ExpectIntEQ(wc_SlhDsaKey_SignHash(&key, ctx, sizeof(ctx), hash,
+        TEST_SLHDSA_PH_SZ, WC_HASH_TYPE_NONE, sig, &sigLen, &rng),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
-    /* Test SignHash with SHA-256. */
+    /* Round trip with the parameter set's own pre-hash. */
     sigLen = WC_SLHDSA_MAX_SIG_LEN;
-    ExpectIntEQ(wc_SlhDsaKey_SignHash(&key, ctx, sizeof(ctx), hash, 32,
-        WC_HASH_TYPE_SHA256, sig, &sigLen, &rng), 0);
+    ExpectIntEQ(wc_SlhDsaKey_SignHash(&key, ctx, sizeof(ctx), hash,
+        TEST_SLHDSA_PH_SZ, TEST_SLHDSA_PH, sig, &sigLen, &rng), 0);
     ExpectIntEQ(sigLen, expSigLen);
-    ExpectIntEQ(wc_SlhDsaKey_VerifyHash(&key, ctx, sizeof(ctx), hash, 32,
-        WC_HASH_TYPE_SHA256, sig, sigLen), 0);
+    ExpectIntEQ(wc_SlhDsaKey_VerifyHash(&key, ctx, sizeof(ctx), hash,
+        TEST_SLHDSA_PH_SZ, TEST_SLHDSA_PH, sig, sigLen), 0);
 
     /* Test VerifyHash NULL parameter handling. */
-    ExpectIntEQ(wc_SlhDsaKey_VerifyHash(NULL, ctx, sizeof(ctx), hash, 32,
-        WC_HASH_TYPE_SHA256, sig, sigLen), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_SlhDsaKey_VerifyHash(&key, ctx, sizeof(ctx), NULL, 32,
-        WC_HASH_TYPE_SHA256, sig, sigLen), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_SlhDsaKey_VerifyHash(&key, ctx, sizeof(ctx), hash, 32,
-        WC_HASH_TYPE_SHA256, NULL, sigLen), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SlhDsaKey_VerifyHash(NULL, ctx, sizeof(ctx), hash,
+        TEST_SLHDSA_PH_SZ,
+        TEST_SLHDSA_PH, sig, sigLen), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SlhDsaKey_VerifyHash(&key, ctx, sizeof(ctx), NULL,
+        TEST_SLHDSA_PH_SZ,
+        TEST_SLHDSA_PH, sig, sigLen), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SlhDsaKey_VerifyHash(&key, ctx, sizeof(ctx), hash,
+        TEST_SLHDSA_PH_SZ,
+        TEST_SLHDSA_PH, NULL, sigLen), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     /* Test VerifyHash with wrong hash. */
     hash[0] ^= 0xFF;
-    ExpectIntNE(wc_SlhDsaKey_VerifyHash(&key, ctx, sizeof(ctx), hash, 32,
-        WC_HASH_TYPE_SHA256, sig, sigLen), 0);
+    ExpectIntNE(wc_SlhDsaKey_VerifyHash(&key, ctx, sizeof(ctx), hash,
+        TEST_SLHDSA_PH_SZ, TEST_SLHDSA_PH, sig, sigLen), 0);
     hash[0] ^= 0xFF;
 
     /* Test SignHashDeterministic. */
     sigLen = WC_SLHDSA_MAX_SIG_LEN;
     ExpectIntEQ(wc_SlhDsaKey_SignHashDeterministic(NULL, ctx, sizeof(ctx),
-        hash, 32, WC_HASH_TYPE_SHA256, sig, &sigLen),
+        hash, TEST_SLHDSA_PH_SZ, TEST_SLHDSA_PH, sig, &sigLen),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_SlhDsaKey_SignHashDeterministic(&key, ctx, sizeof(ctx),
-        hash, 32, WC_HASH_TYPE_SHA256, sig, &sigLen), 0);
-    ExpectIntEQ(wc_SlhDsaKey_VerifyHash(&key, ctx, sizeof(ctx), hash, 32,
-        WC_HASH_TYPE_SHA256, sig, sigLen), 0);
+        hash, TEST_SLHDSA_PH_SZ, TEST_SLHDSA_PH, sig, &sigLen), 0);
+    ExpectIntEQ(wc_SlhDsaKey_VerifyHash(&key, ctx, sizeof(ctx), hash,
+        TEST_SLHDSA_PH_SZ, TEST_SLHDSA_PH, sig, sigLen), 0);
 
     /* Test SignHashWithRandom. */
     {
@@ -1131,15 +1168,15 @@ int test_wc_slhdsa_sign_hash(void)
 
         sigLen = WC_SLHDSA_MAX_SIG_LEN;
         ExpectIntEQ(wc_SlhDsaKey_SignHashWithRandom(NULL, ctx, sizeof(ctx),
-            hash, 32, WC_HASH_TYPE_SHA256, sig, &sigLen, addRnd),
+            hash, TEST_SLHDSA_PH_SZ, TEST_SLHDSA_PH, sig, &sigLen, addRnd),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wc_SlhDsaKey_SignHashWithRandom(&key, ctx, sizeof(ctx),
-            hash, 32, WC_HASH_TYPE_SHA256, sig, &sigLen, NULL),
+            hash, TEST_SLHDSA_PH_SZ, TEST_SLHDSA_PH, sig, &sigLen, NULL),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wc_SlhDsaKey_SignHashWithRandom(&key, ctx, sizeof(ctx),
-            hash, 32, WC_HASH_TYPE_SHA256, sig, &sigLen, addRnd), 0);
-        ExpectIntEQ(wc_SlhDsaKey_VerifyHash(&key, ctx, sizeof(ctx), hash, 32,
-            WC_HASH_TYPE_SHA256, sig, sigLen), 0);
+            hash, TEST_SLHDSA_PH_SZ, TEST_SLHDSA_PH, sig, &sigLen, addRnd), 0);
+        ExpectIntEQ(wc_SlhDsaKey_VerifyHash(&key, ctx, sizeof(ctx), hash,
+            TEST_SLHDSA_PH_SZ, TEST_SLHDSA_PH, sig, sigLen), 0);
     }
 
 #ifdef WOLFSSL_SHA512
@@ -1155,8 +1192,8 @@ int test_wc_slhdsa_sign_hash(void)
         WC_NO_ERR_TRACE(BAD_LENGTH_E));
 #endif
 
-#ifdef WOLFSSL_SHAKE128
-    /* SHAKE128 PHM is fixed at 256 bits per FIPS 205 Section 10.2.2. */
+#if defined(WOLFSSL_SHAKE128) && defined(TEST_SLHDSA_DEFAULT_CAT1)
+    /* SHAKE128 digest is fixed at 256 bits, and is category 1 only. */
     sigLen = WC_SLHDSA_MAX_SIG_LEN;
     ExpectIntEQ(wc_SlhDsaKey_SignHash(&key, ctx, sizeof(ctx), hash, 32,
         WC_HASH_TYPE_SHAKE128, sig, &sigLen, &rng), 0);
@@ -1277,26 +1314,29 @@ int test_wc_slhdsa_sign_msg(void)
     ExpectIntEQ(wc_SlhDsaKey_VerifyMsg(&key, mprime, sizeof(mprime), NULL,
         sigLen), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
-    /* Equivalence cross-check: build M' = 0x01 || ctxSz || OID(SHA-256) ||
-     * SHA256(orig) externally, sign it via SignMsgDeterministic, and verify
-     * via VerifyHash with the same SHA-256 digest. Both paths must agree. */
+    /* Equivalence cross-check: build M' = 0x01 || ctxSz || OID || digest
+     * externally, sign it via SignMsgDeterministic, and verify via VerifyHash
+     * with the same digest. Both paths must agree. The OID must match the
+     * pre-hash the parameter set allows. */
     {
-        static const byte sha256_oid[] = {
+        /* FIPS 205 Algorithm 23 OID for TEST_SLHDSA_PH. */
+        static const byte ph_oid[] = {
             0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03,
-            0x04, 0x02, 0x01
+            0x04, 0x02, TEST_SLHDSA_PH_OID
         };
         static const byte orig[] = "Hello World!";
-        byte digest[WC_SHA256_DIGEST_SIZE];
-        byte built_mprime[2 + sizeof(sha256_oid) + WC_SHA256_DIGEST_SIZE];
+        byte digest[TEST_SLHDSA_PH_SZ];
+        byte built_mprime[2 + sizeof(ph_oid) + TEST_SLHDSA_PH_SZ];
         word32 idx = 0;
         word32 sigLen2;
 
-        ExpectIntEQ(wc_Sha256Hash(orig, (word32)sizeof(orig) - 1, digest), 0);
+        ExpectIntEQ(TEST_SLHDSA_PH_HASH(orig, (word32)sizeof(orig) - 1,
+            digest), 0);
 
         built_mprime[idx++] = 0x01;        /* HashSLH-DSA domain separator */
         built_mprime[idx++] = 0;           /* ctxSz = 0 */
-        XMEMCPY(built_mprime + idx, sha256_oid, sizeof(sha256_oid));
-        idx += (word32)sizeof(sha256_oid);
+        XMEMCPY(built_mprime + idx, ph_oid, sizeof(ph_oid));
+        idx += (word32)sizeof(ph_oid);
         XMEMCPY(built_mprime + idx, digest, sizeof(digest));
         idx += (word32)sizeof(digest);
 
@@ -1306,7 +1346,7 @@ int test_wc_slhdsa_sign_msg(void)
 
         /* The same signature must verify via the HashSLH-DSA external API. */
         ExpectIntEQ(wc_SlhDsaKey_VerifyHash(&key, NULL, 0, digest,
-            sizeof(digest), WC_HASH_TYPE_SHA256, sig, sigLen), 0);
+            sizeof(digest), TEST_SLHDSA_PH, sig, sigLen), 0);
 
         /* And the deterministic HashSLH-DSA path must produce the SAME
          * signature bytes (this is the strongest interop check). */
@@ -1316,7 +1356,7 @@ int test_wc_slhdsa_sign_msg(void)
                 DYNAMIC_TYPE_TMP_BUFFER);
             ExpectNotNull(sig2);
             ExpectIntEQ(wc_SlhDsaKey_SignHashDeterministic(&key, NULL, 0,
-                digest, sizeof(digest), WC_HASH_TYPE_SHA256, sig2,
+                digest, sizeof(digest), TEST_SLHDSA_PH, sig2,
                 &sigLen2), 0);
             ExpectIntEQ(sigLen2, sigLen);
             ExpectIntEQ(XMEMCMP(sig2, sig, sigLen), 0);
