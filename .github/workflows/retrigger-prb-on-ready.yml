@@ -1,9 +1,9 @@
-name: Trigger PRB for ready pull requests
+name: Retrigger PRB on ready for review
 
-# Jenkins is configured to build only after its trigger phrase appears. This
-# workflow posts that fixed phrase for every event that creates a new ready PR
-# head. Draft events still create the separate skipped preflight check, but do
-# not start Jenkins or allocate a runner here.
+# When a draft PR is marked ready_for_review, GitHub fires a
+# 'ready_for_review' pull_request event but no 'synchronize' event, so
+# the Jenkins GHPRB plugin does not re-trigger the PRB-master-job. Post
+# the configured GHPRB trigger phrase as a PR comment to kick it off.
 #
 # pull_request_target (not pull_request) is required so GITHUB_TOKEN
 # gets write permissions on PRs from forks - this workflow only posts
@@ -12,15 +12,14 @@ name: Trigger PRB for ready pull requests
 
 on:
   pull_request_target:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [ready_for_review]
     branches: [master, main]
 
 permissions:
   pull-requests: write
 
 jobs:
-  trigger:
-    if: github.event.pull_request.draft == false
+  retrigger:
     runs-on: ubuntu-latest
     steps:
       - name: Post GHPRB trigger comment
