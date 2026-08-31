@@ -1878,6 +1878,12 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
     ((func_args*)args)->return_code = -1; /* error state */
 
+#ifdef HAVE_PK_CALLBACKS
+    /* The ECC callbacks read keyGenCnt whether or not certificates are
+     * compiled in, so this cannot sit inside the NO_CERTS block below. */
+    XMEMSET(&pkCbInfo, 0, sizeof(pkCbInfo));
+#endif
+
 #ifndef NO_RSA
     verifyCert = cliCertFile;
     ourCert    = svrCertFile;
@@ -4193,6 +4199,10 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     ((func_args*)args)->return_code = 0;
 
 exit:
+
+#ifdef HAVE_PK_CALLBACKS
+    CleanupPkCallbackContexts(&pkCbInfo);
+#endif
 
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
     wolfsentry_ret =
