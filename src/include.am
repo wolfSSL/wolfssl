@@ -946,10 +946,6 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += \
                wolfcrypt/src/hmac.c \
                wolfcrypt/src/random.c
 
-if BUILD_MEMUSE
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wolfentropy.c
-endif
-
 if BUILD_RNG_BANK
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/rng_bank.c
 endif
@@ -1376,6 +1372,16 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/fips.c \
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wolfcrypt_last.c
 
 endif !BUILD_FIPS_NO_POST
+
+# v7+ only.  Listed after wolfcrypt_last.c so its code sits past
+# wolfCrypt_FIPS_last() and the in-core integrity hash does not cover it.  The
+# module calls out to this entropy source, which is what IG 9.3.A asks for.
+# v5 and v6 keep it inside their boundary, as their certified module
+# definitions have it, and must not be reordered to match this.  Outside the
+# !BUILD_FIPS_NO_POST guard above so --enable-fips=dev-no-post builds it too.
+if BUILD_MEMUSE
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wolfentropy.c
+endif
 
 endif BUILD_FIPS_V7_PLUS
 

@@ -38,6 +38,13 @@ data, use this implementation to seed and re-seed the DRBG.
 
 #include <wolfssl/wolfcrypt/wolfentropy.h>
 
+#ifdef HAVE_FIPS
+    /* for fips @wc_fips.  Named here rather than relied on through sha3.h:
+     * this file sits outside the module boundary from v7 on, and the fips.h
+     * redirect is what makes its SHA3 calls approved service calls. */
+    #include <wolfssl/wolfcrypt/fips.h>
+#endif
+
 #include <wolfssl/wolfcrypt/sha3.h>
 #if defined(__APPLE__) || defined(__MACH__)
     #include <mach/mach_time.h>
