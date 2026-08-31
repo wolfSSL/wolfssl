@@ -14898,10 +14898,10 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
 #ifdef WOLFSSL_QUIC
             /* RFC 9001 Section 6: QUIC performs key updates at the QUIC
              * packet-protection layer, so a TLS KeyUpdate message must be
-             * rejected as a fatal unexpected_message connection error. */
+             * rejected as a fatal unexpected_message connection error. The
+             * caller sends that alert for any sanity failure. */
             if (WOLFSSL_IS_QUIC(ssl)) {
                 WOLFSSL_MSG("KeyUpdate received over QUIC");
-                SendAlert(ssl, alert_fatal, unexpected_message);
                 WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
                 return SANITY_MSG_E;
             }
