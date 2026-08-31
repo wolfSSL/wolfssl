@@ -6381,8 +6381,8 @@ typedef void (*WOLFSSL_TLSEXT_DEBUG_CB)(WOLFSSL* ssl, int client_server,
     extension type, the raw extension content and the argument set with
     wolfSSL_set_tlsext_debug_arg(). Passing a NULL callback disables it.
 
-    \return SSL_SUCCESS On successful setting of the callback.
-    \return SSL_FAILURE If a NULL ssl is passed in.
+    \return WOLFSSL_SUCCESS On successful setting of the callback.
+    \return WOLFSSL_FAILURE If a NULL ssl is passed in.
 
     \param s WOLFSSL structure to set the callback in.
     \param cb Callback to invoke for each received TLS extension, or NULL
