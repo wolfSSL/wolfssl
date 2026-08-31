@@ -878,6 +878,7 @@ typedef struct {
     int handshake_done;
     int alert_level;
     int alert;
+    int alert_count;
     int flushed;
     int verbose;
     byte ticket[16*1024];
@@ -1067,6 +1068,7 @@ static int ctx_send_alert(WOLFSSL *ssl, WOLFSSL_ENCRYPTION_LEVEL level, uint8_t 
     }
     ctx->alert_level = (int)level;
     ctx->alert = (int)err;
+    ctx->alert_count++;
     return 1;
 }
 
@@ -2076,8 +2078,9 @@ static int test_quic_key_update_rejected(int verbose) {
     ExpectIntEQ(wolfSSL_get_error(tserver.ssl, 0),
                 WC_NO_ERR_TRACE(SANITY_MSG_E));
     /* 0x0100 | unexpected_message = 0x010a, the code RFC 9001 Section 6
-     * requires. */
+     * requires - and exactly one alert for one message. */
     ExpectIntEQ(tserver.alert, unexpected_message);
+    ExpectIntEQ(tserver.alert_count, 1);
 
     QuicTestContext_free(&tclient);
     QuicTestContext_free(&tserver);
@@ -2522,6 +2525,7 @@ static int test_quic_ticket_max_early_data(int verbose) {
     ExpectIntEQ(wolfSSL_process_quic_post_handshake(tclient.ssl),
         WC_NO_ERR_TRACE(INVALID_PARAMETER));
     ExpectIntEQ(tclient.alert, WOLFSSL_QUIC_ERR_PROTOCOL_VIOLATION);
+    ExpectIntEQ(tclient.alert_count, 1);
 
     QuicTestContext_free(&tclient);
     QuicTestContext_free(&tserver);
