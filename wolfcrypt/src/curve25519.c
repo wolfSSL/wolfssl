@@ -1334,6 +1334,17 @@ int wc_curve25519_set_rng(curve25519_key* key, WC_RNG* rng)
     key->rng = rng;
     return 0;
 }
+
+/* Companion to wc_curve25519_set_rng(): detach the key's RNG association.
+ * Subsequent blinded operations then fail in the RNG service (BAD_FUNC_ARG
+ * on the NULL WC_RNG) until a new one is set. */
+int wc_curve25519_clear_rng(curve25519_key* key)
+{
+    if (key == NULL)
+        return BAD_FUNC_ARG;
+    key->rng = NULL;
+    return 0;
+}
 #endif
 
 /* get key size */

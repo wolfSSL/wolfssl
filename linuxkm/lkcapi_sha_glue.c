@@ -26,7 +26,7 @@
     #error lkcapi_sha_glue.c included in non-LINUXKM_LKCAPI_REGISTER project.
 #endif
 
-#if defined(WC_LINUXKM_C_FALLBACK_IN_SHIMS) && defined(USE_INTEL_SPEEDUP)
+#if defined(WC_LINUXKM_C_FALLBACK_IN_SHIMS) && defined(USE_INTEL_SPEEDUP) && !defined(WC_DEBUG_FORCE_KERNEL_SETTINGS)
     #error SHA* WC_LINUXKM_C_FALLBACK_IN_SHIMS is not currently supported.
 #endif
 
@@ -1927,7 +1927,7 @@ out:
     return ret;
 }
 
-PRAGMA_DIAG_POP
+PRAGMA_DIAG_POP /* -Wno-pointer-arith -Wno-nested-externs, for linux/list.h */
 
 WC_MAYBE_UNUSED static int hmac_sha3_test_once(void) {
     static int once = 0;
@@ -2221,10 +2221,10 @@ static struct wc_rng_bank_inst *linuxkm_get_drbg(struct wc_rng_bank *ctx) {
     return ret;
 }
 
-static void linuxkm_put_drbg(struct wc_rng_bank *ctx, struct wc_rng_bank_inst **drbg) {
-    int ret = wc_rng_bank_checkin(ctx, drbg);
+static void linuxkm_put_drbg(struct wc_rng_bank_inst **drbg) {
+    int ret = wc_rng_bank_inst_checkin(drbg);
     if (ret != 0) {
-        pr_err("ERROR: wc_rng_bank_checkin() in linuxkm_put_drbg() returned err %d.\n", ret);
+        pr_err("ERROR: wc_rng_bank_inst_checkin() in linuxkm_put_drbg() returned err %d.\n", ret);
         WC_DUMP_BACKTRACE_NONDEBUG;
     }
 }
@@ -2272,6 +2272,10 @@ static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
                                     u8 *dst, unsigned int dlen)
 {
     int ret, retried = 0;
+    /* can_block() is false whenever the affinity lock is held -- blockability
+     * must be sampled before checkout. */
+    int can_wait = wc_linuxkm_can_block();
+    wc_drbg_reseed_ctr_t cur_counter = 0;
     struct wc_rng_bank_inst *drbg = linuxkm_get_drbg(ctx);
 
     if (! drbg) {
@@ -2280,12 +2284,75 @@ static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
     }
 
     if (slen > 0) {
-        ret = wc_RNG_DRBG_Reseed(WC_RNG_BANK_INST_TO_RNG(drbg), src, slen);
+        /* The kernel crypto API's generate-op src is additional data (cf.
+         * crypto/drbg.c, which passes it as SP 800-90A additional input).
+         * Mix it in without entropy credit -- the reseed counter is
+         * unmodified, so only the module's own seed source resets the
+         * reseed schedule. */
+        ret = wc_RNG_DRBG_Reseed_Uncredited(WC_RNG_BANK_INST_TO_RNG(drbg),
+                                            src, slen);
         if (ret != 0) {
-            pr_warn_once("WARNING: wc_RNG_DRBG_Reseed returned %d\n",ret);
+            pr_warn_once("WARNING: wc_RNG_DRBG_Reseed_Uncredited returned %d\n",ret);
             ret = -EINVAL;
             goto out;
         }
+    }
+    else if (can_wait &&
+             (wc_RNG_DRBG_GetReseedCtr(WC_RNG_BANK_INST_TO_RNG(drbg),
+                                       &cur_counter) == 0) &&
+             (cur_counter > WC_RESEED_INTERVAL / 2))
+    {
+#ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
+        /* carefully restore preemptibility for the reseed operation. */
+
+        #if defined(CONFIG_SMP) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
+        migrate_disable();
+        #endif
+
+        /* note, no need to use formal atomic accessors on drbg->lock --
+         * WC_RNG_BANK_INST_LOCK_HELD is held invariantly across the span, and
+         * is the only bit considered by contending threads. */
+        /* both levels can be held (an affinity-locked checkout with
+         * WC_RNG_BANK_FLAG_NO_VECTOR_OPS, whether from the caller's flags or
+         * bank-wide bank->flags, also takes the vector-ops inhibit) -- release
+         * each held level separately, innermost first, mirroring
+         * wc_rng_bank_inst_checkin(). */
+        if (drbg->lock & WC_RNG_BANK_INST_LOCK_VEC_OPS_INH)
+            REENABLE_VECTOR_REGISTERS();
+        if (drbg->lock & WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED)
+            RESTORE_VECTOR_REGISTERS_MAYBE_INHIBITED();
+#endif
+
+        /* Reseed immediately from the module's own seed source.
+         * wc_RNG_DRBG_Reseed_Now() resets the reseed counter iff the reseed
+         * succeeds; on failure it leaves the counter unmodified (the
+         * WC_RESEED_INTERVAL backstop still governs) and marks the instance
+         * out of service, exactly as an interval-forced reseed failure
+         * would.  A persistent failure is surfaced by the generate loop
+         * below. */
+        (void)wc_RNG_DRBG_Reseed_Now(WC_RNG_BANK_INST_TO_RNG(drbg), NULL, 0);
+
+#ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
+        /* re-establish each level separately, in acquisition order (the
+         * affinity save first, then the vector-ops inhibit), mirroring
+         * wc_rng_bank_checkout(); a failed re-acquisition clears only its own
+         * lock bit, so check-in unwinds exactly the levels actually held. */
+        if (drbg->lock & WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED) {
+            int ret2 = SAVE_VECTOR_REGISTERS2();
+            if (ret2 != 0)
+                drbg->lock &= ~WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED;
+        }
+        if (drbg->lock & WC_RNG_BANK_INST_LOCK_VEC_OPS_INH) {
+            int ret2 = DISABLE_VECTOR_REGISTERS();
+            if (ret2 != 0)
+                drbg->lock &= ~WC_RNG_BANK_INST_LOCK_VEC_OPS_INH;
+        }
+
+        #if defined(CONFIG_SMP) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
+        migrate_enable();
+        #endif
+#endif
+
     }
 
     for (;;) {
@@ -2318,10 +2385,51 @@ static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
                 break;
             retried = 1;
 
-            ret = wc_rng_bank_inst_reinit(ctx,
-                                          drbg,
+            if (! can_wait)
+                break;
+
+#ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
+            /* carefully restore preemptibility for the reinit operation. */
+
+            #if defined(CONFIG_SMP) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
+            migrate_disable();
+            #endif
+
+            /* both levels can be held (an affinity-locked checkout with
+             * WC_RNG_BANK_FLAG_NO_VECTOR_OPS, whether from the caller's flags or
+             * bank-wide bank->flags, also takes the vector-ops inhibit) -- release
+             * each held level separately, innermost first, mirroring
+             * wc_rng_bank_inst_checkin(). */
+            if (drbg->lock & WC_RNG_BANK_INST_LOCK_VEC_OPS_INH)
+                REENABLE_VECTOR_REGISTERS();
+            if (drbg->lock & WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED)
+                RESTORE_VECTOR_REGISTERS_MAYBE_INHIBITED();
+#endif
+
+            ret = wc_rng_bank_inst_reinit(NULL, drbg,
                                           WC_LINUXKM_INITRNG_TIMEOUT_SEC,
                                           WC_RNG_BANK_FLAG_CAN_WAIT);
+
+#ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
+            /* re-establish each level separately, in acquisition order (the
+             * affinity save first, then the vector-ops inhibit), mirroring
+             * wc_rng_bank_checkout(); a failed re-acquisition clears only its own
+             * lock bit, so check-in unwinds exactly the levels actually held. */
+            if (drbg->lock & WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED) {
+                int ret2 = SAVE_VECTOR_REGISTERS2();
+                if (ret2 != 0)
+                    drbg->lock &= ~WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED;
+            }
+            if (drbg->lock & WC_RNG_BANK_INST_LOCK_VEC_OPS_INH) {
+                int ret2 = DISABLE_VECTOR_REGISTERS();
+                if (ret2 != 0)
+                    drbg->lock &= ~WC_RNG_BANK_INST_LOCK_VEC_OPS_INH;
+            }
+
+            #if defined(CONFIG_SMP) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
+            migrate_enable();
+            #endif
+#endif
 
             if (ret == 0) {
                 pr_warn_ratelimited("WARNING: reinitialized DRBG #%d after RNG_FAILURE_E from wc_RNG_GenerateBlock().\n", raw_smp_processor_id());
@@ -2338,12 +2446,12 @@ static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
 
     if (ret != 0) {
         pr_err_ratelimited("ERROR: wc_linuxkm_drbg_generate() failing on wolfCrypt code %d.\n",ret);
-        ret = -EINVAL;
+        ret = -EIO;
     }
 
 out:
 
-    linuxkm_put_drbg(ctx, &drbg);
+    linuxkm_put_drbg(&drbg);
 
     return ret;
 }
@@ -2370,7 +2478,14 @@ static int wc_linuxkm_drbg_seed(struct wc_rng_bank *ctx,
     if (slen == 0)
         return 0;
 
-    ret = wc_rng_bank_seed(ctx, seed, slen, WC_LINUXKM_INITRNG_TIMEOUT_SEC, WC_RNG_BANK_FLAG_CAN_WAIT);
+    /* The kernel crypto API's seed op carries caller-supplied material (cf.
+     * crypto/drbg.c, which maps it to an SP 800-90A personalization string /
+     * additional input, never crediting it as entropy).  Mix it into every
+     * instance without credit; the reseed schedule stays governed solely by
+     * the module's own seed source. */
+    ret = wc_rng_bank_seed(ctx, seed, slen, WC_LINUXKM_INITRNG_TIMEOUT_SEC,
+                           WC_RNG_BANK_FLAG_CAN_WAIT |
+                           WC_RNG_BANK_FLAG_SEED_UNCREDITED);
     if (ret != 0) {
         pr_err("wc_rng_bank_seed() in wc_linuxkm_drbg_seed() returned err %d.\n", ret);
         ret = -EINVAL;
@@ -2429,6 +2544,10 @@ static int wc_linuxkm_drbg_loaded = 0;
 
 #ifdef WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS
 
+#if defined(HAVE_FIPS) && !defined(WOLFSSL_LINUXKM_GET_RANDOM_NO_FALLTHROUGH)
+    #define WOLFSSL_LINUXKM_GET_RANDOM_NO_FALLTHROUGH
+#endif
+
 static int wc__get_random_bytes(void *buf, size_t len)
 {
     struct wc_rng_bank *current_default_wc_rng_bank;
@@ -2439,17 +2558,26 @@ static int wc__get_random_bytes(void *buf, size_t len)
 
     ret = wc_rng_bank_default_checkout(&current_default_wc_rng_bank);
     if (ret) {
-#ifdef WC_VERBOSE_RNG
-        pr_err_ratelimited("ERROR: wc_rng_bank_default_checkout() in wc__get_random_bytes() returned %d.\n", ret);
+#ifdef WOLFSSL_LINUXKM_GET_RANDOM_NO_FALLTHROUGH
+        pr_emerg_ratelimited("ERROR: FIPS RNG source failed in wc__get_random_bytes(): wc_rng_bank_default_checkout() returned %d.\n", ret);
+#else
+        pr_err_ratelimited("ERROR: FIPS RNG source failed in wc__get_random_bytes(): wc_rng_bank_default_checkout() returned %d.\n", ret);
 #endif
-        return -EFAULT;
+        /* kernel must-succeed call used from hard IRQ contexts etc. -- the
+         * callback dispatch point will always fall through to native DRBG, but
+         * we log the condition loudly from here. */
+        return -ECANCELED;
     }
     else {
         ret = wc_linuxkm_drbg_generate(current_default_wc_rng_bank,
                                            NULL, 0, buf, (unsigned int)len);
         (void)wc_rng_bank_default_checkin(&current_default_wc_rng_bank);
         if (ret) {
-            pr_warn("BUG: wc__get_random_bytes falling through to native get_random_bytes with wc_linuxkm_drbg_default_instance_registered, ret=%d.\n", ret);
+#ifdef WOLFSSL_LINUXKM_GET_RANDOM_NO_FALLTHROUGH
+            pr_emerg_ratelimited("ERROR: FIPS RNG source failed: wc__get_random_bytes(): wc_linuxkm_drbg_generate() failed with code %d.\n", ret);
+#else
+            pr_err_ratelimited("ERROR: FIPS RNG source failed: wc__get_random_bytes(): wc_linuxkm_drbg_generate() failed with code %d.\n", ret);
+#endif
         }
         return ret;
     }
@@ -2465,10 +2593,13 @@ static ssize_t wc_get_random_bytes_user(struct iov_iter *iter) {
 
     ret = wc_rng_bank_default_checkout(&current_default_wc_rng_bank);
     if (ret) {
-#ifdef WC_VERBOSE_RNG
+#ifdef WOLFSSL_LINUXKM_GET_RANDOM_NO_FALLTHROUGH
+        pr_emerg_ratelimited("ERROR: wc_rng_bank_default_checkout() in wc_get_random_bytes_user() returned %ld.\n", ret);
+        return -EIO; /* no fallthrough to native randomness */
+#else
         pr_err_ratelimited("ERROR: wc_rng_bank_default_checkout() in wc_get_random_bytes_user() returned %ld.\n", ret);
+        return -ECANCELED; /* fallthrough to native randomness */
 #endif
-        return -ECANCELED;
     }
     else {
         size_t this_copied, total_copied = 0;
@@ -2478,7 +2609,11 @@ static ssize_t wc_get_random_bytes_user(struct iov_iter *iter) {
             ret = wc_linuxkm_drbg_generate(current_default_wc_rng_bank,
                                            NULL, 0, block, sizeof block);
             if (unlikely(ret != 0)) {
-                pr_err("ERROR: wc_get_random_bytes_user() wc_linuxkm_drbg_generate() returned %ld.\n", ret);
+#ifdef WOLFSSL_LINUXKM_GET_RANDOM_NO_FALLTHROUGH
+                pr_emerg_ratelimited("ERROR: wc_get_random_bytes_user() wc_linuxkm_drbg_generate() returned %ld.\n", ret);
+#else
+                pr_err_ratelimited("ERROR: wc_get_random_bytes_user() wc_linuxkm_drbg_generate() returned %ld.\n", ret);
+#endif
                 break;
             }
 
@@ -2506,8 +2641,13 @@ static ssize_t wc_get_random_bytes_user(struct iov_iter *iter) {
         if (total_copied == 0) {
             if (ret == 0)
                 ret = -EFAULT;
-            else
+            else {
+#ifdef WOLFSSL_LINUXKM_GET_RANDOM_NO_FALLTHROUGH
+                ret = -EIO;
+#else
                 ret = -ECANCELED;
+#endif
+            }
         }
 
         if (ret == 0)
@@ -2527,10 +2667,13 @@ static ssize_t wc_extract_crng_user(void __user *buf, size_t nbytes) {
 
     ret = wc_rng_bank_default_checkout(&current_default_wc_rng_bank);
     if (ret) {
-#ifdef WC_VERBOSE_RNG
+#ifdef WOLFSSL_LINUXKM_GET_RANDOM_NO_FALLTHROUGH
+        pr_emerg_ratelimited("ERROR: wc_rng_bank_default_checkout() in wc_extract_crng_user() returned %ld.\n", ret);
+        return -EIO; /* no fallthrough to native randomness */
+#else
         pr_err_ratelimited("ERROR: wc_rng_bank_default_checkout() in wc_extract_crng_user() returned %ld.\n", ret);
+        return -ECANCELED; /* fallthrough to native randomness */
 #endif
-        return -ECANCELED;
     }
     else {
         size_t this_copied, total_copied = 0;
@@ -2540,7 +2683,11 @@ static ssize_t wc_extract_crng_user(void __user *buf, size_t nbytes) {
             ret = wc_linuxkm_drbg_generate(current_default_wc_rng_bank,
                                            NULL, 0, block, sizeof block);
             if (unlikely(ret != 0)) {
-                pr_err("ERROR: wc_extract_crng_user() wc_linuxkm_drbg_generate() returned %ld.\n", ret);
+#ifdef WOLFSSL_LINUXKM_GET_RANDOM_NO_FALLTHROUGH
+                pr_emerg_ratelimited("ERROR: wc_extract_crng_user() wc_linuxkm_drbg_generate() returned %ld.\n", ret);
+#else
+                pr_err_ratelimited("ERROR: wc_extract_crng_user() wc_linuxkm_drbg_generate() returned %ld.\n", ret);
+#endif
                 break;
             }
 
@@ -2567,8 +2714,21 @@ static ssize_t wc_extract_crng_user(void __user *buf, size_t nbytes) {
 
         ForceZero(block, sizeof(block));
 
-        if ((total_copied == 0) && (ret == 0)) {
-            ret = -ECANCELED;
+        if (total_copied == 0) {
+            if (ret == 0) {
+                /* Not reachable -- the loop always copies at least one
+                 * block before any zero-status exit -- but keep the belt.
+                 */
+                ret = -EFAULT;
+            }
+            else if (ret != -EFAULT) {
+                /* Generate failure with nothing delivered. */
+#ifdef WOLFSSL_LINUXKM_GET_RANDOM_NO_FALLTHROUGH
+                ret = -EIO; /* no fallthrough to native randomness */
+#else
+                ret = -ECANCELED; /* fallthrough to native randomness */
+#endif
+            }
         }
 
         if (ret == 0)
@@ -2579,15 +2739,21 @@ static ssize_t wc_extract_crng_user(void __user *buf, size_t nbytes) {
     __builtin_unreachable();
 }
 
+/* Note, wc_mix_pool_bytes() only injects the supplied entropy into one RNG,
+ * CPU-local when uncontended.  This routine can be pegged by unprivileged
+ * users, so its impact needs to stay as CPU-local as possible. */
 static int wc_mix_pool_bytes(const void *buf, size_t len) {
     int ret;
-    struct wc_rng_bank *ctx;
-    size_t i;
-    int n;
-    int can_sleep = wc_linuxkm_can_block();
+    struct wc_rng_bank *ctx = NULL;
+    word32 flags =
+        WC_RNG_BANK_FLAG_CAN_FAIL_OVER_INST |
+        WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST;
+    struct wc_rng_bank_inst *drbg = NULL;
 
-    if (len == 0)
-        return 0;
+    if (len > WC_MAX_UINT_OF(word32))
+        return -EFBIG;
+
+    /* Continue even if len == 0 -- churning the DRBG is still meaningful. */
 
     ret = wc_rng_bank_default_checkout(&ctx);
     if (ret) {
@@ -2597,45 +2763,36 @@ static int wc_mix_pool_bytes(const void *buf, size_t len) {
         return -EFAULT;
     }
 
-    ret = 0;
+    if (wc_linuxkm_can_block())
+        flags |= WC_RNG_BANK_FLAG_AFFINITY_LOCK;
+    else
+        flags |= WC_RNG_BANK_FLAG_NO_VECTOR_OPS;
 
-    for (n = ctx->n_rngs - 1; n >= 0; --n) {
-        struct wc_rng_bank_inst *drbg;
-
-        int V_offset;
-
-        if (wc_rng_bank_checkout(ctx, &drbg, n, 0, WC_RNG_BANK_FLAG_NONE) != 0)
-            continue;
-
-#ifdef WOLFSSL_DRBG_SHA512
-        if (WC_RNG_BANK_INST_TO_RNG(drbg)->drbgType == WC_DRBG_SHA512) {
-            for (i = 0, V_offset = 0; i < len; ++i) {
-                ((struct DRBG_SHA512_internal *)WC_RNG_BANK_INST_TO_RNG(drbg)->drbg512)->V[V_offset++] += ((byte *)buf)[i];
-                if (V_offset == (int)sizeof ((struct DRBG_SHA512_internal *)WC_RNG_BANK_INST_TO_RNG(drbg)->drbg512)->V)
-                    V_offset = 0;
-            }
-        }
-        else
-#endif /* WOLFSSL_DRBG_SHA512 */
-        {
-            for (i = 0, V_offset = 0; i < len; ++i) {
-                ((struct DRBG_internal *)WC_RNG_BANK_INST_TO_RNG(drbg)->drbg)->V[V_offset++] += ((byte *)buf)[i];
-                if (V_offset == (int)sizeof ((struct DRBG_internal *)WC_RNG_BANK_INST_TO_RNG(drbg)->drbg)->V)
-                    V_offset = 0;
-            }
-        }
-
-        wc_rng_bank_checkin(ctx, &drbg);
-        if (can_sleep) {
-            if (signal_pending(current)) {
-                ret = -EINTR;
-                break;
-            }
-            cond_resched();
-        }
+    ret = wc_rng_bank_checkout(ctx, &drbg, 0, 0, flags);
+    if (ret != 0) {
+        ret = -EINVAL;
+        goto out;
     }
 
-    (void)wc_rng_bank_default_checkin(&ctx);
+    if (! wc_RNG_DRBG_Present(WC_RNG_BANK_INST_TO_RNG(drbg))) {
+        ret = 0; /* consistent with wc_RNG_DRBG_Reseed() behavior in RDRAND configs. */
+        goto out;
+    }
+
+    /* Mix without crediting the contributed entropy --
+     * wc_RNG_DRBG_Reseed_Uncredited() leaves the reseed counter unmodified,
+     * so only the module's own seed source resets the reseed schedule. */
+    ret = wc_RNG_DRBG_Reseed_Uncredited(WC_RNG_BANK_INST_TO_RNG(drbg), buf,
+                                        (word32)len);
+    if (ret != 0)
+        ret = -EINVAL;
+
+out:
+
+    if (drbg)
+        (void)wc_rng_bank_inst_checkin(&drbg);
+    if (ctx)
+        (void)wc_rng_bank_default_checkin(&ctx);
 
     return ret;
 }

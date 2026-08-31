@@ -7325,7 +7325,8 @@ static int slhdsakey_sign_external(SlhDsaKey* key, const byte* ctx, byte ctxSz,
 
     /* Validate parameters. */
     if ((key == NULL) || (key->params == NULL) ||
-            ((ctx == NULL) && (ctxSz > 0)) || (msg == NULL) || (sig == NULL) ||
+            ((ctx == NULL) && (ctxSz > 0)) ||
+            ((msg == NULL) && (msgSz != 0)) || (sig == NULL) ||
             (sigSz == NULL)) {
         ret = BAD_FUNC_ARG;
     }
@@ -7518,7 +7519,8 @@ int wc_SlhDsaKey_Sign(SlhDsaKey* key, const byte* ctx, byte ctxSz,
 
     /* Validate parameters before generating random. */
     if ((key == NULL) || (key->params == NULL) ||
-            ((ctx == NULL) && (ctxSz > 0)) || (msg == NULL) || (sig == NULL) ||
+            ((ctx == NULL) && (ctxSz > 0)) ||
+            ((msg == NULL) && (msgSz != 0)) || (sig == NULL) ||
             (sigSz == NULL) || (rng == NULL)) {
         ret = BAD_FUNC_ARG;
     }
@@ -7529,6 +7531,14 @@ int wc_SlhDsaKey_Sign(SlhDsaKey* key, const byte* ctx, byte ctxSz,
     /* Check we have a private key to sign with. */
     else if ((key->flags & WC_SLHDSA_FLAG_PRIVATE) == 0) {
         ret = MISSING_KEY;
+    }
+
+    /* An empty message may be passed as (NULL, 0); canonicalize it to a
+     * readable stand-in so that downstream consumers -- hash updates and
+     * crypto callbacks -- never see a NULL pointer. */
+    if ((ret == 0) && (msg == NULL)) {
+        static const byte slhdsa_empty_msg = 0;
+        msg = &slhdsa_empty_msg;
     }
 
 #ifdef WOLF_CRYPTO_CB
@@ -7750,7 +7760,8 @@ int wc_SlhDsaKey_Verify(SlhDsaKey* key, const byte* ctx, byte ctxSz,
 
     /* Validate parameters. */
     if ((key == NULL) || (key->params == NULL) ||
-            ((ctx == NULL) && (ctxSz > 0)) || (msg == NULL) ||
+            ((ctx == NULL) && (ctxSz > 0)) ||
+            ((msg == NULL) && (msgSz != 0)) ||
             (sig == NULL)) {
         ret = BAD_FUNC_ARG;
     }
@@ -7762,6 +7773,14 @@ int wc_SlhDsaKey_Verify(SlhDsaKey* key, const byte* ctx, byte ctxSz,
     /* Check we have a public key to verify with. */
     else if ((key->flags & WC_SLHDSA_FLAG_PUBLIC) == 0) {
         ret = MISSING_KEY;
+    }
+
+    /* An empty message may be passed as (NULL, 0); canonicalize it to a
+     * readable stand-in so that downstream consumers -- hash updates and
+     * crypto callbacks -- never see a NULL pointer. */
+    if ((ret == 0) && (msg == NULL)) {
+        static const byte slhdsa_empty_msg = 0;
+        msg = &slhdsa_empty_msg;
     }
 
 #ifdef WOLF_CRYPTO_CB

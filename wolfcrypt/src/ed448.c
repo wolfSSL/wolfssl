@@ -447,9 +447,16 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 #endif
 
     /* sanity check on arguments */
-    if ((in == NULL) || (out == NULL) || (outLen == NULL) || (key == NULL) ||
-                                     ((context == NULL) && (contextLen != 0))) {
+    if (((in == NULL) && (inLen != 0)) || (out == NULL) || (outLen == NULL) ||
+            (key == NULL) || ((context == NULL) && (contextLen != 0))) {
         ret = BAD_FUNC_ARG;
+    }
+    /* An empty message may be passed as (NULL, 0); canonicalize it to a
+     * readable stand-in so that downstream consumers -- hash updates and
+     * crypto callbacks -- never see a NULL pointer. */
+    if ((ret == 0) && (in == NULL)) {
+        static const byte ed448_empty_msg = 0;
+        in = &ed448_empty_msg;
     }
 
     if ((ret == 0) && (type == Ed448ph) && (inLen != ED448_PREHASH_SIZE)) {
@@ -935,6 +942,18 @@ int wc_ed448_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
 
     if (key == NULL)
         return BAD_FUNC_ARG;
+
+    /* A NULL msg is valid for the empty message (msgLen == 0). */
+    if ((sig == NULL) || (res == NULL) || ((msg == NULL) && (msgLen != 0)))
+        return BAD_FUNC_ARG;
+
+    /* An empty message may be passed as (NULL, 0); canonicalize it to a
+     * readable stand-in so that downstream consumers -- hash updates and
+     * crypto callbacks -- never see a NULL pointer. */
+    if (msg == NULL) {
+        static const byte ed448_empty_msg = 0;
+        msg = &ed448_empty_msg;
+    }
 
     if ((type == Ed448ph) &&
         (msgLen != ED448_PREHASH_SIZE))

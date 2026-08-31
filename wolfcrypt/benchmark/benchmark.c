@@ -8091,8 +8091,8 @@ void bench_chacha20_poly1305_aead(void)
 {
     double start;
     int    ret = 0, i, count;
-    ChaCha   chacha;   /* keyed once, reused per record: the TLS-record path */
-    Poly1305 poly;
+    WC_DECLARE_VAR(chacha, ChaCha, 1, HEAP_HINT);   /* keyed once, reused per record: the TLS-record path */
+    WC_DECLARE_VAR(poly, Poly1305, 1, HEAP_HINT);
     byte     nonce[CHACHA20_POLY1305_AEAD_IV_SIZE];
     DECLARE_MULTI_VALUE_STATS_VARS()
 
@@ -8101,6 +8101,8 @@ void bench_chacha20_poly1305_aead(void)
 
     bench_stats_prepare();
 
+    WC_ALLOC_VAR(chacha, ChaCha, 1, HEAP_HINT);
+    WC_ALLOC_VAR(poly, Poly1305, 1, HEAP_HINT);
     WC_ALLOC_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
     WC_ALLOC_VAR(authTag, byte, CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE, HEAP_HINT);
     XMEMSET(bench_additional, 0, AES_AUTH_ADD_SZ);
@@ -8170,7 +8172,7 @@ void bench_chacha20_poly1305_aead(void)
     /* TLS-record path: ChaCha keyed once, only the nonce varies per record;
      * Encrypt_ex/Decrypt_ex use the single-pass stitch (no per-record
      * re-key). */
-    ret = wc_Chacha_SetKey(&chacha, bench_key,
+    ret = wc_Chacha_SetKey(chacha, bench_key,
                            CHACHA20_POLY1305_AEAD_KEYSIZE);
     if (ret != 0) {
         printf("wc_Chacha_SetKey error: %d\n", ret);
@@ -8180,7 +8182,7 @@ void bench_chacha20_poly1305_aead(void)
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < numBlocks; i++) {
-            ret = wc_ChaCha20Poly1305_Encrypt_ex(&chacha, &poly, bench_cipher,
+            ret = wc_ChaCha20Poly1305_Encrypt_ex(chacha, poly, bench_cipher,
                 bench_plain, bench_size, nonce, authTag, bench_additional,
                 aesAuthAddSz);
             if (ret < 0) {
@@ -8203,7 +8205,7 @@ void bench_chacha20_poly1305_aead(void)
     RESET_MULTI_VALUE_STATS_VARS();
 
     /* Valid ciphertext+tag for the Decrypt_ex benchmark. */
-    ret = wc_ChaCha20Poly1305_Encrypt_ex(&chacha, &poly, bench_cipher,
+    ret = wc_ChaCha20Poly1305_Encrypt_ex(chacha, poly, bench_cipher,
         bench_plain, bench_size, nonce, authTag, bench_additional,
         aesAuthAddSz);
     if (ret < 0) {
@@ -8214,7 +8216,7 @@ void bench_chacha20_poly1305_aead(void)
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < numBlocks; i++) {
-            ret = wc_ChaCha20Poly1305_Decrypt_ex(&chacha, &poly, bench_plain,
+            ret = wc_ChaCha20Poly1305_Decrypt_ex(chacha, poly, bench_plain,
                 bench_cipher, bench_size, nonce, authTag, bench_additional,
                 aesAuthAddSz);
             if (ret < 0) {
@@ -8291,6 +8293,8 @@ exit:
 
     WC_FREE_VAR(authTag, HEAP_HINT);
     WC_FREE_VAR(bench_additional, HEAP_HINT);
+    WC_FREE_VAR(poly, HEAP_HINT);
+    WC_FREE_VAR(chacha, HEAP_HINT);
 }
 #endif /* HAVE_CHACHA && HAVE_POLY1305 */
 

@@ -11928,7 +11928,8 @@ AC_ARG_ENABLE([linuxkm-lkcapi-register],
     [AS_HELP_STRING([--enable-linuxkm-lkcapi-register],[Register wolfCrypt implementations with the Linux Kernel Crypto API backplane.
     Possible values are "none" or a comma-separated combination of "all", "all-kconfig", "sysfs-nodes-only", "cbc(aes)", "cfb(aes)",
     "gcm(aes)", "rfc4106(gcm(aes))", "xts(aes)", "ctr(aes)", "ofb(aes)", "ecb(aes)", "all-aes", "sha1", "sha2", "sha3", "all-sha",
-    "hmac(sha1)", "hmac(sha2)", "hmac(sha3)", "all-hmac", "stdrng", "stdrng-default", "ecdsa", "ecdh", "rsa", "dh", and negations of
+    "hmac(sha1)", "hmac(sha2)", "hmac(sha3)", "all-hmac", "stdrng", "stdrng-default", "ecdsa", "ecdh", "rsa", "dh", "ed", "mldsa",
+    "mlkem", "slhdsa", "lms", "xmss", and negations of
     the foregoing algorithms by prefixing "-".
     (default: none)])],
     [ENABLED_LINUXKM_LKCAPI_REGISTER=$enableval],
@@ -12007,6 +12008,21 @@ then
                     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_RSA -DWC_RSA_NO_PADDING" ;;
         'dh')       AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_DH -DWOLFSSL_DH_EXTRA"
                     ;;
+        'ed')       if test "$ENABLED_ED25519" = "no" && test "$ENABLED_ED448" = "no"; then
+                        AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: no EdDSA implementation enabled.])
+                    fi
+                    AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_ED" ;;
+        'mldsa')    test "$ENABLED_MLDSA" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: ML-DSA implementation not enabled.])
+                    AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_MLDSA" ;;
+        'mlkem')    test "$ENABLED_MLKEM" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: ML-KEM implementation not enabled.])
+                    AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_MLKEM" ;;
+        'slhdsa')   test "$ENABLED_SLHDSA" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: SLH-DSA implementation not enabled.])
+                    AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_SLHDSA" ;;
+        'lms')      test "$ENABLED_LMS" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: LMS implementation not enabled.])
+                    AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_LMS" ;;
+        'xmss')     test "$ENABLED_XMSS" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: XMSS implementation not enabled.])
+                    AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_XMSS" ;;
+
         # disable options
         '-cbc(aes)') AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_AESCBC" ;;
         '-cfb(aes)') AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_AESCFB" ;;
@@ -12036,6 +12052,13 @@ then
         '-ecdh')     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_ECDH" ;;
         '-rsa')      AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_RSA" ;;
         '-dh')       AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_DH" ;;
+        '-ed')       AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_ED" ;;
+        '-mldsa')    AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_MLDSA" ;;
+        '-mlkem')    AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_MLKEM" ;;
+        '-slhdsa')   AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_SLHDSA" ;;
+        '-lms')      AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_LMS" ;;
+        '-xmss')     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_XMSS" ;;
+
         *) AC_MSG_ERROR([Unsupported LKCAPI algorithm "$lkcapi_alg".])      ;;
         esac
     done

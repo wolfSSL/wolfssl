@@ -6027,6 +6027,20 @@ int wc_RsaSetRNG(RsaKey* key, WC_RNG* rng)
 
     return 0;
 }
+
+/* Companion to wc_RsaSetRNG(): detach the key's RNG association.
+ * Subsequent operations that require the key's RNG (blinding, pairwise
+ * consistency) then either fail with MISSING_RNG_E or fall back to a
+ * locally instantiated RNG, per operation, until a new RNG is set. */
+int wc_RsaClearRNG(RsaKey* key)
+{
+    if (key == NULL)
+        return BAD_FUNC_ARG;
+
+    key->rng = NULL;
+
+    return 0;
+}
 #endif /* !WC_NO_RNG */
 
 #ifdef WC_RSA_NONBLOCK

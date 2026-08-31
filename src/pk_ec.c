@@ -5573,9 +5573,10 @@ int wolfSSL_ECDH_compute_key(void *out, size_t outLen,
                 setKeyRng = 1;
             }
         }
-    #endif
 
-        if (!err) {
+        if (!err)
+    #endif
+        {
             PRIVATE_KEY_UNLOCK();
             /* Create secret using wolfSSL. */
             ret = wc_ecc_shared_secret_ex(key, (ecc_point*)pubKey->internal,
