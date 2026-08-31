@@ -6,6 +6,15 @@
     \return 0 on success
     \return WC_HW_E on hardware error
 
+    This function loads the IoT-Safe applet on first use. In multi-threaded
+    builds both the applet load and every individual APDU transaction are
+    serialized internally on a port-level lock, so concurrent TLS sessions
+    can safely share the same IoT-Safe context, and this function may be
+    called concurrently for several contexts.
+    The CSIM read and write callbacks must still be installed beforehand,
+    from a single thread; see wolfIoTSafe_SetCSIM_read_cb() and
+    wolfIoTSafe_SetCSIM_write_cb().
+
     _Example_
     \code
     WOLFSSL_CTX *ctx;
@@ -124,6 +133,8 @@ int wolfSSL_iotsafe_on_ex(WOLFSSL *ssl, byte *privkey_id,
     usually associated to a read event of a UART channel communicating with the modem.
     The read callback associated is global and changes for all the contexts that use
     IoT-safe support at the same time.
+    This function must be called from a single thread, during initialization,
+    before any IoT-Safe operation is performed.
     \param rf Read callback associated to a UART read event. The callback function takes
     two arguments (buf, len) and return the number of characters read, up to len. When a
     newline is encountered, the callback should return the number of characters received
@@ -149,7 +160,9 @@ void wolfIoTSafe_SetCSIM_read_cb(wolfSSL_IOTSafe_CSIM_read_cb rf);
     usually associated to a write event on a UART channel communicating with the modem.
     The write callback associated is global and changes for all the contexts that use
     IoT-safe support at the same time.
-    \param rf Write callback associated to a UART write event. The callback function takes
+    This function must be called from a single thread, during initialization,
+    before any IoT-Safe operation is performed.
+    \param wf Write callback associated to a UART write event. The callback function takes
     two arguments (buf, len) and return the number of characters written, up to len.
 
     _Example_
