@@ -1651,6 +1651,57 @@ char* wc_strdup_ex(const char *src, int memType) {
 }
 #endif
 
+#ifdef WOLFSSL_WIDE_BYTE
+
+/* Packed octet stream -> one octet per byte cell.  See WC_OCTETS_PER_BYTE in
+ * types.h.  in holds the packed stream, low octet of a cell first, and must not
+ * overlap out.  Returns 0, BAD_FUNC_ARG on NULL, BUFFER_E if either buffer is
+ * short. */
+int wc_UnpackOctets(byte* out, word32 outSz, const byte* in, word32 inSz,
+    word32 octetSz)
+{
+    word32 i;
+
+    if ((out == NULL) || (in == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+    if ((outSz < octetSz) || (inSz < WC_PACKED_CELLS(octetSz))) {
+        return BUFFER_E;
+    }
+
+    for (i = 0; i < octetSz; i++) {
+        out[i] = WC_OCTET((word32)in[i / WC_OCTETS_PER_BYTE] >>
+            ((i % WC_OCTETS_PER_BYTE) * 8));
+    }
+
+    return 0;
+}
+
+/* Inverse of wc_UnpackOctets(), for flash or a byte-oriented peripheral.  in
+ * holds one octet per cell and must not overlap out. */
+int wc_PackOctets(byte* out, word32 outSz, const byte* in, word32 inSz,
+    word32 octetSz)
+{
+    word32 i;
+
+    if ((out == NULL) || (in == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+    if ((outSz < WC_PACKED_CELLS(octetSz)) || (inSz < octetSz)) {
+        return BUFFER_E;
+    }
+
+    XMEMSET(out, 0, WC_PACKED_CELLS(octetSz));   /* zero-fill partial tail */
+    for (i = 0; i < octetSz; i++) {
+        out[i / WC_OCTETS_PER_BYTE] |= (byte)((word32)WC_OCTET(in[i]) <<
+            ((i % WC_OCTETS_PER_BYTE) * 8));
+    }
+
+    return 0;
+}
+
+#endif /* WOLFSSL_WIDE_BYTE */
+
 #ifdef WOLFSSL_ATOMIC_OPS
 
 #if defined(WOLFSSL_USER_DEFINED_ATOMICS)
