@@ -10934,8 +10934,13 @@ int wc_EncryptPKCS8Key_ex(byte* key, word32 keySz, byte* out, word32* outSz,
         ret = SetShortInt(out, &idx, (word32)itt, *outSz);
         if (ret > 0)
             ret = 0;
-        if (version == PKCS5v2) {
-            if (hmacOid > 0) {
+        if (ret == 0 && version == PKCS5v2 && hmacOid > 0) {
+            /* Already guarded where it is set, but repeat it here: the
+             * invariant spans several blocks and -Wnonnull cannot see it. */
+            if (hmacOidBuf == NULL) {
+                ret = ALGO_ID_E;
+            }
+            else {
                 idx += SetSequence(2+hmacOidBufSz, out + idx);
                 idx += (word32)SetObjectId((int)hmacOidBufSz, out + idx);
                 XMEMCPY(out + idx, hmacOidBuf, hmacOidBufSz);
