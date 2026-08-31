@@ -3200,7 +3200,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif
 
 #ifdef WOLFSSL_SNIFFER
-    if (cipherList == NULL && version < 4) {
+    /* Only for TLS 1.2 and below.  A DTLS version is negative here
+     * (DTLS 1.3 is -4), so it has to be excluded explicitly. */
+    if (cipherList == NULL && version >= 0 && version < 4) {
         /* static RSA or static ECC cipher suites */
         const char* staticCipherList = "AES128-SHA:ECDH-ECDSA-AES128-SHA";
         if (wolfSSL_CTX_set_cipher_list(ctx, staticCipherList) != WOLFSSL_SUCCESS) {

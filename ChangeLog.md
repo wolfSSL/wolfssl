@@ -229,6 +229,17 @@
   it is handed restarts at zero for each record, so a larger second record
   wrote past the end; it now grows the buffer per record and appends.
 
+* **Fix (a sniffer build could not complete a DTLS 1.3 handshake)**: with
+  `WOLFSSL_SNIFFER` defined, the example client and server pin themselves to a
+  static RSA and static ECC cipher list so that a capture can be decrypted.
+  The guard for that read `version < 4`, meant to leave TLS 1.3 alone, but the
+  examples encode a DTLS version as a negative number and DTLS 1.3 is `-4`, so
+  a `-u -v 4` run was given a TLS 1.2 only cipher list.  The server then found
+  no common TLS 1.3 suite while processing the ClientHello and failed the
+  handshake with `MATCH_SUITE_ERROR`, which the client saw as a
+  `missing_extension` alert.  Only the examples were affected; an application
+  that does not set that cipher list was always able to handshake.
+
 * **Fix (certificate manager left pointing at a released store)**:
   `wolfSSL_CTX_set_cert_store()` pairs the store handed to it with the
   context's certificate manager, which keeps a pointer back to that store.
