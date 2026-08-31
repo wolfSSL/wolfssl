@@ -433,6 +433,11 @@ typedef struct XmssState {
     extern "C" {
 #endif
 
+#if FIPS_VERSION3_GE(7,0,0)
+    extern const unsigned int wolfCrypt_FIPS_xmss_ro_sanity[2];
+    WOLFSSL_LOCAL int wolfCrypt_FIPS_XMSS_sanity(void);
+#endif
+
 WOLFSSL_API int  wc_XmssKey_Init(XmssKey* key, void* heap, int devId);
 #ifdef WOLF_PRIVATE_KEY_ID
 WOLFSSL_API int  wc_XmssKey_InitId(XmssKey* key, const unsigned char* id,

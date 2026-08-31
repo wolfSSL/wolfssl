@@ -102,6 +102,11 @@
     extern "C" {
 #endif
 
+#if FIPS_VERSION3_GE(7,0,0)
+    extern const unsigned int wolfCrypt_FIPS_mldsa_ro_sanity[2];
+    WOLFSSL_LOCAL int wolfCrypt_FIPS_MLDSA_sanity(void);
+#endif
+
 /* Macros Definitions */
 
 #ifndef WOLFSSL_MLDSA_ALIGNMENT

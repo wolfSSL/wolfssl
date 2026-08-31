@@ -120,6 +120,15 @@
 
 #ifdef WOLFSSL_HAVE_MLKEM
 
+#if FIPS_VERSION3_GE(7,0,0)
+    const unsigned int wolfCrypt_FIPS_mlkem_ro_sanity[2] =
+                                                     { 0x1a2b3c4d, 0x00000019 };
+    int wolfCrypt_FIPS_MLKEM_sanity(void)
+    {
+        return 0;
+    }
+#endif
+
 #ifdef DEBUG_MLKEM
 void print_polys(const char* name, const sword16* a, int d1, int d2);
 void print_polys(const char* name, const sword16* a, int d1, int d2)

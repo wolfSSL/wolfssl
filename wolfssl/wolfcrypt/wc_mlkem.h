@@ -36,6 +36,11 @@
     extern "C" {
 #endif
 
+#if FIPS_VERSION3_GE(7,0,0)
+    extern const unsigned int wolfCrypt_FIPS_mlkem_ro_sanity[2];
+    WOLFSSL_LOCAL int wolfCrypt_FIPS_MLKEM_sanity(void);
+#endif
+
 #ifdef WOLFSSL_KYBER_NO_MAKE_KEY
     #define WOLFSSL_MLKEM_NO_MAKE_KEY
 #endif

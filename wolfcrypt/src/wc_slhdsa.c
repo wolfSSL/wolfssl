@@ -33,6 +33,15 @@
 #endif
 
 #include <wolfssl/wolfcrypt/asn.h>
+
+#if FIPS_VERSION3_GE(7,0,0)
+    const unsigned int wolfCrypt_FIPS_slhdsa_ro_sanity[2] =
+                                                     { 0x1a2b3c4d, 0x00000021 };
+    int wolfCrypt_FIPS_SLHDSA_sanity(void)
+    {
+        return 0;
+    }
+#endif
 #include <wolfssl/wolfcrypt/cpuid.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/memory.h>

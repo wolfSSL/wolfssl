@@ -146,6 +146,15 @@
 
 #if defined(WOLFSSL_HAVE_MLDSA)
 
+#if FIPS_VERSION3_GE(7,0,0)
+    const unsigned int wolfCrypt_FIPS_mldsa_ro_sanity[2] =
+                                                     { 0x1a2b3c4d, 0x00000020 };
+    int wolfCrypt_FIPS_MLDSA_sanity(void)
+    {
+        return 0;
+    }
+#endif
+
 #if defined(WC_MLDSA_NO_ASM) || defined(WC_SHA3_NO_ASM)
     #undef USE_INTEL_SPEEDUP
     #undef WOLFSSL_ARMASM

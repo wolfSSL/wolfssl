@@ -27,6 +27,15 @@
 #ifdef WOLFSSL_HAVE_XMSS
 
 #include <wolfssl/wolfcrypt/wc_xmss.h>
+
+#if FIPS_VERSION3_GE(7,0,0)
+    const unsigned int wolfCrypt_FIPS_xmss_ro_sanity[2] =
+                                                     { 0x1a2b3c4d, 0x00000023 };
+    int wolfCrypt_FIPS_XMSS_sanity(void)
+    {
+        return 0;
+    }
+#endif
 #include <wolfssl/wolfcrypt/hash.h>
 
 #ifdef NO_INLINE

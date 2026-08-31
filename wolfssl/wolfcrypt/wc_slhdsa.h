@@ -34,6 +34,11 @@
 
 #ifdef WOLFSSL_HAVE_SLHDSA
 
+#if FIPS_VERSION3_GE(7,0,0)
+    extern const unsigned int wolfCrypt_FIPS_slhdsa_ro_sanity[2];
+    WOLFSSL_LOCAL int wolfCrypt_FIPS_SLHDSA_sanity(void);
+#endif
+
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/sha3.h>
 
