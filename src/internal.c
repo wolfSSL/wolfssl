@@ -29453,8 +29453,9 @@ static int SendAlert_ex(WOLFSSL* ssl, int severity, int type)
     /* check for available size */
     outputSz = ALERT_SIZE + MAX_MSG_EXTRA + dtlsExtra;
 #ifdef WOLFSSL_DTLS13
-    if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version))
-        outputSz += Dtls13GetRlHeaderLength(ssl, 1);
+    if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version) &&
+            IsEncryptionOn(ssl, 1))
+        outputSz += DtlsGetCidTxSize(ssl);
 #endif /* WOLFSSL_DTLS13 */
     if ((ret = CheckAvailableSize(ssl, outputSz)) != 0) {
 #ifdef WOLFSSL_DTLS
