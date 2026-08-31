@@ -828,14 +828,6 @@ static int doAES(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
         return EBADMSG;
     }
 
-    if (args[2] == 0) {
-        /* the descriptor built up below always expects input to operate on,
-         * the client side only submits whole blocks (wc_CAAM_AesCbcCtrCommon
-         * and wc_CAAM_AesEcbCommon skip the call when there are none) */
-        WOLFSSL_MSG("AES zero length input is not supported");
-        return EBADMSG;
-    }
-
     if (args[2] > WOLFSSL_CAAM_QNX_MAX_SZ) {
         WOLFSSL_MSG("AES input size out of range");
         return EBADMSG;
