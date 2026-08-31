@@ -23,16 +23,13 @@
 /* included by linuxkm/module_hooks.c */
 #ifndef WC_SKIP_INCLUDED_C_FILES
 
-#include <linux/printk.h>
-#include <linux/ratelimit.h>
-
 #if !defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) || !defined(CONFIG_X86)
     #error x86_vector_register_glue.c included in non-vectorized/non-x86 project.
 #endif
 
 #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
-    #define VRG_PR_ERR_X pr_err
-    #define VRG_PR_WARN_X pr_warn
+    #define VRG_PR_ERR_X pr_err_ratelimited
+    #define VRG_PR_WARN_X pr_warn_ratelimited
 #else
     #define VRG_PR_ERR_X pr_err_once
     #define VRG_PR_WARN_X pr_warn_once
@@ -89,6 +86,11 @@ struct wc_svr_native_ctx_state {
                            * reads or writes it, and context classes on one
                            * CPU interleave strictly (run-to-completion), so
                            * no atomics are needed.
+                           *
+                           * For NMIs, we save the interrupt depth directly,
+                           * match the depth on restore (opportunistic error
+                           * detection), and return WC_ACCEL_INHIBIT_E on any
+                           * nested NMI SVR attempt (no buffer to save to).
                            */
     unsigned int pin_preempt; /* set at init for the softirq entry: on
                                * PREEMPT_RT, serving-softirq is preemptible,
@@ -106,16 +108,16 @@ struct wc_svr_native_ctx_state {
 struct wc_svr_native_cpu_state {
     struct wc_svr_native_ctx_state softirq;
     struct wc_svr_native_ctx_state hardirq;
+    struct wc_svr_native_ctx_state nmi;
 };
 
 static void wc_svr_native_init(void);
 static int wc_svr_native_check_busy(void);
 static void wc_svr_native_free(void);
 static inline struct wc_svr_native_cpu_state *wc_svr_native_here(void);
-static WARN_UNUSED_RESULT int wc_svr_native_save(
-    struct wc_svr_native_ctx_state *ctx);
-static void wc_svr_native_restore(struct wc_svr_native_ctx_state *ctx,
-                                  enum wc_svr_flags flags);
+static WARN_UNUSED_RESULT int wc_svr_can_native_save(void);
+static WARN_UNUSED_RESULT int wc_svr_native_save(enum wc_svr_flags flags);
+static int wc_svr_native_restore(enum wc_svr_flags flags);
 
 static int wc_svr_native_ready = 0;
 
@@ -139,12 +141,8 @@ WARN_UNUSED_RESULT int wc_linuxkm_allocate_svr_states(void)
 #endif
         return 0;
 #else
-        static int warned_for_repeat_alloc = 0;
-        if (! warned_for_repeat_alloc) {
-            pr_err("BUG: attempt at repeat allocation"
+        wc_linuxkm_pr_err_ratelimited("BUG: attempt at repeat allocation"
                    " in wc_linuxkm_allocate_svr_states.\n");
-            warned_for_repeat_alloc = 1;
-        }
         return BAD_STATE_E;
 #endif
     }
@@ -239,7 +237,6 @@ static struct wc_thread_svr_count_ent *wc_linuxkm_svr_state_assoc_unlikely(int c
     struct wc_thread_svr_count_ent *slot;
 
     {
-        static int _warned_on_null = 0;
         if (wc_linuxkm_svr_states == NULL)
         {
 #ifdef HAVE_FIPS
@@ -252,14 +249,8 @@ static struct wc_thread_svr_count_ent *wc_linuxkm_svr_state_assoc_unlikely(int c
             if (ret != 0)
 #endif
             {
-                if (_warned_on_null == 0) {
-                    pr_err("BUG: wc_linuxkm_svr_state_assoc called by PID %d"
+                wc_linuxkm_pr_err_ratelimited("BUG: wc_linuxkm_svr_state_assoc called by PID %d"
                            " before wc_linuxkm_allocate_svr_states.\n", my_pid);
-                    #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
-                    dump_stack();
-                    #endif
-                    _warned_on_null = 1;
-                }
                 return NULL;
             }
         }
@@ -269,16 +260,9 @@ static struct wc_thread_svr_count_ent *wc_linuxkm_svr_state_assoc_unlikely(int c
     slot_pid = __atomic_load_n(&slot->pid, __ATOMIC_CONSUME);
     if (slot_pid == my_pid) {
         if (create_p) {
-            static int _warned_on_redundant_create_p = 0;
-            if (_warned_on_redundant_create_p < 10) {
-                pr_err("BUG: wc_linuxkm_svr_state_assoc called with create_p=1 by"
-                       " PID %d on CPU %d with CPU slot already reserved by"
-                       " said PID (age %ld ms).\n", my_pid, my_cpu, WC_SVR_SLOT_AGE_MS(slot));
-                #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
-                dump_stack();
-                #endif
-                ++_warned_on_redundant_create_p;
-            }
+            wc_linuxkm_pr_err_ratelimited("BUG: wc_linuxkm_svr_state_assoc called with create_p=1 by"
+                                  " PID %d on CPU %d with CPU slot already reserved by"
+                                  " said PID (age %ld ms).\n", my_pid, my_cpu, WC_SVR_SLOT_AGE_MS(slot));
         }
         return slot;
     }
@@ -311,7 +295,7 @@ static struct wc_thread_svr_count_ent *wc_linuxkm_svr_state_assoc_unlikely(int c
              * Save/restore balance discipline, not runtime recovery, is what
              * keeps this branch unreachable.
              */
-            pr_err_ratelimited("BUG: wc_linuxkm_svr_state_assoc_unlikely found WC_SVR_IDLE_PID in the slot for calling CPU %d PID %d (age %ld ms) requesting outermost vector register save -- CPU is acceleration-degraded.\n", my_cpu, my_pid, WC_SVR_SLOT_AGE_MS(slot));
+            wc_linuxkm_pr_err_ratelimited("BUG: wc_linuxkm_svr_state_assoc_unlikely found WC_SVR_IDLE_PID in the slot for calling CPU %d PID %d (age %ld ms) requesting outermost vector register save -- CPU is acceleration-degraded.\n", my_cpu, my_pid, WC_SVR_SLOT_AGE_MS(slot));
             return NULL;
         } else {
             struct pid *slot_pid_struct;
@@ -484,37 +468,38 @@ static inline void wc_svr_disallowed_count_increment(void) {
 
 WARN_UNUSED_RESULT int wc_can_save_vector_registers_x86(void)
 {
-    struct wc_thread_svr_count_ent *pstate;
+    struct wc_thread_svr_count_ent *pstate = NULL;
+    int cur_preempt_count = preempt_count();
+    int ret;
+
+#ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
+    if (SAVE_VECTOR_REGISTERS2_fuzzer() != 0) {
+        wc_svr_disallowed_count_increment();
+        ret = 0;
+        goto out_no_fallback_warning;
+    }
+#endif
 
     /* check for hard interrupt context (unusable current->pid) preemptively.
      * if we're in a softirq context we'll catch that below with
-     * a second preempt_count() check.
+     * a second check of cur_preempt_count.
      */
-    if ((preempt_count() & (NMI_MASK | HARDIRQ_MASK)) != 0) {
+    if (cur_preempt_count & (NMI_MASK | HARDIRQ_MASK)) {
 #ifdef WC_SVR_USE_NATIVE_REG_BUFS
-        /* Plain-flavor saves in hardirq are natively serviceable; only NMI
-         * and recursion-count saturation still answer no.
-         */
-        if (likely(wc_svr_native_ready) && (! in_nmi())) {
-            struct wc_svr_native_ctx_state *nctx =
-                &wc_svr_native_here()->hardirq;
-            if (likely(nctx->depth != ~0U))
-                return 1;
-        }
-#endif /* WC_SVR_USE_NATIVE_REG_BUFS */
+        ret = wc_svr_can_native_save();
+        goto out;
+#else /* !WC_SVR_USE_NATIVE_REG_BUFS */
 #ifdef DEBUG_VECTOR_REGISTER_ACCESS_HARDIRQ_INFO
         pr_info("HARDIRQ_INFO: wc_can_save_vector_registers_x86() with preempt_count 0x%x, PID %d, CPU %d\n",
                 preempt_count(), task_pid_nr(current), raw_smp_processor_id());
         dump_stack();
 #endif
         wc_svr_disallowed_count_increment();
-        #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
-        if (in_nmi())
-            atomic_long_inc(&NMI_SVR_err_count);
-        else
-            atomic_long_inc(&hardirq_SVR_err_count);
-        #endif
-        return 0;
+    #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+        atomic_long_inc(&hardirq_SVR_err_count);
+    #endif
+        goto out;
+#endif /* !WC_SVR_USE_NATIVE_REG_BUFS */
     }
 
     /* Check if we're already saved, per wc_linuxkm_svr_states. */
@@ -523,25 +508,24 @@ WARN_UNUSED_RESULT int wc_can_save_vector_registers_x86(void)
     if ((pstate != NULL) && (pstate->fpu_state != 0U)) {
         if (unlikely(pstate->fpu_state & WC_SVR_INHIBITED_FLAG)) {
             wc_svr_disallowed_count_increment();
-            return 0;
+            ret = 0;
+            /* previously inhibited -- either explicit, and therefore properly
+             * unwarned at the outset, or implicit / error path, and therefore
+             * already warned. */
+            goto out_no_fallback_warning;
         }
         if (unlikely((pstate->fpu_state & WC_SVR_COUNT_MASK)
                      == WC_SVR_COUNT_MASK))
         {
             /* would overflow */
             wc_svr_disallowed_count_increment();
-            return 0;
+            ret = 0;
+            goto out;
         } else {
-            return 1;
+            ret = 1;
+            goto out;
         }
     }
-
-#ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
-    if (SAVE_VECTOR_REGISTERS2_fuzzer() != 0) {
-        wc_svr_disallowed_count_increment();
-        return 0;
-    }
-#endif
 
     if ((preempt_count() == 0) || may_use_simd())
         return 1;
@@ -555,62 +539,60 @@ WARN_UNUSED_RESULT int wc_can_save_vector_registers_x86(void)
         }
 #endif
         wc_svr_disallowed_count_increment();
-        #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+    #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
         atomic_long_inc(&softirq_SVR_err_count);
-        #endif
-        return 0;
+    #endif
+        ret = 0;
     }
+
+out:
+#ifdef WC_SVR_PR_EMERG_ON_ACCEL_FALLBACK
+    if (! ret) {
+        pr_emerg_ratelimited("ERROR: wc_can_save_vector_registers_x86() returning false on CPU %d, preempt_count 0x%x, pstate->fpu_state 0x%x, code %d.\n",
+                             raw_smp_processor_id(), cur_preempt_count, pstate ? pstate->fpu_state : 0, ret);
+    }
+#endif
+
+out_no_fallback_warning:
+
+    return ret;
 }
 
 WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
 {
-    struct wc_thread_svr_count_ent *pstate;
+    struct wc_thread_svr_count_ent *pstate = NULL;
     unsigned int new_state_flags = 0;
+    int cur_preempt_count = preempt_count();
+    int ret;
 
     /* Check for hard interrupt context (unusable current->pid) preemptively.
      * If we're in a softirq context we'll catch that below with
      * a second look at preempt_count().
      *
-     * Note that this is not actually an abnormal condition in any way --
-     * e.g. with LINUXKM_DRBG_GET_RANDOM_BYTES, get_random_u32() and the
-     * like called from hard IRQ handlers land here, and we return
-     * WC_ACCEL_INHIBIT_E for graceful fallback to C.
+     * Note that this is not actually an abnormal condition -- e.g. with
+     * LINUXKM_DRBG_GET_RANDOM_BYTES, get_random_u32() and the like called from
+     * hard IRQ handlers can land here, and we return success if
+     * WC_SVR_USE_NATIVE_REG_BUFS, else WC_ACCEL_INHIBIT_E for graceful fallback
+     * to C.
      */
-    if ((preempt_count() & (NMI_MASK | HARDIRQ_MASK)) != 0) {
+    if ((cur_preempt_count & (NMI_MASK | HARDIRQ_MASK)) != 0) {
 #ifdef WC_SVR_USE_NATIVE_REG_BUFS
         /* Native service for plain-flavor saves in hardirq.  The in_nmi()
          * disposition must stay ahead of any may_use_simd() call --
-         * irq_fpu_usable() carries WARN_ON_ONCE(in_nmi()).  NMI, the
-         * inhibit flavors, and !wc_svr_native_ready keep the long-standing
-         * graceful refusal below.
+         * irq_fpu_usable() carries WARN_ON_ONCE(in_nmi()).  The inhibit flavors
+         * and !wc_svr_native_ready keep the long-standing graceful refusal
+         * below.
          */
-        if (likely(wc_svr_native_ready) && (! in_nmi()) &&
-            ((flags & (WC_SVR_FLAG_INHIBIT | WC_SVR_FLAG_MAYBE_INHIBIT))
-             == 0))
-        {
-            struct wc_svr_native_ctx_state *nctx =
-                &wc_svr_native_here()->hardirq;
-#ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
-            /* mirror the existing paths: injection at outermost depth only.
-             */
-            if ((flags & WC_SVR_FLAG_FUZZ) && (nctx->depth == 0U)) {
-                int ret = SAVE_VECTOR_REGISTERS2_fuzzer();
-                if (ret != 0) {
-                    wc_svr_disallowed_count_increment();
-                    return ret;
-                }
-            }
-#endif
-            return wc_svr_native_save(nctx);
-        }
+        return wc_svr_native_save(flags);
 #endif /* WC_SVR_USE_NATIVE_REG_BUFS */
 #ifdef DEBUG_VECTOR_REGISTER_ACCESS_HARDIRQ_INFO
         pr_info("HARDIRQ_INFO: wc_save_vector_registers_x86() with preempt_count 0x%x, PID %d, CPU %d\n",
-                preempt_count(), task_pid_nr(current), raw_smp_processor_id());
+                cur_preempt_count, task_pid_nr(current), raw_smp_processor_id());
         dump_stack();
 #endif
         wc_svr_disallowed_count_increment();
-        return WC_ACCEL_INHIBIT_E;
+        ret = WC_ACCEL_INHIBIT_E;
+        goto out;
     }
 
     pstate = wc_linuxkm_svr_state_assoc(0, 0);
@@ -618,22 +600,20 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
     /* allow for nested calls */
     if (pstate && (pstate->fpu_state != 0U)) {
         if (unlikely((pstate->fpu_state & WC_SVR_BH_HELD_FLAG) && (softirq_count() == 0))) {
-            VRG_PR_ERR_X("BUG: wc_save_vector_registers_x86(): zero softirq_count in nested call (depth %u, age %ld ms) after local_bh_disable() on CPU %d.\n",
+            wc_linuxkm_pr_err_ratelimited("BUG: wc_save_vector_registers_x86(): zero softirq_count in nested call (depth %u, age %ld ms) after local_bh_disable() on CPU %d.\n",
                          (pstate->fpu_state & WC_SVR_COUNT_MASK),
                          WC_SVR_SLOT_AGE_MS(pstate),
                          raw_smp_processor_id());
         }
         if (unlikely(flags & WC_SVR_FLAG_MAYBE_INHIBIT)) {
-            VRG_PR_WARN_X("BUG: wc_save_vector_registers_x86() called by pid %d on CPU %d "
+            wc_linuxkm_pr_err_ratelimited("BUG: wc_save_vector_registers_x86() called by pid %d on CPU %d "
                           "with _MAYBE_INHIBIT flag in nested call (depth %u, age %ld ms).\n", task_pid_nr(current),
                           raw_smp_processor_id(),
                           (pstate->fpu_state & WC_SVR_COUNT_MASK),
                           WC_SVR_SLOT_AGE_MS(pstate));
-            #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
-            dump_stack();
-            #endif
             wc_svr_disallowed_count_increment();
-            return BAD_STATE_E;
+            ret = BAD_STATE_E;
+            goto out;
         }
         if (unlikely(pstate->fpu_state & WC_SVR_INHIBITED_FLAG)) {
             /* don't allow recursive inhibit calls when already inhibited --
@@ -641,7 +621,9 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
              * count of inhibit recursions.
              */
             wc_svr_disallowed_count_increment();
-            return WC_ACCEL_INHIBIT_E;
+            ret = WC_ACCEL_INHIBIT_E;
+            /* explicit inhibit request -- bypass WC_SVR_PR_EMERG_ON_ACCEL_FALLBACK */
+            goto out_no_fallback_warning;
         }
         if (unlikely((pstate->fpu_state & WC_SVR_COUNT_MASK)
                      == WC_SVR_COUNT_MASK))
@@ -650,31 +632,36 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
                    "pid %d on CPU %d (age %ld ms).\n", pstate->pid, raw_smp_processor_id(),
                    WC_SVR_SLOT_AGE_MS(pstate));
             wc_svr_disallowed_count_increment();
-            return BAD_STATE_E;
+            ret = BAD_STATE_E;
+            goto out;
         }
         if (unlikely(flags & WC_SVR_FLAG_INHIBIT)) {
             ++pstate->fpu_state;
             pstate->fpu_state |= WC_SVR_INHIBITED_FLAG;
             wc_svr_disallowed_count_increment();
-            return 0;
+            /* explicit inhibit request requiring subsequent restore -- bypass
+             * WC_SVR_PR_EMERG_ON_ACCEL_FALLBACK. */
+            ret = 0;
+            goto out_no_fallback_warning;
         }
         else {
             ++pstate->fpu_state;
-            return 0;
+            ret = 0;
+            goto out;
         }
         __builtin_unreachable();
     }
 
-#ifndef DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON
+#if !defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON) && !defined(WC_SVR_PR_EMERG_ON_ACCEL_FALLBACK)
     /* EINTR during optest, which is exercised by the kernel test harness, acts
      * like a failed save, which would emit (and indeed be) an ERROR in
      * DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON builds.
      */
     {
-        int ret = WC_CHECK_FOR_INTR_SIGNALS();
+        ret = WC_CHECK_FOR_INTR_SIGNALS();
         if (ret) {
             wc_svr_disallowed_count_increment();
-            return ret;
+            goto out;
         }
     }
 #endif
@@ -683,37 +670,45 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
 
 #ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
     if (flags & WC_SVR_FLAG_FUZZ) {
-        int ret = SAVE_VECTOR_REGISTERS2_fuzzer();
+        ret = SAVE_VECTOR_REGISTERS2_fuzzer();
         if (ret != 0) {
-            if (flags & WC_SVR_FLAG_MAYBE_INHIBIT)
+            if (flags & WC_SVR_FLAG_MAYBE_INHIBIT) {
                 flags |= WC_SVR_FLAG_INHIBIT;
+                ret = 0;
+            }
             else {
+                ret = WC_ACCEL_INHIBIT_E;
                 wc_svr_disallowed_count_increment();
-                return ret;
+                /* Test harness setting -- Bypass
+                 * WC_SVR_PR_EMERG_ON_ACCEL_FALLBACK. */
+                goto out_no_fallback_warning;
             }
         }
     }
 #endif
 
     if ((flags & WC_SVR_FLAG_MAYBE_INHIBIT) &&
-        ((preempt_count() != 0) && !may_use_simd())
+        ((cur_preempt_count != 0) && !may_use_simd())
 #ifdef WC_SVR_USE_NATIVE_REG_BUFS
         && unlikely(! wc_svr_native_ready)
 #endif
         )
     {
         wc_svr_disallowed_count_increment();
-        return WC_ACCEL_INHIBIT_E; /* not an error here, just a
-                                    * short-circuit result.
-                                    */
+        ret = WC_ACCEL_INHIBIT_E; /* not an error here, just a short-circuit
+                                   * result, but will be loudly warned if
+                                   * WC_SVR_PR_EMERG_ON_ACCEL_FALLBACK.
+                                   */
+        goto out;
     }
 
     if (flags & WC_SVR_FLAG_INHIBIT) {
-        if ((preempt_count() != 0) && !may_use_simd()) {
+        if ((cur_preempt_count != 0) && !may_use_simd()) {
             wc_svr_disallowed_count_increment();
-            return WC_ACCEL_INHIBIT_E; /* not an error here, just a
-                                        * short-circuit result.
-                                        */
+            /* explicit inhibit request, and not an error here -- bypass
+             * WC_SVR_PR_EMERG_ON_ACCEL_FALLBACK */
+            ret = WC_ACCEL_INHIBIT_E;
+            goto out_no_fallback_warning;
         }
         /* we need to inhibit migration and softirqs here to assure that we can
          * support recursive calls safely, i.e. without mistaking a softirq
@@ -732,7 +727,7 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
             new_state_flags |= WC_SVR_BH_HELD_FLAG;
 
             if (softirq_count() == 0) {
-                VRG_PR_ERR_X("BUG: wc_save_vector_registers_x86(): zero softirq_count in outermost call after local_bh_disable() on CPU %d.\n",
+                wc_linuxkm_pr_err_ratelimited("BUG: wc_save_vector_registers_x86(): zero softirq_count in outermost call after local_bh_disable() on CPU %d.\n",
                              raw_smp_processor_id());
                 local_bh_enable();
                 #if defined(CONFIG_SMP) && !defined(CONFIG_PREEMPT_COUNT) && \
@@ -740,7 +735,8 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
                 migrate_enable();
                 #endif
                 wc_svr_disallowed_count_increment();
-                return WC_ACCEL_INHIBIT_E;
+                ret = WC_ACCEL_INHIBIT_E;
+                goto out;
             }
         }
 
@@ -753,17 +749,19 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
             migrate_enable();
             #endif
             wc_svr_disallowed_count_increment();
-            return BAD_STATE_E;
+            ret = BAD_STATE_E;
+            goto out;
         }
 
         pstate->fpu_state =
             (WC_SVR_INHIBITED_FLAG | new_state_flags) + 1U;
 
         wc_svr_disallowed_count_increment();
-        return 0;
+        ret = 0;
+        goto out;
     }
 
-    if ((preempt_count() == 0) || may_use_simd()) {
+    if ((cur_preempt_count == 0) || may_use_simd()) {
         /* fpregs_lock() calls either local_bh_disable() or preempt_disable()
          * depending on CONFIG_PREEMPT_RT -- we call both, explicitly, with the
          * sole exception that local_bh_disable() is necessarily omitted if the
@@ -807,17 +805,19 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
             migrate_enable();
             #endif
             wc_svr_disallowed_count_increment();
-            return BAD_STATE_E;
+            ret = BAD_STATE_E;
+            goto out;
         }
 
         pstate->fpu_state = new_state_flags | 1U;
 
         if ((new_state_flags & WC_SVR_BH_HELD_FLAG) && (softirq_count() == 0)) {
-            VRG_PR_ERR_X("BUG: wc_save_vector_registers_x86(): zero softirq_count after local_bh_disable() on CPU %d.\n",
+            wc_linuxkm_pr_err_ratelimited("BUG: wc_save_vector_registers_x86(): zero softirq_count after local_bh_disable() on CPU %d.\n",
                          raw_smp_processor_id());
         }
 
-        return 0;
+        ret = 0;
+        goto out;
     } else {
         static DEFINE_RATELIMIT_STATE(vrg_contend_rs, HZ, 1);
 
@@ -837,14 +837,14 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
          * intercepted by the pid-match quick-check above.
          */
         if (likely(wc_svr_native_ready) && in_serving_softirq())
-            return wc_svr_native_save(&wc_svr_native_here()->softirq);
+            return wc_svr_native_save(flags);
 #endif /* WC_SVR_USE_NATIVE_REG_BUFS */
 
-        #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+    #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
         atomic_long_inc(&softirq_SVR_err_count);
-        #endif
+    #endif
 
-        if (preempt_count() != 0) {
+        if (cur_preempt_count != 0) {
             /* this path is normal on pre-6.15 kernels, where kernel_fpu_begin()
              * doesn't local_bh_disable(), but on 6.15+ it's a warnable
              * anomaly. */
@@ -852,7 +852,7 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
 
             #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
             if (__ratelimit(&vrg_contend_rs)) {
-                pr_info("INFO: !may_use_simd() in wc_save_vector_registers_x86() on CPU %d PID %d (%s) with preempt_count 0x%x.\n", raw_smp_processor_id(), task_pid_nr(current), current->comm, preempt_count());
+                pr_info("INFO: !may_use_simd() in wc_save_vector_registers_x86() on CPU %d PID %d (%s) with preempt_count 0x%x.\n", raw_smp_processor_id(), task_pid_nr(current), current->comm, cur_preempt_count);
                 dump_stack();
             }
             #endif /* WOLFSSL_LINUXKM_VERBOSE_DEBUG */
@@ -860,7 +860,7 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
             #else /* >=6.15.0 */
 
             if (__ratelimit(&vrg_contend_rs)) {
-                pr_warn("WARNING: !may_use_simd() in wc_save_vector_registers_x86 called with no saved state on CPU %d PID %d (%s) with preempt_count 0x%x.\n", raw_smp_processor_id(), task_pid_nr(current), current->comm, preempt_count());
+                pr_warn("WARNING: !may_use_simd() in wc_save_vector_registers_x86 called with no saved state on CPU %d PID %d (%s) with preempt_count 0x%x.\n", raw_smp_processor_id(), task_pid_nr(current), current->comm, cur_preempt_count);
             #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
                 dump_stack();
             #endif
@@ -870,7 +870,7 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
         }
         else {
             if (__ratelimit(&vrg_contend_rs)) {
-                pr_warn("WARNING: !may_use_simd() in wc_save_vector_registers_x86 called with no saved state on CPU %d PID %d (%s) with preempt_count 0x%x.\n", raw_smp_processor_id(), task_pid_nr(current), current->comm, preempt_count());
+                pr_warn("WARNING: !may_use_simd() in wc_save_vector_registers_x86 called with no saved state on CPU %d PID %d (%s) with preempt_count 0x%x.\n", raw_smp_processor_id(), task_pid_nr(current), current->comm, cur_preempt_count);
             #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
                 dump_stack();
             #endif
@@ -878,10 +878,20 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
         }
 
         wc_svr_disallowed_count_increment();
-        return WC_ACCEL_INHIBIT_E;
+        ret = WC_ACCEL_INHIBIT_E;
     }
 
-    __builtin_unreachable();
+out:
+#ifdef WC_SVR_PR_EMERG_ON_ACCEL_FALLBACK
+    if (ret != 0) {
+        pr_emerg_ratelimited("ERROR: wc_save_vector_registers_x86() failing on CPU %d, preempt_count 0x%x, pstate->fpu_state 0x%x, code %d.\n",
+                             raw_smp_processor_id(), cur_preempt_count, pstate ? pstate->fpu_state : 0, ret);
+    }
+#endif
+
+out_no_fallback_warning:
+
+    return ret;
 }
 
 void wc_restore_vector_registers_x86(enum wc_svr_flags flags)
@@ -891,70 +901,48 @@ void wc_restore_vector_registers_x86(enum wc_svr_flags flags)
 
     if ((preempt_count() & (NMI_MASK | HARDIRQ_MASK)) != 0) {
 #ifdef WC_SVR_USE_NATIVE_REG_BUFS
-        if (likely(wc_svr_native_ready) && (! in_nmi())) {
-            struct wc_svr_native_ctx_state *nctx =
-                &wc_svr_native_here()->hardirq;
-            if (likely(nctx->depth > 0U)) {
-                wc_svr_native_restore(nctx, flags);
-                return;
-            }
-            /* depth == 0 in hardirq is a pairing bug; fall through to the
-             * long-standing diagnostic.
-             */
-        }
-#endif /* WC_SVR_USE_NATIVE_REG_BUFS */
-        VRG_PR_WARN_X("BUG: wc_restore_vector_registers_x86() called from interrupt handler on CPU %d.\n",
-                raw_smp_processor_id());
+        (void)wc_svr_native_restore(flags);
         return;
+#else
+        wc_linuxkm_pr_err_ratelimited("BUG: wc_restore_vector_registers_x86() called from %s handler on CPU %d.\n",
+                       in_nmi() ? "NMI" : "hard IRQ", raw_smp_processor_id());
+        return;
+#endif /* WC_SVR_USE_NATIVE_REG_BUFS */
     }
 
 #ifdef WC_SVR_USE_NATIVE_REG_BUFS
-    if (likely(wc_svr_native_ready) && in_serving_softirq()) {
-        struct wc_svr_native_ctx_state *nctx =
-            &wc_svr_native_here()->softirq;
-        if (nctx->depth > 0U) {
-            wc_svr_native_restore(nctx, flags);
+    if (in_serving_softirq()) {
+        if (wc_svr_native_restore(flags) == 0)
             return;
-        }
-        /* depth == 0: a legacy softirq section (kernel_fpu-backed, opened
-         * while may_use_simd() was true) closes through the existing path
-         * below.
+        /* fall through to kernel_fpu-backed softirq, opened while
+         * may_use_simd() was true.
          */
     }
 #endif /* WC_SVR_USE_NATIVE_REG_BUFS */
 
     pstate = wc_linuxkm_svr_state_assoc(0, 1);
     if (unlikely(pstate == NULL)) {
-        VRG_PR_WARN_X("BUG: wc_restore_vector_registers_x86() called by pid %d on CPU %d "
+        wc_linuxkm_pr_err_ratelimited("BUG: wc_restore_vector_registers_x86() called by pid %d on CPU %d "
                "with no saved state.\n", task_pid_nr(current),
                raw_smp_processor_id());
-        #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
-        dump_stack();
-        #endif
         return;
     }
 
     if ((--pstate->fpu_state & WC_SVR_COUNT_MASK) > 0U) {
         if (flags & WC_SVR_FLAG_MAYBE_INHIBIT) {
-                VRG_PR_WARN_X("BUG: wc_restore_vector_registers_x86() called by pid %d on CPU %d "
+            wc_linuxkm_pr_err_ratelimited("BUG: wc_restore_vector_registers_x86() called by pid %d on CPU %d "
                               "with _MAYBE_INHIBIT flag at non-outermost depth %u (age %ld ms).\n", task_pid_nr(current),
                               raw_smp_processor_id(),
                               (pstate->fpu_state & WC_SVR_COUNT_MASK) + 1U,
                               WC_SVR_SLOT_AGE_MS(pstate));
-                #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
-                dump_stack();
-                #endif
         }
         if (flags & WC_SVR_FLAG_INHIBIT) {
             if (pstate->fpu_state & WC_SVR_INHIBITED_FLAG)
                 pstate->fpu_state &= ~WC_SVR_INHIBITED_FLAG;
             else {
-                VRG_PR_WARN_X("BUG: wc_restore_vector_registers_x86() called by pid %d on CPU %d "
+                wc_linuxkm_pr_err_ratelimited("BUG: wc_restore_vector_registers_x86() called by pid %d on CPU %d "
                               "with _INHIBIT flag but saved state isn't _INHIBITED_ (age %ld ms).\n",
                               task_pid_nr(current), raw_smp_processor_id(), WC_SVR_SLOT_AGE_MS(pstate));
-                #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
-                dump_stack();
-                #endif
             }
         }
         return;
@@ -971,25 +959,22 @@ void wc_restore_vector_registers_x86(enum wc_svr_flags flags)
         #endif
         if (cur_fpu_state & WC_SVR_BH_HELD_FLAG) {
             if (softirq_count() == 0) {
-                VRG_PR_ERR_X("BUG: wc_restore_vector_registers_x86(): zero softirq_count after local_bh_disable() on CPU %d.\n",
+                wc_linuxkm_pr_err_ratelimited("BUG: wc_restore_vector_registers_x86(): zero softirq_count after local_bh_disable() on CPU %d.\n",
                              raw_smp_processor_id());
             }
             local_bh_enable();
         }
     } else if (unlikely(pstate->fpu_state & WC_SVR_INHIBITED_FLAG)) {
         if (unlikely(! (flags & (WC_SVR_FLAG_INHIBIT | WC_SVR_FLAG_MAYBE_INHIBIT)))) {
-            VRG_PR_WARN_X("BUG: wc_restore_vector_registers_x86() called by pid %d on CPU %d "
+            wc_linuxkm_pr_err_ratelimited("BUG: wc_restore_vector_registers_x86() called by pid %d on CPU %d "
                           "without _INHIBIT flag but saved state is _INHIBITED_ (age %ld ms).\n",
                           task_pid_nr(current), raw_smp_processor_id(), WC_SVR_SLOT_AGE_MS(pstate));
-            #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
-            dump_stack();
-            #endif
         }
         pstate->fpu_state = 0U;
         wc_linuxkm_svr_state_release(pstate);
         if (cur_fpu_state & WC_SVR_BH_HELD_FLAG) {
             if (softirq_count() == 0) {
-                VRG_PR_ERR_X("BUG: wc_restore_vector_registers_x86(): zero softirq_count after local_bh_disable() on CPU %d.\n",
+                wc_linuxkm_pr_err_ratelimited("BUG: wc_restore_vector_registers_x86(): zero softirq_count after local_bh_disable() on CPU %d.\n",
                              raw_smp_processor_id());
             }
             local_bh_enable();
@@ -1121,7 +1106,7 @@ static inline void wc_svr_native_cpuid_count(u32 leaf, u32 subleaf,
 
 static inline struct wc_svr_native_cpu_state *wc_svr_native_here(void)
 {
-    /* Callers are in hardirq or serving-softirq (or, for the selftest,
+    /* Callers are in nmi, hardirq, or serving-softirq (or, for the selftest,
      * preempt-disabled task context), so raw_smp_processor_id() is stable.
      */
     return &wc_svr_native_states[raw_smp_processor_id()];
@@ -1451,9 +1436,11 @@ out:
  * FIPS pre-Init lazy-allocation path).  Idempotent for the FIPS repeat-call
  * pattern.
  */
+
+static size_t wc_svr_native_save_mem_size;
+
 static void wc_svr_native_init(void)
 {
-    size_t total;
     u8 *aligned;
     unsigned int cpu_i;
     int wc_svr_native_have_osxsave, wc_svr_native_have_fxsr;
@@ -1546,22 +1533,22 @@ static void wc_svr_native_init(void)
     XMEMSET(wc_svr_native_states, 0,
             (size_t)nr_cpu_ids * sizeof(struct wc_svr_native_cpu_state));
 
-    /* One allocation, two 64-aligned buffers per CPU.  Zero-initialized and
+    /* One allocation, three 64-aligned buffers per CPU.  Zero-initialized and
      * never re-zeroed: XSAVE writes XSTATE_BV but never XCOMP_BV, and
      * standard-format XRSTOR requires XCOMP_BV == 0, so the zeroing at birth
      * is the invariant that keeps every later XRSTOR well-formed (SDM vol. 1
      * ch. 13).
      */
-    total = (size_t)nr_cpu_ids * 2U * (size_t)wc_svr_native_save_size + 63U;
-    wc_svr_native_save_mem = (u8 *)malloc(total);
+    wc_svr_native_save_mem_size = (size_t)nr_cpu_ids * 3U * (size_t)wc_svr_native_save_size + 63U;
+    wc_svr_native_save_mem = (u8 *)malloc(wc_svr_native_save_mem_size);
     if (wc_svr_native_save_mem == NULL) {
         pr_err("ERROR: allocation of %zu bytes for native register save"
-               " buffers failed.\n", total);
+               " buffers failed.\n", wc_svr_native_save_mem_size);
         free(wc_svr_native_states);
         wc_svr_native_states = NULL;
         return;
     }
-    XMEMSET(wc_svr_native_save_mem, 0, total);
+    XMEMSET(wc_svr_native_save_mem, 0, wc_svr_native_save_mem_size);
 
     aligned = PTR_ALIGN(wc_svr_native_save_mem, 64);
     /* cast: nr_cpu_ids is plain int on pre-4.15 kernels (treewide
@@ -1574,6 +1561,9 @@ static void wc_svr_native_init(void)
         cst->hardirq.save_area =
             cst->softirq.save_area + wc_svr_native_save_size;
         cst->hardirq.pin_preempt = 0;
+        cst->nmi.save_area =
+            cst->hardirq.save_area + wc_svr_native_save_size;
+        cst->nmi.pin_preempt = 0;
     }
 
     if (wc_svr_native_selftest() != 0) {
@@ -1618,6 +1608,12 @@ static int wc_svr_native_check_busy(void)
                    cpu_i, wc_svr_native_states[cpu_i].hardirq.depth);
             ++busy;
         }
+        if (wc_svr_native_states[cpu_i].nmi.depth != 0) {
+            pr_err("ERROR: wc_linuxkm_free_svr_states called with open native"
+                   " NMI section on CPU %u (depth %u).\n",
+                   cpu_i, wc_svr_native_states[cpu_i].nmi.depth);
+            ++busy;
+        }
     }
     return busy;
 }
@@ -1626,8 +1622,10 @@ static void wc_svr_native_free(void)
 {
     wc_svr_native_ready = 0;
     if (wc_svr_native_save_mem != NULL) {
+        ForceZero(wc_svr_native_save_mem, wc_svr_native_save_mem_size);
         free(wc_svr_native_save_mem);
         wc_svr_native_save_mem = NULL;
+        wc_svr_native_save_mem_size = 0;
     }
     if (wc_svr_native_states != NULL) {
         free(wc_svr_native_states);
@@ -1651,46 +1649,177 @@ WARN_UNUSED_RESULT int wc_linuxkm_svr_native_is_ready(void)
     return wc_svr_native_ready;
 }
 
+static WARN_UNUSED_RESULT int wc_svr_can_native_save(void) {
+    int cur_preempt_count = preempt_count();
+    struct wc_svr_native_ctx_state *ctx;
+
+    if (! wc_svr_native_ready)
+        return 0;
+
+    if (cur_preempt_count & NMI_MASK)
+        ctx = &wc_svr_native_here()->nmi;
+    else if (cur_preempt_count & HARDIRQ_MASK)
+        ctx = &wc_svr_native_here()->hardirq;
+    else if (in_serving_softirq())
+        ctx = &wc_svr_native_here()->softirq;
+    else {
+        wc_svr_disallowed_count_increment();
+        return 0;
+    }
+
+    if (ctx->depth > 0U) {
+        if (cur_preempt_count & NMI_MASK) {
+            wc_svr_disallowed_count_increment();
+        #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+            atomic_long_inc(&NMI_SVR_err_count);
+        #endif
+            return 0;
+        }
+        else if (unlikely(ctx->depth == ~0U)) {
+            wc_svr_disallowed_count_increment();
+        #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+            if (cur_preempt_count & HARDIRQ_MASK)
+                atomic_long_inc(&hardirq_SVR_err_count);
+            else if (cur_preempt_count)
+                atomic_long_inc(&softirq_SVR_err_count);
+            else
+                atomic_long_inc(&other_SVR_err_count);
+        #endif
+            return 0;
+        }
+        return 1;
+    }
+    else
+        return 1;
+}
+
 /* Open a native section in the given context class: count if one is already
  * open, else save and (for softirq) pin.  Serves only the plain save
  * flavor; callers filter _INHIBIT/_MAYBE_INHIBIT to the existing paths.
  */
-static WARN_UNUSED_RESULT int wc_svr_native_save(
-    struct wc_svr_native_ctx_state *ctx)
-{
+static WARN_UNUSED_RESULT int wc_svr_native_save(enum wc_svr_flags flags) {
+    int cur_preempt_count = preempt_count();
+    struct wc_svr_native_ctx_state *ctx;
+    int ret;
+
+    if (! wc_svr_native_ready) {
+        ret = WC_ACCEL_INHIBIT_E;
+        goto out;
+    }
+
+    if (flags & WC_SVR_FLAG_INHIBIT) {
+        ret = WC_ACCEL_INHIBIT_E;
+        goto out;
+    }
+
+    if (cur_preempt_count & NMI_MASK)
+        ctx = &wc_svr_native_here()->nmi;
+    else if (cur_preempt_count & HARDIRQ_MASK)
+        ctx = &wc_svr_native_here()->hardirq;
+    else if (in_serving_softirq())
+        ctx = &wc_svr_native_here()->softirq;
+    else {
+        ret = WC_ACCEL_INHIBIT_E;
+        wc_svr_disallowed_count_increment();
+    #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+        atomic_long_inc(&other_SVR_err_count);
+    #endif
+        goto out;
+    }
+
+#ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
+    /* Mirror the existing paths: injection at outermost depth only. */
+    if ((flags & WC_SVR_FLAG_FUZZ) && (ctx->depth == 0U)) {
+        int ret = SAVE_VECTOR_REGISTERS2_fuzzer();
+        if (ret != 0) {
+            wc_svr_disallowed_count_increment();
+            /* Bypass WC_SVR_PR_EMERG_ON_ACCEL_FALLBACK. */
+            return ret;
+        }
+    }
+#endif
+
     if (ctx->depth > 0U) {
-        if (unlikely(ctx->depth == ~0U)) {
+        if (cur_preempt_count & NMI_MASK) {
+            pr_warn_ratelimited("WARNING: wc_svr_native_save() rejected on CPU %d "
+                                "at NMI depth %lu after previous save at depth %u.\n",
+                                raw_smp_processor_id(),
+                                (preempt_count() & NMI_MASK) >> NMI_SHIFT,
+                                ctx->depth);
+            wc_svr_disallowed_count_increment();
+        #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+            atomic_long_inc(&NMI_SVR_err_count);
+        #endif
+            ret = WC_ACCEL_INHIBIT_E;
+            goto out;
+        }
+        else if (unlikely(ctx->depth == ~0U)) {
             pr_err_ratelimited("ERROR: wc_svr_native_save recursion count overflow on"
                    " CPU %d.\n", raw_smp_processor_id());
             wc_svr_disallowed_count_increment();
-            #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
-            if (in_nmi())
-                atomic_long_inc(&NMI_SVR_err_count);
-            else if (preempt_count() & HARDIRQ_MASK)
+        #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+            if (cur_preempt_count & HARDIRQ_MASK)
                 atomic_long_inc(&hardirq_SVR_err_count);
-            else if (preempt_count())
+            else if (cur_preempt_count)
                 atomic_long_inc(&softirq_SVR_err_count);
             else
                 atomic_long_inc(&other_SVR_err_count);
-            #endif
-            return BAD_STATE_E;
+        #endif
+            ret = WC_ACCEL_INHIBIT_E;
+            goto out;
         }
         ++ctx->depth;
-        return 0;
+        ret = 0;
+        goto out;
     }
 
     if (ctx->pin_preempt)
         preempt_disable();
 
     wc_svr_native_regs_save(ctx->save_area);
-    ctx->depth = 1;
+    if (cur_preempt_count & NMI_MASK)
+        ctx->depth = (cur_preempt_count & NMI_MASK) >> NMI_SHIFT;
+    else
+        ctx->depth = 1;
+    ret = 0;
 
-    return 0;
+out:
+
+#ifdef WC_SVR_PR_EMERG_ON_ACCEL_FALLBACK
+    if (ret != 0) {
+        pr_emerg_ratelimited("ERROR: wolfCrypt wc_svr_native_save() failing on CPU %d, preempt_count 0x%x, code %d.\n",
+                             raw_smp_processor_id(), cur_preempt_count, ret);
+    }
+#endif
+
+    return ret;
 }
 
-static void wc_svr_native_restore(struct wc_svr_native_ctx_state *ctx,
-                                  enum wc_svr_flags flags)
+static int wc_svr_native_restore(enum wc_svr_flags flags)
 {
+    int cur_preempt_count = preempt_count();
+    struct wc_svr_native_ctx_state *ctx;
+
+    if (! wc_svr_native_ready) {
+        wc_linuxkm_pr_err_ratelimited("BUG: wc_svr_native_restore() without wc_svr_native_ready.");
+        return NOT_READY_E;
+    }
+
+    if (cur_preempt_count & NMI_MASK)
+        ctx = &wc_svr_native_here()->nmi;
+    else if (cur_preempt_count & HARDIRQ_MASK)
+        ctx = &wc_svr_native_here()->hardirq;
+    else if (in_serving_softirq()) {
+        ctx = &wc_svr_native_here()->softirq;
+        /* softirq is often saved by regular ol' kernel_fpu_begin(). */
+        if (ctx->depth == 0)
+            return BAD_INDEX_E; /* overloaded local-use-only error code */
+    }
+    else {
+        /* shouldn't be here -- task context. */
+        return BAD_INDEX_E; /* overloaded local-use-only error code */
+    }
+
     if (unlikely(flags & WC_SVR_FLAG_INHIBIT)) {
         /* Native sections are opened by the plain and _MAYBE_INHIBIT
          * flavors (the latter when native service preempts the legacy
@@ -1698,16 +1827,33 @@ static void wc_svr_native_restore(struct wc_svr_native_ctx_state *ctx,
          * only an _INHIBIT-flavored restore against an open native section
          * is a caller pairing bug -- _INHIBIT never opens one.
          */
-        VRG_PR_WARN_X("BUG: wc_restore_vector_registers_x86() with inhibit"
+        wc_linuxkm_pr_err_ratelimited("BUG: wc_svr_native_restore() with inhibit"
                       " flags 0x%x on open native section (CPU %d,"
-                      " depth %u).\n",
+                      " depth %u, preempt_count 0x%x).\n",
                       (unsigned int)flags, raw_smp_processor_id(),
-                      ctx->depth);
+                      ctx->depth, preempt_count());
     }
 
-    if (ctx->depth > 1U) {
+    if (ctx->depth == 0) {
+        wc_linuxkm_pr_err_ratelimited("BUG: wc_svr_native_restore() with no saved state on CPU %d, preempt_count 0x%x.\n",
+                           raw_smp_processor_id(), preempt_count());
+        return BAD_INDEX_E;
+    }
+
+    if (in_nmi()) {
+        if (((preempt_count() & NMI_MASK) >> NMI_SHIFT) != ctx->depth) {
+            wc_linuxkm_pr_err_ratelimited("BUG: wc_svr_native_restore() NMI depth "
+                               "mismatch on CPU %d, current depth %lu, "
+                               "expected depth %u.\n",
+                               raw_smp_processor_id(),
+                               (preempt_count() & NMI_MASK) >> NMI_SHIFT,
+                               ctx->depth);
+            return BAD_INDEX_E;
+        }
+    }
+    else if (ctx->depth > 1U) {
         --ctx->depth;
-        return;
+        return 0;
     }
 
     wc_svr_native_regs_restore(ctx->save_area);
@@ -1715,6 +1861,8 @@ static void wc_svr_native_restore(struct wc_svr_native_ctx_state *ctx,
 
     if (ctx->pin_preempt)
         preempt_enable();
+
+    return 0;
 }
 
 #endif /* WC_SVR_USE_NATIVE_REG_BUFS */

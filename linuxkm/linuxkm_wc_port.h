@@ -261,7 +261,13 @@
 
     #if defined(WC_SVR_DONT_USE_NATIVE_REG_BUFS)
         #undef WC_SVR_USE_NATIVE_REG_BUFS
-    #elif defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && !defined(WC_SVR_USE_NATIVE_REG_BUFS)
+    #elif defined(CONFIG_X86) && \
+          defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && \
+          !defined(WC_SVR_USE_NATIVE_REG_BUFS)
+        /* x86-only: the native save/restore facility and its
+         * wc_linuxkm_svr_native_is_ready() accessor are implemented only in
+         * x86_vector_register_glue.c; auto-defining on ARM (which also sets
+         * WOLFSSL_USE_SAVE_VECTOR_REGISTERS) would break those builds. */
         #define WC_SVR_USE_NATIVE_REG_BUFS
     #endif
 
@@ -620,6 +626,34 @@
         WOLFSSL_API void *wc_linuxkm_realloc(void *ptr, size_t newsize);
         WOLFSSL_API size_t wc_linuxkm_malloc_usable_size(void *ptr);
     #endif
+
+    #include <linux/printk.h>
+    #include <linux/ratelimit.h>
+
+#ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+    #define wc_linuxkm_debugging_dump_stack() dump_stack()
+#else
+    #define wc_linuxkm_debugging_dump_stack() WC_DO_NOTHING
+#endif
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)
+    #define wc_linuxkm_pr_nmi_check() (! in_nmi())
+#else
+    #define wc_linuxkm_pr_nmi_check() 1
+#endif
+    /* Note, wc_linuxkm_pr_err_ratelimited(), by building on __ratelimit(), is trylock-only
+     * internally, adding no NMI risk; printk itself is NMI-safe >=4.10 (safe
+     * buffers; lockless ringbuffer >=5.10).  pre-4.10, no printk from NMI at
+     * all.
+     */
+    #define wc_linuxkm_pr_err_ratelimited(args...) do { \
+        if (wc_linuxkm_pr_nmi_check()) {                \
+            static DEFINE_RATELIMIT_STATE(_rls, HZ, 1); \
+            if (__ratelimit(&_rls)) {                   \
+                pr_err(args);                           \
+                wc_linuxkm_debugging_dump_stack();      \
+            }                                           \
+        }                                               \
+    } while (0)
 
 #ifndef WC_CONTAINERIZE_THIS
     #include <linux/kthread.h>
@@ -1896,8 +1930,10 @@
         (defined(RHEL_MAJOR) && \
          ((RHEL_MAJOR > 9) || ((RHEL_MAJOR == 9) && (RHEL_MINOR >= 5))))
         #define wc_km_printf(format, args...) _printk(KERN_INFO "wolfssl: %s(): " format, __func__, ## args)
-    #else
+    #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
         #define wc_km_printf(format, args...) printk(KERN_INFO "wolfssl: %s(): " format, __func__, ## args)
+    #else
+        #define wc_km_printf(format, args...) (in_nmi() ? 0 : printk(KERN_INFO "wolfssl: %s(): " format, __func__, ## args))
     #endif
     #define printf(...) wc_km_printf(__VA_ARGS__)
 
