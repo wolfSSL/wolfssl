@@ -27445,7 +27445,9 @@ int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
         /* Suppressing soft-fail responder errors. OCSP_CERT_REVOKED is an
          * explicit positive assertion of revocation and must not be ignored.
          * OCSP_NO_URL just means there is no responder to staple from;
-         * stapling stays best-effort. */
+         * stapling stays best-effort. OCSP_INVALID_STATUS is not suppressed
+         * here the way it is for the chain: this is the leaf the peer asked
+         * about, so failing to reach its responder fails the handshake. */
         if (ret == WC_NO_ERR_TRACE(OCSP_CERT_UNKNOWN) ||
             ret == WC_NO_ERR_TRACE(OCSP_LOOKUP_FAIL) ||
             ret == WC_NO_ERR_TRACE(OCSP_NO_URL)) {
@@ -28492,10 +28494,15 @@ int SendCertificateStatus(WOLFSSL* ssl)
                              * OCSP_CERT_REVOKED is an explicit positive
                              * assertion of revocation and must not be
                              * ignored. OCSP_NO_URL just means there is no
-                             * responder to staple from; stapling stays
-                             * best-effort. */
+                             * responder to staple from, and
+                             * OCSP_INVALID_STATUS covers every other result
+                             * the stapler could not turn into a usable
+                             * response - an unreachable responder, or a
+                             * cached entry with no raw response kept;
+                             * stapling stays best-effort. */
                             if (ret == WC_NO_ERR_TRACE(OCSP_CERT_UNKNOWN) ||
                                 ret == WC_NO_ERR_TRACE(OCSP_LOOKUP_FAIL) ||
+                                ret == WC_NO_ERR_TRACE(OCSP_INVALID_STATUS) ||
                                 ret == WC_NO_ERR_TRACE(OCSP_NO_URL)) {
                                 ret = 0;
                             }
@@ -28521,10 +28528,14 @@ int SendCertificateStatus(WOLFSSL* ssl)
                     /* Suppressing soft-fail responder errors.
                      * OCSP_CERT_REVOKED is an explicit positive assertion of
                      * revocation and must not be ignored. OCSP_NO_URL just
-                     * means there is no responder to staple from; stapling
-                     * stays best-effort. */
+                     * means there is no responder to staple from, and
+                     * OCSP_INVALID_STATUS covers every other result the
+                     * stapler could not turn into a usable response - an
+                     * unreachable responder, or a cached entry with no raw
+                     * response kept; stapling stays best-effort. */
                     if (ret == WC_NO_ERR_TRACE(OCSP_CERT_UNKNOWN) ||
                         ret == WC_NO_ERR_TRACE(OCSP_LOOKUP_FAIL) ||
+                        ret == WC_NO_ERR_TRACE(OCSP_INVALID_STATUS) ||
                         ret == WC_NO_ERR_TRACE(OCSP_NO_URL)) {
                         ret = 0;
                     }
