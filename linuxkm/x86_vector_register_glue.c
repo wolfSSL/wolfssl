@@ -28,8 +28,8 @@
 #endif
 
 #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
-    #define VRG_PR_ERR_X pr_err_ratelimited
-    #define VRG_PR_WARN_X pr_warn_ratelimited
+    #define VRG_PR_ERR_X wc_linuxkm_pr_err_ratelimited
+    #define VRG_PR_WARN_X wc_linuxkm_pr_warn_ratelimited
 #else
     #define VRG_PR_ERR_X pr_err_once
     #define VRG_PR_WARN_X pr_warn_once
@@ -110,6 +110,11 @@ struct wc_svr_native_cpu_state {
     struct wc_svr_native_ctx_state hardirq;
     struct wc_svr_native_ctx_state nmi;
 };
+
+wc_static_assert(sizeof(struct wc_svr_native_cpu_state) %
+                 sizeof(struct wc_svr_native_ctx_state) == 0);
+#define WC_SVR_NATIVE_CTX_PER_CPU ((sizeof(struct wc_svr_native_cpu_state) / \
+                                    sizeof(struct wc_svr_native_ctx_state)))
 
 static void wc_svr_native_init(void);
 static int wc_svr_native_check_busy(void);
@@ -308,7 +313,7 @@ static struct wc_thread_svr_count_ent *wc_linuxkm_svr_state_assoc_unlikely(int c
             slot_pid_struct = find_get_pid(slot_pid);
             if (slot_pid_struct == NULL) {
                 if (__atomic_compare_exchange_n(&slot->pid, &slot_pid, my_pid, 0 /* weak */, __ATOMIC_SEQ_CST, __ATOMIC_ACQUIRE)) {
-                    pr_warn("WARNING: wc_linuxkm_svr_state_assoc_unlikely fixed up orphaned slot on CPU %d owned by dead PID %d (age %ld ms).\n", my_cpu, slot_pid, WC_SVR_SLOT_AGE_MS(slot));
+                    wc_linuxkm_pr_warn_ratelimited("WARNING: wc_linuxkm_svr_state_assoc_unlikely fixed up orphaned slot on CPU %d owned by dead PID %d (age %ld ms).\n", my_cpu, slot_pid, WC_SVR_SLOT_AGE_MS(slot));
                     slot->reserved_at = jiffies;
                     return slot;
                 }
@@ -320,12 +325,9 @@ static struct wc_thread_svr_count_ent *wc_linuxkm_svr_state_assoc_unlikely(int c
             {
                 static int _warned_on_mismatched_pid = 0;
                 if (_warned_on_mismatched_pid < 10) {
-                    pr_warn("WARNING: wc_linuxkm_svr_state_assoc called by pid %d on CPU %d"
+                    wc_linuxkm_pr_warn_ratelimited("WARNING: wc_linuxkm_svr_state_assoc called by pid %d on CPU %d"
                             " but CPU slot already reserved by pid %d (age %ld ms).\n",
                             my_pid, my_cpu, slot_pid, WC_SVR_SLOT_AGE_MS(slot));
-                    #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
-                    dump_stack();
-                    #endif
                     ++_warned_on_mismatched_pid;
                 }
             }
@@ -342,24 +344,44 @@ static struct wc_thread_svr_count_ent *wc_linuxkm_svr_state_assoc_unlikely(int c
          * I/O occurred while locked, e.g. kernel messages like "uninitialized
          * urandom read".  since we're locked now, we can safely migrate the
          * entry in wc_linuxkm_svr_states[], freeing up the slot on the previous
-         * cpu.
+         * cpu -- but only into an empty local slot: overwriting a live
+         * association (e.g. two tasks that swapped CPUs, each holding open
+         * sections) would orphan the other task's state and unbalance its
+         * restore.  if the local slot is occupied -- by a live pid or by
+         * WC_SVR_IDLE_PID -- return the entry in place instead: slot
+         * locality is an optimization, this same scan finds the entry
+         * wherever it lives, and release is by pointer.
          */
         unsigned int cpu_i;
         for (cpu_i = 0; cpu_i < wc_linuxkm_svr_states_n_tracked; ++cpu_i) {
+            pid_t expected_free = WC_SVR_FREE_SLOT_PID;
             if (__atomic_load_n(
                     &wc_linuxkm_svr_states[cpu_i].pid,
                     __ATOMIC_CONSUME)
-                == my_pid)
+                != my_pid)
             {
-                wc_linuxkm_svr_states[my_cpu] = wc_linuxkm_svr_states[cpu_i];
+                continue;
+            }
+            if (__atomic_compare_exchange_n(
+                    &wc_linuxkm_svr_states[my_cpu].pid, &expected_free,
+                    my_pid, 0 /* weak */, __ATOMIC_SEQ_CST, __ATOMIC_ACQUIRE))
+            {
+                wc_linuxkm_svr_states[my_cpu].fpu_state =
+                    wc_linuxkm_svr_states[cpu_i].fpu_state;
+                wc_linuxkm_svr_states[my_cpu].reserved_at =
+                    wc_linuxkm_svr_states[cpu_i].reserved_at;
                 __atomic_store_n(&wc_linuxkm_svr_states[cpu_i].fpu_state, 0,
                                  __ATOMIC_RELEASE);
                 __atomic_store_n(&wc_linuxkm_svr_states[cpu_i].pid, WC_SVR_FREE_SLOT_PID,
                                  __ATOMIC_RELEASE);
-                /* don't clear the .reserved_at member -- it's invalidated by
-                 * the .pid assignment, and it might prove useful
-                 * forensically. */
+                /* don't clear the source .reserved_at member -- it's
+                 * invalidated by the .pid assignment, and it might prove
+                 * useful forensically. */
                 return &wc_linuxkm_svr_states[my_cpu];
+            }
+            else {
+                /* local slot occupied -- serve the entry where it stands. */
+                return &wc_linuxkm_svr_states[cpu_i];
             }
         }
         return NULL;
@@ -489,14 +511,14 @@ WARN_UNUSED_RESULT int wc_can_save_vector_registers_x86(void)
         ret = wc_svr_can_native_save();
         goto out;
 #else /* !WC_SVR_USE_NATIVE_REG_BUFS */
-#ifdef DEBUG_VECTOR_REGISTER_ACCESS_HARDIRQ_INFO
-        pr_info("HARDIRQ_INFO: wc_can_save_vector_registers_x86() with preempt_count 0x%x, PID %d, CPU %d\n",
-                preempt_count(), task_pid_nr(current), raw_smp_processor_id());
-        dump_stack();
-#endif
+        ret = 0;
         wc_svr_disallowed_count_increment();
     #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
         atomic_long_inc(&hardirq_SVR_err_count);
+    #endif
+    #ifdef DEBUG_VECTOR_REGISTER_ACCESS_HARDIRQ_INFO
+        wc_linuxkm_pr_info_ratelimited("HARDIRQ_INFO: wc_can_save_vector_registers_x86() with preempt_count 0x%x, PID %d, CPU %d\n",
+                preempt_count(), task_pid_nr(current), raw_smp_processor_id());
     #endif
         goto out;
 #endif /* !WC_SVR_USE_NATIVE_REG_BUFS */
@@ -548,7 +570,7 @@ WARN_UNUSED_RESULT int wc_can_save_vector_registers_x86(void)
 out:
 #ifdef WC_SVR_PR_EMERG_ON_ACCEL_FALLBACK
     if (! ret) {
-        pr_emerg_ratelimited("ERROR: wc_can_save_vector_registers_x86() returning false on CPU %d, preempt_count 0x%x, pstate->fpu_state 0x%x, code %d.\n",
+        wc_linuxkm_pr_emerg_ratelimited("ERROR: wc_can_save_vector_registers_x86() returning false on CPU %d, preempt_count 0x%x, pstate->fpu_state 0x%x, code %d.\n",
                              raw_smp_processor_id(), cur_preempt_count, pstate ? pstate->fpu_state : 0, ret);
     }
 #endif
@@ -586,9 +608,8 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
         return wc_svr_native_save(flags);
 #endif /* WC_SVR_USE_NATIVE_REG_BUFS */
 #ifdef DEBUG_VECTOR_REGISTER_ACCESS_HARDIRQ_INFO
-        pr_info("HARDIRQ_INFO: wc_save_vector_registers_x86() with preempt_count 0x%x, PID %d, CPU %d\n",
+        wc_linuxkm_pr_info_ratelimited("HARDIRQ_INFO: wc_save_vector_registers_x86() with preempt_count 0x%x, PID %d, CPU %d\n",
                 cur_preempt_count, task_pid_nr(current), raw_smp_processor_id());
-        dump_stack();
 #endif
         wc_svr_disallowed_count_increment();
         ret = WC_ACCEL_INHIBIT_E;
@@ -628,7 +649,7 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
         if (unlikely((pstate->fpu_state & WC_SVR_COUNT_MASK)
                      == WC_SVR_COUNT_MASK))
         {
-            pr_err("ERROR: wc_save_vector_registers_x86 recursion register overflow for "
+            wc_linuxkm_pr_err_ratelimited("ERROR: wc_save_vector_registers_x86 recursion register overflow for "
                    "pid %d on CPU %d (age %ld ms).\n", pstate->pid, raw_smp_processor_id(),
                    WC_SVR_SLOT_AGE_MS(pstate));
             wc_svr_disallowed_count_increment();
@@ -819,8 +840,6 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
         ret = 0;
         goto out;
     } else {
-        static DEFINE_RATELIMIT_STATE(vrg_contend_rs, HZ, 1);
-
 #ifdef WC_SVR_USE_NATIVE_REG_BUFS
         /* Native service for softirq contention (canonically: this softirq
          * interrupted a foreign kernel_fpu section, on a pre-6.15 kernel
@@ -851,30 +870,17 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
             #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 15, 0)
 
             #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
-            if (__ratelimit(&vrg_contend_rs)) {
-                pr_info("INFO: !may_use_simd() in wc_save_vector_registers_x86() on CPU %d PID %d (%s) with preempt_count 0x%x.\n", raw_smp_processor_id(), task_pid_nr(current), current->comm, cur_preempt_count);
-                dump_stack();
-            }
+            wc_linuxkm_pr_info_ratelimited("INFO: !may_use_simd() in wc_save_vector_registers_x86() on CPU %d PID %d (%s) with preempt_count 0x%x.\n", raw_smp_processor_id(), task_pid_nr(current), current->comm, cur_preempt_count);
             #endif /* WOLFSSL_LINUXKM_VERBOSE_DEBUG */
 
             #else /* >=6.15.0 */
 
-            if (__ratelimit(&vrg_contend_rs)) {
-                pr_warn("WARNING: !may_use_simd() in wc_save_vector_registers_x86 called with no saved state on CPU %d PID %d (%s) with preempt_count 0x%x.\n", raw_smp_processor_id(), task_pid_nr(current), current->comm, cur_preempt_count);
-            #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
-                dump_stack();
-            #endif
-            }
+            wc_linuxkm_pr_warn_ratelimited("WARNING: !may_use_simd() in wc_save_vector_registers_x86 called with no saved state on CPU %d PID %d (%s) with preempt_count 0x%x.\n", raw_smp_processor_id(), task_pid_nr(current), current->comm, cur_preempt_count);
 
             #endif /* >=6.15.0 */
         }
         else {
-            if (__ratelimit(&vrg_contend_rs)) {
-                pr_warn("WARNING: !may_use_simd() in wc_save_vector_registers_x86 called with no saved state on CPU %d PID %d (%s) with preempt_count 0x%x.\n", raw_smp_processor_id(), task_pid_nr(current), current->comm, cur_preempt_count);
-            #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
-                dump_stack();
-            #endif
-            }
+            wc_linuxkm_pr_warn_ratelimited("WARNING: !may_use_simd() in wc_save_vector_registers_x86 called with no saved state on CPU %d PID %d (%s) with preempt_count 0x%x.\n", raw_smp_processor_id(), task_pid_nr(current), current->comm, cur_preempt_count);
         }
 
         wc_svr_disallowed_count_increment();
@@ -884,7 +890,7 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
 out:
 #ifdef WC_SVR_PR_EMERG_ON_ACCEL_FALLBACK
     if (ret != 0) {
-        pr_emerg_ratelimited("ERROR: wc_save_vector_registers_x86() failing on CPU %d, preempt_count 0x%x, pstate->fpu_state 0x%x, code %d.\n",
+        wc_linuxkm_pr_emerg_ratelimited("ERROR: wc_save_vector_registers_x86() failing on CPU %d, preempt_count 0x%x, pstate->fpu_state 0x%x, code %d.\n",
                              raw_smp_processor_id(), cur_preempt_count, pstate ? pstate->fpu_state : 0, ret);
     }
 #endif
@@ -1463,7 +1469,7 @@ static void wc_svr_native_init(void)
          * environments are visible in the log (FIPS pre-Init lazy path,
          * irqs-off wolfCrypt_Init(), etc).
          */
-        pr_info("wc_svr_native_init in atomic context: preempt_count 0x%x,"
+        wc_linuxkm_pr_info_ratelimited("wc_svr_native_init in atomic context: preempt_count 0x%x,"
                 " irqs_disabled %d.\n",
                 preempt_count(), irqs_disabled() ? 1 : 0);
     }
@@ -1539,7 +1545,10 @@ static void wc_svr_native_init(void)
      * is the invariant that keeps every later XRSTOR well-formed (SDM vol. 1
      * ch. 13).
      */
-    wc_svr_native_save_mem_size = (size_t)nr_cpu_ids * 3U * (size_t)wc_svr_native_save_size + 63U;
+    wc_svr_native_save_mem_size =
+        (size_t)nr_cpu_ids *
+        WC_SVR_NATIVE_CTX_PER_CPU *
+        (size_t)wc_svr_native_save_size + 63U;
     wc_svr_native_save_mem = (u8 *)malloc(wc_svr_native_save_mem_size);
     if (wc_svr_native_save_mem == NULL) {
         pr_err("ERROR: allocation of %zu bytes for native register save"
@@ -1556,7 +1565,8 @@ static void wc_svr_native_init(void)
     for (cpu_i = 0; cpu_i < (unsigned int)nr_cpu_ids; ++cpu_i) {
         struct wc_svr_native_cpu_state *cst = &wc_svr_native_states[cpu_i];
         cst->softirq.save_area =
-            aligned + ((size_t)cpu_i * 2U * wc_svr_native_save_size);
+            aligned + ((size_t)cpu_i * WC_SVR_NATIVE_CTX_PER_CPU *
+                       wc_svr_native_save_size);
         cst->softirq.pin_preempt = 1;
         cst->hardirq.save_area =
             cst->softirq.save_area + wc_svr_native_save_size;
@@ -1578,9 +1588,9 @@ static void wc_svr_native_init(void)
 
 #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
     pr_info("wolfCrypt: native register save buffers enabled (%s, %u bytes"
-            " x 2 x %u CPUs).\n",
+            " x %zu x %u CPUs).\n",
             wc_svr_native_use_xsave ? "xsave" : "fxsave",
-            wc_svr_native_save_size, nr_cpu_ids);
+            wc_svr_native_save_size, WC_SVR_NATIVE_CTX_PER_CPU, nr_cpu_ids);
 #endif
 }
 
@@ -1741,7 +1751,7 @@ static WARN_UNUSED_RESULT int wc_svr_native_save(enum wc_svr_flags flags) {
 
     if (ctx->depth > 0U) {
         if (cur_preempt_count & NMI_MASK) {
-            pr_warn_ratelimited("WARNING: wc_svr_native_save() rejected on CPU %d "
+            wc_linuxkm_pr_warn_ratelimited("WARNING: wc_svr_native_save() rejected on CPU %d "
                                 "at NMI depth %lu after previous save at depth %u.\n",
                                 raw_smp_processor_id(),
                                 (preempt_count() & NMI_MASK) >> NMI_SHIFT,
@@ -1754,7 +1764,7 @@ static WARN_UNUSED_RESULT int wc_svr_native_save(enum wc_svr_flags flags) {
             goto out;
         }
         else if (unlikely(ctx->depth == ~0U)) {
-            pr_err_ratelimited("ERROR: wc_svr_native_save recursion count overflow on"
+            wc_linuxkm_pr_err_ratelimited("ERROR: wc_svr_native_save recursion count overflow on"
                    " CPU %d.\n", raw_smp_processor_id());
             wc_svr_disallowed_count_increment();
         #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
@@ -1787,7 +1797,7 @@ out:
 
 #ifdef WC_SVR_PR_EMERG_ON_ACCEL_FALLBACK
     if (ret != 0) {
-        pr_emerg_ratelimited("ERROR: wolfCrypt wc_svr_native_save() failing on CPU %d, preempt_count 0x%x, code %d.\n",
+        wc_linuxkm_pr_emerg_ratelimited("ERROR: wolfCrypt wc_svr_native_save() failing on CPU %d, preempt_count 0x%x, code %d.\n",
                              raw_smp_processor_id(), cur_preempt_count, ret);
     }
 #endif
@@ -1801,7 +1811,7 @@ static int wc_svr_native_restore(enum wc_svr_flags flags)
     struct wc_svr_native_ctx_state *ctx;
 
     if (! wc_svr_native_ready) {
-        wc_linuxkm_pr_err_ratelimited("BUG: wc_svr_native_restore() without wc_svr_native_ready.");
+        wc_linuxkm_pr_err_ratelimited("BUG: wc_svr_native_restore() without wc_svr_native_ready.\n");
         return NOT_READY_E;
     }
 
