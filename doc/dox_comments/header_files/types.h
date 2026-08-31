@@ -233,6 +233,68 @@ char* wc_strsep(char **stringp, const char *delim);
 size_t wc_strlcpy(char *dst, const char *src, size_t dstSize);
 
 /*!
+    \ingroup wolfCrypt
+    \brief Expands a packed octet stream into the one-octet-per-byte-cell form
+    every wolfCrypt byte* API expects. Declared only when WOLFSSL_WIDE_BYTE is
+    set (CHAR_BIT != 8); elsewhere the two layouts coincide and no conversion
+    is needed.
+
+    \return 0 on success
+    \return BAD_FUNC_ARG when out or in is NULL
+    \return BUFFER_E when out is smaller than octetSz, or in smaller than
+    WC_PACKED_CELLS(octetSz)
+
+    \param out Destination, one octet per cell
+    \param outSz Size of out in byte cells
+    \param in Packed source, WC_OCTETS_PER_BYTE octets per cell, low octet
+    first, and must not overlap out
+    \param inSz Size of in in byte cells; must be at least
+    WC_PACKED_CELLS(octetSz)
+    \param octetSz Number of octets to expand
+
+    _Example_
+    \code
+    byte sig[WC_MLDSA_65_SIG_SIZE];
+    int ret = wc_UnpackOctets(sig, (word32)sizeof(sig), sigPacked,
+                              (word32)sizeof(sigPacked),
+                              WC_MLDSA_65_SIG_SIZE);
+    \endcode
+
+    \sa wc_PackOctets
+*/
+int wc_UnpackOctets(byte* out, word32 outSz, const byte* in, word32 inSz,
+                    word32 octetSz);
+
+/*!
+    \ingroup wolfCrypt
+    \brief Packs a one-octet-per-byte-cell buffer into an octet stream, for
+    storing to flash or handing to a byte-oriented peripheral. Inverse of
+    wc_UnpackOctets(); requires WOLFSSL_WIDE_BYTE.
+
+    \return 0 on success
+    \return BAD_FUNC_ARG when out or in is NULL
+    \return BUFFER_E when out is smaller than WC_PACKED_CELLS(octetSz), or
+    in smaller than octetSz
+
+    \param out Destination for the packed stream
+    \param outSz Size of out in byte cells
+    \param in Source, one octet per cell, and must not overlap out
+    \param inSz Size of in in byte cells; must be at least octetSz
+    \param octetSz Number of octets to pack
+
+    _Example_
+    \code
+    byte packed[WC_PACKED_CELLS(sizeof(sig))];
+    int ret = wc_PackOctets(packed, (word32)sizeof(packed), sig,
+                            (word32)sizeof(sig), (word32)sizeof(sig));
+    \endcode
+
+    \sa wc_UnpackOctets
+*/
+int wc_PackOctets(byte* out, word32 outSz, const byte* in, word32 inSz,
+                  word32 octetSz);
+
+/*!
     \ingroup String
     \brief Safely concatenates strings with size limit.
 

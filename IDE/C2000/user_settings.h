@@ -12,6 +12,15 @@
 #define TI_C2000_CI_USER_SETTINGS_H
 
 #define WOLFCRYPT_ONLY              /* crypto only - no TLS (no MD5/SHA1 dep) */
+/* The C28x has a 16-bit int as well as a 16-bit char, so this models the real
+ * target rather than a half-configured one.  It is a broad switch, not just an
+ * OID knob: settings.h and types.h key several decisions off it - the old
+ * 16-bit-safe OID sums (without which the 32-bit sums in wc_OidGetHash()
+ * collide once truncated to int and hash.c will not compile), MP_16BIT for the
+ * big-int backends, the small GCM tables, WORD64_AVAILABLE handling, and the
+ * ML-DSA cl2000 codegen workarounds in dilithium.h.  The reference example
+ * defines it too; keep the two in step. */
+#define WC_16BIT_CPU
 #define WOLFSSL_GENERAL_ALIGNMENT 2
 #define HAVE_LIMITS_H
 #define WOLFSSL_NO_ASM
@@ -61,10 +70,11 @@
 #define HAVE_ED448
 #define ED448_SMALL
 
-/* ML-DSA-87 verify (smallest-mem streaming verifier) */
+/* ML-DSA verify, all three parameter sets (smallest-mem streaming) */
 #define WOLFSSL_HAVE_MLDSA
-#define WOLFSSL_NO_ML_DSA_44
-#define WOLFSSL_NO_ML_DSA_65
+/* All three parameter sets: level 44 is the only one whose w1 commitment
+ * encoder packs 6-bit values (mldsa_encode_w1_88_c), so without it this guard
+ * would not compile the very code the CHAR_BIT != 8 masking protects. */
 #define WOLFSSL_MLDSA_NO_ASN1
 #define WOLFSSL_MLDSA_VERIFY_ONLY
 #define WOLFSSL_MLDSA_VERIFY_SMALL_MEM

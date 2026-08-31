@@ -343,7 +343,7 @@ static void sp_2048_from_mp(sp_digit* r, int size, const mp_int* a)
         /* Recompute mask for the next read index, then advance o by -mask
          * (0 or 1) so it only moves while another digit remains. */
         mask = (mp_digit)0 - (((mp_digit)(i + 1U) - (mp_digit)(unsigned int)a->used) >>
-            (sizeof(mp_digit) * 8 - 1));
+            (sizeof(mp_digit) * CHAR_BIT - 1));
         o += (int)((mp_digit)0 - mask);
     }
 
@@ -7380,7 +7380,7 @@ static void sp_3072_from_mp(sp_digit* r, int size, const mp_int* a)
         /* Recompute mask for the next read index, then advance o by -mask
          * (0 or 1) so it only moves while another digit remains. */
         mask = (mp_digit)0 - (((mp_digit)(i + 1U) - (mp_digit)(unsigned int)a->used) >>
-            (sizeof(mp_digit) * 8 - 1));
+            (sizeof(mp_digit) * CHAR_BIT - 1));
         o += (int)((mp_digit)0 - mask);
     }
 
@@ -17128,7 +17128,7 @@ static void sp_4096_from_mp(sp_digit* r, int size, const mp_int* a)
         /* Recompute mask for the next read index, then advance o by -mask
          * (0 or 1) so it only moves while another digit remains. */
         mask = (mp_digit)0 - (((mp_digit)(i + 1U) - (mp_digit)(unsigned int)a->used) >>
-            (sizeof(mp_digit) * 8 - 1));
+            (sizeof(mp_digit) * CHAR_BIT - 1));
         o += (int)((mp_digit)0 - mask);
     }
 
@@ -22680,7 +22680,7 @@ static void sp_256_from_mp(sp_digit* r, int size, const mp_int* a)
         /* Recompute mask for the next read index, then advance o by -mask
          * (0 or 1) so it only moves while another digit remains. */
         mask = (mp_digit)0 - (((mp_digit)(i + 1U) - (mp_digit)(unsigned int)a->used) >>
-            (sizeof(mp_digit) * 8 - 1));
+            (sizeof(mp_digit) * CHAR_BIT - 1));
         o += (int)((mp_digit)0 - mask);
     }
 
@@ -43760,7 +43760,7 @@ static void sp_384_from_mp(sp_digit* r, int size, const mp_int* a)
         /* Recompute mask for the next read index, then advance o by -mask
          * (0 or 1) so it only moves while another digit remains. */
         mask = (mp_digit)0 - (((mp_digit)(i + 1U) - (mp_digit)(unsigned int)a->used) >>
-            (sizeof(mp_digit) * 8 - 1));
+            (sizeof(mp_digit) * CHAR_BIT - 1));
         o += (int)((mp_digit)0 - mask);
     }
 
@@ -71034,7 +71034,7 @@ static void sp_521_from_mp(sp_digit* r, int size, const mp_int* a)
         /* Recompute mask for the next read index, then advance o by -mask
          * (0 or 1) so it only moves while another digit remains. */
         mask = (mp_digit)0 - (((mp_digit)(i + 1U) - (mp_digit)(unsigned int)a->used) >>
-            (sizeof(mp_digit) * 8 - 1));
+            (sizeof(mp_digit) * CHAR_BIT - 1));
         o += (int)((mp_digit)0 - mask);
     }
 
@@ -115626,7 +115626,7 @@ static void sp_1024_from_mp(sp_digit* r, int size, const mp_int* a)
         /* Recompute mask for the next read index, then advance o by -mask
          * (0 or 1) so it only moves while another digit remains. */
         mask = (mp_digit)0 - (((mp_digit)(i + 1U) - (mp_digit)(unsigned int)a->used) >>
-            (sizeof(mp_digit) * 8 - 1));
+            (sizeof(mp_digit) * CHAR_BIT - 1));
         o += (int)((mp_digit)0 - mask);
     }
 

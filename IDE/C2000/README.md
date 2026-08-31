@@ -12,7 +12,9 @@ etc.). On normal 8-bit-byte targets none of this code changes behavior.
 - SHA-1; SHA-224/256, SHA-384/512, SHA-512/224, SHA-512/256
 - SHA3-224/256/384/512, SHAKE128/256 (split-64 Keccak permutation auto-enabled
   for `WOLFSSL_WIDE_BYTE`, ~53% faster than the generic C path)
-- ML-DSA-44/65/87 (Dilithium) verify and full keygen/sign/verify;
+- ML-DSA-44/65/87 (Dilithium) verify, including the HashML-DSA (pre-hash)
+  `wc_MlDsaKey_VerifyCtxHash()` path over SHA-256 and SHA-512 with a non-empty
+  context, and full ML-DSA-87 keygen/sign/verify;
   ML-KEM-512/768/1024 (FIPS 203)
 - AES-128/192/256 CBC/CTR/CFB/OFB/GCM/XTS; AES-CMAC, AES-CCM, AES-GMAC,
   AES-SIV, AES-EAX
@@ -26,6 +28,48 @@ prints over JTAG (e.g. `ML-DSA-87 verify KAT: PASS`, `X448 a*Bpub: PASS`); the
 split-64 Keccak path is additionally validated on a host build with
 `-DWC_SHA3_SPLIT64` forced, and the compile-only CI below guards every
 `WOLFSSL_WIDE_BYTE` source against build breakage.
+
+## Octet representation at the API boundary
+
+**Every wolfCrypt `byte*` buffer holds exactly one octet per `byte` cell** -
+keys, signatures, digests, ciphertext alike. On a normal target a cell is 8
+bits, so that is a packed octet stream. On the C28x a cell is 16 bits, so the
+same buffer costs twice the RAM and each cell reads as `0x00nn`. The octet
+*values* are unchanged, so this is a footprint property, not an integrity one:
+an ML-DSA-65 signature is 3309 octets = 3309 cells = 6618 bytes of RAM,
+`sizeof(sig)` is 3309, and length arguments such as `sigLen` are octet counts
+throughout.
+
+Data arriving from outside the CPU - flash, SCI, CAN, a host tool - is
+different: it is **packed**, `CHAR_BIT / 8` octets per cell, low octet first
+(the order TI's `__byte()` uses). Convert at the boundary with
+`wc_UnpackOctets()`, and `wc_PackOctets()` on the way back out:
+
+
+```c
+static byte sig[WC_MLDSA_65_SIG_SIZE];      /* 3309 cells, one octet each */
+
+/* sigPacked: WC_PACKED_CELLS(3309) cells as stored in flash. */
+if (wc_UnpackOctets(sig, (word32)sizeof(sig), sigPacked,
+                    (word32)sizeof(sigPacked), WC_MLDSA_65_SIG_SIZE) == 0) {
+    ret = wc_MlDsaKey_VerifyCtxHash(key, sig, WC_MLDSA_65_SIG_SIZE,
+                                    ctx, ctxLen, hash, hashLen,
+                                    WC_HASH_TYPE_SHA256, &res);
+}
+```
+
+
+Both are declared only under `WOLFSSL_WIDE_BYTE`, since on an 8-bit-byte target
+the packed and unpacked layouts are the same buffer and there is nothing to
+convert. `WC_OCTETS_PER_BYTE` and `WC_PACKED_CELLS()` are always available for
+sizing. Source and destination must not overlap. Note that a C array literal
+needs no unpacking - `static const byte sig[] = { 0xaa, ... }` is already one
+octet per cell - and no API needs a "wide" variant; only the transport layout
+differs.
+
+The reference example's `make MLDSA=1` image exercises this on hardware:
+ML-DSA-44/65/87 verify, `wc_MlDsaKey_VerifyCtxHash()` over SHA-256 and SHA-512,
+and a verify from a packed key and signature.
 
 ## What `WOLFSSL_WIDE_BYTE` fixes
 
@@ -47,9 +91,14 @@ The `CHAR_BIT != 8` work falls into a few recurring classes, each a no-op on
 - `sizeof` counting cells, not octets. e.g. `CHACHA_CHUNK_BYTES` is `16 * 4`,
   not `16 * sizeof(word32)` (= 32 on C28x, which halves the ChaCha block).
 
-The SP backend file `wolfcrypt/src/sp_c32.c` is generated; the `& 0xFF` octet
-masks added to its `sp_*_to_bin_*` serializers are also applied in the SP
-generator templates so a regeneration preserves them (tracked separately).
+The SP backend file `wolfcrypt/src/sp_c32.c` is generated and carries two
+`CHAR_BIT != 8` fixes: the `& 0xFF` octet masks in `sp_*_to_bin_*`, and
+`sizeof(mp_digit) * CHAR_BIT` (not `* 8`) in the `sp_*_from_mp` constant-time
+mask. Both now come from the SP generator templates (`sp/conv.rb` in the
+wolfSSL scripts repo). A regeneration with older templates drops them, which
+breaks ECDSA, ECDH, RSA and DH on the C28x while leaving every 8-bit-byte build
+and all hardware-free CI green - this has happened once already. After any SP
+regeneration, re-check with `./regress.sh ecc rsa dh`.
 
 ## cl2000 compiler workarounds
 
@@ -81,8 +130,8 @@ math backend on a 16-bit-int target also set `WOLFSSL_SP_MATH`,
 A complete bare-metal example with KATs, benchmark, linker scripts, and per-
 algorithm build toggles is in wolfSSL Examples:
 `embedded/ti-c2000-f28p55x/` (see its `README.md` for the `make` options:
-`ECC`, `MLKEM`, `AES`, `AESEXTRA`, `X25519`, `HKDF`, `CHACHA`, `RSA`, `SIGN`,
-`BENCH`).
+`ECC`, `MLKEM`, `MLDSA`, `AES`, `AESEXTRA`, `X25519`, `HKDF`, `CHACHA`,
+`RSA`, `SIGN`, `BENCH`).
 
 Representative throughput on the F28P55X at 150 MHz: SHA-256 ~284 KiB/s; SHA3-256
 ~264 KiB/s; SHAKE128 ~319 KiB/s; RNG Hash-DRBG ~122 KiB/s. ML-DSA-87 verify

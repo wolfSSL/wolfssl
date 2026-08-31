@@ -36,11 +36,9 @@ CFLAGS="-v28 --abi=eabi --float_support=fpu32 --tmu_support=tmu1 -O2 \
 
 # wolfCrypt sources to compile-guard under CHAR_BIT==16.  This is the set that
 # carries the CHAR_BIT != 8 gated fixes (plus their direct deps) - the
-# regression surface for this port.  hash.c (an unmodified dispatch wrapper) is
-# intentionally omitted: its wc_OidGetHash() OID switch needs the fuller ASN/OID
-# config of a real build to avoid a 16-bit-int case-label fold, and it is
-# covered by the on-target example build, not by this minimal guard.
-SRCS="error wc_port memory logging misc coding \
+# regression surface for this port, plus hash.c, which HashML-DSA
+# (wc_MlDsaKey_VerifyCtxHash) calls for the digest size and OID.
+SRCS="error wc_port memory logging misc coding hash \
   sha sha256 sha512 sha3 wc_mldsa random ecc sp_int sp_c32 \
   aes cmac chacha poly1305 \
   curve25519 ed25519 fe_operations ge_operations \

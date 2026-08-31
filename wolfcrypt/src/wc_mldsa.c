@@ -2492,18 +2492,21 @@ static void mldsa_encode_w1_88_c(const sword32* w1, byte* w1e)
                             ((word32)w1[j+14] << 20) |
                             ((word32)w1[j+15] << 26)));
 #else
-        w1e[ 0] = (byte)( w1[j+ 0]       | (w1[j+ 1] << 6));
-        w1e[ 1] = (byte)((w1[j+ 1] >> 2) | (w1[j+ 2] << 4));
-        w1e[ 2] = (byte)((w1[j+ 2] >> 4) | (w1[j+ 3] << 2));
-        w1e[ 3] = (byte)( w1[j+ 4]       | (w1[j+ 5] << 6));
-        w1e[ 4] = (byte)((w1[j+ 5] >> 2) | (w1[j+ 6] << 4));
-        w1e[ 5] = (byte)((w1[j+ 6] >> 4) | (w1[j+ 7] << 2));
-        w1e[ 6] = (byte)( w1[j+ 8]       | (w1[j+ 9] << 6));
-        w1e[ 7] = (byte)((w1[j+ 9] >> 2) | (w1[j+10] << 4));
-        w1e[ 8] = (byte)((w1[j+10] >> 4) | (w1[j+11] << 2));
-        w1e[ 9] = (byte)( w1[j+12]       | (w1[j+13] << 6));
-        w1e[10] = (byte)((w1[j+13] >> 2) | (w1[j+14] << 4));
-        w1e[11] = (byte)((w1[j+14] >> 4) | (w1[j+15] << 2));
+        /* 6-bit values: a shifted operand reaches 43 << 6 = 2752, which a
+         * (byte) cast does not reduce to an octet where CHAR_BIT != 8.  The
+         * 4-bit packer below cannot exceed an octet and needs no mask. */
+        w1e[ 0] = WC_OCTET( w1[j+ 0]       | (w1[j+ 1] << 6));
+        w1e[ 1] = WC_OCTET((w1[j+ 1] >> 2) | (w1[j+ 2] << 4));
+        w1e[ 2] = WC_OCTET((w1[j+ 2] >> 4) | (w1[j+ 3] << 2));
+        w1e[ 3] = WC_OCTET( w1[j+ 4]       | (w1[j+ 5] << 6));
+        w1e[ 4] = WC_OCTET((w1[j+ 5] >> 2) | (w1[j+ 6] << 4));
+        w1e[ 5] = WC_OCTET((w1[j+ 6] >> 4) | (w1[j+ 7] << 2));
+        w1e[ 6] = WC_OCTET( w1[j+ 8]       | (w1[j+ 9] << 6));
+        w1e[ 7] = WC_OCTET((w1[j+ 9] >> 2) | (w1[j+10] << 4));
+        w1e[ 8] = WC_OCTET((w1[j+10] >> 4) | (w1[j+11] << 2));
+        w1e[ 9] = WC_OCTET( w1[j+12]       | (w1[j+13] << 6));
+        w1e[10] = WC_OCTET((w1[j+13] >> 2) | (w1[j+14] << 4));
+        w1e[11] = WC_OCTET((w1[j+14] >> 4) | (w1[j+15] << 2));
 #endif
         /* Move to next place to encode to. */
         w1e += MLDSA_Q_HI_88_ENC_BITS * 2;
