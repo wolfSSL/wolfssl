@@ -689,6 +689,7 @@ int wc_SlhDsaKey_CheckKey(SlhDsaKey* key);
 
     \return 0 成功した場合に返されます。
     \return BAD_FUNC_ARG key、out、outLenのいずれかがNULLの場合に返されます。
+    \return MISSING_KEY 秘密鍵が設定されていない場合に返されます。
     \return BUFFER_E 出力バッファが小さすぎる場合に返されます。
 
     \param [in] key 秘密鍵を保持するSlhDsaKeyへのポインタ。
@@ -718,6 +719,7 @@ int wc_SlhDsaKey_ExportPrivate(SlhDsaKey* key, byte* out,
 
     \return 0 成功した場合に返されます。
     \return BAD_FUNC_ARG key、out、outLenのいずれかがNULLの場合に返されます。
+    \return MISSING_KEY 公開鍵が設定されていない場合に返されます。
     \return BUFFER_E 出力バッファが小さすぎる場合に返されます。
 
     \param [in] key 公開鍵を保持するSlhDsaKeyへのポインタ。

@@ -2834,7 +2834,8 @@ int test_wc_slhdsa_decoder_disabled_oid(void)
  *   - wc_SlhDsaKey_ImportPublic / _ExportPublic (and the private variants):
  *     each operand of the "(key==NULL)||(key->params==NULL)||(ptr==NULL)[||
  *     (lenPtr==NULL)]" OR is driven true alone (a zeroed key gives
- *     key!=NULL with key->params==NULL), plus the length else-if arm.
+ *     key!=NULL with key->params==NULL), plus the no-key MISSING_KEY arm
+ *     and the length else-if arm.
  *   - size getters: key==NULL vs params==NULL independence.
  *   - wc_SlhDsaKey_CheckKey: NULL / params==NULL / MISSING_KEY (no private).
  *   - wc_SlhDsaKey_Init_id / _Init_label compound guards (WOLF_PRIVATE_KEY_ID).
@@ -2877,7 +2878,7 @@ int test_wc_SlhdsaDecisionCoverage(void)
     ExpectIntEQ(wc_SlhDsaKey_ImportPublic(&key, pub, (word32)sizeof(pub) + 1),
         WC_NO_ERR_TRACE(BAD_LENGTH_E));                    /* wrong len   */
 
-    /* wc_SlhDsaKey_ExportPublic: 4-operand OR + length else-if. */
+    /* wc_SlhDsaKey_ExportPublic: 4-operand OR + no-key + length else-if. */
     pubLen = (word32)sizeof(pub);
     ExpectIntEQ(wc_SlhDsaKey_ExportPublic(NULL, pub, &pubLen),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));                    /* key==NULL     */
@@ -2887,6 +2888,10 @@ int test_wc_SlhdsaDecisionCoverage(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));                    /* pub==NULL     */
     ExpectIntEQ(wc_SlhDsaKey_ExportPublic(&key, pub, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));                    /* pubLen==NULL  */
+    ExpectIntEQ(wc_SlhDsaKey_ExportPublic(&key, pub, &pubLen),
+        WC_NO_ERR_TRACE(MISSING_KEY));                     /* no public key */
+    /* Import (cheap - no key generation) so the length arm is reachable. */
+    ExpectIntEQ(wc_SlhDsaKey_ImportPublic(&key, pub, (word32)sizeof(pub)), 0);
     pubLen = 1;                                            /* too small     */
     ExpectIntEQ(wc_SlhDsaKey_ExportPublic(&key, pub, &pubLen),
         WC_NO_ERR_TRACE(BAD_LENGTH_E));
@@ -2911,7 +2916,13 @@ int test_wc_SlhdsaDecisionCoverage(void)
     ExpectIntEQ(wc_SlhDsaKey_ImportPrivate(&key, priv, (word32)sizeof(priv) + 1),
         WC_NO_ERR_TRACE(BAD_LENGTH_E));
 
-    /* wc_SlhDsaKey_ExportPrivate: 4-operand OR + length else-if. */
+    /* wc_SlhDsaKey_CheckKey: NULL / params==NULL / no-private MISSING_KEY.
+     * Done before importing a private key below. */
+    ExpectIntEQ(wc_SlhDsaKey_CheckKey(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SlhDsaKey_CheckKey(&zkey), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SlhDsaKey_CheckKey(&key), WC_NO_ERR_TRACE(MISSING_KEY));
+
+    /* wc_SlhDsaKey_ExportPrivate: 4-operand OR + no-key + length else-if. */
     privLen = (word32)sizeof(priv);
     ExpectIntEQ(wc_SlhDsaKey_ExportPrivate(NULL, priv, &privLen),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -2921,14 +2932,14 @@ int test_wc_SlhdsaDecisionCoverage(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_SlhDsaKey_ExportPrivate(&key, priv, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SlhDsaKey_ExportPrivate(&key, priv, &privLen),
+        WC_NO_ERR_TRACE(MISSING_KEY));                     /* no private key */
+    /* Import (cheap - no key generation) so the length arm is reachable. */
+    ExpectIntEQ(wc_SlhDsaKey_ImportPrivate(&key, priv, (word32)sizeof(priv)),
+        0);
     privLen = 1;
     ExpectIntEQ(wc_SlhDsaKey_ExportPrivate(&key, priv, &privLen),
         WC_NO_ERR_TRACE(BAD_LENGTH_E));
-
-    /* wc_SlhDsaKey_CheckKey: NULL / params==NULL / no-private MISSING_KEY. */
-    ExpectIntEQ(wc_SlhDsaKey_CheckKey(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_SlhDsaKey_CheckKey(&zkey), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_SlhDsaKey_CheckKey(&key), WC_NO_ERR_TRACE(MISSING_KEY));
 
     /* MakeKey / MakeKeyWithRandom / Sign-family: key->params==NULL
      * independence (key==NULL and the other pointer/length operands are
