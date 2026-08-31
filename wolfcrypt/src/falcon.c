@@ -102,7 +102,8 @@ typedef word64 fpr;
 static WC_INLINE double fpr__getd(fpr x) { double d; XMEMCPY(&d, &x, sizeof(d)); return d; }
 static WC_INLINE fpr fpr__setd(double d) { fpr x; XMEMCPY(&x, &d, sizeof(x)); return x; }
 static WC_INLINE fpr fpr_of(sword64 i)          { return fpr__setd((double)i); }
-static WC_INLINE fpr fpr_scaled(sword64 i, int sc) { return fpr__setd(ldexp((double)i, sc)); }
+static WC_MAYBE_UNUSED WC_INLINE fpr fpr_scaled(sword64 i, int sc)
+                                                { return fpr__setd(ldexp((double)i, sc)); }
 static WC_INLINE sword64 fpr_rint(fpr x)        { double d = fpr__getd(x); return (sword64)llrint(d); }
 static WC_INLINE sword64 fpr_floor(fpr x)       { double d = floor(fpr__getd(x)); return (sword64)d; }
 static WC_INLINE sword64 fpr_trunc(fpr x)       { double d = trunc(fpr__getd(x)); return (sword64)d; }
@@ -110,11 +111,13 @@ static WC_INLINE fpr fpr_add(fpr x, fpr y)      { return fpr__setd(fpr__getd(x) 
 static WC_INLINE fpr fpr_sub(fpr x, fpr y)      { return fpr__setd(fpr__getd(x) - fpr__getd(y)); }
 static WC_INLINE fpr fpr_neg(fpr x)             { return fpr__setd(-fpr__getd(x)); }
 static WC_INLINE fpr fpr_half(fpr x)            { return fpr__setd(fpr__getd(x) * 0.5); }
-static WC_INLINE fpr fpr_double(fpr x)          { return fpr__setd(fpr__getd(x) + fpr__getd(x)); }
+static WC_MAYBE_UNUSED WC_INLINE fpr fpr_double(fpr x)
+                                                { return fpr__setd(fpr__getd(x) + fpr__getd(x)); }
 static WC_INLINE fpr fpr_mul(fpr x, fpr y)      { return fpr__setd(fpr__getd(x) * fpr__getd(y)); }
 static WC_INLINE fpr fpr_sqr(fpr x)             { double d = fpr__getd(x); return fpr__setd(d * d); }
 static WC_INLINE fpr fpr_inv(fpr x)             { return fpr__setd(1.0 / fpr__getd(x)); }
-static WC_INLINE fpr fpr_div(fpr x, fpr y)      { return fpr__setd(fpr__getd(x) / fpr__getd(y)); }
+static WC_MAYBE_UNUSED WC_INLINE fpr fpr_div(fpr x, fpr y)
+                                                { return fpr__setd(fpr__getd(x) / fpr__getd(y)); }
 static WC_INLINE fpr fpr_sqrt(fpr x)            { return fpr__setd(sqrt(fpr__getd(x))); }
 static WC_INLINE int fpr_lt(fpr x, fpr y)       { return fpr__getd(x) < fpr__getd(y); }
 #else
@@ -708,7 +711,7 @@ static WC_MAYBE_UNUSED WC_INLINE word64 fpr_ulsh(word64 x, int n)
  *
  * If m == 0 a (signed) zero is produced. If e < -1076 the value underflows to
  * a (signed) zero. */
-static WC_INLINE fpr FPR(int s, int e, word64 m)
+static WC_MAYBE_UNUSED WC_INLINE fpr FPR(int s, int e, word64 m)
 {
     fpr x;
     word32 t;
