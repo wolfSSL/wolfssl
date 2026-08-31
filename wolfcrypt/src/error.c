@@ -748,6 +748,18 @@ const char* wc_GetErrorString(int error)
         return "Requested operation succeeded, but supplied "
                "parameters are unapproved for FIPS";
 
+    case NO_DEFAULT_FOUND_E:
+        return "No default object registered for request type";
+
+    case NOT_READY_E:
+        return "Resource not yet ready (retry)";
+
+    case OBJECT_NOT_LOCKED_E:
+        return "Required lock on object is not held";
+
+    case WRONG_TYPE_OBJECT_E:
+        return "Object is wrong type for requested operation";
+
     case MAX_CODE_E:
     case WC_SPAN1_MIN_CODE_E:
     case MIN_CODE_E:
