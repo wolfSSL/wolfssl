@@ -929,6 +929,19 @@ int test_tls_shutdown_in_init(void)
     }
 #endif
 
+#ifdef WOLFSSL_CERT_SETUP_CB
+    /* A certificate setup callback that asked to be called again leaves the
+     * handshake resumable as well. */
+    if (ssl_c != NULL)
+        ssl_c->error = WOLFSSL_ERROR_WANT_X509_LOOKUP;
+    ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(test_ctx.s_len, len);
+    if (ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->error, WOLFSSL_ERROR_WANT_X509_LOOKUP);
+        ssl_c->error = WC_NO_ERR_TRACE(WANT_READ);
+    }
+#endif
+
     /* Established connection still shuts down normally. */
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
     ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SHUTDOWN_NOT_DONE);
