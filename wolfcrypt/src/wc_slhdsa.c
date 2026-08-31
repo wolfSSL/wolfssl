@@ -24,16 +24,6 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
-#if FIPS_VERSION3_GE(2,0,0)
-    /* Windows orders the module by section name, so this places SLH-DSA
-     * inside the range the integrity check covers: after sha3 (.fipsA$n) and
-     * before fips.c (.fipsA$o). */
-    #ifdef USE_WINDOWS_API
-        #pragma code_seg(".fipsA$nh")
-        #pragma const_seg(".fipsB$nh")
-    #endif
-#endif
-
 #include <wolfssl/wolfcrypt/wc_slhdsa.h>
 
 #ifdef WOLFSSL_HAVE_SLHDSA

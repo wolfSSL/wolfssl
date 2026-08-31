@@ -72,15 +72,6 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
-#if FIPS_VERSION3_GE(2,0,0)
-    /* Windows orders the module by section name, so this places ML-KEM inside
-     * the range the integrity check covers. */
-    #ifdef USE_WINDOWS_API
-        #pragma code_seg(".fipsA$nb")
-        #pragma const_seg(".fipsB$nb")
-    #endif
-#endif
-
 #ifdef WC_MLKEM_NO_ASM
     #undef USE_INTEL_SPEEDUP
     #undef WOLFSSL_ARMASM
