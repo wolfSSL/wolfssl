@@ -9120,8 +9120,7 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
 key-pair test required by ISO/IEC 19790:2012 sec 7.10.3.3"
 #endif
 /* Test every new key pair by signing and verifying with it.
- * ISO/IEC 19790:2012 sec 7.10.3.3.  Called from both generation paths.
- * Fixed rnd because the decode path has no RNG.
+ * ISO/IEC 19790:2012 sec 7.10.3.3.  Fixed rnd: no RNG on this path.
  *
  * @param  [in, out]  key  ML-DSA key pair to test.  Freed on failure.
  * @return  0 on success.
@@ -11290,7 +11289,9 @@ int wc_MlDsaKey_MakeKey(wc_MlDsaKey* key, WC_RNG* rng)
     }
 
     /* No key-pair test here: wc_MlDsaKey_MakeKeyFromSeed(), reached from
-     * mldsa_make_key() above, already runs it on every generation path. */
+     * mldsa_make_key() above, already runs it on every generation path.
+     * Guarded on the version, not HAVE_FIPS: src/include.am only compiles
+     * this file under BUILD_FIPS_V7_PLUS, so the two are equivalent here. */
 
     return ret;
 }
@@ -11302,36 +11303,44 @@ int wc_MlDsaKey_MakeKey(wc_MlDsaKey* key, WC_RNG* rng)
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when key or seed is NULL.
  * @return  BAD_STATE_E when the parameters have not been set.
- * @return  ML_DSA_PCT_E when the key pair fails its consistency test.  The
- *          key is freed in that case and must be re-initialised before reuse.
+ * @return  ML_DSA_PCT_E on a failed test; the key is freed and must be
+ *          re-initialised before reuse.
  */
-int wc_MlDsaKey_MakeKeyFromSeed(wc_MlDsaKey* key, const byte* seed)
+/* Expand a seed into a key pair, validating arguments first.
+ *
+ * runPct is 0 for the ASN.1 decode path: FIPS 140-3 IG 10.3.A Additional
+ * Comment 1 does not require a key-pair test on a key imported from outside
+ * the module.
+ */
+static int mldsa_key_from_seed_checked(wc_MlDsaKey* key, const byte* seed,
+    int runPct)
 {
     int ret = 0;
 
-    /* Validate parameters. */
     if ((key == NULL) || (seed == NULL)) {
         ret = BAD_FUNC_ARG;
     }
-
-    if (ret == 0) {
-        /* Check the level or parameters have been set. */
-        if (key->params == NULL) {
-            ret = BAD_STATE_E;
-        }
-        else {
-            /* Make the key. */
-            ret = mldsa_make_key_from_seed(key, seed);
-        }
+    else if (key->params == NULL) {
+        ret = BAD_STATE_E;
+    }
+    else {
+        ret = mldsa_make_key_from_seed(key, seed);
     }
 
 #if FIPS_VERSION3_GE(7,0,0)
-    if (ret == 0) {
+    if ((ret == 0) && runPct) {
         ret = mldsa_pct(key);
     }
+#else
+    (void)runPct;
 #endif
 
     return ret;
+}
+
+int wc_MlDsaKey_MakeKeyFromSeed(wc_MlDsaKey* key, const byte* seed)
+{
+    return mldsa_key_from_seed_checked(key, seed, 1);
 }
 #endif
 
@@ -13441,18 +13450,8 @@ int wc_MlDsaKey_PrivateKeyDecode(wc_MlDsaKey* key, const byte* input,
         if (seedLen != 0) {
 #if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
             if (seedLen == MLDSA_SEED_SZ) {
-                /* No key-pair test: FIPS 140-3 IG 10.3.A Additional Comment 1
-                 * does not require one for a key imported from outside the
-                 * module. */
-                if (seed == NULL) {
-                    ret = BAD_FUNC_ARG;
-                }
-                else if (key->params == NULL) {
-                    ret = BAD_STATE_E;
-                }
-                else {
-                    ret = mldsa_make_key_from_seed(key, seed);
-                }
+                /* runPct 0: this is an import, not a generation. */
+                ret = mldsa_key_from_seed_checked(key, seed, 0);
             }
             else {
                 ret = ASN_PARSE_E;

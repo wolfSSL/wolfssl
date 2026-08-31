@@ -159,15 +159,11 @@ static void wc_RsaCleanup(RsaKey* key)
     #ifndef WOLFSSL_RSA_PUBLIC_ONLY
     #if FIPS_VERSION3_GE(7,0,0)
         /* Erase the recovered plaintext on the way out, success or failure.
-         * SP 800-56B Rev2 sec 7.2.2.4.
-         *
-         * Only a buffer we allocated: when the caller supplies its own,
-         * key->data points at it (dataIsAlloc is 0) and erasing would destroy
-         * the answer.  No key->type test: it only ever holds RSA_PRIVATE,
-         * RSA_PUBLIC or RSA_TYPE_UNKNOWN, never RSA_PRIVATE_DECRYPT (3) or
-         * RSA_PRIVATE_ENCRYPT (2), which belong to the operation-type family
-         * sharing that enum (rsa.h:176-183).  Comparing against them is
-         * always false, so the buffer was being freed unwiped. */
+         * SP 800-56B Rev2 sec 7.2.2.4.  Only a buffer we allocated: a
+         * caller-supplied one is the answer itself.  No key->type test:
+         * it never holds RSA_PRIVATE_DECRYPT/ENCRYPT, which belong to the
+         * operation-type half of that enum (rsa.h:176-183), so the old test
+         * was always false and the buffer was freed unwiped. */
         if (key->dataIsAlloc && key->data != NULL && key->dataLen > 0) {
             ForceZero(key->data, key->dataLen);
         }
@@ -945,8 +941,9 @@ int wc_CheckRsaKey(RsaKey* key)
         }
 
         /* Primes: right size, coprime to e, far enough apart, and actually
-         * prime (steps 5a to 5g).  p alone first, then p with q so the
-         * |p - q| separation can be tested. */
+         * prime (steps 5a to 5g).  Two calls because steps 5f/5g want a
+         * primality test on each prime: the first tests p, the second tests
+         * q and the |p - q| separation. */
         if (ret == 0) {
             ret = _CheckProbablePrime(&key->p, NULL, &key->e, nBits, &isPrime,
                                       rng);
@@ -986,12 +983,10 @@ int wc_CheckRsaKey(RsaKey* key)
     /* Check dP, dQ and u if they exist */
     if (ret == 0 && !mp_iszero(&key->dP)) {
 #if FIPS_VERSION3_GE(7,0,0)
-        /* Guarded on the version alone, unlike the block above: this needs
-         * no WOLFSSL_KEY_GEN because it calls no key-generation helper.
-         *
-         * Each CRT component must be greater than 1.
-         * SP 800-56B Rev2 sec 6.4.1.4.3 item F, steps 7a/7b/7c.
-         * Their upper bounds are checked just below. */
+        /* Each CRT component must be greater than 1; upper bounds are
+         * checked just below.  SP 800-56B Rev2 sec 6.4.1.4.3 item F, steps
+         * 7a/7b/7c.  No WOLFSSL_KEY_GEN in the guard: unlike the block
+         * above this calls no key-generation helper. */
         if ((mp_cmp_d(&key->dP, 1) != MP_GT) ||
             (mp_cmp_d(&key->dQ, 1) != MP_GT) ||
             (mp_cmp_d(&key->u, 1) != MP_GT)) {

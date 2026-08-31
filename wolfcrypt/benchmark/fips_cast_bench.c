@@ -20,11 +20,10 @@
  */
 
 /* Times the module's self-tests so an operator can budget start-up on slow
- * hardware.  Two kinds, costing very different amounts:
- *      per-algorithm known-answer tests, run once each (FIPS 140-3 IG 10.3.A)
- *   -p key-pair tests, run on EVERY key generation
- *      (ISO/IEC 19790:2012 sec 7.10.3.3)
- */
+ * hardware.  Two kinds:
+ *      known-answer tests, once per algorithm (FIPS 140-3 IG 10.3.A)
+ *   -p key-pair tests, on EVERY key generation
+ *      (ISO/IEC 19790:2012 sec 7.10.3.3) */
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
@@ -192,17 +191,13 @@ static int run_one_cast(int id, int iters,
 }
 
 
-/* Pairwise consistency tests.
- *
- * A CAST runs once at start-up.  This test runs on every key generation, so
- * the application keeps paying it and none of it shows in the CAST numbers.
+/* Pairwise consistency tests.  A CAST runs once at start-up; these run on
+ * every key generation, so none of the cost shows in the CAST numbers.
  * ISO/IEC 19790:2012 sec 7.10.3.3.
  *
  *   KeyGen+PCT  what a caller pays today.  MEASURED.
  *   PCT alone   the same test repeated on the finished key.  MEASURED.
- *   KeyGen raw  the difference.  DERIVED: no build generates a key without
- *               the test, so it cannot be measured directly.
- */
+ *   KeyGen raw  the difference.  DERIVED: no build skips the test. */
 
 #define BENCH_PCT_DEFAULT_ITERS 1
 
@@ -599,14 +594,10 @@ static int bench_pct_slhdsa(int iters)
             double a  = a_s  / (double)iters * 1000.0;
             double c  = c_s  / (double)iters * 1000.0;
 
-            /* The elected test must be the cheap one.  If someone puts sign
-             * and verify back inside key generation, KeyGen+PCT swallows it
-             * and stops being the smaller number.
-             *
-             * Demand a 2x margin rather than a bare comparison: the elected
-             * option measures 3.8x to 13.8x cheaper, while a reverted one
-             * costs about 1.1x sign+verify, so 2x separates them with room
-             * for a loaded machine to move both numbers. */
+            /* The elected test must stay the cheap one.  A 2x margin, not a
+             * bare comparison: elected measures 3.8x to 13.8x cheaper and a
+             * reverted one costs about 1.1x sign+verify, so 2x separates
+             * them even on a loaded machine. */
             if (a > (kg * 2.0)) {
                 printf("%-15s | %10.3f | %8.3f | %7.4f | %8.1fx\n",
                        names[t], kg, a, c, (kg > 0.0) ? (a / kg) : 0.0);

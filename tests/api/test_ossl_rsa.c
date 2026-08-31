@@ -488,6 +488,13 @@ int test_wolfSSL_RSA_print(void)
     return EXPECT_RESULT();
 }
 
+
+int test_wolfSSL_RSA_padding_add_PKCS1_PSS(void)
+{
+    EXPECT_DECLS;
+#ifndef NO_RSA
+#if defined(OPENSSL_ALL) && defined(WC_RSA_PSS) && !defined(WC_NO_RNG)
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 /* These ask for the longest salt the modulus allows: 222 bytes here, once
  * long salts are compiled in.  FIPS 186-5 sec 5.4(g) caps the salt at the
  * hash length, so a v7 module must refuse it and a success is the defect.
@@ -498,13 +505,6 @@ int test_wolfSSL_RSA_print(void)
 #else
     #define TEST_PSS_MAX_SALT_RESULT 1
 #endif
-
-int test_wolfSSL_RSA_padding_add_PKCS1_PSS(void)
-{
-    EXPECT_DECLS;
-#ifndef NO_RSA
-#if defined(OPENSSL_ALL) && defined(WC_RSA_PSS) && !defined(WC_NO_RNG)
-#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
     RSA *rsa = NULL;
     const unsigned char *derBuf = client_key_der_2048;
     unsigned char em[256] = {0}; /* len = 2048/8 */
@@ -570,6 +570,7 @@ int test_wolfSSL_RSA_padding_add_PKCS1_PSS(void)
         RSA_PSS_SALTLEN_MAX), TEST_PSS_MAX_SALT_RESULT);
     ExpectIntEQ(RSA_verify_PKCS1_PSS(rsa, mHash, EVP_sha256(), em,
         RSA_PSS_SALTLEN_MAX), TEST_PSS_MAX_SALT_RESULT);
+#undef TEST_PSS_MAX_SALT_RESULT
 
     ExpectIntEQ(RSA_padding_add_PKCS1_PSS(rsa, em, mHash, EVP_sha256(), 10), 1);
     ExpectIntEQ(RSA_verify_PKCS1_PSS(rsa, mHash, EVP_sha256(), em, 10), 1);
@@ -580,7 +581,6 @@ int test_wolfSSL_RSA_padding_add_PKCS1_PSS(void)
 #endif
     return EXPECT_RESULT();
 }
-#undef TEST_PSS_MAX_SALT_RESULT
 
 int test_wolfSSL_RSA_sign_sha3(void)
 {

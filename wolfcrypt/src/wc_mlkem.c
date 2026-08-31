@@ -708,7 +708,9 @@ int wc_MlKemKey_MakeKey(MlKemKey* key, WC_RNG* rng)
     }
 
     /* No key-pair test here: wc_MlKemKey_MakeKeyWithRandom(), called above,
-     * already runs it on every generation path. */
+     * already runs it on every generation path.  Guarded on the version, not
+     * HAVE_FIPS: src/include.am only compiles this file under
+     * BUILD_FIPS_V7_PLUS, so the two are equivalent here. */
 
     /* Ensure seeds are zeroized. */
     ForceZero((void*)rand, (word32)sizeof(rand));

@@ -7133,11 +7133,10 @@ int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key, const byte* sk_seed,
     /* Test every new key pair.  ISO/IEC 19790:2012 sec 7.10.3.3.  Here
      * because every generation path reaches this function.
      *
-     * The PK.SEED check is the one FIPS 140-3 IG 10.3.A Additional Comment 1
-     * names for SLH-DSA, but it always passes here: the public key is a
-     * slice of the private one.  So the root recompute does the real work.
-     * It is the cheapest check that can fail; signing and verifying costs
-     * about ten times the key generation. */
+     * PK.SEED is the check FIPS 140-3 IG 10.3.A Additional Comment 1 names,
+     * but it always passes here: the public key is a slice of the private
+     * one.  So the root recompute does the real work, at a tenth the cost of
+     * signing and verifying. */
     if (ret == 0) {
         byte        n = key->params->n;
         byte        pct_root[SLHDSA_MAX_N];
