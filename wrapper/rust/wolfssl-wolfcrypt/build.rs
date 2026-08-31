@@ -63,6 +63,7 @@ fn wolfssl_prefix_dirs() -> Option<&'static WolfsslPrefixDirs> {
 /// not point at a directory containing both `include/wolfssl` and a library
 /// directory.
 fn compute_wolfssl_prefix_dirs() -> Option<WolfsslPrefixDirs> {
+    println!("cargo:rerun-if-env-changed=WOLFSSL_PREFIX");
     let prefix = env::var("WOLFSSL_PREFIX").ok()?;
     if prefix.is_empty() || prefix.contains('\n') {
         println!("cargo:warning=ignoring WOLFSSL_PREFIX");
