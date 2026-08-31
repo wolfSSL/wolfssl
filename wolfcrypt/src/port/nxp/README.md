@@ -28,7 +28,15 @@ Encrypt/Decrypt requests of other sizes will fail.
 will use a fully software implementation.
 - When the HashCrypt engine is in use for SHA-1 or SHA-256, it must not be
 interrupted with another hash request or an AES request.  The hash must be
-completed before another operation is requested.
+completed before another operation is requested.  Only one SHA stream exists
+at a time, so `NO_WOLFSSL_SHA256_INTERLEAVE` is set and a `wc_Sha256Update()`
+after a `wc_Sha256GetHash()` restarts the stream.
+- SHA-224 is unavailable when HashCrypt SHA is enabled.
+- Hardware access is serialized with the wolfCrypt crypto HW mutex, enabled
+automatically.  A threaded build setting `WOLFSSL_CRYPT_HW_MUTEX` to 0 is
+rejected at compile time; use `SINGLE_THREADED` instead.  Being a software
+mutex it does not arbitrate between the two cores -- do not drive either
+accelerator from both.
 
 ### wolfSSL LPC55S69 Hardware Acceleration Enable
 
