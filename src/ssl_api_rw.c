@@ -1054,6 +1054,11 @@ static int wolfssl_handshake_failed(const WOLFSSL* ssl)
          * would overwrite. */
         && (ssl->error != WC_NO_ERR_TRACE(OCSP_WANT_READ))
 #endif
+#ifdef WOLFSSL_CERT_SETUP_CB
+        /* The certificate setup callback asked to be called again. Positive
+         * value, so no WC_NO_ERR_TRACE(). */
+        && (ssl->error != WOLFSSL_ERROR_WANT_X509_LOOKUP)
+#endif
         ;
 }
 
