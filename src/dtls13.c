@@ -3046,7 +3046,7 @@ int DoDtls13NewConnectionId(WOLFSSL* ssl, const byte* input,
             WOLFSSL_ERROR_VERBOSE(BUFFER_ERROR);
             return BUFFER_ERROR;
         }
-        if (newCid == NULL && cidLen > 0 && cidLen <= DTLS_CID_MAX_SIZE) {
+        if (newCid == NULL && cidLen > 0) {
             newCid = input + idx + i;
             newCidLen = cidLen;
         }

@@ -22023,7 +22023,7 @@ int writeAeadAuthData(WOLFSSL* ssl, word16 sz, byte type,
 {
     word32 idx = 0;
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
-    byte cidSz = 0;
+    unsigned int cidSz = 0;
     if (ssl->options.dtls && (cidSz = TLS_AEAD_CID_SZ(ssl, dec)) > 0) {
         if (cidSz > DTLS_CID_MAX_SIZE) {
             WOLFSSL_MSG("DTLS CID too large");
@@ -22033,7 +22033,7 @@ int writeAeadAuthData(WOLFSSL* ssl, word16 sz, byte type,
         XMEMSET(additional + idx, 0xFF, SEQ_SZ);
         idx += SEQ_SZ;
         additional[idx++] = dtls12_cid;
-        additional[idx++] = cidSz;
+        additional[idx++] = (byte)cidSz;
         additional[idx++] = dtls12_cid;
         additional[idx++] = dec ? ssl->curRL.pvMajor : ssl->version.major;
         additional[idx++] = dec ? ssl->curRL.pvMinor : ssl->version.minor;
@@ -22041,7 +22041,7 @@ int writeAeadAuthData(WOLFSSL* ssl, word16 sz, byte type,
         if (seq != NULL)
             *seq = additional + idx;
         idx += SEQ_SZ;
-        if (TLS_AEAD_CID(ssl, dec, additional + idx, (unsigned int)cidSz)
+        if (TLS_AEAD_CID(ssl, dec, additional + idx, cidSz)
                 == WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
             WOLFSSL_MSG("DTLS CID write failed");
             return DTLS_CID_ERROR;

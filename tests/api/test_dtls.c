@@ -737,7 +737,7 @@ static int test_dtls13_build_post_hs_msg(WOLFSSL* ssl_c, WOLFSSL* ssl_s,
         byte hsType, const byte* body, word16 bodyLen, byte* rec, int* recSz)
 {
     EXPECT_DECLS;
-    byte msg[64];
+    byte msg[512];
     size_t idx = 0;
 
     ExpectIntLE(DTLS_HANDSHAKE_HEADER_SZ + bodyLen, sizeof(msg));
@@ -928,6 +928,80 @@ int test_dtls13_new_connection_id(void)
     return EXPECT_RESULT();
 }
 
+int test_dtls13_new_connection_id_long_cid(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CID)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char server_cid[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+    /* RFC 9146 Section 3: ConnectionId is opaque<0..2^8-1> */
+    byte newCid[255];
+    byte immBody[2 + 1 + sizeof(newCid) + 1];
+    word16 immBodyLen = 0;
+    unsigned char cidBuf[sizeof(newCid)];
+    unsigned int cidSz = 0;
+    const unsigned char* parsedCid = NULL;
+    int grsOld = 0, grsNew = 0;
+    byte rec[512];
+    int recSz = (int)sizeof(rec);
+    byte readBuf[16];
+    word16 i;
+
+    for (i = 0; i < (word16)sizeof(newCid); i++)
+        newCid[i] = (byte)i;
+    immBody[immBodyLen++] = (byte)((1 + sizeof(newCid)) >> 8); /* cidsLen hi */
+    immBody[immBodyLen++] = (byte)(1 + sizeof(newCid));        /* cidsLen lo */
+    immBody[immBodyLen++] = (byte)sizeof(newCid);              /* CID length */
+    XMEMCPY(immBody + immBodyLen, newCid, sizeof(newCid));
+    immBodyLen += (word16)sizeof(newCid);
+    immBody[immBodyLen++] = 0x00;                 /* usage cid_immediate */
+
+    /* The peer chooses the CID that we put in the records we send, and it can
+     * be as long as 255 bytes. DTLS_CID_MAX_SIZE bounds only the CID that we
+     * ask to receive, thus it must not limit this one. */
+    ExpectIntEQ(test_dtls13_cid_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+            &ssl_s, server_cid, sizeof(server_cid)), TEST_SUCCESS);
+    /* Exchange application data first so the server's traffic-epoch keys are
+     * fully installed, then prime the record-size overhead cache while the
+     * negotiated CID is still in use. */
+    ExpectIntEQ(wolfSSL_write(ssl_c, "hi", 3), 3);
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), 3);
+    ExpectIntGT(grsOld = wolfssl_local_GetRecordSize(ssl_s, 200, 1), 0);
+
+    ExpectIntEQ(test_dtls13_build_post_hs_msg(ssl_c, ssl_s, new_connection_id,
+            immBody, immBodyLen, rec, &recSz), TEST_SUCCESS);
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 0, (const char*)rec,
+            recSz), 0);
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    TEST_DTLS13_PUMP(ssl_s);
+
+    ExpectIntEQ(wolfSSL_dtls_cid_get_tx_size(ssl_s, &cidSz), 1);
+    ExpectIntEQ(cidSz, (unsigned int)sizeof(newCid));
+    ExpectIntEQ(wolfSSL_dtls_cid_get_tx(ssl_s, cidBuf, sizeof(cidBuf)), 1);
+    ExpectBufEQ(cidBuf, newCid, sizeof(newCid));
+    /* the ACK of that message already carries the whole new CID */
+    ExpectIntGT(test_ctx.c_len, 0);
+    ExpectNotNull(parsedCid = wolfSSL_dtls_cid_parse(test_ctx.c_buff,
+            (unsigned int)test_ctx.c_len, sizeof(newCid)));
+    if (parsedCid != NULL)
+        ExpectBufEQ(parsedCid, newCid, sizeof(newCid));
+    /* the record framing must have grown with the CID */
+    ExpectIntGT(grsNew = wolfssl_local_GetRecordSize(ssl_s, 200, 1), 0);
+    ExpectIntEQ(grsNew - grsOld,
+            (int)sizeof(newCid) - (int)sizeof(server_cid));
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_dtls13_new_connection_id_not_negotiated(void)
 {
     EXPECT_DECLS;
@@ -1032,24 +1106,6 @@ int test_dtls13_cid_msg_malformed(void)
             immZeroLenCid, sizeof(immZeroLenCid), 1,
             WC_NO_ERR_TRACE(INVALID_PARAMETER), illegal_parameter),
             TEST_SUCCESS);
-    /* cid_immediate with a single CID larger than we support: it is skipped,
-     * leaving no usable CID */
-    {
-        byte oversize[2 + 1 + (DTLS_CID_MAX_SIZE + 1) + 1];
-        word16 oversizeLen = 0;
-        word16 k;
-
-        oversize[oversizeLen++] = 0x00;                              /* len hi */
-        oversize[oversizeLen++] = (byte)(1 + DTLS_CID_MAX_SIZE + 1); /* len lo */
-        oversize[oversizeLen++] = (byte)(DTLS_CID_MAX_SIZE + 1);     /* CID len */
-        for (k = 0; k < DTLS_CID_MAX_SIZE + 1; k++)
-            oversize[oversizeLen++] = 0x55;
-        oversize[oversizeLen++] = 0x00;                            /* immediate */
-
-        ExpectIntEQ(test_dtls13_post_hs_cid_msg_err(new_connection_id,
-                oversize, oversizeLen, 1, WC_NO_ERR_TRACE(INVALID_PARAMETER),
-                illegal_parameter), TEST_SUCCESS);
-    }
 #endif
     return EXPECT_RESULT();
 }
