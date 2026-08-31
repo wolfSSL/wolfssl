@@ -381,8 +381,8 @@ static void wb_sweep_prehash(int param)
  * on its own -- it has the same outcome as the ordinary (T, compare-equal) row.
  * The (T,T) row is produced by corrupting the STORED root before the call:
  * CheckKey re-derives the real root from the seeds, so the comparison differs
- * while ret is still 0. The re-derivation also rewrites key->sk with the
- * correct root, so the key is left exactly as it was found. */
+ * while ret is still 0. CheckKey does not write to the key, so this undoes
+ * the corruption itself. */
 static void wb_sweep_checkkey(int param)
 {
     long n, points = 0;
@@ -402,8 +402,9 @@ static void wb_sweep_checkkey(int param)
         WB_NOTE("CheckKey accepted a key whose stored root was corrupted");
         wb_fail = 1;
     }
+    wb_key.sk[3 * n8] ^= 0x01;
     if (wc_SlhDsaKey_CheckKey(&wb_key) != 0) {
-        WB_NOTE("CheckKey did not restore the recomputed root");
+        WB_NOTE("CheckKey rejected the key after the corruption was undone");
         wb_fail = 1;
     }
 
