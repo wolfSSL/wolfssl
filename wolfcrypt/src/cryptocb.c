@@ -206,19 +206,19 @@ static const char* GetCipherTypeStr(int cipher)
         case WC_CIPHER_DES3: return "DES3";
         case WC_CIPHER_DES: return "DES";
         case WC_CIPHER_CHACHA: return "ChaCha20";
-#ifdef WOLFSSL_SM4_ECB
+#if defined(WOLFSSL_SM4) && defined(WOLFSSL_SM4_ECB)
         case WC_CIPHER_SM4_ECB: return "SM4 ECB";
 #endif
-#ifdef WOLFSSL_SM4_CBC
+#if defined(WOLFSSL_SM4) && defined(WOLFSSL_SM4_CBC)
         case WC_CIPHER_SM4_CBC: return "SM4 CBC";
 #endif
-#ifdef WOLFSSL_SM4_CTR
+#if defined(WOLFSSL_SM4) && defined(WOLFSSL_SM4_CTR)
         case WC_CIPHER_SM4_CTR: return "SM4 CTR";
 #endif
-#ifdef WOLFSSL_SM4_GCM
+#if defined(WOLFSSL_SM4) && defined(WOLFSSL_SM4_GCM)
         case WC_CIPHER_SM4_GCM: return "SM4 GCM";
 #endif
-#ifdef WOLFSSL_SM4_CCM
+#if defined(WOLFSSL_SM4) && defined(WOLFSSL_SM4_CCM)
         case WC_CIPHER_SM4_CCM: return "SM4 CCM";
 #endif
     }
