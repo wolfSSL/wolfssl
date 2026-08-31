@@ -645,15 +645,43 @@
      * buffers; lockless ringbuffer >=5.10).  pre-4.10, no printk from NMI at
      * all.
      */
-    #define wc_linuxkm_pr_err_ratelimited(args...) do { \
+    #define wc_linuxkm_pr_ratelimited(pr, args...) do { \
         if (wc_linuxkm_pr_nmi_check()) {                \
             static DEFINE_RATELIMIT_STATE(_rls, HZ, 1); \
             if (__ratelimit(&_rls)) {                   \
-                pr_err(args);                           \
+                pr(args);                               \
                 wc_linuxkm_debugging_dump_stack();      \
             }                                           \
         }                                               \
     } while (0)
+
+    #define wc_linuxkm_pr_emerg_ratelimited(args...) \
+        wc_linuxkm_pr_ratelimited(pr_emerg, args)
+
+    #define wc_linuxkm_pr_alert_ratelimited(args...) \
+        wc_linuxkm_pr_ratelimited(pr_alert, args)
+
+    #define wc_linuxkm_pr_crit_ratelimited(args...) \
+        wc_linuxkm_pr_ratelimited(pr_crit, args)
+
+    #define wc_linuxkm_pr_err_ratelimited(args...) \
+        wc_linuxkm_pr_ratelimited(pr_err, args)
+
+    #define wc_linuxkm_pr_warn_ratelimited(args...) \
+        wc_linuxkm_pr_ratelimited(pr_warn, args)
+
+    #define wc_linuxkm_pr_notice_ratelimited(args...) \
+        wc_linuxkm_pr_ratelimited(pr_notice, args)
+
+    #define wc_linuxkm_pr_info_ratelimited(args...) \
+        wc_linuxkm_pr_ratelimited(pr_info, args)
+
+#ifdef DEBUG
+    #define wc_linuxkm_pr_devel_backtrace_ratelimited(args...) \
+        wc_linuxkm_pr_ratelimited(pr_devel, args)
+#else
+    #define wc_linuxkm_pr_devel_backtrace_ratelimited(args...) WC_DO_NOTHING
+#endif
 
 #ifndef WC_CONTAINERIZE_THIS
     #include <linux/kthread.h>
