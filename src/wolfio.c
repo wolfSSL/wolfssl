@@ -4324,14 +4324,13 @@ int ISOTP_Receive(WOLFSSL* ssl, char* buf, int sz, void* ctx)
             return WOLFSSL_ERROR_WANT_READ;
         }
         isotp_ctx->state = ISOTP_CONN_STATE_RECEIVING;
+        /* Each poll waits ISOTP_DEFAULT_TIMEOUT ms, but nothing bounds
+         * the wait for a message to start, so keep polling. */
         do {
             ret = isotp_ctx->recv_fn(&isotp_ctx->frame, isotp_ctx->arg,
                     ISOTP_DEFAULT_TIMEOUT);
         } while (ret == 0);
-        if (ret == 0) {
-            isotp_ctx->state = ISOTP_CONN_STATE_IDLE;
-            return WOLFSSL_CBIO_ERR_TIMEOUT;
-        } else if (ret < 0) {
+        if (ret < 0) {
             isotp_ctx->state = ISOTP_CONN_STATE_IDLE;
             WOLFSSL_MSG("ISO-TP receive error");
             return WOLFSSL_CBIO_ERR_GENERAL;
