@@ -57628,6 +57628,10 @@ free_level:
 }
 #endif /* ML-KEM ASN.1 round trip */
 
+/* The committed mlkem<N>-key.der are the RFC 9935 expandedKey form - see
+ * certs/mlkem/README.txt for why - so nothing here expands a seed and the test
+ * runs in WOLFSSL_MLKEM_NO_MAKE_KEY builds too, which is exactly what that key
+ * format was chosen for. */
 #if !defined(WOLFSSL_MLKEM_NO_ASN1) && !defined(NO_FILESYSTEM) && \
     !defined(NO_ASN) && defined(WC_ENABLE_ASYM_KEY_IMPORT) && \
     defined(WC_ENABLE_ASYM_KEY_EXPORT)
@@ -57776,6 +57780,240 @@ free_vector:
     return ret;
 }
 #endif /* ML-KEM certificate test */
+
+/* Certificate generation with an ML-KEM subject key. A KEM cannot sign, so a
+ * separate key issues it, as certs/renewcerts.sh does. ECDSA rather than
+ * ML-DSA because it is in far more builds, and the MLKEM_TYPE branches under
+ * test do not depend on the issuer algorithm. */
+#if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    defined(WOLFSSL_TEST_CERT) && !defined(WOLFSSL_MLKEM_NO_ASN1) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && !defined(NO_ASN) && \
+    defined(WC_ENABLE_ASYM_KEY_EXPORT) && defined(WC_ENABLE_ASYM_KEY_IMPORT) && \
+    !defined(WC_NO_RNG) && defined(HAVE_ECC) && defined(HAVE_ECC_SIGN) && \
+    !defined(NO_ECC256) && !defined(NO_SHA256)
+
+#define MLKEM_CERTGEN_DER_SZ (FOURK_BUF * 2)
+
+/* Only the string fields are set; wc_InitCert_ex() already zeroed the struct
+ * and picked the per-field ASN encoding types, which must be preserved. */
+static void mlkem_certgen_name(CertName* n, const char* cn)
+{
+    XSTRNCPY(n->country, "US", CTC_NAME_SIZE);
+    n->countryEnc = CTC_PRINTABLE;
+    XSTRNCPY(n->state, "Montana", CTC_NAME_SIZE);
+    n->stateEnc = CTC_UTF8;
+    XSTRNCPY(n->locality, "Bozeman", CTC_NAME_SIZE);
+    n->localityEnc = CTC_UTF8;
+    XSTRNCPY(n->org, "wolfSSL", CTC_NAME_SIZE);
+    n->orgEnc = CTC_UTF8;
+    /* Leave room for the terminator: cn is not a literal, so copying the full
+     * field width reads as a possible truncation. */
+    XSTRNCPY(n->commonName, cn, CTC_NAME_SIZE - 1);
+    n->commonName[CTC_NAME_SIZE - 1] = '\0';
+    n->commonNameEnc = CTC_UTF8;
+}
+
+/* Issue one certificate for the given ML-KEM parameter set, then read it back
+ * and confirm what was written. */
+static wc_test_ret_t mlkem_certgen_one(WC_RNG* rng, ecc_key* ca, int level,
+    int expKeyOID, const char* cn)
+{
+    wc_test_ret_t ret = 0;
+    MlKemKey kem[1];
+    MlKemKey fromCert[1];
+    DecodedCert decode;
+    Cert* cert = NULL;
+    byte* der = NULL;
+    byte* spki = NULL;
+    byte* pubA = NULL;
+    byte* pubB = NULL;
+    word32 spkiSz = MLKEM_MAX_PUB_KEY_DER_SIZE;
+    word32 pubSz = 0;
+    word32 idx = 0;
+    int kemInit = 0;
+    int certInit = 0;
+    int decodeInit = 0;
+    int bodySz = 0;
+    int certSz = 0;
+
+    cert = (Cert*)XMALLOC(sizeof(Cert), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    der = (byte*)XMALLOC(MLKEM_CERTGEN_DER_SZ, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    spki = (byte*)XMALLOC(spkiSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (cert == NULL || der == NULL || spki == NULL) {
+        ret = WC_TEST_RET_ENC_ERRNO;
+        goto free_certgen;
+    }
+
+    if (ret == 0) {
+        ret = wc_MlKemKey_Init(kem, level, HEAP_HINT, devId);
+        if (ret == 0)
+            kemInit = 1;
+    }
+    if (ret == 0)
+        ret = wc_MlKemKey_MakeKey(kem, rng);
+
+    if (ret == 0) {
+        wc_InitCert_ex(cert, HEAP_HINT, devId);
+        mlkem_certgen_name(&cert->issuer, "ML-KEM test issuer");
+        mlkem_certgen_name(&cert->subject, cn);
+        cert->daysValid = 365;
+        cert->selfSigned = 0;          /* a KEM cannot sign for itself */
+        cert->isCA = 0;
+        cert->sigType = CTC_SHA256wECDSA;
+        /* CNSA 2.0 key establishment certificate: keyEncipherment alone. */
+        ret = wc_SetKeyUsage(cert, "keyEncipherment");
+    }
+    if (ret == 0)
+        ret = wc_SetSubjectKeyIdFromPublicKey_ex(cert, MLKEM_TYPE, kem);
+
+    if (ret == 0) {
+        bodySz = wc_MakeCert_ex(cert, der, MLKEM_CERTGEN_DER_SZ, MLKEM_TYPE,
+            kem, rng);
+        if (bodySz <= 0)
+            ret = WC_TEST_RET_ENC_I(bodySz);
+    }
+    if (ret == 0) {
+        do {
+#ifdef WOLFSSL_ASYNC_CRYPT
+            ret = wc_AsyncWait(ret, &ca->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+#endif
+            if (ret >= 0) {
+                ret = wc_SignCert_ex(bodySz, cert->sigType, der,
+                    MLKEM_CERTGEN_DER_SZ, ECC_TYPE, ca, rng);
+            }
+        } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
+        certSz = (int)ret;
+        ret = (certSz > 0) ? 0 : WC_TEST_RET_ENC_I(certSz);
+    }
+
+    /* The certificate must parse, name the expected ML-KEM parameter set and
+     * assert keyEncipherment and nothing else. */
+    if (ret == 0) {
+        InitDecodedCert(&decode, der, (word32)certSz, HEAP_HINT);
+        decodeInit = 1;
+        ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, NULL);
+    }
+    if (ret == 0) {
+        if (decode.keyOID != (word32)expKeyOID)
+            ret = WC_TEST_RET_ENC_NC;
+    }
+    if (ret == 0) {
+        if (!decode.extKeyUsageSet ||
+                decode.extKeyUsage != KEYUSE_KEY_ENCIPHER) {
+            ret = WC_TEST_RET_ENC_NC;
+        }
+    }
+    if (ret == 0) {
+        if (!decode.extSubjKeyIdSet)
+            ret = WC_TEST_RET_ENC_NC;
+    }
+
+    /* The public key in the certificate must be the one that was generated. */
+    if (ret == 0) {
+        ret = wc_GetSubjectPubKeyInfoDerFromCert(der, (word32)certSz, spki,
+            &spkiSz);
+    }
+    if (ret == 0) {
+        ret = wc_MlKemKey_Init(fromCert, level, HEAP_HINT, devId);
+        if (ret == 0)
+            certInit = 1;
+    }
+    if (ret == 0) {
+        idx = 0;
+        ret = wc_MlKemKey_PublicKeyDecode(fromCert, spki, spkiSz, &idx);
+    }
+    if (ret == 0)
+        ret = wc_MlKemKey_PublicKeySize(kem, &pubSz);
+    if (ret == 0) {
+        pubA = (byte*)XMALLOC(pubSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        pubB = (byte*)XMALLOC(pubSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        if (pubA == NULL || pubB == NULL) {
+            ret = WC_TEST_RET_ENC_ERRNO;
+            goto free_certgen;
+        }
+    }
+    if (ret == 0)
+        ret = wc_MlKemKey_EncodePublicKey(kem, pubA, pubSz);
+    if (ret == 0)
+        ret = wc_MlKemKey_EncodePublicKey(fromCert, pubB, pubSz);
+    if (ret == 0) {
+        if (XMEMCMP(pubA, pubB, pubSz) != 0)
+            ret = WC_TEST_RET_ENC_NC;
+    }
+
+free_certgen:
+    if (decodeInit)
+        FreeDecodedCert(&decode);
+    if (certInit)
+        wc_MlKemKey_Free(fromCert);
+    if (kemInit)
+        wc_MlKemKey_Free(kem);
+    XFREE(pubA, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(pubB, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(spki, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+
+static wc_test_ret_t mlkem_certgen_test(void)
+{
+    wc_test_ret_t ret = 0;
+    int i;
+    WC_RNG rng;
+    ecc_key ca[1];
+    int rngInit = 0;
+    int caInit = 0;
+    static const struct {
+        int         level;
+        int         keyOID;
+        const char* cn;
+    } vectors[] = {
+#if defined(WOLFSSL_WC_ML_KEM_512) && !defined(WOLFSSL_NO_ML_KEM)
+        { WC_ML_KEM_512,  ML_KEM_512k,  "ML-KEM-512"  },
+#endif
+#if defined(WOLFSSL_WC_ML_KEM_768) && !defined(WOLFSSL_NO_ML_KEM)
+        { WC_ML_KEM_768,  ML_KEM_768k,  "ML-KEM-768"  },
+#endif
+#if defined(WOLFSSL_WC_ML_KEM_1024) && !defined(WOLFSSL_NO_ML_KEM)
+        { WC_ML_KEM_1024, ML_KEM_1024k, "ML-KEM-1024" },
+#endif
+        /* WC_ML_KEM_512 is 0, so -1 terminates the list, not 0. */
+        { -1, 0, NULL }
+    };
+
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+    if (ret == 0)
+        rngInit = 1;
+
+    /* One issuer key for every parameter set. */
+    if (ret == 0) {
+        ret = wc_ecc_init_ex(ca, HEAP_HINT, devId);
+        if (ret == 0)
+            caInit = 1;
+    }
+    if (ret == 0) {
+        ret = wc_ecc_make_key(&rng, 32, ca);
+#ifdef WOLFSSL_ASYNC_CRYPT
+        ret = wc_AsyncWait(ret, &ca->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    }
+
+    for (i = 0; (ret == 0) && (vectors[i].cn != NULL); i++) {
+        ret = mlkem_certgen_one(&rng, ca, vectors[i].level, vectors[i].keyOID,
+            vectors[i].cn);
+    }
+
+    if (caInit)
+        wc_ecc_free(ca);
+    if (rngInit)
+        wc_FreeRng(&rng);
+
+    return ret;
+}
+#endif /* ML-KEM certificate generation test */
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
 {
@@ -58067,6 +58305,17 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
     !defined(NO_ASN) && defined(WC_ENABLE_ASYM_KEY_IMPORT) && \
     defined(WC_ENABLE_ASYM_KEY_EXPORT)
     ret = mlkem_cert_test();
+    if (ret != 0)
+        goto out;
+#endif
+
+#if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    defined(WOLFSSL_TEST_CERT) && !defined(WOLFSSL_MLKEM_NO_ASN1) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && !defined(NO_ASN) && \
+    defined(WC_ENABLE_ASYM_KEY_EXPORT) && defined(WC_ENABLE_ASYM_KEY_IMPORT) && \
+    !defined(WC_NO_RNG) && defined(HAVE_ECC) && defined(HAVE_ECC_SIGN) && \
+    !defined(NO_ECC256) && !defined(NO_SHA256)
+    ret = mlkem_certgen_test();
     if (ret != 0)
         goto out;
 #endif

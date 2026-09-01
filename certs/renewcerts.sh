@@ -1256,9 +1256,9 @@ EOF
     ############################################################
     # ML-DSA requires an OpenSSL 3.5+ binary with the built-in ML-DSA provider.
     # Besides key/cert generation the block also produces the expanded-only
-    # PKCS#8 key.der (-provparam ml-dsa.output_formats=priv, a 3.5+ built-in
-    # construct) that the PKCS#7 tests decode without keygen-from-seed. The
-    # probe below requires both keygen and that conversion, so the common
+    # PKCS#8 key.der (-provparam ml-dsa.output_formats=priv-only, a 3.5+
+    # built-in construct) that the PKCS#7 tests decode without keygen-from-seed.
+    # The probe below requires both keygen and that conversion, so the common
     # unsuitable binaries (oqsprovider or pre-3.5, which lack the expanded-only
     # conversion) are rejected here and the block is skipped cleanly rather
     # than aborting after writing a cert.der but no matching key.der.
@@ -1285,7 +1285,7 @@ EOF
             if ! "$candidate" genpkey -algorithm "mldsa${probe_level}" \
                     -out "$probe_key" 2>/dev/null || \
                ! "$candidate" pkey -in "$probe_key" \
-                    -provparam ml-dsa.output_formats=priv -outform DER \
+                    -provparam ml-dsa.output_formats=priv-only -outform DER \
                     -out /dev/null 2>/dev/null; then
                 probe_ok=0
                 break
@@ -1328,7 +1328,7 @@ EOF
             # builds too; the seed-and-expanded default would not. The probe
             # above already verified this binary supports the conversion.
             "$OPENSSL3" pkey -in "mldsa/mldsa${level}-key.pem" \
-                -provparam ml-dsa.output_formats=priv -outform DER \
+                -provparam ml-dsa.output_formats=priv-only -outform DER \
                 -out "mldsa/mldsa${level}-key.der"
             check_result $? "ML-DSA-${level} key DER conversion"
 
@@ -1396,6 +1396,104 @@ EOF
         echo "---------------------------------------------------------------------"
     else
         echo "Skipping ML-DSA cert generation (no OpenSSL 3.5+ built-in ML-DSA provider found)"
+        echo "---------------------------------------------------------------------"
+    fi
+
+    ############################################################
+    #### ML-KEM (FIPS 203) key establishment certificates    ###
+    ############################################################
+    # ML-KEM is a KEM, so it cannot sign anything, including a certificate
+    # request or its own certificate. Each end-entity certificate here is
+    # issued by the ML-DSA-87 certificate produced above, per RFC 9935 and the
+    # CNSA 2.0 PKIX profile, using a throwaway request that only carries the
+    # subject name - "x509 -req -force_pubkey" replaces its public key with the
+    # ML-KEM one before signing. That request is signed by the ML-DSA-87 CA key
+    # itself, so no extra key material is needed.
+    #
+    # The private keys are written in the priv-only PKCS#8 shape (RFC 9935
+    # section 6 expandedKey), which decodes without keygen-from-seed and so
+    # works in WOLFSSL_MLKEM_NO_MAKE_KEY builds too. The seed-priv default
+    # would not.
+    #
+    # This needs the same OpenSSL 3.5+ binary as the ML-DSA block, plus its
+    # built-in ML-KEM provider, so it is probed separately: a binary with
+    # ML-DSA but no ML-KEM still produces the ML-DSA material above.
+    if [ -n "$OPENSSL3" ] && [ -f mldsa/mldsa87-cert.pem ]; then
+        mlkem_probe_key="$(mktemp)"
+        mlkem_ok=1
+        for probe_level in 512 768 1024; do
+            if ! "$OPENSSL3" genpkey -algorithm "ML-KEM-${probe_level}" \
+                    -out "$mlkem_probe_key" 2>/dev/null || \
+               ! "$OPENSSL3" pkey -in "$mlkem_probe_key" \
+                    -provparam ml-kem.output_formats=priv-only -outform DER \
+                    -out /dev/null 2>/dev/null; then
+                mlkem_ok=0
+                break
+            fi
+        done
+        rm -f "$mlkem_probe_key"
+    else
+        mlkem_ok=0
+    fi
+
+    if [ "$mlkem_ok" -eq 1 ]; then
+        echo "Generating ML-KEM certificates using: $OPENSSL3"
+        echo ""
+        mkdir -p mlkem
+
+        # CNSA 2.0 key establishment certificate: keyUsage critical, asserting
+        # keyEncipherment and nothing else (RFC 9935 section 5).
+        cat > mlkem/mlkem.ext <<EOF
+subjectKeyIdentifier = hash
+keyUsage = critical, keyEncipherment
+EOF
+
+        for level in 512 768 1024; do
+            echo "Generating ML-KEM-${level} key and certificate..."
+
+            "$OPENSSL3" genpkey -algorithm "ML-KEM-${level}" \
+                -out "mlkem/mlkem${level}-key.pem"
+            check_result $? "ML-KEM-${level} key generation"
+
+            "$OPENSSL3" pkey -in "mlkem/mlkem${level}-key.pem" -pubout \
+                -out "mlkem/mlkem${level}-pub.pem"
+            check_result $? "ML-KEM-${level} public key extraction"
+
+            # Carrier request. Its own public key is discarded below; only the
+            # subject name is kept.
+            "$OPENSSL3" req -new -key mldsa/mldsa87-key.pem \
+                -subj "/C=US/ST=Montana/L=Bozeman/O=wolfSSL/CN=ML-KEM-${level}" \
+                -out "mlkem/mlkem${level}.csr"
+            check_result $? "ML-KEM-${level} request"
+
+            "$OPENSSL3" x509 -req -in "mlkem/mlkem${level}.csr" \
+                -force_pubkey "mlkem/mlkem${level}-pub.pem" \
+                -CA mldsa/mldsa87-cert.pem -CAkey mldsa/mldsa87-key.pem \
+                -CAcreateserial -days 3650 -extfile mlkem/mlkem.ext \
+                -out "mlkem/mlkem${level}-cert.pem"
+            check_result $? "ML-KEM-${level} certificate generation"
+
+            "$OPENSSL3" x509 -in "mlkem/mlkem${level}-cert.pem" -outform DER \
+                -out "mlkem/mlkem${level}-cert.der"
+            check_result $? "ML-KEM-${level} DER conversion"
+
+            "$OPENSSL3" pkey -in "mlkem/mlkem${level}-key.pem" \
+                -provparam ml-kem.output_formats=priv-only -outform DER \
+                -out "mlkem/mlkem${level}-key.der"
+            check_result $? "ML-KEM-${level} key DER conversion"
+
+            # Only the DER files are kept under certs/mlkem; the PEM forms are
+            # intermediates.
+            rm -f "mlkem/mlkem${level}.csr" "mlkem/mlkem${level}-key.pem" \
+                  "mlkem/mlkem${level}-pub.pem" "mlkem/mlkem${level}-cert.pem"
+
+            echo "End of ML-KEM-${level} section"
+        done
+
+        rm -f mlkem/mlkem.ext mldsa/mldsa87-cert.srl
+        echo "---------------------------------------------------------------------"
+    else
+        echo "Skipping ML-KEM cert generation (no OpenSSL 3.5+ built-in ML-KEM provider found)"
         echo "---------------------------------------------------------------------"
     fi
 
