@@ -60678,6 +60678,24 @@ static wc_test_ret_t mldsa_param_test(int param, WC_RNG* rng)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     if (res != 1)
         ERROR_OUT(WC_TEST_RET_ENC_I(res), out);
+
+    /* A signature that carries no hints must still have every hint byte
+     * zero.  h[0] used to escape that check, so a stray byte there was
+     * accepted.  FIPS 204 Alg 21 step 8.  The hint area is the last
+     * omega + k bytes of the signature.  This wrecks sig, so it goes last. */
+    {
+        word32 hSz = (word32)(key->params->omega + key->params->k);
+        byte*  h = sig + sigLen - hSz;
+
+        XMEMSET(h, 0, hSz);
+        h[0] = 1;
+
+        ret = wc_MlDsaKey_VerifyCtx(key, sig, sigLen, NULL, 0, msg,
+            (word32)sizeof(msg), &res);
+        if (ret != WC_NO_ERR_TRACE(SIG_VERIFY_E))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        ret = 0;
+    }
 #endif
 #endif
 
