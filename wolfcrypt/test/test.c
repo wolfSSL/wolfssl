@@ -57219,6 +57219,214 @@ out:
     !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && !defined(WC_NO_RNG) && \
     !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
+/* Write a DER tag and length. Returns the header size. SetOctetString and
+ * friends are library-local, so the few bytes needed here are written out
+ * directly rather than reaching into asn.c. */
+static word32 mlkem_der_hdr(byte tag, word32 len, byte* out)
+{
+    word32 i = 0;
+
+    out[i++] = tag;
+    if (len < 0x80) {
+        out[i++] = (byte)len;
+    }
+    else if (len < 0x100) {
+        out[i++] = 0x81;
+        out[i++] = (byte)len;
+    }
+    else {
+        out[i++] = 0x82;
+        out[i++] = (byte)(len >> 8);
+        out[i++] = (byte)len;
+    }
+
+    return i;
+}
+
+/* RFC 9935 Section 8: a seed disagreeing with the expandedKey beside it MUST
+ * be rejected. Covers the "both" shape; the seed shape comes from the RFC 9936
+ * interop vector. Keys are built here to reach every parameter set. */
+static wc_test_ret_t mlkem_seed_consistency_test(void)
+{
+    wc_test_ret_t ret = 0;
+    MlKemKey* key = NULL;
+    byte* der = NULL;
+    byte* expanded = NULL;
+    byte seed[WC_ML_KEM_MAKEKEY_RAND_SZ];
+    byte oid[] = { 0x06,0x09,0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x04,0x00 };
+    word32 expandedSz = 0;
+    int i, j;
+    static const int levels[] = {
+#if defined(WOLFSSL_WC_ML_KEM_512) && !defined(WOLFSSL_NO_ML_KEM)
+        WC_ML_KEM_512,
+#endif
+#if defined(WOLFSSL_WC_ML_KEM_768) && !defined(WOLFSSL_NO_ML_KEM)
+        WC_ML_KEM_768,
+#endif
+#if defined(WOLFSSL_WC_ML_KEM_1024) && !defined(WOLFSSL_NO_ML_KEM)
+        WC_ML_KEM_1024,
+#endif
+        -1      /* WC_ML_KEM_512 is 0, so 0 cannot terminate this list */
+    };
+
+    if (levels[0] == -1)
+        return 0;
+
+    /* the seed RFC 9935 Appendix C uses throughout its examples */
+    for (i = 0; i < (int)sizeof(seed); i++)
+        seed[i] = (byte)i;
+
+    key = (MlKemKey*)XMALLOC(sizeof(MlKemKey), HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER);
+    if (key == NULL)
+        return WC_TEST_RET_ENC_ERRNO;
+
+    for (i = 0; levels[i] != -1; i++) {
+        /* expand the seed the way a decoder must, then keep the result */
+        ret = wc_MlKemKey_Init(key, levels[i], HEAP_HINT, devId);
+        if (ret != 0) {
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto out_seed;
+        }
+        ret = wc_MlKemKey_MakeKeyWithRandom(key, seed, (int)sizeof(seed));
+        if (ret == 0)
+            ret = wc_MlKemKey_PrivateKeySize(key, &expandedSz);
+        if (ret != 0) {
+            wc_MlKemKey_Free(key);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto out_seed;
+        }
+        expanded = (byte*)XMALLOC(expandedSz, HEAP_HINT,
+                DYNAMIC_TYPE_TMP_BUFFER);
+        if (expanded == NULL) {
+            wc_MlKemKey_Free(key);
+            ret = WC_TEST_RET_ENC_ERRNO;
+            goto out_seed;
+        }
+        ret = wc_MlKemKey_EncodePrivateKey(key, expanded, expandedSz);
+        wc_MlKemKey_Free(key);
+        if (ret != 0) {
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto out_seed;
+        }
+
+        oid[sizeof(oid) - 1] = (byte)(levels[i] == WC_ML_KEM_512 ? 1 :
+                                     (levels[i] == WC_ML_KEM_768 ? 2 : 3));
+
+        /* 0 - a consistent "both" key, must decode
+         * 1 - the same with one seed byte flipped, must not
+         * 2 - the seed on its own, must decode to the same key
+         * 3 - a seed of the wrong length, must not */
+        for (j = 0; j < 4; j++) {
+            word32 bothSz, pkeySz, algSz, bodySz, n, idx;
+
+            /* both ::= SEQUENCE { OCTET STRING seed, OCTET STRING expanded } */
+            bothSz = 2 + (word32)sizeof(seed) + 4 + expandedSz;
+            /* privateKey OCTET STRING wrapping that SEQUENCE */
+            pkeySz = 4 + bothSz;
+            algSz  = 2 + (word32)sizeof(oid);
+            bodySz = 3 + algSz + 4 + pkeySz;
+
+            der = (byte*)XMALLOC(bodySz + 8, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            if (der == NULL) {
+                ret = WC_TEST_RET_ENC_ERRNO;
+                goto out_seed;
+            }
+
+            if (j >= 2) {
+                /* seed on its own, under the implicit [0] */
+                word32 seedLen = (j == 3) ? (word32)sizeof(seed) - 1
+                                          : (word32)sizeof(seed);
+
+                pkeySz = 2 + seedLen;
+                bodySz = 3 + algSz + 2 + pkeySz;
+
+                n = mlkem_der_hdr(ASN_SEQUENCE | ASN_CONSTRUCTED, bodySz, der);
+                der[n++] = ASN_INTEGER; der[n++] = 1; der[n++] = 0;
+                n += mlkem_der_hdr(ASN_SEQUENCE | ASN_CONSTRUCTED,
+                        (word32)sizeof(oid), der + n);
+                XMEMCPY(der + n, oid, sizeof(oid));
+                n += (word32)sizeof(oid);
+                n += mlkem_der_hdr(ASN_OCTET_STRING, pkeySz, der + n);
+                n += mlkem_der_hdr(ASN_CONTEXT_SPECIFIC | 0, seedLen, der + n);
+                XMEMCPY(der + n, seed, seedLen);
+                n += seedLen;
+            }
+            else {
+            n = mlkem_der_hdr(ASN_SEQUENCE | ASN_CONSTRUCTED, bodySz, der);
+            der[n++] = ASN_INTEGER; der[n++] = 1; der[n++] = 0;
+            n += mlkem_der_hdr(ASN_SEQUENCE | ASN_CONSTRUCTED,
+                    (word32)sizeof(oid), der + n);
+            XMEMCPY(der + n, oid, sizeof(oid));
+            n += (word32)sizeof(oid);
+            n += mlkem_der_hdr(ASN_OCTET_STRING, pkeySz, der + n);
+            n += mlkem_der_hdr(ASN_SEQUENCE | ASN_CONSTRUCTED, bothSz, der + n);
+            n += mlkem_der_hdr(ASN_OCTET_STRING, (word32)sizeof(seed), der + n);
+            XMEMCPY(der + n, seed, sizeof(seed));
+            if (j == 1)
+                der[n] ^= 0xFF;                  /* break the seed */
+            n += (word32)sizeof(seed);
+            n += mlkem_der_hdr(ASN_OCTET_STRING, expandedSz, der + n);
+            XMEMCPY(der + n, expanded, expandedSz);
+            n += expandedSz;
+            }
+
+            ret = wc_MlKemKey_Init(key, levels[i], HEAP_HINT, devId);
+            if (ret != 0) {
+                ret = WC_TEST_RET_ENC_EC(ret);
+                goto out_seed;
+            }
+            idx = 0;
+            ret = wc_MlKemKey_PrivateKeyDecode(key, der, n, &idx);
+
+            if (((j == 0) || (j == 2)) && (ret != 0)) {
+                wc_MlKemKey_Free(key);
+                ret = WC_TEST_RET_ENC_EC(ret);   /* valid, must decode */
+                goto out_seed;
+            }
+            if (((j == 1) || (j == 3)) && (ret == 0)) {
+                wc_MlKemKey_Free(key);
+                ret = WC_TEST_RET_ENC_NC;        /* invalid, must not decode */
+                goto out_seed;
+            }
+            if (j == 2) {
+                /* the seed alone must reproduce the expanded key exactly */
+                byte* again = (byte*)XMALLOC(expandedSz, HEAP_HINT,
+                        DYNAMIC_TYPE_TMP_BUFFER);
+                if (again == NULL) {
+                    wc_MlKemKey_Free(key);
+                    ret = WC_TEST_RET_ENC_ERRNO;
+                    goto out_seed;
+                }
+                ret = wc_MlKemKey_EncodePrivateKey(key, again, expandedSz);
+                if (ret == 0 && XMEMCMP(again, expanded, expandedSz) != 0)
+                    ret = WC_TEST_RET_ENC_NC;
+                XMEMSET(again, 0, expandedSz);
+                XFREE(again, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+                if (ret != 0) {
+                    wc_MlKemKey_Free(key);
+                    goto out_seed;
+                }
+            }
+            wc_MlKemKey_Free(key);
+            ret = 0;
+
+            XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            der = NULL;
+        }
+
+        XFREE(expanded, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        expanded = NULL;
+    }
+
+out_seed:
+    XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(expanded, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+
 /* Round-trip each enabled ML-KEM parameter set through its DER encodings:
  * SubjectPublicKeyInfo for the encapsulation key and PKCS#8 for the expanded
  * decapsulation key. A decoded public key must still encapsulate to a shared
@@ -57848,6 +58056,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
     !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
     ret = mlkem_asn1_test();
+    if (ret != 0)
+        goto out;
+    ret = mlkem_seed_consistency_test();
     if (ret != 0)
         goto out;
 #endif

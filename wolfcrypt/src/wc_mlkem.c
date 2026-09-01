@@ -3090,9 +3090,17 @@ int wc_MlKemKey_PublicKeyDecode(MlKemKey* key, const byte* input, word32 inSz,
 
 /* Decode a DER PKCS#8 OneAsymmetricKey into an ML-KEM private key.
  *
- * Only the expanded decapsulation key is accepted. The parameter set must
- * match the initialized key object, as described for
- * wc_MlKemKey_PublicKeyDecode.
+ * All three RFC 9935 Section 6 CHOICE shapes are accepted: the 64 byte seed
+ * under an implicit [0], the expanded decapsulation key as an OCTET STRING,
+ * and the SEQUENCE carrying both. A seed is expanded with
+ * ML-KEM.KeyGen_internal(d,z); when both forms are present the expanded key
+ * is regenerated from the seed and the two are compared, per RFC 9935
+ * Section 8. The parameter set must match the initialized key object, as
+ * described for wc_MlKemKey_PublicKeyDecode.
+ *
+ * A WOLFSSL_MLKEM_NO_MAKE_KEY build cannot expand a seed, so it cannot run
+ * the Section 8 check either and rejects any key carrying one, including the
+ * "both" shape.
  *
  * @param  [in, out]  key       ML-KEM key object.
  * @param  [in]       input     DER buffer.
@@ -3100,17 +3108,27 @@ int wc_MlKemKey_PublicKeyDecode(MlKemKey* key, const byte* input, word32 inSz,
  * @param  [in, out]  inOutIdx  On in, index into buffer; on out, index after.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when a pointer is NULL.
- * @return  ASN_PARSE_E when the DER is invalid or names another parameter set.
+ * @return  ASN_PARSE_E when the DER is invalid, names another parameter set,
+ *          carries a seed that is not 64 bytes, or carries a seed and an
+ *          expanded key that disagree.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ * @return  NOT_COMPILED_IN when a key carrying a seed is decoded in a
+ *          WOLFSSL_MLKEM_NO_MAKE_KEY build.
  */
 int wc_MlKemKey_PrivateKeyDecode(MlKemKey* key, const byte* input, word32 inSz,
     word32* inOutIdx)
 {
     int ret = 0;
     int keyType = ANONk;
+    const byte* seed = NULL;
+    word32 seedLen = 0;
     const byte* privKey = NULL;
     word32 privKeyLen = 0;
     const byte* pubKey = NULL;
     word32 pubKeyLen = 0;
+#ifndef WOLFSSL_MLKEM_NO_MAKE_KEY
+    int keyExpanded = 0;
+#endif
 
     if ((key == NULL) || (input == NULL) || (inOutIdx == NULL)) {
         ret = BAD_FUNC_ARG;
@@ -3119,15 +3137,92 @@ int wc_MlKemKey_PrivateKeyDecode(MlKemKey* key, const byte* input, word32 inSz,
         ret = mlkem_type_to_oid_sum(key->type, &keyType);
     }
     if (ret == 0) {
-        /* A KEM blob carries no seed, and the ML-KEM private key embeds the
-         * public key, so pubKeyLen comes back zero. The out-params must still
-         * be non-NULL. */
-        ret = DecodeAsymKey_Assign(input, inOutIdx, inSz, NULL, NULL, &privKey,
-            &privKeyLen, &pubKey, &pubKeyLen, &keyType);
+        /* RFC 9935 Section 6 gives privateKey three CHOICE shapes: a 64 byte
+         * seed under an implicit [0], the expanded key as an OCTET STRING, or
+         * a SEQUENCE carrying both. The template decoder reports which. */
+        ret = DecodeAsymKey_Assign(input, inOutIdx, inSz, &seed, &seedLen,
+            &privKey, &privKeyLen, &pubKey, &pubKeyLen, &keyType);
+    }
+#ifdef WOLFSSL_MLKEM_NO_MAKE_KEY
+    /* Expanding a seed needs key generation, which this build lacks. That
+     * rules out the "both" shape too: without the RFC 9935 Section 8
+     * comparison, trusting the expanded half would accept a tampered file. */
+    if ((ret == 0) && (seed != NULL)) {
+        WOLFSSL_MSG("ML-KEM seed needs key generation, which is not built");
+        ret = NOT_COMPILED_IN;
     }
     if (ret == 0) {
         ret = wc_MlKemKey_DecodePrivateKey(key, privKey, privKeyLen);
     }
+#else
+    if ((ret == 0) && (seed != NULL)) {
+        if (seedLen != WC_ML_KEM_MAKEKEY_RAND_SZ) {
+            ret = ASN_PARSE_E;
+        }
+        else {
+            /* Expand with ML-KEM.KeyGen_internal(d,z), FIPS 203 algorithm 16,
+             * taking the first 32 octets as d and the rest as z. */
+            ret = wc_MlKemKey_MakeKeyWithRandom(key, seed, (int)seedLen);
+            if (ret == 0) {
+                keyExpanded = 1;
+            }
+        }
+    }
+    if ((ret == 0) && (seed != NULL) && (privKey != NULL)) {
+        /* The "both" shape. RFC 9935 Section 8: regenerate the expanded form
+         * from the seed and reject the key when the two disagree. */
+        byte* expanded = NULL;
+        word32 expandedLen = 0;
+
+        ret = wc_MlKemKey_PrivateKeySize(key, &expandedLen);
+        if ((ret == 0) && (expandedLen != privKeyLen)) {
+            ret = ASN_PARSE_E;
+        }
+        if (ret == 0) {
+            expanded = (byte*)XMALLOC(expandedLen, key->heap,
+                DYNAMIC_TYPE_TMP_BUFFER);
+            if (expanded == NULL) {
+                ret = MEMORY_E;
+            }
+        }
+        if (ret == 0) {
+            ret = wc_MlKemKey_EncodePrivateKey(key, expanded, expandedLen);
+        }
+        if (ret == 0) {
+            if (XMEMCMP(expanded, privKey, expandedLen) != 0) {
+                WOLFSSL_MSG("ML-KEM seed and expandedKey disagree");
+                ret = ASN_PARSE_E;
+            }
+        }
+        if (expanded != NULL) {
+            ForceZero(expanded, expandedLen);
+            XFREE(expanded, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+    }
+    if ((ret != 0) && keyExpanded) {
+        /* The seed was expanded before it could be checked, so scrub it; a
+         * failure must not leave a usable private key behind. Gated on the
+         * expansion having run, not on seed != NULL: a wrong-length seed never
+         * reaches it, and priv may still be NULL under DYNAMIC_KEYS. */
+    #ifdef WOLFSSL_MLKEM_DYNAMIC_KEYS
+        if (key->priv != NULL) {
+            ForceZero(key->priv, key->privAllocSz);
+        }
+    #else
+        int scrubK = mlkemkey_get_k(key);
+
+        if (scrubK != 0) {
+            ForceZero(key->priv,
+                (size_t)scrubK * MLKEM_N * sizeof(sword16));
+        }
+    #endif
+        ForceZero(key->z, WC_ML_KEM_SYM_SZ);
+        key->flags = 0;
+    }
+    else if ((ret == 0) && (seed == NULL)) {
+        ret = wc_MlKemKey_DecodePrivateKey(key, privKey, privKeyLen);
+    }
+#endif /* WOLFSSL_MLKEM_NO_MAKE_KEY */
 
     return ret;
 }
