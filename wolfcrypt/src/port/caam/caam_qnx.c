@@ -336,6 +336,28 @@ static int sanityCheckPartitionAddress(CAAM_ADDRESS partAddr, int partSz)
 }
 
 
+static int checkPartitionOwner(CAAM_ADDRESS partAddr, iofunc_ocb_t *ocb)
+{
+    unsigned int partNumber;
+    int ret = EOK;
+
+    partNumber = (unsigned int)((partAddr - CAAM_PAGE) / CAAM_PAGE_SZ);
+    if (!CAAM_QNX_PARTITION_IS_VALID(partNumber))
+        return EBADMSG;
+
+    if (pthread_mutex_lock(&sm_mutex) != EOK) {
+        return ECANCELED;
+    }
+    else {
+        if (sm_ownerId[partNumber] != (CAAM_ADDRESS)ocb)
+            ret = EACCES;
+        pthread_mutex_unlock(&sm_mutex);
+    }
+
+    return ret;
+}
+
+
 /* return 0 on success */
 static int getArgs(unsigned int args[4], resmgr_context_t *ctp, io_devctl_t *msg,
         unsigned int *idx, unsigned int maxIdx)
@@ -1437,7 +1459,7 @@ static int doGET_PART(resmgr_context_t *ctp, io_devctl_t *msg,
  * returns EOK on success
  */
 static int doWRITE_PART(resmgr_context_t *ctp, io_devctl_t *msg,
-        unsigned int args[4], unsigned int idx)
+        unsigned int args[4], unsigned int idx, iofunc_ocb_t *ocb)
 {
     int partSz, ret;
     CAAM_ADDRESS partAddr;
@@ -1449,6 +1471,15 @@ static int doWRITE_PART(resmgr_context_t *ctp, io_devctl_t *msg,
     partAddr = args[0];
     partSz   = args[1];
 
+    /* sanity check on address and length */
+    if (sanityCheckPartitionAddress(partAddr, partSz) != 0) {
+        return EBADMSG;
+    }
+
+    ret = checkPartitionOwner(partAddr, ocb);
+    if (ret != EOK)
+        return ret;
+
     buf = (unsigned char*)CAAM_ADR_MAP(0, partSz, 0);
     if (buf == NULL) {
         return ECANCELED;
@@ -1457,12 +1488,6 @@ static int doWRITE_PART(resmgr_context_t *ctp, io_devctl_t *msg,
     SETIOV(&in_iov, buf, partSz);
     ret = resmgr_msgreadv(ctp, &in_iov, 1, idx);
     if (ret != partSz) {
-        CAAM_ADR_UNMAP(buf, 0, partSz, 0);
-        return EBADMSG;
-    }
-
-    /* sanity check on address and length */
-    if (sanityCheckPartitionAddress(partAddr, partSz) != 0) {
         CAAM_ADR_UNMAP(buf, 0, partSz, 0);
         return EBADMSG;
     }
@@ -1483,9 +1508,9 @@ static int doWRITE_PART(resmgr_context_t *ctp, io_devctl_t *msg,
  * returns EOK on success
  */
 static int doREAD_PART(resmgr_context_t *ctp, io_devctl_t *msg,
-        unsigned int args[4], unsigned int idx)
+        unsigned int args[4], unsigned int idx, iofunc_ocb_t *ocb)
 {
-    int partSz;
+    int partSz, ret;
     CAAM_ADDRESS partAddr;
     CAAM_ADDRESS vaddr;
     unsigned char *buf;
@@ -1504,6 +1529,10 @@ static int doREAD_PART(resmgr_context_t *ctp, io_devctl_t *msg,
     if (sanityCheckPartitionAddress(partAddr, partSz) != 0) {
         return EBADMSG;
     }
+
+    ret = checkPartitionOwner(partAddr, ocb);
+    if (ret != EOK)
+        return ret;
 
     buf = (unsigned char*)CAAM_ADR_MAP(0, partSz, 0);
     if (buf == NULL) {
@@ -1612,12 +1641,15 @@ int io_devctl (resmgr_context_t *ctp, io_devctl_t *msg, iofunc_ocb_t *ocb)
                 break;
             }
 
-            if (caamFreePart(args[0]) != Success) {
-                ret = ECANCELED;
-                break;
-            }
-
             if (pthread_mutex_lock(&sm_mutex) != EOK) {
+                ret = ECANCELED;
+            }
+            else if (sm_ownerId[args[0]] != (CAAM_ADDRESS)ocb) {
+                pthread_mutex_unlock(&sm_mutex);
+                ret = EACCES;
+            }
+            else if (caamFreePart(args[0]) != Success) {
+                pthread_mutex_unlock(&sm_mutex);
                 ret = ECANCELED;
             }
             else {
@@ -1639,11 +1671,11 @@ int io_devctl (resmgr_context_t *ctp, io_devctl_t *msg, iofunc_ocb_t *ocb)
             break;
 
         case WC_CAAM_WRITE_PART:
-            ret = doWRITE_PART(ctp, msg, args, idx);
+            ret = doWRITE_PART(ctp, msg, args, idx, ocb);
             break;
 
         case WC_CAAM_READ_PART:
-            ret = doREAD_PART(ctp, msg, args, idx);
+            ret = doREAD_PART(ctp, msg, args, idx, ocb);
             break;
 
         default:

@@ -37,6 +37,26 @@ static void caamTestDescInit(DESCSTRUCT* desc, int type,
         unsigned int args[4], CAAM_BUFFER* buf, int sz);
 static int caamTestAesCombined(DESCSTRUCT* desc, CAAM_BUFFER* buf,
         unsigned int args[4], unsigned int phyMem);
+static CAAM_ADDRESS caamTestGetPartition(unsigned int part, int partSz,
+        unsigned int flag);
+static int caamTestFreePart(unsigned int part);
+static int caamTestAead(DESCSTRUCT* desc, CAAM_BUFFER* buf,
+        unsigned int args[4]);
+static int caamTestAesCmac(DESCSTRUCT* desc, int sz,
+        unsigned int args[4]);
+static int caamTestBlob(DESCSTRUCT* desc);
+static int caamTestECDSAMake(DESCSTRUCT* desc, CAAM_BUFFER* buf,
+        unsigned int args[4]);
+static int caamTestECDSASign(DESCSTRUCT* desc, int sz,
+        unsigned int args[4]);
+static int caamTestECDSAVerify(DESCSTRUCT* desc, CAAM_BUFFER* buf, int sz,
+        unsigned int args[4]);
+static int caamTestECDSAEcdh(DESCSTRUCT* desc, int sz,
+        unsigned int args[4]);
+static int caamTestEntropy(unsigned char* out, int outSz);
+static int caamTestFindUnusedPartition(void);
+static int caamTestKeyCover(DESCSTRUCT* desc, int sz,
+        unsigned int args[4]);
 
 #ifdef CAAM_QNX_TEST_HOST
 static int caamTestSemTryWait(sem_t* sem);
@@ -54,12 +74,36 @@ static int caamTestSemDestroy(sem_t* sem);
 #define resmgr_msgwritev caamTestMsgWritev
 #define caamDescInit caamTestDescInit
 #define caamAesCombined caamTestAesCombined
+#define caamGetPartition caamTestGetPartition
+#define caamFreePart caamTestFreePart
+#define caamAead caamTestAead
+#define caamAesCmac caamTestAesCmac
+#define caamBlob caamTestBlob
+#define caamECDSAMake caamTestECDSAMake
+#define caamECDSASign caamTestECDSASign
+#define caamECDSAVerify caamTestECDSAVerify
+#define caamECDSA_ECDH caamTestECDSAEcdh
+#define caamEntropy caamTestEntropy
+#define caamFindUnusedPartition caamTestFindUnusedPartition
+#define caamKeyCover caamTestKeyCover
 #define main caamQnxServerMain
 #ifndef CAAM_QNX_SOURCE
     #define CAAM_QNX_SOURCE "../../../wolfcrypt/src/port/caam/caam_qnx.c"
 #endif
 #include CAAM_QNX_SOURCE
 #undef main
+#undef caamKeyCover
+#undef caamFindUnusedPartition
+#undef caamEntropy
+#undef caamECDSA_ECDH
+#undef caamECDSAVerify
+#undef caamECDSASign
+#undef caamECDSAMake
+#undef caamBlob
+#undef caamAesCmac
+#undef caamAead
+#undef caamFreePart
+#undef caamGetPartition
 #undef caamAesCombined
 #undef caamDescInit
 #undef resmgr_msgwritev
@@ -67,6 +111,9 @@ static int caamTestSemDestroy(sem_t* sem);
 
 static int caamTestReadSz;
 static int caamTestAesCalls;
+static int caamTestFreeCalls;
+static const unsigned char* caamTestReadData;
+static size_t caamTestReadDataSz;
 
 #ifdef CAAM_QNX_TEST_HOST
 static int caamTestSemaphore;
@@ -106,10 +153,20 @@ static int caamTestSemDestroy(sem_t* sem)
 static ssize_t caamTestMsgReadv(resmgr_context_t* ctp, iov_t* iov,
         int parts, size_t offset)
 {
+    int i;
+    size_t copied = 0;
+
     (void)ctp;
-    (void)iov;
-    (void)parts;
     (void)offset;
+
+    for (i = 0; i < parts && copied < caamTestReadDataSz; i++) {
+        size_t copySz = iov[i].iov_len;
+
+        if (copySz > caamTestReadDataSz - copied)
+            copySz = caamTestReadDataSz - copied;
+        memcpy(iov[i].iov_base, caamTestReadData + copied, copySz);
+        copied += copySz;
+    }
 
     return caamTestReadSz;
 }
@@ -144,6 +201,103 @@ static int caamTestAesCombined(DESCSTRUCT* desc, CAAM_BUFFER* buf,
     (void)phyMem;
 
     caamTestAesCalls++;
+    return Failure;
+}
+
+static CAAM_ADDRESS caamTestGetPartition(unsigned int part, int partSz,
+        unsigned int flag)
+{
+    (void)part;
+    (void)partSz;
+    (void)flag;
+    return 0;
+}
+
+static int caamTestFreePart(unsigned int part)
+{
+    (void)part;
+    caamTestFreeCalls++;
+    return Success;
+}
+
+static int caamTestAead(DESCSTRUCT* desc, CAAM_BUFFER* buf,
+        unsigned int args[4])
+{
+    (void)desc;
+    (void)buf;
+    (void)args;
+    return Failure;
+}
+
+static int caamTestAesCmac(DESCSTRUCT* desc, int sz, unsigned int args[4])
+{
+    (void)desc;
+    (void)sz;
+    (void)args;
+    return Failure;
+}
+
+static int caamTestBlob(DESCSTRUCT* desc)
+{
+    (void)desc;
+    return Failure;
+}
+
+static int caamTestECDSAMake(DESCSTRUCT* desc, CAAM_BUFFER* buf,
+        unsigned int args[4])
+{
+    (void)desc;
+    (void)buf;
+    (void)args;
+    return Failure;
+}
+
+static int caamTestECDSASign(DESCSTRUCT* desc, int sz,
+        unsigned int args[4])
+{
+    (void)desc;
+    (void)sz;
+    (void)args;
+    return Failure;
+}
+
+static int caamTestECDSAVerify(DESCSTRUCT* desc, CAAM_BUFFER* buf, int sz,
+        unsigned int args[4])
+{
+    (void)desc;
+    (void)buf;
+    (void)sz;
+    (void)args;
+    return Failure;
+}
+
+static int caamTestECDSAEcdh(DESCSTRUCT* desc, int sz,
+        unsigned int args[4])
+{
+    (void)desc;
+    (void)sz;
+    (void)args;
+    return Failure;
+}
+
+static int caamTestEntropy(unsigned char* out, int outSz)
+{
+    (void)out;
+    (void)outSz;
+    return Failure;
+}
+
+static int caamTestFindUnusedPartition(void)
+{
+    return -1;
+}
+
+static int caamTestKeyCover(DESCSTRUCT* desc, int sz,
+        unsigned int args[4])
+{
+    (void)desc;
+    (void)sz;
+    (void)args;
     return Failure;
 }
 
@@ -203,6 +357,54 @@ static int testRejectOversizedRequest(void)
     return ret == EBADMSG && caamTestAesCalls == 0 ? 0 : 1;
 }
 
+static int testRejectOtherOwnerPartitionAccess(void)
+{
+    resmgr_context_t ctp;
+    io_devctl_t msg;
+    iofunc_ocb_t owner;
+    iofunc_ocb_t other;
+    unsigned int args[4];
+    int commands[3] = {WC_CAAM_WRITE_PART, WC_CAAM_READ_PART,
+        WC_CAAM_FREE_PART};
+    int ret;
+    int i;
+
+    memset(&ctp, 0, sizeof(ctp));
+    memset(&msg, 0, sizeof(msg));
+    memset(&owner, 0, sizeof(owner));
+    memset(&other, 0, sizeof(other));
+    ctp.size = sizeof(msg.i) + sizeof(args);
+    msg.o.nbytes = 1U;
+
+    for (i = 0; i < 3; i++) {
+        memset(args, 0, sizeof(args));
+        if (commands[i] == WC_CAAM_FREE_PART) {
+            args[0] = 0U;
+        }
+        else {
+            args[0] = CAAM_PAGE;
+            args[1] = 1U;
+        }
+
+        msg.i.dcmd = commands[i];
+        sm_ownerId[0] = (CAAM_ADDRESS)&owner;
+        caamTestFreeCalls = 0;
+        caamTestReadData = (const unsigned char*)args;
+        caamTestReadDataSz = sizeof(args);
+        caamTestReadSz = sizeof(args);
+        ret = io_devctl(&ctp, &msg, &other);
+        caamTestReadData = NULL;
+        caamTestReadDataSz = 0U;
+
+        if (ret != EACCES || sm_ownerId[0] != (CAAM_ADDRESS)&owner ||
+                caamTestFreeCalls != 0) {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
 #ifdef CAAM_QNX_TEST_HOST
     #undef sem_destroy
     #undef sem_init
@@ -212,6 +414,8 @@ static int testRejectOversizedRequest(void)
 
 int main(void)
 {
+    if (pthread_mutex_init(&sm_mutex, NULL) != EOK)
+        return 1;
     if (testRejectIncompleteRequest() != 0) {
         printf("testRejectIncompleteRequest: FAIL\n");
         return 1;
@@ -220,8 +424,15 @@ int main(void)
         printf("testRejectOversizedRequest: FAIL\n");
         return 1;
     }
+    if (testRejectOtherOwnerPartitionAccess() != 0) {
+        printf("testRejectOtherOwnerPartitionAccess: FAIL\n");
+        return 1;
+    }
+
+    (void)pthread_mutex_destroy(&sm_mutex);
 
     printf("testRejectIncompleteRequest: PASS\n");
     printf("testRejectOversizedRequest: PASS\n");
+    printf("testRejectOtherOwnerPartitionAccess: PASS\n");
     return 0;
 }
