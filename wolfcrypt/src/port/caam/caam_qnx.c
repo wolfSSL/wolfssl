@@ -514,6 +514,10 @@ static int doBLOB(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
         inSz = inSz + BLACK_KEY_MAC_SZ;
     }
 
+    if (args[3] > sizeof(keymod)) {
+        return EOVERFLOW;
+    }
+
     SETIOV(&in_iovs[0], keymod, args[3]);
     if ((inSz + args[3]) > (ctp->size - idx)) {
         return EOVERFLOW;
