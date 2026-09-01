@@ -30,6 +30,9 @@
 
 #ifndef NO_PWDBASED
 
+#if FIPS_VERSION3_GE(7,0,0)
+    #include <wolfssl/wolfcrypt/fips.h>
+#endif
 
 #ifdef __cplusplus
     extern "C" {
