@@ -47,6 +47,7 @@ int test_wolfSSL_CTX_cert_store_manager_link(void);
 int test_wolfSSL_cert_cb_ctx(void);
 int test_wolfSSL_get_certificate_api(void);
 int test_wolfSSL_cert_unload(void);
+int test_wolfSSL_self_issued_chain_ca_no_keycertsign(void);
 
 #define TEST_SSL_CERT_DECLS                                                    \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_get_verify_mode),             \
@@ -75,6 +76,8 @@ int test_wolfSSL_cert_unload(void);
             test_wolfSSL_CTX_cert_store_manager_link),                         \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_cert_cb_ctx),                 \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_get_certificate_api),         \
-        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_cert_unload)
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_cert_unload),                 \
+        TEST_DECL_GROUP("ssl_cert",                                            \
+            test_wolfSSL_self_issued_chain_ca_no_keycertsign)
 
 #endif /* TESTS_API_SSL_CERT_H */

@@ -17198,11 +17198,10 @@ static int ProcessPeerCertAddPendingCA(WOLFSSL* ssl, buffer* cert)
         goto exit_req_v2;
     }
 #ifndef ALLOW_INVALID_CERTSIGN
-    /* Per RFC 5280 an absent Key Usage extension implies all usages, so only
-     * enforce certificate signing when the extension is actually present.
-     * AddCA() rejects such a certificate outright, so report the same error
-     * here rather than quietly leaving it out of the pool. */
-    if (!dCertAdd->selfSigned && dCertAdd->extKeyUsageSet &&
+    /* Signers in this pool verify other certificates, so a CA needs the
+     * keyCertSign key usage once a Key Usage extension is present. Fail the
+     * handshake rather than silently dropping the certificate. */
+    if (dCertAdd->extKeyUsageSet &&
             (dCertAdd->extKeyUsage & KEYUSE_KEY_CERT_SIGN) == 0) {
         WOLFSSL_MSG("Chain cert doesn't have key usage certificate signing");
         ret = NOT_CA_ERROR;

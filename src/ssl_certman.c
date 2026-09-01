@@ -3313,21 +3313,14 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
         WOLFSSL_MSG("\tCan't add as CA if not actually one");
         ret = NOT_CA_ERROR;
     }
-    /* Enforced by default. ALLOW_INVALID_CERTSIGN is a deliberate,
-     * RFC-non-conformant opt-out for interop with deployed certs that carry
-     * malformed keyUsage; see the macro list at the top of
-     * wolfcrypt/src/asn.c. */
+    /* Enforced by default; ALLOW_INVALID_CERTSIGN is a deliberate,
+     * RFC-non-conformant opt-out (see the macro list in wolfcrypt/src/asn.c).
+     * A self-issued WOLFSSL_TEMP_CA is a re-offered trust anchor, so exempt. */
 #ifndef ALLOW_INVALID_CERTSIGN
     else if (ret == 0 && cert->isCA == 1 && type != WOLFSSL_USER_CA &&
-        !cert->selfSigned && cert->extKeyUsageSet &&
+        !(type == WOLFSSL_TEMP_CA && cert->selfSigned) &&
+        cert->extKeyUsageSet &&
         (cert->extKeyUsage & KEYUSE_KEY_CERT_SIGN) == 0) {
-        /* Intermediate CA certs - including chain-supplied temporary CAs
-        * (WOLFSSL_TEMP_CA) added while building a path - are required to have
-        * the keyCertSign key usage when a Key Usage extension is present.
-        * Only operator-loaded root certs (WOLFSSL_USER_CA) and self-signed
-        * roots are exempt. Per RFC 5280 an absent Key Usage extension implies
-        * all usages, so only enforce this when the extension is actually
-        * present (extKeyUsageSet). */
         WOLFSSL_MSG("\tDoesn't have key usage certificate signing");
         ret = NOT_CA_ERROR;
     }
