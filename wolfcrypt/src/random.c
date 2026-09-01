@@ -351,6 +351,13 @@ enum {
 #define SEED_SZ           WC_DRBG_SEED_SZ
 #define MAX_SEED_SZ       WC_DRBG_MAX_SEED_SZ
 
+
+/* Makes _InitRng() take its seed from the caller.  Only wc_InitRngRBGC()
+ * uses it.  Build-time only. */
+#ifdef LINUXKM_RBGC
+    #define WC_RNG_SEED_FROM_CALLER
+#endif
+
 /* Verify max gen block len */
 #if RNG_MAX_BLOCK_LEN > MAX_REQUEST_LEN
     #error RNG_MAX_BLOCK_LEN is larger than NIST DBRG max request length
@@ -1899,6 +1906,7 @@ int wc_Sha512Drbg_IsDisabled(void)
 
 
 static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
+                    const byte* rbgcSeed, word32 rbgcSeedSz,
                     void* heap, int devId)
 {
     int ret = 0;
@@ -1916,6 +1924,10 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 
     (void)nonce;
     (void)nonceSz;
+#ifndef WC_RNG_SEED_FROM_CALLER
+    (void)rbgcSeed;
+    (void)rbgcSeedSz;
+#endif
 
     if (rng == NULL)
         return BAD_FUNC_ARG;
@@ -2184,6 +2196,16 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 #endif
     }
     else {
+#ifdef WC_RNG_SEED_FROM_CALLER
+            if (rbgcSeed != NULL) {
+                /* Caller supplied the seed, so skip seedCb and
+                 * wc_GenerateSeed(). */
+                XMEMCPY(seed, rbgcSeed, rbgcSeedSz);
+                seedSz = rbgcSeedSz;
+                ret = 0;
+            }
+            else
+#endif
 #ifdef WC_RNG_SEED_CB
             if (seedCb == NULL) {
                 ret = DRBG_NO_SEED_CB;
@@ -2218,8 +2240,19 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
                 rng->status = DRBG_FAILED;
             }
 
-            if (ret == 0)
-                ret = wc_RNG_TestSeed(seed, seedSz);
+            if (ret == 0) {
+#ifdef WC_RNG_SEED_FROM_CALLER
+                /* No repetition check: this is the parent's DRBG output, not
+                 * raw noise (SP 800-90C 7.2.1.2). */
+                if (rbgcSeed != NULL) {
+                    ret = DRBG_SUCCESS;
+                }
+                else
+#endif
+                {
+                    ret = wc_RNG_TestSeed(seed, seedSz);
+                }
+            }
     #if defined(DEBUG_WOLFSSL)
             if (ret != 0) {
                 WOLFSSL_MSG_EX("wc_RNG_TestSeed failed... %d", ret);
@@ -2233,25 +2266,38 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
     #endif
 
             if (ret == DRBG_SUCCESS) {
+                const byte* instSeed;
+                word32      instSeedSz;
+
+            #if defined(HAVE_FIPS) || !defined(WOLFSSL_RNG_USE_FULL_SEED)
+                /* No repetition check here, so no SEED_BLOCK_SZ prefix to
+                 * skip: use the whole buffer. */
+            #ifdef WC_RNG_SEED_FROM_CALLER
+                if (rbgcSeed != NULL) {
+                    instSeed   = seed;
+                    instSeedSz = seedSz;
+                }
+                else
+            #endif
+                {
+                    instSeed   = seed + SEED_BLOCK_SZ;
+                    instSeedSz = seedSz - SEED_BLOCK_SZ;
+                }
+            #else
+                instSeed   = seed;
+                instSeedSz = seedSz;
+            #endif
 #ifndef NO_SHA256
                 if (rng->drbgType == WC_DRBG_SHA256)
                     ret = Hash_DRBG_Instantiate((DRBG_internal *)rng->drbg,
-                #if defined(HAVE_FIPS) || !defined(WOLFSSL_RNG_USE_FULL_SEED)
-                                seed + SEED_BLOCK_SZ, seedSz - SEED_BLOCK_SZ,
-                #else
-                                seed, seedSz,
-                #endif
+                                instSeed, instSeedSz,
                                 nonce, nonceSz, NULL, 0, rng->heap, devId);
 #endif
 #ifdef WOLFSSL_DRBG_SHA512
                 if (rng->drbgType == WC_DRBG_SHA512)
                     ret = Hash512_DRBG_Instantiate(
                                 (DRBG_SHA512_internal *)rng->drbg512,
-                #if defined(HAVE_FIPS) || !defined(WOLFSSL_RNG_USE_FULL_SEED)
-                                seed + SEED_BLOCK_SZ, seedSz - SEED_BLOCK_SZ,
-                #else
-                                seed, seedSz,
-                #endif
+                                instSeed, instSeedSz,
                                 nonce, nonceSz, NULL, 0, rng->heap, devId);
 #endif
             }
@@ -2379,7 +2425,7 @@ int wc_rng_new_ex(WC_RNG **rng, byte* nonce, word32 nonceSz,
         return MEMORY_E;
     }
 
-    ret = _InitRng(*rng, nonce, nonceSz, heap, devId);
+    ret = _InitRng(*rng, nonce, nonceSz, NULL, 0, heap, devId);
     if (ret != 0) {
         XFREE(*rng, heap, DYNAMIC_TYPE_RNG);
         *rng = NULL;
@@ -2402,29 +2448,66 @@ void wc_rng_free(WC_RNG* rng)
     }
 }
 
+#ifdef LINUXKM_RBGC
+/* Instantiate a child DRBG from its parent (SP 800-90C 7.2.1.2).  Not
+ * exported.  Draws 3s/2 bits, so the extra s/2 covers the nonce and none is
+ * passed separately.  SHA-512 only: a different parent means that DRBG was
+ * disabled, and we must not silently build on another one. */
+int wc_InitRngRBGC(WC_RNG* rng, WC_RNG* parent)
+{
+    byte seed[WC_RBGC_INSTANTIATE_SZ];
+    int  ret;
+
+    if ((rng == NULL) || (parent == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (parent->drbgType != WC_DRBG_SHA512) {
+        return BAD_STATE_E;
+    }
+
+    ret = wc_RNG_GenerateBlock(parent, seed, (word32) sizeof(seed));
+    if (ret == 0) {
+        ret = _InitRng(rng, NULL, 0, seed, (word32) sizeof(seed), NULL,
+                       INVALID_DEVID);
+    }
+
+    /* CSP: parent output, this child's seed.  Not reusable (SP 800-90C
+     * 7.3.1 req 15). */
+    ForceZero(seed, sizeof(seed));
+
+    if ((ret == 0) && (rng->drbgType != WC_DRBG_SHA512)) {
+        (void) wc_FreeRng(rng);
+        return BAD_STATE_E;
+    }
+
+    return ret;
+}
+#endif /* LINUXKM_RBGC */
+
 WOLFSSL_ABI
 int wc_InitRng(WC_RNG* rng)
 {
-    return _InitRng(rng, NULL, 0, NULL, INVALID_DEVID);
+    return _InitRng(rng, NULL, 0, NULL, 0, NULL, INVALID_DEVID);
 }
 
 
 int wc_InitRng_ex(WC_RNG* rng, void* heap, int devId)
 {
-    return _InitRng(rng, NULL, 0, heap, devId);
+    return _InitRng(rng, NULL, 0, NULL, 0, heap, devId);
 }
 
 
 int wc_InitRngNonce(WC_RNG* rng, byte* nonce, word32 nonceSz)
 {
-    return _InitRng(rng, nonce, nonceSz, NULL, INVALID_DEVID);
+    return _InitRng(rng, nonce, nonceSz, NULL, 0, NULL, INVALID_DEVID);
 }
 
 
 int wc_InitRngNonce_ex(WC_RNG* rng, byte* nonce, word32 nonceSz,
                        void* heap, int devId)
 {
-    return _InitRng(rng, nonce, nonceSz, heap, devId);
+    return _InitRng(rng, nonce, nonceSz, NULL, 0, heap, devId);
 }
 
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)

@@ -216,6 +216,22 @@
     #endif
     WOLFSSL_API void wc_linuxkm_relax_long_loop(void);
 
+    #ifdef LINUXKM_RBGC
+        /* Interrupt save/restore as calls: on arm64 before 6.6 the inline asm
+         * in local_irq_save() will not compile inside a PIE object. */
+        WOLFSSL_API unsigned long wc_linuxkm_irq_save(void);
+        WOLFSSL_API void wc_linuxkm_irq_restore(unsigned long flags);
+
+        /* Current CPU index for the per-CPU leaves.  Goes through the
+         * redirect table because the container cannot name the kernel
+         * symbol. */
+        WOLFSSL_API int wc_linuxkm_cpu_id(void);
+
+        /* Monotonic nanoseconds.  The fast reader takes no lock, so it is
+         * safe with interrupts off and in NMI. */
+        WOLFSSL_API unsigned long long wc_linuxkm_mono_ns(void);
+    #endif
+
     #ifndef WC_SIG_IGNORE_BEGIN
         #define WC_SIG_IGNORE_BEGIN() wc_linuxkm_sig_ignore_begin()
     #endif
@@ -1418,6 +1434,12 @@
         typeof(wc_linuxkm_sig_ignore_end) *wc_linuxkm_sig_ignore_end;
         typeof(wc_linuxkm_check_for_intr_signals) *wc_linuxkm_check_for_intr_signals;
         typeof(wc_linuxkm_relax_long_loop) *wc_linuxkm_relax_long_loop;
+        #ifdef LINUXKM_RBGC
+            typeof(wc_linuxkm_irq_save) *wc_linuxkm_irq_save;
+            typeof(wc_linuxkm_irq_restore) *wc_linuxkm_irq_restore;
+            typeof(wc_linuxkm_cpu_id) *wc_linuxkm_cpu_id;
+            typeof(wc_linuxkm_mono_ns) *wc_linuxkm_mono_ns;
+        #endif
 
         #ifdef CONFIG_KASAN
             typeof(kasan_disable_current) *kasan_disable_current;
@@ -1725,6 +1747,12 @@
     #define wc_linuxkm_sig_ignore_end WC_PIE_INDIRECT_SYM(wc_linuxkm_sig_ignore_end)
     #define wc_linuxkm_check_for_intr_signals WC_PIE_INDIRECT_SYM(wc_linuxkm_check_for_intr_signals)
     #define wc_linuxkm_relax_long_loop WC_PIE_INDIRECT_SYM(wc_linuxkm_relax_long_loop)
+    #ifdef LINUXKM_RBGC
+        #define wc_linuxkm_irq_save WC_PIE_INDIRECT_SYM(wc_linuxkm_irq_save)
+        #define wc_linuxkm_irq_restore WC_PIE_INDIRECT_SYM(wc_linuxkm_irq_restore)
+        #define wc_linuxkm_cpu_id WC_PIE_INDIRECT_SYM(wc_linuxkm_cpu_id)
+        #define wc_linuxkm_mono_ns WC_PIE_INDIRECT_SYM(wc_linuxkm_mono_ns)
+    #endif
 
     #ifdef CONFIG_KASAN
         #define kasan_disable_current WC_PIE_INDIRECT_SYM(kasan_disable_current)

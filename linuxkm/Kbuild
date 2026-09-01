@@ -99,9 +99,10 @@ ifeq "$(KERNEL_ARCH_X86)" "yes"
 endif
 endif
 
-ifdef CONFIG_CC_IS_CLANG
-    WOLFSSL_CFLAGS += -Wno-unused-parameter
-endif
+# -Wextra turns on -Wunused-parameter, which fires on the kernel's own headers,
+# not on ours.  The kernel always pairs it with -Wno-unused-parameter, so do
+# the same.
+WOLFSSL_CFLAGS += -Wno-unused-parameter
 
 # this rule is needed to get build to succeed in 4.x (get_thread_size still doesn't get built)
 $(obj)/linuxkm/get_thread_size: $(src)/linuxkm/get_thread_size.c
@@ -189,13 +190,17 @@ ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
 	# __x86_indirect_thunk_foo implementations.  _all_ references must be
 	# eliminated, not just those in PIE objects, otherwise some kernels will
 	# false-positively complain about unpatched thunks.
-	ifeq "$(CONFIG_MITIGATION_RETPOLINE)" "y"
+	# RETHUNK gates -mfunction-return, RETPOLINE gates -mindirect-branch.
+	# Both were renamed with a MITIGATION_ prefix in 6.9, so accept either.
+	WC_KM_RETHUNK := $(or $(CONFIG_MITIGATION_RETHUNK),$(CONFIG_RETHUNK))
+	WC_KM_RETPOLINE := $(or $(CONFIG_MITIGATION_RETPOLINE),$(CONFIG_RETPOLINE))
+	ifeq "$(WC_KM_RETHUNK)" "y"
 	    PIE_SUPPORT_FLAGS += -mfunction-return=thunk-inline
 	else
 	    PIE_SUPPORT_FLAGS += -mfunction-return=keep
 	endif
-	ifeq "$(CONFIG_MITIGATION_RETHUNK)" "y"
-	    PIE_SUPPORT_FLAGS +=  -mindirect-branch=thunk-inline
+	ifeq "$(WC_KM_RETPOLINE)" "y"
+	    PIE_SUPPORT_FLAGS += -mindirect-branch=thunk-inline
 	else
 	    PIE_SUPPORT_FLAGS += -mindirect-branch=keep
 	endif

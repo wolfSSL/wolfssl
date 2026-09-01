@@ -454,6 +454,13 @@ WOLFSSL_ABI WOLFSSL_API void wc_rng_free(WC_RNG* rng);
 
 
 #ifndef WC_NO_RNG
+#ifdef LINUXKM_RBGC
+/* Instantiate a child DRBG from its parent (SP 800-90C 7.2.1.2).  Internal,
+ * never exported. */
+#define WC_RBGC_INSTANTIATE_SZ (RNG_SECURITY_STRENGTH * 3 / 2 / 8)
+WOLFSSL_LOCAL int wc_InitRngRBGC(WC_RNG* rng, WC_RNG* parent);
+#endif
+
 WOLFSSL_ABI WOLFSSL_API int  wc_InitRng(WC_RNG* rng);
 WOLFSSL_API int  wc_InitRng_ex(WC_RNG* rng, void* heap, int devId);
 WOLFSSL_API int  wc_InitRngNonce(WC_RNG* rng, byte* nonce, word32 nonceSz);

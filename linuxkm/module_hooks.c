@@ -51,6 +51,9 @@
     #include <wolfssl/wolfcrypt/wolfentropy.h>
 #endif
 #include <wolfssl/wolfcrypt/random.h>
+#ifdef LINUXKM_RBGC
+    #include <wolfssl/wolfcrypt/linuxkm_get_entropy.h>
+#endif
 #include <wolfssl/wolfcrypt/sha256.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -323,10 +326,49 @@ MODULE_PARM_DESC(rodata_dump_path,
     #include "linuxkm/lkcapi_glue.c"
 #endif
 
+#ifdef LINUXKM_RBGC
+
+/* Out here in non-PIE glue so the arm64 ALTERNATIVE asm in local_irq_save()
+ * compiles; see the declarations in linuxkm_wc_port.h. */
+unsigned long wc_linuxkm_irq_save(void)
+{
+    unsigned long flags;
+
+    local_irq_save(flags);
+
+    return flags;
+}
+
+void wc_linuxkm_irq_restore(unsigned long flags)
+{
+    local_irq_restore(flags);
+}
+
+/* raw_ because every caller is already non-preemptible: the service path holds
+ * interrupts off, and NMI cannot be preempted at all. */
+int wc_linuxkm_cpu_id(void)
+{
+    return (int) raw_smp_processor_id();
+}
+
+/* Seqcount-latch reader, so it takes no lock and is legal with interrupts off
+ * and from NMI (kernel/time/timekeeping.c). */
+unsigned long long wc_linuxkm_mono_ns(void)
+{
+    return (unsigned long long) ktime_get_mono_fast_ns();
+}
+
+#endif /* LINUXKM_RBGC */
+
 int wc_linuxkm_can_block(void) {
-    /* We can't use preemptible() for this, because we need an accurate test
-     * even in !CONFIG_PREEMPT_COUNT configs where preemptible() is always 0.
+    /* Without CONFIG_PREEMPT_COUNT (the default through 5.15)
+     * preempt_disable() is just barrier(), so preempt_count() reads 0 even
+     * inside kernel_fpu_begin() and cannot be trusted alone.  The irq and
+     * interrupt-context halves are still accurate.
      */
+    /* An open vector-register bracket is another reason not to sleep, but the
+     * check for it lives in the vector-register glue, which is not in this
+     * branch.  Add it back with that glue. */
     return (preempt_count() == 0) && (! irqs_disabled());
 }
 
@@ -560,6 +602,271 @@ int wc_linuxkm_GenerateSeed_IntelRD(struct OS_Seed* os, byte* output, word32 sz)
     static struct kobj_attribute FIPS_optest_trig_attr = __ATTR(FIPS_optest_run_code, 0220, NULL, FIPS_optest_trig_handler);
     static int installed_sysfs_FIPS_optest_trig_files = 0;
 #endif
+
+#ifdef LINUXKM_RBGC
+
+/* cpus_read_lock()/cpus_read_unlock() around the per-CPU work setup. */
+#include <linux/cpu.h>
+
+/* The boundary cannot schedule work, so the glue does it.  One delayed work
+ * per CPU, pinned with queue_delayed_work_on() so it reseeds that CPU's leaf
+ * with interrupts off and no caller can be inside it -- which is why the
+ * boundary needs no exclusion flag.  The root's refresh is separate work: it
+ * gathers entropy and must not follow leaf demand. */
+#define WC_GRB_MAINT_POLL_MS 50
+
+struct wc_grb_cpu_work {
+    struct delayed_work dw;
+    int                 cpu;
+};
+
+static struct wc_grb_cpu_work *wc_grb_cpu_works;
+static struct delayed_work     wc_grb_root_work;
+static int                     wc_grb_maint_running;
+
+static void wc_grb_cpu_work_fn(struct work_struct *work)
+{
+    /* Both are first members, so the pointers are the same.  container_of()
+     * would do void* arithmetic and this builds -Werror=pointer-arith. */
+    struct wc_grb_cpu_work *cw = (struct wc_grb_cpu_work *) work;
+    int ret;
+
+    wc_static_assert(offsetof(struct wc_grb_cpu_work, dw) == 0);
+    wc_static_assert(offsetof(struct delayed_work, work) == 0);
+
+    ret = wc_grb_maintain_cpu(cw->cpu);
+
+    if (ret != 0) {
+        pr_err("WCGRB: wc_grb_maintain_cpu(%d) failed: %d\n", cw->cpu, ret);
+    }
+
+    if (READ_ONCE(wc_grb_maint_running)) {
+        /* queue_delayed_work_on() WARNs on an offline CPU (workqueue.c
+         * WARN_ON_ONCE !cpu_online).  Tick unbound while it is down; the
+         * leaf's guard defers the reseed, and this re-pins when it returns. */
+        if (cpu_online(cw->cpu)) {
+            queue_delayed_work_on(cw->cpu, system_wq, &cw->dw,
+                                  msecs_to_jiffies(WC_GRB_MAINT_POLL_MS));
+        }
+        else {
+            queue_delayed_work(system_wq, &cw->dw,
+                               msecs_to_jiffies(WC_GRB_MAINT_POLL_MS));
+        }
+    }
+}
+
+static void wc_grb_root_work_fn(struct work_struct *work)
+{
+    int ret;
+
+    (void)work;
+    ret = wc_grb_root_tick();
+    if (ret != 0) {
+        pr_err("WCGRB: wc_grb_root_tick() failed: %d\n", ret);
+    }
+
+    if (READ_ONCE(wc_grb_maint_running)) {
+        schedule_delayed_work(&wc_grb_root_work,
+                              msecs_to_jiffies(WC_GRB_MAINT_POLL_MS));
+    }
+}
+
+static void wc_grb_maint_stop(void)
+{
+    unsigned int cpu;
+
+    WRITE_ONCE(wc_grb_maint_running, 0);
+
+    /* Both objects are established together in wc_grb_maint_start(): the
+     * kcalloc() runs first and returns early on failure, so a non-NULL
+     * wc_grb_cpu_works is exactly the condition under which
+     * INIT_DELAYED_WORK() ran on wc_grb_root_work.  Cancelling the root work
+     * outside this guard reaches an uninitialised delayed_work whenever
+     * maint_start() never ran -- which happens on the handler-registration
+     * failure path -- and cancel_delayed_work_sync() then hits
+     * WARN_ON(!work->func) in __flush_work() (kernel/workqueue.c), printing a
+     * kernel warning and stack trace on every rmmod. */
+    if (wc_grb_cpu_works != NULL) {
+        cancel_delayed_work_sync(&wc_grb_root_work);
+
+        for (cpu = 0; cpu < nr_cpu_ids; cpu++) {
+            cancel_delayed_work_sync(&wc_grb_cpu_works[cpu].dw);
+        }
+
+        kfree(wc_grb_cpu_works);
+        wc_grb_cpu_works = NULL;
+    }
+}
+
+#ifdef WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS
+
+/* Userspace half of the service: /dev/urandom, /dev/random and getrandom(2)
+ * all land here.  A bounce buffer is required because wc_grb_service() fills a
+ * kernel buffer while copy_to_iter() may fault or sleep. */
+static ssize_t wc_grb_user(struct iov_iter *iter)
+{
+    u8     buf[256];
+    size_t done = 0;
+
+    while (iov_iter_count(iter)) {
+        size_t want = min_t(size_t, iov_iter_count(iter), sizeof(buf));
+        size_t got;
+
+        if (wc_grb_service(buf, want) != 0)
+            break;
+
+        got = copy_to_iter(buf, want, iter);
+        done += got;
+        if (got != want) {
+            memzero_explicit(buf, sizeof(buf));
+
+            return done ? (ssize_t)done : -EFAULT;
+        }
+
+        cond_resched();
+    }
+
+    memzero_explicit(buf, sizeof(buf));
+
+    return done ? (ssize_t)done : -ENODEV;
+}
+
+/* The same userspace half for a kernel whose drivers/char/random.c predates the
+ * 5.17 rewrite.  There the read path is extract_crng_user(), which takes a raw
+ * __user pointer rather than an iov_iter; everything behind it is identical,
+ * including the bounce buffer, which is required because wc_grb_service() fills
+ * a kernel buffer while the copy out may fault.
+ *
+ * Both members are filled in unconditionally.  Which one a kernel calls was
+ * decided when that kernel was built, and both front the same DRBG tree, so
+ * this is a second entry point, not a run-time choice between implementations.
+ *
+ * Deliberately NOT a LINUX_VERSION_CODE test.  The 5.17 rewrite was backported
+ * into some LTS trees and never into the EOL ones, so the two sets interleave:
+ * 5.10.265 and 5.15.216 want get_random_bytes_user(), while 5.11.22, 5.12.19,
+ * 5.13.19 and 5.16.20 want extract_crng_user() -- 5.15 passes where 5.16
+ * fails.  Every kernel patch under linuxkm/patches/ declares both members of
+ * struct wolfssl_linuxkm_random_bytes_handlers, so supplying both is what makes
+ * the handler set track what a tree actually has instead of what its version
+ * number suggests.
+ *
+ * Omitting this member was not a scoping decision with a safe failure mode.
+ * The pre-rewrite register function requires it and rejects the whole
+ * registration with -EINVAL, after which the module serves nothing and the
+ * kernel's own CRNG answers every request -- unvalidated output, delivered
+ * silently. */
+static ssize_t wc_grb_extract_crng_user(void __user *ubuf, size_t nbytes)
+{
+    u8     buf[256];
+    size_t done = 0;
+
+    while (done < nbytes) {
+        size_t want = min_t(size_t, nbytes - done, sizeof(buf));
+
+        if (wc_grb_service(buf, want) != 0)
+            break;
+
+        if (copy_to_user((u8 __user *)ubuf + done, buf, want) != 0) {
+            memzero_explicit(buf, sizeof(buf));
+
+            return done ? (ssize_t)done : -EFAULT;
+        }
+
+        done += want;
+
+        cond_resched();
+    }
+
+    memzero_explicit(buf, sizeof(buf));
+
+    return done ? (ssize_t)done : -ENODEV;
+}
+
+/* Truthful readiness: the tree is usable only once wc_grb_init() has built the
+ * root and the leaves.  Reporting ready early would let the kernel batch from
+ * a service that is not yet answering. */
+static bool wc_grb_ready(void)
+{
+    return wc_grb_service_active() ? true : false;
+}
+
+static const struct wolfssl_linuxkm_random_bytes_handlers
+wc_grb_handlers = {
+    ._get_random_bytes     = wc_grb_service,
+    .get_random_bytes_user = wc_grb_user,
+    .extract_crng_user     = wc_grb_extract_crng_user,
+    .crng_ready            = wc_grb_ready
+    /* .mix_pool_bytes, .credit_init_bits and .crng_reseed are not implemented
+     * yet: they let the module take part in the kernel's entropy lifecycle and
+     * are the next step, not a prerequisite for serving. */
+};
+
+#endif /* WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS */
+
+/* Diagnostics for the out-of-tree load generator, exported from the glue and
+ * not from the boundary: the boundary has no module API, and a test affordance
+ * is not a cryptographic service.  Prototyped here rather than in a header
+ * because nothing in the tree includes them. */
+int wc_grb_hook_is_active(void);
+int wc_grb_hook_stats(long long *out, int n);
+int wc_grb_hook_irq_hist(int ctx, long long *out, int n);
+
+int wc_grb_hook_is_active(void)
+{
+    return wc_grb_service_active();
+}
+EXPORT_SYMBOL_GPL(wc_grb_hook_is_active);
+
+int wc_grb_hook_stats(long long *out, int n)
+{
+    return wc_grb_stat_snapshot(out, n);
+}
+EXPORT_SYMBOL_GPL(wc_grb_hook_stats);
+
+int wc_grb_hook_irq_hist(int ctx, long long *out, int n)
+{
+    return wc_grb_irq_hist(ctx, out, n);
+}
+EXPORT_SYMBOL_GPL(wc_grb_hook_irq_hist);
+
+static int wc_grb_maint_start(void)
+{
+    unsigned int cpu;
+
+    wc_grb_cpu_works = kcalloc(nr_cpu_ids, sizeof(*wc_grb_cpu_works),
+                               GFP_KERNEL);
+    if (wc_grb_cpu_works == NULL) {
+        return -ENOMEM;
+    }
+
+    WRITE_ONCE(wc_grb_maint_running, 1);
+
+    INIT_DELAYED_WORK(&wc_grb_root_work, wc_grb_root_work_fn);
+    schedule_delayed_work(&wc_grb_root_work,
+                          msecs_to_jiffies(WC_GRB_MAINT_POLL_MS));
+
+    /* Runtime INIT_DELAYED_WORK, not the static initializer: that expands
+     * TIMER_ENTRY_STATIC, whose void* arithmetic trips pointer-arith. */
+    for (cpu = 0; cpu < nr_cpu_ids; cpu++) {
+        wc_grb_cpu_works[cpu].cpu = (int) cpu;
+        INIT_DELAYED_WORK(&wc_grb_cpu_works[cpu].dw, wc_grb_cpu_work_fn);
+    }
+
+    /* Only online CPUs get a worker.  A CPU brought up later is covered by
+     * the service path's self-help, which reseeds the leaf it is running on.
+     * Held across the walk so a CPU cannot go down between the iteration and
+     * the queue, which would WARN exactly as an offline requeue does. */
+    cpus_read_lock();
+    for_each_online_cpu(cpu) {
+        queue_delayed_work_on((int) cpu, system_wq, &wc_grb_cpu_works[cpu].dw,
+                              msecs_to_jiffies(WC_GRB_MAINT_POLL_MS));
+    }
+    cpus_read_unlock();
+
+    return 0;
+}
+
+#endif /* LINUXKM_RBGC */
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
 static int __init wolfssl_init(void)
@@ -1125,6 +1432,45 @@ static int wolfssl_init(void)
         );
 #endif
 
+#ifdef LINUXKM_RBGC
+    /* Hand get_random_bytes() to the in-boundary service.  A failure here is
+     * reported but does not fail the module load: the kernel's own CRNG keeps
+     * answering, so the rest of the module is still usable. */
+    {
+        int grb_ret = wc_grb_init(num_possible_cpus());
+
+        if (grb_ret != 0) {
+            pr_err("WCGRB: wc_grb_init() failed: %d\n", grb_ret);
+        }
+        else {
+#ifdef WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS
+            grb_ret = wolfssl_linuxkm_register_random_bytes_handlers(
+                THIS_MODULE, &wc_grb_handlers);
+#else
+#error LINUXKM_RBGC requires a kernel carrying one of the patches in\
+    linuxkm/patches/.  Without it there is no get_random_bytes() hook to\
+    register, and the module would leave the native kernel generator in\
+    service with no indication that it had.
+#endif
+            if (grb_ret != 0) {
+                pr_err("WCGRB: wolfssl_linuxkm_register_random_bytes_handlers()"
+                       " failed: %d\n", grb_ret);
+                wc_grb_cleanup();
+            }
+            else {
+                wc_grb_set_registered(1);
+                if (wc_grb_maint_start() != 0) {
+                    pr_err("WCGRB: no memory for per-CPU maintenance work\n");
+                }
+                pr_info("WCGRB: get_random_bytes() hook registered\n");
+                /* Module init has finished, so all further demand is the
+                 * running system rather than bring-up. */
+                wc_grb_mark_boot_done();
+            }
+        }
+    }
+#endif /* LINUXKM_RBGC */
+
     return 0;
 }
 
@@ -1136,6 +1482,28 @@ static void __exit wolfssl_exit(void)
 static void wolfssl_exit(void)
 #endif
 {
+#ifdef LINUXKM_RBGC
+    /* Unregister the hook before anything else is torn down, so no in-flight
+     * caller can reach a half-freed DRBG.
+     * wolfssl_linuxkm_unregister_random_bytes_handlers() drains by
+     * cmpxchg'ing random_bytes_cb_refcnt from 1 to 0, retrying up to 100 times
+     * with msleep_interruptible(10) while callers are still inside; it does
+     * not use RCU.  It can return -EBUSY, which this call discards -- see
+     * drivers/char/random.c in the patch for this kernel. */
+#ifdef WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS
+    /* Guarded like the register call in wolfssl_init().  Without this the
+     * unpatched-kernel build emits an implicit-declaration error here as well
+     * as the #error there, and the second one buries the message that tells
+     * the builder what to do. */
+    if (wc_grb_service_active()) {
+        (void)wolfssl_linuxkm_unregister_random_bytes_handlers();
+        wc_grb_set_registered(0);
+    }
+#endif
+    wc_grb_maint_stop();
+    wc_grb_cleanup();
+#endif /* LINUXKM_RBGC */
+
 #ifdef HAVE_FIPS
     int ret;
 
@@ -1736,6 +2104,12 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_sig_ignore_end = wc_linuxkm_sig_ignore_end;
     wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_check_for_intr_signals = wc_linuxkm_check_for_intr_signals;
     wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_relax_long_loop = wc_linuxkm_relax_long_loop;
+#ifdef LINUXKM_RBGC
+    wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_irq_save = wc_linuxkm_irq_save;
+    wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_irq_restore = wc_linuxkm_irq_restore;
+    wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_cpu_id = wc_linuxkm_cpu_id;
+    wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_mono_ns = wc_linuxkm_mono_ns;
+#endif
 
 #ifdef CONFIG_KASAN
     wolfssl_linuxkm_pie_redirect_table.kasan_disable_current = kasan_disable_current;
