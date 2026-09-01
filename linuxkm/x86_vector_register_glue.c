@@ -604,21 +604,21 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
      */
     if ((cur_preempt_count & (NMI_MASK | HARDIRQ_MASK)) != 0) {
 #ifdef WC_SVR_USE_NATIVE_REG_BUFS
-        /* Native service for plain-flavor saves in hardirq.  The in_nmi()
-         * disposition must stay ahead of any may_use_simd() call --
-         * irq_fpu_usable() carries WARN_ON_ONCE(in_nmi()).  The inhibit flavors
-         * and !wc_svr_native_ready keep the long-standing graceful refusal
-         * below.
+        /* Native service in hardirq and NMI.  The in_nmi() disposition must
+         * stay ahead of any may_use_simd() call -- irq_fpu_usable() carries
+         * WARN_ON_ONCE(in_nmi()).  The _INHIBIT flavor and !wc_svr_native_ready
+         * are refused inside wc_svr_native_save().
          */
         return wc_svr_native_save(flags);
-#endif /* WC_SVR_USE_NATIVE_REG_BUFS */
-#ifdef DEBUG_VECTOR_REGISTER_ACCESS_HARDIRQ_INFO
+#else /* !WC_SVR_USE_NATIVE_REG_BUFS */
+    #ifdef DEBUG_VECTOR_REGISTER_ACCESS_HARDIRQ_INFO
         wc_linuxkm_pr_info_ratelimited("HARDIRQ_INFO: wc_save_vector_registers_x86() with preempt_count 0x%x, PID %d, CPU %d\n",
                 cur_preempt_count, task_pid_nr(current), raw_smp_processor_id());
-#endif
+    #endif
         wc_svr_disallowed_count_increment();
         ret = WC_ACCEL_INHIBIT_E;
         goto out;
+#endif /* !WC_SVR_USE_NATIVE_REG_BUFS */
     }
 
     pstate = wc_linuxkm_svr_state_assoc(0, 0);
@@ -890,25 +890,21 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
         atomic_long_inc(&softirq_SVR_err_count);
     #endif
 
-        if (cur_preempt_count != 0) {
-            /* this path is normal on pre-6.15 kernels, where kernel_fpu_begin()
-             * doesn't local_bh_disable(), but on 6.15+ it's a warnable
-             * anomaly. */
-            #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 15, 0)
+        /* cur_preempt_count is nonzero here (the zero case took the
+         * kernel_fpu_begin() arm above).  This path is normal on pre-6.15
+         * kernels, where kernel_fpu_begin() doesn't local_bh_disable(), but on
+         * 6.15+ it's a warnable anomaly. */
+        #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 15, 0)
 
-            #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
-            wc_linuxkm_pr_info_ratelimited("INFO: !may_use_simd() in wc_save_vector_registers_x86() on CPU %d PID %d (%s) with preempt_count 0x%x.\n", raw_smp_processor_id(), task_pid_nr(current), current->comm, cur_preempt_count);
-            #endif /* WOLFSSL_LINUXKM_VERBOSE_DEBUG */
+        #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+        wc_linuxkm_pr_info_ratelimited("INFO: !may_use_simd() in wc_save_vector_registers_x86() on CPU %d PID %d (%s) with preempt_count 0x%x.\n", raw_smp_processor_id(), task_pid_nr(current), current->comm, cur_preempt_count);
+        #endif /* WOLFSSL_LINUXKM_VERBOSE_DEBUG */
 
-            #else /* >=6.15.0 */
+        #else /* >=6.15.0 */
 
-            wc_linuxkm_pr_warn_ratelimited("WARNING: !may_use_simd() in wc_save_vector_registers_x86 called with no saved state on CPU %d PID %d (%s) with preempt_count 0x%x.\n", raw_smp_processor_id(), task_pid_nr(current), current->comm, cur_preempt_count);
+        wc_linuxkm_pr_warn_ratelimited("WARNING: !may_use_simd() in wc_save_vector_registers_x86 called with no saved state on CPU %d PID %d (%s) with preempt_count 0x%x.\n", raw_smp_processor_id(), task_pid_nr(current), current->comm, cur_preempt_count);
 
-            #endif /* >=6.15.0 */
-        }
-        else {
-            wc_linuxkm_pr_warn_ratelimited("WARNING: !may_use_simd() in wc_save_vector_registers_x86 called with no saved state on CPU %d PID %d (%s) with preempt_count 0x%x.\n", raw_smp_processor_id(), task_pid_nr(current), current->comm, cur_preempt_count);
-        }
+        #endif /* >=6.15.0 */
 
         wc_svr_disallowed_count_increment();
         ret = WC_ACCEL_INHIBIT_E;
@@ -1767,8 +1763,15 @@ static WARN_UNUSED_RESULT int wc_svr_native_save(enum wc_svr_flags flags) {
         ctx = &wc_svr_native_here()->nmi;
     else if (cur_preempt_count & HARDIRQ_MASK)
         ctx = &wc_svr_native_here()->hardirq;
-    else if (in_serving_softirq())
+    else if (in_serving_softirq()) {
+        /* Binding the CPU here, ahead of the preempt pin taken at the 0->1
+         * edge, is safe: serving-softirq is non-preemptible on mainline, and
+         * on PREEMPT_RT it holds the softirq_ctrl local_lock, i.e. is
+         * migrate-disabled.  The pin guards register ownership from the
+         * XSAVE onward, not CPU identity.
+         */
         ctx = &wc_svr_native_here()->softirq;
+    }
     else {
         ret = WC_ACCEL_INHIBIT_E;
     #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
