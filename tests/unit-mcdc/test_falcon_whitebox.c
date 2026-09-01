@@ -48,7 +48,7 @@
  * a genuine mid-computation error (PRNG squeeze failure, bigint overflow, an
  * out-of-range coefficient the sampler bounds forbid, a degenerate/non-invertible
  * key) are documented as WB_NOTE residuals rather than forced unsafely. main()
- * always returns 0 so the campaign keeps the variant.
+ * always returns 0 so the harness keeps the variant.
  */
 
 #include <wolfcrypt/src/falcon.c>
@@ -1321,15 +1321,30 @@ static void wb_sign_dyn_core_err(WC_RNG* rng)
  * mid-computation error or a degenerate/forbidden operand, which cannot be
  * driven crash-safely from a white-box harness. Their opposite (normal) half is
  * covered above (mostly by the real round-trip). Each of these is carried as an
- * EXCLUSIONS.md row with the source-level argument for why no satisfying vector
+ * the exclusion record row with the source-level argument for why no satisfying vector
  * exists.
  * ------------------------------------------------------------------ */
 static void wb_residuals(void)
 {
+    /* Re-examined in step 7 (2026-08-20); still open, and the reasoning is in
+     * the exclusion record so it is not redone. Two dead ends were ruled out for
+     * good: an all-zero (f, g) makes the denominator exactly 0, and 0/0 gives
+     * NaN, whose comparison makes the FIRST operand true -- a row that is
+     * already covered; and the wb_solve_ntru_babai_clamp trick above (256
+     * keygens at logn = 3) does not transfer, because that clamp is at
+     * +-(2^31-1) on a RESCALED coefficient while this one is at +-(2^63-1) on
+     * an unscaled ratio, which at logn = 3 would need ||(f,g)(zeta)||^2 near
+     * 1e-15 -- excluded by the field-norm floor (the norm is a non-zero
+     * integer, so one tiny slot forces the others large). The norm floor is
+     * also why this is NOT an exclusion: at the production degrees it only
+     * bounds the slot below by about 2^-10000, i.e. it bounds |z| by nothing
+     * useful. */
     WB_NOTE("residual: solve_NTRU_binary_depth1 !fpr_lt(z,+-2^63) halves: the "
             "Babai coefficient is bounded by sqrt(|F|^2+|G|^2)/sqrt(|f|^2+"
             "|g|^2) with |F|,|G| < 2^61 (2-word CRT limbs), so |z| >= 2^63 "
-            "needs both depth-1 field norms to nearly vanish at one FFT slot");
+            "needs both depth-1 field norms to nearly vanish at one FFT slot; "
+            "x^n+1 is irreducible over Q so they never vanish exactly, but no "
+            "usable lower bound exists either -- see the exclusion record");
     WB_NOTE("residual: keygen f[u]/g[u] vs lim halves: lim is 1 << "
             "(falcon_max_fg_bits[logn] - 1), i.e. 32 at logn 9 and 16 at "
             "logn 10, while poly_small_mkgauss sums 1 << (10 - logn) draws of "

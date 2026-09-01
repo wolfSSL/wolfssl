@@ -38,7 +38,7 @@
  * checked, whereas otherwise the temporaries are stack arrays and `err` cannot
  * change at all.
  *
- * The campaign's sp-math module already builds a `small_stack` variant, so
+ * The suite's sp-math module already builds a `small_stack` variant, so
  * unlike the SP backends this needs no new configuration -- only this driver.
  *
  * METHOD
@@ -76,7 +76,7 @@
  * rather than evidence. The one exception is the invmod pair, which needs a
  * modulus of at least 1024 bits to select the division-based inverse.
  *
- * Build: compiled by the campaign's white-box step with the same MC/DC CFLAGS
+ * Build: compiled by the white-box step with the same MC/DC CFLAGS
  * as the instrumented library, then linked against that variant's
  * libwolfssl.a with sp_int.o removed. Not part of the wolfSSL build.
  */
@@ -139,7 +139,7 @@ static const char* WB_M1024_EVEN =
     "00000000000000000000000000000000000000000000000000000000000062";
 
 /* Which internal engines this configuration compiles. Mirrors sp_int.c's own
- * guards so the TU builds under every campaign variant. */
+ * guards so the TU builds under every suite variant. */
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
     !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || !defined(NO_DH) || \
     defined(OPENSSL_ALL)

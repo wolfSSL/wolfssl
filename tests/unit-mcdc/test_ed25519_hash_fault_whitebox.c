@@ -34,7 +34,7 @@
  * Every open "ret == 0" operand left in ed25519.c takes its `ret` from the
  * SHA-512 chain (ed25519_hash_init/update/final -> wc_InitSha512_ex /
  * wc_Sha512Update / wc_Sha512Final) and from nothing else. ed25519.c performs
- * no allocation on these paths in this campaign's configs (WOLFSSL_SMALL_STACK
+ * no allocation on these paths in this suite's configs (WOLFSSL_SMALL_STACK
  * is unset, so WC_DECLARE_VAR/WC_ALLOC_VAR_EX are a plain stack object and a
  * no-op), so mcdc_fault_alloc.h has nothing to fault -- only a failing hash
  * primitive can break the chain. mcdc_fault_hash.h shadows Update/Final;
@@ -103,7 +103,7 @@
  * fixed sweep length. main() always returns 0 -- a nonzero exit would discard
  * the variant's whole coverage.
  *
- * Build: compiled by the campaign's white-box step with the same MC/DC CFLAGS
+ * Build: compiled by the white-box step with the same MC/DC CFLAGS
  * as the instrumented library, then linked against that variant's
  * libwolfssl.a with ed25519.o removed. Not part of the wolfSSL build.
  */

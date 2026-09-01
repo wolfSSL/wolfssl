@@ -10,13 +10,13 @@
  * calling the helpers with both halves of each MC/DC independence pair.
  *
  * Coverage from this binary is unioned with the tests/api variant coverage by
- * source line:col in the per-module campaign (iso26262/mcdc-per-module):
- * llvm-cov computes MC/DC independence PER BINARY, and the campaign's
+ * source line:col in the per-module suite:
+ * llvm-cov computes MC/DC independence PER BINARY, and the
  * aggregate.sh ORs the "independence shown" bit across binaries by key. That is
  * why every pair below is completed *within this file* rather than relying on
  * the API tests to supply the other half.
  *
- * Build: compiled by run-mcdc.sh's white-box step with the SAME MC/DC CFLAGS,
+ * Build: compiled by the coverage runner's white-box step with the SAME MC/DC CFLAGS,
  * -DHAVE_CONFIG_H and -I<workspace> as the instrumented library, then linked
  * against that variant's libwolfssl.a with its rsa.o removed (this TU supplies
  * the instrumented rsa.c). NOT part of the wolfSSL build; not registered in
@@ -1000,7 +1000,7 @@ int main(void)
     wb_public_encrypt_size_guard();
     wb_private_decrypt_outlen();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
-    /* Setup failures are surfaced as skips, not test failures: the campaign
+    /* Setup failures are surfaced as skips, not test failures: the harness
      * treats a nonzero exit as a failed variant and discards its coverage. */
     return 0;
 #endif

@@ -80,8 +80,8 @@
  *   ./test_dsa_fault_whitebox            baseline: unarmed valid ops only
  *   ./test_dsa_fault_whitebox sweep      baseline + the fault-index sweeps
  * (Two modes so the injector's contribution can be measured as a delta; the
- * campaign's run_whitebox harness runs it with no args -- pass "sweep" there by
- * default via argv, see the modules.json entry note.)
+ * suite's run_whitebox harness runs it with no args -- pass "sweep" there by
+ * default via argv, see the the module registry entry note.)
  */
 
 /* Installed BEFORE dsa.c so its mp_* calls resolve to the fault wrappers --
@@ -128,6 +128,46 @@ static long wb_fmi_seen(void)    { return wb_fmi_count; }
 #undef  mp_init_multi
 #define mp_init_multi(a, b, c, d, e, f) \
     wb_fm_init_multi((a), (b), (c), (d), (e), (f))
+
+/* ---- narrow, opt-in MEMORY_E fault on mp_prime_is_prime_ex ------------
+ * wc_MakeDsaParameters' tmp2 cleanup guard
+ *
+ *     if ((err not MP_INIT_E) && (err not MEMORY_E)) mp_clear(tmp2);
+ *
+ * can only take its `err not MEMORY_E` FALSE half with tmp2 ALLOCATED, and the
+ * only MEMORY_E the function assigns itself (the tmp/tmp2 XMALLOC guard at
+ * :426) is a short-circuit `||`: when it fires, tmp2 is NULL by construction
+ * and the guard is never reached. So that half needs a MEMORY_E arriving from
+ * DEEPER, after both allocations succeeded.
+ *
+ * mp_prime_is_prime_ex() at :466 is such a source in the product: the sp_int
+ * implementation propagates wc_RNG_GenerateBlock()'s error code VERBATIM out
+ * of its Miller-Rabin base draw (wolfcrypt/src/sp_int.c, the `err =
+ * wc_RNG_GenerateBlock(rng, (byte*)b->dp, baseSz); if (err != MP_OKAY) break;`
+ * in sp_prime_is_prime_ex), and wc_RNG_GenerateBlock returns MEMORY_E when its
+ * own WOLFSSL_SMALL_STACK scratch allocation fails. Injecting MEMORY_E here is
+ * therefore the same value the real code path produces, just without having to
+ * guess which of the several hundred allocations inside a 1024-bit parameter
+ * generation is the DRBG's (an index-walk that far in is neither cheap nor
+ * stable across builds).
+ *
+ * One-shot, and armed only around a dedicated wc_MakeDsaParameters call, so
+ * nothing else in the file sees it. dsa.c has exactly one direct call site. */
+static int wb_pip_mem = 0;
+
+static int wb_fm_prime_is_prime_ex(const mp_int* a, int t, int* result,
+                                   WC_RNG* rng)
+{
+    if (wb_pip_mem) {
+        wb_pip_mem = 0;
+        return MEMORY_E;
+    }
+    return mp_prime_is_prime_ex(MCDC_FM_MI(a), t, result, rng);
+}
+
+#undef  mp_prime_is_prime_ex
+#define mp_prime_is_prime_ex(a, t, r, g) \
+    wb_fm_prime_is_prime_ex((a), (t), (r), (g))
 
 #include <wolfcrypt/src/dsa.c>
 
@@ -264,7 +304,7 @@ static void wb_crafted(WC_RNG* rng, DsaKey* key, const byte* digest,
 
     /* ---- wc_MakeDsaParameters reached with err != MP_OKAY. 518's `err !=
      * MP_OKAY` operand is only FALSE-able from a successful run (the baseline
-     * call) and TRUE-able from a failed one; nothing in the normal campaign
+     * call) and TRUE-able from a failed one; nothing in the normal suite
      * ever fails it, and the heap sweep cannot (see the MakeDsaParameters note
      * further down). One armed mp step is enough and stops before the
      * expensive prime search: index 1 is mp_read_unsigned_bin at :426, index 2
@@ -281,6 +321,75 @@ static void wb_crafted(WC_RNG* rng, DsaKey* key, const byte* digest,
                 mcdc_fm_disarm();
                 wc_FreeDsaKey(&pk);
             }
+        }
+    }
+
+    /* ---- KEY-GENERATION MP_INIT_E cleanup halves: wc_MakeDsaKey 332 idx1
+     * and wc_MakeDsaParameters 520 idx0 / 526 idx0 / 537 idx1.
+     *
+     * These were dead until wolfcrypt commit 1e8807b13. Neither key-generation
+     * entry point mapped a failed mp_init_multi() to MP_INIT_E -- mp_init_multi
+     * reports the BACKEND's code (MP_MEM from the heap backends) -- so
+     * wc_MakeDsaParameters' "err not MP_INIT_E" guards could never fire and
+     * wc_MakeDsaKey had no guard at all and ran mp_clear(tmpQ) on never-
+     * initialised storage (the SIGSEGV). Both sites
+     * now use the idiom wc_DsaSign_ex/wc_DsaVerify_ex already used, so failing
+     * THEIR mp_init_multi is the way into these halves and is crash-safe: the
+     * guards exist precisely to skip the clears.
+     *
+     * Each entry point performs exactly one mp_init_multi and it is the first
+     * one of the call (nothing ahead of it initialises an mp_int), so index 1
+     * selects it in both cases. The accepting halves of the same guards come
+     * from the unarmed key/parameter generation in main(). */
+    {
+        DsaKey ik;
+        XMEMSET(&ik, 0, sizeof(ik));
+        if (wc_InitDsaKey(&ik) == 0) {
+            if (wc_DsaImportParamsRaw(&ik, kP, kQ, kG) == 0) {
+                wb_fmi_arm(1);
+                ret = wc_MakeDsaKey(rng, &ik);
+                wb_fmi_disarm();
+                if (ret != WC_NO_ERR_TRACE(MP_INIT_E))
+                    printf("  [wb] MakeDsaKey init fault returned %d, not "
+                           "MP_INIT_E: 332 idx1 NOT driven\n", ret);
+            }
+            wc_FreeDsaKey(&ik);
+        }
+    }
+    {
+        DsaKey pk;
+        XMEMSET(&pk, 0, sizeof(pk));
+        if (wc_InitDsaKey(&pk) == 0) {
+            wb_fmi_arm(1);
+            ret = wc_MakeDsaParameters(rng, 1024, &pk);
+            wb_fmi_disarm();
+            if (ret != WC_NO_ERR_TRACE(MP_INIT_E))
+                printf("  [wb] MakeDsaParameters init fault returned %d, not "
+                       "MP_INIT_E: 520/526/537 NOT driven\n", ret);
+            wc_FreeDsaKey(&pk);
+        }
+    }
+
+    /* ---- wc_MakeDsaParameters 526 idx1 (`err not MEMORY_E` FALSE with tmp2
+     * allocated). The function's OWN MEMORY_E (:426) is a short-circuit `||`
+     * over the tmp/tmp2 XMALLOCs, so whenever it fires tmp2 is NULL and the
+     * `if (tmp2 != NULL)` gate above 526 skips the guard entirely -- that path
+     * closes 520 idx1 (tmp allocated, tmp2 not) and can never close 526 idx1.
+     * The vector needs a MEMORY_E raised AFTER both allocations succeeded;
+     * mp_prime_is_prime_ex is such a source in the product (see the
+     * wb_fm_prime_is_prime_ex note). One-shot, fires on dsa.c's single direct
+     * call site at :466. */
+    {
+        DsaKey pk;
+        XMEMSET(&pk, 0, sizeof(pk));
+        if (wc_InitDsaKey(&pk) == 0) {
+            wb_pip_mem = 1;
+            ret = wc_MakeDsaParameters(rng, 1024, &pk);
+            wb_pip_mem = 0;
+            if (ret != WC_NO_ERR_TRACE(MEMORY_E))
+                printf("  [wb] MakeDsaParameters MEMORY_E fault returned %d: "
+                       "526 idx1 NOT driven\n", ret);
+            wc_FreeDsaKey(&pk);
         }
     }
 
@@ -350,10 +459,14 @@ static void wb_crafted(WC_RNG* rng, DsaKey* key, const byte* digest,
                 }
                 else {
                     /* Expected for every WOLFSSL_SP_INT_NEGATIVE-less build:
-                     * sp_int.h then #defines mp_isneg(a) to the constant (0),
-                     * so 887's second operand cannot be TRUE there at all. */
+                     * sp_int.h then #defines sp_isneg(a) to the constant (0),
+                     * so 906's second operand cannot be TRUE there at all --
+                     * which is exactly why the module carries an
+                     * `sp_negative` variant (-DWOLFSSL_SP_INT_NEGATIVE), the
+                     * one build in which this vector is productive. */
                     printf("  [wb] no negative mp_int (set=%d sub=%d neg=%d "
-                           "zero=%d): 887 idx1 skipped\n",
+                           "zero=%d): 906 idx1 needs the sp_negative "
+                           "variant\n",
                            e1, e2, (int)mp_isneg(neg), (int)mp_iszero(neg));
                 }
                 mp_clear(neg);
@@ -552,7 +665,7 @@ static void wb_crafted(WC_RNG* rng, DsaKey* key, const byte* digest,
 
 int main(int argc, char** argv)
 {
-    /* Default action is the fault sweep so the campaign's run_whitebox harness
+    /* Default action is the fault sweep so the run_whitebox harness
      * (which runs this binary with NO arguments) gets full coverage. Pass
      * "baseline" to run only the unarmed valid ops (used to measure the
      * injector's contribution as a delta), or "probe" to print the
@@ -601,7 +714,7 @@ int main(int argc, char** argv)
         /* Diagnostic: count the allocations each entry point performs, WITHOUT
          * failing any (arm a huge index so the counter advances but never
          * trips). Use these counts to choose each sweep's K -- see the header
-         * and the campaign fan-out recipe. Exits without sweeping. */
+         * and the harness fan-out recipe. Exits without sweeping. */
         int a = 0;
         byte s2[256]; XMEMSET(s2, 0, sizeof(s2));
         mcdc_fa_arm(1000000);

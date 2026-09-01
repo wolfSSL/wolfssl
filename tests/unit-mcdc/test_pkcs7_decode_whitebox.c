@@ -50,8 +50,8 @@
  * The "ret == 0 && Get*(...)" idiom in this file produces a large number of
  * operands that have no MC/DC independence pair for a reason in the source,
  * not for want of a test. They fall into four provable families. Recording
- * them here so the next pass does not re-spend effort on them; the campaign
- * EXCLUSIONS.md carries the same arguments.
+ * them here so the next pass does not re-spend effort on them; the harness
+ * the exclusion record carries the same arguments.
  *
  * (1) LEADING OPERAND OF THE FIRST LINK IN A SWITCH CASE. `ret` is a local
  *     initialised to 0, and the only statement before the link is a
@@ -120,6 +120,43 @@
  *                        inSz at :6963/:6965 and forced to defSz by
  *                        wc_PKCS7_SetMaxStream when it computes 0; it is
  *                        never 0 on arrival at VERIFY_STAGE3.
+ *
+ * Added by the 2026-08-20 streaming-state wave (Sections 18-19 below), both
+ * filed in the exclusion record:
+ *
+ *       :7516 cond 2  -- family (4). stream->content is freed and NULLed at
+ *                        :7501-:7502 before VERIFY_STAGE3 runs, so it is
+ *                        non-NULL at :7516 only because the
+ *                        wc_PKCS7_HandleOctetStrings() call two statements
+ *                        above made it so. That function stores a non-NULL
+ *                        pointer there in exactly two places, and both set
+ *                        contentSz strictly positive in the same block:
+ *                        :6648, entered only under
+ *                        `if (pkcs7->content && pkcs7->contentSz > 0)` and
+ *                        followed at :6655 by
+ *                        `stream->contentSz = pkcs7->contentSz`; and :6821,
+ *                        followed at :6849 by
+ *                        `stream->contentSz += stream->expected`, in the
+ *                        `else` of `if (currContRmnSz == 0)` where every
+ *                        assignment of expected consistent with
+ *                        currContRmnSz > 0 is
+ *                        min(currContRmnSz, MAX_PKCS7_STREAM_BUFFER) >= 1.
+ *                        The only arm that grows contentSz without allocating
+ *                        (the streamOutCb branch at :6790) leaves content
+ *                        NULL, which drives cond 1 false, not cond 2.
+ *       :12036 cond 1 -- family (3). The branch that reaches it,
+ *                        `stream->expected == MAX_SEQ_SZ`, is what bounds
+ *                        stream->length: wc_PKCS7_AddDataToStream() grows it
+ *                        only by min(inSz - rdSz, expected - length), and the
+ *                        largest expected on any path into
+ *                        WC_PKCS7_DECRYPT_KTRI_2 is
+ *                        MAX_OID_SZ + MAX_LENGTH_SZ + ASN_TAG_SZ == 38, at
+ *                        WC_PKCS7_INFOSET_STAGE1. :12034 has just assigned
+ *                        expected = sz + MAX_ALGO_SZ + ASN_TAG_SZ +
+ *                        MAX_LENGTH_SZ + 512, i.e. at least 538, so
+ *                        `length < expected` is constant true. Section 18's
+ *                        true row shows the ceiling: the most the guard can
+ *                        ever see is MAX_SEQ_SZ (6) against expected 542.
  */
 
 #include <wolfcrypt/src/pkcs7.c>
@@ -1283,6 +1320,33 @@ static void wb_octet_accum(word32 seedAccum)
     wc_PKCS7_FreeStream(&pkcs7);
 }
 
+/* The "another OCTET STRING follows" branch, :6689. Its trailing operand needs
+ * an 0x04 tag whose length field is itself malformed -- a shape no encoder
+ * emits, since every OCTET STRING wolfSSL writes carries a well-formed length.
+ * Seeded directly, like wb_octet_accum() above, with currContRmnSz == 0 so the
+ * branch is entered on the first pass. */
+static int wb_octet_next_len(byte* in, word32 inSz)
+{
+    wc_PKCS7 pkcs7;
+    word32   idx = 0, tmpIdx = 0;
+    int      ret;
+
+    XMEMSET(&pkcs7, 0, sizeof(pkcs7));
+
+    if (wc_PKCS7_CreateStream(&pkcs7) != 0) {
+        return BAD_FUNC_ARG;
+    }
+    pkcs7.stream->currContSz    = 0;
+    pkcs7.stream->currContRmnSz = 0;
+    pkcs7.stream->expected      = 1;
+    pkcs7.stream->noContent     = 0;
+    pkcs7.stream->maxLen        = inSz;
+
+    ret = wc_PKCS7_HandleOctetStrings(&pkcs7, in, inSz, &tmpIdx, &idx, 1);
+    wc_PKCS7_FreeStream(&pkcs7);
+    return ret;
+}
+
 static void wb_octet_accum_chains(void)
 {
     WB_NOTE("wc_PKCS7_HandleOctetStrings(): existing content buffer with a"
@@ -1291,6 +1355,25 @@ static void wb_octet_accum_chains(void)
     WB_NOTE("wc_PKCS7_HandleOctetStrings(): existing content buffer with a"
             " non-zero accumulated size [:6817 trailing operand true]");
     wb_octet_accum(4);
+
+    {
+        static byte okLen[]  = { 0x04, 0x02, 0xAA, 0xBB };
+        static byte badLen[] = { 0x04 };
+        int ret;
+
+        WB_NOTE("wc_PKCS7_HandleOctetStrings(): a following OCTET STRING whose"
+                " length parses [:6689 trailing operand false]");
+        ret = wb_octet_next_len(okLen, (word32)sizeof(okLen));
+        WB_CHECK(ret != WC_NO_ERR_TRACE(ASN_PARSE_E),
+                ":6689 well-formed following OCTET STRING length");
+
+        WB_NOTE("wc_PKCS7_HandleOctetStrings(): a following OCTET STRING tag"
+                " with no length byte behind it [:6689 trailing operand"
+                " true]");
+        ret = wb_octet_next_len(badLen, (word32)sizeof(badLen));
+        WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
+                ":6689 malformed following OCTET STRING length");
+    }
 }
 #else
 static void wb_octet_accum_chains(void)
@@ -1427,13 +1510,537 @@ static void wb_verify_outer_shapes(void)
 }
 
 /* ------------------------------------------------------------------------- *
- * main -- always returns 0 so the campaign harness keeps this variant's
+ * Section 16: identity- and version-dispatch operands that neither a sweep
+ * nor any public encoder can produce, because no encoder in the tree ever
+ * emits the shape the operand tests.
+ *
+ *   :6398 cond 1/2  wc_PKCS7_ParseSignerInfo()'s noDegenerate guard. The
+ *                   inner OR is `inSz == 0 || degenerate == 1`; both operands
+ *                   need a call with noDegenerate set, which the public
+ *                   decode path only ever makes with the *same* (inSz,
+ *                   degenerate) pair for a given bundle. Called directly with
+ *                   the three combinations instead.
+ *   :5166 cond 1    wc_PKCS7_RsaVerify()'s `keyOID != RSAk && keyOID !=
+ *   :5298 cond 1    RSAPSSk` defence-in-depth guard, and the same guard in
+ *                   wc_PKCS7_RsaPssVerify(). The false row needs an
+ *                   RSASSA-PSS SubjectPublicKeyInfo (keyOID == RSAPSSk) in
+ *                   pkcs7->cert[], which no bundle this module builds carries;
+ *                   the true row needs a non-RSA-family cert in the same
+ *                   binary. Both are supplied here from certs/.
+ *   :14106 cond 2   wc_PKCS7_ParseToRecipientInfoSet()'s BER marker test
+ *                   `ret == 0 && length == 0 && pkiMsg[(*idx)-1] == 0x80`.
+ *                   A zero-length *definite* outer SEQUENCE (`30 00`) is the
+ *                   only input that reaches the third operand with a false
+ *                   value; the `30 80` companion in the same binary supplies
+ *                   the true row.
+ *   :14215 cond 4   the ECDSA arm of the envelopedData version dispatch,
+ *                   `publicKeyOID == ECDSAk && (version != 0 && ...)`. The
+ *                   false row needs an ECC signer key with version 0, the
+ *                   true row the same key with a version that is none of
+ *                   0/2/3 -- one field of one hand-built header apart.
+ * ------------------------------------------------------------------------- */
+
+/* ContentInfo/EnvelopedData header, parsed as far as the RecipientInfo SET.
+ * Padded well past MAX_OID_SZ + MAX_LENGTH_SZ so that the streaming
+ * wc_PKCS7_AddDataToStream() never has to ask for more input. */
+static byte wbRisHdr[96];
+/* the same prefix with a zero-length definite outer SEQUENCE, and with the
+ * indefinite-length marker, so :14106's third operand sees both values */
+static byte wbRisEmptyDef[96];
+static byte wbRisEmptyIndef[96];
+
+static word32 wb_build_ris_hdr(byte* buf, word32 bufSz, byte version)
+{
+    word32 i = 0;
+
+    XMEMSET(buf, 0, bufSz);
+    buf[i++] = 0x30; buf[i++] = 0x16;              /* ContentInfo SEQUENCE */
+    buf[i++] = 0x06; buf[i++] = 0x09;              /* envelopedData OID */
+    buf[i++] = 0x2A; buf[i++] = 0x86; buf[i++] = 0x48; buf[i++] = 0x86;
+    buf[i++] = 0xF7; buf[i++] = 0x0D; buf[i++] = 0x01; buf[i++] = 0x07;
+    buf[i++] = 0x03;
+    buf[i++] = 0xA0; buf[i++] = 0x09;              /* [0] EXPLICIT */
+    buf[i++] = 0x30; buf[i++] = 0x07;              /* EnvelopedData SEQUENCE */
+    buf[i++] = 0x02; buf[i++] = 0x01; buf[i++] = version;
+    buf[i++] = 0x31; buf[i++] = 0x02;              /* RecipientInfo SET */
+    buf[i++] = 0x30; buf[i++] = 0x00;
+    return bufSz;
+}
+
+static int wb_parse_ris(byte* buf, word32 bufSz, word32 pubKeyOID)
+{
+    wc_PKCS7* p = wc_PKCS7_New(NULL, INVALID_DEVID);
+    word32    idx = 0;
+    int       ret;
+
+    if (p == NULL) {
+        return MEMORY_E;
+    }
+    if (wc_PKCS7_InitWithCert(p, NULL, 0) != 0) {
+        wc_PKCS7_Free(p);
+        return BAD_FUNC_ARG;
+    }
+    p->publicKeyOID = pubKeyOID;
+    ret = wc_PKCS7_ParseToRecipientInfoSet(p, buf, bufSz, &idx, ENVELOPED_DATA);
+    wc_PKCS7_Free(p);
+    return ret;
+}
+
+static void wb_recipient_info_set_shapes(void)
+{
+    int ret;
+
+    WB_NOTE("wc_PKCS7_ParseToRecipientInfoSet(): zero-length outer SEQUENCE,"
+            " definite vs indefinite, isolates the 0x80 marker operand"
+            " [:14106 cond 2]");
+    XMEMSET(wbRisEmptyDef, 0, sizeof(wbRisEmptyDef));
+    wbRisEmptyDef[0] = 0x30;
+    wbRisEmptyDef[1] = 0x00;
+    ret = wb_parse_ris(wbRisEmptyDef, (word32)sizeof(wbRisEmptyDef), RSAk);
+    WB_CHECK(ret != 0, ":14106 definite zero-length SEQUENCE (marker false)");
+
+    XMEMSET(wbRisEmptyIndef, 0, sizeof(wbRisEmptyIndef));
+    wbRisEmptyIndef[0] = 0x30;
+    wbRisEmptyIndef[1] = 0x80;
+    ret = wb_parse_ris(wbRisEmptyIndef, (word32)sizeof(wbRisEmptyIndef), RSAk);
+    WB_CHECK(ret != 0, ":14106 indefinite-length SEQUENCE (marker true)");
+
+#ifdef HAVE_ECC
+    WB_NOTE("wc_PKCS7_ParseToRecipientInfoSet(): ECDSA signer key with"
+            " envelopedData version 0 and version 1 [:14215 cond 4]");
+    (void)wb_build_ris_hdr(wbRisHdr, (word32)sizeof(wbRisHdr), 0x00);
+    ret = wb_parse_ris(wbRisHdr, (word32)sizeof(wbRisHdr), ECDSAk);
+    /* the success return is the RecipientInfo SET length, not 0 */
+    WB_CHECK(ret > 0, ":14215 ECDSAk with version 0 is accepted");
+
+    (void)wb_build_ris_hdr(wbRisHdr, (word32)sizeof(wbRisHdr), 0x01);
+    ret = wb_parse_ris(wbRisHdr, (word32)sizeof(wbRisHdr), ECDSAk);
+    WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_VERSION_E),
+            ":14215 ECDSAk with version 1 is rejected");
+#endif
+
+    /* RSA companion rows, so the RSAk arm's operands are decided by the same
+     * two headers rather than only by real bundles. */
+    (void)wb_build_ris_hdr(wbRisHdr, (word32)sizeof(wbRisHdr), 0x00);
+    ret = wb_parse_ris(wbRisHdr, (word32)sizeof(wbRisHdr), RSAk);
+    WB_CHECK(ret > 0, ":14215 RSAk with version 0 is accepted");
+    (void)wb_build_ris_hdr(wbRisHdr, (word32)sizeof(wbRisHdr), 0x01);
+    ret = wb_parse_ris(wbRisHdr, (word32)sizeof(wbRisHdr), RSAk);
+    WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_VERSION_E),
+            ":14215 RSAk with version 1 is rejected");
+}
+
+/* wc_PKCS7_ParseSignerInfo() with pkcs7->noDegenerate set, across the three
+ * (inSz, degenerate) combinations the inner OR needs. */
+static int wb_parse_signer_info_nodeg(byte* in, word32 inSz, int degenerate)
+{
+    wc_PKCS7 pkcs7;
+    word32   idx = 0;
+    byte*    signedAttrib = NULL;
+    int      signedAttribSz = 0;
+    int      ret;
+
+    XMEMSET(&pkcs7, 0, sizeof(pkcs7));
+    pkcs7.version = 1;
+    pkcs7.noDegenerate = 1;
+    ret = wc_PKCS7_ParseSignerInfo(&pkcs7, in, inSz, &idx, degenerate,
+            &signedAttrib, &signedAttribSz);
+    wc_PKCS7_SignerInfoFree(&pkcs7);
+    return ret;
+}
+
+static void wb_parse_signer_info_nodegenerate(void)
+{
+    int ret;
+
+    WB_NOTE("wc_PKCS7_ParseSignerInfo(): noDegenerate matrix, each operand of"
+            " `inSz == 0 || degenerate == 1` isolated [:6398]");
+
+    /* (T,T,-): inSz == 0 decides the OR */
+    ret = wb_parse_signer_info_nodeg(wbSiNoSeq, 0, 0);
+    WB_CHECK(ret == WC_NO_ERR_TRACE(PKCS7_NO_SIGNER_E),
+            ":6398 inSz == 0 with noDegenerate set");
+
+    /* (T,F,T): degenerate decides the OR */
+    ret = wb_parse_signer_info_nodeg(wbSiNoSeq, (word32)sizeof(wbSiNoSeq), 1);
+    WB_CHECK(ret == WC_NO_ERR_TRACE(PKCS7_NO_SIGNER_E),
+            ":6398 degenerate == 1 with noDegenerate set");
+
+    /* (T,F,F): the guard does not fire and the parse runs on */
+    ret = wb_parse_signer_info_nodeg(wbSiNoSeq, (word32)sizeof(wbSiNoSeq), 0);
+    WB_CHECK(ret != WC_NO_ERR_TRACE(PKCS7_NO_SIGNER_E),
+            ":6398 neither OR operand true, parse proceeds");
+}
+
+/* ------------------------------------------------------------------------- *
+ * The RSA-family SPKI guards. Both verifiers walk pkcs7->cert[] themselves,
+ * so the vector is just "put this DER in cert[0] and call".
+ * ------------------------------------------------------------------------- */
+#ifndef NO_RSA
+static byte wbSpkiCert[2048];
+
+static void wb_rsa_spki_guards(void)
+{
+    byte  sig[256];
+    byte  hash[32];
+    word32 certSz;
+    wc_PKCS7* p;
+
+    XMEMSET(sig, 0x5A, sizeof(sig));
+    XMEMSET(hash, 0x5B, sizeof(hash));
+
+    /* (a) keyOID is neither RSAk nor RSAPSSk: an ECDSA certificate. */
+    certSz = wb_load_file("./certs/client-ecc-cert.der", wbSpkiCert,
+            (word32)sizeof(wbSpkiCert));
+    if (certSz > 0) {
+        WB_NOTE("wc_PKCS7_RsaVerify(): non-RSA-family SPKI rejected"
+                " [:5166 both operands true]");
+        p = wc_PKCS7_New(NULL, INVALID_DEVID);
+        if (p != NULL) {
+            if (wc_PKCS7_InitWithCert(p, NULL, 0) == 0) {
+                p->cert[0]   = wbSpkiCert;
+                p->certSz[0] = certSz;
+                p->hashOID   = SHA256h;
+                WB_CHECK(wc_PKCS7_RsaVerify(p, sig, (int)sizeof(sig), hash,
+                            (word32)sizeof(hash)) != 0,
+                        ":5166 ECDSA cert is skipped");
+#ifdef WC_RSA_PSS
+                WB_CHECK(wc_PKCS7_RsaPssVerify(p, sig, (int)sizeof(sig), hash,
+                            (word32)sizeof(hash)) != 0,
+                        ":5298 ECDSA cert is skipped");
+#endif
+            }
+            wc_PKCS7_Free(p);
+        }
+    }
+
+    /* (b) keyOID == RSAPSSk: the second operand alone decides the guard. */
+    certSz = wb_load_file("./certs/rsapss/client-rsapss.der", wbSpkiCert,
+            (word32)sizeof(wbSpkiCert));
+    if (certSz > 0) {
+        WB_NOTE("wc_PKCS7_RsaVerify(): RSASSA-PSS SPKI accepted by the guard"
+                " [:5166 second operand false]");
+        p = wc_PKCS7_New(NULL, INVALID_DEVID);
+        if (p != NULL) {
+            if (wc_PKCS7_InitWithCert(p, NULL, 0) == 0) {
+                p->cert[0]   = wbSpkiCert;
+                p->certSz[0] = certSz;
+                p->hashOID   = SHA256h;
+                /* the signature is garbage, so the call still fails -- but it
+                 * fails *after* the guard, which is the point. */
+                WB_CHECK(wc_PKCS7_RsaVerify(p, sig, (int)sizeof(sig), hash,
+                            (word32)sizeof(hash)) != 0,
+                        ":5166 RSAPSS cert passes the guard, signature fails");
+#ifdef WC_RSA_PSS
+                WB_CHECK(wc_PKCS7_RsaPssVerify(p, sig, (int)sizeof(sig), hash,
+                            (word32)sizeof(hash)) != 0,
+                        ":5298 RSAPSS cert passes the guard, signature fails");
+#endif
+            }
+            wc_PKCS7_Free(p);
+        }
+    }
+}
+#else
+static void wb_rsa_spki_guards(void)
+{
+    WB_NOTE("NO_RSA; RSA-family SPKI guards skipped");
+}
+#endif /* !NO_RSA */
+
+/* ------------------------------------------------------------------------- *
+ * Section 17: the KTRI key-encryption-algorithm dispatch, :12114
+ *   `encOID != RSAk && encOID != RSAESOAEPk`
+ * Every KTRI this tree can *emit* carries rsaEncryption, which short-circuits
+ * on the first operand. The two rows the second operand needs are one byte
+ * apart from that: the last arc of the 9-byte algorithm OID inside the
+ * KeyTransRecipientInfo is rewritten in place -- 0x07 for id-RSAES-OAEP (the
+ * guard's false row) and 0x0A for id-RSASSA-PSS, which is in neither arm (the
+ * true row). Both replacements are the same length as rsaEncryption, so no
+ * enclosing ASN.1 length changes.
+ * ------------------------------------------------------------------------- */
+#if !defined(NO_RSA) && defined(USE_CERT_BUFFERS_2048)
+static const byte wbRsaEncOid[] = {
+    0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x01
+};
+
+static void wb_ktri_alg_call(byte* buf, word32 len)
+{
+    wc_PKCS7* p = wc_PKCS7_New(NULL, INVALID_DEVID);
+    static byte out[WB_SCRATCH_SZ];
+
+    if (p == NULL) {
+        return;
+    }
+    if (wc_PKCS7_InitWithCert(p, (byte*)client_cert_der_2048,
+            sizeof_client_cert_der_2048) == 0 &&
+        wc_PKCS7_SetKey(p, (byte*)client_key_der_2048,
+            sizeof_client_key_der_2048) == 0) {
+        (void)wc_PKCS7_DecodeEnvelopedData(p, buf, len, out, sizeof(out));
+    }
+    wc_PKCS7_Free(p);
+}
+
+static void wb_ktri_key_alg_dispatch(void)
+{
+    word32 fullLen, i;
+    int    found = -1;
+
+    fullLen = wb_load_file("./certs/test/ktri-keyid-cms.msg", wbScratch,
+            sizeof(wbScratch));
+    if (fullLen < sizeof(wbRsaEncOid)) {
+        WB_NOTE("ktri-keyid-cms.msg unavailable; KTRI algorithm dispatch"
+                " skipped");
+        return;
+    }
+    /* the LAST rsaEncryption OID in the message is the KTRI's
+     * keyEncryptionAlgorithm (the earlier one is the certificate's SPKI) */
+    for (i = 0; i + (word32)sizeof(wbRsaEncOid) <= fullLen; i++) {
+        if (XMEMCMP(wbScratch + i, wbRsaEncOid, sizeof(wbRsaEncOid)) == 0) {
+            found = (int)i;
+        }
+    }
+    if (found < 0) {
+        WB_NOTE("no rsaEncryption OID found in ktri-keyid-cms.msg; KTRI"
+                " algorithm dispatch skipped");
+        return;
+    }
+
+    WB_NOTE("wc_PKCS7_DecryptKtri(): rsaEncryption (first operand false)"
+            " [:12114]");
+    wb_ktri_alg_call(wbScratch, fullLen);
+
+    WB_NOTE("wc_PKCS7_DecryptKtri(): id-RSAES-OAEP (second operand false)"
+            " [:12114 cond 1]");
+    wbScratch[(word32)found + 10] = 0x07;
+    wb_ktri_alg_call(wbScratch, fullLen);
+
+    WB_NOTE("wc_PKCS7_DecryptKtri(): an OID in neither arm (both operands"
+            " true) [:12114]");
+    wbScratch[(word32)found + 10] = 0x0A;
+    wb_ktri_alg_call(wbScratch, fullLen);
+
+    wbScratch[(word32)found + 10] = 0x01;
+}
+#else
+static void wb_ktri_key_alg_dispatch(void)
+{
+    WB_NOTE("NO_RSA or no 2048-bit cert buffers; KTRI algorithm dispatch"
+            " skipped");
+}
+#endif
+
+/* ------------------------------------------------------------------------- *
+ * Section 18: wc_PKCS7_DecryptKtri()'s WC_PKCS7_DECRYPT_KTRI_2 "peek at the
+ * next SEQUENCE" block, :12036 cond 0 (`pkcs7->stream->length > 0`).
+ *
+ * The block is guarded by `pkcs7->stream->expected == MAX_SEQ_SZ`, and
+ * `expected` on the only path into this state is the RecipientInfo SET length
+ * that wc_PKCS7_ParseToRecipientInfoSet() stored at :14259 (EnvelopedData then
+ * copies it into stream->expected at :14424 as recipientSetSz). MAX_SEQ_SZ is
+ * 6, so the whole block is dead for every bundle this tree can emit -- a real
+ * KeyTransRecipientInfo SET is hundreds of bytes -- and the measured runs
+ * execute :12027-:12036 exactly zero times. Reaching it needs a SET whose
+ * length field says 6 while the recipient behind it is full size, which
+ * GetSet_ex(..., NO_USER_CHECK) at :14235 does accept; rather than build that
+ * whole bundle, the state is seeded directly here, which is the same shape.
+ *
+ * Both rows of cond 0 in one binary, on the state the guard actually reads:
+ *   false row -- stream->length == 0, so wc_PKCS7_AddDataToStream() hands back
+ *     the caller's buffer (:357) and the decision is false; the KTRI parse
+ *     then runs on and fails in the IssuerAndSerialNumber walk.
+ *   true row  -- the stream is pre-loaded with 4 buffered bytes and fed a
+ *     2-byte chunk, so AddDataToStream() tops the internal buffer up to
+ *     exactly MAX_SEQ_SZ (:379-:399) and returns it; stream->length is then 6
+ *     and the recomputed `expected` is sz + 538, so the decision is true and
+ *     the call answers WC_PKCS7_WANT_READ_E.
+ *
+ * cond 1 (`stream->length < stream->expected`) has no false row and is filed
+ * in the exclusion record: `expected` was just assigned `sz + MAX_ALGO_SZ +
+ * ASN_TAG_SZ + MAX_LENGTH_SZ + 512` (>= 538) two statements above, while
+ * stream->length can never exceed the largest `expected` ever passed to
+ * wc_PKCS7_AddDataToStream() on the way here -- MAX_OID_SZ + MAX_LENGTH_SZ +
+ * ASN_TAG_SZ == 38, at WC_PKCS7_INFOSET_STAGE1 -- because AddDataToStream only
+ * ever grows length by min(inSz - rdSz, expected - length).
+ * ------------------------------------------------------------------------- */
+#ifndef NO_PKCS7_STREAM
+static int wb_ktri2_seq_peek(const byte* seed, word32 seedSz,
+                             byte* in, word32 inSz)
+{
+    wc_PKCS7 pkcs7;
+    byte     decryptedKey[MAX_ENCRYPTED_KEY_SZ];
+    word32   decryptedKeySz = (word32)sizeof(decryptedKey);
+    word32   idx = 0;
+    int      recipFound = 0;
+    int      ret;
+
+    XMEMSET(&pkcs7, 0, sizeof(pkcs7));
+    XMEMSET(decryptedKey, 0, sizeof(decryptedKey));
+    pkcs7.publicKeyOID = RSAk;
+
+    if (wc_PKCS7_CreateStream(&pkcs7) != 0) {
+        return MEMORY_E;
+    }
+    if (seedSz > 0) {
+        if (wc_PKCS7_GrowStream(&pkcs7, MAX_SEQ_SZ) != 0) {
+            wc_PKCS7_FreeStream(&pkcs7);
+            return MEMORY_E;
+        }
+        XMEMCPY(pkcs7.stream->buffer, seed, seedSz);
+        pkcs7.stream->length = seedSz;
+    }
+    pkcs7.stream->idx      = 0;
+    pkcs7.stream->expected = MAX_SEQ_SZ;
+    pkcs7.stream->varTwo   = CMS_ISSUER_AND_SERIAL_NUMBER; /* sidType */
+    pkcs7.stream->varThree = 0;                            /* version */
+    wc_PKCS7_ChangeState(&pkcs7, WC_PKCS7_DECRYPT_KTRI_2);
+
+    ret = wc_PKCS7_DecryptKtri(&pkcs7, in, inSz, &idx, decryptedKey,
+            &decryptedKeySz, &recipFound);
+    wc_PKCS7_FreeStream(&pkcs7);
+    return ret;
+}
+
+static void wb_ktri2_seq_peek_rows(void)
+{
+    /* "30 04 AA BB CC DD": a 6-byte SEQUENCE, so GetSequence()/GetLength()
+     * succeed against a 6-byte view and the block reaches the guard. */
+    static const byte seqSeed[]  = { 0x30, 0x04, 0xAA, 0xBB };
+    static byte       seqTail[]  = { 0xCC, 0xDD };
+    static byte       seqWhole[] = { 0x30, 0x04, 0xAA, 0xBB, 0xCC, 0xDD,
+                                     0x00, 0x00 };
+    int ret;
+
+    WB_NOTE("wc_PKCS7_DecryptKtri(): KTRI_2 SEQUENCE peek with nothing"
+            " buffered [:12036 cond 0 false]");
+    ret = wb_ktri2_seq_peek(NULL, 0, seqWhole, (word32)sizeof(seqWhole));
+    WB_CHECK(ret != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E),
+            ":12036 stream->length == 0, guard does not fire");
+
+    WB_NOTE("wc_PKCS7_DecryptKtri(): KTRI_2 SEQUENCE peek with the internal"
+            " buffer topped up to MAX_SEQ_SZ [:12036 cond 0 true]");
+    ret = wb_ktri2_seq_peek(seqSeed, (word32)sizeof(seqSeed), seqTail,
+            (word32)sizeof(seqTail));
+    WB_CHECK(ret == WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E),
+            ":12036 stream->length > 0 and short of the new expected");
+}
+#else
+static void wb_ktri2_seq_peek_rows(void)
+{
+    WB_NOTE("NO_PKCS7_STREAM; KTRI_2 SEQUENCE peek skipped");
+}
+#endif /* !NO_PKCS7_STREAM */
+
+/* ------------------------------------------------------------------------- *
+ * Section 19: PKCS7_VerifySignedData() WC_PKCS7_VERIFY_STAGE7, :8237 cond 0
+ * (`ret == 0` ahead of the signature OCTET STRING tag test).
+ *
+ * This is NOT family (1): the statement between the state's
+ * wc_PKCS7_AddDataToStream() and the link is `if (idx >= pkiMsg2Sz) ret =
+ * BUFFER_E;` at :8232, which does write ret. The operand's false row therefore
+ * exists, and needs wc_PKCS7_ParseSignerInfo() to *succeed* while landing idx
+ * exactly on the end of the message -- a SignerInfo whose signatureAlgorithm
+ * is the last element in the buffer, with no signature behind it. No encoder
+ * in the tree emits that (signature is mandatory), and the truncation sweeps
+ * in Sections 1-8 and in test_pkcs7_mutate_whitebox.c cannot produce it either
+ * because cutting a real bundle there also invalidates the enclosing SEQUENCE
+ * and SET lengths, so the parse fails one stage earlier.
+ *
+ * So the stage is entered directly with a hand-built SignerInfo:
+ *   SEQUENCE { INTEGER 1, SEQUENCE (IssuerAndSerialNumber, opaque to the
+ *   parser -- it only records the bytes as the SID), AlgorithmIdentifier
+ *   (sha-256), AlgorithmIdentifier (sha256WithRSAEncryption) }
+ * stream->expected is 0, so AddDataToStream() hands the buffer straight back
+ * at idx 0 (:357); stream->varThree is 1 so the `length > 0` operand of the
+ * enclosing :8230 guard holds, and stream->degenerate is 0.
+ *
+ *   false row -- the buffer IS exactly the SignerInfo, so the parse leaves
+ *     idx == pkiMsg2Sz, :8232 sets BUFFER_E and the decision is false.
+ *   true row  -- the same SignerInfo followed by a 4-byte OCTET STRING
+ *     signature, so idx stops short, ret stays 0, the tag reads 0x04 and the
+ *     decision is true.
+ * ------------------------------------------------------------------------- */
+#if !defined(NO_PKCS7_STREAM) && !defined(NO_RSA) && !defined(NO_SHA256)
+/* offsets: [0..1] SignerInfo SEQ header, then version, SID, digestAlgorithm,
+ * signatureAlgorithm. 43 bytes total; the trailing 6 bytes are the OCTET
+ * STRING signature used only by the true row. */
+static byte wbStage7Si[] = {
+    0x30, 0x29,                                     /* SignerInfo SEQUENCE  */
+      0x02, 0x01, 0x01,                             /*   version 1          */
+      0x30, 0x06,                                   /*   IssuerAndSerial    */
+        0x30, 0x00,                                 /*     issuer Name      */
+        0x02, 0x02, 0x12, 0x34,                     /*     serialNumber     */
+      0x30, 0x0D,                                   /*   digestAlgorithm    */
+        0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65,
+                    0x03, 0x04, 0x02, 0x01,         /*     id-sha256        */
+        0x05, 0x00,
+      0x30, 0x0D,                                   /*   signatureAlgorithm */
+        0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7,
+                    0x0D, 0x01, 0x01, 0x0B,         /*     sha256WithRSA    */
+        0x05, 0x00,
+    0x04, 0x04, 0xDE, 0xAD, 0xBE, 0xEF              /* signature (true row) */
+};
+#define WB_STAGE7_SI_ONLY 43
+
+static int wb_stage7_signature(word32 inSz)
+{
+    wc_PKCS7* p = wc_PKCS7_New(NULL, INVALID_DEVID);
+    int       ret;
+
+    if (p == NULL) {
+        return MEMORY_E;
+    }
+    p->version = 1;
+    if (wc_PKCS7_CreateStream(p) != 0) {
+        wc_PKCS7_Free(p);
+        return MEMORY_E;
+    }
+    p->stream->expected  = 0;   /* AddDataToStream() returns `in` at idx 0 */
+    p->stream->length    = 0;
+    p->stream->idx       = 0;
+    p->stream->varThree  = 1;   /* `length` operand of :8230               */
+    p->stream->degenerate = 0;
+    p->stream->indefLen  = 0;
+    wc_PKCS7_ChangeState(p, WC_PKCS7_VERIFY_STAGE7);
+
+    ret = PKCS7_VerifySignedData(p, NULL, 0, wbStage7Si, inSz, NULL, 0);
+    wc_PKCS7_Free(p);
+    return ret;
+}
+
+static void wb_stage7_signature_rows(void)
+{
+    int ret;
+
+    WB_NOTE("PKCS7_VerifySignedData(): STAGE7 with the SignerInfo ending the"
+            " message [:8237 cond 0 false]");
+    ret = wb_stage7_signature(WB_STAGE7_SI_ONLY);
+    WB_CHECK(ret == WC_NO_ERR_TRACE(BUFFER_E),
+            ":8232 idx == pkiMsg2Sz sets BUFFER_E before the tag test");
+
+    WB_NOTE("PKCS7_VerifySignedData(): STAGE7 with a signature OCTET STRING"
+            " behind the SignerInfo [:8237 cond 0 true]");
+    ret = wb_stage7_signature((word32)sizeof(wbStage7Si));
+    WB_CHECK(ret != WC_NO_ERR_TRACE(BUFFER_E),
+            ":8237 ret == 0 on arrival, the OCTET STRING tag is read");
+}
+#else
+static void wb_stage7_signature_rows(void)
+{
+    WB_NOTE("NO_PKCS7_STREAM/NO_RSA/NO_SHA256; STAGE7 signature-presence"
+            " rows skipped");
+}
+#endif /* !NO_PKCS7_STREAM && !NO_RSA && !NO_SHA256 */
+
+/* ------------------------------------------------------------------------- *
+ * main -- always returns 0 so the test harness keeps this variant's
  * coverage even if an individual sub-section's build config disables it.
  * ------------------------------------------------------------------------- */
 int main(void)
 {
     int rngRet;
 
+    setvbuf(stdout, NULL, _IONBF, 0);
     printf("=== pkcs7 decode-chain white-box (Part 5) ===\n");
 
     rngRet = wc_InitRng(&wbRng);
@@ -1454,6 +2061,12 @@ int main(void)
     wb_octet_accum_chains();
     wb_ecdsa_verify_results();
     wb_verify_outer_shapes();
+    wb_recipient_info_set_shapes();
+    wb_parse_signer_info_nodegenerate();
+    wb_rsa_spki_guards();
+    wb_ktri_key_alg_dispatch();
+    wb_ktri2_seq_peek_rows();
+    wb_stage7_signature_rows();
 
     if (rngRet == 0) {
         wc_FreeRng(&wbRng);

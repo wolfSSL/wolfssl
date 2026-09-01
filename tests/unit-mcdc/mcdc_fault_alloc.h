@@ -21,11 +21,11 @@
 
 /*
  * mcdc_fault_alloc.h -- header-only, self-contained heap-fault injector for the
- * per-module MC/DC campaign.
+ * per-module MC/DC suite.
  *
  * PURPOSE
  * -------
- * The dominant justified-residual class across the campaign is the FALSE half
+ * The dominant justified-residual class across the harness is the FALSE half
  * of success-chain guards shaped
  *
  *     if ((err == MP_OKAY) && <next step>) ...          (drive on FALSE)

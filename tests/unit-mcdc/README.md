@@ -5,7 +5,7 @@ This directory holds small, standalone white-box programs that raise **MC/DC**
 reaching decisions that are **structurally unreachable from the public API**.
 
 These are **not** part of the wolfSSL build and are **not** registered in
-`tests/api`. They exist for the external ISO 26262 per-module coverage campaign
+`tests/api`. They exist for the external ISO 26262 per-module coverage suite
 in `iso26262/mcdc-per-module/`. Nothing here changes library behaviour.
 
 ## Why a separate module
@@ -24,16 +24,16 @@ MC/DC independence pair** in the same binary.
 
 ## How coverage is combined
 
-llvm-cov computes MC/DC independence **per binary**. The campaign's
+llvm-cov computes MC/DC independence **per binary**. The suite's
 `aggregate.sh` unions the "independence shown" bit **across binaries by source
 `line:col`**. So each pair must be completed *within the white-box binary
 itself* - it does not lean on the API tests to supply the other half. The
 white-box result is unioned in as an extra `"<variant>_wb"` ledger row, one per
 build variant, exactly like any other variant.
 
-## Build contract (driven by `run-mcdc.sh`)
+## Build contract
 
-The campaign's `run-mcdc.sh` builds each file via `#include` with the **exact**
+The external harness builds each file via `#include` with the **exact**
 compile flags the instrumented library used for that translation unit (captured
 from the real `libtool` command - struct layout and backend selection depend on
 `-DHAVE___UINT128_T`, `user_settings.h`, `-DWOLFSSL_TEST_STATIC_BUILD`, ...), then
@@ -68,8 +68,8 @@ justified in `iso26262/mcdc-per-module/reports/aes/RESIDUALS.md`:
    `main()`, calls each unreachable helper with both halves of every targeted
    MC/DC pair. Keep every call memory-safe (short-circuits protect NULL derefs);
    surface setup failures as printed skips and **return 0** (a nonzero exit
-   makes the campaign discard the variant).
-2. Point the campaign at it (a per-module white-box source path in
-   `db/modules.json`); `run-mcdc.sh`'s white-box step handles build/link/export.
-3. Re-run `run-mcdc.sh <module>` then `aggregate.sh <module>`; confirm the
-   targeted `line:col` keys leave `GAPS.md`.
+   makes the harness discard the variant).
+2. Register it with the external harness as this module's white-box source;
+   its white-box step handles build, link and coverage export.
+3. Re-measure the module and confirm the targeted `line:col` keys no longer
+   appear among its uncovered conditions.

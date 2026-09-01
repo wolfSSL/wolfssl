@@ -24,7 +24,7 @@
  *
  * WHAT IS LEFT AFTER THE OTHER TWO LMS WHITE-BOXES
  * ------------------------------------------------
- * campaign/reports/lms/GAPS.md is dominated by ONE shape inside
+ * suite/reports/lms/the uncovered-condition report is dominated by ONE shape inside
  * wc_lms_impl.c's WOTS / Merkle / HSS engine:
  *
  *     for (i = 0;    (ret == 0) && (i < params->p); i++) ...
@@ -34,7 +34,7 @@
  *
  * The (ret == 0) operand only ever goes FALSE when an earlier step failed
  * *inside the same operation*. wc_lms_impl.c performs ZERO allocations
- * (grep XMALLOC: none), so mcdc_fault_alloc.h -- the campaign's usual lever --
+ * (grep XMALLOC: none), so mcdc_fault_alloc.h -- the usual lever --
  * has nothing to fault here: `ret` in this file comes exclusively from
  * wc_Sha256HashBlock / wc_Sha256Update / wc_Sha256Final (and the SHAKE
  * equivalents). test_wc_lms_impl_whitebox_gap.c already closed everything that
@@ -78,7 +78,7 @@
  * a CPU-time deadline (WB_DEADLINE_S). The parameter set is the smallest that
  * still exercises the HSS multi-level machinery: levels=2, height=2 (16
  * signatures total, subtree rollover after 4), Winternitz w=8, SHA-256/32.
- * WOLFSSL_LMS_MAX_LEVELS is pinned to 2 by this module's campaign config, so
+ * WOLFSSL_LMS_MAX_LEVELS is pinned to 2 by this module's suite config, so
  * levels=2 is the maximum available.
  *
  * VARIANT COVERAGE (HARD RULE 3): WOLFSSL_LMS_VERIFY_ONLY compiles keygen and
@@ -169,7 +169,7 @@ static const WbFamily wb_families[] = {
  * chosen so the total never exceeds WB_POINTS. */
 #define WB_DENSE    48
 #define WB_POINTS   192
-/* Hard CPU-time ceiling for the whole program, well under the campaign's
+/* Hard CPU-time ceiling for the whole program, well under the
  * 600 s TEST_TIMEOUT even with variants running concurrently and even in the
  * (much slower) WOLFSSL_WC_LMS_SMALL recompute build. Every sweep tests it, so
  * the program degrades to fewer points rather than being killed -- a killed
@@ -370,7 +370,7 @@ static int wb_do_make_key(void)
          * ~60 pinned keys inside one driver, multiplying a 10-minute module by
          * 30. Trading 40 real conditions for determinism on 3 is a bad deal,
          * so the two conditions above are recorded as known-flaky in the
-         * module residual note instead. See STEP6.md, flake hunt 2026-08-11. */
+         * module residual note instead. See the working notes, flake hunt 2026-08-11. */
         ret = wc_hss_make_key(&state, &wb_rng, wb_priv_raw, &wb_pk,
             wb_priv_data, wb_pub);
         wb_state_free(&state);
@@ -660,6 +660,6 @@ int main(void)
 
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
     /* Setup/skip conditions are notes, not process failures: a non-zero exit
-     * makes the campaign discard this binary's whole coverage. */
+     * makes the harness discard this binary's whole coverage. */
     return 0;
 }

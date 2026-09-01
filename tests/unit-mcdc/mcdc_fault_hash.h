@@ -21,13 +21,13 @@
 
 /*
  * mcdc_fault_hash.h -- header-only, self-contained HASH/BLOCK-CIPHER primitive
- * fault injector for the per-module MC/DC campaign. It is the second lever
+ * fault injector for the per-module MC/DC suite. It is the second lever
  * beside mcdc_fault_alloc.h, and the ONLY one that works for the hash-based
  * signature/KEM engines.
  *
  * WHY A SECOND LEVER
  * ------------------
- * The dominant justified-residual class campaign-wide is the FALSE half of a
+ * The dominant justified-residual class suite-wide is the FALSE half of a
  * success chain:
  *
  *     if ((ret == 0) && <next step fails>) ...
@@ -44,7 +44,7 @@
  *
  * HOW IT WORKS -- MACRO INTERPOSITION
  * -----------------------------------
- * Every white-box TU in this campaign #includes the involved .c directly, and
+ * Every white-box TU in this suite #includes the involved .c directly, and
  * the harness links it against libwolfssl.a with only that one object trimmed.
  * The primitives above therefore still come from the archive and cannot be
  * replaced at link time -- but they CAN be replaced at preprocessing time,
@@ -87,7 +87,7 @@
  * PORTABILITY
  * -----------
  * Each wrapper/macro pair is behind the same feature guard as the declaration
- * it shadows, so a TU that includes this header builds under every campaign
+ * it shadows, so a TU that includes this header builds under every suite
  * variant (in a build where a primitive is compiled out, nothing is
  * interposed). Unused wrappers are ordinary unused static helpers.
  *

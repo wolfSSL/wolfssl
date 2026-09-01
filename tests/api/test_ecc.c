@@ -2806,12 +2806,12 @@ int test_wc_EccPrivateKeyToDer(void)
 /*
  * MC/DC wave 1 - decision-targeted negative/edge paths for wolfcrypt/src/
  * ecc.c that the existing (already extensive) API tests above do not drive.
- * Each block cites the GAPS.md line:col:cond it targets. No library source
+ * Each block cites the the uncovered-condition report line:col:cond it targets. No library source
  * is changed; every case is reached through the public wc_ecc_* API.
  *
  * Split into several functions (test_wc_EccDecisionCoverage{,2,3,4}) rather
  * than one large one: a single function covering this many independent
- * decisions produced a stack-corrupting crash under this campaign's
+ * decisions produced a stack-corrupting crash under this suite's
  * -fcoverage-mcdc + -O0 combination (reproduced with gdb: a plain on-stack
  * mp_int's used/size fields were already garbage immediately after its own
  * mp_init(), and clearing it then walked off the end of its dp[] array and
@@ -2843,7 +2843,7 @@ int test_wc_EccDecisionCoverage(void)
     }
     ExpectIntEQ(ret, 0);
 
-    /* ---- wc_ecc_set_curve: GAPS.md 1927 ----
+    /* ---- wc_ecc_set_curve: the uncovered-condition report 1927 ----
      * if (key == NULL || (keysize <= 0 && curve_id < 0))
      * key==NULL true side is already exercised elsewhere (BAD_FUNC_ARG on a
      * NULL key is a common pattern); complete the compound's other operand
@@ -2859,7 +2859,7 @@ int test_wc_EccDecisionCoverage(void)
     ExpectIntEQ(wc_ecc_set_curve(&key, KEY32, -1), 0);
 #endif
 
-    /* ---- wc_ecc_get_curve_id: GAPS.md 4317 ----
+    /* ---- wc_ecc_get_curve_id: the uncovered-condition report 4317 ----
      * if (wc_ecc_is_valid_idx(curve_idx) && curve_idx >= 0)
      * curve_idx == -1 makes wc_ecc_is_valid_idx() true (ECC_CUSTOM_IDX is
      * a valid "user-supplied params" index) but curve_idx>=0 false: the
@@ -2870,14 +2870,14 @@ int test_wc_EccDecisionCoverage(void)
     ExpectIntEQ(wc_ecc_get_curve_id(key.idx), ECC_SECP256R1);
 #endif
 
-    /* ---- wc_ecc_get_curve_params: GAPS.md 4654 ----
+    /* ---- wc_ecc_get_curve_params: the uncovered-condition report 4654 ----
      * if (curve_idx >= 0 && curve_idx < (int)ECC_SET_COUNT)
      * both boundary violations (negative, and >= COUNT) plus a valid idx. */
     ExpectNull(wc_ecc_get_curve_params(-1));
     ExpectNull(wc_ecc_get_curve_params(1000000));
     ExpectNotNull(wc_ecc_get_curve_params(key.idx));
 
-    /* ---- wc_ecc_point_is_at_infinity: GAPS.md 5320 ----
+    /* ---- wc_ecc_point_is_at_infinity: the uncovered-condition report 5320 ----
      * if (mp_iszero(p->x) && mp_iszero(p->y))
      * Unique-cause MC/DC for a 2-operand AND needs THREE vectors within
      * this same binary: (T,T), (F,T), (T,F) (the existing pointFns test's
@@ -2903,7 +2903,7 @@ int test_wc_EccDecisionCoverage(void)
         wc_ecc_del_point(inf);
     }
 
-    /* ---- wc_ecc_gen_k: GAPS.md 5335 ----
+    /* ---- wc_ecc_gen_k: the uncovered-condition report 5335 ----
      * if (rng==NULL || size<0 || size+8>ECC_MAXSIZE_GEN || k==NULL ||
      *                                                       order==NULL)
      * Exercise each operand's TRUE side individually against an otherwise
@@ -2932,7 +2932,7 @@ int test_wc_EccDecisionCoverage(void)
     }
 #endif
 
-    /* ---- wc_ecc_init_id: GAPS.md 6479, 6483 ----
+    /* ---- wc_ecc_init_id: the uncovered-condition report 6479, 6483 ----
      * if (ret == 0 && (len < 0 || len > ECC_MAX_ID_LEN)) -> BUFFER_E
      * if (ret == 0 && id != NULL && len != 0) -> copy branch
      * Exercise: len<0, len>MAX, id==NULL (len!=0 skipped), len==0 (id!=NULL
@@ -2955,7 +2955,7 @@ int test_wc_EccDecisionCoverage(void)
         XMEMSET(&idKey, 0, sizeof(idKey));
         ExpectIntEQ(wc_ecc_init_id(&idKey, NULL, 0, NULL, INVALID_DEVID), 0);
         wc_ecc_free(&idKey);
-        /* id != NULL, len == 0: GAPS.md 6483's 3rd operand (len != 0)
+        /* id != NULL, len == 0: the uncovered-condition report 6483's 3rd operand (len != 0)
          * independence pair -- id!=NULL fixed TRUE across this call and
          * the all-true "copy" call below, len toggled 0 vs nonzero. */
         XMEMSET(&idKey, 0, sizeof(idKey));
@@ -2968,7 +2968,7 @@ int test_wc_EccDecisionCoverage(void)
     }
     #endif
 
-    /* ---- wc_ecc_init_label: GAPS.md 6503, 6507 ----
+    /* ---- wc_ecc_init_label: the uncovered-condition report 6503, 6507 ----
      * if (key == NULL || label == NULL)
      * if (labelLen == 0 || labelLen > ECC_MAX_LABEL_LEN) */
     #ifdef WOLF_PRIVATE_KEY_ID
@@ -2998,7 +2998,7 @@ int test_wc_EccDecisionCoverage(void)
     #endif
 
 #if defined(HAVE_ECC_SIGN) && !defined(NO_ASN)
-    /* ---- wc_ecc_sign_hash / wc_ecc_sign_hash_ex: GAPS.md 6909, 7443 ----
+    /* ---- wc_ecc_sign_hash / wc_ecc_sign_hash_ex: the uncovered-condition report 6909, 7443 ----
      * if ((inlen > WC_MAX_DIGEST_SIZE) || (inlen < WC_MIN_DIGEST_SIZE_FOR_SIGN))
      * The signVerify_hash test above already shows the ">MAX" true side;
      * complete the other operand with a too-short digest. */
@@ -3019,7 +3019,7 @@ int test_wc_EccDecisionCoverage(void)
 #endif
         /* wc_ecc_sign_hash() has its OWN copy of this length check (it does
          * not delegate to wc_ecc_sign_hash_ex() before running it), so
-         * GAPS.md 7443 (wc_ecc_sign_hash_ex's identical check) needs a
+         * the uncovered-condition report 7443 (wc_ecc_sign_hash_ex's identical check) needs a
          * direct call in the SAME test binary to independently show its own
          * MC/DC pair -- llvm-cov computes independence per-binary, so
          * showing the FALSE side via signVerify_hash's normal-length call
@@ -3049,7 +3049,7 @@ int test_wc_EccDecisionCoverage(void)
 #endif /* HAVE_ECC_SIGN && !NO_ASN */
 
 #if defined(HAVE_ECC_VERIFY) && defined(WOLFSSL_PUBLIC_MP)
-    /* ---- wc_ecc_verify_hash_ex: GAPS.md 9476 ----
+    /* ---- wc_ecc_verify_hash_ex: the uncovered-condition report 9476 ----
      * Same reasoning as wc_ecc_sign_hash_ex above: wc_ecc_verify_hash()
      * does not delegate through this check, so it needs its own direct
      * short-hash call in this binary. */
@@ -3074,7 +3074,7 @@ int test_wc_EccDecisionCoverage(void)
     }
 #endif
 
-    /* ---- wc_ecc_free: GAPS.md 8209 ----
+    /* ---- wc_ecc_free: the uncovered-condition report 8209 ----
      * if (key->deallocSet && key->dp != NULL)
      * Exercise the "deallocSet but dp already NULL" and "dp set but
      * deallocSet false" independence halves via wc_ecc_set_custom_curve
@@ -3130,7 +3130,7 @@ int test_wc_EccDecisionCoverage2(void)
 
 #if defined(HAVE_ECC_VERIFY) && !defined(WOLFSSL_SP_MATH) && \
     defined(WOLFSSL_PUBLIC_MP)
-    /* ---- wc_ecc_check_r_s_range (via wc_ecc_verify_hash_ex): GAPS.md
+    /* ---- wc_ecc_check_r_s_range (via wc_ecc_verify_hash_ex): the uncovered-condition report
      * 8939, 8942 ----
      * if ((err == 0) && (mp_cmp(r, curve->order) != MP_LT)) -> r >= order
      * if ((err == 0) && (mp_cmp(s, curve->order) != MP_LT)) -> s >= order
@@ -3164,7 +3164,7 @@ int test_wc_EccDecisionCoverage2(void)
 #endif
 
     /* ---- wc_ecc_import_point_der_ex / wc_ecc_export_point_der{,_compressed}:
-     * GAPS.md 9710, 9964, 9970, 9975, 9984, 10030, 10037, 10042 ---- */
+     * the uncovered-condition report 9710, 9964, 9970, 9975, 9984, 10030, 10037, 10042 ---- */
 #if defined(HAVE_ECC_KEY_EXPORT) && defined(HAVE_ECC_KEY_IMPORT)
     {
         ecc_point* point = NULL;
@@ -3210,10 +3210,10 @@ int test_wc_EccDecisionCoverage2(void)
         {
             /* wc_ecc_export_point_der_compressed is WOLFSSL_LOCAL (hidden in a
              * shared library), so it is not linkable from the shared-library
-             * unit test; its own decision coverage is driven by the campaign's
+             * unit test; its own decision coverage is driven by the
              * ecc white-box (which includes ecc.c directly). The public
              * compressed export path wc_ecc_export_x963_ex(..., 1) is exercised
-             * here (GAPS.md 16058, the static wc_ecc_export_x963_compressed
+             * here (the uncovered-condition report 16058, the static wc_ecc_export_x963_compressed
              * helper). */
 #ifdef HAVE_ECC_KEY_EXPORT
             {
@@ -3232,7 +3232,7 @@ int test_wc_EccDecisionCoverage2(void)
     }
 #endif /* HAVE_ECC_KEY_EXPORT && HAVE_ECC_KEY_IMPORT */
 
-    /* ---- wc_ecc_is_point: GAPS.md 10304, 10329, 10332, 10390, 10396,
+    /* ---- wc_ecc_is_point: the uncovered-condition report 10304, 10329, 10332, 10390, 10396,
      * 10403 ----
      * Direct call (rather than through wc_ecc_point_is_on_curve) with a
      * point that is genuinely ON the curve (the generator) and the
@@ -3304,7 +3304,7 @@ int test_wc_EccDecisionCoverage3(void)
     ExpectIntEQ(ret, 0);
 
     /* ---- wc_ecc_export_public_raw / wc_ecc_export_private_raw:
-     * GAPS.md 11477, 11484, 11538, 11548 ---- */
+     * the uncovered-condition report 11477, 11484, 11538, 11548 ---- */
 #if defined(HAVE_ECC_KEY_EXPORT)
     {
         byte   qx[MAX_ECC_BYTES], qy[MAX_ECC_BYTES], d[MAX_ECC_BYTES];
@@ -3320,12 +3320,12 @@ int test_wc_EccDecisionCoverage3(void)
             &qyLen), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
         wc_ecc_free(&noDpKey);
 
-        /* d != NULL but dLen == NULL: GAPS.md 11484 first operand. */
+        /* d != NULL but dLen == NULL: the uncovered-condition report 11484 first operand. */
         qxLen = sizeof(qx); qyLen = sizeof(qy);
         ExpectIntEQ(wc_ecc_export_private_raw(&key, qx, &qxLen, qy, &qyLen,
             d, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
-        /* d != NULL, dLen != NULL, but key type is public-only: GAPS.md
+        /* d != NULL, dLen != NULL, but key type is public-only: the uncovered-condition report
          * 11484 second operand. */
         {
             ecc_key pubOnly;
@@ -3342,13 +3342,13 @@ int test_wc_EccDecisionCoverage3(void)
             ExpectIntEQ(wc_ecc_export_private_raw(&pubOnly, NULL, NULL,
                 NULL, NULL, d, &dLen), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
-            /* qx != NULL, qxLen == NULL: GAPS.md 11538 first operand. */
+            /* qx != NULL, qxLen == NULL: the uncovered-condition report 11538 first operand. */
             ExpectIntEQ(wc_ecc_export_private_raw(&key, qx, NULL, NULL,
                 NULL, NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-            /* qy != NULL, qyLen == NULL: GAPS.md 11548 first operand. */
+            /* qy != NULL, qyLen == NULL: the uncovered-condition report 11548 first operand. */
             ExpectIntEQ(wc_ecc_export_private_raw(&key, NULL, NULL, qy,
                 NULL, NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-            /* qx != NULL against a PRIVATEKEY_ONLY key: GAPS.md 11538
+            /* qx != NULL against a PRIVATEKEY_ONLY key: the uncovered-condition report 11538
              * second operand (type == ECC_PRIVATEKEY_ONLY). */
             pubOnly.type = ECC_PRIVATEKEY_ONLY;
             qxbLen = sizeof(qxb);
@@ -3363,7 +3363,7 @@ int test_wc_EccDecisionCoverage3(void)
     }
 #endif /* HAVE_ECC_KEY_EXPORT */
 
-    /* ---- wc_ecc_rs_raw_to_sig: GAPS.md 12015 ---- */
+    /* ---- wc_ecc_rs_raw_to_sig: the uncovered-condition report 12015 ---- */
     {
         byte   r[KEY32], s[KEY32], sig[ECC_MAX_SIG_SIZE];
         word32 sigLen = sizeof(sig);
@@ -3382,7 +3382,7 @@ int test_wc_EccDecisionCoverage3(void)
             NULL), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
     }
 
-    /* ---- wc_ecc_import_private_key_ex: GAPS.md 11671 (_ecc_import_
+    /* ---- wc_ecc_import_private_key_ex: the uncovered-condition report 11671 (_ecc_import_
      * private_key_ex key==NULL||priv==NULL, reached via the public
      * wrapper's own identical pre-check, same independence pair) ---- */
 #if defined(HAVE_ECC_KEY_IMPORT)
@@ -3428,7 +3428,7 @@ int test_wc_EccDecisionCoverage4(void)
     }
     ExpectIntEQ(ret, 0);
 
-    /* ---- ecc_mul2add argument guard: GAPS.md 8446 ----
+    /* ---- ecc_mul2add argument guard: the uncovered-condition report 8446 ----
      * NOT closeable by any current variant, API or white-box: both bodies
      * of ecc_mul2add() (the argument-checked "normal" one at line ~8417 and
      * the Shamir/fixed-point-cache one at line ~13909 that supersedes it
@@ -3439,13 +3439,13 @@ int test_wc_EccDecisionCoverage4(void)
      * exercises the unchecked Shamir body under the name ecc_mul2add) or
      * turns BOTH ECC_SHAMIR and FP_ECC OFF together (no_fp_shamir, per its
      * config_base's philosophy of flipping the FALSE side of both feature
-     * guards at once -- see modules.json's ecc notes), which compiles
+     * guards at once -- see the module registry's ecc notes), which compiles
      * *neither* body, making ecc_mul2add an undefined symbol there (link
      * failure, confirmed empirically). Reaching this decision needs a new,
      * not-yet-scaffolded variant: ECC_SHAMIR on + FP_ECC off. Classified as
      * a needs-variant residual; see RESIDUALS.md. */
 
-    /* ---- wc_ecc_ctx_set_kdf_salt: GAPS.md 14607 ----
+    /* ---- wc_ecc_ctx_set_kdf_salt: the uncovered-condition report 14607 ----
      * if (ctx == NULL || (salt == NULL && sz != 0))
      * ctx==NULL already the common BAD_FUNC_ARG idiom shown elsewhere; add
      * the salt==NULL/sz!=0 half here with a live ctx. */
@@ -3462,7 +3462,7 @@ int test_wc_EccDecisionCoverage4(void)
     }
 #endif
 
-    /* ---- wc_ecc_set_custom_curve: GAPS.md 16181 ---- */
+    /* ---- wc_ecc_set_custom_curve: the uncovered-condition report 16181 ---- */
 #if defined(WOLFSSL_CUSTOM_CURVES)
     {
         ecc_key ccKey2;
@@ -3476,7 +3476,7 @@ int test_wc_EccDecisionCoverage4(void)
     }
 #endif
 
-    /* ---- wc_X963_KDF: GAPS.md 16217, 16221 ---- */
+    /* ---- wc_X963_KDF: the uncovered-condition report 16217, 16221 ---- */
     #ifdef HAVE_X963_KDF
     {
         byte   secret[16];

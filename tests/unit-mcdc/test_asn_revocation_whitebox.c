@@ -35,20 +35,27 @@
  * helpers below, rather than typed-out byte arrays) plus a few real
  * certificate/key buffers borrowed from existing test fixtures.
  *
- * NOTE on HAVE_OCSP_RESPONDER: the asn campaign's config_base
+ * NOTE on HAVE_OCSP_RESPONDER: the asn suite's config_base
  * (configs/asn/user_settings.base.h) never defines HAVE_OCSP_RESPONDER, so
  * EncodeCertID/EncodeSingleResponse/EncodeResponseData/EncodeBasicOcspResponse/
  * OcspResponseEncode are compiled out for every variant of this module and
- * GAPS.md carries no lines inside them -- this file does not attempt to
+ * the uncovered-condition report carries no lines inside them -- this file does not attempt to
  * cover that side and never needs it to build test input (all decode-side
  * buffers below are constructed by hand instead of via a round trip).
  *
  * Coverage is unioned by source line:col with the tests/api asn/ocsp run in
- * the per-module campaign; every pair below is completed *within this file*
+ * the per-module suite; every pair below is completed *within this file*
  * (masking MC/DC is computed per binary, then ORed across binaries by key).
  */
 
+/* Installed BEFORE asn.c is #included: it interposes the two scratch-mp_int
+ * lifecycle macros so ParseCRL_Extensions()'s CRL-number branch can be made
+ * to fail its NEW_MP_INT_SIZE()/INIT_MP_INT_SIZE() pair. See section 12. */
+#include "mcdc_fault_mpint.h"
+
 #include <wolfcrypt/src/asn.c>
+
+#include "mcdc_fault_alloc.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -279,7 +286,7 @@ static word32 wb_build_single_response(byte* out,
  *   :35012/35013  if ((!AsnSkipDateCheck) && !XVALIDATE_DATE(nextDate, ..., ASN_AFTER, ...))
  *   :35021/35022  (WOLFSSL_OCSP_PARSE_STATUS) duplicate of :35006/35007
  * AsnSkipDateCheck is a compile-time constant 0 unless
- * WC_ASN_RUNTIME_DATE_CHECK_CONTROL is defined (not set for this campaign),
+ * WC_ASN_RUNTIME_DATE_CHECK_CONTROL is defined (not set for this suite),
  * so its "true" (skip) value is a structural residual here; only the
  * XVALIDATE_DATE operand is driven both ways.
  * ------------------------------------------------------------------------- */
@@ -1192,7 +1199,7 @@ static void wb_compare_ocsp_req_resp(void)
  * Section 11: ParseCRL_EntryExtensions() [:36841,:36842,:36854-:36856,
  * :36863,:36864,:36877,:36878,:36881,:36882,:36891,:36892,:36917,:36921,
  * :36935]
- * WC_ASN_UNKNOWN_EXT_CB is active for this campaign (WOLFSSL_ASN_ALL pulls
+ * WC_ASN_UNKNOWN_EXT_CB is active for this suite (WOLFSSL_ASN_ALL pulls
  * in WOLFSSL_CUSTOM_OID + HAVE_OID_DECODING + WOLFSSL_ASN_TEMPLATE), so the
  * callback-dispatch branch is live, not compiled out.
  * ------------------------------------------------------------------------- */
@@ -1535,25 +1542,40 @@ static void wb_parse_crl_entry_extensions(void) { WB_NOTE("HAVE_CRL off or WOLFC
  * [:37284,:37285(idx 2,3),:37325,:37326,:37335,:37349,:37358,:37359,:37384,
  * :37407(idx1)]
  *
- * Two adjacent conditions are ARGUED UNREACHABLE (not attempted below):
- *   - the CRL-number branch's "if (ret == 0 && (INIT_MP_INT_SIZE(...) !=
- *     MP_OKAY))" guard: outside WOLFSSL_SMALL_STACK, DECL_MP_INT_SIZE_DYN
- *     stack-allocates `m` unconditionally (MP_INT_SIZE_CHECK_NULL is only
- *     defined under WOLFSSL_SMALL_STACK), so ret==0 never goes false here
- *     without a heap-allocation fault injector; INIT_MP_INT_SIZE() on that
- *     buffer is a plain mp_init() that cannot itself fail. Both operands
- *     are therefore compile-time constant in every variant this white-box
- *     runs under.
- *   - "if (ret == 0 && mp_toradix(m, dcrl->crlNumber, MP_RADIX_HEX) !=
- *     MP_OKAY)": dcrl->crlNumber is CRL_MAX_NUM_HEX_STR_SZ bytes
- *     (CRL_MAX_NUM_SZ*2+1 = 41), which is exactly the space a maximum-size
- *     (20-byte, CRL_MAX_NUM_SZ) positive CRL number's hex-radix conversion
- *     needs -- verified empirically with a 20-byte value (0x7F followed by
- *     19 bytes of 0xFF, the largest positive value the preceding size/sign
- *     checks admit): mp_toradix() still succeeds. ret==0 is also always
- *     true reaching this line (nothing between the two checks can set it
- *     nonzero without the residual above already applying), so this
- *     decision's operands are constant too.
+ * The CRL-number branch's scratch-mp_int guard
+ *   NEW_MP_INT_SIZE(m, ...);
+ *   #ifdef MP_INT_SIZE_CHECK_NULL
+ *       if (m == NULL) ret = MEMORY_E;
+ *   #endif
+ *   if (ret == 0 && (INIT_MP_INT_SIZE(m, CRL_MAX_NUM_SZ * CHAR_BIT)
+ *                    != MP_OKAY)) ret = MP_INIT_E;                  [:37680]
+ * was previously recorded here as unreachable in both operands, on the
+ * grounds that outside WOLFSSL_SMALL_STACK `m` is stack storage that cannot
+ * be NULL and INIT_MP_INT_SIZE() on it cannot fail. Both halves of that are
+ * true of the PRODUCT, and neither is a reason the operands have no
+ * independence pair -- they are exactly what a fault injector exists for.
+ * mcdc_fault_mpint.h (included above, before asn.c) interposes both macros:
+ *   - mcdc_fmi_arm_new(1) leaves `m` NULL and, because the header also
+ *     defines MP_INT_SIZE_CHECK_NULL, compiles the caller's own NULL guard,
+ *     so ret carries the memory-allocation error on arrival and cond 0
+ *     goes false;
+ *   - mcdc_fmi_arm_init(1) makes INIT_MP_INT_SIZE() report MP_VAL, which is
+ *     the decision's only true row and therefore the partner BOTH operands
+ *     need;
+ *   - the unarmed vector at the top of this section supplies cond 1's false
+ *     row. All three are in this binary.
+ *
+ * The following guard
+ *   if (ret == 0 && mp_toradix(m, (char*)dcrl->crlNumber, MP_RADIX_HEX)
+ *                   != MP_OKAY)                                     [:37713]
+ * IS argued unreachable, and now from the source rather than empirically:
+ * mp_toradix() is sp_toradix() (sp_int.h:1437), which for MP_RADIX_HEX
+ * returns anything other than MP_OKAY only when `a` or `str` is NULL
+ * (sp_int.c:18962 and sp_tohex() at :18782 -- the conversion itself has no
+ * other failure path). `m` is non-NULL on every arrival (the NULL case sets
+ * ret at :37676, so cond 0 short-circuits) and dcrl->crlNumber is an array
+ * member of DecodedCRL, so the decision is never true and neither operand
+ * pairs. Recorded in the exclusion record.
  * ------------------------------------------------------------------------- */
 static word32 wb_build_crl_number_ext(byte* out, const byte* intContent,
         word32 intContentSz)
@@ -1662,7 +1684,7 @@ static void wb_parse_crl_extensions(void)
 
     /* Duplicate CRL_NUMBER_OID extensions -> :37284/:37285 CRL_NUMBER_OID
      * term both true on the 2nd occurrence (WOLFSSL_NO_ASN_STRICT is not
-     * defined for this campaign, so strict duplicate rejection applies). */
+     * defined for this suite, so strict duplicate rejection applies). */
     InitDecodedCRL(&dcrl, NULL);
     {
         byte ext1[64], ext2[64];
@@ -1694,7 +1716,7 @@ static void wb_parse_crl_extensions(void)
 
 #ifndef WC_ASN_UNKNOWN_EXT_CB
     /* Only reachable as "handled==0" residual note when the callback
-     * feature is compiled out; this campaign has it on (see below), kept
+     * feature is compiled out; this suite has it on (see below), kept
      * here for portability to a variant that does not. */
     InitDecodedCRL(&dcrl, NULL);
     {
@@ -1796,6 +1818,51 @@ static void wb_parse_crl_extensions(void)
         FreeDecodedCRL(&dcrl);
     }
 #endif /* !WC_ASN_UNKNOWN_EXT_CB */
+
+    /* :37680 -- the scratch-mp_int lifecycle guard. The valid small CRL
+     * number at the top of this function is the unarmed partner (cond 1
+     * false); these two are the faulted rows. Both use the same fixture so
+     * nothing but the injector differs. */
+    {
+        byte val = 0x05;
+
+        sz = wb_build_crl_number_ext(extList, &val, 1);
+
+        /* INIT_MP_INT_SIZE() reports failure -> the decision's only true
+         * row, which is the partner both operands need. */
+        if (mcdc_fmi_init_available()) {
+            InitDecodedCRL(&dcrl, NULL);
+            mcdc_fmi_arm_init(1);
+            ret = ParseCRL_Extensions(&dcrl, extList, 0, sz);
+            mcdc_fmi_disarm();
+            WB_CHECK(ret != 0 && dcrl.crlNumberSet == 0,
+                    ":37680 both operands true (INIT_MP_INT_SIZE faulted)");
+            FreeDecodedCRL(&dcrl);
+        }
+        else {
+            WB_NOTE("INIT_MP_INT_SIZE lever unavailable; :37680 true row "
+                    "skipped");
+        }
+
+        /* NEW_MP_INT_SIZE() leaves `m` NULL, the caller's own guard sets
+         * ret = MEMORY_E, so cond 0 is false. Only available where
+         * DECL_MP_INT_SIZE_DYN declares an assignable pointer -- under
+         * WOLFSSL_SMALL_STACK the allocation is real and this row is
+         * contributed by the other variants. */
+        if (mcdc_fmi_new_available()) {
+            InitDecodedCRL(&dcrl, NULL);
+            mcdc_fmi_arm_new(1);
+            ret = ParseCRL_Extensions(&dcrl, extList, 0, sz);
+            mcdc_fmi_disarm();
+            WB_CHECK(ret != 0 && dcrl.crlNumberSet == 0,
+                    ":37680 1st operand false (NEW_MP_INT_SIZE faulted)");
+            FreeDecodedCRL(&dcrl);
+        }
+        else {
+            WB_NOTE("NEW_MP_INT_SIZE lever unavailable in this build; "
+                    ":37680 1st-operand row skipped");
+        }
+    }
 }
 #else
 static void wb_parse_crl_extensions(void) { WB_NOTE("HAVE_CRL/ASN_TEMPLATE off; ParseCRL_Extensions skipped"); }
@@ -2548,8 +2615,78 @@ static void wb_make_crl_ex(void) { WB_NOTE("HAVE_OCSP off; skipped"); }
 static void wb_sign_crl(void) { WB_NOTE("HAVE_OCSP off; skipped"); }
 #endif /* HAVE_OCSP && !WOLFCRYPT_ONLY */
 
+/* ------------------------------------------------------------------------- *
+ * GetRevoked(): the cleanup guard [:37416]
+ *   `if ((ret != 0) && (rc != NULL)) { ... free rc ... }`
+ *
+ * The second operand's false row needs a failure in which `rc` was never
+ * allocated, i.e. the RevokedCert XMALLOC at :37337 itself returning NULL.
+ * No input can produce that, so the allocator is faulted for exactly that
+ * one allocation. The paired true row is an ordinary parse failure with the
+ * allocation intact.
+ * ------------------------------------------------------------------------- */
+#ifndef CRL_STATIC_REVOKED_LIST
+static void wb_get_revoked_cleanup(void)
+{
+    /* Revoked ::= SEQUENCE { userCertificate INTEGER, revocationDate Time } */
+    static byte revoked[] = {
+        0x30, 0x12,
+          0x02, 0x01, 0x01,
+          0x17, 0x0D, '2','5','0','1','0','1','0','0','0','0','0','0','Z'
+    };
+    DecodedCRL dcrl;
+    word32     idx;
+    int        ret;
+
+    WB_NOTE("GetRevoked(): parse failure with the RevokedCert allocated"
+            " [:37416 both operands true]");
+    XMEMSET(&dcrl, 0, sizeof(dcrl));
+    idx = 0;
+    /* maxIdx cuts the entry in half, so GetASN_Items fails after the
+     * allocation has already succeeded. */
+    ret = GetRevoked(NULL, revoked, &idx, &dcrl, (word32)sizeof(revoked) / 2);
+    WB_CHECK(ret != 0, ":37416 truncated Revoked entry rejected");
+
+    WB_NOTE("GetRevoked(): the RevokedCert allocation itself fails, so the"
+            " cleanup guard sees a NULL pointer [:37416 second operand"
+            " false]");
+    mcdc_fa_install();
+    mcdc_fa_disarm();
+    mcdc_fa_arm_only(1);
+    XMEMSET(&dcrl, 0, sizeof(dcrl));
+    idx = 0;
+    ret = GetRevoked(NULL, revoked, &idx, &dcrl, (word32)sizeof(revoked));
+    mcdc_fa_disarm();
+    mcdc_fa_restore();
+    WB_CHECK(ret == WC_NO_ERR_TRACE(MEMORY_E),
+            ":37416 RevokedCert allocation failed");
+
+    WB_NOTE("GetRevoked(): a well-formed entry, so the guard's leading"
+            " operand is false [:37416]");
+    XMEMSET(&dcrl, 0, sizeof(dcrl));
+    idx = 0;
+    ret = GetRevoked(NULL, revoked, &idx, &dcrl, (word32)sizeof(revoked));
+    WB_CHECK(ret == 0, ":37416 well-formed Revoked entry accepted");
+    if (ret == 0) {
+        RevokedCert* rc = dcrl.certs;
+        while (rc != NULL) {
+            RevokedCert* next = rc->next;
+            XFREE(rc, dcrl.heap, DYNAMIC_TYPE_CRL);
+            rc = next;
+        }
+        dcrl.certs = NULL;
+    }
+}
+#else
+static void wb_get_revoked_cleanup(void)
+{
+    WB_NOTE("CRL_STATIC_REVOKED_LIST; GetRevoked cleanup guard skipped");
+}
+#endif
+
 int main(void)
 {
+    setvbuf(stdout, NULL, _IONBF, 0);
     printf("asn.c revocation (OCSP/CRL) white-box MC/DC supplement\n");
 
     wb_ocsp_decode_certid();
@@ -2569,10 +2706,11 @@ int main(void)
     wb_encode_crl_serial();
     wb_make_crl_ex();
     wb_sign_crl();
+    wb_get_revoked_cleanup();
 
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
     /* Always return 0: a nonzero exit discards this variant's coverage
-     * entirely in the campaign harness. Failures are surfaced via the
+     * entirely in the test harness. Failures are surfaced via the
      * printed [FAIL] lines instead. */
     (void)wb_fail;
     return 0;

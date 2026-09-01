@@ -236,7 +236,7 @@ int main(void)
     printf("wc_lms_impl.c white-box supplement\n");
     wb_run();
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
-    /* Setup/skip conditions are surfaced as notes, not failures: the campaign
+    /* Setup/skip conditions are surfaced as notes, not failures: the harness
      * discards a variant on nonzero exit. Genuine logic mismatches set
      * wb_fail; return 0 regardless so a family-unavailable skip is not a
      * variant-killer, but print the state above. */

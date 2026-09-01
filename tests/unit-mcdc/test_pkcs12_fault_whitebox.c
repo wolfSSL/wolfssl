@@ -22,14 +22,14 @@
 /*
  * MC/DC white-box supplement for wolfcrypt/src/pkcs12.c, closing the last
  * closable residual left after test_pkcs12_whitebox.c and
- * test_pkcs12_parse_whitebox.c (GAPS.md: 58/65): PKCS12_CheckConstructedZero()
+ * test_pkcs12_parse_whitebox.c (the uncovered-condition report: 58/65): PKCS12_CheckConstructedZero()
  *
  *   if (ret == 0 && GetObjectId(data, idx, &oid, oidIgnoreType, dataSz)) {
  *                                                          (pkcs12.c:1239)
  *
  * condition index 0 (`ret == 0`).
  *
- * Both rows this condition needs already exist in the campaign -- just not
+ * Both rows this condition needs already exist in the harness -- just not
  * in the same binary. test_pkcs12_whitebox.c's wb_check_constructed_zero()
  * drives a valid chain (ret==0 entering 1239, GetObjectId succeeds ->
  * (T,F)=FALSE) and a chain truncated right after the outer SEQUENCE header
@@ -57,7 +57,7 @@
  * The function is static, so it is called directly (same idiom as the two
  * other pkcs12 white-boxes: #include pkcs12.c to reach file-static helpers).
  *
- * The other six GAPS.md residuals are all structurally unreachable and are
+ * The other six the uncovered-condition report residuals are all structurally unreachable and are
  * deliberately NOT exercised here -- inventing a vector for a decision that
  * cannot occur would misrepresent the code as more exercised than it is.
  * Each was independently re-derived from the current source (not taken on
@@ -113,9 +113,9 @@
  *     `ret < 0` check could see as false while the length-only comparison
  *     that precedes it stays true. Dead code.
  *
- * All six are logged as DEATHNOTE candidates by the caller; not repeated as
+ * All six are recorded by the caller; not repeated as
  * test code here. mcdc_fault_alloc.h is included for idiom consistency with
- * the rest of the campaign's *_fault_whitebox.c files, but is unused: the
+ * the rest of the *_fault_whitebox.c files, but is unused: the
  * one closable residual here is a pure ASN decode-path decision, not an
  * allocation-failure guard.
  */
@@ -191,7 +191,7 @@ int main(void)
     printf("pkcs12.c fault white-box MC/DC supplement\n");
     wb_check_zero_cond0();
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
-    /* Always return 0: a nonzero exit makes the campaign discard the whole
+    /* Always return 0: a nonzero exit makes the harness discard the whole
      * variant's coverage, including the parts that did succeed. */
     return 0;
 }

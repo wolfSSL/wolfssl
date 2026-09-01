@@ -38,7 +38,7 @@
  *   Class 9  wc_TspTstInfo_Encode() accuracy micros!=0 ............... 1 cond
  *   Class 10 TspCheckSigningCertAttr() cert-hash mismatch ............ 1 cond
  *   Class 11 TspCheckOneSignerInfo() SignerInfo SET walk ............. 4 conds
- * Total newly exercised: 30 conditions (of 58 in the campaign's GAPS.md).
+ * Total newly exercised: 30 conditions (of 58 in the uncovered-condition report).
  *
  * Documented residuals (not exercised here; time-boxed out of this pass -
  * each needs either a fault only reachable through a platform-specific
@@ -55,7 +55,7 @@
  *     fixture with "no EKU extension at all" or "EKU present but not
  *     critical" was found in certs_test.h within this pass's time budget
  *     (tsa_bad_ku_cert_der_2048 and tsa_extra_eku_cert_der_2048 cover other
- *     operands of the same two decisions, already outside GAPS.md).
+ *     operands of the same two decisions, already outside the uncovered-condition report).
  *   - tsp.c:1854 wc_TspTstInfo_VerifyWithPKCS7() contentType-OID mismatch,
  *     tsp.c:2162/:2167/:2179/:2188/:2230 TspResponse_Verify()'s cm/cert/
  *     contentSz/cleanup decisions past a successful token verify: all
@@ -73,7 +73,7 @@
  *     technique as test_pkcs12_parse_whitebox.c's Class 3), but the ASN
  *     template's exact byte offsets were not worked out in this pass.
  *
- * STRUCTURALLY UNSATISFIABLE (recorded in campaign/db/exclusions.json):
+ * STRUCTURALLY UNSATISFIABLE (recorded in the exclusion record):
  *   - asn_tsp.c:1021 idx1 `length >= 2`, idx2 `length <= 5`. Defence in depth
  *     behind the ASN.1 template. GetASN_Items() stores the item's FULL length
  *     (asn.c:1948) before stepping over a BIT STRING's unused-bits byte, then
@@ -702,7 +702,7 @@ int main(void)
     wb_check_signing_cert_attr();
     wb_check_one_signer_info();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
-    /* Always return 0: a nonzero exit makes the campaign discard the whole
+    /* Always return 0: a nonzero exit makes the harness discard the whole
      * variant's coverage, including the parts that did succeed. */
     return 0;
 }

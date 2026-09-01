@@ -93,7 +93,7 @@
  *   ./test_hpke_fault_whitebox            default: baseline + fault sweeps
  *   ./test_hpke_fault_whitebox baseline   only the unarmed valid ops
  *   ./test_hpke_fault_whitebox probe      print per-target allocation counts
- * (No-arg default runs the sweep so the campaign's run_whitebox harness, which
+ * (No-arg default runs the sweep so the run_whitebox harness, which
  * runs the binary with no arguments, gets full coverage.)
  */
 

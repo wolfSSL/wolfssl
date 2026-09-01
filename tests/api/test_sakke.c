@@ -119,7 +119,7 @@
  * wc_DeriveSakkeSSV()) first calls sakke_calc_a(), which calls
  * wc_HashInit_ex() -- itself rejecting an invalid/unsupported hashType with
  * BAD_FUNC_ARG/HASH_TYPE_E before sakke_hash_to_range() is ever reached.
- * This is flagged for the DEATHNOTE rather than forced here; the tests below
+ * This is not forced here; the tests below
  * instead drive the reachable hashType-invalid path through
  * wc_HashInit_ex(), which is the only way sakke.c's hashType parameter can
  * be shown to gate an error from the public API.

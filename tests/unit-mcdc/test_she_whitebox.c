@@ -63,7 +63,7 @@
  * genuinely computed H_i, and either way the driver only inspects the returned
  * status, never the buffer.
  *
- * Build: compiled by the campaign's white-box step with the same MC/DC CFLAGS
+ * Build: compiled by the white-box step with the same MC/DC CFLAGS
  * as the instrumented library, then linked against that variant's
  * libwolfssl.a with wc_she.o removed. Not part of the wolfSSL build.
  */

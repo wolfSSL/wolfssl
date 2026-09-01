@@ -247,7 +247,7 @@ int test_wc_SpIntSizeDecisionCoverage(void)
  * (sp_div_2d/sp_mod_2d/sp_mul_2d/sp_tohex/sp_exch/sp_2expt/sp_exptmod_ex) need
  * WOLFSSL_SP_MATH_ALL && !WOLFSSL_RSA_VERIFY_ONLY, the ct helpers
  * (sp_addmod_ct/sp_submod_ct/sp_div_2_mod_ct/sp_div_2) need HAVE_ECC, and
- * sp_gcd needs !NO_RSA && WOLFSSL_KEY_GEN. This condition (which the campaign
+ * sp_gcd needs !NO_RSA && WOLFSSL_KEY_GEN. This condition (which the harness
  * sp-math config satisfies) guarantees every helper is compiled. */
 #if defined(WOLFSSL_SP_MATH_ALL) && defined(WOLFSSL_PUBLIC_MP) && \
     !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(NO_RSA) && \
@@ -330,7 +330,7 @@ int test_wc_SpIntShiftDecisionCoverage(void)
  * (sp_div_2d/sp_mod_2d/sp_mul_2d/sp_tohex/sp_exch/sp_2expt/sp_exptmod_ex) need
  * WOLFSSL_SP_MATH_ALL && !WOLFSSL_RSA_VERIFY_ONLY, the ct helpers
  * (sp_addmod_ct/sp_submod_ct/sp_div_2_mod_ct/sp_div_2) need HAVE_ECC, and
- * sp_gcd needs !NO_RSA && WOLFSSL_KEY_GEN. This condition (which the campaign
+ * sp_gcd needs !NO_RSA && WOLFSSL_KEY_GEN. This condition (which the harness
  * sp-math config satisfies) guarantees every helper is compiled. */
 #if defined(WOLFSSL_SP_MATH_ALL) && defined(WOLFSSL_PUBLIC_MP) && \
     !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(NO_RSA) && \
@@ -392,7 +392,7 @@ int test_wc_SpIntDigitArithDecisionCoverage(void)
  * (sp_div_2d/sp_mod_2d/sp_mul_2d/sp_tohex/sp_exch/sp_2expt/sp_exptmod_ex) need
  * WOLFSSL_SP_MATH_ALL && !WOLFSSL_RSA_VERIFY_ONLY, the ct helpers
  * (sp_addmod_ct/sp_submod_ct/sp_div_2_mod_ct/sp_div_2) need HAVE_ECC, and
- * sp_gcd needs !NO_RSA && WOLFSSL_KEY_GEN. This condition (which the campaign
+ * sp_gcd needs !NO_RSA && WOLFSSL_KEY_GEN. This condition (which the harness
  * sp-math config satisfies) guarantees every helper is compiled. */
 #if defined(WOLFSSL_SP_MATH_ALL) && defined(WOLFSSL_PUBLIC_MP) && \
     !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(NO_RSA) && \
@@ -543,7 +543,7 @@ int test_wc_SpIntArithDecisionCoverage(void)
  * (sp_div_2d/sp_mod_2d/sp_mul_2d/sp_tohex/sp_exch/sp_2expt/sp_exptmod_ex) need
  * WOLFSSL_SP_MATH_ALL && !WOLFSSL_RSA_VERIFY_ONLY, the ct helpers
  * (sp_addmod_ct/sp_submod_ct/sp_div_2_mod_ct/sp_div_2) need HAVE_ECC, and
- * sp_gcd needs !NO_RSA && WOLFSSL_KEY_GEN. This condition (which the campaign
+ * sp_gcd needs !NO_RSA && WOLFSSL_KEY_GEN. This condition (which the harness
  * sp-math config satisfies) guarantees every helper is compiled. */
 #if defined(WOLFSSL_SP_MATH_ALL) && defined(WOLFSSL_PUBLIC_MP) && \
     !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(NO_RSA) && \
@@ -674,7 +674,7 @@ int test_wc_SpIntConvDecisionCoverage(void)
  * (sp_div_2d/sp_mod_2d/sp_mul_2d/sp_tohex/sp_exch/sp_2expt/sp_exptmod_ex) need
  * WOLFSSL_SP_MATH_ALL && !WOLFSSL_RSA_VERIFY_ONLY, the ct helpers
  * (sp_addmod_ct/sp_submod_ct/sp_div_2_mod_ct/sp_div_2) need HAVE_ECC, and
- * sp_gcd needs !NO_RSA && WOLFSSL_KEY_GEN. This condition (which the campaign
+ * sp_gcd needs !NO_RSA && WOLFSSL_KEY_GEN. This condition (which the harness
  * sp-math config satisfies) guarantees every helper is compiled. */
 #if defined(WOLFSSL_SP_MATH_ALL) && defined(WOLFSSL_PUBLIC_MP) && \
     !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(NO_RSA) && \
@@ -861,7 +861,7 @@ int test_wc_SpIntExptGcdDecisionCoverage(void)
  * (sp_div_2d/sp_mod_2d/sp_mul_2d/sp_tohex/sp_exch/sp_2expt/sp_exptmod_ex) need
  * WOLFSSL_SP_MATH_ALL && !WOLFSSL_RSA_VERIFY_ONLY, the ct helpers
  * (sp_addmod_ct/sp_submod_ct/sp_div_2_mod_ct/sp_div_2) need HAVE_ECC, and
- * sp_gcd needs !NO_RSA && WOLFSSL_KEY_GEN. This condition (which the campaign
+ * sp_gcd needs !NO_RSA && WOLFSSL_KEY_GEN. This condition (which the harness
  * sp-math config satisfies) guarantees every helper is compiled. */
 #if defined(WOLFSSL_SP_MATH_ALL) && defined(WOLFSSL_PUBLIC_MP) && \
     !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(NO_RSA) && \

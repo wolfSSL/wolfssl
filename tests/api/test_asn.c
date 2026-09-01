@@ -901,6 +901,43 @@ static int dirNameEnc(byte* out, word32 outSz, const DirTestAttr* attrs,
     return (int)idx;
 }
 
+/* Encode "Forbid" <cp> "den" as a UTF8String value, i.e. one code point in
+ * the middle of a name that is otherwise "Forbidden". A code point RFC 4518
+ * Sec. 2.2 maps to nothing drops out and leaves "Forbidden"; any other one
+ * stays and makes it a different name. Returns the encoded length. */
+static word32 dirUtf8Probe(byte* out, word32 cp)
+{
+    static const byte head[] = { 'F','o','r','b','i','d' };
+    static const byte tail[] = { 'd','e','n' };
+    word32 idx = (word32)sizeof(head);
+
+    XMEMCPY(out, head, sizeof(head));
+
+    if (cp < 0x80U) {
+        out[idx++] = (byte)cp;
+    }
+    else if (cp < 0x800U) {
+        out[idx++] = (byte)(0xC0U | (cp >> 6));
+        out[idx++] = (byte)(0x80U | (cp & 0x3FU));
+    }
+    else if (cp < 0x10000U) {
+        out[idx++] = (byte)(0xE0U | (cp >> 12));
+        out[idx++] = (byte)(0x80U | ((cp >> 6) & 0x3FU));
+        out[idx++] = (byte)(0x80U | (cp & 0x3FU));
+    }
+    else {
+        out[idx++] = (byte)(0xF0U | (cp >> 18));
+        out[idx++] = (byte)(0x80U | ((cp >> 12) & 0x3FU));
+        out[idx++] = (byte)(0x80U | ((cp >> 6) & 0x3FU));
+        out[idx++] = (byte)(0x80U | (cp & 0x3FU));
+    }
+
+    XMEMCPY(out + idx, tail, sizeof(tail));
+    idx += (word32)sizeof(tail);
+
+    return idx;
+}
+
 /* Encode both names and run them through the directoryName matcher. */
 static int dirMatch(const DirTestAttr* nm, int nmCnt, const DirTestAttr* bs,
                     int bsCnt)
@@ -1315,6 +1352,131 @@ int test_wolfssl_local_MatchBaseName(void)
                 ExpectIntEQ(dirMatch(nm, 1, bForBid, 1),
                             WC_NO_ERR_TRACE(ASN_PARSE_E));
             }
+
+            /* EN SPACE, one of the EN QUAD (U+2000) to HAIR SPACE (U+200A)
+             * block that Sec. 2.2 gives as a range rather than one by one. */
+            {
+                static const byte forEnSpBid[] =
+                    { 'F','o','r', 0xe2,0x80,0x82, 'b','i','d' };
+                const DirTestAttr nm[] = {
+                    { DIR_OID_O, ASN_UTF8STRING, forEnSpBid,
+                      sizeof(forEnSpBid) }
+                };
+                ExpectIntEQ(dirMatch(nm, 1, bForBid, 1), 1);
+            }
+
+            /* The code points Sec. 2.2 maps to nothing, given there as
+             * ranges. Each range is probed just inside and just outside
+             * both of its bounds: inside, the code point drops out of the
+             * name and what is left is "Forbidden"; outside, it stays and
+             * the name is a different one. A range left unmapped would let
+             * a certificate carrying one of its code points inside a name
+             * pass an excluded subtree. */
+            {
+                static const struct {
+                    word32 cp;      /* Code point placed inside the name. */
+                    int    drops;   /* 1 when Sec. 2.2 maps it to nothing. */
+                } probes[] = {
+                    /* Below CHARACTER TABULATION, and the C0 controls above
+                     * CARRIAGE RETURN. */
+                    { 0x00001, 1 }, { 0x00010, 1 },
+                    /* DELETE through U+0084, and the C1 controls above NEXT
+                     * LINE; U+0100 is past both. */
+                    { 0x00080, 1 }, { 0x00090, 1 }, { 0x00100, 0 },
+                    /* The MONGOLIAN FREE VARIATION SELECTORs. */
+                    { 0x0180B, 1 }, { 0x01900, 0 },
+                    /* ZERO WIDTH NON-JOINER through RIGHT-TO-LEFT MARK. */
+                    { 0x0200C, 1 }, { 0x02010, 0 },
+                    /* The bidirectional formatting characters. */
+                    { 0x0202A, 1 }, { 0x02030, 0 },
+                    /* WORD JOINER and the invisible operators. */
+                    { 0x02060, 1 }, { 0x02064, 0 },
+                    /* INHIBIT SYMMETRIC SWAPPING through NOMINAL DIGIT
+                     * SHAPES. */
+                    { 0x0206A, 1 }, { 0x02100, 0 },
+                    /* The VARIATION SELECTORs. */
+                    { 0x0FE00, 1 }, { 0x0FE10, 0 },
+                    /* The interlinear annotation characters. */
+                    { 0x0FFF9, 1 }, { 0x0FFFD, 0 },
+                    /* The musical symbol combining stems. */
+                    { 0x1D173, 1 }, { 0x1D180, 0 },
+                    /* The deprecated tag characters. */
+                    { 0xE0020, 1 }, { 0xE0080, 0 }
+                };
+                byte probe[32];
+                int  p;
+
+                for (p = 0; p < (int)(sizeof(probes) / sizeof(probes[0]));
+                        p++) {
+                    DirTestAttr nm[1];
+
+                    nm[0].oid   = DIR_OID_O;
+                    nm[0].tag   = ASN_UTF8STRING;
+                    nm[0].val   = probe;
+                    nm[0].valSz = dirUtf8Probe(probe, probes[p].cp);
+                    ExpectIntEQ(dirMatch(nm, 1, bForbidden, 1),
+                                probes[p].drops);
+                }
+            }
+        }
+
+        /* A UTF-16 surrogate pair in a BMPString is one code point, and is
+         * the same character as the one the UTF-8 spelling holds. */
+        {
+            /* U+10000 as a surrogate pair and as UTF-8. */
+            static const byte astralBmp[]  = { 0xd8, 0x00, 0xdc, 0x00 };
+            static const byte astralUtf8[] = { 0xf0, 0x90, 0x80, 0x80 };
+            const DirTestAttr nm[] = {
+                { DIR_OID_O, ASN_BMPSTRING, astralBmp, sizeof(astralBmp) }
+            };
+            const DirTestAttr bs[] = {
+                { DIR_OID_O, ASN_UTF8STRING, astralUtf8, sizeof(astralUtf8) }
+            };
+            ExpectIntEQ(dirMatch(nm, 1, bs, 1), 1);
+        }
+        /* A code unit just above the surrogate block is an ordinary
+         * character in both of the wide string types. */
+        {
+            /* U+E000, the first Private Use character. */
+            static const byte puaBmp[] = { 0xe0, 0x00 };
+            static const byte puaUcs[] = { 0x00, 0x00, 0xe0, 0x00 };
+            const DirTestAttr nmBmp[] = {
+                { DIR_OID_O, ASN_BMPSTRING, puaBmp, sizeof(puaBmp) }
+            };
+            const DirTestAttr nmUcs[] = {
+                { DIR_OID_O, ASN_UNIVERSALSTRING, puaUcs, sizeof(puaUcs) }
+            };
+            ExpectIntEQ(dirMatch(nmBmp, 1, bForbidden, 1), 0);
+            ExpectIntEQ(dirMatch(nmUcs, 1, bForbidden, 1), 0);
+        }
+        /* Case folding covers the ASCII letters and leaves everything below
+         * them alone. */
+        {
+            static const byte forbid1[]   = { 'F','o','r','b','i','d','1' };
+            static const byte forbid1Up[] = { 'F','O','R','B','I','D','1' };
+            const DirTestAttr nm[] = {
+                { DIR_OID_O, ASN_UTF8STRING, forbid1Up, sizeof(forbid1Up) }
+            };
+            const DirTestAttr bs[] = {
+                { DIR_OID_O, ASN_UTF8STRING, forbid1, sizeof(forbid1) }
+            };
+            ExpectIntEQ(dirMatch(nm, 1, bs, 1), 1);
+        }
+        /* A value that is not a character string type is compared octet for
+         * octet: the same octets under a different tag are a different
+         * value, and the string rules are not applied to either side. */
+        {
+            const DirTestAttr nm[] = {
+                { DIR_OID_O, ASN_OCTET_STRING, forbidden, sizeof(forbidden) }
+            };
+            const DirTestAttr up[] = {
+                { DIR_OID_O, ASN_OCTET_STRING, forbiddenUp,
+                  sizeof(forbiddenUp) }
+            };
+            ExpectIntEQ(dirMatch(nm, 1, bForbidden, 1), 0);
+            ExpectIntEQ(dirMatch(bForbidden, 1, nm, 1), 0);
+            ExpectIntEQ(dirMatch(nm, 1, nm, 1), 1);
+            ExpectIntEQ(dirMatch(nm, 1, up, 1), 0);
         }
 
         /* Negative tests - should NOT match */
@@ -1470,10 +1632,16 @@ int test_wolfssl_local_MatchBaseName(void)
             static const byte loneHiBmp[] = { 0xd8, 0x00, 0x00, 'F' };
             /* BMPString low surrogate with no high surrogate before it. */
             static const byte loneLoBmp[] = { 0xdc, 0x00, 0x00, 'F' };
+            /* BMPString high surrogate followed by a code unit that is not
+             * a low surrogate. */
+            static const byte hiThenPua[] = { 0xd8, 0x00, 0xe0, 0x00 };
             /* UniversalString with a length that is not a multiple of 4. */
             static const byte shortUcs[]  = { 0x00, 0x00, 0x00 };
             /* UniversalString code point past the end of Unicode. */
             static const byte bigUcs[]    = { 0x00, 0x11, 0x00, 0x00 };
+            /* UniversalString holding a surrogate code point, which is not
+             * a character. */
+            static const byte surrUcs[]   = { 0x00, 0x00, 0xd8, 0x00 };
             static const struct {
                 byte        tag;
                 const byte* val;
@@ -1485,8 +1653,10 @@ int test_wolfssl_local_MatchBaseName(void)
                 { ASN_BMPSTRING,       oddBmp,    sizeof(oddBmp)    },
                 { ASN_BMPSTRING,       loneHiBmp, sizeof(loneHiBmp) },
                 { ASN_BMPSTRING,       loneLoBmp, sizeof(loneLoBmp) },
+                { ASN_BMPSTRING,       hiThenPua, sizeof(hiThenPua) },
                 { ASN_UNIVERSALSTRING, shortUcs,  sizeof(shortUcs)  },
-                { ASN_UNIVERSALSTRING, bigUcs,    sizeof(bigUcs)    }
+                { ASN_UNIVERSALSTRING, bigUcs,    sizeof(bigUcs)    },
+                { ASN_UNIVERSALSTRING, surrUcs,   sizeof(surrUcs)   }
             };
             int i;
 
