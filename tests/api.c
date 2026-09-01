@@ -276,6 +276,7 @@
 #include <tests/api/test_asn.h>
 #include <tests/api/test_tsp.h>
 #include <tests/api/test_lms_xmss.h>
+#include <tests/api/test_pkcs11.h>
 #include <tests/api/test_pkcs7.h>
 #include <tests/api/test_pkcs12.h>
 #include <tests/api/test_pwdbased.h>
@@ -40010,6 +40011,9 @@ TEST_CASE testCases[] = {
     TEST_FALCON_DECLS,
     /* Signature API */
     TEST_SIGNATURE_DECLS,
+
+    /* PKCS #11 */
+    TEST_PKCS11_DECLS,
 
     /* ASN */
     TEST_ASN_DECLS,
