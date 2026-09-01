@@ -259,7 +259,7 @@ Error caamFreePart(unsigned int part)
     if (!CAAM_QNX_PARTITION_IS_VALID(part) ||
             part >= caamGetPartitionCount()) {
         WOLFSSL_MSG("invalid secure memory partition");
-        return MemoryMapMayNotBeEmpty;
+        return CAAM_ARGS_E;
     }
 #endif
 
@@ -345,7 +345,7 @@ static Error caamCreatePartition(unsigned int* page, unsigned int par,
 #if defined(__QNX__) || defined(__QNXNTO__)
     if (!CAAM_QNX_PARTITION_IS_VALID(par) ||
             par >= caamGetPartitionCount())
-        return MemoryMapMayNotBeEmpty;
+        return CAAM_ARGS_E;
 #endif
 
     /* check ownership of partition */
