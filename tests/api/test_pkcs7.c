@@ -4685,6 +4685,187 @@ int test_wc_PKCS7_SetAESKeyWrapUnwrapCb(void)
 /*
  * Testing wc_PKCS7_GetEnvelopedDataKariRid().
  */
+/* Open one message as each of its two recipients. Decoding as the second is
+ * what exercises the walk past a RecipientInfo that is not the reader's;
+ * decoding as the first passes even with the search unbounded. */
+int test_wc_PKCS7_MultipleRecipients(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_AES) && \
+    defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_SHA256)
+    byte* cert1 = NULL;
+    byte* key1  = NULL;
+    byte* cert2 = NULL;
+    byte* key2  = NULL;
+    byte* out   = NULL;
+    byte decoded[128];
+    word32 cert1Sz = 0, key1Sz = 0, cert2Sz = 0, key2Sz = 0;
+    XFILE f = XBADFILE;
+    int outSz = 4096;
+    int encodedSz = 0;
+    int i, j;
+    WOLFSSL_SMALL_STACK_STATIC const byte content[] = {
+        0x74,0x77,0x6F,0x20,0x6F,0x66,0x20,0x75,0x73   /* "two of us" */
+    };
+
+    cert1Sz = key1Sz = cert2Sz = key2Sz = FOURK_BUF;
+    ExpectNotNull(cert1 = (byte*)XMALLOC(FOURK_BUF, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(key1 = (byte*)XMALLOC(FOURK_BUF, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(cert2 = (byte*)XMALLOC(FOURK_BUF, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(key2 = (byte*)XMALLOC(FOURK_BUF, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(out = (byte*)XMALLOC((size_t)outSz, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+
+    ExpectTrue((f = XFOPEN("./certs/client-cert.der", "rb")) != XBADFILE);
+    ExpectTrue((cert1Sz = (word32)XFREAD(cert1, 1, cert1Sz, f)) > 0);
+    if (f != XBADFILE) { XFCLOSE(f); f = XBADFILE; }
+    ExpectTrue((f = XFOPEN("./certs/client-key.der", "rb")) != XBADFILE);
+    ExpectTrue((key1Sz = (word32)XFREAD(key1, 1, key1Sz, f)) > 0);
+    if (f != XBADFILE) { XFCLOSE(f); f = XBADFILE; }
+    ExpectTrue((f = XFOPEN("./certs/ca-cert.der", "rb")) != XBADFILE);
+    ExpectTrue((cert2Sz = (word32)XFREAD(cert2, 1, cert2Sz, f)) > 0);
+    if (f != XBADFILE) { XFCLOSE(f); f = XBADFILE; }
+    ExpectTrue((f = XFOPEN("./certs/ca-key.der", "rb")) != XBADFILE);
+    ExpectTrue((key2Sz = (word32)XFREAD(key2, 1, key2Sz, f)) > 0);
+    if (f != XBADFILE) { XFCLOSE(f); f = XBADFILE; }
+
+    /* j == 0: EnvelopedData, j == 1: AuthEnvelopedData */
+    for (j = 0; j < 2; j++) {
+    #ifndef HAVE_AESGCM
+        if (j == 1)
+            continue;
+    #endif
+        if (EXPECT_FAIL())
+            break;
+        /* one pass builds the bundle, the loop below opens it */
+        for (i = 0; i < 1; i++) {
+            wc_PKCS7* pkcs7 = NULL;
+
+            ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, INVALID_DEVID));
+            ExpectIntEQ(wc_PKCS7_Init(pkcs7, NULL, INVALID_DEVID), 0);
+            if (pkcs7 != NULL) {
+                pkcs7->content    = (byte*)content;
+                pkcs7->contentSz  = (word32)sizeof(content);
+                pkcs7->contentOID = DATA;
+            #ifdef HAVE_AESGCM
+                pkcs7->encryptOID = (j == 1) ? AES256GCMb : AES256CBCb;
+            #else
+                pkcs7->encryptOID = AES256CBCb;
+            #endif
+            }
+            ExpectIntGT(wc_PKCS7_AddRecipient_KTRI(pkcs7, cert1, cert1Sz, 0),
+                0);
+            ExpectIntGT(wc_PKCS7_AddRecipient_KTRI(pkcs7, cert2, cert2Sz, 0),
+                0);
+        #ifdef HAVE_AESGCM
+            if (j == 1) {
+                ExpectIntGT(encodedSz = wc_PKCS7_EncodeAuthEnvelopedData(pkcs7,
+                    out, (word32)outSz), 0);
+            }
+            else
+        #endif
+            {
+                ExpectIntGT(encodedSz = wc_PKCS7_EncodeEnvelopedData(pkcs7, out,
+                    (word32)outSz), 0);
+            }
+            wc_PKCS7_Free(pkcs7);
+        }
+
+        /* both recipients, the second one especially */
+        for (i = 0; i < 2; i++) {
+            wc_PKCS7* pkcs7 = NULL;
+            byte* useCert = (i == 0) ? cert1 : cert2;
+            byte* useKey  = (i == 0) ? key1  : key2;
+            word32 useCertSz = (i == 0) ? cert1Sz : cert2Sz;
+            word32 useKeySz  = (i == 0) ? key1Sz  : key2Sz;
+            int decSz = 0;
+
+            if (EXPECT_FAIL())
+                break;
+
+            ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, INVALID_DEVID));
+            /* the recipient identifier is matched against this certificate */
+            ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, useCert, useCertSz), 0);
+            if (pkcs7 != NULL) {
+                pkcs7->privateKey   = useKey;
+                pkcs7->privateKeySz = useKeySz;
+            }
+            XMEMSET(decoded, 0, sizeof(decoded));
+        #ifdef HAVE_AESGCM
+            if (j == 1) {
+                ExpectIntGT(decSz = wc_PKCS7_DecodeAuthEnvelopedData(pkcs7, out,
+                    (word32)encodedSz, decoded, sizeof(decoded)), 0);
+            }
+            else
+        #endif
+            {
+                ExpectIntGT(decSz = wc_PKCS7_DecodeEnvelopedData(pkcs7, out,
+                    (word32)encodedSz, decoded, sizeof(decoded)), 0);
+            }
+            ExpectIntEQ(decSz, (int)sizeof(content));
+            ExpectIntEQ(XMEMCMP(decoded, content, sizeof(content)), 0);
+            if (pkcs7 != NULL) {
+                pkcs7->privateKey = NULL;
+                pkcs7->privateKeySz = 0;
+            }
+            wc_PKCS7_Free(pkcs7);
+            pkcs7 = NULL;
+
+        #ifndef NO_PKCS7_STREAM
+            /* Again in chunks: only a buffered stream makes a rejected
+             * recipient shift the buffer rather than advance a counter.
+             * Scoped to EnvelopedData and the second recipient; the other
+             * combinations fail on the merge-base too. */
+            if ((i == 1) && (j == 0) && !EXPECT_FAIL()) {
+                int fed = 0;
+                int chunk = 128;
+                int streamSz = -1;
+
+                ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, INVALID_DEVID));
+                ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, useCert, useCertSz),
+                    0);
+                if (pkcs7 != NULL) {
+                    pkcs7->privateKey   = useKey;
+                    pkcs7->privateKeySz = useKeySz;
+                }
+                XMEMSET(decoded, 0, sizeof(decoded));
+
+                while ((pkcs7 != NULL) && (fed < encodedSz)) {
+                    int n = ((encodedSz - fed) < chunk) ? (encodedSz - fed)
+                                                        : chunk;
+                    streamSz = wc_PKCS7_DecodeEnvelopedData(pkcs7,
+                        out + fed, (word32)n, decoded, sizeof(decoded));
+                    fed += n;
+                    if (streamSz != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E))
+                        break;
+                }
+
+                ExpectIntEQ(streamSz, (int)sizeof(content));
+                ExpectIntEQ(XMEMCMP(decoded, content, sizeof(content)), 0);
+                if (pkcs7 != NULL) {
+                    pkcs7->privateKey = NULL;
+                    pkcs7->privateKeySz = 0;
+                }
+                wc_PKCS7_Free(pkcs7);
+            }
+        #endif /* !NO_PKCS7_STREAM */
+        }
+    }
+
+    XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(cert1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(cert2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wc_PKCS7_GetEnvelopedDataKariRid(void)
 {
     EXPECT_DECLS;

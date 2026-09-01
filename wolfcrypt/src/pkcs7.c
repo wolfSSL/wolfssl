@@ -15885,6 +15885,9 @@ int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
     word32 idx = 0;
 #ifndef NO_PKCS7_STREAM
     word32 tmpIdx = 0;
+#else
+    word32 recipientSetStart = 0;
+    word32 recipientSetSz = 0;
 #endif
     word32 setEnd = 0;
     word32 contentType = 0, encOID = 0;
@@ -15935,18 +15938,28 @@ int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             if (ret < 0)
                 break;
 
+            /* Decryption stops at the matching RecipientInfo, so remember
+             * the set's start and length to bound the search and step over
+             * the rest. Buffer all of it, as WC_PKCS7_ENV_2 does. */
         #ifndef NO_PKCS7_STREAM
             tmpIdx = idx;
+            pkcs7->stream->recipientSz    = ret;
+            pkcs7->stream->expected       = (word32)ret;
+        #else
+            recipientSetStart = idx;
+            recipientSetSz    = (word32)ret;
         #endif
             wc_PKCS7_ChangeState(pkcs7, WC_PKCS7_AUTHENV_2);
             FALL_THROUGH;
 
         case WC_PKCS7_AUTHENV_2:
         #ifndef NO_PKCS7_STREAM
-            if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz, MAX_LENGTH_SZ +
-                            MAX_VERSION_SZ + ASN_TAG_SZ, &pkiMsg, &idx)) != 0) {
+            if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz,
+                            pkcs7->stream->expected, &pkiMsg, &idx)) != 0) {
                 break;
             }
+            /* start of the set, in the space AddDataToStream established */
+            pkcs7->stream->recipientStart = idx;
         #endif
             decryptedKey = (byte*)XMALLOC(MAX_ENCRYPTED_KEY_SZ, pkcs7->heap,
                                                             DYNAMIC_TYPE_PKCS7);
@@ -15980,6 +15993,18 @@ int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             decryptedKey = pkcs7->stream->key;
         #endif
 
+        #ifndef NO_PKCS7_STREAM
+            /* Zero size means an indefinite-length BER set; see the
+             * EnvelopedData decoder. */
+            if (pkcs7->stream->recipientSz > 0) {
+                setEnd = pkcs7->stream->recipientStart +
+                         (word32)pkcs7->stream->recipientSz;
+            }
+        #else
+            if (recipientSetSz > 0) {
+                setEnd = recipientSetStart + recipientSetSz;
+            }
+        #endif
             ret = wc_PKCS7_DecryptRecipientInfos(pkcs7, in, inSz, &idx,
                                                 decryptedKey, &decryptedKeySz,
                                                 &recipFound, &setEnd);
@@ -15994,9 +16019,26 @@ int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                 break;
             }
 
+            /* Step over the recipients left unread after the match, or the
+             * EncryptedContentInfo below is parsed from the wrong offset.
+             * Only while the stream has not already passed the end of the
+             * set. Same chunked-decode caveat as WC_PKCS7_ENV_2. */
         #ifndef NO_PKCS7_STREAM
+            if (pkcs7->stream->totalRd < (pkcs7->stream->recipientStart +
+                    (word32)pkcs7->stream->recipientSz)) {
+                tmpIdx = idx;
+                idx = pkcs7->stream->recipientStart +
+                        (word32)pkcs7->stream->recipientSz;
+
+                if ((ret = wc_PKCS7_StreamEndCase(pkcs7, &tmpIdx, &idx)) != 0) {
+                    break;
+                }
+            }
+
             tmpIdx = idx;
             pkcs7->stream->expected = MAX_SEQ_SZ;
+        #else
+            idx = recipientSetStart + recipientSetSz;
         #endif
             wc_PKCS7_ChangeState(pkcs7, WC_PKCS7_AUTHENV_3);
             FALL_THROUGH;

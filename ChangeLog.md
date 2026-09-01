@@ -1,5 +1,9 @@
 # wolfSSL Release (unreleased)
 
+## PKCS#7 / CMS
+
+* Fixed PKCS#7/CMS decoding of a message addressed to more than one recipient, including AuthEnvelopedData, which never supported it. A message carrying no recipient for the reader now reports `PKCS7_RECIP_E` rather than a parse error. by @Frauschi
+
 ## Behavioral Changes
 
 * **Behavioral change (`wc_PufReadSram` health tests the raw SRAM readout)**:
