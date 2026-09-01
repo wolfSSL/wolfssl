@@ -28250,7 +28250,7 @@ static int test_PathLenSelfIssued(void)
      * received as part of the certificate chain.
      * Root CA has pathLen=0, so it should NOT be allowed to sign any
      * intermediate CA (including self-issued ones).
-     * BUG: wolfSSL sets selfSigned=1 for this cert (issuer==subject DN),
+     * BUG: wolfSSL sets selfIssued=1 for this cert (issuer==subject DN),
      * which causes the pathLen enforcement to be entirely skipped. */
     wc_InitDecodedCert(&decodedCert, icaDer, (word32)icaDerSz, NULL);
     ExpectIntEQ(wc_ParseCert(&decodedCert, CHAIN_CERT_TYPE, VERIFY,
@@ -28482,9 +28482,9 @@ static int test_PathLenNoKeyUsage(void)
  * wolfSSL, so the test cannot pass for the wrong reason if wc_MakeCert
  * encoding ever drifts.
  *
- * Predicate exempts only (CA_TYPE|TRUSTED_PEER_TYPE) && isCA && selfSigned.
+ * Predicate exempts only (CA_TYPE|TRUSTED_PEER_TYPE) && isCA && selfIssued.
  *
- *   Fixture                          isCA selfSigned CERT_TYPE CA_TYPE
+ *   Fixture                          isCA selfIssued CERT_TYPE CA_TYPE
  *   root_serial0.pem                 1    1          reject    accept
  *   intermediate_serial0.pem         1    0          reject    reject
  *   selfsigned_nonca_serial0.pem     0    1          reject    reject
@@ -28513,7 +28513,7 @@ static int test_ParseSerial0FixtureMatrix(void)
          * anchor (CA_TYPE) per the exemption in ParseCertRelative. */
         { "./certs/test-serial0/root_serial0.pem",         0, 1 },
         /* Intermediate CA: CA:TRUE but issuer != subject, so the trust
-         * anchor exemption (cert->selfSigned) does not apply. */
+         * anchor exemption (cert->selfIssued) does not apply. */
         { "./certs/test-serial0/intermediate_serial0.pem", 0, 0 },
         { "./certs/test-serial0/selfsigned_nonca_serial0.pem", 0, 0 },
         { "./certs/test-serial0/ee_serial0.pem",           0, 0 },

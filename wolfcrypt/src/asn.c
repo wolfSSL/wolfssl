@@ -156,9 +156,9 @@ ASN Options:
  *                            active in a stock build. Intended for interop with
  *                            deployed certs that carry malformed keyUsage
  *                            (e.g. the Mosquitto integration).
- * ALLOW_SELFSIGNED_INVALID_CERTSIGN: Allow self-signed certs
- *                            without keyCertSign in keyUsage. Narrower opt-in
- *                            than ALLOW_INVALID_CERTSIGN (self-signed only).
+ * ALLOW_SELFSIGNED_INVALID_CERTSIGN: Allow self-issued non-CA certs
+ *                            with keyCertSign in keyUsage. Narrower opt-in
+ *                            than ALLOW_INVALID_CERTSIGN (self-issued only).
  * ALLOW_V1_EXTENSIONS:      Allow extensions in v1 certificates
  * USE_WOLF_VALIDDATE:       Use wolfSSL date validation
  * WC_ASN_RUNTIME_DATE_CHECK_CONTROL: Runtime control of date checking
@@ -23964,15 +23964,15 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
             subject, &idx, subjectSz);
     }
     if (ret == 0) {
-        /* Determine if self signed by comparing issuer and subject hashes. */
+        /* Determine if self issued by comparing issuer and subject hashes. */
     #ifdef WOLFSSL_CERT_REQ
         if (cert->isCSR) {
-            cert->selfSigned = 1;
+            cert->selfIssued = 1;
         }
         else
     #endif
         {
-            cert->selfSigned = (XMEMCMP(cert->issuerHash, cert->subjectHash,
+            cert->selfIssued = (XMEMCMP(cert->issuerHash, cert->subjectHash,
                                         KEYID_SIZE) == 0);
         }
         if (stopAtPubKey) {
@@ -24014,12 +24014,12 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
      * (DecodeToKey, wc_GetPubX509, d2i_X509-style decode) do not silently
      * accept malformed certs. ParseCertRelative performs the authoritative
      * trust-bearing check (with the CA_TYPE/TRUSTED_PEER_TYPE exemption
-     * for legacy self-signed root CAs); the exemption here is intentionally
+     * for legacy self-issued root CAs); the exemption here is intentionally
      * narrow: when extensions are not parsed (stopAtPubKey/stopAfterPubKey)
      * isCA is not populated, so the exemption never fires and serial-0 is
      * always rejected on those paths. */
     if ((ret == 0) && (cert->serialSz == 1) && (cert->serial[0] == 0)) {
-        if (!(cert->isCA && cert->selfSigned)
+        if (!(cert->isCA && cert->selfIssued)
 #ifdef WOLFSSL_CERT_REQ
             && !cert->isCSR
 #endif
@@ -25313,6 +25313,46 @@ static int CheckRpkVerifyMode(int type, int verify)
 }
 #endif /* HAVE_RPK */
 
+/* Return 0 when the certificate's own key verifies its signature. Not inlined,
+ * so its signature context is off ParseCertRelative()'s stack. */
+static WC_NO_INLINE int ConfirmSelfSignature(DecodedCert* cert)
+{
+    WC_DECLARE_VAR(sigCtx, SignatureCtx, 1, 0);
+    word32 keyOID = cert->keyOID;
+    int ret = 0;
+
+#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+    if (cert->signatureOID == CTC_SM3wSM2) {
+        keyOID = SM2k;
+    }
+#endif
+
+    WC_ALLOC_VAR_EX(sigCtx, SignatureCtx, 1, cert->heap,
+        DYNAMIC_TYPE_SIGNATURE, ret=MEMORY_E);
+    if (WC_VAR_OK(sigCtx)) {
+        InitSignatureCtx(sigCtx, cert->heap, INVALID_DEVID);
+        ret = ConfirmSignature(sigCtx, cert->source + cert->certBegin,
+            cert->sigIndex - cert->certBegin, cert->publicKey,
+            cert->pubKeySize, keyOID, cert->signature, cert->sigLength,
+            cert->signatureOID,
+        #ifdef WC_RSA_PSS
+            cert->source + cert->sigParamsIndex, cert->sigParamsLength,
+        #else
+            NULL, 0,
+        #endif
+            NULL);
+        /* With INVALID_DEVID no async event is set up to complete a pending
+         * operation, so a device that goes pending fails the check. */
+        if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+            ret = ASN_SIG_CONFIRM_E;
+        }
+        FreeSignatureCtx(sigCtx);
+        WC_FREE_VAR_EX(sigCtx, cert->heap, DYNAMIC_TYPE_SIGNATURE);
+    }
+
+    return ret;
+}
+
 int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
                       Signer *extraCAList)
 {
@@ -25332,6 +25372,8 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
     word32 idx = 0;
 #endif
     byte*  sce_tsip_encRsaKeyIdx;
+    const byte* sigKey = NULL;   /* key that verified the signature here */
+    word32 sigKeySz = 0;
 #ifndef IGNORE_NAME_CONSTRAINTS
     int ncDepth = 0;
     Signer* ncSigner = NULL;
@@ -25698,19 +25740,13 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
          * positive serial numbers; the same section notes that verifiers
          * SHOULD gracefully handle non-conforming certs with zero or
          * negative serials. wolfSSL's policy is to reject as a security
-         * guard, with an exemption for self-signed CA certs loaded as
+         * guard, with an exemption for self-issued CA certs loaded as
          * explicitly-trusted anchors (some legacy real-world roots have
-         * serial 0).
-         *
-         * Note: cert->selfSigned is a subject/issuer name-hash compare
-         * (see DecodeCertInternal where it's set), not a validated
-         * self-signature. That is acceptable here because the trust
-         * decision is user-driven via CertManagerLoadCA; this check is
-         * only a structural sanity guard. */
+         * serial 0). */
         if ((ret == 0) && (cert->serialSz == 1) && (cert->serial[0] == 0)) {
             int isTrustAnchorLoad =
                 (type == CA_TYPE || type == TRUSTED_PEER_TYPE)
-                && cert->isCA && cert->selfSigned;
+                && cert->isCA && cert->selfIssued;
             int isCsr = 0;
         #ifdef WOLFSSL_CERT_REQ
             isCsr = cert->isCSR;
@@ -25732,7 +25768,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
         if (!cert->isCA && cert->extKeyUsageSet &&
                 (cert->extKeyUsage & KEYUSE_KEY_CERT_SIGN) != 0
         #ifdef ALLOW_SELFSIGNED_INVALID_CERTSIGN
-                && !cert->selfSigned
+                && !cert->selfIssued
         #endif
         ) {
             WOLFSSL_ERROR_VERBOSE(KEYUSAGE_E);
@@ -25764,7 +25800,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
         }
     #endif /* !NO_SKID */
 
-        if (!cert->selfSigned || (verify != NO_VERIFY && type != CA_TYPE &&
+        if (!cert->selfIssued || (verify != NO_VERIFY && type != CA_TYPE &&
                                                    type != TRUSTED_PEER_TYPE)) {
             cert->ca = NULL;
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
@@ -25851,7 +25887,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
         if (type != CERT_TYPE && cert->isCA && cert->ca &&
             (!cert->extKeyUsageSet ||
              (cert->extKeyUsage & KEYUSE_KEY_CERT_SIGN) != 0)) {
-            if (!cert->selfSigned) {
+            if (!cert->selfIssued) {
                 /* RFC 5280 6.1.4(l): Non-self-issued cert decrements and
                  * checks the issuer's max_path_length. */
                 if (cert->ca->maxPathLen == 0) {
@@ -25915,7 +25951,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
             XMEMCPY(cert->issuerKeyHash, cert->ca->subjectKeyHash,
                 KEYID_SIZE);
         }
-        else if (cert->selfSigned) {
+        else if (cert->selfIssued) {
             XMEMCPY(cert->issuerKeyHash, cert->subjectKeyHash,
                 KEYID_SIZE);
         }
@@ -25987,7 +26023,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
                 verify == VERIFY_OCSP_CERT || verify == VERIFY_SKIP_DATE) {
                 word32 keyOID = cert->ca->keyOID;
             #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
-                if (cert->selfSigned && (cert->signatureOID == CTC_SM3wSM2)) {
+                if (cert->selfIssued && (cert->signatureOID == CTC_SM3wSM2)) {
                     keyOID = SM2k;
                 }
             #endif
@@ -26011,6 +26047,8 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
                     WOLFSSL_ERROR_VERBOSE(ret);
                     return ret;
                 }
+                sigKey = cert->ca->publicKey;
+                sigKeySz = cert->ca->pubKeySize;
 
             #ifdef WOLFSSL_DUAL_ALG_CERTS
                 if ((ret == 0) && cert->extAltSigAlgSet &&
@@ -26062,6 +26100,8 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
                 WOLFSSL_ERROR_VERBOSE(ret);
                 return ret;
             }
+            sigKey = cert->publicKey;
+            sigKeySz = cert->pubKeySize;
 
         #ifdef WOLFSSL_DUAL_ALG_CERTS
             if ((ret == 0) && cert->extAltSigAlgSet &&
@@ -26099,7 +26139,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
              * consider using WOLFSSL_ALT_CERT_CHAINS. */
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
             /* ret needs to be self-signer error for openssl compatibility */
-            if (cert->selfSigned) {
+            if (cert->selfIssued) {
                 WOLFSSL_ERROR_VERBOSE(ASN_SELF_SIGNED_E);
                 return ASN_SELF_SIGNED_E;
             }
@@ -26112,6 +26152,21 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
             }
         }
     } /* verify != NO_VERIFY && type != CA_TYPE && type != TRUSTED_PEER_TYPE */
+
+    /* Self signed: self issued, and its own key verifies the signature. When
+     * the issuer check already verified it, compare that key instead. */
+    if (sigKey != NULL) {
+        cert->selfSigned = cert->selfIssued && sigKeySz == cert->pubKeySize &&
+            XMEMCMP(sigKey, cert->publicKey, cert->pubKeySize) == 0;
+    }
+    else if (cert->selfIssued) {
+        int sigRet = ConfirmSelfSignature(cert);
+
+        if (sigRet == WC_NO_ERR_TRACE(MEMORY_E)) {
+            return sigRet;
+        }
+        cert->selfSigned = (sigRet == 0);
+    }
 
 #ifndef IGNORE_NAME_CONSTRAINTS
     /* Apply each ancestor CA's name constraints to this cert.
@@ -26127,7 +26182,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
                 WOLFSSL_ERROR_VERBOSE(ASN_NAME_INVALID_E);
                 return ASN_NAME_INVALID_E;
             }
-            /* Stop at trust anchor (self-issued). */
+            /* Stop at trust anchor (self-signed). */
             if (ncSigner->selfSigned)
                 break;
             ncParent = FindSignerByAkidOrName(cm, extraCAList, ncSigner);
