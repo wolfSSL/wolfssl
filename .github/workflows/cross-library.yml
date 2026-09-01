@@ -2,9 +2,10 @@ name: cross-library (reusable)
 
 # Reusable engine for compile-testing a downstream wolfSSL product against the
 # wolfSSL in this checkout. It builds wolfSSL once from this checkout (the PR
-# merge commit) with the flags a product needs, then compiles the product
-# against that install at both the product's default-branch HEAD and its highest
-# release tag (compile-only, no `make check`).
+# merge commit), then builds the product against that install at both the
+# product's default-branch HEAD and its highest release tag. A caller can also
+# select an inline Makefile build/test sequence for a project whose native CI
+# uses one.
 #
 # The wolfSSL build runs once and is shared: the build-wolfssl job installs
 # wolfSSL and uploads it as an artifact, and the compile matrix (head, latest)
@@ -32,8 +33,14 @@ on:
         default: ''
         type: string
       script:
-        description: 'Build script name under .github/workflows/cross-library/scripts/'
-        required: true
+        description: 'Build script name under .github/workflows/cross-library/scripts/; defaults to <product>.sh in script mode'
+        required: false
+        default: ''
+        type: string
+      build_mode:
+        description: 'Build implementation: script (default) or makefile (inline in this workflow)'
+        required: false
+        default: 'script'
         type: string
       apt_packages:
         description: 'Extra apt packages needed to build the product'
@@ -240,24 +247,95 @@ jobs:
           echo "Resolved ${{ matrix.ref_mode }} ref for $REPO: $ref"
           echo "ref=$ref" >> "$GITHUB_OUTPUT"
 
-      # Compile-only (never `make check`). A compile failure is allowed ONLY if
-      # a wolfSSL commit since the last release tag declared it with a
-      # `breaks-<product>=<ref>` token (see check-break.sh); otherwise the job
-      # fails, forcing intentional breaks to be recorded in a commit.
+      # Build the product. Script-mode products use their existing adapters;
+      # Makefile-mode products run the same commands as their native CI here so
+      # their integration is reviewable without a second product-specific file.
+      # A build failure is allowed ONLY if a wolfSSL commit since the last release
+      # tag declared it with a breaks-<product>=<ref> token (see check-break.sh);
+      # otherwise the job fails, forcing intentional breaks to be recorded in a
+      # commit. The output gates the optional maintained-HEAD smoke test.
       # PRODUCT_CONFIGURE is intentionally unquoted so multiple flags split.
       - name: Compile ${{ inputs.product }} against wolfSSL
+        id: product_build
+        shell: bash
         env:
+          BUILD_MODE: ${{ inputs.build_mode }}
           REPO: ${{ inputs.repo }}
           PRODUCT_CONFIGURE: ${{ inputs.product_configure }}
           PRODUCT: ${{ inputs.product }}
+          PRODUCT_SCRIPT: ${{ inputs.script }}
           REF: ${{ steps.ref.outputs.ref }}
           MODE: ${{ matrix.ref_mode }}
         run: |
           S=.github/workflows/cross-library/scripts
           set +e
-          # shellcheck disable=SC2086  # $PRODUCT_CONFIGURE must word-split into flags
-          "$S/${{ inputs.script }}" -t "$REF" \
-            "$GITHUB_WORKSPACE/wolfssl-install" "$REPO" $PRODUCT_CONFIGURE
+          (
+            set -euo pipefail
+            case "$BUILD_MODE:$PRODUCT" in
+              script:*)
+                # Keep the allowed adapter list explicit: workflow_call inputs
+                # must not select an arbitrary executable from the checkout.
+                product_script="${PRODUCT_SCRIPT:-${PRODUCT}.sh}"
+                case "$product_script" in
+                  wolfclu.sh|wolfmqtt.sh|wolfpkcs11.sh|wolfprovider.sh|wolfssh.sh|wolftpm.sh)
+                    ;;
+                  *)
+                    echo "::error::unsupported cross-library product script: $product_script"
+                    exit 2
+                    ;;
+                esac
+                # shellcheck disable=SC2086  # $PRODUCT_CONFIGURE must word-split into flags
+                "$S/$product_script" -t "$REF" \
+                  "$GITHUB_WORKSPACE/wolfssl-install" "$REPO" $PRODUCT_CONFIGURE
+                ;;
+              makefile:wolfcose)
+                case "$REPO" in
+                  *://*|git@*) product_url="$REPO" ;;
+                  *) product_url="https://github.com/${REPO}.git" ;;
+                esac
+                git clone --depth 1 --branch "$REF" "$product_url" wolfCOSE
+                cd wolfCOSE
+                # Match wolfCOSE's hosted Makefile build, explicitly using the
+                # staged wolfSSL instead of a host /usr/local installation.
+                cflags="-std=c99 -DHAVE_ANONYMOUS_INLINE_AGGREGATES=1 -Os"
+                cflags+=" -Wall -Wextra -Wpedantic -Wshadow -Wconversion"
+                cflags+=" -Wvla -Werror=vla -ffunction-sections -fdata-sections -fstack-usage"
+                cflags+=" -I./include -isystem $GITHUB_WORKSPACE/wolfssl-install/include"
+                ldflags="-L$GITHUB_WORKSPACE/wolfssl-install/lib -Wl,-rpath,$GITHUB_WORKSPACE/wolfssl-install/lib -lwolfssl"
+                make "-j$(nproc)" CFLAGS="$cflags" LDFLAGS="$ldflags"
+                ;;
+              makefile:wolfip)
+                case "$REPO" in
+                  *://*|git@*) product_url="$REPO" ;;
+                  *) product_url="https://github.com/${REPO}.git" ;;
+                esac
+                git clone --depth 1 --branch "$REF" "$product_url" wolfip
+                cd wolfip
+                # wolfIP v1.0 predates generic WOLFSSL_PREFIX support on Linux,
+                # so point its header probe and link step at the staged install.
+                export WOLFSSL_PREFIX="$GITHUB_WORKSPACE/wolfssl-install"
+                export PKG_CONFIG_PATH="$WOLFSSL_PREFIX/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+                export EXTRA_CFLAGS="${EXTRA_CFLAGS:+$EXTRA_CFLAGS }-I$WOLFSSL_PREFIX/include"
+                export LDFLAGS="${LDFLAGS:+$LDFLAGS }-L$WOLFSSL_PREFIX/lib -Wl,-rpath,$WOLFSSL_PREFIX/lib"
+                if [ "$REF" = "v1.0" ]; then
+                  # v1.0 predates EXTRA_CFLAGS on Linux, so its header probe
+                  # sees only CFLAGS. Keep its native warning/thread flags.
+                  legacy_cflags="-Wall -Werror -Wextra -I. -D_GNU_SOURCE"
+                  legacy_cflags+=" -g -ggdb -Wdeclaration-after-statement"
+                  legacy_cflags+=" -I$WOLFSSL_PREFIX/include -DWOLFSSL_USE_OPTIONS_H"
+                  legacy_ldflags="-pthread -L$WOLFSSL_PREFIX/lib -Wl,-rpath,$WOLFSSL_PREFIX/lib"
+                  make "-j$(nproc)" build/test-wolfssl \
+                    CFLAGS="$legacy_cflags" LDFLAGS="$legacy_ldflags"
+                else
+                  make "-j$(nproc)" build/test-wolfssl
+                fi
+                ;;
+              *)
+                echo "::error::unsupported cross-library build mode/product: $BUILD_MODE/$PRODUCT"
+                exit 2
+                ;;
+            esac
+          )
           rc=$?
           set -e
 
@@ -265,6 +343,7 @@ jobs:
           # tag. A head/master break is never waivable, never consults the
           # ledger, and must be fixed.
           if [ "$rc" -eq 0 ]; then
+            echo "compiled=true" >> "$GITHUB_OUTPUT"
             if [ "$MODE" = "latest" ] && "$S/check-break.sh" "$PRODUCT" "$REF" >/tmp/brk 2>/dev/null; then
               echo "::warning::$PRODUCT ($REF) compiled OK but a break is still declared, remove the stale breaks-$PRODUCT=$REF token:"
               cat /tmp/brk
@@ -277,6 +356,7 @@ jobs:
           if [ "$MODE" = "latest" ]; then
             # Released, immutable tag: allowed only if the exact tag is declared.
             if "$S/check-break.sh" "$PRODUCT" "$REF"; then
+              echo "compiled=false" >> "$GITHUB_OUTPUT"
               echo "::warning::$PRODUCT $REF failed to compile, but this break is DECLARED (see above). Treating as a known/tracked break."
               exit 0
             fi
@@ -295,3 +375,43 @@ jobs:
             echo "  * putting up a matching fix on $PRODUCT's $REF branch, then re-running this job."
           fi
           exit 1
+
+      # The Makefile-mode smoke suite covers the maintained default-branch HEAD,
+      # after a real successful build. Older releases retain compile-only
+      # coverage because their own runtime suites may not support the current
+      # wolfSSL baseline.
+      - name: Run ${{ inputs.product }} smoke tests
+        if: ${{ inputs.build_mode == 'makefile' && matrix.ref_mode == 'head' && steps.product_build.outputs.compiled == 'true' }}
+        shell: bash
+        env:
+          PRODUCT: ${{ inputs.product }}
+          WOLFSSL_INSTALL: ${{ github.workspace }}/wolfssl-install
+        run: |
+          set -euxo pipefail
+          case "$PRODUCT" in
+            wolfcose)
+              cd "$GITHUB_WORKSPACE/wolfCOSE"
+              export LD_LIBRARY_PATH="$WOLFSSL_INSTALL/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+              cflags="-std=c99 -DHAVE_ANONYMOUS_INLINE_AGGREGATES=1 -Os"
+              cflags+=" -Wall -Wextra -Wpedantic -Wshadow -Wconversion"
+              cflags+=" -Wvla -Werror=vla -ffunction-sections -fdata-sections -fstack-usage"
+              cflags+=" -I./include -isystem $WOLFSSL_INSTALL/include"
+              ldflags="-L$WOLFSSL_INSTALL/lib -Wl,-rpath,$WOLFSSL_INSTALL/lib -lwolfssl"
+              make test CFLAGS="$cflags" LDFLAGS="$ldflags"
+              make tool-test CFLAGS="$cflags" LDFLAGS="$ldflags"
+              ;;
+            wolfip)
+              cd "$GITHUB_WORKSPACE/wolfip"
+              export WOLFSSL_PREFIX="$WOLFSSL_INSTALL"
+              export PKG_CONFIG_PATH="$WOLFSSL_PREFIX/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+              export EXTRA_CFLAGS="${EXTRA_CFLAGS:+$EXTRA_CFLAGS }-I$WOLFSSL_PREFIX/include"
+              export LDFLAGS="${LDFLAGS:+$LDFLAGS }-L$WOLFSSL_PREFIX/lib -Wl,-rpath,$WOLFSSL_PREFIX/lib"
+              export LD_LIBRARY_PATH="$WOLFSSL_PREFIX/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+              make "-j$(nproc)" unit-esp
+              ./build/test/unit-esp
+              ;;
+            *)
+              echo "::error::unsupported cross-library smoke test"
+              exit 1
+              ;;
+          esac
