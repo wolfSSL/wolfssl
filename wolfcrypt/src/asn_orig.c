@@ -4161,6 +4161,7 @@ static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert)
 {
     word32 idx = 0;
     word32 oldIdx;
+    word32 seqEnd;
     int policy_length = 0;
     int ret;
     int total_length = 0;
@@ -4184,10 +4185,16 @@ static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert)
     }
 
     /* Validate total length */
-    if (total_length > (int)(sz - idx)) {
+    if (total_length != (int)(sz - idx)) {
         WOLFSSL_MSG("\tCertPolicy length mismatch");
         return ASN_PARSE_E;
     }
+
+    if (total_length == 0) {
+        WOLFSSL_MSG("\tCertPolicy empty sequence");
+        return ASN_PARSE_E;
+    }
+    seqEnd = idx + (word32)total_length;
 
     /* Unwrap certificatePolicies */
     do {
@@ -4254,7 +4261,8 @@ static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert)
     #endif
         }
         idx += (word32)policy_length;
-    } while((int)idx < total_length
+    /* Stop at the end of the certificatePolicies SEQUENCE. */
+    } while(idx < seqEnd
     #ifdef WOLFSSL_CERT_EXT
         && cert->extCertPoliciesNb < MAX_CERTPOL_NB
     #endif

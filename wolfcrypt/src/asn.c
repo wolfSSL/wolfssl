@@ -22061,6 +22061,7 @@ exit:
 static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert)
 {
     word32 idx = 0;
+    word32 seqEnd = 0;
     int ret = 0;
     int total_length = 0;
 #if defined(WOLFSSL_CERT_EXT) && !defined(WOLFSSL_DUP_CERTPOL)
@@ -22084,10 +22085,17 @@ static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert)
         {
             ret = ASN_PARSE_E;
         }
+        /* RFC 5280 4.2.1.4: certificatePolicies is SEQUENCE SIZE (1..MAX). */
+        else if (total_length == 0) {
+            ret = ASN_PARSE_E;
+        }
+        else {
+            seqEnd = idx + (word32)total_length;
+        }
     }
 
-    /* Unwrap certificatePolicies */
-    while ((ret == 0) && ((int)idx < total_length)
+    /* Unwrap certificatePolicies, stopping at the end of the SEQUENCE. */
+    while ((ret == 0) && (idx < seqEnd)
     #if defined(WOLFSSL_CERT_EXT)
         && (cert->extCertPoliciesNb < MAX_CERTPOL_NB)
     #endif
