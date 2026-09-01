@@ -36,6 +36,7 @@
 #include <wolfssl/version.h>
 
 #include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -54,6 +55,16 @@ uintptr_t virtual_base = 0;
 static void* localMemory = NULL;
 static unsigned int localPhy = 0;
 sem_t localMemSem;
+
+static void caamZeroMemory(void* mem, size_t len)
+{
+    volatile unsigned char* p = (volatile unsigned char*)mem;
+
+    while (len > 0U) {
+        *p++ = 0;
+        len--;
+    }
+}
 
 /* Can be overridden, variable for how large of a local buffer to have.
  * This allows for large performance gains when avoiding mapping new memory
@@ -810,7 +821,7 @@ static int doAES(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
     int readSz;
     unsigned char *key = NULL, *iv = NULL, *in = NULL, *out = NULL;
     unsigned char *pt = NULL;
-    int keySz, ivSz = 0, inSz, outSz;
+    int keySz, ivSz = 0, inSz, outSz, expectedReadSz;
     unsigned int totalSz;
     unsigned int phyMem = 0;
     int useLocalMem = 0;
@@ -840,8 +851,15 @@ static int doAES(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
         ivSz = 16;
     }
 
-    totalSz = (unsigned int)keySz + (unsigned int)inSz +
-              (unsigned int)outSz + (unsigned int)ivSz;
+    if (inSz < 0 || keySz > INT_MAX - inSz ||
+            keySz + inSz > INT_MAX - ivSz) {
+        return EBADMSG;
+    }
+    expectedReadSz = keySz + inSz + ivSz;
+    if (expectedReadSz > INT_MAX - outSz) {
+        return EBADMSG;
+    }
+    totalSz = (unsigned int)expectedReadSz + (unsigned int)outSz;
 
     if (totalSz < WOLFSSL_CAAM_QNX_MEMORY) {
         if (sem_trywait(&localMemSem) == 0) {
@@ -898,15 +916,15 @@ static int doAES(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
     }
 
     if (ret == EOK) {
+        if (pt == NULL)
+            caamZeroMemory(key, (size_t)expectedReadSz);
+
         readSz = resmgr_msgreadv(ctp, in_iovs, inIdx, idx);
         if (readSz < 0) {
             ret = ECANCELED;
         }
-        else if (readSz < (keySz + ivSz + inSz)) {
-            /* sanity check that enough data was sent, otherwise part of the
-             * buffer would be left holding data from a previous operation */
-            WOLFSSL_MSG("not enough input data sent for AES operation");
-            ret = EOVERFLOW;
+        else if (readSz != expectedReadSz) {
+            ret = EBADMSG;
         }
     }
 
@@ -966,6 +984,8 @@ static int doAES(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
 
     if (useLocalMem) {
         /* done using local mapped memory */
+        if (key != NULL)
+            caamZeroMemory(key, (size_t)expectedReadSz);
         sem_post(&localMemSem);
     }
 
