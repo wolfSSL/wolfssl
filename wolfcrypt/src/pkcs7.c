@@ -180,6 +180,7 @@ struct PKCS7State {
     word32 accumContSz;   /* size of accumulated content size */
     int recipientSz; /* size of recipient set */
     word32 recipientStart; /* index the recipient set starts at */
+    word32 recipientRemain; /* recipient set bytes not yet stepped over */
     byte tmpIv[MAX_CONTENT_IV_SIZE]; /* store IV if needed */
 #ifdef WC_PKCS7_STREAM_DEBUG
     word32 peakUsed; /* most bytes used for struct at any one time */
@@ -285,6 +286,9 @@ static void wc_PKCS7_ResetStream(wc_PKCS7* pkcs7)
         pkcs7->stream->currContRmnSz= 0;
         pkcs7->stream->accumContSz  = 0;
         pkcs7->stream->contentSz    = 0;
+        pkcs7->stream->recipientSz     = 0;
+        pkcs7->stream->recipientStart  = 0;
+        pkcs7->stream->recipientRemain = 0;
         pkcs7->stream->hashType     = WC_HASH_TYPE_NONE;
     }
 }
@@ -500,6 +504,7 @@ static void wc_PKCS7_StreamGetVar(wc_PKCS7* pkcs7, word32* var1, int* var2,
 static int wc_PKCS7_StreamEndCase(wc_PKCS7* pkcs7, word32* tmpIdx, word32* idx)
 {
     int ret = 0;
+    word32 consumed = 0;
 
     if (pkcs7->stream->length > 0) {
         if (pkcs7->stream->length < *idx) {
@@ -507,20 +512,97 @@ static int wc_PKCS7_StreamEndCase(wc_PKCS7* pkcs7, word32* tmpIdx, word32* idx)
             ret = BUFFER_E;
         }
         else {
+            consumed = *idx;
             XMEMMOVE(pkcs7->stream->buffer, pkcs7->stream->buffer + *idx,
                  pkcs7->stream->length - *idx);
             pkcs7->stream->length -= *idx;
         }
     }
     else {
-        pkcs7->stream->totalRd += *idx - *tmpIdx;
+        consumed = *idx - *tmpIdx;
+        pkcs7->stream->totalRd += consumed;
         pkcs7->stream->idx = *idx; /* adjust index into input buffer */
         *tmpIdx = *idx;
+    }
+
+    /* Count the recipient set down here rather than hold its end as an index:
+     * a buffered stream shifts every index out from under such a bound. */
+    if (pkcs7->stream->recipientRemain > consumed) {
+        pkcs7->stream->recipientRemain -= consumed;
+    }
+    else {
+        pkcs7->stream->recipientRemain = 0;
+    }
+
+    return ret;
+}
+/* Bring the stream back in step after a rejected RecipientInfo: the handler
+ * stopped accounting where the index had already passed the whole structure.
+ * The two stream modes need opposite handling. returns 0 on success */
+static int wc_PKCS7_StreamResyncRecipient(wc_PKCS7* pkcs7, word32* idx,
+    word32* savedIdx, word32* tmpIdx, word32* setEnd)
+{
+    int ret;
+
+    if (pkcs7->stream->length == 0) {
+        /* Unbuffered: accounting stopped at stream->idx, so charge exactly
+         * that span - not totalRd, which is cumulative across chunks. tmpIdx
+         * is the caller's because the next recipient measures from it. */
+        *tmpIdx = pkcs7->stream->idx;
+        ret = wc_PKCS7_StreamEndCase(pkcs7, tmpIdx, idx);
+    }
+    else {
+        /* Buffered: the consumed bytes are shifted out rather than counted,
+         * so every index rebases - onto the shortened buffer, or onto the
+         * caller's input when the shift emptied it and the walk reads from
+         * in/inSz again. */
+        ret = wc_PKCS7_StreamEndCase(pkcs7, tmpIdx, idx);
+        if (ret == 0) {
+            *idx      = (pkcs7->stream->length == 0)? pkcs7->stream->idx : 0;
+            *savedIdx = *idx;
+            *tmpIdx   = *idx;
+
+            if (*setEnd != 0) {
+                /* the counter is what the shifts leave behind; an end held
+                 * as an index grows the window on every rejected recipient */
+                *setEnd = *idx + pkcs7->stream->recipientRemain;
+                if (*setEnd == 0) {
+                    /* the shift consumed the rest of the set: a zero bound
+                     * reads as "no bound", so keep the two equal and above
+                     * zero and the walk stops at once */
+                    *setEnd = 1;
+                    *idx = 1;
+                }
+            }
+        }
     }
 
     return ret;
 }
 #endif /* NO_PKCS7_STREAM */
+
+/* Set up to try the next RecipientInfo: savedIdx must follow the index past
+ * the rejected structure, or a following implicit tag sends the "no
+ * RecipientInfo here" path back onto it. Also restores the buffer capacity.
+ * returns 0 when the walk may continue */
+static int wc_PKCS7_RecipientRetry(wc_PKCS7* pkcs7, word32* idx,
+    word32* savedIdx, word32* tmpIdx, word32* decryptedKeySz, word32 keyCap,
+    word32* setEnd)
+{
+    int ret = 0;
+
+    *savedIdx = *idx;
+    *decryptedKeySz = keyCap;
+#ifndef NO_PKCS7_STREAM
+    ret = wc_PKCS7_StreamResyncRecipient(pkcs7, idx, savedIdx, tmpIdx, setEnd);
+#else
+    (void)pkcs7;
+    (void)tmpIdx;
+    (void)setEnd;
+#endif
+
+    return ret;
+}
 
 #ifdef WC_PKCS7_STREAM_DEBUG
 /* used to print out human readable state for debugging */
@@ -13807,12 +13889,12 @@ static int wc_PKCS7_DecryptRecipientInfos(wc_PKCS7* pkcs7, byte* in,
 {
     word32 savedIdx;
     int version, ret = 0, length;
+    int lastErr = 0;
     byte* pkiMsg = in;
     word32 pkiMsgSz = inSz;
+    word32 keyCap;
     byte  tag;
-#ifndef NO_PKCS7_STREAM
     word32 tmpIdx;
-#endif
 
     if (pkcs7 == NULL || pkiMsg == NULL || idx == NULL ||
         decryptedKey == NULL || decryptedKeySz == NULL ||
@@ -13821,9 +13903,8 @@ static int wc_PKCS7_DecryptRecipientInfos(wc_PKCS7* pkcs7, byte* in,
     }
 
     WOLFSSL_ENTER("wc_PKCS7_DecryptRecipientInfos");
-#ifndef NO_PKCS7_STREAM
     tmpIdx = *idx;
-#endif
+    keyCap = *decryptedKeySz;
 
     /* check if in the process of decrypting */
     switch (pkcs7->state) {
@@ -13868,7 +13949,36 @@ static int wc_PKCS7_DecryptRecipientInfos(wc_PKCS7* pkcs7, byte* in,
     }
 
     if (ret < 0) {
-        return ret;
+        /* A resumed decode re-enters here rather than through the walk, so
+         * each type must keep the same policy its arm in the walk uses. */
+        int retry = 0;
+
+        if ((*recipFound == 0) &&
+                (ret != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E)) &&
+                (ret != WC_NO_ERR_TRACE(MEMORY_E)) &&
+                (ret != WC_NO_ERR_TRACE(BUFFER_E))) {
+            switch (pkcs7->state) {
+                case WC_PKCS7_DECRYPT_KTRI:
+                case WC_PKCS7_DECRYPT_KTRI_2:
+                case WC_PKCS7_DECRYPT_KTRI_3:
+                    retry = 1;
+                    break;
+                default:
+                    /* kari, kekri and pwri do not walk on in either path */
+                    break;
+            }
+        }
+
+        if (!retry) {
+            return ret;
+        }
+
+        lastErr = ret;
+        ret = wc_PKCS7_RecipientRetry(pkcs7, idx, &savedIdx, &tmpIdx,
+                                      decryptedKeySz, keyCap, setEnd);
+        if (ret != 0) {
+            return ret;
+        }
     }
 
     savedIdx = *idx;
@@ -13895,6 +14005,8 @@ static int wc_PKCS7_DecryptRecipientInfos(wc_PKCS7* pkcs7, byte* in,
         }
     #endif
 
+        keyCap = *decryptedKeySz;
+
         /* remove RecipientInfo, if we don't have a SEQUENCE, back up idx to
          * last good saved one */
         if (GetSequence_ex(pkiMsg, idx, &length, pkiMsgSz, NO_USER_CHECK) > 0) {
@@ -13915,6 +14027,12 @@ static int wc_PKCS7_DecryptRecipientInfos(wc_PKCS7* pkcs7, byte* in,
                         ret != WC_NO_ERR_TRACE(MEMORY_E) &&
                         ret != WC_NO_ERR_TRACE(BUFFER_E) &&
                         *recipFound == 0) {
+                    lastErr = ret;
+                    ret = wc_PKCS7_RecipientRetry(pkcs7, idx, &savedIdx,
+                            &tmpIdx, decryptedKeySz, keyCap, setEnd);
+                    if (ret != 0) {
+                        return ret;
+                    }
                     continue; /* try next recipient */
                 }
                 else {
@@ -14051,6 +14169,13 @@ static int wc_PKCS7_DecryptRecipientInfos(wc_PKCS7* pkcs7, byte* in,
 
         /* update good idx */
         savedIdx = *idx;
+    }
+
+    /* Walking on discards the handler's error; with nothing found it is the
+     * answer, and PKCS7_RECIP_E from a recipient that was not the reader's is
+     * the same one the caller substitutes. */
+    if (ret == 0 && *recipFound == 0 && lastErr != 0) {
+        ret = lastErr;
     }
 
     return ret;
@@ -14444,6 +14569,7 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             /* get the full recipient set */
             pkcs7->stream->expected     = recipientSetSz;
             pkcs7->stream->recipientSz  = ret;
+            pkcs7->stream->recipientRemain = recipientSetSz;
         #endif
             FALL_THROUGH;
 
