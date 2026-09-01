@@ -32,7 +32,10 @@
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/wc_pkcs11.h>
 
-static int test_pkcs11_verify_init_calls = 0;
+static int         test_pkcs11_verify_init_calls = 0;
+static int         test_pkcs11_verify_calls = 0;
+static const byte* test_pkcs11_expected_sig = NULL;
+static word32      test_pkcs11_expected_sig_len = 0;
 
 static CK_RV test_pkcs11_get_mechanism_info(CK_SLOT_ID slotId,
     CK_MECHANISM_TYPE type, CK_MECHANISM_INFO_PTR info)
@@ -87,10 +90,15 @@ static CK_RV test_pkcs11_verify(CK_SESSION_HANDLE session, CK_BYTE_PTR data,
     (void)session;
     (void)data;
     (void)dataLen;
-    (void)signature;
-    (void)signatureLen;
 
-    return CKR_SIGNATURE_INVALID;
+    test_pkcs11_verify_calls++;
+    if (test_pkcs11_expected_sig == NULL ||
+        signatureLen != test_pkcs11_expected_sig_len ||
+        XMEMCMP(signature, test_pkcs11_expected_sig, signatureLen) != 0) {
+        return CKR_SIGNATURE_INVALID;
+    }
+
+    return CKR_OK;
 }
 
 int test_wc_Pkcs11_EcdsaSigDecode(void)
@@ -102,6 +110,10 @@ int test_wc_Pkcs11_EcdsaSigDecode(void)
         0x30, 0x05, 0x02, 0x01, 0x01, 0x02, 0x00
     };
     static const byte hash[] = { 0x00 };
+    byte oversizedR[40];
+    byte oversizedS[40];
+    byte paddedSig[72];
+    byte expectedSig[64];
     Pkcs11Token token;
     CK_FUNCTION_LIST func;
     wc_CryptoInfo info;
@@ -118,6 +130,36 @@ int test_wc_Pkcs11_EcdsaSigDecode(void)
     XMEMSET(&info, 0, sizeof(info));
     XMEMSET(&key, 0, sizeof(key));
     XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(oversizedR, 0, sizeof(oversizedR));
+    oversizedR[0] = 0x30;
+    oversizedR[1] = 0x26;
+    oversizedR[2] = 0x02;
+    oversizedR[3] = 0x21;
+    oversizedR[4] = 0x01;
+    oversizedR[37] = 0x02;
+    oversizedR[38] = 0x01;
+    oversizedR[39] = 0x01;
+    XMEMSET(oversizedS, 0, sizeof(oversizedS));
+    oversizedS[0] = 0x30;
+    oversizedS[1] = 0x26;
+    oversizedS[2] = 0x02;
+    oversizedS[3] = 0x01;
+    oversizedS[4] = 0x01;
+    oversizedS[5] = 0x02;
+    oversizedS[6] = 0x21;
+    oversizedS[7] = 0x01;
+    XMEMSET(paddedSig, 0, sizeof(paddedSig));
+    paddedSig[0] = 0x30;
+    paddedSig[1] = 0x46;
+    paddedSig[2] = 0x02;
+    paddedSig[3] = 0x21;
+    paddedSig[5] = 0x80;
+    paddedSig[37] = 0x02;
+    paddedSig[38] = 0x21;
+    paddedSig[40] = 0x81;
+    XMEMSET(expectedSig, 0, sizeof(expectedSig));
+    expectedSig[0] = 0x80;
+    expectedSig[32] = 0x81;
 
     func.C_GetMechanismInfo = test_pkcs11_get_mechanism_info;
     func.C_CreateObject = test_pkcs11_create_object;
@@ -152,25 +194,73 @@ int test_wc_Pkcs11_EcdsaSigDecode(void)
     info.pk.eccverify.hashlen = sizeof(hash);
     info.pk.eccverify.key = &key;
     info.pk.eccverify.res = &res;
+    test_pkcs11_expected_sig = NULL;
+    test_pkcs11_expected_sig_len = 0;
 
     if (ret == 0) {
         info.pk.eccverify.sig = emptyR;
         info.pk.eccverify.siglen = sizeof(emptyR);
+        res = 0;
         test_pkcs11_verify_init_calls = 0;
+        test_pkcs11_verify_calls = 0;
         ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token),
             WC_NO_ERR_TRACE(ASN_PARSE_E));
         ExpectIntEQ(test_pkcs11_verify_init_calls, 0);
+        ExpectIntEQ(test_pkcs11_verify_calls, 0);
     }
 
     if (ret == 0) {
         info.pk.eccverify.sig = emptyS;
         info.pk.eccverify.siglen = sizeof(emptyS);
+        res = 0;
         test_pkcs11_verify_init_calls = 0;
+        test_pkcs11_verify_calls = 0;
         ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token),
             WC_NO_ERR_TRACE(ASN_PARSE_E));
         ExpectIntEQ(test_pkcs11_verify_init_calls, 0);
+        ExpectIntEQ(test_pkcs11_verify_calls, 0);
     }
 
+    if (ret == 0) {
+        info.pk.eccverify.sig = oversizedR;
+        info.pk.eccverify.siglen = sizeof(oversizedR);
+        res = 0;
+        test_pkcs11_verify_init_calls = 0;
+        test_pkcs11_verify_calls = 0;
+        ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token),
+            WC_NO_ERR_TRACE(ASN_PARSE_E));
+        ExpectIntEQ(test_pkcs11_verify_init_calls, 0);
+        ExpectIntEQ(test_pkcs11_verify_calls, 0);
+    }
+
+    if (ret == 0) {
+        info.pk.eccverify.sig = oversizedS;
+        info.pk.eccverify.siglen = sizeof(oversizedS);
+        res = 0;
+        test_pkcs11_verify_init_calls = 0;
+        test_pkcs11_verify_calls = 0;
+        ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token),
+            WC_NO_ERR_TRACE(ASN_PARSE_E));
+        ExpectIntEQ(test_pkcs11_verify_init_calls, 0);
+        ExpectIntEQ(test_pkcs11_verify_calls, 0);
+    }
+
+    if (ret == 0) {
+        info.pk.eccverify.sig = paddedSig;
+        info.pk.eccverify.siglen = sizeof(paddedSig);
+        res = 0;
+        test_pkcs11_verify_init_calls = 0;
+        test_pkcs11_verify_calls = 0;
+        test_pkcs11_expected_sig = expectedSig;
+        test_pkcs11_expected_sig_len = sizeof(expectedSig);
+        ExpectIntEQ(wc_Pkcs11_CryptoDevCb(1, &info, &token), 0);
+        ExpectIntEQ(res, 1);
+        ExpectIntEQ(test_pkcs11_verify_init_calls, 1);
+        ExpectIntEQ(test_pkcs11_verify_calls, 1);
+    }
+
+    test_pkcs11_expected_sig = NULL;
+    test_pkcs11_expected_sig_len = 0;
     if (haveKey)
         wc_ecc_free(&key);
     if (haveRng)
