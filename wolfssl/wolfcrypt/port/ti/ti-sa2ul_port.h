@@ -23,11 +23,15 @@
 
 #if defined(WOLFSSL_TI_AM64X)
 
+#include "security/security_common/drivers/crypto/sa2ul/sa2ul.h"
+
 #define WOLFSSL_TI_SA2UL_DEVID 8888
 #define WC_USE_DEVID WOLFSSL_TI_SA2UL_DEVID
 
 #ifdef WOLFSSL_TI_AM64X_RNG_CTR_DRBG
     #define CUSTOM_RAND_GENERATE_BLOCK ti_sa2ul_trng_get
+#else
+    #define CUSTOM_RAND_GENERATE_SEED ti_sa2ul_trng_get
 #endif
 
 int ti_sa2ul_port_init(void);

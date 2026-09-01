@@ -252,7 +252,7 @@ struct wc_Sha256 {
     word32 flags; /* enum wc_HashFlags in hash.h */
 #endif
 #if defined(WOLFSSL_TI_AM64X) && !defined(WOLFSSL_TI_AM64X_NO_SHA)
-    XALIGNED(16) SA2UL_ContextObject scObj;
+    XALIGNED(SA2UL_CACHELINE_ALIGNMENT) SA2UL_ContextObject scObj;
 #endif
 };
 

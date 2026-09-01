@@ -271,6 +271,9 @@ static int ti_sa2ul_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz
     int ret = 0;
     SA2UL_ContextParams scParams;
 
+    if (sz == 0 || (sz % WC_AES_BLOCK_SIZE) != 0)
+        return CRYPTOCB_UNAVAILABLE;
+
     SA2UL_ContextParams_init(&scParams);
 
     scParams.opType       = SA2UL_OP_ENC;
@@ -301,7 +304,7 @@ static int ti_sa2ul_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz
 
     (void)SA2UL_contextFree(&aes->scObj);
 
-    XMEMCPY(aes->reg, out + sz - 16, 16);
+    XMEMCPY(aes->reg, out + sz - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
 
     return ret;
 }
@@ -311,7 +314,10 @@ static int ti_sa2ul_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz
 {
     int ret = 0;
     SA2UL_ContextParams scParams;
-    byte tmp_iv[16];
+    byte tmp_iv[WC_AES_BLOCK_SIZE];
+
+    if (sz == 0)
+        return CRYPTOCB_UNAVAILABLE;
 
     SA2UL_ContextParams_init(&scParams);
 
@@ -336,7 +342,7 @@ static int ti_sa2ul_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz
         return WC_HW_E;
     }
 
-    XMEMCPY(tmp_iv, in + sz - 16, 16);
+    XMEMCPY(tmp_iv, in + sz - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
 
     CacheP_wbInv((void *)in, sz, CacheP_TYPE_ALLD);
 
@@ -345,7 +351,7 @@ static int ti_sa2ul_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz
 
     (void)SA2UL_contextFree(&aes->scObj);
 
-    XMEMCPY(aes->reg, tmp_iv, 16);
+    XMEMCPY(aes->reg, tmp_iv, WC_AES_BLOCK_SIZE);
 
     return ret;
 }
@@ -468,7 +474,9 @@ static int ti_sa2ul_AesGcmEncrypt(Aes* aes, byte* out,
         scParams.encKeySize = SA2UL_ENC_KEYSIZE_256;
     }
     XMEMCPY(scParams.key, aes->devKey, aes->keylen);
-    XMEMCPY(scParams.iv, iv, ivSz);
+    if (ivSz == GCM_NONCE_MID_SZ) {
+        XMEMCPY(scParams.iv, iv, GCM_NONCE_MID_SZ);
+    }
     XMEMCPY(scParams.ghash, aes->gcm.H, WC_AES_BLOCK_SIZE);
     if (authInSz <= sizeof(scParams.aad)) {
         XMEMCPY(scParams.aad, authIn, authInSz);
@@ -546,10 +554,17 @@ static int ti_sa2ul_AesGcmDecrypt(Aes* aes, byte* out,
         scParams.encKeySize = SA2UL_ENC_KEYSIZE_256;
     }
     XMEMCPY(scParams.key, aes->devKey, aes->keylen);
-    XMEMCPY(scParams.iv, iv, ivSz);
+    if (ivSz == GCM_NONCE_MID_SZ) {
+        XMEMCPY(scParams.iv, iv, GCM_NONCE_MID_SZ);
+    }
     XMEMCPY(scParams.ghash, aes->gcm.H, WC_AES_BLOCK_SIZE);
-    XMEMCPY(scParams.aad, authIn, authInSz);
-    scParams.aadLen = authInSz;
+    if (authInSz <= sizeof(scParams.aad)) {
+        XMEMCPY(scParams.aad, authIn, authInSz);
+        scParams.aadLen = authInSz;
+    }
+    else {
+        scParams.aadLen = 0;
+    }
     scParams.inputLen = sz;
     aes->scObj.totalLengthInBytes = sz;
 
@@ -572,7 +587,7 @@ static int ti_sa2ul_AesGcmDecrypt(Aes* aes, byte* out,
 
     if (authTag) {
         if (authInSz <= sizeof(scParams.aad)) {
-            if (XMEMCMP(authTag, aes->scObj.computedHash, authTagSz) != 0)
+            if (ConstantCompare(authTag, aes->scObj.computedHash, authTagSz) != 0)
                 ret = WC_NO_ERR_TRACE(AES_GCM_AUTH_E);
         }
         else {
@@ -592,7 +607,7 @@ static int ti_sa2ul_AesGcmDecrypt(Aes* aes, byte* out,
             }
             ret = wc_AesEncryptDirect(aes, scratch, initialCounter);
             xorbuf(Tprime, scratch, sizeof(Tprime));
-            if (XMEMCMP(authTag, Tprime, authTagSz) != 0)
+            if (ConstantCompare(authTag, Tprime, authTagSz) != 0)
                 ret = WC_NO_ERR_TRACE(AES_GCM_AUTH_E);
         }
     }
@@ -644,6 +659,26 @@ static int ti_sa2ul_Sha256Free_ctx(wc_Sha256* sha256)
 
     sa2ul_hash_in_use = 0;
 
+    return 0;
+}
+
+static int ti_sa2ul_Sha256Teardown(wc_Sha256* sha256)
+{
+    /* hash will be finalized in sw via fallback, but we need the driver
+     * to tear down the context in hw.  To do that, we update the context
+     * length and push some final arbitrary data.  It will not affect
+     * the hash */
+    if (sha256->scObj.txBytesCnt != 0) {
+        byte buffer[WC_SHA256_DIGEST_SIZE];
+        sha256->scObj.ctxPrms.inputLen = sha256->scObj.txBytesCnt +
+                                            WC_SHA256_DIGEST_SIZE;
+        sha256->scObj.totalLengthInBytes = sha256->scObj.txBytesCnt +
+                                            WC_SHA256_DIGEST_SIZE;
+        CacheP_wbInv((void *)buffer, WC_SHA256_DIGEST_SIZE, CacheP_TYPE_ALLD);
+        SA2UL_contextProcess(&sha256->scObj, buffer,
+                             WC_SHA256_DIGEST_SIZE, hash_scratch);
+        (void)ti_sa2ul_Sha256Free_ctx(sha256);
+    }
     return 0;
 }
 
@@ -722,23 +757,8 @@ static int ti_sa2ul_Sha256Hash(wc_Sha256* sha256, const byte* in,
     }
     else if (digest != NULL) {
         /* final... */
-        /* hash will be finalized in sw via fallback, but we need the driver
-         * to tear down the context in hw.  To do that, we update the context
-         * length and push some final arbitrary data.  It will not affect
-         * the hash */
-        if (sha256->scObj.txBytesCnt != 0) {
-            sha256->scObj.ctxPrms.inputLen = sha256->scObj.txBytesCnt +
-                                             WC_SHA256_DIGEST_SIZE;
-            sha256->scObj.totalLengthInBytes = sha256->scObj.txBytesCnt +
-                                               WC_SHA256_DIGEST_SIZE;
-            CacheP_wbInv((void *)buffer, WC_SHA256_DIGEST_SIZE, CacheP_TYPE_ALLD);
-            if (SA2UL_contextProcess(&sha256->scObj, buffer,
-                    WC_SHA256_DIGEST_SIZE, hash_scratch) != SystemP_SUCCESS)
-            {
-                ret = WC_HW_E;
-            }
-            (void)ti_sa2ul_Sha256Free_ctx(sha256);
-        }
+        (void)ti_sa2ul_Sha256Teardown(sha256);
+        /* hash will be finalized in sw via fallback */
         ret = CRYPTOCB_UNAVAILABLE; /* fall back to sw */
     }
 
@@ -764,6 +784,9 @@ static int ti_sa2ul_InitSha512_ctx(wc_Sha512* sha512)
     {
         return WC_HW_E;
     }
+
+    sa2ul_hash_in_use = 1;
+
     return 0;
 }
 
@@ -772,6 +795,28 @@ static int ti_sa2ul_Sha512Free_ctx(wc_Sha512* sha512)
     (void)SA2UL_contextFree(&sha512->scObj);
     XMEMSET(&sha512->scObj, 0, sizeof(sha512->scObj));
 
+    sa2ul_hash_in_use = 0;
+
+    return 0;
+}
+
+static int ti_sa2ul_Sha512Teardown(wc_Sha512* sha512)
+{
+    /* hash will be finalized in sw via fallback, but we need the driver
+     * to tear down the context in hw.  To do that, we update the context
+     * length and push some final arbitrary data.  It will not affect
+     * the hash */
+    if (sha512->scObj.txBytesCnt != 0) {
+        byte buffer[WC_SHA512_DIGEST_SIZE];
+        sha512->scObj.ctxPrms.inputLen = sha512->scObj.txBytesCnt +
+                                            WC_SHA512_DIGEST_SIZE;
+        sha512->scObj.totalLengthInBytes = sha512->scObj.txBytesCnt +
+                                            WC_SHA512_DIGEST_SIZE;
+        CacheP_wbInv((void *)buffer, WC_SHA512_DIGEST_SIZE, CacheP_TYPE_ALLD);
+        SA2UL_contextProcess(&sha512->scObj, buffer,
+                             WC_SHA512_DIGEST_SIZE, hash_scratch);
+        (void)ti_sa2ul_Sha512Free_ctx(sha512);
+    }
     return 0;
 }
 
@@ -849,22 +894,8 @@ static int ti_sa2ul_Sha512Hash(wc_Sha512* sha512, const byte* in,
     }
     else if (digest != NULL) {
         /* final... */
-        /* hash will be finalized in sw via fallback, but we need the driver
-         * to tear down the context in hw.  To do that, we update the context
-         * length and push some final arbitrary data.  It will not affect
-         * the hash */
-        if (sha512->scObj.txBytesCnt != 0) {
-            sha512->scObj.ctxPrms.inputLen = sha512->scObj.txBytesCnt +
-                                             WC_SHA512_DIGEST_SIZE;
-            sha512->scObj.totalLengthInBytes = sha512->scObj.txBytesCnt +
-                                               WC_SHA512_DIGEST_SIZE;
-            CacheP_wbInv((void *)buffer, WC_SHA512_DIGEST_SIZE, CacheP_TYPE_ALLD);
-            if (SA2UL_contextProcess(&sha512->scObj, buffer,
-                    WC_SHA512_DIGEST_SIZE, hash_scratch) != SystemP_SUCCESS) {
-                ret = WC_HW_E;
-            }
-            (void)ti_sa2ul_Sha512Free_ctx(sha512);
-        }
+        (void)ti_sa2ul_Sha512Teardown(sha512);
+        /* hash will be finalized in sw via fallback */
         ret = CRYPTOCB_UNAVAILABLE; /* fall back to sw */
     }
 
@@ -1017,16 +1048,35 @@ static int ti_sa2ul_CryptoDevCb(int devId, wc_CryptoInfo* info, void* devCtx)
 # endif /* WOLFSSL_SHA512 */
 #endif /* !WOLFSSL_TI_AM64X_NO_SHA && (!NO_SHA256 || WOLFSSL_SHA512) */
     }
-#ifndef WC_NO_RNG
-    else if (info->algo_type == WC_ALGO_TYPE_RNG)
+#ifdef WOLF_CRYPTO_CB_FREE
+    else if (info->algo_type == WC_ALGO_TYPE_FREE)
     {
-        ret = ti_sa2ul_trng_get(info->rng.out, info->rng.sz);
+# if !defined(WOLFSSL_TI_AM64X_NO_SHA) && (!defined(NO_SHA256) || defined(WOLFSSL_SHA512))
+        if (info->free.algo == WC_ALGO_TYPE_HASH) {
+            if (0) {
+                /* nothing */
+            }
+#  ifndef NO_SHA256
+            else if (info->free.type == WC_HASH_TYPE_SHA256) {
+                wc_Sha256* sha256 = (wc_Sha256*)info->free.obj;
+                if ((sha256->flags & WC_HASH_FLAG_ISCOPY) == 0) {
+                    ret = ti_sa2ul_Sha256Teardown(sha256);
+                }
+            }
+#  endif /* !NO_SHA256 */
+#  ifdef WOLFSSL_SHA512
+            else if (info->free.type == WC_HASH_TYPE_SHA512) {
+                wc_Sha512* sha512 = (wc_Sha512*)info->free.obj;
+                if (sha512->hashType == WC_HASH_TYPE_SHA512 &&
+                    (sha512->flags & WC_HASH_FLAG_ISCOPY) == 0) {
+                    ret = ti_sa2ul_Sha512Teardown(sha512);
+                }
+            }
+#  endif /* WOLFSSL_SHA512 */
+        }
+# endif /* !WOLFSSL_TI_AM64X_NO_SHA && (!NO_SHA256 || WOLFSSL_SHA512) */
     }
-    else if (info->algo_type == WC_ALGO_TYPE_SEED)
-    {
-        ret = ti_sa2ul_trng_get(info->seed.seed, info->seed.sz);
-    }
-#endif /* !WC_NO_RNG */
+#endif /* WOLF_CRYPTO_CB_FREE */
 
     return ret;
 }

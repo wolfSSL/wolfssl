@@ -218,7 +218,6 @@ This library contains implementation for the random number generator.
     #include "cyhal_trng.h" /* Infineon/Cypress HAL RNG implementation */
 #elif defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)
     #include "wolfssl/wolfcrypt/port/maxim/max3266x.h"
-#elif defined(__ti__) /* ti clang toolchain */
 #else
     #include <errno.h>
     #if defined(WOLFSSL_GETRANDOM) || defined(HAVE_GETRANDOM)
