@@ -520,7 +520,76 @@ static int wc_PKCS7_StreamEndCase(wc_PKCS7* pkcs7, word32* tmpIdx, word32* idx)
 
     return ret;
 }
+/* Bring the stream back in step after a rejected RecipientInfo: the handler
+ * stopped accounting where the index had already passed the whole structure.
+ * The two stream modes need opposite handling. returns 0 on success */
+static int wc_PKCS7_StreamResyncRecipient(wc_PKCS7* pkcs7, word32* idx,
+    word32* savedIdx, word32* tmpIdx, word32* setEnd)
+{
+    int ret;
+    word32 shifted = *idx;
+
+    if (*setEnd == 0) {
+        /* No bound to rebase, and 0 must stay 0: the walk reads any other
+         * value as a real end of set. */
+        return wc_PKCS7_StreamEndCase(pkcs7, tmpIdx, idx);
+    }
+
+    if (pkcs7->stream->length == 0) {
+        /* Unbuffered: accounting stopped at stream->idx, so charge exactly
+         * that span - not totalRd, which is cumulative across chunks. tmpIdx
+         * is the caller's because the next recipient measures from it. */
+        *tmpIdx = pkcs7->stream->idx;
+        ret = wc_PKCS7_StreamEndCase(pkcs7, tmpIdx, idx);
+    }
+    else {
+        /* Buffered: the consumed bytes are shifted out rather than counted,
+         * so the next RecipientInfo starts at 0 and every index is rebased. */
+        ret = wc_PKCS7_StreamEndCase(pkcs7, tmpIdx, idx);
+        if (ret == 0) {
+            *idx = 0;
+            *savedIdx = 0;
+            *tmpIdx = 0;
+            /* setEnd is an offset into the same buffer; left un-rebased the
+             * search window grows on every rejected recipient. */
+            if (*setEnd > shifted) {
+                *setEnd -= shifted;
+            }
+            else {
+                /* the shift consumed the rest of the set: leave the two equal
+                 * and non-zero so the bound below fires immediately */
+                *setEnd = 1;
+                *idx = 1;
+            }
+        }
+    }
+
+    return ret;
+}
 #endif /* NO_PKCS7_STREAM */
+
+/* Set up to try the next RecipientInfo: savedIdx must follow the index past
+ * the rejected structure, or a following implicit tag sends the "no
+ * RecipientInfo here" path back onto it. Also restores the buffer capacity.
+ * returns 0 when the walk may continue */
+static int wc_PKCS7_RecipientRetry(wc_PKCS7* pkcs7, word32* idx,
+    word32* savedIdx, word32* tmpIdx, word32* decryptedKeySz, word32 keyCap,
+    word32* setEnd)
+{
+    int ret = 0;
+
+    *savedIdx = *idx;
+    *decryptedKeySz = keyCap;
+#ifndef NO_PKCS7_STREAM
+    ret = wc_PKCS7_StreamResyncRecipient(pkcs7, idx, savedIdx, tmpIdx, setEnd);
+#else
+    (void)pkcs7;
+    (void)tmpIdx;
+    (void)setEnd;
+#endif
+
+    return ret;
+}
 
 #ifdef WC_PKCS7_STREAM_DEBUG
 /* used to print out human readable state for debugging */
@@ -13809,10 +13878,9 @@ static int wc_PKCS7_DecryptRecipientInfos(wc_PKCS7* pkcs7, byte* in,
     int version, ret = 0, length;
     byte* pkiMsg = in;
     word32 pkiMsgSz = inSz;
+    word32 keyCap;
     byte  tag;
-#ifndef NO_PKCS7_STREAM
     word32 tmpIdx;
-#endif
 
     if (pkcs7 == NULL || pkiMsg == NULL || idx == NULL ||
         decryptedKey == NULL || decryptedKeySz == NULL ||
@@ -13821,9 +13889,8 @@ static int wc_PKCS7_DecryptRecipientInfos(wc_PKCS7* pkcs7, byte* in,
     }
 
     WOLFSSL_ENTER("wc_PKCS7_DecryptRecipientInfos");
-#ifndef NO_PKCS7_STREAM
     tmpIdx = *idx;
-#endif
+    keyCap = *decryptedKeySz;
 
     /* check if in the process of decrypting */
     switch (pkcs7->state) {
@@ -13868,7 +13935,35 @@ static int wc_PKCS7_DecryptRecipientInfos(wc_PKCS7* pkcs7, byte* in,
     }
 
     if (ret < 0) {
-        return ret;
+        /* A resumed decode re-enters here rather than through the walk, so
+         * each type must keep the same policy its arm in the walk uses. */
+        int retry = 0;
+
+        if ((*recipFound == 0) &&
+                (ret != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E)) &&
+                (ret != WC_NO_ERR_TRACE(MEMORY_E)) &&
+                (ret != WC_NO_ERR_TRACE(BUFFER_E))) {
+            switch (pkcs7->state) {
+                case WC_PKCS7_DECRYPT_KTRI:
+                case WC_PKCS7_DECRYPT_KTRI_2:
+                case WC_PKCS7_DECRYPT_KTRI_3:
+                    retry = 1;
+                    break;
+                default:
+                    /* kari, kekri and pwri do not walk on in either path */
+                    break;
+            }
+        }
+
+        if (!retry) {
+            return ret;
+        }
+
+        ret = wc_PKCS7_RecipientRetry(pkcs7, idx, &savedIdx, &tmpIdx,
+                                      decryptedKeySz, keyCap, setEnd);
+        if (ret != 0) {
+            return ret;
+        }
     }
 
     savedIdx = *idx;
@@ -13895,6 +13990,8 @@ static int wc_PKCS7_DecryptRecipientInfos(wc_PKCS7* pkcs7, byte* in,
         }
     #endif
 
+        keyCap = *decryptedKeySz;
+
         /* remove RecipientInfo, if we don't have a SEQUENCE, back up idx to
          * last good saved one */
         if (GetSequence_ex(pkiMsg, idx, &length, pkiMsgSz, NO_USER_CHECK) > 0) {
@@ -13915,6 +14012,11 @@ static int wc_PKCS7_DecryptRecipientInfos(wc_PKCS7* pkcs7, byte* in,
                         ret != WC_NO_ERR_TRACE(MEMORY_E) &&
                         ret != WC_NO_ERR_TRACE(BUFFER_E) &&
                         *recipFound == 0) {
+                    ret = wc_PKCS7_RecipientRetry(pkcs7, idx, &savedIdx,
+                            &tmpIdx, decryptedKeySz, keyCap, setEnd);
+                    if (ret != 0) {
+                        return ret;
+                    }
                     continue; /* try next recipient */
                 }
                 else {
