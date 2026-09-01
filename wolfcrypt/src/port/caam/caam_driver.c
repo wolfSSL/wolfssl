@@ -84,11 +84,11 @@ static struct CAAM_DEVICE caam;
 #if defined(__QNX__) || defined(__QNXNTO__)
 static unsigned int caamGetPartitionCount(void)
 {
-    unsigned int count;
+    unsigned int lastPartition;
 
-    count = (CAAM_READ(caam.ring.BaseAddr + CAAM_SM_SMVID_MS) >> 12U) &
+    lastPartition = (CAAM_READ(caam.ring.BaseAddr + CAAM_SM_SMVID_MS) >> 12U) &
         0xFU;
-    return count + 1U;
+    return lastPartition + 1U;
 }
 #endif
 
@@ -183,7 +183,7 @@ static void printSecureMemoryInfo()
     printf("SMPO  = 0x%08X\n", CAAM_READ(caam.ring.BaseAddr + CAAM_SM_SMPO));
     SMVID_MS = CAAM_READ(caam.ring.BaseAddr + CAAM_SM_SMVID_MS);
     SMVID_LS = CAAM_READ(caam.ring.BaseAddr + CAAM_SM_SMVID_LS);
-    printf("\tNumber Partitions : %d\n", ((SMVID_MS >> 12) & 0xFU));
+    printf("\tHighest Partition : %d\n", ((SMVID_MS >> 12) & 0xFU));
     printf("\tNumber Pages : %d\n", (SMVID_MS & 0x3FFU));
     printf("\tPage Size : 2^%d\n", ((SMVID_LS >> 16) & 0x7U));
 }
@@ -1320,6 +1320,7 @@ int caamECDSAMake(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4])
     void *vaddr[2];
 #ifndef WOLFSSL_CAAM_NO_SM
     unsigned int part = 0;
+    unsigned int page = 0;
     unsigned int phys;
 #endif
 
@@ -1345,8 +1346,9 @@ int caamECDSAMake(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4])
             return -1;
         }
 
-        /* create and claim the partition */
-        err = caamCreatePartition(&part, part, CAAM_SM_CSP | CAAM_SM_SMAP_LOCK |
+        /* create and claim the partition, the allocated page is returned in
+         * page while part keeps the partition number */
+        err = caamCreatePartition(&page, part, CAAM_SM_CSP | CAAM_SM_SMAP_LOCK |
                 CAAM_SM_CSP | CAAM_SM_ALL_RW);
         if (err != Success) {
             WOLFSSL_MSG("error creating partition for secure ecc key");
@@ -1354,7 +1356,7 @@ int caamECDSAMake(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4])
         }
 
         /* map secure partition to virtual address */
-        phys = (CAAM_PAGE + (part << 12));
+        phys = (CAAM_PAGE + (page << 12));
         pt = (unsigned char*)buf[0].TheAddress;
         pt[0] = (phys >> 24) & 0xFF;
         pt[1] = (phys >> 16) & 0xFF;
