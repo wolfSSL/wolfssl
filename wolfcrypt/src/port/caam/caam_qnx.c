@@ -92,8 +92,10 @@ static void caamZeroMemory(void* mem, size_t len)
 
 /* keep track of which ID memory belongs to so it can be free'd up */
 #define MAX_OWNER_PART CAAM_QNX_MAX_PARTITIONS
+#define NO_OWNER_PART MAX_OWNER_PART
 pthread_mutex_t sm_mutex;
 CAAM_ADDRESS sm_ownerId[MAX_OWNER_PART];
+unsigned int sm_pagePart[MAX_OWNER_PART];
 
 /* variables for I/O of resource manager */
 resmgr_connect_funcs_t connect_funcs;
@@ -363,23 +365,39 @@ static int sanityCheckPartitionAddress(CAAM_ADDRESS partAddr, int partSz)
 
 static int checkPartitionOwner(CAAM_ADDRESS partAddr, iofunc_ocb_t *ocb)
 {
+    unsigned int pageNumber;
     unsigned int partNumber;
     int ret = EOK;
 
-    partNumber = (unsigned int)((partAddr - CAAM_PAGE) / CAAM_PAGE_SZ);
-    if (!CAAM_QNX_PARTITION_IS_VALID(partNumber))
+    pageNumber = (unsigned int)((partAddr - CAAM_PAGE) / CAAM_PAGE_SZ);
+    if (!CAAM_QNX_PARTITION_IS_VALID(pageNumber))
         return EBADMSG;
 
     if (pthread_mutex_lock(&sm_mutex) != EOK) {
         return ECANCELED;
     }
     else {
-        if (sm_ownerId[partNumber] != (CAAM_ADDRESS)ocb)
+        partNumber = sm_pagePart[pageNumber];
+        if (!CAAM_QNX_PARTITION_IS_VALID(partNumber) ||
+                sm_ownerId[partNumber] != (CAAM_ADDRESS)ocb) {
             ret = EACCES;
+        }
         pthread_mutex_unlock(&sm_mutex);
     }
 
     return ret;
+}
+
+
+static void clearPartitionOwner(unsigned int partNumber)
+{
+    unsigned int i;
+
+    sm_ownerId[partNumber] = 0;
+    for (i = 0; i < MAX_OWNER_PART; i++) {
+        if (sm_pagePart[i] == partNumber)
+            sm_pagePart[i] = NO_OWNER_PART;
+    }
 }
 
 
@@ -896,7 +914,7 @@ static int doAES(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
     totalSz = (unsigned int)expectedReadSz + (unsigned int)outSz;
 
     if (totalSz < WOLFSSL_CAAM_QNX_MEMORY) {
-        if (sem_trywait(&localMemSem) == 0) {
+        if (localMemory != NULL && sem_trywait(&localMemSem) == 0) {
             key = localMemory;
             phyMem = localPhy;
             useLocalMem = 1;
@@ -1013,14 +1031,17 @@ static int doAES(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
     }
 
     if (pt != NULL) {
-        caamZeroMemory(key, (size_t)expectedReadSz);
+        /* wipe the whole buffer, including the output region, so decrypted
+         * data does not stay resident in the mapping being released */
+        caamZeroMemory(key, (size_t)totalSz);
         CAAM_ADR_UNMAP(pt, 0, totalSz, 0);
     }
 
     if (useLocalMem) {
-        /* done using local mapped memory */
+        /* done using local mapped memory, wipe the whole buffer including the
+         * output region since this memory persists between operations */
         if (key != NULL)
-            caamZeroMemory(key, (size_t)expectedReadSz);
+            caamZeroMemory(key, (size_t)totalSz);
         sem_post(&localMemSem);
     }
 
@@ -1037,6 +1058,9 @@ static int doECDSA_KEYPAIR(resmgr_context_t *ctp, io_devctl_t *msg,
     int ret = EOK;
     int keySz;
     int privSz;
+    unsigned int partNumber;
+    unsigned int pageNumber;
+    CAAM_ADDRESS keyAddr;
     DESCSTRUCT desc;
     CAAM_BUFFER tmp[2];
     iov_t out_iovs[3];
@@ -1089,13 +1113,23 @@ static int doECDSA_KEYPAIR(resmgr_context_t *ctp, io_devctl_t *msg,
         }
     }
 
-    /* claim ownership of a secure memory location */
+    /* claim ownership so later sign/ECDH can check the caller. args[2] is the
+     * partition, priv holds the key's physical address used to find the page */
     if (ret == EOK && args[0] == CAAM_BLACK_KEY_SM) {
-        if (pthread_mutex_lock(&sm_mutex) != EOK) {
+        partNumber = args[2];
+        keyAddr = ((CAAM_ADDRESS)priv[0] << 24) | ((CAAM_ADDRESS)priv[1] << 16) |
+                  ((CAAM_ADDRESS)priv[2] << 8) | (CAAM_ADDRESS)priv[3];
+        pageNumber = (unsigned int)((keyAddr - CAAM_PAGE) / CAAM_PAGE_SZ);
+        if (!CAAM_QNX_PARTITION_IS_VALID(partNumber) ||
+                !CAAM_QNX_PARTITION_IS_VALID(pageNumber)) {
+            ret = EBADMSG;
+        }
+        else if (pthread_mutex_lock(&sm_mutex) != EOK) {
             ret = ECANCELED;
         }
         else {
-            sm_ownerId[args[2]] = (CAAM_ADDRESS)ocb;
+            sm_ownerId[partNumber] = (CAAM_ADDRESS)ocb;
+            sm_pagePart[pageNumber] = partNumber;
             pthread_mutex_unlock(&sm_mutex);
         }
     }
@@ -1218,7 +1252,7 @@ static int doECDSA_VERIFY(resmgr_context_t *ctp, io_devctl_t *msg,
  * returns EOK on success
  */
 static int doECDSA_SIGN(resmgr_context_t *ctp, io_devctl_t *msg,
-        unsigned int args[4], unsigned int idx)
+        unsigned int args[4], unsigned int idx, iofunc_ocb_t *ocb)
 {
     int ret, keySz;
     DESCSTRUCT  desc;
@@ -1261,6 +1295,15 @@ static int doECDSA_SIGN(resmgr_context_t *ctp, io_devctl_t *msg,
         return EOVERFLOW;
     }
 
+    /* a secure memory key is referenced only by its address, reject one that
+     * the caller does not own so it can not sign with another client's key */
+    if (args[0] == CAAM_BLACK_KEY_SM) {
+        ret = checkPartitionOwner(blackKey, ocb);
+        if (ret != EOK) {
+            CAAM_ADR_UNMAP(hash, 0, args[2], 0);
+            return ret;
+        }
+    }
 
     /* setup CAAM buffers to pass to driver */
     if (args[0] == CAAM_BLACK_KEY_SM) {
@@ -1332,7 +1375,7 @@ static int doECDSA_SIGN(resmgr_context_t *ctp, io_devctl_t *msg,
  * returns EOK on success
  */
 static int doECDSA_ECDH(resmgr_context_t *ctp, io_devctl_t *msg,
-        unsigned int args[4], unsigned int idx)
+        unsigned int args[4], unsigned int idx, iofunc_ocb_t *ocb)
 {
     int ret;
     DESCSTRUCT desc;
@@ -1392,6 +1435,18 @@ static int doECDSA_ECDH(resmgr_context_t *ctp, io_devctl_t *msg,
         if (key != NULL)
             CAAM_ADR_UNMAP(key, 0, args[3], 0);
         return ECANCELED;
+    }
+
+    /* a secure memory private key is referenced only by its address, reject
+     * one the caller does not own so it can not derive with another client's
+     * key */
+    if (args[0] == CAAM_BLACK_KEY_SM) {
+        ret = checkPartitionOwner(blackKey, ocb);
+        if (ret != EOK) {
+            if (pubkey != NULL)
+                CAAM_ADR_UNMAP(pubkey, 0, args[3]*2, 0);
+            return ret;
+        }
     }
 
     /* setup CAAM buffers to pass to driver */
@@ -1509,6 +1564,7 @@ static int doGET_PART(resmgr_context_t *ctp, io_devctl_t *msg,
         unsigned int args[4], unsigned int idx, iofunc_ocb_t *ocb)
 {
     unsigned int partNumber;
+    unsigned int pageNumber;
     int partSz;
     CAAM_ADDRESS partAddr;
     iov_t out_iov;
@@ -1519,21 +1575,36 @@ static int doGET_PART(resmgr_context_t *ctp, io_devctl_t *msg,
     if (!CAAM_QNX_PARTITION_IS_VALID(partNumber))
         return EBADMSG;
 
-    partAddr = caamGetPartition(partNumber, partSz, 0);
-    if (partAddr == 0) {
-        return EBADMSG;
-    }
-
-    SETIOV(&out_iov, &partAddr, sizeof(CAAM_ADDRESS));
-    resmgr_msgwritev(ctp, &out_iov, 1, sizeof(msg->o));
-
     if (pthread_mutex_lock(&sm_mutex) != EOK) {
         return ECANCELED;
     }
-    else {
-        sm_ownerId[partNumber] = (CAAM_ADDRESS)ocb;
+
+    if (sm_ownerId[partNumber] != 0 &&
+            sm_ownerId[partNumber] != (CAAM_ADDRESS)ocb) {
         pthread_mutex_unlock(&sm_mutex);
+        return EACCES;
     }
+
+    partAddr = caamGetPartition(partNumber, partSz, 0);
+    if (partAddr == 0) {
+        pthread_mutex_unlock(&sm_mutex);
+        return EBADMSG;
+    }
+
+    pageNumber = (unsigned int)((partAddr - CAAM_PAGE) / CAAM_PAGE_SZ);
+    if (!CAAM_QNX_PARTITION_IS_VALID(pageNumber) ||
+            (sm_pagePart[pageNumber] != NO_OWNER_PART &&
+                sm_pagePart[pageNumber] != partNumber)) {
+        pthread_mutex_unlock(&sm_mutex);
+        return ECANCELED;
+    }
+
+    sm_ownerId[partNumber] = (CAAM_ADDRESS)ocb;
+    sm_pagePart[pageNumber] = partNumber;
+    pthread_mutex_unlock(&sm_mutex);
+
+    SETIOV(&out_iov, &partAddr, sizeof(CAAM_ADDRESS));
+    resmgr_msgwritev(ctp, &out_iov, 1, sizeof(msg->o));
     return EOK;
 }
 
@@ -1703,11 +1774,11 @@ int io_devctl (resmgr_context_t *ctp, io_devctl_t *msg, iofunc_ocb_t *ocb)
             break;
 
         case WC_CAAM_ECDSA_SIGN:
-            ret = doECDSA_SIGN(ctp, msg, args, idx);
+            ret = doECDSA_SIGN(ctp, msg, args, idx, ocb);
             break;
 
         case WC_CAAM_ECDSA_ECDH:
-            ret = doECDSA_ECDH(ctp, msg, args, idx);
+            ret = doECDSA_ECDH(ctp, msg, args, idx, ocb);
             break;
 
         case WC_CAAM_FIFO_S:
@@ -1736,7 +1807,7 @@ int io_devctl (resmgr_context_t *ctp, io_devctl_t *msg, iofunc_ocb_t *ocb)
                 ret = ECANCELED;
             }
             else {
-                sm_ownerId[args[0]] = 0;
+                clearPartitionOwner(args[0]);
                 pthread_mutex_unlock(&sm_mutex);
                 ret = EOK;
             }
@@ -1791,7 +1862,7 @@ int io_close_ocb(resmgr_context_t *ctp, void *reserved, RESMGR_OCB_T *ocb)
     else {
         for (i = 0; i < MAX_OWNER_PART; i++) {
             if (sm_ownerId[i] == (CAAM_ADDRESS)ocb) {
-                sm_ownerId[i] = 0;
+                clearPartitionOwner((unsigned int)i);
             #if defined(WOLFSSL_CAAM_DEBUG) || defined(WOLFSSL_CAAM_PRINT)
                 printf("found dangiling partition at index %d\n", i);
             #endif
@@ -1880,6 +1951,7 @@ int main(int argc, char *argv[])
     pthread_mutex_init(&sm_mutex, NULL);
     for (i = 0; i < MAX_OWNER_PART; i++) {
         sm_ownerId[i] = 0;
+        sm_pagePart[i] = NO_OWNER_PART;
     }
 
     if (InitCAAM() != 0) {

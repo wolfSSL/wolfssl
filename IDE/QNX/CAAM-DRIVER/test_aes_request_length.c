@@ -125,6 +125,7 @@ static int caamTestFreeCalls;
 static int caamTestGetPartitionCalls;
 static int caamTestEcdsaCalls;
 static unsigned int caamTestEcdsaPartition;
+static CAAM_ADDRESS caamTestPartitionAddress;
 static const unsigned char* caamTestReadData;
 static size_t caamTestReadDataSz;
 static unsigned char caamTestMappedBuffer[64];
@@ -270,7 +271,7 @@ static CAAM_ADDRESS caamTestGetPartition(unsigned int part, int partSz,
     (void)partSz;
     (void)flag;
     caamTestGetPartitionCalls++;
-    return 0;
+    return caamTestPartitionAddress;
 }
 
 static int caamTestFreePart(unsigned int part)
@@ -469,8 +470,10 @@ static int testRejectInvalidPartitionIndex(void)
     memset(&ctp, 0, sizeof(ctp));
     memset(&msg, 0, sizeof(msg));
     memset(&ocb, 0, sizeof(ocb));
-    for (i = 0; i < MAX_OWNER_PART; i++)
+    for (i = 0; i < MAX_OWNER_PART; i++) {
         sm_ownerId[i] = 0;
+        sm_pagePart[i] = NO_OWNER_PART;
+    }
 
     if (!CAAM_QNX_PARTITION_IS_VALID(0U) ||
             !CAAM_QNX_PARTITION_IS_VALID(CAAM_QNX_MAX_PARTITIONS - 1U) ||
@@ -538,6 +541,11 @@ static int testRejectOtherOwnerPartitionAccess(void)
     ctp.size = sizeof(msg.i) + sizeof(args);
     msg.o.nbytes = 1U;
 
+    for (i = 0; i < MAX_OWNER_PART; i++) {
+        sm_ownerId[i] = 0;
+        sm_pagePart[i] = NO_OWNER_PART;
+    }
+
     for (i = 0; i < 3; i++) {
         memset(args, 0, sizeof(args));
         if (commands[i] == WC_CAAM_FREE_PART) {
@@ -550,6 +558,7 @@ static int testRejectOtherOwnerPartitionAccess(void)
 
         msg.i.dcmd = commands[i];
         sm_ownerId[0] = (CAAM_ADDRESS)&owner;
+        sm_pagePart[0] = 0U;
         caamTestFreeCalls = 0;
         caamTestReadData = (const unsigned char*)args;
         caamTestReadDataSz = sizeof(args);
@@ -562,6 +571,66 @@ static int testRejectOtherOwnerPartitionAccess(void)
                 caamTestFreeCalls != 0) {
             return 1;
         }
+    }
+
+    return 0;
+}
+
+static int testPartitionOwnerMapping(void)
+{
+    resmgr_context_t ctp;
+    io_devctl_t msg;
+    iofunc_ocb_t owner;
+    iofunc_ocb_t other;
+    CAAM_ADDRESS partAddr;
+    unsigned int args[4];
+    int ret;
+    int i;
+
+    memset(&ctp, 0, sizeof(ctp));
+    memset(&msg, 0, sizeof(msg));
+    memset(&owner, 0, sizeof(owner));
+    memset(&other, 0, sizeof(other));
+    for (i = 0; i < MAX_OWNER_PART; i++) {
+        sm_ownerId[i] = 0;
+        sm_pagePart[i] = NO_OWNER_PART;
+    }
+
+    partAddr = CAAM_PAGE + (5U * CAAM_PAGE_SZ);
+    memset(args, 0, sizeof(args));
+    args[0] = 3U;
+    args[1] = 1U;
+    caamTestPartitionAddress = partAddr;
+    caamTestGetPartitionCalls = 0;
+    ret = doGET_PART(&ctp, &msg, args, 0U, &owner);
+    if (ret != EOK || caamTestGetPartitionCalls != 1 ||
+            sm_ownerId[args[0]] != (CAAM_ADDRESS)&owner) {
+        return 1;
+    }
+
+    if (checkPartitionOwner(partAddr + 1U, &owner) != EOK ||
+            checkPartitionOwner(partAddr + 1U, &other) != EACCES) {
+        return 1;
+    }
+
+    ret = doGET_PART(&ctp, &msg, args, 0U, &other);
+    if (ret != EACCES || caamTestGetPartitionCalls != 1 ||
+            sm_ownerId[args[0]] != (CAAM_ADDRESS)&owner) {
+        return 1;
+    }
+
+    ctp.size = sizeof(msg.i) + sizeof(args);
+    msg.i.dcmd = WC_CAAM_FREE_PART;
+    caamTestFreeCalls = 0;
+    caamTestReadData = (const unsigned char*)args;
+    caamTestReadDataSz = sizeof(args);
+    caamTestReadSz = sizeof(args);
+    ret = io_devctl(&ctp, &msg, &owner);
+    caamTestReadData = NULL;
+    caamTestReadDataSz = 0U;
+    if (ret != EOK || caamTestFreeCalls != 1 || sm_ownerId[args[0]] != 0 ||
+            sm_pagePart[5] != NO_OWNER_PART) {
+        return 1;
     }
 
     return 0;
@@ -597,8 +666,14 @@ static int testRejectInvalidPartitionRange(void)
 
 int main(void)
 {
+    int i;
+
     if (pthread_mutex_init(&sm_mutex, NULL) != EOK)
         return 1;
+    for (i = 0; i < MAX_OWNER_PART; i++) {
+        sm_ownerId[i] = 0;
+        sm_pagePart[i] = NO_OWNER_PART;
+    }
     if (testRejectIncompleteRequest() != 0) {
         printf("testRejectIncompleteRequest: FAIL\n");
         return 1;
@@ -619,6 +694,10 @@ int main(void)
         printf("testRejectOtherOwnerPartitionAccess: FAIL\n");
         return 1;
     }
+    if (testPartitionOwnerMapping() != 0) {
+        printf("testPartitionOwnerMapping: FAIL\n");
+        return 1;
+    }
     if (testRejectInvalidPartitionRange() != 0) {
         printf("testRejectInvalidPartitionRange: FAIL\n");
         return 1;
@@ -631,6 +710,7 @@ int main(void)
     printf("testRejectOversizedRequest: PASS\n");
     printf("testRejectInvalidPartitionIndex: PASS\n");
     printf("testRejectOtherOwnerPartitionAccess: PASS\n");
+    printf("testPartitionOwnerMapping: PASS\n");
     printf("testRejectInvalidPartitionRange: PASS\n");
     return 0;
 }
