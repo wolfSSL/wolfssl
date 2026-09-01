@@ -2670,11 +2670,12 @@ int test_X509_verify_cert_untrusted_inter(void)
     defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
     !defined(NO_SHA256) && defined(USE_CERT_BUFFERS_2048) && \
     !defined(NO_ASN_TIME) && !defined(ALLOW_INVALID_CERTSIGN)
-/* Build a CA:TRUE intermediate signed by the 2048-bit test root
- * (ca_cert_der_2048 / ca_key_der_2048).  keyUsage == NULL omits the KeyUsage
- * extension entirely.  Returns the DER length, or <= 0 on failure. */
+/* Build a CA:TRUE certificate signed by the 2048-bit test root, or self-signed
+ * with subjKey when selfSigned is set (caKey may then be NULL). cn NULL copies
+ * the root's subject. keyUsage NULL omits the KeyUsage extension. */
 static int gen_ca_int_keyusage(byte* out, int outMax, RsaKey* subjKey,
-    RsaKey* caKey, WC_RNG* rng, const char* cn, const char* keyUsage)
+    RsaKey* caKey, WC_RNG* rng, const char* cn, const char* keyUsage,
+    int selfSigned)
 {
     Cert cert;
 
@@ -2684,21 +2685,26 @@ static int gen_ca_int_keyusage(byte* out, int outMax, RsaKey* subjKey,
     cert.sigType = CTC_SHA256wRSA;
     XSTRNCPY(cert.subject.country, "US", CTC_NAME_SIZE - 1);
     XSTRNCPY(cert.subject.org, "wolfSSL_test", CTC_NAME_SIZE - 1);
-    XSTRNCPY(cert.subject.commonName, cn, CTC_NAME_SIZE - 1);
+    if (cn != NULL)
+        XSTRNCPY(cert.subject.commonName, cn, CTC_NAME_SIZE - 1);
+    else if (wc_SetSubjectBuffer(&cert, ca_cert_der_2048,
+            (int)sizeof_ca_cert_der_2048) != 0)
+        return -1;
     if (wc_SetSubjectKeyIdFromPublicKey(&cert, subjKey, NULL) != 0)
         return -1;
-    if (wc_SetAuthKeyIdFromCert(&cert, ca_cert_der_2048,
+    if (!selfSigned && wc_SetAuthKeyIdFromCert(&cert, ca_cert_der_2048,
             (int)sizeof_ca_cert_der_2048) != 0)
         return -1;
     if (keyUsage != NULL && wc_SetKeyUsage(&cert, keyUsage) != 0)
         return -1;
-    if (wc_SetIssuerBuffer(&cert, ca_cert_der_2048,
+    /* A self-signed certificate names no issuer; the subject stands in. */
+    if (!selfSigned && wc_SetIssuerBuffer(&cert, ca_cert_der_2048,
             (int)sizeof_ca_cert_der_2048) != 0)
         return -1;
     if (wc_MakeCert(&cert, out, (word32)outMax, subjKey, NULL, rng) < 0)
         return -1;
-    return wc_SignCert(cert.bodySz, cert.sigType, out, (word32)outMax, caKey,
-        NULL, rng);
+    return wc_SignCert(cert.bodySz, cert.sigType, out, (word32)outMax,
+        selfSigned ? subjKey : caKey, NULL, rng);
 }
 
 /* Build a leaf signed by the given intermediate (its DER + private key). */
@@ -2762,6 +2768,41 @@ static int run_int_keyusage_case(const byte* intDer, int intSz,
     X509_free(inter);
     return EXPECT_RESULT();
 }
+
+/* Verify leafDer with caDer trusted only through the context, so that path
+ * building can reach the anchor only as a temporary CA. Partial chains are
+ * allowed so an anchor that is not self-signed can end the path. */
+static int run_selfsigned_anchor_case(const byte* caDer, int caSz,
+    const byte* leafDer, int leafSz, int* verifyRet)
+{
+    EXPECT_DECLS;
+    X509* ca   = NULL;
+    X509* leaf = NULL;
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+    STACK_OF(X509)* trusted = NULL;
+    const byte* p;
+
+    p = caDer;
+    ExpectNotNull(ca = d2i_X509(NULL, &p, caSz));
+    p = leafDer;
+    ExpectNotNull(leaf = d2i_X509(NULL, &p, leafSz));
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leaf, NULL), 1);
+    ExpectNotNull(trusted = sk_X509_new_null());
+    ExpectIntGT(sk_X509_push(trusted, ca), 0);
+    X509_STORE_CTX_trusted_stack(ctx, trusted);
+    X509_STORE_CTX_set_flags(ctx, X509_V_FLAG_PARTIAL_CHAIN);
+    if (verifyRet != NULL)
+        *verifyRet = X509_verify_cert(ctx);
+    X509_STORE_CTX_free(ctx);
+    X509_STORE_free(store);
+    sk_X509_free(trusted);
+    X509_free(leaf);
+    X509_free(ca);
+    return EXPECT_RESULT();
+}
 #endif
 
 /* Regression: a chain-supplied (untrusted) intermediate that is CA:TRUE but
@@ -2820,7 +2861,7 @@ int test_X509_verify_cert_ca_no_keycertsign(void)
 
     /* Case 1: intermediate CA WITHOUT keyCertSign -> verification must fail. */
     ExpectIntGT((intSz = gen_ca_int_keyusage(intDer, FOURK_BUF, &intKey, &caKey,
-        &rng, "No keyCertSign Intermediate", "digitalSignature")), 0);
+        &rng, "No keyCertSign Intermediate", "digitalSignature", 0)), 0);
     ExpectIntGT((leafSz = gen_leaf_under_int(leafDer, FOURK_BUF, &leafKey,
         intDer, intSz, &intKey, &rng, "Leaf under bad int")), 0);
     verifyRet = -1;
@@ -2830,7 +2871,7 @@ int test_X509_verify_cert_ca_no_keycertsign(void)
 
     /* Case 2: intermediate CA with NO KeyUsage extension -> must verify. */
     ExpectIntGT((intSz = gen_ca_int_keyusage(intDer, FOURK_BUF, &intKey, &caKey,
-        &rng, "No KeyUsage Intermediate", NULL)), 0);
+        &rng, "No KeyUsage Intermediate", NULL, 0)), 0);
     ExpectIntGT((leafSz = gen_leaf_under_int(leafDer, FOURK_BUF, &leafKey,
         intDer, intSz, &intKey, &rng, "Leaf under noKU int")), 0);
     verifyRet = -1;
@@ -2845,6 +2886,94 @@ int test_X509_verify_cert_ca_no_keycertsign(void)
     if (leafI) wc_FreeRsaKey(&leafKey);
     XFREE(intDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(leafDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A self-signed trust anchor stays usable when its KeyUsage extension omits
+ * keyCertSign. A self-issued key rollover certificate signed by the root is not
+ * self-signed, so it needs keyCertSign to act as a trust anchor.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_X509_verify_cert_selfsigned_anchor_no_keycertsign(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    !defined(NO_SHA256) && defined(USE_CERT_BUFFERS_2048) && \
+    !defined(NO_ASN_TIME) && !defined(ALLOW_INVALID_CERTSIGN)
+    static const struct {
+        int selfSigned;         /* else a rollover signed by the test root */
+        const char* keyUsage;
+        int expectVerify;       /* expected X509_verify_cert() result */
+    } cases[] = {
+        { 1, "digitalSignature",             1 },
+        { 0, "digitalSignature",             0 },
+        { 0, "digitalSignature,keyCertSign", 1 },
+    };
+    WC_RNG rng;
+    RsaKey rootKey, caKey, leafKey;
+    int rngI = 0, rootI = 0, caI = 0, leafI = 0;
+    word32 idx;
+    byte* caDer = NULL;
+    byte* leafDer = NULL;
+    DecodedCert* dc = NULL;
+    int caSz = 0, leafSz = 0;
+    int verifyRet;
+    size_t i;
+
+    caDer   = (byte*)XMALLOC(FOURK_BUF, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    leafDer = (byte*)XMALLOC(FOURK_BUF, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    dc      = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
+                                    DYNAMIC_TYPE_DCERT);
+    ExpectNotNull(caDer);
+    ExpectNotNull(leafDer);
+    ExpectNotNull(dc);
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) rngI = 1;
+    ExpectIntEQ(wc_InitRsaKey(&rootKey, NULL), 0);
+    if (EXPECT_SUCCESS()) rootI = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(ca_key_der_2048, &idx, &rootKey,
+        sizeof_ca_key_der_2048), 0);
+    ExpectIntEQ(wc_InitRsaKey(&caKey, NULL), 0);
+    if (EXPECT_SUCCESS()) caI = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(server_key_der_2048, &idx, &caKey,
+        sizeof_server_key_der_2048), 0);
+    ExpectIntEQ(wc_InitRsaKey(&leafKey, NULL), 0);
+    if (EXPECT_SUCCESS()) leafI = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(client_key_der_2048, &idx, &leafKey,
+        sizeof_client_key_der_2048), 0);
+
+    for (i = 0; i < XELEM_CNT(cases) && EXPECT_SUCCESS(); i++) {
+        ExpectIntGT((caSz = gen_ca_int_keyusage(caDer, FOURK_BUF, &caKey,
+            &rootKey, &rng, cases[i].selfSigned ? "Self Signed Anchor" : NULL,
+            cases[i].keyUsage, cases[i].selfSigned)), 0);
+        /* A plain parse sets selfSigned only for the self-signed anchor. */
+        wc_InitDecodedCert(dc, caDer, (word32)caSz, NULL);
+        ExpectIntEQ(wc_ParseCert(dc, CA_TYPE, NO_VERIFY, NULL), 0);
+        ExpectIntEQ(dc->selfIssued, 1);
+        ExpectIntEQ(dc->selfSigned, cases[i].selfSigned);
+        wc_FreeDecodedCert(dc);
+        ExpectIntGT((leafSz = gen_leaf_under_int(leafDer, FOURK_BUF, &leafKey,
+            caDer, caSz, &caKey, &rng, "Leaf under anchor")), 0);
+        verifyRet = -1;
+        ExpectIntEQ(run_selfsigned_anchor_case(caDer, caSz, leafDer, leafSz,
+            &verifyRet), 1);
+        ExpectIntEQ(verifyRet, cases[i].expectVerify);
+    }
+
+    if (rngI)  wc_FreeRng(&rng);
+    if (rootI) wc_FreeRsaKey(&rootKey);
+    if (caI)   wc_FreeRsaKey(&caKey);
+    if (leafI) wc_FreeRsaKey(&leafKey);
+    XFREE(caDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(leafDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(dc, NULL, DYNAMIC_TYPE_DCERT);
 #endif
     return EXPECT_RESULT();
 }
