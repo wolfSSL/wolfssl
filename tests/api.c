@@ -18354,76 +18354,94 @@ static int test_wolfSSL_SSL_CIPHER_find(void)
     if (EXPECT_SUCCESS() && (wolfSSL_sk_SSL_CIPHER_num(sk) > 1)) {
         WOLFSSL* sslLtd = NULL;
         WOLF_STACK_OF(WOLFSSL_CIPHER)* skLtd = NULL;
-        const WOLFSSL_CIPHER* keep = wolfSSL_sk_SSL_CIPHER_value(sk, 0);
         const WOLFSSL_CIPHER* absent = NULL;
         unsigned char absentId[2] = { 0, 0 };
         int i;
 
-        ExpectNotNull(keep);
-        ExpectNotNull(sslLtd = wolfSSL_new(ctx));
-        if (keep != NULL) {
-            ExpectIntEQ(wolfSSL_set_cipher_list(sslLtd,
-                wolfSSL_CIPHER_get_name(keep)), WOLFSSL_SUCCESS);
-        }
-        ExpectNotNull(skLtd = wolfSSL_get_ciphers_compat(sslLtd));
         /* Restricting must really drop suites or the check below would be
-         * satisfied by the SSL's own list instead of the fallback. */
-        ExpectIntLT(wolfSSL_sk_SSL_CIPHER_num(skLtd),
-                    wolfSSL_sk_SSL_CIPHER_num(sk));
-
-        /* Find a suite the restricted SSL dropped. */
-        for (i = 0; EXPECT_SUCCESS() &&
+         * satisfied by the SSL's own list instead of the fallback. Naming a
+         * TLS 1.3 suite leaves the TLS 1.2 list alone, so the first suite is
+         * not always one that narrows anything - keep the first that does. */
+        for (i = 0; EXPECT_SUCCESS() && (skLtd == NULL) &&
                 (i < wolfSSL_sk_SSL_CIPHER_num(sk)); i++) {
-            const WOLFSSL_CIPHER* full = wolfSSL_sk_SSL_CIPHER_value(sk, i);
-            int inLtd = 0;
-            int j;
+            const WOLFSSL_CIPHER* keep = wolfSSL_sk_SSL_CIPHER_value(sk, i);
+            WOLF_STACK_OF(WOLFSSL_CIPHER)* skTry = NULL;
+            WOLFSSL* sslTry = NULL;
 
-            if (full == NULL)
+            if (keep == NULL)
                 continue;
-            for (j = 0; j < wolfSSL_sk_SSL_CIPHER_num(skLtd); j++) {
-                const WOLFSSL_CIPHER* ltd =
-                    wolfSSL_sk_SSL_CIPHER_value(skLtd, j);
+            ExpectNotNull(sslTry = wolfSSL_new(ctx));
+            ExpectIntEQ(wolfSSL_set_cipher_list(sslTry,
+                wolfSSL_CIPHER_get_name(keep)), WOLFSSL_SUCCESS);
+            ExpectNotNull(skTry = wolfSSL_get_ciphers_compat(sslTry));
+            if (EXPECT_SUCCESS() && (wolfSSL_sk_SSL_CIPHER_num(skTry) <
+                    wolfSSL_sk_SSL_CIPHER_num(sk))) {
+                sslLtd = sslTry;
+                skLtd = skTry;
+            }
+            else {
+                wolfSSL_free(sslTry);
+            }
+        }
 
-                if ((ltd != NULL) &&
-                        (ltd->cipherSuite0 == full->cipherSuite0) &&
-                        (ltd->cipherSuite == full->cipherSuite)) {
-                    inLtd = 1;
+        /* Builds whose whole suite list shares one name cannot express a
+         * narrower list, so there is nothing to look up here. */
+        if (EXPECT_SUCCESS() && (skLtd != NULL)) {
+            /* Find a suite the restricted SSL dropped. */
+            for (i = 0; EXPECT_SUCCESS() &&
+                    (i < wolfSSL_sk_SSL_CIPHER_num(sk)); i++) {
+                const WOLFSSL_CIPHER* full =
+                    wolfSSL_sk_SSL_CIPHER_value(sk, i);
+                int inLtd = 0;
+                int j;
+
+                if (full == NULL)
+                    continue;
+                for (j = 0; j < wolfSSL_sk_SSL_CIPHER_num(skLtd); j++) {
+                    const WOLFSSL_CIPHER* ltd =
+                        wolfSSL_sk_SSL_CIPHER_value(skLtd, j);
+
+                    if ((ltd != NULL) &&
+                            (ltd->cipherSuite0 == full->cipherSuite0) &&
+                            (ltd->cipherSuite == full->cipherSuite)) {
+                        inLtd = 1;
+                        break;
+                    }
+                }
+                if (!inLtd) {
+                    absentId[0] = full->cipherSuite0;
+                    absentId[1] = full->cipherSuite;
+                    absent = full;
                     break;
                 }
             }
-            if (!inLtd) {
-                absentId[0] = full->cipherSuite0;
-                absentId[1] = full->cipherSuite;
-                absent = full;
-                break;
-            }
-        }
-        ExpectNotNull(absent);
+            ExpectNotNull(absent);
 
-        ExpectNotNull(found = SSL_CIPHER_find(sslLtd, absentId));
-        if (found != NULL) {
-            ExpectIntEQ(found->cipherSuite0, absentId[0]);
-            ExpectIntEQ(found->cipherSuite,  absentId[1]);
-        }
+            ExpectNotNull(found = SSL_CIPHER_find(sslLtd, absentId));
+            if (found != NULL) {
+                ExpectIntEQ(found->cipherSuite0, absentId[0]);
+                ExpectIntEQ(found->cipherSuite,  absentId[1]);
+            }
 
 #ifdef OPENSSL_ALL
-        /* SSL_CIPHER_description(SSL_CIPHER_find(...)) must describe the suite
-         * that was looked up. Nothing has been negotiated, so a description
-         * taken from the session state would be empty. */
-        if ((found != NULL) && (absent != NULL)) {
-            char descFind[MAX_DESCRIPTION_SZ];
-            char descStack[MAX_DESCRIPTION_SZ];
+            /* SSL_CIPHER_description(SSL_CIPHER_find(...)) must describe the
+             * suite that was looked up. Nothing has been negotiated, so a
+             * description taken from the session state would be empty. */
+            if ((found != NULL) && (absent != NULL)) {
+                char descFind[MAX_DESCRIPTION_SZ];
+                char descStack[MAX_DESCRIPTION_SZ];
 
-            XMEMSET(descFind, 0, sizeof(descFind));
-            XMEMSET(descStack, 0, sizeof(descStack));
-            ExpectNotNull(SSL_CIPHER_description(absent, descStack,
-                (int)sizeof(descStack)));
-            ExpectNotNull(SSL_CIPHER_description(found, descFind,
-                (int)sizeof(descFind)));
-            ExpectStrEQ(descFind, descStack);
-            ExpectNull(XSTRSTR(descFind, "unknown"));
-        }
+                XMEMSET(descFind, 0, sizeof(descFind));
+                XMEMSET(descStack, 0, sizeof(descStack));
+                ExpectNotNull(SSL_CIPHER_description(absent, descStack,
+                    (int)sizeof(descStack)));
+                ExpectNotNull(SSL_CIPHER_description(found, descFind,
+                    (int)sizeof(descFind)));
+                ExpectStrEQ(descFind, descStack);
+                ExpectNull(XSTRSTR(descFind, "unknown"));
+            }
 #endif
+        }
 
         wolfSSL_free(sslLtd);
     }
