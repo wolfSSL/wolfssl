@@ -7711,6 +7711,7 @@ static int SetSSL_CTX_CertsAndKeys(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         if (ret != 0) {
             return ret;
         }
+        ssl->buffers.weOwnAltKey = 1;
         /* Blind the private key for the SSL with new random mask. */
         wolfssl_priv_der_blind_toggle(ssl->buffers.altKey,
             ctx->altPrivateKeyMask);
