@@ -1527,7 +1527,9 @@ enum wc_AlgoType {
     /* async: re-enter a crypto callback device to poll a pending operation so
      * it can complete the work and fill the output buffer (QAT-style). */
     WC_ALGO_TYPE_ASYNC_POLL = 15,
-    WC_ALGO_TYPE_MAX = WC_ALGO_TYPE_ASYNC_POLL
+    /* hardware key store lifecycle: import, export, derive, delete, query */
+    WC_ALGO_TYPE_KEYSTORE = 16,
+    WC_ALGO_TYPE_MAX = WC_ALGO_TYPE_KEYSTORE
 };
 
 /* KDF types */

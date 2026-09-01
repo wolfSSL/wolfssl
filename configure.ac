@@ -11665,7 +11665,7 @@ fi
 
 # Crypto Callbacks Utils (Copy/Free/etc)
 AC_ARG_ENABLE([cryptocbutils],
-    [AS_HELP_STRING([--enable-cryptocbutils@<:@=copy,free,setkey,export,...@:>@],
+    [AS_HELP_STRING([--enable-cryptocbutils@<:@=copy,free,setkey,export,keystore,...@:>@],
                     [Enable crypto callback utilities (default: all)])],
     [ ENABLED_CRYPTOCB_UTILS=$enableval ],
     [ ENABLED_CRYPTOCB_UTILS=no ]
@@ -11678,7 +11678,7 @@ if test "$ENABLED_CRYPTOCB_UTILS" != "no"; then
 
     if test "$ENABLED_CRYPTOCB_UTILS" = "yes"; then
         # Enable all utilities
-        AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB_COPY -DWOLF_CRYPTO_CB_FREE -DWOLF_CRYPTO_CB_SETKEY -DWOLF_CRYPTO_CB_EXPORT_KEY"
+        AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB_COPY -DWOLF_CRYPTO_CB_FREE -DWOLF_CRYPTO_CB_SETKEY -DWOLF_CRYPTO_CB_EXPORT_KEY -DWOLF_CRYPTO_CB_KEYSTORE"
     else
         # Parse comma-separated list
         OIFS="$IFS"
@@ -11697,8 +11697,11 @@ if test "$ENABLED_CRYPTOCB_UTILS" != "no"; then
                 export)
                     AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB_EXPORT_KEY"
                     ;;
+                keystore)
+                    AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB_KEYSTORE"
+                    ;;
                 *)
-                    AC_MSG_ERROR([Unknown cryptocbutils option: $util. Valid options: copy, free, setkey, export])
+                    AC_MSG_ERROR([Unknown cryptocbutils option: $util. Valid options: copy, free, setkey, export, keystore])
                     ;;
             esac
         done

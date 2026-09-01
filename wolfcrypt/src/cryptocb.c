@@ -135,6 +135,10 @@ static const char* GetAlgoTypeStr(int algo)
 #ifdef WOLF_CRYPTO_CB_EXPORT_KEY
         case WC_ALGO_TYPE_EXPORT_KEY: return "ExportKey";
 #endif /* WOLF_CRYPTO_CB_EXPORT_KEY */
+#ifdef WOLF_CRYPTO_CB_KEYSTORE
+        case WC_ALGO_TYPE_KEYSTORE: return "KeyStore";
+#endif /* WOLF_CRYPTO_CB_KEYSTORE */
+
     }
     return NULL;
 }
@@ -371,6 +375,12 @@ void wc_CryptoCb_InfoString(wc_CryptoInfo* info)
             GetAlgoTypeStr(info->algo_type), info->export_key.type);
     }
 #endif /* WOLF_CRYPTO_CB_EXPORT_KEY */
+#ifdef WOLF_CRYPTO_CB_KEYSTORE
+    else if (info->algo_type == WC_ALGO_TYPE_KEYSTORE) {
+        printf("Crypto CB: %s Type=%d\n",
+            GetAlgoTypeStr(info->algo_type), info->keystore.type);
+    }
+#endif /* WOLF_CRYPTO_CB_KEYSTORE */
 #if (defined(HAVE_HKDF) && !defined(NO_HMAC)) || \
     defined(HAVE_CMAC_KDF)
     else if (info->algo_type == WC_ALGO_TYPE_KDF) {
@@ -3693,6 +3703,264 @@ int wc_CryptoCb_ExportKey(int devId, int type, const void* obj, void* out)
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
 #endif /* WOLF_CRYPTO_CB_EXPORT_KEY */
+
+#ifdef WOLF_CRYPTO_CB_KEYSTORE
+/* Hardware key store operations. Key references are opaque to wolfCrypt: it
+ * copies the pointers through and never interprets them, exactly as it treats
+ * the id[] blob on a key object. */
+int wc_CryptoCb_KeyStoreImportPlain(int devId,
+    const byte* keyRef, word32 keyRefSz,
+    word32 keyType, const byte* key, word32 keySz,
+    word32 attrs, const void* ctx)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    if (keyRef == NULL || keyRefSz == 0 || key == NULL || keySz == 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_KEYSTORE);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_KEYSTORE;
+        cryptoInfo.keystore.type = WC_KEYSTORE_IMPORT_PLAIN;
+        cryptoInfo.keystore.ctx  = ctx;
+        cryptoInfo.keystore.op.importPlain.keyRef   = keyRef;
+        cryptoInfo.keystore.op.importPlain.keyRefSz = keyRefSz;
+        cryptoInfo.keystore.op.importPlain.keyType  = keyType;
+        cryptoInfo.keystore.op.importPlain.key      = key;
+        cryptoInfo.keystore.op.importPlain.keySz    = keySz;
+        cryptoInfo.keystore.op.importPlain.attrs    = attrs;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_KeyStoreExportPlain(int devId,
+    const byte* keyRef, word32 keyRefSz,
+    byte* key, word32* keySz, const void* ctx)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    /* key == NULL is the required-size query. Tie buffer and capacity together
+     * so a non-NULL buffer cannot arrive with an uninitialised capacity. */
+    if (keyRef == NULL || keyRefSz == 0 || keySz == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    if (key != NULL && *keySz == 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_KEYSTORE);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_KEYSTORE;
+        cryptoInfo.keystore.type = WC_KEYSTORE_EXPORT_PLAIN;
+        cryptoInfo.keystore.ctx  = ctx;
+        cryptoInfo.keystore.op.exportPlain.keyRef   = keyRef;
+        cryptoInfo.keystore.op.exportPlain.keyRefSz = keyRefSz;
+        cryptoInfo.keystore.op.exportPlain.key      = key;
+        cryptoInfo.keystore.op.exportPlain.keySz    = keySz;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_KeyStoreImportWrapped(int devId,
+    const byte* keyRef, word32 keyRefSz, word32 keyType,
+    const byte* wrapKeyRef, word32 wrapKeyRefSz,
+    word32 format, const byte* blob, word32 blobSz,
+    word32 attrs, const void* ctx)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    if (keyRef == NULL || keyRefSz == 0 || blob == NULL || blobSz == 0) {
+        return BAD_FUNC_ARG;
+    }
+    if (wrapKeyRef == NULL && wrapKeyRefSz != 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_KEYSTORE);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_KEYSTORE;
+        cryptoInfo.keystore.type = WC_KEYSTORE_IMPORT_WRAPPED;
+        cryptoInfo.keystore.ctx  = ctx;
+        cryptoInfo.keystore.op.importWrapped.keyRef       = keyRef;
+        cryptoInfo.keystore.op.importWrapped.keyRefSz     = keyRefSz;
+        cryptoInfo.keystore.op.importWrapped.keyType      = keyType;
+        cryptoInfo.keystore.op.importWrapped.wrapKeyRef   = wrapKeyRef;
+        cryptoInfo.keystore.op.importWrapped.wrapKeyRefSz = wrapKeyRefSz;
+        cryptoInfo.keystore.op.importWrapped.blob         = blob;
+        cryptoInfo.keystore.op.importWrapped.blobSz       = blobSz;
+        cryptoInfo.keystore.op.importWrapped.format       = format;
+        cryptoInfo.keystore.op.importWrapped.attrs        = attrs;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_KeyStoreExportWrapped(int devId,
+    const byte* keyRef, word32 keyRefSz,
+    const byte* wrapKeyRef, word32 wrapKeyRefSz,
+    word32 format, byte* blob, word32* blobSz, const void* ctx)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    /* blob == NULL is the required-size query. Tie buffer and capacity together
+     * so a non-NULL buffer cannot arrive with an uninitialised capacity. */
+    if (keyRef == NULL || keyRefSz == 0 || blobSz == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    if (blob != NULL && *blobSz == 0) {
+        return BAD_FUNC_ARG;
+    }
+    if (wrapKeyRef == NULL && wrapKeyRefSz != 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_KEYSTORE);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_KEYSTORE;
+        cryptoInfo.keystore.type = WC_KEYSTORE_EXPORT_WRAPPED;
+        cryptoInfo.keystore.ctx  = ctx;
+        cryptoInfo.keystore.op.exportWrapped.keyRef       = keyRef;
+        cryptoInfo.keystore.op.exportWrapped.keyRefSz     = keyRefSz;
+        cryptoInfo.keystore.op.exportWrapped.wrapKeyRef   = wrapKeyRef;
+        cryptoInfo.keystore.op.exportWrapped.wrapKeyRefSz = wrapKeyRefSz;
+        cryptoInfo.keystore.op.exportWrapped.blob         = blob;
+        cryptoInfo.keystore.op.exportWrapped.blobSz       = blobSz;
+        cryptoInfo.keystore.op.exportWrapped.format       = format;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_KeyStoreDerive(int devId,
+    const byte* keyRef, word32 keyRefSz, word32 keyType,
+    const byte* srcKeyRef, word32 srcKeyRefSz,
+    word32 kdfType, const byte* deriv, word32 derivSz,
+    word32 attrs, const void* ctx)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    if (keyRef == NULL || keyRefSz == 0 ||
+        srcKeyRef == NULL || srcKeyRefSz == 0) {
+        return BAD_FUNC_ARG;
+    }
+    if (deriv == NULL && derivSz != 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_KEYSTORE);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_KEYSTORE;
+        cryptoInfo.keystore.type = WC_KEYSTORE_DERIVE;
+        cryptoInfo.keystore.ctx  = ctx;
+        cryptoInfo.keystore.op.derive.keyRef      = keyRef;
+        cryptoInfo.keystore.op.derive.keyRefSz    = keyRefSz;
+        cryptoInfo.keystore.op.derive.keyType     = keyType;
+        cryptoInfo.keystore.op.derive.srcKeyRef   = srcKeyRef;
+        cryptoInfo.keystore.op.derive.srcKeyRefSz = srcKeyRefSz;
+        cryptoInfo.keystore.op.derive.deriv       = deriv;
+        cryptoInfo.keystore.op.derive.derivSz     = derivSz;
+        cryptoInfo.keystore.op.derive.kdfType     = kdfType;
+        cryptoInfo.keystore.op.derive.attrs       = attrs;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_KeyStoreDelete(int devId, const byte* keyRef, word32 keyRefSz,
+                               const void* ctx)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    if (keyRef == NULL || keyRefSz == 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_KEYSTORE);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_KEYSTORE;
+        cryptoInfo.keystore.type = WC_KEYSTORE_DELETE;
+        cryptoInfo.keystore.ctx  = ctx;
+        cryptoInfo.keystore.op.deleteKey.keyRef   = keyRef;
+        cryptoInfo.keystore.op.deleteKey.keyRefSz = keyRefSz;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_KeyStoreGetInfo(int devId, const byte* keyRef, word32 keyRefSz,
+    word32* keyType, word32* keySz, word32* attrs, const void* ctx)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    if (keyRef == NULL || keyRefSz == 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* Clear the caller's storage first: a device may answer only part of the
+     * query, and attrs & WC_KEYSTORE_ATTR_EXPORTABLE is a security decision. */
+    if (keyType != NULL) {
+        *keyType = 0;
+    }
+    if (keySz != NULL) {
+        *keySz = 0;
+    }
+    if (attrs != NULL) {
+        *attrs = 0;
+    }
+
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_KEYSTORE);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_KEYSTORE;
+        cryptoInfo.keystore.type = WC_KEYSTORE_GET_INFO;
+        cryptoInfo.keystore.ctx  = ctx;
+        cryptoInfo.keystore.op.getInfo.keyRef   = keyRef;
+        cryptoInfo.keystore.op.getInfo.keyRefSz = keyRefSz;
+        cryptoInfo.keystore.op.getInfo.keyType  = keyType;
+        cryptoInfo.keystore.op.getInfo.keySz    = keySz;
+        cryptoInfo.keystore.op.getInfo.attrs    = attrs;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif /* WOLF_CRYPTO_CB_KEYSTORE */
 
 #if defined(HAVE_CMAC_KDF)
 /* Crypto callback for NIST SP 800 56C two-step CMAC KDF. See software

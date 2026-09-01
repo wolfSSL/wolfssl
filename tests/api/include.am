@@ -26,6 +26,7 @@ tests_unit_test_SOURCES += tests/api/test_hpke.c
 tests_unit_test_SOURCES += tests/api/test_kdf.c
 # SHE
 tests_unit_test_SOURCES += tests/api/test_she.c
+tests_unit_test_SOURCES += tests/api/test_keystore.c
 # Cipher
 tests_unit_test_SOURCES += tests/api/test_async.c
 tests_unit_test_SOURCES += tests/api/test_des3.c
@@ -167,6 +168,7 @@ EXTRA_DIST += tests/api/test_eccsi.h
 EXTRA_DIST += tests/api/test_sakke.h
 EXTRA_DIST += tests/api/test_hpke.h
 EXTRA_DIST += tests/api/test_kdf.h
+EXTRA_DIST += tests/api/test_keystore.h
 EXTRA_DIST += tests/api/test_she.h
 EXTRA_DIST += tests/api/test_async.h
 EXTRA_DIST += tests/api/test_des3.h

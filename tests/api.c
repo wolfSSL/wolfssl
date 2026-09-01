@@ -221,6 +221,7 @@
 #include <tests/api/test_hpke.h>
 #include <tests/api/test_kdf.h>
 #include <tests/api/test_she.h>
+#include <tests/api/test_keystore.h>
 #include <tests/api/test_des3.h>
 #include <tests/api/test_async.h>
 #include <tests/api/test_chacha.h>
@@ -40273,6 +40274,8 @@ TEST_CASE testCases[] = {
 #if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_SHE)
     TEST_SHE_CB_DECLS,
 #endif
+    /* Hardware key store */
+    TEST_KEYSTORE_DECLS,
 
     /* Cipher */
     /* Crypto callback async poll completion */
