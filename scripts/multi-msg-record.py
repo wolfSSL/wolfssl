@@ -222,6 +222,18 @@ def _run_wolf_client(port, version, cipher, extra=()):
     return subprocess.run(cmd, capture_output=True, timeout=15)
 
 
+def _describe_failure(proc, result):
+    """Render the client's and the server's side of a failed connection."""
+    client = proc.stderr.decode("utf-8", errors="replace").strip()
+    server = result["error"].strip()
+    parts = ["client rc={}".format(proc.returncode)]
+    if client:
+        parts.append("client: " + client[-400:])
+    if server:
+        parts.append("server: " + server[-400:])
+    return "; ".join(parts)
+
+
 class _SendRecordTrace:
     """Context manager that wraps RecordLayer.sendRecord to log every record."""
 
@@ -357,6 +369,9 @@ def run_tls12_test(cipher_wolf, cert_chain, priv_key, label,
     orig_getExt = HelloMessage.getExtension
 
     def patched_getExt(self, ext_type):
+        # tlslite-ng 0.8.0b1 promises a session ticket it never sends (-390).
+        if ext_type == ExtensionType.session_ticket:
+            return None
         ext = orig_getExt(self, ext_type)
         if (ext_type == ExtensionType.renegotiation_info
                 and ext is not None and reneg_active[0]):
@@ -445,8 +460,7 @@ def run_tls12_test(cipher_wolf, cert_chain, priv_key, label,
     st.join(timeout=5)
 
     if proc.returncode != 0 or not result["ok"]:
-        err = (result["error"]
-               or proc.stderr.decode("utf-8", errors="replace")[:400])
+        err = _describe_failure(proc, result)
         failed(f"{label}: connection failed ({err})")
         return False
 
@@ -516,7 +530,7 @@ def run_tls13_test(cipher_wolf, cert_chain, priv_key, label):
         st.join(timeout=5)
 
     if proc.returncode != 0 or not result["ok"]:
-        err = result["error"] or proc.stderr.decode("utf-8", errors="replace")[:200]
+        err = _describe_failure(proc, result)
         failed(f"{label}: handshake failed ({err})")
         return False
 
