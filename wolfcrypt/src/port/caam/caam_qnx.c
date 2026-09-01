@@ -74,7 +74,6 @@ static void caamZeroMemory(void* mem, size_t len)
 #endif
 
 /* keep track of which ID memory belongs to so it can be free'd up */
-#define MAX_PART 7
 #define MAX_OWNER_PART CAAM_QNX_MAX_PARTITIONS
 pthread_mutex_t sm_mutex;
 CAAM_ADDRESS sm_ownerId[MAX_OWNER_PART];
@@ -327,8 +326,17 @@ int CAAM_ADR_SYNC(void* vaddr, int sz)
  */
 static int sanityCheckPartitionAddress(CAAM_ADDRESS partAddr, int partSz)
 {
-    if (partAddr < CAAM_PAGE || partAddr > CAAM_PAGE + (MAX_PART*4096) ||
-            partSz > 4096) {
+    CAAM_ADDRESS partOffset;
+
+    if (partAddr < CAAM_PAGE || partSz <= 0) {
+        WOLFSSL_MSG("error in physical address range");
+        return -1;
+    }
+
+    partOffset = partAddr - CAAM_PAGE;
+    if ((partOffset / CAAM_PAGE_SZ) >= CAAM_QNX_MAX_PARTITIONS ||
+            (CAAM_ADDRESS)partSz > (CAAM_ADDRESS)CAAM_PAGE_SZ -
+                (partOffset % CAAM_PAGE_SZ)) {
         WOLFSSL_MSG("error in physical address range");
         return -1;
     }
