@@ -555,7 +555,12 @@ static void test_tlsext_debug_cb(WOLFSSL *ssl, int client_server, int type,
         d->lens[d->count - 1] = len;
     }
 }
+#endif /* helper callback for the TLS ext debug callback tests */
 
+#if defined(OPENSSL_EXTRA) && \
+    !defined(NO_TLS) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_TLS_EXTENSIONS)
 /* Find an extension type in the recorded list; returns its length, -1 if
  * not reported. */
 static int test_tlsext_debug_find_len(const struct test_tlsext_debug_data *d,
@@ -570,7 +575,7 @@ static int test_tlsext_debug_find_len(const struct test_tlsext_debug_data *d,
     }
     return -1;
 }
-#endif /* helpers for the TLS ext debug callback tests */
+#endif /* helper lookup for the TLS ext debug handshake test */
 
 /* Test installing the TLS extension debug callback.
  *
