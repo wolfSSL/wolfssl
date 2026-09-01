@@ -129,6 +129,57 @@
         return 0;
     }
 
+    /* XGETBV #UD unless CPUID.1:ECX.OSXSAVE is set. */
+    static WC_INLINE word64 cpuid_xgetbv0(void)
+    {
+        word32 eax, edx;
+    #ifndef _MSC_VER
+        /* 0f 01 d0 = xgetbv */
+        __asm__ __volatile__ (
+            ".byte 0x0f, 0x01, 0xd0"
+            : "=a" (eax), "=d" (edx)
+            : "c" (0)
+        );
+    #else
+        unsigned long long xcr0 = _xgetbv(0);
+        eax = (word32)xcr0;
+        edx = (word32)(xcr0 >> 32);
+    #endif
+        return ((word64)edx << 32) | eax;
+    }
+
+    /* AVX needs OS XSAVE + XCR0 YMM/ZMM. CPUID alone can still SIGILL. */
+    #define CPUID_AVX_YMM_FLAGS \
+        (CPUID_AVX1 | CPUID_AVX2 | CPUID_VAES)
+    #define CPUID_AVX_ZMM_FLAGS \
+        (CPUID_AVX512 | CPUID_AVX512_VBMI | CPUID_AVX512_VBMI2 | \
+         CPUID_AVX512_IFMA | CPUID_AVX512_VL | CPUID_AVX512_DQ | \
+         CPUID_AVX512_BW)
+    /* XCR0: bit1 XMM, bit2 YMM */
+    #define CPUID_XCR0_SSE_AVX      0x6ULL
+    /* + bit5 opmask, bit6 ZMM_Hi256, bit7 Hi16_ZMM */
+    #define CPUID_XCR0_AVX512       0xe6ULL
+
+    static void cpuid_mask_avx_without_os_support(cpuid_flags_t* flags)
+    {
+        word64 xcr0;
+
+        /* CPUID.1:ECX.OSXSAVE */
+        if (!cpuid_flag(1, 0, ECX, 27)) {
+            *flags &= ~(CPUID_AVX_YMM_FLAGS | CPUID_AVX_ZMM_FLAGS);
+            return;
+        }
+
+        xcr0 = cpuid_xgetbv0();
+        if ((xcr0 & CPUID_XCR0_SSE_AVX) != CPUID_XCR0_SSE_AVX) {
+            *flags &= ~(CPUID_AVX_YMM_FLAGS | CPUID_AVX_ZMM_FLAGS);
+            return;
+        }
+        if ((xcr0 & CPUID_XCR0_AVX512) != CPUID_XCR0_AVX512) {
+            *flags &= ~CPUID_AVX_ZMM_FLAGS;
+        }
+    }
+
 
     static WC_INLINE void cpuid_set_flags(void)
     {
@@ -172,6 +223,7 @@
             if (cpuid_is_intel())          { new_cpuid_flags |= CPUID_INTEL ; }
             if (cpuid_is_amd())            { new_cpuid_flags |= CPUID_AMD   ; }
             if (cpuid_flag(1, 0, ECX,  9)) { new_cpuid_flags |= CPUID_SSSE3 ; }
+            cpuid_mask_avx_without_os_support(&new_cpuid_flags);
             (void)wolfSSL_Atomic_Uint_CompareExchange
                 (&cpuid_flags, &old_cpuid_flags, new_cpuid_flags);
         }
