@@ -1380,6 +1380,119 @@ then
 fi
 
 
+# Maximum-interoperability build: the feature set a deployment replacing
+# OpenSSL is expected to find, i.e. everything in --enable-all plus the
+# algorithms, protocol versions and behaviours that a default OpenSSL build
+# still ships and --enable-all leaves out.  Every setting below yields to an
+# explicit --enable-/--disable- on the same command line.
+AC_ARG_ENABLE([enterprise],
+    [AS_HELP_STRING([--enable-enterprise],[Enable maximum interoperability feature set, comparable to a default OpenSSL build (default: disabled)])],
+    [ ENABLED_ENTERPRISE=$enableval ],
+    [ ENABLED_ENTERPRISE=no ]
+    )
+if test "$ENABLED_ENTERPRISE" = "yes"
+then
+    # Everything --enable-all brings in: --enable-all-crypto,
+    # --enable-all-osp, the TLS extensions and the OpenSSL compat layer.
+    test "$enable_all" = "" && enable_all=yes
+
+    # OpenSSL 3.5 ships ML-KEM, ML-DSA and SLH-DSA in its default provider.
+    test "$enable_all_quantum_crypto" = "" && enable_all_quantum_crypto=yes
+
+    # RC2 and 3DES are the deliberate exceptions to matching OpenSSL: it
+    # still carries both for compatibility - RC2 in the legacy provider,
+    # 3DES below the default security level - but an enterprise build has
+    # no reason to ship a 64-bit block cipher.  These override the
+    # --enable-all-crypto defaults rather than following them.
+    #
+    # 3DES only actually goes away when --enable-all-osp is off: openssh,
+    # openvpn, wpas, krb, strongswan, stunnel, curl and friends set
+    # ENABLED_DES3 directly further down and win.  The 3DES TLS cipher
+    # suites stay off either way, so no TLS connection negotiates 3DES.
+    test "$enable_rc2" = "" && enable_rc2=no
+    test "$enable_des3" = "" && enable_des3=no
+
+    # SAKKE (RFC 6508) is identity-based key exchange for MIKEY-SAKKE.  It
+    # has no OpenSSL counterpart and nothing an OpenSSL deployment talks to
+    # will offer it, so --enable-all-crypto's default is overridden here.
+    # Its companion EccSI (RFC 6507) is left on.
+    test "$enable_sakke" = "" && enable_sakke=no
+
+    if test "$ENABLED_CRYPTONLY" != "yes" && \
+            test "$KERNEL_MODE_DEFAULTS" != "yes"
+    then
+        # OpenSSL compiles TLS 1.0/1.1 in and refuses them at run time
+        # through the security level rather than at build time.  SSL 3.0
+        # stays out: OpenSSL needs an explicit enable-ssl3 for that too.
+        # --enable-harden-tls forbids both of these (RFC 9325).
+        if test "$ENABLED_FIPS" = "no" && test "x$ENABLED_HARDEN_TLS" = "xno"
+        then
+            # TLS 1.0 pulls old TLS back on, so --disable-oldtls has to
+            # suppress both of these to mean anything.
+            test "$enable_oldtls" != "no" && test "$enable_tlsv10" = "" &&
+                enable_tlsv10=yes
+            test "$enable_oldtls" = "" && enable_oldtls=yes
+            # OpenSSL 3.x sets SSL_OP_LEGACY_SERVER_CONNECT by default.
+            test "$enable_legacy_server_connect" = "" &&
+                enable_legacy_server_connect=yes
+        fi
+
+        # RFC 5746 renegotiation, which OpenSSL performs by default.  The
+        # two renegotiation options are mutually exclusive.
+        test "$enable_secure_renegotiation" = "" &&
+            test "$enable_renegotiation_indication" != "yes" &&
+            enable_secure_renegotiation=yes
+
+        # SSL_export_keying_material(), RFC 5705.
+        test "$enable_keying_material" = "" && enable_keying_material=yes
+
+        # HPKE, RFC 9180, as shipped by OpenSSL 3.2 and later.
+        test "$enable_hpke" = "" && enable_hpke=yes
+    fi
+
+    if test "$ENABLED_FIPS" = "no"
+    then
+        # ShangMi (SM2/SM3/SM4) is deliberately left out even though
+        # OpenSSL has had it in the default provider since 3.0: the in-tree
+        # wolfssl/wolfcrypt/sm[234].h are stubs and the implementation comes
+        # from the separate wolfSSL/wolfsm repository.  Add --enable-sm2
+        # --enable-sm3 --enable-sm4-gcm once wolfsm is in place.
+
+        # AES-CTS and AES-GCM-SIV were added to OpenSSL's default provider
+        # in 3.0 and 3.2.
+        test "$enable_aescts" = "" && test "$enable_aescbc" != "no" &&
+            enable_aescts=yes
+        test "$enable_aesgcm_siv" = "" && test "$enable_aesgcm" != "no" &&
+            enable_aesgcm_siv=yes
+
+        # Attribute certificates, used by enterprise PKI deployments.
+        test "$enable_acert" = "" && enable_acert=yes
+
+        # "openssl ts".  Only the ASN.1 template parser encodes TSP.
+        test "$enable_tsp" = "" && test "$ASN_IMPL" = "template" &&
+            enable_tsp=yes
+
+        # "openssl smime".  Turning this on forces --enable-opensslall,
+        # which the restricted SP math build cannot supply.
+        test "$enable_smime" = "" && test "$ENABLED_SP_MATH" != "yes" &&
+            test "$ASN_IMPL" != "no" && enable_smime=yes
+    fi
+
+    # Match OpenSSL's run-time behaviour as well as its feature set: trusted
+    # peer certs, alternate chain building, PSK priority, session cache
+    # reference semantics.  --disable-openssl-compatible-defaults undoes it.
+    AM_CFLAGS="$AM_CFLAGS -DOPENSSL_COMPATIBLE_DEFAULTS"
+
+    # Compile in the system-wide crypto-policy reader, the nearest thing
+    # wolfSSL has to OpenSSL's security level and openssl.cnf.  This only
+    # makes the wolfSSL_crypto_policy_*() API available and bakes in the
+    # default policy path; nothing is read until the application calls
+    # wolfSSL_crypto_policy_enable(), so a missing policy file is not an
+    # error.  Override the path with --with-sys-crypto-policy=PATH.
+    test "$with_sys_crypto_policy" = "" && with_sys_crypto_policy=yes
+fi
+
+
 # All features, except conflicting or experimental:
 AC_ARG_ENABLE([all],
     [AS_HELP_STRING([--enable-all],[Enable all wolfSSL features, except SSLv3 (default: disabled)])],
@@ -13808,6 +13921,7 @@ echo "   * OpenSSL Coexist:            $ENABLED_OPENSSLCOEXIST"
 echo "   * Old Names:                  $ENABLED_OLDNAMES"
 echo "   * Max Strength Build:         $ENABLED_MAXSTRENGTH"
 echo "   * Distro Build:               $ENABLED_DISTRO"
+echo "   * Enterprise Build:           $ENABLED_ENTERPRISE"
 echo "   * Reproducible Build:         $ENABLED_REPRODUCIBLE_BUILD"
 echo "   * Side-channel Hardening:     $ENABLED_HARDEN"
 

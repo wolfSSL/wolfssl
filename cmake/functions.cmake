@@ -23,6 +23,19 @@ function(force_option NAME VALUE)
     set_property(GLOBAL APPEND PROPERTY WOLFSSL_FORCE_PENDING "${NAME}")
 endfunction()
 
+# Record a bundle's preferred value for an option, unless that option has
+# already been settled -- either by the user on the cmake command line (the
+# cache entry already exists) or by an outer bundle that recorded a force
+# first. This is the CMake counterpart of the `test "$enable_x" = "" &&`
+# guard configure.ac uses in --enable-all and friends: a bundle supplies a
+# default, it does not overrule a choice already made.
+function(default_option NAME VALUE)
+    get_property(_already GLOBAL PROPERTY "WOLFSSL_FORCE_${NAME}" SET)
+    if(NOT DEFINED ${NAME} AND NOT _already)
+        force_option(${NAME} "${VALUE}")
+    endif()
+endfunction()
+
 # Warn about any force_option() whose target option was never declared with
 # add_option() (so the force never took effect). Call after all options are
 # defined and before generate_build_flags().
@@ -291,6 +304,9 @@ function(generate_build_flags)
     set(BUILD_WNR ${WOLFSSL_WNR} PARENT_SCOPE)
     if(WOLFSSL_SRP OR WOLFSSL_USER_SETTINGS)
         set(BUILD_SRP "yes" PARENT_SCOPE)
+    endif()
+    if(WOLFSSL_RNG_BANK OR WOLFSSL_USER_SETTINGS)
+        set(BUILD_RNG_BANK "yes" PARENT_SCOPE)
     endif()
     set(USE_VALGRIND ${WOLFSSL_VALGRIND})
     if(WOLFSSL_MD4 OR WOLFSSL_USER_SETTINGS)
@@ -1228,6 +1244,14 @@ function(generate_lib_src_list LIB_SOURCES)
 
         if(BUILD_SRP)
             list(APPEND LIB_SOURCES wolfcrypt/src/srp.c)
+        endif()
+
+        # WOLFSSL_RNG_BANK defined WC_RNG_BANK_SUPPORT without ever adding
+        # the file that implements it, so the option only linked once
+        # something else pulled rng_bank.c in. Matches BUILD_RNG_BANK in
+        # wolfcrypt/src/include.am.
+        if(BUILD_RNG_BANK)
+            list(APPEND LIB_SOURCES wolfcrypt/src/rng_bank.c)
         endif()
 
         if(BUILD_AFALG)
