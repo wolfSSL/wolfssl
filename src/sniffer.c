@@ -7440,6 +7440,10 @@ int ssl_PollSniffer(WOLF_EVENT** events, int maxEvents, WOLF_EVENT_FLAG flags,
     int i;
     SnifferServer* srv;
 
+    if (events == NULL || pEventCount == NULL || maxEvents <= 0) {
+        return BAD_FUNC_ARG;
+    }
+
     LOCK_SERVER_LIST();
 
     /* Iterate the open sniffer sessions calling wolfSSL_CTX_AsyncPoll */
@@ -7449,7 +7453,7 @@ int ssl_PollSniffer(WOLF_EVENT** events, int maxEvents, WOLF_EVENT_FLAG flags,
         if (nMax <= 0) {
             break; /* out of room in events list */
         }
-        ret = wolfSSL_CTX_AsyncPoll(srv->ctx, events + nReady, nMax, flags,
+        ret = wolfSSL_CTX_AsyncPoll(srv->ctx, events + eventCount, nMax, flags,
                                     &nReady);
         if (ret == 0) {
             eventCount += nReady;
