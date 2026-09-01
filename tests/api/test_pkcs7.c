@@ -4443,11 +4443,12 @@ int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
         pkcs7->singleCert = NULL;
     }
   #ifndef NO_RSA
-    /* With corrupted singleCert, decode should fail with a parse error.
-     * State is properly reset on error so re-decode starts from scratch. */
+    /* With singleCert cleared no KeyTransRecipientInfo can match, so the
+     * decode says so. Was ASN_PARSE_E before the search was bounded by the
+     * RecipientInfo set. State resets, so re-decode starts from scratch. */
     ExpectIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
         (word32)sizeof(output), decoded, (word32)sizeof(decoded)),
-        WC_NO_ERR_TRACE(ASN_PARSE_E));
+        WC_NO_ERR_TRACE(PKCS7_RECIP_E));
   #endif /* !NO_RSA */
     if (pkcs7 != NULL) {
         pkcs7->singleCert = tmpBytePtr;
@@ -6011,6 +6012,93 @@ int test_wc_PKCS7_BER(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_PKCS7_BER() */
+
+/* A BER RecipientInfo SET may carry an indefinite length, which
+ * wc_PKCS7_ParseToRecipientInfoSet reports as a set size of 0. A search bound
+ * computed from that lands on the start of the set and stops the walk before
+ * the first recipient, so such a message decodes to PKCS7_RECIP_E.
+ *
+ * berContent has indefinite outer structures but a definite RecipientInfo SET,
+ * so the vector is rewritten here: 31 82 01 54 becomes 31 80, the content
+ * shifts down two bytes and an end-of-contents pair closes the set. Every
+ * enclosing structure is already indefinite, so no other length moves and the
+ * message stays the same size.
+ *
+ * The decode then unwraps the recipient key and stops at the end-of-contents
+ * pair, which nothing steps over, so EncryptedContentInfo is read from the two
+ * zero bytes: ASN_PARSE_E, as on the merge base. Decoding an indefinite set
+ * through to the plaintext needs that step-over and is not part of this change.
+ * The assertion is exact so that both a walk that stops early (PKCS7_RECIP_E)
+ * and a later step-over fail here rather than pass quietly.
+ *
+ * SP math is excluded: it cannot do the vector's 1024-bit RSA key, and the fake
+ * CEK substituted for that failure makes the outcome non-deterministic. */
+int test_wc_PKCS7_IndefiniteRecipientSet(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) && \
+    defined(ASN_BER_TO_DER) && !defined(NO_DES3) && !defined(NO_SHA) && \
+    !defined(NO_PKCS7_STREAM) && !defined(WOLFSSL_SP_MATH)
+    wc_PKCS7* pkcs7 = NULL;
+    byte* ber = NULL;
+    byte  decoded[2048];
+    byte  cert[2048];
+    byte  key[2048];
+    word32 certSz = 0;
+    word32 keySz = 0;
+    XFILE f = XBADFILE;
+    int ret = 0;
+    word32 setOff = 20;   /* 31 82 01 54, the RecipientInfo SET header */
+    word32 setLen = 340;  /* 0x0154 */
+
+    ExpectTrue((f = XFOPEN("./certs/1024/client-cert.der", "rb")) != XBADFILE);
+    ExpectTrue((certSz = (word32)XFREAD(cert, 1, sizeof(cert), f)) > 0);
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+    ExpectTrue((f = XFOPEN("./certs/1024/client-key.der", "rb")) != XBADFILE);
+    ExpectTrue((keySz = (word32)XFREAD(key, 1, sizeof(key), f)) > 0);
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+
+    /* Confirm the vector still has the header this rewrite expects, so the
+     * test fails loudly rather than silently checking nothing. */
+    ExpectIntEQ(berContent[setOff], 0x31);
+    ExpectIntEQ(berContent[setOff + 1], 0x82);
+    ExpectIntEQ(berContent[setOff + 2], 0x01);
+    ExpectIntEQ(berContent[setOff + 3], 0x54);
+    ExpectIntGE((int)sizeof(berContent), (int)(setOff + setLen + 4));
+
+    ExpectNotNull(ber = (byte*)XMALLOC(sizeof(berContent), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (ber != NULL) {
+        XMEMCPY(ber, berContent, sizeof(berContent));
+        ber[setOff + 1] = 0x80;
+        XMEMMOVE(ber + setOff + 2, ber + setOff + 4, setLen);
+        ber[setOff + 2 + setLen]     = 0x00;
+        ber[setOff + 2 + setLen + 1] = 0x00;
+    }
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->privateKey   = key;
+        pkcs7->privateKeySz = keySz;
+    }
+    if (EXPECT_SUCCESS()) {
+        ret = wc_PKCS7_DecodeEnvelopedData(pkcs7, ber, sizeof(berContent),
+            decoded, sizeof(decoded));
+        ExpectIntEQ(ret, WC_NO_ERR_TRACE(ASN_PARSE_E));
+    }
+
+    wc_PKCS7_Free(pkcs7);
+    XFREE(ber, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
 
 int test_wc_PKCS7_signed_enveloped(void)
 {
