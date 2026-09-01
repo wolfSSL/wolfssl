@@ -9,6 +9,7 @@ BUILD_PROFILE ?= debug
 CONFIG_NAME ?= $(PLATFORM)-$(BUILD_PROFILE)
 OUTPUT_DIR = build/$(CONFIG_NAME)
 TARGET = $(OUTPUT_DIR)/$(ARTIFACT)
+TEST_TARGET = $(OUTPUT_DIR)/test_partition_bounds.o
 
 #Compiler definitions
 
@@ -66,6 +67,14 @@ $(TARGET):$(OBJS)
 
 #Rules section for default compilation and linking
 all: $(TARGET)
+
+.PHONY: test
+test: $(TEST_TARGET)
+
+$(TEST_TARGET): test_partition_bounds.c \
+        ../../../wolfssl/wolfcrypt/port/caam/caam_driver.h
+	@mkdir -p $(dir $@)
+	$(CC) -c -o $@ $(INCLUDES) $(CCFLAGS_all) $(CCFLAGS) $<
 
 clean:
 	rm -fr $(OUTPUT_DIR)

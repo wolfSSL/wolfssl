@@ -60,6 +60,12 @@
 
 #define CAAM_PAGE_MAX 6
 
+#if defined(__QNX__) || defined(__QNXNTO__)
+    #define CAAM_QNX_MAX_PARTITIONS 16U
+    #define CAAM_QNX_PARTITION_IS_VALID(part) \
+        ((unsigned int)(part) < CAAM_QNX_MAX_PARTITIONS)
+#endif
+
 /* max size of 64 word32's */
 #define CAAM_DESC_MAX 256
 

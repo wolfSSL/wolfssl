@@ -64,8 +64,9 @@ sem_t localMemSem;
 
 /* keep track of which ID memory belongs to so it can be free'd up */
 #define MAX_PART 7
+#define MAX_OWNER_PART CAAM_QNX_MAX_PARTITIONS
 pthread_mutex_t sm_mutex;
-CAAM_ADDRESS sm_ownerId[MAX_PART];
+CAAM_ADDRESS sm_ownerId[MAX_OWNER_PART];
 
 /* variables for I/O of resource manager */
 resmgr_connect_funcs_t connect_funcs;
@@ -935,6 +936,11 @@ static int doECDSA_KEYPAIR(resmgr_context_t *ctp, io_devctl_t *msg,
         }
     }
 
+    if (ret == EOK && args[0] == CAAM_BLACK_KEY_SM &&
+            !CAAM_QNX_PARTITION_IS_VALID(args[2])) {
+        ret = EBADMSG;
+    }
+
     if (ret == EOK) {
         SETIOV(&out_iovs[0], tmp[0].TheAddress, privSz);
         SETIOV(&out_iovs[1], tmp[1].TheAddress, keySz * 2);
@@ -1363,13 +1369,16 @@ static int doFIFO_S(resmgr_context_t *ctp, io_devctl_t *msg,
 static int doGET_PART(resmgr_context_t *ctp, io_devctl_t *msg,
         unsigned int args[4], unsigned int idx, iofunc_ocb_t *ocb)
 {
-    int partNumber;
+    unsigned int partNumber;
     int partSz;
     CAAM_ADDRESS partAddr;
     iov_t out_iov;
 
     partNumber = args[0];
     partSz     = args[1];
+
+    if (!CAAM_QNX_PARTITION_IS_VALID(partNumber))
+        return EBADMSG;
 
     partAddr = caamGetPartition(partNumber, partSz, 0);
     if (partAddr == 0) {
@@ -1564,7 +1573,15 @@ int io_devctl (resmgr_context_t *ctp, io_devctl_t *msg, iofunc_ocb_t *ocb)
             break;
 
         case WC_CAAM_FREE_PART:
-            caamFreePart(args[0]);
+            if (!CAAM_QNX_PARTITION_IS_VALID(args[0])) {
+                ret = EBADMSG;
+                break;
+            }
+
+            if (caamFreePart(args[0]) != Success) {
+                ret = ECANCELED;
+                break;
+            }
 
             if (pthread_mutex_lock(&sm_mutex) != EOK) {
                 ret = ECANCELED;
@@ -1623,7 +1640,7 @@ int io_close_ocb(resmgr_context_t *ctp, void *reserved, RESMGR_OCB_T *ocb)
         return ECANCELED;
     }
     else {
-        for (i = 0; i < MAX_PART; i++) {
+        for (i = 0; i < MAX_OWNER_PART; i++) {
             if (sm_ownerId[i] == (CAAM_ADDRESS)ocb) {
                 sm_ownerId[i] = 0;
             #if defined(WOLFSSL_CAAM_DEBUG) || defined(WOLFSSL_CAAM_PRINT)
@@ -1712,7 +1729,7 @@ int main(int argc, char *argv[])
     int i;
 
     pthread_mutex_init(&sm_mutex, NULL);
-    for (i = 0; i < MAX_PART; i++) {
+    for (i = 0; i < MAX_OWNER_PART; i++) {
         sm_ownerId[i] = 0;
     }
 
