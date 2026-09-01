@@ -179,6 +179,7 @@ struct PKCS7State {
     word32 currContRmnSz; /* remaining size of current content */
     word32 accumContSz;   /* size of accumulated content size */
     int recipientSz; /* size of recipient set */
+    word32 recipientStart; /* index the recipient set starts at */
     byte tmpIv[MAX_CONTENT_IV_SIZE]; /* store IV if needed */
 #ifdef WC_PKCS7_STREAM_DEBUG
     word32 peakUsed; /* most bytes used for struct at any one time */
@@ -13796,9 +13797,13 @@ static int wc_PKCS7_DecryptKari(wc_PKCS7* pkcs7, byte* in, word32 inSz,
 
 
 /* decode ASN.1 RecipientInfos SET, return 0 on success, < 0 on error */
+/* setEnd is in/out, non-NULL: index just past the last RecipientInfo, or 0
+ * when unknown. Without it a KeyTransRecipientInfo cannot be told from the
+ * EncryptedContentInfo that follows, both being a bare SEQUENCE. */
 static int wc_PKCS7_DecryptRecipientInfos(wc_PKCS7* pkcs7, byte* in,
                             word32  inSz, word32* idx, byte* decryptedKey,
-                            word32* decryptedKeySz, int* recipFound)
+                            word32* decryptedKeySz, int* recipFound,
+                            word32* setEnd)
 {
     word32 savedIdx;
     int version, ret = 0, length;
@@ -13811,7 +13816,7 @@ static int wc_PKCS7_DecryptRecipientInfos(wc_PKCS7* pkcs7, byte* in,
 
     if (pkcs7 == NULL || pkiMsg == NULL || idx == NULL ||
         decryptedKey == NULL || decryptedKeySz == NULL ||
-        recipFound == NULL) {
+        recipFound == NULL || setEnd == NULL) {
         return BAD_FUNC_ARG;
     }
 
@@ -13867,15 +13872,28 @@ static int wc_PKCS7_DecryptRecipientInfos(wc_PKCS7* pkcs7, byte* in,
     }
 
     savedIdx = *idx;
-#ifndef NO_PKCS7_STREAM
-    pkiMsgSz = (pkcs7->stream->length > 0)? pkcs7->stream->length: inSz;
-    if (pkcs7->stream->length > 0)
-        pkiMsg = pkcs7->stream->buffer;
-#endif
 
     /* when looking for next recipient, use first sequence and version to
      * indicate there is another, if not, move on */
     while (*recipFound == 0) {
+
+        /* stop at the end of the set, not at the EncryptedContentInfo */
+        if ((*setEnd != 0) && (*idx >= *setEnd)) {
+            break;
+        }
+
+    #ifndef NO_PKCS7_STREAM
+        /* a handler may have moved the stream buffer; re-read pointer and
+         * bound */
+        if (pkcs7->stream->length > 0) {
+            pkiMsg   = pkcs7->stream->buffer;
+            pkiMsgSz = pkcs7->stream->length;
+        }
+        else {
+            pkiMsg   = in;
+            pkiMsgSz = inSz;
+        }
+    #endif
 
         /* remove RecipientInfo, if we don't have a SEQUENCE, back up idx to
          * last good saved one */
@@ -13894,6 +13912,8 @@ static int wc_PKCS7_DecryptRecipientInfos(wc_PKCS7* pkcs7, byte* in,
                                       recipFound);
             if (ret != 0) {
                 if (ret != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E) &&
+                        ret != WC_NO_ERR_TRACE(MEMORY_E) &&
+                        ret != WC_NO_ERR_TRACE(BUFFER_E) &&
                         *recipFound == 0) {
                     continue; /* try next recipient */
                 }
@@ -14348,6 +14368,7 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
     word32 idx = 0;
     word32 tmpIdx = 0;
     word32 recipientSetSz = 0;
+    word32 setEnd = 0;
     word32 contentType = 0, encOID = 0;
     word32 decryptedKeySz = MAX_ENCRYPTED_KEY_SZ;
 
@@ -14433,6 +14454,9 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                     pkcs7->stream->expected, &pkiMsg, &idx)) != 0) {
                 return ret;
             }
+            /* Record the start only now: wc_PKCS7_AddDataToStream picks the
+             * buffer, so an earlier index is in the wrong coordinate space. */
+            pkcs7->stream->recipientStart = idx;
         #endif
             FALL_THROUGH;
 
@@ -14448,9 +14472,22 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             decryptedKeySz = MAX_ENCRYPTED_KEY_SZ;
             tmpIdx = idx;
         #endif
+        #ifndef NO_PKCS7_STREAM
+            /* A zero size is an indefinite-length BER set, whose end is not
+             * known here; leave the bound off rather than place it at the
+             * start of the set. */
+            if (pkcs7->stream->recipientSz > 0) {
+                setEnd = pkcs7->stream->recipientStart +
+                         (word32)pkcs7->stream->recipientSz;
+            }
+        #else
+            if (recipientSetSz > 0) {
+                setEnd = tmpIdx + recipientSetSz;
+            }
+        #endif
             ret = wc_PKCS7_DecryptRecipientInfos(pkcs7, in, inSz, &idx,
                                         decryptedKey, &decryptedKeySz,
-                                        &recipFound);
+                                        &recipFound, &setEnd);
             if (ret == 0 && recipFound == 0) {
                 WOLFSSL_MSG(
                       "No recipient found in envelopedData that matches input");
@@ -14461,7 +14498,9 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                 break;
         #ifndef NO_PKCS7_STREAM
             /* advance idx past recipient info set if not all recipients
-             * parsed */
+             * parsed. NOTE: only right while the whole set is read in one
+             * piece; three or more recipients fed in small chunks still fail
+             * for a recipient that is not the first. */
             if (pkcs7->stream->totalRd < ((word32)pkcs7->stream->recipientSz +
                     tmpIdx)) {
                 idx = tmpIdx + (word32)pkcs7->stream->recipientSz;
@@ -15745,6 +15784,7 @@ int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
 #ifndef NO_PKCS7_STREAM
     word32 tmpIdx = 0;
 #endif
+    word32 setEnd = 0;
     word32 contentType = 0, encOID = 0;
     word32 decryptedKeySz = 0;
     byte* pkiMsg = in;
@@ -15840,7 +15880,7 @@ int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
 
             ret = wc_PKCS7_DecryptRecipientInfos(pkcs7, in, inSz, &idx,
                                                 decryptedKey, &decryptedKeySz,
-                                                &recipFound);
+                                                &recipFound, &setEnd);
             if (ret != 0) {
                 break;
             }

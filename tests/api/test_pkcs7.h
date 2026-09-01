@@ -58,6 +58,7 @@ int test_wc_PKCS7_VerifySignedData_ECC(void);
 int test_wc_PKCS7_VerifySignedData_ECC_TamperedAttribs(void);
 int test_wc_PKCS7_DecodeEnvelopedData_stream(void);
 int test_wc_PKCS7_EncodeDecodeEnvelopedData(void);
+int test_wc_PKCS7_IndefiniteRecipientSet(void);
 int test_wc_PKCS7_SetAESKeyWrapUnwrapCb(void);
 int test_wc_PKCS7_GetEnvelopedDataKariRid(void);
 int test_wc_PKCS7_EncodeEncryptedData(void);
@@ -155,6 +156,7 @@ int test_wc_PKCS7_VerifySignedData_NoDigestParams(void);
 #define TEST_PKCS7_ENCRYPTED_DATA_DECLS                                     \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeEnvelopedData_stream),  \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_EncodeDecodeEnvelopedData),   \
+    TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_IndefiniteRecipientSet),      \
     TEST_PKCS7_RSA_PSS_ED_DECL                                              \
     TEST_PKCS7_KTRI_BADRSAPAD_DECL                                          \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_SetAESKeyWrapUnwrapCb),       \
