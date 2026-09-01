@@ -1461,15 +1461,16 @@ static void wb_misc_guards2(void)
     WB_NOTE("wc_PKCS7_DecryptRecipientInfos(): NULL guard [:13744]");
     {
         word32 idx = 0, decryptedKeySz = sizeof(out);
+        word32 setEndWb = 0;
         int recipFound = 0;
         ret = wc_PKCS7_DecryptRecipientInfos(NULL, out, outSz, &idx, out,
-                &decryptedKeySz, &recipFound);
+                &decryptedKeySz, &recipFound, &setEndWb);
         WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), ":13744 pkcs7==NULL");
         ret = wc_PKCS7_DecryptRecipientInfos(&pkcs7, NULL, outSz, &idx, out,
-                &decryptedKeySz, &recipFound);
+                &decryptedKeySz, &recipFound, &setEndWb);
         WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), ":13744 in==NULL");
         ret = wc_PKCS7_DecryptRecipientInfos(&pkcs7, out, outSz, NULL, out,
-                &decryptedKeySz, &recipFound);
+                &decryptedKeySz, &recipFound, &setEndWb);
         WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), ":13744 idx==NULL");
     }
 
