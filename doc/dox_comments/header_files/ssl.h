@@ -3059,7 +3059,11 @@ int wolfSSL_GetSessionAtIndex(int index, WOLFSSL_SESSION* session);
     side. Server mode: the verification is the same as
     SSL_VERIFY_FAIL_IF_NO_PEER_CERT except in the case of a PSK connection.
     If a PSK connection is being made then the connection will go through
-    without a peer cert.
+    without a peer cert. SSL_VERIFY_CLIENT_ONCE Accepted and ignored. It is
+    present so that OpenSSL-derived code compiles unchanged; wolfSSL does not
+    act on it, does not store it, and wolfSSL_get_verify_mode() /
+    wolfSSL_CTX_get_verify_mode() will not report it back. Including it in
+    mode has no effect on any of the other flags.
 
     \return none No return.
 
@@ -3107,7 +3111,11 @@ void wolfSSL_CTX_set_verify(WOLFSSL_CTX* ctx, int mode,
     side. Server mode: the verification is the same as
     SSL_VERIFY_FAIL_IF_NO_PEER_CERT except in the case of a PSK connection.
     If a PSK connection is being made then the connection will go through
-    without a peer cert.
+    without a peer cert. SSL_VERIFY_CLIENT_ONCE Accepted and ignored. It is
+    present so that OpenSSL-derived code compiles unchanged; wolfSSL does not
+    act on it, does not store it, and wolfSSL_get_verify_mode() /
+    wolfSSL_CTX_get_verify_mode() will not report it back. Including it in
+    mode has no effect on any of the other flags.
 
     \return none No return.
 

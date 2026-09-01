@@ -558,6 +558,14 @@ typedef struct {
 
 /* Convert the mode flags into certificate verification options.
  *
+ * WOLFSSL_VERIFY_CLIENT_ONCE is accepted and deliberately ignored - it has no
+ * corresponding option here, is not stored anywhere, and therefore cannot be
+ * read back by wolfSSL_[CTX_]get_verify_mode(). See the note on the enumerator
+ * in wolfssl/ssl.h.
+ *
+ * Note that WOLFSSL_VERIFY_NONE is matched by equality, not as a bit: a mode
+ * of (WOLFSSL_VERIFY_NONE | WOLFSSL_VERIFY_PEER) verifies the peer.
+ *
  * @param [in] mode  Certificate verification mode flags.
  * @return  Certificate verification options.
  */
@@ -2503,7 +2511,9 @@ VerifyCallback wolfSSL_CTX_get_verify_callback(WOLFSSL_CTX* ctx)
 
 /* Get the verification mode set on the object.
  *
- * TODO: Doesn't currently track SSL_VERIFY_CLIENT_ONCE.
+ * WOLFSSL_VERIFY_CLIENT_ONCE is never reported: wolfSSL_set_verify() accepts
+ * and ignores it rather than storing it. Neither is WOLFSSL_VERIFY_DEFAULT -
+ * it clears every option, so a mode of 0 is returned for it.
  *
  * @param [in] ssl  SSL/TLS object.
  * @return  Bitmask of WOLFSSL_VERIFY_* flags on success.
@@ -2545,6 +2555,11 @@ int wolfSSL_get_verify_mode(const WOLFSSL* ssl)
 }
 
 /* Get the verification mode set on the context.
+ *
+ * WOLFSSL_VERIFY_CLIENT_ONCE is never reported: wolfSSL_CTX_set_verify()
+ * accepts and ignores it rather than storing it. Neither is
+ * WOLFSSL_VERIFY_DEFAULT - it clears every option, so a mode of 0 is
+ * returned for it.
  *
  * @param [in] ctx  SSL/TLS context object.
  * @return  Bitmask of WOLFSSL_VERIFY_* flags on success.
