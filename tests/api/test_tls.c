@@ -613,9 +613,12 @@ int test_tls_get_peer_tmp_key(void)
 }
 
 /* The group APIs are not EC-only, so each part of the test below carries just
- * the configuration it needs. */
+ * the configuration it needs. The second condition is the one the APIs
+ * themselves are built under - without an EC group or DH they do not exist. */
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
-    defined(WOLFSSL_TLS13)
+    defined(WOLFSSL_TLS13) && (defined(HAVE_ECC) || \
+    defined(HAVE_CURVE25519) || defined(HAVE_CURVE448) || !defined(NO_DH))
+    #define TEST_NEGOTIATED_GROUP
     #if defined(HAVE_ECC) && !defined(NO_ECC_SECP) && \
         (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES))
         #define TEST_NEGOTIATED_GROUP_P256
@@ -662,8 +665,7 @@ static unsigned int test_tls_group_psk_server_cb(WOLFSSL* ssl, const char* id,
 int test_tls_get_negotiated_group(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
-    defined(WOLFSSL_TLS13)
+#ifdef TEST_NEGOTIATED_GROUP
 
     ExpectIntEQ(wolfSSL_get_negotiated_group(NULL), 0);
 
