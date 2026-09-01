@@ -1,5 +1,9 @@
 # wolfSSL Release (unreleased)
 
+## Post-Quantum Cryptography (PQC)
+
+* Added ML-KEM (FIPS 203) key OIDs, SubjectPublicKeyInfo and PKCS#8 encoding, and X.509 certificate support, including issuing an ML-KEM certificate with `wc_MakeCert_ex`. by @Frauschi
+
 ## Behavioral Changes
 
 * **Behavioral change (`wc_PufReadSram` health tests the raw SRAM readout)**:
