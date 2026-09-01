@@ -172,8 +172,6 @@ impl TryFrom<&PasswordHash> for Params {
 /// # Example
 ///
 /// ```rust
-/// #[cfg(kdf_scrypt)]
-/// {
 /// use password_hash::PasswordHasher;
 /// use wolfssl_wolfcrypt::scrypt_password_hash::{Params, Scrypt};
 ///
@@ -184,7 +182,6 @@ impl TryFrom<&PasswordHash> for Params {
 /// let salt = b"0123456789abcdef"; // 16 bytes
 /// let hash = hasher.hash_password_with_salt(b"password", salt)
 ///     .expect("hashing failed");
-/// }
 /// ```
 #[derive(Clone, Debug, Default)]
 pub struct Scrypt {
