@@ -112,6 +112,9 @@ static int caamTestSemDestroy(sem_t* sem);
 static int caamTestReadSz;
 static int caamTestAesCalls;
 static int caamTestFreeCalls;
+static int caamTestGetPartitionCalls;
+static int caamTestEcdsaCalls;
+static unsigned int caamTestEcdsaPartition;
 static const unsigned char* caamTestReadData;
 static size_t caamTestReadDataSz;
 
@@ -210,6 +213,7 @@ static CAAM_ADDRESS caamTestGetPartition(unsigned int part, int partSz,
     (void)part;
     (void)partSz;
     (void)flag;
+    caamTestGetPartitionCalls++;
     return 0;
 }
 
@@ -248,8 +252,9 @@ static int caamTestECDSAMake(DESCSTRUCT* desc, CAAM_BUFFER* buf,
 {
     (void)desc;
     (void)buf;
-    (void)args;
-    return Failure;
+    caamTestEcdsaCalls++;
+    args[2] = caamTestEcdsaPartition;
+    return Success;
 }
 
 static int caamTestECDSASign(DESCSTRUCT* desc, int sz,
@@ -357,6 +362,68 @@ static int testRejectOversizedRequest(void)
     return ret == EBADMSG && caamTestAesCalls == 0 ? 0 : 1;
 }
 
+static int testRejectInvalidPartitionIndex(void)
+{
+    resmgr_context_t ctp;
+    io_devctl_t msg;
+    iofunc_ocb_t ocb;
+    unsigned int args[4];
+    int ret;
+    int i;
+
+    memset(&ctp, 0, sizeof(ctp));
+    memset(&msg, 0, sizeof(msg));
+    memset(&ocb, 0, sizeof(ocb));
+    for (i = 0; i < MAX_OWNER_PART; i++)
+        sm_ownerId[i] = 0;
+
+    if (!CAAM_QNX_PARTITION_IS_VALID(0U) ||
+            !CAAM_QNX_PARTITION_IS_VALID(CAAM_QNX_MAX_PARTITIONS - 1U) ||
+            CAAM_QNX_PARTITION_IS_VALID(CAAM_QNX_MAX_PARTITIONS) ||
+            CAAM_QNX_PARTITION_IS_VALID(~0U)) {
+        return 1;
+    }
+
+    memset(args, 0, sizeof(args));
+    args[0] = CAAM_QNX_MAX_PARTITIONS;
+    args[1] = 1U;
+    caamTestGetPartitionCalls = 0;
+    ret = doGET_PART(&ctp, &msg, args, 0U, &ocb);
+    if (ret != EBADMSG || caamTestGetPartitionCalls != 0)
+        return 1;
+
+    memset(args, 0, sizeof(args));
+    args[0] = CAAM_BLACK_KEY_SM;
+    args[3] = 16U;
+    caamTestEcdsaPartition = CAAM_QNX_MAX_PARTITIONS;
+    caamTestEcdsaCalls = 0;
+    ret = doECDSA_KEYPAIR(&ctp, &msg, args, 0U, &ocb);
+    if (ret != EBADMSG || caamTestEcdsaCalls != 1)
+        return 1;
+
+    for (i = 0; i < MAX_OWNER_PART; i++) {
+        if (sm_ownerId[i] != 0)
+            return 1;
+    }
+
+    memset(args, 0, sizeof(args));
+    args[0] = CAAM_QNX_MAX_PARTITIONS;
+    ctp.size = sizeof(msg.i) + sizeof(args);
+    msg.i.dcmd = WC_CAAM_FREE_PART;
+    caamTestFreeCalls = 0;
+    caamTestReadData = (const unsigned char*)args;
+    caamTestReadDataSz = sizeof(args);
+    caamTestReadSz = sizeof(args);
+    ret = io_devctl(&ctp, &msg, &ocb);
+    caamTestReadData = NULL;
+    caamTestReadDataSz = 0U;
+
+    if (ret != EBADMSG || caamTestFreeCalls != 0)
+        return 1;
+
+    return 0;
+}
+
 static int testRejectOtherOwnerPartitionAccess(void)
 {
     resmgr_context_t ctp;
@@ -405,6 +472,27 @@ static int testRejectOtherOwnerPartitionAccess(void)
     return 0;
 }
 
+static int testRejectInvalidPartitionRange(void)
+{
+    CAAM_ADDRESS lastPart;
+
+    lastPart = CAAM_PAGE +
+        ((CAAM_QNX_MAX_PARTITIONS - 1U) * CAAM_PAGE_SZ);
+
+    if (sanityCheckPartitionAddress(CAAM_PAGE + CAAM_PAGE_SZ - 1U, 2) == 0)
+        return 1;
+    if (sanityCheckPartitionAddress(CAAM_PAGE, 0) == 0)
+        return 1;
+    if (sanityCheckPartitionAddress(lastPart + CAAM_PAGE_SZ, 1) == 0)
+        return 1;
+    if (sanityCheckPartitionAddress(lastPart, CAAM_PAGE_SZ) != 0)
+        return 1;
+    if (sanityCheckPartitionAddress(CAAM_PAGE + 32U, 64) != 0)
+        return 1;
+
+    return 0;
+}
+
 #ifdef CAAM_QNX_TEST_HOST
     #undef sem_destroy
     #undef sem_init
@@ -424,8 +512,16 @@ int main(void)
         printf("testRejectOversizedRequest: FAIL\n");
         return 1;
     }
+    if (testRejectInvalidPartitionIndex() != 0) {
+        printf("testRejectInvalidPartitionIndex: FAIL\n");
+        return 1;
+    }
     if (testRejectOtherOwnerPartitionAccess() != 0) {
         printf("testRejectOtherOwnerPartitionAccess: FAIL\n");
+        return 1;
+    }
+    if (testRejectInvalidPartitionRange() != 0) {
+        printf("testRejectInvalidPartitionRange: FAIL\n");
         return 1;
     }
 
@@ -433,6 +529,8 @@ int main(void)
 
     printf("testRejectIncompleteRequest: PASS\n");
     printf("testRejectOversizedRequest: PASS\n");
+    printf("testRejectInvalidPartitionIndex: PASS\n");
     printf("testRejectOtherOwnerPartitionAccess: PASS\n");
+    printf("testRejectInvalidPartitionRange: PASS\n");
     return 0;
 }
