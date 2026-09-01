@@ -57,6 +57,10 @@ static int caamTestEntropy(unsigned char* out, int outSz);
 static int caamTestFindUnusedPartition(void);
 static int caamTestKeyCover(DESCSTRUCT* desc, int sz,
         unsigned int args[4]);
+static void* caamTestMmap(void* addr, size_t len, int prot, int flags,
+        int fd, off_t offset);
+static int caamTestMunmap(void* addr, size_t len);
+static int caamTestMsync(void* addr, size_t len, int flags);
 
 #ifdef CAAM_QNX_TEST_HOST
 static int caamTestSemTryWait(sem_t* sem);
@@ -86,12 +90,18 @@ static int caamTestSemDestroy(sem_t* sem);
 #define caamEntropy caamTestEntropy
 #define caamFindUnusedPartition caamTestFindUnusedPartition
 #define caamKeyCover caamTestKeyCover
+#define mmap caamTestMmap
+#define munmap caamTestMunmap
+#define msync caamTestMsync
 #define main caamQnxServerMain
 #ifndef CAAM_QNX_SOURCE
     #define CAAM_QNX_SOURCE "../../../wolfcrypt/src/port/caam/caam_qnx.c"
 #endif
 #include CAAM_QNX_SOURCE
 #undef main
+#undef msync
+#undef munmap
+#undef mmap
 #undef caamKeyCover
 #undef caamFindUnusedPartition
 #undef caamEntropy
@@ -117,6 +127,10 @@ static int caamTestEcdsaCalls;
 static unsigned int caamTestEcdsaPartition;
 static const unsigned char* caamTestReadData;
 static size_t caamTestReadDataSz;
+static unsigned char caamTestMappedBuffer[64];
+static size_t caamTestMappedLen;
+static size_t caamTestMappedSensitiveLen;
+static int caamTestMappedWasCleared;
 
 #ifdef CAAM_QNX_TEST_HOST
 static int caamTestSemaphore;
@@ -152,6 +166,48 @@ static int caamTestSemDestroy(sem_t* sem)
     return 0;
 }
 #endif
+
+static void* caamTestMmap(void* addr, size_t len, int prot, int flags,
+        int fd, off_t offset)
+{
+    (void)addr;
+    (void)prot;
+    (void)flags;
+    (void)fd;
+    (void)offset;
+
+    if (len > sizeof(caamTestMappedBuffer))
+        return MAP_FAILED;
+
+    caamTestMappedLen = len;
+    return caamTestMappedBuffer;
+}
+
+static int caamTestMunmap(void* addr, size_t len)
+{
+    size_t i;
+
+    if (addr == (void*)caamTestMappedBuffer && len == caamTestMappedLen) {
+        caamTestMappedWasCleared = 1;
+        for (i = 0; i < caamTestMappedSensitiveLen; i++) {
+            if (caamTestMappedBuffer[i] != 0) {
+                caamTestMappedWasCleared = 0;
+                break;
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int caamTestMsync(void* addr, size_t len, int flags)
+{
+    (void)addr;
+    (void)len;
+    (void)flags;
+
+    return 0;
+}
 
 static ssize_t caamTestMsgReadv(resmgr_context_t* ctp, iov_t* iov,
         int parts, size_t offset)
@@ -346,6 +402,45 @@ static int testRejectIncompleteRequest(void)
     return 0;
 }
 
+static int testClearMappedRequest(void)
+{
+    resmgr_context_t ctp;
+    io_devctl_t msg;
+    unsigned char request[48];
+    unsigned int args[4] = {0U, 16U, 16U, 0U};
+    int ret;
+
+    memset(&ctp, 0, sizeof(ctp));
+    memset(&msg, 0, sizeof(msg));
+    memset(request, 0xA5, sizeof(request));
+    memset(caamTestMappedBuffer, 0xA5, sizeof(caamTestMappedBuffer));
+    if (sem_init(&localMemSem, 0, 0) != 0)
+        return 1;
+
+    localMemory = NULL;
+    localPhy = 0U;
+    caamTestReadData = request;
+    caamTestReadDataSz = sizeof(request);
+    caamTestReadSz = sizeof(request);
+    caamTestAesCalls = 0;
+    caamTestMappedLen = 0U;
+    caamTestMappedSensitiveLen = sizeof(request);
+    caamTestMappedWasCleared = 0;
+    ret = doAES(&ctp, &msg, args, 0U, WC_CAAM_AESCBC);
+    caamTestReadData = NULL;
+    caamTestReadDataSz = 0U;
+
+    if (sem_destroy(&localMemSem) != 0)
+        return 1;
+    if (ret != ECANCELED || caamTestAesCalls != 1 ||
+            caamTestMappedLen != sizeof(caamTestMappedBuffer) ||
+            !caamTestMappedWasCleared) {
+        return 1;
+    }
+
+    return 0;
+}
+
 static int testRejectOversizedRequest(void)
 {
     resmgr_context_t ctp;
@@ -508,6 +603,10 @@ int main(void)
         printf("testRejectIncompleteRequest: FAIL\n");
         return 1;
     }
+    if (testClearMappedRequest() != 0) {
+        printf("testClearMappedRequest: FAIL\n");
+        return 1;
+    }
     if (testRejectOversizedRequest() != 0) {
         printf("testRejectOversizedRequest: FAIL\n");
         return 1;
@@ -528,6 +627,7 @@ int main(void)
     (void)pthread_mutex_destroy(&sm_mutex);
 
     printf("testRejectIncompleteRequest: PASS\n");
+    printf("testClearMappedRequest: PASS\n");
     printf("testRejectOversizedRequest: PASS\n");
     printf("testRejectInvalidPartitionIndex: PASS\n");
     printf("testRejectOtherOwnerPartitionAccess: PASS\n");
