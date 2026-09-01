@@ -17344,10 +17344,8 @@ static int DoCertReqCtx(WOLFSSL* ssl, ProcPeerCertArgs* args,
 /* Check that a chain-supplied CA is authorized for the TLS purpose currently
  * being validated: serverAuth when this side is authenticating a server,
  * clientAuth when authenticating a client. An absent extension leaves every
- * purpose valid, and anyExtendedKeyUsage removes the restriction. A trust
- * anchor is exempt, matching the exemption AddCA() makes for the Key Usage of
- * a root; the test below is what tells an anchor apart from a certificate that
- * is merely self-issued. Returns 0 when the CA may be used, EXTKEYUSE_AUTH_E
+ * purpose valid, and anyExtendedKeyUsage removes the restriction. A self-signed
+ * trust anchor is exempt. Returns 0 when the CA may be used, EXTKEYUSE_AUTH_E
  * when it may not. */
 static int CheckChainCAExtKeyUsage(const WOLFSSL* ssl, const DecodedCert* cert)
 {
@@ -17356,22 +17354,10 @@ static int CheckChainCAExtKeyUsage(const WOLFSSL* ssl, const DecodedCert* cert)
     if (!cert->extExtKeyUsageSet)
         return 0;
 
-    /* A trust anchor the operator loaded is exempt: RFC 5280 6.1 keeps the
-     * anchor outside the prospective certification path. cert->selfSigned is
-     * only an issuer/subject name compare, so the anchor's public key has to
-     * match as well. A self-issued CA key rollover certificate (RFC 4210
-     * OldWithNew) carries the same names but a different key, is signed by the
-     * anchor rather than by itself, and stays subject to this check. This is
-     * the same anchor test ParseCertRelative() uses to exclude the anchor from
-     * the RFC 5280 6.1.4(l) pathlen walk. cert->ca is always set by the time a
-     * chain certificate verifies, so the NULL test is defensive only. */
-    if (cert->selfSigned && cert->ca != NULL && cert->publicKey != NULL &&
-            cert->ca->publicKey != NULL && cert->pubKeySize > 0 &&
-            cert->pubKeySize == cert->ca->pubKeySize &&
-            XMEMCMP(cert->publicKey, cert->ca->publicKey,
-                    cert->pubKeySize) == 0) {
+    /* RFC 5280 6.1 keeps the trust anchor outside the certification path. A
+     * self-issued key rollover is not self-signed and stays subject to this. */
+    if (cert->selfSigned)
         return 0;
-    }
 
     if (ssl->options.side == WOLFSSL_CLIENT_END)
         purpose = EXTKEYUSE_SERVER_AUTH;
@@ -17427,10 +17413,8 @@ static int ProcessPeerCertAddPendingCA(WOLFSSL* ssl, buffer* cert)
         goto exit_req_v2;
     }
 #ifndef ALLOW_INVALID_CERTSIGN
-    /* Per RFC 5280 an absent Key Usage extension implies all usages, so only
-     * enforce certificate signing when the extension is actually present.
-     * AddCA() rejects such a certificate outright, so report the same error
-     * here rather than quietly leaving it out of the pool. */
+    /* A CA needs keyCertSign once a Key Usage extension is present. Fail the
+     * handshake rather than quietly leaving it out of the pool. */
     if (!dCertAdd->selfSigned && dCertAdd->extKeyUsageSet &&
             (dCertAdd->extKeyUsage & KEYUSE_KEY_CERT_SIGN) == 0) {
         WOLFSSL_MSG("Chain cert doesn't have key usage certificate signing");
@@ -18486,7 +18470,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #ifdef OPENSSL_EXTRA
                     /* Determine untrusted depth */
                     if (!alreadySigner && (!args->dCert ||
-                            !args->dCertInit || !args->dCert->selfSigned)) {
+                            !args->dCertInit || !args->dCert->selfIssued)) {
                         args->untrustedDepth = 1;
                     }
                 #endif
@@ -18902,6 +18886,14 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             }
                         }
                     }
+                #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+                    /* A chain CA refused for its key usage fails the verify
+                     * result too, not only the handshake. */
+                    if (ret == WC_NO_ERR_TRACE(NOT_CA_ERROR) &&
+                            ssl->peerVerifyRet == 0) {
+                        ssl->peerVerifyRet = WOLFSSL_X509_V_ERR_INVALID_CA;
+                    }
+                #endif
 
                     /* Handle error codes */
                     ssl->error = ret; /* Report SSL error or clear error if

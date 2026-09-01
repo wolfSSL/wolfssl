@@ -2856,14 +2856,14 @@ int DecodeToKey(DecodedCert* cert, int verify)
     if ( (ret = wc_GetPubX509(cert, verify, &badDate)) < 0)
         return ret;
 
-    /* Determine if self signed */
+    /* Determine if self issued */
 #ifdef WOLFSSL_CERT_REQ
     if (cert->isCSR)
-        cert->selfSigned = 1;
+        cert->selfIssued = 1;
     else
 #endif
     {
-        cert->selfSigned = XMEMCMP(cert->issuerHash, cert->subjectHash,
+        cert->selfIssued = XMEMCMP(cert->issuerHash, cert->subjectHash,
             KEYID_SIZE) == 0 ? 1 : 0;
     }
 
