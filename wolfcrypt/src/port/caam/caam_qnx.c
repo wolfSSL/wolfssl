@@ -75,8 +75,10 @@ static void caamZeroMemory(void* mem, size_t len)
 
 /* keep track of which ID memory belongs to so it can be free'd up */
 #define MAX_OWNER_PART CAAM_QNX_MAX_PARTITIONS
+#define NO_OWNER_PART MAX_OWNER_PART
 pthread_mutex_t sm_mutex;
 CAAM_ADDRESS sm_ownerId[MAX_OWNER_PART];
+unsigned int sm_pagePart[MAX_OWNER_PART];
 
 /* variables for I/O of resource manager */
 resmgr_connect_funcs_t connect_funcs;
@@ -346,23 +348,39 @@ static int sanityCheckPartitionAddress(CAAM_ADDRESS partAddr, int partSz)
 
 static int checkPartitionOwner(CAAM_ADDRESS partAddr, iofunc_ocb_t *ocb)
 {
+    unsigned int pageNumber;
     unsigned int partNumber;
     int ret = EOK;
 
-    partNumber = (unsigned int)((partAddr - CAAM_PAGE) / CAAM_PAGE_SZ);
-    if (!CAAM_QNX_PARTITION_IS_VALID(partNumber))
+    pageNumber = (unsigned int)((partAddr - CAAM_PAGE) / CAAM_PAGE_SZ);
+    if (!CAAM_QNX_PARTITION_IS_VALID(pageNumber))
         return EBADMSG;
 
     if (pthread_mutex_lock(&sm_mutex) != EOK) {
         return ECANCELED;
     }
     else {
-        if (sm_ownerId[partNumber] != (CAAM_ADDRESS)ocb)
+        partNumber = sm_pagePart[pageNumber];
+        if (!CAAM_QNX_PARTITION_IS_VALID(partNumber) ||
+                sm_ownerId[partNumber] != (CAAM_ADDRESS)ocb) {
             ret = EACCES;
+        }
         pthread_mutex_unlock(&sm_mutex);
     }
 
     return ret;
+}
+
+
+static void clearPartitionOwner(unsigned int partNumber)
+{
+    unsigned int i;
+
+    sm_ownerId[partNumber] = 0;
+    for (i = 0; i < MAX_OWNER_PART; i++) {
+        if (sm_pagePart[i] == partNumber)
+            sm_pagePart[i] = NO_OWNER_PART;
+    }
 }
 
 
@@ -1435,6 +1453,7 @@ static int doGET_PART(resmgr_context_t *ctp, io_devctl_t *msg,
         unsigned int args[4], unsigned int idx, iofunc_ocb_t *ocb)
 {
     unsigned int partNumber;
+    unsigned int pageNumber;
     int partSz;
     CAAM_ADDRESS partAddr;
     iov_t out_iov;
@@ -1445,21 +1464,36 @@ static int doGET_PART(resmgr_context_t *ctp, io_devctl_t *msg,
     if (!CAAM_QNX_PARTITION_IS_VALID(partNumber))
         return EBADMSG;
 
-    partAddr = caamGetPartition(partNumber, partSz, 0);
-    if (partAddr == 0) {
-        return EBADMSG;
-    }
-
-    SETIOV(&out_iov, &partAddr, sizeof(CAAM_ADDRESS));
-    resmgr_msgwritev(ctp, &out_iov, 1, sizeof(msg->o));
-
     if (pthread_mutex_lock(&sm_mutex) != EOK) {
         return ECANCELED;
     }
-    else {
-        sm_ownerId[partNumber] = (CAAM_ADDRESS)ocb;
+
+    if (sm_ownerId[partNumber] != 0 &&
+            sm_ownerId[partNumber] != (CAAM_ADDRESS)ocb) {
         pthread_mutex_unlock(&sm_mutex);
+        return EACCES;
     }
+
+    partAddr = caamGetPartition(partNumber, partSz, 0);
+    if (partAddr == 0) {
+        pthread_mutex_unlock(&sm_mutex);
+        return EBADMSG;
+    }
+
+    pageNumber = (unsigned int)((partAddr - CAAM_PAGE) / CAAM_PAGE_SZ);
+    if (!CAAM_QNX_PARTITION_IS_VALID(pageNumber) ||
+            (sm_pagePart[pageNumber] != NO_OWNER_PART &&
+                sm_pagePart[pageNumber] != partNumber)) {
+        pthread_mutex_unlock(&sm_mutex);
+        return ECANCELED;
+    }
+
+    sm_ownerId[partNumber] = (CAAM_ADDRESS)ocb;
+    sm_pagePart[pageNumber] = partNumber;
+    pthread_mutex_unlock(&sm_mutex);
+
+    SETIOV(&out_iov, &partAddr, sizeof(CAAM_ADDRESS));
+    resmgr_msgwritev(ctp, &out_iov, 1, sizeof(msg->o));
     return EOK;
 }
 
@@ -1662,7 +1696,7 @@ int io_devctl (resmgr_context_t *ctp, io_devctl_t *msg, iofunc_ocb_t *ocb)
                 ret = ECANCELED;
             }
             else {
-                sm_ownerId[args[0]] = 0;
+                clearPartitionOwner(args[0]);
                 pthread_mutex_unlock(&sm_mutex);
                 ret = EOK;
             }
@@ -1717,7 +1751,7 @@ int io_close_ocb(resmgr_context_t *ctp, void *reserved, RESMGR_OCB_T *ocb)
     else {
         for (i = 0; i < MAX_OWNER_PART; i++) {
             if (sm_ownerId[i] == (CAAM_ADDRESS)ocb) {
-                sm_ownerId[i] = 0;
+                clearPartitionOwner((unsigned int)i);
             #if defined(WOLFSSL_CAAM_DEBUG) || defined(WOLFSSL_CAAM_PRINT)
                 printf("found dangiling partition at index %d\n", i);
             #endif
@@ -1806,6 +1840,7 @@ int main(int argc, char *argv[])
     pthread_mutex_init(&sm_mutex, NULL);
     for (i = 0; i < MAX_OWNER_PART; i++) {
         sm_ownerId[i] = 0;
+        sm_pagePart[i] = NO_OWNER_PART;
     }
 
     if (InitCAAM() != 0) {

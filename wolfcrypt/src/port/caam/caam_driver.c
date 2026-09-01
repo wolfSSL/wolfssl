@@ -81,11 +81,11 @@ static struct CAAM_DEVICE caam;
 #if defined(__QNX__) || defined(__QNXNTO__)
 static unsigned int caamGetPartitionCount(void)
 {
-    unsigned int count;
+    unsigned int lastPartition;
 
-    count = (CAAM_READ(caam.ring.BaseAddr + CAAM_SM_SMVID_MS) >> 12U) &
+    lastPartition = (CAAM_READ(caam.ring.BaseAddr + CAAM_SM_SMVID_MS) >> 12U) &
         0xFU;
-    return count + 1U;
+    return lastPartition + 1U;
 }
 #endif
 
@@ -180,7 +180,7 @@ static void printSecureMemoryInfo()
     printf("SMPO  = 0x%08X\n", CAAM_READ(caam.ring.BaseAddr + CAAM_SM_SMPO));
     SMVID_MS = CAAM_READ(caam.ring.BaseAddr + CAAM_SM_SMVID_MS);
     SMVID_LS = CAAM_READ(caam.ring.BaseAddr + CAAM_SM_SMVID_LS);
-    printf("\tNumber Partitions : %d\n", ((SMVID_MS >> 12) & 0xFU));
+    printf("\tHighest Partition : %d\n", ((SMVID_MS >> 12) & 0xFU));
     printf("\tNumber Pages : %d\n", (SMVID_MS & 0x3FFU));
     printf("\tPage Size : 2^%d\n", ((SMVID_LS >> 16) & 0x7U));
 }
