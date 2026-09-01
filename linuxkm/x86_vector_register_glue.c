@@ -93,6 +93,10 @@ struct wc_svr_native_ctx_state {
                            * detection), and return WC_ACCEL_INHIBIT_E on any
                            * nested NMI SVR attempt (no buffer to save to).
                            */
+    unsigned int open_hardirq_count; /* hardirq class: preempt_count()
+                           * HARDIRQ_MASK at the 0->1 edge.  A save at a
+                           * higher count is a foreign hardirq nested over
+                           * the open section and is refused. */
     unsigned int pin_preempt; /* set at init for the softirq entry: on
                                * PREEMPT_RT, serving-softirq is preemptible,
                                * which would break both the frozen-cause
@@ -1038,12 +1042,15 @@ void wc_restore_vector_registers_x86(enum wc_svr_flags flags)
  * duration of our section.  That holds by run-to-completion: the condition's
  * owner is beneath us on this CPU and cannot resume until we return.
  *
- * Two context classes are served, each with a dedicated per-CPU save buffer:
+ * Three context classes are served, each with a dedicated per-CPU save buffer:
  *
  *   - hardirq: previously refused outright (WC_ACCEL_INHIBIT_E).  Handlers
- *     run with IRQs disabled, so a hardirq section can be interrupted only
- *     by NMI, which is not served (below) and whose kernel handlers do not
- *     touch the FPU.
+ *     run with IRQs disabled (the core WARNs and re-disables if one enables
+ *     them), so a hardirq section can be interrupted only by NMI, which
+ *     lands in the NMI buffer.  The hardirq_count() at the 0->1 edge is
+ *     stamped, and a save arriving at a higher count -- a foreign hardirq
+ *     nested over our open section, i.e. a kernel-warned handler bug -- is
+ *     refused rather than counted, since counting would alias the bank.
  *
  *   - softirq when !may_use_simd(): previously refused with a ratelimited
  *     warning.  Reachable when a softirq interrupts a foreign
@@ -1052,12 +1059,17 @@ void wc_restore_vector_registers_x86(enum wc_svr_flags flags)
  *     A hardirq arriving over our softirq section lands in the hardirq
  *     buffer; the two never share.
  *
- * NMI context remains refused in this revision: the register mechanism below
- * would serve it (a fourth buffer), but everything reachable under an NMI
- * bracket must additionally be lock-free against the interrupted context,
- * and that audit is module-wide, not glue-local.  Note also that
- * irq_fpu_usable() carries WARN_ON_ONCE(in_nmi()) on current kernels, so the
- * in_nmi() disposition below must stay ahead of any may_use_simd() call.
+ *   - NMI: served at NMI depth 1 only.  Everything reachable under an NMI
+ *     bracket must be lock-free against the interrupted context: the
+ *     wolfCrypt mutex is try-only in NMI (wc_lkm_LockMutex() returns
+ *     BUSY_E), all DRBG-path allocations are front-loaded, and diagnostics
+ *     go through the NMI-safe ratelimited macros.  The NMI nesting level
+ *     (preempt_count() NMI_MASK) is stamped at save and matched at restore;
+ *     a nested NMI-class save (an exception such as #MC or #DB inside our
+ *     open NMI section) is refused, as there is no second buffer.  Note
+ *     that irq_fpu_usable() carries WARN_ON_ONCE(in_nmi()) on current
+ *     kernels, so the in_nmi() disposition must stay ahead of any
+ *     may_use_simd() call.
  *
  * Task context needs no buffer here: its save buffer is the task struct,
  * maintained by kernel_fpu_begin()/end() on the existing paths, which remain
@@ -1089,14 +1101,14 @@ void wc_restore_vector_registers_x86(enum wc_svr_flags flags)
  *     section reaches the native depth check because may_use_simd() is still
  *     false (its cause is frozen beneath us).
  *
- *   - The plain save flavor is served natively in both classes, and the
- *     _MAYBE_INHIBIT flavor ("vector if possible, else say so") is served
- *     natively in softirq -- native IS the vector-possible arm, so its
- *     legacy short-circuit is bypassed when wc_svr_native_ready.  The
- *     _INHIBIT flavor (a no-vector section request) keeps its existing
- *     short-circuit semantics in all contexts (WC_ACCEL_INHIBIT_E,
- *     tolerated by all callers), as does _MAYBE_INHIBIT in hardirq;
- *     native service for those, and for NMI, is left for a later revision.
+ *   - The plain and _MAYBE_INHIBIT ("vector if possible, else say so")
+ *     flavors are served natively in all three classes -- native IS the
+ *     vector-possible arm, so the _MAYBE_INHIBIT legacy short-circuit is
+ *     bypassed when wc_svr_native_ready.  The _INHIBIT flavor (a no-vector
+ *     section request) keeps its existing short-circuit semantics in all
+ *     contexts (WC_ACCEL_INHIBIT_E, tolerated by all callers); being a
+ *     request rather than a fallback, it does not raise the
+ *     WC_SVR_PR_EMERG_ON_ACCEL_FALLBACK alarm.
  */
 
 /* XSAVE requested-feature bitmap: x87 (0), SSE (1), AVX/YMM (2), and the
@@ -1730,9 +1742,11 @@ static WARN_UNUSED_RESULT int wc_svr_can_native_save(void) {
         return 1;
 }
 
-/* Open a native section in the given context class: count if one is already
- * open, else save and (for softirq) pin.  Serves only the plain save
- * flavor; callers filter _INHIBIT/_MAYBE_INHIBIT to the existing paths.
+/* Open a native section in the calling context class: count if one is
+ * already open, else save and (for softirq) pin.  Serves the plain and
+ * _MAYBE_INHIBIT flavors; refuses _INHIBIT (a no-vector request, not a
+ * fallback) and any save that would alias an open bank (nested NMI, or a
+ * hardirq nested over an open hardirq section).
  */
 static WARN_UNUSED_RESULT int wc_svr_native_save(enum wc_svr_flags flags) {
     int cur_preempt_count = preempt_count();
@@ -1790,6 +1804,23 @@ static WARN_UNUSED_RESULT int wc_svr_native_save(enum wc_svr_flags flags) {
             }
             goto out;
         }
+        else if (unlikely((cur_preempt_count & HARDIRQ_MASK) &&
+                          ((unsigned int)(cur_preempt_count & HARDIRQ_MASK) >
+                           ctx->open_hardirq_count)))
+        {
+            /* a foreign hardirq nested over our open hardirq section (the
+             * outer handler enabled IRQs -- kernel-warned).  counting would
+             * alias the bank; refuse. */
+        #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+            atomic_long_inc(&hardirq_SVR_err_count);
+        #endif
+            ret = WC_ACCEL_INHIBIT_E;
+            wc_linuxkm_pr_err_ratelimited("BUG: wc_svr_native_save(): hardirq nested over open hardirq section on CPU %d (hardirq_count 0x%x, open at 0x%x).\n",
+                                          raw_smp_processor_id(),
+                                          (unsigned int)(cur_preempt_count & HARDIRQ_MASK),
+                                          ctx->open_hardirq_count);
+            goto out;
+        }
         else if (unlikely(ctx->depth == ~0U)) {
         #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
             if (cur_preempt_count & HARDIRQ_MASK)
@@ -1815,8 +1846,10 @@ static WARN_UNUSED_RESULT int wc_svr_native_save(enum wc_svr_flags flags) {
     wc_svr_native_regs_save(ctx->save_area);
     if (cur_preempt_count & NMI_MASK)
         ctx->depth = (cur_preempt_count & NMI_MASK) >> NMI_SHIFT;
-    else
+    else {
         ctx->depth = 1;
+        ctx->open_hardirq_count = (unsigned int)(cur_preempt_count & HARDIRQ_MASK);
+    }
     ret = 0;
 
 out:
