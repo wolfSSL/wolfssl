@@ -940,6 +940,7 @@ static int doAES(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
     }
 
     if (pt != NULL) {
+        caamZeroMemory(key, (size_t)expectedReadSz);
         CAAM_ADR_UNMAP(pt, 0, totalSz, 0);
     }
     else {
