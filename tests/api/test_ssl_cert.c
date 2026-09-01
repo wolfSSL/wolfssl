@@ -2598,6 +2598,10 @@ typedef struct test_eku_case {
     int verifyDepth;           /* verify depth pinned on the verifying side,
                                 * 0 leaves the default in place */
     int expectRet;             /* expected handshake result */
+    const char* keyUsage;      /* Key Usage on the CA under test, NULL uses
+                                * keyCertSign,cRLSign */
+    int expectVerify;          /* expected X509_V_* result, -1 derives it from
+                                * expectRet */
 } test_eku_case;
 
 /* Stand in for an application that knowingly accepts a rejected certificate. */
@@ -2633,7 +2637,8 @@ static int test_eku_purpose_only_cb(int preverify,
  * the signature is issuerKey's. Returns the DER length, or < 0 on failure. */
 static int test_eku_gen_ca(byte* out, int outMax, RsaKey* subjKey,
     const byte* issuerDer, int issuerDerSz, RsaKey* issuerKey, WC_RNG* rng,
-    const char* extKeyUsage, const char* cn, int selfIssued)
+    const char* extKeyUsage, const char* cn, int selfIssued,
+    const char* keyUsage)
 {
     Cert cert;
     int  ret = 0;
@@ -2659,7 +2664,8 @@ static int test_eku_gen_ca(byte* out, int outMax, RsaKey* subjKey,
     }
     if (ret == 0 && wc_SetSubjectKeyIdFromPublicKey(&cert, subjKey, NULL) != 0)
         ret = -1;
-    if (ret == 0 && wc_SetKeyUsage(&cert, "keyCertSign,cRLSign") != 0)
+    if (ret == 0 && wc_SetKeyUsage(&cert,
+            (keyUsage != NULL) ? keyUsage : "keyCertSign,cRLSign") != 0)
         ret = -1;
     if (ret == 0 && extKeyUsage != NULL &&
             wc_SetExtKeyUsage(&cert, extKeyUsage) != 0)
@@ -2830,7 +2836,7 @@ static int test_eku_chain_case(const test_eku_fixture* f,
         f->intKey, tc->selfSignedCa ? NULL : ca_cert_der_2048,
         (int)sizeof_ca_cert_der_2048, f->caKey, f->rng, tc->extKeyUsage,
         tc->selfSignedCa ? "EKU Self Signed CA" : "EKU Intermediate",
-        tc->selfIssuedCa)), 0);
+        tc->selfIssuedCa, tc->keyUsage)), 0);
 
     leafIssuerDer = f->interDer;
     leafIssuerSz  = caSz;
@@ -2842,7 +2848,7 @@ static int test_eku_chain_case(const test_eku_fixture* f,
     if (tc->extraLevel) {
         ExpectIntGT((midSz = test_eku_gen_ca(f->midDer, TEST_EKU_CERT_BUF_SZ,
             f->midKey, f->interDer, caSz, f->intKey, f->rng,
-            "serverAuth,clientAuth", "EKU Middle CA", 0)), 0);
+            "serverAuth,clientAuth", "EKU Middle CA", 0, NULL)), 0);
         leafIssuerDer = f->midDer;
         leafIssuerSz  = midSz;
         leafIssuerKey = f->midKey;
@@ -2875,8 +2881,9 @@ static int test_eku_chain_case(const test_eku_fixture* f,
     /* An override leaves the rejection already recorded in place, so only the
      * cases the library decided on its own have a predictable verify result. */
     if (tc->overrideCb == 0) {
-        ExpectIntEQ(verifyRet, (tc->expectRet == 0) ?
-            WOLFSSL_X509_V_OK : WOLFSSL_X509_V_ERR_INVALID_PURPOSE);
+        ExpectIntEQ(verifyRet, (tc->expectVerify >= 0) ? tc->expectVerify :
+            ((tc->expectRet == 0) ? WOLFSSL_X509_V_OK :
+                                    WOLFSSL_X509_V_ERR_INVALID_PURPOSE));
     }
 #endif
 
@@ -2906,67 +2913,86 @@ int test_wolfSSL_chain_ca_ext_key_usage(void)
     defined(USE_CERT_BUFFERS_2048) && !defined(IGNORE_KEY_EXTENSIONS)
     static const test_eku_case cases[] = {
         /* eku, selfSigned, selfIssued, clientPresents, pinCa, extraLevel,
-         * overrideCb, verifyDepth, expected handshake result. */
+         * overrideCb, verifyDepth, expected handshake result, keyUsage,
+         * expected verify result. */
 
         /* Server authentication: a CA restricted to code signing, or to
          * client authentication, must be refused. */
         { "codeSigning",  0, 0, 0, 0, 0, 0, 0,
-                                          WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E) },
+                                          WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E),
+                                          NULL, -1 },
         { "clientAuth",   0, 0, 0, 0, 0, 0, 0,
-                                          WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E) },
+                                          WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E),
+                                          NULL, -1 },
         /* A CA that carries the purpose, or leaves it unrestricted, must not
          * be over-rejected. */
-        { "serverAuth",   0, 0, 0, 0, 0, 0, 0, 0 },
-        { NULL,           0, 0, 0, 0, 0, 0, 0, 0 },
-        { "any",          0, 0, 0, 0, 0, 0, 0, 0 },
+        { "serverAuth",   0, 0, 0, 0, 0, 0, 0, 0, NULL, -1 },
+        { NULL,           0, 0, 0, 0, 0, 0, 0, 0, NULL, -1 },
+        { "any",          0, 0, 0, 0, 0, 0, 0, 0, NULL, -1 },
         /* The rule applies to a CA the certificate manager already holds, not
          * only to one seen for the first time. */
         { "codeSigning",  0, 0, 0, 1, 0, 0, 0,
-                                          WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E) },
-        { "serverAuth",   0, 0, 0, 1, 0, 0, 0, 0 },
+                                          WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E),
+                                          NULL, -1 },
+        { "serverAuth",   0, 0, 0, 1, 0, 0, 0, 0, NULL, -1 },
         /* A self-signed trust anchor is exempt: here it is the anchor test,
          * not the Extended Key Usage, that decides. */
-        { "codeSigning",  1, 0, 0, 0, 0, 0, 0, 0 },
+        { "codeSigning",  1, 0, 0, 0, 0, 0, 0, 0, NULL, -1 },
         /* A self-issued CA key rollover certificate is not an anchor. It
          * carries the anchor's issuer and subject names, so DecodedCert's
          * selfSigned flag is set, but it holds a different key and is signed
          * by the anchor. The Extended Key Usage must still be enforced. */
         { "codeSigning",  0, 1, 0, 0, 0, 0, 0,
-                                          WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E) },
-        { "serverAuth",   0, 1, 0, 0, 0, 0, 0, 0 },
+                                          WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E),
+                                          NULL, -1 },
+        { "serverAuth",   0, 1, 0, 0, 0, 0, 0, 0, NULL, -1 },
+        /* Key Usage, not Extended Key Usage: the same rollover certificate
+         * cannot sign the leaf when its Key Usage omits keyCertSign, and can
+         * when it carries it. */
+        { "serverAuth",   0, 1, 0, 0, 0, 0, 0,
+                                          WC_NO_ERR_TRACE(NOT_CA_ERROR),
+                                          "digitalSignature", 0 },
+        { "serverAuth",   0, 1, 0, 0, 0, 0, 0, 0,
+                                          "digitalSignature,keyCertSign", -1 },
         /* Enforcement is not limited to the CA directly above the leaf: here
          * the CA under test issues "EKU Middle CA", which issues the leaf. */
         { "codeSigning",  0, 0, 0, 0, 1, 0, 0,
-                                          WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E) },
-        { "serverAuth",   0, 0, 0, 0, 1, 0, 0, 0 },
+                                          WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E),
+                                          NULL, -1 },
+        { "serverAuth",   0, 0, 0, 0, 1, 0, 0, 0, NULL, -1 },
         /* An application that installs a verify callback keeps the last word,
          * as it does for every other chain error. */
-        { "codeSigning",  0, 0, 0, 0, 0, 1, 0, 0 },
+        { "codeSigning",  0, 0, 0, 0, 0, 1, 0, 0, NULL, -1 },
 #ifdef OPENSSL_EXTRA
         /* The purpose check must not stand in for the checks that run before
          * it. With the depth limit pinned below the chain, a callback that
          * waives only the purpose error still has to see the chain length
          * rejection, whether or not the CA under test carries the purpose. */
         { "serverAuth",   0, 0, 0, 0, 1, 2, 1,
-                                          WC_NO_ERR_TRACE(MAX_CHAIN_ERROR) },
+                                          WC_NO_ERR_TRACE(MAX_CHAIN_ERROR),
+                                          NULL, -1 },
         { "codeSigning",  0, 0, 0, 0, 1, 2, 1,
-                                          WC_NO_ERR_TRACE(MAX_CHAIN_ERROR) },
+                                          WC_NO_ERR_TRACE(MAX_CHAIN_ERROR),
+                                          NULL, -1 },
 #endif
 #ifndef WOLFSSL_NO_CLIENT_AUTH
         /* Client authentication: the server applies the same rule with the
          * clientAuth purpose. */
         { "codeSigning",  0, 0, 1, 0, 0, 0, 0,
-                                          WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E) },
+                                          WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E),
+                                          NULL, -1 },
         { "serverAuth",   0, 0, 1, 0, 0, 0, 0,
-                                          WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E) },
-        { "clientAuth",   0, 0, 1, 0, 0, 0, 0, 0 },
-        { NULL,           0, 0, 1, 0, 0, 0, 0, 0 },
-        { "any",          0, 0, 1, 0, 0, 0, 0, 0 },
+                                          WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E),
+                                          NULL, -1 },
+        { "clientAuth",   0, 0, 1, 0, 0, 0, 0, 0, NULL, -1 },
+        { NULL,           0, 0, 1, 0, 0, 0, 0, 0, NULL, -1 },
+        { "any",          0, 0, 1, 0, 0, 0, 0, 0, NULL, -1 },
         /* The rollover shape is rejected in the client authentication
          * direction too. */
         { "serverAuth",   0, 1, 1, 0, 0, 0, 0,
-                                          WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E) },
-        { "clientAuth",   0, 1, 1, 0, 0, 0, 0, 0 },
+                                          WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E),
+                                          NULL, -1 },
+        { "clientAuth",   0, 1, 1, 0, 0, 0, 0, 0, NULL, -1 },
 #endif
     };
     test_eku_fixture fixture;
