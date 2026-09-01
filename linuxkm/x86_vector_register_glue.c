@@ -1577,6 +1577,7 @@ static void wc_svr_native_init(void)
     }
 
     if (wc_svr_native_selftest() != 0) {
+        ForceZero(wc_svr_native_save_mem, wc_svr_native_save_mem_size);
         free(wc_svr_native_save_mem);
         wc_svr_native_save_mem = NULL;
         free(wc_svr_native_states);
@@ -1811,7 +1812,8 @@ static int wc_svr_native_restore(enum wc_svr_flags flags)
     struct wc_svr_native_ctx_state *ctx;
 
     if (! wc_svr_native_ready) {
-        wc_linuxkm_pr_err_ratelimited("BUG: wc_svr_native_restore() without wc_svr_native_ready.\n");
+        if ((cur_preempt_count & (NMI_MASK | HARDIRQ_MASK)) != 0)
+            wc_linuxkm_pr_err_ratelimited("BUG: wc_svr_native_restore() in hard IRQ context without wc_svr_native_ready.\n");
         return NOT_READY_E;
     }
 
