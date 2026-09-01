@@ -37,6 +37,15 @@
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/curve25519.h>
 
+#ifdef HAVE_HKDF
+    #include <wolfssl/wolfcrypt/hmac.h>
+#endif
+
+#ifndef WOLFSSL_SE050_NO_ATTEST
+    #include <wolfssl/wolfcrypt/hash.h>
+    #include <wolfssl/wolfcrypt/signature.h>
+#endif
+
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -52,6 +61,10 @@
     #endif
 
     #include "ex_sss_boot.h"
+    #if defined(SSS_HAVE_SE05X_AUTH_PLATFSCP03) && \
+        SSS_HAVE_SE05X_AUTH_PLATFSCP03
+        #include "ex_sss_auth.h"
+    #endif
 #endif
 
 #ifdef HAVE_ECC
@@ -61,7 +74,8 @@
     #define SE050_ECC_DER_MAX 256
     #endif
 #endif
-#if !defined(NO_RSA) && !defined(WOLFSSL_SE050_NO_RSA)
+#if !defined(NO_RSA) && (!defined(WOLFSSL_SE050_NO_RSA) || \
+        !defined(WOLFSSL_SE050_NO_ATTEST))
     #include <wolfssl/wolfcrypt/rsa.h>
     struct RsaKey;
 #endif
@@ -80,10 +94,31 @@
 static sss_session_t *cfg_se050_i2c_pi;
 static sss_key_store_t *gHostKeyStore;
 static sss_key_store_t *gKeyStore;
+#ifdef WOLFSSL_SE050_INIT
+static ex_sss_boot_ctx_t gBootCtx;
+#endif
+
+#if defined(WOLFSSL_SE050_INIT) && \
+    defined(SSS_HAVE_HOSTCRYPTO_ANY) && SSS_HAVE_HOSTCRYPTO_ANY && \
+    defined(SSS_HAVE_SCP_SCP03_SSS) && SSS_HAVE_SCP_SCP03_SSS && \
+    defined(SSS_HAVE_SE05X_AUTH_PLATFSCP03) && \
+        SSS_HAVE_SE05X_AUTH_PLATFSCP03
+    #define SE050_RUNTIME_SCP03
+#endif
 
 int wc_se050_set_config(sss_session_t *pSession, sss_key_store_t *pHostKeyStore,
     sss_key_store_t *pKeyStore)
 {
+    int ret;
+
+    if ((pSession == NULL) || (pKeyStore == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+    ret = wolfSSL_CryptHwMutexInit();
+    if (ret != 0) {
+        return ret;
+    }
+
     WOLFSSL_MSG("Setting SE050 session configuration");
 
     cfg_se050_i2c_pi = pSession;
@@ -93,38 +128,774 @@ int wc_se050_set_config(sss_session_t *pSession, sss_key_store_t *pHostKeyStore,
     return 0;
 }
 
+int wc_se050_get_config(sss_session_t **pSession,
+    sss_key_store_t **pHostKeyStore, sss_key_store_t **pKeyStore)
+{
+    if ((cfg_se050_i2c_pi == NULL) || (gKeyStore == NULL)) {
+        return WC_NO_ERR_TRACE(BAD_STATE_E);
+    }
+
+    if (pSession != NULL) {
+        *pSession = cfg_se050_i2c_pi;
+    }
+    if (pHostKeyStore != NULL) {
+        *pHostKeyStore = gHostKeyStore;
+    }
+    if (pKeyStore != NULL) {
+        *pKeyStore = gKeyStore;
+    }
+
+    return 0;
+}
+
+sss_session_t* wc_se050_get_session(void)
+{
+    return cfg_se050_i2c_pi;
+}
+
+pSe05xSession_t wc_se050_get_se05x_session(void)
+{
+#if SSS_HAVE_APPLET_SE05X_IOT
+    if ((cfg_se050_i2c_pi != NULL) &&
+            (cfg_se050_i2c_pi->subsystem == kType_SSS_SE_SE05x)) {
+        return &((sss_se05x_session_t*)cfg_se050_i2c_pi)->s_ctx;
+    }
+#endif
+    return NULL;
+}
+
+int wc_se050_lock(void)
+{
+    return wolfSSL_CryptHwMutexLock();
+}
+
+void wc_se050_unlock(void)
+{
+    wolfSSL_CryptHwMutexUnLock();
+}
+
+enum se050_policy_object_type {
+    SE050_POLICY_OBJECT_ASYM,
+    SE050_POLICY_OBJECT_FILE
+};
+
+#define SE050_POLICY_MAX_ENTRIES 3U
+
+typedef struct se050_policy_set {
+    sss_policy_u entries[SE050_POLICY_MAX_ENTRIES];
+    sss_policy_t policy;
+} se050_policy_set;
+
+#define SE050_POLICY_COMMON_FLAGS (WC_SE050_POLICY_ALLOW_DELETE | \
+    WC_SE050_POLICY_ALLOW_WRITE | WC_SE050_POLICY_ALLOW_READ | \
+    WC_SE050_POLICY_REQUIRE_SM)
+#define SE050_POLICY_ASYM_FLAGS (SE050_POLICY_COMMON_FLAGS | \
+    WC_SE050_POLICY_ALLOW_SIGN | WC_SE050_POLICY_ALLOW_VERIFY | \
+    WC_SE050_POLICY_ALLOW_ENCRYPT | WC_SE050_POLICY_ALLOW_DECRYPT | \
+    WC_SE050_POLICY_ALLOW_KA | WC_SE050_POLICY_ALLOW_KD | \
+    WC_SE050_POLICY_ALLOW_GEN | WC_SE050_POLICY_ALLOW_IMPORT_EXPORT | \
+    WC_SE050_POLICY_ALLOW_ATTEST)
+
+static int se050_build_policy_set(
+    enum se050_policy_object_type objectType, word32 flags,
+    word32 authObjId, se050_policy_set* policySet)
+{
+    sss_policy_u* objectPolicy;
+    sss_policy_u* commonPolicy;
+    word32 allowedFlags;
+    word32 count = 0U;
+
+    if (policySet == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    allowedFlags = (objectType == SE050_POLICY_OBJECT_ASYM) ?
+        SE050_POLICY_ASYM_FLAGS : SE050_POLICY_COMMON_FLAGS;
+    if ((flags & ~allowedFlags) != 0U) {
+        return BAD_FUNC_ARG;
+    }
+
+    XMEMSET(policySet, 0, sizeof(*policySet));
+    if (flags == 0U) {
+        return 0;
+    }
+
+    objectPolicy = &policySet->entries[count++];
+    objectPolicy->auth_obj_id = authObjId;
+    if (objectType == SE050_POLICY_OBJECT_ASYM) {
+        objectPolicy->type = KPolicy_Asym_Key;
+        objectPolicy->policy.asymmkey.can_Sign =
+            (flags & WC_SE050_POLICY_ALLOW_SIGN) != 0U;
+        objectPolicy->policy.asymmkey.can_Verify =
+            (flags & WC_SE050_POLICY_ALLOW_VERIFY) != 0U;
+        objectPolicy->policy.asymmkey.can_Encrypt =
+            (flags & WC_SE050_POLICY_ALLOW_ENCRYPT) != 0U;
+        objectPolicy->policy.asymmkey.can_Decrypt =
+            (flags & WC_SE050_POLICY_ALLOW_DECRYPT) != 0U;
+        objectPolicy->policy.asymmkey.can_KA =
+            (flags & WC_SE050_POLICY_ALLOW_KA) != 0U;
+        objectPolicy->policy.asymmkey.can_Gen =
+            (flags & WC_SE050_POLICY_ALLOW_GEN) != 0U;
+        objectPolicy->policy.asymmkey.can_Import_Export =
+            (flags & WC_SE050_POLICY_ALLOW_IMPORT_EXPORT) != 0U;
+        objectPolicy->policy.asymmkey.can_Attest =
+            (flags & WC_SE050_POLICY_ALLOW_ATTEST) != 0U;
+    #if !defined(SSS_HAVE_SE05X_VER_GTE_07_02) || \
+        !SSS_HAVE_SE05X_VER_GTE_07_02
+        objectPolicy->policy.asymmkey.can_Read =
+            (flags & WC_SE050_POLICY_ALLOW_READ) != 0U;
+        objectPolicy->policy.asymmkey.can_Write =
+            (flags & WC_SE050_POLICY_ALLOW_WRITE) != 0U;
+        objectPolicy->policy.asymmkey.can_KD =
+            (flags & WC_SE050_POLICY_ALLOW_KD) != 0U;
+    #else
+        if ((flags & WC_SE050_POLICY_ALLOW_KD) != 0U) {
+            sss_policy_u* derivePolicy = &policySet->entries[count++];
+
+            derivePolicy->type = KPolicy_Sym_Key;
+            derivePolicy->auth_obj_id = authObjId;
+            derivePolicy->policy.symmkey.can_HKDF = 1;
+        }
+    #endif
+    }
+    else {
+        objectPolicy->type = KPolicy_File;
+        objectPolicy->policy.file.can_Read =
+            (flags & WC_SE050_POLICY_ALLOW_READ) != 0U;
+        objectPolicy->policy.file.can_Write =
+            (flags & WC_SE050_POLICY_ALLOW_WRITE) != 0U;
+    }
+
+    commonPolicy = &policySet->entries[count++];
+    commonPolicy->type = KPolicy_Common;
+    commonPolicy->auth_obj_id = authObjId;
+    commonPolicy->policy.common.can_Delete =
+        (flags & WC_SE050_POLICY_ALLOW_DELETE) != 0U;
+    commonPolicy->policy.common.req_Sm =
+        (flags & WC_SE050_POLICY_REQUIRE_SM) != 0U;
+#if defined(SSS_HAVE_SE05X_VER_GTE_07_02) && \
+    SSS_HAVE_SE05X_VER_GTE_07_02
+    if (objectType == SE050_POLICY_OBJECT_ASYM) {
+        commonPolicy->policy.common.can_Read =
+            (flags & WC_SE050_POLICY_ALLOW_READ) != 0U;
+        commonPolicy->policy.common.can_Write =
+            (flags & WC_SE050_POLICY_ALLOW_WRITE) != 0U;
+    }
+#endif
+
+    policySet->policy.nPolicies = count;
+    for (count = 0U; count < policySet->policy.nPolicies; count++) {
+        policySet->policy.policies[count] = &policySet->entries[count];
+    }
+
+    return 0;
+}
+
+/* Called only while the shared transport mutex is held. */
+static sss_status_t se050_require_new_object(word32 keyId)
+{
+    pSe05xSession_t session = wc_se050_get_se05x_session();
+    SE05x_Result_t exists = kSE05x_Result_NA;
+    smStatus_t status;
+
+    if (session == NULL) {
+        return kStatus_SSS_Fail;
+    }
+    status = Se05x_API_CheckObjectExists(session, keyId, &exists);
+    if ((status != SM_OK) || (exists != kSE05x_Result_FAILURE)) {
+        return kStatus_SSS_Fail;
+    }
+    return kStatus_SSS_Success;
+}
+
 #ifdef WOLFSSL_SE050_INIT
+static int se050_boot_context_is_open(void)
+{
+    return (cfg_se050_i2c_pi != NULL) ||
+        (gBootCtx.session.subsystem != kType_SSS_SubSystem_NONE);
+}
+
+static sss_key_store_t* se050_boot_host_key_store(void)
+{
+#if defined(SSS_HAVE_HOSTCRYPTO_ANY) && SSS_HAVE_HOSTCRYPTO_ANY
+    if (gBootCtx.host_ks.session != NULL) {
+        return &gBootCtx.host_ks;
+    }
+#endif
+    return NULL;
+}
+
+#ifdef SE050_RUNTIME_SCP03
+static int se050_set_scp03_static_keys(const wc_se050_scp03_keys* keys)
+{
+    NXSCP03_StaticCtx_t* staticCtx;
+    sss_status_t status;
+
+    if (keys == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    staticCtx = gBootCtx.se05x_open_ctx.auth.ctx.scp03.pStatic_ctx;
+    if ((staticCtx == NULL) || (staticCtx->Enc.keyStore == NULL) ||
+            (staticCtx->Mac.keyStore == NULL) ||
+            (staticCtx->Dek.keyStore == NULL)) {
+        return WC_NO_ERR_TRACE(BAD_STATE_E);
+    }
+
+    status = sss_host_key_store_set_key(&gBootCtx.host_ks, &staticCtx->Enc,
+        keys->enc, sizeof(keys->enc), sizeof(keys->enc) * 8U, NULL, 0);
+    if (status == kStatus_SSS_Success) {
+        status = sss_host_key_store_set_key(&gBootCtx.host_ks,
+            &staticCtx->Mac, keys->mac, sizeof(keys->mac),
+            sizeof(keys->mac) * 8U, NULL, 0);
+    }
+    if (status == kStatus_SSS_Success) {
+        status = sss_host_key_store_set_key(&gBootCtx.host_ks,
+            &staticCtx->Dek, keys->dek, sizeof(keys->dek),
+            sizeof(keys->dek) * 8U, NULL, 0);
+    }
+    if (status != kStatus_SSS_Success) {
+        return WC_HW_E;
+    }
+
+    staticCtx->key_len = (int)sizeof(keys->enc);
+    return 0;
+}
+
+#ifdef WOLFSSL_SE050_SCP03_ROTATE
+static int se050_set_scp03_dek(const byte* dek, word32 dekSz)
+{
+    NXSCP03_StaticCtx_t* staticCtx;
+    sss_status_t status;
+
+    if ((dek == NULL) ||
+            (dekSz != sizeof(((wc_se050_scp03_keys*)0)->dek))) {
+        return BAD_FUNC_ARG;
+    }
+    staticCtx = gBootCtx.se05x_open_ctx.auth.ctx.scp03.pStatic_ctx;
+    if ((staticCtx == NULL) || (staticCtx->Dek.keyStore == NULL)) {
+        return WC_NO_ERR_TRACE(BAD_STATE_E);
+    }
+    status = sss_host_key_store_set_key(&gBootCtx.host_ks, &staticCtx->Dek,
+        dek, dekSz, dekSz * 8U, NULL, 0);
+    return (status == kStatus_SSS_Success) ? 0 : WC_HW_E;
+}
+#endif
+
+static sss_status_t se050_open_scp03(const char* portName,
+    const wc_se050_scp03_keys* keys, int skipSelectApplet)
+{
+    SE_Connect_Ctx_t* connectCtx = &gBootCtx.se05x_open_ctx;
+    sss_status_t status;
+    int ret;
+
+    status = ex_sss_se05x_prepare_host(&gBootCtx.host_session,
+        &gBootCtx.host_ks, connectCtx, &gBootCtx.ex_se05x_auth,
+        kSSS_AuthType_SCP03);
+    if (status != kStatus_SSS_Success) {
+        return status;
+    }
+
+    /* PUT KEY is a Security Domain operation. NXP's reference rotation
+     * application opens SCP03 with applet selection skipped, which makes the
+     * transport select the SSD before INITIALIZE UPDATE. Normal wolfCrypt
+     * operations must continue to select the IoT applet. */
+    connectCtx->skip_select_applet = (skipSelectApplet != 0);
+
+#if defined(SMCOM_JRCP_V1)
+    if (ex_sss_boot_isSocketPortName(portName)) {
+        connectCtx->connType = kType_SE_Conn_Type_JRCP_V1;
+        connectCtx->portName = portName;
+    }
+#endif
+#if defined(SMCOM_JRCP_V2)
+    if (ex_sss_boot_isSocketPortName(portName)) {
+        connectCtx->connType = kType_SE_Conn_Type_JRCP_V2;
+        connectCtx->portName = portName;
+    }
+#endif
+#if defined(RJCT_VCOM)
+    if (ex_sss_boot_isSerialPortName(portName)) {
+        connectCtx->connType = kType_SE_Conn_Type_VCOM;
+        connectCtx->portName = portName;
+    }
+#endif
+#if defined(SCI2C)
+    #error "SCI2C is not a valid SE05x connection for runtime SCP03 keys"
+#endif
+#if defined(T1oI2C)
+    connectCtx->connType = kType_SE_Conn_Type_T1oI2C;
+    connectCtx->portName = portName;
+#endif
+#if defined(SMCOM_PCSC)
+    connectCtx->connType = kType_SE_Conn_Type_PCSC;
+    connectCtx->portName = portName;
+#endif
+#if defined(SMCOM_PN7150)
+    connectCtx->connType = kType_SE_Conn_Type_NFC;
+    connectCtx->portName = NULL;
+#endif
+#if !defined(SMCOM_JRCP_V1) && !defined(SMCOM_JRCP_V2) && \
+    !defined(RJCT_VCOM) && !defined(T1oI2C) && !defined(SMCOM_PCSC) && \
+    !defined(SMCOM_PN7150)
+    /* wolfSSL's --with-se050 build consumes an already-configured
+     * middleware and therefore does not inherit its private transport
+     * define. T=1 over I2C is the port's documented/default transport. */
+    connectCtx->connType = kType_SE_Conn_Type_T1oI2C;
+    connectCtx->portName = portName;
+#endif
+
+    ret = se050_set_scp03_static_keys(keys);
+    if (ret != 0) {
+        return kStatus_SSS_Fail;
+    }
+
+    return sss_session_open(&gBootCtx.session, kType_SSS_SE_SE05x, 0,
+        kSSS_ConnectionType_Encrypted, connectCtx);
+}
+#endif /* SE050_RUNTIME_SCP03 */
+
 int wc_se050_init(const char* portName)
 {
     int ret;
     sss_status_t status;
-    static ex_sss_boot_ctx_t pCtx;
 
+    if (se050_boot_context_is_open()) {
+        return WC_NO_ERR_TRACE(BAD_STATE_E);
+    }
     if (portName == NULL) {
         portName = SE050_DEFAULT_PORT;
     }
 
-    status = ex_sss_boot_open(&pCtx, portName);
+    XMEMSET(&gBootCtx, 0, sizeof(gBootCtx));
+    status = ex_sss_boot_open(&gBootCtx, portName);
     if (status == kStatus_SSS_Success) {
-        ret = wc_se050_set_config(&pCtx.session,
-        #if SSS_HAVE_HOSTCRYPTO_ANY
-            &pCtx.host_ks,
-        #else
-            NULL,
-        #endif
-            &pCtx.ks);
+        status = ex_sss_key_store_and_object_init(&gBootCtx);
+    }
+    if (status == kStatus_SSS_Success) {
+#if defined(WOLFSSL_SE050_SCP03_ROTATE) && defined(SE050_RUNTIME_SCP03)
+        if (gBootCtx.se05x_open_ctx.auth.authType == kSSS_AuthType_SCP03) {
+            byte defaultDek[] = EX_SSS_AUTH_SE05X_KEY_DEK;
+
+            ret = se050_set_scp03_dek(defaultDek,
+                (word32)sizeof(defaultDek));
+            ForceZero(defaultDek, sizeof(defaultDek));
+            if (ret != 0) {
+                ex_sss_session_close(&gBootCtx);
+                XMEMSET(&gBootCtx, 0, sizeof(gBootCtx));
+                return ret;
+            }
+        }
+#endif
+        ret = wc_se050_set_config(&gBootCtx.session,
+            se050_boot_host_key_store(), &gBootCtx.ks);
+        if (ret != 0) {
+            ex_sss_session_close(&gBootCtx);
+            XMEMSET(&gBootCtx, 0, sizeof(gBootCtx));
+        }
 
     #ifdef WOLFSSL_SE050_FACTORY_RESET
-        ex_sss_boot_factory_reset(&pCtx);
+        if (ret == 0) {
+            ex_sss_boot_factory_reset(&gBootCtx);
+        }
     #endif
     }
     else {
+        ex_sss_session_close(&gBootCtx);
+        XMEMSET(&gBootCtx, 0, sizeof(gBootCtx));
         WOLFSSL_MSG("Failed to open SE050 context");
         ret = WC_HW_E;
     }
     return ret;
 }
+
+#ifdef SE050_RUNTIME_SCP03
+static int se050_init_scp03_mode(const char* portName,
+    const wc_se050_scp03_keys* keys, int skipSelectApplet)
+{
+    sss_status_t status;
+    int ret;
+
+    if (keys == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    if (se050_boot_context_is_open()) {
+        return WC_NO_ERR_TRACE(BAD_STATE_E);
+    }
+    if (portName == NULL) {
+        portName = SE050_DEFAULT_PORT;
+    }
+
+    XMEMSET(&gBootCtx, 0, sizeof(gBootCtx));
+    status = se050_open_scp03(portName, keys, skipSelectApplet);
+    if (status == kStatus_SSS_Success) {
+        status = ex_sss_key_store_and_object_init(&gBootCtx);
+    }
+    if (status == kStatus_SSS_Success) {
+        ret = wc_se050_set_config(&gBootCtx.session,
+            se050_boot_host_key_store(), &gBootCtx.ks);
+        if (ret != 0) {
+            ex_sss_session_close(&gBootCtx);
+            XMEMSET(&gBootCtx, 0, sizeof(gBootCtx));
+        }
+    }
+    else {
+        ex_sss_session_close(&gBootCtx);
+        XMEMSET(&gBootCtx, 0, sizeof(gBootCtx));
+        WOLFSSL_MSG("Failed to open SE050 runtime SCP03 context");
+        ret = WC_HW_E;
+    }
+    return ret;
+}
+
+int wc_se050_init_ex(const char* portName, const wc_se050_scp03_keys* keys)
+{
+    return se050_init_scp03_mode(portName, keys, 0);
+}
 #endif
+
+int wc_se050_close(void)
+{
+    int ret;
+
+    if (cfg_se050_i2c_pi != &gBootCtx.session) {
+        return WC_NO_ERR_TRACE(BAD_STATE_E);
+    }
+    ret = wolfSSL_CryptHwMutexLock();
+    if (ret != 0) {
+        return ret;
+    }
+    ex_sss_session_close(&gBootCtx);
+    cfg_se050_i2c_pi = NULL;
+    gHostKeyStore = NULL;
+    gKeyStore = NULL;
+    XMEMSET(&gBootCtx, 0, sizeof(gBootCtx));
+    wolfSSL_CryptHwMutexUnLock();
+    return 0;
+}
+#endif
+
+#ifdef HAVE_HKDF
+int wc_se050_scp03_derive_keys_seed(const byte* seed, word32 seedSz,
+    wc_se050_scp03_keys* derivedOut)
+{
+    static const byte encInfo[] = "SE050 SCP03 ENC";
+    static const byte macInfo[] = "SE050 SCP03 MAC";
+    static const byte dekInfo[] = "SE050 SCP03 DEK";
+    int ret;
+
+    if ((seed == NULL) || (seedSz == 0U) || (derivedOut == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+
+    XMEMSET(derivedOut, 0, sizeof(*derivedOut));
+    ret = wc_HKDF(WC_SHA256, seed, seedSz, NULL, 0, encInfo,
+        (word32)sizeof(encInfo) - 1U, derivedOut->enc,
+        sizeof(derivedOut->enc));
+    if (ret == 0) {
+        ret = wc_HKDF(WC_SHA256, seed, seedSz, NULL, 0, macInfo,
+            (word32)sizeof(macInfo) - 1U, derivedOut->mac,
+            sizeof(derivedOut->mac));
+    }
+    if (ret == 0) {
+        ret = wc_HKDF(WC_SHA256, seed, seedSz, NULL, 0, dekInfo,
+            (word32)sizeof(dekInfo) - 1U, derivedOut->dek,
+            sizeof(derivedOut->dek));
+    }
+    if (ret != 0) {
+        ForceZero(derivedOut, sizeof(*derivedOut));
+    }
+    return ret;
+}
+#endif /* HAVE_HKDF */
+
+#if defined(WOLFSSL_SE050_SCP03_ROTATE) && \
+    defined(SE050_RUNTIME_SCP03)
+#define SE050_SCP03_KEY_SZ       16U
+#define SE050_SCP03_KCV_SZ       3U
+#define SE050_SCP03_KEY_BLOCK_SZ 23U
+#define SE050_SCP03_PUT_KEY_SZ \
+    (1U + (3U * SE050_SCP03_KEY_BLOCK_SZ))
+#define SE050_SCP03_CMD_CAPACITY \
+    (SE050_SCP03_PUT_KEY_SZ + AES_BLOCK_SIZE)
+
+static int se050_scp03_get_static_key(sss_object_t* object, byte* key,
+    size_t keySz)
+{
+    size_t outSz = keySz;
+    size_t outBits = keySz * 8U;
+    sss_status_t status;
+
+    if ((object == NULL) || (object->keyStore == NULL) || (key == NULL)) {
+        return WC_NO_ERR_TRACE(BAD_STATE_E);
+    }
+    status = sss_host_key_store_get_key(&gBootCtx.host_ks, object, key,
+        &outSz, &outBits);
+    if ((status != kStatus_SSS_Success) || (outSz != keySz)) {
+        ForceZero(key, keySz);
+        return WC_HW_E;
+    }
+    return 0;
+}
+
+static int se050_scp03_get_static_keys(wc_se050_scp03_keys* keys)
+{
+    NXSCP03_StaticCtx_t* staticCtx;
+    int ret;
+
+    if (keys == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    staticCtx = gBootCtx.se05x_open_ctx.auth.ctx.scp03.pStatic_ctx;
+    if (staticCtx == NULL) {
+        return WC_NO_ERR_TRACE(BAD_STATE_E);
+    }
+    ret = se050_scp03_get_static_key(&staticCtx->Enc, keys->enc,
+        sizeof(keys->enc));
+    if (ret == 0) {
+        ret = se050_scp03_get_static_key(&staticCtx->Mac, keys->mac,
+            sizeof(keys->mac));
+    }
+    if (ret == 0) {
+        ret = se050_scp03_get_static_key(&staticCtx->Dek, keys->dek,
+            sizeof(keys->dek));
+    }
+    if (ret != 0) {
+        ForceZero(keys, sizeof(*keys));
+    }
+    return ret;
+}
+
+static int se050_scp03_encrypt_block(const byte* key, const byte* in,
+    byte* out)
+{
+    Aes aes;
+    int ret;
+    /* in/out point into byte-packed APDU command buffers and are not
+     * guaranteed to be 4-byte aligned. HW-accelerated AES backends (e.g.
+     * STM32_CRYPTO) cast these pointers to uint32_t* internally, so an
+     * unaligned buffer here faults. Stage through aligned local buffers. */
+    ALIGN16 byte alignedIn[SE050_SCP03_KEY_SZ];
+    ALIGN16 byte alignedOut[SE050_SCP03_KEY_SZ];
+
+    XMEMSET(&aes, 0, sizeof(aes));
+#if defined(WOLFSSL_SE050_CRYPT) && defined(HAVE_AESGCM)
+    /* SCP03 static keys are host secrets. Never route DEK wrapping or KCV
+     * generation back through the secure element. */
+    aes.useSWCrypt = 1;
+#endif
+    XMEMCPY(alignedIn, in, sizeof(alignedIn));
+    ret = wc_AesSetKey(&aes, key, SE050_SCP03_KEY_SZ, NULL, AES_ENCRYPTION);
+    if (ret == 0) {
+        ret = wc_AesEncryptDirect(&aes, alignedOut, alignedIn);
+        if (ret == 0) {
+            XMEMCPY(out, alignedOut, sizeof(alignedOut));
+        }
+    }
+    ForceZero(alignedIn, sizeof(alignedIn));
+    ForceZero(alignedOut, sizeof(alignedOut));
+    wc_AesFree(&aes);
+    return ret;
+}
+
+static int se050_scp03_make_key_block(const byte* newKey,
+    const byte* currentDek, byte* block, byte* kcv)
+{
+    byte checkInput[SE050_SCP03_KEY_SZ];
+    int ret;
+
+    block[0] = 0x88; /* GlobalPlatform AES key type. */
+    block[1] = SE050_SCP03_KEY_SZ + 1U;
+    block[2] = SE050_SCP03_KEY_SZ;
+    ret = se050_scp03_encrypt_block(currentDek, newKey, &block[3]);
+    if (ret == 0) {
+        XMEMSET(checkInput, 1, sizeof(checkInput));
+        ret = se050_scp03_encrypt_block(newKey, checkInput, kcv);
+    }
+    if (ret == 0) {
+        block[3U + SE050_SCP03_KEY_SZ] = SE050_SCP03_KCV_SZ;
+        XMEMCPY(&block[4U + SE050_SCP03_KEY_SZ], kcv,
+            SE050_SCP03_KCV_SZ);
+    }
+    ForceZero(checkInput, sizeof(checkInput));
+    return ret;
+}
+
+static int se050_scp03_put_keys(const wc_se050_scp03_keys* newKeys,
+    byte keyVersion, int* keysChanged)
+{
+    byte cmd[SE050_SCP03_CMD_CAPACITY];
+    byte expected[1U + (3U * SE050_SCP03_KCV_SZ)];
+    byte response[64];
+    byte currentDek[SE050_SCP03_KEY_SZ];
+    size_t responseSz = sizeof(response);
+    size_t currentDekSz = sizeof(currentDek);
+    size_t currentDekBits = sizeof(currentDek) * 8U;
+    NXSCP03_StaticCtx_t* staticCtx;
+    sss_se05x_session_t* session;
+    tlvHeader_t header = {{0x80, 0xD8, 0, 0x81}};
+    sss_status_t status;
+    smStatus_t smStatus;
+    word32 i;
+    int ret;
+
+    if ((newKeys == NULL) || (keysChanged == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+    *keysChanged = 0;
+    if ((cfg_se050_i2c_pi != &gBootCtx.session) ||
+            (gBootCtx.session.subsystem != kType_SSS_SE_SE05x) ||
+            (gBootCtx.se05x_open_ctx.auth.authType != kSSS_AuthType_SCP03) ||
+            (gBootCtx.se05x_open_ctx.skip_select_applet != 1)) {
+        return WC_NO_ERR_TRACE(BAD_STATE_E);
+    }
+
+    staticCtx = gBootCtx.se05x_open_ctx.auth.ctx.scp03.pStatic_ctx;
+    if ((staticCtx == NULL) || (staticCtx->Dek.keyStore == NULL)) {
+        return WC_NO_ERR_TRACE(BAD_STATE_E);
+    }
+
+    status = sss_host_key_store_get_key(&gBootCtx.host_ks,
+        &staticCtx->Dek, currentDek, &currentDekSz, &currentDekBits);
+    if ((status != kStatus_SSS_Success) ||
+            (currentDekSz != sizeof(currentDek))) {
+        ForceZero(currentDek, sizeof(currentDek));
+        return WC_HW_E;
+    }
+
+    cmd[0] = keyVersion;
+    expected[0] = keyVersion;
+    for (i = 0; i < 3U; i++) {
+        const byte* key = (i == 0U) ? newKeys->enc :
+            ((i == 1U) ? newKeys->mac : newKeys->dek);
+        byte kcv[SE050_SCP03_KEY_SZ];
+
+        ret = se050_scp03_make_key_block(key, currentDek,
+            &cmd[1U + (i * SE050_SCP03_KEY_BLOCK_SZ)], kcv);
+        if (ret != 0) {
+            ForceZero(kcv, sizeof(kcv));
+            ForceZero(currentDek, sizeof(currentDek));
+            ForceZero(cmd, sizeof(cmd));
+            return ret;
+        }
+        XMEMCPY(&expected[1U + (i * SE050_SCP03_KCV_SZ)], kcv,
+            SE050_SCP03_KCV_SZ);
+        ForceZero(kcv, sizeof(kcv));
+    }
+    ForceZero(currentDek, sizeof(currentDek));
+
+    header.hdr[2] = keyVersion;
+    session = (sss_se05x_session_t*)&gBootCtx.session;
+    ret = wc_se050_lock();
+    if (ret == 0) {
+        smStatus = DoAPDUTxRx_s_Case4(&session->s_ctx, &header, cmd,
+            SE050_SCP03_PUT_KEY_SZ, response, &responseSz);
+        wc_se050_unlock();
+    }
+    else {
+        smStatus = SM_NOT_OK;
+    }
+    ForceZero(cmd, sizeof(cmd));
+
+    if ((ret != 0) || (smStatus != SM_OK) || (responseSz < 2U) ||
+            ((((word32)response[responseSz - 2U] << 8) |
+               response[responseSz - 1U]) != SM_OK)) {
+        ForceZero(expected, sizeof(expected));
+        ForceZero(response, sizeof(response));
+        return WC_HW_E;
+    }
+    /* A successful status means the Security Domain has committed the key
+     * set, even if the response below is malformed or its KCV echo does not
+     * match. The caller must reconnect with newKeys in that case. */
+    *keysChanged = 1;
+    if (responseSz < (sizeof(expected) + 2U)) {
+        ForceZero(expected, sizeof(expected));
+        ForceZero(response, sizeof(response));
+        return WC_HW_E;
+    }
+    if (ConstantCompare(response, expected, sizeof(expected)) != 0) {
+        ForceZero(expected, sizeof(expected));
+        ForceZero(response, sizeof(response));
+        return AES_GCM_AUTH_E;
+    }
+    ForceZero(expected, sizeof(expected));
+    ForceZero(response, sizeof(response));
+
+    return 0;
+}
+
+int wc_se050_scp03_rotate_keys(const wc_se050_scp03_keys* newKeys,
+    byte keyVersion)
+{
+    wc_se050_scp03_keys currentKeys;
+    const wc_se050_scp03_keys* reopenKeys;
+    const char* portName;
+    int keysChanged = 0;
+    int closeRet;
+    int reopenRet;
+    int ret;
+
+    if (newKeys == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    if ((cfg_se050_i2c_pi != &gBootCtx.session) ||
+            (gBootCtx.session.subsystem != kType_SSS_SE_SE05x) ||
+            (gBootCtx.se05x_open_ctx.auth.authType != kSSS_AuthType_SCP03) ||
+            (gBootCtx.se05x_open_ctx.skip_select_applet != 0)) {
+        return WC_NO_ERR_TRACE(BAD_STATE_E);
+    }
+
+    portName = gBootCtx.se05x_open_ctx.portName;
+    ret = se050_scp03_get_static_keys(&currentKeys);
+    if (ret != 0) {
+        return ret;
+    }
+
+    /* Platform SCP03 protects both the IoT applet and its Security Domain,
+     * but PUT KEY is accepted only by the latter. Reopen against the SSD for
+     * the update, then always return to a fresh IoT applet session. */
+    ret = wc_se050_close();
+    if (ret == 0) {
+        ret = se050_init_scp03_mode(portName, &currentKeys, 1);
+    }
+    if (ret == 0) {
+        ret = se050_scp03_put_keys(newKeys, keyVersion, &keysChanged);
+        closeRet = wc_se050_close();
+        if (closeRet != 0) {
+            ret = closeRet;
+        }
+    }
+
+    if (gBootCtx.session.subsystem == kType_SSS_SubSystem_NONE) {
+        reopenKeys = (keysChanged != 0) ? newKeys : &currentKeys;
+        reopenRet = se050_init_scp03_mode(portName, reopenKeys, 0);
+        if (reopenRet != 0) {
+            ret = reopenRet;
+        }
+    }
+    ForceZero(&currentKeys, sizeof(currentKeys));
+    return ret;
+}
+
+#ifdef HAVE_HKDF
+int wc_se050_scp03_rotate_keys_seed(const byte* seed, word32 seedSz,
+    byte keyVersion, wc_se050_scp03_keys* derivedOut)
+{
+    wc_se050_scp03_keys keys;
+    int ret;
+
+    ret = wc_se050_scp03_derive_keys_seed(seed, seedSz, &keys);
+    if ((ret == 0) && (derivedOut != NULL)) {
+        XMEMCPY(derivedOut, &keys, sizeof(keys));
+    }
+    if (ret == 0) {
+        ret = wc_se050_scp03_rotate_keys(&keys, keyVersion);
+    }
+    ForceZero(&keys, sizeof(keys));
+    return ret;
+}
+#endif /* HAVE_HKDF */
+#endif /* WOLFSSL_SE050_SCP03_ROTATE && SE050_RUNTIME_SCP03 */
 
 /**
  * Erase and free an object stored in SE050.
@@ -164,7 +935,7 @@ int wc_se050_erase_object(word32 id)
         status = sss_key_object_get_handle(&object, id);
     }
     if (status == kStatus_SSS_Success) {
-        sss_key_store_erase_key(&host_keystore, &object);
+        status = sss_key_store_erase_key(&host_keystore, &object);
         sss_key_object_free(&object);
     }
     wolfSSL_CryptHwMutexUnLock();
@@ -566,13 +1337,17 @@ static int se050_get_object_size(sss_key_store_t* keystore, word32 keyId)
  *
  * Returns 0 on success, negative on error
  */
-int wc_se050_insert_binary_object(word32 keyId, const byte* object,
-                                  word32 objectSz)
+static int se050_insert_binary_object(word32 keyId, const byte* object,
+    word32 objectSz, const sss_policy_t* policy, int requireNew)
 {
     int             ret = 0;
     sss_object_t    newObj;
     sss_key_store_t host_keystore;
     sss_status_t    status = kStatus_SSS_Success;
+
+    if ((cfg_se050_i2c_pi == NULL) || (object == NULL) || (objectSz == 0U)) {
+        return BAD_FUNC_ARG;
+    }
 
     if (wolfSSL_CryptHwMutexLock() != 0) {
         return BAD_MUTEX_E;
@@ -584,7 +1359,13 @@ int wc_se050_insert_binary_object(word32 keyId, const byte* object,
         return BAD_FUNC_ARG;
     }
 
-    status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
+    if (requireNew) {
+        status = se050_require_new_object(keyId);
+    }
+    if (status == kStatus_SSS_Success) {
+        status = sss_key_store_context_init(&host_keystore,
+            cfg_se050_i2c_pi);
+    }
     if (status == kStatus_SSS_Success) {
         status = sss_key_object_init(&newObj, &host_keystore);
     }
@@ -595,7 +1376,7 @@ int wc_se050_insert_binary_object(word32 keyId, const byte* object,
     }
     if (status == kStatus_SSS_Success) {
         status = sss_key_store_set_key(&host_keystore, &newObj, object,
-                                       objectSz, (objectSz * 8), NULL, 0);
+            objectSz, (objectSz * 8), (void*)policy, 0);
     }
     wolfSSL_CryptHwMutexUnLock();
 
@@ -604,6 +1385,37 @@ int wc_se050_insert_binary_object(word32 keyId, const byte* object,
     }
 
     return ret;
+}
+
+int wc_se050_insert_binary_object_policy(word32 keyId, const byte* object,
+    word32 objectSz, const sss_policy_t* policy)
+{
+    return se050_insert_binary_object(keyId, object, objectSz, policy, 0);
+}
+
+int wc_se050_insert_binary_object_ex(word32 keyId, const byte* object,
+    word32 objectSz, word32 policyFlags, word32 authObjId)
+{
+    int ret;
+    const sss_policy_t* policy = NULL;
+    se050_policy_set policySet;
+
+    ret = se050_build_policy_set(SE050_POLICY_OBJECT_FILE, policyFlags,
+        authObjId, &policySet);
+    if (ret != 0) {
+        return ret;
+    }
+    if (policyFlags != 0U) {
+        policy = &policySet.policy;
+    }
+    return se050_insert_binary_object(keyId, object, objectSz, policy, 1);
+}
+
+int wc_se050_insert_binary_object(word32 keyId, const byte* object,
+    word32 objectSz)
+{
+    return wc_se050_insert_binary_object_policy(keyId, object, objectSz,
+        NULL);
 }
 
 /**
@@ -672,6 +1484,791 @@ int wc_se050_get_binary_object(word32 keyId, byte* out, word32* outSz)
 
     return ret;
 }
+
+int wc_se050_get_object_attributes(word32 keyId, byte* attr, word32* attrSz)
+{
+#if defined(SSS_HAVE_SE05X_VER_GTE_07_02) && \
+    SSS_HAVE_SE05X_VER_GTE_07_02
+    pSe05xSession_t session;
+    smStatus_t status;
+    size_t size;
+
+    if ((attr == NULL) || (attrSz == NULL) || (*attrSz == 0U)) {
+        return BAD_FUNC_ARG;
+    }
+    if (cfg_se050_i2c_pi == NULL) {
+        return WC_NO_ERR_TRACE(BAD_STATE_E);
+    }
+    if (wolfSSL_CryptHwMutexLock() != 0) {
+        return BAD_MUTEX_E;
+    }
+
+    session = wc_se050_get_se05x_session();
+    if (session == NULL) {
+        wolfSSL_CryptHwMutexUnLock();
+        return WC_NO_ERR_TRACE(BAD_STATE_E);
+    }
+
+    size = *attrSz;
+    status = Se05x_API_ReadObjectAttributes(session, keyId, attr, &size);
+    *attrSz = (word32)size;
+    wolfSSL_CryptHwMutexUnLock();
+
+    return (status == SM_OK) ? 0 : WC_HW_E;
+#else
+    (void)keyId;
+    (void)attr;
+    (void)attrSz;
+    return WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+#endif
+}
+
+#ifndef WOLFSSL_SE050_NO_ATTEST
+
+#define SE050_ATTEST_RANDOM_SIZE 16U
+#define SE050_ATTR_FIXED_SIZE    14U
+#define SE050_ATTR_POLICY_MIN    8U
+#define SE050_TLV_OVERHEAD       4U
+
+static word32 se050_get_u32(const byte* in)
+{
+    return ((word32)in[0] << 24) | ((word32)in[1] << 16) |
+        ((word32)in[2] << 8) | (word32)in[3];
+}
+
+static int se050_attest_algorithm(enum wc_HashType hashAlgo,
+    word32 cipherType, sss_algorithm_t* algorithm)
+{
+    int isRsa;
+
+    if (algorithm == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    isRsa = (cipherType == (word32)kSSS_CipherType_RSA) ||
+        (cipherType == (word32)kSSS_CipherType_RSA_CRT);
+
+    if (hashAlgo == WC_HASH_TYPE_SHA) {
+        *algorithm = isRsa ? kAlgorithm_SSS_RSASSA_PKCS1_V1_5_SHA1 :
+            kAlgorithm_SSS_ECDSA_SHA1;
+    }
+    else if (hashAlgo == WC_HASH_TYPE_SHA224) {
+        *algorithm = isRsa ? kAlgorithm_SSS_RSASSA_PKCS1_V1_5_SHA224 :
+            kAlgorithm_SSS_ECDSA_SHA224;
+    }
+    else if (hashAlgo == WC_HASH_TYPE_SHA256) {
+        *algorithm = isRsa ? kAlgorithm_SSS_RSASSA_PKCS1_V1_5_SHA256 :
+            kAlgorithm_SSS_ECDSA_SHA256;
+    }
+    else if (hashAlgo == WC_HASH_TYPE_SHA384) {
+        *algorithm = isRsa ? kAlgorithm_SSS_RSASSA_PKCS1_V1_5_SHA384 :
+            kAlgorithm_SSS_ECDSA_SHA384;
+    }
+    else if (hashAlgo == WC_HASH_TYPE_SHA512) {
+        *algorithm = isRsa ? kAlgorithm_SSS_RSASSA_PKCS1_V1_5_SHA512 :
+            kAlgorithm_SSS_ECDSA_SHA512;
+    }
+    else {
+        return BAD_FUNC_ARG;
+    }
+
+    if (!isRsa &&
+            (cipherType != (word32)kSSS_CipherType_EC_NIST_P) &&
+            (cipherType != (word32)kSSS_CipherType_EC_NIST_K) &&
+            (cipherType != (word32)kSSS_CipherType_EC_BRAINPOOL)) {
+        return BAD_FUNC_ARG;
+    }
+
+    return 0;
+}
+
+static void se050_parse_attested_attributes(const byte* attr, word32 attrSz,
+    wc_se050_attst_result* result)
+{
+    word32 i;
+    word32 authId = 0U;
+    word32 header;
+    word32 flags = 0U;
+    word32 entryLen;
+    int haveAuthId = 0;
+
+    if ((attr == NULL) || (result == NULL) ||
+            (attrSz < (SE050_ATTR_FIXED_SIZE + 1U))) {
+        return;
+    }
+
+    i = SE050_ATTR_FIXED_SIZE;
+    while ((i < attrSz) && (attr[i] >= SE050_ATTR_POLICY_MIN)) {
+        entryLen = attr[i];
+        if ((entryLen > (attrSz - i - 1U)) || (entryLen < 8U)) {
+            return;
+        }
+        if (!haveAuthId) {
+            authId = se050_get_u32(attr + i + 1U);
+            haveAuthId = 1;
+        }
+        header = se050_get_u32(attr + i + 5U);
+        if ((header & 0x00040000U) != 0U)
+            flags |= WC_SE050_POLICY_ALLOW_DELETE;
+        if ((header & 0x00100000U) != 0U)
+            flags |= WC_SE050_POLICY_ALLOW_WRITE;
+        if ((header & 0x00200000U) != 0U)
+            flags |= WC_SE050_POLICY_ALLOW_READ;
+        if ((header & 0x10000000U) != 0U)
+            flags |= WC_SE050_POLICY_ALLOW_SIGN;
+        if ((header & 0x08000000U) != 0U)
+            flags |= WC_SE050_POLICY_ALLOW_VERIFY;
+        if ((header & 0x02000000U) != 0U)
+            flags |= WC_SE050_POLICY_ALLOW_ENCRYPT;
+        if ((header & 0x01000000U) != 0U)
+            flags |= WC_SE050_POLICY_ALLOW_DECRYPT;
+        if ((header & 0x04000000U) != 0U)
+            flags |= WC_SE050_POLICY_ALLOW_KA;
+        if ((header & 0x00800000U) != 0U)
+            flags |= WC_SE050_POLICY_ALLOW_KD;
+        if ((header & 0x00080000U) != 0U)
+            flags |= WC_SE050_POLICY_ALLOW_GEN;
+        if ((header & 0x00001000U) != 0U)
+            flags |= WC_SE050_POLICY_ALLOW_IMPORT_EXPORT;
+        if ((header & 0x00008000U) != 0U)
+            flags |= WC_SE050_POLICY_ALLOW_ATTEST;
+        if ((header & 0x00020000U) != 0U)
+            flags |= WC_SE050_POLICY_REQUIRE_SM;
+        i += entryLen + 1U;
+    }
+
+    if (i < attrSz) {
+        result->origin = attr[i];
+    }
+    result->authObjId = authId;
+    result->policyFlags = flags;
+}
+
+int wc_se050_attest_object(word32 keyId, word32 attestKeyId,
+    enum wc_HashType hashAlgo, const byte* random, word32 randomSz,
+    wc_se050_attst_result* result)
+{
+    int ret = 0;
+    int i;
+    byte generatedRandom[SE050_ATTEST_RANDOM_SIZE];
+    const byte* freshness = random;
+    word32 freshnessSz = randomSz;
+    size_t valueSz;
+    size_t valueBitSz = 0;
+    sss_algorithm_t algorithm = kAlgorithm_None;
+    sss_key_store_t keyStore;
+    sss_object_t object;
+    sss_object_t attestObject;
+    sss_se05x_object_t* seObject;
+    sss_se05x_object_t* seAttestObject;
+    sss_status_t status = kStatus_SSS_Fail;
+
+    if ((result == NULL) || (keyId == attestKeyId) ||
+            ((random == NULL) && (randomSz != 0U)) ||
+            ((random != NULL) && (randomSz != SE050_ATTEST_RANDOM_SIZE))) {
+        return BAD_FUNC_ARG;
+    }
+    if (cfg_se050_i2c_pi == NULL) {
+        return WC_NO_ERR_TRACE(BAD_STATE_E);
+    }
+
+    if (freshness == NULL) {
+    #if !defined(WC_NO_RNG) && !defined(WOLFSSL_SE050_NO_TRNG)
+        ret = se050_get_random_number((word32)sizeof(generatedRandom),
+            generatedRandom);
+        if (ret != 0) {
+            return ret;
+        }
+        freshness = generatedRandom;
+        freshnessSz = (word32)sizeof(generatedRandom);
+    #else
+        return WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+    #endif
+    }
+
+    XMEMSET(result, 0, sizeof(*result));
+    result->hashAlgo = hashAlgo;
+    XMEMCPY(result->freshness, freshness, SE050_ATTEST_RANDOM_SIZE);
+    for (i = 0; i < SE05X_MAX_ATTST_DATA; i++) {
+        result->raw.data[i].attributeLen =
+            sizeof(result->raw.data[i].attribute);
+        result->raw.data[i].chipIdLen = sizeof(result->raw.data[i].chipId);
+        result->raw.data[i].signatureLen =
+            sizeof(result->raw.data[i].signature);
+        result->raw.data[i].timeStampLen =
+            sizeof(result->raw.data[i].timeStamp);
+    #if SSS_HAVE_SE05X_VER_GTE_07_02
+        result->raw.data[i].cmdLen = sizeof(result->raw.data[i].cmd);
+        result->raw.data[i].objSizeLen =
+            sizeof(result->raw.data[i].objSize);
+    #else
+        result->raw.data[i].outrandomLen =
+            sizeof(result->raw.data[i].outrandom);
+    #endif
+    }
+
+    if (wolfSSL_CryptHwMutexLock() != 0) {
+        return BAD_MUTEX_E;
+    }
+
+    status = sss_key_store_context_init(&keyStore, cfg_se050_i2c_pi);
+    if (status == kStatus_SSS_Success)
+        status = sss_key_object_init(&object, &keyStore);
+    if (status == kStatus_SSS_Success)
+        status = sss_key_object_get_handle(&object, keyId);
+    if (status == kStatus_SSS_Success)
+        status = sss_key_object_init(&attestObject, &keyStore);
+    if (status == kStatus_SSS_Success)
+        status = sss_key_object_get_handle(&attestObject, attestKeyId);
+
+    seObject = (sss_se05x_object_t*)&object;
+    seAttestObject = (sss_se05x_object_t*)&attestObject;
+    if (status == kStatus_SSS_Success) {
+        ret = se050_attest_algorithm(hashAlgo, seAttestObject->cipherType,
+            &algorithm);
+        if (ret != 0)
+            status = kStatus_SSS_Fail;
+    }
+    if (status == kStatus_SSS_Success) {
+        result->cipherType = seObject->cipherType;
+        result->objectType = seObject->objectType;
+        result->curveId = seObject->curve_id;
+        valueSz = sizeof(result->value);
+        status = sss_se05x_key_store_get_key_attst(
+            (sss_se05x_key_store_t*)&keyStore, seObject, result->value,
+            &valueSz, &valueBitSz, seAttestObject, algorithm,
+            (byte*)freshness, freshnessSz, &result->raw);
+        if (status == kStatus_SSS_Success) {
+            result->valueSz = (word32)valueSz;
+        }
+    }
+    wolfSSL_CryptHwMutexUnLock();
+
+    ForceZero(generatedRandom, sizeof(generatedRandom));
+    if (status != kStatus_SSS_Success) {
+        return (ret != 0) ? ret : WC_HW_E;
+    }
+    if ((result->raw.valid_number == 0U) ||
+            (result->raw.valid_number > SE05X_MAX_ATTST_DATA)) {
+        return WC_HW_E;
+    }
+
+    se050_parse_attested_attributes(result->raw.data[0].attribute,
+        (word32)result->raw.data[0].attributeLen, result);
+    return 0;
+}
+
+static int se050_attested_component(const wc_se050_attst_result* result,
+    word32 componentIndex, byte* component, word32* componentSz)
+{
+    int ret;
+
+    if ((result == NULL) || (component == NULL) || (componentSz == NULL) ||
+            (componentIndex >= result->raw.valid_number)) {
+        return BAD_FUNC_ARG;
+    }
+
+    if ((result->cipherType == (word32)kSSS_CipherType_RSA) ||
+            (result->cipherType == (word32)kSSS_CipherType_RSA_CRT)) {
+    #ifndef NO_RSA
+        RsaKey key;
+        word32 idx = 0;
+        byte exponent[8];
+        word32 exponentSz = sizeof(exponent);
+        word32 modulusSz = *componentSz;
+
+        ret = wc_InitRsaKey(&key, NULL);
+        if (ret == 0)
+            ret = wc_RsaPublicKeyDecode(result->value, &idx, &key,
+                result->valueSz);
+        if (ret == 0) {
+            ret = wc_RsaFlattenPublicKey(&key, exponent, &exponentSz,
+                component, &modulusSz);
+        }
+        if (ret == 0) {
+            if (componentIndex == 0U) {
+                *componentSz = modulusSz;
+            }
+            else if (*componentSz >= exponentSz) {
+                XMEMCPY(component, exponent, exponentSz);
+                *componentSz = exponentSz;
+            }
+            else {
+                ret = BUFFER_E;
+            }
+        }
+        wc_FreeRsaKey(&key);
+        ForceZero(exponent, sizeof(exponent));
+        return ret;
+    #else
+        return WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+    #endif
+    }
+
+    if ((result->cipherType == (word32)kSSS_CipherType_EC_NIST_P) ||
+            (result->cipherType == (word32)kSSS_CipherType_EC_NIST_K) ||
+            (result->cipherType == (word32)kSSS_CipherType_EC_BRAINPOOL)) {
+    #ifdef HAVE_ECC
+        ecc_key key;
+        word32 idx = 0;
+
+        ret = wc_ecc_init(&key);
+        if (ret == 0)
+            ret = wc_EccPublicKeyDecode(result->value, &idx, &key,
+                result->valueSz);
+        if (ret == 0)
+            ret = wc_ecc_export_x963(&key, component, componentSz);
+        wc_ecc_free(&key);
+        return ret;
+    #else
+        return WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+    #endif
+    }
+
+    if ((result->cipherType ==
+            (word32)kSSS_CipherType_EC_MONTGOMERY) ||
+            (result->cipherType ==
+            (word32)kSSS_CipherType_EC_TWISTED_ED)) {
+        word32 i;
+        word32 rawSz = 32U;
+
+        /* Plug & Trust prepends SubjectPublicKeyInfo DER and reverses these
+         * little-endian applet values after attestation. The signature is
+         * over the original applet bytes, so strip DER and undo that reverse. */
+        if ((result->cipherType ==
+                (word32)kSSS_CipherType_EC_MONTGOMERY) &&
+                (result->valueSz > 56U)) {
+            rawSz = 56U; /* X448 */
+        }
+        if ((result->valueSz < rawSz) || (*componentSz < rawSz)) {
+            return BUFFER_E;
+        }
+        for (i = 0U; i < rawSz; i++) {
+            component[i] = result->value[result->valueSz - 1U - i];
+        }
+        *componentSz = rawSz;
+        return 0;
+    }
+
+    if (*componentSz < result->valueSz) {
+        return BUFFER_E;
+    }
+    XMEMCPY(component, result->value, result->valueSz);
+    *componentSz = result->valueSz;
+    return 0;
+}
+
+static int se050_attest_append(byte* out, word32 outSz, word32* offset,
+    const byte* in, word32 inSz)
+{
+    if ((out == NULL) || (offset == NULL) ||
+            ((in == NULL) && (inSz != 0U)) || (*offset > outSz) ||
+            (inSz > (outSz - *offset))) {
+        return BUFFER_E;
+    }
+    if (inSz != 0U) {
+        XMEMCPY(out + *offset, in, inSz);
+        *offset += inSz;
+    }
+    return 0;
+}
+
+#if SSS_HAVE_SE05X_VER_GTE_07_02
+static int se050_attest_append_tlv(byte* out, word32 outSz, word32* offset,
+    byte tag, const byte* value, word32 valueSz)
+{
+    byte header[SE050_TLV_OVERHEAD];
+    int ret;
+
+    if (valueSz > 0xFFFFU) {
+        return BAD_LENGTH_E;
+    }
+    header[0] = tag;
+    header[1] = 0x82;
+    header[2] = (byte)(valueSz >> 8);
+    header[3] = (byte)valueSz;
+    ret = se050_attest_append(out, outSz, offset, header, sizeof(header));
+    if (ret == 0)
+        ret = se050_attest_append(out, outSz, offset, value, valueSz);
+    return ret;
+}
+#endif
+
+static int se050_build_attestation_data(const wc_se050_attst_result* result,
+    word32 componentIndex, byte* component, word32 componentSz,
+    byte* signedData, word32 signedDataSz, word32* used)
+{
+#ifdef NO_HASH_WRAPPER
+    (void)result;
+    (void)componentIndex;
+    (void)component;
+    (void)componentSz;
+    (void)signedData;
+    (void)signedDataSz;
+    (void)used;
+    return WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+#else
+    int ret = 0;
+    word32 offset = 0;
+    const sss_se05x_attst_comp_data_t* data;
+
+    if ((result == NULL) || (signedData == NULL) || (used == NULL) ||
+            (componentIndex >= result->raw.valid_number)) {
+        return BAD_FUNC_ARG;
+    }
+    data = &result->raw.data[componentIndex];
+    if ((data->attributeLen > sizeof(data->attribute)) ||
+            (data->chipIdLen > sizeof(data->chipId)) ||
+            (data->timeStampLen > sizeof(data->timeStamp)) ||
+            (data->signatureLen > sizeof(data->signature))) {
+        return BAD_LENGTH_E;
+    }
+#if SSS_HAVE_SE05X_VER_GTE_07_02
+    if ((data->cmdLen > sizeof(data->cmd)) ||
+            (data->objSizeLen > sizeof(data->objSize))) {
+        return BAD_LENGTH_E;
+    }
+#else
+    if (data->outrandomLen > sizeof(data->outrandom)) {
+        return BAD_LENGTH_E;
+    }
+#endif
+
+#if SSS_HAVE_SE05X_VER_GTE_07_02
+    {
+        int digestSz;
+        byte commandDigest[WC_MAX_DIGEST_SIZE];
+
+        digestSz = wc_HashGetDigestSize(result->hashAlgo);
+        if ((digestSz <= 0) || (data->cmdLen > UINT32_MAX)) {
+            return BAD_FUNC_ARG;
+        }
+        ret = wc_Hash(result->hashAlgo, data->cmd, (word32)data->cmdLen,
+            commandDigest, (word32)digestSz);
+        if (ret == 0)
+            ret = se050_attest_append(signedData, signedDataSz, &offset,
+                commandDigest, (word32)digestSz);
+        if ((ret == 0) && (componentSz != 0U))
+            ret = se050_attest_append_tlv(signedData, signedDataSz, &offset,
+                (byte)kSE05x_TAG_1, component, componentSz);
+        if (ret == 0)
+            ret = se050_attest_append_tlv(signedData, signedDataSz, &offset,
+                (byte)kSE05x_TAG_2, data->chipId, (word32)data->chipIdLen);
+        if (ret == 0)
+            ret = se050_attest_append_tlv(signedData, signedDataSz, &offset,
+                (byte)kSE05x_TAG_3, data->attribute,
+                (word32)data->attributeLen);
+        if (ret == 0)
+            ret = se050_attest_append_tlv(signedData, signedDataSz, &offset,
+                (byte)kSE05x_TAG_4, data->objSize,
+                (word32)data->objSizeLen);
+        if (ret == 0)
+            ret = se050_attest_append_tlv(signedData, signedDataSz, &offset,
+                (byte)kSE05x_TAG_TIMESTAMP, data->timeStamp.ts,
+                (word32)data->timeStampLen);
+        ForceZero(commandDigest, sizeof(commandDigest));
+    }
+#else
+    ret = se050_attest_append(signedData, signedDataSz, &offset, component,
+        componentSz);
+    if (ret == 0)
+        ret = se050_attest_append(signedData, signedDataSz, &offset,
+            data->attribute, (word32)data->attributeLen);
+    if (ret == 0)
+        ret = se050_attest_append(signedData, signedDataSz, &offset,
+            data->timeStamp.ts, (word32)data->timeStampLen);
+    if (ret == 0)
+        ret = se050_attest_append(signedData, signedDataSz, &offset,
+            data->outrandom, (word32)data->outrandomLen);
+    if (ret == 0)
+        ret = se050_attest_append(signedData, signedDataSz, &offset,
+            data->chipId, (word32)data->chipIdLen);
+#endif
+
+    if (ret == 0)
+        *used = offset;
+    return ret;
+#endif
+}
+
+static int se050_verify_attestation_freshness(
+    const sss_se05x_attst_comp_data_t* data, const byte* expectedRandom,
+    word32 expectedRandomSz)
+{
+    if ((data == NULL) || (expectedRandom == NULL) ||
+            (expectedRandomSz != SE050_ATTEST_RANDOM_SIZE)) {
+        return BAD_FUNC_ARG;
+    }
+
+#if defined(SSS_HAVE_SE05X_VER_GTE_07_02) && \
+    SSS_HAVE_SE05X_VER_GTE_07_02
+    {
+        word32 offset = 7U;
+        word32 commandDataSz;
+        int found = 0;
+
+        if ((data->cmdLen < offset) || (data->cmdLen > sizeof(data->cmd)) ||
+                (data->cmd[0] != (byte)kSE05x_CLA) ||
+                (data->cmd[1] !=
+                    (byte)kSE05x_INS_READ_With_Attestation) ||
+                (data->cmd[4] != 0U)) {
+            return BAD_LENGTH_E;
+        }
+        commandDataSz = ((word32)data->cmd[5] << 8) | data->cmd[6];
+        if (commandDataSz != ((word32)data->cmdLen - offset)) {
+            return BAD_LENGTH_E;
+        }
+
+        while (offset < data->cmdLen) {
+            byte tag;
+            byte lengthByte;
+            word32 valueSz;
+
+            tag = data->cmd[offset++];
+            if (offset >= data->cmdLen) {
+                return BAD_LENGTH_E;
+            }
+            lengthByte = data->cmd[offset++];
+            if (lengthByte <= 0x7FU) {
+                valueSz = lengthByte;
+            }
+            else if (lengthByte == 0x81U) {
+                if (offset >= data->cmdLen) {
+                    return BAD_LENGTH_E;
+                }
+                valueSz = data->cmd[offset++];
+            }
+            else if (lengthByte == 0x82U) {
+                if (((word32)data->cmdLen - offset) < 2U) {
+                    return BAD_LENGTH_E;
+                }
+                valueSz = ((word32)data->cmd[offset] << 8) |
+                    data->cmd[offset + 1U];
+                offset += 2U;
+            }
+            else {
+                return BAD_LENGTH_E;
+            }
+            if (valueSz > ((word32)data->cmdLen - offset)) {
+                return BAD_LENGTH_E;
+            }
+            if (tag == (byte)kSE05x_TAG_7) {
+                if (found || (valueSz != expectedRandomSz)) {
+                    return BAD_LENGTH_E;
+                }
+                if (ConstantCompare(data->cmd + offset, expectedRandom,
+                        expectedRandomSz) != 0) {
+                    return WC_NO_ERR_TRACE(SIG_VERIFY_E);
+                }
+                found = 1;
+            }
+            offset += valueSz;
+        }
+        return found ? 0 : BAD_LENGTH_E;
+    }
+#else
+    if (data->outrandomLen != expectedRandomSz) {
+        return BAD_LENGTH_E;
+    }
+    if (ConstantCompare(data->outrandom, expectedRandom,
+            expectedRandomSz) != 0) {
+        return WC_NO_ERR_TRACE(SIG_VERIFY_E);
+    }
+    return 0;
+#endif
+}
+
+int wc_se050_verify_attestation(const wc_se050_attst_result* result,
+    const byte* attestPubDer, word32 attestPubDerSz,
+    const byte* expectedRandom, word32 expectedRandomSz, int* res)
+{
+#if defined(NO_HASH_WRAPPER) || defined(NO_ASN)
+    (void)result;
+    (void)attestPubDer;
+    (void)attestPubDerSz;
+    (void)expectedRandom;
+    (void)expectedRandomSz;
+    if (res != NULL)
+        *res = 0;
+    return WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+#else
+    int ret = 0;
+    int keyDecoded = 0;
+    int sigType = WC_SIGNATURE_TYPE_NONE;
+    word32 i;
+    word32 idx;
+    word32 componentSz;
+    word32 signedDataSz;
+    word32 signedDataUsed;
+    byte* component = NULL;
+    byte* signedData = NULL;
+#if defined(HAVE_ECC) && defined(HAVE_ECC_VERIFY)
+    int eccInit = 0;
+    ecc_key eccKey;
+#endif
+#ifndef NO_RSA
+    int rsaInit = 0;
+    RsaKey rsaKey;
+#endif
+    void* verifyKey = NULL;
+    word32 verifyKeySz = 0;
+
+    if ((result == NULL) || (attestPubDer == NULL) ||
+            (attestPubDerSz == 0U) || (expectedRandom == NULL) ||
+            (expectedRandomSz != SE050_ATTEST_RANDOM_SIZE) ||
+            (res == NULL) ||
+            (result->raw.valid_number == 0U) ||
+            (result->raw.valid_number > SE05X_MAX_ATTST_DATA)) {
+        return BAD_FUNC_ARG;
+    }
+    *res = 0;
+    if (ConstantCompare(result->freshness, expectedRandom,
+            expectedRandomSz) != 0) {
+        return 0;
+    }
+
+#if defined(HAVE_ECC) && defined(HAVE_ECC_VERIFY)
+    XMEMSET(&eccKey, 0, sizeof(eccKey));
+#endif
+#ifndef NO_RSA
+    XMEMSET(&rsaKey, 0, sizeof(rsaKey));
+#endif
+#if defined(HAVE_ECC) && defined(HAVE_ECC_VERIFY)
+    ret = wc_ecc_init(&eccKey);
+    if (ret == 0) {
+        eccInit = 1;
+        idx = 0;
+        ret = wc_EccPublicKeyDecode(attestPubDer, &idx, &eccKey,
+            attestPubDerSz);
+        if (ret == 0) {
+            keyDecoded = 1;
+            sigType = WC_SIGNATURE_TYPE_ECC;
+            verifyKey = &eccKey;
+            verifyKeySz = sizeof(eccKey);
+        }
+    }
+#endif
+#ifndef NO_RSA
+    if (!keyDecoded) {
+        ret = wc_InitRsaKey(&rsaKey, NULL);
+        if (ret == 0) {
+            rsaInit = 1;
+            idx = 0;
+            ret = wc_RsaPublicKeyDecode(attestPubDer, &idx, &rsaKey,
+                attestPubDerSz);
+            if (ret == 0) {
+                keyDecoded = 1;
+                sigType = WC_SIGNATURE_TYPE_RSA_W_ENC;
+                verifyKey = &rsaKey;
+                verifyKeySz = sizeof(rsaKey);
+            }
+        }
+    }
+#endif
+    if (!keyDecoded) {
+        goto cleanup;
+    }
+
+    component = (byte*)XMALLOC(WC_SE050_ATTEST_VALUE_MAX, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    signedDataSz = WC_SE050_ATTEST_VALUE_MAX + MAX_POLICY_BUFFER_SIZE +
+        WC_MAX_DIGEST_SIZE + 128U;
+    signedData = (byte*)XMALLOC(signedDataSz, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if ((component == NULL) || (signedData == NULL)) {
+        ret = MEMORY_E;
+        goto cleanup;
+    }
+
+    ret = 0;
+    for (i = 0; (i < result->raw.valid_number) && (ret == 0); i++) {
+        ret = se050_verify_attestation_freshness(&result->raw.data[i],
+            expectedRandom, expectedRandomSz);
+        if (ret == WC_NO_ERR_TRACE(SIG_VERIFY_E)) {
+            ret = 0;
+            goto cleanup;
+        }
+        componentSz = WC_SE050_ATTEST_VALUE_MAX;
+        if (ret == 0) {
+            ret = se050_attested_component(result, i, component,
+                &componentSz);
+        }
+        if (ret == 0) {
+            ret = se050_build_attestation_data(result, i, component,
+                componentSz, signedData, signedDataSz, &signedDataUsed);
+        }
+        if (ret == 0) {
+            if ((result->raw.data[i].signatureLen == 0U) ||
+                    (result->raw.data[i].signatureLen >
+                    sizeof(result->raw.data[i].signature))) {
+                ret = BAD_LENGTH_E;
+                break;
+            }
+            ret = wc_SignatureVerify(result->hashAlgo,
+                (enum wc_SignatureType)sigType, signedData, signedDataUsed,
+                result->raw.data[i].signature,
+                (word32)result->raw.data[i].signatureLen, verifyKey,
+                verifyKeySz);
+            if (ret == WC_NO_ERR_TRACE(SIG_VERIFY_E)) {
+                ret = 0;
+                goto cleanup;
+            }
+        }
+    }
+    if (ret == 0)
+        *res = 1;
+
+cleanup:
+    if (component != NULL) {
+        ForceZero(component, WC_SE050_ATTEST_VALUE_MAX);
+        XFREE(component, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (signedData != NULL) {
+        ForceZero(signedData, signedDataSz);
+        XFREE(signedData, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#if defined(HAVE_ECC) && defined(HAVE_ECC_VERIFY)
+    if (eccInit)
+        wc_ecc_free(&eccKey);
+#endif
+#ifndef NO_RSA
+    if (rsaInit)
+        wc_FreeRsaKey(&rsaKey);
+#endif
+    return ret;
+#endif
+}
+
+int wc_se050_validate_provisioned_key(word32 keyId, word32 attestKeyId,
+    const byte* expectedPubDer, word32 expectedPubDerSz,
+    const byte* attestPubDer, word32 attestPubDerSz, int* res)
+{
+    int ret;
+    int verified = 0;
+    wc_se050_attst_result result;
+
+    if ((expectedPubDer == NULL) || (expectedPubDerSz == 0U) ||
+            (attestPubDer == NULL) || (attestPubDerSz == 0U) ||
+            (res == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+    *res = 0;
+
+    ret = wc_se050_attest_object(keyId, attestKeyId, WC_HASH_TYPE_SHA256,
+        NULL, 0, &result);
+    if (ret == 0)
+        ret = wc_se050_verify_attestation(&result, attestPubDer,
+            attestPubDerSz, result.freshness,
+            (word32)sizeof(result.freshness), &verified);
+    if ((ret == 0) && verified && (result.valueSz == expectedPubDerSz) &&
+            (XMEMCMP(result.value, expectedPubDer, expectedPubDerSz) == 0)) {
+        *res = 1;
+    }
+    ForceZero(&result, sizeof(result));
+    return ret;
+}
+
+#endif /* !WOLFSSL_SE050_NO_ATTEST */
 
 #if !defined(NO_RSA) && !defined(WOLFSSL_SE050_NO_RSA)
 
@@ -924,8 +2521,84 @@ int se050_rsa_create_key(struct RsaKey* key, int size, long e)
     return ret;
 }
 
+static int se050_rsa_generate_key(word32 keyId, int size, long e,
+    const sss_policy_t* policy)
+{
+    sss_status_t status = kStatus_SSS_Success;
+    sss_object_t keyPair;
+    sss_key_store_t host_keystore;
+    int keyObjectInit = 0;
+
+    if (cfg_se050_i2c_pi == NULL) {
+        return WC_HW_E;
+    }
+    if ((keyId >= SE050_KEYID_START) || (size <= 0) ||
+            ((size & 7) != 0) || (e != 65537)) {
+        return BAD_FUNC_ARG;
+    }
+    if (wolfSSL_CryptHwMutexLock() != 0) {
+        return BAD_MUTEX_E;
+    }
+
+    status = se050_require_new_object(keyId);
+    if (status == kStatus_SSS_Success) {
+        status = sss_key_store_context_init(&host_keystore,
+            cfg_se050_i2c_pi);
+    }
+    if (status == kStatus_SSS_Success) {
+        status = sss_key_store_allocate(&host_keystore,
+            SE050_KEYSTOREID_RSA);
+    }
+    if (status == kStatus_SSS_Success) {
+        status = sss_key_object_init(&keyPair, &host_keystore);
+        if (status == kStatus_SSS_Success) {
+            keyObjectInit = 1;
+        }
+    }
+    if (status == kStatus_SSS_Success) {
+        status = sss_key_object_allocate_handle(&keyPair, keyId,
+            kSSS_KeyPart_Pair, kSSS_CipherType_RSA, (size / 8),
+            kKeyObject_Mode_Persistent);
+    }
+    if (status == kStatus_SSS_Success) {
+        status = sss_key_store_generate_key(&host_keystore, &keyPair,
+            size, (void*)policy);
+    }
+
+    if (keyObjectInit) {
+        sss_key_object_free(&keyPair);
+    }
+    wolfSSL_CryptHwMutexUnLock();
+    return (status == kStatus_SSS_Success) ? 0 : WC_HW_E;
+}
+
+int wc_se050_rsa_generate_key_policy(word32 keyId, int size, long e,
+    const sss_policy_t* policy)
+{
+    return se050_rsa_generate_key(keyId, size, e, policy);
+}
+
+int wc_se050_rsa_generate_key_ex(word32 keyId, int size, long e,
+    word32 policyFlags, word32 authObjId)
+{
+    const sss_policy_t* policy = NULL;
+    se050_policy_set policySet;
+    int ret;
+
+    ret = se050_build_policy_set(SE050_POLICY_OBJECT_ASYM, policyFlags,
+        authObjId, &policySet);
+    if (ret != 0) {
+        return ret;
+    }
+    if (policyFlags != 0U) {
+        policy = &policySet.policy;
+    }
+    return se050_rsa_generate_key(keyId, size, e, policy);
+}
+
 static int se050_rsa_insert_key(word32 keyId, const byte* rsaDer,
-                                word32 rsaDerSize, int keyType)
+    word32 rsaDerSize, int keyType, const sss_policy_t* policy,
+    int requireNew)
 {
     int             ret = 0;
     int             keySize;
@@ -936,6 +2609,11 @@ static int se050_rsa_insert_key(word32 keyId, const byte* rsaDer,
     struct RsaKey   key;
     sss_key_part_t  keyPart = kSSS_KeyPart_Pair;
 
+    if ((cfg_se050_i2c_pi == NULL) || (rsaDer == NULL) ||
+            (rsaDerSize == 0U)) {
+        return BAD_FUNC_ARG;
+    }
+
     if (wolfSSL_CryptHwMutexLock() != 0) {
         return BAD_MUTEX_E;
     }
@@ -944,6 +2622,10 @@ static int se050_rsa_insert_key(word32 keyId, const byte* rsaDer,
     if (keyId >= SE050_KEYID_START) {
         wolfSSL_CryptHwMutexUnLock();
         return BAD_FUNC_ARG;
+    }
+
+    if (requireNew) {
+        status = se050_require_new_object(keyId);
     }
 
     ret = wc_InitRsaKey(&key, NULL);
@@ -987,7 +2669,7 @@ static int se050_rsa_insert_key(word32 keyId, const byte* rsaDer,
     }
     if (status == kStatus_SSS_Success) {
         status = sss_key_store_set_key(&host_keystore, &newKey, rsaDer,
-                                       rsaDerSize, (keySize * 8), NULL, 0);
+            rsaDerSize, (keySize * 8), (void*)policy, 0);
     }
     wolfSSL_CryptHwMutexUnLock();
 
@@ -1013,7 +2695,8 @@ static int se050_rsa_insert_key(word32 keyId, const byte* rsaDer,
 int wc_se050_rsa_insert_private_key(word32 keyId, const byte* rsaDer,
                                     word32 rsaDerSize)
 {
-    return se050_rsa_insert_key(keyId, rsaDer, rsaDerSize, RSA_PRIVATE);
+    return se050_rsa_insert_key(keyId, rsaDer, rsaDerSize, RSA_PRIVATE,
+        NULL, 0);
 }
 
 /**
@@ -1028,7 +2711,55 @@ int wc_se050_rsa_insert_private_key(word32 keyId, const byte* rsaDer,
 int wc_se050_rsa_insert_public_key(word32 keyId, const byte* rsaDer,
                                    word32 rsaDerSize)
 {
-    return se050_rsa_insert_key(keyId, rsaDer, rsaDerSize, RSA_PUBLIC);
+    return se050_rsa_insert_key(keyId, rsaDer, rsaDerSize, RSA_PUBLIC,
+        NULL, 0);
+}
+
+int wc_se050_rsa_insert_private_key_policy(word32 keyId, const byte* rsaDer,
+    word32 rsaDerSize, const sss_policy_t* policy)
+{
+    return se050_rsa_insert_key(keyId, rsaDer, rsaDerSize, RSA_PRIVATE,
+        policy, 0);
+}
+
+int wc_se050_rsa_insert_public_key_policy(word32 keyId, const byte* rsaDer,
+    word32 rsaDerSize, const sss_policy_t* policy)
+{
+    return se050_rsa_insert_key(keyId, rsaDer, rsaDerSize, RSA_PUBLIC,
+        policy, 0);
+}
+
+static int se050_rsa_insert_key_ex(word32 keyId, const byte* rsaDer,
+    word32 rsaDerSize, int keyType, word32 policyFlags, word32 authObjId)
+{
+    int ret;
+    const sss_policy_t* policy = NULL;
+    se050_policy_set policySet;
+
+    ret = se050_build_policy_set(SE050_POLICY_OBJECT_ASYM, policyFlags,
+        authObjId, &policySet);
+    if (ret != 0) {
+        return ret;
+    }
+    if (policyFlags != 0U) {
+        policy = &policySet.policy;
+    }
+    return se050_rsa_insert_key(keyId, rsaDer, rsaDerSize, keyType, policy,
+        1);
+}
+
+int wc_se050_rsa_insert_private_key_ex(word32 keyId, const byte* rsaDer,
+    word32 rsaDerSize, word32 policyFlags, word32 authObjId)
+{
+    return se050_rsa_insert_key_ex(keyId, rsaDer, rsaDerSize, RSA_PRIVATE,
+        policyFlags, authObjId);
+}
+
+int wc_se050_rsa_insert_public_key_ex(word32 keyId, const byte* rsaDer,
+    word32 rsaDerSize, word32 policyFlags, word32 authObjId)
+{
+    return se050_rsa_insert_key_ex(keyId, rsaDer, rsaDerSize, RSA_PUBLIC,
+        policyFlags, authObjId);
 }
 
 /**
@@ -2048,6 +3779,87 @@ static int se050_map_curve(int curve_id, int keySize,
     return ret;
 }
 
+static int se050_ecc_generate_key(word32 keyId, int keySize, int curveId,
+    const sss_policy_t* policy)
+{
+    sss_status_t status = kStatus_SSS_Success;
+    sss_object_t keyPair;
+    sss_key_store_t host_keystore;
+    sss_cipher_type_t curveType;
+    int keyObjectInit = 0;
+    int keySizeBits;
+    int ret;
+
+    if (cfg_se050_i2c_pi == NULL) {
+        return WC_HW_E;
+    }
+    if ((keyId >= SE050_KEYID_START) || (keySize <= 0)) {
+        return BAD_FUNC_ARG;
+    }
+    ret = se050_map_curve(curveId, keySize, &keySizeBits, &curveType);
+    if (ret != 0) {
+        return ret;
+    }
+    if (wolfSSL_CryptHwMutexLock() != 0) {
+        return BAD_MUTEX_E;
+    }
+
+    status = se050_require_new_object(keyId);
+    if (status == kStatus_SSS_Success) {
+        status = sss_key_store_context_init(&host_keystore,
+            cfg_se050_i2c_pi);
+    }
+    if (status == kStatus_SSS_Success) {
+        status = sss_key_store_allocate(&host_keystore,
+            SE050_KEYSTOREID_ECC);
+    }
+    if (status == kStatus_SSS_Success) {
+        status = sss_key_object_init(&keyPair, &host_keystore);
+        if (status == kStatus_SSS_Success) {
+            keyObjectInit = 1;
+        }
+    }
+    if (status == kStatus_SSS_Success) {
+        status = sss_key_object_allocate_handle(&keyPair, keyId,
+            kSSS_KeyPart_Pair, curveType, keySize,
+            kKeyObject_Mode_Persistent);
+    }
+    if (status == kStatus_SSS_Success) {
+        status = sss_key_store_generate_key(&host_keystore, &keyPair,
+            keySizeBits, (void*)policy);
+    }
+
+    if (keyObjectInit) {
+        sss_key_object_free(&keyPair);
+    }
+    wolfSSL_CryptHwMutexUnLock();
+    return (status == kStatus_SSS_Success) ? 0 : WC_HW_E;
+}
+
+int wc_se050_ecc_generate_key_policy(word32 keyId, int keySize, int curveId,
+    const sss_policy_t* policy)
+{
+    return se050_ecc_generate_key(keyId, keySize, curveId, policy);
+}
+
+int wc_se050_ecc_generate_key_ex(word32 keyId, int keySize, int curveId,
+    word32 policyFlags, word32 authObjId)
+{
+    const sss_policy_t* policy = NULL;
+    se050_policy_set policySet;
+    int ret;
+
+    ret = se050_build_policy_set(SE050_POLICY_OBJECT_ASYM, policyFlags,
+        authObjId, &policySet);
+    if (ret != 0) {
+        return ret;
+    }
+    if (policyFlags != 0U) {
+        policy = &policySet.policy;
+    }
+    return se050_ecc_generate_key(keyId, keySize, curveId, policy);
+}
+
 static sss_algorithm_t se050_map_hash_alg(int hashLen)
 {
     sss_algorithm_t algorithm = kAlgorithm_None;
@@ -2067,7 +3879,8 @@ static sss_algorithm_t se050_map_hash_alg(int hashLen)
 }
 
 static int se050_ecc_insert_key(word32 keyId, const byte* eccDer,
-                                word32 eccDerSize, int keyType)
+    word32 eccDerSize, int keyType, const sss_policy_t* policy,
+    int requireNew)
 {
     int               ret = 0;
     struct ecc_key    key;
@@ -2080,6 +3893,11 @@ static int se050_ecc_insert_key(word32 keyId, const byte* eccDer,
     sss_cipher_type_t curveType = kSSS_CipherType_NONE;
     sss_key_part_t    keyPart = kSSS_KeyPart_Pair;
 
+    if ((cfg_se050_i2c_pi == NULL) || (eccDer == NULL) ||
+            (eccDerSize == 0U)) {
+        return BAD_FUNC_ARG;
+    }
+
     if (wolfSSL_CryptHwMutexLock() != 0) {
         return BAD_MUTEX_E;
     }
@@ -2088,6 +3906,10 @@ static int se050_ecc_insert_key(word32 keyId, const byte* eccDer,
     if (keyId >= SE050_KEYID_START) {
         wolfSSL_CryptHwMutexUnLock();
         return BAD_FUNC_ARG;
+    }
+
+    if (requireNew) {
+        status = se050_require_new_object(keyId);
     }
 
     ret = wc_ecc_init(&key);
@@ -2131,8 +3953,7 @@ static int se050_ecc_insert_key(word32 keyId, const byte* eccDer,
     }
     if (status == kStatus_SSS_Success) {
         status = sss_key_store_set_key(&host_keystore, &newKey, eccDer,
-                                       eccDerSize, keySizeBits,
-                                       NULL, 0);
+            eccDerSize, keySizeBits, (void*)policy, 0);
     }
     wolfSSL_CryptHwMutexUnLock();
 
@@ -2157,7 +3978,8 @@ static int se050_ecc_insert_key(word32 keyId, const byte* eccDer,
 int wc_se050_ecc_insert_public_key(word32 keyId, const byte* eccDer,
                                    word32 eccDerSize)
 {
-    return se050_ecc_insert_key(keyId, eccDer, eccDerSize, ECC_PUBLICKEY);
+    return se050_ecc_insert_key(keyId, eccDer, eccDerSize, ECC_PUBLICKEY,
+        NULL, 0);
 }
 
 /**
@@ -2172,7 +3994,55 @@ int wc_se050_ecc_insert_public_key(word32 keyId, const byte* eccDer,
 int wc_se050_ecc_insert_private_key(word32 keyId, const byte* eccDer,
                                     word32 eccDerSize)
 {
-    return se050_ecc_insert_key(keyId, eccDer, eccDerSize, ECC_PRIVATEKEY);
+    return se050_ecc_insert_key(keyId, eccDer, eccDerSize, ECC_PRIVATEKEY,
+        NULL, 0);
+}
+
+int wc_se050_ecc_insert_public_key_policy(word32 keyId, const byte* eccDer,
+    word32 eccDerSize, const sss_policy_t* policy)
+{
+    return se050_ecc_insert_key(keyId, eccDer, eccDerSize, ECC_PUBLICKEY,
+        policy, 0);
+}
+
+int wc_se050_ecc_insert_private_key_policy(word32 keyId, const byte* eccDer,
+    word32 eccDerSize, const sss_policy_t* policy)
+{
+    return se050_ecc_insert_key(keyId, eccDer, eccDerSize, ECC_PRIVATEKEY,
+        policy, 0);
+}
+
+static int se050_ecc_insert_key_ex(word32 keyId, const byte* eccDer,
+    word32 eccDerSize, int keyType, word32 policyFlags, word32 authObjId)
+{
+    int ret;
+    const sss_policy_t* policy = NULL;
+    se050_policy_set policySet;
+
+    ret = se050_build_policy_set(SE050_POLICY_OBJECT_ASYM, policyFlags,
+        authObjId, &policySet);
+    if (ret != 0) {
+        return ret;
+    }
+    if (policyFlags != 0U) {
+        policy = &policySet.policy;
+    }
+    return se050_ecc_insert_key(keyId, eccDer, eccDerSize, keyType, policy,
+        1);
+}
+
+int wc_se050_ecc_insert_public_key_ex(word32 keyId, const byte* eccDer,
+    word32 eccDerSize, word32 policyFlags, word32 authObjId)
+{
+    return se050_ecc_insert_key_ex(keyId, eccDer, eccDerSize, ECC_PUBLICKEY,
+        policyFlags, authObjId);
+}
+
+int wc_se050_ecc_insert_private_key_ex(word32 keyId, const byte* eccDer,
+    word32 eccDerSize, word32 policyFlags, word32 authObjId)
+{
+    return se050_ecc_insert_key_ex(keyId, eccDer, eccDerSize, ECC_PRIVATEKEY,
+        policyFlags, authObjId);
 }
 
 int se050_ecc_sign_hash_ex(const byte* in, word32 inLen, MATH_INT_T* r, MATH_INT_T* s,
