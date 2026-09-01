@@ -7142,7 +7142,11 @@ int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key, const byte* sk_seed,
         }
     }
 
-#if FIPS_VERSION3_GE(7,0,0)
+/* ML-KEM, ML-DSA, SLH-DSA, LMS and XMSS were never FIPS approved before the v7
+ * module, so this test stays gated on v7 and must never be widened to plain
+ * HAVE_FIPS.  WOLFSSL_VALIDATE_SLHDSA_KEYGEN opts a non-FIPS build in, off by
+ * default. */
+#if FIPS_VERSION3_GE(7,0,0) || defined(WOLFSSL_VALIDATE_SLHDSA_KEYGEN)
     /* Test every new key pair.  ISO/IEC 19790:2012 sec 7.10.3.3.  Here
      * because every generation path reaches this function.
      *
@@ -7183,7 +7187,7 @@ int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key, const byte* sk_seed,
             wc_SlhDsaKey_Free(key);
         }
     }
-#endif /* FIPS_VERSION3_GE(7,0,0) */
+#endif /* FIPS v7 or WOLFSSL_VALIDATE_SLHDSA_KEYGEN */
 
     return ret;
 }

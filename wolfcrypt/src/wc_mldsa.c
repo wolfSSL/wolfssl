@@ -9123,9 +9123,13 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
 #endif
 }
 
-#if FIPS_VERSION3_GE(7,0,0)
+/* ML-KEM, ML-DSA, SLH-DSA, LMS and XMSS were never FIPS approved before the v7
+ * module, so this test stays gated on v7 and must never be widened to plain
+ * HAVE_FIPS.  WOLFSSL_VALIDATE_MLDSA_KEYGEN opts a non-FIPS build in, off by
+ * default. */
+#if FIPS_VERSION3_GE(7,0,0) || defined(WOLFSSL_VALIDATE_MLDSA_KEYGEN)
 #if defined(WOLFSSL_MLDSA_NO_SIGN) || defined(WOLFSSL_MLDSA_NO_VERIFY)
-    #error "FIPS v7 ML-DSA key generation needs sign and verify for the \
+    #error "ML-DSA key generation needs sign and verify for the \
 key-pair test required by ISO/IEC 19790:2012 sec 7.10.3.3"
 #endif
 /* Test every new key pair by signing and verifying with it.
@@ -9176,7 +9180,7 @@ static int mldsa_pct(wc_MlDsaKey* key)
 
     return ret;
 }
-#endif /* FIPS_VERSION3_GE(7,0,0) */
+#endif /* FIPS v7 or WOLFSSL_VALIDATE_MLDSA_KEYGEN */
 
 /* Make a key from a random seed.
  *
@@ -11336,7 +11340,7 @@ static int mldsa_key_from_seed_checked(wc_MlDsaKey* key, const byte* seed,
         ret = mldsa_make_key_from_seed(key, seed);
     }
 
-#if FIPS_VERSION3_GE(7,0,0)
+#if FIPS_VERSION3_GE(7,0,0) || defined(WOLFSSL_VALIDATE_MLDSA_KEYGEN)
     if ((ret == 0) && runPct) {
         ret = mldsa_pct(key);
     }

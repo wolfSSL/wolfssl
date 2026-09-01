@@ -1002,10 +1002,14 @@ int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
 #endif
 #endif
 
-#if FIPS_VERSION3_GE(7,0,0)
+/* ML-KEM, ML-DSA, SLH-DSA, LMS and XMSS were never FIPS approved before the v7
+ * module, so this test stays gated on v7 and must never be widened to plain
+ * HAVE_FIPS.  WOLFSSL_VALIDATE_MLKEM_KEYGEN opts a non-FIPS build in, off by
+ * default. */
+#if FIPS_VERSION3_GE(7,0,0) || defined(WOLFSSL_VALIDATE_MLKEM_KEYGEN)
 #if defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
-    #error "FIPS v7 ML-KEM key generation needs encapsulate and decapsulate \
-for the key-pair test required by ISO/IEC 19790:2012 sec 7.10.3.3"
+    #error "ML-KEM key generation needs encapsulate and decapsulate for the \
+key-pair test required by ISO/IEC 19790:2012 sec 7.10.3.3"
 #endif
     /* Test every new key pair: encapsulate with it, decapsulate with it, and
      * check the shared secrets match.  ISO/IEC 19790:2012 sec 7.10.3.3;
@@ -1083,7 +1087,7 @@ for the key-pair test required by ISO/IEC 19790:2012 sec 7.10.3.3"
             wc_MlKemKey_Free(key);
         }
     }
-#endif /* FIPS_VERSION3_GE(7,0,0) */
+#endif /* FIPS v7 or WOLFSSL_VALIDATE_MLKEM_KEYGEN */
 
     return ret;
 }
