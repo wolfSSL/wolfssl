@@ -1296,6 +1296,9 @@ function(generate_lib_src_list LIB_SOURCES)
     # Corresponds to wolfcrypt/src/include.am
     if(BUILD_CRYPTOCB)
         list(APPEND LIB_SOURCES wolfcrypt/src/cryptocb.c)
+        # entirely #ifdef WOLF_CRYPTO_CB_KEYSTORE, so it costs nothing when the
+        # key store facility is not enabled
+        list(APPEND LIB_SOURCES wolfcrypt/src/wc_keystore.c)
     endif()
 
     if(BUILD_SHE)
