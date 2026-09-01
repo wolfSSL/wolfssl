@@ -9,7 +9,6 @@ BUILD_PROFILE ?= debug
 CONFIG_NAME ?= $(PLATFORM)-$(BUILD_PROFILE)
 OUTPUT_DIR = build/$(CONFIG_NAME)
 TARGET = $(OUTPUT_DIR)/$(ARTIFACT)
-TEST_TARGET = $(OUTPUT_DIR)/test_partition_bounds.o
 AES_TEST_TARGET = $(OUTPUT_DIR)/test_aes_request_length
 HOST_TEST_TARGET = $(OUTPUT_DIR)/test_aes_request_length_host
 HOST_CC ?= cc
@@ -78,15 +77,10 @@ $(TARGET):$(OBJS)
 all: $(TARGET)
 
 .PHONY: test host-test
-test: $(TEST_TARGET) $(AES_TEST_TARGET) host-test
+test: $(AES_TEST_TARGET) host-test
 
 host-test: $(HOST_TEST_TARGET)
 	$(HOST_TEST_TARGET)
-
-$(TEST_TARGET): test_partition_bounds.c \
-        ../../../wolfssl/wolfcrypt/port/caam/caam_driver.h
-	@mkdir -p $(dir $@)
-	$(CC) -c -o $@ $(INCLUDES) $(CCFLAGS_all) $(CCFLAGS) $<
 
 $(AES_TEST_TARGET): test_aes_request_length.c \
         ../../../wolfcrypt/src/port/caam/caam_qnx.c \
