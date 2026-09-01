@@ -36,6 +36,7 @@
 #include <wolfssl/version.h>
 
 #include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -54,6 +55,16 @@ uintptr_t virtual_base = 0;
 static void* localMemory = NULL;
 static unsigned int localPhy = 0;
 sem_t localMemSem;
+
+static void caamZeroMemory(void* mem, size_t len)
+{
+    volatile unsigned char* p = (volatile unsigned char*)mem;
+
+    while (len > 0U) {
+        *p++ = 0;
+        len--;
+    }
+}
 
 /* Can be overridden, variable for how large of a local buffer to have.
  * This allows for large performance gains when avoiding mapping new memory
@@ -758,7 +769,7 @@ static int doAES(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
     int algo;
     unsigned char *key = NULL, *iv = NULL, *in = NULL, *out = NULL;
     unsigned char *pt = NULL;
-    int keySz, ivSz = 0, inSz, outSz;
+    int keySz, ivSz = 0, inSz, outSz, expectedReadSz, totalSz, readSz;
     unsigned int phyMem = 0;
 
     memset(tmp, 0, sizeof(tmp));
@@ -771,7 +782,17 @@ static int doAES(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
         ivSz = 16;
     }
 
-    if (keySz + inSz + outSz + ivSz < WOLFSSL_CAAM_QNX_MEMORY) {
+    if (inSz < 0 || keySz > INT_MAX - inSz ||
+            keySz + inSz > INT_MAX - ivSz) {
+        return EBADMSG;
+    }
+    expectedReadSz = keySz + inSz + ivSz;
+    if (expectedReadSz > INT_MAX - outSz) {
+        return EBADMSG;
+    }
+    totalSz = expectedReadSz + outSz;
+
+    if (totalSz < WOLFSSL_CAAM_QNX_MEMORY) {
         if (sem_trywait(&localMemSem) == 0) {
             key = localMemory;
             phyMem = localPhy;
@@ -780,7 +801,7 @@ static int doAES(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
 
     /* local pre-mapped memory was not used, try to map some memory now */
     if (key == NULL) {
-        pt = (unsigned char*)CAAM_ADR_MAP(0, keySz + inSz + outSz + ivSz, 0);
+        pt = (unsigned char*)CAAM_ADR_MAP(0, totalSz, 0);
         key = pt;
     }
 
@@ -822,8 +843,15 @@ static int doAES(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
     }
 
     if (ret == EOK) {
-        if (resmgr_msgreadv(ctp, in_iovs, inIdx, idx) < 0) {
+        if (pt == NULL)
+            caamZeroMemory(key, (size_t)expectedReadSz);
+
+        readSz = resmgr_msgreadv(ctp, in_iovs, inIdx, idx);
+        if (readSz < 0) {
             ret = ECANCELED;
+        }
+        else if (readSz != expectedReadSz) {
+            ret = EBADMSG;
         }
     }
 
@@ -864,7 +892,7 @@ static int doAES(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
 
     /* sync the new IV/MAC and output buffer */
     if (ret == EOK) {
-        CAAM_ADR_SYNC(key, keySz + inSz + ivSz + outSz);
+        CAAM_ADR_SYNC(key, totalSz);
         if (type == WC_CAAM_AESCBC || type == WC_CAAM_AESCTR) {
             SETIOV(&out_iovs[1], iv, ivSz);
             outIdx++;
@@ -878,10 +906,12 @@ static int doAES(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
     }
 
     if (pt != NULL) {
-        CAAM_ADR_UNMAP(pt, 0, keySz + inSz + outSz + ivSz, 0);
+        CAAM_ADR_UNMAP(pt, 0, totalSz, 0);
     }
     else {
         /* done using local mapped memory */
+        if (key != NULL)
+            caamZeroMemory(key, (size_t)expectedReadSz);
         sem_post(&localMemSem);
     }
 
