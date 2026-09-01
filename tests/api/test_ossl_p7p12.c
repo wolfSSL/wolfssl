@@ -154,10 +154,14 @@ int test_wolfSSL_PKCS7_certs(void)
         bio = NULL;
         ExpectNotNull(bio = BIO_new(BIO_s_mem()));
         ExpectIntEQ(wolfSSL_PKCS7_encode_certs(p7, sk, bio), 1);
-        if ((sk != NULL) && ((p7 == NULL) || (bio == NULL))) {
-            sk_X509_pop_free(sk, X509_free);
+        /* encode_certs takes sk only on success. */
+        if (EXPECT_SUCCESS()) {
+            sk = NULL;
         }
-        sk = NULL;
+        else if (sk != NULL) {
+            sk_X509_pop_free(sk, X509_free);
+            sk = NULL;
+        }
         ExpectIntGT((buflen = BIO_get_mem_data(bio, &p)), 0);
 
         if (i == 0) {
@@ -721,14 +725,10 @@ int test_wolfSSL_PKCS7_verify_degenerate(void)
     #endif
     }
     ExpectNotNull(derBio = BIO_new(BIO_s_mem()));
-    /* wolfSSL_PKCS7_encode_certs() takes ownership of sk (sets p7->certs, freed
-     * by PKCS7_free(encodeP7) below) whenever it is called with a valid PKCS7
-     * and BIO - success or failure. It only declines ownership when encodeP7 or
-     * derBio is NULL, in which case the test still owns sk and frees it in
-     * cleanup. */
+    /* encode_certs takes sk only on success; cleanup frees it otherwise. */
     ExpectIntEQ(wolfSSL_PKCS7_encode_certs(encodeP7, sk, derBio), 1);
-    if (encodeP7 != NULL && derBio != NULL)
-        sk = NULL; /* now owned by encodeP7 */
+    if (EXPECT_SUCCESS())
+        sk = NULL;
     ExpectIntGT((derSz = BIO_get_mem_data(derBio, &der)), 0);
 
     /* ---- Re-parse it; a degenerate bundle parses successfully. ---- */
