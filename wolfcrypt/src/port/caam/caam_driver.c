@@ -81,6 +81,17 @@ struct CAAM_DEVICE {
 
 static struct CAAM_DEVICE caam;
 
+#if defined(__QNX__) || defined(__QNXNTO__)
+static unsigned int caamGetPartitionCount(void)
+{
+    unsigned int count;
+
+    count = (CAAM_READ(caam.ring.BaseAddr + CAAM_SM_SMVID_MS) >> 12U) &
+        0xFU;
+    return count + 1U;
+}
+#endif
+
 /* function declarations */
 Error caamAddJob(DESCSTRUCT* desc);
 Error caamDoJob(DESCSTRUCT* desc);
@@ -248,6 +259,14 @@ Error caamFreePart(unsigned int part)
 {
     unsigned int status;
 
+#if defined(__QNX__) || defined(__QNXNTO__)
+    if (!CAAM_QNX_PARTITION_IS_VALID(part) ||
+            part >= caamGetPartitionCount()) {
+        WOLFSSL_MSG("invalid secure memory partition");
+        return MemoryMapMayNotBeEmpty;
+    }
+#endif
+
     #if defined(WOLFSSL_CAAM_DEBUG) || defined(WOLFSSL_CAAM_PRINT)
     printf("freeing partition %d\n", part);
     #endif
@@ -276,10 +295,15 @@ static Error caamFreeAllPart()
 {
     unsigned int SMPO;
     unsigned int i;
+#if defined(__QNX__) || defined(__QNXNTO__)
+    unsigned int partitionCount = caamGetPartitionCount();
+#else
+    unsigned int partitionCount = 15U;
+#endif
 
     WOLFSSL_MSG("Free all partitions");
     SMPO = CAAM_READ(caam.ring.BaseAddr + CAAM_SM_SMPO);
-    for (i = 0; i < 15U; i = i + 1U) {
+    for (i = 0; i < partitionCount; i = i + 1U) {
         if ((SMPO & (0x3U << (i * 2U))) == (0x3U << (i * 2U))) {
             caamFreePart(i);
         }
@@ -299,9 +323,14 @@ int caamFindUnusedPartition()
     unsigned int SMPO;
     unsigned int i;
     int ret = -1;
+#if defined(__QNX__) || defined(__QNXNTO__)
+    unsigned int partitionCount = caamGetPartitionCount();
+#else
+    unsigned int partitionCount = 15U;
+#endif
 
     SMPO = CAAM_READ(caam.ring.BaseAddr + CAAM_SM_SMPO);
-    for (i = 0; i < 15U; i = i + 1) {
+    for (i = 0; i < partitionCount; i = i + 1U) {
         if ((SMPO & (0x3U << (i * 2U))) == 0U) {
             ret = (int)i;
             break;
@@ -322,6 +351,12 @@ static Error caamCreatePartition(unsigned int* page, unsigned int par,
 {
     int testPage;
     unsigned int status;
+
+#if defined(__QNX__) || defined(__QNXNTO__)
+    if (!CAAM_QNX_PARTITION_IS_VALID(par) ||
+            par >= caamGetPartitionCount())
+        return MemoryMapMayNotBeEmpty;
+#endif
 
     /* check ownership of partition */
     status = CAAM_READ(caam.ring.BaseAddr + CAAM_SM_SMPO);
@@ -383,6 +418,14 @@ CAAM_ADDRESS caamGetPartition(unsigned int part, int partSz, unsigned int flag)
     int err;
 
     (void)flag; /* flag is for future changes to flag passed when creating */
+
+#if defined(__QNX__) || defined(__QNXNTO__)
+    if (!CAAM_QNX_PARTITION_IS_VALID(part) ||
+            part >= caamGetPartitionCount()) {
+        WOLFSSL_MSG("invalid secure memory partition");
+        return 0;
+    }
+#endif
 
     /* create and claim the partition */
     err = caamCreatePartition(&part, part, CAAM_SM_CSP | CAAM_SM_SMAP_LOCK |
