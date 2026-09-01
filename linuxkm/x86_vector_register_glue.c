@@ -499,14 +499,6 @@ WARN_UNUSED_RESULT int wc_can_save_vector_registers_x86(void)
     int cur_preempt_count = preempt_count();
     int ret;
 
-#ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
-    if (SAVE_VECTOR_REGISTERS2_fuzzer() != 0) {
-        wc_svr_disallowed_count_increment();
-        ret = 0;
-        goto out_no_fallback_warning;
-    }
-#endif
-
     /* check for hard interrupt context (unusable current->pid) preemptively.
      * if we're in a softirq context we'll catch that below with
      * a second check of cur_preempt_count.
@@ -553,6 +545,14 @@ WARN_UNUSED_RESULT int wc_can_save_vector_registers_x86(void)
             goto out;
         }
     }
+
+#ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
+    if (SAVE_VECTOR_REGISTERS2_fuzzer() != 0) {
+        wc_svr_disallowed_count_increment();
+        ret = 0;
+        goto out_no_fallback_warning;
+    }
+#endif
 
     if ((preempt_count() == 0) || may_use_simd())
         return 1;

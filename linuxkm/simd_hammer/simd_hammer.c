@@ -500,10 +500,12 @@ static void wc_simd_teardown(void)
     }
 
     if (wc_simd_pc) {
-        for_each_online_cpu(cpu)
+        /* iterate over all nr_cpu_ids, not just for_each_online_cpu(), in case
+         * CPU(s) went offline during the run. */
+        for (cpu = 0; cpu < nr_cpu_ids; ++cpu)
             WRITE_ONCE(wc_simd_pc[cpu].stop, true);
 
-        for_each_online_cpu(cpu) {
+        for (cpu = 0; cpu < nr_cpu_ids; ++cpu) {
             struct wc_simd_pcpu *c = &wc_simd_pc[cpu];
 
             if (c->timer_live) {
@@ -515,7 +517,7 @@ static void wc_simd_teardown(void)
                 c->hrtimer_live = false;
             }
         }
-        for_each_online_cpu(cpu) {
+        for (cpu = 0; cpu < nr_cpu_ids; ++cpu) {
             struct wc_simd_pcpu *c = &wc_simd_pc[cpu];
 
             if (c->hammer) {
