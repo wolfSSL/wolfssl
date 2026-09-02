@@ -232,6 +232,80 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 static WC_THREADSHARED int TraceOn = 0;         /* Trace is off by default */
 static WC_THREADSHARED XFILE TraceFile = 0;
 
+/* ssl_InitSniffer*() may be called from several threads, and each of them
+ * calls ssl_FreeSniffer() when it is done. The session, server and secret
+ * tables are per thread, but the trace file, the mutexes and the crypto
+ * device are shared, so only the last caller out may tear those down. */
+#if defined(WOLFSSL_ATOMIC_OPS) && defined(WOLFSSL_ATOMIC_INITIALIZER) && \
+    !defined(SINGLE_THREADED)
+    static WC_THREADSHARED wolfSSL_Atomic_Int InitRefCount =
+        WOLFSSL_ATOMIC_INITIALIZER(0);
+    #define SNIFFER_INIT_REF_INC() \
+        wolfSSL_Atomic_Int_AddFetch(&InitRefCount, 1)
+    #define SNIFFER_INIT_REF_DEC() \
+        wolfSSL_Atomic_Int_SubFetch(&InitRefCount, 1)
+#else
+    /* No atomics available. The count is then only reliable when the sniffer
+     * is initialized and freed from one thread at a time, so a threaded user
+     * on such a platform has to do its first ssl_InitSniffer*() before it
+     * creates the threads. */
+    static WC_THREADSHARED int InitRefCount = 0;
+    #define SNIFFER_INIT_REF_INC() (++InitRefCount)
+    #define SNIFFER_INIT_REF_DEC() (--InitRefCount)
+#endif
+
+#ifndef WOLFSSL_MUTEX_INITIALIZER
+/* Set once the shared mutexes are usable, so that the callers which lost the
+ * race to initialize them do not return before they exist, and cleared again
+ * when the last caller frees them. Only ever read and written through
+ * WOLFSSL_ATOMIC_LOAD()/WOLFSSL_ATOMIC_STORE(): a plain int would let the
+ * compiler hoist the load out of the wait loop below, and the release/acquire
+ * pair is what publishes the setup to the callers that waited. Not needed when
+ * the platform can initialize the mutexes statically. */
+#if defined(WOLFSSL_ATOMIC_OPS) && !defined(SINGLE_THREADED)
+static WC_THREADSHARED wolfSSL_Atomic_Int SharedInitDone =
+    WOLFSSL_ATOMIC_INITIALIZER(0);
+#else
+static WC_THREADSHARED volatile int SharedInitDone = 0;
+#endif
+#endif
+
+/* Take a reference to the shared state.
+   returns 1 when this caller is the one that has to set it up */
+static int SnifferInitAcquire(void)
+{
+    if (SNIFFER_INIT_REF_INC() == 1)
+        return 1;
+
+#ifndef WOLFSSL_MUTEX_INITIALIZER
+    /* Another caller got there first; wait for it to finish. Startup only, and
+     * only on platforms without a static mutex initializer. */
+    while (!WOLFSSL_ATOMIC_LOAD(SharedInitDone)) {
+        WC_RELAX_LONG_LOOP();
+    }
+#endif
+
+    return 0;
+}
+
+/* Drop a reference to the shared state.
+   returns 1 when this caller is the one that has to release it, 0 when others
+   still hold a reference, and -1 when there was no reference left to drop */
+static int SnifferInitRelease(void)
+{
+    int count = SNIFFER_INIT_REF_DEC();
+
+    if (count < 0) {
+        /* More frees than inits. Put the count back rather than letting it
+           run away: the shared state is already gone, and so are the locks
+           the caller would otherwise take on the way to it. */
+        (void)SNIFFER_INIT_REF_INC();
+        return -1;
+    }
+
+    return (count == 0);
+}
+
 
 /* windows uses .rc table for this */
 #ifndef _WIN32
@@ -378,6 +452,7 @@ static const char* const msgTable[] =
 
     /* 99 */
     "Invalid or missing keylog file",
+    "Encrypt-Then-MAC not supported in this build",
 };
 
 
@@ -467,6 +542,9 @@ typedef struct Flags {
 #endif
     byte           gotFinished;     /* processed finished */
     byte           secRenegEn;      /* secure renegotiation enabled */
+#if !defined(HAVE_ENCRYPT_THEN_MAC) || defined(WOLFSSL_AEAD_ONLY)
+    byte           etmUnsupported;  /* peer negotiated RFC 7366, we cannot */
+#endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     byte           wasPolled;
 #endif
@@ -695,23 +773,31 @@ static int addKeyLogSnifferServerHelper(const char* address,
 void ssl_InitSniffer_ex(int devId)
 {
     wolfSSL_Init();
+
+    /* Only the first caller sets the shared state up, matching the release in
+     * ssl_FreeSniffer(): re-initializing a mutex another thread already holds
+     * is undefined, and the statistics belong to every thread at once. */
+    if (SnifferInitAcquire()) {
 #ifndef WOLFSSL_MUTEX_INITIALIZER
 #ifndef SNIFFER_LOCKLESS_TABLES
-    wc_InitMutex(&ServerListMutex);
-    wc_InitMutex(&SessionMutex);
+        wc_InitMutex(&ServerListMutex);
+        wc_InitMutex(&SessionMutex);
 #endif
 #ifndef WOLFSSL_SNIFFER_NO_RECOVERY
-    wc_InitMutex(&RecoveryMutex);
+        wc_InitMutex(&RecoveryMutex);
 #endif
 #ifdef WOLFSSL_SNIFFER_STATS
-    XMEMSET(&SnifferStats, 0, sizeof(SSLStats));
-    wc_InitMutex(&StatsMutex);
+        wc_InitMutex(&StatsMutex);
 #endif
 #endif /* !WOLFSSL_MUTEX_INITIALIZER */
 
 #ifdef WOLFSSL_SNIFFER_STATS
-    XMEMSET(&SnifferStats, 0, sizeof(SSLStats));
+        XMEMSET(&SnifferStats, 0, sizeof(SSLStats));
 #endif
+#ifndef WOLFSSL_MUTEX_INITIALIZER
+        WOLFSSL_ATOMIC_STORE(SharedInitDone, 1);
+#endif
+    }
 #if defined(WOLF_CRYPTO_CB) || defined(WOLFSSL_ASYNC_CRYPT)
     CryptoDeviceId = devId;
 #endif
@@ -883,6 +969,14 @@ void ssl_FreeSniffer(void)
     SnifferSession* session;
     SnifferSession* removeSession;
     int i;
+    int releaseShared;
+
+    releaseShared = SnifferInitRelease();
+    if (releaseShared < 0) {
+        /* Nothing was left to release, and the locks below may not exist any
+         * more, so there is nothing safe to do here. */
+        return;
+    }
 
     LOCK_SERVER_LIST();
     LOCK_SESSION();
@@ -917,35 +1011,50 @@ void ssl_FreeSniffer(void)
     freeSecretList();
 #endif /* WOLFSSL_SNIFFER_KEYLOGFILE */
 
-
+    /* What is left is shared by every thread that initialized the sniffer, so
+     * it may only be undone by the last one to get here. Tearing it down from
+     * a thread that finishes early closes the trace file and frees the mutexes
+     * under the threads still running. */
+    if (releaseShared) {
 #ifndef WOLFSSL_MUTEX_INITIALIZER
 #ifndef WOLFSSL_SNIFFER_NO_RECOVERY
-    wc_FreeMutex(&RecoveryMutex);
+        wc_FreeMutex(&RecoveryMutex);
 #endif
 #ifndef SNIFFER_LOCKLESS_TABLES
-    wc_FreeMutex(&SessionMutex);
-    wc_FreeMutex(&ServerListMutex);
+        wc_FreeMutex(&SessionMutex);
+        wc_FreeMutex(&ServerListMutex);
 #endif
+#ifdef WOLFSSL_SNIFFER_STATS
+        wc_FreeMutex(&StatsMutex);
+#endif
+        /* The mutexes are gone, so a later ssl_InitSniffer*() has to build
+           them again. Leaving the flag set would let a caller that lost the
+           race to that re-initialization run on mutexes that do not exist
+           yet. */
+        WOLFSSL_ATOMIC_STORE(SharedInitDone, 0);
 #endif /* !WOLFSSL_MUTEX_INITIALIZER */
 
 #ifdef WOLF_CRYPTO_CB
     #ifdef HAVE_INTEL_QA_SYNC
-    wc_CryptoCb_CleanupIntelQa(&CryptoDeviceId);
+        wc_CryptoCb_CleanupIntelQa(&CryptoDeviceId);
     #endif
     #ifdef HAVE_CAVIUM_OCTEON_SYNC
-    wc_CryptoCb_CleanupOcteon(&CryptoDeviceId);
+        wc_CryptoCb_CleanupOcteon(&CryptoDeviceId);
     #endif
 #endif
 #ifdef WOLFSSL_ASYNC_CRYPT
-    wolfAsync_DevClose(&CryptoDeviceId);
+        wolfAsync_DevClose(&CryptoDeviceId);
 #endif
 
-    if (TraceFile) {
-        TraceOn = 0;
-        XFCLOSE(TraceFile);
-        TraceFile = NULL;
+        if (TraceFile) {
+            TraceOn = 0;
+            XFCLOSE(TraceFile);
+            TraceFile = NULL;
+        }
     }
 
+    /* Matches the wolfSSL_Init() in ssl_InitSniffer_ex(); it keeps its own
+     * count, so every caller has to come through here. */
     wolfSSL_Cleanup();
 }
 
@@ -2498,6 +2607,25 @@ static void FreeSetupKeysArgs(WOLFSSL* ssl, void* pArgs)
 }
 
 /* Process Keys */
+#if !defined(HAVE_ENCRYPT_THEN_MAC) || defined(WOLFSSL_AEAD_ONLY)
+/* RFC 7366 only covers block ciphers and a peer must not negotiate it for an
+ * AEAD or stream suite, so a session that asked for it is still readable here
+ * unless the negotiated suite turns out to be a block cipher.
+   returns 0 on success, WOLFSSL_FATAL_ERROR on a suite this build cannot read
+ */
+static int CheckEncryptThenMac(SnifferSession* session, char* error)
+{
+    if (session->flags.etmUnsupported &&
+            session->sslServer->specs.cipher_type == block) {
+        SetError(ETM_NOT_SUPPORTED_STR, error, session, FATAL_ERROR_STATE);
+        session->verboseErr = 1;
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    return 0;
+}
+#endif
+
 static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
     char* error, KeyShareInfo* ksInfo)
 {
@@ -2935,6 +3063,13 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
                 #endif
                 }
             }
+        #ifdef WOLFSSL_CURVE25519_BLINDING
+            /* Blinding draws from the key's RNG on every shared secret. */
+            if (ret == 0) {
+                ret = wc_curve25519_set_rng(&args->key->priv.x25519,
+                    session->sslServer->rng);
+            }
+        #endif
             if (ret == 0) {
                 idx = 0;
                 ret = wc_Curve25519PrivateKeyDecode(args->keyBuf->buffer, &idx,
@@ -3229,6 +3364,12 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
             session->verboseErr = 1;
             ret = WOLFSSL_FATAL_ERROR; break;
         }
+
+    #if !defined(HAVE_ENCRYPT_THEN_MAC) || defined(WOLFSSL_AEAD_ONLY)
+        if (CheckEncryptThenMac(session, error) != 0) {
+            ret = WOLFSSL_FATAL_ERROR; break;
+        }
+    #endif
 
     #ifdef WOLFSSL_TLS13
         /* TLS v1.3 derive handshake key */
@@ -3678,6 +3819,11 @@ static int DoResume(SnifferSession* session, char* error)
         return WOLFSSL_FATAL_ERROR;
     }
 
+#if !defined(HAVE_ENCRYPT_THEN_MAC) || defined(WOLFSSL_AEAD_ONLY)
+    if (CheckEncryptThenMac(session, error) != 0)
+        return WOLFSSL_FATAL_ERROR;
+#endif
+
 #ifdef WOLFSSL_TLS13
     if (IsAtLeastTLSv1_3(session->sslServer->version)) {
     #ifdef HAVE_SESSION_TICKET
@@ -3823,6 +3969,20 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
         return WOLFSSL_FATAL_ERROR;
     }
 
+    /* Encrypt-Then-MAC has to be re-negotiated in every ServerHello, so drop
+     * any earlier decision before parsing this one. Only the negotiated value
+     * is recorded here: it governs the records protected by the cipher spec
+     * this ServerHello is negotiating, and the ones still in flight under the
+     * previous one have to keep the decision they were made with. It is
+     * applied in ProcessMessage() when that cipher spec is switched to, the
+     * same point at which the library applies it. */
+#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+    session->sslServer->options.encThenMac = 0;
+    session->sslClient->options.encThenMac = 0;
+#else
+    session->flags.etmUnsupported = 0;
+#endif
+
     /* extensions */
     if ((initialBytes - *sslBytes) < msgSz) {
         word16 len;
@@ -3934,6 +4094,28 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
                     session->flags.serverCipherOn = 1;
                 }
                 break;
+        #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+            case EXT_ENCRYPT_THEN_MAC:
+                /* RFC 7366 requires empty extension_data in the ServerHello. */
+                if (extLen != 0) {
+                    SetError(SERVER_HELLO_INPUT_STR, error, session,
+                             FATAL_ERROR_STATE);
+                    return WOLFSSL_FATAL_ERROR;
+                }
+                /* MAC covers the ciphertext, so it has to be stripped before
+                 * the record is decrypted. */
+                session->sslServer->options.encThenMac = 1;
+                session->sslClient->options.encThenMac = 1;
+                break;
+        #else
+            case EXT_ENCRYPT_THEN_MAC:
+                /* The session negotiated RFC 7366, but this build cannot
+                 * strip the MAC ahead of decryption. Only a block cipher
+                 * suite is actually unreadable, so the complaint waits until
+                 * the suite is known. */
+                session->flags.etmUnsupported = 1;
+                break;
+        #endif
             case EXT_MASTER_SECRET:
             #ifdef HAVE_EXTENDED_MASTER
                 session->flags.expectEms = 1;
@@ -4061,8 +4243,10 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
                 return ret;
             }
         #endif
-            SetError(KEY_MISMATCH_STR, error, session, FATAL_ERROR_STATE);
-            session->verboseErr = 1;
+            if (!session->verboseErr) {
+                SetError(KEY_MISMATCH_STR, error, session, FATAL_ERROR_STATE);
+                session->verboseErr = 1;
+            }
             return ret;
         }
 
@@ -4882,7 +5066,7 @@ static int DoHandShake(const byte* input, int* sslBytes,
                 if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
                     return ret;
             #endif
-                if (ret != 0) {
+                if (ret != 0 && !session->verboseErr) {
                     SetError(KEY_MISMATCH_STR, error, session, FATAL_ERROR_STATE);
                     session->verboseErr = 1;
                 }
@@ -5175,6 +5359,18 @@ static const byte* DecryptMessage(WOLFSSL* ssl, const byte* input, word32 sz,
 {
     int ivExtra = 0;
     int ret;
+    word32 macExtra = 0;
+
+#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+    /* Encrypt-Then-MAC leaves the MAC outside the encrypted data. */
+    if (ssl->options.startedETMRead && ssl->specs.cipher_type == block) {
+        macExtra = MacSize(ssl);
+        if (sz <= macExtra) {
+            *error = BUFFER_ERROR;
+            return NULL;
+        }
+    }
+#endif
 
 #ifdef WOLFSSL_TLS13
     if (IsAtLeastTLSv1_3(ssl->version)) {
@@ -5188,7 +5384,7 @@ static const byte* DecryptMessage(WOLFSSL* ssl, const byte* input, word32 sz,
 #endif
     {
         XMEMCPY(&ssl->curRL, rh, RECORD_HEADER_SZ);
-        ret = DecryptTls(ssl, output, input, sz);
+        ret = DecryptTls(ssl, output, input, sz - macExtra);
     }
 #ifdef WOLFSSL_ASYNC_CRYPT
     /* for async the symmetric operations are blocking */
@@ -5219,15 +5415,17 @@ static const byte* DecryptMessage(WOLFSSL* ssl, const byte* input, word32 sz,
         *advance = ssl->specs.aead_mac_size;
         ssl->keys.padSz = ssl->specs.aead_mac_size;
     }
+    else if (macExtra != 0)
+        ssl->keys.padSz = macExtra;
     else
         ssl->keys.padSz = ssl->specs.hash_size;
 
     if (ssl->specs.cipher_type == block) {
         /* last pad bytes indicates length */
         word32 pad = 0;
-        if ((int)sz > ivExtra) {
+        if (sz > (word32)ivExtra + macExtra) {
             /* get value of last pad byte */
-            pad = *(output + sz - ivExtra - 1) + 1;
+            pad = *(output + sz - (word32)ivExtra - macExtra - 1) + 1;
         }
         ssl->keys.padSz += pad;
     }
@@ -6440,6 +6638,7 @@ static int ProcessMessage(const byte* sslFrame, SnifferSession* session,
     WOLFSSL*          ssl = (session->flags.side == WOLFSSL_SERVER_END) ?
                             session->sslServer : session->sslClient;
 doMessage:
+    decrypted = 0;
 
     notEnough = 0;
     rhSize = 0;
@@ -6490,6 +6689,11 @@ doMessage:
         session->flags.clientCipherOn = 1;
         session->sslClient->options.handShakeState = HANDSHAKE_DONE;
         session->sslClient->options.handShakeDone  = 1;
+#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+        /* The ChangeCipherSpec that would have applied it was missed too. */
+        session->sslClient->options.startedETMRead =
+            session->sslClient->options.encThenMac;
+#endif
     }
 
     /* decrypt if needed */
@@ -6515,8 +6719,10 @@ doMessage:
         sslFrame = DecryptMessage(ssl, sslFrame, rhSize,
                                   ssl->buffers.outputBuffer.buffer, &errCode,
                                   &ivAdvance, &rh);
-        recordEnd = sslFrame - ivAdvance + rhSize;  /* sslFrame moved so
-                                                       should recordEnd */
+        if (sslFrame != NULL) {
+            /* sslFrame moved so should recordEnd */
+            recordEnd = sslFrame - ivAdvance + rhSize;
+        }
         decrypted = 1;
 
 #ifdef WOLFSSL_SNIFFER_STATS
@@ -6583,6 +6789,12 @@ doPart:
             else
                 session->flags.clientCipherOn = 1;
             Trace(GOT_CHANGE_CIPHER_STR);
+#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+            /* The records this side sends from here on are protected by the
+               cipher spec whose Encrypt-Then-MAC decision the last ServerHello
+               carried, so it only takes effect now. */
+            ssl->options.startedETMRead = ssl->options.encThenMac;
+#endif
             ssl->options.handShakeState = HANDSHAKE_DONE;
             ssl->options.handShakeDone  = 1;
 
@@ -6614,11 +6826,14 @@ doPart:
 
                     ret -= ivExtra;
 
-                #if defined(HAVE_ENCRYPT_THEN_MAC) && \
-                    !defined(WOLFSSL_AEAD_ONLY)
-                    if (ssl->options.startedETMRead)
-                        ret -= MacSize(ssl);
-                #endif
+                    /* padSz covers the AEAD tag or record MAC, any block
+                     * padding and the TLS 1.3 inner content type, matching what
+                     * the non-sniffer read path removes from ssl->curSize.
+                     * Only valid when this record went through
+                     * DecryptMessage(), as in the handshake case above. */
+                    if (decrypted)
+                        ret -= (int)ssl->keys.padSz;
+
                     TraceGotData(ret);
                     if (ret > 0) {  /* may be blank message */
                         if (data != NULL) {
@@ -6648,7 +6863,9 @@ doPart:
                                 int stored;
 
                                 buf = ssl->buffers.clearOutputBuffer.buffer;
-                                bufSz = ssl->buffers.clearOutputBuffer.length;
+                                /* Same corrected extent the sibling branch
+                                 * copies, not the raw record size. */
+                                bufSz = (word32)ret;
                                 do {
                                     stored = StoreDataCb(buf, bufSz, offset,
                                             ctx);

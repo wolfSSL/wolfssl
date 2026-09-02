@@ -172,6 +172,74 @@
 
 ## Fixes
 
+* **Fix (sniffer could not decrypt Encrypt-Then-MAC or X25519 sessions)**: the
+  sniffer never handled the `encrypt_then_mac` extension (RFC 7366) in the
+  ServerHello, so for a CBC suite it passed the trailing MAC to the block
+  decrypt along with the ciphertext, the length was not a multiple of the block
+  size, and every record failed.  Since wolfSSL peers negotiate it by default,
+  this covered most TLS 1.2 CBC captures.  Separately, curve25519 blinding
+  draws from the private key's own RNG, which the sniffer's static ephemeral
+  key never had, so every X25519 shared secret failed with `BAD_FUNC_ARG` and
+  no X25519 traffic could be read; the key now gets `wc_curve25519_set_rng()`,
+  as the library's own static ephemeral path already did.  A build without
+  Encrypt-Then-MAC support now reports that, once the negotiated suite is known
+  to be a block cipher, rather than failing every record with a generic decrypt
+  error.  Both the `client_key_exchange` handler and the TLS 1.3 ServerHello
+  path also overwrote a specific error with "Server Client Key Mismatch", which
+  hid the reason a session could not be decrypted; they now keep an error that
+  has already been described.
+
+* **Fix (sniffer reported plaintext lengths that included the MAC or AEAD
+  tag)**: the length returned to the caller was taken from the record size
+  without removing what `DecryptMessage()` had already accounted for in
+  `ssl->keys.padSz`, so a 14 byte payload was reported as 30 under TLS 1.2
+  AES-GCM.  The plaintext itself was correct, only the length was wrong, so a
+  caller trusting it read past the end of the message.  The sniffer now
+  subtracts `padSz`, matching the non-sniffer read path.  The same corrected
+  length is handed to the `WOLFSSL_SNIFFER_STORE_DATA_CB` callback, which
+  previously received the raw record size and so read past the end of the
+  decrypt output buffer; that overread is confirmed by AddressSanitizer and is
+  fixed here.
+
+* **Fix (`ssl_FreeSniffer()` tore down state shared by every thread)**: the
+  sniffer's session, server and secret tables are per thread, but its trace
+  file, mutexes and crypto device belong to the whole process, and every call
+  released all of it.  A thread that finished early closed the trace file and
+  freed the mutexes under the threads still running.  The init entry points now
+  count their callers and only the last free releases the shared state; a free
+  with no matching init leaves the count at zero rather than driving it
+  negative.  `StatsMutex` was initialized but never freed, and is now released
+  with the rest.  Single threaded use is unaffected.
+
+* **Fix (`snifftest` could not report a failed capture, and decrypted nothing
+  when threaded)**: the read loop assigned `hadBadPacket` on every packet
+  instead of accumulating it, so an early error was erased by any later packet
+  that decoded cleanly and the process still exited 0.  A new `-expectdata`
+  option additionally exits non-zero when no application data could be
+  decrypted at all; it is off by default so that a handshake-only capture still
+  exits 0.  Under `THREADED_SNIFFTEST` the worker checked its shutdown flag
+  before draining its packet queue, and reading a capture file normally sets
+  that flag before the worker is first scheduled, so it returned without
+  decoding anything; it now drains whatever is still queued.  The workers also
+  never repeated the keylog setup `main()` does for itself, which the thread
+  local server and secret tables require, so every packet was reported as
+  coming from an unregistered server.  Finally the example
+  `WOLFSSL_SNIFFER_STORE_DATA_CB` callback sized its buffer from the first
+  record of a packet and reused it for every later one, even though the offset
+  it is handed restarts at zero for each record, so a larger second record
+  wrote past the end; it now grows the buffer per record and appends.
+
+* **Fix (a sniffer build could not complete a DTLS 1.3 handshake)**: with
+  `WOLFSSL_SNIFFER` defined, the example client and server pin themselves to a
+  static RSA and static ECC cipher list so that a capture can be decrypted.
+  The guard for that read `version < 4`, meant to leave TLS 1.3 alone, but the
+  examples encode a DTLS version as a negative number and DTLS 1.3 is `-4`, so
+  a `-u -v 4` run was given a TLS 1.2 only cipher list.  The server then found
+  no common TLS 1.3 suite while processing the ClientHello and failed the
+  handshake with `MATCH_SUITE_ERROR`, which the client saw as a
+  `missing_extension` alert.  Only the examples were affected; an application
+  that does not set that cipher list was always able to handshake.
+
 * **Fix (certificate manager left pointing at a released store)**:
   `wolfSSL_CTX_set_cert_store()` pairs the store handed to it with the
   context's certificate manager, which keeps a pointer back to that store.
