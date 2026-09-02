@@ -111,6 +111,81 @@ static void wb_entry_match(WOLFSSL_OCSP* ocsp)
     ocsp->ocspList = NULL;
 }
 
+
+/* ---------------------------------------------- CheckOcspResponder :625-644 */
+/* `if (bs == NULL || subjectNameHash == NULL || issuerNameHash == NULL)` and
+ * the two responder-identity chains
+ *     subjectKeyHash != NULL && XMEMCMP(subjectNameHash, single->issuerHash)
+ *                            && XMEMCMP(subjectKeyHash,  single->issuerKeyHash)
+ *     issuerKeyHash  != NULL && XMEMCMP(issuerNameHash, ...) && ...
+ *
+ * This one is genuinely hermetic: it takes an OcspResponse and four raw
+ * hashes, walks bs->single, and compares bytes. Nothing is stored, so the
+ * response can be a local -- unlike GetOcspEntry, which links what it is
+ * given into ocsp->ocspList, a list the library allocates and frees. A stack
+ * fixture there crashed; here there is no ownership at all.
+ *
+ * Each vector below breaks the chain at a DIFFERENT operand, and the last one
+ * matches on every field so the earlier ones have an accepting partner.
+ * A real response is always self-consistent, which is why the mismatch cases
+ * have no independence pair from outside. */
+static void wb_check_responder(void)
+{
+    OcspResponse bs;
+    OcspEntry    single;
+    byte subjName[OCSP_DIGEST_SIZE];
+    byte issuName[OCSP_DIGEST_SIZE];
+    byte subjKey[KEYID_SIZE];
+    byte issuKey[KEYID_SIZE];
+    byte other[OCSP_DIGEST_SIZE];
+
+    XMEMSET(&bs,     0, sizeof(bs));
+    XMEMSET(&single, 0, sizeof(single));
+    XMEMSET(subjName, 0x11, sizeof(subjName));
+    XMEMSET(issuName, 0x22, sizeof(issuName));
+    XMEMSET(subjKey,  0x33, sizeof(subjKey));
+    XMEMSET(issuKey,  0x44, sizeof(issuKey));
+    XMEMSET(other,    0x99, sizeof(other));
+
+    /* the response's single entry is signed by the subject */
+    XMEMCPY(single.issuerHash,    subjName, OCSP_DIGEST_SIZE);
+    XMEMCPY(single.issuerKeyHash, subjKey,  KEYID_SIZE);
+    single.next = NULL;
+    bs.single = &single;
+
+    /* :625, one vector per operand */
+    WB_NOTE(CheckOcspResponder(NULL, subjName, subjKey, 0, issuName, issuKey));
+    WB_NOTE(CheckOcspResponder(&bs, NULL, subjKey, 0, issuName, issuKey));
+    WB_NOTE(CheckOcspResponder(&bs, subjName, subjKey, 0, NULL, issuKey));
+
+    /* :631 operand 0 false -- no subject key hash offered */
+    WB_NOTE(CheckOcspResponder(&bs, subjName, NULL, 0, issuName, issuKey));
+    /* :631 operand 1 false -- subject name does not match the single entry */
+    WB_NOTE(CheckOcspResponder(&bs, other, subjKey, 0, issuName, issuKey));
+    /* :631 operand 2 false -- name matches, key does not */
+    WB_NOTE(CheckOcspResponder(&bs, subjName, other, 0, issuName, issuKey));
+    /* :631 all true -- the accepting partner for the three above */
+    WB_NOTE(CheckOcspResponder(&bs, subjName, subjKey, 0, issuName, issuKey));
+
+    /* the delegated-responder arm: reached only when the subject chain fails
+     * AND the OCSP-signing usage bit is set. Re-point the single entry at the
+     * issuer so that chain can succeed. */
+    XMEMCPY(single.issuerHash,    issuName, OCSP_DIGEST_SIZE);
+    XMEMCPY(single.issuerKeyHash, issuKey,  KEYID_SIZE);
+
+    /* :640 operand 0 false -- no issuer key hash offered */
+    WB_NOTE(CheckOcspResponder(&bs, subjName, subjKey, EXTKEYUSE_OCSP_SIGN,
+                               issuName, NULL));
+    /* :640 operand 2 false -- issuer name matches, key does not */
+    WB_NOTE(CheckOcspResponder(&bs, subjName, subjKey, EXTKEYUSE_OCSP_SIGN,
+                               issuName, other));
+    /* :640 all true -- accepting partner */
+    WB_NOTE(CheckOcspResponder(&bs, subjName, subjKey, EXTKEYUSE_OCSP_SIGN,
+                               issuName, issuKey));
+
+    bs.single = NULL;
+}
+
 /* ---------------------------------------------------------- main */
 
 int main(void)
@@ -132,6 +207,7 @@ int main(void)
     }
 
     wb_entry_match(cm->ocsp);
+    wb_check_responder();
 
     printf("ocsp white-box: %d vectors driven\n", g_checks);
 
