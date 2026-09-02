@@ -38624,6 +38624,21 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
 #endif /* !NO_SHA256 */
 
 #ifndef NO_SHA
+#if FIPS_VERSION3_GE(7,0,0)
+    /* SP 800-56C Rev. 2 Section 4 approves the HKDF auxiliary function only
+     * with an approved hash and the module's key-derivation coverage is
+     * SHA-256/384/512, so the generic wrappers refuse SHA-1 (see
+     * HkdfDigestAllowed in fips.c). */
+    ret = wc_HKDF_Extract_ex(WC_SHA, NULL, 0, ikm1, (word32)sizeof(ikm1),
+                             prk, HEAP_HINT, devId);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_HKDF_Expand_ex(WC_SHA, prk, WC_SHA_DIGEST_SIZE, NULL, 0,
+                            okm1, (word32)L, HEAP_HINT, devId);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = 0;
+#else
 #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0))
     ret = wc_HKDF_Extract_ex(WC_SHA, NULL, 0, ikm1, (word32)sizeof(ikm1),
                              prk, HEAP_HINT, devId);
@@ -38645,6 +38660,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
 
     if (XMEMCMP(okm1, res1, (unsigned long)L) != 0)
         return WC_TEST_RET_ENC_NC;
+#endif /* FIPS_VERSION3_GE(7,0,0) */
 
 #ifndef HAVE_FIPS
     /* fips can't have key size under 14 bytes, salt is key too */
