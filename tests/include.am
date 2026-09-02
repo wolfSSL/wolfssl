@@ -144,6 +144,7 @@ EXTRA_DIST += \
               tests/unit-mcdc/test_curve25519_whitebox.c \
               tests/unit-mcdc/test_dh_fault_whitebox.c \
               tests/unit-mcdc/test_dsa_fault_whitebox.c \
+              tests/unit-mcdc/test_dtls_whitebox.c \
               tests/unit-mcdc/test_ecc_fault_whitebox.c \
               tests/unit-mcdc/test_ecc_whitebox.c \
               tests/unit-mcdc/test_eccsi_fault_whitebox.c \
