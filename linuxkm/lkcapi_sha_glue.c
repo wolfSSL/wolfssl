@@ -2123,12 +2123,24 @@ static int wc_linuxkm_rng_bank_init(struct wc_rng_bank *ctx)
     int ret;
     word32 flags = WC_RNG_BANK_FLAG_CAN_WAIT;
 
-#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && \
+    defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
     /* before v7, the SHA-2 implementations couldn't dynamically switch between
-     * C and asm in a given wc_Sha256 instance.
+     * C and asm in a given wc_Sha256 instance.  With WC_SVR_USE_NATIVE_REG_BUFS
+     * built in, the pin is needed only if the native facility failed to come
+     * up at runtime (missing OSXSAVE/FXSR, allocation failure, or selftest
+     * failure) -- wc_svr_native_init() runs from
+     * allocate_wolfcrypt_linuxkm_fpu_states() during module setup, before any
+     * bank init, so wc_linuxkm_svr_native_is_ready() is settled here.
      */
-    if (wc_linuxkm_rng_initing_default_bank_flag)
+    if (wc_linuxkm_rng_initing_default_bank_flag
+#ifdef WC_SVR_USE_NATIVE_REG_BUFS
+        && (! wc_linuxkm_svr_native_is_ready())
+#endif
+        )
+    {
         flags |= WC_RNG_BANK_FLAG_NO_VECTOR_OPS;
+    }
 #endif
 
     ret = wc_rng_bank_init(
@@ -2205,6 +2217,11 @@ static struct wc_rng_bank_inst *linuxkm_get_drbg(struct wc_rng_bank *ctx) {
         WC_RNG_BANK_FLAG_CAN_WAIT |
         WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST;
 
+#ifdef WC_SVR_USE_NATIVE_REG_BUFS
+    if (wc_linuxkm_svr_native_is_ready())
+        flags |= WC_RNG_BANK_FLAG_AFFINITY_LOCK;
+    else
+#endif
     if (wc_linuxkm_can_block())
         flags |= WC_RNG_BANK_FLAG_AFFINITY_LOCK;
     else

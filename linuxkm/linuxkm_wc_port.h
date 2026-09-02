@@ -259,6 +259,18 @@
         #endif
     #endif
 
+    #if defined(WC_SVR_DONT_USE_NATIVE_REG_BUFS)
+        #undef WC_SVR_USE_NATIVE_REG_BUFS
+    #elif defined(CONFIG_X86) && \
+          defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && \
+          !defined(WC_SVR_USE_NATIVE_REG_BUFS)
+        /* x86-only: the native save/restore facility and its
+         * wc_linuxkm_svr_native_is_ready() accessor are implemented only in
+         * x86_vector_register_glue.c; auto-defining on ARM (which also sets
+         * WOLFSSL_USE_SAVE_VECTOR_REGISTERS) would break those builds. */
+        #define WC_SVR_USE_NATIVE_REG_BUFS
+    #endif
+
     #if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7, 0, 0)
         #if defined(HAVE_HASHDRBG) && \
             defined(HAVE_ENTROPY_MEMUSE) && \
@@ -615,6 +627,62 @@
         WOLFSSL_API size_t wc_linuxkm_malloc_usable_size(void *ptr);
     #endif
 
+    #include <linux/printk.h>
+    #include <linux/ratelimit.h>
+
+#ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+    #define wc_linuxkm_debugging_dump_stack() dump_stack()
+#else
+    #define wc_linuxkm_debugging_dump_stack() WC_DO_NOTHING
+#endif
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)
+    #define wc_linuxkm_pr_nmi_check() (! in_nmi())
+#else
+    #define wc_linuxkm_pr_nmi_check() 1
+#endif
+    /* Note, wc_linuxkm_pr_err_ratelimited(), by building on __ratelimit(), is trylock-only
+     * internally, adding no NMI risk; printk itself is NMI-safe >=4.10 (safe
+     * buffers; lockless ringbuffer >=5.10).  pre-4.10, no printk from NMI at
+     * all.
+     */
+    #define wc_linuxkm_pr_ratelimited(pr, args...) do { \
+        if (wc_linuxkm_pr_nmi_check()) {                \
+            static DEFINE_RATELIMIT_STATE(_rls, HZ, 1); \
+            if (__ratelimit(&_rls)) {                   \
+                pr(args);                               \
+                wc_linuxkm_debugging_dump_stack();      \
+            }                                           \
+        }                                               \
+    } while (0)
+
+    #define wc_linuxkm_pr_emerg_ratelimited(args...) \
+        wc_linuxkm_pr_ratelimited(pr_emerg, args)
+
+    #define wc_linuxkm_pr_alert_ratelimited(args...) \
+        wc_linuxkm_pr_ratelimited(pr_alert, args)
+
+    #define wc_linuxkm_pr_crit_ratelimited(args...) \
+        wc_linuxkm_pr_ratelimited(pr_crit, args)
+
+    #define wc_linuxkm_pr_err_ratelimited(args...) \
+        wc_linuxkm_pr_ratelimited(pr_err, args)
+
+    #define wc_linuxkm_pr_warn_ratelimited(args...) \
+        wc_linuxkm_pr_ratelimited(pr_warn, args)
+
+    #define wc_linuxkm_pr_notice_ratelimited(args...) \
+        wc_linuxkm_pr_ratelimited(pr_notice, args)
+
+    #define wc_linuxkm_pr_info_ratelimited(args...) \
+        wc_linuxkm_pr_ratelimited(pr_info, args)
+
+#ifdef DEBUG
+    #define wc_linuxkm_pr_devel_backtrace_ratelimited(args...) \
+        wc_linuxkm_pr_ratelimited(pr_devel, args)
+#else
+    #define wc_linuxkm_pr_devel_backtrace_ratelimited(args...) WC_DO_NOTHING
+#endif
+
 #ifndef WC_CONTAINERIZE_THIS
     #include <linux/kthread.h>
     #include <linux/net.h>
@@ -740,8 +808,13 @@
     #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && \
         defined(CONFIG_X86)
 
-        extern __must_check int allocate_wolfcrypt_linuxkm_fpu_states(void);
-        extern void free_wolfcrypt_linuxkm_fpu_states(void);
+        extern __must_check int wc_linuxkm_allocate_svr_states(void);
+        extern void wc_linuxkm_free_svr_states(void);
+        WOLFSSL_API void wc_svr_disallowed_count_reset(void);
+        #ifdef WC_SVR_USE_NATIVE_REG_BUFS
+        WOLFSSL_LOCAL __must_check int wc_linuxkm_svr_native_is_ready(void);
+        #endif
+        WOLFSSL_API __must_check unsigned long long int wc_svr_disallowed_count_current(void);
         WOLFSSL_API __must_check int wc_can_save_vector_registers_x86(void);
         WOLFSSL_API __must_check int wc_save_vector_registers_x86(enum wc_svr_flags flags);
         WOLFSSL_API void wc_restore_vector_registers_x86(enum wc_svr_flags flags);
@@ -1247,9 +1320,9 @@
         #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
 
             #ifdef CONFIG_X86
-                typeof(allocate_wolfcrypt_linuxkm_fpu_states) *allocate_wolfcrypt_linuxkm_fpu_states;
+                typeof(wc_linuxkm_allocate_svr_states) *wc_linuxkm_allocate_svr_states;
                 typeof(wc_can_save_vector_registers_x86) *wc_can_save_vector_registers_x86;
-                typeof(free_wolfcrypt_linuxkm_fpu_states) *free_wolfcrypt_linuxkm_fpu_states;
+                typeof(wc_linuxkm_free_svr_states) *wc_linuxkm_free_svr_states;
                 typeof(wc_restore_vector_registers_x86) *wc_restore_vector_registers_x86;
                 typeof(wc_save_vector_registers_x86) *wc_save_vector_registers_x86;
             #else /* !CONFIG_X86 */
@@ -1606,9 +1679,9 @@
     #define get_current WC_PIE_INDIRECT_SYM(get_current)
 
     #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
-        #define allocate_wolfcrypt_linuxkm_fpu_states WC_PIE_INDIRECT_SYM(allocate_wolfcrypt_linuxkm_fpu_states)
+        #define wc_linuxkm_allocate_svr_states WC_PIE_INDIRECT_SYM(wc_linuxkm_allocate_svr_states)
         #define wc_can_save_vector_registers_x86 WC_PIE_INDIRECT_SYM(wc_can_save_vector_registers_x86)
-        #define free_wolfcrypt_linuxkm_fpu_states WC_PIE_INDIRECT_SYM(free_wolfcrypt_linuxkm_fpu_states)
+        #define wc_linuxkm_free_svr_states WC_PIE_INDIRECT_SYM(wc_linuxkm_free_svr_states)
         #define wc_restore_vector_registers_x86 WC_PIE_INDIRECT_SYM(wc_restore_vector_registers_x86)
         #define wc_save_vector_registers_x86 WC_PIE_INDIRECT_SYM(wc_save_vector_registers_x86)
     #elif defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS)
@@ -1885,8 +1958,10 @@
         (defined(RHEL_MAJOR) && \
          ((RHEL_MAJOR > 9) || ((RHEL_MAJOR == 9) && (RHEL_MINOR >= 5))))
         #define wc_km_printf(format, args...) _printk(KERN_INFO "wolfssl: %s(): " format, __func__, ## args)
-    #else
+    #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
         #define wc_km_printf(format, args...) printk(KERN_INFO "wolfssl: %s(): " format, __func__, ## args)
+    #else
+        #define wc_km_printf(format, args...) (in_nmi() ? 0 : printk(KERN_INFO "wolfssl: %s(): " format, __func__, ## args))
     #endif
     #define printf(...) wc_km_printf(__VA_ARGS__)
 
