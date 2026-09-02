@@ -2203,8 +2203,7 @@ else()
     endif()
 endif()
 
-# TODO: - AES-XTS
-#       - Web server
+# TODO: - Web server
 #       - Web client
 add_option("WOLFSSL_CMAC"
     "Enable CMAC (default: disabled)"
@@ -2789,8 +2788,126 @@ if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "x86_64|AMD64")
     set(WOLFSSL_X86_64_BUILD ON)
     add_option("WOLFSSL_X86_64_BUILD_ASM" "Build ASM files" "yes" "yes;no")
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_X86_64_BUILD")
+elseif("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^(i[3-6]86|x86)$")
+    # 32-bit x86.  The distinction matters beyond the define: the AES-GCM
+    # speedup has its OWN assembly there (aes_gcm_x86_asm.S) rather than a
+    # 32-bit build of the x86-64 one, which is what BUILD_X86_ASM selects
+    # below - the same split autotools makes with ENABLED_X86_ASM.
+    set(WOLFSSL_X86_BUILD ON)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_X86_BUILD")
 elseif("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "aarch64|arm64")
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_AARCH64_BUILD")
+endif()
+
+# Intel assembly speedups. cmake/functions.cmake already selects the asm
+# sources from this variable; declaring it makes it discoverable and gives it
+# a default. USE_INTEL_SPEEDUP is what makes the C dispatch to those sources -
+# without it they compile but nothing ever calls them.
+add_option("WOLFSSL_INTEL_ASM"
+    "Enable Intel assembly speedups (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_INTEL_ASM)
+    list(APPEND WOLFSSL_DEFINITIONS "-DUSE_INTEL_SPEEDUP")
+endif()
+
+# AES-NI. Same shape: functions.cmake already reads WOLFSSL_AESNI to select
+# the AES assembly, but WOLFSSL_AESNI has to reach the compiler as well or
+# aes.c leaves every AES-NI path out and the assembly it does build is never
+# called.  --enable-intelasm implies it in the autotools build; match that.
+add_option("WOLFSSL_AESNI"
+    "Enable AES-NI (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_AESNI OR WOLFSSL_INTEL_ASM)
+    # x86 only.  Both the define and the -maes below are meaningless
+    # elsewhere, and -maes lands on CMAKE_C_FLAGS for the library AND every
+    # example and test target, so a cross compiler rejects the whole build.
+    # Fail with a clear message instead, as WOLFSSL_INTELASM_INTRINSICS and
+    # WOLFSSL_FALCON_ASM do below.
+    if(NOT WOLFSSL_X86_64_BUILD AND NOT WOLFSSL_X86_BUILD)
+        message(FATAL_ERROR
+            "WOLFSSL_AESNI / WOLFSSL_INTEL_ASM are x86 only")
+    endif()
+    set(WOLFSSL_AESNI "yes")
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_AESNI")
+    # aes.c uses AES-NI intrinsics directly in the key schedule, so the
+    # instructions have to be available to the compiler, not just to the
+    # assembler.  A flag, not a define, so it goes on CMAKE_C_FLAGS rather
+    # than WOLFSSL_DEFINITIONS.  This is an ISA the runtime dispatch already
+    # requires before calling in, so it does not widen what any dispatched
+    # routine may use.
+    if(NOT CMAKE_C_COMPILER_ID STREQUAL "MSVC")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -maes")
+    endif()
+endif()
+
+# AES-XTS.  The XTS assembly is wrapped in WOLFSSL_AES_XTS, so without this
+# option the file is an empty translation unit.
+add_option("WOLFSSL_AESXTS"
+    "Enable AES-XTS (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_AESXTS)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_AES_XTS")
+    # --enable-aesxts also turns the streaming API on by default for
+    # non-ARMASM builds (configure.ac defaults ENABLED_AESXTS_STREAM from
+    # ENABLED_AESXTS).  Without this, cmake -DWOLFSSL_AESXTS=yes silently
+    # gives a smaller API than the autotools equivalent - no
+    # wc_AesXtsEncryptInit/Update/Final - which breaks the documented
+    # --enable-foo == -DWOLFSSL_FOO=yes mapping.
+    if(NOT WOLFSSL_ARM_ASM)
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_AESXTS_STREAM")
+    endif()
+endif()
+
+# Build the Intel speedups from the generated C intrinsics rather than from
+# the generated assembly. Both come out of one generator, so the two forms
+# compute the same thing; the C form is visible to the optimiser, to LTO and
+# to the sanitisers. Coverage is per algorithm - anything without an
+# intrinsics translation keeps building from assembly.
+# Falcon's floating-point backend.  Falcon needs binary64 arithmetic that is
+# bit-exact everywhere it runs, so the fpr layer is written in SSE2 rather
+# than left to the compiler; this is autotools' --enable-falcon=asm.  It is
+# x86-64 only, and it selects a different fpr representation from the
+# native-double backends, which is why those are mutually exclusive there.
+add_option("WOLFSSL_FALCON_ASM"
+    "Build Falcon's fpr layer from the generated x86-64 assembly (default: disabled)"
+    "no" "yes;no")
+
+if (WOLFSSL_FALCON_ASM)
+    if (NOT WOLFSSL_FALCON)
+        message(FATAL_ERROR "WOLFSSL_FALCON_ASM requires WOLFSSL_FALCON")
+    endif()
+    if (NOT WOLFSSL_X86_64_BUILD)
+        message(FATAL_ERROR "WOLFSSL_FALCON_ASM is x86-64 only")
+    endif()
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_FALCON_FPR_ASM")
+    set_wolfssl_definitions("WOLFSSL_FALCON_FPR_ASM" RESULT)
+endif()
+
+add_option("WOLFSSL_INTELASM_INTRINSICS"
+    "Build the x86-64 speedups from generated C intrinsics rather than assembly (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_INTELASM_INTRINSICS)
+    if(NOT WOLFSSL_INTEL_ASM)
+        message(FATAL_ERROR
+            "WOLFSSL_INTELASM_INTRINSICS requires WOLFSSL_INTEL_ASM")
+    endif()
+    if(NOT WOLFSSL_X86_64_BUILD)
+        message(FATAL_ERROR "WOLFSSL_INTELASM_INTRINSICS is x86-64 only")
+    endif()
+    # Unlike the assembly it replaces, this code is compiled, and CMake adds
+    # no -O of its own unless a build type asks for one. At -O0 the generated
+    # SHA-256 runs several times slower than the assembly rather than at
+    # parity, which reads as the intrinsics being slow instead of unoptimised.
+    if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_C_FLAGS MATCHES "-O")
+        message(WARNING
+            "WOLFSSL_INTELASM_INTRINSICS with no CMAKE_BUILD_TYPE: the "
+            "generated C compiles unoptimised and will be far slower than "
+            "the assembly. Use -DCMAKE_BUILD_TYPE=Release.")
+    endif()
 endif()
 
 # SP math all
@@ -4263,6 +4380,32 @@ else()
 endif()
 
 add_library(wolfssl::wolfssl ALIAS wolfssl)
+
+# The generated x86-64 intrinsics are a literal transliteration of the assembly
+# - one C statement per instruction - so their functions are enormous.
+# Unoptimised, the compiler gives every intermediate its own stack slot and
+# never reuses one: mlkem_encapsulate_avx512 gets a 718KB frame on gcc and
+# 1.9MB on clang, enough to overflow a thread stack. At -O1 and above the slots
+# are shared and the frame drops to about 2KB. CMake emits no -O at all when
+# CMAKE_BUILD_TYPE is unset, which is the default, so force the level on just
+# these sources - not on the rest of the library, whose flags stay the user's.
+# Override with -DWOLFSSL_INTRIN_OPT=-O2 if you want a different level.
+set(WOLFSSL_INTRIN_OPT "" CACHE STRING
+    "Optimisation flag for the generated *_intrin.c files (default -O1, /O1 on MSVC)")
+if(NOT WOLFSSL_INTRIN_OPT)
+    if(MSVC)
+        set(WOLFSSL_INTRIN_OPT "/O1")
+    else()
+        set(WOLFSSL_INTRIN_OPT "-O1")
+    endif()
+endif()
+foreach(_intrin_src ${LIB_SOURCES})
+    if(_intrin_src MATCHES "_intrin\\.c$")
+        set_source_files_properties("${_intrin_src}" PROPERTIES
+            COMPILE_OPTIONS "${WOLFSSL_INTRIN_OPT}")
+    endif()
+endforeach()
+unset(_intrin_src)
 
 if (NOT "$ENV{ARIA_DIR}" STREQUAL "")
     message(STATUS "Found Environment variable ARIA_DIR=$ENV{ARIA_DIR}")
