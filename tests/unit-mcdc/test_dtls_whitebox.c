@@ -46,22 +46,33 @@
  *     to compile is scored a silent skip, not a failure.
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-#include <wolfssl/wolfcrypt/settings.h>
+/* Pull dtls.c in verbatim so its file-static helpers are in scope and
+ * instrumented in THIS binary. Its object is removed from the archive by the
+ * runner, so these definitions are the ones that link.
+ *
+ * This include comes FIRST and nothing precedes it. dtls.c includes settings.h
+ * itself, which picks up user_settings.h under the campaign's
+ * -DWOLFSSL_USER_SETTINGS builds and options.h under the --enable-all smoke
+ * build. Including settings.h or options.h ahead of it gets the header order
+ * wrong for one of those two configurations: an earlier revision of this file
+ * did exactly that and failed to compile under gcc/--enable-all with
+ * "MAX_EX_DATA undeclared", behind a "No configuration for wolfSSL detected,
+ * check header order" warning. */
+/* options.h FIRST, before any other wolfSSL header. Under the campaign's
+ * --enable-usersettings builds it just defines WOLFSSL_USER_SETTINGS and
+ * settings.h then reads user_settings.h; under the --enable-all smoke build it
+ * is where every feature macro actually lives. Getting this wrong is silent in
+ * the worst way: without it the smoke build compiled this driver with
+ * WOLFSSL_DTLS undefined, so it took the skip stub, exited 0, and was recorded
+ * as a passing entry in smoke-expected.txt while testing nothing at all. */
 #include <wolfssl/options.h>
 
-#if defined(WOLFSSL_DTLS) && !defined(WOLFCRYPT_ONLY)
+#include <src/dtls.c>
 
-#include <wolfssl/ssl.h>
-#include <wolfssl/internal.h>
 #include <stdio.h>
 #include <string.h>
 
-/* The unit under test. Its object is removed from the archive by the runner so
- * these definitions are the ones that link. */
-#include <src/dtls.c>
+#if defined(WOLFSSL_DTLS) && !defined(WOLFCRYPT_ONLY)
 
 static int g_checks;
 
@@ -195,6 +206,79 @@ static void wb_cid_get_size(WOLFSSL* ssl)
     WB_NOTE(DtlsCidGetSize(ssl, &sz, 0));
 }
 
+/* --------------------------------------- SendStatelessReplyDtls13 :851 */
+/* `if (!haveKS || !haveSA || !haveSG)`
+ *
+ * RFC 8446 section 9.2: a ClientHello that is not resuming must carry
+ * key_share, signature_algorithms AND supported_groups. The three flags are set
+ * purely by whether FindExtByType locates each extension in ch->extension, so
+ * all three operands are drivable by presenting extension blocks that omit one
+ * at a time -- no PSK, no handshake state, no IO.
+ *
+ * Four vectors, which is the minimum for MC/DC over a three-operand OR chain:
+ * all three present takes every operand false and is the accepting partner;
+ * then each of the three is dropped in turn, and because || short-circuits, the
+ * omitted one is the first operand that can be true in its vector. Dropping KS
+ * isolates operand 0; dropping SA needs KS present so operand 0 is false first;
+ * dropping SG needs both KS and SA present.
+ *
+ * A real handshake cannot produce these: a conforming client always sends all
+ * three, and a non-conforming one is rejected before this point by the record
+ * and cookie layers. That is the whole reason this lives in a white-box. */
+static void wb_stateless_reply_have_flags(WOLFSSL* ssl)
+{
+    ProtocolVersion pv;
+    WolfSSL_CH ch;
+    size_t i;
+
+    /* Minimal well-formed extension bodies. Content beyond the header does not
+     * matter for the presence flags -- each parser is entered, and a parse
+     * failure exits before line 851 without touching the flags, so a vector
+     * that failed to parse would show up as a MISSING pair rather than a false
+     * pass. */
+    static const byte ext_sa[] = {          /* signature_algorithms 0x000d */
+        0x00, 0x0d, 0x00, 0x04, 0x00, 0x02, 0x08, 0x04 };
+    static const byte ext_sg[] = {          /* supported_groups     0x000a */
+        0x00, 0x0a, 0x00, 0x04, 0x00, 0x02, 0x00, 0x17 };
+    static const byte ext_ks[] = {          /* key_share            0x0033 */
+        0x00, 0x33, 0x00, 0x06, 0x00, 0x04, 0x00, 0x17, 0x00, 0x00 };
+
+    /* one row per vector: which of KS / SA / SG to include */
+    static const struct { byte ks, sa, sg; const char* what; } rows[] = {
+        { 1, 1, 1, "all three present  -> every operand false" },
+        { 0, 1, 1, "no key_share       -> operand 0 true" },
+        { 1, 0, 1, "no sig_algs        -> operand 1 true" },
+        { 1, 1, 0, "no supported_grps  -> operand 2 true" },
+    };
+
+    for (i = 0; i < sizeof(rows) / sizeof(rows[0]); i++) {
+        byte exts[sizeof(ext_sa) + sizeof(ext_sg) + sizeof(ext_ks)];
+        word32 n = 0;
+        byte suite[2];
+
+        if (rows[i].sa) { XMEMCPY(exts + n, ext_sa, sizeof(ext_sa));
+                          n += (word32)sizeof(ext_sa); }
+        if (rows[i].sg) { XMEMCPY(exts + n, ext_sg, sizeof(ext_sg));
+                          n += (word32)sizeof(ext_sg); }
+        if (rows[i].ks) { XMEMCPY(exts + n, ext_ks, sizeof(ext_ks));
+                          n += (word32)sizeof(ext_ks); }
+
+        pv.major = DTLS_MAJOR;
+        pv.minor = DTLSv1_3_MINOR;
+        wb_ch_init(&ch, &pv);
+        /* An even suite size is required by the prologue; two bytes is the
+         * smallest legal ClientHello cipher-suite list. */
+        suite[0] = 0x13; suite[1] = 0x01;   /* TLS_AES_128_GCM_SHA256 */
+        ch.cipherSuite.elements = suite;
+        ch.cipherSuite.size = 2;
+        ch.extension.elements = exts;
+        ch.extension.size = n;
+
+        WB_NOTE(rows[i].what);
+        WB_NOTE(SendStatelessReplyDtls13(ssl, &ch));
+    }
+}
+
 /* ---------------------------------------------------------------- main */
 
 int main(void)
@@ -237,6 +321,7 @@ int main(void)
     wb_client_hello_sanity();
     wb_check_supported_version(ssl);
     wb_cid_get_size(ssl);
+    wb_stateless_reply_have_flags(ssl);
 
     printf("dtls white-box: %d vectors driven\n", g_checks);
 
