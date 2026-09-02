@@ -2374,6 +2374,97 @@ int test_ocsp_responder(void)
 #if defined(HAVE_HTTP_CLIENT)
 /* A peer-supplied AIA/CRL URL must not be able to smuggle CR/LF into the
  * outbound OCSP/CRL HTTP request (header injection / request splitting). */
+/* MC/DC vectors for wolfIO_DecodeUrl's host-parsing loops.
+ *
+ * The bracketed-IPv6 loop and the plain-host loop each carry four operands:
+ *
+ *     while (i < MAX_URL_ITEM_SIZE-1 && cur < urlSz && url[cur] != 0 &&
+ *            url[cur] != ']')          (or != ':' && != '/')
+ *
+ * and the bracket path is followed by
+ *
+ *     if (cur >= urlSz || url[cur] != ']')
+ *
+ * The existing CR/LF tests drive the injection guard but always terminate the
+ * host normally, so three of the four loop operands never take the value that
+ * ends the loop, and the unterminated-bracket rejection never fires. Each
+ * vector below stops the loop on a DIFFERENT operand, which is what gives each
+ * one its independence pair; the well-formed URLs at the end are the accepting
+ * partners.
+ *
+ * These are the shapes an attacker controls -- an unterminated literal, a host
+ * that runs to the end of the buffer, a host longer than the item cap -- and
+ * none of them is produced by any in-tree caller, which is why they were
+ * uncovered. */
+int test_wolfIO_DecodeUrl_host_bounds(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_OCSP) || defined(HAVE_CRL_IO)
+    /* wolfio.c keeps MAX_URL_ITEM_SIZE private (src/wolfio.c), so mirror the
+     * value here rather than reaching into the implementation. Only the
+     * "longer than the cap" vector depends on it, and it just has to exceed
+     * the real cap for the first loop operand to go false. */
+    #define WOLFIO_URL_ITEM_CAP 80
+    char   domainName[WOLFIO_URL_ITEM_CAP];
+    char   path[WOLFIO_URL_ITEM_CAP];
+    word16 port;
+    int    i;
+    char   longHost[WOLFIO_URL_ITEM_CAP + 32];
+    /* bracketed IPv6 with no closing ']' -- loop ends on cur < urlSz going
+     * false, then the terminator check rejects. */
+    const char* v6Unterminated = "http://[::1";
+    /* bracketed IPv6 whose host hits a NUL before ']' -- loop ends on
+     * url[cur] != 0 going false. */
+    static const char v6Nul[] = "http://[::1\0]/ocsp";
+    /* well-formed bracketed literal: loop ends on url[cur] != ']' going
+     * false, and the terminator check accepts. The accepting partner. */
+    const char* v6Good = "http://[::1]:8080/ocsp";
+    /* plain host running to the end of the buffer with no ':' or '/' -- loop
+     * ends on cur < urlSz. */
+    const char* hostEof = "http://ocsp.example.com";
+    /* plain host terminated by '/' and by ':' respectively: the accepting
+     * partners for the last two operands of the plain-host loop. */
+    const char* hostSlash = "http://ocsp.example.com/ocsp";
+    const char* hostColon = "http://ocsp.example.com:8080/ocsp";
+
+    /* A host longer than the item cap ends the loop on the FIRST operand,
+     * i < MAX_URL_ITEM_SIZE-1, which nothing else in the suite reaches. */
+    XSTRNCPY(longHost, "http://", sizeof(longHost));
+    for (i = 7; i < (int)sizeof(longHost) - 2; i++)
+        longHost[i] = 'a';
+    longHost[sizeof(longHost) - 2] = '/';
+    longHost[sizeof(longHost) - 1] = '\0';
+
+    /* --- rejecting vectors, one per loop-exit operand --- */
+    ExpectIntLT(wolfIO_DecodeUrl(v6Unterminated, (int)XSTRLEN(v6Unterminated),
+        domainName, path, &port), 0);
+    ExpectIntLT(wolfIO_DecodeUrl(v6Nul, (int)sizeof(v6Nul) - 1,
+        domainName, path, &port), 0);
+
+    /* --- accepting partners --- */
+    ExpectIntEQ(wolfIO_DecodeUrl(v6Good, (int)XSTRLEN(v6Good),
+        domainName, path, &port), 0);
+    ExpectIntEQ(wolfIO_DecodeUrl(hostEof, (int)XSTRLEN(hostEof),
+        domainName, path, &port), 0);
+    ExpectIntEQ(wolfIO_DecodeUrl(hostSlash, (int)XSTRLEN(hostSlash),
+        domainName, path, &port), 0);
+    ExpectIntEQ(wolfIO_DecodeUrl(hostColon, (int)XSTRLEN(hostColon),
+        domainName, path, &port), 0);
+
+    /* Cap-length host: whatever the parser decides, the point is that the
+     * first loop operand goes false, so no return value is asserted beyond
+     * it not crashing. */
+    (void)wolfIO_DecodeUrl(longHost, (int)XSTRLEN(longHost),
+        domainName, path, &port);
+
+    /* Null and zero-length arguments: both operands of
+     * `if (url == NULL || urlSz == 0)`, with the accepting partner above. */
+    ExpectIntLT(wolfIO_DecodeUrl(NULL, 10, domainName, path, &port), 0);
+    ExpectIntLT(wolfIO_DecodeUrl(hostSlash, 0, domainName, path, &port), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfIO_DecodeUrl_crlf_reject(void)
 {
     EXPECT_DECLS;
