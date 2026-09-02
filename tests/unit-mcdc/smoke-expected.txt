@@ -20,6 +20,7 @@ test_hpke_whitebox
 test_integer_fault_whitebox
 test_integer_whitebox
 test_internal_domain_whitebox
+test_internal_sanity_whitebox
 test_internal_suites_whitebox
 test_lms_bds_whitebox
 test_lms_fault_whitebox
