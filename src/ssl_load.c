@@ -257,6 +257,10 @@ static int ProcessUserChainRetain(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     else if (ctx != NULL) {
         /* Dispose of old chain and allocate and copy in new chain. */
         FreeDer(&ctx->certChain);
+        #ifdef HAVE_CERTIFICATE_COMPRESSION
+        /* The compressed copy described the old certificate. */
+        CertCompInvalidate(ctx);
+        #endif
         /* Allocate and copy the buffer into SSL context object. */
         ret = AllocCopyDer(&ctx->certChain, chainBuffer, len, type, heap);
         /* Update count of certificates in chain. */
@@ -2525,6 +2529,10 @@ static int ProcessBufferCertHandleDer(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         else if (ctx != NULL) {
             /* Free previous certificate. */
             FreeDer(&ctx->certificate); /* Make sure previous is free'd */
+            #ifdef HAVE_CERTIFICATE_COMPRESSION
+            /* The compressed copy described the old certificate. */
+            CertCompInvalidate(ctx);
+            #endif
         #ifdef KEEP_OUR_CERT
             /* Dispose of X509 version of certificate if we own it. */
             if (ctx->ownOurCert) {
@@ -5323,6 +5331,11 @@ static int wolfssl_ctx_add_to_chain(WOLFSSL_CTX* ctx, const byte* der,
         ctx->heap);
     if (res == 1) {
         ctx->certChainCnt++;
+#ifdef HAVE_CERTIFICATE_COMPRESSION
+        /* The compressed Certificate cache was built from the chain that just
+         * changed, so it no longer describes what would be sent. */
+        CertCompInvalidate(ctx);
+#endif
     }
 
     return res;
@@ -5413,6 +5426,10 @@ int wolfSSL_CTX_use_certificate(WOLFSSL_CTX *ctx, WOLFSSL_X509 *x)
     if (res == 1) {
         /* Replace certificate buffer with one holding the new certificate. */
         FreeDer(&ctx->certificate);
+        #ifdef HAVE_CERTIFICATE_COMPRESSION
+        /* The compressed copy described the old certificate. */
+        CertCompInvalidate(ctx);
+        #endif
         ret = AllocCopyDer(&ctx->certificate, x->derCert->buffer,
             x->derCert->length, CERT_TYPE, ctx->heap);
         if (ret != 0) {
@@ -5510,6 +5527,11 @@ int wolfSSL_CTX_add1_chain_cert(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509)
             x509->derCert->buffer, x509->derCert->length, ctx->heap);
         if (ret == 1) {
             ctx->certChainCnt++;
+#ifdef HAVE_CERTIFICATE_COMPRESSION
+            /* Same reason as wolfssl_ctx_add_to_chain(): the cache describes
+             * a chain that no longer exists. */
+            CertCompInvalidate(ctx);
+#endif
         }
         /* Store cert in stack to free it later. */
         if ((ret == 1) && (ctx->x509Chain == NULL)) {
