@@ -24,6 +24,18 @@
     name once it is final. Two parameter sets are supported, selected with
     wc_falcon_set_level(): level 1 (Falcon-512) and level 5 (Falcon-1024).
     See <wolfssl/wolfcrypt/falcon.h>.
+    \defgroup HPKE Algorithms - HPKE (RFC 9180)
+    HPKE (Hybrid Public Key Encryption) is a single-shot public key
+    encryption scheme built from a KEM, a KDF and an AEAD. wolfCrypt
+    implements the RFC 9180 base mode (no pre-shared key, no sender
+    authentication) and is enabled with --enable-hpke; it is also pulled in
+    by the TLS 1.3 Encrypted Client Hello (ECH) support, its main in-tree
+    consumer. Supported ciphersuites are the DHKEM P-256/P-384/P-521 and
+    X25519 KEMs, HKDF-SHA256/384/512 and AES-128-GCM / AES-256-GCM. An Hpke
+    structure is bound to one ciphersuite triple with wc_HpkeInit(); a
+    one-shot wc_HpkeSealBase() / wc_HpkeOpenBase() pair and a streaming
+    context API (wc_HpkeInitSealContext() / wc_HpkeContextSealBase() and the
+    matching open calls) are provided. See <wolfssl/wolfcrypt/hpke.h>.
     \defgroup ML_DSA Algorithms - ML-DSA (FIPS 204)
     ML-DSA (Module-Lattice-based Digital Signature Algorithm) is a
     quantum-resistant digital signature scheme standardized by NIST as
