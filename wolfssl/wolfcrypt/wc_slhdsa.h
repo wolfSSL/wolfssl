@@ -748,6 +748,14 @@ typedef struct SlhDsaParameters {
     word32 sigLen;              /* Signature length in bytes. */
 } SlhDsaParameters;
 
+/* Flags indicating which parts of the key are present in the key object.
+ * Crypto callback devices store keys within the device and clear both flags.
+ * Sign and verify dispatch before the flags are read, so for those the flags
+ * gate the software path only.
+ *
+ * The deterministic sign entry points are the exception: they read PK.seed out
+ * of the local key to pass as addrnd, so they need the public half present
+ * even when the private half lives on the device. */
 #define WC_SLHDSA_FLAG_PRIVATE       0x0001
 #define WC_SLHDSA_FLAG_PUBLIC        0x0002
 #define WC_SLHDSA_FLAG_BOTH_KEYS     (WC_SLHDSA_FLAG_PRIVATE | \
