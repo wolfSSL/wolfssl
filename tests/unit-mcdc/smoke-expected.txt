@@ -4,7 +4,9 @@ test_blake2s_whitebox
 test_chacha20_poly1305_whitebox
 test_chacha_whitebox
 test_cmac_whitebox
+test_crl_whitebox
 test_cryptocb_whitebox
+test_dtls_whitebox
 test_eccsi_fault_whitebox
 test_eccsi_whitebox
 test_ed25519_whitebox
@@ -26,6 +28,7 @@ test_memory_whitebox
 test_mldsa_fault_whitebox
 test_mldsa_hash_fault_whitebox
 test_mlkem_fault_whitebox
+test_ocsp_whitebox
 test_pkcs12_fault_whitebox
 test_poly1305_whitebox
 test_puf_gf_whitebox
