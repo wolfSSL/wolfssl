@@ -4228,6 +4228,10 @@ static int isotp_receive_single_frame(struct isotp_wolfssl_ctx *ctx)
     /* 1 nibble for data size which will be 1 - 7 in a regular 8 byte CAN
      * packet */
     data_size = (byte)ctx->frame.data[0] & 0xf;
+    if (data_size > ISOTP_SINGLE_FRAME_DATA_SIZE) {
+        WOLFSSL_MSG("Data size is too large for ISO-TP single frame");
+        return WOLFSSL_CBIO_ERR_GENERAL;
+    }
     if (ctx->receive_buffer_size < (int)data_size) {
         WOLFSSL_MSG("ISO-TP buffer is too small to receive data");
         return BUFFER_E;
@@ -4250,7 +4254,11 @@ static int isotp_receive_multi_frame(struct isotp_wolfssl_ctx *ctx)
      * Full data size is lower nibble of first byte for the most significant
      * followed by the second byte for the rest. Last 6 bytes are data */
     data_size = ((ctx->frame.data[0] & 0xf) << 8) + ctx->frame.data[1];
-    XMEMCPY(ctx->receive_buffer, &ctx->frame.data[2], ISOTP_FIRST_FRAME_DATA_SIZE);
+    if ((ctx->frame.length != ISOTP_CAN_BUS_PAYLOAD_SIZE) ||
+            (data_size <= ISOTP_SINGLE_FRAME_DATA_SIZE)) {
+        WOLFSSL_MSG("ISO-TP first frame is malformed");
+        return WOLFSSL_CBIO_ERR_GENERAL;
+    }
     /* Need to send a flow control packet to either cancel or continue
      * transmission of data */
     if (ctx->receive_buffer_size < data_size) {
@@ -4258,6 +4266,7 @@ static int isotp_receive_multi_frame(struct isotp_wolfssl_ctx *ctx)
         WOLFSSL_MSG("ISO-TP buffer is too small to receive data");
         return BUFFER_E;
     }
+    XMEMCPY(ctx->receive_buffer, &ctx->frame.data[2], ISOTP_FIRST_FRAME_DATA_SIZE);
     isotp_send_flow_control(ctx, FALSE);
 
     ctx->buf_length = ISOTP_FIRST_FRAME_DATA_SIZE;
@@ -4273,6 +4282,9 @@ static int isotp_receive_multi_frame(struct isotp_wolfssl_ctx *ctx)
                 (delay / 1000));
         if (ret == 0) {
             return WOLFSSL_CBIO_ERR_TIMEOUT;
+        } else if (ret < 0) {
+            WOLFSSL_MSG("ISO-TP error receiving consecutive frame");
+            return WOLFSSL_CBIO_ERR_GENERAL;
         }
         type = ctx->frame.data[0] >> 4;
         /* Consecutive frames have sequence number as lower nibble */
@@ -4285,8 +4297,19 @@ static int isotp_receive_multi_frame(struct isotp_wolfssl_ctx *ctx)
             WOLFSSL_MSG("ISO-TP frames out of sequence");
             return WOLFSSL_CBIO_ERR_GENERAL;
         }
-        /* Last 7 bytes or whatever we got after the first byte is data */
+        /* A consecutive frame carries the sequence byte and at least one byte
+         * of data */
+        if ((ctx->frame.length < 2) ||
+                (ctx->frame.length > ISOTP_CAN_BUS_PAYLOAD_SIZE)) {
+            WOLFSSL_MSG("ISO-TP consecutive frame is malformed");
+            return WOLFSSL_CBIO_ERR_GENERAL;
+        }
+        /* Last 7 bytes or whatever we got after the first byte is data, the
+         * final frame can be padded beyond the data we are still owed */
         frame_len = ctx->frame.length - 1;
+        if (frame_len > data_size) {
+            frame_len = (byte)data_size;
+        }
         XMEMCPY(ctx->buf_ptr, &ctx->frame.data[1], frame_len);
         ctx->buf_ptr += frame_len;
         ctx->buf_length += frame_len;
