@@ -63,5 +63,6 @@ test_wc_mlkem_poly_whitebox
 test_wc_port_whitebox
 test_wc_xmss_impl_whitebox
 test_wolfentropy_whitebox
+test_wolfio_whitebox
 test_xmss_fault_whitebox
 test_xmss_hash_fault_whitebox
