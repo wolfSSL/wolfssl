@@ -2895,6 +2895,64 @@ int test_wolfSSL_X509_STORE_CTX_trusted_stack_cleanup(void)
     return res;
 }
 
+/* The trusted stack set with X509_STORE_CTX_trusted_stack() is borrowed from
+ * the caller and must not survive a cleanup/re-init into a different store. */
+int test_wolfSSL_X509_STORE_CTX_trusted_stack_reinit(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+    X509_STORE_CTX* ctx = NULL;
+    X509_STORE* store1 = NULL;
+    X509_STORE* store2 = NULL;
+    X509* x509Ca = NULL;
+    X509* x509Svr = NULL;
+    STACK_OF(X509)* trusted = NULL;
+#ifdef WOLFSSL_TEST_STALE_TRUSTED_STACK_UAF
+    int verifyRet = 0;
+#endif
+
+    ExpectNotNull(x509Ca = wolfSSL_X509_load_certificate_file(caCertFile,
+        SSL_FILETYPE_PEM));
+    ExpectNotNull(x509Svr = wolfSSL_X509_load_certificate_file(svrCertFile,
+        SSL_FILETYPE_PEM));
+    ExpectNotNull(trusted = sk_X509_new_null());
+    ExpectIntGE(sk_X509_push(trusted, x509Ca), 1);
+
+    /* Both stores are empty, so the caller's stack is the only trust source. */
+    ExpectNotNull(store1 = X509_STORE_new());
+    ExpectNotNull(store2 = X509_STORE_new());
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store1, x509Svr, NULL), 1);
+    ExpectIntNE(X509_verify_cert(ctx), 1);
+    X509_STORE_CTX_trusted_stack(ctx, trusted);
+    ExpectIntEQ(X509_verify_cert(ctx), 1);
+
+    /* Re-init against a different store: the previous trust domain must be
+     * gone, so this must fail. */
+    X509_STORE_CTX_cleanup(ctx);
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store2, x509Svr, NULL), 1);
+    ExpectIntNE(X509_verify_cert(ctx), 1);
+
+#ifdef WOLFSSL_TEST_STALE_TRUSTED_STACK_UAF
+    /* Opt-in ASAN repro: the ctx must hold no reference left to free. Call
+     * verify outside the Expect macro, which stops running after a failure. */
+    sk_X509_free(trusted);
+    trusted = NULL;
+    verifyRet = X509_verify_cert(ctx);
+    ExpectIntNE(verifyRet, 1);
+#endif
+
+    X509_STORE_CTX_free(ctx);
+    X509_STORE_free(store1);
+    X509_STORE_free(store2);
+    sk_X509_free(trusted);
+    X509_free(x509Svr);
+    X509_free(x509Ca);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_X509_STORE_CTX_get_issuer(void)
 {
     EXPECT_DECLS;
