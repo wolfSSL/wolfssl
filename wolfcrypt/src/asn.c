@@ -10065,8 +10065,8 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
         }
         XMEMSET(key_pair, 0, sizeof(MlKemKey));
 
-        /* ML-KEM cannot detect its parameter set from a zeroed object, so
-         * take it from the certificate's key OID first. */
+        /* Pin the key to the certificate's parameter set, so a private key
+         * naming a different one is a mismatch rather than adopted. */
         ret = mlkem_type_from_oid_sum(ks, &level);
         if (ret == 0) {
             ret = wc_MlKemKey_Init(key_pair, level, heap, INVALID_DEVID);

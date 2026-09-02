@@ -439,6 +439,9 @@ int wc_MlKemKey_Init(MlKemKey* key, int type, void* heap, int devId)
         #endif
             break;
     #endif
+        case WC_ML_KEM_TYPE_UNSET:
+            /* Caller will let a DER decode name the parameter set. */
+            break;
         default:
             /* No other values supported. */
             ret = BAD_FUNC_ARG;
@@ -458,7 +461,9 @@ int wc_MlKemKey_Init(MlKemKey* key, int type, void* heap, int devId)
         key->idLen = 0;
         key->labelLen = 0;
 #endif
-        key->flags = 0;
+        /* A zeroed object reads as WC_ML_KEM_512, so record the difference
+         * here rather than inferring it from the type. */
+        key->flags = (type == WC_ML_KEM_TYPE_UNSET) ? 0 : MLKEM_FLAG_TYPE_SET;
 
     #ifdef WOLFSSL_MLKEM_DYNAMIC_KEYS
         key->priv = NULL;
@@ -818,7 +823,8 @@ int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
     }
 
     if (ret == 0) {
-        key->flags = 0;
+        /* Discards the key material, not the parameter set. */
+        key->flags &= MLKEM_FLAG_TYPE_SET;
 
         /* Establish parameters based on key type. */
         k = mlkemkey_get_k(key);
@@ -3048,12 +3054,53 @@ int wc_MlKemKey_PrivateKeyToDer(MlKemKey* key, byte* output, word32 len)
 #endif /* WC_ENABLE_ASYM_KEY_EXPORT */
 
 #ifdef WC_ENABLE_ASYM_KEY_IMPORT
+/* Take the parameter set from a DER algorithm OID sum.
+ *
+ * @param  [in, out]  key     ML-KEM key object with no parameter set yet.
+ * @param  [in]       oidSum  Key OID sum read from the DER.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when the OID is not an ML-KEM key OID.
+ * @return  NOT_COMPILED_IN when the parameter set is not in this build.
+ */
+static int mlkem_key_adopt_type(MlKemKey* key, int oidSum)
+{
+    int type = 0;
+    int ret = mlkem_type_from_oid_sum(oidSum, &type);
+
+    if (ret == 0) {
+        switch (type) {
+#ifndef WOLFSSL_NO_ML_KEM
+    #ifdef WOLFSSL_WC_ML_KEM_512
+        case WC_ML_KEM_512:
+            break;
+    #endif
+    #ifdef WOLFSSL_WC_ML_KEM_768
+        case WC_ML_KEM_768:
+            break;
+    #endif
+    #ifdef WOLFSSL_WC_ML_KEM_1024
+        case WC_ML_KEM_1024:
+            break;
+    #endif
+#endif
+        default:
+            ret = NOT_COMPILED_IN;
+            break;
+        }
+    }
+    if (ret == 0) {
+        key->type = type;
+        key->flags |= MLKEM_FLAG_TYPE_SET;
+    }
+
+    return ret;
+}
+
 /* Decode a DER SubjectPublicKeyInfo into an ML-KEM public key.
  *
- * The key object must already be initialized for a parameter set, and the
- * algorithm OID in the DER must name that same parameter set. ML-KEM cannot
- * auto-detect the way a signature key does, because WC_ML_KEM_512 is zero and
- * so is indistinguishable from an unset type.
+ * Takes wrapped DER, unlike wc_MlKemKey_DecodePublicKey which takes the raw
+ * encoded key. A key initialized for a parameter set holds the DER to it; one
+ * initialized WC_ML_KEM_TYPE_UNSET takes it from the algorithm OID.
  *
  * @param  [in, out]  key       ML-KEM key object.
  * @param  [in]       input     DER buffer.
@@ -3074,12 +3121,17 @@ int wc_MlKemKey_PublicKeyDecode(MlKemKey* key, const byte* input, word32 inSz,
     if ((key == NULL) || (input == NULL) || (inOutIdx == NULL)) {
         ret = BAD_FUNC_ARG;
     }
-    if (ret == 0) {
+    if ((ret == 0) && ((key->flags & MLKEM_FLAG_TYPE_SET) != 0)) {
+        /* A parameter set was named at init, so hold the DER to it. */
         ret = mlkem_type_to_oid_sum(key->type, &keyType);
     }
     if (ret == 0) {
+        /* keyType is ANONk when none was named, which auto-detects. */
         ret = DecodeAsymKeyPublic_Assign(input, inOutIdx, inSz, &pubKey,
             &pubKeyLen, &keyType);
+    }
+    if ((ret == 0) && ((key->flags & MLKEM_FLAG_TYPE_SET) == 0)) {
+        ret = mlkem_key_adopt_type(key, keyType);
     }
     if (ret == 0) {
         ret = wc_MlKemKey_DecodePublicKey(key, pubKey, pubKeyLen);
@@ -3133,7 +3185,8 @@ int wc_MlKemKey_PrivateKeyDecode(MlKemKey* key, const byte* input, word32 inSz,
     if ((key == NULL) || (input == NULL) || (inOutIdx == NULL)) {
         ret = BAD_FUNC_ARG;
     }
-    if (ret == 0) {
+    if ((ret == 0) && ((key->flags & MLKEM_FLAG_TYPE_SET) != 0)) {
+        /* A parameter set was named at init, so hold the DER to it. */
         ret = mlkem_type_to_oid_sum(key->type, &keyType);
     }
     if (ret == 0) {
@@ -3142,6 +3195,9 @@ int wc_MlKemKey_PrivateKeyDecode(MlKemKey* key, const byte* input, word32 inSz,
          * a SEQUENCE carrying both. The template decoder reports which. */
         ret = DecodeAsymKey_Assign(input, inOutIdx, inSz, &seed, &seedLen,
             &privKey, &privKeyLen, &pubKey, &pubKeyLen, &keyType);
+    }
+    if ((ret == 0) && ((key->flags & MLKEM_FLAG_TYPE_SET) == 0)) {
+        ret = mlkem_key_adopt_type(key, keyType);
     }
 #ifdef WOLFSSL_MLKEM_NO_MAKE_KEY
     /* Expanding a seed needs key generation, which this build lacks. That
@@ -3217,7 +3273,7 @@ int wc_MlKemKey_PrivateKeyDecode(MlKemKey* key, const byte* input, word32 inSz,
         }
     #endif
         ForceZero(key->z, WC_ML_KEM_SYM_SZ);
-        key->flags = 0;
+        key->flags &= MLKEM_FLAG_TYPE_SET;
     }
     else if ((ret == 0) && (seed == NULL)) {
         ret = wc_MlKemKey_DecodePrivateKey(key, privKey, privKeyLen);

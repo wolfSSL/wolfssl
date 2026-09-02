@@ -57545,6 +57545,31 @@ static wc_test_ret_t mlkem_asn1_test(void)
                 wc_MlKemKey_Free(key);
             }
         }
+        /* Initialised without a parameter set, each decode names it. */
+        if (ret == 0) {
+            ret = wc_MlKemKey_Init(key, WC_ML_KEM_TYPE_UNSET, HEAP_HINT,
+                devId);
+            if (ret == 0) {
+                idx = 0;
+                ret = wc_MlKemKey_PublicKeyDecode(key, pubDer, (word32)pubLen,
+                    &idx);
+                if ((ret == 0) && (key->type != levels[i]))
+                    ret = WC_TEST_RET_ENC_NC;
+                wc_MlKemKey_Free(key);
+            }
+        }
+        if (ret == 0) {
+            ret = wc_MlKemKey_Init(key, WC_ML_KEM_TYPE_UNSET, HEAP_HINT,
+                devId);
+            if (ret == 0) {
+                idx = 0;
+                ret = wc_MlKemKey_PrivateKeyDecode(key, privDer,
+                    (word32)privLen, &idx);
+                if ((ret == 0) && (key->type != levels[i]))
+                    ret = WC_TEST_RET_ENC_NC;
+                wc_MlKemKey_Free(key);
+            }
+        }
 
         /* The PKCS#8 round trip must recover the original decapsulation key. */
         if (ret == 0) {
@@ -57626,6 +57651,7 @@ free_level:
 
     return ret;
 }
+
 #endif /* ML-KEM ASN.1 round trip */
 
 /* The committed mlkem<N>-key.der are the RFC 9935 expandedKey form - see
