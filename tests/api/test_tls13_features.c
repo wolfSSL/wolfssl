@@ -298,7 +298,7 @@ int test_tls13_feat_psk_ke_no_dhe(void)
  * usable, so the PSK is ignored and a certificate handshake runs instead.
  * onlyPskDheKe had never been set on a live handshake -- the group only
  * exercised it through the argument-validation API test. */
-int test_tls13_feat_psk_only_dhe_rejects_psk_ke(void)
+int test_tls13_feat_psk_only_dhe_ignores_psk_ke(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_PSK) && defined(HAVE_SUPPORTED_CURVES)
@@ -1183,7 +1183,7 @@ int test_tls13_feat_psk_ke_no_dhe(void)
 {
     return TEST_SKIPPED;
 }
-int test_tls13_feat_psk_only_dhe_rejects_psk_ke(void)
+int test_tls13_feat_psk_only_dhe_ignores_psk_ke(void)
 {
     return TEST_SKIPPED;
 }
