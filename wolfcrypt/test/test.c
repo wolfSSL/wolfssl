@@ -31017,7 +31017,13 @@ static wc_test_ret_t rsa_even_mod_test(WC_RNG* rng, RsaKey* key)
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
     ret = wc_RsaPublicEncrypt(tmp, inLen, out, (int)outSz, key, rng);
     if (ret != WC_NO_ERR_TRACE(MP_VAL) &&
-        ret != WC_NO_ERR_TRACE(MP_EXPTMOD_E))
+        ret != WC_NO_ERR_TRACE(MP_EXPTMOD_E)
+#if FIPS_VERSION3_GE(7,0,0)
+        /* v7 refuses PKCS#1 v1.5 key transport before touching the key
+         * (SP 800-131A Rev. 2 Section 6 Table 5). */
+        && ret != WC_NO_ERR_TRACE(FIPS_WRONG_API_E)
+#endif
+        )
     {
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_even_mod);
     }
@@ -31027,7 +31033,11 @@ static wc_test_ret_t rsa_even_mod_test(WC_RNG* rng, RsaKey* key)
     ret = wc_RsaPrivateDecrypt(out, outSz, plain, (int)plainSz, key);
     if (ret != WC_NO_ERR_TRACE(MP_VAL) &&
         ret != WC_NO_ERR_TRACE(MP_EXPTMOD_E) &&
-        ret != WC_NO_ERR_TRACE(MP_INVMOD_E))
+        ret != WC_NO_ERR_TRACE(MP_INVMOD_E)
+#if FIPS_VERSION3_GE(7,0,0)
+        && ret != WC_NO_ERR_TRACE(FIPS_WRONG_API_E)
+#endif
+        )
     {
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_even_mod);
     }
@@ -32072,6 +32082,23 @@ static wc_test_ret_t rsa_oaep_padding_test(RsaKey* key, WC_RNG* rng)
 
     /* check using pkcsv15 padding with _ex API */
     XMEMSET(plain, 0, plainSz);
+#if FIPS_VERSION3_GE(7,0,0)
+    /* SP 800-131A Rev. 2 Section 6 (Table 5): WC_RSA_PKCSV15_PAD key
+     * transport is refused by the extended wrappers under v7. */
+    WC_TEST_RSA_ASYNC_DO(&key->asyncDev,
+        wc_RsaPublicEncrypt_ex(in, inLen, out, outSz, key, rng,
+              WC_RSA_PKCSV15_PAD, WC_HASH_TYPE_NONE, 0, NULL, 0));
+    if (ret != WC_NO_ERR_TRACE(FIPS_WRONG_API_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
+    WC_TEST_RSA_ASYNC_DO(&key->asyncDev,
+        wc_RsaPrivateDecrypt_ex(out, (word32)outSz, plain, plainSz, key,
+              WC_RSA_PKCSV15_PAD, WC_HASH_TYPE_NONE, 0, NULL, 0));
+    if (ret != WC_NO_ERR_TRACE(FIPS_WRONG_API_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
+#endif /* WOLFSSL_RSA_PUBLIC_ONLY */
+    ret = 0;
+#else
     WC_TEST_RSA_ASYNC_DO(&key->asyncDev,
         wc_RsaPublicEncrypt_ex(in, inLen, out, outSz, key, rng,
               WC_RSA_PKCSV15_PAD, WC_HASH_TYPE_NONE, 0, NULL, 0));
@@ -32092,6 +32119,7 @@ static wc_test_ret_t rsa_oaep_padding_test(RsaKey* key, WC_RNG* rng)
     }
     TEST_SLEEP();
 #endif /* WOLFSSL_RSA_PUBLIC_ONLY */
+#endif /* FIPS_VERSION3_GE(7,0,0) */
 
 exit_rsa:
     WC_FREE_VAR(in, HEAP_HINT);
@@ -32136,6 +32164,7 @@ static wc_test_ret_t rsa_pkcs1_test(RsaKey* key, WC_RNG* rng,
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_pkcs1);
 #endif
+#if FIPS_VERSION3_LT(7,0,0)
 #ifndef WOLFSSL_MICROCHIP_TA100
     WC_TEST_RSA_ASYNC_DO(&key->asyncDev,
         wc_RsaPublicEncrypt(in, inLen, out, outSz, key, rng));
@@ -32176,6 +32205,25 @@ static wc_test_ret_t rsa_pkcs1_test(RsaKey* key, WC_RNG* rng,
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit_rsa_pkcs1);
     }
     TEST_SLEEP();
+#else /* FIPS_VERSION3_GE(7,0,0) */
+    /* SP 800-131A Rev. 2 Section 6 (Table 5): RSAES-PKCS1-v1_5 key transport
+     * is disallowed after December 31, 2023; the v7 module refuses the fixed
+     * PKCS#1 v1.5 services with FIPS_WRONG_API_E. */
+    WC_TEST_RSA_ASYNC_DO(&key->asyncDev,
+        wc_RsaPublicEncrypt(in, inLen, out, outSz, key, rng));
+    if (ret != WC_NO_ERR_TRACE(FIPS_WRONG_API_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_pkcs1);
+    idx = (word32)outSz;
+    WC_TEST_RSA_ASYNC_DO(&key->asyncDev,
+        wc_RsaPrivateDecrypt(out, idx, plain, plainSz, key));
+    if (ret != WC_NO_ERR_TRACE(FIPS_WRONG_API_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_pkcs1);
+    WC_TEST_RSA_ASYNC_DO(&key->asyncDev,
+        wc_RsaPrivateDecryptInline(out, idx, &res, key));
+    if (ret != WC_NO_ERR_TRACE(FIPS_WRONG_API_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_pkcs1);
+    ret = 0;
+#endif /* FIPS_VERSION3_LT(7,0,0) */
 
     WC_TEST_RSA_ASYNC_DO(&key->asyncDev,
         wc_RsaSSL_Sign(in, inLen, out, outSz, key, rng));
