@@ -5444,6 +5444,9 @@ struct Options {
     word16            failNoCertxPSK:1;   /* fail for no cert except with PSK */
     word16            failNoPSK:1;        /* fail if no PSK is negotiated */
     word16            downgrade:1;        /* allow downgrade of versions */
+#ifdef WOLFSSL_TLS13
+    word16            sendCoverTraffic:1; /* TLS 1.3 cover traffic request */
+#endif
     word16            resuming:1;
 #ifdef HAVE_SECURE_RENEGOTIATION
     word16            resumed:1;          /* resuming may be reset on SCR */
@@ -5620,6 +5623,9 @@ struct Options {
 #if defined(WOLFSSL_TLS13) && !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
     word16            peerSha1CertOk:1;   /* Peer advertised a SHA-1 signature
                                            * scheme for certificates */
+#endif
+#ifdef WOLFSSL_TLS13
+    word16            coverTrafficPadSz;  /* padding length of cover traffic */
 #endif
 #ifdef WOLFSSL_DTLS
     byte              haveMcast;          /* using multicast ? */
@@ -7709,6 +7715,10 @@ WOLFSSL_TEST_VIS int BuildMessage(WOLFSSL* ssl, byte* output, int outSz,
 WOLFSSL_TEST_VIS int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                int inSz, int type, int hashOutput, int sizeOnly, int asyncOkay);
 WOLFSSL_LOCAL int Tls13UpdateKeys(WOLFSSL* ssl);
+/* Cover traffic padding for the next record, or 0 if none is requested. */
+WOLFSSL_LOCAL word16 Tls13GetCoverTrafficPaddingSz(WOLFSSL* ssl);
+/* Clears an outstanding cover traffic request. */
+WOLFSSL_LOCAL void Tls13ClearCoverTraffic(WOLFSSL* ssl);
 #endif
 
 WOLFSSL_LOCAL int AllocKey(WOLFSSL* ssl, int type, void** pKey);
