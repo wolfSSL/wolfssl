@@ -79935,6 +79935,10 @@ typedef struct {
 #if defined(WC_RSA_PSS) && defined(WOLF_CRYPTO_CB_RSA_PAD)
     int rsaPssVerifyCount; /* RSA-PSS verify callback invocations */
 #endif
+#if defined(HAVE_HKDF) && !defined(NO_HMAC)
+    int hkdfPendArm;   /* pend the next this-many HKDF callback calls */
+    int hkdfPendCount; /* pends issued; test asserts non-zero */
+#endif
 } myCryptoDevCtx;
 
 #ifdef WOLF_CRYPTO_CB_ONLY_RSA
@@ -83548,6 +83552,17 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 #endif /* WOLFSSL_CMAC && !(NO_AES) && WOLFSSL_AES_DIRECT */
     else if (info->algo_type == WC_ALGO_TYPE_KDF) {
     #if defined(HAVE_HKDF) && !defined(NO_HMAC)
+        /* Simulate a device that queues the request and completes it on a
+         * later call, so the caller has to poll. */
+        if (myCtx->hkdfPendArm > 0 &&
+                (info->kdf.type == WC_KDF_TYPE_HKDF ||
+                 info->kdf.type == WC_KDF_TYPE_HKDF_EXTRACT ||
+                 info->kdf.type == WC_KDF_TYPE_HKDF_EXPAND)) {
+            myCtx->hkdfPendArm--;
+            myCtx->hkdfPendCount++;
+            return WC_PENDING_E;
+        }
+
         if (info->kdf.type == WC_KDF_TYPE_HKDF) {
             /* Redirect to software implementation for testing */
         #if !defined(HAVE_SELFTEST) && \
@@ -83861,6 +83876,122 @@ static wc_test_ret_t shake_cb_copy_free_test(myCryptoDevCtx* myCtx,
 }
 #endif /* WOLFSSL_SHA3 && SHAKE && (CB_COPY || CB_FREE) */
 
+#if defined(HAVE_HKDF) && !defined(NO_HMAC) && \
+    !defined(NO_SHA256) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && \
+    !defined(WC_TEST_NO_CRYPTOCB_SW_TEST)
+
+/* Bound retries so a broken contract fails instead of spinning. */
+#define HKDF_CB_MAX_POLL 16
+
+/* Drive the HKDF crypto callbacks against a device that pends first: the
+ * caller re-invokes with identical arguments until WC_PENDING_E clears.
+ * Vectors are RFC 5869 appendix A.1 (test case 1, SHA-256). */
+static wc_test_ret_t hkdf_cryptocb_async_test(myCryptoDevCtx* ctx)
+{
+    wc_test_ret_t ret = 0;
+    int  rc;
+    int  polls;
+    byte prk[WC_SHA256_DIGEST_SIZE];
+    byte okm[42];
+    WOLFSSL_SMALL_STACK_STATIC const byte ikm[22] = {
+        0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+        0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+        0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b };
+    WOLFSSL_SMALL_STACK_STATIC const byte salt[13] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c };
+    WOLFSSL_SMALL_STACK_STATIC const byte info[10] = {
+        0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7,
+        0xf8, 0xf9 };
+    WOLFSSL_SMALL_STACK_STATIC const byte expectedPrk[WC_SHA256_DIGEST_SIZE]
+        = {
+        0x07, 0x77, 0x09, 0x36, 0x2c, 0x2e, 0x32, 0xdf,
+        0x0d, 0xdc, 0x3f, 0x0d, 0xc4, 0x7b, 0xba, 0x63,
+        0x90, 0xb6, 0xc7, 0x3b, 0xb5, 0x0f, 0x9c, 0x31,
+        0x22, 0xec, 0x84, 0x4a, 0xd7, 0xc2, 0xb3, 0xe5 };
+    WOLFSSL_SMALL_STACK_STATIC const byte expected[42] = {
+        0x3c, 0xb2, 0x5f, 0x25, 0xfa, 0xac, 0xd5, 0x7a,
+        0x90, 0x43, 0x4f, 0x64, 0xd0, 0x36, 0x2f, 0x2a,
+        0x2d, 0x2d, 0x0a, 0x90, 0xcf, 0x1a, 0x5a, 0x4c,
+        0x5d, 0xb0, 0x2d, 0x56, 0xec, 0xc4, 0xc5, 0xbf,
+        0x34, 0x00, 0x72, 0x08, 0xd5, 0xb8, 0x87, 0x18,
+        0x58, 0x65 };
+
+    /* Three pends, so four passes: proves the caller loops, not retries
+     * exactly once. */
+    ctx->hkdfPendArm = 3;
+    ctx->hkdfPendCount = 0;
+    polls = 0;
+    do {
+        rc = wc_HKDF_Extract_ex(WC_SHA256, salt, (word32)sizeof(salt),
+                                ikm, (word32)sizeof(ikm), prk,
+                                HEAP_HINT, devId);
+        polls++;
+    } while (rc == WC_NO_ERR_TRACE(WC_PENDING_E) && polls < HKDF_CB_MAX_POLL);
+    if (rc != 0)
+        ret = WC_TEST_RET_ENC_EC(rc);
+    else if (polls != 4)
+        ret = WC_TEST_RET_ENC_NC;
+    else if (XMEMCMP(prk, expectedPrk, sizeof(prk)) != 0)
+        ret = WC_TEST_RET_ENC_NC;
+    if (ret != 0)
+        goto exit_hkdf_async;
+
+    /* Expand the PRK, pending three times as well. */
+    ctx->hkdfPendArm = 3;
+    ctx->hkdfPendCount = 0;
+    polls = 0;
+    do {
+        rc = wc_HKDF_Expand_ex(WC_SHA256, prk, (word32)sizeof(prk),
+                               info, (word32)sizeof(info), okm,
+                               (word32)sizeof(okm), HEAP_HINT, devId);
+        polls++;
+    } while (rc == WC_NO_ERR_TRACE(WC_PENDING_E) && polls < HKDF_CB_MAX_POLL);
+    if (rc != 0)
+        ret = WC_TEST_RET_ENC_EC(rc);
+    else if (polls != 4)
+        ret = WC_TEST_RET_ENC_NC;
+    else if (XMEMCMP(okm, expected, sizeof(okm)) != 0)
+        ret = WC_TEST_RET_ENC_NC;
+    if (ret != 0)
+        goto exit_hkdf_async;
+
+    /* Same vector through the one-shot wc_HKDF_ex(). */
+    XMEMSET(okm, 0, sizeof(okm));
+    ctx->hkdfPendArm = 1;
+    ctx->hkdfPendCount = 0;
+    polls = 0;
+    do {
+        rc = wc_HKDF_ex(WC_SHA256, ikm, (word32)sizeof(ikm),
+                        salt, (word32)sizeof(salt),
+                        info, (word32)sizeof(info),
+                        okm, (word32)sizeof(okm), HEAP_HINT, devId);
+        polls++;
+    } while (rc == WC_NO_ERR_TRACE(WC_PENDING_E) && polls < HKDF_CB_MAX_POLL);
+    if (rc != 0)
+        ret = WC_TEST_RET_ENC_EC(rc);
+    else if (polls != 2)
+        ret = WC_TEST_RET_ENC_NC;
+    else if (XMEMCMP(okm, expected, sizeof(okm)) != 0)
+        ret = WC_TEST_RET_ENC_NC;
+    /* Counter is reset per leg, so an earlier leg cannot satisfy this. */
+    else if (ctx->hkdfPendCount == 0)
+        ret = WC_TEST_RET_ENC_NC;
+
+exit_hkdf_async:
+    /* Disarm on every path, or a failing leg would leave the simulated
+     * device injecting WC_PENDING_E into later HKDF requests. */
+    ctx->hkdfPendArm = 0;
+
+    return ret;
+}
+
+#undef HKDF_CB_MAX_POLL
+
+#endif /* HAVE_HKDF && !NO_HMAC && !NO_SHA256 && !HAVE_SELFTEST && ... */
+
+
 #if !defined(WC_TEST_NO_CRYPTOCB_SW_TEST)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 {
@@ -83893,6 +84024,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 #endif
 #if defined(WC_RSA_PSS) && defined(WOLF_CRYPTO_CB_RSA_PAD)
     myCtx.rsaPssVerifyCount = 0;
+#endif
+#if defined(HAVE_HKDF) && !defined(NO_HMAC)
+    /* myCtx is uninitialized stack: a garbage arm would inject
+     * WC_PENDING_E into callers that are not polling. */
+    myCtx.hkdfPendArm = 0;
+    myCtx.hkdfPendCount = 0;
 #endif
 
     /* set devId to something other than INVALID_DEVID */
@@ -84374,6 +84511,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 #if defined(HAVE_HKDF) && !defined(NO_HMAC)
     if (ret == 0)
         ret = hkdf_test();
+#if !defined(NO_SHA256) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0))
+    if (ret == 0)
+        ret = hkdf_cryptocb_async_test(&myCtx);
+#endif
 #endif
 #if defined(HAVE_CMAC_KDF)
     if (ret == 0)
