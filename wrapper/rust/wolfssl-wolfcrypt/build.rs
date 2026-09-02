@@ -43,7 +43,7 @@ fn wolfssl_user_prefix() -> Option<String> {
             if !prefix.is_empty() && !prefix.contains('\n') {
                 Some(prefix)
             } else {
-                println!("cargo:warning=ignoring WOLFSSL_PREFIX");
+                println!("cargo::warning=ignoring WOLFSSL_PREFIX");
                 None
             }
         }
@@ -60,7 +60,7 @@ fn wolfssl_include_dir() -> Result<Option<String>> {
         let include_dir = format!("{}/include", prefix);
         let wolfssl_dir = Path::new(&include_dir).join("wolfssl");
         if !wolfssl_dir.is_dir() {
-            println!("cargo:warning=WOLFSSL_PREFIX is set but {} is not a directory", wolfssl_dir.display());
+            println!("cargo::warning=WOLFSSL_PREFIX is set but {} is not a directory", wolfssl_dir.display());
             return Ok(None);
         }
         Ok(Some(include_dir))
@@ -87,7 +87,7 @@ fn wolfssl_lib_dir() -> Result<Option<String>> {
         let lib_dir = format!("{}/lib", prefix);
         let lib_path = Path::new(&lib_dir);
         if !lib_path.is_dir() {
-            println!("cargo:warning=WOLFSSL_PREFIX is set but {} is not a directory", lib_dir);
+            println!("cargo::warning=WOLFSSL_PREFIX is set but {} is not a directory", lib_dir);
             return Ok(None);
         }
         Ok(Some(lib_dir))
@@ -117,7 +117,7 @@ fn rust_target_to_clang_target(rust_target: &str) -> String {
         return rust_target.to_string();
     }
 
-    // Strip ISA extensions: riscv64imac → riscv64, riscv32imac → riscv32
+    // Strip ISA extensions: riscv64imac -> riscv64, riscv32imac -> riscv32
     let arch = if parts[0].starts_with("riscv64") {
         "riscv64"
     } else if parts[0].starts_with("riscv32") {
@@ -130,7 +130,7 @@ fn rust_target_to_clang_target(rust_target: &str) -> String {
     let os     = parts[2];
     let abi    = parts.get(3).copied().unwrap_or("");
 
-    // Bare-metal: (os=none, abi=elf) → <arch>-<vendor>-elf
+    // Bare-metal: (os=none, abi=elf) -> <arch>-<vendor>-elf
     if os == "none" && abi == "elf" {
         format!("{}-{}-elf", arch, vendor)
     } else if abi.is_empty() {
@@ -279,7 +279,7 @@ fn generate_fips_aliases() -> Result<()> {
                 "wc_AesCcmEncrypt",
             ];
             if !known_both.contains(&base_name) {
-                println!("cargo:warning=Skipping FIPS symbols alias for {}", base_name);
+                println!("cargo::warning=Skipping FIPS symbols alias for {}", base_name);
             }
         } else {
             // Only alias if the base name doesn't already exist
@@ -297,24 +297,24 @@ fn generate_fips_aliases() -> Result<()> {
 /// Returns `Ok(())` if successful, or an error if any step fails.
 fn setup_wolfssl_link() -> Result<()> {
     if let Some(lib_dir) = wolfssl_lib_dir()? {
-        println!("cargo:rustc-link-search={}", lib_dir);
+        println!("cargo::rustc-link-search={}", lib_dir);
 
         // Prefer a shared library if present, otherwise fall back to static.
         let has_shared = Path::new(&lib_dir).join("libwolfssl.so").exists()
             || Path::new(&lib_dir).join("libwolfssl.dylib").exists();
         if has_shared {
-            println!("cargo:rustc-link-lib=wolfssl");
+            println!("cargo::rustc-link-lib=wolfssl");
             // Only set rpath where a dynamic linker exists (not bare-metal).
             let target = env::var("TARGET").unwrap();
             if !target.ends_with("-none-elf") {
-                println!("cargo:rustc-link-arg=-Wl,-rpath,{}", lib_dir);
+                println!("cargo::rustc-link-arg=-Wl,-rpath,{}", lib_dir);
             }
         } else {
-            println!("cargo:rustc-link-lib=static=wolfssl");
+            println!("cargo::rustc-link-lib=static=wolfssl");
         }
     } else {
         // No local lib dir found; rely on whatever is installed system-wide.
-        println!("cargo:rustc-link-lib=wolfssl");
+        println!("cargo::rustc-link-lib=wolfssl");
     }
 
     Ok(())
@@ -327,7 +327,9 @@ fn read_file(path: String) -> Result<String> {
     Ok(content)
 }
 
-fn check_cfg(binding: &str, function_name: &str, cfg_name: &str) -> bool {
+/// Returns true if `function_name` (or its `_fips` variant) is present in the
+/// generated bindings.
+fn has_symbol(binding: &str, function_name: &str) -> bool {
     let pattern = format!(r"\b{}(_fips)?\b", function_name);
     let re = match Regex::new(&pattern) {
         Ok(r) => r,
@@ -336,9 +338,22 @@ fn check_cfg(binding: &str, function_name: &str, cfg_name: &str) -> bool {
             std::process::exit(1);
         }
     };
+    re.is_match(binding)
+}
+
+fn check_cfg(binding: &str, function_name: &str, cfg_name: &str) -> bool {
+    check_cfg_if(binding, function_name, cfg_name, true)
+}
+
+/// Like `check_cfg()`, but only enables `cfg_name` when `cond` also holds.
+///
+/// Needed where the probed symbol is declared unconditionally by the wolfSSL
+/// headers and so cannot by itself prove that the feature is built in.
+fn check_cfg_if(binding: &str, function_name: &str, cfg_name: &str,
+                cond: bool) -> bool {
     println!("cargo::rustc-check-cfg=cfg({})", cfg_name);
-    if re.is_match(binding) {
-        println!("cargo:rustc-cfg={}", cfg_name);
+    if cond && has_symbol(binding, function_name) {
+        println!("cargo::rustc-cfg={}", cfg_name);
         true
     } else {
         false
@@ -461,7 +476,7 @@ fn scan_cfg() -> Result<()> {
 
     // When WOLFSSL_NO_MALLOC is set without WOLFSSL_STATIC_MEMORY, the
     // WC_RNG struct contains an inline `drbg_data` field and wolfCrypt sets
-    // `rng->drbg = &rng->drbg_data` — a self-referential pointer.  Rust
+    // `rng->drbg = &rng->drbg_data` - a self-referential pointer.  Rust
     // moves values by memcpy, which would silently invalidate that pointer.
     // Detect this configuration and refuse to build.
     if binding.contains("drbg_data") {
@@ -482,13 +497,18 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "wc_RsaPSS_Sign", "rsa_pss");
     check_cfg(&binding, "wc_RsaPublicEncrypt_ex", "rsa_oaep");
     check_cfg(&binding, "wc_RsaSetRNG", "rsa_setrng");
-    check_cfg(&binding, "WC_MGF1SHA512_224", "rsa_mgf1sha512_224");
-    check_cfg(&binding, "WC_MGF1SHA512_256", "rsa_mgf1sha512_256");
+    // WC_MGF1SHA512_224 and WC_MGF1SHA512_256 are unconditional #defines in
+    // rsa.h, so their presence says nothing about whether SHA-512/224 and
+    // SHA-512/256 are actually built in. Require the hash as well.
+    check_cfg_if(&binding, "WC_MGF1SHA512_224", "rsa_mgf1sha512_224",
+                 has_symbol(&binding, "wc_InitSha512_224"));
+    check_cfg_if(&binding, "WC_MGF1SHA512_256", "rsa_mgf1sha512_256",
+                 has_symbol(&binding, "wc_InitSha512_256"));
     // Detect whether wc_RsaExportKey takes a const first arg (new API) or non-const (old API)
     let re = Regex::new(r"pub fn wc_RsaExportKey(_fips)?\s*\(\s*\w+\s*:\s*\*\s*const").unwrap();
     println!("cargo::rustc-check-cfg=cfg(rsa_const_api)");
     if re.is_match(&binding) {
-        println!("cargo:rustc-cfg=rsa_const_api");
+        println!("cargo::rustc-cfg=rsa_const_api");
     }
 
     /* mldsa */
@@ -520,8 +540,8 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "wc_InitSha256", "sha256");
     check_cfg(&binding, "wc_InitSha384", "sha384");
     check_cfg(&binding, "wc_InitSha512", "sha512");
-    check_cfg(&binding, "wc_HashType_WC_HASH_TYPE_SHA512_224", "sha512_224");
-    check_cfg(&binding, "wc_HashType_WC_HASH_TYPE_SHA512_256", "sha512_256");
+    check_cfg(&binding, "wc_InitSha512_224", "sha512_224");
+    check_cfg(&binding, "wc_InitSha512_256", "sha512_256");
     check_cfg(&binding, "wc_InitSha3_224", "sha3_224");
     check_cfg(&binding, "wc_InitSha3_256", "sha3_256");
     check_cfg(&binding, "wc_InitSha3_384", "sha3_384");
