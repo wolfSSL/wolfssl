@@ -4779,6 +4779,30 @@ static void wc_ecc_free_async(ecc_key* key)
 
 
 #ifdef HAVE_ECC_DHE
+#if FIPS_VERSION3_GE(7,0,0)
+/* The module's KAS-ECC-SSC validation covers only P-256, P-384 and P-521,
+ * and FIPS 140-3 IG C.B does not permit an algorithm implementation that
+ * has not been CAVP tested to be used in an approved mode; SP 800-131A
+ * Rev. 2 Section 5 (Table 4) additionally disallows EC key agreement
+ * providing fewer than 112 bits of security strength (len(n) < 224).  The
+ * curve is resolved from key->dp, never from ecc_sets[key->idx], so a
+ * custom-curve key (idx == ECC_CUSTOM_IDX) cannot index out of range. */
+static int ecc_fips_kas_curve_allowed(const ecc_key* key)
+{
+    if (key->dp == NULL) {
+        return ECC_BAD_ARG_E;
+    }
+    switch (key->dp->id) {
+        case ECC_SECP256R1:
+        case ECC_SECP384R1:
+        case ECC_SECP521R1:
+            return 0;
+        default:
+            return ECC_CURVE_OID_E;
+    }
+}
+#endif /* FIPS_VERSION3_GE(7,0,0) */
+
 /**
   Create an ECC shared secret between two keys
   private_key      The private ECC key (heap hint based off of private key)
@@ -4807,6 +4831,19 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
                                                             outlen == NULL) {
        return BAD_FUNC_ARG;
    }
+
+#if FIPS_VERSION3_GE(7,0,0)
+   /* Gate ahead of the crypto callback and the hardware dispatch below so no
+    * backend computes a shared secret on a curve outside the validated
+    * KAS-ECC-SSC set (FIPS 140-3 IG C.B). */
+   err = ecc_fips_kas_curve_allowed(private_key);
+   if (err == 0) {
+       err = ecc_fips_kas_curve_allowed(public_key);
+   }
+   if (err != 0) {
+       return err;
+   }
+#endif
 
 #ifdef WOLF_CRYPTO_CB
     #ifndef WOLF_CRYPTO_CB_FIND
@@ -5295,6 +5332,15 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
         WOLFSSL_MSG("wc_ecc_is_valid_idx failed");
         return ECC_BAD_ARG_E;
     }
+
+#if FIPS_VERSION3_GE(7,0,0)
+    /* Direct callers of this entry point (and the async path) get the same
+     * KAS-ECC-SSC validated-curve gate as wc_ecc_shared_secret(). */
+    err = ecc_fips_kas_curve_allowed(private_key);
+    if (err != 0) {
+        return err;
+    }
+#endif
 
     switch (private_key->state) {
         case ECC_STATE_NONE:
