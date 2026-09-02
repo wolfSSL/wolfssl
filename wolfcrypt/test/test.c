@@ -57385,6 +57385,7 @@ out:
 #endif /* !WOLFSSL_NO_KYBER1024 && !WOLFSSL_NO_ML_KEM_1024 */
 
 #if !defined(WOLFSSL_MLKEM_NO_ASN1) && \
+    !defined(WOLFSSL_NO_MALLOC) && \
     defined(WC_ENABLE_ASYM_KEY_EXPORT) && \
     defined(WC_ENABLE_ASYM_KEY_IMPORT) && \
     !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && !defined(WC_NO_RNG) && \
@@ -57827,6 +57828,7 @@ free_level:
  * runs in WOLFSSL_MLKEM_NO_MAKE_KEY builds too, which is exactly what that key
  * format was chosen for. */
 #if !defined(WOLFSSL_MLKEM_NO_ASN1) && !defined(NO_FILESYSTEM) && \
+    !defined(WOLFSSL_NO_MALLOC) && \
     !defined(NO_ASN) && defined(WC_ENABLE_ASYM_KEY_IMPORT) && \
     defined(WC_ENABLE_ASYM_KEY_EXPORT)
 
@@ -57980,6 +57982,7 @@ free_vector:
  * ML-DSA because it is in far more builds, and the MLKEM_TYPE branches under
  * test do not depend on the issuer algorithm. */
 #if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    !defined(WOLFSSL_NO_MALLOC) && \
     defined(WOLFSSL_TEST_CERT) && !defined(WOLFSSL_MLKEM_NO_ASN1) && \
     !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && !defined(NO_ASN) && \
     defined(WC_ENABLE_ASYM_KEY_EXPORT) && defined(WC_ENABLE_ASYM_KEY_IMPORT) && \
@@ -58492,6 +58495,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
 #endif
 
 #if !defined(WOLFSSL_MLKEM_NO_ASN1) && \
+    !defined(WOLFSSL_NO_MALLOC) && \
     defined(WC_ENABLE_ASYM_KEY_EXPORT) && \
     defined(WC_ENABLE_ASYM_KEY_IMPORT) && \
     !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && !defined(WC_NO_RNG) && \
@@ -58506,6 +58510,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
 #endif
 
 #if !defined(WOLFSSL_MLKEM_NO_ASN1) && !defined(NO_FILESYSTEM) && \
+    !defined(WOLFSSL_NO_MALLOC) && \
     !defined(NO_ASN) && defined(WC_ENABLE_ASYM_KEY_IMPORT) && \
     defined(WC_ENABLE_ASYM_KEY_EXPORT)
     ret = mlkem_cert_test();
@@ -58514,6 +58519,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
 #endif
 
 #if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    !defined(WOLFSSL_NO_MALLOC) && \
     defined(WOLFSSL_TEST_CERT) && !defined(WOLFSSL_MLKEM_NO_ASN1) && \
     !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && !defined(NO_ASN) && \
     defined(WC_ENABLE_ASYM_KEY_EXPORT) && defined(WC_ENABLE_ASYM_KEY_IMPORT) && \
