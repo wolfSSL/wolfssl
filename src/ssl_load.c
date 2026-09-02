@@ -5193,6 +5193,9 @@ static int wolfssl_add_to_chain(DerBuffer** chain, int weOwn, const byte* cert,
 
 /* Add a certificate to end of chain sent in TLS handshake.
  *
+ * The certificate is only presented to the peer. It is deliberately kept out
+ * of the certificate manager so that it cannot be used to verify peers.
+ *
  * @param [in, out] ctx    SSL context.
  * @param [in]      der    Buffer holding DER encoded certificate.
  * @param [in]      derSz  Size of data in buffer.
@@ -5202,29 +5205,12 @@ static int wolfssl_add_to_chain(DerBuffer** chain, int weOwn, const byte* cert,
 static int wolfssl_ctx_add_to_chain(WOLFSSL_CTX* ctx, const byte* der,
     int derSz)
 {
-    int res = 1;
-    int ret;
-    DerBuffer* derBuffer = NULL;
+    int res;
 
-    /* Create a DER buffer from DER encoding. */
-    ret = AllocCopyDer(&derBuffer, der, (word32)derSz, CERT_TYPE, ctx->heap);
-    if (ret != 0) {
-        WOLFSSL_MSG("Memory Error");
-        res = 0;
-    }
+    /* Add chain to DER buffer. */
+    res = wolfssl_add_to_chain(&ctx->certChain, 1, der, (word32)derSz,
+        ctx->heap);
     if (res == 1) {
-        /* Add a user CA certificate to the certificate manager. */
-        res = AddCA(ctx->cm, &derBuffer, WOLFSSL_USER_CA,
-            GET_VERIFY_SETTING_CTX(ctx));
-        if (res != 1) {
-            res = 0;
-        }
-    }
-
-    if (res == 1) {
-         /* Add chain to DER buffer. */
-         res = wolfssl_add_to_chain(&ctx->certChain, 1, der, (word32)derSz,
-             ctx->heap);
         ctx->certChainCnt++;
     }
 
@@ -5407,13 +5393,12 @@ int wolfSSL_CTX_add1_chain_cert(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509)
     }
     /* Increase reference count as we will store it. */
     else if ((ret == 1) && ((ret = wolfSSL_X509_up_ref(x509)) == 1)) {
-        /* Load the DER encoding. */
-        ret = wolfSSL_CTX_load_verify_buffer(ctx, x509->derCert->buffer,
-            x509->derCert->length, WOLFSSL_FILETYPE_ASN1);
+        /* Add DER encoding to chain. The certificate is presented to the
+         * peer only and must not become a CA to verify peers with. */
+        ret = wolfssl_add_to_chain(&ctx->certChain, 1,
+            x509->derCert->buffer, x509->derCert->length, ctx->heap);
         if (ret == 1) {
-            /* Add DER encoding to chain. */
-            ret = wolfssl_add_to_chain(&ctx->certChain, 1,
-                x509->derCert->buffer, x509->derCert->length, ctx->heap);
+            ctx->certChainCnt++;
         }
         /* Store cert in stack to free it later. */
         if ((ret == 1) && (ctx->x509Chain == NULL)) {
