@@ -3402,6 +3402,57 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz,
     return ret;
 }
 
+/* Padding for an outstanding cover traffic request, or 0 if none applies.
+ * maxFrag is the caller's already-computed wolfSSL_GetMaxFragSize(ssl), so
+ * callers that need that value anyway don't pay for a second lookup.
+ * Shared by BuildTls13Message() and SendData() so they size the record the
+ * same way. DTLS 1.3 is rejected in the guard defensively, even though the
+ * public API already excludes it. */
+word16 Tls13GetCoverTrafficPaddingSzEx(WOLFSSL* ssl, int maxFrag)
+{
+    word16 padSz;
+
+    if (ssl->options.dtls || !ssl->options.sendCoverTraffic)
+        return 0;
+
+    padSz = ssl->options.coverTrafficPadSz;
+    /* Re-clamp against negotiated max_fragment_length, which may be
+     * smaller than when the request was armed.
+     * One byte is left for the record layer content type. */
+    if (maxFrag > 0 && padSz >= (word16)maxFrag)
+        padSz = (word16)(maxFrag - 1);
+
+    return padSz;
+}
+
+word16 Tls13GetCoverTrafficPaddingSz(WOLFSSL* ssl)
+{
+    return Tls13GetCoverTrafficPaddingSzEx(ssl, wolfSSL_GetMaxFragSize(ssl));
+}
+
+/* Clears an outstanding cover traffic request. sendCoverTraffic and
+ * coverTrafficPadSz always change together; centralize the reset here. */
+void Tls13ClearCoverTraffic(WOLFSSL* ssl)
+{
+    ssl->options.sendCoverTraffic = 0;
+    ssl->options.coverTrafficPadSz = 0;
+#ifdef WOLFSSL_ASYNC_CRYPT
+    ssl->options.coverTrafficPending = 0;
+#endif
+}
+
+/* Clears an outstanding cover traffic request unless the caller's own
+ * build is the one left pending on WC_PENDING_E, in which case it must
+ * stay armed so the resume (wolfSSL_send_cover_traffic_TLSv13()) sees it.
+ * Shared by SendData() and wolfSSL_send_cover_traffic_TLSv13(). */
+void Tls13ClearCoverTrafficUnlessPending(WOLFSSL* ssl)
+{
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (!ssl->options.coverTrafficPending)
+#endif
+        Tls13ClearCoverTraffic(ssl);
+}
+
 /* Build SSL Message, encrypted.
  * TLS v1.3 encryption is AEAD only.
  *
@@ -3521,6 +3572,17 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
 #endif
             if (sizeOnly)
                 return (int)args->sz;
+
+            /* Add cover traffic padding for application data records.
+             * Excluded from sizeOnly to preserve the record overhead cache;
+             * SendData() sizes for it via the same helper call. */
+            if (type == application_data) {
+                word16 padSz = Tls13GetCoverTrafficPaddingSz(ssl);
+                if (padSz > 0) {
+                    args->pad += padSz;
+                    args->sz += padSz;
+                }
+            }
 
             if (args->sz > (word32)outSz) {
                 WOLFSSL_MSG("Oops, want to write past output buffer size");
