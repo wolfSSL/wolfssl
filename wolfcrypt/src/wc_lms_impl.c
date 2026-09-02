@@ -1787,8 +1787,10 @@ static int wc_lmots_sign(LmsState* state, const byte* seed, const byte* msg,
  * @param [in]  params     LMS parameters.
  * @param [out] state      Private key state.
  * @param [in]  priv_data  Private key data.
+ * @return  0 on success.
+ * @return  BUFFER_E when a stored index is out of range for the parameters.
  */
-static void wc_lms_priv_state_load(const LmsParams* params, LmsPrivState* state,
+static int wc_lms_priv_state_load(const LmsParams* params, LmsPrivState* state,
     byte* priv_data)
 {
     /* Authentication path data. */
@@ -1812,6 +1814,21 @@ static void wc_lms_priv_state_load(const LmsParams* params, LmsPrivState* state,
     priv_data += 4;
     ato32(priv_data, &state->leaf.offset);
     /* priv_data += 4; */
+
+    /* Stack offset is a byte count into a stack of height + 1 nodes.
+     * leaf.idx is deliberately wrapped when the cache is empty - don't
+     * bound it. */
+    if ((state->stack.offset >
+             LMS_STACK_CACHE_LEN(params->height, params->hash_len)) ||
+            ((state->stack.offset % params->hash_len) != 0)) {
+        return BUFFER_E;
+    }
+    /* Leaf cache is a ring of 2^cacheBits nodes. */
+    if (state->leaf.offset >= ((word32)1U << params->cacheBits)) {
+        return BUFFER_E;
+    }
+
+    return 0;
 }
 
 /* Store the LMS private state into data.
@@ -2321,6 +2338,7 @@ static int wc_lms_treehash_update(LmsState* state, LmsPrivState* privState,
     byte* temp = left + params->hash_len;
     WC_DECLARE_VAR(stack, byte, (LMS_MAX_HEIGHT + 1) * LMS_MAX_NODE_LEN, 0);
     byte* sp;
+    byte* spEnd;
     word32 max_cb = (word32)1 << params->cacheBits;
     word32 i;
 
@@ -2335,9 +2353,11 @@ static int wc_lms_treehash_update(LmsState* state, LmsPrivState* privState,
 
     /* Public key, root node, is top of data stack. */
     if (ret == 0) {
-        XMEMCPY(stack, stackCache->stack,
-                (word32)params->height * params->hash_len);
+        /* Restore exactly the nodes the offset says are on the stack; the
+         * slots above it are never read. */
+        XMEMCPY(stack, stackCache->stack, stackCache->offset);
         sp = stack + stackCache->offset;
+        spEnd = stack + LMS_STACK_CACHE_LEN(params->height, params->hash_len);
     }
 
     /* Compute all nodes requested. */
@@ -2393,6 +2413,11 @@ static int wc_lms_treehash_update(LmsState* state, LmsPrivState* privState,
             j >>= 1;
             h++;
 
+            /* Node to combine with must be on the stack. */
+            if ((size_t)(sp - stack) < params->hash_len) {
+                ret = BUFFER_E;
+                break;
+            }
             sp -= params->hash_len;
             if (useRoot && (h > params->height - params->rootLevels) &&
                     (h <= params->height)) {
@@ -2426,6 +2451,10 @@ static int wc_lms_treehash_update(LmsState* state, LmsPrivState* privState,
                     params->hash_len);
             }
         }
+        if ((ret == 0) && ((size_t)(spEnd - sp) < params->hash_len)) {
+            /* No room on the stack to push onto. */
+            ret = BUFFER_E;
+        }
         if (ret == 0) {
             /* Push temp onto the data stack. */
             XMEMCPY(sp, temp, params->hash_len);
@@ -2443,9 +2472,8 @@ static int wc_lms_treehash_update(LmsState* state, LmsPrivState* privState,
     if (ret == 0) {
         if (!useRoot) {
             /* Copy stack back. */
-            XMEMCPY(stackCache->stack, stack,
-                    (word32)params->height * params->hash_len);
             stackCache->offset = (word32)((size_t)sp - (size_t)stack);
+            XMEMCPY(stackCache->stack, stack, stackCache->offset);
         }
     }
 
@@ -3486,10 +3514,13 @@ static int wc_hss_presign(LmsState* state, HssPrivKey* priv_key)
  * @param [in]      params     LMS parameters.
  * @param [in, out] key        HSS private key.
  * @param [in]      priv_data  Private key data.
+ * @return  0 on success.
+ * @return  BUFFER_E when a stored index is out of range for the parameters.
  */
-static void wc_hss_priv_data_load(const LmsParams* params, HssPrivKey* key,
+static int wc_hss_priv_data_load(const LmsParams* params, HssPrivKey* key,
     byte* priv_data)
 {
+    int ret = 0;
 #ifndef WOLFSSL_WC_LMS_SMALL
     int l;
 #endif
@@ -3500,8 +3531,13 @@ static void wc_hss_priv_data_load(const LmsParams* params, HssPrivKey* key,
 
 #ifndef WOLFSSL_WC_LMS_SMALL
     for (l = 0; l < params->levels; l++) {
-        /* Caches for subtree. */
-        wc_lms_priv_state_load(params, &key->state[l], priv_data);
+        /* Caches for subtree. Keep mapping the rest of the data even on a bad
+         * state so every pointer is set; the first error is returned. */
+        int rc = wc_lms_priv_state_load(params, &key->state[l], priv_data);
+
+        if (ret == 0) {
+            ret = rc;
+        }
         priv_data += LMS_PRIV_STATE_LEN(params->height, params->rootLevels,
             params->cacheBits, params->hash_len);
     }
@@ -3512,7 +3548,11 @@ static void wc_hss_priv_data_load(const LmsParams* params, HssPrivKey* key,
     priv_data += LMS_PRIV_KEY_LEN(params->levels, params->hash_len);
     for (l = 0; l < params->levels - 1; l++) {
         /* Next subtree's caches. */
-        wc_lms_priv_state_load(params, &key->next_state[l], priv_data);
+        int rc = wc_lms_priv_state_load(params, &key->next_state[l], priv_data);
+
+        if (ret == 0) {
+            ret = rc;
+        }
         priv_data += LMS_PRIV_STATE_LEN(params->height, params->rootLevels,
             params->cacheBits, params->hash_len);
     }
@@ -3523,6 +3563,8 @@ static void wc_hss_priv_data_load(const LmsParams* params, HssPrivKey* key,
     key->y = priv_data;
 #endif /* WOLFSSL_LMS_NO_SIG_CACHE */
 #endif /* WOLFSSL_WC_LMS_SMALL */
+
+    return ret;
 }
 
 #ifndef WOLFSSL_WC_LMS_SMALL
@@ -3571,6 +3613,8 @@ static void wc_hss_priv_data_store(const LmsParams* params, HssPrivKey* key,
  * @param [out]     priv_data  Private key data.
  * @param [out]     pub_root   Public key root node.
  * @return  0 on success.
+ * @return  BAD_FUNC_ARG when the parameters would make a shift undefined.
+ * @return  BUFFER_E when the stored state has an index out of range.
  */
 int wc_hss_reload_key(LmsState* state, const byte* priv_raw,
     HssPrivKey* priv_key, byte* priv_data, byte* pub_root)
@@ -3589,7 +3633,10 @@ int wc_hss_reload_key(LmsState* state, const byte* priv_raw,
     }
 #endif
 
-    wc_hss_priv_data_load(state->params, priv_key, priv_data);
+    /* Not returned on error here: only the no-root branch below uses the state
+     * as loaded. The others recompute it, over values that may be
+     * uninitialized. */
+    ret = wc_hss_priv_data_load(state->params, priv_key, priv_data);
 
 #ifdef WOLFSSL_WC_LMS_SERIALIZE_STATE
     if (pub_root != NULL)

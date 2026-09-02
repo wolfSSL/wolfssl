@@ -2553,7 +2553,8 @@ typedef struct BdsState {
     byte*     treeHashNode;
     /* Hashes of nodes to retain - based on K parameter. */
     byte*     retain;
-    /* Next leaf to calculate - max 20 bits. */
+    /* Next leaf to calculate - max 20 bits. Equals 2^sub_h when the subtree
+     * has been completed. */
     word32    next;
     /* Current offset into stack - 0..<subtree height>. */
     word8     offset;
@@ -2712,6 +2713,8 @@ static int wc_xmss_bds_state_load(const XmssState* state, byte* sk,
     const word8 k = params->bds_k;
     const word32 retainLen = XMSS_RETAIN_LEN(k, n);
     int i;
+    int j;
+    word16 used;
 
     /* Skip past standard SK = idx || wots_sk || SK_PRF || root || SEED; */
     sk += params->idx_len + 4 * n;
@@ -2740,6 +2743,32 @@ static int wc_xmss_bds_state_load(const XmssState* state, byte* sk,
         sk += 3;
         bds[i].offset = sk[0];
         sk += 1;
+
+        /* Stack holds at most hs + 1 nodes. */
+        if (bds[i].offset > (word8)(hs + 1)) {
+            return WC_FAILURE;
+        }
+        /* next counts leaves done rather than indexing one: it is only used
+         * as an index while below 2^hs and comes to rest at 2^hs when the
+         * subtree is complete. */
+        if (bds[i].next > ((word32)1U << hs)) {
+            return WC_FAILURE;
+        }
+        /* An update pops one stack node per node a tree hash uses. Tree hash
+         * j completes at height j, so it holds at most j nodes, and all of
+         * them are on the stack. */
+        used = 0;
+        for (j = 0; j < (int)hsk; j++) {
+            word8 tu = (word8)(bds[i].treeHash[j * 4 + 3] & 0x7f);
+
+            if (tu > j) {
+                return WC_FAILURE;
+            }
+            used = (word16)(used + tu);
+        }
+        if (used > bds[i].offset) {
+            return WC_FAILURE;
+        }
     }
 
     if (wots_sigs != NULL) {
@@ -2855,6 +2884,12 @@ static void wc_xmss_bds_next_idx(XmssState* state, BdsState* bds,
 
     /* Top node on Stack has same height t' as node. */
     while ((o >= 1) && (h == height[o - 1])) {
+        /* Nodes below the root are merged here, so a height at or above the
+         * subtree's can only come from a bad stored height chain. */
+        if (h >= hs) {
+            state->ret = WC_FAILURE;
+            return;
+        }
         /* HDSS, Section 4.5, 1: AUTH[h] = v[h][1], h = 0,...,H-1.
          * Cache left node if on authentication path. */
         if ((i >> h) == 1) {
@@ -2879,6 +2914,15 @@ static void wc_xmss_bds_next_idx(XmssState* state, BdsState* bds,
              */
             word32 ro = (word32)(((word32)1U << (hs - 1 - h)) + h - hs +
                                  (((i >> h) - 3) >> 1));
+
+            /* Only the second and later right nodes are retained; a lower
+             * index underflows ro. Checked first so that ro is small enough
+             * for the bound below to be computed. */
+            if (((i >> h) < 3) ||
+                    (ro * n >= XMSS_RETAIN_LEN(params->bds_k, n))) {
+                state->ret = WC_FAILURE;
+                return;
+            }
             XMEMCPY(bds->retain + ro * n, node, n);
         }
 
@@ -3002,9 +3046,16 @@ static void wc_xmss_bds_treehash_update(XmssState* state, BdsState* bds,
     const word8 n = params->n;
     HashAddress addrLocal;
     TreeHash treeHash[1];
-    byte* sp = bds->stack + bds->offset * n;
+    byte* sp;
     byte* node = state->stack + WC_XMSS_MAX_STACK_LEN - n;
     word8 h;
+
+    /* Stack holds at most sub_h + 1 nodes. */
+    if (bds->offset > (word8)(params->sub_h + 1)) {
+        state->ret = WC_FAILURE;
+        return;
+    }
+    sp = bds->stack + bds->offset * n;
 
     /* Get the tree hash data. */
     wc_xmss_bds_state_treehash_get(bds, height, treeHash);
@@ -3023,7 +3074,8 @@ static void wc_xmss_bds_treehash_update(XmssState* state, BdsState* bds,
     h = 0;
 
     /* Top node on Stack has same height t' as node. */
-    while ((treeHash->used > 0) && (h == bds->height[bds->offset - 1])) {
+    while ((treeHash->used > 0) && (bds->offset > 0) &&
+           (h == bds->height[bds->offset - 1])) {
         sp -= n;
         /* Copy from stack to before last calculated node. */
         node -= n;
@@ -3045,6 +3097,11 @@ static void wc_xmss_bds_treehash_update(XmssState* state, BdsState* bds,
         /* Cache node. */
         XMEMCPY(bds->treeHashNode + height * n, node, n);
         treeHash->completed = 1;
+    }
+    else if (bds->offset > params->sub_h) {
+        /* No slot left on the stack to push onto. */
+        state->ret = WC_FAILURE;
+        return;
     }
     else {
         /* Push calculated node onto stack. */
@@ -3151,14 +3208,15 @@ static void wc_xmss_bds_update(XmssState* state, BdsState* bds,
 {
     if (bds->next < ((word32)1U << state->params->sub_h)) {
         const XmssParams* params = state->params;
-        byte* sp = bds->stack + bds->offset * params->n;
+        byte* sp;
         HashAddress addrCopy;
 
         XMSS_ADDR_OTS_SET_SUBTREE(addrCopy, addr);
-        if (bds->height == NULL) {
+        if ((bds->height == NULL) || (bds->offset > params->sub_h)) {
             state->ret = WC_FAILURE;
             return;
         }
+        sp = bds->stack + bds->offset * params->n;
         wc_xmss_bds_next_idx(state, bds, sk_seed, pk_seed, addrCopy, bds->next,
             bds->height, &bds->offset, &sp);
         bds->offset++;

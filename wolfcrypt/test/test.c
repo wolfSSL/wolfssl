@@ -61975,6 +61975,40 @@ static enum wc_XmssRc xmss_read_key_mem(byte * priv, word32 privSz,
     return WC_XMSS_RC_READ_TO_MEMORY;
 }
 
+/* Reload the persisted key held in skBuf and sign one message with it.
+ *
+ * Returns the first failing call's error, or 0 when a signature was made.
+ */
+static int xmss_reload_and_sign(const char* param, byte* skBuf, byte* sig,
+    word32* sigSz, const char* msg, word32 msgSz, int keyDevId)
+{
+    XmssKey key;
+    int ret;
+
+    ret = wc_XmssKey_Init(&key, NULL, keyDevId);
+    if (ret == 0) {
+        ret = wc_XmssKey_SetParamStr(&key, param);
+    }
+    if (ret == 0) {
+        ret = wc_XmssKey_SetWriteCb(&key, xmss_write_key_mem);
+    }
+    if (ret == 0) {
+        ret = wc_XmssKey_SetReadCb(&key, xmss_read_key_mem);
+    }
+    if (ret == 0) {
+        ret = wc_XmssKey_SetContext(&key, (void *) skBuf);
+    }
+    if (ret == 0) {
+        ret = wc_XmssKey_Reload(&key);
+    }
+    if (ret == 0) {
+        ret = wc_XmssKey_Sign(&key, sig, sigSz, (byte *) msg, msgSz);
+    }
+    wc_XmssKey_Free(&key);
+
+    return ret;
+}
+
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
 {
     int             i = 0;
@@ -62011,6 +62045,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
 #endif
     int             ret2 = -1;
     int             ret = WC_TEST_RET_ENC_NC;
+#ifndef WOLFSSL_NO_MALLOC
+    byte *          sk_snapshot = NULL;
+#endif
     WOLFSSL_ENTER("xmss_test");
 
 #ifndef HAVE_FIPS
@@ -62119,6 +62156,17 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
         ret = wc_XmssKey_Verify(&verifyKey, sig, sigSz, (byte *) msg, msgSz);
         if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_I(i), out); }
 
+#ifndef WOLFSSL_NO_MALLOC
+        /* Keep an early state - it still has a tree hash in progress, which
+         * is what the traversal counters below drive. */
+        if ((i == 2) && (sk_snapshot == NULL)) {
+            sk_snapshot = (byte *)XMALLOC(skSz, HEAP_HINT,
+                DYNAMIC_TYPE_TMP_BUFFER);
+            if (sk_snapshot == NULL) { ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out); }
+            XMEMCPY(sk_snapshot, sk, skSz);
+        }
+#endif
+
         /* Flip bits in a few places throughout the signature, stepping in multiple
          * of hash size. These should all fail with -1. */
         for (j = 0; j < (int) sigSz; j+= 4 * 32) {
@@ -62136,10 +62184,72 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
         }
     }
 
+#ifndef WOLFSSL_NO_MALLOC
+    /* The BDS traversal counters, stored node heights and tree hash entries are
+     * all re-parsed from the persisted private key on every sign. Corrupt them
+     * and the library must stay inside the key's own buffers, and must reject
+     * a counter that is plainly out of range. */
+    if (sk_snapshot != NULL) {
+        /* Enough samples to reach every field of the state without making the
+         * test signing-bound. */
+        const int samples = 48;
+        int bad = 0;
+    /* The small implementation keeps no traversal state in the key, so
+     * there is nothing there to put out of range. */
+    #if !defined(WOLFSSL_WC_XMSS_SMALL) && (WOLFSSL_XMSS_MIN_HEIGHT <= 10)
+        /* Single tree, so the BDS block ends the key: its last four bytes are
+         * next (3, big-endian) then offset. Setting offset, or either of the
+         * top two bytes of next, puts them past the subtree and load must say
+         * so. The low byte of next is skipped as 0xff is still in range. */
+        word32 badPos[3];
+
+        badPos[bad++] = skSz - XMSS_OID_LEN - 1U;
+        badPos[bad++] = skSz - XMSS_OID_LEN - 4U;
+        badPos[bad++] = skSz - XMSS_OID_LEN - 3U;
+    #endif
+
+        for (j = 0; j < bad + samples + 1; j++) {
+            XMEMCPY(sk, sk_snapshot, skSz);
+    #if !defined(WOLFSSL_WC_XMSS_SMALL) && (WOLFSSL_XMSS_MIN_HEIGHT <= 10)
+            if (j < bad) {
+                sk[badPos[j]] = 0xff;
+            }
+            else
+    #endif
+            if (j < bad + samples) {
+                /* Spread over the whole key so heights and tree hashes are
+                 * covered too, not just the counters at the end. */
+                sk[(word32)(j - bad) * skSz / (word32)samples] = 0xff;
+            }
+            /* Last pass leaves the state alone. */
+
+            sigSz = bufSz;
+            ret = xmss_reload_and_sign(param, sk, sig, &sigSz, msg, msgSz,
+                                       devId);
+
+            if (j < bad) {
+                /* Out of range.  Must not have produced a signature. */
+                if (ret == 0) { ERROR_OUT(WC_TEST_RET_ENC_I(j), out); }
+            }
+            else if (j == bad + samples) {
+                /* Untouched state.  Must still sign. */
+                if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_I(j), out); }
+                ret = wc_XmssKey_Verify(&verifyKey, sig, sigSz, (byte *) msg,
+                                        msgSz);
+                if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_I(j), out); }
+            }
+        }
+        ret = 0;
+    }
+#endif /* !WOLFSSL_NO_MALLOC */
+
 out:
 
     /* Cleanup everything. */
 #ifndef WOLFSSL_NO_MALLOC
+    XFREE(sk_snapshot, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    sk_snapshot = NULL;
+
     XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     sig = NULL;
 
