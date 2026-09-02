@@ -196,6 +196,106 @@ static void wb_missing_crl_callbacks(WOLFSSL_CERT_MANAGER* cm)
     cm->crlCb = NULL;
 }
 
+
+/* ------------------------------- BufferLoadCRL :913 / BufferStoreCRL :1011,
+ *                                 :1036, :1044, :1081, :1105, :1146 */
+/* The load and store entry points are argument-validated with wide OR chains
+ *
+ *     if (crl == NULL || buff == NULL || sz <= 0)
+ *     if (crl == NULL || inOutSz == NULL)
+ *     if (ent == NULL || tbs == NULL || tbsSz == 0 || sig == NULL || sigSz == 0)
+ *
+ * and then branch on the encoding
+ *
+ *     if (ret == 0 && type == WOLFSSL_FILETYPE_ASN1)
+ *     else if (ret == 0 && type == WOLFSSL_FILETYPE_PEM)
+ *
+ * Every in-tree caller passes a real CRL and a real type, so the rejecting
+ * side of each operand is unreachable from outside, while the ACCEPTING side
+ * needs a genuinely parsed CRL entry -- a hand-built one does not have
+ * toBeSigned or signature populated, so it can only ever take the :1036 guard
+ * true and would leave the whole store path uncovered.
+ *
+ * That is the lesson from the ocsp sibling: build the fixture with the real
+ * loader and let the library own it, rather than assembling structs on the
+ * stack and linking them into lists the library frees.
+ *
+ * Both encodings are driven because the type operand of :1081 and :1146 needs
+ * a pair, and certs/crl carries both a DER and a PEM of the same CRL. */
+static void wb_buffer_load_store(WOLFSSL_CERT_MANAGER* cm)
+{
+    static const char* kDer = "certs/crl/crl.der";
+    static const char* kPem = "certs/crl/crl.pem";
+    byte  der[4096];
+    long  n = 0;
+    int   loaded = 0;
+    XFILE f;
+
+    /* ---- BufferLoadCRL :913, one vector per operand plus the partner ---- */
+    f = XFOPEN(kDer, "rb");
+    if (f != XBADFILE) {
+        n = (long)XFREAD(der, 1, sizeof(der), f);
+        XFCLOSE(f);
+    }
+    if (n <= 0) {
+        /* Without the file the accepting partner does not exist, so the
+         * rejecting vectors below would prove nothing. Say so rather than
+         * report a pass. */
+        printf("crl white-box: %s unreadable, load/store vectors skipped\n",
+               kDer);
+        return;
+    }
+
+    WB_NOTE(BufferLoadCRL(NULL, der, n, WOLFSSL_FILETYPE_ASN1, 0));
+    WB_NOTE(BufferLoadCRL(cm->crl, NULL, n, WOLFSSL_FILETYPE_ASN1, 0));
+    WB_NOTE(BufferLoadCRL(cm->crl, der, 0, WOLFSSL_FILETYPE_ASN1, 0));
+    /* the accepting partner: a real DER CRL, which also populates crl->crlList
+     * so the store path below has an entry with toBeSigned and signature. */
+    if (BufferLoadCRL(cm->crl, der, n, WOLFSSL_FILETYPE_ASN1, 0)
+            == WOLFSSL_SUCCESS) {
+        loaded = 1;
+    }
+    g_checks += 4;
+
+    /* ---- BufferStoreCRL :1011 argument guard ---- */
+    {
+        long outSz = (long)sizeof(der);
+        WB_NOTE(BufferStoreCRL(NULL, der, &outSz, WOLFSSL_FILETYPE_ASN1));
+        WB_NOTE(BufferStoreCRL(cm->crl, der, NULL, WOLFSSL_FILETYPE_ASN1));
+    }
+
+    if (!loaded) {
+        printf("crl white-box: DER CRL did not load, store vectors skipped\n");
+        return;
+    }
+
+    /* ---- :1036, :1081, :1146 with a real entry in the list ---- */
+    {
+        byte out[8192];
+        long outSz;
+
+        /* size query: buff NULL takes the ASN1 branch and the size-only arm */
+        outSz = 0;
+        WB_NOTE(BufferStoreCRL(cm->crl, NULL, &outSz, WOLFSSL_FILETYPE_ASN1));
+
+        /* real DER store: :1081 both operands true */
+        outSz = (long)sizeof(out);
+        WB_NOTE(BufferStoreCRL(cm->crl, out, &outSz, WOLFSSL_FILETYPE_ASN1));
+
+        /* undersized buffer: the BUFFER_E arm inside the ASN1 branch */
+        outSz = 4;
+        WB_NOTE(BufferStoreCRL(cm->crl, out, &outSz, WOLFSSL_FILETYPE_ASN1));
+
+        /* PEM store: :1081 type operand false, :1146 both true */
+        outSz = (long)sizeof(out);
+        WB_NOTE(BufferStoreCRL(cm->crl, out, &outSz, WOLFSSL_FILETYPE_PEM));
+
+        /* a type that is neither: :1146 type operand false too */
+        outSz = (long)sizeof(out);
+        WB_NOTE(BufferStoreCRL(cm->crl, out, &outSz, 0x7f));
+    }
+}
+
 /* ---------------------------------------------------------- main */
 
 int main(void)
@@ -223,6 +323,7 @@ int main(void)
 
     wb_check_cert_crl_ex(cm);
     wb_missing_crl_callbacks(cm);
+    wb_buffer_load_store(cm);
 
     printf("crl white-box: %d vectors driven\n", g_checks);
 
