@@ -102,27 +102,98 @@ static void wb_check_cert_crl_ex(WOLFSSL_CERT_MANAGER* cm)
 
 /* --------------------------------------------- CheckCertCRLCm :668, :686 */
 /* `if (cm != NULL && cm->cbMissingCRL)` and
- * `if (cm != NULL && cm->crlCb && ...)`
+ * `if (cm != NULL && cm->crlCb && cm->crlCb(ret, crl, cm, cm->crlCbCtx))`
  *
- * Both operands of each need a pair. A CertManager reaches this code only
- * through wolfSSL_CertManagerCheckCRL, which never passes NULL, so operand 0
- * is true by construction from outside and its false case is unreachable
- * there. Calling directly gives both: once with cm NULL, once with a real cm
- * that has no callback installed, once with the callback installed. */
+ * Reached only when foundEntry == 0, i.e. no CRL matched -- the CRL_MISSING
+ * path, which is where a caller is told the check could not be completed.
+ *
+ * An earlier version of this driver passed cm == NULL and cm != NULL with no
+ * callbacks installed, and gained nothing. Both evaluations take the decision
+ * FALSE -- once by short-circuit and once because the callback pointer is
+ * NULL -- so operand 0 changed value without changing the outcome, which is
+ * not an independence pair. MC/DC needs the DECISION to flip, so at least one
+ * vector has to install the callback and drive the decision true.
+ *
+ * The full set, per decision:
+ *   cm == NULL                        -> op0 false, decision false
+ *   cm != NULL, callback NULL         -> op0 true, op1 false, decision false
+ *   cm != NULL, callback installed    -> op0 true, op1 true, decision TRUE
+ *
+ * and for :686 a third operand, the callback's own return value, needs one
+ * vector returning zero and one returning non-zero.
+ *
+ * No public caller can produce the cm == NULL case: every path into this
+ * function comes from a CertManager. */
+
+static int g_missingCalled;
+static int g_crlCbCalled;
+static int g_crlCbResult;
+
+static void wb_missing_crl_cb(const char* url)
+{
+    g_missingCalled++;
+    (void)url;
+}
+
+static int wb_crl_err_cb(int ret, WOLFSSL_CRL* crl, WOLFSSL_CERT_MANAGER* cm,
+                         void* ctx)
+{
+    g_crlCbCalled++;
+    (void)ret; (void)crl; (void)cm; (void)ctx;
+    return g_crlCbResult;   /* drives operand 2 of the :686 chain */
+}
+
 static void wb_missing_crl_callbacks(WOLFSSL_CERT_MANAGER* cm)
 {
     byte serial[] = { 0x0a, 0x0b };
     byte issuerHash[SIGNER_DIGEST_SIZE];
+    const char* url = "http://crl.example.com/root.crl";
 
     XMEMSET(issuerHash, 0x33, sizeof(issuerHash));
 
-    /* cm NULL: operand 0 false for both decisions. */
+    /* 1. cm NULL: operand 0 false for both decisions. */
     WB_NOTE(CheckCertCRLCm(cm->crl, issuerHash, serial, (int)sizeof(serial),
-                           NULL, NULL, 0, NULL, NULL));
+                           NULL, (const byte*)url, (int)XSTRLEN(url), NULL,
+                           NULL));
 
-    /* real cm, no callbacks installed: operand 0 true, operand 1 false. */
+    /* 2. real cm, no callbacks: operand 0 true, operand 1 false. */
+    cm->cbMissingCRL = NULL;
+    cm->crlCb = NULL;
     WB_NOTE(CheckCertCRLCm(cm->crl, issuerHash, serial, (int)sizeof(serial),
-                           NULL, NULL, 0, NULL, cm));
+                           NULL, (const byte*)url, (int)XSTRLEN(url), NULL,
+                           cm));
+
+    /* 3. both callbacks installed, error cb returns 0: takes :668 TRUE (the
+     * partner that gives operands 0 and 1 their pairs) and :686 to its third
+     * operand, false. */
+    cm->cbMissingCRL = wb_missing_crl_cb;
+    cm->crlCb = wb_crl_err_cb;
+    g_crlCbResult = 0;
+    WB_NOTE(CheckCertCRLCm(cm->crl, issuerHash, serial, (int)sizeof(serial),
+                           NULL, (const byte*)url, (int)XSTRLEN(url), NULL,
+                           cm));
+
+    /* 4. error cb returns non-zero: :686 operand 2 true, decision TRUE, which
+     * is the override-the-CRL-error path. */
+    g_crlCbResult = 1;
+    WB_NOTE(CheckCertCRLCm(cm->crl, issuerHash, serial, (int)sizeof(serial),
+                           NULL, (const byte*)url, (int)XSTRLEN(url), NULL,
+                           cm));
+
+    /* 5. a url longer than the 256-byte stack buffer takes the "CRL url too
+     * long" arm of the copy guard inside the :668 body, which the short url
+     * above leaves unexercised. */
+    {
+        char longUrl[300];
+        XMEMSET(longUrl, 'u', sizeof(longUrl) - 1);
+        longUrl[sizeof(longUrl) - 1] = '\0';
+        WB_NOTE(CheckCertCRLCm(cm->crl, issuerHash, serial,
+                               (int)sizeof(serial), NULL, (const byte*)longUrl,
+                               (int)sizeof(longUrl) - 1, NULL, cm));
+    }
+
+    cm->cbMissingCRL = NULL;
+    cm->crlCb = NULL;
 }
 
 /* ---------------------------------------------------------- main */
