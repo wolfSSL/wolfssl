@@ -4845,7 +4845,14 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
    }
 #endif
 
-#ifdef WOLF_CRYPTO_CB
+#if defined(WOLF_CRYPTO_CB) && !FIPS_VERSION3_GE(7,0,0)
+    /* The ECDH crypto-callback dispatch is compiled out of v7 FIPS builds:
+     * the module is validated as a software module, FIPS 140-3 IG C.B bars
+     * using an algorithm implementation in the approved mode without CAVP
+     * testing, and an offload to a callback or hardware executes outside
+     * the validated module.  A hybrid software-plus-hardware module
+     * configuration would reintroduce the dispatch under its own build
+     * option. */
     #ifndef WOLF_CRYPTO_CB_FIND
     if (private_key->devId != INVALID_DEVID)
     #endif
