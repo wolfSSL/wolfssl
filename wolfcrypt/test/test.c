@@ -43384,6 +43384,24 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
         WARNING_OUT(ECC_CURVE_OID_E, done);
 
 #ifdef HAVE_ECC_DHE
+#if FIPS_VERSION3_GE(7,0,0)
+    /* The module's KAS-ECC-SSC validation covers P-256, P-384 and P-521
+     * only, so under v7 wc_ecc_shared_secret refuses every other curve with
+     * ECC_CURVE_OID_E (FIPS 140-3 IG C.B; SP 800-131A Rev. 2 Section 5
+     * Table 4 for len(n) < 224).  Assert the refusal once, then skip the
+     * composite flow for that curve the same way the key-size mismatch above
+     * does; P-224 signing coverage remains in the ECDSA vector tests. */
+    if (userA->dp != NULL &&
+        userA->dp->id != ECC_SECP256R1 &&
+        userA->dp->id != ECC_SECP384R1 &&
+        userA->dp->id != ECC_SECP521R1) {
+        x = ECC_SHARED_SIZE;
+        ret = wc_ecc_shared_secret(userA, userB, sharedA, &x);
+        if (ret != WC_NO_ERR_TRACE(ECC_CURVE_OID_E))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+        WARNING_OUT(ECC_CURVE_OID_E, done);
+    }
+#endif
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
     !defined(HAVE_SELFTEST)
