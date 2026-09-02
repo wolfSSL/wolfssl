@@ -469,6 +469,7 @@ Operations and size:
 | `WOLFSSL_MLDSA_NO_MAKE_KEY` / `_NO_SIGN` / `_NO_VERIFY` | Drop an operation |
 | `WOLFSSL_MLDSA_VERIFY_ONLY` | Verify only — the firmware-check case |
 | `WOLFSSL_MLDSA_VERIFY_SMALL_MEM` | Stream the verify instead of expanding the key at once |
+| `WOLFSSL_MLDSA_VERIFY_PRECOMP_A` | Allow a host-expanded matrix A to be attached with `wc_MlDsaKey_SetPrecompA()`, so verify skips the SHAKE128 expansion. Needs a verification key fixed at build time; works with both the default and small-memory verifiers. The stored matrix must be integrity-protected exactly as the public key is |
 | `WOLFSSL_MLKEM_SMALL`, `WOLFSSL_MLKEM_NO_LARGE_CODE` | Loop rather than unroll |
 | `WOLFSSL_MLDSA_SMALL`, `WOLFSSL_MLDSA_NO_LARGE_CODE` | As above for ML-DSA |
 | `WOLFSSL_MLKEM_DYNAMIC_KEYS` | Allocate key buffers to the size actually needed, rather than carrying the largest in the key structure. Reduces handshake memory on constrained systems. **Cannot be used with `WOLFSSL_NO_MALLOC`** |

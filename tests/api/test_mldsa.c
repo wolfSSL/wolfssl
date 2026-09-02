@@ -31504,3 +31504,228 @@ int test_mldsa_cb_free(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* Independent ExpandA for the precomputed-matrix test: FIPS 204 Algorithm 32
+ * over the public SHAKE-128 API only, so it does not borrow the very code it
+ * is checking.  Coefficients come out in the NTT domain, row-major (r, s). */
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_VERIFY_PRECOMP_A) && \
+    !defined(WOLFSSL_MLDSA_NO_VERIFY)
+static int mldsa_test_expand_a(const byte* rho, byte k, byte l, sword32* a)
+{
+    wc_Shake shake;
+    byte seed[MLDSA_PUB_SEED_SZ + 2];
+    byte h[168];                       /* SHAKE-128 rate */
+    int r;
+    int s;
+    int c;
+    int j;
+    int ret = 0;
+    sword32 t;
+
+    XMEMCPY(seed, rho, MLDSA_PUB_SEED_SZ);
+
+    for (r = 0; (ret == 0) && (r < (int)k); r++) {
+        seed[MLDSA_PUB_SEED_SZ + 1] = (byte)r;
+        for (s = 0; (ret == 0) && (s < (int)l); s++) {
+            seed[MLDSA_PUB_SEED_SZ + 0] = (byte)s;
+
+            ret = wc_InitShake128(&shake, NULL, INVALID_DEVID);
+            if (ret == 0) {
+                ret = wc_Shake128_Absorb(&shake, seed, (word32)sizeof(seed));
+            }
+            for (j = 0; (ret == 0) && (j < MLDSA_N); ) {
+                ret = wc_Shake128_SqueezeBlocks(&shake, h, 1);
+                for (c = 0; (ret == 0) && (c < (int)sizeof(h)) &&
+                        (j < MLDSA_N); c += 3) {
+                    t = (sword32)h[c] + ((sword32)h[c + 1] << 8) +
+                        ((sword32)h[c + 2] << 16);
+                    t &= 0x7fffff;
+                    if (t < MLDSA_Q) {
+                        a[(((r * (int)l) + s) * MLDSA_N) + j] = t;
+                        j++;
+                    }
+                }
+            }
+            wc_Shake128_Free(&shake);
+        }
+    }
+
+    return ret;
+}
+#endif
+
+int test_wc_MlDsaKey_SetPrecompA(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_VERIFY_PRECOMP_A) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+    !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    wc_MlDsaKey key;
+    WC_RNG rng;
+    sword32* a = NULL;
+    byte* pub = NULL;
+    byte* sig = NULL;
+    byte* pub2 = NULL;
+    byte* sig2 = NULL;
+    word32 pubLen = 0;
+    word32 sigLen = 0;
+    word32 aLen = 0;
+    int pubLenI = 0;
+    int sigLenI = 0;
+    const byte msg[] = "precomputed matrix A";
+    int res = 0;
+    byte level;
+    byte k;
+    byte l;
+
+#ifndef WOLFSSL_NO_ML_DSA_44
+    level = WC_ML_DSA_44; k = 4; l = 4;
+#elif !defined(WOLFSSL_NO_ML_DSA_65)
+    level = WC_ML_DSA_65; k = 6; l = 5;
+#else
+    level = WC_ML_DSA_87; k = 8; l = 7;
+#endif
+    aLen = (word32)k * (word32)l * MLDSA_N;
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&key, level), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(&key, &rng), 0);
+
+    ExpectIntEQ(wc_MlDsaKey_GetPubLen(&key, &pubLenI), 0);
+    ExpectIntEQ(wc_MlDsaKey_GetSigLen(&key, &sigLenI), 0);
+    pubLen = (word32)pubLenI;
+    sigLen = (word32)sigLenI;
+    ExpectNotNull(pub = (byte*)XMALLOC(pubLen, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(sig = (byte*)XMALLOC(sigLen, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(a = (sword32*)XMALLOC(aLen * sizeof(sword32), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntEQ(wc_MlDsaKey_ExportPubRaw(&key, pub, &pubLen), 0);
+    ExpectIntEQ(wc_MlDsaKey_SignCtx(&key, NULL, 0, sig, &sigLen, msg,
+        (word32)sizeof(msg), &rng), 0);
+    if (a != NULL) {
+        XMEMSET(a, 0, aLen * sizeof(sword32));
+    }
+    ExpectIntEQ(mldsa_test_expand_a(pub, k, l, a), 0);
+
+    /* A second, unrelated key at the SAME level.  Re-importing it must not
+     * leave the first key's matrix in use - that is the case a level change
+     * would not catch. */
+    ExpectNotNull(pub2 = (byte*)XMALLOC(pubLen, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(sig2 = (byte*)XMALLOC(sigLen, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    wc_MlDsaKey_Free(&key);
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&key, level), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(&key, &rng), 0);
+    pubLenI = (int)pubLen;
+    sigLenI = (int)sigLen;
+    ExpectIntEQ(wc_MlDsaKey_ExportPubRaw(&key, pub2, &pubLen), 0);
+    ExpectIntEQ(wc_MlDsaKey_SignCtx(&key, NULL, 0, sig2, &sigLen, msg,
+        (word32)sizeof(msg), &rng), 0);
+
+    /* Verify-only key holding just the public half. */
+    wc_MlDsaKey_Free(&key);
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&key, level), 0);
+
+    /* Rejected before a public key exists to bind against. */
+    ExpectIntEQ(wc_MlDsaKey_SetPrecompA(&key, a, aLen, pub,
+        MLDSA_PUB_SEED_SZ), BAD_FUNC_ARG);
+
+    ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(&key, pub, pubLen), 0);
+
+    /* Baseline: ordinary expansion verifies. */
+    res = 0;
+    ExpectIntEQ(wc_MlDsaKey_VerifyCtx(&key, sig, sigLen, NULL, 0, msg,
+        (word32)sizeof(msg), &res), 0);
+    ExpectIntEQ(res, 1);
+
+    /* Argument validation. */
+    ExpectIntEQ(wc_MlDsaKey_SetPrecompA(NULL, a, aLen, pub,
+        MLDSA_PUB_SEED_SZ), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_MlDsaKey_SetPrecompA(&key, NULL, aLen, pub,
+        MLDSA_PUB_SEED_SZ), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_MlDsaKey_SetPrecompA(&key, a, aLen, NULL,
+        MLDSA_PUB_SEED_SZ), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_MlDsaKey_SetPrecompA(&key, a, aLen - 1, pub,
+        MLDSA_PUB_SEED_SZ), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_MlDsaKey_SetPrecompA(&key, a, aLen, pub,
+        MLDSA_PUB_SEED_SZ - 1), BAD_FUNC_ARG);
+
+    /* rho that does not belong to this key is refused, not used. */
+    if (pub != NULL) {
+        pub[0] ^= 0xFF;
+        ExpectIntEQ(wc_MlDsaKey_SetPrecompA(&key, a, aLen, pub,
+            MLDSA_PUB_SEED_SZ), PUBLIC_KEY_E);
+        pub[0] ^= 0xFF;
+    }
+
+    /* Attached: must agree with ordinary expansion. */
+    ExpectIntEQ(wc_MlDsaKey_SetPrecompA(&key, a, aLen, pub,
+        MLDSA_PUB_SEED_SZ), 0);
+    res = 0;
+    ExpectIntEQ(wc_MlDsaKey_VerifyCtx(&key, sig, sigLen, NULL, 0, msg,
+        (word32)sizeof(msg), &res), 0);
+    ExpectIntEQ(res, 1);
+
+    /* A wrong matrix must not verify - proves the attached one is really used
+     * rather than quietly re-expanded. */
+    if (a != NULL) {
+        a[0] ^= 0x01;
+        res = 1;
+        ExpectIntEQ(wc_MlDsaKey_VerifyCtx(&key, sig, sigLen, NULL, 0, msg,
+            (word32)sizeof(msg), &res), 0);
+        ExpectIntEQ(res, 0);
+        a[0] ^= 0x01;
+    }
+
+    /* Tampered signature still rejected with the matrix attached. */
+    if (sig != NULL) {
+        sig[0] ^= 0x01;
+        res = 1;
+        ExpectIntEQ(wc_MlDsaKey_VerifyCtx(&key, sig, sigLen, NULL, 0, msg,
+            (word32)sizeof(msg), &res), 0);
+        ExpectIntEQ(res, 0);
+        sig[0] ^= 0x01;
+    }
+
+    /* Same-level re-import: the matrix bound to the first key must not be
+     * applied to the second.  If it were, this verify would fail. */
+    ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(&key, pub2, pubLen), 0);
+    res = 0;
+    ExpectIntEQ(wc_MlDsaKey_VerifyCtx(&key, sig2, sigLen, NULL, 0, msg,
+        (word32)sizeof(msg), &res), 0);
+    ExpectIntEQ(res, 1);
+
+    /* Back to the first key and matrix for the remaining checks. */
+    ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(&key, pub, pubLen), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetPrecompA(&key, a, aLen, pub,
+        MLDSA_PUB_SEED_SZ), 0);
+
+    /* Lifecycle: changing level drops the binding, and verification falls
+     * back to expanding rather than indexing a wrongly sized matrix. */
+#if !defined(WOLFSSL_NO_ML_DSA_44) && !defined(WOLFSSL_NO_ML_DSA_87)
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&key, WC_ML_DSA_87), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&key, level), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(&key, pub, pubLen), 0);
+    res = 0;
+    ExpectIntEQ(wc_MlDsaKey_VerifyCtx(&key, sig, sigLen, NULL, 0, msg,
+        (word32)sizeof(msg), &res), 0);
+    ExpectIntEQ(res, 1);
+#endif
+
+    wc_MlDsaKey_Free(&key);
+    wc_FreeRng(&rng);
+    XFREE(pub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(pub2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(sig2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(a, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}

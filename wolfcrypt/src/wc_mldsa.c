@@ -9305,7 +9305,11 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
     /* Allocate memory for large intermediates. */
 #ifdef WC_MLDSA_CACHE_MATRIX_A
 #ifndef WC_MLDSA_FIXED_ARRAY
-    if ((ret == 0) && (key->a == NULL)) {
+    if ((ret == 0) && (key->a == NULL)
+#ifdef WOLFSSL_MLDSA_VERIFY_PRECOMP_A
+            && (aPre == NULL)
+#endif
+            ) {
         key->a = (sword32*)XMALLOC((size_t)params->aSz, key->heap,
             DYNAMIC_TYPE_MLDSA);
         if (key->a == NULL) {
@@ -10591,6 +10595,34 @@ static void mldsa_make_pub_vec(wc_MlDsaKey* key, sword32* t1)
  * @return  MEMORY_E when memory allocation fails.
  * @return  Other negative when an error occurs.
  */
+#ifdef WOLFSSL_MLDSA_VERIFY_PRECOMP_A
+/* Return the attached matrix A only while it still matches the key.
+ *
+ * The setter checks rho once, but SetParams(), a public-key import or key
+ * generation can replace the key underneath a matrix that is already
+ * attached.  Indexing a level-44 matrix with level-87 k and l would read off
+ * the end of the caller's array, so re-derive validity here rather than trust
+ * the one-time check.  A mismatch simply falls back to expanding A, which is
+ * always correct - only slower. */
+static const sword32* mldsa_precomp_a(const wc_MlDsaKey* key)
+{
+    const wc_MlDsaParams* params = key->params;
+
+    if ((key->aPre == NULL) || (params == NULL) || (!key->pubKeySet)) {
+        return NULL;
+    }
+    if (key->aPreLen !=
+            (word32)params->k * (word32)params->l * MLDSA_N) {
+        return NULL;
+    }
+    if (XMEMCMP(key->aPreRho, key->p, MLDSA_PUB_SEED_SZ) != 0) {
+        return NULL;
+    }
+
+    return key->aPre;
+}
+#endif /* WOLFSSL_MLDSA_VERIFY_PRECOMP_A */
+
 static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
     const byte* sig, word32 sigLen, int* res)
 {
@@ -10607,6 +10639,12 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
     sword32* z = NULL;
     sword32* w = NULL;
     sword32* t1c = NULL;
+#ifdef WOLFSSL_MLDSA_VERIFY_PRECOMP_A
+    /* aPre is the caller's flash-resident matrix when usable; aRead is what
+     * the multiply consumes, so the expansion and its buffer drop out. */
+    const sword32* aPre = mldsa_precomp_a(key);
+#endif
+    const sword32* aRead = NULL;
     byte commit_calc[MLDSA_TR_SZ];
     byte* w1e = NULL;
     int valid = 0;
@@ -10663,8 +10701,13 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
         allocSz = (unsigned int)MLDSA_POLY_SIZE + params->s1Sz +
             params->s2Sz + params->s2Sz;
 #ifndef WC_MLDSA_CACHE_MATRIX_A
-        /* a */
-        allocSz += params->aSz;
+        /* a - not needed when the caller supplied the matrix. */
+#ifdef WOLFSSL_MLDSA_VERIFY_PRECOMP_A
+        if (aPre == NULL)
+#endif
+        {
+            allocSz += params->aSz;
+        }
 #endif
 
         z = (sword32*)XMALLOC(allocSz, key->heap, DYNAMIC_TYPE_MLDSA);
@@ -10705,18 +10748,30 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
             mldsa_make_pub_vec(key, t1);
         }
 
-#ifdef WC_MLDSA_CACHE_MATRIX_A
-        /* Check that we haven't already cached the matrix A. */
-        if (!key->aSet)
+#ifdef WOLFSSL_MLDSA_VERIFY_PRECOMP_A
+        if (aPre != NULL) {
+            /* A was expanded off target and lives in flash: no allocation and
+             * no SHAKE128 rejection sampling. */
+            aRead = aPre;
+        }
+        else
 #endif
         {
-            /* Step 5: Expand pub seed to compute matrix A. */
-            ret = mldsa_expand_a(&key->shake, pub_seed, params->k,
-                params->l, a, key->heap);
 #ifdef WC_MLDSA_CACHE_MATRIX_A
-            /* Whether we have cached A is dependent on success of operation. */
-            key->aSet = (ret == 0);
+            /* Check that we haven't already cached the matrix A. */
+            if (!key->aSet)
 #endif
+            {
+                /* Step 5: Expand pub seed to compute matrix A. */
+                ret = mldsa_expand_a(&key->shake, pub_seed, params->k,
+                    params->l, a, key->heap);
+#ifdef WC_MLDSA_CACHE_MATRIX_A
+                /* Whether we have cached A is dependent on success of
+                 * operation. */
+                key->aSet = (ret == 0);
+#endif
+            }
+            aRead = a;
         }
     }
     if ((ret == 0) && valid) {
@@ -10727,7 +10782,7 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
     if ((ret == 0) && valid) {
         /* Step 10: w = NTT-1(A o NTT(z) - NTT(c) o NTT(t1)) */
         mldsa_vec_ntt_full(z, params->l);
-        mldsa_matrix_mul(w, a, z, params->k, params->l);
+        mldsa_matrix_mul(w, aRead, z, params->k, params->l);
     #ifdef WOLFSSL_MLDSA_SMALL
         mldsa_vec_red(w, params->k);
     #endif
@@ -10760,7 +10815,14 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
     const byte* ze = sig + params->lambda / 4;
     const byte* h = ze + params->zEncSz;
     sword32* t1 = NULL;
-    sword32* a = NULL;
+    /* aBuf is the scratch the rejection sampler writes; a is what the pointwise
+     * loops read.  With a precomputed matrix they differ - a points straight at
+     * the caller's flash-resident A and aBuf is unused. */
+    sword32* aBuf = NULL;
+    const sword32* a = NULL;
+#ifdef WOLFSSL_MLDSA_VERIFY_PRECOMP_A
+    const sword32* aPre = mldsa_precomp_a(key);
+#endif
     sword32* c = NULL;
     sword32* z = NULL;
     sword32* w = NULL;
@@ -10815,7 +10877,7 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
             t1    = w + MLDSA_N;
             block = (byte*)(t1 + MLDSA_N);
             w1e   = block + MLDSA_REJ_NTT_POLY_H_SIZE;
-            a     = t1;
+            aBuf  = t1;
         #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
             t64   = (sword64*)(w1e + params->w1EncSz);
         #endif
@@ -10828,7 +10890,7 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
         w = key->w;
         t1 = key->t1;
         w1e = key->w1e;
-        a = t1;
+        aBuf = t1;
     #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
         t64 = key->t64;
     #endif
@@ -10945,11 +11007,25 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
                 zt = z;
             #endif
                 /* Step 3: Create polynomial from hashing seed. */
-            #ifdef WOLFSSL_MLDSA_VERIFY_NO_MALLOC
-                ret = mldsa_rej_ntt_poly_ex(&key->shake, seed, a, key->h);
-            #else
-                ret = mldsa_rej_ntt_poly_ex(&key->shake, seed, a, block);
+            #ifdef WOLFSSL_MLDSA_VERIFY_PRECOMP_A
+                if (aPre != NULL) {
+                    /* A was expanded off-target and lives in flash: skip the
+                     * SHAKE128 rejection sampling entirely. */
+                    a = aPre +
+                        ((word32)r * (word32)params->l + (word32)s) * MLDSA_N;
+                }
+                else
             #endif
+                {
+            #ifdef WOLFSSL_MLDSA_VERIFY_NO_MALLOC
+                    ret = mldsa_rej_ntt_poly_ex(&key->shake, seed, aBuf,
+                        key->h);
+            #else
+                    ret = mldsa_rej_ntt_poly_ex(&key->shake, seed, aBuf,
+                        block);
+            #endif
+                    a = aBuf;
+                }
 
                 /* Step 10: w = A o NTT(z) - NTT(c) o NTT(t1) */
         #ifndef WOLFSSL_MLDSA_SMALL_MEM_POLY64
@@ -11812,6 +11888,42 @@ int wc_MlDsaKey_VerifyCtxHash(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     return ret;
 }
 
+#ifdef WOLFSSL_MLDSA_VERIFY_PRECOMP_A
+/* Attach a precomputed matrix A.  See wc_mldsa.h for the contract and the
+ * security requirement. */
+int wc_MlDsaKey_SetPrecompA(wc_MlDsaKey* key, const sword32* a, word32 aLen,
+    const byte* rho, word32 rhoLen)
+{
+    if ((key == NULL) || (a == NULL) || (rho == NULL) ||
+            (key->params == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+    if (rhoLen != MLDSA_PUB_SEED_SZ) {
+        return BAD_FUNC_ARG;
+    }
+    /* Row-major k x l polynomials of MLDSA_N coefficients. */
+    if (aLen != (word32)key->params->k * (word32)key->params->l * MLDSA_N) {
+        return BAD_FUNC_ARG;
+    }
+    /* A is a function of rho alone.  Reject a matrix built for a different
+     * key rather than silently verifying against the wrong one.  key->p only
+     * holds rho once a public key has been imported, so require that first -
+     * BAD_FUNC_ARG, as documented in wc_mldsa.h. */
+    if (!key->pubKeySet) {
+        return BAD_FUNC_ARG;
+    }
+    if (XMEMCMP(rho, key->p, MLDSA_PUB_SEED_SZ) != 0) {
+        return PUBLIC_KEY_E;
+    }
+
+    key->aPre    = a;
+    key->aPreLen = aLen;
+    XMEMCPY(key->aPreRho, rho, MLDSA_PUB_SEED_SZ);
+
+    return 0;
+}
+#endif /* WOLFSSL_MLDSA_VERIFY_PRECOMP_A */
+
 /* Verify using the ML-DSA internal interface with a pre-computed mu value.
  *
  * This implements ML-DSA.Verify_internal from FIPS 204 Section 6.3.
@@ -12064,6 +12176,14 @@ int wc_MlDsaKey_SetParams(wc_MlDsaKey* key, byte level)
     }
     if (ret == 0) {
         /* Clear any cached items. */
+#ifdef WOLFSSL_MLDSA_VERIFY_PRECOMP_A
+        /* The attached matrix was sized for the old level.  mldsa_precomp_a()
+         * would reject it anyway, but drop it here so the borrowed pointer
+         * does not outlive the key it was bound to. */
+        key->aPre = NULL;
+        key->aPreLen = 0;
+        XMEMSET(key->aPreRho, 0, sizeof(key->aPreRho));
+#endif
 #ifndef WC_MLDSA_FIXED_ARRAY
     #ifdef WC_MLDSA_CACHE_MATRIX_A
         XFREE(key->a, key->heap, DYNAMIC_TYPE_MLDSA);

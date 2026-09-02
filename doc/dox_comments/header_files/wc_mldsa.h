@@ -524,6 +524,65 @@ int wc_MlDsaKey_VerifyMu(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
 /*!
     \ingroup ML_DSA
 
+    \brief Attaches a matrix A that was expanded off target, so verification
+    can skip the SHAKE128 rejection sampling that otherwise dominates it.
+    A is a function of the public seed rho alone, so wherever the verification
+    key is fixed at build time - secure boot being the usual case - A can be
+    computed once on a host and stored in flash. Available only when
+    WOLFSSL_MLDSA_VERIFY_PRECOMP_A is defined, and honoured by both the
+    default and the small-memory verifiers.
+
+    The matrix is borrowed, never copied and never freed: it must stay valid
+    and unchanged for as long as the key uses it. It holds
+    k * l * MLDSA_N sword32 elements (not bytes) in row-major (r, s) order and
+    in the NTT domain, exactly as ExpandA produces them.
+
+    Import the public key first: the matrix is bound to it by comparing rho.
+    The binding is re-checked on every verify, so replacing the key or the
+    parameters afterwards simply discards the matrix and falls back to
+    expanding A rather than using a stale one.
+
+    \note A is derived from the public key and must be integrity-protected
+    exactly as the public key is. An attacker able to substitute it can
+    influence verification. In a secure-boot design the key already lives in
+    protected flash, so store the two together.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG if a pointer is NULL, rhoLen is not
+    MLDSA_PUB_SEED_SZ, aLen is not k * l * MLDSA_N, or no public key has been
+    imported yet.
+    \return PUBLIC_KEY_E if rho does not match the imported public key.
+
+    \param [in,out] key Pointer to a wc_MlDsaKey holding the public key.
+    \param [in] a Expanded matrix A, k * l * MLDSA_N elements, caller owned.
+    \param [in] aLen Number of sword32 elements in a.
+    \param [in] rho Public seed the matrix was expanded from.
+    \param [in] rhoLen Length of rho; must be MLDSA_PUB_SEED_SZ.
+
+    _Example_
+    \code
+    wc_MlDsaKey key;
+    int res = 0;
+
+    wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID);
+    wc_MlDsaKey_SetParams(&key, WC_ML_DSA_87);
+    wc_MlDsaKey_ImportPubRaw(&key, pub, pubLen);
+    if (wc_MlDsaKey_SetPrecompA(&key, matrixA, matrixALen, pub,
+            MLDSA_PUB_SEED_SZ) != 0) {
+        // handle error
+    }
+    wc_MlDsaKey_VerifyMu(&key, sig, sigLen, mu, muLen, &res);
+    \endcode
+
+    \sa wc_MlDsaKey_VerifyMu
+    \sa wc_MlDsaKey_ImportPubRaw
+*/
+int wc_MlDsaKey_SetPrecompA(wc_MlDsaKey* key, const sword32* a, word32 aLen,
+    const byte* rho, word32 rhoLen);
+
+/*!
+    \ingroup ML_DSA
+
     \brief Legacy ML-DSA verify API without a context parameter. Only
     available when wolfSSL is built with WOLFSSL_MLDSA_NO_CTX. New
     code should use wc_MlDsaKey_VerifyCtx() with ctx=NULL and
