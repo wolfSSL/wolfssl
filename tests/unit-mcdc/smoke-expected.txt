@@ -31,6 +31,7 @@ test_hpke_fault_whitebox
 test_hpke_whitebox
 test_integer_fault_whitebox
 test_integer_whitebox
+test_internal_suites_whitebox
 test_kdf_hash_fault_whitebox
 test_kdf_whitebox
 test_lms_bds_whitebox

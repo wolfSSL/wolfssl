@@ -99,6 +99,32 @@ static void wb_check_cert_crl_ex(WOLFSSL_CERT_MANAGER* cm)
                            NULL, NULL, 0, NULL, cm));
 }
 
+
+/* --------------------------------------------- CheckCertCRLCm :668, :686 */
+/* `if (cm != NULL && cm->cbMissingCRL)` and
+ * `if (cm != NULL && cm->crlCb && ...)`
+ *
+ * Both operands of each need a pair. A CertManager reaches this code only
+ * through wolfSSL_CertManagerCheckCRL, which never passes NULL, so operand 0
+ * is true by construction from outside and its false case is unreachable
+ * there. Calling directly gives both: once with cm NULL, once with a real cm
+ * that has no callback installed, once with the callback installed. */
+static void wb_missing_crl_callbacks(WOLFSSL_CERT_MANAGER* cm)
+{
+    byte serial[] = { 0x0a, 0x0b };
+    byte issuerHash[SIGNER_DIGEST_SIZE];
+
+    XMEMSET(issuerHash, 0x33, sizeof(issuerHash));
+
+    /* cm NULL: operand 0 false for both decisions. */
+    WB_NOTE(CheckCertCRLCm(cm->crl, issuerHash, serial, (int)sizeof(serial),
+                           NULL, NULL, 0, NULL, NULL));
+
+    /* real cm, no callbacks installed: operand 0 true, operand 1 false. */
+    WB_NOTE(CheckCertCRLCm(cm->crl, issuerHash, serial, (int)sizeof(serial),
+                           NULL, NULL, 0, NULL, cm));
+}
+
 /* ---------------------------------------------------------- main */
 
 int main(void)
@@ -125,6 +151,7 @@ int main(void)
     }
 
     wb_check_cert_crl_ex(cm);
+    wb_missing_crl_callbacks(cm);
 
     printf("crl white-box: %d vectors driven\n", g_checks);
 
