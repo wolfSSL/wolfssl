@@ -2309,6 +2309,14 @@ int wolfSSL_session_export_internal(WOLFSSL* ssl, byte* buf, word32* sz,
         ret = BAD_FUNC_ARG;
     }
 
+#ifdef HAVE_WRITE_DUP
+    /* each side of a write dup holds only half of the record layer state */
+    if (ret == 0 && type == WOLFSSL_EXPORT_DTLS && ssl->dupWrite != NULL) {
+        WOLFSSL_MSG("Can not export a DTLS session split by a write dup");
+        ret = BAD_STATE_E;
+    }
+#endif
+
     if (ret == 0) {
         totalLen += WOLFSSL_EXPORT_LEN * 2; /* 2 protocol bytes and 2 length bytes */
         /* each of the following have a 2 byte length before data */
@@ -2336,8 +2344,7 @@ int wolfSSL_session_export_internal(WOLFSSL* ssl, byte* buf, word32* sz,
             if (ssl->options.dtls && wolfSSL_dtls_cid_is_enabled(ssl)) {
                 cid = 1;
                 /* the actual lengths, not the worst case DTLS_EXPORT_CID_SZ */
-                totalLen += (3 * OPAQUE8_LEN) + DtlsGetCidRxSize(ssl) +
-                    DtlsGetCidTxSize(ssl);
+                totalLen += DtlsCidExportSize(ssl);
             }
         #endif
         }

@@ -1663,7 +1663,6 @@ enum Misc {
     TLS_EXPORT_OPT_SZ_5      = 66, /* number of bytes used from Options */
     TLS_EXPORT_OPT_SZ_4      = 65, /* number of bytes used from Options */
     DTLS_EXPORT_OPT_SZ_3     = 60, /* number of bytes used from Options */
-                                   /* max number of bytes used from Keys */
     DTLS_EXPORT_MIN_KEY_SZ   = 85 + (DTLS_SEQ_SZ * 2),
                                    /* min number of bytes used from Keys */
     WOLFSSL_EXPORT_TLS       = 1,
@@ -3032,7 +3031,12 @@ WOLFSSL_LOCAL socklen_t wolfSSL_BIO_ADDR_size(const WOLFSSL_BIO_ADDR *addr);
 /* worst case serialized size of what ExportKeyState() writes */
 #define DTLS_EXPORT_KEY_SZ                                                   \
     ((4 * OPAQUE32_LEN) +                 /* TLS sequence numbers */         \
-     42 +                                 /* DTLS record layer counters */   \
+     (2 * OPAQUE16_LEN) + OPAQUE32_LEN +   /* peer next epoch and seq */     \
+     (2 * OPAQUE16_LEN) + OPAQUE32_LEN +   /* current epoch and seq */       \
+     OPAQUE16_LEN + OPAQUE32_LEN +         /* peer previous seq */           \
+     (2 * OPAQUE16_LEN) +                  /* peer, expected hs numbers */   \
+     (2 * (OPAQUE16_LEN + OPAQUE32_LEN)) + /* DTLS seq and previous seq */   \
+     (2 * OPAQUE16_LEN) +                  /* DTLS epoch and hs number */    \
      (2 * OPAQUE32_LEN) + (2 * OPAQUE8_LEN) + /* encryptSz, padSz, flags */  \
      (2 * (OPAQUE16_LEN + DTLS_SEQ_SZ)) +  /* window and prevWindow */       \
      OPAQUE8_LEN +                        /* truncated hmac flag */          \
@@ -3051,10 +3055,11 @@ WOLFSSL_LOCAL socklen_t wolfSSL_BIO_ADDR_size(const WOLFSSL_BIO_ADDR *addr);
  * key and write IV of the direction the peer sends in, each with its length */
 #define DTLS_EXPORT_DTLS13_EPOCH_KEY_SZ                                      \
     ((2 * OPAQUE8_LEN) + (2 * MAX_SYM_KEY_SIZE) + MAX_WRITE_IV_SZ)
-/* epoch numbers, traffic secrets and three length prefixed epoch fields */
+/* epoch numbers, traffic and resumption secrets, KeyUpdate response flag,
+ * ticket nonce and three length prefixed epoch fields */
 #define DTLS_EXPORT_DTLS13_SZ                                                \
-    ((3 * OPAQUE64_LEN) + OPAQUE8_LEN + (2 * SECRET_LEN) +                   \
-     (3 * WOLFSSL_EXPORT_LEN) +                                              \
+    ((3 * OPAQUE64_LEN) + OPAQUE8_LEN + (3 * SECRET_LEN) +                   \
+     (3 * OPAQUE8_LEN) + (3 * WOLFSSL_EXPORT_LEN) +                          \
      (3 * DTLS_EXPORT_DTLS13_EPOCH_SZ) + DTLS_EXPORT_DTLS13_EPOCH_KEY_SZ)
 #endif /* WOLFSSL_SESSION_EXPORT && WOLFSSL_DTLS13 */
 
@@ -4176,6 +4181,7 @@ WOLFSSL_LOCAL int Dtls13UnifiedHeaderCIDPresent(byte flags);
 WOLFSSL_LOCAL byte DtlsGetCidTxSize(WOLFSSL* ssl);
 WOLFSSL_LOCAL byte DtlsGetCidRxSize(WOLFSSL* ssl);
 #ifdef WOLFSSL_SESSION_EXPORT
+WOLFSSL_LOCAL word32 DtlsCidExportSize(WOLFSSL* ssl);
 WOLFSSL_LOCAL int DtlsCidExport(WOLFSSL* ssl, byte* exp, word32 len);
 WOLFSSL_LOCAL int DtlsCidImport(WOLFSSL* ssl, const byte* exp, word32 len);
 WOLFSSL_LOCAL void DtlsCidClear(WOLFSSL* ssl);

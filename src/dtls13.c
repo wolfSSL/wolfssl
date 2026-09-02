@@ -2958,7 +2958,8 @@ static int Dtls13ImportEpochField(const byte* exp, word32 len,
 }
 
 /* Serialize the DTLS 1.3 record layer state: the current, peer and invalidate
- * before epoch numbers, the traffic secrets and three length prefixed epoch
+ * before epoch numbers, the traffic and resumption secrets, the KeyUpdate
+ * response the peer owes, the ticket nonce and three length prefixed epoch
  * fields - the sending epoch, the peer epoch and the previous peer epoch - a
  * field being empty when the connection does not have that epoch.
  * Returns the number of bytes written to 'exp' or a negative value. */
@@ -2967,9 +2968,12 @@ int ExportDtls13State(WOLFSSL* ssl, byte* exp, word32 len)
     const Dtls13Epoch* sendEpoch;
     const Dtls13Epoch* recvEpoch;
     const Dtls13Epoch* prevEpoch;
+    const Dtls13RtxRecord* r;
     w64wrapper prevEpochNumber;
     word32 idx = 0;
     byte secretSz;
+    byte nonceLen = 0;
+    byte nonce = 0;
     int ret;
 
     WOLFSSL_ENTER("ExportDtls13State");
@@ -2977,7 +2981,17 @@ int ExportDtls13State(WOLFSSL* ssl, byte* exp, word32 len)
     if (ssl == NULL || exp == NULL)
         return BAD_FUNC_ARG;
 
-    /* the serialized state has no field for a KeyUpdate in progress */
+    /* handShakeDone is set when the client sends its Finished and when the
+     * server receives it; before that either an epoch below the traffic ones
+     * is still in use, which the importer rejects, or, on a server between the
+     * client's Certificate and its Finished, the peer's flight is still due
+     * while the checks below see nothing pending, the Certificate having
+     * implicitly acknowledged the server's flight out of the rtx list */
+    if (!ssl->options.handShakeDone) {
+        WOLFSSL_MSG("Can not export before the handshake is done");
+        return BAD_STATE_E;
+    }
+
     if (ssl->dtls13WaitKeyUpdateAck || ssl->dtls13DoKeyUpdate ||
             ssl->options.sendKeyUpdate) {
         WOLFSSL_MSG("Can not export with a KeyUpdate in progress");
@@ -2991,23 +3005,21 @@ int ExportDtls13State(WOLFSSL* ssl, byte* exp, word32 len)
         return BAD_STATE_E;
     }
 
-#ifdef HAVE_WRITE_DUP
-    /* the read side of a write dup parks the KeyUpdate and ACKs it owes in the
-     * shared object, where neither WOLFSSL records them */
-    if (ssl->dupWrite != NULL) {
-        int parked;
-
-        if (wc_LockMutex(&ssl->dupWrite->dupMutex) != 0)
-            return BAD_MUTEX_E;
-        parked = ssl->dupWrite->keyUpdateRespond || ssl->dupWrite->sendAcks;
-        wc_UnLockMutex(&ssl->dupWrite->dupMutex);
-
-        if (parked) {
-            WOLFSSL_MSG("Can not export with work parked in the write dup");
+    /* everything still waiting for the peer's ACK is lost on import; only a
+     * NewSessionTicket can go missing without changing the connection */
+    for (r = ssl->dtls13Rtx.rtxRecords; r != NULL; r = r->next) {
+        if (r->handshakeType != session_ticket) {
+            WOLFSSL_MSG("Can not export with an unacknowledged message");
             return BAD_STATE_E;
         }
     }
-#endif /* HAVE_WRITE_DUP */
+
+    /* a post-handshake CertificateRequest was acknowledged but not answered
+     * yet: the transcript its answer is verified against is not in the blob */
+    if (ssl->options.handShakeDone && !ssl->msgsReceived.got_finished) {
+        WOLFSSL_MSG("Can not export with a post-handshake auth in progress");
+        return BAD_STATE_E;
+    }
 
     sendEpoch = Dtls13GetEpoch(ssl, ssl->dtls13Epoch);
     recvEpoch = Dtls13GetEpoch(ssl, ssl->dtls13PeerEpoch);
@@ -3031,7 +3043,8 @@ int ExportDtls13State(WOLFSSL* ssl, byte* exp, word32 len)
     if (secretSz > SECRET_LEN)
         return BAD_STATE_E;
 
-    if ((3 * OPAQUE64_LEN) + OPAQUE8_LEN + (2u * secretSz) > len)
+    if ((3 * OPAQUE64_LEN) + OPAQUE8_LEN + (3u * secretSz) +
+            (3 * OPAQUE8_LEN) > len)
         return BUFFER_E;
 
     c64toa(&ssl->dtls13Epoch, exp + idx);     idx += OPAQUE64_LEN;
@@ -3040,10 +3053,34 @@ int ExportDtls13State(WOLFSSL* ssl, byte* exp, word32 len)
      * (RFC 9147 Section 4.5.3) */
     c64toa(&ssl->dtls13InvalidateBefore, exp + idx); idx += OPAQUE64_LEN;
 
-    /* traffic secrets, needed to derive the next epoch keys on KeyUpdate */
+    /* traffic secrets, needed to derive the next epoch keys on KeyUpdate, and
+     * the resumption secret, which the tickets issued or received from here on
+     * derive their PSK from */
     exp[idx++] = secretSz;
     XMEMCPY(exp + idx, ssl->clientSecret, secretSz); idx += secretSz;
     XMEMCPY(exp + idx, ssl->serverSecret, secretSz); idx += secretSz;
+    XMEMCPY(exp + idx, ssl->session->masterSecret, secretSz); idx += secretSz;
+
+    /* a KeyUpdate that asked for a response the peer has not sent yet; the
+     * checks above leave nothing else of a KeyUpdate pending */
+    exp[idx++] = ssl->keys.updateResponseReq;
+
+    /* The nonce of the last ticket issued, a one byte count that
+     * SendTls13NewSessionTicket() steps for every ticket and that has to stay
+     * unique on the connection (RFC 8446 Section 4.6.1); unset before the
+     * first ticket. A client holds the nonce of the ticket it received, which
+     * belongs to the session, not to the connection. */
+#ifdef HAVE_SESSION_TICKET
+    if (ssl->options.side == WOLFSSL_SERVER_END &&
+            ssl->session->ticketNonce.len > 0) {
+        if (ssl->session->ticketNonce.len != DEF_TICKET_NONCE_SZ)
+            return BAD_STATE_E;
+        nonceLen = DEF_TICKET_NONCE_SZ;
+        nonce = ssl->session->ticketNonce.data[0];
+    }
+#endif
+    exp[idx++] = nonceLen;
+    exp[idx++] = nonce;
 
     /* the sending epoch */
     ret = Dtls13ExportEpochField(ssl, sendEpoch, NULL, exp + idx, len - idx);
@@ -3082,6 +3119,8 @@ int ImportDtls13State(WOLFSSL* ssl, const byte* exp, word32 len)
     word32 fieldSz;
     word32 idx = 0;
     byte secretSz;
+    byte nonceLen;
+    byte nonce;
     int ret;
 
     WOLFSSL_ENTER("ImportDtls13State");
@@ -3105,10 +3144,28 @@ int ImportDtls13State(WOLFSSL* ssl, const byte* exp, word32 len)
     secretSz = exp[idx++];
     /* every epoch key is derived over specs.hash_size bytes of the secrets */
     if (secretSz != ssl->specs.hash_size || secretSz > SECRET_LEN ||
-            idx + (2u * secretSz) > len)
+            idx + (3u * secretSz) + (3 * OPAQUE8_LEN) > len)
         return BUFFER_E;
     XMEMCPY(ssl->clientSecret, exp + idx, secretSz); idx += secretSz;
     XMEMCPY(ssl->serverSecret, exp + idx, secretSz); idx += secretSz;
+    XMEMCPY(ssl->session->masterSecret, exp + idx, secretSz); idx += secretSz;
+
+    /* the KeyUpdate response still due from the peer */
+    if (exp[idx] > 1)
+        return BUFFER_E;
+    ssl->keys.updateResponseReq = exp[idx++];
+
+    /* the nonce the next ticket is numbered after */
+    nonceLen = exp[idx++];
+    nonce = exp[idx++];
+    if (nonceLen > DEF_TICKET_NONCE_SZ)
+        return BUFFER_E;
+#ifdef HAVE_SESSION_TICKET
+    ssl->session->ticketNonce.len = nonceLen;
+    ssl->session->ticketNonce.data[0] = nonce;
+#else
+    (void)nonce;
+#endif
 
     /* an exported connection is past its handshake, so both epochs it names are
      * traffic epochs; Dtls13SetEpochKeys() installs no key for epoch 0 */

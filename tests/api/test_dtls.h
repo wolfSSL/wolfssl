@@ -56,14 +56,19 @@ int test_dtls12_export_import_v6(void);
 int test_dtls13_export_import(void);
 int test_dtls13_export_unequal_epochs(void);
 int test_dtls13_export_restrictions(void);
+int test_dtls13_export_key_update_response(void);
 int test_dtls13_export_half_sent_fragment(void);
-int test_dtls13_export_write_dup_pending(void);
+int test_dtls13_export_write_dup(void);
 int test_dtls13_export_pending_ticket_lost(void);
+int test_dtls13_export_server_ticket_after_import(void);
+int test_dtls13_export_client_ticket_after_import(void);
 int test_dtls12_export_state_version(void);
 int test_dtls13_import_state_restrictions(void);
 int test_dtls_export_cid_restored(void);
 int test_dtls_export_tight_buffer(void);
 int test_dtls_export_no_cid_clears_target(void);
+int test_dtls13_export_unacked_flight(void);
+int test_dtls13_export_post_handshake_auth(void);
 int test_dtls13_export_import_client(void);
 int test_dtls13_export_replay_window(void);
 int test_dtls13_export_smaller_window(void);
@@ -227,14 +232,19 @@ int test_WOLFSSL_dtls_version_alert(void);
         TEST_DECL_GROUP("dtls", test_dtls13_export_import),                    \
         TEST_DECL_GROUP("dtls", test_dtls13_export_unequal_epochs),            \
         TEST_DECL_GROUP("dtls", test_dtls13_export_restrictions),              \
+        TEST_DECL_GROUP("dtls", test_dtls13_export_key_update_response),       \
         TEST_DECL_GROUP("dtls", test_dtls13_export_half_sent_fragment),        \
-        TEST_DECL_GROUP("dtls", test_dtls13_export_write_dup_pending),         \
+        TEST_DECL_GROUP("dtls", test_dtls13_export_write_dup),                 \
         TEST_DECL_GROUP("dtls", test_dtls13_export_pending_ticket_lost),       \
+        TEST_DECL_GROUP("dtls", test_dtls13_export_server_ticket_after_import),\
+        TEST_DECL_GROUP("dtls", test_dtls13_export_client_ticket_after_import),\
         TEST_DECL_GROUP("dtls", test_dtls12_export_state_version),             \
         TEST_DECL_GROUP("dtls", test_dtls13_import_state_restrictions),        \
         TEST_DECL_GROUP("dtls", test_dtls_export_cid_restored),                \
         TEST_DECL_GROUP("dtls", test_dtls_export_tight_buffer),                \
         TEST_DECL_GROUP("dtls", test_dtls_export_no_cid_clears_target),        \
+        TEST_DECL_GROUP("dtls", test_dtls13_export_unacked_flight),            \
+        TEST_DECL_GROUP("dtls", test_dtls13_export_post_handshake_auth),       \
         TEST_DECL_GROUP("dtls", test_dtls13_export_import_client),             \
         TEST_DECL_GROUP("dtls", test_dtls13_export_replay_window),             \
         TEST_DECL_GROUP("dtls", test_dtls13_export_smaller_window),            \
@@ -251,7 +261,7 @@ int test_WOLFSSL_dtls_version_alert(void);
         TEST_DECL_GROUP("dtls", test_dtls13_export_padded_cid_section),        \
         TEST_DECL_GROUP("dtls", test_dtls_export_import_oversized_buffer),     \
         TEST_DECL_GROUP("dtls", test_dtls13_export_sha256_suite),              \
-        TEST_DECL_GROUP("dtls", test_dtls13_export_integrity_only_suite), \
+        TEST_DECL_GROUP("dtls", test_dtls13_export_integrity_only_suite),      \
         TEST_DECL_GROUP("dtls", test_dtls13_export_unequal_epochs_client),     \
         TEST_DECL_GROUP("dtls", test_dtls13_export_prev_peer_epoch),           \
         TEST_DECL_GROUP("dtls", test_dtls13_export_invalidate_before),         \
