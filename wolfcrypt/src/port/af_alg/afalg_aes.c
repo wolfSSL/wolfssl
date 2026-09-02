@@ -339,38 +339,52 @@ static const char WC_NAME_AESECB[] = "ecb(aes)";
  * returns 0 on success */
 static int wc_Afalg_AesDirect(Aes* aes, byte* out, const byte* in, word32 sz)
 {
-        struct iovec    iov;
-        int ret;
+    struct iovec    iov;
+    word32 idx;
+    int ret;
 
-     if (aes == NULL || out == NULL || in == NULL) {
-         return BAD_FUNC_ARG;
-     }
+    if (aes == NULL || out == NULL || in == NULL) {
+        return BAD_FUNC_ARG;
+    }
 
-        if (aes->rdFd == WC_SOCK_NOTSET) {
-                if ((ret = wc_AesSetup(aes, WC_TYPE_SYMKEY, WC_NAME_AESECB,
-                                0, 0)) != 0) {
-                WOLFSSL_MSG("Error with first time setup of AF_ALG socket");
-                return ret;
-            }
+    if (aes->rdFd == WC_SOCK_NOTSET) {
+        if ((ret = wc_AesSetup(aes, WC_TYPE_SYMKEY, WC_NAME_AESECB,
+                        0, 0)) != 0) {
+            WOLFSSL_MSG("Error with first time setup of AF_ALG socket");
+            return ret;
         }
+    }
 
-            /* set data to be encrypted */
-            iov.iov_base = (byte*)in;
-            iov.iov_len  = sz;
+    /* set data to be encrypted */
+    iov.iov_base = (byte*)in;
+    iov.iov_len  = sz;
 
-            aes->msg.msg_iov    = &iov;
-            aes->msg.msg_iovlen = 1; /* # of iov structures */
+    aes->msg.msg_iov    = &iov;
+    aes->msg.msg_iovlen = 1; /* # of iov structures */
 
-            ret = (int)sendmsg(aes->rdFd, &(aes->msg), 0);
-            if (ret < 0) {
-                return WC_AFALG_SOCK_E;
-            }
-            ret = (int)read(aes->rdFd, out, sz);
-            if (ret < 0) {
-                return WC_AFALG_SOCK_E;
-            }
+    ret = (int)sendmsg(aes->rdFd, &(aes->msg), 0);
+    if (ret < 0) {
+        return WC_AFALG_SOCK_E;
+    }
 
-        return 0;
+    /* the whole request is expected to be taken by the kernel, a short
+     * transfer would leave part of the output buffer untouched and holding
+     * whatever the caller had in it */
+    if ((word32)ret != sz) {
+        WOLFSSL_MSG("Short sendmsg() with AF_ALG socket");
+        return WC_AFALG_SOCK_E;
+    }
+
+    /* read() can return less than what was asked for, loop until all of the
+     * expected output has been read back */
+    for (idx = 0; idx < sz; idx += (word32)ret) {
+        ret = (int)read(aes->rdFd, out + idx, sz - idx);
+        if (ret <= 0) {
+            return WC_AFALG_SOCK_E;
+        }
+    }
+
+    return 0;
 }
 #endif
 
@@ -378,11 +392,15 @@ static int wc_Afalg_AesDirect(Aes* aes, byte* out, const byte* in, word32 sz)
 #if defined(WOLFSSL_AES_DIRECT) && defined(WOLFSSL_AFALG)
 int wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
 {
+    if (aes == NULL || out == NULL || in == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
     if ((aes != NULL) && !WC_AES_KEY_IS_SET(aes)) {
         return MISSING_KEY;
     }
 
-    if (aes && (aes->dir != AES_ENCRYPTION)) {
+    if (aes->dir != AES_ENCRYPTION) {
         return KEYUSAGE_E;
     }
 
@@ -392,11 +410,16 @@ int wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
 
 int wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in)
 {
+    if (aes == NULL || out == NULL || in == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
     if ((aes != NULL) && !WC_AES_KEY_IS_SET(aes)) {
         return MISSING_KEY;
     }
 
-    if (aes && (aes->dir != AES_DECRYPTION)) {
+
+    if (aes->dir != AES_DECRYPTION) {
         return KEYUSAGE_E;
     }
 
@@ -618,10 +641,12 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 
 /* Performs AES-GCM encryption and returns 0 on success
  *
- * Warning: If using Xilinx hardware acceleration it is assumed that the out
- *          buffer is large enough to hold both cipher text and tag. That is
- *          sz | 16 bytes. The input and output buffer is expected to be 64 bit
- *          aligned
+ * Warning: If using Xilinx hardware acceleration it is assumed that both the in
+ *          and out buffers are large enough to hold cipher text and tag. That is
+ *          sz + 16 bytes. sz + 16 bytes are sent to the kernel from the in
+ *          buffer, with the trailing 16 bytes being scratch space for the tag,
+ *          and sz + 16 bytes are read back into the out buffer. The input and
+ *          output buffer is expected to be 64 bit aligned
  *
  */
 int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
@@ -694,6 +719,16 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         WOLFSSL_MSG("CMSG_FIRSTHDR() in wc_AesGcmEncrypt() returned NULL unexpectedly.");
         return SYSLIB_FAILED_E;
     }
+
+    /* Always set the operation. The same Aes structure, and with it the same
+     * AF_ALG socket, can be used for both encrypt and decrypt calls, so the
+     * operation currently stored in the control message could be left over
+     * from a previous call in the other direction. */
+    if (wc_Afalg_SetOp(cmsg, AES_ENCRYPTION) < 0) {
+        WOLFSSL_MSG("Error with setting AF_ALG operation");
+        return WC_AFALG_SOCK_E;
+    }
+
     cmsg = CMSG_NXTHDR(msg, cmsg);
     if (cmsg == NULL) {
         WOLFSSL_MSG("CMSG_NEXTHDR() in wc_AesGcmEncrypt() returned NULL unexpectedly.");
@@ -826,10 +861,12 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #if defined(HAVE_AES_DECRYPT) || defined(HAVE_AESGCM_DECRYPT)
 /* Performs AES-GCM decryption and returns 0 on success
  *
- * Warning: If using Xilinx hardware acceleration it is assumed that the in
- *          buffer is large enough to hold both cipher text and tag. That is
- *          sz | 16 bytes. The in buffer has tag appended even though it is
- *          const for this wolfSSL API.
+ * Warning: If using Xilinx hardware acceleration it is assumed that both the in
+ *          and out buffers are large enough to hold cipher text and tag. That is
+ *          sz + 16 bytes. The in buffer has tag appended even though it is
+ *          const for this wolfSSL API, and sz + 16 bytes are read back into the
+ *          out buffer. The input and output buffer is expected to be 64 bit
+ *          aligned.
  */
 int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                      const byte* iv, word32 ivSz,
@@ -872,7 +909,10 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         return ret;
 
     if (aes->rdFd == WC_SOCK_NOTSET) {
-        aes->dir = AES_DECRYPTION;
+        /* aes->dir is not changed here, the operation used with the socket is
+         * set on every call below. It is left as AES_ENCRYPTION, the value set
+         * by wc_AesGcmSetKey, so that the software tag handling can still make
+         * use of wc_AesEncryptDirect. */
         if ((ret = wc_AesSetup(aes, WC_TYPE_AEAD, WC_NAME_AESGCM, ivSz,
                         authInSz)) != 0) {
             WOLFSSL_MSG("Error with first time setup of AF_ALG socket");
@@ -896,7 +936,9 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     if ((cmsg = CMSG_FIRSTHDR(msg)) == NULL) {
         return WC_AFALG_SOCK_E;
     }
-    if (wc_Afalg_SetOp(cmsg, aes->dir) < 0) {
+    /* Always set the operation. The socket could have been created by a
+     * previous wc_AesGcmEncrypt call made with this same Aes structure. */
+    if (wc_Afalg_SetOp(cmsg, AES_DECRYPTION) < 0) {
         WOLFSSL_MSG("Error with setting AF_ALG operation");
         return WC_AFALG_SOCK_E;
     }
@@ -1032,11 +1074,22 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #ifdef HAVE_AES_ECB
 int wc_AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
-    if ((aes != NULL) && !WC_AES_KEY_IS_SET(aes)) {
+    /* argument sanity checks come before the key usage check so that bad
+     * arguments always report BAD_FUNC_ARG, matching the software version */
+    if (aes == NULL || out == NULL || in == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* only whole blocks can be handled, matching the software version */
+    if ((sz % WC_AES_BLOCK_SIZE) != 0) {
+        return BAD_LENGTH_E;
+    }
+
+    if (!WC_AES_KEY_IS_SET(aes)) {
         return MISSING_KEY;
     }
 
-    if (aes && (aes->dir != AES_ENCRYPTION)) {
+    if (aes->dir != AES_ENCRYPTION) {
         return KEYUSAGE_E;
     }
 
@@ -1046,11 +1099,19 @@ int wc_AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
 int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
-    if ((aes != NULL) && !WC_AES_KEY_IS_SET(aes)) {
+    if (aes == NULL || out == NULL || in == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if ((sz % WC_AES_BLOCK_SIZE) != 0) {
+        return BAD_LENGTH_E;
+    }
+
+    if (!WC_AES_KEY_IS_SET(aes)) {
         return MISSING_KEY;
     }
 
-    if (aes && (aes->dir != AES_DECRYPTION)) {
+    if (aes->dir != AES_DECRYPTION) {
         return KEYUSAGE_E;
     }
 
