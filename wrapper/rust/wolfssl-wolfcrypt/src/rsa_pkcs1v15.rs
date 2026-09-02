@@ -33,16 +33,23 @@ RSA PKCS#1 v1.5 signing/verifying fits cleanly into `no_std` without `alloc`:
 Signing and verifying delegate to `wc_SignatureGenerate` and
 `wc_SignatureVerify` with `WC_SIGNATURE_TYPE_RSA_W_ENC`, which hash the raw
 message and apply the PKCS#1 v1.5 DigestInfo encoding internally.
+
+[`SigningKey<H, N>`] requires the `random` cfg because signing needs an RNG.
+[`VerifyingKey<H, N>`] and [`Signature<N>`] are available without it, so
+verify-only builds do not have to pull in a random number generator.
 */
 
-#![cfg(all(feature = "signature", rsa, random))]
+#![cfg(all(feature = "signature", rsa))]
 
 use core::ffi::c_void;
 use core::marker::PhantomData;
 use core::mem::size_of;
 
-use signature::{Error, Keypair, SignatureEncoding, SignerMut, Verifier};
+use signature::{Error, SignatureEncoding, Verifier};
+#[cfg(random)]
+use signature::{Keypair, SignerMut};
 
+#[cfg(random)]
 use crate::random::RNG;
 use crate::rsa::RSA;
 use crate::sys;
@@ -140,12 +147,17 @@ fn check_modulus_size(rsa: &RSA, expected: usize) -> Result<(), i32> {
 ///
 /// `H` selects the hash used in DigestInfo encoding; `N` is the expected
 /// modulus size in bytes (e.g. `256` for RSA-2048, `384` for RSA-3072).
+///
+/// Requires the `random` cfg: PKCS#1 v1.5 signing needs an RNG for
+/// blinding.
+#[cfg(random)]
 pub struct SigningKey<H: Hash, const N: usize> {
     inner: RSA,
     rng: RNG,
     _hash: PhantomData<H>,
 }
 
+#[cfg(random)]
 impl<H: Hash, const N: usize> SigningKey<H, N> {
     /// Generate a fresh `N * 8`-bit RSA key with public exponent 65537.
     #[cfg(rsa_keygen)]
@@ -173,6 +185,7 @@ impl<H: Hash, const N: usize> SigningKey<H, N> {
     }
 }
 
+#[cfg(random)]
 impl<H: Hash, const N: usize> SignerMut<Signature<N>> for SigningKey<H, N> {
     fn try_sign(&mut self, msg: &[u8]) -> Result<Signature<N>, Error> {
         let mut sig = [0u8; N];
@@ -327,6 +340,7 @@ impl<H: Hash, const N: usize> Verifier<Signature<N>> for VerifyingKey<H, N> {
     }
 }
 
+#[cfg(random)]
 impl<H: Hash, const N: usize> Keypair for SigningKey<H, N> {
     type VerifyingKey = VerifyingKey<H, N>;
     fn verifying_key(&self) -> VerifyingKey<H, N> {
