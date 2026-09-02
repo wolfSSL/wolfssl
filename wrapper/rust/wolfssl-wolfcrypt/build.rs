@@ -38,6 +38,20 @@ fn wolfssl_repo_lib_dir() -> Result<String> {
     Ok(format!("{}/src/.libs", wolfssl_repo_base_dir()?))
 }
 
+/// wolfSSL library file names to look for.
+const WOLFSSL_LIB_FILES: [&str; 3] =
+    ["libwolfssl.so", "libwolfssl.dylib", "libwolfssl.a"];
+
+/// Returns the name of the wolfSSL library file present in `dir`, if any.
+fn wolfssl_lib_file(dir: &Path) -> Option<&'static str> {
+    WOLFSSL_LIB_FILES.into_iter().find(|name| dir.join(name).exists())
+}
+
+/// Returns true if `dir` holds a shared wolfSSL library.
+fn has_shared_wolfssl_lib(dir: &Path) -> bool {
+    matches!(wolfssl_lib_file(dir), Some("libwolfssl.so") | Some("libwolfssl.dylib"))
+}
+
 /// Directories located under a validated `WOLFSSL_PREFIX` installation.
 struct WolfsslPrefixDirs {
     include: String,
@@ -47,7 +61,8 @@ struct WolfsslPrefixDirs {
 /// Returns the directories of the `WOLFSSL_PREFIX` installation, if usable.
 ///
 /// A prefix is only accepted if it provides both halves of an installation:
-/// a library directory (`lib` or `lib64`) and an `include/wolfssl` directory.
+/// the wolfSSL library under `lib` or `lib64`, and an `include/wolfssl`
+/// directory.
 /// A prefix holding only one of them is rejected outright, so that the headers
 /// and the library we build against always come from the same place.
 ///
@@ -60,8 +75,8 @@ fn wolfssl_prefix_dirs() -> Option<&'static WolfsslPrefixDirs> {
 /// Read `WOLFSSL_PREFIX` from the environment and validate its layout.
 ///
 /// Returns `None` (after warning) if the variable is unset, malformed, or does
-/// not point at a directory containing both `include/wolfssl` and a library
-/// directory.
+/// not point at a directory containing both `include/wolfssl` and the wolfSSL
+/// library file.
 fn compute_wolfssl_prefix_dirs() -> Option<WolfsslPrefixDirs> {
     println!("cargo:rerun-if-env-changed=WOLFSSL_PREFIX");
     let prefix = env::var("WOLFSSL_PREFIX").ok()?;
@@ -78,15 +93,17 @@ fn compute_wolfssl_prefix_dirs() -> Option<WolfsslPrefixDirs> {
         return None;
     }
 
-    // Installations are found under either lib/ or lib64/ depending on the
-    // platform and how wolfSSL was configured.
+    // Installations put the library under either lib/ or lib64/ depending on
+    // the platform and how wolfSSL was configured.  Require the library file
+    // itself to be present, not merely the directory.
     let lib_names = ["lib", "lib64"];
     let Some(lib_dir) = lib_names.iter()
                                  .map(|name| prefix_path.join(name))
-                                 .find(|dir| dir.is_dir()) else {
-        println!("cargo:warning=ignoring WOLFSSL_PREFIX: none of {} are directories",
+                                 .find(|dir| wolfssl_lib_file(dir).is_some()) else {
+        println!("cargo:warning=ignoring WOLFSSL_PREFIX: no {} found in {}",
+                 WOLFSSL_LIB_FILES.join(" / "),
                  lib_names.map(|name| prefix_path.join(name).display().to_string())
-                          .join(", "));
+                          .join(" or "));
         return None;
     };
 
@@ -120,7 +137,7 @@ fn wolfssl_include_dir() -> Result<Option<String>> {
 /// Returns the library directory for libwolfssl.
 ///
 /// If `WOLFSSL_PREFIX` is usable, returns `{WOLFSSL_PREFIX}/lib` or
-/// `{WOLFSSL_PREFIX}/lib64`, whichever exists.
+/// `{WOLFSSL_PREFIX}/lib64`, whichever holds the library.
 /// Otherwise falls back to the in-tree build output directory if it exists.
 fn wolfssl_lib_dir() -> Result<Option<String>> {
     if let Some(dirs) = wolfssl_prefix_dirs() {
@@ -334,9 +351,7 @@ fn setup_wolfssl_link() -> Result<()> {
         println!("cargo:rustc-link-search={}", lib_dir);
 
         // Prefer a shared library if present, otherwise fall back to static.
-        let has_shared = Path::new(&lib_dir).join("libwolfssl.so").exists()
-            || Path::new(&lib_dir).join("libwolfssl.dylib").exists();
-        if has_shared {
+        if has_shared_wolfssl_lib(Path::new(&lib_dir)) {
             println!("cargo:rustc-link-lib=wolfssl");
             // Only set rpath where a dynamic linker exists (not bare-metal).
             let target = env::var("TARGET").unwrap();
