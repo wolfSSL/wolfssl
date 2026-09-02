@@ -740,6 +740,15 @@ static void wb_fp_cache_suite(void)
 #if defined(HAVE_ECC) && !defined(WOLFSSL_SP_MATH) && \
     !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     !defined(WOLFSSL_CRYPTOCELL)
+/* Coordinate-for-coordinate equality, for asserting a _safe wrapper copied
+ * an operand out verbatim. */
+static int wb_point_eq(ecc_point* p1, ecc_point* p2)
+{
+    return (mp_cmp(p1->x, p2->x) == MP_EQ) &&
+           (mp_cmp(p1->y, p2->y) == MP_EQ) &&
+           (mp_cmp(p1->z, p2->z) == MP_EQ);
+}
+
 static void wb_degenerate_points(void)
 {
     mp_int      a, zero, prime;
@@ -824,11 +833,19 @@ static void wb_degenerate_points(void)
     /* --- the _safe wrappers --- */
 
     /* A = -B: the wrapper's own set-to-infinity chain, with and without an
-     * infinity out-pointer, and with the chain faulted. */
+     * infinity out-pointer, and with the chain faulted. The result must be
+     * the (0, 0, 1) infinity representation with the flag raised. */
     (void)wc_ecc_copy_point(P, Q);
     (void)mp_sub(&prime, P->y, Q->y);
     inf = 0;
-    (void)ecc_projective_add_point_safe(P, Q, R, &a, &prime, mp, &inf);
+    if (ecc_projective_add_point_safe(P, Q, R, &a, &prime, mp, &inf)
+            != MP_OKAY ||
+        inf != 1 ||
+        mp_iszero(R->x) != MP_YES || mp_iszero(R->y) != MP_YES ||
+        mp_cmp_d(R->z, 1) != MP_EQ) {
+        WB_NOTE("FAIL: A = -B did not give infinity with the flag set");
+        wb_fail = 1;
+    }
     (void)ecc_projective_add_point_safe(P, Q, R, &a, &prime, mp, NULL);
     for (n = 1; n <= 6; n++) {
         mcdc_fm_arm(n);
@@ -864,7 +881,15 @@ static void wb_degenerate_points(void)
     (void)mp_mulmod(P->z, &zero, &prime, Q->z);
     (void)mp_set(&zero, 0);
     inf = 0;
-    (void)ecc_projective_add_point_safe(P, Q, R, &a, &prime, mp, &inf);
+    if (ecc_projective_add_point_safe(P, Q, R, &a, &prime, mp, &inf)
+            != MP_OKAY ||
+        inf != 1 ||
+        mp_iszero(R->x) != MP_YES || mp_iszero(R->y) != MP_YES ||
+        mp_cmp_d(R->z, 1) != MP_EQ) {
+        WB_NOTE("FAIL: negated representative did not give infinity with "
+                "the flag set");
+        wb_fail = 1;
+    }
     (void)ecc_projective_add_point_safe(P, Q, R, &a, &prime, mp, NULL);
     for (n = 1; n <= 40; n++) {
         mcdc_fm_arm(n);
@@ -904,13 +929,32 @@ static void wb_degenerate_points(void)
     (void)ecc_projective_add_point_safe(P, Q, R, &a, &prime, mp, &inf);
     (void)mp_set(&zero, 0);
 
-    /* A already at infinity (x == y == 0) on either side */
+    /* A already at infinity (x == y == 0) on either side: the result must
+     * be the finite operand, coordinate for coordinate, with the infinity
+     * flag left clear. Doubling infinity must give (0, 0, 1). */
     (void)mp_set(Q->x, 0);
     (void)mp_set(Q->y, 0);
     (void)mp_set(Q->z, 1);
-    (void)ecc_projective_add_point_safe(Q, P, R, &a, &prime, mp, &inf);
-    (void)ecc_projective_add_point_safe(P, Q, R, &a, &prime, mp, &inf);
-    (void)ecc_projective_dbl_point_safe(Q, R, &a, &prime, mp);
+    inf = 0;
+    if (ecc_projective_add_point_safe(Q, P, R, &a, &prime, mp, &inf)
+            != MP_OKAY ||
+        inf != 0 || wb_point_eq(R, P) == 0) {
+        WB_NOTE("FAIL: infinity + P did not give P with the flag clear");
+        wb_fail = 1;
+    }
+    inf = 0;
+    if (ecc_projective_add_point_safe(P, Q, R, &a, &prime, mp, &inf)
+            != MP_OKAY ||
+        inf != 0 || wb_point_eq(R, P) == 0) {
+        WB_NOTE("FAIL: P + infinity did not give P with the flag clear");
+        wb_fail = 1;
+    }
+    if (ecc_projective_dbl_point_safe(Q, R, &a, &prime, mp) != MP_OKAY ||
+        mp_iszero(R->x) != MP_YES || mp_iszero(R->y) != MP_YES ||
+        mp_cmp_d(R->z, 1) != MP_EQ) {
+        WB_NOTE("FAIL: doubling infinity did not give (0, 0, 1)");
+        wb_fail = 1;
+    }
 
     /* P->z == 0 -> doubling yields Z == 0, so the dbl wrapper's own
      * set-to-infinity chain runs (and is then faulted). */
@@ -921,6 +965,36 @@ static void wb_degenerate_points(void)
         mcdc_fm_arm(n);
         (void)ecc_projective_dbl_point_safe(Q, R, &a, &prime, mp);
         mcdc_fm_disarm();
+    }
+
+    /* Finite (0, y, 1) with y != 0 (off-curve is fine here) plus infinity,
+     * in both operand orders. Both x ordinates are zero, so the raw add
+     * formula's H is zero and it returns Z == 0 with a nonzero X - the
+     * shape that raises the wrapper's own infinity note. The operand
+     * selection must override that note: the result is the finite operand
+     * copied out verbatim and the flag stays clear. Regression for the add
+     * reporting infinity while returning a finite point. */
+    (void)mp_set(Q->x, 0);
+    (void)mp_set(Q->y, 5);
+    (void)mp_set(Q->z, 1);
+    (void)mp_set(P->x, 0);
+    (void)mp_set(P->y, 0);
+    (void)mp_set(P->z, 1);
+    inf = 0;
+    if (ecc_projective_add_point_safe(Q, P, R, &a, &prime, mp, &inf)
+            != MP_OKAY ||
+        inf != 0 || wb_point_eq(R, Q) == 0) {
+        WB_NOTE("FAIL: (0, y, 1) + infinity did not give the finite operand "
+                "with the flag clear");
+        wb_fail = 1;
+    }
+    inf = 0;
+    if (ecc_projective_add_point_safe(P, Q, R, &a, &prime, mp, &inf)
+            != MP_OKAY ||
+        inf != 0 || wb_point_eq(R, Q) == 0) {
+        WB_NOTE("FAIL: infinity + (0, y, 1) did not give the finite operand "
+                "with the flag clear");
+        wb_fail = 1;
     }
 
     WB_NOTE("degenerate point-operand vectors done");
