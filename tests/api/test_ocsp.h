@@ -41,5 +41,6 @@ int test_ocsp_ancestor_responder_rejected(void);
 int test_ocsp_forged_responder_cert_rejected(void);
 int test_wolfIO_DecodeUrl_crlf_reject(void);
 int test_wolfIO_DecodeUrl_host_bounds(void);
+int test_ocsp_crl_reason_str(void);
 #endif /* WOLFSSL_TEST_OCSP_H */
 

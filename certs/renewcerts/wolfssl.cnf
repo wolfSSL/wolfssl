@@ -129,6 +129,53 @@ basicConstraints=CA:true
 subjectAltName=DNS:example.com, IP:127.0.0.1
 extendedKeyUsage=serverAuth, clientAuth
 
+# Leaf whose extendedKeyUsage is anyExtendedKeyUsage (2.5.29.37.0).  Every
+# purpose check has to accept it, which is what X509_check_purpose() and the
+# handshake's own key usage check are exercised against.
+[ any_eku ]
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always,issuer:always
+basicConstraints=CA:FALSE
+keyUsage=digitalSignature, keyEncipherment
+extendedKeyUsage=anyExtendedKeyUsage
+
+[ code_sign ]
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always,issuer:always
+basicConstraints=CA:FALSE
+# The CA/Browser Forum baseline that OpenSSL's check_purpose_code_sign()
+# applies: keyUsage has to be critical and allow digital signatures while
+# allowing neither certificate nor CRL signing, and extendedKeyUsage has to
+# allow code signing and neither any use nor server authentication.
+keyUsage=critical, digitalSignature
+extendedKeyUsage=codeSigning
+
+[ ns_ca_only ]
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always,issuer:always
+# Deliberately no basicConstraints and no keyUsage: the netscape certificate
+# type is then the only thing that can say this is a CA, which is the case
+# OpenSSL's check_ca() reports differently from all the others.  sslCA is
+# named but emailCA is not, so the TLS roles accept it and S/MIME does not.
+nsCertType=sslCA
+
+# Leaf carrying a netscape-cert-type extension.  Its extendedKeyUsage allows
+# both TLS roles, so the netscape type is what decides between them: the
+# client role is accepted and the server role rejected.
+[ ns_cert_type ]
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always,issuer:always
+basicConstraints=CA:FALSE
+keyUsage=digitalSignature, keyEncipherment
+extendedKeyUsage=serverAuth, clientAuth
+nsCertType=client
+
+# Deliberately empty.  A version 1 certificate carries no extensions at all,
+# and "openssl req -x509 -x509v1" still applies the x509_extensions named in
+# [ req ] unless it is pointed at some other section, so the version 1
+# certificates name this one in order to get none.
+[ v1_no_exts ]
+
 #wolfssl extensions for intermediate CAs
 [wolfssl_opts_ICA]
 subjectKeyIdentifier=hash

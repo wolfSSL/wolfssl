@@ -2137,7 +2137,8 @@ int test_TLSX_CSR2_Parse_bounds(void)
 #if defined(WOLFSSL_TEST_STATIC_BUILD) &&  defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && !defined(NO_WOLFSSL_SERVER) && \
     defined(TEST_TLS_BOUNDS_SERVER_CERT) && \
     defined(HAVE_TLS_EXTENSIONS) && \
-    !defined(WOLFSSL_NO_TLS12)
+    !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_CERTS) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
     EXPECT_DECLS;
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;

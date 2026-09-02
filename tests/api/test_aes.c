@@ -8239,7 +8239,8 @@ int test_wc_AesKeyWrapVectors(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_AES) && defined(HAVE_AES_KEYWRAP) && !defined(HAVE_FIPS) && \
-    !defined(HAVE_SELFTEST)
+    !defined(HAVE_SELFTEST) && \
+    defined(WOLFSSL_AES_128)
     static const byte key1[] = {
         0x6f, 0x67, 0x48, 0x6d, 0x1e, 0x91, 0x44, 0x19,
         0xcb, 0x43, 0xc2, 0x85, 0x09, 0xc7, 0xc1, 0xea
@@ -8341,7 +8342,8 @@ int test_wc_AesKeyWrapDecisionCoverage(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_AES) && defined(HAVE_AES_KEYWRAP) && !defined(HAVE_FIPS) && \
-    !defined(HAVE_SELFTEST)
+    !defined(HAVE_SELFTEST) && \
+    defined(WOLFSSL_AES_128)
     static const byte kek[16] = {
         0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
         0x08,0x09,0x0A,0x0B,0x0C,0x0D,0x0E,0x0F
@@ -8452,7 +8454,8 @@ int test_wc_AesKeyWrapDecisionCoverage(void)
 int test_wc_AesGcmDecisionCoverage(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_AES) && defined(HAVE_AESGCM)
+#if !defined(NO_AES) && defined(HAVE_AESGCM) && \
+    defined(WOLFSSL_AES_128)
     static const byte key[16] = {
         0xFE,0xFF,0xE9,0x92,0x86,0x65,0x73,0x1C,
         0x6D,0x6A,0x8F,0x94,0x67,0x30,0x83,0x08
@@ -8521,7 +8524,8 @@ int test_wc_AesFeatureCoverage(void)
  * CCM block additionally excludes old FIPS (its AAD-only case diverges there,
  * see the per-block note); the key-wrap block excludes all FIPS + self-test.
  * The open MC/DC builds are unaffected. */
-#if !defined(NO_AES) && defined(HAVE_AESGCM) && !defined(HAVE_SELFTEST)
+#if !defined(NO_AES) && defined(HAVE_AESGCM) && !defined(HAVE_SELFTEST) && \
+    defined(WOLFSSL_AES_128)
     /* ---- AES-GCM streaming API: multi-chunk AAD and data ---- */
     /* Uses a hardcoded 256-bit key, so requires AES-256. */
 #if defined(WOLFSSL_AESGCM_STREAM) && defined(WOLFSSL_AES_256)
