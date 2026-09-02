@@ -324,6 +324,13 @@ enum {
     KYBER_LEVEL3 = KYBER768,
     KYBER_LEVEL5 = KYBER1024,
 
+    /* Pass to wc_MlKemKey_Init to set the object up without committing to a
+     * parameter set, leaving a DER decode to take it from the algorithm OID.
+     * Deliberately not 0: a zeroed object is indistinguishable from one
+     * holding WC_ML_KEM_512, so MLKEM_FLAG_TYPE_SET is what actually
+     * separates the two. */
+    WC_ML_KEM_TYPE_UNSET = 0x20,
+
     /* Symmetric data size. */
     WC_ML_KEM_SYM_SZ            = 32,
     /* Shared secret size. */
@@ -342,6 +349,8 @@ enum {
     MLKEM_FLAG_BOTH_SET = 0x0003,
     MLKEM_FLAG_H_SET    = 0x0004,
     MLKEM_FLAG_A_SET    = 0x0008,
+    /* Set by wc_MlKemKey_Init when a parameter set was named. */
+    MLKEM_FLAG_TYPE_SET = 0x0010,
 
     /* 2 bits of random used to create noise value. */
     MLKEM_CBD_ETA2      = 2,
