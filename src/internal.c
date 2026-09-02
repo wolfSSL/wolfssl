@@ -28803,6 +28803,14 @@ static int ssl_in_handshake(WOLFSSL *ssl, int sending_data)
     return 0;
 }
 
+/* TLS 1.3 server can send app data before client's Finished.
+ * Caller checks version. */
+static int IsTls13HalfRttSend(const WOLFSSL* ssl)
+{
+    return ssl->options.side == WOLFSSL_SERVER_END &&
+           ssl->options.acceptState >= TLS13_ACCEPT_FINISHED_SENT;
+}
+
 int SendData(WOLFSSL* ssl, const void* data, size_t sz)
 {
     word32 sent = 0; /* plainText size */
@@ -28856,9 +28864,7 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
     }
     else
 #endif
-    if (IsAtLeastTLSv1_3(ssl->version) &&
-            ssl->options.side == WOLFSSL_SERVER_END &&
-            ssl->options.acceptState >= TLS13_ACCEPT_FINISHED_SENT) {
+    if (IsAtLeastTLSv1_3(ssl->version) && IsTls13HalfRttSend(ssl)) {
         /* We can send data without waiting on peer finished msg */
         WOLFSSL_MSG("server sending data before receiving client finished");
     }
@@ -29011,10 +29017,24 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
         }
 #endif /* WOLFSSL_DTLS13 */
 
-        if (sent == (word32)sz) break;
+        if (sz == 0) {
+            int coverTraffic = 0;
+#ifdef WOLFSSL_TLS13
+            /* Check sendCoverTraffic; paddingSz 0 is valid. handShakeDone
+             * excludes early data. If downgraded to TLS 1.2, leave armed
+             * so caller sees failure and clears it. */
+            coverTraffic = ssl->options.tls1_3 && !ssl->options.dtls &&
+                           (ssl->options.handShakeDone ||
+                            IsTls13HalfRttSend(ssl)) &&
+                           ssl->options.sendCoverTraffic;
+#endif
+            if (!coverTraffic)
+                break;
+        }
+        else if (sent == (word32)sz) break;
 
         buffSz = (int)((word32)sz - sent);
-        if (buffSz <= 0) {
+        if (buffSz < 0 || (buffSz == 0 && sz != 0)) {
             WOLFSSL_MSG("error: sent size exceeds input size");
             ssl->error = BAD_FUNC_ARG;
             return WOLFSSL_FATAL_ERROR;
@@ -29044,9 +29064,26 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
 #endif /* WOLFSSL_DTLS */
         {
             int maxFrag = wolfSSL_GetMaxFragSize(ssl);
-            if (maxFrag > 0)
-                buffSz = min((word32)buffSz, (word32)maxFrag);
+            if (maxFrag > 0) {
+                int maxData;
+#ifdef WOLFSSL_TLS13
+                /* Leave room: BuildTls13Message() merges pending cover
+                 * traffic padding into the next record too. The public API
+                 * keeps padding below maxFrag, so at least one plaintext
+                 * byte always fits; the clamp is only a backstop. */
+                word16 padSz = Tls13GetCoverTrafficPaddingSz(ssl);
+                maxData = (padSz < (word16)maxFrag) ? maxFrag - padSz : 0;
+#else
+                maxData = maxFrag;
+#endif
+                buffSz = min((word32)buffSz, (word32)maxData);
+            }
             outputSz = wolfssl_local_GetRecordSize(ssl, (word32)buffSz, 1);
+#ifdef WOLFSSL_TLS13
+            /* wolfssl_local_GetRecordSize() doesn't know about cover traffic
+             * padding; account for what BuildTls13Message() will add. */
+            outputSz += (int)Tls13GetCoverTrafficPaddingSz(ssl);
+#endif
         }
 
         /* check for available size, it does also DTLS MTU checks */
@@ -29111,6 +29148,14 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
 #ifdef WOLFSSL_TLS13
             sendSz = BuildTls13Message(ssl, out, outputSz, sendBuffer, buffSz,
                                        application_data, 0, 0, 1);
+            /* Clear cover traffic request for subsequent records, unless
+             * an asynchronous build is pending. */
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            if (sendSz != WC_NO_ERR_TRACE(WC_PENDING_E))
+        #endif
+            {
+                Tls13ClearCoverTraffic(ssl);
+            }
 #else
             sendSz = BUFFER_ERROR;
 #endif
