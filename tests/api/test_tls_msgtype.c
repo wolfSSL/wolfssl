@@ -1181,7 +1181,8 @@ int test_tls_msgtype_server_cert_type_tls12(void)
 int test_tls_msgtype_connection_id(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_DTLS_CID) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_DTLS_CID) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
     defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;

@@ -30,6 +30,7 @@
 
 #include <wolfssl/openssl/evp.h>
 #include <wolfssl/openssl/kdf.h>
+#include <wolfssl/openssl/pem.h>
 #ifdef WOLFSSL_HAVE_MLDSA
     #include <wolfssl/wolfcrypt/wc_mldsa.h>
 #endif
@@ -3835,6 +3836,472 @@ int test_wolfSSL_CTX_use_PrivateKey_pkcs8_repopulate(void)
     XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     wolfSSL_CTX_free(ctx);
     wolfSSL_EVP_PKEY_free(pkey);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if ((defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_EXPORT)) || \
+     (defined(HAVE_CURVE448) && defined(HAVE_CURVE448_KEY_EXPORT))) && \
+    defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_BIO)
+/* Check a Montgomery curve key file is read the way RFC 8410 defines it.
+ *
+ * The value those encodings carry is the little-endian scalar of RFC 7748, so
+ * what the raw getter hands back has to equal the trailing key-sized bytes of
+ * the DER holding the same key.  Reading the value with the other endianness
+ * yields a different - and differently clamped - key, which neither a return
+ * value nor a length check would notice.
+ *
+ * @param [in] pemFile  PEM file to read.
+ * @param [in] derFile  DER encoding of the same key.
+ * @param [in] keySz    Size of the raw key in bytes.
+ * @param [in] priv     1 to read a private key, 0 to read a public key.
+ * @param [in] useBio    1 to read through a BIO, 0 to read from the file.
+ *                       The BIO reader keeps its own copy of the key type
+ *                       mapping, so it is exercised rather than assumed to
+ *                       follow the file reader.
+ * @return  TEST_SUCCESS on success.
+ */
+static int test_montgomery_key_file(const char* pemFile, const char* derFile,
+    int keySz, int priv, int useBio)
+{
+    EXPECT_DECLS;
+    XFILE f = XBADFILE;
+    EVP_PKEY* pkey = NULL;
+    byte der[128];
+    byte raw[64];
+    int derSz = 0;
+    size_t rawLen = sizeof(raw);
+
+    ExpectTrue((f = XFOPEN(derFile, "rb")) != XBADFILE);
+    if (f != XBADFILE) {
+        derSz = (int)XFREAD(der, 1, sizeof(der), f);
+        XFCLOSE(f);
+    }
+    ExpectIntGT(derSz, keySz);
+
+    if (useBio) {
+        WOLFSSL_BIO* bio = NULL;
+
+        ExpectNotNull(bio = wolfSSL_BIO_new_file(pemFile, "rb"));
+        if (priv) {
+            ExpectNotNull(pkey = wolfSSL_PEM_read_bio_PrivateKey(bio, NULL,
+                NULL, NULL));
+        }
+        else {
+            ExpectNotNull(pkey = wolfSSL_PEM_read_bio_PUBKEY(bio, NULL, NULL,
+                NULL));
+        }
+        wolfSSL_BIO_free(bio);
+    }
+    else {
+        f = XBADFILE;
+        ExpectTrue((f = XFOPEN(pemFile, "rb")) != XBADFILE);
+        if (f != XBADFILE) {
+            if (priv) {
+                ExpectNotNull(pkey = wolfSSL_PEM_read_PrivateKey(f, NULL, NULL,
+                    NULL));
+            }
+            else {
+                ExpectNotNull(pkey = wolfSSL_PEM_read_PUBKEY(f, NULL, NULL,
+                    NULL));
+            }
+            XFCLOSE(f);
+        }
+    }
+
+    if (priv) {
+        ExpectIntEQ(EVP_PKEY_get_raw_private_key(pkey, raw, &rawLen), 1);
+    }
+    else {
+        ExpectIntEQ(EVP_PKEY_get_raw_public_key(pkey, raw, &rawLen), 1);
+    }
+    ExpectIntEQ((int)rawLen, keySz);
+    if (derSz > keySz) {
+        ExpectIntEQ(XMEMCMP(raw, der + derSz - keySz, (size_t)keySz), 0);
+    }
+
+    wolfSSL_EVP_PKEY_free(pkey);
+    return EXPECT_RESULT();
+}
+#endif
+
+int test_wolfSSL_EVP_PKEY_get_raw_key(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA)
+    unsigned char out[128];
+    size_t len = 0;
+#if (defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_EXPORT)) || \
+    (defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)) || \
+    (defined(HAVE_CURVE448) && defined(HAVE_CURVE448_KEY_EXPORT)) || \
+    (defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT))
+    EVP_PKEY* pkey = NULL;
+#endif
+
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)
+    {
+        /* RFC 8032 sec. 7.1 test 1: the public key really is derived from
+         * this seed, so an equality check catches a getter that hands back
+         * the wrong half or a stale cache. */
+        static const byte edPriv[] = {
+            0x9d,0x61,0xb1,0x9d,0xef,0xfd,0x5a,0x60,
+            0xba,0x84,0x4a,0xf4,0x92,0xec,0x2c,0xc4,
+            0x44,0x49,0xc5,0x69,0x7b,0x32,0x69,0x19,
+            0x70,0x3b,0xac,0x03,0x1c,0xae,0x7f,0x60
+        };
+        static const byte edPub[] = {
+            0xd7,0x5a,0x98,0x01,0x82,0xb1,0x0a,0xb7,
+            0xd5,0x4b,0xfe,0xd3,0xc9,0x64,0x07,0x3a,
+            0x0e,0xe1,0x72,0xf3,0xda,0xa6,0x23,0x25,
+            0xaf,0x02,0x1a,0x68,0xf7,0x07,0x51,0x1a
+        };
+
+        ExpectNotNull(pkey = EVP_PKEY_new_raw_private_key(EVP_PKEY_ED25519,
+            NULL, edPriv, sizeof(edPriv)));
+        /* A NULL buffer asks only for the size. */
+        len = 0;
+        ExpectIntEQ(EVP_PKEY_get_raw_private_key(pkey, NULL, &len), 1);
+        ExpectIntEQ((int)len, (int)sizeof(edPriv));
+        /* Too small a buffer fails and reports what is needed. */
+        len = 8;
+        ExpectIntEQ(EVP_PKEY_get_raw_private_key(pkey, out, &len), 0);
+        ExpectIntEQ((int)len, (int)sizeof(edPriv));
+        /* The seed comes back unchanged. */
+        XMEMSET(out, 0, sizeof(out));
+        len = sizeof(out);
+        ExpectIntEQ(EVP_PKEY_get_raw_private_key(pkey, out, &len), 1);
+        ExpectIntEQ((int)len, (int)sizeof(edPriv));
+        ExpectIntEQ(XMEMCMP(out, edPriv, sizeof(edPriv)), 0);
+        /* And the public key is the one RFC 8032 derives from it, not the
+         * seed handed back a second time. */
+        XMEMSET(out, 0, sizeof(out));
+        len = sizeof(out);
+        ExpectIntEQ(EVP_PKEY_get_raw_public_key(pkey, out, &len), 1);
+        ExpectIntEQ((int)len, (int)sizeof(edPub));
+        ExpectIntEQ(XMEMCMP(out, edPub, sizeof(edPub)), 0);
+        EVP_PKEY_free(pkey);
+        pkey = NULL;
+
+        /* A key built from the public alone reports it, and has no private
+         * to report. */
+        ExpectNotNull(pkey = EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519,
+            NULL, edPub, sizeof(edPub)));
+        XMEMSET(out, 0, sizeof(out));
+        len = sizeof(out);
+        ExpectIntEQ(EVP_PKEY_get_raw_public_key(pkey, out, &len), 1);
+        ExpectIntEQ(XMEMCMP(out, edPub, sizeof(edPub)), 0);
+        len = sizeof(out);
+        ExpectIntEQ(EVP_PKEY_get_raw_private_key(pkey, out, &len), 0);
+        EVP_PKEY_free(pkey);
+        pkey = NULL;
+    }
+#endif
+
+#if defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_EXPORT)
+    {
+        /* RFC 7748 sec. 6.1: Alice's scalar and her public key. */
+        static const byte xPriv[] = {
+            0x77,0x07,0x6d,0x0a,0x73,0x18,0xa5,0x7d,
+            0x3c,0x16,0xc1,0x72,0x51,0xb2,0x66,0x45,
+            0xdf,0x4c,0x2f,0x87,0xeb,0xc0,0x99,0x2a,
+            0xb1,0x77,0xfb,0xa5,0x1d,0xb9,0x2c,0x2a
+        };
+        static const byte xPub[] = {
+            0x85,0x20,0xf0,0x09,0x89,0x30,0xa7,0x54,
+            0x74,0x8b,0x7d,0xdc,0xb4,0x3e,0xf7,0x5a,
+            0x0d,0xbf,0x3a,0x0d,0x26,0x38,0x1a,0xf4,
+            0xeb,0xa4,0xa9,0x8e,0xaa,0x9b,0x4e,0x6a
+        };
+
+        ExpectNotNull(pkey = EVP_PKEY_new_raw_private_key(EVP_PKEY_X25519,
+            NULL, xPriv, sizeof(xPriv)));
+        /* wolfCrypt clamps the scalar on import, so this only matches if the
+         * getter reports what the caller set rather than re-exporting it. */
+        XMEMSET(out, 0, sizeof(out));
+        len = sizeof(out);
+        ExpectIntEQ(EVP_PKEY_get_raw_private_key(pkey, out, &len), 1);
+        ExpectIntEQ((int)len, (int)sizeof(xPriv));
+        ExpectIntEQ(XMEMCMP(out, xPriv, sizeof(xPriv)), 0);
+        /* The public key is the one RFC 7748 derives. */
+        XMEMSET(out, 0, sizeof(out));
+        len = sizeof(out);
+        ExpectIntEQ(EVP_PKEY_get_raw_public_key(pkey, out, &len), 1);
+        ExpectIntEQ((int)len, (int)sizeof(xPub));
+        ExpectIntEQ(XMEMCMP(out, xPub, sizeof(xPub)), 0);
+        EVP_PKEY_free(pkey);
+        pkey = NULL;
+
+        ExpectNotNull(pkey = EVP_PKEY_new_raw_public_key(EVP_PKEY_X25519,
+            NULL, xPub, sizeof(xPub)));
+        XMEMSET(out, 0, sizeof(out));
+        len = sizeof(out);
+        ExpectIntEQ(EVP_PKEY_get_raw_public_key(pkey, out, &len), 1);
+        ExpectIntEQ(XMEMCMP(out, xPub, sizeof(xPub)), 0);
+        len = sizeof(out);
+        ExpectIntEQ(EVP_PKEY_get_raw_private_key(pkey, out, &len), 0);
+        EVP_PKEY_free(pkey);
+        pkey = NULL;
+    }
+#endif
+
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT)
+    {
+        /* RFC 8032 sec. 7.4, the 57 octet blank-message key pair. */
+        static const byte ed448Priv[] = {
+            0x6c,0x82,0xa5,0x62,0xcb,0x80,0x8d,0x10,
+            0xd6,0x32,0xbe,0x89,0xc8,0x51,0x3e,0xbf,
+            0x6c,0x92,0x9f,0x34,0xdd,0xfa,0x8c,0x9f,
+            0x63,0xc9,0x96,0x0e,0xf6,0xe3,0x48,0xa3,
+            0x52,0x8c,0x8a,0x3f,0xcc,0x2f,0x04,0x4e,
+            0x39,0xa3,0xfc,0x5b,0x94,0x49,0x2f,0x8f,
+            0x03,0x2e,0x75,0x49,0xa2,0x00,0x98,0xf9,
+            0x5b
+        };
+        static const byte ed448Pub[] = {
+            0x5f,0xd7,0x44,0x9b,0x59,0xb4,0x61,0xfd,
+            0x2c,0xe7,0x87,0xec,0x61,0x6a,0xd4,0x6a,
+            0x1d,0xa1,0x34,0x24,0x85,0xa7,0x0e,0x1f,
+            0x8a,0x0e,0xa7,0x5d,0x80,0xe9,0x67,0x78,
+            0xed,0xf1,0x24,0x76,0x9b,0x46,0xc7,0x06,
+            0x1b,0xd6,0x78,0x3d,0xf1,0xe5,0x0f,0x6c,
+            0xd1,0xfa,0x1a,0xbe,0xaf,0xe8,0x25,0x61,
+            0x80
+        };
+
+        ExpectNotNull(pkey = EVP_PKEY_new_raw_private_key(EVP_PKEY_ED448,
+            NULL, ed448Priv, sizeof(ed448Priv)));
+        XMEMSET(out, 0, sizeof(out));
+        len = sizeof(out);
+        ExpectIntEQ(EVP_PKEY_get_raw_private_key(pkey, out, &len), 1);
+        ExpectIntEQ((int)len, (int)sizeof(ed448Priv));
+        ExpectIntEQ(XMEMCMP(out, ed448Priv, sizeof(ed448Priv)), 0);
+        XMEMSET(out, 0, sizeof(out));
+        len = sizeof(out);
+        ExpectIntEQ(EVP_PKEY_get_raw_public_key(pkey, out, &len), 1);
+        ExpectIntEQ((int)len, (int)sizeof(ed448Pub));
+        ExpectIntEQ(XMEMCMP(out, ed448Pub, sizeof(ed448Pub)), 0);
+        EVP_PKEY_free(pkey);
+        pkey = NULL;
+
+        /* A key built from the public alone reports it, and has no private to
+         * report.  With no private key to derive from, the public key is read
+         * off the key itself - the other of the two branches. */
+        ExpectNotNull(pkey = EVP_PKEY_new_raw_public_key(EVP_PKEY_ED448,
+            NULL, ed448Pub, sizeof(ed448Pub)));
+        XMEMSET(out, 0, sizeof(out));
+        len = sizeof(out);
+        ExpectIntEQ(EVP_PKEY_get_raw_public_key(pkey, out, &len), 1);
+        ExpectIntEQ(XMEMCMP(out, ed448Pub, sizeof(ed448Pub)), 0);
+        len = sizeof(out);
+        ExpectIntEQ(EVP_PKEY_get_raw_private_key(pkey, out, &len), 0);
+        EVP_PKEY_free(pkey);
+        pkey = NULL;
+    }
+
+#if !defined(NO_FILESYSTEM) && !defined(NO_BIO)
+    {
+        /* The Ed25519 case above covers a key decoded from a file rather than
+         * imported raw; Ed448 needs the same, because it exports through its
+         * own branch.  The public key is derived from the private one, so it
+         * has to be right on every call and not only the first - the same
+         * check the Ed25519 case makes. */
+        XFILE f448 = XBADFILE;
+        EVP_PKEY* filePkey448 = NULL;
+        unsigned char pub1[57];
+        unsigned char pub2[57];
+        unsigned char zeros[57];
+        size_t len1 = sizeof(pub1);
+        size_t len2 = sizeof(pub2);
+
+        XMEMSET(zeros, 0, sizeof(zeros));
+        ExpectTrue((f448 = XFOPEN("./certs/ed448/server-ed448-priv.pem",
+            "rb")) != XBADFILE);
+        if (f448 != XBADFILE) {
+            ExpectNotNull(filePkey448 = wolfSSL_PEM_read_PrivateKey(f448, NULL,
+                NULL, NULL));
+            XFCLOSE(f448);
+        }
+        len = sizeof(out);
+        ExpectIntEQ(EVP_PKEY_get_raw_private_key(filePkey448, out, &len), 1);
+        ExpectIntEQ((int)len, 57);
+        ExpectIntEQ(EVP_PKEY_get_raw_public_key(filePkey448, pub1, &len1), 1);
+        ExpectIntEQ((int)len1, 57);
+        ExpectIntEQ(EVP_PKEY_get_raw_public_key(filePkey448, pub2, &len2), 1);
+        ExpectIntEQ((int)len2, 57);
+        ExpectIntEQ(XMEMCMP(pub1, pub2, sizeof(pub1)), 0);
+        ExpectIntNE(XMEMCMP(pub1, zeros, sizeof(pub1)), 0);
+        EVP_PKEY_free(filePkey448);
+    }
+#endif
+#endif
+
+#if defined(HAVE_CURVE448) && defined(HAVE_CURVE448_KEY_EXPORT)
+    {
+        /* RFC 7748 sec. 6.2, party A's key pair.  The RFC prints these in
+         * the little-endian wire order the raw key API takes, so the bytes
+         * below read the same as the document.
+         *
+         * wolfCrypt's own curve448_test() carries the same pair byte
+         * reversed, because it feeds them to wc_curve448_import_private_raw()
+         * whose default is big-endian; do not copy those arrays here. */
+        static const byte x448Priv[] = {
+            0x9a,0x8f,0x49,0x25,0xd1,0x51,0x9f,0x57,
+            0x75,0xcf,0x46,0xb0,0x4b,0x58,0x00,0xd4,
+            0xee,0x9e,0xe8,0xba,0xe8,0xbc,0x55,0x65,
+            0xd4,0x98,0xc2,0x8d,0xd9,0xc9,0xba,0xf5,
+            0x74,0xa9,0x41,0x97,0x44,0x89,0x73,0x91,
+            0x00,0x63,0x82,0xa6,0xf1,0x27,0xab,0x1d,
+            0x9a,0xc2,0xd8,0xc0,0xa5,0x98,0x72,0x6b
+        };
+        static const byte x448Pub[] = {
+            0x9b,0x08,0xf7,0xcc,0x31,0xb7,0xe3,0xe6,
+            0x7d,0x22,0xd5,0xae,0xa1,0x21,0x07,0x4a,
+            0x27,0x3b,0xd2,0xb8,0x3d,0xe0,0x9c,0x63,
+            0xfa,0xa7,0x3d,0x2c,0x22,0xc5,0xd9,0xbb,
+            0xc8,0x36,0x64,0x72,0x41,0xd9,0x53,0xd4,
+            0x0c,0x5b,0x12,0xda,0x88,0x12,0x0d,0x53,
+            0x17,0x7f,0x80,0xe5,0x32,0xc4,0x1f,0xa0
+        };
+
+        ExpectNotNull(pkey = EVP_PKEY_new_raw_private_key(EVP_PKEY_X448, NULL,
+            x448Priv, sizeof(x448Priv)));
+        /* As with X25519 the scalar is clamped on import, so this only holds
+         * if the getter reports what the caller set. */
+        XMEMSET(out, 0, sizeof(out));
+        len = sizeof(out);
+        ExpectIntEQ(EVP_PKEY_get_raw_private_key(pkey, out, &len), 1);
+        ExpectIntEQ((int)len, (int)sizeof(x448Priv));
+        ExpectIntEQ(XMEMCMP(out, x448Priv, sizeof(x448Priv)), 0);
+        /* And the public key is the one RFC 7748 derives from that scalar. */
+        XMEMSET(out, 0, sizeof(out));
+        len = sizeof(out);
+        ExpectIntEQ(EVP_PKEY_get_raw_public_key(pkey, out, &len), 1);
+        ExpectIntEQ((int)len, (int)sizeof(x448Pub));
+        ExpectIntEQ(XMEMCMP(out, x448Pub, sizeof(x448Pub)), 0);
+        EVP_PKEY_free(pkey);
+        pkey = NULL;
+
+        /* A key built from the public alone reports it, and has no private
+         * to report. */
+        ExpectNotNull(pkey = EVP_PKEY_new_raw_public_key(EVP_PKEY_X448, NULL,
+            x448Pub, sizeof(x448Pub)));
+        XMEMSET(out, 0, sizeof(out));
+        len = sizeof(out);
+        ExpectIntEQ(EVP_PKEY_get_raw_public_key(pkey, out, &len), 1);
+        ExpectIntEQ(XMEMCMP(out, x448Pub, sizeof(x448Pub)), 0);
+        len = sizeof(out);
+        ExpectIntEQ(EVP_PKEY_get_raw_private_key(pkey, out, &len), 0);
+        EVP_PKEY_free(pkey);
+        pkey = NULL;
+    }
+#endif
+
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_BIO)
+    {
+        /* A key decoded from a file, rather than imported raw.  Its
+         * pkey.ptr holds the DER, not raw bytes, so this covers the branch
+         * that exports from the wolfCrypt key.  Reporting the DER here would
+         * hand back 48 bytes of PKCS#8 instead of the 32 byte seed. */
+        XFILE f = XBADFILE;
+        EVP_PKEY* filePkey = NULL;
+
+        ExpectTrue((f = XFOPEN("./certs/ed25519/server-ed25519-priv.pem",
+            "rb")) != XBADFILE);
+        if (f != XBADFILE) {
+            ExpectNotNull(filePkey = wolfSSL_PEM_read_PrivateKey(f, NULL,
+                NULL, NULL));
+            XFCLOSE(f);
+        }
+        len = sizeof(out);
+        ExpectIntEQ(EVP_PKEY_get_raw_private_key(filePkey, out, &len), 1);
+        ExpectIntEQ((int)len, 32);
+        len = sizeof(out);
+        ExpectIntEQ(EVP_PKEY_get_raw_public_key(filePkey, out, &len), 1);
+        ExpectIntEQ((int)len, 32);
+        {
+            /* The public key is derived from the private one, and has to
+             * survive being asked for more than once - the usual OpenSSL
+             * pattern of a size query followed by a fetch asks twice.  A
+             * derivation that marks the key as having a public part without
+             * storing one answers every later call with zeros, and a check of
+             * only the return value and the length would not see it. */
+            unsigned char pub1[32];
+            unsigned char pub2[32];
+            unsigned char zeros[32];
+            size_t len1 = sizeof(pub1);
+            size_t len2 = sizeof(pub2);
+
+            XMEMSET(zeros, 0, sizeof(zeros));
+            ExpectIntEQ(EVP_PKEY_get_raw_public_key(filePkey, pub1, &len1), 1);
+            ExpectIntEQ((int)len1, 32);
+            ExpectIntEQ(EVP_PKEY_get_raw_public_key(filePkey, pub2, &len2), 1);
+            ExpectIntEQ((int)len2, 32);
+            ExpectIntEQ(XMEMCMP(pub1, pub2, sizeof(pub1)), 0);
+            ExpectIntNE(XMEMCMP(pub1, zeros, sizeof(pub1)), 0);
+        }
+        EVP_PKEY_free(filePkey);
+    }
+#endif
+
+    /* A key type with no raw form is refused rather than answered with
+     * something else. */
+#if !defined(NO_RSA) && defined(USE_CERT_BUFFERS_2048)
+    {
+        EVP_PKEY* rsa = NULL;
+        const unsigned char* p = client_key_der_2048;
+
+        ExpectNotNull(rsa = d2i_PrivateKey(EVP_PKEY_RSA, NULL, &p,
+            (long)sizeof_client_key_der_2048));
+        len = sizeof(out);
+        ExpectIntEQ(EVP_PKEY_get_raw_private_key(rsa, out, &len), 0);
+        len = sizeof(out);
+        ExpectIntEQ(EVP_PKEY_get_raw_public_key(rsa, out, &len), 0);
+        EVP_PKEY_free(rsa);
+    }
+#endif
+
+    /* Bad arguments. */
+    len = sizeof(out);
+    ExpectIntEQ(EVP_PKEY_get_raw_private_key(NULL, out, &len), 0);
+    ExpectIntEQ(EVP_PKEY_get_raw_public_key(NULL, out, &len), 0);
+#if defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_EXPORT)
+    {
+        byte raw[32];
+        XMEMSET(raw, 1, sizeof(raw));
+        ExpectNotNull(pkey = EVP_PKEY_new_raw_private_key(EVP_PKEY_X25519,
+            NULL, raw, sizeof(raw)));
+        ExpectIntEQ(EVP_PKEY_get_raw_private_key(pkey, out, NULL), 0);
+        ExpectIntEQ(EVP_PKEY_get_raw_public_key(pkey, out, NULL), 0);
+        EVP_PKEY_free(pkey);
+        pkey = NULL;
+    }
+#endif
+
+#if defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_EXPORT) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_BIO)
+    ExpectIntEQ(test_montgomery_key_file("./certs/statickeys/x25519.pem",
+        "./certs/statickeys/x25519.der", CURVE25519_KEYSIZE, 1, 0),
+        TEST_SUCCESS);
+    ExpectIntEQ(test_montgomery_key_file("./certs/statickeys/x25519-pub.pem",
+        "./certs/statickeys/x25519-pub.der", CURVE25519_KEYSIZE, 0, 0),
+        TEST_SUCCESS);
+    ExpectIntEQ(test_montgomery_key_file("./certs/statickeys/x25519.pem",
+        "./certs/statickeys/x25519.der", CURVE25519_KEYSIZE, 1, 1),
+        TEST_SUCCESS);
+#endif
+#if defined(HAVE_CURVE448) && defined(HAVE_CURVE448_KEY_EXPORT) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_BIO)
+    ExpectIntEQ(test_montgomery_key_file("./certs/statickeys/x448.pem",
+        "./certs/statickeys/x448.der", CURVE448_KEY_SIZE, 1, 0),
+        TEST_SUCCESS);
+    ExpectIntEQ(test_montgomery_key_file("./certs/statickeys/x448-pub.pem",
+        "./certs/statickeys/x448-pub.der", CURVE448_KEY_SIZE, 0, 0),
+        TEST_SUCCESS);
+    ExpectIntEQ(test_montgomery_key_file("./certs/statickeys/x448.pem",
+        "./certs/statickeys/x448.der", CURVE448_KEY_SIZE, 1, 1),
+        TEST_SUCCESS);
+#endif
 #endif
     return EXPECT_RESULT();
 }

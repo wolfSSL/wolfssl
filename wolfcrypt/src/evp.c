@@ -166,6 +166,30 @@ static const struct s_ent {
     #endif /* WOLFSSL_AES_XTS &&
               (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3)) */
 
+    #if defined(WOLFSSL_EVP_AES_KEYWRAP)
+    /* OpenSSL's short names for these ciphers. */
+    #ifdef WOLFSSL_AES_128
+        static const char EVP_AES_128_WRAP[] = "id-aes128-wrap";
+    #endif
+    #ifdef WOLFSSL_AES_192
+        static const char EVP_AES_192_WRAP[] = "id-aes192-wrap";
+    #endif
+    #ifdef WOLFSSL_AES_256
+        static const char EVP_AES_256_WRAP[] = "id-aes256-wrap";
+    #endif
+    #ifdef WOLFSSL_AES_KEYWRAP_PADDING
+    #ifdef WOLFSSL_AES_128
+        static const char EVP_AES_128_WRAP_PAD[] = "id-aes128-wrap-pad";
+    #endif
+    #ifdef WOLFSSL_AES_192
+        static const char EVP_AES_192_WRAP_PAD[] = "id-aes192-wrap-pad";
+    #endif
+    #ifdef WOLFSSL_AES_256
+        static const char EVP_AES_256_WRAP_PAD[] = "id-aes256-wrap-pad";
+    #endif
+    #endif /* WOLFSSL_AES_KEYWRAP_PADDING */
+    #endif /* WOLFSSL_EVP_AES_KEYWRAP */
+
     #ifdef WOLFSSL_AES_CFB
     #ifndef WOLFSSL_NO_AES_CFB_1_8
     #ifdef WOLFSSL_AES_128
@@ -383,6 +407,17 @@ int wolfSSL_EVP_Cipher_key_length(const WOLFSSL_EVP_CIPHER* c)
       case WC_AES_128_XTS_TYPE: return 16 * 2;
       case WC_AES_256_XTS_TYPE: return 32 * 2;
   #endif
+  #if defined(WOLFSSL_EVP_AES_KEYWRAP)
+      case WC_AES_128_WRAP_TYPE: return 16;
+      case WC_AES_192_WRAP_TYPE: return 24;
+      case WC_AES_256_WRAP_TYPE: return 32;
+  #endif
+  #if defined(WOLFSSL_EVP_AES_KEYWRAP) && \
+      defined(WOLFSSL_AES_KEYWRAP_PADDING)
+      case WC_AES_128_WRAP_PAD_TYPE: return 16;
+      case WC_AES_192_WRAP_PAD_TYPE: return 24;
+      case WC_AES_256_WRAP_PAD_TYPE: return 32;
+  #endif
   #if defined(HAVE_AESGCM)
       case WC_AES_128_GCM_TYPE: return 16;
       case WC_AES_192_GCM_TYPE: return 24;
@@ -515,6 +550,23 @@ int wolfSSL_EVP_CIPHER_CTX_reset(WOLFSSL_EVP_CIPHER_CTX *ctx)
 unsigned long wolfSSL_EVP_CIPHER_CTX_mode(const WOLFSSL_EVP_CIPHER_CTX *ctx)
 {
   if (ctx == NULL) return 0;
+#if defined(WOLFSSL_EVP_AES_KEYWRAP)
+  /* WOLFSSL_EVP_CIPH_MODE only covers the low three bits, so the wrap mode
+   * does not survive the mask; report it from the cipher type instead. */
+  switch (ctx->cipherType) {
+      case WC_AES_128_WRAP_TYPE:
+      case WC_AES_192_WRAP_TYPE:
+      case WC_AES_256_WRAP_TYPE:
+  #ifdef WOLFSSL_AES_KEYWRAP_PADDING
+      case WC_AES_128_WRAP_PAD_TYPE:
+      case WC_AES_192_WRAP_PAD_TYPE:
+      case WC_AES_256_WRAP_PAD_TYPE:
+  #endif
+          return WOLFSSL_EVP_CIPH_WRAP_MODE;
+      default:
+          break;
+  }
+#endif
   return ctx->flags & WOLFSSL_EVP_CIPH_MODE;
 }
 
@@ -1069,6 +1121,129 @@ static int wolfSSL_EVP_CipherUpdate_AriaGCM(WOLFSSL_EVP_CIPHER_CTX *ctx,
 
 
 /* returns WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on failure */
+#if defined(WOLFSSL_EVP_AES_KEYWRAP)
+/* Wrap or unwrap a key with AES-KW (RFC 3394).
+ *
+ * Key wrapping is not a streaming operation: the whole key has to be present
+ * at once, so this does the work here and CipherFinal has nothing left to
+ * emit.  OpenSSL's wrap ciphers behave the same way, producing their output
+ * from the update call.
+ *
+ * A second call carrying more data is refused rather than quietly wrapping
+ * the pieces separately, which would produce something that does not unwrap.
+ *
+ * Returns WOLFSSL_SUCCESS on success, WOLFSSL_FAILURE otherwise.
+ */
+static int wolfSSL_EVP_CipherUpdate_Wrap(WOLFSSL_EVP_CIPHER_CTX *ctx,
+    unsigned char *out, int *outl, const unsigned char *in, int inl)
+{
+    int ret;
+    const byte* iv = NULL;
+    int pad = 0;
+
+    *outl = 0;
+
+    if (ctx->bufUsed != 0) {
+        WOLFSSL_MSG("AES key wrap takes all of its input at once");
+        return WOLFSSL_FAILURE;
+    }
+
+#ifdef WOLFSSL_AES_KEYWRAP_PADDING
+    switch (ctx->cipherType) {
+        case WC_AES_128_WRAP_PAD_TYPE:
+        case WC_AES_192_WRAP_PAD_TYPE:
+        case WC_AES_256_WRAP_PAD_TYPE:
+            pad = 1;
+            break;
+        default:
+            break;
+    }
+#endif
+
+    if (in == NULL || inl <= 0) {
+        WOLFSSL_MSG("Bad argument");
+        return WOLFSSL_FAILURE;
+    }
+
+    /* Unwrapping needs at least the integrity check value plus one semiblock,
+     * and RFC 3394 needs two.  Reject short input here as well as on the real
+     * call, so a size query cannot answer with a negative length. */
+    if (!ctx->enc) {
+        int minIn = pad ? (2 * KEYWRAP_BLOCK_SIZE) : (3 * KEYWRAP_BLOCK_SIZE);
+
+        if ((inl < minIn) || ((inl % KEYWRAP_BLOCK_SIZE) != 0)) {
+            WOLFSSL_MSG("AES key wrap input too short");
+            return WOLFSSL_FAILURE;
+        }
+    }
+
+    /* Report the size needed, as OpenSSL does for a NULL output.  RFC 5649
+     * rounds the plaintext up to a semiblock before adding the header, and on
+     * the way back the true length is only known once the header has been
+     * checked, so this is the largest it can be. */
+    if (out == NULL) {
+        if (ctx->enc) {
+            *outl = pad ?
+                (((inl + KEYWRAP_BLOCK_SIZE - 1) / KEYWRAP_BLOCK_SIZE) *
+                    KEYWRAP_BLOCK_SIZE) + KEYWRAP_BLOCK_SIZE :
+                (inl + KEYWRAP_BLOCK_SIZE);
+        }
+        else {
+            *outl = inl - KEYWRAP_BLOCK_SIZE;
+        }
+        return WOLFSSL_SUCCESS;
+    }
+
+    /* Whether an integrity check value was given is recorded at init rather
+     * than guessed from the value: all-zero is a legitimate ICV and has to
+     * stay distinct from asking for the RFC default.  The unpadded form takes
+     * the whole 8 byte value; the padded form's is 4 bytes, overriding only
+     * the AIV constant, since the low half carries the length. */
+    if (ctx->kwIvSupplied) {
+        iv = ctx->iv;
+    }
+
+#ifdef WOLFSSL_AES_KEYWRAP_PADDING
+    if (pad) {
+        word32 outSz = ctx->enc ?
+            (word32)((((inl + KEYWRAP_BLOCK_SIZE - 1) / KEYWRAP_BLOCK_SIZE) *
+                KEYWRAP_BLOCK_SIZE) + KEYWRAP_BLOCK_SIZE) :
+            (word32)(inl - KEYWRAP_BLOCK_SIZE);
+
+        if (ctx->enc) {
+            ret = wc_AesKeyWrap_Pad_ex(&ctx->cipher.aes, in, (word32)inl, out,
+                outSz, iv);
+        }
+        else {
+            ret = wc_AesKeyUnWrap_Pad_ex(&ctx->cipher.aes, in, (word32)inl,
+                out, outSz, iv);
+        }
+    }
+    else
+#endif
+    if (ctx->enc) {
+        ret = wc_AesKeyWrap_ex(&ctx->cipher.aes, in, (word32)inl, out,
+            (word32)(inl + KEYWRAP_BLOCK_SIZE), iv);
+    }
+    else {
+        ret = wc_AesKeyUnWrap_ex(&ctx->cipher.aes, in, (word32)inl, out,
+            (word32)(inl - KEYWRAP_BLOCK_SIZE), iv);
+    }
+
+    if (ret < 0) {
+        WOLFSSL_MSG("AES key wrap failed");
+        return WOLFSSL_FAILURE;
+    }
+
+    *outl = ret;
+    /* Remember that the one shot has been taken, so a second update with
+     * data is caught above. */
+    ctx->bufUsed = 1;
+
+    return WOLFSSL_SUCCESS;
+}
+#endif /* WOLFSSL_EVP_AES_KEYWRAP */
+
 int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    unsigned char *out, int *outl,
                                    const unsigned char *in, int inl)
@@ -1094,6 +1269,20 @@ int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
     }
 
     switch (ctx->cipherType) {
+#if defined(WOLFSSL_EVP_AES_KEYWRAP)
+        case WC_AES_128_WRAP_TYPE:
+        case WC_AES_192_WRAP_TYPE:
+        case WC_AES_256_WRAP_TYPE:
+            WOLFSSL_MSG("AES key wrap");
+            return wolfSSL_EVP_CipherUpdate_Wrap(ctx, out, outl, in, inl);
+#ifdef WOLFSSL_AES_KEYWRAP_PADDING
+        case WC_AES_128_WRAP_PAD_TYPE:
+        case WC_AES_192_WRAP_PAD_TYPE:
+        case WC_AES_256_WRAP_PAD_TYPE:
+            WOLFSSL_MSG("AES key wrap with padding");
+            return wolfSSL_EVP_CipherUpdate_Wrap(ctx, out, outl, in, inl);
+#endif
+#endif /* WOLFSSL_EVP_AES_KEYWRAP */
         case WC_NULL_CIPHER_TYPE:
             if (out == NULL) {
                 WOLFSSL_MSG("Bad argument");
@@ -1320,6 +1509,21 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
 
     WOLFSSL_ENTER("wolfSSL_EVP_CipherFinal");
     switch (ctx->cipherType) {
+#if defined(WOLFSSL_EVP_AES_KEYWRAP)
+        case WC_AES_128_WRAP_TYPE:
+        case WC_AES_192_WRAP_TYPE:
+        case WC_AES_256_WRAP_TYPE:
+            /* The wrap was done by CipherUpdate, so there is nothing left to
+             * emit here, as with OpenSSL's wrap ciphers. */
+#ifdef WOLFSSL_AES_KEYWRAP_PADDING
+        case WC_AES_128_WRAP_PAD_TYPE:
+        case WC_AES_192_WRAP_PAD_TYPE:
+        case WC_AES_256_WRAP_PAD_TYPE:
+#endif
+            *outl = 0;
+            ret = WOLFSSL_SUCCESS;
+            break;
+#endif /* WOLFSSL_EVP_AES_KEYWRAP */
 #if defined(HAVE_AESGCM) && ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) \
     || FIPS_VERSION_GE(2,0))
         case WC_AES_128_GCM_TYPE:
@@ -1913,6 +2117,19 @@ int wolfSSL_EVP_CIPHER_CTX_block_size(const WOLFSSL_EVP_CIPHER_CTX *ctx)
     case WC_SM4_CCM_TYPE:
 #endif
         return ctx->block_size;
+#if defined(WOLFSSL_EVP_AES_KEYWRAP)
+    case WC_AES_128_WRAP_TYPE:
+    case WC_AES_192_WRAP_TYPE:
+    case WC_AES_256_WRAP_TYPE:
+        return ctx->block_size;
+#endif
+#if defined(WOLFSSL_EVP_AES_KEYWRAP) && \
+    defined(WOLFSSL_AES_KEYWRAP_PADDING)
+    case WC_AES_128_WRAP_PAD_TYPE:
+    case WC_AES_192_WRAP_PAD_TYPE:
+    case WC_AES_256_WRAP_PAD_TYPE:
+        return ctx->block_size;
+#endif
 #endif /* !NO_AES || !NO_DES3 || WOLFSSL_SM4 */
     default:
         return 0;
@@ -2015,6 +2232,35 @@ static unsigned int cipherType(const WOLFSSL_EVP_CIPHER *cipher)
         return WC_AES_256_XTS_TYPE;
     #endif
 #endif /* WOLFSSL_AES_XTS */
+#if defined(WOLFSSL_EVP_AES_KEYWRAP)
+    #ifdef WOLFSSL_AES_128
+    else if (EVP_CIPHER_TYPE_MATCHES(cipher, EVP_AES_128_WRAP))
+        return WC_AES_128_WRAP_TYPE;
+    #endif
+    #ifdef WOLFSSL_AES_192
+    else if (EVP_CIPHER_TYPE_MATCHES(cipher, EVP_AES_192_WRAP))
+        return WC_AES_192_WRAP_TYPE;
+    #endif
+    #ifdef WOLFSSL_AES_256
+    else if (EVP_CIPHER_TYPE_MATCHES(cipher, EVP_AES_256_WRAP))
+        return WC_AES_256_WRAP_TYPE;
+    #endif
+#endif /* WOLFSSL_EVP_AES_KEYWRAP */
+#if defined(WOLFSSL_EVP_AES_KEYWRAP) && \
+    defined(WOLFSSL_AES_KEYWRAP_PADDING)
+    #ifdef WOLFSSL_AES_128
+    else if (EVP_CIPHER_TYPE_MATCHES(cipher, EVP_AES_128_WRAP_PAD))
+        return WC_AES_128_WRAP_PAD_TYPE;
+    #endif
+    #ifdef WOLFSSL_AES_192
+    else if (EVP_CIPHER_TYPE_MATCHES(cipher, EVP_AES_192_WRAP_PAD))
+        return WC_AES_192_WRAP_PAD_TYPE;
+    #endif
+    #ifdef WOLFSSL_AES_256
+    else if (EVP_CIPHER_TYPE_MATCHES(cipher, EVP_AES_256_WRAP_PAD))
+        return WC_AES_256_WRAP_PAD_TYPE;
+    #endif
+#endif /* ... WOLFSSL_AES_KEYWRAP_PADDING */
 #if defined(WOLFSSL_AES_CFB)
 #ifndef WOLFSSL_NO_AES_CFB_1_8
     #ifdef WOLFSSL_AES_128
@@ -2197,6 +2443,29 @@ const char* wolfSSL_EVP_CIPHER_type_string(unsigned int cipherType)
         case WC_AES_256_XTS_TYPE:       return EVP_AES_256_XTS;
         #endif
     #endif /* WOLFSSL_AES_XTS && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3)) */
+    #if defined(WOLFSSL_EVP_AES_KEYWRAP)
+        #ifdef WOLFSSL_AES_128
+        case WC_AES_128_WRAP_TYPE:      return EVP_AES_128_WRAP;
+        #endif
+        #ifdef WOLFSSL_AES_192
+        case WC_AES_192_WRAP_TYPE:      return EVP_AES_192_WRAP;
+        #endif
+        #ifdef WOLFSSL_AES_256
+        case WC_AES_256_WRAP_TYPE:      return EVP_AES_256_WRAP;
+        #endif
+    #endif /* WOLFSSL_EVP_AES_KEYWRAP */
+    #if defined(WOLFSSL_EVP_AES_KEYWRAP) && \
+        defined(WOLFSSL_AES_KEYWRAP_PADDING)
+        #ifdef WOLFSSL_AES_128
+        case WC_AES_128_WRAP_PAD_TYPE:  return EVP_AES_128_WRAP_PAD;
+        #endif
+        #ifdef WOLFSSL_AES_192
+        case WC_AES_192_WRAP_PAD_TYPE:  return EVP_AES_192_WRAP_PAD;
+        #endif
+        #ifdef WOLFSSL_AES_256
+        case WC_AES_256_WRAP_PAD_TYPE:  return EVP_AES_256_WRAP_PAD;
+        #endif
+    #endif /* ... WOLFSSL_AES_KEYWRAP_PADDING */
     #if defined(HAVE_AESGCM)
         #ifdef WOLFSSL_AES_128
         case WC_AES_128_GCM_TYPE:       return EVP_AES_128_GCM;
@@ -2338,6 +2607,19 @@ int wolfSSL_EVP_CIPHER_block_size(const WOLFSSL_EVP_CIPHER *cipher)
         case WC_AES_256_XTS_TYPE:
             return 1;
     #endif
+    #if defined(WOLFSSL_EVP_AES_KEYWRAP)
+        case WC_AES_128_WRAP_TYPE:
+        case WC_AES_192_WRAP_TYPE:
+        case WC_AES_256_WRAP_TYPE:
+            return 8;
+    #endif
+    #if defined(WOLFSSL_EVP_AES_KEYWRAP) && \
+        defined(WOLFSSL_AES_KEYWRAP_PADDING)
+        case WC_AES_128_WRAP_PAD_TYPE:
+        case WC_AES_192_WRAP_PAD_TYPE:
+        case WC_AES_256_WRAP_PAD_TYPE:
+            return 8;
+    #endif /* ... WOLFSSL_AES_KEYWRAP_PADDING */
   #endif /* NO_AES */
 
   #ifndef NO_RC4
@@ -2448,6 +2730,19 @@ unsigned long WOLFSSL_CIPHER_mode(const WOLFSSL_EVP_CIPHER *cipher)
         case WC_AES_256_XTS_TYPE:
             return WOLFSSL_EVP_CIPH_XTS_MODE;
     #endif
+    #if defined(WOLFSSL_EVP_AES_KEYWRAP)
+        case WC_AES_128_WRAP_TYPE:
+        case WC_AES_192_WRAP_TYPE:
+        case WC_AES_256_WRAP_TYPE:
+            return WOLFSSL_EVP_CIPH_WRAP_MODE;
+    #endif
+    #if defined(WOLFSSL_EVP_AES_KEYWRAP) && \
+        defined(WOLFSSL_AES_KEYWRAP_PADDING)
+        case WC_AES_128_WRAP_PAD_TYPE:
+        case WC_AES_192_WRAP_PAD_TYPE:
+        case WC_AES_256_WRAP_PAD_TYPE:
+            return WOLFSSL_EVP_CIPH_WRAP_MODE;
+    #endif /* ... WOLFSSL_AES_KEYWRAP_PADDING */
         case WC_AES_128_ECB_TYPE:
         case WC_AES_192_ECB_TYPE:
         case WC_AES_256_ECB_TYPE:
@@ -5568,6 +5863,32 @@ static const struct cipher{
     {WC_AES_256_XTS_TYPE, EVP_AES_256_XTS, WC_NID_aes_256_xts},
     #endif
     #endif
+    #if defined(WOLFSSL_EVP_AES_KEYWRAP)
+    #ifdef WOLFSSL_AES_128
+    {WC_AES_128_WRAP_TYPE, EVP_AES_128_WRAP, WC_NID_id_aes128_wrap},
+    #endif
+    #ifdef WOLFSSL_AES_192
+    {WC_AES_192_WRAP_TYPE, EVP_AES_192_WRAP, WC_NID_id_aes192_wrap},
+    #endif
+    #ifdef WOLFSSL_AES_256
+    {WC_AES_256_WRAP_TYPE, EVP_AES_256_WRAP, WC_NID_id_aes256_wrap},
+    #endif
+    #endif /* WOLFSSL_EVP_AES_KEYWRAP */
+    #if defined(WOLFSSL_EVP_AES_KEYWRAP) && \
+        defined(WOLFSSL_AES_KEYWRAP_PADDING)
+    #ifdef WOLFSSL_AES_128
+    {WC_AES_128_WRAP_PAD_TYPE, EVP_AES_128_WRAP_PAD,
+        WC_NID_id_aes128_wrap_pad},
+    #endif
+    #ifdef WOLFSSL_AES_192
+    {WC_AES_192_WRAP_PAD_TYPE, EVP_AES_192_WRAP_PAD,
+        WC_NID_id_aes192_wrap_pad},
+    #endif
+    #ifdef WOLFSSL_AES_256
+    {WC_AES_256_WRAP_PAD_TYPE, EVP_AES_256_WRAP_PAD,
+        WC_NID_id_aes256_wrap_pad},
+    #endif
+    #endif /* ... WOLFSSL_AES_KEYWRAP_PADDING */
 
     #ifdef HAVE_AESGCM
     #ifdef WOLFSSL_AES_128
@@ -6334,6 +6655,53 @@ void wolfSSL_EVP_init(void)
     #endif /* WOLFSSL_AES_XTS &&
               (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3)) */
 
+    #if defined(WOLFSSL_EVP_AES_KEYWRAP)
+    #ifdef WOLFSSL_AES_128
+    const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_wrap(void)
+    {
+        WOLFSSL_ENTER("wolfSSL_EVP_aes_128_wrap");
+        return EVP_AES_128_WRAP;
+    }
+    #endif /* WOLFSSL_AES_128 */
+    #ifdef WOLFSSL_AES_192
+    const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_wrap(void)
+    {
+        WOLFSSL_ENTER("wolfSSL_EVP_aes_192_wrap");
+        return EVP_AES_192_WRAP;
+    }
+    #endif /* WOLFSSL_AES_192 */
+    #ifdef WOLFSSL_AES_256
+    const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_wrap(void)
+    {
+        WOLFSSL_ENTER("wolfSSL_EVP_aes_256_wrap");
+        return EVP_AES_256_WRAP;
+    }
+    #endif /* WOLFSSL_AES_256 */
+    #ifdef WOLFSSL_AES_KEYWRAP_PADDING
+    #ifdef WOLFSSL_AES_128
+    const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_wrap_pad(void)
+    {
+        WOLFSSL_ENTER("wolfSSL_EVP_aes_128_wrap_pad");
+        return EVP_AES_128_WRAP_PAD;
+    }
+    #endif /* WOLFSSL_AES_128 */
+    #ifdef WOLFSSL_AES_192
+    const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_wrap_pad(void)
+    {
+        WOLFSSL_ENTER("wolfSSL_EVP_aes_192_wrap_pad");
+        return EVP_AES_192_WRAP_PAD;
+    }
+    #endif /* WOLFSSL_AES_192 */
+    #ifdef WOLFSSL_AES_256
+    const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_wrap_pad(void)
+    {
+        WOLFSSL_ENTER("wolfSSL_EVP_aes_256_wrap_pad");
+        return EVP_AES_256_WRAP_PAD;
+    }
+    #endif /* WOLFSSL_AES_256 */
+    #endif /* WOLFSSL_AES_KEYWRAP_PADDING */
+    #endif /* WOLFSSL_EVP_AES_KEYWRAP */
+
     #ifdef HAVE_AESGCM
     #ifdef WOLFSSL_AES_128
     const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_gcm(void)
@@ -6840,7 +7208,8 @@ void wolfSSL_EVP_init(void)
     defined(HAVE_AES_ECB) || \
     defined(WOLFSSL_AES_CFB) || \
     defined(WOLFSSL_AES_OFB) || \
-    defined(WOLFSSL_AES_XTS)
+    defined(WOLFSSL_AES_XTS) || \
+    defined(WOLFSSL_EVP_AES_KEYWRAP)
 
     #if defined(HAVE_AESGCM)
                 case WC_AES_128_GCM_TYPE:
@@ -6882,6 +7251,18 @@ void wolfSSL_EVP_init(void)
                 case WC_AES_128_OFB_TYPE:
                 case WC_AES_192_OFB_TYPE:
                 case WC_AES_256_OFB_TYPE:
+    #endif
+    #ifdef WOLFSSL_EVP_AES_KEYWRAP
+                /* Key wrap keys an Aes of its own in EVP_CipherInit(), so it
+                 * is released here like every other AES mode. */
+                case WC_AES_128_WRAP_TYPE:
+                case WC_AES_192_WRAP_TYPE:
+                case WC_AES_256_WRAP_TYPE:
+        #ifdef WOLFSSL_AES_KEYWRAP_PADDING
+                case WC_AES_128_WRAP_PAD_TYPE:
+                case WC_AES_192_WRAP_PAD_TYPE:
+                case WC_AES_256_WRAP_PAD_TYPE:
+        #endif
     #endif
                     wc_AesFree(&ctx->cipher.aes);
                     ctx->flags &=
@@ -6963,6 +7344,9 @@ void wolfSSL_EVP_init(void)
             ctx->authInSz = 0;
             ctx->authIvGenEnable = 0;
             ctx->authIncIv = 0;
+#endif
+#ifdef WOLFSSL_EVP_AES_KEYWRAP
+            ctx->kwIvSupplied = 0;
 #endif
         }
 
@@ -8295,6 +8679,135 @@ void wolfSSL_EVP_init(void)
         #endif /* WOLFSSL_AES_256 */
     #endif /* WOLFSSL_AES_XTS &&
               (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3)) */
+
+    #if defined(WOLFSSL_EVP_AES_KEYWRAP)
+        /* AES Key Wrap (RFC 3394).  The KEK is an ordinary AES key; the
+         * wrapping itself is done in one shot by CipherUpdate below, so all
+         * that is needed here is the key schedule in the right direction. */
+        {
+            int wrapKeyLen = 0;
+
+        #ifdef WOLFSSL_AES_128
+            if (ctx->cipherType == WC_AES_128_WRAP_TYPE ||
+                (type && EVP_CIPHER_TYPE_MATCHES(type, EVP_AES_128_WRAP))) {
+                WOLFSSL_MSG("EVP_AES_128_WRAP");
+                ctx->cipherType = WC_AES_128_WRAP_TYPE;
+                wrapKeyLen = 16;
+            }
+        #endif
+        #ifdef WOLFSSL_AES_192
+            if (ctx->cipherType == WC_AES_192_WRAP_TYPE ||
+                (type && EVP_CIPHER_TYPE_MATCHES(type, EVP_AES_192_WRAP))) {
+                WOLFSSL_MSG("EVP_AES_192_WRAP");
+                ctx->cipherType = WC_AES_192_WRAP_TYPE;
+                wrapKeyLen = 24;
+            }
+        #endif
+        #ifdef WOLFSSL_AES_256
+            if (ctx->cipherType == WC_AES_256_WRAP_TYPE ||
+                (type && EVP_CIPHER_TYPE_MATCHES(type, EVP_AES_256_WRAP))) {
+                WOLFSSL_MSG("EVP_AES_256_WRAP");
+                ctx->cipherType = WC_AES_256_WRAP_TYPE;
+                wrapKeyLen = 32;
+            }
+        #endif
+        #ifdef WOLFSSL_AES_KEYWRAP_PADDING
+        #ifdef WOLFSSL_AES_128
+            if (ctx->cipherType == WC_AES_128_WRAP_PAD_TYPE ||
+                (type &&
+                 EVP_CIPHER_TYPE_MATCHES(type, EVP_AES_128_WRAP_PAD))) {
+                WOLFSSL_MSG("EVP_AES_128_WRAP_PAD");
+                ctx->cipherType = WC_AES_128_WRAP_PAD_TYPE;
+                wrapKeyLen = 16;
+            }
+        #endif
+        #ifdef WOLFSSL_AES_192
+            if (ctx->cipherType == WC_AES_192_WRAP_PAD_TYPE ||
+                (type &&
+                 EVP_CIPHER_TYPE_MATCHES(type, EVP_AES_192_WRAP_PAD))) {
+                WOLFSSL_MSG("EVP_AES_192_WRAP_PAD");
+                ctx->cipherType = WC_AES_192_WRAP_PAD_TYPE;
+                wrapKeyLen = 24;
+            }
+        #endif
+        #ifdef WOLFSSL_AES_256
+            if (ctx->cipherType == WC_AES_256_WRAP_PAD_TYPE ||
+                (type &&
+                 EVP_CIPHER_TYPE_MATCHES(type, EVP_AES_256_WRAP_PAD))) {
+                WOLFSSL_MSG("EVP_AES_256_WRAP_PAD");
+                ctx->cipherType = WC_AES_256_WRAP_PAD_TYPE;
+                wrapKeyLen = 32;
+            }
+        #endif
+        #endif /* WOLFSSL_AES_KEYWRAP_PADDING */
+
+            if (wrapKeyLen != 0) {
+                ctx->flags &= (unsigned long)~WOLFSSL_EVP_CIPH_MODE;
+                ctx->flags |= WOLFSSL_EVP_CIPH_WRAP_MODE;
+                ctx->keyLen = wrapKeyLen;
+                /* RFC 3394 works in 8 byte semiblocks. */
+                ctx->block_size = 8;
+                /* The unpadded form takes the whole 8 byte integrity check
+                 * value.  The padded form's AIV is 4 bytes of constant
+                 * followed by the message length, so only the constant half
+                 * can be given; OpenSSL reports these same two lengths. */
+                ctx->ivSz = KEYWRAP_BLOCK_SIZE;
+            #ifdef WOLFSSL_AES_KEYWRAP_PADDING
+                if ((ctx->cipherType == WC_AES_128_WRAP_PAD_TYPE) ||
+                        (ctx->cipherType == WC_AES_192_WRAP_PAD_TYPE) ||
+                        (ctx->cipherType == WC_AES_256_WRAP_PAD_TYPE)) {
+                    ctx->ivSz = KEYWRAP_BLOCK_SIZE / 2;
+                }
+            #endif
+
+                /* Remember whether an integrity check value was given, so
+                 * that CipherUpdate can tell "use the RFC default" from an
+                 * explicit value that happens to be all zeros.  Only a call
+                 * that names a cipher gets here, so a later partial init
+                 * passing a NULL iv leaves the recorded one alone. */
+                if (iv == NULL) {
+                    XMEMSET(ctx->iv, 0, (size_t)ctx->ivSz);
+                    ctx->kwIvSupplied = 0;
+                }
+                else if (iv != ctx->iv) {
+                    XMEMCPY(ctx->iv, iv, (size_t)ctx->ivSz);
+                    ctx->kwIvSupplied = 1;
+                }
+                /* Otherwise the context's own buffer was handed back, which
+                 * is what a NULL iv becomes further up when one is already
+                 * stored, so what is recorded still describes it. */
+
+                if (enc == 0 || enc == 1) {
+                    ctx->enc = enc ? 1 : 0;
+                }
+
+                /* Only once per context: a second wc_AesInit() on the same
+                 * Aes would leave whatever the first one allocated with no
+                 * owner, and the context may be initialised again to change
+                 * key or direction. */
+                if (!(ctx->flags & WOLFSSL_EVP_CIPH_LOW_LEVEL_INITED)) {
+                    if (wc_AesInit(&ctx->cipher.aes, NULL,
+                            INVALID_DEVID) != 0) {
+                        WOLFSSL_MSG("wc_AesInit() failed");
+                        return WOLFSSL_FAILURE;
+                    }
+                    ctx->flags |= WOLFSSL_EVP_CIPH_LOW_LEVEL_INITED;
+                }
+
+                if (key != NULL) {
+                    /* Wrapping uses the forward AES function and unwrapping
+                     * the inverse, so the schedule direction follows enc. */
+                    ret = AesSetKey_ex(&ctx->cipher.aes, key,
+                        (word32)ctx->keyLen, NULL,
+                        ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION, 1);
+                    if (ret != 0) {
+                        WOLFSSL_MSG("AesSetKey_ex() failed");
+                        return WOLFSSL_FAILURE;
+                    }
+                }
+            }
+        }
+    #endif /* WOLFSSL_EVP_AES_KEYWRAP */
 #endif /* NO_AES */
     #if defined(HAVE_ARIA)
         if (ctx->cipherType == WC_ARIA_128_GCM_TYPE ||
@@ -8651,6 +9164,23 @@ void wolfSSL_EVP_init(void)
             case WC_AES_256_CBC_TYPE :
                 return WC_NID_aes_256_cbc;
 #endif
+#if defined(WOLFSSL_EVP_AES_KEYWRAP)
+            case WC_AES_128_WRAP_TYPE :
+                return WC_NID_id_aes128_wrap;
+            case WC_AES_192_WRAP_TYPE :
+                return WC_NID_id_aes192_wrap;
+            case WC_AES_256_WRAP_TYPE :
+                return WC_NID_id_aes256_wrap;
+#endif
+#if defined(WOLFSSL_EVP_AES_KEYWRAP) && \
+    defined(WOLFSSL_AES_KEYWRAP_PADDING)
+            case WC_AES_128_WRAP_PAD_TYPE :
+                return WC_NID_id_aes128_wrap_pad;
+            case WC_AES_192_WRAP_PAD_TYPE :
+                return WC_NID_id_aes192_wrap_pad;
+            case WC_AES_256_WRAP_PAD_TYPE :
+                return WC_NID_id_aes256_wrap_pad;
+#endif
 #ifdef HAVE_AESGCM
             case WC_AES_128_GCM_TYPE :
                 return WC_NID_aes_128_gcm;
@@ -8847,6 +9377,124 @@ void wolfSSL_EVP_init(void)
         return WOLFSSL_SUCCESS;
     }
 #endif /* !NO_AES || !NO_DES3 */
+
+/* Guard matches the condition on the iv field of WOLFSSL_EVP_CIPHER_CTX. */
+#if !defined(NO_AES) || defined(WOLFSSL_SM4) || \
+    (defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) || !defined(NO_DES3)
+    /* Locate the working IV of a cipher context.
+     *
+     * OpenSSL keeps the chaining value in the context itself, so a caller can
+     * both read it and restore it through EVP_CIPHER_CTX_iv().  wolfCrypt
+     * keeps it inside the cipher, so point at it there rather than copying:
+     * copying would have to write into ctx->iv, which would change what the
+     * separate EVP_CIPHER_CTX_get_iv() reports.
+     *
+     * The chaining modes keep that value in the register: CBC the previous
+     * ciphertext block, CTR the counter, OFB and CFB the keystream block.
+     * Partially consumed keystream lives in tmp/left and is not described by
+     * the register, so restoring a value mid-stream only makes sense on a
+     * block boundary.  ECB has no IV and the AEAD modes take a fixed nonce,
+     * so for those the IV as it was set is reported, which is what wolfSSL
+     * has always done.
+     *
+     * @param [in] ctx  Cipher context.
+     * @return  The working IV for the chaining modes, otherwise the IV as it
+     *          was set.
+     */
+    static unsigned char* wolfssl_evp_cipher_working_iv(
+        WOLFSSL_EVP_CIPHER_CTX* ctx)
+    {
+        switch (ctx->cipherType) {
+    #ifndef NO_AES
+        #ifdef HAVE_AES_CBC
+            case WC_AES_128_CBC_TYPE:
+            case WC_AES_192_CBC_TYPE:
+            case WC_AES_256_CBC_TYPE:
+        #endif
+        #ifdef WOLFSSL_AES_COUNTER
+            case WC_AES_128_CTR_TYPE:
+            case WC_AES_192_CTR_TYPE:
+            case WC_AES_256_CTR_TYPE:
+        #endif
+        #ifdef WOLFSSL_AES_OFB
+            case WC_AES_128_OFB_TYPE:
+            case WC_AES_192_OFB_TYPE:
+            case WC_AES_256_OFB_TYPE:
+        #endif
+        #ifdef WOLFSSL_AES_CFB
+            case WC_AES_128_CFB1_TYPE:
+            case WC_AES_192_CFB1_TYPE:
+            case WC_AES_256_CFB1_TYPE:
+            case WC_AES_128_CFB8_TYPE:
+            case WC_AES_192_CFB8_TYPE:
+            case WC_AES_256_CFB8_TYPE:
+            case WC_AES_128_CFB128_TYPE:
+            case WC_AES_192_CFB128_TYPE:
+            case WC_AES_256_CFB128_TYPE:
+        #endif
+                return (unsigned char*)ctx->cipher.aes.reg;
+    #endif
+    #ifndef NO_DES3
+            case WC_DES_CBC_TYPE:
+                return (unsigned char*)ctx->cipher.des.reg;
+            case WC_DES_EDE3_CBC_TYPE:
+                return (unsigned char*)ctx->cipher.des3.reg;
+    #endif
+            default:
+                return ctx->iv;
+        }
+    }
+
+    /* Get a pointer to the working IV of a cipher context.
+     *
+     * For a chaining mode this is the value the next block will be combined
+     * with, so it changes as data is processed - after a CBC encryption it is
+     * the last ciphertext block, matching OpenSSL.  ECB and the AEAD modes
+     * report the IV as it was set; see wolfssl_evp_cipher_working_iv().
+     *
+     * The pointer is into the cipher's own state, so writing a saved chaining
+     * value back through EVP_CIPHER_CTX_iv_noconst() takes effect on the next
+     * block, as it does with OpenSSL.
+     *
+     * @param [in] ctx  Cipher context.
+     * @return  Pointer to the working IV on success.
+     * @return  NULL when ctx is NULL.
+     */
+    const unsigned char* wolfSSL_EVP_CIPHER_CTX_iv(
+        const WOLFSSL_EVP_CIPHER_CTX* ctx)
+    {
+        WOLFSSL_ENTER("wolfSSL_EVP_CIPHER_CTX_iv");
+
+        if (ctx == NULL) {
+            WOLFSSL_MSG("Bad parameter");
+            return NULL;
+        }
+
+        return wolfssl_evp_cipher_working_iv(
+            (WOLFSSL_EVP_CIPHER_CTX*)ctx);
+    }
+
+    /* Get a modifiable pointer to the working IV of a cipher context.
+     *
+     * @param [in] ctx  Cipher context.
+     * @return  Pointer to the working IV on success.
+     * @return  NULL when ctx is NULL.
+     */
+    unsigned char* wolfSSL_EVP_CIPHER_CTX_iv_noconst(
+        WOLFSSL_EVP_CIPHER_CTX* ctx)
+    {
+        WOLFSSL_ENTER("wolfSSL_EVP_CIPHER_CTX_iv_noconst");
+
+        if (ctx == NULL) {
+            WOLFSSL_MSG("Bad parameter");
+            return NULL;
+        }
+
+        return wolfssl_evp_cipher_working_iv(
+            (WOLFSSL_EVP_CIPHER_CTX*)ctx);
+    }
+#endif /* !NO_AES || WOLFSSL_SM4 || (HAVE_CHACHA && HAVE_POLY1305) ||
+        * !NO_DES3 */
 
     static int IsCipherTypeAEAD(unsigned int type)
     {
@@ -10425,6 +11073,21 @@ int wolfSSL_EVP_CIPHER_CTX_iv_length(const WOLFSSL_EVP_CIPHER_CTX* ctx)
             WOLFSSL_MSG("AES CBC");
             return WC_AES_BLOCK_SIZE;
 #endif
+#if defined(WOLFSSL_EVP_AES_KEYWRAP)
+        case WC_AES_128_WRAP_TYPE :
+        case WC_AES_192_WRAP_TYPE :
+        case WC_AES_256_WRAP_TYPE :
+            WOLFSSL_MSG("AES key wrap");
+            return KEYWRAP_BLOCK_SIZE;
+#ifdef WOLFSSL_AES_KEYWRAP_PADDING
+        case WC_AES_128_WRAP_PAD_TYPE :
+        case WC_AES_192_WRAP_PAD_TYPE :
+        case WC_AES_256_WRAP_PAD_TYPE :
+            WOLFSSL_MSG("AES key wrap with padding");
+            /* Only the constant half of the AIV can be given. */
+            return KEYWRAP_BLOCK_SIZE / 2;
+#endif
+#endif
 #if (!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
 #ifdef HAVE_AESGCM
@@ -10565,6 +11228,44 @@ int wolfSSL_EVP_CIPHER_iv_length(const WOLFSSL_EVP_CIPHER* cipher)
     WOLFSSL_MSG("wolfSSL_EVP_CIPHER_iv_length");
 
 #ifndef NO_AES
+#ifdef WOLFSSL_EVP_AES_KEYWRAP
+    /* The unpadded form takes the whole 8 byte integrity check value; the
+     * padded form's AIV is 4 bytes of constant followed by the message
+     * length, so only the constant half can be given.  These are the lengths
+     * OpenSSL reports for the same ciphers. */
+    #ifdef WOLFSSL_AES_128
+    if (XSTRCMP(name, EVP_AES_128_WRAP) == 0) {
+        return KEYWRAP_BLOCK_SIZE;
+    }
+    #endif
+    #ifdef WOLFSSL_AES_192
+    if (XSTRCMP(name, EVP_AES_192_WRAP) == 0) {
+        return KEYWRAP_BLOCK_SIZE;
+    }
+    #endif
+    #ifdef WOLFSSL_AES_256
+    if (XSTRCMP(name, EVP_AES_256_WRAP) == 0) {
+        return KEYWRAP_BLOCK_SIZE;
+    }
+    #endif
+    #ifdef WOLFSSL_AES_KEYWRAP_PADDING
+    #ifdef WOLFSSL_AES_128
+    if (XSTRCMP(name, EVP_AES_128_WRAP_PAD) == 0) {
+        return KEYWRAP_BLOCK_SIZE / 2;
+    }
+    #endif
+    #ifdef WOLFSSL_AES_192
+    if (XSTRCMP(name, EVP_AES_192_WRAP_PAD) == 0) {
+        return KEYWRAP_BLOCK_SIZE / 2;
+    }
+    #endif
+    #ifdef WOLFSSL_AES_256
+    if (XSTRCMP(name, EVP_AES_256_WRAP_PAD) == 0) {
+        return KEYWRAP_BLOCK_SIZE / 2;
+    }
+    #endif
+    #endif
+#endif /* WOLFSSL_EVP_AES_KEYWRAP */
 #if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_DIRECT)
     #ifdef WOLFSSL_AES_128
     if (XSTRCMP(name, EVP_AES_128_CBC) == 0)
@@ -11071,6 +11772,23 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
         }
     }
     return WC_NID_undef;
+}
+
+/* Return the "null" message digest.
+ *
+ * A WOLFSSL_EVP_MD is a digest name, and this name matches no real digest, so
+ * the value is only useful for identity comparison against another EVP_MD -
+ * which is what callers use it for. Hashing with it is not supported and the
+ * digest routines reject it rather than producing a zero length hash.
+ *
+ * @return  The null message digest.
+ */
+const WOLFSSL_EVP_MD* wolfSSL_EVP_md_null(void)
+{
+    static const WOLFSSL_EVP_MD wolfssl_evp_md_null[] = "NULL";
+
+    WOLFSSL_ENTER("EVP_md_null");
+    return wolfssl_evp_md_null;
 }
 
 #ifndef NO_MD4

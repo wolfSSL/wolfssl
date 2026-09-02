@@ -67,7 +67,7 @@ int test_wolfSSL_EVP_CIPHER_CTX(void)
 int test_wolfSSL_EVP_CIPHER_CTX_iv_length(void)
 {
     EXPECT_DECLS;
-#ifdef OPENSSL_ALL
+#if defined(OPENSSL_ALL) && !defined(NO_AES) && defined(WOLFSSL_AES_128)
     /* This is large enough to be used for all key sizes */
     byte key[AES_256_KEY_SIZE] = {0};
     byte iv[AES_BLOCK_SIZE] = {0};
@@ -127,7 +127,7 @@ int test_wolfSSL_EVP_CIPHER_CTX_iv_length(void)
 int test_wolfSSL_EVP_CIPHER_CTX_key_length(void)
 {
     EXPECT_DECLS;
-#ifdef OPENSSL_ALL
+#if defined(OPENSSL_ALL) && !defined(NO_AES) && defined(WOLFSSL_AES_128)
     byte key[AES_256_KEY_SIZE] = {0};
     byte iv[AES_BLOCK_SIZE] = {0};
     int i;
@@ -677,7 +677,8 @@ int test_wolfSSL_EVP_CIPHER_type_string(void)
 int test_wolfSSL_EVP_BytesToKey(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(OPENSSL_ALL)
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(OPENSSL_ALL) && \
+    defined(WOLFSSL_AES_128)
     byte                key[AES_BLOCK_SIZE] = {0};
     byte                iv[AES_BLOCK_SIZE] = {0};
     int                 count = 0;
@@ -1498,7 +1499,7 @@ int test_wolfssl_EVP_aes_gcm_AAD_2_parts(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_AES) && defined(HAVE_AESGCM) && \
-    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    defined(WOLFSSL_AES_128) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     const byte iv[12] = { 0 };
     const byte key[16] = { 0 };
     const byte cleartext[16] = { 0 };
@@ -2956,4 +2957,977 @@ int test_evp_cipher_aead_aad_overflow(void)
     return EXPECT_RESULT();
 }
 
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_EVP_AES_KEYWRAP)
+/* Wrap in, unwrap back, and check we got the original. Used to cover lengths
+ * the published vectors do not. */
+static int aesWrapRoundTrip(const WOLFSSL_EVP_CIPHER* cipher, const byte* kek,
+    const byte* data, int dataLen, int padded)
+{
+    EXPECT_DECLS;
+    EVP_CIPHER_CTX* ctx = NULL;
+    byte wrapped[128];
+    byte back[128];
+    int wrappedLen = 0;
+    int backLen = 0;
+    int finalLen = 0;
+    int expectLen = padded ?
+        ((((dataLen + 7) / 8) * 8) + 8) : (dataLen + 8);
 
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(EVP_EncryptInit_ex(ctx, cipher, NULL, kek, NULL), 1);
+    ExpectIntEQ(EVP_EncryptUpdate(ctx, wrapped, &wrappedLen, data, dataLen),
+        1);
+    ExpectIntEQ(wrappedLen, expectLen);
+    ExpectIntEQ(EVP_EncryptFinal_ex(ctx, wrapped + wrappedLen, &finalLen), 1);
+    ExpectIntEQ(finalLen, 0);
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
+
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(EVP_DecryptInit_ex(ctx, cipher, NULL, kek, NULL), 1);
+    ExpectIntEQ(EVP_DecryptUpdate(ctx, back, &backLen, wrapped, wrappedLen),
+        1);
+    /* The padded form reports the original length, not the padded one. */
+    ExpectIntEQ(backLen, dataLen);
+    ExpectIntEQ(EVP_DecryptFinal_ex(ctx, back + backLen, &finalLen), 1);
+    ExpectIntEQ(XMEMCMP(back, data, (size_t)dataLen), 0);
+    EVP_CIPHER_CTX_free(ctx);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+int test_wolfSSL_EVP_aes_wrap(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_EVP_AES_KEYWRAP)
+    /* RFC 3394 sec. 4.1 / 4.2 / 4.3: a 128 bit key under 128, 192 and 256 bit
+     * KEKs. */
+#ifdef WOLFSSL_AES_128
+    static const byte kek128[] = {
+        0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
+        0x08,0x09,0x0A,0x0B,0x0C,0x0D,0x0E,0x0F
+    };
+#endif
+#ifdef WOLFSSL_AES_192
+    static const byte kek192[] = {
+        0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
+        0x08,0x09,0x0A,0x0B,0x0C,0x0D,0x0E,0x0F,
+        0x10,0x11,0x12,0x13,0x14,0x15,0x16,0x17
+    };
+#endif
+#ifdef WOLFSSL_AES_256
+    static const byte kek256[] = {
+        0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
+        0x08,0x09,0x0A,0x0B,0x0C,0x0D,0x0E,0x0F,
+        0x10,0x11,0x12,0x13,0x14,0x15,0x16,0x17,
+        0x18,0x19,0x1A,0x1B,0x1C,0x1D,0x1E,0x1F
+    };
+#endif
+    static const byte keyData[] = {
+        0x00,0x11,0x22,0x33,0x44,0x55,0x66,0x77,
+        0x88,0x99,0xAA,0xBB,0xCC,0xDD,0xEE,0xFF
+    };
+#ifdef WOLFSSL_AES_128
+    static const byte wrap128[] = {
+        0x1F,0xA6,0x8B,0x0A,0x81,0x12,0xB4,0x47,
+        0xAE,0xF3,0x4B,0xD8,0xFB,0x5A,0x7B,0x82,
+        0x9D,0x3E,0x86,0x23,0x71,0xD2,0xCF,0xE5
+    };
+#endif
+#ifdef WOLFSSL_AES_192
+    static const byte wrap192[] = {
+        0x96,0x77,0x8B,0x25,0xAE,0x6C,0xA4,0x35,
+        0xF9,0x2B,0x5B,0x97,0xC0,0x50,0xAE,0xD2,
+        0x46,0x8A,0xB8,0xA1,0x7A,0xD8,0x4E,0x5D
+    };
+#endif
+#ifdef WOLFSSL_AES_256
+    static const byte wrap256[] = {
+        0x64,0xE8,0xC3,0xF9,0xCE,0x0F,0x5B,0xA2,
+        0x63,0xE9,0x77,0x79,0x05,0x81,0x8A,0x2A,
+        0x93,0xC8,0x19,0x1E,0x7D,0x6E,0x8A,0xE7
+    };
+#endif
+    struct {
+        const char* name;
+        const byte* kek;
+        int kekLen;
+        const byte* expect;
+        int nid;
+        const WOLFSSL_EVP_CIPHER* (*cipher)(void);
+    } cases[] = {
+#ifdef WOLFSSL_AES_128
+        { "id-aes128-wrap", kek128, 16, wrap128, NID_id_aes128_wrap,
+          wolfSSL_EVP_aes_128_wrap },
+#endif
+#ifdef WOLFSSL_AES_192
+        { "id-aes192-wrap", kek192, 24, wrap192, NID_id_aes192_wrap,
+          wolfSSL_EVP_aes_192_wrap },
+#endif
+#ifdef WOLFSSL_AES_256
+        { "id-aes256-wrap", kek256, 32, wrap256, NID_id_aes256_wrap,
+          wolfSSL_EVP_aes_256_wrap },
+#endif
+        { NULL, NULL, 0, NULL, 0, NULL }
+    };
+    /* Lengths the published vectors do not cover; RFC 3394 requires a
+     * multiple of 8 and at least 16. */
+    static const int lengths[] = { 16, 24, 32, 64 };
+    int i;
+    int j;
+
+    for (i = 0; cases[i].kek != NULL; i++) {
+        EVP_CIPHER_CTX* ctx = NULL;
+        byte out[128];
+        int outl = 0;
+        int finalLen = 0;
+
+        /* The cipher describes itself the way OpenSSL's does. */
+        ExpectNotNull(cases[i].cipher());
+        ExpectPtrEq(EVP_get_cipherbyname(cases[i].name), cases[i].cipher());
+        ExpectIntEQ(EVP_CIPHER_nid(cases[i].cipher()), cases[i].nid);
+
+        /* Looking the cipher up by name ignores case, which OpenSSL's own
+         * vectors check with names like "aes256-WRAP". */
+        {
+            char upper[32];
+            size_t n;
+            for (n = 0; n < sizeof(upper) - 1 && cases[i].name[n] != '\0';
+                    n++) {
+                upper[n] = (char)XTOUPPER((unsigned char)cases[i].name[n]);
+            }
+            upper[n] = '\0';
+            ExpectPtrEq(EVP_get_cipherbyname(upper), cases[i].cipher());
+        }
+
+        /* Wrap matches the published answer. */
+        ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+        ExpectIntEQ(EVP_EncryptInit_ex(ctx, cases[i].cipher(), NULL,
+            cases[i].kek, NULL), 1);
+        ExpectIntEQ(EVP_CIPHER_CTX_block_size(ctx), 8);
+        ExpectIntEQ(EVP_CIPHER_CTX_key_length(ctx), cases[i].kekLen);
+        ExpectIntEQ(EVP_CIPHER_CTX_nid(ctx), cases[i].nid);
+        ExpectIntEQ((int)EVP_CIPHER_CTX_mode(ctx), EVP_CIPH_WRAP_MODE);
+        XMEMSET(out, 0, sizeof(out));
+        ExpectIntEQ(EVP_EncryptUpdate(ctx, out, &outl, keyData,
+            (int)sizeof(keyData)), 1);
+        ExpectIntEQ(outl, (int)sizeof(keyData) + 8);
+        ExpectIntEQ(EVP_EncryptFinal_ex(ctx, out + outl, &finalLen), 1);
+        ExpectIntEQ(finalLen, 0);
+        ExpectIntEQ(XMEMCMP(out, cases[i].expect, sizeof(keyData) + 8), 0);
+        EVP_CIPHER_CTX_free(ctx);
+        ctx = NULL;
+
+        /* Unwrap gives the key back. */
+        ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+        ExpectIntEQ(EVP_DecryptInit_ex(ctx, cases[i].cipher(), NULL,
+            cases[i].kek, NULL), 1);
+        XMEMSET(out, 0, sizeof(out));
+        ExpectIntEQ(EVP_DecryptUpdate(ctx, out, &outl, cases[i].expect,
+            (int)sizeof(keyData) + 8), 1);
+        ExpectIntEQ(outl, (int)sizeof(keyData));
+        ExpectIntEQ(EVP_DecryptFinal_ex(ctx, out + outl, &finalLen), 1);
+        ExpectIntEQ(finalLen, 0);
+        ExpectIntEQ(XMEMCMP(out, keyData, sizeof(keyData)), 0);
+        EVP_CIPHER_CTX_free(ctx);
+        ctx = NULL;
+
+        /* Round trips at lengths beyond the published vector. */
+        for (j = 0; j < (int)(sizeof(lengths) / sizeof(lengths[0])); j++) {
+            byte data[64];
+            int k;
+            for (k = 0; k < lengths[j]; k++) {
+                data[k] = (byte)(k * 7 + j);
+            }
+            ExpectIntEQ(aesWrapRoundTrip(cases[i].cipher(), cases[i].kek,
+                data, lengths[j], 0), TEST_SUCCESS);
+        }
+
+        /* A caller-supplied integrity check value replaces the RFC 3394
+         * default, and only the same value unwraps it again. */
+        {
+            static const byte altIv[] = {
+                0xA5,0xA5,0xA5,0xA5,0xA5,0xA5,0xA5,0xA5
+            };
+            byte altWrapped[64];
+            int altLen = 0;
+
+            ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+            ExpectIntEQ(EVP_EncryptInit_ex(ctx, cases[i].cipher(), NULL,
+                cases[i].kek, altIv), 1);
+            ExpectIntEQ(EVP_EncryptUpdate(ctx, altWrapped, &altLen, keyData,
+                (int)sizeof(keyData)), 1);
+            ExpectIntEQ(altLen, (int)sizeof(keyData) + 8);
+            /* Different check value, so a different wrapping. */
+            ExpectIntNE(XMEMCMP(altWrapped, cases[i].expect,
+                sizeof(keyData) + 8), 0);
+            EVP_CIPHER_CTX_free(ctx);
+            ctx = NULL;
+
+            /* The default check value rejects it. */
+            ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+            ExpectIntEQ(EVP_DecryptInit_ex(ctx, cases[i].cipher(), NULL,
+                cases[i].kek, NULL), 1);
+            ExpectIntNE(EVP_DecryptUpdate(ctx, out, &outl, altWrapped,
+                altLen), 1);
+            EVP_CIPHER_CTX_free(ctx);
+            ctx = NULL;
+
+            /* The same one accepts it. */
+            ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+            ExpectIntEQ(EVP_DecryptInit_ex(ctx, cases[i].cipher(), NULL,
+                cases[i].kek, altIv), 1);
+            XMEMSET(out, 0, sizeof(out));
+            ExpectIntEQ(EVP_DecryptUpdate(ctx, out, &outl, altWrapped,
+                altLen), 1);
+            ExpectIntEQ(outl, (int)sizeof(keyData));
+            ExpectIntEQ(XMEMCMP(out, keyData, sizeof(keyData)), 0);
+            EVP_CIPHER_CTX_free(ctx);
+            ctx = NULL;
+        }
+
+        /* A corrupted wrapping fails the integrity check. */
+        {
+            byte bad[64];
+            XMEMCPY(bad, cases[i].expect, sizeof(keyData) + 8);
+            bad[0] ^= 0xFF;
+            ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+            ExpectIntEQ(EVP_DecryptInit_ex(ctx, cases[i].cipher(), NULL,
+                cases[i].kek, NULL), 1);
+            ExpectIntNE(EVP_DecryptUpdate(ctx, out, &outl, bad,
+                (int)sizeof(keyData) + 8), 1);
+            EVP_CIPHER_CTX_free(ctx);
+            ctx = NULL;
+        }
+
+        /* Input that is not a whole number of semiblocks, and input too
+         * short to carry the check value, are both refused. */
+        ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+        ExpectIntEQ(EVP_EncryptInit_ex(ctx, cases[i].cipher(), NULL,
+            cases[i].kek, NULL), 1);
+        ExpectIntNE(EVP_EncryptUpdate(ctx, out, &outl, keyData, 15), 1);
+        EVP_CIPHER_CTX_free(ctx);
+        ctx = NULL;
+
+        ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+        ExpectIntEQ(EVP_DecryptInit_ex(ctx, cases[i].cipher(), NULL,
+            cases[i].kek, NULL), 1);
+        ExpectIntNE(EVP_DecryptUpdate(ctx, out, &outl, cases[i].expect, 8), 1);
+        EVP_CIPHER_CTX_free(ctx);
+        ctx = NULL;
+
+        /* The rest of RFC 3394: longer keys, and a longer key under a
+         * longer KEK.  These are the remaining vectors OpenSSL's
+         * evpciph_aes_wrap.txt checks. */
+        {
+            static const byte pt24[] = {
+                0x00,0x11,0x22,0x33,0x44,0x55,0x66,0x77,
+                0x88,0x99,0xAA,0xBB,0xCC,0xDD,0xEE,0xFF,
+                0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07
+            };
+            static const byte pt32[] = {
+                0x00,0x11,0x22,0x33,0x44,0x55,0x66,0x77,
+                0x88,0x99,0xAA,0xBB,0xCC,0xDD,0xEE,0xFF,
+                0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
+                0x08,0x09,0x0A,0x0B,0x0C,0x0D,0x0E,0x0F
+            };
+            /* sec. 4.4: 192 bit key under a 192 bit KEK. */
+            static const byte ct192_24[] = {
+                0x03,0x1D,0x33,0x26,0x4E,0x15,0xD3,0x32,
+                0x68,0xF2,0x4E,0xC2,0x60,0x74,0x3E,0xDC,
+                0xE1,0xC6,0xC7,0xDD,0xEE,0x72,0x5A,0x93,
+                0x6B,0xA8,0x14,0x91,0x5C,0x67,0x62,0xD2
+            };
+            /* sec. 4.5: 192 bit key under a 256 bit KEK. */
+            static const byte ct256_24[] = {
+                0xA8,0xF9,0xBC,0x16,0x12,0xC6,0x8B,0x3F,
+                0xF6,0xE6,0xF4,0xFB,0xE3,0x0E,0x71,0xE4,
+                0x76,0x9C,0x8B,0x80,0xA3,0x2C,0xB8,0x95,
+                0x8C,0xD5,0xD1,0x7D,0x6B,0x25,0x4D,0xA1
+            };
+            /* sec. 4.6: 256 bit key under a 256 bit KEK. */
+            static const byte ct256_32[] = {
+                0x28,0xC9,0xF4,0x04,0xC4,0xB8,0x10,0xF4,
+                0xCB,0xCC,0xB3,0x5C,0xFB,0x87,0xF8,0x26,
+                0x3F,0x57,0x86,0xE2,0xD8,0x0E,0xD3,0x26,
+                0xCB,0xC7,0xF0,0xE7,0x1A,0x99,0xF4,0x3B,
+                0xFB,0x98,0x8B,0x9B,0x7A,0x02,0xDD,0x21
+            };
+            const byte* pt = NULL;
+            const byte* ct = NULL;
+            int ptLen = 0;
+
+            if (cases[i].kekLen == 24) {
+                pt = pt24; ptLen = (int)sizeof(pt24); ct = ct192_24;
+            }
+            else if (cases[i].kekLen == 32) {
+                /* Two more for the 256 bit KEK. */
+                pt = pt24; ptLen = (int)sizeof(pt24); ct = ct256_24;
+            }
+
+            if (pt != NULL) {
+                ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+                ExpectIntEQ(EVP_EncryptInit_ex(ctx, cases[i].cipher(), NULL,
+                    cases[i].kek, NULL), 1);
+                XMEMSET(out, 0, sizeof(out));
+                ExpectIntEQ(EVP_EncryptUpdate(ctx, out, &outl, pt, ptLen), 1);
+                ExpectIntEQ(outl, ptLen + 8);
+                ExpectIntEQ(XMEMCMP(out, ct, (size_t)ptLen + 8), 0);
+                EVP_CIPHER_CTX_free(ctx);
+                ctx = NULL;
+            }
+            if (cases[i].kekLen == 32) {
+                ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+                ExpectIntEQ(EVP_EncryptInit_ex(ctx, cases[i].cipher(), NULL,
+                    cases[i].kek, NULL), 1);
+                XMEMSET(out, 0, sizeof(out));
+                ExpectIntEQ(EVP_EncryptUpdate(ctx, out, &outl, pt32,
+                    (int)sizeof(pt32)), 1);
+                ExpectIntEQ(outl, (int)sizeof(pt32) + 8);
+                ExpectIntEQ(XMEMCMP(out, ct256_32, sizeof(ct256_32)), 0);
+                EVP_CIPHER_CTX_free(ctx);
+                ctx = NULL;
+
+                /* Unwrapping with the wrong KEK is rejected, and emits no
+                 * plaintext at all - OpenSSL's file calls this one out
+                 * specifically. */
+                {
+                    byte wrongKek[32];
+                    XMEMCPY(wrongKek, cases[i].kek, 32);
+                    wrongKek[31] ^= 0xFF;
+                    XMEMSET(out, 0xEE, sizeof(out));
+                    outl = -1;
+                    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+                    ExpectIntEQ(EVP_DecryptInit_ex(ctx, cases[i].cipher(),
+                        NULL, wrongKek, NULL), 1);
+                    ExpectIntNE(EVP_DecryptUpdate(ctx, out, &outl, ct256_32,
+                        (int)sizeof(ct256_32)), 1);
+                    ExpectIntEQ(outl, 0);
+                    EVP_CIPHER_CTX_free(ctx);
+                    ctx = NULL;
+                }
+            }
+        }
+
+        /* A context can be reset and used again, and an enc argument of -1
+         * leaves the direction it was initialised with alone. */
+        {
+            byte again[64];
+            int againLen = 0;
+
+            ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+            ExpectIntEQ(EVP_EncryptInit_ex(ctx, cases[i].cipher(), NULL,
+                cases[i].kek, NULL), 1);
+            ExpectIntEQ(EVP_EncryptUpdate(ctx, out, &outl, keyData,
+                (int)sizeof(keyData)), 1);
+            ExpectIntEQ(outl, (int)sizeof(keyData) + 8);
+
+            ExpectIntEQ(EVP_CIPHER_CTX_reset(ctx), 1);
+            ExpectIntEQ(EVP_EncryptInit_ex(ctx, cases[i].cipher(), NULL,
+                cases[i].kek, NULL), 1);
+            XMEMSET(again, 0, sizeof(again));
+            ExpectIntEQ(EVP_EncryptUpdate(ctx, again, &againLen, keyData,
+                (int)sizeof(keyData)), 1);
+            ExpectIntEQ(againLen, (int)sizeof(keyData) + 8);
+            ExpectIntEQ(XMEMCMP(again, cases[i].expect,
+                sizeof(keyData) + 8), 0);
+            EVP_CIPHER_CTX_free(ctx);
+            ctx = NULL;
+
+            /* Re-initialising with enc == -1 keeps the direction, so this
+             * still decrypts. */
+            ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+            ExpectIntEQ(EVP_CipherInit(ctx, cases[i].cipher(), cases[i].kek,
+                NULL, 0), 1);
+            ExpectIntEQ(EVP_CipherInit(ctx, NULL, cases[i].kek, NULL, -1), 1);
+            XMEMSET(out, 0, sizeof(out));
+            ExpectIntEQ(EVP_CipherUpdate(ctx, out, &outl, cases[i].expect,
+                (int)sizeof(keyData) + 8), 1);
+            ExpectIntEQ(outl, (int)sizeof(keyData));
+            ExpectIntEQ(XMEMCMP(out, keyData, sizeof(keyData)), 0);
+            EVP_CIPHER_CTX_free(ctx);
+            ctx = NULL;
+        }
+
+        /* A NULL output asks only for the size, as with OpenSSL's other
+         * ciphers. */
+        ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+        ExpectIntEQ(EVP_EncryptInit_ex(ctx, cases[i].cipher(), NULL,
+            cases[i].kek, NULL), 1);
+        outl = -1;
+        ExpectIntEQ(EVP_EncryptUpdate(ctx, NULL, &outl, keyData,
+            (int)sizeof(keyData)), 1);
+        ExpectIntEQ(outl, (int)sizeof(keyData) + 8);
+        EVP_CIPHER_CTX_free(ctx);
+        ctx = NULL;
+
+        /* Wrapping in place is allowed; the output is 8 bytes longer than
+         * the input, so the buffer has to have room for it. */
+        {
+            byte inPlace[64];
+            XMEMSET(inPlace, 0, sizeof(inPlace));
+            XMEMCPY(inPlace, keyData, sizeof(keyData));
+            ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+            ExpectIntEQ(EVP_EncryptInit_ex(ctx, cases[i].cipher(), NULL,
+                cases[i].kek, NULL), 1);
+            ExpectIntEQ(EVP_EncryptUpdate(ctx, inPlace, &outl, inPlace,
+                (int)sizeof(keyData)), 1);
+            ExpectIntEQ(outl, (int)sizeof(keyData) + 8);
+            ExpectIntEQ(XMEMCMP(inPlace, cases[i].expect,
+                sizeof(keyData) + 8), 0);
+            EVP_CIPHER_CTX_free(ctx);
+            ctx = NULL;
+        }
+
+        /* Key wrapping cannot be streamed, so a second update carrying more
+         * data is refused rather than wrapping the pieces separately. */
+        ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+        ExpectIntEQ(EVP_EncryptInit_ex(ctx, cases[i].cipher(), NULL,
+            cases[i].kek, NULL), 1);
+        ExpectIntEQ(EVP_EncryptUpdate(ctx, out, &outl, keyData,
+            (int)sizeof(keyData)), 1);
+        ExpectIntNE(EVP_EncryptUpdate(ctx, out, &outl, keyData,
+            (int)sizeof(keyData)), 1);
+        EVP_CIPHER_CTX_free(ctx);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_EVP_aes_wrap_pad(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_EVP_AES_KEYWRAP) && \
+    defined(WOLFSSL_AES_KEYWRAP_PADDING) && !defined(NO_AES)
+    /* RFC 5649 sec. 6 for the 192 bit KEK; the 128 and 256 bit answers are
+     * the ones wolfCrypt's own aeskeywrap_pad_test() checks. */
+#ifdef WOLFSSL_AES_128
+    static const byte kek128[] = {
+        0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
+        0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f
+    };
+#endif
+#ifdef WOLFSSL_AES_192
+    static const byte kek192[] = {
+        0x58,0x40,0xdf,0x6e,0x29,0xb0,0x2a,0xf1,
+        0xab,0x49,0x3b,0x70,0x5b,0xf1,0x6e,0xa1,
+        0xae,0x83,0x38,0xf4,0xdc,0xc1,0x76,0xa8
+    };
+#endif
+#ifdef WOLFSSL_AES_256
+    static const byte kek256[] = {
+        0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
+        0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f,
+        0x10,0x11,0x12,0x13,0x14,0x15,0x16,0x17,
+        0x18,0x19,0x1a,0x1b,0x1c,0x1d,0x1e,0x1f
+    };
+#endif
+    /* 20 octets: padded to 24, so the RFC 3394 loop runs. */
+    static const byte data20[] = {
+        0xc3,0x7b,0x7e,0x64,0x92,0x58,0x43,0x40,
+        0xbe,0xd1,0x22,0x07,0x80,0x89,0x41,0x15,
+        0x50,0x68,0xf7,0x38
+    };
+    /* 7 octets: padded to 8, which RFC 5649 wraps as a single block. */
+    static const byte data7[] = {
+        0x46,0x6f,0x72,0x50,0x61,0x73,0x69
+    };
+#ifdef WOLFSSL_AES_128
+    static const byte v128_20[] = {
+        0xe1,0xf7,0x17,0x6e,0xcb,0xd7,0x5d,0x42,
+        0xe8,0x2b,0x24,0xf9,0x89,0xa2,0x81,0x6c,
+        0x20,0x9c,0x6e,0xf2,0xd1,0xaa,0x94,0xd2,
+        0xa3,0xe6,0x02,0x84,0x90,0x0d,0x03,0xa2
+    };
+#endif
+#ifdef WOLFSSL_AES_128
+    static const byte v128_7[] = {
+        0xbe,0x80,0x53,0x5e,0x12,0xe9,0x39,0x4c,
+        0x8f,0x8d,0xf2,0x6b,0xd9,0x52,0x8a,0x35
+    };
+#endif
+#ifdef WOLFSSL_AES_192
+    static const byte v192_20[] = {
+        0x13,0x8b,0xde,0xaa,0x9b,0x8f,0xa7,0xfc,
+        0x61,0xf9,0x77,0x42,0xe7,0x22,0x48,0xee,
+        0x5a,0xe6,0xae,0x53,0x60,0xd1,0xae,0x6a,
+        0x5f,0x54,0xf3,0x73,0xfa,0x54,0x3b,0x6a
+    };
+#endif
+#ifdef WOLFSSL_AES_192
+    static const byte v192_7[] = {
+        0xaf,0xbe,0xb0,0xf0,0x7d,0xfb,0xf5,0x41,
+        0x92,0x00,0xf2,0xcc,0xb5,0x0b,0xb2,0x4f
+    };
+#endif
+#ifdef WOLFSSL_AES_256
+    static const byte v256_20[] = {
+        0x29,0xb7,0xfa,0x19,0x1c,0x21,0x65,0x68,
+        0x43,0x74,0xee,0xe9,0xf7,0x45,0x95,0xe2,
+        0xa4,0x2b,0xac,0xe7,0x5c,0x42,0x5b,0x30,
+        0x53,0xef,0xa2,0x6f,0xfe,0x1b,0xb3,0x2f
+    };
+#endif
+#ifdef WOLFSSL_AES_256
+    static const byte v256_7[] = {
+        0x44,0x3b,0x17,0x83,0x7b,0xb3,0x93,0x48,
+        0x61,0x0d,0x19,0x20,0x2d,0xf8,0xa1,0xf9
+    };
+#endif
+    struct {
+        const char* name;
+        const byte* kek;
+        int kekLen;
+        const byte* v20;
+        const byte* v7;
+        int nid;
+        const WOLFSSL_EVP_CIPHER* (*cipher)(void);
+    } cases[] = {
+#ifdef WOLFSSL_AES_128
+        { "id-aes128-wrap-pad", kek128, 16, v128_20, v128_7,
+          NID_id_aes128_wrap_pad, wolfSSL_EVP_aes_128_wrap_pad },
+#endif
+#ifdef WOLFSSL_AES_192
+        { "id-aes192-wrap-pad", kek192, 24, v192_20, v192_7,
+          NID_id_aes192_wrap_pad, wolfSSL_EVP_aes_192_wrap_pad },
+#endif
+#ifdef WOLFSSL_AES_256
+        { "id-aes256-wrap-pad", kek256, 32, v256_20, v256_7,
+          NID_id_aes256_wrap_pad, wolfSSL_EVP_aes_256_wrap_pad },
+#endif
+        { NULL, NULL, 0, NULL, NULL, 0, NULL }
+    };
+    int i;
+    int len;
+
+    for (i = 0; cases[i].kek != NULL; i++) {
+        EVP_CIPHER_CTX* ctx = NULL;
+        byte out[64];
+        int outl = 0;
+        int finalLen = 0;
+        int c;
+
+        ExpectNotNull(cases[i].cipher());
+        ExpectPtrEq(EVP_get_cipherbyname(cases[i].name), cases[i].cipher());
+        ExpectIntEQ(EVP_CIPHER_nid(cases[i].cipher()), cases[i].nid);
+
+        /* Both published lengths: 20 octets takes the loop path, 7 the
+         * single-block one. */
+        for (c = 0; c < 2; c++) {
+            const byte* data   = c ? data7 : data20;
+            int dataLen        = c ? (int)sizeof(data7) : (int)sizeof(data20);
+            const byte* expect = c ? cases[i].v7 : cases[i].v20;
+            int expectLen      = c ? 16 : 32;
+
+            ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+            ExpectIntEQ(EVP_EncryptInit_ex(ctx, cases[i].cipher(), NULL,
+                cases[i].kek, NULL), 1);
+            ExpectIntEQ(EVP_CIPHER_CTX_block_size(ctx), 8);
+            ExpectIntEQ(EVP_CIPHER_CTX_key_length(ctx), cases[i].kekLen);
+            ExpectIntEQ(EVP_CIPHER_CTX_nid(ctx), cases[i].nid);
+            ExpectIntEQ((int)EVP_CIPHER_CTX_mode(ctx), EVP_CIPH_WRAP_MODE);
+            XMEMSET(out, 0, sizeof(out));
+            ExpectIntEQ(EVP_EncryptUpdate(ctx, out, &outl, data, dataLen), 1);
+            ExpectIntEQ(outl, expectLen);
+            ExpectIntEQ(EVP_EncryptFinal_ex(ctx, out + outl, &finalLen), 1);
+            ExpectIntEQ(finalLen, 0);
+            ExpectIntEQ(XMEMCMP(out, expect, (size_t)expectLen), 0);
+            EVP_CIPHER_CTX_free(ctx);
+            ctx = NULL;
+
+            /* Unwrapping reports the original length, not the padded one. */
+            ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+            ExpectIntEQ(EVP_DecryptInit_ex(ctx, cases[i].cipher(), NULL,
+                cases[i].kek, NULL), 1);
+            XMEMSET(out, 0, sizeof(out));
+            ExpectIntEQ(EVP_DecryptUpdate(ctx, out, &outl, expect, expectLen),
+                1);
+            ExpectIntEQ(outl, dataLen);
+            ExpectIntEQ(EVP_DecryptFinal_ex(ctx, out + outl, &finalLen), 1);
+            ExpectIntEQ(XMEMCMP(out, data, (size_t)dataLen), 0);
+            EVP_CIPHER_CTX_free(ctx);
+            ctx = NULL;
+        }
+
+        /* Every length from a single octet up to well past the semiblock
+         * boundary, covering both paths and every amount of padding. */
+        for (len = 1; len <= 64; len++) {
+            byte data[64];
+            int k;
+            for (k = 0; k < len; k++) {
+                data[k] = (byte)(k + len);
+            }
+            ExpectIntEQ(aesWrapRoundTrip(cases[i].cipher(), cases[i].kek,
+                data, len, 1), TEST_SUCCESS);
+        }
+
+        /* A corrupted wrapping fails its integrity check. */
+        {
+            byte bad[32];
+            XMEMCPY(bad, cases[i].v20, 32);
+            bad[0] ^= 0xFF;
+            ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+            ExpectIntEQ(EVP_DecryptInit_ex(ctx, cases[i].cipher(), NULL,
+                cases[i].kek, NULL), 1);
+            ExpectIntNE(EVP_DecryptUpdate(ctx, out, &outl, bad, 32), 1);
+            EVP_CIPHER_CTX_free(ctx);
+            ctx = NULL;
+        }
+
+        /* The padded form takes any length, but still only in one go. */
+        ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+        ExpectIntEQ(EVP_EncryptInit_ex(ctx, cases[i].cipher(), NULL,
+            cases[i].kek, NULL), 1);
+        ExpectIntEQ(EVP_EncryptUpdate(ctx, out, &outl, data20, 3), 1);
+        ExpectIntEQ(outl, 16);
+        ExpectIntNE(EVP_EncryptUpdate(ctx, out, &outl, data20, 3), 1);
+        EVP_CIPHER_CTX_free(ctx);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* EVP_CIPHER_CTX_iv() and EVP_CIPHER_CTX_iv_noconst() hand back the context's
+ * working IV. cyrus-sasl needs them because its own shim for these is compiled
+ * only below OpenSSL 1.1.0, and wolfSSL reports 1.1.1.
+ */
+int test_wolfSSL_EVP_CIPHER_CTX_iv(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_AES) && defined(HAVE_AES_CBC) && \
+    defined(WOLFSSL_AES_128)
+    EVP_CIPHER_CTX* ctx = NULL;
+    byte key[AES_128_KEY_SIZE];
+    byte iv[AES_BLOCK_SIZE];
+    byte got[AES_BLOCK_SIZE];
+    const unsigned char* cip = NULL;
+    unsigned char* mut = NULL;
+    int i;
+
+    for (i = 0; i < (int)sizeof(key); i++) {
+        key[i] = (byte)i;
+    }
+    for (i = 0; i < (int)sizeof(iv); i++) {
+        iv[i] = (byte)(0xA0 + i);
+    }
+
+    /* A NULL context yields NULL rather than dereferencing. */
+    ExpectNull(EVP_CIPHER_CTX_iv(NULL));
+    ExpectNull(EVP_CIPHER_CTX_iv_noconst(NULL));
+
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(EVP_EncryptInit_ex(ctx, EVP_aes_128_cbc(), NULL, key, iv), 1);
+
+    /* The IV handed to init is the one reported back. */
+    ExpectNotNull(cip = EVP_CIPHER_CTX_iv(ctx));
+    ExpectIntEQ(XMEMCMP(cip, iv, sizeof(iv)), 0);
+
+    /* Both accessors describe the same storage. */
+    ExpectNotNull(mut = EVP_CIPHER_CTX_iv_noconst(ctx));
+    ExpectPtrEq(mut, cip);
+
+    /* And that storage agrees with the copying getter. */
+    ExpectIntEQ(EVP_CIPHER_CTX_get_iv(ctx, got, (int)sizeof(got)), 1);
+    ExpectIntEQ(XMEMCMP(got, iv, sizeof(iv)), 0);
+
+    /* A write through the mutable pointer is visible to the const one. */
+    if (mut != NULL) {
+        mut[0] ^= 0xFF;
+    }
+    ExpectNotNull(cip = EVP_CIPHER_CTX_iv(ctx));
+    ExpectIntNE(XMEMCMP(cip, iv, sizeof(iv)), 0);
+    ExpectIntEQ(cip[0], (byte)(iv[0] ^ 0xFF));
+
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
+
+    /* The value reported is the chaining value, not the IV that was set: after
+     * a CBC encryption it is the last ciphertext block, as OpenSSL reports. */
+    {
+        byte in[32];
+        byte enc[64];
+        int outl = 0;
+
+        XMEMSET(in, 0x5A, sizeof(in));
+        ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+        ExpectIntEQ(EVP_EncryptInit_ex(ctx, EVP_aes_128_cbc(), NULL, key, iv),
+            1);
+        ExpectIntEQ(EVP_CIPHER_CTX_set_padding(ctx, 0), 1);
+        ExpectIntEQ(EVP_EncryptUpdate(ctx, enc, &outl, in, (int)sizeof(in)), 1);
+        ExpectIntEQ(outl, (int)sizeof(in));
+        ExpectNotNull(cip = EVP_CIPHER_CTX_iv(ctx));
+        ExpectIntEQ(XMEMCMP(cip, enc + 16, AES_BLOCK_SIZE), 0);
+        /* EVP_CIPHER_CTX_get_iv() is a wolfSSL addition rather than an
+         * OpenSSL API.  It reports the IV as it was set, and reading the
+         * working value through the new accessor does not disturb it. */
+        ExpectIntEQ(EVP_CIPHER_CTX_get_iv(ctx, got, (int)sizeof(got)), 1);
+        ExpectIntEQ(XMEMCMP(got, iv, AES_BLOCK_SIZE), 0);
+        EVP_CIPHER_CTX_free(ctx);
+        ctx = NULL;
+    }
+
+
+    /* Writing a saved chaining value back through the mutable pointer makes
+     * the next block encrypt as if the context had never moved past it. This
+     * is how openssh restores cipher state, and OpenSSL behaves the same. */
+    {
+        byte in[16];
+        byte one[32];
+        byte two[32];
+        byte saved[AES_BLOCK_SIZE];
+        int outl = 0;
+
+        XMEMSET(in, 0x5A, sizeof(in));
+        ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+        ExpectIntEQ(EVP_EncryptInit_ex(ctx, EVP_aes_128_cbc(), NULL, key, iv),
+            1);
+        ExpectIntEQ(EVP_CIPHER_CTX_set_padding(ctx, 0), 1);
+        ExpectIntEQ(EVP_EncryptUpdate(ctx, one, &outl, in, (int)sizeof(in)), 1);
+        ExpectNotNull(cip = EVP_CIPHER_CTX_iv(ctx));
+        XMEMCPY(saved, cip, AES_BLOCK_SIZE);
+        ExpectIntEQ(EVP_EncryptUpdate(ctx, one, &outl, in, (int)sizeof(in)), 1);
+        EVP_CIPHER_CTX_free(ctx);
+        ctx = NULL;
+
+        ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+        ExpectIntEQ(EVP_EncryptInit_ex(ctx, EVP_aes_128_cbc(), NULL, key, iv),
+            1);
+        ExpectIntEQ(EVP_CIPHER_CTX_set_padding(ctx, 0), 1);
+        ExpectNotNull(mut = EVP_CIPHER_CTX_iv_noconst(ctx));
+        XMEMCPY(mut, saved, AES_BLOCK_SIZE);
+        ExpectIntEQ(EVP_EncryptUpdate(ctx, two, &outl, in, (int)sizeof(in)), 1);
+        ExpectIntEQ(XMEMCMP(one, two, AES_BLOCK_SIZE), 0);
+        EVP_CIPHER_CTX_free(ctx);
+        ctx = NULL;
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test that a size query cannot answer with a negative length.
+ *
+ * EVP_DecryptUpdate() with a NULL output is how callers size a buffer. An
+ * input too short to be a wrapped key must be refused, as OpenSSL refuses it,
+ * rather than reporting inl - 8.
+ */
+int test_wolfSSL_EVP_aes_wrap_short_input(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_EVP_AES_KEYWRAP) && defined(WOLFSSL_AES_128) \
+    && defined(OPENSSL_EXTRA)
+    EVP_CIPHER_CTX* ctx = NULL;
+    byte kek[16];
+    byte in[32];
+    byte out[64];
+    int outl;
+    int i;
+
+    XMEMSET(kek, 0, sizeof(kek));
+    XMEMSET(in, 0, sizeof(in));
+
+    /* Every length below the RFC 3394 minimum of three semiblocks. */
+    for (i = 1; i < 24; i++) {
+        ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+        ExpectIntEQ(EVP_DecryptInit_ex(ctx, EVP_aes_128_wrap(), NULL, kek,
+            NULL), 1);
+        outl = 12345;
+        ExpectIntNE(EVP_DecryptUpdate(ctx, NULL, &outl, in, i), 1);
+        ExpectIntEQ(outl, 0);
+        ExpectIntNE(EVP_DecryptUpdate(ctx, out, &outl, in, i), 1);
+        EVP_CIPHER_CTX_free(ctx);
+        ctx = NULL;
+    }
+
+    /* A length that is not a whole number of semiblocks is refused too. */
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(EVP_DecryptInit_ex(ctx, EVP_aes_128_wrap(), NULL, kek, NULL),
+        1);
+    outl = 12345;
+    ExpectIntNE(EVP_DecryptUpdate(ctx, NULL, &outl, in, 25), 1);
+    EVP_CIPHER_CTX_free(ctx);
+
+    /* The smallest valid wrapped key still reports its size. */
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(EVP_DecryptInit_ex(ctx, EVP_aes_128_wrap(), NULL, kek, NULL),
+        1);
+    outl = 0;
+    ExpectIntEQ(EVP_DecryptUpdate(ctx, NULL, &outl, in, 24), 1);
+    ExpectIntEQ(outl, 16);
+    EVP_CIPHER_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test the IV length reported for the key wrap ciphers.
+ *
+ * The unpadded form takes the whole 8 byte RFC 3394 integrity check value.
+ * The RFC 5649 AIV is 4 bytes of constant followed by the message length, so
+ * only the constant half can be supplied.  OpenSSL reports these same two
+ * lengths, and a caller sizing a buffer from them must not be over-read.
+ */
+/* Wrap or unwrap in one shot with the given integrity check value, which may
+ * be NULL to ask for the RFC default.  Returns the output length, or -1 if the
+ * operation was rejected. */
+static int aesWrapWithIv(const WOLFSSL_EVP_CIPHER* cipher, int enc,
+    const byte* kek, const byte* iv, const byte* in, int inLen, byte* out)
+{
+    EVP_CIPHER_CTX* ctx;
+    int outLen = 0;
+    int rc;
+
+    ctx = EVP_CIPHER_CTX_new();
+    if (ctx == NULL) {
+        return -1;
+    }
+    if (EVP_CipherInit_ex(ctx, cipher, NULL, kek, iv, enc) != 1) {
+        EVP_CIPHER_CTX_free(ctx);
+        return -1;
+    }
+    rc = EVP_CipherUpdate(ctx, out, &outLen, in, inLen);
+    EVP_CIPHER_CTX_free(ctx);
+
+    return (rc == 1) ? outLen : -1;
+}
+
+/* A caller-supplied integrity check value has to be used as given.  It cannot
+ * be recovered from the value itself, because all-zero is a legitimate choice
+ * that must stay distinct from asking for the RFC default - wrapping with one
+ * has to differ from the default, and unwrapping it with the default has to be
+ * refused.  OpenSSL 3.5 was the reference for both. */
+int test_wolfSSL_EVP_aes_wrap_icv(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_EVP_AES_KEYWRAP) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_AES_128)
+    byte kek[16];
+    byte data[32];
+    byte deflt[64];
+    byte custom[64];
+    byte back[64];
+    byte zeroIcv[8];
+    int i;
+    int defLen = 0;
+    int cusLen = 0;
+
+    XMEMSET(kek, 0, sizeof(kek));
+    XMEMSET(zeroIcv, 0, sizeof(zeroIcv));
+    for (i = 0; i < (int)sizeof(data); i++) {
+        data[i] = (byte)i;
+    }
+
+    /* An explicit all-zero ICV is not the default one. */
+    ExpectIntEQ(defLen = aesWrapWithIv(EVP_aes_128_wrap(), 1, kek, NULL, data,
+        (int)sizeof(data), deflt), (int)sizeof(data) + 8);
+    ExpectIntEQ(cusLen = aesWrapWithIv(EVP_aes_128_wrap(), 1, kek, zeroIcv,
+        data, (int)sizeof(data), custom), (int)sizeof(data) + 8);
+    ExpectIntNE(XMEMCMP(deflt, custom, (size_t)sizeof(data) + 8), 0);
+
+    /* It round trips with itself and is refused by the default. */
+    ExpectIntEQ(aesWrapWithIv(EVP_aes_128_wrap(), 0, kek, zeroIcv, custom,
+        cusLen, back), (int)sizeof(data));
+    ExpectIntEQ(XMEMCMP(back, data, sizeof(data)), 0);
+    ExpectIntEQ(aesWrapWithIv(EVP_aes_128_wrap(), 0, kek, NULL, custom,
+        cusLen, back), -1);
+
+    /* A cleaned context has no integrity check value again, so reusing one
+     * that had an explicit ICV goes back to the default. */
+    {
+        EVP_CIPHER_CTX* ctx = NULL;
+        int againLen = 0;
+
+        ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+        ExpectIntEQ(EVP_EncryptInit_ex(ctx, EVP_aes_128_wrap(), NULL, kek,
+            zeroIcv), 1);
+        ExpectIntEQ(EVP_EncryptUpdate(ctx, back, &againLen, data,
+            (int)sizeof(data)), 1);
+        ExpectIntEQ(EVP_CIPHER_CTX_reset(ctx), 1);
+        ExpectIntEQ(EVP_EncryptInit_ex(ctx, EVP_aes_128_wrap(), NULL, kek,
+            NULL), 1);
+        XMEMSET(back, 0, sizeof(back));
+        ExpectIntEQ(EVP_EncryptUpdate(ctx, back, &againLen, data,
+            (int)sizeof(data)), 1);
+        ExpectIntEQ(againLen, defLen);
+        ExpectIntEQ(XMEMCMP(back, deflt, (size_t)defLen), 0);
+        EVP_CIPHER_CTX_free(ctx);
+    }
+
+#ifdef WOLFSSL_AES_KEYWRAP_PADDING
+    {
+        /* The padded form's 4 byte AIV replaces the constant half only, the
+         * low half always carrying the length, so it is given the 4 bytes
+         * that EVP_CIPHER_CTX_iv_length() reports for these ciphers. */
+        static const byte aiv[4] = { 0xa1, 0xb2, 0xc3, 0xd4 };
+        const int padLen = 20;
+
+        ExpectIntEQ(defLen = aesWrapWithIv(EVP_aes_128_wrap_pad(), 1, kek,
+            NULL, data, padLen, deflt), 32);
+        ExpectIntEQ(cusLen = aesWrapWithIv(EVP_aes_128_wrap_pad(), 1, kek,
+            aiv, data, padLen, custom), 32);
+        ExpectIntNE(XMEMCMP(deflt, custom, 32), 0);
+
+        ExpectIntEQ(aesWrapWithIv(EVP_aes_128_wrap_pad(), 0, kek, aiv, custom,
+            cusLen, back), padLen);
+        ExpectIntEQ(XMEMCMP(back, data, (size_t)padLen), 0);
+        ExpectIntEQ(aesWrapWithIv(EVP_aes_128_wrap_pad(), 0, kek, NULL, custom,
+            cusLen, back), -1);
+    }
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_EVP_aes_wrap_iv_length(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_EVP_AES_KEYWRAP) && defined(OPENSSL_EXTRA)
+    EVP_CIPHER_CTX* ctx = NULL;
+    byte kek[32];
+    byte iv[8];
+    size_t i;
+    static const struct {
+        const char* name;
+        int len;
+    } wrap[] = {
+#ifdef WOLFSSL_AES_128
+        { "id-aes128-wrap", 8 },
+#endif
+#ifdef WOLFSSL_AES_192
+        { "id-aes192-wrap", 8 },
+#endif
+#ifdef WOLFSSL_AES_256
+        { "id-aes256-wrap", 8 },
+#endif
+#ifdef WOLFSSL_AES_KEYWRAP_PADDING
+#ifdef WOLFSSL_AES_128
+        { "id-aes128-wrap-pad", 4 },
+#endif
+#ifdef WOLFSSL_AES_256
+        { "id-aes256-wrap-pad", 4 },
+#endif
+#endif
+        { NULL, 0 }
+    };
+
+    XMEMSET(kek, 0, sizeof(kek));
+    XMEMSET(iv, 0xA6, sizeof(iv));
+
+    for (i = 0; wrap[i].name != NULL; i++) {
+        const EVP_CIPHER* c = NULL;
+
+        ExpectNotNull(c = EVP_get_cipherbyname(wrap[i].name));
+        ExpectIntEQ(EVP_CIPHER_iv_length(c), wrap[i].len);
+
+        /* The context agrees, so EVP_CIPHER_CTX_get_iv() accepts that
+         * length and no other. */
+        ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+        ExpectIntEQ(EVP_EncryptInit_ex(ctx, c, NULL, kek, iv), 1);
+        ExpectIntEQ(EVP_CIPHER_CTX_iv_length(ctx), wrap[i].len);
+        ExpectIntEQ(EVP_CIPHER_CTX_get_iv(ctx, iv, wrap[i].len), 1);
+        ExpectIntNE(EVP_CIPHER_CTX_get_iv(ctx, iv, wrap[i].len + 1), 1);
+        EVP_CIPHER_CTX_free(ctx);
+        ctx = NULL;
+    }
+#endif
+    return EXPECT_RESULT();
+}

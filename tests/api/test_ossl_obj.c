@@ -106,7 +106,9 @@ int test_wolfSSL_OBJ(void)
     #endif
     #ifdef HAVE_ECC
         "./certs/ca-ecc-cert.der",
+        #if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES))
         "./certs/ca-ecc384-cert.der",
+        #endif
     #endif
         NULL};
     ASN1_OBJECT *field_name_obj = NULL;

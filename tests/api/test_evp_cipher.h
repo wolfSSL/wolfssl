@@ -25,9 +25,15 @@
 #include <tests/api/api_decl.h>
 
 int test_wolfSSL_EVP_CIPHER_CTX(void);
+int test_wolfSSL_EVP_aes_wrap(void);
+int test_wolfSSL_EVP_aes_wrap_pad(void);
+int test_wolfSSL_EVP_aes_wrap_short_input(void);
+int test_wolfSSL_EVP_aes_wrap_iv_length(void);
+int test_wolfSSL_EVP_aes_wrap_icv(void);
 int test_wolfSSL_EVP_CIPHER_CTX_iv_length(void);
 int test_wolfSSL_EVP_CIPHER_CTX_key_length(void);
 int test_wolfSSL_EVP_CIPHER_CTX_set_iv(void);
+int test_wolfSSL_EVP_CIPHER_CTX_iv(void);
 int test_wolfSSL_EVP_get_cipherbynid(void);
 int test_wolfSSL_EVP_CIPHER_block_size(void);
 int test_wolfSSL_EVP_CIPHER_iv_length(void);
@@ -68,10 +74,16 @@ int test_evp_cipher_pkcs7_pad_zero(void);
 int test_evp_cipher_aead_aad_overflow(void);
 
 #define TEST_EVP_CIPHER_DECLS                                               \
-    TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_CIPHER_CTX),             \
+    TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_CIPHER_CTX),   \
+    TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_aes_wrap),             \
+    TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_aes_wrap_pad),         \
+    TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_aes_wrap_short_input), \
+    TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_aes_wrap_iv_length), \
+    TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_aes_wrap_icv),       \
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_CIPHER_CTX_iv_length),   \
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_CIPHER_CTX_key_length),  \
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_CIPHER_CTX_set_iv),      \
+    TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_CIPHER_CTX_iv),          \
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_get_cipherbynid),        \
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_CIPHER_block_size),      \
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_CIPHER_iv_length),       \

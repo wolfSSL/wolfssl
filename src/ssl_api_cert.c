@@ -1603,6 +1603,162 @@ WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_load_client_CA_file(const char* fname)
     return NULL;
     #endif
 }
+
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM)
+/* Add the subject name of each certificate in a file to a list of names.
+ *
+ * Names already in the list are not added again. A file holding no
+ * certificates is not an error, matching OpenSSL.
+ *
+ * @param [in, out] list  List of X509 names to append to.
+ * @param [in]      fname Name of file holding PEM certificates.
+ * @return  1 on success.
+ * @return  0 when the file cannot be read or a name cannot be stored.
+ */
+static int wolfssl_add_file_subjects(WOLF_STACK_OF(WOLFSSL_X509_NAME)* list,
+    const char* fname)
+{
+    int ret = 1;
+    WOLFSSL_BIO* bio;
+    WOLFSSL_X509* cert = NULL;
+    unsigned long error;
+
+    /* Create a file BIO to read. */
+    bio = wolfSSL_BIO_new_file(fname, "rb");
+    if (bio == NULL) {
+        WOLFSSL_MSG("wolfSSL_BIO_new_file error");
+        return 0;
+    }
+
+    /* Read each certificate in the chain out of the file. */
+    while (wolfSSL_PEM_read_bio_X509(bio, &cert, NULL, NULL) != NULL) {
+        WOLFSSL_X509_NAME* name = wolfSSL_X509_get_subject_name(cert);
+        WOLFSSL_X509_NAME* nameCopy;
+
+        if (name == NULL) {
+            WOLFSSL_MSG("wolfSSL_X509_get_subject_name error");
+            ret = 0;
+        }
+        /* Skip names already in the list. */
+        else if ((wolfSSL_sk_X509_NAME_num(list) > 0) &&
+                 (wolfSSL_sk_X509_NAME_find(list, name) >= 0)) {
+            WOLFSSL_MSG("Subject name already in list");
+        }
+        /* Need a persistent copy of the subject name. */
+        else if ((nameCopy = wolfSSL_X509_NAME_dup(name)) == NULL) {
+            WOLFSSL_MSG("wolfSSL_X509_NAME_dup error");
+            ret = 0;
+        }
+        else {
+            /* Certificate read will be freed - clear reference to it. */
+            nameCopy->x509 = NULL;
+
+            if (wolfSSL_sk_X509_NAME_push(list, nameCopy) <= 0) {
+                WOLFSSL_MSG("wolfSSL_sk_X509_NAME_push error");
+                /* Name not stored - free now as only place needing to. */
+                wolfSSL_X509_NAME_free(nameCopy);
+                ret = 0;
+            }
+        }
+
+        /* Dispose of certificate read. */
+        wolfSSL_X509_free(cert);
+        cert = NULL;
+
+        if (!ret) {
+            break;
+        }
+    }
+
+    /* Clear any error due to no more certificates. */
+    CLEAR_ASN_NO_PEM_HEADER_ERROR(error);
+
+    wolfSSL_BIO_free(bio);
+    return ret;
+}
+
+/* Add the subject name of each certificate in a file to a list of names.
+ *
+ * @param [in, out] list  List of X509 names to append to.
+ * @param [in]      fname Name of file holding PEM certificates.
+ * @return  1 on success.
+ * @return  0 when a parameter is NULL or the file cannot be read.
+ */
+int wolfSSL_add_file_cert_subjects_to_stack(
+    WOLF_STACK_OF(WOLFSSL_X509_NAME)* list, const char* fname)
+{
+    WOLFSSL_ENTER("wolfSSL_add_file_cert_subjects_to_stack");
+
+    if ((list == NULL) || (fname == NULL)) {
+        WOLFSSL_MSG("Bad parameter");
+        return 0;
+    }
+
+    return wolfssl_add_file_subjects(list, fname);
+}
+
+#if !defined(NO_WOLFSSL_DIR) && !defined(WOLFSSL_NUCLEUS) && \
+    !defined(WOLFSSL_NUCLEUS_1_2)
+/* Add the subject name of each certificate in a directory to a list of names.
+ *
+ * Used to build the list of acceptable CAs a server sends in its
+ * CertificateRequest. Subdirectories are skipped by the directory reader.
+ *
+ * @param [in, out] list  List of X509 names to append to.
+ * @param [in]      dir   Directory holding PEM certificates.
+ * @return  1 on success, including when the directory holds no certificates.
+ * @return  0 when a parameter is NULL, the directory cannot be read, or a
+ *          certificate file in it cannot be read.
+ */
+int wolfSSL_add_dir_cert_subjects_to_stack(
+    WOLF_STACK_OF(WOLFSSL_X509_NAME)* list, const char* dir)
+{
+    int ret = 1;
+    int readRet;
+    char* fname = NULL;
+    ReadDirCtx* readCtx;
+
+    WOLFSSL_ENTER("wolfSSL_add_dir_cert_subjects_to_stack");
+
+    if ((list == NULL) || (dir == NULL)) {
+        WOLFSSL_MSG("Bad parameter");
+        return 0;
+    }
+
+    /* ReadDirCtx holds a full path buffer - keep it off the stack. */
+    readCtx = (ReadDirCtx*)XMALLOC(sizeof(ReadDirCtx), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (readCtx == NULL) {
+        WOLFSSL_MSG("Memory error");
+        return 0;
+    }
+
+    /* Only regular files are returned, so subdirectories are skipped. */
+    readRet = wc_ReadDirFirst(readCtx, dir, &fname);
+    if ((readRet != 0) && (readRet != WC_READDIR_NOFILE)) {
+        /* Directory could not be opened. */
+        WOLFSSL_MSG("wc_ReadDirFirst error");
+        ret = 0;
+    }
+    while ((ret == 1) && (readRet == 0) && (fname != NULL)) {
+        WOLFSSL_MSG(fname);
+
+        if (!wolfssl_add_file_subjects(list, fname)) {
+            WOLFSSL_MSG("Failed to add subjects from file in path");
+            ret = 0;
+        }
+        else {
+            readRet = wc_ReadDirNext(readCtx, dir, &fname);
+        }
+    }
+    wc_ReadDirClose(readCtx);
+    XFREE(readCtx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+#endif /* !NO_WOLFSSL_DIR && !WOLFSSL_NUCLEUS && !WOLFSSL_NUCLEUS_1_2 */
+#endif /* OPENSSL_EXTRA && !NO_FILESYSTEM */
+
 #endif /* !NO_BIO */
 #endif /* WOLFSSL_NO_CA_NAMES */
 

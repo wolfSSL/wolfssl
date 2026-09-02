@@ -2532,6 +2532,10 @@ WOLFSSL_TEST_VIS void InitSuitesHashSigAlgo(byte* hashSigAlgo, int have,
                                        int tls1_2, int tls1_3, int keySz,
                                        word16* len);
 WOLFSSL_LOCAL int AllocateCtxSuites(WOLFSSL_CTX* ctx);
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || \
+    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+WOLFSSL_LOCAL void CtxFreeSuitesStack(WOLFSSL_CTX* ctx);
+#endif
 WOLFSSL_LOCAL int InitCtxSuitesWithMutex(WOLFSSL_CTX* ctx);
 WOLFSSL_LOCAL int AllocateSuites(WOLFSSL* ssl);
 WOLFSSL_LOCAL void InitSuites(Suites* suites, ProtocolVersion pv, int keySz,
@@ -4214,6 +4218,16 @@ struct WOLFSSL_CTX {
     int              ownOurCert;  /* Dispose of certificate if we own */
 #endif
     Suites*     suites;           /* make dynamic, user may not need/set */
+#if defined(OPENSSL_EXTRA) && defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(NO_WOLFSSL_SERVER)
+    CallbackClientHello chCb;     /* called on receiving a ClientHello */
+    void*               chCbArg;  /* user context for chCb */
+#endif
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || \
+    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+    WOLF_STACK_OF(WOLFSSL_CIPHER)* suitesStack; /* stack of configured
+                                                 * cipher suites */
+#endif
     void*       heap;             /* for user memory overrides */
     byte        verifyDepth;
     byte        verifyPeer:1;
@@ -6922,6 +6936,11 @@ struct WOLFSSL {
 #endif
 #if defined(OPENSSL_EXTRA)
     WOLFSSL_STACK* supportedCiphers; /* Used in wolfSSL_get_ciphers_compat */
+#if defined(HAVE_TLS_EXTENSIONS) && !defined(NO_WOLFSSL_SERVER)
+    const byte* chExts;   /* raw ClientHello extension block, only valid
+                           * for the duration of the ClientHello callback */
+    word16      chExtsSz;
+#endif
     WOLFSSL_STACK* peerCertChain;    /* Used in wolfSSL_get_peer_cert_chain */
     WOLFSSL_STACK* verifiedChain;    /* peer cert chain to CA */
 #ifdef KEEP_OUR_CERT

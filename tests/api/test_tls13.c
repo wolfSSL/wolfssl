@@ -6379,7 +6379,8 @@ int test_key_share_mismatch(void)
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
     defined(HAVE_SUPPORTED_CURVES) && defined(HAVE_ECC) && \
-    defined(BUILD_TLS_AES_128_GCM_SHA256) && (!defined(WOLFSSL_SP_MATH) || \
+    defined(BUILD_TLS_AES_128_GCM_SHA256) && \
+    (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && (!defined(WOLFSSL_SP_MATH) || \
     (defined(WOLFSSL_SP_521) && !defined(WOLFSSL_SP_NO_256) && \
      defined(WOLFSSL_SP_384)))
     /* Taken from payload in https://github.com/wolfSSL/wolfssl/issues/9362 */

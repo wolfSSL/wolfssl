@@ -17443,3 +17443,283 @@ int wolfSSL_get_scr_check_enabled(const WOLFSSL* ssl);
     \sa wolfSSL_get_scr_check_enabled
 */
 int wolfSSL_set_scr_check_enabled(WOLFSSL* ssl, byte enabled);
+
+/*!
+    \ingroup Setup
+
+    \brief Returns the cipher list of the context, as wolfSSL_get_ciphers()
+    does for a session. The stack belongs to the context and must not be
+    freed by the caller; it is rebuilt when the context's cipher list is
+    changed, so a pointer held across a call to wolfSSL_CTX_set_cipher_list()
+    must not be used again.
+
+    \return pointer Stack of WOLFSSL_CIPHER for the context.
+    \return NULL if ctx is NULL or the stack could not be built.
+
+    \param ctx WOLFSSL_CTX structure to read the ciphers of.
+
+    _Example_
+    \code
+    WOLF_STACK_OF(WOLFSSL_CIPHER)* sk = wolfSSL_CTX_get_ciphers(ctx);
+    int i;
+    for (i = 0; i < wolfSSL_sk_num(sk); i++)
+        printf("%s\n", wolfSSL_CIPHER_get_name(wolfSSL_sk_value(sk, i)));
+    \endcode
+
+    \sa wolfSSL_get_ciphers
+    \sa wolfSSL_CTX_set_cipher_list
+*/
+WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_CTX_get_ciphers(const WOLFSSL_CTX *ctx);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Loads CA certificates from a single file, the file half of
+    wolfSSL_CTX_load_verify_locations(). A certificate in the file that cannot
+    be used is skipped rather than failing the whole call, matching OpenSSL.
+
+    \return 1 on success.
+    \return 0 on failure, including a NULL argument or a file that cannot be
+    read.
+
+    \param ctx WOLFSSL_CTX structure to load the certificates into.
+    \param file name of the file holding PEM certificates.
+
+    _Example_
+    \code
+    if (wolfSSL_CTX_load_verify_file(ctx, "./certs/ca-cert.pem") != 1)
+        return -1;
+    \endcode
+
+    \sa wolfSSL_CTX_load_verify_dir
+    \sa wolfSSL_CTX_load_verify_locations
+*/
+int wolfSSL_CTX_load_verify_file(WOLFSSL_CTX* ctx, const char* file);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Loads CA certificates from a directory, the directory half of
+    wolfSSL_CTX_load_verify_locations(). Like OpenSSL this reports success
+    even when nothing was loaded - a missing or unreadable directory is not an
+    error here - so only a NULL argument fails. Callers that need to know a CA
+    was actually loaded have to check that separately.
+
+    \return 1 on success, including when the directory held nothing usable.
+    \return 0 if ctx or path is NULL.
+
+    \param ctx WOLFSSL_CTX structure to load the certificates into.
+    \param path name of the directory holding PEM certificates.
+
+    _Example_
+    \code
+    if (wolfSSL_CTX_load_verify_dir(ctx, "./certs") != 1)
+        return -1;
+    \endcode
+
+    \sa wolfSSL_CTX_load_verify_file
+    \sa wolfSSL_CTX_load_verify_locations
+*/
+int wolfSSL_CTX_load_verify_dir(WOLFSSL_CTX* ctx, const char* path);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets the Diffie-Hellman parameters of the context from a
+    WOLFSSL_EVP_PKEY. As the "set0" name says, the call takes ownership of
+    dhpkey on success and frees it, so the caller must not free it or use it
+    afterwards. On failure ownership stays with the caller, which is then
+    responsible for freeing it.
+
+    \return 1 on success, dhpkey having been taken over and freed.
+    \return 0 on failure, the caller still owning dhpkey.
+
+    \param ctx WOLFSSL_CTX structure to set the parameters on.
+    \param dhpkey key holding the DH parameters to use.
+
+    _Example_
+    \code
+    if (wolfSSL_CTX_set0_tmp_dh_pkey(ctx, dhpkey) != 1) {
+        wolfSSL_EVP_PKEY_free(dhpkey);   // only on failure
+        return -1;
+    }
+    // dhpkey has been freed by the call - do not touch it again
+    \endcode
+
+    \sa wolfSSL_CTX_SetTmpDH
+*/
+int wolfSSL_CTX_set0_tmp_dh_pkey(WOLFSSL_CTX* ctx, WOLFSSL_EVP_PKEY* dhpkey);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets a callback run on the server as soon as a ClientHello has been
+    read, before it is acted on, so the certificate or context can be chosen
+    from what the client sent. The callback runs for both the TLS 1.2 and TLS
+    1.3 ClientHello. Returning WOLFSSL_CLIENT_HELLO_SUCCESS continues the
+    handshake; WOLFSSL_CLIENT_HELLO_ERROR fails it, sending the alert the
+    callback stored through al. WOLFSSL_CLIENT_HELLO_RETRY, which OpenSSL uses
+    to pause a handshake, is not supported - wolfSSL cannot pause one - and is
+    treated as an error.
+
+    \return none No return value.
+
+    \param ctx WOLFSSL_CTX structure to set the callback on.
+    \param cb callback to run, or NULL to remove one already set.
+    \param arg opaque value handed to the callback.
+
+    _Example_
+    \code
+    static int ch_cb(WOLFSSL* ssl, int* al, void* arg) {
+        const unsigned char* ext;
+        size_t extLen;
+        if (wolfSSL_client_hello_get0_ext(ssl, 0, &ext, &extLen) != 1) {
+            *al = 112; // unrecognized_name
+            return WOLFSSL_CLIENT_HELLO_ERROR;
+        }
+        return WOLFSSL_CLIENT_HELLO_SUCCESS;
+    }
+    wolfSSL_CTX_set_client_hello_cb(ctx, ch_cb, NULL);
+    \endcode
+
+    \sa wolfSSL_client_hello_get0_ext
+*/
+void wolfSSL_CTX_set_client_hello_cb(WOLFSSL_CTX* ctx, CallbackClientHello cb, void* arg);
+
+/*!
+    \ingroup Setup
+
+    \brief Finds an extension in the ClientHello being processed and hands back
+    a pointer to its body. Only meaningful from a callback set with
+    wolfSSL_CTX_set_client_hello_cb(), while the ClientHello is still in hand.
+    The data is the extension body without its type and length, and points
+    into the session's own buffer, so it must be copied to outlive the
+    callback.
+
+    \return 1 when the extension is present, with out and outLen set.
+    \return 0 when it is not present, or on a NULL argument; out and outLen
+    are left alone.
+
+    \param ssl WOLFSSL structure the ClientHello arrived on.
+    \param type extension type to look for, e.g. 0 for server_name.
+    \param out set to the extension body.
+    \param outLen set to the length of the extension body.
+
+    _Example_
+    \code
+    const unsigned char* ext;
+    size_t extLen;
+    if (wolfSSL_client_hello_get0_ext(ssl, 0, &ext, &extLen) == 1)
+        printf("server_name extension is %u bytes\n", (unsigned)extLen);
+    \endcode
+
+    \sa wolfSSL_CTX_set_client_hello_cb
+*/
+int wolfSSL_client_hello_get0_ext(WOLFSSL* ssl, unsigned int type, const unsigned char** out, size_t* outLen);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Adds the subject name of every certificate in a PEM file to a
+    stack, for use as the list of acceptable CAs sent to a client. Names
+    already on the stack are not added twice. A file holding several
+    certificates contributes all of them. The stack takes ownership of the
+    names it gains.
+
+    \return 1 on success, including a readable file that held no certificate.
+    \return 0 on failure, including a NULL argument or a file that cannot be
+    read.
+
+    \param list stack to add the subject names to.
+    \param fname name of the PEM file to read.
+
+    _Example_
+    \code
+    WOLF_STACK_OF(WOLFSSL_X509_NAME)* list = wolfSSL_sk_X509_NAME_new(NULL);
+    wolfSSL_add_file_cert_subjects_to_stack(list, "./certs/ca-cert.pem");
+    wolfSSL_CTX_set_client_CA_list(ctx, list);
+    \endcode
+
+    \sa wolfSSL_add_dir_cert_subjects_to_stack
+    \sa wolfSSL_CTX_set_client_CA_list
+*/
+int wolfSSL_add_file_cert_subjects_to_stack(WOLF_STACK_OF(WOLFSSL_X509_NAME)* list, const char* fname);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Adds the subject name of every certificate in every file of a
+    directory to a stack, as wolfSSL_add_file_cert_subjects_to_stack() does
+    for one file. Files that hold no certificate are skipped without failing
+    the call; a directory that cannot be opened does fail it.
+
+    \return 1 on success, including an empty directory.
+    \return 0 on failure, including a NULL argument or a directory that cannot
+    be read.
+
+    \param list stack to add the subject names to.
+    \param dir name of the directory to read.
+
+    _Example_
+    \code
+    WOLF_STACK_OF(WOLFSSL_X509_NAME)* list = wolfSSL_sk_X509_NAME_new(NULL);
+    wolfSSL_add_dir_cert_subjects_to_stack(list, "./certs");
+    \endcode
+
+    \sa wolfSSL_add_file_cert_subjects_to_stack
+*/
+int wolfSSL_add_dir_cert_subjects_to_stack(WOLF_STACK_OF(WOLFSSL_X509_NAME)* list, const char* dir);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Decides whether a certificate may be used for a purpose, following
+    OpenSSL's rules: the extended key usage is consulted first, then the key
+    usage, then the netscape certificate type. With ca set the certificate is
+    judged as a CA for the purpose rather than as the certificate the purpose
+    is for.
+
+    \return 1 when the certificate may be used for the purpose.
+    \return 0 when it may not, and for a purpose this build does not know.
+    \return Greater than 1 for a CA, recording how the decision was reached: 3
+    a version 1 root, 4 no basicConstraints but a key usage allowing
+    certificate signing, 5 only a netscape certificate type said so.
+    \return -1 if x is NULL.
+
+    \param x certificate to check.
+    \param id purpose, e.g. WOLFSSL_X509_PURPOSE_SSL_SERVER.
+    \param ca 0 to judge the certificate itself, 1 to judge it as a CA.
+
+    _Example_
+    \code
+    if (wolfSSL_X509_check_purpose(x509, WOLFSSL_X509_PURPOSE_SSL_SERVER, 0))
+        printf("usable as a TLS server certificate\n");
+    \endcode
+
+    \sa wolfSSL_X509_get_extended_key_usage
+*/
+int wolfSSL_X509_check_purpose(WOLFSSL_X509* x, int id, int ca);
+
+/*!
+    \ingroup ASN
+
+    \brief Writes an ASN.1 string to a BIO as upper case hex, two characters
+    per byte and nothing between them. An empty string is written as a single
+    "0", which is what OpenSSL does.
+
+    \return The number of characters written.
+    \return 0 on failure or a NULL argument.
+
+    \param bp BIO to write to.
+    \param a ASN.1 string to write.
+    \param type type of the string; kept for the OpenSSL signature and not
+    otherwise used.
+
+    _Example_
+    \code
+    wolfSSL_i2a_ASN1_STRING(bio, str, WOLFSSL_V_ASN1_OCTET_STRING);
+    \endcode
+
+    \sa wolfSSL_ASN1_STRING_data
+*/
+int wolfSSL_i2a_ASN1_STRING(WOLFSSL_BIO *bp, const WOLFSSL_ASN1_STRING *a, int type);

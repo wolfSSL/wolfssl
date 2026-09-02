@@ -6590,6 +6590,16 @@ WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_bio_PrivateKey(WOLFSSL_BIO* bio,
                 type = WC_EVP_PKEY_ED448;
                 break;
         #endif
+        #ifdef HAVE_CURVE25519
+            case X25519k:
+                type = WC_EVP_PKEY_X25519;
+                break;
+        #endif
+        #ifdef HAVE_CURVE448
+            case X448k:
+                type = WC_EVP_PKEY_X448;
+                break;
+        #endif
         #ifdef WOLFSSL_HAVE_MLDSA
             case ML_DSA_44k:
             case ML_DSA_65k:
@@ -6757,6 +6767,16 @@ WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_PrivateKey(XFILE fp, WOLFSSL_EVP_PKEY **key,
         #ifdef HAVE_ED448
             case ED448k:
                 type = WC_EVP_PKEY_ED448;
+                break;
+        #endif
+        #ifdef HAVE_CURVE25519
+            case X25519k:
+                type = WC_EVP_PKEY_X25519;
+                break;
+        #endif
+        #ifdef HAVE_CURVE448
+            case X448k:
+                type = WC_EVP_PKEY_X448;
                 break;
         #endif
         #ifdef WOLFSSL_HAVE_MLDSA

@@ -1625,7 +1625,8 @@ int test_wolfSSL_PEM_write_RSAPrivateKey(void)
     size_t privDerSz = sizeof_client_key_der_2048;
 #endif
     const unsigned char* der;
-#ifndef NO_AES
+/* Only used to encrypt the key, which needs AES-128-CBC. */
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
     unsigned char passwd[] = "password";
 #endif
 
@@ -1645,7 +1646,8 @@ int test_wolfSSL_PEM_write_RSAPrivateKey(void)
 
     ExpectIntEQ(wolfSSL_PEM_write_RSAPrivateKey(stderr, rsa, NULL, NULL, 0,
         NULL, NULL), 1);
-#if !defined(NO_AES) && defined(HAVE_AES_CBC)
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && \
+    defined(WOLFSSL_AES_128)
     ExpectIntEQ(wolfSSL_PEM_write_RSAPrivateKey(stderr, rsa, EVP_aes_128_cbc(),
         NULL, 0, NULL, NULL), 1);
     ExpectIntEQ(wolfSSL_PEM_write_RSAPrivateKey(stderr, rsa, EVP_aes_128_cbc(),
@@ -1671,7 +1673,8 @@ int test_wolfSSL_PEM_write_mem_RSAPrivateKey(void)
     size_t privDerSz = sizeof_client_key_der_2048;
 #endif
     const unsigned char* der;
-#ifndef NO_AES
+/* Only used to encrypt the key, which needs AES-128-CBC. */
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
     unsigned char passwd[] = "password";
 #endif
     unsigned char* pem = NULL;
@@ -1697,7 +1700,8 @@ int test_wolfSSL_PEM_write_mem_RSAPrivateKey(void)
         &plen), 1);
     XFREE(pem, NULL, DYNAMIC_TYPE_KEY);
     pem = NULL;
-#if !defined(NO_AES) && defined(HAVE_AES_CBC)
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && \
+    defined(WOLFSSL_AES_128)
     ExpectIntEQ(wolfSSL_PEM_write_mem_RSAPrivateKey(rsa, EVP_aes_128_cbc(),
         NULL, 0, &pem, &plen), 1);
     XFREE(pem, NULL, DYNAMIC_TYPE_KEY);

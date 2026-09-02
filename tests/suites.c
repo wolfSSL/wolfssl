@@ -215,7 +215,8 @@ static int IsKyberLevelAvailable(const char* line)
     #endif /* WOLFSSL_TLS_NO_MLKEM_STANDALONE */
     #ifdef WOLFSSL_PQC_HYBRIDS
         #if !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_ECC) && \
-            (!defined(WOLFSSL_SP_MATH) || !defined(WOLFSSL_SP_NO_256))
+            (!defined(WOLFSSL_SP_MATH) || !defined(WOLFSSL_SP_NO_256)) && \
+            (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES))
             if (MATCH_PQC(begin, "SecP256r1MLKEM768", len)) {
                 available = 1;
             }
@@ -226,14 +227,16 @@ static int IsKyberLevelAvailable(const char* line)
             }
         #endif
         #if !defined(WOLFSSL_NO_ML_KEM_1024) && defined(HAVE_ECC) && \
-            (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_384))
+            (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_384)) && \
+            (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES))
             if (MATCH_PQC(begin, "SecP384r1MLKEM1024", len)) {
                 available = 1;
             }
         #endif
     #endif /* WOLFSSL_PQC_HYBRIDS */
     #ifdef WOLFSSL_EXTRA_PQC_HYBRIDS
-        #if !defined(WOLFSSL_NO_ML_KEM_512) && defined(HAVE_ECC)
+        #if !defined(WOLFSSL_NO_ML_KEM_512) && defined(HAVE_ECC) && \
+            (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES))
             if (MATCH_PQC(begin, "SecP256r1MLKEM512", len)) {
                 available = 1;
             }
@@ -249,7 +252,8 @@ static int IsKyberLevelAvailable(const char* line)
             }
         #endif
         #if !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_ECC) && \
-            (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_384))
+            (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_384)) && \
+            (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES))
             if (MATCH_PQC(begin, "SecP384r1MLKEM768", len)) {
                 available = 1;
             }

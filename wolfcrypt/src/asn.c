@@ -29666,8 +29666,10 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
     static const byte kuOID[]   = { 0x55, 0x1d, 0x0f };
     static const byte ekuOID[]  = { 0x55, 0x1d, 0x25 };
     static const byte cpOID[]   = { 0x55, 0x1d, 0x20 };
+#ifndef IGNORE_NETSCAPE_CERT_TYPE
     static const byte nsCertOID[] = { 0x60, 0x86, 0x48, 0x01,
                                       0x86, 0xF8, 0x42, 0x01, 0x01 };
+#endif
     static const byte crlInfoOID[] = { 0x55, 0x1D, 0x1F };
 #ifdef WOLFSSL_ACME_OID
     static const byte acmeIdOID[] = { 0x2B, 0x06, 0x01, 0x05, 0x05, 0x07,

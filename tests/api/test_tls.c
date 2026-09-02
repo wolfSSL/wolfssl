@@ -387,7 +387,8 @@ int test_tls12_dhe_rsa_pss_sigalg(void)
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(WOLFSSL_NO_TLS12) && !defined(NO_DH) && !defined(NO_RSA) && \
     defined(WC_RSA_PSS) && !defined(NO_SHA256) && defined(HAVE_AESGCM) && \
-    !defined(WOLFSSL_HARDEN_TLS) && defined(OPENSSL_EXTRA)
+    !defined(WOLFSSL_HARDEN_TLS) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_AES_128)
     /* Regression test for S1: SendServerKeyExchange had an inverted guard
      * (#ifndef WC_RSA_PSS) that compiled out the rsa_pss_sa_algo case in the
      * server-side signature self-check for the DHE key exchange path. This
@@ -429,7 +430,8 @@ int test_tls12_ske_sig_param_binding(void)
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(WOLFSSL_NO_TLS12) && !defined(NO_DH) && !defined(NO_RSA) && \
     !defined(NO_SHA256) && defined(HAVE_AESGCM) && \
-    !defined(WOLFSSL_HARDEN_TLS) && defined(OPENSSL_EXTRA)
+    !defined(WOLFSSL_HARDEN_TLS) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_AES_128)
     /* Negative test for the client-side ServerKeyExchange signature-content
      * check in DoServerKeyExchange (classic rsa_sa_algo / PKCS#1 v1.5 path). */
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
@@ -530,7 +532,8 @@ int test_tls12_bad_cv_sig_content(void)
     !defined(WOLFSSL_NO_TLS12) && !defined(NO_DH) && !defined(NO_RSA) && \
     !defined(NO_SHA256) && defined(HAVE_AESGCM) && \
     !defined(WOLFSSL_HARDEN_TLS) && defined(OPENSSL_EXTRA) && \
-    !defined(WOLFSSL_NO_CLIENT_AUTH)
+    !defined(WOLFSSL_NO_CLIENT_AUTH) && \
+    defined(WOLFSSL_AES_128)
     /* Negative test for the server-side CertificateVerify signature-content
      * check in DoCertificateVerify (classic rsa_sa_algo / PKCS#1 v1.5 path).
      * That XMEMCMP is the only proof the client holds the private key for the
@@ -2001,7 +2004,8 @@ int test_tls12_etm_failed_resumption(void)
     !defined(WOLFSSL_NO_TLS12) && defined(HAVE_ENCRYPT_THEN_MAC) && \
     !defined(WOLFSSL_AEAD_ONLY) && !defined(NO_RSA) && !defined(NO_AES) && \
     defined(HAVE_AES_CBC) && !defined(NO_SHA256) && \
-    defined(HAVE_SESSION_TICKET) && defined(HAVE_ECC)
+    defined(HAVE_SESSION_TICKET) && defined(HAVE_ECC) && \
+    defined(WOLFSSL_AES_128)
     /* TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256 - a CBC suite, where ETM applies. */
     const char* cbcSuite = "ECDHE-RSA-AES128-SHA256";
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
@@ -2960,7 +2964,8 @@ int test_tls12_ecdhe_ecdsa_rsa_client_cert(void)
     && defined(HAVE_AESGCM) && defined(KEEP_PEER_CERT) \
     && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) \
     && !defined(WOLFSSL_NO_CLIENT_AUTH) \
-    && !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+    && !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_AES_128)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
@@ -3018,7 +3023,8 @@ int test_tls12_ecdhe_rsa_ecdsa_client_cert(void)
     && defined(HAVE_AESGCM) && defined(KEEP_PEER_CERT) \
     && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) \
     && !defined(WOLFSSL_NO_CLIENT_AUTH) \
-    && !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+    && !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_AES_128)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
@@ -3375,6 +3381,320 @@ int test_record_size_cache_invalidated_on_renegotiation(void)
     wolfSSL_free(ssl_s);
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(OPENSSL_EXTRA) && defined(HAVE_TLS_EXTENSIONS) && \
+    defined(HAVE_SNI) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_RSA) && !defined(NO_TLS)
+static int test_ch_cb_calls = 0;
+static int test_ch_cb_sni_ok = 0;
+static int test_ch_cb_absent_ok = 0;
+static int test_ch_cb_reject = 0;
+static int test_ch_cb_retry = 0;
+
+static int test_client_hello_cb(WOLFSSL* ssl, int* al, void* arg)
+{
+    const unsigned char* ext = NULL;
+    size_t extLen = 0;
+    const char* want = (const char*)arg;
+
+    test_ch_cb_calls++;
+
+    /* ServerNameList: 2 byte list length, 1 byte type, 2 byte name length,
+     * then the name itself. */
+    /* TLSX_SERVER_NAME, not the TLSEXT_TYPE_server_name of the compatibility
+     * layer: that name is only defined for OPENSSL_ALL, while the API under
+     * test is available for OPENSSL_EXTRA.  Both are extension type 0. */
+    if ((wolfSSL_client_hello_get0_ext(ssl, TLSX_SERVER_NAME, &ext,
+            &extLen) == 1) && (ext != NULL) &&
+            (extLen == XSTRLEN(want) + 5) &&
+            (XMEMCMP(ext + 5, want, XSTRLEN(want)) == 0)) {
+        test_ch_cb_sni_ok = 1;
+    }
+
+    /* An extension that was not sent is reported as absent. */
+    ext = NULL;
+    extLen = 0;
+    if ((wolfSSL_client_hello_get0_ext(ssl, 0xFEED, &ext, &extLen) == 0) &&
+            (ext == NULL)) {
+        test_ch_cb_absent_ok = 1;
+    }
+
+    if (test_ch_cb_reject) {
+        *al = 40; /* handshake_failure */
+        return WOLFSSL_CLIENT_HELLO_ERROR;
+    }
+    if (test_ch_cb_retry) {
+        return WOLFSSL_CLIENT_HELLO_RETRY;
+    }
+    return WOLFSSL_CLIENT_HELLO_SUCCESS;
+}
+#endif
+
+#if defined(OPENSSL_EXTRA) && defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_RSA) && !defined(NO_TLS) && !defined(NO_CERTS) && \
+    !defined(NO_FILESYSTEM)
+static int test_ch_cb_noext_calls = 0;
+static int test_ch_cb_noext_absent = 0;
+
+static int test_client_hello_cb_noext(WOLFSSL* ssl, int* al, void* arg)
+{
+    const unsigned char* ext = NULL;
+    size_t extLen = 0;
+
+    (void)al;
+    (void)arg;
+    test_ch_cb_noext_calls++;
+
+    /* With no extension block there is nothing to find, and looking is still
+     * safe. */
+    if (wolfSSL_client_hello_get0_ext(ssl, TLSX_SERVER_NAME, &ext,
+            &extLen) == 0) {
+        test_ch_cb_noext_absent = 1;
+    }
+
+    return WOLFSSL_CLIENT_HELLO_SUCCESS;
+}
+
+/* A hand built TLS 1.2 ClientHello that stops after the compression list, so
+ * it carries no extension block at all - which a wolfSSL client never sends,
+ * hence the raw bytes. */
+static const unsigned char test_ch_noext[] = {
+    /* record: handshake, TLS 1.0 version, length */
+    0x16, 0x03, 0x01, 0x00, 0x2d,
+    /* handshake: client_hello, length */
+    0x01, 0x00, 0x00, 0x29,
+    /* client_version TLS 1.2 */
+    0x03, 0x03,
+    /* random */
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+    0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+    0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+    /* session id: empty */
+    0x00,
+    /* cipher suites: TLS_RSA_WITH_AES_128_CBC_SHA */
+    0x00, 0x02, 0x00, 0x2f,
+    /* compression methods: null */
+    0x01, 0x00
+    /* and nothing further: no extensions */
+};
+
+static unsigned int test_ch_noext_off = 0;
+
+static int test_ch_noext_recv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
+{
+    unsigned int avail = (unsigned int)sizeof(test_ch_noext) -
+        test_ch_noext_off;
+
+    (void)ssl;
+    (void)ctx;
+    if (avail == 0) {
+        return WOLFSSL_CBIO_ERR_WANT_READ;
+    }
+    if ((unsigned int)sz > avail) {
+        sz = (int)avail;
+    }
+    XMEMCPY(buf, test_ch_noext + test_ch_noext_off, (size_t)sz);
+    test_ch_noext_off += (unsigned int)sz;
+
+    return sz;
+}
+
+static int test_ch_noext_send(WOLFSSL* ssl, char* buf, int sz, void* ctx)
+{
+    (void)ssl;
+    (void)buf;
+    (void)ctx;
+    /* Whatever the server replies is of no interest here. */
+    return sz;
+}
+#endif
+
+/* Extensions are optional in a TLS 1.2 ClientHello, and OpenSSL runs the
+ * callback for one that has none.  The callback is the point at which an
+ * application picks a context, so it has to see every ClientHello, not only
+ * the ones that happen to carry extensions.
+ */
+int test_wolfSSL_client_hello_cb_no_extensions(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_RSA) && !defined(NO_TLS) && !defined(NO_CERTS) && \
+    !defined(NO_FILESYSTEM)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+
+    test_ch_cb_noext_calls = 0;
+    test_ch_cb_noext_absent = 0;
+    test_ch_noext_off = 0;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    wolfSSL_CTX_set_client_hello_cb(ctx, test_client_hello_cb_noext, NULL);
+
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    wolfSSL_SSLSetIORecv(ssl, test_ch_noext_recv);
+    wolfSSL_SSLSetIOSend(ssl, test_ch_noext_send);
+
+    /* The handshake cannot finish - there is no client on the other end - but
+     * the ClientHello is parsed, which is all this is about. */
+    wolfSSL_accept(ssl);
+    ExpectIntEQ(test_ch_cb_noext_calls, 1);
+    ExpectIntEQ(test_ch_cb_noext_absent, 1);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test the ClientHello callback and raw extension access.
+ *
+ * haproxy (src/ssl_sock.c) and nginx (src/event/ngx_event_openssl.c) use this
+ * pair to pick a certificate from the ClientHello before it is processed.
+ */
+int test_wolfSSL_client_hello_cb(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_TLS_EXTENSIONS) && \
+    defined(HAVE_SNI) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_RSA) && !defined(NO_TLS)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    char sni[] = "hello-cb.example";
+
+    /* The callback runs, sees the SNI extension, and lets the handshake
+     * continue. */
+    test_ch_cb_calls = 0;
+    test_ch_cb_sni_ok = 0;
+    test_ch_cb_absent_ok = 0;
+    test_ch_cb_reject = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    wolfSSL_CTX_set_client_hello_cb(ctx_s, test_client_hello_cb, sni);
+    ExpectIntEQ(wolfSSL_UseSNI(ssl_c, WOLFSSL_SNI_HOST_NAME,
+                    sni, (word16)XSTRLEN(sni)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(test_ch_cb_calls, 1);
+    ExpectIntEQ(test_ch_cb_sni_ok, 1);
+    ExpectIntEQ(test_ch_cb_absent_ok, 1);
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+    /* A callback that rejects fails the handshake. */
+    test_ch_cb_calls = 0;
+    test_ch_cb_reject = 1;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    wolfSSL_CTX_set_client_hello_cb(ctx_s, test_client_hello_cb, sni);
+    ExpectIntEQ(wolfSSL_UseSNI(ssl_c, WOLFSSL_SNI_HOST_NAME,
+                    sni, (word16)XSTRLEN(sni)), WOLFSSL_SUCCESS);
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(test_ch_cb_calls, 1);
+    test_ch_cb_reject = 0;
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+    /* OpenSSL lets the callback return SSL_CLIENT_HELLO_RETRY to pause the
+     * handshake and be called again. wolfSSL cannot pause it, so the value is
+     * documented as unsupported and treated as a failure - anything other
+     * than success stops the handshake. Pinned here so a later change cannot
+     * quietly start reading it as success and let the ClientHello through. */
+    test_ch_cb_calls = 0;
+    test_ch_cb_retry = 1;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    wolfSSL_CTX_set_client_hello_cb(ctx_s, test_client_hello_cb, sni);
+    ExpectIntEQ(wolfSSL_UseSNI(ssl_c, WOLFSSL_SNI_HOST_NAME,
+                    sni, (word16)XSTRLEN(sni)), WOLFSSL_SUCCESS);
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(test_ch_cb_calls, 1);
+    test_ch_cb_retry = 0;
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+#ifdef WOLFSSL_TLS13
+    /* The same callback runs on the TLS 1.3 ClientHello, which is parsed by a
+     * different path. This is the one haproxy and nginx actually hit. */
+    test_ch_cb_calls = 0;
+    test_ch_cb_sni_ok = 0;
+    test_ch_cb_absent_ok = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    wolfSSL_CTX_set_client_hello_cb(ctx_s, test_client_hello_cb, sni);
+    ExpectIntEQ(wolfSSL_UseSNI(ssl_c, WOLFSSL_SNI_HOST_NAME,
+                    sni, (word16)XSTRLEN(sni)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    /* Exactly once for a ClientHello the server can act on immediately. */
+    ExpectIntEQ(test_ch_cb_calls, 1);
+    ExpectIntEQ(test_ch_cb_sni_ok, 1);
+    ExpectIntEQ(test_ch_cb_absent_ok, 1);
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+/* The retry is driven by offering P-256 and having the server insist on
+ * P-384, so both curves have to be usable in this build. */
+#if defined(HAVE_ECC) && !defined(NO_ECC_SECP) && \
+    defined(HAVE_SUPPORTED_CURVES) && \
+    (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && \
+    (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
+    /* A HelloRetryRequest makes the client send a second ClientHello, and the
+     * callback runs on each one.  OpenSSL 3.5 behaves the same way, so a
+     * consumer selecting a certificate here must expect to be asked twice. */
+    test_ch_cb_calls = 0;
+    test_ch_cb_sni_ok = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    wolfSSL_CTX_set_client_hello_cb(ctx_s, test_client_hello_cb, sni);
+    ExpectIntEQ(wolfSSL_UseSNI(ssl_c, WOLFSSL_SNI_HOST_NAME,
+                    sni, (word16)XSTRLEN(sni)), WOLFSSL_SUCCESS);
+    /* The client key shares P-256; the server will only accept P-384. */
+    ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, WOLFSSL_ECC_SECP256R1),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set1_groups_list(ssl_s, "P-384"), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(test_ch_cb_calls, 2);
+    ExpectIntEQ(test_ch_cb_sni_ok, 1);
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+#endif
+#endif
 #endif
     return EXPECT_RESULT();
 }

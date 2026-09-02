@@ -1362,3 +1362,107 @@ int test_wolfSSL_ticket_key_cb_renew_ext(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_AES) && defined(WOLFSSL_AES_128)
+/* Join the names of the suites a stack reports, so two lists can be compared
+ * as a whole.  Comparing one entry is not enough: how many suites a name
+ * selects, and whether the TLS 1.3 suites are always present whatever is
+ * asked for, are properties of the build rather than of the call.
+ *
+ * @param [in]  sk     Stack of ciphers to read.
+ * @param [out] buf    Buffer to write the joined names to.
+ * @param [in]  bufSz  Size of buf in bytes.
+ */
+static void test_ciphers_join(WOLF_STACK_OF(WOLFSSL_CIPHER)* sk, char* buf,
+    size_t bufSz)
+{
+    int i;
+    int num = (sk == NULL) ? 0 : wolfSSL_sk_SSL_CIPHER_num(sk);
+
+    buf[0] = '\0';
+    for (i = 0; i < num; i++) {
+        const char* name = wolfSSL_CIPHER_get_name(
+            wolfSSL_sk_SSL_CIPHER_value(sk, i));
+
+        if (name == NULL) {
+            continue;
+        }
+        if (XSTRLEN(buf) + XSTRLEN(name) + 2 >= bufSz) {
+            break;
+        }
+        if (buf[0] != '\0') {
+            XSTRNCAT(buf, ":", bufSz - XSTRLEN(buf) - 1);
+        }
+        XSTRNCAT(buf, name, bufSz - XSTRLEN(buf) - 1);
+    }
+}
+#endif
+
+/* Test reading back the cipher suites configured on a context.
+ *
+ * haproxy (src/fips.c) and stunnel (src/ctx.c) both enumerate a context's
+ * suites this way; stunnel reads the list again after changing it, so the
+ * cached stack must not go stale.
+ */
+int test_wolfSSL_CTX_get_ciphers_ext(void)
+{
+    EXPECT_DECLS;
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_AES) && defined(WOLFSSL_AES_128)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLF_STACK_OF(WOLFSSL_CIPHER)* sk = NULL;
+    WOLF_STACK_OF(WOLFSSL_CIPHER)* sk2 = NULL;
+    const char* first = NULL;
+    const char* second = NULL;
+    char firstList[512];
+    char secondList[512];
+
+    /* Two suites this build actually has, rather than any named here: a
+     * restricted build may not carry a given suite at all, and the names
+     * these come back as are the ones set_cipher_list() takes. */
+    first = wolfSSL_get_cipher_list(0);
+    second = wolfSSL_get_cipher_list(1);
+    ExpectNotNull(first);
+    ExpectNotNull(second);
+
+    ExpectNull(wolfSSL_CTX_get_ciphers(NULL));
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    /* A context with no cipher list set has no suites to report. */
+    ExpectNull(wolfSSL_CTX_get_ciphers(ctx));
+
+    ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx, first), WOLFSSL_SUCCESS);
+    ExpectNotNull(sk = wolfSSL_CTX_get_ciphers(ctx));
+    /* How many suites one name selects is a property of the build, not of
+     * this call - what matters is that the list is reported and rebuilt. */
+    ExpectIntGE(wolfSSL_sk_SSL_CIPHER_num(sk), 1);
+    test_ciphers_join(sk, firstList, sizeof(firstList));
+    ExpectIntGT((int)XSTRLEN(firstList), 0);
+
+    /* The stack belongs to the context, so it is handed back unchanged. */
+    ExpectPtrEq(wolfSSL_CTX_get_ciphers(ctx), sk);
+
+    /* Changing the list must invalidate what was handed out before: a
+     * different suite was asked for, so a different one is reported rather
+     * than the cached stack coming back. */
+    ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx, second), WOLFSSL_SUCCESS);
+    ExpectNotNull(sk2 = wolfSSL_CTX_get_ciphers(ctx));
+    ExpectIntGE(wolfSSL_sk_SSL_CIPHER_num(sk2), 1);
+    test_ciphers_join(sk2, secondList, sizeof(secondList));
+    ExpectStrNE(secondList, firstList);
+
+    /* Loading a certificate must not invalidate a stack already handed out:
+     * the caller may still hold it, and OpenSSL does not rebuild its list
+     * there either. */
+#if !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    ExpectNotNull(sk2 = wolfSSL_CTX_get_ciphers(ctx));
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectPtrEq(wolfSSL_CTX_get_ciphers(ctx), sk2);
+#endif
+
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}

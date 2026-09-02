@@ -3838,31 +3838,69 @@ int wolfSSL_X509_pubkey_digest(const WOLFSSL_X509 *x509,
 
 #ifdef OPENSSL_EXTRA
 
-    #ifndef NO_WOLFSSL_STUB
+    /* Get the name of the environment variable that overrides the default CA
+     * certificate file.
+     *
+     * The name matches OpenSSL's X509_CERT_FILE_EVP, and is the variable
+     * wolfSSL_CTX_load_system_CA_certs() already reads.
+     *
+     * @return  Environment variable name.
+     */
     const char* wolfSSL_X509_get_default_cert_file_env(void)
     {
-        WOLFSSL_STUB("X509_get_default_cert_file_env");
-        return "";
+        return "SSL_CERT_FILE";
     }
 
+    /* Get the name of the environment variable that overrides the default CA
+     * certificate directory.
+     *
+     * The name matches OpenSSL's X509_CERT_DIR_EVP, and is the variable
+     * wolfSSL_CTX_load_system_CA_certs() already reads.
+     *
+     * @return  Environment variable name.
+     */
+    const char* wolfSSL_X509_get_default_cert_dir_env(void)
+    {
+        return "SSL_CERT_DIR";
+    }
+
+    #ifndef NO_WOLFSSL_STUB
+    /* Get the default CA certificate file.
+     *
+     * wolfSSL has no single compiled-in CA bundle path to report.
+     *
+     * @return  Empty string.
+     */
     const char* wolfSSL_X509_get_default_cert_file(void)
     {
         WOLFSSL_STUB("X509_get_default_cert_file");
         return "";
     }
+    #endif
 
-    const char* wolfSSL_X509_get_default_cert_dir_env(void)
-    {
-        WOLFSSL_STUB("X509_get_default_cert_dir_env");
-        return "";
-    }
-
+    /* Get the default CA certificate directory.
+     *
+     * Reports the first of the system CA directories wolfSSL would search,
+     * which is the closest equivalent of OpenSSL's compiled-in X509_CERT_DIR.
+     *
+     * @return  Default CA certificate directory.
+     * @return  Empty string when the build has no system CA directory list.
+     */
     const char* wolfSSL_X509_get_default_cert_dir(void)
     {
-        WOLFSSL_STUB("X509_get_default_cert_dir");
+    #if defined(WOLFSSL_SYS_CA_CERTS) && !defined(NO_FILESYSTEM) && \
+        !defined(_WIN32) && !defined(USE_WINDOWS_API) && !defined(__APPLE__)
+        const char** dirs;
+        word32 num = 0;
+
+        dirs = wolfSSL_get_system_CA_dirs(&num);
+        if ((dirs != NULL) && (num > 0)) {
+            return dirs[0];
+        }
+    #endif
+        WOLFSSL_MSG("No default certificate directory for this build");
         return "";
     }
-    #endif
 
 #endif /* OPENSSL_EXTRA */
 
@@ -12095,7 +12133,9 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
 
     cert->keyUsage = x509->keyUsage;
     cert->extKeyUsage = x509->extKeyUsage;
+#ifndef IGNORE_NETSCAPE_CERT_TYPE
     cert->nsCertType = x509->nsCertType;
+#endif
 
     if (x509->rawCRLInfo != NULL) {
         if (x509->rawCRLInfoSz > CTC_MAX_CRLINFO_SZ) {
@@ -16252,6 +16292,446 @@ WOLFSSL_X509* wolfSSL_X509_dup(WOLFSSL_X509 *x)
           SESSION_CERTS */
 
 #if defined(OPENSSL_EXTRA)
+/* Check the netscape-cert-type extension, when the build parses it.
+ *
+ * Returns 1 when the extension is absent or names one of the wanted types,
+ * 0 when it is present and names none of them, which is what OpenSSL's
+ * ns_reject() decides.
+ */
+static int wolfssl_x509_check_ns_cert_type(WOLFSSL_X509* x, byte wanted)
+{
+#ifndef IGNORE_NETSCAPE_CERT_TYPE
+    /* A zero field is how an absent extension reads, and an extension with no
+     * bits set constrains nothing either way. */
+    if ((x->nsCertType != 0) && ((x->nsCertType & wanted) == 0)) {
+        WOLFSSL_MSG("Certificate netscape cert type does not allow purpose");
+        return 0;
+    }
+#else
+    (void)x;
+    (void)wanted;
+#endif
+    return 1;
+}
+
+/* Check whether a certificate can be used for a given role.
+ *
+ * x  - the certificate to check.
+ * id - one of the WOLFSSL_X509_PURPOSE_* values, or -1 to ask only that the
+ *      certificate's extensions be usable, which is how OpenSSL callers
+ *      request the extension cache be populated.
+ * ca - non-zero to check it as a CA rather than as an end entity.
+ *
+ * Only the extensions the certificate carries constrain it: an absent
+ * extendedKeyUsage or keyUsage places no restriction, as in RFC 5280
+ * sec. 4.2.1.12 and OpenSSL.
+ *
+ * Returns 1 when the certificate is usable for the role, 0 when it is not,
+ * and -1 on a bad argument or a role this build does not check.
+ */
+/* Get the public key algorithm that a signature algorithm has to have been
+ * produced with.
+ *
+ * Mirrors the mapping OpenSSL's check_sig_alg_match() gets from
+ * OBJ_find_sigid_algs().
+ *
+ * @param [in] sigOID  Signature algorithm of a certificate.
+ * @return  0 when the signature algorithm is not recognized.
+ * @return  Key algorithm identifier otherwise.
+ */
+static int wolfssl_x509_sig_key_type(int sigOID)
+{
+    int keyOID;
+
+    switch (sigOID) {
+        case CTC_MD2wRSA:
+        case CTC_MD5wRSA:
+        case CTC_SHAwRSA:
+        case CTC_SHA224wRSA:
+        case CTC_SHA256wRSA:
+        case CTC_SHA384wRSA:
+        case CTC_SHA512wRSA:
+        case CTC_SHA3_224wRSA:
+        case CTC_SHA3_256wRSA:
+        case CTC_SHA3_384wRSA:
+        case CTC_SHA3_512wRSA:
+            keyOID = RSAk;
+            break;
+        case CTC_RSASSAPSS:
+            keyOID = RSAPSSk;
+            break;
+        case CTC_SHAwDSA:
+        case CTC_SHA256wDSA:
+            keyOID = DSAk;
+            break;
+        case CTC_SHAwECDSA:
+        case CTC_SHA224wECDSA:
+        case CTC_SHA256wECDSA:
+        case CTC_SHA384wECDSA:
+        case CTC_SHA512wECDSA:
+        case CTC_SHA3_224wECDSA:
+        case CTC_SHA3_256wECDSA:
+        case CTC_SHA3_384wECDSA:
+        case CTC_SHA3_512wECDSA:
+            keyOID = ECDSAk;
+            break;
+        case CTC_SM3wSM2:
+            keyOID = SM2k;
+            break;
+        case CTC_ED25519:
+            keyOID = ED25519k;
+            break;
+        case CTC_ED448:
+            keyOID = ED448k;
+            break;
+        case CTC_FALCON_LEVEL1:
+            keyOID = FALCON_LEVEL1k;
+            break;
+        case CTC_FALCON_LEVEL5:
+            keyOID = FALCON_LEVEL5k;
+            break;
+        case CTC_DILITHIUM_LEVEL2:
+            keyOID = DILITHIUM_LEVEL2k;
+            break;
+        case CTC_DILITHIUM_LEVEL3:
+            keyOID = DILITHIUM_LEVEL3k;
+            break;
+        case CTC_DILITHIUM_LEVEL5:
+            keyOID = DILITHIUM_LEVEL5k;
+            break;
+        case CTC_ML_DSA_44:
+            keyOID = ML_DSA_44k;
+            break;
+        case CTC_ML_DSA_65:
+            keyOID = ML_DSA_65k;
+            break;
+        case CTC_ML_DSA_87:
+            keyOID = ML_DSA_87k;
+            break;
+        case CTC_SLH_DSA_SHA2_128S:
+            keyOID = SLH_DSA_SHA2_128Sk;
+            break;
+        case CTC_SLH_DSA_SHA2_128F:
+            keyOID = SLH_DSA_SHA2_128Fk;
+            break;
+        case CTC_SLH_DSA_SHA2_192S:
+            keyOID = SLH_DSA_SHA2_192Sk;
+            break;
+        case CTC_SLH_DSA_SHA2_192F:
+            keyOID = SLH_DSA_SHA2_192Fk;
+            break;
+        case CTC_SLH_DSA_SHA2_256S:
+            keyOID = SLH_DSA_SHA2_256Sk;
+            break;
+        case CTC_SLH_DSA_SHA2_256F:
+            keyOID = SLH_DSA_SHA2_256Fk;
+            break;
+        case CTC_SLH_DSA_SHAKE_128S:
+            keyOID = SLH_DSA_SHAKE_128Sk;
+            break;
+        case CTC_SLH_DSA_SHAKE_128F:
+            keyOID = SLH_DSA_SHAKE_128Fk;
+            break;
+        case CTC_SLH_DSA_SHAKE_192S:
+            keyOID = SLH_DSA_SHAKE_192Sk;
+            break;
+        case CTC_SLH_DSA_SHAKE_192F:
+            keyOID = SLH_DSA_SHAKE_192Fk;
+            break;
+        case CTC_SLH_DSA_SHAKE_256S:
+            keyOID = SLH_DSA_SHAKE_256Sk;
+            break;
+        case CTC_SLH_DSA_SHAKE_256F:
+            keyOID = SLH_DSA_SHAKE_256Fk;
+            break;
+        case CTC_HSS_LMS:
+            keyOID = HSS_LMSk;
+            break;
+        case CTC_XMSS:
+            keyOID = XMSSk;
+            break;
+        case CTC_XMSSMT:
+            keyOID = XMSSMTk;
+            break;
+        default:
+            keyOID = 0;
+            break;
+    }
+
+    return keyOID;
+}
+
+/* Decide whether a certificate looks self-signed, mirroring the EXFLAG_SS
+ * that OpenSSL's ossl_x509v3_cache_extensions() sets.
+ *
+ * Self-issued is not enough: OpenSSL also requires the signature algorithm to
+ * match the certificate's own public key algorithm, which rules out a
+ * certificate that merely shares its issuer's name.  Like OpenSSL, the
+ * signature itself is not verified here.  OpenSSL checks the authority key
+ * identifier as well, but a version 1 certificate - the only kind this is
+ * asked about - can carry no extensions at all, so there is never one to
+ * check.
+ *
+ * @param [in] x  Certificate.
+ * @return  0 when the certificate does not look self-signed.
+ * @return  1 when it does.
+ */
+static int wolfssl_x509_self_signed(WOLFSSL_X509* x)
+{
+    int keyOID;
+
+    if (wolfSSL_X509_NAME_cmp(&x->issuer, &x->subject) != 0) {
+        return 0;
+    }
+
+    keyOID = wolfssl_x509_sig_key_type(x->sigOID);
+    if (keyOID == 0) {
+        /* An algorithm that cannot be mapped cannot be shown to match. */
+        return 0;
+    }
+    /* An RSA key produces both PKCS #1 v1.5 and PSS signatures. */
+    if ((keyOID == RSAPSSk) && (x->pubKeyOID == RSAk)) {
+        return 1;
+    }
+
+    return keyOID == x->pubKeyOID;
+}
+
+/* Decide whether a certificate may act as a CA, mirroring OpenSSL's
+ * check_ca().
+ *
+ * A non-zero result records how the decision was reached, because a caller
+ * has to treat one of them differently: 1 basicConstraints said so, 3 it is a
+ * version 1 root, 4 there is no basicConstraints but keyUsage allows
+ * certificate signing, 5 only a netscape certificate type said so.
+ *
+ * @param [in] x  Certificate.
+ * @return  0 when the certificate may not act as a CA.
+ * @return  Non-zero when it may.
+ */
+static int wolfssl_x509_check_ca(WOLFSSL_X509* x)
+{
+    /* keyUsage, when present, has to allow certificate signing. */
+    if (x->keyUsageSet && ((x->keyUsage & KEYUSE_KEY_CERT_SIGN) == 0)) {
+        return 0;
+    }
+
+    /* basicConstraints, when present, is the answer. */
+    if (x->basicConstSet) {
+        return x->isCa ? 1 : 0;
+    }
+
+    /* Without basicConstraints, fall back the way OpenSSL does. */
+    if ((x->version == 1) && wolfssl_x509_self_signed(x)) {
+        /* A version 1 self-signed certificate is taken as a root. */
+        return 3;
+    }
+    if (x->keyUsageSet) {
+        /* keyUsage got this far, so it allows certificate signing. */
+        return 4;
+    }
+#ifndef IGNORE_NETSCAPE_CERT_TYPE
+    if ((x->nsCertType & (WC_NS_SSL_CA | WC_NS_SMIME_CA | WC_NS_OBJSIGN_CA))
+            != 0) {
+        return 5;
+    }
+#endif
+    return 0;
+}
+
+/* Decide whether a certificate may act as a CA for the TLS roles.
+ *
+ * As OpenSSL's check_ssl_ca(): a certificate that only a netscape type
+ * vouched for has to have named the SSL CA type specifically.
+ *
+ * @param [in] x  Certificate.
+ * @return  0 when the certificate may not act as a TLS CA, non-zero when it
+ *          may.
+ */
+static int wolfssl_x509_check_ssl_ca(WOLFSSL_X509* x)
+{
+    int ret = wolfssl_x509_check_ca(x);
+
+    if (ret == 0) {
+        return 0;
+    }
+#ifndef IGNORE_NETSCAPE_CERT_TYPE
+    if ((ret == 5) && ((x->nsCertType & WC_NS_SSL_CA) == 0)) {
+        return 0;
+    }
+#endif
+    return ret;
+}
+
+int wolfSSL_X509_check_purpose(WOLFSSL_X509* x, int id, int ca)
+{
+    byte ekuWanted;
+    word16 kuWanted;
+    byte nsWanted;
+    /* Which of OpenSSL's CA rules this role applies when ca is set. */
+    enum { CA_RULE_SSL, CA_RULE_SMIME, CA_RULE_PLAIN } caRule = CA_RULE_PLAIN;
+
+    WOLFSSL_ENTER("wolfSSL_X509_check_purpose");
+
+    if (x == NULL) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    /* -1 asks only that the extensions be readable. wolfSSL parses them when
+     * the certificate is decoded, so there is nothing to populate. */
+    if (id == -1) {
+        return 1;
+    }
+
+    switch (id) {
+        case WOLFSSL_X509_PURPOSE_ANY:
+            /* Constrains nothing, for a CA as much as for a leaf. */
+            return 1;
+        case WOLFSSL_X509_PURPOSE_OCSP_HELPER:
+            /* A leaf is left to the OCSP code to check, but a CA still has to
+             * be a valid one. */
+            if (!ca) {
+                return 1;
+            }
+            /* OpenSSL returns check_ca()'s own value here, not a boolean. */
+            return wolfssl_x509_check_ca(x);
+        case WOLFSSL_X509_PURPOSE_SSL_CLIENT:
+            ekuWanted = EXTKEYUSE_CLIENT_AUTH;
+            caRule    = CA_RULE_SSL;
+            kuWanted  = KEYUSE_DIGITAL_SIG | KEYUSE_KEY_AGREE;
+            nsWanted  = WC_NS_SSL_CLIENT;
+            break;
+        case WOLFSSL_X509_PURPOSE_SSL_SERVER:
+            ekuWanted = EXTKEYUSE_SERVER_AUTH;
+            caRule    = CA_RULE_SSL;
+            kuWanted  = KEYUSE_DIGITAL_SIG | KEYUSE_KEY_ENCIPHER |
+                        KEYUSE_KEY_AGREE;
+            nsWanted  = WC_NS_SSL_SERVER;
+            break;
+        case WOLFSSL_X509_PURPOSE_NS_SSL_SERVER:
+            ekuWanted = EXTKEYUSE_SERVER_AUTH;
+            caRule    = CA_RULE_SSL;
+            kuWanted  = KEYUSE_KEY_ENCIPHER;
+            nsWanted  = WC_NS_SSL_SERVER;
+            break;
+        case WOLFSSL_X509_PURPOSE_SMIME_SIGN:
+            ekuWanted = EXTKEYUSE_EMAILPROT;
+            caRule    = CA_RULE_SMIME;
+            kuWanted  = KEYUSE_DIGITAL_SIG | KEYUSE_CONTENT_COMMIT;
+            /* SSL_CLIENT is accepted alongside SMIME to match OpenSSL's
+             * workaround for certificates that set only the former. */
+            nsWanted  = WC_NS_SMIME | WC_NS_SSL_CLIENT;
+            break;
+        case WOLFSSL_X509_PURPOSE_SMIME_ENCRYPT:
+            ekuWanted = EXTKEYUSE_EMAILPROT;
+            caRule    = CA_RULE_SMIME;
+            kuWanted  = KEYUSE_KEY_ENCIPHER;
+            nsWanted  = WC_NS_SMIME | WC_NS_SSL_CLIENT;
+            break;
+        case WOLFSSL_X509_PURPOSE_CRL_SIGN:
+            /* No extendedKeyUsage or netscape type is defined for CRL
+             * signing. */
+            ekuWanted = 0;
+            kuWanted  = KEYUSE_CRL_SIGN;
+            nsWanted  = 0;
+            break;
+        case WOLFSSL_X509_PURPOSE_CODE_SIGN:
+            /* A CA for code signing is just a CA. */
+            if (ca) {
+                return wolfssl_x509_check_ca(x);
+            }
+            /* CA/Browser Forum baseline requirements, as OpenSSL checks them:
+             * keyUsage has to be there, critical, allow digital signatures and
+             * allow neither certificate nor CRL signing; extendedKeyUsage has
+             * to be there, allow code signing, and allow neither any use nor
+             * server authentication. */
+            if ((!x->keyUsageSet) || (!x->keyUsageCrit) ||
+                    ((x->keyUsage & KEYUSE_DIGITAL_SIG) == 0) ||
+                    ((x->keyUsage &
+                        (KEYUSE_KEY_CERT_SIGN | KEYUSE_CRL_SIGN)) != 0)) {
+                WOLFSSL_MSG("Key usage does not allow code signing");
+                return 0;
+            }
+            if ((x->extKeyUsageSrc == NULL) ||
+                    ((x->extKeyUsage & EXTKEYUSE_CODESIGN) == 0) ||
+                    ((x->extKeyUsage &
+                        (EXTKEYUSE_ANY | EXTKEYUSE_SERVER_AUTH)) != 0)) {
+                WOLFSSL_MSG("Extended key usage does not allow code signing");
+                return 0;
+            }
+            return 1;
+        case WOLFSSL_X509_PURPOSE_TIMESTAMP_SIGN:
+            /* A CA for timestamping is just a CA; the leaf rule below cannot
+             * be applied, so it is refused there. */
+            if (ca) {
+                return wolfssl_x509_check_ca(x);
+            }
+            /* Needs the extendedKeyUsage to be exactly timeStamping and
+             * critical, which is not recorded when a certificate is parsed. */
+            WOLFSSL_MSG("Cannot check timestamp signing on a leaf");
+            return 0;
+        default:
+            /* Including TIMESTAMP_SIGN, which needs the extendedKeyUsage to be
+             * exactly timeStamping.  Unrecognised KeyPurposeIds are not
+             * recorded when a certificate is parsed, so "exactly" cannot be
+             * decided here.  Report "not permitted" rather than an error:
+             * OpenSSL answers 0 for these, and callers commonly write
+             * "if (X509_check_purpose(...))", where a negative return would
+             * read as permission granted. */
+            WOLFSSL_MSG("Unsupported X509 purpose");
+            return 0;
+    }
+
+    /* extendedKeyUsage: present and naming none of the accepted uses.  This
+     * is checked before the CA rules, as OpenSSL does, so a CA whose
+     * extendedKeyUsage excludes the role is refused for it.
+     * anyExtendedKeyUsage deliberately does not satisfy a specific purpose:
+     * OpenSSL's xku_reject() treats it as its own bit and rejects such a
+     * certificate, and this is an authorization decision, so match it. */
+    if ((ekuWanted != 0) && (x->extKeyUsageSrc != NULL) &&
+            ((x->extKeyUsage & ekuWanted) == 0)) {
+        WOLFSSL_MSG("Certificate extended key usage does not allow purpose");
+        return 0;
+    }
+
+    if (ca) {
+        int caRet;
+
+        if (caRule == CA_RULE_SSL) {
+            return wolfssl_x509_check_ssl_ca(x) != 0;
+        }
+        caRet = wolfssl_x509_check_ca(x);
+        if (caRet == 0) {
+            return 0;
+        }
+#ifndef IGNORE_NETSCAPE_CERT_TYPE
+        /* A certificate only a netscape type vouched for has to have named
+         * the S/MIME CA type specifically. */
+        if ((caRule == CA_RULE_SMIME) && (caRet == 5) &&
+                ((x->nsCertType & WC_NS_SMIME_CA) == 0)) {
+            return 0;
+        }
+#endif
+        /* Report how the decision was reached, as OpenSSL does: a caller may
+         * distinguish a certificate that only a netscape type vouched for
+         * from one basicConstraints named. */
+        return caRet;
+    }
+
+    /* keyUsage: present and naming none of the accepted uses. */
+    if ((kuWanted != 0) && x->keyUsageSet &&
+            ((x->keyUsage & kuWanted) == 0)) {
+        WOLFSSL_MSG("Certificate key usage does not allow purpose");
+        return 0;
+    }
+
+    if ((nsWanted != 0) && !wolfssl_x509_check_ns_cert_type(x, nsWanted)) {
+        return 0;
+    }
+
+    return 1;
+}
+
 int wolfSSL_X509_check_ca(WOLFSSL_X509 *x509)
 {
     WOLFSSL_ENTER("wolfSSL_X509_check_ca");

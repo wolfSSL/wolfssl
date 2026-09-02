@@ -410,6 +410,204 @@ static int d2iTryEd448Key(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
 }
 #endif /* HAVE_ED448 */
 
+#if defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_IMPORT)
+/**
+ * Try to make an X25519 EVP PKEY from data.
+ *
+ * @param [in, out] out    On in, an EVP PKEY or NULL.
+ *                         On out, an EVP PKEY or NULL.
+ * @param [in]      mem    Memory containing key data.
+ * @param [in]      memSz  Size of key data in bytes.
+ * @param [in]      priv   1 means private key, 0 means public key.
+ * @param [in]      prePopulated  1 means *out already holds the input bytes
+ *                         so the d2i_make_pkey allocate/copy is skipped.
+ * @return  1 on success.
+ * @return  0 when input was recognized as this key type but object
+ *            creation/import failed.
+ * @return  WOLFSSL_FATAL_ERROR when input is not this key type.
+ */
+static int d2iTryX25519Key(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
+    long memSz, int priv, int prePopulated)
+{
+    curve25519_key* cKey = NULL;
+    word32 keyIdx = 0;
+    int isCurveKey;
+    int ret = 1;
+    void* heap = NULL;
+
+    if (*out != NULL) {
+        heap = (*out)->heap;
+    }
+
+    cKey = (curve25519_key*)XMALLOC(sizeof(curve25519_key), heap,
+        DYNAMIC_TYPE_CURVE25519);
+    if (cKey == NULL) {
+        return 0;
+    }
+    if (wc_curve25519_init_ex(cKey, heap, INVALID_DEVID) != 0) {
+        XFREE(cKey, heap, DYNAMIC_TYPE_CURVE25519);
+        return 0;
+    }
+
+    /* Decode data as an X25519 key in DER form (SubjectPublicKeyInfo for
+     * public keys, PKCS#8 PrivateKeyInfo for private keys).
+     *
+     * The value is imported here rather than left to
+     * wc_Curve25519PrivateKeyDecode(), which takes the scalar big-endian to
+     * match the encoder beside it.  RFC 8410 carries the little-endian value
+     * of RFC 7748, as OpenSSL reads and writes it, and a big-endian import
+     * would also clamp the wrong end of it.  The decode hands back where the
+     * key actually sits: an RFC 5958 v2 key carries the public key after the
+     * private one, so the position cannot be assumed from the length. */
+    if (priv) {
+        const byte* privKey = NULL;
+        const byte* pubKey = NULL;
+        word32 privKeyLen = 0;
+        word32 pubKeyLen = 0;
+        int keyType = X25519k;
+
+        /* The public key outputs are required even though only the private
+         * key is wanted: a v2 OneAsymmetricKey carries a public key too, and
+         * the decode refuses to run with nowhere to report it. */
+        isCurveKey = (DecodeAsymKey_Assign(mem, &keyIdx, (word32)memSz, NULL,
+            NULL, &privKey, &privKeyLen, &pubKey, &pubKeyLen, &keyType) == 0);
+        if (isCurveKey && (privKeyLen == CURVE25519_KEYSIZE)) {
+            isCurveKey = (wc_curve25519_import_private_ex(privKey, privKeyLen,
+                cKey, EC25519_LITTLE_ENDIAN) == 0);
+        }
+        else {
+            isCurveKey = 0;
+        }
+    }
+    else {
+        const byte* pubKey = NULL;
+        word32 pubKeyLen = 0;
+        int keyType = X25519k;
+
+        isCurveKey = (DecodeAsymKeyPublic_Assign(mem, &keyIdx, (word32)memSz,
+            &pubKey, &pubKeyLen, &keyType) == 0);
+        if (isCurveKey && (pubKeyLen == CURVE25519_KEYSIZE)) {
+            isCurveKey = (wc_curve25519_import_public_ex(pubKey, pubKeyLen,
+                cKey, EC25519_LITTLE_ENDIAN) == 0);
+        }
+        else {
+            isCurveKey = 0;
+        }
+    }
+
+    if (!isCurveKey) {
+        wc_curve25519_free(cKey);
+        XFREE(cKey, heap, DYNAMIC_TYPE_CURVE25519);
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    /* Copy the consumed DER into pkey->pkey.ptr, unless the caller
+     * pre-filled the EVP PKEY with the input bytes (d2i_evp_pkey()). */
+    if (!prePopulated) {
+        ret = d2i_make_pkey(out, mem, keyIdx, priv, WC_EVP_PKEY_X25519);
+    }
+    if (ret == 1) {
+        (*out)->ownCurve25519 = 1;
+        (*out)->curve25519 = cKey;
+    }
+    else {
+        wc_curve25519_free(cKey);
+        XFREE(cKey, heap, DYNAMIC_TYPE_CURVE25519);
+    }
+
+    return ret;
+}
+#endif /* HAVE_CURVE25519 && HAVE_CURVE25519_KEY_IMPORT */
+
+#if defined(HAVE_CURVE448) && defined(HAVE_CURVE448_KEY_IMPORT)
+/**
+ * Try to make an X448 EVP PKEY from data.
+ *
+ * See d2iTryX25519Key() for the parameters and return values.
+ */
+static int d2iTryX448Key(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
+    long memSz, int priv, int prePopulated)
+{
+    curve448_key* cKey = NULL;
+    word32 keyIdx = 0;
+    int isCurveKey;
+    int ret = 1;
+    void* heap = NULL;
+
+    if (*out != NULL) {
+        heap = (*out)->heap;
+    }
+
+    cKey = (curve448_key*)XMALLOC(sizeof(curve448_key), heap,
+        DYNAMIC_TYPE_CURVE448);
+    if (cKey == NULL) {
+        return 0;
+    }
+    if (wc_curve448_init(cKey) != 0) {
+        XFREE(cKey, heap, DYNAMIC_TYPE_CURVE448);
+        return 0;
+    }
+
+    /* Decode data as an X448 key in DER form (SubjectPublicKeyInfo for public
+     * keys, PKCS#8 PrivateKeyInfo for private keys).  See d2iTryX25519Key()
+     * for why the value is imported here, with an explicit endianness, from
+     * where the decode says the key sits. */
+    if (priv) {
+        const byte* privKey = NULL;
+        const byte* pubKey = NULL;
+        word32 privKeyLen = 0;
+        word32 pubKeyLen = 0;
+        int keyType = X448k;
+
+        /* See d2iTryX25519Key() for why the public key outputs are given. */
+        isCurveKey = (DecodeAsymKey_Assign(mem, &keyIdx, (word32)memSz, NULL,
+            NULL, &privKey, &privKeyLen, &pubKey, &pubKeyLen, &keyType) == 0);
+        if (isCurveKey && (privKeyLen == CURVE448_KEY_SIZE)) {
+            isCurveKey = (wc_curve448_import_private_ex(privKey, privKeyLen,
+                cKey, EC448_LITTLE_ENDIAN) == 0);
+        }
+        else {
+            isCurveKey = 0;
+        }
+    }
+    else {
+        const byte* pubKey = NULL;
+        word32 pubKeyLen = 0;
+        int keyType = X448k;
+
+        isCurveKey = (DecodeAsymKeyPublic_Assign(mem, &keyIdx, (word32)memSz,
+            &pubKey, &pubKeyLen, &keyType) == 0);
+        if (isCurveKey && (pubKeyLen == CURVE448_KEY_SIZE)) {
+            isCurveKey = (wc_curve448_import_public_ex(pubKey, pubKeyLen,
+                cKey, EC448_LITTLE_ENDIAN) == 0);
+        }
+        else {
+            isCurveKey = 0;
+        }
+    }
+
+    if (!isCurveKey) {
+        wc_curve448_free(cKey);
+        XFREE(cKey, heap, DYNAMIC_TYPE_CURVE448);
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    if (!prePopulated) {
+        ret = d2i_make_pkey(out, mem, keyIdx, priv, WC_EVP_PKEY_X448);
+    }
+    if (ret == 1) {
+        (*out)->ownCurve448 = 1;
+        (*out)->curve448 = cKey;
+    }
+    else {
+        wc_curve448_free(cKey);
+        XFREE(cKey, heap, DYNAMIC_TYPE_CURVE448);
+    }
+
+    return ret;
+}
+#endif /* HAVE_CURVE448 && HAVE_CURVE448_KEY_IMPORT */
+
 /* Create a new EVP_PKEY from raw Ed25519 or Ed448 key material.
  *
  * Used for for callers who already have the raw key bytes and shouldn't need
@@ -566,6 +764,291 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_raw_public_key(int type,
 /* Private-key counterpart to wolfSSL_EVP_PKEY_new_raw_public_key. The raw
  * input is the 32-byte seed (Ed25519) or 57-byte seed (Ed448).
  */
+/* Raw key forms exist only for the curves below; without any of them the
+ * getters have nothing to report. */
+#if (defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)) || \
+    (defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT)) || \
+    (defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_EXPORT)) || \
+    (defined(HAVE_CURVE448) && defined(HAVE_CURVE448_KEY_EXPORT))
+    #define WOLFSSL_EVP_HAVE_RAW_KEYS
+#endif
+
+#ifdef WOLFSSL_EVP_HAVE_RAW_KEYS
+/* Copy a raw key out to the caller's buffer, honouring OpenSSL's
+ * query-then-fetch protocol.
+ *
+ * out/outLen - when out is NULL, *outLen receives the size needed and nothing
+ *              is copied.  Otherwise *outLen is the buffer size on entry and
+ *              the size written on exit.
+ *
+ * Returns 1 on success, 0 when the buffer is too small.
+ */
+static int wolfssl_evp_pkey_raw_out(const byte* raw, word32 rawLen,
+    unsigned char* out, size_t* outLen)
+{
+    if (out == NULL) {
+        *outLen = (size_t)rawLen;
+        return 1;
+    }
+    if (*outLen < (size_t)rawLen) {
+        WOLFSSL_MSG("buffer too small for raw key");
+        *outLen = (size_t)rawLen;
+        return 0;
+    }
+    XMEMCPY(out, raw, rawLen);
+    *outLen = (size_t)rawLen;
+    return 1;
+}
+#endif /* WOLFSSL_EVP_HAVE_RAW_KEYS */
+
+#ifdef WOLFSSL_EVP_HAVE_RAW_KEYS
+/* Decide whether pkey->pkey.ptr holds the raw private key.
+ *
+ * That field is the key's DER for anything decoded from a file or a buffer,
+ * and only wolfSSL_EVP_PKEY_new_raw_private_key() puts raw bytes there.  The
+ * two are told apart by size: a raw private key is exactly as long as the one
+ * the wolfCrypt key exports, while a DER encoding never is.
+ *
+ * The cache matters because wolfCrypt clamps an X25519/X448 scalar on import
+ * (RFC 7748), so re-exporting one would not give back what the caller set,
+ * while OpenSSL hands back exactly what it was given.
+ */
+static int wolfssl_evp_pkey_raw_cached(const WOLFSSL_EVP_PKEY* pkey,
+    word32 rawLen)
+{
+    return (pkey->pkey.ptr != NULL) && (pkey->pkey_sz > 0) &&
+           ((word32)pkey->pkey_sz == rawLen);
+}
+#endif /* WOLFSSL_EVP_HAVE_RAW_KEYS */
+
+int wolfSSL_EVP_PKEY_get_raw_private_key(const WOLFSSL_EVP_PKEY* pkey,
+    unsigned char* priv, size_t* len)
+{
+#ifdef WOLFSSL_EVP_HAVE_RAW_KEYS
+    int ret = 0;
+    byte buf[128];
+    word32 bufLen = (word32)sizeof(buf);
+#endif
+
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_get_raw_private_key");
+
+    if (pkey == NULL || len == NULL) {
+        return 0;
+    }
+
+#ifndef WOLFSSL_EVP_HAVE_RAW_KEYS
+    (void)priv;
+    WOLFSSL_MSG("build has no key type with a raw form");
+    return 0;
+#else
+
+    switch (pkey->type) {
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)
+        case WC_EVP_PKEY_ED25519:
+            if (pkey->ed25519 == NULL) {
+                break;
+            }
+            if (wc_ed25519_export_private_only(pkey->ed25519, buf, &bufLen)
+                    != 0) {
+                WOLFSSL_MSG("wc_ed25519_export_private_only failed");
+                break;
+            }
+            if (wolfssl_evp_pkey_raw_cached(pkey, bufLen)) {
+                ret = wolfssl_evp_pkey_raw_out((const byte*)pkey->pkey.ptr,
+                    bufLen, priv, len);
+            }
+            else {
+                ret = wolfssl_evp_pkey_raw_out(buf, bufLen, priv, len);
+            }
+            break;
+#endif
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT)
+        case WC_EVP_PKEY_ED448:
+            if (pkey->ed448 == NULL) {
+                break;
+            }
+            if (wc_ed448_export_private_only(pkey->ed448, buf, &bufLen) != 0) {
+                WOLFSSL_MSG("wc_ed448_export_private_only failed");
+                break;
+            }
+            if (wolfssl_evp_pkey_raw_cached(pkey, bufLen)) {
+                ret = wolfssl_evp_pkey_raw_out((const byte*)pkey->pkey.ptr,
+                    bufLen, priv, len);
+            }
+            else {
+                ret = wolfssl_evp_pkey_raw_out(buf, bufLen, priv, len);
+            }
+            break;
+#endif
+#if defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_EXPORT)
+        case WC_EVP_PKEY_X25519:
+            if (pkey->curve25519 == NULL) {
+                break;
+            }
+            /* Raw X25519 keys are little-endian (RFC 7748). */
+            if (wc_curve25519_export_private_raw_ex(pkey->curve25519, buf,
+                    &bufLen, EC25519_LITTLE_ENDIAN) != 0) {
+                WOLFSSL_MSG("wc_curve25519_export_private_raw_ex failed");
+                break;
+            }
+            if (wolfssl_evp_pkey_raw_cached(pkey, bufLen)) {
+                ret = wolfssl_evp_pkey_raw_out((const byte*)pkey->pkey.ptr,
+                    bufLen, priv, len);
+            }
+            else {
+                ret = wolfssl_evp_pkey_raw_out(buf, bufLen, priv, len);
+            }
+            break;
+#endif
+#if defined(HAVE_CURVE448) && defined(HAVE_CURVE448_KEY_EXPORT)
+        case WC_EVP_PKEY_X448:
+            if (pkey->curve448 == NULL) {
+                break;
+            }
+            if (wc_curve448_export_private_raw_ex(pkey->curve448, buf, &bufLen,
+                    EC448_LITTLE_ENDIAN) != 0) {
+                WOLFSSL_MSG("wc_curve448_export_private_raw_ex failed");
+                break;
+            }
+            if (wolfssl_evp_pkey_raw_cached(pkey, bufLen)) {
+                ret = wolfssl_evp_pkey_raw_out((const byte*)pkey->pkey.ptr,
+                    bufLen, priv, len);
+            }
+            else {
+                ret = wolfssl_evp_pkey_raw_out(buf, bufLen, priv, len);
+            }
+            break;
+#endif
+        default:
+            WOLFSSL_MSG("key type has no raw private form");
+            break;
+    }
+
+    ForceZero(buf, sizeof(buf));
+
+    return ret;
+#endif /* WOLFSSL_EVP_HAVE_RAW_KEYS */
+}
+
+/* Get the raw public key of a key type that has one.
+ *
+ * See wolfSSL_EVP_PKEY_get_raw_private_key() on where the bytes come from.
+ *
+ * Returns 1 on success, 0 otherwise.
+ */
+int wolfSSL_EVP_PKEY_get_raw_public_key(const WOLFSSL_EVP_PKEY* pkey,
+    unsigned char* pub, size_t* len)
+{
+#ifdef WOLFSSL_EVP_HAVE_RAW_KEYS
+    int ret = 0;
+    byte buf[128];
+    word32 bufLen = (word32)sizeof(buf);
+#endif
+
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_get_raw_public_key");
+
+    if (pkey == NULL || len == NULL) {
+        return 0;
+    }
+
+#ifndef WOLFSSL_EVP_HAVE_RAW_KEYS
+    (void)pub;
+    WOLFSSL_MSG("build has no key type with a raw form");
+    return 0;
+#else
+
+    switch (pkey->type) {
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)
+        case WC_EVP_PKEY_ED25519:
+            if (pkey->ed25519 == NULL) {
+                break;
+            }
+            /* Derive whenever a private key is present, rather than asking
+             * whether a public key is already held. wc_ed25519_make_public()
+             * writes the public key into the buffer it is given and sets
+             * pubKeySet, but never stores the key on the key itself, so after
+             * one call the flag claims a public key that is not there and
+             * exporting would hand back zeros. It also wants exactly the
+             * public key size, not the capacity of the buffer. */
+            if (pkey->ed25519->privKeySet) {
+                if (wc_ed25519_make_public(pkey->ed25519, buf,
+                        ED25519_PUB_KEY_SIZE) != 0) {
+                    WOLFSSL_MSG("wc_ed25519_make_public failed");
+                    break;
+                }
+                bufLen = ED25519_PUB_KEY_SIZE;
+            }
+            else {
+                bufLen = (word32)sizeof(buf);
+                if (wc_ed25519_export_public(pkey->ed25519, buf, &bufLen)
+                        != 0) {
+                    WOLFSSL_MSG("wc_ed25519_export_public failed");
+                    break;
+                }
+            }
+            ret = wolfssl_evp_pkey_raw_out(buf, bufLen, pub, len);
+            break;
+#endif
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT)
+        case WC_EVP_PKEY_ED448:
+            if (pkey->ed448 == NULL) {
+                break;
+            }
+            /* See the Ed25519 case: make_public() fills the buffer and sets
+             * pubKeySet without storing the public key on the key itself. */
+            if (pkey->ed448->privKeySet) {
+                if (wc_ed448_make_public(pkey->ed448, buf,
+                        ED448_PUB_KEY_SIZE) != 0) {
+                    WOLFSSL_MSG("wc_ed448_make_public failed");
+                    break;
+                }
+                bufLen = ED448_PUB_KEY_SIZE;
+            }
+            else {
+                bufLen = (word32)sizeof(buf);
+                if (wc_ed448_export_public(pkey->ed448, buf, &bufLen) != 0) {
+                    WOLFSSL_MSG("wc_ed448_export_public failed");
+                    break;
+                }
+            }
+            ret = wolfssl_evp_pkey_raw_out(buf, bufLen, pub, len);
+            break;
+#endif
+#if defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_EXPORT)
+        case WC_EVP_PKEY_X25519:
+            if (pkey->curve25519 == NULL) {
+                break;
+            }
+            if (wc_curve25519_export_public_ex(pkey->curve25519, buf, &bufLen,
+                    EC25519_LITTLE_ENDIAN) != 0) {
+                WOLFSSL_MSG("wc_curve25519_export_public_ex failed");
+                break;
+            }
+            ret = wolfssl_evp_pkey_raw_out(buf, bufLen, pub, len);
+            break;
+#endif
+#if defined(HAVE_CURVE448) && defined(HAVE_CURVE448_KEY_EXPORT)
+        case WC_EVP_PKEY_X448:
+            if (pkey->curve448 == NULL) {
+                break;
+            }
+            if (wc_curve448_export_public_ex(pkey->curve448, buf, &bufLen,
+                    EC448_LITTLE_ENDIAN) != 0) {
+                WOLFSSL_MSG("wc_curve448_export_public_ex failed");
+                break;
+            }
+            ret = wolfssl_evp_pkey_raw_out(buf, bufLen, pub, len);
+            break;
+#endif
+        default:
+            WOLFSSL_MSG("key type has no raw public form");
+            break;
+    }
+
+    return ret;
+#endif /* WOLFSSL_EVP_HAVE_RAW_KEYS */
+}
+
 WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_raw_private_key(int type,
     WOLFSSL_ENGINE* e, const unsigned char* priv, size_t len)
 {
@@ -1223,6 +1706,18 @@ static WOLFSSL_EVP_PKEY* d2i_evp_pkey_try(WOLFSSL_EVP_PKEY** out,
     }
     else
 #endif /* HAVE_ED448 && HAVE_ED448_KEY_IMPORT */
+#if defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_IMPORT)
+    if (d2iTryX25519Key(&pkey, *in, inSz, priv, 0) >= 0) {
+        found = 1;
+    }
+    else
+#endif /* HAVE_CURVE25519 && HAVE_CURVE25519_KEY_IMPORT */
+#if defined(HAVE_CURVE448) && defined(HAVE_CURVE448_KEY_IMPORT)
+    if (d2iTryX448Key(&pkey, *in, inSz, priv, 0) >= 0) {
+        found = 1;
+    }
+    else
+#endif /* HAVE_CURVE448 && HAVE_CURVE448_KEY_IMPORT */
 #ifdef HAVE_FALCON
     if (d2iTryFalconKey(&pkey, *in, inSz, priv) >= 0) {
         found = 1;
@@ -1468,6 +1963,12 @@ static WOLFSSL_EVP_PKEY* d2i_evp_pkey(int type, WOLFSSL_EVP_PKEY** out,
             #ifdef HAVE_ED448
                 || (type == WC_EVP_PKEY_ED448 && algId != ED448k)
             #endif
+            #ifdef HAVE_CURVE25519
+                || (type == WC_EVP_PKEY_X25519 && algId != X25519k)
+            #endif
+            #ifdef HAVE_CURVE448
+                || (type == WC_EVP_PKEY_X448 && algId != X448k)
+            #endif
             #ifdef WOLFSSL_HAVE_MLDSA
                 || (type == WC_EVP_PKEY_DILITHIUM &&
                     algId != ML_DSA_44k && algId != ML_DSA_65k &&
@@ -1606,6 +2107,24 @@ static WOLFSSL_EVP_PKEY* d2i_evp_pkey(int type, WOLFSSL_EVP_PKEY** out,
             }
             break;
 #endif /* HAVE_ED448 */
+#if defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_IMPORT)
+        case WC_EVP_PKEY_X25519:
+            /* See WC_EVP_PKEY_ED25519 case above. */
+            if (d2iTryX25519Key(&local, p, local->pkey_sz, priv, 1) != 1) {
+                wolfSSL_EVP_PKEY_free(local);
+                return NULL;
+            }
+            break;
+#endif /* HAVE_CURVE25519 && HAVE_CURVE25519_KEY_IMPORT */
+#if defined(HAVE_CURVE448) && defined(HAVE_CURVE448_KEY_IMPORT)
+        case WC_EVP_PKEY_X448:
+            /* See WC_EVP_PKEY_ED25519 case above. */
+            if (d2iTryX448Key(&local, p, local->pkey_sz, priv, 1) != 1) {
+                wolfSSL_EVP_PKEY_free(local);
+                return NULL;
+            }
+            break;
+#endif /* HAVE_CURVE448 && HAVE_CURVE448_KEY_IMPORT */
 #if defined(WOLFSSL_HAVE_MLDSA)
         case WC_EVP_PKEY_DILITHIUM:
             /* local already holds the input bytes: prePopulated=1. */

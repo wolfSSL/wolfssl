@@ -7945,6 +7945,27 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 #endif
 
+#if defined(OPENSSL_EXTRA) && defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(NO_WOLFSSL_SERVER)
+    /* Let the application inspect the raw extensions before they are
+     * processed, so it can pick a context. */
+    if ((ssl->ctx != NULL) && (ssl->ctx->chCb != NULL)) {
+        int chAlert = handshake_failure;
+        int chRet;
+
+        ssl->chExts = input + args->idx;
+        ssl->chExtsSz = totalExtSz;
+        chRet = ssl->ctx->chCb(ssl, &chAlert, ssl->ctx->chCbArg);
+        ssl->chExts = NULL;
+        ssl->chExtsSz = 0;
+
+        if (chRet != WOLFSSL_CLIENT_HELLO_SUCCESS) {
+            WOLFSSL_MSG("ClientHello callback failed handshake");
+            SendAlert(ssl, alert_fatal, (int)chAlert);
+            ERROR_OUT(CLIENT_HELLO_CB_E, exit_dch);
+        }
+    }
+#endif
     /* Parse extensions */
     if ((ret = TLSX_Parse(ssl, input + args->idx, totalExtSz, client_hello,
                                                             ssl->clSuites))) {
