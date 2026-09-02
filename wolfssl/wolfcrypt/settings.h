@@ -4038,9 +4038,8 @@
         #error WOLF_CRYPTO_CB_ASYNC_POLL requires bulk cipher async support
     #endif
 
-    /* Crypto callbacks are the only async backend and cannot finish a pending
-     * bulk cipher op: the record layer has already advanced past the crypto
-     * call, and without poll routing nothing refills the output buffer. */
+    /* Callback-only async cannot finish a pending TLS 1.2 bulk cipher op
+     * (TLS 1.3 resumes them by re-invoking the callback). */
     #if defined(WOLF_CRYPTO_CB) && !defined(WOLF_CRYPTO_CB_ASYNC_POLL) && \
         !defined(WOLFSSL_ASYNC_CRYPT_SW) && !defined(HAVE_INTEL_QA) && \
         !defined(HAVE_CAVIUM)

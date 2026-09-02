@@ -11795,8 +11795,9 @@ then
     fi
 fi
 
-# Crypto callbacks with async crypt may not work for TLS unless
-# WOLF_CRYPTO_CB_ASYNC_POLL is defined. Report it once here and silence the
+# Crypto callbacks with async crypt cannot complete TLS 1.2 record ciphers
+# unless WOLF_CRYPTO_CB_ASYNC_POLL is defined (TLS 1.3 resumes them by
+# re-invoking the callback). Report it once here and silence the
 # source-level #warning. AC_MSG_NOTICE, not AC_MSG_WARN: the multi-test
 # harness fails any scenario whose configure emits "configure: WARNING:".
 if test "$ENABLED_ASYNCCRYPT" = "yes" && test "x$ENABLED_CRYPTOCB" != "xno" &&
@@ -11807,7 +11808,7 @@ then
         *WOLF_CRYPTO_CB_ASYNC_POLL*)
             ;;
         *)
-            AC_MSG_NOTICE([crypto callbacks with async crypt may not work for TLS. Define WOLF_CRYPTO_CB_ASYNC_POLL to enable it.])
+            AC_MSG_NOTICE([crypto callbacks with async crypt cannot complete TLS 1.2 record ciphers. Define WOLF_CRYPTO_CB_ASYNC_POLL to enable them.])
             AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB_ASYNC_NO_WARN"
             ;;
     esac
