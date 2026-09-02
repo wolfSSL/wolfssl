@@ -109,15 +109,23 @@ int wc_HpkeGenerateKeyPair(Hpke* hpke, void** keypair, WC_RNG* rng);
     _Example_
     \code
     Hpke hpke;
+    WC_RNG rng;
     void* ephemeralKey = NULL;
     byte pubKey[HPKE_Npk_MAX];
     word16 pubKeySz = (word16)sizeof(pubKey);
     int ret;
 
+    wc_InitRng(&rng);
+    wc_HpkeInit(&hpke, DHKEM_X25519_HKDF_SHA256, HKDF_SHA256,
+        HPKE_AES_128_GCM, NULL);
+    wc_HpkeGenerateKeyPair(&hpke, &ephemeralKey, &rng);
+
     ret = wc_HpkeSerializePublicKey(&hpke, ephemeralKey, pubKey, &pubKeySz);
     if (ret != 0) {
         WOLFSSL_MSG("wc_HpkeSerializePublicKey failed");
     }
+    ...
+    wc_HpkeFreeKey(&hpke, hpke.kem, ephemeralKey, hpke.heap);
     \endcode
 
     \sa wc_HpkeDeserializePublicKey
