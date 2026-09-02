@@ -15803,6 +15803,10 @@ int wolfSSL_inject(WOLFSSL* ssl, const void* data, int sz);
     On WOLFSSL_ERROR_WANT_WRITE, the request is disarmed. Calling again may
     queue a second record.
 
+    Cover traffic records carry no application data. Receivers may drop the
+    connection after too many consecutive empty records (wolfSSL's limit is
+    WOLFSSL_MAX_EMPTY_RECORDS). Interleave cover traffic with real writes.
+
     With WOLFSSL_ASYNC_CRYPT, if suspended with WC_PENDING_E, call again
     to resume. The original paddingSz is used. Unrelated pending async
     operations cause BAD_STATE_E.
@@ -15812,7 +15816,8 @@ int wolfSSL_inject(WOLFSSL* ssl, const void* data, int sz);
     fragment size.
 
     \return 0 on success
-    \return BAD_FUNC_ARG if ssl is NULL, paddingSz is invalid, or session is not stream TLS 1.3
+    \return BAD_FUNC_ARG if ssl is NULL, paddingSz is negative or not less
+    than the max fragment size, or the session is not stream TLS 1.3
     \return BAD_STATE_E if an application write or an unrelated asynchronous operation is pending
     \return WOLFSSL_FATAL_ERROR if the record could not be sent; the reason,
     e.g. WOLFSSL_ERROR_WANT_WRITE or WC_PENDING_E, is available from

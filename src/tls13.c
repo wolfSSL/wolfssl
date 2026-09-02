@@ -3261,7 +3261,9 @@ word16 Tls13GetCoverTrafficPaddingSz(WOLFSSL* ssl)
     word16 padSz;
     int maxFrag;
 
-    if (ssl->options.dtls || !ssl->options.sendCoverTraffic)
+    /* Cover traffic requires a negotiated stream TLS 1.3 session. */
+    if (!ssl->options.tls1_3 || ssl->options.dtls ||
+            !ssl->options.sendCoverTraffic)
         return 0;
 
     padSz = ssl->options.coverTrafficPadSz;
