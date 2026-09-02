@@ -165,6 +165,7 @@ EXTRA_DIST += \
               tests/unit-mcdc/test_integer_fault_whitebox.c \
               tests/unit-mcdc/test_integer_whitebox.c \
               tests/unit-mcdc/test_kdf_hash_fault_whitebox.c \
+              tests/unit-mcdc/test_internal_domain_whitebox.c \
               tests/unit-mcdc/test_internal_suites_whitebox.c \
               tests/unit-mcdc/test_kdf_whitebox.c \
               tests/unit-mcdc/test_lms_bds_whitebox.c \
