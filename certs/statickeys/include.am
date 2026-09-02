@@ -24,3 +24,10 @@ EXTRA_DIST += \
 		certs/statickeys/x25519.pem \
 		certs/statickeys/x25519-pub.der \
 		certs/statickeys/x25519-pub.pem
+
+# Curve448 Keys
+EXTRA_DIST += \
+		certs/statickeys/x448.der \
+		certs/statickeys/x448.pem \
+		certs/statickeys/x448-pub.der \
+		certs/statickeys/x448-pub.pem

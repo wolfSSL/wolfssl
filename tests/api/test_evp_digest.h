@@ -28,6 +28,7 @@ int test_wolfSSL_EVP_shake128(void);
 int test_wolfSSL_EVP_shake256(void);
 int test_wolfSSL_EVP_sm3(void);
 int test_EVP_blake2(void);
+int test_wolfSSL_EVP_md_null(void);
 int test_wolfSSL_EVP_md4(void);
 int test_wolfSSL_EVP_ripemd160(void);
 int test_wolfSSL_EVP_get_digestbynid(void);
@@ -44,6 +45,7 @@ int test_wolfSSL_EVP_MD_size(void);
     TEST_DECL_GROUP("evp_digest", test_wolfSSL_EVP_shake256),           \
     TEST_DECL_GROUP("evp_digest", test_wolfSSL_EVP_sm3),                \
     TEST_DECL_GROUP("evp_digest", test_EVP_blake2),                     \
+    TEST_DECL_GROUP("evp_digest", test_wolfSSL_EVP_md_null),           \
     TEST_DECL_GROUP("evp_digest", test_wolfSSL_EVP_md4),                \
     TEST_DECL_GROUP("evp_digest", test_wolfSSL_EVP_ripemd160),          \
     TEST_DECL_GROUP("evp_digest", test_wolfSSL_EVP_get_digestbynid),    \

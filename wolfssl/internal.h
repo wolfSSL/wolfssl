@@ -4360,6 +4360,11 @@ struct WOLFSSL_CTX {
     int              ownOurCert;  /* Dispose of certificate if we own */
 #endif
     Suites*     suites;           /* make dynamic, user may not need/set */
+#if defined(OPENSSL_EXTRA) && defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(NO_WOLFSSL_SERVER)
+    CallbackClientHello chCb;     /* called on receiving a ClientHello */
+    void*               chCbArg;  /* user context for chCb */
+#endif
     void*       heap;             /* for user memory overrides */
     byte        verifyDepth;
     byte        verifyPeer:1;
@@ -6164,6 +6169,10 @@ struct WOLFSSL_X509 {
     word32           extKeyUsageCount;
 #ifndef IGNORE_NETSCAPE_CERT_TYPE
     byte             nsCertType;
+    /* Whether the extension was present.  An all-zero value is a legitimate
+     * encoding that permits nothing, so it cannot be told from an absent
+     * extension by the bits alone. */
+    WC_BITFIELD      nsCertTypeSet:1;
 #endif
 #ifdef OPENSSL_ALL
     word32           subjAltNameSz;
@@ -7219,6 +7228,11 @@ struct WOLFSSL {
 #endif
 #if defined(OPENSSL_EXTRA)
     WOLFSSL_STACK* supportedCiphers; /* Used in wolfSSL_get_ciphers_compat */
+#if defined(HAVE_TLS_EXTENSIONS) && !defined(NO_WOLFSSL_SERVER)
+    const byte* chExts;   /* raw ClientHello extension block, only valid
+                           * for the duration of the ClientHello callback */
+    word16      chExtsSz;
+#endif
     WOLFSSL_STACK* peerCertChain;    /* Used in wolfSSL_get_peer_cert_chain */
     WOLFSSL_STACK* verifiedChain;    /* peer cert chain to CA */
 #ifdef KEEP_OUR_CERT

@@ -932,7 +932,9 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define X509_REVOKED_get_ext_count       wolfSSL_X509_REVOKED_get_ext_count
 #define X509_REVOKED_get_ext             wolfSSL_X509_REVOKED_get_ext
 
-#define X509_check_purpose(x, id, ca)   0
+/* Was a macro expanding to the constant 0, i.e. "suitable for nothing", which
+ * is not what OpenSSL's X509_check_purpose() reports. */
+#define X509_check_purpose              wolfSSL_X509_check_purpose
 
 #define OCSP_parse_url                  wolfSSL_OCSP_parse_url
 
@@ -1052,6 +1054,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 
 #define a2i_ASN1_INTEGER                wolfSSL_a2i_ASN1_INTEGER
 #define i2a_ASN1_INTEGER                wolfSSL_i2a_ASN1_INTEGER
+#define i2a_ASN1_STRING                 wolfSSL_i2a_ASN1_STRING
 #define i2c_ASN1_INTEGER                wolfSSL_i2c_ASN1_INTEGER
 #define ASN1_INTEGER_new                wolfSSL_ASN1_INTEGER_new
 #define ASN1_INTEGER_free               wolfSSL_ASN1_INTEGER_free
@@ -1141,6 +1144,10 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define ASN1_BOOLEAN                    WOLFSSL_ASN1_BOOLEAN
 
 #define SSL_load_client_CA_file         wolfSSL_load_client_CA_file
+#define SSL_add_file_cert_subjects_to_stack \
+                                        wolfSSL_add_file_cert_subjects_to_stack
+#define SSL_add_dir_cert_subjects_to_stack \
+                                        wolfSSL_add_dir_cert_subjects_to_stack
 
 #define SSL_CTX_get_client_CA_list      wolfSSL_CTX_get_client_CA_list
 #define SSL_CTX_set_client_CA_list      wolfSSL_CTX_set_client_CA_list
@@ -1304,6 +1311,9 @@ typedef wolfSSL_custom_ext_parse_cb custom_ext_parse_cb;
 
 #define SSL_CTX_set_session_id_context  wolfSSL_CTX_set_session_id_context
 #define SSL_get_peer_certificate        wolfSSL_get_peer_certificate
+/* OpenSSL 3.0 renamed SSL_get_peer_certificate(); both return a certificate
+ * the caller has to free, which is what wolfSSL_get_peer_certificate() does. */
+#define SSL_get1_peer_certificate       wolfSSL_get_peer_certificate
 #define SSL_get_peer_cert_chain         wolfSSL_get_peer_cert_chain
 
 #define SSL_want                        wolfSSL_want
@@ -1412,6 +1422,19 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define SSL_get_wbio                    wolfSSL_SSL_get_wbio
 #define SSL_do_handshake                wolfSSL_SSL_do_handshake
 #define SSL_get_ciphers(x)              wolfSSL_get_ciphers_compat(x)
+#define SSL_CTX_load_verify_file        wolfSSL_CTX_load_verify_file
+#define SSL_CTX_load_verify_dir         wolfSSL_CTX_load_verify_dir
+#define SSL_CTX_set_client_hello_cb     wolfSSL_CTX_set_client_hello_cb
+#define SSL_client_hello_get0_ext       wolfSSL_client_hello_get0_ext
+
+/* Return values for the ClientHello callback. RETRY is not supported - the
+ * handshake cannot be paused - and is treated as an error. */
+#define SSL_CLIENT_HELLO_SUCCESS        WOLFSSL_CLIENT_HELLO_SUCCESS
+#define SSL_CLIENT_HELLO_ERROR          WOLFSSL_CLIENT_HELLO_ERROR
+#define SSL_CLIENT_HELLO_RETRY          WOLFSSL_CLIENT_HELLO_RETRY
+#ifndef TLSEXT_TYPE_server_name
+    #define TLSEXT_TYPE_server_name     0
+#endif
 #define SSL_SESSION_get_id              wolfSSL_SESSION_get_id
 #define SSL_get_cipher_bits(s,np)       \
                           wolfSSL_CIPHER_get_bits(SSL_get_current_cipher(s),np)
@@ -1466,6 +1489,7 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 
 #define SSL_CTX_set_dh_auto             wolfSSL_CTX_set_dh_auto
 #define SSL_CTX_set_tmp_dh              wolfSSL_CTX_set_tmp_dh
+#define SSL_CTX_set0_tmp_dh_pkey        wolfSSL_CTX_set0_tmp_dh_pkey
 
 #define TLSEXT_STATUSTYPE_ocsp          WOLFSSL_TLSEXT_STATUSTYPE_ocsp
 
@@ -1712,6 +1736,10 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define SSL_TLSEXT_ERR_ALERT_FATAL      2
 #define SSL_TLSEXT_ERR_NOACK            3
 #define TLSEXT_NAMETYPE_host_name       WOLFSSL_SNI_HOST_NAME
+/* Longest HostName a ServerName may carry, as RFC 6066 and OpenSSL have
+ * it.  Needed by consumers that parse the extension themselves from a
+ * ClientHello callback. */
+#define TLSEXT_MAXLEN_host_name         255
 
 #define SSL_set_tlsext_host_name        wolfSSL_set_tlsext_host_name
 #define SSL_get_servername              wolfSSL_get_servername
