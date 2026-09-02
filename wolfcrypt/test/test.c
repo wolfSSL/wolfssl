@@ -10019,6 +10019,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha224_test(void)
 
         ret = wc_HmacSetKey(&hmac, WC_SHA224, (byte*)keys[i],
             (word32)XSTRLEN(keys[i]));
+#if FIPS_VERSION3_GE(7,0,0)
+        /* Keys above HMAC_FIPS_MAX_KEY (1024 bits) are outside the module's
+         * CAVP-tested key range and are rejected in approved mode; the long
+         * RFC 4231 style vectors stay covered through the wc_HmacSetKey_ex
+         * allowFlag escape. */
+        if (XSTRLEN(keys[i]) > HMAC_FIPS_MAX_KEY) {
+            if (ret != WC_NO_ERR_TRACE(BAD_LENGTH_E))
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            ret = wc_HmacSetKey_ex(&hmac, WC_SHA224, (byte*)keys[i],
+                                   (word32)XSTRLEN(keys[i]), 1);
+        }
+#endif
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -10180,6 +10192,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha256_test(void)
 
         ret = wc_HmacSetKey(&hmac, WC_SHA256, (byte*)keys[i],
             (word32)XSTRLEN(keys[i]));
+#if FIPS_VERSION3_GE(7,0,0)
+        /* Keys above HMAC_FIPS_MAX_KEY (1024 bits) are outside the module's
+         * CAVP-tested key range and are rejected in approved mode; the long
+         * RFC 4231 style vectors stay covered through the wc_HmacSetKey_ex
+         * allowFlag escape. */
+        if (XSTRLEN(keys[i]) > HMAC_FIPS_MAX_KEY) {
+            if (ret != WC_NO_ERR_TRACE(BAD_LENGTH_E))
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            ret = wc_HmacSetKey_ex(&hmac, WC_SHA256, (byte*)keys[i],
+                                   (word32)XSTRLEN(keys[i]), 1);
+        }
+#endif
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
 
@@ -10342,6 +10366,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha384_test(void)
 
         ret = wc_HmacSetKey(&hmac, WC_SHA384, (byte*)keys[i],
             (word32)XSTRLEN(keys[i]));
+#if FIPS_VERSION3_GE(7,0,0)
+        /* Keys above HMAC_FIPS_MAX_KEY (1024 bits) are outside the module's
+         * CAVP-tested key range and are rejected in approved mode; the long
+         * RFC 4231 style vectors stay covered through the wc_HmacSetKey_ex
+         * allowFlag escape. */
+        if (XSTRLEN(keys[i]) > HMAC_FIPS_MAX_KEY) {
+            if (ret != WC_NO_ERR_TRACE(BAD_LENGTH_E))
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            ret = wc_HmacSetKey_ex(&hmac, WC_SHA384, (byte*)keys[i],
+                                   (word32)XSTRLEN(keys[i]), 1);
+        }
+#endif
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -10497,6 +10533,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha512_test(void)
 
         ret = wc_HmacSetKey(&hmac, WC_SHA512, (byte*)keys[i],
             (word32)XSTRLEN(keys[i]));
+#if FIPS_VERSION3_GE(7,0,0)
+        /* Keys above HMAC_FIPS_MAX_KEY (1024 bits) are outside the module's
+         * CAVP-tested key range and are rejected in approved mode; the long
+         * RFC 4231 style vectors stay covered through the wc_HmacSetKey_ex
+         * allowFlag escape. */
+        if (XSTRLEN(keys[i]) > HMAC_FIPS_MAX_KEY) {
+            if (ret != WC_NO_ERR_TRACE(BAD_LENGTH_E))
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            ret = wc_HmacSetKey_ex(&hmac, WC_SHA512, (byte*)keys[i],
+                                   (word32)XSTRLEN(keys[i]), 1);
+        }
+#endif
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -10710,6 +10758,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha3_test(void)
 
             ret = wc_HmacSetKey(&hmac, hashType[j], (byte*)key[i],
                                                        (word32)XSTRLEN(key[i]));
+#if FIPS_VERSION3_GE(7,0,0)
+            /* Keys above HMAC_FIPS_MAX_KEY (1024 bits) are outside the
+             * module's CAVP-tested key range and are rejected in approved
+             * mode; the big-key vector stays covered through the
+             * wc_HmacSetKey_ex allowFlag escape. */
+            if (XSTRLEN(key[i]) > HMAC_FIPS_MAX_KEY) {
+                if (ret != WC_NO_ERR_TRACE(BAD_LENGTH_E))
+                    ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+                ret = wc_HmacSetKey_ex(&hmac, hashType[j], (byte*)key[i],
+                                       (word32)XSTRLEN(key[i]), 1);
+            }
+#endif
             if (ret != 0)
                 ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
