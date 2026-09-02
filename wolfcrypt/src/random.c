@@ -1524,7 +1524,16 @@ int wc_RNG_DRBG_Reseed_Nonce(WC_RNG* rng, const byte* seed, word32 seedSz,
 }
 
 int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz) {
+#if FIPS_VERSION3_GE(7,0,0) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
+    /* SP 800-90A Rev. 1 Section 9.2: the reseed entropy input "shall not be
+     * provided by the consuming application as an input parameter during the
+     * reseed request".  Draw the entropy from the module's seed source and
+     * mix the caller's bytes in as additional_input, which Section 9.2 does
+     * permit from the consuming application. */
+    return wc_RNG_DRBG_Reseed_Now(rng, seed, seedSz);
+#else
     return wc_RNG_DRBG_Reseed_Nonce(rng, seed, seedSz, NULL, 0);
+#endif
 }
 
 #ifdef WC_RNG_HAVE_RBGC
