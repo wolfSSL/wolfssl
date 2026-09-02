@@ -201,6 +201,37 @@ int test_tls13_export_keeps_transport_close(void);
 int test_tls12_export_v6_closed_refuses_write(void);
 int test_tls13_chain_verify_cb_rpk(void);
 int test_tls13_cks_hrr_reparse(void);
+int test_tls13_record_size_limit_ctx(void);
+int test_tls13_record_size_limit_early_data(void);
+int test_tls13_sigalgs_cert_offered(void);
+int test_tls13_sct_clear_ctx_snapshot(void);
+int test_tls13_sct_response_framing(void);
+int test_tls13_sct_unsolicited_at_server(void);
+int test_tls13_sct_clear_releases_peer_list(void);
+int test_tls13_sct_oversize_list(void);
+int test_tls13_sct_in_cert_request(void);
+int test_tls13_signed_cert_timestamp(void);
+int test_tls12_record_size_limit_overflow(void);
+int test_tls13_record_size_limit_overflow(void);
+int test_tls13_record_size_limit_both_exts(void);
+int test_tls13_record_size_limit_vs_mfl(void);
+int test_tls13_record_size_limit_fragment(void);
+int test_tls13_record_size_limit(void);
+int test_tls13_sct_certificate_msg(void);
+int test_tls13_sct_cert_chain(void);
+int test_tls13_compressed_certificate(void);
+int test_tls13_new_ext_placement(void);
+int test_tls13_compressed_certificate_fragmented_mfl(void);
+int test_tls13_compressed_certificate_fragmented(void);
+int test_tls13_cert_comp_cache_invalidation(void);
+int test_tls13_compressed_certificate_client(void);
+int test_tls13_compressed_certificate_unsolicited(void);
+int test_tls13_compressed_certificate_sct(void);
+int test_tls13_compressed_certificate_req_ctx(void);
+int test_tls13_compressed_certificate_server_advertise(void);
+int test_tls13_compressed_certificate_bad(void);
+int test_tls13_compress_certificate_ext(void);
+int test_tls13_cert_req_server_name(void);
 
 #define TEST_TLS13_DECLS                                        \
     TEST_DECL_GROUP("tls13", test_tls13_apis),                  \
@@ -380,6 +411,37 @@ int test_tls13_cks_hrr_reparse(void);
     TEST_DECL_GROUP("tls13", test_tls13_export_keeps_transport_close), \
     TEST_DECL_GROUP("tls13", test_tls12_export_v6_closed_refuses_write), \
     TEST_DECL_GROUP("tls13", test_tls13_chain_verify_cb_rpk), \
-    TEST_DECL_GROUP("tls13", test_tls13_cks_hrr_reparse)
+    TEST_DECL_GROUP("tls13", test_tls13_cks_hrr_reparse), \
+    TEST_DECL_GROUP("tls13", test_tls13_record_size_limit_ctx), \
+    TEST_DECL_GROUP("tls13", test_tls13_record_size_limit_early_data), \
+    TEST_DECL_GROUP("tls13", test_tls13_sigalgs_cert_offered), \
+    TEST_DECL_GROUP("tls13", test_tls13_sct_clear_ctx_snapshot), \
+    TEST_DECL_GROUP("tls13", test_tls13_sct_response_framing), \
+    TEST_DECL_GROUP("tls13", test_tls13_sct_unsolicited_at_server), \
+    TEST_DECL_GROUP("tls13", test_tls13_sct_clear_releases_peer_list), \
+    TEST_DECL_GROUP("tls13", test_tls13_sct_oversize_list), \
+    TEST_DECL_GROUP("tls13", test_tls13_sct_in_cert_request), \
+    TEST_DECL_GROUP("tls13", test_tls13_signed_cert_timestamp), \
+    TEST_DECL_GROUP("tls13", test_tls12_record_size_limit_overflow), \
+    TEST_DECL_GROUP("tls13", test_tls13_record_size_limit_overflow), \
+    TEST_DECL_GROUP("tls13", test_tls13_record_size_limit_both_exts), \
+    TEST_DECL_GROUP("tls13", test_tls13_record_size_limit_vs_mfl), \
+    TEST_DECL_GROUP("tls13", test_tls13_record_size_limit_fragment), \
+    TEST_DECL_GROUP("tls13", test_tls13_record_size_limit), \
+    TEST_DECL_GROUP("tls13", test_tls13_sct_certificate_msg), \
+    TEST_DECL_GROUP("tls13", test_tls13_sct_cert_chain), \
+    TEST_DECL_GROUP("tls13", test_tls13_compressed_certificate), \
+    TEST_DECL_GROUP("tls13", test_tls13_new_ext_placement), \
+    TEST_DECL_GROUP("tls13", test_tls13_compressed_certificate_fragmented_mfl), \
+    TEST_DECL_GROUP("tls13", test_tls13_compressed_certificate_fragmented), \
+    TEST_DECL_GROUP("tls13", test_tls13_cert_comp_cache_invalidation), \
+    TEST_DECL_GROUP("tls13", test_tls13_compressed_certificate_client), \
+    TEST_DECL_GROUP("tls13", test_tls13_compressed_certificate_unsolicited), \
+    TEST_DECL_GROUP("tls13", test_tls13_compressed_certificate_sct), \
+    TEST_DECL_GROUP("tls13", test_tls13_compressed_certificate_req_ctx), \
+    TEST_DECL_GROUP("tls13", test_tls13_compressed_certificate_server_advertise), \
+    TEST_DECL_GROUP("tls13", test_tls13_compressed_certificate_bad), \
+    TEST_DECL_GROUP("tls13", test_tls13_compress_certificate_ext), \
+    TEST_DECL_GROUP("tls13", test_tls13_cert_req_server_name)
 
 #endif /* WOLFCRYPT_TEST_TLS13_H */

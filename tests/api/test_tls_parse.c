@@ -515,7 +515,8 @@ int test_TLSX_TCA_parse(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_TRUSTED_CA) && defined(HAVE_TLS_EXTENSIONS) &&  !defined(NO_TLS) && !defined(NO_WOLFSSL_SERVER) && !defined(NO_SHA) && \
-    !defined(WOLFSSL_NO_TLS12)
+    !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte ext[64];
@@ -978,7 +979,8 @@ int test_TLSX_SecureRenegotiation_parse(void)
 #if defined(HAVE_SECURE_RENEGOTIATION) && !defined(NO_TLS) &&  !defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TEST_STATIC_BUILD) && \
     defined(HAVE_TLS_EXTENSIONS) && \
     !defined(WOLFSSL_NO_TLS12) && \
-    defined(USE_WOLFSSL_MEMORY)
+    defined(USE_WOLFSSL_MEMORY) && \
+    !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte ext[8 + 2 * TLS_FINISHED_SZ];
@@ -1734,7 +1736,8 @@ int test_TLSX_SNI_parse(void)
     EXPECT_DECLS;
 #if defined(HAVE_SNI) && !defined(NO_TLS) && !defined(NO_WOLFSSL_SERVER) &&  (!defined(NO_RSA) || defined(HAVE_ECC)) && \
     defined(HAVE_TLS_EXTENSIONS) && \
-    !defined(WOLFSSL_NO_TLS12)
+    !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte ext[64];
@@ -2659,7 +2662,8 @@ int test_TLSX_KeyShare_gen(void)
     EXPECT_DECLS;
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TEST_STATIC_BUILD) && \
     defined(HAVE_TLS_EXTENSIONS) && \
-    defined(USE_WOLFSSL_MEMORY)
+    defined(USE_WOLFSSL_MEMORY) && \
+    !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
 
@@ -2972,7 +2976,8 @@ int test_TLSX_KeyShare_freesizewrite(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES) &&  !defined(NO_DH) && defined(HAVE_FFDHE_2048) &&  defined(WOLFSSL_TEST_STATIC_BUILD) && \
-    defined(HAVE_TLS_EXTENSIONS)
+    defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
 
@@ -3128,7 +3133,8 @@ int test_TLSX_KeyShare_process(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES) &&  defined(WOLFSSL_TEST_STATIC_BUILD) && \
-    defined(HAVE_TLS_EXTENSIONS)
+    defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
 
