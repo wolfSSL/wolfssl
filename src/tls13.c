@@ -4080,7 +4080,7 @@ static int EchCalcAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG) && \
     (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER))
 /* Record whether the peer's advertised algorithms permit SHA-1 signed
- * certificates.
+ * certificates, and release the peer's signature_algorithms_cert list.
  *
  * RFC 8446 Section 4.2.3 has signature_algorithms cover certificate signatures
  * when signature_algorithms_cert is absent.
@@ -4104,11 +4104,8 @@ static void SetPeerSha1CertOk(WOLFSSL* ssl, const Suites* peerSuites)
         list = peerSuites->hashSigAlgo;
         listSz = peerSuites->hashSigAlgoSz;
     }
-    else {
-        return;
-    }
 
-    for (i = 0; i + 2 <= listSz; i += 2) {
+    for (i = 0; (list != NULL) && (i + 2 <= listSz); i += 2) {
         /* Only rsa_pkcs1_sha1, dsa_sha1 and ecdsa_sha1 carry sha_mac as the
          * first byte of the signature scheme. */
         if (list[i] == sha_mac) {
@@ -4116,6 +4113,11 @@ static void SetPeerSha1CertOk(WOLFSSL* ssl, const Suites* peerSuites)
             break;
         }
     }
+
+    /* Post-handshake auth parses its own list. */
+    XFREE(ssl->certHashSigAlgo, ssl->heap, DYNAMIC_TYPE_TLSX);
+    ssl->certHashSigAlgo = NULL;
+    ssl->certHashSigAlgoSz = 0;
 }
 #endif /* !NO_CERTS && !WOLFSSL_NO_SIGALG && (client || server) */
 

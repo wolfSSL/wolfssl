@@ -7336,7 +7336,9 @@ int test_tls13_sha1_cert_chain(void)
         ssl_c->certHashSigAlgoSz = 2;
     }
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
-    ExpectIntEQ(ssl_s->certHashSigAlgoSz, 2);
+    ExpectIntEQ(ssl_s->options.peerSha1CertOk, 1);
+    ExpectNull(ssl_s->certHashSigAlgo);
+    ExpectIntEQ(ssl_s->certHashSigAlgoSz, 0);
 
     wolfSSL_free(ssl_c);    ssl_c = NULL;
     wolfSSL_free(ssl_s);    ssl_s = NULL;
