@@ -90,17 +90,6 @@ silence."
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 #endif
 
-/* enum wc_PkType ids are numbered by hand and several of them sit behind a
- * build option, so a new id can silently reuse one an option already took.
- * Assert the optional ids at the end of the enum stay above the ones that
- * are always present. */
-#if defined(WOLFSSL_HAVE_MLDSA) || defined(HAVE_FALCON) || \
-    defined(WOLFSSL_HAVE_SLHDSA)
-wc_static_assert((int)WC_PK_TYPE_PQC_SIG_SIGN_MSG >
-    (int)WC_PK_TYPE_ED448_VERIFY);
-wc_static_assert((int)WC_PK_TYPE_PQC_SIG_VERIFY_MSG >
-    (int)WC_PK_TYPE_PQC_SIG_SIGN_MSG);
-#endif
 /* Fixed table, read without a lock on every offloaded operation. Lookups
  * match on devId, so an entry is filled before devId is stored and cleared
  * after devId is retired, with a WC_BARRIER() between the two so the

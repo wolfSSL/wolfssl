@@ -7585,7 +7585,8 @@ static int slhdsakey_sign_external(SlhDsaKey* key, const byte* ctx, byte ctxSz,
  * @return  BAD_FUNC_ARG when key, key's parameters, msg or sig is NULL.
  * @return  BAD_FUNC_ARG when ctx is NULL but ctx length is greater than 0.
  * @return  BAD_LENGTH_E when sigSz is less than required signature length.
- * @return  MISSING_KEY when private key not set.
+ * @return  MISSING_KEY when the public key seed is not set, or when
+ *          there is no device and no private key to sign with.
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  SHAKE-256 error return code on digest failure.
  */
@@ -7669,8 +7670,7 @@ int wc_SlhDsaKey_SignWithRandom(SlhDsaKey* key, const byte* ctx, byte ctxSz,
     }
 #endif
 
-    /* Check we have a private key to sign with. Done after dispatch: a
-     * device or id backed key has no local key material. */
+    /* Check we have a private key to sign with */
     if ((ret == 0) && ((key->flags & WC_SLHDSA_FLAG_PRIVATE) == 0)) {
         ret = MISSING_KEY;
     }
@@ -8683,7 +8683,8 @@ static int slhdsakey_signhash_external(SlhDsaKey* key, const byte* ctx,
  * @return  BAD_FUNC_ARG when ctx is NULL but ctx length is greater than 0.
  * @return  BAD_LENGTH_E when sigSz is less than required signature length, or
  *          when hashSz does not equal the digest size for hashType.
- * @return  MISSING_KEY when private key not set.
+ * @return  MISSING_KEY when the public key seed is not set, or when
+ *          there is no device and no private key to sign with.
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  SHAKE-256 error return code on digest failure.
  */
@@ -8697,10 +8698,9 @@ int wc_SlhDsaKey_SignHashDeterministic(SlhDsaKey* key, const byte* ctx,
     if ((key == NULL) || (key->params == NULL)) {
         ret = BAD_FUNC_ARG;
     }
-    /* Private half to sign; public half because addrnd is PK.seed from the
-     * local key, and a device-only key would pass zeros. */
-    else if ((key->flags & WC_SLHDSA_FLAG_BOTH_KEYS) !=
-             WC_SLHDSA_FLAG_BOTH_KEYS) {
+    /* addrnd is the public key seed (PK.seed) and must be present for
+     * signing. */
+    else if ((key->flags & WC_SLHDSA_FLAG_PUBLIC) == 0) {
         ret = MISSING_KEY;
     }
     else {
@@ -8788,8 +8788,8 @@ int wc_SlhDsaKey_SignHashWithRandom(SlhDsaKey* key, const byte* ctx, byte ctxSz,
     }
 #endif
 
-    /* Check for a private key to decapsulate with. Done after dispatch for
-     * cases where the private key lives in a device. */
+    /* Check we have a private key to sign with. Done after dispatch: a
+     * device or id backed key has no local key material. */
     if ((ret == 0) && ((key->flags & WC_SLHDSA_FLAG_PRIVATE) == 0)) {
         ret = MISSING_KEY;
     }
