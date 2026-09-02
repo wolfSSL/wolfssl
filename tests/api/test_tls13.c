@@ -9128,7 +9128,9 @@ int test_tls13_post_handshake_auth_late_allow(void)
 int test_tls13_downgrade_sentinel(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_TLS13) && \
+/* The sentinel marks a downgrade to TLS 1.2 or below, so the test needs a
+ * server of that version to produce one. */
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_TLS12) && \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
     WOLFSSL_CTX *ctx_c = NULL;

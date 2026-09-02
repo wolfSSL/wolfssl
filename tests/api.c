@@ -6795,7 +6795,7 @@ int test_wolfSSL_client_server_nofail_memio(test_ssl_cbf* client_cb,
 #ifdef HAVE_IO_TESTS_DEPENDENCIES
 
 #ifdef WOLFSSL_SESSION_EXPORT
-#ifdef WOLFSSL_DTLS
+#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12)
 /* set up function for sending session information */
 static int test_export(WOLFSSL* inSsl, byte* buf, word32 sz, void* userCtx)
 {
@@ -8008,7 +8008,8 @@ THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
 #ifdef WOLFSSL_ENCRYPTED_KEYS
     wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
-#if defined(WOLFSSL_SESSION_EXPORT) && defined(WOLFSSL_DTLS)
+#if defined(WOLFSSL_SESSION_EXPORT) && defined(WOLFSSL_DTLS) && \
+    !defined(WOLFSSL_NO_TLS12)
     if (callbacks->method == wolfDTLSv1_2_server_method) {
         if (wolfSSL_CTX_dtls_set_export(ctx, test_export) != WOLFSSL_SUCCESS)
             goto cleanup;
@@ -9975,7 +9976,8 @@ static int test_wolfSSL_UseMaxFragment(void)
     wolfSSL_CTX_free(ctx);
 
 #if defined(OPENSSL_EXTRA) && defined(HAVE_MAX_FRAGMENT) && \
-    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12)
     /* check negotiated max fragment size */
     {
         WOLFSSL *ssl_c = NULL;
@@ -12249,7 +12251,7 @@ static int test_wolfSSL_mcast(void)
     EXPECT_DECLS;
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_MULTICAST) && \
     (defined(WOLFSSL_TLS13) || defined(WOLFSSL_SNIFFER)) && \
-    !defined(NO_WOLFSSL_CLIENT)
+    !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte preMasterSecret[512];
@@ -12278,7 +12280,7 @@ static int test_wolfSSL_mcast(void)
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
 #endif /* WOLFSSL_DTLS && WOLFSSL_MULTICAST && (WOLFSSL_TLS13 ||
-        * WOLFSSL_SNIFFER) */
+        * WOLFSSL_SNIFFER) && !NO_WOLFSSL_CLIENT && !WOLFSSL_NO_TLS12 */
     return EXPECT_RESULT();
 }
 
@@ -14848,7 +14850,8 @@ static int test_wolfSSL_set1_host(void)
 
 #if defined(OPENSSL_ALL) && !defined(NO_RSA) && !defined(NO_CERTS) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
-    defined(HAVE_ECC) && !defined(NO_TLS) && defined(HAVE_AESGCM)
+    defined(HAVE_ECC) && !defined(NO_TLS) && defined(HAVE_AESGCM) && \
+    !defined(WOLFSSL_NO_TLS12)
 static int test_wolfSSL_get_client_ciphers_ctx_ready(WOLFSSL_CTX* ctx)
 {
     EXPECT_DECLS;
@@ -14891,7 +14894,8 @@ static int test_wolfSSL_get_client_ciphers(void)
     EXPECT_DECLS;
 #if defined(OPENSSL_ALL) && !defined(NO_RSA) && !defined(NO_CERTS) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
-    defined(HAVE_ECC) && !defined(NO_TLS) && defined(HAVE_AESGCM)
+    defined(HAVE_ECC) && !defined(NO_TLS) && defined(HAVE_AESGCM) && \
+    !defined(WOLFSSL_NO_TLS12)
     test_ssl_cbf server_cb;
     test_ssl_cbf client_cb;
 
@@ -14970,7 +14974,8 @@ static int test_wolfSSL_CTX_set_client_CA_list(void)
         ExpectIntEQ(sk_X509_NAME_find(names, name), i);
     }
 
-#if !defined(SINGLE_THREADED) && defined(SESSION_CERTS)
+#if !defined(SINGLE_THREADED) && defined(SESSION_CERTS) && \
+    !defined(WOLFSSL_NO_TLS12)
     {
         tcp_ready ready;
         func_args server_args;
@@ -18093,6 +18098,7 @@ static int test_wolfSSL_Tls13_ECH_tamper_client(void)
 #if defined(HAVE_IO_TESTS_DEPENDENCIES) && \
 defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
     defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+#ifndef WOLFSSL_NO_TLS12
 static int post_auth_version_cb(WOLFSSL* ssl)
 {
     EXPECT_DECLS;
@@ -18121,6 +18127,7 @@ static int post_auth_version_client_cb(WOLFSSL* ssl)
 #endif
     return EXPECT_RESULT();
 }
+#endif /* !WOLFSSL_NO_TLS12 */
 
 static int post_auth_cb(WOLFSSL* ssl)
 {
@@ -18156,6 +18163,7 @@ static int test_wolfSSL_Tls13_postauth(void)
     test_ssl_cbf server_cbf;
     test_ssl_cbf client_cbf;
 
+#ifndef WOLFSSL_NO_TLS12
     /* test version failure doing post auth with TLS 1.2 connection */
     XMEMSET(&server_cbf, 0, sizeof(server_cbf));
     XMEMSET(&client_cbf, 0, sizeof(client_cbf));
@@ -18167,6 +18175,7 @@ static int test_wolfSSL_Tls13_postauth(void)
 
     ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbf,
         &server_cbf, NULL), TEST_SUCCESS);
+#endif /* !WOLFSSL_NO_TLS12 */
 
     /* tests on post auth with TLS 1.3 */
     XMEMSET(&server_cbf, 0, sizeof(server_cbf));
@@ -23383,7 +23392,8 @@ static int test_wolfSSL_OPENSSL_hexstr2buf(void)
 static int test_wolfSSL_sk_CIPHER_description(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_RSA) && !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT)
+#if !defined(NO_RSA) && !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(WOLFSSL_NO_TLS12)
     const long flags = SSL_OP_NO_SSLv2 | SSL_OP_NO_COMPRESSION;
     int i;
     int numCiphers = 0;
@@ -36174,7 +36184,8 @@ static int test_short_session_id(void)
 
 
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) &&   \
-    defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(HAVE_SECURE_RENEGOTIATION)
+    defined(HAVE_IO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_SECURE_RENEGOTIATION) && !defined(WOLFSSL_NO_TLS12)
 
 static WOLFSSL_SESSION* test_wolfSSL_SCR_after_resumption_session = NULL;
 
@@ -36795,7 +36806,17 @@ static int test_revoked_loaded_int_cert(void)
 
 
 
-#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+/* The parameter table in test_self_signed_stapling() must not come out empty:
+ * status_request_v2 is a TLS v1.2-only extension, and TLS v1.3 can only be
+ * exercised through status_request v1, so a build that has just one of the two
+ * with the matching version compiled out has nothing left to run. */
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    ((defined(WOLFSSL_TLS13) && defined(HAVE_CERTIFICATE_STATUS_REQUEST)) || \
+     (!defined(WOLFSSL_NO_TLS12) && \
+      (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+       defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))))
+#define TEST_SELF_SIGNED_STAPLING
+
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
 static int test_self_signed_stapling_client_v1_ctx_ready(WOLFSSL_CTX* ctx)
 {
@@ -36807,7 +36828,7 @@ static int test_self_signed_stapling_client_v1_ctx_ready(WOLFSSL_CTX* ctx)
 }
 #endif
 
-#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && !defined(WOLFSSL_NO_TLS12)
 static int test_self_signed_stapling_client_v2_ctx_ready(WOLFSSL_CTX* ctx)
 {
     EXPECT_DECLS;
@@ -36827,23 +36848,18 @@ static int test_self_signed_stapling_client_v2_multi_ctx_ready(WOLFSSL_CTX* ctx)
 }
 #endif
 
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
- || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
 static int test_self_signed_stapling_server_ctx_ready(WOLFSSL_CTX* ctx)
 {
     EXPECT_DECLS;
     ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx), 1);
     return EXPECT_RESULT();
 }
-#endif
-#endif
+#endif /* TEST_SELF_SIGNED_STAPLING */
 
 static int test_self_signed_stapling(void)
 {
     EXPECT_DECLS;
-#if (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
-     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)) && \
-     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+#ifdef TEST_SELF_SIGNED_STAPLING
     test_ssl_cbf client_cbf;
     test_ssl_cbf server_cbf;
     size_t i;

@@ -9363,6 +9363,18 @@ then
     AM_CFLAGS="$AM_CFLAGS -DNO_SESSION_CACHE"
 fi
 
+# Compile out TLS 1.2 itself, not just its derived settings. Runs after the
+# bundles that turn the version off, so --enable-tinytls13 and friends land
+# here too. The check keeps the option idempotent for the FIPS bundles that
+# add the define themselves.
+if test "$ENABLED_TLSV12" = "no"
+then
+    case "$AM_CFLAGS" in
+        *-DWOLFSSL_NO_TLS12*) ;;
+        *) AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_TLS12" ;;
+    esac
+fi
+
 # PKCS7
 AC_ARG_ENABLE([pkcs7],
     [AS_HELP_STRING([--enable-pkcs7],[Enable PKCS7 (default: disabled)])],
@@ -13023,6 +13035,30 @@ AS_IF([(test "x$ENABLED_DTLS" = "xno") && \
          test "x$ENABLED_STRONGSWAN" = "xyes")],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTLS"
        ENABLED_DTLS=yes])
+
+# --disable-tlsv12 compiles the pre-TLS-1.3 handshake out, so the versions and
+# features built on top of it cannot be left on, and something has to be left
+# to negotiate. Runs here because old TLS, DTLS and the version flags are all
+# final by this point.
+if test "$ENABLED_TLS" != "no" && test "$ENABLED_TLSV12" = "no"
+then
+    if test "$ENABLED_OLD_TLS" = "yes"
+    then
+        AC_MSG_ERROR([cannot disable tlsv12 while old TLS is enabled: TLS 1.0 and 1.1 use the TLS 1.2 handshake. Add --disable-oldtls, and drop --enable-tlsv10 or --enable-sslv3 if passed, since they turn it back on.])
+    fi
+    if test "$ENABLED_TLS13" = "no"
+    then
+        AC_MSG_ERROR([cannot disable tlsv12 with tls13 disabled: no TLS version would be left to negotiate.])
+    fi
+    if test "$ENABLED_MCAST" = "yes"
+    then
+        AC_MSG_ERROR([cannot disable tlsv12 with mcast enabled: multicast rides on DTLS 1.2 and its NULL cipher suite. Add --disable-mcast.])
+    fi
+    if test "$ENABLED_DTLS" = "yes" && test "$ENABLED_DTLS13" = "no"
+    then
+        AC_MSG_ERROR([cannot disable tlsv12 while DTLS is enabled without dtls13: DTLS 1.2 uses the TLS 1.2 handshake. Add --enable-dtls13, or drop what enables DTLS (sctp, srtp, mcast and strongswan turn it on too).])
+    fi
+fi
 
 # Multicast requires the null cipher
 AS_IF([test "x$ENABLED_NULL_CIPHER" = "xno" && \
