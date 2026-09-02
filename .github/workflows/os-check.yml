@@ -101,7 +101,7 @@ jobs:
       - name: Install dependencies
         uses: ./.github/actions/install-apt-deps
         with:
-          packages: autoconf automake libtool build-essential bubblewrap ccache gcc-multilib
+          packages: autoconf automake libtool build-essential bubblewrap ccache gcc-multilib zlib1g-dev
           ghcr-debs-tag: ubuntu-24.04-minimal
 
       # Ubuntu 24.04 can restrict unprivileged user namespaces via AppArmor,

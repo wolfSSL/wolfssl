@@ -1182,7 +1182,7 @@ int test_tls_msgtype_connection_id(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_DTLS_CID) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
-    defined(HAVE_TLS_EXTENSIONS)
+    defined(HAVE_TLS_EXTENSIONS) && defined(WOLFSSL_TLS13)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[8];
