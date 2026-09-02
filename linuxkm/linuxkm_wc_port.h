@@ -1107,6 +1107,27 @@
             extern int wolfCrypt_FIPS_SHA3_sanity(void);
             extern const unsigned int wolfCrypt_FIPS_sha3_ro_sanity[2];
 #endif
+/* PQ boundary members added in v7.0.0; see fips_test.c DoInCoreCheck. */
+#if defined(WOLFSSL_HAVE_MLKEM) && FIPS_VERSION3_GE(7,0,0)
+            extern int wolfCrypt_FIPS_MLKEM_sanity(void);
+            extern const unsigned int wolfCrypt_FIPS_mlkem_ro_sanity[2];
+#endif
+#if defined(WOLFSSL_HAVE_MLDSA) && FIPS_VERSION3_GE(7,0,0)
+            extern int wolfCrypt_FIPS_MLDSA_sanity(void);
+            extern const unsigned int wolfCrypt_FIPS_mldsa_ro_sanity[2];
+#endif
+#if defined(WOLFSSL_HAVE_SLHDSA) && FIPS_VERSION3_GE(7,0,0)
+            extern int wolfCrypt_FIPS_SLHDSA_sanity(void);
+            extern const unsigned int wolfCrypt_FIPS_slhdsa_ro_sanity[2];
+#endif
+#if defined(WOLFSSL_HAVE_LMS) && FIPS_VERSION3_GE(7,0,0)
+            extern int wolfCrypt_FIPS_LMS_sanity(void);
+            extern const unsigned int wolfCrypt_FIPS_lms_ro_sanity[2];
+#endif
+#if defined(WOLFSSL_HAVE_XMSS) && FIPS_VERSION3_GE(7,0,0)
+            extern int wolfCrypt_FIPS_XMSS_sanity(void);
+            extern const unsigned int wolfCrypt_FIPS_xmss_ro_sanity[2];
+#endif
 #ifndef WOLFSSL_FIPS_DEV_NO_POST
             extern int wolfCrypt_FIPS_FT_sanity(void);
             extern const unsigned int wolfCrypt_FIPS_ft_ro_sanity[2];
@@ -1444,6 +1465,27 @@
 #ifdef WOLFSSL_SHA3
             typeof(wolfCrypt_FIPS_SHA3_sanity) *wolfCrypt_FIPS_SHA3_sanity;
             typeof(wolfCrypt_FIPS_sha3_ro_sanity) *wolfCrypt_FIPS_sha3_ro_sanity;
+#endif
+/* PQ boundary members added in v7.0.0; see fips_test.c DoInCoreCheck. */
+#if defined(WOLFSSL_HAVE_MLKEM) && FIPS_VERSION3_GE(7,0,0)
+            typeof(wolfCrypt_FIPS_MLKEM_sanity) *wolfCrypt_FIPS_MLKEM_sanity;
+            typeof(wolfCrypt_FIPS_mlkem_ro_sanity) *wolfCrypt_FIPS_mlkem_ro_sanity;
+#endif
+#if defined(WOLFSSL_HAVE_MLDSA) && FIPS_VERSION3_GE(7,0,0)
+            typeof(wolfCrypt_FIPS_MLDSA_sanity) *wolfCrypt_FIPS_MLDSA_sanity;
+            typeof(wolfCrypt_FIPS_mldsa_ro_sanity) *wolfCrypt_FIPS_mldsa_ro_sanity;
+#endif
+#if defined(WOLFSSL_HAVE_SLHDSA) && FIPS_VERSION3_GE(7,0,0)
+            typeof(wolfCrypt_FIPS_SLHDSA_sanity) *wolfCrypt_FIPS_SLHDSA_sanity;
+            typeof(wolfCrypt_FIPS_slhdsa_ro_sanity) *wolfCrypt_FIPS_slhdsa_ro_sanity;
+#endif
+#if defined(WOLFSSL_HAVE_LMS) && FIPS_VERSION3_GE(7,0,0)
+            typeof(wolfCrypt_FIPS_LMS_sanity) *wolfCrypt_FIPS_LMS_sanity;
+            typeof(wolfCrypt_FIPS_lms_ro_sanity) *wolfCrypt_FIPS_lms_ro_sanity;
+#endif
+#if defined(WOLFSSL_HAVE_XMSS) && FIPS_VERSION3_GE(7,0,0)
+            typeof(wolfCrypt_FIPS_XMSS_sanity) *wolfCrypt_FIPS_XMSS_sanity;
+            typeof(wolfCrypt_FIPS_xmss_ro_sanity) *wolfCrypt_FIPS_xmss_ro_sanity;
 #endif
 #ifndef WOLFSSL_FIPS_DEV_NO_POST
             typeof(wolfCrypt_FIPS_FT_sanity) *wolfCrypt_FIPS_FT_sanity;
