@@ -38191,6 +38191,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pbkdf2_test(void)
     ret = wc_PBKDF2_ex(derived, (byte*)passwd, (int)XSTRLEN(passwd),
                        salt, (int)sizeof(salt), iterations,
                        kLen, WC_SHA256, HEAP_HINT, devId);
+#if FIPS_VERSION3_GE(7,0,0)
+    /* 8-byte salt: computed, but flagged non-approved per SP 800-132
+     * Section 5.1 ("shall be at least 128 bits"). */
+    if (ret == WC_FIPS_NOT_APPROVED)
+        ret = 0;
+#endif
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
 
