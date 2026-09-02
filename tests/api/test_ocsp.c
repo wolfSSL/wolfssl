@@ -29,6 +29,9 @@
 #include <wolfssl/ssl.h>
 #include <wolfssl/wolfio.h>
 #include <wolfssl/wolfcrypt/asn.h>
+#if defined(OPENSSL_EXTRA)
+#include <wolfssl/openssl/ocsp.h>
+#endif
 
 #if defined(HAVE_OCSP) && !defined(NO_SHA) && !defined(NO_RSA)
 struct ocsp_cb_ctx {
@@ -2468,3 +2471,40 @@ int test_wolfIO_DecodeUrl_crlf_reject(void)
     return TEST_SKIPPED;
 }
 #endif /* HAVE_HTTP_CLIENT */
+
+/* OCSP_crl_reason_str() maps RFC 5280 revocation reason codes to the same
+ * strings OpenSSL returns, and reports anything unrecognized as "(UNKNOWN)".
+ */
+int test_ocsp_crl_reason_str(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_ALL) && defined(HAVE_OCSP)
+    static const struct {
+        long code;
+        const char* str;
+    } reasons[] = {
+        { 0,  "unspecified"          },
+        { 1,  "keyCompromise"        },
+        { 2,  "cACompromise"         },
+        { 3,  "affiliationChanged"   },
+        { 4,  "superseded"           },
+        { 5,  "cessationOfOperation" },
+        { 6,  "certificateHold"      },
+        { 8,  "removeFromCRL"        },
+        { 9,  "privilegeWithdrawn"   },
+        { 10, "aACompromise"         }
+    };
+    /* Code 7 is unassigned; the rest are simply out of range. */
+    static const long unknown[] = { -2, -1, 7, 11, 255, 0x7FFFFFFF };
+    size_t i;
+
+    for (i = 0; i < XELEM_CNT(reasons); i++) {
+        ExpectNotNull(OCSP_crl_reason_str(reasons[i].code));
+        ExpectStrEQ(OCSP_crl_reason_str(reasons[i].code), reasons[i].str);
+    }
+    for (i = 0; i < XELEM_CNT(unknown); i++) {
+        ExpectStrEQ(OCSP_crl_reason_str(unknown[i]), "(UNKNOWN)");
+    }
+#endif
+    return EXPECT_RESULT();
+}

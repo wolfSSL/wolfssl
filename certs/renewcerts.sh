@@ -38,6 +38,12 @@
 #                       fpki-cert.der
 #                       fpki-certpol-cert.der
 #                       rid-cert.der
+#                       any-eku-cert.pem
+#                       ns-cert-type-cert.pem
+#                       ns-ca-only-cert.pem
+#                       code-sign-cert.pem
+#                       v1-root-cert.pem
+#                       v1-self-issued-cert.pem
 #                       aia/ca-issuers-cert.pem
 #                       aia/multi-aia-cert.pem
 #                       aia/overflow-aia-cert.pem
@@ -614,6 +620,145 @@ run_renewcerts(){
     check_result $? "Step 2"
     rm rid-req.pem
     echo "End of section"
+    echo "---------------------------------------------------------------------"
+    ###########################################################
+    ########## update and sign any-eku-cert.pem ###############
+    ###########################################################
+    echo "Updating any-eku-cert.pem"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e "US\\nMontana\\nBozeman\\nwolfSSL\\nAnyEKU\\nwww.wolfssl.com\\nfacts@wolfssl.com\\n.\\n.\\n" | openssl req -new -key server-key.pem -config ./wolfssl.cnf -nodes > any-eku-req.pem
+    check_result $? "Step 1"
+
+    openssl x509 -req -in any-eku-req.pem -extfile wolfssl.cnf -extensions any_eku -days 1000 -CA ca-cert.pem -CAkey ca-key.pem -set_serial 8 > any-eku-cert.pem
+    check_result $? "Step 2"
+
+    rm any-eku-req.pem
+
+    openssl x509 -in any-eku-cert.pem -text > any_eku_tmp.pem
+    check_result $? "Step 3"
+    mv any_eku_tmp.pem any-eku-cert.pem
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+    ###########################################################
+    ########## update and sign ns-cert-type-cert.pem ##########
+    ###########################################################
+    echo "Updating ns-cert-type-cert.pem"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e "US\\nMontana\\nBozeman\\nwolfSSL\\nNsCertType\\nwww.wolfssl.com\\nfacts@wolfssl.com\\n.\\n.\\n" | openssl req -new -key server-key.pem -config ./wolfssl.cnf -nodes > ns-cert-type-req.pem
+    check_result $? "Step 1"
+
+    openssl x509 -req -in ns-cert-type-req.pem -extfile wolfssl.cnf -extensions ns_cert_type -days 1000 -CA ca-cert.pem -CAkey ca-key.pem -set_serial 9 > ns-cert-type-cert.pem
+    check_result $? "Step 2"
+
+    rm ns-cert-type-req.pem
+
+    openssl x509 -in ns-cert-type-cert.pem -text > ns_cert_type_tmp.pem
+    check_result $? "Step 3"
+    mv ns_cert_type_tmp.pem ns-cert-type-cert.pem
+    echo "End of section"
+
+    echo "---------------------------------------------------------------------"
+    ###########################################################
+    ############ update and sign ns-ca-only-cert.pem ##########
+    ###########################################################
+    echo "Updating ns-ca-only-cert.pem"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e "US\\nMontana\\nBozeman\\nwolfSSL\\nNsCaOnly\\nwww.wolfssl.com\\nfacts@wolfssl.com\\n.\\n.\\n" | openssl req -new -key server-key.pem -config ./wolfssl.cnf -nodes > ns-ca-only-req.pem
+    check_result $? "Step 1"
+
+    openssl x509 -req -in ns-ca-only-req.pem -extfile wolfssl.cnf -extensions ns_ca_only -days 1000 -CA ca-cert.pem -CAkey ca-key.pem -set_serial 10 > ns-ca-only-cert.pem
+    check_result $? "Step 2"
+
+    rm ns-ca-only-req.pem
+
+    echo "---------------------------------------------------------------------"
+    ###########################################################
+    ########### update and sign code-sign-cert.pem ############
+    ###########################################################
+    echo "Updating code-sign-cert.pem"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e "US\\nMontana\\nBozeman\\nwolfSSL\\nCodeSign\\nwww.wolfssl.com\\nfacts@wolfssl.com\\n.\\n.\\n" | openssl req -new -key server-key.pem -config ./wolfssl.cnf -nodes > code-sign-req.pem
+    check_result $? "Step 1"
+
+    openssl x509 -req -in code-sign-req.pem -extfile wolfssl.cnf -extensions code_sign -days 1000 -CA ca-cert.pem -CAkey ca-key.pem -set_serial 11 > code-sign-cert.pem
+    check_result $? "Step 2"
+
+    rm code-sign-req.pem
+
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+    ###########################################################
+    ####### update and sign the version 1 certificates ########
+    ###########################################################
+    # A version 1 certificate carries no extensions at all.  "openssl req
+    # -x509" adds a subject key identifier of its own and moves the
+    # certificate to version 3 unless it is given -x509v1, and that option
+    # only exists from OpenSSL 3.2, so a binary that takes it is looked for
+    # first.  Without one the pair is skipped cleanly rather than writing
+    # version 3 certificates under a version 1 name.
+    OPENSSL_V1=""
+    for candidate in \
+        "/usr/local/opt/openssl@3.5/bin/openssl" \
+        "/usr/local/opt/openssl@3/bin/openssl" \
+        "/opt/homebrew/opt/openssl@3.5/bin/openssl" \
+        "/opt/homebrew/opt/openssl@3/bin/openssl" \
+        "openssl"; do
+        if [ "$candidate" = "openssl" ]; then
+            command -v openssl >/dev/null 2>&1 || continue
+        else
+            [ -x "$candidate" ] || continue
+        fi
+        if "$candidate" req -help 2>&1 | grep -q -- "-x509v1"; then
+            OPENSSL_V1="$candidate"
+            break
+        fi
+    done
+
+    if [ -n "$OPENSSL_V1" ]; then
+        echo "Updating v1-root-cert.pem using: $OPENSSL_V1"
+        echo ""
+        # Self-signed, so its signature algorithm matches its own public key
+        # algorithm and OpenSSL's check_ca() takes it for a version 1 root.
+        # The empty v1_no_exts section stops the x509_extensions named in
+        # [ req ] from being applied.
+        "$OPENSSL_V1" req -x509 -x509v1 -config ./wolfssl.cnf \
+            -extensions v1_no_exts -key server-key.pem -days 1000 \
+            -set_serial 12 \
+            -subj "/C=US/ST=Montana/L=Bozeman/O=wolfSSL/OU=V1Root/CN=www.wolfssl.com/emailAddress=info@wolfssl.com" -out v1-root-cert.pem
+        check_result $? "Step 1"
+        echo "End of section"
+        echo "---------------------------------------------------------------------"
+        echo "Updating v1-self-issued-cert.pem using: $OPENSSL_V1"
+        echo ""
+        # A version 1 certificate that is self-issued but not self-signed: it
+        # carries an RSA public key under an ECDSA signature.  OpenSSL only
+        # takes a version 1 certificate for a root when the signature
+        # algorithm matches the public key algorithm, so this one is not a CA
+        # to it.  The issuer is a throwaway certificate that shares the
+        # subject name and is signed with an EC key; it is removed once it has
+        # served its purpose.
+        "$OPENSSL_V1" req -x509 -x509v1 -config ./wolfssl.cnf \
+            -extensions v1_no_exts -key ecc-key.pem -days 1000 \
+            -set_serial 99 \
+            -subj "/C=US/ST=Montana/L=Bozeman/O=wolfSSL/OU=V1SelfIssued/CN=www.wolfssl.com/emailAddress=info@wolfssl.com" -out v1-self-issued-ca.pem
+        check_result $? "Step 1"
+
+        "$OPENSSL_V1" req -x509 -x509v1 -config ./wolfssl.cnf \
+            -extensions v1_no_exts -CA v1-self-issued-ca.pem \
+            -CAkey ecc-key.pem -key server-key.pem -days 1000 \
+            -set_serial 13 \
+            -subj "/C=US/ST=Montana/L=Bozeman/O=wolfSSL/OU=V1SelfIssued/CN=www.wolfssl.com/emailAddress=info@wolfssl.com" -out v1-self-issued-cert.pem
+        check_result $? "Step 2"
+
+        rm v1-self-issued-ca.pem
+        echo "End of section"
+    else
+        echo "Skipping version 1 cert generation (no OpenSSL with req -x509v1 found)"
+    fi
     echo "---------------------------------------------------------------------"
     ###########################################################
     ########## update and sign server-cert.pem ################

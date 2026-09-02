@@ -241,7 +241,13 @@ int test_wolfSSL_PEM_write_bio_X509(void)
      * information */
 
     /* Here we copy the validity struct from the original */
+#ifndef IGNORE_NETSCAPE_CERT_TYPE
     expectedLen = 1688;
+#else
+    /* The netscape certificate type is not carried into the re-encoded
+     * certificate when it is compiled out, so its extension is absent. */
+    expectedLen = 1663;
+#endif
     ExpectIntEQ(wolfSSL_BIO_get_len(output), expectedLen);
 
     /* Reset buffers and x509 */

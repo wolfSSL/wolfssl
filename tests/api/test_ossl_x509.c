@@ -29,6 +29,8 @@
 #endif
 
 #include <wolfssl/ssl.h>
+#include <wolfssl/openssl/x509v3.h>
+#include <wolfssl/openssl/pem.h>
 #include <wolfssl/internal.h>
 #include <tests/api/api.h>
 #include <tests/api/test_ossl_x509.h>
@@ -575,11 +577,21 @@ int test_wolfSSL_X509(void)
     ExpectIntEQ(X509_STORE_CTX_init(ctx, store, x509, NULL), SSL_SUCCESS);
     ExpectIntEQ(X509_verify_cert(ctx), SSL_SUCCESS);
 
-#ifndef NO_WOLFSSL_STUB
-    ExpectStrEQ(X509_get_default_cert_file_env(), "");
-    ExpectStrEQ(X509_get_default_cert_file(), "");
-    ExpectStrEQ(X509_get_default_cert_dir_env(), "");
+    /* The environment variable names wolfSSL_CTX_load_system_CA_certs()
+     * reads, which are the same names OpenSSL reports. */
+    ExpectStrEQ(X509_get_default_cert_file_env(), "SSL_CERT_FILE");
+    ExpectStrEQ(X509_get_default_cert_dir_env(), "SSL_CERT_DIR");
+#if defined(WOLFSSL_SYS_CA_CERTS) && !defined(NO_FILESYSTEM) && \
+    !defined(_WIN32) && !defined(USE_WINDOWS_API) && !defined(__APPLE__)
+    /* First of the system CA directories wolfSSL would search. */
+    ExpectNotNull(X509_get_default_cert_dir());
+    ExpectIntGT(XSTRLEN(X509_get_default_cert_dir()), 0);
+#else
     ExpectStrEQ(X509_get_default_cert_dir(), "");
+#endif
+#ifndef NO_WOLFSSL_STUB
+    /* wolfSSL has no single compiled-in CA bundle path. */
+    ExpectStrEQ(X509_get_default_cert_file(), "");
 #endif
 
     ExpectNull(wolfSSL_X509_get_der(NULL, NULL));
@@ -2154,6 +2166,587 @@ int test_wolfSSL_X509_cmp(void)
     wolfSSL_X509_free(empty);
     wolfSSL_X509_free(cert2);
     wolfSSL_X509_free(cert1);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_X509_check_purpose(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+    WOLFSSL_X509* serverOnly = NULL;
+    WOLFSSL_X509* both = NULL;
+    WOLFSSL_X509* ca = NULL;
+    WOLFSSL_X509* inter = NULL;
+    WOLFSSL_X509* anyEku = NULL;
+    WOLFSSL_X509* nsType = NULL;
+    WOLFSSL_X509* nsCaOnly = NULL;
+    WOLFSSL_X509* codeSign = NULL;
+    WOLFSSL_X509* v1Root = NULL;
+#ifdef HAVE_ECC
+    WOLFSSL_X509* v1SelfIssued = NULL;
+#endif
+
+    /* leaf-cert.pem: extendedKeyUsage of serverAuth only, keyUsage of
+     * digitalSignature + keyEncipherment. */
+    ExpectNotNull(serverOnly = wolfSSL_X509_load_certificate_file(
+        "./certs/intermediate/untrusted_anchor/leaf-cert.pem",
+        WOLFSSL_FILETYPE_PEM));
+    /* server-cert.pem: serverAuth + clientAuth. */
+    ExpectNotNull(both = wolfSSL_X509_load_certificate_file(svrCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(ca = wolfSSL_X509_load_certificate_file(caCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    /* ca-int-cert.pem: keyUsage but no extendedKeyUsage. */
+    ExpectNotNull(inter = wolfSSL_X509_load_certificate_file(
+        "./certs/intermediate/ca-int-cert.pem", WOLFSSL_FILETYPE_PEM));
+    /* any-eku-cert.pem: extendedKeyUsage of anyExtendedKeyUsage. */
+    ExpectNotNull(anyEku = wolfSSL_X509_load_certificate_file(
+        "./certs/any-eku-cert.pem", WOLFSSL_FILETYPE_PEM));
+    /* ns-cert-type-cert.pem: netscape-cert-type of SSL client, with an
+     * extendedKeyUsage that allows both TLS roles. */
+    ExpectNotNull(nsType = wolfSSL_X509_load_certificate_file(
+        "./certs/ns-cert-type-cert.pem", WOLFSSL_FILETYPE_PEM));
+    /* ns-ca-only-cert.pem: a netscape-cert-type of SSL CA and nothing else -
+     * no basicConstraints and no keyUsage - so the netscape type is the only
+     * thing that can say whether it is a CA. */
+    ExpectNotNull(nsCaOnly = wolfSSL_X509_load_certificate_file(
+        "./certs/ns-ca-only-cert.pem", WOLFSSL_FILETYPE_PEM));
+    /* code-sign-cert.pem: the one shape that satisfies the code signing rule -
+     * a critical keyUsage of digitalSignature alone, and an extendedKeyUsage
+     * of codeSigning alone. */
+    ExpectNotNull(codeSign = wolfSSL_X509_load_certificate_file(
+        "./certs/code-sign-cert.pem", WOLFSSL_FILETYPE_PEM));
+    /* v1-root-cert.pem: a version 1 certificate, so no extensions at all, that
+     * is self-signed - its RSA signature matches its own RSA key. */
+    ExpectNotNull(v1Root = wolfSSL_X509_load_certificate_file(
+        "./certs/v1-root-cert.pem", WOLFSSL_FILETYPE_PEM));
+#ifdef HAVE_ECC
+    /* v1-self-issued-cert.pem: the same shape, but only self-issued - it
+     * carries an RSA key under an ECDSA signature, so it cannot have signed
+     * itself.  Parsing it needs ECDSA to be built in, since that is the
+     * algorithm its signature names. */
+    ExpectNotNull(v1SelfIssued = wolfSSL_X509_load_certificate_file(
+        "./certs/v1-self-issued-cert.pem", WOLFSSL_FILETYPE_PEM));
+#endif
+
+    /* This is how OpenVPN's --ns-cert-type check reads the answer; with the
+     * old constant-0 macro both of these were always 0, so the check could
+     * never pass. */
+    ExpectIntEQ(X509_check_purpose(serverOnly, X509_PURPOSE_SSL_SERVER, 0), 1);
+    ExpectIntEQ(X509_check_purpose(serverOnly, X509_PURPOSE_SSL_CLIENT, 0), 0);
+    ExpectIntEQ(X509_check_purpose(both, X509_PURPOSE_SSL_SERVER, 0), 1);
+    ExpectIntEQ(X509_check_purpose(both, X509_PURPOSE_SSL_CLIENT, 0), 1);
+
+    /* An absent extension constrains nothing: ca-cert.pem carries no
+     * keyUsage, so even CRL signing is allowed. */
+    ExpectIntEQ(X509_check_purpose(ca, X509_PURPOSE_CRL_SIGN, 0), 1);
+    /* leaf-cert.pem does carry keyUsage, and it has no cRLSign bit. */
+    ExpectIntEQ(X509_check_purpose(serverOnly, X509_PURPOSE_CRL_SIGN, 0), 0);
+    /* Nor emailProtection in its extendedKeyUsage. */
+    ExpectIntEQ(X509_check_purpose(serverOnly, X509_PURPOSE_SMIME_SIGN, 0), 0);
+
+    /* Roles that constrain nothing. */
+    ExpectIntEQ(X509_check_purpose(serverOnly, X509_PURPOSE_ANY, 0), 1);
+    ExpectIntEQ(X509_check_purpose(serverOnly, X509_PURPOSE_OCSP_HELPER, 0),
+        1);
+    ExpectIntEQ(X509_check_purpose(ca, X509_PURPOSE_ANY, 0), 1);
+
+    /* The two extensions are checked independently, so a certificate can
+     * satisfy one requirement and fail the other.
+     *
+     * leaf-cert.pem: extendedKeyUsage serverAuth, keyUsage
+     *                digitalSignature + keyEncipherment
+     * ca-int-cert.pem: no extendedKeyUsage at all, keyUsage
+     *                  digitalSignature + keyCertSign + cRLSign
+     * ca-cert.pem: extendedKeyUsage serverAuth + clientAuth, no keyUsage */
+
+    /* Netscape's server role wants encipherment, which the leaf has. */
+    ExpectIntEQ(X509_check_purpose(serverOnly, X509_PURPOSE_NS_SSL_SERVER, 0),
+        1);
+    /* The intermediate has no encipherment bit, so it fails that, even
+     * though its absent extendedKeyUsage constrains nothing. */
+    ExpectIntEQ(X509_check_purpose(inter, X509_PURPOSE_NS_SSL_SERVER, 0), 0);
+    /* But its keyUsage does allow CRL signing, unlike the leaf's. */
+    ExpectIntEQ(X509_check_purpose(inter, X509_PURPOSE_CRL_SIGN, 0), 1);
+    /* And with no extendedKeyUsage to object, the TLS roles come down to
+     * keyUsage alone, which digitalSignature satisfies. */
+    ExpectIntEQ(X509_check_purpose(inter, X509_PURPOSE_SSL_SERVER, 0), 1);
+    ExpectIntEQ(X509_check_purpose(inter, X509_PURPOSE_SSL_CLIENT, 0), 1);
+    /* S/MIME needs an emailProtection it does not forbid but does not name;
+     * with no extendedKeyUsage the check falls to keyUsage, which allows
+     * signing but not encipherment. */
+    ExpectIntEQ(X509_check_purpose(inter, X509_PURPOSE_SMIME_SIGN, 0), 1);
+    ExpectIntEQ(X509_check_purpose(inter, X509_PURPOSE_SMIME_ENCRYPT, 0), 0);
+    /* ca-cert.pem has no keyUsage, so only its extendedKeyUsage decides:
+     * both TLS roles pass, S/MIME does not. */
+    ExpectIntEQ(X509_check_purpose(ca, X509_PURPOSE_SSL_CLIENT, 0), 1);
+    ExpectIntEQ(X509_check_purpose(ca, X509_PURPOSE_SMIME_ENCRYPT, 0), 0);
+    ExpectIntEQ(X509_check_purpose(ca, X509_PURPOSE_NS_SSL_SERVER, 0), 1);
+
+    /* -1 asks only that the extensions be readable, which is how hostap and
+     * sssd call it; OpenSSL answers 1. */
+    ExpectIntEQ(X509_check_purpose(serverOnly, -1, 0), 1);
+    ExpectIntEQ(X509_check_purpose(ca, -1, -1), 1);
+
+    /* Checked as a CA. */
+    ExpectIntEQ(X509_check_purpose(ca, X509_PURPOSE_SSL_SERVER, 1), 1);
+    ExpectIntEQ(X509_check_purpose(serverOnly, X509_PURPOSE_SSL_SERVER, 1), 0);
+
+    /* anyExtendedKeyUsage does NOT stand in for a specific role.  OpenSSL's
+     * xku_reject() treats it as its own bit, so a certificate naming only
+     * anyExtendedKeyUsage is refused for every specific purpose; verified
+     * against OpenSSL 3.5 on this certificate. */
+    ExpectIntEQ(X509_check_purpose(anyEku, X509_PURPOSE_SSL_SERVER, 0), 0);
+    ExpectIntEQ(X509_check_purpose(anyEku, X509_PURPOSE_SSL_CLIENT, 0), 0);
+    ExpectIntEQ(X509_check_purpose(anyEku, X509_PURPOSE_NS_SSL_SERVER, 0), 0);
+    ExpectIntEQ(X509_check_purpose(anyEku, X509_PURPOSE_SMIME_SIGN, 0), 0);
+    ExpectIntEQ(X509_check_purpose(anyEku, X509_PURPOSE_SMIME_ENCRYPT, 0), 0);
+    /* The roles that constrain no extendedKeyUsage are still allowed. */
+    ExpectIntEQ(X509_check_purpose(anyEku, X509_PURPOSE_ANY, 0), 1);
+    ExpectIntEQ(X509_check_purpose(anyEku, X509_PURPOSE_OCSP_HELPER, 0), 1);
+    /* CRL signing consults only keyUsage, and there is no cRLSign bit. */
+    ExpectIntEQ(X509_check_purpose(anyEku, X509_PURPOSE_CRL_SIGN, 0), 0);
+    /* And it is not a CA. */
+    ExpectIntEQ(X509_check_purpose(anyEku, X509_PURPOSE_SSL_SERVER, 1), 0);
+    /* The OCSP helper role constrains nothing on a leaf, but a CA still has
+     * to be a valid one - verified against OpenSSL 3.5. */
+    ExpectIntEQ(X509_check_purpose(anyEku, X509_PURPOSE_OCSP_HELPER, 1), 0);
+
+    /* With ca set, the extendedKeyUsage is checked before the CA rules, so a
+     * CA whose extendedKeyUsage excludes the role is refused for it even
+     * though it is a valid CA.  ca-cert names only the TLS roles. */
+    ExpectIntEQ(X509_check_purpose(ca, X509_PURPOSE_SSL_SERVER, 1), 1);
+    ExpectIntEQ(X509_check_purpose(ca, X509_PURPOSE_SSL_CLIENT, 1), 1);
+    ExpectIntEQ(X509_check_purpose(ca, X509_PURPOSE_SMIME_SIGN, 1), 0);
+    ExpectIntEQ(X509_check_purpose(ca, X509_PURPOSE_SMIME_ENCRYPT, 1), 0);
+    /* Roles with no extendedKeyUsage of their own just need a valid CA. */
+    ExpectIntEQ(X509_check_purpose(ca, X509_PURPOSE_CRL_SIGN, 1), 1);
+    ExpectIntEQ(X509_check_purpose(ca, X509_PURPOSE_OCSP_HELPER, 1), 1);
+    ExpectIntEQ(X509_check_purpose(ca, X509_PURPOSE_TIMESTAMP_SIGN, 1), 1);
+    /* Any Purpose constrains nothing, for a CA as much as a leaf. */
+    ExpectIntEQ(X509_check_purpose(ca, X509_PURPOSE_ANY, 1), 1);
+
+    /* Code signing.  Every value here was taken from OpenSSL 3.5.
+     *
+     * The leaf rule follows the CA/Browser Forum baseline the way OpenSSL
+     * applies it: keyUsage present and critical, allowing digital signatures
+     * and neither certificate nor CRL signing, and an extendedKeyUsage that
+     * allows code signing but neither any use nor server authentication.
+     * None of the certificates here name code signing, so each is refused as
+     * a leaf; a CA for the role is just a CA. */
+    ExpectIntEQ(X509_check_purpose(ca, X509_PURPOSE_CODE_SIGN, 0), 0);
+    ExpectIntEQ(X509_check_purpose(ca, X509_PURPOSE_CODE_SIGN, 1), 1);
+    ExpectIntEQ(X509_check_purpose(serverOnly, X509_PURPOSE_CODE_SIGN, 0), 0);
+    /* anyExtendedKeyUsage is explicitly disqualifying for this role. */
+    ExpectIntEQ(X509_check_purpose(anyEku, X509_PURPOSE_CODE_SIGN, 0), 0);
+    ExpectIntEQ(X509_check_purpose(anyEku, X509_PURPOSE_CODE_SIGN, 1), 0);
+
+    /* A certificate that does satisfy the code signing rule.  Every value
+     * here was taken from OpenSSL 3.5. */
+    ExpectIntEQ(X509_check_purpose(codeSign, X509_PURPOSE_CODE_SIGN, 0), 1);
+    /* It is not a CA, so it cannot be one for the role either. */
+    ExpectIntEQ(X509_check_purpose(codeSign, X509_PURPOSE_CODE_SIGN, 1), 0);
+    /* Its extendedKeyUsage names code signing and nothing else, so the other
+     * roles that constrain one are refused. */
+    ExpectIntEQ(X509_check_purpose(codeSign, X509_PURPOSE_SSL_CLIENT, 0), 0);
+    ExpectIntEQ(X509_check_purpose(codeSign, X509_PURPOSE_SSL_SERVER, 0), 0);
+    ExpectIntEQ(X509_check_purpose(codeSign, X509_PURPOSE_SMIME_SIGN, 0), 0);
+    /* Its keyUsage has no cRLSign bit. */
+    ExpectIntEQ(X509_check_purpose(codeSign, X509_PURPOSE_CRL_SIGN, 0), 0);
+    /* The roles that constrain nothing on a leaf still allow it. */
+    ExpectIntEQ(X509_check_purpose(codeSign, X509_PURPOSE_ANY, 0), 1);
+    ExpectIntEQ(X509_check_purpose(codeSign, X509_PURPOSE_OCSP_HELPER, 0), 1);
+
+    /* A certificate whose only CA evidence is a netscape type.  OpenSSL
+     * reports how it decided rather than a plain 1, and refuses the roles the
+     * type did not name.  Every value here was taken from OpenSSL 3.5. */
+#ifndef IGNORE_NETSCAPE_CERT_TYPE
+    /* The type named the SSL CA role, so the TLS roles accept it. */
+    ExpectIntEQ(X509_check_purpose(nsCaOnly, X509_PURPOSE_SSL_CLIENT, 1), 1);
+    ExpectIntEQ(X509_check_purpose(nsCaOnly, X509_PURPOSE_SSL_SERVER, 1), 1);
+    ExpectIntEQ(X509_check_purpose(nsCaOnly, X509_PURPOSE_NS_SSL_SERVER, 1),
+        1);
+    /* It did not name the S/MIME CA role, so those are refused. */
+    ExpectIntEQ(X509_check_purpose(nsCaOnly, X509_PURPOSE_SMIME_SIGN, 1), 0);
+    ExpectIntEQ(X509_check_purpose(nsCaOnly, X509_PURPOSE_SMIME_ENCRYPT, 1),
+        0);
+    /* The roles that just need a CA get the value that says a netscape type
+     * was the only evidence. */
+    ExpectIntEQ(X509_check_purpose(nsCaOnly, X509_PURPOSE_CRL_SIGN, 1), 5);
+    ExpectIntEQ(X509_check_purpose(nsCaOnly, X509_PURPOSE_OCSP_HELPER, 1), 5);
+    ExpectIntEQ(X509_check_purpose(nsCaOnly, X509_PURPOSE_TIMESTAMP_SIGN, 1),
+        5);
+    ExpectIntEQ(X509_check_purpose(nsCaOnly, X509_PURPOSE_ANY, 1), 1);
+    ExpectIntEQ(X509_check_purpose(nsCaOnly, X509_PURPOSE_CODE_SIGN, 1), 5);
+    /* As a leaf the netscape type decides, and it names no leaf role. */
+    ExpectIntEQ(X509_check_purpose(nsCaOnly, X509_PURPOSE_SSL_CLIENT, 0), 0);
+    ExpectIntEQ(X509_check_purpose(nsCaOnly, X509_PURPOSE_SSL_SERVER, 0), 0);
+    ExpectIntEQ(X509_check_purpose(nsCaOnly, X509_PURPOSE_CRL_SIGN, 0), 1);
+#endif
+
+    /* A purpose that cannot be decided is reported as "not permitted", the
+     * answer OpenSSL gives.  A negative return would read as permission
+     * granted to a caller writing "if (X509_check_purpose(...))". */
+    ExpectIntEQ(X509_check_purpose(anyEku, X509_PURPOSE_TIMESTAMP_SIGN, 0), 0);
+
+    /* The netscape-cert-type extension is consulted after the key usages.
+     * This certificate's extendedKeyUsage allows both TLS roles and its
+     * keyUsage allows both, so the netscape type is the only thing that can
+     * separate them: it names the client role and not the server one. */
+#ifndef IGNORE_NETSCAPE_CERT_TYPE
+    ExpectIntEQ(X509_check_purpose(nsType, X509_PURPOSE_SSL_CLIENT, 0), 1);
+    ExpectIntEQ(X509_check_purpose(nsType, X509_PURPOSE_SSL_SERVER, 0), 0);
+    ExpectIntEQ(X509_check_purpose(nsType, X509_PURPOSE_NS_SSL_SERVER, 0), 0);
+    /* OpenSSL accepts an SSL client type for S/MIME as a workaround for
+     * certificates that set only that bit. */
+    ExpectIntEQ(X509_check_purpose(nsType, X509_PURPOSE_SMIME_SIGN, 0), 0);
+    /* CRL signing consults no netscape type, so only keyUsage decides, and
+     * this certificate has no cRLSign bit. */
+    ExpectIntEQ(X509_check_purpose(nsType, X509_PURPOSE_CRL_SIGN, 0), 0);
+    /* A role that constrains nothing is unaffected. */
+    ExpectIntEQ(X509_check_purpose(nsType, X509_PURPOSE_ANY, 0), 1);
+#endif
+
+    /* Version 1 certificates.  OpenSSL takes a version 1 certificate for a CA
+     * root when it has no basicConstraints and looks self-signed, and reports
+     * that it decided so this way rather than a plain 1.  Every value here was
+     * taken from OpenSSL 3.5.
+     *
+     * Looking self-signed is more than sharing the issuer and subject names:
+     * OpenSSL also requires the signature algorithm to match the certificate's
+     * own public key algorithm.  Neither certificate's signature is verified
+     * to reach this answer, by OpenSSL or here.
+     *
+     * The two differ in nothing else, so as leaves they are indistinguishable
+     * - with no keyUsage and no extendedKeyUsage to constrain them, every role
+     * that does not demand one accepts them both. */
+    ExpectIntEQ(X509_check_purpose(v1Root, X509_PURPOSE_SSL_CLIENT, 0), 1);
+    ExpectIntEQ(X509_check_purpose(v1Root, X509_PURPOSE_CRL_SIGN, 0), 1);
+    ExpectIntEQ(X509_check_purpose(v1Root, X509_PURPOSE_ANY, 0), 1);
+    ExpectIntEQ(X509_check_purpose(v1Root, X509_PURPOSE_TIMESTAMP_SIGN, 0), 0);
+    ExpectIntEQ(X509_check_purpose(v1Root, X509_PURPOSE_CODE_SIGN, 0), 0);
+#ifdef HAVE_ECC
+    ExpectIntEQ(X509_check_purpose(v1SelfIssued, X509_PURPOSE_SSL_CLIENT, 0),
+        1);
+    ExpectIntEQ(X509_check_purpose(v1SelfIssued, X509_PURPOSE_CRL_SIGN, 0), 1);
+    ExpectIntEQ(X509_check_purpose(v1SelfIssued, X509_PURPOSE_ANY, 0), 1);
+    ExpectIntEQ(X509_check_purpose(v1SelfIssued,
+        X509_PURPOSE_TIMESTAMP_SIGN, 0), 0);
+    ExpectIntEQ(X509_check_purpose(v1SelfIssued, X509_PURPOSE_CODE_SIGN, 0),
+        0);
+#endif
+
+    /* As a CA the self-signed one is a version 1 root.  The roles that only
+     * need a CA get the value that says so; the TLS roles report a plain 1
+     * because no extendedKeyUsage limits them. */
+    ExpectIntEQ(X509_check_purpose(v1Root, X509_PURPOSE_SSL_CLIENT, 1), 1);
+    ExpectIntEQ(X509_check_purpose(v1Root, X509_PURPOSE_SSL_SERVER, 1), 1);
+    ExpectIntEQ(X509_check_purpose(v1Root, X509_PURPOSE_NS_SSL_SERVER, 1), 1);
+    ExpectIntEQ(X509_check_purpose(v1Root, X509_PURPOSE_SMIME_SIGN, 1), 3);
+    ExpectIntEQ(X509_check_purpose(v1Root, X509_PURPOSE_SMIME_ENCRYPT, 1), 3);
+    ExpectIntEQ(X509_check_purpose(v1Root, X509_PURPOSE_CRL_SIGN, 1), 3);
+    ExpectIntEQ(X509_check_purpose(v1Root, X509_PURPOSE_OCSP_HELPER, 1), 3);
+    ExpectIntEQ(X509_check_purpose(v1Root, X509_PURPOSE_TIMESTAMP_SIGN, 1), 3);
+    ExpectIntEQ(X509_check_purpose(v1Root, X509_PURPOSE_CODE_SIGN, 1), 3);
+    ExpectIntEQ(X509_check_purpose(v1Root, X509_PURPOSE_ANY, 1), 1);
+
+#ifdef HAVE_ECC
+    /* The self-issued one is not, because its ECDSA signature could not have
+     * come from its own RSA key.  Sharing the issuer and subject names is not
+     * enough, and nothing else here says it is a CA. */
+    ExpectIntEQ(X509_check_purpose(v1SelfIssued, X509_PURPOSE_SSL_CLIENT, 1),
+        0);
+    ExpectIntEQ(X509_check_purpose(v1SelfIssued, X509_PURPOSE_SSL_SERVER, 1),
+        0);
+    ExpectIntEQ(X509_check_purpose(v1SelfIssued,
+        X509_PURPOSE_NS_SSL_SERVER, 1), 0);
+    ExpectIntEQ(X509_check_purpose(v1SelfIssued, X509_PURPOSE_SMIME_SIGN, 1),
+        0);
+    ExpectIntEQ(X509_check_purpose(v1SelfIssued,
+        X509_PURPOSE_SMIME_ENCRYPT, 1), 0);
+    ExpectIntEQ(X509_check_purpose(v1SelfIssued, X509_PURPOSE_CRL_SIGN, 1), 0);
+    ExpectIntEQ(X509_check_purpose(v1SelfIssued, X509_PURPOSE_OCSP_HELPER, 1),
+        0);
+    ExpectIntEQ(X509_check_purpose(v1SelfIssued,
+        X509_PURPOSE_TIMESTAMP_SIGN, 1), 0);
+    ExpectIntEQ(X509_check_purpose(v1SelfIssued, X509_PURPOSE_CODE_SIGN, 1),
+        0);
+    /* Any Purpose constrains nothing, so it accepts it as it accepts
+     * anything. */
+    ExpectIntEQ(X509_check_purpose(v1SelfIssued, X509_PURPOSE_ANY, 1), 1);
+#endif
+
+    /* A NULL certificate is an error.  A role that cannot be decided is not
+     * an error but a refusal, which is what OpenSSL answers and what a caller
+     * testing the result for truth needs. */
+    ExpectIntEQ(X509_check_purpose(NULL, X509_PURPOSE_SSL_SERVER, 0), -1);
+    ExpectIntEQ(X509_check_purpose(serverOnly, X509_PURPOSE_TIMESTAMP_SIGN,
+        0), 0);
+    ExpectIntEQ(X509_check_purpose(serverOnly, 999, 0), 0);
+
+    wolfSSL_X509_free(serverOnly);
+    wolfSSL_X509_free(both);
+    wolfSSL_X509_free(ca);
+    wolfSSL_X509_free(inter);
+    wolfSSL_X509_free(anyEku);
+    wolfSSL_X509_free(nsType);
+    wolfSSL_X509_free(nsCaOnly);
+    wolfSSL_X509_free(codeSign);
+    wolfSSL_X509_free(v1Root);
+#ifdef HAVE_ECC
+    wolfSSL_X509_free(v1SelfIssued);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_CTX_set0_tmp_dh_pkey(void)
+{
+    EXPECT_DECLS;
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_QT) || \
+     defined(WOLFSSL_OPENSSH)) && \
+    !defined(NO_DH) && defined(WOLFSSL_DH_EXTRA) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_BIO)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL_BIO* bio = NULL;
+    WOLFSSL_DH* dh = NULL;
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+
+    ExpectNotNull(bio = wolfSSL_BIO_new_file(dhParamFile, "rb"));
+    ExpectNotNull(dh = wolfSSL_PEM_read_bio_DHparams(bio, NULL, NULL, NULL));
+    wolfSSL_BIO_free(bio);
+    bio = NULL;
+
+    ExpectNotNull(pkey = wolfSSL_EVP_PKEY_new());
+    ExpectIntEQ(wolfSSL_EVP_PKEY_assign(pkey, WC_EVP_PKEY_DH, dh), 1);
+    if (EXPECT_SUCCESS()) {
+        /* the key owns dh now */
+        dh = NULL;
+    }
+
+    /* The context takes ownership of the key on success, so the test must
+     * not free it afterwards. */
+    ExpectIntEQ(wolfSSL_CTX_set0_tmp_dh_pkey(ctx, pkey), WOLFSSL_SUCCESS);
+    if (EXPECT_SUCCESS()) {
+        pkey = NULL;
+    }
+
+    /* Bad arguments leave ownership with the caller. */
+    ExpectIntEQ(wolfSSL_CTX_set0_tmp_dh_pkey(NULL, NULL), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_CTX_set0_tmp_dh_pkey(ctx, NULL), WOLFSSL_FAILURE);
+
+    /* A key that holds no DH parameters is refused, and stays the
+     * caller's. */
+    {
+        WOLFSSL_EVP_PKEY* empty = NULL;
+        ExpectNotNull(empty = wolfSSL_EVP_PKEY_new());
+        ExpectIntEQ(wolfSSL_CTX_set0_tmp_dh_pkey(ctx, empty),
+            WOLFSSL_FAILURE);
+        wolfSSL_EVP_PKEY_free(empty);
+    }
+
+    wolfSSL_EVP_PKEY_free(pkey);
+    wolfSSL_DH_free(dh);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+static int get1PeerCertClientCb(WOLFSSL* ssl)
+{
+    /* Called after the handshake, so the peer certificate is available. */
+    X509* first = NULL;
+    X509* second = NULL;
+    WOLFSSL_X509_NAME* name = NULL;
+    int ok = TEST_FAIL;
+
+    first = SSL_get1_peer_certificate(ssl);
+    if (first == NULL) {
+        return TEST_FAIL;
+    }
+
+    /* It is a get1: the caller owns it, so asking again gives an independent
+     * object rather than the same pointer. */
+    second = SSL_get1_peer_certificate(ssl);
+    if (second != NULL && second != first) {
+        name = wolfSSL_X509_get_subject_name(first);
+        if (name != NULL &&
+                wolfSSL_X509_NAME_cmp(name,
+                    wolfSSL_X509_get_subject_name(second)) == 0) {
+            ok = TEST_SUCCESS;
+        }
+    }
+
+    /* Both have to be released; a leak here shows up under the memory
+     * tracking builds. */
+    X509_free(first);
+    X509_free(second);
+
+    return ok;
+}
+#endif
+
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+/* The server side asks for the client's certificate, which only arrives when
+ * client authentication was requested. */
+static int get1PeerCertServerCtxCb(WOLFSSL_CTX* ctx)
+{
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER |
+        WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+    return TEST_SUCCESS;
+}
+
+static int get1PeerCertServerCb(WOLFSSL* ssl)
+{
+    X509* cert = SSL_get1_peer_certificate(ssl);
+
+    if (cert == NULL) {
+        return TEST_FAIL;
+    }
+    /* Owned by the caller here too. */
+    X509_free(cert);
+
+    return TEST_SUCCESS;
+}
+#endif
+
+/* SSL_get1_peer_certificate is the OpenSSL 3.0 spelling of
+ * SSL_get_peer_certificate; both hand the caller a certificate to free. */
+int test_wolfSSL_SSL_get1_peer_certificate(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+    test_ssl_cbf client_cb;
+    test_ssl_cbf server_cb;
+
+    XMEMSET(&client_cb, 0, sizeof(client_cb));
+    XMEMSET(&server_cb, 0, sizeof(server_cb));
+    client_cb.on_result = get1PeerCertClientCb;
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cb,
+        &server_cb, NULL), TEST_SUCCESS);
+
+    /* The other direction: a server reading the client's certificate. */
+    XMEMSET(&client_cb, 0, sizeof(client_cb));
+    XMEMSET(&server_cb, 0, sizeof(server_cb));
+    server_cb.ctx_ready = get1PeerCertServerCtxCb;
+    server_cb.on_result = get1PeerCertServerCb;
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cb,
+        &server_cb, NULL), TEST_SUCCESS);
+
+    /* Before a handshake there is no peer certificate to hand back. */
+    {
+        WOLFSSL_CTX* ctx = NULL;
+        WOLFSSL* ssl = NULL;
+
+        ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+        ExpectNotNull(ssl = wolfSSL_new(ctx));
+        ExpectNull(SSL_get1_peer_certificate(ssl));
+        ExpectNull(SSL_get1_peer_certificate(NULL));
+        wolfSSL_free(ssl);
+        wolfSSL_CTX_free(ctx);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_QT) || \
+     defined(WOLFSSL_OPENSSH)) && \
+    !defined(NO_DH) && defined(WOLFSSL_DH_EXTRA) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_BIO) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_RSA) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_AES) && defined(WOLFSSL_AES_128)
+/* Hand the server its DH parameters through an EVP_PKEY, then insist on a
+ * DHE suite so the handshake can only succeed if those parameters were
+ * actually installed. */
+static int set0DhPkeyServerCb(WOLFSSL_CTX* ctx)
+{
+    WOLFSSL_BIO* bio = NULL;
+    WOLFSSL_DH* dh = NULL;
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    int ret = TEST_FAIL;
+
+    bio = wolfSSL_BIO_new_file(dhParamFile, "rb");
+    if (bio == NULL) {
+        return TEST_FAIL;
+    }
+    dh = wolfSSL_PEM_read_bio_DHparams(bio, NULL, NULL, NULL);
+    wolfSSL_BIO_free(bio);
+    if (dh == NULL) {
+        return TEST_FAIL;
+    }
+
+    pkey = wolfSSL_EVP_PKEY_new();
+    if (pkey == NULL) {
+        wolfSSL_DH_free(dh);
+        return TEST_FAIL;
+    }
+    if (wolfSSL_EVP_PKEY_assign(pkey, WC_EVP_PKEY_DH, dh) != 1) {
+        wolfSSL_DH_free(dh);
+        wolfSSL_EVP_PKEY_free(pkey);
+        return TEST_FAIL;
+    }
+    /* the key owns dh now */
+
+    if (wolfSSL_CTX_set0_tmp_dh_pkey(ctx, pkey) == WOLFSSL_SUCCESS) {
+        /* the ctx owns pkey now */
+        ret = TEST_SUCCESS;
+    }
+    else {
+        wolfSSL_EVP_PKEY_free(pkey);
+    }
+
+    if (ret == TEST_SUCCESS) {
+        if (wolfSSL_CTX_set_cipher_list(ctx, "DHE-RSA-AES128-SHA") !=
+                WOLFSSL_SUCCESS) {
+            ret = TEST_FAIL;
+        }
+    }
+
+    return ret;
+}
+
+static int set0DhPkeyClientCb(WOLFSSL_CTX* ctx)
+{
+    if (wolfSSL_CTX_set_cipher_list(ctx, "DHE-RSA-AES128-SHA") !=
+            WOLFSSL_SUCCESS) {
+        return TEST_FAIL;
+    }
+    return TEST_SUCCESS;
+}
+#endif
+
+/* The parameters handed over by SSL_CTX_set0_tmp_dh_pkey are the ones the
+ * server actually uses, not merely stored. */
+int test_wolfSSL_CTX_set0_tmp_dh_pkey_handshake(void)
+{
+    EXPECT_DECLS;
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_QT) || \
+     defined(WOLFSSL_OPENSSH)) && \
+    !defined(NO_DH) && defined(WOLFSSL_DH_EXTRA) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_BIO) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_RSA) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_AES) && defined(WOLFSSL_AES_128)
+    test_ssl_cbf client_cb;
+    test_ssl_cbf server_cb;
+
+    XMEMSET(&client_cb, 0, sizeof(client_cb));
+    XMEMSET(&server_cb, 0, sizeof(server_cb));
+    client_cb.method = wolfTLSv1_2_client_method;
+    server_cb.method = wolfTLSv1_2_server_method;
+    client_cb.ctx_ready = set0DhPkeyClientCb;
+    server_cb.ctx_ready = set0DhPkeyServerCb;
+
+    /* Only a DHE suite is offered, so a handshake proves the server had
+     * usable DH parameters. */
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cb,
+        &server_cb, NULL), TEST_SUCCESS);
 #endif
     return EXPECT_RESULT();
 }

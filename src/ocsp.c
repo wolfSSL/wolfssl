@@ -34,6 +34,9 @@
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/ocsp.h>
 #include <wolfssl/internal.h>
+#if defined(OPENSSL_EXTRA)
+#include <wolfssl/openssl/x509v3.h>
+#endif
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -2061,14 +2064,43 @@ OcspResponse* wolfSSL_OCSP_response_create(int status,
 }
 #endif
 
-#ifndef NO_WOLFSSL_STUB
+/* Get the string representation of a CRL revocation reason code.
+ *
+ * Reason codes are those of RFC 5280 section 5.3.1 as used by the OCSP
+ * CRLReason field. Value 7 is not assigned. Strings match those returned by
+ * OpenSSL's OCSP_crl_reason_str().
+ *
+ * @param [in] s  Revocation reason code.
+ * @return  String representation of the reason code.
+ * @return  "(UNKNOWN)" when the code is not recognized.
+ */
 const char* wolfSSL_OCSP_crl_reason_str(long s)
 {
-    WOLFSSL_STUB("wolfSSL_OCSP_crl_reason_str");
-    (void)s;
-    return NULL;
+    switch (s) {
+        case CRL_REASON_UNSPECIFIED:
+            return "unspecified";
+        case CRL_REASON_KEY_COMPROMISE:
+            return "keyCompromise";
+        case CRL_REASON_CA_COMPROMISE:
+            return "cACompromise";
+        case CRL_REASON_AFFILIATION_CHANGED:
+            return "affiliationChanged";
+        case CRL_REASON_SUPERSEDED:
+            return "superseded";
+        case CRL_REASON_CESSATION_OF_OPERATION:
+            return "cessationOfOperation";
+        case CRL_REASON_CERTIFICATE_HOLD:
+            return "certificateHold";
+        case CRL_REASON_REMOVE_FROM_CRL:
+            return "removeFromCRL";
+        case CRL_REASON_PRIVILEGE_WITHDRAWN:
+            return "privilegeWithdrawn";
+        case CRL_REASON_AA_COMPROMISE:
+            return "aACompromise";
+        default:
+            return "(UNKNOWN)";
+    }
 }
-#endif
 
 /* Returns elements of an OCSP_CERTID struct. Currently only supports
  * returning the serial number, and returns an error if user requests
