@@ -815,3 +815,67 @@ int test_wolfSSL_dtls_compression_off(void)
         * !NO_WOLFSSL_CLIENT */
     return EXPECT_RESULT();
 }
+
+/* Record layer compression and RFC 8449 record_size_limit cannot share a
+ * connection: the limit bounds the plaintext and deflate may expand past it.
+ * Each is available in a build that has both, so the choice is made per
+ * connection, and the application's explicit request wins. */
+int test_wolfSSL_tls_compression_record_size_limit(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_LIBZ) && defined(HAVE_RECORD_SIZE_LIMIT) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL*     ssl = NULL;
+
+    /* A limit is advertised by default. That default gives way, since the
+     * application asked for compression and not for it. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL) {
+        ExpectIntGT(ssl->recordSizeLimit, 0);
+        ExpectIntEQ(ssl->recordSizeLimitSet, 0);
+    }
+    ExpectIntEQ(wolfSSL_set_compression(ssl), WOLFSSL_SUCCESS);
+    if (ssl != NULL) {
+        ExpectIntEQ(ssl->options.usingCompression, 1);
+        ExpectIntEQ(ssl->recordSizeLimit, 0);
+    }
+    /* And a limit asked for afterwards is refused rather than silently
+     * dropping the compression that is already set up. */
+    ExpectIntEQ(wolfSSL_UseRecordSizeLimit(ssl, 512),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    if (ssl != NULL)
+        ExpectIntEQ(ssl->options.usingCompression, 1);
+    wolfSSL_free(ssl); ssl = NULL;
+    wolfSSL_CTX_free(ctx); ctx = NULL;
+
+    /* The other order: a limit the application set is its request, so
+     * compression is the one refused. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_UseRecordSizeLimit(ssl, 512), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_compression(ssl), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    if (ssl != NULL) {
+        ExpectIntEQ(ssl->options.usingCompression, 0);
+        ExpectIntEQ(ssl->recordSizeLimit, 512);
+    }
+    wolfSSL_free(ssl); ssl = NULL;
+    wolfSSL_CTX_free(ctx); ctx = NULL;
+
+    /* Turning the limit off explicitly is not a limit, so compression is
+     * free to go ahead. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_UseRecordSizeLimit(ssl, WOLFSSL_RECORD_SIZE_LIMIT_OFF),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_compression(ssl), WOLFSSL_SUCCESS);
+    if (ssl != NULL)
+        ExpectIntEQ(ssl->options.usingCompression, 1);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif /* HAVE_LIBZ && HAVE_RECORD_SIZE_LIMIT && !WOLFSSL_NO_TLS12 &&
+        * !NO_WOLFSSL_CLIENT */
+    return EXPECT_RESULT();
+}

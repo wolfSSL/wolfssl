@@ -2440,7 +2440,22 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 
 #ifdef WOLFSSL_STATIC_MEMORY
-    #if (defined(HAVE_ECC) && !defined(ALT_ECC_SIZE)) || \
+    #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+        !defined(NO_MAIN_DRIVER)
+        /* The compatibility layer copies every peer certificate into a
+         * WOLFSSL_X509, where each RDN and each subjectAltName becomes its own
+         * ~32 byte allocation, and a public server's leaf can carry dozens of
+         * names (google.com's carries 65). That is several hundred blocks out
+         * of the smallest bucket, far more than WOLFMEM_DIST gives a 320000
+         * byte pool, and once that bucket is empty the pool answers a 32 byte
+         * request out of a 4096 byte block and the handshake runs it dry.
+         * Scale the whole pool instead of re-weighting the buckets: the large
+         * blocks are needed too (ecc_mul2add() takes 16 of them at once to
+         * verify an ECDSA chain). This is the standalone client, which calls
+         * this function once, so the pool lives in BSS rather than taking
+         * 1.2MB of stack. */
+        static byte memory[1280000];
+    #elif (defined(HAVE_ECC) && !defined(ALT_ECC_SIZE)) || \
         defined(SESSION_CERTS) || defined(WOLFSSL_HAVE_MLKEM)
         /* big enough to handle most cases including session certs */
         byte memory[320000];
@@ -5152,7 +5167,7 @@ exit:
 
 #if defined(WOLFSSL_STATIC_MEMORY) && defined(WOLFSSL_NO_MALLOC) && \
     !defined(NO_MAIN_DRIVER)
-    /* the pool backing the hint is on this function's stack */
+    /* the pool backing the hint belongs to this function */
     if (wolfSSL_GetGlobalHeapHint() == (void*)heap)
         wolfSSL_SetGlobalHeapHint(NULL);
 #endif
