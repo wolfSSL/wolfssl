@@ -2167,8 +2167,8 @@ int wolfSSL_BN_rand(WOLFSSL_BIGNUM* bn, int bits, int top, int bottom)
         /* Dispose of buffer - no longer needed. */
         XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-        if (ret == 1) {
-            /* Truncate to requested bit length. */
+        /* Truncate to requested bit length when not a whole number of bytes. */
+        if ((ret == 1) && ((bits % 8) != 0)) {
             mp_rshb((mp_int*)bn->internal, 8 - (bits % 8));
         }
 

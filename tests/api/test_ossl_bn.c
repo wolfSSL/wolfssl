@@ -921,6 +921,8 @@ int test_wolfSSL_BN_rand(void)
     BIGNUM* bn = NULL;
     BIGNUM* range = NULL;
     BIGNUM emptyBN;
+    int i;
+    int seen;
 
     XMEMSET(&emptyBN, 0, sizeof(emptyBN));
     ExpectNotNull(bn = BN_new());
@@ -1044,6 +1046,42 @@ int test_wolfSSL_BN_rand(void)
     ExpectIntEQ(BN_rand(bn, 13, WOLFSSL_BN_RAND_TOP_ONE,
         WOLFSSL_BN_RAND_BOTTOM_ANY), 1);
     ExpectIntEQ(BN_num_bits(bn), 13);
+
+    /* A request for a multiple of 8 bits keeps every generated bit. Shifting
+     * out a whole byte would make the 8-bit values zero, hold the 16-bit
+     * values in the low byte, and fix the 8-bit top bit results at 0x80. */
+    seen = 0;
+    for (i = 0; (i < 64) && EXPECT_SUCCESS(); i++) {
+        ExpectIntEQ(BN_rand(bn, 8, WOLFSSL_BN_RAND_TOP_ANY,
+            WOLFSSL_BN_RAND_BOTTOM_ANY), 1);
+        if (EXPECT_SUCCESS() && (BN_is_zero(bn) == 0)) {
+            seen = 1;
+            break;
+        }
+    }
+    ExpectIntEQ(seen, 1);
+
+    seen = 0;
+    for (i = 0; (i < 64) && EXPECT_SUCCESS(); i++) {
+        ExpectIntEQ(BN_rand(bn, 16, WOLFSSL_BN_RAND_TOP_ANY,
+            WOLFSSL_BN_RAND_BOTTOM_ANY), 1);
+        if (EXPECT_SUCCESS() && (BN_num_bits(bn) > 8)) {
+            seen = 1;
+            break;
+        }
+    }
+    ExpectIntEQ(seen, 1);
+
+    seen = 0;
+    for (i = 0; (i < 64) && EXPECT_SUCCESS(); i++) {
+        ExpectIntEQ(BN_pseudo_rand(bn, 8, WOLFSSL_BN_RAND_TOP_ONE,
+            WOLFSSL_BN_RAND_BOTTOM_ANY), 1);
+        if (EXPECT_SUCCESS() && (BN_get_word(bn) != 0x80)) {
+            seen = 1;
+            break;
+        }
+    }
+    ExpectIntEQ(seen, 1);
 
     ExpectIntEQ(BN_rand(range, 64, WOLFSSL_BN_RAND_TOP_ONE,
         WOLFSSL_BN_RAND_BOTTOM_ANY), 1);
