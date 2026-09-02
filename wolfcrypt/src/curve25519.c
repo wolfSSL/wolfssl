@@ -1013,9 +1013,15 @@ int wc_curve25519_import_public_ex(const byte* in, word32 inLen,
  * returns BAD_FUNC_ARGS when pub is NULL,
  *         BUFFER_E when size of public key is zero;
  *         ECC_OUT_OF_RANGE_E if the high bit is set;
- *         ECC_BAD_ARG_E if key length is not 32 bytes, public key value is
- *         zero or one; and
+ *         ECC_BAD_ARG_E if key length is not 32 bytes, or the public key
+ *         value is a cheaply detectable low-order point: 0, 1, p-1 (u = -1)
+ *         or the non-canonical encodings p and p+1 (p = 2^255-19); and
  *         0 otherwise.
+ *
+ * RFC 7748 Section 5 requires the non-canonical range [p, 2^255-1] to be
+ * accepted and processed as if reduced modulo p, so p+2 .. p+18 are valid
+ * inputs (the field arithmetic performs the reduction) and are not rejected
+ * here.
  */
 int wc_curve25519_check_public(const byte* pub, word32 pubSz, int endian)
 {
@@ -1046,15 +1052,18 @@ int wc_curve25519_check_public(const byte* pub, word32 pubSz, int endian)
         if (pub[CURVE25519_KEYSIZE - 1] & 0x80)
             return ECC_OUT_OF_RANGE_E;
 
-        /* Check for order-1 or higher. */
+        /* Check for p-1, p or p+1: 0x7fff..ffec, 0x7fff..ffed, 0x7fff..ffee.
+         * p-1 is the low-order point u = -1; p and p+1 reduce to 0 and 1.
+         * Larger values (p+2 .. p+18) are non-canonical encodings of 2 .. 18
+         * and must be accepted (RFC 7748 Section 5). */
         if (pub[CURVE25519_KEYSIZE - 1] == 0x7f) {
             for (i = CURVE25519_KEYSIZE - 2; i > 0; i--) {
                 if (pub[i] != 0xff)
                     break;
             }
-            if (i == 0 && (pub[0] >= 0xec))
+            if (i == 0 && (pub[0] >= 0xec) && (pub[0] <= 0xee))
                 return ECC_BAD_ARG_E;
-         }
+        }
     }
     else {
         /* Check for value of zero or one */
@@ -1069,15 +1078,16 @@ int wc_curve25519_check_public(const byte* pub, word32 pubSz, int endian)
         if (pub[0] & 0x80)
             return ECC_OUT_OF_RANGE_E;
 
-        /* Check for order-1 or higher. */
+        /* Check for p-1, p or p+1 (see little-endian case above). */
         if (pub[0] == 0x7f) {
             for (i = 1; i < CURVE25519_KEYSIZE - 1; i++) {
                 if (pub[i] != 0xff)
                     break;
             }
-            if (i == CURVE25519_KEYSIZE - 1 && (pub[i] >= 0xec))
+            if (i == CURVE25519_KEYSIZE - 1 && (pub[i] >= 0xec) &&
+                    (pub[i] <= 0xee))
                 return ECC_BAD_ARG_E;
-         }
+        }
     }
 
     return 0;

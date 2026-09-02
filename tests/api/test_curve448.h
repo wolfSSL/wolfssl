@@ -27,6 +27,7 @@
 int test_wc_curve448_make_key(void);
 int test_wc_curve448_shared_secret_ex(void);
 int test_wc_curve448_shared_secret_zero_check(void);
+int test_wc_curve448_shared_secret_noncanonical_kat(void);
 int test_wc_curve448_export_public_ex(void);
 int test_wc_curve448_export_private_raw_ex(void);
 int test_wc_curve448_export_key_raw(void);
@@ -49,6 +50,7 @@ int test_wc_curve448_cryptocb(void);
     TEST_DECL_GROUP("curve448", test_wc_curve448_make_key),                 \
     TEST_DECL_GROUP("curve448", test_wc_curve448_shared_secret_ex),         \
     TEST_DECL_GROUP("curve448", test_wc_curve448_shared_secret_zero_check), \
+    TEST_DECL_GROUP("curve448", test_wc_curve448_shared_secret_noncanonical_kat), \
     TEST_DECL_GROUP("curve448", test_wc_curve448_export_public_ex),         \
     TEST_DECL_GROUP("curve448", test_wc_curve448_export_private_raw_ex),    \
     TEST_DECL_GROUP("curve448", test_wc_curve448_export_key_raw),           \
