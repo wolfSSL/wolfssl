@@ -9890,6 +9890,31 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha_test(void)
 #endif
     }
 
+#if FIPS_VERSION3_GE(7,0,0)
+    /* Keys above HMAC_FIPS_MAX_KEY (1024 bits) are outside the module's
+     * CAVP-tested key range: wc_HmacSetKey must reject them, a key at the
+     * maximum must pass, and the wc_HmacSetKey_ex allowFlag escape must
+     * still accept the longer key as a non-approved use. */
+    {
+        byte maxKey[HMAC_FIPS_MAX_KEY + 1];
+        XMEMSET(maxKey, 0x0b, sizeof(maxKey));
+        if ((ret = wc_HmacInit(&hmac, HEAP_HINT, devId)) != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ret = wc_HmacSetKey(&hmac, WC_SHA, maxKey, (word32)sizeof(maxKey));
+        if (ret != WC_NO_ERR_TRACE(BAD_LENGTH_E))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ret = wc_HmacSetKey(&hmac, WC_SHA, maxKey,
+                            (word32)sizeof(maxKey) - 1);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ret = wc_HmacSetKey_ex(&hmac, WC_SHA, maxKey, (word32)sizeof(maxKey),
+                               allowShortKeyWithFips);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        wc_HmacFree(&hmac);
+    }
+#endif
+
 out:
 
     wc_HmacFree(&hmac);
