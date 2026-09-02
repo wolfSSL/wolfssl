@@ -35507,6 +35507,7 @@ exit_gdpk:
     return ret;
 }
 #endif
+
 #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
 static int GetEcDiffieHellmanKea(WOLFSSL *ssl,
                                  const byte *input, word32 size, DskeArgs *args)
@@ -35518,6 +35519,12 @@ static int GetEcDiffieHellmanKea(WOLFSSL *ssl,
 #endif
     int curveOid;
     word16 length;
+#ifdef HAVE_CURVE25519
+    const byte* peerPub;
+#ifndef WOLFSSL_X25519_NO_MASK_PEER
+    byte maskedPub[CURVE25519_KEYSIZE];
+#endif
+#endif
 
     if ((args->idx - args->begin) + ENUM_LEN + OPAQUE16_LEN +
         OPAQUE8_LEN > size) {
@@ -35560,7 +35567,12 @@ static int GetEcDiffieHellmanKea(WOLFSSL *ssl,
             }
         }
 
-        if ((ret = wc_curve25519_check_public(input + args->idx, length,
+        peerPub = input + args->idx;
+#ifndef WOLFSSL_X25519_NO_MASK_PEER
+        peerPub = MaskCurve25519PeerKey(peerPub, length, maskedPub);
+#endif
+
+        if ((ret = wc_curve25519_check_public(peerPub, length,
                                               EC25519_LITTLE_ENDIAN)) != 0) {
 #ifdef WOLFSSL_EXTRA_ALERTS
             if (ret == WC_NO_ERR_TRACE(BUFFER_E))
@@ -35576,7 +35588,7 @@ static int GetEcDiffieHellmanKea(WOLFSSL *ssl,
             return ECC_PEERKEY_ERROR;
         }
 
-        if (wc_curve25519_import_public_ex(input + args->idx,
+        if (wc_curve25519_import_public_ex(peerPub,
                                            length, ssl->peerX25519Key,
                                            EC25519_LITTLE_ENDIAN) != 0) {
             return ECC_PEERKEY_ERROR;
@@ -38191,6 +38203,27 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #endif /* !NO_WOLFSSL_CLIENT && !NO_TLS */
 /* end client only parts */
+
+
+#if defined(HAVE_CURVE25519) && !defined(WOLFSSL_X25519_NO_MASK_PEER)
+/* RFC 7748 Section 5 requires X25519 receivers to clear the reserved high bit
+ * of the final u-coordinate byte rather than reject a peer key that sets it.
+ * Returns the pointer the caller should hand to the check and import calls: a
+ * masked copy in maskBuf for a full-length key, otherwise pub unchanged.
+ * Shared by the TLS 1.2 (client and server) and TLS 1.3 key exchange paths,
+ * so it must sit outside the client-only and !WOLFSSL_NO_TLS12 guards. */
+const byte* MaskCurve25519PeerKey(const byte* pub, word32 pubSz,
+                                  byte maskBuf[CURVE25519_KEYSIZE])
+{
+    if (pubSz != CURVE25519_KEYSIZE) {
+        return pub;
+    }
+
+    XMEMCPY(maskBuf, pub, CURVE25519_KEYSIZE);
+    maskBuf[CURVE25519_KEYSIZE - 1] &= 0x7f;
+    return maskBuf;
+}
+#endif /* HAVE_CURVE25519 && !WOLFSSL_X25519_NO_MASK_PEER */
 
 
 #ifndef NO_CERTS
@@ -44377,6 +44410,12 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
     {
         int ret;
         int kea = ssl->specs.kea;
+    #ifdef HAVE_CURVE25519
+        const byte* peerPub;
+    #ifndef WOLFSSL_X25519_NO_MASK_PEER
+        byte maskedPub[CURVE25519_KEYSIZE];
+    #endif
+    #endif
 
         *haveCb = 0;
         if ((args->idx - args->begin) + OPAQUE8_LEN > size)
@@ -44421,7 +44460,12 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                 }
             }
 
-            if ((ret = wc_curve25519_check_public(input + args->idx,
+            peerPub = input + args->idx;
+        #ifndef WOLFSSL_X25519_NO_MASK_PEER
+            peerPub = MaskCurve25519PeerKey(peerPub, args->length, maskedPub);
+        #endif
+
+            if ((ret = wc_curve25519_check_public(peerPub,
                                    args->length, EC25519_LITTLE_ENDIAN)) != 0) {
             #ifdef WOLFSSL_EXTRA_ALERTS
                 if (ret == WC_NO_ERR_TRACE(BUFFER_E))
@@ -44437,7 +44481,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                 return ECC_PEERKEY_ERROR;
             }
 
-            if (wc_curve25519_import_public_ex(input + args->idx, args->length,
+            if (wc_curve25519_import_public_ex(peerPub, args->length,
                                ssl->peerX25519Key, EC25519_LITTLE_ENDIAN)) {
              #ifdef WOLFSSL_EXTRA_ALERTS
                 SendAlert(ssl, alert_fatal, illegal_parameter);

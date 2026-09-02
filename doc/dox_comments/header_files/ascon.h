@@ -236,7 +236,8 @@ int wc_AsconAEAD128_SetNonce(wc_AsconAEAD128* a, const byte* nonce);
     \brief This function sets the associated data for the Ascon AEAD context.
 
     \return 0 on success.
-    \return BAD_FUNC_ARG if the context or associated data pointer is NULL.
+    \return BAD_FUNC_ARG if the context is NULL, or if the associated data
+            pointer is NULL while the associated data size is greater than 0.
     \return BAD_STATE_E if the key or nonce has not been set.
 
     \param a pointer to the initialized Ascon AEAD context.
