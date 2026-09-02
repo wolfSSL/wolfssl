@@ -14801,20 +14801,11 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                     }
                 #endif
 
-                    /* When filling the caller's buffer the segments are
-                     * accumulated, because the trailing pad is only known once
-                     * the last one has been seen. A stream callback is handed
-                     * each segment as it arrives, so it needs room for one. */
-                    segBase = 0;
-                #ifdef ASN_BER_TO_DER
-                    if (pkcs7->streamOutCb == NULL)
-                #endif
-                        segBase = pkcs7->totalEncryptedContentSz;
-
                 #ifdef ASN_BER_TO_DER
                     if (pkcs7->streamOutCb != NULL) {
                         /* callback path: the cache only ever holds the segment
                          * in hand, and its size is read back after the loop */
+                        segBase = 0;
                         if (ret == 0 && pkcs7->cachedEncryptedContentSz <
                                 (word32)encryptedContentSz) {
                             XFREE(pkcs7->cachedEncryptedContent, pkcs7->heap,
@@ -14836,12 +14827,15 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                     else
                 #endif /* ASN_BER_TO_DER */
                     {
-                        /* Buffered path: size the cache once instead of per
-                         * segment. The accumulated plaintext cannot exceed
-                         * what the caller accepts, so outputSz plus one block
-                         * for the pad bounds it. Here
-                         * cachedEncryptedContentSz is the allocated size and
-                         * totalEncryptedContentSz is how much is used. */
+                        /* Buffered path: segments are accumulated, since the
+                         * trailing pad is only known once the last one is
+                         * seen. Size the cache once instead of per segment:
+                         * the accumulated plaintext cannot exceed what the
+                         * caller accepts, so outputSz plus one block for the
+                         * pad bounds it. Here cachedEncryptedContentSz is the
+                         * allocated size and totalEncryptedContentSz is how
+                         * much is used. */
+                        segBase = pkcs7->totalEncryptedContentSz;
                         if (ret == 0 && pkcs7->cachedEncryptedContent == NULL) {
                             word32 cacheSz;
 
