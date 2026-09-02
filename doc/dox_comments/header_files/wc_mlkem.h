@@ -67,7 +67,11 @@ int wc_MlKemKey_Delete(MlKemKey* key, MlKemKey** key_p);
 
     \param [in,out] key Pointer to the MlKemKey to initialize.
     \param [in] type ML-KEM variant: WC_ML_KEM_512, WC_ML_KEM_768 or
-    WC_ML_KEM_1024.
+    WC_ML_KEM_1024. Pass WC_ML_KEM_TYPE_UNSET to set the object up without a
+    parameter set, leaving wc_MlKemKey_PublicKeyDecode or
+    wc_MlKemKey_PrivateKeyDecode to take it from the algorithm OID in the DER.
+    Every other operation needs a parameter set and fails with BAD_FUNC_ARG
+    until a decode has named one.
     \param [in] heap Heap hint for dynamic memory allocation. May be
     NULL.
     \param [in] devId Device identifier for hardware crypto callbacks.
@@ -516,13 +520,16 @@ int wc_MlKemKey_PrivateKeyToDer(MlKemKey* key, byte* output, word32 len);
 /*!
     \ingroup ML_KEM
 
-    \brief Decodes a DER SubjectPublicKeyInfo into an ML-KEM public key. The
-    key object must already be initialized for a parameter set, and the
-    algorithm OID in the DER must name that same parameter set.
+    \brief Decodes a DER SubjectPublicKeyInfo into an ML-KEM public key. Takes
+    wrapped DER, where wc_MlKemKey_DecodePublicKey takes the raw encoded key.
+    A key initialized for a parameter set holds the DER to that same one.
+    A key initialized with WC_ML_KEM_TYPE_UNSET takes the parameter set from
+    the algorithm OID in the DER instead.
 
     \return 0 on success.
     \return BAD_FUNC_ARG if any required pointer is NULL.
     \return ASN_PARSE_E if the DER is invalid or names another parameter set.
+    \return NOT_COMPILED_IN if the DER names a parameter set this build lacks.
 
     \param [in,out] key Pointer to an initialized MlKemKey.
     \param [in] input Buffer holding the DER.
@@ -530,6 +537,7 @@ int wc_MlKemKey_PrivateKeyToDer(MlKemKey* key, byte* output, word32 len);
     \param [in,out] inOutIdx On in, index into input; on out, index after.
 
     \sa wc_MlKemKey_PublicKeyToDer
+    \sa wc_MlKemKey_Init
 */
 int wc_MlKemKey_PublicKeyDecode(MlKemKey* key, const byte* input, word32 inSz,
     word32* inOutIdx);
@@ -538,13 +546,17 @@ int wc_MlKemKey_PublicKeyDecode(MlKemKey* key, const byte* input, word32 inSz,
     \ingroup ML_KEM
 
     \brief Decodes a DER PKCS#8 OneAsymmetricKey into an ML-KEM private key.
+    Takes wrapped DER, where wc_MlKemKey_DecodePrivateKey takes the raw
+    encoded key.
     All three RFC 9935 Section 6 CHOICE forms are accepted: the 64-byte seed
     under an implicit [0], the expanded decapsulation key as an OCTET STRING,
     and the SEQUENCE carrying both. A seed is expanded with
     ML-KEM.KeyGen_internal(d,z). For the "both" form the expanded key is
     regenerated from the seed and the two are compared, so a key whose halves
-    disagree is rejected as malformed, as RFC 9935 Section 8 requires. The key
-    object must already be initialized for the parameter set the DER names.
+    disagree is rejected as malformed, as RFC 9935 Section 8 requires. A key
+    initialized for a parameter set holds the DER to that same parameter set;
+    a key initialized with WC_ML_KEM_TYPE_UNSET takes it from the algorithm
+    OID in the DER instead.
 
     A build defining WOLFSSL_MLKEM_NO_MAKE_KEY cannot expand a seed, and so
     cannot perform the Section 8 comparison either. Such a build rejects every
