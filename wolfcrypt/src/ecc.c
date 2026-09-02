@@ -6306,6 +6306,26 @@ int wc_ecc_make_key_ex2(WC_RNG* rng, int keysize, ecc_key* key, int curve_id,
 {
     int err;
 
+#if FIPS_VERSION3_GE(7,0,0)
+    /* SP 800-131A Rev. 2 Table 2 disallows ECDSA key pair generation
+     * providing fewer than 112 bits of security strength (len(n) < 224), and
+     * SP 800-186 Section 3.2.1.1 retains P-192 for legacy use only, so
+     * refuse to generate on any curve smaller than 224 bits.  The bound
+     * mirrors wc_ecc_set_curve(): an explicit curve_id selects the curve
+     * directly, otherwise keysize selects the smallest compiled curve that
+     * fits, so keysize 0 would land on the smallest compiled curve and is
+     * rejected too.  Signature verification with the small curves stays
+     * available (legacy use per SP 800-131A Rev. 2 Table 2). */
+    if (curve_id > ECC_CURVE_DEF) {
+        if (wc_ecc_get_curve_size_from_id(curve_id) < WC_ECC_FIPS_GEN_MIN) {
+            return ECC_CURVE_OID_E;
+        }
+    }
+    else if (keysize < WC_ECC_FIPS_GEN_MIN) {
+        return ECC_CURVE_OID_E;
+    }
+#endif
+
     err = _ecc_make_key_ex(rng, keysize, key, curve_id, flags);
 
 #if (FIPS_VERSION_GE(5,0) || defined(WOLFSSL_VALIDATE_ECC_KEYGEN)) && \
@@ -7669,6 +7689,17 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
    if (wc_ecc_is_valid_idx(key->idx) == 0 || key->dp == NULL) {
       return ECC_BAD_ARG_E;
    }
+
+#if FIPS_VERSION3_GE(7,0,0)
+   /* SP 800-131A Rev. 2 Table 2: ECDSA digital signature generation with
+    * len(n) < 224 is disallowed, while signature verification with those
+    * curves remains legacy use, so only the signing path is gated.  The
+    * curve is resolved from key->dp, never from ecc_sets[key->idx], so a
+    * custom-curve key (idx == ECC_CUSTOM_IDX) cannot index out of range. */
+   if (key->dp->size < WC_ECC_FIPS_GEN_MIN) {
+      return SIG_TYPE_E;
+   }
+#endif
 
 #if defined(WOLFSSL_SP_MATH)
     if (key->idx == ECC_CUSTOM_IDX || (1
