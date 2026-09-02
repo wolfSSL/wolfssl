@@ -240,6 +240,7 @@ EXTRA_DIST += \
               tests/unit-mcdc/test_wc_port_whitebox.c \
               tests/unit-mcdc/test_wc_xmss_impl_whitebox.c \
               tests/unit-mcdc/test_wolfentropy_whitebox.c \
+              tests/unit-mcdc/test_wolfio_whitebox.c \
               tests/unit-mcdc/test_wolfmath_whitebox.c \
               tests/unit-mcdc/test_xmss_fault_whitebox.c \
               tests/unit-mcdc/test_xmss_hash_fault_whitebox.c
