@@ -38,18 +38,50 @@ fn wolfssl_repo_lib_dir() -> Result<String> {
     Ok(format!("{}/src/.libs", wolfssl_repo_base_dir()?))
 }
 
-/// wolfSSL library file names to look for.
-const WOLFSSL_LIB_FILES: [&str; 3] =
-    ["libwolfssl.so", "libwolfssl.dylib", "libwolfssl.a"];
-
-/// Returns the name of the wolfSSL library file present in `dir`, if any.
-fn wolfssl_lib_file(dir: &Path) -> Option<&'static str> {
-    WOLFSSL_LIB_FILES.into_iter().find(|name| dir.join(name).exists())
+/// How a wolfSSL library file has to be handed to the linker.
+#[derive(Clone, Copy, PartialEq)]
+enum WolfsslLibKind {
+    /// Shared object resolved at run time through a library search path, so
+    /// an rpath entry is needed to run against a non-default prefix.
+    SharedObject,
+    /// Windows import library or DLL: linked dynamically, but the loader
+    /// finds the DLL via PATH rather than an rpath.
+    ImportLib,
+    /// Static archive, linked with the `static=` link kind.
+    StaticLib,
 }
 
-/// Returns true if `dir` holds a shared wolfSSL library.
-fn has_shared_wolfssl_lib(dir: &Path) -> bool {
-    matches!(wolfssl_lib_file(dir), Some("libwolfssl.so") | Some("libwolfssl.dylib"))
+/// wolfSSL library file names to look for, with the names produced by the
+/// autotools, CMake and Visual Studio builds of the C library.  Dynamic
+/// variants come first so that a directory holding both prefers the shared
+/// library, matching how the linker itself resolves `-lwolfssl`.
+const WOLFSSL_LIB_FILES: [(&str, WolfsslLibKind); 7] = [
+    /* ELF platforms: Linux, the BSDs, Solaris/illumos */
+    ("libwolfssl.so",    WolfsslLibKind::SharedObject),
+    /* macOS */
+    ("libwolfssl.dylib", WolfsslLibKind::SharedObject),
+    /* MinGW / Cygwin import library for libwolfssl.dll */
+    ("libwolfssl.dll.a", WolfsslLibKind::ImportLib),
+    /* MinGW / Cygwin DLL installed without an import library */
+    ("libwolfssl.dll",   WolfsslLibKind::ImportLib),
+    /* MSVC: static library, or the import library for wolfssl.dll */
+    ("wolfssl.lib",      WolfsslLibKind::ImportLib),
+    /* MSVC built through libtool, which keeps the "lib" prefix */
+    ("libwolfssl.lib",   WolfsslLibKind::ImportLib),
+    /* Static archive on every Unix-like platform and MinGW */
+    ("libwolfssl.a",     WolfsslLibKind::StaticLib),
+];
+
+/// Returns the kind of the wolfSSL library file present in `dir`, if any.
+fn wolfssl_lib_kind(dir: &Path) -> Option<WolfsslLibKind> {
+    WOLFSSL_LIB_FILES.into_iter()
+                     .find(|(name, _)| dir.join(name).exists())
+                     .map(|(_, kind)| kind)
+}
+
+/// Returns true if `dir` holds any wolfSSL library file.
+fn has_wolfssl_lib(dir: &Path) -> bool {
+    wolfssl_lib_kind(dir).is_some()
 }
 
 /// Directories located under a validated `WOLFSSL_PREFIX` installation.
@@ -99,9 +131,8 @@ fn compute_wolfssl_prefix_dirs() -> Option<WolfsslPrefixDirs> {
     let lib_names = ["lib", "lib64"];
     let Some(lib_dir) = lib_names.iter()
                                  .map(|name| prefix_path.join(name))
-                                 .find(|dir| wolfssl_lib_file(dir).is_some()) else {
-        println!("cargo:warning=ignoring WOLFSSL_PREFIX: no {} found in {}",
-                 WOLFSSL_LIB_FILES.join(" / "),
+                                 .find(|dir| has_wolfssl_lib(dir)) else {
+        println!("cargo:warning=ignoring WOLFSSL_PREFIX: no wolfSSL library found in {}",
                  lib_names.map(|name| prefix_path.join(name).display().to_string())
                           .join(" or "));
         return None;
@@ -350,16 +381,21 @@ fn setup_wolfssl_link() -> Result<()> {
     if let Some(lib_dir) = wolfssl_lib_dir()? {
         println!("cargo:rustc-link-search={}", lib_dir);
 
-        // Prefer a shared library if present, otherwise fall back to static.
-        if has_shared_wolfssl_lib(Path::new(&lib_dir)) {
-            println!("cargo:rustc-link-lib=wolfssl");
-            // Only set rpath where a dynamic linker exists (not bare-metal).
-            let target = env::var("TARGET").unwrap();
-            if !target.ends_with("-none-elf") {
-                println!("cargo:rustc-link-arg=-Wl,-rpath,{}", lib_dir);
+        // Prefer a dynamic library if present, otherwise fall back to static.
+        match wolfssl_lib_kind(Path::new(&lib_dir)) {
+            Some(WolfsslLibKind::SharedObject) => {
+                println!("cargo:rustc-link-lib=wolfssl");
+                // Only set rpath where a dynamic linker exists (not bare-metal).
+                let target = env::var("TARGET").unwrap();
+                if !target.ends_with("-none-elf") {
+                    println!("cargo:rustc-link-arg=-Wl,-rpath,{}", lib_dir);
+                }
             }
-        } else {
-            println!("cargo:rustc-link-lib=static=wolfssl");
+            // The DLL is found through PATH at run time, so there is no rpath
+            // to set here.
+            Some(WolfsslLibKind::ImportLib) => println!("cargo:rustc-link-lib=wolfssl"),
+            Some(WolfsslLibKind::StaticLib) | None =>
+                println!("cargo:rustc-link-lib=static=wolfssl"),
         }
     } else {
         // No local lib dir found; rely on whatever is installed system-wide.
