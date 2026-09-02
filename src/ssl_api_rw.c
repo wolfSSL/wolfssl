@@ -376,6 +376,116 @@ int wolfSSL_write(WOLFSSL* ssl, const void* data, int sz)
     return ret;
 }
 
+/* Send a TLS 1.3 application data record containing only padding.
+ *
+ * Generates cover traffic (RFC 8446 Appendix E). The request applies
+ * to the next record only.
+ *
+ * Arms and clears the request, except when async build is pending.
+ * If still armed after write, no record was built (e.g. TLS 1.2 downgrade).
+ * Completes any in-progress handshake.
+ *
+ * On WANT_WRITE the request is not left armed: the record was either
+ * already queued (and gets flushed by the next write) or dropped. Calling
+ * this function again is safe, but may put a second cover traffic record
+ * on the wire if the first one had been queued.
+ *
+ * @param [in, out] ssl       SSL/TLS object.
+ * @param [in]      paddingSz Length of padding in bytes.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when arguments are invalid or session is not stream TLS 1.3.
+ * @return  BAD_STATE_E when an application write or an unrelated asynchronous
+ *          operation is pending.
+ * @return  WOLFSSL_FATAL_ERROR when the write fails.
+ * @return  NOT_COMPILED_IN when TLS 1.3 support is not built in.
+ */
+int wolfSSL_send_tls13_cover_traffic(WOLFSSL* ssl, int paddingSz)
+{
+#ifdef WOLFSSL_TLS13
+    int ret;
+    int maxFrag;
+    char dummy = 0;
+#endif
+
+    WOLFSSL_ENTER("wolfSSL_send_tls13_cover_traffic");
+
+    if (ssl == NULL || paddingSz < 0)
+        return BAD_FUNC_ARG;
+
+#ifdef WOLFSSL_TLS13
+    /* DTLS 1.3 pads to its own minimum length and is unsupported. */
+    if (!IsAtLeastTLSv1_3(ssl->version) || ssl->options.dtls) {
+        WOLFSSL_MSG("Cover traffic needs a stream TLS 1.3 session");
+        return BAD_FUNC_ARG;
+    }
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* Check if armed request matches pending async op.
+     * Use original padding size if resuming. */
+    if (ssl->error == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+        if (!ssl->options.sendCoverTraffic) {
+            WOLFSSL_MSG("Cover traffic blocked by pending async op");
+            return BAD_STATE_E;
+        }
+        paddingSz = (int)ssl->options.coverTrafficPadSz;
+    }
+#endif
+
+    /* Keep padding within the negotiated fragment size. */
+    maxFrag = wolfSSL_GetMaxFragSize(ssl);
+    /* The record also carries the content type byte, so padding equal to
+     * the fragment size would overflow the plaintext limit. */
+    if (paddingSz >= maxFrag) {
+        WOLFSSL_MSG("Cover traffic padding larger than the max fragment size");
+        return BAD_FUNC_ARG;
+    }
+
+    /* Disallow if an application write is pending to avoid losing data. */
+    if (ssl->buffers.plainSz > 0) {
+        WOLFSSL_MSG("Cover traffic needs the pending write to finish first");
+        return BAD_STATE_E;
+    }
+
+    ssl->options.coverTrafficPadSz = (word16)paddingSz;
+    ssl->options.sendCoverTraffic = 1;
+
+    ret = wolfSSL_write(ssl, &dummy, 0);
+    if (ret < 0) {
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        /* An asynchronous build is pending and consumes the padding when it
+         * resumes, so leave the request armed for it. Trust ssl->error only
+         * when ret is SendData()'s own sentinel -- some early returns skip
+         * it. Any other error means no record was built here. */
+        if (ret == WOLFSSL_FATAL_ERROR &&
+                ssl->error == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+            return ret;
+        }
+    #endif
+        Tls13ClearCoverTraffic(ssl);
+    }
+    else if (ssl->options.sendCoverTraffic ||
+             (ret == 0 && ssl->error != 0)) {
+        /* Write returned 0 but record wasn't sent (e.g. peer reset
+         * or TLS downgrade). Not a success. */
+        if (ssl->error == 0)
+            ssl->error = BAD_STATE_E;
+        Tls13ClearCoverTraffic(ssl);
+        ret = WOLFSSL_FATAL_ERROR;
+    }
+    else {
+        /* SendData() returns the ciphertext length under
+         * WOLFSSL_THREADED_CRYPT, not 0. Normalize to the documented
+         * contract. */
+        ret = 0;
+    }
+
+    return ret;
+#else
+    (void)paddingSz;
+    return NOT_COMPILED_IN;
+#endif /* WOLFSSL_TLS13 */
+}
+
 /* Inject data into the input buffer as if it was received from the peer.
  *
  * Used when the application reads the transport itself.
