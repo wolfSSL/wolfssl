@@ -42551,6 +42551,13 @@ static wc_test_ret_t ecc_test_sign_vectors(WC_RNG* rng)
 #endif
 
     ret = wc_ecc_sign_set_k(k, sizeof(k), key);
+#if FIPS_VERSION3_GE(7,0,0)
+    /* FIPS 186-5 Section 6.3: a caller-supplied per-message secret is a
+     * non-approved use, so staging it and the signature that consumes it
+     * return the WC_FIPS_NOT_APPROVED indicator. */
+    if (ret == WC_FIPS_NOT_APPROVED)
+        ret = 0;
+#endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 
@@ -42562,6 +42569,12 @@ static wc_test_ret_t ecc_test_sign_vectors(WC_RNG* rng)
         if (ret == 0)
             ret = wc_ecc_sign_hash(hash, sizeof(hash), sig, &sigSz, rng, key);
     } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
+#if FIPS_VERSION3_GE(7,0,0)
+    /* The signature consuming a staged k carries WC_FIPS_NOT_APPROVED
+     * (FIPS 186-5 Section 6.3); the bytes are still the expected ones. */
+    if (ret == WC_FIPS_NOT_APPROVED)
+        ret = 0;
+#endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
     TEST_SLEEP();
@@ -42583,6 +42596,12 @@ static wc_test_ret_t ecc_test_sign_vectors(WC_RNG* rng)
         if (ret == 0)
             ret = wc_ecc_sign_hash(hash, sizeof(hash), sig, &sigSz, rng, key);
     } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
+#if FIPS_VERSION3_GE(7,0,0)
+    /* The signature consuming a staged k carries WC_FIPS_NOT_APPROVED
+     * (FIPS 186-5 Section 6.3); the bytes are still the expected ones. */
+    if (ret == WC_FIPS_NOT_APPROVED)
+        ret = 0;
+#endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
     TEST_SLEEP();
