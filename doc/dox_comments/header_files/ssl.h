@@ -2545,10 +2545,8 @@ void wolfSSL_free(WOLFSSL* ssl);
     matter.
 
     With WOLFSSL_ASYNC_CRYPT, if a wolfSSL_send_cover_traffic_TLSv13() build
-    is suspended on WC_PENDING_E, this returns SSL_FATAL_ERROR immediately
-    without sending anything: resume that build first via
-    wolfSSL_send_cover_traffic_TLSv13(), or the alert record would be built
-    against its half-built state. wolfSSL_get_error() reports WC_PENDING_E.
+    is suspended on WC_PENDING_E, this returns SSL_FATAL_ERROR immediately.
+    Resume that build first to avoid corrupting its state.
 
     \param ssl pointer to the SSL session created with wolfSSL_new().
 
@@ -2590,6 +2588,9 @@ int  wolfSSL_shutdown(WOLFSSL* ssl);
     fails. Call wolfSSL_get_error() for the reason.
     \return SSL_SHUTDOWN_ALREADY_DONE_E when the connection was already shut
     down and WOLFSSL_SHUTDOWNONCE is defined.
+    \return WOLFSSL_FAILURE (with WOLFSSL_ASYNC_CRYPT) when a
+    wolfSSL_send_cover_traffic_TLSv13() build is suspended on WC_PENDING_E;
+    resume it first via wolfSSL_send_cover_traffic_TLSv13().
 
     \param ssl pointer to the SSL session, created with wolfSSL_new().
 
@@ -15910,29 +15911,44 @@ int wolfSSL_inject(WOLFSSL* ssl, const void* data, int sz);
     Appendix E. The request applies to the next record only. Requires a stream
     TLS 1.3 session; DTLS 1.3 is unsupported.
 
+    IMPORTANT: a wolfSSL receiver closes the connection with EMPTY_RECORD_LIMIT_E
+    after WOLFSSL_MAX_EMPTY_RECORDS (32 by default) consecutive empty records
+    as a DoS guard. Interleave real writes or pace calls to avoid this.
+
     Completes any in-progress handshake. Padding is reduced to fit the
     negotiated max fragment size.
 
-    Returns WOLFSSL_FATAL_ERROR if no cover traffic record was sent (e.g.
-    due to downgrade or peer reset). wolfSSL_get_error() gives the reason.
+    If no record was built (e.g. due to a TLS 1.2 downgrade or pending async
+    operation), BAD_STATE_E is returned and ssl->error is left untouched.
+    WOLFSSL_FATAL_ERROR is returned only when the underlying send fails,
+    whereupon wolfSSL_get_error() will give the reason.
 
     On WOLFSSL_ERROR_WANT_WRITE, the request is disarmed. Calling again may
     queue a second record.
 
     With WOLFSSL_ASYNC_CRYPT, if suspended with WC_PENDING_E, call again
-    to resume. The original paddingSz is used. Unrelated pending async
-    operations cause BAD_STATE_E.
+    to resume. Unrelated pending async operations cause BAD_STATE_E.
+    While suspended, wolfSSL_shutdown(), wolfSSL_SendUserCanceled() and
+    wolfSSL_update_keys() will refuse to run until resumed.
+
+    On the read side of a wolfSSL_write_dup() pair, WRITE_DUP_WRITE_E is
+    returned; only the write side may send cover traffic.
 
     \param [in,out] ssl WOLFSSL structure.
     \param [in] paddingSz Number of padding bytes. Must be less than the max
     fragment size.
 
     \return 0 on success
-    \return BAD_FUNC_ARG if ssl is NULL, paddingSz is invalid, or session is not stream TLS 1.3
-    \return BAD_STATE_E if an application write or an unrelated asynchronous operation is pending
-    \return WOLFSSL_FATAL_ERROR if the record could not be sent; the reason,
+    \return BAD_FUNC_ARG if ssl is NULL, paddingSz is negative or not less
+    than the max fragment size, or the session is not stream TLS 1.3
+    \return BAD_STATE_E if an application write or an unrelated asynchronous
+    operation is pending, or if no record was built (e.g. a downgrade
+    completed the handshake instead); ssl->error is left untouched
+    \return WOLFSSL_FATAL_ERROR if the send itself failed; the reason,
     e.g. WOLFSSL_ERROR_WANT_WRITE or WC_PENDING_E, is available from
     wolfSSL_get_error()
+    \return WRITE_DUP_WRITE_E if called on the read side of a
+    wolfSSL_write_dup() pair
     \return BAD_MUTEX_E if the write duplicate could not be locked
     \return NOT_COMPILED_IN if ssl is non-NULL, paddingSz is non-negative, and
     TLS 1.3 support is not built in
@@ -15940,16 +15956,22 @@ int wolfSSL_inject(WOLFSSL* ssl, const void* data, int sz);
     _Example_
     \code
     // send a 256 byte cover traffic record while the connection is idle
-    if (wolfSSL_send_tls13_cover_traffic(ssl, 256) != 0) {
+    int ret = wolfSSL_send_cover_traffic_TLSv13(ssl, 256);
+    if (ret == WOLFSSL_FATAL_ERROR) {
+        // only this return records the reason in the SSL object
         err = wolfSSL_get_error(ssl, -1);
         printf("error = %d, %s\n", err, wolfSSL_ERR_error_string(err, buffer));
+    }
+    else if (ret != 0) {
+        // e.g. BAD_FUNC_ARG or BAD_STATE_E; the connection itself is fine
+        printf("cover traffic request rejected, ret = %d\n", ret);
     }
     \endcode
 
     \sa wolfSSL_write
     \sa wolfSSL_get_error
 */
-int wolfSSL_send_tls13_cover_traffic(WOLFSSL* ssl, int paddingSz);
+int wolfSSL_send_cover_traffic_TLSv13(WOLFSSL* ssl, int paddingSz);
 
 /*!
     \ingroup Setup
