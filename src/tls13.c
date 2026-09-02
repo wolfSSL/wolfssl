@@ -17403,6 +17403,16 @@ int Tls13UpdateKeys(WOLFSSL* ssl)
 int wolfSSL_update_keys(WOLFSSL* ssl)
 {
     int ret;
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (ssl != NULL && ssl->options.coverTrafficPending) {
+        /* Refuse to interleave: SendTls13KeyUpdate() would overwrite the shared
+         * buildMsgState/encrypt.state of the suspended cover traffic build. */
+        WOLFSSL_MSG("A suspended cover traffic record must be resumed via "
+                    "wolfSSL_send_cover_traffic_TLSv13() before a key "
+                    "update");
+        return BAD_STATE_E;
+    }
+#endif
     ret = Tls13UpdateKeys(ssl);
     if (ret == WC_NO_ERR_TRACE(WANT_WRITE))
         ret = WOLFSSL_ERROR_WANT_WRITE;
