@@ -529,7 +529,7 @@ void* wolfSSL_GetCookieCtx(WOLFSSL* ssl);
 
     \param ssl wolfSSLコンテキスト。
     \param ctx この関数が初期化するユーザー作成のISOTPコンテキスト。
-    \param recv_fn ユーザーのCANバス受信コールバック。
+    \param recv_fn ユーザーのCANバス受信コールバック。フレーム長、timeout (ms)内に届かなければ0、エラー時は負の値を返す。
     \param send_fn ユーザーのCANバス送信コールバック。
     \param delay_fn ユーザーのマイクロ秒粒度遅延関数。
     \param receive_delay 各CANバスパケットを遅延させる設定マイクロ秒数。

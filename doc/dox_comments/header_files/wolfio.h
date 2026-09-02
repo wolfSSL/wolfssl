@@ -584,7 +584,8 @@ void* wolfSSL_GetCookieCtx(WOLFSSL* ssl);
 
     \param ssl the wolfSSL context
     \param ctx a user created ISOTP context which this function initializes
-    \param recv_fn a user CAN bus receive callback
+    \param recv_fn a user CAN bus receive callback, returning the frame
+    length, 0 if none arrived within timeout (ms), or negative on error
     \param send_fn a user CAN bus send callback
     \param delay_fn a user microsecond granularity delay function
     \param receive_delay a set amount of microseconds to delay each CAN bus
