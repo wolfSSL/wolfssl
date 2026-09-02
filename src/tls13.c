@@ -6259,7 +6259,6 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
 #ifdef WOLFSSL_QUIC
     else if (WOLFSSL_IS_QUIC(ssl)) {
-        SendAlert(ssl, alert_fatal, unexpected_message);
         WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
         return OUT_OF_ORDER_E;
     }
