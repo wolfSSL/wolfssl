@@ -38240,10 +38240,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pbkdf2_test(void)
                        salt, (int)sizeof(salt), iterations,
                        kLen, WC_SHA256, HEAP_HINT, devId);
 #if FIPS_VERSION3_GE(7,0,0)
-    /* 8-byte salt: computed, but flagged non-approved per SP 800-132
-     * Section 5.1 ("shall be at least 128 bits"). */
-    if (ret == WC_FIPS_NOT_APPROVED)
-        ret = 0;
+    /* 8-byte salt: computed, but the module must deliver the
+     * WC_FIPS_NOT_APPROVED indicator to the caller per SP 800-132
+     * Section 5.1 ("shall be at least 128 bits") and FIPS 140-3 IG 2.4.C;
+     * the test fails if the indicator is missing. */
+    if (ret != WC_FIPS_NOT_APPROVED)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = 0;
 #endif
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
@@ -42617,10 +42620,12 @@ static wc_test_ret_t ecc_test_sign_vectors(WC_RNG* rng)
     ret = wc_ecc_sign_set_k(k, sizeof(k), key);
 #if FIPS_VERSION3_GE(7,0,0)
     /* FIPS 186-5 Section 6.3: a caller-supplied per-message secret is a
-     * non-approved use, so staging it and the signature that consumes it
-     * return the WC_FIPS_NOT_APPROVED indicator. */
-    if (ret == WC_FIPS_NOT_APPROVED)
-        ret = 0;
+     * non-approved use, so the module must deliver the WC_FIPS_NOT_APPROVED
+     * indicator to the caller (FIPS 140-3 IG 2.4.C); the test fails if the
+     * indicator is missing. */
+    if (ret != WC_FIPS_NOT_APPROVED)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    ret = 0;
 #endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
@@ -42634,10 +42639,14 @@ static wc_test_ret_t ecc_test_sign_vectors(WC_RNG* rng)
             ret = wc_ecc_sign_hash(hash, sizeof(hash), sig, &sigSz, rng, key);
     } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
 #if FIPS_VERSION3_GE(7,0,0)
-    /* The signature consuming a staged k carries WC_FIPS_NOT_APPROVED
-     * (FIPS 186-5 Section 6.3); the bytes are still the expected ones. */
-    if (ret == WC_FIPS_NOT_APPROVED)
-        ret = 0;
+    /* The signature consuming the staged k must deliver the
+     * WC_FIPS_NOT_APPROVED indicator to the caller (FIPS 186-5
+     * Section 6.3, FIPS 140-3 IG 2.4.C); the test fails if the indicator
+     * is missing, and the signature bytes are still verified against the
+     * expected vector below. */
+    if (ret != WC_FIPS_NOT_APPROVED)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    ret = 0;
 #endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
@@ -42660,12 +42669,9 @@ static wc_test_ret_t ecc_test_sign_vectors(WC_RNG* rng)
         if (ret == 0)
             ret = wc_ecc_sign_hash(hash, sizeof(hash), sig, &sigSz, rng, key);
     } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
-#if FIPS_VERSION3_GE(7,0,0)
-    /* The signature consuming a staged k carries WC_FIPS_NOT_APPROVED
-     * (FIPS 186-5 Section 6.3); the bytes are still the expected ones. */
-    if (ret == WC_FIPS_NOT_APPROVED)
-        ret = 0;
-#endif
+    /* The staged k was consumed by the first signature, so this second
+     * signature uses a fresh random k and must succeed without the
+     * WC_FIPS_NOT_APPROVED indicator. */
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
     TEST_SLEEP();
