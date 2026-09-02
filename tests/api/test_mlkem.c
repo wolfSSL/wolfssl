@@ -4650,6 +4650,48 @@ int test_wc_mlkem_encode_key_len_decision(void)
     return EXPECT_RESULT();
 } /* END test_wc_mlkem_encode_key_len_decision */
 
+/* The seed-input service indicator, asserted on a SUCCESSFUL call.
+ *
+ * Counterpart to the SEED_ARG_ERR() invalid-argument assertions: those cover
+ * the "still reaches argument validation" half of the contract, this covers
+ * the half that makes the service acceptable in an approved module: a call
+ * that succeeds reports WC_FIPS_NOT_APPROVED (lab-confirmed 2026-07-24;
+ * FIPS 203 sec 6 says the module shall generate its own keygen randomness).
+ *
+ * The indicator is unambiguous here: wc_MlKemKey_MakeKeyWithRandom() returns
+ * 0 or a negative error and never a length or count, so a positive 1 cannot
+ * be confused for a result the way it could on an API like wc_RsaSSL_Verify()
+ * that returns a plaintext length.  SEED_OK is WC_FIPS_NOT_APPROVED in a FIPS
+ * v7+ build and 0 elsewhere.
+ */
+int test_wc_MlKemKey_seed_service_indicator(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_NO_ML_KEM)
+    MlKemKey key;
+    byte rand[WC_ML_KEM_MAKEKEY_RAND_SZ];
+#ifndef WOLFSSL_NO_ML_KEM_768
+    const int mlkemType = WC_ML_KEM_768;
+#elif !defined(WOLFSSL_NO_ML_KEM_512)
+    const int mlkemType = WC_ML_KEM_512;
+#else
+    const int mlkemType = WC_ML_KEM_1024;
+#endif
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(rand, 0x5a, sizeof(rand));
+
+    ExpectIntEQ(wc_MlKemKey_Init(&key, mlkemType, NULL, INVALID_DEVID), 0);
+    /* Valid key, valid randomness: performed, and reported non-approved. */
+    ExpectIntEQ(wc_MlKemKey_MakeKeyWithRandom(&key, rand, (int)sizeof(rand)),
+        SEED_OK);
+
+    wc_MlKemKey_Free(&key);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM) && \
     defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
     #define TEST_MLKEM_CB_FREE

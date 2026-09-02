@@ -39,6 +39,59 @@
 
 #include <wolfssl/wolfcrypt/hash.h>
 
+/* PQC known-answer tests drive ML-KEM/ML-DSA/SLH-DSA keygen and signing from
+ * fixed NIST seeds.  FIPS 203 sec 3.3, 204 sec 5.4 and 205 sec 10.2 require the
+ * module to generate that randomness itself, so the public seed-input service
+ * returns WC_FIPS_NOT_APPROVED in a FIPS build; these KATs run in non-FIPS
+ * builds only (module CASTs / optest / CAVP cover them otherwise). */
+#if !defined(HAVE_FIPS)
+    #define WOLFSSL_TEST_PQC_SEED_KAT
+#endif
+
+/* Expected result for an argument-validation call to a *_with_seed /
+ * *_with_random seed-input wrapper: the public service is no longer gated, so
+ * it always reaches its normal argument validation and returns the given code
+ * (the WC_FIPS_NOT_APPROVED indicator applies only to a *successful* external
+ * call). */
+#define SEED_ARG_ERR(e) WC_NO_ERR_TRACE(e)
+
+/* Expected result for a SUCCESSFUL seed-input call.  The counterpart to
+ * SEED_ARG_ERR: that macro asserts the ungated argument validation still runs,
+ * this one asserts the service-indicator behaviour that makes the seed APIs
+ * acceptable in an approved module at all (LAB-CONFIRMED 2026-07-24, the
+ * *_with_seed / *_with_random services stay public and in-module and report
+ * WC_FIPS_NOT_APPROVED rather than being hard-gated).
+ *
+ * Without an assertion on this value, SEED_ARG_ERR's premise, "the public
+ * service is no longer gated, so it always reaches its normal argument
+ * validation", is documented but untested: a wrapper changed to return the
+ * indicator BEFORE validating its arguments would keep every existing test
+ * green while silently changing the service contract. */
+/* A successful PQ seed-input call reports WC_FIPS_NOT_APPROVED from a module
+ * whose wrappers normalise the indicator, and a plain 0 from every other build.
+ *
+ * WC_HAVE_FIPS_INDICATOR is the CAPABILITY macro fips.h defines for exactly
+ * that, and gating on it rather than on the version alone is what lets this
+ * change merge BEFORE the FIPS-side PR: against a bundle without it the module
+ * returns 0 and so does SEED_OK; against one with it, both are the indicator.
+ * The test tracks the module actually present instead of assuming one.  The
+ * same pattern is already used for Ed25519ctx below and in benchmark.c.
+ *
+ * FIPS_NO_WRAPPERS (settings.h, for WC_FIPS_LL_CRYPTO and
+ * WOLFSSL_FIPS_DEV_NO_POST) compiles no wrappers at all, so those expect 0.
+ *
+ * --enable-fips=dev is deliberately NOT excluded: it compiles the wrappers, so
+ * the module really does return the indicator under it and the test follows the
+ * module.  Teaching fips.c about WOLFSSL_FIPS_DEV is not an option -- a
+ * development-only macro must never reach the module source.
+ */
+#if defined(HAVE_FIPS) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    FIPS_VERSION3_GE(7,0,0) && !defined(FIPS_NO_WRAPPERS)
+    #define SEED_OK  WC_FIPS_NOT_APPROVED
+#else
+    #define SEED_OK  0
+#endif
+
 /* Old FIPS headers don't allow comparisons with WC_MIN_DIGEST_SIZE_FOR_SIGN by
  * the preprocessor, so we catch those builds with one of the first two
  * clauses.

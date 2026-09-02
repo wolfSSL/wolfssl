@@ -31735,3 +31735,42 @@ int test_wc_MlDsaKey_SetPrecompA(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* The seed-input service indicator, asserted on a SUCCESSFUL call.
+ *
+ * SEED_ARG_ERR() covers the argument-validation half of the contract: the
+ * *_with_seed / *_from_seed services are NOT hard-gated in a FIPS build, so
+ * they still reach their normal argument checks.  Nothing asserted the other
+ * half, that a call which succeeds reports WC_FIPS_NOT_APPROVED, the
+ * positive service indicator that is what makes these services acceptable in
+ * an approved module at all (lab-confirmed 2026-07-24; FIPS 204 sec 5.4 says
+ * the module shall generate its own keygen randomness).
+ *
+ * Without this, a wrapper changed to return the indicator BEFORE validating
+ * its arguments would keep every existing SEED_ARG_ERR() assertion green while
+ * silently changing the service contract.  SEED_OK is WC_FIPS_NOT_APPROVED in
+ * a FIPS v7+ build and 0 elsewhere, so the same assertion states the intended
+ * behavior for both.
+ */
+int test_wc_MlDsaKey_seed_service_indicator(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLDSA_VERIFY_ONLY)
+    wc_MlDsaKey key;
+    byte seed[MLDSA_SEED_SZ];
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(seed, 0x5a, sizeof(seed));
+
+    ExpectIntEQ(wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&key, WC_ML_DSA_44), 0);
+
+    /* Valid key, valid seed: the operation is performed, and in an approved
+     * build it is reported non-approved rather than refused. */
+    ExpectIntEQ(wc_MlDsaKey_MakeKeyFromSeed(&key, seed), SEED_OK);
+
+    wc_MlDsaKey_Free(&key);
+#endif
+    return EXPECT_RESULT();
+}
