@@ -1447,7 +1447,52 @@ WOLFSSL_API int wolfSSL_get_peer_signature_type_nid(const WOLFSSL* ssl,
 WOLFSSL_API int  wolfSSL_CTX_set1_sigalgs_list(WOLFSSL_CTX* ctx,
                                                const char* list);
 WOLFSSL_API int  wolfSSL_set1_sigalgs_list(WOLFSSL* ssl, const char* list);
+#ifdef WOLFSSL_TLS13
+WOLFSSL_API int  wolfSSL_CTX_set1_sigalgs_cert_list(WOLFSSL_CTX* ctx,
+                                                    const char* list);
+WOLFSSL_API int  wolfSSL_set1_sigalgs_cert_list(WOLFSSL* ssl,
+                                                const char* list);
+#endif /* WOLFSSL_TLS13 */
+#endif /* OPENSSL_EXTRA */
+/* Declared outside the OpenSSL compatibility block: these have their own
+ * build options and no dependency on it. */
+#ifdef HAVE_RECORD_SIZE_LIMIT
+/* Range accepted by the two setters below, in payload bytes, and the value
+ * that stops the extension being advertised at all. */
+#define WOLFSSL_RECORD_SIZE_LIMIT_OFF     0
+#define WOLFSSL_RECORD_SIZE_LIMIT_MIN     64
+#define WOLFSSL_RECORD_SIZE_LIMIT_MAX     16384
+/* Advertised unless a setter says otherwise. */
+#define WOLFSSL_RECORD_SIZE_LIMIT_DEFAULT WOLFSSL_RECORD_SIZE_LIMIT_MAX
+
+WOLFSSL_API int  wolfSSL_UseRecordSizeLimit(WOLFSSL* ssl, unsigned short limit);
+WOLFSSL_API int  wolfSSL_CTX_UseRecordSizeLimit(WOLFSSL_CTX* ctx,
+                                                unsigned short limit);
 #endif
+#ifdef HAVE_CERTIFICATE_COMPRESSION
+/* RFC 8879 Sect. 3 algorithms, for the alg argument below. Only
+ * WOLFSSL_CERT_COMP_ZLIB is implemented; brotli and zstd would each pull in a
+ * new dependency. */
+#define WOLFSSL_CERT_COMP_ZLIB   1
+#define WOLFSSL_CERT_COMP_BROTLI 2
+#define WOLFSSL_CERT_COMP_ZSTD   3
+
+WOLFSSL_API int  wolfSSL_CTX_compress_certs(WOLFSSL_CTX* ctx, int alg);
+/* Algorithm the peer's Certificate arrived compressed with, 0 if it was not
+ * compressed. */
+WOLFSSL_API int  wolfSSL_get_certificate_compression_used(WOLFSSL* ssl);
+#endif
+#ifdef HAVE_SIGNED_CERT_TIMESTAMP
+WOLFSSL_API int wolfSSL_CTX_set_signed_cert_timestamp_list(WOLFSSL_CTX* ctx,
+        const unsigned char* list, unsigned short sz);
+/* Whether the peer asked this end for signed certificate timestamps. */
+WOLFSSL_API int wolfSSL_signed_cert_timestamp_requested(WOLFSSL* ssl);
+WOLFSSL_API int wolfSSL_set_signed_cert_timestamp_list(WOLFSSL* ssl,
+        const unsigned char* list, unsigned short sz);
+WOLFSSL_API unsigned short wolfSSL_get0_signed_cert_timestamp_list(
+        WOLFSSL* ssl, const unsigned char** list);
+#endif
+
 WOLFSSL_ABI WOLFSSL_API WOLFSSL* wolfSSL_new(WOLFSSL_CTX* ctx);
 WOLFSSL_API WOLFSSL_CTX* wolfSSL_get_SSL_CTX(const WOLFSSL* ssl);
 WOLFSSL_API WOLFSSL_X509_VERIFY_PARAM* wolfSSL_CTX_get0_param(WOLFSSL_CTX* ctx);
@@ -1677,15 +1722,15 @@ WOLFSSL_API int wolfSSL_CTX_get_ex_new_index(
     long idx, void* arg,
     WOLFSSL_CRYPTO_EX_new* new_func,
     WOLFSSL_CRYPTO_EX_dup* dup_func,
-    WOLFSSL_CRYPTO_EX_free* free_func);
+    WOLFSSL_CRYPTO_EX_free* free_cb);
 WOLFSSL_API int wolfSSL_CRYPTO_get_ex_new_index(
     int class_index, long argl, void *argp,
     WOLFSSL_CRYPTO_EX_new* new_func,
     WOLFSSL_CRYPTO_EX_dup* dup_func,
-    WOLFSSL_CRYPTO_EX_free* free_func);
+    WOLFSSL_CRYPTO_EX_free* free_cb);
 WOLFSSL_API int wolfSSL_SESSION_get_ex_new_index(long ctx_l,void* ctx_ptr,
         WOLFSSL_CRYPTO_EX_new* new_func, WOLFSSL_CRYPTO_EX_dup* dup_func,
-        WOLFSSL_CRYPTO_EX_free* free_func);
+        WOLFSSL_CRYPTO_EX_free* free_cb);
 #endif /* HAVE_EX_DATA_CRYPTO */
 #endif /* HAVE_EX_DATA */
 
@@ -1706,7 +1751,7 @@ WOLFSSL_API int wolfSSL_X509_set_ex_data_with_cleanup(
 WOLFSSL_API int wolfSSL_X509_get_ex_new_index(int idx, void *arg,
     WOLFSSL_CRYPTO_EX_new* new_func,
     WOLFSSL_CRYPTO_EX_dup* dup_func,
-    WOLFSSL_CRYPTO_EX_free* free_func);
+    WOLFSSL_CRYPTO_EX_free* free_cb);
 #endif
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 

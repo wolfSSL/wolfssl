@@ -3378,3 +3378,116 @@ int test_record_size_cache_invalidated_on_renegotiation(void)
 #endif
     return EXPECT_RESULT();
 }
+
+
+int test_tls12_record_size_limit(void)
+{
+    EXPECT_DECLS;
+/* Deliberately not gated on WOLFSSL_TLS13: RFC 8449 covers TLS 1.2, where the
+ * server answers in the ServerHello, so the extension has to work in a build
+ * with TLS 1.3 compiled out. The TLS 1.3 specific cases live in
+ * test_tls13_record_size_limit(). */
+#if defined(HAVE_RECORD_SIZE_LIMIT) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_CERTS) && \
+    !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_FILESYSTEM)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    /* TLS 1.2 has no content type byte and caps at 2^14, so the default is
+     * trimmed on the way out and the peer learns the smaller value. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    if (ssl_s != NULL)
+        ExpectIntEQ(ssl_s->peerRecordSizeLimit, MAX_RECORD_SIZE);
+    ExpectIntEQ(wolfSSL_GetMaxOutputSize(ssl_c), MAX_RECORD_SIZE);
+
+    wolfSSL_free(ssl_c);     ssl_c = NULL;
+    wolfSSL_free(ssl_s);     ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+    /* RFC 8449 covers TLS 1.2 too, where the server answers in the
+     * ServerHello and the limit counts no content type byte, so the whole
+     * limit is available to the payload. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_UseRecordSizeLimit(ssl_c, 512), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseRecordSizeLimit(ssl_s, 1024), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    if (ssl_c != NULL)
+        ExpectIntEQ(ssl_c->peerRecordSizeLimit, 1024);
+    if (ssl_s != NULL)
+        ExpectIntEQ(ssl_s->peerRecordSizeLimit, 512);
+    /* No content type byte to allow for at this version. */
+    ExpectIntEQ(wolfSSL_GetMaxOutputSize(ssl_s), 512);
+    ExpectIntEQ(wolfSSL_GetMaxOutputSize(ssl_c), 1024);
+
+    wolfSSL_free(ssl_c);     ssl_c = NULL;
+    wolfSSL_free(ssl_s);     ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+#ifdef HAVE_MAX_FRAGMENT
+    /* RFC 8449 Sect. 5: a server answering with record_size_limit ignores a
+     * max_fragment_length sent alongside it, so the smaller record_size_limit
+     * governs rather than the 2048 byte fragment class. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_UseMaxFragment(ssl_c, WOLFSSL_MFL_2_11),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseRecordSizeLimit(ssl_c, 512), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseRecordSizeLimit(ssl_s, 900), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    if (ssl_s != NULL) {
+        ExpectIntEQ(ssl_s->peerRecordSizeLimit, 512);
+        ExpectIntEQ(ssl_s->max_fragment, MAX_RECORD_SIZE);
+    }
+    ExpectIntEQ(wolfSSL_GetMaxOutputSize(ssl_s), 512);
+
+    wolfSSL_free(ssl_c);     ssl_c = NULL;
+    wolfSSL_free(ssl_s);     ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+#endif /* HAVE_MAX_FRAGMENT */
+    /* Set on the context, inherited by every object made from it. The
+     * inheritance is version independent code on purpose - keeping it in the
+     * TLS 1.3 only path left a TLS 1.2 build advertising the default here
+     * instead of what the application asked for. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+    ExpectIntEQ(wolfSSL_CTX_UseRecordSizeLimit(ctx_c, 512), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_UseRecordSizeLimit(ctx_s, 1024), WOLFSSL_SUCCESS);
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+    /* Rebuilt by hand rather than by test_memio_setup(), so the memio
+     * contexts the harness would have attached have to be attached here. */
+    wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+    wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+    if (ssl_c != NULL)
+        ExpectIntEQ(ssl_c->recordSizeLimit, 512);
+    if (ssl_s != NULL)
+        ExpectIntEQ(ssl_s->recordSizeLimit, 1024);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    if (ssl_c != NULL)
+        ExpectIntEQ(ssl_c->peerRecordSizeLimit, 1024);
+    if (ssl_s != NULL)
+        ExpectIntEQ(ssl_s->peerRecordSizeLimit, 512);
+
+    wolfSSL_free(ssl_c);     ssl_c = NULL;
+    wolfSSL_free(ssl_s);     ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+#endif
+    return EXPECT_RESULT();
+}

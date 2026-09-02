@@ -1014,7 +1014,8 @@ static int test_TLSX_CSR_write_getsize_status_cb(WOLFSSL* ssl, void* arg)
 int test_TLSX_CSR_write_getsize_bounds(void)
 {
 #if defined(TEST_TLS_BOUNDS_CSR_STATUS_CB) && \
-    defined(HAVE_TLS_EXTENSIONS)
+    defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(NO_CERTS) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
     EXPECT_DECLS;
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
@@ -1142,7 +1143,8 @@ int test_TLSX_CSR_write_getsize_bounds(void)
 int test_TLSX_CSR_SetResponseWithStatusCB_bounds(void)
 {
 #if defined(TEST_TLS_BOUNDS_CSR_STATUS_CB) && \
-    defined(HAVE_TLS_EXTENSIONS)
+    defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(NO_CERTS) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
     EXPECT_DECLS;
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
@@ -1434,7 +1436,8 @@ static int test_ProcessChainOCSPRequest_setup(WOLFSSL_CTX** pctx,
 int test_ProcessChainOCSPRequest_bounds(void)
 {
 #if defined(TEST_TLS_BOUNDS_OCSP_CHAIN) && \
-    defined(HAVE_TLS_EXTENSIONS)
+    defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(NO_CERTS) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
     EXPECT_DECLS;
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
@@ -1986,7 +1989,8 @@ int test_TLSX_CSR_Parse_bounds(void)
 {
 #if defined(TEST_TLS_BOUNDS_CSR_PARSE) && \
     defined(HAVE_TLS_EXTENSIONS) && \
-    !defined(WOLFSSL_NO_TLS12)
+    !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_CERTS) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
     EXPECT_DECLS;
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
@@ -2090,7 +2094,8 @@ int test_TLSX_CSR2_Parse_bounds(void)
 {
 #if defined(WOLFSSL_TEST_STATIC_BUILD) &&  defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && !defined(NO_WOLFSSL_SERVER) && \
     defined(HAVE_TLS_EXTENSIONS) && \
-    !defined(WOLFSSL_NO_TLS12)
+    !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_CERTS) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
     EXPECT_DECLS;
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
@@ -2331,7 +2336,8 @@ int test_TLSX_WriteRequest_length_prefix_bounds(void)
 int test_TLSX_WriteResponse_bounds(void)
 {
 #if defined(WOLFSSL_TEST_STATIC_BUILD) && defined(HAVE_EXTENDED_MASTER) &&  !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_NO_TLS12) && \
-    defined(HAVE_TLS_EXTENSIONS)
+    defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(NO_CERTS) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
     EXPECT_DECLS;
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;

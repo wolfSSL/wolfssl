@@ -21,6 +21,10 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
+#ifdef HAVE_CERTIFICATE_COMPRESSION
+    #include <wolfssl/wolfcrypt/compress.h>
+#endif
+
 #if defined(OPENSSL_EXTRA) && !defined(_WIN32) && !defined(_GNU_SOURCE)
     /* turn on GNU extensions for XISASCII */
     #define _GNU_SOURCE 1
@@ -3955,10 +3959,12 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("wolfSSL_set_compression");
     (void)ssl;
-#ifdef HAVE_LIBZ
+#if defined(HAVE_LIBZ) && !defined(WOLFSSL_NO_TLS_COMPRESSION)
     ssl->options.usingCompression = 1;
     return WOLFSSL_SUCCESS;
 #else
+    /* WOLFSSL_NO_TLS_COMPRESSION is set when record_size_limit is built: the
+     * limit bounds plaintext that compression may then expand past it. */
     return NOT_COMPILED_IN;
 #endif
 }
@@ -5729,6 +5735,40 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->options.rpkState.sending_ServerCertTypeCnt = 0;
         ssl->options.rpkState.received_ClientCertTypeCnt = 0;
         ssl->options.rpkState.received_ServerCertTypeCnt = 0;
+    #endif
+
+    /* Everything below records what the peer did, so it must not survive
+     * into the next connection on a recycled object. The matching local
+     * configuration -- ssl->recordSizeLimit, ssl->sctList -- is deliberately
+     * kept, since that is what the caller set. */
+    #ifdef HAVE_CERTIFICATE_COMPRESSION
+        ssl->peerCertCompAlgo = 0;
+        ssl->certCompUsed = 0;
+        ssl->certCompAdvertised = 0;
+        /* sendingCompCert and fragOffset are one cursor between them: the
+         * flag says a compressed Certificate is in progress and the offset
+         * says how far. Clearing only the flag would restart a recycled
+         * object part way into a message. */
+        ssl->sendingCompCert = 0;
+        ssl->fragOffset = 0;
+    #endif
+    #ifdef HAVE_RECORD_SIZE_LIMIT
+        ssl->peerRecordSizeLimit = 0;
+    #endif
+    #ifdef HAVE_SIGNED_CERT_TIMESTAMP
+        XFREE(ssl->peerSctList, ssl->heap, DYNAMIC_TYPE_TLSX);
+        ssl->peerSctList = NULL;
+        ssl->peerSctListSz = 0;
+        ssl->sctRequested = 0;
+        /* A snapshot taken from the context last handshake goes with it, so a
+         * recycled object sees a list the context has rotated since. One the
+         * application set on this object is configuration and stays. */
+        if (ssl->sctListFromCtx) {
+            XFREE(ssl->sctList, ssl->heap, DYNAMIC_TYPE_TLSX);
+            ssl->sctList = NULL;
+            ssl->sctListSz = 0;
+            ssl->sctListFromCtx = 0;
+        }
     #endif
 
     #if defined(HAVE_TLS_EXTENSIONS) && !defined(NO_TLS)
@@ -8084,7 +8124,7 @@ CRYPTO_EX_cb_ctx* crypto_ex_cb_ctx_session = NULL;
 
 static int crypto_ex_cb_new(CRYPTO_EX_cb_ctx** dst, long ctx_l, void* ctx_ptr,
         WOLFSSL_CRYPTO_EX_new* new_func, WOLFSSL_CRYPTO_EX_dup* dup_func,
-        WOLFSSL_CRYPTO_EX_free* free_func)
+        WOLFSSL_CRYPTO_EX_free* free_cb)
 {
     CRYPTO_EX_cb_ctx* new_ctx = (CRYPTO_EX_cb_ctx*)XMALLOC(
             sizeof(CRYPTO_EX_cb_ctx), NULL, DYNAMIC_TYPE_OPENSSL);
@@ -8093,7 +8133,7 @@ static int crypto_ex_cb_new(CRYPTO_EX_cb_ctx** dst, long ctx_l, void* ctx_ptr,
     new_ctx->ctx_l = ctx_l;
     new_ctx->ctx_ptr = ctx_ptr;
     new_ctx->new_func = new_func;
-    new_ctx->free_func = free_func;
+    new_ctx->free_func = free_cb;
     new_ctx->dup_func = dup_func;
     new_ctx->next = NULL;
     /* Push to end of list */
@@ -8164,7 +8204,7 @@ void crypto_ex_cb_free_data(void *obj, CRYPTO_EX_cb_ctx* cb_ctx,
  */
 int wolfssl_local_get_ex_new_index(int class_index, long ctx_l, void* ctx_ptr,
         WOLFSSL_CRYPTO_EX_new* new_func, WOLFSSL_CRYPTO_EX_dup* dup_func,
-        WOLFSSL_CRYPTO_EX_free* free_func)
+        WOLFSSL_CRYPTO_EX_free* free_cb)
 {
     /* index counter for each class index*/
     static int ctx_idx = 0;
@@ -8177,22 +8217,22 @@ int wolfssl_local_get_ex_new_index(int class_index, long ctx_l, void* ctx_ptr,
     switch(class_index) {
         case WOLF_CRYPTO_EX_INDEX_SSL:
             WOLFSSL_CRYPTO_EX_DATA_IGNORE_PARAMS(ctx_l, ctx_ptr, new_func,
-                    dup_func, free_func);
+                    dup_func, free_cb);
             idx = ssl_idx++;
             break;
         case WOLF_CRYPTO_EX_INDEX_SSL_CTX:
             WOLFSSL_CRYPTO_EX_DATA_IGNORE_PARAMS(ctx_l, ctx_ptr, new_func,
-                    dup_func, free_func);
+                    dup_func, free_cb);
             idx = ctx_idx++;
             break;
         case WOLF_CRYPTO_EX_INDEX_X509:
             WOLFSSL_CRYPTO_EX_DATA_IGNORE_PARAMS(ctx_l, ctx_ptr, new_func,
-                    dup_func, free_func);
+                    dup_func, free_cb);
             idx = x509_idx++;
             break;
         case WOLF_CRYPTO_EX_INDEX_SSL_SESSION:
             if (crypto_ex_cb_new(&crypto_ex_cb_ctx_session, ctx_l, ctx_ptr,
-                    new_func, dup_func, free_func) != 0)
+                    new_func, dup_func, free_cb) != 0)
                 return WOLFSSL_FATAL_ERROR;
             idx = ssl_session_idx++;
             break;
@@ -8222,13 +8262,13 @@ int wolfssl_local_get_ex_new_index(int class_index, long ctx_l, void* ctx_ptr,
 int wolfSSL_CTX_get_ex_new_index(long idx, void* arg,
                                  WOLFSSL_CRYPTO_EX_new* new_func,
                                  WOLFSSL_CRYPTO_EX_dup* dup_func,
-                                 WOLFSSL_CRYPTO_EX_free* free_func)
+                                 WOLFSSL_CRYPTO_EX_free* free_cb)
 {
 
     WOLFSSL_ENTER("wolfSSL_CTX_get_ex_new_index");
 
     return wolfssl_local_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_SSL_CTX, idx,
-                                    arg, new_func, dup_func, free_func);
+                                    arg, new_func, dup_func, free_cb);
 }
 
 /* Return the index that can be used for the WOLFSSL structure to store
@@ -8511,6 +8551,10 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
         }
         /* Clear certificate chain */
         FreeDer(&ctx->certChain);
+        #ifdef HAVE_CERTIFICATE_COMPRESSION
+        /* The compressed copy described the old certificate. */
+        CertCompInvalidate(ctx);
+        #endif
         if (sk) {
             for (i = 0; i < wolfSSL_sk_X509_num(sk); i++) {
                 x509 = wolfSSL_sk_X509_value(sk, i);
@@ -10184,18 +10228,18 @@ int wolfSSL_CRYPTO_set_ex_data_with_cleanup(
  * @param argl  parameters to be saved
  * @param new_func a pointer to WOLFSSL_CRYPTO_EX_new
  * @param dup_func a pointer to WOLFSSL_CRYPTO_EX_dup
- * @param free_func a pointer to WOLFSSL_CRYPTO_EX_free
+ * @param free_cb a pointer to WOLFSSL_CRYPTO_EX_free
  * @return index value grater or equal to zero on success, -1 on failure.
  */
 int wolfSSL_CRYPTO_get_ex_new_index(int class_index, long argl, void *argp,
                                            WOLFSSL_CRYPTO_EX_new* new_func,
                                            WOLFSSL_CRYPTO_EX_dup* dup_func,
-                                           WOLFSSL_CRYPTO_EX_free* free_func)
+                                           WOLFSSL_CRYPTO_EX_free* free_cb)
 {
     WOLFSSL_ENTER("wolfSSL_CRYPTO_get_ex_new_index");
 
     return wolfssl_local_get_ex_new_index(class_index, argl, argp, new_func,
-            dup_func, free_func);
+            dup_func, free_cb);
 }
 #endif /* HAVE_EX_DATA_CRYPTO */
 

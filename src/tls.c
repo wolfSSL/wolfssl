@@ -2615,6 +2615,69 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     return 0;
 }
 
+#ifdef WOLFSSL_TLS13
+/** Parses a ServerNameList carried by a TLS v1.3 CertificateRequest.
+ *
+ * RFC 9846 Table 1 lists server_name for CR. That marking arrives from
+ * RFC 9261 and its IANA note narrows it to the ClientCertificateRequest of a
+ * client-generated authenticator request, which is not a handshake message,
+ * so no conformant peer sends the extension in the CertificateRequest parsed
+ * here. Accept it anyway: RFC 9846 Sect. 4.3 only sanctions an
+ * illegal_parameter abort for an extension that is *not* listed for the
+ * message, and server_name is listed for CR.
+ *
+ * The name guides certificate selection (RFC 9261 Sect. 5.2.1), which needs
+ * the exported-authenticator machinery wolfSSL does not implement, so nothing
+ * consumes it. It is still parsed in full rather than skipped, so that a
+ * malformed list is rejected here instead of being waved through, and it is
+ * deliberately not routed to TLSX_SNI_Parse(): that is the server-side
+ * matching path, and running it here would compare the peer's name against
+ * the client's own configured SNI.
+ *
+ * ssl     The SSL/TLS object.
+ * input   The extension data.
+ * length  The length of the extension data in bytes.
+ * returns 0 on success, BUFFER_ERROR when the list is malformed.
+ */
+static int TLSX_SNI_ParseCertReq(WOLFSSL* ssl, const byte* input,
+                                 word16 length)
+{
+    word16 size = 0;
+    word16 offset = 0;
+    byte type;
+
+    (void)ssl;
+
+    if (OPAQUE16_LEN > length)
+        return BUFFER_ERROR;
+
+    ato16(input, &size);
+    offset += OPAQUE16_LEN;
+
+    /* Validating sni list length. */
+    if (length != OPAQUE16_LEN + size || size == 0)
+        return BUFFER_ERROR;
+
+    /* Only one type is recognized and only one value per type (RFC 6066),
+     * so, no loop. */
+    type = input[offset++];
+    if (type != WOLFSSL_SNI_HOST_NAME)
+        return BUFFER_ERROR;
+
+    if (offset + OPAQUE16_LEN > length)
+        return BUFFER_ERROR;
+    ato16(input + offset, &size);
+    offset += OPAQUE16_LEN;
+
+    if (offset + size != length || size == 0)
+        return BUFFER_ERROR;
+
+    WOLFSSL_MSG("SNI in CertificateRequest parsed and ignored");
+
+    return 0;
+}
+#endif /* WOLFSSL_TLS13 */
+
 static int TLSX_SNI_VerifyParse(WOLFSSL* ssl,  byte isRequest)
 {
     (void)ssl;
@@ -2920,6 +2983,9 @@ int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
 #define SNI_WRITE        TLSX_SNI_Write
 #define SNI_PARSE        TLSX_SNI_Parse
 #define SNI_VERIFY_PARSE TLSX_SNI_VerifyParse
+#ifdef WOLFSSL_TLS13
+#define SNI_PARSE_CR     TLSX_SNI_ParseCertReq
+#endif
 
 #else
 
@@ -2928,6 +2994,9 @@ int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
 #define SNI_WRITE(a, b)        0
 #define SNI_PARSE(a, b, c, d)  0
 #define SNI_VERIFY_PARSE(a, b) 0
+#ifdef WOLFSSL_TLS13
+#define SNI_PARSE_CR(a, b, c)  0
+#endif
 
 #endif /* HAVE_SNI */
 
@@ -7912,6 +7981,427 @@ static int TLSX_CA_Names_Parse(WOLFSSL *ssl, const byte* input,
 
 #endif
 
+/******************************************************************************/
+/* Signed Certificate Timestamp - RFC 6962                                    */
+/******************************************************************************/
+
+#ifdef HAVE_SIGNED_CERT_TIMESTAMP
+
+/* Returns the size of the signed_certificate_timestamp extension's data.
+ *
+ * A client asks with an empty extension; a server answers with the
+ * SignedCertificateTimestampList the application gave it (RFC 6962
+ * Sect. 3.3).
+ */
+static word16 TLSX_SCTS_GetSize(const WOLFSSL* ssl, byte isRequest)
+{
+    if (isRequest)
+        return 0;
+
+    return ssl->sctListSz;
+}
+
+/* Writes the signed_certificate_timestamp extension into the buffer.
+ *
+ * ssl        The SSL/TLS object.
+ * output     The buffer to write the extension into.
+ * isRequest  Whether this is the asking side.
+ * returns the length of data that was written.
+ */
+static word16 TLSX_SCTS_Write(const WOLFSSL* ssl, byte* output, byte isRequest)
+{
+    if (isRequest || ssl->sctListSz == 0)
+        return 0;
+
+    XMEMCPY(output, ssl->sctList, ssl->sctListSz);
+
+    return ssl->sctListSz;
+}
+
+/* Parses the signed_certificate_timestamp extension.
+ *
+ *     struct { SerializedSCT sct_list <1..2^16-1>; }
+ *         SignedCertificateTimestampList;
+ *     opaque SerializedSCT<1..2^16-1>;
+ *
+ * The list is checked for a well formed outer framing and then handed to the
+ * application untouched: verifying an SCT needs the log's public key and a
+ * trust policy, which belong above this library.
+ *
+ * ssl      The SSL/TLS object.
+ * input    The extension data.
+ * length   Length of the extension data in bytes.
+ * msgType  Message the extension arrived in.
+ * returns 0 on success, otherwise failure.
+ */
+static int TLSX_SCTS_Parse(WOLFSSL* ssl, const byte* input, word16 length,
+                          byte msgType)
+{
+    word16 listSz;
+    word16 offset;
+
+    /* The request carries no data; note it so a server knows to answer. */
+    if (msgType == client_hello) {
+        if (length != 0)
+            return BUFFER_ERROR;
+        ssl->sctRequested = 1;
+        /* Adopt the context's list unless this object was given its own.
+         * Copied rather than aliased: the context setter frees the previous
+         * list, and rotating it at runtime is normal for a Certificate
+         * Transparency server, which would otherwise leave this object
+         * writing freed heap onto the wire. */
+        if ((ssl->sctListSz == 0) && (ssl->ctx != NULL) &&
+                (ssl->ctx->sctListSz > 0)) {
+            byte* copy = (byte*)XMALLOC(ssl->ctx->sctListSz, ssl->heap,
+                                        DYNAMIC_TYPE_TLSX);
+
+            if (copy == NULL)
+                return MEMORY_E;
+            XMEMCPY(copy, ssl->ctx->sctList, ssl->ctx->sctListSz);
+            ssl->sctList = copy;
+            ssl->sctListSz = ssl->ctx->sctListSz;
+            ssl->sctListFromCtx = 1;
+        }
+    #ifndef NO_WOLFSSL_SERVER
+        /* Only a server answers, and TLSX_SetResponse() is not compiled for a
+         * client-only build without TLS 1.3. Every pre-existing extension
+         * wraps its response push the same way. */
+        if (ssl->sctListSz > 0) {
+            int ret = TLSX_Push(&ssl->extensions, TLSX_SIGNED_CERT_TIMESTAMP,
+                                (void*)ssl, ssl->heap);
+            if (ret != 0)
+                return ret;
+            TLSX_SetResponse(ssl, TLSX_SIGNED_CERT_TIMESTAMP);
+        }
+    #endif
+        return 0;
+    }
+
+    /* A server asking, in its CertificateRequest, for SCTs alongside the
+     * client's own certificate (RFC 8446 Sect. 4.2 lists CH, CR and CT).
+     * wolfSSL does not staple SCTs to a client Certificate, so the request is
+     * accepted and ignored: before this it fell to the default case and was
+     * ignored as an unknown type, and turning that into a fatal alert would
+     * break a handshake the peer is entitled to attempt. Handled ahead of the
+     * response framing below, which this is not. RFC 9846 Table 1 drops the
+     * extension in favour of transparency_info (RFC 9162), so this is
+     * strictly RFC 8446 compatibility. */
+    if (msgType == certificate_request) {
+        /* The ask carries no data, the same shape as the ClientHello form. */
+        if (length != 0)
+            return BUFFER_ERROR;
+        return 0;
+    }
+
+    /* Only a client receives a response. The role has to be checked before
+     * the TLSX_Find() below, because on a server that same list entry is the
+     * server's own pushed response - so the lookup would take the self-push
+     * as proof of a request and store an unsolicited list handed over in a
+     * client's Certificate message. A server never asks for SCTs: the
+     * CertificateRequest semaphore deliberately omits the type. */
+    if (ssl->options.side != WOLFSSL_CLIENT_END) {
+        /* Rejected here rather than through TLSX_HandleUnsupportedExtension(),
+         * which compiles to a constant 0 under NO_WOLFSSL_CLIENT - a
+         * server-only build is precisely where this matters, and routing
+         * through it would accept the list there. */
+        WOLFSSL_MSG("Signed certificate timestamps sent to a server");
+        SendAlert(ssl, alert_fatal, unsupported_extension);
+        WOLFSSL_ERROR_VERBOSE(UNSUPPORTED_EXTENSION);
+        return UNSUPPORTED_EXTENSION;
+    }
+
+    /* A response is only expected when this end asked for one. */
+    if (TLSX_Find(ssl->extensions, TLSX_SIGNED_CERT_TIMESTAMP) == NULL)
+        return TLSX_HandleUnsupportedExtension(ssl);
+
+    if (length < OPAQUE16_LEN)
+        return BUFFER_ERROR;
+    ato16(input, &listSz);
+    if (listSz == 0 || length != (word16)(OPAQUE16_LEN + listSz))
+        return BUFFER_ERROR;
+
+    /* Walk the list so a truncated or overlong SerializedSCT is caught here
+     * rather than by the application. */
+    offset = OPAQUE16_LEN;
+    while (offset < length) {
+        word16 sctSz;
+
+        /* Widened deliberately: a word16 sum wraps at the top of the
+         * extension, letting a list that ends at 65534 pass the check and
+         * read a byte past the buffer. */
+        if ((word32)offset + OPAQUE16_LEN > (word32)length)
+            return BUFFER_ERROR;
+        ato16(input + offset, &sctSz);
+        offset = (word16)(offset + OPAQUE16_LEN);
+        if (sctSz == 0 || (word32)offset + sctSz > (word32)length)
+            return BUFFER_ERROR;
+        offset = (word16)(offset + sctSz);
+    }
+
+    XFREE(ssl->peerSctList, ssl->heap, DYNAMIC_TYPE_TLSX);
+    /* Cleared with the buffer it describes: on the failure below the size
+     * would otherwise still name the previous list, and
+     * wolfSSL_get0_signed_cert_timestamp_list() would report a length for a
+     * NULL pointer. */
+    ssl->peerSctListSz = 0;
+    ssl->peerSctList = (byte*)XMALLOC(length, ssl->heap,
+                                      DYNAMIC_TYPE_TLSX);
+    if (ssl->peerSctList == NULL)
+        return MEMORY_E;
+    XMEMCPY(ssl->peerSctList, input, length);
+    ssl->peerSctListSz = length;
+
+    return 0;
+}
+
+/* SCT_ is already taken by ServerCertificateType, so these carry the fuller
+ * abbreviation. */
+#define SCTS_GET_SIZE  TLSX_SCTS_GetSize
+#define SCTS_WRITE     TLSX_SCTS_Write
+#define SCTS_PARSE     TLSX_SCTS_Parse
+
+#endif /* HAVE_SIGNED_CERT_TIMESTAMP */
+
+/******************************************************************************/
+/* Record Size Limit - RFC 8449                                               */
+/******************************************************************************/
+
+#ifdef HAVE_RECORD_SIZE_LIMIT
+
+/* Returns the size of the record_size_limit extension's data: one uint16. */
+static word16 TLSX_RecordSizeLimit_GetSize(void)
+{
+    return OPAQUE16_LEN;
+}
+
+/* Writes the record_size_limit extension into the buffer.
+ *
+ * data    The WOLFSSL object, passed as the extension's opaque data.
+ * output  The buffer to write the extension into.
+ * returns the length of data that was written.
+ */
+static word16 TLSX_RecordSizeLimit_Write(void* data, byte* output)
+{
+    const WOLFSSL* ssl = (const WOLFSSL*)data;
+    word16 limit = ssl->recordSizeLimit;
+
+    /* ssl->recordSizeLimit counts payload only. RFC 8449 Sect. 4's field
+     * counts the whole TLS 1.3 TLSInnerPlaintext, so the content type byte is
+     * added here and nowhere else; TLS 1.2 has no such byte. Held to payload
+     * internally, the value can never exceed the protocol maximum either way:
+     * 2^14 below TLS 1.3 and 2^14+1 at it. */
+    if (IsAtLeastTLSv1_3(ssl->version))
+        limit++;
+
+    c16toa(limit, output);
+
+    return OPAQUE16_LEN;
+}
+
+/* Parses the record_size_limit extension.
+ *
+ * The value is the largest protected record plaintext the peer will accept,
+ * counting the content type byte of the TLS 1.3 TLSInnerPlaintext, so it caps
+ * what this end may send rather than anything it receives.
+ *
+ * ssl      The SSL/TLS object.
+ * input    The extension data.
+ * length   Length of the extension data in bytes.
+ * msgType  Message the extension arrived in.
+ * returns 0 on success, otherwise failure.
+ */
+static int TLSX_RecordSizeLimit_Parse(WOLFSSL* ssl, const byte* input,
+                                      word16 length, byte msgType)
+{
+    word16 limit;
+    /* The peer's answer arrives in EncryptedExtensions under TLS 1.3 and in
+     * the ServerHello under TLS 1.2 (RFC 8449 Sect. 4). */
+    int    isResponse = (msgType == encrypted_extensions) ||
+                        (msgType == server_hello);
+
+    if (length != OPAQUE16_LEN)
+        return BUFFER_ERROR;
+
+    /* RFC 9846 Sect. 4.2: a response to an extension this end never offered
+     * is an unsupported_extension abort. The client only pushes the extension
+     * when a limit was set, so its absence means it was never asked for. */
+    if (isResponse &&
+            TLSX_Find(ssl->extensions, TLSX_RECORD_SIZE_LIMIT) == NULL) {
+        return TLSX_HandleUnsupportedExtension(ssl);
+    }
+
+    ato16(input, &limit);
+
+    /* RFC 8449 Sect. 4: "An endpoint MUST treat receipt of a smaller value as
+     * a fatal error and generate an illegal_parameter alert." */
+    if (limit < WOLFSSL_RECORD_SIZE_LIMIT_MIN) {
+        WOLFSSL_MSG("Record size limit below the minimum of 64");
+        SendAlert(ssl, alert_fatal, illegal_parameter);
+        WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+        return INVALID_PARAMETER;
+    }
+
+    /* A server "MUST NOT enforce" the upper bound, since a client may be
+     * advertising a limit enabled by an extension the server does not know.
+     * A client MAY reject one, and does here. The bound is 2^14+1 for TLS 1.3
+     * and 2^14 for TLS 1.2, which counts no content type byte. */
+    if (isResponse && limit > (IsAtLeastTLSv1_3(ssl->version) ?
+            WOLFSSL_RECORD_SIZE_LIMIT_MAX_13 : MAX_RECORD_SIZE)) {
+        WOLFSSL_MSG("Record size limit above the maximum for this version");
+        SendAlert(ssl, alert_fatal, illegal_parameter);
+        WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+        return INVALID_PARAMETER;
+    }
+
+    /* Never send more than the protocol allows, whatever the peer says. */
+    if (limit > WOLFSSL_RECORD_SIZE_LIMIT_MAX_13)
+        limit = WOLFSSL_RECORD_SIZE_LIMIT_MAX_13;
+
+    /* Back to payload, the unit everything above the wire uses. The peer's
+     * value covers its TLSInnerPlaintext under TLS 1.3, one byte of which is
+     * the content type. */
+    if (IsAtLeastTLSv1_3(ssl->version))
+        limit--;
+
+    /* A server that supports this extension answers in EncryptedExtensions,
+     * and from then on ignores any max_fragment_length in the ClientHello
+     * (RFC 8449 Sect. 5). */
+    if (msgType == client_hello) {
+        int ret;
+
+        /* RFC 8449 Sect. 4: the extension is negotiated only when both ends
+         * send it. A server holding no limit of its own stays silent, and so
+         * must not shrink its own records either - otherwise any client could
+         * push a server that never opted in down to 64-byte records and pay
+         * it in per-record overhead. */
+        if (ssl->recordSizeLimit == 0)
+            return 0;
+
+        ret = TLSX_Push(&ssl->extensions, TLSX_RECORD_SIZE_LIMIT,
+                        (void*)ssl, ssl->heap);
+        if (ret != 0)
+            return ret;
+        TLSX_SetResponse(ssl, TLSX_RECORD_SIZE_LIMIT);
+    }
+
+    ssl->peerRecordSizeLimit = limit;
+
+    return 0;
+}
+
+#define RSL_GET_SIZE  TLSX_RecordSizeLimit_GetSize
+#define RSL_WRITE     TLSX_RecordSizeLimit_Write
+#define RSL_PARSE     TLSX_RecordSizeLimit_Parse
+
+#endif /* HAVE_RECORD_SIZE_LIMIT */
+
+/******************************************************************************/
+/* Certificate Compression - RFC 8879                                         */
+/******************************************************************************/
+
+#ifdef HAVE_CERTIFICATE_COMPRESSION
+
+/* Algorithms this build can decompress, most preferred first. Only zlib is
+ * supported: brotli and zstd would each add a new dependency. */
+static const word16 certCompAlgs[] = { WOLFSSL_CERT_COMP_ZLIB };
+#define CERT_COMP_ALG_CNT ((word16)(sizeof(certCompAlgs) / sizeof(word16)))
+
+/* Returns the size of the compress_certificate extension's data: a one byte
+ * list length then two bytes per algorithm (RFC 8879 Sect. 3). */
+static word16 TLSX_CertificateCompression_GetSize(void)
+{
+    return (word16)(OPAQUE8_LEN + (CERT_COMP_ALG_CNT * OPAQUE16_LEN));
+}
+
+/* Writes the compress_certificate extension into the buffer.
+ *
+ * output  The buffer to write the extension into.
+ * returns the length of data that was written.
+ */
+static word16 TLSX_CertificateCompression_Write(byte* output)
+{
+    word16 i;
+    word16 offset = 0;
+
+    output[offset++] = (byte)(CERT_COMP_ALG_CNT * OPAQUE16_LEN);
+    for (i = 0; i < CERT_COMP_ALG_CNT; i++) {
+        c16toa(certCompAlgs[i], output + offset);
+        offset += OPAQUE16_LEN;
+    }
+
+    return offset;
+}
+
+/* Is an algorithm one this build offered to decompress? */
+int TLSX_CertificateCompression_Supported(word16 alg)
+{
+    word16 i;
+
+    for (i = 0; i < CERT_COMP_ALG_CNT; i++) {
+        if (certCompAlgs[i] == alg)
+            return 1;
+    }
+
+    return 0;
+}
+
+/* Parses the compress_certificate extension.
+ *
+ * The extension is a unidirectional indication (RFC 8879 Sect. 3): it states
+ * what its sender can decompress and draws no response. The peer's list is
+ * checked for a well formed encoding, and the first algorithm on it that this
+ * build also supports is kept in ssl->peerCertCompAlgo, which is what the
+ * send path compresses with.
+ *
+ * ssl     The SSL/TLS object.
+ * input   The extension data.
+ * length  Length of the extension data in bytes.
+ * returns 0 on success, BUFFER_ERROR when the list is malformed.
+ */
+static int TLSX_CertificateCompression_Parse(WOLFSSL* ssl, const byte* input,
+                                             word16 length)
+{
+    byte   listSz;
+    word16 offset;
+
+    if (length < OPAQUE8_LEN)
+        return BUFFER_ERROR;
+
+    listSz = input[0];
+    /* RFC 8879 Sect. 3 declares algorithms<2..2^8-2>: at least one algorithm,
+     * a whole number of them, and nothing trailing the list. */
+    if ((listSz < OPAQUE16_LEN) || ((listSz & 1) != 0) ||
+            (length != (word16)(OPAQUE8_LEN + listSz))) {
+        return BUFFER_ERROR;
+    }
+
+    /* Keep the first algorithm the peer named that this build can also
+     * produce. The peer's order is its preference order (RFC 8879 Sect. 3),
+     * so the first match wins. */
+    for (offset = OPAQUE8_LEN; offset < length; offset += OPAQUE16_LEN) {
+        word16 alg;
+
+        ato16(input + offset, &alg);
+        if (TLSX_CertificateCompression_Supported(alg)) {
+            ssl->peerCertCompAlgo = (byte)alg;
+            break;
+        }
+    }
+
+    return 0;
+}
+
+#define CC_GET_SIZE  TLSX_CertificateCompression_GetSize
+#define CC_WRITE     TLSX_CertificateCompression_Write
+#define CC_PARSE     TLSX_CertificateCompression_Parse
+
+#endif /* HAVE_CERTIFICATE_COMPRESSION */
+
+/* The three sections above have no dependency on certificates or signature
+ * algorithms: RFC 8449 and RFC 6962 do not, and RFC 8879 only carries a
+ * message built elsewhere. Their dispatch cases are guarded by the feature
+ * macro alone, so guarding the implementations more tightly than the call
+ * sites broke '--enable-recordsizelimit --disable-certs'. */
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
 /******************************************************************************/
 /* Signature Algorithms                                                       */
@@ -8111,7 +8601,7 @@ static word16 TLSX_SignatureAlgorithmsCert_GetSize(void* data)
 {
     WOLFSSL* ssl = (WOLFSSL*)data;
 
-    return OPAQUE16_LEN + ssl->certHashSigAlgoSz;
+    return OPAQUE16_LEN + ssl->ourCertSigAlgoSz;
 }
 
 /* Writes the SignatureAlgorithmsCert extension into the buffer.
@@ -8124,11 +8614,11 @@ static word16 TLSX_SignatureAlgorithmsCert_Write(void* data, byte* output)
 {
     WOLFSSL* ssl = (WOLFSSL*)data;
 
-    c16toa(ssl->certHashSigAlgoSz, output);
-    XMEMCPY(output + OPAQUE16_LEN, ssl->certHashSigAlgo,
-            ssl->certHashSigAlgoSz);
+    c16toa(ssl->ourCertSigAlgoSz, output);
+    XMEMCPY(output + OPAQUE16_LEN, ssl->ourCertSigAlgo,
+            ssl->ourCertSigAlgoSz);
 
-    return OPAQUE16_LEN + ssl->certHashSigAlgoSz;
+    return OPAQUE16_LEN + ssl->ourCertSigAlgoSz;
 }
 
 /* Parse the SignatureAlgorithmsCert extension.
@@ -15379,6 +15869,21 @@ void TLSX_FreeAll(TLSX* list, void* heap)
                 SA_FREE_ALL((SignatureAlgorithms*)extension->data, heap);
                 break;
 #endif
+#ifdef HAVE_CERTIFICATE_COMPRESSION
+            case TLSX_COMPRESS_CERTIFICATE:
+                /* The algorithm list is a build-time constant. */
+                break;
+#endif
+#ifdef HAVE_RECORD_SIZE_LIMIT
+            case TLSX_RECORD_SIZE_LIMIT:
+                /* The limit lives on the SSL object. */
+                break;
+#endif
+#ifdef HAVE_SIGNED_CERT_TIMESTAMP
+            case TLSX_SIGNED_CERT_TIMESTAMP:
+                /* The lists live on the SSL object and the context. */
+                break;
+#endif
 #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
             case TLSX_ENCRYPT_THEN_MAC:
                 WOLFSSL_MSG("Encrypt-Then-Mac extension free");
@@ -15626,6 +16131,21 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
             case TLSX_SIGNATURE_ALGORITHMS:
                 length += SA_GET_SIZE(extension->data);
+                break;
+#endif
+#ifdef HAVE_CERTIFICATE_COMPRESSION
+            case TLSX_COMPRESS_CERTIFICATE:
+                length += CC_GET_SIZE();
+                break;
+#endif
+#ifdef HAVE_RECORD_SIZE_LIMIT
+            case TLSX_RECORD_SIZE_LIMIT:
+                length += RSL_GET_SIZE();
+                break;
+#endif
+#ifdef HAVE_SIGNED_CERT_TIMESTAMP
+            case TLSX_SIGNED_CERT_TIMESTAMP:
+                length += SCTS_GET_SIZE((WOLFSSL*)extension->data, isRequest);
                 break;
 #endif
 #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
@@ -15914,6 +16434,25 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
             case TLSX_SIGNATURE_ALGORITHMS:
                 WOLFSSL_MSG("Signature Algorithms extension to write");
                 offset += SA_WRITE(extension->data, output + offset);
+                break;
+#endif
+#ifdef HAVE_CERTIFICATE_COMPRESSION
+            case TLSX_COMPRESS_CERTIFICATE:
+                WOLFSSL_MSG("Certificate Compression extension to write");
+                offset += CC_WRITE(output + offset);
+                break;
+#endif
+#ifdef HAVE_RECORD_SIZE_LIMIT
+            case TLSX_RECORD_SIZE_LIMIT:
+                WOLFSSL_MSG("Record Size Limit extension to write");
+                offset += RSL_WRITE(extension->data, output + offset);
+                break;
+#endif
+#ifdef HAVE_SIGNED_CERT_TIMESTAMP
+            case TLSX_SIGNED_CERT_TIMESTAMP:
+                WOLFSSL_MSG("Signed Certificate Timestamp extension to write");
+                offset += SCTS_WRITE((WOLFSSL*)extension->data,
+                                    output + offset, isRequest);
                 break;
 #endif
 #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
@@ -16597,6 +17136,48 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
 #else
     ret = 0;
 #endif
+    #ifdef HAVE_SIGNED_CERT_TIMESTAMP
+        /* RFC 6962 Sect. 3.3: a client asks with an empty extension. There is
+         * nothing to configure, so it is offered whenever a client is built
+         * with the feature; the cost is four bytes on the wire. */
+        if (!isServer) {
+            WOLFSSL_MSG("Adding signed certificate timestamp extension");
+            if ((ret = TLSX_Push(&ssl->extensions, TLSX_SIGNED_CERT_TIMESTAMP,
+                                 (void*)ssl, ssl->heap)) != 0) {
+                return ret;
+            }
+        }
+    #endif
+
+    /* Outside the TLS 1.3 block below: RFC 8449 covers TLS 1.2 too,
+     * where the server answers in the ServerHello, so a client built
+     * without TLS 1.3 must still offer this. */
+    #ifdef HAVE_RECORD_SIZE_LIMIT
+        /* RFC 8449 Sect. 4: the client states in its ClientHello the largest
+         * record it will accept; the server answers in EncryptedExtensions
+         * under TLS 1.3 or in the ServerHello under TLS 1.2, which
+         * TLSX_RecordSizeLimit_Parse() arranges when it sees the request. */
+        /* RFC 8449 Sect. 5 has a server ignore max_fragment_length when both
+         * extensions appear, and Sect. 5 also says a client that depends on a
+         * small record size may keep advertising max_fragment_length. So the
+         * built-in default stands aside for an application that explicitly
+         * asked for max_fragment_length; an explicit
+         * wolfSSL_UseRecordSizeLimit() still wins, because then the
+         * application asked for both and RFC 8449 says which governs. */
+        if (!isServer && ssl->recordSizeLimit != 0
+        #ifdef HAVE_MAX_FRAGMENT
+                && (ssl->recordSizeLimitSet ||
+                    TLSX_Find(ssl->extensions,
+                              TLSX_MAX_FRAGMENT_LENGTH) == NULL)
+        #endif
+                ) {
+            WOLFSSL_MSG("Adding record size limit extension");
+            if ((ret = TLSX_Push(&ssl->extensions, TLSX_RECORD_SIZE_LIMIT,
+                                 (void*)ssl, ssl->heap)) != 0) {
+                return ret;
+            }
+        }
+    #endif
 #ifdef WOLFSSL_TLS13
     #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
         if (IsAtLeastTLSv1_3(ssl->version) &&
@@ -16608,6 +17189,45 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
             }
         }
     #endif
+    #ifdef HAVE_CERTIFICATE_COMPRESSION
+    #if !defined(WOLFSSL_ASYNC_CRYPT) && !defined(WOLFSSL_NONBLOCK_OCSP)
+        /* RFC 8879 Sect. 3: a client advertises in the ClientHello that it can
+         * accept a compressed server certificate, a server advertises in the
+         * CertificateRequest that it can accept a compressed client one. The
+         * extension says only what this end is able to decompress. */
+        if (IsAtLeastTLSv1_3(ssl->version)) {
+            WOLFSSL_MSG("Adding certificate compression extension");
+            if ((ret = TLSX_Push(&ssl->extensions, TLSX_COMPRESS_CERTIFICATE,
+                                 NULL, ssl->heap)) != 0) {
+                return ret;
+            }
+            /* What this end offered, as opposed to what the build can
+             * decompress: a CompressedCertificate is only acceptable when
+             * this handshake asked for one. */
+            ssl->certCompAdvertised = 1;
+        }
+    #else
+        /* DoTls13CompressedCertificate() cannot hand a decompressed buffer
+         * across a WC_PENDING_E or OCSP_WANT_READ suspension: the certificate
+         * parser keeps borrowed pointers into it. Advertising and then failing
+         * every compressed reply is worse than not offering, so these builds
+         * stay quiet until the resume path retains the buffer. */
+    #endif
+    #endif
+    #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
+        /* Both roles offer the signature algorithms they accept in a peer's
+         * certificate: the client in the ClientHello, the server in the
+         * CertificateRequest. RFC 8446 Sect. 4.2.3 makes signature_algorithms
+         * cover certificates when this extension is absent, so it is sent
+         * only when the application asked for a different list. */
+        if (IsAtLeastTLSv1_3(ssl->version) && ssl->ourCertSigAlgoSz > 0) {
+            WOLFSSL_MSG("Adding signature algorithms cert extension");
+            if ((ret = TLSX_SetSignatureAlgorithmsCert(&ssl->extensions, ssl,
+                                                       ssl->heap)) != 0) {
+                return ret;
+            }
+        }
+    #endif
         if (!isServer && IsAtLeastTLSv1_3(ssl->version)) {
             /* Add mandatory TLS v1.3 extension: supported version */
             WOLFSSL_MSG("Adding supported versions extension");
@@ -16615,16 +17235,6 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                                                              ssl->heap)) != 0) {
                 return ret;
             }
-
-        #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
-            if (ssl->certHashSigAlgoSz > 0) {
-                WOLFSSL_MSG("Adding signature algorithms cert extension");
-                if ((ret = TLSX_SetSignatureAlgorithmsCert(&ssl->extensions,
-                                                        ssl, ssl->heap)) != 0) {
-                    return ret;
-                }
-            }
-        #endif
 
         #if defined(HAVE_SUPPORTED_CURVES)
             extension = TLSX_Find(ssl->extensions, TLSX_KEY_SHARE);
@@ -17668,6 +18278,13 @@ int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word32* pLength)
         XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
         TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS));
+        if (ssl->ourCertSigAlgoSz > 0) {
+            TURN_OFF(semaphore,
+                    TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS_CERT));
+        }
+#endif
+#ifdef HAVE_CERTIFICATE_COMPRESSION
+        TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_COMPRESS_CERTIFICATE));
 #endif
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
         if (SSL_PRIORITY_CA_NAMES(ssl) != NULL) {
@@ -17675,7 +18292,9 @@ int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word32* pLength)
                     TLSX_ToSemaphore(TLSX_CERTIFICATE_AUTHORITIES));
         }
 #endif
-        /* TODO: TLSX_SIGNED_CERTIFICATE_TIMESTAMP, OID_FILTERS */
+        /* TODO: TLSX_OID_FILTERS, and certificate transparency. RFC 9846
+         * Table 1 lists transparency_info (RFC 9162) for CR rather than the
+         * legacy signed_certificate_timestamp. */
         /* TLSX_STATUS_REQUEST is enabled: the server may request the client
          * to staple an OCSP response with its CertificateRequest. */
         TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST));
@@ -17913,6 +18532,13 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word32* pOffset)
         XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
         TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS));
+        if (ssl->ourCertSigAlgoSz > 0) {
+            TURN_OFF(semaphore,
+                    TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS_CERT));
+        }
+#endif
+#ifdef HAVE_CERTIFICATE_COMPRESSION
+        TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_COMPRESS_CERTIFICATE));
 #endif
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
         if (SSL_PRIORITY_CA_NAMES(ssl) != NULL) {
@@ -17920,7 +18546,9 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word32* pOffset)
                     TLSX_ToSemaphore(TLSX_CERTIFICATE_AUTHORITIES));
         }
 #endif
-        /* TODO: TLSX_SIGNED_CERTIFICATE_TIMESTAMP, TLSX_OID_FILTERS */
+        /* TODO: TLSX_OID_FILTERS, and certificate transparency. RFC 9846
+         * Table 1 lists transparency_info (RFC 9162) for CR rather than the
+         * legacy signed_certificate_timestamp. */
         /* TLSX_STATUS_REQUEST is enabled: the server may request the client
          * to staple an OCSP response with its CertificateRequest. */
         TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST));
@@ -18015,6 +18643,20 @@ int TLSX_GetResponseSize(WOLFSSL* ssl, byte msgType, word16* pLength)
 #ifndef NO_WOLFSSL_SERVER
         case server_hello:
             PF_VALIDATE_RESPONSE(ssl, semaphore);
+        #ifdef HAVE_SIGNED_CERT_TIMESTAMP
+            /* RFC 6962 Sect. 3.3.1: on a resumed session the server "is not
+             * expected to process it or include the extension in the
+             * ServerHello", and RFC 9162 Sect. 6.5 makes that a MUST NOT for
+             * the successor extension. A resumed handshake sends no
+             * Certificate, so there is nothing for the timestamps to attest.
+             * Decided here rather than while parsing, because session ID
+             * resumption is only settled after the ClientHello extensions
+             * have been read. */
+            if (ssl->options.resuming) {
+                TURN_ON(semaphore,
+                        TLSX_ToSemaphore(TLSX_SIGNED_CERT_TIMESTAMP));
+            }
+        #endif
         #ifdef WOLFSSL_TLS13
                 if (IsAtLeastTLSv1_3(ssl->version)) {
                     XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
@@ -18097,6 +18739,11 @@ int TLSX_GetResponseSize(WOLFSSL* ssl, byte msgType, word16* pLength)
         #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST));
         #endif
+        #ifdef HAVE_SIGNED_CERT_TIMESTAMP
+            /* TLS 1.3 carries this on the Certificate message, not here. */
+            TURN_ON(semaphore,
+                    TLSX_ToSemaphore(TLSX_SIGNED_CERT_TIMESTAMP));
+        #endif
         #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST_V2));
         #endif
@@ -18125,9 +18772,14 @@ int TLSX_GetResponseSize(WOLFSSL* ssl, byte msgType, word16* pLength)
             /* Don't send out any extension except those that are turned off. */
             XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
             TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST));
-            /* TODO: TLSX_SIGNED_CERTIFICATE_TIMESTAMP,
-             *       TLSX_SERVER_CERTIFICATE_TYPE
-             */
+#ifdef HAVE_SIGNED_CERT_TIMESTAMP
+            TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_SIGNED_CERT_TIMESTAMP));
+#endif
+            /* TODO: certificate transparency and delegated_credential.
+             * RFC 9846 Table 1 allows status_request, delegated_credential
+             * (RFC 9345) and transparency_info (RFC 9162) in a Certificate
+             * message; server_certificate_type is listed for CH and EE only,
+             * so it does not belong here. */
             break;
     #endif
 #endif
@@ -18169,6 +18821,20 @@ int TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType, word16* pOffset
 #ifndef NO_WOLFSSL_SERVER
             case server_hello:
                 PF_VALIDATE_RESPONSE(ssl, semaphore);
+        #ifdef HAVE_SIGNED_CERT_TIMESTAMP
+            /* RFC 6962 Sect. 3.3.1: on a resumed session the server "is not
+             * expected to process it or include the extension in the
+             * ServerHello", and RFC 9162 Sect. 6.5 makes that a MUST NOT for
+             * the successor extension. A resumed handshake sends no
+             * Certificate, so there is nothing for the timestamps to attest.
+             * Decided here rather than while parsing, because session ID
+             * resumption is only settled after the ClientHello extensions
+             * have been read. */
+            if (ssl->options.resuming) {
+                TURN_ON(semaphore,
+                        TLSX_ToSemaphore(TLSX_SIGNED_CERT_TIMESTAMP));
+            }
+        #endif
         #ifdef WOLFSSL_TLS13
                 if (IsAtLeastTLSv1_3(ssl->version)) {
                     XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
@@ -18246,6 +18912,11 @@ int TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType, word16* pOffset
         #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
                 TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST));
         #endif
+        #ifdef HAVE_SIGNED_CERT_TIMESTAMP
+                /* TLS 1.3 carries this on the Certificate message. */
+                TURN_ON(semaphore,
+                        TLSX_ToSemaphore(TLSX_SIGNED_CERT_TIMESTAMP));
+        #endif
         #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST_V2));
         #endif
@@ -18275,9 +18946,19 @@ int TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType, word16* pOffset
                  * off. */
                 XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
                 TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST));
-                /* TODO: TLSX_SIGNED_CERTIFICATE_TIMESTAMP,
-                 *       TLSX_SERVER_CERTIFICATE_TYPE
-                 */
+            #ifdef HAVE_SIGNED_CERT_TIMESTAMP
+                /* Must match TLSX_GetResponseSize()'s arm exactly: whatever
+                 * the size pass counts, this pass has to write, or the
+                 * declared handshake length overruns the bytes emitted. */
+                TURN_OFF(semaphore,
+                         TLSX_ToSemaphore(TLSX_SIGNED_CERT_TIMESTAMP));
+            #endif
+                /* TODO: certificate transparency and delegated_credential.
+                 * RFC 9846 Table 1 allows status_request,
+                 * delegated_credential (RFC 9345) and transparency_info
+                 * (RFC 9162) in a Certificate message;
+                 * server_certificate_type is listed for CH and EE only, so it
+                 * does not belong here. */
                 break;
         #endif
     #endif
@@ -18681,6 +19362,13 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 
 #ifdef WOLFSSL_TLS13
                 if (IsAtLeastTLSv1_3(ssl->version)) {
+                    /* RFC 9846 Table 1: CH, EE, CR. The CertificateRequest
+                     * name is only validated -- see TLSX_SNI_ParseCertReq()
+                     * -- and must not reach the server-side matching path. */
+                    if (msgType == certificate_request) {
+                        ret = SNI_PARSE_CR(ssl, input + offset, size);
+                        break;
+                    }
                     if (msgType != client_hello &&
                         msgType != encrypted_extensions)
                         return EXT_NOT_ALLOWED;
@@ -18988,6 +19676,56 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                 break;
 #endif /* HAVE_ENCRYPT_THEN_MAC */
 
+#ifdef HAVE_SIGNED_CERT_TIMESTAMP
+            case TLSX_SIGNED_CERT_TIMESTAMP:
+                WOLFSSL_MSG("Signed Certificate Timestamp extension received");
+            #ifdef WOLFSSL_DEBUG_TLS
+                WOLFSSL_BUFFER(input + offset, size);
+            #endif
+                /* RFC 6962 Sect. 3.3: the client asks in its ClientHello and
+                 * the server answers in the ServerHello, which TLS 1.3 moved
+                 * to the Certificate message. RFC 8446 Sect. 4.2 also lists
+                 * CertificateRequest, where a server asks the client to
+                 * staple SCTs to its own Certificate. */
+                if (IsAtLeastTLSv1_3(ssl->version)) {
+                    if (msgType != client_hello && msgType != certificate &&
+                            msgType != certificate_request) {
+                        WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
+                        return EXT_NOT_ALLOWED;
+                    }
+                }
+                else if (msgType != client_hello && msgType != server_hello) {
+                    WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
+                    return EXT_NOT_ALLOWED;
+                }
+                ret = SCTS_PARSE(ssl, input + offset, size, msgType);
+                break;
+#endif
+#ifdef HAVE_RECORD_SIZE_LIMIT
+            case TLSX_RECORD_SIZE_LIMIT:
+                WOLFSSL_MSG("Record Size Limit extension received");
+            #ifdef WOLFSSL_DEBUG_TLS
+                WOLFSSL_BUFFER(input + offset, size);
+            #endif
+                /* RFC 9846 Table 1 lists CH and EE for TLS 1.3. RFC 8449
+                 * also covers TLS 1.2, where the server answers in the
+                 * ServerHello instead. */
+                if (IsAtLeastTLSv1_3(ssl->version)) {
+                    if (msgType != client_hello &&
+                            msgType != encrypted_extensions) {
+                        WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
+                        return EXT_NOT_ALLOWED;
+                    }
+                }
+                else if (msgType != client_hello &&
+                        msgType != server_hello) {
+                    WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
+                    return EXT_NOT_ALLOWED;
+                }
+                ret = RSL_PARSE(ssl, input + offset, size, msgType);
+                break;
+#endif
+
 #ifdef WOLFSSL_TLS13
             case TLSX_SUPPORTED_VERSIONS:
                 WOLFSSL_MSG("Skipping Supported Versions - already processed");
@@ -19116,6 +19854,24 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                 break;
     #endif
 
+#ifdef HAVE_CERTIFICATE_COMPRESSION
+            case TLSX_COMPRESS_CERTIFICATE:
+                WOLFSSL_MSG("Certificate Compression extension received");
+            #ifdef WOLFSSL_DEBUG_TLS
+                WOLFSSL_BUFFER(input + offset, size);
+            #endif
+                /* RFC 8879 Sect. 3: TLS 1.3 and newer only; peers MUST ignore
+                 * it when an earlier version is negotiated. */
+                if (!IsAtLeastTLSv1_3(ssl->version))
+                    break;
+                if (msgType != client_hello &&
+                        msgType != certificate_request) {
+                    WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
+                    return EXT_NOT_ALLOWED;
+                }
+                ret = CC_PARSE(ssl, input + offset, size);
+                break;
+#endif
     #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
             case TLSX_SIGNATURE_ALGORITHMS_CERT:
                 WOLFSSL_MSG("Signature Algorithms extension received");
@@ -19494,8 +20250,55 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     }
 #endif
 
+#ifdef HAVE_RECORD_SIZE_LIMIT
+#ifdef HAVE_MAX_FRAGMENT
+    /* RFC 8449 Sect. 5: a server that answers with record_size_limit "MUST
+     * ignore a max_fragment_length that appears in a ClientHello if both
+     * extensions appear". Done here rather than while parsing because the two
+     * extensions may arrive in either order, and sending both would leave the
+     * client obliged to abort. */
+    if (ret == 0 && msgType == client_hello &&
+            TLSX_Find(ssl->extensions, TLSX_RECORD_SIZE_LIMIT) != NULL) {
+        ssl->max_fragment = MAX_RECORD_SIZE;
+        /* The session carries its own copy for resumption, so it is cleared
+         * with the live value; leaving it would have a resumed handshake
+         * re-apply a length this one just overrode. */
+        if (ssl->session != NULL)
+            ssl->session->mfl = 0;
+        TLSX_Remove(&ssl->extensions, TLSX_MAX_FRAGMENT_LENGTH, ssl->heap);
+    }
+
+    /* RFC 8449 Sect. 5: a client "MUST treat receipt of both
+     * max_fragment_length and record_size_limit as a fatal error". Only a
+     * client receives these two message types. Checked here for the same
+     * reason as above: either extension may come first, and a check made
+     * while parsing one of them cannot see the other. */
+    if (ret == 0 && (msgType == encrypted_extensions ||
+                     msgType == server_hello) &&
+            !IS_OFF(seenType, TLSX_ToSemaphore(TLSX_RECORD_SIZE_LIMIT)) &&
+            !IS_OFF(seenType, TLSX_ToSemaphore(TLSX_MAX_FRAGMENT_LENGTH))) {
+        WOLFSSL_MSG("Server sent both max_fragment_length and size limit");
+        SendAlert(ssl, alert_fatal, illegal_parameter);
+        WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+        ret = INVALID_PARAMETER;
+    }
+#endif
+#endif
+
+    /* SNI enforces "the peer had to send this in its ClientHello", so it keys
+     * off the ClientHello rather than isRequest, which is also true for a
+     * CertificateRequest: left as isRequest, a client that received a
+     * CertificateRequest ran the server side WOLFSSL_SNI_ABORT_ON_ABSENCE
+     * check against its own configuration.
+     *
+     * The trusted_ca_keys check is the other way round - it is the !isRequest
+     * arm that does the work, asking whether a server answered the list this
+     * client offered. Narrowing its argument the same way would make every
+     * message that is not a ClientHello count as that answer, so a
+     * CertificateRequest would re-run a check the ServerHello or
+     * EncryptedExtensions has already settled. It keeps isRequest. */
     if (ret == 0)
-        ret = SNI_VERIFY_PARSE(ssl, isRequest);
+        ret = SNI_VERIFY_PARSE(ssl, msgType == client_hello);
     if (ret == 0)
         ret = TCA_VERIFY_PARSE(ssl, isRequest);
 

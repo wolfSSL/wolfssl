@@ -9558,12 +9558,13 @@ int wolfSSL_GetOutputSize(WOLFSSL* ssl, int inSz);
 
 /*!
     \brief Returns the maximum record layer size for plaintext data.  This
-    will correspond to either the maximum SSL/TLS record size as specified
-    by the protocol standard, the maximum TLS fragment size as set by the
-    TLS Max Fragment Length extension. This function is helpful when the
-    application has called wolfSSL_GetOutputSize() and received a INPUT_SIZE_E
-    error. This function must be called after the SSL/TLS handshake has been
-    completed.
+    will correspond to the smallest of the maximum SSL/TLS record size as
+    specified by the protocol standard, the maximum TLS fragment size as set
+    by the TLS Max Fragment Length extension, and the limit the peer
+    advertised with the RFC 8449 record_size_limit extension. This function is
+    helpful when the application has called wolfSSL_GetOutputSize() and
+    received a INPUT_SIZE_E error. This function must be called after the
+    SSL/TLS handshake has been completed.
 
     \return size Upon success, the maximum output size will be returned
     \return BAD_FUNC_ARG will be returned upon invalid function argument,
@@ -9577,6 +9578,8 @@ int wolfSSL_GetOutputSize(WOLFSSL* ssl, int inSz);
     \endcode
 
     \sa wolfSSL_GetOutputSize
+    \sa wolfSSL_UseRecordSizeLimit
+    \sa wolfSSL_UseMaxFragment
 */
 int wolfSSL_GetMaxOutputSize(WOLFSSL* ssl);
 
@@ -12486,8 +12489,305 @@ int wolfSSL_ALPN_GetPeerProtocol(WOLFSSL* ssl, char **list,
 
     \sa wolfSSL_new
     \sa wolfSSL_CTX_UseMaxFragment
+    \sa wolfSSL_UseRecordSizeLimit
 */
 int wolfSSL_UseMaxFragment(WOLFSSL* ssl, unsigned char mfl);
+
+/*!
+    \brief Sets the largest record payload this end will accept, advertised as
+    the RFC 8449 record_size_limit extension. A client sends it in the
+    ClientHello; a server that received one answers in EncryptedExtensions
+    under TLS 1.3 or in the ServerHello under TLS 1.2. The extension only
+    takes effect when both ends send it, so the peer's records are capped only
+    once it has answered. It supersedes max_fragment_length, which offers four
+    fixed sizes rather than an exact byte count; where a peer sends both, RFC
+    8449 Sect. 5 says record_size_limit governs.
+
+    The count is payload. RFC 8449's field on the wire covers the whole TLS
+    1.3 TLSInnerPlaintext, so a request for n goes out as n+1 under TLS 1.3
+    and as n under TLS 1.2; the conversion is internal.
+
+    A limit is advertised by default. Pass WOLFSSL_RECORD_SIZE_LIMIT_OFF to
+    stop advertising one. Must be called before the handshake starts, since
+    the value is both advertised to the peer and enforced on arrival.
+
+    The default limit stands aside for an application that asked for
+    max_fragment_length with wolfSSL_UseMaxFragment(), so a client that set
+    one keeps offering it alone. Calling this function explicitly overrides
+    that: the application has then asked for both, and RFC 8449 Sect. 5 says
+    record_size_limit governs.
+
+    \return WOLFSSL_SUCCESS upon success.
+    \return BAD_FUNC_ARG when ssl is NULL, when limit is out of range, or when
+    the handshake has already begun.
+
+    \param ssl pointer to a SSL object, created with wolfSSL_new().
+    \param limit largest record payload accepted, from
+    WOLFSSL_RECORD_SIZE_LIMIT_MIN (64) to WOLFSSL_RECORD_SIZE_LIMIT_MAX
+    (16384), or WOLFSSL_RECORD_SIZE_LIMIT_OFF (0) to advertise nothing.
+    Defaults to WOLFSSL_RECORD_SIZE_LIMIT_DEFAULT.
+
+    _Example_
+    \code
+    int ret = 0;
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    if (ssl == NULL) {
+        // ssl creation failed
+    }
+    ret = wolfSSL_UseRecordSizeLimit(ssl, 1024);
+    if (ret != WOLFSSL_SUCCESS) {
+        // limit rejected
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_UseRecordSizeLimit
+    \sa wolfSSL_UseMaxFragment
+    \sa wolfSSL_GetMaxOutputSize
+*/
+int wolfSSL_UseRecordSizeLimit(WOLFSSL* ssl, unsigned short limit);
+
+/*!
+    \brief Sets the record_size_limit inherited by every WOLFSSL object
+    created from this context afterwards. See wolfSSL_UseRecordSizeLimit() for
+    what the value means and how the extension is negotiated.
+
+    \return WOLFSSL_SUCCESS upon success.
+    \return BAD_FUNC_ARG when ctx is NULL or limit is out of range.
+
+    \param ctx pointer to a SSL context, created with wolfSSL_CTX_new().
+    \param limit largest record payload accepted, from
+    WOLFSSL_RECORD_SIZE_LIMIT_MIN (64) to WOLFSSL_RECORD_SIZE_LIMIT_MAX
+    (16384), or WOLFSSL_RECORD_SIZE_LIMIT_OFF (0) to advertise nothing.
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_UseRecordSizeLimit(ctx, 512);
+    if (ret != WOLFSSL_SUCCESS) {
+        // limit rejected
+    }
+    \endcode
+
+    \sa wolfSSL_UseRecordSizeLimit
+*/
+int wolfSSL_CTX_UseRecordSizeLimit(WOLFSSL_CTX* ctx, unsigned short limit);
+
+/*!
+    \brief Compresses the context's certificate chain once, so every handshake
+    that negotiates the matching RFC 8879 algorithm sends the cached
+    CompressedCertificate instead of compressing per connection. Call it after
+    the certificate and any chain certificates are loaded. Loading or
+    replacing them afterwards discards the cache, and it is rebuilt only by
+    calling this again.
+
+    The context must not be modified while handshakes using it are in flight.
+
+    Answers the way OpenSSL's SSL_CTX_compress_certs() does, non-zero for
+    success and zero for failure, so the usual if (!...) test works. The
+    reason for a failure is logged rather than returned.
+
+    \return WOLFSSL_SUCCESS upon success, including when the compressed form
+    is no smaller than the original and the cache is therefore left empty -
+    RFC 8879 leaves compressing to the sender, so such a chain is simply sent
+    as a plain Certificate.
+    \return WOLFSSL_FAILURE when ctx is NULL, when alg is not a supported
+    algorithm, when no certificate is loaded, when the chain does not fit the
+    message's wire fields, when memory cannot be allocated, or when the
+    compressor itself fails.
+
+    \param ctx pointer to a SSL context, created with wolfSSL_CTX_new().
+    \param alg algorithm to compress with. Only WOLFSSL_CERT_COMP_ZLIB is
+    implemented; WOLFSSL_CERT_COMP_BROTLI and WOLFSSL_CERT_COMP_ZSTD are
+    defined but not supported.
+
+    _Example_
+    \code
+    wolfSSL_CTX_use_certificate_file(ctx, cert, WOLFSSL_FILETYPE_PEM);
+    if (wolfSSL_CTX_compress_certs(ctx, WOLFSSL_CERT_COMP_ZLIB)
+            != WOLFSSL_SUCCESS) {
+        // compression failed
+    }
+    \endcode
+
+    \sa wolfSSL_get_certificate_compression_used
+*/
+int wolfSSL_CTX_compress_certs(WOLFSSL_CTX* ctx, int alg);
+
+/*!
+    \brief Reports the RFC 8879 algorithm the peer's Certificate message
+    arrived compressed with. Meaningful once the peer's certificate has been
+    received.
+
+    \return one of the WOLFSSL_CERT_COMP_* values when the peer's chain was
+    received compressed.
+    \return 0 when it was not compressed, or ssl is NULL.
+
+    \param ssl pointer to a SSL object, created with wolfSSL_new().
+
+    _Example_
+    \code
+    if (wolfSSL_get_certificate_compression_used(ssl) != 0) {
+        // peer's chain arrived compressed
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_compress_certs
+*/
+int wolfSSL_get_certificate_compression_used(WOLFSSL* ssl);
+
+/*!
+    \brief Sets the SignedCertificateTimestampList a server presents to
+    clients that ask for one (RFC 6962). The bytes are copied and sent
+    verbatim: wolfSSL does not validate them, since checking an SCT needs a
+    log list and a trust policy the library does not carry. Inherited by
+    WOLFSSL objects created from this context afterwards.
+
+    Answers the way BoringSSL's SSL_CTX_set_signed_cert_timestamp_list()
+    does, non-zero for success and zero for failure.
+
+    \return WOLFSSL_SUCCESS upon success.
+    \return WOLFSSL_FAILURE when ctx or list is NULL, when sz is 0, or when
+    the copy cannot be allocated.
+
+    \param ctx pointer to a SSL context, created with wolfSSL_CTX_new().
+    \param list SignedCertificateTimestampList bytes, including the outer
+    two-byte list length.
+    \param sz length of list in bytes.
+
+    _Example_
+    \code
+    if (wolfSSL_CTX_set_signed_cert_timestamp_list(ctx, sctList, sctListSz)
+            != WOLFSSL_SUCCESS) {
+        // list rejected
+    }
+    \endcode
+
+    \sa wolfSSL_set_signed_cert_timestamp_list
+    \sa wolfSSL_get0_signed_cert_timestamp_list
+    \sa wolfSSL_signed_cert_timestamp_requested
+*/
+int wolfSSL_CTX_set_signed_cert_timestamp_list(WOLFSSL_CTX* ctx,
+        const unsigned char* list, unsigned short sz);
+
+/*!
+    \brief Sets the SignedCertificateTimestampList for one SSL object,
+    overriding any list inherited from its context. See
+    wolfSSL_CTX_set_signed_cert_timestamp_list().
+
+    \return WOLFSSL_SUCCESS upon success.
+    \return WOLFSSL_FAILURE when ssl or list is NULL, when sz is 0, or when
+    the copy cannot be allocated.
+
+    \param ssl pointer to a SSL object, created with wolfSSL_new().
+    \param list SignedCertificateTimestampList bytes.
+    \param sz length of list in bytes.
+
+    _Example_
+    \code
+    wolfSSL_set_signed_cert_timestamp_list(ssl, sctList, sctListSz);
+    \endcode
+
+    \sa wolfSSL_CTX_set_signed_cert_timestamp_list
+    \sa wolfSSL_get0_signed_cert_timestamp_list
+*/
+int wolfSSL_set_signed_cert_timestamp_list(WOLFSSL* ssl,
+        const unsigned char* list, unsigned short sz);
+
+/*!
+    \brief Returns the SignedCertificateTimestampList the peer sent, without
+    copying it. The pointer belongs to the SSL object: it is released when
+    that object is freed, and also by wolfSSL_clear(), which drops the peer's
+    state so the object can be reused. Copy the bytes before either if they
+    are needed afterwards. wolfSSL performs no validation of the list.
+
+    \return length of the list in bytes, 0 when the peer sent none.
+
+    \param ssl pointer to a SSL object, created with wolfSSL_new().
+    \param list receives a pointer to the list bytes. May be NULL to query
+    only the length.
+
+    _Example_
+    \code
+    const unsigned char* sct = NULL;
+    unsigned short sz = wolfSSL_get0_signed_cert_timestamp_list(ssl, &sct);
+    if (sz > 0) {
+        // validate sct against a log list
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_set_signed_cert_timestamp_list
+    \sa wolfSSL_signed_cert_timestamp_requested
+*/
+unsigned short wolfSSL_get0_signed_cert_timestamp_list(WOLFSSL* ssl,
+        const unsigned char** list);
+
+/*!
+    \brief Reports whether the peer asked this end for signed certificate
+    timestamps. A server can use it to tell a client that wants SCTs from one
+    that did not ask.
+
+    \return 1 when the peer sent the signed_certificate_timestamp extension.
+    \return 0 when it did not, or ssl is NULL.
+
+    \param ssl pointer to a SSL object, created with wolfSSL_new().
+
+    _Example_
+    \code
+    if (wolfSSL_signed_cert_timestamp_requested(ssl)) {
+        // the client asked for SCTs
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_set_signed_cert_timestamp_list
+*/
+int wolfSSL_signed_cert_timestamp_requested(WOLFSSL* ssl);
+
+/*!
+    \brief Sets the signature schemes this context will accept in a peer's
+    certificate chain, sent as the signature_algorithms_cert extension of RFC
+    8446 Sect. 4.2.3. A client sends it in the ClientHello and a server in the
+    CertificateRequest. Without it, the schemes in signature_algorithms apply
+    to certificates as well; sending it lets the two differ, which is how an
+    endpoint accepts a legacy digest on a chain without accepting it for
+    handshake signatures.
+
+    \return WOLFSSL_SUCCESS upon success.
+    \return WOLFSSL_FAILURE when ctx or list is NULL, or the list cannot be
+    parsed.
+
+    \param ctx pointer to a SSL context, created with wolfSSL_CTX_new().
+    \param list colon separated scheme names, for example
+    "RSA-PSS+SHA256:ECDSA+SHA256".
+
+    _Example_
+    \code
+    wolfSSL_CTX_set1_sigalgs_cert_list(ctx, "RSA-PSS+SHA256:ECDSA+SHA256");
+    \endcode
+
+    \sa wolfSSL_set1_sigalgs_cert_list
+*/
+int wolfSSL_CTX_set1_sigalgs_cert_list(WOLFSSL_CTX* ctx, const char* list);
+
+/*!
+    \brief Sets the signature schemes accepted in a peer's certificate chain
+    for one SSL object, overriding the context's list. See
+    wolfSSL_CTX_set1_sigalgs_cert_list().
+
+    \return WOLFSSL_SUCCESS upon success.
+    \return WOLFSSL_FAILURE when ssl or list is NULL, or the list cannot be
+    parsed.
+
+    \param ssl pointer to a SSL object, created with wolfSSL_new().
+    \param list colon separated scheme names.
+
+    _Example_
+    \code
+    wolfSSL_set1_sigalgs_cert_list(ssl, "RSA-PSS+SHA256");
+    \endcode
+
+    \sa wolfSSL_CTX_set1_sigalgs_cert_list
+*/
+int wolfSSL_set1_sigalgs_cert_list(WOLFSSL* ssl, const char* list);
+
 
 /*!
     \brief This function is called on the client side to enable the use
