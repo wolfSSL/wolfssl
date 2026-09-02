@@ -29,7 +29,14 @@ make -C examples/async ASYNC_MODE=sw
 
 ### Crypto Callback Mode
 Uses `WOLF_CRYPTO_CB` with the `AsyncTlsCryptoCb` callback that simulates hardware
-crypto delays by returning `WC_PENDING_E` for a configurable number of iterations:
+crypto delays by returning `WC_PENDING_E` for a configurable number of iterations.
+The simulated device keeps a job table keyed by the request, like a hardware
+crypto manager: a request pends `TEST_PEND_COUNT` times (default 2) and the
+next re-invocation with identical arguments completes it. On TLS 1.3 every supported
+operation class pends (HKDF, AES-GCM, ECC/X25519 key generation and shared
+secret, ECDSA/Ed25519 sign and verify), including mutual authentication. On
+TLS 1.2 (`--tls12`) only the RSA and ECDSA signing set pends; the TLS 1.2 state
+machines do not resume the other classes.
 ```
 make -C examples/async ASYNC_MODE=cryptocb
 ```
@@ -68,7 +75,7 @@ Define `NET_USER_HEADER` to include your network shim and provide the
 
 ## Asynchronous Cryptography Design
 
-When a cryptographic call is handed off to hardware it return `WC_PENDING_E` up to caller. Then it can keep calling until the operation completes. For some platforms it is required to call `wolfSSL_AsyncPoll`. At the TLS layer a "devId" (Device ID) must be set using `wolfSSL_CTX_SetDevId` to indicate desire to offload cryptography.
+When a cryptographic call is handed off to hardware, `WC_PENDING_E` is returned up to the caller, which keeps calling until the operation completes. For some platforms it is required to call `wolfSSL_AsyncPoll`. At the TLS layer a "devId" (Device ID) must be set using `wolfSSL_CTX_SetDevId` to indicate the desire to offload cryptography.
 
 For further design details please see: https://github.com/wolfSSL/wolfAsyncCrypt#design
 
