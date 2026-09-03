@@ -1498,3 +1498,211 @@ int test_wolfSSL_cert_unload(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* ---------------------------------------------------------------------------
+ * Argument guards across the newly-visible public API surface.
+ *
+ * src/ssl_api_cert.c, ssl_api_crl_ocsp.c and their siblings are #included into
+ * ssl.c rather than compiled standalone, so they produced no object file and
+ * no module declared them until this part of the campaign. Now that they are
+ * measured, the shape of what is missing is unambiguous: 342 of the 646
+ * uncovered conditions across these files mention NULL, and in the densest of
+ * them it is 85-100%.
+ *
+ * They are not protocol behaviour. They are the checks each entry point makes
+ * on its own arguments, and the existing tests all pass arguments that are
+ * valid -- so every one of these decisions is taken the same way on every
+ * call, and none of the operands has an independence pair.
+ *
+ * A caller that queries or configures a CTX or an SSL it has not created yet,
+ * or passes a zero length, or asks for an output through a NULL pointer, is
+ * doing something ordinary and wrong. That is what these vectors are.
+ * ------------------------------------------------------------------------- */
+int test_wolfSSL_cert_api_arg_guards(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    int tp = 0;
+    const char certTypes[] = { WOLFSSL_CERT_TYPE_X509 };
+    unsigned char spki[8];
+
+    XMEMSET(spki, 0, sizeof(spki));
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* --- mutual auth and verify depth: NULL object, valid argument ------ */
+    ExpectIntNE(wolfSSL_CTX_mutual_auth(NULL, 1), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_mutual_auth(NULL, 1), WOLFSSL_SUCCESS);
+    (void)wolfSSL_CTX_mutual_auth(ctx, 1);
+    (void)wolfSSL_CTX_mutual_auth(ctx, 0);
+    (void)wolfSSL_mutual_auth(ssl, 1);
+    (void)wolfSSL_mutual_auth(ssl, 0);
+
+    ExpectNull(wolfSSL_CTX_GetCertManager(NULL));
+    ExpectNotNull(wolfSSL_CTX_GetCertManager(ctx));
+
+    wolfSSL_CTX_set_verify_depth(NULL, 4);
+    wolfSSL_CTX_set_verify_depth(ctx, 4);
+    (void)wolfSSL_CTX_get_verify_depth(NULL);
+    (void)wolfSSL_CTX_get_verify_depth(ctx);
+    (void)wolfSSL_get_verify_depth(NULL);
+    (void)wolfSSL_get_verify_depth(ssl);
+
+    /* --- certificate type lists: NULL object, NULL buffer, bad length --- */
+    (void)wolfSSL_CTX_set_client_cert_type(NULL, certTypes,
+                                           (int)sizeof(certTypes));
+    (void)wolfSSL_CTX_set_server_cert_type(NULL, certTypes,
+                                           (int)sizeof(certTypes));
+    (void)wolfSSL_set_client_cert_type(NULL, certTypes,
+                                       (int)sizeof(certTypes));
+    (void)wolfSSL_set_server_cert_type(NULL, certTypes,
+                                       (int)sizeof(certTypes));
+    /* NULL list with a non-zero length, and a list longer than allowed:
+     * both are refusals a correct caller never triggers */
+    (void)wolfSSL_CTX_set_client_cert_type(ctx, NULL, 1);
+    (void)wolfSSL_CTX_set_client_cert_type(ctx, certTypes, 0);
+    (void)wolfSSL_CTX_set_client_cert_type(ctx, certTypes, 99);
+    (void)wolfSSL_set_server_cert_type(ssl, NULL, 1);
+    (void)wolfSSL_set_server_cert_type(ssl, certTypes, 0);
+    (void)wolfSSL_set_server_cert_type(ssl, certTypes, 99);
+    /* the accepting partners */
+    (void)wolfSSL_CTX_set_client_cert_type(ctx, certTypes,
+                                           (int)sizeof(certTypes));
+    (void)wolfSSL_set_server_cert_type(ssl, certTypes,
+                                       (int)sizeof(certTypes));
+
+    /* negotiated type read back before any handshake, and through NULL */
+    (void)wolfSSL_get_negotiated_client_cert_type(NULL, &tp);
+    (void)wolfSSL_get_negotiated_server_cert_type(NULL, &tp);
+    (void)wolfSSL_get_negotiated_client_cert_type(ssl, NULL);
+    (void)wolfSSL_get_negotiated_server_cert_type(ssl, NULL);
+    (void)wolfSSL_get_negotiated_client_cert_type(ssl, &tp);
+    (void)wolfSSL_get_negotiated_server_cert_type(ssl, &tp);
+
+    /* --- raw public key expectations ------------------------------------ */
+    (void)wolfSSL_CTX_set_expected_rpk(NULL, spki, (word32)sizeof(spki));
+    (void)wolfSSL_set_expected_rpk(NULL, spki, (word32)sizeof(spki));
+    (void)wolfSSL_CTX_set_expected_rpk(ctx, NULL, (word32)sizeof(spki));
+    (void)wolfSSL_set_expected_rpk(ssl, NULL, (word32)sizeof(spki));
+    (void)wolfSSL_CTX_set_expected_rpk(ctx, spki, 0);
+    (void)wolfSSL_set_expected_rpk(ssl, spki, 0);
+    (void)wolfSSL_CTX_set_expected_rpk(ctx, spki, (word32)sizeof(spki));
+    (void)wolfSSL_set_expected_rpk(ssl, spki, (word32)sizeof(spki));
+    (void)wolfSSL_CTX_clear_expected_rpk(NULL);
+    (void)wolfSSL_clear_expected_rpk(NULL);
+    (void)wolfSSL_CTX_clear_expected_rpk(ctx);
+    (void)wolfSSL_clear_expected_rpk(ssl);
+
+    /* --- verify configuration through NULL objects ---------------------- */
+    wolfSSL_CTX_set_verify(NULL, WOLFSSL_VERIFY_PEER, NULL);
+    wolfSSL_set_verify(NULL, WOLFSSL_VERIFY_PEER, NULL);
+    wolfSSL_set_verify_result(NULL, 0);
+    wolfSSL_CTX_SetCertCbCtx(NULL, NULL);
+    wolfSSL_SetCertCbCtx(NULL, NULL);
+    /* and the same on real objects, so each guard has its partner */
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_NONE, NULL);
+    wolfSSL_set_verify(ssl, WOLFSSL_VERIFY_NONE, NULL);
+    wolfSSL_set_verify_result(ssl, 0);
+    wolfSSL_CTX_SetCertCbCtx(ctx, NULL);
+    wolfSSL_SetCertCbCtx(ssl, NULL);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The CRL and OCSP configuration entry points, same argument-guard rationale.
+ * 24 of ssl_api_crl_ocsp.c's 28 uncovered conditions mention NULL. */
+int test_wolfSSL_crl_ocsp_api_arg_guards(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+#ifdef HAVE_CRL
+    ExpectIntNE(wolfSSL_EnableCRL(NULL, 0), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_DisableCRL(NULL), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_CTX_EnableCRL(NULL, 0), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_CTX_DisableCRL(NULL), WOLFSSL_SUCCESS);
+    (void)wolfSSL_CTX_EnableCRL(ctx, 0);
+    (void)wolfSSL_CTX_DisableCRL(ctx);
+    (void)wolfSSL_EnableCRL(ssl, 0);
+    (void)wolfSSL_DisableCRL(ssl);
+
+    ExpectIntNE(wolfSSL_SetCRL_Cb(NULL, NULL), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_CTX_SetCRL_Cb(NULL, NULL), WOLFSSL_SUCCESS);
+    (void)wolfSSL_SetCRL_Cb(ssl, NULL);
+    (void)wolfSSL_CTX_SetCRL_Cb(ctx, NULL);
+    ExpectIntNE(wolfSSL_SetCRL_ErrorCb(NULL, NULL, NULL), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_CTX_SetCRL_ErrorCb(NULL, NULL, NULL), WOLFSSL_SUCCESS);
+    (void)wolfSSL_SetCRL_ErrorCb(ssl, NULL, NULL);
+    (void)wolfSSL_CTX_SetCRL_ErrorCb(ctx, NULL, NULL);
+
+#ifdef HAVE_CRL_IO
+    ExpectIntNE(wolfSSL_SetCRL_IOCb(NULL, NULL), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_CTX_SetCRL_IOCb(NULL, NULL), WOLFSSL_SUCCESS);
+    (void)wolfSSL_SetCRL_IOCb(ssl, NULL);
+    (void)wolfSSL_CTX_SetCRL_IOCb(ctx, NULL);
+#endif
+
+#if !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
+    /* NULL object, NULL path, and a path that does not exist: three
+     * different refusals, none of which a working configuration produces */
+    (void)wolfSSL_LoadCRL(NULL, "certs/crl", WOLFSSL_FILETYPE_PEM, 0);
+    (void)wolfSSL_CTX_LoadCRL(NULL, "certs/crl", WOLFSSL_FILETYPE_PEM, 0);
+    (void)wolfSSL_LoadCRL(ssl, NULL, WOLFSSL_FILETYPE_PEM, 0);
+    (void)wolfSSL_CTX_LoadCRL(ctx, NULL, WOLFSSL_FILETYPE_PEM, 0);
+    (void)wolfSSL_CTX_LoadCRL(ctx, "certs/no-such-dir",
+                              WOLFSSL_FILETYPE_PEM, 0);
+    (void)wolfSSL_LoadCRLFile(NULL, "certs/crl/crl.pem",
+                              WOLFSSL_FILETYPE_PEM);
+    (void)wolfSSL_CTX_LoadCRLFile(NULL, "certs/crl/crl.pem",
+                                  WOLFSSL_FILETYPE_PEM);
+    (void)wolfSSL_LoadCRLFile(ssl, NULL, WOLFSSL_FILETYPE_PEM);
+    (void)wolfSSL_CTX_LoadCRLFile(ctx, NULL, WOLFSSL_FILETYPE_PEM);
+#endif
+
+    /* buffer loads: NULL object, NULL buffer, zero length, bad type */
+    (void)wolfSSL_CTX_LoadCRLBuffer(NULL, (const unsigned char*)"x", 1,
+                                    WOLFSSL_FILETYPE_ASN1);
+    (void)wolfSSL_LoadCRLBuffer(NULL, (const unsigned char*)"x", 1,
+                                WOLFSSL_FILETYPE_ASN1);
+    (void)wolfSSL_CTX_LoadCRLBuffer(ctx, NULL, 1, WOLFSSL_FILETYPE_ASN1);
+    (void)wolfSSL_LoadCRLBuffer(ssl, NULL, 1, WOLFSSL_FILETYPE_ASN1);
+    (void)wolfSSL_CTX_LoadCRLBuffer(ctx, (const unsigned char*)"x", 0,
+                                    WOLFSSL_FILETYPE_ASN1);
+    (void)wolfSSL_LoadCRLBuffer(ssl, (const unsigned char*)"x", 0,
+                                WOLFSSL_FILETYPE_ASN1);
+#endif /* HAVE_CRL */
+
+#ifdef HAVE_OCSP
+    ExpectIntNE(wolfSSL_EnableOCSP(NULL, 0), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_DisableOCSP(NULL), WOLFSSL_SUCCESS);
+    (void)wolfSSL_EnableOCSP(ssl, 0);
+    (void)wolfSSL_DisableOCSP(ssl);
+    (void)wolfSSL_SetOCSP_OverrideURL(NULL, "http://ocsp.example.com/");
+    (void)wolfSSL_SetOCSP_OverrideURL(ssl, NULL);
+    (void)wolfSSL_SetOCSP_OverrideURL(ssl, "http://ocsp.example.com/");
+    (void)wolfSSL_SetOCSP_Cb(NULL, NULL, NULL, NULL);
+    (void)wolfSSL_SetOCSP_Cb(ssl, NULL, NULL, NULL);
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+    ExpectIntNE(wolfSSL_EnableOCSPStapling(NULL), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_DisableOCSPStapling(NULL), WOLFSSL_SUCCESS);
+    (void)wolfSSL_EnableOCSPStapling(ssl);
+    (void)wolfSSL_DisableOCSPStapling(ssl);
+#endif
+#endif /* HAVE_OCSP */
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
