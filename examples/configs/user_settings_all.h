@@ -126,6 +126,7 @@ extern "C" {
 #define HAVE_OID_ENCODING
 #define WOLFSSL_ASN_TEMPLATE
 #define WOLFSSL_ALT_NAMES /* Support subject alternative names extension */
+#define WOLFSSL_CHAIN_VERIFY_CB /* Replace peer chain verification with an application callback */
 
 /* Certificate Revocation */
 #define HAVE_OCSP
