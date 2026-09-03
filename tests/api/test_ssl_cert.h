@@ -24,6 +24,8 @@
 
 int test_wolfSSL_cert_api_arg_guards(void);
 int test_wolfSSL_crl_ocsp_api_arg_guards(void);
+int test_wolfSSL_ocsp_stapling_accessors(void);
+int test_wolfSSL_crl_io_mock(void);
 
 int test_wolfSSL_get_verify_mode(void);
 int test_wolfSSL_CTX_get_verify_mode(void);
@@ -106,6 +108,8 @@ int test_wolfSSL_verify_post_handshake_defers(void);
         TEST_DECL_GROUP("ssl_cert",                                            \
             test_wolfSSL_verify_post_handshake_defers),                      \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_cert_api_arg_guards),        \
-        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_crl_ocsp_api_arg_guards)
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_crl_ocsp_api_arg_guards),    \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_ocsp_stapling_accessors),    \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_crl_io_mock)
 
 #endif /* TESTS_API_SSL_CERT_H */
