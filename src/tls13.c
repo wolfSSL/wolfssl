@@ -7940,7 +7940,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (echX == NULL)
             ERROR_OUT(WOLFSSL_FATAL_ERROR, exit_dch);
 
-        ((WOLFSSL_ECH*)echX->data)->aad = input + HANDSHAKE_HEADER_SZ;
+        ((WOLFSSL_ECH*)echX->data)->aad = input + args->begin;
         ((WOLFSSL_ECH*)echX->data)->aadLen = helloSz;
     }
 #endif
@@ -15185,6 +15185,11 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 *inOutIdx = echInOutIdx;
                 /* call again with the inner hello */
                 if (ret == 0) {
+                    echInOutIdx = HANDSHAKE_HEADER_SZ;
+#ifdef WOLFSSL_DTLS13
+                    if (ssl->options.dtls)
+                        echInOutIdx = DTLS13_HANDSHAKE_HEADER_SZ;
+#endif
                     ssl->options.echProcessingInner = 1;
                     ret = DoTls13ClientHello(ssl,
                         ((WOLFSSL_ECH*)echX->data)->innerClientHello,

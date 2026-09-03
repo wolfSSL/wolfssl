@@ -17828,6 +17828,51 @@ static int test_wolfSSL_Tls13_ECH_sni_parse(void)
 }
 
 #undef ECH_KEPT
+
+#ifdef WOLFSSL_TLS_READ_AHEAD
+/* Server ssl_ready callback: set SNI and read the whole record in one go */
+static int test_ech_server_ssl_ready_read_ahead(WOLFSSL* ssl)
+{
+    if (wolfSSL_set_read_ahead(ssl, 1) != WOLFSSL_SUCCESS)
+        return TEST_FAIL;
+
+    return test_ech_server_ssl_ready(ssl);
+}
+#endif
+
+/* ECH must be accepted when the whole ClientHello record is already buffered
+ * when the handshake header is read, so that the ClientHello body sits behind
+ * the record header rather than at the start of the parsed buffer. */
+static int test_wolfSSL_Tls13_ECH_read_ahead(void)
+{
+    EXPECT_DECLS;
+#ifdef WOLFSSL_TLS_READ_AHEAD
+    struct test_ssl_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    echCbTestKemID = 0;
+    echCbTestKdfID = 0;
+    echCbTestAeadID = 0;
+
+    test_ctx.s_cb.method = wolfTLSv1_3_server_method;
+    test_ctx.c_cb.method = wolfTLSv1_3_client_method;
+
+    test_ctx.s_cb.ctx_ready = test_ech_server_ctx_ready;
+    test_ctx.s_cb.ssl_ready = test_ech_server_ssl_ready_read_ahead;
+    test_ctx.c_cb.ssl_ready = test_ech_client_ssl_ready;
+
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+    ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.c_ssl),
+        WOLFSSL_ECH_STATUS_ACCEPTED);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.s_ssl),
+        WOLFSSL_ECH_STATUS_ACCEPTED);
+
+    test_ssl_memio_cleanup(&test_ctx);
+#endif
+    return EXPECT_RESULT();
+}
 #endif /* HAVE_SSL_MEMIO_TESTS_DEPENDENCIES */
 
 /* verify that ECH can be enabled/disabled without issue */
@@ -40998,6 +41043,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_Tls13_ECH_rejected_cert_valid),
     TEST_DECL(test_wolfSSL_Tls13_ECH_rejected_empty_client_cert),
     TEST_DECL(test_wolfSSL_Tls13_ECH_sni_parse),
+    TEST_DECL(test_wolfSSL_Tls13_ECH_read_ahead),
 #endif
 #if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TEST_ECH) && \
     !defined(WOLFSSL_NO_TLS12)
