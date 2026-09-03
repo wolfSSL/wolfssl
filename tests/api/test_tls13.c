@@ -10025,3 +10025,252 @@ int test_tls13_pha_status_request(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/*----------------------------------------------------------------------------*
+ | Session export and import
+ *----------------------------------------------------------------------------*/
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    defined(WOLFSSL_SESSION_EXPORT)
+#define TEST_TLS13_EXPORT
+#endif
+
+#ifdef TEST_TLS13_EXPORT
+/* process buffered post-handshake messages, success being WANT_READ */
+static int test_tls13_export_pump(WOLFSSL* ssl)
+{
+    unsigned char buf[8];
+    int ret;
+
+    ret = wolfSSL_read(ssl, buf, (int)sizeof(buf));
+    if (ret > 0)
+        return -1;
+    if (wolfSSL_get_error(ssl, ret) != WOLFSSL_ERROR_WANT_READ)
+        return -1;
+    return 0;
+}
+
+static int test_tls13_export_connect(struct test_memio_ctx* test_ctx,
+        WOLFSSL_CTX** ctx_c, WOLFSSL_CTX** ctx_s, WOLFSSL** ssl_c,
+        WOLFSSL** ssl_s)
+{
+    EXPECT_DECLS;
+
+    XMEMSET(test_ctx, 0, sizeof(*test_ctx));
+    ExpectIntEQ(test_memio_setup(test_ctx, ctx_c, ctx_s, ssl_c, ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(*ssl_c, *ssl_s, 10, NULL), 0);
+    /* the tickets sent with the server's Finished */
+    ExpectIntEQ(test_tls13_export_pump(*ssl_c), 0);
+
+    return EXPECT_RESULT();
+}
+
+static int test_tls13_export_alloc(WOLFSSL* ssl, unsigned char** out,
+        unsigned int* outSz)
+{
+    EXPECT_DECLS;
+
+    *outSz = 0;
+    ExpectIntEQ(wolfSSL_tls_export(ssl, NULL, outSz),
+                WC_NO_ERR_TRACE(LENGTH_ONLY_E));
+    ExpectNotNull(*out = (unsigned char*)XMALLOC(*outSz, NULL,
+                    DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntGT(wolfSSL_tls_export(ssl, *out, outSz), 0);
+
+    return EXPECT_RESULT();
+}
+
+/* import 'session' into a fresh WOLFSSL wired to the same memio buffers */
+static int test_tls13_export_import(WOLFSSL_CTX* ctx,
+        struct test_memio_ctx* test_ctx, WOLFSSL** ssl,
+        const unsigned char* session, unsigned int sessionSz)
+{
+    EXPECT_DECLS;
+
+    ExpectNotNull(*ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_tls_import(*ssl, session, sessionSz), (int)sessionSz);
+    if (*ssl != NULL) {
+        wolfSSL_SetIOWriteCtx(*ssl, test_ctx);
+        wolfSSL_SetIOReadCtx(*ssl, test_ctx);
+    }
+
+    return EXPECT_RESULT();
+}
+
+/* replace *ssl by an import of its own export */
+static int test_tls13_export_reload(WOLFSSL_CTX* ctx,
+        struct test_memio_ctx* test_ctx, WOLFSSL** ssl)
+{
+    EXPECT_DECLS;
+    WOLFSSL* imp = NULL;
+    unsigned char* session = NULL;
+    unsigned int sessionSz = 0;
+
+    ExpectIntEQ(test_tls13_export_alloc(*ssl, &session, &sessionSz),
+                TEST_SUCCESS);
+    wolfSSL_free(*ssl);
+    *ssl = NULL;
+    ExpectIntEQ(test_tls13_export_import(ctx, test_ctx, &imp, session,
+                sessionSz), TEST_SUCCESS);
+    *ssl = imp;
+    XFREE(session, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return EXPECT_RESULT();
+}
+
+static int test_tls13_export_xfer(WOLFSSL* w, WOLFSSL* r, const char* msg)
+{
+    EXPECT_DECLS;
+    unsigned char buf[64];
+    int msgSz = (int)XSTRLEN(msg);
+
+    ExpectIntEQ(wolfSSL_write(w, msg, msgSz), msgSz);
+    ExpectIntEQ(wolfSSL_read(r, buf, (int)sizeof(buf)), msgSz);
+    ExpectBufEQ(buf, msg, msgSz);
+
+    return EXPECT_RESULT();
+}
+
+static void test_tls13_export_free(WOLFSSL_CTX* ctx_c, WOLFSSL_CTX* ctx_s,
+        WOLFSSL* ssl_c, WOLFSSL* ssl_s)
+{
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+}
+
+#ifdef HAVE_SESSION_TICKET
+/* A ticket issued after the import is numbered after the ones issued before
+ * it and derives from the resumption secret of the connection, so that it
+ * resumes, whichever side was imported. */
+static int test_tls13_export_ticket_after_import(int exportClient)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION* sess = NULL;
+    struct test_memio_ctx test_ctx;
+
+    ExpectIntEQ(test_tls13_export_connect(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                    &ssl_s), TEST_SUCCESS);
+    /* the ticket sent with the server's Finished, the first of the
+     * connection */
+    if (ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->session->ticketNonce.len, DEF_TICKET_NONCE_SZ);
+        ExpectIntEQ(ssl_c->session->ticketNonce.data[0], 0);
+    }
+
+    if (exportClient) {
+        ExpectIntEQ(test_tls13_export_reload(ctx_c, &test_ctx, &ssl_c),
+                    TEST_SUCCESS);
+    }
+    else {
+        ExpectIntEQ(test_tls13_export_reload(ctx_s, &test_ctx, &ssl_s),
+                    TEST_SUCCESS);
+    }
+
+    /* the second ticket of the connection, issued after the import */
+    ExpectIntEQ(wolfSSL_send_SessionTicket(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_tls13_export_pump(ssl_c), 0);
+    /* numbered after the first one, not like it (RFC 8446 Section 4.6.1) */
+    if (ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->session->ticketNonce.len, DEF_TICKET_NONCE_SZ);
+        ExpectIntEQ(ssl_c->session->ticketNonce.data[0], 1);
+    }
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+
+    /* and it resumes */
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    ssl_c = NULL;
+    ssl_s = NULL;
+    test_memio_clear_buffer(&test_ctx, 0);
+    test_memio_clear_buffer(&test_ctx, 1);
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+    wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+    wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_c), 1);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_s), 1);
+
+    wolfSSL_SESSION_free(sess);
+    test_tls13_export_free(ctx_c, ctx_s, ssl_c, ssl_s);
+    return EXPECT_RESULT();
+}
+#endif /* HAVE_SESSION_TICKET */
+
+/* A KeyUpdate after the import, from either side, derives the next keys from
+ * the traffic secrets of the connection. */
+static int test_tls13_export_key_update(int clientInitiates)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL *initiator = NULL, *peer = NULL;
+    struct test_memio_ctx test_ctx;
+
+    ExpectIntEQ(test_tls13_export_connect(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                    &ssl_s), TEST_SUCCESS);
+    ExpectIntEQ(test_tls13_export_reload(ctx_s, &test_ctx, &ssl_s),
+                TEST_SUCCESS);
+    ExpectIntEQ(test_tls13_export_xfer(ssl_s, ssl_c, "hello client"),
+                TEST_SUCCESS);
+    ExpectIntEQ(test_tls13_export_xfer(ssl_c, ssl_s, "hello server"),
+                TEST_SUCCESS);
+
+    initiator = clientInitiates ? ssl_c : ssl_s;
+    peer = clientInitiates ? ssl_s : ssl_c;
+    ExpectIntEQ(wolfSSL_update_keys(initiator), WOLFSSL_SUCCESS);
+    /* the peer takes the KeyUpdate in ahead of the record that follows it and
+     * answers with its own ahead of its reply */
+    ExpectIntEQ(test_tls13_export_xfer(initiator, peer, "after the update"),
+                TEST_SUCCESS);
+    ExpectIntEQ(test_tls13_export_xfer(peer, initiator, "and back"),
+                TEST_SUCCESS);
+
+    test_tls13_export_free(ctx_c, ctx_s, ssl_c, ssl_s);
+    return EXPECT_RESULT();
+}
+#endif /* TEST_TLS13_EXPORT */
+
+int test_tls13_export_server_ticket_after_import(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_TLS13_EXPORT) && defined(HAVE_SESSION_TICKET)
+    ExpectIntEQ(test_tls13_export_ticket_after_import(0), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_tls13_export_client_ticket_after_import(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_TLS13_EXPORT) && defined(HAVE_SESSION_TICKET)
+    ExpectIntEQ(test_tls13_export_ticket_after_import(1), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_tls13_export_server_key_update(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_TLS13_EXPORT
+    ExpectIntEQ(test_tls13_export_key_update(0), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_tls13_export_client_key_update(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_TLS13_EXPORT
+    ExpectIntEQ(test_tls13_export_key_update(1), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}

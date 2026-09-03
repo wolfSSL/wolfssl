@@ -2693,7 +2693,8 @@ int Dtls13SetRecordNumberKeys(WOLFSSL* ssl, enum encrypt_side side)
 
 #ifdef WOLFSSL_SESSION_EXPORT
 /* Derive the key material of an imported epoch from the traffic secret held in
- * ssl->clientSecret/serverSecret, so that none of it has to be serialized. */
+ * ssl->clientSecret/serverSecret, imported from the TLS 1.3 section the blob
+ * carries ahead of the epochs, so that none of it has to be serialized. */
 static int Dtls13DeriveEpochKeys(WOLFSSL* ssl, Dtls13Epoch* e, int side)
 {
     int provision;
@@ -2958,10 +2959,12 @@ static int Dtls13ImportEpochField(const byte* exp, word32 len,
 }
 
 /* Serialize the DTLS 1.3 record layer state: the current, peer and invalidate
- * before epoch numbers, the traffic and resumption secrets, the KeyUpdate
- * response the peer owes, the ticket nonce and three length prefixed epoch
- * fields - the sending epoch, the peer epoch and the previous peer epoch - a
- * field being empty when the connection does not have that epoch.
+ * before epoch numbers and three length prefixed epoch fields - the sending
+ * epoch, the peer epoch and the previous peer epoch - a field being empty when
+ * the connection does not have that epoch. The traffic secrets the epoch keys
+ * are derived from on import, the KeyUpdate response the peer owes and the
+ * ticket nonce are in the TLS 1.3 section the blob carries ahead of this one,
+ * written by ExportTls13State().
  * Returns the number of bytes written to 'exp' or a negative value. */
 int ExportDtls13State(WOLFSSL* ssl, byte* exp, word32 len)
 {
@@ -2971,9 +2974,6 @@ int ExportDtls13State(WOLFSSL* ssl, byte* exp, word32 len)
     const Dtls13RtxRecord* r;
     w64wrapper prevEpochNumber;
     word32 idx = 0;
-    byte secretSz;
-    byte nonceLen = 0;
-    byte nonce = 0;
     int ret;
 
     WOLFSSL_ENTER("ExportDtls13State");
@@ -3039,12 +3039,7 @@ int ExportDtls13State(WOLFSSL* ssl, byte* exp, word32 len)
             prevEpoch = NULL;
     }
 
-    secretSz = ssl->specs.hash_size;
-    if (secretSz > SECRET_LEN)
-        return BAD_STATE_E;
-
-    if ((3 * OPAQUE64_LEN) + OPAQUE8_LEN + (3u * secretSz) +
-            (3 * OPAQUE8_LEN) > len)
+    if ((3 * OPAQUE64_LEN) > len)
         return BUFFER_E;
 
     c64toa(&ssl->dtls13Epoch, exp + idx);     idx += OPAQUE64_LEN;
@@ -3052,35 +3047,6 @@ int ExportDtls13State(WOLFSSL* ssl, byte* exp, word32 len)
     /* the epochs below it stop decrypting once the peer is seen using it
      * (RFC 9147 Section 4.5.3) */
     c64toa(&ssl->dtls13InvalidateBefore, exp + idx); idx += OPAQUE64_LEN;
-
-    /* traffic secrets, needed to derive the next epoch keys on KeyUpdate, and
-     * the resumption secret, which the tickets issued or received from here on
-     * derive their PSK from */
-    exp[idx++] = secretSz;
-    XMEMCPY(exp + idx, ssl->clientSecret, secretSz); idx += secretSz;
-    XMEMCPY(exp + idx, ssl->serverSecret, secretSz); idx += secretSz;
-    XMEMCPY(exp + idx, ssl->session->masterSecret, secretSz); idx += secretSz;
-
-    /* a KeyUpdate that asked for a response the peer has not sent yet; the
-     * checks above leave nothing else of a KeyUpdate pending */
-    exp[idx++] = ssl->keys.updateResponseReq;
-
-    /* The nonce of the last ticket issued, a one byte count that
-     * SendTls13NewSessionTicket() steps for every ticket and that has to stay
-     * unique on the connection (RFC 8446 Section 4.6.1); unset before the
-     * first ticket. A client holds the nonce of the ticket it received, which
-     * belongs to the session, not to the connection. */
-#ifdef HAVE_SESSION_TICKET
-    if (ssl->options.side == WOLFSSL_SERVER_END &&
-            ssl->session->ticketNonce.len > 0) {
-        if (ssl->session->ticketNonce.len != DEF_TICKET_NONCE_SZ)
-            return BAD_STATE_E;
-        nonceLen = DEF_TICKET_NONCE_SZ;
-        nonce = ssl->session->ticketNonce.data[0];
-    }
-#endif
-    exp[idx++] = nonceLen;
-    exp[idx++] = nonce;
 
     /* the sending epoch */
     ret = Dtls13ExportEpochField(ssl, sendEpoch, NULL, exp + idx, len - idx);
@@ -3118,9 +3084,6 @@ int ImportDtls13State(WOLFSSL* ssl, const byte* exp, word32 len)
     const byte* field;
     word32 fieldSz;
     word32 idx = 0;
-    byte secretSz;
-    byte nonceLen;
-    byte nonce;
     int ret;
 
     WOLFSSL_ENTER("ImportDtls13State");
@@ -3134,38 +3097,12 @@ int ImportDtls13State(WOLFSSL* ssl, const byte* exp, word32 len)
     ssl->dtls13EncryptEpoch = NULL;
     ssl->dtls13DecryptEpoch = NULL;
 
-    if ((3 * OPAQUE64_LEN) + OPAQUE8_LEN > len)
+    if ((3 * OPAQUE64_LEN) > len)
         return BUFFER_E;
 
     ato64(exp + idx, &ssl->dtls13Epoch);     idx += OPAQUE64_LEN;
     ato64(exp + idx, &ssl->dtls13PeerEpoch); idx += OPAQUE64_LEN;
     ato64(exp + idx, &ssl->dtls13InvalidateBefore); idx += OPAQUE64_LEN;
-
-    secretSz = exp[idx++];
-    /* every epoch key is derived over specs.hash_size bytes of the secrets */
-    if (secretSz != ssl->specs.hash_size || secretSz > SECRET_LEN ||
-            idx + (3u * secretSz) + (3 * OPAQUE8_LEN) > len)
-        return BUFFER_E;
-    XMEMCPY(ssl->clientSecret, exp + idx, secretSz); idx += secretSz;
-    XMEMCPY(ssl->serverSecret, exp + idx, secretSz); idx += secretSz;
-    XMEMCPY(ssl->session->masterSecret, exp + idx, secretSz); idx += secretSz;
-
-    /* the KeyUpdate response still due from the peer */
-    if (exp[idx] > 1)
-        return BUFFER_E;
-    ssl->keys.updateResponseReq = exp[idx++];
-
-    /* the nonce the next ticket is numbered after */
-    nonceLen = exp[idx++];
-    nonce = exp[idx++];
-    if (nonceLen > DEF_TICKET_NONCE_SZ)
-        return BUFFER_E;
-#ifdef HAVE_SESSION_TICKET
-    ssl->session->ticketNonce.len = nonceLen;
-    ssl->session->ticketNonce.data[0] = nonce;
-#else
-    (void)nonce;
-#endif
 
     /* an exported connection is past its handshake, so both epochs it names are
      * traffic epochs; Dtls13SetEpochKeys() installs no key for epoch 0 */
@@ -3253,11 +3190,6 @@ int ImportDtls13State(WOLFSSL* ssl, const byte* exp, word32 len)
     }
     if (ret != 0)
         return ret;
-
-    /* The imported connection is past its handshake: received KeyUpdate
-     * messages must pass the out-of-order sanity check. */
-    if (ssl->options.handShakeDone)
-        ssl->msgsReceived.got_finished = 1;
 
     WOLFSSL_LEAVE("ImportDtls13State", (int)idx);
     return (int)idx;

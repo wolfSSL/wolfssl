@@ -1128,6 +1128,136 @@ int DeriveResumptionSecret(WOLFSSL* ssl, byte* key)
 }
 #endif
 
+#ifdef WOLFSSL_SESSION_EXPORT
+/* Serialize the TLS 1.3 state the record layer sections of a session export
+ * leave out, for a stream and a DTLS session alike: the traffic secrets the
+ * next KeyUpdate derives its keys from, the resumption secret the tickets
+ * issued or received from here on derive their PSK from, a KeyUpdate response
+ * still due from the peer and the nonce of the last ticket issued.
+ * Returns the number of bytes written to 'exp' or a negative value. */
+int ExportTls13State(WOLFSSL* ssl, byte* exp, word32 len)
+{
+    word32 idx = 0;
+    byte secretSz;
+    byte nonceLen = 0;
+
+    WOLFSSL_ENTER("ExportTls13State");
+
+    if (ssl == NULL || exp == NULL)
+        return BAD_FUNC_ARG;
+
+    /* the secrets are the traffic ones only once the handshake is done */
+    if (!ssl->options.handShakeDone) {
+        WOLFSSL_MSG("Can not export before the handshake is done");
+        return BAD_STATE_E;
+    }
+
+    /* a KeyUpdate response the read side left for the write side to send */
+    if (ssl->options.sendKeyUpdate) {
+        WOLFSSL_MSG("Can not export with a KeyUpdate response pending");
+        return BAD_STATE_E;
+    }
+
+    secretSz = ssl->specs.hash_size;
+    if (secretSz > SECRET_LEN)
+        return BAD_STATE_E;
+
+    /* The nonce of the last ticket issued, the per-connection count that
+     * SendTls13NewSessionTicket() steps for every ticket and that has to stay
+     * unique on the connection (RFC 8446 Section 4.6.1); unset before the
+     * first ticket. A client holds the nonce of the ticket it received, which
+     * belongs to the session, not to the connection, so it is not exported. */
+#ifdef HAVE_SESSION_TICKET
+    if (ssl->options.side == WOLFSSL_SERVER_END)
+        nonceLen = ssl->session->ticketNonce.len;
+    if (nonceLen > DEF_TICKET_NONCE_SZ)
+        return BAD_STATE_E;
+#endif
+
+    /* secret length, the three secrets, the KeyUpdate response flag, the nonce
+     * length and a fixed DEF_TICKET_NONCE_SZ wide nonce field */
+    if (OPAQUE8_LEN + (3u * secretSz) + (2 * OPAQUE8_LEN) + DEF_TICKET_NONCE_SZ
+            > len)
+        return BUFFER_E;
+
+    exp[idx++] = secretSz;
+    XMEMCPY(exp + idx, ssl->clientSecret, secretSz); idx += secretSz;
+    XMEMCPY(exp + idx, ssl->serverSecret, secretSz); idx += secretSz;
+    XMEMCPY(exp + idx, ssl->session->masterSecret, secretSz); idx += secretSz;
+
+    /* a KeyUpdate that asked for a response the peer has not sent yet */
+    exp[idx++] = ssl->keys.updateResponseReq;
+
+    /* the nonce length, then the nonce itself in a DEF_TICKET_NONCE_SZ wide
+     * field so the section size does not depend on whether a ticket was sent */
+    exp[idx++] = nonceLen;
+    XMEMSET(exp + idx, 0, DEF_TICKET_NONCE_SZ);
+#ifdef HAVE_SESSION_TICKET
+    if (nonceLen > 0)
+        XMEMCPY(exp + idx, ssl->session->ticketNonce.data, nonceLen);
+#endif
+    idx += DEF_TICKET_NONCE_SZ;
+
+    WOLFSSL_LEAVE("ExportTls13State", (int)idx);
+    return (int)idx;
+}
+
+/* Parse what ExportTls13State() wrote into 'ssl', whose cipher specs and
+ * options were imported ahead of it.
+ * Returns the number of bytes read from 'exp' or a negative value. */
+int ImportTls13State(WOLFSSL* ssl, const byte* exp, word32 len)
+{
+    word32 idx = 0;
+    byte secretSz;
+    byte nonceLen;
+
+    WOLFSSL_ENTER("ImportTls13State");
+
+    if (ssl == NULL || exp == NULL)
+        return BAD_FUNC_ARG;
+
+    if (OPAQUE8_LEN > len)
+        return BUFFER_E;
+    secretSz = exp[idx++];
+    /* every key is derived over specs.hash_size bytes of the secrets; the
+     * three secrets are followed by the KeyUpdate response flag, the nonce
+     * length and a DEF_TICKET_NONCE_SZ wide nonce field */
+    if (secretSz != ssl->specs.hash_size || secretSz > SECRET_LEN ||
+            idx + (3u * secretSz) + (2 * OPAQUE8_LEN) + DEF_TICKET_NONCE_SZ
+                > len)
+        return BUFFER_E;
+    XMEMCPY(ssl->clientSecret, exp + idx, secretSz); idx += secretSz;
+    XMEMCPY(ssl->serverSecret, exp + idx, secretSz); idx += secretSz;
+    XMEMCPY(ssl->session->masterSecret, exp + idx, secretSz); idx += secretSz;
+
+    /* the KeyUpdate response still due from the peer */
+    if (exp[idx] > 1)
+        return BUFFER_E;
+    ssl->keys.updateResponseReq = exp[idx++];
+
+    /* the nonce the next ticket is numbered after, only meaningful on the
+     * server; a client blob carries a zero length here */
+    nonceLen = exp[idx++];
+    if (nonceLen > DEF_TICKET_NONCE_SZ)
+        return BUFFER_E;
+#ifdef HAVE_SESSION_TICKET
+    if (ssl->options.side == WOLFSSL_SERVER_END) {
+        ssl->session->ticketNonce.len = nonceLen;
+        XMEMCPY(ssl->session->ticketNonce.data, exp + idx, nonceLen);
+    }
+#endif
+    idx += DEF_TICKET_NONCE_SZ;
+
+    /* The imported connection is past its handshake: received KeyUpdate
+     * messages must pass the out-of-order sanity check. */
+    if (ssl->options.handShakeDone)
+        ssl->msgsReceived.got_finished = 1;
+
+    WOLFSSL_LEAVE("ImportTls13State", (int)idx);
+    return (int)idx;
+}
+#endif /* WOLFSSL_SESSION_EXPORT */
+
 /* Length of the finished label. */
 #define FINISHED_LABEL_SZ           8
 /* Finished label for generating finished key. */

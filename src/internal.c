@@ -2166,6 +2166,36 @@ int wolfSSL_session_import_internal(WOLFSSL* ssl, const unsigned char* buf,
         }
     }
 
+#ifdef WOLFSSL_TLS13
+    /* TLS 1.3 secrets, present for a stream and a DTLS 1.3 session alike since
+     * export version 7, ahead of the DTLS 1.3 epochs whose keys derive from
+     * them */
+    if (ret == 0 && version > WOLFSSL_EXPORT_VERSION_6 &&
+            IsAtLeastTLSv1_3(ssl->version)) {
+        if (WOLFSSL_EXPORT_LEN + idx > sz) {
+            WOLFSSL_MSG("Import TLS 1.3 state error");
+            ret = BUFFER_E;
+        }
+        else {
+            ato16(buf + idx, &length); idx += WOLFSSL_EXPORT_LEN;
+            if (idx + length > sz) {
+                WOLFSSL_MSG("Import TLS 1.3 state error");
+                ret = BUFFER_E;
+            }
+            else {
+                rc = ImportTls13State(ssl, buf + idx, length);
+                if (rc < 0) {
+                    WOLFSSL_MSG("Import TLS 1.3 state error");
+                    ret = rc;
+                }
+                else {
+                    idx += length;
+                }
+            }
+        }
+    }
+#endif
+
     /* DTLS 1.3 record layer state, present since export version 7 */
     if (ret == 0 && type == WOLFSSL_EXPORT_DTLS &&
             ssl->version.major == DTLS_MAJOR &&
@@ -2295,6 +2325,9 @@ int wolfSSL_session_export_internal(WOLFSSL* ssl, byte* buf, word32* sz,
     word32 idx      = 0;
 
     word32 totalLen = 0;
+#ifdef WOLFSSL_TLS13
+    int tls13       = 0;
+#endif
 #ifdef WOLFSSL_DTLS13
     int dtls13      = 0;
 #endif
@@ -2327,6 +2360,13 @@ int wolfSSL_session_export_internal(WOLFSSL* ssl, byte* buf, word32* sz,
         if (type == WOLFSSL_EXPORT_DTLS) {
             totalLen += WOLFSSL_EXPORT_LEN + MAX_EXPORT_IP +
                 (3 * WOLFSSL_EXPORT_LEN);
+        }
+        #endif
+        #ifdef WOLFSSL_TLS13
+        /* TLS 1.3 secrets section, for a stream and a DTLS session alike */
+        if (IsAtLeastTLSv1_3(ssl->version)) {
+            tls13 = 1;
+            totalLen += WOLFSSL_EXPORT_LEN + WOLFSSL_EXPORT_TLS13_SZ;
         }
         #endif
         #ifdef WOLFSSL_DTLS13
@@ -2423,6 +2463,24 @@ int wolfSSL_session_export_internal(WOLFSSL* ssl, byte* buf, word32* sz,
             ret  = 0;
         }
     }
+
+#ifdef WOLFSSL_TLS13
+    /* export of the TLS 1.3 secrets, ahead of the DTLS 1.3 epochs whose keys
+     * the importer derives from them */
+    if (ret == 0 && tls13 && idx + WOLFSSL_EXPORT_LEN > *sz) {
+        WOLFSSL_MSG("export buffer was too small for the TLS 1.3 length");
+        ret = BUFFER_E;
+    }
+    if (ret == 0 && tls13) {
+        idx += WOLFSSL_EXPORT_LEN;
+        ret = ExportTls13State(ssl, buf + idx, *sz - idx);
+        if (ret >= 0) {
+            c16toa((word16)ret, buf + idx - WOLFSSL_EXPORT_LEN);
+            idx += ret;
+            ret  = 0;
+        }
+    }
+#endif
 
 #ifdef WOLFSSL_DTLS13
     /* export of DTLS 1.3 record layer state */

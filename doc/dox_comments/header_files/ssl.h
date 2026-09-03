@@ -728,7 +728,10 @@ int wolfSSL_dtls_import(WOLFSSL* ssl, const unsigned char* buf,
 
 /*!
     \brief Used to import a serialized TLS session. This function is for
-    importing the state of the connection.
+    importing the state of the connection. A TLS 1.3 session serialized with
+    export version 7 or later carries its traffic and resumption secrets, so
+    a KeyUpdate and the issuing of a NewSessionTicket work on the imported
+    connection; an older serialization restores the record layer alone.
     WARNING: buf contains sensitive information about the state and is best to
     be encrypted before storing if stored.
     Additional debug info can be displayed with the macro
@@ -835,6 +838,11 @@ int wolfSSL_dtls_set_export(WOLFSSL* ssl, wc_dtls_export func);
     than NewSessionTicket is waiting for the peer's ACK, a post-handshake
     CertificateRequest is unanswered, or a write dup of the object exists. A
     NewSessionTicket still waiting for its ACK is not exported and is lost.
+    The session tickets themselves are not serialized: any ticket already
+    issued or received is discarded by the export. For a DTLS 1.3 session the
+    blob carries the resumption secret and the ticket nonce, so an imported
+    server can still issue a NewSessionTicket that resumes; use
+    wolfSSL_get1_session before exporting to keep a received ticket.
 
     \return Success If successful, the amount of the buffer used will
     be returned.
@@ -870,7 +878,14 @@ int wolfSSL_dtls_export(WOLFSSL* ssl, unsigned char* buf,
     \brief Used to export a serialized TLS session. This function is for
     exporting a serialized state of the connection.
     In most cases wolfSSL_get1_session should be used instead of
-    wolfSSL_tls_export.
+    wolfSSL_tls_export. The export of a TLS 1.3 session is refused with a
+    negative return before the handshake is done or while a KeyUpdate
+    response is pending.
+    The session tickets themselves are not serialized: any ticket already
+    issued or received is discarded by the export. A TLS 1.3 blob carries the
+    resumption secret and the ticket nonce, so an imported server can still
+    issue a NewSessionTicket that resumes; use wolfSSL_get1_session before
+    exporting to keep a received ticket.
     Additional debug info can be displayed with the macro
     WOLFSSL_SESSION_EXPORT_DEBUG defined.
     WARNING: buf contains sensitive information about the state and is best to

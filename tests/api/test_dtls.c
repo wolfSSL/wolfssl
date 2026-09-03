@@ -8314,12 +8314,13 @@ int test_dtls13_export_replay_window(void)
 
 #ifdef TEST_DTLS13_EXPORT
 /* Locate the DTLS 1.3 state section, which opens with the three epoch numbers
- * followed by the secret length. Returns the offset of the section payload,
- * whose length prefix sits WOLFSSL_EXPORT_LEN before it, or 0 when not found. */
+ * followed by the length of the sending epoch field. Returns the offset of the
+ * section payload, whose length prefix sits WOLFSSL_EXPORT_LEN before it, or 0
+ * when not found. */
 static unsigned int test_dtls13_export_find_state(const unsigned char* session,
-        unsigned int sessionSz, word32 epoch, byte hashSz)
+        unsigned int sessionSz, word32 epoch)
 {
-    unsigned char pat[(3 * OPAQUE64_LEN) + OPAQUE8_LEN];
+    unsigned char pat[(3 * OPAQUE64_LEN) + WOLFSSL_EXPORT_LEN];
     w64wrapper epochNum;
     unsigned int at;
 
@@ -8329,7 +8330,7 @@ static unsigned int test_dtls13_export_find_state(const unsigned char* session,
     /* the invalidate before epoch: zero, none of these tests drives the
      * connection into the failed decryption count that sets it */
     XMEMSET(pat + (2 * OPAQUE64_LEN), 0, OPAQUE64_LEN);
-    pat[3 * OPAQUE64_LEN] = hashSz;
+    c16toa((word16)DTLS_EXPORT_DTLS13_EPOCH_SZ, pat + (3 * OPAQUE64_LEN));
 
     for (at = WOLFSSL_EXPORT_LEN; at + (unsigned int)sizeof(pat) <= sessionSz;
             at++) {
@@ -8399,13 +8400,30 @@ static int test_dtls13_export_import_fails(WOLFSSL_CTX* ctx,
 }
 
 /* Offset of the first epoch field's length prefix in the DTLS 1.3 state section
- * at 'secAt', the fields following the epoch numbers, the three secrets, the
- * KeyUpdate response flag and the ticket nonce. */
-static unsigned int test_dtls13_export_fields_at(unsigned int secAt,
-        byte hashSz)
+ * at 'secAt', the fields following the epoch numbers. */
+static unsigned int test_dtls13_export_fields_at(unsigned int secAt)
 {
-    return secAt + (3 * OPAQUE64_LEN) + OPAQUE8_LEN + (3u * hashSz) +
-        (3 * OPAQUE8_LEN);
+    return secAt + (3 * OPAQUE64_LEN);
+}
+
+/* Offset of the TLS 1.3 secrets section payload, which sits right ahead of the
+ * DTLS 1.3 state section at 'secAt' and opens with the secret length, or 0
+ * when the bytes there do not look like it. */
+static unsigned int test_dtls13_export_secrets_at(const unsigned char* session,
+        unsigned int secAt, byte hashSz)
+{
+    unsigned int len = OPAQUE8_LEN + (3u * hashSz) + (2 * OPAQUE8_LEN) +
+        DEF_TICKET_NONCE_SZ;
+    unsigned int at;
+    word16 secLen = 0;
+
+    if (secAt < (2 * WOLFSSL_EXPORT_LEN) + len)
+        return 0;
+    at = secAt - WOLFSSL_EXPORT_LEN - len;
+    ato16(session + at - WOLFSSL_EXPORT_LEN, &secLen);
+    if (secLen != len || session[at] != hashSz)
+        return 0;
+    return at;
 }
 
 /* Apply 'delta' to the length prefix of the epoch field at 'fieldAt', after
@@ -8453,7 +8471,6 @@ int test_dtls13_export_smaller_window(void)
     int replaySz = 0;
     w64wrapper expPeerSeq;
     word32 expWindow0 = 0;
-    byte hashSz = 0;
     int n, i;
 
     /* enough records that the captured one lands in the last window word */
@@ -8480,8 +8497,6 @@ int test_dtls13_export_smaller_window(void)
                     (int)sizeof(msg));
     }
     if (ssl_s != NULL) {
-        /* the blob carries the negotiated hash size, not a fixed one */
-        hashSz = (byte)ssl_s->specs.hash_size;
         ExpectNotNull(ssl_s->dtls13DecryptEpoch);
         if (ssl_s->dtls13DecryptEpoch != NULL) {
             expPeerSeq = ssl_s->dtls13DecryptEpoch->nextPeerSeqNumber;
@@ -8498,7 +8513,7 @@ int test_dtls13_export_smaller_window(void)
      * and the total length along with it */
     if (session != NULL) {
         unsigned int secAt = test_dtls13_export_find_state(session, sessionSz,
-                DTLS13_EPOCH_TRAFFIC0, hashSz);
+                DTLS13_EPOCH_TRAFFIC0);
         unsigned int cnt = test_dtls13_export_find_window(session, sessionSz,
                 expPeerSeq);
 
@@ -8512,7 +8527,7 @@ int test_dtls13_export_smaller_window(void)
             XMEMMOVE(session + last, session + last + OPAQUE32_LEN,
                      sessionSz - last - OPAQUE32_LEN);
             test_dtls13_export_fix_field(session,
-                    test_dtls13_export_fields_at(secAt, hashSz),
+                    test_dtls13_export_fields_at(secAt),
                     -OPAQUE32_LEN);
             test_dtls13_export_fix_lengths(session, secAt, -OPAQUE32_LEN);
             sessionSz -= OPAQUE32_LEN;
@@ -8574,7 +8589,6 @@ int test_dtls13_export_larger_window(void)
     unsigned char reply[64];
     w64wrapper expPeerSeq;
     word32 expWindow0 = 0;
-    byte hashSz = 0;
 
     expPeerSeq = w64From32(0, 0);
     ExpectIntEQ(test_dtls13_export_connect(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
@@ -8585,7 +8599,6 @@ int test_dtls13_export_larger_window(void)
     ExpectIntEQ(wolfSSL_read(ssl_s, reply, (int)sizeof(reply)),
                 (int)sizeof(msg));
     if (ssl_s != NULL) {
-        hashSz = (byte)ssl_s->specs.hash_size;
         ExpectNotNull(ssl_s->dtls13DecryptEpoch);
         if (ssl_s->dtls13DecryptEpoch != NULL) {
             expPeerSeq = ssl_s->dtls13DecryptEpoch->nextPeerSeqNumber;
@@ -8604,7 +8617,7 @@ int test_dtls13_export_larger_window(void)
      * the DTLS 1.3 section length and the total length along with it. */
     if (session != NULL) {
         unsigned int secAt = test_dtls13_export_find_state(session, sessionSz,
-                DTLS13_EPOCH_TRAFFIC0, hashSz);
+                DTLS13_EPOCH_TRAFFIC0);
         unsigned int cnt = test_dtls13_export_find_window(session, sessionSz,
                 expPeerSeq);
 
@@ -8619,7 +8632,7 @@ int test_dtls13_export_larger_window(void)
                      sessionSz - end);
             c32toa(0xDEADBEEF, session + end);
             test_dtls13_export_fix_field(session,
-                    test_dtls13_export_fields_at(secAt, hashSz), OPAQUE32_LEN);
+                    test_dtls13_export_fields_at(secAt), OPAQUE32_LEN);
             test_dtls13_export_fix_lengths(session, secAt, OPAQUE32_LEN);
             sessionSz += OPAQUE32_LEN;
         }
@@ -8664,7 +8677,7 @@ int test_dtls13_export_malformed(void)
     unsigned char* session = NULL;
     unsigned char* mutated = NULL;
     unsigned int sessionSz = 0;
-    unsigned int secAt = 0, fieldsAt = 0;
+    unsigned int secAt = 0, fieldsAt = 0, secretsAt = 0;
     const char msg[] = "hello wolfssl dtls13";
     unsigned char reply[64];
     byte hashSz = 0;
@@ -8684,14 +8697,17 @@ int test_dtls13_export_malformed(void)
 
     if (session != NULL) {
         secAt = test_dtls13_export_find_state(session, sessionSz,
-                DTLS13_EPOCH_TRAFFIC0, hashSz);
+                DTLS13_EPOCH_TRAFFIC0);
         ExpectIntGT(secAt, 0);
-        fieldsAt = test_dtls13_export_fields_at(secAt, hashSz);
+        fieldsAt = test_dtls13_export_fields_at(secAt);
         ExpectIntLT(fieldsAt, sessionSz);
+        secretsAt = test_dtls13_export_secrets_at(session, secAt, hashSz);
+        ExpectIntGT(secretsAt, 0);
     }
 
-    if (session != NULL && mutated != NULL && secAt > 0) {
-        /* a session serialized before version 7 has no state section */
+    if (session != NULL && mutated != NULL && secAt > 0 && secretsAt > 0) {
+        /* a session serialized before version 7 has neither the secrets nor
+         * the state section */
         XMEMCPY(mutated, session, sessionSz);
         mutated[1] = (byte)((mutated[1] & 0xF0) | WOLFSSL_EXPORT_VERSION_6);
         ExpectIntEQ(test_dtls13_export_import_fails(ctx_s, mutated, sessionSz,
@@ -8720,13 +8736,19 @@ int test_dtls13_export_malformed(void)
 
         /* a secret longer than the buffer that holds it */
         XMEMCPY(mutated, session, sessionSz);
-        mutated[secAt + (3 * OPAQUE64_LEN)] = SECRET_LEN + 1;
+        mutated[secretsAt] = SECRET_LEN + 1;
         ExpectIntEQ(test_dtls13_export_import_fails(ctx_s, mutated, sessionSz,
                     WC_NO_ERR_TRACE(BUFFER_E)), TEST_SUCCESS);
 
         /* an empty DTLS 1.3 state section */
         XMEMCPY(mutated, session, sessionSz);
         c16toa(0, mutated + secAt - WOLFSSL_EXPORT_LEN);
+        ExpectIntEQ(test_dtls13_export_import_fails(ctx_s, mutated, sessionSz,
+                    WC_NO_ERR_TRACE(BUFFER_E)), TEST_SUCCESS);
+
+        /* an empty TLS 1.3 secrets section */
+        XMEMCPY(mutated, session, sessionSz);
+        c16toa(0, mutated + secretsAt - WOLFSSL_EXPORT_LEN);
         ExpectIntEQ(test_dtls13_export_import_fails(ctx_s, mutated, sessionSz,
                     WC_NO_ERR_TRACE(BUFFER_E)), TEST_SUCCESS);
 
@@ -8776,7 +8798,6 @@ int test_dtls13_export_epoch_numbers(void)
     unsigned char* mutated = NULL;
     unsigned int sessionSz = 0;
     unsigned int secAt = 0, fieldsAt = 0;
-    byte hashSz = 0;
     w64wrapper zero, stray, traffic0, hsEpoch;
 
     zero = w64From32(0, 0);
@@ -8785,8 +8806,6 @@ int test_dtls13_export_epoch_numbers(void)
     hsEpoch = w64From32(0, DTLS13_EPOCH_TRAFFIC0 - 1);
     ExpectIntEQ(test_dtls13_export_connect(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
                     &ssl_s), TEST_SUCCESS);
-    if (ssl_s != NULL)
-        hashSz = (byte)ssl_s->specs.hash_size;
 
     ExpectIntEQ(test_dtls_export_alloc(ssl_s, &session, &sessionSz),
                 TEST_SUCCESS);
@@ -8795,9 +8814,9 @@ int test_dtls13_export_epoch_numbers(void)
 
     if (session != NULL) {
         secAt = test_dtls13_export_find_state(session, sessionSz,
-                DTLS13_EPOCH_TRAFFIC0, hashSz);
+                DTLS13_EPOCH_TRAFFIC0);
         ExpectIntGT(secAt, 0);
-        fieldsAt = test_dtls13_export_fields_at(secAt, hashSz);
+        fieldsAt = test_dtls13_export_fields_at(secAt);
         ExpectIntLT(fieldsAt, sessionSz);
     }
 
@@ -8834,10 +8853,10 @@ int test_dtls13_export_epoch_numbers(void)
         word16 fieldSz = 0;
 
         secAt = test_dtls13_export_find_state(session, sessionSz,
-                DTLS13_EPOCH_TRAFFIC0 + 1, hashSz);
+                DTLS13_EPOCH_TRAFFIC0 + 1);
         ExpectIntGT(secAt, 0);
 
-        fieldsAt = test_dtls13_export_fields_at(secAt, hashSz);
+        fieldsAt = test_dtls13_export_fields_at(secAt);
         ExpectIntLT(fieldsAt, sessionSz);
         /* the sending epoch, then an empty peer epoch field because the two
          * are the same epoch here, then the previous peer epoch */
@@ -9079,9 +9098,10 @@ int test_dtls13_export_short_secret(void)
 
     if (session != NULL) {
         secAt = test_dtls13_export_find_state(session, sessionSz,
-                DTLS13_EPOCH_TRAFFIC0, hashSz);
+                DTLS13_EPOCH_TRAFFIC0);
         ExpectIntGT(secAt, 0);
-        szAt = secAt + (3 * OPAQUE64_LEN);
+        szAt = test_dtls13_export_secrets_at(session, secAt, hashSz);
+        ExpectIntGT(szAt, 0);
     }
 
     if (session != NULL && mutated != NULL && secAt > 0 && EXPECT_SUCCESS()) {
@@ -9265,19 +9285,16 @@ int test_dtls13_export_failed_epoch_commit(void)
     unsigned char* session = NULL;
     unsigned int sessionSz = 0;
     unsigned int secAt = 0;
-    byte hashSz = 0;
 
     ExpectIntEQ(test_dtls13_export_connect(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
                     &ssl_s), TEST_SUCCESS);
-    if (ssl_s != NULL)
-        hashSz = (byte)ssl_s->specs.hash_size;
 
     ExpectIntEQ(test_dtls_export_alloc(ssl_s, &session, &sessionSz),
                 TEST_SUCCESS);
 
     if (session != NULL) {
         secAt = test_dtls13_export_find_state(session, sessionSz,
-                DTLS13_EPOCH_TRAFFIC0, hashSz);
+                DTLS13_EPOCH_TRAFFIC0);
         ExpectIntGT(secAt, 0);
     }
 
@@ -9285,7 +9302,7 @@ int test_dtls13_export_failed_epoch_commit(void)
         /* an epoch field that stops in the middle of the replay window, which
          * is rejected after the epoch number has been read */
         test_dtls13_export_fix_field(session,
-                test_dtls13_export_fields_at(secAt, hashSz), -OPAQUE32_LEN);
+                test_dtls13_export_fields_at(secAt), -OPAQUE32_LEN);
         test_dtls13_export_fix_lengths(session, secAt, -OPAQUE32_LEN);
         ExpectNotNull(ssl_imp = wolfSSL_new(ctx_s));
         ExpectIntEQ(wolfSSL_dtls_import(ssl_imp, session, sessionSz),
@@ -9373,12 +9390,9 @@ int test_dtls13_export_padded_state_section(void)
     unsigned int secAt = 0;
     const char msg[] = "hello wolfssl dtls13";
     const char msg2[] = "hello client dtls13";
-    byte hashSz = 0;
 
     ExpectIntEQ(test_dtls13_export_connect(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
                     &ssl_s), TEST_SUCCESS);
-    if (ssl_s != NULL)
-        hashSz = (byte)ssl_s->specs.hash_size;
 
     ExpectIntEQ(test_dtls_export_alloc(ssl_s, &session, &sessionSz),
                 TEST_SUCCESS);
@@ -9387,7 +9401,7 @@ int test_dtls13_export_padded_state_section(void)
 
     if (session != NULL) {
         secAt = test_dtls13_export_find_state(session, sessionSz,
-                DTLS13_EPOCH_TRAFFIC0, hashSz);
+                DTLS13_EPOCH_TRAFFIC0);
         ExpectIntGT(secAt, 0);
     }
 
@@ -9775,7 +9789,7 @@ int test_dtls13_export_prev_peer_epoch(void)
     unsigned char prevKey[MAX_SYM_KEY_SIZE];
     w64wrapper sendEpoch, peerEpoch;
     word16 keySz = 0;
-    byte hashSz = 0, ivSz = 0;
+    byte ivSz = 0;
 
     sendEpoch = w64From32(0, DTLS13_EPOCH_TRAFFIC0);
     peerEpoch = w64From32(0, DTLS13_EPOCH_TRAFFIC0 + 1);
@@ -9805,7 +9819,6 @@ int test_dtls13_export_prev_peer_epoch(void)
         Dtls13Epoch* prev = test_dtls13_export_epoch(ssl_s, sendEpoch);
 
         keySz = ssl_s->specs.key_size;
-        hashSz = (byte)ssl_s->specs.hash_size;
         ivSz = (byte)ssl_s->specs.iv_size;
         ExpectIntLE(keySz, (word16)sizeof(prevKey));
         ExpectNotNull(prev);
@@ -9822,15 +9835,14 @@ int test_dtls13_export_prev_peer_epoch(void)
      * already holds, so the last field carries key material alone */
     if (session != NULL && keySz > 0 && EXPECT_SUCCESS()) {
         unsigned int keysSz = (2 * OPAQUE8_LEN) + (2u * keySz) + ivSz;
-        unsigned int stateSz = (3 * OPAQUE64_LEN) + OPAQUE8_LEN +
-                (3u * hashSz) + (3 * OPAQUE8_LEN) + (3 * WOLFSSL_EXPORT_LEN) +
+        unsigned int stateSz = (3 * OPAQUE64_LEN) + (3 * WOLFSSL_EXPORT_LEN) +
                 (2u * DTLS_EXPORT_DTLS13_EPOCH_SZ) + keysSz;
         unsigned int secAt = sessionSz - WOLFSSL_EXPORT_LEN - stateSz;
         word16 len = 0;
 
         ExpectIntGT(secAt, WOLFSSL_EXPORT_LEN);
         if (EXPECT_SUCCESS()) {
-            unsigned int fieldsAt = test_dtls13_export_fields_at(secAt, hashSz);
+            unsigned int fieldsAt = test_dtls13_export_fields_at(secAt);
 
             ato16(session + secAt - WOLFSSL_EXPORT_LEN, &len);
             ExpectIntEQ(len, stateSz);

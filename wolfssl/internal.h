@@ -3055,13 +3055,19 @@ WOLFSSL_LOCAL socklen_t wolfSSL_BIO_ADDR_size(const WOLFSSL_BIO_ADDR *addr);
  * key and write IV of the direction the peer sends in, each with its length */
 #define DTLS_EXPORT_DTLS13_EPOCH_KEY_SZ                                      \
     ((2 * OPAQUE8_LEN) + (2 * MAX_SYM_KEY_SIZE) + MAX_WRITE_IV_SZ)
-/* epoch numbers, traffic and resumption secrets, KeyUpdate response flag,
- * ticket nonce and three length prefixed epoch fields */
+/* epoch numbers and three length prefixed epoch fields */
 #define DTLS_EXPORT_DTLS13_SZ                                                \
-    ((3 * OPAQUE64_LEN) + OPAQUE8_LEN + (3 * SECRET_LEN) +                   \
-     (3 * OPAQUE8_LEN) + (3 * WOLFSSL_EXPORT_LEN) +                          \
+    ((3 * OPAQUE64_LEN) + (3 * WOLFSSL_EXPORT_LEN) +                         \
      (3 * DTLS_EXPORT_DTLS13_EPOCH_SZ) + DTLS_EXPORT_DTLS13_EPOCH_KEY_SZ)
 #endif /* WOLFSSL_SESSION_EXPORT && WOLFSSL_DTLS13 */
+
+#if defined(WOLFSSL_SESSION_EXPORT) && defined(WOLFSSL_TLS13)
+/* secret length, traffic and resumption secrets, KeyUpdate response flag,
+ * nonce length and a DEF_TICKET_NONCE_SZ wide nonce field, what
+ * ExportTls13State() writes */
+#define WOLFSSL_EXPORT_TLS13_SZ                                              \
+    (OPAQUE8_LEN + (3 * SECRET_LEN) + (2 * OPAQUE8_LEN) + DEF_TICKET_NONCE_SZ)
+#endif /* WOLFSSL_SESSION_EXPORT && WOLFSSL_TLS13 */
 
 #if defined(WOLFSSL_SESSION_EXPORT) && defined(WOLFSSL_DTLS_CID)
 /* negotiated flag plus the length prefixed rx and tx connection ids */
@@ -3088,6 +3094,7 @@ WOLFSSL_LOCAL socklen_t wolfSSL_BIO_ADDR_size(const WOLFSSL_BIO_ADDR *addr);
 /* max size of buffer for exporting */
 #if defined(WOLFSSL_SESSION_EXPORT) && defined(WOLFSSL_DTLS13)
 #define MAX_EXPORT_BUFFER (DTLS_EXPORT_BASE_SZ + WOLFSSL_EXPORT_LEN +        \
+                           WOLFSSL_EXPORT_TLS13_SZ + WOLFSSL_EXPORT_LEN +    \
                            DTLS_EXPORT_DTLS13_SZ + DTLS_EXPORT_CID_TOTAL)
 #else
 #define MAX_EXPORT_BUFFER (DTLS_EXPORT_BASE_SZ + DTLS_EXPORT_CID_TOTAL)
@@ -4153,6 +4160,10 @@ WOLFSSL_LOCAL int Tls13DeriveRecordKeys(WOLFSSL* ssl, int provision);
 WOLFSSL_LOCAL int DeriveMasterSecret(WOLFSSL* ssl);
 WOLFSSL_LOCAL int DeriveResumptionPSK(WOLFSSL* ssl, byte* nonce, byte nonceLen, byte* secret);
 WOLFSSL_LOCAL int DeriveResumptionSecret(WOLFSSL* ssl, byte* key);
+#ifdef WOLFSSL_SESSION_EXPORT
+WOLFSSL_LOCAL int ExportTls13State(WOLFSSL* ssl, byte* exp, word32 len);
+WOLFSSL_LOCAL int ImportTls13State(WOLFSSL* ssl, const byte* exp, word32 len);
+#endif
 
 WOLFSSL_LOCAL int Tls13_Exporter(WOLFSSL* ssl, unsigned char *out, size_t outLen,
         const char *label, size_t labelLen,
