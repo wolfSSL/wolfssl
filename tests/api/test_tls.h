@@ -78,6 +78,7 @@ int test_tls13_chain_verify_cb_reject(void);
 int test_tls12_chain_verify_cb_bad_der(void);
 int test_tls12_chain_verify_cb_bad_chain(void);
 int test_tls13_chain_verify_cb_postauth(void);
+int test_chain_verify_cb_min_key(void);
 int test_chain_verify_cb_dtls(void);
 int test_chain_verify_cb_stapling(void);
 int test_record_size_matches_build_message(void);
@@ -151,6 +152,7 @@ int test_tls12_aesgcm_record_nonce_unique(void);
         TEST_DECL_GROUP("tls", test_tls12_chain_verify_cb_bad_der),            \
         TEST_DECL_GROUP("tls", test_tls12_chain_verify_cb_bad_chain),          \
         TEST_DECL_GROUP("tls", test_tls13_chain_verify_cb_postauth),           \
+        TEST_DECL_GROUP("tls", test_chain_verify_cb_min_key),                  \
         TEST_DECL_GROUP("tls", test_chain_verify_cb_dtls),                     \
         TEST_DECL_GROUP("tls", test_chain_verify_cb_stapling)
 
