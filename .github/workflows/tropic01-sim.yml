@@ -109,11 +109,11 @@ jobs:
       # a caller key) and checks the ciphertext and auth tag against
       # precomputed vectors for the device-resident key, so a GHASH subkey
       # left stale from the caller's key is caught.
-      - name: Run TROPIC01 GCM callback KAT
+      - name: Run TROPIC01 callback KATs
         run: |
           docker run --rm wolfssl-tropic01-sim:ci bash -c '
             set -eu
-            # Compile the KAT with the exact CFLAGS the library was built
+            # Compile the KATs with the exact CFLAGS the library was built
             # with (LIBWOLFSSL_GLOBAL_CFLAGS in .build_params), so the Aes
             # struct layout matches the installed libwolfssl.a. The -I and
             # -W flags are dropped and re-added explicitly below.
@@ -126,6 +126,14 @@ jobs:
                 -L/app/libtropic/build/trezor_crypto \
                 -lwolfssl -ltropic -ltrezor_crypto -lm \
                 -o /tmp/tropic01_gcm_kat
+            gcc -Wall -Wextra -O2 ${FLAGS} \
+                -I/app/libtropic/include -I/app/wolfssl \
+                /app/wolfssl/tests/tropic01_cbc_kat.c \
+                /app/libtropic/hal/port/unix/lt_port_unix_tcp.c \
+                -L/usr/local/lib -L/app/libtropic/build \
+                -L/app/libtropic/build/trezor_crypto \
+                -lwolfssl -ltropic -ltrezor_crypto -lm \
+                -o /tmp/tropic01_cbc_kat
             TROPIC01_SIM_BIND=127.0.0.1 TROPIC01_SIM_PORT=28992 \
                 TROPIC01_SIM_FRESH=1 /app/tcp_server &
             SIM_PID=$!
@@ -137,4 +145,5 @@ jobs:
                 sleep 0.1
             done
             /tmp/tropic01_gcm_kat
+            /tmp/tropic01_cbc_kat
           '
