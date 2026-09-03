@@ -1867,3 +1867,157 @@ int test_wolfSSL_crl_io_mock(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* ---------------------------------------------------------------------------
+ * X509 accessors and the DTLS API, each with the object its guard needs.
+ *
+ * Two files sat at the bottom of the newly-visible surface for the same
+ * reason, and it is not that their guards are hard to reach -- it is that the
+ * ACCEPTING half of each pair needs an object the existing tests do not have.
+ *
+ *   x509.c  every accessor is `x509 == NULL || outSz == NULL || ...`, so the
+ *           NULL half is trivial and the valid half needs a parsed
+ *           certificate. There was no test holding one.
+ *
+ *   ssl_api_dtls.c  every guard is `ssl == NULL || !ssl->options.dtls`, so the
+ *           second operand needs a DTLS connection. Every test in this group
+ *           used a TLS one, which leaves that operand constant.
+ *
+ * Both fixtures are cheap: a certificate loaded from certs/, and a WOLFSSL
+ * made from a DTLS method. Neither needs a peer.
+ * ------------------------------------------------------------------------- */
+int test_wolfSSL_x509_accessor_guards(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && defined(WOLFSSL_CERT_GEN)
+    WOLFSSL_X509* x509 = NULL;
+    byte  buf[2048];
+    int   iSz = (int)sizeof(buf);
+    word32 wSz = (word32)sizeof(buf);
+    const byte* der = NULL;
+    int   derSz = 0;
+
+    XMEMSET(buf, 0, sizeof(buf));
+
+    /* the NULL half of every guard, before any fixture exists */
+    (void)wolfSSL_X509_get_der(NULL, &derSz);
+    (void)wolfSSL_X509_get_serial_number(NULL, buf, &iSz);
+    (void)wolfSSL_X509_get_signature(NULL, buf, &iSz);
+    (void)wolfSSL_X509_get_next_altname(NULL);
+    (void)wolfSSL_X509_load_certificate_file(NULL, WOLFSSL_FILETYPE_PEM);
+    (void)wolfSSL_X509_load_certificate_file("certs/no-such-file.pem",
+                                             WOLFSSL_FILETYPE_PEM);
+
+    /* the accepting half: a real parsed certificate */
+    x509 = wolfSSL_X509_load_certificate_file(svrCertFile,
+                                              WOLFSSL_FILETYPE_PEM);
+    if (x509 != NULL) {
+        /* second operand of each guard: valid object, NULL output */
+        (void)wolfSSL_X509_get_der(x509, NULL);
+        (void)wolfSSL_X509_get_serial_number(x509, buf, NULL);
+        (void)wolfSSL_X509_get_serial_number(x509, NULL, &iSz);
+        (void)wolfSSL_X509_get_signature(x509, buf, NULL);
+        /* a buffer too small for the signature: the size operand, which a
+         * caller sizing from the query call never takes */
+        iSz = 1;
+        (void)wolfSSL_X509_get_signature(x509, buf, &iSz);
+        /* the query form: NULL buffer with a size pointer */
+        iSz = 0;
+        (void)wolfSSL_X509_get_signature(x509, NULL, &iSz);
+        iSz = (int)sizeof(buf);
+        (void)wolfSSL_X509_get_signature(x509, buf, &iSz);
+
+        derSz = 0;
+        der = wolfSSL_X509_get_der(x509, &derSz);
+        (void)der;
+
+        iSz = (int)sizeof(buf);
+        (void)wolfSSL_X509_get_serial_number(x509, buf, &iSz);
+        (void)wolfSSL_X509_get_next_altname(x509);
+        (void)wolfSSL_X509_notBefore(x509);
+        (void)wolfSSL_X509_notAfter(x509);
+        (void)wolfSSL_X509_version(x509);
+
+#ifdef OPENSSL_EXTRA
+        (void)wolfSSL_X509_check_host(x509, NULL, 0, 0, NULL);
+        (void)wolfSSL_X509_check_host(NULL, "example.com", 11, 0, NULL);
+#endif
+        wSz = (word32)sizeof(buf);
+        (void)wolfSSL_X509_get_pubkey_buffer(x509, buf, (int*)&wSz);
+        (void)wolfSSL_X509_get_pubkey_buffer(x509, NULL, (int*)&wSz);
+        (void)wolfSSL_X509_get_pubkey_buffer(x509, buf, NULL);
+
+        wolfSSL_X509_free(x509);
+    }
+    (void)wSz;
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_dtls_api_on_dtls_object(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_CERTS)
+    WOLFSSL_CTX* dctx = NULL;   /* the object the second operand needs */
+    WOLFSSL_CTX* tctx = NULL;   /* a TLS one, for the operand's other half */
+    WOLFSSL* dssl = NULL;
+    WOLFSSL* tssl = NULL;
+    byte peer[64];
+    unsigned int peerSz = (unsigned int)sizeof(peer);
+
+    XMEMSET(peer, 0, sizeof(peer));
+    ExpectNotNull(dctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method()));
+    ExpectNotNull(tctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(dssl = wolfSSL_new(dctx));
+    ExpectNotNull(tssl = wolfSSL_new(tctx));
+
+    /* `ssl == NULL || !ssl->options.dtls` -- three vectors, one per outcome */
+    (void)wolfSSL_dtls_got_timeout(NULL);
+    (void)wolfSSL_dtls_got_timeout(tssl);   /* not a DTLS connection */
+    (void)wolfSSL_dtls_got_timeout(dssl);   /* the accepting partner */
+    (void)wolfSSL_dtls_retransmit(NULL);
+    (void)wolfSSL_dtls_retransmit(tssl);
+    (void)wolfSSL_dtls_retransmit(dssl);
+    (void)wolfSSL_dtls_get_current_timeout(tssl);
+    (void)wolfSSL_dtls_get_current_timeout(dssl);
+    (void)wolfSSL_dtls(tssl);
+    (void)wolfSSL_dtls(dssl);
+
+    /* peer accessors on a connection that has no peer set yet */
+    peerSz = (unsigned int)sizeof(peer);
+    (void)wolfSSL_dtls_get_peer(dssl, peer, &peerSz);
+    (void)wolfSSL_dtls_get_peer(dssl, NULL, &peerSz);
+    (void)wolfSSL_dtls_get_peer(dssl, peer, NULL);
+    (void)wolfSSL_dtls_set_pending_peer(dssl, peer, 0);
+    (void)wolfSSL_dtls_set_pending_peer(dssl, NULL,
+                                        (unsigned int)sizeof(peer));
+    (void)wolfSSL_dtls_set_pending_peer(dssl, peer,
+                                        (unsigned int)sizeof(peer));
+    /* and again now that a peer exists, so the `peer.sa != NULL` operand
+     * gets both values */
+    (void)wolfSSL_dtls_set_pending_peer(dssl, peer,
+                                        (unsigned int)sizeof(peer));
+
+    /* MTU: `ctx == NULL || newMtu > MAX_RECORD_SIZE`, both operands */
+#ifdef WOLFSSL_DTLS_MTU
+    (void)wolfSSL_CTX_dtls_set_mtu(NULL, 512);
+    (void)wolfSSL_CTX_dtls_set_mtu(dctx, 0xFFFF);
+    (void)wolfSSL_CTX_dtls_set_mtu(dctx, 512);
+    (void)wolfSSL_dtls_set_mtu(dssl, 0xFFFF);
+    (void)wolfSSL_dtls_set_mtu(dssl, 512);
+#endif
+
+#ifdef WOLFSSL_DTLS13
+    (void)wolfSSL_dtls13_has_pending_msg(dssl);
+    (void)wolfSSL_dtls13_use_quick_timeout(dssl);
+    wolfSSL_dtls13_set_send_more_acks(dssl, 1);
+    wolfSSL_dtls13_set_send_more_acks(dssl, 0);
+#endif
+
+    wolfSSL_free(dssl);
+    wolfSSL_free(tssl);
+    wolfSSL_CTX_free(dctx);
+    wolfSSL_CTX_free(tctx);
+#endif
+    return EXPECT_RESULT();
+}
