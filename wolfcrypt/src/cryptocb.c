@@ -66,6 +66,7 @@ Crypto Callback Build Options:
  * WOLF_CRYPTO_CB_ONLY_AES: Use only callbacks for AES          default: off
  * WOLF_CRYPTO_CB_ONLY_ED25519: Use only callbacks for Ed25519  default: off
  * WOLF_CRYPTO_CB_ONLY_CURVE25519: Use only callbacks for X25519 default: off
+ * WOLF_CRYPTO_CB_ONLY_MLKEM: Use only callbacks for ML-KEM    default: off
  */
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
