@@ -5658,27 +5658,38 @@ static void mldsa_vec_decompose(const sword32* r, byte k, sword32 gamma2,
  * Many places in FIPS 204. One example from Algorithm 2:
  *   23:    if ||z||inf >= GAMMA1 - BETA or ..., then (z, h) = falsam
  *
+ * Constant time with respect to the values of the polynomial. Whether any
+ * value is out of range is public - it is the result of the check - but which
+ * value is out of range is not. Therefore every value is checked and no early
+ * exit is performed.
+ *
+ * Values are always small - magnitude less than MLDSA_Q - and hi is positive
+ * and less than MLDSA_Q. The differences calculated below therefore never
+ * overflow 32 bits.
+ *
  * @param [in] a   Polynomial.
  * @param [in] hi  Largest value in range.
+ * @return  1 when all values are in range.
+ * @return  0 when at least one value is out of range.
  */
 static int mldsa_check_low(const sword32* a, sword32 hi)
 {
-    int ret = 1;
     unsigned int j;
     /* Calculate lowest range value. */
     sword32 nhi = -hi;
+    /* Top bit stays set while all values checked are in range. */
+    word32 in = 0xffffffffU;
 
     /* For each value of polynomial. */
     for (j = 0; j < MLDSA_N; j++) {
-        /* Check range is -(hi-1)..(hi-1). */
-        if ((a[j] <= nhi) || (a[j] >= hi)) {
-            /* Check failed. */
-            ret = 0;
-            break;
-        }
+        /* Check range is -(hi-1)..(hi-1).
+         * Top bit of a[j] - hi is set when a[j] < hi.
+         * Top bit of nhi - a[j] is set when a[j] > nhi. */
+        in &= ((word32)a[j] - (word32)hi) & ((word32)nhi - (word32)a[j]);
     }
 
-    return ret;
+    /* Top bit set when all values are in range. */
+    return (int)(in >> 31);
 }
 
 #if !defined(WOLFSSL_MLDSA_NO_VERIFY) || \
@@ -5698,12 +5709,10 @@ static int mldsa_vec_check_low_c(const sword32* a, byte l, sword32 hi)
     int ret = 1;
     unsigned int i;
 
-    /* For each polynomial of vector. */
+    /* For each polynomial of vector.
+     * Constant time - all polynomials are checked. */
     for (i = 0; i < l; i++) {
-        ret = mldsa_check_low(a, hi);
-        if (ret == 0) {
-            break;
-        }
+        ret &= mldsa_check_low(a, hi);
         /* Next polynomial. */
         a += MLDSA_N;
     }
