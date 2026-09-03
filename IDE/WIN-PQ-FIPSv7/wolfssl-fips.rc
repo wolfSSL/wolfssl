@@ -71,7 +71,7 @@ BEGIN
             VALUE "FileDescription", "The wolfSSL FIPS embedded SSL library is a lightweight, portable, C-language-based SSL/TLS library targeted at IoT, embedded, and RTOS environments primarily because of its size, speed, and feature set."
             VALUE "FileVersion", "5.9.2.0"
             VALUE "InternalName", "wolfssl-fips"
-            VALUE "LegalCopyright", "Copyright (C) 2023"
+            VALUE "LegalCopyright", "Copyright (C) 2026"
             VALUE "OriginalFilename", "wolfssl-fips.dll"
             VALUE "ProductName", "wolfSSL FIPS"
             VALUE "ProductVersion", "5.9.2.0"

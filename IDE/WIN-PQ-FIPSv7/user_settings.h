@@ -11,7 +11,6 @@
 #define HAVE_FIPS_VERSION_MINOR 0
 #endif
 
-/* Set the following to 1 for WCv5.0-RC12 build. */
 #if 1   /* wolfSSL FIPS 140-3 v7.0.0 PQ module (Windows MSVC) */
 #undef  HAVE_FIPS
 #define HAVE_FIPS
@@ -23,14 +22,15 @@
 #define HAVE_FIPS_VERSION_MINOR 0
 #undef  HAVE_FIPS_VERSION_PATCH
 #define HAVE_FIPS_VERSION_PATCH 0
-/* FIPS Ready, matching the Linux validated options.h: settings.h then forces
- * HAVE_FIPS_VERSION 7 and selects FIPS 186-4, as the Linux module does. */
+/* FIPS Ready, matching the Linux validated options.h.  The version is set
+ * above; FIPS Ready is what selects FIPS 186-4, as the Linux module does. */
 #define WOLFSSL_FIPS_READY
 #endif
 
 /* ===== Operational test (optest) build toggle =====
  * Define OPTEST_BUILD for the optest variant (MD5 + force-failure injection +
- * verbose FIPS logging).  Leave UNDEFINED for production. */
+ * verbose FIPS logging).  Off by default; see
+ * user_settings.h.harness-optest.patch. */
 /* #define OPTEST_BUILD */  /* OFF */
 #ifdef OPTEST_BUILD
     #define HAVE_FORCE_FIPS_FAILURE
@@ -47,9 +47,10 @@
 #endif
 
 /* ===== wolfACVP harness build toggle =====
- * The harness needs heap-routed buffers and the embedded cert/key buffers, but
- * not the optest force-failure/verbose logs.  Exclusive with OPTEST_BUILD. */
-#define HARNESS_BUILD  /* ON (OPTEST_BUILD must stay OFF) */
+ * The harness needs heap-routed buffers and the embedded cert/key buffers.
+ * Off by default; apply user_settings.h.harness-optest.patch to turn this and
+ * OPTEST_BUILD on together for vector processing and lab optest runs. */
+/* #define HARNESS_BUILD */  /* OFF */
 #ifdef HARNESS_BUILD
     #define WOLFSSL_SMALL_STACK
     #define USE_CERT_BUFFERS_2048
@@ -120,9 +121,9 @@
         #define WOLFSSL_VALIDATE_ECC_IMPORT
         #define WOLFSSL_VALIDATE_FFC_IMPORT
         #define HAVE_FFDHE_Q
-    #ifdef _WIN64
-        #define WOLFSSL_AESNI
-    #endif
+        #ifdef _WIN64
+            #define WOLFSSL_AESNI
+        #endif
     #endif /* FIPS v2 */
     #if defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 5)
         #define NO_DES
@@ -169,8 +170,8 @@
         #define FP_MAX_BITS 16384
     #endif /* FIPS v5 */
     #if defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 6)
-    #ifndef WOLFSSL_USE_AESNI_PAA
-        #undef WOLFSSL_AESNI /* default OFF (pure-C, match Linux) */
+        #ifndef WOLFSSL_USE_AESNI_PAA
+            #undef WOLFSSL_AESNI /* default OFF (pure-C, match Linux) */
     #endif
         #define HAVE_ED25519
         /* Curve25519/Curve448 (X25519/X448) are NOT in the v7 module: Linux
@@ -190,9 +191,6 @@
         #define HAVE_AES_KEYWRAP
         #define WC_SRTP_KDF
         #define HAVE_PBKDF2
-        #define WOLFCRYPT_FIPS_CORE_HASH_VALUE \
-      AE8F969C072FB4A87B5C594F96162002F3CCEB6026BDB2553C8621AE197F7059 //woPAA
-      //E257E8C21764333E4710316D208A90D4ECA0682D6F40DC3F4A6E259D4752E306 //wPAA
         /* SHA-512/224 and SHA-512/256 are approved v7 algorithms and the
          * wolfACVP harness references them, so they must NOT be disabled. */
         /* #define WOLFSSL_NOSHA512_224 */
@@ -235,9 +233,6 @@
         #define WOLFSSL_SLHDSA_PARAM_SHA2_256F
         #define WOLFSSL_DRBG_SHA512        /* SHA-512 Hash_DRBG (SP 800-90A) */
 
-        /* Leave WOLFCRYPT_FIPS_CORE_HASH_VALUE undefined for v7 (undo the v6
-         * block above) so fips_test.c uses its verifyCore[] placeholder. */
-        #undef WOLFCRYPT_FIPS_CORE_HASH_VALUE
     #endif /* FIPS v7 */
 #else
     /* Enables blinding mode, to prevent timing attacks */
@@ -287,6 +282,6 @@
     #define OPTEST_LOG_TE_MAPPING
     #define DEEPLY_EMBEDDED
     #define WORKING_WITH_AEGISOLVE
-#endif /* 1 || 0 */
+#endif /* 0 */
 
 #endif /* _WIN_USER_SETTINGS_H_ */

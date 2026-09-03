@@ -10,14 +10,25 @@ stateful hash-based signatures LMS and XMSS (SP 800-208).
 
 # Building the wolfssl-fips project
 
-The wolfCrypt FIPS library for Windows is a part of the wolfSSL library. It
-must be built as a static library, for the moment.
+The project has eight configurations: Debug, Release, DLL Debug and DLL
+Release, for Win32 and x64. The Debug and Release configurations build a
+static library; the DLL configurations build a DLL.
 
-The library project is built with Whole Program Optimization disabled. This is
+The library must be built with Whole Program Optimization disabled. This is
 required so that necessary components of the library are not optimized away.
 There are two functions added to the library that are used as markers in
 memory for the in-core memory check of the code. WPO consolidates them into a
 single function. WPO also optimizes away the automatic FIPS entry function.
+
+In the project as shipped, five configurations set
+WholeProgramOptimization=true at the project level: Release|Win32,
+Release|x64, DLL Release|Win32, DLL Release|x64 and DLL Debug|x64. Two of
+those, Release|Win32 and Release|x64, are overridden back to false in their
+ClCompile settings, and fips.c carries its own false override for the four
+Debug and Release configurations. That leaves DLL Release|Win32, DLL
+Release|x64 and DLL Debug|x64 compiling with WPO on. Before trusting an
+in-core memory test result, confirm Whole Program Optimization is set to No
+(/GL absent) for the configuration you are building.
 
 Each of the source files inside the FIPS boundary defines their own code and
 constant section. The code section names start with ".fipsA$" and the constant
@@ -32,13 +43,24 @@ The In Core Memory test calculates a checksum (HMAC-SHA512 for the v7.0.0
 module) of the wolfCrypt FIPS library code and constant data and compares it
 with a known value in the code.
 
-The following wolfCrypt FIPS project linker settings are required for the DLL Win32 configuration:
+The following linker settings matter for the in-core memory test. They are set
+on the four DLL configurations. A static library does not link, so on the
+Debug and Release configurations the application that links the library has
+to supply them.
+
 1) The [Randomized Base Address setting (ASLR)](https://learn.microsoft.com/en-us/cpp/build/reference/dynamicbase-use-address-space-layout-randomization?view=msvc-170)
-needs to be disabled on all builds as the feature throws off the in-core memory calculation causing the test to fail.
+is disabled, because the feature throws off the in-core memory calculation and
+the test fails. All four DLL configurations set RandomizedBaseAddress to false.
 2) The [Incremental Link](https://learn.microsoft.com/en-us/cpp/build/reference/incremental-link-incrementally?view=msvc-170)
-option need turned off so function pointers go to actual code, not a jump instruction.
+option is turned off so function pointers go to actual code, not a jump
+instruction. All four DLL configurations set LinkIncremental to false.
 3) The [FixedBaseAddress](https://learn.microsoft.com/en-us/cpp/build/reference/fixed-fixed-base-address?view=msvc-170)
-option to YES, which disables the support for ASLR.
+option is set to YES, which drops the base relocation table. All four DLL
+configurations set it. The two Win32 configurations and DLL Debug|x64 also
+fix the image base at 0x5A000000.
+
+The DLL Debug configurations additionally set DataExecutionPrevention to
+false.
 
 The "verifyCore" check value in the source fips_test.c needs to be updated when
 building the code. The POS performs this check and the default failure callback
@@ -49,87 +71,27 @@ check value when changing your application.
 
 # Build Options
 
-The default build options should be the proper default set of options:
-
- * HAVE_FIPS
- * HAVE_FIPS_VERSION=7
- * HAVE_FIPS_VERSION_MINOR=0
- * HAVE_THREAD_LS
- * WOLFSSL_KEY_GEN
- * HAVE_AESGCM
- * HAVE_HASHDRBG
- * WOLFSSL_SHA384
- * WOLFSSL_SHA512
- * NO_PSK
- * NO_RC4
- * NO_DSA
- * NO_MD4
- * WOLFSSL_SHA224
- * WOLFSSL_SHA3
- * WC_RSA_PSS
- * WC_RSA_NO_PADDING
- * HAVE_ECC
- * ECC_SHAMIR
- * HAVE_ECC_CDH
- * ECC_TIMING_RESISTANT
- * TFM_TIMING_RESISTANT
- * WOLFSSL_AES_COUNTER
- * WOLFSSL_AES_DIRECT
- * HAVE_AES_ECB
- * HAVE_AESCCM
- * WOLFSSL_CMAC
- * HAVE_HKDF
- * WOLFSSL_VALIDATE_ECC_IMPORT
- * WOLFSSL_VALIDATE_FFC_IMPORT
- * HAVE_FFDHE_Q
- * NO_DES
- * NO_DES3
- * NO_MD5
- * NO_OLD_TLS
- * WOLFSSL_TLS13
- * HAVE_TLS_EXTENSIONS
- * HAVE_SUPPORTED_CURVES
- * GCM_TABLE_4BIT
- * WOLFSSL_NO_SHAKE256
- * WOLFSSL_VALIDATE_ECC_KEYGEN
- * WOLFSSL_ECDSA_SET_K
- * WOLFSSL_WOLFSSH
- * WOLFSSL_PUBLIC_MP
- * WC_RNG_SEED_CB
- * TFM_ECC256
- * ECC_USER_CURVES
- * HAVE_ECC192
- * HAVE_ECC224
- * HAVE_ECC256
- * HAVE_ECC384
- * HAVE_ECC521
- * HAVE_FFDHE_2048
- * HAVE_FFDHE_3072
- * HAVE_FFDHE_4096
- * HAVE_FFDHE_6144
- * HAVE_FFDHE_8192
- * FP_MAX_BITS 16384
-
-The "NO" options explicitly disable algorithms that are not allowed in
-FIPS mode.
-
-Additionally one may enable:
-
- * WOLFSSL_AESNI
- * OPENSSL_EXTRA
-
-These settings are defined in IDE/WIN-PQ-FIPSv7/user_settings.h.
+The build options are defined in IDE/WIN-PQ-FIPSv7/user_settings.h, which is
+the single source of truth for this project.  The "NO" options there disable
+algorithms not allowed in FIPS mode.
 
 Optional configurations
 -----------------------
 
-user_settings.h is the shipping configuration.  Options are supplied as patches
-against it rather than as extra copies, so an edit is only made once:
+user_settings.h is the shipping configuration: no harness, no optest.  Options
+are supplied as patches against it rather than as extra copies, so an edit is
+only made once:
 
-  user_settings.h.wolfentropy.patch  MemUse (wolfEntropy) entropy source
-  user_settings.h.paa.patch          x86_64 AES-NI PAA lane, x64 only
+  user_settings.h.wolfentropy.patch    MemUse (wolfEntropy) entropy source
+  user_settings.h.paa.patch            x86_64 AES-NI PAA lane, x64 only
+  user_settings.h.harness-optest.patch wolfACVP harness and optest together,
+                                       for vector processing and lab testing
 
-They are independent and may both be applied.  From the wolfSSL tree root:
+They are independent and may be combined.  From the wolfSSL tree root:
 
-  git apply IDE/WIN-PQ-FIPSv7/user_settings.h.paa.patch
-  git apply -R IDE/WIN-PQ-FIPSv7/user_settings.h.paa.patch
+  git apply IDE/WIN-PQ-FIPSv7/user_settings.h.harness-optest.patch
+
+Reverse any of them with "git apply -R".
+
+The harness/optest patch also enables MD5, which the optest uses to show that a
+non-approved algorithm sits outside the module boundary.

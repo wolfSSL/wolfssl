@@ -1,0 +1,24 @@
+Build for vector processing and lab operational testing: turns on the wolfACVP
+harness and the optest variant together.  Not for a shipping build, it adds
+force-failure injection and verbose FIPS logging.
+
+--- a/IDE/WIN-PQ-FIPSv7/user_settings.h
++++ b/IDE/WIN-PQ-FIPSv7/user_settings.h
+@@ -31,7 +31,7 @@
+  * Define OPTEST_BUILD for the optest variant (MD5 + force-failure injection +
+  * verbose FIPS logging).  Off by default; see
+  * user_settings.h.harness-optest.patch. */
+-/* #define OPTEST_BUILD */  /* OFF */
++#define OPTEST_BUILD
+ #ifdef OPTEST_BUILD
+     #define HAVE_FORCE_FIPS_FAILURE
+     #define DEBUG_FIPS_VERBOSE
+@@ -50,7 +50,7 @@
+  * The harness needs heap-routed buffers and the embedded cert/key buffers.
+  * Off by default; apply user_settings.h.harness-optest.patch to turn this and
+  * OPTEST_BUILD on together for vector processing and lab optest runs. */
+-/* #define HARNESS_BUILD */  /* OFF */
++#define HARNESS_BUILD
+ #ifdef HARNESS_BUILD
+     #define WOLFSSL_SMALL_STACK
+     #define USE_CERT_BUFFERS_2048

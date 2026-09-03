@@ -3,7 +3,7 @@ wolfentropy.c compiles to nothing on Windows.
 
 --- a/IDE/WIN-PQ-FIPSv7/user_settings.h
 +++ b/IDE/WIN-PQ-FIPSv7/user_settings.h
-@@ -74,7 +74,7 @@
+@@ -75,7 +75,7 @@
   * wc_InitMutex/wc_FreeMutex path in wolfentropy.c; without it that file is an
   * empty translation unit and C2 is indistinguishable from C1.  Kept at column 0
   * beside the AES-NI toggle so autonomous-oe-run.ps1's Toggle() can flip it. */
