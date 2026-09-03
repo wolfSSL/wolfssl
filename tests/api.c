@@ -29383,6 +29383,31 @@ static int test_wolfSSL_X509_CRL(void)
     return EXPECT_RESULT();
 }
 
+static int test_wolfSSL_X509_CRL_no_next_update(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_CRL) && \
+    defined(WOLFSSL_NO_CRL_NEXT_DATE) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_BIO)
+    /* nextUpdate is optional in RFC 5280 and this build allows it to be
+     * missing. The CRL is a static file as the OpenSSL command line tool
+     * cannot generate a CRL without a next update. */
+    const char* file = "./certs/crl/crl_no_next_update.pem";
+    XFILE fp = XBADFILE;
+    X509_CRL* crl = NULL;
+
+    ExpectTrue((fp = XFOPEN(file, "rb")) != XBADFILE);
+    ExpectNotNull(crl = PEM_read_X509_CRL(fp, NULL, NULL, NULL));
+    ExpectNotNull(X509_CRL_get0_lastUpdate(crl));
+    ExpectNull(X509_CRL_get0_nextUpdate(crl));
+
+    X509_CRL_free(crl);
+    if (fp != XBADFILE)
+        XFCLOSE(fp);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_d2i_X509_REQ(void)
 {
     EXPECT_DECLS;
@@ -40600,6 +40625,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_X509_set_authority_key_id_ex_roundtrip),
     TEST_DECL(test_wolfSSL_X509_set_authority_key_id_overwrite),
     TEST_DECL(test_wolfSSL_X509_CRL),
+    TEST_DECL(test_wolfSSL_X509_CRL_no_next_update),
 #ifndef NO_BIO
     TEST_DECL(test_wolfSSL_X509_print),
     TEST_DECL(test_wolfSSL_X509_print_basic_constraints),

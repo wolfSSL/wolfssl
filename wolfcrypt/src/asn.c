@@ -38484,8 +38484,17 @@ static const ASNItem crlASN[] = {
 /* TBS_THISUPDATE_UTC */            { 2, ASN_UTC_TIME, 0, 0, 2 },
 /* TBS_THISUPDATE_GT  */            { 2, ASN_GENERALIZED_TIME, 0, 0, 2 },
                                                /* nextUpdate */
+#ifdef WOLFSSL_NO_CRL_NEXT_DATE
+                                               /* Optional - each format is a
+                                                * separate optional item as a
+                                                * numbered choice requires one
+                                                * of the items to be present. */
+/* TBS_NEXTUPDATE_UTC */            { 2, ASN_UTC_TIME, 0, 0, 1 },
+/* TBS_NEXTUPDATE_GT  */            { 2, ASN_GENERALIZED_TIME, 0, 0, 1 },
+#else
 /* TBS_NEXTUPDATE_UTC */            { 2, ASN_UTC_TIME, 0, 0, 3 },
 /* TBS_NEXTUPDATE_GT  */            { 2, ASN_GENERALIZED_TIME, 0, 0, 3 },
+#endif
                                                /* revokedCertificates */
 /* TBS_REVOKEDCERTS   */            { 2, ASN_SEQUENCE, 1, 0, 1 },
                                                /* crlExtensions */
