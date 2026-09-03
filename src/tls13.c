@@ -13307,7 +13307,13 @@ static int SendTls13Finished(WOLFSSL* ssl)
     }
 #endif /* WOLFSSL_DTLS13 */
 
-    outputSz = WC_MAX_DIGEST_SIZE + DTLS_HANDSHAKE_HEADER_SZ + MAX_MSG_EXTRA;
+    outputSz = WC_MAX_DIGEST_SIZE + headerSz + MAX_MSG_EXTRA;
+#ifdef WOLFSSL_DTLS13
+    /* MAX_MSG_EXTRA reserves RECORD_HEADER_SZ, which is the size of the DTLS
+     * 1.3 unified header without the CID, so only the CID is missing. */
+    if (isDtls)
+        outputSz += DtlsGetCidTxSize(ssl);
+#endif /* WOLFSSL_DTLS13 */
     /* Check buffers are big enough and grow if needed. */
     if ((ret = CheckAvailableSize(ssl, outputSz)) != 0)
         return ret;
@@ -13588,6 +13594,12 @@ int SendTls13KeyUpdate(WOLFSSL* ssl)
     }
 
     outputSz = OPAQUE8_LEN + MAX_MSG_EXTRA;
+#ifdef WOLFSSL_DTLS13
+    /* MAX_MSG_EXTRA reserves RECORD_HEADER_SZ, which is the size of the DTLS
+     * 1.3 unified header without the CID. */
+    if (ssl->options.dtls)
+        outputSz += DTLS_HANDSHAKE_HEADER_SZ + DtlsGetCidTxSize(ssl);
+#endif /* WOLFSSL_DTLS13 */
     /* Check buffers are big enough and grow if needed. */
     if ((ret = CheckAvailableSize(ssl, outputSz)) != 0)
         return ret;
