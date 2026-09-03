@@ -296,6 +296,156 @@ static void wb_buffer_load_store(WOLFSSL_CERT_MANAGER* cm)
     }
 }
 
+
+/* ------------------------------------------------------- CompareCRLnumber */
+/* Two CRL_Entry pointers in, an ordering out; it reads nothing but the
+ * crlNumber hex strings and stores nothing, so stack entries are correct here
+ * -- unlike the list-linking fixtures below, where the library owns what it is
+ * handed. A CRL loaded from a file always parses to a valid number, so the
+ * mp_read_radix failure and the "the number went backwards" ordering have no
+ * pair from the public path. */
+static void wb_compare_crlnumber(void)
+{
+    CRL_Entry prev;
+    CRL_Entry curr;
+    size_t i;
+
+    static const struct { const char* a; const char* b; const char* what; }
+    rows[] = {
+        { "01", "02", "prev < curr: the ordinary case" },
+        { "02", "02", "equal: a replayed CRL" },
+        { "02", "01", "prev > curr: a rollback" },
+        { "0A", "0B", "multi-digit hex" },
+        { "zz", "01", "prev not hex at all" },
+        { "01", "zz", "curr not hex at all" },
+        { "",   "01", "prev empty" },
+    };
+
+    for (i = 0; i < sizeof(rows) / sizeof(rows[0]); i++) {
+        XMEMSET(&prev, 0, sizeof(prev));
+        XMEMSET(&curr, 0, sizeof(curr));
+        XSTRNCPY((char*)prev.crlNumber, rows[i].a, sizeof(prev.crlNumber) - 1);
+        XSTRNCPY((char*)curr.crlNumber, rows[i].b, sizeof(curr.crlNumber) - 1);
+        WB_NOTE(CompareCRLnumber(&prev, &curr));
+    }
+}
+
+/* ------------------------------------------------------- FindRevokedSerial */
+/* `if (rc->serialSz == serialSz && XMEMCMP(rc->serial, serial, serialSz) == 0)`
+ * -- both operands need a pair, and the second is only reachable when the
+ * first is true. A real revocation check compares a certificate's serial
+ * against a parsed list, so "same length, different bytes" is the interesting
+ * case and the one a caller cannot arrange. */
+static void wb_find_revoked(void)
+{
+    RevokedCert rc;
+    byte serial[4];
+    size_t i;
+
+    static const struct { int rcSz; byte rcByte; int qSz; byte qByte;
+                          const char* what; } rows[] = {
+        { 4, 0xAA, 4, 0xAA, "same length, same bytes: revoked" },
+        { 4, 0xAA, 4, 0xBB, "same length, different bytes" },
+        { 3, 0xAA, 4, 0xAA, "different length" },
+        { 4, 0xAA, 0, 0xAA, "zero-length query" },
+    };
+
+    for (i = 0; i < sizeof(rows) / sizeof(rows[0]); i++) {
+        XMEMSET(&rc, 0, sizeof(rc));
+        rc.serialSz = rows[i].rcSz;
+        XMEMSET(rc.serialNumber, rows[i].rcByte, sizeof(rc.serialNumber) < 4 ?
+                sizeof(rc.serialNumber) : 4);
+        rc.next = NULL;
+        XMEMSET(serial, rows[i].qByte, sizeof(serial));
+        WB_NOTE(FindRevokedSerial(&rc, serial, rows[i].qSz, NULL, 1));
+    }
+}
+
+/* ----------------------------------------------------------- BufferStoreCRL */
+/* `if (ent == NULL || tbs == NULL || tbsSz == 0 || sig == NULL || sigSz == 0)`
+ * -- five operands, and every one of them is false for any entry the parser
+ * produced, because the parser rejects a CRL that is missing either field.
+ * The entry is linked in by hand and unlinked before teardown: FreeCRL walks
+ * and frees crlList, so a stack node left on the list is a use-after-return.
+ * That mistake crashed an earlier fixture in this campaign. */
+static void wb_buffer_store(WOLFSSL_CERT_MANAGER* cm)
+{
+    static byte tbs[8] = { 0x30, 0x06, 0, 0, 0, 0, 0, 0 };
+    static byte sig[8] = { 1, 2, 3, 4, 5, 6, 7, 8 };
+    CRL_Entry ent;
+    WOLFSSL_CRL crl;
+    byte out[512];
+    long outSz;
+    size_t i;
+
+    /* one row per operand of the guard, then the row where all five hold */
+    static const struct { int haveTbs; int tbsSz; int haveSig; int sigSz;
+                          const char* what; } rows[] = {
+        { 0, 8, 1, 8, "no toBeSigned" },
+        { 1, 0, 1, 8, "toBeSigned length zero" },
+        { 1, 8, 0, 8, "no signature" },
+        { 1, 8, 1, 0, "signature length zero" },
+        { 1, 8, 1, 8, "complete: the accepting partner" },
+    };
+
+    if (InitCRL(&crl, cm) != 0) {
+        printf("crl white-box: InitCRL failed, skipping BufferStoreCRL\n");
+        return;
+    }
+
+    /* the empty list: `ent == NULL`, the first operand */
+    outSz = (long)sizeof(out);
+    WB_NOTE(BufferStoreCRL(&crl, out, &outSz, WOLFSSL_FILETYPE_ASN1));
+
+    for (i = 0; i < sizeof(rows) / sizeof(rows[0]); i++) {
+        XMEMSET(&ent, 0, sizeof(ent));
+        ent.toBeSigned  = rows[i].haveTbs ? tbs : NULL;
+        ent.tbsSz       = rows[i].tbsSz;
+        ent.signature   = rows[i].haveSig ? sig : NULL;
+        ent.signatureSz = (word32)rows[i].sigSz;
+        ent.signatureOID = CTC_SHA256wRSA;
+        ent.next = NULL;
+        crl.crlList = &ent;
+
+        outSz = (long)sizeof(out);
+        WB_NOTE(BufferStoreCRL(&crl, out, &outSz, WOLFSSL_FILETYPE_ASN1));
+        /* and the PEM arm, which encodes the same entry differently */
+        outSz = (long)sizeof(out);
+        WB_NOTE(BufferStoreCRL(&crl, out, &outSz, WOLFSSL_FILETYPE_PEM));
+        /* an unknown type, so neither arm is taken */
+        outSz = (long)sizeof(out);
+        WB_NOTE(BufferStoreCRL(&crl, out, &outSz, -1));
+    }
+
+    /* unlink before FreeCRL, or teardown frees a stack object */
+    crl.crlList = NULL;
+    FreeCRL(&crl, 0);
+}
+
+/* ----------------------------------------------------------------- LoadCRL */
+/* `if (crl == NULL || path == NULL)`, and inside the directory walk the
+ * ".der"/".pem" suffix test and the per-file load result. The public entry
+ * points always pass a non-NULL pair, and the suffix test only has a false
+ * case if the directory contains a file that is neither. */
+static void wb_load_crl(WOLFSSL_CERT_MANAGER* cm)
+{
+    WOLFSSL_CRL crl;
+
+    WB_NOTE(LoadCRL(NULL, "certs/crl", WOLFSSL_FILETYPE_PEM, 0));
+
+    if (InitCRL(&crl, cm) != 0) {
+        printf("crl white-box: InitCRL failed, skipping LoadCRL\n");
+        return;
+    }
+    WB_NOTE(LoadCRL(&crl, NULL, WOLFSSL_FILETYPE_PEM, 0));
+    /* certs/crl holds .pem, .der and .revoked files, so the suffix test gets
+     * both outcomes from one directory. */
+    WB_NOTE(LoadCRL(&crl, "certs/crl", WOLFSSL_FILETYPE_PEM, 0));
+    WB_NOTE(LoadCRL(&crl, "certs/crl", WOLFSSL_FILETYPE_ASN1, 0));
+    WB_NOTE(LoadCRL(&crl, "certs/crl/does-not-exist", WOLFSSL_FILETYPE_PEM, 0));
+    FreeCRL(&crl, 0);
+}
+
 /* ---------------------------------------------------------- main */
 
 int main(void)
@@ -324,6 +474,11 @@ int main(void)
     wb_check_cert_crl_ex(cm);
     wb_missing_crl_callbacks(cm);
     wb_buffer_load_store(cm);
+
+    wb_compare_crlnumber();
+    wb_find_revoked();
+    wb_buffer_store(cm);
+    wb_load_crl(cm);
 
     printf("crl white-box: %d vectors driven\n", g_checks);
 
