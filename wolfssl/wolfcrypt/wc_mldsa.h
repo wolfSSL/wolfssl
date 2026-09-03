@@ -1057,6 +1057,146 @@ WOLFSSL_LOCAL void wc_mldsa_encode_t0_t1_avx512_vbmi(const sword32* t,
 #endif /* WOLFSSL_MLDSA_HAVE_INTEL_AVX512_VBMI */
 #endif
 
+/* AArch32 NEON. Every ML-DSA operation the AArch64 assembly covers is here
+ * too; only the FEAT_RDM (sqrdmlsh) flavours have no AArch32 counterpart, and
+ * the transforms leave coefficients in natural order so one entry point
+ * serves where AArch64 needs both a plain and a "full" form. */
+#if defined(WOLFSSL_ARMASM) && !defined(__aarch64__) && \
+    !defined(WOLFSSL_ARMASM_THUMB2) && !defined(WOLFSSL_ARMASM_NO_NEON)
+WOLFSSL_LOCAL void mldsa_mul_neon(sword32* r, sword32* a, sword32* b);
+/* Transforms in place, leaving coefficients in natural order. */
+WOLFSSL_LOCAL void mldsa_ntt_neon(sword32* r);
+WOLFSSL_LOCAL void mldsa_invntt_neon(sword32* r);
+WOLFSSL_LOCAL void mldsa_decompose_q88_neon(const sword32* r, sword32* r0,
+    sword32* r1);
+WOLFSSL_LOCAL void mldsa_decompose_q32_neon(const sword32* r, sword32* r0,
+    sword32* r1);
+WOLFSSL_LOCAL void mldsa_use_hint_q88_neon(sword32* w1);
+WOLFSSL_LOCAL void mldsa_use_hint_q32_neon(sword32* w1);
+WOLFSSL_LOCAL void mldsa_poly_add_neon(sword32* r, const sword32* a);
+WOLFSSL_LOCAL void mldsa_poly_sub_neon(sword32* r, const sword32* a);
+WOLFSSL_LOCAL void mldsa_poly_make_pos_neon(sword32* a);
+WOLFSSL_LOCAL void mldsa_poly_red_neon(sword32* a);
+WOLFSSL_LOCAL int mldsa_vec_check_low_neon(const sword32* a, byte l,
+    sword32 hi);
+WOLFSSL_LOCAL void mldsa_decode_eta_2_neon(const byte* p, sword32* z);
+WOLFSSL_LOCAL void mldsa_decode_eta_4_neon(const byte* p, sword32* z);
+WOLFSSL_LOCAL void mldsa_decode_t1_neon(const byte* p, sword32* z);
+WOLFSSL_LOCAL void mldsa_decode_t0_neon(const byte* p, sword32* z);
+WOLFSSL_LOCAL void mldsa_decode_gamma1_17_neon(const byte* p, sword32* z);
+WOLFSSL_LOCAL void mldsa_decode_gamma1_19_neon(const byte* p, sword32* z);
+WOLFSSL_LOCAL void mldsa_encode_w1_88_neon(const sword32* w1, byte* w1e);
+WOLFSSL_LOCAL void mldsa_encode_w1_32_neon(const sword32* w1, byte* w1e);
+WOLFSSL_LOCAL void mldsa_encode_gamma1_17_neon(const sword32* z, byte* s);
+WOLFSSL_LOCAL void mldsa_encode_gamma1_19_neon(const sword32* z, byte* s);
+WOLFSSL_LOCAL void mldsa_mul_vec_4_neon(sword32* r, const sword32* m,
+    const sword32* v);
+WOLFSSL_LOCAL void mldsa_mul_vec_5_neon(sword32* r, const sword32* m,
+    const sword32* v);
+WOLFSSL_LOCAL void mldsa_mul_vec_7_neon(sword32* r, const sword32* m,
+    const sword32* v);
+WOLFSSL_LOCAL void mldsa_extract_coeffs_eta2_neon(const byte* z,
+    unsigned int zLen, sword32* s, unsigned int* cnt);
+WOLFSSL_LOCAL void mldsa_extract_coeffs_eta4_neon(const byte* z,
+    unsigned int zLen, sword32* s, unsigned int* cnt);
+
+/* MakeHint over one polynomial. h is the write position, idx the running
+ * count. Returns the new count, or -1 when it passed omega. */
+WOLFSSL_LOCAL int mldsa_make_hint_neon(const sword32* s, const sword32* w1,
+    byte* h, int idx, int omega, sword32 gamma2);
+
+/* Rejection sample 23-bit values below q. Returns the number written. */
+WOLFSSL_LOCAL unsigned int mldsa_rej_uniform_neon(sword32* p, unsigned int len,
+    const byte* r, unsigned int rLen);
+#endif
+
+#if defined(__aarch64__) && defined(WOLFSSL_ARMASM)
+#ifndef WC_SHA3_NO_ASM
+WOLFSSL_LOCAL unsigned int mldsa_rej_uniform_neon(sword32* p, unsigned int len,
+    const byte* r, unsigned int rLen);
+#endif
+
+/* The plain transforms leave the coefficients lane-permuted; the _full ones
+ * use the standard order. See the flavor-selection note in wc_mldsa.c. */
+WOLFSSL_LOCAL void mldsa_ntt_neon(sword32* r);
+WOLFSSL_LOCAL void mldsa_ntt_full_neon(sword32* r);
+WOLFSSL_LOCAL void mldsa_invntt_neon(sword32* r);
+WOLFSSL_LOCAL void mldsa_invntt_full_neon(sword32* r);
+#ifndef WOLFSSL_AARCH64_NO_SQRDMLSH
+/* Same transforms, using the ARMv8.1 rounding-doubling multiply-subtract to
+ * fold the Montgomery reduction into one instruction. Chosen at run time on
+ * CPUs reporting FEAT_RDM. */
+WOLFSSL_LOCAL void mldsa_ntt_sqrdmlsh_neon(sword32* r);
+WOLFSSL_LOCAL void mldsa_ntt_full_sqrdmlsh_neon(sword32* r);
+WOLFSSL_LOCAL void mldsa_invntt_sqrdmlsh_neon(sword32* r);
+WOLFSSL_LOCAL void mldsa_invntt_full_sqrdmlsh_neon(sword32* r);
+#endif
+
+WOLFSSL_LOCAL void mldsa_mul_neon(sword32* r, sword32* a, sword32* b);
+#ifndef WOLFSSL_AARCH64_NO_SQRDMLSH
+WOLFSSL_LOCAL void mldsa_mul_sqrdmlsh_neon(sword32* r, sword32* a, sword32* b);
+#endif
+
+/* One row of the matrix-vector product: the l products are accumulated at 64
+ * bits and Montgomery reduced once, matching mldsa_matrix_mul_c(). */
+WOLFSSL_LOCAL void mldsa_mul_vec_4_neon(sword32* r, const sword32* m,
+    const sword32* v);
+WOLFSSL_LOCAL void mldsa_mul_vec_5_neon(sword32* r, const sword32* m,
+    const sword32* v);
+WOLFSSL_LOCAL void mldsa_mul_vec_7_neon(sword32* r, const sword32* m,
+    const sword32* v);
+
+/* Decompose one polynomial. GAMMA2 picks the variant, as it does in the C. */
+WOLFSSL_LOCAL void mldsa_decompose_q88_neon(const sword32* r, sword32* r0,
+    sword32* r1);
+WOLFSSL_LOCAL void mldsa_decompose_q32_neon(const sword32* r, sword32* r0,
+    sword32* r1);
+
+/* UseHint for every coefficient no hint touches: convert to the positive
+ * range, decompose and keep the high part, in place. */
+WOLFSSL_LOCAL void mldsa_use_hint_q88_neon(sword32* w1);
+WOLFSSL_LOCAL void mldsa_use_hint_q32_neon(sword32* w1);
+
+/* Unpack MLDSA_N bit-packed fields into 32-bit coefficients. */
+WOLFSSL_LOCAL void mldsa_decode_eta_2_neon(const byte* p, sword32* z);
+WOLFSSL_LOCAL void mldsa_decode_eta_4_neon(const byte* p, sword32* z);
+WOLFSSL_LOCAL void mldsa_decode_t1_neon(const byte* p, sword32* z);
+WOLFSSL_LOCAL void mldsa_decode_t0_neon(const byte* p, sword32* z);
+WOLFSSL_LOCAL void mldsa_decode_gamma1_17_neon(const byte* p, sword32* z);
+WOLFSSL_LOCAL void mldsa_decode_gamma1_19_neon(const byte* p, sword32* z);
+
+/* Pack MLDSA_N high-part values into the w1 encoding. */
+WOLFSSL_LOCAL void mldsa_encode_w1_88_neon(const sword32* w1, byte* w1e);
+WOLFSSL_LOCAL void mldsa_encode_w1_32_neon(const sword32* w1, byte* w1e);
+
+/* Pack MLDSA_N values into the gamma1 encoding. */
+WOLFSSL_LOCAL void mldsa_encode_gamma1_17_neon(const sword32* z, byte* s);
+WOLFSSL_LOCAL void mldsa_encode_gamma1_19_neon(const sword32* z, byte* s);
+
+/* 1 when every value of every polynomial is inside -(hi-1)..(hi-1). */
+WOLFSSL_LOCAL int mldsa_vec_check_low_neon(const sword32* a, byte l,
+    sword32 hi);
+
+/* Coefficient-wise add, subtract, and add q to the negative values. */
+WOLFSSL_LOCAL void mldsa_poly_add_neon(sword32* r, const sword32* a);
+WOLFSSL_LOCAL void mldsa_poly_sub_neon(sword32* r, const sword32* a);
+WOLFSSL_LOCAL void mldsa_poly_make_pos_neon(sword32* a);
+
+/* Barrett reduce every coefficient of a polynomial. */
+WOLFSSL_LOCAL void mldsa_poly_red_neon(sword32* a);
+
+/* Rejection sample nibbles into -eta..eta, appending from *cnt. */
+WOLFSSL_LOCAL void mldsa_extract_coeffs_eta2_neon(const byte* z,
+    unsigned int zLen, sword32* s, unsigned int* cnt);
+WOLFSSL_LOCAL void mldsa_extract_coeffs_eta4_neon(const byte* z,
+    unsigned int zLen, sword32* s, unsigned int* cnt);
+
+/* MakeHint over one polynomial. h is the write position, idx the running
+ * count. Returns the new count, or -1 when it passed omega. */
+WOLFSSL_LOCAL int mldsa_make_hint_neon(const sword32* s, const sword32* w1,
+    byte* h, int idx, int omega, sword32 gamma2);
+#endif
+
 
 #define WC_ML_DSA_DRAFT         10
 

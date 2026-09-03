@@ -1272,38 +1272,38 @@ void mlkem_init(void)
 static void mlkem_sha3_blocksx3(word64* state)
 {
     if (IS_AARCH64_SHA3(cpuid_flags)) {
-        mlkem_sha3_blocksx3_crypto(state);
+        sha3_blocksx3_crypto(state);
     }
     else {
-        mlkem_sha3_blocksx3_neon(state);
+        sha3_blocksx3_neon(state);
     }
 }
 
 static void mlkem_shake128_blocksx3_seed(word64* state, byte* seed)
 {
     if (IS_AARCH64_SHA3(cpuid_flags)) {
-        mlkem_shake128_blocksx3_seed_crypto(state, seed);
+        sha3_128_blocksx3_seed_crypto(state, seed);
     }
     else {
-        mlkem_shake128_blocksx3_seed_neon(state, seed);
+        sha3_128_blocksx3_seed_neon(state, seed);
     }
 }
 
 static void mlkem_shake256_blocksx3_seed(word64* state, byte* seed)
 {
     if (IS_AARCH64_SHA3(cpuid_flags)) {
-        mlkem_shake256_blocksx3_seed_crypto(state, seed);
+        sha3_256_blocksx3_seed_crypto(state, seed);
     }
     else {
-        mlkem_shake256_blocksx3_seed_neon(state, seed);
+        sha3_256_blocksx3_seed_neon(state, seed);
     }
 }
 
 #else
 
-#define mlkem_sha3_blocksx3             mlkem_sha3_blocksx3_neon
-#define mlkem_shake128_blocksx3_seed    mlkem_shake128_blocksx3_seed_neon
-#define mlkem_shake256_blocksx3_seed    mlkem_shake256_blocksx3_seed_neon
+#define mlkem_sha3_blocksx3             sha3_blocksx3_neon
+#define mlkem_shake128_blocksx3_seed    sha3_128_blocksx3_seed_neon
+#define mlkem_shake256_blocksx3_seed    sha3_256_blocksx3_seed_neon
 
 #endif /* WOLFSSL_ARMASM_CRYPTO_SHA3 */
 
@@ -2356,6 +2356,31 @@ void mlkem_decapsulate(const sword16* s, sword16* w, sword16* u,
 #endif /* !WOLFSSL_MLKEM_NO_DECAPSULATE */
 #endif
 
+#if defined(WOLFSSL_ARMASM) && !defined(__aarch64__) && \
+    !defined(WOLFSSL_ARMASM_THUMB2) && !defined(WOLFSSL_ARMASM_NO_NEON) && \
+    !defined(WC_SHA3_NO_ASM)
+
+/* AArch32 has the same three-way batched Keccak, but no SHA-3 instruction
+ * extension, so there is only the NEON implementation and nothing to select
+ * at run time. */
+#define mlkem_sha3_blocksx3             sha3_blocksx3_neon
+#define mlkem_shake128_blocksx3_seed    sha3_128_blocksx3_seed_neon
+#define mlkem_shake256_blocksx3_seed    sha3_256_blocksx3_seed_neon
+
+#endif
+
+/* Targets carrying the three-way batched Keccak in assembly, with the
+ * rejection sampler that goes alongside it. */
+#if defined(WOLFSSL_ARMASM) && defined(__aarch64__)
+    #define MLKEM_ASM_BLOCKSX3
+    #define MLKEM_REJ_UNIFORM_ASM   mlkem_rej_uniform_neon
+#elif defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_ARMASM_THUMB2) && \
+      !defined(WOLFSSL_ARMASM_NO_NEON) && !defined(WC_SHA3_NO_ASM)
+    #define MLKEM_ASM_BLOCKSX3
+    #define MLKEM_REJ_UNIFORM_ASM   mlkem_arm32_rej_uniform
+#endif
+
+
 /******************************************************************************/
 
 #if defined(USE_INTEL_SPEEDUP) && !defined(WC_SHA3_NO_ASM)
@@ -3158,7 +3183,7 @@ static int mlkem_gen_matrix_k4_avx512(sword16* a, byte* seed, int transposed)
 }
 #endif /* WOLFSSL_MLKEM_HAVE_INTEL_AVX512 */
 #endif /* WOLFSSL_KYBER1024 || WOLFSSL_WC_ML_KEM_1024 */
-#elif defined(WOLFSSL_ARMASM) && defined(__aarch64__)
+#elif defined(MLKEM_ASM_BLOCKSX3)
 #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512)
 /* Deterministically generate a matrix (or transpose) of uniform integers mod q.
  *
@@ -3169,7 +3194,7 @@ static int mlkem_gen_matrix_k4_avx512(sword16* a, byte* seed, int transposed)
  * @param  [in]   transposed  Whether A or A^T is generated.
  * @return  0 on success.
  */
-static int mlkem_gen_matrix_k2_aarch64(sword16* a, byte* seed, int transposed)
+static int mlkem_gen_matrix_k2_arm(sword16* a, byte* seed, int transposed)
 {
     word64 state[3 * 25];
     word64* st = (word64*)state;
@@ -3192,22 +3217,22 @@ static int mlkem_gen_matrix_k2_aarch64(sword16* a, byte* seed, int transposed)
     mlkem_shake128_blocksx3_seed(state, seed);
     /* Sample random bytes to create a polynomial. */
     p = (byte*)st;
-    ctr0 = mlkem_rej_uniform_neon(a + 0 * MLKEM_N, MLKEM_N, p, XOF_BLOCK_SIZE);
+    ctr0 = MLKEM_REJ_UNIFORM_ASM(a + 0 * MLKEM_N, MLKEM_N, p, XOF_BLOCK_SIZE);
     p += 25 * 8;
-    ctr1 = mlkem_rej_uniform_neon(a + 1 * MLKEM_N, MLKEM_N, p, XOF_BLOCK_SIZE);
+    ctr1 = MLKEM_REJ_UNIFORM_ASM(a + 1 * MLKEM_N, MLKEM_N, p, XOF_BLOCK_SIZE);
     p += 25 * 8;
-    ctr2 = mlkem_rej_uniform_neon(a + 2 * MLKEM_N, MLKEM_N, p, XOF_BLOCK_SIZE);
+    ctr2 = MLKEM_REJ_UNIFORM_ASM(a + 2 * MLKEM_N, MLKEM_N, p, XOF_BLOCK_SIZE);
     while ((ctr0 < MLKEM_N) || (ctr1 < MLKEM_N) || (ctr2 < MLKEM_N)) {
         mlkem_sha3_blocksx3(st);
 
         p = (byte*)st;
-        ctr0 += mlkem_rej_uniform_neon(a + 0 * MLKEM_N + ctr0, MLKEM_N - ctr0,
+        ctr0 += MLKEM_REJ_UNIFORM_ASM(a + 0 * MLKEM_N + ctr0, MLKEM_N - ctr0,
             p, XOF_BLOCK_SIZE);
         p += 25 * 8;
-        ctr1 += mlkem_rej_uniform_neon(a + 1 * MLKEM_N + ctr1, MLKEM_N - ctr1,
+        ctr1 += MLKEM_REJ_UNIFORM_ASM(a + 1 * MLKEM_N + ctr1, MLKEM_N - ctr1,
             p, XOF_BLOCK_SIZE);
         p += 25 * 8;
-        ctr2 += mlkem_rej_uniform_neon(a + 2 * MLKEM_N + ctr2, MLKEM_N - ctr2,
+        ctr2 += MLKEM_REJ_UNIFORM_ASM(a + 2 * MLKEM_N + ctr2, MLKEM_N - ctr2,
             p, XOF_BLOCK_SIZE);
     }
 
@@ -3220,10 +3245,10 @@ static int mlkem_gen_matrix_k2_aarch64(sword16* a, byte* seed, int transposed)
     state[20] = W64LIT(0x8000000000000000);
     BlockSha3(state);
     p = (byte*)state;
-    ctr0 = mlkem_rej_uniform_neon(a, MLKEM_N, p, XOF_BLOCK_SIZE);
+    ctr0 = MLKEM_REJ_UNIFORM_ASM(a, MLKEM_N, p, XOF_BLOCK_SIZE);
     while (ctr0 < MLKEM_N) {
         BlockSha3(state);
-        ctr0 += mlkem_rej_uniform_neon(a + ctr0, MLKEM_N - ctr0, p,
+        ctr0 += MLKEM_REJ_UNIFORM_ASM(a + ctr0, MLKEM_N - ctr0, p,
             XOF_BLOCK_SIZE);
     }
 
@@ -3241,7 +3266,7 @@ static int mlkem_gen_matrix_k2_aarch64(sword16* a, byte* seed, int transposed)
  * @param  [in]   transposed  Whether A or A^T is generated.
  * @return  0 on success.
  */
-static int mlkem_gen_matrix_k3_aarch64(sword16* a, byte* seed, int transposed)
+static int mlkem_gen_matrix_k3_arm(sword16* a, byte* seed, int transposed)
 {
     int i;
     int k;
@@ -3265,26 +3290,26 @@ static int mlkem_gen_matrix_k3_aarch64(sword16* a, byte* seed, int transposed)
         mlkem_shake128_blocksx3_seed(state, seed);
         /* Sample random bytes to create a polynomial. */
         p = (byte*)st;
-        ctr0 = mlkem_rej_uniform_neon(a + 0 * MLKEM_N, MLKEM_N, p,
+        ctr0 = MLKEM_REJ_UNIFORM_ASM(a + 0 * MLKEM_N, MLKEM_N, p,
             XOF_BLOCK_SIZE);
         p += 25 * 8;
-        ctr1 = mlkem_rej_uniform_neon(a + 1 * MLKEM_N, MLKEM_N, p,
+        ctr1 = MLKEM_REJ_UNIFORM_ASM(a + 1 * MLKEM_N, MLKEM_N, p,
             XOF_BLOCK_SIZE);
         p += 25 * 8;
-        ctr2 = mlkem_rej_uniform_neon(a + 2 * MLKEM_N, MLKEM_N, p,
+        ctr2 = MLKEM_REJ_UNIFORM_ASM(a + 2 * MLKEM_N, MLKEM_N, p,
             XOF_BLOCK_SIZE);
         /* Create more blocks if too many rejected. */
         while ((ctr0 < MLKEM_N) || (ctr1 < MLKEM_N) || (ctr2 < MLKEM_N)) {
             mlkem_sha3_blocksx3(st);
 
             p = (byte*)st;
-            ctr0 += mlkem_rej_uniform_neon(a + 0 * MLKEM_N + ctr0,
+            ctr0 += MLKEM_REJ_UNIFORM_ASM(a + 0 * MLKEM_N + ctr0,
                 MLKEM_N - ctr0, p, XOF_BLOCK_SIZE);
             p += 25 * 8;
-            ctr1 += mlkem_rej_uniform_neon(a + 1 * MLKEM_N + ctr1,
+            ctr1 += MLKEM_REJ_UNIFORM_ASM(a + 1 * MLKEM_N + ctr1,
                 MLKEM_N - ctr1, p, XOF_BLOCK_SIZE);
             p += 25 * 8;
-            ctr2 += mlkem_rej_uniform_neon(a + 2 * MLKEM_N + ctr2,
+            ctr2 += MLKEM_REJ_UNIFORM_ASM(a + 2 * MLKEM_N + ctr2,
                 MLKEM_N - ctr2, p, XOF_BLOCK_SIZE);
         }
 
@@ -3305,7 +3330,7 @@ static int mlkem_gen_matrix_k3_aarch64(sword16* a, byte* seed, int transposed)
  * @param  [in]   transposed  Whether A or A^T is generated.
  * @return  0 on success.
  */
-static int mlkem_gen_matrix_k4_aarch64(sword16* a, byte* seed, int transposed)
+static int mlkem_gen_matrix_k4_arm(sword16* a, byte* seed, int transposed)
 {
     int i;
     int k;
@@ -3331,26 +3356,26 @@ static int mlkem_gen_matrix_k4_aarch64(sword16* a, byte* seed, int transposed)
         mlkem_shake128_blocksx3_seed(state, seed);
         /* Sample random bytes to create a polynomial. */
         p = (byte*)st;
-        ctr0 = mlkem_rej_uniform_neon(a + 0 * MLKEM_N, MLKEM_N, p,
+        ctr0 = MLKEM_REJ_UNIFORM_ASM(a + 0 * MLKEM_N, MLKEM_N, p,
             XOF_BLOCK_SIZE);
         p += 25 * 8;
-        ctr1 = mlkem_rej_uniform_neon(a + 1 * MLKEM_N, MLKEM_N, p,
+        ctr1 = MLKEM_REJ_UNIFORM_ASM(a + 1 * MLKEM_N, MLKEM_N, p,
             XOF_BLOCK_SIZE);
         p += 25 * 8;
-        ctr2 = mlkem_rej_uniform_neon(a + 2 * MLKEM_N, MLKEM_N, p,
+        ctr2 = MLKEM_REJ_UNIFORM_ASM(a + 2 * MLKEM_N, MLKEM_N, p,
             XOF_BLOCK_SIZE);
         /* Create more blocks if too many rejected. */
         while ((ctr0 < MLKEM_N) || (ctr1 < MLKEM_N) || (ctr2 < MLKEM_N)) {
             mlkem_sha3_blocksx3(st);
 
             p = (byte*)st;
-            ctr0 += mlkem_rej_uniform_neon(a + 0 * MLKEM_N + ctr0,
+            ctr0 += MLKEM_REJ_UNIFORM_ASM(a + 0 * MLKEM_N + ctr0,
                 MLKEM_N - ctr0, p, XOF_BLOCK_SIZE);
             p += 25 * 8;
-            ctr1 += mlkem_rej_uniform_neon(a + 1 * MLKEM_N + ctr1,
+            ctr1 += MLKEM_REJ_UNIFORM_ASM(a + 1 * MLKEM_N + ctr1,
                 MLKEM_N - ctr1, p, XOF_BLOCK_SIZE);
             p += 25 * 8;
-            ctr2 += mlkem_rej_uniform_neon(a + 2 * MLKEM_N + ctr2,
+            ctr2 += MLKEM_REJ_UNIFORM_ASM(a + 2 * MLKEM_N + ctr2,
                 MLKEM_N - ctr2, p, XOF_BLOCK_SIZE);
         }
 
@@ -3364,10 +3389,10 @@ static int mlkem_gen_matrix_k4_aarch64(sword16* a, byte* seed, int transposed)
     state[20] = W64LIT(0x8000000000000000);
     BlockSha3(state);
     p = (byte*)state;
-    ctr0 = mlkem_rej_uniform_neon(a, MLKEM_N, p, XOF_BLOCK_SIZE);
+    ctr0 = MLKEM_REJ_UNIFORM_ASM(a, MLKEM_N, p, XOF_BLOCK_SIZE);
     while (ctr0 < MLKEM_N) {
         BlockSha3(state);
-        ctr0 += mlkem_rej_uniform_neon(a + ctr0, MLKEM_N - ctr0, p,
+        ctr0 += MLKEM_REJ_UNIFORM_ASM(a + ctr0, MLKEM_N - ctr0, p,
             XOF_BLOCK_SIZE);
     }
 
@@ -3376,7 +3401,7 @@ static int mlkem_gen_matrix_k4_aarch64(sword16* a, byte* seed, int transposed)
 #endif
 #endif /* USE_INTEL_SPEEDUP */
 
-#if !(defined(WOLFSSL_ARMASM) && defined(__aarch64__))
+#if !defined(MLKEM_ASM_BLOCKSX3)
 /* Absorb the seed data for squeezing out pseudo-random data.
  *
  * FIPS 203, Section 4.1:
@@ -3537,7 +3562,7 @@ void mlkem_prf_free(wc_Shake* prf)
     wc_Shake256_Free(prf);
 }
 
-#if !(defined(WOLFSSL_ARMASM) && defined(__aarch64__))
+#if !defined(MLKEM_ASM_BLOCKSX3)
 /* Create pseudo-random data from the key using SHAKE-256.
  *
  * FIPS 203, Section 4.1, 4.3:
@@ -3930,7 +3955,7 @@ static unsigned int mlkem_rej_uniform_c(sword16* p, unsigned int len,
 #if !defined(WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM) || \
     !defined(WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM)
 
-#if !(defined(WOLFSSL_ARMASM) && defined(__aarch64__))
+#if !defined(MLKEM_ASM_BLOCKSX3)
 /* Deterministically generate a matrix (or transpose) of uniform integers mod q.
  *
  * Seed used with XOF to generate random bytes.
@@ -4082,8 +4107,8 @@ int mlkem_gen_matrix(MLKEM_PRF_T* prf, sword16* a, int k, byte* seed,
 
 #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512)
     if (k == WC_ML_KEM_512_K) {
-#if defined(WOLFSSL_ARMASM) && defined(__aarch64__)
-        ret = mlkem_gen_matrix_k2_aarch64(a, seed, transposed);
+#if defined(MLKEM_ASM_BLOCKSX3)
+        ret = mlkem_gen_matrix_k2_arm(a, seed, transposed);
 #else
     #if defined(USE_INTEL_SPEEDUP) && !defined(WC_SHA3_NO_ASM)
     #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
@@ -4108,8 +4133,8 @@ int mlkem_gen_matrix(MLKEM_PRF_T* prf, sword16* a, int k, byte* seed,
 #endif
 #if defined(WOLFSSL_KYBER768) || defined(WOLFSSL_WC_ML_KEM_768)
     if (k == WC_ML_KEM_768_K) {
-#if defined(WOLFSSL_ARMASM) && defined(__aarch64__)
-        ret = mlkem_gen_matrix_k3_aarch64(a, seed, transposed);
+#if defined(MLKEM_ASM_BLOCKSX3)
+        ret = mlkem_gen_matrix_k3_arm(a, seed, transposed);
 #else
     #if defined(USE_INTEL_SPEEDUP) && !defined(WC_SHA3_NO_ASM)
     #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
@@ -4134,8 +4159,8 @@ int mlkem_gen_matrix(MLKEM_PRF_T* prf, sword16* a, int k, byte* seed,
 #endif
 #if defined(WOLFSSL_KYBER1024) || defined(WOLFSSL_WC_ML_KEM_1024)
     if (k == WC_ML_KEM_1024_K) {
-#if defined(WOLFSSL_ARMASM) && defined(__aarch64__)
-        ret = mlkem_gen_matrix_k4_aarch64(a, seed, transposed);
+#if defined(MLKEM_ASM_BLOCKSX3)
+        ret = mlkem_gen_matrix_k4_arm(a, seed, transposed);
 #else
     #if defined(USE_INTEL_SPEEDUP) && !defined(WC_SHA3_NO_ASM)
     #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
@@ -4563,7 +4588,7 @@ static void mlkem_cbd_eta3(sword16* p, const byte* r)
 }
 #endif
 
-#if !(defined(__aarch64__) && defined(WOLFSSL_ARMASM))
+#if !defined(MLKEM_ASM_BLOCKSX3)
 
 /* Get noise/error by calculating random bytes and sampling to a binomial
  * distribution.
@@ -5163,7 +5188,7 @@ static int mlkem_get_noise_k4_avx512(MLKEM_PRF_T* prf, sword16* vec1,
 #endif
 #endif /* USE_INTEL_SPEEDUP */
 
-#if defined(__aarch64__) && defined(WOLFSSL_ARMASM)
+#if defined(MLKEM_ASM_BLOCKSX3)
 
 #define PRF_RAND_SZ   (2 * SHA3_256_BYTES)
 
@@ -5181,7 +5206,7 @@ static int mlkem_get_noise_k4_avx512(MLKEM_PRF_T* prf, sword16* vec1,
  * @param  [in]   seed  Seed to generate random from.
  * @param  [in]   o     Offset of seed count.
  */
-static void mlkem_get_noise_x3_eta2_aarch64(word64* rand, byte* seed, byte o)
+static void mlkem_get_noise_x3_eta2_arm(word64* rand, byte* seed, byte o)
 {
     /* Only rand[i*25 + 4] is set here - the rest of the state is zeroed in
      * registers by the assembly. */
@@ -5210,7 +5235,7 @@ static void mlkem_get_noise_x3_eta2_aarch64(word64* rand, byte* seed, byte o)
  * @param  [in]   seed  Seed to generate random from.
  * @param  [in]   o     Offset of seed count.
  */
-static void mlkem_get_noise_x3_eta3_aarch64(byte* rand, byte* seed, byte o)
+static void mlkem_get_noise_x3_eta3_arm(byte* rand, byte* seed, byte o)
 {
     /* Only state[i*25 + 4] is read by the assembly - the rest of the state is
      * zeroed in registers there. */
@@ -5254,7 +5279,7 @@ static void mlkem_get_noise_x3_eta3_aarch64(byte* rand, byte* seed, byte o)
  * @param  [in]   seed  Seed to generate random from.
  * @param  [in]   o     Offset of seed count.
  */
-static void mlkem_get_noise_eta3_aarch64(byte* rand, byte* seed, byte o)
+static void mlkem_get_noise_eta3_arm(byte* rand, byte* seed, byte o)
 {
     /* ETA3_RAND_SIZE is larger than the SHAKE-256 rate - two squeezes are
      * needed, so the state cannot be squeezed in place over the output. */
@@ -5288,22 +5313,22 @@ static void mlkem_get_noise_eta3_aarch64(byte* rand, byte* seed, byte o)
  * @param  [in]       seed  Seed to use when calculating random.
  * @return  0 on success.
  */
-static int mlkem_get_noise_k2_aarch64(sword16* vec1, sword16* vec2,
+static int mlkem_get_noise_k2_arm(sword16* vec1, sword16* vec2,
     sword16* poly, byte* seed)
 {
     int ret = 0;
     word64 rand[3 * 25];
 
-    mlkem_get_noise_x3_eta3_aarch64((byte*)rand, seed, 0);
+    mlkem_get_noise_x3_eta3_arm((byte*)rand, seed, 0);
     mlkem_cbd_eta3(vec1          , (byte*)rand + 0 * ETA3_RAND_SIZE);
     mlkem_cbd_eta3(vec1 + MLKEM_N, (byte*)rand + 1 * ETA3_RAND_SIZE);
     if (poly == NULL) {
         mlkem_cbd_eta3(vec2          , (byte*)rand + 2 * ETA3_RAND_SIZE);
-        mlkem_get_noise_eta3_aarch64((byte*)rand, seed, 3);
+        mlkem_get_noise_eta3_arm((byte*)rand, seed, 3);
         mlkem_cbd_eta3(vec2 + MLKEM_N, (byte*)rand                     );
     }
     else {
-        mlkem_get_noise_x3_eta2_aarch64(rand, seed, 2);
+        mlkem_get_noise_x3_eta2_arm(rand, seed, 2);
         mlkem_cbd_eta2(vec2          , (byte*)rand + 0 * 25 * 8);
         mlkem_cbd_eta2(vec2 + MLKEM_N, (byte*)rand + 1 * 25 * 8);
         mlkem_cbd_eta2(poly          , (byte*)rand + 2 * 25 * 8);
@@ -5335,7 +5360,7 @@ static int mlkem_get_noise_k2_aarch64(sword16* vec1, sword16* vec2,
  * @param  [in]   seed  Seed to generate random from.
  * @param  [in]   o     Offset of seed count.
  */
-static void mlkem_get_noise_eta2_aarch64(word64* rand, byte* seed, byte o)
+static void mlkem_get_noise_eta2_arm(word64* rand, byte* seed, byte o)
 {
     readUnalignedWords64(rand, seed, 4);
     /* Transposed value same as not. */
@@ -5354,21 +5379,21 @@ static void mlkem_get_noise_eta2_aarch64(word64* rand, byte* seed, byte o)
  * @param  [in]       seed  Seed to use when calculating random.
  * @return  0 on success.
  */
-static int mlkem_get_noise_k3_aarch64(sword16* vec1, sword16* vec2,
+static int mlkem_get_noise_k3_arm(sword16* vec1, sword16* vec2,
      sword16* poly, byte* seed)
 {
     word64 rand[3 * 25];
 
-    mlkem_get_noise_x3_eta2_aarch64(rand, seed, 0);
+    mlkem_get_noise_x3_eta2_arm(rand, seed, 0);
     mlkem_cbd_eta2(vec1              , (byte*)rand + 0 * 25 * 8);
     mlkem_cbd_eta2(vec1 + 1 * MLKEM_N, (byte*)rand + 1 * 25 * 8);
     mlkem_cbd_eta2(vec1 + 2 * MLKEM_N, (byte*)rand + 2 * 25 * 8);
-    mlkem_get_noise_x3_eta2_aarch64(rand, seed, 3);
+    mlkem_get_noise_x3_eta2_arm(rand, seed, 3);
     mlkem_cbd_eta2(vec2              , (byte*)rand + 0 * 25 * 8);
     mlkem_cbd_eta2(vec2 + 1 * MLKEM_N, (byte*)rand + 1 * 25 * 8);
     mlkem_cbd_eta2(vec2 + 2 * MLKEM_N, (byte*)rand + 2 * 25 * 8);
     if (poly != NULL) {
-        mlkem_get_noise_eta2_aarch64(rand, seed, 6);
+        mlkem_get_noise_eta2_arm(rand, seed, 6);
         mlkem_cbd_eta2(poly              , (byte*)rand + 0 * 25 * 8);
     }
 
@@ -5394,21 +5419,21 @@ static int mlkem_get_noise_k3_aarch64(sword16* vec1, sword16* vec2,
  * @param  [in]       seed  Seed to use when calculating random.
  * @return  0 on success.
  */
-static int mlkem_get_noise_k4_aarch64(sword16* vec1, sword16* vec2,
+static int mlkem_get_noise_k4_arm(sword16* vec1, sword16* vec2,
     sword16* poly, byte* seed)
 {
     int ret = 0;
     word64 rand[3 * 25];
 
-    mlkem_get_noise_x3_eta2_aarch64(rand, seed, 0);
+    mlkem_get_noise_x3_eta2_arm(rand, seed, 0);
     mlkem_cbd_eta2(vec1              , (byte*)rand + 0 * 25 * 8);
     mlkem_cbd_eta2(vec1 + 1 * MLKEM_N, (byte*)rand + 1 * 25 * 8);
     mlkem_cbd_eta2(vec1 + 2 * MLKEM_N, (byte*)rand + 2 * 25 * 8);
-    mlkem_get_noise_x3_eta2_aarch64(rand, seed, 3);
+    mlkem_get_noise_x3_eta2_arm(rand, seed, 3);
     mlkem_cbd_eta2(vec1 + 3 * MLKEM_N, (byte*)rand + 0 * 25 * 8);
     mlkem_cbd_eta2(vec2              , (byte*)rand + 1 * 25 * 8);
     mlkem_cbd_eta2(vec2 + 1 * MLKEM_N, (byte*)rand + 2 * 25 * 8);
-    mlkem_get_noise_x3_eta2_aarch64(rand, seed, 6);
+    mlkem_get_noise_x3_eta2_arm(rand, seed, 6);
     mlkem_cbd_eta2(vec2 + 2 * MLKEM_N, (byte*)rand + 0 * 25 * 8);
     mlkem_cbd_eta2(vec2 + 3 * MLKEM_N, (byte*)rand + 1 * 25 * 8);
     if (poly != NULL) {
@@ -5428,7 +5453,7 @@ static int mlkem_get_noise_k4_aarch64(sword16* vec1, sword16* vec2,
 #endif
 #endif /* __aarch64__ && WOLFSSL_ARMASM */
 
-#if !(defined(__aarch64__) && defined(WOLFSSL_ARMASM))
+#if !defined(MLKEM_ASM_BLOCKSX3)
 
 /* Get the noise/error by calculating random bytes and sampling to a binomial
  * distribution.
@@ -5499,8 +5524,8 @@ int mlkem_get_noise(MLKEM_PRF_T* prf, int k, sword16* vec1, sword16* vec2,
 
 #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512)
     if (k == WC_ML_KEM_512_K) {
-#if defined(WOLFSSL_ARMASM) && defined(__aarch64__)
-        ret = mlkem_get_noise_k2_aarch64(vec1, vec2, poly, seed);
+#if defined(MLKEM_ASM_BLOCKSX3)
+        ret = mlkem_get_noise_k2_arm(vec1, vec2, poly, seed);
 #else
     #if defined(USE_INTEL_SPEEDUP) && !defined(WC_SHA3_NO_ASM)
     #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
@@ -5530,8 +5555,8 @@ int mlkem_get_noise(MLKEM_PRF_T* prf, int k, sword16* vec1, sword16* vec2,
 #endif
 #if defined(WOLFSSL_KYBER768) || defined(WOLFSSL_WC_ML_KEM_768)
     if (k == WC_ML_KEM_768_K) {
-#if defined(WOLFSSL_ARMASM) && defined(__aarch64__)
-        ret = mlkem_get_noise_k3_aarch64(vec1, vec2, poly, seed);
+#if defined(MLKEM_ASM_BLOCKSX3)
+        ret = mlkem_get_noise_k3_arm(vec1, vec2, poly, seed);
 #else
     #if defined(USE_INTEL_SPEEDUP) && !defined(WC_SHA3_NO_ASM)
     #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
@@ -5557,8 +5582,8 @@ int mlkem_get_noise(MLKEM_PRF_T* prf, int k, sword16* vec1, sword16* vec2,
 #endif
 #if defined(WOLFSSL_KYBER1024) || defined(WOLFSSL_WC_ML_KEM_1024)
     if (k == WC_ML_KEM_1024_K) {
-#if defined(WOLFSSL_ARMASM) && defined(__aarch64__)
-        ret = mlkem_get_noise_k4_aarch64(vec1, vec2, poly, seed);
+#if defined(MLKEM_ASM_BLOCKSX3)
+        ret = mlkem_get_noise_k4_arm(vec1, vec2, poly, seed);
 #else
     #if defined(USE_INTEL_SPEEDUP) && !defined(WC_SHA3_NO_ASM)
     #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
