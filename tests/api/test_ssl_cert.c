@@ -34,6 +34,13 @@
 #include <tests/utils.h>
 #include <tests/api/test_ssl_cert.h>
 
+#if defined(__unix__) && !defined(NO_FILESYSTEM)
+    #include <sys/types.h>
+    #include <sys/stat.h>
+    #include <fcntl.h>
+    #include <unistd.h>
+#endif
+
 /* Tests for the certificate APIs in src/ssl_api_cert.c (moved from ssl.c). */
 
 /* Test reading back the verification mode from an object.
@@ -2018,6 +2025,162 @@ int test_wolfSSL_dtls_api_on_dtls_object(void)
     wolfSSL_free(tssl);
     wolfSSL_CTX_free(dctx);
     wolfSSL_CTX_free(tctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* ---------------------------------------------------------------------------
+ * Certificate loading from files that are wrong in file-system ways.
+ *
+ * ssl_misc.c is 0/11 and every one of its conditions is in a static file
+ * helper -- wolfssl_file_len and wolfssl_read_file_static -- guarding against
+ * a seek that fails, a length that is zero or absurd, and a read that returns
+ * fewer bytes than the length promised:
+ *
+ *     if ((ret == 0) && ((sz > MAX_WOLFSSL_FILE_SIZE) || (sz <= 0L)))
+ *     if ((ret == 0) && ((file = XFOPEN(fname, "rb")) == XBADFILE))
+ *     if ((ret == 0) && (XFREAD(...) != sz))
+ *
+ * They are static, but they are not out of reach: every public load-from-file
+ * entry point runs through them, so the vector is the FILE rather than the
+ * argument. An empty file gives sz <= 0; a directory passed where a file is
+ * expected gives a seek or read that fails; a name that does not exist gives
+ * XBADFILE. None of those is something a working configuration supplies, and
+ * no existing test supplies them either.
+ * ------------------------------------------------------------------------- */
+int test_wolfSSL_load_pathological_files(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    const char* emptyFile = "test-empty-cert.tmp";
+    XFILE f = XBADFILE;
+
+    /* an empty file: the `sz <= 0` operand, which no real certificate has */
+    f = XFOPEN(emptyFile, "wb");
+    if (f != XBADFILE)
+        XFCLOSE(f);
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+
+    /* XBADFILE: a name that does not exist */
+    (void)wolfSSL_CTX_load_verify_locations(ctx, "no-such-file.pem", NULL);
+    (void)wolfSSL_CTX_use_certificate_file(ctx, "no-such-file.pem",
+                                           WOLFSSL_FILETYPE_PEM);
+    (void)wolfSSL_CTX_use_PrivateKey_file(ctx, "no-such-file.pem",
+                                          WOLFSSL_FILETYPE_PEM);
+
+    /* sz <= 0: the empty file */
+    (void)wolfSSL_CTX_load_verify_locations(ctx, emptyFile, NULL);
+    (void)wolfSSL_CTX_use_certificate_file(ctx, emptyFile,
+                                           WOLFSSL_FILETYPE_PEM);
+    (void)wolfSSL_CTX_use_PrivateKey_file(ctx, emptyFile,
+                                          WOLFSSL_FILETYPE_PEM);
+    (void)wolfSSL_CTX_use_certificate_chain_file(ctx, emptyFile);
+
+    /* a directory where a file is expected: the seek and read failure arms */
+    (void)wolfSSL_CTX_load_verify_locations(ctx, "certs", NULL);
+    (void)wolfSSL_CTX_use_certificate_file(ctx, "certs",
+                                           WOLFSSL_FILETYPE_PEM);
+
+    /* a file that exists and is not a certificate at all */
+    (void)wolfSSL_CTX_load_verify_locations(ctx, "Makefile", NULL);
+
+    /* the accepting partner, so every operand above has one */
+    (void)wolfSSL_CTX_load_verify_locations(ctx, caCertFile, NULL);
+
+    /* the same set through the CertManager, which has its own copies of the
+     * load paths */
+    cm = wolfSSL_CertManagerNew();
+    if (cm != NULL) {
+        (void)wolfSSL_CertManagerLoadCA(cm, "no-such-file.pem", NULL);
+        (void)wolfSSL_CertManagerLoadCA(cm, emptyFile, NULL);
+        (void)wolfSSL_CertManagerLoadCA(cm, "certs", NULL);
+        (void)wolfSSL_CertManagerLoadCA(cm, caCertFile, NULL);
+        (void)wolfSSL_CertManagerVerify(cm, "no-such-file.pem",
+                                        WOLFSSL_FILETYPE_PEM);
+        (void)wolfSSL_CertManagerVerify(cm, emptyFile, WOLFSSL_FILETYPE_PEM);
+        (void)wolfSSL_CertManagerVerify(cm, svrCertFile,
+                                        WOLFSSL_FILETYPE_PEM);
+        (void)wolfSSL_CertManagerUnloadCAs(cm);
+        (void)wolfSSL_CertManagerUnloadCAs(NULL);
+        wolfSSL_CertManagerFree(cm);
+    }
+    (void)wolfSSL_CertManagerNew_ex(NULL);
+
+    wolfSSL_CTX_free(ctx);
+    (void)remove(emptyFile);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* ---------------------------------------------------------------------------
+ * The file-helper failure arms, reached with a FIFO.
+ *
+ * Three of ssl_misc.c's conditions cannot be produced by any regular file:
+ *
+ *     if ((ret == 0) && (XFSEEK(fp, 0, SEEK_END) != 0))     seek failed
+ *     if ((ret == 0) && (XFREAD(...) != (size_t)sz))        short read
+ *
+ * A regular file always seeks and always reads what it promised. A FIFO does
+ * neither: fopen() succeeds, so the XBADFILE arm is passed, and then fseek()
+ * fails with ESPIPE because a pipe has no position. That is the exact shape
+ * the guard is written for, and nothing on disk can imitate it.
+ *
+ * The FIFO is opened read-write by the test before the library touches it, so
+ * the library's fopen() cannot block waiting for a writer -- a test that hangs
+ * costs the whole variant just as surely as one that crashes.
+ * ------------------------------------------------------------------------- */
+int test_wolfSSL_load_from_fifo(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_WOLFSSL_CLIENT) && defined(__unix__)
+    WOLFSSL_CTX* ctx = NULL;
+    const char* fifo = "test-cert-fifo.tmp";
+    int fd = -1;
+
+    (void)remove(fifo);
+    if (mkfifo(fifo, 0600) != 0) {
+        /* no FIFO support here; that is a platform fact, not a failure */
+        return EXPECT_RESULT();
+    }
+    /* Hold it open both ways so the library's fopen() returns immediately
+     * and there is something to read. */
+    fd = open(fifo, O_RDWR | O_NONBLOCK);
+    if (fd >= 0) {
+        const char junk[] = "-----BEGIN CERTIFICATE-----\n";
+        ssize_t w = write(fd, junk, sizeof(junk) - 1);
+        (void)w;
+    }
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    if (fd >= 0) {
+        /* fopen succeeds, fseek fails: the seek-failure arm */
+        (void)wolfSSL_CTX_load_verify_locations(ctx, fifo, NULL);
+        (void)wolfSSL_CTX_use_certificate_file(ctx, fifo,
+                                               WOLFSSL_FILETYPE_PEM);
+        (void)wolfSSL_CTX_use_PrivateKey_file(ctx, fifo,
+                                              WOLFSSL_FILETYPE_PEM);
+        (void)wolfSSL_CTX_use_certificate_chain_file(ctx, fifo);
+        {
+            WOLFSSL_CERT_MANAGER* cm = wolfSSL_CertManagerNew();
+            if (cm != NULL) {
+                (void)wolfSSL_CertManagerLoadCA(cm, fifo, NULL);
+                (void)wolfSSL_CertManagerVerify(cm, fifo,
+                                                WOLFSSL_FILETYPE_PEM);
+                wolfSSL_CertManagerFree(cm);
+            }
+        }
+        /* the accepting partner through the same code */
+        (void)wolfSSL_CTX_load_verify_locations(ctx, caCertFile, NULL);
+    }
+
+    wolfSSL_CTX_free(ctx);
+    if (fd >= 0)
+        close(fd);
+    (void)remove(fifo);
 #endif
     return EXPECT_RESULT();
 }
