@@ -11036,3 +11036,81 @@ int test_tls13_x25519_keyshare_masks_reserved_bit(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* RFC 8446 Section 5.1: a TLS 1.3 receiver MUST ignore legacy_record_version
+ * "for all purposes".  Garble those two bytes in the server's first flight
+ * (the unencrypted ServerHello record, which is not covered by the transcript
+ * hash) and the handshake must still complete.  For TLS 1.2 the record layer
+ * version is still meaningful, so the same tampering must be rejected. */
+int test_tls13_ignore_legacy_record_version(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    /* Run the ClientHello, then the server's first flight. */
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WOLFSSL_ERROR_WANT_READ);
+
+    /* Bytes 1 and 2 of the record header are legacy_record_version. */
+    ExpectIntGT(test_ctx.c_len, RECORD_HEADER_SZ);
+    if (EXPECT_SUCCESS()) {
+        test_ctx.c_buff[1] = 0xEE;
+        test_ctx.c_buff[2] = 0xEE;
+    }
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c);
+    ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s);
+    ctx_s = NULL;
+
+#ifndef WOLFSSL_NO_TLS12
+    /* Same tampering under TLS 1.2 must still be caught. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WOLFSSL_ERROR_WANT_READ);
+
+    /* Bytes 1 and 2 of the record header are legacy_record_version. */
+    ExpectIntGT(test_ctx.c_len, RECORD_HEADER_SZ);
+    if (EXPECT_SUCCESS()) {
+        test_ctx.c_buff[1] = 0xEE;
+        test_ctx.c_buff[2] = 0xEE;
+    }
+
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WC_NO_ERR_TRACE(VERSION_ERROR));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif /* !WOLFSSL_NO_TLS12 */
+#endif /* WOLFSSL_TLS13 && HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES */
+    return EXPECT_RESULT();
+}

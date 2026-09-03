@@ -13308,13 +13308,9 @@ static int GetDtlsRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
 static int GetRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
                            RecordLayerHeader* rh, word16 *size)
 {
-    byte tls12minor = 0;
-
 #ifdef OPENSSL_ALL
     word32 start = *inOutIdx;
 #endif
-
-    (void)tls12minor;
 
     if (!ssl->options.dtls) {
 #ifdef HAVE_FUZZER
@@ -13358,23 +13354,13 @@ static int GetRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
     }
 #endif
 
-#if defined(WOLFSSL_DTLS13) || defined(WOLFSSL_TLS13)
-    tls12minor = TLSv1_2_MINOR;
-#endif
-#ifdef WOLFSSL_DTLS13
-    if (ssl->options.dtls)
-        tls12minor = DTLSv1_2_MINOR;
-#endif /* WOLFSSL_DTLS13 */
-    /* catch version mismatch */
-#ifndef WOLFSSL_TLS13
-    if (rh->pvMajor != ssl->version.major || rh->pvMinor != ssl->version.minor)
-#else
-    if (rh->pvMajor != ssl->version.major ||
-        (rh->pvMinor != ssl->version.minor &&
-         (!IsAtLeastTLSv1_3(ssl->version) || rh->pvMinor != tls12minor)
-        ))
-#endif
-    {
+    /* Catch version mismatch.
+     * The record layer version is deprecated in (D)TLS 1.3: RFC 8446
+     * Section 5.1 and RFC 9147 Section 4 both state that
+     * legacy_record_version "MUST be ignored for all purposes". */
+    if (!IsAtLeastTLSv1_3(ssl->version) &&
+        (rh->pvMajor != ssl->version.major ||
+         rh->pvMinor != ssl->version.minor)) {
         if (ssl->options.side == WOLFSSL_SERVER_END &&
             ssl->options.acceptState < ACCEPT_FIRST_REPLY_DONE)
 
@@ -13386,15 +13372,17 @@ static int GetRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
         else if (ssl->options.dtls && rh->type == handshake)
             /* Check the DTLS handshake message RH version later. */
             WOLFSSL_MSG("DTLS handshake, skip RH version number check");
-#ifdef WOLFSSL_DTLS13
-        else if (ssl->options.dtls && !ssl->options.handShakeDone) {
-            /* we may have lost the ServerHello and this is a unified record
-               before version been negotiated */
-            if (Dtls13IsUnifiedHeader(*ssl->buffers.inputBuffer.buffer)) {
-                return SEQUENCE_ERROR;
-            }
-        }
-#endif /* WOLFSSL_DTLS13 */
+#ifdef WOLFSSL_DTLS
+        /* A DTLS peer that disagrees on the version stamps its alert record
+         * with its own version, so a mismatch here is expected. Accept it
+         * while the handshake is still in progress so that the alert gets
+         * processed and its reason reported to the application instead of
+         * being replaced by a version error. */
+        else if (ssl->options.dtls && rh->type == alert &&
+                 !ssl->options.handShakeDone &&
+                 rh->pvMajor == ssl->version.major)
+            WOLFSSL_MSG("DTLS alert during handshake, skip RH version check");
+#endif
         /* Don't care about protocol version being lower than expected on alerts
          * sent back before version negotiation. */
         else if (!(ssl->options.side == WOLFSSL_CLIENT_END &&
@@ -13505,10 +13493,12 @@ int GetDtlsHandShakeHeader(WOLFSSL* ssl, const byte* input,
     idx += DTLS_HANDSHAKE_FRAG_SZ;
     c24to32(input + idx, fragSz);
 
-    if ((ssl->curRL.pvMajor != ssl->version.major) ||
-        (!IsAtLeastTLSv1_3(ssl->version) && ssl->curRL.pvMinor != ssl->version.minor) ||
-        (IsAtLeastTLSv1_3(ssl->version) && ssl->curRL.pvMinor != DTLSv1_2_MINOR)
-        ) {
+    /* The record header version check deferred by GetRecordHeader(). As above,
+     * DTLS 1.3 requires legacy_record_version to be ignored for all purposes
+     * (RFC 9147 Section 4), so only DTLS 1.2 and earlier check it here. */
+    if (!IsAtLeastTLSv1_3(ssl->version) &&
+        ((ssl->curRL.pvMajor != ssl->version.major) ||
+         (ssl->curRL.pvMinor != ssl->version.minor))) {
         if (*type != client_hello && *type != hello_verify_request && *type != server_hello) {
             WOLFSSL_ERROR(VERSION_ERROR);
             return VERSION_ERROR;
