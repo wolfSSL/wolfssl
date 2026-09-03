@@ -4064,21 +4064,10 @@ int DeriveKeys(WOLFSSL* ssl)
 
 static void CleanPreMaster(WOLFSSL* ssl)
 {
-    int sz = (int)(ssl->arrays->preMasterSz);
-
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Add("CleanPreMaster preMasterSecret",
-                   ssl->arrays->preMasterSecret, sz);
-#endif
-
-    ForceZero(ssl->arrays->preMasterSecret, sz);
-
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Check(ssl->arrays->preMasterSecret, sz);
-#endif
-
-    XFREE(ssl->arrays->preMasterSecret, ssl->heap, DYNAMIC_TYPE_SECRET);
-    ssl->arrays->preMasterSecret = NULL;
+    /* Wipe all of it, not the recorded length, which a caller can shrink
+     * after a larger write. A wc_MemZero_Check() here would alias the whole
+     * "SSL Arrays" entry, which starts at the same address. */
+    ForceZero(ssl->arrays->preMasterSecret, MAX_PREMASTER_SZ);
     ssl->arrays->preMasterSz = 0;
 }
 
@@ -4098,15 +4087,11 @@ static int MakeSslMasterSecret(WOLFSSL* ssl)
     wc_Sha* sha;
 #else
     byte   shaOutput[WC_SHA_DIGEST_SIZE];
-    byte   md5Input[ENCRYPT_LEN + WC_SHA_DIGEST_SIZE];
-    byte   shaInput[PREFIX + ENCRYPT_LEN + 2 * RAN_LEN];
+    byte   md5Input[MAX_PREMASTER_SZ + WC_SHA_DIGEST_SIZE];
+    byte   shaInput[PREFIX + MAX_PREMASTER_SZ + 2 * RAN_LEN];
     wc_Md5 md5[1];
     wc_Sha sha[1];
 #endif
-
-    if (ssl->arrays->preMasterSecret == NULL) {
-        return BAD_FUNC_ARG;
-    }
 
 #ifdef SHOW_SECRETS
     {
@@ -4121,9 +4106,9 @@ static int MakeSslMasterSecret(WOLFSSL* ssl)
 #ifdef WOLFSSL_SMALL_STACK
     shaOutput = (byte*)XMALLOC(WC_SHA_DIGEST_SIZE,
                                             NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    md5Input  = (byte*)XMALLOC(ENCRYPT_LEN + WC_SHA_DIGEST_SIZE,
+    md5Input  = (byte*)XMALLOC(MAX_PREMASTER_SZ + WC_SHA_DIGEST_SIZE,
                                             NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    shaInput  = (byte*)XMALLOC(PREFIX + ENCRYPT_LEN + 2 * RAN_LEN,
+    shaInput  = (byte*)XMALLOC(PREFIX + MAX_PREMASTER_SZ + 2 * RAN_LEN,
                                             NULL, DYNAMIC_TYPE_TMP_BUFFER);
     md5       =  (wc_Md5*)XMALLOC(sizeof(wc_Md5), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     sha       =  (wc_Sha*)XMALLOC(sizeof(wc_Sha), NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -4141,9 +4126,9 @@ static int MakeSslMasterSecret(WOLFSSL* ssl)
 #endif
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Add("MakeSslMasterSecret md5Input", md5Input,
-                   ENCRYPT_LEN + WC_SHA_DIGEST_SIZE);
+                   MAX_PREMASTER_SZ + WC_SHA_DIGEST_SIZE);
     wc_MemZero_Add("MakeSslMasterSecret shaInput", shaInput,
-                   PREFIX + ENCRYPT_LEN + 2 * RAN_LEN);
+                   PREFIX + MAX_PREMASTER_SZ + 2 * RAN_LEN);
     wc_MemZero_Add("MakeSslMasterSecret shaOutput", shaOutput,
                    WC_SHA_DIGEST_SIZE);
 #endif
@@ -4206,12 +4191,12 @@ static int MakeSslMasterSecret(WOLFSSL* ssl)
             ret = DeriveKeys(ssl);
     }
 
-    ForceZero(md5Input, ENCRYPT_LEN + WC_SHA_DIGEST_SIZE);
-    ForceZero(shaInput, PREFIX + ENCRYPT_LEN + 2 * RAN_LEN);
+    ForceZero(md5Input, MAX_PREMASTER_SZ + WC_SHA_DIGEST_SIZE);
+    ForceZero(shaInput, PREFIX + MAX_PREMASTER_SZ + 2 * RAN_LEN);
     ForceZero(shaOutput, WC_SHA_DIGEST_SIZE);
 #ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Check(md5Input, ENCRYPT_LEN + WC_SHA_DIGEST_SIZE);
-    wc_MemZero_Check(shaInput, PREFIX + ENCRYPT_LEN + 2 * RAN_LEN);
+    wc_MemZero_Check(md5Input, MAX_PREMASTER_SZ + WC_SHA_DIGEST_SIZE);
+    wc_MemZero_Check(shaInput, PREFIX + MAX_PREMASTER_SZ + 2 * RAN_LEN);
     wc_MemZero_Check(shaOutput, WC_SHA_DIGEST_SIZE);
 #endif
 

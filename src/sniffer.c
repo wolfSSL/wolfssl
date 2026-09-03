@@ -2606,6 +2606,22 @@ static void FreeSetupKeysArgs(WOLFSSL* ssl, void* pArgs)
     }
 }
 
+/* The sniffer never calls CleanPreMaster(), so both copies would otherwise
+ * stay resident in the session table for the life of the session. */
+static void CleanSnifferPreMaster(SnifferSession* session)
+{
+    if (session->sslServer != NULL && session->sslServer->arrays != NULL) {
+        ForceZero(session->sslServer->arrays->preMasterSecret,
+                  MAX_PREMASTER_SZ);
+        session->sslServer->arrays->preMasterSz = 0;
+    }
+    if (session->sslClient != NULL && session->sslClient->arrays != NULL) {
+        ForceZero(session->sslClient->arrays->preMasterSecret,
+                  MAX_PREMASTER_SZ);
+        session->sslClient->arrays->preMasterSz = 0;
+    }
+}
+
 /* Process Keys */
 #if !defined(HAVE_ENCRYPT_THEN_MAC) || defined(WOLFSSL_AEAD_ONLY)
 /* RFC 7366 only covers block ciphers and a peer must not negotiate it for an
@@ -3012,7 +3028,7 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
                 /* Length is in bytes. Subtract 1 for the ECC key type. Divide
                 * by two as the key is in (x,y) coordinates, where x and y are
                 * the same size, the key size. Convert from bytes to bits. */
-                session->sslServer->arrays->preMasterSz = ENCRYPT_LEN;
+                session->sslServer->arrays->preMasterSz = MAX_PREMASTER_SZ;
             }
         }
     #endif /* HAVE_ECC */
@@ -3104,7 +3120,7 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
             if (ret == 0) {
                 /* For Curve25519 length is always 32 */
                 session->keySz = CURVE25519_KEYSIZE;
-                session->sslServer->arrays->preMasterSz = ENCRYPT_LEN;
+                session->sslServer->arrays->preMasterSz = MAX_PREMASTER_SZ;
             }
         }
     #endif /* HAVE_CURVE25519 */
@@ -3186,7 +3202,7 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
 
             if (ret == 0) {
                 session->keySz = CURVE448_KEY_SIZE;
-                session->sslServer->arrays->preMasterSz = ENCRYPT_LEN;
+                session->sslServer->arrays->preMasterSz = MAX_PREMASTER_SZ;
             }
         }
     #endif /* HAVE_CURVE448 */
@@ -3397,7 +3413,11 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
             ret += MakeMasterSecret(session->sslClient);
             ret += SetKeysSide(session->sslServer, ENCRYPT_AND_DECRYPT_SIDE);
             ret += SetKeysSide(session->sslClient, ENCRYPT_AND_DECRYPT_SIDE);
+            /* Last reader below TLS 1.3, so both copies can go. TLS 1.3
+             * keeps the buffer until ProcessFinished() wipes it. */
+            CleanSnifferPreMaster(session);
         }
+
         if (ret != 0) {
             SetError(BAD_DERIVE_STR, error, session, FATAL_ERROR_STATE);
             ret = WOLFSSL_FATAL_ERROR; break;
@@ -3444,6 +3464,12 @@ exit_sk:
         return ret;
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
+
+    /* An error above may have left a secret in the arrays until the session
+     * is evicted. The async pending path returned already; it needs the
+     * buffer to resume. */
+    if (ret < 0)
+        CleanSnifferPreMaster(session);
 
 #ifdef WOLFSSL_SNIFFER_STATS
     if (ret < 0)
@@ -4760,6 +4786,8 @@ static int ProcessFinished(const byte* input, int size, int* sslBytes,
     *sslBytes -= (int)inOutIdx;
 
     if (ret < 0) {
+        /* The handshake secret may already be here; wipe on the way out. */
+        CleanSnifferPreMaster(session);
         SetError(BAD_FINISHED_MSG, error, session, FATAL_ERROR_STATE);
         return ret;
     }
@@ -4800,6 +4828,8 @@ static int ProcessFinished(const byte* input, int size, int* sslBytes,
             ret += DeriveTls13Keys(session->sslServer, traffic_key, ENCRYPT_AND_DECRYPT_SIDE, 1);
             ret += DeriveTls13Keys(session->sslClient, traffic_key, ENCRYPT_AND_DECRYPT_SIDE, 1);
         #endif
+            /* The handshake secret is spent, derivation succeeded or not. */
+            CleanSnifferPreMaster(session);
 
             if (ret != 0) {
                 SetError(BAD_FINISHED_MSG, error, session, FATAL_ERROR_STATE);
