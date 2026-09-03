@@ -13531,6 +13531,23 @@ static int SendTls13Finished(WOLFSSL* ssl)
 }
 #endif /* !NO_WOLFSSL_CLIENT || !NO_WOLFSSL_SERVER */
 
+/* RFC 9846 Section 4.7.3: a TLS 1.3 sender MUST NOT allow its number of key
+ * updates to exceed 2^48-1. DTLS 1.3 bounds the epoch instead (RFC 9147
+ * Section 4.2.1), so this only covers TLS.
+ *
+ * ssl  The SSL/TLS object.
+ * returns 1 when a further KeyUpdate would exceed the limit, 0 otherwise.
+ */
+int Tls13KeyUpdateLimitReached(WOLFSSL* ssl)
+{
+    if (ssl->options.dtls)
+        return 0;
+
+    return w64GTE(ssl->keys.keyUpdateCount,
+                  w64From32(TLS13_KEY_UPDATE_MAX_HI32,
+                            TLS13_KEY_UPDATE_MAX_LO32));
+}
+
 /* handle generation TLS v1.3 key_update (24) */
 /* Send the TLS v1.3 KeyUpdate message.
  *
@@ -13562,17 +13579,12 @@ int SendTls13KeyUpdate(WOLFSSL* ssl)
     }
 #endif /* WOLFSSL_DTLS13 */
 
-    if (!ssl->options.dtls) {
-        /* RFC 9846 Section 4.7.3: a sending implementation MUST NOT allow its
-         * number of key updates to exceed 2^48-1. Receivers MUST NOT enforce
-         * this on the peer. */
-        if (w64GTE(ssl->keys.keyUpdateCount,
-                   w64From32(TLS13_KEY_UPDATE_MAX_HI32,
-                             TLS13_KEY_UPDATE_MAX_LO32))) {
-            WOLFSSL_MSG("TLS 1.3 key update count at maximum; refusing "
-                        "KeyUpdate");
-            return BAD_STATE_E;
-        }
+    /* RFC 9846 Section 4.7.3: a sending implementation MUST NOT allow its
+     * number of key updates to exceed 2^48-1. Receivers MUST NOT enforce this
+     * on the peer. */
+    if (Tls13KeyUpdateLimitReached(ssl)) {
+        WOLFSSL_MSG("TLS 1.3 key update count at maximum; refusing KeyUpdate");
+        return BAD_STATE_E;
     }
 
     outputSz = OPAQUE8_LEN + MAX_MSG_EXTRA;
@@ -13743,7 +13755,12 @@ static int DoTls13KeyUpdate(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif /* WOLFSSL_DTLS13 */
 
 #if defined(HAVE_WRITE_DUP) && defined(WOLFSSL_TLS13)
-        /* Read side cannot write; delegate the response to the write side. */
+        /* Read side cannot write; delegate the response to the write side.
+         * The key update cap is deliberately not checked here: the two sides
+         * are separate WOLFSSL objects with separate keys, and only the write
+         * side ever sends a KeyUpdate, so this object's keyUpdateCount is not
+         * the one the limit applies to. The check is applied on the write side
+         * in wolfssl_write_dup_do_tls13_work(). */
         if (ssl->dupWrite != NULL && ssl->dupSide == READ_DUP_SIDE) {
             if (wc_LockMutex(&ssl->dupWrite->dupMutex) != 0)
                 return BAD_MUTEX_E;
@@ -13753,6 +13770,17 @@ static int DoTls13KeyUpdate(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             return 0;
         }
 #endif /* HAVE_WRITE_DUP && WOLFSSL_TLS13 */
+
+        /* RFC 9846 Section 4.7.3: a sender that would exceed the key update
+         * limit "MUST NOT send its own KeyUpdate ... and SHOULD instead ignore
+         * the 'update_requested' flag". Dropping the response rather than
+         * failing keeps the connection alive on the current keys until the
+         * Section 5.5 data limits eventually force it closed. */
+        if (Tls13KeyUpdateLimitReached(ssl)) {
+            WOLFSSL_MSG("Key update limit reached; ignoring update_requested");
+            ssl->keys.keyUpdateRespond = 0;
+            return 0;
+        }
 
 #ifndef WOLFSSL_RW_THREADED
         return SendTls13KeyUpdate(ssl);
