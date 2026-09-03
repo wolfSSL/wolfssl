@@ -15799,9 +15799,8 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                && (!ssl->options.dtls)
         #endif
                ) {
-        #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
-            if (ret != WC_NO_ERR_TRACE(WC_PENDING_E) &&
-                ret != WC_NO_ERR_TRACE(OCSP_WANT_READ))
+        #ifdef WOLFSSL_HAVE_HS_SUSPEND
+            if (!IsHsSuspendErr(ret))
         #endif
             {
                 ssl->options.cacheMessages = 0;
@@ -15930,21 +15929,19 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         ssl->options.asyncReplayMsg = 1;
 #endif
 
-#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_ASYNC_IO)
-    /* if async, offset index so this msg will be processed again */
+#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_ASYNC_IO) || \
+    defined(WOLFSSL_HAVE_HS_SUSPEND)
+    /* if suspended, offset index so this msg will be processed again */
     /* NOTE: check this now before other calls can overwrite ret */
-    if ((ret == WC_NO_ERR_TRACE(WC_PENDING_E) ||
-         ret == WC_NO_ERR_TRACE(OCSP_WANT_READ)) && *inOutIdx > 0) {
+    if (IsHsSuspendErr(ret) && *inOutIdx > 0) {
         /* DTLS always stores a message in a buffer when async is enable, so we
          * don't need to adjust for the extra bytes here (*inOutIdx is always
          * == 0) */
         *inOutIdx -= HANDSHAKE_HEADER_SZ;
     }
 
-    /* make sure async error is cleared */
-    if (ret == 0 &&
-        (ssl->error == WC_NO_ERR_TRACE(WC_PENDING_E) ||
-         ssl->error == WC_NO_ERR_TRACE(OCSP_WANT_READ))) {
+    /* make sure suspend error is cleared */
+    if (ret == 0 && IsHsSuspendErr(ssl->error)) {
         ssl->error = 0;
     }
 #endif
@@ -16105,7 +16102,7 @@ int DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     word32 inputLength;
     byte   type;
     word32 size = 0;
-#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
+#ifdef WOLFSSL_HAVE_HS_SUSPEND
     /* Nonzero on entry: an earlier message's schedule is unfinished, so a
      * pend from its pre-dispatch drain must re-present this message. */
     byte   kdfStepEntry = ssl->kdfMsgStep;
@@ -16168,11 +16165,11 @@ int DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
         ret = DoTls13HandShakeMsgType(ssl, input, inOutIdx, type, size,
                                       totalSz);
-    #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
-        if ((ret == WC_NO_ERR_TRACE(WC_PENDING_E) &&
-                 (ssl->kdfMsgStep == 0 || kdfStepEntry != 0) &&
-                 ssl->options.processReply != 0 /* doProcessInit */) ||
-                ret == WC_NO_ERR_TRACE(OCSP_WANT_READ)) {
+    #ifdef WOLFSSL_HAVE_HS_SUSPEND
+        if (IsHsSuspendErr(ret) &&
+                (ret != WC_NO_ERR_TRACE(WC_PENDING_E) ||
+                 ((ssl->kdfMsgStep == 0 || kdfStepEntry != 0) &&
+                  ssl->options.processReply != 0 /* doProcessInit */))) {
             /* Re-present for in-handler pends and pre-dispatch drain pends.
              * Not for post-handler pends, which committed the message: a
              * key-schedule pend (kdfMsgStep != 0) resumes through
@@ -16208,11 +16205,11 @@ int DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                 &idx, ssl->pendingMsgType,
                                 ssl->pendingMsgSz - HANDSHAKE_HEADER_SZ,
                                 ssl->pendingMsgSz);
-        #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
-            if ((ret == WC_NO_ERR_TRACE(WC_PENDING_E) &&
-                 (ssl->kdfMsgStep == 0 || kdfStepEntry != 0) &&
-                 ssl->options.processReply != 0 /* doProcessInit */) ||
-                ret == WC_NO_ERR_TRACE(OCSP_WANT_READ)) {
+        #ifdef WOLFSSL_HAVE_HS_SUSPEND
+            if (IsHsSuspendErr(ret) &&
+                (ret != WC_NO_ERR_TRACE(WC_PENDING_E) ||
+                 ((ssl->kdfMsgStep == 0 || kdfStepEntry != 0) &&
+                  ssl->options.processReply != 0 /* doProcessInit */))) {
                 /* Re-present the fragment; a post-handler pend falls
                  * through and consumes the message. */
                 ssl->pendingMsgOffset -= inputLength;
@@ -16308,10 +16305,10 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
 #endif /* WOLFSSL_DTLS13 */
 
     if (ssl->buffers.outputBuffer.length > 0
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        /* do not send buffered or advance state if last error was an
-            async pending operation */
-        && ssl->error != WC_NO_ERR_TRACE(WC_PENDING_E)
+    #ifdef WOLFSSL_HAVE_HS_SUSPEND
+        /* do not send buffered or advance state if the last error suspended
+           the handshake - advancing frees the saved state */
+        && !IsHsSuspendErr(ssl->error)
     #endif
     ) {
         if ((ret = SendBuffered(ssl)) == 0) {
@@ -17648,10 +17645,10 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 #endif /* NO_CERTS */
 
     if (ssl->buffers.outputBuffer.length > 0
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        /* do not send buffered or advance state if last error was an
-            async pending operation */
-        && ssl->error != WC_NO_ERR_TRACE(WC_PENDING_E)
+    #ifdef WOLFSSL_HAVE_HS_SUSPEND
+        /* do not send buffered or advance state if the last error suspended
+           the handshake - advancing frees the saved state */
+        && !IsHsSuspendErr(ssl->error)
     #endif
     ) {
 
@@ -18038,12 +18035,19 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
                 FreeHandshakeResources(ssl);
             }
 
-#if defined(WOLFSSL_ASYNC_IO) && !defined(WOLFSSL_ASYNC_CRYPT)
-            /* Free the remaining async context if not using it for crypto */
-            FreeAsyncCtx(ssl, 1);
+#ifdef WOLFSSL_HAVE_HS_SUSPEND
+            /* A post-handshake Certificate may be suspended in ssl->async.
+             * Keep it and the error so wolfSSL_read() can resume it. */
+            if (!IsHsSuspendErr(ssl->error))
 #endif
-
-            ssl->error = 0; /* clear the error */
+            {
+#if defined(WOLFSSL_ASYNC_IO) && !defined(WOLFSSL_ASYNC_CRYPT)
+                /* Free the remaining async context if not using it for
+                 * crypto */
+                FreeAsyncCtx(ssl, 1);
+#endif
+                ssl->error = 0; /* clear the error */
+            }
 
             WOLFSSL_LEAVE("wolfSSL_accept", WOLFSSL_SUCCESS);
             return WOLFSSL_SUCCESS;

@@ -253,7 +253,14 @@ enum wolfSSL_ErrorCodes {
     OCSP_NO_URL                  = -522,   /* Cert advertises no OCSP responder
                                             * and no override URL is set */
 
-    WOLFSSL_LAST_E               = -522
+    CHAIN_VERIFY_WANT_E          = -523,   /* Chain verify callback has not
+                                            * reached a verdict yet */
+    CHAIN_VERIFY_CB_E            = -524,   /* Chain verify callback rejected the
+                                            * peer's certificates */
+    CHAIN_VERIFY_UNSUPPORTED_E   = -525,   /* Chain verify callback used with
+                                            * DTLS, RPK or OCSP stapling */
+
+    WOLFSSL_LAST_E               = -525
 
     /* codes -1000 to -1999 are reserved for wolfCrypt. */
 };

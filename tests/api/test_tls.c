@@ -3378,3 +3378,573 @@ int test_record_size_cache_invalidated_on_renegotiation(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if defined(WOLFSSL_CHAIN_VERIFY_CB) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+#define HAVE_CHAIN_VERIFY_CB_TESTS
+#endif
+
+#ifdef HAVE_CHAIN_VERIFY_CB_TESTS
+
+/* State shared with the chain verify callbacks below. */
+typedef struct test_chain_verify_cb_ctx {
+    int  calls;       /* how many times the callback ran */
+    int  deferrals;   /* how many times to answer CHAIN_VERIFY_WANT_E first */
+    int  reject;      /* non-zero to reject the chain */
+    int  certsSeen;   /* certsSz of the last call */
+    int  leafMatched; /* certs[0] matched the expected leaf DER */
+    /* A copy of the expected leaf: the peer may unload its own certificate
+     * buffer once its side of the handshake completes, which in TLS 1.3 is
+     * before the server has processed it. */
+    unsigned char leafDer[2048];
+    unsigned int  leafDerSz;
+} test_chain_verify_cb_ctx;
+
+/* Remember the certificate the peer will present as certs[0]. */
+static int test_chain_verify_cb_set_leaf(test_chain_verify_cb_ctx* cbCtx,
+    const DerBuffer* cert)
+{
+    if ((cert == NULL) || (cert->length > sizeof(cbCtx->leafDer)))
+        return -1;
+    XMEMCPY(cbCtx->leafDer, cert->buffer, cert->length);
+    cbCtx->leafDerSz = cert->length;
+    return 0;
+}
+
+static int test_chain_verify_cb(WOLFSSL* ssl, const WOLFSSL_BUFFER_INFO* certs,
+    int certsSz, void* ctx)
+{
+    test_chain_verify_cb_ctx* cbCtx = (test_chain_verify_cb_ctx*)ctx;
+
+    (void)ssl;
+
+    cbCtx->calls++;
+    cbCtx->certsSeen = certsSz;
+
+    if ((certsSz > 0) && (cbCtx->leafDerSz > 0) &&
+            (certs[0].length == cbCtx->leafDerSz) &&
+            (XMEMCMP(certs[0].buffer, cbCtx->leafDer, cbCtx->leafDerSz) == 0)) {
+        cbCtx->leafMatched = 1;
+    }
+
+    if (cbCtx->calls <= cbCtx->deferrals)
+        return WC_NO_ERR_TRACE(CHAIN_VERIFY_WANT_E);
+    if (cbCtx->reject)
+        return -1;
+
+    return 0;
+}
+
+/* Which end of the connection verifies with the callback. */
+#define TEST_CVC_CLIENT 0
+#define TEST_CVC_SERVER 1
+
+/* Set up a handshake that the verifying end cannot complete on its own.
+ * Client side: the client's CA store is emptied, so verifying the server's
+ * certificate fails with ASN_NO_SIGNER_E. Server side: the client presents a
+ * certificate the server has no CA for, and the server insists on one.
+ * Installing the chain verify callback on that end is then the only thing
+ * that can make the handshake succeed. Leaves the objects allocated so the
+ * caller can inspect them. Pass cbCtx as NULL to install no callback
+ * (negative control). */
+static int test_chain_verify_cb_run(test_chain_verify_cb_ctx* cbCtx, int side,
+    method_provider client_method, method_provider server_method,
+    WOLFSSL_CTX** ctx_c, WOLFSSL_CTX** ctx_s, WOLFSSL** ssl_c, WOLFSSL** ssl_s,
+    struct test_memio_ctx* test_ctx)
+{
+    EXPECT_DECLS;
+    WOLFSSL* verifier = NULL;
+    WOLFSSL* peer = NULL;
+
+    XMEMSET(test_ctx, 0, sizeof(*test_ctx));
+    ExpectIntEQ(test_memio_setup(test_ctx, ctx_c, ctx_s, ssl_c, ssl_s,
+        client_method, server_method), 0);
+
+    if (side == TEST_CVC_CLIENT) {
+        ExpectIntEQ(wolfSSL_CTX_UnloadCAs(*ctx_c), WOLFSSL_SUCCESS);
+        /* explicit, since OPENSSL_COMPATIBLE_DEFAULTS turns verification off
+         * on clients by default */
+        wolfSSL_set_verify(*ssl_c, WOLFSSL_VERIFY_PEER, NULL);
+        verifier = *ssl_c;
+        peer = *ssl_s;
+    }
+    else {
+        ExpectIntEQ(wolfSSL_use_certificate_file(*ssl_c, cliCertFile,
+            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_use_PrivateKey_file(*ssl_c, cliKeyFile,
+            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        wolfSSL_set_verify(*ssl_s,
+            WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+        verifier = *ssl_s;
+        peer = *ssl_c;
+    }
+
+    if (EXPECT_SUCCESS() && (cbCtx != NULL)) {
+        if (side == TEST_CVC_CLIENT) {
+            /* context-level callback, object-level user context */
+            ExpectIntEQ(wolfSSL_CTX_SetChainVerifyCb(*ctx_c,
+                test_chain_verify_cb), WOLFSSL_SUCCESS);
+            wolfSSL_SetChainVerifyCtx(verifier, cbCtx);
+        }
+        else {
+            /* object-level callback, context-level user context */
+            ExpectIntEQ(wolfSSL_SetChainVerifyCb(verifier,
+                test_chain_verify_cb), WOLFSSL_SUCCESS);
+            wolfSSL_CTX_SetChainVerifyCtx(*ctx_s, cbCtx);
+        }
+        ExpectPtrEq(wolfSSL_GetChainVerifyCtx(verifier), cbCtx);
+
+        /* certs[0] must be the peer's own certificate. */
+        ExpectIntEQ(test_chain_verify_cb_set_leaf(cbCtx,
+            peer->buffers.certificate), 0);
+    }
+
+    return EXPECT_RESULT();
+}
+
+static void test_chain_verify_cb_free(WOLFSSL_CTX** ctx_c, WOLFSSL_CTX** ctx_s,
+    WOLFSSL** ssl_c, WOLFSSL** ssl_s)
+{
+    wolfSSL_free(*ssl_c);
+    wolfSSL_free(*ssl_s);
+    wolfSSL_CTX_free(*ctx_c);
+    wolfSSL_CTX_free(*ctx_s);
+    *ssl_c = NULL;
+    *ssl_s = NULL;
+    *ctx_c = NULL;
+    *ctx_s = NULL;
+}
+
+/* Negative control first, then the callback accepting after the given number
+ * of deferrals. */
+static int test_chain_verify_cb_accept(int side, int deferrals,
+    method_provider client_method, method_provider server_method)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    test_chain_verify_cb_ctx cbCtx;
+    int err;
+
+    XMEMSET(&cbCtx, 0, sizeof(cbCtx));
+    cbCtx.deferrals = deferrals;
+
+    /* Negative control: without the callback this same setup must fail, so the
+     * success below can only come from the callback replacing verification. */
+    ExpectIntEQ(test_chain_verify_cb_run(NULL, side, client_method,
+        server_method, &ctx_c, &ctx_s, &ssl_c, &ssl_s, &test_ctx),
+        TEST_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), -1);
+    /* The client certificate is self-signed, which some builds report as
+     * such rather than as having no signer. */
+    err = wolfSSL_get_error((side == TEST_CVC_CLIENT) ? ssl_c : ssl_s,
+        WOLFSSL_FATAL_ERROR);
+    ExpectTrue((err == WC_NO_ERR_TRACE(ASN_NO_SIGNER_E)) ||
+               (err == WC_NO_ERR_TRACE(ASN_SELF_SIGNED_E)));
+    test_chain_verify_cb_free(&ctx_c, &ctx_s, &ssl_c, &ssl_s);
+
+    ExpectIntEQ(test_chain_verify_cb_run(&cbCtx, side, client_method,
+        server_method, &ctx_c, &ctx_s, &ssl_c, &ssl_s, &test_ctx),
+        TEST_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Deferred the requested number of times, then accepted, every call
+     * seeing the same chain. */
+    ExpectIntEQ(cbCtx.calls, deferrals + 1);
+    ExpectIntGT(cbCtx.certsSeen, 0);
+    ExpectIntEQ(cbCtx.leafMatched, 1);
+
+    test_chain_verify_cb_free(&ctx_c, &ctx_s, &ssl_c, &ssl_s);
+    return EXPECT_RESULT();
+}
+
+#if !defined(WOLFSSL_NO_TLS12) || defined(HAVE_CERTIFICATE_STATUS_REQUEST)
+/* The verifying end fails before the callback is consulted, with the given
+ * error, and the callback is never called. */
+static int test_chain_verify_cb_expect_fail(test_chain_verify_cb_ctx* cbCtx,
+    WOLFSSL* verifier, WOLFSSL* ssl_c, WOLFSSL* ssl_s, int err)
+{
+    EXPECT_DECLS;
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), -1);
+    ExpectIntEQ(wolfSSL_get_error(verifier, WOLFSSL_FATAL_ERROR), err);
+    ExpectIntEQ(cbCtx->calls, 0);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+#endif /* HAVE_CHAIN_VERIFY_CB_TESTS */
+
+int test_tls12_chain_verify_cb(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CHAIN_VERIFY_CB_TESTS) && !defined(WOLFSSL_NO_TLS12)
+    ExpectIntEQ(test_chain_verify_cb_accept(TEST_CVC_CLIENT, 0,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_tls12_chain_verify_cb_server(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CHAIN_VERIFY_CB_TESTS) && !defined(WOLFSSL_NO_TLS12)
+    /* Client authentication: the server verifies, deferring twice. */
+    ExpectIntEQ(test_chain_verify_cb_accept(TEST_CVC_SERVER, 2,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_tls13_chain_verify_cb_async(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CHAIN_VERIFY_CB_TESTS) && defined(WOLFSSL_TLS13)
+    ExpectIntEQ(test_chain_verify_cb_accept(TEST_CVC_CLIENT, 3,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_tls13_chain_verify_cb_server(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CHAIN_VERIFY_CB_TESTS) && defined(WOLFSSL_TLS13)
+    ExpectIntEQ(test_chain_verify_cb_accept(TEST_CVC_SERVER, 2,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_tls13_chain_verify_cb_reject(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CHAIN_VERIFY_CB_TESTS) && defined(WOLFSSL_TLS13)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    test_chain_verify_cb_ctx cbCtx;
+    WOLFSSL_ALERT_HISTORY h;
+
+    XMEMSET(&cbCtx, 0, sizeof(cbCtx));
+    XMEMSET(&h, 0, sizeof(h));
+    cbCtx.deferrals = 1;
+    cbCtx.reject = 1;
+
+    ExpectIntEQ(test_chain_verify_cb_run(&cbCtx, TEST_CVC_CLIENT,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
+        &ctx_c, &ctx_s, &ssl_c, &ssl_s, &test_ctx), TEST_SUCCESS);
+
+    /* Handshake must fail, and only after the deferral was honoured. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), -1);
+    ExpectIntEQ(cbCtx.calls, 2);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(CHAIN_VERIFY_CB_E));
+
+    /* A single generic certificate alert is sent - the callback's reason is
+     * never leaked to the peer. */
+    ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
+    ExpectIntEQ(h.last_tx.level, alert_fatal);
+    ExpectIntEQ(h.last_tx.code, bad_certificate);
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    ExpectIntEQ(wolfSSL_get_verify_result(ssl_c),
+        WOLFSSL_X509_V_ERR_CERT_REJECTED);
+#endif
+
+    test_chain_verify_cb_free(&ctx_c, &ctx_s, &ssl_c, &ssl_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_tls12_chain_verify_cb_bad_der(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CHAIN_VERIFY_CB_TESTS) && !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    test_chain_verify_cb_ctx cbCtx;
+
+    XMEMSET(&cbCtx, 0, sizeof(cbCtx));
+
+    ExpectIntEQ(test_chain_verify_cb_run(&cbCtx, TEST_CVC_CLIENT,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method,
+        &ctx_c, &ctx_s, &ssl_c, &ssl_s, &test_ctx), TEST_SUCCESS);
+
+    /* Break the length of the leaf's outer SEQUENCE. The Certificate message
+     * still frames correctly, but the certificate no longer decodes. */
+    ExpectNotNull(ssl_s->buffers.certificate);
+    ExpectIntGT(ssl_s->buffers.certificate->length, 4);
+    if (EXPECT_SUCCESS()) {
+        ssl_s->buffers.certificate->buffer[2] = 0xFF;
+        ssl_s->buffers.certificate->buffer[3] = 0xFF;
+    }
+
+    /* wolfSSL rejects it on its own - the callback is never consulted. */
+    ExpectIntEQ(test_chain_verify_cb_expect_fail(&cbCtx, ssl_c, ssl_c, ssl_s,
+        WC_NO_ERR_TRACE(ASN_PARSE_E)), TEST_SUCCESS);
+
+    test_chain_verify_cb_free(&ctx_c, &ctx_s, &ssl_c, &ssl_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_tls12_chain_verify_cb_bad_chain(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CHAIN_VERIFY_CB_TESTS) && !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    test_chain_verify_cb_ctx cbCtx;
+
+    /* First with the chain intact: the callback sees both the server's
+     * certificate and the issuer it sends along. */
+    XMEMSET(&cbCtx, 0, sizeof(cbCtx));
+    ExpectIntEQ(test_chain_verify_cb_run(&cbCtx, TEST_CVC_CLIENT,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method,
+        &ctx_c, &ctx_s, &ssl_c, &ssl_s, &test_ctx), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_certificate_chain_file(ssl_s, svrCertFile),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_chain_verify_cb_set_leaf(&cbCtx,
+        ssl_s->buffers.certificate), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(cbCtx.calls, 1);
+    ExpectIntEQ(cbCtx.certsSeen, 2);
+    ExpectIntEQ(cbCtx.leafMatched, 1);
+    test_chain_verify_cb_free(&ctx_c, &ctx_s, &ssl_c, &ssl_s);
+
+    /* Now break the issuer's outer SEQUENCE length. A chain entry is a 3-byte
+     * length followed by the DER, so the message still frames. */
+    XMEMSET(&cbCtx, 0, sizeof(cbCtx));
+    ExpectIntEQ(test_chain_verify_cb_run(&cbCtx, TEST_CVC_CLIENT,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method,
+        &ctx_c, &ctx_s, &ssl_c, &ssl_s, &test_ctx), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_certificate_chain_file(ssl_s, svrCertFile),
+        WOLFSSL_SUCCESS);
+    ExpectNotNull(ssl_s->buffers.certChain);
+    ExpectIntGT(ssl_s->buffers.certChain->length, OPAQUE24_LEN + 4);
+    if (EXPECT_SUCCESS()) {
+        ssl_s->buffers.certChain->buffer[OPAQUE24_LEN + 2] = 0xFF;
+        ssl_s->buffers.certChain->buffer[OPAQUE24_LEN + 3] = 0xFF;
+    }
+
+    ExpectIntEQ(test_chain_verify_cb_expect_fail(&cbCtx, ssl_c, ssl_c, ssl_s,
+        WC_NO_ERR_TRACE(ASN_PARSE_E)), TEST_SUCCESS);
+
+    test_chain_verify_cb_free(&ctx_c, &ctx_s, &ssl_c, &ssl_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_tls13_chain_verify_cb_postauth(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CHAIN_VERIFY_CB_TESTS) && defined(WOLFSSL_TLS13) && \
+    defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    test_chain_verify_cb_ctx cbCtx;
+    char buf[8];
+
+    XMEMSET(&cbCtx, 0, sizeof(cbCtx));
+    cbCtx.deferrals = 2;
+
+    /* Client: has a certificate and allows post-handshake authentication.
+     * The certificate is loaded on the context: without OPENSSL_EXTRA a
+     * certificate loaded on the SSL object is unloaded when the handshake
+     * completes, and the post-handshake Certificate would be empty. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, NULL, NULL,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_c, cliCertFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_c, cliKeyFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_allow_post_handshake_auth(ssl_c), 0);
+
+    /* Server: no CA for the client, the callback verifies instead, and only
+     * after the handshake. Message grouping (on by default with
+     * OPENSSL_COMPATIBLE_DEFAULTS) would hold the CertificateRequest back in
+     * the output buffer. */
+    wolfSSL_set_verify(ssl_s,
+        WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_POST_HANDSHAKE, NULL);
+    ExpectIntEQ(wolfSSL_clear_group_messages(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_SetChainVerifyCb(ssl_s, test_chain_verify_cb),
+        WOLFSSL_SUCCESS);
+    wolfSSL_SetChainVerifyCtx(ssl_s, &cbCtx);
+    ExpectIntEQ(test_chain_verify_cb_set_leaf(&cbCtx,
+        ssl_c->buffers.certificate), 0);
+
+    /* No certificate during the handshake, so no callback yet. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(cbCtx.calls, 0);
+
+    /* The server asks; the client answers with its certificate from inside
+     * wolfSSL_read(). */
+    ExpectIntEQ(wolfSSL_request_certificate(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* The certificate arrives inside wolfSSL_read(); the callback defers. */
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1),
+        WC_NO_ERR_TRACE(CHAIN_VERIFY_WANT_E));
+    ExpectIntEQ(cbCtx.calls, 1);
+
+    /* wolfSSL_accept() meanwhile must leave the suspended message alone. */
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+
+    /* Reading again asks the callback again: still deferred. */
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1),
+        WC_NO_ERR_TRACE(CHAIN_VERIFY_WANT_E));
+    ExpectIntEQ(cbCtx.calls, 2);
+
+    /* Accepted; CertificateVerify and Finished follow, then nothing to read. */
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(cbCtx.calls, 3);
+    ExpectIntEQ(cbCtx.certsSeen, 1);
+    ExpectIntEQ(cbCtx.leafMatched, 1);
+
+    /* The connection is intact: application data flows. */
+    ExpectIntEQ(wolfSSL_write(ssl_c, "hi", 2), 2);
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)), 2);
+
+    test_chain_verify_cb_free(&ctx_c, &ctx_s, &ssl_c, &ssl_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_chain_verify_cb_dtls(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CHAIN_VERIFY_CB_TESTS) && defined(WOLFSSL_DTLS) && \
+    !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    test_chain_verify_cb_ctx cbCtx;
+
+    XMEMSET(&cbCtx, 0, sizeof(cbCtx));
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_UnloadCAs(ctx_c), WOLFSSL_SUCCESS);
+
+    /* DTLS is not supported with the callback: the setters refuse it. */
+    ExpectIntEQ(wolfSSL_CTX_SetChainVerifyCb(ctx_c, test_chain_verify_cb),
+        WC_NO_ERR_TRACE(CHAIN_VERIFY_UNSUPPORTED_E));
+    ExpectIntEQ(wolfSSL_SetChainVerifyCb(ssl_c, test_chain_verify_cb),
+        WC_NO_ERR_TRACE(CHAIN_VERIFY_UNSUPPORTED_E));
+    ExpectNull(wolfSSL_GetChainVerifyCtx(ssl_c));
+
+    /* A callback that got in regardless fails the handshake before it is
+     * consulted. */
+    if (EXPECT_SUCCESS()) {
+        ssl_c->chainVerifyCb  = test_chain_verify_cb;
+        ssl_c->chainVerifyCtx = &cbCtx;
+    }
+    ExpectIntEQ(test_chain_verify_cb_expect_fail(&cbCtx, ssl_c, ssl_c, ssl_s,
+        WC_NO_ERR_TRACE(CHAIN_VERIFY_UNSUPPORTED_E)), TEST_SUCCESS);
+
+    test_chain_verify_cb_free(&ctx_c, &ctx_s, &ssl_c, &ssl_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_chain_verify_cb_stapling(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CHAIN_VERIFY_CB_TESTS) && \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST) && \
+    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_TLS13))
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    test_chain_verify_cb_ctx cbCtx;
+#ifndef WOLFSSL_NO_TLS12
+    method_provider client_method = wolfTLSv1_2_client_method;
+    method_provider server_method = wolfTLSv1_2_server_method;
+#else
+    method_provider client_method = wolfTLSv1_3_client_method;
+    method_provider server_method = wolfTLSv1_3_server_method;
+#endif
+
+    /* Stapling requested before the callback: the setters refuse it, on the
+     * object and on the context. The server side is not affected, since a
+     * server's stapling is about its own certificate. */
+    XMEMSET(&cbCtx, 0, sizeof(cbCtx));
+    ExpectIntEQ(test_chain_verify_cb_run(NULL, TEST_CVC_CLIENT,
+        client_method, server_method, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        &test_ctx), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseOCSPStapling(ssl_c, WOLFSSL_CSR_OCSP, 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_SetChainVerifyCb(ssl_c, test_chain_verify_cb),
+        WC_NO_ERR_TRACE(CHAIN_VERIFY_UNSUPPORTED_E));
+    ExpectIntEQ(wolfSSL_CTX_UseOCSPStapling(ctx_c, WOLFSSL_CSR_OCSP, 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_SetChainVerifyCb(ctx_c, test_chain_verify_cb),
+        WC_NO_ERR_TRACE(CHAIN_VERIFY_UNSUPPORTED_E));
+    ExpectIntEQ(wolfSSL_CTX_SetChainVerifyCb(ctx_s, test_chain_verify_cb),
+        WOLFSSL_SUCCESS);
+    test_chain_verify_cb_free(&ctx_c, &ctx_s, &ssl_c, &ssl_s);
+
+    /* Stapling requested after the callback: the handshake fails before the
+     * callback is consulted, whether or not the server staples. */
+    XMEMSET(&cbCtx, 0, sizeof(cbCtx));
+    ExpectIntEQ(test_chain_verify_cb_run(&cbCtx, TEST_CVC_CLIENT,
+        client_method, server_method, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        &test_ctx), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseOCSPStapling(ssl_c, WOLFSSL_CSR_OCSP, 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_chain_verify_cb_expect_fail(&cbCtx, ssl_c, ssl_c, ssl_s,
+        WC_NO_ERR_TRACE(CHAIN_VERIFY_UNSUPPORTED_E)), TEST_SUCCESS);
+    test_chain_verify_cb_free(&ctx_c, &ctx_s, &ssl_c, &ssl_s);
+
+#ifdef HAVE_OCSP
+    /* So is must-staple on its own, both ways round. */
+    XMEMSET(&cbCtx, 0, sizeof(cbCtx));
+    ExpectIntEQ(test_chain_verify_cb_run(NULL, TEST_CVC_CLIENT,
+        client_method, server_method, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        &test_ctx), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSPMustStaple(ctx_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_SetChainVerifyCb(ctx_c, test_chain_verify_cb),
+        WC_NO_ERR_TRACE(CHAIN_VERIFY_UNSUPPORTED_E));
+    ExpectIntEQ(wolfSSL_SetChainVerifyCb(ssl_c, test_chain_verify_cb),
+        WC_NO_ERR_TRACE(CHAIN_VERIFY_UNSUPPORTED_E));
+    test_chain_verify_cb_free(&ctx_c, &ctx_s, &ssl_c, &ssl_s);
+
+    XMEMSET(&cbCtx, 0, sizeof(cbCtx));
+    ExpectIntEQ(test_chain_verify_cb_run(&cbCtx, TEST_CVC_CLIENT,
+        client_method, server_method, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        &test_ctx), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSPMustStaple(ctx_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_chain_verify_cb_expect_fail(&cbCtx, ssl_c, ssl_c, ssl_s,
+        WC_NO_ERR_TRACE(CHAIN_VERIFY_UNSUPPORTED_E)), TEST_SUCCESS);
+    test_chain_verify_cb_free(&ctx_c, &ctx_s, &ssl_c, &ssl_s);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
