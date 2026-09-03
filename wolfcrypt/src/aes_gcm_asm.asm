@@ -49,14 +49,34 @@ IFDEF HAVE_FIPS
   ENDIF
 ENDIF
 
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_GCM_generate_m0_aesni_rev8 QWORD 08090a0b0c0d0e0fh, 0001020304050607h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_GCM_generate_m0_aesni_rev8 QWORD L_GCM_generate_m0_aesni_rev8
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_GCM_generate_m0_aesni_mod2_128 QWORD 0000000000000000h, 0e100000000000000h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_GCM_generate_m0_aesni_mod2_128 QWORD L_GCM_generate_m0_aesni_mod2_128
 _DATA ENDS
 IF fips_version GE 7
@@ -310,59 +330,169 @@ fipsAb ENDS
 ELSE
 _TEXT ENDS
 ENDIF
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_aes_gcm_one QWORD 0000000000000000h, 0000000000000001h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_aes_gcm_one QWORD L_aes_gcm_one
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_aes_gcm_two QWORD 0000000000000000h, 0000000000000002h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_aes_gcm_two QWORD L_aes_gcm_two
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_aes_gcm_three QWORD 0000000000000000h, 0000000000000003h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_aes_gcm_three QWORD L_aes_gcm_three
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_aes_gcm_four QWORD 0000000000000000h, 0000000000000004h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_aes_gcm_four QWORD L_aes_gcm_four
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_aes_gcm_five QWORD 0000000000000000h, 0000000000000005h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_aes_gcm_five QWORD L_aes_gcm_five
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_aes_gcm_six QWORD 0000000000000000h, 0000000000000006h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_aes_gcm_six QWORD L_aes_gcm_six
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_aes_gcm_seven QWORD 0000000000000000h, 0000000000000007h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_aes_gcm_seven QWORD L_aes_gcm_seven
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_aes_gcm_eight QWORD 0000000000000000h, 0000000000000008h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_aes_gcm_eight QWORD L_aes_gcm_eight
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_aes_gcm_bswap_epi64 QWORD 0001020304050607h, 08090a0b0c0d0e0fh
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_aes_gcm_bswap_epi64 QWORD L_aes_gcm_bswap_epi64
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_aes_gcm_bswap_mask QWORD 08090a0b0c0d0e0fh, 0001020304050607h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_aes_gcm_bswap_mask QWORD L_aes_gcm_bswap_mask
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_aes_gcm_mod2_128 QWORD 0000000000000001h, 0c200000000000000h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_aes_gcm_mod2_128 QWORD L_aes_gcm_mod2_128
 _DATA ENDS
 IF fips_version GE 7
@@ -6553,9 +6683,19 @@ ELSE
 _TEXT ENDS
 ENDIF
 IFDEF WOLFSSL_AESGCM_SIV
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_aes_gcm_siv_bswap_mask QWORD 08090a0b0c0d0e0fh, 0001020304050607h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_aes_gcm_siv_bswap_mask QWORD L_aes_gcm_siv_bswap_mask
 _DATA ENDS
 IF fips_version GE 7
@@ -6927,9 +7067,19 @@ fipsAb ENDS
 ELSE
 _TEXT ENDS
 ENDIF
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_aes_gcmsiv_ctr_aesni_one QWORD 0000000000000001h, 0000000000000000h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_aes_gcmsiv_ctr_aesni_one QWORD L_aes_gcmsiv_ctr_aesni_one
 _DATA ENDS
 IF fips_version GE 7
@@ -7133,14 +7283,34 @@ _TEXT ENDS
 ENDIF
 ENDIF
 IFDEF HAVE_INTEL_AVX1
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_GCM_generate_m0_avx1_rev8 QWORD 08090a0b0c0d0e0fh, 0001020304050607h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_GCM_generate_m0_avx1_rev8 QWORD L_GCM_generate_m0_avx1_rev8
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_GCM_generate_m0_avx1_mod2_128 QWORD 0000000000000000h, 0e100000000000000h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_GCM_generate_m0_avx1_mod2_128 QWORD L_GCM_generate_m0_avx1_mod2_128
 _DATA ENDS
 IF fips_version GE 7
@@ -7360,59 +7530,169 @@ fipsAb ENDS
 ELSE
 _TEXT ENDS
 ENDIF
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_avx1_aes_gcm_one QWORD 0000000000000000h, 0000000000000001h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_avx1_aes_gcm_one QWORD L_avx1_aes_gcm_one
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_avx1_aes_gcm_two QWORD 0000000000000000h, 0000000000000002h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_avx1_aes_gcm_two QWORD L_avx1_aes_gcm_two
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_avx1_aes_gcm_three QWORD 0000000000000000h, 0000000000000003h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_avx1_aes_gcm_three QWORD L_avx1_aes_gcm_three
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_avx1_aes_gcm_four QWORD 0000000000000000h, 0000000000000004h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_avx1_aes_gcm_four QWORD L_avx1_aes_gcm_four
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_avx1_aes_gcm_five QWORD 0000000000000000h, 0000000000000005h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_avx1_aes_gcm_five QWORD L_avx1_aes_gcm_five
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_avx1_aes_gcm_six QWORD 0000000000000000h, 0000000000000006h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_avx1_aes_gcm_six QWORD L_avx1_aes_gcm_six
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_avx1_aes_gcm_seven QWORD 0000000000000000h, 0000000000000007h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_avx1_aes_gcm_seven QWORD L_avx1_aes_gcm_seven
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_avx1_aes_gcm_eight QWORD 0000000000000000h, 0000000000000008h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_avx1_aes_gcm_eight QWORD L_avx1_aes_gcm_eight
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_avx1_aes_gcm_bswap_epi64 QWORD 0001020304050607h, 08090a0b0c0d0e0fh
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_avx1_aes_gcm_bswap_epi64 QWORD L_avx1_aes_gcm_bswap_epi64
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_avx1_aes_gcm_bswap_mask QWORD 08090a0b0c0d0e0fh, 0001020304050607h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_avx1_aes_gcm_bswap_mask QWORD L_avx1_aes_gcm_bswap_mask
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_avx1_aes_gcm_mod2_128 QWORD 0000000000000001h, 0c200000000000000h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_avx1_aes_gcm_mod2_128 QWORD L_avx1_aes_gcm_mod2_128
 _DATA ENDS
 IF fips_version GE 7
@@ -12668,9 +12948,19 @@ ELSE
 _TEXT ENDS
 ENDIF
 IFDEF WOLFSSL_AESGCM_SIV
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_aes_gcm_siv_bswap_mask_avx1 QWORD 08090a0b0c0d0e0fh, 0001020304050607h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_aes_gcm_siv_bswap_mask_avx1 QWORD L_aes_gcm_siv_bswap_mask_avx1
 _DATA ENDS
 IF fips_version GE 7
@@ -12942,9 +13232,19 @@ fipsAb ENDS
 ELSE
 _TEXT ENDS
 ENDIF
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_aes_gcmsiv_ctr_avx1_one QWORD 0000000000000001h, 0000000000000000h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_aes_gcmsiv_ctr_avx1_one QWORD L_aes_gcmsiv_ctr_avx1_one
 _DATA ENDS
 IF fips_version GE 7
@@ -13144,14 +13444,34 @@ ENDIF
 ENDIF
 ENDIF
 IFDEF HAVE_INTEL_AVX2
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_GCM_generate_m0_avx2_rev8 QWORD 08090a0b0c0d0e0fh, 0001020304050607h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_GCM_generate_m0_avx2_rev8 QWORD L_GCM_generate_m0_avx2_rev8
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_GCM_generate_m0_avx2_mod2_128 QWORD 0000000000000000h, 0e100000000000000h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_GCM_generate_m0_avx2_mod2_128 QWORD L_GCM_generate_m0_avx2_mod2_128
 _DATA ENDS
 IF fips_version GE 7
@@ -13371,64 +13691,184 @@ fipsAb ENDS
 ELSE
 _TEXT ENDS
 ENDIF
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_avx2_aes_gcm_one QWORD 0000000000000000h, 0000000000000001h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_avx2_aes_gcm_one QWORD L_avx2_aes_gcm_one
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_avx2_aes_gcm_two QWORD 0000000000000000h, 0000000000000002h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_avx2_aes_gcm_two QWORD L_avx2_aes_gcm_two
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_avx2_aes_gcm_three QWORD 0000000000000000h, 0000000000000003h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_avx2_aes_gcm_three QWORD L_avx2_aes_gcm_three
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_avx2_aes_gcm_four QWORD 0000000000000000h, 0000000000000004h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_avx2_aes_gcm_four QWORD L_avx2_aes_gcm_four
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_avx2_aes_gcm_five QWORD 0000000000000000h, 0000000000000005h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_avx2_aes_gcm_five QWORD L_avx2_aes_gcm_five
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_avx2_aes_gcm_six QWORD 0000000000000000h, 0000000000000006h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_avx2_aes_gcm_six QWORD L_avx2_aes_gcm_six
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_avx2_aes_gcm_seven QWORD 0000000000000000h, 0000000000000007h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_avx2_aes_gcm_seven QWORD L_avx2_aes_gcm_seven
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_avx2_aes_gcm_eight QWORD 0000000000000000h, 0000000000000008h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_avx2_aes_gcm_eight QWORD L_avx2_aes_gcm_eight
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_avx2_aes_gcm_bswap_one QWORD 0000000000000000h, 0100000000000000h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_avx2_aes_gcm_bswap_one QWORD L_avx2_aes_gcm_bswap_one
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_avx2_aes_gcm_bswap_epi64 QWORD 0001020304050607h, 08090a0b0c0d0e0fh
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_avx2_aes_gcm_bswap_epi64 QWORD L_avx2_aes_gcm_bswap_epi64
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_avx2_aes_gcm_bswap_mask QWORD 08090a0b0c0d0e0fh, 0001020304050607h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_avx2_aes_gcm_bswap_mask QWORD L_avx2_aes_gcm_bswap_mask
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_avx2_aes_gcm_mod2_128 QWORD 0000000000000001h, 0c200000000000000h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_avx2_aes_gcm_mod2_128 QWORD L_avx2_aes_gcm_mod2_128
 _DATA ENDS
 IF fips_version GE 7
@@ -18156,38 +18596,98 @@ _TEXT ENDS
 ENDIF
 ENDIF
 IFDEF HAVE_INTEL_VAES
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_vaes_aes_gcm_inc_y0 QWORD 0000000000000000h, 0000000000000000h
         QWORD 0000000000000000h, 0000000000000001h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_vaes_aes_gcm_inc_y0 QWORD L_vaes_aes_gcm_inc_y0
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_vaes_aes_gcm_inc_y1 QWORD 0000000000000000h, 0000000000000002h
         QWORD 0000000000000000h, 0000000000000003h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_vaes_aes_gcm_inc_y1 QWORD L_vaes_aes_gcm_inc_y1
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_vaes_aes_gcm_inc_y2 QWORD 0000000000000000h, 0000000000000004h
         QWORD 0000000000000000h, 0000000000000005h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_vaes_aes_gcm_inc_y2 QWORD L_vaes_aes_gcm_inc_y2
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_vaes_aes_gcm_inc_y3 QWORD 0000000000000000h, 0000000000000006h
         QWORD 0000000000000000h, 0000000000000007h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_vaes_aes_gcm_inc_y3 QWORD L_vaes_aes_gcm_inc_y3
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_GCM_generate_m0_vaes_rev8 QWORD 08090a0b0c0d0e0fh, 0001020304050607h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_GCM_generate_m0_vaes_rev8 QWORD L_GCM_generate_m0_vaes_rev8
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_GCM_generate_m0_vaes_mod2_128 QWORD 0000000000000000h, 0e100000000000000h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_GCM_generate_m0_vaes_mod2_128 QWORD L_GCM_generate_m0_vaes_mod2_128
 _DATA ENDS
 IF fips_version GE 7
@@ -18407,59 +18907,169 @@ fipsAb ENDS
 ELSE
 _TEXT ENDS
 ENDIF
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_vaes_aes_gcm_one QWORD 0000000000000000h, 0000000000000001h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_vaes_aes_gcm_one QWORD L_vaes_aes_gcm_one
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_vaes_aes_gcm_two QWORD 0000000000000000h, 0000000000000002h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_vaes_aes_gcm_two QWORD L_vaes_aes_gcm_two
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_vaes_aes_gcm_three QWORD 0000000000000000h, 0000000000000003h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_vaes_aes_gcm_three QWORD L_vaes_aes_gcm_three
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_vaes_aes_gcm_four QWORD 0000000000000000h, 0000000000000004h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_vaes_aes_gcm_four QWORD L_vaes_aes_gcm_four
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_vaes_aes_gcm_five QWORD 0000000000000000h, 0000000000000005h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_vaes_aes_gcm_five QWORD L_vaes_aes_gcm_five
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_vaes_aes_gcm_six QWORD 0000000000000000h, 0000000000000006h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_vaes_aes_gcm_six QWORD L_vaes_aes_gcm_six
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_vaes_aes_gcm_seven QWORD 0000000000000000h, 0000000000000007h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_vaes_aes_gcm_seven QWORD L_vaes_aes_gcm_seven
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_vaes_aes_gcm_eight QWORD 0000000000000000h, 0000000000000008h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_vaes_aes_gcm_eight QWORD L_vaes_aes_gcm_eight
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_vaes_aes_gcm_bswap_epi64 QWORD 0001020304050607h, 08090a0b0c0d0e0fh
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_vaes_aes_gcm_bswap_epi64 QWORD L_vaes_aes_gcm_bswap_epi64
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_vaes_aes_gcm_bswap_mask QWORD 08090a0b0c0d0e0fh, 0001020304050607h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_vaes_aes_gcm_bswap_mask QWORD L_vaes_aes_gcm_bswap_mask
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_vaes_aes_gcm_mod2_128 QWORD 0000000000000001h, 0c200000000000000h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_vaes_aes_gcm_mod2_128 QWORD L_vaes_aes_gcm_mod2_128
 _DATA ENDS
 IF fips_version GE 7
@@ -25593,9 +26203,19 @@ ELSE
 _TEXT ENDS
 ENDIF
 IFDEF WOLFSSL_AESGCM_SIV
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_aes_gcm_siv_bswap_mask_vaes QWORD 08090a0b0c0d0e0fh, 0001020304050607h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_aes_gcm_siv_bswap_mask_vaes QWORD L_aes_gcm_siv_bswap_mask_vaes
 _DATA ENDS
 IF fips_version GE 7
@@ -26137,7 +26757,11 @@ fipsAb ENDS
 ELSE
 _TEXT ENDS
 ENDIF
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_aes_gcmsiv_ctr_inc_vaes QWORD 0000000000000000h, 0000000000000000h
         QWORD 0000000000000001h, 0000000000000000h
@@ -26156,6 +26780,12 @@ L_aes_gcmsiv_ctr_inc_vaes QWORD 0000000000000000h, 0000000000000000h
         QWORD 000000000000000eh, 0000000000000000h
         QWORD 000000000000000fh, 0000000000000000h
         QWORD 0000000000000010h, 0000000000000000h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_aes_gcmsiv_ctr_inc_vaes QWORD L_aes_gcmsiv_ctr_inc_vaes
 _DATA ENDS
 IF fips_version GE 7
@@ -26420,51 +27050,121 @@ ENDIF
 ENDIF
 ENDIF
 IFDEF HAVE_INTEL_AVX512
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_avx512_aes_gcm_inc_z0 QWORD 0000000000000000h, 0000000000000000h
         QWORD 0000000000000000h, 0000000000000001h
         QWORD 0000000000000000h, 0000000000000002h
         QWORD 0000000000000000h, 0000000000000003h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_avx512_aes_gcm_inc_z0 QWORD L_avx512_aes_gcm_inc_z0
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_avx512_aes_gcm_inc_z1 QWORD 0000000000000000h, 0000000000000004h
         QWORD 0000000000000000h, 0000000000000005h
         QWORD 0000000000000000h, 0000000000000006h
         QWORD 0000000000000000h, 0000000000000007h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_avx512_aes_gcm_inc_z1 QWORD L_avx512_aes_gcm_inc_z1
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_avx512_aes_gcm_inc_z2 QWORD 0000000000000000h, 0000000000000008h
         QWORD 0000000000000000h, 0000000000000009h
         QWORD 0000000000000000h, 000000000000000ah
         QWORD 0000000000000000h, 000000000000000bh
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_avx512_aes_gcm_inc_z2 QWORD L_avx512_aes_gcm_inc_z2
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_avx512_aes_gcm_inc_z3 QWORD 0000000000000000h, 000000000000000ch
         QWORD 0000000000000000h, 000000000000000dh
         QWORD 0000000000000000h, 000000000000000eh
         QWORD 0000000000000000h, 000000000000000fh
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_avx512_aes_gcm_inc_z3 QWORD L_avx512_aes_gcm_inc_z3
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_avx512_aes_gcm_sixteen QWORD 0000000000000000h, 0000000000000010h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_avx512_aes_gcm_sixteen QWORD L_avx512_aes_gcm_sixteen
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_GCM_generate_m0_avx512_rev8 QWORD 08090a0b0c0d0e0fh, 0001020304050607h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_GCM_generate_m0_avx512_rev8 QWORD L_GCM_generate_m0_avx512_rev8
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_GCM_generate_m0_avx512_mod2_128 QWORD 0000000000000000h, 0e100000000000000h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_GCM_generate_m0_avx512_mod2_128 QWORD L_GCM_generate_m0_avx512_mod2_128
 _DATA ENDS
 IF fips_version GE 7
@@ -26684,59 +27384,169 @@ fipsAb ENDS
 ELSE
 _TEXT ENDS
 ENDIF
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_avx512_aes_gcm_one QWORD 0000000000000000h, 0000000000000001h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_avx512_aes_gcm_one QWORD L_avx512_aes_gcm_one
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_avx512_aes_gcm_two QWORD 0000000000000000h, 0000000000000002h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_avx512_aes_gcm_two QWORD L_avx512_aes_gcm_two
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_avx512_aes_gcm_three QWORD 0000000000000000h, 0000000000000003h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_avx512_aes_gcm_three QWORD L_avx512_aes_gcm_three
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_avx512_aes_gcm_four QWORD 0000000000000000h, 0000000000000004h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_avx512_aes_gcm_four QWORD L_avx512_aes_gcm_four
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_avx512_aes_gcm_five QWORD 0000000000000000h, 0000000000000005h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_avx512_aes_gcm_five QWORD L_avx512_aes_gcm_five
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_avx512_aes_gcm_six QWORD 0000000000000000h, 0000000000000006h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_avx512_aes_gcm_six QWORD L_avx512_aes_gcm_six
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_avx512_aes_gcm_seven QWORD 0000000000000000h, 0000000000000007h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_avx512_aes_gcm_seven QWORD L_avx512_aes_gcm_seven
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_avx512_aes_gcm_eight QWORD 0000000000000000h, 0000000000000008h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_avx512_aes_gcm_eight QWORD L_avx512_aes_gcm_eight
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_avx512_aes_gcm_bswap_epi64 QWORD 0001020304050607h, 08090a0b0c0d0e0fh
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_avx512_aes_gcm_bswap_epi64 QWORD L_avx512_aes_gcm_bswap_epi64
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_avx512_aes_gcm_bswap_mask QWORD 08090a0b0c0d0e0fh, 0001020304050607h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_avx512_aes_gcm_bswap_mask QWORD L_avx512_aes_gcm_bswap_mask
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_avx512_aes_gcm_mod2_128 QWORD 0000000000000001h, 0c200000000000000h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_avx512_aes_gcm_mod2_128 QWORD L_avx512_aes_gcm_mod2_128
 _DATA ENDS
 IF fips_version GE 7
@@ -36455,9 +37265,19 @@ ELSE
 _TEXT ENDS
 ENDIF
 IFDEF WOLFSSL_AESGCM_SIV
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_aes_gcm_siv_bswap_mask_avx512 QWORD 08090a0b0c0d0e0fh, 0001020304050607h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_aes_gcm_siv_bswap_mask_avx512 QWORD L_aes_gcm_siv_bswap_mask_avx512
 _DATA ENDS
 IF fips_version GE 7
@@ -37198,7 +38018,11 @@ fipsAb ENDS
 ELSE
 _TEXT ENDS
 ENDIF
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_aes_gcmsiv_ctr_inc_avx512 QWORD 0000000000000000h, 0000000000000000h
         QWORD 0000000000000001h, 0000000000000000h
@@ -37217,6 +38041,12 @@ L_aes_gcmsiv_ctr_inc_avx512 QWORD 0000000000000000h, 0000000000000000h
         QWORD 000000000000000eh, 0000000000000000h
         QWORD 000000000000000fh, 0000000000000000h
         QWORD 0000000000000010h, 0000000000000000h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_aes_gcmsiv_ctr_inc_avx512 QWORD L_aes_gcmsiv_ctr_inc_avx512
 _DATA ENDS
 IF fips_version GE 7
