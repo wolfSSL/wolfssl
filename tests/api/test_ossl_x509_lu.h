@@ -27,6 +27,7 @@
 int test_wolfSSL_X509_LOOKUP_load_file(void);
 int test_wolfSSL_X509_LOOKUP_ctrl_file(void);
 int test_wolfSSL_X509_LOOKUP_ctrl_hash_dir(void);
+int test_wolfSSL_X509_LOOKUP_ctrl_dir_len(void);
 int test_wolfSSL_X509_load_crl_file(void);
 int test_X509_LOOKUP_add_dir(void);
 
@@ -34,6 +35,7 @@ int test_X509_LOOKUP_add_dir(void);
     TEST_DECL_GROUP("ossl_x509_lu", test_wolfSSL_X509_LOOKUP_load_file),       \
     TEST_DECL_GROUP("ossl_x509_lu", test_wolfSSL_X509_LOOKUP_ctrl_file),       \
     TEST_DECL_GROUP("ossl_x509_lu", test_wolfSSL_X509_LOOKUP_ctrl_hash_dir),   \
+    TEST_DECL_GROUP("ossl_x509_lu", test_wolfSSL_X509_LOOKUP_ctrl_dir_len),    \
     TEST_DECL_GROUP("ossl_x509_lu", test_wolfSSL_X509_load_crl_file),          \
     TEST_DECL_GROUP("ossl_x509_lu", test_X509_LOOKUP_add_dir)
 
