@@ -405,13 +405,25 @@ static void wb_send_handshake_msg(WbFix* f)
  *
  * `if (key == NULL || key->buffer == NULL)`. The caller passes ssl->buffers.key
  * which is validated long before, so the guard only fires for a connection
- * with no private key -- a state the API refuses to build. Both vectors take
- * the "private key missing" exit; the false partner comes from the ordinary
- * handshake runs. */
+ * with no private key -- a state the API refuses to build. Both rejecting
+ * vectors take the "private key missing" exit.
+ *
+ * The false partner has to be produced by THIS binary: llvm-cov computes the
+ * covered bit per condition from one profile, and the campaign's union is a
+ * logical OR of those bits across binaries, not a merge of raw traces, so an
+ * accepting call recorded by the real handshake corpus can never pair with a
+ * rejecting call recorded here. It is supplied by a DerBuffer that is present
+ * but holds unparsable bytes and a keyType restricted to RSA, so
+ * DecodePrivateKey_ex takes exactly one decode attempt (wc_RsaPrivateKeyDecode
+ * on garbage, which fails cleanly) and returns without allocating anything
+ * that survives -- every algorithm block after the RSA one unconditionally
+ * frees whatever AllocKey produced before checking whether keyType selects it,
+ * so hsKey is back to freed/NULL by the time the function returns. */
 #if !defined(NO_CERTS)
 static void wb_decode_private_key(WbFix* f)
 {
     DerBuffer der;
+    byte      junk[4];
     word32    hsType = 0;
     void*     hsKey = NULL;
     word32    sigLen = 0;
@@ -430,10 +442,21 @@ static void wb_decode_private_key(WbFix* f)
                               INVALID_DEVID, 0, 0, 0, &sigLen);
     g_calls++;
 
-    /* Nothing was allocated on either path: both exit at "private key
-     * missing" (or, under WOLF_PRIVATE_KEY_ID, at the external-key early
-     * return), and hsKey is left untouched. */
-    (void)hsKey;
+#ifndef NO_RSA
+    /* the shared false partner: a DerBuffer that is present and non-empty,
+     * so both operands are false and the function proceeds to decode. */
+    XMEMSET(junk, 0, sizeof(junk));
+    der.buffer = junk;
+    der.length = (word32)sizeof(junk);
+    hsType = 0;
+    hsKey = NULL;
+    sigLen = 0;
+    (void)DecodePrivateKey_ex(f->ssl, rsa_sa_algo, &der, &hsType, &hsKey,
+                              INVALID_DEVID, 0, 0, 0, &sigLen);
+    g_calls++;
+    if (hsKey != NULL)
+        FreeKey(f->ssl, (int)hsType, &hsKey);
+#endif
 }
 #endif /* !NO_CERTS */
 
