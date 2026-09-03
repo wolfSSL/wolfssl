@@ -21581,8 +21581,30 @@ int DecodeExtKeyUsage(const byte* input, word32 sz,
             ret = 0;
         }
         else if (ret == 0) {
+            word32 oidSum;
+            const byte* oidData = NULL;
+            word32 oidSz        = 0;
+            const byte* checkOid = NULL;
+            word32 checkOidSz    = 0;
+
+            oidSum = dataASN[KEYPURPOSEIDASN_IDX_OID].data.oid.sum;
+
+            /* The OID sum is a checksum and can collide. Only treat the OID as
+             * a known KeyPurposeId when the encoded bytes match exactly, as
+             * GetObjectId() does with oidCertKeyUseType. Unknown OIDs must
+             * still be consumed and counted, so verify here rather than in
+             * GetASN_Items(). */
+            GetASN_OIDData(&dataASN[KEYPURPOSEIDASN_IDX_OID], &oidData,
+                           &oidSz);
+            checkOid = OidFromId(oidSum, oidCertKeyUseType, &checkOidSz);
+            if ((checkOid == NULL) || (checkOidSz != oidSz) ||
+                    (XMEMCMP(oidData, checkOid, checkOidSz) != 0)) {
+                WOLFSSL_MSG("\tunrecognized KeyPurposeId");
+                oidSum = 0;
+            }
+
             /* Store the bit for the OID. */
-            switch (dataASN[KEYPURPOSEIDASN_IDX_OID].data.oid.sum) {
+            switch (oidSum) {
                 case EKU_ANY_OID:
                     *extExtKeyUsage |= EXTKEYUSE_ANY;
                     break;
@@ -21618,6 +21640,8 @@ int DecodeExtKeyUsage(const byte* input, word32 sz,
                     *extExtKeyUsageSsh |= EXTKEYUSE_SSH_SERVER_AUTH;
                     break;
             #endif /* WOLFSSL_WOLFSSH */
+                default:
+                    break;
             }
 
         #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
