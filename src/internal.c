@@ -16418,11 +16418,61 @@ void DoCrlCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
 }
 #endif
 
+#ifndef NO_ASN
+/* Reserve room to remember one more chain CA admitted as WOLFSSL_TEMP_CA. */
+static int ProcessPeerCertReserveTempCA(WOLFSSL* ssl, ProcPeerCertArgs* args)
+{
+    if (args->tempCAs == NULL) {
+        args->tempCAs = (byte*)XMALLOC(
+            (size_t)args->totalCerts * SIGNER_DIGEST_SIZE, ssl->heap,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        if (args->tempCAs == NULL)
+            return MEMORY_E;
+        args->tempCACount = 0;
+    }
+    if (args->tempCACount >= args->totalCerts)
+        return BUFFER_E;
+
+    return 0;
+}
+
+/* Record the CA just admitted in a way that lets us remove it again when this
+ * message is done. */
+static void ProcessPeerCertRecordTempCA(ProcPeerCertArgs* args)
+{
+    const byte* hash;
+
+#ifndef NO_SKID
+    hash = args->dCert->extSubjKeyId;
+#else
+    hash = args->dCert->subjectHash;
+#endif
+    XMEMCPY(args->tempCAs + ((size_t)args->tempCACount * SIGNER_DIGEST_SIZE),
+            hash, SIGNER_DIGEST_SIZE);
+    args->tempCACount++;
+}
+#endif /* !NO_ASN */
+
 static void FreeProcPeerCertArgs(WOLFSSL* ssl, void* pArgs)
 {
     ProcPeerCertArgs* args = (ProcPeerCertArgs*)pArgs;
 
     (void)ssl;
+
+#ifndef NO_ASN
+    if (args->tempCAs != NULL) {
+        int i;
+
+        for (i = 0; i < args->tempCACount; i++) {
+            RemoveCA(SSL_CM(ssl),
+                args->tempCAs + ((size_t)i * SIGNER_DIGEST_SIZE),
+                WOLFSSL_TEMP_CA);
+        }
+        XFREE(args->tempCAs, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        args->tempCAs = NULL;
+        args->tempCACount = 0;
+    }
+#endif
 
     XFREE(args->certs, ssl->heap, DYNAMIC_TYPE_DER);
     args->certs = NULL;
@@ -18233,6 +18283,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #endif /* WOLFSSL_TRUST_PEER_CERT */
                 ) {
                     int skipAddCA = 0;
+                    int preCbRet;
+                    int caIsTemp = 0;
 
                     /* select last certificate */
                     args->certIdx = args->count - 1;
@@ -18495,7 +18547,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #endif /* defined(__APPLE__) && defined(WOLFSSL_SYS_CA_CERTS) */
 
                     /* Do verify callback */
+                    preCbRet = ret;
                     ret = DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
+                    if (ret == 0 && preCbRet != 0)
+                        caIsTemp = 1;
                     if (ssl->options.verifyNone &&
                               (ret == WC_NO_ERR_TRACE(CRL_MISSING) ||
                                ret == WC_NO_ERR_TRACE(CRL_CERT_REVOKED) ||
@@ -18512,7 +18567,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #endif
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
                     if (ret == 0 && addToPendingCAs && !alreadySigner &&
-                            !ssl->options.verifyNone && !skipAddCA) {
+                            !ssl->options.verifyNone && !skipAddCA &&
+                            !caIsTemp) {
                         /* The verifyNone and skipAddCA conditions mirror the
                          * guards on the AddCA() call below. A certificate the
                          * surrounding code has already declined to admit as a
@@ -18549,18 +18605,31 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     #endif /* SESSION_CERTS && WOLFSSL_ALT_CERT_CHAINS */
                         if (!alreadySigner) {
                             DerBuffer* add = NULL;
+
+                            if (caIsTemp) {
+                                ret = ProcessPeerCertReserveTempCA(ssl, args);
+                                if (ret != 0)
+                                    goto exit_ppc;
+                            }
+
                             ret = AllocDer(&add, cert->length, CA_TYPE, ssl->heap);
                             if (ret < 0)
                                 goto exit_ppc;
 
                             XMEMCPY(add->buffer, cert->buffer, cert->length);
 
-                            /* CA already verified above in ParseCertRelative */
+                            /* CA already verified above in ParseCertRelative,
+                             * unless the verify callback waived the error, in
+                             * which case it is admitted only for this message.
+                             */
                             WOLFSSL_MSG("Adding CA from chain");
                             SSL_CM_WARNING(ssl);
-                            ret = AddCA(SSL_CM(ssl), &add, WOLFSSL_CHAIN_CA,
+                            ret = AddCA(SSL_CM(ssl), &add,
+                                caIsTemp ? WOLFSSL_TEMP_CA : WOLFSSL_CHAIN_CA,
                                 NO_VERIFY);
                             if (ret == WOLFSSL_SUCCESS) {
+                                if (caIsTemp)
+                                    ProcessPeerCertRecordTempCA(args);
                                 ret = 0;
                             }
                         }
