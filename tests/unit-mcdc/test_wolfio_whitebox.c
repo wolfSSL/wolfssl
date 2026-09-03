@@ -200,6 +200,95 @@ static void wb_sockets(void)
     WB_NOTE(wolfIO_SockIsDGram(-1));
 }
 
+
+/* --------------------------------------------------------- wolfIO_DecodeUrl */
+/* The URL splitter: scheme, host, port, path, with a bracketed IPv6 form and
+ * hard caps on every field. It is reachable from tests/api, but only with the
+ * URLs an OCSP responder extension actually carries -- well-formed, http://,
+ * host and path present. The operands that matter here are the malformed ones:
+ * an unterminated bracket, a CR or LF smuggled into the host, a host or port
+ * that hits the length cap, a port with no digits. Those are attacker-supplied
+ * and have no independence pair from a parsed certificate.
+ *
+ * MAX_URL_ITEM_SIZE is private to src/wolfio.c, which is another reason this
+ * belongs in a white-box: the API test that covers the same function has to
+ * mirror the constant and hope it stays in step. */
+static void wb_decode_url(void)
+{
+    char name[MAX_URL_ITEM_SIZE];
+    char path[MAX_URL_ITEM_SIZE];
+    word16 port;
+    size_t i;
+
+    /* A host and a port at exactly the cap, built rather than written out. */
+    static char longHost[MAX_URL_ITEM_SIZE + 32];
+    static char longUrl[MAX_URL_ITEM_SIZE + 64];
+
+    static const struct { const char* url; int sz; const char* what; } rows[] = {
+        { "http://example.com:8080/ocsp", 28, "the ordinary case" },
+        { "example.com:8080/ocsp",        21, "no scheme" },
+        { "http://example.com/ocsp",      23, "no port" },
+        { "http://example.com",           18, "no port, no path" },
+        { "http://[::1]:443/",            17, "bracketed IPv6" },
+        { "http://[::1]/",                13, "bracketed IPv6, no port" },
+        { "http://[::1",                  11, "bracket never closed" },
+        { "http://[",                      8, "bracket, then nothing" },
+        { "http://[::1\r]:443/",          18, "CR inside the brackets" },
+        { "http://[::1\n]:443/",          18, "LF inside the brackets" },
+        { "http://exa\rmple.com/",        20, "CR inside the host" },
+        { "http://exa\nmple.com/",        20, "LF inside the host" },
+        { "http://example.com:/",         20, "colon, no digits" },
+        { "http://example.com:99999999/", 28, "port longer than the field" },
+        { "http://example.com:0/",        21, "port zero" },
+        { "http://example.com:65535/",    25, "port at the 16-bit ceiling" },
+        { "http://example.com:65536/",    25, "port past the ceiling" },
+        { "http://example.com:80x/",      23, "non-digit in the port" },
+        { "http://",                       7, "scheme and nothing else" },
+        { "/",                             1, "a bare path" },
+        { "http://example.com/ocsp",       7, "length stops inside the host" },
+        { "http://example.com/ocsp",      19, "length stops at the path" },
+    };
+
+    /* url NULL and urlSz 0 are the two operands of the first guard, and each
+     * out-parameter is optional, so the NULL-check on each has to be paired. */
+    WB_NOTE(wolfIO_DecodeUrl(NULL, 10, name, path, &port));
+    WB_NOTE(wolfIO_DecodeUrl("http://a/", 0, name, path, &port));
+    WB_NOTE(wolfIO_DecodeUrl(NULL, 10, NULL, NULL, NULL));
+    WB_NOTE(wolfIO_DecodeUrl("http://example.com:80/x", 23, NULL, path, &port));
+    WB_NOTE(wolfIO_DecodeUrl("http://example.com:80/x", 23, name, NULL, &port));
+    WB_NOTE(wolfIO_DecodeUrl("http://example.com:80/x", 23, name, path, NULL));
+
+    for (i = 0; i < sizeof(rows) / sizeof(rows[0]); i++) {
+        XMEMSET(name, 0, sizeof(name));
+        XMEMSET(path, 0, sizeof(path));
+        port = 0;
+        WB_NOTE(wolfIO_DecodeUrl(rows[i].url, rows[i].sz, name, path, &port));
+    }
+
+    /* A host longer than MAX_URL_ITEM_SIZE, so the cap operand -- not the
+     * delimiter and not the length -- is what stops the copy. */
+    XMEMSET(longHost, 'a', sizeof(longHost) - 1);
+    longHost[sizeof(longHost) - 1] = 0;
+    XSTRNCPY(longUrl, "http://", sizeof(longUrl));
+    XSTRNCAT(longUrl, longHost, sizeof(longUrl) - XSTRLEN(longUrl) - 1);
+    WB_NOTE(wolfIO_DecodeUrl(longUrl, (int)XSTRLEN(longUrl), name, path, &port));
+
+    /* the same, bracketed, so the IPv6 loop hits its own cap */
+    XSTRNCPY(longUrl, "http://[", sizeof(longUrl));
+    XSTRNCAT(longUrl, longHost, sizeof(longUrl) - XSTRLEN(longUrl) - 1);
+    WB_NOTE(wolfIO_DecodeUrl(longUrl, (int)XSTRLEN(longUrl), name, path, &port));
+}
+
+/* ------------------------------------------------------- wolfIO_UrlHasCrlf */
+static void wb_url_crlf(void)
+{
+    WB_NOTE(wolfIO_UrlHasCrlf("http://example.com/", (int)XSTRLEN("http://example.com/")));
+    WB_NOTE(wolfIO_UrlHasCrlf("http://example.com/\r\n", (int)XSTRLEN("http://example.com/\r\n")));
+    WB_NOTE(wolfIO_UrlHasCrlf("http://exa\rmple.com/", (int)XSTRLEN("http://exa\rmple.com/")));
+    WB_NOTE(wolfIO_UrlHasCrlf("http://exa\nmple.com/", (int)XSTRLEN("http://exa\nmple.com/")));
+    WB_NOTE(wolfIO_UrlHasCrlf("", (int)XSTRLEN("")));
+}
+
 /* ---------------------------------------------------------- main */
 
 int main(void)
@@ -212,6 +301,8 @@ int main(void)
     wb_http_response();
     wb_http_request();
     wb_sockets();
+    wb_decode_url();
+    wb_url_crlf();
 
     printf("wolfio white-box: %d vectors driven\n", g_checks);
 
