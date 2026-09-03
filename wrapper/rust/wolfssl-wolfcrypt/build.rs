@@ -90,39 +90,62 @@ struct WolfsslPrefixDirs {
     lib: String,
 }
 
-/// Returns the directories of the `WOLFSSL_PREFIX` installation, if usable.
+/// Returns the directories of the `WOLFSSL_PREFIX` installation, if set.
 ///
 /// A prefix is only accepted if it provides both halves of an installation:
 /// the wolfSSL library under `lib` or `lib64`, and an `include/wolfssl`
 /// directory.
-/// A prefix holding only one of them is rejected outright, so that the headers
+/// A prefix holding only one of them fails the build, so that the headers
 /// and the library we build against always come from the same place.
 ///
-/// The result is computed once and cached, so any warning is printed once.
+/// Returns `None` only when `WOLFSSL_PREFIX` is unset or empty, in which case
+/// the build falls back to the wolfSSL repository containing this crate.
+///
+/// The result is computed once and cached, so any message is printed once.
 fn wolfssl_prefix_dirs() -> Option<&'static WolfsslPrefixDirs> {
     static DIRS: OnceLock<Option<WolfsslPrefixDirs>> = OnceLock::new();
     DIRS.get_or_init(compute_wolfssl_prefix_dirs).as_ref()
 }
 
+/// Report an unusable `WOLFSSL_PREFIX` and fail the build.
+///
+/// A prefix that is set but does not hold an installation is a mistake in the
+/// caller's environment.  Falling back to the in-tree build would hide it and
+/// silently build against a different wolfSSL than the one asked for, so fail
+/// instead.
+fn wolfssl_prefix_error(prefix: &str, reason: &str) -> ! {
+    eprintln!("error: WOLFSSL_PREFIX is set to \"{}\" but {}.", prefix, reason);
+    eprintln!("       Set WOLFSSL_PREFIX to the prefix of a wolfSSL installation \
+               providing include/wolfssl and the wolfSSL library under lib or \
+               lib64, or unset it to build against the wolfSSL repository \
+               containing this crate.");
+    std::process::exit(1);
+}
+
 /// Read `WOLFSSL_PREFIX` from the environment and validate its layout.
 ///
-/// Returns `None` (after warning) if the variable is unset, malformed, or does
-/// not point at a directory containing both `include/wolfssl` and the wolfSSL
-/// library file.
+/// Returns `None` if the variable is unset or empty.  A non-empty value that
+/// does not point at a directory containing both `include/wolfssl` and the
+/// wolfSSL library file fails the build.
 fn compute_wolfssl_prefix_dirs() -> Option<WolfsslPrefixDirs> {
     println!("cargo:rerun-if-env-changed=WOLFSSL_PREFIX");
     let prefix = env::var("WOLFSSL_PREFIX").ok()?;
-    if prefix.is_empty() || prefix.contains('\n') {
-        println!("cargo:warning=ignoring WOLFSSL_PREFIX");
+    if prefix.is_empty() {
+        // An empty value is treated the same as unset.
         return None;
+    }
+    if prefix.contains('\n') {
+        // A newline would let the value inject further cargo directives into
+        // the link search path we print below.
+        wolfssl_prefix_error(&prefix, "its value contains a newline");
     }
     let prefix_path = Path::new(&prefix);
 
     let include_dir = prefix_path.join("include");
     if !include_dir.join("wolfssl").is_dir() {
-        println!("cargo:warning=ignoring WOLFSSL_PREFIX: {} is not a directory",
-                 include_dir.join("wolfssl").display());
-        return None;
+        wolfssl_prefix_error(&prefix,
+                             &format!("{} is not a directory",
+                                      include_dir.join("wolfssl").display()));
     }
 
     // Installations put the library under either lib/ or lib64/ depending on
@@ -132,10 +155,12 @@ fn compute_wolfssl_prefix_dirs() -> Option<WolfsslPrefixDirs> {
     let Some(lib_dir) = lib_names.iter()
                                  .map(|name| prefix_path.join(name))
                                  .find(|dir| has_wolfssl_lib(dir)) else {
-        println!("cargo:warning=ignoring WOLFSSL_PREFIX: no wolfSSL library found in {}",
-                 lib_names.map(|name| prefix_path.join(name).display().to_string())
-                          .join(" or "));
-        return None;
+        wolfssl_prefix_error(&prefix,
+                             &format!("no wolfSSL library was found in {}",
+                                      lib_names.map(|name| prefix_path.join(name)
+                                                                      .display()
+                                                                      .to_string())
+                                               .join(" or ")));
     };
 
     Some(WolfsslPrefixDirs {
