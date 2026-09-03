@@ -342,6 +342,115 @@ static void wb_sweep_baselines(WOLFSSL* ssl)
     }
 }
 
+
+/* ------------------------------------------------- DoHandShakeMsgType
+
+ * The other half of the ordering police: before a handshake message is
+ * dispatched to its parser, this function refuses it if the handshake is
+ * already complete, if it is the first message from a server and is not a
+ * ServerHello, if it is the first message from a client and is not a
+ * ClientHello, or -- for DTLS -- if a ServerHelloDone arrives before the
+ * ServerHello. Those are four state guards on top of the length check, and
+ * like SanityCheckMsgReceived they are all rejections that a conforming peer
+ * never triggers.
+ *
+ * Two things make it drivable without a handshake. The guards run before any
+ * dispatch, so no message body has to parse -- the input can be zeros. And
+ * every guard calls SendAlert on its way out, which is the only reason this
+ * needs more than the zeroed fixture: a send callback that consumes and
+ * discards. Without one the alert path dereferences a NULL CBIOSend.
+ *
+ * The vectors again sweep one field at a time from a state that is ACCEPTED,
+ * because from a saturated state the first guard fires and the rest are never
+ * evaluated.
+ */
+
+static int wb_send_sink(WOLFSSL* ssl, char* buf, int sz, void* ctx)
+{
+    (void)ssl; (void)buf; (void)ctx;
+    return sz;              /* swallow the alert, report it fully written */
+}
+
+static void wb_msgtype(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
+{
+    static byte input[64];
+    static const byte kTypes[] = {
+        client_hello, server_hello, server_hello_done, hello_request,
+        certificate, finished, session_ticket, 200
+    };
+    /* Each row is a handshake state. The first is the accepting one for a
+     * client receiving a ServerHello; the rest each differ from an accepting
+     * state in one field, so that field's operand gets its pair. */
+    static const struct {
+        int  side;
+        byte dtls;
+        byte handShakeDone;
+        byte handShakeState;
+        byte serverState;
+        byte clientState;
+        const char* what;
+    } rows[] = {
+        { WOLFSSL_CLIENT_END, 0, 0, NULL_STATE, NULL_STATE, NULL_STATE,
+          "client, nothing received yet" },
+        { WOLFSSL_CLIENT_END, 0, 0, HANDSHAKE_DONE, SERVER_HELLO_COMPLETE,
+          NULL_STATE, "client, handshake already complete" },
+        { WOLFSSL_CLIENT_END, 0, 1, NULL_STATE, SERVER_HELLO_COMPLETE,
+          NULL_STATE, "client, handShakeDone set" },
+        { WOLFSSL_CLIENT_END, 0, 0, NULL_STATE, SERVER_HELLO_COMPLETE,
+          NULL_STATE, "client, server hello seen" },
+        { WOLFSSL_CLIENT_END, 1, 0, NULL_STATE, NULL_STATE, NULL_STATE,
+          "DTLS client, nothing received yet" },
+        { WOLFSSL_CLIENT_END, 1, 0, NULL_STATE, SERVER_HELLO_COMPLETE,
+          NULL_STATE, "DTLS client, server hello seen" },
+        { WOLFSSL_SERVER_END, 0, 0, NULL_STATE, NULL_STATE, NULL_STATE,
+          "server, nothing received yet" },
+        { WOLFSSL_SERVER_END, 0, 0, NULL_STATE, NULL_STATE,
+          CLIENT_HELLO_COMPLETE, "server, client hello seen" },
+        { WOLFSSL_SERVER_END, 0, 1, HANDSHAKE_DONE, NULL_STATE,
+          CLIENT_HELLO_COMPLETE, "server, handshake complete" },
+        { WOLFSSL_SERVER_END, 1, 0, NULL_STATE, NULL_STATE, NULL_STATE,
+          "DTLS server, nothing received yet" },
+    };
+    size_t r, t;
+
+    XMEMSET(input, 0, sizeof(input));
+
+    for (r = 0; r < sizeof(rows) / sizeof(rows[0]); r++) {
+        for (t = 0; t < sizeof(kTypes) / sizeof(kTypes[0]); t++) {
+            word32 idx = 0;
+
+            XMEMSET(ssl, 0, sizeof(*ssl));
+            ssl->ctx = ctx;
+            ssl->CBIOSend = wb_send_sink;
+            ssl->version.major = SSLv3_MAJOR;
+            ssl->version.minor = TLSv1_2_MINOR;
+            ssl->options.side = (byte)rows[r].side;
+            ssl->options.handShakeDone = rows[r].handShakeDone;
+            ssl->options.handShakeState = rows[r].handShakeState;
+            ssl->options.serverState = rows[r].serverState;
+            ssl->options.clientState = rows[r].clientState;
+#ifdef WOLFSSL_DTLS
+            ssl->options.dtls = rows[r].dtls;
+#endif
+            /* size fits inside totalSz: the length guard is taken false so
+             * the state guards below it are reached at all */
+            (void)DoHandShakeMsgType(ssl, input, &idx, kTypes[t], 4,
+                                     (word32)sizeof(input));
+            g_calls++;
+
+            /* and once with size past totalSz, which is the other half of
+             * the `*inOutIdx + size > totalSz` pair */
+            idx = 0;
+            XMEMSET(ssl, 0, sizeof(*ssl));
+            ssl->ctx = ctx;
+            ssl->CBIOSend = wb_send_sink;
+            ssl->options.side = (byte)rows[r].side;
+            (void)DoHandShakeMsgType(ssl, input, &idx, kTypes[t], 4096, 8);
+            g_calls++;
+        }
+    }
+}
+
 /* ---------------------------------------------------------------- main */
 
 int main(void)
@@ -389,6 +498,7 @@ int main(void)
             wb_sweep_type(ssl, kTypes[t], sides[s]);
 
     wb_sweep_baselines(ssl);
+    wb_msgtype(ssl, ctx);
 
     printf("internal sanity white-box: %d SanityCheckMsgReceived calls\n",
            g_calls);
