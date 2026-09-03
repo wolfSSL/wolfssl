@@ -112,6 +112,8 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/caam/caam_driver.c \
               wolfcrypt/src/port/caam/caam_error.c \
               wolfcrypt/src/port/caam/caam_qnx.c \
+              wolfcrypt/src/port/caam/caam_linux.c \
+              wolfcrypt/src/port/caam/wolfcaam_linux.c \
               wolfcrypt/src/port/caam/caam_integrity.c \
               wolfcrypt/src/port/caam/caam_sha.c \
               wolfcrypt/src/port/caam/caam_doc.pdf \
@@ -255,6 +257,16 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/sealsq/vaultic.c
 endif
 EXTRA_DIST += wolfcrypt/src/port/sealsq/README.md
 
+
+if BUILD_CAAM_LINUX
+# The driver core is built out of tree for QNX (a resource manager) and into
+# the kernel for INTEGRITY. On Linux it runs in process, so it is built into
+# the library along with its port layer and request dispatch.
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/caam/caam_driver.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/caam/caam_error.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/caam/caam_linux.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/caam/wolfcaam_linux.c
+endif
 
 if BUILD_CAAM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/caam/wolfcaam_init.c

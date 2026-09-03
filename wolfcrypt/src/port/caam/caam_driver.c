@@ -24,7 +24,8 @@
 #endif
 
 #if (defined(__INTEGRITY) || defined(INTEGRITY)) || \
-    (defined(__QNX__) || defined(__QNXNTO__))
+    (defined(__QNX__) || defined(__QNXNTO__)) || \
+    defined(WOLFSSL_CAAM_LINUX)
 
 #if defined(__QNX__) || defined(__QNXNTO__)
     #include <sys/mman.h>
@@ -240,6 +241,7 @@ static Error caamFreePage(unsigned int page)
 }
 
 /* free the partition and dealloc */
+#ifndef WOLFSSL_CAAM_NO_SM
 Error caamFreePart(unsigned int part)
 {
     unsigned int status;
@@ -263,9 +265,11 @@ Error caamFreePart(unsigned int part)
     WOLFSSL_MSG("free'd partition");
     return Success;
 }
+#endif /* !WOLFSSL_CAAM_NO_SM */
 
 
 /* find all partitions we own and free them */
+#ifndef WOLFSSL_CAAM_NO_SM
 static Error caamFreeAllPart()
 {
     unsigned int SMPO;
@@ -281,11 +285,13 @@ static Error caamFreeAllPart()
 
     return 0;
 }
+#endif /* !WOLFSSL_CAAM_NO_SM */
 
 
 /* search through the partitions to find an unused one
  * returns negative value on failure, on success returns 0 or greater
  */
+#ifndef WOLFSSL_CAAM_NO_SM
 int caamFindUnusedPartition()
 {
     unsigned int SMPO;
@@ -302,6 +308,7 @@ int caamFindUnusedPartition()
 
     return ret;
 }
+#endif /* !WOLFSSL_CAAM_NO_SM */
 
 
 /* flag contains how the partition is set i.e CSP flag and read/write access
@@ -366,6 +373,7 @@ static Error caamCreatePartition(unsigned int* page, unsigned int par,
 
 
 /* return a partitions physical address on success, returns 0 on fail */
+#ifndef WOLFSSL_CAAM_NO_SM
 CAAM_ADDRESS caamGetPartition(unsigned int part, int partSz, unsigned int flag)
 {
     int err;
@@ -382,6 +390,7 @@ CAAM_ADDRESS caamGetPartition(unsigned int part, int partSz, unsigned int flag)
 
     return (CAAM_ADDRESS)(CAAM_PAGE + (part << 12));
 }
+#endif /* !WOLFSSL_CAAM_NO_SM */
 
 
 /* Gets the status of a job. Returns CAAM_WAITING if no output jobs ready to be
@@ -1977,7 +1986,9 @@ int InitCAAM(void)
 
 int CleanupCAAM()
 {
+#ifndef WOLFSSL_CAAM_NO_SM
     caamFreeAllPart();
+#endif
     CAAM_UNSET_JOBRING_ADDR(caam.ring.BaseAddr, caam.ring.JobIn,
         caam.ring.VirtualIn);
     CAAM_FREE_MUTEX(&caam.ring.jr_lock);
