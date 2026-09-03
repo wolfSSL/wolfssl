@@ -686,7 +686,8 @@ int wolfSSL_use_old_poly(WOLFSSL* ssl, int value);
 /*!
     \brief The wolfSSL_dtls_import() function is used to parse in a serialized
     session state. This allows for picking up the connection after the
-    handshake has been completed.
+    handshake has been completed. Post-handshake authentication is not
+    available on an imported connection.
 
     \return Success If successful, the amount of the buffer read will be
     returned.
@@ -750,7 +751,8 @@ int wolfSSL_tls_import(WOLFSSL* ssl, const unsigned char* buf,
     the callback function for exporting a session. It is allowed to
     pass in NULL as the parameter func to clear the export function
     previously stored. Used on the server side and is called immediately
-    after handshake is completed.
+    after handshake is completed, for DTLS 1.2 only; a DTLS 1.3 session
+    is exported with wolfSSL_dtls_export().
 
     \return SSL_SUCCESS upon success.
     \return BAD_FUNC_ARG If null or not expected arguments are passed in
@@ -788,7 +790,9 @@ int wolfSSL_CTX_dtls_set_export(WOLFSSL_CTX* ctx,
     \brief The wolfSSL_dtls_set_export() function is used to set the callback
     function for exporting a session. It is allowed to pass in NULL as the
     parameter func to clear the export function previously stored. Used on
-    the server side and is called immediately after handshake is completed.
+    the server side and is called immediately after handshake is completed,
+    for DTLS 1.2 only; a DTLS 1.3 session is exported with
+    wolfSSL_dtls_export().
 
     \return SSL_SUCCESS upon success.
     \return BAD_FUNC_ARG If null or not expected arguments are passed in
@@ -825,7 +829,12 @@ int wolfSSL_dtls_set_export(WOLFSSL* ssl, wc_dtls_export func);
     overhead than using a function callback for sending a session and
     choice over when the session is serialized. If buffer is NULL when
     passed to function then sz will be set to the size of buffer needed
-    for serializing the WOLFSSL session.
+    for serializing the WOLFSSL session. The export is refused with a
+    negative return before a DTLS 1.3 handshake is done, while a KeyUpdate is
+    in progress, a fragmented message is half sent, a handshake message other
+    than NewSessionTicket is waiting for the peer's ACK, a post-handshake
+    CertificateRequest is unanswered, or a write dup of the object exists. A
+    NewSessionTicket still waiting for its ACK is not exported and is lost.
 
     \return Success If successful, the amount of the buffer used will
     be returned.

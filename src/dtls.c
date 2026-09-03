@@ -1555,6 +1555,144 @@ const unsigned char* wolfSSL_dtls_cid_parse(const unsigned char* msg,
 #endif
     return NULL;
 }
+
+#ifdef WOLFSSL_SESSION_EXPORT
+/* Sizes of the ids DtlsCidExport() writes. The ids of an extension the peer
+ * never agreed to are no part of the connection, so only a negotiated one has
+ * any. */
+static void DtlsCidExportIdSizes(const CIDInfo* info, byte* rxSz, byte* txSz)
+{
+    *rxSz = 0;
+    *txSz = 0;
+    if (info->negotiated) {
+        *rxSz = (info->rx != NULL) ? info->rx->length : 0;
+        *txSz = (info->tx != NULL) ? info->tx->length : 0;
+    }
+}
+
+/* Size of the section DtlsCidExport() writes, zero without a CID extension */
+word32 DtlsCidExportSize(WOLFSSL* ssl)
+{
+    CIDInfo* info;
+    byte rxSz, txSz;
+
+    info = DtlsCidGetInfo(ssl);
+    if (info == NULL)
+        return 0;
+
+    DtlsCidExportIdSizes(info, &rxSz, &txSz);
+    return (3 * OPAQUE8_LEN) + rxSz + txSz;
+}
+
+int DtlsCidExport(WOLFSSL* ssl, byte* exp, word32 len)
+{
+    CIDInfo* info;
+    word32 idx = 0;
+    byte rxSz, txSz;
+
+    if (ssl == NULL || exp == NULL)
+        return BAD_FUNC_ARG;
+
+    info = DtlsCidGetInfo(ssl);
+    if (info == NULL)
+        return BAD_STATE_E;
+
+    DtlsCidExportIdSizes(info, &rxSz, &txSz);
+
+    if ((word32)((3 * OPAQUE8_LEN) + rxSz + txSz) > len)
+        return BUFFER_E;
+
+    exp[idx++] = info->negotiated;
+
+    exp[idx++] = rxSz;
+    if (rxSz > 0) {
+        XMEMCPY(exp + idx, info->rx->id, rxSz);
+        idx += rxSz;
+    }
+
+    exp[idx++] = txSz;
+    if (txSz > 0) {
+        XMEMCPY(exp + idx, info->tx->id, txSz);
+        idx += txSz;
+    }
+
+    return (int)idx;
+}
+
+int DtlsCidImport(WOLFSSL* ssl, const byte* exp, word32 len)
+{
+    CIDInfo* info;
+    word32 idx = 0;
+    byte negotiated, rxSz, txSz;
+    int ret;
+
+    if (ssl == NULL || exp == NULL)
+        return BAD_FUNC_ARG;
+
+    if ((2 * OPAQUE8_LEN) > len)
+        return BUFFER_E;
+
+    negotiated = exp[idx++];
+    rxSz = exp[idx++];
+    if (rxSz > DTLS_CID_MAX_SIZE || idx + rxSz > len)
+        return BUFFER_E;
+    idx += rxSz;
+
+    /* the tx id is the peer's choice, bounded only by its length field */
+    if (idx + OPAQUE8_LEN > len)
+        return BUFFER_E;
+    txSz = exp[idx++];
+    if (idx + txSz > len)
+        return BUFFER_E;
+
+    if (!negotiated) {
+        if (rxSz > 0 || txSz > 0)
+            return BUFFER_E;
+        DtlsCidClear(ssl);
+        return (int)idx;
+    }
+
+    ret = TLSX_ConnectionID_Use(ssl);
+    if (ret != 0)
+        return ret;
+
+    info = DtlsCidGetInfo(ssl);
+    if (info == NULL)
+        return BAD_STATE_E;
+
+    XFREE(info->rx, ssl->heap, DYNAMIC_TYPE_TLSX);
+    info->rx = NULL;
+    XFREE(info->tx, ssl->heap, DYNAMIC_TYPE_TLSX);
+    info->tx = NULL;
+
+    if (rxSz > 0) {
+        info->rx = DtlsCidNew(exp + (2 * OPAQUE8_LEN), rxSz, ssl->heap);
+        if (info->rx == NULL)
+            return MEMORY_ERROR;
+    }
+    if (txSz > 0) {
+        info->tx = DtlsCidNew(exp + idx, txSz, ssl->heap);
+        if (info->tx == NULL)
+            return MEMORY_ERROR;
+    }
+    idx += txSz;
+
+    info->negotiated = 1;
+    ssl->options.useDtlsCID = 1;
+
+    return (int)idx;
+}
+
+void DtlsCidClear(WOLFSSL* ssl)
+{
+    if (ssl == NULL || DtlsCidGetInfo(ssl) == NULL)
+        return;
+
+    TLSX_Remove(&ssl->extensions, TLSX_CONNECTION_ID, ssl->heap);
+    ssl->options.useDtlsCID = 0;
+}
+#endif /* WOLFSSL_SESSION_EXPORT */
+
 #endif /* WOLFSSL_DTLS_CID */
 
 byte DtlsGetCidTxSize(WOLFSSL* ssl)

@@ -1510,6 +1510,101 @@ static const byte writeKeyLabel[WRITE_KEY_LABEL_SZ+1] = "key";
 /* The label to use when deriving IVs. */
 static const byte writeIVLabel[WRITE_IV_LABEL_SZ+1]   = "iv";
 
+/* Expand the traffic secrets held in ssl->clientSecret/serverSecret into the
+ * record layer key and IV of ssl->keys, and, for DTLS 1.3, into the record
+ * number key. RFC 8446 Section 7.3 and RFC 9147 Section 4.2.3.
+ *
+ * ssl        The SSL/TLS object.
+ * provision  PROVISION_CLIENT, PROVISION_SERVER or both, naming the
+ *            direction(s) whose secret is expanded.
+ * returns 0 on success, otherwise failure.
+ */
+int Tls13DeriveRecordKeys(WOLFSSL* ssl, int provision)
+{
+    int   ret = 0;
+    int   i = 0;
+    WC_DECLARE_VAR(key_dig, byte, MAX_PRF_DIG, 0);
+
+    WC_ALLOC_VAR_EX(key_dig, byte, MAX_PRF_DIG, ssl->heap,
+        DYNAMIC_TYPE_DIGEST, return MEMORY_E);
+
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    XMEMSET(key_dig, 0xff, MAX_PRF_DIG);
+    wc_MemZero_Add("Tls13DeriveRecordKeys key_dig", key_dig, MAX_PRF_DIG);
+#endif
+
+    /* Key data = client key | server key | client IV | server IV */
+
+    if (provision & PROVISION_CLIENT) {
+        /* Derive the client key.  */
+        WOLFSSL_MSG("Derive Client Key");
+        ret = Tls13DeriveKey(ssl, &key_dig[i], ssl->specs.key_size,
+                        ssl->clientSecret, writeKeyLabel,
+                        WRITE_KEY_LABEL_SZ, ssl->specs.mac_algorithm, 0,
+                        WOLFSSL_CLIENT_END);
+        if (ret != 0)
+            goto end;
+        i += ssl->specs.key_size;
+    }
+
+    if (provision & PROVISION_SERVER) {
+        /* Derive the server key.  */
+        WOLFSSL_MSG("Derive Server Key");
+        ret = Tls13DeriveKey(ssl, &key_dig[i], ssl->specs.key_size,
+                        ssl->serverSecret, writeKeyLabel,
+                        WRITE_KEY_LABEL_SZ, ssl->specs.mac_algorithm, 0,
+                        WOLFSSL_SERVER_END);
+        if (ret != 0)
+            goto end;
+        i += ssl->specs.key_size;
+    }
+
+    if (provision & PROVISION_CLIENT) {
+        /* Derive the client IV.  */
+        WOLFSSL_MSG("Derive Client IV");
+        ret = Tls13DeriveKey(ssl, &key_dig[i], ssl->specs.iv_size,
+                        ssl->clientSecret, writeIVLabel,
+                        WRITE_IV_LABEL_SZ, ssl->specs.mac_algorithm, 0,
+                        WOLFSSL_CLIENT_END);
+        if (ret != 0)
+            goto end;
+        i += ssl->specs.iv_size;
+    }
+
+    if (provision & PROVISION_SERVER) {
+        /* Derive the server IV.  */
+        WOLFSSL_MSG("Derive Server IV");
+        ret = Tls13DeriveKey(ssl, &key_dig[i], ssl->specs.iv_size,
+                        ssl->serverSecret, writeIVLabel,
+                        WRITE_IV_LABEL_SZ, ssl->specs.mac_algorithm, 0,
+                        WOLFSSL_SERVER_END);
+        if (ret != 0)
+            goto end;
+        /* Server IV is the last key material written to key_dig, so i is not
+         * advanced here; the whole buffer is zeroed at end regardless. */
+    }
+
+    /* Store keys and IVs but don't activate them. */
+    ret = StoreKeys(ssl, key_dig, provision);
+
+#ifdef WOLFSSL_DTLS13
+    if (ret == 0 && ssl->options.dtls)
+        ret = Dtls13DeriveSnKeys(ssl, provision);
+#endif
+
+end:
+    /* Zero the whole key_dig buffer (not just the i bytes derived) so no
+     * key-schedule material can linger in the unused tail. */
+    ForceZero(key_dig, MAX_PRF_DIG);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(key_dig, ssl->heap, DYNAMIC_TYPE_DIGEST);
+#elif defined(WOLFSSL_CHECK_MEM_ZERO)
+    wc_MemZero_Check(key_dig, MAX_PRF_DIG);
+#endif
+
+    return ret;
+}
+
 /* Derive the keys and IVs for TLS v1.3.
  *
  * ssl      The SSL/TLS object.
@@ -1533,8 +1628,6 @@ static const byte writeIVLabel[WRITE_IV_LABEL_SZ+1]   = "iv";
 int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store)
 {
     int   ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG); /* Assume failure */
-    int   i = 0;
-    WC_DECLARE_VAR(key_dig, byte, MAX_PRF_DIG, 0);
     int   provision;
 
 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
@@ -1543,14 +1636,6 @@ int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store)
         return ret;
     }
     ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG); /* Assume failure */
-#endif
-
-    WC_ALLOC_VAR_EX(key_dig, byte, MAX_PRF_DIG, ssl->heap,
-        DYNAMIC_TYPE_DIGEST, return MEMORY_E);
-
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-    XMEMSET(key_dig, 0xff, MAX_PRF_DIG);
-    wc_MemZero_Add("DeriveTls13Keys key_dig", key_dig, MAX_PRF_DIG);
 #endif
 
     if (side == ENCRYPT_AND_DECRYPT_SIDE) {
@@ -1638,59 +1723,7 @@ int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store)
     if (!store)
         goto end;
 
-    /* Key data = client key | server key | client IV | server IV */
-
-    if (provision & PROVISION_CLIENT) {
-        /* Derive the client key.  */
-        WOLFSSL_MSG("Derive Client Key");
-        ret = Tls13DeriveKey(ssl, &key_dig[i], ssl->specs.key_size,
-                        ssl->clientSecret, writeKeyLabel,
-                        WRITE_KEY_LABEL_SZ, ssl->specs.mac_algorithm, 0,
-                        WOLFSSL_CLIENT_END);
-        if (ret != 0)
-            goto end;
-        i += ssl->specs.key_size;
-    }
-
-    if (provision & PROVISION_SERVER) {
-        /* Derive the server key.  */
-        WOLFSSL_MSG("Derive Server Key");
-        ret = Tls13DeriveKey(ssl, &key_dig[i], ssl->specs.key_size,
-                        ssl->serverSecret, writeKeyLabel,
-                        WRITE_KEY_LABEL_SZ, ssl->specs.mac_algorithm, 0,
-                        WOLFSSL_SERVER_END);
-        if (ret != 0)
-            goto end;
-        i += ssl->specs.key_size;
-    }
-
-    if (provision & PROVISION_CLIENT) {
-        /* Derive the client IV.  */
-        WOLFSSL_MSG("Derive Client IV");
-        ret = Tls13DeriveKey(ssl, &key_dig[i], ssl->specs.iv_size,
-                        ssl->clientSecret, writeIVLabel,
-                        WRITE_IV_LABEL_SZ, ssl->specs.mac_algorithm, 0,
-                        WOLFSSL_CLIENT_END);
-        if (ret != 0)
-            goto end;
-        i += ssl->specs.iv_size;
-    }
-
-    if (provision & PROVISION_SERVER) {
-        /* Derive the server IV.  */
-        WOLFSSL_MSG("Derive Server IV");
-        ret = Tls13DeriveKey(ssl, &key_dig[i], ssl->specs.iv_size,
-                        ssl->serverSecret, writeIVLabel,
-                        WRITE_IV_LABEL_SZ, ssl->specs.mac_algorithm, 0,
-                        WOLFSSL_SERVER_END);
-        if (ret != 0)
-            goto end;
-        /* Server IV is the last key material written to key_dig, so i is not
-         * advanced here; the whole buffer is zeroed at end regardless. */
-    }
-
-    /* Store keys and IVs but don't activate them. */
-    ret = StoreKeys(ssl, key_dig, provision);
+    ret = Tls13DeriveRecordKeys(ssl, provision);
 
 #ifdef WOLFSSL_DTLS13
     if (ret != 0)
@@ -1698,9 +1731,6 @@ int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store)
 
     if (ssl->options.dtls) {
         w64wrapper epochNumber;
-        ret = Dtls13DeriveSnKeys(ssl, provision);
-        if (ret != 0)
-            goto end;
 
         switch (secret) {
             case early_data_key:
@@ -1738,15 +1768,6 @@ int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store)
 #endif /* WOLFSSL_DTLS13 */
 
 end:
-    /* Zero the whole key_dig buffer (not just the i bytes derived) so no
-     * key-schedule material can linger in the unused tail. */
-    ForceZero(key_dig, MAX_PRF_DIG);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(key_dig, ssl->heap, DYNAMIC_TYPE_DIGEST);
-#elif defined(WOLFSSL_CHECK_MEM_ZERO)
-    wc_MemZero_Check(key_dig, MAX_PRF_DIG);
-#endif
-
     if (ret != 0) {
         WOLFSSL_ERROR_VERBOSE(ret);
     }

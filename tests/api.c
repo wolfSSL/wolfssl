@@ -37206,7 +37206,7 @@ static int test_write_dup(void)
             }
 #endif /* WOLFSSL_TLS13 */
 
-#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+#if defined(WOLFSSL_POST_HANDSHAKE_AUTH) && defined(SESSION_CERTS)
             if (methods[i].version == WOLFSSL_TLSV1_3) {
                 WOLFSSL_X509_CHAIN* chain = NULL;
                 ExpectNotNull(chain = wolfSSL_get_peer_chain(ssl_s));
@@ -37344,7 +37344,7 @@ static int test_write_dup_want_write(void)
         }
 #endif /* WOLFSSL_TLS13 */
 
-#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+#if defined(WOLFSSL_POST_HANDSHAKE_AUTH) && defined(SESSION_CERTS)
         if (methods[i].version == WOLFSSL_TLSV1_3) {
             WOLFSSL_X509_CHAIN* chain = NULL;
             ExpectNotNull(chain = wolfSSL_get_peer_chain(ssl_s));
@@ -37356,7 +37356,7 @@ static int test_write_dup_want_write(void)
             for (k = 0; k < 10 && !EXPECT_FAIL(); k++)
                 EXCHANGE_DATA;
         }
-#endif /* WOLFSSL_POST_HANDSHAKE_AUTH */
+#endif /* WOLFSSL_POST_HANDSHAKE_AUTH && SESSION_CERTS */
 
         if (EXPECT_SUCCESS())
             printf("ok\n");
@@ -37379,7 +37379,8 @@ static int test_write_dup_want_write_simul(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(HAVE_WRITE_DUP) && \
-    defined(WOLFSSL_POST_HANDSHAKE_AUTH) && defined(WOLFSSL_TLS13)
+    defined(WOLFSSL_POST_HANDSHAKE_AUTH) && defined(WOLFSSL_TLS13) && \
+    defined(SESSION_CERTS)
     size_t i, k;
     char hiWorld[] = "dup message";
     char readData[sizeof(hiWorld) + 5];
