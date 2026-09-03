@@ -2558,4 +2558,11 @@ int test_wolfIO_DecodeUrl_crlf_reject(void)
 {
     return TEST_SKIPPED;
 }
+/* Same fallback its sibling has: the test table in api.c references this
+ * unconditionally, so without a stub the symbol is undefined wherever
+ * HAVE_HTTP_CLIENT is off and unit.test fails to link. */
+int test_wolfIO_DecodeUrl_host_bounds(void)
+{
+    return TEST_SKIPPED;
+}
 #endif /* HAVE_HTTP_CLIENT */
