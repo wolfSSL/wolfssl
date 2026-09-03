@@ -32,7 +32,8 @@ use core::mem::MaybeUninit;
 
 pub struct Curve25519Key {
     wc_key: sys::curve25519_key,
-    /// RNG bound via `set_rng`, kept alive while the C struct holds its pointer.
+    /// RNG associated with the Curve25519Key, kept alive while the C struct
+    /// holds its pointer.
     #[cfg(random)]
     rng: Option<RngHandle>,
 }
@@ -69,14 +70,16 @@ impl Curve25519Key {
     ///
     /// # Parameters
     ///
-    /// * `rng`: Random number generator struct to use for blinding operation.
+    /// * `rng`: Random number generator struct to use for key generation and
+    ///   blinding operation. Ownership of the `RNG` instance is transferred to
+    ///   the `Curve25519Key` instance constructed here.
     ///
     /// # Returns
     ///
     /// Returns either Ok(curve25519key) on success or Err(e) containing the
     /// wolfSSL library error code value.
     #[cfg(random)]
-    pub fn generate(rng: &RNG) -> Result<Self, i32> {
+    pub fn generate(rng: RNG) -> Result<Self, i32> {
         let mut wc_key: MaybeUninit<sys::curve25519_key> = MaybeUninit::uninit();
         let rc = unsafe {
             sys::wc_curve25519_init(wc_key.as_mut_ptr())
@@ -85,13 +88,50 @@ impl Curve25519Key {
             return Err(rc);
         }
         let wc_key = unsafe { wc_key.assume_init() };
+        let wc_rng = rng.wc_rng;
         let mut curve25519key = Curve25519Key {
             wc_key,
-            #[cfg(random)]
-            rng: None,
+            rng: Some(RngHandle::Owned(rng)),
         };
         let rc = unsafe {
-            sys::wc_curve25519_make_key(rng.wc_rng, Self::KEYSIZE as i32,
+            sys::wc_curve25519_make_key(wc_rng, Self::KEYSIZE as i32,
+                &mut curve25519key.wc_key)
+        };
+        if rc != 0 {
+            return Err(rc);
+        }
+        Ok(curve25519key)
+    }
+
+    /// Generate a new private key with a shared RNG.
+    ///
+    /// # Parameters
+    ///
+    /// * `rng`: Random number generator struct to use for key generation and
+    ///   blinding operation. The `Curve25519Key` instance created here shares
+    ///   the same `RNG` instance via `Rc`.
+    ///
+    /// # Returns
+    ///
+    /// Returns either Ok(curve25519key) on success or Err(e) containing the
+    /// wolfSSL library error code value.
+    #[cfg(all(random, feature = "alloc"))]
+    pub fn generate_shared_rng(rng: alloc::rc::Rc<RNG>) -> Result<Self, i32> {
+        let mut wc_key: MaybeUninit<sys::curve25519_key> = MaybeUninit::uninit();
+        let rc = unsafe {
+            sys::wc_curve25519_init(wc_key.as_mut_ptr())
+        };
+        if rc != 0 {
+            return Err(rc);
+        }
+        let wc_key = unsafe { wc_key.assume_init() };
+        let wc_rng = rng.wc_rng;
+        let mut curve25519key = Curve25519Key {
+            wc_key,
+            rng: Some(RngHandle::Shared(rng)),
+        };
+        let rc = unsafe {
+            sys::wc_curve25519_make_key(wc_rng, Self::KEYSIZE as i32,
                 &mut curve25519key.wc_key)
         };
         if rc != 0 {
@@ -485,6 +525,11 @@ impl Curve25519Key {
     /// This is necessary when generating a shared secret if wolfSSL is built
     /// with the `WOLFSSL_CURVE25519_BLINDING` build option enabled.
     ///
+    /// Note that if the `Curve25519Key` instance was created with either
+    /// `generate()` or `generate_shared_rng()`, the `RNG` instance was already
+    /// registered, so calling this function is not necessary unless it is
+    /// desired to change the associated `RNG` instance.
+    ///
     /// The key takes ownership of the RNG, so the underlying `WC_RNG` is
     /// guaranteed to outlive this key.
     ///
@@ -510,8 +555,25 @@ impl Curve25519Key {
         Ok(())
     }
 
-    /// Bind a shared `RNG` to this key. Available when the `alloc` feature
-    /// is enabled.
+    /// Associates a shared `RNG` instance with this `Curve25519Key` instance.
+    ///
+    /// This is necessary when generating a shared secret if wolfSSL is built
+    /// with the `WOLFSSL_CURVE25519_BLINDING` build option enabled.
+    ///
+    /// Note that if the `Curve25519Key` instance was created with either
+    /// `generate()` or `generate_shared_rng()`, the `RNG` instance was already
+    /// registered, so calling this function is not necessary unless it is
+    /// desired to change the associated `RNG` instance.
+    ///
+    /// # Parameters
+    ///
+    /// * `rng`: The `RNG` struct instance to associate with this
+    ///   `Curve25519Key` instance.
+    ///
+    /// # Returns
+    ///
+    /// Returns Ok(()) on success or Err(e) containing the wolfSSL library
+    /// error code value.
     #[cfg(all(curve25519_blinding, random, feature = "alloc"))]
     pub fn set_shared_rng(&mut self, rng: alloc::rc::Rc<RNG>) -> Result<(), i32> {
         let wc_rng = rng.wc_rng;
@@ -525,7 +587,8 @@ impl Curve25519Key {
         Ok(())
     }
 
-    /// Borrow the RNG previously bound via `set_rng` or `set_shared_rng`.
+    /// Borrow the RNG previously bound via `generate`, `generate_shared_rng`,
+    /// `set_rng` or `set_shared_rng`.
     #[cfg(random)]
     pub fn rng(&self) -> Option<&RNG> {
         match &self.rng {

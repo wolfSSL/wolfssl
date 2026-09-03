@@ -1,5 +1,17 @@
 # wolfssl-wolfcrypt Change Log
 
+## v3.0.0
+
+Breaking changes:
+
+- Curve25519Key::generate() now takes ownership of the RNG instead of borrowing
+  it; the key holds the RNG for its lifetime
+
+New features:
+
+- Add Curve25519Key::generate_shared_rng() to generate a key from an RNG shared
+  between keys via Rc (requires the alloc feature)
+
 ## v2.2.0
 
 New features:
