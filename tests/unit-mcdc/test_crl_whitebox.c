@@ -493,7 +493,7 @@ done:
 
 int main(void)
 {
-    printf("crl white-box: skipped (HAVE_CRL not built)\n");
+    printf("crl white-box: skipped (needs HAVE_CRL, certs, and not WOLFCRYPT_ONLY)\n");
     return 0;
 }
 

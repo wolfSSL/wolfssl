@@ -66,6 +66,26 @@ static int g_checks;
  * The public path builds request and entry from the same certificate, so
  * outside this binary the two hashes are equal by construction and operand 0
  * has no false case at all. */
+/* GetOcspEntry() prepends a freshly allocated OcspEntry when it finds no
+ * match, making it the new head. The driver then re-points ocspList at its own
+ * stack node for the next vector, which drops that pointer on the floor. Free
+ * every heap node ahead of the stack node before doing so. */
+static void wb_free_prepended(WOLFSSL_OCSP* ocsp, OcspEntry* stackNode)
+{
+    void* heap = (ocsp->cm != NULL) ? ocsp->cm->heap : NULL;
+    OcspEntry* e = ocsp->ocspList;
+
+    /* Same heap derivation FreeOcspEntry's own caller in src/ocsp.c uses. */
+    while (e != NULL && e != stackNode) {
+        OcspEntry* next = e->next;
+
+        FreeOcspEntry(e, heap);
+        XFREE(e, heap, DYNAMIC_TYPE_OCSP_ENTRY);
+        e = next;
+    }
+    ocsp->ocspList = stackNode;
+}
+
 static void wb_entry_match(WOLFSSL_OCSP* ocsp)
 {
     OcspRequest req;
@@ -88,6 +108,11 @@ static void wb_entry_match(WOLFSSL_OCSP* ocsp)
     XMEMSET(req.issuerHash,    0xBB, OCSP_DIGEST_SIZE);
     XMEMSET(req.issuerKeyHash, 0xCC, OCSP_DIGEST_SIZE);
     WB_NOTE(GetOcspEntry(ocsp, &req, &found));
+    /* No match, so GetOcspEntry PREPENDED a heap entry and made it the head.
+     * Free it here: the next vector overwrites ocspList, which would otherwise
+     * lose the pointer, and the teardown sets the list to NULL rather than
+     * walking it (it cannot walk it -- the seeded node is on the stack). */
+    wb_free_prepended(ocsp, &seeded);
 
     /* Vector 2: issuer hash equal, key hash differs -> operand 0 true,
      * operand 1 false. Pairs with vector 3 on operand 1. */
@@ -97,6 +122,7 @@ static void wb_entry_match(WOLFSSL_OCSP* ocsp)
     XMEMSET(req.issuerKeyHash, 0xDD, OCSP_DIGEST_SIZE);
     found = NULL;
     WB_NOTE(GetOcspEntry(ocsp, &req, &found));
+    wb_free_prepended(ocsp, &seeded);
 
     /* Vector 3: both equal -> the accepting partner that completes both pairs. */
     ocsp->ocspList = &seeded;
@@ -105,9 +131,9 @@ static void wb_entry_match(WOLFSSL_OCSP* ocsp)
     found = NULL;
     WB_NOTE(GetOcspEntry(ocsp, &req, &found));
 
-    /* Detach the stack entry before the CertManager frees the list, or the
-     * teardown walks into this frame. GetOcspEntry appends a heap node when it
-     * finds no match, so drop whatever it linked on as well. */
+    /* Vector 3 matched, so nothing was prepended; the head is still the stack
+     * node. Detach it before the CertManager frees the list, or the teardown
+     * walks into this frame. */
     ocsp->ocspList = NULL;
 }
 
@@ -369,7 +395,7 @@ done:
 
 int main(void)
 {
-    printf("ocsp white-box: skipped (HAVE_OCSP not built)\n");
+    printf("ocsp white-box: skipped (needs HAVE_OCSP, certs, and not WOLFCRYPT_ONLY)\n");
     return 0;
 }
 

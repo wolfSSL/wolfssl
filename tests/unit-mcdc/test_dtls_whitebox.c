@@ -165,6 +165,9 @@ static void wb_client_hello_sanity(void)
 }
 
 /* ------------------------------------------ TlsCheckSupportedVersion :541 */
+/* Compiled in src/dtls.c under WOLFSSL_DTLS13 && !NO_WOLFSSL_SERVER, not under
+ * WOLFSSL_DTLS alone -- a DTLS build without 1.3 has no such symbol. */
+#if defined(WOLFSSL_DTLS13) && !defined(NO_WOLFSSL_SERVER)
 /* `if (!tlsxFound || tlsxSupportedVersions.elements == NULL)`
  *
  * Operand 0 is isolated by an extension block with no supported_versions in
@@ -192,8 +195,11 @@ static void wb_check_supported_version(WOLFSSL* ssl)
     ch.extension.size = (word32)sizeof(with_sv);
     WB_NOTE(TlsCheckSupportedVersion(ssl, &ch, &isTls13));
 }
+#endif /* WOLFSSL_DTLS13 && !NO_WOLFSSL_SERVER */
 
 /* ------------------------------------------------- DtlsCidGetSize :1146 */
+/* Compiled under WOLFSSL_DTLS_CID; a DTLS build without CID has no symbol. */
+#ifdef WOLFSSL_DTLS_CID
 /* `if (ssl == NULL || size == NULL)` -- both operands, plus the accepting
  * partner with a real ssl and a real out pointer. */
 static void wb_cid_get_size(WOLFSSL* ssl)
@@ -205,8 +211,11 @@ static void wb_cid_get_size(WOLFSSL* ssl)
     WB_NOTE(DtlsCidGetSize(ssl, &sz, 1));
     WB_NOTE(DtlsCidGetSize(ssl, &sz, 0));
 }
+#endif /* WOLFSSL_DTLS_CID */
 
 /* --------------------------------------- SendStatelessReplyDtls13 :851 */
+/* Compiled under WOLFSSL_DTLS13 && !NO_WOLFSSL_SERVER. */
+#if defined(WOLFSSL_DTLS13) && !defined(NO_WOLFSSL_SERVER)
 /* `if (!haveKS || !haveSA || !haveSG)`
  *
  * RFC 8446 section 9.2: a ClientHello that is not resuming must carry
@@ -278,6 +287,7 @@ static void wb_stateless_reply_have_flags(WOLFSSL* ssl)
         WB_NOTE(SendStatelessReplyDtls13(ssl, &ch));
     }
 }
+#endif /* WOLFSSL_DTLS13 && !NO_WOLFSSL_SERVER */
 
 /* ---------------------------------------------------------------- main */
 
@@ -319,9 +329,15 @@ int main(void)
     wb_create_dtls12_cookie(ssl);
     wb_find_ext_by_type();
     wb_client_hello_sanity();
+#if defined(WOLFSSL_DTLS13) && !defined(NO_WOLFSSL_SERVER)
     wb_check_supported_version(ssl);
+#endif
+#ifdef WOLFSSL_DTLS_CID
     wb_cid_get_size(ssl);
+#endif
+#if defined(WOLFSSL_DTLS13) && !defined(NO_WOLFSSL_SERVER)
     wb_stateless_reply_have_flags(ssl);
+#endif
 
     printf("dtls white-box: %d vectors driven\n", g_checks);
 
