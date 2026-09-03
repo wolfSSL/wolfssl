@@ -10837,7 +10837,7 @@ static WC_INLINE void ge448_sub(ge448_p2 *r, const ge448_p2 *p,
     fe448_mul(t3, t1, t2);          /* t3 = E1 = C*D              */
     fe448_mul39081(t3, t3);         /* t3 = E = d*C*D             */
     fe448_mul(r->Z, p->Z, q->Z);    /* r->Z = A = Z1*Z2           */
-    fe448_sqr(t0, p->Z);            /* t0 = B = A^2               */
+    fe448_sqr(t0, r->Z);            /* t0 = B = A^2               */
     fe448_sub(t4, t0, t3);          /* t4 = F = B-(--E)           */
     fe448_add(t0, t0, t3);          /* t0 = G = B+(--E)           */
     fe448_reduce(t0);

@@ -84,9 +84,9 @@ WC_OMIT_FRAME_POINTER void fe_init(void)
 
 void fe_add_sub_op(void);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER void fe_add_sub_op(void)
+WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void fe_add_sub_op(void)
 #else
-WC_OMIT_FRAME_POINTER void fe_add_sub_op(void)
+WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void fe_add_sub_op(void)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -192,9 +192,9 @@ WC_OMIT_FRAME_POINTER void fe_add_sub_op(void)
 
 void fe_sub_op(void);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER void fe_sub_op(void)
+WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void fe_sub_op(void)
 #else
-WC_OMIT_FRAME_POINTER void fe_sub_op(void)
+WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void fe_sub_op(void)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -264,9 +264,9 @@ WC_OMIT_FRAME_POINTER void fe_sub(fe r, const fe a, const fe b)
 
 void fe_add_op(void);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER void fe_add_op(void)
+WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void fe_add_op(void)
 #else
-WC_OMIT_FRAME_POINTER void fe_add_op(void)
+WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void fe_add_op(void)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -1766,9 +1766,9 @@ WC_OMIT_FRAME_POINTER void fe_cmov_table(fe* r, const fe* base, signed char b)
 #ifdef WOLFSSL_ARM_ARCH_7M
 void fe_mul_op(void);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER void fe_mul_op(void)
+WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void fe_mul_op(void)
 #else
-WC_OMIT_FRAME_POINTER void fe_mul_op(void)
+WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void fe_mul_op(void)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -2156,9 +2156,9 @@ WC_OMIT_FRAME_POINTER void fe_mul_op(void)
 
 void fe_mul_op_full_red(void);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER void fe_mul_op_full_red(void)
+WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void fe_mul_op_full_red(void)
 #else
-WC_OMIT_FRAME_POINTER void fe_mul_op_full_red(void)
+WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void fe_mul_op_full_red(void)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -2566,9 +2566,9 @@ WC_OMIT_FRAME_POINTER void fe_mul_op_full_red(void)
 #else
 void fe_mul_op(void);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER void fe_mul_op(void)
+WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void fe_mul_op(void)
 #else
-WC_OMIT_FRAME_POINTER void fe_mul_op(void)
+WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void fe_mul_op(void)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -2710,9 +2710,9 @@ WC_OMIT_FRAME_POINTER void fe_mul_op(void)
 
 void fe_mul_op_full_red(void);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER void fe_mul_op_full_red(void)
+WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void fe_mul_op_full_red(void)
 #else
-WC_OMIT_FRAME_POINTER void fe_mul_op_full_red(void)
+WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void fe_mul_op_full_red(void)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -2901,9 +2901,9 @@ WC_OMIT_FRAME_POINTER void fe_mul(fe r, const fe a, const fe b)
 #ifdef WOLFSSL_ARM_ARCH_7M
 void fe_sq_op(void);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER void fe_sq_op(void)
+WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void fe_sq_op(void)
 #else
-WC_OMIT_FRAME_POINTER void fe_sq_op(void)
+WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void fe_sq_op(void)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -3184,9 +3184,9 @@ WC_OMIT_FRAME_POINTER void fe_sq_op(void)
 
 void fe_sq_op_full_red(void);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER void fe_sq_op_full_red(void)
+WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void fe_sq_op_full_red(void)
 #else
-WC_OMIT_FRAME_POINTER void fe_sq_op_full_red(void)
+WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void fe_sq_op_full_red(void)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -3487,9 +3487,9 @@ WC_OMIT_FRAME_POINTER void fe_sq_op_full_red(void)
 #else
 void fe_sq_op(void);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER void fe_sq_op(void)
+WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void fe_sq_op(void)
 #else
-WC_OMIT_FRAME_POINTER void fe_sq_op(void)
+WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void fe_sq_op(void)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -3617,9 +3617,9 @@ WC_OMIT_FRAME_POINTER void fe_sq_op(void)
 
 void fe_sq_op_full_red(void);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER void fe_sq_op_full_red(void)
+WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void fe_sq_op_full_red(void)
 #else
-WC_OMIT_FRAME_POINTER void fe_sq_op_full_red(void)
+WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void fe_sq_op_full_red(void)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -3793,9 +3793,9 @@ WC_OMIT_FRAME_POINTER void fe_sq(fe r, const fe a)
 #ifdef HAVE_CURVE25519
 #ifdef WOLFSSL_ARM_ARCH_7M
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER void fe_mul121666(fe r_p, fe a_p)
+WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void fe_mul121666(fe r_p, fe a_p)
 #else
-WC_OMIT_FRAME_POINTER void fe_mul121666(fe r, fe a)
+WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void fe_mul121666(fe r, fe a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -3858,9 +3858,9 @@ WC_OMIT_FRAME_POINTER void fe_mul121666(fe r, fe a)
 
 #else
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER void fe_mul121666(fe r_p, fe a_p)
+WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void fe_mul121666(fe r_p, fe a_p)
 #else
-WC_OMIT_FRAME_POINTER void fe_mul121666(fe r, fe a)
+WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void fe_mul121666(fe r, fe a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -5123,9 +5123,9 @@ WC_OMIT_FRAME_POINTER void fe_invert(fe r, const fe a)
 
 #ifdef WOLFSSL_ARM_ARCH_7M
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER void fe_sq2(fe r_p, const fe a_p)
+WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void fe_sq2(fe r_p, const fe a_p)
 #else
-WC_OMIT_FRAME_POINTER void fe_sq2(fe r, const fe a)
+WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void fe_sq2(fe r, const fe a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -5461,9 +5461,9 @@ WC_OMIT_FRAME_POINTER void fe_sq2(fe r, const fe a)
 
 #else
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER void fe_sq2(fe r_p, const fe a_p)
+WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void fe_sq2(fe r_p, const fe a_p)
 #else
-WC_OMIT_FRAME_POINTER void fe_sq2(fe r, const fe a)
+WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void fe_sq2(fe r, const fe a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG

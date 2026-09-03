@@ -1290,116 +1290,178 @@ fe_invert_x64 PROC
         mov	QWORD PTR [rsp+136], rdx
         mov	rcx, rsp
         mov	rdx, QWORD PTR [rsp+136]
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         mov	rdx, rsp
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         mov	rdx, QWORD PTR [rsp+136]
         lea	r8, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         mov	rcx, rsp
         mov	rdx, rsp
         lea	r8, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         mov	rdx, rsp
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+32]
         lea	r8, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+64]
         mov	r8, 4
+        sub	rsp, 32
         call	fe_sq_n_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+64]
         lea	r8, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+64]
         mov	r8, 9
+        sub	rsp, 32
         call	fe_sq_n_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+64]
         lea	r8, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
         mov	r8, 19
+        sub	rsp, 32
         call	fe_sq_n_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+96]
         lea	r8, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+64]
         mov	r8, 9
+        sub	rsp, 32
         call	fe_sq_n_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+64]
         lea	r8, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+64]
         mov	r8, 49
+        sub	rsp, 32
         call	fe_sq_n_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+64]
         lea	r8, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
         mov	r8, 99
+        sub	rsp, 32
         call	fe_sq_n_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+96]
         lea	r8, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+64]
         mov	r8, 49
+        sub	rsp, 32
         call	fe_sq_n_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+64]
         lea	r8, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+32]
         mov	r8, 4
+        sub	rsp, 32
         call	fe_sq_n_x64
+        add	rsp, 32
         mov	rcx, QWORD PTR [rsp+128]
         lea	rdx, QWORD PTR [rsp+32]
         mov	r8, rsp
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         mov	rdx, QWORD PTR [rsp+136]
         mov	rcx, QWORD PTR [rsp+128]
         add	rsp, 152
@@ -3314,116 +3376,178 @@ L_curve25519_base_x64_3:
         ; Invert
         lea	rcx, QWORD PTR [rsp+32]
         mov	rdx, rsp
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         mov	rdx, rsp
         lea	r8, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+32]
         lea	r8, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+64]
         lea	r8, QWORD PTR [rsp+96]
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
         mov	r8, 4
+        sub	rsp, 32
         call	fe_sq_n_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+96]
         lea	r8, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
         mov	r8, 9
+        sub	rsp, 32
         call	fe_sq_n_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
         lea	r8, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+128]
         lea	rdx, QWORD PTR [rsp+96]
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+128]
         lea	rdx, QWORD PTR [rsp+128]
         mov	r8, 19
+        sub	rsp, 32
         call	fe_sq_n_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+128]
         lea	r8, QWORD PTR [rsp+96]
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
         mov	r8, 9
+        sub	rsp, 32
         call	fe_sq_n_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+96]
         lea	r8, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
         mov	r8, 49
+        sub	rsp, 32
         call	fe_sq_n_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
         lea	r8, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+128]
         lea	rdx, QWORD PTR [rsp+96]
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+128]
         lea	rdx, QWORD PTR [rsp+128]
         mov	r8, 99
+        sub	rsp, 32
         call	fe_sq_n_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+128]
         lea	r8, QWORD PTR [rsp+96]
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
         mov	r8, 49
+        sub	rsp, 32
         call	fe_sq_n_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+96]
         lea	r8, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+64]
         mov	r8, 4
+        sub	rsp, 32
         call	fe_sq_n_x64
+        add	rsp, 32
         mov	rcx, rsp
         lea	rdx, QWORD PTR [rsp+64]
         lea	r8, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         mov	r8, QWORD PTR [rsp+160]
         ; Multiply
         ;  A[0] * B[0]
@@ -5609,116 +5733,178 @@ L_curve25519_x64_3:
         ; Invert
         lea	rcx, QWORD PTR [rsp+32]
         mov	rdx, rsp
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         mov	rdx, rsp
         lea	r8, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+32]
         lea	r8, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+64]
         lea	r8, QWORD PTR [rsp+96]
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
         mov	r8, 4
+        sub	rsp, 32
         call	fe_sq_n_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+96]
         lea	r8, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
         mov	r8, 9
+        sub	rsp, 32
         call	fe_sq_n_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
         lea	r8, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+128]
         lea	rdx, QWORD PTR [rsp+96]
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+128]
         lea	rdx, QWORD PTR [rsp+128]
         mov	r8, 19
+        sub	rsp, 32
         call	fe_sq_n_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+128]
         lea	r8, QWORD PTR [rsp+96]
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
         mov	r8, 9
+        sub	rsp, 32
         call	fe_sq_n_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+96]
         lea	r8, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
         mov	r8, 49
+        sub	rsp, 32
         call	fe_sq_n_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
         lea	r8, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+128]
         lea	rdx, QWORD PTR [rsp+96]
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+128]
         lea	rdx, QWORD PTR [rsp+128]
         mov	r8, 99
+        sub	rsp, 32
         call	fe_sq_n_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+128]
         lea	r8, QWORD PTR [rsp+96]
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
         mov	r8, 49
+        sub	rsp, 32
         call	fe_sq_n_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+96]
         lea	r8, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+64]
         mov	r8, 4
+        sub	rsp, 32
         call	fe_sq_n_x64
+        add	rsp, 32
         mov	rcx, rsp
         lea	rdx, QWORD PTR [rsp+64]
         lea	r8, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         mov	r9, QWORD PTR [rsp+168]
         ; Multiply
         ;  A[0] * B[0]
@@ -5899,115 +6085,177 @@ fe_pow22523_x64 PROC
         mov	QWORD PTR [rsp+104], rdx
         mov	rcx, rsp
         mov	rdx, QWORD PTR [rsp+104]
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         mov	rdx, rsp
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         mov	rdx, QWORD PTR [rsp+104]
         lea	r8, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         mov	rcx, rsp
         mov	rdx, rsp
         lea	r8, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         mov	rcx, rsp
         mov	rdx, rsp
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         mov	rcx, rsp
         lea	rdx, QWORD PTR [rsp+32]
         mov	r8, rsp
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         mov	rdx, rsp
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+32]
         mov	r8, 4
+        sub	rsp, 32
         call	fe_sq_n_x64
+        add	rsp, 32
         mov	rcx, rsp
         lea	rdx, QWORD PTR [rsp+32]
         mov	r8, rsp
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         mov	rdx, rsp
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+32]
         mov	r8, 9
+        sub	rsp, 32
         call	fe_sq_n_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+32]
         mov	r8, rsp
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+64]
         mov	r8, 19
+        sub	rsp, 32
         call	fe_sq_n_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+64]
         lea	r8, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+32]
         mov	r8, 9
+        sub	rsp, 32
         call	fe_sq_n_x64
+        add	rsp, 32
         mov	rcx, rsp
         lea	rdx, QWORD PTR [rsp+32]
         mov	r8, rsp
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         mov	rdx, rsp
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+32]
         mov	r8, 49
+        sub	rsp, 32
         call	fe_sq_n_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+32]
         mov	r8, rsp
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+64]
         mov	r8, 99
+        sub	rsp, 32
         call	fe_sq_n_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+64]
         lea	r8, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+32]
         mov	r8, 49
+        sub	rsp, 32
         call	fe_sq_n_x64
+        add	rsp, 32
         mov	rcx, rsp
         lea	rdx, QWORD PTR [rsp+32]
         mov	r8, rsp
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         mov	rcx, rsp
         mov	rdx, rsp
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         mov	rcx, rsp
         mov	rdx, rsp
+        sub	rsp, 32
         call	fe_sq_x64
+        add	rsp, 32
         mov	rcx, QWORD PTR [rsp+96]
         mov	rdx, rsp
         mov	r8, QWORD PTR [rsp+104]
+        sub	rsp, 32
         call	fe_mul_x64
+        add	rsp, 32
         mov	rdx, QWORD PTR [rsp+104]
         mov	rcx, QWORD PTR [rsp+96]
         add	rsp, 120
@@ -11543,116 +11791,178 @@ fe_invert_avx2 PROC
         mov	QWORD PTR [rsp+136], rdx
         mov	rcx, rsp
         mov	rdx, QWORD PTR [rsp+136]
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         mov	rdx, rsp
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         mov	rdx, QWORD PTR [rsp+136]
         lea	r8, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         mov	rcx, rsp
         mov	rdx, rsp
         lea	r8, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         mov	rdx, rsp
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+32]
         lea	r8, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+64]
         mov	r8, 4
+        sub	rsp, 32
         call	fe_sq_n_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+64]
         lea	r8, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+64]
         mov	r8, 9
+        sub	rsp, 32
         call	fe_sq_n_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+64]
         lea	r8, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
         mov	r8, 19
+        sub	rsp, 32
         call	fe_sq_n_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+96]
         lea	r8, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+64]
         mov	r8, 9
+        sub	rsp, 32
         call	fe_sq_n_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+64]
         lea	r8, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+64]
         mov	r8, 49
+        sub	rsp, 32
         call	fe_sq_n_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+64]
         lea	r8, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
         mov	r8, 99
+        sub	rsp, 32
         call	fe_sq_n_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+96]
         lea	r8, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+64]
         mov	r8, 49
+        sub	rsp, 32
         call	fe_sq_n_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+64]
         lea	r8, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+32]
         mov	r8, 4
+        sub	rsp, 32
         call	fe_sq_n_avx2
+        add	rsp, 32
         mov	rcx, QWORD PTR [rsp+128]
         lea	rdx, QWORD PTR [rsp+32]
         mov	r8, rsp
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         mov	rdx, QWORD PTR [rsp+136]
         mov	rcx, QWORD PTR [rsp+128]
         add	rsp, 152
@@ -13206,116 +13516,178 @@ L_curve25519_base_avx2_last_3:
         ; Invert
         lea	rcx, QWORD PTR [rsp+32]
         mov	rdx, rsp
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         mov	rdx, rsp
         lea	r8, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+32]
         lea	r8, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+64]
         lea	r8, QWORD PTR [rsp+96]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
         mov	r8, 4
+        sub	rsp, 32
         call	fe_sq_n_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+96]
         lea	r8, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
         mov	r8, 9
+        sub	rsp, 32
         call	fe_sq_n_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
         lea	r8, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+128]
         lea	rdx, QWORD PTR [rsp+96]
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+128]
         lea	rdx, QWORD PTR [rsp+128]
         mov	r8, 19
+        sub	rsp, 32
         call	fe_sq_n_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+128]
         lea	r8, QWORD PTR [rsp+96]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
         mov	r8, 9
+        sub	rsp, 32
         call	fe_sq_n_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+96]
         lea	r8, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
         mov	r8, 49
+        sub	rsp, 32
         call	fe_sq_n_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
         lea	r8, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+128]
         lea	rdx, QWORD PTR [rsp+96]
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+128]
         lea	rdx, QWORD PTR [rsp+128]
         mov	r8, 99
+        sub	rsp, 32
         call	fe_sq_n_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+128]
         lea	r8, QWORD PTR [rsp+96]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
         mov	r8, 49
+        sub	rsp, 32
         call	fe_sq_n_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+96]
         lea	r8, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+64]
         mov	r8, 4
+        sub	rsp, 32
         call	fe_sq_n_avx2
+        add	rsp, 32
         mov	rcx, rsp
         lea	rdx, QWORD PTR [rsp+64]
         lea	r8, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         mov	r8, QWORD PTR [rsp+160]
         mov	rax, QWORD PTR [r8]
         ; Multiply
@@ -15095,116 +15467,178 @@ L_curve25519_avx2_last_3:
         ; Invert
         lea	rcx, QWORD PTR [rsp+32]
         mov	rdx, rsp
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         mov	rdx, rsp
         lea	r8, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+32]
         lea	r8, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+64]
         lea	r8, QWORD PTR [rsp+96]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
         mov	r8, 4
+        sub	rsp, 32
         call	fe_sq_n_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+96]
         lea	r8, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
         mov	r8, 9
+        sub	rsp, 32
         call	fe_sq_n_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
         lea	r8, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+128]
         lea	rdx, QWORD PTR [rsp+96]
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+128]
         lea	rdx, QWORD PTR [rsp+128]
         mov	r8, 19
+        sub	rsp, 32
         call	fe_sq_n_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+128]
         lea	r8, QWORD PTR [rsp+96]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
         mov	r8, 9
+        sub	rsp, 32
         call	fe_sq_n_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+96]
         lea	r8, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
         mov	r8, 49
+        sub	rsp, 32
         call	fe_sq_n_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
         lea	r8, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+128]
         lea	rdx, QWORD PTR [rsp+96]
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+128]
         lea	rdx, QWORD PTR [rsp+128]
         mov	r8, 99
+        sub	rsp, 32
         call	fe_sq_n_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+128]
         lea	r8, QWORD PTR [rsp+96]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+96]
         lea	rdx, QWORD PTR [rsp+96]
         mov	r8, 49
+        sub	rsp, 32
         call	fe_sq_n_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+96]
         lea	r8, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+64]
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+64]
         mov	r8, 4
+        sub	rsp, 32
         call	fe_sq_n_avx2
+        add	rsp, 32
         mov	rcx, rsp
         lea	rdx, QWORD PTR [rsp+64]
         lea	r8, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         mov	r9, QWORD PTR [rsp+168]
         mov	rax, QWORD PTR [r9]
         ; Multiply
@@ -15356,115 +15790,177 @@ fe_pow22523_avx2 PROC
         mov	QWORD PTR [rsp+104], rdx
         mov	rcx, rsp
         mov	rdx, QWORD PTR [rsp+104]
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         mov	rdx, rsp
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         mov	rdx, QWORD PTR [rsp+104]
         lea	r8, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         mov	rcx, rsp
         mov	rdx, rsp
         lea	r8, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         mov	rcx, rsp
         mov	rdx, rsp
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         mov	rcx, rsp
         lea	rdx, QWORD PTR [rsp+32]
         mov	r8, rsp
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         mov	rdx, rsp
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+32]
         mov	r8, 4
+        sub	rsp, 32
         call	fe_sq_n_avx2
+        add	rsp, 32
         mov	rcx, rsp
         lea	rdx, QWORD PTR [rsp+32]
         mov	r8, rsp
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         mov	rdx, rsp
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+32]
         mov	r8, 9
+        sub	rsp, 32
         call	fe_sq_n_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+32]
         mov	r8, rsp
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+64]
         mov	r8, 19
+        sub	rsp, 32
         call	fe_sq_n_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+64]
         lea	r8, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+32]
         mov	r8, 9
+        sub	rsp, 32
         call	fe_sq_n_avx2
+        add	rsp, 32
         mov	rcx, rsp
         lea	rdx, QWORD PTR [rsp+32]
         mov	r8, rsp
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         mov	rdx, rsp
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+32]
         mov	r8, 49
+        sub	rsp, 32
         call	fe_sq_n_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+32]
         mov	r8, rsp
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+64]
         lea	rdx, QWORD PTR [rsp+64]
         mov	r8, 99
+        sub	rsp, 32
         call	fe_sq_n_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+64]
         lea	r8, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+32]
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         lea	rcx, QWORD PTR [rsp+32]
         lea	rdx, QWORD PTR [rsp+32]
         mov	r8, 49
+        sub	rsp, 32
         call	fe_sq_n_avx2
+        add	rsp, 32
         mov	rcx, rsp
         lea	rdx, QWORD PTR [rsp+32]
         mov	r8, rsp
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         mov	rcx, rsp
         mov	rdx, rsp
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         mov	rcx, rsp
         mov	rdx, rsp
+        sub	rsp, 32
         call	fe_sq_avx2
+        add	rsp, 32
         mov	rcx, QWORD PTR [rsp+96]
         mov	rdx, rsp
         mov	r8, QWORD PTR [rsp+104]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         mov	rdx, QWORD PTR [rsp+104]
         mov	rcx, QWORD PTR [rsp+96]
         add	rsp, 120
@@ -20577,16 +21073,22 @@ L_curve25519_base_avx512_ifma_bits:
         ; z2 = 1 / z2
         lea	rcx, QWORD PTR [rsp+672]
         lea	rdx, QWORD PTR [rsp+672]
+        sub	rsp, 32
         call	fe_invert_avx2
+        add	rsp, 32
         ; x2 = x2 * z2
         lea	rcx, QWORD PTR [rsp+640]
         lea	rdx, QWORD PTR [rsp+640]
         lea	r8, QWORD PTR [rsp+672]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         ; Store fully reduced result
         mov	rcx, QWORD PTR [rsp+712]
         lea	rdx, QWORD PTR [rsp+640]
+        sub	rsp, 32
         call	fe_tobytes
+        add	rsp, 32
         xor	rax, rax
         vmovdqu	xmm6, OWORD PTR [rsp+736]
         vmovdqu	xmm7, OWORD PTR [rsp+752]
@@ -21395,16 +21897,22 @@ L_curve25519_avx512_ifma_bits:
         ; z2 = 1 / z2
         lea	rcx, QWORD PTR [rsp+672]
         lea	rdx, QWORD PTR [rsp+672]
+        sub	rsp, 32
         call	fe_invert_avx2
+        add	rsp, 32
         ; x2 = x2 * z2
         lea	rcx, QWORD PTR [rsp+640]
         lea	rdx, QWORD PTR [rsp+640]
         lea	r8, QWORD PTR [rsp+672]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         ; Store fully reduced result
         mov	rcx, QWORD PTR [rsp+712]
         lea	rdx, QWORD PTR [rsp+640]
+        sub	rsp, 32
         call	fe_tobytes
+        add	rsp, 32
         xor	rax, rax
         vmovdqu	xmm6, OWORD PTR [rsp+744]
         vmovdqu	xmm7, OWORD PTR [rsp+760]
@@ -22147,16 +22655,22 @@ L_curve25519_base_avx512_ifma_dq_bits:
         ; z2 = 1 / z2
         lea	rcx, QWORD PTR [rsp+672]
         lea	rdx, QWORD PTR [rsp+672]
+        sub	rsp, 32
         call	fe_invert_avx2
+        add	rsp, 32
         ; x2 = x2 * z2
         lea	rcx, QWORD PTR [rsp+640]
         lea	rdx, QWORD PTR [rsp+640]
         lea	r8, QWORD PTR [rsp+672]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         ; Store fully reduced result
         mov	rcx, QWORD PTR [rsp+712]
         lea	rdx, QWORD PTR [rsp+640]
+        sub	rsp, 32
         call	fe_tobytes
+        add	rsp, 32
         xor	rax, rax
         vmovdqu	xmm6, OWORD PTR [rsp+736]
         vmovdqu	xmm7, OWORD PTR [rsp+752]
@@ -22920,16 +23434,22 @@ L_curve25519_avx512_ifma_dq_bits:
         ; z2 = 1 / z2
         lea	rcx, QWORD PTR [rsp+672]
         lea	rdx, QWORD PTR [rsp+672]
+        sub	rsp, 32
         call	fe_invert_avx2
+        add	rsp, 32
         ; x2 = x2 * z2
         lea	rcx, QWORD PTR [rsp+640]
         lea	rdx, QWORD PTR [rsp+640]
         lea	r8, QWORD PTR [rsp+672]
+        sub	rsp, 32
         call	fe_mul_avx2
+        add	rsp, 32
         ; Store fully reduced result
         mov	rcx, QWORD PTR [rsp+712]
         lea	rdx, QWORD PTR [rsp+640]
+        sub	rsp, 32
         call	fe_tobytes
+        add	rsp, 32
         xor	rax, rax
         vmovdqu	xmm6, OWORD PTR [rsp+744]
         vmovdqu	xmm7, OWORD PTR [rsp+760]

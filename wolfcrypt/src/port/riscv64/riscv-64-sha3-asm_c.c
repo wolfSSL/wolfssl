@@ -30,6 +30,13 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
+
+/* Honor WC_SHA3_NO_ASM as sha3.c does: suppress this BlockSha3 so it
+ * doesn't multiply-define against sha3.c's C BlockSha3 on riscv64. */
+#ifdef WC_SHA3_NO_ASM
+    #undef WOLFSSL_RISCV_ASM
+#endif
+
 #ifdef WOLFSSL_RISCV_ASM
 #ifdef WOLFSSL_RISCV_ASM_INLINE
 #include <wolfssl/wolfcrypt/sha3.h>
@@ -585,7 +592,7 @@ XALIGNED(16) static const word64 L_SHA3_transform_riscv_r[] = {
     0x0000000080000001UL, 0x8000000080008008UL,
 };
 
-void BlockSha3(word64* s)
+WC_OMIT_FRAME_POINTER void BlockSha3(word64* s)
 {
     const word64* r = L_SHA3_transform_riscv_r;
 
