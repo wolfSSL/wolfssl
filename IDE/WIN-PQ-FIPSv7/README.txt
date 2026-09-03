@@ -119,3 +119,17 @@ Additionally one may enable:
  * OPENSSL_EXTRA
 
 These settings are defined in IDE/WIN-PQ-FIPSv7/user_settings.h.
+
+Optional configurations
+-----------------------
+
+user_settings.h is the shipping configuration.  Options are supplied as patches
+against it rather than as extra copies, so an edit is only made once:
+
+  user_settings.h.wolfentropy.patch  MemUse (wolfEntropy) entropy source
+  user_settings.h.paa.patch          x86_64 AES-NI PAA lane, x64 only
+
+They are independent and may both be applied.  From the wolfSSL tree root:
+
+  git apply IDE/WIN-PQ-FIPSv7/user_settings.h.paa.patch
+  git apply -R IDE/WIN-PQ-FIPSv7/user_settings.h.paa.patch
