@@ -1706,3 +1706,164 @@ int test_wolfSSL_crl_ocsp_api_arg_guards(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* ---------------------------------------------------------------------------
+ * OCSP stapling accessors, and CRL delivered through a mocked transport.
+ *
+ * The previous argument-guard sweep moved ssl_api_crl_ocsp.c by one condition,
+ * because it guessed at which functions held the gaps. Reading them settles
+ * it: they are not the enable/disable calls, they are the stapling request
+ * and response accessors, and their operands are of three kinds --
+ *
+ *   ssl->options.side != WOLFSSL_CLIENT_END   a SERVER object, which no
+ *   ctx->method->side != WOLFSSL_CLIENT_END   client-side test can supply
+ *
+ *   ssl->ocspProducedDateFormat != ASN_UTC_TIME  a response that was never
+ *                                                processed, or one whose
+ *                                                producedDate is a
+ *                                                GeneralizedTime
+ *
+ *   idx >= XELEM_CNT(ssl->ocspCsrResp), len < 0  an out-of-range slot
+ *
+ * None of them is reachable from a working client that staples successfully,
+ * which is the only shape the existing tests have.
+ * ------------------------------------------------------------------------- */
+int test_wolfSSL_ocsp_stapling_accessors(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_OCSP) && defined(HAVE_CERTIFICATE_STATUS_REQUEST) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
+    WOLFSSL_CTX* cctx = NULL;   /* client */
+    WOLFSSL_CTX* sctx = NULL;   /* server: the side operand's partner */
+    WOLFSSL* cssl = NULL;
+    WOLFSSL* sssl = NULL;
+
+    ExpectNotNull(cctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(sctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(sctx, svrCertFile,
+                WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(sctx, svrKeyFile,
+                WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectNotNull(cssl = wolfSSL_new(cctx));
+    ExpectNotNull(sssl = wolfSSL_new(sctx));
+
+    /* --- the stapling request calls, once per operand ------------------- */
+    (void)wolfSSL_UseOCSPStapling(NULL, WOLFSSL_CSR_OCSP, 0);
+    (void)wolfSSL_CTX_UseOCSPStapling(NULL, WOLFSSL_CSR_OCSP, 0);
+    /* a SERVER object: side != CLIENT_END, which is the operand a client-only
+     * test leaves permanently false */
+    (void)wolfSSL_UseOCSPStapling(sssl, WOLFSSL_CSR_OCSP, 0);
+    (void)wolfSSL_CTX_UseOCSPStapling(sctx, WOLFSSL_CSR_OCSP, 0);
+    /* the accepting partners */
+    (void)wolfSSL_UseOCSPStapling(cssl, WOLFSSL_CSR_OCSP, 0);
+    (void)wolfSSL_CTX_UseOCSPStapling(cctx, WOLFSSL_CSR_OCSP, 0);
+
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+    (void)wolfSSL_UseOCSPStaplingV2(NULL, WOLFSSL_CSR2_OCSP, 0);
+    (void)wolfSSL_CTX_UseOCSPStaplingV2(NULL, WOLFSSL_CSR2_OCSP, 0);
+    (void)wolfSSL_UseOCSPStaplingV2(sssl, WOLFSSL_CSR2_OCSP, 0);
+    (void)wolfSSL_CTX_UseOCSPStaplingV2(sctx, WOLFSSL_CSR2_OCSP, 0);
+    (void)wolfSSL_UseOCSPStaplingV2(cssl, WOLFSSL_CSR2_OCSP, 0);
+    (void)wolfSSL_CTX_UseOCSPStaplingV2(cctx, WOLFSSL_CSR2_OCSP, 0);
+#endif
+
+#ifndef NO_ASN_TIME
+    /* --- the producedDate accessor -------------------------------------- */
+    {
+        byte  when[32];
+        int   fmt = 0;
+
+        XMEMSET(when, 0, sizeof(when));
+        (void)wolfSSL_get_ocsp_producedDate(NULL, when, sizeof(when), &fmt);
+        /* no response processed: ocspProducedDateFormat is neither UTC nor
+         * generalized, which is the pair for both operands at :879 */
+        (void)wolfSSL_get_ocsp_producedDate(cssl, when, sizeof(when), &fmt);
+        /* the output-pointer operands, reached only once a format is set */
+        (void)wolfSSL_get_ocsp_producedDate(cssl, NULL, sizeof(when), &fmt);
+        (void)wolfSSL_get_ocsp_producedDate(cssl, when, sizeof(when), NULL);
+        /* a buffer too small to hold the date */
+        (void)wolfSSL_get_ocsp_producedDate(cssl, when, 1, &fmt);
+
+        /* Drive the format operands directly. A stapled response carrying a
+         * GeneralizedTime rather than a UTCTime is legal, rare, and not
+         * something the test responder emits -- so this is the only way the
+         * second half of that decision is ever taken. */
+        cssl->ocspProducedDateFormat = ASN_UTC_TIME;
+        (void)wolfSSL_get_ocsp_producedDate(cssl, when, sizeof(when), &fmt);
+        (void)wolfSSL_get_ocsp_producedDate(cssl, NULL, sizeof(when), &fmt);
+        (void)wolfSSL_get_ocsp_producedDate(cssl, when, sizeof(when), NULL);
+        (void)wolfSSL_get_ocsp_producedDate(cssl, when, 1, &fmt);
+        cssl->ocspProducedDateFormat = ASN_GENERALIZED_TIME;
+        (void)wolfSSL_get_ocsp_producedDate(cssl, when, sizeof(when), &fmt);
+        cssl->ocspProducedDateFormat = 0;
+    }
+#endif
+
+    wolfSSL_free(cssl);
+    wolfSSL_free(sssl);
+    wolfSSL_CTX_free(cctx);
+    wolfSSL_CTX_free(sctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* CRL arriving through a mocked I/O callback.
+ *
+ * wolfSSL_SetCRL_IOCb installs a CbCrlIO, which is the interface the library
+ * consumes when a certificate names a CRL distribution point. Mocking it is
+ * the CRL equivalent of the CbOCSPIO mock used for the responder: it can hand
+ * back a truncated CRL, an empty one, or bytes that are not a CRL at all --
+ * results a real distribution point cannot be asked for on demand.
+ */
+#if defined(HAVE_CRL) && defined(HAVE_CRL_IO) && !defined(NO_CERTS) && \
+    !defined(NO_WOLFSSL_CLIENT)
+static int g_crlIoCalls;
+static int g_crlIoResult;
+
+static int test_crl_io_mock(WOLFSSL_CRL* crl, const char* url, int urlSz)
+{
+    (void)crl; (void)url; (void)urlSz;
+    g_crlIoCalls++;
+    return g_crlIoResult;
+}
+#endif
+
+int test_wolfSSL_crl_io_mock(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CRL) && defined(HAVE_CRL_IO) && !defined(NO_CERTS) && \
+    !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    int i;
+    static const int results[] = { 0, -1, 1 };
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_EnableCRL(ctx, WOLFSSL_CRL_CHECK),
+                WOLFSSL_SUCCESS);
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* the guard operands first */
+    (void)wolfSSL_SetCRL_IOCb(NULL, test_crl_io_mock);
+    (void)wolfSSL_CTX_SetCRL_IOCb(NULL, test_crl_io_mock);
+    (void)wolfSSL_SetCRL_IOCb(ssl, NULL);
+    (void)wolfSSL_CTX_SetCRL_IOCb(ctx, NULL);
+
+    /* then the callback installed, returning each of the outcomes a
+     * distribution point can produce */
+    for (i = 0; i < (int)(sizeof(results) / sizeof(results[0])); i++) {
+        g_crlIoResult = results[i];
+        g_crlIoCalls = 0;
+        (void)wolfSSL_CTX_SetCRL_IOCb(ctx, test_crl_io_mock);
+        (void)wolfSSL_SetCRL_IOCb(ssl, test_crl_io_mock);
+        /* loading a certificate whose CRL is missing is what drives the
+         * callback; the load itself is allowed to fail */
+        (void)wolfSSL_CTX_load_verify_locations(ctx, caCertFile, NULL);
+    }
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
