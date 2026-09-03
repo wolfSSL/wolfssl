@@ -81,6 +81,26 @@
     #endif
 #endif
 
+#ifdef WOLF_CRYPTO_CB_ONLY_MLKEM
+/* Only the encode/decode helpers and the hash/PRF object lifecycle are needed:
+ * every operation that uses the lattice math is serviced by a crypto callback.
+ * These are set for this file alone, so the public API in wc_mlkem.c keeps
+ * every entry point.
+ *
+ * This has to sit below the include above: that is what reads settings.h and
+ * user_settings.h, so a build that sets WOLF_CRYPTO_CB_ONLY_MLKEM there
+ * rather than on the command line would otherwise not be seen here at all. */
+#ifndef WOLFSSL_MLKEM_NO_MAKE_KEY
+    #define WOLFSSL_MLKEM_NO_MAKE_KEY
+#endif
+#ifndef WOLFSSL_MLKEM_NO_ENCAPSULATE
+    #define WOLFSSL_MLKEM_NO_ENCAPSULATE
+#endif
+#ifndef WOLFSSL_MLKEM_NO_DECAPSULATE
+    #define WOLFSSL_MLKEM_NO_DECAPSULATE
+#endif
+#endif /* WOLF_CRYPTO_CB_ONLY_MLKEM */
+
 #ifdef WC_MLKEM_NO_ASM
     #undef USE_INTEL_SPEEDUP
     #undef WOLFSSL_ARMASM
@@ -204,6 +224,9 @@ const sword16 zetas[MLKEM_N / 2] = {
 
 
 #if !defined(WOLFSSL_ARMASM)
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Number-Theoretic Transform.
  *
  * FIPS 203, Algorithm 9: NTT(f)
@@ -556,6 +579,8 @@ static void mlkem_ntt(sword16* r)
     }
 #endif
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 
 #if !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
@@ -1027,6 +1052,9 @@ static void mlkem_invntt(sword16* r)
 }
 #endif
 
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Multiplication of polynomials in Zq[X]/(X^2-zeta).
  *
  * Used for multiplication of elements in Rq in NTT domain.
@@ -1222,8 +1250,13 @@ static void mlkem_basemul_mont_add(sword16* r, const sword16* a,
     }
 #endif
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 #endif
 
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Pointwise multiply elements of a and b, into r, and multiply by 2^-16.
  *
  * @param  [out]  r  Result polynomial.
@@ -1248,6 +1281,8 @@ static void mlkem_pointwise_acc_mont(sword16* r, const sword16* a,
     mlkem_basemul_mont_add(r, a + (k - 1) * MLKEM_N, b + (k - 1) * MLKEM_N);
 #endif
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 
 /******************************************************************************/
 
@@ -2478,6 +2513,9 @@ static WC_INLINE void mlkem_cbd_eta3_ins(sword16* p, const byte* r)
 #endif
 
 #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512)
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Deterministically generate a matrix (or transpose) of uniform integers mod q.
  *
  * Seed used with XOF to generate random bytes.
@@ -2587,8 +2625,13 @@ static int mlkem_gen_matrix_k2_avx2(sword16* a, byte* seed, int transposed)
 
     return 0;
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 
 #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Deterministically generate a 2x2 matrix (or transpose) of uniform integers
  * mod q using the eight-way AVX-512 SHA3 core. Only four of the eight lanes
  * are used - the register-resident eight-way permutation is still faster than
@@ -2672,10 +2715,15 @@ static int mlkem_gen_matrix_k2_avx512(sword16* a, byte* seed, int transposed)
 
     return 0;
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 #endif /* WOLFSSL_MLKEM_HAVE_INTEL_AVX512 */
 #endif
 
 #if defined(WOLFSSL_KYBER768) || defined(WOLFSSL_WC_ML_KEM_768)
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Deterministically generate a matrix (or transpose) of uniform integers mod q.
  *
  * Seed used with XOF to generate random bytes.
@@ -2832,8 +2880,13 @@ static int mlkem_gen_matrix_k3_avx2(sword16* a, byte* seed, int transposed)
 
     return 0;
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 
 #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Deterministically generate a 3x3 matrix (or transpose) of uniform integers
  * mod q using eight-way AVX-512 SHA3. The first eight polynomials are produced
  * in one eight-way batch; the ninth uses a single SHA3 state.
@@ -2960,9 +3013,14 @@ static int mlkem_gen_matrix_k3_avx512(sword16* a, byte* seed, int transposed)
 
     return 0;
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 #endif /* WOLFSSL_MLKEM_HAVE_INTEL_AVX512 */
 #endif
 #if defined(WOLFSSL_KYBER1024) || defined(WOLFSSL_WC_ML_KEM_1024)
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Deterministically generate a matrix (or transpose) of uniform integers mod q.
  *
  * Seed used with XOF to generate random bytes.
@@ -3073,8 +3131,13 @@ static int mlkem_gen_matrix_k4_avx2(sword16* a, byte* seed, int transposed)
 
     return 0;
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 
 #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Deterministically generate a 4x4 matrix (or transpose) of uniform integers
  * mod q using eight-way AVX-512 SHA3. The 16 polynomials are produced in two
  * batches of eight.
@@ -3163,10 +3226,15 @@ static int mlkem_gen_matrix_k4_avx512(sword16* a, byte* seed, int transposed)
 
     return 0;
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 #endif /* WOLFSSL_MLKEM_HAVE_INTEL_AVX512 */
 #endif /* WOLFSSL_KYBER1024 || WOLFSSL_WC_ML_KEM_1024 */
 #elif defined(WOLFSSL_ARMASM) && defined(__aarch64__)
 #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512)
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Deterministically generate a matrix (or transpose) of uniform integers mod q.
  *
  * Seed used with XOF to generate random bytes.
@@ -3236,9 +3304,14 @@ static int mlkem_gen_matrix_k2_aarch64(sword16* a, byte* seed, int transposed)
 
     return 0;
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 #endif
 
 #if defined(WOLFSSL_KYBER768) || defined(WOLFSSL_WC_ML_KEM_768)
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Deterministically generate a matrix (or transpose) of uniform integers mod q.
  *
  * Seed used with XOF to generate random bytes.
@@ -3300,9 +3373,14 @@ static int mlkem_gen_matrix_k3_aarch64(sword16* a, byte* seed, int transposed)
 
     return 0;
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 #endif
 
 #if defined(WOLFSSL_KYBER1024) || defined(WOLFSSL_WC_ML_KEM_1024)
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Deterministically generate a matrix (or transpose) of uniform integers mod q.
  *
  * Seed used with XOF to generate random bytes.
@@ -3380,10 +3458,15 @@ static int mlkem_gen_matrix_k4_aarch64(sword16* a, byte* seed, int transposed)
 
     return 0;
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 #endif
 #endif /* USE_INTEL_SPEEDUP */
 
 #if !(defined(WOLFSSL_ARMASM) && defined(__aarch64__))
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Absorb the seed data for squeezing out pseudo-random data.
  *
  * FIPS 203, Section 4.1:
@@ -3421,6 +3504,8 @@ static int mlkem_xof_squeezeblocks(wc_Shake* shake128, byte* out, int blocks)
 {
     return wc_Shake128_SqueezeBlocks(shake128, out, (word32)blocks);
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 #endif
 
 /* New/Initialize SHA-3 object.
@@ -3475,6 +3560,9 @@ int mlkem_hash256(wc_Sha3* hash, const byte* data, word32 dataLen, byte* out)
     return ret;
 }
 
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Hash one or two blocks of data using SHA3-512 with SHA-3 object.
  *
  * FIPS 203, Section 4.1:
@@ -3516,6 +3604,8 @@ void mlkem_prf_init(wc_Shake* prf)
 {
     wc_InitShake256(prf, NULL, 0);
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 
 /* New/Initialize SHAKE-256 object.
  *
@@ -3545,6 +3635,9 @@ void mlkem_prf_free(wc_Shake* prf)
 }
 
 #if !(defined(WOLFSSL_ARMASM) && defined(__aarch64__))
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Create pseudo-random data from the key using SHAKE-256.
  *
  * FIPS 203, Section 4.1, 4.3:
@@ -3625,6 +3718,8 @@ static int mlkem_prf(wc_Shake* shake256, byte* out, unsigned int outLen,
     return ret;
 #endif
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 #endif
 
 #ifdef WOLFSSL_MLKEM_KYBER
@@ -3710,6 +3805,7 @@ int mlkem_kdf(const byte* seed, int seedLen, byte* out, int outLen)
 #endif
 
 #ifndef WOLFSSL_NO_ML_KEM
+#ifndef WOLFSSL_MLKEM_NO_DECAPSULATE
 /* Derive the secret from z and cipher text.
  *
  * @param [in, out]  prf   SHAKE-256 object.
@@ -3774,9 +3870,13 @@ int mlkem_derive_secret(wc_Shake* prf, const byte* z, const byte* ct,
 
     return ret;
 }
+#endif /* !WOLFSSL_MLKEM_NO_DECAPSULATE */
 #endif
 
 #if !defined(WOLFSSL_ARMASM)
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Rejection sampling on uniform random bytes to generate uniform random
  * integers mod q.
  *
@@ -3932,12 +4032,17 @@ static unsigned int mlkem_rej_uniform_c(sword16* p, unsigned int len,
 
     return i;
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 #endif
 
 #if !defined(WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM) || \
     !defined(WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM)
 
 #if !(defined(WOLFSSL_ARMASM) && defined(__aarch64__))
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Deterministically generate a matrix (or transpose) of uniform integers mod q.
  *
  * Seed used with XOF to generate random bytes.
@@ -4064,8 +4169,13 @@ static int mlkem_gen_matrix_c(MLKEM_PRF_T* prf, sword16* a, int k, byte* seed,
 
     return ret;
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 #endif
 
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Deterministically generate a matrix (or transpose) of uniform integers mod q.
  *
  * Seed used with XOF to generate random bytes.
@@ -4174,6 +4284,8 @@ int mlkem_gen_matrix(MLKEM_PRF_T* prf, sword16* a, int k, byte* seed,
 
     return ret;
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 
 #endif
 
@@ -4306,6 +4418,9 @@ static int mlkem_gen_matrix_i(MLKEM_PRF_T* prf, sword16* a, int k, byte* seed,
     (sword16)(((sword16)(((d) >> ((i) * 4 + 0)) & 0x3)) - \
               ((sword16)(((d) >> ((i) * 4 + 2)) & 0x3)))
 
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Compute polynomial with coefficients distributed according to a centered
  * binomial distribution with parameter eta2 from uniform random bytes.
  *
@@ -4406,6 +4521,8 @@ static void mlkem_cbd_eta2(sword16* p, const byte* r)
     }
 #endif
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 
 #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512)
 /* Subtract one 3 bit value from another out of a larger number.
@@ -4422,6 +4539,9 @@ static void mlkem_cbd_eta2(sword16* p, const byte* r)
     (sword16)(((sword16)(((d) >> ((i) * 6 + 0)) & 0x7)) - \
               ((sword16)(((d) >> ((i) * 6 + 3)) & 0x7)))
 
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Compute polynomial with coefficients distributed according to a centered
  * binomial distribution with parameter eta3 from uniform random bytes.
  *
@@ -4568,10 +4688,15 @@ static void mlkem_cbd_eta3(sword16* p, const byte* r)
 #endif /* WOLFSSL_SMALL_STACK || WOLFSSL_MLKEM_NO_LARGE_CODE ||
         * BIG_ENDIAN_ORDER */
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 #endif
 
 #if !(defined(__aarch64__) && defined(WOLFSSL_ARMASM))
 
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Get noise/error by calculating random bytes and sampling to a binomial
  * distribution.
  *
@@ -4679,6 +4804,8 @@ static int mlkem_get_noise_eta2_c(MLKEM_PRF_T* prf, sword16* p,
 #endif
     return ret;
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 
 #endif
 
@@ -4687,6 +4814,9 @@ static int mlkem_get_noise_eta2_c(MLKEM_PRF_T* prf, sword16* p,
 
 #if defined(WOLFSSL_KYBER768) || defined(WOLFSSL_WC_ML_KEM_768) || \
     defined(WOLFSSL_KYBER1024) || defined(WOLFSSL_WC_ML_KEM_1024)
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Get the noise/error by calculating random bytes.
  *
  * FIPS 203, Algorithm 14: K-PKE.Encrypt(ek_PKE,m,r)
@@ -4723,8 +4853,13 @@ static void mlkem_get_noise_x4_eta2_avx2(byte* rand, byte* seed, byte o)
     wc_MemZero_Check(state, sizeof(state));
 #endif
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 
 #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Get eight lanes of ETA2 random bytes using eight-way AVX-512 SHA3. Lane j
  * uses seed count j and its output is written to rand + j * ETA2_RAND_SIZE.
  *
@@ -4754,11 +4889,16 @@ static int mlkem_get_noise_x8_eta2_avx512(byte* rand, byte* seed)
     WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return 0;
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 #endif
 #endif
 
 #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512) || \
     defined(WOLFSSL_KYBER1024) || defined(WOLFSSL_WC_ML_KEM_1024)
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Get noise/error by calculating random bytes and sampling to a binomial
  * distribution. Values -2..2
  *
@@ -4817,9 +4957,14 @@ static int mlkem_get_noise_eta2_avx2(MLKEM_PRF_T* prf, sword16* p,
 #endif
     return 0;
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 #endif
 
 #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512)
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Get the noise/error by calculating random bytes.
  *
  * FIPS 203, Algorithm 13: K-PKE.KeyGen(d)
@@ -4865,7 +5010,12 @@ static void mlkem_get_noise_x4_eta3_avx2(byte* rand, byte* seed)
     wc_MemZero_Check(state, sizeof(state));
 #endif
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Get the noise/error by calculating random bytes and sampling to a binomial
  * distribution.
  *
@@ -4908,8 +5058,13 @@ static int mlkem_get_noise_k2_avx2(MLKEM_PRF_T* prf, sword16* vec1,
 
     return ret;
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 
 #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Get eight lanes of ETA3-length random bytes using eight-way AVX-512 SHA3.
  * Lane j uses seed count j; its output (two blocks) is written to
  * rand + j * PRF_RAND_SZ. ETA2 samplers may read the same lanes (they consume
@@ -4944,7 +5099,12 @@ static int mlkem_get_noise_x8_eta3_avx512(byte* rand, byte* seed)
     WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return 0;
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Get the noise/error by calculating random bytes and sampling to a binomial
  * distribution, using eight-way AVX-512 SHA3. The ETA3 vector lanes and (for
  * encapsulation) the extra ETA2 polynomial share one eight-way batch - the
@@ -4991,10 +5151,15 @@ static int mlkem_get_noise_k2_avx512(MLKEM_PRF_T* prf, sword16* vec1,
     WC_FREE_VAR_EX(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 #endif
 #endif
 
 #if defined(WOLFSSL_KYBER768) || defined(WOLFSSL_WC_ML_KEM_768)
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Get the noise/error by calculating random bytes and sampling to a binomial
  * distribution.
  *
@@ -5031,8 +5196,13 @@ static int mlkem_get_noise_k3_avx2(sword16* vec1, sword16* vec2, sword16* poly,
 #endif
     return 0;
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 
 #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Get the noise/error by calculating random bytes and sampling to a binomial
  * distribution, using eight-way AVX-512 SHA3. Eight ETA2 lanes are produced
  * in one batch; up to seven are consumed (six when poly is NULL).
@@ -5072,10 +5242,15 @@ static int mlkem_get_noise_k3_avx512(sword16* vec1, sword16* vec2,
     WC_FREE_VAR_EX(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 #endif
 #endif
 
 #if defined(WOLFSSL_KYBER1024) || defined(WOLFSSL_WC_ML_KEM_1024)
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Get the noise/error by calculating random bytes and sampling to a binomial
  * distribution.
  *
@@ -5119,8 +5294,13 @@ static int mlkem_get_noise_k4_avx2(MLKEM_PRF_T* prf, sword16* vec1,
 #endif
     return ret;
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 
 #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Get the noise/error by calculating random bytes and sampling to a binomial
  * distribution, using eight-way AVX-512 SHA3. The eight ETA2 vector lanes are
  * produced in one batch; the extra polynomial uses a single SHA3 state.
@@ -5166,6 +5346,8 @@ static int mlkem_get_noise_k4_avx512(MLKEM_PRF_T* prf, sword16* vec1,
     WC_FREE_VAR_EX(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 #endif
 #endif
 #endif /* USE_INTEL_SPEEDUP */
@@ -5174,6 +5356,9 @@ static int mlkem_get_noise_k4_avx512(MLKEM_PRF_T* prf, sword16* vec1,
 
 #define PRF_RAND_SZ   (2 * SHA3_256_BYTES)
 
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Get the noise/error by calculating random bytes.
  *
  * FIPS 203, Algorithm 14: K-PKE.Encrypt(ek_PKE,m,r)
@@ -5198,8 +5383,13 @@ static void mlkem_get_noise_x3_eta2_aarch64(word64* rand, byte* seed, byte o)
 
     mlkem_shake256_blocksx3_seed(rand, seed);
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 
 #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512)
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Get the noise/error by calculating random bytes.
  *
  * FIPS 203, Algorithm 13: K-PKE.KeyGen(d)
@@ -5249,7 +5439,12 @@ static void mlkem_get_noise_x3_eta3_aarch64(byte* rand, byte* seed, byte o)
     wc_MemZero_Check(state, sizeof(state));
 #endif
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Get the noise/error by calculating random bytes.
  *
  * FIPS 203, Algorithm 13: K-PKE.KeyGen(d)
@@ -5285,7 +5480,12 @@ static void mlkem_get_noise_eta3_aarch64(byte* rand, byte* seed, byte o)
     wc_MemZero_Check(state, sizeof(state));
 #endif
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Get the noise/error by calculating random bytes and sampling to a binomial
  * distribution.
  *
@@ -5326,9 +5526,14 @@ static int mlkem_get_noise_k2_aarch64(sword16* vec1, sword16* vec2,
 #endif
     return ret;
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 #endif
 
 #if defined(WOLFSSL_KYBER768) || defined(WOLFSSL_WC_ML_KEM_768)
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Get the noise/error by calculating random bytes.
  *
  * FIPS 203, Algorithm 14: K-PKE.Encrypt(ek_PKE,m,r)
@@ -5351,7 +5556,12 @@ static void mlkem_get_noise_eta2_aarch64(word64* rand, byte* seed, byte o)
     rand[16] = W64LIT(0x8000000000000000);
     BlockSha3(rand);
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Get the noise/error by calculating random bytes and sampling to a binomial
  * distribution.
  *
@@ -5389,9 +5599,14 @@ static int mlkem_get_noise_k3_aarch64(sword16* vec1, sword16* vec2,
 #endif
     return 0;
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 #endif
 
 #if defined(WOLFSSL_KYBER1024) || defined(WOLFSSL_WC_ML_KEM_1024)
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Get the noise/error by calculating random bytes and sampling to a binomial
  * distribution.
  *
@@ -5432,11 +5647,16 @@ static int mlkem_get_noise_k4_aarch64(sword16* vec1, sword16* vec2,
 #endif
     return ret;
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 #endif
 #endif /* __aarch64__ && WOLFSSL_ARMASM */
 
 #if !(defined(__aarch64__) && defined(WOLFSSL_ARMASM))
 
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Get the noise/error by calculating random bytes and sampling to a binomial
  * distribution.
  *
@@ -5485,9 +5705,14 @@ static int mlkem_get_noise_c(MLKEM_PRF_T* prf, int k, sword16* vec1, int eta1,
 
     return ret;
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 
 #endif /* !(__aarch64__ && WOLFSSL_ARMASM) */
 
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Get the noise/error by calculating random bytes and sampling to a binomial
  * distribution.
  *
@@ -5597,6 +5822,8 @@ int mlkem_get_noise(MLKEM_PRF_T* prf, int k, sword16* vec1, sword16* vec2,
 
     return ret;
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 
 #if defined(WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM) || \
     defined(WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM)
@@ -5640,6 +5867,7 @@ static int mlkem_get_noise_i(MLKEM_PRF_T* prf, int k, sword16* vec2,
 /******************************************************************************/
 
 #if !(defined(__aarch64__) && defined(WOLFSSL_ARMASM))
+#ifndef WOLFSSL_MLKEM_NO_DECAPSULATE
 /* Compare two byte arrays of equal size.
  *
  * @param [in]  a   First array to compare.
@@ -5659,8 +5887,10 @@ static int mlkem_cmp_c(const byte* a, const byte* b, int sz)
     }
     return (int)(0 - ((-(word32)r) >> 31));
 }
+#endif /* !WOLFSSL_MLKEM_NO_DECAPSULATE */
 #endif
 
+#ifndef WOLFSSL_MLKEM_NO_DECAPSULATE
 /* Compare two byte arrays of equal size.
  *
  * @param [in]  a   First array to compare.
@@ -5697,6 +5927,7 @@ int mlkem_cmp(const byte* a, const byte* b, int sz)
     return fail;
 #endif
 }
+#endif /* !WOLFSSL_MLKEM_NO_DECAPSULATE */
 
 /******************************************************************************/
 
@@ -7043,7 +7274,7 @@ static void mlkem_from_bytes_c(sword16* p, const byte* b, int k)
  */
 void mlkem_from_bytes(sword16* p, const byte* b, int k)
 {
-#ifdef USE_INTEL_SPEEDUP
+#if defined(USE_INTEL_SPEEDUP) && !defined(WOLF_CRYPTO_CB_ONLY_MLKEM)
 #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI
     if (USE_INTEL_AVX512(cpuid_flags) &&
             IS_INTEL_AVX512_VBMI(cpuid_flags) &&
@@ -7138,7 +7369,7 @@ static void mlkem_to_bytes_c(byte* b, sword16* p, int k)
  */
 void mlkem_to_bytes(byte* b, sword16* p, int k)
 {
-#ifdef USE_INTEL_SPEEDUP
+#if defined(USE_INTEL_SPEEDUP) && !defined(WOLF_CRYPTO_CB_ONLY_MLKEM)
 #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI
     if (USE_INTEL_AVX512(cpuid_flags) &&
             IS_INTEL_AVX512_VBMI(cpuid_flags) &&

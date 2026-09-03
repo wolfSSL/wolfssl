@@ -11776,6 +11776,10 @@ then
     if test "$ENABLED_SLHDSA" != "no"; then
         AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB_ONLY_SLHDSA"
     fi
+    # TLS 1.3 offers ML-KEM key shares by default
+    if test "$ENABLED_MLKEM" != "no" && test "$ENABLED_TLS" = "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB_ONLY_MLKEM"
+    fi
 fi
 
 if test "$ENABLED_CRYPTOCB_SW_TEST" = "no"
