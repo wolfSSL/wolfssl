@@ -1424,6 +1424,9 @@ int wolfSSL_dtls_cid_use(WOLFSSL* ssl)
 {
     int ret;
 
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
     ssl->options.useDtlsCID = 1;
     ret = TLSX_ConnectionID_Use(ssl);
     if (ret != 0)
@@ -1433,6 +1436,8 @@ int wolfSSL_dtls_cid_use(WOLFSSL* ssl)
 
 int wolfSSL_dtls_cid_is_enabled(WOLFSSL* ssl)
 {
+    if (ssl == NULL)
+        return 0;
     return DtlsCidGetInfo(ssl) != NULL;
 }
 
@@ -1440,6 +1445,9 @@ int wolfSSL_dtls_cid_set(WOLFSSL* ssl, unsigned char* cid, unsigned int size)
 {
     ConnectionID* newCid;
     CIDInfo* cidInfo;
+
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
 
     if (!ssl->options.useDtlsCID)
         return WOLFSSL_FAILURE;
@@ -1457,6 +1465,9 @@ int wolfSSL_dtls_cid_set(WOLFSSL* ssl, unsigned char* cid, unsigned int size)
     /* empty CID */
     if (size == 0)
         return WOLFSSL_SUCCESS;
+
+    if (cid == NULL)
+        return BAD_FUNC_ARG;
 
     if (size > DTLS_CID_MAX_SIZE)
         return LENGTH_ERROR;
