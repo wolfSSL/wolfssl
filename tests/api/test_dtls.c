@@ -8755,12 +8755,15 @@ static void df_pol_truncate(DfCtx* c, DfPkt* p)
 #ifdef HAVE_SECRET_CALLBACK
 /* Wired so a later forgery can read a protected record. Every forgery above
  * works on the plaintext record header and needs none of this. */
-static int df_secret_cb(WOLFSSL* ssl, int id, const unsigned char* secret,
-                        int secretSz, void* ctx)
+/* Must match TlsSecretCb exactly:
+ *     int (*)(WOLFSSL* ssl, void* secret, int secretSz, void* ctx)
+ * an earlier version added an `id` parameter and a const qualifier that the
+ * typedef does not have, which -Werror=incompatible-pointer-types rejects. */
+static int df_secret_cb(WOLFSSL* ssl, void* secret, int secretSz, void* ctx)
 {
     DfCtx* c = (DfCtx*)ctx;
 
-    (void)ssl; (void)id; (void)secret; (void)secretSz;
+    (void)ssl; (void)secret; (void)secretSz;
     if (c != NULL)
         c->nSecrets++;
     return 0;
@@ -9386,7 +9389,13 @@ static int df_run_ex(method_provider mc, method_provider ms,
 #else
     (void)useCid;
 #endif
-#ifdef WOLFSSL_DTLS_CH_FRAG
+/* Needs BOTH: CH fragmentation to make the oversized hello interesting, and
+ * the MTU setter to exist at all. wolfSSL_dtls_set_mtu is declared under
+ * (WOLFSSL_SCTP || WOLFSSL_DTLS_MTU) && WOLFSSL_DTLS -- guarding only on
+ * WOLFSSL_DTLS_CH_FRAG left it undeclared in configs that fragment but have
+ * neither MTU macro. */
+#if defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_DTLS) && \
+    (defined(WOLFSSL_SCTP) || defined(WOLFSSL_DTLS_MTU))
     /* A ClientHello larger than the MTU is fragmented by the stack itself,
      * which is the only way to reach `isFirstCHFrag && extStart < helloSz`.
      * Editing bytes cannot produce it: the fragmentation has to be real. */
