@@ -8819,10 +8819,469 @@ static void df_pol_cookie(DfCtx* c, DfPkt* p)
     c->nMod++;
 }
 
+
+/* ======================= ClientHello surgery ==============================
+ *
+ * The forgeries above corrupt bytes. That reaches the parsers' reject paths
+ * and stops, because a corrupted extension block fails to parse and the
+ * function returns before the decisions that matter are evaluated. The
+ * coverage export is unambiguous about it: dtls.c is 85% line covered and 20%
+ * MC/DC covered, and SendStatelessReplyDtls13 is entered on every run. Reach
+ * was never the problem. Independence pairs are.
+ *
+ * The operands that remain need a ClientHello that is WELL-FORMED but says
+ * something specific: one with no supported_versions extension at all, one
+ * whose key share names a group the server does not have, one offering only
+ * PSK_KE or only PSK_DHE_KE, one echoing a cookie that does not verify. None
+ * of those is a corrupted hello -- each is a valid hello a hostile or merely
+ * different client could legitimately send, and no conforming test peer ever
+ * does.
+ *
+ * So rather than build a hello from nothing, this takes the real one in
+ * flight and performs surgery on its extension block, fixing up every length
+ * above it -- extensions, handshake, fragment, record -- so the result parses
+ * cleanly and is rejected on its meaning rather than its framing.
+ * ========================================================================= */
+
+#define DFX_PRE_SHARED_KEY     41
+#define DFX_SUPPORTED_VERSIONS 43
+#define DFX_COOKIE             44
+#define DFX_PSK_MODES          45
+#define DFX_KEY_SHARE          51
+
+/* Walk the ClientHello to its extension block. Returns the offset of the
+ * first extension and sets *extsLen, or -1 if this is not a hello we can
+ * parse -- a fragment, or one whose fields do not add up. */
+static int df_ch_exts(const DfPkt* p, int* extsLen, int* extsLenAt)
+{
+    int o = DFH_HDR_SZ + DFHS_HDR_SZ;
+    int end = p->len;
+    int n;
+
+    if (p->type != handshake || p->hsType != client_hello)
+        return -1;
+    if (o + 2 + RAN_LEN + 1 > end)
+        return -1;
+    o += 2 + RAN_LEN;                       /* legacy_version + random */
+    n = p->data[o]; o += 1 + n;             /* legacy_session_id */
+    if (o + 1 > end) return -1;
+    n = p->data[o]; o += 1 + n;             /* DTLS cookie field */
+    if (o + 2 > end) return -1;
+    n = (p->data[o] << 8) | p->data[o + 1];
+    o += 2 + n;                             /* cipher_suites */
+    if (o + 1 > end) return -1;
+    n = p->data[o]; o += 1 + n;             /* compression_methods */
+    if (o + 2 > end) return -1;
+    *extsLen   = (p->data[o] << 8) | p->data[o + 1];
+    *extsLenAt = o;
+    o += 2;
+    if (o + *extsLen > end) return -1;
+    return o;
+}
+
+/* Find one extension by type. Returns its header offset, or -1. */
+static int df_ch_find_ext(const DfPkt* p, word16 want, int* bodyAt, int* bodyLen)
+{
+    int extsLen = 0, extsLenAt = 0;
+    int o = df_ch_exts(p, &extsLen, &extsLenAt);
+    int end;
+
+    if (o < 0) return -1;
+    end = o + extsLen;
+    while (o + 4 <= end) {
+        word16 t  = (word16)((p->data[o] << 8) | p->data[o + 1]);
+        int    ln = (p->data[o + 2] << 8) | p->data[o + 3];
+
+        if (o + 4 + ln > end) return -1;
+        if (t == want) {
+            *bodyAt = o + 4;
+            *bodyLen = ln;
+            return o;
+        }
+        o += 4 + ln;
+    }
+    return -1;
+}
+
+/* Every length above the extension block, adjusted together. Getting one of
+ * these wrong turns a semantic test back into a framing test. */
+static void df_ch_adjust(DfPkt* p, int extsLenAt, int delta)
+{
+    byte*  hs = p->data + DFH_HDR_SZ;
+    word16 rl = (word16)((p->data[DFH_LEN] << 8) | p->data[DFH_LEN + 1]);
+    word32 hl = ((word32)hs[DFHS_LEN] << 16) | ((word32)hs[DFHS_LEN + 1] << 8) |
+                hs[DFHS_LEN + 2];
+    word32 fl = ((word32)hs[DFHS_FRAGLEN] << 16) |
+                ((word32)hs[DFHS_FRAGLEN + 1] << 8) | hs[DFHS_FRAGLEN + 2];
+    int    el = (p->data[extsLenAt] << 8) | p->data[extsLenAt + 1];
+
+    rl = (word16)(rl + delta);
+    hl = (word32)((int)hl + delta);
+    fl = (word32)((int)fl + delta);
+    el = el + delta;
+
+    p->data[DFH_LEN]     = (byte)(rl >> 8);
+    p->data[DFH_LEN + 1] = (byte)(rl & 0xff);
+    df_set_u24(hs + DFHS_LEN, hl);
+    df_set_u24(hs + DFHS_FRAGLEN, fl);
+    p->data[extsLenAt]     = (byte)(el >> 8);
+    p->data[extsLenAt + 1] = (byte)(el & 0xff);
+}
+
+/* Remove an extension entirely, leaving a hello that is structurally perfect
+ * and simply does not offer that thing. */
+static int df_ch_drop_ext(DfCtx* c, DfPkt* p, word16 type)
+{
+    int extsLen = 0, extsLenAt = 0, bodyAt = 0, bodyLen = 0;
+    int at, total;
+
+    if (df_ch_exts(p, &extsLen, &extsLenAt) < 0) return 0;
+    at = df_ch_find_ext(p, type, &bodyAt, &bodyLen);
+    if (at < 0) return 0;
+
+    total = 4 + bodyLen;
+    XMEMMOVE(p->data + at, p->data + at + total,
+             (size_t)(p->len - at - total));
+    p->len -= total;
+    df_ch_adjust(p, extsLenAt, -total);
+    c->nMod++;
+    return 1;
+}
+
+/* Rewrite bytes inside one extension without changing any length. */
+static int df_ch_poke_ext(DfCtx* c, DfPkt* p, word16 type, int off, byte val,
+                          int xorNotSet)
+{
+    int bodyAt = 0, bodyLen = 0;
+
+    if (df_ch_find_ext(p, type, &bodyAt, &bodyLen) < 0) return 0;
+    if (off >= bodyLen) return 0;
+    if (xorNotSet)
+        p->data[bodyAt + off] ^= val;
+    else
+        p->data[bodyAt + off] = val;
+    c->nMod++;
+    return 1;
+}
+
+/* --- the semantically specific hellos ----------------------------------- */
+
+/* No supported_versions at all: `!tlsxFound || tlsxSupportedVersions.elements
+ * == NULL`. A DTLS 1.3 client always sends it, so this operand has no false
+ * case from any conforming peer. */
+static void df_pol_ch_no_supported_versions(DfCtx* c, DfPkt* p)
+{
+    /* every ClientHello, not just one: the cookie and PSK operands live in
+     * the SECOND hello, which a target index tuned to the first never sees. */
+    (void)c->target;
+    (void)df_ch_drop_ext(c, p, DFX_SUPPORTED_VERSIONS);
+}
+
+/* No key share: `cs.clientKSE == NULL && searched`. */
+static void df_pol_ch_no_key_share(DfCtx* c, DfPkt* p)
+{
+    /* every ClientHello, not just one: the cookie and PSK operands live in
+     * the SECOND hello, which a target index tuned to the first never sees. */
+    (void)c->target;
+    (void)df_ch_drop_ext(c, p, DFX_KEY_SHARE);
+}
+
+/* A key share for a group the server does not have. The first two bytes of
+ * the key_share body are the list length, then each entry starts with its
+ * group id -- so offsets 2 and 3 are the named group. */
+static void df_pol_ch_bad_group(DfCtx* c, DfPkt* p)
+{
+    /* every ClientHello, not just one: the cookie and PSK operands live in
+     * the SECOND hello, which a target index tuned to the first never sees. */
+    (void)c->target;
+    if (df_ch_poke_ext(c, p, DFX_KEY_SHARE, 2, 0xEE, 0))
+        (void)df_ch_poke_ext(c, p, DFX_KEY_SHARE, 3, 0xEE, 0);
+}
+
+/* No PSK modes offered at all. */
+static void df_pol_ch_no_psk_modes(DfCtx* c, DfPkt* p)
+{
+    /* every ClientHello, not just one: the cookie and PSK operands live in
+     * the SECOND hello, which a target index tuned to the first never sees. */
+    (void)c->target;
+    (void)df_ch_drop_ext(c, p, DFX_PSK_MODES);
+}
+
+/* psk_key_exchange_modes body is a one-byte list length then the modes.
+ * Forcing it to PSK_KE only, and to PSK_DHE_KE only, gives the two operands
+ * of `(modes & (1 << PSK_DHE_KE))` and `(modes & (1 << PSK_KE)) == 0` their
+ * pairs -- a build offers one fixed set, so neither has one otherwise. */
+static void df_pol_ch_psk_ke_only(DfCtx* c, DfPkt* p)
+{
+    /* every ClientHello, not just one: the cookie and PSK operands live in
+     * the SECOND hello, which a target index tuned to the first never sees. */
+    (void)c->target;
+    (void)df_ch_poke_ext(c, p, DFX_PSK_MODES, 1, 0 /* PSK_KE */, 0);
+}
+
+static void df_pol_ch_psk_dhe_only(DfCtx* c, DfPkt* p)
+{
+    /* every ClientHello, not just one: the cookie and PSK operands live in
+     * the SECOND hello, which a target index tuned to the first never sees. */
+    (void)c->target;
+    (void)df_ch_poke_ext(c, p, DFX_PSK_MODES, 1, 1 /* PSK_DHE_KE */, 0);
+}
+
+/* A cookie that will not verify: `!cookieGood`. The cookie extension is
+ * present only in the second ClientHello, which is why this is the operand a
+ * single-flight test can never pair. */
+static void df_pol_ch_bad_cookie(DfCtx* c, DfPkt* p)
+{
+    int bodyAt = 0, bodyLen = 0;
+
+    if (df_ch_find_ext(p, DFX_COOKIE, &bodyAt, &bodyLen) < 0) return;
+    (void)df_ch_poke_ext(c, p, DFX_COOKIE, bodyLen / 2, 0x5a, 1);
+}
+
+/* The extension block claiming more bytes than the hello carries:
+ * `idx > exts.size`. */
+static void df_pol_ch_exts_overrun(DfCtx* c, DfPkt* p)
+{
+    int extsLen = 0, extsLenAt = 0;
+
+    if (p->idx != c->target) return;
+    if (df_ch_exts(p, &extsLen, &extsLenAt) < 0) return;
+    p->data[extsLenAt]     = (byte)((extsLen + 64) >> 8);
+    p->data[extsLenAt + 1] = (byte)((extsLen + 64) & 0xff);
+    c->nMod++;
+}
+
+/* And the drop of pre_shared_key while leaving its modes, which is the
+ * inconsistent-hello case: `usePSK && pskInfo.isValid`. */
+static void df_pol_ch_no_psk(DfCtx* c, DfPkt* p)
+{
+    /* every ClientHello, not just one: the cookie and PSK operands live in
+     * the SECOND hello, which a target index tuned to the first never sees. */
+    (void)c->target;
+    (void)df_ch_drop_ext(c, p, DFX_PRE_SHARED_KEY);
+}
+
+
+/* ================= the ClientHello factory ================================
+ *
+ * The named hellos above are known-answer cases: each says one specific
+ * wrong thing. That is not the same as testing the parser's limits, which is
+ * where the rest of the residue lives -- an extension block that declares a
+ * length off by one, a duplicated extension, a zero-length body, forty
+ * unknown extensions, a session id claiming 33 bytes when the field allows
+ * 32, a cipher suite list whose length is not a multiple of two.
+ *
+ * These are generated rather than enumerated: one policy, one mutation id,
+ * driven from a loop. Each mutation keeps the datagram a datagram -- the
+ * record still frames the handshake, the handshake still frames the hello --
+ * and breaks exactly one invariant inside it, so the parser reaches the check
+ * that invariant belongs to instead of bailing at the door.
+ * ========================================================================= */
+
+/* Offsets of every length field in a ClientHello, so a mutation can poke one
+ * without walking the message again. */
+typedef struct DfChMap {
+    int sidLenAt;
+    int cookieLenAt;
+    int suitesLenAt;
+    int compLenAt;
+    int extsLenAt;
+    int extsAt;
+    int extsLen;
+} DfChMap;
+
+static int df_ch_map(const DfPkt* p, DfChMap* m)
+{
+    int o = DFH_HDR_SZ + DFHS_HDR_SZ;
+    int end = p->len;
+    int n;
+
+    if (p->type != handshake || p->hsType != client_hello) return -1;
+    if (o + 2 + RAN_LEN + 1 > end) return -1;
+    o += 2 + RAN_LEN;
+    m->sidLenAt = o;    n = p->data[o]; o += 1 + n;
+    if (o + 1 > end) return -1;
+    m->cookieLenAt = o; n = p->data[o]; o += 1 + n;
+    if (o + 2 > end) return -1;
+    m->suitesLenAt = o;
+    n = (p->data[o] << 8) | p->data[o + 1]; o += 2 + n;
+    if (o + 1 > end) return -1;
+    m->compLenAt = o;   n = p->data[o]; o += 1 + n;
+    if (o + 2 > end) return -1;
+    m->extsLenAt = o;
+    m->extsLen = (p->data[o] << 8) | p->data[o + 1];
+    m->extsAt = o + 2;
+    if (m->extsAt + m->extsLen > end) return -1;
+    return 0;
+}
+
+/* Append an extension of the given type and body size at the end of the
+ * block, adjusting every length above it. Used both to add one unknown
+ * extension and to add enough of them to strain the parser's limits. */
+static int df_ch_append_ext(DfCtx* c, DfPkt* p, word16 type, int bodyLen)
+{
+    DfChMap m;
+    int at, need = 4 + bodyLen;
+
+    if (df_ch_map(p, &m) != 0) return 0;
+    at = m.extsAt + m.extsLen;
+    if (p->len + need > DF_MAX_SZ) return 0;
+    if (at > p->len) return 0;
+
+    XMEMMOVE(p->data + at + need, p->data + at, (size_t)(p->len - at));
+    p->data[at]     = (byte)(type >> 8);
+    p->data[at + 1] = (byte)(type & 0xff);
+    p->data[at + 2] = (byte)(bodyLen >> 8);
+    p->data[at + 3] = (byte)(bodyLen & 0xff);
+    XMEMSET(p->data + at + 4, 0xA5, (size_t)bodyLen);
+    p->len += need;
+    df_ch_adjust(p, m.extsLenAt, need);
+    c->nMod++;
+    return 1;
+}
+
+/* Duplicate an extension in place: the same type twice in one hello, which a
+ * conforming client never sends and the parser must refuse. */
+static int df_ch_dup_ext(DfCtx* c, DfPkt* p, word16 type)
+{
+    DfChMap m;
+    int at, bodyAt = 0, bodyLen = 0, total;
+
+    if (df_ch_map(p, &m) != 0) return 0;
+    at = df_ch_find_ext(p, type, &bodyAt, &bodyLen);
+    if (at < 0) return 0;
+    total = 4 + bodyLen;
+    if (p->len + total > DF_MAX_SZ) return 0;
+
+    XMEMMOVE(p->data + at + total, p->data + at, (size_t)(p->len - at));
+    p->len += total;
+    df_ch_adjust(p, m.extsLenAt, total);
+    c->nMod++;
+    return 1;
+}
+
+enum {
+    DFM_EXT_LEN_PLUS1 = 0,   /* extension block one byte too long          */
+    DFM_EXT_LEN_MINUS1,      /* one byte too short                         */
+    DFM_EXT_LEN_ZERO,        /* declares no extensions, carries some       */
+    DFM_EXT_ONE_UNKNOWN,     /* a type nobody implements                   */
+    DFM_EXT_EIGHT_UNKNOWN,
+    DFM_EXT_FORTY_UNKNOWN,   /* strain the extension count                 */
+    DFM_EXT_HUGE_UNKNOWN,    /* one extension with a very large body       */
+    DFM_EXT_EMPTY_BODY,      /* a known extension with a zero-length body  */
+    DFM_DUP_SUPPORTED_VER,   /* the same extension twice                   */
+    DFM_DUP_KEY_SHARE,
+    DFM_DUP_COOKIE,
+    DFM_SID_LEN_33,          /* session id longer than the field allows    */
+    DFM_SID_LEN_ZERO,
+    DFM_SID_LEN_MAX,
+    DFM_COOKIE_LEN_ZERO,
+    DFM_COOKIE_LEN_MAX,
+    DFM_SUITES_LEN_ODD,      /* not a whole number of cipher suites        */
+    DFM_SUITES_LEN_ZERO,
+    DFM_SUITES_LEN_HUGE,
+    DFM_COMP_LEN_ZERO,       /* no compression method offered at all       */
+    DFM_COMP_LEN_HUGE,
+    DFM_VERSION_ZERO,        /* legacy_version at both extremes            */
+    DFM_VERSION_MAX,
+    DFM_COUNT
+};
+
+static void df_pol_ch_factory(DfCtx* c, DfPkt* p)
+{
+    DfChMap m;
+    int i;
+
+    if (df_ch_map(p, &m) != 0)
+        return;
+
+    switch (c->target) {
+        case DFM_EXT_LEN_PLUS1:
+            p->data[m.extsLenAt + 1] = (byte)((m.extsLen + 1) & 0xff);
+            p->data[m.extsLenAt]     = (byte)((m.extsLen + 1) >> 8);
+            break;
+        case DFM_EXT_LEN_MINUS1:
+            if (m.extsLen > 0) {
+                p->data[m.extsLenAt + 1] = (byte)((m.extsLen - 1) & 0xff);
+                p->data[m.extsLenAt]     = (byte)((m.extsLen - 1) >> 8);
+            }
+            break;
+        case DFM_EXT_LEN_ZERO:
+            p->data[m.extsLenAt] = 0;
+            p->data[m.extsLenAt + 1] = 0;
+            break;
+        case DFM_EXT_ONE_UNKNOWN:
+            (void)df_ch_append_ext(c, p, 0x9A9A, 4);
+            break;
+        case DFM_EXT_EIGHT_UNKNOWN:
+            for (i = 0; i < 8; i++)
+                (void)df_ch_append_ext(c, p, (word16)(0x9A00 + i), 2);
+            break;
+        case DFM_EXT_FORTY_UNKNOWN:
+            for (i = 0; i < 40; i++)
+                (void)df_ch_append_ext(c, p, (word16)(0x9B00 + i), 1);
+            break;
+        case DFM_EXT_HUGE_UNKNOWN:
+            (void)df_ch_append_ext(c, p, 0x9C9C, 900);
+            break;
+        case DFM_EXT_EMPTY_BODY: {
+            int bodyAt = 0, bodyLen = 0;
+            int at = df_ch_find_ext(p, DFX_SUPPORTED_VERSIONS, &bodyAt,
+                                    &bodyLen);
+            if (at >= 0 && bodyLen > 0) {
+                XMEMMOVE(p->data + bodyAt, p->data + bodyAt + bodyLen,
+                         (size_t)(p->len - bodyAt - bodyLen));
+                p->len -= bodyLen;
+                p->data[at + 2] = 0;
+                p->data[at + 3] = 0;
+                df_ch_adjust(p, m.extsLenAt, -bodyLen);
+            }
+            break;
+        }
+        case DFM_DUP_SUPPORTED_VER:
+            (void)df_ch_dup_ext(c, p, DFX_SUPPORTED_VERSIONS); break;
+        case DFM_DUP_KEY_SHARE:
+            (void)df_ch_dup_ext(c, p, DFX_KEY_SHARE); break;
+        case DFM_DUP_COOKIE:
+            (void)df_ch_dup_ext(c, p, DFX_COOKIE); break;
+
+        /* Sub-length fields poked without moving bytes: the message stays the
+         * size it claims at the record layer, and the inconsistency is inside,
+         * which is where the bounds checks are. */
+        case DFM_SID_LEN_33:     p->data[m.sidLenAt] = 33; break;
+        case DFM_SID_LEN_ZERO:   p->data[m.sidLenAt] = 0; break;
+        case DFM_SID_LEN_MAX:    p->data[m.sidLenAt] = 0xff; break;
+        case DFM_COOKIE_LEN_ZERO: p->data[m.cookieLenAt] = 0; break;
+        case DFM_COOKIE_LEN_MAX:  p->data[m.cookieLenAt] = 0xff; break;
+        case DFM_SUITES_LEN_ODD:
+            p->data[m.suitesLenAt + 1] =
+                (byte)(p->data[m.suitesLenAt + 1] ^ 1);
+            break;
+        case DFM_SUITES_LEN_ZERO:
+            p->data[m.suitesLenAt] = 0; p->data[m.suitesLenAt + 1] = 0; break;
+        case DFM_SUITES_LEN_HUGE:
+            p->data[m.suitesLenAt] = 0x0f; p->data[m.suitesLenAt + 1] = 0xff;
+            break;
+        case DFM_COMP_LEN_ZERO:  p->data[m.compLenAt] = 0; break;
+        case DFM_COMP_LEN_HUGE:  p->data[m.compLenAt] = 0xff; break;
+        case DFM_VERSION_ZERO:
+            p->data[DFH_HDR_SZ + DFHS_HDR_SZ] = 0;
+            p->data[DFH_HDR_SZ + DFHS_HDR_SZ + 1] = 0;
+            break;
+        case DFM_VERSION_MAX:
+            p->data[DFH_HDR_SZ + DFHS_HDR_SZ] = 0xff;
+            p->data[DFH_HDR_SZ + DFHS_HDR_SZ + 1] = 0xff;
+            break;
+        default: return;
+    }
+    c->nMod++;
+}
+
 /* ------------------------------------------------------------- the harness */
 
-static int df_run(method_provider mc, method_provider ms,
-                  DfPolicy policy, int target)
+static int df_run_ex(method_provider mc, method_provider ms,
+                     DfPolicy policy, int target, int resume, int mtu,
+                     int useCid)
 {
     DfCtx* c = NULL;
     WOLFSSL_CTX* ctx_c = NULL;
@@ -8865,6 +9324,79 @@ static int df_run(method_provider mc, method_provider ms,
     if (ssl_c == NULL || ssl_s == NULL)
         goto out;
 
+#ifdef HAVE_SESSION_TICKET
+    /* A first, clean handshake purely to obtain a session, then a second one
+     * that resumes it. Only a resuming ClientHello carries pre_shared_key and
+     * psk_key_exchange_modes, so without this pass the PSK operands in
+     * SendStatelessReplyDtls13 have no vector at all -- the extensions the
+     * decisions read are simply not in the message. */
+    if (resume) {
+        WOLFSSL* w_c = wolfSSL_new(ctx_c);
+        WOLFSSL* w_s = wolfSSL_new(ctx_s);
+        DfCtx* warm = (DfCtx*)XMALLOC(sizeof(DfCtx), NULL,
+                                      DYNAMIC_TYPE_TMP_BUFFER);
+
+        if (w_c != NULL && w_s != NULL && warm != NULL) {
+            int k;
+
+            XMEMSET(warm, 0, sizeof(*warm));
+            wolfSSL_SetIOWriteCtx(w_c, warm); wolfSSL_SetIOReadCtx(w_c, warm);
+            wolfSSL_SetIOWriteCtx(w_s, warm); wolfSSL_SetIOReadCtx(w_s, warm);
+            for (k = 0; k < 40; k++) {
+                (void)wolfSSL_connect(w_c);
+                (void)wolfSSL_accept(w_s);
+                if (wolfSSL_is_init_finished(w_c) &&
+                        wolfSSL_is_init_finished(w_s))
+                    break;
+                (void)wolfSSL_dtls_got_timeout(w_c);
+                (void)wolfSSL_dtls_got_timeout(w_s);
+            }
+            if (wolfSSL_is_init_finished(w_c)) {
+                WOLFSSL_SESSION* sess = wolfSSL_get1_session(w_c);
+                if (sess != NULL) {
+                    (void)wolfSSL_set_session(ssl_c, sess);
+                    wolfSSL_SESSION_free(sess);
+                }
+            }
+        }
+        wolfSSL_free(w_c);
+        wolfSSL_free(w_s);
+        XFREE(warm, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#else
+    (void)resume;
+#endif
+
+#ifdef WOLFSSL_DTLS_CID
+    /* Connection ID must be NEGOTIATED, not merely compiled in. Nineteen of
+     * the conditions left in dtls.c are in the CID functions --
+     * TLSX_ConnectionID_Parse, DtlsCidGet, DtlsCidGet0, DtlsCIDCheck,
+     * DtlsCidReplaceTx -- and none of them is entered unless both endpoints
+     * ask for a CID. No amount of packet forgery substitutes for turning the
+     * feature on: this is configuration, not payload. */
+    if (useCid) {
+        static const byte cidC[] = { 0xC1, 0xC2, 0xC3, 0xC4 };
+        static const byte cidS[] = { 0x51, 0x52, 0x53, 0x54, 0x55, 0x56 };
+
+        (void)wolfSSL_dtls_cid_use(ssl_c);
+        (void)wolfSSL_dtls_cid_use(ssl_s);
+        (void)wolfSSL_dtls_cid_set(ssl_c, (byte*)cidC, (word32)sizeof(cidC));
+        (void)wolfSSL_dtls_cid_set(ssl_s, (byte*)cidS, (word32)sizeof(cidS));
+    }
+#else
+    (void)useCid;
+#endif
+#ifdef WOLFSSL_DTLS_CH_FRAG
+    /* A ClientHello larger than the MTU is fragmented by the stack itself,
+     * which is the only way to reach `isFirstCHFrag && extStart < helloSz`.
+     * Editing bytes cannot produce it: the fragmentation has to be real. */
+    if (mtu > 0) {
+        (void)wolfSSL_dtls_set_mtu(ssl_c, (word16)mtu);
+        (void)wolfSSL_dtls_set_mtu(ssl_s, (word16)mtu);
+    }
+#else
+    (void)mtu;
+#endif
     wolfSSL_SetIOWriteCtx(ssl_c, c);
     wolfSSL_SetIOReadCtx(ssl_c, c);
     wolfSSL_SetIOWriteCtx(ssl_s, c);
@@ -8901,6 +9433,12 @@ out:
     return ret;
 }
 
+static int df_run(method_provider mc, method_provider ms,
+                  DfPolicy policy, int target)
+{
+    return df_run_ex(mc, ms, policy, target, 0, 0, 0);
+}
+
 static int df_sweep(method_provider mc, method_provider ms)
 {
     static const DfPolicy pols[] = {
@@ -8912,7 +9450,12 @@ static int df_sweep(method_provider mc, method_provider ms)
         df_pol_truncate,
         df_pol_body_exts, df_pol_body_exts2, df_pol_body_exts3,
         df_pol_body_exts4, df_pol_body_exts5, df_pol_body_exts6,
-        df_pol_cookie
+        df_pol_cookie,
+        /* the built hellos: well-formed, and each says something specific */
+        df_pol_ch_no_supported_versions, df_pol_ch_no_key_share,
+        df_pol_ch_bad_group, df_pol_ch_no_psk_modes, df_pol_ch_psk_ke_only,
+        df_pol_ch_psk_dhe_only, df_pol_ch_bad_cookie,
+        df_pol_ch_exts_overrun, df_pol_ch_no_psk
     };
     size_t i;
     int t;
@@ -8923,6 +9466,35 @@ static int df_sweep(method_provider mc, method_provider ms)
     for (i = 0; i < sizeof(pols) / sizeof(pols[0]); i++)
         for (t = 0; t < 4; t++)
             (void)df_run(mc, ms, pols[i], t);
+
+    /* the same policies again over a resuming handshake, where the hello
+     * carries the PSK extensions the operands above read */
+    for (i = 0; i < sizeof(pols) / sizeof(pols[0]); i++)
+        (void)df_run_ex(mc, ms, pols[i], 0, 1, 0, 0);
+    (void)df_run_ex(mc, ms, NULL, 0, 1, 0, 0);
+
+    /* the generated hellos: one run per mutation */
+    for (t = 0; t < (int)DFM_COUNT; t++)
+        (void)df_run_ex(mc, ms, df_pol_ch_factory, t, 0, 0, 0);
+
+    /* and every mutation again over a fragmented ClientHello, where the
+     * parser sees the hello in pieces */
+    for (t = 0; t < (int)DFM_COUNT; t++)
+        (void)df_run_ex(mc, ms, df_pol_ch_factory, t, 0, 512, 0);
+    (void)df_run_ex(mc, ms, NULL, 0, 0, 256, 0);
+    (void)df_run_ex(mc, ms, NULL, 0, 0, 512, 0);
+
+    /* With Connection ID negotiated: a clean run to enter the CID code at
+     * all, then every header forgery and every generated hello again, since
+     * a CID changes where the record body starts and therefore what each
+     * mutation lands on. */
+    (void)df_run_ex(mc, ms, NULL, 0, 0, 0, 1);
+    for (i = 0; i < sizeof(pols) / sizeof(pols[0]); i++)
+        for (t = 0; t < 2; t++)
+            (void)df_run_ex(mc, ms, pols[i], t, 0, 0, 1);
+    for (t = 0; t < (int)DFM_COUNT; t++)
+        (void)df_run_ex(mc, ms, df_pol_ch_factory, t, 0, 0, 1);
+    (void)df_run_ex(mc, ms, NULL, 0, 0, 512, 1);
 
     /* and the clean run through the same transport, so every decision above
      * has its partner in this binary */
