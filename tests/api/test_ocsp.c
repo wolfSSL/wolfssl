@@ -2429,7 +2429,10 @@ int test_wolfIO_DecodeUrl_host_bounds(void)
 
     /* A host longer than the item cap ends the loop on the FIRST operand,
      * i < MAX_URL_ITEM_SIZE-1, which nothing else in the suite reaches. */
-    XSTRNCPY(longHost, "http://", sizeof(longHost));
+    /* XMEMCPY, not XSTRNCPY: gcc's -Werror=stringop-truncation fires on a
+     * bounded copy it cannot prove NUL-terminates, and the rest of this buffer
+     * is filled and terminated by hand immediately below anyway. */
+    XMEMCPY(longHost, "http://", 7);
     for (i = 7; i < (int)sizeof(longHost) - 2; i++)
         longHost[i] = 'a';
     longHost[sizeof(longHost) - 2] = '/';
