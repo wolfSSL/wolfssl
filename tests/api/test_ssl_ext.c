@@ -1766,9 +1766,11 @@ int test_wolfSSL_api_null_operands(void)
     (void)wolfSSL_SetServerID(ssl, buf, 0, 0);
     (void)wolfSSL_SetServerID(ssl, buf, -1, 0);
     (void)wolfSSL_SetServerID(ssl, buf, iSz, 0);
-    /* SetSession: ssl, session, then a session that exists but is not set up */
-    (void)wolfSSL_SetSession(NULL, NULL);
-    (void)wolfSSL_SetSession(ssl, NULL);
+    /* wolfSSL_SetSession() (capital S) is WOLFSSL_LOCAL -- an internal symbol
+     * declared in internal.h, not part of the public API -- so referencing it
+     * from tests/api leaves an undefined reference in configurations that do
+     * not export it. The public wolfSSL_set_session() is exercised above and
+     * covers the same guard. */
 #endif
 
     /* --- ALPN peer protocol: ssl, list, listSz -------------------------- */
