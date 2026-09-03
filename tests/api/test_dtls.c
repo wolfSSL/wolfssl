@@ -477,6 +477,63 @@ int test_wolfSSL_dtls_cid_parse(void)
     return EXPECT_RESULT();
 }
 
+/* Argument validation for the ConnectionID APIs. */
+int test_wolfSSL_dtls_cid_args(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    unsigned char cid[] = { 0xC1, 0xC2, 0xC3, 0xC4 };
+    unsigned char buf[sizeof(cid)];
+    unsigned char* cid0 = NULL;
+    unsigned int cidSz = 0;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* NULL ssl is rejected by every entry point. */
+    ExpectIntEQ(wolfSSL_dtls_cid_use(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_dtls_cid_is_enabled(NULL), 0);
+    ExpectIntEQ(wolfSSL_dtls_cid_set(NULL, cid, sizeof(cid)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_dtls_cid_get_rx_size(NULL, &cidSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_dtls_cid_get_rx(NULL, buf, sizeof(buf)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_dtls_cid_get0_rx(NULL, &cid0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_dtls_cid_get_tx_size(NULL, &cidSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_dtls_cid_get_tx(NULL, buf, sizeof(buf)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_dtls_cid_get0_tx(NULL, &cid0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* Setting a CID before enabling the extension fails. */
+    ExpectIntEQ(wolfSSL_dtls_cid_is_enabled(ssl), 0);
+    ExpectIntEQ(wolfSSL_dtls_cid_set(ssl, cid, sizeof(cid)),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+
+    ExpectIntEQ(wolfSSL_dtls_cid_use(ssl), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls_cid_is_enabled(ssl), 1);
+    /* A NULL buffer with a non-zero size is rejected, while (NULL, 0) is an
+     * empty CID. */
+    ExpectIntEQ(wolfSSL_dtls_cid_set(ssl, NULL, sizeof(cid)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_dtls_cid_set(ssl, NULL, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls_cid_set(ssl, cid,
+        (unsigned int)wolfSSL_dtls_cid_max_size() + 1),
+        WC_NO_ERR_TRACE(LENGTH_ERROR));
+    ExpectIntEQ(wolfSSL_dtls_cid_set(ssl, cid, sizeof(cid)), WOLFSSL_SUCCESS);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_dtls_set_pending_peer(void)
 {
     EXPECT_DECLS;
