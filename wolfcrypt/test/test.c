@@ -49069,8 +49069,10 @@ static wc_test_ret_t curve25519_keyagree_test(WC_RNG* rng,
 #endif
 #endif
 
+/* pubKey only holds a public point when the export block above ran, so this
+ * needs the export as much as the import. */
 #if defined(HAVE_CURVE25519_SHARED_SECRET) && \
-                                             defined(HAVE_CURVE25519_KEY_IMPORT)
+    defined(HAVE_CURVE25519_KEY_IMPORT) && defined(HAVE_CURVE25519_KEY_EXPORT)
     /* test shared key after importing a public key */
     XMEMSET(sharedB, 0, sizeof(sharedB));
     y = sizeof(sharedB);
@@ -51020,8 +51022,10 @@ static wc_test_ret_t curve448_keyagree_test(WC_RNG* rng,
 #endif
 #endif
 
+/* pubKey only holds a public point when the export block above ran, so this
+ * needs the export as much as the import. */
 #if defined(HAVE_CURVE448_SHARED_SECRET) && \
-                                             defined(HAVE_CURVE448_KEY_IMPORT)
+    defined(HAVE_CURVE448_KEY_IMPORT) && defined(HAVE_CURVE448_KEY_EXPORT)
     /* test shared key after importing a public key */
     XMEMSET(sharedB, 0, sizeof(sharedB));
     y = sizeof(sharedB);

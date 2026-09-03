@@ -47,6 +47,7 @@ int test_wc_curve25519_check_public_be(void);
 int test_wc_curve25519_generic_argchecks(void);
 int test_wc_curve25519_set_rng_argcheck(void);
 int test_wc_curve25519_nonblock(void);
+int test_wc_curve25519_cryptocb(void);
 
 #define TEST_CURVE25519_DECLS                                                  \
     TEST_DECL_GROUP("curve25519", test_wc_curve25519_init),                    \
@@ -71,6 +72,7 @@ int test_wc_curve25519_nonblock(void);
     TEST_DECL_GROUP("curve25519", test_wc_curve25519_check_public_be),        \
     TEST_DECL_GROUP("curve25519", test_wc_curve25519_generic_argchecks),      \
     TEST_DECL_GROUP("curve25519", test_wc_curve25519_set_rng_argcheck),       \
-    TEST_DECL_GROUP("curve25519", test_wc_curve25519_nonblock)
+    TEST_DECL_GROUP("curve25519", test_wc_curve25519_nonblock),               \
+    TEST_DECL_GROUP("curve25519", test_wc_curve25519_cryptocb)
 
 #endif /* WOLFCRYPT_TEST_CURVE25519_H */

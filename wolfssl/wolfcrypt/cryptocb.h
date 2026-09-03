@@ -962,11 +962,16 @@ WOLFSSL_LOCAL int wc_CryptoCb_Curve25519Gen(WC_RNG* rng, int keySize,
 WOLFSSL_LOCAL int wc_CryptoCb_Curve25519(curve25519_key* private_key,
     curve25519_key* public_key, byte* out, word32* outlen, int endian);
 
-WOLFSSL_LOCAL int wc_CryptoCb_Curve25519MakePub(int public_size, byte* pub,
-    int private_size, const byte* priv);
+/* devId names the only device allowed to see the private scalar; a caller with
+ * no devId at all passes INVALID_DEVID and settles for the first registered
+ * device. */
+WOLFSSL_LOCAL int wc_CryptoCb_Curve25519MakePub(int devId, int public_size,
+    byte* pub, int private_size, const byte* priv);
 
-WOLFSSL_LOCAL int wc_CryptoCb_Curve25519Generic(int public_size, byte* pub,
-    int private_size, const byte* priv, int basepoint_size,
+/* devId means the same here, but every current caller is a bare-vector entry
+ * point with no key, so it is reserved for a future key-aware variant. */
+WOLFSSL_LOCAL int wc_CryptoCb_Curve25519Generic(int devId, int public_size,
+    byte* pub, int private_size, const byte* priv, int basepoint_size,
     const byte* basepoint);
 #endif /* HAVE_CURVE25519 */
 

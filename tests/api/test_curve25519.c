@@ -1335,3 +1335,182 @@ int test_wc_curve25519_nonblock(void)
     return EXPECT_RESULT();
 } /* END test_wc_curve25519_nonblock */
 
+
+/* Test X25519 public key derivation routed through a crypto callback
+ * (CryptoCb) device. */
+/* WOLF_CRYPTO_CB_FIND is excluded because the find callback rewrites even an
+ * explicit devId, so it, not the key, owns the routing; CB-only is excluded
+ * because it has no software path for an unbound key to fall back to. */
+#if defined(WOLF_CRYPTO_CB) && defined(HAVE_CURVE25519) && \
+    !defined(WC_NO_RNG) && !defined(WOLF_CRYPTO_CB_FIND) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_CURVE25519)
+typedef struct curve25519SpyCtx {
+    int kgSeen;
+    int mpSeen;
+    int genSeen;
+} curve25519SpyCtx;
+
+/* Spy device: counts the X25519 operations it is offered and declines them
+ * all, so the software path still produces every result. Two of these are
+ * registered, each with its own counter block, so the test can tell which
+ * device a scalar was offered to. */
+static int curve25519_test_crypto_cb(int devIdArg, wc_CryptoInfo* info,
+    void* ctx)
+{
+    curve25519SpyCtx* spy = (curve25519SpyCtx*)ctx;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+
+    (void)devIdArg;
+
+    if (info == NULL || spy == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (info->algo_type == WC_ALGO_TYPE_PK) {
+        if (info->pk.type == WC_PK_TYPE_CURVE25519_KEYGEN) {
+            spy->kgSeen++;
+        }
+        if (info->pk.type == WC_PK_TYPE_CURVE25519_MAKE_PUB) {
+            spy->mpSeen++;
+        }
+        if (info->pk.type == WC_PK_TYPE_CURVE25519_GENERIC) {
+            spy->genSeen++;
+        }
+    }
+
+    return ret;
+}
+
+/* Generate a key and settle any pending asynchronous operation, so callers
+ * see a plain result. The software async simulator makes wc_curve25519_make_key
+ * return WC_PENDING_E once the crypto callback has declined the keygen. */
+static int curve25519_make_key_sync(WC_RNG* rng, curve25519_key* key)
+{
+    int ret = wc_curve25519_make_key(rng, CURVE25519_KEYSIZE, key);
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
+    }
+#endif
+
+    return ret;
+}
+#endif
+
+/*
+ * Testing that an X25519 private scalar is only offered to the device its
+ * key selected.
+ */
+int test_wc_curve25519_cryptocb(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLF_CRYPTO_CB) && defined(HAVE_CURVE25519) && \
+    !defined(WC_NO_RNG) && !defined(WOLF_CRYPTO_CB_FIND) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_CURVE25519)
+    curve25519SpyCtx spyA;
+    curve25519SpyCtx spyB;
+    curve25519_key   bound;
+    WC_RNG           rng;
+    const int        devIdA = 1337;
+    const int        devIdB = 1338;
+    const int        devIdGone = 1339;
+    curve25519_key   unbound;
+    byte             pubTmp[CURVE25519_KEYSIZE];
+    byte             pubRef[CURVE25519_KEYSIZE];
+    byte             base9[CURVE25519_KEYSIZE];
+    int              mpBefore;
+#ifdef HAVE_CURVE25519_KEY_EXPORT
+    word32           pubTmpLen;
+#endif
+
+    XMEMSET(&spyA, 0, sizeof(spyA));
+    XMEMSET(&spyB, 0, sizeof(spyB));
+    XMEMSET(&bound, 0, sizeof(bound));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(pubRef, 0, sizeof(pubRef));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    /* register the decoy first so it takes the lower slot in the device
+     * table: it is the device a devId-less lookup falls back to, and so the
+     * one a key bound elsewhere must never reach */
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devIdB, curve25519_test_crypto_cb,
+        &spyB), 0);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devIdA, curve25519_test_crypto_cb,
+        &spyA), 0);
+
+    /* a key bound to device A offers it both the keygen and the public point
+     * derivation the declined keygen falls back to, and device B is offered
+     * neither */
+    ExpectIntEQ(wc_curve25519_init_ex(&bound, HEAP_HINT, devIdA), 0);
+    ExpectIntEQ(curve25519_make_key_sync(&rng, &bound), 0);
+    ExpectIntGT(spyA.kgSeen, 0);
+    ExpectIntGT(spyA.mpSeen, 0);
+    ExpectIntEQ(spyB.kgSeen, 0);
+    ExpectIntEQ(spyB.mpSeen, 0);
+    wc_curve25519_free(&bound);
+
+    /* a key naming a device that is not registered falls back to software
+     * rather than to whichever device happens to be registered */
+    mpBefore = spyA.mpSeen;
+    XMEMSET(&bound, 0, sizeof(bound));
+    ExpectIntEQ(wc_curve25519_init_ex(&bound, HEAP_HINT, devIdGone), 0);
+    ExpectIntEQ(curve25519_make_key_sync(&rng, &bound), 0);
+    ExpectIntEQ(spyA.mpSeen, mpBefore);
+    ExpectIntEQ(spyB.mpSeen, 0);
+    wc_curve25519_free(&bound);
+
+    /* a key bound to no device must not have its private scalar handed to
+     * whichever device happens to be registered: keygen derives the public
+     * point in software without dispatching make_pub */
+    XMEMSET(&unbound, 0, sizeof(unbound));
+    ExpectIntEQ(wc_curve25519_init(&unbound), 0);
+    ExpectIntEQ(curve25519_make_key_sync(&rng, &unbound), 0);
+    ExpectIntEQ(spyA.mpSeen, mpBefore);
+    ExpectIntEQ(spyB.mpSeen, 0);
+    /* every derivation below works from the same scalar, so it must
+     * reproduce the point keygen just derived */
+    XMEMCPY(pubRef, unbound.p.point, CURVE25519_KEYSIZE);
+
+#ifdef HAVE_CURVE25519_KEY_EXPORT
+    /* the export path derives a missing public point the same way */
+    unbound.pubSet = 0;
+    pubTmpLen = (word32)sizeof(pubTmp);
+    ExpectIntEQ(wc_curve25519_export_public_ex(&unbound, pubTmp, &pubTmpLen,
+        EC25519_LITTLE_ENDIAN), 0);
+    ExpectIntEQ(spyA.mpSeen, mpBefore);
+    ExpectIntEQ(spyB.mpSeen, 0);
+    ExpectBufEQ(pubTmp, pubRef, CURVE25519_KEYSIZE);
+#endif
+
+    /* the keyless public API has no devId to respect, so it still reaches a
+     * registered device. Which device that is depends on which spy landed in
+     * the first occupied table slot, so count both rather than rely on the
+     * registration order. The count is pinned rather than just checked for
+     * growth: under WOLFSSL_CURVE25519_BLINDING this call falls through to the
+     * blinded variant after the device declines, and that must not offer the
+     * same scalar a second time. */
+    XMEMSET(pubTmp, 0, sizeof(pubTmp));
+    ExpectIntEQ(wc_curve25519_make_pub((int)sizeof(pubTmp), pubTmp,
+        (int)sizeof(unbound.k), unbound.k), 0);
+    ExpectIntEQ(spyA.mpSeen + spyB.mpSeen, mpBefore + 1);
+    ExpectBufEQ(pubTmp, pubRef, CURVE25519_KEYSIZE);
+
+    /* wc_curve25519_generic has no devId to respect either, and its blinded
+     * fall-through must not re-offer the scalar either */
+    XMEMSET(base9, 0, sizeof(base9));
+    base9[0] = 9;
+    XMEMSET(pubTmp, 0, sizeof(pubTmp));
+    ExpectIntEQ(wc_curve25519_generic((int)sizeof(pubTmp), pubTmp,
+        (int)sizeof(unbound.k), unbound.k, (int)sizeof(base9), base9), 0);
+    ExpectIntEQ(spyA.genSeen + spyB.genSeen, 1);
+    ExpectBufEQ(pubTmp, pubRef, CURVE25519_KEYSIZE);
+
+    wc_curve25519_free(&unbound);
+
+    wc_CryptoCb_UnRegisterDevice(devIdA);
+    wc_CryptoCb_UnRegisterDevice(devIdB);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_curve25519_cryptocb */
