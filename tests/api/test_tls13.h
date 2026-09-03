@@ -133,6 +133,10 @@ int test_tls13_pha_status_request(void);
 int test_tls13_x25519_keyshare_masks_reserved_bit(void);
 int test_tls13_is_init_finished_want_write(void);
 int test_tls13_cryptocb_async(void);
+int test_tls13_export_server_ticket_after_import(void);
+int test_tls13_export_client_ticket_after_import(void);
+int test_tls13_export_server_key_update(void);
+int test_tls13_export_client_key_update(void);
 
 #define TEST_TLS13_DECLS                                        \
     TEST_DECL_GROUP("tls13", test_tls13_apis),                  \
@@ -243,6 +247,10 @@ int test_tls13_cryptocb_async(void);
     TEST_DECL_GROUP("tls13", test_tls13_pha_status_request), \
     TEST_DECL_GROUP("tls13", test_tls13_x25519_keyshare_masks_reserved_bit), \
     TEST_DECL_GROUP("tls13", test_tls13_is_init_finished_want_write), \
-    TEST_DECL_GROUP("tls13", test_tls13_cryptocb_async)
+    TEST_DECL_GROUP("tls13", test_tls13_cryptocb_async), \
+    TEST_DECL_GROUP("tls13", test_tls13_export_server_ticket_after_import), \
+    TEST_DECL_GROUP("tls13", test_tls13_export_client_ticket_after_import), \
+    TEST_DECL_GROUP("tls13", test_tls13_export_server_key_update), \
+    TEST_DECL_GROUP("tls13", test_tls13_export_client_key_update)
 
 #endif /* WOLFCRYPT_TEST_TLS13_H */
