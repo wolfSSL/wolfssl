@@ -186,6 +186,151 @@ static void wb_check_responder(void)
     bs.single = NULL;
 }
 
+
+/* --------------------------------------------------- CheckOcspRequest :484+
+
+ * This is where an OCSP check leaves the library: pick a responder URL, hand
+ * the encoded request to the application's transport callback, and interpret
+ * whatever comes back. From tests/api it is entered only when a real responder
+ * is configured, which no unit test does -- so the URL selection, the callback
+ * result handling and the response-free hook are all uncovered.
+ *
+ * None of it needs a network. CbOCSPIO is
+ *     int (*)(void* ctx, const char* url, int urlSz,
+ *             unsigned char** response)
+ * so a callback that hands back a static buffer is a complete responder for
+ * the purposes of this function, and it can return the results a real one
+ * cannot be made to produce on demand: a negative error, a zero-length body,
+ * a NULL response with a positive length. That is the point of mocking the
+ * consumed interface rather than the transport.
+ */
+
+static byte  g_ocspResp[64];
+static int   g_ioResult;        /* what the mock returns */
+static int   g_ioNullResponse;  /* return a positive size but no buffer */
+static int   g_ioCalls;
+static int   g_freeCalls;
+
+static int wb_ocsp_io(void* ctx, const char* url, int urlSz,
+                      unsigned char* request, int requestSz,
+                      unsigned char** response)
+{
+    (void)ctx; (void)url; (void)urlSz; (void)request; (void)requestSz;
+    g_ioCalls++;
+    if (response != NULL)
+        *response = g_ioNullResponse ? NULL : g_ocspResp;
+    return g_ioResult;
+}
+
+static void wb_ocsp_respfree(void* ctx, unsigned char* response)
+{
+    (void)ctx; (void)response;
+    g_freeCalls++;
+}
+
+static void wb_check_request(WOLFSSL_CERT_MANAGER* cm)
+{
+    OcspRequest req;
+    byte serial[8];
+    byte url[] = "http://ocsp.example.com/";
+    size_t i;
+
+    /* the two operands of the argument guard at :504 */
+    WB_NOTE(CheckOcspRequest(NULL, NULL, NULL, NULL));
+    WB_NOTE(CheckOcspRequest(cm->ocsp, NULL, NULL, NULL));
+
+    XMEMSET(g_ocspResp, 0, sizeof(g_ocspResp));
+    g_ocspResp[0] = 0x30;
+    g_ocspResp[1] = 0x02;
+
+    /* Each row is one operand of the URL-selection, callback-result and
+     * response-free decisions. `haveUrl` drives
+     * `ocspRequest->urlSz != 0 && ocspRequest->url != NULL`, which a request
+     * built from a certificate's AIA extension always satisfies. */
+    {
+        static const struct { int haveUrl; int urlSz; int ioResult;
+                              int nullResp; int installIo; int installFree;
+                              const char* what; } rows[] = {
+            { 1, 24,  8, 0, 1, 1, "url and a responder that answers" },
+            { 1, 24,  8, 0, 1, 0, "answered, no free callback" },
+            { 1, 24,  0, 0, 1, 1, "responder returns zero bytes" },
+            { 1, 24, -1, 0, 1, 1, "responder returns an error" },
+            { 1, 24,  8, 1, 1, 1, "positive length, NULL buffer" },
+            { 1, 24,  8, 0, 0, 0, "no responder callback installed" },
+            { 1,  0,  8, 0, 1, 1, "url present, length zero" },
+            { 0, 24,  8, 0, 1, 1, "length present, url NULL" },
+            { 0,  0,  8, 0, 1, 1, "no url at all" },
+        };
+
+        for (i = 0; i < sizeof(rows) / sizeof(rows[0]); i++) {
+            XMEMSET(&req, 0, sizeof(req));
+            XMEMSET(serial, 0x5A, sizeof(serial));
+            req.serial   = serial;
+            req.serialSz = (int)sizeof(serial);
+            XMEMSET(req.issuerHash,    0xAA, OCSP_DIGEST_SIZE);
+            XMEMSET(req.issuerKeyHash, 0xCC, OCSP_DIGEST_SIZE);
+            req.url   = rows[i].haveUrl ? url : NULL;
+            req.urlSz = rows[i].urlSz;
+
+            g_ioResult = rows[i].ioResult;
+            g_ioNullResponse = rows[i].nullResp;
+            (void)wolfSSL_CertManagerSetOCSP_Cb(cm,
+                    rows[i].installIo ? wb_ocsp_io : NULL,
+                    rows[i].installFree ? wb_ocsp_respfree : NULL,
+                    NULL);
+
+            WB_NOTE(CheckOcspRequest(cm->ocsp, &req, NULL, NULL));
+
+            /* GetOcspEntry appends a heap entry when it finds no match; drop
+             * the list between rows so each row starts from an empty cache
+             * and the "found" and "not found" arms both get exercised. */
+        }
+    }
+
+    /* `if (cm != NULL && cm->ocspFailIfNotSupported)` at :596 -- the policy
+     * flag that decides whether an unreachable responder is fatal. */
+    cm->ocspFailIfNotSupported = 1;
+    XMEMSET(&req, 0, sizeof(req));
+    req.url = url; req.urlSz = 24;
+    XMEMSET(req.issuerHash, 0xAB, OCSP_DIGEST_SIZE);
+    g_ioResult = -1;
+    (void)wolfSSL_CertManagerSetOCSP_Cb(cm, wb_ocsp_io, wb_ocsp_respfree, NULL);
+    WB_NOTE(CheckOcspRequest(cm->ocsp, &req, NULL, NULL));
+    cm->ocspFailIfNotSupported = 0;
+    WB_NOTE(CheckOcspRequest(cm->ocsp, &req, NULL, NULL));
+
+    (void)wolfSSL_CertManagerSetOCSP_Cb(cm, NULL, NULL, NULL);
+}
+
+/* ------------------------------------------------------ CheckOcspResponse */
+/* `if (newStatus == NULL || newSingle == NULL || ocspResponse == NULL)` and
+ * the multi-response and response-buffer arms. The bytes are the interesting
+ * input: a caller cannot ask a real responder for a truncated DER. */
+static void wb_check_response(WOLFSSL_CERT_MANAGER* cm)
+{
+    OcspRequest req;
+    byte junk[16];
+    size_t i;
+
+    static const struct { int sz; const char* what; } rows[] = {
+        {  0, "zero-length response" },
+        {  1, "one byte" },
+        { 16, "sixteen bytes of nothing" },
+        { -1, "negative length" },
+    };
+
+    XMEMSET(junk, 0x30, sizeof(junk));
+    for (i = 0; i < sizeof(rows) / sizeof(rows[0]); i++) {
+        XMEMSET(&req, 0, sizeof(req));
+        XMEMSET(req.issuerHash, 0xAA, OCSP_DIGEST_SIZE);
+        req.serialSz = 4;
+        WB_NOTE(CheckOcspResponse(cm->ocsp, junk, rows[i].sz, NULL, NULL,
+                                  NULL, &req, NULL, NULL));
+    }
+    WB_NOTE(CheckOcspResponse(cm->ocsp, NULL, 0, NULL, NULL, NULL, NULL, NULL,
+                              NULL));
+}
+
 /* ---------------------------------------------------------- main */
 
 int main(void)
@@ -208,6 +353,8 @@ int main(void)
 
     wb_entry_match(cm->ocsp);
     wb_check_responder();
+    wb_check_request(cm);
+    wb_check_response(cm);
 
     printf("ocsp white-box: %d vectors driven\n", g_checks);
 

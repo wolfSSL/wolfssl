@@ -23,6 +23,7 @@ test_internal_domain_whitebox
 test_internal_record_whitebox
 test_internal_sanity_whitebox
 test_internal_suites_whitebox
+test_keys_whitebox
 test_lms_bds_whitebox
 test_lms_fault_whitebox
 test_lms_hash_fault_whitebox
