@@ -1,12 +1,15 @@
-#![cfg(all(feature = "password-hash", hmac, kdf_pbkdf2))]
+#![cfg(all(feature = "password-hash", hmac, kdf_pbkdf2,
+           any(sha256, sha384, sha512)))]
 
 mod common;
 
+#[cfg(sha256)]
 use password_hash::phc::PasswordHash;
 use password_hash::{CustomizedPasswordHasher, PasswordHasher, PasswordVerifier};
 use wolfssl_wolfcrypt::pbkdf2_password_hash::*;
 
 #[test]
+#[cfg(sha256)]
 fn test_hash_and_verify() {
     common::setup();
 
@@ -41,6 +44,7 @@ fn test_hash_and_verify() {
 }
 
 #[test]
+#[cfg(sha256)]
 fn test_hash_roundtrip_phc_string() {
     common::setup();
 
@@ -76,7 +80,12 @@ fn test_default_params() {
     common::setup();
 
     let hasher = Pbkdf2::default();
+    #[cfg(sha256)]
     assert_eq!(hasher.algorithm, Algorithm::Pbkdf2Sha256);
+    #[cfg(all(not(sha256), sha384))]
+    assert_eq!(hasher.algorithm, Algorithm::Pbkdf2Sha384);
+    #[cfg(all(not(sha256), not(sha384), sha512))]
+    assert_eq!(hasher.algorithm, Algorithm::Pbkdf2Sha512);
     assert_eq!(hasher.params.rounds, DEFAULT_ROUNDS);
     assert_eq!(hasher.params.output_len, DEFAULT_OUTPUT_LEN);
 }
@@ -221,6 +230,7 @@ fn test_unknown_algorithm_rejected() {
 }
 
 #[test]
+#[cfg(sha256)]
 fn test_deterministic_output() {
     common::setup();
 
@@ -246,6 +256,7 @@ fn test_deterministic_output() {
 }
 
 #[test]
+#[cfg(sha256)]
 fn test_different_salts_produce_different_hashes() {
     common::setup();
 

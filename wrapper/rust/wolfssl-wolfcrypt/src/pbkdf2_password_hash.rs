@@ -36,18 +36,22 @@ $pbkdf2-sha256$i=600000$<salt>$<hash>
 
 # Supported algorithms
 
-| Algorithm ID    | Hash function |
-|-----------------|---------------|
-| `pbkdf2-sha256` | HMAC-SHA-256  |
-| `pbkdf2-sha384` | HMAC-SHA-384  |
-| `pbkdf2-sha512` | HMAC-SHA-512  |
+Each algorithm is available only when the corresponding hash function is
+enabled in the wolfSSL build.
+
+| Algorithm ID    | Hash function | Requires     |
+|-----------------|---------------|--------------|
+| `pbkdf2-sha256` | HMAC-SHA-256  | `sha256` cfg |
+| `pbkdf2-sha384` | HMAC-SHA-384  | `sha384` cfg |
+| `pbkdf2-sha512` | HMAC-SHA-512  | `sha512` cfg |
 
 [`PasswordHasher`]: password_hash::PasswordHasher
 [`CustomizedPasswordHasher`]: password_hash::CustomizedPasswordHasher
 [`PasswordVerifier`]: password_hash::PasswordVerifier
 */
 
-#![cfg(all(feature = "password-hash", hmac, kdf_pbkdf2))]
+#![cfg(all(feature = "password-hash", hmac, kdf_pbkdf2,
+           any(sha256, sha384, sha512)))]
 
 use password_hash::phc::{Ident, Output, ParamsString, PasswordHash, Salt};
 use password_hash::{CustomizedPasswordHasher, Error, Result, Version};
@@ -55,8 +59,11 @@ use password_hash::{CustomizedPasswordHasher, Error, Result, Version};
 use crate::hmac::HMAC;
 use crate::kdf;
 
+#[cfg(sha256)]
 const PBKDF2_SHA256_IDENT: Ident = Ident::new_unwrap("pbkdf2-sha256");
+#[cfg(sha384)]
 const PBKDF2_SHA384_IDENT: Ident = Ident::new_unwrap("pbkdf2-sha384");
+#[cfg(sha512)]
 const PBKDF2_SHA512_IDENT: Ident = Ident::new_unwrap("pbkdf2-sha512");
 
 /// Minimum number of PBKDF2 rounds.
@@ -69,14 +76,22 @@ pub const DEFAULT_ROUNDS: u32 = 600_000;
 pub const DEFAULT_OUTPUT_LEN: usize = 32;
 
 /// PBKDF2 algorithm variant.
+///
+/// The default is the first of SHA-256, SHA-384 and SHA-512 that is enabled
+/// in the wolfSSL build.
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
 pub enum Algorithm {
     /// PBKDF2 with HMAC-SHA-256.
-    #[default]
+    #[cfg(sha256)]
+    #[cfg_attr(sha256, default)]
     Pbkdf2Sha256,
     /// PBKDF2 with HMAC-SHA-384.
+    #[cfg(sha384)]
+    #[cfg_attr(all(not(sha256), sha384), default)]
     Pbkdf2Sha384,
     /// PBKDF2 with HMAC-SHA-512.
+    #[cfg(sha512)]
+    #[cfg_attr(all(not(sha256), not(sha384), sha512), default)]
     Pbkdf2Sha512,
 }
 
@@ -84,16 +99,22 @@ impl Algorithm {
     /// Get the PHC string format identifier for this algorithm.
     pub fn ident(self) -> Ident {
         match self {
+            #[cfg(sha256)]
             Algorithm::Pbkdf2Sha256 => PBKDF2_SHA256_IDENT,
+            #[cfg(sha384)]
             Algorithm::Pbkdf2Sha384 => PBKDF2_SHA384_IDENT,
+            #[cfg(sha512)]
             Algorithm::Pbkdf2Sha512 => PBKDF2_SHA512_IDENT,
         }
     }
 
     fn hmac_type(self) -> i32 {
         match self {
+            #[cfg(sha256)]
             Algorithm::Pbkdf2Sha256 => HMAC::TYPE_SHA256,
+            #[cfg(sha384)]
             Algorithm::Pbkdf2Sha384 => HMAC::TYPE_SHA384,
+            #[cfg(sha512)]
             Algorithm::Pbkdf2Sha512 => HMAC::TYPE_SHA512,
         }
     }
@@ -103,15 +124,19 @@ impl TryFrom<Ident> for Algorithm {
     type Error = Error;
 
     fn try_from(ident: Ident) -> Result<Self> {
+        #[cfg(sha256)]
         if ident == PBKDF2_SHA256_IDENT {
-            Ok(Algorithm::Pbkdf2Sha256)
-        } else if ident == PBKDF2_SHA384_IDENT {
-            Ok(Algorithm::Pbkdf2Sha384)
-        } else if ident == PBKDF2_SHA512_IDENT {
-            Ok(Algorithm::Pbkdf2Sha512)
-        } else {
-            Err(Error::Algorithm)
+            return Ok(Algorithm::Pbkdf2Sha256);
         }
+        #[cfg(sha384)]
+        if ident == PBKDF2_SHA384_IDENT {
+            return Ok(Algorithm::Pbkdf2Sha384);
+        }
+        #[cfg(sha512)]
+        if ident == PBKDF2_SHA512_IDENT {
+            return Ok(Algorithm::Pbkdf2Sha512);
+        }
+        Err(Error::Algorithm)
     }
 }
 
@@ -169,8 +194,6 @@ impl TryFrom<&PasswordHash> for Params {
 /// # Example
 ///
 /// ```rust
-/// #[cfg(all(hmac, kdf_pbkdf2))]
-/// {
 /// use password_hash::PasswordHasher;
 /// use wolfssl_wolfcrypt::pbkdf2_password_hash::Pbkdf2;
 ///
@@ -178,7 +201,6 @@ impl TryFrom<&PasswordHash> for Params {
 /// let salt = b"0123456789abcdef"; // 16 bytes
 /// let hash = hasher.hash_password_with_salt(b"password", salt)
 ///     .expect("hashing failed");
-/// }
 /// ```
 #[derive(Clone, Debug, Default)]
 pub struct Pbkdf2 {
