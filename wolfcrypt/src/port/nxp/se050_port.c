@@ -1761,8 +1761,6 @@ int wc_se050_attest_object(word32 keyId, word32 attestKeyId,
 static int se050_attested_component(const wc_se050_attst_result* result,
     word32 componentIndex, byte* component, word32* componentSz)
 {
-    int ret;
-
     if ((result == NULL) || (component == NULL) || (componentSz == NULL) ||
             (componentIndex >= result->raw.valid_number)) {
         return BAD_FUNC_ARG;
@@ -1770,7 +1768,8 @@ static int se050_attested_component(const wc_se050_attst_result* result,
 
     if ((result->cipherType == (word32)kSSS_CipherType_RSA) ||
             (result->cipherType == (word32)kSSS_CipherType_RSA_CRT)) {
-    #ifndef NO_RSA
+    #if !defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
+        int ret;
         RsaKey key;
         word32 idx = 0;
         byte exponent[8];
@@ -1809,6 +1808,7 @@ static int se050_attested_component(const wc_se050_attst_result* result,
             (result->cipherType == (word32)kSSS_CipherType_EC_NIST_K) ||
             (result->cipherType == (word32)kSSS_CipherType_EC_BRAINPOOL)) {
     #ifdef HAVE_ECC
+        int ret;
         ecc_key key;
         word32 idx = 0;
 
