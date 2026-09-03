@@ -18222,6 +18222,8 @@ static void* GetChainVerifyCtx(const WOLFSSL* ssl)
  * or object is configured for, and again when the peer's certificates arrive,
  * against what was negotiated, so that using them fails as early as
  * possible. */
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
 static int ChainVerifyCbStaplingRequested(TLSX* extensions)
 {
 #if !defined(NO_TLS) && defined(HAVE_CERTIFICATE_STATUS_REQUEST)
@@ -18235,6 +18237,7 @@ static int ChainVerifyCbStaplingRequested(TLSX* extensions)
     (void)extensions;
     return 0;
 }
+#endif
 
 #ifdef HAVE_RPK
 static int ChainVerifyCbRpkConfigured(const RpkConfig* cfg)
