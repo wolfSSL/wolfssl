@@ -1546,8 +1546,12 @@ struct DNS_entry {
     int        type;   /* i.e. ASN_DNS_TYPE */
     int        len;    /* actual DNS len */
     const char*
-               name;   /* actual DNS name; under WC_ASN_NO_HEAP this points into
-                        * the source DER and is NOT NUL-terminated - use len */
+               name;   /* actual DNS name; under WC_ASN_NO_HEAP a parsed entry
+                        * points into the source DER and is NOT NUL-terminated
+                        * - use len */
+    /* 1 = name is its own allocation and FreeAltNames() releases it.
+     * 0 = name is borrowed from the DER, or inside the entry's own
+     * block. Either way, never free it on its own. */
     int        nameStored;
 #ifdef WOLFSSL_IP_ALT_NAME
     char*      ipString; /* human readable form of IP address */
@@ -2453,6 +2457,7 @@ typedef enum MimeStatus
 #ifdef WOLFSSL_API_PREFIX_MAP
     #define FreeAltNames wc_FreeAltNames
     #define AltNameNew wc_AltNameNew
+    #define AltNameNewEx wc_AltNameNewEx
     #define AltNameDup wc_AltNameDup
     #ifndef IGNORE_NAME_CONSTRAINTS
         #define FreeNameSubtrees wc_FreeNameSubtrees
@@ -2513,6 +2518,8 @@ WOLFSSL_LOCAL int StreamOctetString(const byte* inBuf, word32 inBufSz,
 
 WOLFSSL_ASN_API void FreeAltNames(DNS_entry* altNames, void* heap);
 WOLFSSL_ASN_API DNS_entry* AltNameNew(void* heap);
+WOLFSSL_ASN_API DNS_entry* AltNameNewEx(const char* str, int strLen,
+                                        void* heap);
 WOLFSSL_ASN_API DNS_entry* AltNameDup(DNS_entry* from, void* heap);
 #if defined(WOLFSSL_ASN_TEMPLATE) && defined(WOLFSSL_CERT_GEN) && \
     defined(WOLFSSL_ALT_NAMES)

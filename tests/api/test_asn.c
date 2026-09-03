@@ -3977,3 +3977,52 @@ int test_wc_AsnFeatureCoverage(void)
 #endif /* !NO_ASN && HAVE_ECC && USE_CERT_BUFFERS_256 && !HAVE_FIPS */
     return EXPECT_RESULT();
 }
+
+/* AltNameNewEx() stores the name inside the entry's own allocation, so
+ * FreeAltNames() releases both with one free. Check the copy, the length, the
+ * terminator, and that a NULL or empty name still yields a usable entry.
+ */
+int test_wc_AltNameNewEx(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_ASN) && !defined(NO_CERTS) && \
+    (defined(WOLFSSL_TEST_CERT) || defined(OPENSSL_EXTRA) || \
+     defined(OPENSSL_EXTRA_X509_SMALL) || defined(WOLFSSL_PUBLIC_ASN))
+    const char  name[] = "example.com";
+    DNS_entry*  entry = NULL;
+
+    ExpectNotNull(entry = AltNameNewEx(name, (int)XSTRLEN(name), NULL));
+    if (entry != NULL) {
+        ExpectIntEQ(entry->len, (int)XSTRLEN(name));
+        ExpectNotNull(entry->name);
+        ExpectIntEQ(XMEMCMP(entry->name, name, XSTRLEN(name)), 0);
+        /* The name is NUL terminated and part of the entry's allocation. */
+        ExpectIntEQ(entry->name[XSTRLEN(name)], '\0');
+        ExpectIntEQ(entry->nameStored, 0);
+        /* The name region sits after the struct in the entry's own block,
+         * which is the property that makes one allocation and one free
+         * correct. */
+        ExpectTrue((const char*)entry < entry->name);
+        ExpectTrue(entry->name <
+            (const char*)entry + sizeof(DNS_entry) + XSTRLEN(name) + 1);
+    }
+    FreeAltNames(entry, NULL);
+    entry = NULL;
+
+    /* A length with no name to go with it is rejected rather than leaving
+     * len covering bytes that were never written, and a negative length is
+     * rejected rather than used as a size. */
+    ExpectNull(AltNameNewEx(NULL, 1, NULL));
+    ExpectNull(AltNameNewEx(name, -1, NULL));
+
+    /* An empty name is still a valid entry with a terminated string. */
+    ExpectNotNull(entry = AltNameNewEx(NULL, 0, NULL));
+    if (entry != NULL) {
+        ExpectIntEQ(entry->len, 0);
+        ExpectNotNull(entry->name);
+        ExpectIntEQ(entry->name[0], '\0');
+    }
+    FreeAltNames(entry, NULL);
+#endif
+    return EXPECT_RESULT();
+}
