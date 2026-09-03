@@ -131,10 +131,10 @@ static int wolfssl_connect_flush(WOLFSSL* ssl)
     #endif /* WOLFSSL_DTLS13 */
 
     if ((ssl->buffers.outputBuffer.length > 0)
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        /* do not send buffered or advance state if last error was an
-            async pending operation */
-        && (ssl->error != WC_NO_ERR_TRACE(WC_PENDING_E))
+    #ifdef WOLFSSL_HAVE_HS_SUSPEND
+        /* do not send buffered or advance state if the last error
+           suspended the handshake - advancing frees the saved state */
+        && !IsHsSuspendErr(ssl->error)
     #endif
     ) {
         ret = SendBuffered(ssl);
@@ -201,10 +201,10 @@ static int wolfssl_accept_flush(WOLFSSL* ssl)
     int ret = 0;
 
     if ((ssl->buffers.outputBuffer.length > 0)
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        /* do not send buffered or advance state if last error was an
-            async pending operation */
-        && (ssl->error != WC_NO_ERR_TRACE(WC_PENDING_E))
+    #ifdef WOLFSSL_HAVE_HS_SUSPEND
+        /* do not send buffered or advance state if the last error
+           suspended the handshake - advancing frees the saved state */
+        && !IsHsSuspendErr(ssl->error)
     #endif
     ) {
         ret = SendBuffered(ssl);
