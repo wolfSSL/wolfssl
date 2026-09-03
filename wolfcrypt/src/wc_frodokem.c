@@ -1191,9 +1191,6 @@ int wc_FrodoKemKey_Decapsulate(FrodoKemKey* key, unsigned char* ss,
         if (p == NULL) {
             ret = NOT_COMPILED_IN;
         }
-        else if ((key->flags & FRODOKEM_FLAG_PRIV_SET) == 0) {
-            ret = BAD_STATE_E;
-        }
         else if (len != (word32)p->ctSize) {
             ret = BUFFER_E;
         }
@@ -1217,6 +1214,14 @@ int wc_FrodoKemKey_Decapsulate(FrodoKemKey* key, unsigned char* ss,
         }
     }
 #endif
+
+    /* Check for a private key to decapsulate with. Done after dispatch for
+     * cases where the private key lives in a device. */
+    if ((ret == 0) && !cbHandled &&
+            ((key->flags & FRODOKEM_FLAG_PRIV_SET) == 0)) {
+        ret = BAD_STATE_E;
+    }
+
 #ifdef WOLF_CRYPTO_CB_ONLY_FRODOKEM
     if ((ret == 0) && !cbHandled) {
         /* No software fallback: only a crypto callback can service the
