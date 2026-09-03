@@ -3411,6 +3411,14 @@ int  wolfSSL_set_session_secret_cb(WOLFSSL* ssl, SessionSecretCb cb, void* ctx);
     \brief This function persists the session cache to file. It doesn’t use
     memsave because of additional memory use.
 
+    \warning The file holds session master secrets and resumption credentials
+    in the clear. On POSIX systems it is created with mode 0600; on other
+    platforms the permissions are whatever the port’s XFOPEN produces, so the
+    caller must place the file where only the intended user can read it.
+    An existing file is additionally tightened with fchmod, which fails on
+    filesystems without permission bits (FAT); define WOLFSSL_NO_FCHMOD to
+    skip that step on such targets.
+
     \return SSL_SUCCESS returned if the function executed without error.
     The session cache has been written to a file.
     \return SSL_BAD_FILE returned if fname cannot be opened or is otherwise

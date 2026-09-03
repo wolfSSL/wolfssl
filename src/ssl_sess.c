@@ -607,7 +607,7 @@ int wolfSSL_save_session_cache(const char *fname)
 
     WOLFSSL_ENTER("wolfSSL_save_session_cache");
 
-    file = XFOPEN(fname, "w+b");
+    file = wc_fopen_owner_only(fname);
     if (file == XBADFILE) {
         WOLFSSL_MSG("Couldn't open session cache save file");
         return WOLFSSL_BAD_FILE;
