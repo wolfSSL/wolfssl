@@ -1755,16 +1755,19 @@ WOLFSSL_API void wolfSSL_CTX_SetCertCbCtx(WOLFSSL_CTX* ctx, void* userCtx);
  *
  * wolfSSL still owns the parsing. Every certificate is decoded before the
  * callback runs, and malformed DER fails the handshake without the callback
- * ever seeing it. Content wolfSSL does not understand - an unknown critical
- * extension, an unsupported key or signature algorithm - is not a decoding
- * failure; it is passed through for the callback to judge.
+ * ever seeing it. Content wolfSSL does not understand or agree with - an
+ * unknown critical extension, an unsupported key or signature algorithm, a
+ * key usage inconsistent with the basic constraints - is not a decoding
+ * failure; it is passed through for the callback to judge. The only limit on
+ * the chain is the compile-time MAX_CHAIN_DEPTH; the verify depth does not
+ * apply.
  *
  * Two more things still apply. An empty Certificate message is handled by
  * wolfSSL itself (see wolfSSL_CTX_set_verify() and the mutual-auth options)
  * and the callback is not called for it, so certsSz is always at least 1. The
  * minimum peer key sizes set by wolfSSL_CTX_SetMinRsaKey_Sz() and friends are
- * still enforced on the peer's own certificate, because the handshake uses
- * that key directly.
+ * still enforced on the peer's own certificate, even under
+ * WOLFSSL_VERIFY_NONE, because the handshake uses that key directly.
  *
  * Not supported with the callback: DTLS, raw public keys (RFC 7250) and OCSP
  * stapling. Setting the callback on a context or object already configured

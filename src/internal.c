@@ -663,6 +663,110 @@ int IsHsSuspendErr(int err)
     return 0;
 }
 
+#ifdef WOLFSSL_CHAIN_VERIFY_CB
+/* DTLS, raw public keys and OCSP stapling are not supported with the chain
+ * verify callback. Checked when the callback is set, against what the context
+ * or object is configured for, and again when the peer's certificates arrive,
+ * against what was negotiated, so that using them fails as early as
+ * possible. */
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+static int ChainVerifyCbStaplingRequested(TLSX* extensions)
+{
+#if !defined(NO_TLS) && defined(HAVE_CERTIFICATE_STATUS_REQUEST)
+    if (TLSX_Find(extensions, TLSX_STATUS_REQUEST) != NULL)
+        return 1;
+#endif
+#if !defined(NO_TLS) && defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+    if (TLSX_Find(extensions, TLSX_STATUS_REQUEST_V2) != NULL)
+        return 1;
+#endif
+    (void)extensions;
+    return 0;
+}
+#endif
+
+#ifdef HAVE_RPK
+static int ChainVerifyCbRpkConfigured(const RpkConfig* cfg)
+{
+    int i;
+
+    for (i = 0; i < cfg->preferred_ClientCertTypeCnt; i++) {
+        if (cfg->preferred_ClientCertTypes[i] == WOLFSSL_CERT_TYPE_RPK)
+            return 1;
+    }
+    for (i = 0; i < cfg->preferred_ServerCertTypeCnt; i++) {
+        if (cfg->preferred_ServerCertTypes[i] == WOLFSSL_CERT_TYPE_RPK)
+            return 1;
+    }
+    return 0;
+}
+#endif
+
+int ChainVerifyCbCheckCtx(const WOLFSSL_CTX* ctx)
+{
+#ifdef WOLFSSL_DTLS
+    if (ctx->method->version.major == DTLS_MAJOR) {
+        WOLFSSL_MSG("DTLS not supported with chain verify callback");
+        return CHAIN_VERIFY_UNSUPPORTED_E;
+    }
+#endif
+#ifdef HAVE_RPK
+    if (ChainVerifyCbRpkConfigured(&ctx->rpkConfig)) {
+        WOLFSSL_MSG("Raw public key not supported with chain verify callback");
+        return CHAIN_VERIFY_UNSUPPORTED_E;
+    }
+#endif
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+    if ((ctx->method->side != WOLFSSL_SERVER_END) &&
+            (((ctx->cm != NULL) && ctx->cm->ocspMustStaple) ||
+             ChainVerifyCbStaplingRequested(ctx->extensions))) {
+        WOLFSSL_MSG("OCSP stapling not supported with chain verify callback");
+        return CHAIN_VERIFY_UNSUPPORTED_E;
+    }
+#endif
+    (void)ctx;
+    return 0;
+}
+
+int ChainVerifyCbCheckSsl(const WOLFSSL* ssl)
+{
+#ifdef WOLFSSL_DTLS
+    if (ssl->options.dtls) {
+        WOLFSSL_MSG("DTLS not supported with chain verify callback");
+        return CHAIN_VERIFY_UNSUPPORTED_E;
+    }
+#endif
+#ifdef HAVE_RPK
+    if (ChainVerifyCbRpkConfigured(&ssl->options.rpkConfig) ||
+        ((ssl->options.side == WOLFSSL_CLIENT_END) &&
+         (ssl->options.rpkState.received_ServerCertTypeCnt == 1) &&
+         (ssl->options.rpkState.received_ServerCertTypes[0] ==
+                                                    WOLFSSL_CERT_TYPE_RPK)) ||
+        ((ssl->options.side == WOLFSSL_SERVER_END) &&
+         (ssl->options.rpkState.sending_ClientCertTypeCnt == 1) &&
+         (ssl->options.rpkState.sending_ClientCertTypes[0] ==
+                                                    WOLFSSL_CERT_TYPE_RPK))) {
+        WOLFSSL_MSG("Raw public key not supported with chain verify callback");
+        return CHAIN_VERIFY_UNSUPPORTED_E;
+    }
+#endif
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+    if ((ssl->options.side != WOLFSSL_SERVER_END) &&
+            (SSL_CM(ssl)->ocspMustStaple ||
+             ChainVerifyCbStaplingRequested(ssl->extensions) ||
+             ChainVerifyCbStaplingRequested(ssl->ctx->extensions))) {
+        WOLFSSL_MSG("OCSP stapling not supported with chain verify callback");
+        return CHAIN_VERIFY_UNSUPPORTED_E;
+    }
+#endif
+    (void)ssl;
+    return 0;
+}
+#endif /* WOLFSSL_CHAIN_VERIFY_CB */
+
 int IsAtLeastTLSv1_2(const WOLFSSL* ssl)
 {
     if (ssl->version.major == SSLv3_MAJOR && ssl->version.minor >=TLSv1_2_MINOR)
@@ -15973,6 +16077,29 @@ int InitSigPkCb(WOLFSSL* ssl, SignatureCtx* sigCtx)
 #endif /* HAVE_PK_CALLBACKS */
 
 #if !defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)
+
+#ifdef WOLFSSL_CHAIN_VERIFY_CB
+/* The SSL object's callback and user context take precedence over the
+ * context's. */
+static ChainVerifyCb GetChainVerifyCb(const WOLFSSL* ssl)
+{
+    if (ssl->chainVerifyCb != NULL)
+        return ssl->chainVerifyCb;
+    return ssl->ctx->chainVerifyCb;
+}
+
+static void* GetChainVerifyCtx(const WOLFSSL* ssl)
+{
+    if (ssl->chainVerifyCtx != NULL)
+        return ssl->chainVerifyCtx;
+    return ssl->ctx->chainVerifyCtx;
+}
+
+/* Non-zero when the application has replaced chain verification. */
+#define UsingChainVerifyCb(ssl) (GetChainVerifyCb(ssl) != NULL)
+#else
+#define UsingChainVerifyCb(ssl) 0
+#endif /* WOLFSSL_CHAIN_VERIFY_CB */
 void DoCertFatalAlert(WOLFSSL* ssl, int ret)
 {
     int alertWhy;
@@ -17493,7 +17620,8 @@ static int ProcessPeerCertDecodeKey(WOLFSSL* ssl, ProcPeerCertArgs* args,
 
             /* check size of peer RSA key */
             if (ret == 0 && ssl->peerRsaKeyPresent &&
-                              !ssl->options.verifyNone &&
+                              (!ssl->options.verifyNone ||
+                               UsingChainVerifyCb(ssl)) &&
                               wc_RsaEncryptSize(ssl->peerRsaKey)
                                   < ssl->options.minRsaKeySz) {
                 ret = RSA_KEY_SIZE_E;
@@ -17572,7 +17700,8 @@ static int ProcessPeerCertDecodeKey(WOLFSSL* ssl, ProcPeerCertArgs* args,
 
             /* check size of peer ECC key */
             if (ret == 0 && ssl->peerEccDsaKeyPresent &&
-                                  !ssl->options.verifyNone &&
+                                  (!ssl->options.verifyNone ||
+                                   UsingChainVerifyCb(ssl)) &&
                                   wc_ecc_size(ssl->peerEccDsaKey)
                                   < ssl->options.minEccKeySz) {
                 ret = ECC_KEY_SIZE_E;
@@ -17632,7 +17761,7 @@ static int ProcessPeerCertDecodeKey(WOLFSSL* ssl, ProcPeerCertArgs* args,
 
             /* check size of peer ECC key */
             if (ret == 0 && ssl->peerEd25519KeyPresent &&
-                      !ssl->options.verifyNone &&
+                      (!ssl->options.verifyNone || UsingChainVerifyCb(ssl)) &&
                       ED25519_KEY_SIZE < ssl->options.minEccKeySz) {
                 ret = ECC_KEY_SIZE_E;
                 WOLFSSL_ERROR_VERBOSE(ret);
@@ -17690,7 +17819,7 @@ static int ProcessPeerCertDecodeKey(WOLFSSL* ssl, ProcPeerCertArgs* args,
 
             /* check size of peer ECC key */
             if (ret == 0 && ssl->peerEd448KeyPresent &&
-                   !ssl->options.verifyNone &&
+                   (!ssl->options.verifyNone || UsingChainVerifyCb(ssl)) &&
                    ED448_KEY_SIZE < ssl->options.minEccKeySz) {
                 ret = ECC_KEY_SIZE_E;
                 WOLFSSL_ERROR_VERBOSE(ret);
@@ -17743,7 +17872,8 @@ static int ProcessPeerCertDecodeKey(WOLFSSL* ssl, ProcPeerCertArgs* args,
 
             /* check size of peer Falcon key */
             if (ret == 0 && ssl->peerFalconKeyPresent &&
-                   !ssl->options.verifyNone &&
+                   (!ssl->options.verifyNone ||
+                    UsingChainVerifyCb(ssl)) &&
                    FALCON_MAX_KEY_SIZE <
                    ssl->options.minFalconKeySz) {
                 ret = FALCON_KEY_SIZE_E;
@@ -17817,7 +17947,8 @@ static int ProcessPeerCertDecodeKey(WOLFSSL* ssl, ProcPeerCertArgs* args,
 
             /* check size of peer Dilithium key */
             if (ret == 0 && ssl->peerMlDsaKeyPresent &&
-                   !ssl->options.verifyNone &&
+                   (!ssl->options.verifyNone ||
+                    UsingChainVerifyCb(ssl)) &&
                    MLDSA_MAX_KEY_SIZE <
                    ssl->options.minMlDsaKeySz) {
                 ret = MLDSA_KEY_SIZE_E;
@@ -17924,137 +18055,17 @@ static int RpkIsTrusted(WOLFSSL* ssl, const byte* spki, word32 spkiSz)
 #endif /* HAVE_RPK */
 
 #ifdef WOLFSSL_CHAIN_VERIFY_CB
-/* The SSL object's callback and user context take precedence over the
- * context's. */
-static ChainVerifyCb GetChainVerifyCb(const WOLFSSL* ssl)
-{
-    if (ssl->chainVerifyCb != NULL)
-        return ssl->chainVerifyCb;
-    return ssl->ctx->chainVerifyCb;
-}
-
-static void* GetChainVerifyCtx(const WOLFSSL* ssl)
-{
-    if (ssl->chainVerifyCtx != NULL)
-        return ssl->chainVerifyCtx;
-    return ssl->ctx->chainVerifyCtx;
-}
-
-/* Non-zero when the application has replaced chain verification. */
-#define UsingChainVerifyCb(ssl) (GetChainVerifyCb(ssl) != NULL)
-
-/* DTLS, raw public keys and OCSP stapling are not supported with the chain
- * verify callback. Checked when the callback is set, against what the context
- * or object is configured for, and again when the peer's certificates arrive,
- * against what was negotiated, so that using them fails as early as
- * possible. */
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
-    defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
-static int ChainVerifyCbStaplingRequested(TLSX* extensions)
-{
-#if !defined(NO_TLS) && defined(HAVE_CERTIFICATE_STATUS_REQUEST)
-    if (TLSX_Find(extensions, TLSX_STATUS_REQUEST) != NULL)
-        return 1;
-#endif
-#if !defined(NO_TLS) && defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
-    if (TLSX_Find(extensions, TLSX_STATUS_REQUEST_V2) != NULL)
-        return 1;
-#endif
-    (void)extensions;
-    return 0;
-}
-#endif
-
-#ifdef HAVE_RPK
-static int ChainVerifyCbRpkConfigured(const RpkConfig* cfg)
-{
-    int i;
-
-    for (i = 0; i < cfg->preferred_ClientCertTypeCnt; i++) {
-        if (cfg->preferred_ClientCertTypes[i] == WOLFSSL_CERT_TYPE_RPK)
-            return 1;
-    }
-    for (i = 0; i < cfg->preferred_ServerCertTypeCnt; i++) {
-        if (cfg->preferred_ServerCertTypes[i] == WOLFSSL_CERT_TYPE_RPK)
-            return 1;
-    }
-    return 0;
-}
-#endif
-
-int ChainVerifyCbCheckCtx(const WOLFSSL_CTX* ctx)
-{
-#ifdef WOLFSSL_DTLS
-    if (ctx->method->version.major == DTLS_MAJOR) {
-        WOLFSSL_MSG("DTLS not supported with chain verify callback");
-        return CHAIN_VERIFY_UNSUPPORTED_E;
-    }
-#endif
-#ifdef HAVE_RPK
-    if (ChainVerifyCbRpkConfigured(&ctx->rpkConfig)) {
-        WOLFSSL_MSG("Raw public key not supported with chain verify callback");
-        return CHAIN_VERIFY_UNSUPPORTED_E;
-    }
-#endif
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
-    defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
-    if ((ctx->method->side != WOLFSSL_SERVER_END) &&
-            (((ctx->cm != NULL) && ctx->cm->ocspMustStaple) ||
-             ChainVerifyCbStaplingRequested(ctx->extensions))) {
-        WOLFSSL_MSG("OCSP stapling not supported with chain verify callback");
-        return CHAIN_VERIFY_UNSUPPORTED_E;
-    }
-#endif
-    (void)ctx;
-    return 0;
-}
-
-int ChainVerifyCbCheckSsl(const WOLFSSL* ssl)
-{
-#ifdef WOLFSSL_DTLS
-    if (ssl->options.dtls) {
-        WOLFSSL_MSG("DTLS not supported with chain verify callback");
-        return CHAIN_VERIFY_UNSUPPORTED_E;
-    }
-#endif
-#ifdef HAVE_RPK
-    if (ChainVerifyCbRpkConfigured(&ssl->options.rpkConfig) ||
-        ((ssl->options.side == WOLFSSL_CLIENT_END) &&
-         (ssl->options.rpkState.received_ServerCertTypeCnt == 1) &&
-         (ssl->options.rpkState.received_ServerCertTypes[0] ==
-                                                    WOLFSSL_CERT_TYPE_RPK)) ||
-        ((ssl->options.side == WOLFSSL_SERVER_END) &&
-         (ssl->options.rpkState.sending_ClientCertTypeCnt == 1) &&
-         (ssl->options.rpkState.sending_ClientCertTypes[0] ==
-                                                    WOLFSSL_CERT_TYPE_RPK))) {
-        WOLFSSL_MSG("Raw public key not supported with chain verify callback");
-        return CHAIN_VERIFY_UNSUPPORTED_E;
-    }
-#endif
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
-    defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
-    if ((ssl->options.side != WOLFSSL_SERVER_END) &&
-            (SSL_CM(ssl)->ocspMustStaple ||
-             ChainVerifyCbStaplingRequested(ssl->extensions) ||
-             ChainVerifyCbStaplingRequested(ssl->ctx->extensions))) {
-        WOLFSSL_MSG("OCSP stapling not supported with chain verify callback");
-        return CHAIN_VERIFY_UNSUPPORTED_E;
-    }
-#endif
-    (void)ssl;
-    return 0;
-}
-
 /* Errors from ParseCert(NO_VERIFY) that report content wolfSSL does not
- * understand rather than malformed DER: an unknown critical extension, an
- * unsupported key or signature algorithm, or mismatched signature algorithm
- * identifiers. The certificate decoded; judging its content is the chain
- * verify callback's job. */
+ * understand or agree with rather than malformed DER: an unknown critical
+ * extension, an unsupported key or signature algorithm, mismatched signature
+ * algorithm identifiers, or keyCertSign asserted by a non-CA. The certificate
+ * decoded; judging its content is the chain verify callback's job. */
 static int IsCertContentErr(int err)
 {
     return (err == WC_NO_ERR_TRACE(ASN_CRIT_EXT_E)) ||
            (err == WC_NO_ERR_TRACE(ASN_SIG_OID_E)) ||
-           (err == WC_NO_ERR_TRACE(ASN_UNKNOWN_OID_E));
+           (err == WC_NO_ERR_TRACE(ASN_UNKNOWN_OID_E)) ||
+           (err == WC_NO_ERR_TRACE(KEYUSAGE_E));
 }
 
 /* Decode every certificate the peer sent, verifying nothing. The chain verify
@@ -18142,8 +18153,6 @@ static int DoChainVerifyCb(WOLFSSL* ssl, ProcPeerCertArgs* args)
     WOLFSSL_ERROR_VERBOSE(CHAIN_VERIFY_CB_E);
     return CHAIN_VERIFY_CB_E;
 }
-#else
-#define UsingChainVerifyCb(ssl) 0
 #endif /* WOLFSSL_CHAIN_VERIFY_CB */
 
 int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
@@ -18326,7 +18335,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             * can hold */
                 }
             #else
-                if (args->totalCerts >= ssl->verifyDepth ||
+                /* The verify depth is chain-building policy, which the chain
+                 * verify callback owns; MAX_CHAIN_DEPTH is the buffer. */
+                if ((!UsingChainVerifyCb(ssl) &&
+                     args->totalCerts >= ssl->verifyDepth) ||
                         args->totalCerts >= MAX_CHAIN_DEPTH) {
                     WOLFSSL_ERROR_VERBOSE(MAX_CHAIN_ERROR);
                     ERROR_OUT(MAX_CHAIN_ERROR, exit_ppc);
@@ -18956,6 +18968,13 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         }
                     }
 #endif
+            #ifdef WOLFSSL_CHAIN_VERIFY_CB
+                /* The callback accepted this certificate, content wolfSSL
+                 * would object to included. Only what the handshake needs
+                 * from it - the key - can still fail below. */
+                if (UsingChainVerifyCb(ssl) && IsCertContentErr(ret))
+                    ret = 0;
+            #endif
             #ifdef WOLFSSL_ASYNC_CRYPT
                 if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
                     goto exit_ppc;

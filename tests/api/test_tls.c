@@ -3834,6 +3834,44 @@ int test_tls13_chain_verify_cb_postauth(void)
     return EXPECT_RESULT();
 }
 
+int test_chain_verify_cb_min_key(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CHAIN_VERIFY_CB_TESTS) && !defined(NO_RSA) && \
+    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_TLS13))
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    test_chain_verify_cb_ctx cbCtx;
+#ifndef WOLFSSL_NO_TLS12
+    method_provider client_method = wolfTLSv1_2_client_method;
+    method_provider server_method = wolfTLSv1_2_server_method;
+#else
+    method_provider client_method = wolfTLSv1_3_client_method;
+    method_provider server_method = wolfTLSv1_3_server_method;
+#endif
+
+    /* The callback accepts, but the handshake uses the server's key directly,
+     * so the minimum key size still applies - even with verification turned
+     * off, which is not the callback's concern. */
+    XMEMSET(&cbCtx, 0, sizeof(cbCtx));
+    ExpectIntEQ(test_chain_verify_cb_run(&cbCtx, TEST_CVC_CLIENT,
+        client_method, server_method, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        &test_ctx), TEST_SUCCESS);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+    ExpectIntEQ(wolfSSL_SetMinRsaKey_Sz(ssl_c, 4096), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(RSA_KEY_SIZE_E));
+    ExpectIntEQ(cbCtx.calls, 1);
+
+    test_chain_verify_cb_free(&ctx_c, &ctx_s, &ssl_c, &ssl_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_chain_verify_cb_dtls(void)
 {
     EXPECT_DECLS;
