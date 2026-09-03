@@ -35,6 +35,9 @@ int test_wolfssl_local_MatchUriNameConstraint(void);
 int test_wc_DecodeRsaPssParams(void);
 int test_SerialNumber0_RootCA(void);
 int test_DecodeAltNames_length_underflow(void);
+int test_DecodeOtherName_bundleEID(void);
+int test_DecodeOtherName_typeMismatch(void);
+int test_DecodeOtherName_hwModuleName(void);
 int test_DecodeCertExtensions_dup_certpol(void);
 int test_DecodeCertExtensions_empty_certpol(void);
 int test_DecodeCertExtensions_certpol_trailing_junk(void);
@@ -63,6 +66,9 @@ int test_wc_AsnFeatureCoverage(void);
     TEST_DECL_GROUP("asn", test_wc_DecodeRsaPssParams),             \
     TEST_DECL_GROUP("asn", test_SerialNumber0_RootCA),              \
     TEST_DECL_GROUP("asn", test_DecodeAltNames_length_underflow),   \
+    TEST_DECL_GROUP("asn", test_DecodeOtherName_bundleEID),         \
+    TEST_DECL_GROUP("asn", test_DecodeOtherName_typeMismatch),      \
+    TEST_DECL_GROUP("asn", test_DecodeOtherName_hwModuleName),      \
     TEST_DECL_GROUP("asn", test_DecodeCertExtensions_dup_certpol),  \
     TEST_DECL_GROUP("asn", test_DecodeCertExtensions_empty_certpol), \
     TEST_DECL_GROUP("asn", test_DecodeCertExtensions_certpol_trailing_junk), \

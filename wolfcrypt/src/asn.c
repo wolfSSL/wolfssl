@@ -119,6 +119,8 @@ ASN Options:
  * WOLFSSL_ALLOW_AKID_SKID_MATCH: By default cert issuer is found using hash
  * of cert subject hash with signers subject hash. This option allows fallback
  * to using AKID and SKID matching.
+ * WOLFSSL_DTN: Enables Delay-Tolerant Networking (RFC 9174) support.
+ * Currently this enables id-on-bundleEID in otherName.
  *
  * Certificate Generation/Parsing:
  * WOLFSSL_CERT_REQ:         Enable certificate request (CSR) support
@@ -5683,6 +5685,9 @@ static const byte extCertPolicyIsrgDomainValid[] =
 
 /* certAltNameType */
 static const byte extAltNamesHwNameOid[] = {43, 6, 1, 5, 5, 7, 8, 4};
+#ifdef WOLFSSL_DTN
+static const byte extAltNamesBundleEidOid[] = {43, 6, 1, 5, 5, 7, 8, 11};
+#endif
 
 /* certKeyUseType */
 static const byte extExtKeyUsageAnyOid[] = {85, 29, 37, 0};
@@ -7092,6 +7097,12 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     oid = extAltNamesHwNameOid;
                     *oidSz = sizeof(extAltNamesHwNameOid);
                     break;
+            #ifdef WOLFSSL_DTN
+                case BUNDLE_EID_OID:
+                    oid = extAltNamesBundleEidOid;
+                    *oidSz = sizeof(extAltNamesBundleEidOid);
+                    break;
+            #endif
                 default:
                     break;
             }
@@ -20171,7 +20182,7 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
 #endif /* IGNORE_NAME_CONSTRAINTS */
 
 #ifdef WOLFSSL_ASN_TEMPLATE
-#if defined(WOLFSSL_SEP) || defined(WOLFSSL_FPKI)
+#if defined(WOLFSSL_SEP) || defined(WOLFSSL_FPKI) || defined(WOLFSSL_DTN)
 /* ASN.1 template for OtherName of an X.509 certificate.
  * X.509: RFC 5280, 4.2.1.6 - OtherName (without implicit outer SEQUENCE).
  * HW Name: RFC 4108, 5 - Hardware Module Name
@@ -20182,12 +20193,21 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
  *  (RFC3280 sec 4.2.1.7). Often used with FIPS 201 smartcard login.
  * FASC-N (Federal Agency Smart Credential Number), defined in the document
  *  fpki-x509-cert-policy-common.pdf. Used for a smart card ID.
+ *
+ * id-on-bundleEID (RFC 9174, sec 4.4.1), an Other Name whose value is an
+ *  IA5String holding a Bundle Protocol node/endpoint ID (e.g. "dtn://node/").
+ *  Only decoded as such when WOLFSSL_DTN is defined as these OIDs are
+ *  specific to Delay-Tolerant Networking (DTN) / the Bundle Protocol.
+ *
+ * The IA5String value type is always accepted: a UPN may be encoded with it
+ * (see DecodeOtherHelper), matching the original ASN.1 parser.
  */
 static const ASNItem otherNameASN[] = {
 /* TYPEID   */ { 0, ASN_OBJECT_ID, 0, 0, 0 },
 /* VALUE    */ { 0, ASN_CONTEXT_SPECIFIC | ASN_OTHERNAME_VALUE, 1, 1, 0 },
 /* UPN      */     { 1, ASN_UTF8STRING, 0, 0, 2 },
 /* FASC-N   */     { 1, ASN_OCTET_STRING, 0, 0, 2 },
+/* IA5      */     { 1, ASN_IA5_STRING, 0, 0, 2 },
 /* HWN_SEQ  */     { 1, ASN_SEQUENCE, 1, 0, 2 },
 /* HWN_TYPE */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
 /* HWN_NUM  */         { 2, ASN_OCTET_STRING, 0, 0, 0 }
@@ -20197,6 +20217,7 @@ enum {
     OTHERNAMEASN_IDX_VALUE,
     OTHERNAMEASN_IDX_UPN,
     OTHERNAMEASN_IDX_FASCN,
+    OTHERNAMEASN_IDX_IA5,
     OTHERNAMEASN_IDX_HWN_SEQ,
     OTHERNAMEASN_IDX_HWN_TYPE,
     OTHERNAMEASN_IDX_HWN_NUM
@@ -20214,12 +20235,19 @@ static int DecodeSEP(ASNGetData* dataASN, DecodedCert* cert)
     oidLen = dataASN[OTHERNAMEASN_IDX_HWN_TYPE].data.oid.length;
     serialLen = dataASN[OTHERNAMEASN_IDX_HWN_NUM].data.ref.length;
 
-    /* Allocate space for HW type OID. */
-    cert->hwType = (byte*)XMALLOC(oidLen, cert->heap,
-                                  DYNAMIC_TYPE_X509_EXT);
-    if (cert->hwType == NULL)
-        ret = MEMORY_E;
+    /* The value parsed must have been the HW module SEQUENCE. */
+    if (dataASN[OTHERNAMEASN_IDX_HWN_SEQ].data.ref.data == NULL) {
+        WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
+        ret = ASN_PARSE_E;
+    }
 
+    if (ret == 0) {
+        /* Allocate space for HW type OID. */
+        cert->hwType = (byte*)XMALLOC(oidLen, cert->heap,
+                                      DYNAMIC_TYPE_X509_EXT);
+        if (cert->hwType == NULL)
+            ret = MEMORY_E;
+    }
     if (ret == 0) {
         /* Copy, into cert HW type OID */
         XMEMCPY(cert->hwType,
@@ -20263,18 +20291,37 @@ static int DecodeOtherHelper(ASNGetData* dataASN, DecodedCert* cert, int oid)
         case UPN_OID:
             bufLen = dataASN[OTHERNAMEASN_IDX_UPN].data.ref.length;
             buf    = (const char*)dataASN[OTHERNAMEASN_IDX_UPN].data.ref.data;
+            if (buf == NULL) {
+                /* A UPN may also be an IA5String. */
+                bufLen = dataASN[OTHERNAMEASN_IDX_IA5].data.ref.length;
+                buf    = (const char*)
+                         dataASN[OTHERNAMEASN_IDX_IA5].data.ref.data;
+            }
             break;
+#ifdef WOLFSSL_DTN
+        case BUNDLE_EID_OID:
+            /* id-on-bundleEID (RFC 9174) carries an IA5String value. */
+            bufLen = dataASN[OTHERNAMEASN_IDX_IA5].data.ref.length;
+            buf    = (const char*)dataASN[OTHERNAMEASN_IDX_IA5].data.ref.data;
+            break;
+#endif /* WOLFSSL_DTN */
         default:
             WOLFSSL_ERROR_VERBOSE(ASN_UNKNOWN_OID_E);
             ret = ASN_UNKNOWN_OID_E;
             break;
     }
 
+    /* The CHOICE alternative parsed must be the one the type-id calls for. */
+    if ((ret == 0) && (buf == NULL)) {
+        WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
+        ret = ASN_PARSE_E;
+    }
+
     if (ret == 0) {
         ret = SetDNSEntry(cert->heap, WC_DNS_POOL(cert), buf, (int)bufLen,
                           ASN_OTHER_TYPE, &entry);
         if (ret == 0) {
-        #ifdef WOLFSSL_FPKI
+        #if defined(WOLFSSL_FPKI) || defined(WOLFSSL_DTN)
             entry->oidSum = oid;
         #endif
             AddDNSEntryToList(&cert->altNames, entry);
@@ -20328,6 +20375,9 @@ static int DecodeOtherName(DecodedCert* cert, const byte* input,
         #ifdef WOLFSSL_FPKI
             case FASCN_OID:
         #endif /* WOLFSSL_FPKI */
+        #ifdef WOLFSSL_DTN
+            case BUNDLE_EID_OID:
+        #endif /* WOLFSSL_DTN */
             case UPN_OID:
                 ret = DecodeOtherHelper(dataASN, cert,
                            (int)dataASN[OTHERNAMEASN_IDX_TYPEID].data.oid.sum);
@@ -20343,7 +20393,7 @@ static int DecodeOtherName(DecodedCert* cert, const byte* input,
     FREE_ASNGETDATA(dataASN, cert->heap);
     return ret;
 }
-#endif /* WOLFSSL_SEP || WOLFSSL_FPKI */
+#endif /* WOLFSSL_SEP || WOLFSSL_FPKI || WOLFSSL_DTN */
 
 /* Decode a GeneralName.
  *
@@ -20548,9 +20598,10 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
         if (ret != 0) {
             return ret;
         }
-    #if defined(WOLFSSL_SEP) || defined(WOLFSSL_FPKI)
-        /* FPKI/SEP also OID-decode the otherName into a separate altNames
-         * entry that holds the parsed UPN/FASCN value (with oidSum != 0).
+    #if defined(WOLFSSL_SEP) || defined(WOLFSSL_FPKI) || defined(WOLFSSL_DTN)
+        /* FPKI/SEP/DTN also OID-decode the otherName into a separate altNames
+         * entry that holds the parsed UPN/FASCN/bundleEID value (with
+         * oidSum != 0).
          * That parsed entry is consumed by wc_GetUUIDFromCert /
          * wc_GetFASCNFromCert; ConfirmNameConstraints() does not look at
          * it - it iterates altOtherNamesRaw instead. */
@@ -20559,10 +20610,11 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
         idx += (word32)len;
     #endif
     }
-#elif defined(WOLFSSL_SEP) || defined(WOLFSSL_FPKI)
+#elif defined(WOLFSSL_SEP) || defined(WOLFSSL_FPKI) || defined(WOLFSSL_DTN)
     /* No name constraints support in the build, but FPKI/SEP still need
      * the parsed otherName entry for wc_GetUUIDFromCert /
-     * wc_GetFASCNFromCert. */
+     * wc_GetFASCNFromCert, and DTN needs the parsed bundleEID entry in
+     * cert->altNames. */
     else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_OTHER_TYPE)) {
         ret = DecodeOtherName(cert, input, &idx, len);
     }

@@ -14710,6 +14710,14 @@ int CheckForAltNames(DecodedCert* dCert, const char* domain, word32 domainLen,
             continue;
         }
 
+        /* RFC 9525 Sec. 6.3: a DNS-ID is matched only against dNSName
+         * entries. An otherName holds a type-specific identifier (UPN,
+         * FASC-N, bundleEID, ...), not a host name. */
+        if (altName->type == ASN_OTHER_TYPE) {
+            WOLFSSL_MSG("\tAltName is otherName, skipping for hostname");
+            continue;
+        }
+
         /* RFC 9525 Sec. 6.3: a DNS-ID reference identifier is matched only
          * against dNSName SAN entries, never uniformResourceIdentifier
          * (even when the URI value resembles a ostname). URI-ID matching
