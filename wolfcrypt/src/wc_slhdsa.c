@@ -28,7 +28,20 @@
 
 #ifdef WOLFSSL_HAVE_SLHDSA
 
+#if FIPS_VERSION3_GE(7,0,0) && defined(WOLFSSL_SLHDSA_VERIFY_ONLY)
+    #error "SLH-DSA signing is required for the v7 FIPS module"
+#endif
+
 #include <wolfssl/wolfcrypt/asn.h>
+
+#if FIPS_VERSION3_GE(7,0,0)
+    const unsigned int wolfCrypt_FIPS_slhdsa_ro_sanity[2] =
+                                                     { 0x1a2b3c4d, 0x00000021 };
+    int wolfCrypt_FIPS_SLHDSA_sanity(void)
+    {
+        return 0;
+    }
+#endif
 #include <wolfssl/wolfcrypt/cpuid.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/memory.h>
@@ -7070,6 +7083,8 @@ int wc_SlhDsaKey_MakeKey(SlhDsaKey* key, WC_RNG* rng)
  * @return  BAD_FUNC_ARG when pk_seed is NULL or length is not n.
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  SHAKE-256 error return code on digest failure.
+ * @return  SLH_DSA_PCT_E when the key pair fails its consistency test.  The
+ *          key is freed in that case and must be re-initialised before reuse.
  */
 int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key, const byte* sk_seed,
     word32 sk_seed_len, const byte* sk_prf, word32 sk_prf_len,
@@ -7126,6 +7141,53 @@ int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key, const byte* sk_seed,
             key->flags = WC_SLHDSA_FLAG_BOTH_KEYS;
         }
     }
+
+/* ML-KEM, ML-DSA, SLH-DSA, LMS and XMSS were never FIPS approved before the v7
+ * module, so this test stays gated on v7 and must never be widened to plain
+ * HAVE_FIPS.  WOLFSSL_VALIDATE_SLHDSA_KEYGEN opts a non-FIPS build in, off by
+ * default. */
+#if FIPS_VERSION3_GE(7,0,0) || defined(WOLFSSL_VALIDATE_SLHDSA_KEYGEN)
+    /* Test every new key pair.  ISO/IEC 19790:2012 sec 7.10.3.3.  Here
+     * because every generation path reaches this function.
+     *
+     * PK.SEED is the check FIPS 140-3 IG 10.3.A Additional Comment 1 names,
+     * but it always passes here: the public key is a slice of the private
+     * one.  So the root recompute does the real work, at a tenth the cost of
+     * signing and verifying. */
+    if (ret == 0) {
+        byte        n = key->params->n;
+        byte        pct_root[SLHDSA_MAX_N];
+        byte        pct_pub[2 * SLHDSA_MAX_N];
+        word32      pct_pubLen = (word32)(n * 2);
+        HashAddress pct_adrs;
+
+        /* The key identifier the IG names. */
+        ret = wc_SlhDsaKey_ExportPublic(key, pct_pub, &pct_pubLen);
+        if ((ret == 0) && (XMEMCMP(pct_pub, key->sk + 2 * n, n) != 0)) {
+            ret = SLH_DSA_PCT_E;
+        }
+
+        /* The public root, recomputed from the private seed. */
+        if (ret == 0) {
+            HA_Init(pct_adrs);
+            HA_SetLayerAddress(pct_adrs, key->params->d - 1);
+            ret = slhdsakey_xmss_node(key, key->sk, 0, key->params->h_m,
+                    key->sk + 2 * n, pct_adrs, pct_root);
+            if ((ret == 0) && (XMEMCMP(pct_root, key->sk + 3 * n, n) != 0)) {
+                ret = SLH_DSA_PCT_E;
+            }
+            ForceZero(pct_root, sizeof(pct_root));
+        }
+
+        /* Free a key that failed the test, so a caller ignoring the return
+         * value cannot sign with it.  ISO/IEC 19790:2012 sec 7.10.1 forbids using
+         * anything that failed a self-test.  MEMORY_E is excluded: it
+         * means the test never ran, so the key is not implicated. */
+        if ((ret != 0) && (ret != WC_NO_ERR_TRACE(MEMORY_E))) {
+            wc_SlhDsaKey_Free(key);
+        }
+    }
+#endif /* FIPS v7 or WOLFSSL_VALIDATE_SLHDSA_KEYGEN */
 
     return ret;
 }
@@ -8778,17 +8840,22 @@ int wc_SlhDsaKey_CheckKey(SlhDsaKey* key)
         ret = MISSING_KEY;
     }
     if (ret == 0) {
-        byte root[SLHDSA_MAX_N];
-        byte n = key->params->n;
+        byte        n = key->params->n;
+        byte        root[SLHDSA_MAX_N];
+        HashAddress adrs;
 
-        /* Cache the public key root as making the key overwrites. */
-        XMEMCPY(root, key->sk + 3 * n, n);
-        ret = wc_SlhDsaKey_MakeKeyWithRandom(key, key->sk, n, key->sk + n, n,
-                key->sk + 2 * n, n);
-        /* Compare computed root with what was cached. */
+        /* Recompute the public root from the private seed and compare.
+         * Done directly rather than by regenerating the key: regeneration
+         * overwrites the key being checked, and its key-pair test frees the
+         * key on failure, which a validation call must never do. */
+        HA_Init(adrs);
+        HA_SetLayerAddress(adrs, key->params->d - 1);
+        ret = slhdsakey_xmss_node(key, key->sk, 0, key->params->h_m,
+                key->sk + 2 * n, adrs, root);
         if ((ret == 0) && (XMEMCMP(root, key->sk + 3 * n, n) != 0)) {
             ret = WC_KEY_MISMATCH_E;
         }
+        ForceZero(root, sizeof(root));
     }
 
     return ret;

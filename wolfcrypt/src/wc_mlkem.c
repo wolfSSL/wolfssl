@@ -120,6 +120,15 @@
 
 #ifdef WOLFSSL_HAVE_MLKEM
 
+#if FIPS_VERSION3_GE(7,0,0)
+    const unsigned int wolfCrypt_FIPS_mlkem_ro_sanity[2] =
+                                                     { 0x1a2b3c4d, 0x00000019 };
+    int wolfCrypt_FIPS_MLKEM_sanity(void)
+    {
+        return 0;
+    }
+#endif
+
 #ifdef DEBUG_MLKEM
 void print_polys(const char* name, const sword16* a, int d1, int d2);
 void print_polys(const char* name, const sword16* a, int d1, int d2)
@@ -707,61 +716,10 @@ int wc_MlKemKey_MakeKey(MlKemKey* key, WC_RNG* rng)
         ret = wc_MlKemKey_MakeKeyWithRandom(key, rand, sizeof(rand));
     }
 
-#ifdef HAVE_FIPS
-    /* Pairwise Consistency Test (PCT) per FIPS 140-3 / ISO 19790:2012
-     * Section 7.10.3.3: encapsulate with ek, decapsulate with dk,
-     * verify shared secrets match. */
-    if (ret == 0) {
-        WC_DECLARE_VAR(pct_ct, byte, WC_ML_KEM_MAX_CIPHER_TEXT_SIZE,
-            key->heap);
-        byte pct_ss1[WC_ML_KEM_SS_SZ];
-        byte pct_ss2[WC_ML_KEM_SS_SZ];
-        word32 ctSz = 0;
-
-        WC_ALLOC_VAR_EX(pct_ct, byte, WC_ML_KEM_MAX_CIPHER_TEXT_SIZE,
-            key->heap, DYNAMIC_TYPE_TMP_BUFFER, ret = MEMORY_E);
-
-        /* pct_ss1/pct_ss2 hold the PCT shared secrets; baseline-zero and
-         * register up front (single-exit block). */
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-        XMEMSET(pct_ss1, 0, sizeof(pct_ss1));
-        XMEMSET(pct_ss2, 0, sizeof(pct_ss2));
-        wc_MemZero_Add("mlkem pct ss1", pct_ss1, sizeof(pct_ss1));
-        wc_MemZero_Add("mlkem pct ss2", pct_ss2, sizeof(pct_ss2));
-#endif
-        if (ret == 0)
-            ret = wc_MlKemKey_CipherTextSize(key, &ctSz);
-
-        if (ret == 0)
-            ret = wc_MlKemKey_Encapsulate(key, pct_ct, pct_ss1, rng);
-
-        if (ret == 0)
-            ret = wc_MlKemKey_Decapsulate(key, pct_ss2, pct_ct, ctSz);
-
-        if (ret == 0) {
-            if (XMEMCMP(pct_ss1, pct_ss2, WC_ML_KEM_SS_SZ) != 0)
-                ret = ML_KEM_PCT_E;
-        }
-
-        ForceZero(pct_ss1, sizeof(pct_ss1));
-        ForceZero(pct_ss2, sizeof(pct_ss2));
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-        wc_MemZero_Check(pct_ss1, sizeof(pct_ss1));
-        wc_MemZero_Check(pct_ss2, sizeof(pct_ss2));
-#endif
-        if (WC_VAR_OK(pct_ct))
-            ForceZero(pct_ct, WC_ML_KEM_MAX_CIPHER_TEXT_SIZE);
-
-        WC_FREE_VAR_EX(pct_ct, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-
-        /* FIPS 140-3 IG 10.3.A (TE10.35.02): a key pair that fails the PCT
-         * must be rendered unusable.  Zeroize the generated key material so
-         * a caller that ignores the return value cannot use it. */
-        if (ret != 0) {
-            wc_MlKemKey_Free(key);
-        }
-    }
-#endif /* HAVE_FIPS */
+    /* No key-pair test here: wc_MlKemKey_MakeKeyWithRandom(), called above,
+     * already runs it on every generation path.  Guarded on the version, not
+     * HAVE_FIPS: src/include.am only compiles this file under
+     * BUILD_FIPS_V7_PLUS, so the two are equivalent here. */
 
     /* Ensure seeds are zeroized. */
     ForceZero((void*)rand, (word32)sizeof(rand));
@@ -808,6 +766,8 @@ int wc_MlKemKey_MakeKey(MlKemKey* key, WC_RNG* rng)
  * @return  NOT_COMPILED_IN when key type is not supported.
  * @return  MEMORY_E when dynamic memory allocation failed.
  * @return  BAD_COND_E when fault attack detected.
+ * @return  ML_KEM_PCT_E when the key pair fails its consistency test.  The
+ *          key is freed in that case and must be re-initialised before reuse.
  */
 int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
     int len)
@@ -1042,8 +1002,92 @@ int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
 #endif
 #endif
 
-    /* Note: PCT is performed in wc_MlKemKey_MakeKey() which calls this
-     * function and has the RNG parameter needed for encapsulation. */
+/* ML-KEM, ML-DSA, SLH-DSA, LMS and XMSS were never FIPS approved before the v7
+ * module, so this test stays gated on v7 and must never be widened to plain
+ * HAVE_FIPS.  WOLFSSL_VALIDATE_MLKEM_KEYGEN opts a non-FIPS build in, off by
+ * default. */
+#if FIPS_VERSION3_GE(7,0,0) || defined(WOLFSSL_VALIDATE_MLKEM_KEYGEN)
+#if defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
+    #error "ML-KEM key generation needs encapsulate and decapsulate for the \
+key-pair test required by ISO/IEC 19790:2012 sec 7.10.3.3"
+#endif
+    /* Test every new key pair: encapsulate with it, decapsulate with it, and
+     * check the shared secrets match.  ISO/IEC 19790:2012 sec 7.10.3.3;
+     * FIPS 140-3 IG 10.3.A Additional Comment 1 spells this test out for
+     * FIPS 203.  Fixed `m` because this path takes no RNG, and a self-test
+     * needs a working round trip, not an unpredictable one. */
+    if (ret == 0) {
+        WC_DECLARE_VAR(pct_ct, byte, WC_ML_KEM_MAX_CIPHER_TEXT_SIZE,
+            key->heap);
+        byte pct_ss1[WC_ML_KEM_SS_SZ];
+        byte pct_ss2[WC_ML_KEM_SS_SZ];
+        word32 pct_ctSz = 0;
+        /* Fixed test pattern for the FIPS 203 Alg 17 `m` input; the value is
+         * arbitrary - a PCT roundtrip does not require unpredictability. */
+        static const byte pct_m[WC_ML_KEM_ENC_RAND_SZ] = {
+            0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB,
+            0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB,
+            0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB,
+            0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB
+        };
+
+        WC_ALLOC_VAR_EX(pct_ct, byte, WC_ML_KEM_MAX_CIPHER_TEXT_SIZE,
+            key->heap, DYNAMIC_TYPE_TMP_BUFFER, ret = MEMORY_E);
+
+        /* Zero and register the shared secrets up front so the leak checker
+         * covers them for the whole block. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        XMEMSET(pct_ss1, 0, sizeof(pct_ss1));
+        XMEMSET(pct_ss2, 0, sizeof(pct_ss2));
+        wc_MemZero_Add("mlkem pct ss1", pct_ss1, sizeof(pct_ss1));
+        wc_MemZero_Add("mlkem pct ss2", pct_ss2, sizeof(pct_ss2));
+        /* Register the ciphertext too, so an early exit added later between
+         * here and the ForceZero below is caught the same way. */
+        if (WC_VAR_OK(pct_ct))
+            wc_MemZero_Add("mlkem pct ct", pct_ct,
+                WC_ML_KEM_MAX_CIPHER_TEXT_SIZE);
+#endif
+        if (ret == 0)
+            ret = wc_MlKemKey_CipherTextSize(key, &pct_ctSz);
+
+        if (ret == 0)
+            ret = wc_MlKemKey_EncapsulateWithRandom(key, pct_ct, pct_ss1,
+                pct_m, (int)sizeof(pct_m));
+
+        if (ret == 0)
+            ret = wc_MlKemKey_Decapsulate(key, pct_ss2, pct_ct, pct_ctSz);
+
+        if (ret == 0) {
+            if (XMEMCMP(pct_ss1, pct_ss2, WC_ML_KEM_SS_SZ) != 0)
+                ret = ML_KEM_PCT_E;
+        }
+
+        ForceZero(pct_ss1, sizeof(pct_ss1));
+        ForceZero(pct_ss2, sizeof(pct_ss2));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(pct_ss1, sizeof(pct_ss1));
+        wc_MemZero_Check(pct_ss2, sizeof(pct_ss2));
+#endif
+        if (WC_VAR_OK(pct_ct)) {
+            ForceZero(pct_ct, WC_ML_KEM_MAX_CIPHER_TEXT_SIZE);
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            /* Must run before the free, or the registration outlives the
+             * allocation. */
+            wc_MemZero_Check(pct_ct, WC_ML_KEM_MAX_CIPHER_TEXT_SIZE);
+        #endif
+        }
+
+        WC_FREE_VAR_EX(pct_ct, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+        /* Free a key that failed the test, so a caller ignoring the return
+         * value cannot use it.  ISO/IEC 19790:2012 sec 7.10.1 forbids using
+         * anything that failed a self-test.  MEMORY_E is excluded: it
+         * means the test never ran, so the key is not implicated. */
+        if ((ret != 0) && (ret != WC_NO_ERR_TRACE(MEMORY_E))) {
+            wc_MlKemKey_Free(key);
+        }
+    }
+#endif /* FIPS v7 or WOLFSSL_VALIDATE_MLKEM_KEYGEN */
 
     return ret;
 }

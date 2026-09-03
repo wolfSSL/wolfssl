@@ -146,6 +146,15 @@
 
 #if defined(WOLFSSL_HAVE_MLDSA)
 
+#if FIPS_VERSION3_GE(7,0,0)
+    const unsigned int wolfCrypt_FIPS_mldsa_ro_sanity[2] =
+                                                     { 0x1a2b3c4d, 0x00000020 };
+    int wolfCrypt_FIPS_MLDSA_sanity(void)
+    {
+        return 0;
+    }
+#endif
+
 #if defined(WC_MLDSA_NO_ASM) || defined(WC_SHA3_NO_ASM)
     #undef USE_INTEL_SPEEDUP
     #undef WOLFSSL_ARMASM
@@ -6055,8 +6064,12 @@ static int mldsa_check_hint(const byte* h, byte k, byte omega)
             ret = SIG_VERIFY_E;
         }
     }
-    /* Check remaining hints are 0. */
-    for (; (ret == 0) && (i < omega); i++) {
+    /* Check remaining hints are 0.  Start at the total hint count, which is
+     * the last cumulative count, rather than wherever the loop above stopped:
+     * with no hints at all that loop never runs and i is still 1, which left
+     * h[0] unchecked.  FIPS 204 Alg 21 step 8 rejects any non-zero entry from
+     * the count to omega. */
+    for (i = h[omega + k - 1]; (ret == 0) && (i < omega); i++) {
         if (h[i] != 0) {
            ret = SIG_VERIFY_E;
         }
@@ -9110,6 +9123,65 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
 #endif
 }
 
+/* ML-KEM, ML-DSA, SLH-DSA, LMS and XMSS were never FIPS approved before the v7
+ * module, so this test stays gated on v7 and must never be widened to plain
+ * HAVE_FIPS.  WOLFSSL_VALIDATE_MLDSA_KEYGEN opts a non-FIPS build in, off by
+ * default. */
+#if FIPS_VERSION3_GE(7,0,0) || defined(WOLFSSL_VALIDATE_MLDSA_KEYGEN)
+#if defined(WOLFSSL_MLDSA_NO_SIGN) || defined(WOLFSSL_MLDSA_NO_VERIFY)
+    #error "ML-DSA key generation needs sign and verify for the \
+key-pair test required by ISO/IEC 19790:2012 sec 7.10.3.3"
+#endif
+/* Test every new key pair by signing and verifying with it.
+ * ISO/IEC 19790:2012 sec 7.10.3.3.  Fixed rnd: no RNG on this path.
+ *
+ * @param  [in, out]  key  ML-DSA key pair to test.  Freed on failure.
+ * @return  0 on success.
+ * @return  ML_DSA_PCT_E when the signature does not verify.
+ */
+static int mldsa_pct(wc_MlDsaKey* key)
+{
+    int ret = 0;
+    static const byte pct_msg[] = "wolfSSL ML-DSA PCT";
+    /* Deterministic signing randomness (FIPS 204 Alg 7 "rnd").  A constant is
+     * correct for a self-test: it is not signing randomness for a real
+     * signature, and it keeps the test reproducible across OEs. */
+    static const byte pct_seed[MLDSA_SEED_SZ] = { 0 };
+    WC_DECLARE_VAR(pct_sig, byte, MLDSA_MAX_SIG_SIZE, key->heap);
+    word32 pct_sigSz = MLDSA_MAX_SIG_SIZE;
+    int pct_res = 0;
+
+    WC_ALLOC_VAR_EX(pct_sig, byte, MLDSA_MAX_SIG_SIZE, key->heap,
+        DYNAMIC_TYPE_MLDSA, ret = MEMORY_E);
+
+    if (ret == 0) {
+        ret = wc_MlDsaKey_SignCtxWithSeed(key, NULL, 0, pct_sig, &pct_sigSz,
+            pct_msg, sizeof(pct_msg), pct_seed);
+    }
+    if (ret == 0) {
+        ret = wc_MlDsaKey_VerifyCtx(key, pct_sig, pct_sigSz, NULL, 0, pct_msg,
+            sizeof(pct_msg), &pct_res);
+    }
+    if ((ret == 0) && (pct_res != 1)) {
+        ret = ML_DSA_PCT_E;
+    }
+
+    if (WC_VAR_OK(pct_sig))
+        ForceZero(pct_sig, MLDSA_MAX_SIG_SIZE);
+    WC_FREE_VAR_EX(pct_sig, key->heap, DYNAMIC_TYPE_MLDSA);
+
+    /* Free a key that failed the test, so a caller ignoring the return
+     * value cannot sign with it.  ISO/IEC 19790:2012 sec 7.10.1 forbids using
+     * anything that failed a self-test.  MEMORY_E is excluded: it
+     * means the test never ran, so the key is not implicated. */
+    if ((ret != 0) && (ret != WC_NO_ERR_TRACE(MEMORY_E))) {
+        wc_MlDsaKey_Free(key);
+    }
+
+    return ret;
+}
+#endif /* FIPS v7 or WOLFSSL_VALIDATE_MLDSA_KEYGEN */
+
 /* Make a key from a random seed.
  *
  * FIPS 204 Section 5.1, Algorithm 1 ML-DSA.KeyGen()
@@ -9125,6 +9197,7 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
  * @return  MEMORY_E when memory allocation fails.
  * @return  Other negative when an error occurs.
  */
+
 static int mldsa_make_key(wc_MlDsaKey* key, WC_RNG* rng)
 {
     int ret;
@@ -11228,70 +11301,59 @@ int wc_MlDsaKey_MakeKey(wc_MlDsaKey* key, WC_RNG* rng)
         }
     }
 
-#ifdef HAVE_FIPS
-    /* Pairwise Consistency Test (PCT) per FIPS 140-3 / ISO 19790:2012
-     * Section 7.10.3.3 (TE10.35.02): sign with new sk, verify with pk.
-     * Runs on every key generation. */
-    if (ret == 0) {
-        static const byte pct_msg[] = "wolfSSL ML-DSA PCT";
-        WC_DECLARE_VAR(pct_sig, byte, MLDSA_MAX_SIG_SIZE, key->heap);
-        word32 pct_sigSz = MLDSA_MAX_SIG_SIZE;
-        int pct_res = 0;
+    /* No key-pair test here: wc_MlDsaKey_MakeKeyFromSeed(), reached from
+     * mldsa_make_key() above, already runs it on every generation path.
+     * Guarded on the version, not HAVE_FIPS: src/include.am only compiles
+     * this file under BUILD_FIPS_V7_PLUS, so the two are equivalent here. */
 
-        WC_ALLOC_VAR_EX(pct_sig, byte, MLDSA_MAX_SIG_SIZE, key->heap,
-            DYNAMIC_TYPE_MLDSA, ret = MEMORY_E);
+    return ret;
+}
 
-        if (ret == 0) {
-            ret = wc_MlDsaKey_SignCtx(key, NULL, 0, pct_sig, &pct_sigSz, pct_msg, sizeof(pct_msg), rng);
-        }
+/* Expand a seed into an ML-DSA key pair and test it.
+ *
+ * @param  [in, out]  key   ML-DSA key to fill in.
+ * @param  [in]       seed  Seed of MLDSA_SEED_SZ bytes.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when key or seed is NULL.
+ * @return  BAD_STATE_E when the parameters have not been set.
+ * @return  ML_DSA_PCT_E on a failed test; the key is freed and must be
+ *          re-initialised before reuse.
+ */
+/* Expand a seed into a key pair, validating arguments first.
+ *
+ * runPct is 0 for the ASN.1 decode path: FIPS 140-3 IG 10.3.A Additional
+ * Comment 1 does not require a key-pair test on a key imported from outside
+ * the module.
+ */
+static int mldsa_key_from_seed_checked(wc_MlDsaKey* key, const byte* seed,
+    int runPct)
+{
+    int ret = 0;
 
-        if (ret == 0)
-            ret = wc_MlDsaKey_VerifyCtx(key, pct_sig, pct_sigSz, NULL, 0, pct_msg, sizeof(pct_msg), &pct_res);
-
-        if (ret == 0 && pct_res != 1)
-            ret = ML_DSA_PCT_E;
-
-        if (WC_VAR_OK(pct_sig))
-            ForceZero(pct_sig, MLDSA_MAX_SIG_SIZE);
-
-        WC_FREE_VAR_EX(pct_sig, key->heap, DYNAMIC_TYPE_MLDSA);
-
-        /* FIPS 140-3 IG 10.3.A (TE10.35.02): a key pair that fails the PCT
-         * must be rendered unusable.  Zeroize the generated key material so
-         * a caller that ignores the return value cannot use it. */
-        if (ret != 0) {
-            wc_MlDsaKey_Free(key);
-        }
+    if ((key == NULL) || (seed == NULL)) {
+        ret = BAD_FUNC_ARG;
     }
-#endif /* HAVE_FIPS */
+    else if (key->params == NULL) {
+        ret = BAD_STATE_E;
+    }
+    else {
+        ret = mldsa_make_key_from_seed(key, seed);
+    }
+
+#if FIPS_VERSION3_GE(7,0,0) || defined(WOLFSSL_VALIDATE_MLDSA_KEYGEN)
+    if ((ret == 0) && runPct) {
+        ret = mldsa_pct(key);
+    }
+#else
+    (void)runPct;
+#endif
 
     return ret;
 }
 
 int wc_MlDsaKey_MakeKeyFromSeed(wc_MlDsaKey* key, const byte* seed)
 {
-    int ret = 0;
-
-    /* Validate parameters. */
-    if ((key == NULL) || (seed == NULL)) {
-        ret = BAD_FUNC_ARG;
-    }
-
-    if (ret == 0) {
-        /* Check the level or parameters have been set. */
-        if (key->params == NULL) {
-            ret = BAD_STATE_E;
-        }
-        else {
-            /* Make the key. */
-            ret = mldsa_make_key_from_seed(key, seed);
-        }
-    }
-
-    /* Note: PCT is performed in wc_MlDsaKey_MakeKey() which calls this
-     * function and has the RNG parameter needed for signing. */
-
-    return ret;
+    return mldsa_key_from_seed_checked(key, seed, 1);
 }
 #endif
 
@@ -13401,7 +13463,8 @@ int wc_MlDsaKey_PrivateKeyDecode(wc_MlDsaKey* key, const byte* input,
         if (seedLen != 0) {
 #if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
             if (seedLen == MLDSA_SEED_SZ) {
-                ret = wc_MlDsaKey_MakeKeyFromSeed(key, seed);
+                /* runPct 0: this is an import, not a generation. */
+                ret = mldsa_key_from_seed_checked(key, seed, 0);
             }
             else {
                 ret = ASN_PARSE_E;

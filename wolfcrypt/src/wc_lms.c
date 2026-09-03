@@ -27,6 +27,15 @@
 #if defined(WOLFSSL_HAVE_LMS)
 
 #include <wolfssl/wolfcrypt/wc_lms.h>
+
+#if FIPS_VERSION3_GE(7,0,0)
+    const unsigned int wolfCrypt_FIPS_lms_ro_sanity[2] =
+                                                     { 0x1a2b3c4d, 0x00000022 };
+    int wolfCrypt_FIPS_LMS_sanity(void)
+    {
+        return 0;
+    }
+#endif
 #include <wolfssl/wolfcrypt/hash.h>
 
 #ifdef NO_INLINE

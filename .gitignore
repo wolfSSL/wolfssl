@@ -526,3 +526,4 @@ compile_commands.json
 
 # Python cache
 __pycache__/
+wolfcrypt/benchmark/fips_cast_bench

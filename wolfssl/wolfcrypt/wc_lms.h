@@ -799,6 +799,11 @@ struct LmsKey {
     extern "C" {
 #endif
 
+#if FIPS_VERSION3_GE(7,0,0)
+    extern const unsigned int wolfCrypt_FIPS_lms_ro_sanity[2];
+    WOLFSSL_LOCAL int wolfCrypt_FIPS_LMS_sanity(void);
+#endif
+
 WOLFSSL_API int  wc_LmsKey_Init(LmsKey* key, void* heap, int devId);
 #ifdef WOLF_PRIVATE_KEY_ID
 WOLFSSL_API int  wc_LmsKey_InitId(LmsKey* key, const unsigned char* id,

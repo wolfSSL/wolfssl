@@ -157,12 +157,24 @@ static void wc_RsaCleanup(RsaKey* key)
     (!defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_VERIFY_INLINE)))
     if (key != NULL) {
     #ifndef WOLFSSL_RSA_PUBLIC_ONLY
+    #if FIPS_VERSION3_GE(7,0,0)
+        /* Erase the recovered plaintext on the way out, success or failure.
+         * SP 800-56B Rev2 sec 7.2.2.4.  Only a buffer we allocated: a
+         * caller-supplied one is the answer itself.  No key->type test:
+         * it never holds RSA_PRIVATE_DECRYPT/ENCRYPT, which belong to the
+         * operation-type half of that enum (rsa.h:176-183), so the old test
+         * was always false and the buffer was freed unwiped. */
+        if (key->dataIsAlloc && key->data != NULL && key->dataLen > 0) {
+            ForceZero(key->data, key->dataLen);
+        }
+    #else
         /* if private operation zero temp buffer */
         if ((key->data != NULL && key->dataLen > 0) &&
             (key->type == RSA_PRIVATE_DECRYPT ||
              key->type == RSA_PRIVATE_ENCRYPT)) {
             ForceZero(key->data, key->dataLen);
         }
+    #endif
     #endif
         /* make sure any allocated memory is free'd */
         if (key->dataIsAlloc) {
@@ -811,6 +823,15 @@ static int _ifc_pairwise_consistency_test(RsaKey* key, WC_RNG* rng)
 }
 
 
+#if FIPS_VERSION3_GE(7,0,0) && defined(WOLFSSL_KEY_GEN) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+/* Defined with the key generation code below; reused here so that key pair
+ * validation checks the primes as strictly as generation does.
+ * FIPS 186-5 App. A.1.1. */
+static int _CheckProbablePrime(mp_int* p, mp_int* q, mp_int* e, int nlen,
+                               int* isPrime, WC_RNG* rng);
+#endif
+
 int wc_CheckRsaKey(RsaKey* key)
 {
     WC_RNG *rng = NULL;
@@ -893,6 +914,56 @@ int wc_CheckRsaKey(RsaKey* key)
         }
     }
 
+#if FIPS_VERSION3_GE(7,0,0) && defined(WOLFSSL_KEY_GEN) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+    /* Validate the key the way SP 800-56B Rev2 sec 6.4.1.4.3 (crt_pkv) does.
+     * Step numbers below are that section's. */
+    if (ret == 0) {
+        int nBits = mp_count_bits(&key->n);
+        int isPrime = 0;
+
+        /* Modulus: even number of bits (item D, step 3c) and at least 2048
+         * (FIPS 186-5 sec 5.1).  Spelled out rather than using RSA_MIN_SIZE,
+         * which drops to 1024 under HAVE_WOLFENGINE / HAVE_WOLFPROVIDER. */
+        if ((nBits < 2048) || ((nBits & 1) != 0)) {
+            ret = WC_KEY_SIZE_E;
+        }
+
+        /* Public exponent: odd, and 65537 <= e < 2^256 (item B).  Bounds are
+         * bit counts, not mp_cmp_d: a digit can be 8 or 16 bits wide
+         * (sp_int.h), and 65537 would truncate there.  An odd e of at least
+         * 17 bits is >= 65537, because 65536 is the only 17-bit value below
+         * it and that one is even. */
+        if ((ret == 0) && (mp_iseven(&key->e) ||
+                (mp_count_bits(&key->e) < 17) ||
+                (mp_count_bits(&key->e) > 256))) {
+            ret = MP_EXPTMOD_E;
+        }
+
+        /* Primes: right size, coprime to e, far enough apart, and actually
+         * prime (steps 5a to 5g).  Two calls because steps 5f/5g want a
+         * primality test on each prime: the first tests p, the second tests
+         * q and the |p - q| separation. */
+        if (ret == 0) {
+            ret = _CheckProbablePrime(&key->p, NULL, &key->e, nBits, &isPrime,
+                                      rng);
+            if ((ret == 0) && isPrime) {
+                ret = _CheckProbablePrime(&key->p, &key->q, &key->e, nBits,
+                                          &isPrime, rng);
+            }
+            if ((ret == 0) && (!isPrime)) {
+                ret = MP_EXPTMOD_E;
+            }
+        }
+
+        /* Private exponent must exceed 2^(nBits/2) (step 6a).  A d of that
+         * many bits or fewer cannot, so counting bits settles it. */
+        if ((ret == 0) && (mp_count_bits(&key->d) <= (nBits / 2))) {
+            ret = MP_EXPTMOD_E;
+        }
+    }
+#endif
+
 #ifndef WC_RSA_NO_FERMAT_CHECK
     /* Fermat's Factorization works when difference between p and q
      * is less than (conservatively):
@@ -911,7 +982,18 @@ int wc_CheckRsaKey(RsaKey* key)
 
     /* Check dP, dQ and u if they exist */
     if (ret == 0 && !mp_iszero(&key->dP)) {
-        if (mp_sub_d(&key->p, 1, tmp) != MP_OKAY) {
+#if FIPS_VERSION3_GE(7,0,0)
+        /* Each CRT component must be greater than 1; upper bounds are
+         * checked just below.  SP 800-56B Rev2 sec 6.4.1.4.3 item F, steps
+         * 7a/7b/7c.  No WOLFSSL_KEY_GEN in the guard: unlike the block
+         * above this calls no key-generation helper. */
+        if ((mp_cmp_d(&key->dP, 1) != MP_GT) ||
+            (mp_cmp_d(&key->dQ, 1) != MP_GT) ||
+            (mp_cmp_d(&key->u, 1) != MP_GT)) {
+            ret = MP_EXPTMOD_E;
+        }
+#endif
+        if ((ret == 0) && (mp_sub_d(&key->p, 1, tmp) != MP_OKAY)) {
             ret = MP_EXPTMOD_E;
         }
         /* Check dP <= p-1. */
@@ -1530,7 +1612,9 @@ static int RsaPad_PSS(const byte* input, word32 inputLen, byte* pkcsBlock,
             }
         #endif
     }
-#ifndef WOLFSSL_PSS_LONG_SALT
+/* The salt may not be longer than the hash.  FIPS 186-5 sec 5.4(g) states
+ * this with no exception, so it holds even where long salts are compiled in. */
+#if !defined(WOLFSSL_PSS_LONG_SALT) || FIPS_VERSION3_GE(7,0,0)
     else if (saltLen > hLen) {
         return PSS_SALTLEN_E;
     }
@@ -1545,6 +1629,13 @@ static int RsaPad_PSS(const byte* input, word32 inputLen, byte* pkcsBlock,
         if (saltLen < 0) {
             return PSS_SALTLEN_E;
         }
+    #if FIPS_VERSION3_GE(7,0,0)
+        /* The sentinel is negative, so it slips past the cap above; the
+         * length derived from it is subject to the same limit. */
+        if (saltLen > hLen) {
+            return PSS_SALTLEN_E;
+        }
+    #endif
     }
     else if (saltLen < RSA_PSS_SALT_LEN_DISCOVER) {
         return PSS_SALTLEN_E;
@@ -1938,7 +2029,9 @@ static int RsaUnPad_PSS(byte *pkcsBlock, unsigned int pkcsBlockLen,
                 saltLen = RSA_PSS_SALT_MAX_SZ;
         #endif
     }
-#ifndef WOLFSSL_PSS_LONG_SALT
+/* Same salt limit when verifying: FIPS 186-5 sec 5.4(g) says the check
+ * "shall also be checked during the signature verification process". */
+#if !defined(WOLFSSL_PSS_LONG_SALT) || FIPS_VERSION3_GE(7,0,0)
     else if (saltLen > hLen)
         return PSS_SALTLEN_E;
 #endif
@@ -2002,6 +2095,16 @@ static int RsaUnPad_PSS(byte *pkcsBlock, unsigned int pkcsBlockLen,
             return PSS_SALTLEN_RECOVER_E;
         }
         saltLen = maskLen - (i + 1);
+    #if FIPS_VERSION3_GE(7,0,0)
+        /* When the length is discovered rather than supplied, it is this
+         * recovered value FIPS 186-5 sec 5.4(g) caps at the hash length. */
+        if (saltLen > hLen) {
+            #if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_STATIC_MEMORY)
+            XFREE(tmp, heap, DYNAMIC_TYPE_RSA_BUFFER);
+            #endif
+            return PSS_SALTLEN_E;
+        }
+    #endif
     }
     else
 #endif
@@ -3646,6 +3749,20 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
     }
 #endif
 
+#if !defined(NO_RSA_BOUNDS_CHECK) && FIPS_VERSION3_GE(7,0,0)
+    /* Reject a message outside 1 < m < n-1 before exponentiating.
+     * SP 800-56B Rev2 sec 7.1.1 (RSAEP) step 1.  Passed 1 rather than the
+     * caller's checkSmallCt: the standard gives no opt-out on this path. */
+    if ((type == RSA_PUBLIC_ENCRYPT || type == RSA_PRIVATE_ENCRYPT) &&
+        key->state == RSA_STATE_ENCRYPT_EXPTMOD) {
+
+        ret = RsaFunctionCheckIn(in, inLen, key, 1);
+        if (ret != 0) {
+            return ret;
+        }
+    }
+#endif
+
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA)
     if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RSA &&
                                                         key->n.raw.len > 0) {
@@ -4584,7 +4701,8 @@ int wc_RsaPSS_CheckPadding_ex2(const byte* in, word32 inSz, const byte* sig,
                 }
             #endif
         }
-#ifndef WOLFSSL_PSS_LONG_SALT
+/* Same salt limit; here inSz is the hash length.  FIPS 186-5 sec 5.4(g). */
+#if !defined(WOLFSSL_PSS_LONG_SALT) || FIPS_VERSION3_GE(7,0,0)
         else if (saltLen > (int)inSz) {
             ret = PSS_SALTLEN_E;
         }
@@ -4596,7 +4714,12 @@ int wc_RsaPSS_CheckPadding_ex2(const byte* in, word32 inSz, const byte* sig,
 #else
         else if (saltLen == RSA_PSS_SALT_LEN_DISCOVER) {
             saltLen = sigSz - inSz;
-            if (saltLen < 0) {
+            /* Same cap on the discovered length; inSz is the hash length. */
+            if ((saltLen < 0)
+        #if FIPS_VERSION3_GE(7,0,0)
+                    || (saltLen > (int)inSz)
+        #endif
+                    ) {
                 ret = PSS_SALTLEN_E;
             }
         }
@@ -5322,7 +5445,20 @@ static WC_INLINE int RsaSizeCheck(int size)
         return 0;
     }
 
-#ifdef HAVE_FIPS
+#if FIPS_VERSION3_GE(7,0,0)
+    /* Only the sizes this module is validated for.  The standards set a
+     * floor, not a list: at least 2048 bits and even (FIPS 186-5 sec 5.1),
+     * with less disallowed for signing (SP 800-131Ar2 Table 2).  These three
+     * are what wolfSSL holds CAVP certificates for, so this is stricter. */
+    switch (size) {
+        case 2048:
+        case 3072:
+        case 4096:
+            return 1;
+    }
+
+    return 0;
+#elif defined(HAVE_FIPS)
     /* Key size requirements for CAVP */
     switch (size) {
         case 1024:
@@ -5335,7 +5471,7 @@ static WC_INLINE int RsaSizeCheck(int size)
     return 0;
 #else
     return 1; /* allow unusual key sizes in non FIPS mode */
-#endif /* HAVE_FIPS */
+#endif /* FIPS_VERSION3_GE(7,0,0) */
 }
 
 
@@ -5620,6 +5756,9 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     }
 
 #if defined(HAVE_FIPS)
+    /* WC_RSA_EXPONENT is 65537, which is what FIPS 186-5 sec 5.4(e) requires
+     * as the lower bound.  e is a long, so it cannot reach the 2^256 upper
+     * bound the same clause sets. */
     if (e < WC_RSA_EXPONENT || (e & 1) == 0) {
 #else
     if (e < 3 || (e & 1) == 0) {
@@ -5826,6 +5965,16 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 #else
             /* Keep the old retry behavior in non-FIPS build. */
             (void)i;
+#endif
+
+#if FIPS_VERSION3_GE(7,0,0)
+            /* Check err before WC_CHECK_FOR_INTR_SIGNALS() overwrites it, as
+             * the p loop above does.  Otherwise a DRBG failure is discarded
+             * and resurfaces as PRIME_GEN_E, hiding what actually went wrong.
+             * SP 800-90A Rev1 sec 11.4.2 requires the DRBG's own error
+             * indicator to reach the caller. */
+            if (err != MP_OKAY || isPrime || i >= failCount)
+                break;
 #endif
 
             err = WC_CHECK_FOR_INTR_SIGNALS();

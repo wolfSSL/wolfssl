@@ -6321,9 +6321,9 @@ int wc_ecc_make_key_ex2(WC_RNG* rng, int keysize, ecc_key* key, int curve_id,
         ) {
         err = _ecc_pairwise_consistency_test(key, rng);
     }
-    /* FIPS 140-3 IG 10.3.A (TE10.35.02): a key pair that fails post-
-     * generation validation or PCT must be rendered unusable so a caller
-     * that ignores the return value cannot use it. */
+    /* Free a key that failed its check, so a caller ignoring the return
+     * value cannot use it.  ISO/IEC 19790:2012 sec 7.10.1 forbids using
+     * anything that failed a self-test. */
     if (err != MP_OKAY) {
         wc_ecc_free(key);
     }
