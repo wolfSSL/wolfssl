@@ -264,15 +264,18 @@ Size:
 password-protected key files. That is usually safe to do unless your device
 reads such files.
 
-Password-based KDFs. All of these live inside the `NO_PWDBASED` group, so
-`NO_PWDBASED` removes the lot; within that group PBKDF1 and PBKDF2 are both
-**on by default** and are removed individually with the `NO_` forms:
+Password-based KDFs. All of these except Argon2 live inside the `NO_PWDBASED`
+group, so `NO_PWDBASED` removes the lot of them; within that group PBKDF1 and
+PBKDF2 are both **on by default** and are removed individually with the `NO_`
+forms:
 
 | Define | Effect | Default | `./configure` |
 | --- | --- | --- | --- |
 | `NO_PBKDF1` | *removes* PBKDF1 (PKCS#5 v1), legacy | on | — |
 | `NO_PBKDF2` | *removes* PBKDF2 (PKCS#5 v2). PBKDF2 also needs HMAC, so it is unavailable under `NO_HMAC` regardless | on | — |
 | `HAVE_SCRYPT` | scrypt (RFC 7914), memory-hard. Requires PWDBASED | off | `--enable-scrypt` |
+| `HAVE_ARGON2` | Argon2 (RFC 9106), memory-hard, all three variants. Independent of PWDBASED, but requires BLAKE2b — `settings.h` implies `HAVE_BLAKE2B` for you | off | `--enable-argon2` |
+| `WOLFSSL_ARGON2_THREADS` | Fill the segments of a slice on several threads. Requires `HAVE_ARGON2` and a build that is not `SINGLE_THREADED` | off | `--enable-argon2-threads` |
 | `HAVE_CMAC_KDF` | CMAC-based KDF (SP 800-108). Requires `--enable-kdf` | off | `--enable-cmac-kdf` |
 
 The `NO_` forms are not absolute: `settings.h` turns `HAVE_PBKDF1` back on for
@@ -280,8 +283,17 @@ The `NO_` forms are not absolute: `settings.h` turns `HAVE_PBKDF1` back on for
 PKCS#7 or scrypt, because those features need the KDF to work. If you want a
 KDF genuinely gone, check that nothing above it is pulling it back in.
 
-scrypt is memory-hard by design — that is the point of it — so check the
-parameters against the RAM you have before enabling it on a small target.
+scrypt and Argon2 are memory-hard by design — that is the point of them — so
+check the parameters against the RAM you have before enabling either on a
+small target. Argon2 asks for its whole cost in one contiguous allocation:
+the `m` parameter is in KiB, so the 64 MiB that RFC 9106 recommends is a
+single 64 MiB block. Both are left out of `--enable-all` on a kernel-module
+build for that reason. Only version 0x13 of Argon2 is implemented; the
+superseded 0x10 encoding is not offered.
+
+`WOLFSSL_ARGON2_THREADS` does not change the derived tag — the
+synchronization point at the end of every slice makes the result the same
+however many threads filled it — so it is purely a speed/parallelism choice.
 
 ---
 

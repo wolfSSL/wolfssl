@@ -754,6 +754,9 @@ static WC_INLINE void bench_append_memory_info(char* buffer, size_t size,
 #ifdef HAVE_ASCON
     #include <wolfssl/wolfcrypt/ascon.h>
 #endif
+#ifdef HAVE_ARGON2
+    #include <wolfssl/wolfcrypt/argon2.h>
+#endif
 
 #ifdef HAVE_FIPS
     #include <wolfssl/wolfcrypt/fips_test.h>
@@ -1011,6 +1014,7 @@ static WC_INLINE void bench_append_memory_info(char* buffer, size_t size,
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     #define BENCH_RNG_SHA512_INIT    0x00000010
 #endif
+#define BENCH_ARGON2             0x00000020
 
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
     (defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
@@ -1355,6 +1359,9 @@ static const bench_alg bench_other_opt[] = {
 #endif
 #ifdef HAVE_SCRYPT
     { "-scrypt",             BENCH_SCRYPT            },
+#endif
+#ifdef HAVE_ARGON2
+    { "-argon2",             BENCH_ARGON2            },
 #endif
     { NULL, 0}
 };
@@ -2422,6 +2429,7 @@ static const char* bench_result_words2[][6] = {
     #endif
     enum BenchmarkBounds {
         scryptCnt  = 1,
+        argon2Cnt  = 1,
         ntimes     = BENCH_NTIMES,
         genTimes   = BENCH_MAX_PENDING,
         agreeTimes = BENCH_AGREETIMES
@@ -2438,6 +2446,7 @@ static const char* bench_result_words2[][6] = {
     #endif
     enum BenchmarkBounds {
         scryptCnt  = 10,
+        argon2Cnt  = 10,
         ntimes     = BENCH_NTIMES,
         genTimes   = BENCH_MAX_PENDING, /* must be at least BENCH_MAX_PENDING */
         agreeTimes = BENCH_AGREETIMES
@@ -4575,6 +4584,11 @@ static void* benchmarks_do(void* args)
 #ifdef HAVE_SCRYPT
     if (bench_all || (bench_other_algs & BENCH_SCRYPT))
         bench_scrypt();
+#endif
+
+#ifdef HAVE_ARGON2
+    if (bench_all || (bench_other_algs & BENCH_ARGON2))
+        bench_argon2();
 #endif
 
 #if !defined(NO_RSA) && !defined(WC_NO_RNG)
@@ -10695,6 +10709,60 @@ exit:
 }
 
 #endif /* HAVE_SCRYPT */
+
+#ifdef HAVE_ARGON2
+
+/* RFC 9106 section 4 second recommended option: t=3, p=4, m=2^16 KiB (64 MiB).
+ * That much memory is out of reach on the targets BENCH_EMBEDDED describes,
+ * and a 64 MiB contiguous allocation cannot be satisfied by a kernel
+ * allocator at all - four times the size that already makes scrypt cost 14
+ * kernel-incompatible above. Both benchmark a small configuration instead;
+ * the number it produces is not comparable with the recommended one. */
+#ifndef BENCH_ARGON2_MEM
+    #if defined(BENCH_EMBEDDED) || defined(WOLFSSL_KERNEL_MODE)
+        #define BENCH_ARGON2_MEM 32
+    #else
+        #define BENCH_ARGON2_MEM 65536
+    #endif
+#endif
+
+void bench_argon2(void)
+{
+    byte   derived[32];
+    double start;
+    int    ret = 0, i, count;
+    DECLARE_MULTI_VALUE_STATS_VARS()
+
+    bench_stats_prepare();
+
+    bench_stats_start(&count, &start);
+    do {
+        for (i = 0; i < argon2Cnt; i++) {
+            ret = wc_Argon2(WC_ARGON2_ID, derived, sizeof(derived),
+                            (byte*)"pleaseletmein", 13,
+                            (byte*)"SodiumChloride", 14,
+                            4, BENCH_ARGON2_MEM, 3);
+            if (ret != 0) {
+                printf("argon2 failed, ret = %d\n", ret);
+                goto exit;
+            }
+            RECORD_MULTI_VALUE_STATS();
+        }
+        count += i;
+    } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+       || runs < minimum_runs
+#endif
+       );
+
+exit:
+    bench_stats_asym_finish("argon2", 17, "", 0, count, start, ret);
+#ifdef MULTI_VALUE_STATISTICS
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
+#endif
+}
+
+#endif /* HAVE_ARGON2 */
 
 #ifndef NO_HMAC
 
