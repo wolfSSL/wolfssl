@@ -1531,11 +1531,13 @@ int test_wolfSSL_cert_api_arg_guards(void)
 #if !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
+#ifdef HAVE_RPK
     int tp = 0;
     const char certTypes[] = { WOLFSSL_CERT_TYPE_X509 };
     unsigned char spki[8];
 
     XMEMSET(spki, 0, sizeof(spki));
+#endif
 
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
@@ -1558,6 +1560,13 @@ int test_wolfSSL_cert_api_arg_guards(void)
     (void)wolfSSL_get_verify_depth(NULL);
     (void)wolfSSL_get_verify_depth(ssl);
 
+    /* Certificate type lists and raw public keys are RPK-only symbols
+     * (declared under #ifdef HAVE_RPK in wolfssl/ssl.h); this option list is
+     * shared with modules that do not enable RPK (asn, pkcs7, and the rest of
+     * wolfCrypt), and tests/api.c is one translation unit across all of them,
+     * so referencing these unguarded breaks every OTHER module's build, not
+     * just this one -- exactly what happened here. */
+#ifdef HAVE_RPK
     /* --- certificate type lists: NULL object, NULL buffer, bad length --- */
     (void)wolfSSL_CTX_set_client_cert_type(NULL, certTypes,
                                            (int)sizeof(certTypes));
@@ -1602,6 +1611,7 @@ int test_wolfSSL_cert_api_arg_guards(void)
     (void)wolfSSL_clear_expected_rpk(NULL);
     (void)wolfSSL_CTX_clear_expected_rpk(ctx);
     (void)wolfSSL_clear_expected_rpk(ssl);
+#endif /* HAVE_RPK */
 
     /* --- verify configuration through NULL objects ---------------------- */
     wolfSSL_CTX_set_verify(NULL, WOLFSSL_VERIFY_PEER, NULL);
@@ -1995,6 +2005,11 @@ int test_wolfSSL_dtls_api_on_dtls_object(void)
     (void)wolfSSL_dtls_get_peer(dssl, peer, &peerSz);
     (void)wolfSSL_dtls_get_peer(dssl, NULL, &peerSz);
     (void)wolfSSL_dtls_get_peer(dssl, peer, NULL);
+    /* Implemented only under WOLFSSL_DTLS_CID && !WOLFSSL_NO_SOCK
+     * (src/ssl_api_dtls.c); declared unconditionally in ssl.h, so a config
+     * with WOLFSSL_DTLS on and WOLFSSL_DTLS_CID off compiles this call and
+     * fails at LINK time. Confirmed with a real build. */
+#if defined(WOLFSSL_DTLS_CID) && !defined(WOLFSSL_NO_SOCK)
     (void)wolfSSL_dtls_set_pending_peer(dssl, peer, 0);
     (void)wolfSSL_dtls_set_pending_peer(dssl, NULL,
                                         (unsigned int)sizeof(peer));
@@ -2004,6 +2019,7 @@ int test_wolfSSL_dtls_api_on_dtls_object(void)
      * gets both values */
     (void)wolfSSL_dtls_set_pending_peer(dssl, peer,
                                         (unsigned int)sizeof(peer));
+#endif
 
     /* MTU: `ctx == NULL || newMtu > MAX_RECORD_SIZE`, both operands */
 #ifdef WOLFSSL_DTLS_MTU
