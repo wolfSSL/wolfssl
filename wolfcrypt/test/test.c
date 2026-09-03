@@ -81435,19 +81435,29 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     }
     else if (info->algo_type == WC_ALGO_TYPE_SEED) {
     #ifndef WC_NO_RNG
-        ALIGN32 static byte seed[sizeof(word32)] = { 0x00, 0x00, 0x00, 0x01 };
-        word32* seedWord32 = (word32*)seed;
+        static word32 seedState = 0x00000001;
+        byte seed[sizeof(word32)];
         word32 len;
 
-        /* wc_GenerateSeed is a local symbol so we need to fake the entropy. */
+        /* wc_GenerateSeed is a local symbol so we need to fake the entropy.
+         * Step an xorshift rather than a plain counter: _InitRng() runs the
+         * SP 800-90B health tests over the seed, and counter bytes fail the
+         * adaptive proportion test once the upper bytes repeat. */
         while (info->seed.sz > 0) {
+            seedState ^= seedState << 13;
+            seedState ^= seedState >> 17;
+            seedState ^= seedState << 5;
+            seed[0] = (byte)(seedState      );
+            seed[1] = (byte)(seedState >>  8);
+            seed[2] = (byte)(seedState >> 16);
+            seed[3] = (byte)(seedState >> 24);
+
             len = (word32)sizeof(seed);
             if (info->seed.sz < len)
                 len = info->seed.sz;
             XMEMCPY(info->seed.seed, seed, len);
             info->seed.seed += len;
             info->seed.sz -= len;
-            (*seedWord32)++;
         }
 
         ret = 0;
