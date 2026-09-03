@@ -41,6 +41,7 @@ int test_wc_frodokem_key_pem(void);
 int test_wc_frodokem_x509(void);
 int test_wc_frodokem_cert_file(void);
 int test_wc_frodokem_cert_verify(void);
+int test_wc_frodokem_cb_pending_rejected(void);
 
 #define TEST_FRODOKEM_DECLS                                                 \
     TEST_DECL_GROUP("frodokem", test_wc_frodokem_make_key_kats),            \
@@ -59,6 +60,7 @@ int test_wc_frodokem_cert_verify(void);
     TEST_DECL_GROUP("frodokem", test_wc_frodokem_key_pem),                  \
     TEST_DECL_GROUP("frodokem", test_wc_frodokem_x509),                     \
     TEST_DECL_GROUP("frodokem", test_wc_frodokem_cert_file),                \
-    TEST_DECL_GROUP("frodokem", test_wc_frodokem_cert_verify)
+    TEST_DECL_GROUP("frodokem", test_wc_frodokem_cert_verify),          \
+    TEST_DECL_GROUP("frodokem", test_wc_frodokem_cb_pending_rejected)
 
 #endif /* WOLFCRYPT_TEST_FRODOKEM_H */

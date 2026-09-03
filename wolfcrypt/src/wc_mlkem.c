@@ -688,6 +688,8 @@ int wc_MlKemKey_MakeKey(MlKemKey* key, WC_RNG* rng)
 #endif
         ret = wc_CryptoCb_MakePqcKemKey(rng, WC_PQC_KEM_TYPE_MLKEM, key->type,
             key);
+        if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
+            ret = BAD_STATE_E; /* async unsupported for KEM keygen */
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
@@ -1535,6 +1537,8 @@ int wc_MlKemKey_Encapsulate(MlKemKey* key, unsigned char* ct, unsigned char* ss,
 #endif
         ret = wc_CryptoCb_PqcEncapsulate(ct, ctlen, ss, WC_ML_KEM_SS_SZ, rng,
             WC_PQC_KEM_TYPE_MLKEM, key);
+        if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
+            ret = BAD_STATE_E; /* async unsupported for KEM encaps */
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
@@ -2072,6 +2076,8 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
 #endif
         ret = wc_CryptoCb_PqcDecapsulate(ct, ctSz, ss, WC_ML_KEM_SS_SZ,
             WC_PQC_KEM_TYPE_MLKEM, key);
+        if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
+            ret = BAD_STATE_E; /* async unsupported for KEM decaps */
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */

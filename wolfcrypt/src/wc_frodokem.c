@@ -745,6 +745,8 @@ int wc_FrodoKemKey_MakeKey(FrodoKemKey* key, WC_RNG* rng)
     if ((ret == 0) && (key->devId != INVALID_DEVID)) {
         ret = wc_CryptoCb_MakePqcKemKey(rng, WC_PQC_KEM_TYPE_FRODOKEM,
             key->type, key);
+        if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
+            ret = BAD_STATE_E; /* async unsupported for KEM keygen */
         cbHandled = (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE));
         if (!cbHandled) {
             ret = 0;
@@ -1016,6 +1018,8 @@ int wc_FrodoKemKey_Encapsulate(FrodoKemKey* key, unsigned char* ct,
     if ((ret == 0) && (key->devId != INVALID_DEVID)) {
         ret = wc_CryptoCb_PqcEncapsulate(ct, (word32)p->ctSize, ss,
             (word32)p->lenSec, rng, WC_PQC_KEM_TYPE_FRODOKEM, key);
+        if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
+            ret = BAD_STATE_E; /* async unsupported for KEM encaps */
         cbHandled = (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE));
         if (!cbHandled) {
             ret = 0;
@@ -1153,6 +1157,8 @@ int wc_FrodoKemKey_Decapsulate(FrodoKemKey* key, unsigned char* ss,
     if ((ret == 0) && (key->devId != INVALID_DEVID)) {
         ret = wc_CryptoCb_PqcDecapsulate(ct, len, ss, (word32)p->lenSec,
             WC_PQC_KEM_TYPE_FRODOKEM, key);
+        if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
+            ret = BAD_STATE_E; /* async unsupported for KEM decaps */
         cbHandled = (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE));
         if (!cbHandled) {
             ret = 0;
