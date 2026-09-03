@@ -725,6 +725,13 @@ if("${WOLFSSL_HRR_COOKIE}" STREQUAL "yes")
     endif()
 endif()
 
+# SHA-512 handshake transcript for TLS v1.3. The prerequisite checks and the
+# definition itself live after the WOLFSSL_CLU block, which is the last writer
+# of WOLFSSL_SHA512.
+add_option("WOLFSSL_TLS13_SHA512"
+    "Keep the SHA-512 handshake transcript for TLS v1.3 (default: disabled)"
+    "no" "yes;no")
+
 # TLS v1.3 middlebox compatibility (RFC 8446 Appendix D.4)
 add_option("WOLFSSL_TLS13_MIDDLEBOX_COMPAT"
     "Enable TLS v1.3 middlebox compatibility mode (default: disabled)"
@@ -3033,6 +3040,20 @@ if(WOLFSSL_CLU)
     list(APPEND WOLFSSL_DEFINITIONS "-DOPENSSL_ALL")
     # Remove NO_DES3 from WOLFSSL_DEFINITIONS to ensure DES3 is enabled
     list(REMOVE_ITEM WOLFSSL_DEFINITIONS "-DNO_DES3")
+endif()
+
+# SHA-512 handshake transcript for TLS v1.3. Settled here rather than beside
+# the option: WOLFSSL_SHA512 has no value until its own add_option() has run,
+# and the WOLFSSL_CLU block above can still raise it afterwards.
+if(WOLFSSL_TLS13_SHA512)
+    if(NOT WOLFSSL_TLS13)
+        message(WARNING "TLS 1.3 is disabled - not keeping the SHA-512 handshake transcript for it")
+        override_cache(WOLFSSL_TLS13_SHA512 "no")
+    elseif(NOT WOLFSSL_SHA512)
+        message(FATAL_ERROR "WOLFSSL_TLS13_SHA512 requires WOLFSSL_SHA512.")
+    else()
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_TLS13_SHA512")
+    endif()
 endif()
 
 if(WOLFSSL_AESCFB)
