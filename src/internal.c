@@ -1382,6 +1382,11 @@ static int ExportOptions(WOLFSSL* ssl, byte* exp, word32 len, byte ver,
     exp[idx++] = options->isClosed;
     exp[idx++] = options->closeNotify;
     exp[idx++] = options->sentNotify;
+    /* options->sentUserCanceled is deliberately not exported alongside these:
+     * adding a field needs a WOLFSSL_EXPORT_VERSION bump, and the obligation
+     * only lives between the "user_canceled" and the "close_notify" behind
+     * it. A connection exported inside that window loses it, so a quiet
+     * shutdown on the imported object sends nothing. */
     exp[idx++] = options->usingCompression;
     exp[idx++] = options->haveRSA;
     exp[idx++] = options->haveECC;
@@ -1512,6 +1517,12 @@ static int ImportOptions(WOLFSSL* ssl, const byte* exp, word32 len, byte ver,
 {
     int idx = 0;
     Options* options = &ssl->options;
+
+    /* Not on the wire - see ExportOptions() - so reset it up front rather
+     * than among the positional reads below, and before any of the early
+     * returns: an imported object must not inherit an obligation from the
+     * connection it used to hold, whether or not the decode completes. */
+    options->sentUserCanceled = 0;
 
     switch (ver) {
         case WOLFSSL_EXPORT_VERSION:
@@ -8271,6 +8282,12 @@ int ReinitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     (void)ctx;
 
     ssl->options.shutdownDone = 0;
+    /* The obligation to send a "close_notify" belongs to the connection that
+     * sent the "user_canceled", not to the object. wolfSSL_clear() also
+     * clears it, but wolfSSL_shutdown() only calls that where the OpenSSL
+     * compatibility layer is built in, and a stale bit would have the next
+     * quiet shutdown send an alert the application asked it not to send. */
+    ssl->options.sentUserCanceled = 0;
     if (ssl->session != NULL)
         ssl->session->side = (byte)ssl->options.side;
 
@@ -29413,6 +29430,11 @@ static int SendAlert_ex(WOLFSSL* ssl, int severity, int type)
         if (ret) {
             WOLFSSL_MSG("QUIC send_alert callback error");
         }
+        else if (type == user_canceled) {
+            /* Handed to the peer, so the "close_notify" behind it is owed -
+             * see the record-queued case below. */
+            ssl->options.sentUserCanceled = 1;
+        }
         return ret;
     }
 #endif
@@ -29421,6 +29443,12 @@ static int SendAlert_ex(WOLFSSL* ssl, int severity, int type)
     if (ssl->dupWrite && ssl->dupSide == READ_DUP_SIDE) {
         int notifyErr = 0;
 
+        /* Returning 0 here for a warning alert other than close_notify says
+         * "suppressed", not "sent" - nothing goes out, and returning before
+         * the pendingAlert assignment below is what leaves
+         * options.sentUserCanceled clear for it. wolfSSL_shutdown() reads
+         * that bit to decide whether a "close_notify" is owed, so a change
+         * that starts forwarding these alerts has to set it here. */
         WOLFSSL_MSG("Read dup side cannot write alerts, notifying sibling");
 
         if (type == close_notify) {
@@ -29439,6 +29467,27 @@ static int SendAlert_ex(WOLFSSL* ssl, int severity, int type)
 
     ssl->pendingAlert.code = type;
     ssl->pendingAlert.level = severity;
+
+    if (type == user_canceled) {
+        /* From here the alert reaches the peer one way or another: it is
+         * queued below, or it stays in pendingAlert for the next SendAlert()
+         * to retry even if this attempt returns early. A failing send does
+         * not take back what is already in the output buffer either. So the
+         * "close_notify" RFC 9846 Section 6.1 requires behind it is owed from
+         * this point, and wolfSSL_shutdown() reads this to send it even under
+         * quiet shutdown. Recording it here rather than in
+         * wolfSSL_SendUserCanceled() keeps it where whether the alert was
+         * taken on is actually known: the paths that drop the alert outright,
+         * the read side of a write duplicate and an alert dropped over one
+         * already pending, both return before reaching this.
+         *
+         * It is recorded slightly early rather than late. An alert left in
+         * pendingAlert by a failed send can still be displaced by a later
+         * fatal alert, which drops it after this point - the obligation then
+         * stands for an alert the peer never saw, costing an unasked-for
+         * "close_notify" rather than a missing one. */
+        ssl->options.sentUserCanceled = 1;
+    }
 
    #ifdef OPENSSL_EXTRA
         if (ssl->CBIS != NULL) {

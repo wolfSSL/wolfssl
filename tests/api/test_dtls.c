@@ -3066,7 +3066,17 @@ int test_wolfSSL_dtls_export(void)
         ExpectNotNull(ssl = wolfSSL_new(ctx));
 
         /* test importing version 3 */
+        if (ssl != NULL) {
+            /* An obligation left by an earlier connection on this object must
+             * not survive: the imported session's shutdown state is what
+             * counts, and a stale bit would have the next quiet shutdown send
+             * an alert the application asked it not to send. */
+            ssl->options.sentUserCanceled = 1;
+        }
         ExpectIntGE(wolfSSL_dtls_import(ssl, version_3, sizeof(version_3)), 0);
+        if (ssl != NULL) {
+            ExpectIntEQ(ssl->options.sentUserCanceled, 0);
+        }
 
         /* test importing bad length and bad version */
         version_3[2]++;

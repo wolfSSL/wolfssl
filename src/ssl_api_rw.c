@@ -800,10 +800,22 @@ int wolfSSL_recv(WOLFSSL* ssl, void* data, int sz, int flags)
 
 /* Send a user_canceled alert to the peer and shut down the connection.
  *
+ * Records the alert in options.sentUserCanceled when it has been sent or
+ * buffered. That is what has wolfSSL_shutdown() send the "close_notify" RFC
+ * 9846 Section 6.1 obliges to follow it even when quiet shutdown is on, so a
+ * caller that gets WOLFSSL_FAILURE here with wolfSSL_get_error() reporting
+ * WANT_WRITE must still call wolfSSL_shutdown() again rather than give up:
+ * the alert is usually queued, or held for the next send to retry, with the
+ * close_notify owed behind it. Where SendAlert() could not take the alert on
+ * at all nothing is recorded and that shutdown stays silent, so retrying is
+ * right either way.
+ *
  * @param [in, out] ssl  SSL/TLS object.
  * @return  WOLFSSL_SUCCESS on success.
  * @return  WOLFSSL_SHUTDOWN_NOT_DONE when the shutdown is not complete.
  * @return  WOLFSSL_FAILURE when ssl is NULL or sending the alert fails.
+ * @return  WOLFSSL_FATAL_ERROR when the shutdown behind the alert fails.
+ *          Call wolfSSL_get_error() for the reason.
  */
 int wolfSSL_SendUserCanceled(WOLFSSL* ssl)
 {
@@ -811,11 +823,11 @@ int wolfSSL_SendUserCanceled(WOLFSSL* ssl)
     WOLFSSL_ENTER("wolfSSL_SendUserCanceled");
 
     if (ssl != NULL) {
+        /* SendAlert() records options.sentUserCanceled when this alert
+         * reached the peer or was queued where it still can. That is what has
+         * wolfSSL_shutdown() send the "close_notify" behind it even under
+         * quiet shutdown. */
         ssl->error = SendAlert(ssl, alert_warning, user_canceled);
-        if ((ssl->error == 0) ||
-                (ssl->error == WC_NO_ERR_TRACE(WANT_WRITE))) {
-            ssl->options.sentUserCanceled = 1;
-        }
         if (ssl->error < 0) {
             WOLFSSL_ERROR(ssl->error);
         }
@@ -943,6 +955,59 @@ static int wolfssl_shutdown_send_close_notify(WOLFSSL* ssl, int* ret)
     return done;
 }
 
+/* Whether this object owes the peer a "close_notify" behind a "user_canceled".
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @return  1 when the alert has gone out and this side can still send the
+ *          "close_notify" RFC 9846 Section 6.1 requires behind it.
+ * @return  0 otherwise.
+ */
+static int wolfssl_shutdown_owes_close_notify(const WOLFSSL* ssl)
+{
+    if (!ssl->options.sentUserCanceled) {
+        return 0;
+    }
+
+#ifdef HAVE_WRITE_DUP
+    /* The read side of a write duplicate cannot put an alert on the wire -
+     * its SendAlert() only notifies the sibling - so it cannot discharge the
+     * obligation and must not try. Both objects carry the bit when the
+     * duplicate is taken with one outstanding; the write side is the one that
+     * can act on it. */
+    if ((ssl->dupWrite != NULL) && (ssl->dupSide == READ_DUP_SIDE)) {
+        WOLFSSL_MSG("read dup side cannot send the owed close notify");
+        return 0;
+    }
+#endif
+
+    return 1;
+}
+
+/* Get this side's alerts out: flush one the transport would not take earlier,
+ * then send the close_notify if it has not gone yet.
+ *
+ * Both callers need the same sequence, so the helpers' out-parameter
+ * convention is applied in one place rather than two.
+ *
+ * @param [in, out] ssl  SSL/TLS object.
+ * @param [in, out] ret  Result for wolfSSL_shutdown() to return. Written only
+ *                       on the paths that reach a decision, as the two
+ *                       helpers document.
+ * @return  1 when no later step of the shutdown may run.
+ * @return  0 when the caller carries on with the rest of the shutdown.
+ */
+static int wolfssl_shutdown_send_alerts(WOLFSSL* ssl, int* ret)
+{
+    /* Try to flush the buffer first, it might contain the alert */
+    int done = wolfssl_shutdown_flush_alert(ssl, ret);
+
+    if (!done) {
+        done = wolfssl_shutdown_send_close_notify(ssl, ret);
+    }
+
+    return done;
+}
+
 /* Wait for the peer's close_notify alert to complete a bidirectional shutdown.
  *
  * Called when this side has sent its close_notify but has not seen the
@@ -1026,6 +1091,20 @@ static int wolfssl_shutdown_recv_close_notify(WOLFSSL* ssl)
  * after tearing down an already-aborted connection now finds an entry where
  * it previously found none. Clear it with wolfSSL_ERR_clear_error() if
  * leftover entries matter to the caller.
+ *
+ * With quiet shutdown (wolfSSL_set_quiet_shutdown()) nothing is sent and
+ * WOLFSSL_SUCCESS is reported, for the already closed or reset connection
+ * above as much as for a live one - the caller asked not to be told about the
+ * teardown, which is what OpenSSL's quiet shutdown does too. The shutdown is
+ * recorded as complete in options.shutdownDone either way.
+ *
+ * The exception is a connection that has sent a "user_canceled" alert:
+ * RFC 9846 Section 6.1 obliges a "close_notify" behind it, so quiet shutdown
+ * sends that one. The call can then do I/O and report WOLFSSL_FATAL_ERROR,
+ * to be retried when wolfSSL_get_error() returns WANT_WRITE and not otherwise
+ * - a send that fails outright reports it too, with the transport's error -
+ * or WOLFSSL_SHUTDOWN_NOT_DONE where the alert could not be handed to the
+ * transport at all. It never waits for the peer's reply.
  */
 WOLFSSL_ABI
 int wolfSSL_shutdown(WOLFSSL* ssl)
@@ -1038,30 +1117,63 @@ int wolfSSL_shutdown(WOLFSSL* ssl)
     if (ssl == NULL) {
         ret = WOLFSSL_FATAL_ERROR;
     }
-    else if (ssl->options.quietShutdown && (!ssl->options.sentUserCanceled)) {
+    else if (ssl->options.quietShutdown &&
+            (!wolfssl_shutdown_owes_close_notify(ssl))) {
         WOLFSSL_MSG("quiet shutdown, no close notify sent");
+        /* Nothing goes out, but the shutdown is over as far as this side is
+         * concerned, so record it the way the branch below and OpenSSL's
+         * quiet shutdown do. Clear the error with it, as
+         * wolfssl_shutdown_recv_close_notify() does: wolfSSL_get_error()
+         * looks at WANT_READ and WANT_WRITE before the shutdown state, so one
+         * left by an earlier call would outrank the record. Every other error
+         * goes too. Keeping one would not surface it anyway - shutdownDone
+         * already has wolfSSL_get_error() report ZERO_RETURN for anything
+         * that is not WANT_READ or WANT_WRITE. */
+        ssl->options.shutdownDone = 1;
+        ssl->error = WOLFSSL_ERROR_NONE;
         ret = WOLFSSL_SUCCESS;
     }
     else if (ssl->options.quietShutdown) {
-        /* A "user_canceled" alert has gone out so we need a "close_notify" to
-         * follow it per RFC 9846 Section 6.1. */
-        ret = WOLFSSL_SUCCESS;
-        if (!wolfssl_shutdown_flush_alert(ssl, &ret)) {
-            (void)wolfssl_shutdown_send_close_notify(ssl, &ret);
+        int done;
+
+        WOLFSSL_MSG("quiet shutdown, sending close notify owed by "
+                    "user_canceled");
+        /* The result is left as the WOLFSSL_FATAL_ERROR this function starts
+         * with, which is what the helpers leave behind when they reach no
+         * decision - the same seeding the non-quiet path below relies on. A
+         * helper that decides without writing a result is then reported as a
+         * failure rather than read as a success. */
+        done = wolfssl_shutdown_send_alerts(ssl, &ret);
+
+        if ((!done) && (ret == WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR))) {
+            /* Undecided: no "close_notify" can ever go out - the connection
+             * is closed or reset, or one has been sent already. */
+            ret = WOLFSSL_SUCCESS;
         }
         if ((ret == WC_NO_ERR_TRACE(WOLFSSL_SHUTDOWN_NOT_DONE)) &&
-            (ssl->error != WC_NO_ERR_TRACE(WANT_WRITE))) {
+                (ssl->error == WOLFSSL_ERROR_NONE)) {
+            /* Only the peer's reply is missing, which quiet shutdown does not
+             * wait for. The error is checked because one path reaches this
+             * having sent nothing: a QUIC send_alert callback that refuses the
+             * alert makes SendAlert() return a positive value, which is
+             * neither the success that sets sentNotify nor the negative error
+             * the helper reports as a failure. */
             ret = WOLFSSL_SUCCESS;
+        }
+        if (ret == WOLFSSL_SUCCESS) {
+            /* The wolfSSL_clear() below clears sentNotify, so without this
+             * wolfSSL_get_shutdown() would report 0 for a connection whose
+             * "close_notify" has just gone out. The error goes with it, as in
+             * the branch above - an undecided result gets here with whatever
+             * the last operation recorded. */
+            ssl->options.shutdownDone = 1;
+            ssl->error = WOLFSSL_ERROR_NONE;
         }
     }
     else {
         int done;
 
-        /* Try to flush the buffer first, it might contain the alert */
-        done = wolfssl_shutdown_flush_alert(ssl, &ret);
-        if (!done) {
-            done = wolfssl_shutdown_send_close_notify(ssl, &ret);
-        }
+        done = wolfssl_shutdown_send_alerts(ssl, &ret);
 
         #ifdef WOLFSSL_SHUTDOWNONCE
         if ((!done) &&
@@ -1106,6 +1218,14 @@ int wolfSSL_shutdown(WOLFSSL* ssl)
             }
             ret = WOLFSSL_FATAL_ERROR;
         }
+    }
+
+    /* A completed shutdown discharges the obligation whichever path reached
+     * it: the "close_notify" is out, or it never can be. Doing it here rather
+     * than leaving it to the wolfSSL_clear() below keeps the bit's meaning
+     * independent of which compatibility layer is built in. */
+    if ((ssl != NULL) && (ret == WOLFSSL_SUCCESS)) {
+        ssl->options.sentUserCanceled = 0;
     }
 
     #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)

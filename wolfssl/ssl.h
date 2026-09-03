@@ -3240,19 +3240,26 @@ enum { /* ssl Constants */
  * it returns <= 0 AND SSL_get_error returns SSL_ERROR_ZERO_RETURN. See OpenSSL
  * docs for more: https://www.openssl.org/docs/man1.1.1/man3/SSL_shutdown.html
  */
+/* The enumerator below and the CONST_NUM_ERR_ constant that WC_NO_ERR_TRACE()
+ * expands to in a tracing build are both taken from this, because they have to
+ * agree: a constant that disagrees makes every comparison against the value
+ * silently false. Not for application use - the enumerator is the public
+ * spelling of the value. */
 #ifdef WOLFSSL_ERROR_CODE_OPENSSL
 /* SSL_shutdown returns 0 when not done, per OpenSSL documentation. */
-    WOLFSSL_SHUTDOWN_NOT_DONE = 0,
+    #define WOLFSSL_SHUTDOWN_NOT_DONE_VAL 0
 #else
-    WOLFSSL_SHUTDOWN_NOT_DONE =  2,
+    #define WOLFSSL_SHUTDOWN_NOT_DONE_VAL 2
 #endif
+    WOLFSSL_SHUTDOWN_NOT_DONE = WOLFSSL_SHUTDOWN_NOT_DONE_VAL,
 
     #if defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES) && \
             (defined(BUILDING_WOLFSSL) || \
              defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES_ALWAYS))
         #define WOLFSSL_SHUTDOWN_NOT_DONE \
             WC_ERR_TRACE(WOLFSSL_SHUTDOWN_NOT_DONE)
-        #define CONST_NUM_ERR_WOLFSSL_SHUTDOWN_NOT_DONE 0
+        #define CONST_NUM_ERR_WOLFSSL_SHUTDOWN_NOT_DONE \
+            WOLFSSL_SHUTDOWN_NOT_DONE_VAL
     #endif
 
     WOLFSSL_FILETYPE_ASN1    = CTC_FILETYPE_ASN1,
