@@ -3986,6 +3986,9 @@ int DecodeExtKeyUsage(const byte* input, word32 sz,
             case EKU_SSH_KP_CLIENT_AUTH_OID:
                 *extExtKeyUsageSsh |= EXTKEYUSE_SSH_KP_CLIENT_AUTH;
                 break;
+            case EKU_SSH_SERVER_AUTH_OID:
+                *extExtKeyUsageSsh |= EXTKEYUSE_SSH_SERVER_AUTH;
+                break;
             #endif /* WOLFSSL_WOLFSSH */
             default:
                 break;

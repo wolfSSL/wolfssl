@@ -5700,6 +5700,8 @@ static const byte extExtKeyUsageOcspSignOid[]     = {43, 6, 1, 5, 5, 7, 3, 9};
             {43, 6, 1, 4, 1, 130, 55, 20, 2, 2};
     static const byte extExtKeyUsageSshKpClientAuthOid[] =
             {43, 6, 1, 5, 2, 3, 4};
+    static const byte extExtKeyUsageSshServerAuthOid[] =
+            EXT_KEY_USAGE_OID_BASE(22);
 #endif /* WOLFSSL_WOLFSSH */
 
 #ifdef WOLFSSL_SUBJ_DIR_ATTR
@@ -7139,6 +7141,10 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                 case EKU_SSH_KP_CLIENT_AUTH_OID:
                     oid = extExtKeyUsageSshKpClientAuthOid;
                     *oidSz = sizeof(extExtKeyUsageSshKpClientAuthOid);
+                    break;
+                case EKU_SSH_SERVER_AUTH_OID:
+                    oid = extExtKeyUsageSshServerAuthOid;
+                    *oidSz = sizeof(extExtKeyUsageSshServerAuthOid);
                     break;
                 #endif /* WOLFSSL_WOLFSSH */
                 default:
@@ -21598,6 +21604,20 @@ int DecodeExtKeyUsage(const byte* input, word32 sz,
                 case EKU_OCSP_SIGN_OID:
                     *extExtKeyUsage |= EXTKEYUSE_OCSP_SIGN;
                     break;
+            #ifdef WOLFSSL_WOLFSSH
+                case EKU_SSH_CLIENT_AUTH_OID:
+                    *extExtKeyUsageSsh |= EXTKEYUSE_SSH_CLIENT_AUTH;
+                    break;
+                case EKU_SSH_MSCL_OID:
+                    *extExtKeyUsageSsh |= EXTKEYUSE_SSH_MSCL;
+                    break;
+                case EKU_SSH_KP_CLIENT_AUTH_OID:
+                    *extExtKeyUsageSsh |= EXTKEYUSE_SSH_KP_CLIENT_AUTH;
+                    break;
+                case EKU_SSH_SERVER_AUTH_OID:
+                    *extExtKeyUsageSsh |= EXTKEYUSE_SSH_SERVER_AUTH;
+                    break;
+            #endif /* WOLFSSL_WOLFSSH */
             }
 
         #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
