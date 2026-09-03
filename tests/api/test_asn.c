@@ -3813,6 +3813,25 @@ int test_wc_MakeCert_generalizedTimeValidity(void)
     ExpectIntEQ(test_asn_findValidityTime(der, (word32)((derSz > 0) ? derSz : 0),
         ASN_GENERALIZED_TIME, 15), 1);
 
+    /* ValidityTimeFormat() is `tm_year >= 1950 && tm_year < 2050`: the call
+     * above pairs the upper bound (>= 1950 held true, < 2050 flips false).
+     * Pair the lower bound the same way - push notAfter's year below 1950
+     * (~80 years back from "now") so `tm_year >= 1950` itself flips false.
+     * That operand is short-circuited, so the encode still lands on
+     * GeneralizedTime, just via the other half of the decision. wc_MakeCert()
+     * has no lower bound on daysValid; not asserting its return keeps a
+     * platform-dependent pre-epoch gmtime() failure from failing the whole
+     * variant. */
+    if (EXPECT_SUCCESS()) {
+        cert.daysValid = -29200;
+        derSz = wc_MakeCert(&cert, der, SIGN_CERT_SCRATCH_SZ, &key, NULL,
+            &rng);
+        if (derSz > 0) {
+            ExpectIntEQ(test_asn_findValidityTime(der, (word32)derSz,
+                ASN_GENERALIZED_TIME, 15), 1);
+        }
+    }
+
     XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (keyInit)
         wc_FreeRsaKey(&key);
