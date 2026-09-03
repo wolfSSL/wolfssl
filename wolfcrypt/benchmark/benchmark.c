@@ -183,6 +183,9 @@
 #ifdef WOLFSSL_HAVE_FRODOKEM
     #include <wolfssl/wolfcrypt/wc_frodokem.h>
 #endif
+#ifdef WOLFSSL_HAVE_MCELIECE
+    #include <wolfssl/wolfcrypt/wc_mceliece.h>
+#endif
 #if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
     #include <wolfssl/wolfcrypt/wc_lms.h>
 #endif
@@ -950,6 +953,12 @@ static WC_INLINE void bench_append_memory_info(char* buffer, size_t size,
 #define BENCH_FRODOKEM                  (BENCH_FRODOKEM_640 | \
                                          BENCH_FRODOKEM_976 | \
                                          BENCH_FRODOKEM_1344)
+#define BENCH_MCELIECE_6688128          0x00000800
+#define BENCH_MCELIECE_6960119          0x00001000
+#define BENCH_MCELIECE_8192128          0x00002000
+#define BENCH_MCELIECE                  (BENCH_MCELIECE_6688128 | \
+                                         BENCH_MCELIECE_6960119 | \
+                                         BENCH_MCELIECE_8192128)
 #define BENCH_FALCON_LEVEL1_SIGN        0x00000001
 #define BENCH_FALCON_LEVEL5_SIGN        0x00000002
 #define BENCH_ML_DSA_44_SIGN            0x04000000
@@ -1423,6 +1432,7 @@ static const bench_pq_hash_sig_alg bench_pq_hash_sig_opt[] = {
 
 #if !defined(WOLFSSL_BENCHMARK_ALL) && !defined(MAIN_NO_ARGS)
 #if defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_FRODOKEM) || \
+    defined(WOLFSSL_HAVE_MCELIECE) || \
     defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA)
 /* The post-quantum-specific mapping of command line option to bit values and
  * OQS name. */
@@ -1452,6 +1462,12 @@ static const bench_pq_alg bench_pq_asym_opt[] = {
     { "-frodokem-640",      BENCH_FRODOKEM_640      },
     { "-frodokem-976",      BENCH_FRODOKEM_976      },
     { "-frodokem-1344",     BENCH_FRODOKEM_1344     },
+#endif
+#ifdef WOLFSSL_HAVE_MCELIECE
+    { "-mceliece",          BENCH_MCELIECE          },
+    { "-mceliece-6688128",  BENCH_MCELIECE_6688128  },
+    { "-mceliece-6960119",  BENCH_MCELIECE_6960119  },
+    { "-mceliece-8192128",  BENCH_MCELIECE_8192128  },
 #endif
 #if defined(HAVE_FALCON)
     { "-falcon_level1",     BENCH_FALCON_LEVEL1_SIGN },
@@ -4713,6 +4729,26 @@ static void* benchmarks_do(void* args)
     #ifdef WOLFSSL_WC_FRODOKEM_1344
         if (bench_all || (bench_pq_asym_algs & BENCH_FRODOKEM_1344)) {
             bench_frodokem(WC_FRODOKEM_1344);
+        }
+    #endif
+    }
+#endif
+
+#ifdef WOLFSSL_HAVE_MCELIECE
+    if (bench_all || (bench_pq_asym_algs & BENCH_MCELIECE)) {
+    #ifdef WOLFSSL_WC_MCELIECE_6688128
+        if (bench_all || (bench_pq_asym_algs & BENCH_MCELIECE_6688128)) {
+            bench_mceliece(WC_MCELIECE_6688128);
+        }
+    #endif
+    #ifdef WOLFSSL_WC_MCELIECE_6960119
+        if (bench_all || (bench_pq_asym_algs & BENCH_MCELIECE_6960119)) {
+            bench_mceliece(WC_MCELIECE_6960119);
+        }
+    #endif
+    #ifdef WOLFSSL_WC_MCELIECE_8192128
+        if (bench_all || (bench_pq_asym_algs & BENCH_MCELIECE_8192128)) {
+            bench_mceliece(WC_MCELIECE_8192128);
         }
     #endif
     }
@@ -12886,6 +12922,248 @@ void bench_frodokem(int type)
 }
 #endif
 
+#ifdef WOLFSSL_HAVE_MCELIECE
+static void bench_mceliece_keygen(int type, const char* name, int keySize,
+    McElieceKey* key)
+{
+#ifndef WOLFSSL_MCELIECE_NO_MAKE_KEY
+    int ret = 0, times, count, pending = 0;
+    double start;
+    const char** desc = bench_desc_words[lng_index];
+    DECLARE_MULTI_VALUE_STATS_VARS()
+
+    bench_stats_prepare();
+
+    bench_stats_start(&count, &start);
+    /* One operation per timer check (not agreeTimes): McEliece key generation
+     * is slow enough that a batch of agreeTimes operations would overshoot the
+     * ~1 second measurement window many-fold. */
+    do {
+        for (times = 0; times < 1 || pending > 0; times++) {
+            wc_McElieceKey_Free(key);
+            ret = wc_McElieceKey_Init(key, type, HEAP_HINT, INVALID_DEVID);
+            if (ret != 0)
+                goto exit;
+
+            ret = wc_McElieceKey_MakeKey(key, &gRng);
+            if (ret != 0)
+                goto exit;
+            RECORD_MULTI_VALUE_STATS();
+        } /* for times */
+        count += times;
+    } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+       || runs < minimum_runs
+#endif
+       );
+
+exit:
+    bench_stats_asym_finish(name, keySize, desc[2], 0, count, start, ret);
+#ifdef MULTI_VALUE_STATISTICS
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
+#endif
+#else
+    (void)type;
+    (void)name;
+    (void)keySize;
+    (void)key;
+#endif /* !WOLFSSL_MCELIECE_NO_MAKE_KEY */
+}
+
+#if !defined(WOLFSSL_MCELIECE_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MCELIECE_NO_DECAPSULATE)
+static void bench_mceliece_encap(int type, const char* name, int keySize,
+    McElieceKey* key1, McElieceKey* key2)
+{
+    int ret = 0, times, count, pending = 0;
+    double start;
+    const char** desc = bench_desc_words[lng_index];
+    byte ct[MCELIECE_MAX_CIPHER_TEXT_SIZE];
+    byte ss[MCELIECE_SS_SZ];
+    byte* pub = NULL;
+    word32 pubLen;
+    word32 ctSz;
+    DECLARE_MULTI_VALUE_STATS_VARS()
+
+    bench_stats_prepare();
+
+    /* The public key is up to ~1.3 MB, so it is always heap-allocated. */
+    pub = (byte*)XMALLOC(MCELIECE_MAX_PUBLIC_KEY_SIZE, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (pub == NULL) {
+        ret = MEMORY_E;
+        goto exit;
+    }
+
+    ret = wc_McElieceKey_PublicKeySize(key1, &pubLen);
+    if (ret != 0) {
+        goto exit;
+    }
+    ret = wc_McElieceKey_EncodePublicKey(key1, pub, pubLen);
+    if (ret != 0) {
+        goto exit;
+    }
+    /* key2 holds a heap public key from a prior iteration; free before re-init. */
+    wc_McElieceKey_Free(key2);
+    ret = wc_McElieceKey_Init(key2, type, HEAP_HINT, INVALID_DEVID);
+    if (ret != 0) {
+        goto exit;
+    }
+    ret = wc_McElieceKey_DecodePublicKey(key2, pub, pubLen);
+    if (ret != 0) {
+        goto exit;
+    }
+    ret = wc_McElieceKey_CipherTextSize(key2, &ctSz);
+    if (ret != 0) {
+        goto exit;
+    }
+
+#ifndef WOLFSSL_MCELIECE_NO_ENCAPSULATE
+    bench_stats_start(&count, &start);
+    /* One operation per timer check, matching the slow key generation and
+     * decapsulation loops (see bench_mceliece_keygen). */
+    do {
+        for (times = 0; times < 1 || pending > 0; times++) {
+            ret = wc_McElieceKey_Encapsulate(key2, ct, ss, &gRng);
+            if (ret != 0)
+                goto exit_encap;
+            RECORD_MULTI_VALUE_STATS();
+        } /* for times */
+        count += times;
+    } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+       || runs < minimum_runs
+#endif
+       );
+
+exit_encap:
+    bench_stats_asym_finish(name, keySize, desc[9], 0, count, start, ret);
+#ifdef MULTI_VALUE_STATISTICS
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
+#endif
+#endif
+
+#ifndef WOLFSSL_MCELIECE_NO_DECAPSULATE
+    RESET_MULTI_VALUE_STATS_VARS();
+
+    PRIVATE_KEY_UNLOCK();
+    bench_stats_start(&count, &start);
+    /* One operation per timer check (not agreeTimes): decapsulation is slow,
+     * so an agreeTimes-sized batch would overshoot the ~1 second window. */
+    do {
+        for (times = 0; times < 1 || pending > 0; times++) {
+            ret = wc_McElieceKey_Decapsulate(key1, ss, ct, ctSz);
+            if (ret != 0)
+                goto exit_decap;
+            RECORD_MULTI_VALUE_STATS();
+        } /* for times */
+        count += times;
+    } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+       || runs < minimum_runs
+#endif
+       );
+
+exit_decap:
+    PRIVATE_KEY_LOCK();
+    bench_stats_asym_finish(name, keySize, desc[13], 0, count, start, ret);
+#ifdef MULTI_VALUE_STATISTICS
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
+#endif
+#endif
+
+exit:
+    XFREE(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+    if (ret != 0)
+        printf("error: bench_mceliece_encap() failed with code %d.\n", ret);
+
+    return;
+}
+#endif /* !NO_ENCAPSULATE || !NO_DECAPSULATE */
+
+void bench_mceliece(int type)
+{
+    McElieceKey key1[1];
+    McElieceKey key2[1];
+    /* Modifiers layered onto the base parameter set: plain, f (semi-systematic),
+     * pc (plaintext confirmation) and pcf. Each form is included only when it is
+     * compiled in, so a form excluded via WOLFSSL_MCELIECE_NO_{PLAIN,F,PC,PCF}
+     * is not benchmarked. At least one form is always present (a build with none
+     * is rejected in wc_mceliece.h). */
+    static const int mods[] = {
+#ifndef WOLFSSL_MCELIECE_NO_PLAIN
+        0,
+#endif
+#ifndef WOLFSSL_MCELIECE_NO_F
+        MCELIECE_F,
+#endif
+#ifndef WOLFSSL_MCELIECE_NO_PC
+        MCELIECE_PC,
+#endif
+#ifndef WOLFSSL_MCELIECE_NO_PCF
+        MCELIECE_F | MCELIECE_PC,
+#endif
+    };
+    int base = type & MCELIECE_BASE_MASK;
+    const char* baseName = NULL;
+    int keySize = 256;
+    size_t v;
+
+    switch (base) {
+#ifdef WOLFSSL_WC_MCELIECE_6688128
+    case WC_MCELIECE_6688128:
+        baseName = "6688128";
+        break;
+#endif
+#ifdef WOLFSSL_WC_MCELIECE_6960119
+    case WC_MCELIECE_6960119:
+        baseName = "6960119";
+        break;
+#endif
+#ifdef WOLFSSL_WC_MCELIECE_8192128
+    case WC_MCELIECE_8192128:
+        baseName = "8192128";
+        break;
+#endif
+    default:
+        return;
+    }
+
+    /* Initialise both key objects up front so every wc_McElieceKey_Free below
+     * runs on an initialised key: the keygen/encap helpers free-then-init at
+     * the start of their loops, and both keys are freed again at function exit.
+     * Each helper re-inits with its form's full type, so this initial type just
+     * needs to be valid. */
+    if ((wc_McElieceKey_Init(key1, base | mods[0], HEAP_HINT, INVALID_DEVID)
+            != 0) ||
+        (wc_McElieceKey_Init(key2, base | mods[0], HEAP_HINT, INVALID_DEVID)
+            != 0)) {
+        printf("error: bench_mceliece() key init failed.\n");
+        return;
+    }
+
+    for (v = 0; v < sizeof(mods) / sizeof(mods[0]); v++) {
+        int mod = mods[v];
+        int fullType = base | mod;
+        char name[32];
+
+        (void)XSNPRINTF(name, sizeof(name), "MCELIECE %s%s%s", baseName,
+            (mod & MCELIECE_F) ? "f" : "",
+            (mod & MCELIECE_PC) ? "pc" : "");
+
+        bench_mceliece_keygen(fullType, name, keySize, key1);
+#if !defined(WOLFSSL_MCELIECE_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MCELIECE_NO_DECAPSULATE)
+        bench_mceliece_encap(fullType, name, keySize, key1, key2);
+#endif
+    }
+
+    wc_McElieceKey_Free(key2);
+    wc_McElieceKey_Free(key1);
+}
+#endif
+
 #if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
 #ifndef WOLFSSL_WC_LMS_SERIALIZE_STATE
 #ifndef WOLFSSL_NO_LMS_SHA256_256
@@ -18887,7 +19165,8 @@ static void Usage(void)
     for (i=0; bench_other_opt[i].str != NULL; i++)
         print_alg(bench_other_opt[i].str, &line);
 #if defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_FRODOKEM) || \
-    defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA)
+    defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MCELIECE) || \
+    defined(WOLFSSL_HAVE_MLDSA)
     for (i=0; bench_pq_asym_opt[i].str != NULL; i++)
         print_alg(bench_pq_asym_opt[i].str, &line);
 #endif
@@ -19190,7 +19469,8 @@ int wolfcrypt_benchmark_main(int argc, char** argv)
                 }
             }
         #if defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_FRODOKEM) || \
-            defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA)
+            defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MCELIECE) || \
+            defined(WOLFSSL_HAVE_MLDSA)
             /* Known asymmetric post-quantum algorithms */
             for (i=0; !optMatched && bench_pq_asym_opt[i].str != NULL; i++) {
                 if (string_matches(argv[1], bench_pq_asym_opt[i].str)) {

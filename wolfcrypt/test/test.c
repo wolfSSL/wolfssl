@@ -402,6 +402,9 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
 #ifdef WOLFSSL_HAVE_FRODOKEM
     #include <wolfssl/wolfcrypt/wc_frodokem.h>
 #endif
+#ifdef WOLFSSL_HAVE_MCELIECE
+    #include <wolfssl/wolfcrypt/wc_mceliece.h>
+#endif
 #ifdef WOLFSSL_HAVE_MLDSA
     #include <wolfssl/wolfcrypt/wc_mldsa.h>
 #endif
@@ -998,6 +1001,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t argon2_test(void);
 #endif
 #ifdef WOLFSSL_HAVE_FRODOKEM
     WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  frodokem_test(void);
+#endif
+#ifdef WOLFSSL_HAVE_MCELIECE
+    WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  mceliece_test(void);
 #endif
 #ifdef WOLFSSL_HAVE_MLDSA
     WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  mldsa_test(void);
@@ -3287,6 +3293,13 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_FAIL("FRODOKEM test failed!\n", ret);
     else
         TEST_PASS("FRODOKEM test passed!\n");
+#endif
+
+#ifdef WOLFSSL_HAVE_MCELIECE
+    if ( (ret = mceliece_test()) != 0)
+        TEST_FAIL("MCELIECE test failed!\n", ret);
+    else
+        TEST_PASS("MCELIECE test passed!\n");
 #endif
 
 #ifdef WOLFSSL_HAVE_MLDSA
@@ -57761,6 +57774,195 @@ out:
 }
 #endif /* WOLFSSL_HAVE_FRODOKEM */
 
+#ifdef WOLFSSL_HAVE_MCELIECE
+#ifdef WC_NO_CONSTRUCTORS
+/* The wc_McElieceKey_New/_Delete helpers are not built under
+ * WC_NO_CONSTRUCTORS; provide thin shims over Init/Free that mirror the real
+ * semantics (see wc_McElieceKey_New / _Delete in wolfcrypt/src/wc_mceliece.c)
+ * so this test compiles in that configuration. */
+static McElieceKey* wc_McElieceKey_New(int keyType, void* keyHeap,
+    int keyDevId)
+{
+    McElieceKey* key = (McElieceKey*)XMALLOC(sizeof(McElieceKey), keyHeap,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (key != NULL) {
+        if (wc_McElieceKey_Init(key, keyType, keyHeap, keyDevId) != 0) {
+            XFREE(key, keyHeap, DYNAMIC_TYPE_TMP_BUFFER);
+            key = NULL;
+        }
+    }
+    return key;
+}
+static int wc_McElieceKey_Delete(McElieceKey* key, McElieceKey** key_p)
+{
+    int ret = 0;
+    if (key == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        void* heap = key->heap;
+        wc_McElieceKey_Free(key);
+        XFREE(key, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (key_p != NULL) {
+            *key_p = NULL;
+        }
+    }
+    return ret;
+}
+#endif /* WC_NO_CONSTRUCTORS */
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mceliece_test(void)
+{
+    wc_test_ret_t ret = 0;
+#if !defined(WC_NO_RNG) && !defined(WOLFSSL_MCELIECE_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MCELIECE_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_MCELIECE_NO_DECAPSULATE)
+    static const int types[] = {
+    #ifdef WOLFSSL_WC_MCELIECE_6688128
+        #ifndef WOLFSSL_MCELIECE_NO_PLAIN
+        WC_MCELIECE_6688128,
+        #endif
+        #ifndef WOLFSSL_MCELIECE_NO_F
+        WC_MCELIECE_6688128F,
+        #endif
+        #ifndef WOLFSSL_MCELIECE_NO_PC
+        WC_MCELIECE_6688128PC,
+        #endif
+        #ifndef WOLFSSL_MCELIECE_NO_PCF
+        WC_MCELIECE_6688128PCF,
+        #endif
+    #endif
+    #ifdef WOLFSSL_WC_MCELIECE_6960119
+        #ifndef WOLFSSL_MCELIECE_NO_PLAIN
+        WC_MCELIECE_6960119,
+        #endif
+        #ifndef WOLFSSL_MCELIECE_NO_F
+        WC_MCELIECE_6960119F,
+        #endif
+        #ifndef WOLFSSL_MCELIECE_NO_PC
+        WC_MCELIECE_6960119PC,
+        #endif
+        #ifndef WOLFSSL_MCELIECE_NO_PCF
+        WC_MCELIECE_6960119PCF,
+        #endif
+    #endif
+    #ifdef WOLFSSL_WC_MCELIECE_8192128
+        #ifndef WOLFSSL_MCELIECE_NO_PLAIN
+        WC_MCELIECE_8192128,
+        #endif
+        #ifndef WOLFSSL_MCELIECE_NO_F
+        WC_MCELIECE_8192128F,
+        #endif
+        #ifndef WOLFSSL_MCELIECE_NO_PC
+        WC_MCELIECE_8192128PC,
+        #endif
+        #ifndef WOLFSSL_MCELIECE_NO_PCF
+        WC_MCELIECE_8192128PCF,
+        #endif
+    #endif
+        0 /* sentinel so the array is never empty */
+    };
+    int numTypes = (int)(sizeof(types) / sizeof(types[0])) - 1;
+    int i;
+    WC_RNG rng;
+    int rngInit = 0;
+    McElieceKey* key = NULL;
+    McElieceKey* key2 = NULL;
+    byte* ct = NULL;
+    byte* pk = NULL;
+    byte* sk = NULL;
+    byte ss[MCELIECE_SS_SZ];
+    byte ss2[MCELIECE_SS_SZ];
+    word32 pkLen = 0;
+    word32 skLen = 0;
+    word32 ctLen = 0;
+    word32 ssLen = 0;
+
+    ct = (byte*)XMALLOC(MCELIECE_MAX_CIPHER_TEXT_SIZE, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    pk = (byte*)XMALLOC(MCELIECE_MAX_PUBLIC_KEY_SIZE, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    sk = (byte*)XMALLOC(MCELIECE_MAX_PRIVATE_KEY_SIZE, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if ((ct == NULL) || (pk == NULL) || (sk == NULL)) {
+        ret = WC_TEST_RET_ENC_NC;
+        goto out;
+    }
+
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+    if (ret != 0) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto out;
+    }
+    rngInit = 1;
+
+    for (i = 0; i < numTypes; i++) {
+        key = wc_McElieceKey_New(types[i], HEAP_HINT, devId);
+        if (key == NULL) { ret = WC_TEST_RET_ENC_NC; break; }
+
+        ret = wc_McElieceKey_PublicKeySize(key, &pkLen);
+        if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+        ret = wc_McElieceKey_PrivateKeySize(key, &skLen);
+        if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+        ret = wc_McElieceKey_CipherTextSize(key, &ctLen);
+        if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+        ret = wc_McElieceKey_SharedSecretSize(key, &ssLen);
+        if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+
+        /* Generate, encapsulate and decapsulate: shared secrets must agree. */
+        ret = wc_McElieceKey_MakeKey(key, &rng);
+        if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+        ret = wc_McElieceKey_Encapsulate(key, ct, ss, &rng);
+        if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+        ret = wc_McElieceKey_Decapsulate(key, ss2, ct, ctLen);
+        if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+        if (XMEMCMP(ss, ss2, ssLen) != 0) {
+            ret = WC_TEST_RET_ENC_NC; break;
+        }
+
+        /* Export public/private key, import into a fresh key, and check that
+         * an encapsulation to the decoded public key is decapsulated by the
+         * decoded private key. */
+        ret = wc_McElieceKey_EncodePublicKey(key, pk, pkLen);
+        if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+        ret = wc_McElieceKey_EncodePrivateKey(key, sk, skLen);
+        if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+
+        key2 = wc_McElieceKey_New(types[i], HEAP_HINT, devId);
+        if (key2 == NULL) { ret = WC_TEST_RET_ENC_NC; break; }
+        ret = wc_McElieceKey_DecodePublicKey(key2, pk, pkLen);
+        if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+        ret = wc_McElieceKey_DecodePrivateKey(key2, sk, skLen);
+        if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+        ret = wc_McElieceKey_Encapsulate(key2, ct, ss, &rng);
+        if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+        ret = wc_McElieceKey_Decapsulate(key2, ss2, ct, ctLen);
+        if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+        if (XMEMCMP(ss, ss2, ssLen) != 0) {
+            ret = WC_TEST_RET_ENC_NC; break;
+        }
+
+        wc_McElieceKey_Delete(key2, &key2);
+        wc_McElieceKey_Delete(key, &key);
+    }
+
+out:
+    if (key2 != NULL) {
+        wc_McElieceKey_Delete(key2, &key2);
+    }
+    if (key != NULL) {
+        wc_McElieceKey_Delete(key, &key);
+    }
+    if (rngInit) {
+        wc_FreeRng(&rng);
+    }
+    XFREE(ct, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(pk, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(sk, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif /* RNG and all ops available */
+    return ret;
+}
+#endif /* WOLFSSL_HAVE_MCELIECE */
+
 #ifdef WOLFSSL_HAVE_MLDSA
 #ifndef WOLFSSL_MLDSA_NO_VERIFY
 static wc_test_ret_t mldsa_param_vfy_test(int param, const byte* pubKey,
@@ -84568,6 +84770,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 #ifdef WOLFSSL_HAVE_FRODOKEM
     if (ret == 0)
         ret = frodokem_test();
+#endif
+#ifdef WOLFSSL_HAVE_MCELIECE
+    if (ret == 0)
+        ret = mceliece_test();
 #endif
 #ifdef WOLFSSL_HAVE_MLDSA
     if (ret == 0)
