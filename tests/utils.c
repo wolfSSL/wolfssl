@@ -193,6 +193,11 @@ int test_memio_do_handshake(WOLFSSL *ssl_c, WOLFSSL *ssl_s,
                         return -1;
                 }
             #endif
+            #ifdef WOLFSSL_CHAIN_VERIFY_CB
+                else if (err == WC_NO_ERR_TRACE(CHAIN_VERIFY_WANT_E)) {
+                    /* application has not reached a verdict yet; retry */
+                }
+            #endif
                 else if (err != WOLFSSL_ERROR_WANT_READ &&
                          err != WOLFSSL_ERROR_WANT_WRITE) {
                     char buff[WOLFSSL_MAX_ERROR_SZ];
@@ -219,6 +224,11 @@ int test_memio_do_handshake(WOLFSSL *ssl_c, WOLFSSL *ssl_s,
                     ret = wolfSSL_AsyncPoll(ssl_s, WOLF_POLL_FLAG_CHECK_HW);
                     if (ret < 0)
                         return -1;
+                }
+            #endif
+            #ifdef WOLFSSL_CHAIN_VERIFY_CB
+                else if (err == WC_NO_ERR_TRACE(CHAIN_VERIFY_WANT_E)) {
+                    /* application has not reached a verdict yet; retry */
                 }
             #endif
                 else if (err != WOLFSSL_ERROR_WANT_READ &&

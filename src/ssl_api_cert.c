@@ -639,6 +639,120 @@ void wolfSSL_CTX_set_cert_verify_callback(WOLFSSL_CTX* ctx,
 }
 #endif
 
+#ifdef WOLFSSL_CHAIN_VERIFY_CB
+/* Set the callback that replaces peer certificate chain verification for
+ * every SSL/TLS object created from the context.
+ *
+ * Setting a callback turns off all of wolfSSL's own checking of the peer's
+ * certificates. See ChainVerifyCb in ssl.h.
+ *
+ * @param [in, out] ctx  SSL/TLS context object.
+ * @param [in]      cb   Chain verification callback. NULL to clear.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ctx is NULL.
+ * @return  CHAIN_VERIFY_UNSUPPORTED_E when the context uses DTLS, raw public
+ *          keys or OCSP stapling.
+ */
+int wolfSSL_CTX_SetChainVerifyCb(WOLFSSL_CTX* ctx, ChainVerifyCb cb)
+{
+    int ret;
+
+    WOLFSSL_ENTER("wolfSSL_CTX_SetChainVerifyCb");
+
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+
+    if (cb != NULL) {
+        ret = ChainVerifyCbCheckCtx(ctx);
+        if (ret != 0)
+            return ret;
+    }
+    ctx->chainVerifyCb = cb;
+
+    return WOLFSSL_SUCCESS;
+}
+
+/* Set the callback that replaces peer certificate chain verification for one
+ * SSL/TLS object. Takes precedence over the context's callback.
+ *
+ * @param [in, out] ssl  SSL/TLS object.
+ * @param [in]      cb   Chain verification callback. NULL to fall back to the
+ *                       context's.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ssl is NULL.
+ * @return  CHAIN_VERIFY_UNSUPPORTED_E when the object uses DTLS, raw public
+ *          keys or OCSP stapling.
+ */
+int wolfSSL_SetChainVerifyCb(WOLFSSL* ssl, ChainVerifyCb cb)
+{
+    int ret;
+
+    WOLFSSL_ENTER("wolfSSL_SetChainVerifyCb");
+
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    if (cb != NULL) {
+        ret = ChainVerifyCbCheckSsl(ssl);
+        if (ret != 0)
+            return ret;
+    }
+    ssl->chainVerifyCb = cb;
+
+    return WOLFSSL_SUCCESS;
+}
+
+/* Set the user context passed to the chain verification callback for every
+ * SSL/TLS object created from the context.
+ *
+ * @param [in, out] ctx      SSL/TLS context object.
+ * @param [in]      userCtx  User context.
+ */
+void wolfSSL_CTX_SetChainVerifyCtx(WOLFSSL_CTX* ctx, void* userCtx)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_SetChainVerifyCtx");
+
+    if (ctx != NULL) {
+        ctx->chainVerifyCtx = userCtx;
+    }
+}
+
+/* Set the user context passed to the chain verification callback for one
+ * SSL/TLS object. Takes precedence over the context's.
+ *
+ * @param [in, out] ssl  SSL/TLS object.
+ * @param [in]      ctx  User context. NULL to fall back to the context's.
+ */
+void wolfSSL_SetChainVerifyCtx(WOLFSSL* ssl, void* ctx)
+{
+    WOLFSSL_ENTER("wolfSSL_SetChainVerifyCtx");
+
+    if (ssl != NULL) {
+        ssl->chainVerifyCtx = ctx;
+    }
+}
+
+/* Get the user context the chain verification callback is called with: the
+ * SSL/TLS object's when set, otherwise the context's.
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @return  User context, or NULL when none set or ssl is NULL.
+ */
+void* wolfSSL_GetChainVerifyCtx(const WOLFSSL* ssl)
+{
+    WOLFSSL_ENTER("wolfSSL_GetChainVerifyCtx");
+
+    if (ssl != NULL) {
+        if (ssl->chainVerifyCtx != NULL) {
+            return ssl->chainVerifyCtx;
+        }
+        return ssl->ctx->chainVerifyCtx;
+    }
+
+    return NULL;
+}
+#endif /* WOLFSSL_CHAIN_VERIFY_CB */
+
 /* Set the verification options against the SSL/TLS object.
  *
  * @param [in, out] ssl              SSL/TLS object.

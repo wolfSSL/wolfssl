@@ -6574,6 +6574,11 @@ int test_ssl_memio_do_handshake(test_ssl_memio_ctx* ctx, int max_rounds,
                 if (err == WC_NO_ERR_TRACE(MP_WOULDBLOCK)) {
                     /* retry non-blocking math */
                 }
+            #ifdef WOLFSSL_CHAIN_VERIFY_CB
+                else if (err == WC_NO_ERR_TRACE(CHAIN_VERIFY_WANT_E)) {
+                    /* application has not reached a verdict yet; retry */
+                }
+            #endif
                 else if (err != WOLFSSL_ERROR_WANT_READ &&
                          err != WOLFSSL_ERROR_WANT_WRITE &&
                          err != WC_NO_ERR_TRACE(OCSP_WANT_READ)) {
@@ -6600,6 +6605,11 @@ int test_ssl_memio_do_handshake(test_ssl_memio_ctx* ctx, int max_rounds,
                 if (err == WC_NO_ERR_TRACE(MP_WOULDBLOCK)) {
                     /* retry non-blocking math */
                 }
+            #ifdef WOLFSSL_CHAIN_VERIFY_CB
+                else if (err == WC_NO_ERR_TRACE(CHAIN_VERIFY_WANT_E)) {
+                    /* application has not reached a verdict yet; retry */
+                }
+            #endif
                 else if (err != WOLFSSL_ERROR_WANT_READ &&
                          err != WOLFSSL_ERROR_WANT_WRITE &&
                          err != WC_NO_ERR_TRACE(OCSP_WANT_READ)) {

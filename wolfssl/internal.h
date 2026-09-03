@@ -2880,6 +2880,9 @@ typedef struct ProcPeerCertArgs {
     word16 fatal:1;
     word16 verifyErr:1;
     word16 dCertInit:1;
+#ifdef WOLFSSL_CHAIN_VERIFY_CB
+    word16 chainDecoded:1; /* peer certs already decode-checked */
+#endif
 #ifdef WOLFSSL_TRUST_PEER_CERT
     word16 haveTrustPeer:1; /* was cert verified by loaded trusted peer cert */
 #endif
@@ -4376,6 +4379,10 @@ struct WOLFSSL_CTX {
     CertVerifyCallback verifyCertCb;
     void*              verifyCertCbArg;
 #endif /* OPENSSL_ALL */
+#ifdef WOLFSSL_CHAIN_VERIFY_CB
+    ChainVerifyCb   chainVerifyCb;      /* replaces peer chain verification */
+    void*           chainVerifyCtx;     /* chain verify callback user ctx */
+#endif
 #ifdef OPENSSL_EXTRA
     SSL_Msg_Cb      protoMsgCb;         /* inspect protocol message callback */
     void*           protoMsgCtx;        /* user set context with msg callback */
@@ -5384,6 +5391,26 @@ enum asyncState {
     TLS_ASYNC_FINALIZE,
     TLS_ASYNC_END
 };
+
+/* Handshake message processing can suspend part way through and resume when
+ * the application re-enters wolfSSL_connect()/wolfSSL_accept(). State for the
+ * message in flight is held in ssl->async. */
+#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP) || \
+    defined(WOLFSSL_CHAIN_VERIFY_CB)
+    #undef  WOLFSSL_HAVE_HS_SUSPEND
+    #define WOLFSSL_HAVE_HS_SUSPEND
+#endif
+
+/* True for error codes that suspend handshake processing instead of failing
+ * it. Only the codes whose feature is compiled in are recognized. */
+WOLFSSL_LOCAL int IsHsSuspendErr(int err);
+
+#ifdef WOLFSSL_CHAIN_VERIFY_CB
+/* Non-zero when the context or object is configured for something the chain
+ * verify callback does not support. */
+WOLFSSL_LOCAL int ChainVerifyCbCheckCtx(const WOLFSSL_CTX* ctx);
+WOLFSSL_LOCAL int ChainVerifyCbCheckSsl(const WOLFSSL* ssl);
+#endif
 
 /* sub-states for build message */
 enum buildMsgState {
@@ -6477,6 +6504,10 @@ struct WOLFSSL {
     WC_RNG*         rng;
     void*           verifyCbCtx;        /* cert verify callback user ctx*/
     VerifyCallback  verifyCallback;     /* cert verification callback */
+#ifdef WOLFSSL_CHAIN_VERIFY_CB
+    ChainVerifyCb   chainVerifyCb;      /* overrides the ctx's when set */
+    void*           chainVerifyCtx;     /* chain verify callback user ctx */
+#endif
     void*           heap;               /* for user overrides */
 #ifdef HAVE_WRITE_DUP
     WriteDup*       dupWrite;           /* valid pointer indicates ON */

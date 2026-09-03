@@ -120,6 +120,7 @@ int test_tls13_KeyUpdate_sender_limit(void);
 int test_tls13_pqc_hybrid_async_server(void);
 int test_tls13_pha_status_request(void);
 int test_tls13_x25519_keyshare_masks_reserved_bit(void);
+int test_tls13_chain_verify_cb_rpk(void);
 
 #define TEST_TLS13_DECLS                                        \
     TEST_DECL_GROUP("tls13", test_tls13_apis),                  \
@@ -217,6 +218,7 @@ int test_tls13_x25519_keyshare_masks_reserved_bit(void);
     TEST_DECL_GROUP("tls13", test_tls13_KeyUpdate_sender_limit), \
     TEST_DECL_GROUP("tls13", test_tls13_pqc_hybrid_async_server), \
     TEST_DECL_GROUP("tls13", test_tls13_pha_status_request), \
-    TEST_DECL_GROUP("tls13", test_tls13_x25519_keyshare_masks_reserved_bit)
+    TEST_DECL_GROUP("tls13", test_tls13_x25519_keyshare_masks_reserved_bit), \
+    TEST_DECL_GROUP("tls13", test_tls13_chain_verify_cb_rpk)
 
 #endif /* WOLFCRYPT_TEST_TLS13_H */

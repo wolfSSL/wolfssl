@@ -1745,6 +1745,69 @@ WOLFSSL_API int wolfSSL_set_post_handshake_auth(WOLFSSL* ssl, int val);
 WOLFSSL_API void wolfSSL_SetCertCbCtx(WOLFSSL* ssl, void* ctx);
 WOLFSSL_API void wolfSSL_CTX_SetCertCbCtx(WOLFSSL_CTX* ctx, void* userCtx);
 
+#ifdef WOLFSSL_CHAIN_VERIFY_CB
+/* Replaces wolfSSL's peer certificate verification in its entirety. When set,
+ * wolfSSL builds no chain, verifies no signature, checks no date, revocation
+ * status, key usage or host name, and the verify callback set by
+ * wolfSSL_CTX_set_verify() is not called. The callback owns all of it. It is
+ * consulted even when verification was turned off with WOLFSSL_VERIFY_NONE,
+ * and a rejection fails the handshake either way.
+ *
+ * wolfSSL still owns the parsing. Every certificate is decoded before the
+ * callback runs, and malformed DER fails the handshake without the callback
+ * ever seeing it. Content wolfSSL does not understand - an unknown critical
+ * extension, an unsupported key or signature algorithm - is not a decoding
+ * failure; it is passed through for the callback to judge.
+ *
+ * Two more things still apply. An empty Certificate message is handled by
+ * wolfSSL itself (see wolfSSL_CTX_set_verify() and the mutual-auth options)
+ * and the callback is not called for it, so certsSz is always at least 1. The
+ * minimum peer key sizes set by wolfSSL_CTX_SetMinRsaKey_Sz() and friends are
+ * still enforced on the peer's own certificate, because the handshake uses
+ * that key directly.
+ *
+ * Not supported with the callback: DTLS, raw public keys (RFC 7250) and OCSP
+ * stapling. Setting the callback on a context or object already configured
+ * for one of them fails with CHAIN_VERIFY_UNSUPPORTED_E, and so does the
+ * handshake of a connection that uses one of them, before the callback is
+ * called.
+ *
+ * certs   DER certificates in the order the peer sent them, one
+ *         WOLFSSL_BUFFER_INFO each: certs[0] is the peer's own certificate,
+ *         the rest are the chain it supplied. The buffers are wolfSSL's own
+ *         receive buffer: treat them as read-only, and only for the duration
+ *         of the call.
+ * certsSz Number of entries in certs, always 1 or more.
+ * ctx     Value set with wolfSSL_SetChainVerifyCtx(), or failing that with
+ *         wolfSSL_CTX_SetChainVerifyCtx().
+ *
+ * Return 0 to accept, CHAIN_VERIFY_WANT_E to suspend the handshake, or any
+ * other value to reject. Rejection fails the handshake with
+ * CHAIN_VERIFY_CB_E and sends one fatal bad_certificate alert; the returned
+ * value is not reported to the peer.
+ *
+ * After CHAIN_VERIFY_WANT_E the callback is called again with the same
+ * certificates when the application re-enters wolfSSL_connect(),
+ * wolfSSL_accept(), wolfSSL_read() or wolfSSL_write(). A certificate received
+ * after the handshake (TLS 1.3 post-handshake authentication) arrives inside
+ * wolfSSL_read() and is resumed by calling wolfSSL_read() again.
+ */
+typedef int (*ChainVerifyCb)(WOLFSSL* ssl, const WOLFSSL_BUFFER_INFO* certs,
+                             int certsSz, void* ctx);
+
+/* The callback and user context set on an SSL/TLS object take precedence over
+ * those set on its context. The setters return WOLFSSL_SUCCESS, BAD_FUNC_ARG,
+ * or CHAIN_VERIFY_UNSUPPORTED_E when the context or object is configured for
+ * DTLS, raw public keys or OCSP stapling. */
+WOLFSSL_API int   wolfSSL_CTX_SetChainVerifyCb(WOLFSSL_CTX* ctx,
+                                               ChainVerifyCb cb);
+WOLFSSL_API int   wolfSSL_SetChainVerifyCb(WOLFSSL* ssl, ChainVerifyCb cb);
+WOLFSSL_API void  wolfSSL_CTX_SetChainVerifyCtx(WOLFSSL_CTX* ctx,
+                                                void* userCtx);
+WOLFSSL_API void  wolfSSL_SetChainVerifyCtx(WOLFSSL* ssl, void* ctx);
+WOLFSSL_API void* wolfSSL_GetChainVerifyCtx(const WOLFSSL* ssl);
+#endif /* WOLFSSL_CHAIN_VERIFY_CB */
+
 WOLFSSL_ABI WOLFSSL_API int  wolfSSL_pending(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_has_pending(const WOLFSSL* ssl);
 

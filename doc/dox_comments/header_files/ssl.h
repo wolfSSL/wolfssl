@@ -3188,6 +3188,156 @@ void wolfSSL_SetCertCbCtx(WOLFSSL* ssl, void* ctx);
 void wolfSSL_CTX_SetCertCbCtx(WOLFSSL_CTX* ctx, void* userCtx);
 
 /*!
+    \ingroup CertsKeys
+
+    \brief Replaces wolfSSL's verification of the peer's certificate chain
+    with an application callback, for every SSL/TLS object created from the
+    context. When a callback is set, wolfSSL decodes the certificates from the
+    Certificate message and hands them to the callback as raw DER, the peer's
+    own certificate first. It builds no chain, verifies no signature and
+    checks no date, revocation status, key usage or host name, and the verify
+    callback set with wolfSSL_CTX_set_verify() is not called; the callback is
+    consulted even under WOLFSSL_VERIFY_NONE. Malformed DER still fails the
+    handshake before the callback is called. The callback returns 0 to accept,
+    CHAIN_VERIFY_WANT_E to suspend the handshake until the application
+    re-enters wolfSSL_connect(), wolfSSL_accept(), wolfSSL_read() or
+    wolfSSL_write(), or any other value to reject with CHAIN_VERIFY_CB_E and a
+    fatal bad_certificate alert. DTLS, raw public keys and OCSP stapling are
+    not supported with the callback: setting it on a context configured for
+    one of them fails, and so does the handshake of a connection using one
+    of them, with CHAIN_VERIFY_UNSUPPORTED_E. Requires
+    WOLFSSL_CHAIN_VERIFY_CB (--enable-chain-verify-cb).
+
+    \return WOLFSSL_SUCCESS on success.
+    \return BAD_FUNC_ARG when ctx is NULL.
+    \return CHAIN_VERIFY_UNSUPPORTED_E when the context uses a DTLS method,
+    raw public keys or OCSP stapling.
+
+    \param ctx pointer to the SSL context, created with wolfSSL_CTX_new().
+    \param cb the callback, or NULL to clear it.
+
+    _Example_
+    \code
+    static int myChainVerify(WOLFSSL* ssl, const WOLFSSL_BUFFER_INFO* certs,
+                             int certsSz, void* ctx)
+    {
+        // certs[0] is the peer's certificate, the rest is the chain it sent
+        if (!hsmVerifyStarted(certs, certsSz))
+            return CHAIN_VERIFY_WANT_E; // ask again later
+        return hsmVerifyPassed() ? 0 : -1;
+    }
+    ...
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    if (wolfSSL_CTX_SetChainVerifyCb(ctx, myChainVerify) != WOLFSSL_SUCCESS) {
+        // context uses DTLS, raw public keys or OCSP stapling
+    }
+    \endcode
+
+    \sa wolfSSL_SetChainVerifyCb
+    \sa wolfSSL_CTX_SetChainVerifyCtx
+    \sa wolfSSL_SetChainVerifyCtx
+    \sa wolfSSL_GetChainVerifyCtx
+*/
+int wolfSSL_CTX_SetChainVerifyCb(WOLFSSL_CTX* ctx, ChainVerifyCb cb);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets the chain verification callback for one SSL/TLS object. It
+    takes precedence over the callback set on the context with
+    wolfSSL_CTX_SetChainVerifyCb(), which documents the callback's contract.
+
+    \return WOLFSSL_SUCCESS on success.
+    \return BAD_FUNC_ARG when ssl is NULL.
+    \return CHAIN_VERIFY_UNSUPPORTED_E when the object uses DTLS, raw public
+    keys or OCSP stapling.
+
+    \param ssl pointer to the SSL session, created with wolfSSL_new().
+    \param cb the callback, or NULL to fall back to the context's.
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    if (wolfSSL_SetChainVerifyCb(ssl, myChainVerify) != WOLFSSL_SUCCESS) {
+        // object uses DTLS, raw public keys or OCSP stapling
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_SetChainVerifyCb
+    \sa wolfSSL_SetChainVerifyCtx
+*/
+int wolfSSL_SetChainVerifyCb(WOLFSSL* ssl, ChainVerifyCb cb);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets the user context passed to the chain verification callback
+    for every SSL/TLS object created from the context.
+
+    \return none No return.
+
+    \param ctx pointer to the SSL context, created with wolfSSL_CTX_new().
+    \param userCtx the value the callback receives as its ctx argument.
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    wolfSSL_CTX_SetChainVerifyCb(ctx, myChainVerify);
+    wolfSSL_CTX_SetChainVerifyCtx(ctx, &myHsm);
+    \endcode
+
+    \sa wolfSSL_CTX_SetChainVerifyCb
+    \sa wolfSSL_SetChainVerifyCtx
+    \sa wolfSSL_GetChainVerifyCtx
+*/
+void wolfSSL_CTX_SetChainVerifyCtx(WOLFSSL_CTX* ctx, void* userCtx);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets the user context passed to the chain verification callback
+    for one SSL/TLS object. It takes precedence over the value set on the
+    context with wolfSSL_CTX_SetChainVerifyCtx().
+
+    \return none No return.
+
+    \param ssl pointer to the SSL session, created with wolfSSL_new().
+    \param ctx the value the callback receives as its ctx argument, or NULL
+    to fall back to the context's.
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    wolfSSL_SetChainVerifyCtx(ssl, &myConnectionState);
+    \endcode
+
+    \sa wolfSSL_CTX_SetChainVerifyCtx
+    \sa wolfSSL_GetChainVerifyCtx
+*/
+void wolfSSL_SetChainVerifyCtx(WOLFSSL* ssl, void* ctx);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Returns the user context the chain verification callback is
+    called with for this SSL/TLS object: the value set with
+    wolfSSL_SetChainVerifyCtx() when there is one, otherwise the context's.
+
+    \return void* the user context, or NULL when none is set or ssl is NULL.
+
+    \param ssl pointer to the SSL session, created with wolfSSL_new().
+
+    _Example_
+    \code
+    struct myState* st = (struct myState*)wolfSSL_GetChainVerifyCtx(ssl);
+    \endcode
+
+    \sa wolfSSL_SetChainVerifyCtx
+    \sa wolfSSL_CTX_SetChainVerifyCtx
+*/
+void* wolfSSL_GetChainVerifyCtx(const WOLFSSL* ssl);
+
+/*!
     \ingroup IO
 
     \brief This function returns the number of bytes which are buffered and

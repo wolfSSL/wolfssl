@@ -1413,6 +1413,7 @@ then
     test "$enable_savesession" = "" && enable_savesession=yes
     test "$enable_savecert" = "" && enable_savecert=yes
     test "$enable_postauth" = "" && enable_postauth=yes
+    test "$enable_chain_verify_cb" = "" && enable_chain_verify_cb=yes
     test "$enable_hrrcookie" = "" && enable_hrrcookie=yes
     test "$enable_crl_monitor" = "" && enable_crl_monitor=yes
     test "$enable_sni" = "" && enable_sni=yes
@@ -12206,6 +12207,13 @@ AC_ARG_ENABLE([cert-setup-cb],
     [ ENABLED_CERT_SETUP_CB=no ]
     )
 
+# Replaces peer certificate chain verification with an application callback
+AC_ARG_ENABLE([chain-verify-cb],
+    [AS_HELP_STRING([--enable-chain-verify-cb],[Enable replacing peer certificate verification with a user callback (default: disabled)])],
+    [ ENABLED_CHAIN_VERIFY_CB=$enableval ],
+    [ ENABLED_CHAIN_VERIFY_CB=no ]
+    )
+
 # check if should run the trusted peer certs test
 # (for now checking both C_FLAGS and C_EXTRA_FLAGS)
 AS_CASE(["$CFLAGS $CPPFLAGS"],[*'WOLFSSL_TRUST_PEER_CERT'*],[ENABLED_TRUSTED_PEER_CERT=yes])
@@ -12714,6 +12722,9 @@ AS_IF([test "x$ENABLED_RPK" = "xyes"],
 
 AS_IF([test "x$ENABLED_CERT_SETUP_CB" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_SETUP_CB"])
+
+AS_IF([test "x$ENABLED_CHAIN_VERIFY_CB" = "xyes"],
+      [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CHAIN_VERIFY_CB"])
 
 AS_IF([test "x$ENABLED_ALTNAMES" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALT_NAMES"])
