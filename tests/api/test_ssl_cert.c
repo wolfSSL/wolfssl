@@ -1906,7 +1906,16 @@ int test_wolfSSL_crl_io_mock(void)
 int test_wolfSSL_x509_accessor_guards(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && defined(WOLFSSL_CERT_GEN)
+/* wolfSSL_X509_load_certificate_file / _get_signature / _get_pubkey_buffer /
+ * _free are declared in wolfssl/ssl.h only under this set of macros, not under
+ * WOLFSSL_CERT_GEN as an earlier version of this guard assumed. With the wrong
+ * macro they became implicit declarations, which -Werror=implicit-function-
+ * declaration and -Werror=nested-externs turn into build failures (and the
+ * implicit int return then trips -Werror=int-conversion on the assignment). */
+#if !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+     defined(KEEP_PEER_CERT) || defined(KEEP_OUR_CERT) || \
+     defined(SESSION_CERTS))
     WOLFSSL_X509* x509 = NULL;
     byte  buf[2048];
     int   iSz = (int)sizeof(buf);
@@ -2022,7 +2031,10 @@ int test_wolfSSL_dtls_api_on_dtls_object(void)
 #endif
 
     /* MTU: `ctx == NULL || newMtu > MAX_RECORD_SIZE`, both operands */
-#ifdef WOLFSSL_DTLS_MTU
+/* Declared under (WOLFSSL_SCTP || WOLFSSL_DTLS_MTU) && WOLFSSL_DTLS in ssl.h;
+ * guarding on WOLFSSL_DTLS_MTU alone left the SCTP-only configs calling an
+ * undeclared function. */
+#if (defined(WOLFSSL_SCTP) || defined(WOLFSSL_DTLS_MTU)) && defined(WOLFSSL_DTLS)
     (void)wolfSSL_CTX_dtls_set_mtu(NULL, 512);
     (void)wolfSSL_CTX_dtls_set_mtu(dctx, 0xFFFF);
     (void)wolfSSL_CTX_dtls_set_mtu(dctx, 512);
@@ -2301,7 +2313,11 @@ static void fi_workload(void)
         (void)wolfSSL_UseSNI(ssl, WOLFSSL_SNI_HOST_NAME, "example.com", 11);
 #endif
 #ifdef HAVE_ALPN
-        (void)wolfSSL_UseALPN(ssl, "h2", 2, WOLFSSL_ALPN_CONTINUE_ON_MISMATCH);
+        {
+            char alpnList[] = "h2";  /* takes char*, not const char* */
+            (void)wolfSSL_UseALPN(ssl, alpnList, 2,
+                                  WOLFSSL_ALPN_CONTINUE_ON_MISMATCH);
+        }
 #endif
 #ifdef HAVE_SUPPORTED_CURVES
         (void)wolfSSL_UseSupportedCurve(ssl, WOLFSSL_ECC_SECP256R1);
