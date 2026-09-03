@@ -59,6 +59,14 @@
 /* x86_64 AES-NI PAA toggle.  Default OFF = pure-C AES, matching the Linux
  * validated options.h; x64 only, Win32 stays pure-C. */
 /* #define WOLFSSL_USE_AESNI_PAA */
+#ifdef WOLFSSL_USE_AESNI_PAA
+    /* Without this the x64 AES-NI link fails on AES_CBC_decrypt_AESNI_by8,
+     * which no longer exists.  Kept to this lane so the pure-C build and
+     * its integrity hash are unchanged. */
+    #ifdef _WIN64
+        #define WOLFSSL_X86_64_BUILD
+    #endif
+#endif
 
 /* MemUse (wolfEntropy) SP 800-90B entropy source toggle, the C2 combo.
  * Default OFF, matching the default shipping config.  Windows has no static
