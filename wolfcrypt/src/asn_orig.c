@@ -8453,6 +8453,8 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
 
 #ifndef NO_ASN_TIME_CHECK
 #ifndef WOLFSSL_NO_OCSP_DATE_CHECK
+    /* If you are enabling WOLFSSL_NO_OCSP_DATE_CHECK because of an inaccurate
+     * clock consider WOLFSSL_BEFORE_DATE_CLOCK_SKEW. */
     if ((! AsnSkipDateCheck) && !XVALIDATE_DATE(single->status->thisDate,
         single->status->thisDateFormat, ASN_BEFORE, MAX_DATE_SIZE))
         return ASN_BEFORE_DATE_E;
@@ -8490,6 +8492,8 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
 
 #ifndef NO_ASN_TIME_CHECK
 #ifndef WOLFSSL_NO_OCSP_DATE_CHECK
+        /* If you are enabling WOLFSSL_NO_OCSP_DATE_CHECK because of an
+         * inaccurate clock consider WOLFSSL_AFTER_DATE_CLOCK_SKEW. */
         if ((! AsnSkipDateCheck) &&
             !XVALIDATE_DATE(single->status->nextDate,
                             single->status->nextDateFormat, ASN_AFTER, MAX_DATE_SIZE))
