@@ -542,6 +542,9 @@ int wc_SlhDsaKey_VerifyMsg(SlhDsaKey* key, const byte* mprime,
 
     \return 0 on success.
     \return BAD_FUNC_ARG if key, hash, sig, or sigSz is NULL.
+    \return BAD_FUNC_ARG if hashType is WC_HASH_TYPE_NONE, or if the
+    pre-hash gives less collision strength than the parameter set's
+    security category (FIPS 205 sec. 10.2).
     \return BAD_LENGTH_E if hashSz does not equal the digest size for hashType
     (32 for SHAKE128, 64 for SHAKE256 per FIPS 205 Section 10.2.2).
     \return NOT_COMPILED_IN if hashType is not supported in this build.
@@ -595,6 +598,9 @@ int wc_SlhDsaKey_SignHashDeterministic(SlhDsaKey* key,
 
     \return 0 on success.
     \return BAD_FUNC_ARG if key, hash, sig, sigSz, or addRnd is NULL.
+    \return BAD_FUNC_ARG if hashType is WC_HASH_TYPE_NONE, or if the
+    pre-hash gives less collision strength than the parameter set's
+    security category (FIPS 205 sec. 10.2).
     \return BAD_LENGTH_E if hashSz does not equal the digest size for hashType
     (32 for SHAKE128, 64 for SHAKE256 per FIPS 205 Section 10.2.2).
     \return NOT_COMPILED_IN if hashType is not supported in this build.
@@ -629,6 +635,9 @@ int wc_SlhDsaKey_SignHashWithRandom(SlhDsaKey* key,
 
     \return 0 on success.
     \return BAD_FUNC_ARG if key, hash, sig, sigSz, or rng is NULL.
+    \return BAD_FUNC_ARG if hashType is WC_HASH_TYPE_NONE, or if the
+    pre-hash gives less collision strength than the parameter set's
+    security category (FIPS 205 sec. 10.2).
     \return BAD_LENGTH_E if hashSz does not equal the digest size for hashType
     (32 for SHAKE128, 64 for SHAKE256 per FIPS 205 Section 10.2.2).
     \return NOT_COMPILED_IN if hashType is not supported in this build.
@@ -663,6 +672,9 @@ int wc_SlhDsaKey_SignHash(SlhDsaKey* key, const byte* ctx,
 
     \return 0 on success (signature valid).
     \return BAD_FUNC_ARG if key, hash, or sig is NULL.
+    \return BAD_FUNC_ARG if hashType is WC_HASH_TYPE_NONE, or if the
+    pre-hash gives less collision strength than the parameter set's
+    security category (FIPS 205 sec. 10.2).
     \return BAD_LENGTH_E if sigSz does not match the parameter set, or if
     hashSz does not equal the digest size for hashType (32 for SHAKE128, 64
     for SHAKE256 per FIPS 205 Section 10.2.2).

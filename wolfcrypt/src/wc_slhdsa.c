@@ -8059,7 +8059,46 @@ static const byte slhdsakey_oid_sha3_512[] = {
 #endif
 #endif
 
-/* Validate the caller-supplied pre-hashed digest length and look up the
+/* The CMVP PQC validation worksheet requires the pre-hash to provide classical
+ * security strength at least equal to the parameter set that uses it (item 2.5,
+ * citing FIPS 205 sec. 10.2).  A hash gives half its digest size in collision
+ * strength, and sec. 11 ties the category to n, so both are compared in bytes:
+ * the pre-hash strength must be >= n.  This also gives the sec. 10.2.2 rule
+ * that SHA-256 and SHAKE128 are category 1 only.
+ * Returns 0 if allowed, else BAD_FUNC_ARG. */
+static int slhdsa_check_hash_for_n(enum wc_HashType hashType, byte n)
+{
+    byte strength;
+
+    switch ((int)hashType) {
+        case WC_HASH_TYPE_SHA256:
+        case WC_HASH_TYPE_SHA512_256:
+        case WC_HASH_TYPE_SHA3_256:
+        case WC_HASH_TYPE_SHAKE128:
+            strength = WC_SLHDSA_N_128;
+            break;
+        case WC_HASH_TYPE_SHA384:
+        case WC_HASH_TYPE_SHA3_384:
+            strength = WC_SLHDSA_N_192;
+            break;
+        case WC_HASH_TYPE_SHA512:
+        case WC_HASH_TYPE_SHA3_512:
+        case WC_HASH_TYPE_SHAKE256:
+            strength = WC_SLHDSA_N_256;
+            break;
+        default:
+            /* Includes SHA-224 and friends, which are below every category. */
+            return BAD_FUNC_ARG;
+    }
+
+    return (strength >= n) ? 0 : BAD_FUNC_ARG;
+}
+
+/* Both callers run slhdsa_check_hash_for_n() first, so the entries below that
+ * are too weak for any parameter set are already rejected by the time this
+ * runs.  The table stays complete so the two concerns remain separate.
+ *
+ * Validate the caller-supplied pre-hashed digest length and look up the
  * corresponding OID for the chosen hash algorithm.
  *
  * The HashSLH-DSA family takes the digest as input rather than the full
@@ -8285,6 +8324,11 @@ static int slhdsakey_signhash_external(SlhDsaKey* key, const byte* ctx,
         /* Alg 23, Step 6: Return error. */
         ret = BAD_FUNC_ARG;
     }
+    /* Covers SignHashDeterministic and SignHashWithRandom, which reach here
+     * without passing the check in wc_SlhDsaKey_SignHash. */
+    if (ret == 0) {
+        ret = slhdsa_check_hash_for_n(hashType, key->params->n);
+    }
     if (ret == 0) {
         /* Alg 23, Steps 8-23: Validate caller-supplied pre-hashed digest length
          * and select OID for the chosen hash algorithm. */
@@ -8500,11 +8544,9 @@ int wc_SlhDsaKey_SignHash(SlhDsaKey* key, const byte* ctx, byte ctxSz,
     int ret = 0;
     byte addRnd[SLHDSA_MAX_N];
 
-    /* Validate parameters before generating random.
-     * hashSz / hashType validation lives in the internal worker and therefore
-     * runs after wc_RNG_GenerateBlock. A call with a bad hashSz/hashType will
-     * waste n bytes of DRBG output before the error is reported (similar to
-     * ML-DSA pre-hash handling). */
+    /* Validate parameters before generating random.  hashType is checked
+     * here; only hashSz is left to the internal worker, so a bad hashSz still
+     * costs n bytes of DRBG output before the error comes back. */
     if ((key == NULL) || (key->params == NULL) ||
             ((ctx == NULL) && (ctxSz > 0)) || (hash == NULL) || (sig == NULL) ||
             (sigSz == NULL) || (rng == NULL)) {
@@ -8518,10 +8560,11 @@ int wc_SlhDsaKey_SignHash(SlhDsaKey* key, const byte* ctx, byte ctxSz,
     else if ((key->flags & WC_SLHDSA_FLAG_PRIVATE) == 0) {
         ret = MISSING_KEY;
     }
-    /* First sanity check on hashType; the downstream prehash validator does
-     * the detailed check for the actual type. */
-    else if ((word32)hashType > (word32)WC_HASH_TYPE_MAX) {
-        ret = BAD_FUNC_ARG;
+    /* Before the callback dispatch, so a device cannot sign a combination
+     * this build rejects on verify.  Also rejects WC_HASH_TYPE_NONE and any
+     * out-of-range value, which the gate does not list. */
+    else {
+        ret = slhdsa_check_hash_for_n(hashType, key->params->n);
     }
 
 #ifdef WOLF_CRYPTO_CB
@@ -8650,10 +8693,8 @@ int wc_SlhDsaKey_VerifyHash(SlhDsaKey* key, const byte* ctx, byte ctxSz,
     else if ((key->flags & WC_SLHDSA_FLAG_PUBLIC) == 0) {
         ret = MISSING_KEY;
     }
-    /* First sanity check on hashType; the downstream prehash validator does
-     * the detailed check for the actual type. */
-    else if ((word32)hashType > (word32)WC_HASH_TYPE_MAX) {
-        ret = BAD_FUNC_ARG;
+    else {
+        ret = slhdsa_check_hash_for_n(hashType, key->params->n);
     }
 
 #ifdef WOLF_CRYPTO_CB

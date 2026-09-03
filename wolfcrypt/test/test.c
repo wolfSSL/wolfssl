@@ -30270,7 +30270,9 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
     enum wc_HashType hash[]  = { WC_HASH_TYPE_SHA256 };
 #else
     int              mgf[]   = {
-#ifndef NO_SHA
+/* FIPS 186-5 sec 5.4 disallows SHA-1 for RSA signature generation; the module
+ * rejects it at the RSA-PSS signing service. */
+#if !defined(NO_SHA) && FIPS_VERSION3_LT(7,0,0)
                                  WC_MGF1SHA1,
 #endif
 #ifdef WOLFSSL_SHA224
@@ -30287,7 +30289,7 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
 #endif
                                };
     enum wc_HashType hash[]  = {
-#ifndef NO_SHA
+#if !defined(NO_SHA) && FIPS_VERSION3_LT(7,0,0)
                                  WC_HASH_TYPE_SHA,
 #endif
 #ifdef WOLFSSL_SHA224
@@ -49731,6 +49733,24 @@ static wc_test_ret_t ed25519ctx_test(void)
 
     ret = wc_ed25519_import_private_key(sKeyCtx, ED25519_KEY_SIZE, pKeyCtx,
                                       sizeof(pKeyCtx), &key);
+#ifdef WC_FIPS_ED25519CTX_NOT_APPROVED
+    /* The FIPS module does not approve Ed25519ctx, so it must refuse to
+     * sign. Keyed off the module's own macro because some v7.0.0 builds
+     * report the same version but still sign. */
+    if (ret == 0) {
+        ret = wc_ed25519ctx_sign_msg(msgCtx, sizeof(msgCtx), out, &outlen, &key,
+                               contextCtx, sizeof(contextCtx));
+        if (ret == WC_NO_ERR_TRACE(SIG_TYPE_E))
+            ret = 0;
+        else if (ret == 0)
+            ret = WC_TEST_RET_ENC_NC;
+    }
+    (void)sigCtx1;
+    (void)sigCtx2;
+#ifdef HAVE_ED25519_VERIFY
+    (void)verify;
+#endif
+#else
     if (ret == 0)
         ret = wc_ed25519ctx_sign_msg(msgCtx, sizeof(msgCtx), out, &outlen, &key,
                                contextCtx, sizeof(contextCtx));
@@ -49761,6 +49781,7 @@ static wc_test_ret_t ed25519ctx_test(void)
     if (ret == 0 && verify != 1)
         ret = WC_TEST_RET_ENC_NC;
 #endif
+#endif /* WC_FIPS_ED25519CTX_NOT_APPROVED */
 
     wc_ed25519_free(&key);
 
@@ -52652,8 +52673,15 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ed448_test(void)
 }
 #endif /* HAVE_ED448 */
 
+/* KATs that feed in fixed NIST seeds. A FIPS build must make its own
+ * randomness, so those calls are rejected there. Non-FIPS only. */
+#if !defined(HAVE_FIPS)
+    #define WOLFSSL_TEST_PQC_SEED_KAT
+#endif
+
 #ifdef WOLFSSL_HAVE_MLKEM
-#if !defined(WOLFSSL_NO_KYBER512) && !defined(WOLFSSL_NO_ML_KEM_512)
+#if !defined(WOLFSSL_NO_KYBER512) && !defined(WOLFSSL_NO_ML_KEM_512) && \
+    defined(WOLFSSL_TEST_PQC_SEED_KAT)
 static wc_test_ret_t mlkem512_kat(void)
 {
     wc_test_ret_t ret;
@@ -53747,7 +53775,8 @@ out:
 }
 #endif /* !WOLFSSL_NO_KYBER512 && !WOLFSSL_NO_ML_KEM_512 */
 
-#if !defined(WOLFSSL_NO_KYBER768) && !defined(WOLFSSL_NO_ML_KEM_768)
+#if !defined(WOLFSSL_NO_KYBER768) && !defined(WOLFSSL_NO_ML_KEM_768) && \
+    defined(WOLFSSL_TEST_PQC_SEED_KAT)
 static wc_test_ret_t mlkem768_kat(void)
 {
     wc_test_ret_t ret;
@@ -55187,7 +55216,8 @@ out:
 }
 #endif /* !WOLFSSL_NO_KYBER768 && !WOLFSSL_NO_ML_KEM_768 */
 
-#if !defined(WOLFSSL_NO_KYBER1024) && !defined(WOLFSSL_NO_ML_KEM_1024)
+#if !defined(WOLFSSL_NO_KYBER1024) && !defined(WOLFSSL_NO_ML_KEM_1024) && \
+    defined(WOLFSSL_TEST_PQC_SEED_KAT)
 static wc_test_ret_t mlkem1024_kat(void)
 {
     wc_test_ret_t ret;
@@ -57287,17 +57317,20 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
 #endif
     }
 
-#if !defined(WOLFSSL_NO_KYBER512) && !defined(WOLFSSL_NO_ML_KEM_512)
+#if !defined(WOLFSSL_NO_KYBER512) && !defined(WOLFSSL_NO_ML_KEM_512) && \
+    defined(WOLFSSL_TEST_PQC_SEED_KAT)
     ret = mlkem512_kat();
     if (ret != 0)
         goto out;
 #endif
-#if !defined(WOLFSSL_NO_KYBER768) && !defined(WOLFSSL_NO_ML_KEM_768)
+#if !defined(WOLFSSL_NO_KYBER768) && !defined(WOLFSSL_NO_ML_KEM_768) && \
+    defined(WOLFSSL_TEST_PQC_SEED_KAT)
     ret = mlkem768_kat();
     if (ret != 0)
         goto out;
 #endif
-#if !defined(WOLFSSL_NO_KYBER1024) && !defined(WOLFSSL_NO_ML_KEM_1024)
+#if !defined(WOLFSSL_NO_KYBER1024) && !defined(WOLFSSL_NO_ML_KEM_1024) && \
+    defined(WOLFSSL_TEST_PQC_SEED_KAT)
     ret = mlkem1024_kat();
     if (ret != 0)
         goto out;
@@ -63365,7 +63398,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test_verify_only(void)
     #define WOLFSSL_SLHDSA_VERIFY_ONLY
 #endif
 
-#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+#if !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && defined(WOLFSSL_TEST_PQC_SEED_KAT)
 /* KeyGen KAT: deterministic key generation cross-validated against NIST CAVP
  * vectors. Verifies that MakeKeyWithRandom produces the expected sk and pk
  * for a given parameter set. */
@@ -63433,7 +63466,7 @@ out:
     WC_FREE_VAR_EX(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
-#endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
+#endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY && WOLFSSL_TEST_PQC_SEED_KAT */
 
 #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
 static wc_test_ret_t slhdsa_test_param(enum SlhDsaParam param)
@@ -63511,9 +63544,16 @@ static wc_test_ret_t slhdsa_test_param(enum SlhDsaParam param)
 
     /* HashSLH-DSA takes the caller's pre-hashed digest as input. */
     {
+        /* FIPS 205 sec. 10.2.2 approves SHA-256 only for category 1, so the
+         * larger SHA-2 parameter sets pre-hash with SHA-512. */
 #ifdef WOLFSSL_SLHDSA_SHA2
-        enum wc_HashType phType = SLHDSA_IS_SHA2(param) ?
-            WC_HASH_TYPE_SHA256 : WC_HASH_TYPE_SHAKE256;
+        enum wc_HashType phType = !SLHDSA_IS_SHA2(param) ? WC_HASH_TYPE_SHAKE256
+            : (key->params->n == WC_SLHDSA_N_128) ? WC_HASH_TYPE_SHA256
+    #ifdef WOLFSSL_SHA512
+            : WC_HASH_TYPE_SHA512;
+    #else
+            : WC_HASH_TYPE_SHAKE256;
+    #endif
 #else
         enum wc_HashType phType = WC_HASH_TYPE_SHAKE256;
 #endif
@@ -63525,6 +63565,12 @@ static wc_test_ret_t slhdsa_test_param(enum SlhDsaParam param)
             ret = wc_Sha256Hash(msg, (word32)sizeof(msg), digest);
             digestLen = WC_SHA256_DIGEST_SIZE;
         }
+    #ifdef WOLFSSL_SHA512
+        else if (phType == WC_HASH_TYPE_SHA512) {
+            ret = wc_Sha512Hash(msg, (word32)sizeof(msg), digest);
+            digestLen = WC_SHA512_DIGEST_SIZE;
+        }
+    #endif
         else
 #endif
         {
@@ -63550,9 +63596,10 @@ static wc_test_ret_t slhdsa_test_param(enum SlhDsaParam param)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
 
-    /* Additional pre-hash test: SHA-384 exercises a different OID path */
+    /* SHA-384 exercises a different OID path.  Its 192-bit strength covers
+     * categories 1 and 3 only. */
 #ifdef WOLFSSL_SHA384
-    {
+    if (key->params->n <= WC_SLHDSA_N_192) {
         byte digest384[WC_SHA384_DIGEST_SIZE];
 
         ret = wc_Sha384Hash(msg, (word32)sizeof(msg), digest384);
@@ -63612,6 +63659,145 @@ out:
 
     return ret;
 }
+
+/* Must list exactly the parameter sets the call sites below use, or the
+ * build either fails to compile or warns about an unused function. */
+#if defined(WOLFSSL_SLHDSA_PARAM_192S) || \
+    defined(WOLFSSL_SLHDSA_PARAM_192F) || \
+    defined(WOLFSSL_SLHDSA_PARAM_256S) || \
+    defined(WOLFSSL_SLHDSA_PARAM_256F) || \
+    defined(WOLFSSL_SLHDSA_PARAM_SHA2_192S) || \
+    defined(WOLFSSL_SLHDSA_PARAM_SHA2_192F) || \
+    defined(WOLFSSL_SLHDSA_PARAM_SHA2_256S) || \
+    defined(WOLFSSL_SLHDSA_PARAM_SHA2_256F)
+/* Negative test: HashSLH-DSA must reject a pre-hash whose collision resistance
+ * is below the parameter set's claimed security strength (FIPS 205 sec.
+ * 10.2.2 with sec. 11).  Asserts sigGen and sigVer both
+ * reject. */
+static wc_test_ret_t slhdsa_hash_paramset_rejection_test(enum SlhDsaParam param)
+{
+    int    ret = 0;
+    wc_test_ret_t testRet = 0;
+    WC_RNG rng;
+    WC_DECLARE_VAR(key, SlhDsaKey, 1, HEAP_HINT);
+    /* Signature is about 49KB, too big for a small stack. */
+    WC_DECLARE_VAR(sig, byte, WC_SLHDSA_MAX_SIG_LEN, HEAP_HINT);
+    word32 sigLen;
+    /* Content does not matter, only that the length matches the hash. */
+    byte   msg[48];
+    byte   addRnd[WC_SLHDSA_MAX_SEED];
+    /* Rejected by every parameter set above category 1. */
+    enum wc_HashType badHash = WC_HASH_TYPE_SHA256;
+    int    rngInited = 0;
+    int    keyInited = 0;
+
+    WC_ALLOC_VAR_EX(key, SlhDsaKey, 1, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER, return WC_TEST_RET_ENC_EC(MEMORY_E));
+    /* Goes to out, not return, so a failure here still frees key. */
+    WC_ALLOC_VAR_EX(sig, byte, WC_SLHDSA_MAX_SIG_LEN, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER,
+        testRet = WC_TEST_RET_ENC_EC(MEMORY_E); goto out);
+    XMEMSET(key, 0, sizeof(*key));
+    XMEMSET(msg, 0xAB, sizeof(msg));
+    XMEMSET(addRnd, 0x55, sizeof(addRnd));
+
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+#else
+    ret = wc_InitRng(&rng);
+#endif
+    if (ret != 0) {
+        testRet = WC_TEST_RET_ENC_EC(ret);
+        goto out;
+    }
+    rngInited = 1;
+
+    ret = wc_SlhDsaKey_Init(key, param, NULL, devId);
+    if (ret != 0) {
+        testRet = WC_TEST_RET_ENC_EC(ret);
+        goto out;
+    }
+    keyInited = 1;
+
+    ret = wc_SlhDsaKey_MakeKey(key, &rng);
+    if (ret != 0) {
+        testRet = WC_TEST_RET_ENC_EC(ret);
+        goto out;
+    }
+
+    /* SHA-256 is allowed at category 1, so nothing to reject. */
+    if (key->params->n == WC_SLHDSA_N_128) {
+        goto out;
+    }
+
+    /* sigGen with too-weak PH must be REJECTED. */
+    sigLen = WC_SLHDSA_MAX_SIG_LEN;
+    PRIVATE_KEY_UNLOCK();
+    ret = wc_SlhDsaKey_SignHash(key, NULL, 0, msg, 32,
+        badHash, sig, &sigLen, &rng);
+    PRIVATE_KEY_LOCK();
+    /* Must be this rejection, not some earlier error. */
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        testRet = WC_TEST_RET_ENC_NC;
+        goto out;
+    }
+
+    /* These two reach the check by a different route, through
+     * slhdsakey_signhash_external, so assert them separately. */
+    sigLen = WC_SLHDSA_MAX_SIG_LEN;
+    PRIVATE_KEY_UNLOCK();
+    ret = wc_SlhDsaKey_SignHashDeterministic(key, NULL, 0, msg, 32,
+        badHash, sig, &sigLen);
+    PRIVATE_KEY_LOCK();
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        testRet = WC_TEST_RET_ENC_NC;
+        goto out;
+    }
+
+    sigLen = WC_SLHDSA_MAX_SIG_LEN;
+    PRIVATE_KEY_UNLOCK();
+    ret = wc_SlhDsaKey_SignHashWithRandom(key, NULL, 0, msg, 32,
+        badHash, sig, &sigLen, addRnd);
+    PRIVATE_KEY_LOCK();
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        testRet = WC_TEST_RET_ENC_NC;
+        goto out;
+    }
+
+    /* Verify must reject it too. Use the real signature length, or the
+     * length check fires first and hides the result. */
+    sigLen = key->params->sigLen;
+    ret = wc_SlhDsaKey_VerifyHash(key, NULL, 0, msg, 32,
+        badHash, sig, sigLen);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        testRet = WC_TEST_RET_ENC_NC;
+        goto out;
+    }
+
+#ifdef WOLFSSL_SHA384
+    /* SHA-384 is 192-bit, so category 5 must reject it as well. */
+    if (key->params->n == WC_SLHDSA_N_256) {
+        ret = wc_SlhDsaKey_VerifyHash(key, NULL, 0, msg, 48,
+            WC_HASH_TYPE_SHA384, sig, sigLen);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+            testRet = WC_TEST_RET_ENC_NC;
+            goto out;
+        }
+    }
+#endif
+
+out:
+    if (keyInited) {
+        wc_SlhDsaKey_Free(key);
+    }
+    if (rngInited) {
+        wc_FreeRng(&rng);
+    }
+    WC_FREE_VAR_EX(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    return testRet;
+}
+#endif /* any category 3/5 param set */
 #endif
 
 /* True iff slhdsa_test() actually emits at least one `goto out;` /
@@ -63798,7 +63984,7 @@ wc_test_ret_t slhdsa_test(void)
     int ret = 0;
 #ifdef WOLFSSL_SLHDSA_PARAM_128S
     WC_DECLARE_VAR(key_vfy, SlhDsaKey, 1, HEAP_HINT);
-#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+#if !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && defined(WOLFSSL_TEST_PQC_SEED_KAT)
     WC_DECLARE_VAR(key, SlhDsaKey, 1, HEAP_HINT);
     static const byte sk_seed_shake128s[] = {
         0x17, 0x3D, 0x04, 0xC9, 0x38, 0xC1, 0xC3, 0x6B,
@@ -63829,7 +64015,7 @@ wc_test_ret_t slhdsa_test(void)
         0x82, 0x6e, 0x97, 0xbc, 0xb0, 0x1b, 0x78, 0x7b,
         0xc6, 0xb5, 0xa7, 0xbb, 0xe3, 0x7e, 0xb4, 0xa8
     };
-#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+#if !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && defined(WOLFSSL_TEST_PQC_SEED_KAT)
     WC_DECLARE_VAR(sk, byte, WC_SLHDSA_MAX_PRIV_LEN, HEAP_HINT);
     WC_DECLARE_VAR(pk, byte, WC_SLHDSA_MAX_PUB_LEN, HEAP_HINT);
     word32 outLen;
@@ -64823,14 +65009,14 @@ wc_test_ret_t slhdsa_test(void)
         0xc0, 0x48, 0xd0, 0x63, 0x82, 0x20, 0x2b, 0x06,
         0xe8, 0x21, 0xf8, 0xcd, 0x56, 0xc5, 0xc7, 0x31,
     };
-#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+#if !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && defined(WOLFSSL_TEST_PQC_SEED_KAT)
     WC_DECLARE_VAR(sig, byte, sizeof(sig_shake128s), HEAP_HINT);
 #endif
 
     WC_ALLOC_VAR_EX(key_vfy, SlhDsaKey, 1, HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER, ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out));
     XMEMSET(key_vfy, 0, sizeof(*key_vfy));
-#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+#if !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && defined(WOLFSSL_TEST_PQC_SEED_KAT)
     WC_ALLOC_VAR_EX(key, SlhDsaKey, 1, HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER, ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out));
     XMEMSET(key, 0, sizeof(*key));
@@ -64844,7 +65030,7 @@ wc_test_ret_t slhdsa_test(void)
     /* // NOLINTEND(bugprone-sizeof-expression) */
 #endif
 
-#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+#if !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && defined(WOLFSSL_TEST_PQC_SEED_KAT)
     ret = wc_SlhDsaKey_Init(key, SLHDSA_SHAKE128S, NULL, devId);
     if (ret != 0) {
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -64904,7 +65090,7 @@ wc_test_ret_t slhdsa_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
 
-#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+#if !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && defined(WOLFSSL_TEST_PQC_SEED_KAT)
     outLen = (word32)sizeof(sig_shake128s);
     PRIVATE_KEY_UNLOCK();
     ret = wc_SlhDsaKey_SignWithRandom(key, ctx, 0, msg, (word32)sizeof(msg),
@@ -64930,7 +65116,7 @@ wc_test_ret_t slhdsa_test(void)
      * These verify that deterministic key generation produces the exact pk/sk
      * that NIST expects. Covers both SHA-256 (cat 1, n=16) and SHA-512
      * (cat 3 n=24, cat 5 n=32) code paths. */
-#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+#if !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && defined(WOLFSSL_TEST_PQC_SEED_KAT)
 #ifdef WOLFSSL_SLHDSA_PARAM_SHA2_128S
     {
         /* NIST CAVP SLH-DSA-SHA2-128s keyGen vector (tgId=1, tcId=1).
@@ -65520,6 +65706,12 @@ wc_test_ret_t slhdsa_test(void)
     }
 #endif
 
+/* Below here nothing feeds in a seed, so it must stay outside the gate
+ * above. Putting it inside dropped these tests from every FIPS build. */
+#endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY && WOLFSSL_TEST_PQC_SEED_KAT */
+
+#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+
 #ifdef WOLFSSL_SLHDSA_PARAM_128S
     ret = slhdsa_test_param(SLHDSA_SHAKE128S);
     if (ret != 0) {
@@ -65605,6 +65797,45 @@ wc_test_ret_t slhdsa_test(void)
     }
 #endif
 
+/* FIPS 205 sec. 10.2.2 allows SHA-256 only at category 1, so every larger
+ * parameter set must reject it. Each is tested on its own; an #elif chain
+ * would stop at the first one the build enables. */
+#define SLHDSA_REJECT_CASE(param)                                            \
+    if (ret == 0) {                                                          \
+        ret = slhdsa_hash_paramset_rejection_test(param);                    \
+        if (ret != 0) {                                                      \
+            wc_test_render_error_message(#param " (hash-paramset reject)",   \
+                0);                                                          \
+            goto out;                                                        \
+        }                                                                    \
+    }
+
+#ifdef WOLFSSL_SLHDSA_PARAM_192S
+    SLHDSA_REJECT_CASE(SLHDSA_SHAKE192S)
+#endif
+#ifdef WOLFSSL_SLHDSA_PARAM_192F
+    SLHDSA_REJECT_CASE(SLHDSA_SHAKE192F)
+#endif
+#ifdef WOLFSSL_SLHDSA_PARAM_256S
+    SLHDSA_REJECT_CASE(SLHDSA_SHAKE256S)
+#endif
+#ifdef WOLFSSL_SLHDSA_PARAM_256F
+    SLHDSA_REJECT_CASE(SLHDSA_SHAKE256F)
+#endif
+#ifdef WOLFSSL_SLHDSA_PARAM_SHA2_192S
+    SLHDSA_REJECT_CASE(SLHDSA_SHA2_192S)
+#endif
+#ifdef WOLFSSL_SLHDSA_PARAM_SHA2_192F
+    SLHDSA_REJECT_CASE(SLHDSA_SHA2_192F)
+#endif
+#ifdef WOLFSSL_SLHDSA_PARAM_SHA2_256S
+    SLHDSA_REJECT_CASE(SLHDSA_SHA2_256S)
+#endif
+#ifdef WOLFSSL_SLHDSA_PARAM_SHA2_256F
+    SLHDSA_REJECT_CASE(SLHDSA_SHA2_256F)
+#endif
+#undef SLHDSA_REJECT_CASE
+
 #endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
 
 #if defined(WOLF_PRIVATE_KEY_ID) && \
@@ -65638,7 +65869,7 @@ out:
     /* key, sig, sk, pk are declared inside #ifdef WOLFSSL_SLHDSA_PARAM_128S
      * (alongside the SHAKE-128s test data) so they only exist when 128S is
      * built. Their cleanup must match. */
-#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+#if !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && defined(WOLFSSL_TEST_PQC_SEED_KAT)
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (key)
 #endif
