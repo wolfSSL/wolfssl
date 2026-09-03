@@ -3593,7 +3593,8 @@ int test_tls12_chain_verify_cb(void)
 int test_tls12_chain_verify_cb_server(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_CHAIN_VERIFY_CB_TESTS) && !defined(WOLFSSL_NO_TLS12)
+#if defined(HAVE_CHAIN_VERIFY_CB_TESTS) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(WOLFSSL_NO_CLIENT_AUTH)
     /* Client authentication: the server verifies, deferring twice. */
     ExpectIntEQ(test_chain_verify_cb_accept(TEST_CVC_SERVER, 2,
         wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), TEST_SUCCESS);
