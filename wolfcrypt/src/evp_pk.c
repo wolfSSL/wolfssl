@@ -2195,7 +2195,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey_id(int type, WOLFSSL_EVP_PKEY** out,
  * START OF i2d APIs
  ******************************************************************************/
 
-#ifdef OPENSSL_ALL
+#if defined(OPENSSL_ALL) && defined(HAVE_PKCS8)
 /* Encode PKCS#8 key as DER data.
  *
  * @param [in]  key  PKCS#8 private key to encode.
@@ -2257,11 +2257,11 @@ int wolfSSL_i2d_PKCS8_PKEY(WOLFSSL_PKCS8_PRIV_KEY_INFO* key, unsigned char** pp)
 
     return len;
 }
-#endif
+#endif /* OPENSSL_ALL && HAVE_PKCS8 */
 
 #ifdef OPENSSL_EXTRA
 
-#if !defined(NO_ASN) && !defined(NO_PWDBASED)
+#if !defined(NO_ASN)
 /* Get raw pointer to DER buffer from WOLFSSL_EVP_PKEY.
  *
  * Assumes der is large enough if passed in.
@@ -2585,7 +2585,7 @@ cleanup:
 }
 #endif /* !NO_BIO */
 
-#endif /* !NO_ASN && !NO_PWDBASED */
+#endif /* !NO_ASN */
 
 #endif /* OPENSSL_EXTRA */
 
