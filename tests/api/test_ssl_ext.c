@@ -1527,9 +1527,17 @@ int test_wolfSSL_api_null_burndown(void)
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_CERTS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
+#ifdef HAVE_ALPN
+    /* Declared under the same guard as their only uses: an unconditional
+     * declaration is an unused variable wherever the feature is off, and the
+     * tree builds tests with -Werror=unused-variable. */
     char* proto = NULL;
     word16 protoSz = 0;
+    char alpnList[] = "h2";     /* wolfSSL_UseALPN takes char*, not const */
+#endif
+#ifdef WOLFSSL_DTLS
     unsigned int sz = 0;
+#endif
     byte buf[64];
 
     XMEMSET(buf, 0, sizeof(buf));
@@ -1548,10 +1556,10 @@ int test_wolfSSL_api_null_burndown(void)
     (void)wolfSSL_SNI_GetRequest(ssl, WOLFSSL_SNI_HOST_NAME, NULL);
 #endif
 #ifdef HAVE_ALPN
-    (void)wolfSSL_UseALPN(NULL, "h2", 2, WOLFSSL_ALPN_CONTINUE_ON_MISMATCH);
+    (void)wolfSSL_UseALPN(NULL, alpnList, 2, WOLFSSL_ALPN_CONTINUE_ON_MISMATCH);
     (void)wolfSSL_UseALPN(ssl, NULL, 2, WOLFSSL_ALPN_CONTINUE_ON_MISMATCH);
-    (void)wolfSSL_UseALPN(ssl, "h2", 0, WOLFSSL_ALPN_CONTINUE_ON_MISMATCH);
-    (void)wolfSSL_UseALPN(ssl, "h2", 2, WOLFSSL_ALPN_CONTINUE_ON_MISMATCH);
+    (void)wolfSSL_UseALPN(ssl, alpnList, 0, WOLFSSL_ALPN_CONTINUE_ON_MISMATCH);
+    (void)wolfSSL_UseALPN(ssl, alpnList, 2, WOLFSSL_ALPN_CONTINUE_ON_MISMATCH);
     (void)wolfSSL_ALPN_GetProtocol(NULL, &proto, &protoSz);
     (void)wolfSSL_ALPN_GetProtocol(ssl, NULL, &protoSz);
     (void)wolfSSL_ALPN_GetProtocol(ssl, &proto, NULL);
