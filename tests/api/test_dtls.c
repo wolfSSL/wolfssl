@@ -8364,3 +8364,591 @@ int test_dtls13_wire_mangle(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* ===========================================================================
+ * A datagram FIFO transport for DTLS, with per-packet scheduling.
+ *
+ * WHY THIS AND NOT THE BYTE-BUFFER MANGLER.
+ *
+ * test_memio is a byte stream. DTLS is not: it is datagrams, and every
+ * guardrail in the protocol is about which datagram arrives, in what order,
+ * how many times, and carrying which epoch and sequence number. Editing a
+ * byte in a shared buffer cannot express "deliver this one twice", "hold that
+ * one until after the next", "drop this flight and see if it is retransmitted"
+ * -- and a byte flipped at random is simply discarded by the record layer,
+ * which is the tolerance DTLS is built to provide. Three separate sweeps of
+ * that kind measured exactly zero on dtls.c.
+ *
+ * So this replaces the transport instead. Every datagram the stack sends is
+ * captured as a discrete packet, its record header is parsed, and a policy is
+ * consulted BEFORE it is queued: deliver it, drop it, hold it for n rounds,
+ * duplicate it, rewrite a header field, coalesce it with its neighbour. The
+ * receiving side then reads whole datagrams out of the queue, exactly as a
+ * UDP socket would deliver them.
+ *
+ * That is enough to sit in the middle of the flow and see each packet before
+ * deciding its fate, with no socket, no second process and no scheduler races.
+ *
+ * ON ENCRYPTION. The record header -- content type, version, epoch, sequence
+ * number and length -- is NOT encrypted in DTLS 1.2, and in DTLS 1.3 the
+ * initial flight is plaintext. Every guardrail targeted below (replay window,
+ * epoch handling, fragment reassembly, cookie exchange, records-per-datagram)
+ * keys off those fields, so the forgeries need no key material at all. The
+ * secret callback is wired anyway, behind HAVE_SECRET_CALLBACK, for the cases
+ * that later need to read a protected body; it is not enabled in the campaign
+ * option list, so it compiles out there.
+ * ========================================================================= */
+#if defined(WOLFSSL_DTLS) && !defined(NO_RSA) && !defined(NO_CERTS) && \
+    !defined(NO_FILESYSTEM)
+
+#define DF_MAX_PKT 384
+#define DF_MAX_SZ  1600
+
+/* DTLS record header, by field. */
+#define DFH_TYPE     0
+#define DFH_VER      1
+#define DFH_EPOCH    3
+#define DFH_SEQ      5      /* 6 bytes, big endian */
+#define DFH_LEN      11     /* 2 bytes */
+#define DFH_HDR_SZ   13
+/* DTLS handshake header, inside the record */
+#define DFHS_TYPE    0
+#define DFHS_LEN     1      /* 3 bytes */
+#define DFHS_MSGSEQ  4      /* 2 bytes */
+#define DFHS_FRAGOFF 6      /* 3 bytes */
+#define DFHS_FRAGLEN 9      /* 3 bytes */
+#define DFHS_HDR_SZ  12
+
+typedef struct DfPkt {
+    byte data[DF_MAX_SZ];
+    int  len;
+    int  toServer;      /* 1: client -> server, 0: server -> client */
+    int  idx;           /* production order, per direction */
+    int  hold;          /* rounds still to withhold */
+    int  taken;         /* already handed to the receiver */
+    /* parsed, for policies that want to target a specific record */
+    byte   type;
+    word16 epoch;
+    byte   hsType;
+    word16 msgSeq;
+} DfPkt;
+
+struct DfCtx;
+typedef void (*DfPolicy)(struct DfCtx* c, DfPkt* p);
+
+typedef struct DfCtx {
+    DfPkt    q[DF_MAX_PKT];
+    int      n;
+    int      seqTo[2];      /* per-direction production counter */
+    DfPolicy policy;
+    int      target;        /* which packet of that direction to act on */
+    int      nDrop, nDup, nMod, nHold, nCoalesce;
+#ifdef HAVE_SECRET_CALLBACK
+    int      nSecrets;
+#endif
+} DfCtx;
+
+static void df_parse(DfPkt* p)
+{
+    p->type = 0; p->epoch = 0; p->hsType = 0xFF; p->msgSeq = 0;
+    if (p->len < DFH_HDR_SZ)
+        return;
+    p->type  = p->data[DFH_TYPE];
+    p->epoch = (word16)((p->data[DFH_EPOCH] << 8) | p->data[DFH_EPOCH + 1]);
+    if (p->type == handshake && p->len >= DFH_HDR_SZ + DFHS_HDR_SZ) {
+        const byte* hs = p->data + DFH_HDR_SZ;
+        p->hsType = hs[DFHS_TYPE];
+        p->msgSeq = (word16)((hs[DFHS_MSGSEQ] << 8) | hs[DFHS_MSGSEQ + 1]);
+    }
+}
+
+/* ------------------------------------------------------------ IO callbacks */
+
+static int df_send(WOLFSSL* ssl, char* buf, int sz, void* ctx)
+{
+    DfCtx* c = (DfCtx*)ctx;
+    DfPkt* p;
+    int toServer = (wolfSSL_GetSide(ssl) != WOLFSSL_SERVER_END);
+
+    if (c->n >= DF_MAX_PKT || sz <= 0 || sz > DF_MAX_SZ)
+        return sz;          /* silently absorb: a full queue is not a failure */
+
+    p = &c->q[c->n];
+    XMEMSET(p, 0, sizeof(*p));
+    XMEMCPY(p->data, buf, (size_t)sz);
+    p->len = sz;
+    p->toServer = toServer;
+    p->idx = c->seqTo[toServer]++;
+    df_parse(p);
+    c->n++;
+
+    /* The policy sees the packet in flight, with its header parsed, and may
+     * edit it, drop it, delay it or clone it before anyone receives it. */
+    if (c->policy != NULL)
+        c->policy(c, p);
+
+    return sz;
+}
+
+static int df_recv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
+{
+    DfCtx* c = (DfCtx*)ctx;
+    int wantServer = (wolfSSL_GetSide(ssl) == WOLFSSL_SERVER_END);
+    int i;
+
+    for (i = 0; i < c->n; i++) {
+        DfPkt* p = &c->q[i];
+
+        if (p->taken || p->len <= 0 || p->toServer != wantServer)
+            continue;
+        if (p->hold > 0) {
+            /* held back: a later packet may overtake it, which is the point */
+            p->hold--;
+            continue;
+        }
+        if (p->len > sz)
+            return WOLFSSL_CBIO_ERR_GENERAL;
+        XMEMCPY(buf, p->data, (size_t)p->len);
+        p->taken = 1;
+        return p->len;
+    }
+    return WOLFSSL_CBIO_ERR_WANT_READ;
+}
+
+/* ------------------------------------------------------- packet operations */
+
+static DfPkt* df_clone(DfCtx* c, const DfPkt* src)
+{
+    DfPkt* p;
+
+    if (c->n >= DF_MAX_PKT)
+        return NULL;
+    p = &c->q[c->n++];
+    XMEMCPY(p, src, sizeof(*p));
+    p->taken = 0;
+    p->hold = 0;
+    return p;
+}
+
+static void df_set_seq(DfPkt* p, word32 hi, word32 lo)
+{
+    if (p->len < DFH_HDR_SZ)
+        return;
+    p->data[DFH_SEQ + 0] = (byte)((hi >> 8) & 0xff);
+    p->data[DFH_SEQ + 1] = (byte)(hi & 0xff);
+    p->data[DFH_SEQ + 2] = (byte)((lo >> 24) & 0xff);
+    p->data[DFH_SEQ + 3] = (byte)((lo >> 16) & 0xff);
+    p->data[DFH_SEQ + 4] = (byte)((lo >> 8) & 0xff);
+    p->data[DFH_SEQ + 5] = (byte)(lo & 0xff);
+}
+
+static void df_set_epoch(DfPkt* p, word16 e)
+{
+    if (p->len < DFH_HDR_SZ)
+        return;
+    p->data[DFH_EPOCH]     = (byte)(e >> 8);
+    p->data[DFH_EPOCH + 1] = (byte)(e & 0xff);
+}
+
+static void df_set_u24(byte* at, word32 v)
+{
+    at[0] = (byte)((v >> 16) & 0xff);
+    at[1] = (byte)((v >> 8) & 0xff);
+    at[2] = (byte)(v & 0xff);
+}
+
+/* ============================ the forgeries ==============================
+ *
+ * Each one names the protocol guardrail it exists to provoke. All of them
+ * are things a conforming peer never does and a network or an attacker
+ * routinely does, which is exactly the set the handshake tests cannot reach.
+ */
+
+/* Replay window: the same datagram delivered twice. RFC 6347 4.1.2.6. */
+static void df_pol_replay(DfCtx* c, DfPkt* p)
+{
+    if (p->idx == c->target && df_clone(c, p) != NULL)
+        c->nDup++;
+}
+
+/* Replay window, far future: a sequence number beyond the window's right
+ * edge, which must slide the window rather than be accepted blindly. */
+static void df_pol_seq_future(DfCtx* c, DfPkt* p)
+{
+    if (p->idx != c->target) return;
+    df_set_seq(p, 0, 0x000FFFFFu);
+    c->nMod++;
+}
+
+/* Replay window, far past: a sequence number below the window's left edge,
+ * which must be discarded. */
+static void df_pol_seq_past(DfCtx* c, DfPkt* p)
+{
+    if (p->idx != c->target) return;
+    df_set_seq(p, 0, 0);
+    c->nMod++;
+}
+
+/* Epoch handling: a record claiming an epoch whose keys do not exist. */
+static void df_pol_epoch_future(DfCtx* c, DfPkt* p)
+{
+    if (p->idx != c->target) return;
+    df_set_epoch(p, (word16)(p->epoch + 3));
+    c->nMod++;
+}
+
+/* Epoch handling: a record claiming epoch 0 -- i.e. unprotected -- after the
+ * epoch has advanced. This is the plaintext-injection case. */
+static void df_pol_epoch_zero(DfCtx* c, DfPkt* p)
+{
+    if (p->idx != c->target) return;
+    df_set_epoch(p, 0);
+    c->nMod++;
+}
+
+/* Loss: the flight never arrives, so the peer must retransmit it. */
+static void df_pol_drop(DfCtx* c, DfPkt* p)
+{
+    if (p->idx != c->target) return;
+    p->len = 0;
+    c->nDrop++;
+}
+
+/* Reordering: hold this datagram so the next one overtakes it. */
+static void df_pol_reorder(DfCtx* c, DfPkt* p)
+{
+    if (p->idx != c->target) return;
+    p->hold = 2;
+    c->nHold++;
+}
+
+/* Fragment reassembly: a fragment offset past the end of the message. */
+static void df_pol_frag_beyond(DfCtx* c, DfPkt* p)
+{
+    byte* hs;
+
+    if (p->idx != c->target || p->type != handshake) return;
+    if (p->len < DFH_HDR_SZ + DFHS_HDR_SZ) return;
+    hs = p->data + DFH_HDR_SZ;
+    df_set_u24(hs + DFHS_FRAGOFF, 0x00FFFFu);
+    c->nMod++;
+}
+
+/* Fragment reassembly: a fragment longer than the message it belongs to. */
+static void df_pol_frag_over(DfCtx* c, DfPkt* p)
+{
+    byte* hs;
+
+    if (p->idx != c->target || p->type != handshake) return;
+    if (p->len < DFH_HDR_SZ + DFHS_HDR_SZ) return;
+    hs = p->data + DFH_HDR_SZ;
+    df_set_u24(hs + DFHS_FRAGLEN, 0x00FFFFu);
+    c->nMod++;
+}
+
+/* Fragment reassembly: two fragments that overlap, claiming the same bytes
+ * of the message with different content. */
+static void df_pol_frag_overlap(DfCtx* c, DfPkt* p)
+{
+    DfPkt* dup;
+    byte* hs;
+
+    if (p->idx != c->target || p->type != handshake) return;
+    if (p->len < DFH_HDR_SZ + DFHS_HDR_SZ + 8) return;
+
+    dup = df_clone(c, p);
+    if (dup == NULL) return;
+    hs = dup->data + DFH_HDR_SZ;
+    /* same offset, shorter length, different body */
+    df_set_u24(hs + DFHS_FRAGLEN, 4);
+    dup->data[DFH_HDR_SZ + DFHS_HDR_SZ] ^= 0xff;
+    c->nDup++;
+}
+
+/* Handshake ordering: a message sequence number from the future, which the
+ * receiver must buffer rather than process. */
+static void df_pol_msgseq_jump(DfCtx* c, DfPkt* p)
+{
+    byte* hs;
+
+    if (p->idx != c->target || p->type != handshake) return;
+    if (p->len < DFH_HDR_SZ + DFHS_HDR_SZ) return;
+    hs = p->data + DFH_HDR_SZ;
+    hs[DFHS_MSGSEQ]     = (byte)((p->msgSeq + 7) >> 8);
+    hs[DFHS_MSGSEQ + 1] = (byte)((p->msgSeq + 7) & 0xff);
+    c->nMod++;
+}
+
+/* Handshake ordering: a message sequence already processed. */
+static void df_pol_msgseq_back(DfCtx* c, DfPkt* p)
+{
+    byte* hs;
+
+    if (p->idx != c->target || p->type != handshake) return;
+    if (p->len < DFH_HDR_SZ + DFHS_HDR_SZ) return;
+    hs = p->data + DFH_HDR_SZ;
+    hs[DFHS_MSGSEQ] = 0;
+    hs[DFHS_MSGSEQ + 1] = 0;
+    c->nMod++;
+}
+
+/* Record framing: a length field longer than the datagram carries. */
+static void df_pol_reclen_long(DfCtx* c, DfPkt* p)
+{
+    if (p->idx != c->target || p->len < DFH_HDR_SZ) return;
+    p->data[DFH_LEN]     = 0x0f;
+    p->data[DFH_LEN + 1] = 0xff;
+    c->nMod++;
+}
+
+/* Record framing: a length field shorter than the datagram carries, leaving
+ * a trailing stub the receiver must treat as a second record. */
+static void df_pol_reclen_short(DfCtx* c, DfPkt* p)
+{
+    if (p->idx != c->target || p->len < DFH_HDR_SZ + 4) return;
+    p->data[DFH_LEN]     = 0;
+    p->data[DFH_LEN + 1] = 2;
+    c->nMod++;
+}
+
+/* Content type confusion: handshake bytes announced as application data,
+ * alert or ack. */
+static void df_pol_type_swap(DfCtx* c, DfPkt* p)
+{
+    static const byte types[3] = { application_data, alert, change_cipher_spec };
+
+    if (p->idx != c->target || p->len < DFH_HDR_SZ) return;
+    p->data[DFH_TYPE] = types[p->idx % 3];
+    c->nMod++;
+}
+
+/* Datagram packing: two records in one datagram, which DTLS permits and the
+ * single-record path must therefore handle. */
+static void df_pol_coalesce(DfCtx* c, DfPkt* p)
+{
+    DfPkt* prev;
+    int i;
+
+    if (p->idx != c->target || c->n < 2) return;
+    for (i = c->n - 2; i >= 0; i--) {
+        prev = &c->q[i];
+        if (prev->toServer != p->toServer || prev->len <= 0 || prev->taken)
+            continue;
+        if (prev->len + p->len > DF_MAX_SZ)
+            return;
+        XMEMCPY(prev->data + prev->len, p->data, (size_t)p->len);
+        prev->len += p->len;
+        p->len = 0;             /* it now travels inside its predecessor */
+        c->nCoalesce++;
+        return;
+    }
+}
+
+/* Truncation: the datagram is cut in half in flight. */
+static void df_pol_truncate(DfCtx* c, DfPkt* p)
+{
+    if (p->idx != c->target || p->len < 8) return;
+    p->len /= 2;
+    c->nMod++;
+}
+
+#ifdef HAVE_SECRET_CALLBACK
+/* Wired so a later forgery can read a protected record. Every forgery above
+ * works on the plaintext record header and needs none of this. */
+static int df_secret_cb(WOLFSSL* ssl, int id, const unsigned char* secret,
+                        int secretSz, void* ctx)
+{
+    DfCtx* c = (DfCtx*)ctx;
+
+    (void)ssl; (void)id; (void)secret; (void)secretSz;
+    if (c != NULL)
+        c->nSecrets++;
+    return 0;
+}
+#endif
+
+
+/* Body corruption with the framing left intact.
+ *
+ * The header forgeries above cannot reach SendStatelessReplyDtls13, where
+ * every remaining condition in dtls.c lives: that code parses the
+ * ClientHello's EXTENSIONS, and a record whose header has been tampered with
+ * is discarded by the record layer long before the extension parser runs.
+ *
+ * These policies therefore leave type, epoch, sequence and length untouched
+ * and corrupt only the message body, at depths that land in the extension
+ * block -- past the two version bytes, the 32-byte random, the session id,
+ * the cookie, the cipher suite list and the compression list. The datagram
+ * stays well-formed, so it is accepted, parsed, and rejected on its contents
+ * rather than its framing. That is the difference between exercising the
+ * discard path and exercising the guardrail.
+ */
+static void df_pol_body_at(DfCtx* c, DfPkt* p, int depth)
+{
+    int at = DFH_HDR_SZ + DFHS_HDR_SZ + depth;
+
+    if (p->idx != c->target || p->type != handshake) return;
+    if (p->hsType != client_hello) return;
+    if (p->len <= at) return;
+    p->data[at] ^= 0xff;
+    c->nMod++;
+}
+
+static void df_pol_body_exts(DfCtx* c, DfPkt* p)   { df_pol_body_at(c, p, 80); }
+static void df_pol_body_exts2(DfCtx* c, DfPkt* p)  { df_pol_body_at(c, p, 96); }
+static void df_pol_body_exts3(DfCtx* c, DfPkt* p)  { df_pol_body_at(c, p, 120); }
+static void df_pol_body_exts4(DfCtx* c, DfPkt* p)  { df_pol_body_at(c, p, 150); }
+static void df_pol_body_exts5(DfCtx* c, DfPkt* p)  { df_pol_body_at(c, p, 190); }
+static void df_pol_body_exts6(DfCtx* c, DfPkt* p)  { df_pol_body_at(c, p, 240); }
+
+/* The cookie a DTLS 1.3 server issued in its HelloRetryRequest, corrupted in
+ * the ClientHello that echoes it back. This is the `!cookieGood` operand, and
+ * it is the whole reason the stateless path has a rejection branch: a client
+ * that echoes the cookie correctly never takes it. The cookie sits early in
+ * the extension block of the second ClientHello, so a sweep of the first
+ * hundred body bytes of CH2 covers it without having to locate it exactly. */
+static void df_pol_cookie(DfCtx* c, DfPkt* p)
+{
+    int i;
+    int base = DFH_HDR_SZ + DFHS_HDR_SZ + 40;
+
+    if (p->type != handshake || p->hsType != client_hello) return;
+    if (p->msgSeq == 0) return;         /* only the second ClientHello */
+    for (i = 0; i < 24 && p->len > base + i; i++)
+        p->data[base + i] ^= 0x5a;
+    c->nMod++;
+}
+
+/* ------------------------------------------------------------- the harness */
+
+static int df_run(method_provider mc, method_provider ms,
+                  DfPolicy policy, int target)
+{
+    DfCtx* c = NULL;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    int i;
+    int ret = -1;
+
+    c = (DfCtx*)XMALLOC(sizeof(DfCtx), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (c == NULL)
+        return -1;
+    XMEMSET(c, 0, sizeof(*c));
+    c->policy = policy;
+    c->target = target;
+
+    ctx_c = wolfSSL_CTX_new(mc());
+    ctx_s = wolfSSL_CTX_new(ms());
+    if (ctx_c == NULL || ctx_s == NULL)
+        goto out;
+
+    wolfSSL_CTX_set_verify(ctx_c, WOLFSSL_VERIFY_NONE, NULL);
+    if (wolfSSL_CTX_load_verify_locations(ctx_c, caCertFile, NULL)
+            != WOLFSSL_SUCCESS)
+        goto out;
+    if (wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile,
+            WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS)
+        goto out;
+    if (wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile,
+            WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS)
+        goto out;
+
+    wolfSSL_CTX_SetIOSend(ctx_c, df_send);
+    wolfSSL_CTX_SetIORecv(ctx_c, df_recv);
+    wolfSSL_CTX_SetIOSend(ctx_s, df_send);
+    wolfSSL_CTX_SetIORecv(ctx_s, df_recv);
+
+    ssl_c = wolfSSL_new(ctx_c);
+    ssl_s = wolfSSL_new(ctx_s);
+    if (ssl_c == NULL || ssl_s == NULL)
+        goto out;
+
+    wolfSSL_SetIOWriteCtx(ssl_c, c);
+    wolfSSL_SetIOReadCtx(ssl_c, c);
+    wolfSSL_SetIOWriteCtx(ssl_s, c);
+    wolfSSL_SetIOReadCtx(ssl_s, c);
+#ifdef HAVE_SECRET_CALLBACK
+    (void)wolfSSL_set_secret_cb(ssl_c, df_secret_cb, c);
+    (void)wolfSSL_set_secret_cb(ssl_s, df_secret_cb, c);
+#endif
+
+    /* Each side gets many turns: a dropped or held flight has to be given
+     * time to be retransmitted, which is the behaviour under test. */
+    for (i = 0; i < 40; i++) {
+        (void)wolfSSL_connect(ssl_c);
+        (void)wolfSSL_accept(ssl_s);
+        if (wolfSSL_is_init_finished(ssl_c) && wolfSSL_is_init_finished(ssl_s))
+            break;
+        /* let the retransmit timers fire rather than waiting on a clock */
+        (void)wolfSSL_dtls_got_timeout(ssl_c);
+        (void)wolfSSL_dtls_got_timeout(ssl_s);
+    }
+    /* Report whether the handshake actually completed, rather than whether
+     * the loop ran. An unconditional success here is how a transport that
+     * never connects still passes -- which is exactly what the first version
+     * of this harness did, in a third of a second, covering nothing. */
+    ret = (wolfSSL_is_init_finished(ssl_c) && wolfSSL_is_init_finished(ssl_s))
+          ? 0 : -1;
+
+out:
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    XFREE(c, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+
+static int df_sweep(method_provider mc, method_provider ms)
+{
+    static const DfPolicy pols[] = {
+        df_pol_replay, df_pol_seq_future, df_pol_seq_past,
+        df_pol_epoch_future, df_pol_epoch_zero, df_pol_drop, df_pol_reorder,
+        df_pol_frag_beyond, df_pol_frag_over, df_pol_frag_overlap,
+        df_pol_msgseq_jump, df_pol_msgseq_back, df_pol_reclen_long,
+        df_pol_reclen_short, df_pol_type_swap, df_pol_coalesce,
+        df_pol_truncate,
+        df_pol_body_exts, df_pol_body_exts2, df_pol_body_exts3,
+        df_pol_body_exts4, df_pol_body_exts5, df_pol_body_exts6,
+        df_pol_cookie
+    };
+    size_t i;
+    int t;
+
+    /* target 0..3 selects which datagram of that direction is acted on, so
+     * each forgery is tried against the ClientHello, the server's flight, the
+     * client's second flight and the finished exchange. */
+    for (i = 0; i < sizeof(pols) / sizeof(pols[0]); i++)
+        for (t = 0; t < 4; t++)
+            (void)df_run(mc, ms, pols[i], t);
+
+    /* and the clean run through the same transport, so every decision above
+     * has its partner in this binary */
+    return df_run(mc, ms, NULL, 0);
+}
+
+#endif /* WOLFSSL_DTLS */
+
+int test_dtls12_packet_forgeries(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA) \
+    && !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
+    ExpectIntEQ(df_sweep(wolfDTLSv1_2_client_method,
+                         wolfDTLSv1_2_server_method), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_dtls13_packet_forgeries(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_TLS13) && !defined(NO_RSA) \
+    && !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
+    ExpectIntEQ(df_sweep(wolfDTLSv1_3_client_method,
+                         wolfDTLSv1_3_server_method), 0);
+#endif
+    return EXPECT_RESULT();
+}
