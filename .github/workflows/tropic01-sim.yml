@@ -25,7 +25,9 @@ permissions:
 # Build the TROPIC01 software simulator (https://github.com/wolfSSL/simulators,
 # TROPIC01Sim/ subdirectory), build wolfSSL --with-tropic01 against libtropic
 # v0.1.0 + the simulator's TCP HAL, and run Tropic Square's wolfssl-test app
-# against the simulator TCP server.
+# against the simulator TCP server. Also runs the in-tree AES-GCM callback
+# known-answer test (tests/tropic01_gcm_kat.c), which covers the GCM branch
+# of Tropic01_CryptoCb that the upstream app does not exercise.
 #
 # The simulator's own Dockerfile.wolfcrypt clones wolfSSL master and applies
 # one sed patch to it (s/ForceZero/wc_ForceZero/ in
@@ -100,3 +102,39 @@ jobs:
 
       - name: Run wolfCrypt tests against simulator
         run: docker run --rm wolfssl-tropic01-sim:ci
+
+      # The upstream test app covers RNG / AES-CBC / Ed25519 only. This runs
+      # the in-tree GCM callback KAT: it drives Tropic01_CryptoCb the same
+      # way TLS does (context created with WOLF_TROPIC01_DEVID and set with
+      # a caller key) and checks the ciphertext and auth tag against
+      # precomputed vectors for the device-resident key, so a GHASH subkey
+      # left stale from the caller's key is caught.
+      - name: Run TROPIC01 GCM callback KAT
+        run: |
+          docker run --rm wolfssl-tropic01-sim:ci bash -c '
+            set -eu
+            # Compile the KAT with the exact CFLAGS the library was built
+            # with (LIBWOLFSSL_GLOBAL_CFLAGS in .build_params), so the Aes
+            # struct layout matches the installed libwolfssl.a. The -I and
+            # -W flags are dropped and re-added explicitly below.
+            FLAGS=$(sed -n "s/^#define LIBWOLFSSL_GLOBAL_CFLAGS \"\(.*\)\" LIBWOLFSSL_GLOBAL_EXTRA_CFLAGS$/\1/p" /app/wolfssl/.build_params | tr " " "\n" | grep -v -- "-include" | grep -v "build_params" | grep -v -- "-I" | grep -v -- "-pthread" | grep -v -- "-Werror" | grep -v -- "-W" | tr "\n" " ")
+            gcc -Wall -Wextra -O2 ${FLAGS} \
+                -I/app/libtropic/include -I/app/wolfssl \
+                /app/wolfssl/tests/tropic01_gcm_kat.c \
+                /app/libtropic/hal/port/unix/lt_port_unix_tcp.c \
+                -L/usr/local/lib -L/app/libtropic/build \
+                -L/app/libtropic/build/trezor_crypto \
+                -lwolfssl -ltropic -ltrezor_crypto -lm \
+                -o /tmp/tropic01_gcm_kat
+            TROPIC01_SIM_BIND=127.0.0.1 TROPIC01_SIM_PORT=28992 \
+                TROPIC01_SIM_FRESH=1 /app/tcp_server &
+            SIM_PID=$!
+            trap "kill ${SIM_PID} 2>/dev/null || true" EXIT
+            for i in $(seq 1 50); do
+                if (echo > /dev/tcp/127.0.0.1/28992) 2>/dev/null; then
+                    break
+                fi
+                sleep 0.1
+            done
+            /tmp/tropic01_gcm_kat
+          '

@@ -336,23 +336,11 @@ int Tropic01_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
                     ForceZero(lt_key, sizeof(lt_key));
                     return ret;
                 }
-                ret = Tropic01_GetKeyAES(
-                        lt_iv,
-                        TROPIC01_AES_IV_RMEM_SLOT,
-                        TROPIC01_AES_MAX_KEY_SIZE);
-                if (ret != 0) {
-                    WOLFSSL_MSG_EX(
-                            "TROPIC01: CryptoCB: Failed to get AES IV, ret=%d",
-                             ret);
-                    ForceZero(lt_key, sizeof(lt_key));
-                    ForceZero(lt_iv, sizeof(lt_iv));
-                    return ret;
-                }
                 if (info->cipher.enc) {
-                    ret = wc_AesSetKey(info->cipher.aesgcm_enc.aes, lt_key,
-                                keyLen, lt_iv, AES_ENCRYPTION);
+                    /* set device key and derive GHASH subkey H from it */
+                    ret = wc_AesGcmSetKey(info->cipher.aesgcm_enc.aes,
+                                lt_key, keyLen);
                     ForceZero(lt_key, sizeof(lt_key));
-                    ForceZero(lt_iv, sizeof(lt_iv));
                     if (ret != 0) {
                         WOLFSSL_MSG_EX(
                             "TROPIC01: CryptoCB: Failed to set AES key, ret=%d",
@@ -377,10 +365,10 @@ int Tropic01_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
                     info->cipher.aesgcm_enc.aes->devId = devId;
                 }
                 else {
-                    ret = wc_AesSetKey(info->cipher.aesgcm_dec.aes, lt_key,
-                                keyLen, lt_iv, AES_DECRYPTION);
+                    /* set device key and derive GHASH subkey H from it */
+                    ret = wc_AesGcmSetKey(info->cipher.aesgcm_dec.aes,
+                                lt_key, keyLen);
                     ForceZero(lt_key, sizeof(lt_key));
-                    ForceZero(lt_iv, sizeof(lt_iv));
                     if (ret != 0) {
                         WOLFSSL_MSG_EX(
                             "TROPIC01: CryptoCB: Failed to set AES key, ret=%d",
