@@ -384,15 +384,27 @@ static void wb_copy_decoded(WbFix* f)
 /* ------------------------------------------------------- ProcessPeerCertParse
  *
  * `if (ssl == NULL || args == NULL || args->dCert == NULL)`. The one caller
- * owns all three, so no operand flips. Each vector returns BAD_FUNC_ARG before
- * touching the certificate buffer. The false partner comes from the ordinary
- * certificate-verification runs that share this measurement. */
+ * owns all three, so no operand flips there. Each rejecting vector returns
+ * BAD_FUNC_ARG before touching the certificate buffer.
+ *
+ * MC/DC's independence pair has to be demonstrated inside ONE binary's own
+ * execution trace -- llvm-cov computes the covered/not-covered bit per
+ * condition from a single profile, and the campaign's union is a logical OR
+ * of those already-computed bits across binaries, not a merge of raw traces.
+ * So an "accepting" vector recorded by the real handshake corpus can never
+ * pair with a "rejecting" vector recorded by this driver; the false partner
+ * has to be produced HERE. It is: a one-entry cert list carrying four
+ * unparsable bytes, so ParseCertRelative() fails cleanly (ASN_PARSE_E) after
+ * the guard instead of returning success -- the guard itself is all this
+ * driver needs to exercise, not a real chain. */
 #if !defined(NO_CERTS) && \
     (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))
 static void wb_process_peer_cert_parse(WbFix* f)
 {
     ProcPeerCertArgs args;
     DecodedCert      dCert;
+    buffer           certs[1];
+    byte             junk[4];
     byte*            subjectHash = NULL;
     int              alreadySigner = 0;
 
@@ -423,6 +435,23 @@ static void wb_process_peer_cert_parse(WbFix* f)
     g_calls++;
     args.dCert = &dCert;
 #endif
+
+    /* the shared false partner: ssl, args and dCert all valid, so the guard
+     * is false for every operand and the function runs on into the parser. */
+    XMEMSET(junk, 0, sizeof(junk));
+    certs[0].buffer = junk;
+    certs[0].length = (word32)sizeof(junk);
+    XMEMSET(&dCert, 0, sizeof(dCert));
+    args.dCert = &dCert;
+    args.dCertInit = 0;
+    args.certs = certs;
+    args.count = 1;
+    args.certIdx = 0;
+    (void)ProcessPeerCertParse(f->ssl, &args, CERT_TYPE, VERIFY, &subjectHash,
+                               &alreadySigner);
+    g_calls++;
+    if (args.dCertInit)
+        FreeDecodedCert(args.dCert);
 }
 #endif /* !NO_CERTS && (!NO_WOLFSSL_CLIENT || !WOLFSSL_NO_CLIENT_AUTH) */
 

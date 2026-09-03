@@ -167,6 +167,10 @@ EXTRA_DIST += \
               tests/unit-mcdc/test_kdf_hash_fault_whitebox.c \
               tests/unit-mcdc/test_internal_domain_whitebox.c \
               tests/unit-mcdc/test_internal_clienthello_whitebox.c \
+              tests/unit-mcdc/test_internal_dhskehash_whitebox.c \
+              tests/unit-mcdc/test_internal_eddsa_whitebox.c \
+              tests/unit-mcdc/test_internal_nullguard_whitebox.c \
+              tests/unit-mcdc/test_internal_peerkey_whitebox.c \
               tests/unit-mcdc/test_keys_whitebox.c \
               tests/unit-mcdc/test_internal_record_whitebox.c \
               tests/unit-mcdc/test_internal_sanity_whitebox.c \
