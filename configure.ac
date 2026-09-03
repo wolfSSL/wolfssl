@@ -13274,14 +13274,12 @@ fi
 # our use of enum constructs to define fungible constants.
 if test "$KERNEL_MODE_DEFAULTS" != "yes"
 then
-    # Probe with ac_c_werror_flag (fail on any stderr output), not -Werror:
-    # ccache reorders -Werror after the -Wno- option, so gcc accepts it with
-    # only a warning.
-    ax_save_c_werror_flag=$ac_c_werror_flag
-    ac_c_werror_flag=yes
-    AX_CHECK_COMPILE_FLAG([-Wno-deprecated-enum-enum-conversion],
+    # Probe the positive form: gcc rejects an unknown -Wfoo outright, but
+    # only reports an unknown -Wno-foo if some other diagnostic is emitted,
+    # which a trivial conftest never produces.  Probing -Wno- therefore
+    # succeeds on compilers that do not support the option at all.
+    AX_CHECK_COMPILE_FLAG([-Wdeprecated-enum-enum-conversion],
       [AX_APPEND_FLAG([-Wno-deprecated-enum-enum-conversion], [AM_CFLAGS])])
-    ac_c_werror_flag=$ax_save_c_werror_flag
 fi
 
 case $host_os in
