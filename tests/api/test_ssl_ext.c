@@ -1362,3 +1362,142 @@ int test_wolfSSL_ticket_key_cb_renew_ext(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* ---------------------------------------------------------------------------
+ * The public Encrypted ClientHello configuration API.
+ *
+ * src/ssl_ech.c measured 0 of 52 MC/DC conditions -- not "poorly covered",
+ * zero -- despite ECH being compiled in and five ECH tests running in the
+ * tls13 group of the same binary. Those tests drive ECH through a handshake
+ * with configs the harness generates for them; none of them calls the public
+ * configuration API, which is where every condition in the file lives:
+ * generating a config for a named KEM, importing one from raw bytes or from
+ * base64, reading one back into a caller's buffer, and the argument and size
+ * checks on all of it.
+ *
+ * The file was invisible to the campaign until this part: ssl_ech.c is
+ * #included into ssl.c rather than compiled standalone, so it produces no
+ * object file and never appeared in a filtered llvm-cov export.
+ *
+ * These vectors are the ones a handshake cannot produce: a NULL ctx, a buffer
+ * that is one byte too small, a length of zero, base64 that is not base64, a
+ * KEM/KDF/AEAD triple the build does not implement, and a retry-config query
+ * on a connection that never negotiated ECH.
+ * ------------------------------------------------------------------------- */
+int test_wolfSSL_ech_config_api(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECH) && defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT) \
+    && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL_CTX* cctx = NULL;
+    WOLFSSL* ssl = NULL;
+    byte  cfg[512];
+    byte  small[4];
+    word32 cfgSz = (word32)sizeof(cfg);
+    word32 smallSz = (word32)sizeof(small);
+    word32 zero = 0;
+    char b64[1024];
+    word32 b64Sz = (word32)sizeof(b64);
+
+    XMEMSET(cfg, 0, sizeof(cfg));
+    XMEMSET(b64, 0, sizeof(b64));
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    ExpectNotNull(cctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+
+    /* --- generation: the argument guards, then a real config ------------ */
+    ExpectIntNE(wolfSSL_CTX_GenerateEchConfig(NULL, "example.com", 0, 0, 0),
+                WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_CTX_GenerateEchConfig(ctx, NULL, 0, 0, 0),
+                WOLFSSL_SUCCESS);
+    /* a KEM/KDF/AEAD triple no build implements: the lookup's failure arm */
+    ExpectIntNE(wolfSSL_CTX_GenerateEchConfig(ctx, "example.com",
+                0xFFFF, 0xFFFF, 0xFFFF), WOLFSSL_SUCCESS);
+    /* the accepting partner: defaults */
+    ExpectIntEQ(wolfSSL_CTX_GenerateEchConfig(ctx, "example.com", 0, 0, 0),
+                WOLFSSL_SUCCESS);
+
+    /* --- reading it back: the size negotiation -------------------------- */
+    ExpectIntNE(wolfSSL_CTX_GetEchConfigs(NULL, cfg, &cfgSz),
+                WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_CTX_GetEchConfigs(ctx, cfg, NULL), WOLFSSL_SUCCESS);
+    /* output NULL with a size pointer is the "how big is it?" call */
+    cfgSz = 0;
+    (void)wolfSSL_CTX_GetEchConfigs(ctx, NULL, &cfgSz);
+    /* a buffer that cannot hold it: the LENGTH_ERROR arm, which a caller
+     * sizing from the previous call never takes */
+    (void)wolfSSL_CTX_GetEchConfigs(ctx, small, &smallSz);
+    /* and a size of zero with a real buffer */
+    (void)wolfSSL_CTX_GetEchConfigs(ctx, cfg, &zero);
+    cfgSz = (word32)sizeof(cfg);
+    ExpectIntEQ(wolfSSL_CTX_GetEchConfigs(ctx, cfg, &cfgSz), WOLFSSL_SUCCESS);
+    ExpectIntGT(cfgSz, 0);
+
+    /* --- importing raw bytes on the client ------------------------------ */
+    ExpectIntNE(wolfSSL_CTX_SetEchConfigs(NULL, cfg, cfgSz), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_CTX_SetEchConfigs(cctx, NULL, cfgSz), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_CTX_SetEchConfigs(cctx, cfg, 0), WOLFSSL_SUCCESS);
+    /* truncated: well-formed prefix, impossible length */
+    (void)wolfSSL_CTX_SetEchConfigs(cctx, cfg, 2);
+    (void)wolfSSL_CTX_SetEchConfigs(cctx, cfg, cfgSz / 2);
+    ExpectIntEQ(wolfSSL_CTX_SetEchConfigs(cctx, cfg, cfgSz), WOLFSSL_SUCCESS);
+
+    /* --- the base64 path, which has its own decode failure arms --------- */
+    ExpectIntNE(wolfSSL_CTX_SetEchConfigsBase64(NULL, b64, b64Sz),
+                WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_CTX_SetEchConfigsBase64(cctx, NULL, b64Sz),
+                WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_CTX_SetEchConfigsBase64(cctx, b64, 0),
+                WOLFSSL_SUCCESS);
+    /* not base64 at all */
+    XSTRNCPY(b64, "!!!!not base64!!!!", sizeof(b64));
+    (void)wolfSSL_CTX_SetEchConfigsBase64(cctx, b64,
+                                          (word32)XSTRLEN(b64));
+    /* valid base64 that decodes to something that is not an ECH config */
+    XSTRNCPY(b64, "AAAAAAAAAAAAAAAAAAAAAAAA", sizeof(b64));
+    (void)wolfSSL_CTX_SetEchConfigsBase64(cctx, b64,
+                                          (word32)XSTRLEN(b64));
+
+    /* --- the enable switches, both ways --------------------------------- */
+    wolfSSL_CTX_SetEchEnable(ctx, 0);
+    wolfSSL_CTX_SetEchEnable(ctx, 1);
+    wolfSSL_CTX_SetEchEnableTrialDecrypt(ctx, 1);
+    wolfSSL_CTX_SetEchEnableTrialDecrypt(ctx, 0);
+
+    /* --- the per-connection API ----------------------------------------- */
+    ExpectNotNull(ssl = wolfSSL_new(cctx));
+    ExpectIntNE(wolfSSL_SetEchConfigs(NULL, cfg, cfgSz), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_SetEchConfigs(ssl, NULL, cfgSz), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_SetEchConfigs(ssl, cfg, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_SetEchConfigs(ssl, cfg, cfgSz), WOLFSSL_SUCCESS);
+
+    ExpectIntNE(wolfSSL_SetEchConfigsBase64(ssl, NULL, b64Sz),
+                WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_SetEchConfigsBase64(ssl, b64, 0), WOLFSSL_SUCCESS);
+
+    cfgSz = (word32)sizeof(cfg);
+    (void)wolfSSL_GetEchConfigs(NULL, cfg, &cfgSz);
+    (void)wolfSSL_GetEchConfigs(ssl, cfg, NULL);
+    (void)wolfSSL_GetEchConfigs(ssl, cfg, &cfgSz);
+
+    /* Retry configs on a connection that never negotiated ECH: the arm a
+     * successful handshake cannot reach, because there is nothing to retry. */
+    cfgSz = (word32)sizeof(cfg);
+    (void)wolfSSL_GetEchRetryConfigs(NULL, cfg, &cfgSz);
+    (void)wolfSSL_GetEchRetryConfigs(ssl, cfg, NULL);
+    (void)wolfSSL_GetEchRetryConfigs(ssl, cfg, &cfgSz);
+    smallSz = (word32)sizeof(small);
+    (void)wolfSSL_GetEchRetryConfigs(ssl, small, &smallSz);
+
+    wolfSSL_SetEchEnable(ssl, 0);
+    wolfSSL_SetEchEnable(ssl, 1);
+    wolfSSL_SetEchEnableTrialDecrypt(ssl, 1);
+    wolfSSL_SetEchEnableTrialDecrypt(ssl, 0);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(cctx);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
