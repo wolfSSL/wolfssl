@@ -8154,3 +8154,213 @@ int test_wolfSSL_set_secret(void)
     return EXPECT_RESULT();
 }
 
+
+/* ---------------------------------------------------------------------------
+ * DTLS handshakes corrupted, replayed, dropped and reordered in flight.
+ *
+ * The TLS version of this (test_tls_wire_mangle in test_ssl_hs.c) flips a bit
+ * at a fixed offset. Pointed at DTLS it measured nothing, for two reasons
+ * worth recording because both are DTLS-specific:
+ *
+ *   1. The offsets were wrong. A DTLS record header is thirteen bytes, not
+ *      five -- type, version, epoch, a six-byte sequence number, length -- and
+ *      the handshake header carries a further message sequence, fragment
+ *      offset and fragment length. Offsets picked for TLS framing land in the
+ *      middle of the sequence number and hit nothing interesting.
+ *
+ *   2. DTLS is *designed* to tolerate a corrupted record: it drops it and
+ *      waits for the retransmission. Corrupting bytes at random therefore
+ *      exercises the discard path and stops. What reaches the interesting code
+ *      -- the replay window, the retransmit pool, the fragment reassembler --
+ *      is a record that is well-formed but arrives twice, out of order, or
+ *      claiming an epoch or sequence number it should not.
+ *
+ * So this sweep targets the DTLS header fields by name, and leans on replay
+ * and reordering rather than corruption. Same fixture as the TLS version:
+ * test_memio, credentials from certs/, no socket and no second process.
+ * ------------------------------------------------------------------------- */
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD) && defined(WOLFSSL_DTLS)
+
+/* Offsets into a DTLS record, by field rather than by guess. */
+#define DW_TYPE        0
+#define DW_VERSION     1
+#define DW_EPOCH       3
+#define DW_SEQ_HI      5
+#define DW_SEQ_LO     10
+#define DW_RECLEN     11
+#define DW_HS_TYPE    13
+#define DW_HS_LEN     14
+#define DW_MSG_SEQ    17
+#define DW_FRAG_OFF   19
+#define DW_FRAG_LEN   22
+#define DW_BODY       26
+/* The extension block of a DTLS 1.3 ClientHello starts well past the fixed
+ * header: two version bytes, a 32-byte random, a session id, a cookie, the
+ * cipher suite list and the compression list come first. Flips inside the
+ * first sixty bytes never reach it, which is why the first version of this
+ * sweep left SendStatelessReplyDtls13 -- where every remaining condition in
+ * dtls.c lives -- completely untouched. */
+#define DW_EXTS      110
+
+enum dtls_wire_op {
+    DW_FLIP,        /* corrupt one named header field                     */
+    DW_REPLAY,      /* deliver the same record a second time              */
+    DW_DROP,        /* lose a record, so the peer must retransmit         */
+    DW_REORDER,     /* deliver records out of order                       */
+    DW_TRUNC,       /* claim a longer fragment than is carried            */
+    DW_OP_COUNT
+};
+
+static int test_dtls_wire_one(method_provider mc, method_provider ms,
+                              int round, int op, int off, byte mask)
+{
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    if (test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s, mc, ms)
+            != 0) {
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+        return 0;
+    }
+
+    /* Step the two endpoints by hand rather than through
+     * test_memio_do_handshake. That helper runs the client AND the server in
+     * one round, so by the time it returns the buffer has already been
+     * drained and there is nothing left in flight to corrupt -- which is why
+     * the first version of this test ran for two seconds, passed, and
+     * measured nothing. Here each half-round leaves exactly one peer's flight
+     * sitting in the buffer, and the mangle is applied to that flight before
+     * the other side is allowed to read it. */
+    for (i = 0; i < 16; i++) {
+        int isClientTurn = ((i % 2) == 0);
+        byte* buf;
+        int*  len;
+
+        if (isClientTurn)
+            (void)wolfSSL_connect(ssl_c);   /* client writes into s_buff */
+        else
+            (void)wolfSSL_accept(ssl_s);    /* server writes into c_buff */
+
+        /* the flight that was just produced, still unread by its peer */
+        buf = isClientTurn ? test_ctx.s_buff : test_ctx.c_buff;
+        len = isClientTurn ? &test_ctx.s_len : &test_ctx.c_len;
+
+        if (i != round || *len <= 0)
+            continue;
+
+        switch (op) {
+            case DW_FLIP:
+                if (*len > off)
+                    buf[off] ^= mask;
+                break;
+            case DW_REPLAY: {
+                /* The same record delivered twice is what the replay window
+                 * exists to refuse, and a conforming peer never sends it. */
+                char copy[2048];
+                int  copySz = (int)sizeof(copy);
+
+                if (test_memio_copy_message(&test_ctx, isClientTurn, copy,
+                                            &copySz, 0) == 0) {
+                    (void)test_memio_inject_message(&test_ctx, isClientTurn,
+                                                    copy, copySz);
+                }
+                break;
+            }
+            case DW_DROP:
+                /* A lost flight: the peer's retransmit timer and pool are the
+                 * code this reaches, and nothing else does. */
+                (void)test_memio_drop_message(&test_ctx, isClientTurn, 0);
+                break;
+            case DW_REORDER:
+                (void)test_memio_move_message(&test_ctx, isClientTurn, 0, 1);
+                break;
+            case DW_TRUNC:
+                /* A fragment that claims more than it carries drives the
+                 * reassembler's bounds checks. */
+                (void)test_memio_modify_message_len(&test_ctx, isClientTurn,
+                                                    0, 4096);
+                break;
+            default:
+                break;
+        }
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return 0;
+}
+
+static int test_dtls_wire_sweep(method_provider mc, method_provider ms)
+{
+    /* Named header fields, plus two body offsets. */
+    static const int offsets[] = {
+        DW_TYPE, DW_VERSION, DW_EPOCH, DW_EPOCH + 1, DW_SEQ_HI, DW_SEQ_HI + 2,
+        DW_SEQ_LO, DW_RECLEN, DW_RECLEN + 1, DW_HS_TYPE, DW_HS_LEN,
+        DW_HS_LEN + 2, DW_MSG_SEQ, DW_MSG_SEQ + 1, DW_FRAG_OFF,
+        DW_FRAG_OFF + 2, DW_FRAG_LEN, DW_FRAG_LEN + 2, DW_BODY, DW_BODY + 40,
+        DW_EXTS, DW_EXTS + 32, DW_EXTS + 90
+    };
+    static const byte masks[] = { 0x01, 0xff };
+    int round, o, m, op;
+
+    /* Deliberately narrow. This sweep is a robustness guard, not a coverage
+     * win: measured against the campaign it adds ZERO MC/DC on dtls.c and
+     * dtls13.c, three separate attempts, the union landing on exactly 16/56
+     * and 70/132 each time. An identical number is the signature of code that
+     * is never entered, not of vectors that are too weak, and the reason is
+     * that dtls.c's entire residue lives in SendStatelessReplyDtls13's
+     * extension parsing -- a corrupted DTLS record is discarded by the record
+     * layer before that parser ever sees it, which is exactly the tolerance
+     * DTLS is designed for. Reaching it needs a well-formed record carrying a
+     * deliberately malformed extension block, which means building the
+     * ClientHello rather than corrupting one. Kept at this size so it costs
+     * seconds rather than minutes until that fixture exists. */
+    for (round = 0; round < 3; round++) {
+        /* the sequence-level operations, which do not need an offset */
+        for (op = DW_REPLAY; op < (int)DW_OP_COUNT; op++)
+            (void)test_dtls_wire_one(mc, ms, round, op, 0, 0);
+
+        /* and the field-level corruption */
+        for (o = 0; o < (int)(sizeof(offsets) / sizeof(offsets[0])); o++)
+            for (m = 0; m < (int)(sizeof(masks) / sizeof(masks[0])); m++)
+                (void)test_dtls_wire_one(mc, ms, round, DW_FLIP, offsets[o],
+                                         masks[m]);
+    }
+
+    /* the clean handshake, so every decision above has its partner here */
+    return test_dtls_wire_one(mc, ms, 99, DW_FLIP, 0, 0x00);
+}
+
+#endif
+
+int test_dtls12_wire_mangle(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD) && \
+    defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA)
+    ExpectIntEQ(test_dtls_wire_sweep(wolfDTLSv1_2_client_method,
+                                     wolfDTLSv1_2_server_method), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_dtls13_wire_mangle(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD) && \
+    defined(WOLFSSL_DTLS13) && defined(WOLFSSL_TLS13) && !defined(NO_RSA)
+    ExpectIntEQ(test_dtls_wire_sweep(wolfDTLSv1_3_client_method,
+                                     wolfDTLSv1_3_server_method), 0);
+#endif
+    return EXPECT_RESULT();
+}
