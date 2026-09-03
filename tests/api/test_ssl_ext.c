@@ -1592,9 +1592,18 @@ int test_wolfSSL_api_null_burndown(void)
     (void)wolfSSL_dtls_get_peer(ssl, NULL, &sz);
     (void)wolfSSL_dtls_get_peer(ssl, buf, NULL);
     (void)wolfSSL_dtls_get_peer(ssl, buf, &sz);
+    /* wolfSSL_dtls_set_pending_peer() is declared unconditionally in ssl.h but
+     * only IMPLEMENTED under WOLFSSL_DTLS_CID && !WOLFSSL_NO_SOCK
+     * (src/ssl_api_dtls.c); a config with WOLFSSL_DTLS on and
+     * WOLFSSL_DTLS_CID off compiles this call and fails at LINK time. The
+     * enclosing #ifdef WOLFSSL_DTLS above is not sufficient. Confirmed with a
+     * real build of two such asn.c variants (ignore_name_constraints,
+     * runtime_date_check): "undefined symbol: wolfSSL_dtls_set_pending_peer". */
+#if defined(WOLFSSL_DTLS_CID) && !defined(WOLFSSL_NO_SOCK)
     (void)wolfSSL_dtls_set_pending_peer(NULL, buf, (unsigned int)sizeof(buf));
     (void)wolfSSL_dtls_set_pending_peer(ssl, NULL, (unsigned int)sizeof(buf));
     (void)wolfSSL_dtls_set_pending_peer(ssl, buf, 0);
+#endif
     (void)wolfSSL_dtls(NULL);
     (void)wolfSSL_dtls(ssl);
 #endif
