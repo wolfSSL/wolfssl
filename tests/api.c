@@ -4626,7 +4626,8 @@ static int test_wolfSSL_clear_chain_certs(void)
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(OPENSSL_EXTRA) && \
     defined(KEEP_OUR_CERT) && !defined(NO_RSA) && !defined(NO_TLS) && \
-    !defined(NO_WOLFSSL_SERVER) && !defined(OPENSSL_COEXIST) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(OPENSSL_COEXIST) && \
     (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || \
      defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_NGINX))
 /* Server-side ssl_ready hook: add chain certs then clear them, so the
