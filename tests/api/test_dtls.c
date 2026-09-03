@@ -9524,3 +9524,122 @@ int test_dtls13_packet_forgeries(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* ---------------------------------------------------------------------------
+ * Connection ID argument guards.
+ *
+ * Nineteen of the conditions left in dtls.c are in the CID functions, and it
+ * is worth recording what they actually are, because a great deal of packet
+ * machinery was pointed at them first and moved none of them:
+ *
+ *     if (ssl == NULL || buf == NULL)                        DtlsCidGet
+ *     if (id == NULL || id->length == 0)
+ *     if (ssl == NULL || cid == NULL)                        DtlsCidGet0
+ *     if (info == NULL || info->rx == NULL || !info->rx->length) DtlsCIDCheck
+ *     if (ssl == NULL || cid == NULL || size == 0)           DtlsCidReplaceTx
+ *     if (msg == NULL || cidSz == 0 || msgSz < OPAQUE8_LEN + cidSz)
+ *
+ * They are NULL-and-zero argument guards on the public API. No handshake
+ * passes NULL, and no forged datagram can make it: the operands are only
+ * reachable by calling the functions directly with the arguments a caller
+ * should not use. The existing CID tests all drive a working connection, so
+ * every one of these guards is taken the same way on every call.
+ *
+ * Three states are needed for the second operand of each pair -- no ssl, an
+ * ssl with CID compiled but not enabled, and an ssl with CID enabled but not
+ * yet negotiated -- because "no CID info", "info but no id" and "an id of
+ * length zero" are distinct operands.
+ * ------------------------------------------------------------------------- */
+int test_wolfSSL_dtls_cid_arg_guards(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS_CID) && defined(WOLFSSL_DTLS) && !defined(NO_RSA) && \
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* plain = NULL;      /* CID never enabled */
+    WOLFSSL* enabled = NULL;    /* CID enabled, never negotiated */
+    unsigned char buf[DTLS_CID_MAX_SIZE + 4];
+    unsigned char* p = NULL;
+    unsigned int sz = 0;
+    byte cid[4];
+
+    XMEMSET(buf, 0, sizeof(buf));
+    XMEMSET(cid, 0xC1, sizeof(cid));
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method()));
+    ExpectNotNull(plain = wolfSSL_new(ctx));
+    ExpectNotNull(enabled = wolfSSL_new(ctx));
+    if (enabled != NULL)
+        (void)wolfSSL_dtls_cid_use(enabled);
+
+    /* ssl == NULL: the first operand of every guard */
+    (void)(wolfSSL_dtls_cid_is_enabled(NULL));
+    ExpectIntNE(wolfSSL_dtls_cid_set(NULL, cid, (word32)sizeof(cid)),
+                WOLFSSL_SUCCESS);
+    (void)(wolfSSL_dtls_cid_get_rx_size(NULL, &sz));
+    (void)(wolfSSL_dtls_cid_get_tx_size(NULL, &sz));
+    ExpectIntNE(wolfSSL_dtls_cid_get_rx(NULL, buf, (unsigned int)sizeof(buf)),
+                WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_dtls_cid_get_tx(NULL, buf, (unsigned int)sizeof(buf)),
+                WOLFSSL_SUCCESS);
+    (void)(wolfSSL_dtls_cid_get0_rx(NULL, &p));
+    (void)(wolfSSL_dtls_cid_get0_tx(NULL, &p));
+
+    /* the second operand: a valid ssl with a NULL buffer */
+    ExpectIntNE(wolfSSL_dtls_cid_set(enabled, NULL, (word32)sizeof(cid)),
+                WOLFSSL_SUCCESS);
+    (void)(wolfSSL_dtls_cid_get_rx_size(enabled, NULL));
+    (void)(wolfSSL_dtls_cid_get_tx_size(enabled, NULL));
+    (void)(wolfSSL_dtls_cid_get_rx(enabled, NULL,
+                (unsigned int)sizeof(buf)));
+    (void)(wolfSSL_dtls_cid_get_tx(enabled, NULL,
+                (unsigned int)sizeof(buf)));
+    (void)(wolfSSL_dtls_cid_get0_rx(enabled, NULL));
+    (void)(wolfSSL_dtls_cid_get0_tx(enabled, NULL));
+
+    /* size == 0, and a size past the maximum: the third operand of
+     * DtlsCidReplaceTx, which a caller with a real CID never supplies */
+    (void)(wolfSSL_dtls_cid_set(enabled, cid, 0));
+    ExpectIntNE(wolfSSL_dtls_cid_set(enabled, cid, DTLS_CID_MAX_SIZE + 1),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls_cid_set(enabled, cid, (word32)sizeof(cid)),
+                WOLFSSL_SUCCESS);
+
+    /* CID compiled but never enabled on this ssl: info == NULL, which is a
+     * different operand from "info exists but carries no id" */
+    (void)(wolfSSL_dtls_cid_is_enabled(plain));
+    (void)(wolfSSL_dtls_cid_get_rx_size(plain, &sz));
+    (void)(wolfSSL_dtls_cid_get_rx(plain, buf,
+                (unsigned int)sizeof(buf)));
+    (void)(wolfSSL_dtls_cid_get0_rx(plain, &p));
+
+    /* enabled but not negotiated: the id is present and zero-length, which is
+     * the `id->length == 0` operand */
+    (void)(wolfSSL_dtls_cid_is_enabled(enabled));
+    (void)(wolfSSL_dtls_cid_get_rx_size(enabled, &sz));
+    (void)(wolfSSL_dtls_cid_get_rx(enabled, buf,
+                (unsigned int)sizeof(buf)));
+    (void)(wolfSSL_dtls_cid_get0_rx(enabled, &p));
+
+    /* a buffer smaller than the CID it must hold */
+    (void)(wolfSSL_dtls_cid_get_tx(enabled, buf, 1));
+
+    /* wolfSSL_dtls_cid_parse: three operands, and a message that is one byte
+     * short of the CID it claims */
+    (void)(wolfSSL_dtls_cid_parse(NULL, 16, 4));
+    (void)(wolfSSL_dtls_cid_parse(buf, 16, 0));
+    (void)(wolfSSL_dtls_cid_parse(buf, 4, 4));
+    (void)(wolfSSL_dtls_cid_parse(buf, 0, 4));
+    buf[0] = dtls12_cid;
+    (void)(wolfSSL_dtls_cid_parse(buf, (unsigned int)sizeof(buf), 4));
+    buf[0] = handshake;     /* not a CID record: the type test's partner */
+    (void)(wolfSSL_dtls_cid_parse(buf, (unsigned int)sizeof(buf), 4));
+
+    ExpectIntGT(wolfSSL_dtls_cid_max_size(), 0);
+
+    wolfSSL_free(plain);
+    wolfSSL_free(enabled);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
