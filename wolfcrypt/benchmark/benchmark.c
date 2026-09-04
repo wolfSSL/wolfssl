@@ -13047,6 +13047,15 @@ static const byte lms_pub_L4_H5_W8[60] =
 #endif
 #endif /* WOLFSSL_WC_LMS_SERIALIZE_STATE */
 
+/* Whether the build has any LMS parameter set at all: SHA-256/256 unless it
+ * was disabled, SHA-256/192 and SHAKE-256 when asked for.  With none of them
+ * there is nothing to benchmark and everything below would be unused. */
+#if !defined(WOLFSSL_NO_LMS_SHA256_256) || defined(WOLFSSL_LMS_SHA256_192) || \
+    defined(WOLFSSL_LMS_SHAKE256)
+    #define BENCH_LMS_ANY_PARAMS
+#endif
+
+#ifdef BENCH_LMS_ANY_PARAMS
 static int lms_write_key_mem(const byte* priv, word32 privSz, void* context)
 {
    /* WARNING: THIS IS AN INSECURE WRITE CALLBACK THAT SHOULD ONLY
@@ -13358,6 +13367,9 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm, byte* pub)
     case WC_LMS_PARM_SHAKE192_L1_H25_W8:
 #endif
 
+    /* Named so that -Wswitch-enum is satisfied; it is not a parameter set and
+     * never reaches here. */
+    case WC_LMS_PARM_NONE:
     default:
         XMEMCPY(key.pub, pub, HSS_MAX_PUBLIC_KEY_LEN);
         break;
@@ -13526,11 +13538,19 @@ exit_lms_sign_verify:
     return;
 }
 
+#endif /* BENCH_LMS_ANY_PARAMS */
+
 void bench_lms(void)
 {
+#ifdef BENCH_LMS_ANY_PARAMS
     byte pub[HSS_MAX_PUBLIC_KEY_LEN];
+#endif
 
 #ifndef WOLFSSL_NO_LMS_SHA256_256
+    bench_lms_keygen(WC_LMS_PARM_L1_H5_W4, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_L1_H5_W4, pub);
+    bench_lms_keygen(WC_LMS_PARM_L1_H5_W8, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_L1_H5_W8, pub);
 #ifdef BENCH_LMS_SLOW_KEYGEN
 #if (LMS_MAX_HEIGHT >= 15)
     bench_lms_keygen(WC_LMS_PARM_L1_H15_W2, pub);
@@ -13621,6 +13641,25 @@ void bench_lms(void)
     bench_lms_sign_verify(WC_LMS_PARM_SHA256_192_L1_H5_W1, pub);
 #endif
 #endif /* WOLFSSL_LMS_SHA256_192 */
+
+#ifdef WOLFSSL_LMS_SHAKE256
+    /* SHAKE-256/256 and SHAKE-256/192.  Both are single level, so there is no
+     * LMS_MAX_LEVELS to test here. */
+#if (LMS_MAX_HEIGHT >= 10)
+    bench_lms_keygen(WC_LMS_PARM_SHAKE_L1_H10_W2, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_SHAKE_L1_H10_W2, pub);
+    bench_lms_keygen(WC_LMS_PARM_SHAKE_L1_H10_W4, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_SHAKE_L1_H10_W4, pub);
+#endif
+    bench_lms_keygen(WC_LMS_PARM_SHAKE_L1_H5_W4, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_SHAKE_L1_H5_W4, pub);
+    bench_lms_keygen(WC_LMS_PARM_SHAKE_L1_H5_W8, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_SHAKE_L1_H5_W8, pub);
+    bench_lms_keygen(WC_LMS_PARM_SHAKE192_L1_H5_W4, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_SHAKE192_L1_H5_W4, pub);
+    #undef LMS_PARAMS_BENCHED
+    #define LMS_PARAMS_BENCHED
+#endif /* WOLFSSL_LMS_SHAKE256 */
 
     return;
 }

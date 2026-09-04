@@ -395,6 +395,108 @@ struct XmssKey {
     #define WC_XMSSKEY_TYPE_DEFINED
 #endif
 
+#ifdef USE_INTEL_SPEEDUP
+/* AVX-512 assembly for XMSS is built (and dispatched at run time on capable
+ * CPUs) whenever the Intel speedups are enabled and AVX-512 is not opted
+ * out.  Matches the HAVE_INTEL_AVX512 guard around the generated
+ * assembly. */
+#ifndef NO_AVX512_SUPPORT
+    #define WOLFSSL_XMSS_HAVE_INTEL_AVX512
+#endif
+#endif
+
+/* Whether the multi-buffer SHA-256 chain path is built.  It needs the cached
+ * PRF midstate and the laid-out hash blocks of the prehash SHA-256/32 path,
+ * which the small-memory and full-hash variants do not have. */
+#if defined(WC_SHA256_N_WAY) && !defined(WOLFSSL_WC_XMSS_SMALL) && \
+    defined(WC_XMSS_SHA256) && !defined(WC_XMSS_FULL_HASH)
+    #define WC_XMSS_SHA256_N_WAY
+#endif
+/* The SHAKE-128 parameter sets - n = 32, 32-byte padding - hash 96 bytes per
+ * PRF or chain call, one permutation, so they batch through the multi-buffer
+ * Keccak.  The SHAKE-256 sets are n = 64 and span two permutations; they stay
+ * on the serial path. */
+#if defined(WC_SHAKE_N_WAY) && !defined(WOLFSSL_WC_XMSS_SMALL) && \
+    defined(WC_XMSS_SHAKE128) && !defined(WC_XMSS_FULL_HASH)
+    #define WC_XMSS_SHAKE_N_WAY
+#endif
+
+/* The SHA-512 parameter sets - n = 64, 64-byte padding - hash the same way as
+ * the SHA-256 ones a block wider: padding || SEED is exactly one 128-byte
+ * block, so the PRF is one block from that midstate and the chain hash two
+ * from the initial value. */
+#if defined(WC_SHA512_N_WAY) && !defined(WOLFSSL_WC_XMSS_SMALL) && \
+    defined(WC_XMSS_SHA512) && !defined(WC_XMSS_FULL_HASH)
+    #define WC_XMSS_SHA512_N_WAY
+#endif
+
+#if defined(WC_XMSS_SHA256_N_WAY) || defined(WC_XMSS_SHAKE_N_WAY) || \
+    defined(WC_XMSS_SHA512_N_WAY)
+    #define WC_XMSS_N_WAY
+    /* Widest batch either hash can run, and the batch buffer each needs: two
+     * 64-byte blocks per lane for SHA-256, two 96-byte messages for SHAKE. */
+    #ifdef WC_XMSS_SHA256_N_WAY
+        #define WC_XMSS_N_WAY_SHA256_CNT  WC_SHA256_N_WAY_MAX_CNT
+        #define WC_XMSS_N_WAY_SHA256_BUF  \
+            (WC_SHA256_N_WAY_MAX_CNT * 2 * WC_SHA256_BLOCK_SIZE)
+    #else
+        #define WC_XMSS_N_WAY_SHA256_CNT  0
+        #define WC_XMSS_N_WAY_SHA256_BUF  0
+    #endif
+    #ifdef WC_XMSS_SHAKE_N_WAY
+        #define WC_XMSS_N_WAY_SHAKE_CNT   WC_SHAKE_N_WAY_MAX_CNT
+        #define WC_XMSS_N_WAY_SHAKE_BUF   (WC_SHAKE_N_WAY_MAX_CNT * 2 * 3 * 32)
+    #else
+        #define WC_XMSS_N_WAY_SHAKE_CNT   0
+        #define WC_XMSS_N_WAY_SHAKE_BUF   0
+    #endif
+    #ifdef WC_XMSS_SHA512_N_WAY
+        #define WC_XMSS_N_WAY_SHA512_CNT  WC_SHA512_N_WAY_CNT
+        #define WC_XMSS_N_WAY_SHA512_BUF  (2 * WC_SHA512_N_WAY_BLK_SZ)
+    #else
+        #define WC_XMSS_N_WAY_SHA512_CNT  0
+        #define WC_XMSS_N_WAY_SHA512_BUF  0
+    #endif
+/* The fused kernels are AVX-512 only - sixteen lanes of SHA-256 or eight of
+ * SHA-512 - and the hash size they assume is checked at run time. */
+#if defined(WC_XMSS_SHA256_N_WAY) && defined(WOLFSSL_XMSS_HAVE_INTEL_AVX512)
+    #define WC_XMSS_SHA256_N_WAY_FUSED
+#endif
+#if defined(WC_XMSS_SHA512_N_WAY) && defined(WOLFSSL_XMSS_HAVE_INTEL_AVX512)
+    #define WC_XMSS_SHA512_N_WAY_FUSED
+#endif
+/* SHAKE has fused kernels at both widths, so this needs no AVX-512. */
+#ifdef WC_XMSS_SHAKE_N_WAY
+    #define WC_XMSS_SHAKE_N_WAY_FUSED
+#endif
+#if defined(WC_XMSS_SHA256_N_WAY_FUSED) || \
+    defined(WC_XMSS_SHA512_N_WAY_FUSED) || \
+    defined(WC_XMSS_SHAKE_N_WAY_FUSED)
+    #define WC_XMSS_N_WAY_FUSED
+#endif
+
+    #if WC_XMSS_N_WAY_SHA256_CNT >= WC_XMSS_N_WAY_SHAKE_CNT
+        #define WC_XMSS_N_WAY_CNT_A       WC_XMSS_N_WAY_SHA256_CNT
+    #else
+        #define WC_XMSS_N_WAY_CNT_A       WC_XMSS_N_WAY_SHAKE_CNT
+    #endif
+    #if WC_XMSS_N_WAY_CNT_A >= WC_XMSS_N_WAY_SHA512_CNT
+        #define WC_XMSS_N_WAY_MAX_CNT     WC_XMSS_N_WAY_CNT_A
+    #else
+        #define WC_XMSS_N_WAY_MAX_CNT     WC_XMSS_N_WAY_SHA512_CNT
+    #endif
+    #if WC_XMSS_N_WAY_SHA256_BUF >= WC_XMSS_N_WAY_SHAKE_BUF
+        #define WC_XMSS_N_WAY_BUF_A       WC_XMSS_N_WAY_SHA256_BUF
+    #else
+        #define WC_XMSS_N_WAY_BUF_A       WC_XMSS_N_WAY_SHAKE_BUF
+    #endif
+    #if WC_XMSS_N_WAY_BUF_A >= WC_XMSS_N_WAY_SHA512_BUF
+        #define WC_XMSS_N_WAY_BUF_SZ      WC_XMSS_N_WAY_BUF_A
+    #else
+        #define WC_XMSS_N_WAY_BUF_SZ      WC_XMSS_N_WAY_SHA512_BUF
+    #endif
+#endif
+
 typedef struct XmssState {
     const XmssParams* params;
     void* heap;
@@ -414,6 +516,58 @@ typedef struct XmssState {
 #if !defined(WOLFSSL_WC_XMSS_SMALL) && defined(WC_XMSS_SHA256) && \
     !defined(WC_XMSS_FULL_HASH)
     ALIGN16 word32 dgst_state[WC_SHA256_DIGEST_SIZE / sizeof(word32)];
+#endif
+/* Sibling of the SHA-256 block above, not nested in it: WC_XMSS_N_WAY is set
+ * by any of the three n-way families, and the SHAKE-128 and SHA-512 ones do
+ * not need WC_XMSS_SHA256.  Nesting made a build with WOLFSSL_WC_XMSS_NO_SHA256
+ * (or NO_SHA256) plus SHAKE-128 or SHA-512 reference members that were never
+ * declared. */
+#ifdef WC_XMSS_N_WAY
+    /* Step several WOTS+ chains at a time with the multi-buffer hash.
+     *
+     * The chains of one WOTS+ key do not feed each other, so a group can be
+     * advanced together.  Two message groups: the PRF messages that produce
+     * KEY and BM live in the first, and F's message - padding || KEY ||
+     * (tmp XOR BM) - in the second.  For SHA-256 dgst_state holds the
+     * midstate of the PRF prefix those share. */
+    ALIGN64 byte n_way_buf[WC_XMSS_N_WAY_BUF_SZ];
+    /* The digests a batch produces. */
+    ALIGN64 byte n_way_hash[WC_XMSS_N_WAY_MAX_CNT * WC_XMSS_MAX_N];
+#ifdef WC_XMSS_SHA256_N_WAY_FUSED
+    /* Chain value, KEY and BM of sixteen chains, lane-interleaved.  The
+     * fused kernels hand these to one another as they are: a chain runs PRF,
+     * PRF and F without any of the three reading a byte buffer, and the
+     * chain value only becomes bytes again when its chain ends. */
+    ALIGN64 word32 n_way_st[WC_SHA256_N_WAY_MAX_CNT * 8];
+    ALIGN64 word32 n_way_key[WC_SHA256_N_WAY_MAX_CNT * 8];
+    ALIGN64 word32 n_way_bm[WC_SHA256_N_WAY_MAX_CNT * 8];
+#endif
+#ifdef WC_XMSS_SHAKE_N_WAY
+    /* Interleaved Keccak state the SHAKE batch permutes. */
+    ALIGN64 word64 n_way_state[WC_SHAKE_N_WAY_MAX_STATE_W];
+#ifdef WC_XMSS_SHAKE_N_WAY_FUSED
+    /* KEY and BM get a whole state each so that the fused kernel can leave
+     * them where they fall and F can read them there: the chain value then
+     * stays in n_way_state from one link to the next, never becoming bytes. */
+    ALIGN64 word64 n_way_key_st[WC_SHAKE_N_WAY_MAX_STATE_W];
+    ALIGN64 word64 n_way_bm_st[WC_SHAKE_N_WAY_MAX_STATE_W];
+#endif
+#endif
+#ifdef WC_XMSS_SHA512_N_WAY
+    /* SHA-512 state after the PRF prefix; dgst_state is the SHA-256 one. */
+    ALIGN64 word64 n_way_mid512[WC_SHA512_DIGEST_SIZE / sizeof(word64)];
+    /* Lane-interleaved SHA-512 state the batch compresses into. */
+    ALIGN64 word64 n_way_st512[WC_SHA512_N_WAY_CNT *
+                             (WC_SHA512_DIGEST_SIZE / sizeof(word64))];
+#ifdef WC_XMSS_SHA512_N_WAY_FUSED
+    /* KEY and BM of eight chains, lane-interleaved, as the fused kernels
+     * pass them to one another; n_way_st512 holds the chain values. */
+    ALIGN64 word64 n_way_key512[WC_SHA512_N_WAY_CNT *
+                              (WC_SHA512_DIGEST_SIZE / sizeof(word64))];
+    ALIGN64 word64 n_way_bm512[WC_SHA512_N_WAY_CNT *
+                             (WC_SHA512_DIGEST_SIZE / sizeof(word64))];
+#endif
+#endif
 #endif
     ALIGN16 byte prf_buf[WC_XMSS_HASH_PRF_MAX_DATA_LEN];
     ALIGN16 byte buf[WC_XMSS_HASH_MAX_DATA_LEN];
@@ -479,6 +633,9 @@ WOLFSSL_API int  wc_XmssKey_Verify(XmssKey* key, const byte* sig, word32 sigSz,
 
 WOLFSSL_LOCAL int wc_xmssmt_keygen(XmssState *state, const unsigned char* seed,
     unsigned char *sk, unsigned char *pk);
+/* Work out what the CPU can do; called from wc_XmssKey_Init(). */
+WOLFSSL_LOCAL void wc_xmss_init(void);
+
 WOLFSSL_LOCAL int wc_xmss_keygen(XmssState *state, const unsigned char* seed,
     unsigned char *sk, unsigned char *pk);
 
