@@ -76018,6 +76018,83 @@ static wc_test_ret_t mp_test_radix_16(mp_int* a, mp_int* r, WC_RNG* rng)
     if (!mp_iszero(r))
         return WC_TEST_RET_ENC_NC;
 
+#ifdef WOLFSSL_SP_MATH_ALL
+    /* Force a non-normalized zero (used > 0 with all-zero digits,
+     * e.g. a negative zero) to test with. */
+    mp_zero(a);
+    a->used = 2;
+    a->dp[0] = 0;
+    a->dp[1] = 0;
+#ifdef WOLFSSL_SP_INT_NEGATIVE
+    a->sign = MP_NEG;
+#endif
+    ret = mp_radix_size(a, MP_RADIX_HEX, &size);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+#ifndef WC_DISABLE_RADIX_ZERO_PAD
+    if (size != 3)
+        return WC_TEST_RET_ENC_NC;
+#else
+    if (size != 2)
+        return WC_TEST_RET_ENC_NC;
+#endif
+
+    XMEMSET(str, 0xff, sizeof(str));
+    ret = mp_tohex(a, str);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if ((int)XSTRLEN(str) != size - 1)
+        return WC_TEST_RET_ENC_NC;
+
+#ifndef WC_DISABLE_RADIX_ZERO_PAD
+    if (XSTRCMP(str, "00") != 0)
+        return WC_TEST_RET_ENC_NC;
+#else
+    if (XSTRCMP(str, "0") != 0)
+        return WC_TEST_RET_ENC_NC;
+#endif
+
+    /* Nothing was written past the reported size. */
+    if ((unsigned char)str[size] != 0xff)
+        return WC_TEST_RET_ENC_NC;
+    mp_zero(a);
+
+    /* Force a non-normalized non-zero value (zero most significant digit with
+     * only the top nibble of the next digit set) to check that leading zero
+     * digits are skipped without reading before dp[0]. */
+    mp_zero(a);
+    a->used = 2;
+    a->dp[0] = (sp_int_digit)1 << (SP_WORD_SIZE - 4);
+    a->dp[1] = 0;
+    ret = mp_radix_size(a, MP_RADIX_HEX, &size);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    /* "1" followed by the remaining nibbles of the digit and '\0'. */
+    if (size != (SP_WORD_SIZE / 4) + 1)
+        return WC_TEST_RET_ENC_NC;
+
+    XMEMSET(str, 0xff, sizeof(str));
+    ret = mp_tohex(a, str);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if ((int)XSTRLEN(str) != size - 1)
+        return WC_TEST_RET_ENC_NC;
+    if (XSTRNCMP(str, "10", 2) != 0)
+        return WC_TEST_RET_ENC_NC;
+    /* Nothing was written past the reported size. */
+    if ((unsigned char)str[size] != 0xff)
+        return WC_TEST_RET_ENC_NC;
+
+    /* Reading the string back gives the normalized value. */
+    ret = mp_read_radix(r, str, MP_RADIX_HEX);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (r->used != 1 || r->dp[0] != ((sp_int_digit)1 << (SP_WORD_SIZE - 4)))
+        return WC_TEST_RET_ENC_NC;
+    mp_zero(a);
+#endif
+
 #ifdef WOLFSSL_SP_INT_NEGATIVE
     /* Negative values are written with a leading '-' and read back. */
     ret = mp_set(a, 0xABCD);
