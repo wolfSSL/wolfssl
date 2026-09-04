@@ -447,6 +447,171 @@ static void wb_check_request_ioctx(WOLFSSL_CERT_MANAGER* cm)
     wolfSSL_CTX_free(ctx);
 }
 
+
+/* --------------------------------------------------------- GetOcspStatus
+
+ * The cache lookup: walk this entry's status list for one matching the
+ * request's serial, then decide whether the cached answer is still usable.
+ *
+ *     (*status)->serialSz == request->serialSz && !XMEMCMP(serial, ...)
+ *     responseBuffer && *status && !(*status)->rawOcspResponse
+ *     XVALIDATE_DATE(thisDate) && nextDate[0] != 0 && XVALIDATE_DATE(nextDate)
+ *
+ * A cache populated by the parser always holds self-consistent entries, so
+ * "same length, different serial", "cached but with no stored response body"
+ * and "cached with a date that no longer validates" are states the library
+ * produces only after time passes or a responder misbehaves. Built by hand
+ * here.
+ *
+ * Ownership: GetOcspStatus READS entry->status and writes *status; it stores
+ * nothing, so stack objects are correct. The entry is never linked into
+ * ocsp->ocspList, so teardown cannot reach this frame. */
+static void wb_get_ocsp_status(WOLFSSL_OCSP* ocsp)
+{
+    OcspRequest req;
+    OcspEntry entry;
+    CertStatus st;
+    CertStatus* found = NULL;
+    buffer respBuf;
+    byte serial[8];
+    byte raw[4];
+    size_t i;
+
+    static const struct { int stSz; byte stByte; int reqSz; byte reqByte;
+                          int haveRaw; int haveBuf; int thisFmt;
+                          int nextSet; const char* what; } rows[] = {
+      /* serial match/mismatch by length and by content */
+      { 8, 0xA1, 8, 0xA1, 1, 1, ASN_UTC_TIME, 1, "match, cached, dated" },
+      { 8, 0xA1, 8, 0xB2, 1, 1, ASN_UTC_TIME, 1, "same length, other serial" },
+      { 4, 0xA1, 8, 0xA1, 1, 1, ASN_UTC_TIME, 1, "shorter cached serial" },
+      { 8, 0xA1, 4, 0xA1, 1, 1, ASN_UTC_TIME, 1, "shorter request serial" },
+      /* cached entry with no stored response body: forces a refetch */
+      { 8, 0xA1, 8, 0xA1, 0, 1, ASN_UTC_TIME, 1, "no raw response, buffer" },
+      { 8, 0xA1, 8, 0xA1, 0, 0, ASN_UTC_TIME, 1, "no raw response, no buffer" },
+      { 8, 0xA1, 8, 0xA1, 1, 0, ASN_UTC_TIME, 1, "raw response, no buffer" },
+      /* date shapes: unset format, and a nextDate that was never written */
+      { 8, 0xA1, 8, 0xA1, 1, 1, 0,            1, "no date format" },
+      { 8, 0xA1, 8, 0xA1, 1, 1, ASN_UTC_TIME, 0, "no nextDate" },
+      { 8, 0xA1, 8, 0xA1, 1, 1, ASN_GENERALIZED_TIME, 1, "generalized time" },
+    };
+
+    XMEMSET(raw, 0x30, sizeof(raw));
+
+    for (i = 0; i < sizeof(rows) / sizeof(rows[0]); i++) {
+        XMEMSET(&req, 0, sizeof(req));
+        XMEMSET(&entry, 0, sizeof(entry));
+        XMEMSET(&st, 0, sizeof(st));
+        XMEMSET(&respBuf, 0, sizeof(respBuf));
+        XMEMSET(serial, rows[i].reqByte, sizeof(serial));
+
+        st.serialSz = rows[i].stSz;
+        XMEMSET(st.serial, rows[i].stByte, sizeof(st.serial));
+        st.rawOcspResponse = rows[i].haveRaw ? raw : NULL;
+        st.rawOcspResponseSz = rows[i].haveRaw ? (word32)sizeof(raw) : 0;
+        st.thisDateFormat = (byte)rows[i].thisFmt;
+        st.nextDateFormat = (byte)rows[i].thisFmt;
+        if (rows[i].nextSet)
+            st.nextDate[0] = 0x30;
+        st.next = NULL;
+        entry.status = &st;
+        entry.next = NULL;
+
+        req.serial = serial;
+        req.serialSz = rows[i].reqSz;
+
+        found = NULL;
+        WB_NOTE(GetOcspStatus(ocsp, &req, &entry, &found,
+                              rows[i].haveBuf ? &respBuf : NULL, NULL));
+        XFREE(respBuf.buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        respBuf.buffer = NULL;
+    }
+
+    /* an entry whose status list is empty: the loop body never runs */
+    XMEMSET(&req, 0, sizeof(req));
+    XMEMSET(&entry, 0, sizeof(entry));
+    req.serial = serial;
+    req.serialSz = (int)sizeof(serial);
+    found = NULL;
+    WB_NOTE(GetOcspStatus(ocsp, &req, &entry, &found, NULL, NULL));
+}
+
+/* --------------------------------- CheckOcspRequest: responder replies
+
+ * The remaining guards read what the responder callback gave back:
+ *
+ *     url != NULL && url[0] != '\0'          a URL that is present but empty
+ *     requestSz > 0 && ocsp->cm->ocspIOCb    no transport installed
+ *     responseSz >= 0 && response            a size with no buffer, and back
+ *     response != NULL && ocsp->cm->ocspRespFreeCb   no free hook installed
+ *
+ * A real responder cannot be asked for "a positive length and a NULL buffer",
+ * nor for the two negative sentinels the caller maps onto WANT_READ and
+ * HTTP_TIMEOUT. The mock returns whatever the vector chose, which is the
+ * whole point. */
+static byte g_replyBody[48];
+
+static int wb_reply_io(void* ctx, const char* url, int urlSz,
+                       unsigned char* request, int requestSz,
+                       unsigned char** response)
+{
+    (void)ctx; (void)url; (void)urlSz; (void)request; (void)requestSz;
+    if (response != NULL)
+        *response = g_ioNullResponse ? NULL : g_replyBody;
+    return g_ioResult;
+}
+
+static void wb_responder_replies(WOLFSSL_CERT_MANAGER* cm)
+{
+    OcspRequest req;
+    byte serial[8];
+    byte url[] = "http://ocsp.example.com/";
+    byte emptyUrl[] = "";
+    size_t i;
+
+    static const struct { int result; int nullResp; int io; int freeCb;
+                          int useUrl; const char* what; } rows[] = {
+        {  16, 0, 1, 1, 1, "a body, both hooks" },
+        {  16, 0, 1, 0, 1, "a body, no free hook" },
+        {  16, 1, 1, 1, 1, "positive length, NULL buffer" },
+        {   0, 0, 1, 1, 1, "zero-length reply" },
+        {  -1, 0, 1, 1, 1, "generic transport error" },
+        {  16, 0, 0, 1, 1, "no transport installed" },
+        {  16, 0, 1, 1, 2, "url present but empty" },
+        {  16, 0, 1, 1, 0, "no url at all" },
+        { WOLFSSL_CBIO_ERR_WANT_READ,  0, 1, 1, 1, "responder would block" },
+        { WOLFSSL_CBIO_ERR_TIMEOUT,    0, 1, 1, 1, "responder timed out" },
+    };
+
+    XMEMSET(g_replyBody, 0, sizeof(g_replyBody));
+    g_replyBody[0] = 0x30;
+    g_replyBody[1] = 0x02;
+
+    for (i = 0; i < sizeof(rows) / sizeof(rows[0]); i++) {
+        XMEMSET(&req, 0, sizeof(req));
+        XMEMSET(serial, (byte)(0x40 + i), sizeof(serial));
+        req.serial = serial;
+        req.serialSz = (int)sizeof(serial);
+        /* a distinct issuer per row, so each row misses the cache and
+         * actually reaches the transport */
+        XMEMSET(req.issuerHash, (byte)(0x70 + i), OCSP_DIGEST_SIZE);
+        if (rows[i].useUrl == 1) {
+            req.url = url; req.urlSz = (int)sizeof(url) - 1;
+        }
+        else if (rows[i].useUrl == 2) {
+            req.url = emptyUrl; req.urlSz = 0;
+        }
+
+        g_ioResult = rows[i].result;
+        g_ioNullResponse = rows[i].nullResp;
+        (void)wolfSSL_CertManagerSetOCSP_Cb(cm,
+                rows[i].io ? wb_reply_io : NULL,
+                rows[i].freeCb ? wb_ocsp_respfree : NULL, NULL);
+
+        WB_NOTE(CheckOcspRequest(cm->ocsp, &req, NULL, NULL));
+    }
+    (void)wolfSSL_CertManagerSetOCSP_Cb(cm, NULL, NULL, NULL);
+}
+
 /* ---------------------------------------------------------- main */
 
 int main(void)
@@ -473,6 +638,8 @@ int main(void)
     wb_check_response(cm);
     wb_free_ocsp_entry(cm->ocsp);
     wb_check_request_ioctx(cm);
+    wb_get_ocsp_status(cm->ocsp);
+    wb_responder_replies(cm);
 
     printf("ocsp white-box: %d vectors driven\n", g_checks);
 
