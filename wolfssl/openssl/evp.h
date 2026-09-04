@@ -1022,6 +1022,7 @@ WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_raw_private_key(int type,
 WOLFSSL_API void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key);
 WOLFSSL_API int wolfSSL_EVP_PKEY_size(WOLFSSL_EVP_PKEY *pkey);
 WOLFSSL_API int wolfSSL_EVP_PKEY_copy_parameters(WOLFSSL_EVP_PKEY *to, const WOLFSSL_EVP_PKEY *from);
+WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_dup(const WOLFSSL_EVP_PKEY* pkey);
 WOLFSSL_API int wolfSSL_EVP_PKEY_missing_parameters(WOLFSSL_EVP_PKEY *pkey);
 WOLFSSL_API int wolfSSL_EVP_PKEY_cmp(const WOLFSSL_EVP_PKEY *a, const WOLFSSL_EVP_PKEY *b);
 WOLFSSL_API int wolfSSL_EVP_PKEY_type(int type);
@@ -1440,6 +1441,7 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 #define EVP_PKEY_new_raw_private_key   wolfSSL_EVP_PKEY_new_raw_private_key
 #define EVP_PKEY_free                  wolfSSL_EVP_PKEY_free
 #define EVP_PKEY_up_ref                wolfSSL_EVP_PKEY_up_ref
+#define EVP_PKEY_dup                   wolfSSL_EVP_PKEY_dup
 #define EVP_PKEY_size                  wolfSSL_EVP_PKEY_size
 #define EVP_PKEY_copy_parameters       wolfSSL_EVP_PKEY_copy_parameters
 #define EVP_PKEY_missing_parameters    wolfSSL_EVP_PKEY_missing_parameters
