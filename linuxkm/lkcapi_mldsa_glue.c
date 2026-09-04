@@ -1432,6 +1432,12 @@ static int linuxkm_test_mldsa_driver(const char * driver,
          * through verify instead (the seed-derived public key equals
          * the KAT public key set above). */
         ret = crypto_akcipher_sign(req);
+        if (ret == -ENOSYS) {
+            /* RHEL akcipher crippled sign ops */
+            pr_info("%s: note, crypto_akcipher_sign() returned -ENOSYS -- sign ops not available through LKCAPI.\n", __func__);
+            test_rc = 0;
+            goto test_mldsa_end;
+        }
         if ((ret != 0) || (req->dst_len != sig_len)) {
             pr_err("error: crypto_akcipher_sign returned %d, "
                    "dst_len %u\n", ret, req->dst_len);

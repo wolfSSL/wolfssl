@@ -816,9 +816,9 @@ static int linuxkm_test_xmss_driver(const char * driver,
         goto test_xmss_end;
     }
     ret = crypto_akcipher_sign(req);
-    if (ret != -EOPNOTSUPP) {
-        pr_err("error: crypto_akcipher_sign returned %d, expected %d\n",
-               ret, -EOPNOTSUPP);
+    if ((ret != -EOPNOTSUPP) && (ret != -ENOSYS)) {
+        pr_err("error: crypto_akcipher_sign returned %d, expected %d or %d\n",
+               ret, -EOPNOTSUPP, -ENOSYS);
         test_rc = BAD_FUNC_ARG;
         goto test_xmss_end;
     }

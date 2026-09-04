@@ -2283,6 +2283,12 @@ static int linuxkm_test_slhdsa_driver(const char * driver, int param)
                                sig_len);
 
     ret = crypto_akcipher_sign(req);
+    if (ret == -ENOSYS) {
+        /* RHEL akcipher crippled sign ops */
+        pr_info("%s: note, crypto_akcipher_sign() returned -ENOSYS -- sign ops not available through LKCAPI.\n", __func__);
+        test_rc = 0;
+        goto test_slhdsa_end;
+    }
     if (ret) {
         pr_err("error: crypto_akcipher_sign returned: %d\n", ret);
         test_rc = BAD_FUNC_ARG;
