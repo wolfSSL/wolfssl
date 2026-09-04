@@ -331,6 +331,8 @@ int GetX509Error(int e)
             return WOLFSSL_X509_V_ERR_CERT_REVOKED;
         case WC_NO_ERR_TRACE(CRL_MISSING):
             return WOLFSSL_X509_V_ERR_UNABLE_TO_GET_CRL;
+        case WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E):
+            return WOLFSSL_X509_V_ERR_INVALID_PURPOSE;
         /* <e> is an internal wolfSSL return code, not an X509_V_* code, so 1
          * here is WOLFSSL_SUCCESS - it does not collide with
          * WOLFSSL_X509_V_ERR_UNSPECIFIED, which shares the value but never

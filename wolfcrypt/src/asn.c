@@ -174,10 +174,12 @@ ASN Options:
  * IGNORE_KEY_EXTENSIONS:    Opt-in, RFC non-conformant. Suppress all key-usage
  *                            and extended-key-usage enforcement: the TLS
  *                            keyEncipherment/digitalSignature checks and the
- *                            serverAuth/clientAuth EKU checks (ProcessPeerCerts,
- *                            src/internal.c), and the cRLSign requirement on a
- *                            CRL-signing CA (VerifyCRL_Signature, below). Off by
- *                            default; enforcement is active in a stock build.
+ *                            serverAuth/clientAuth EKU checks on both the peer
+ *                            certificate and the chain-supplied intermediate
+ *                            CAs (ProcessPeerCerts, src/internal.c), and the
+ *                            cRLSign requirement on a CRL-signing CA
+ *                            (VerifyCRL_Signature, below). Off by default;
+ *                            enforcement is active in a stock build.
  * IGNORE_NETSCAPE_CERT_TYPE: Ignore Netscape cert type extension
  * WOLFSSL_ALLOW_CRIT_AIA:   Allow critical Authority Info Access
  * WOLFSSL_ALLOW_CRIT_AKID:  Allow critical Auth Key Identifier
