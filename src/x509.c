@@ -1332,6 +1332,7 @@ static int wolfssl_x509_add_custom_ext(WOLFSSL_X509 *x509,
     char *oid = NULL;
     byte *val = NULL;
     int err = 0;
+    int oidStrSz;
 
     if ((ext->obj == NULL) || (ext->value.length == 0) ||
         (ext->value.data == NULL)) {
@@ -1345,8 +1346,15 @@ static int wolfssl_x509_add_custom_ext(WOLFSSL_X509 *x509,
         return WOLFSSL_FAILURE;
     }
 
-    /* This is a viable custom extension. */
-    oid = (char*)XMALLOC(MAX_OID_STRING_SZ, x509->heap,
+    /* This is a viable custom extension.
+     * MAX_OID_STRING_SZ (64) is a "typical" OID text size, not a hard
+     * limit -- a DER OID under MAX_OID_SZ (32) raw bytes can still need
+     * more than 64 decimal characters (multiple multi-digit arcs). Use a
+     * larger local bound (independent of the WOLFSSL_CERT_EXT-only
+     * MAX_CERTPOL_SZ) so a legitimate OID that happens to be long isn't
+     * rejected here just because this buffer was too small. */
+    oidStrSz = 256;
+    oid = (char*)XMALLOC((size_t)oidStrSz, x509->heap,
         DYNAMIC_TYPE_X509_EXT);
     val = (byte*)XMALLOC(ext->value.length, x509->heap,
         DYNAMIC_TYPE_X509_EXT);
@@ -1357,7 +1365,7 @@ static int wolfssl_x509_add_custom_ext(WOLFSSL_X509 *x509,
 
     if (err == 0) {
         XMEMCPY(val, ext->value.data, ext->value.length);
-        if (wolfSSL_OBJ_obj2txt(oid, MAX_OID_STRING_SZ, ext->obj, 1) < 0) {
+        if (wolfSSL_OBJ_obj2txt(oid, oidStrSz, ext->obj, 1) <= 0) {
             err = 1;
         }
     }
@@ -4270,6 +4278,31 @@ int wolfSSL_X509_get_isCA(WOLFSSL_X509* x509)
 
     return isCA;
 }
+
+#ifdef WOLFSSL_CERT_EXT
+/* Returns whether a certificatePolicies entry was dropped when this
+ * WOLFSSL_X509 was parsed (an entry that didn't decode, or more than
+ * MAX_CERTPOL_NB of them) - x509->certPoliciesNb then undercounts. Mirrors
+ * wc_GetDecodedCertPoliciesTruncated() for the DecodedCert this X509 was
+ * copied from.
+ *
+ * x509  X509 to check. Must have been parsed already.
+ * returns 1 if a policy was dropped, 0 otherwise (including x509 == NULL).
+ */
+int wolfSSL_X509_get_certPoliciesTruncated(WOLFSSL_X509* x509)
+{
+    int truncated = 0;
+
+    WOLFSSL_ENTER("wolfSSL_X509_get_certPoliciesTruncated");
+
+    if (x509 != NULL)
+        truncated = x509->certPoliciesTruncated;
+
+    WOLFSSL_LEAVE("wolfSSL_X509_get_certPoliciesTruncated", truncated);
+
+    return truncated;
+}
+#endif /* WOLFSSL_CERT_EXT */
 
 WOLFSSL_X509* wolfSSL_X509_d2i_ex(WOLFSSL_X509** x509, const byte* in, int len,
     void* heap)
@@ -7914,8 +7947,14 @@ static int X509PrintReqAttributes(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
     do {
         attr = wolfSSL_X509_REQ_get_attr(x509, i);
         if (attr != NULL) {
-            char lName[NAME_SZ/4]; /* NAME_SZ default is 80 */
-            int lNameSz = NAME_SZ/4;
+            /* Sized for the numeric-form dotted OID string
+             * (MAX_OID_STRING_SZ), not just the NAME_SZ/4 column width used
+             * below for alignment -- an ordinary OID (e.g. pkcs9
+             * extensionRequest, "1.2.840.113549.1.9.14", 21 chars) already
+             * exceeds NAME_SZ/4 == 20. */
+            char lName[MAX_OID_STRING_SZ];
+            int lNameSz = (int)sizeof(lName);
+            int padSz;
             const byte* data;
 
             if (wolfSSL_OBJ_obj2txt(lName, lNameSz, attr->object, 0)
@@ -7924,22 +7963,60 @@ static int X509PrintReqAttributes(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
                 return WOLFSSL_FAILURE;
             }
             lNameSz = (int)XSTRLEN(lName);
+            /* Column padding assumes names shorter than NAME_SZ/4; clamp so
+             * a longer name (still valid) just isn't padded instead of
+             * passing a negative width to '%*s'. */
+            padSz = (NAME_SZ/4) - lNameSz;
+            if (padSz < 0) {
+                padSz = 0;
+            }
             data = wolfSSL_ASN1_STRING_get0_data(
                     attr->value->value.asn1_string);
             if (data == NULL) {
                 WOLFSSL_MSG("No REQ attribute found when expected");
                 return WOLFSSL_FAILURE;
             }
-            if ((scratchLen = XSNPRINTF(scratch, MAX_WIDTH,
-                          "%*s%s%*s:%s\n", indent+4, "",
-                          lName, (NAME_SZ/4)-lNameSz, "", data))
-                >= MAX_WIDTH)
+            /* lName can now be up to MAX_OID_STRING_SZ-1 chars (see above),
+             * so the assembled line ("indent+4" spaces, lName, padding,
+             * ':', data, '\n', NUL) may no longer fit the fixed-size
+             * scratch[MAX_WIDTH] the way it always did when lName was
+             * capped at NAME_SZ/4. Size a line buffer for the actual need,
+             * falling back to scratch for the common short-line case so
+             * nothing changes there. */
             {
-                return WOLFSSL_FAILURE;
-            }
-            if (wolfSSL_BIO_write(bio, scratch, scratchLen) <= 0) {
-                WOLFSSL_MSG("Error writing REQ attribute");
-                return WOLFSSL_FAILURE;
+                char* line = scratch;
+                int lineBufSz = MAX_WIDTH;
+                int needed = indent + 4 + lNameSz + padSz + 1 /* ':' */ +
+                        (int)XSTRLEN((const char*)data) + 1 /* '\n' */ +
+                        1 /* NUL */;
+
+                if (needed > lineBufSz) {
+                    line = (char*)XMALLOC((size_t)needed, x509->heap,
+                            DYNAMIC_TYPE_TMP_BUFFER);
+                    if (line == NULL) {
+                        return WOLFSSL_FAILURE;
+                    }
+                    lineBufSz = needed;
+                }
+                scratchLen = XSNPRINTF(line, (size_t)lineBufSz,
+                              "%*s%s%*s:%s\n", indent+4, "",
+                              lName, padSz, "", data);
+                if (scratchLen < 0 || scratchLen >= lineBufSz) {
+                    if (line != scratch) {
+                        XFREE(line, x509->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                    }
+                    return WOLFSSL_FAILURE;
+                }
+                if (wolfSSL_BIO_write(bio, line, scratchLen) <= 0) {
+                    WOLFSSL_MSG("Error writing REQ attribute");
+                    if (line != scratch) {
+                        XFREE(line, x509->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                    }
+                    return WOLFSSL_FAILURE;
+                }
+                if (line != scratch) {
+                    XFREE(line, x509->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                }
             }
         }
         i++;

@@ -1185,6 +1185,15 @@ static void wb_simple_set_null_checks(void)
     WB_CHECK(wc_SetExtKeyUsageOID(&cert, "1.2.3.4", CTC_MAX_EKU_OID_SZ, 0,
                     NULL) == WC_NO_ERR_TRACE(BAD_FUNC_ARG),
             ":31921 2nd operand true (sz >= CTC_MAX_EKU_OID_SZ)");
+    /* Since the rewrite, a malformed OID string is now reported via the
+     * specific code wc_EncodePolicyOID() returns instead of being
+     * collapsed to BUFFER_E. */
+    WB_CHECK(wc_SetExtKeyUsageOID(&cert, "1..2", 4, 0, NULL) ==
+            WC_NO_ERR_TRACE(ASN_OBJECT_ID_E),
+            "malformed OID (empty arc) propagates ASN_OBJECT_ID_E, not BUFFER_E");
+    WB_CHECK(wc_SetExtKeyUsageOID(&cert, "2", 1, 0, NULL) ==
+            WC_NO_ERR_TRACE(ASN_OBJECT_ID_E),
+            "fewer than two arcs propagates ASN_OBJECT_ID_E");
 #else
     WB_NOTE(":31921 wc_SetExtKeyUsageOID not compiled (needs WOLFSSL_EKU_OID); skipped");
 #endif
@@ -1204,6 +1213,11 @@ static void wb_simple_set_null_checks(void)
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG), ":31950 4th operand true (derSz==0)");
         WB_CHECK(wc_SetCustomExtension(&cert, 0, "1.2.3", der, sizeof(der)) == 0,
                 ":31950 all false (valid call)");
+        /* An arc too large for a word32 is now rejected up front, rather
+         * than being accepted and mis-encoded. */
+        WB_CHECK(wc_SetCustomExtension(&cert, 0, "1.2.4294967296", der,
+                    sizeof(der)) == WC_NO_ERR_TRACE(ASN_OID_ARC_TOO_BIG_E),
+                "arc overflowing word32 propagates ASN_OID_ARC_TOO_BIG_E");
     }
 #else
     WB_NOTE(":31950 wc_SetCustomExtension not compiled (needs ASN_TEMPLATE+CUSTOM_OID+OID_ENCODING); skipped");

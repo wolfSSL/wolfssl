@@ -1085,7 +1085,23 @@ int test_wolfSSL_i2a_ASN1_OBJECT(void)
     /* DER encoding */
     p = notObjDer;
     ExpectNotNull(a = c2i_ASN1_OBJECT(NULL, &p, 3));
-    ExpectIntEQ(wolfSSL_i2a_ASN1_OBJECT(bio, a), 5);
+    /* notObjDer's trailing arc is truncated (0xff, no terminator) and is
+     * rejected, falling through to the "<INVALID>" + hex dump path. Assert
+     * on the marker rather than a byte count, which also covers the hex
+     * dump and so varies with NO_FILESYSTEM. */
+    {
+        const char* invalid = "<INVALID>";
+        int invalidLen = (int)XSTRLEN(invalid);
+        BIO* invBio = NULL;
+        char marker[16];
+
+        ExpectTrue((invBio = BIO_new(BIO_s_mem())) != NULL);
+        ExpectIntGE(wolfSSL_i2a_ASN1_OBJECT(invBio, a), invalidLen);
+        XMEMSET(marker, 0, sizeof(marker));
+        ExpectIntEQ(BIO_read(invBio, marker, invalidLen), invalidLen);
+        ExpectStrEQ(marker, invalid);
+        BIO_free(invBio);
+    }
     ASN1_OBJECT_free(a);
 
     BIO_free(bio);

@@ -1558,6 +1558,11 @@ int wc_SetExtKeyUsage(Cert *cert, const char *value);
 
     \return 0 on success
     \return BAD_FUNC_ARG if parameters invalid
+    \return ASN_OBJECT_ID_E if the OID string is malformed (empty arc,
+    non-digit character, fewer than two arcs, first arc > 2, or a second
+    arc >= 40 when the first arc is 0 or 1)
+    \return ASN_OID_ARC_TOO_BIG_E if an arc does not fit a word32
+    \return BUFFER_E if the encoded OID does not fit
     \return MEMORY_E if memory allocation fails
 
     \param cert Certificate structure
@@ -3704,6 +3709,46 @@ int wc_GetDecodedCertSerial(const struct DecodedCert* cert,
 
 /*!
     \ingroup ASN
+
+    \brief Reports whether certificate policies were dropped while parsing.
+
+    A policyInformation entry is dropped when its OID cannot be decoded
+    into extCertPolicies, and any entry past MAX_CERTPOL_NB is dropped as
+    well. In either case cert->extCertPoliciesNb undercounts the policies
+    actually present in the certificate, and this function is the only way
+    to tell that apart from a certificate that genuinely carries that many
+    policies.
+
+    \param cert       Pointer to the DecodedCert (must have been parsed).
+    \param truncated  Set to 1 if one or more policies were dropped,
+                      0 otherwise.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG if cert or truncated is NULL.
+
+    _Example_
+    \code
+    DecodedCert cert;
+    int truncated = 0;
+
+    wc_InitDecodedCert(&cert, der, derSz, NULL);
+    if (wc_ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL) == 0) {
+        wc_GetDecodedCertPoliciesTruncated(&cert, &truncated);
+        if (truncated) {
+            // cert.extCertPoliciesNb is a partial count
+        }
+    }
+    wc_FreeDecodedCert(&cert);
+    \endcode
+
+    \sa wc_InitDecodedCert
+    \sa wc_ParseCert
+*/
+int wc_GetDecodedCertPoliciesTruncated(const struct DecodedCert* cert,
+                                       int* truncated);
+
+/*!
+    \ingroup ASN
     \brief Extracts UUID from certificate.
 
     \return 0 on success
@@ -4126,6 +4171,12 @@ time_t wc_Time(time_t* t);
            contents to another buffer.
 
     \return 0 Returned on success.
+    \return BAD_FUNC_ARG if parameters invalid.
+    \return ASN_OBJECT_ID_E if the OID string is malformed (empty arc,
+    non-digit character, fewer than two arcs, first arc > 2, or a second
+    arc >= 40 when the first arc is 0 or 1).
+    \return ASN_OID_ARC_TOO_BIG_E if an arc does not fit a word32.
+    \return BUFFER_E if the encoded OID does not fit.
     \return Other negative values on failure.
 
     \param cert Pointer to an initialized DecodedCert object.
