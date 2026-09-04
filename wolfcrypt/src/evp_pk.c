@@ -591,6 +591,16 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_raw_private_key(int type,
     (void)e;
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_new_raw_private_key");
 
+    #ifdef OPENSSL_EXTRA
+    /* HMAC keys are raw octets, same as EVP_PKEY_new_mac_key. */
+    if (type == WC_EVP_PKEY_HMAC) {
+        if (len > (size_t)INT_MAX) {
+            return NULL;
+        }
+        return wolfSSL_EVP_PKEY_new_mac_key(type, e, priv, (int)len);
+    }
+    #endif /* OPENSSL_EXTRA */
+
     if (priv == NULL || len == 0) {
         return NULL;
     }
