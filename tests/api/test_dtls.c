@@ -9537,9 +9537,8 @@ int test_dtls13_packet_forgeries(void)
 /* ---------------------------------------------------------------------------
  * Connection ID argument guards.
  *
- * Nineteen of the conditions left in dtls.c are in the CID functions, and it
- * is worth recording what they actually are, because a great deal of packet
- * machinery was pointed at them first and moved none of them:
+ * The remaining uncovered conditions in the CID code are NULL-and-zero
+ * argument guards on the public API:
  *
  *     if (ssl == NULL || buf == NULL)                        DtlsCidGet
  *     if (id == NULL || id->length == 0)
@@ -9548,16 +9547,14 @@ int test_dtls13_packet_forgeries(void)
  *     if (ssl == NULL || cid == NULL || size == 0)           DtlsCidReplaceTx
  *     if (msg == NULL || cidSz == 0 || msgSz < OPAQUE8_LEN + cidSz)
  *
- * They are NULL-and-zero argument guards on the public API. No handshake
- * passes NULL, and no forged datagram can make it: the operands are only
- * reachable by calling the functions directly with the arguments a caller
- * should not use. The existing CID tests all drive a working connection, so
- * every one of these guards is taken the same way on every call.
+ * No handshake passes NULL and no forged datagram can produce one, so these
+ * operands are only reachable by calling the functions directly. The other
+ * CID tests all drive a working connection, which takes every guard the same
+ * way on every call.
  *
- * Three states are needed for the second operand of each pair -- no ssl, an
- * ssl with CID compiled but not enabled, and an ssl with CID enabled but not
- * yet negotiated -- because "no CID info", "info but no id" and "an id of
- * length zero" are distinct operands.
+ * Three ssl states are needed, because "no CID info", "info but no id" and
+ * "an id of length zero" are distinct operands: no ssl at all, an ssl with
+ * CID compiled but not enabled, and one with CID enabled but not negotiated.
  * ------------------------------------------------------------------------- */
 int test_wolfSSL_dtls_cid_arg_guards(void)
 {
@@ -9582,21 +9579,9 @@ int test_wolfSSL_dtls_cid_arg_guards(void)
         (void)wolfSSL_dtls_cid_use(enabled);
 
     /* ssl == NULL: the first operand of every guard */
-    /* These four CRASH rather than returning an error, so they cannot run
-     * in the suite: a segfault discards the coverage of every test in the
-     * variant. They are library defects, reported separately; left here
-     * behind a macro so the gap is visible and re-enabling them is one
-     * define once the guards exist.
-     *   wolfSSL_dtls_cid_use(NULL)         writes ssl->options.useDtlsCID
-     *   wolfSSL_dtls_cid_is_enabled(NULL)  reads ssl->dtlsCidInfo
-     *   wolfSSL_dtls_cid_set(NULL, cid, 4) reads ssl->options.useDtlsCID
-     *   wolfSSL_dtls_cid_set(ssl, NULL, 4) memcpy from NULL in DtlsCidNew
-     */
-#ifdef WOLFSSL_DTLS_CID_NULL_ARGS_GUARDED
     (void)(wolfSSL_dtls_cid_use(NULL));
     (void)(wolfSSL_dtls_cid_is_enabled(NULL));
     (void)(wolfSSL_dtls_cid_set(NULL, cid, (word32)sizeof(cid)));
-#endif
     (void)(wolfSSL_dtls_cid_get_rx_size(NULL, &sz));
     (void)(wolfSSL_dtls_cid_get_tx_size(NULL, &sz));
     ExpectIntNE(wolfSSL_dtls_cid_get_rx(NULL, buf, (unsigned int)sizeof(buf)),
@@ -9607,9 +9592,7 @@ int test_wolfSSL_dtls_cid_arg_guards(void)
     (void)(wolfSSL_dtls_cid_get0_tx(NULL, &p));
 
     /* the second operand: a valid ssl with a NULL buffer */
-#ifdef WOLFSSL_DTLS_CID_NULL_ARGS_GUARDED
     (void)(wolfSSL_dtls_cid_set(enabled, NULL, (word32)sizeof(cid)));
-#endif
     (void)(wolfSSL_dtls_cid_get_rx_size(enabled, NULL));
     (void)(wolfSSL_dtls_cid_get_tx_size(enabled, NULL));
     (void)(wolfSSL_dtls_cid_get_rx(enabled, NULL,
