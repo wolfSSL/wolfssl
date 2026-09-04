@@ -508,6 +508,24 @@ int test_wolfSSL_EVP_PKEY_new_mac_key(void)
     ExpectIntEQ((int)checkPwSz, 0);
     wolfSSL_EVP_PKEY_free(key);
     key = NULL;
+
+    /* EVP_PKEY_new_raw_private_key accepts HMAC keys too. */
+    ExpectNotNull(key = wolfSSL_EVP_PKEY_new_raw_private_key(EVP_PKEY_HMAC,
+        NULL, pw, (size_t)pwSz));
+    ExpectIntEQ(EVP_PKEY_id(key), EVP_PKEY_HMAC);
+    checkPw = NULL;
+    checkPwSz = 0;
+    ExpectNotNull(checkPw = wolfSSL_EVP_PKEY_get0_hmac(key, &checkPwSz));
+    ExpectIntEQ((int)checkPwSz, pwSz);
+    ExpectIntEQ(XMEMCMP(checkPw, pw, pwSz), 0);
+    wolfSSL_EVP_PKEY_free(key);
+    key = NULL;
+
+    ExpectNotNull(key = wolfSSL_EVP_PKEY_new_raw_private_key(EVP_PKEY_HMAC,
+        NULL, NULL, 0));
+    ExpectIntEQ(key->pkey_sz, 0);
+    wolfSSL_EVP_PKEY_free(key);
+    key = NULL;
 #endif /* OPENSSL_EXTRA */
     return EXPECT_RESULT();
 }
