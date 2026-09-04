@@ -65881,84 +65881,84 @@ wc_test_ret_t slhdsa_test(void)
 #ifdef WOLFSSL_SLHDSA_PARAM_128S
     ret = slhdsa_test_param(SLHDSA_SHAKE128S);
     if (ret != 0) {
-        wc_test_render_error_message("SLHDSA_SHAKE128S", 0);
+        wc_test_render_error_message("SLHDSA_SHAKE128S", ret);
         goto out;
     }
 #endif
 #ifdef WOLFSSL_SLHDSA_PARAM_128F
     ret = slhdsa_test_param(SLHDSA_SHAKE128F);
     if (ret != 0) {
-        wc_test_render_error_message("SLHDSA_SHAKE128F", 0);
+        wc_test_render_error_message("SLHDSA_SHAKE128F", ret);
         goto out;
     }
 #endif
 #ifdef WOLFSSL_SLHDSA_PARAM_192S
     ret = slhdsa_test_param(SLHDSA_SHAKE192S);
     if (ret != 0) {
-        wc_test_render_error_message("SLHDSA_SHAKE192S", 0);
+        wc_test_render_error_message("SLHDSA_SHAKE192S", ret);
         goto out;
     }
 #endif
 #ifdef WOLFSSL_SLHDSA_PARAM_192F
     ret = slhdsa_test_param(SLHDSA_SHAKE192F);
     if (ret != 0) {
-        wc_test_render_error_message("SLHDSA_SHAKE192F", 0);
+        wc_test_render_error_message("SLHDSA_SHAKE192F", ret);
         goto out;
     }
 #endif
 #ifdef WOLFSSL_SLHDSA_PARAM_256S
     ret = slhdsa_test_param(SLHDSA_SHAKE256S);
     if (ret != 0) {
-        wc_test_render_error_message("SLHDSA_SHAKE256S", 0);
+        wc_test_render_error_message("SLHDSA_SHAKE256S", ret);
         goto out;
     }
 #endif
 #ifdef WOLFSSL_SLHDSA_PARAM_256F
     ret = slhdsa_test_param(SLHDSA_SHAKE256F);
     if (ret != 0) {
-        wc_test_render_error_message("SLHDSA_SHAKE256F", 0);
+        wc_test_render_error_message("SLHDSA_SHAKE256F", ret);
         goto out;
     }
 #endif
 #ifdef WOLFSSL_SLHDSA_PARAM_SHA2_128S
     ret = slhdsa_test_param(SLHDSA_SHA2_128S);
     if (ret != 0) {
-        wc_test_render_error_message("SLHDSA_SHA2_128S", 0);
+        wc_test_render_error_message("SLHDSA_SHA2_128S", ret);
         goto out;
     }
 #endif
 #ifdef WOLFSSL_SLHDSA_PARAM_SHA2_128F
     ret = slhdsa_test_param(SLHDSA_SHA2_128F);
     if (ret != 0) {
-        wc_test_render_error_message("SLHDSA_SHA2_128F", 0);
+        wc_test_render_error_message("SLHDSA_SHA2_128F", ret);
         goto out;
     }
 #endif
 #ifdef WOLFSSL_SLHDSA_PARAM_SHA2_192S
     ret = slhdsa_test_param(SLHDSA_SHA2_192S);
     if (ret != 0) {
-        wc_test_render_error_message("SLHDSA_SHA2_192S", 0);
+        wc_test_render_error_message("SLHDSA_SHA2_192S", ret);
         goto out;
     }
 #endif
 #ifdef WOLFSSL_SLHDSA_PARAM_SHA2_192F
     ret = slhdsa_test_param(SLHDSA_SHA2_192F);
     if (ret != 0) {
-        wc_test_render_error_message("SLHDSA_SHA2_192F", 0);
+        wc_test_render_error_message("SLHDSA_SHA2_192F", ret);
         goto out;
     }
 #endif
 #ifdef WOLFSSL_SLHDSA_PARAM_SHA2_256S
     ret = slhdsa_test_param(SLHDSA_SHA2_256S);
     if (ret != 0) {
-        wc_test_render_error_message("SLHDSA_SHA2_256S", 0);
+        wc_test_render_error_message("SLHDSA_SHA2_256S", ret);
         goto out;
     }
 #endif
 #ifdef WOLFSSL_SLHDSA_PARAM_SHA2_256F
     ret = slhdsa_test_param(SLHDSA_SHA2_256F);
     if (ret != 0) {
-        wc_test_render_error_message("SLHDSA_SHA2_256F", 0);
+        wc_test_render_error_message("SLHDSA_SHA2_256F", ret);
         goto out;
     }
 #endif
