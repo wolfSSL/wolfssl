@@ -66,7 +66,7 @@ static int hmac_setkey_cb(Hmac *hmac, const byte *key, word32 key_len) {
 }
 
 static int hmac_update_cb(Hmac *hmac, const byte *in, word32 in_len) {
-    return wc_HmacUpdate_fips(hmac, in, in_len);
+    return wc_HmacUpdate(hmac, in, in_len);
 }
 
 static int hmac_final_cb(Hmac *hmac, byte *out, word32 out_sz) {
