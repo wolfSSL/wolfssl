@@ -23274,12 +23274,14 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
     word32 rpkStartIdx = cert->srcIdx;
     DECL_ASNGETDATA(RPKdataASN, RPKCertASN_Length);
     CALLOC_ASNGETDATA(RPKdataASN, RPKCertASN_Length, ret, cert->heap);
-    GetASN_OID(&RPKdataASN[RPKCERTASN_IDX_SPUBKEYINFO_ALGO_OID],
+    if (ret == 0) {
+        GetASN_OID(&RPKdataASN[RPKCERTASN_IDX_SPUBKEYINFO_ALGO_OID],
                                                                 oidKeyType);
-    GetASN_OID(&RPKdataASN[RPKCERTASN_IDX_SPUBKEYINFO_ALGO_CURVEID],
+        GetASN_OID(&RPKdataASN[RPKCERTASN_IDX_SPUBKEYINFO_ALGO_CURVEID],
                                                                 oidCurveType);
-    ret = GetASN_Items(RPKCertASN, RPKdataASN, RPKCertASN_Length, 1,
-                           cert->source, &cert->srcIdx, cert->maxIdx);
+        ret = GetASN_Items(RPKCertASN, RPKdataASN, RPKCertASN_Length, 1,
+                               cert->source, &cert->srcIdx, cert->maxIdx);
+    }
 
     if (ret == 0) {
         if (( RPKdataASN[RPKCERTASN_IDX_SPUBKEYINFO_ALGO_NULL].length &&
