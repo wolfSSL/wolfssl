@@ -3761,6 +3761,9 @@ int test_tls13_chain_verify_cb_postauth(void)
     struct test_memio_ctx test_ctx;
     test_chain_verify_cb_ctx cbCtx;
     char buf[8];
+#ifdef HAVE_WRITE_DUP
+    WOLFSSL* ssl_w = NULL;
+#endif
 
     XMEMSET(&cbCtx, 0, sizeof(cbCtx));
     cbCtx.deferrals = 2;
@@ -3809,14 +3812,31 @@ int test_tls13_chain_verify_cb_postauth(void)
         WC_NO_ERR_TRACE(CHAIN_VERIFY_WANT_E));
     ExpectIntEQ(cbCtx.calls, 1);
 
+    /* Only wolfSSL_read() resumes it: a write is refused, and the callback
+     * is not asked. */
+    ExpectIntEQ(wolfSSL_write(ssl_s, "hi", 2), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1),
+        WC_NO_ERR_TRACE(CHAIN_VERIFY_WANT_E));
+    ExpectIntEQ(cbCtx.calls, 1);
+
     /* wolfSSL_accept() meanwhile must leave the suspended message alone. */
     ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+
+#ifdef HAVE_WRITE_DUP
+    ExpectNotNull(ssl_w = wolfSSL_write_dup(ssl_s));
+#endif
 
     /* Reading again asks the callback again: still deferred. */
     ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)), -1);
     ExpectIntEQ(wolfSSL_get_error(ssl_s, -1),
         WC_NO_ERR_TRACE(CHAIN_VERIFY_WANT_E));
     ExpectIntEQ(cbCtx.calls, 2);
+
+#ifdef HAVE_WRITE_DUP
+    /* The deferral is not a read error handed to the write duplicate. */
+    ExpectIntEQ(wolfSSL_write(ssl_w, "hi", 2), 2);
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), 2);
+#endif
 
     /* Accepted; CertificateVerify and Finished follow, then nothing to read. */
     ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)), -1);
@@ -3829,6 +3849,9 @@ int test_tls13_chain_verify_cb_postauth(void)
     ExpectIntEQ(wolfSSL_write(ssl_c, "hi", 2), 2);
     ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)), 2);
 
+#ifdef HAVE_WRITE_DUP
+    wolfSSL_free(ssl_w);
+#endif
     test_chain_verify_cb_free(&ctx_c, &ctx_s, &ssl_c, &ssl_s);
 #endif
     return EXPECT_RESULT();
