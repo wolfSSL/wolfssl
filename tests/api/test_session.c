@@ -1739,3 +1739,573 @@ int test_wolfSSL_GetSessionAtIndex(void)
 
 #endif /* SESSION_INDEX && HAVE_SESSION_TICKET && !NO_SESSION_CACHE &&
         * !NO_WOLFSSL_CLIENT && !NO_TLS */
+
+#if defined(PERSIST_SESSION_CACHE) && !defined(NO_SESSION_CACHE) && \
+    !defined(SESSION_CACHE_DYNAMIC_MEM)
+/* Several tests to ensure persistent session cache is saved and restored
+ * with expected behavior. */
+#include <wolfssl/ssl_sess.h>
+
+#if (defined(HAVE_EXT_CACHE) || defined(HAVE_EX_DATA))
+static int test_rem_sess_cb_count = 0;
+
+static void test_rem_sess_cb(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* sess)
+{
+    (void)ctx; (void)sess;
+    WOLFSSL_MSG_EX("info: test test_rem_sess_cb called: %d",
+                   test_rem_sess_cb_count);
+    test_rem_sess_cb_count++;
+}
+#endif /* HAVE_EXT_CACHE || HAVE_EX_DATA */
+
+struct sess_cache_t {
+    cache_header_t hdr;
+    SessionRow     s_rows[SESSION_ROWS];
+    #ifndef NO_CLIENT_CACHE
+    ClientRow      c_rows[CLIENT_SESSION_ROWS];
+    #endif /* !NO_CLIENT_CACHE */
+};
+
+typedef struct sess_cache_t sess_cache_t;
+
+/* Set the session cache to canary values for testing.
+ * Will be checked later in test_sanity_sessions().
+ * */
+static void test_set_sessions(sess_cache_t * cache_mem)
+{
+    size_t i = 0;
+    size_t j = 0;
+
+    for (i = 0; i < SESSION_ROWS; ++i) {
+        SessionRow * row = &cache_mem->s_rows[i];
+        for (j = 0; j < SESSIONS_PER_ROW; ++j) {
+            WOLFSSL_SESSION * s = &row->Sessions[j];
+            s->timeout = 1;
+            s->bornOn = 0;
+            /* label sessions with something predictable */
+            s->sessionIDSz = 2;
+            s->sessionID[0] = (byte)i;
+            s->sessionID[1] = (byte)j;
+            /* set type, ticketLen, rem_sess_cb, heap, peer, etc to test
+             * canary values. These should be sanitized on session restore. */
+            s->type = WOLFSSL_SESSION_TYPE_UNKNOWN;
+            #ifdef HAVE_SESSION_TICKET
+            s->ticketLen = SESSION_TICKET_LEN + 1;
+            s->ticketLenAlloc = 1;
+            #endif /* HAVE_SESSION_TICKET */
+            #if defined(HAVE_EXT_CACHE) || defined(HAVE_EX_DATA)
+            s->rem_sess_cb = test_rem_sess_cb;
+            #endif /* HAVE_EXT_CACHE || HAVE_EX_DATA */
+            s->heap = (void *)0x77;
+            #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
+            s->peer = (WOLFSSL_X509 *)0x77;
+            #endif /* SESSION_CERTS && OPENSSL_EXTRA */
+            #ifdef HAVE_EX_DATA
+            XMEMSET(&s->ex_data, 0x77, sizeof(WOLFSSL_CRYPTO_EX_DATA));
+            s->ownExData = 1;
+            #endif /* HAVE_EX_DATA */
+            #ifdef WOLFSSL_TEST_SESSION_VERBOSE
+            WOLFSSL_MSG_EX("info: session(%zu, %zu): %p, id = 0x%02x%02x",
+                           i, j, s, s->sessionID[0], s->sessionID[1]);
+            #endif /* WOLFSSL_TEST_SESSION_VERBOSE */
+        }
+    }
+}
+
+#define field_null_or_fail(s, what, fld) do {                             \
+    if ((s)->fld != NULL) {                                               \
+        WOLFSSL_MSG_EX("error: s = %p, id = 0x%02x%02x, %s = %p",         \
+                       (s), (s)->sessionID[0], (s)->sessionID[1], (what), \
+                       (s)->fld);                                         \
+        ret = -1;                                                         \
+        goto sanity_fail;                                                 \
+    }                                                                     \
+} while (0)
+
+/* sanity check the restored session cache.
+ * return  0 on success
+ * return -1 on error
+ * */
+static int test_sanity_sessions(const sess_cache_t * cache_mem)
+{
+    int    ret = -1;
+    size_t i = 0;
+    size_t j = 0;
+
+    /* walk sessions, check for expected values */
+    for (i = 0; i < SESSION_ROWS; ++i) {
+        const SessionRow * row = &cache_mem->s_rows[i];
+        for (j = 0; j < SESSIONS_PER_ROW; ++j) {
+            const WOLFSSL_SESSION *        s = &row->Sessions[j];
+            #ifdef HAVE_EX_DATA
+            const WOLFSSL_CRYPTO_EX_DATA * ex_data = &s->ex_data;
+            size_t                         k = 0;
+            #endif /* HAVE_EX_DATA */
+
+            #ifdef HAVE_SESSION_TICKET
+            if (s->ticketLenAlloc != 0 ||
+                s->ticketLen > SESSION_TICKET_LEN) {
+                WOLFSSL_MSG_EX("error: s = %p, id = 0x%02x%02x: "
+                               "ticketLenAlloc = %d, ticketLen = %d\n", s,
+                               s->sessionID[0], s->sessionID[1],
+                               s->ticketLenAlloc, s->ticketLen);
+                ret = -1;
+                goto sanity_fail;
+            }
+            #endif /* HAVE_SESSION_TICKET */
+
+            if (s->type != WOLFSSL_SESSION_TYPE_CACHE) {
+                WOLFSSL_MSG_EX("error: s = %p, id = 0x%02x%02x: "
+                               "type not cache: 0x%02x", s,
+                               s->sessionID[0], s->sessionID[1],
+                               s->type);
+                ret = -1;
+                goto sanity_fail;
+            }
+
+            if (s->sessionIDSz != 2) {
+                WOLFSSL_MSG_EX("error: s = %p: got id sz = %d"
+                               ", expected id sz = 2",
+                       s, s->sessionIDSz);
+                ret = -1;
+                goto sanity_fail;
+            }
+
+            if (s->sessionID[0] != (byte)i ||
+                s->sessionID[1] != (byte)j) {
+                WOLFSSL_MSG_EX("error: s = %p, got id = 0x%02x%02x:"
+                               ", expected id = 0x%02x%02x",
+                       s, s->sessionID[0], s->sessionID[1], (byte)i, (byte)j);
+                ret = -1;
+                goto sanity_fail;
+            }
+
+            /* all the remaining fields should have been sanitized as null */
+            field_null_or_fail(s, "heap", heap);
+            #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
+            field_null_or_fail(s, "peer", peer);
+            #endif /* SESSION_CERTS && OPENSSL_EXTRA */
+            #if defined(HAVE_EXT_CACHE) || defined(HAVE_EX_DATA)
+            field_null_or_fail(s, "rem_sess_cb", rem_sess_cb);
+            #endif /* HAVE_EXT_CACHE || HAVE_EX_DATA */
+
+            #ifdef HAVE_EX_DATA
+            if (s->ownExData) {
+                WOLFSSL_MSG_EX("error: s = %p, id = 0x%02x%02x, ownExData = %d",
+                               s, s->sessionID[0], s->sessionID[1],
+                               s->ownExData);
+                ret = -1;
+                goto sanity_fail;
+            }
+
+            for (k = 0; k < MAX_EX_DATA; ++k) {
+                if (ex_data->ex_data[k]
+                    #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+                    || ex_data->ex_data_cleanup_routines[k]
+                    #endif /* HAVE_EX_DATA_CLEANUP_HOOKS */
+                    ) {
+                    WOLFSSL_MSG_EX("error: s = %p, id = 0x%02x%02x:"
+                                   "ex_data[%d] not null", s,
+                                   s->sessionID[0], s->sessionID[1], k);
+                    ret = -1;
+                    goto sanity_fail;
+                }
+            } /* for k */
+            #endif /* HAVE_EX_DATA */
+        } /* for j */
+    } /* for i */
+
+    ret = 0;
+sanity_fail:
+    return ret;
+}
+
+/* Tests mem[save, restore]_session_cache.
+ *
+ * returns  -1 on err
+ * returns   0 on success
+ *  */
+static int test_mem_session_cache(void)
+{
+    int             ret = -1;
+    int             mem_sz = 0;
+    sess_cache_t *  cache_mem = NULL;
+    #ifndef NO_CLIENT_CACHE
+    ClientRow *     c_rows = NULL;
+    #endif /* !NO_CLIENT_CACHE */
+
+    #if (defined(HAVE_EXT_CACHE) || defined(HAVE_EX_DATA))
+    /* reset callback count */
+    test_rem_sess_cb_count = 0;
+    #endif /* HAVE_EXT_CACHE || HAVE_EX_DATA */
+
+    /* get session cache size, and allocate scratch copy */
+    mem_sz = wolfSSL_get_session_cache_memsize();
+    if (mem_sz != sizeof(sess_cache_t)) {
+        WOLFSSL_MSG_EX("error: got mem_sz %d, expected %zu\n", mem_sz,
+                       sizeof(sess_cache_t));
+        return -1;
+    }
+
+    cache_mem = (sess_cache_t *)XMALLOC((size_t)mem_sz, NULL,
+                                        DYNAMIC_TYPE_TMP_BUFFER);
+    if (cache_mem == NULL) {
+        WOLFSSL_MSG_EX("error: xmalloc(%zu) failed", (size_t) mem_sz);
+        return -1;
+    }
+
+    #ifndef NO_CLIENT_CACHE
+    /* allocate scratch ClientCache */
+    c_rows = (ClientRow *)XMALLOC(sizeof(ClientRow) * CLIENT_SESSION_ROWS,
+                                      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (c_rows == NULL) {
+        WOLFSSL_MSG_EX("error: xmalloc(%zu) failed",
+                       sizeof(ClientRow) * CLIENT_SESSION_ROWS);
+        ret = -1;
+        goto cleanup;
+    }
+    #endif /* !NO_CLIENT_CACHE */
+
+    /* save session cache to cache_mem struct */
+    if (wolfSSL_memsave_session_cache(cache_mem, mem_sz) != WOLFSSL_SUCCESS) {
+        ret = -1;
+        goto cleanup;
+    }
+
+    /* setup test sessions */
+    test_set_sessions(cache_mem);
+
+    #ifndef NO_CLIENT_CACHE
+    /* copy current client cache */
+    XMEMCPY(c_rows, &cache_mem->c_rows, sizeof(cache_mem->c_rows));
+    #endif /* !NO_CLIENT_CACHE */
+
+    /* restore session cache from mem */
+    if (wolfSSL_memrestore_session_cache(cache_mem, mem_sz) != WOLFSSL_SUCCESS) {
+        ret = -1;
+        goto cleanup;
+    }
+
+    /* wipe our session struct in memory */
+    XMEMSET(cache_mem, 0, sizeof(sess_cache_t));
+
+    /* save session cache back to cache_mem struct */
+    if (wolfSSL_memsave_session_cache(cache_mem, mem_sz) != WOLFSSL_SUCCESS) {
+        ret = -1;
+        goto cleanup;
+    }
+
+    /* sanity check values */
+    ret = test_sanity_sessions(cache_mem);
+    if (ret) {
+        goto cleanup;
+    }
+
+    #ifndef NO_CLIENT_CACHE
+    /* verify we got back the exact client cache */
+    ret = XMEMCMP(c_rows, &cache_mem->c_rows, sizeof(cache_mem->c_rows));
+    if (ret) {
+        WOLFSSL_MSG_EX("error: mem restore c_rows diff: %d", ret);
+        ret = -1;
+        goto cleanup;
+    }
+    #endif /* !NO_CLIENT_CACHE */
+
+    /* eviction: flush sessions older than time 2 (0 + 1 < 2). */
+    wolfSSL_CTX_flush_sessions(NULL, 2);
+
+    #if (defined(HAVE_EXT_CACHE) || defined(HAVE_EX_DATA))
+    /* if all else succeeded, finally check the callback count. it should not
+     * fire for sessions restored from persistent storage. */
+    if (test_rem_sess_cb_count != 0) {
+        ret = -1;
+    }
+    #endif /* HAVE_EXT_CACHE || HAVE_EX_DATA */
+
+cleanup:
+    if (cache_mem != NULL) {
+        XFREE(cache_mem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        cache_mem = NULL;
+    }
+
+    #ifndef NO_CLIENT_CACHE
+    if (c_rows != NULL) {
+        XFREE(c_rows, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        c_rows = NULL;
+    }
+    #endif /* !NO_CLIENT_CACHE */
+
+    return ret;
+}
+
+#if !defined(NO_FILESYSTEM)
+/* write cache_mem to file.
+ *
+ * returns   0 on success
+ * returns < 0 on error
+ * */
+static int test_write_file(const char * fname,
+                           const sess_cache_t * cache_mem)
+{
+    XFILE  file = XBADFILE;
+    size_t n_write = 0;
+    int    ret = -1;
+    size_t i = 0;
+
+    file = XFOPEN(fname, "w+b");
+    if (file == XBADFILE) {
+        WOLFSSL_MSG_EX("error: open(%s, w+b)", fname);
+        goto write_file_cleanup;
+    }
+
+    n_write = (int)XFWRITE(&cache_mem->hdr, sizeof(cache_header_t), 1, file);
+    if (n_write != 1) {
+        WOLFSSL_MSG_EX("error: write %s: %zu", fname, n_write);
+        goto write_file_cleanup;
+    }
+
+    /* we need to write SIZEOF_SESSION_ROW, one row at a time, so the row lock
+     * fields are skipped. */
+    for (i = 0; i < SESSION_ROWS; ++i) {
+        n_write = (int)XFWRITE(&cache_mem->s_rows[i], SIZEOF_SESSION_ROW, 1, file);
+        if (n_write != 1) {
+            WOLFSSL_MSG_EX("error: write %s: %zu", fname, n_write);
+            goto write_file_cleanup;
+        }
+    }
+
+    #ifndef NO_CLIENT_CACHE
+    n_write = (int)XFWRITE(&cache_mem->c_rows, sizeof(cache_mem->c_rows), 1, file);
+    if (n_write != 1) {
+        WOLFSSL_MSG_EX("error: write %s: %zu", fname, n_write);
+        goto write_file_cleanup;
+    }
+    #endif /* !NO_CLIENT_CACHE */
+
+    ret = 0;
+write_file_cleanup:
+    if (file != XBADFILE) {
+        XFCLOSE(file);
+        file = XBADFILE;
+    }
+
+    return ret;
+}
+
+/* read cache_mem from file.
+ *
+ * returns   0 on success
+ * returns < 0 on error
+ * */
+static int test_read_file(const char * fname,
+                          sess_cache_t * cache_mem)
+{
+    XFILE  file = XBADFILE;
+    size_t n_read = 0;
+    int    ret = -1;
+    size_t i = 0;
+
+    file = XFOPEN(fname, "rb");
+    if (file == XBADFILE) {
+        WOLFSSL_MSG_EX("error: open(%s, rb)", fname);
+        goto read_file_cleanup;
+    }
+
+    n_read = (int)XFREAD(&cache_mem->hdr, sizeof(cache_header_t), 1, file);
+    if (n_read != 1) {
+        WOLFSSL_MSG_EX("error: read %s: %zu", fname, n_read);
+        goto read_file_cleanup;
+    }
+
+    /* we need to read SIZEOF_SESSION_ROW, one row at a time, so the row lock
+     * fields are skipped. */
+    for (i = 0; i < SESSION_ROWS; ++i) {
+        n_read = (int)XFREAD(&cache_mem->s_rows[i], SIZEOF_SESSION_ROW, 1, file);
+        if (n_read != 1) {
+            WOLFSSL_MSG_EX("error: read %s: %zu", fname, n_read);
+            goto read_file_cleanup;
+        }
+    }
+
+    #ifndef NO_CLIENT_CACHE
+    n_read = (int)XFREAD(&cache_mem->c_rows, sizeof(cache_mem->c_rows), 1, file);
+    if (n_read != 1) {
+        WOLFSSL_MSG_EX("error: read %s: %zu", fname, n_read);
+        goto read_file_cleanup;
+    }
+    #endif /* !NO_CLIENT_CACHE */
+
+    ret = 0;
+
+read_file_cleanup:
+    if (file != XBADFILE) {
+        XFCLOSE(file);
+        file = XBADFILE;
+    }
+
+    return ret;
+}
+
+/* Tests file [save, restore]_session_cache.
+ *
+ * returns  -1 on err
+ * returns   0 on success
+ *  */
+static int test_file_session_cache(void)
+{
+    int            ret = -1;
+    int            mem_sz = 0;
+    sess_cache_t * cache_mem = NULL;
+    const char *   fname = "tmp_test_session_cache.bin";
+    #ifndef NO_CLIENT_CACHE
+    ClientRow *    c_rows = NULL;
+    #endif /* !NO_CLIENT_CACHE */
+
+    #if (defined(HAVE_EXT_CACHE) || defined(HAVE_EX_DATA))
+    /* reset callback count */
+    test_rem_sess_cb_count = 0;
+    #endif /* HAVE_EXT_CACHE || HAVE_EX_DATA */
+
+    /* get session cache size, and allocate scratch copy */
+    mem_sz = wolfSSL_get_session_cache_memsize();
+    if (mem_sz != sizeof(sess_cache_t)) {
+        WOLFSSL_MSG_EX("error: got mem_sz %d, expected %zu\n", mem_sz,
+                       sizeof(sess_cache_t));
+        return -1;
+    }
+
+    cache_mem = (sess_cache_t *)XMALLOC((size_t)mem_sz, NULL,
+                                        DYNAMIC_TYPE_TMP_BUFFER);
+    if (cache_mem == NULL) {
+        WOLFSSL_MSG_EX("error: xmalloc(%zu) failed", (size_t) mem_sz);
+        return -1;
+    }
+
+    #ifndef NO_CLIENT_CACHE
+    /* allocate scratch ClientCache */
+    c_rows = (ClientRow *)XMALLOC(sizeof(ClientRow) * CLIENT_SESSION_ROWS,
+                                      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (c_rows == NULL) {
+        WOLFSSL_MSG_EX("error: xmalloc(%zu) failed",
+                       sizeof(ClientRow) * CLIENT_SESSION_ROWS);
+        goto file_cleanup;
+    }
+    #endif /* !NO_CLIENT_CACHE */
+
+    /* save session cache to file fname */
+    if (wolfSSL_save_session_cache(fname) != WOLFSSL_SUCCESS) {
+        ret = -1;
+        goto file_cleanup;
+    }
+
+    /* read it into cache_mem struct */
+    ret = test_read_file(fname, cache_mem);
+    if (ret) {
+        goto file_cleanup;
+    }
+
+    /* setup test sessions */
+    test_set_sessions(cache_mem);
+
+    #ifndef NO_CLIENT_CACHE
+    /* copy current client cache */
+    XMEMCPY(c_rows, &cache_mem->c_rows, sizeof(cache_mem->c_rows));
+    #endif /* !NO_CLIENT_CACHE */
+
+    /* write test sessions back to file */
+    ret = test_write_file(fname, cache_mem);
+    if (ret) {
+        goto file_cleanup;
+    }
+
+    /* restore session cache from file */
+    if (wolfSSL_restore_session_cache(fname) != WOLFSSL_SUCCESS) {
+        ret = -1;
+        goto file_cleanup;
+    }
+
+    /* save session cache back to file fname */
+    if (wolfSSL_save_session_cache(fname) != WOLFSSL_SUCCESS) {
+        ret = -1;
+        goto file_cleanup;
+    }
+
+    /* wipe our session struct in memory */
+    XMEMSET(cache_mem, 0, sizeof(sess_cache_t));
+
+    /* read it into cache_mem struct */
+    ret = test_read_file(fname, cache_mem);
+    if (ret) {
+        goto file_cleanup;
+    }
+
+    /* sanity check values */
+    ret = test_sanity_sessions(cache_mem);
+    if (ret) {
+        goto file_cleanup;
+    }
+
+    #ifndef NO_CLIENT_CACHE
+    /* verify we got back the exact client cache */
+    ret = XMEMCMP(c_rows, &cache_mem->c_rows, sizeof(cache_mem->c_rows));
+    if (ret) {
+        WOLFSSL_MSG_EX("error: file restore c_rows diff: %d", ret);
+        ret = -1;
+        goto file_cleanup;
+    }
+    #endif /* !NO_CLIENT_CACHE */
+
+    /* eviction: flush sessions older than time 2 (0 + 1 < 2). */
+    wolfSSL_CTX_flush_sessions(NULL, 2);
+
+file_cleanup:
+    /* remove session cache file. the file existing and being removed
+     * is part of the expected result. */
+    {
+        int rc = remove(fname);
+        if (rc) {
+            fprintf(stderr, "remove(%s) failed: %d\n", fname, rc);
+            ret = -1;
+        }
+    }
+
+    #if (defined(HAVE_EXT_CACHE) || defined(HAVE_EX_DATA))
+    /* if all else succeeded, finally check the callback count. it should not
+     * fire for sessions restored from persistent storage. */
+    if (test_rem_sess_cb_count != 0) {
+        ret = -1;
+    }
+    #endif /* HAVE_EXT_CACHE || HAVE_EX_DATA */
+
+    if (cache_mem != NULL) {
+        XFREE(cache_mem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        cache_mem = NULL;
+    }
+
+    #ifndef NO_CLIENT_CACHE
+    if (c_rows != NULL) {
+        XFREE(c_rows, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        c_rows = NULL;
+    }
+    #endif /* !NO_CLIENT_CACHE */
+
+    return ret;
+}
+#endif /* NO_FILESYSTEM */
+
+int test_wolfSSL_session_cache_restore(void)
+{
+    EXPECT_DECLS;
+    ExpectIntEQ(test_mem_session_cache(), 0);
+    #if !defined(NO_FILESYSTEM)
+    ExpectIntEQ(test_file_session_cache(), 0);
+    #endif /* NO_FILESYSTEM */
+    return EXPECT_RESULT();
+}
+#else
+int test_wolfSSL_session_cache_restore(void)
+{
+    return TEST_SKIPPED;
+}
+#endif /* PERSIST_SESSION_CACHE && !NO_SESSION_CACHE &&
+        * !SESSION_CACHE_DYNAMIC_MEM && etc... */

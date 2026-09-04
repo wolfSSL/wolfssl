@@ -59,7 +59,7 @@ else
     mapfile -t HEADERS < <(
         git ls-files 'wolfssl/*.h' 'wolfssl/wolfcrypt/*.h' \
                      'wolfssl/wolfcrypt/port/**/*.h' 'wolfssl/openssl/*.h' \
-        | grep -vE '^wolfssl/(options|internal|certs_test|certs_test_sm|debug-trace-error-codes|debug-untrace-error-codes)\.h$' \
+        | grep -vE '^wolfssl/(options|internal|ssl_sess|certs_test|certs_test_sm|debug-trace-error-codes|debug-untrace-error-codes)\.h$' \
         | grep -vE '^wolfssl/wolfcrypt/(fips_test|selftest|tfm)\.h$' \
         | grep -vE '^wolfssl/wolfcrypt/port/aria/aria-crypt(ocb)?\.h$' \
         | grep -vE '^wolfssl/wolfcrypt/port/autosar/(CryIf|Crypto)\.h$' \
