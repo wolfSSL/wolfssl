@@ -34,7 +34,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        # Three, not two: a shard's wall time is one config's, not its
+        # share of the work.  all-pq-small-smallstack-noasm alone ran 35.7
+        # min of a 35.7 min shard and all-pq-small-noasm 33.8 of 33.8, each
+        # holding one of four CPUs while 17 neighbours held the rest.  A
+        # third shard separates those two from slhdsa-pqc-only (22.3) and
+        # leaves the one on the critical path more of the machine.
+        shard: [1, 2, 3]
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     # Generous for a cold ccache; warm reruns finish in a fraction.  The
@@ -93,9 +99,14 @@ jobs:
       # omit it for a new config (defaults to 1) and refresh later. The list
       # is kept sorted by minutes for readability, but the schedule sorts by
       # the values, not list order.
-      # Take the figure from a run whose ccache actually hit: the same config
-      # takes 3-5x longer when the cache is cold, so a value read off a cold
-      # run makes every warm run warn that the estimate is stale.
+      # Take it from an ordinary PR run, not an unusually warm one.  The
+      # seed is built from master, so a PR that edits a widely included
+      # header misses everything downstream of it - editing wolfssl/ssl.h
+      # alone drops a config to a 31% hit rate - and most PR runs land
+      # around 42%, against 99.8% for the rare PR that touches no compiled
+      # file.  Those two regimes differ 2x per config (all-pq-small-noasm:
+      # 33.8 min against 16.0), so calibrating off the warm one makes every
+      # normal run warn that the estimate is stale.
       - name: Build and make check this shard's configs (parallel, out-of-tree)
         run: |
           .github/scripts/parallel-make-check.py \
