@@ -1503,6 +1503,11 @@ int test_wolfSSL_X509V3_EXT_aia(void)
 
     wolfSSL_AUTHORITY_INFO_ACCESS_pop_free(aia,
         wolfSSL_ACCESS_DESCRIPTION_free);
+    aia = NULL;
+    /* Plain free releases the entries too. */
+    ExpectNotNull(aia = (WOLFSSL_AUTHORITY_INFO_ACCESS *)
+        wolfSSL_X509V3_EXT_d2i(ext));
+    wolfSSL_AUTHORITY_INFO_ACCESS_free(aia);
     wolfSSL_ASN1_OBJECT_free(entry);
     wolfSSL_sk_free(node);
     wolfSSL_ASN1_OBJECT_free(obj);
