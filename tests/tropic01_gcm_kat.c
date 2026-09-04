@@ -208,7 +208,7 @@ int main(void)
     if (ret == 0) {
         ret = wc_AesGcmDecrypt(&dec, out, kat_ct, KAT_PT_SZ,
                                kat_iv, KAT_IV_SZ,
-                               (byte*)kat_tag, KAT_TAG_SZ,
+                               kat_tag, KAT_TAG_SZ,
                                kat_aad, KAT_AAD_SZ);
     }
     if (ret == 0) {
