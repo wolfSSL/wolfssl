@@ -401,6 +401,20 @@ static CryptoCb* wc_CryptoCb_GetDevice(int devId)
     return NULL;
 }
 
+/* Find a slot that nothing is using yet. A slot that is part way through
+ * being registered has a callback but no devId, so check both fields. */
+static CryptoCb* wc_CryptoCb_GetFreeDevice(void)
+{
+    int i;
+    for (i = 0; i < MAX_CRYPTO_DEVID_CALLBACKS; i++) {
+        if ((gCryptoDev[i].devId == INVALID_DEVID) &&
+            (gCryptoDev[i].cb == NULL)) {
+            return &gCryptoDev[i];
+        }
+    }
+    return NULL;
+}
+
 /* Returns 1 if the given device ID is currently registered, 0 otherwise.
  * INVALID_DEVID marks free table slots, so it is never reported registered. */
 int wc_CryptoCb_IsDeviceRegistered(int devId)
@@ -541,7 +555,7 @@ int wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx)
         return ALREADY_E;
 
     /* find a free slot */
-    dev = wc_CryptoCb_GetDevice(INVALID_DEVID);
+    dev = wc_CryptoCb_GetFreeDevice();
     if (dev == NULL)
         return BUFFER_E; /* out of devices */
 
@@ -578,7 +592,8 @@ int wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx)
 
     /* Publish the entry last, after everything it points at is in place.
      * The slot is therefore not discoverable from the register command
-     * itself - a handler must not dispatch through its own devId. */
+     * itself - a handler must not dispatch through, or re-register, its
+     * own devId (a nested register of it would claim a second slot). */
     WC_BARRIER();
     dev->devId = devId;
 
