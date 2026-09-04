@@ -14491,7 +14491,12 @@ static int test_wolfSSL_certs(void)
     /************* Get Digest of Certificate ******************/
     {
         byte   digest[64]; /* max digest size */
+        byte   digest2[64];
         word32 digestSz;
+        byte   keyId[WC_SHA_DIGEST_SIZE];
+        int    keyIdSz = (int)sizeof(keyId);
+        EVP_PKEY* pubKey = NULL;
+        X509*  x509Pub = NULL;
         X509*  x509Empty = NULL;
 
         XMEMSET(digest, 0, sizeof(digest));
@@ -14505,6 +14510,20 @@ static int test_wolfSSL_certs(void)
                     NULL), WOLFSSL_SUCCESS);
         ExpectIntEQ(X509_pubkey_digest(x509ext, wolfSSL_EVP_sha1(), digest,
                     &digestSz), WOLFSSL_SUCCESS);
+        /* SHA-1 of the subjectPublicKey is the subject key identifier. */
+        ExpectIntEQ((int)digestSz, WC_SHA_DIGEST_SIZE);
+        ExpectNotNull(wolfSSL_X509_get_subjectKeyID(x509ext, keyId, &keyIdSz));
+        ExpectIntEQ(keyIdSz, WC_SHA_DIGEST_SIZE);
+        ExpectIntEQ(XMEMCMP(digest, keyId, WC_SHA_DIGEST_SIZE), 0);
+        /* A key stored with X509_set_pubkey digests to the same value. */
+        ExpectNotNull(pubKey = X509_get_pubkey(x509ext));
+        ExpectNotNull(x509Pub = wolfSSL_X509_new());
+        ExpectIntEQ(X509_set_pubkey(x509Pub, pubKey), WOLFSSL_SUCCESS);
+        ExpectIntEQ(X509_pubkey_digest(x509Pub, wolfSSL_EVP_sha1(), digest2,
+                    &digestSz), WOLFSSL_SUCCESS);
+        ExpectIntEQ(XMEMCMP(digest2, keyId, WC_SHA_DIGEST_SIZE), 0);
+        wolfSSL_X509_free(x509Pub);
+        EVP_PKEY_free(pubKey);
         ExpectIntEQ(X509_pubkey_digest(x509ext, wolfSSL_EVP_sha256(), digest,
                     &digestSz), WOLFSSL_SUCCESS);
 
