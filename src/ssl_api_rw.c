@@ -606,8 +606,8 @@ static int wolfSSL_read_internal(WOLFSSL* ssl, void* data, size_t sz, int peek)
         if (ssl->dupWrite != NULL) {
             if ((ssl->error != 0) &&
                 (ssl->error != WC_NO_ERR_TRACE(WANT_READ))
-            #ifdef WOLFSSL_ASYNC_CRYPT
-                && (ssl->error != WC_NO_ERR_TRACE(WC_PENDING_E))
+            #ifdef WOLFSSL_HAVE_HS_SUSPEND
+                && !IsHsSuspendErr(ssl->error)
             #endif
             ) {
                 int notifyErr;
