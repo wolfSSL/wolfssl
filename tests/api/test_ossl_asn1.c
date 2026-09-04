@@ -1997,6 +1997,60 @@ int test_wolfSSL_ASN1_TIME_adj(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_ASN1_TIME_set(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_ASN_TIME) && \
+    !defined(USER_TIME) && !defined(TIME_OVERRIDES)
+    const int year = 365*24*60*60;
+    const int day  = 24*60*60;
+    const int hour = 60*60;
+    const int mini = 60;
+    WOLFSSL_ASN1_TIME* s = NULL;
+    WOLFSSL_ASN1_TIME* asn_time = NULL;
+    char date_str[CTC_DATE_SIZE + 1];
+    time_t t;
+
+    /* 2000/2/15 20:30:00 */
+    t = (time_t)30 * year + 45 * day + 20 * hour + 30 * mini + 7 * day;
+
+    ExpectNotNull(s = wolfSSL_ASN1_TIME_new());
+    ExpectPtrEq(wolfSSL_ASN1_TIME_set(s, t), s);
+    if (s != NULL) {
+        ExpectIntEQ(s->type, ASN_UTC_TIME);
+        ExpectIntEQ(s->length, ASN_UTC_TIME_SIZE - 1);
+        XMEMCPY(date_str, s->data, CTC_DATE_SIZE);
+        date_str[CTC_DATE_SIZE] = '\0';
+        ExpectIntEQ(XMEMCMP(date_str, "000215203000Z", 13), 0);
+    }
+    wolfSSL_ASN1_TIME_free(s);
+    s = NULL;
+
+    /* Allocated when NULL passed in. */
+    ExpectNotNull(asn_time = wolfSSL_ASN1_TIME_set(NULL, t));
+    if (asn_time != NULL) {
+        ExpectIntEQ(asn_time->type, ASN_UTC_TIME);
+        ExpectIntEQ(XMEMCMP(asn_time->data, "000215203000Z", 13), 0);
+    }
+    wolfSSL_ASN1_TIME_free(asn_time);
+    asn_time = NULL;
+
+#if !defined(TIME_T_NOT_64BIT) && !defined(NO_64BIT)
+    /* 2055/03/01 09:00:00 uses GeneralizedTime. */
+    t = (time_t)85 * year + 59 * day + 9 * hour + 21 * day;
+    ExpectNotNull(asn_time = wolfSSL_ASN1_TIME_set(NULL, t));
+    if (asn_time != NULL) {
+        ExpectIntEQ(asn_time->type, ASN_GENERALIZED_TIME);
+        ExpectIntEQ(asn_time->length, ASN_GENERALIZED_TIME_SIZE - 1);
+        ExpectIntEQ(XMEMCMP(asn_time->data, "20550301090000Z", 15), 0);
+    }
+    wolfSSL_ASN1_TIME_free(asn_time);
+    asn_time = NULL;
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_ASN1_TIME_to_tm(void)
 {
     EXPECT_DECLS;
