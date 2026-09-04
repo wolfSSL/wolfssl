@@ -9903,6 +9903,31 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha_test(void)
 #endif
     }
 
+#if FIPS_VERSION3_GE(7,0,0)
+    /* Keys above HMAC_FIPS_MAX_KEY (1024 bits) are outside the module's
+     * CAVP-tested key range: wc_HmacSetKey must reject them, a key at the
+     * maximum must pass, and the wc_HmacSetKey_ex allowFlag escape must
+     * still accept the longer key as a non-approved use. */
+    {
+        byte maxKey[HMAC_FIPS_MAX_KEY + 1];
+        XMEMSET(maxKey, 0x0b, sizeof(maxKey));
+        if ((ret = wc_HmacInit(&hmac, HEAP_HINT, devId)) != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ret = wc_HmacSetKey(&hmac, WC_SHA, maxKey, (word32)sizeof(maxKey));
+        if (ret != WC_NO_ERR_TRACE(BAD_LENGTH_E))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ret = wc_HmacSetKey(&hmac, WC_SHA, maxKey,
+                            (word32)sizeof(maxKey) - 1);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ret = wc_HmacSetKey_ex(&hmac, WC_SHA, maxKey, (word32)sizeof(maxKey),
+                               allowShortKeyWithFips);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        wc_HmacFree(&hmac);
+    }
+#endif
+
 out:
 
     wc_HmacFree(&hmac);
@@ -10007,6 +10032,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha224_test(void)
 
         ret = wc_HmacSetKey(&hmac, WC_SHA224, (byte*)keys[i],
             (word32)XSTRLEN(keys[i]));
+#if FIPS_VERSION3_GE(7,0,0)
+        /* Keys above HMAC_FIPS_MAX_KEY (1024 bits) are outside the module's
+         * CAVP-tested key range and are rejected in approved mode; the long
+         * RFC 4231 style vectors stay covered through the wc_HmacSetKey_ex
+         * allowFlag escape. */
+        if (XSTRLEN(keys[i]) > HMAC_FIPS_MAX_KEY) {
+            if (ret != WC_NO_ERR_TRACE(BAD_LENGTH_E))
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            ret = wc_HmacSetKey_ex(&hmac, WC_SHA224, (byte*)keys[i],
+                                   (word32)XSTRLEN(keys[i]), 1);
+        }
+#endif
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -10168,6 +10205,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha256_test(void)
 
         ret = wc_HmacSetKey(&hmac, WC_SHA256, (byte*)keys[i],
             (word32)XSTRLEN(keys[i]));
+#if FIPS_VERSION3_GE(7,0,0)
+        /* Keys above HMAC_FIPS_MAX_KEY (1024 bits) are outside the module's
+         * CAVP-tested key range and are rejected in approved mode; the long
+         * RFC 4231 style vectors stay covered through the wc_HmacSetKey_ex
+         * allowFlag escape. */
+        if (XSTRLEN(keys[i]) > HMAC_FIPS_MAX_KEY) {
+            if (ret != WC_NO_ERR_TRACE(BAD_LENGTH_E))
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            ret = wc_HmacSetKey_ex(&hmac, WC_SHA256, (byte*)keys[i],
+                                   (word32)XSTRLEN(keys[i]), 1);
+        }
+#endif
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
 
@@ -10330,6 +10379,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha384_test(void)
 
         ret = wc_HmacSetKey(&hmac, WC_SHA384, (byte*)keys[i],
             (word32)XSTRLEN(keys[i]));
+#if FIPS_VERSION3_GE(7,0,0)
+        /* Keys above HMAC_FIPS_MAX_KEY (1024 bits) are outside the module's
+         * CAVP-tested key range and are rejected in approved mode; the long
+         * RFC 4231 style vectors stay covered through the wc_HmacSetKey_ex
+         * allowFlag escape. */
+        if (XSTRLEN(keys[i]) > HMAC_FIPS_MAX_KEY) {
+            if (ret != WC_NO_ERR_TRACE(BAD_LENGTH_E))
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            ret = wc_HmacSetKey_ex(&hmac, WC_SHA384, (byte*)keys[i],
+                                   (word32)XSTRLEN(keys[i]), 1);
+        }
+#endif
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -10485,6 +10546,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha512_test(void)
 
         ret = wc_HmacSetKey(&hmac, WC_SHA512, (byte*)keys[i],
             (word32)XSTRLEN(keys[i]));
+#if FIPS_VERSION3_GE(7,0,0)
+        /* Keys above HMAC_FIPS_MAX_KEY (1024 bits) are outside the module's
+         * CAVP-tested key range and are rejected in approved mode; the long
+         * RFC 4231 style vectors stay covered through the wc_HmacSetKey_ex
+         * allowFlag escape. */
+        if (XSTRLEN(keys[i]) > HMAC_FIPS_MAX_KEY) {
+            if (ret != WC_NO_ERR_TRACE(BAD_LENGTH_E))
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            ret = wc_HmacSetKey_ex(&hmac, WC_SHA512, (byte*)keys[i],
+                                   (word32)XSTRLEN(keys[i]), 1);
+        }
+#endif
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -10698,6 +10771,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha3_test(void)
 
             ret = wc_HmacSetKey(&hmac, hashType[j], (byte*)key[i],
                                                        (word32)XSTRLEN(key[i]));
+#if FIPS_VERSION3_GE(7,0,0)
+            /* Keys above HMAC_FIPS_MAX_KEY (1024 bits) are outside the
+             * module's CAVP-tested key range and are rejected in approved
+             * mode; the big-key vector stays covered through the
+             * wc_HmacSetKey_ex allowFlag escape. */
+            if (XSTRLEN(key[i]) > HMAC_FIPS_MAX_KEY) {
+                if (ret != WC_NO_ERR_TRACE(BAD_LENGTH_E))
+                    ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+                ret = wc_HmacSetKey_ex(&hmac, hashType[j], (byte*)key[i],
+                                       (word32)XSTRLEN(key[i]), 1);
+            }
+#endif
             if (ret != 0)
                 ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -30947,7 +31032,13 @@ static wc_test_ret_t rsa_even_mod_test(WC_RNG* rng, RsaKey* key)
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
     ret = wc_RsaPublicEncrypt(tmp, inLen, out, (int)outSz, key, rng);
     if (ret != WC_NO_ERR_TRACE(MP_VAL) &&
-        ret != WC_NO_ERR_TRACE(MP_EXPTMOD_E))
+        ret != WC_NO_ERR_TRACE(MP_EXPTMOD_E)
+#if FIPS_VERSION3_GE(7,0,0)
+        /* v7 refuses PKCS#1 v1.5 key transport before touching the key
+         * (SP 800-131A Rev. 2 Section 6 Table 5). */
+        && ret != WC_NO_ERR_TRACE(FIPS_WRONG_API_E)
+#endif
+        )
     {
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_even_mod);
     }
@@ -30957,7 +31048,11 @@ static wc_test_ret_t rsa_even_mod_test(WC_RNG* rng, RsaKey* key)
     ret = wc_RsaPrivateDecrypt(out, outSz, plain, (int)plainSz, key);
     if (ret != WC_NO_ERR_TRACE(MP_VAL) &&
         ret != WC_NO_ERR_TRACE(MP_EXPTMOD_E) &&
-        ret != WC_NO_ERR_TRACE(MP_INVMOD_E))
+        ret != WC_NO_ERR_TRACE(MP_INVMOD_E)
+#if FIPS_VERSION3_GE(7,0,0)
+        && ret != WC_NO_ERR_TRACE(FIPS_WRONG_API_E)
+#endif
+        )
     {
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_even_mod);
     }
@@ -32002,6 +32097,23 @@ static wc_test_ret_t rsa_oaep_padding_test(RsaKey* key, WC_RNG* rng)
 
     /* check using pkcsv15 padding with _ex API */
     XMEMSET(plain, 0, plainSz);
+#if FIPS_VERSION3_GE(7,0,0)
+    /* SP 800-131A Rev. 2 Section 6 (Table 5): WC_RSA_PKCSV15_PAD key
+     * transport is refused by the extended wrappers under v7. */
+    WC_TEST_RSA_ASYNC_DO(&key->asyncDev,
+        wc_RsaPublicEncrypt_ex(in, inLen, out, outSz, key, rng,
+              WC_RSA_PKCSV15_PAD, WC_HASH_TYPE_NONE, 0, NULL, 0));
+    if (ret != WC_NO_ERR_TRACE(FIPS_WRONG_API_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
+    WC_TEST_RSA_ASYNC_DO(&key->asyncDev,
+        wc_RsaPrivateDecrypt_ex(out, (word32)outSz, plain, plainSz, key,
+              WC_RSA_PKCSV15_PAD, WC_HASH_TYPE_NONE, 0, NULL, 0));
+    if (ret != WC_NO_ERR_TRACE(FIPS_WRONG_API_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
+#endif /* WOLFSSL_RSA_PUBLIC_ONLY */
+    ret = 0;
+#else
     WC_TEST_RSA_ASYNC_DO(&key->asyncDev,
         wc_RsaPublicEncrypt_ex(in, inLen, out, outSz, key, rng,
               WC_RSA_PKCSV15_PAD, WC_HASH_TYPE_NONE, 0, NULL, 0));
@@ -32022,6 +32134,7 @@ static wc_test_ret_t rsa_oaep_padding_test(RsaKey* key, WC_RNG* rng)
     }
     TEST_SLEEP();
 #endif /* WOLFSSL_RSA_PUBLIC_ONLY */
+#endif /* FIPS_VERSION3_GE(7,0,0) */
 
 exit_rsa:
     WC_FREE_VAR(in, HEAP_HINT);
@@ -32066,6 +32179,7 @@ static wc_test_ret_t rsa_pkcs1_test(RsaKey* key, WC_RNG* rng,
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_pkcs1);
 #endif
+#if FIPS_VERSION3_LT(7,0,0)
 #ifndef WOLFSSL_MICROCHIP_TA100
     WC_TEST_RSA_ASYNC_DO(&key->asyncDev,
         wc_RsaPublicEncrypt(in, inLen, out, outSz, key, rng));
@@ -32106,6 +32220,25 @@ static wc_test_ret_t rsa_pkcs1_test(RsaKey* key, WC_RNG* rng,
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit_rsa_pkcs1);
     }
     TEST_SLEEP();
+#else /* FIPS_VERSION3_GE(7,0,0) */
+    /* SP 800-131A Rev. 2 Section 6 (Table 5): RSAES-PKCS1-v1_5 key transport
+     * is disallowed after December 31, 2023; the v7 module refuses the fixed
+     * PKCS#1 v1.5 services with FIPS_WRONG_API_E. */
+    WC_TEST_RSA_ASYNC_DO(&key->asyncDev,
+        wc_RsaPublicEncrypt(in, inLen, out, outSz, key, rng));
+    if (ret != WC_NO_ERR_TRACE(FIPS_WRONG_API_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_pkcs1);
+    idx = (word32)outSz;
+    WC_TEST_RSA_ASYNC_DO(&key->asyncDev,
+        wc_RsaPrivateDecrypt(out, idx, plain, plainSz, key));
+    if (ret != WC_NO_ERR_TRACE(FIPS_WRONG_API_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_pkcs1);
+    WC_TEST_RSA_ASYNC_DO(&key->asyncDev,
+        wc_RsaPrivateDecryptInline(out, idx, &res, key));
+    if (ret != WC_NO_ERR_TRACE(FIPS_WRONG_API_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_pkcs1);
+    ret = 0;
+#endif /* FIPS_VERSION3_LT(7,0,0) */
 
     WC_TEST_RSA_ASYNC_DO(&key->asyncDev,
         wc_RsaSSL_Sign(in, inLen, out, outSz, key, rng));
@@ -38257,6 +38390,15 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pbkdf2_test(void)
     ret = wc_PBKDF2_ex(derived, (byte*)passwd, (int)XSTRLEN(passwd),
                        salt, (int)sizeof(salt), iterations,
                        kLen, WC_SHA256, HEAP_HINT, devId);
+#if FIPS_VERSION3_GE(7,0,0)
+    /* 8-byte salt: computed, but the module must deliver the
+     * WC_FIPS_NOT_APPROVED indicator to the caller per SP 800-132
+     * Section 5.1 ("shall be at least 128 bits") and FIPS 140-3 IG 2.4.C;
+     * the test fails if the indicator is missing. */
+    if (ret != WC_FIPS_NOT_APPROVED)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = 0;
+#endif
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
 
@@ -38684,6 +38826,21 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
 #endif /* !NO_SHA256 */
 
 #ifndef NO_SHA
+#if FIPS_VERSION3_GE(7,0,0)
+    /* SP 800-56C Rev. 2 Section 4 approves the HKDF auxiliary function only
+     * with an approved hash and the module's key-derivation coverage is
+     * SHA-256/384/512, so the generic wrappers refuse SHA-1 (see
+     * HkdfDigestAllowed in fips.c). */
+    ret = wc_HKDF_Extract_ex(WC_SHA, NULL, 0, ikm1, (word32)sizeof(ikm1),
+                             prk, HEAP_HINT, devId);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_HKDF_Expand_ex(WC_SHA, prk, WC_SHA_DIGEST_SIZE, NULL, 0,
+                            okm1, (word32)L, HEAP_HINT, devId);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = 0;
+#else
 #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0))
     ret = wc_HKDF_Extract_ex(WC_SHA, NULL, 0, ikm1, (word32)sizeof(ikm1),
                              prk, HEAP_HINT, devId);
@@ -38705,6 +38862,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
 
     if (XMEMCMP(okm1, res1, (unsigned long)L) != 0)
         return WC_TEST_RET_ENC_NC;
+#endif /* FIPS_VERSION3_GE(7,0,0) */
 
 #ifndef HAVE_FIPS
     /* fips can't have key size under 14 bytes, salt is key too */
@@ -42611,6 +42769,15 @@ static wc_test_ret_t ecc_test_sign_vectors(WC_RNG* rng)
 #endif
 
     ret = wc_ecc_sign_set_k(k, sizeof(k), key);
+#if FIPS_VERSION3_GE(7,0,0)
+    /* FIPS 186-5 Section 6.3: a caller-supplied per-message secret is a
+     * non-approved use, so the module must deliver the WC_FIPS_NOT_APPROVED
+     * indicator to the caller (FIPS 140-3 IG 2.4.C); the test fails if the
+     * indicator is missing. */
+    if (ret != WC_FIPS_NOT_APPROVED)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    ret = 0;
+#endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 
@@ -42622,6 +42789,16 @@ static wc_test_ret_t ecc_test_sign_vectors(WC_RNG* rng)
         if (ret == 0)
             ret = wc_ecc_sign_hash(hash, sizeof(hash), sig, &sigSz, rng, key);
     } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
+#if FIPS_VERSION3_GE(7,0,0)
+    /* The signature consuming the staged k must deliver the
+     * WC_FIPS_NOT_APPROVED indicator to the caller (FIPS 186-5
+     * Section 6.3, FIPS 140-3 IG 2.4.C); the test fails if the indicator
+     * is missing, and the signature bytes are still verified against the
+     * expected vector below. */
+    if (ret != WC_FIPS_NOT_APPROVED)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    ret = 0;
+#endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
     TEST_SLEEP();
@@ -42643,6 +42820,9 @@ static wc_test_ret_t ecc_test_sign_vectors(WC_RNG* rng)
         if (ret == 0)
             ret = wc_ecc_sign_hash(hash, sizeof(hash), sig, &sigSz, rng, key);
     } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
+    /* The staged k was consumed by the first signature, so this second
+     * signature uses a fresh random k and must succeed without the
+     * WC_FIPS_NOT_APPROVED indicator. */
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
     TEST_SLEEP();
@@ -43409,6 +43589,24 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
         WARNING_OUT(ECC_CURVE_OID_E, done);
 
 #ifdef HAVE_ECC_DHE
+#if FIPS_VERSION3_GE(7,0,0)
+    /* The module's KAS-ECC-SSC validation covers P-256, P-384 and P-521
+     * only, so under v7 wc_ecc_shared_secret refuses every other curve with
+     * ECC_CURVE_OID_E (FIPS 140-3 IG C.B; SP 800-131A Rev. 2 Section 5
+     * Table 4 for len(n) < 224).  Assert the refusal once, then skip the
+     * composite flow for that curve the same way the key-size mismatch above
+     * does; P-224 signing coverage remains in the ECDSA vector tests. */
+    if (userA->dp != NULL &&
+        userA->dp->id != ECC_SECP256R1 &&
+        userA->dp->id != ECC_SECP384R1 &&
+        userA->dp->id != ECC_SECP521R1) {
+        x = ECC_SHARED_SIZE;
+        ret = wc_ecc_shared_secret(userA, userB, sharedA, &x);
+        if (ret != WC_NO_ERR_TRACE(ECC_CURVE_OID_E))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+        WARNING_OUT(ECC_CURVE_OID_E, done);
+    }
+#endif
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
     !defined(HAVE_SELFTEST)

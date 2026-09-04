@@ -4779,6 +4779,30 @@ static void wc_ecc_free_async(ecc_key* key)
 
 
 #ifdef HAVE_ECC_DHE
+#if FIPS_VERSION3_GE(7,0,0)
+/* The module's KAS-ECC-SSC validation covers only P-256, P-384 and P-521,
+ * and FIPS 140-3 IG C.B does not permit an algorithm implementation that
+ * has not been CAVP tested to be used in an approved mode; SP 800-131A
+ * Rev. 2 Section 5 (Table 4) additionally disallows EC key agreement
+ * providing fewer than 112 bits of security strength (len(n) < 224).  The
+ * curve is resolved from key->dp, never from ecc_sets[key->idx], so a
+ * custom-curve key (idx == ECC_CUSTOM_IDX) cannot index out of range. */
+static int ecc_fips_kas_curve_allowed(const ecc_key* key)
+{
+    if (key->dp == NULL) {
+        return ECC_BAD_ARG_E;
+    }
+    switch (key->dp->id) {
+        case ECC_SECP256R1:
+        case ECC_SECP384R1:
+        case ECC_SECP521R1:
+            return 0;
+        default:
+            return ECC_CURVE_OID_E;
+    }
+}
+#endif /* FIPS_VERSION3_GE(7,0,0) */
+
 /**
   Create an ECC shared secret between two keys
   private_key      The private ECC key (heap hint based off of private key)
@@ -4808,7 +4832,27 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
        return BAD_FUNC_ARG;
    }
 
-#ifdef WOLF_CRYPTO_CB
+#if FIPS_VERSION3_GE(7,0,0)
+   /* Gate ahead of the crypto callback and the hardware dispatch below so no
+    * backend computes a shared secret on a curve outside the validated
+    * KAS-ECC-SSC set (FIPS 140-3 IG C.B). */
+   err = ecc_fips_kas_curve_allowed(private_key);
+   if (err == 0) {
+       err = ecc_fips_kas_curve_allowed(public_key);
+   }
+   if (err != 0) {
+       return err;
+   }
+#endif
+
+#if defined(WOLF_CRYPTO_CB) && !FIPS_VERSION3_GE(7,0,0)
+    /* The ECDH crypto-callback dispatch is compiled out of v7 FIPS builds:
+     * the module is validated as a software module, FIPS 140-3 IG C.B bars
+     * using an algorithm implementation in the approved mode without CAVP
+     * testing, and an offload to a callback or hardware executes outside
+     * the validated module.  A hybrid software-plus-hardware module
+     * configuration would reintroduce the dispatch under its own build
+     * option. */
     #ifndef WOLF_CRYPTO_CB_FIND
     if (private_key->devId != INVALID_DEVID)
     #endif
@@ -5295,6 +5339,15 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
         WOLFSSL_MSG("wc_ecc_is_valid_idx failed");
         return ECC_BAD_ARG_E;
     }
+
+#if FIPS_VERSION3_GE(7,0,0)
+    /* Direct callers of this entry point (and the async path) get the same
+     * KAS-ECC-SSC validated-curve gate as wc_ecc_shared_secret(). */
+    err = ecc_fips_kas_curve_allowed(private_key);
+    if (err != 0) {
+        return err;
+    }
+#endif
 
     switch (private_key->state) {
         case ECC_STATE_NONE:
@@ -6305,6 +6358,26 @@ int wc_ecc_make_key_ex2(WC_RNG* rng, int keysize, ecc_key* key, int curve_id,
                         int flags)
 {
     int err;
+
+#if FIPS_VERSION3_GE(7,0,0)
+    /* SP 800-131A Rev. 2 Table 2 disallows ECDSA key pair generation
+     * providing fewer than 112 bits of security strength (len(n) < 224), and
+     * SP 800-186 Section 3.2.1.1 retains P-192 for legacy use only, so
+     * refuse to generate on any curve smaller than 224 bits.  The bound
+     * mirrors wc_ecc_set_curve(): an explicit curve_id selects the curve
+     * directly, otherwise keysize selects the smallest compiled curve that
+     * fits, so keysize 0 would land on the smallest compiled curve and is
+     * rejected too.  Signature verification with the small curves stays
+     * available (legacy use per SP 800-131A Rev. 2 Table 2). */
+    if (curve_id > ECC_CURVE_DEF) {
+        if (wc_ecc_get_curve_size_from_id(curve_id) < WC_ECC_FIPS_GEN_MIN) {
+            return ECC_CURVE_OID_E;
+        }
+    }
+    else if (keysize < WC_ECC_FIPS_GEN_MIN) {
+        return ECC_CURVE_OID_E;
+    }
+#endif
 
     err = _ecc_make_key_ex(rng, keysize, key, curve_id, flags);
 
@@ -7669,6 +7742,17 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
    if (wc_ecc_is_valid_idx(key->idx) == 0 || key->dp == NULL) {
       return ECC_BAD_ARG_E;
    }
+
+#if FIPS_VERSION3_GE(7,0,0)
+   /* SP 800-131A Rev. 2 Table 2: ECDSA digital signature generation with
+    * len(n) < 224 is disallowed, while signature verification with those
+    * curves remains legacy use, so only the signing path is gated.  The
+    * curve is resolved from key->dp, never from ecc_sets[key->idx], so a
+    * custom-curve key (idx == ECC_CUSTOM_IDX) cannot index out of range. */
+   if (key->dp->size < WC_ECC_FIPS_GEN_MIN) {
+      return SIG_TYPE_E;
+   }
+#endif
 
 #if defined(WOLFSSL_SP_MATH)
     if (key->idx == ECC_CUSTOM_IDX || (1
