@@ -66,6 +66,7 @@ Crypto Callback Build Options:
  * WOLF_CRYPTO_CB_ONLY_AES: Use only callbacks for AES          default: off
  * WOLF_CRYPTO_CB_ONLY_ED25519: Use only callbacks for Ed25519  default: off
  * WOLF_CRYPTO_CB_ONLY_CURVE25519: Use only callbacks for X25519 default: off
+ * WOLF_CRYPTO_CB_ONLY_MLDSA: Use only callbacks for ML-DSA    default: off
  */
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
@@ -1961,6 +1962,12 @@ int wc_CryptoCb_PqcSigGetDevId(int type, void* key)
 int wc_CryptoCb_MakePqcSignatureKey(WC_RNG* rng, int type, int keySize,
     void* key)
 {
+    return wc_CryptoCb_MakePqcSignatureKeyEx(rng, type, keySize, NULL, 0, key);
+}
+
+int wc_CryptoCb_MakePqcSignatureKeyEx(WC_RNG* rng, int type, int keySize,
+    const byte* seed, word32 seedSz, void* key)
+{
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     int devId = INVALID_DEVID;
     CryptoCb* dev;
@@ -1968,10 +1975,8 @@ int wc_CryptoCb_MakePqcSignatureKey(WC_RNG* rng, int type, int keySize,
     if (key == NULL)
         return ret;
 
-    /* get devId */
+    /* get devId; an unbound key still goes through the find callback */
     devId = wc_CryptoCb_PqcSigGetDevId(type, key);
-    if (devId == INVALID_DEVID)
-        return ret;
 
     /* locate registered callback */
     dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
@@ -1984,6 +1989,8 @@ int wc_CryptoCb_MakePqcSignatureKey(WC_RNG* rng, int type, int keySize,
         cryptoInfo.pk.pqc_sig_kg.size = keySize;
         cryptoInfo.pk.pqc_sig_kg.key = key;
         cryptoInfo.pk.pqc_sig_kg.type = type;
+        cryptoInfo.pk.pqc_sig_kg.seed = seed;
+        cryptoInfo.pk.pqc_sig_kg.seedSz = seedSz;
 
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }

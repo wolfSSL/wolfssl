@@ -592,6 +592,8 @@ typedef struct wc_MlDsaParams MlDsaParams;
 #endif
 
 struct wc_MlDsaKey {
+    /* Set when this object holds the public key bytes in p. A key generated
+     * on a crypto-callback device has none here and leaves it clear. */
     byte pubKeySet;
     byte prvKeySet;
     byte level; /* 2,3 or 5 */
@@ -1084,6 +1086,17 @@ WOLFSSL_TEST_VIS void wc_mldsa_encode_w1_32(const sword32* w1, byte* w1e);
 
 #ifdef __cplusplus
     }    /* extern "C" */
+#endif
+
+/* Native implementation core (internal). The public wc_MlDsaKey_* functions
+ * in wc_mldsa.c wrap it with cryptocb dispatch and argument checking. With
+ * WOLF_CRYPTO_CB_ONLY_MLDSA the native core is not compiled: all operations go
+ * through the crypto callback. */
+#ifndef WOLF_CRYPTO_CB_ONLY_MLDSA
+/* Signals that native key generation, signing and verifying are available.
+ * Tests gate on this rather than on the build switch, so a test says what it
+ * needs rather than which configuration removed it. */
+#define WC_MLDSA_HAVE_NATIVE
 #endif
 
 #endif /* WOLFSSL_HAVE_MLDSA */
