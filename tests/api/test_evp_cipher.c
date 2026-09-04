@@ -639,6 +639,75 @@ int test_wolfSSL_EVP_CipherUpdate_Null(void)
     return EXPECT_RESULT();
 }
 
+/* Decrypting with padding in parts must never write more than
+ * inl + block_size bytes into out. */
+int test_wolfSSL_EVP_DecryptUpdate_partial(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_AES) && defined(HAVE_AES_CBC) && \
+    defined(WOLFSSL_AES_128)
+    WOLFSSL_EVP_CIPHER_CTX* ctx = NULL;
+    const byte key[16] = { 0 };
+    const byte iv[16] = { 0 };
+    byte plain[70];
+    byte cipher[80];
+    byte dec[96];
+    byte out[96];
+    int cipherLen = 0;
+    int decLen = 0;
+    int outl = 0;
+    int i;
+    /* Part sizes that leave a held back block next to buffered bytes. */
+    const int parts[] = { 3, 16, 3, 29, 16, 8, 5 };
+    int off = 0;
+
+    for (i = 0; i < (int)sizeof(plain); i++)
+        plain[i] = (byte)i;
+
+    ExpectNotNull(ctx = wolfSSL_EVP_CIPHER_CTX_new());
+    ExpectIntEQ(wolfSSL_EVP_CipherInit_ex(ctx, wolfSSL_EVP_aes_128_cbc(),
+        NULL, key, iv, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_EVP_CipherUpdate(ctx, cipher, &outl, plain,
+        (int)sizeof(plain)), WOLFSSL_SUCCESS);
+    cipherLen = outl;
+    ExpectIntEQ(wolfSSL_EVP_CipherFinal(ctx, cipher + cipherLen, &outl),
+        WOLFSSL_SUCCESS);
+    cipherLen += outl;
+    ExpectIntEQ(cipherLen, 80);
+
+    ExpectIntEQ(wolfSSL_EVP_CipherInit_ex(ctx, wolfSSL_EVP_aes_128_cbc(),
+        NULL, key, iv, 0), WOLFSSL_SUCCESS);
+    for (i = 0; i < (int)(sizeof(parts) / sizeof(parts[0])); i++) {
+        int inl = parts[i];
+        int j;
+
+        XMEMSET(out, 0xAA, sizeof(out));
+        ExpectIntEQ(wolfSSL_EVP_CipherUpdate(ctx, out, &outl, cipher + off,
+            inl), WOLFSSL_SUCCESS);
+        ExpectIntLE(outl, inl + 16);
+        /* Nothing written past inl + block_size. */
+        for (j = inl + 16; j < (int)sizeof(out); j++)
+            ExpectIntEQ(out[j], 0xAA);
+        ExpectIntLE(decLen + outl, (int)sizeof(dec));
+        if (EXPECT_SUCCESS())
+            XMEMCPY(dec + decLen, out, (size_t)outl);
+        decLen += outl;
+        off += inl;
+    }
+    ExpectIntEQ(off, cipherLen);
+    ExpectIntEQ(wolfSSL_EVP_CipherFinal(ctx, out, &outl), WOLFSSL_SUCCESS);
+    ExpectIntLE(decLen + outl, (int)sizeof(dec));
+    if (EXPECT_SUCCESS())
+        XMEMCPY(dec + decLen, out, (size_t)outl);
+    decLen += outl;
+    ExpectIntEQ(decLen, (int)sizeof(plain));
+    ExpectBufEQ(dec, plain, sizeof(plain));
+
+    wolfSSL_EVP_CIPHER_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test for wolfSSL_EVP_CIPHER_type_string() */
 int test_wolfSSL_EVP_CIPHER_type_string(void)
 {

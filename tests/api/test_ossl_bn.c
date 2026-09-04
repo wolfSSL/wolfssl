@@ -532,9 +532,25 @@ int test_wolfSSL_BN_bits(void)
     ExpectIntEQ(BN_set_bit(a, 129), 1);
     ExpectIntEQ(BN_get_word(a), WOLFSSL_BN_MAX_VAL);
 
-#ifndef NO_WOLFSSL_STUB
-    ExpectIntEQ(BN_mask_bits(a, 1), 0);
-#endif
+    /* Invalid parameters. */
+    ExpectIntEQ(BN_mask_bits(NULL, 1), 0);
+    ExpectIntEQ(BN_mask_bits(&emptyBN, 1), 0);
+    ExpectIntEQ(BN_mask_bits(a, -1), 0);
+
+    /* a = 2^129 + 2 */
+    ExpectIntEQ(BN_mask_bits(a, 128), 1);
+    ExpectIntEQ(BN_num_bits(a), 2);
+    ExpectIntEQ(BN_get_word(a), 2);
+    /* No change when a already fits. */
+    ExpectIntEQ(BN_mask_bits(a, 200), 1);
+    ExpectIntEQ(BN_get_word(a), 2);
+    ExpectIntEQ(BN_mask_bits(a, 1), 1);
+    ExpectIntEQ(BN_is_zero(a), 1);
+    ExpectIntEQ(BN_set_word(a, 0xff), 1);
+    ExpectIntEQ(BN_mask_bits(a, 4), 1);
+    ExpectIntEQ(BN_get_word(a), 0xf);
+    ExpectIntEQ(BN_mask_bits(a, 0), 1);
+    ExpectIntEQ(BN_is_zero(a), 1);
 
     BN_free(a);
 #endif

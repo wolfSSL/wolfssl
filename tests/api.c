@@ -20823,6 +20823,60 @@ static int test_wolfSSL_ERR_get_error_order(void)
     return EXPECT_RESULT();
 }
 
+static int test_wolfSSL_ERR_set_mark(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_ERROR_QUEUE) && defined(OPENSSL_EXTRA)
+    wolfSSL_ERR_clear_error();
+
+    /* Empty queue: nothing to mark, nothing to pop. */
+    ExpectIntEQ(wolfSSL_ERR_set_mark(), 0);
+    ExpectIntEQ(wolfSSL_ERR_pop_to_mark(), 0);
+    ExpectIntEQ(wolfSSL_ERR_get_error(), 0);
+
+    /* Pop removes entries newer than the mark and keeps the marked one. */
+    wolfSSL_ERR_put_error(0, 0, WC_NO_ERR_TRACE(ASN_NO_SIGNER_E), "test", 0);
+    ExpectIntEQ(wolfSSL_ERR_set_mark(), 1);
+    wolfSSL_ERR_put_error(0, 0, WC_NO_ERR_TRACE(ASN_SELF_SIGNED_E), "test", 0);
+    wolfSSL_ERR_put_error(0, 0, WC_NO_ERR_TRACE(ASN_PARSE_E), "test", 0);
+    ExpectIntEQ(wolfSSL_ERR_pop_to_mark(), 1);
+    ExpectIntEQ(wolfSSL_ERR_peek_last_error(),
+        -WC_NO_ERR_TRACE(ASN_NO_SIGNER_E));
+    ExpectIntEQ(wolfSSL_ERR_get_error(), -WC_NO_ERR_TRACE(ASN_NO_SIGNER_E));
+    ExpectIntEQ(wolfSSL_ERR_get_error(), 0);
+
+    /* Mark is cleared by the pop, so a second pop empties the queue. */
+    wolfSSL_ERR_put_error(0, 0, WC_NO_ERR_TRACE(ASN_NO_SIGNER_E), "test", 0);
+    ExpectIntEQ(wolfSSL_ERR_set_mark(), 1);
+    ExpectIntEQ(wolfSSL_ERR_pop_to_mark(), 1);
+    ExpectIntEQ(wolfSSL_ERR_peek_error(), -WC_NO_ERR_TRACE(ASN_NO_SIGNER_E));
+    ExpectIntEQ(wolfSSL_ERR_pop_to_mark(), 0);
+    ExpectIntEQ(wolfSSL_ERR_get_error(), 0);
+
+    /* No mark: pop empties the queue. */
+    wolfSSL_ERR_put_error(0, 0, WC_NO_ERR_TRACE(ASN_NO_SIGNER_E), "test", 0);
+    wolfSSL_ERR_put_error(0, 0, WC_NO_ERR_TRACE(ASN_SELF_SIGNED_E), "test", 0);
+    ExpectIntEQ(wolfSSL_ERR_pop_to_mark(), 0);
+    ExpectIntEQ(wolfSSL_ERR_get_error(), 0);
+
+    /* Nested marks. */
+    wolfSSL_ERR_put_error(0, 0, WC_NO_ERR_TRACE(ASN_NO_SIGNER_E), "test", 0);
+    ExpectIntEQ(wolfSSL_ERR_set_mark(), 1);
+    wolfSSL_ERR_put_error(0, 0, WC_NO_ERR_TRACE(ASN_SELF_SIGNED_E), "test", 0);
+    ExpectIntEQ(wolfSSL_ERR_set_mark(), 1);
+    wolfSSL_ERR_put_error(0, 0, WC_NO_ERR_TRACE(ASN_PARSE_E), "test", 0);
+    ExpectIntEQ(wolfSSL_ERR_pop_to_mark(), 1);
+    ExpectIntEQ(wolfSSL_ERR_peek_last_error(),
+        -WC_NO_ERR_TRACE(ASN_SELF_SIGNED_E));
+    ExpectIntEQ(wolfSSL_ERR_pop_to_mark(), 1);
+    ExpectIntEQ(wolfSSL_ERR_peek_last_error(),
+        -WC_NO_ERR_TRACE(ASN_NO_SIGNER_E));
+    ExpectIntEQ(wolfSSL_ERR_get_error(), -WC_NO_ERR_TRACE(ASN_NO_SIGNER_E));
+    ExpectIntEQ(wolfSSL_ERR_get_error(), 0);
+#endif /* WOLFSSL_HAVE_ERROR_QUEUE && OPENSSL_EXTRA */
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_ERR_GET_REASON_version_mismatch(void)
 {
     EXPECT_DECLS;
@@ -41954,6 +42008,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_error_queue_per_thread),
     TEST_DECL(test_wolfSSL_ERR_put_error),
     TEST_DECL(test_wolfSSL_ERR_get_error_order),
+    TEST_DECL(test_wolfSSL_ERR_set_mark),
     TEST_DECL(test_wolfSSL_ERR_GET_REASON_version_mismatch),
 #ifndef NO_BIO
     TEST_DECL(test_wolfSSL_ERR_print_errors),

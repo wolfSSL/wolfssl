@@ -3440,6 +3440,8 @@ WOLFSSL_API unsigned long wolfSSL_ERR_get_error_line_data(const char** file, int
 
 WOLFSSL_API unsigned long wolfSSL_ERR_get_error(void);
 WOLFSSL_API void          wolfSSL_ERR_clear_error(void);
+WOLFSSL_API int           wolfSSL_ERR_set_mark(void);
+WOLFSSL_API int           wolfSSL_ERR_pop_to_mark(void);
 
 
 WOLFSSL_API int  wolfSSL_RAND_status(void);

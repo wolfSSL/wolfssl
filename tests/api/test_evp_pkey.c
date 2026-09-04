@@ -144,6 +144,9 @@ int test_wolfSSL_EVP_PKEY_id(void)
 
     ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), EVP_PKEY_RSA);
 
+    ExpectIntEQ(EVP_PKEY_RSA_PSS, NID_rsassaPss);
+    ExpectIntNE(EVP_PKEY_RSA_PSS, EVP_PKEY_RSA);
+
     EVP_PKEY_free(pkey);
 #endif
     return EXPECT_RESULT();
