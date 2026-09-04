@@ -8829,12 +8829,11 @@ int wc_SlhDsaKey_SignHash(SlhDsaKey* key, const byte* ctx, byte ctxSz,
     else if (*sigSz < key->params->sigLen) {
         ret = BAD_LENGTH_E;
     }
-    /* Before the callback dispatch, so a device cannot sign a combination
-     * this build rejects on verify.  Also rejects WC_HASH_TYPE_NONE and any
-     * out-of-range value, which the gate does not list. The private key check
-     * is after the dispatch: a device backed key has no local material. */
-    else {
-        ret = slhdsa_check_hash_for_n(hashType, key->params->n);
+    /* Rejected before any dispatch: the callback interface spells a pure
+     * signature as WC_HASH_TYPE_NONE, so a pre-hash call carrying it would
+     * reach a device as a pure signature. */
+    else if (hashType == WC_HASH_TYPE_NONE) {
+        ret = BAD_FUNC_ARG;
     }
 
 #ifdef WOLF_CRYPTO_CB
@@ -8869,10 +8868,14 @@ int wc_SlhDsaKey_SignHash(SlhDsaKey* key, const byte* ctx, byte ctxSz,
         byte oidLen = 0;
 
         /* Alg 23, Steps 8-23: Validate the caller-supplied digest length and
-         * that the hash algorithm is approved. Done before the random is
-         * drawn. The device was already offered the operation above, so this
-         * host side check cannot keep it from a pre-hash it supports. */
-        ret = slhdsakey_validate_prehash(hashSz, hashType, &oid, &oidLen);
+         * that the hash algorithm is approved and strong enough for the
+         * parameter set. Done before the random is drawn, and only here: the
+         * device was already offered the operation above, so this host side
+         * policy cannot keep it from a pre-hash it supports. */
+        ret = slhdsa_check_hash_for_n(hashType, key->params->n);
+        if (ret == 0) {
+            ret = slhdsakey_validate_prehash(hashSz, hashType, &oid, &oidLen);
+        }
     }
     if (ret == 0) {
         /* Generate n bytes of random. */
@@ -8984,12 +8987,11 @@ int wc_SlhDsaKey_VerifyHash(SlhDsaKey* key, const byte* ctx, byte ctxSz,
         /* Alg 20, Step 2: Return error  */
         ret = BAD_LENGTH_E;
     }
-    /* Before the callback dispatch, so a device cannot verify a combination
-     * this build rejects.  Also rejects WC_HASH_TYPE_NONE and any
-     * out-of-range value. The public key check is after the dispatch: a
-     * device backed key has no local material. */
-    else {
-        ret = slhdsa_check_hash_for_n(hashType, key->params->n);
+    /* Rejected before any dispatch: the callback interface spells a pure
+     * signature as WC_HASH_TYPE_NONE, so a pre-hash call carrying it would
+     * reach a device as a pure signature. */
+    else if (hashType == WC_HASH_TYPE_NONE) {
+        ret = BAD_FUNC_ARG;
     }
 
 #ifdef WOLF_CRYPTO_CB
@@ -9024,11 +9026,15 @@ int wc_SlhDsaKey_VerifyHash(SlhDsaKey* key, const byte* ctx, byte ctxSz,
     }
 #else
     if (ret == 0) {
-        /* Alg 25, Steps 4-19: Validate caller-supplied pre-hashed digest length
-         * and select OID for the chosen hash algorithm. The device was already
-         * offered the operation above, so this host side check cannot keep it
-         * from a pre-hash it supports. */
-        ret = slhdsakey_validate_prehash(hashSz, hashType, &oid, &oidLen);
+        /* Alg 25, Steps 4-19: Validate caller-supplied pre-hashed digest
+         * length, that the hash is strong enough for the parameter set, and
+         * select its OID. Only here: the device was already offered the
+         * operation above, so this host side policy cannot keep it from a
+         * pre-hash it supports. */
+        ret = slhdsa_check_hash_for_n(hashType, key->params->n);
+        if (ret == 0) {
+            ret = slhdsakey_validate_prehash(hashSz, hashType, &oid, &oidLen);
+        }
     }
     if (ret == 0) {
         byte n = key->params->n;
