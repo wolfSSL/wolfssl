@@ -645,6 +645,7 @@ struct WOLFSSL_EVP_PKEY {
     word16 pkcs8HeaderSz;
 
     /* option bits */
+    WC_BITFIELD isPriv:1; /* key holds private material, 0 means public only */
     WC_BITFIELD ownDh:1;  /* if struct owns DH  and should free it */
     WC_BITFIELD ownEcc:1; /* if struct owns ECC and should free it */
     WC_BITFIELD ownDsa:1; /* if struct owns DSA and should free it */
