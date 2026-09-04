@@ -324,6 +324,13 @@ enum {
     KYBER_LEVEL3 = KYBER768,
     KYBER_LEVEL5 = KYBER1024,
 
+    /* Pass to wc_MlKemKey_Init to set the object up without committing to a
+     * parameter set, leaving a DER decode to take it from the algorithm OID.
+     * Deliberately not 0: a zeroed object is indistinguishable from one
+     * holding WC_ML_KEM_512, so MLKEM_FLAG_TYPE_SET is what actually
+     * separates the two. */
+    WC_ML_KEM_TYPE_UNSET = 0x20,
+
     /* Symmetric data size. */
     WC_ML_KEM_SYM_SZ            = 32,
     /* Shared secret size. */
@@ -342,6 +349,8 @@ enum {
     MLKEM_FLAG_BOTH_SET = 0x0003,
     MLKEM_FLAG_H_SET    = 0x0004,
     MLKEM_FLAG_A_SET    = 0x0008,
+    /* Set by wc_MlKemKey_Init when a parameter set was named. */
+    MLKEM_FLAG_TYPE_SET = 0x0010,
 
     /* 2 bits of random used to create noise value. */
     MLKEM_CBD_ETA2      = 2,
@@ -463,6 +472,33 @@ WOLFSSL_API int wc_MlKemKey_DecodePrivateKey(MlKemKey* key,
     const unsigned char* in, word32 len);
 WOLFSSL_API int wc_MlKemKey_DecodePublicKey(MlKemKey* key,
     const unsigned char* in, word32 len);
+
+#ifndef WOLFSSL_MLKEM_NO_ASN1
+/* DER (SubjectPublicKeyInfo / PKCS#8) encoding overhead over the raw key. */
+#define MLKEM_ASN1_PUB_OVERHEAD  32
+#define MLKEM_ASN1_PRV_OVERHEAD  40
+/* Maximum DER-encoded key sizes over the enabled parameter sets. Callers may
+ * also pass a NULL output to the *ToDer functions to get the exact length. */
+#define MLKEM_MAX_PUB_KEY_DER_SIZE \
+    (WC_ML_KEM_MAX_PUBLIC_KEY_SIZE + MLKEM_ASN1_PUB_OVERHEAD)
+#define MLKEM_MAX_PRV_KEY_DER_SIZE \
+    (WC_ML_KEM_MAX_PRIVATE_KEY_SIZE + MLKEM_ASN1_PRV_OVERHEAD)
+
+WOLFSSL_LOCAL
+int mlkem_type_from_oid_sum(int oidSum, int* type);
+#ifdef WC_ENABLE_ASYM_KEY_EXPORT
+WOLFSSL_API int wc_MlKemKey_PublicKeyToDer(MlKemKey* key, byte* output,
+    word32 len, int withAlg);
+WOLFSSL_API int wc_MlKemKey_PrivateKeyToDer(MlKemKey* key, byte* output,
+    word32 len);
+#endif /* WC_ENABLE_ASYM_KEY_EXPORT */
+#ifdef WC_ENABLE_ASYM_KEY_IMPORT
+WOLFSSL_API int wc_MlKemKey_PublicKeyDecode(MlKemKey* key, const byte* input,
+    word32 inSz, word32* inOutIdx);
+WOLFSSL_API int wc_MlKemKey_PrivateKeyDecode(MlKemKey* key, const byte* input,
+    word32 inSz, word32* inOutIdx);
+#endif /* WC_ENABLE_ASYM_KEY_IMPORT */
+#endif /* !WOLFSSL_MLKEM_NO_ASN1 */
 
 WOLFSSL_API int wc_MlKemKey_PrivateKeySize(MlKemKey* key, word32* len);
 WOLFSSL_API int wc_MlKemKey_PublicKeySize(MlKemKey* key, word32* len);
