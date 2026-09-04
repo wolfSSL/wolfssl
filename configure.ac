@@ -10557,6 +10557,11 @@ then
     then
         ENABLED_DES3="yes"
     fi
+
+    if test "x$ENABLED_MD5" = "xno"
+    then
+        ENABLED_MD5="yes"
+    fi
 fi
 
 # sblim-sfcb support
