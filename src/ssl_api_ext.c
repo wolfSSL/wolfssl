@@ -1808,7 +1808,9 @@ int wolfSSL_set1_sigalgs_list(WOLFSSL* ssl, const char* list)
     return ret;
 }
 
-#ifdef HAVE_ECC
+/* Group names include the FFDHE groups, so this is not EC-only. */
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448) || \
+    !defined(NO_DH)
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
 /* Set the supported groups list, by name, on the context.
@@ -1854,7 +1856,7 @@ int wolfSSL_set1_groups_list(WOLFSSL *ssl, const char *list)
 }
 #endif /* WOLFSSL_TLS13 */
 
-#endif /* HAVE_ECC */
+#endif /* HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448 || !NO_DH */
 
 #endif /* OPENSSL_EXTRA */
 
