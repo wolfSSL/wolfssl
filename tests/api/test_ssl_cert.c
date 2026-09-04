@@ -2135,7 +2135,14 @@ int test_wolfSSL_load_pathological_files(void)
         (void)wolfSSL_CertManagerUnloadCAs(NULL);
         wolfSSL_CertManagerFree(cm);
     }
-    (void)wolfSSL_CertManagerNew_ex(NULL);
+    {
+        /* Returns an owned CertManager; discarding it leaks
+         * (LeakSanitizer: 280 bytes from wolfSSL_CertManagerNew_ex). */
+        WOLFSSL_CERT_MANAGER* tmpCm = wolfSSL_CertManagerNew_ex(NULL);
+
+        if (tmpCm != NULL)
+            wolfSSL_CertManagerFree(tmpCm);
+    }
 
     wolfSSL_CTX_free(ctx);
     (void)remove(emptyFile);
