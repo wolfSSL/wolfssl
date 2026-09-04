@@ -6,6 +6,7 @@ test_chacha_whitebox
 test_cmac_whitebox
 test_crl_whitebox
 test_cryptocb_whitebox
+test_dtls13_role_whitebox
 test_dtls_whitebox
 test_eccsi_fault_whitebox
 test_eccsi_whitebox
