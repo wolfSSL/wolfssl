@@ -28333,8 +28333,10 @@ static int BuildCertificateStatus(WOLFSSL* ssl, byte type, buffer* status,
         XMEMCPY(output + idx, status[i].buffer, status[i].length);
         idx += status[i].length;
     }
-    /* Send Message. Handled message fragmentation in the function if needed */
-    ret = SendHandshakeMsg(ssl, output, (sendSz - headerSz), certificate_status,
+    /* Send Message. Handled message fragmentation in the function if needed.
+     * idx is the fill cursor, so idx - headerSz is the body actually written.
+     * sendSz may carry the cipher expansion slack on top of it. */
+    ret = SendHandshakeMsg(ssl, output, (idx - headerSz), certificate_status,
                 "Certificate Status");
     XFREE(output, ssl->heap, DYNAMIC_TYPE_OCSP);
 
@@ -29181,10 +29183,17 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
         }
 #if defined(WOLFSSL_DTLS)
         if (ssl->options.dtls) {
+            int mtu;
+
 #if defined(WOLFSSL_DTLS_MTU)
-            int mtu = ssl->dtlsMtuSz;
+            mtu = ssl->dtlsMtuSz;
+#elif defined(WOLFSSL_SCTP)
+            /* An SCTP association is a reliable stream, so it is bounded by
+             * the configured record size rather than by a datagram MTU. A
+             * connection that never enabled SCTP keeps the datagram bound. */
+            mtu = IsDtlsNotSctpMode(ssl) ? MAX_MTU : ssl->dtlsMtuSz;
 #else
-            int mtu = MAX_MTU;
+            mtu = MAX_MTU;
 #endif
             outputSz = wolfssl_local_GetRecordSize(ssl, (word32)buffSz, 1);
             if (outputSz > mtu) {
