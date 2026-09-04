@@ -3717,6 +3717,133 @@ int test_wc_SignCert_buffer_bounds(void)
     return EXPECT_RESULT();
 }
 
+#ifdef TEST_SIGN_CERT_BOUNDS_RSA
+/* Scan a DER certificate body for a well-formed validity time TLV of the
+ * given tag. UTCTime is "YYMMDDHHMMSSZ" (13 content bytes), GeneralizedTime
+ * is "YYYYMMDDHHMMSSZ" (15). Both are emitted by SetTime() with the Zulu
+ * profile, so the shape is exact and a match cannot be a coincidental byte
+ * pair inside a key or signature. Returns 1 when found, 0 otherwise. */
+static int test_asn_findValidityTime(const byte* der, word32 derSz, byte tag,
+    byte contentSz)
+{
+    word32 i, j;
+
+    if (der == NULL || derSz < (word32)contentSz + 2u)
+        return 0;
+
+    for (i = 0; i + 2u + contentSz <= derSz; i++) {
+        if (der[i] != tag || der[i + 1] != contentSz)
+            continue;
+        for (j = 0; j < (word32)contentSz - 1u; j++) {
+            if (der[i + 2 + j] < '0' || der[i + 2 + j] > '9')
+                break;
+        }
+        if (j == (word32)contentSz - 1u &&
+                der[i + 2 + j] == 'Z') {
+            return 1;
+        }
+    }
+    return 0;
+}
+#endif /* TEST_SIGN_CERT_BOUNDS_RSA */
+
+/*
+ * RFC 5280 4.1.2.5 splits the validity encoding at the year 2050: dates
+ * through 2049 are UTCTime, 2050 and later are GeneralizedTime. Every
+ * certificate the suite builds elsewhere keeps the wc_InitCert() default
+ * validity, so notBefore and notAfter both land inside the UTCTime window and
+ * the GeneralizedTime arm of ValidityTimeFormat() is never taken.
+ *
+ * Push notAfter alone past the split with a long daysValid. One certificate
+ * then carries both formats - a UTCTime notBefore and a GeneralizedTime
+ * notAfter - which is also the shape a parser is most likely to get wrong,
+ * since the two fields of the same SEQUENCE no longer share a tag or a
+ * length.
+ */
+int test_wc_MakeCert_generalizedTimeValidity(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_SIGN_CERT_BOUNDS_RSA
+    WC_RNG rng;
+    Cert   cert;
+    RsaKey key;
+    byte*  der = NULL;
+    word32 idx = 0;
+    int    rngInit = 0;
+    int    keyInit = 0;
+    int    derSz = 0;
+    static const byte serial[] = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+                                   0x08 };
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&cert, 0, sizeof(cert));
+    XMEMSET(&key, 0, sizeof(key));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) rngInit = 1;
+
+    ExpectIntEQ(wc_InitRsaKey_ex(&key, HEAP_HINT, testDevId), 0);
+    if (EXPECT_SUCCESS()) keyInit = 1;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(server_key_der_2048, &idx, &key,
+        sizeof_server_key_der_2048), 0);
+
+    ExpectNotNull(der = (byte*)XMALLOC(SIGN_CERT_SCRATCH_SZ, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+
+    ExpectIntEQ(wc_InitCert(&cert), 0);
+    if (EXPECT_SUCCESS()) {
+        cert.sigType = CTC_SHA256wRSA;
+        cert.isCA    = 0;
+        XMEMCPY(cert.serial, serial, sizeof(serial));
+        cert.serialSz = (int)sizeof(serial);
+        XSTRNCPY(cert.subject.country, "US", CTC_NAME_SIZE);
+        XSTRNCPY(cert.subject.state, "MT", CTC_NAME_SIZE);
+        XSTRNCPY(cert.subject.org, "wolfSSL", CTC_NAME_SIZE);
+        XSTRNCPY(cert.subject.commonName, "gentime-validity", CTC_NAME_SIZE);
+        /* ~54 years: notBefore stays in the UTCTime window, notAfter does
+         * not. Deliberately not a round century so the encoder has to carry
+         * the year across the 2050 boundary rather than sit on it. */
+        cert.daysValid = 20000;
+    }
+
+    ExpectIntGT(derSz = wc_MakeCert(&cert, der, SIGN_CERT_SCRATCH_SZ, &key,
+        NULL, &rng), 0);
+
+    /* notBefore is still a UTCTime and notAfter is now a GeneralizedTime, so
+     * both format arms ran while encoding this one certificate. */
+    ExpectIntEQ(test_asn_findValidityTime(der, (word32)((derSz > 0) ? derSz : 0),
+        ASN_UTC_TIME, 13), 1);
+    ExpectIntEQ(test_asn_findValidityTime(der, (word32)((derSz > 0) ? derSz : 0),
+        ASN_GENERALIZED_TIME, 15), 1);
+
+    /* ValidityTimeFormat() is `tm_year >= 1950 && tm_year < 2050`: the call
+     * above pairs the upper bound (>= 1950 held true, < 2050 flips false).
+     * Pair the lower bound the same way - push notAfter's year below 1950
+     * (~80 years back from "now") so `tm_year >= 1950` itself flips false.
+     * That operand is short-circuited, so the encode still lands on
+     * GeneralizedTime, just via the other half of the decision. wc_MakeCert()
+     * has no lower bound on daysValid; not asserting its return keeps a
+     * platform-dependent pre-epoch gmtime() failure from failing the whole
+     * variant. */
+    if (EXPECT_SUCCESS()) {
+        cert.daysValid = -29200;
+        derSz = wc_MakeCert(&cert, der, SIGN_CERT_SCRATCH_SZ, &key, NULL,
+            &rng);
+        if (derSz > 0) {
+            ExpectIntEQ(test_asn_findValidityTime(der, (word32)derSz,
+                ASN_GENERALIZED_TIME, 15), 1);
+        }
+    }
+
+    XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (keyInit)
+        wc_FreeRsaKey(&key);
+    if (rngInit)
+        wc_FreeRng(&rng);
+#endif /* TEST_SIGN_CERT_BOUNDS_RSA */
+    return EXPECT_RESULT();
+}
+
 /*
  * MC/DC wave 2 - decision-targeted negative paths for PKCS#8 wrap/parse
  * and RSA key decode. Targets argument-check, short-buffer, and

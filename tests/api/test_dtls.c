@@ -8154,3 +8154,1516 @@ int test_wolfSSL_set_secret(void)
     return EXPECT_RESULT();
 }
 
+
+/* ---------------------------------------------------------------------------
+ * DTLS handshakes corrupted, replayed, dropped and reordered in flight.
+ *
+ * The TLS version of this (test_tls_wire_mangle in test_ssl_hs.c) flips a bit
+ * at a fixed offset. Pointed at DTLS it measured nothing, for two reasons
+ * worth recording because both are DTLS-specific:
+ *
+ *   1. The offsets were wrong. A DTLS record header is thirteen bytes, not
+ *      five -- type, version, epoch, a six-byte sequence number, length -- and
+ *      the handshake header carries a further message sequence, fragment
+ *      offset and fragment length. Offsets picked for TLS framing land in the
+ *      middle of the sequence number and hit nothing interesting.
+ *
+ *   2. DTLS is *designed* to tolerate a corrupted record: it drops it and
+ *      waits for the retransmission. Corrupting bytes at random therefore
+ *      exercises the discard path and stops. What reaches the interesting code
+ *      -- the replay window, the retransmit pool, the fragment reassembler --
+ *      is a record that is well-formed but arrives twice, out of order, or
+ *      claiming an epoch or sequence number it should not.
+ *
+ * So this sweep targets the DTLS header fields by name, and leans on replay
+ * and reordering rather than corruption. Same fixture as the TLS version:
+ * test_memio, credentials from certs/, no socket and no second process.
+ * ------------------------------------------------------------------------- */
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD) && defined(WOLFSSL_DTLS)
+
+/* Offsets into a DTLS record, by field rather than by guess. */
+#define DW_TYPE        0
+#define DW_VERSION     1
+#define DW_EPOCH       3
+#define DW_SEQ_HI      5
+#define DW_SEQ_LO     10
+#define DW_RECLEN     11
+#define DW_HS_TYPE    13
+#define DW_HS_LEN     14
+#define DW_MSG_SEQ    17
+#define DW_FRAG_OFF   19
+#define DW_FRAG_LEN   22
+#define DW_BODY       26
+/* The extension block of a DTLS 1.3 ClientHello starts well past the fixed
+ * header: two version bytes, a 32-byte random, a session id, a cookie, the
+ * cipher suite list and the compression list come first. Flips inside the
+ * first sixty bytes never reach it, which is why the first version of this
+ * sweep left SendStatelessReplyDtls13 -- where every remaining condition in
+ * dtls.c lives -- completely untouched. */
+#define DW_EXTS      110
+
+enum dtls_wire_op {
+    DW_FLIP,        /* corrupt one named header field                     */
+    DW_REPLAY,      /* deliver the same record a second time              */
+    DW_DROP,        /* lose a record, so the peer must retransmit         */
+    DW_REORDER,     /* deliver records out of order                       */
+    DW_TRUNC,       /* claim a longer fragment than is carried            */
+    DW_OP_COUNT
+};
+
+static int test_dtls_wire_one(method_provider mc, method_provider ms,
+                              int round, int op, int off, byte mask)
+{
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    if (test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s, mc, ms)
+            != 0) {
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+        return 0;
+    }
+
+    /* Step the two endpoints by hand rather than through
+     * test_memio_do_handshake. That helper runs the client AND the server in
+     * one round, so by the time it returns the buffer has already been
+     * drained and there is nothing left in flight to corrupt -- which is why
+     * the first version of this test ran for two seconds, passed, and
+     * measured nothing. Here each half-round leaves exactly one peer's flight
+     * sitting in the buffer, and the mangle is applied to that flight before
+     * the other side is allowed to read it. */
+    for (i = 0; i < 16; i++) {
+        int isClientTurn = ((i % 2) == 0);
+        byte* buf;
+        int*  len;
+
+        if (isClientTurn)
+            (void)wolfSSL_connect(ssl_c);   /* client writes into s_buff */
+        else
+            (void)wolfSSL_accept(ssl_s);    /* server writes into c_buff */
+
+        /* the flight that was just produced, still unread by its peer */
+        buf = isClientTurn ? test_ctx.s_buff : test_ctx.c_buff;
+        len = isClientTurn ? &test_ctx.s_len : &test_ctx.c_len;
+
+        if (i != round || *len <= 0)
+            continue;
+
+        switch (op) {
+            case DW_FLIP:
+                if (*len > off)
+                    buf[off] ^= mask;
+                break;
+            case DW_REPLAY: {
+                /* The same record delivered twice is what the replay window
+                 * exists to refuse, and a conforming peer never sends it. */
+                char copy[2048];
+                int  copySz = (int)sizeof(copy);
+
+                if (test_memio_copy_message(&test_ctx, isClientTurn, copy,
+                                            &copySz, 0) == 0) {
+                    (void)test_memio_inject_message(&test_ctx, isClientTurn,
+                                                    copy, copySz);
+                }
+                break;
+            }
+            case DW_DROP:
+                /* A lost flight: the peer's retransmit timer and pool are the
+                 * code this reaches, and nothing else does. */
+                (void)test_memio_drop_message(&test_ctx, isClientTurn, 0);
+                break;
+            case DW_REORDER:
+                (void)test_memio_move_message(&test_ctx, isClientTurn, 0, 1);
+                break;
+            case DW_TRUNC:
+                /* A fragment that claims more than it carries drives the
+                 * reassembler's bounds checks. */
+                (void)test_memio_modify_message_len(&test_ctx, isClientTurn,
+                                                    0, 4096);
+                break;
+            default:
+                break;
+        }
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return 0;
+}
+
+static int test_dtls_wire_sweep(method_provider mc, method_provider ms)
+{
+    /* Named header fields, plus two body offsets. */
+    static const int offsets[] = {
+        DW_TYPE, DW_VERSION, DW_EPOCH, DW_EPOCH + 1, DW_SEQ_HI, DW_SEQ_HI + 2,
+        DW_SEQ_LO, DW_RECLEN, DW_RECLEN + 1, DW_HS_TYPE, DW_HS_LEN,
+        DW_HS_LEN + 2, DW_MSG_SEQ, DW_MSG_SEQ + 1, DW_FRAG_OFF,
+        DW_FRAG_OFF + 2, DW_FRAG_LEN, DW_FRAG_LEN + 2, DW_BODY, DW_BODY + 40,
+        DW_EXTS, DW_EXTS + 32, DW_EXTS + 90
+    };
+    static const byte masks[] = { 0x01, 0xff };
+    int round, o, m, op;
+
+    /* Deliberately narrow. This sweep is a robustness guard, not a coverage
+     * win: measured against the campaign it adds ZERO MC/DC on dtls.c and
+     * dtls13.c, three separate attempts, the union landing on exactly 16/56
+     * and 70/132 each time. An identical number is the signature of code that
+     * is never entered, not of vectors that are too weak, and the reason is
+     * that dtls.c's entire residue lives in SendStatelessReplyDtls13's
+     * extension parsing -- a corrupted DTLS record is discarded by the record
+     * layer before that parser ever sees it, which is exactly the tolerance
+     * DTLS is designed for. Reaching it needs a well-formed record carrying a
+     * deliberately malformed extension block, which means building the
+     * ClientHello rather than corrupting one. Kept at this size so it costs
+     * seconds rather than minutes until that fixture exists. */
+    for (round = 0; round < 3; round++) {
+        /* the sequence-level operations, which do not need an offset */
+        for (op = DW_REPLAY; op < (int)DW_OP_COUNT; op++)
+            (void)test_dtls_wire_one(mc, ms, round, op, 0, 0);
+
+        /* and the field-level corruption */
+        for (o = 0; o < (int)(sizeof(offsets) / sizeof(offsets[0])); o++)
+            for (m = 0; m < (int)(sizeof(masks) / sizeof(masks[0])); m++)
+                (void)test_dtls_wire_one(mc, ms, round, DW_FLIP, offsets[o],
+                                         masks[m]);
+    }
+
+    /* the clean handshake, so every decision above has its partner here */
+    return test_dtls_wire_one(mc, ms, 99, DW_FLIP, 0, 0x00);
+}
+
+#endif
+
+int test_dtls12_wire_mangle(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD) && \
+    defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA)
+    ExpectIntEQ(test_dtls_wire_sweep(wolfDTLSv1_2_client_method,
+                                     wolfDTLSv1_2_server_method), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_dtls13_wire_mangle(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD) && \
+    defined(WOLFSSL_DTLS13) && defined(WOLFSSL_TLS13) && !defined(NO_RSA)
+    ExpectIntEQ(test_dtls_wire_sweep(wolfDTLSv1_3_client_method,
+                                     wolfDTLSv1_3_server_method), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* ===========================================================================
+ * A datagram FIFO transport for DTLS, with per-packet scheduling.
+ *
+ * WHY THIS AND NOT THE BYTE-BUFFER MANGLER.
+ *
+ * test_memio is a byte stream. DTLS is not: it is datagrams, and every
+ * guardrail in the protocol is about which datagram arrives, in what order,
+ * how many times, and carrying which epoch and sequence number. Editing a
+ * byte in a shared buffer cannot express "deliver this one twice", "hold that
+ * one until after the next", "drop this flight and see if it is retransmitted"
+ * -- and a byte flipped at random is simply discarded by the record layer,
+ * which is the tolerance DTLS is built to provide. Three separate sweeps of
+ * that kind measured exactly zero on dtls.c.
+ *
+ * So this replaces the transport instead. Every datagram the stack sends is
+ * captured as a discrete packet, its record header is parsed, and a policy is
+ * consulted BEFORE it is queued: deliver it, drop it, hold it for n rounds,
+ * duplicate it, rewrite a header field, coalesce it with its neighbour. The
+ * receiving side then reads whole datagrams out of the queue, exactly as a
+ * UDP socket would deliver them.
+ *
+ * That is enough to sit in the middle of the flow and see each packet before
+ * deciding its fate, with no socket, no second process and no scheduler races.
+ *
+ * ON ENCRYPTION. The record header -- content type, version, epoch, sequence
+ * number and length -- is NOT encrypted in DTLS 1.2, and in DTLS 1.3 the
+ * initial flight is plaintext. Every guardrail targeted below (replay window,
+ * epoch handling, fragment reassembly, cookie exchange, records-per-datagram)
+ * keys off those fields, so the forgeries need no key material at all. The
+ * secret callback is wired anyway, behind HAVE_SECRET_CALLBACK, for the cases
+ * that later need to read a protected body; it is not enabled in the campaign
+ * option list, so it compiles out there.
+ * ========================================================================= */
+/* The whole forgery harness drives a real client against a real server in one
+ * process, so it needs both endpoints compiled in -- NO_WOLFSSL_CLIENT and
+ * NO_WOLFSSL_SERVER each remove one of the wolfDTLSv1_*_{client,server}_method
+ * pairs the sweeps below are called with. The two test entry points carry the
+ * same condition; keep them in step.
+ *
+ * WOLFSSL_ASYNC_CRYPT is excluded because the harness drives wolfSSL_accept and
+ * wolfSSL_connect directly and never runs an async event loop, so it cannot
+ * service a WC_PENDING_E. Measured under --enable-asynccrypt --enable-all
+ * --enable-dtls13: the DTLS 1.3 sweep takes SIGSEGV inside wolfAsync_EventInit,
+ * reached from BuildTls13Message via Dtls13SendFragment during
+ * SendTls13Certificate. Whether a plain accept on a real socket ought to
+ * survive that configuration is a library question and is reported separately;
+ * the harness has no business asserting it either way. */
+#if defined(WOLFSSL_DTLS) && !defined(NO_RSA) && !defined(NO_CERTS) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_ASYNC_CRYPT)
+
+#define DF_MAX_PKT 384
+#define DF_MAX_SZ  1600
+
+/* DTLS record header, by field. */
+#define DFH_TYPE     0
+#define DFH_VER      1
+#define DFH_EPOCH    3
+#define DFH_SEQ      5      /* 6 bytes, big endian */
+#define DFH_LEN      11     /* 2 bytes */
+#define DFH_HDR_SZ   13
+/* DTLS handshake header, inside the record */
+#define DFHS_TYPE    0
+#define DFHS_LEN     1      /* 3 bytes */
+#define DFHS_MSGSEQ  4      /* 2 bytes */
+#define DFHS_FRAGOFF 6      /* 3 bytes */
+#define DFHS_FRAGLEN 9      /* 3 bytes */
+#define DFHS_HDR_SZ  12
+
+typedef struct DfPkt {
+    byte data[DF_MAX_SZ];
+    int  len;
+    int  toServer;      /* 1: client -> server, 0: server -> client */
+    int  idx;           /* production order, per direction */
+    int  hold;          /* rounds still to withhold */
+    int  taken;         /* already handed to the receiver */
+    /* parsed, for policies that want to target a specific record */
+    byte   type;
+    word16 epoch;
+    byte   hsType;
+    word16 msgSeq;
+} DfPkt;
+
+struct DfCtx;
+typedef void (*DfPolicy)(struct DfCtx* c, DfPkt* p);
+
+typedef struct DfCtx {
+    DfPkt    q[DF_MAX_PKT];
+    int      n;
+    int      seqTo[2];      /* per-direction production counter */
+    DfPolicy policy;
+    int      target;        /* which packet of that direction to act on */
+    int      nDrop, nDup, nMod, nHold, nCoalesce;
+#ifdef HAVE_SECRET_CALLBACK
+    int      nSecrets;
+#endif
+} DfCtx;
+
+static void df_parse(DfPkt* p)
+{
+    p->type = 0; p->epoch = 0; p->hsType = 0xFF; p->msgSeq = 0;
+    if (p->len < DFH_HDR_SZ)
+        return;
+    p->type  = p->data[DFH_TYPE];
+    p->epoch = (word16)((p->data[DFH_EPOCH] << 8) | p->data[DFH_EPOCH + 1]);
+    if (p->type == handshake && p->len >= DFH_HDR_SZ + DFHS_HDR_SZ) {
+        const byte* hs = p->data + DFH_HDR_SZ;
+        p->hsType = hs[DFHS_TYPE];
+        p->msgSeq = (word16)((hs[DFHS_MSGSEQ] << 8) | hs[DFHS_MSGSEQ + 1]);
+    }
+}
+
+/* ------------------------------------------------------------ IO callbacks */
+
+static int df_send(WOLFSSL* ssl, char* buf, int sz, void* ctx)
+{
+    DfCtx* c = (DfCtx*)ctx;
+    DfPkt* p;
+    int toServer = (wolfSSL_GetSide(ssl) != WOLFSSL_SERVER_END);
+
+    if (c->n >= DF_MAX_PKT || sz <= 0 || sz > DF_MAX_SZ)
+        return sz;          /* silently absorb: a full queue is not a failure */
+
+    p = &c->q[c->n];
+    XMEMSET(p, 0, sizeof(*p));
+    XMEMCPY(p->data, buf, (size_t)sz);
+    p->len = sz;
+    p->toServer = toServer;
+    p->idx = c->seqTo[toServer]++;
+    df_parse(p);
+    c->n++;
+
+    /* The policy sees the packet in flight, with its header parsed, and may
+     * edit it, drop it, delay it or clone it before anyone receives it. */
+    if (c->policy != NULL)
+        c->policy(c, p);
+
+    return sz;
+}
+
+static int df_recv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
+{
+    DfCtx* c = (DfCtx*)ctx;
+    int wantServer = (wolfSSL_GetSide(ssl) == WOLFSSL_SERVER_END);
+    int i;
+
+    for (i = 0; i < c->n; i++) {
+        DfPkt* p = &c->q[i];
+
+        if (p->taken || p->len <= 0 || p->toServer != wantServer)
+            continue;
+        if (p->hold > 0) {
+            /* held back: a later packet may overtake it, which is the point */
+            p->hold--;
+            continue;
+        }
+        if (p->len > sz)
+            return WOLFSSL_CBIO_ERR_GENERAL;
+        XMEMCPY(buf, p->data, (size_t)p->len);
+        p->taken = 1;
+        return p->len;
+    }
+    return WOLFSSL_CBIO_ERR_WANT_READ;
+}
+
+/* ------------------------------------------------------- packet operations */
+
+static DfPkt* df_clone(DfCtx* c, const DfPkt* src)
+{
+    DfPkt* p;
+
+    if (c->n >= DF_MAX_PKT)
+        return NULL;
+    p = &c->q[c->n++];
+    XMEMCPY(p, src, sizeof(*p));
+    p->taken = 0;
+    p->hold = 0;
+    return p;
+}
+
+static void df_set_seq(DfPkt* p, word32 hi, word32 lo)
+{
+    if (p->len < DFH_HDR_SZ)
+        return;
+    p->data[DFH_SEQ + 0] = (byte)((hi >> 8) & 0xff);
+    p->data[DFH_SEQ + 1] = (byte)(hi & 0xff);
+    p->data[DFH_SEQ + 2] = (byte)((lo >> 24) & 0xff);
+    p->data[DFH_SEQ + 3] = (byte)((lo >> 16) & 0xff);
+    p->data[DFH_SEQ + 4] = (byte)((lo >> 8) & 0xff);
+    p->data[DFH_SEQ + 5] = (byte)(lo & 0xff);
+}
+
+static void df_set_epoch(DfPkt* p, word16 e)
+{
+    if (p->len < DFH_HDR_SZ)
+        return;
+    p->data[DFH_EPOCH]     = (byte)(e >> 8);
+    p->data[DFH_EPOCH + 1] = (byte)(e & 0xff);
+}
+
+static void df_set_u24(byte* at, word32 v)
+{
+    at[0] = (byte)((v >> 16) & 0xff);
+    at[1] = (byte)((v >> 8) & 0xff);
+    at[2] = (byte)(v & 0xff);
+}
+
+/* ============================ the forgeries ==============================
+ *
+ * Each one names the protocol guardrail it exists to provoke. All of them
+ * are things a conforming peer never does and a network or an attacker
+ * routinely does, which is exactly the set the handshake tests cannot reach.
+ */
+
+/* Replay window: the same datagram delivered twice. RFC 6347 4.1.2.6. */
+static void df_pol_replay(DfCtx* c, DfPkt* p)
+{
+    if (p->idx == c->target && df_clone(c, p) != NULL)
+        c->nDup++;
+}
+
+/* Replay window, far future: a sequence number beyond the window's right
+ * edge, which must slide the window rather than be accepted blindly. */
+static void df_pol_seq_future(DfCtx* c, DfPkt* p)
+{
+    if (p->idx != c->target) return;
+    df_set_seq(p, 0, 0x000FFFFFu);
+    c->nMod++;
+}
+
+/* Replay window, far past: a sequence number below the window's left edge,
+ * which must be discarded. */
+static void df_pol_seq_past(DfCtx* c, DfPkt* p)
+{
+    if (p->idx != c->target) return;
+    df_set_seq(p, 0, 0);
+    c->nMod++;
+}
+
+/* Epoch handling: a record claiming an epoch whose keys do not exist. */
+static void df_pol_epoch_future(DfCtx* c, DfPkt* p)
+{
+    if (p->idx != c->target) return;
+    df_set_epoch(p, (word16)(p->epoch + 3));
+    c->nMod++;
+}
+
+/* Epoch handling: a record claiming epoch 0 -- i.e. unprotected -- after the
+ * epoch has advanced. This is the plaintext-injection case. */
+static void df_pol_epoch_zero(DfCtx* c, DfPkt* p)
+{
+    if (p->idx != c->target) return;
+    df_set_epoch(p, 0);
+    c->nMod++;
+}
+
+/* Loss: the flight never arrives, so the peer must retransmit it. */
+static void df_pol_drop(DfCtx* c, DfPkt* p)
+{
+    if (p->idx != c->target) return;
+    p->len = 0;
+    c->nDrop++;
+}
+
+/* Reordering: hold this datagram so the next one overtakes it. */
+static void df_pol_reorder(DfCtx* c, DfPkt* p)
+{
+    if (p->idx != c->target) return;
+    p->hold = 2;
+    c->nHold++;
+}
+
+/* Fragment reassembly: a fragment offset past the end of the message. */
+static void df_pol_frag_beyond(DfCtx* c, DfPkt* p)
+{
+    byte* hs;
+
+    if (p->idx != c->target || p->type != handshake) return;
+    if (p->len < DFH_HDR_SZ + DFHS_HDR_SZ) return;
+    hs = p->data + DFH_HDR_SZ;
+    df_set_u24(hs + DFHS_FRAGOFF, 0x00FFFFu);
+    c->nMod++;
+}
+
+/* Fragment reassembly: a fragment longer than the message it belongs to. */
+static void df_pol_frag_over(DfCtx* c, DfPkt* p)
+{
+    byte* hs;
+
+    if (p->idx != c->target || p->type != handshake) return;
+    if (p->len < DFH_HDR_SZ + DFHS_HDR_SZ) return;
+    hs = p->data + DFH_HDR_SZ;
+    df_set_u24(hs + DFHS_FRAGLEN, 0x00FFFFu);
+    c->nMod++;
+}
+
+/* Fragment reassembly: two fragments that overlap, claiming the same bytes
+ * of the message with different content. */
+static void df_pol_frag_overlap(DfCtx* c, DfPkt* p)
+{
+    DfPkt* dup;
+    byte* hs;
+
+    if (p->idx != c->target || p->type != handshake) return;
+    if (p->len < DFH_HDR_SZ + DFHS_HDR_SZ + 8) return;
+
+    dup = df_clone(c, p);
+    if (dup == NULL) return;
+    hs = dup->data + DFH_HDR_SZ;
+    /* same offset, shorter length, different body */
+    df_set_u24(hs + DFHS_FRAGLEN, 4);
+    dup->data[DFH_HDR_SZ + DFHS_HDR_SZ] ^= 0xff;
+    c->nDup++;
+}
+
+/* Handshake ordering: a message sequence number from the future, which the
+ * receiver must buffer rather than process. */
+static void df_pol_msgseq_jump(DfCtx* c, DfPkt* p)
+{
+    byte* hs;
+
+    if (p->idx != c->target || p->type != handshake) return;
+    if (p->len < DFH_HDR_SZ + DFHS_HDR_SZ) return;
+    hs = p->data + DFH_HDR_SZ;
+    hs[DFHS_MSGSEQ]     = (byte)((p->msgSeq + 7) >> 8);
+    hs[DFHS_MSGSEQ + 1] = (byte)((p->msgSeq + 7) & 0xff);
+    c->nMod++;
+}
+
+/* Handshake ordering: a message sequence already processed. */
+static void df_pol_msgseq_back(DfCtx* c, DfPkt* p)
+{
+    byte* hs;
+
+    if (p->idx != c->target || p->type != handshake) return;
+    if (p->len < DFH_HDR_SZ + DFHS_HDR_SZ) return;
+    hs = p->data + DFH_HDR_SZ;
+    hs[DFHS_MSGSEQ] = 0;
+    hs[DFHS_MSGSEQ + 1] = 0;
+    c->nMod++;
+}
+
+/* Record framing: a length field longer than the datagram carries. */
+static void df_pol_reclen_long(DfCtx* c, DfPkt* p)
+{
+    if (p->idx != c->target || p->len < DFH_HDR_SZ) return;
+    p->data[DFH_LEN]     = 0x0f;
+    p->data[DFH_LEN + 1] = 0xff;
+    c->nMod++;
+}
+
+/* Record framing: a length field shorter than the datagram carries, leaving
+ * a trailing stub the receiver must treat as a second record. */
+static void df_pol_reclen_short(DfCtx* c, DfPkt* p)
+{
+    if (p->idx != c->target || p->len < DFH_HDR_SZ + 4) return;
+    p->data[DFH_LEN]     = 0;
+    p->data[DFH_LEN + 1] = 2;
+    c->nMod++;
+}
+
+/* Content type confusion: handshake bytes announced as application data,
+ * alert or ack. */
+static void df_pol_type_swap(DfCtx* c, DfPkt* p)
+{
+    static const byte types[3] = { application_data, alert, change_cipher_spec };
+
+    if (p->idx != c->target || p->len < DFH_HDR_SZ) return;
+    p->data[DFH_TYPE] = types[p->idx % 3];
+    c->nMod++;
+}
+
+/* Datagram packing: two records in one datagram, which DTLS permits and the
+ * single-record path must therefore handle. */
+static void df_pol_coalesce(DfCtx* c, DfPkt* p)
+{
+    DfPkt* prev;
+    int i;
+
+    if (p->idx != c->target || c->n < 2) return;
+    for (i = c->n - 2; i >= 0; i--) {
+        prev = &c->q[i];
+        if (prev->toServer != p->toServer || prev->len <= 0 || prev->taken)
+            continue;
+        if (prev->len + p->len > DF_MAX_SZ)
+            return;
+        XMEMCPY(prev->data + prev->len, p->data, (size_t)p->len);
+        prev->len += p->len;
+        p->len = 0;             /* it now travels inside its predecessor */
+        c->nCoalesce++;
+        return;
+    }
+}
+
+/* Truncation: the datagram is cut in half in flight. */
+static void df_pol_truncate(DfCtx* c, DfPkt* p)
+{
+    if (p->idx != c->target || p->len < 8) return;
+    p->len /= 2;
+    c->nMod++;
+}
+
+#ifdef HAVE_SECRET_CALLBACK
+/* Wired so a later forgery can read a protected record. Every forgery above
+ * works on the plaintext record header and needs none of this. */
+/* Must match TlsSecretCb exactly:
+ *     int (*)(WOLFSSL* ssl, void* secret, int secretSz, void* ctx)
+ * an earlier version added an `id` parameter and a const qualifier that the
+ * typedef does not have, which -Werror=incompatible-pointer-types rejects. */
+static int df_secret_cb(WOLFSSL* ssl, void* secret, int secretSz, void* ctx)
+{
+    DfCtx* c = (DfCtx*)ctx;
+
+    (void)ssl; (void)secret; (void)secretSz;
+    if (c != NULL)
+        c->nSecrets++;
+    return 0;
+}
+#endif
+
+
+/* Body corruption with the framing left intact.
+ *
+ * The header forgeries above cannot reach SendStatelessReplyDtls13, where
+ * every remaining condition in dtls.c lives: that code parses the
+ * ClientHello's EXTENSIONS, and a record whose header has been tampered with
+ * is discarded by the record layer long before the extension parser runs.
+ *
+ * These policies therefore leave type, epoch, sequence and length untouched
+ * and corrupt only the message body, at depths that land in the extension
+ * block -- past the two version bytes, the 32-byte random, the session id,
+ * the cookie, the cipher suite list and the compression list. The datagram
+ * stays well-formed, so it is accepted, parsed, and rejected on its contents
+ * rather than its framing. That is the difference between exercising the
+ * discard path and exercising the guardrail.
+ */
+static void df_pol_body_at(DfCtx* c, DfPkt* p, int depth)
+{
+    int at = DFH_HDR_SZ + DFHS_HDR_SZ + depth;
+
+    if (p->idx != c->target || p->type != handshake) return;
+    if (p->hsType != client_hello) return;
+    if (p->len <= at) return;
+    p->data[at] ^= 0xff;
+    c->nMod++;
+}
+
+static void df_pol_body_exts(DfCtx* c, DfPkt* p)   { df_pol_body_at(c, p, 80); }
+static void df_pol_body_exts2(DfCtx* c, DfPkt* p)  { df_pol_body_at(c, p, 96); }
+static void df_pol_body_exts3(DfCtx* c, DfPkt* p)  { df_pol_body_at(c, p, 120); }
+static void df_pol_body_exts4(DfCtx* c, DfPkt* p)  { df_pol_body_at(c, p, 150); }
+static void df_pol_body_exts5(DfCtx* c, DfPkt* p)  { df_pol_body_at(c, p, 190); }
+static void df_pol_body_exts6(DfCtx* c, DfPkt* p)  { df_pol_body_at(c, p, 240); }
+
+/* The cookie a DTLS 1.3 server issued in its HelloRetryRequest, corrupted in
+ * the ClientHello that echoes it back. This is the `!cookieGood` operand, and
+ * it is the whole reason the stateless path has a rejection branch: a client
+ * that echoes the cookie correctly never takes it. The cookie sits early in
+ * the extension block of the second ClientHello, so a sweep of the first
+ * hundred body bytes of CH2 covers it without having to locate it exactly. */
+static void df_pol_cookie(DfCtx* c, DfPkt* p)
+{
+    int i;
+    int base = DFH_HDR_SZ + DFHS_HDR_SZ + 40;
+
+    if (p->type != handshake || p->hsType != client_hello) return;
+    if (p->msgSeq == 0) return;         /* only the second ClientHello */
+    for (i = 0; i < 24 && p->len > base + i; i++)
+        p->data[base + i] ^= 0x5a;
+    c->nMod++;
+}
+
+
+/* ======================= ClientHello surgery ==============================
+ *
+ * The forgeries above corrupt bytes. That reaches the parsers' reject paths
+ * and stops, because a corrupted extension block fails to parse and the
+ * function returns before the decisions that matter are evaluated. The
+ * coverage export is unambiguous about it: dtls.c is 85% line covered and 20%
+ * MC/DC covered, and SendStatelessReplyDtls13 is entered on every run. Reach
+ * was never the problem. Independence pairs are.
+ *
+ * The operands that remain need a ClientHello that is WELL-FORMED but says
+ * something specific: one with no supported_versions extension at all, one
+ * whose key share names a group the server does not have, one offering only
+ * PSK_KE or only PSK_DHE_KE, one echoing a cookie that does not verify. None
+ * of those is a corrupted hello -- each is a valid hello a hostile or merely
+ * different client could legitimately send, and no conforming test peer ever
+ * does.
+ *
+ * So rather than build a hello from nothing, this takes the real one in
+ * flight and performs surgery on its extension block, fixing up every length
+ * above it -- extensions, handshake, fragment, record -- so the result parses
+ * cleanly and is rejected on its meaning rather than its framing.
+ * ========================================================================= */
+
+#define DFX_PRE_SHARED_KEY     41
+#define DFX_SUPPORTED_VERSIONS 43
+#define DFX_COOKIE             44
+#define DFX_PSK_MODES          45
+#define DFX_KEY_SHARE          51
+
+/* Walk the ClientHello to its extension block. Returns the offset of the
+ * first extension and sets *extsLen, or -1 if this is not a hello we can
+ * parse -- a fragment, or one whose fields do not add up. */
+static int df_ch_exts(const DfPkt* p, int* extsLen, int* extsLenAt)
+{
+    int o = DFH_HDR_SZ + DFHS_HDR_SZ;
+    int end = p->len;
+    int n;
+
+    if (p->type != handshake || p->hsType != client_hello)
+        return -1;
+    if (o + 2 + RAN_LEN + 1 > end)
+        return -1;
+    o += 2 + RAN_LEN;                       /* legacy_version + random */
+    n = p->data[o]; o += 1 + n;             /* legacy_session_id */
+    if (o + 1 > end) return -1;
+    n = p->data[o]; o += 1 + n;             /* DTLS cookie field */
+    if (o + 2 > end) return -1;
+    n = (p->data[o] << 8) | p->data[o + 1];
+    o += 2 + n;                             /* cipher_suites */
+    if (o + 1 > end) return -1;
+    n = p->data[o]; o += 1 + n;             /* compression_methods */
+    if (o + 2 > end) return -1;
+    *extsLen   = (p->data[o] << 8) | p->data[o + 1];
+    *extsLenAt = o;
+    o += 2;
+    if (o + *extsLen > end) return -1;
+    return o;
+}
+
+/* Find one extension by type. Returns its header offset, or -1. */
+static int df_ch_find_ext(const DfPkt* p, word16 want, int* bodyAt, int* bodyLen)
+{
+    int extsLen = 0, extsLenAt = 0;
+    int o = df_ch_exts(p, &extsLen, &extsLenAt);
+    int end;
+
+    if (o < 0) return -1;
+    end = o + extsLen;
+    while (o + 4 <= end) {
+        word16 t  = (word16)((p->data[o] << 8) | p->data[o + 1]);
+        int    ln = (p->data[o + 2] << 8) | p->data[o + 3];
+
+        if (o + 4 + ln > end) return -1;
+        if (t == want) {
+            *bodyAt = o + 4;
+            *bodyLen = ln;
+            return o;
+        }
+        o += 4 + ln;
+    }
+    return -1;
+}
+
+/* Every length above the extension block, adjusted together. Getting one of
+ * these wrong turns a semantic test back into a framing test. */
+static void df_ch_adjust(DfPkt* p, int extsLenAt, int delta)
+{
+    byte*  hs = p->data + DFH_HDR_SZ;
+    word16 rl = (word16)((p->data[DFH_LEN] << 8) | p->data[DFH_LEN + 1]);
+    word32 hl = ((word32)hs[DFHS_LEN] << 16) | ((word32)hs[DFHS_LEN + 1] << 8) |
+                hs[DFHS_LEN + 2];
+    word32 fl = ((word32)hs[DFHS_FRAGLEN] << 16) |
+                ((word32)hs[DFHS_FRAGLEN + 1] << 8) | hs[DFHS_FRAGLEN + 2];
+    int    el = (p->data[extsLenAt] << 8) | p->data[extsLenAt + 1];
+
+    rl = (word16)(rl + delta);
+    hl = (word32)((int)hl + delta);
+    fl = (word32)((int)fl + delta);
+    el = el + delta;
+
+    p->data[DFH_LEN]     = (byte)(rl >> 8);
+    p->data[DFH_LEN + 1] = (byte)(rl & 0xff);
+    df_set_u24(hs + DFHS_LEN, hl);
+    df_set_u24(hs + DFHS_FRAGLEN, fl);
+    p->data[extsLenAt]     = (byte)(el >> 8);
+    p->data[extsLenAt + 1] = (byte)(el & 0xff);
+}
+
+/* Remove an extension entirely, leaving a hello that is structurally perfect
+ * and simply does not offer that thing. */
+static int df_ch_drop_ext(DfCtx* c, DfPkt* p, word16 type)
+{
+    int extsLen = 0, extsLenAt = 0, bodyAt = 0, bodyLen = 0;
+    int at, total;
+
+    if (df_ch_exts(p, &extsLen, &extsLenAt) < 0) return 0;
+    at = df_ch_find_ext(p, type, &bodyAt, &bodyLen);
+    if (at < 0) return 0;
+
+    total = 4 + bodyLen;
+    XMEMMOVE(p->data + at, p->data + at + total,
+             (size_t)(p->len - at - total));
+    p->len -= total;
+    df_ch_adjust(p, extsLenAt, -total);
+    c->nMod++;
+    return 1;
+}
+
+/* Rewrite bytes inside one extension without changing any length. */
+static int df_ch_poke_ext(DfCtx* c, DfPkt* p, word16 type, int off, byte val,
+                          int xorNotSet)
+{
+    int bodyAt = 0, bodyLen = 0;
+
+    if (df_ch_find_ext(p, type, &bodyAt, &bodyLen) < 0) return 0;
+    if (off >= bodyLen) return 0;
+    if (xorNotSet)
+        p->data[bodyAt + off] ^= val;
+    else
+        p->data[bodyAt + off] = val;
+    c->nMod++;
+    return 1;
+}
+
+/* --- the semantically specific hellos ----------------------------------- */
+
+/* No supported_versions at all: `!tlsxFound || tlsxSupportedVersions.elements
+ * == NULL`. A DTLS 1.3 client always sends it, so this operand has no false
+ * case from any conforming peer. */
+static void df_pol_ch_no_supported_versions(DfCtx* c, DfPkt* p)
+{
+    /* every ClientHello, not just one: the cookie and PSK operands live in
+     * the SECOND hello, which a target index tuned to the first never sees. */
+    (void)c->target;
+    (void)df_ch_drop_ext(c, p, DFX_SUPPORTED_VERSIONS);
+}
+
+/* No key share: `cs.clientKSE == NULL && searched`. */
+static void df_pol_ch_no_key_share(DfCtx* c, DfPkt* p)
+{
+    /* every ClientHello, not just one: the cookie and PSK operands live in
+     * the SECOND hello, which a target index tuned to the first never sees. */
+    (void)c->target;
+    (void)df_ch_drop_ext(c, p, DFX_KEY_SHARE);
+}
+
+/* A key share for a group the server does not have. The first two bytes of
+ * the key_share body are the list length, then each entry starts with its
+ * group id -- so offsets 2 and 3 are the named group. */
+static void df_pol_ch_bad_group(DfCtx* c, DfPkt* p)
+{
+    /* every ClientHello, not just one: the cookie and PSK operands live in
+     * the SECOND hello, which a target index tuned to the first never sees. */
+    (void)c->target;
+    if (df_ch_poke_ext(c, p, DFX_KEY_SHARE, 2, 0xEE, 0))
+        (void)df_ch_poke_ext(c, p, DFX_KEY_SHARE, 3, 0xEE, 0);
+}
+
+/* No PSK modes offered at all. */
+static void df_pol_ch_no_psk_modes(DfCtx* c, DfPkt* p)
+{
+    /* every ClientHello, not just one: the cookie and PSK operands live in
+     * the SECOND hello, which a target index tuned to the first never sees. */
+    (void)c->target;
+    (void)df_ch_drop_ext(c, p, DFX_PSK_MODES);
+}
+
+/* psk_key_exchange_modes body is a one-byte list length then the modes.
+ * Forcing it to PSK_KE only, and to PSK_DHE_KE only, gives the two operands
+ * of `(modes & (1 << PSK_DHE_KE))` and `(modes & (1 << PSK_KE)) == 0` their
+ * pairs -- a build offers one fixed set, so neither has one otherwise. */
+static void df_pol_ch_psk_ke_only(DfCtx* c, DfPkt* p)
+{
+    /* every ClientHello, not just one: the cookie and PSK operands live in
+     * the SECOND hello, which a target index tuned to the first never sees. */
+    (void)c->target;
+    (void)df_ch_poke_ext(c, p, DFX_PSK_MODES, 1, 0 /* PSK_KE */, 0);
+}
+
+static void df_pol_ch_psk_dhe_only(DfCtx* c, DfPkt* p)
+{
+    /* every ClientHello, not just one: the cookie and PSK operands live in
+     * the SECOND hello, which a target index tuned to the first never sees. */
+    (void)c->target;
+    (void)df_ch_poke_ext(c, p, DFX_PSK_MODES, 1, 1 /* PSK_DHE_KE */, 0);
+}
+
+/* A cookie that will not verify: `!cookieGood`. The cookie extension is
+ * present only in the second ClientHello, which is why this is the operand a
+ * single-flight test can never pair. */
+static void df_pol_ch_bad_cookie(DfCtx* c, DfPkt* p)
+{
+    int bodyAt = 0, bodyLen = 0;
+
+    if (df_ch_find_ext(p, DFX_COOKIE, &bodyAt, &bodyLen) < 0) return;
+    (void)df_ch_poke_ext(c, p, DFX_COOKIE, bodyLen / 2, 0x5a, 1);
+}
+
+/* The extension block claiming more bytes than the hello carries:
+ * `idx > exts.size`. */
+static void df_pol_ch_exts_overrun(DfCtx* c, DfPkt* p)
+{
+    int extsLen = 0, extsLenAt = 0;
+
+    if (p->idx != c->target) return;
+    if (df_ch_exts(p, &extsLen, &extsLenAt) < 0) return;
+    p->data[extsLenAt]     = (byte)((extsLen + 64) >> 8);
+    p->data[extsLenAt + 1] = (byte)((extsLen + 64) & 0xff);
+    c->nMod++;
+}
+
+/* And the drop of pre_shared_key while leaving its modes, which is the
+ * inconsistent-hello case: `usePSK && pskInfo.isValid`. */
+static void df_pol_ch_no_psk(DfCtx* c, DfPkt* p)
+{
+    /* every ClientHello, not just one: the cookie and PSK operands live in
+     * the SECOND hello, which a target index tuned to the first never sees. */
+    (void)c->target;
+    (void)df_ch_drop_ext(c, p, DFX_PRE_SHARED_KEY);
+}
+
+
+/* ================= the ClientHello factory ================================
+ *
+ * The named hellos above are known-answer cases: each says one specific
+ * wrong thing. That is not the same as testing the parser's limits, which is
+ * where the rest of the residue lives -- an extension block that declares a
+ * length off by one, a duplicated extension, a zero-length body, forty
+ * unknown extensions, a session id claiming 33 bytes when the field allows
+ * 32, a cipher suite list whose length is not a multiple of two.
+ *
+ * These are generated rather than enumerated: one policy, one mutation id,
+ * driven from a loop. Each mutation keeps the datagram a datagram -- the
+ * record still frames the handshake, the handshake still frames the hello --
+ * and breaks exactly one invariant inside it, so the parser reaches the check
+ * that invariant belongs to instead of bailing at the door.
+ * ========================================================================= */
+
+/* Offsets of every length field in a ClientHello, so a mutation can poke one
+ * without walking the message again. */
+typedef struct DfChMap {
+    int sidLenAt;
+    int cookieLenAt;
+    int suitesLenAt;
+    int compLenAt;
+    int extsLenAt;
+    int extsAt;
+    int extsLen;
+} DfChMap;
+
+static int df_ch_map(const DfPkt* p, DfChMap* m)
+{
+    int o = DFH_HDR_SZ + DFHS_HDR_SZ;
+    int end = p->len;
+    int n;
+
+    if (p->type != handshake || p->hsType != client_hello) return -1;
+    if (o + 2 + RAN_LEN + 1 > end) return -1;
+    o += 2 + RAN_LEN;
+    m->sidLenAt = o;    n = p->data[o]; o += 1 + n;
+    if (o + 1 > end) return -1;
+    m->cookieLenAt = o; n = p->data[o]; o += 1 + n;
+    if (o + 2 > end) return -1;
+    m->suitesLenAt = o;
+    n = (p->data[o] << 8) | p->data[o + 1]; o += 2 + n;
+    if (o + 1 > end) return -1;
+    m->compLenAt = o;   n = p->data[o]; o += 1 + n;
+    if (o + 2 > end) return -1;
+    m->extsLenAt = o;
+    m->extsLen = (p->data[o] << 8) | p->data[o + 1];
+    m->extsAt = o + 2;
+    if (m->extsAt + m->extsLen > end) return -1;
+    return 0;
+}
+
+/* Append an extension of the given type and body size at the end of the
+ * block, adjusting every length above it. Used both to add one unknown
+ * extension and to add enough of them to strain the parser's limits. */
+static int df_ch_append_ext(DfCtx* c, DfPkt* p, word16 type, int bodyLen)
+{
+    DfChMap m;
+    int at, need = 4 + bodyLen;
+
+    if (df_ch_map(p, &m) != 0) return 0;
+    at = m.extsAt + m.extsLen;
+    if (p->len + need > DF_MAX_SZ) return 0;
+    if (at > p->len) return 0;
+
+    XMEMMOVE(p->data + at + need, p->data + at, (size_t)(p->len - at));
+    p->data[at]     = (byte)(type >> 8);
+    p->data[at + 1] = (byte)(type & 0xff);
+    p->data[at + 2] = (byte)(bodyLen >> 8);
+    p->data[at + 3] = (byte)(bodyLen & 0xff);
+    XMEMSET(p->data + at + 4, 0xA5, (size_t)bodyLen);
+    p->len += need;
+    df_ch_adjust(p, m.extsLenAt, need);
+    c->nMod++;
+    return 1;
+}
+
+/* Duplicate an extension in place: the same type twice in one hello, which a
+ * conforming client never sends and the parser must refuse. */
+static int df_ch_dup_ext(DfCtx* c, DfPkt* p, word16 type)
+{
+    DfChMap m;
+    int at, bodyAt = 0, bodyLen = 0, total;
+
+    if (df_ch_map(p, &m) != 0) return 0;
+    at = df_ch_find_ext(p, type, &bodyAt, &bodyLen);
+    if (at < 0) return 0;
+    total = 4 + bodyLen;
+    if (p->len + total > DF_MAX_SZ) return 0;
+
+    XMEMMOVE(p->data + at + total, p->data + at, (size_t)(p->len - at));
+    p->len += total;
+    df_ch_adjust(p, m.extsLenAt, total);
+    c->nMod++;
+    return 1;
+}
+
+enum {
+    DFM_EXT_LEN_PLUS1 = 0,   /* extension block one byte too long          */
+    DFM_EXT_LEN_MINUS1,      /* one byte too short                         */
+    DFM_EXT_LEN_ZERO,        /* declares no extensions, carries some       */
+    DFM_EXT_ONE_UNKNOWN,     /* a type nobody implements                   */
+    DFM_EXT_EIGHT_UNKNOWN,
+    DFM_EXT_FORTY_UNKNOWN,   /* strain the extension count                 */
+    DFM_EXT_HUGE_UNKNOWN,    /* one extension with a very large body       */
+    DFM_EXT_EMPTY_BODY,      /* a known extension with a zero-length body  */
+    DFM_DUP_SUPPORTED_VER,   /* the same extension twice                   */
+    DFM_DUP_KEY_SHARE,
+    DFM_DUP_COOKIE,
+    DFM_SID_LEN_33,          /* session id longer than the field allows    */
+    DFM_SID_LEN_ZERO,
+    DFM_SID_LEN_MAX,
+    DFM_COOKIE_LEN_ZERO,
+    DFM_COOKIE_LEN_MAX,
+    DFM_SUITES_LEN_ODD,      /* not a whole number of cipher suites        */
+    DFM_SUITES_LEN_ZERO,
+    DFM_SUITES_LEN_HUGE,
+    DFM_COMP_LEN_ZERO,       /* no compression method offered at all       */
+    DFM_COMP_LEN_HUGE,
+    DFM_VERSION_ZERO,        /* legacy_version at both extremes            */
+    DFM_VERSION_MAX,
+    DFM_COUNT
+};
+
+static void df_pol_ch_factory(DfCtx* c, DfPkt* p)
+{
+    DfChMap m;
+    int i;
+
+    if (df_ch_map(p, &m) != 0)
+        return;
+
+    switch (c->target) {
+        case DFM_EXT_LEN_PLUS1:
+            p->data[m.extsLenAt + 1] = (byte)((m.extsLen + 1) & 0xff);
+            p->data[m.extsLenAt]     = (byte)((m.extsLen + 1) >> 8);
+            break;
+        case DFM_EXT_LEN_MINUS1:
+            if (m.extsLen > 0) {
+                p->data[m.extsLenAt + 1] = (byte)((m.extsLen - 1) & 0xff);
+                p->data[m.extsLenAt]     = (byte)((m.extsLen - 1) >> 8);
+            }
+            break;
+        case DFM_EXT_LEN_ZERO:
+            p->data[m.extsLenAt] = 0;
+            p->data[m.extsLenAt + 1] = 0;
+            break;
+        case DFM_EXT_ONE_UNKNOWN:
+            (void)df_ch_append_ext(c, p, 0x9A9A, 4);
+            break;
+        case DFM_EXT_EIGHT_UNKNOWN:
+            for (i = 0; i < 8; i++)
+                (void)df_ch_append_ext(c, p, (word16)(0x9A00 + i), 2);
+            break;
+        case DFM_EXT_FORTY_UNKNOWN:
+            for (i = 0; i < 40; i++)
+                (void)df_ch_append_ext(c, p, (word16)(0x9B00 + i), 1);
+            break;
+        case DFM_EXT_HUGE_UNKNOWN:
+            (void)df_ch_append_ext(c, p, 0x9C9C, 900);
+            break;
+        case DFM_EXT_EMPTY_BODY: {
+            int bodyAt = 0, bodyLen = 0;
+            int at = df_ch_find_ext(p, DFX_SUPPORTED_VERSIONS, &bodyAt,
+                                    &bodyLen);
+            if (at >= 0 && bodyLen > 0) {
+                XMEMMOVE(p->data + bodyAt, p->data + bodyAt + bodyLen,
+                         (size_t)(p->len - bodyAt - bodyLen));
+                p->len -= bodyLen;
+                p->data[at + 2] = 0;
+                p->data[at + 3] = 0;
+                df_ch_adjust(p, m.extsLenAt, -bodyLen);
+            }
+            break;
+        }
+        case DFM_DUP_SUPPORTED_VER:
+            (void)df_ch_dup_ext(c, p, DFX_SUPPORTED_VERSIONS); break;
+        case DFM_DUP_KEY_SHARE:
+            (void)df_ch_dup_ext(c, p, DFX_KEY_SHARE); break;
+        case DFM_DUP_COOKIE:
+            (void)df_ch_dup_ext(c, p, DFX_COOKIE); break;
+
+        /* Sub-length fields poked without moving bytes: the message stays the
+         * size it claims at the record layer, and the inconsistency is inside,
+         * which is where the bounds checks are. */
+        case DFM_SID_LEN_33:     p->data[m.sidLenAt] = 33; break;
+        case DFM_SID_LEN_ZERO:   p->data[m.sidLenAt] = 0; break;
+        case DFM_SID_LEN_MAX:    p->data[m.sidLenAt] = 0xff; break;
+        case DFM_COOKIE_LEN_ZERO: p->data[m.cookieLenAt] = 0; break;
+        case DFM_COOKIE_LEN_MAX:  p->data[m.cookieLenAt] = 0xff; break;
+        case DFM_SUITES_LEN_ODD:
+            p->data[m.suitesLenAt + 1] =
+                (byte)(p->data[m.suitesLenAt + 1] ^ 1);
+            break;
+        case DFM_SUITES_LEN_ZERO:
+            p->data[m.suitesLenAt] = 0; p->data[m.suitesLenAt + 1] = 0; break;
+        case DFM_SUITES_LEN_HUGE:
+            p->data[m.suitesLenAt] = 0x0f; p->data[m.suitesLenAt + 1] = 0xff;
+            break;
+        case DFM_COMP_LEN_ZERO:  p->data[m.compLenAt] = 0; break;
+        case DFM_COMP_LEN_HUGE:  p->data[m.compLenAt] = 0xff; break;
+        case DFM_VERSION_ZERO:
+            p->data[DFH_HDR_SZ + DFHS_HDR_SZ] = 0;
+            p->data[DFH_HDR_SZ + DFHS_HDR_SZ + 1] = 0;
+            break;
+        case DFM_VERSION_MAX:
+            p->data[DFH_HDR_SZ + DFHS_HDR_SZ] = 0xff;
+            p->data[DFH_HDR_SZ + DFHS_HDR_SZ + 1] = 0xff;
+            break;
+        default: return;
+    }
+    c->nMod++;
+}
+
+/* ------------------------------------------------------------- the harness */
+
+static int df_run_ex(method_provider mc, method_provider ms,
+                     DfPolicy policy, int target, int resume, int mtu,
+                     int useCid)
+{
+    DfCtx* c = NULL;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    int i;
+    int ret = -1;
+
+    c = (DfCtx*)XMALLOC(sizeof(DfCtx), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (c == NULL)
+        return -1;
+    XMEMSET(c, 0, sizeof(*c));
+    c->policy = policy;
+    c->target = target;
+
+    ctx_c = wolfSSL_CTX_new(mc());
+    ctx_s = wolfSSL_CTX_new(ms());
+    if (ctx_c == NULL || ctx_s == NULL)
+        goto out;
+
+    wolfSSL_CTX_set_verify(ctx_c, WOLFSSL_VERIFY_NONE, NULL);
+    if (wolfSSL_CTX_load_verify_locations(ctx_c, caCertFile, NULL)
+            != WOLFSSL_SUCCESS)
+        goto out;
+    if (wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile,
+            WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS)
+        goto out;
+    if (wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile,
+            WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS)
+        goto out;
+
+    wolfSSL_CTX_SetIOSend(ctx_c, df_send);
+    wolfSSL_CTX_SetIORecv(ctx_c, df_recv);
+    wolfSSL_CTX_SetIOSend(ctx_s, df_send);
+    wolfSSL_CTX_SetIORecv(ctx_s, df_recv);
+
+    ssl_c = wolfSSL_new(ctx_c);
+    ssl_s = wolfSSL_new(ctx_s);
+    if (ssl_c == NULL || ssl_s == NULL)
+        goto out;
+
+#ifdef HAVE_SESSION_TICKET
+    /* A first, clean handshake purely to obtain a session, then a second one
+     * that resumes it. Only a resuming ClientHello carries pre_shared_key and
+     * psk_key_exchange_modes, so without this pass the PSK operands in
+     * SendStatelessReplyDtls13 have no vector at all -- the extensions the
+     * decisions read are simply not in the message. */
+    if (resume) {
+        WOLFSSL* w_c = wolfSSL_new(ctx_c);
+        WOLFSSL* w_s = wolfSSL_new(ctx_s);
+        DfCtx* warm = (DfCtx*)XMALLOC(sizeof(DfCtx), NULL,
+                                      DYNAMIC_TYPE_TMP_BUFFER);
+
+        if (w_c != NULL && w_s != NULL && warm != NULL) {
+            int k;
+
+            XMEMSET(warm, 0, sizeof(*warm));
+            wolfSSL_SetIOWriteCtx(w_c, warm); wolfSSL_SetIOReadCtx(w_c, warm);
+            wolfSSL_SetIOWriteCtx(w_s, warm); wolfSSL_SetIOReadCtx(w_s, warm);
+            for (k = 0; k < 40; k++) {
+                (void)wolfSSL_connect(w_c);
+                (void)wolfSSL_accept(w_s);
+                if (wolfSSL_is_init_finished(w_c) &&
+                        wolfSSL_is_init_finished(w_s))
+                    break;
+                (void)wolfSSL_dtls_got_timeout(w_c);
+                (void)wolfSSL_dtls_got_timeout(w_s);
+            }
+            if (wolfSSL_is_init_finished(w_c)) {
+                WOLFSSL_SESSION* sess = wolfSSL_get1_session(w_c);
+                if (sess != NULL) {
+                    (void)wolfSSL_set_session(ssl_c, sess);
+                    wolfSSL_SESSION_free(sess);
+                }
+            }
+        }
+        wolfSSL_free(w_c);
+        wolfSSL_free(w_s);
+        XFREE(warm, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#else
+    (void)resume;
+#endif
+
+#ifdef WOLFSSL_DTLS_CID
+    /* Connection ID must be NEGOTIATED, not merely compiled in. Nineteen of
+     * the conditions left in dtls.c are in the CID functions --
+     * TLSX_ConnectionID_Parse, DtlsCidGet, DtlsCidGet0, DtlsCIDCheck,
+     * DtlsCidReplaceTx -- and none of them is entered unless both endpoints
+     * ask for a CID. No amount of packet forgery substitutes for turning the
+     * feature on: this is configuration, not payload. */
+    if (useCid) {
+        static const byte cidC[] = { 0xC1, 0xC2, 0xC3, 0xC4 };
+        static const byte cidS[] = { 0x51, 0x52, 0x53, 0x54, 0x55, 0x56 };
+
+        (void)wolfSSL_dtls_cid_use(ssl_c);
+        (void)wolfSSL_dtls_cid_use(ssl_s);
+        (void)wolfSSL_dtls_cid_set(ssl_c, (byte*)cidC, (word32)sizeof(cidC));
+        (void)wolfSSL_dtls_cid_set(ssl_s, (byte*)cidS, (word32)sizeof(cidS));
+    }
+#else
+    (void)useCid;
+#endif
+/* Needs BOTH: CH fragmentation to make the oversized hello interesting, and
+ * the MTU setter to exist at all. wolfSSL_dtls_set_mtu is declared under
+ * (WOLFSSL_SCTP || WOLFSSL_DTLS_MTU) && WOLFSSL_DTLS -- guarding only on
+ * WOLFSSL_DTLS_CH_FRAG left it undeclared in configs that fragment but have
+ * neither MTU macro. */
+#if defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_DTLS) && \
+    (defined(WOLFSSL_SCTP) || defined(WOLFSSL_DTLS_MTU))
+    /* A ClientHello larger than the MTU is fragmented by the stack itself,
+     * which is the only way to reach `isFirstCHFrag && extStart < helloSz`.
+     * Editing bytes cannot produce it: the fragmentation has to be real. */
+    if (mtu > 0) {
+        (void)wolfSSL_dtls_set_mtu(ssl_c, (word16)mtu);
+        (void)wolfSSL_dtls_set_mtu(ssl_s, (word16)mtu);
+    }
+#else
+    (void)mtu;
+#endif
+    wolfSSL_SetIOWriteCtx(ssl_c, c);
+    wolfSSL_SetIOReadCtx(ssl_c, c);
+    wolfSSL_SetIOWriteCtx(ssl_s, c);
+    wolfSSL_SetIOReadCtx(ssl_s, c);
+#ifdef HAVE_SECRET_CALLBACK
+    (void)wolfSSL_set_secret_cb(ssl_c, df_secret_cb, c);
+    (void)wolfSSL_set_secret_cb(ssl_s, df_secret_cb, c);
+#endif
+
+    /* Each side gets many turns: a dropped or held flight has to be given
+     * time to be retransmitted, which is the behaviour under test. */
+    for (i = 0; i < 40; i++) {
+        (void)wolfSSL_connect(ssl_c);
+        (void)wolfSSL_accept(ssl_s);
+        if (wolfSSL_is_init_finished(ssl_c) && wolfSSL_is_init_finished(ssl_s))
+            break;
+        /* let the retransmit timers fire rather than waiting on a clock */
+        (void)wolfSSL_dtls_got_timeout(ssl_c);
+        (void)wolfSSL_dtls_got_timeout(ssl_s);
+    }
+    /* Report whether the handshake actually completed, rather than whether
+     * the loop ran. An unconditional success here is how a transport that
+     * never connects still passes -- which is exactly what the first version
+     * of this harness did, in a third of a second, covering nothing. */
+    ret = (wolfSSL_is_init_finished(ssl_c) && wolfSSL_is_init_finished(ssl_s))
+          ? 0 : -1;
+
+out:
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    XFREE(c, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+
+static int df_run(method_provider mc, method_provider ms,
+                  DfPolicy policy, int target)
+{
+    return df_run_ex(mc, ms, policy, target, 0, 0, 0);
+}
+
+static int df_sweep(method_provider mc, method_provider ms)
+{
+    static const DfPolicy pols[] = {
+        df_pol_replay, df_pol_seq_future, df_pol_seq_past,
+        df_pol_epoch_future, df_pol_epoch_zero, df_pol_drop, df_pol_reorder,
+        df_pol_frag_beyond, df_pol_frag_over, df_pol_frag_overlap,
+        df_pol_msgseq_jump, df_pol_msgseq_back, df_pol_reclen_long,
+        df_pol_reclen_short, df_pol_type_swap, df_pol_coalesce,
+        df_pol_truncate,
+        df_pol_body_exts, df_pol_body_exts2, df_pol_body_exts3,
+        df_pol_body_exts4, df_pol_body_exts5, df_pol_body_exts6,
+        df_pol_cookie,
+        /* the built hellos: well-formed, and each says something specific */
+        df_pol_ch_no_supported_versions, df_pol_ch_no_key_share,
+        df_pol_ch_bad_group, df_pol_ch_no_psk_modes, df_pol_ch_psk_ke_only,
+        df_pol_ch_psk_dhe_only, df_pol_ch_bad_cookie,
+        df_pol_ch_exts_overrun, df_pol_ch_no_psk
+    };
+    size_t i;
+    int t;
+
+    /* target 0..3 selects which datagram of that direction is acted on, so
+     * each forgery is tried against the ClientHello, the server's flight, the
+     * client's second flight and the finished exchange. */
+    for (i = 0; i < sizeof(pols) / sizeof(pols[0]); i++)
+        for (t = 0; t < 4; t++)
+            (void)df_run(mc, ms, pols[i], t);
+
+    /* the same policies again over a resuming handshake, where the hello
+     * carries the PSK extensions the operands above read */
+    for (i = 0; i < sizeof(pols) / sizeof(pols[0]); i++)
+        (void)df_run_ex(mc, ms, pols[i], 0, 1, 0, 0);
+    (void)df_run_ex(mc, ms, NULL, 0, 1, 0, 0);
+
+    /* the generated hellos: one run per mutation */
+    for (t = 0; t < (int)DFM_COUNT; t++)
+        (void)df_run_ex(mc, ms, df_pol_ch_factory, t, 0, 0, 0);
+
+    /* and every mutation again over a fragmented ClientHello, where the
+     * parser sees the hello in pieces */
+    for (t = 0; t < (int)DFM_COUNT; t++)
+        (void)df_run_ex(mc, ms, df_pol_ch_factory, t, 0, 512, 0);
+    (void)df_run_ex(mc, ms, NULL, 0, 0, 256, 0);
+    (void)df_run_ex(mc, ms, NULL, 0, 0, 512, 0);
+
+    /* With Connection ID negotiated: a clean run to enter the CID code at
+     * all, then every header forgery and every generated hello again, since
+     * a CID changes where the record body starts and therefore what each
+     * mutation lands on. */
+    (void)df_run_ex(mc, ms, NULL, 0, 0, 0, 1);
+    for (i = 0; i < sizeof(pols) / sizeof(pols[0]); i++)
+        for (t = 0; t < 2; t++)
+            (void)df_run_ex(mc, ms, pols[i], t, 0, 0, 1);
+    for (t = 0; t < (int)DFM_COUNT; t++)
+        (void)df_run_ex(mc, ms, df_pol_ch_factory, t, 0, 0, 1);
+    (void)df_run_ex(mc, ms, NULL, 0, 0, 512, 1);
+
+    /* and the clean run through the same transport, so every decision above
+     * has its partner in this binary */
+    return df_run(mc, ms, NULL, 0);
+}
+
+#endif /* WOLFSSL_DTLS */
+
+int test_dtls12_packet_forgeries(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA) \
+    && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) \
+    && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) \
+    && !defined(WOLFSSL_ASYNC_CRYPT)
+    ExpectIntEQ(df_sweep(wolfDTLSv1_2_client_method,
+                         wolfDTLSv1_2_server_method), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_dtls13_packet_forgeries(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_TLS13) && !defined(NO_RSA) \
+    && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) \
+    && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) \
+    && !defined(WOLFSSL_ASYNC_CRYPT)
+    ExpectIntEQ(df_sweep(wolfDTLSv1_3_client_method,
+                         wolfDTLSv1_3_server_method), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* ---------------------------------------------------------------------------
+ * Connection ID argument guards.
+ *
+ * The remaining uncovered conditions in the CID code are NULL-and-zero
+ * argument guards on the public API:
+ *
+ *     if (ssl == NULL || buf == NULL)                        DtlsCidGet
+ *     if (id == NULL || id->length == 0)
+ *     if (ssl == NULL || cid == NULL)                        DtlsCidGet0
+ *     if (info == NULL || info->rx == NULL || !info->rx->length) DtlsCIDCheck
+ *     if (ssl == NULL || cid == NULL || size == 0)           DtlsCidReplaceTx
+ *     if (msg == NULL || cidSz == 0 || msgSz < OPAQUE8_LEN + cidSz)
+ *
+ * No handshake passes NULL and no forged datagram can produce one, so these
+ * operands are only reachable by calling the functions directly. The other
+ * CID tests all drive a working connection, which takes every guard the same
+ * way on every call.
+ *
+ * Three ssl states are needed, because "no CID info", "info but no id" and
+ * "an id of length zero" are distinct operands: no ssl at all, an ssl with
+ * CID compiled but not enabled, and one with CID enabled but not negotiated.
+ * ------------------------------------------------------------------------- */
+int test_wolfSSL_dtls_cid_arg_guards(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS_CID) && defined(WOLFSSL_DTLS) && !defined(NO_RSA) && \
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* plain = NULL;      /* CID never enabled */
+    WOLFSSL* enabled = NULL;    /* CID enabled, never negotiated */
+    unsigned char buf[DTLS_CID_MAX_SIZE + 4];
+    unsigned char* p = NULL;
+    unsigned int sz = 0;
+    byte cid[4];
+
+    XMEMSET(buf, 0, sizeof(buf));
+    XMEMSET(cid, 0xC1, sizeof(cid));
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method()));
+    ExpectNotNull(plain = wolfSSL_new(ctx));
+    ExpectNotNull(enabled = wolfSSL_new(ctx));
+    if (enabled != NULL)
+        (void)wolfSSL_dtls_cid_use(enabled);
+
+    /* ssl == NULL: the first operand of every guard */
+    (void)(wolfSSL_dtls_cid_use(NULL));
+    (void)(wolfSSL_dtls_cid_is_enabled(NULL));
+    (void)(wolfSSL_dtls_cid_set(NULL, cid, (word32)sizeof(cid)));
+    (void)(wolfSSL_dtls_cid_get_rx_size(NULL, &sz));
+    (void)(wolfSSL_dtls_cid_get_tx_size(NULL, &sz));
+    ExpectIntNE(wolfSSL_dtls_cid_get_rx(NULL, buf, (unsigned int)sizeof(buf)),
+                WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_dtls_cid_get_tx(NULL, buf, (unsigned int)sizeof(buf)),
+                WOLFSSL_SUCCESS);
+    (void)(wolfSSL_dtls_cid_get0_rx(NULL, &p));
+    (void)(wolfSSL_dtls_cid_get0_tx(NULL, &p));
+
+    /* the second operand: a valid ssl with a NULL buffer */
+    (void)(wolfSSL_dtls_cid_set(enabled, NULL, (word32)sizeof(cid)));
+    (void)(wolfSSL_dtls_cid_get_rx_size(enabled, NULL));
+    (void)(wolfSSL_dtls_cid_get_tx_size(enabled, NULL));
+    (void)(wolfSSL_dtls_cid_get_rx(enabled, NULL,
+                (unsigned int)sizeof(buf)));
+    (void)(wolfSSL_dtls_cid_get_tx(enabled, NULL,
+                (unsigned int)sizeof(buf)));
+    (void)(wolfSSL_dtls_cid_get0_rx(enabled, NULL));
+    (void)(wolfSSL_dtls_cid_get0_tx(enabled, NULL));
+
+    /* size == 0, and a size past the maximum: the third operand of
+     * DtlsCidReplaceTx, which a caller with a real CID never supplies */
+    (void)(wolfSSL_dtls_cid_set(enabled, cid, 0));
+    ExpectIntNE(wolfSSL_dtls_cid_set(enabled, cid, DTLS_CID_MAX_SIZE + 1),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls_cid_set(enabled, cid, (word32)sizeof(cid)),
+                WOLFSSL_SUCCESS);
+
+    /* CID compiled but never enabled on this ssl: info == NULL, which is a
+     * different operand from "info exists but carries no id" */
+    (void)(wolfSSL_dtls_cid_is_enabled(plain));
+    (void)(wolfSSL_dtls_cid_get_rx_size(plain, &sz));
+    (void)(wolfSSL_dtls_cid_get_rx(plain, buf,
+                (unsigned int)sizeof(buf)));
+    (void)(wolfSSL_dtls_cid_get0_rx(plain, &p));
+
+    /* enabled but not negotiated: the id is present and zero-length, which is
+     * the `id->length == 0` operand */
+    (void)(wolfSSL_dtls_cid_is_enabled(enabled));
+    (void)(wolfSSL_dtls_cid_get_rx_size(enabled, &sz));
+    (void)(wolfSSL_dtls_cid_get_rx(enabled, buf,
+                (unsigned int)sizeof(buf)));
+    (void)(wolfSSL_dtls_cid_get0_rx(enabled, &p));
+
+    /* a buffer smaller than the CID it must hold */
+    (void)(wolfSSL_dtls_cid_get_tx(enabled, buf, 1));
+
+    /* wolfSSL_dtls_cid_parse: three operands, and a message that is one byte
+     * short of the CID it claims */
+    (void)(wolfSSL_dtls_cid_parse(NULL, 16, 4));
+    (void)(wolfSSL_dtls_cid_parse(buf, 16, 0));
+    (void)(wolfSSL_dtls_cid_parse(buf, 4, 4));
+    (void)(wolfSSL_dtls_cid_parse(buf, 0, 4));
+    buf[0] = dtls12_cid;
+    (void)(wolfSSL_dtls_cid_parse(buf, (unsigned int)sizeof(buf), 4));
+    buf[0] = handshake;     /* not a CID record: the type test's partner */
+    (void)(wolfSSL_dtls_cid_parse(buf, (unsigned int)sizeof(buf), 4));
+
+    ExpectIntGT(wolfSSL_dtls_cid_max_size(), 0);
+
+    wolfSSL_free(plain);
+    wolfSSL_free(enabled);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}

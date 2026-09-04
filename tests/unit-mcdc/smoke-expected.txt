@@ -4,7 +4,10 @@ test_blake2s_whitebox
 test_chacha20_poly1305_whitebox
 test_chacha_whitebox
 test_cmac_whitebox
+test_crl_whitebox
 test_cryptocb_whitebox
+test_dtls13_role_whitebox
+test_dtls_whitebox
 test_eccsi_fault_whitebox
 test_eccsi_whitebox
 test_ed25519_whitebox
@@ -17,6 +20,20 @@ test_hpke_fault_whitebox
 test_hpke_whitebox
 test_integer_fault_whitebox
 test_integer_whitebox
+test_internal_certerror_whitebox
+test_internal_clienthello_whitebox
+test_internal_cryptocb_whitebox
+test_internal_dhskehash_whitebox
+test_internal_domain_whitebox
+test_internal_eddsa_whitebox
+test_internal_nullguard_whitebox
+test_internal_peerkey_whitebox
+test_internal_record_whitebox
+test_internal_revocation_whitebox
+test_internal_sanity_whitebox
+test_internal_status_whitebox
+test_internal_suites_whitebox
+test_keys_whitebox
 test_lms_bds_whitebox
 test_lms_fault_whitebox
 test_lms_hash_fault_whitebox
@@ -26,6 +43,7 @@ test_memory_whitebox
 test_mldsa_fault_whitebox
 test_mldsa_hash_fault_whitebox
 test_mlkem_fault_whitebox
+test_ocsp_whitebox
 test_pkcs12_fault_whitebox
 test_poly1305_whitebox
 test_puf_gf_whitebox
@@ -59,5 +77,6 @@ test_wc_mlkem_poly_whitebox
 test_wc_port_whitebox
 test_wc_xmss_impl_whitebox
 test_wolfentropy_whitebox
+test_wolfio_whitebox
 test_xmss_fault_whitebox
 test_xmss_hash_fault_whitebox

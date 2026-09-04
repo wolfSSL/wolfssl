@@ -22,6 +22,17 @@
 #ifndef TESTS_API_SSL_CERT_H
 #define TESTS_API_SSL_CERT_H
 
+int test_wolfSSL_cert_api_arg_guards(void);
+int test_wolfSSL_crl_ocsp_api_arg_guards(void);
+int test_wolfSSL_ocsp_stapling_accessors(void);
+int test_wolfSSL_crl_io_mock(void);
+int test_wolfSSL_x509_accessor_guards(void);
+int test_wolfSSL_dtls_api_on_dtls_object(void);
+int test_wolfSSL_load_pathological_files(void);
+int test_wolfSSL_load_from_fifo(void);
+int test_wolfSSL_dtls_api_more_guards(void);
+int test_wolfSSL_alloc_failure_sweep(void);
+
 int test_wolfSSL_get_verify_mode(void);
 int test_wolfSSL_CTX_get_verify_mode(void);
 int test_wolfSSL_get_verify_callback(void);
@@ -75,6 +86,16 @@ int test_wolfSSL_cert_unload(void);
             test_wolfSSL_CTX_cert_store_manager_link),                         \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_cert_cb_ctx),                 \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_get_certificate_api),         \
-        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_cert_unload)
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_cert_unload),                \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_cert_api_arg_guards),        \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_crl_ocsp_api_arg_guards),    \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_ocsp_stapling_accessors),    \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_crl_io_mock),                 \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_x509_accessor_guards),        \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_dtls_api_on_dtls_object),     \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_load_pathological_files),     \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_load_from_fifo),              \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_dtls_api_more_guards),              \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_alloc_failure_sweep)
 
 #endif /* TESTS_API_SSL_CERT_H */

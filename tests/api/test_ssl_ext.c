@@ -1362,3 +1362,724 @@ int test_wolfSSL_ticket_key_cb_renew_ext(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* ---------------------------------------------------------------------------
+ * The public Encrypted ClientHello configuration API.
+ *
+ * src/ssl_ech.c measured 0 of 52 MC/DC conditions -- not "poorly covered",
+ * zero -- despite ECH being compiled in and five ECH tests running in the
+ * tls13 group of the same binary. Those tests drive ECH through a handshake
+ * with configs the harness generates for them; none of them calls the public
+ * configuration API, which is where every condition in the file lives:
+ * generating a config for a named KEM, importing one from raw bytes or from
+ * base64, reading one back into a caller's buffer, and the argument and size
+ * checks on all of it.
+ *
+ * The file was invisible to the campaign until this part: ssl_ech.c is
+ * #included into ssl.c rather than compiled standalone, so it produces no
+ * object file and never appeared in a filtered llvm-cov export.
+ *
+ * These vectors are the ones a handshake cannot produce: a NULL ctx, a buffer
+ * that is one byte too small, a length of zero, base64 that is not base64, a
+ * KEM/KDF/AEAD triple the build does not implement, and a retry-config query
+ * on a connection that never negotiated ECH.
+ * ------------------------------------------------------------------------- */
+int test_wolfSSL_ech_config_api(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECH) && defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT) \
+    && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL_CTX* cctx = NULL;
+    WOLFSSL* ssl = NULL;
+    byte  cfg[512];
+    byte  small[4];
+    word32 cfgSz = (word32)sizeof(cfg);
+    word32 smallSz = (word32)sizeof(small);
+    word32 zero = 0;
+    char b64[1024];
+    word32 b64Sz = (word32)sizeof(b64);
+
+    XMEMSET(cfg, 0, sizeof(cfg));
+    XMEMSET(b64, 0, sizeof(b64));
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    ExpectNotNull(cctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+
+    /* --- generation: the argument guards, then a real config ------------ */
+    ExpectIntNE(wolfSSL_CTX_GenerateEchConfig(NULL, "example.com", 0, 0, 0),
+                WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_CTX_GenerateEchConfig(ctx, NULL, 0, 0, 0),
+                WOLFSSL_SUCCESS);
+    /* a KEM/KDF/AEAD triple no build implements: the lookup's failure arm */
+    ExpectIntNE(wolfSSL_CTX_GenerateEchConfig(ctx, "example.com",
+                0xFFFF, 0xFFFF, 0xFFFF), WOLFSSL_SUCCESS);
+    /* the accepting partner: defaults */
+    ExpectIntEQ(wolfSSL_CTX_GenerateEchConfig(ctx, "example.com", 0, 0, 0),
+                WOLFSSL_SUCCESS);
+
+    /* --- reading it back: the size negotiation -------------------------- */
+    ExpectIntNE(wolfSSL_CTX_GetEchConfigs(NULL, cfg, &cfgSz),
+                WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_CTX_GetEchConfigs(ctx, cfg, NULL), WOLFSSL_SUCCESS);
+    /* output NULL with a size pointer is the "how big is it?" call */
+    cfgSz = 0;
+    (void)wolfSSL_CTX_GetEchConfigs(ctx, NULL, &cfgSz);
+    /* a buffer that cannot hold it: the LENGTH_ERROR arm, which a caller
+     * sizing from the previous call never takes */
+    (void)wolfSSL_CTX_GetEchConfigs(ctx, small, &smallSz);
+    /* and a size of zero with a real buffer */
+    (void)wolfSSL_CTX_GetEchConfigs(ctx, cfg, &zero);
+    cfgSz = (word32)sizeof(cfg);
+    ExpectIntEQ(wolfSSL_CTX_GetEchConfigs(ctx, cfg, &cfgSz), WOLFSSL_SUCCESS);
+    ExpectIntGT(cfgSz, 0);
+
+    /* --- importing raw bytes on the client ------------------------------ */
+    ExpectIntNE(wolfSSL_CTX_SetEchConfigs(NULL, cfg, cfgSz), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_CTX_SetEchConfigs(cctx, NULL, cfgSz), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_CTX_SetEchConfigs(cctx, cfg, 0), WOLFSSL_SUCCESS);
+    /* truncated: well-formed prefix, impossible length */
+    (void)wolfSSL_CTX_SetEchConfigs(cctx, cfg, 2);
+    (void)wolfSSL_CTX_SetEchConfigs(cctx, cfg, cfgSz / 2);
+    ExpectIntEQ(wolfSSL_CTX_SetEchConfigs(cctx, cfg, cfgSz), WOLFSSL_SUCCESS);
+
+    /* --- the base64 path, which has its own decode failure arms --------- */
+    ExpectIntNE(wolfSSL_CTX_SetEchConfigsBase64(NULL, b64, b64Sz),
+                WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_CTX_SetEchConfigsBase64(cctx, NULL, b64Sz),
+                WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_CTX_SetEchConfigsBase64(cctx, b64, 0),
+                WOLFSSL_SUCCESS);
+    /* not base64 at all */
+    XSTRNCPY(b64, "!!!!not base64!!!!", sizeof(b64));
+    (void)wolfSSL_CTX_SetEchConfigsBase64(cctx, b64,
+                                          (word32)XSTRLEN(b64));
+    /* valid base64 that decodes to something that is not an ECH config */
+    XSTRNCPY(b64, "AAAAAAAAAAAAAAAAAAAAAAAA", sizeof(b64));
+    (void)wolfSSL_CTX_SetEchConfigsBase64(cctx, b64,
+                                          (word32)XSTRLEN(b64));
+
+    /* --- the enable switches, both ways --------------------------------- */
+    wolfSSL_CTX_SetEchEnable(ctx, 0);
+    wolfSSL_CTX_SetEchEnable(ctx, 1);
+    wolfSSL_CTX_SetEchEnableTrialDecrypt(ctx, 1);
+    wolfSSL_CTX_SetEchEnableTrialDecrypt(ctx, 0);
+
+    /* --- the per-connection API ----------------------------------------- */
+    ExpectNotNull(ssl = wolfSSL_new(cctx));
+    ExpectIntNE(wolfSSL_SetEchConfigs(NULL, cfg, cfgSz), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_SetEchConfigs(ssl, NULL, cfgSz), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_SetEchConfigs(ssl, cfg, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_SetEchConfigs(ssl, cfg, cfgSz), WOLFSSL_SUCCESS);
+
+    ExpectIntNE(wolfSSL_SetEchConfigsBase64(ssl, NULL, b64Sz),
+                WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_SetEchConfigsBase64(ssl, b64, 0), WOLFSSL_SUCCESS);
+
+    cfgSz = (word32)sizeof(cfg);
+    (void)wolfSSL_GetEchConfigs(NULL, cfg, &cfgSz);
+    (void)wolfSSL_GetEchConfigs(ssl, cfg, NULL);
+    (void)wolfSSL_GetEchConfigs(ssl, cfg, &cfgSz);
+
+    /* Retry configs on a connection that never negotiated ECH: the arm a
+     * successful handshake cannot reach, because there is nothing to retry. */
+    cfgSz = (word32)sizeof(cfg);
+    (void)wolfSSL_GetEchRetryConfigs(NULL, cfg, &cfgSz);
+    (void)wolfSSL_GetEchRetryConfigs(ssl, cfg, NULL);
+    (void)wolfSSL_GetEchRetryConfigs(ssl, cfg, &cfgSz);
+    smallSz = (word32)sizeof(small);
+    (void)wolfSSL_GetEchRetryConfigs(ssl, small, &smallSz);
+
+    wolfSSL_SetEchEnable(ssl, 0);
+    wolfSSL_SetEchEnable(ssl, 1);
+    wolfSSL_SetEchEnableTrialDecrypt(ssl, 1);
+    wolfSSL_SetEchEnableTrialDecrypt(ssl, 0);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(cctx);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* ---------------------------------------------------------------------------
+ * Null-argument burn-down across the public API.
+ *
+ * A taxonomy of the 2855 conditions still uncovered puts null-guards at 749 --
+ * the largest single type, 26% of everything left. Splitting them by enclosing
+ * function settles what API tests can and cannot do about it:
+ *
+ *     246  in public wolfSSL_* / wc_* functions   <- these, reachable by call
+ *     503  in file-static helpers                 <- white-box only
+ *
+ * So an API suite can address a third of the category and no more; the rest is
+ * structurally out of reach from outside the library. These vectors take the
+ * public third across the extension, DTLS, session and record APIs.
+ *
+ * Every call here is a caller mistake a working program does not make: an
+ * object that was never created, an output pointer that is NULL, a length of
+ * zero paired with a real buffer. Each is followed by the same call made
+ * correctly, so the guard has its independence partner in this binary.
+ * ------------------------------------------------------------------------- */
+int test_wolfSSL_api_null_burndown(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_CERTS)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+#ifdef HAVE_ALPN
+    /* Declared under the same guard as their only uses: an unconditional
+     * declaration is an unused variable wherever the feature is off, and the
+     * tree builds tests with -Werror=unused-variable. */
+    char* proto = NULL;
+    word16 protoSz = 0;
+    char alpnList[] = "h2";     /* wolfSSL_UseALPN takes char*, not const */
+#endif
+#ifdef WOLFSSL_DTLS
+    unsigned int sz = 0;
+#endif
+    byte buf[64];
+
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* --- extension API: ssl_api_ext.c ----------------------------------- */
+#ifdef HAVE_SNI
+    (void)wolfSSL_UseSNI(NULL, WOLFSSL_SNI_HOST_NAME, "a", 1);
+    (void)wolfSSL_UseSNI(ssl, WOLFSSL_SNI_HOST_NAME, NULL, 1);
+    (void)wolfSSL_UseSNI(ssl, WOLFSSL_SNI_HOST_NAME, "a", 0);
+    (void)wolfSSL_UseSNI(ssl, WOLFSSL_SNI_HOST_NAME, "a", 1);
+    (void)wolfSSL_CTX_UseSNI(NULL, WOLFSSL_SNI_HOST_NAME, "a", 1);
+    (void)wolfSSL_CTX_UseSNI(ctx, WOLFSSL_SNI_HOST_NAME, NULL, 1);
+    /* SNI_GetRequest and SNI_GetFromBuffer are compiled under
+     * HAVE_SNI && !NO_WOLFSSL_SERVER (src/ssl_api_ext.c) -- they read what a
+     * client sent, so a client-only build has neither. */
+#ifndef NO_WOLFSSL_SERVER
+    (void)wolfSSL_SNI_GetRequest(NULL, WOLFSSL_SNI_HOST_NAME, NULL);
+    (void)wolfSSL_SNI_GetRequest(ssl, WOLFSSL_SNI_HOST_NAME, NULL);
+#endif
+#endif
+#ifdef HAVE_ALPN
+    (void)wolfSSL_UseALPN(NULL, alpnList, 2, WOLFSSL_ALPN_CONTINUE_ON_MISMATCH);
+    (void)wolfSSL_UseALPN(ssl, NULL, 2, WOLFSSL_ALPN_CONTINUE_ON_MISMATCH);
+    (void)wolfSSL_UseALPN(ssl, alpnList, 0, WOLFSSL_ALPN_CONTINUE_ON_MISMATCH);
+    (void)wolfSSL_UseALPN(ssl, alpnList, 2, WOLFSSL_ALPN_CONTINUE_ON_MISMATCH);
+    (void)wolfSSL_ALPN_GetProtocol(NULL, &proto, &protoSz);
+    (void)wolfSSL_ALPN_GetProtocol(ssl, NULL, &protoSz);
+    (void)wolfSSL_ALPN_GetProtocol(ssl, &proto, NULL);
+    (void)wolfSSL_ALPN_GetProtocol(ssl, &proto, &protoSz);
+#endif
+#ifdef HAVE_TRUSTED_CA
+    (void)wolfSSL_UseTrustedCA(NULL, WOLFSSL_TRUSTED_CA_PRE_AGREED, NULL, 0);
+    (void)wolfSSL_UseTrustedCA(ssl, WOLFSSL_TRUSTED_CA_X509_NAME, NULL, 4);
+    (void)wolfSSL_UseTrustedCA(ssl, WOLFSSL_TRUSTED_CA_PRE_AGREED, NULL, 0);
+#endif
+#ifdef HAVE_MAX_FRAGMENT
+    (void)wolfSSL_UseMaxFragment(NULL, WOLFSSL_MFL_2_9);
+    (void)wolfSSL_UseMaxFragment(ssl, 0);
+    (void)wolfSSL_UseMaxFragment(ssl, 0xFF);
+    (void)wolfSSL_UseMaxFragment(ssl, WOLFSSL_MFL_2_9);
+    (void)wolfSSL_CTX_UseMaxFragment(NULL, WOLFSSL_MFL_2_9);
+#endif
+#ifdef HAVE_SUPPORTED_CURVES
+    (void)wolfSSL_UseSupportedCurve(NULL, WOLFSSL_ECC_SECP256R1);
+    (void)wolfSSL_UseSupportedCurve(ssl, 0);
+    (void)wolfSSL_UseSupportedCurve(ssl, WOLFSSL_ECC_SECP256R1);
+    (void)wolfSSL_CTX_UseSupportedCurve(NULL, WOLFSSL_ECC_SECP256R1);
+#endif
+
+    /* --- DTLS API on a non-DTLS ssl: ssl_api_dtls.c --------------------- */
+#ifdef WOLFSSL_DTLS
+    (void)wolfSSL_dtls_get_current_timeout(NULL);
+    (void)wolfSSL_dtls_get_current_timeout(ssl);
+    (void)wolfSSL_dtls_set_timeout_init(NULL, 1);
+    (void)wolfSSL_dtls_set_timeout_init(ssl, -1);
+    (void)wolfSSL_dtls_set_timeout_init(ssl, 1);
+    (void)wolfSSL_dtls_got_timeout(NULL);
+    (void)wolfSSL_dtls_got_timeout(ssl);
+    (void)wolfSSL_dtls_retransmit(NULL);
+    (void)wolfSSL_dtls_retransmit(ssl);
+    sz = (unsigned int)sizeof(buf);
+    (void)wolfSSL_dtls_get_peer(NULL, buf, &sz);
+    (void)wolfSSL_dtls_get_peer(ssl, NULL, &sz);
+    (void)wolfSSL_dtls_get_peer(ssl, buf, NULL);
+    (void)wolfSSL_dtls_get_peer(ssl, buf, &sz);
+    /* wolfSSL_dtls_set_pending_peer() is declared unconditionally in ssl.h but
+     * only IMPLEMENTED under WOLFSSL_DTLS_CID && !WOLFSSL_NO_SOCK
+     * (src/ssl_api_dtls.c); a config with WOLFSSL_DTLS on and
+     * WOLFSSL_DTLS_CID off compiles this call and fails at LINK time. The
+     * enclosing #ifdef WOLFSSL_DTLS above is not sufficient. Confirmed with a
+     * real build of two such asn.c variants (ignore_name_constraints,
+     * runtime_date_check): "undefined symbol: wolfSSL_dtls_set_pending_peer". */
+#if defined(WOLFSSL_DTLS_CID) && !defined(WOLFSSL_NO_SOCK)
+    (void)wolfSSL_dtls_set_pending_peer(NULL, buf, (unsigned int)sizeof(buf));
+    (void)wolfSSL_dtls_set_pending_peer(ssl, NULL, (unsigned int)sizeof(buf));
+    (void)wolfSSL_dtls_set_pending_peer(ssl, buf, 0);
+#endif
+    (void)wolfSSL_dtls(NULL);
+    (void)wolfSSL_dtls(ssl);
+#endif
+
+    /* --- read/write status: ssl_api_rw.c -------------------------------- */
+    (void)wolfSSL_want_read(NULL);
+    (void)wolfSSL_want_read(ssl);
+    (void)wolfSSL_want_write(NULL);
+    (void)wolfSSL_want_write(ssl);
+    (void)wolfSSL_pending(NULL);
+    (void)wolfSSL_pending(ssl);
+
+    /* --- cipher and curve name lookups: ssl.c --------------------------- */
+    (void)wolfSSL_get_curve_name(NULL);
+    (void)wolfSSL_get_curve_name(ssl);
+    (void)wolfSSL_get_cipher_name(NULL);
+    (void)wolfSSL_get_cipher_name(ssl);
+    (void)wolfSSL_get_cipher(NULL);
+    (void)wolfSSL_get_cipher(ssl);
+    (void)wolfSSL_get_version(NULL);
+    (void)wolfSSL_get_version(ssl);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Session objects: 41 null-guards, the densest public surface left. Every one
+ * is a caller reading from or duplicating a session it does not have. */
+int test_wolfSSL_session_null_burndown(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_SESSION_CACHE) && !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    WOLFSSL_SESSION* sess = NULL;
+    /* The SESSION_* accessors (master_key, id, is_setup, time) live behind
+     * the OpenSSL compatibility layer, which this option list excludes as a
+     * build fact, so they are not callable here. What remains is the native
+     * session API. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* a session that was never established */
+    (void)wolfSSL_get_session(NULL);
+    (void)wolfSSL_get1_session(NULL);
+    (void)wolfSSL_SESSION_dup(NULL);
+    wolfSSL_SESSION_free(NULL);
+    (void)wolfSSL_set_session(NULL, NULL);
+    (void)wolfSSL_set_session(ssl, NULL);
+
+    /* and against a real, unestablished session where one exists */
+    sess = wolfSSL_get1_session(ssl);
+    if (sess != NULL) {
+        /* SESSION_dup returns a new object the caller owns; discarding it
+         * leaks (LeakSanitizer: 2664 bytes from wolfSSL_NewSession). */
+        WOLFSSL_SESSION* dup = wolfSSL_SESSION_dup(sess);
+
+        if (dup != NULL)
+            wolfSSL_SESSION_free(dup);
+        wolfSSL_SESSION_free(sess);
+    }
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* ---------------------------------------------------------------------------
+ * Null-guard vectors aimed at named operands.
+ *
+ * The previous pass sprayed NULL at the first argument of everything and
+ * returned 11 conditions for a hundred calls. The reason is that a guard like
+ *
+ *     if ((ssl == NULL) || (p == NULL) || (g == NULL))
+ *
+ * has three operands, and a NULL in the first slot pairs only the first: the
+ * other two are never evaluated. Each operand needs its own call, with every
+ * other argument valid.
+ *
+ * So these vectors come from the ledger rather than from guesswork -- one call
+ * per uncovered operand of each guard, followed by the all-valid call that is
+ * their shared partner.
+ * ------------------------------------------------------------------------- */
+int test_wolfSSL_api_null_operands(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_CERTS)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    byte  buf[64];
+    word32 bufSz = (word32)sizeof(buf);
+    int   iSz = (int)sizeof(buf);
+
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* --- SetTmpDH: (ssl|ctx == NULL) || (p == NULL) || (g == NULL) ------ */
+#if !defined(NO_DH) && !defined(WOLFSSL_NO_TLS12)
+    {
+        static const byte p[] = { 0x00, 0x01 };
+        static const byte g[] = { 0x02 };
+
+        (void)wolfSSL_SetTmpDH(NULL, p, (int)sizeof(p), g, (int)sizeof(g));
+        (void)wolfSSL_SetTmpDH(ssl, NULL, (int)sizeof(p), g, (int)sizeof(g));
+        (void)wolfSSL_SetTmpDH(ssl, p, (int)sizeof(p), NULL, (int)sizeof(g));
+        (void)wolfSSL_SetTmpDH(ssl, p, 0, g, (int)sizeof(g));
+        (void)wolfSSL_SetTmpDH(ssl, p, (int)sizeof(p), g, 0);
+        (void)wolfSSL_SetTmpDH(ssl, p, (int)sizeof(p), g, (int)sizeof(g));
+
+        (void)wolfSSL_CTX_SetTmpDH(NULL, p, (int)sizeof(p), g, (int)sizeof(g));
+        (void)wolfSSL_CTX_SetTmpDH(ctx, NULL, (int)sizeof(p), g,
+                                   (int)sizeof(g));
+        (void)wolfSSL_CTX_SetTmpDH(ctx, p, (int)sizeof(p), NULL,
+                                   (int)sizeof(g));
+        (void)wolfSSL_CTX_SetTmpDH(ctx, p, 0, g, (int)sizeof(g));
+        (void)wolfSSL_CTX_SetTmpDH(ctx, p, (int)sizeof(p), g, 0);
+        (void)wolfSSL_CTX_SetTmpDH(ctx, p, (int)sizeof(p), g, (int)sizeof(g));
+    }
+#endif
+
+    /* --- load_verify_locations_ex: ctx, then (file == NULL && path == NULL),
+     * which is a compound operand a caller giving either one never takes --- */
+#ifndef NO_FILESYSTEM
+    (void)wolfSSL_CTX_load_verify_locations_ex(NULL, caCertFile, NULL, 0);
+    (void)wolfSSL_CTX_load_verify_locations_ex(ctx, NULL, NULL, 0);
+    (void)wolfSSL_CTX_load_verify_locations_ex(ctx, caCertFile, NULL, 0);
+    (void)wolfSSL_CTX_load_verify_locations(NULL, caCertFile, NULL);
+    (void)wolfSSL_CTX_load_verify_locations(ctx, NULL, NULL);
+#endif
+
+    /* --- export_keying_material: ssl, out, label, and the context pair --- */
+#ifdef HAVE_KEYING_MATERIAL
+    (void)wolfSSL_export_keying_material(NULL, buf, sizeof(buf),
+            "label", 5, NULL, 0, 0);
+    (void)wolfSSL_export_keying_material(ssl, NULL, sizeof(buf),
+            "label", 5, NULL, 0, 0);
+    (void)wolfSSL_export_keying_material(ssl, buf, sizeof(buf),
+            NULL, 5, NULL, 0, 0);
+    /* use_context set with a NULL context: the operand pair a caller that
+     * passes both or neither cannot produce */
+    (void)wolfSSL_export_keying_material(ssl, buf, sizeof(buf),
+            "label", 5, NULL, 0, 1);
+    (void)wolfSSL_export_keying_material(ssl, buf, sizeof(buf),
+            "label", 5, buf, 4, 1);
+    (void)wolfSSL_export_keying_material(ssl, buf, sizeof(buf),
+            "label", 5, NULL, 0, 0);
+#endif
+
+    /* --- SetServerID: ssl, id, then len <= 0 ---------------------------- */
+#ifndef NO_SESSION_CACHE
+    (void)wolfSSL_SetServerID(NULL, buf, iSz, 0);
+    (void)wolfSSL_SetServerID(ssl, NULL, iSz, 0);
+    (void)wolfSSL_SetServerID(ssl, buf, 0, 0);
+    (void)wolfSSL_SetServerID(ssl, buf, -1, 0);
+    (void)wolfSSL_SetServerID(ssl, buf, iSz, 0);
+    /* wolfSSL_SetSession() (capital S) is WOLFSSL_LOCAL -- an internal symbol
+     * declared in internal.h, not part of the public API -- so referencing it
+     * from tests/api leaves an undefined reference in configurations that do
+     * not export it. The public wolfSSL_set_session() is exercised above and
+     * covers the same guard. */
+#endif
+
+    /* --- ALPN peer protocol: ssl, list, listSz -------------------------- */
+#ifdef HAVE_ALPN
+    {
+        char* list = NULL;
+        word16 listSz = 0;
+
+        (void)wolfSSL_ALPN_GetPeerProtocol(NULL, &list, &listSz);
+        (void)wolfSSL_ALPN_GetPeerProtocol(ssl, NULL, &listSz);
+        (void)wolfSSL_ALPN_GetPeerProtocol(ssl, &list, NULL);
+        (void)wolfSSL_ALPN_GetPeerProtocol(ssl, &list, &listSz);
+        if (list != NULL)
+            XFREE(list, NULL, DYNAMIC_TYPE_TLSX);
+    }
+#endif
+
+    /* --- SNI from a raw ClientHello buffer ------------------------------ */
+    /* Server-side only: it parses what a client sent (HAVE_SNI &&
+     * !NO_WOLFSSL_SERVER in src/ssl_api_ext.c). */
+#if defined(HAVE_SNI) && !defined(NO_WOLFSSL_SERVER)
+    {
+        byte hello[64];
+        word32 outSz = (word32)sizeof(buf);
+
+        XMEMSET(hello, 0, sizeof(hello));
+        /* one operand of `clientHello != NULL && helloSz > 0 && sni != NULL
+         * && inOutSz != NULL` per call */
+        (void)wolfSSL_SNI_GetFromBuffer(NULL, (word32)sizeof(hello),
+                WOLFSSL_SNI_HOST_NAME, buf, &outSz);
+        (void)wolfSSL_SNI_GetFromBuffer(hello, 0,
+                WOLFSSL_SNI_HOST_NAME, buf, &outSz);
+        (void)wolfSSL_SNI_GetFromBuffer(hello, (word32)sizeof(hello),
+                WOLFSSL_SNI_HOST_NAME, NULL, &outSz);
+        (void)wolfSSL_SNI_GetFromBuffer(hello, (word32)sizeof(hello),
+                WOLFSSL_SNI_HOST_NAME, buf, NULL);
+        (void)wolfSSL_SNI_GetFromBuffer(hello, (word32)sizeof(hello),
+                WOLFSSL_SNI_HOST_NAME, buf, &outSz);
+    }
+#endif
+
+    /* --- trusted CA: the (certId != NULL) || (certIdSz != 0) pair ------- */
+#ifdef HAVE_TRUSTED_CA
+    (void)wolfSSL_UseTrustedCA(ssl, WOLFSSL_TRUSTED_CA_PRE_AGREED, buf, 0);
+    (void)wolfSSL_UseTrustedCA(ssl, WOLFSSL_TRUSTED_CA_PRE_AGREED, NULL, 4);
+    (void)wolfSSL_UseTrustedCA(ssl, WOLFSSL_TRUSTED_CA_KEY_SHA1, buf,
+                               (word32)sizeof(buf));
+#endif
+
+    /* --- DTLS peer: `peer != NULL && peerSz != NULL` --------------------- */
+#ifdef WOLFSSL_DTLS
+    bufSz = (word32)sizeof(buf);
+    (void)wolfSSL_dtls_get_peer(ssl, NULL, &bufSz);
+    (void)wolfSSL_dtls_get_peer(ssl, buf, NULL);
+    (void)wolfSSL_dtls_get_peer(ssl, buf, &bufSz);
+    /* got_timeout on a connection that is not DTLS: the second operand */
+    (void)wolfSSL_dtls_got_timeout(ssl);
+#endif
+
+    /* --- cipher suite lookup by name: name, then the output pointers ---- */
+    {
+        byte c0 = 0, c1 = 0;
+
+        (void)wolfSSL_get_cipher_suite_from_name(NULL, &c0, &c1, NULL);
+        (void)wolfSSL_get_cipher_suite_from_name("TLS13-AES128-GCM-SHA256",
+                NULL, &c1, NULL);
+        (void)wolfSSL_get_cipher_suite_from_name("TLS13-AES128-GCM-SHA256",
+                &c0, NULL, NULL);
+        (void)wolfSSL_get_cipher_suite_from_name("no-such-suite",
+                &c0, &c1, NULL);
+        (void)wolfSSL_get_cipher_suite_from_name("TLS13-AES128-GCM-SHA256",
+                &c0, &c1, NULL);
+    }
+
+    (void)bufSz; (void)iSz;
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* ---------------------------------------------------------------------------
+ * Public-API argument NULLs, one call per named operand.
+ *
+ * A census of what is left splits the remaining NULL-shaped conditions three
+ * ways by how the NULL actually arises: 282 come from an argument a caller
+ * passes, 145 from a struct member that is legitimately NULL in some state,
+ * and only 15 from an allocation that failed. These are the first kind, in
+ * public functions -- the cheapest coverage left in the campaign and the only
+ * kind that needs no fixture at all.
+ *
+ * Each guard gets one call per uncovered operand with every OTHER argument
+ * valid, then the all-valid call that is their shared partner. A NULL in the
+ * first slot pairs only the first operand; the rest short-circuit away.
+ *
+ * Every symbol here was checked against BOTH its declaration guard in ssl.h
+ * and its implementation guard in src/, because a declaration without an
+ * implementation is a link error rather than a compile error, and that has
+ * cost this branch several CI rounds.
+ * ------------------------------------------------------------------------- */
+int test_wolfSSL_public_null_operands(void)
+{
+    EXPECT_DECLS;
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    char buf[512];
+
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* --- `buf == NULL || len <= 0` on both cipher-list getters ---------- */
+    (void)wolfSSL_get_ciphers(NULL, (int)sizeof(buf));
+    (void)wolfSSL_get_ciphers(buf, 0);
+    (void)wolfSSL_get_ciphers(buf, -1);
+    (void)wolfSSL_get_ciphers(buf, (int)sizeof(buf));
+#ifndef NO_ERROR_STRINGS
+    (void)wolfSSL_get_ciphers_iana(NULL, (int)sizeof(buf));
+    (void)wolfSSL_get_ciphers_iana(buf, 0);
+    (void)wolfSSL_get_ciphers_iana(buf, -1);
+    (void)wolfSSL_get_ciphers_iana(buf, (int)sizeof(buf));
+#endif
+
+    /* --- `ssl == NULL || dn == NULL` and the ip-address twin ----------- */
+    (void)wolfSSL_check_domain_name(NULL, "example.com");
+    (void)wolfSSL_check_domain_name(ssl, NULL);
+    (void)wolfSSL_check_domain_name(ssl, "example.com");
+    (void)wolfSSL_check_ip_address(NULL, "127.0.0.1");
+    (void)wolfSSL_check_ip_address(ssl, NULL);
+    (void)wolfSSL_check_ip_address(ssl, "127.0.0.1");
+    /* an address that is not parseable, so the operand below the guard
+     * gets its false case too */
+    (void)wolfSSL_check_ip_address(ssl, "not-an-ip");
+
+    /* --- `ctx != NULL && devId == INVALID_DEVID` ----------------------- */
+    (void)wolfSSL_CTX_GetDevId(NULL, ssl);
+    (void)wolfSSL_CTX_GetDevId(NULL, NULL);
+    (void)wolfSSL_CTX_GetDevId(ctx, NULL);
+    (void)wolfSSL_CTX_GetDevId(ctx, ssl);
+
+    /* --- `name == NULL || ...` on the suite lookup --------------------- */
+    {
+        byte c0 = 0, c1 = 0;
+
+        (void)wolfSSL_get_cipher_suite_from_name(NULL, &c0, &c1, NULL);
+        (void)wolfSSL_get_cipher_suite_from_name("TLS13-AES128-GCM-SHA256",
+                NULL, &c1, NULL);
+        (void)wolfSSL_get_cipher_suite_from_name("TLS13-AES128-GCM-SHA256",
+                &c0, NULL, NULL);
+        /* a name no build implements: the lookup's miss arm */
+        (void)wolfSSL_get_cipher_suite_from_name("NO-SUCH-SUITE",
+                &c0, &c1, NULL);
+        (void)wolfSSL_get_cipher_suite_from_name("TLS13-AES128-GCM-SHA256",
+                &c0, &c1, NULL);
+    }
+
+    /* --- the curve-name getter, which reads ssl->ecdhCurveOID ---------- */
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
+    (void)wolfSSL_get_curve_name(NULL);
+    (void)wolfSSL_get_curve_name(ssl);
+    /* drive the OID arms directly: a connection negotiates one curve, so the
+     * others are never taken on any single ssl */
+    if (ssl != NULL) {
+    #ifdef HAVE_CURVE25519
+        ssl->ecdhCurveOID = ECC_X25519_OID;
+        (void)wolfSSL_get_curve_name(ssl);
+    #endif
+    #ifdef HAVE_CURVE448
+        ssl->ecdhCurveOID = ECC_X448_OID;
+        (void)wolfSSL_get_curve_name(ssl);
+    #endif
+        ssl->ecdhCurveOID = 0;
+        (void)wolfSSL_get_curve_name(ssl);
+    }
+#endif
+
+    /* --- `(ctx == NULL) || ((file == NULL) && (path == NULL))` --------- */
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+    (void)wolfSSL_CTX_load_verify_locations_ex(NULL, caCertFile, NULL, 0);
+    /* both file and path NULL: the compound operand a caller giving either
+     * one never takes */
+    (void)wolfSSL_CTX_load_verify_locations_ex(ctx, NULL, NULL, 0);
+    (void)wolfSSL_CTX_load_verify_locations_ex(ctx, caCertFile, NULL, 0);
+    (void)wolfSSL_CTX_load_verify_locations_ex(ctx, NULL, "certs", 0);
+#endif
+
+    /* --- `(ssl == NULL) || (der == NULL)` ------------------------------ */
+#ifndef NO_CERTS
+    {
+        static const byte tinyDer[] = { 0x30, 0x03, 0x02, 0x01, 0x00 };
+
+        (void)wolfSSL_use_certificate_ASN1(NULL, tinyDer,
+                                           (int)sizeof(tinyDer));
+        (void)wolfSSL_use_certificate_ASN1(ssl, NULL, (int)sizeof(tinyDer));
+        (void)wolfSSL_use_certificate_ASN1(ssl, tinyDer, 0);
+        (void)wolfSSL_use_certificate_ASN1(ssl, tinyDer,
+                                           (int)sizeof(tinyDer));
+    }
+#endif
+
+    /* --- `ssl == NULL || out == NULL || label == NULL` ----------------- */
+#ifdef HAVE_KEYING_MATERIAL
+    {
+        byte km[32];
+
+        XMEMSET(km, 0, sizeof(km));
+        (void)wolfSSL_export_keying_material(NULL, km, sizeof(km),
+                "lbl", 3, NULL, 0, 0);
+        (void)wolfSSL_export_keying_material(ssl, NULL, sizeof(km),
+                "lbl", 3, NULL, 0, 0);
+        (void)wolfSSL_export_keying_material(ssl, km, sizeof(km),
+                NULL, 3, NULL, 0, 0);
+        (void)wolfSSL_export_keying_material(ssl, km, sizeof(km),
+                "lbl", 3, NULL, 0, 0);
+    }
+#endif
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* ---------------------------------------------------------------------------
+ * Session object lifecycle argument guards.
+ *
+ * ssl_sess.c is the second-largest remaining file and its guards are almost
+ * all of the form `session == NULL || <something about the session>`. A test
+ * that establishes a session reaches them with a well-formed object every
+ * time, so the NULL half and the malformed half never occur.
+ *
+ * wolfSSL_SESSION_new / _dup / _up_ref / _free are unguarded in both ssl.h and
+ * src/ssl_sess.c, so they are callable in every configuration that has the
+ * session cache at all -- checked before writing, because a declaration
+ * without a compiled implementation is a link error.
+ * ------------------------------------------------------------------------- */
+int test_wolfSSL_session_lifecycle_guards(void)
+{
+    EXPECT_DECLS;
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_SESSION_CACHE) && \
+    !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    WOLFSSL_SESSION* fresh = NULL;
+    WOLFSSL_SESSION* dup = NULL;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* --- the NULL half of each lifecycle entry point ------------------- */
+    (void)wolfSSL_SESSION_dup(NULL);
+    (void)wolfSSL_SESSION_up_ref(NULL);
+    wolfSSL_SESSION_free(NULL);
+    (void)wolfSSL_get_session(NULL);
+    (void)wolfSSL_get1_session(NULL);
+    (void)wolfSSL_set_session(NULL, NULL);
+
+    /* --- a session that exists but was never established --------------- */
+    fresh = wolfSSL_SESSION_new();
+    if (fresh != NULL) {
+        /* dup of a real object: the accepting partner for the NULL above */
+        dup = wolfSSL_SESSION_dup(fresh);
+        if (dup != NULL)
+            wolfSSL_SESSION_free(dup);
+
+        /* up_ref then free twice: the refcount path, which a test that
+         * establishes one session and frees it once never exercises */
+        (void)wolfSSL_SESSION_up_ref(fresh);
+        wolfSSL_SESSION_free(fresh);   /* drops the extra reference */
+
+        /* set_session with a session that is not set up: the operand a
+         * successful resumption never takes */
+        (void)wolfSSL_set_session(ssl, fresh);
+
+        wolfSSL_SESSION_free(fresh);
+    }
+
+    /* set_session on a valid ssl with NULL, and NULL ssl with a session */
+    (void)wolfSSL_set_session(ssl, NULL);
+
+#ifndef NO_CLIENT_CACHE
+    {
+        byte id[16];
+
+        XMEMSET(id, 0x7E, sizeof(id));
+        /* `ssl == NULL || id == NULL || len <= 0` -- one call per operand */
+        (void)wolfSSL_SetServerID(NULL, id, (int)sizeof(id), 0);
+        (void)wolfSSL_SetServerID(ssl, NULL, (int)sizeof(id), 0);
+        (void)wolfSSL_SetServerID(ssl, id, 0, 0);
+        (void)wolfSSL_SetServerID(ssl, id, -1, 0);
+        (void)wolfSSL_SetServerID(ssl, id, (int)sizeof(id), 0);
+        /* and with the "new session" flag, which takes the other arm */
+        (void)wolfSSL_SetServerID(ssl, id, (int)sizeof(id), 1);
+    }
+#endif
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
