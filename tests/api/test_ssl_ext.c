@@ -1861,3 +1861,146 @@ int test_wolfSSL_api_null_operands(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* ---------------------------------------------------------------------------
+ * Public-API argument NULLs, one call per named operand.
+ *
+ * A census of what is left splits the remaining NULL-shaped conditions three
+ * ways by how the NULL actually arises: 282 come from an argument a caller
+ * passes, 145 from a struct member that is legitimately NULL in some state,
+ * and only 15 from an allocation that failed. These are the first kind, in
+ * public functions -- the cheapest coverage left in the campaign and the only
+ * kind that needs no fixture at all.
+ *
+ * Each guard gets one call per uncovered operand with every OTHER argument
+ * valid, then the all-valid call that is their shared partner. A NULL in the
+ * first slot pairs only the first operand; the rest short-circuit away.
+ *
+ * Every symbol here was checked against BOTH its declaration guard in ssl.h
+ * and its implementation guard in src/, because a declaration without an
+ * implementation is a link error rather than a compile error, and that has
+ * cost this branch several CI rounds.
+ * ------------------------------------------------------------------------- */
+int test_wolfSSL_public_null_operands(void)
+{
+    EXPECT_DECLS;
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    char buf[512];
+
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* --- `buf == NULL || len <= 0` on both cipher-list getters ---------- */
+    (void)wolfSSL_get_ciphers(NULL, (int)sizeof(buf));
+    (void)wolfSSL_get_ciphers(buf, 0);
+    (void)wolfSSL_get_ciphers(buf, -1);
+    (void)wolfSSL_get_ciphers(buf, (int)sizeof(buf));
+#ifndef NO_ERROR_STRINGS
+    (void)wolfSSL_get_ciphers_iana(NULL, (int)sizeof(buf));
+    (void)wolfSSL_get_ciphers_iana(buf, 0);
+    (void)wolfSSL_get_ciphers_iana(buf, -1);
+    (void)wolfSSL_get_ciphers_iana(buf, (int)sizeof(buf));
+#endif
+
+    /* --- `ssl == NULL || dn == NULL` and the ip-address twin ----------- */
+    (void)wolfSSL_check_domain_name(NULL, "example.com");
+    (void)wolfSSL_check_domain_name(ssl, NULL);
+    (void)wolfSSL_check_domain_name(ssl, "example.com");
+    (void)wolfSSL_check_ip_address(NULL, "127.0.0.1");
+    (void)wolfSSL_check_ip_address(ssl, NULL);
+    (void)wolfSSL_check_ip_address(ssl, "127.0.0.1");
+    /* an address that is not parseable, so the operand below the guard
+     * gets its false case too */
+    (void)wolfSSL_check_ip_address(ssl, "not-an-ip");
+
+    /* --- `ctx != NULL && devId == INVALID_DEVID` ----------------------- */
+    (void)wolfSSL_CTX_GetDevId(NULL, ssl);
+    (void)wolfSSL_CTX_GetDevId(NULL, NULL);
+    (void)wolfSSL_CTX_GetDevId(ctx, NULL);
+    (void)wolfSSL_CTX_GetDevId(ctx, ssl);
+
+    /* --- `name == NULL || ...` on the suite lookup --------------------- */
+    {
+        byte c0 = 0, c1 = 0;
+
+        (void)wolfSSL_get_cipher_suite_from_name(NULL, &c0, &c1, NULL);
+        (void)wolfSSL_get_cipher_suite_from_name("TLS13-AES128-GCM-SHA256",
+                NULL, &c1, NULL);
+        (void)wolfSSL_get_cipher_suite_from_name("TLS13-AES128-GCM-SHA256",
+                &c0, NULL, NULL);
+        /* a name no build implements: the lookup's miss arm */
+        (void)wolfSSL_get_cipher_suite_from_name("NO-SUCH-SUITE",
+                &c0, &c1, NULL);
+        (void)wolfSSL_get_cipher_suite_from_name("TLS13-AES128-GCM-SHA256",
+                &c0, &c1, NULL);
+    }
+
+    /* --- the curve-name getter, which reads ssl->ecdhCurveOID ---------- */
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
+    (void)wolfSSL_get_curve_name(NULL);
+    (void)wolfSSL_get_curve_name(ssl);
+    /* drive the OID arms directly: a connection negotiates one curve, so the
+     * others are never taken on any single ssl */
+    if (ssl != NULL) {
+    #ifdef HAVE_CURVE25519
+        ssl->ecdhCurveOID = ECC_X25519_OID;
+        (void)wolfSSL_get_curve_name(ssl);
+    #endif
+    #ifdef HAVE_CURVE448
+        ssl->ecdhCurveOID = ECC_X448_OID;
+        (void)wolfSSL_get_curve_name(ssl);
+    #endif
+        ssl->ecdhCurveOID = 0;
+        (void)wolfSSL_get_curve_name(ssl);
+    }
+#endif
+
+    /* --- `(ctx == NULL) || ((file == NULL) && (path == NULL))` --------- */
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+    (void)wolfSSL_CTX_load_verify_locations_ex(NULL, caCertFile, NULL, 0);
+    /* both file and path NULL: the compound operand a caller giving either
+     * one never takes */
+    (void)wolfSSL_CTX_load_verify_locations_ex(ctx, NULL, NULL, 0);
+    (void)wolfSSL_CTX_load_verify_locations_ex(ctx, caCertFile, NULL, 0);
+    (void)wolfSSL_CTX_load_verify_locations_ex(ctx, NULL, "certs", 0);
+#endif
+
+    /* --- `(ssl == NULL) || (der == NULL)` ------------------------------ */
+#ifndef NO_CERTS
+    {
+        static const byte tinyDer[] = { 0x30, 0x03, 0x02, 0x01, 0x00 };
+
+        (void)wolfSSL_use_certificate_ASN1(NULL, tinyDer,
+                                           (int)sizeof(tinyDer));
+        (void)wolfSSL_use_certificate_ASN1(ssl, NULL, (int)sizeof(tinyDer));
+        (void)wolfSSL_use_certificate_ASN1(ssl, tinyDer, 0);
+        (void)wolfSSL_use_certificate_ASN1(ssl, tinyDer,
+                                           (int)sizeof(tinyDer));
+    }
+#endif
+
+    /* --- `ssl == NULL || out == NULL || label == NULL` ----------------- */
+#ifdef HAVE_KEYING_MATERIAL
+    {
+        byte km[32];
+
+        XMEMSET(km, 0, sizeof(km));
+        (void)wolfSSL_export_keying_material(NULL, km, sizeof(km),
+                "lbl", 3, NULL, 0, 0);
+        (void)wolfSSL_export_keying_material(ssl, NULL, sizeof(km),
+                "lbl", 3, NULL, 0, 0);
+        (void)wolfSSL_export_keying_material(ssl, km, sizeof(km),
+                NULL, 3, NULL, 0, 0);
+        (void)wolfSSL_export_keying_material(ssl, km, sizeof(km),
+                "lbl", 3, NULL, 0, 0);
+    }
+#endif
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
