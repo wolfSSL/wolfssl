@@ -7003,14 +7003,17 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
                 && !hasCertWithExternPsk
     #endif
     #if defined(HAVE_SESSION_TICKET) && !defined(NO_SESSION_CACHE)
-                /* RFC 8446 section 8: evict the session from the cache.
-                 * Accept 0-RTT only when the eviction found the entry
-                 * (single-use). */
-                && wolfSSL_SSL_CTX_remove_session(ssl->ctx, ssl->session)
-                    == 1
+                /* RFC 8446 section 8: accept 0-RTT once per ticket. The entry
+                 * is evicted below, so a replay misses. Best effort. */
+                && ssl->options.ticketCacheHit
     #endif
             ) {
                 extEarlyData->resp = 1;
+    #if defined(HAVE_SESSION_TICKET) && !defined(NO_SESSION_CACHE)
+                WOLFSSL_MSG("Accepting early data for a cached ticket session");
+                /* Consume the entry so the next use of this ticket misses. */
+                (void)wolfSSL_SSL_CTX_remove_session(ssl->ctx, ssl->session);
+    #endif
 
                 /* Derive early data decryption key. */
                 ret = DeriveTls13Keys(ssl, early_data_key, DECRYPT_SIDE_ONLY,
@@ -14206,6 +14209,7 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
     word32 length;
     int    sendSz;
     word16 extSz;
+    int    genAltSessionID;
     word32 idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
 
     WOLFSSL_START(WC_FUNC_NEW_SESSION_TICKET_SEND);
@@ -14249,9 +14253,25 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
             ssl->session->ticketNonce.data[0]++;
     }
 
-    if ((ssl->options.mask & WOLFSSL_OP_NO_TICKET) != 0) {
-        /* In this case we only send the ID as the ticket. Let's generate a new
-         * ID for the new ticket so that we don't overwrite any old ones */
+    /* Generate a new ID for the new ticket so that we don't overwrite any old
+     * ones. Only an ID ticket is cached without WOLFSSL_TICKET_HAVE_ID. */
+    genAltSessionID = (ssl->options.mask & WOLFSSL_OP_NO_TICKET) != 0;
+#if defined(WOLFSSL_TICKET_HAVE_ID) && defined(WOLFSSL_EARLY_DATA) && \
+    !defined(NO_SESSION_CACHE)
+    /* A 0-RTT capable ticket needs a cache entry of its own to back the
+     * single-use bound of RFC 8446 Sect. 8. Sessions that cannot send early
+     * data keep one ID, so state bound to the cache entry (ex_data) survives
+     * a resumption. */
+    if (ssl->options.maxEarlyDataSz > 0)
+        genAltSessionID = 1;
+#endif
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* CreateTicket() already copied the ID into the ticket being encrypted,
+     * so keep it across an async retry. */
+    if (ssl->error == WC_NO_ERR_TRACE(WC_PENDING_E))
+        genAltSessionID = 0;
+#endif
+    if (genAltSessionID) {
         ret = wc_RNG_GenerateBlock(ssl->rng, ssl->session->altSessionID,
                                    ID_LEN);
         if (ret != 0)

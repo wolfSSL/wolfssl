@@ -43166,12 +43166,22 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             /* Restore the fake ID */
             XMEMCPY(ssl->session->sessionID, bogusID, ID_LEN);
             ssl->session->sessionIDSz= bogusIDSz;
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_EARLY_DATA) && \
+    !defined(NO_SESSION_CACHE)
+            /* A stateful ticket only resumes on a cache hit. RFC 8446 Sect. 8:
+             * CheckPreSharedKeys() accepts 0-RTT once, then evicts. */
+            ssl->options.ticketCacheHit = 1;
+#endif
         }
 #ifdef WOLFSSL_TICKET_HAVE_ID
         else {
             if (wolfSSL_GetSession(ssl, NULL, 1) != NULL) {
                 WOLFSSL_MSG("Found session matching the session id"
                             " found in the ticket");
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_EARLY_DATA) && \
+    !defined(NO_SESSION_CACHE)
+                ssl->options.ticketCacheHit = 1;
+#endif
             }
             else {
                 WOLFSSL_MSG("Can't find session matching the session id"
