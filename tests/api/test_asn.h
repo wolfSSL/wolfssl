@@ -48,6 +48,7 @@ int test_ToTraditional_ex_negative(void);
 int test_ToTraditional_ex_mldsa_bad_params(void);
 int test_wc_SignCert_buffer_bounds(void);
 int test_wc_DecodeKeyUsage_decipherOnly(void);
+int test_wc_DecodeExtKeyUsage_oidSumCollision(void);
 int test_wc_AsnDecisionCoverage(void);
 int test_wc_AsnFeatureCoverage(void);
 
@@ -76,6 +77,7 @@ int test_wc_AsnFeatureCoverage(void);
     TEST_DECL_GROUP("asn", test_ToTraditional_ex_mldsa_bad_params), \
     TEST_DECL_GROUP("asn", test_wc_SignCert_buffer_bounds),         \
     TEST_DECL_GROUP("asn", test_wc_DecodeKeyUsage_decipherOnly),    \
+    TEST_DECL_GROUP("asn", test_wc_DecodeExtKeyUsage_oidSumCollision), \
     TEST_DECL_GROUP("asn", test_wc_AsnDecisionCoverage),           \
     TEST_DECL_GROUP("asn", test_wc_AsnFeatureCoverage)
 

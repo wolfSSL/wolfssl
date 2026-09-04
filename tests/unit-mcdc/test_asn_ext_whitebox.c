@@ -1264,6 +1264,32 @@ static void wb_decode_ext_key_usage(void)
             &ssh, NULL);
     WB_CHECK(ret == 0, "extExtKeyUsageOidCnt==NULL out-ptr (2nd operand false)");
 
+#ifndef NO_VERIFY_OID
+    /* An OID that is not id-kp-serverAuth but whose wc_oid_sum() collides with
+     * it must not be treated as serverAuth. */
+    {
+    #ifdef WOLFSSL_OLD_OID_SUM
+        /* 1.5.6.1.5.5.3.1, the same byte sum (71) as serverAuth. */
+        static const byte ekuCollide[] = {
+            0x30,0x0A,
+              0x06,0x08, 0x2D,0x06,0x01,0x05,0x05,0x05,0x03,0x01
+        };
+    #else
+        /* 1.19.6.1.5.21.7.3.1, the same XOR-shift sum (0x0402012e) as
+         * serverAuth. */
+        static const byte ekuCollide[] = {
+            0x30,0x0A,
+              0x06,0x08, 0x3B,0x06,0x01,0x05,0x15,0x07,0x03,0x01
+        };
+    #endif
+        src = NULL; srcSz = 0; count = 0; usage = 0; ssh = 0; oidCnt = 0;
+        ret = DecodeExtKeyUsage(ekuCollide, sizeof(ekuCollide), &src, &srcSz,
+                &count, &usage, &ssh, &oidCnt);
+        WB_CHECK(ret == 0 && usage == 0 && oidCnt == 1,
+                "OID colliding with serverAuth checksum not set as serverAuth");
+    }
+#endif /* !NO_VERIFY_OID */
+
     /* Empty SEQUENCE OF -> loop condition false immediately. */
     {
         static const byte ekuEmpty[] = { 0x30, 0x00 };
