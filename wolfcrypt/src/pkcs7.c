@@ -6654,6 +6654,9 @@ static int wc_PKCS7_HandleOctetStrings(wc_PKCS7* pkcs7, byte* in, word32 inSz,
             XMEMCPY(pkcs7->stream->content, pkcs7->content, pkcs7->contentSz);
             pkcs7->stream->contentSz = pkcs7->contentSz;
         }
+        /* drop the content copy left by a previous verify */
+        XFREE(pkcs7->contentDynamic, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        pkcs7->contentDynamic = NULL;
         return 0;
     }
 
@@ -6888,7 +6891,7 @@ static int wc_PKCS7_HandleOctetStrings(wc_PKCS7* pkcs7, byte* in, word32 inSz,
  */
 static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
     word32 hashSz, byte* in, word32 inSz,
-    byte* in2, word32 in2Sz)
+    byte* in2, word32 in2Sz, int parseOnly)
 {
     word32 idx, maxIdx = inSz, outerContentType = 0, contentTypeSz = 0, totalSz = 0;
     int length = 0, version = 0, ret = 0;
@@ -6905,6 +6908,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
     byte degenerate = 0;
     byte detached = 0;
     byte noContent = 0;
+    byte skipVerify = 0;
     byte tag = 0;
     word16 contentIsPkcs7Type = 0;
 #ifdef ASN_BER_TO_DER
@@ -8217,6 +8221,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             pkiMsg2Sz = (pkcs7->stream->length > 0)? pkcs7->stream->length:
                                                                         srcSz;
             degenerate = pkcs7->stream->degenerate;
+            detached   = pkcs7->stream->detached;
 
             /* restore content */
             content   = pkcs7->stream->content;
@@ -8225,6 +8230,16 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
 
             ret = wc_PKCS7_ParseSignerInfo(pkcs7, pkiMsg2, pkiMsg2Sz, &idx,
                     degenerate, &signedAttrib, &signedAttribSz);
+
+            /* Decode only: a detached bundle without its content cannot be
+             * verified yet, the caller verifies once the content is known. */
+            if (ret == 0) {
+                pkcs7->detached = (detached != 0);
+                if (parseOnly && detached && content == NULL &&
+                        hashBuf == NULL) {
+                    skipVerify = 1;
+                }
+            }
 
             /* parse out the signature if present and verify it */
             if (ret == 0 && length > 0 && degenerate == 0) {
@@ -8254,7 +8269,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                 pkcs7->content = content;
                 pkcs7->contentSz = (word32)contentSz;
 
-                if (ret == 0) {
+                if (ret == 0 && !skipVerify) {
                 #if !defined(NO_PKCS7_STREAM) && defined(ASN_BER_TO_DER)
                     byte streamHash[WC_MAX_DIGEST_SIZE];
 
@@ -8394,12 +8409,22 @@ int wc_PKCS7_VerifySignedData_ex(wc_PKCS7* pkcs7, const byte* hashBuf,
     word32 pkiMsgFootSz)
 {
     return PKCS7_VerifySignedData(pkcs7, hashBuf, hashSz,
-        pkiMsgHead, pkiMsgHeadSz, pkiMsgFoot, pkiMsgFootSz);
+        pkiMsgHead, pkiMsgHeadSz, pkiMsgFoot, pkiMsgFootSz, 0);
 }
 
 int wc_PKCS7_VerifySignedData(wc_PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
 {
-    return PKCS7_VerifySignedData(pkcs7, NULL, 0, pkiMsg, pkiMsgSz, NULL, 0);
+    return PKCS7_VerifySignedData(pkcs7, NULL, 0, pkiMsg, pkiMsgSz, NULL, 0, 0);
+}
+
+/* Decode SignedData. Attached content is verified; a detached bundle without
+ * content is only parsed (pkcs7->detached set) for a later verify call. */
+int wc_PKCS7_DecodeSignedData(wc_PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
+{
+    if (pkcs7 == NULL)
+        return BAD_FUNC_ARG;
+
+    return PKCS7_VerifySignedData(pkcs7, NULL, 0, pkiMsg, pkiMsgSz, NULL, 0, 1);
 }
 
 

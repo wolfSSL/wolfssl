@@ -339,7 +339,7 @@ int test_wolfSSL_PKCS7_sign(void)
         ExpectIntGT((outLen = i2d_PKCS7(p7, &out)), 0);
         ExpectNotNull(out);
 
-        /* verify with wolfCrypt, d2i_PKCS7 does not support detached content */
+        /* verify with wolfCrypt */
         ExpectNotNull(p7Ver = wc_PKCS7_New(HEAP_HINT, testDevId));
         if (p7Ver != NULL) {
             p7Ver->content = data;
@@ -371,10 +371,16 @@ int test_wolfSSL_PKCS7_sign(void)
         p7Ver = NULL;
     #endif /* !NO_PKCS7_STREAM */
 
-        /* verify expected failure (NULL return) from d2i_PKCS7, it does not
-         * yet support detached content */
+        /* d2i_PKCS7 decodes the detached bundle, PKCS7_verify is then given
+         * the content */
         tmpPtr = out;
-        ExpectNull(p7Ver = d2i_PKCS7(NULL, (const byte**)&tmpPtr, outLen));
+        ExpectNotNull(p7Ver = d2i_PKCS7(NULL, (const byte**)&tmpPtr, outLen));
+        ExpectIntEQ(PKCS7_is_detached(p7Ver), 1);
+        BIO_free(inBio);
+        inBio = NULL;
+        ExpectNotNull(inBio = BIO_new_mem_buf(data, sizeof(data)));
+        ExpectIntEQ(PKCS7_verify(p7Ver, NULL, NULL, inBio, NULL,
+                                 PKCS7_BINARY | PKCS7_NOVERIFY), 1);
         PKCS7_free(p7Ver);
         p7Ver = NULL;
 
@@ -397,7 +403,7 @@ int test_wolfSSL_PKCS7_sign(void)
         ExpectIntEQ(PKCS7_final(p7, inBio, flags), 1);
         ExpectIntGT((outLen = i2d_PKCS7(p7, &out)), 0);
 
-        /* verify with wolfCrypt, d2i_PKCS7 does not support detached content */
+        /* verify with wolfCrypt */
         ExpectNotNull(p7Ver = wc_PKCS7_New(HEAP_HINT, testDevId));
         if (p7Ver != NULL) {
             p7Ver->content = data;
@@ -670,6 +676,131 @@ int test_wolfSSL_PKCS7_verify_signer_forgery(void)
     PKCS7_free(p7);
     X509_STORE_free(store);
     X509_free(caCert);
+    BIO_free(caBio);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* d2i_PKCS7() decodes a detached SignedData so that PKCS7_verify() can be
+ * handed the content afterwards, as with OpenSSL. An attached SignedData is
+ * still verified while decoding. */
+int test_wolfSSL_PKCS7_d2i_detached(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_ALL) && defined(HAVE_PKCS7) && !defined(NO_BIO) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    const char* signerCertFile = "./certs/server-cert.pem";
+    const char* signerKeyFile  = "./certs/server-key.pem";
+    const char* caFile         = "./certs/ca-cert.pem";
+    byte  content[] = "Detached content to verify.";
+
+    WOLFSSL_BIO* certBio = NULL;
+    WOLFSSL_BIO* keyBio = NULL;
+    WOLFSSL_BIO* caBio = NULL;
+    WOLFSSL_BIO* signBio = NULL;
+    WOLFSSL_BIO* inBio = NULL;
+    X509* signCert = NULL;
+    EVP_PKEY* signKey = NULL;
+    X509* caCert = NULL;
+    X509_STORE* store = NULL;
+    PKCS7* p7 = NULL;
+    PKCS7* p7Dec = NULL;
+    WOLFSSL_STACK* signers = NULL;
+    byte* der = NULL;
+    int derSz = 0;
+    const byte* p = NULL;
+    int i;
+
+    ExpectNotNull(certBio = BIO_new_file(signerCertFile, "r"));
+    ExpectNotNull(keyBio = BIO_new_file(signerKeyFile, "r"));
+    ExpectNotNull(caBio = BIO_new_file(caFile, "r"));
+    ExpectNotNull(signCert = PEM_read_bio_X509(certBio, NULL, 0, NULL));
+    ExpectNotNull(signKey = PEM_read_bio_PrivateKey(keyBio, NULL, 0, NULL));
+    ExpectNotNull(caCert = PEM_read_bio_X509(caBio, NULL, 0, NULL));
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_add_cert(store, caCert), 1);
+
+    /* detached signature over 'content' */
+    ExpectNotNull(signBio = BIO_new(BIO_s_mem()));
+    ExpectIntGT(BIO_write(signBio, content, sizeof(content)), 0);
+    ExpectNotNull(p7 = PKCS7_sign(signCert, signKey, NULL, signBio,
+                                  PKCS7_BINARY | PKCS7_DETACHED));
+    ExpectIntGT((derSz = i2d_PKCS7(p7, &der)), 0);
+    ExpectNotNull(der);
+
+    /* decodes without the content */
+    p = der;
+    ExpectNotNull(p7Dec = d2i_PKCS7(NULL, &p, derSz));
+    ExpectTrue(p == der + derSz);
+    ExpectIntEQ(PKCS7_type_is_signed(p7Dec), 1);
+    ExpectIntEQ(PKCS7_get_detached(p7Dec), 1);
+    ExpectIntEQ(PKCS7_is_detached(p7Dec), 1);
+
+    /* the embedded signer certificate is available right after decoding */
+    ExpectNotNull(signers = PKCS7_get0_signers(p7Dec, NULL, 0));
+    ExpectIntEQ(sk_X509_num(signers), 1);
+    sk_X509_pop_free(signers, NULL);
+    signers = NULL;
+
+    /* verify with the content supplied through the BIO */
+    ExpectNotNull(inBio = BIO_new_mem_buf(content, sizeof(content)));
+    ExpectIntEQ(PKCS7_verify(p7Dec, NULL, store, inBio, NULL, PKCS7_BINARY),
+                1);
+    BIO_free(inBio);
+    inBio = NULL;
+
+    /* wrong content still fails */
+    ExpectNotNull(inBio = BIO_new_mem_buf("bogus content", 13));
+    ExpectIntEQ(PKCS7_verify(p7Dec, NULL, store, inBio, NULL, PKCS7_BINARY),
+                WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    BIO_free(inBio);
+    inBio = NULL;
+
+    PKCS7_free(p7Dec);
+    p7Dec = NULL;
+    PKCS7_free(p7);
+    p7 = NULL;
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    der = NULL;
+    BIO_free(signBio);
+    signBio = NULL;
+
+    /* attached signature: verified while decoding, as before */
+    ExpectNotNull(signBio = BIO_new(BIO_s_mem()));
+    ExpectIntGT(BIO_write(signBio, content, sizeof(content)), 0);
+    ExpectNotNull(p7 = PKCS7_sign(signCert, signKey, NULL, signBio,
+                                  PKCS7_BINARY));
+    ExpectIntGT((derSz = i2d_PKCS7(p7, &der)), 0);
+    ExpectNotNull(der);
+    p = der;
+    ExpectNotNull(p7Dec = d2i_PKCS7(NULL, &p, derSz));
+    ExpectIntEQ(PKCS7_type_is_signed(p7Dec), 1);
+    ExpectIntEQ(PKCS7_is_detached(p7Dec), 0);
+    PKCS7_free(p7Dec);
+    p7Dec = NULL;
+
+    /* tampered attached content is rejected by d2i_PKCS7() */
+    if (der != NULL) {
+        for (i = 0; i + (int)sizeof(content) <= derSz; i++) {
+            if (XMEMCMP(der + i, content, sizeof(content)) == 0) {
+                der[i] ^= 0x01;
+                break;
+            }
+        }
+        ExpectTrue(i + (int)sizeof(content) <= derSz);
+    }
+    p = der;
+    ExpectNull(d2i_PKCS7(NULL, &p, derSz));
+
+    PKCS7_free(p7);
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    X509_STORE_free(store);
+    X509_free(caCert);
+    X509_free(signCert);
+    EVP_PKEY_free(signKey);
+    BIO_free(signBio);
+    BIO_free(certBio);
+    BIO_free(keyBio);
     BIO_free(caBio);
 #endif
     return EXPECT_RESULT();
