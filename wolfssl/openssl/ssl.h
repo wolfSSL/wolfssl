@@ -417,6 +417,23 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 
 #define SSL_CTX_set1_sigalgs_list       wolfSSL_CTX_set1_sigalgs_list
 #define SSL_set1_sigalgs_list           wolfSSL_set1_sigalgs_list
+#ifdef WOLFSSL_TLS13
+#define SSL_CTX_set1_sigalgs_cert_list  wolfSSL_CTX_set1_sigalgs_cert_list
+#define SSL_set1_sigalgs_cert_list      wolfSSL_set1_sigalgs_cert_list
+#endif
+#ifdef HAVE_CERTIFICATE_COMPRESSION
+/* RFC 8879, spelled as OpenSSL spells it. */
+#define SSL_CTX_compress_certs          wolfSSL_CTX_compress_certs
+#endif
+#ifdef HAVE_SIGNED_CERT_TIMESTAMP
+/* RFC 6962, spelled as BoringSSL spells it. */
+#define SSL_CTX_set_signed_cert_timestamp_list \
+        wolfSSL_CTX_set_signed_cert_timestamp_list
+#define SSL_set_signed_cert_timestamp_list \
+        wolfSSL_set_signed_cert_timestamp_list
+#define SSL_get0_signed_cert_timestamp_list \
+        wolfSSL_get0_signed_cert_timestamp_list
+#endif
 #define SSL_get_signature_nid           wolfSSL_get_signature_nid
 #define SSL_get_signature_type_nid      wolfSSL_get_signature_type_nid
 #define SSL_get_peer_signature_nid      wolfSSL_get_peer_signature_nid

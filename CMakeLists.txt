@@ -4083,6 +4083,53 @@ if(WOLFSSL_LIBZ)
     list(APPEND WOLFSSL_INCLUDE_DIRS ${ZLIB_INCLUDE_DIRS})
 endif()
 
+# Signed certificate timestamp (RFC 6962). Carries a Certificate Transparency
+# SCT list between peers; validating it is left to the application.
+add_option("WOLFSSL_SCT"
+           "Enable RFC 6962 signed_certificate_timestamp (default: disabled)"
+           "no" "yes;no")
+if(WOLFSSL_SCT)
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_TLS_EXTENSIONS")
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_SIGNED_CERT_TIMESTAMP")
+endif()
+
+# Record size limit (RFC 8449). Applies to TLS 1.2 as well as TLS 1.3, where
+# the server answers in the ServerHello rather than EncryptedExtensions, so
+# unlike certificate compression below it imposes no TLS 1.3 requirement.
+add_option("WOLFSSL_RECORDSIZELIMIT"
+           "Enable RFC 8449 record_size_limit, for TLS 1.2 and TLS 1.3 (default: disabled)"
+           "no" "yes;no")
+if(WOLFSSL_RECORDSIZELIMIT)
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_TLS_EXTENSIONS")
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_RECORD_SIZE_LIMIT")
+endif()
+
+# Certificate compression (RFC 8879); needs zlib and TLS 1.3
+add_option("WOLFSSL_CERTCOMP"
+           "Enable RFC 8879 TLS 1.3 certificate compression (default: disabled)"
+           "no" "yes;no")
+if(WOLFSSL_CERTCOMP)
+    if(NOT WOLFSSL_LIBZ)
+        message(FATAL_ERROR
+                "WOLFSSL_CERTCOMP requires WOLFSSL_LIBZ.")
+    endif()
+    if(NOT WOLFSSL_TLS13)
+        message(FATAL_ERROR
+                "WOLFSSL_CERTCOMP requires WOLFSSL_TLS13.")
+    endif()
+    # WOLFSSL_CERTS is not an option in this file; what actually produces
+    # -DNO_CERTS is WOLFSSL_ASN=no or WOLFSSL_LEAN_PSK, both resolved well
+    # before this point. Testing those is what makes this the configure-time
+    # equivalent of configure.ac's ENABLED_CERTS check.
+    if(NOT WOLFSSL_ASN OR WOLFSSL_LEAN_PSK)
+        message(FATAL_ERROR
+                "WOLFSSL_CERTCOMP requires certificate support "
+                "(WOLFSSL_ASN=yes, and not WOLFSSL_LEAN_PSK).")
+    endif()
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_TLS_EXTENSIONS")
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_CERTIFICATE_COMPRESSION")
+endif()
+
 
 ####################################################
 # Maximum key size options (parity with configure.ac)

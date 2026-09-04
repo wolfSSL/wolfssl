@@ -635,7 +635,343 @@ int wolfSSL_set1_groups(WOLFSSL* ssl, int* groups, int count)
     return ret;
 }
 #endif /* OPENSSL_EXTRA */
+
 #endif /* HAVE_SUPPORTED_CURVES */
+
+/* These extensions have their own build options and depend on neither the
+ * OpenSSL compatibility layer nor supported-curves, so they sit at file
+ * scope: --enable-recordsizelimit, --enable-certcomp and --enable-sct
+ * would otherwise compile the protocol code while leaving no way to
+ * configure it. */
+
+#ifdef HAVE_SIGNED_CERT_TIMESTAMP
+/* Set the SignedCertificateTimestampList a server presents.
+ *
+ * The bytes are the extension_data of RFC 6962 Sect. 3.3, that is a
+ * SignedCertificateTimestampList: a two byte list length then each SCT as a
+ * two byte length and its body. Certificate Transparency logs and CAs emit
+ * this blob; wolfSSL carries it and does not interpret it.
+ *
+ * @param [in] ctx  SSL/TLS context object.
+ * @param [in] list SignedCertificateTimestampList bytes, copied.
+ * @param [in] sz   Its length.
+ * Non-zero for success and zero for failure, as the BoringSSL API of this
+ * name documents, so a ported `if (!...)` test still catches a failure.
+ *
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  WOLFSSL_FAILURE on a NULL or empty argument, or when the copy
+ *          cannot be allocated.
+ */
+int wolfSSL_CTX_set_signed_cert_timestamp_list(WOLFSSL_CTX* ctx,
+                                               const unsigned char* list,
+                                               unsigned short sz)
+{
+    byte* copy;
+
+    WOLFSSL_ENTER("wolfSSL_CTX_set_signed_cert_timestamp_list");
+
+    if ((ctx == NULL) || (list == NULL) || (sz == 0)) {
+        WOLFSSL_MSG("Bad function arguments");
+        return WOLFSSL_FAILURE;
+    }
+
+    copy = (byte*)XMALLOC(sz, ctx->heap, DYNAMIC_TYPE_TLSX);
+    if (copy == NULL)
+        return WOLFSSL_FAILURE;
+    XMEMCPY(copy, list, sz);
+
+    XFREE(ctx->sctList, ctx->heap, DYNAMIC_TYPE_TLSX);
+    ctx->sctList = copy;
+    ctx->sctListSz = sz;
+
+    return WOLFSSL_SUCCESS;
+}
+
+/* Set the SignedCertificateTimestampList on the object.
+ *
+ * Overrides any list set on the context, and unlike the context setter takes
+ * effect on an object that already exists. See
+ * wolfSSL_CTX_set_signed_cert_timestamp_list().
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @param [in] list SignedCertificateTimestampList bytes, copied.
+ * @param [in] sz   Its length.
+ * Non-zero for success and zero for failure, as the BoringSSL API of this
+ * name documents, so a ported `if (!...)` test still catches a failure.
+ *
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  WOLFSSL_FAILURE on a NULL or empty argument, or when the copy
+ *          cannot be allocated.
+ */
+int wolfSSL_set_signed_cert_timestamp_list(WOLFSSL* ssl,
+                                           const unsigned char* list,
+                                           unsigned short sz)
+{
+    byte* copy;
+
+    WOLFSSL_ENTER("wolfSSL_set_signed_cert_timestamp_list");
+
+    if ((ssl == NULL) || (list == NULL) || (sz == 0)) {
+        WOLFSSL_MSG("Bad function arguments");
+        return WOLFSSL_FAILURE;
+    }
+
+    copy = (byte*)XMALLOC(sz, ssl->heap, DYNAMIC_TYPE_TLSX);
+    if (copy == NULL)
+        return WOLFSSL_FAILURE;
+    XMEMCPY(copy, list, sz);
+
+    /* Always this object's own copy: a list adopted from the context is
+     * copied by TLSX_SCTS_Parse() rather than aliased, so there is never a
+     * pointer here that belongs to someone else. */
+    XFREE(ssl->sctList, ssl->heap, DYNAMIC_TYPE_TLSX);
+    ssl->sctList = copy;
+    ssl->sctListSz = sz;
+    /* The application's choice for this object, not a copy of the context's,
+     * so it outlives a wolfSSL_clear(). */
+    ssl->sctListFromCtx = 0;
+
+    return WOLFSSL_SUCCESS;
+}
+
+/* Get the SignedCertificateTimestampList the peer presented.
+ *
+ * Points into storage owned by the SSL object. It is released when that
+ * object is freed and also by wolfSSL_clear(), which drops the peer state
+ * before the object is reused - so a caller that keeps the pointer across a
+ * reset is holding freed memory and must copy the bytes it needs. The list is
+ * structurally checked on arrival; verifying the timestamps needs a log list
+ * and policy the application supplies.
+ *
+ * @param [in]  ssl   SSL/TLS object.
+ * @param [out] list  Set to the list, or NULL when the peer sent none.
+ * @return  Length of the list in bytes, 0 when there is none.
+ */
+unsigned short wolfSSL_get0_signed_cert_timestamp_list(WOLFSSL* ssl,
+                                                       const unsigned char**
+                                                       list)
+{
+    WOLFSSL_ENTER("wolfSSL_get0_signed_cert_timestamp_list");
+
+    if (list != NULL)
+        *list = NULL;
+    if ((ssl == NULL) || (ssl->peerSctList == NULL))
+        return 0;
+    if (list != NULL)
+        *list = ssl->peerSctList;
+
+    return ssl->peerSctListSz;
+}
+#endif /* HAVE_SIGNED_CERT_TIMESTAMP */
+#ifdef HAVE_RECORD_SIZE_LIMIT
+/* Set the largest protected record this end will accept.
+ *
+ * Advertised as the RFC 8449 record_size_limit extension: by a client in the
+ * ClientHello and echoed by a server in EncryptedExtensions. It replaces
+ * max_fragment_length, which offers only four fixed sizes, and unlike it the
+ * value is an exact byte count. Advertised by default; pass 0 to stop
+ * advertising it.
+ *
+ * The count is payload. RFC 8449's field on the wire instead covers the whole
+ * TLS 1.3 TLSInnerPlaintext, so a request for n is advertised as n+1 under
+ * TLS 1.3 and as n under TLS 1.2; that conversion is internal and a caller
+ * never sees it.
+ *
+ * @param [in] ssl    SSL/TLS object.
+ * @param [in] limit  Largest record payload accepted, 64 to 2^14, or 0 to
+ *                    not advertise a limit at all.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ssl is NULL or limit is out of range.
+ */
+int wolfSSL_UseRecordSizeLimit(WOLFSSL* ssl, word16 limit)
+{
+    WOLFSSL_ENTER("wolfSSL_UseRecordSizeLimit");
+
+    /* 0 turns the extension off for this ssl, the only way back to silence
+     * now that WOLFSSL_RECORD_SIZE_LIMIT_DEFAULT is advertised by default.
+     * Any other value below the RFC 8449 minimum stays an error. */
+    if ((ssl == NULL) ||
+            ((limit != 0) && (limit < WOLFSSL_RECORD_SIZE_LIMIT_MIN)) ||
+            (limit > WOLFSSL_RECORD_SIZE_LIMIT_MAX)) {
+        return BAD_FUNC_ARG;
+    }
+    /* The value is advertised to the peer - in the ClientHello by a client,
+     * in the ServerHello or EncryptedExtensions by a server - and enforced on
+     * arrival, so changing it once the handshake is under way would tighten
+     * what this end accepts without telling the peer: the peer would keep
+     * sending records sized to the original offer and they would start being
+     * rejected. */
+    if (ssl->options.handShakeState != NULL_STATE) {
+        WOLFSSL_MSG("Record size limit must be set before the handshake");
+        return BAD_FUNC_ARG;
+    }
+    ssl->recordSizeLimit = limit;
+    ssl->recordSizeLimitSet = 1;
+
+    return WOLFSSL_SUCCESS;
+}
+
+/* Set the largest protected record accepted, on the context.
+ *
+ * See wolfSSL_UseRecordSizeLimit(). Objects created afterwards inherit it.
+ *
+ * @param [in] ctx    SSL/TLS context object.
+ * @param [in] limit  Largest record payload accepted, 64 to 2^14, or 0 to
+ *                    not advertise a limit at all.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ctx is NULL or limit is out of range.
+ */
+int wolfSSL_CTX_UseRecordSizeLimit(WOLFSSL_CTX* ctx, word16 limit)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_UseRecordSizeLimit");
+
+    /* 0 turns the extension off for this ctx, the only way back to silence
+     * now that WOLFSSL_RECORD_SIZE_LIMIT_DEFAULT is advertised by default.
+     * Any other value below the RFC 8449 minimum stays an error. */
+    if ((ctx == NULL) ||
+            ((limit != 0) && (limit < WOLFSSL_RECORD_SIZE_LIMIT_MIN)) ||
+            (limit > WOLFSSL_RECORD_SIZE_LIMIT_MAX)) {
+        return BAD_FUNC_ARG;
+    }
+    ctx->recordSizeLimit = limit;
+    ctx->recordSizeLimitSet = 1;
+
+    return WOLFSSL_SUCCESS;
+}
+#endif /* HAVE_RECORD_SIZE_LIMIT */
+
+#ifdef HAVE_CERTIFICATE_COMPRESSION
+/* Algorithm the peer's Certificate message arrived compressed with.
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @return  One of the WOLFSSL_CERT_COMP_* values when the peer's certificate
+ *          chain was received compressed (RFC 8879).
+ * @return  0 when it was not compressed, or ssl is NULL.
+ */
+int wolfSSL_get_certificate_compression_used(WOLFSSL* ssl)
+{
+    WOLFSSL_ENTER("wolfSSL_get_certificate_compression_used");
+
+    if (ssl == NULL)
+        return 0;
+
+    return ssl->certCompUsed;
+}
+#endif /* HAVE_CERTIFICATE_COMPRESSION */
+
+#ifdef HAVE_SIGNED_CERT_TIMESTAMP
+/* Whether the peer asked this end for signed certificate timestamps.
+ *
+ * A server can use this to tell an absent list from an unasked-for one.
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @return  1 when the peer sent the signed_certificate_timestamp extension.
+ * @return  0 when it did not, or ssl is NULL.
+ */
+int wolfSSL_signed_cert_timestamp_requested(WOLFSSL* ssl)
+{
+    WOLFSSL_ENTER("wolfSSL_signed_cert_timestamp_requested");
+
+    if (ssl == NULL)
+        return 0;
+
+    return ssl->sctRequested;
+}
+#endif /* HAVE_SIGNED_CERT_TIMESTAMP */
+#ifdef HAVE_CERTIFICATE_COMPRESSION
+/* Compress the context's certificate chain ahead of the handshake.
+ *
+ * RFC 8879 leaves compressing to the sender's discretion, so this is opt in:
+ * without it wolfSSL still advertises what it can decompress and still accepts
+ * a CompressedCertificate, but sends its own certificate uncompressed. The
+ * work is done once here rather than per handshake, since the result is the
+ * same every time.
+ *
+ * The cached body carries an empty certificate_request_context and no
+ * per-certificate extensions, so a handshake needing either -- post-handshake
+ * authentication, OCSP stapling, raw public keys -- sends the plain
+ * Certificate message instead.
+ *
+ * @param [in] ctx  SSL/TLS context object.
+ * @param [in] alg  Compression algorithm, WOLFSSL_CERT_COMP_ZLIB.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  WOLFSSL_FAILURE when ctx is NULL, alg is unsupported, no
+ *          certificate is loaded, or the compressed form is not smaller.
+ */
+int wolfSSL_CTX_compress_certs(WOLFSSL_CTX* ctx, int alg)
+{
+    byte*  body = NULL;
+    byte*  comp = NULL;
+    word32 bodySz = 0;
+    word32 compBufSz;
+    int    compSz;
+    int    ret = WOLFSSL_FAILURE;
+
+    WOLFSSL_ENTER("wolfSSL_CTX_compress_certs");
+
+    /* This carries OpenSSL's SSL_CTX_compress_certs() name, so it answers the
+     * way that API does: non-zero for success, zero for failure. A negative
+     * error code would be truthy and slip straight past the `if (!ret)` a
+     * caller ported from OpenSSL writes. The specific cause is logged rather
+     * than returned. */
+    if (ctx == NULL || !TLSX_CertificateCompression_Supported((word16)alg)) {
+        WOLFSSL_MSG("Bad function arguments");
+        return WOLFSSL_FAILURE;
+    }
+    if (BuildTls13CertificateBody(ctx, &body, &bodySz) != 0) {
+        WOLFSSL_MSG("Could not build the Certificate body to compress");
+        return WOLFSSL_FAILURE;
+    }
+
+    /* wc_Compress() needs a destination; deflate can expand incompressible
+     * input, so allow for that rather than assume a saving. Computed once so
+     * the allocation and the length handed to wc_Compress() cannot drift, and
+     * checked for wrap since it is derived from a length. */
+    compBufSz = bodySz + (bodySz / 2) + 64;
+    if (compBufSz <= bodySz) {
+        WOLFSSL_MSG("Certificate body too large to size a compression buffer");
+        XFREE(body, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return WOLFSSL_FAILURE;
+    }
+    comp = (byte*)XMALLOC(compBufSz, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (comp == NULL) {
+        XFREE(body, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return WOLFSSL_FAILURE;
+    }
+
+    compSz = wc_Compress(comp, compBufSz, body, bodySz, 0);
+    /* Only keep it when it actually saves bytes on the wire. */
+    if (compSz > 0 && (word32)compSz < bodySz) {
+        XFREE(ctx->certComp, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        ctx->certComp = comp;
+        ctx->certCompSz = (word32)compSz;
+        ctx->certCompPlainSz = bodySz;
+        ctx->certCompAlgo = (byte)alg;
+        ctx->certCompCertSz = ctx->certificate->length;
+        ctx->certCompChainSz = (ctx->certChain != NULL) ?
+                               ctx->certChain->length : 0;
+        ctx->certCompChainCnt = ctx->certChainCnt;
+        comp = NULL;
+        ret = WOLFSSL_SUCCESS;
+    }
+    else if (compSz > 0) {
+        /* Not a failure: RFC 8879 leaves compressing to the sender, so an
+         * incompressible chain simply goes out as a plain Certificate. The
+         * caller asked for a cache and got the right answer, which is that
+         * there is no point having one. */
+        WOLFSSL_MSG("Compressed certificate is no smaller, not cached");
+        ret = WOLFSSL_SUCCESS;
+    }
+    else {
+        WOLFSSL_MSG("Certificate compression failed");
+    }
+
+    XFREE(comp, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(body, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+#endif /* HAVE_CERTIFICATE_COMPRESSION */
 
 /* Application-Layer Protocol Negotiation */
 #ifdef HAVE_ALPN
@@ -1807,6 +2143,66 @@ int wolfSSL_set1_sigalgs_list(WOLFSSL* ssl, const char* list)
 
     return ret;
 }
+
+#ifdef WOLFSSL_TLS13
+/* Set the certificate signature algorithms list on the context.
+ *
+ * Sent as the TLS 1.3 signature_algorithms_cert extension: by a client in the
+ * ClientHello and by a server in the CertificateRequest. Leave it unset when
+ * the same algorithms are acceptable for certificates and for handshake
+ * signatures -- signature_algorithms then covers both (RFC 8446 Sect 4.2.3).
+ *
+ * @param [in] ctx   SSL/TLS context object.
+ * @param [in] list  Colon-separated list of <public key>+<digest> algorithms.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  WOLFSSL_FAILURE when ctx or list is NULL or on error.
+ */
+int wolfSSL_CTX_set1_sigalgs_cert_list(WOLFSSL_CTX* ctx, const char* list)
+{
+    int ret;
+
+    WOLFSSL_MSG("wolfSSL_CTX_set1_sigalgs_cert_list");
+
+    if ((ctx == NULL) || (list == NULL)) {
+        WOLFSSL_MSG("Bad function arguments");
+        ret = WOLFSSL_FAILURE;
+    }
+    else {
+        ret = SetHashSigAlgoList(ctx->ourCertSigAlgo, &ctx->ourCertSigAlgoSz,
+                                 list);
+    }
+
+    return ret;
+}
+
+/* Set the certificate signature algorithms list on the object.
+ *
+ * Overrides any list set on the context. See
+ * wolfSSL_CTX_set1_sigalgs_cert_list().
+ *
+ * @param [in] ssl   SSL/TLS object.
+ * @param [in] list  Colon-separated list of <public key>+<digest> algorithms.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  WOLFSSL_FAILURE when ssl or list is NULL or on error.
+ */
+int wolfSSL_set1_sigalgs_cert_list(WOLFSSL* ssl, const char* list)
+{
+    int ret;
+
+    WOLFSSL_MSG("wolfSSL_set1_sigalgs_cert_list");
+
+    if ((ssl == NULL) || (list == NULL)) {
+        WOLFSSL_MSG("Bad function arguments");
+        ret = WOLFSSL_FAILURE;
+    }
+    else {
+        ret = SetHashSigAlgoList(ssl->ourCertSigAlgo, &ssl->ourCertSigAlgoSz,
+                                 list);
+    }
+
+    return ret;
+}
+#endif /* WOLFSSL_TLS13 */
 
 #ifdef HAVE_ECC
 

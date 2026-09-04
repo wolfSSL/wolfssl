@@ -21,6 +21,10 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
+#ifdef HAVE_CERTIFICATE_COMPRESSION
+    #include <wolfssl/wolfcrypt/compress.h>
+#endif
+
 /*
  * TLS 1.3-Specific Build Options:
  * (See tls.c for generic TLS options: extensions, curves, callbacks, etc.)
@@ -2436,8 +2440,11 @@ static void AddTls13Headers(byte* output, word32 length, byte type,
     AddTls13HandShakeHeader(output + outputAdj, length, 0, length, type, ssl);
 }
 
-#if (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) \
-    && !defined(NO_CERTS)
+/* HAVE_RECORD_SIZE_LIMIT is in the condition because SendTls13FragmentedMsg()
+ * needs this for EncryptedExtensions and NewSessionTicket, which a PSK-only
+ * TLS 1.3 server sends with NO_CERTS defined and no Certificate in sight. */
+#if ((!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) \
+    && !defined(NO_CERTS)) || defined(HAVE_RECORD_SIZE_LIMIT)
 /* Add both record layer and fragment handshake header to message.
  *
  * output      The buffer to write the headers into.
@@ -2467,7 +2474,8 @@ static void AddTls13FragHeaders(byte* output, word32 fragSz, word32 fragOffset,
     AddTls13HandShakeHeader(output + outputAdj, length, fragOffset, fragSz,
                             type, ssl);
 }
-#endif /* (!NO_WOLFSSL_CLIENT || !NO_WOLFSSL_SERVER) && !NO_CERTS */
+#endif /* ((!NO_WOLFSSL_CLIENT || !NO_WOLFSSL_SERVER) && !NO_CERTS) ||
+        * HAVE_RECORD_SIZE_LIMIT */
 
 /* Write the sequence number into the buffer.
  * No DTLS v1.3 support.
@@ -6289,7 +6297,9 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
     *inOutIdx += len;
 
     /* TODO: Add support for more extensions:
-     *   signed_certificate_timestamp, certificate_authorities, oid_filters.
+     *   oid_filters, and certificate transparency. RFC 9846 Table 1 lists
+     *   transparency_info (RFC 9162) for this message rather than the legacy
+     *   signed_certificate_timestamp, so that is the one to add.
      */
     /* Certificate extensions */
     if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
@@ -8625,7 +8635,129 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
     return ret;
 }
 
-/* handle generation of TLS 1.3 encrypted_extensions (8) */
+#ifdef HAVE_RECORD_SIZE_LIMIT
+/* Re-emit an already-built handshake message as a series of records.
+ *
+ * EncryptedExtensions, CertificateRequest and NewSessionTicket are each laid
+ * down as exactly one record. That holds until a peer negotiates a
+ * record_size_limit smaller than the message - RFC 8449 Sect. 4 permits a
+ * limit as low as 64 - and one oversized record then earns a record_overflow
+ * alert. Those three messages are small and, by the time this is called,
+ * fully assembled, so copy the body aside and lay it back down across as many
+ * records as the limit needs.
+ *
+ * Every fragment is written into the output buffer and none is flushed here:
+ * a WANT_WRITE part way through would otherwise strand the scratch copy and
+ * force the caller to rebuild - and re-hash - a message already counted in
+ * the transcript. The caller's own SendBuffered() flushes them together, and
+ * the existing output-buffer retry resends whatever the socket did not take.
+ *
+ * ssl         The SSL/TLS object.
+ * output      Start of the built record: record header, handshake header,
+ *             then the body.
+ * msgSz       Bytes written to output, headers included.
+ * type        Handshake message type.
+ * hashOutput  Whether the message belongs in the handshake transcript.
+ * returns 0 on success, otherwise failure.
+ */
+static int SendTls13FragmentedMsg(WOLFSSL* ssl, byte* output, word32 msgSz,
+                                  byte type, int hashOutput)
+{
+    byte*  body;
+    word32 bodySz;
+    word32 offset = 0;
+    word32 maxFragment;
+    int    maxPlain;
+    int    ret = 0;
+
+    if (msgSz < RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ)
+        return BUFFER_E;
+    bodySz = msgSz - RECORD_HEADER_SZ - HANDSHAKE_HEADER_SZ;
+
+    /* Tested as a signed int before the cast: the helper returns a negative
+     * error code, which as a word32 would sail past the check below. A
+     * fragment also has to carry at least one body byte or this never ends,
+     * and the first one carries the handshake header too. */
+    maxPlain = wolfssl_local_GetMaxPlaintextSize(ssl);
+    if (maxPlain <= (int)HANDSHAKE_HEADER_SZ)
+        return BUFFER_E;
+    maxFragment = (word32)maxPlain;
+
+    body = (byte*)XMALLOC(bodySz, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (body == NULL)
+        return MEMORY_E;
+    XMEMCPY(body, output + RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ, bodySz);
+
+    while (offset < bodySz) {
+        word32 fragSz;
+        word32 i;
+        int    sendSz;
+
+        if (offset == 0)
+            fragSz = min(bodySz, maxFragment - HANDSHAKE_HEADER_SZ);
+        else
+            fragSz = min(bodySz - offset, maxFragment);
+
+        sendSz = (int)(fragSz + MAX_MSG_EXTRA);
+        if (offset == 0)
+            sendSz += HANDSHAKE_HEADER_SZ;
+
+        ret = CheckAvailableSize(ssl, sendSz);
+        if (ret != 0)
+            break;
+        /* CheckAvailableSize() may have moved the buffer. */
+        output = GetOutputBuffer(ssl);
+
+        if (offset == 0) {
+            /* Only the first record carries the handshake header, and it
+             * states the length of the whole message, not of the fragment. */
+            AddTls13FragHeaders(output, fragSz, 0, bodySz, type, ssl);
+            i = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
+        }
+        else {
+            AddTls13RecordHeader(output, fragSz, handshake, ssl);
+            i = RECORD_HEADER_SZ;
+        }
+        XMEMCPY(output + i, body + offset, fragSz);
+        i += fragSz;
+
+        /* These messages are always encrypted. */
+        sendSz = BuildTls13Message(ssl, output, sendSz,
+                                   output + RECORD_HEADER_SZ,
+                                   (int)(i - RECORD_HEADER_SZ), handshake,
+                                   hashOutput, 0, 0);
+        if (sendSz < 0) {
+            ret = sendSz;
+            break;
+        }
+
+        ssl->buffers.outputBuffer.length += (word32)sendSz;
+        offset += fragSz;
+    }
+
+    XFREE(body, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+
+/* Would this message overflow the record_size_limit the peer negotiated?
+ * Deliberately keyed on the peer's limit rather than on the maximum plaintext
+ * size in general: max_fragment_length has never fragmented these three
+ * messages either, and changing that is not this change's business.
+ *
+ * ssl    The SSL/TLS object.
+ * msgSz  Bytes written to the output buffer, headers included.
+ * returns 1 when the message has to be split, otherwise 0.
+ */
+static int Tls13MsgNeedsFragmenting(WOLFSSL* ssl, word32 msgSz)
+{
+    if (ssl->peerRecordSizeLimit == 0)
+        return 0;
+    return (int)(msgSz - RECORD_HEADER_SZ) >
+           wolfssl_local_GetMaxPlaintextSize(ssl);
+}
+#endif /* HAVE_RECORD_SIZE_LIMIT */
+
 /* Send the rest of the extensions encrypted under the handshake key.
  * This message is always encrypted in TLS v1.3.
  * Only a server will send this message.
@@ -8755,6 +8887,25 @@ static int SendTls13EncryptedExtensions(WOLFSSL* ssl)
     }
 #endif /* WOLFSSL_DTLS13 */
 
+#ifdef HAVE_RECORD_SIZE_LIMIT
+    if (Tls13MsgNeedsFragmenting(ssl, idx)) {
+        ret = SendTls13FragmentedMsg(ssl, output, idx, encrypted_extensions,
+                                     1);
+        if (ret != 0)
+            return ret;
+
+        ssl->options.buildingMsg = 0;
+        ssl->options.serverState = SERVER_ENCRYPTED_EXTENSIONS_COMPLETE;
+        if (!ssl->options.groupMessages)
+            ret = SendBuffered(ssl);
+
+        WOLFSSL_LEAVE("SendTls13EncryptedExtensions", ret);
+        WOLFSSL_END(WC_FUNC_ENCRYPTED_EXTENSIONS_SEND);
+
+        return ret;
+    }
+#endif
+
     /* This handshake message is always encrypted. */
     sendSz = BuildTls13Message(ssl, output, sendSz, output + RECORD_HEADER_SZ,
                                (int)(idx - RECORD_HEADER_SZ),
@@ -8869,6 +9020,36 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
 
     }
 #endif /* WOLFSSL_DTLS13 */
+
+#ifdef HAVE_RECORD_SIZE_LIMIT
+    if (Tls13MsgNeedsFragmenting(ssl, i)) {
+    #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
+        /* Traced before the split, while output still holds the whole
+         * message: the fragments are the same bytes in several records, and
+         * SendTls13FragmentedMsg() may move the buffer. */
+        if (ssl->hsInfoOn)
+            AddPacketName(ssl, "CertificateRequest");
+        if (ssl->toInfoOn) {
+            ret = AddPacketInfo(ssl, "CertificateRequest", handshake, output,
+                          (int)i, WRITE_PROTO, 0, ssl->heap);
+            if (ret != 0)
+                return ret;
+        }
+    #endif
+        ret = SendTls13FragmentedMsg(ssl, output, i, certificate_request, 1);
+        if (ret != 0)
+            return ret;
+
+        ssl->options.buildingMsg = 0;
+        if (!ssl->options.groupMessages)
+            ret = SendBuffered(ssl);
+
+        WOLFSSL_LEAVE("SendTls13CertificateRequest", ret);
+        WOLFSSL_END(WC_FUNC_CERTIFICATE_REQUEST_SEND);
+
+        return ret;
+    }
+#endif
 
     /* Always encrypted. */
     sendSz = BuildTls13Message(ssl, output, sendSz, output + RECORD_HEADER_SZ,
@@ -9972,26 +10153,35 @@ static int SetupOcspResp(WOLFSSL* ssl)
 #endif
 
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
-/* Certificate is signed with the deprecated SHA-1 hash. An unrecognized or
- * unparsable algorithm is not SHA-1; the peer still verifies the chain.
+/* Map a certificate's signatureAlgorithm to the TLS hash and signature pair
+ * that names it.
  *
- * der    Buffer holding the DER encoded certificate.
- * derSz  Length of the DER encoded certificate.
- * returns 1 when SHA-1 signed, 0 otherwise.
+ * der       Buffer holding the DER encoded certificate.
+ * derSz     Length of the DER encoded certificate.
+ * hashAlgo  On success, the digest the certificate was signed with.
+ * sigAlgo   On success, the signature algorithm it was signed with. Both are
+ *           left as no_mac/invalid_sa_algo when the algorithm is not one this
+ *           code recognises, which is not an error: the peer still verifies
+ *           the chain itself.
+ * returns 1 when the algorithm was recognised, 0 otherwise.
  */
-static int IsSha1SignedCert(const byte* der, word32 derSz)
+static int GetCertSigAlgo(const byte* der, word32 derSz, byte* hashAlgo,
+                          byte* sigAlgo)
 {
     word32 idx = 0;
     word32 oid = 0;
     word32 algoIdEnd = 0;
     int    len = 0;
-    int    isSha1 = 0;
+    int    known = 0;
     int    ret;
 #if defined(WC_RSA_PSS) && !defined(NO_RSA)
     enum wc_HashType hash = WC_HASH_TYPE_NONE;
     int    mgf = 0;
     int    saltLen = 0;
 #endif
+
+    *hashAlgo = no_mac;
+    *sigAlgo = invalid_sa_algo;
 
     /* Certificate ::= SEQUENCE { tbsCertificate, signatureAlgorithm, ... }.
      * GetSequence() checks each length against the maximum index passed in, so
@@ -10011,25 +10201,165 @@ static int IsSha1SignedCert(const byte* der, word32 derSz)
         ret = GetObjectId(der, &idx, &oid, oidSigType, algoIdEnd);
     }
     if (ret >= 0) {
-        if ((oid == CTC_SHAwRSA) || (oid == CTC_SHAwECDSA) ||
-                (oid == CTC_SHAwDSA)) {
-            isSha1 = 1;
+        known = 1;
+        /* The CTC_* OID sums and the wc_MACAlgorithm values are both defined
+         * unconditionally, so this mapping is not guarded by the algorithm
+         * build macros: a certificate has to be classified even in a build
+         * that cannot itself use the algorithm, or it would escape the SHA-1
+         * rule below by looking unrecognised. */
+        switch (oid) {
+            case CTC_SHAwRSA:      *hashAlgo = sha_mac;    break;
+            case CTC_SHA224wRSA:   *hashAlgo = sha224_mac; break;
+            case CTC_SHA256wRSA:   *hashAlgo = sha256_mac; break;
+            case CTC_SHA384wRSA:   *hashAlgo = sha384_mac; break;
+            case CTC_SHA512wRSA:   *hashAlgo = sha512_mac; break;
+            case CTC_SHAwECDSA:    *hashAlgo = sha_mac;    break;
+            case CTC_SHA224wECDSA: *hashAlgo = sha224_mac; break;
+            case CTC_SHA256wECDSA: *hashAlgo = sha256_mac; break;
+            case CTC_SHA384wECDSA: *hashAlgo = sha384_mac; break;
+            case CTC_SHA512wECDSA: *hashAlgo = sha512_mac; break;
+            case CTC_SHAwDSA:      *hashAlgo = sha_mac;    break;
+            case CTC_SHA256wDSA:   *hashAlgo = sha256_mac; break;
+            case CTC_ED25519:      *hashAlgo = sha512_mac; break;
+            case CTC_ED448:        *hashAlgo = sha512_mac; break;
+            case CTC_SM3wSM2:      *hashAlgo = sm3_mac;    break;
+            default:
+                /* Signature algorithms this mapping does not cover, such as
+                 * the post-quantum ones, are reported as unknown so that the
+                 * certificate is left alone rather than rejected. */
+                known = 0;
+                break;
         }
+
+        switch (oid) {
+            case CTC_SHAwRSA:      case CTC_SHA224wRSA:
+            case CTC_SHA256wRSA:   case CTC_SHA384wRSA:
+            case CTC_SHA512wRSA:
+                *sigAlgo = rsa_sa_algo;
+                break;
+            case CTC_SHAwECDSA:    case CTC_SHA224wECDSA:
+            case CTC_SHA256wECDSA: case CTC_SHA384wECDSA:
+            case CTC_SHA512wECDSA:
+                *sigAlgo = ecc_dsa_sa_algo;
+                break;
+            case CTC_SHAwDSA:      case CTC_SHA256wDSA:
+                *sigAlgo = dsa_sa_algo;
+                break;
+            case CTC_ED25519:      *sigAlgo = ed25519_sa_algo; break;
+            case CTC_ED448:        *sigAlgo = ed448_sa_algo;   break;
+            case CTC_SM3wSM2:      *sigAlgo = sm2_sa_algo;     break;
+            default:
+                break;
+        }
+
     #if defined(WC_RSA_PSS) && !defined(NO_RSA)
         /* RSASSA-PSS uses one signature OID for every digest and names the
          * digest in the algorithm parameters instead. Absent parameters are
          * passed through as a zero length buffer rather than skipped: RFC 4055
          * makes them mean all defaults, which is SHA-1, and
          * wc_DecodeRsaPssParams() reports that. */
-        else if ((oid == RSAPSSk) && (idx <= algoIdEnd) &&
+        if ((oid == RSAPSSk) && (idx <= algoIdEnd) &&
                 (wc_DecodeRsaPssParams(der + idx, algoIdEnd - idx, &hash, &mgf,
                                        &saltLen) == 0)) {
-            isSha1 = (hash == WC_HASH_TYPE_SHA);
+            *sigAlgo = rsa_pss_sa_algo;
+            known = 1;
+            if (hash == WC_HASH_TYPE_SHA)
+                *hashAlgo = sha_mac;
+            else if (hash == WC_HASH_TYPE_SHA224)
+                *hashAlgo = sha224_mac;
+            else if (hash == WC_HASH_TYPE_SHA256)
+                *hashAlgo = sha256_mac;
+            else if (hash == WC_HASH_TYPE_SHA384)
+                *hashAlgo = sha384_mac;
+            else if (hash == WC_HASH_TYPE_SHA512)
+                *hashAlgo = sha512_mac;
+            else
+                known = 0;
         }
     #endif
     }
 
-    return isSha1;
+    return known;
+}
+
+/* Is a certificate signature algorithm one the peer said it accepts?
+ *
+ * Walks the signature_algorithms_cert list the peer sent, decoding each entry
+ * with DecodeSigAlg() so the encoding is read in exactly one place.
+ *
+ * An entry matches only when both the digest and the signature algorithm
+ * agree. The caller asks about SHA-1 chains alone, and TLS 1.3 assigns no
+ * rsa_pss_*_sha1 code point, so there is no digest at which a PSS and a
+ * PKCS#1 entry could stand in for one another here.
+ *
+ * ssl       The SSL/TLS object.
+ * hashAlgo  Digest the certificate was signed with.
+ * sigAlgo   Signature algorithm the certificate was signed with.
+ * returns 1 when the peer accepts the algorithm, 0 when it does not.
+ */
+static int PeerAcceptsCertSigAlgo(const WOLFSSL* ssl, byte hashAlgo,
+                                  byte sigAlgo)
+{
+    word16 i;
+
+    for (i = 0; (word16)(i + OPAQUE16_LEN) <= ssl->certHashSigAlgoSz;
+            i += OPAQUE16_LEN) {
+        byte peerHash = no_mac;
+        byte peerSig = invalid_sa_algo;
+
+        DecodeSigAlg(&ssl->certHashSigAlgo[i], &peerHash, &peerSig);
+        if (peerHash != hashAlgo)
+            continue;
+        if (peerSig == sigAlgo)
+            return 1;
+        /* No RSA leniency here on purpose. The caller only asks about SHA-1
+         * chains, and TLS 1.3 assigns no rsa_pss_*_sha1 code point, so an
+         * RSASSA-PSS certificate whose parameters name SHA-1 can never be
+         * matched by a conformant peer's list and is refused. Accepting one
+         * against an advertised rsa_pkcs1_sha1 would be honouring a promise
+         * the peer did not make. */
+    }
+
+    return 0;
+}
+
+/* May a certificate about to be sent be rejected on its signature algorithm?
+ *
+ * ssl    The SSL/TLS object.
+ * der    Buffer holding the DER encoded certificate.
+ * derSz  Length of the DER encoded certificate.
+ * returns 1 when the peer will not accept the certificate, 0 otherwise.
+ */
+static int CertSigAlgoRejected(const WOLFSSL* ssl, const byte* der,
+                               word32 derSz)
+{
+    byte hashAlgo = no_mac;
+    byte sigAlgo = invalid_sa_algo;
+
+    if (!GetCertSigAlgo(der, derSz, &hashAlgo, &sigAlgo)) {
+        /* Not a signature algorithm this maps, so nothing to check it
+         * against. Leave the certificate for the peer to judge. */
+        return 0;
+    }
+
+    /* Only SHA-1 bars a certificate outright. RFC 9846 Sect. 4.5.1.2 lets a
+     * sender that cannot build a chain signed with the algorithms the peer
+     * advertised send the chain it has anyway, so a mismatch on any other
+     * digest is for the peer to judge on receipt -- but that fallback "MUST
+     * NOT use the deprecated SHA-1 hash, unless the [peer] specifically
+     * advertises that it is willing to accept SHA-1". */
+    if (hashAlgo != sha_mac)
+        return 0;
+
+    /* That willingness is per signature scheme, not per digest: a peer that
+     * advertised ecdsa_sha1 alone has not agreed to accept an rsa_pkcs1_sha1
+     * certificate. Match the whole scheme when the peer sent a certificate
+     * list; without one, all that survives parsing is the flag
+     * SetPeerSha1CertOk() left behind. */
+    if (ssl->certHashSigAlgoSz > 0)
+        return !PeerAcceptsCertSigAlgo(ssl, hashAlgo, sigAlgo);
+
+    return !ssl->options.peerSha1CertOk;
 }
 
 /* Certificate is self signed. RFC 8446 Section 4.4.2.2: "Certificates that are
@@ -10089,6 +10419,10 @@ static int IsSelfSignedCert(WOLFSSL* ssl, const byte* der, word32 derSz,
  * same rule covers both sides. How a failure is resolved differs by side and is
  * left to the caller.
  *
+ * The SHA-1 test is made against the peer's signature_algorithms_cert list
+ * when it sent one, matching the certificate's whole signature scheme rather
+ * than only its digest.
+ *
  * ssl  The SSL/TLS object.
  * returns 0 when the chain may be sent, MATCH_SUITE_ERROR when it may not and
  * MEMORY_E when a certificate could not be examined.
@@ -10103,7 +10437,7 @@ static int CheckCertChainSigAlgo(WOLFSSL* ssl)
     int    selfSigned = 0;
     int    ret = 0;
 
-    if (ssl->options.peerSha1CertOk)
+    if (ssl->certHashSigAlgoSz == 0 && ssl->options.peerSha1CertOk)
         return 0;
 
     if (ssl->buffers.certificate == NULL ||
@@ -10111,8 +10445,8 @@ static int CheckCertChainSigAlgo(WOLFSSL* ssl)
         return 0;
     }
 
-    if (IsSha1SignedCert(ssl->buffers.certificate->buffer,
-                         ssl->buffers.certificate->length)) {
+    if (CertSigAlgoRejected(ssl, ssl->buffers.certificate->buffer,
+                            ssl->buffers.certificate->length)) {
         ret = IsSelfSignedCert(ssl, ssl->buffers.certificate->buffer,
                                ssl->buffers.certificate->length, &selfSigned);
         if (ret != 0)
@@ -10140,7 +10474,7 @@ static int CheckCertChainSigAlgo(WOLFSSL* ssl)
             cur += CERT_HEADER_SZ;
             len -= CERT_HEADER_SZ;
 
-            if (IsSha1SignedCert(cur, len)) {
+            if (CertSigAlgoRejected(ssl, cur, len)) {
                 ret = IsSelfSignedCert(ssl, cur, len, &selfSigned);
                 if (ret != 0)
                     return ret;
@@ -10150,12 +10484,294 @@ static int CheckCertChainSigAlgo(WOLFSSL* ssl)
         }
     }
 
-    if (ret == WC_NO_ERR_TRACE(MATCH_SUITE_ERROR))
-        WOLFSSL_MSG("Chain is SHA-1 signed but peer did not advertise SHA-1");
+    if (ret == WC_NO_ERR_TRACE(MATCH_SUITE_ERROR)) {
+        WOLFSSL_MSG("Chain is SHA-1 signed but peer did not advertise it");
+    }
 
     return ret;
 }
 #endif /* !NO_CERTS && !WOLFSSL_NO_SIGALG */
+
+#ifdef HAVE_CERTIFICATE_COMPRESSION
+/* May this handshake send the context's cached compressed certificate?
+ *
+ * The cache was built for an empty certificate_request_context and no
+ * per-certificate extensions, so anything needing either is excluded: a
+ * post-handshake authentication request carries a context, OCSP stapling adds
+ * a status_request extension, and a raw public key is not the message the
+ * cache holds. The certificate must also still be the context's own, not one
+ * replaced on this WOLFSSL object.
+ */
+/* Is this the same DER the cache was built from? Under WOLFSSL_COPY_CERT the
+ * object holds its own copy of the context's certificate, so the buffers are
+ * compared rather than the pointers. */
+static int SameDerAsCtx(const DerBuffer* a, const DerBuffer* b)
+{
+    if (a == b)
+        return 1;
+    if (a == NULL || b == NULL)
+        return 0;
+    if (a->length != b->length)
+        return 0;
+    return XMEMCMP(a->buffer, b->buffer, a->length) == 0;
+}
+
+static int UseCompressedCertificate(WOLFSSL* ssl)
+{
+    WOLFSSL_CTX* ctx = ssl->ctx;
+
+#ifdef WOLFSSL_DTLS13
+    /* DTLS 1.3 fragments handshake messages inside dtls13_handshake_send(),
+     * which this path does not go through, so the plain message is sent. */
+    if (ssl->options.dtls)
+        return 0;
+#endif
+
+    if (ctx == NULL || ctx->certComp == NULL)
+        return 0;
+    if (ssl->peerCertCompAlgo == 0 ||
+            ssl->peerCertCompAlgo != ctx->certCompAlgo) {
+        return 0;
+    }
+    if (ssl->options.sendVerify == SEND_BLANK_CERT)
+        return 0;
+    /* The certificate this connection sends has to be the one the cache was
+     * built from; a per-object certificate replaces it. */
+    if (!SameDerAsCtx(ssl->buffers.certificate, ctx->certificate))
+        return 0;
+    if (!SameDerAsCtx(ssl->buffers.certChain, ctx->certChain))
+        return 0;
+    if (ssl->buffers.certChainCnt != ctx->certChainCnt)
+        return 0;
+    /* And the cache has to describe the certificate the context holds now.
+     * The invalidation hooks on the replacement paths should have caught
+     * this already; checking here means a path added later that forgets one
+     * degrades to sending the plain message rather than the wrong
+     * certificate. */
+    /* SameDerAsCtx() above reports a match for two NULLs, so reaching here
+     * does not prove the context still holds a certificate. */
+    if (ctx->certificate == NULL)
+        return 0;
+    if (ctx->certificate->length != ctx->certCompCertSz)
+        return 0;
+    if (((ctx->certChain != NULL) ? ctx->certChain->length : 0) !=
+            ctx->certCompChainSz) {
+        return 0;
+    }
+    if (ctx->certChainCnt != ctx->certCompChainCnt)
+        return 0;
+#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+    /* The cached body carries an empty certificate_request_context, so it can
+     * only answer a request that had one. An in-handshake CertificateRequest
+     * does (RFC 8446 Sect. 4.3.2), and still lands here in ssl->certReqCtx,
+     * so the length is what separates it from post-handshake auth - testing
+     * the pointer alone declined every client-authenticated handshake. */
+    if (ssl->certReqCtx != NULL && ssl->certReqCtx->len > 0)
+        return 0;
+#endif
+    /* A stapled OCSP response rides in the Certificate message's per-entry
+     * extensions, which the cached body does not have - but only the end that
+     * staples is affected. These fields record that this end asked its peer
+     * for a staple, which for a client says nothing about the certificate it
+     * sends itself; wolfSSL does not staple to a client Certificate. Testing
+     * them regardless turned every ordinary client, which advertises OCSP by
+     * default, into one that never compresses. */
+    if (ssl->options.side == WOLFSSL_SERVER_END) {
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+        if (ssl->status_request != 0)
+            return 0;
+#endif
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+        if (ssl->status_request_v2 != 0)
+            return 0;
+#endif
+    }
+#ifdef HAVE_RPK
+    /* The counts are non-zero for plain X.509 too, so the negotiated type is
+     * what matters: a raw public key is not the message the cache holds. */
+    if (ssl->options.side == WOLFSSL_SERVER_END) {
+        if (ssl->options.rpkState.sending_ServerCertTypeCnt > 0 &&
+                ssl->options.rpkState.sending_ServerCertTypes[0] ==
+                    WOLFSSL_CERT_TYPE_RPK) {
+            return 0;
+        }
+    }
+    else if (ssl->options.rpkState.sending_ClientCertTypeCnt > 0 &&
+             ssl->options.rpkState.sending_ClientCertTypes[0] ==
+                 WOLFSSL_CERT_TYPE_RPK) {
+        return 0;
+    }
+#endif
+    return 1;
+}
+
+/* handle generation TLS v1.3 compressed_certificate (25) */
+/* Send the context's cached compressed certificate in place of the
+ * Certificate message (RFC 8879 Sect. 4).
+ *
+ *     struct {
+ *         CertificateCompressionAlgorithm algorithm;
+ *         uint24 uncompressed_length;
+ *         opaque compressed_certificate_message<1..2^24-1>;
+ *     } CompressedCertificate;
+ *
+ * Fragmented across records the same way SendTls13Certificate() fragments the
+ * plain message: the handshake header goes on the first record only and
+ * ssl->fragOffset carries the position across a WANT_WRITE. Without this the
+ * message ignored both max_fragment_length and the peer's record_size_limit,
+ * and a body over 2^14 bytes produced a record a conformant peer must reject.
+ *
+ * The message goes into the handshake transcript in this compressed form,
+ * which BuildTls13Message() does for free, and is what the peer hashes.
+ *
+ * ssl  The SSL/TLS object.
+ * returns 0 on success, otherwise failure.
+ */
+static int SendTls13CompressedCertificate(WOLFSSL* ssl)
+{
+    WOLFSSL_CTX* ctx = ssl->ctx;
+    /* algorithm(2) + uncompressed_length(3) + compressed length(3) */
+    byte   hdr[OPAQUE16_LEN + OPAQUE24_LEN + OPAQUE24_LEN];
+    word32 payloadSz = (word32)sizeof(hdr) + ctx->certCompSz;
+    word32 maxFragment;
+    int    ret = 0;
+
+    /* SendTls13Certificate() already opened the WC_FUNC_CERTIFICATE_SEND
+     * trace for this message, so only the function marker is added here. */
+    WOLFSSL_ENTER("SendTls13CompressedCertificate");
+
+    /* The cache is read again on every WANT_WRITE resume, so re-check it
+     * rather than trust the decision made when the message began.
+     * wolfSSL_CTX_compress_certs() documents that the context must not be
+     * changed while handshakes are in flight; this turns a violation into a
+     * hard error instead of a truncated Certificate reported as sent. */
+    if ((ctx == NULL) || (ctx->certComp == NULL) || (ctx->certCompSz == 0))
+        return BAD_FUNC_ARG;
+    if (ssl->fragOffset == 0) {
+        ssl->certCompSendSz = ctx->certCompSz;
+        ssl->certCompSendAlgo = ctx->certCompAlgo;
+    }
+    else if ((ssl->certCompSendSz != ctx->certCompSz) ||
+             (ssl->certCompSendAlgo != ctx->certCompAlgo)) {
+        WOLFSSL_MSG("Certificate compression cache changed mid-message");
+        return BUFFER_E;
+    }
+    if (ssl->fragOffset > payloadSz)
+        return BUFFER_E;
+
+    c16toa((word16)ctx->certCompAlgo, hdr);
+    c32to24(ctx->certCompPlainSz, hdr + OPAQUE16_LEN);
+    c32to24(ctx->certCompSz, hdr + OPAQUE16_LEN + OPAQUE24_LEN);
+
+    ret = wolfssl_local_GetMaxPlaintextSize(ssl);
+    if (ret < 0)
+        return ret;
+    maxFragment = (word32)ret;
+    ret = 0;
+    /* Room for the handshake header has to come out of the first record. */
+    if (maxFragment <= HANDSHAKE_HEADER_SZ)
+        return BUFFER_E;
+
+    ssl->options.buildingMsg = 1;
+
+    while (ssl->fragOffset < payloadSz && ret == 0) {
+        byte*  output;
+        word32 i = RECORD_HEADER_SZ;
+        word32 fragSz;
+        word32 avail = maxFragment;
+        int    sendSz;
+
+        if (ssl->fragOffset == 0) {
+            i += HANDSHAKE_HEADER_SZ;
+            avail -= HANDSHAKE_HEADER_SZ;
+        }
+        fragSz = payloadSz - ssl->fragOffset;
+        if (fragSz > avail)
+            fragSz = avail;
+
+        sendSz = (int)(i + fragSz + MAX_MSG_EXTRA);
+        if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
+            return ret;
+        output = GetOutputBuffer(ssl);
+
+        if (ssl->fragOffset == 0) {
+            AddTls13FragHeaders(output, fragSz, 0, payloadSz,
+                                compressed_certificate, ssl);
+        }
+        else {
+            AddTls13RecordHeader(output, fragSz, handshake, ssl);
+        }
+
+        /* The message body is the header above followed by the cached
+         * compressed certificate; copy whichever part of that this fragment
+         * covers. */
+        {
+            word32 off = ssl->fragOffset;
+            word32 left = fragSz;
+            word32 idx = i;
+
+            if (off < sizeof(hdr)) {
+                word32 n = (word32)sizeof(hdr) - off;
+
+                if (n > left)
+                    n = left;
+                XMEMCPY(output + idx, hdr + off, n);
+                idx += n;
+                left -= n;
+                off += n;
+            }
+            if (left > 0) {
+                XMEMCPY(output + idx, ctx->certComp + (off - sizeof(hdr)),
+                        left);
+            }
+        }
+
+        sendSz = BuildTls13Message(ssl, output, sendSz,
+                                   output + RECORD_HEADER_SZ,
+                                   (int)(i + fragSz - RECORD_HEADER_SZ),
+                                   handshake, 1, 0, 0);
+        if (sendSz < 0)
+            return sendSz;
+
+#if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
+        /* One trace entry per logical message, not per record. */
+        if (ssl->fragOffset == 0) {
+            if (ssl->hsInfoOn)
+                AddPacketName(ssl, "CompressedCertificate");
+            if (ssl->toInfoOn) {
+                ret = AddPacketInfo(ssl, "CompressedCertificate", handshake,
+                          output, sendSz, WRITE_PROTO, 0, ssl->heap);
+                if (ret != 0)
+                    return ret;
+            }
+        }
+#endif
+
+        ssl->buffers.outputBuffer.length += (word32)sendSz;
+        ssl->fragOffset += fragSz;
+
+        if (!ssl->options.groupMessages)
+            ret = SendBuffered(ssl);
+    }
+
+    /* WANT_WRITE keeps the cursor so the message can resume; anything else
+     * ends it. The state has to advance exactly as the plain path does, or a
+     * server that compressed its Certificate never reaches
+     * SERVER_CERT_COMPLETE. */
+    if (ret != WC_NO_ERR_TRACE(WANT_WRITE)) {
+        ssl->fragOffset = 0;
+        ssl->sendingCompCert = 0;
+        ssl->options.buildingMsg = 0;
+        if (ssl->options.side == WOLFSSL_SERVER_END)
+            ssl->options.serverState = SERVER_CERT_COMPLETE;
+    }
+
+    WOLFSSL_LEAVE("SendTls13CompressedCertificate", ret);
+
+    return ret;
+}
+
+#endif /* HAVE_CERTIFICATE_COMPRESSION */
 
 /* handle generation TLS v1.3 certificate (11) */
 /* Send the certificate for this end and any CAs that help with validation.
@@ -10256,6 +10872,24 @@ static int SendTls13Certificate(WOLFSSL* ssl)
             return NO_CERT_ERROR;
         #endif
         }
+    }
+#endif
+
+#ifdef HAVE_CERTIFICATE_COMPRESSION
+    /* A cached compressed copy replaces this message when the peer offered a
+     * matching algorithm and nothing about this handshake changes the body.
+     *
+     * Placed after the signature algorithm check above, not before it: that
+     * check is what refuses a chain the peer will not accept, and it may
+     * switch a client to a blank certificate, which is not the message the
+     * cache holds. Compressing earlier skipped it entirely and sent a SHA-1
+     * chain to a peer that had refused SHA-1. */
+    /* Decide once, at the start of the message. ssl->fragOffset is the
+     * cursor for whichever path is chosen, so a resume must stay on it. */
+    if (ssl->sendingCompCert ||
+            ((ssl->fragOffset == 0) && UseCompressedCertificate(ssl))) {
+        ssl->sendingCompCert = 1;
+        return SendTls13CompressedCertificate(ssl);
     }
 #endif
 
@@ -11981,7 +12615,271 @@ static int DoTls13Certificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
     return ret;
 }
+
 #endif
+
+/* Certificate compression sits outside the client-auth block above: a server
+ * compressing the chain it presents has nothing to do with authenticating a
+ * client, and wolfSSL_CTX_compress_certs() is guarded by the feature macro
+ * alone, so a server-only build linked against it failed. */
+#ifdef HAVE_CERTIFICATE_COMPRESSION
+/* Serialise the Certificate message body for a context's own chain.
+ *
+ * Produces the body exactly as SendTls13Certificate() would for the plain
+ * case with an empty certificate_request_context and no per-certificate
+ * extensions:
+ *
+ *     opaque certificate_request_context<0..2^8-1>   (empty)
+ *     CertificateEntry certificate_list<0..2^24-1>
+ *         opaque cert_data<1..2^24-1>
+ *         Extension extensions<0..2^16-1>            (empty)
+ *
+ * Those are the conditions the cached copy is used under, checked by the
+ * caller; anything else falls back to building the message per handshake.
+ *
+ * ctx    Context holding the certificate and chain.
+ * out    On success, the allocated body. Caller frees with ctx->heap.
+ * outSz  On success, its length.
+ * returns 0 on success, otherwise failure.
+ */
+int BuildTls13CertificateBody(WOLFSSL_CTX* ctx, byte** out, word32* outSz)
+{
+    byte*  body;
+    word32 listSz = 0;
+    word32 idx = 0;
+    word32 chainIdx = 0;
+    word32 sz;
+
+    if (ctx == NULL || out == NULL || outSz == NULL ||
+            ctx->certificate == NULL || ctx->certificate->buffer == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* Leaf: length, DER, empty extensions. */
+    listSz = CERT_HEADER_SZ + ctx->certificate->length + OPAQUE16_LEN;
+    /* Chain entries arrive already prefixed with their 3 byte length, and
+     * each one gains an empty extensions field.
+     *
+     * The count comes from walking the buffer, not from ctx->certChainCnt:
+     * wolfSSL_CTX_add1_chain_cert() appends to the chain without maintaining
+     * that counter, so sizing from it while the loop below walks the buffer
+     * would write past the allocation once they disagree. The walk also
+     * rejects a malformed chain before anything is allocated. */
+    if (ctx->certChain != NULL && ctx->certChain->buffer != NULL) {
+        word32 walk = 0;
+        int    entries = 0;
+
+        while (walk + CERT_HEADER_SZ <= ctx->certChain->length) {
+            word32 certSz = 0;
+
+            c24to32(ctx->certChain->buffer + walk, &certSz);
+            if ((certSz == 0) ||
+                    (walk + CERT_HEADER_SZ + certSz > ctx->certChain->length)) {
+                return BUFFER_E;
+            }
+            walk += CERT_HEADER_SZ + certSz;
+            if (++entries > MAX_CHAIN_DEPTH)
+                return MAX_CHAIN_ERROR;
+        }
+        if (walk != ctx->certChain->length)
+            return BUFFER_E;
+        listSz += ctx->certChain->length +
+                  ((word32)entries * OPAQUE16_LEN);
+    }
+
+    /* certificate_list is opaque<0..2^24-1> on the wire, and the receive side
+     * refuses anything past MAX_CERTIFICATE_SZ, so a body this end could never
+     * see accepted is an error here rather than a truncated length field. */
+    if (listSz > MAX_CERTIFICATE_SZ)
+        return BUFFER_E;
+
+    sz = OPAQUE8_LEN + OPAQUE24_LEN + listSz;
+    body = (byte*)XMALLOC(sz, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (body == NULL)
+        return MEMORY_E;
+
+    body[idx++] = 0;                        /* empty request context */
+    c32to24(listSz, body + idx);
+    idx += OPAQUE24_LEN;
+
+    c32to24(ctx->certificate->length, body + idx);
+    idx += CERT_HEADER_SZ;
+    XMEMCPY(body + idx, ctx->certificate->buffer, ctx->certificate->length);
+    idx += ctx->certificate->length;
+    c16toa(0, body + idx);                  /* empty extensions */
+    idx += OPAQUE16_LEN;
+
+    if (ctx->certChain != NULL && ctx->certChain->buffer != NULL) {
+        while (chainIdx + CERT_HEADER_SZ <= ctx->certChain->length) {
+            word32 certSz = 0;
+
+            c24to32(ctx->certChain->buffer + chainIdx, &certSz);
+            if (certSz == 0 ||
+                    chainIdx + CERT_HEADER_SZ + certSz >
+                        ctx->certChain->length) {
+                XFREE(body, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                return BUFFER_E;
+            }
+            /* Bounded explicitly: the reconciliation after the loop can
+             * only notice an overrun once it has already happened. */
+            if (idx + CERT_HEADER_SZ + certSz + OPAQUE16_LEN > sz) {
+                XFREE(body, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                return BUFFER_E;
+            }
+            XMEMCPY(body + idx, ctx->certChain->buffer + chainIdx,
+                    CERT_HEADER_SZ + certSz);
+            idx += CERT_HEADER_SZ + certSz;
+            chainIdx += CERT_HEADER_SZ + certSz;
+            c16toa(0, body + idx);
+            idx += OPAQUE16_LEN;
+        }
+    }
+
+    if (idx != sz) {
+        XFREE(body, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return BUFFER_E;
+    }
+
+    *out = body;
+    *outSz = sz;
+
+    return 0;
+}
+#endif /* HAVE_CERTIFICATE_COMPRESSION */
+
+#ifdef HAVE_CERTIFICATE_COMPRESSION
+/* handle processing TLS v1.3 compressed_certificate (25) */
+/* Decompress a CompressedCertificate message and process the Certificate
+ * message it carries. RFC 8879 Sect. 4.
+ *
+ *     struct {
+ *         CertificateCompressionAlgorithm algorithm;
+ *         uint24 uncompressed_length;
+ *         opaque compressed_certificate_message<1..2^24-1>;
+ *     } CompressedCertificate;
+ *
+ * The payload is the body of the Certificate message that would otherwise
+ * have been sent, so the decompressed bytes go straight to
+ * DoTls13Certificate(). The handshake transcript is unaffected: the caller
+ * hashes the message as it arrived on the wire, in compressed form, which is
+ * what the peer hashed too.
+ *
+ * ssl       The SSL/TLS object.
+ * input     The message buffer.
+ * inOutIdx  On entry, offset of the message body. On exit, offset past it.
+ * totalSz   Length of the message body in bytes.
+ * returns 0 on success, otherwise failure.
+ */
+/* Same guard as DoTls13Certificate(), which this calls and which is static,
+ * and as the dispatch site in DoTls13HandShakeMsgType(). Unlike
+ * BuildTls13CertificateBody() above, receiving a compressed Certificate is
+ * exactly the client-auth path, so it is unwanted - and unbuildable - in a
+ * server-only build without client auth. */
+#if !defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)
+WOLFSSL_TEST_VIS int DoTls13CompressedCertificate(WOLFSSL* ssl,
+        byte* input, word32* inOutIdx, word32 totalSz)
+{
+    int    ret;
+    word16 alg = 0;
+    word32 idx = *inOutIdx;
+    word32 uncompSz = 0;
+    word32 compSz = 0;
+    word32 certIdx = 0;
+    byte*  uncomp = NULL;
+
+    WOLFSSL_START(WC_FUNC_CERTIFICATE_DO);
+    WOLFSSL_ENTER("DoTls13CompressedCertificate");
+
+    /* algorithm(2) + uncompressed_length(3) + compressed length(3) */
+    if (totalSz < OPAQUE16_LEN + OPAQUE24_LEN + OPAQUE24_LEN)
+        return BUFFER_ERROR;
+
+    ato16(input + idx, &alg);
+    idx += OPAQUE16_LEN;
+
+    /* RFC 8879 Sect. 4: "The algorithm MUST be one of the algorithms listed
+     * in the peer's compress_certificate extension", which is this end's. */
+    if (!TLSX_CertificateCompression_Supported(alg)) {
+        WOLFSSL_MSG("Compressed certificate uses an algorithm not offered");
+        SendAlert(ssl, alert_fatal, illegal_parameter);
+        WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+        return INVALID_PARAMETER;
+    }
+
+    c24to32(input + idx, &uncompSz);
+    idx += OPAQUE24_LEN;
+    c24to32(input + idx, &compSz);
+    idx += OPAQUE24_LEN;
+
+    /* Bound the declared size before committing memory, and require the
+     * compressed data to be exactly the rest of the message. */
+    if ((uncompSz == 0) || (uncompSz > WOLFSSL_MAX_CERT_COMP_SZ)) {
+        WOLFSSL_MSG("Compressed certificate uncompressed length rejected");
+        SendAlert(ssl, alert_fatal, bad_certificate);
+        WOLFSSL_ERROR_VERBOSE(BUFFER_ERROR);
+        return BUFFER_ERROR;
+    }
+    if ((compSz == 0) || (compSz != totalSz - (idx - *inOutIdx))) {
+        WOLFSSL_MSG("CompressedCertificate length does not match message");
+        SendAlert(ssl, alert_fatal, decode_error);
+        WOLFSSL_ERROR_VERBOSE(BUFFER_ERROR);
+        return BUFFER_ERROR;
+    }
+
+    uncomp = (byte*)XMALLOC(uncompSz, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (uncomp == NULL)
+        return MEMORY_E;
+
+    ret = wc_DeCompress(uncomp, uncompSz, input + idx, compSz);
+    /* RFC 8879 Sect. 4: a message that will not decompress, or whose real
+     * length disagrees with uncompressed_length, is a bad_certificate. */
+    if (ret < 0 || (word32)ret != uncompSz) {
+        WOLFSSL_MSG("Compressed certificate did not decompress");
+        XFREE(uncomp, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        SendAlert(ssl, alert_fatal, bad_certificate);
+        WOLFSSL_ERROR_VERBOSE(DECOMPRESS_E);
+        return DECOMPRESS_E;
+    }
+
+    ret = DoTls13Certificate(ssl, uncomp, &certIdx, uncompSz);
+    /* ProcessPeerCerts() borrows pointers into this buffer rather than
+     * copying, and keeps them in ssl->async across a suspension. The plain
+     * path is safe because its input is ssl->buffers.inputBuffer, which
+     * outlives the suspension; this buffer does not. Rather than free memory
+     * the resumed parse still points at, refuse the suspension: the peer is
+     * told the message could not be processed and the connection ends, which
+     * is a great deal better than a use-after-free on peer-controlled data.
+     * Lifting this needs the buffer retained on the WOLFSSL object across the
+     * resume. */
+    if ((ret == WC_NO_ERR_TRACE(WC_PENDING_E)) ||
+            (ret == WC_NO_ERR_TRACE(OCSP_WANT_READ))) {
+        WOLFSSL_MSG("Compressed certificate cannot suspend, failing");
+        XFREE(uncomp, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        SendAlert(ssl, alert_fatal, internal_error);
+        WOLFSSL_ERROR_VERBOSE(NOT_COMPILED_IN);
+        return NOT_COMPILED_IN;
+    }
+    XFREE(uncomp, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (ret != 0)
+        return ret;
+
+    if (ret == 0) {
+        /* Set only now: until the inner Certificate has been accepted there
+         * is nothing to report, and an accessor that named an algorithm for a
+         * message that was rejected would be describing a chain this end
+         * never took. */
+        ssl->certCompUsed = (byte)alg;
+    }
+
+    *inOutIdx = idx + compSz;
+
+    WOLFSSL_LEAVE("DoTls13CompressedCertificate", ret);
+    WOLFSSL_END(WC_FUNC_CERTIFICATE_DO);
+
+    return ret;
+}
+#endif /* !NO_WOLFSSL_CLIENT || !WOLFSSL_NO_CLIENT_AUTH */
+#endif /* HAVE_CERTIFICATE_COMPRESSION */
 
 #if (!defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
      defined(HAVE_ED448) || defined(HAVE_FALCON) || \
@@ -14366,6 +15264,22 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
                                    (word16)idx, session_ticket, 0);
 #endif /* WOLFSSL_DTLS13 */
 
+#ifdef HAVE_RECORD_SIZE_LIMIT
+    if (Tls13MsgNeedsFragmenting(ssl, idx)) {
+        /* Not part of the transcript, so hashOutput stays off here too. */
+        ret = SendTls13FragmentedMsg(ssl, output, idx, session_ticket, 0);
+        if (ret != 0)
+            return ret;
+
+        ret = SendBuffered(ssl);
+
+        WOLFSSL_LEAVE("SendTls13NewSessionTicket", ret);
+        WOLFSSL_END(WC_FUNC_NEW_SESSION_TICKET_SEND);
+
+        return ret;
+    }
+#endif
+
     /* This message is always encrypted. */
     sendSz = BuildTls13Message(ssl, output, sendSz,
                                output + RECORD_HEADER_SZ,
@@ -14565,6 +15479,26 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
             break;
 #endif
 
+#ifdef HAVE_CERTIFICATE_COMPRESSION
+        /* RFC 8879 Sect. 4: a CompressedCertificate replaces the Certificate
+         * message, so it is subject to the same ordering rules. */
+        case compressed_certificate:
+            /* RFC 8879 Sect. 4: "If the peer has not indicated support ...
+             * the endpoint MUST ... terminate the connection with an
+             * unexpected_message alert." certCompAdvertised records what this
+             * handshake actually offered, which is not the same as what the
+             * build can decompress - an async-crypt or non-blocking-OCSP
+             * build deliberately offers nothing. Checked here so an
+             * unsolicited message is refused before
+             * DoTls13CompressedCertificate() allocates and inflates
+             * attacker-supplied bytes. */
+            if (!ssl->certCompAdvertised) {
+                WOLFSSL_MSG("CompressedCertificate not advertised by us");
+                WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
+                return OUT_OF_ORDER_E;
+            }
+            FALL_THROUGH;
+#endif
         case certificate:
             /* Valid on both sides. */
     #ifndef NO_WOLFSSL_CLIENT
@@ -15068,6 +16002,9 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     if (ssl->options.handShakeState == HANDSHAKE_DONE &&
             type != session_ticket && type != certificate_request &&
             type != certificate && type != key_update && type != finished
+#ifdef HAVE_CERTIFICATE_COMPRESSION
+            && type != compressed_certificate
+#endif
 #if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CID)
             && type != request_connection_id && type != new_connection_id
 #endif
@@ -15233,6 +16170,13 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         WOLFSSL_MSG("processing certificate");
         ret = DoTls13Certificate(ssl, input, inOutIdx, size);
         break;
+
+    #ifdef HAVE_CERTIFICATE_COMPRESSION
+    case compressed_certificate:
+        WOLFSSL_MSG("processing compressed certificate");
+        ret = DoTls13CompressedCertificate(ssl, input, inOutIdx, size);
+        break;
+    #endif
 #endif
 
 #if (!defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \

@@ -349,7 +349,13 @@ int test_dtls_frag_ch(void)
     WOLFSSL *ssl_c = NULL;
     WOLFSSL *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
-    static unsigned int DUMMY_MTU = 256;
+    /* Sized so the first ClientHello still fits one datagram. It must not be
+     * tuned to the byte: the ClientHello grows whenever another extension is
+     * compiled in - record_size_limit alone adds 6 - and CH1 cannot fragment,
+     * so too tight a value turns into a BUFFER_ERROR rather than a fragmented
+     * hello. The headroom here is deliberate; CH2 still fragments, which is
+     * what this test is checking. */
+    static unsigned int DUMMY_MTU = 288;
     unsigned int len;
     unsigned char four_frag_CH[] = {
       0x16, 0xfe, 0xfd, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,

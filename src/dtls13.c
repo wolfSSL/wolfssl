@@ -221,6 +221,7 @@ static byte Dtls13TypeIsEncrypted(enum HandShakeType hs_type)
     case encrypted_extensions:
     case session_ticket:
     case end_of_early_data:
+    case compressed_certificate:
     case certificate:
     case server_key_exchange:
     case certificate_request:
@@ -1793,6 +1794,7 @@ int Dtls13CheckEpoch(WOLFSSL* ssl, enum HandShakeType type)
                 }
                 break;
             case certificate_request:
+            case compressed_certificate:
             case certificate:
             case certificate_verify:
             case finished:
