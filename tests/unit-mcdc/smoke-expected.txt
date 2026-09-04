@@ -14,6 +14,7 @@ test_crl_whitebox
 test_cryptocb_whitebox
 test_curve25519_whitebox
 test_dsa_fault_whitebox
+test_dtls13_role_whitebox
 test_dtls_whitebox
 test_ecc_fault_whitebox
 test_ecc_whitebox

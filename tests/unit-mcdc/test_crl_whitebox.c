@@ -446,6 +446,39 @@ static void wb_load_crl(WOLFSSL_CERT_MANAGER* cm)
     FreeCRL(&crl, 0);
 }
 
+
+/* ------------------------------------------------------------- StoreCRL
+
+ * `if (crl == NULL || path == NULL)` -- two operands, and every in-tree
+ * caller reaches StoreCRL only after the CRL and the path have already been
+ * validated by the public entry point above it, so neither operand ever takes
+ * its true value. Called directly, both do.
+ *
+ * The accepting partner writes to a path under the build directory and
+ * removes it again, so the vector leaves nothing behind. */
+static void wb_store_crl(WOLFSSL_CERT_MANAGER* cm)
+{
+    WOLFSSL_CRL crl;
+    const char* out = "test-store-crl.tmp";
+
+    /* operand 0: no CRL object */
+    WB_NOTE(StoreCRL(NULL, out, WOLFSSL_FILETYPE_ASN1));
+
+    if (InitCRL(&crl, cm) != 0) {
+        printf("crl white-box: InitCRL failed, skipping StoreCRL\n");
+        return;
+    }
+    /* operand 1: a CRL object but no path */
+    WB_NOTE(StoreCRL(&crl, NULL, WOLFSSL_FILETYPE_ASN1));
+    /* both valid: the shared partner. The list is empty so the store itself
+     * fails further down, which is fine -- the guard under test is above it. */
+    WB_NOTE(StoreCRL(&crl, out, WOLFSSL_FILETYPE_ASN1));
+    WB_NOTE(StoreCRL(&crl, out, WOLFSSL_FILETYPE_PEM));
+
+    FreeCRL(&crl, 0);
+    (void)remove(out);
+}
+
 /* ---------------------------------------------------------- main */
 
 int main(void)
@@ -479,6 +512,7 @@ int main(void)
     wb_find_revoked();
     wb_buffer_store(cm);
     wb_load_crl(cm);
+    wb_store_crl(cm);
 
     printf("crl white-box: %d vectors driven\n", g_checks);
 
