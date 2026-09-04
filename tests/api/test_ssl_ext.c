@@ -510,7 +510,7 @@ int test_wolfSSL_CTX_set_tlsext_servername_callback_ext(void)
 int test_wolfSSL_set_tlsext_debug_arg_ext(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && defined(HAVE_PK_CALLBACKS) && \
+#if defined(OPENSSL_EXTRA) && \
     !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
@@ -524,6 +524,154 @@ int test_wolfSSL_set_tlsext_debug_arg_ext(void)
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(OPENSSL_EXTRA) && \
+    !defined(NO_TLS) && \
+    (!defined(NO_WOLFSSL_CLIENT) || \
+     (defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+      defined(HAVE_TLS_EXTENSIONS)))
+/* State recorded by test_tlsext_debug_cb(). */
+struct test_tlsext_debug_data {
+    int count;          /* number of extensions reported */
+    int client_server;  /* client_server value reported */
+    int types[32];      /* extension types reported, in order */
+    int lens[32];       /* lengths of the reported extensions */
+};
+
+static void test_tlsext_debug_cb(WOLFSSL *ssl, int client_server, int type,
+        const byte *data, int len, void *arg)
+{
+    struct test_tlsext_debug_data *d = (struct test_tlsext_debug_data *)arg;
+    (void)ssl;
+    (void)data;
+
+    d->count++;
+    d->client_server = client_server;
+    if (d->count - 1 < (int)(sizeof(d->types) / sizeof(d->types[0]))) {
+        d->types[d->count - 1] = type;
+        d->lens[d->count - 1] = len;
+    }
+}
+#endif /* helper callback for the TLS ext debug callback tests */
+
+#if defined(OPENSSL_EXTRA) && \
+    !defined(NO_TLS) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_TLS_EXTENSIONS)
+/* Find an extension type in the recorded list; returns its length, -1 if
+ * not reported. */
+static int test_tlsext_debug_find_len(const struct test_tlsext_debug_data *d,
+        int type)
+{
+    int i;
+
+    for (i = 0; i < d->count &&
+            i < (int)(sizeof(d->types) / sizeof(d->types[0])); i++) {
+        if (d->types[i] == type)
+            return d->lens[i];
+    }
+    return -1;
+}
+#endif /* helper lookup for the TLS ext debug handshake test */
+
+/* Test installing the TLS extension debug callback.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_set_tlsext_debug_callback_ext(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+
+    /* NULL object is rejected. */
+    ExpectIntEQ(wolfSSL_set_tlsext_debug_callback(NULL,
+        test_tlsext_debug_cb), WOLFSSL_FAILURE);
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_set_tlsext_debug_callback(ssl, test_tlsext_debug_cb),
+        WOLFSSL_SUCCESS);
+    /* Setting NULL disables the callback. */
+    ExpectIntEQ(wolfSSL_set_tlsext_debug_callback(ssl, NULL),
+        WOLFSSL_SUCCESS);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test that the TLS extension debug callback reports the extensions
+ * received during a handshake on both sides.
+ *
+ * client_server identifies the side of the connection and the argument set
+ * with wolfSSL_set_tlsext_debug_arg() is passed through to the callback.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_set_tlsext_debug_callback_handshake_ext(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_TLS_EXTENSIONS) && !defined(NO_TLS)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    struct test_tlsext_debug_data cData, sData;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(&cData, 0, sizeof(cData));
+    XMEMSET(&sData, 0, sizeof(sData));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfSSLv23_client_method, wolfSSLv23_server_method), 0);
+
+    ExpectIntEQ(wolfSSL_set_tlsext_debug_callback(ssl_c, test_tlsext_debug_cb),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_tlsext_debug_arg(ssl_c, &cData), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_tlsext_debug_callback(ssl_s, test_tlsext_debug_cb),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_tlsext_debug_arg(ssl_s, &sData), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Each side saw extensions from the peer, tagged with its own side.
+     * The server always sees the client hello's core extensions (e.g.
+     * supported groups); the client sees the server hello's, which carries
+     * supported versions in TLS 1.3 or the echoed extended master secret in
+     * TLS 1.2. */
+    ExpectTrue(sData.count > 0);
+#if defined(HAVE_EXTENDED_MASTER) || defined(WOLFSSL_TLS13)
+    ExpectTrue(cData.count > 0);
+#endif
+    ExpectIntEQ(cData.client_server, 1);
+    ExpectIntEQ(sData.client_server, 0);
+
+    /* Known extensions are reported with the expected content. */
+#if defined(WOLFSSL_TLS13)
+    /* TLS 1.3: both sides see supported versions (a list of 2-byte
+     * versions, so at least 2 bytes). */
+    ExpectTrue(test_tlsext_debug_find_len(&cData,
+        TLSX_SUPPORTED_VERSIONS) >= 2);
+    ExpectTrue(test_tlsext_debug_find_len(&sData,
+        TLSX_SUPPORTED_VERSIONS) >= 2);
+#elif defined(HAVE_EXTENDED_MASTER)
+    /* TLS 1.2: the client offers extended master secret (empty content). */
+    ExpectIntEQ(test_tlsext_debug_find_len(&sData,
+        TLSX_EXTENDED_MASTER_SECRET), 0);
+#endif
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
 #endif
     return EXPECT_RESULT();
 }

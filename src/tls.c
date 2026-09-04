@@ -18630,6 +18630,17 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         if (length - offset < size)
             return BUFFER_ERROR;
 
+#ifdef OPENSSL_EXTRA
+        /* Report the extension to the debug callback, like OpenSSL does in
+         * tls1_handle_extensions(). client_server is 1 when this SSL object
+         * is a client. */
+        if (ssl->tlsextDebugCb != NULL) {
+            ssl->tlsextDebugCb(ssl,
+                    (int)(ssl->options.side == WOLFSSL_CLIENT_END), (int)type,
+                    input + offset, (int)size, ssl->tlsextDebugArg);
+        }
+#endif
+
         /* Check minimum size required for TLSX, even if disabled */
         switch (msgType) {
             #ifndef NO_WOLFSSL_SERVER

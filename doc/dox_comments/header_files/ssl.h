@@ -6362,6 +6362,59 @@ long wolfSSL_get_options(const WOLFSSL *s);
 long wolfSSL_set_tlsext_debug_arg(WOLFSSL *s, void *arg);
 
 /*!
+    \ingroup Setup
+
+    \brief Callback type for the TLS extension debug callback.
+
+    Invoked once for every TLS extension received during the handshake,
+    in wire order, before the extension is processed.
+
+    \param ssl The WOLFSSL object receiving the extension.
+    \param client_server 1 if the WOLFSSL object is a client, 0 if a server.
+    \param type The extension type, e.g. TLSX_SERVER_NAME.
+    \param data The raw extension content (data after the 2-byte length).
+    \param len Length of the extension content in bytes.
+    \param arg The argument set with wolfSSL_set_tlsext_debug_arg().
+
+    Note that, unlike OpenSSL 3.x, the callback also reports unknown
+    (unregistered) extension types.
+*/
+typedef void (*WOLFSSL_TLSEXT_DEBUG_CB)(WOLFSSL* ssl, int client_server,
+        int type, const byte* data, int len, void* arg);
+
+/*!
+    \ingroup Setup
+
+    \brief This is used to set the TLS extension debug callback on the
+    object.
+
+    The callback (type WOLFSSL_TLSEXT_DEBUG_CB) is invoked once for every
+    TLS extension received during the handshake, in wire order, before the
+    extension is processed. It reports the side of the connection, the
+    extension type, the raw extension content and the argument set with
+    wolfSSL_set_tlsext_debug_arg(). Passing a NULL callback disables it.
+
+    \return WOLFSSL_SUCCESS On successful setting of the callback.
+    \return WOLFSSL_FAILURE If a NULL ssl is passed in.
+
+    \param s WOLFSSL structure to set the callback in.
+    \param cb Callback to invoke for each received TLS extension, or NULL
+    to disable it.
+
+    _Example_
+    \code
+    WOLFSSL* ssl;
+    long ret;
+    // create ssl object
+    ret = wolfSSL_set_tlsext_debug_callback(ssl, my_tlsext_debug_cb);
+    // check ret value
+    \endcode
+
+    \sa wolfSSL_set_tlsext_debug_arg
+*/
+long wolfSSL_set_tlsext_debug_callback(WOLFSSL *s, WOLFSSL_TLSEXT_DEBUG_CB cb);
+
+/*!
     \ingroup openSSL
 
     \brief This function is called when the client application request
