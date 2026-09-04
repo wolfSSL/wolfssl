@@ -357,6 +357,96 @@ static void wb_check_response(WOLFSSL_CERT_MANAGER* cm)
                               NULL));
 }
 
+
+/* --------------------------------------------------------- FreeOcspEntry
+
+ * `if (entry == NULL || !entry->ownStatus)` -- the teardown path only ever
+ * reaches this with a real entry that owns its status list, because that is
+ * the only kind the parser builds. An entry whose status list is borrowed
+ * (ownStatus == 0) is what the multi-response path produces, and freeing one
+ * must be a no-op rather than a double free.
+ *
+ * Both vectors are stack objects and neither is linked into ocsp->ocspList,
+ * so nothing here can be reached by the CertManager teardown. */
+static void wb_free_ocsp_entry(WOLFSSL_OCSP* ocsp)
+{
+    void* heap = (ocsp->cm != NULL) ? ocsp->cm->heap : NULL;
+    OcspEntry borrowed;
+
+    /* operand 0: no entry at all */
+    FreeOcspEntry(NULL, heap);
+    g_checks++;
+
+    /* operand 1: an entry that does not own its status list. Left empty, so
+     * the early return is the whole behaviour under test. */
+    XMEMSET(&borrowed, 0, sizeof(borrowed));
+    borrowed.ownStatus = 0;
+    borrowed.status = NULL;
+    borrowed.next = NULL;
+    FreeOcspEntry(&borrowed, heap);
+    g_checks++;
+
+    /* the accepting partner: owns its (empty) list, so the loop is entered
+     * and finds nothing to free */
+    XMEMSET(&borrowed, 0, sizeof(borrowed));
+    borrowed.ownStatus = 1;
+    borrowed.status = NULL;
+    borrowed.next = NULL;
+    FreeOcspEntry(&borrowed, heap);
+    g_checks++;
+}
+
+/* ------------------------------------------- CheckOcspRequest ioCtx :527
+
+ * `ioCtx = (ssl && ssl->ocspIOCtx != NULL) ? ssl->ocspIOCtx : ocsp->cm->ocspIOCtx`
+ *
+ * Both operands. Every in-tree caller either passes no ssl at all or passes
+ * one whose ocspIOCtx was set at configuration time, so "an ssl with no
+ * per-connection IO context" -- the case that falls back to the manager's --
+ * is not produced by any existing test. */
+static void wb_check_request_ioctx(WOLFSSL_CERT_MANAGER* cm)
+{
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    OcspRequest req;
+    byte serial[8];
+    byte url[] = "http://ocsp.example.com/";
+    static byte ioCtxMarker;
+
+    ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+    if (ctx == NULL)
+        return;
+    ssl = wolfSSL_new(ctx);
+
+    XMEMSET(&req, 0, sizeof(req));
+    XMEMSET(serial, 0x5A, sizeof(serial));
+    req.serial = serial;
+    req.serialSz = (int)sizeof(serial);
+    XMEMSET(req.issuerHash, 0xA1, OCSP_DIGEST_SIZE);
+    req.url = url;
+    req.urlSz = (int)sizeof(url) - 1;
+
+    /* operand 0 false: no ssl, so the manager's context is used */
+    WB_NOTE(CheckOcspRequest(cm->ocsp, &req, NULL, NULL));
+
+    if (ssl != NULL) {
+        /* operand 0 true, operand 1 false: an ssl with no per-connection
+         * IO context -- falls back to the manager's */
+        ssl->ocspIOCtx = NULL;
+        XMEMSET(req.issuerHash, 0xA2, OCSP_DIGEST_SIZE);
+        WB_NOTE(CheckOcspRequest(cm->ocsp, &req, NULL, ssl));
+
+        /* both true: the connection's own context wins */
+        ssl->ocspIOCtx = &ioCtxMarker;
+        XMEMSET(req.issuerHash, 0xA3, OCSP_DIGEST_SIZE);
+        WB_NOTE(CheckOcspRequest(cm->ocsp, &req, NULL, ssl));
+        ssl->ocspIOCtx = NULL;
+    }
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+}
+
 /* ---------------------------------------------------------- main */
 
 int main(void)
@@ -381,6 +471,8 @@ int main(void)
     wb_check_responder();
     wb_check_request(cm);
     wb_check_response(cm);
+    wb_free_ocsp_entry(cm->ocsp);
+    wb_check_request_ioctx(cm);
 
     printf("ocsp white-box: %d vectors driven\n", g_checks);
 
