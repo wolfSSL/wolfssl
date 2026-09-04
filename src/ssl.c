@@ -6490,6 +6490,11 @@ int wolfSSL_CIPHER_get_auth_nid(const WOLFSSL_CIPHER* cipher)
         return WC_NID_undef;
     }
 
+    /* in TLS 1.3 case, NID will be WC_NID_auth_any */
+    if (XSTRCMP(n[0], "TLS13") == 0) {
+        return WC_NID_auth_any;
+    }
+
     authStr = GetCipherAuthStr(n);
 
     if (authStr != NULL) {
