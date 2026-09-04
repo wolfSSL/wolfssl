@@ -159,7 +159,7 @@ enum wolfSSL_ErrorCodes {
     DTLS_EXPORT_VER_E            = -411,   /* export version error */
     INPUT_SIZE_E                 = -412,   /* input size too big error */
     CTX_INIT_MUTEX_E             = -413,   /* initialize ctx mutex error */
-    EXT_MASTER_SECRET_NEEDED_E   = -414,   /* need EMS enabled to resume */
+    EXT_MASTER_SECRET_NEEDED_E   = -414,   /* EMS required but not negotiated */
     DTLS_POOL_SZ_E               = -415,   /* exceeded DTLS pool size */
     DECODE_E                     = -416,   /* decode handshake message error */
     HTTP_TIMEOUT                 = -417,   /* HTTP timeout for OCSP or CRL req */

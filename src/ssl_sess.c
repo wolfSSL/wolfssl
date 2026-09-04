@@ -1607,7 +1607,28 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
 #endif
     }
     ssl->options.resuming = 1;
-    ssl->options.haveEMS = (ssl->session->haveEMS) ? 1 : 0;
+#ifdef HAVE_EXTENDED_MASTER
+    /* A user EMS override takes precedence over the session's EMS state. */
+    if (ssl->options.requireEMS && ssl->options.side == WOLFSSL_CLIENT_END)
+        ssl->options.haveEMS = 1;
+    else if (ssl->options.disableEMS) {
+        ssl->options.haveEMS = 0;
+        /* An EMS session cannot be offered without the extension
+         * (RFC 7627 5.3): decline it, without adopting its version and
+         * cipher suite, and report the decline like the minDowngrade check
+         * below. TLS 1.3 sessions resume independently of EMS; their haveEMS
+         * is only the RFC 8446 Appendix D indicator. */
+        if (ssl->session->haveEMS &&
+                !IsAtLeastTLSv1_3(ssl->session->version)) {
+            ssl->options.resuming = 0;
+            return WOLFSSL_FAILURE;
+        }
+    }
+    else
+#endif
+    {
+        ssl->options.haveEMS = (ssl->session->haveEMS) ? 1 : 0;
+    }
 
     if (ssl->session->version.major != 0) {
         /* Reject sessions whose protocol version is below the configured
