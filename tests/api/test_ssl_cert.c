@@ -32,6 +32,7 @@
 #include <wolfssl/internal.h>
 
 #include <tests/utils.h>
+#include <tests/api/api.h>
 #include <tests/api/test_ssl_cert.h>
 
 /* Tests for the certificate APIs in src/ssl_api_cert.c (moved from ssl.c). */
@@ -1495,6 +1496,206 @@ int test_wolfSSL_cert_unload(void)
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    !defined(NO_CERTS) && !defined(NO_ASN_TIME) && !defined(NO_SKID) && \
+    !defined(ALLOW_INVALID_CERTSIGN) && defined(WOLFSSL_CERT_GEN) && \
+    defined(WOLFSSL_CERT_EXT) && defined(USE_CERT_BUFFERS_2048)
+#define TEST_SELF_ISSUED_CA_DEPENDENCIES
+#endif
+
+#ifdef TEST_SELF_ISSUED_CA_DEPENDENCIES
+/* Build a CA:TRUE certificate that takes both its subject and issuer names
+ * from ca_cert_der_2048, is signed by that root's key, and carries keyUsage
+ * as its Key Usage extension. */
+static int test_self_issued_ca_make(byte* out, int outSz, RsaKey* subjKey,
+    RsaKey* caKey, WC_RNG* rng, const char* keyUsage)
+{
+    Cert cert;
+    int  ret;
+
+    ret = wc_InitCert(&cert);
+    if (ret == 0) {
+        cert.isCA    = 1;
+        cert.sigType = CTC_SHA256wRSA;
+        ret = wc_SetSubjectBuffer(&cert, ca_cert_der_2048,
+            (int)sizeof_ca_cert_der_2048);
+    }
+    if (ret >= 0) {
+        ret = wc_SetIssuerBuffer(&cert, ca_cert_der_2048,
+            (int)sizeof_ca_cert_der_2048);
+    }
+    if (ret >= 0)
+        ret = wc_SetSubjectKeyIdFromPublicKey(&cert, subjKey, NULL);
+    if (ret >= 0) {
+        ret = wc_SetAuthKeyIdFromCert(&cert, ca_cert_der_2048,
+            (int)sizeof_ca_cert_der_2048);
+    }
+    if (ret >= 0)
+        ret = wc_SetKeyUsage(&cert, keyUsage);
+    if (ret >= 0)
+        ret = wc_MakeCert(&cert, out, (word32)outSz, subjKey, NULL, rng);
+    if (ret >= 0) {
+        ret = wc_SignCert(cert.bodySz, cert.sigType, out, (word32)outSz, caKey,
+            NULL, rng);
+    }
+#ifdef WOLFSSL_CERT_GEN_CACHE
+    wc_SetCert_Free(&cert);
+#endif
+
+    return ret;
+}
+
+/* Build a leaf signed by the certificate in issuerDer. */
+static int test_self_issued_leaf_make(byte* out, int outSz, RsaKey* leafKey,
+    const byte* issuerDer, int issuerDerSz, RsaKey* issuerKey, WC_RNG* rng)
+{
+    Cert cert;
+    int  ret;
+
+    ret = wc_InitCert(&cert);
+    if (ret == 0) {
+        cert.isCA    = 0;
+        cert.sigType = CTC_SHA256wRSA;
+        XSTRNCPY(cert.subject.country, "US", CTC_NAME_SIZE - 1);
+        XSTRNCPY(cert.subject.org, "wolfSSL_test", CTC_NAME_SIZE - 1);
+        XSTRNCPY(cert.subject.commonName, "Leaf under self-issued CA",
+            CTC_NAME_SIZE - 1);
+        ret = wc_SetSubjectKeyIdFromPublicKey(&cert, leafKey, NULL);
+    }
+    if (ret >= 0)
+        ret = wc_SetAuthKeyIdFromCert(&cert, issuerDer, issuerDerSz);
+    if (ret >= 0)
+        ret = wc_SetKeyUsage(&cert, "digitalSignature,keyEncipherment");
+    if (ret >= 0)
+        ret = wc_SetIssuerBuffer(&cert, issuerDer, issuerDerSz);
+    if (ret >= 0)
+        ret = wc_MakeCert(&cert, out, (word32)outSz, leafKey, NULL, rng);
+    if (ret >= 0) {
+        ret = wc_SignCert(cert.bodySz, cert.sigType, out, (word32)outSz,
+            issuerKey, NULL, rng);
+    }
+#ifdef WOLFSSL_CERT_GEN_CACHE
+    wc_SetCert_Free(&cert);
+#endif
+
+    return ret;
+}
+
+/* Run a memio handshake where the server sends "leaf, self-issued CA" and the
+ * client trusts only ca_cert_der_2048. caKeyUsage is the Key Usage extension
+ * of that CA. Reports the handshake result and the client's error. */
+static int test_self_issued_ca_handshake(const char* caKeyUsage, int* hsRet,
+    int* clientErr)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    WC_RNG rng;
+    RsaKey caKey, intKey, leafKey;
+    int rngInit = 0, caInit = 0, intInit = 0, leafInit = 0;
+    byte* chain = NULL;
+    word32 idx;
+    int intSz = 0;
+    int leafSz = 0;
+    int ret;
+
+    chain = (byte*)XMALLOC(FOURK_BUF * 2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(chain);
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS())
+        rngInit = 1;
+    ExpectIntEQ(wc_InitRsaKey(&caKey, NULL), 0);
+    if (EXPECT_SUCCESS())
+        caInit = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(ca_key_der_2048, &idx, &caKey,
+        (word32)sizeof_ca_key_der_2048), 0);
+    ExpectIntEQ(wc_InitRsaKey(&intKey, NULL), 0);
+    if (EXPECT_SUCCESS())
+        intInit = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(server_key_der_2048, &idx, &intKey,
+        (word32)sizeof_server_key_der_2048), 0);
+    ExpectIntEQ(wc_InitRsaKey(&leafKey, NULL), 0);
+    if (EXPECT_SUCCESS())
+        leafInit = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(client_key_der_2048, &idx, &leafKey,
+        (word32)sizeof_client_key_der_2048), 0);
+
+    ExpectIntGT((intSz = test_self_issued_ca_make(chain + FOURK_BUF, FOURK_BUF,
+        &intKey, &caKey, &rng, caKeyUsage)), 0);
+    ExpectIntGT((leafSz = test_self_issued_leaf_make(chain, FOURK_BUF,
+        &leafKey, chain + FOURK_BUF, intSz, &intKey, &rng)), 0);
+    if (EXPECT_SUCCESS())
+        XMEMMOVE(chain + leafSz, chain + FOURK_BUF, (size_t)intSz);
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup_ex(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method,
+        (byte*)ca_cert_der_2048, (int)sizeof_ca_cert_der_2048,
+        chain, leafSz + intSz,
+        (byte*)client_key_der_2048, (int)sizeof_client_key_der_2048), 0);
+    if (EXPECT_SUCCESS()) {
+        /* Peer verification is already the default; set it so the test does
+         * not rest on that default. */
+        wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, NULL);
+        ret = test_memio_do_handshake(ssl_c, ssl_s, 10, NULL);
+        *hsRet = ret;
+        *clientErr = wolfSSL_get_error(ssl_c, ret);
+    }
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
+    if (leafInit)
+        wc_FreeRsaKey(&leafKey);
+    if (intInit)
+        wc_FreeRsaKey(&intKey);
+    if (caInit)
+        wc_FreeRsaKey(&caKey);
+    if (rngInit)
+        wc_FreeRng(&rng);
+    XFREE(chain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return EXPECT_RESULT();
+}
+#endif /* TEST_SELF_ISSUED_CA_DEPENDENCIES */
+
+/* A chain certificate whose subject and issuer names match is self-issued, not
+ * a trust anchor. Without keyCertSign in a present Key Usage extension the
+ * certificate is refused as a CA; with keyCertSign the same chain completes.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_self_issued_chain_ca_no_keycertsign(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_SELF_ISSUED_CA_DEPENDENCIES
+    int hsRet = 0;
+    int clientErr = 0;
+
+    /* Without keyCertSign the CA is turned away and the handshake fails for
+     * that reason, not an incidental one. */
+    ExpectIntEQ(test_self_issued_ca_handshake("digitalSignature", &hsRet,
+        &clientErr), TEST_SUCCESS);
+    ExpectIntNE(hsRet, 0);
+    ExpectIntEQ(clientErr, WC_NO_ERR_TRACE(NOT_CA_ERROR));
+
+    /* With keyCertSign the very same chain completes. */
+    hsRet = -1;
+    clientErr = -1;
+    ExpectIntEQ(test_self_issued_ca_handshake("digitalSignature,keyCertSign",
+        &hsRet, &clientErr), TEST_SUCCESS);
+    ExpectIntEQ(hsRet, 0);
 #endif
     return EXPECT_RESULT();
 }
