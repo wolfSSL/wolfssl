@@ -255,8 +255,9 @@ for small builds that do not provision or validate attested objects.
 
 Enables the destructive Platform SCP03 key-rotation APIs. This is deliberately
 opt-in. The middleware must enable Platform SCP03 and HostCrypto, and wolfSSL
-must be built with `WOLFSSL_SE050_INIT`. The seed-based helper additionally
-requires HKDF (`--enable-hkdf` / `HAVE_HKDF`).
+must be built with `WOLFSSL_SE050_INIT` and AES direct support
+(`WOLFSSL_AES_DIRECT`). The seed-based helper additionally requires HKDF
+(`--enable-hkdf` / `HAVE_HKDF`).
 
 **`WOLFSSL_SE050_NO_ECDHE`**
 
@@ -638,6 +639,11 @@ The port uses the configured middleware transport when its transport macro is
 visible. Otherwise it uses T=1 over I2C, which is the documented/default SE05x
 port configuration.
 
+When the middleware HostCrypto backend uses wolfSSL, the SCP03 handshake needs
+entropy before the authenticated SE05x session exists. Configure an independent
+host entropy source and define `WOLFSSL_SE050_NO_TRNG` so the handshake does not
+try to bootstrap itself from the SE05x TRNG.
+
 When `HAVE_HKDF` is enabled, the active keys can be regenerated
 deterministically from a protected seed without an open SE05x session:
 
@@ -714,19 +720,25 @@ normally. Never test rotation on a production part.
 
 ### Object Attestation and Provisioning Validation
 
-`wc_se050_attest_object()` performs an attested read using a caller-provisioned
-attestation key. The attestation key's object policy must grant
-`WC_SE050_POLICY_ALLOW_ATTEST`. Freshness is exactly 16 bytes; when `random` is
-`NULL`, the SE05x TRNG supplies it unless that path was compiled out.
+`wc_se050_attest_object()` performs an attested read using an
+application-provisioned attestation key. The attestation key's object policy
+must grant
+`WC_SE050_POLICY_ALLOW_ATTEST`. The caller must supply an independently
+generated 16-byte freshness challenge. Generate and retain that challenge
+outside the SE05x so a response cannot select its own freshness value.
 
 ```c
 wc_se050_attst_result result;
+byte freshness[16];
 int valid;
 
-ret = wc_se050_attest_object(keyId, attestKeyId, WC_HASH_TYPE_SHA256,
-    freshness, sizeof(freshness), &result);
-ret = wc_se050_verify_attestation(&result, attestPublicDer,
-    attestPublicDerSz, freshness, sizeof(freshness), &valid);
+ret = application_get_host_random(freshness, sizeof(freshness));
+if (ret == 0)
+    ret = wc_se050_attest_object(keyId, attestKeyId, WC_HASH_TYPE_SHA256,
+        freshness, sizeof(freshness), &result);
+if (ret == 0)
+    ret = wc_se050_verify_attestation(&result, attestPublicDer,
+        attestPublicDerSz, freshness, sizeof(freshness), &valid);
 ```
 
 The verifier supports the pre-7.2 and 7.2+ signed-data formats and ECC or RSA
@@ -742,9 +754,18 @@ trust in that key. The application must validate the attestation key's
 certificate/provisioning chain separately.
 
 `wc_se050_validate_provisioned_key()` combines a SHA-256 attested read,
-signature verification, and exact DER public-key comparison. The attestation
-key and certificate chain are customer-provisioned; reserved NXP credentials
-are variant-specific and are not selected automatically.
+signature verification, and exact DER public-key comparison. It takes the
+same caller-generated 16-byte freshness challenge:
+
+```c
+ret = wc_se050_validate_provisioned_key(keyId, attestKeyId,
+    expectedPublicDer, expectedPublicDerSz, attestPublicDer,
+    attestPublicDerSz, freshness, sizeof(freshness), &valid);
+```
+
+The attestation key and certificate chain are application-provisioned;
+reserved NXP credentials are variant-specific and are not selected
+automatically.
 
 ### wolfSSL SE050 Factory Reset
 

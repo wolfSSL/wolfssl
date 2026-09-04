@@ -679,7 +679,7 @@ static int se050_scp03_encrypt_block(const byte* key, const byte* in,
     ALIGN16 byte alignedOut[SE050_SCP03_KEY_SZ];
 
     XMEMSET(&aes, 0, sizeof(aes));
-#if defined(WOLFSSL_SE050_CRYPT) && defined(HAVE_AESGCM)
+#ifdef WOLFSSL_SE050_CRYPT
     /* SCP03 static keys are host secrets. Never route DEK wrapping or KCV
      * generation back through the secure element. */
     aes.useSWCrypt = 1;
@@ -897,31 +897,12 @@ int wc_se050_scp03_rotate_keys_seed(const byte* seed, word32 seedSz,
 #endif /* HAVE_HKDF */
 #endif /* WOLFSSL_SE050_SCP03_ROTATE && SE050_RUNTIME_SCP03 */
 
-/**
- * Erase and free an object stored in SE050.
- *
- * keyId  ID of object to erase
- *
- * Returns 0 on success, negative on error.
- */
-int wc_se050_erase_object(word32 id)
+static int se050_erase_object_locked(word32 id)
 {
     int ret = 0;
     sss_object_t    object;
     sss_key_store_t host_keystore;
     sss_status_t    status = kStatus_SSS_Success;
-
-#ifdef SE050_DEBUG
-    printf("wc_se050_erase_object: id %d\n", id);
-#endif
-
-    if (cfg_se050_i2c_pi == NULL) {
-        return WC_NO_ERR_TRACE(BAD_STATE_E);
-    }
-
-    if (wolfSSL_CryptHwMutexLock() != 0) {
-        return BAD_MUTEX_E;
-    }
 
     status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
     if (status == kStatus_SSS_Success) {
@@ -938,11 +919,38 @@ int wc_se050_erase_object(word32 id)
         status = sss_key_store_erase_key(&host_keystore, &object);
         sss_key_object_free(&object);
     }
-    wolfSSL_CryptHwMutexUnLock();
 
     if (status != kStatus_SSS_Success) {
         ret = WC_HW_E;
     }
+
+    return ret;
+}
+
+/**
+ * Erase and free an object stored in SE050.
+ *
+ * keyId  ID of object to erase
+ *
+ * Returns 0 on success, negative on error.
+ */
+int wc_se050_erase_object(word32 id)
+{
+    int ret;
+
+#ifdef SE050_DEBUG
+    printf("wc_se050_erase_object: id %d\n", id);
+#endif
+
+    if (cfg_se050_i2c_pi == NULL) {
+        return WC_NO_ERR_TRACE(BAD_STATE_E);
+    }
+
+    if (wolfSSL_CryptHwMutexLock() != 0) {
+        return BAD_MUTEX_E;
+    }
+    ret = se050_erase_object_locked(id);
+    wolfSSL_CryptHwMutexUnLock();
 
     return ret;
 }
@@ -1168,13 +1176,16 @@ int se050_aes_set_key(Aes* aes, const byte* key, word32 keylen,
 
     aes->rounds = keylen/4 + 6;
 
-    /* free existing key in slot first before storing new one */
-    ret = wc_se050_erase_object(aes->keyId);
-    if (ret != 0) {
-        wolfSSL_CryptHwMutexUnLock();
-        return ret;
+    /* Free an existing key in the slot before storing a replacement. */
+    if (aes->keyIdSet != 0U) {
+        ret = se050_erase_object_locked(aes->keyId);
+        if (ret != 0) {
+            wolfSSL_CryptHwMutexUnLock();
+            return ret;
+        }
+        aes->keyId = 0;
+        aes->keyIdSet = 0;
     }
-    aes->keyIdSet = 0;
 
     status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
     if (status == kStatus_SSS_Success) {
@@ -1653,9 +1664,6 @@ int wc_se050_attest_object(word32 keyId, word32 attestKeyId,
 {
     int ret = 0;
     int i;
-    byte generatedRandom[SE050_ATTEST_RANDOM_SIZE];
-    const byte* freshness = random;
-    word32 freshnessSz = randomSz;
     size_t valueSz;
     size_t valueBitSz = 0;
     sss_algorithm_t algorithm = kAlgorithm_None;
@@ -1666,32 +1674,17 @@ int wc_se050_attest_object(word32 keyId, word32 attestKeyId,
     sss_se05x_object_t* seAttestObject;
     sss_status_t status = kStatus_SSS_Fail;
 
-    if ((result == NULL) || (keyId == attestKeyId) ||
-            ((random == NULL) && (randomSz != 0U)) ||
-            ((random != NULL) && (randomSz != SE050_ATTEST_RANDOM_SIZE))) {
+    if ((result == NULL) || (keyId == attestKeyId) || (random == NULL) ||
+            (randomSz != SE050_ATTEST_RANDOM_SIZE)) {
         return BAD_FUNC_ARG;
     }
     if (cfg_se050_i2c_pi == NULL) {
         return WC_NO_ERR_TRACE(BAD_STATE_E);
     }
 
-    if (freshness == NULL) {
-    #if !defined(WC_NO_RNG) && !defined(WOLFSSL_SE050_NO_TRNG)
-        ret = se050_get_random_number((word32)sizeof(generatedRandom),
-            generatedRandom);
-        if (ret != 0) {
-            return ret;
-        }
-        freshness = generatedRandom;
-        freshnessSz = (word32)sizeof(generatedRandom);
-    #else
-        return WC_NO_ERR_TRACE(NOT_COMPILED_IN);
-    #endif
-    }
-
     XMEMSET(result, 0, sizeof(*result));
     result->hashAlgo = hashAlgo;
-    XMEMCPY(result->freshness, freshness, SE050_ATTEST_RANDOM_SIZE);
+    XMEMCPY(result->freshness, random, SE050_ATTEST_RANDOM_SIZE);
     for (i = 0; i < SE05X_MAX_ATTST_DATA; i++) {
         result->raw.data[i].attributeLen =
             sizeof(result->raw.data[i].attribute);
@@ -1740,14 +1733,13 @@ int wc_se050_attest_object(word32 keyId, word32 attestKeyId,
         status = sss_se05x_key_store_get_key_attst(
             (sss_se05x_key_store_t*)&keyStore, seObject, result->value,
             &valueSz, &valueBitSz, seAttestObject, algorithm,
-            (byte*)freshness, freshnessSz, &result->raw);
+            result->freshness, sizeof(result->freshness), &result->raw);
         if (status == kStatus_SSS_Success) {
             result->valueSz = (word32)valueSz;
         }
     }
     wolfSSL_CryptHwMutexUnLock();
 
-    ForceZero(generatedRandom, sizeof(generatedRandom));
     if (status != kStatus_SSS_Success) {
         return (ret != 0) ? ret : WC_HW_E;
     }
@@ -1761,6 +1753,8 @@ int wc_se050_attest_object(word32 keyId, word32 attestKeyId,
     return 0;
 }
 
+#if !defined(NO_HASH_WRAPPER) && !defined(NO_SIG_WRAPPER) && \
+    !defined(NO_ASN)
 static int se050_attested_component(const wc_se050_attst_result* result,
     word32 componentIndex, byte* component, word32* componentSz)
 {
@@ -2080,12 +2074,13 @@ static int se050_verify_attestation_freshness(
     return 0;
 #endif
 }
+#endif /* !NO_HASH_WRAPPER && !NO_SIG_WRAPPER && !NO_ASN */
 
 int wc_se050_verify_attestation(const wc_se050_attst_result* result,
     const byte* attestPubDer, word32 attestPubDerSz,
     const byte* expectedRandom, word32 expectedRandomSz, int* res)
 {
-#if defined(NO_HASH_WRAPPER) || defined(NO_ASN)
+#if defined(NO_HASH_WRAPPER) || defined(NO_SIG_WRAPPER) || defined(NO_ASN)
     (void)result;
     (void)attestPubDer;
     (void)attestPubDerSz;
@@ -2244,7 +2239,8 @@ cleanup:
 
 int wc_se050_validate_provisioned_key(word32 keyId, word32 attestKeyId,
     const byte* expectedPubDer, word32 expectedPubDerSz,
-    const byte* attestPubDer, word32 attestPubDerSz, int* res)
+    const byte* attestPubDer, word32 attestPubDerSz, const byte* random,
+    word32 randomSz, int* res)
 {
     int ret;
     int verified = 0;
@@ -2252,17 +2248,17 @@ int wc_se050_validate_provisioned_key(word32 keyId, word32 attestKeyId,
 
     if ((expectedPubDer == NULL) || (expectedPubDerSz == 0U) ||
             (attestPubDer == NULL) || (attestPubDerSz == 0U) ||
+            (random == NULL) || (randomSz != SE050_ATTEST_RANDOM_SIZE) ||
             (res == NULL)) {
         return BAD_FUNC_ARG;
     }
     *res = 0;
 
     ret = wc_se050_attest_object(keyId, attestKeyId, WC_HASH_TYPE_SHA256,
-        NULL, 0, &result);
+        random, randomSz, &result);
     if (ret == 0)
         ret = wc_se050_verify_attestation(&result, attestPubDer,
-            attestPubDerSz, result.freshness,
-            (word32)sizeof(result.freshness), &verified);
+            attestPubDerSz, random, randomSz, &verified);
     if ((ret == 0) && verified && (result.valueSz == expectedPubDerSz) &&
             (XMEMCMP(result.value, expectedPubDer, expectedPubDerSz) == 0)) {
         *res = 1;

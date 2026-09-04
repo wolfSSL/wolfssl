@@ -26,6 +26,11 @@
 #include <wolfssl/wolfcrypt/visibility.h>
 #include <wolfssl/wolfcrypt/types.h> /* for MATH_INT_T */
 
+#if defined(WOLFSSL_SE050_SCP03_ROTATE) && \
+    (defined(NO_AES) || !defined(WOLFSSL_AES_DIRECT))
+    #error WOLFSSL_SE050_SCP03_ROTATE requires AES direct support
+#endif
+
 #ifdef __GNUC__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wundef"
@@ -277,7 +282,8 @@ WOLFSSL_API int wc_se050_get_object_attributes(word32 keyId, byte* attr,
     word32* attrSz);
 
 #ifndef WOLFSSL_SE050_NO_ATTEST
-/** Read and attest an object. Freshness must be 16 bytes or NULL. */
+/** Read and attest an object using a caller-generated 16-byte freshness
+ * challenge. */
 WOLFSSL_API int wc_se050_attest_object(word32 keyId, word32 attestKeyId,
     enum wc_HashType hashAlgo, const byte* random, word32 randomSz,
     wc_se050_attst_result* result);
@@ -287,10 +293,12 @@ WOLFSSL_API int wc_se050_verify_attestation(
     const wc_se050_attst_result* result, const byte* attestPubDer,
     word32 attestPubDerSz, const byte* expectedRandom,
     word32 expectedRandomSz, int* res);
-/** Attest a key, verify the signature, and compare its public-key DER. */
+/** Attest a key with a caller-generated 16-byte freshness challenge, verify
+ * the signature, and compare its public-key DER. */
 WOLFSSL_API int wc_se050_validate_provisioned_key(word32 keyId,
     word32 attestKeyId, const byte* expectedPubDer, word32 expectedPubDerSz,
-    const byte* attestPubDer, word32 attestPubDerSz, int* res);
+    const byte* attestPubDer, word32 attestPubDerSz, const byte* random,
+    word32 randomSz, int* res);
 #endif
 
 /* Private Functions */
