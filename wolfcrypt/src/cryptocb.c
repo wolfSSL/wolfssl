@@ -1275,7 +1275,7 @@ int wc_CryptoCb_EciesDecrypt(int devId, ecc_key* privKey, ecc_key* pubKey,
 #endif /* HAVE_ECC_ENCRYPT */
 #endif /* HAVE_ECC */
 
-#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM_CRYPTOCB)
+#if defined(WOLFSSL_SM2)
 int wc_CryptoCb_Sm2Sign(const byte* in, word32 inlen, byte* out,
     word32* outlen, WC_RNG* rng, ecc_key* key)
 {
@@ -1392,7 +1392,7 @@ int wc_CryptoCb_Sm2CreateDigest(const byte* id, word16 idSz,
 
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
-#endif /* WOLFSSL_SM2 && WOLFSSL_SM_CRYPTOCB */
+#endif /* WOLFSSL_SM2 */
 
 #ifdef HAVE_CURVE25519
 int wc_CryptoCb_Curve25519Gen(WC_RNG* rng, int keySize,
@@ -3043,7 +3043,7 @@ int wc_CryptoCb_Des3Decrypt(Des3* des3, byte* out,
 }
 #endif /* !NO_DES3 */
 
-#if defined(WOLFSSL_SM4) && defined(WOLFSSL_SM_CRYPTOCB)
+#if defined(WOLFSSL_SM4)
 #ifdef WOLFSSL_SM4_GCM
 int wc_CryptoCb_Sm4GcmEncrypt(wc_Sm4* sm4, byte* out,
                                const byte* in, word32 sz,
@@ -3377,7 +3377,7 @@ int wc_CryptoCb_Sm4EcbDecrypt(wc_Sm4* sm4, byte* out,
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
 #endif /* WOLFSSL_SM4_ECB */
-#endif /* WOLFSSL_SM4 && WOLFSSL_SM_CRYPTOCB */
+#endif /* WOLFSSL_SM4 */
 
 #ifndef NO_SHA
 int wc_CryptoCb_ShaHash(wc_Sha* sha, const byte* in,
@@ -3729,7 +3729,7 @@ int wc_CryptoCb_Shake(wc_Sha3* shake, int type, const byte* in,
 #endif /* WOLFSSL_SHAKE128 || WOLFSSL_SHAKE256 */
 #endif /* WOLFSSL_SHA3 && (!HAVE_FIPS || FIPS_VERSION_GE(6, 0)) */
 
-#if defined(WOLFSSL_SM3) && defined(WOLFSSL_SM_CRYPTOCB)
+#if defined(WOLFSSL_SM3)
 int wc_CryptoCb_Sm3Hash(wc_Sm3* sm3, const byte* in,
     word32 inSz, byte* digest)
 {
@@ -3760,7 +3760,7 @@ int wc_CryptoCb_Sm3Hash(wc_Sm3* sm3, const byte* in,
 
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
-#endif /* WOLFSSL_SM3 && WOLFSSL_SM_CRYPTOCB */
+#endif /* WOLFSSL_SM3 */
 
 #ifndef NO_HMAC
 int wc_CryptoCb_Hmac(Hmac* hmac, int macType, const byte* in, word32 inSz,
