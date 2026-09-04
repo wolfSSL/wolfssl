@@ -1755,12 +1755,14 @@ WOLFSSL_API void wolfSSL_CTX_SetCertCbCtx(WOLFSSL_CTX* ctx, void* userCtx);
  *
  * wolfSSL still owns the parsing. Every certificate is decoded before the
  * callback runs, and malformed DER fails the handshake without the callback
- * ever seeing it. Content wolfSSL does not understand or agree with - an
- * unknown critical extension, an unsupported key or signature algorithm, a
- * key usage inconsistent with the basic constraints - is not a decoding
- * failure; it is passed through for the callback to judge. The only limit on
- * the chain is the compile-time MAX_CHAIN_DEPTH; the verify depth does not
- * apply.
+ * ever seeing it. So does a certificate the parser refuses regardless of the
+ * verify mode, such as one with a zero serial number (unless
+ * WOLFSSL_ASN_ALLOW_0_SERIAL is defined). Content wolfSSL does not understand
+ * or agree with - an unknown critical extension, an unsupported key or
+ * signature algorithm, a key usage inconsistent with the basic constraints -
+ * is not a decoding failure; it is passed through for the callback to judge.
+ * The only limit on the chain is the compile-time MAX_CHAIN_DEPTH; the verify
+ * depth does not apply.
  *
  * Two more things still apply. An empty Certificate message is handled by
  * wolfSSL itself (see wolfSSL_CTX_set_verify() and the mutual-auth options)
@@ -1772,8 +1774,8 @@ WOLFSSL_API void wolfSSL_CTX_SetCertCbCtx(WOLFSSL_CTX* ctx, void* userCtx);
  * Not supported with the callback: DTLS, raw public keys (RFC 7250) and OCSP
  * stapling. Setting the callback on a context or object already configured
  * for one of them fails with CHAIN_VERIFY_UNSUPPORTED_E, and so does the
- * handshake of a connection that uses one of them, before the callback is
- * called.
+ * handshake of a connection that uses one of them, before its Certificate
+ * message is parsed.
  *
  * certs   DER certificates in the order the peer sent them, one
  *         WOLFSSL_BUFFER_INFO each: certs[0] is the peer's own certificate,

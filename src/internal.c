@@ -18117,29 +18117,11 @@ static int CheckPeerCertsDecode(WOLFSSL* ssl, ProcPeerCertArgs* args)
  * CHAIN_VERIFY_CB_E when rejected, or MEMORY_E. */
 static int DoChainVerifyCb(WOLFSSL* ssl, ProcPeerCertArgs* args)
 {
-    WOLFSSL_BUFFER_INFO* certs = NULL;
     int ret;
-    int i;
-
-    if (args->totalCerts > 0) {
-        certs = (WOLFSSL_BUFFER_INFO*)XMALLOC(
-            sizeof(WOLFSSL_BUFFER_INFO) * (size_t)args->totalCerts, ssl->heap,
-            DYNAMIC_TYPE_TMP_BUFFER);
-        if (certs == NULL)
-            return MEMORY_E;
-
-        for (i = 0; i < args->totalCerts; i++) {
-            certs[i].buffer = args->certs[i].buffer;
-            certs[i].length = args->certs[i].length;
-        }
-    }
 
     WOLFSSL_MSG("Calling user chain verify callback");
-    ret = GetChainVerifyCb(ssl)(ssl, certs, args->totalCerts,
+    ret = GetChainVerifyCb(ssl)(ssl, args->certs, args->totalCerts,
                                 GetChainVerifyCtx(ssl));
-
-    XFREE(certs, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-
     if (ret == 0) {
         WOLFSSL_MSG("\tuser chain verify callback accepted");
         return 0;
@@ -18274,6 +18256,17 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 ret = DoCertReqCtx(ssl, args, input, totalSz);
                 if (ret != 0)
                     goto exit_ppc;
+            }
+        #endif
+
+        #ifdef WOLFSSL_CHAIN_VERIFY_CB
+            /* Before any certificate entry or its extensions is parsed. */
+            if (UsingChainVerifyCb(ssl)) {
+                ret = ChainVerifyCbCheckSsl(ssl);
+                if (ret != 0) {
+                    DoCertFatalAlert(ssl, ret);
+                    goto exit_ppc;
+                }
             }
         #endif
 
@@ -18460,9 +18453,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             if (UsingChainVerifyCb(ssl)) {
                 /* Check once, not again on every re-entry. */
                 if (ret == 0 && args->count > 0 && !args->chainDecoded) {
-                    ret = ChainVerifyCbCheckSsl(ssl);
-                    if (ret == 0)
-                        ret = CheckPeerCertsDecode(ssl, args);
+                    ret = CheckPeerCertsDecode(ssl, args);
                     if (ret != 0) {
                         args->fatal = 1;
                         DoCertFatalAlert(ssl, ret);
