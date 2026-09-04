@@ -783,6 +783,9 @@ typedef struct testVector {
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  macro_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  error_test(void);
+#ifndef WOLFSSL_NO_FORCE_ZERO
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  forcezero_test(void);
+#endif
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  base64_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  base16_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  asn_test(void);
@@ -2449,6 +2452,13 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_FAIL("error    test failed!\n", ret);
     else
         TEST_PASS("error    test passed!\n");
+
+#ifndef WOLFSSL_NO_FORCE_ZERO
+    if ( (ret = forcezero_test()) != 0)
+        TEST_FAIL("forcezero test failed!\n", ret);
+    else
+        TEST_PASS("forcezero test passed!\n");
+#endif
 
     if ( (ret = memory_test()) != 0)
         TEST_FAIL("MEMORY   test failed!\n", ret);
@@ -4299,6 +4309,91 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t error_test(void)
 
     return 0;
 }
+
+#ifndef WOLFSSL_NO_FORCE_ZERO
+
+typedef void (*forcezero_fn)(void* mem, size_t len);
+
+/* Offset/length sweep, run once per available ForceZero() entry point. */
+static wc_test_ret_t forcezero_sweep(forcezero_fn forceZero, const char* name)
+{
+    byte buf[3 * sizeof(unsigned long) + 2];
+    word32 i;
+    word32 off;
+    word32 len;
+
+    /* len == 0: untouched. */
+    XMEMSET(buf, 0xA5, sizeof(buf));
+    forceZero(buf, 0);
+    for (i = 0; i < sizeof(buf); i++) {
+        if (buf[i] != 0xA5) {
+            printf("%s failed: len=0 modified index %u "
+                   "(expected 0xA5, got 0x%02X)\n", name, i, buf[i]);
+            return WC_TEST_RET_ENC_I((int)i);
+        }
+    }
+
+    /* Sweep offsets, lengths. */
+    for (off = 0; off < sizeof(unsigned long); off++) {
+        for (len = 0; len <= 2 * sizeof(unsigned long) + 3 &&
+                      off + len <= sizeof(buf); len++) {
+            XMEMSET(buf, 0xA5, sizeof(buf));
+
+            forceZero(buf + off, len);
+
+            for (i = 0; i < off; i++) {
+                if (buf[i] != 0xA5) {
+                    printf("%s failed: wrote before start. "
+                           "off=%u len=%u i=%u (expected 0xA5, got 0x%02X)\n",
+                           name, off, len, i, buf[i]);
+                    return WC_TEST_RET_ENC_I((int)i);
+                }
+            }
+            for (i = off; i < off + len; i++) {
+                if (buf[i] != 0x00) {
+                    printf("%s failed: missed zeroing. "
+                           "off=%u len=%u i=%u (expected 0x00, got 0x%02X)\n",
+                           name, off, len, i, buf[i]);
+                    return WC_TEST_RET_ENC_I((int)i);
+                }
+            }
+            for (i = off + len; i < sizeof(buf); i++) {
+                if (buf[i] != 0xA5) {
+                    printf("%s failed: wrote past end. "
+                           "off=%u len=%u i=%u (expected 0xA5, got 0x%02X)\n",
+                           name, off, len, i, buf[i]);
+                    return WC_TEST_RET_ENC_I((int)i);
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+/* Test ForceZero. */
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t forcezero_test(void)
+{
+    wc_test_ret_t ret;
+
+#ifndef NO_INLINE
+    /* Inline copy from misc.c. Under NO_INLINE it is WOLFSSL_LOCAL and not
+     * linkable from here.
+     */
+    ret = forcezero_sweep(ForceZero, "ForceZero");
+    if (ret != 0)
+        return ret;
+#endif
+
+    /* Exported wrapper, available in both configurations. */
+    ret = forcezero_sweep(wc_ForceZero, "wc_ForceZero");
+    if (ret != 0)
+        return ret;
+
+    return 0;
+}
+
+#endif /* !WOLFSSL_NO_FORCE_ZERO */
 
 #ifndef NO_CODING
 

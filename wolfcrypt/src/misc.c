@@ -784,39 +784,47 @@ WC_MISC_STATIC WC_INLINE void xorbuf(void* buf, const void* mask, word32 count)
 #endif /* !WOLFSSL_NO_XOR_OPS */
 
 #ifndef WOLFSSL_NO_FORCE_ZERO
-/* This routine fills the first len bytes of the memory area pointed by mem
-   with zeros. It ensures compiler optimization doesn't skip it. */
+/* Zeros mem, resistant to dead-store elimination (not a plain memset). */
 WC_MISC_STATIC WC_INLINE void ForceZero(void* mem, size_t len)
 {
     byte *zb = (byte *)mem;
-    unsigned long *zl;
 
-    XFENCE();
+    /* Stop DSE. */
+    WC_BARRIER();
 
-    while ((wc_ptr_t)zb & (wc_ptr_t)(sizeof(unsigned long) - 1U)) {
-        if (len == 0)
-            return;
+    while (len > 0 &&
+           (((wc_ptr_t)zb & (wc_ptr_t)(sizeof(unsigned long) - 1U)) != 0)) {
         *zb++ = 0;
         --len;
     }
 
-    zl = (unsigned long *)zb;
+    /* A full word left means the loop above stopped on alignment, not len,
+     * so zb is aligned and safe to convert.
+     */
+    if (len >= sizeof(unsigned long)) {
+        unsigned long *zl = (unsigned long *)zb;
 
-    while (len >= sizeof(unsigned long)) {
-        *zl++ = 0;
-        len -= sizeof(unsigned long);
+        do {
+            *zl++ = 0;
+            len -= sizeof(unsigned long);
+        } while (len >= sizeof(unsigned long));
+
+        zb = (byte *)zl;
     }
-
-    zb = (byte *)zl;
 
     while (len) {
         *zb++ = 0;
         --len;
     }
 
-    XFENCE();
+    /* Stop DSE. */
+    WC_BARRIER_DATA(mem);
 }
-#endif
+
+/* wc_ForceZero() wrapper moved to wc_port.c: this file gets #included into
+ * non-library TUs, which would duplicate-define it.
+ */
+#endif /* !WOLFSSL_NO_FORCE_ZERO */
 
 
 #ifndef WOLFSSL_NO_CONST_CMP
