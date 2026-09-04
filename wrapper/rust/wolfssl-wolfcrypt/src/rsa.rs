@@ -1077,9 +1077,6 @@ impl RSA {
 
     /// Check the PSS data to ensure the signature matches.
     ///
-    /// `set_rng()` must be called previously when wolfSSL is built with
-    /// WC_RSA_BLINDING option enabled.
-    ///
     /// # Parameters
     ///
     /// * `din`: Hash of data being verified.
