@@ -4157,7 +4157,8 @@ static int DecodeNameConstraints(const byte* input, word32 sz,
 
 #endif
 #if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT)
-static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert)
+static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert,
+                            int critical)
 {
     word32 idx = 0;
     word32 oldIdx;
@@ -4170,6 +4171,10 @@ static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert)
 #endif
 
     WOLFSSL_ENTER("DecodeCertPolicy");
+
+#if !defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_NO_ASN_STRICT)
+    (void)critical;
+#endif
 
     /* Check if cert is null before dereferencing below */
     if (cert == NULL)
@@ -4189,7 +4194,6 @@ static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert)
         WOLFSSL_MSG("\tCertPolicy length mismatch");
         return ASN_PARSE_E;
     }
-
     if (total_length == 0) {
         WOLFSSL_MSG("\tCertPolicy empty sequence");
         return ASN_PARSE_E;
@@ -4267,6 +4271,20 @@ static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert)
         && cert->extCertPoliciesNb < MAX_CERTPOL_NB
     #endif
     );
+
+#if defined(WOLFSSL_CERT_EXT) && !defined(WOLFSSL_NO_ASN_STRICT)
+    /* RFC 5280 4.2: a critical certificatePolicies whose policies could not
+     * all be stored (the loop stopped at MAX_CERTPOL_NB) cannot be fully
+     * processed. Report it as an unsupported critical extension so the shared
+     * DecodeExtensionType()/DecodeCertExtensions() defer it, matching the
+     * template back-end. Non-critical extensions may be partially processed. */
+    if (critical && (idx < seqEnd)) {
+        WOLFSSL_MSG("Cannot fully process critical certificatePolicies");
+        WOLFSSL_ERROR_VERBOSE(ASN_CRIT_EXT_E);
+        WOLFSSL_LEAVE("DecodeCertPolicy", ASN_CRIT_EXT_E);
+        return ASN_CRIT_EXT_E;
+    }
+#endif
 
     WOLFSSL_LEAVE("DecodeCertPolicy", 0);
     return 0;
