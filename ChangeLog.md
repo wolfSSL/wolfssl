@@ -274,6 +274,16 @@
   manager with the store the context owns.  Only affects applications calling
   `wolfSSL_CTX_set_cert_store()`.
 
+* **Fix (`wc_AsconAEAD128_SetAD` called more than once)**: the function
+  absorbs the key, nonce and associated data into the sponge state and then
+  applies domain separation, but unlike `wc_AsconAEAD128_SetKey()` and
+  `wc_AsconAEAD128_SetNonce()` it did not reject a repeat call.  A caller that
+  passed associated data in more than one call re-ran the absorption on the
+  already-advanced state, and every call still returned 0, so the resulting
+  tag did not authenticate under any conforming Ascon implementation with no
+  error raised.  `wc_AsconAEAD128_SetAD()` now returns `BAD_STATE_E` when the
+  associated data has already been set; it must be supplied in a single call.
+
 * **Fix (`wolfSSL_set_accept_state` with `WOLFSSL_BLIND_PRIVATE_KEY`)**: the
   static-ECC check decoded `ssl->buffers.key` directly.  Under
   `WOLFSSL_BLIND_PRIVATE_KEY` that buffer is masked, so the decode always
