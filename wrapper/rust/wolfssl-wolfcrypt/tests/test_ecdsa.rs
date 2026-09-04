@@ -1,4 +1,4 @@
-#![cfg(all(feature = "signature", ecc, ecc_sign, ecc_verify, ecc_curve_ids, random))]
+#![cfg(all(feature = "signature", ecc, ecc_import, ecc_export, ecc_sign, ecc_verify, random))]
 
 mod common;
 

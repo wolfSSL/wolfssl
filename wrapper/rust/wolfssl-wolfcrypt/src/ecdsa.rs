@@ -24,28 +24,33 @@ ECDSA trait impls for the RustCrypto `signature` crate.
 Provides per-curve wrapper types (`P256SigningKey`, `P256VerifyingKey`,
 `P256Signature`, etc.) over the inherent [`crate::ecc::ECC`] wrapper. Each
 curve pairs with its canonical hash algorithm (P-256 with SHA-256, P-384 with
-SHA-384, P-521 with SHA-512) and produces fixed-size `r‖s` signatures
+SHA-384, P-521 with SHA-512) and produces fixed-size `r||s` signatures
 matching the conventions used by the RustCrypto `ecdsa` crate.
 
 Signing and verifying use the high-level `wc_SignatureGenerate` /
 `wc_SignatureVerify` wolfCrypt entry points, which hash the raw message
 internally and emit/consume DER-encoded ECDSA signatures; the wrapper
-converts between DER and fixed `r‖s` via `wc_ecc_sig_to_rs` and
+converts between DER and fixed `r||s` via `wc_ecc_sig_to_rs` and
 `wc_ecc_rs_raw_to_sig`.
 */
 
-#![cfg(all(feature = "signature", ecc, ecc_sign, ecc_verify, ecc_import, ecc_export, ecc_curve_ids, random))]
+#![cfg(all(feature = "signature", ecc, ecc_import, ecc_verify))]
 
 use core::ffi::c_void;
 use core::mem::size_of;
 
-use signature::{Error, Keypair, SignatureEncoding, SignerMut, Verifier};
+use signature::{Error, SignatureEncoding};
+#[cfg(all(ecc_sign, ecc_export, random))]
+use signature::{Keypair, SignerMut};
+use signature::Verifier;
 
 use crate::ecc::ECC;
+#[cfg(all(ecc_sign, ecc_export, random))]
 use crate::random::RNG;
 use crate::sys;
 
-/// Build a fixed `r‖s` signature buffer from DER bytes produced by wolfCrypt.
+/// Build a fixed `r||s` signature buffer from DER bytes produced by wolfCrypt.
+#[cfg(all(ecc_sign, ecc_export, random))]
 fn der_to_rs<const SIG_SIZE: usize, const FIELD_SIZE: usize>(
     der: &[u8],
 ) -> Result<[u8; SIG_SIZE], Error> {
@@ -75,7 +80,7 @@ fn der_to_rs<const SIG_SIZE: usize, const FIELD_SIZE: usize>(
     Ok(out)
 }
 
-/// Build a DER signature from fixed `r‖s` bytes.
+/// Build a DER signature from fixed `r||s` bytes.
 fn rs_to_der<const FIELD_SIZE: usize>(
     rs: &[u8],
     der_out: &mut [u8],
@@ -108,9 +113,9 @@ macro_rules! define_ecdsa_curve {
         der_max = $der_max:literal,
         curve_id = $curve_id:expr,
         hash_type = $hash_type:expr,
-        hash_cfg = $hash_cfg:meta $(,)?
+        hash_cfg = $hash_cfg:ident $(,)?
     ) => {
-        /// Fixed-size ECDSA signature in `r‖s` form.
+        /// Fixed-size ECDSA signature in `r||s` form.
         $(#[$meta])*
         #[cfg($hash_cfg)]
         #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -118,15 +123,15 @@ macro_rules! define_ecdsa_curve {
 
         #[cfg($hash_cfg)]
         impl $signature {
-            /// Size in bytes of the fixed `r‖s` encoding.
+            /// Size in bytes of the fixed `r||s` encoding.
             pub const BYTE_SIZE: usize = $sig_size;
 
-            /// Construct a signature from raw `r‖s` bytes.
+            /// Construct a signature from raw `r||s` bytes.
             pub const fn from_bytes(bytes: [u8; $sig_size]) -> Self {
                 Self(bytes)
             }
 
-            /// Return the raw `r‖s` bytes.
+            /// Return the raw `r||s` bytes.
             pub const fn to_bytes(&self) -> [u8; $sig_size] {
                 self.0
             }
@@ -158,14 +163,14 @@ macro_rules! define_ecdsa_curve {
 
         /// ECDSA signing key (private key + owned RNG + cached public key).
         $(#[$meta])*
-        #[cfg($hash_cfg)]
+        #[cfg(all($hash_cfg, ecc_sign, ecc_export, random))]
         pub struct $signing_key {
             inner: ECC,
             rng: RNG,
             pub_bytes: [u8; $x963_size],
         }
 
-        #[cfg($hash_cfg)]
+        #[cfg(all($hash_cfg, ecc_sign, ecc_export, random))]
         impl $signing_key {
             /// Byte length of the uncompressed X9.63 public key encoding.
             pub const PUB_KEY_SIZE: usize = $x963_size;
@@ -198,7 +203,7 @@ macro_rules! define_ecdsa_curve {
             }
 
             /// Import a signing key from an uncompressed X9.63 public key
-            /// (leading `0x04` byte + `x‖y`) and a matching unsigned
+            /// (leading `0x04` byte + `x||y`) and a matching unsigned
             /// big-endian private scalar `d`.
             pub fn import_x963(
                 public_x963: &[u8; $x963_size],
@@ -232,7 +237,7 @@ macro_rules! define_ecdsa_curve {
             }
         }
 
-        #[cfg($hash_cfg)]
+        #[cfg(all($hash_cfg, ecc_sign, ecc_export, random))]
         impl Keypair for $signing_key {
             type VerifyingKey = $verifying_key;
             fn verifying_key(&self) -> $verifying_key {
@@ -240,7 +245,7 @@ macro_rules! define_ecdsa_curve {
             }
         }
 
-        #[cfg($hash_cfg)]
+        #[cfg(all($hash_cfg, ecc_sign, ecc_export, random))]
         impl SignerMut<$signature> for $signing_key {
             fn try_sign(&mut self, msg: &[u8]) -> Result<$signature, Error> {
                 let mut der = [0u8; $der_max];
@@ -281,7 +286,7 @@ macro_rules! define_ecdsa_curve {
 
             /// Construct a verifying key from its uncompressed X9.63 bytes.
             ///
-            /// The buffer must start with `0x04` followed by `x‖y` (each
+            /// The buffer must start with `0x04` followed by `x||y` (each
             /// `FIELD_SIZE` bytes).
             pub const fn from_bytes(bytes: [u8; $x963_size]) -> Self {
                 Self { pub_bytes: bytes }
@@ -342,7 +347,7 @@ define_ecdsa_curve! {
     sig_size = 64,
     x963_size = 65,
     der_max = 72,
-    curve_id = sys::ecc_curve_ids_ECC_SECP256R1,
+    curve_id = ECC::SECP256R1,
     hash_type = sys::wc_HashType_WC_HASH_TYPE_SHA256,
     hash_cfg = sha256,
 }
@@ -354,7 +359,7 @@ define_ecdsa_curve! {
     sig_size = 96,
     x963_size = 97,
     der_max = 104,
-    curve_id = sys::ecc_curve_ids_ECC_SECP384R1,
+    curve_id = ECC::SECP384R1,
     hash_type = sys::wc_HashType_WC_HASH_TYPE_SHA384,
     hash_cfg = sha384,
 }
@@ -366,7 +371,7 @@ define_ecdsa_curve! {
     sig_size = 132,
     x963_size = 133,
     der_max = 141,
-    curve_id = sys::ecc_curve_ids_ECC_SECP521R1,
+    curve_id = ECC::SECP521R1,
     hash_type = sys::wc_HashType_WC_HASH_TYPE_SHA512,
     hash_cfg = sha512,
 }
