@@ -3939,6 +3939,11 @@ int wolfSSL_X509_pubkey_digest(const WOLFSSL_X509 *x509,
         const WOLFSSL_EVP_MD *digest, unsigned char* buf, unsigned int* len)
 {
     int ret;
+    const byte* key;
+    word32 sz;
+    word32 idx = 0;
+    int keySz;
+    int len2 = 0;
 
     WOLFSSL_ENTER("wolfSSL_X509_pubkey_digest");
 
@@ -3952,8 +3957,23 @@ int wolfSSL_X509_pubkey_digest(const WOLFSSL_X509 *x509,
         return WOLFSSL_FAILURE;
     }
 
-    ret = wolfSSL_EVP_Digest(x509->pubKey.buffer, x509->pubKey.length, buf,
-                              len, digest, NULL);
+    key = x509->pubKey.buffer;
+    sz = x509->pubKey.length;
+    keySz = (int)sz;
+
+    /* OpenSSL digests the subjectPublicKey. Decoded certificates keep the
+     * key alone but wolfSSL_X509_set_pubkey stores a SubjectPublicKeyInfo,
+     * so step over that wrapper when it is present. */
+    if ((GetSequence(key, &idx, &len2, sz) >= 0) &&
+            (GetSequence(key, &idx, &len2, sz) >= 0)) {
+        idx += (word32)len2;
+        if (CheckBitString(key, &idx, &len2, sz, 1, NULL) >= 0) {
+            key += idx;
+            keySz = len2;
+        }
+    }
+
+    ret = wolfSSL_EVP_Digest(key, keySz, buf, len, digest, NULL);
     WOLFSSL_LEAVE("wolfSSL_X509_pubkey_digest", ret);
     return ret;
 }
@@ -17218,53 +17238,23 @@ void wolfSSL_X509V3_set_ctx(WOLFSSL_X509V3_CTX* ctx, WOLFSSL_X509* issuer,
         WOLFSSL_X509* subject, WOLFSSL_X509* req, WOLFSSL_X509_CRL* crl,
         int flag)
 {
-    int ret = WOLFSSL_SUCCESS;
     WOLFSSL_ENTER("wolfSSL_X509V3_set_ctx");
-    if (!ctx) {
-        ret = WOLFSSL_FAILURE;
+    if (ctx == NULL) {
         WOLFSSL_MSG("wolfSSL_X509V3_set_ctx() called with null ctx.");
+        return;
     }
 
-    if (ret == WOLFSSL_SUCCESS && (ctx->x509 != NULL)) {
-        ret = WOLFSSL_FAILURE;
-        WOLFSSL_MSG("wolfSSL_X509V3_set_ctx() called "
-                    "with ctx->x509 already allocated.");
-    }
+    ctx->issuer = issuer;
+    ctx->subject = subject;
 
-    if (ret == WOLFSSL_SUCCESS) {
-        ctx->x509 = wolfSSL_X509_new_ex(
-            (issuer && issuer->heap) ? issuer->heap :
-            (subject && subject->heap) ? subject->heap :
-            (req && req->heap) ? req->heap :
-            NULL);
-        if (!ctx->x509) {
-            ret = WOLFSSL_FAILURE;
-            WOLFSSL_MSG("wolfSSL_X509_new_ex() failed "
-                        "in wolfSSL_X509V3_set_ctx().");
-        }
-    }
-
-    /* Set parameters in ctx as long as ret == WOLFSSL_SUCCESS */
-    if (ret == WOLFSSL_SUCCESS && issuer)
-        ret = wolfSSL_X509_set_issuer_name(ctx->x509, &issuer->issuer);
-
-    if (ret == WOLFSSL_SUCCESS && subject)
-        ret = wolfSSL_X509_set_subject_name(ctx->x509, &subject->subject);
-
-    if (ret == WOLFSSL_SUCCESS && req) {
+    if (req != NULL) {
         WOLFSSL_MSG("req not implemented.");
     }
-
-    if (ret == WOLFSSL_SUCCESS && crl) {
+    if (crl != NULL) {
         WOLFSSL_MSG("crl not implemented.");
     }
-
-    if (ret == WOLFSSL_SUCCESS && flag) {
+    if (flag != 0) {
         WOLFSSL_MSG("flag not implemented.");
-    }
-
-    if (ret != WOLFSSL_SUCCESS) {
-        WOLFSSL_MSG("Error setting WOLFSSL_X509V3_CTX parameters.");
     }
 }
 
