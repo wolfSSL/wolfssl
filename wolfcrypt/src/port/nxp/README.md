@@ -544,6 +544,50 @@ move the crossover down toward small-record sizes.
   GCM including a corrupted-tag rejection, RNG4, and ECDSA/ECDH cross-checked
   against the software implementation.
 
+## NXP EdgeLock Secure Enclave (ELE)
+
+For i.MX 8ULP / 93 / 95, where NXP replaced CAAM with the EdgeLock Secure
+Enclave. Implemented as a crypto callback device; TRNG only so far.
+
+```sh
+./configure --enable-ele
+```
+
+That defines `WOLFSSL_NXP_ELE` and turns on crypto callbacks. Register the
+device before use:
+
+```c
+wolfCrypt_Init();
+wc_EleCryptoCb_RegisterDevice(WOLFSSL_NXP_ELE_DEVID);
+wc_InitRng_ex(&rng, NULL, WOLFSSL_NXP_ELE_DEVID);
+```
+
+Registration is left to the application rather than done in `wolfCrypt_Init()`:
+the hwrng node is root-only by default, so registering unconditionally would
+fail every RNG call in an unprivileged process instead of using software.
+
+| Macro | Default | Purpose |
+|---|---|---|
+| `WOLFSSL_NXP_ELE` | off | Enable the port |
+| `WOLFSSL_NXP_ELE_DEVID` | `0x454C45` | Crypto callback device id |
+| `WOLFSSL_NXP_ELE_TRNG_DEVICE` | `/dev/hwrng` | Enclave TRNG character device |
+| `WOLFSSL_NXP_ELE_TRNG_CURRENT` | `/sys/.../rng_current` | Where the active hwrng provider is named |
+| `WOLFSSL_NXP_ELE_TRNG_NAME` | `ele-trng` | Provider name the test looks for |
+| `WOLFSSL_NXP_ELE_TRNG` | on | Build the TRNG support |
+| `WOLFSSL_NXP_ELE_NO_TRNG` | off | Do not build the TRNG support |
+| `WOLFSSL_NXP_ELE_NO_DEVID` | off | Do not set `WC_USE_DEVID` |
+
+Anything unimplemented returns `CRYPTOCB_UNAVAILABLE`, so wolfCrypt falls back
+to software. The TRNG arrives through the Linux hwrng framework, so no NXP
+userspace library is needed; confirm the backing source with
+`cat /sys/class/misc/hw_random/rng_current` (expect `ele-trng`).
+
+Hash, AES, HMAC/CMAC and public key need the enclave HSM interface
+(`/dev/hsm0_ch0`), which requires NXP's `imx-secure-enclave` library and a
+kernel carrying NXP's downstream `ele_mu` driver; the upstream `fsl-se` driver
+rejects userspace SAB writes with `EINVAL`. The enclave exposes no post-quantum
+algorithms, so ML-KEM and ML-DSA stay on the CPU.
+
 ## Support
 
 For questions please email support@wolfssl.com

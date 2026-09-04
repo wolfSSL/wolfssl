@@ -5151,6 +5151,17 @@ then
     done
 fi
 
+# NXP EdgeLock Secure Enclave (ELE) - i.MX8ULP / i.MX93 / i.MX95
+AC_ARG_ENABLE([ele],
+    [AS_HELP_STRING([--enable-ele],[Enable NXP EdgeLock Secure Enclave support (default: disabled)])],
+    [ENABLED_ELE=$enableval],
+    [ENABLED_ELE=no])
+
+if test "$ENABLED_ELE" != "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NXP_ELE"
+fi
+
 AC_ARG_ENABLE([caam],
     [AS_HELP_STRING([--enable-caam],[Enable wolfSSL support for CAAM (default: disabled)])],
     [ ENABLED_CAAM=$enableval ],
@@ -12214,7 +12225,7 @@ then
     fi
 fi
 
-if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes" || test "$ENABLED_CAAM" != "no" || test "$ENABLED_SEC_QORIQ" != "no" || test "x$ENABLED_RTL8735B" != "xno" || test "x$ENABLED_SILABS_CRYPTOCB" != "xno" || test "x$ENABLED_VAULTIC" = "xyes"
+if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes" || test "$ENABLED_CAAM" != "no" || test "$ENABLED_SEC_QORIQ" != "no" || test "x$ENABLED_RTL8735B" != "xno" || test "x$ENABLED_SILABS_CRYPTOCB" != "xno" || test "x$ENABLED_VAULTIC" = "xyes" || test "x$ENABLED_ELE" != "xno"
 then
     ENABLED_CRYPTOCB=yes
 fi
@@ -14372,6 +14383,7 @@ AM_CONDITIONAL([BUILD_CAAM_LINUX],[test "x$ENABLED_CAAM_LINUX" = "xyes"])
 AM_CONDITIONAL([BUILD_IOTSAFE],[test "x$ENABLED_IOTSAFE" = "xyes"])
 AM_CONDITIONAL([BUILD_IOTSAFE_HWRNG],[test "x$ENABLED_IOTSAFE_HWRNG" = "xyes"])
 AM_CONDITIONAL([BUILD_VAULTIC],[test "x$ENABLED_VAULTIC" = "xyes"])
+AM_CONDITIONAL([BUILD_ELE],[test "x$ENABLED_ELE" != "xno"])
 AM_CONDITIONAL([BUILD_SE050],[test "x$ENABLED_SE050" = "xyes"])
 AM_CONDITIONAL([BUILD_STSAFE],[test "x$ENABLED_STSAFE" != "xno"])
 AM_CONDITIONAL([BUILD_RTL8735B],[test "x$ENABLED_RTL8735B" != "xno"])
@@ -15000,6 +15012,7 @@ echo "   * PK callbacks:               $ENABLED_PKCALLBACKS"
 echo "   * Crypto callbacks:           $ENABLED_CRYPTOCB"
 echo "   * Crypto callbacks only:      $ENABLED_CRYPTOCB_ONLY"
 echo "   * i.MX CAAM:                  $ENABLED_CAAM"
+echo "   * NXP EdgeLock Enclave:       $ENABLED_ELE"
 echo "   * IoT-Safe:                   $ENABLED_IOTSAFE"
 echo "   * WISeKey/SealSQ VaultIC:     $ENABLED_VAULTIC"
 echo "   * IoT-Safe HWRNG:             $ENABLED_IOTSAFE_HWRNG"
