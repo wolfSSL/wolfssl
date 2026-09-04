@@ -7935,6 +7935,7 @@ WOLFSSL_LOCAL int wolfSSL_SSL_do_handshake_internal(WOLFSSL *s);
 #define WOLFSSL_IS_QUIC(s)  (((s) != NULL) && ((s)->quic.method != NULL))
 WOLFSSL_LOCAL int wolfSSL_quic_receive(WOLFSSL* ssl, byte* buf, word32 sz);
 WOLFSSL_LOCAL int wolfSSL_quic_send(WOLFSSL* ssl);
+WOLFSSL_LOCAL int wolfSSL_quic_send_alert(WOLFSSL* ssl, int severity, int code);
 WOLFSSL_LOCAL void wolfSSL_quic_clear(WOLFSSL* ssl);
 WOLFSSL_LOCAL void wolfSSL_quic_free(WOLFSSL* ssl);
 WOLFSSL_LOCAL int wolfSSL_quic_forward_secrets(WOLFSSL *ssl,
