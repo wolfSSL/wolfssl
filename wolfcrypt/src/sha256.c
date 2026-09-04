@@ -2461,9 +2461,13 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
                 else
         #endif
                 {
+                    /* C fallback, now reachable on x86_64 when the CPU has
+                     * no MOVBE. LMS passes an unaligned interior pointer as
+                     * hash, so the alignment staging must be unconditional:
+                     * WOLFSSL_GENERAL_ALIGNMENT >= 4 does not imply hash is
+                     * aligned here. */
                     word32* hash32 = (word32*)hash;
                     word32* digest = (word32*)sha256->digest;
-                #if WOLFSSL_GENERAL_ALIGNMENT < 4
                     ALIGN16 word32 buf[WC_SHA256_DIGEST_SIZE / sizeof(word32)];
 
                     if (((size_t)digest & 0x3) != 0) {
@@ -2480,14 +2484,11 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
                     else if (((size_t)hash32 & 0x3) != 0) {
                         hash32 = digest;
                     }
-                #endif
                     ByteReverseWords(hash32, digest,
                         (word32)(sizeof(word32) * 8));
-                #if WOLFSSL_GENERAL_ALIGNMENT < 4
                     if (hash != (byte*)hash32) {
                         XMEMCPY(hash, hash32, WC_SHA256_DIGEST_SIZE);
                     }
-                #endif
                 }
             }
             sha256->digest[0] = 0x6A09E667L;
