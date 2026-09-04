@@ -5463,7 +5463,7 @@ int fp_randprime(fp_int* a, int len, WC_RNG* rng, void* heap)
         mp_prime_is_prime_ex(a, 8, &isPrime, rng);
     } while (isPrime == FP_NO);
 
-    XMEMSET(buf, 0, len);
+    ForceZero(buf, len);
     XFREE(buf, heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return FP_OKAY;
