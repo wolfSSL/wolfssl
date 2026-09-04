@@ -6915,6 +6915,93 @@ int test_wc_PKCS7_VerifySignedData_TruncCertSetTag(void)
  * parser can see, and must still succeed after fixing that check to reject
  * truncated bundles.
  */
+/* wc_PKCS7_DecodeSignedData() decodes a detached bundle without its content
+ * and leaves the signature for a later wc_PKCS7_VerifySignedData(). An
+ * attached bundle is verified while decoding. */
+int test_wc_PKCS7_DecodeSignedData(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    PKCS7* pkcs7 = NULL;
+    byte   output[6000];
+    word32 outputSz = sizeof(output);
+    byte   data[] = "Test data to encode.";
+    byte   badData[] = "This is different content than was signed";
+    word32 i;
+
+    /* detached bundle */
+    ExpectIntGT((outputSz = (word32)CreatePKCS7SignedData(output,
+        (int)outputSz, data, (word32)sizeof(data), 0, 1, 0, RSA_TYPE)), 0);
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_DecodeSignedData(pkcs7, output, outputSz), 0);
+    if (pkcs7 != NULL) {
+        ExpectIntEQ(pkcs7->detached, 1);
+        ExpectNotNull(pkcs7->singleCert);
+        ExpectIntGT(pkcs7->singleCertSz, 0);
+        /* nothing was verified */
+        ExpectNull(pkcs7->verifyCert);
+    }
+
+    /* verifying without the content still fails */
+    ExpectIntLT(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz), 0);
+
+    /* verify once the content is supplied */
+    if (pkcs7 != NULL) {
+        pkcs7->content = data;
+        pkcs7->contentSz = (word32)sizeof(data);
+    }
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz), 0);
+    if (pkcs7 != NULL) {
+        ExpectNotNull(pkcs7->verifyCert);
+    }
+
+    /* wrong content is rejected */
+    if (pkcs7 != NULL) {
+        pkcs7->content = badData;
+        pkcs7->contentSz = (word32)sizeof(badData);
+    }
+    ExpectIntLT(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz), 0);
+
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* attached bundle is verified while decoding */
+    outputSz = sizeof(output);
+    ExpectIntGT((outputSz = (word32)CreatePKCS7SignedData(output,
+        (int)outputSz, data, (word32)sizeof(data), 0, 0, 0, RSA_TYPE)), 0);
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_DecodeSignedData(pkcs7, output, outputSz), 0);
+    if (pkcs7 != NULL) {
+        ExpectIntEQ(pkcs7->detached, 0);
+        ExpectNotNull(pkcs7->verifyCert);
+    }
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* tampered attached content is rejected */
+    for (i = 0; i + sizeof(data) <= outputSz; i++) {
+        if (XMEMCMP(output + i, data, sizeof(data)) == 0) {
+            output[i] ^= 0x01;
+            break;
+        }
+    }
+    ExpectTrue(i + sizeof(data) <= outputSz);
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntLT(wc_PKCS7_DecodeSignedData(pkcs7, output, outputSz), 0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    ExpectIntEQ(wc_PKCS7_DecodeSignedData(NULL, output, outputSz),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wc_PKCS7_VerifySignedData_DegenerateMinimal(void)
 {
     EXPECT_DECLS;

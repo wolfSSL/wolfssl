@@ -327,7 +327,8 @@ struct wc_PKCS7 {
      /* flags - up to 16-bits */
     WC_BITFIELD isDynamic:1;
     WC_BITFIELD noDegenerate:1;   /* allow degenerate case in verify function */
-    WC_BITFIELD detached:1;       /* generate detached SignedData signature bundles */
+    WC_BITFIELD detached:1;       /* detached SignedData: set for encode,
+                                   * reported by decode */
 
     byte contentType[MAX_OID_SZ]; /* custom contentType byte array */
     word32 contentTypeSz;         /* size of contentType, bytes */
@@ -470,6 +471,8 @@ WOLFSSL_API int  wc_PKCS7_VerifySignedData_ex(wc_PKCS7* pkcs7, const byte* hashB
                                           word32 hashSz, byte* pkiMsgHead,
                                           word32 pkiMsgHeadSz, byte* pkiMsgFoot,
                                           word32 pkiMsgFootSz);
+WOLFSSL_API int  wc_PKCS7_DecodeSignedData(wc_PKCS7* pkcs7,
+                                       byte* pkiMsg, word32 pkiMsgSz);
 
 WOLFSSL_API int  wc_PKCS7_GetSignerSID(wc_PKCS7* pkcs7, byte* out, word32* outSz);
 
