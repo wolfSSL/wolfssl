@@ -3138,11 +3138,16 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
         defined(WOLFSSL_WPAS_SMALL)
         wolfSSL_X509_STORE_free(ctx->x509_store_pt);
     #endif
-    #ifndef WOLFSSL_NO_CA_NAMES
+    #if !defined(WOLFSSL_NO_CA_NAMES) && defined(OPENSSL_EXTRA)
         wolfSSL_sk_X509_NAME_pop_free(ctx->client_ca_names, NULL);
         ctx->client_ca_names = NULL;
         wolfSSL_sk_X509_NAME_pop_free(ctx->ca_names, NULL);
         ctx->ca_names = NULL;
+    #endif
+    #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES) && \
+        defined(WOLFSSL_TLS13)
+        TLSX_CertificateAuthorities_FreeAll(ctx->ws_ca_names, ctx->heap);
+        ctx->ws_ca_names = NULL;
     #endif
     #ifdef OPENSSL_EXTRA
         if (ctx->x509Chain) {
@@ -9995,6 +10000,13 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
     #endif
 #endif
 
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES) && \
+    defined(WOLFSSL_TLS13)
+    TLSX_CertificateAuthorities_FreeAll(ssl->ws_ca_names, ssl->heap);
+    ssl->ws_ca_names = NULL;
+    TLSX_CertificateAuthorities_FreeAll(ssl->ws_peer_ca_names, ssl->heap);
+    ssl->ws_peer_ca_names = NULL;
+#endif
 #ifdef WOLFSSL_STATIC_MEMORY
     FreeSSL_StaticMemory(ssl);
 #endif /* WOLFSSL_STATIC_MEMORY */
@@ -10008,7 +10020,7 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
     wolfSSL_sk_X509_pop_free(ssl->ourCertChain, NULL);
     #endif
 #endif
-#ifndef WOLFSSL_NO_CA_NAMES
+#if !defined(WOLFSSL_NO_CA_NAMES) && defined(OPENSSL_EXTRA)
     wolfSSL_sk_X509_NAME_pop_free(ssl->client_ca_names, NULL);
     ssl->client_ca_names = NULL;
     wolfSSL_sk_X509_NAME_pop_free(ssl->ca_names, NULL);
@@ -28091,7 +28103,7 @@ int SendCertificateRequest(WOLFSSL* ssl)
     int    sendSz;
     word32 i = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
     word32 dnLen = 0;
-#ifndef WOLFSSL_NO_CA_NAMES
+#if !defined(WOLFSSL_NO_CA_NAMES) && defined(OPENSSL_EXTRA)
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* names;
 #endif
     byte   certTypes[MAX_CERT_REQ_CERT_TYPE_CNT];
@@ -28113,7 +28125,7 @@ int SendCertificateRequest(WOLFSSL* ssl)
     if (IsAtLeastTLSv1_2(ssl))
         reqSz += LENGTH_SZ + localHashSigAlgoSz;
 
-#ifndef WOLFSSL_NO_CA_NAMES
+#if !defined(WOLFSSL_NO_CA_NAMES) && defined(OPENSSL_EXTRA)
     /* Certificate Authorities */
     names = SSL_PRIORITY_CA_NAMES(ssl);
     while (names != NULL) {
@@ -28179,7 +28191,7 @@ int SendCertificateRequest(WOLFSSL* ssl)
     /* Certificate Authorities */
     c16toa((word16)dnLen, &output[i]);  /* auth's */
     i += REQ_HEADER_SZ;
-#ifndef WOLFSSL_NO_CA_NAMES
+#if !defined(WOLFSSL_NO_CA_NAMES) && defined(OPENSSL_EXTRA)
     names = SSL_PRIORITY_CA_NAMES(ssl);
     while (names != NULL) {
         byte seq[MAX_SEQ_SZ];

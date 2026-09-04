@@ -1020,25 +1020,32 @@
 
 #undef WSSL_HARDEN_TLS
 
-/* CA Names feature */
-#if !defined(WOLFSSL_NO_CA_NAMES) && defined(OPENSSL_EXTRA)
-    #define SSL_CLIENT_CA_NAMES(ssl) ((ssl)->client_ca_names != NULL ? \
-        (ssl)->client_ca_names : \
-        (ssl)->ctx->client_ca_names)
-    #define SSL_CA_NAMES(ssl) ((ssl)->ca_names != NULL ? \
-        (ssl)->ca_names : \
-        (ssl)->ctx->ca_names)
-    /* On the server, client_ca_names has priority over ca_names if both are
-     * set. This mimics OpenSSL's API:
-     * https://docs.openssl.org/3.6/man3/SSL_CTX_set0_CA_list/ */
-    #define SSL_PRIORITY_CA_NAMES(ssl) \
-        (((ssl)->options.side == WOLFSSL_SERVER_END && \
-        SSL_CLIENT_CA_NAMES(ssl) != NULL) ? \
-            SSL_CLIENT_CA_NAMES(ssl) : \
-            SSL_CA_NAMES(ssl))
-#else
-    #undef  WOLFSSL_NO_CA_NAMES
-    #define WOLFSSL_NO_CA_NAMES
+/* CA Names feature (TLS 1.3 certificate_authorities extension, RFC 8446).
+ * Enabled by default; opt out with WOLFSSL_NO_CA_NAMES. The OpenSSL
+ * stack-of-X509_NAME API is wired in when OPENSSL_EXTRA is also defined. */
+#ifndef WOLFSSL_NO_CA_NAMES
+    #ifdef OPENSSL_EXTRA
+        #define SSL_CLIENT_CA_NAMES(ssl) ((ssl)->client_ca_names != NULL ? \
+            (ssl)->client_ca_names : \
+            (ssl)->ctx->client_ca_names)
+        #define SSL_CA_NAMES(ssl) ((ssl)->ca_names != NULL ? \
+            (ssl)->ca_names : \
+            (ssl)->ctx->ca_names)
+        /* On the server, client_ca_names has priority over ca_names if both
+         * are set. This mimics OpenSSL's API:
+         * https://docs.openssl.org/3.6/man3/SSL_CTX_set0_CA_list/ */
+        #define SSL_PRIORITY_CA_NAMES(ssl) \
+            (((ssl)->options.side == WOLFSSL_SERVER_END && \
+            SSL_CLIENT_CA_NAMES(ssl) != NULL) ? \
+                SSL_CLIENT_CA_NAMES(ssl) : \
+                SSL_CA_NAMES(ssl))
+    #endif
+    #ifdef WOLFSSL_TLS13
+    /* wolfSSL native CA list: SSL override, else CTX. */
+    #define WS_CA_NAMES(ssl) ((ssl)->ws_ca_names != NULL ? \
+        (ssl)->ws_ca_names : \
+        ((ssl)->ctx != NULL ? (ssl)->ctx->ws_ca_names : NULL))
+    #endif
 #endif
 
 
@@ -3650,6 +3657,35 @@ WOLFSSL_LOCAL void TLSX_SignatureAlgorithms_FreeAll(SignatureAlgorithms* sa,
                                                     void* heap);
 #endif
 
+/** Certificate Authorities - RFC 8446 section 4.2.4.
+ * wolfSSL native list node holding the inner content of one DER-encoded Name
+ * (no SEQUENCE header; that is added on the wire). */
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES) && \
+    defined(WOLFSSL_TLS13)
+typedef struct CertificateAuthority {
+    struct CertificateAuthority* next;
+    word16                       dnSz;
+    /* Ignore "nonstandard extension used : zero-sized array in struct/union"
+     * MSVC warning */
+    #ifdef _MSC_VER
+    #pragma warning(push)
+    #pragma warning(disable: 4200)
+    #endif
+    byte                         dn[];
+    #ifdef _MSC_VER
+    #pragma warning(pop)
+    #endif
+} CertificateAuthority;
+
+WOLFSSL_LOCAL int  TLSX_CertificateAuthorities_Add(CertificateAuthority** head,
+        const byte* dn, word16 dnSz, void* heap);
+WOLFSSL_LOCAL int  TLSX_CertificateAuthorities_Add_ex(
+        CertificateAuthority** head, CertificateAuthority** tail,
+        const byte* dn, word16 dnSz, void* heap);
+WOLFSSL_LOCAL void TLSX_CertificateAuthorities_FreeAll(
+        CertificateAuthority* head, void* heap);
+#endif
+
 /** Supported Elliptic Curves - RFC 4492 (session 4) */
 #ifdef HAVE_SUPPORTED_CURVES
 
@@ -4166,9 +4202,14 @@ struct WOLFSSL_CTX {
     DerBuffer*  certChain;
     int         certChainCnt;
                  /* chain after self, in DER, with leading size for each cert */
-    #ifndef WOLFSSL_NO_CA_NAMES
+    #if !defined(WOLFSSL_NO_CA_NAMES) && defined(OPENSSL_EXTRA)
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* client_ca_names;
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* ca_names;
+    #endif
+    #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES) && \
+        defined(WOLFSSL_TLS13)
+    /* wolfSSL native CA DN list sent in certificate_authorities. */
+    CertificateAuthority* ws_ca_names;
     #endif
     #ifdef OPENSSL_EXTRA
     WOLF_STACK_OF(WOLFSSL_X509)* x509Chain;
@@ -6945,13 +6986,20 @@ struct WOLFSSL {
     byte clientFinished_len;
     byte serverFinished_len;
 #endif
-#ifndef WOLFSSL_NO_CA_NAMES
+#if !defined(WOLFSSL_NO_CA_NAMES) && defined(OPENSSL_EXTRA)
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* client_ca_names; /* Used in *_set/get_client_CA_list
                                                           (server only) */
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* ca_names;        /* Used in *_set0/get0_CA_list */
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* peer_ca_names;   /* Used in *_get0_peer_CA_list
                                                           and (client only)
                                                           wolfSSL_get_client_CA_list */
+#endif
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES) && \
+    defined(WOLFSSL_TLS13)
+    /* wolfSSL native CA DN list sent in certificate_authorities. */
+    CertificateAuthority* ws_ca_names;
+    /* wolfSSL native CA DN list received from the peer. */
+    CertificateAuthority* ws_peer_ca_names;
 #endif
 #if defined(WOLFSSL_IOTSAFE) && defined(HAVE_PK_CALLBACKS)
     IOTSAFE iotsafe;

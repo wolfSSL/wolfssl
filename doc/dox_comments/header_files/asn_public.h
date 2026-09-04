@@ -4405,3 +4405,58 @@ int wc_Asn1_PrintAll(Asn1* asn1, Asn1PrintOptions* opts, unsigned char* data,
 */
 int wc_Asn1_SetOidToNameCb(Asn1* asn1, Asn1OidToNameCb nameCb);
 
+/*!
+    \ingroup ASN
+
+    \brief Retrieves the raw DER-encoded subject Name content from a parsed
+    DecodedCert.
+
+    The returned pointer and size reference the inner content of the subject
+    Name SEQUENCE (i.e. the bytes after the SEQUENCE tag and length). The
+    pointer aliases the DER buffer supplied to wc_InitDecodedCert(), which the
+    DecodedCert does not own, and must not be freed by the caller. The data
+    remains valid only while that buffer is alive and unmodified.
+
+    This function is intended for use with wolfSSL_UseCertificateAuthority(),
+    which expects the subject content without the outer SEQUENCE header.
+
+    Requires IGNORE_NAME_CONSTRAINTS to be undefined or WOLFSSL_CERT_EXT to
+    be defined.
+
+    \param cert       Pointer to the DecodedCert (must have been parsed).
+    \param subjectRaw Output pointer that receives the address of the raw
+                      DER subject content.
+    \param subjectRawSz Output pointer that receives the size in bytes of the
+                        raw subject content.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG if any argument is NULL.
+    \return ASN_PARSE_E if the subject was not populated during parsing.
+    \return NOT_COMPILED_IN if the required build options are not enabled.
+
+    _Example_
+    \code
+    DecodedCert decoded;
+    const byte* subject = NULL;
+    int subjectSz = 0;
+
+    wc_InitDecodedCert(&decoded, certDer, certDerSz, NULL);
+    if (wc_ParseCert(&decoded, CERT_TYPE, NO_VERIFY, NULL) == 0) {
+        if (wc_GetDecodedCertSubjectRaw(&decoded, &subject,
+                &subjectSz) == 0) {
+            // subject and subjectSz now reference the raw DER content
+        }
+    }
+    wc_FreeDecodedCert(&decoded);
+    \endcode
+
+    \sa wc_InitDecodedCert
+    \sa wc_ParseCert
+    \sa wc_FreeDecodedCert
+    \sa wc_GetDecodedCertSubject
+    \sa wolfSSL_UseCertificateAuthority
+*/
+int wc_GetDecodedCertSubjectRaw(const struct DecodedCert* cert,
+                                const byte** subjectRaw,
+                                int* subjectRawSz);
+
