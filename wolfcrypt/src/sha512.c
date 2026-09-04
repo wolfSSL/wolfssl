@@ -959,6 +959,10 @@ static int InitSha512(wc_Sha512* sha512)
 #if defined(WOLFSSL_SHA512_HASHTYPE)
     sha512->hashType = WC_HASH_TYPE_SHA512;
 #endif /* WOLFSSL_SHA512_HASHTYPE */
+
+#if defined(WOLFSSL_TI_AM64X) && !defined(WOLFSSL_TI_AM64X_NO_SHA)
+    XMEMSET(&sha512->scObj, 0, sizeof(sha512->scObj));
+#endif
     return 0;
 }
 

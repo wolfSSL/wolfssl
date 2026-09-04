@@ -1,0 +1,43 @@
+/* ti-sa2ul_port.h
+ *
+ * Copyright (C) 2006-2026 wolfSSL Inc.
+ *
+ * This file is part of wolfSSL.
+ *
+ * wolfSSL is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * wolfSSL is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
+ */
+#ifndef _TI_SA2UL_PORT_H_
+#define _TI_SA2UL_PORT_H_
+
+#if defined(WOLFSSL_TI_AM64X)
+
+#include "security/security_common/drivers/crypto/sa2ul/sa2ul.h"
+
+#define WOLFSSL_TI_SA2UL_DEVID 8888
+#define WC_USE_DEVID WOLFSSL_TI_SA2UL_DEVID
+
+#ifdef WOLFSSL_TI_AM64X_RNG_CTR_DRBG
+    #define CUSTOM_RAND_GENERATE_BLOCK ti_sa2ul_trng_get
+#else
+    #define CUSTOM_RAND_GENERATE_SEED ti_sa2ul_trng_get
+#endif
+
+int ti_sa2ul_port_init(void);
+void ti_sa2ul_soc_uid(uint8_t *uid);
+int ti_sa2ul_trng_get(byte* output, word32 sz);
+
+#endif /* WOLFSSL_TI_AM64X */
+
+#endif /* _TI_SA2UL_PORT_H_ */

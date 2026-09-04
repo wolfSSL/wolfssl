@@ -190,6 +190,10 @@ Threading/Mutex options:
     #include <wolfssl/wolfcrypt/port/nxp/hashcrypt_port.h>
 #endif
 
+#ifdef WOLFSSL_TI_AM64X
+    #include <wolfssl/wolfcrypt/port/ti/ti-sa2ul_port.h>
+#endif
+
 #ifdef WOLF_CRYPTO_CB
     #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
@@ -586,6 +590,14 @@ int wolfCrypt_Init(void)
         if (ret != 0) {
             WOLFSSL_MSG("MXC RTC Init Failed");
             ret = WC_HW_E;
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
+        }
+    #endif
+
+    #if defined(WOLFSSL_TI_AM64X)
+        ret = ti_sa2ul_port_init();
+        if (ret != 0) {
+            WOLFSSL_MSG("TI AM64x Init Failed");
             WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
     #endif

@@ -2314,7 +2314,7 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #define PRAGMA_GCC_DIAG_POP /* null expansion */
 #endif
 
-#ifdef __clang__
+#if defined(__clang__) && !defined(__ti__)
     #define PRAGMA_CLANG_DIAG_PUSH _Pragma("clang diagnostic push")
     #define PRAGMA_CLANG(str) _Pragma(str)
     #define PRAGMA_CLANG_DIAG_POP _Pragma("clang diagnostic pop")
@@ -2331,7 +2331,10 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #define PRAGMA_DIAG_PUSH /* null expansion */
 #endif
 #ifndef PRAGMA
+/* for ti, PRAGMA is defined in the mcu plus sdk... */
+# if !(defined(__ti__) && defined(TI_MCU_PLUS_SDK))
     #define PRAGMA(str) /* null expansion */
+# endif
 #endif
 #ifndef PRAGMA_DIAG_POP
     #define PRAGMA_DIAG_POP /* null expansion */

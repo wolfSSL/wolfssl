@@ -2496,6 +2496,22 @@
     #define NO_WOLFSSL_SHA256_INTERLEAVE
 #endif
 
+#ifdef WOLFSSL_TI_AM64X
+    #define HAVE_AES_ECB
+    #define NO_AES_192
+    #define NO_DEV_RANDOM
+    #define WOLFSSL_AES_128
+    #define WOLFSSL_AES_256
+    #define WOLFSSL_AES_DIRECT
+    #define WOLFSSL_CMAC
+    #define WOLFSSL_SHA512
+    #define WOLFSSL_SHA512_HASHTYPE
+    #ifndef WOLF_CRYPTO_CB
+        #define WOLF_CRYPTO_CB
+    #endif
+    #define WOLF_CRYPTO_CB_FREE
+#endif
+
 #ifdef FREESCALE_LTC_TFM_RSA_4096_ENABLE
     #undef  USE_CERT_BUFFERS_4096
     #define USE_CERT_BUFFERS_4096

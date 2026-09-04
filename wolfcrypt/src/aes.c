@@ -3549,9 +3549,6 @@ WC_ALL_ARGS_NOT_NULL static WARN_UNUSED_RESULT int wc_AesEncrypt(
 #if defined(MAX3266X_AES)
     word32 keySize;
 #endif
-#if defined(MAX3266X_CB)
-    int ret_cb;
-#endif
     word32 r;
 
 #ifdef WC_DEBUG_CIPHER_LIFECYCLE
@@ -3692,12 +3689,12 @@ WC_ALL_ARGS_NOT_NULL static WARN_UNUSED_RESULT int wc_AesEncrypt(
                                     outBlock, (unsigned int)keySize);
     }
 #endif
-#if defined(MAX3266X_CB) && defined(HAVE_AES_ECB) /* Can do a basic ECB block */
+#if (defined(WOLFSSL_TI_AM64X) || defined(MAX3266X_CB)) && defined(HAVE_AES_ECB)
     #ifndef WOLF_CRYPTO_CB_FIND
     if (aes->devId != INVALID_DEVID)
     #endif
     {
-        ret_cb = wc_CryptoCb_AesEcbEncrypt(aes, outBlock, inBlock,
+        int ret_cb = wc_CryptoCb_AesEcbEncrypt(aes, outBlock, inBlock,
                                             WC_AES_BLOCK_SIZE);
         if (ret_cb != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret_cb;
@@ -4425,9 +4422,6 @@ WC_ALL_ARGS_NOT_NULL static WARN_UNUSED_RESULT int wc_AesDecrypt(
 #if defined(MAX3266X_AES)
     word32 keySize;
 #endif
-#if defined(MAX3266X_CB)
-    int ret_cb;
-#endif
     word32 r;
 
 #ifdef WC_DEBUG_CIPHER_LIFECYCLE
@@ -4542,12 +4536,12 @@ WC_ALL_ARGS_NOT_NULL static WARN_UNUSED_RESULT int wc_AesDecrypt(
     }
 #endif
 
-#if defined(MAX3266X_CB) && defined(HAVE_AES_ECB) /* Can do a basic ECB block */
+#if (defined(WOLFSSL_TI_AM64X) || defined(MAX3266X_CB)) && defined(HAVE_AES_ECB)
     #ifndef WOLF_CRYPTO_CB_FIND
     if (aes->devId != INVALID_DEVID)
     #endif
     {
-        ret_cb = wc_CryptoCb_AesEcbDecrypt(aes, outBlock, inBlock,
+        int ret_cb = wc_CryptoCb_AesEcbDecrypt(aes, outBlock, inBlock,
                                             WC_AES_BLOCK_SIZE);
         if (ret_cb != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret_cb;
