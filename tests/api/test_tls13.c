@@ -10291,6 +10291,86 @@ int test_tls12_fatal_alert_closes_and_evicts(void)
     return EXPECT_RESULT();
 }
 
+/* RFC 8446 Section 6.2: "Whenever an implementation encounters a fatal
+ * error condition, it SHOULD send an appropriate fatal alert and MUST
+ * close the connection without sending or receiving any additional data."
+ *
+ * This drives the client into sending a fatal unexpected_message alert the
+ * same way test_tls13_post_handshake_auth_no_ext() does, then checks that a
+ * subsequent wolfSSL_write() is refused rather than queuing a new
+ * application data record on the connection it just tore down. */
+int test_tls13_no_app_data_after_fatal_alert(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_ALERT_HISTORY h;
+    char readBuf[8];
+    char msg[] = "should never be sent";
+    int c_len_after_alert;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(&h, 0, sizeof(h));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_no_ticket_TLSv13(ssl_s), 0);
+
+    /* Intentionally do NOT call wolfSSL_allow_post_handshake_auth() on the
+     * client so the post_handshake_auth extension is omitted from the
+     * ClientHello. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Force the server to send an unsolicited post-handshake
+     * CertificateRequest, as in test_tls13_post_handshake_auth_no_ext(). */
+    if (ssl_s != NULL)
+        ssl_s->options.postHandshakeAuth = 1;
+    ExpectIntEQ(wolfSSL_clear_group_messages(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_request_certificate(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntGT(test_ctx.c_len, 0);
+
+    /* The client rejects it and transmits a fatal unexpected_message
+     * alert - the connection is now closed. */
+    ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, (int)sizeof(readBuf)),
+        WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(OUT_OF_ORDER_E));
+    ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
+    ExpectIntEQ(h.last_tx.code, unexpected_message);
+    ExpectIntEQ(h.last_tx.level, alert_fatal);
+    if (ssl_c != NULL)
+        ExpectIntEQ(ssl_c->options.isClosed, 1);
+
+    c_len_after_alert = test_ctx.c_len;
+
+    /* Clear the error the failed read left behind so the write's own
+     * SOCKET_PEER_CLOSED_E can be told apart from it. */
+    if (ssl_c != NULL)
+        ssl_c->error = WOLFSSL_ERROR_NONE;
+
+    /* A write attempted after the fatal alert must be refused instead of
+     * building and queuing a new application data record. */
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)),
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    if (ssl_c != NULL)
+        ExpectIntEQ(ssl_c->error, WC_NO_ERR_TRACE(SOCKET_PEER_CLOSED_E));
+    ExpectIntNE(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR), 0);
+    /* No new record was appended to what the alert itself already sent. */
+    ExpectIntEQ(test_ctx.c_len, c_len_after_alert);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* RFC 9846 Section 4.7.3, write-duplicate path. The read side of a write dup
  * cannot send, so a peer KeyUpdate(update_requested) is delegated to the write
  * side via dupWrite->keyUpdateRespond and sent from

@@ -15648,11 +15648,11 @@ static THREAD_RETURN WOLFSSL_THREAD server_task_ech(void* args)
         if (0 < (idx = wolfSSL_read(ssl, input, sizeof(input)-1))) {
             input[idx] = 0;
             fprintf(stderr, "Client message: %s\n", input);
-        }
 
-        AssertIntEQ(privateNameLen, wolfSSL_write(ssl, privateName,
-            privateNameLen));
-        ((func_args*)args)->return_code = TEST_SUCCESS;
+            AssertIntEQ(privateNameLen, wolfSSL_write(ssl, privateName,
+                privateNameLen));
+            ((func_args*)args)->return_code = TEST_SUCCESS;
+        }
     }
 
     if (callbacks->on_result)
