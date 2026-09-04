@@ -5922,6 +5922,12 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #error "WOLF_CRYPTO_CB_ONLY_CURVE448 is incompatible with " \
            "WOLFSSL_ASYNC_CRYPT"
 #endif
+#if defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) && !defined(WOLF_CRYPTO_CB)
+    #error "WOLF_CRYPTO_CB_ONLY_FRODOKEM requires WOLF_CRYPTO_CB"
+#endif
+#if defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) && !defined(WOLFSSL_HAVE_FRODOKEM)
+    #error "WOLF_CRYPTO_CB_ONLY_FRODOKEM requires WOLFSSL_HAVE_FRODOKEM"
+#endif
 
 /* Early Data / Session Rules */
 #if !defined(WOLFCRYPT_ONLY) && defined(WOLFSSL_EARLY_DATA) && \
