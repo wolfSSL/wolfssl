@@ -2004,3 +2004,82 @@ int test_wolfSSL_public_null_operands(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* ---------------------------------------------------------------------------
+ * Session object lifecycle argument guards.
+ *
+ * ssl_sess.c is the second-largest remaining file and its guards are almost
+ * all of the form `session == NULL || <something about the session>`. A test
+ * that establishes a session reaches them with a well-formed object every
+ * time, so the NULL half and the malformed half never occur.
+ *
+ * wolfSSL_SESSION_new / _dup / _up_ref / _free are unguarded in both ssl.h and
+ * src/ssl_sess.c, so they are callable in every configuration that has the
+ * session cache at all -- checked before writing, because a declaration
+ * without a compiled implementation is a link error.
+ * ------------------------------------------------------------------------- */
+int test_wolfSSL_session_lifecycle_guards(void)
+{
+    EXPECT_DECLS;
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_SESSION_CACHE) && \
+    !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    WOLFSSL_SESSION* fresh = NULL;
+    WOLFSSL_SESSION* dup = NULL;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* --- the NULL half of each lifecycle entry point ------------------- */
+    (void)wolfSSL_SESSION_dup(NULL);
+    (void)wolfSSL_SESSION_up_ref(NULL);
+    wolfSSL_SESSION_free(NULL);
+    (void)wolfSSL_get_session(NULL);
+    (void)wolfSSL_get1_session(NULL);
+    (void)wolfSSL_set_session(NULL, NULL);
+
+    /* --- a session that exists but was never established --------------- */
+    fresh = wolfSSL_SESSION_new();
+    if (fresh != NULL) {
+        /* dup of a real object: the accepting partner for the NULL above */
+        dup = wolfSSL_SESSION_dup(fresh);
+        if (dup != NULL)
+            wolfSSL_SESSION_free(dup);
+
+        /* up_ref then free twice: the refcount path, which a test that
+         * establishes one session and frees it once never exercises */
+        (void)wolfSSL_SESSION_up_ref(fresh);
+        wolfSSL_SESSION_free(fresh);   /* drops the extra reference */
+
+        /* set_session with a session that is not set up: the operand a
+         * successful resumption never takes */
+        (void)wolfSSL_set_session(ssl, fresh);
+
+        wolfSSL_SESSION_free(fresh);
+    }
+
+    /* set_session on a valid ssl with NULL, and NULL ssl with a session */
+    (void)wolfSSL_set_session(ssl, NULL);
+
+#ifndef NO_CLIENT_CACHE
+    {
+        byte id[16];
+
+        XMEMSET(id, 0x7E, sizeof(id));
+        /* `ssl == NULL || id == NULL || len <= 0` -- one call per operand */
+        (void)wolfSSL_SetServerID(NULL, id, (int)sizeof(id), 0);
+        (void)wolfSSL_SetServerID(ssl, NULL, (int)sizeof(id), 0);
+        (void)wolfSSL_SetServerID(ssl, id, 0, 0);
+        (void)wolfSSL_SetServerID(ssl, id, -1, 0);
+        (void)wolfSSL_SetServerID(ssl, id, (int)sizeof(id), 0);
+        /* and with the "new session" flag, which takes the other arm */
+        (void)wolfSSL_SetServerID(ssl, id, (int)sizeof(id), 1);
+    }
+#endif
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
