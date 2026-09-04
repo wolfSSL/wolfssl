@@ -18828,37 +18828,33 @@ int sp_tohex(const sp_int* a, char* str)
 
             /* Start at last digit - most significant digit. */
             i = (int)(a->used - 1);
+            /* Skip leading zero digits, there is at least one non-zero one. */
+            while ((i > 0) && (a->dp[i] == 0)) {
+                i--;
+            }
             d = a->dp[i];
         #ifndef WC_DISABLE_RADIX_ZERO_PAD
-            /* Find highest non-zero byte in most-significant word. */
-            for (j = SP_WORD_SIZE - 8; j >= 0 && i >= 0; j -= 8) {
+            /* Find highest non-zero byte in most-significant word.
+             * d is non-zero so a byte is always found. */
+            for (j = SP_WORD_SIZE - 8; j >= 0; j -= 8) {
                 /* When a byte at this index is not 0 break out to start
                  * writing.
                  */
                 if (((d >> j) & 0xff) != 0) {
                     break;
                 }
-                /* Skip this digit if it was 0. */
-                if (j == 0) {
-                    j = SP_WORD_SIZE - 8;
-                    d = a->dp[--i];
-                }
             }
             /* Start with high nibble of byte. */
             j += 4;
         #else
-            /* Find highest non-zero nibble in most-significant word. */
+            /* Find highest non-zero nibble in most-significant word.
+             * d is non-zero so a nibble is always found. */
             for (j = SP_WORD_SIZE - 4; j >= 0; j -= 4) {
                 /* When a nibble at this index is not 0 break out to start
                  * writing.
                  */
                 if (((d >> j) & 0xf) != 0) {
                     break;
-                }
-                /* Skip this digit if it was 0. */
-                if (j == 0) {
-                    j = SP_WORD_SIZE - 4;
-                    d = a->dp[--i];
                 }
             }
         #endif /* WC_DISABLE_RADIX_ZERO_PAD */
