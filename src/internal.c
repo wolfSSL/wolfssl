@@ -31837,6 +31837,25 @@ static void RemoveExcludedSuites(byte* suites, int* idx, int anon, int enull)
     }
     *idx = out;
 }
+
+#ifdef HAVE_ANON
+/* Return 1 when suites contains an anonymous (no peer authentication)
+ * cipher suite. */
+int SuitesHaveAnon(const Suites* suites)
+{
+    int i;
+
+    if (suites == NULL)
+        return 0;
+    for (i = 0; (i + 1) < suites->suiteSz; i += 2) {
+        if (CipherSuiteExcluded(suites->suites[i], suites->suites[i + 1],
+                                1, 0)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+#endif /* HAVE_ANON */
 #endif /* OPENSSL_EXTRA || OPENSSL_ALL */
 
 /**
@@ -32027,8 +32046,11 @@ static int ParseCipherList(Suites* suites,
         }
 
         if (XSTRCMP(name, "aNULL") == 0) {
-            if (allowing)
+            if (allowing) {
                 haveSig |= SIG_ANON;
+                /* Anonymous suites are DH_anon; InitSuites needs DH too. */
+                haveDH = 1;
+            }
             else
                 haveSig &= ~SIG_ANON;
             /* Track exclusion (sticky) so an explicit ADH suite is dropped at

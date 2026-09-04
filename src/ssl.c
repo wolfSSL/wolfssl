@@ -3099,7 +3099,7 @@ static int CheckcipherList(const char* list)
  *
  * returns WOLFSSL_SUCCESS on success and sets the cipher suite list
  */
-static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
+static int wolfSSL_parse_cipher_list_ex(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         Suites* suites, const char* list)
 {
     int     ret = 0;
@@ -3224,6 +3224,25 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     }
 
     WC_FREE_VAR_EX(suitesCpy, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+
+static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
+        Suites* suites, const char* list)
+{
+    int ret = wolfSSL_parse_cipher_list_ex(ctx, ssl, suites, list);
+
+#ifdef HAVE_ANON
+    /* Like OpenSSL, a list with anonymous suites lets a server run without
+     * a certificate. */
+    if (ret == WOLFSSL_SUCCESS && SuitesHaveAnon(suites)) {
+        if (ctx != NULL)
+            ctx->useAnon = 1;
+        else if (ssl != NULL)
+            ssl->options.useAnon = 1;
+    }
+#endif
+
     return ret;
 }
 

@@ -2574,6 +2574,9 @@ WOLFSSL_LOCAL int  SetCipherList(const WOLFSSL_CTX* ctx, Suites* suites,
                                  const char* list);
 WOLFSSL_LOCAL int  SetCipherListFromBytes(WOLFSSL_CTX* ctx, Suites* suites,
                                           const byte* list, const int listSz);
+#if defined(HAVE_ANON) && (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL))
+WOLFSSL_LOCAL int  SuitesHaveAnon(const Suites* suites);
+#endif
 WOLFSSL_LOCAL int  SetSuitesHashSigAlgo(Suites* suites, const char* list);
 
 #ifndef PSK_TYPES_DEFINED
