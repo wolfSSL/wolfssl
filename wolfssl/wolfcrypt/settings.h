@@ -2515,6 +2515,7 @@
     #ifndef WOLF_CRYPTO_CB
         #define WOLF_CRYPTO_CB
     #endif
+    #define WOLF_CRYPTO_CB_FREE
 #endif
 
 #ifdef FREESCALE_LTC_TFM_RSA_4096_ENABLE

@@ -526,7 +526,7 @@ struct Aes {
 #endif
 #endif /* WOLFSSL_PSOC6_CRYPTO */
 #if defined(WOLFSSL_TI_AM64X) && !defined(WOLFSSL_TI_AM64X_NO_AES)
-    XALIGNED(16) SA2UL_ContextObject scObj;
+    XALIGNED(SA2UL_CACHELINE_ALIGNMENT) SA2UL_ContextObject scObj;
 #endif
 
     /* Set to 1 once a key has been installed (wc_AesSetKey/SetKeyDirect/
