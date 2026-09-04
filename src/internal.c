@@ -19299,7 +19299,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
                     else
                 #endif
-                if (args->dCert->extExtKeyUsageSet && !UsingChainVerifyCb(ssl)) {
+                if (args->dCert->extExtKeyUsageSet &&
+                        !UsingChainVerifyCb(ssl)) {
                     if (ssl->options.side == WOLFSSL_CLIENT_END) {
                         if ((args->dCert->extExtKeyUsage &
                                 (EXTKEYUSE_ANY | EXTKEYUSE_SERVER_AUTH)) == 0) {
