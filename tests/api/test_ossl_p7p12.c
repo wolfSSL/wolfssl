@@ -675,6 +675,118 @@ int test_wolfSSL_PKCS7_verify_signer_forgery(void)
     return EXPECT_RESULT();
 }
 
+/* Detached content must be accepted through any BIO type, not just a
+ * memory BIO. */
+int test_wolfSSL_PKCS7_verify_detached_bio(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_ALL) && defined(HAVE_PKCS7) && !defined(NO_BIO) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    const char* signerCertFile = "./certs/server-cert.pem";
+    const char* signerKeyFile  = "./certs/server-key.pem";
+    const char* caFile         = "./certs/ca-cert.pem";
+    const char* contentFile    = "test_pkcs7_detached_content.bin";
+    byte  content[] = "Detached content to verify.";
+
+    WOLFSSL_BIO* certBio = NULL;
+    WOLFSSL_BIO* keyBio = NULL;
+    WOLFSSL_BIO* caBio = NULL;
+    WOLFSSL_BIO* signBio = NULL;
+    WOLFSSL_BIO* inBio = NULL;
+    X509* signCert = NULL;
+    EVP_PKEY* signKey = NULL;
+    X509* caCert = NULL;
+    X509_STORE* store = NULL;
+    PKCS7* p7 = NULL;
+    WOLFSSL_PKCS7* p7Ver = NULL;
+    byte* der = NULL;
+    int derSz = 0;
+    XFILE fp = XBADFILE;
+
+    ExpectNotNull(certBio = BIO_new_file(signerCertFile, "r"));
+    ExpectNotNull(keyBio = BIO_new_file(signerKeyFile, "r"));
+    ExpectNotNull(caBio = BIO_new_file(caFile, "r"));
+    ExpectNotNull(signCert = PEM_read_bio_X509(certBio, NULL, 0, NULL));
+    ExpectNotNull(signKey = PEM_read_bio_PrivateKey(keyBio, NULL, 0, NULL));
+    ExpectNotNull(caCert = PEM_read_bio_X509(caBio, NULL, 0, NULL));
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_add_cert(store, caCert), 1);
+
+    /* create a detached signature over 'content' */
+    ExpectNotNull(signBio = BIO_new(BIO_s_mem()));
+    ExpectIntGT(BIO_write(signBio, content, sizeof(content)), 0);
+    ExpectNotNull(p7 = PKCS7_sign(signCert, signKey, NULL, signBio,
+                                  PKCS7_BINARY | PKCS7_DETACHED));
+    ExpectIntGT((derSz = i2d_PKCS7(p7, &der)), 0);
+    ExpectNotNull(der);
+
+    /* write the detached content out so it can be fed back as a file BIO */
+    ExpectTrue((fp = XFOPEN(contentFile, "wb")) != XBADFILE);
+    ExpectIntEQ(XFWRITE(content, 1, sizeof(content), fp), sizeof(content));
+    if (fp != XBADFILE) {
+        XFCLOSE(fp);
+        fp = XBADFILE;
+    }
+
+    /* d2i_PKCS7() cannot be used here: it verifies while decoding and has no
+     * way to be handed the detached content, so load the bundle directly. */
+    if (EXPECT_SUCCESS()) {
+        ExpectNotNull(p7Ver = (WOLFSSL_PKCS7*)PKCS7_new());
+        if (p7Ver != NULL) {
+            ExpectNotNull(p7Ver->data = (byte*)XMALLOC((size_t)derSz, NULL,
+                                                       DYNAMIC_TYPE_PKCS7));
+            if (p7Ver->data != NULL) {
+                XMEMCPY(p7Ver->data, der, (size_t)derSz);
+                p7Ver->len = derSz;
+            }
+        }
+    }
+
+    /* a file BIO must work just like a memory BIO */
+    ExpectNotNull(inBio = BIO_new_file(contentFile, "rb"));
+    ExpectIntEQ(PKCS7_verify((PKCS7*)p7Ver, NULL, store, inBio, NULL,
+                             PKCS7_BINARY), 1);
+    BIO_free(inBio);
+    inBio = NULL;
+
+    /* the memory BIO path must keep working */
+    ExpectNotNull(inBio = BIO_new_mem_buf(content, sizeof(content)));
+    ExpectIntEQ(PKCS7_verify((PKCS7*)p7Ver, NULL, store, inBio, NULL,
+                             PKCS7_BINARY), 1);
+    BIO_free(inBio);
+    inBio = NULL;
+
+    /* wrong content must still fail, from a file BIO too */
+    ExpectTrue((fp = XFOPEN(contentFile, "wb")) != XBADFILE);
+    ExpectIntEQ(XFWRITE("bogus content", 1, 13, fp), 13);
+    if (fp != XBADFILE) {
+        XFCLOSE(fp);
+        fp = XBADFILE;
+    }
+    ExpectNotNull(inBio = BIO_new_file(contentFile, "rb"));
+    ExpectIntEQ(PKCS7_verify((PKCS7*)p7Ver, NULL, store, inBio, NULL,
+                             PKCS7_BINARY),
+                WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    BIO_free(inBio);
+    inBio = NULL;
+
+    (void)remove(contentFile);
+
+    PKCS7_free((PKCS7*)p7Ver);
+    PKCS7_free(p7);
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    X509_STORE_free(store);
+    X509_free(caCert);
+    X509_free(signCert);
+    EVP_PKEY_free(signKey);
+    BIO_free(signBio);
+    BIO_free(certBio);
+    BIO_free(keyBio);
+    BIO_free(caBio);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* A degenerate (certs-only) PKCS#7 - one with an empty signerInfos SET and
  * therefore no signature at all - must NOT be reported as verified, even when
  * the embedded certificate chains to a trusted CA, and even when
