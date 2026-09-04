@@ -13002,8 +13002,17 @@ static int TLSX_PskKeModes_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     byte modes;
 
     ret = TLSX_PskKeyModes_Parse_Modes(input, length, msgType, &modes);
-    if (ret == 0)
+    if (ret == 0) {
+#if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(WOLFSSL_TLS13_TICKET_CHECK_PSK_MODES)
+        /* Keep the advertised modes for the NewSessionTicket decision. The
+         * extension object is dropped with the rest of the handshake state
+         * once the handshake is done. */
+        ssl->options.pskKeModes = modes;
+        ssl->options.pskKeModesRecvd = 1;
+#endif
         ret = TLSX_PskKeyModes_Use(ssl, modes);
+    }
 
     if (ret != 0) {
         WOLFSSL_ERROR_VERBOSE(ret);
@@ -19356,9 +19365,12 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 
 #ifdef HAVE_EXTENDED_MASTER
     if (IsAtLeastTLSv1_3(ssl->version) &&
-        (msgType == hello_retry_request || msgType == hello_verify_request)) {
+        (msgType == hello_retry_request || msgType == hello_verify_request ||
+         msgType == session_ticket)) {
         /* Don't change EMS status until server_hello received.
          * Second ClientHello must have same extensions.
+         * NewSessionTicket is post-handshake and never carries the extension,
+         * so its absence there says nothing about what was negotiated.
          */
     }
     else if (!isRequest && ssl->options.haveEMS && !pendingEMS)
