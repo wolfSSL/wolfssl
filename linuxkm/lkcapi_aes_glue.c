@@ -1170,7 +1170,7 @@ static int km_AesGcmSetAuthsize_Rfc4106(struct crypto_aead *tfm, unsigned int au
     typeof(wc_AesGcmEncryptUpdate_fips) wc_AesGcmEncryptUpdate;
 #endif
 
-#ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && !defined(WC_LINUXKM_SVR_NO_BATCHING)
     #ifndef WC_LINUXKM_GCM_SVR_BATCH
         #define WC_LINUXKM_GCM_SVR_BATCH (16 * 4096)
     #endif
@@ -2322,7 +2322,7 @@ static int km_AesXtsSetKey(struct crypto_skcipher *tfm, const u8 *in_key,
     typeof(wc_AesXtsEncryptUpdate_fips) wc_AesXtsEncryptUpdate;
 #endif
 
-#ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && !defined(WC_LINUXKM_SVR_NO_BATCHING)
     #ifndef WC_LINUXKM_XTS_SVR_BATCH
         #define WC_LINUXKM_XTS_SVR_BATCH (16 * 4096)
     #endif
