@@ -3190,19 +3190,21 @@ void wolfSSL_CTX_SetCertCbCtx(WOLFSSL_CTX* ctx, void* userCtx);
 /*!
     \ingroup CertsKeys
 
-    \brief Replaces wolfSSL's verification of the peer's certificate chain
-    with an application callback, for every SSL/TLS object created from the
-    context. When a callback is set, wolfSSL decodes the certificates from the
+    \brief Replaces wolfSSL's verification of the peer's certificate chain with
+    an application callback, for every SSL/TLS object created from the context.
+    When a callback is set, wolfSSL decodes the certificates from the
     Certificate message and hands them to the callback as raw DER, the peer's
-    own certificate first. It builds no chain, verifies no signature and
-    checks no date, revocation status, key usage or host name, and the verify
-    callback set with wolfSSL_CTX_set_verify() is not called; the callback is
-    consulted even under WOLFSSL_VERIFY_NONE. Malformed DER, or a certificate
-    the parser refuses regardless of the verify mode such as one with a zero
-    serial number, still fails the handshake before the callback is called. The
+    own certificate first. It builds no chain, verifies no signature and checks
+    no date, revocation status, key usage or host name, and the verify callback
+    set with wolfSSL_CTX_set_verify() is not called; the callback is consulted
+    even under WOLFSSL_VERIFY_NONE. Malformed DER, or a certificate the parser
+    refuses regardless of the verify mode such as one with a zero serial
+    number, still fails the handshake before the callback is called. The
     callback returns 0 to accept, CHAIN_VERIFY_WANT_E to suspend the handshake
     until the application re-enters wolfSSL_connect(), wolfSSL_accept(),
-    wolfSSL_read() or wolfSSL_write(), or any other value to reject with
+    wolfSSL_read() or wolfSSL_write() (a certificate received after the
+    handshake is resumed by wolfSSL_read() only, and wolfSSL_write() fails with
+    CHAIN_VERIFY_WANT_E until then), or any other value to reject with
     CHAIN_VERIFY_CB_E and a fatal bad_certificate alert. DTLS, raw public keys
     and OCSP stapling are not supported with the callback: setting it on a
     context configured for one of them fails, and so does the handshake of a

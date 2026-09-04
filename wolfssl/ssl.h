@@ -1795,7 +1795,8 @@ WOLFSSL_API void wolfSSL_CTX_SetCertCbCtx(WOLFSSL_CTX* ctx, void* userCtx);
  * certificates when the application re-enters wolfSSL_connect(),
  * wolfSSL_accept(), wolfSSL_read() or wolfSSL_write(). A certificate received
  * after the handshake (TLS 1.3 post-handshake authentication) arrives inside
- * wolfSSL_read() and is resumed by calling wolfSSL_read() again.
+ * wolfSSL_read() and is resumed by calling wolfSSL_read() again; until then
+ * wolfSSL_write() fails with CHAIN_VERIFY_WANT_E as well.
  */
 typedef int (*ChainVerifyCb)(WOLFSSL* ssl, const WOLFSSL_BUFFER_INFO* certs,
                              int certsSz, void* ctx);

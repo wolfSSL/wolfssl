@@ -29175,6 +29175,29 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
         }
     }
 
+#ifdef WOLFSSL_CHAIN_VERIFY_CB
+    /* A Certificate suspended by the chain verify callback is resumed before
+     * anything is sent; sending would free its saved state. wolfSSL_negotiate()
+     * resumes it during the handshake, only wolfSSL_read() after it. */
+    if (error == WC_NO_ERR_TRACE(CHAIN_VERIFY_WANT_E)) {
+        int err;
+        if (ssl->options.handShakeState == HANDSHAKE_DONE) {
+            WOLFSSL_MSG("Chain verify callback pending, use wolfSSL_read");
+            return error;
+        }
+        WOLFSSL_MSG("Chain verify callback pending, trying to finish");
+        if ((err = wolfSSL_negotiate(ssl)) != WOLFSSL_SUCCESS) {
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            /* if async would block return WANT_WRITE */
+            if (ssl->error == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+                return WOLFSSL_CBIO_ERR_WANT_WRITE;
+            }
+        #endif
+            return err;
+        }
+    }
+#endif
+
 #ifdef WOLFSSL_EARLY_DATA
     if (ssl->options.side == WOLFSSL_CLIENT_END &&
             ssl->earlyData != no_early_data &&
