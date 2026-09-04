@@ -1659,7 +1659,6 @@ AC_ARG_ENABLE([all-crypto],
     )
 if test "$ENABLED_ALL_CRYPT" = "yes"
 then
-    test "$enable_atomicuser" = "" && enable_atomicuser=yes
     test "$enable_aesecb" = "" && enable_aesecb=yes
     test "$enable_aesgcm" = "" && enable_aesgcm=yes
     test "$enable_aesccm" = "" && enable_aesccm=yes
@@ -1667,8 +1666,8 @@ then
     test "$enable_aesofb" = "" && enable_aesofb=yes
     test "$enable_aescfb" = "" && enable_aescfb=yes
     test "$enable_aescbc_length_checks" = "" && enable_aescbc_length_checks=yes
-    test "$enable_camellia" = "" && enable_camellia=yes
-    test "$enable_ripemd" = "" && enable_ripemd=yes
+    # SHA-1 will soon move to legacy.
+    test "$enable_sha" = "" && enable_sha=yes
     test "$enable_sha224" = "" && enable_sha224=yes
     test "$enable_sha512" = "" && enable_sha512=yes
     test "$enable_sha3" = "" && enable_sha3=yes
@@ -1680,11 +1679,9 @@ then
     test "$enable_sep" = "" && enable_sep=yes
     test "$enable_hkdf" = "" && enable_hkdf=yes
     test "$enable_fpecc" = "" && test "$enable_ecc" != "no" && enable_fpecc=yes
-    test "$enable_eccsi" = "" && test "$enable_ecc" != "no" && enable_eccsi=yes
     test "$enable_psk" = "" && enable_psk=yes
     test "$enable_cmac" = "" && enable_cmac=yes
     test "$enable_cmac_kdf" = "" && enable_cmac_kdf=yes
-    test "$enable_siphash" = "" && enable_siphash=yes
     test "$enable_ocsp" = "" && enable_ocsp=yes
     test "$enable_ocspstapling" = "" && test "$enable_ocsp" != "no" && enable_ocspstapling=yes
     test "$enable_ocspstapling2" = "" && test "$enable_ocsp" != "no" && enable_ocspstapling2=yes
@@ -1697,79 +1694,42 @@ then
     test "$enable_indef" = "" && enable_indef=yes
     test "$enable_enckeys" = "" && enable_enckeys=yes
     test "$enable_hashflags" = "" && enable_hashflags=yes
-    test "$enable_defaultdhparams" = "" && enable_defaultdhparams=yes
     test "$enable_base64encode" = "" && enable_base64encode=yes
     test "$enable_base16" = "" && enable_base16=yes
-    test "$enable_arc4" = "" && enable_arc4=yes
-    test "$enable_blake2b" = "" && enable_blake2b=yes
-    test "$enable_blake2s" = "" && enable_blake2s=yes
-    test "$enable_md2" = "" && enable_md2=yes
-    test "$enable_md4" = "" && enable_md4=yes
-    test "$enable_md5" = "" && enable_md5=yes
     test "$enable_ssh" = "" && test "$enable_hmac" != "no" && enable_ssh=yes
     test "$enable_rng_bank" = "" && enable_rng_bank=yes
     test "$enable_dh" = "" && enable_dh=yes
-
-    if test "$KERNEL_MODE_DEFAULTS" != "yes"
-    then
-        # Scrypt is excluded from kernel module builds (unless explicitly
-        # enabled) because of its excessive memory requirements.
-        test "$enable_scrypt" = "" && test "$enable_hmac" != "no" && enable_scrypt=yes
-        # Argon2 is excluded for the same reason - its memory use is higher
-        # still, and a single contiguous allocation. It is also defined in
-        # terms of BLAKE2b, so only imply it when BLAKE2b has not been turned
-        # off: the user asked for the bundle, not for Argon2, and aborting the
-        # configure over an implied option would be wrong.
-        test "$enable_argon2" = "" && test "$enable_blake2b" != "no" && \
-            test "$enable_blake2" != "no" && enable_argon2=yes
-    fi
-
-    if test "x$FIPS_VERSION" != "xv1"
-    then
-        test "$enable_rsapss" = "" && enable_rsapss=yes
-    fi
-
-    # sp-math is incompatible with opensslextra, ECC custom curves, and DSA.
-    if test "$ENABLED_SP_MATH" != "yes"
-    then
-        test "$enable_dsa" = "" && test "$enable_sha" != "no" && enable_dsa=yes
-        if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -le 5; then
-            test "$enable_ecccustcurves" = "" && enable_ecccustcurves=yes
-            test "$enable_ecccustcurves" != "no" && test "$enable_brainpool" = "" && enable_brainpool=yes
-            test "$enable_ecccustcurves" != "no" && AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC_CDH -DHAVE_ECC_KOBLITZ -DHAVE_ECC_SECPR2 -DHAVE_ECC_SECPR3"
-        fi
-        test "$enable_srp" = "" && enable_srp=yes
-    fi
+    test "$enable_defaultdhparams" = "" && enable_defaultdhparams=yes
 
     if test "$ENABLED_FIPS" = "no"
     then
-        test "$enable_curve25519" = "" && enable_curve25519=yes
-        test "$enable_curve448" = "" && enable_curve448=yes
-        test "$enable_xchacha" = "" && test "$enable_chacha" != "no" && enable_xchacha=yes
-        test "$enable_pkcs7" = "" && enable_pkcs7=yes
-        test "$enable_nullcipher" = "" && enable_nullcipher=yes
-        test "$enable_ed25519" = "" && enable_ed25519=yes
-        test "$enable_ed25519_stream" = "" && test "$enable_ed25519" != "no" && enable_ed25519_stream=yes
-        test "$enable_ed448" = "" && enable_ed448=yes
-        test "$enable_ed448_stream" = "" && test "$enable_ed448" != "no" && enable_ed448_stream=yes
-        test "$enable_aessiv" = "" && enable_aessiv=yes
-        # AFALG lacks AES-EAX
-        test "$enable_aeseax" = "" && test "$enable_afalg" != "yes" && enable_aeseax=yes
-        test "$enable_sakke" = "" && test "$enable_ecc" != "no" && enable_sakke=yes
-        test "$enable_cryptocb" = "" && enable_cryptocb=yes
-        test "$enable_pkcallbacks" = "" && enable_pkcallbacks=yes
+        test "$enable_all_legacy_crypto" = "" && enable_all_legacy_crypto=yes
+        test "$enable_all_nonfips_crypto" = "" && enable_all_nonfips_crypto=yes
+    fi
+
+    if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -ge 2
+    then
+        test "$enable_rsapss" = "" && enable_rsapss=yes
     fi
 
     if test "$enable_dh" = "yes"
     then
         # Enable DH const table speedups (eliminates `-lm` math lib dependency)
         AM_CFLAGS="$AM_CFLAGS -DHAVE_FFDHE_2048 -DHAVE_FFDHE_3072"
-        # "Anonymous suite requires DH."
+
+        # Note, anon is enabled here even when FIPS (alongside classic DH, upon
+        # which it depends) because several OSP-facing builds depend on it,
+        # among them WPAS, NGINX, HAPROXY, and RSYSLOG.
+
         test "$enable_anon" = "" && enable_anon=yes
     fi
 
     if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -ge 6
     then
+        test "$enable_ed25519" = "" && enable_ed25519=yes
+        test "$enable_ed25519_stream" = "" && test "$enable_ed25519" != "no" && enable_ed25519_stream=yes
+        test "$enable_ed448" = "" && enable_ed448=yes
+        test "$enable_ed448_stream" = "" && test "$enable_ed448" != "no" && enable_ed448_stream=yes
         test "$enable_aesgcm_stream" = "" && test "$enable_aesgcm" = "yes" && enable_aesgcm_stream=yes
         test "$enable_aesxts" = "" && enable_aesxts=yes
         test "$enable_aesxts_stream" = "" && test "$enable_aesxts" = "yes" && enable_aesxts_stream=yes
@@ -1787,18 +1747,13 @@ then
         test "$enable_kmac" = "" && enable_kmac=yes
     fi
 
-    if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -lt 5; then
-        test "$enable_des3" = "" && enable_des3=yes
-        test "$enable_des3" != "no" && AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB"
-    fi
-
     AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_DECRYPT -DHAVE_AES_ECB -DWOLFSSL_ALT_NAMES"
 
     # Caution, asym key bits above 4096 can disrupt TLS fragment size dynamics
     # (see tests/test-maxfrag.conf).
     DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=4096
 
-    # Enable all parsing features for ASN */
+    # Enable all parsing features for ASN
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASN_ALL"
 
     # Enable DH Extra
@@ -1812,6 +1767,87 @@ then
 
     # Enable onestep KDF from NIST SP 800 56c option 1.
     AM_CFLAGS="$AM_CFLAGS -DWC_KDF_NIST_SP_800_56C"
+fi
+
+# All non-FIPS wolfCrypt features except quantum-resistant asymmetric:
+AC_ARG_ENABLE([all-nonfips-crypto],
+    [AS_HELP_STRING([--enable-all-nonfips-crypto],[Enable all wolfcrypt non-FIPS algorithms (default: disabled)])],
+    [ ENABLED_ALL_NONFIPS_CRYPTO=$enableval ],
+    [ ENABLED_ALL_NONFIPS_CRYPTO=no ]
+    )
+if test "$ENABLED_ALL_NONFIPS_CRYPTO" = "yes"
+then
+    test "$enable_siphash" = "" && enable_siphash=yes
+    test "$enable_blake2b" = "" && enable_blake2b=yes
+    test "$enable_blake2s" = "" && enable_blake2s=yes
+    test "$enable_poly1305" = "" && enable_poly1305=yes
+    test "$enable_curve25519" = "" && enable_curve25519=yes
+    test "$enable_curve448" = "" && enable_curve448=yes
+    test "$enable_chacha" = "" && enable_chacha=yes
+    test "$enable_xchacha" = "" && test "$enable_chacha" != "no" && enable_xchacha=yes
+    test "$enable_pkcs7" = "" && enable_pkcs7=yes
+    test "$enable_nullcipher" = "" && enable_nullcipher=yes
+    test "$enable_aessiv" = "" && enable_aessiv=yes
+    # AFALG lacks AES-EAX
+    test "$enable_aeseax" = "" && test "$enable_afalg" != "yes" && enable_aeseax=yes
+    test "$enable_sakke" = "" && test "$enable_ecc" != "no" && enable_sakke=yes
+    test "$enable_atomicuser" = "" && enable_atomicuser=yes
+    test "$enable_cryptocb" = "" && enable_cryptocb=yes
+    test "$enable_pkcallbacks" = "" && enable_pkcallbacks=yes
+    if test "$KERNEL_MODE_DEFAULTS" != "yes"
+    then
+        # Scrypt is excluded from kernel module builds (unless explicitly
+        # enabled) because of its excessive memory requirements.
+        test "$enable_scrypt" = "" && test "$enable_hmac" != "no" && enable_scrypt=yes
+
+        # Argon2 is excluded for the same reason - its memory use is higher
+        # still, and a single contiguous allocation. It is also defined in
+        # terms of BLAKE2b, so only imply it when BLAKE2b has not been turned
+        # off: the user asked for the bundle, not for Argon2, and aborting the
+        # configure over an implied option would be wrong.
+        test "$enable_argon2" = "" && test "$enable_blake2b" != "no" && \
+            test "$enable_blake2" != "no" && enable_argon2=yes
+    fi
+
+    # ECCSI is RFC 6507 the MIKEY-SAKKE certificateless signature, a
+    # non-FIPS algorithm.
+    test "$enable_eccsi" = "" && test "$enable_ecc" != "no" && enable_eccsi=yes
+
+    # sp-math is incompatible with ECC custom curves and SRP.
+    if test "$ENABLED_SP_MATH" != "yes"
+    then
+        test "$enable_ecccustcurves" = "" && enable_ecccustcurves=yes
+        test "$enable_ecccustcurves" != "no" && test "$enable_brainpool" = "" && enable_brainpool=yes
+        test "$enable_ecccustcurves" != "no" && AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC_CDH -DHAVE_ECC_KOBLITZ -DHAVE_ECC_SECPR2 -DHAVE_ECC_SECPR3"
+        test "$enable_srp" = "" && enable_srp=yes
+    fi
+
+fi
+
+# All legacy non-FIPS and formerly-FIPS crypto algorithms
+AC_ARG_ENABLE([all-legacy-crypto],
+    [AS_HELP_STRING([--enable-all-legacy-crypto],[Enable all legacy crypto algorithms (default: disabled)])],
+    [ ENABLED_ALL_LEGACY_CRYPTO=$enableval ],
+    [ ENABLED_ALL_LEGACY_CRYPTO=no ]
+    )
+if test "$ENABLED_ALL_LEGACY_CRYPTO" = "yes"
+then
+    test "$enable_camellia" = "" && enable_camellia=yes
+    test "$enable_ripemd" = "" && enable_ripemd=yes
+    test "$enable_arc4" = "" && enable_arc4=yes
+    test "$enable_md2" = "" && enable_md2=yes
+    test "$enable_md4" = "" && enable_md4=yes
+    test "$enable_md5" = "" && enable_md5=yes
+
+    # Obsolete FIPS algs never FIPS-certified by wolfCrypt:
+    if test "$ENABLED_SP_MATH" != "yes"
+    then
+        test "$enable_dsa" = "" && test "$enable_sha" != "no" && enable_dsa=yes
+    fi
+
+    # Formerly FIPS algs:
+    test "$enable_des3" = "" && enable_des3=yes
+    test "$enable_des3" != "no" && AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB"
 fi
 
 # All native quantum-resistant asymmetric algorithms:
