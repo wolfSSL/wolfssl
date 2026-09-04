@@ -9789,6 +9789,10 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
     ForceZero(&ssl->clientSecret, sizeof(ssl->clientSecret));
     ForceZero(&ssl->serverSecret, sizeof(ssl->serverSecret));
 
+    XFREE(ssl->certHashSigAlgo, ssl->heap, DYNAMIC_TYPE_TLSX);
+    ssl->certHashSigAlgo = NULL;
+    ssl->certHashSigAlgoSz = 0;
+
 #if defined(HAVE_ECH)
     if (ssl->echConfigs != NULL) {
         FreeEchConfigs(ssl->echConfigs, ssl->heap);

@@ -45,6 +45,7 @@ int test_TLSX_TCA_tls13_msg_type_validation(void);
 int test_TLSX_QUIC_TP_non_quic(void);
 int test_TLSX_ALPN_server_response_count(void);
 int test_TLSX_SupportedCurve_empty_or_unsupported(void);
+int test_TLSX_SignatureAlgorithmsCert_parse(void);
 int test_TLSX_PointFormat_uncompressed_required(void);
 int test_wolfSSL_CTX_add_client_custom_ext(void);
 int test_wolfSSL_custom_ext_handshake(void);

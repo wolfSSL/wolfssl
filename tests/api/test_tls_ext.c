@@ -2144,6 +2144,92 @@ int test_TLSX_SupportedCurve_empty_or_unsupported(void)
     return EXPECT_RESULT();
 }
 
+/* The signature_algorithms_cert list is allocated only when a peer sends the
+ * extension: first list, replacement, truncation, and release. */
+int test_TLSX_SignatureAlgorithmsCert_parse(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_TLS) && !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG) && \
+    defined(HAVE_TLS_EXTENSIONS)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    /* A local: WOLFSSL_SUITES() would resolve to the CTX suites all the
+     * WOLFSSL objects share. */
+    Suites suites;
+    word16 i;
+    /* Two more algorithms than the parser will keep. */
+    byte tooLong[OPAQUE16_LEN + OPAQUE16_LEN + OPAQUE16_LEN +
+                 WOLFSSL_MAX_SIGALGO + 2];
+    /* signature_algorithms_cert (0x0032): ext len 6, list len 4, 2 algos. */
+    const byte first[] = { 0x00, 0x32, 0x00, 0x06, 0x00, 0x04,
+                           0x04, 0x03, 0x08, 0x04 };
+    /* The same extension carrying three algorithms. */
+    const byte second[] = { 0x00, 0x32, 0x00, 0x08, 0x00, 0x06,
+                            0x08, 0x04, 0x04, 0x03, 0x02, 0x01 };
+
+    XMEMSET(&suites, 0, sizeof(suites));
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL) {
+        ExpectNull(ssl->certHashSigAlgo);
+        ExpectIntEQ(ssl->certHashSigAlgoSz, 0);
+    }
+
+    ExpectIntEQ(TLSX_Parse(ssl, first, (word16)sizeof(first), client_hello,
+                           &suites), 0);
+    if (ssl != NULL) {
+        ExpectNotNull(ssl->certHashSigAlgo);
+        ExpectIntEQ(ssl->certHashSigAlgoSz, 4);
+    }
+    if ((ssl != NULL) && (ssl->certHashSigAlgo != NULL)) {
+        ExpectIntEQ(XMEMCMP(ssl->certHashSigAlgo, first + 6, 4), 0);
+    }
+
+    ExpectIntEQ(TLSX_Parse(ssl, second, (word16)sizeof(second), client_hello,
+                           &suites), 0);
+    if (ssl != NULL) {
+        ExpectNotNull(ssl->certHashSigAlgo);
+        ExpectIntEQ(ssl->certHashSigAlgoSz, 6);
+    }
+    if ((ssl != NULL) && (ssl->certHashSigAlgo != NULL)) {
+        ExpectIntEQ(XMEMCMP(ssl->certHashSigAlgo, second + 6, 6), 0);
+    }
+
+    /* The clamp and the allocation size have to agree, or the copy runs off
+     * the block. */
+    tooLong[0] = 0x00;
+    tooLong[1] = 0x32;
+    c16toa((word16)(OPAQUE16_LEN + WOLFSSL_MAX_SIGALGO + 2), tooLong + 2);
+    c16toa((word16)(WOLFSSL_MAX_SIGALGO + 2), tooLong + 4);
+    for (i = 0; i < WOLFSSL_MAX_SIGALGO + 2; i++) {
+        tooLong[OPAQUE16_LEN + OPAQUE16_LEN + OPAQUE16_LEN + i] = (byte)i;
+    }
+    ExpectIntEQ(TLSX_Parse(ssl, tooLong, (word16)sizeof(tooLong), client_hello,
+                           &suites), 0);
+    if (ssl != NULL) {
+        ExpectNotNull(ssl->certHashSigAlgo);
+        ExpectIntEQ(ssl->certHashSigAlgoSz, WOLFSSL_MAX_SIGALGO);
+    }
+    if ((ssl != NULL) && (ssl->certHashSigAlgo != NULL)) {
+        ExpectIntEQ(XMEMCMP(ssl->certHashSigAlgo,
+            tooLong + OPAQUE16_LEN + OPAQUE16_LEN + OPAQUE16_LEN,
+            WOLFSSL_MAX_SIGALGO), 0);
+    }
+
+    ExpectIntEQ(wolfSSL_clear(ssl), WOLFSSL_SUCCESS);
+    if (ssl != NULL) {
+        ExpectNull(ssl->certHashSigAlgo);
+        ExpectIntEQ(ssl->certHashSigAlgoSz, 0);
+    }
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* RFC 8422 Section 5.1.2: a client that sends the ec_point_formats extension
  * MUST include the uncompressed (0) point format. When the uncompressed format
  * is omitted the server records this (ssl->options.peerNoUncompPF) during

@@ -7470,12 +7470,19 @@ int test_tls13_sha1_cert_chain(void)
     ExpectIntEQ(wolfSSL_use_certificate_chain_file(ssl_s, sha1CertFile),
         WOLFSSL_SUCCESS);
     if (EXPECT_SUCCESS()) {
+        ssl_c->certHashSigAlgo = (byte*)XMALLOC(2, ssl_c->heap,
+                                                DYNAMIC_TYPE_TLSX);
+    }
+    ExpectNotNull(ssl_c->certHashSigAlgo);
+    if (EXPECT_SUCCESS()) {
         ssl_c->certHashSigAlgo[0] = sha_mac;
         ssl_c->certHashSigAlgo[1] = rsa_sa_algo;
         ssl_c->certHashSigAlgoSz = 2;
     }
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
-    ExpectIntEQ(ssl_s->certHashSigAlgoSz, 2);
+    ExpectIntEQ(ssl_s->options.peerSha1CertOk, 1);
+    ExpectNull(ssl_s->certHashSigAlgo);
+    ExpectIntEQ(ssl_s->certHashSigAlgoSz, 0);
 
     wolfSSL_free(ssl_c);    ssl_c = NULL;
     wolfSSL_free(ssl_s);    ssl_s = NULL;
@@ -7497,6 +7504,11 @@ int test_tls13_sha1_cert_chain(void)
         ssl_c->suites->hashSigAlgo[ssl_c->suites->hashSigAlgoSz++] = sha_mac;
         ssl_c->suites->hashSigAlgo[ssl_c->suites->hashSigAlgoSz++] =
             rsa_sa_algo;
+        ssl_c->certHashSigAlgo = (byte*)XMALLOC(2, ssl_c->heap,
+                                                DYNAMIC_TYPE_TLSX);
+    }
+    ExpectNotNull(ssl_c->certHashSigAlgo);
+    if (EXPECT_SUCCESS()) {
         ssl_c->certHashSigAlgo[0] = sha256_mac;
         ssl_c->certHashSigAlgo[1] = rsa_sa_algo;
         ssl_c->certHashSigAlgoSz = 2;

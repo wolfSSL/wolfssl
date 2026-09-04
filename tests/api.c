@@ -41120,6 +41120,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_TLSX_QUIC_TP_non_quic),
     TEST_DECL(test_TLSX_ALPN_server_response_count),
     TEST_DECL(test_TLSX_SupportedCurve_empty_or_unsupported),
+    TEST_DECL(test_TLSX_SignatureAlgorithmsCert_parse),
     TEST_DECL(test_TLSX_PointFormat_uncompressed_required),
     TEST_DECL(test_wolfSSL_CTX_add_client_custom_ext),
     TEST_DECL(test_wolfSSL_custom_ext_handshake),
