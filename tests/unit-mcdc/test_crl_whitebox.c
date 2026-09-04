@@ -523,7 +523,7 @@ done:
     return 0;   /* always 0: a non-zero exit discards the variant */
 }
 
-#else /* !HAVE_CRL */
+#else /* not (HAVE_CRL && certs && !WOLFCRYPT_ONLY) */
 
 int main(void)
 {

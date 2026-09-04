@@ -650,7 +650,7 @@ done:
     return 0;   /* always 0: a non-zero exit discards the variant */
 }
 
-#else /* !HAVE_OCSP */
+#else /* not (HAVE_OCSP && certs && !WOLFCRYPT_ONLY) */
 
 int main(void)
 {

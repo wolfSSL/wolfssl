@@ -169,7 +169,7 @@ static void wb_build(Frame* f, const Hello* h, int dtls, const WOLFSSL* ssl)
         Frame ext;
         fr_reset(&ext);
         if (h->extReneg) {
-            fr_u16(&ext, HELLO_EXT_SIG_ALGO == 0 ? 0xFF01 : 0xFF01);
+            fr_u16(&ext, TLSX_RENEGOTIATION_INFO);
             fr_u16(&ext, 1);
             fr_u8(&ext, 0);                    /* empty renegotiated_connection */
         }
