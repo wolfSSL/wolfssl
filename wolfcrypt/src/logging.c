@@ -728,6 +728,7 @@ struct wc_error_entry {
     char   file[WOLFSSL_MAX_ERROR_SZ];
     int    line;
     int    err;
+    int    mark; /* set by wc_SetErrorMark */
 };
 
 struct wc_error_queue {
@@ -956,6 +957,34 @@ int wc_ERR_remove_state(void)
     return 0;
 }
 
+/* Mark the newest entry. Returns 0 if the queue is empty. */
+int wc_SetErrorMark(void)
+{
+    struct wc_error_entry *entry = get_entry(-1);
+
+    if (entry == NULL) {
+        return 0;
+    }
+    entry->mark = 1;
+    return 1;
+}
+
+/* Remove entries newer than the last mark and clear that mark.
+ * Returns 0 if no mark was found and the queue is now empty. */
+int wc_PopErrorMark(void)
+{
+    struct wc_error_entry *entry;
+
+    while ((entry = get_entry(-1)) != NULL) {
+        if (entry->mark) {
+            entry->mark = 0;
+            return 1;
+        }
+        wc_RemoveErrorNode(-1);
+    }
+    return 0;
+}
+
 /**
  * Get the first entry's values in the ERR queue that is not filtered
  * by the provided `ignore_err` callback. All ignored entries are removed,
@@ -1078,6 +1107,7 @@ struct wc_error_queue {
     char   file[WOLFSSL_MAX_ERROR_SZ];
     int    value;
     int    line;
+    int    mark; /* set by wc_SetErrorMark */
 };
 
 /* The global list of errors encountered */
@@ -1477,6 +1507,45 @@ int wc_ERR_remove_state(void)
     return 0;
 }
 
+/* Mark the newest node. Returns 0 if the queue is empty. */
+int wc_SetErrorMark(void)
+{
+    int ret = 0;
+
+    if (ERRQ_LOCK() != 0) {
+        WOLFSSL_MSG("Lock debug mutex failed");
+        return 0;
+    }
+    if (wc_last_node != NULL) {
+        wc_last_node->mark = 1;
+        ret = 1;
+    }
+    ERRQ_UNLOCK();
+    return ret;
+}
+
+/* Remove nodes newer than the last mark and clear that mark.
+ * Returns 0 if no mark was found and the queue is now empty. */
+int wc_PopErrorMark(void)
+{
+    int ret = 0;
+
+    if (ERRQ_LOCK() != 0) {
+        WOLFSSL_MSG("Lock debug mutex failed");
+        return 0;
+    }
+    while (wc_last_node != NULL) {
+        if (wc_last_node->mark) {
+            wc_last_node->mark = 0;
+            ret = 1;
+            break;
+        }
+        removeErrorNode(-1);
+    }
+    ERRQ_UNLOCK();
+    return ret;
+}
+
 unsigned long wc_PeekErrorNodeLineData(const char **file, int *line,
                                        const char **data, int *flags,
                                        int (*ignore_err)(int err))
@@ -1676,6 +1745,16 @@ int wc_SetLoggingHeap(void* h)
 }
 
 int wc_ERR_remove_state(void)
+{
+    return 0;
+}
+
+int wc_SetErrorMark(void)
+{
+    return 0;
+}
+
+int wc_PopErrorMark(void)
 {
     return 0;
 }

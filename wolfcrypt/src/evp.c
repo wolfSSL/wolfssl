@@ -1267,6 +1267,15 @@ int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
         /* put fraction into buff */
         fillBuff(ctx, in, inl);
         /* no increase of outl */
+
+        /* Decrypting with padding: a block followed by buffered bytes can not
+         * be the last one. Output it now so that the next update writes at
+         * most inl + block_size bytes, as OpenSSL does. */
+        if ((ctx->enc == 0) && (ctx->lastUsed == 1)) {
+            XMEMCPY(out, ctx->lastBlock, (size_t)ctx->block_size);
+            *outl += ctx->block_size;
+            ctx->lastUsed = 0;
+        }
     }
     (void)out; /* silence warning in case not read */
 

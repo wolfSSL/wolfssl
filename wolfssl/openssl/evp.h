@@ -493,6 +493,10 @@ enum {
 
 #define WOLFSSL_EVP_PKEY_PRINT_INDENT_MAX    128
 
+/* wolfSSL decodes RSA-PSS keys as WC_EVP_PKEY_RSA. This id is only for
+ * applications that switch on it alongside WC_EVP_PKEY_RSA. */
+#define WC_EVP_PKEY_RSA_PSS WC_NID_rsassaPss
+
 #define WC_EVP_PKEY_OP_SIGN    (1 << 3)
 #define WC_EVP_PKEY_OP_VERIFY  (1 << 5)
 #define WC_EVP_PKEY_OP_ENCRYPT (1 << 6)
@@ -518,6 +522,7 @@ enum {
 #define ARC4_TYPE WC_ARC4_TYPE
 #define NULL_CIPHER_TYPE WC_NULL_CIPHER_TYPE
 #define EVP_PKEY_RSA WC_EVP_PKEY_RSA
+#define EVP_PKEY_RSA_PSS WC_EVP_PKEY_RSA_PSS
 #define EVP_PKEY_DSA WC_EVP_PKEY_DSA
 #define EVP_PKEY_EC WC_EVP_PKEY_EC
 #define AES_128_GCM_TYPE WC_AES_128_GCM_TYPE

@@ -236,6 +236,8 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
                             int *line);
     WOLFSSL_API   int wc_SetLoggingHeap(void* h);
     WOLFSSL_API   int wc_ERR_remove_state(void);
+    WOLFSSL_LOCAL int wc_SetErrorMark(void);
+    WOLFSSL_LOCAL int wc_PopErrorMark(void);
     WOLFSSL_LOCAL unsigned long wc_PeekErrorNodeLineData(
             const char **file, int *line, const char **data, int *flags,
             int (*ignore_err)(int err));
