@@ -4114,6 +4114,7 @@ WOLFSSL_LOCAL int TLSX_ConnectionID_Use(WOLFSSL* ssl);
 WOLFSSL_LOCAL int TLSX_ConnectionID_Parse(WOLFSSL* ssl, const byte* input,
     word16 length, byte isRequest);
 WOLFSSL_LOCAL void DtlsCIDOnExtensionsParsed(WOLFSSL* ssl);
+WOLFSSL_LOCAL byte DtlsCIDIsNegotiated(WOLFSSL* ssl);
 WOLFSSL_LOCAL byte DtlsCIDCheck(WOLFSSL* ssl, const byte* input,
     word16 inputSize);
 WOLFSSL_LOCAL int DtlsCidReplaceTx(WOLFSSL* ssl, const byte* cid, byte size);
@@ -7493,7 +7494,7 @@ WOLFSSL_LOCAL int Tls13KeyUpdateLimitReached(WOLFSSL* ssl);
                                   word32 totalLen, byte encrypted);
     WOLFSSL_TEST_VIS DtlsMsg* DtlsMsgFind(DtlsMsg* head, word16 epoch, word32 seq);
 
-    WOLFSSL_TEST_VIS void DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq,
+    WOLFSSL_TEST_VIS int DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq,
                                     const byte* data, word32 dataSz, byte type,
                                     word32 fragOffset, word32 fragSz,
                                     void* heap);
