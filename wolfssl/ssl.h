@@ -527,7 +527,8 @@ struct WOLFSSL_ACCESS_DESCRIPTION {
 };
 
 struct WOLFSSL_X509V3_CTX {
-    WOLFSSL_X509* x509;
+    WOLFSSL_X509* issuer;
+    WOLFSSL_X509* subject;
 };
 
 /* The fields before d are given in order by X509_NAME_OBJ() in src/x509.c,

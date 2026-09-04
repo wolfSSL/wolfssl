@@ -1016,25 +1016,22 @@ int test_wolfSSL_X509V3_set_ctx(void)
 
     wolfSSL_X509V3_set_ctx(NULL, NULL, NULL, NULL, NULL, 0);
     wolfSSL_X509V3_set_ctx(&ctx, NULL, NULL, NULL, NULL, 0);
-    wolfSSL_X509_free(ctx.x509);
-    ctx.x509 = NULL;
+    ExpectNull(ctx.issuer);
+    ExpectNull(ctx.subject);
     wolfSSL_X509V3_set_ctx(&ctx, issuer, NULL, NULL, NULL, 0);
-    wolfSSL_X509_free(ctx.x509);
-    ctx.x509 = NULL;
+    ExpectPtrEq(ctx.issuer, issuer);
+    ExpectNull(ctx.subject);
     wolfSSL_X509V3_set_ctx(&ctx, NULL, subject, NULL, NULL, 0);
-    wolfSSL_X509_free(ctx.x509);
-    ctx.x509 = NULL;
-    wolfSSL_X509V3_set_ctx(&ctx, NULL, NULL, &req, NULL, 0);
-    wolfSSL_X509_free(ctx.x509);
-    ctx.x509 = NULL;
-    wolfSSL_X509V3_set_ctx(&ctx, NULL, NULL, NULL, &crl, 0);
-    wolfSSL_X509_free(ctx.x509);
-    ctx.x509 = NULL;
-    wolfSSL_X509V3_set_ctx(&ctx, NULL, NULL, NULL, NULL, 1);
-    /* X509 allocated in context results in 'failure' (but not return). */
-    wolfSSL_X509V3_set_ctx(&ctx, NULL, NULL, NULL, NULL, 0);
-    wolfSSL_X509_free(ctx.x509);
-    ctx.x509 = NULL;
+    ExpectNull(ctx.issuer);
+    ExpectPtrEq(ctx.subject, subject);
+    wolfSSL_X509V3_set_ctx(&ctx, issuer, subject, &req, &crl, 1);
+    ExpectPtrEq(ctx.issuer, issuer);
+    ExpectPtrEq(ctx.subject, subject);
+    /* No zero init required. */
+    XMEMSET(&ctx, 0xff, sizeof(ctx));
+    wolfSSL_X509V3_set_ctx(&ctx, issuer, subject, NULL, NULL, 0);
+    ExpectPtrEq(ctx.issuer, issuer);
+    ExpectPtrEq(ctx.subject, subject);
 
     wolfSSL_X509_free(subject);
     wolfSSL_X509_free(issuer);
