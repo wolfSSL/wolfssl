@@ -8434,9 +8434,8 @@ static void InitSSL_Tls13Options(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         ssl->numGroups = ctx->numGroups;
     }
 
-    #ifdef WOLFSSL_TLS13_MIDDLEBOX_COMPAT
-        ssl->options.tls13MiddleBoxCompat = 1;
-    #endif
+    /* Server clears this when the ClientHello legacy_session_id is empty. */
+    ssl->options.tls13MiddleBoxCompat = 1;
 }
 #endif /* WOLFSSL_TLS13 */
 
@@ -26061,8 +26060,12 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
     return ret;
 }
 
+/* The TLS 1.3 server accept path calls this for RFC 8446 Appendix D.4, so a
+ * server needs it whenever TLS 1.3 is built, not only with middlebox compat.
+ * A TLS 1.3 client only sends one in a middlebox compat build. */
 #if !defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS) || \
-             (defined(WOLFSSL_TLS13) && defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT))
+    (defined(WOLFSSL_TLS13) && (!defined(NO_WOLFSSL_SERVER) || \
+                                defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT)))
 int SendChangeCipher(WOLFSSL* ssl)
 {
     byte              *output;
@@ -26073,13 +26076,17 @@ int SendChangeCipher(WOLFSSL* ssl)
     #ifdef OPENSSL_EXTRA
     ssl->cbmode = WOLFSSL_CB_MODE_WRITE;
     if (ssl->options.side == WOLFSSL_SERVER_END){
-        ssl->options.serverState = SERVER_CHANGECIPHERSPEC_COMPLETE;
+        /* A TLS 1.3 record here is a dummy and moves no state. */
+        if (!IsAtLeastTLSv1_3(ssl->version))
+            ssl->options.serverState = SERVER_CHANGECIPHERSPEC_COMPLETE;
         if (ssl->CBIS != NULL)
             ssl->CBIS(ssl, WOLFSSL_CB_ACCEPT_LOOP, WOLFSSL_SUCCESS);
     }
     else {
-        ssl->options.clientState =
-            CLIENT_CHANGECIPHERSPEC_COMPLETE;
+        /* As above; nothing on the TLS 1.3 connect path reads clientState. */
+        if (!IsAtLeastTLSv1_3(ssl->version)) {
+            ssl->options.clientState = CLIENT_CHANGECIPHERSPEC_COMPLETE;
+        }
         if (ssl->CBIS != NULL)
             ssl->CBIS(ssl, WOLFSSL_CB_CONNECT_LOOP, WOLFSSL_SUCCESS);
     }
@@ -26179,7 +26186,7 @@ int SendChangeCipher(WOLFSSL* ssl)
         return SendBuffered(ssl);
 }
 #endif /* !WOLFSSL_NO_TLS12 || !NO_OLD_TLS ||
-        * (WOLFSSL_TLS13 && WOLFSSL_TLS13_MIDDLEBOX_COMPAT) */
+        * (WOLFSSL_TLS13 && (!NO_WOLFSSL_SERVER || WOLFSSL_TLS13_MIDDLEBOX_COMPAT)) */
 
 
 #if !defined(NO_OLD_TLS) && !defined(WOLFSSL_AEAD_ONLY)

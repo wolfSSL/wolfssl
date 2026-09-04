@@ -727,7 +727,7 @@ endif()
 
 # TLS v1.3 middlebox compatibility (RFC 8446 Appendix D.4)
 add_option("WOLFSSL_TLS13_MIDDLEBOX_COMPAT"
-    "Enable TLS v1.3 middlebox compatibility mode (default: disabled)"
+    "Enable client-side TLS v1.3 middlebox compatibility: send a fake session id and a ChangeCipherSpec. Server-side is always on (default: disabled)"
     "no" "yes;no")
 
 if(WOLFSSL_TLS13_MIDDLEBOX_COMPAT)
@@ -3103,7 +3103,7 @@ if(WOLFSSL_ECH)
     list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_ECH")
     if(WOLFSSL_TLS13_MIDDLEBOX_COMPAT)
         message(WARNING
-            "ECH is incompatible with middlebox compatibility - disabling middlebox compatibility")
+            "ECH is incompatible with client-side middlebox compatibility - disabling middlebox compatibility")
         override_cache(WOLFSSL_TLS13_MIDDLEBOX_COMPAT "no")
         list(REMOVE_ITEM WOLFSSL_DEFINITIONS
             "-DWOLFSSL_TLS13_MIDDLEBOX_COMPAT")

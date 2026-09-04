@@ -6502,20 +6502,41 @@ static int Tls13PTARecv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 }
 #endif
 
+#if defined(WOLFSSL_TLS13) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+/* How many ChangeCipherSpec records does this buffer of TLS records carry?
+ * A count rather than a yes or no, so that a second record going out, which
+ * is what marking the record sent before the send guards against, does not
+ * read the same as the one record that is owed. */
+static int test_tls13_count_ccs(const byte* buff, int len)
+{
+    int i = 0;
+    int count = 0;
+
+    while (i + RECORD_HEADER_SZ <= len) {
+        if (buff[i] == change_cipher_spec)
+            count++;
+        i += RECORD_HEADER_SZ + ((buff[i + 3] << 8) | buff[i + 4]);
+    }
+
+    return count;
+}
+#endif
+
 /* Test that when a TLS 1.3 client sends a ClientHello with an empty
  * legacy_session_id (indicating no middlebox compatibility), the server
  * should NOT send a ChangeCipherSpec message. Per RFC 8446 Appendix D.4,
  * the server only sends CCS if the client's ClientHello contains a
  * non-empty session_id.
  *
- * This test reproduces the bug reported in GitHub issue #9156 where
- * wolfSSL server always sends CCS when compiled with
- * WOLFSSL_TLS13_MIDDLEBOX_COMPAT, regardless of the client's session_id.
+ * This test reproduces the bug reported in GitHub issue #9156, where the
+ * server sent a ChangeCipherSpec whatever the client's session_id was.
  */
 int test_tls13_middlebox_compat_empty_session_id(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT) && \
+#if defined(WOLFSSL_TLS13) && \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
     WOLFSSL_CTX *ctx_c = NULL;
@@ -6523,16 +6544,15 @@ int test_tls13_middlebox_compat_empty_session_id(void)
     WOLFSSL *ssl_c = NULL;
     WOLFSSL *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
-    int i;
-    int found_ccs = 0;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
         wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
 
-    /* Disable middlebox compatibility on the client so it sends an empty
-     * legacy_session_id in ClientHello. The server should respect this and
-     * NOT send a ChangeCipherSpec. */
+    /* Without WOLFSSL_TLS13_MIDDLEBOX_COMPAT the client already sends an
+     * empty legacy_session_id; clearing the flag covers the build where it
+     * would otherwise send a fake one. Either way the server must respect
+     * the empty id and NOT send a ChangeCipherSpec. */
     if (EXPECT_SUCCESS()) {
         ssl_c->options.tls13MiddleBoxCompat = 0;
     }
@@ -6549,30 +6569,10 @@ int test_tls13_middlebox_compat_empty_session_id(void)
     ExpectIntEQ(wolfSSL_get_error(ssl_s,
         WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), WOLFSSL_ERROR_WANT_READ);
 
-    /* Now examine the server's output (stored in c_buff, since the server
-     * writes to the client's read buffer). Scan through TLS records looking
-     * for a ChangeCipherSpec record (content type 0x14 = 20). */
-    if (EXPECT_SUCCESS()) {
-        i = 0;
-        while (i + 5 <= test_ctx.c_len) {
-            byte content_type = test_ctx.c_buff[i];
-            int record_len = (test_ctx.c_buff[i + 3] << 8) |
-                              test_ctx.c_buff[i + 4];
-
-            if (content_type == 20) { /* change_cipher_spec */
-                found_ccs = 1;
-                break;
-            }
-
-            /* Move to next TLS record: 5 byte header + payload */
-            i += 5 + record_len;
-        }
-    }
-
-    /* The server should NOT have sent CCS since the client's ClientHello
-     * had an empty legacy_session_id. If found_ccs is 1, this demonstrates
+    /* The server writes into c_buff. It must NOT have sent a CCS, since the
+     * client's ClientHello had an empty legacy_session_id. Sending one is
      * the bug from issue #9156. */
-    ExpectIntEQ(found_ccs, 0);
+    ExpectIntEQ(test_tls13_count_ccs(test_ctx.c_buff, test_ctx.c_len), 0);
 
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);
@@ -6617,6 +6617,557 @@ int test_tls13_middlebox_compat_session_id(void)
 
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_tls13_middlebox_compat_server_ccs(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    /* Give the client a non-empty legacy_session_id. GetTls13SessionId puts
+     * it on the wire whatever the build options are, which is what drives
+     * the server behaviour RFC 8446 Appendix D.4 requires. */
+    if (EXPECT_SUCCESS()) {
+        XMEMSET(ssl_c->session->sessionID, 0xA5, ID_LEN);
+        ssl_c->session->sessionIDSz = ID_LEN;
+    }
+
+    /* Client sends ClientHello with a non-empty session id. */
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c,
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), WOLFSSL_ERROR_WANT_READ);
+
+    /* Server processes it and writes its first flight. */
+    ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s,
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), WOLFSSL_ERROR_WANT_READ);
+
+    /* The client offered a non-empty session id, so the server owes it a
+     * ChangeCipherSpec. Peers such as Erlang's ssl abort the handshake with
+     * an unexpected_message alert when it is missing. */
+    ExpectIntEQ(test_tls13_count_ccs(test_ctx.c_buff, test_ctx.c_len), 1);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* wolfSSL_clear() must not leave the previous handshake's ChangeCipherSpec
+ * state behind, or a reused server object stops answering a non-empty
+ * legacy_session_id after the first handshake. */
+int test_tls13_middlebox_compat_server_reuse(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_c2 = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    if (EXPECT_SUCCESS()) {
+        XMEMSET(ssl_c->session->sessionID, 0xA5, ID_LEN);
+        ssl_c->session->sessionIDSz = ID_LEN;
+    }
+
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c,
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s,
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_tls13_count_ccs(test_ctx.c_buff, test_ctx.c_len), 1);
+
+    /* Reuse the server object for a second handshake with a fresh client. */
+    ExpectIntEQ(wolfSSL_clear(ssl_s), WOLFSSL_SUCCESS);
+    test_memio_clear_buffer(&test_ctx, 0);
+    test_memio_clear_buffer(&test_ctx, 1);
+
+    ExpectNotNull(ssl_c2 = wolfSSL_new(ctx_c));
+    if (EXPECT_SUCCESS()) {
+        wolfSSL_SetIOWriteCtx(ssl_c2, &test_ctx);
+        wolfSSL_SetIOReadCtx(ssl_c2, &test_ctx);
+        XMEMSET(ssl_c2->session->sessionID, 0x5A, ID_LEN);
+        ssl_c2->session->sessionIDSz = ID_LEN;
+    }
+
+    ExpectIntNE(wolfSSL_connect(ssl_c2), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c2,
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s,
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), WOLFSSL_ERROR_WANT_READ);
+
+    /* The second peer also offered a session id, so it is owed a CCS too. */
+    ExpectIntEQ(test_tls13_count_ccs(test_ctx.c_buff, test_ctx.c_len), 1);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_c2);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(WOLFSSL_TLS13) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+/* One HelloRetryRequest handshake, with the server's messages grouped or
+ * not. Its own verdict, so a failure in one setting still leaves the other
+ * exercised. */
+static int test_tls13_hrr_ccs_grouped(int grouped)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    if (EXPECT_SUCCESS()) {
+        XMEMSET(ssl_c->session->sessionID, 0xA5, ID_LEN);
+        ssl_c->session->sessionIDSz = ID_LEN;
+        ssl_s->options.groupMessages = (byte)grouped;
+    }
+
+    /* No key share entries, so the server has to ask for one. */
+    ExpectIntEQ(wolfSSL_NoKeyShares(ssl_c), WOLFSSL_SUCCESS);
+
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c,
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), WOLFSSL_ERROR_WANT_READ);
+
+    ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s,
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), WOLFSSL_ERROR_WANT_READ);
+
+    /* The HelloRetryRequest flight carries exactly one, however the
+     * server groups its messages. */
+    ExpectIntEQ(ssl_s->options.serverState,
+        SERVER_HELLO_RETRY_REQUEST_COMPLETE);
+    ExpectIntEQ(test_tls13_count_ccs(test_ctx.c_buff, test_ctx.c_len), 1);
+
+    /* Step to the second ClientHello and the flight answering it. The
+     * client drains c_buff as it reads, so what is left is that flight
+     * alone: the server owes no second record and must not send one. */
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c,
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s,
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_tls13_count_ccs(test_ctx.c_buff, test_ctx.c_len), 0);
+
+    /* And the handshake the retry started still completes. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* A HelloRetryRequest is flushed as soon as it is built, so the
+ * ChangeCipherSpec that follows it has to be flushed too. With grouped
+ * messages, which every OPENSSL_COMPATIBLE_DEFAULTS build turns on, it would
+ * otherwise sit in the output buffer and reach the peer a flight late. */
+int test_tls13_middlebox_compat_hrr_ccs(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    int ungrouped_res;
+    int grouped_res;
+
+    /* Both run whatever the other does; both owe the same record. */
+    ungrouped_res = test_tls13_hrr_ccs_grouped(0);
+    grouped_res = test_tls13_hrr_ccs_grouped(1);
+    ExpectIntEQ(ungrouped_res, TEST_SUCCESS);
+    ExpectIntEQ(grouped_res, TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(WOLFSSL_TLS13) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+/* Refuses one ChangeCipherSpec write, then counts the ones that land. */
+struct test_tls13_ccs_ctx {
+    struct test_memio_ctx* memio;
+    int refuse;
+    int sent;
+};
+
+/* Refuse the write carrying the ChangeCipherSpec, once, and let every other
+ * write through. Refusing by record type rather than by write count keeps
+ * the test tied to the record it is about. */
+static int test_tls13_ccs_write_cb(WOLFSSL* ssl, char* data, int sz, void* ctx)
+{
+    struct test_tls13_ccs_ctx* cctx = (struct test_tls13_ccs_ctx*)ctx;
+    int ret;
+
+    if (sz > 0 && (byte)data[0] == change_cipher_spec && cctx->refuse) {
+        cctx->refuse = 0;
+        return WOLFSSL_CBIO_ERR_WANT_WRITE;
+    }
+
+    ret = test_memio_write_cb(ssl, data, sz, cctx->memio);
+    if (ret > 0 && sz > 0 && (byte)data[0] == change_cipher_spec)
+        cctx->sent++;
+
+    return ret;
+}
+#endif
+
+/* A server send that stops short must not put a second ChangeCipherSpec on
+ * the wire when it is resumed. Drive that path with a transport that refuses
+ * that one write. The HelloRetryRequest flavour below is the one that pins
+ * where sentChangeCipher is set; this one covers the straight-through
+ * flight, which the accept-state prologue recovers on its own. */
+int test_tls13_middlebox_compat_server_ccs_retry(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    struct test_tls13_ccs_ctx ccs_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(&ccs_ctx, 0, sizeof(ccs_ctx));
+    ccs_ctx.memio = &test_ctx;
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    if (EXPECT_SUCCESS()) {
+        XMEMSET(ssl_c->session->sessionID, 0xA5, ID_LEN);
+        ssl_c->session->sessionIDSz = ID_LEN;
+        /* Ungrouped, so the record is flushed on its own and the refusal
+         * below lands on it rather than on a flight carrying it along, and
+         * without the automatic retry an OPENSSL_COMPATIBLE_DEFAULTS build
+         * turns on, which would resume inside the send instead of through
+         * the accept state machine this test is about. */
+        ssl_s->options.groupMessages = 0;
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
+    defined(HAVE_MEMCACHED)
+        /* Only a build with the mode API can have turned auto retry on, and
+         * an OPENSSL_COMPATIBLE_DEFAULTS one has. Resuming the send has to
+         * come back through the accept state machine, not inside it. */
+        wolfSSL_CTX_clear_mode(ctx_s, WOLFSSL_MODE_AUTO_RETRY);
+#endif
+        wolfSSL_SSLSetIOSend(ssl_s, test_tls13_ccs_write_cb);
+        wolfSSL_SetIOWriteCtx(ssl_s, &ccs_ctx);
+        ccs_ctx.refuse = 1;
+    }
+
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c,
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), WOLFSSL_ERROR_WANT_READ);
+
+    /* The ChangeCipherSpec write is refused, so the flight stops on it. */
+    ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s,
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), WOLFSSL_ERROR_WANT_WRITE);
+    ExpectIntEQ(ccs_ctx.refuse, 0);
+
+    /* Resume the same handshake, now that the write goes through. */
+    ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s,
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), WOLFSSL_ERROR_WANT_READ);
+
+    /* One record, not two: the resumed accept must not repeat the send. */
+    ExpectIntEQ(test_tls13_count_ccs(test_ctx.c_buff, test_ctx.c_len), 1);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The HelloRetryRequest path marks the record sent before sending it,
+ * because a resumed accept falls through into TLS13_SERVER_HELLO_SENT and
+ * only that flag stops it sending a second one. Refuse the write, resume,
+ * and check the flight answering the second ClientHello stays empty. */
+int test_tls13_middlebox_compat_hrr_ccs_retry(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    struct test_tls13_ccs_ctx ccs_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(&ccs_ctx, 0, sizeof(ccs_ctx));
+    ccs_ctx.memio = &test_ctx;
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    if (EXPECT_SUCCESS()) {
+        XMEMSET(ssl_c->session->sessionID, 0xA5, ID_LEN);
+        ssl_c->session->sessionIDSz = ID_LEN;
+        ssl_s->options.groupMessages = 0;
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
+    defined(HAVE_MEMCACHED)
+        /* Only a build with the mode API can have turned auto retry on, and
+         * an OPENSSL_COMPATIBLE_DEFAULTS one has. Resuming the send has to
+         * come back through the accept state machine, not inside it. */
+        wolfSSL_CTX_clear_mode(ctx_s, WOLFSSL_MODE_AUTO_RETRY);
+#endif
+        wolfSSL_SSLSetIOSend(ssl_s, test_tls13_ccs_write_cb);
+        wolfSSL_SetIOWriteCtx(ssl_s, &ccs_ctx);
+        ccs_ctx.refuse = 1;
+    }
+
+    /* No key share entries, so the server has to ask for one. */
+    ExpectIntEQ(wolfSSL_NoKeyShares(ssl_c), WOLFSSL_SUCCESS);
+
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c,
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), WOLFSSL_ERROR_WANT_READ);
+
+    /* The record behind the HelloRetryRequest is refused. */
+    ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s,
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), WOLFSSL_ERROR_WANT_WRITE);
+    ExpectIntEQ(ccs_ctx.refuse, 0);
+
+    /* Resume: the retry owes exactly the one record it stopped on. */
+    ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s,
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_tls13_count_ccs(test_ctx.c_buff, test_ctx.c_len), 1);
+
+    /* The flight answering the second ClientHello owes none. A resumed
+     * accept falls into TLS13_SERVER_HELLO_SENT, so this is what catches
+     * the record being marked sent after the send rather than before. */
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c,
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s,
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_tls13_count_ccs(test_ctx.c_buff, test_ctx.c_len), 0);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+/* One client handshake with its ChangeCipherSpec write refused once, either
+ * straight through or after a HelloRetryRequest. */
+static int test_tls13_client_ccs_retry_once(int noKeyShares)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    struct test_tls13_ccs_ctx ccs_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(&ccs_ctx, 0, sizeof(ccs_ctx));
+    ccs_ctx.memio = &test_ctx;
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    if (EXPECT_SUCCESS()) {
+        wolfSSL_SSLSetIOSend(ssl_c, test_tls13_ccs_write_cb);
+        wolfSSL_SetIOWriteCtx(ssl_c, &ccs_ctx);
+        /* Refuse the client's first ChangeCipherSpec write, wherever in the
+         * flight it falls. */
+        ccs_ctx.refuse = 1;
+    }
+    if (noKeyShares) {
+        ExpectIntEQ(wolfSSL_NoKeyShares(ssl_c), WOLFSSL_SUCCESS);
+    }
+
+    /* A refused record answering a HelloRetryRequest must not advance
+     * connectState past the second ClientHello. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(ccs_ctx.sent, 1);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* The client marks its own middlebox ChangeCipherSpec sent before sending it,
+ * for the same reason the server does. Both flights get their own verdict. */
+int test_tls13_middlebox_compat_client_ccs_retry(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    int hrr_res;
+    int direct_res;
+
+    hrr_res = test_tls13_client_ccs_retry_once(1);
+    direct_res = test_tls13_client_ccs_retry_once(0);
+    ExpectIntEQ(hrr_res, TEST_SUCCESS);
+    ExpectIntEQ(direct_res, TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The third client send site is the early data one, which puts the
+ * ChangeCipherSpec out before the 0-RTT records rather than as part of a
+ * handshake flight. Refuse that one write and resume: the record is owed
+ * once, and a resumed wolfSSL_write_early_data() must not repeat it. */
+int test_tls13_middlebox_compat_client_ccs_retry_early_data(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT) && \
+    defined(WOLFSSL_EARLY_DATA) && defined(HAVE_SESSION_TICKET) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    struct test_memio_ctx test_ctx;
+    struct test_tls13_ccs_ctx ccs_ctx;
+    const char earlyMsg[] = "This is early data";
+    char buf[64];
+    int written = 0;
+    int earlyRead = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(&ccs_ctx, 0, sizeof(ccs_ctx));
+    ccs_ctx.memio = &test_ctx;
+
+    /* A full handshake first, only to get a ticket to resume with; early
+     * data has nowhere else to come from. */
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    /* Opt the server into 0-RTT (off by default per RFC 8446 E.5). */
+    ExpectIntGE(wolfSSL_CTX_set_max_early_data(ctx_s, MAX_EARLY_DATA_SZ), 0);
+    ExpectIntGE(wolfSSL_set_max_early_data(ssl_s, MAX_EARLY_DATA_SZ), 0);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    /* Read so that the NewSessionTicket is taken in. */
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntGE(wolfSSL_set_max_early_data(ssl_s, MAX_EARLY_DATA_SZ), 0);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+
+    if (EXPECT_SUCCESS()) {
+        /* Ungrouped, so the record is flushed on its own and the refusal
+         * below lands on it rather than on a flight carrying it along. */
+        ssl_c->options.groupMessages = 0;
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
+    defined(HAVE_MEMCACHED)
+        /* Only a build with the mode API can have turned auto retry on, and
+         * an OPENSSL_COMPATIBLE_DEFAULTS one has. Resuming the send has to
+         * come back through the connect state machine, not inside it. */
+        wolfSSL_CTX_clear_mode(ctx_c, WOLFSSL_MODE_AUTO_RETRY);
+#endif
+        wolfSSL_SSLSetIOSend(ssl_c, test_tls13_ccs_write_cb);
+        wolfSSL_SetIOWriteCtx(ssl_c, &ccs_ctx);
+        ccs_ctx.refuse = 1;
+    }
+
+    /* The ChangeCipherSpec ahead of the early data is refused, so the
+     * client stops on it with nothing written. */
+    ExpectIntEQ(wolfSSL_write_early_data(ssl_c, earlyMsg, (int)sizeof(earlyMsg),
+        &written), WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    ExpectIntEQ(wolfSSL_get_error(ssl_c,
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), WOLFSSL_ERROR_WANT_WRITE);
+    ExpectIntEQ(ccs_ctx.refuse, 0);
+    ExpectIntEQ(written, 0);
+
+    /* Resume: the record it stopped on goes out, and only that one. */
+    ExpectIntEQ(wolfSSL_write_early_data(ssl_c, earlyMsg, (int)sizeof(earlyMsg),
+        &written), (int)sizeof(earlyMsg));
+    ExpectIntEQ(written, (int)sizeof(earlyMsg));
+    ExpectIntEQ(ccs_ctx.sent, 1);
+
+    /* The 0-RTT data the retry carried still arrives, and the handshake it
+     * started still completes. */
+    XMEMSET(buf, 0, sizeof(buf));
+    (void)test_tls13_early_data_read_until_write_ok(ssl_s, buf, sizeof(buf),
+        &earlyRead);
+    ExpectIntEQ(earlyRead, (int)sizeof(earlyMsg));
+    ExpectStrEQ(earlyMsg, buf);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectTrue(wolfSSL_session_reused(ssl_c));
+
+    /* Still the one record, over the whole handshake. */
+    ExpectIntEQ(ccs_ctx.sent, 1);
+
+    wolfSSL_SESSION_free(sess);
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);
     wolfSSL_CTX_free(ctx_c);
