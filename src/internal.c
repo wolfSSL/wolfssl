@@ -36479,8 +36479,8 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                                     ssl->buffers.digest.length,
                                     TypeHash(ssl->options.peerHashAlgo));
                                 if (encSigSz != args->sigSz || !args->output ||
-                                    XMEMCMP(args->output, encodedSig,
-                                            min(encSigSz,
+                                    ConstantCompare(args->output, encodedSig,
+                                            (int)min(encSigSz,
                                                 MAX_ENCODED_CLASSIC_SIG_SZ))
                                                                          != 0) {
                                     ret = VERIFY_SIGN_ERROR;
@@ -36493,7 +36493,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                             }
                             else if (args->sigSz != FINISHED_SZ ||
                                     !args->output ||
-                                    XMEMCMP(args->output,
+                                    ConstantCompare(args->output,
                                             ssl->buffers.digest.buffer,
                                             FINISHED_SZ) != 0) {
                                 ERROR_OUT(VERIFY_SIGN_ERROR, exit_dske);
@@ -42343,8 +42343,8 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                                 TypeHash(ssl->options.peerHashAlgo));
 
                             if (args->sendSz != args->sigSz || !args->output ||
-                                XMEMCMP(args->output, encodedSig,
-                                   min(args->sigSz, MAX_ENCODED_CLASSIC_SIG_SZ)) != 0) {
+                                ConstantCompare(args->output, encodedSig,
+                                   (int)min(args->sigSz, MAX_ENCODED_CLASSIC_SIG_SZ)) != 0) {
                                 ret = VERIFY_CERT_ERROR;
                             }
 
@@ -42354,8 +42354,9 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                     }
                     else {
                         if (args->sendSz != FINISHED_SZ || !args->output ||
-                            XMEMCMP(args->output,
-                                &ssl->hsHashes->certHashes, FINISHED_SZ) != 0) {
+                            ConstantCompare(args->output,
+                                (const byte*)&ssl->hsHashes->certHashes,
+                                FINISHED_SZ) != 0) {
                             ret = VERIFY_CERT_ERROR;
                         }
                     }
