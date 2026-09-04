@@ -15816,6 +15816,53 @@ int  wolfSSL_CTX_no_early_data_fresh_start_check(WOLFSSL_CTX* ctx);
 int wolfSSL_inject(WOLFSSL* ssl, const void* data, int sz);
 
 /*!
+    \ingroup IO
+
+    \brief Sends a TLS 1.3 application data record containing only padding.
+    Lets an application generate the cover traffic described in RFC 8446
+    Appendix E. The request applies to the next record only. Requires a stream
+    TLS 1.3 session; DTLS 1.3 is unsupported.
+
+    Completes any in-progress handshake. Padding is reduced to fit the
+    negotiated max fragment size.
+
+    Returns WOLFSSL_FATAL_ERROR if no cover traffic record was sent (e.g.
+    due to downgrade or peer reset). wolfSSL_get_error() gives the reason.
+
+    On WOLFSSL_ERROR_WANT_WRITE, the request is disarmed. Calling again may
+    queue a second record.
+
+    With WOLFSSL_ASYNC_CRYPT, if suspended with WC_PENDING_E, call again
+    to resume. The original paddingSz is used. Unrelated pending async
+    operations cause BAD_STATE_E.
+
+    \param [in,out] ssl WOLFSSL structure.
+    \param [in] paddingSz Number of padding bytes. Must be less than the max
+    fragment size.
+
+    \return 0 on success
+    \return BAD_FUNC_ARG if ssl is NULL, paddingSz is invalid, or session is not stream TLS 1.3
+    \return BAD_STATE_E if an application write or an unrelated asynchronous operation is pending
+    \return WOLFSSL_FATAL_ERROR if the record could not be sent; the reason,
+    e.g. WOLFSSL_ERROR_WANT_WRITE or WC_PENDING_E, is available from
+    wolfSSL_get_error()
+    \return NOT_COMPILED_IN if TLS 1.3 support is not built in
+
+    _Example_
+    \code
+    // send a 256 byte cover traffic record while the connection is idle
+    if (wolfSSL_send_tls13_cover_traffic(ssl, 256) != 0) {
+        err = wolfSSL_get_error(ssl, -1);
+        printf("error = %d, %s\n", err, wolfSSL_ERR_error_string(err, buffer));
+    }
+    \endcode
+
+    \sa wolfSSL_write
+    \sa wolfSSL_get_error
+*/
+int wolfSSL_send_tls13_cover_traffic(WOLFSSL* ssl, int paddingSz);
+
+/*!
     \ingroup Setup
 
     \brief This function sets the Pre-Shared Key (PSK) client side callback

@@ -5699,6 +5699,8 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->options.hrrSentCookie = 0;
     #endif
         ssl->options.hrrSentKeyShare = 0;
+        /* Don't let a request abandoned mid-pending survive object reuse. */
+        Tls13ClearCoverTraffic(ssl);
     #endif
     #ifdef WOLFSSL_DTLS
         ssl->options.dtlsStateful = 0;

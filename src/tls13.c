@@ -3252,6 +3252,37 @@ static void FreeBuildMsg13Args(WOLFSSL* ssl, void* pArgs)
     /* no allocations in BuildTls13Message */
 }
 
+/* Padding for an outstanding cover traffic request, or 0 if none applies.
+ * Shared by BuildTls13Message() and SendData() so they size the record the
+ * same way. DTLS 1.3 is rejected in the guard defensively, even though the
+ * public API already excludes it. */
+word16 Tls13GetCoverTrafficPaddingSz(WOLFSSL* ssl)
+{
+    word16 padSz;
+    int maxFrag;
+
+    if (ssl->options.dtls || !ssl->options.sendCoverTraffic)
+        return 0;
+
+    padSz = ssl->options.coverTrafficPadSz;
+    /* Re-clamp against negotiated max_fragment_length, which may be
+     * smaller than when the request was armed.
+     * One byte is left for the record layer content type. */
+    maxFrag = wolfSSL_GetMaxFragSize(ssl);
+    if (maxFrag > 0 && padSz >= (word16)maxFrag)
+        padSz = (word16)(maxFrag - 1);
+
+    return padSz;
+}
+
+/* Clears an outstanding cover traffic request. sendCoverTraffic and
+ * coverTrafficPadSz always change together; centralize the reset here. */
+void Tls13ClearCoverTraffic(WOLFSSL* ssl)
+{
+    ssl->options.sendCoverTraffic = 0;
+    ssl->options.coverTrafficPadSz = 0;
+}
+
 /* Build SSL Message, encrypted.
  * TLS v1.3 encryption is AEAD only.
  *
@@ -3363,6 +3394,17 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
 #endif
             if (sizeOnly)
                 return (int)args->sz;
+
+            /* Add cover traffic padding for application data records.
+             * Excluded from sizeOnly to preserve the record overhead cache;
+             * SendData() sizes for it via the same helper call. */
+            if (type == application_data) {
+                word16 padSz = Tls13GetCoverTrafficPaddingSz(ssl);
+                if (padSz > 0) {
+                    args->paddingSz += padSz;
+                    args->sz += padSz;
+                }
+            }
 
             if (args->sz > (word32)outSz) {
                 WOLFSSL_MSG("Oops, want to write past output buffer size");
