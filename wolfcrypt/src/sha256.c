@@ -1731,8 +1731,13 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         for (i = 0; i < 8; i++)
             S[i] = sha256->digest[i];
 
-        for (i = 0; i < 16; i++)
+        for (i = 0; i < 16; i++) {
+#ifdef WOLFSSL_WIDE_BYTE
+            W[i] = *((const word32*)&data[i*(int)sizeof(word32)]);
+#else
             W[i] = readUnalignedWord32(&data[i*(int)sizeof(word32)]);
+#endif
+        }
 
         for (i = 16; i < WC_SHA256_BLOCK_SIZE; i++)
             W[i] = Gamma1(W[i-2]) + W[i-7] + Gamma0(W[i-15]) + W[i-16];

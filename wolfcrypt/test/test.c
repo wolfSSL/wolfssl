@@ -61024,17 +61024,6 @@ static wc_test_ret_t mldsa_param_test(int param, WC_RNG* rng)
     if (res != 1)
         ERROR_OUT(WC_TEST_RET_ENC_I(res), out);
 
-    /* Empty message passed as (NULL, 0): sign/verify roundtrip. */
-    sigLen = wc_MlDsaKey_SigSize(key);
-    ret = wc_MlDsaKey_SignCtx(key, NULL, 0, sig, &sigLen, NULL, 0, rng);
-    if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-    ret = wc_MlDsaKey_VerifyCtx(key, sig, sigLen, NULL, 0, NULL, 0, &res);
-    if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-    if (res != 1)
-        ERROR_OUT(WC_TEST_RET_ENC_I(res), out);
-
     /* A signature that carries no hints must still have every hint byte
      * zero.  h[0] used to escape that check, so a stray byte there was
      * accepted.  FIPS 204 Alg 21 step 8.  The hint area is the last
@@ -61052,6 +61041,17 @@ static wc_test_ret_t mldsa_param_test(int param, WC_RNG* rng)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         ret = 0;
     }
+
+    /* Empty message passed as (NULL, 0): sign/verify roundtrip. */
+    sigLen = wc_MlDsaKey_SigSize(key);
+    ret = wc_MlDsaKey_SignCtx(key, NULL, 0, sig, &sigLen, NULL, 0, rng);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_MlDsaKey_VerifyCtx(key, sig, sigLen, NULL, 0, NULL, 0, &res);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (res != 1)
+        ERROR_OUT(WC_TEST_RET_ENC_I(res), out);
 #endif
 #endif
 
@@ -62432,6 +62432,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
             sig[j] ^= 1;
         }
     }
+
+    /* Empty message passed as (NULL, 0): sign/verify roundtrip.  Spends one
+     * signature from the budget, which unlike lms_test()'s 2**5 is at least
+     * 2**10 here, so no loop accounting changes. */
+    sigSz = bufSz;
+    ret = wc_XmssKey_Sign(&signingKey, sig, &sigSz, NULL, 0);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_XmssKey_Verify(&verifyKey, sig, sigSz, NULL, 0);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
 #ifndef WOLFSSL_NO_MALLOC
     /* The BDS traversal counters, stored node heights and tree hash entries are

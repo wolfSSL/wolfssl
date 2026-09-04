@@ -587,7 +587,8 @@ int test_wolfSSL_make_eap_keys_bounds(void)
      * real use, once the handshake has finished with the randoms/master
      * secret and no longer needs them - called directly here (WOLFSSL_LOCAL)
      * rather than running a full handshake just to reach the same state. */
-    FreeArrays(ssl, 0);
+    if (ssl != NULL)
+        FreeArrays(ssl, 0);
     ExpectNull(ssl->arrays);
     ExpectIntEQ(wolfSSL_make_eap_keys(ssl, key, sizeof(key), "label"),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -1165,7 +1166,7 @@ int test_TLSX_CSR_SetResponseWithStatusCB_bounds(void)
 
     /* ssl != NULL, SSL_CM(ssl) == NULL: second operand true, first false -
      * independence for the second operand. */
-    if (EXPECT_SUCCESS()) {
+    if ((ssl != NULL) && (ssl->ctx != NULL)) {
         origCM = ssl->ctx->cm;
         ssl->ctx->cm = NULL;
     }
