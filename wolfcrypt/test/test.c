@@ -25474,8 +25474,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t puf_test(void)
     /* noisy SRAM: same as testSram but with a few flipped bits */
     WOLFSSL_SMALL_STACK_STATIC byte noisySram[WC_PUF_RAW_BYTES];
     WOLFSSL_SMALL_STACK_STATIC byte helperBuf[WC_PUF_HELPER_BYTES];
+    /* helperBuf with a burst of corrupted bits in codeword 0: drives
+     * bch_decode() to fail so Test 11 exercises the BCH-decode failure cleanup
+     * path in wc_PufReconstructEx() (distinct from the identity-hash failure
+     * path). */
+    WOLFSSL_SMALL_STACK_STATIC byte badHelper[WC_PUF_HELPER_BYTES];
     /* rewritten per case by Test 10 */
     WOLFSSL_SMALL_STACK_STATIC byte badSram[WC_PUF_RAW_BYTES];
+    /* all-zero reference for the hash-failure cleanup checks; sized for the
+     * larger of the stableBits and identity buffers it is compared against
+     * (WC_PUF_STABLE_BYTES shrinks with small profiles / codeword counts). */
+    WOLFSSL_SMALL_STACK_STATIC byte zeroBuf[
+        WC_PUF_STABLE_BYTES > WC_PUF_ID_SZ ? WC_PUF_STABLE_BYTES : WC_PUF_ID_SZ];
     const byte info[] = "puf-test-context";
 
     WOLFSSL_ENTER("puf_test");
@@ -26063,6 +26073,123 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t puf_test(void)
         if (XMEMCMP(id1, id2, WC_PUF_ID_SZ) != 0)
             return WC_TEST_RET_ENC_NC;
     }
+
+    /* ---- Test 11: identity-hash failure leaves no stale READY state ---- */
+    /* wc_PufTestForceHashFail() makes wc_PufEnroll() / wc_PufReconstruct() act
+     * as though the final identity hash failed. When that happens on a context
+     * a prior successful run already left ENROLLED|READY, those flags must be
+     * cleared and stableBits / identity scrubbed, so a later wc_PufDeriveKey()
+     * cannot derive HKDF(new stable bits, stale identity) - a key no correct
+     * reconstruction can reproduce. */
+    XMEMSET(zeroBuf, 0, sizeof(zeroBuf));
+
+    /* enroll path: enroll once cleanly, then fail a re-enroll */
+    ret = wc_PufInit(&ctx);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_PufSetTestData(&ctx, testSram, sizeof(testSram));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_PufReadSram(&ctx, testSram, sizeof(testSram));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_PufEnroll(&ctx);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    XMEMCPY(helperBuf, ctx.helperData, WC_PUF_HELPER_BYTES);
+
+    wc_PufTestForceHashFail(1);
+    ret = wc_PufEnroll(&ctx);
+    wc_PufTestForceHashFail(0);
+    if (ret != WC_NO_ERR_TRACE(PUF_ENROLL_E))
+        return WC_TEST_RET_ENC_NC;
+    if ((ctx.flags & (WC_PUF_FLAG_ENROLLED | WC_PUF_FLAG_READY)) != 0)
+        return WC_TEST_RET_ENC_NC;
+    if (XMEMCMP(ctx.stableBits, zeroBuf, WC_PUF_STABLE_BYTES) != 0)
+        return WC_TEST_RET_ENC_NC;
+    if (XMEMCMP(ctx.identity, zeroBuf, WC_PUF_ID_SZ) != 0)
+        return WC_TEST_RET_ENC_NC;
+    if (wc_PufDeriveKey(&ctx, info, sizeof(info), key2, sizeof(key2))
+            != WC_NO_ERR_TRACE(PUF_DERIVE_KEY_E))
+        return WC_TEST_RET_ENC_NC;
+    if (wc_PufGetIdentity(&ctx, id3, sizeof(id3))
+            != WC_NO_ERR_TRACE(PUF_IDENTITY_E))
+        return WC_TEST_RET_ENC_NC;
+
+    /* reconstruct path: reconstruct once cleanly, then fail a re-reconstruct */
+    ret = wc_PufInit(&ctx);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_PufSetTestData(&ctx, testSram, sizeof(testSram));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_PufReadSram(&ctx, testSram, sizeof(testSram));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_PufReconstruct(&ctx, helperBuf, WC_PUF_HELPER_BYTES);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    wc_PufTestForceHashFail(1);
+    ret = wc_PufReconstruct(&ctx, helperBuf, WC_PUF_HELPER_BYTES);
+    wc_PufTestForceHashFail(0);
+    if (ret != WC_NO_ERR_TRACE(PUF_RECONSTRUCT_E))
+        return WC_TEST_RET_ENC_NC;
+    if ((ctx.flags & WC_PUF_FLAG_READY) != 0)
+        return WC_TEST_RET_ENC_NC;
+    if (XMEMCMP(ctx.stableBits, zeroBuf, WC_PUF_STABLE_BYTES) != 0)
+        return WC_TEST_RET_ENC_NC;
+    if (XMEMCMP(ctx.identity, zeroBuf, WC_PUF_ID_SZ) != 0)
+        return WC_TEST_RET_ENC_NC;
+    if (wc_PufDeriveKey(&ctx, info, sizeof(info), key2, sizeof(key2))
+            != WC_NO_ERR_TRACE(PUF_DERIVE_KEY_E))
+        return WC_TEST_RET_ENC_NC;
+
+    /* bch_decode() failure path: a reconstruct that fails inside BCH decoding
+     * (not in the identity hash) must scrub ctx->stableBits / ctx->identity and
+     * clear WC_PUF_FLAG_READY, exactly as the identity-hash failure path above.
+     * Run a clean reconstruct first so ctx->identity holds a real hash, then a
+     * reconstruct whose first codeword carries a 32-bit helper-data burst. */
+    ret = wc_PufInit(&ctx);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_PufSetTestData(&ctx, testSram, sizeof(testSram));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_PufReadSram(&ctx, testSram, sizeof(testSram));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_PufReconstruct(&ctx, helperBuf, WC_PUF_HELPER_BYTES);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    /* the clean reconstruct must have produced a non-zero identity, otherwise
+     * the scrub check below would pass vacuously */
+    if (XMEMCMP(ctx.identity, zeroBuf, WC_PUF_ID_SZ) == 0)
+        return WC_TEST_RET_ENC_NC;
+
+    /* Flip the first 32 helper bits. Those bits all belong to codeword 0 in
+     * every shipped profile (its helper run is at least WC_PUF_BCH_DEG = 49
+     * bits) and form a length-32 burst in the decoder input. A cyclic code
+     * detects every burst shorter than n - k, and no profile can correct 32
+     * errors (t is 7..15), so bch_decode() rejects this deterministically. */
+    XMEMCPY(badHelper, helperBuf, WC_PUF_HELPER_BYTES);
+    badHelper[0] ^= 0xFF;
+    badHelper[1] ^= 0xFF;
+    badHelper[2] ^= 0xFF;
+    badHelper[3] ^= 0xFF;
+
+    ret = wc_PufReconstruct(&ctx, badHelper, WC_PUF_HELPER_BYTES);
+    if (ret != WC_NO_ERR_TRACE(PUF_RECONSTRUCT_E))
+        return WC_TEST_RET_ENC_NC;
+    if ((ctx.flags & WC_PUF_FLAG_READY) != 0)
+        return WC_TEST_RET_ENC_NC;
+    if (XMEMCMP(ctx.stableBits, zeroBuf, WC_PUF_STABLE_BYTES) != 0)
+        return WC_TEST_RET_ENC_NC;
+    if (XMEMCMP(ctx.identity, zeroBuf, WC_PUF_ID_SZ) != 0)
+        return WC_TEST_RET_ENC_NC;
+    if (wc_PufDeriveKey(&ctx, info, sizeof(info), key2, sizeof(key2))
+            != WC_NO_ERR_TRACE(PUF_DERIVE_KEY_E))
+        return WC_TEST_RET_ENC_NC;
 
     return 0;
 #else
