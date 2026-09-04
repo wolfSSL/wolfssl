@@ -120,20 +120,31 @@
     #define EFBIG WC_ERR_TRACE(my_EFBIG)
 #endif
 
+static int libwolfssl_inited;
+
 static int libwolfssl_cleanup(void) {
     int ret;
+    if (libwolfssl_inited) {
+        libwolfssl_inited = 0;
 #ifdef WOLFCRYPT_ONLY
-    ret = wolfCrypt_Cleanup();
-    if (ret != 0)
-        pr_err("ERROR: wolfCrypt_Cleanup() failed: %s\n", wc_GetErrorString(ret));
-    else
-        pr_info("wolfCrypt " LIBWOLFSSL_VERSION_STRING " cleanup complete.\n");
+        ret = wolfCrypt_Cleanup();
+        if (ret != 0)
+            pr_err("ERROR: wolfCrypt_Cleanup() failed: %s\n", wc_GetErrorString(ret));
+        else
+            pr_info("wolfCrypt " LIBWOLFSSL_VERSION_STRING " cleanup complete.\n");
 #else
-    ret = wolfSSL_Cleanup();
-    if (ret != WOLFSSL_SUCCESS)
-        pr_err("ERROR: wolfSSL_Cleanup() failed: %s\n", wc_GetErrorString(ret));
+        ret = wolfSSL_Cleanup();
+        if (ret != WOLFSSL_SUCCESS)
+            pr_err("ERROR: wolfSSL_Cleanup() failed: %s\n", wc_GetErrorString(ret));
+        else
+            pr_info("wolfSSL " LIBWOLFSSL_VERSION_STRING " cleanup complete.\n");
+#endif
+    }
     else
-        pr_info("wolfSSL " LIBWOLFSSL_VERSION_STRING " cleanup complete.\n");
+        ret = 0;
+
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(HAVE_FIPS)
+    wc_linuxkm_free_svr_states();
 #endif
 
     return ret;
@@ -197,7 +208,8 @@ extern const unsigned int wolfCrypt_FIPS_ro_end[];
 
 #endif /* WC_SYM_RELOC_TABLES */
 
-#ifdef HAVE_FIPS
+#if defined(HAVE_FIPS) && !defined(WOLFSSL_FIPS_DEV_NO_POST)
+
 static void lkmFipsCb(int ok, int err, const char* hash)
 {
     if ((! ok) || (err != 0))
@@ -218,7 +230,7 @@ static void lkmFipsCb(int ok, int err, const char* hash)
 #ifdef WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE
 static int updateFipsHash(void);
 #endif
-#endif /* HAVE_FIPS */
+#endif /* HAVE_FIPS && !WOLFSSL_FIPS_DEV_NO_POST */
 
 #ifdef WOLFSSL_LINUXKM_BENCHMARKS
 extern int wolfcrypt_benchmark_main(int argc, char** argv);
@@ -237,6 +249,8 @@ int wc_lkm_LockMutex(wolfSSL_Mutex* m)
         m->irq_flags = irq_flags;
         return 0;
     }
+    if (in_nmi())
+        return BUSY_E;
     if (! wc_linuxkm_can_block()) {
         /* Note, this catches calls while SAVE_VECTOR_REGISTERS()ed as
          * required, because in_softirq() is always true while saved,
@@ -643,6 +657,14 @@ static int wolfssl_init(void)
         return ret;
 #endif
 
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(HAVE_FIPS)
+    ret = wc_linuxkm_allocate_svr_states();
+    if (ret < 0) {
+        pr_err("wolfssl_init(): wc_linuxkm_allocate_svr_states() returned code %d.\n", ret);
+        return -ECANCELED;
+    }
+#endif
+
 #ifdef WC_LINUXKM_SUPPORT_DUMP_TO_FILE
 
 #ifdef WC_SYM_RELOC_TABLES
@@ -721,6 +743,7 @@ static int wolfssl_init(void)
 #endif
         if (verifyCore_len != FIPS_IN_CORE_DIGEST_SIZE*2) {
             pr_err("ERROR: compile-time FIPS hash is the wrong length (expected %d hex digits, got %zu).\n", FIPS_IN_CORE_DIGEST_SIZE*2, verifyCore_len);
+            (void)libwolfssl_cleanup();
             return -ECANCELED;
         }
     }
@@ -732,6 +755,7 @@ static int wolfssl_init(void)
         ((uintptr_t)__wc_rodata_end < (uintptr_t)wolfCrypt_FIPS_ro_end))
     {
         pr_err("ERROR: ELF segment fenceposts and FIPS fenceposts conflict.\n");
+        (void)libwolfssl_cleanup();
         return -ECANCELED;
     }
 #endif
@@ -745,6 +769,7 @@ static int wolfssl_init(void)
 #ifdef CONFIG_MODULE_SIG
     if (THIS_MODULE->sig_ok == false) {
         pr_err("ERROR: wolfSSL module load aborted -- bad or missing module signature with FIPS dynamic hash.\n");
+        (void)libwolfssl_cleanup();
         return -ECANCELED;
     }
 #endif
@@ -755,6 +780,7 @@ static int wolfssl_init(void)
     ret = updateFipsHash();
     if (ret < 0) {
         pr_err("ERROR: wolfSSL module load aborted -- updateFipsHash: %s\n",wc_GetErrorString(ret));
+        (void)libwolfssl_cleanup();
         return -ECANCELED;
     }
 
@@ -799,6 +825,7 @@ static int wolfssl_init(void)
 
         if (! canon_buf) {
             pr_err("ERROR: malloc(%d) for WOLFSSL_*_SEGMENT_CANONICALIZER failed.\n", WOLFSSL_SEGMENT_CANONICALIZER_BUFSIZ);
+            (void)libwolfssl_cleanup();
             return -ECANCELED;
         }
 
@@ -821,6 +848,7 @@ static int wolfssl_init(void)
                        (unsigned)(uintptr_t)__wc_text_start,
                        (unsigned)(uintptr_t)__wc_text_end);
                 free(canon_buf);
+                (void)libwolfssl_cleanup();
                 return -ECANCELED;
             }
             stabilized_text_hash = hash_span(canon_buf, canon_buf + text_in_out_len, stabilized_text_hash);
@@ -844,6 +872,7 @@ static int wolfssl_init(void)
                        (unsigned)(uintptr_t)__wc_rodata_start,
                        (unsigned)(uintptr_t)__wc_rodata_end);
                 free(canon_buf);
+                (void)libwolfssl_cleanup();
                 return -ECANCELED;
             }
             stabilized_rodata_hash = hash_span(canon_buf, canon_buf + rodata_in_out_len, stabilized_rodata_hash);
@@ -892,10 +921,11 @@ static int wolfssl_init(void)
     }
 #endif
 
-#ifdef HAVE_FIPS
+#if defined(HAVE_FIPS) && !defined(WOLFSSL_FIPS_DEV_NO_POST)
     ret = wolfCrypt_SetCb_fips(lkmFipsCb);
     if (ret != 0) {
         pr_err("ERROR: wolfCrypt_SetCb_fips() failed: %s\n", wc_GetErrorString(ret));
+        (void)libwolfssl_cleanup();
         return -ECANCELED;
     }
 
@@ -939,6 +969,7 @@ static int wolfssl_init(void)
                 pr_err("ERROR: could not compute new hash.  Contact customer support.\n");
             }
         }
+        (void)libwolfssl_cleanup();
         return -ECANCELED;
     }
 
@@ -950,12 +981,14 @@ static int wolfssl_init(void)
     #endif
         if (svr_disallowed_count > 0) {
             pr_err("ERROR: wc_svr_disallowed_count_current() returned %llu after fipsEntry().\n", svr_disallowed_count);
+            (void)libwolfssl_cleanup();
             return -ECANCELED;
         }
 
         ret = DISABLE_VECTOR_REGISTERS();
         if (ret != 0) {
             pr_err("ERROR: DISABLE_VECTOR_REGISTERS() for wolfCrypt_IntegrityTest_fips() returned %d.\n", ret);
+            (void)libwolfssl_cleanup();
             return -ECANCELED;
         }
 
@@ -974,26 +1007,29 @@ static int wolfssl_init(void)
 
     #if !(defined(WOLFSSL_AESNI) && !defined(USE_INTEL_SPEEDUP))
         svr_disallowed_count = wc_svr_disallowed_count_current();
-        if (svr_disallowed_count == 0) {
-            pr_err("ERROR: wc_svr_disallowed_count_current() returned %llu after DISABLE_VECTOR_REGISTERS().\n", svr_disallowed_count);
+        if (svr_disallowed_count <= svr_disallowed_snapshot) {
+            pr_err("ERROR: wc_svr_disallowed_count_current() returned %llu after wolfCrypt_IntegrityTest_fips() with DISABLE_VECTOR_REGISTERS() (snapshot %llu): inhibited-save instrumentation was not exercised.\n", svr_disallowed_count, svr_disallowed_snapshot);
+            (void)libwolfssl_cleanup();
             return -ECANCELED;
         }
     #endif
 
         if (ret != 0) {
             pr_err("ERROR: wolfCrypt_IntegrityTest_fips() with DISABLE_VECTOR_REGISTERS() returned %d.\n", ret);
+            (void)libwolfssl_cleanup();
             return -ECANCELED;
         }
 
         ret = wolfCrypt_GetStatus_fips();
         if (ret != 0) {
             pr_err("ERROR: wolfCrypt_GetStatus_fips() failed with code %d: %s\n", ret, wc_GetErrorString(ret));
+            (void)libwolfssl_cleanup();
             return -ECANCELED;
         }
     }
 #endif /* WC_LINUXKM_SVR_DYNAMIC_AUDITING */
 
-#endif /* HAVE_FIPS */
+#endif /* HAVE_FIPS && !WOLFSSL_FIPS_DEV_NO_POST */
 
 #ifdef WC_RNG_SEED_CB
     ret = wc_SetSeed_Cb(WC_GENERATE_SEED_DEFAULT);
@@ -1010,17 +1046,20 @@ static int wolfssl_init(void)
     ret = wolfCrypt_Init();
     if (ret != 0) {
         pr_err("ERROR: wolfCrypt_Init() failed: %s\n", wc_GetErrorString(ret));
+        (void)libwolfssl_cleanup();
         return -ECANCELED;
     }
 #else
     ret = wolfSSL_Init();
     if (ret != WOLFSSL_SUCCESS) {
         pr_err("ERROR: wolfSSL_Init() failed: %s\n", wc_GetErrorString(ret));
+        (void)libwolfssl_cleanup();
         return -ECANCELED;
     }
 #endif
+    libwolfssl_inited = 1;
 
-#if defined(HAVE_FIPS) && FIPS_VERSION3_GT(5,2,0)
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GT(5,2,0) && !defined(WOLFSSL_FIPS_DEV_NO_POST)
 
     #ifdef WC_LINUXKM_HAVE_STACK_DEBUG
     {
@@ -1046,14 +1085,17 @@ static int wolfssl_init(void)
 
     if (ret != 0) {
         pr_err("ERROR: wc_RunAllCast_fips() failed with return value %d\n", ret);
+        (void)libwolfssl_cleanup();
         return -ECANCELED;
     }
 
 #ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
     {
         long long unsigned int svr_disallowed_count = wc_svr_disallowed_count_current();
+        long long unsigned int svr_disallowed_snapshot;
         if (svr_disallowed_count > 0) {
             pr_err("ERROR: wc_svr_disallowed_count_current() returned %llu after wc_RunAllCast_fips().\n", svr_disallowed_count);
+            (void)libwolfssl_cleanup();
             return -ECANCELED;
         }
 
@@ -1066,8 +1108,13 @@ static int wolfssl_init(void)
         ret = DISABLE_VECTOR_REGISTERS();
         if (ret != 0) {
             pr_err("ERROR: DISABLE_VECTOR_REGISTERS() for wc_RunAllCast_fips() returned %d.\n", ret);
+            (void)libwolfssl_cleanup();
             return -ECANCELED;
         }
+
+        /* See the snapshot rationale in the wolfCrypt_IntegrityTest_fips()
+         * block above. */
+        svr_disallowed_snapshot = wc_svr_disallowed_count_current();
 
         ret = wc_RunAllCast_fips();
 
@@ -1082,19 +1129,22 @@ static int wolfssl_init(void)
     #endif
 
         svr_disallowed_count = wc_svr_disallowed_count_current();
-        if (svr_disallowed_count == 0) {
-            pr_err("ERROR: wc_svr_disallowed_count_current() returned %llu after DISABLE_VECTOR_REGISTERS().\n", svr_disallowed_count);
+        if (svr_disallowed_count <= svr_disallowed_snapshot) {
+            pr_err("ERROR: wc_svr_disallowed_count_current() returned %llu after wc_RunAllCast_fips() with DISABLE_VECTOR_REGISTERS() (snapshot %llu): inhibited-save instrumentation was not exercised.\n", svr_disallowed_count, svr_disallowed_snapshot);
+            (void)libwolfssl_cleanup();
             return -ECANCELED;
         }
 
         if (ret != 0) {
             pr_err("ERROR: wc_RunAllCast_fips() with DISABLE_VECTOR_REGISTERS() returned %d.\n", ret);
+            (void)libwolfssl_cleanup();
             return -ECANCELED;
         }
 
         ret = wolfCrypt_GetStatus_fips();
         if (ret != 0) {
             pr_err("ERROR: wolfCrypt_GetStatus_fips() failed with code %d: %s\n", ret, wc_GetErrorString(ret));
+            (void)libwolfssl_cleanup();
             return -ECANCELED;
         }
     }
@@ -1127,7 +1177,7 @@ static int wolfssl_init(void)
 #endif
         );
 
-#endif /* HAVE_FIPS && FIPS_VERSION3_GT(5,2,0) */
+#endif /* HAVE_FIPS && FIPS_VERSION3_GT(5,2,0) && !WOLFSSL_FIPS_DEV_NO_POST */
 
 #ifdef FIPS_OPTEST
     #ifdef HAVE_WC_FIPS_OPTEST_CONTESTFAILURE_EXPORT
@@ -1136,6 +1186,7 @@ static int wolfssl_init(void)
     conTestFailure_ptr = (wolfSSL_Atomic_Int *)my_kallsyms_lookup_name("conTestFailure");
     if (conTestFailure_ptr == NULL) {
         pr_err("ERROR: couldn't obtain conTestFailure_ptr.\n");
+        (void)libwolfssl_cleanup();
         return -ECANCELED;
     }
     #endif
@@ -1143,6 +1194,7 @@ static int wolfssl_init(void)
     ret = linuxkm_lkcapi_sysfs_install_node(&FIPS_optest_trig_attr, &installed_sysfs_FIPS_optest_trig_files);
     if (ret != 0) {
         pr_err("ERROR: linuxkm_lkcapi_sysfs_install_node() failed for %s (code %d).\n", FIPS_optest_trig_attr.attr.name, ret);
+        (void)libwolfssl_cleanup();
         return -ECANCELED;
     }
 
@@ -1150,11 +1202,13 @@ static int wolfssl_init(void)
     ret = linuxkm_lkcapi_sysfs_install_node(&FIPS_optest_trig_audit_accel_attr, &installed_sysfs_FIPS_optest_trig_audit_accel_files);
     if (ret != 0) {
         pr_err("ERROR: linuxkm_lkcapi_sysfs_install_node() failed for %s (code %d).\n", FIPS_optest_trig_audit_accel_attr.attr.name, ret);
+        (void)libwolfssl_cleanup();
         return -ECANCELED;
     }
     ret = linuxkm_lkcapi_sysfs_install_node(&FIPS_optest_trig_audit_c_attr, &installed_sysfs_FIPS_optest_trig_audit_c_files);
     if (ret != 0) {
         pr_err("ERROR: linuxkm_lkcapi_sysfs_install_node() failed for %s (code %d).\n", FIPS_optest_trig_audit_c_attr.attr.name, ret);
+        (void)libwolfssl_cleanup();
         return -ECANCELED;
     }
 #endif
@@ -1198,6 +1252,7 @@ static int wolfssl_init(void)
     ret = wolfCrypt_GetStatus_fips();
     if (ret != 0) {
         pr_err("ERROR: wolfCrypt_GetStatus_fips() after reset failed with code %d: %s\n", ret, wc_GetErrorString(ret));
+        (void)libwolfssl_cleanup();
         return -ECANCELED;
     }
 #endif
@@ -1227,7 +1282,7 @@ static int wolfssl_init(void)
     }
     pr_info("wolfCrypt self-test passed.\n");
 #else
-#if !defined(HAVE_FIPS) || FIPS_VERSION3_LE(5,2,0)
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_LE(5,2,0) || defined(WOLFSSL_FIPS_DEV_NO_POST)
     pr_info("skipping full wolfcrypt_test() "
             "(configure with --enable-crypttests to enable).\n");
 #endif
@@ -1326,8 +1381,6 @@ static void wolfssl_exit(void)
 #endif
 {
 #ifdef HAVE_FIPS
-    int ret;
-
     (void)linuxkm_lkcapi_sysfs_deinstall_node(&FIPS_rerun_self_test_attr, &installed_sysfs_FIPS_files);
 #ifdef FIPS_OPTEST
     (void)linuxkm_lkcapi_sysfs_deinstall_node(&FIPS_optest_trig_attr, &installed_sysfs_FIPS_optest_trig_files);
@@ -1343,13 +1396,15 @@ static void wolfssl_exit(void)
     (void)linuxkm_lkcapi_sysfs_deinstall();
 #endif
 
-#ifdef HAVE_FIPS
-    ret = wc_RunAllCast_fips();
-    if (ret != 0) {
-        pr_err("ERROR: wc_RunAllCast_fips() failed at shutdown with return value %d\n", ret);
+#if defined(HAVE_FIPS) && !defined(WOLFSSL_FIPS_DEV_NO_POST)
+    {
+        int ret = wc_RunAllCast_fips();
+        if (ret != 0) {
+            pr_err("ERROR: wc_RunAllCast_fips() failed at shutdown with return value %d\n", ret);
+        }
+        else
+            pr_info("wolfCrypt FIPS re-self-test succeeded at unload: all algorithms re-verified.\n");
     }
-    else
-        pr_info("wolfCrypt FIPS re-self-test succeeded at unload: all algorithms re-verified.\n");
 #endif
 
     (void)libwolfssl_cleanup();
@@ -1956,7 +2011,7 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 
 #endif /* WC_SYM_RELOC_TABLES */
 
-#if defined(HAVE_FIPS) && defined(WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE)
+#if defined(HAVE_FIPS) && defined(WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE) && !defined(WOLFSSL_FIPS_DEV_NO_POST)
 
 #include <wolfssl/wolfcrypt/coding.h>
 
@@ -2142,7 +2197,7 @@ static int updateFipsHash(void)
     return ret;
 }
 
-#endif /* HAVE_FIPS && WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE */
+#endif /* HAVE_FIPS && WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE && !WOLFSSL_FIPS_DEV_NO_POST */
 
 #ifdef CONFIG_HAVE_KPROBES
 
