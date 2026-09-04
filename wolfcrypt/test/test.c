@@ -46644,6 +46644,152 @@ done:
 #endif /* WOLFSSL_SE050 && WOLFSSL_SE050_ONLY_KEY_ID && sign && verify &&
         * key export */
 
+
+#if defined(WOLFSSL_CUSTOM_CURVES) && defined(WOLFSSL_ASN_TEMPLATE) && \
+    !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_SMALL_STACK)
+/* Append a DER definite length. */
+static word32 ecc_ssdd_len(byte* out, word32 n)
+{
+    if (n < 0x80U) {
+        out[0] = (byte)n;
+        return 1;
+    }
+    if (n < 0x100U) {
+        out[0] = 0x81U;
+        out[1] = (byte)n;
+        return 2;
+    }
+    out[0] = 0x82U;
+    out[1] = (byte)(n >> 8);
+    out[2] = (byte)(n & 0xffU);
+    return 3;
+}
+/* Append tag || length || value at off; return the new offset. */
+static word32 ecc_ssdd_tlv(byte* out, word32 off, byte tag, const byte* val,
+    word32 vlen)
+{
+    out[off++] = tag;
+    off += ecc_ssdd_len(out + off, vlen);
+    if (vlen > 0) {
+        XMEMCPY(out + off, val, vlen);
+    }
+    return off + vlen;
+}
+/* Build an explicit-parameter EC SubjectPublicKeyInfo with the requested
+ * field byte lengths (prime length is also the curve size). out must hold at
+ * least 2048 bytes. Returns the encoded length. */
+static word32 ecc_ssdd_build(byte* out, word32 primeLen, word32 aLen,
+    word32 bLen, word32 orderLen)
+{
+    static const byte primeFieldOid[] =
+        { 0x2a,0x86,0x48,0xce,0x3d,0x01,0x01 };  /* 1.2.840.10045.1.1 */
+    static const byte ecPubKeyOid[] =
+        { 0x2a,0x86,0x48,0xce,0x3d,0x02,0x01 };  /* 1.2.840.10045.2.1 */
+    static const byte ver2[1] = { 0x02 };
+    static const byte cof1[1] = { 0x01 };
+    byte num[512];
+    byte inner[1024];
+    byte body[2048];
+    word32 io, bo, i;
+
+    num[0] = 0x01;                       /* positive: MSB clear, no pad */
+    for (i = 1; i < primeLen; i++) num[i] = 0x11;
+    io = ecc_ssdd_tlv(inner, 0, 0x06, primeFieldOid, sizeof(primeFieldOid));
+    io = ecc_ssdd_tlv(inner, io, 0x02, num, primeLen);
+    bo = ecc_ssdd_tlv(body, 0, 0x02, ver2, 1);       /* version 2 */
+    bo = ecc_ssdd_tlv(body, bo, 0x30, inner, io);    /* fieldID SEQ */
+
+    XMEMSET(num, 0x00, sizeof(num));
+    io = ecc_ssdd_tlv(inner, 0, 0x04, num, aLen);
+    io = ecc_ssdd_tlv(inner, io, 0x04, num, bLen);
+    bo = ecc_ssdd_tlv(body, bo, 0x30, inner, io);    /* curve SEQ { a, b } */
+
+    inner[0] = 0x04;                     /* base 0x04 || X(size) || Y(size) */
+    for (i = 0; i < primeLen; i++) inner[1 + i] = 0x22;
+    for (i = 0; i < primeLen; i++) inner[1 + primeLen + i] = 0x33;
+    bo = ecc_ssdd_tlv(body, bo, 0x04, inner, 1 + 2 * primeLen);
+
+    num[0] = 0x01;
+    for (i = 1; i < orderLen; i++) num[i] = 0x11;
+    bo = ecc_ssdd_tlv(body, bo, 0x02, num, orderLen);
+    bo = ecc_ssdd_tlv(body, bo, 0x02, cof1, 1);      /* cofactor 1 */
+
+    io = ecc_ssdd_tlv(inner, 0, 0x06, ecPubKeyOid, sizeof(ecPubKeyOid));
+    io = ecc_ssdd_tlv(inner, io, 0x30, body, bo);    /* AlgId params SEQ */
+
+    bo = ecc_ssdd_tlv(body, 0, 0x30, inner, io);     /* AlgorithmIdentifier */
+    {
+        /* Point 0x04 || X || Y, each ordinate the curve size (primeLen). */
+        byte pub[2 + 2 * (MAX_ECC_BYTES + 8)];
+        word32 pl = 0;
+        pub[pl++] = 0x00;
+        pub[pl++] = 0x04;
+        for (i = 0; i < primeLen; i++) pub[pl++] = 0x44;
+        for (i = 0; i < primeLen; i++) pub[pl++] = 0x55;
+        bo = ecc_ssdd_tlv(body, bo, 0x03, pub, pl);  /* pubkey BIT STRING */
+    }
+    return ecc_ssdd_tlv(out, 0, 0x30, body, bo);     /* SPKI SEQ */
+}
+
+/* Regression test for issue 11288: explicit EC-domain field lengths taken
+ * from DER must be bounded before conversion to the fixed hex-string buffers,
+ * or an oversized prime/coordinate/A/B/order overflows the ecc_set_type.
+ * The SPKI is built at run time so lengths are relative to MAX_ECC_BYTES. */
+static wc_test_ret_t ecc_ssdd_overflow_test(void)
+{
+    wc_test_ret_t ret = 0;
+    word32 mb = (word32)MAX_ECC_BYTES;
+    word32 ov = (word32)MAX_ECC_BYTES + 8;
+    byte*  der;
+    word32 len, idx, c;
+    ecc_key key;
+    /* {prime, A, B, order} oversized in turn; then the all-at-bound control. */
+    word32 lens[5][4];
+    int    expectReject[5];
+
+    lens[0][0]=ov; lens[0][1]=mb; lens[0][2]=mb; lens[0][3]=mb; expectReject[0]=1;
+    lens[1][0]=mb; lens[1][1]=ov; lens[1][2]=mb; lens[1][3]=mb; expectReject[1]=1;
+    lens[2][0]=mb; lens[2][1]=mb; lens[2][2]=ov; lens[2][3]=mb; expectReject[2]=1;
+    lens[3][0]=mb; lens[3][1]=mb; lens[3][2]=mb; lens[3][3]=ov; expectReject[3]=1;
+    lens[4][0]=mb; lens[4][1]=mb; lens[4][2]=mb; lens[4][3]=mb; expectReject[4]=0;
+
+    der = (byte*)XMALLOC(2048, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (der == NULL)
+        return WC_TEST_RET_ENC_NC;
+
+    for (c = 0; c < 5; c++) {
+        int r;
+        len = ecc_ssdd_build(der, lens[c][0], lens[c][1], lens[c][2],
+                             lens[c][3]);
+        idx = 0;
+        ret = wc_ecc_init(&key);
+        if (ret != 0)
+            break;
+        r = wc_EccPublicKeyDecode(der, &idx, &key, len);
+        wc_ecc_free(&key);
+        if (expectReject[c]) {
+            /* Oversized field must be rejected, not overflow the buffers. */
+            if (r != WC_NO_ERR_TRACE(ASN_PARSE_E)) {
+                ret = WC_TEST_RET_ENC_I((int)c);
+                break;
+            }
+        }
+        else {
+            /* Exactly MAX_ECC_BYTES must not be rejected by the length check. */
+            if (r == WC_NO_ERR_TRACE(ASN_PARSE_E)) {
+                ret = WC_TEST_RET_ENC_I((int)c);
+                break;
+            }
+        }
+        ret = 0;
+    }
+
+    XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+#endif /* WOLFSSL_CUSTOM_CURVES && WOLFSSL_ASN_TEMPLATE &&
+        * !WOLFSSL_NO_MALLOC && !WOLFSSL_SMALL_STACK */
+
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test(void)
 {
     wc_test_ret_t ret;
@@ -46693,6 +46839,15 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test(void)
     ret = ecc_test_custom_curves(&rng);
     if (ret != 0) {
         printf("Custom\n");
+        goto done;
+    }
+#endif
+
+#if defined(WOLFSSL_CUSTOM_CURVES) && defined(WOLFSSL_ASN_TEMPLATE) && \
+    !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_SMALL_STACK)
+    ret = ecc_ssdd_overflow_test();
+    if (ret != 0) {
+        printf("SpecifiedECDomain overflow\n");
         goto done;
     }
 #endif
