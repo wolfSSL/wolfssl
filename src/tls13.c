@@ -6257,6 +6257,12 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
         }
     }
 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+#ifdef WOLFSSL_QUIC
+    else if (WOLFSSL_IS_QUIC(ssl)) {
+        WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
+        return OUT_OF_ORDER_E;
+    }
+#endif
     else if (len == 0) {
         /* RFC 8446 Section 4.3.2: a post-handshake CertificateRequest context
          * MUST be non-empty and unique for the connection. */
@@ -16609,9 +16615,9 @@ int wolfSSL_CTX_allow_post_handshake_auth(WOLFSSL_CTX* ctx)
 /* Allow post-handshake authentication in TLS v1.3 connection.
  *
  * ssl  The SSL/TLS object.
- * returns BAD_FUNC_ARG when ssl is NULL, or not using TLS v1.3,
- * SIDE_ERROR when not a client, BAD_STATE_E when called after the handshake
- * has started, and 0 on success.
+ * returns BAD_FUNC_ARG when ssl is NULL, not using TLS v1.3, or running over
+ * QUIC, SIDE_ERROR when not a client, BAD_STATE_E when called after the
+ * handshake has started, and 0 on success.
  *
  * Must be called before wolfSSL_connect() so the post_handshake_auth
  * extension can be included in the ClientHello.
@@ -16620,6 +16626,10 @@ int wolfSSL_allow_post_handshake_auth(WOLFSSL* ssl)
 {
     if (ssl == NULL || !IsAtLeastTLSv1_3(ssl->version))
         return BAD_FUNC_ARG;
+#ifdef WOLFSSL_QUIC
+    if (WOLFSSL_IS_QUIC(ssl))
+        return BAD_FUNC_ARG;
+#endif
     if (ssl->options.side == WOLFSSL_SERVER_END)
         return SIDE_ERROR;
     if (ssl->options.handShakeState != NULL_STATE)
@@ -16645,6 +16655,10 @@ int wolfSSL_request_certificate(WOLFSSL* ssl)
 
     if (ssl == NULL || !IsAtLeastTLSv1_3(ssl->version))
         return BAD_FUNC_ARG;
+#ifdef WOLFSSL_QUIC
+    if (WOLFSSL_IS_QUIC(ssl))
+        return BAD_FUNC_ARG;
+#endif
 #ifndef NO_WOLFSSL_SERVER
     if (ssl->options.side == WOLFSSL_CLIENT_END)
         return SIDE_ERROR;

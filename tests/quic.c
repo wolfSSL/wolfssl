@@ -178,6 +178,15 @@ static int test_set_quic_method(void) {
         ExpectTrue(wolfSSL_set_quic_method(ssl, &dummy_method) == WOLFSSL_SUCCESS);
         ExpectTrue(wolfSSL_is_quic(ssl));
         /* Check some default, initial behaviour */
+#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+        /* RFC 9001 Section 4.4: no post-handshake authentication over QUIC */
+        if (valids[i].is_server) {
+            ExpectIntEQ(wolfSSL_request_certificate(ssl), BAD_FUNC_ARG);
+        }
+        else {
+            ExpectIntEQ(wolfSSL_allow_post_handshake_auth(ssl), BAD_FUNC_ARG);
+        }
+#endif
         ExpectTrue(wolfSSL_set_quic_transport_params(ssl, NULL, 0) == WOLFSSL_SUCCESS);
         wolfSSL_get_peer_quic_transport_params(ssl, &data, &data_len);
         ExpectNull(data);
@@ -1822,6 +1831,52 @@ static int test_quic_key_update_rejected(int verbose) {
     return EXPECT_RESULT();
 }
 
+#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+static int test_quic_cert_req_rejected(int verbose) {
+    EXPECT_DECLS;
+    WOLFSSL_CTX * ctx_c = NULL;
+    WOLFSSL_CTX * ctx_s = NULL;
+    QuicTestContext tclient, tserver;
+    QuicConversation conv;
+    uint8_t lbuffer[16];
+    size_t len;
+    int ret;
+
+    ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile,
+                                                WOLFSSL_FILETYPE_PEM));
+    ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile,
+                                               WOLFSSL_FILETYPE_PEM));
+    ExpectIntEQ(wolfSSL_CTX_allow_post_handshake_auth(ctx_c), 0);
+
+    /* complete a normal QUIC handshake */
+    QuicTestContext_init(&tclient, ctx_c, "client", verbose);
+    QuicTestContext_init(&tserver, ctx_s, "server", verbose);
+    QuicConversation_init(&conv, &tclient, &tserver);
+    QuicConversation_do(&conv);
+
+    /* RFC 9001 section 4.4: servers must not send post-handshake
+     * CertificateRequest messages and clients must treat their receipt as a
+     * connection error. */
+    len = fake_record(certificate_request, OPAQUE8_LEN, lbuffer);
+    lbuffer[HANDSHAKE_HEADER_SZ] = 0;
+    ExpectIntEQ(wolfSSL_provide_quic_data(tclient.ssl,
+                wolfssl_encryption_application, lbuffer, len), WOLFSSL_SUCCESS);
+    ret = wolfSSL_process_quic_post_handshake(tclient.ssl);
+    ExpectIntEQ(ret, WC_NO_ERR_TRACE(OUT_OF_ORDER_E));
+
+    QuicTestContext_free(&tclient);
+    QuicTestContext_free(&tserver);
+
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    printf("    test_quic_cert_req_rejected: %s\n",
+           EXPECT_RESULT() ? pass : fail);
+    return EXPECT_RESULT();
+}
+#endif /* WOLFSSL_POST_HANDSHAKE_AUTH */
+
 /* This has gotten a bit out of hand. */
 #if (defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && \
     (defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
@@ -2453,6 +2508,9 @@ int QuicTest(void)
     if ((ret = test_quic_big_client_hello(verbose)) != TEST_SUCCESS) goto leave;
     if ((ret = test_quic_server_hello_fail(verbose)) != TEST_SUCCESS) goto leave;
     if ((ret = test_quic_key_update_rejected(verbose)) != TEST_SUCCESS) goto leave;
+#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+    if ((ret = test_quic_cert_req_rejected(verbose)) != TEST_SUCCESS) goto leave;
+#endif
 #ifdef REALLY_HAVE_ALPN_AND_SNI
     if ((ret = test_quic_alpn(verbose)) != TEST_SUCCESS) goto leave;
 #endif /* REALLY_HAVE_ALPN_AND_SNI */
