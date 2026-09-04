@@ -81419,16 +81419,16 @@ typedef struct {
     int hkdfPendArm;   /* pend the next this-many HKDF callback calls */
     int hkdfPendCount; /* pends issued; test asserts non-zero */
 #endif
-#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM_CRYPTOCB)
+#if defined(WOLFSSL_SM2)
     int sm2SignCount;     /* SM2 sign callback invocations */
     int sm2VerifyCount;   /* SM2 verify callback invocations */
     int sm2SecretCount;   /* SM2 shared secret callback invocations */
     int sm2DigestCount;   /* SM2 create digest callback invocations */
 #endif
-#if defined(WOLFSSL_SM3) && defined(WOLFSSL_SM_CRYPTOCB)
+#if defined(WOLFSSL_SM3)
     int sm3Count;         /* SM3 hash callback invocations */
 #endif
-#if defined(WOLFSSL_SM4) && defined(WOLFSSL_SM_CRYPTOCB)
+#if defined(WOLFSSL_SM4)
     /* Counted per direction ([0] decrypt, [1] encrypt) so a decrypt entry
      * point that was never wired up cannot hide behind the encrypt one.
      * Counter mode has a single entry point for both directions, so it keeps
@@ -82935,7 +82935,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         }
         #endif
     #endif /* HAVE_ECC */
-    #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM_CRYPTOCB)
+    #if defined(WOLFSSL_SM2)
         if (info->pk.type == WC_PK_TYPE_SM2_SIGN) {
         #ifdef HAVE_ECC_SIGN
             myCtx->sm2SignCount++;
@@ -83000,7 +83000,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             info->pk.sm2digest.key->devId = devIdArg;
         #endif
         }
-    #endif /* WOLFSSL_SM2 && WOLFSSL_SM_CRYPTOCB */
+    #endif /* WOLFSSL_SM2 */
     #ifdef HAVE_CURVE25519
         if (info->pk.type == WC_PK_TYPE_CURVE25519_KEYGEN) {
             /* set devId to invalid, so software is used */
@@ -84064,7 +84064,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         }
     #endif /* !NO_DES3 */
 #endif /* !NO_AES || !NO_DES3 */
-#if defined(WOLFSSL_SM4) && defined(WOLFSSL_SM_CRYPTOCB)
+#if defined(WOLFSSL_SM4)
     #ifdef WOLFSSL_SM4_ECB
         if (info->cipher.type == WC_CIPHER_SM4_ECB) {
             if (info->cipher.sm4ecb.sm4 == NULL)
@@ -84246,7 +84246,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             }
         }
     #endif /* WOLFSSL_SM4_CCM */
-#endif /* WOLFSSL_SM4 && WOLFSSL_SM_CRYPTOCB */
+#endif /* WOLFSSL_SM4 */
     }
 #if !defined(NO_SHA) || !defined(NO_SHA256) || \
     defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512) || \
@@ -84562,7 +84562,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     #endif /* WOLFSSL_SHAKE256 */
         else
     #endif
-    #if defined(WOLFSSL_SM3) && defined(WOLFSSL_SM_CRYPTOCB)
+    #if defined(WOLFSSL_SM3)
         if (info->hash.type == WC_HASH_TYPE_SM3) {
             if (info->hash.sm3 == NULL)
                 return NOT_COMPILED_IN;
@@ -84588,7 +84588,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             info->hash.sm3->devId = devIdArg;
         }
         else
-    #endif /* WOLFSSL_SM3 && WOLFSSL_SM_CRYPTOCB */
+    #endif /* WOLFSSL_SM3 */
         {
         }
     }
@@ -85899,16 +85899,16 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     myCtx.hkdfPendArm = 0;
     myCtx.hkdfPendCount = 0;
 #endif
-#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM_CRYPTOCB)
+#if defined(WOLFSSL_SM2)
     myCtx.sm2SignCount = 0;
     myCtx.sm2VerifyCount = 0;
     myCtx.sm2SecretCount = 0;
     myCtx.sm2DigestCount = 0;
 #endif
-#if defined(WOLFSSL_SM3) && defined(WOLFSSL_SM_CRYPTOCB)
+#if defined(WOLFSSL_SM3)
     myCtx.sm3Count = 0;
 #endif
-#if defined(WOLFSSL_SM4) && defined(WOLFSSL_SM_CRYPTOCB)
+#if defined(WOLFSSL_SM4)
     XMEMSET(myCtx.sm4EcbCount, 0, sizeof(myCtx.sm4EcbCount));
     XMEMSET(myCtx.sm4CbcCount, 0, sizeof(myCtx.sm4CbcCount));
     myCtx.sm4CtrCount = 0;
@@ -86331,7 +86331,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
         ret = sm4_test();
     /* Confirm every configured SM4 mode was routed through myCryptoDevCb and
      * not handled in software behind the callback's back. */
-    #ifdef WOLFSSL_SM_CRYPTOCB
     #ifdef WOLFSSL_SM4_ECB
     if (ret == 0 && ((myCtx.sm4EcbCount[0] == 0) ||
                      (myCtx.sm4EcbCount[1] == 0)))
@@ -86357,7 +86356,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
                      (myCtx.sm4CcmCount[1] == 0)))
         ret = WC_TEST_RET_ENC_NC;
     #endif
-    #endif /* WOLFSSL_SM_CRYPTOCB */
 #endif /* WOLFSSL_SM4 */
 #ifndef NO_SHA
     if (ret == 0)
@@ -86414,10 +86412,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 #ifdef WOLFSSL_SM3
     if (ret == 0)
         ret = sm3_test();
-    #ifdef WOLFSSL_SM_CRYPTOCB
     if (ret == 0 && myCtx.sm3Count == 0)
         ret = WC_TEST_RET_ENC_NC;
-    #endif
 #endif /* WOLFSSL_SM3 */
 #ifndef NO_HMAC
     #ifndef NO_SHA
@@ -86525,7 +86521,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     }
 #endif /* HAVE_ED448 */
 
-#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM_CRYPTOCB) && \
+#if defined(WOLFSSL_SM2) && \
     defined(HAVE_ECC_SIGN) && defined(HAVE_ECC_VERIFY) && !defined(WC_NO_RNG)
     if (ret == 0) {
         WC_RNG sm2Rng;
@@ -86724,7 +86720,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
         WC_FREE_VAR_EX(sm2KeyB, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         WC_FREE_VAR_EX(sm2KeyA, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     }
-#endif /* WOLFSSL_SM2 && WOLFSSL_SM_CRYPTOCB */
+#endif /* WOLFSSL_SM2 */
 
 #if defined(WOLFSSL_CMAC) && defined(WOLF_CRYPTO_CB_FREE) && \
     !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT)
