@@ -126,6 +126,7 @@ int test_tls13_early_data_AEAD_limit_exact(void);
 int test_tls13_user_canceled_fatal_level(void);
 int test_tls13_user_canceled_encrypted(void);
 int test_tls12_fatal_alert_closes_and_evicts(void);
+int test_tls13_no_app_data_after_fatal_alert(void);
 int test_tls13_pqc_hybrid_async_server(void);
 int test_tls13_pha_status_request(void);
 int test_tls13_x25519_keyshare_masks_reserved_bit(void);
@@ -233,6 +234,7 @@ int test_tls13_x25519_keyshare_masks_reserved_bit(void);
     TEST_DECL_GROUP("tls13", test_tls13_user_canceled_fatal_level), \
     TEST_DECL_GROUP("tls13", test_tls13_user_canceled_encrypted), \
     TEST_DECL_GROUP("tls13", test_tls12_fatal_alert_closes_and_evicts), \
+    TEST_DECL_GROUP("tls13", test_tls13_no_app_data_after_fatal_alert), \
     TEST_DECL_GROUP("tls13", test_tls13_pqc_hybrid_async_server), \
     TEST_DECL_GROUP("tls13", test_tls13_pha_status_request), \
     TEST_DECL_GROUP("tls13", test_tls13_x25519_keyshare_masks_reserved_bit)

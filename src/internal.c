@@ -29020,6 +29020,14 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
         return WOLFSSL_FATAL_ERROR;
     }
 
+    /* RFC 8446 6.2 - no new data write after fatal alert or otherwise closed */
+    if (ssl->options.isClosed) {
+        WOLFSSL_MSG("Connection is closed, not sending new data");
+        if (ssl->error == 0)
+            ssl->error = SOCKET_PEER_CLOSED_E;
+        return WOLFSSL_FATAL_ERROR;
+    }
+
 #ifdef WOLFSSL_THREADED_CRYPT
     ret = SendAsyncData(ssl);
     if (ret != 0) {
