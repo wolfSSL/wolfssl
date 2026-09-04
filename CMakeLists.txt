@@ -3260,6 +3260,18 @@ if(WOLFSSL_ALTERA_FCS)
     override_cache(WOLFSSL_CRYPTOCB "yes")
 endif()
 
+# NXP EdgeLock Secure Enclave, the security subsystem that replaces CAAM on
+# i.MX 8ULP / 93 / 95. Implemented as a crypto callback device, so enabling it
+# turns callbacks on the way --enable-ele does. It has to sit ahead of the
+# WOLFSSL_CRYPTOCB consumers below for the override to be seen.
+add_option("WOLFSSL_ELE"
+    "Enable NXP EdgeLock Secure Enclave support (default: disabled)"
+    "no" "yes;no")
+if (WOLFSSL_ELE)
+    override_cache(WOLFSSL_CRYPTOCB "yes")
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_NXP_ELE")
+endif()
+
 add_option("WOLFSSL_CRYPTOCB_NO_SW_TEST"
     "Disable crypto callback SW testing (default: disabled)"
     "no" "yes;no")

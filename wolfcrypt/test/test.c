@@ -509,6 +509,9 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
 #if defined(WOLFSSL_SEC_QORIQ) && defined(WOLFSSL_SEC_QORIQ_SIM)
     #include <wolfssl/wolfcrypt/port/nxp/sec_qoriq.h>
 #endif
+#ifdef WOLFSSL_NXP_ELE
+    #include <wolfssl/wolfcrypt/port/nxp/ele.h>
+#endif
 #ifdef WOLF_CRYPTO_CB
     #include <wolfssl/wolfcrypt/cryptocb.h>
 #ifdef WOLFSSL_SILABS_CRYPTOCB
@@ -1224,6 +1227,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void);
 #endif
 #if defined(WOLFSSL_SEC_QORIQ) && defined(WOLFSSL_SEC_QORIQ_SIM)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sec_qoriq_test(void);
+#endif
+#if defined(WOLFSSL_NXP_ELE) && defined(WOLFSSL_NXP_ELE_TRNG) && \
+    !defined(WC_NO_RNG) && !defined(NO_FILESYSTEM)
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ele_trng_test(void);
+static int ele_trng_unavailable = 0;
 #endif
 #ifdef WOLFSSL_CERT_PIV
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t certpiv_test(void);
@@ -3801,6 +3809,16 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_FAIL("QorIQ SEC sim test failed!\n", ret);
     else
         TEST_PASS("QorIQ SEC sim test passed!\n");
+#endif
+
+#if defined(WOLFSSL_NXP_ELE) && defined(WOLFSSL_NXP_ELE_TRNG) && \
+    !defined(WC_NO_RNG) && !defined(NO_FILESYSTEM)
+    if ( (ret = ele_trng_test()) != 0)
+        TEST_FAIL("ELE TRNG  test failed!\n", ret);
+    else if (ele_trng_unavailable)
+        printf("ELE TRNG  test skipped: no readable enclave hwrng\n");
+    else
+        TEST_PASS("ELE TRNG  test passed!\n");
 #endif
 
 #if defined(WOLFSSL_RTL8735B_HUK) && defined(WOLFSSL_RTL8735B_HOST_TEST)
@@ -100492,6 +100510,60 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sec_qoriq_test(void)
     return ret;
 }
 #endif /* WOLFSSL_SEC_QORIQ && WOLFSSL_SEC_QORIQ_SIM */
+
+#if defined(WOLFSSL_NXP_ELE) && defined(WOLFSSL_NXP_ELE_TRNG) && \
+    !defined(WC_NO_RNG) && !defined(NO_FILESYSTEM)
+/* Drives the enclave TRNG through the crypto callback, which is the only route
+ * an application has: wc_ele_trng_read() is WOLFSSL_LOCAL. Registration itself
+ * fails with WC_HW_E unless the enclave backs a readable hwrng node, which is
+ * the skip, so reaching the entropy check means the device really answered.
+ * Note the DRBG reports a failed seed as RNG_FAILURE_E, not the WC_HW_E the
+ * port returns internally. A host exercises the read path with
+ * WOLFSSL_NXP_ELE_NO_TRNG_CHECK and WOLFSSL_NXP_ELE_TRNG_DEVICE set to a
+ * readable entropy source. */
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ele_trng_test(void)
+{
+    WC_RNG rng;
+    byte buf[64];
+    wc_test_ret_t ret;
+    int i, nonZero = 0;
+
+    ret = wc_EleCryptoCb_RegisterDevice(WOLFSSL_NXP_ELE_DEVID);
+    if (ret == WC_NO_ERR_TRACE(WC_HW_E)) {
+        ele_trng_unavailable = 1;
+        return 0;
+    }
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    XMEMSET(buf, 0, sizeof(buf));
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, WOLFSSL_NXP_ELE_DEVID);
+    if (ret != 0) {
+        wc_EleCryptoCb_UnRegisterDevice(WOLFSSL_NXP_ELE_DEVID);
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+
+    ret = wc_RNG_GenerateBlock(&rng, buf, (word32)sizeof(buf));
+    if (ret == 0) {
+        for (i = 0; i < (int)sizeof(buf); i++) {
+            if (buf[i] != 0) {
+                nonZero = 1;
+                break;
+            }
+        }
+        if (nonZero == 0)
+            ret = WC_TEST_RET_ENC_NC;
+    }
+    else {
+        ret = WC_TEST_RET_ENC_EC(ret);
+    }
+
+    wc_FreeRng(&rng);
+    wc_EleCryptoCb_UnRegisterDevice(WOLFSSL_NXP_ELE_DEVID);
+    return ret;
+}
+#endif /* WOLFSSL_NXP_ELE && WOLFSSL_NXP_ELE_TRNG && !WC_NO_RNG &&
+          !NO_FILESYSTEM */
 
 #ifdef WOLFSSL_CERT_PIV
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t certpiv_test(void)
