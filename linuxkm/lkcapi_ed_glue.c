@@ -2070,6 +2070,12 @@ static int linuxkm_test_eddsa_driver(const char * driver,
         /* EdDSA signing is deterministic (RFC 8032) -- the signature
          * must match the KAT value byte-exactly. */
         ret = crypto_akcipher_sign(req);
+        if (ret == -ENOSYS) {
+            /* RHEL akcipher crippled sign ops */
+            pr_info("%s: note, crypto_akcipher_sign() returned -ENOSYS -- sign ops not available through LKCAPI.\n", __func__);
+            test_rc = 0;
+            goto test_eddsa_end;
+        }
         if ((ret != 0) || (req->dst_len != sig_len)) {
             pr_err("error: crypto_akcipher_sign returned %d, "
                    "dst_len %u\n", ret, req->dst_len);
