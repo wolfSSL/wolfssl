@@ -2,12 +2,12 @@
 
 mod common;
 
-#[cfg(random)]
+#[cfg(all(ed25519_make_key, random))]
 use wolfssl_wolfcrypt::random::RNG;
 use wolfssl_wolfcrypt::ed25519::*;
 
 #[test]
-#[cfg(all(ed25519_import, ed25519_export, random))]
+#[cfg(all(ed25519_make_key, ed25519_import, ed25519_export, random))]
 fn test_make_public() {
     common::setup();
 
@@ -22,7 +22,7 @@ fn test_make_public() {
 }
 
 #[test]
-#[cfg(random)]
+#[cfg(all(ed25519_make_key, random))]
 fn test_check_key() {
     let mut rng = RNG::new().expect("Error creating RNG");
     let mut ed = Ed25519::generate(&mut rng).expect("Error with generate()");
@@ -226,7 +226,7 @@ fn test_ph_sign_verify() {
 // invalid signature is reported as Ok(false) rather than an error.
 
 #[test]
-#[cfg(all(ed25519_sign, ed25519_verify, random))]
+#[cfg(all(ed25519_make_key, ed25519_sign, ed25519_verify, random))]
 fn test_verify_msg_bad_sig() {
     common::setup();
 
@@ -242,7 +242,7 @@ fn test_verify_msg_bad_sig() {
 }
 
 #[test]
-#[cfg(all(ed25519_sign, ed25519_verify, random))]
+#[cfg(all(ed25519_make_key, ed25519_sign, ed25519_verify, random))]
 fn test_verify_msg_ex_bad_sig() {
     common::setup();
 
@@ -258,7 +258,7 @@ fn test_verify_msg_ex_bad_sig() {
 }
 
 #[test]
-#[cfg(all(ed25519_sign, ed25519_verify, random))]
+#[cfg(all(ed25519_make_key, ed25519_sign, ed25519_verify, random))]
 fn test_verify_msg_ctx_bad_sig() {
     common::setup();
 
@@ -275,7 +275,7 @@ fn test_verify_msg_ctx_bad_sig() {
 }
 
 #[test]
-#[cfg(all(ed25519_sign, ed25519_verify, random))]
+#[cfg(all(ed25519_make_key, ed25519_sign, ed25519_verify, random))]
 fn test_verify_msg_ph_bad_sig() {
     common::setup();
 
@@ -292,7 +292,7 @@ fn test_verify_msg_ph_bad_sig() {
 }
 
 #[test]
-#[cfg(all(ed25519_sign, ed25519_verify, random))]
+#[cfg(all(ed25519_make_key, ed25519_sign, ed25519_verify, random))]
 fn test_verify_hash_ph_bad_sig() {
     common::setup();
 
@@ -309,7 +309,7 @@ fn test_verify_hash_ph_bad_sig() {
 }
 
 #[test]
-#[cfg(all(ed25519_sign, ed25519_streaming_verify, random))]
+#[cfg(all(ed25519_make_key, ed25519_sign, ed25519_streaming_verify, random))]
 fn test_verify_msg_final_bad_sig() {
     common::setup();
 
@@ -329,7 +329,7 @@ fn test_verify_msg_final_bad_sig() {
 }
 
 #[test]
-#[cfg(all(ed25519_import, ed25519_export, random))]
+#[cfg(all(ed25519_make_key, ed25519_import, ed25519_export, random))]
 fn test_import_export() {
     common::setup();
 
@@ -361,7 +361,7 @@ fn test_import_export() {
 }
 
 #[test]
-#[cfg(all(feature = "signature", ed25519_import, ed25519_export, ed25519_sign, ed25519_verify, random))]
+#[cfg(all(feature = "signature", ed25519_make_key, ed25519_import, ed25519_export, ed25519_sign, ed25519_verify, random))]
 fn test_signature_traits() {
     use signature::{Keypair, SignerMut, Verifier};
 
@@ -398,7 +398,7 @@ fn test_signature_traits() {
 }
 
 #[test]
-#[cfg(random)]
+#[cfg(all(ed25519_make_key, random))]
 fn test_sizes() {
     let mut rng = RNG::new().expect("Error creating RNG");
     let ed = Ed25519::generate(&mut rng).expect("Error with generate()");

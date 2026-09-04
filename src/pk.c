@@ -5309,7 +5309,8 @@ int wolfSSL_EC25519_shared_key(unsigned char *shared, unsigned int *sharedSz,
 int wolfSSL_ED25519_generate_key(unsigned char *priv, unsigned int *privSz,
     unsigned char *pub, unsigned int *pubSz)
 {
-#if defined(WOLFSSL_KEY_GEN) && defined(HAVE_ED25519_KEY_EXPORT)
+#if defined(WOLFSSL_KEY_GEN) && defined(HAVE_ED25519_KEY_EXPORT) && \
+    defined(HAVE_ED25519_MAKE_KEY)
     int res = 1;
     int initTmpRng = 0;
     WC_RNG *rng = NULL;
@@ -5366,7 +5367,9 @@ int wolfSSL_ED25519_generate_key(unsigned char *priv, unsigned int *privSz,
 
     return res;
 #else
-#ifndef WOLFSSL_KEY_GEN
+#ifndef HAVE_ED25519_MAKE_KEY
+    WOLFSSL_MSG("No ED25519 make key built in");
+#elif !defined(WOLFSSL_KEY_GEN)
     WOLFSSL_MSG("No Key Gen built in");
 #else
     WOLFSSL_MSG("No ED25519 key export built in");
@@ -5378,7 +5381,7 @@ int wolfSSL_ED25519_generate_key(unsigned char *priv, unsigned int *privSz,
     (void)pubSz;
 
     return 0;
-#endif /* WOLFSSL_KEY_GEN && HAVE_ED25519_KEY_EXPORT */
+#endif /* WOLFSSL_KEY_GEN && HAVE_ED25519_KEY_EXPORT && HAVE_ED25519_MAKE_KEY */
 }
 
 /* Sign a message with Ed25519 using the private key.

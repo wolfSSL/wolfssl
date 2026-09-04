@@ -12523,7 +12523,8 @@ static int test_wc_SetSubjectKeyIdFromPublicKey_ex(void)
     ecc_key     eccKey;
     int         ret;
 #endif
-#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT) && \
+    defined(HAVE_ED25519_MAKE_KEY)
     ed25519_key ed25519Key;
 #endif
 #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT)
@@ -12562,7 +12563,8 @@ static int test_wc_SetSubjectKeyIdFromPublicKey_ex(void)
     DoExpectIntEQ(wc_ecc_free(&eccKey), 0);
 #endif
 
-#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT) && \
+    defined(HAVE_ED25519_MAKE_KEY)
     /* ED25519 */
     XMEMSET(&ed25519Key, 0, sizeof(ed25519_key));
     ExpectIntEQ(wc_ed25519_init(&ed25519Key), 0);
@@ -12605,7 +12607,8 @@ static int test_wc_SetAuthKeyIdFromPublicKey_ex(void)
     ecc_key     eccKey;
     int         ret;
 #endif
-#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT) && \
+    defined(HAVE_ED25519_MAKE_KEY)
     ed25519_key ed25519Key;
 #endif
 #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT)
@@ -12642,7 +12645,8 @@ static int test_wc_SetAuthKeyIdFromPublicKey_ex(void)
     DoExpectIntEQ(wc_ecc_free(&eccKey), 0);
 #endif
 
-#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT) && \
+    defined(HAVE_ED25519_MAKE_KEY)
     /* ED25519 */
     XMEMSET(&ed25519Key, 0, sizeof(ed25519_key));
     ExpectIntEQ(wc_ed25519_init(&ed25519Key), 0);
@@ -33154,7 +33158,8 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
             }
         }
     #endif /* HAVE_ECC */
-    #ifdef HAVE_ED25519
+    #if defined(HAVE_ED25519) && defined(HAVE_ED25519_MAKE_KEY) && \
+        defined(HAVE_ED25519_SIGN) && defined(HAVE_ED25519_KEY_IMPORT)
         if (info->pk.type == WC_PK_TYPE_ED25519_SIGN) {
             ed25519_key key;
 
@@ -33201,7 +33206,8 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
                 ret, *info->pk.ed25519sign.outLen);
         #endif
         }
-    #endif /* HAVE_ED25519 */
+    #endif /* HAVE_ED25519 && HAVE_ED25519_MAKE_KEY && HAVE_ED25519_SIGN &&
+              HAVE_ED25519_KEY_IMPORT */
     }
 #ifdef WOLF_CRYPTO_CB_COPY
     else if (info->algo_type == WC_ALGO_TYPE_COPY) {
