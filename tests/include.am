@@ -120,8 +120,11 @@ DISTCLEANFILES+= tests/.libs/unit.test
 # non-compiled files.  Do not move them to tests_unit_test_SOURCES.
 EXTRA_DIST += \
               tests/unit-mcdc/README.md \
+              tests/unit-mcdc/run-whitebox-smoke.sh \
+              tests/unit-mcdc/smoke-expected.txt \
               tests/unit-mcdc/mcdc_der_edit.h \
               tests/unit-mcdc/mcdc_fault_alloc.h \
+              tests/unit-mcdc/mcdc_fault_cryptocb.h \
               tests/unit-mcdc/mcdc_fault_hash.h \
               tests/unit-mcdc/mcdc_fault_mp.h \
               tests/unit-mcdc/mcdc_fault_mpint.h \
@@ -169,6 +172,7 @@ EXTRA_DIST += \
               tests/unit-mcdc/test_internal_domain_whitebox.c \
               tests/unit-mcdc/test_internal_certerror_whitebox.c \
               tests/unit-mcdc/test_internal_clienthello_whitebox.c \
+              tests/unit-mcdc/test_internal_cryptocb_whitebox.c \
               tests/unit-mcdc/test_internal_dhskehash_whitebox.c \
               tests/unit-mcdc/test_internal_eddsa_whitebox.c \
               tests/unit-mcdc/test_internal_nullguard_whitebox.c \

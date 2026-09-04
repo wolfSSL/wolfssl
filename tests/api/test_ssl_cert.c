@@ -1912,10 +1912,15 @@ int test_wolfSSL_x509_accessor_guards(void)
  * macro they became implicit declarations, which -Werror=implicit-function-
  * declaration and -Werror=nested-externs turn into build failures (and the
  * implicit int return then trips -Werror=int-conversion on the assignment). */
+/* wolfSSL_X509_get_signature, _get_next_altname and _get_pubkey_buffer are
+ * declared in ssl.h unconditionally but implemented in src/x509.c under
+ * OPENSSL_EXTRA || KEEP_OUR_CERT || KEEP_PEER_CERT only. A build with
+ * SESSION_CERTS or OPENSSL_EXTRA_X509_SMALL and none of those three sees the
+ * declarations and no definitions, which is a link error, not a compile error
+ * -- invisible to anything that only reads headers. Match the implementation. */
 #if !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
-    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
-     defined(KEEP_PEER_CERT) || defined(KEEP_OUR_CERT) || \
-     defined(SESSION_CERTS))
+    (defined(OPENSSL_EXTRA) || defined(KEEP_PEER_CERT) || \
+     defined(KEEP_OUR_CERT))
     WOLFSSL_X509* x509 = NULL;
     byte  buf[2048];
     int   iSz = (int)sizeof(buf);
@@ -2298,7 +2303,11 @@ int test_wolfSSL_load_from_fifo(void)
  * use_certificate_chain_file and CertManagerVerify. Fixed upstream in
  * PR 11378; drop this exclusion once that merges and the sweep passes on the
  * small-stack variant. A crash here would discard the whole variant. */
-#if !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY) && \
+/* wolfSSL_SetAllocators lives in wolfcrypt/src/memory.c under
+ * #ifdef USE_WOLFSSL_MEMORY; without it the symbol is declared and never
+ * defined. */
+#if defined(USE_WOLFSSL_MEMORY) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY) && \
     !defined(WOLFSSL_SMALL_STACK) && \
     !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_FILESYSTEM)
 
@@ -2446,12 +2455,25 @@ static void fi_workload(void)
 int test_wolfSSL_alloc_failure_sweep(void)
 {
     EXPECT_DECLS;
-#if !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY) && \
+/* wolfSSL_SetAllocators lives in wolfcrypt/src/memory.c under
+ * #ifdef USE_WOLFSSL_MEMORY; without it the symbol is declared and never
+ * defined. */
+#if defined(USE_WOLFSSL_MEMORY) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY) && \
     !defined(WOLFSSL_SMALL_STACK) && \
     !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_FILESYSTEM)
     int n;
     int injected = 0;
     int total;
+    wolfSSL_Malloc_cb  prevMalloc  = NULL;
+    wolfSSL_Free_cb    prevFree    = NULL;
+    wolfSSL_Realloc_cb prevRealloc = NULL;
+
+    /* Keep whatever was installed before, so the teardown below can put it
+     * back. Re-installing our own wrappers is NOT a restore: they would stay
+     * live for every later test in this binary, and unit.test runs threaded
+     * tests after this one. */
+    (void)wolfSSL_GetAllocators(&prevMalloc, &prevFree, &prevRealloc);
 
     /* Install the wrappers with injection off, and count how many
      * allocations the workload makes, so the sweep covers all of them and
@@ -2491,10 +2513,11 @@ int test_wolfSSL_alloc_failure_sweep(void)
      * hit repeatedly. */
     ExpectIntGT(injected, 0);
 
-    /* Restore, and prove the library still works afterwards -- a failing
-     * allocator left installed would break every later test in this binary. */
+    /* Put the original allocators back, and prove the library still works
+     * afterwards -- any allocator of ours left installed would sit under every
+     * later test in this binary, including the threaded ones. */
     fi_failAt = -1;
-    (void)wolfSSL_SetAllocators(fi_malloc, fi_free, fi_realloc);
+    (void)wolfSSL_SetAllocators(prevMalloc, prevFree, prevRealloc);
     {
         WOLFSSL_CTX* ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
         ExpectNotNull(ctx);

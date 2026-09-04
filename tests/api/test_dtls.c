@@ -8398,8 +8398,23 @@ int test_dtls13_wire_mangle(void)
  * that later need to read a protected body; it is not enabled in the campaign
  * option list, so it compiles out there.
  * ========================================================================= */
+/* The whole forgery harness drives a real client against a real server in one
+ * process, so it needs both endpoints compiled in -- NO_WOLFSSL_CLIENT and
+ * NO_WOLFSSL_SERVER each remove one of the wolfDTLSv1_*_{client,server}_method
+ * pairs the sweeps below are called with. The two test entry points carry the
+ * same condition; keep them in step.
+ *
+ * WOLFSSL_ASYNC_CRYPT is excluded because the harness drives wolfSSL_accept and
+ * wolfSSL_connect directly and never runs an async event loop, so it cannot
+ * service a WC_PENDING_E. Measured under --enable-asynccrypt --enable-all
+ * --enable-dtls13: the DTLS 1.3 sweep takes SIGSEGV inside wolfAsync_EventInit,
+ * reached from BuildTls13Message via Dtls13SendFragment during
+ * SendTls13Certificate. Whether a plain accept on a real socket ought to
+ * survive that configuration is a library question and is reported separately;
+ * the harness has no business asserting it either way. */
 #if defined(WOLFSSL_DTLS) && !defined(NO_RSA) && !defined(NO_CERTS) && \
-    !defined(NO_FILESYSTEM)
+    !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_ASYNC_CRYPT)
 
 #define DF_MAX_PKT 384
 #define DF_MAX_SZ  1600
@@ -9516,7 +9531,9 @@ int test_dtls12_packet_forgeries(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA) \
-    && !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
+    && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) \
+    && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) \
+    && !defined(WOLFSSL_ASYNC_CRYPT)
     ExpectIntEQ(df_sweep(wolfDTLSv1_2_client_method,
                          wolfDTLSv1_2_server_method), 0);
 #endif
@@ -9527,7 +9544,9 @@ int test_dtls13_packet_forgeries(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_TLS13) && !defined(NO_RSA) \
-    && !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
+    && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) \
+    && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) \
+    && !defined(WOLFSSL_ASYNC_CRYPT)
     ExpectIntEQ(df_sweep(wolfDTLSv1_3_client_method,
                          wolfDTLSv1_3_server_method), 0);
 #endif
@@ -9560,7 +9579,7 @@ int test_wolfSSL_dtls_cid_arg_guards(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_DTLS_CID) && defined(WOLFSSL_DTLS) && !defined(NO_RSA) && \
-    !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* plain = NULL;      /* CID never enabled */
     WOLFSSL* enabled = NULL;    /* CID enabled, never negotiated */
