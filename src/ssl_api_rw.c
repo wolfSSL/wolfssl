@@ -826,6 +826,10 @@ int wolfSSL_SendUserCanceled(WOLFSSL* ssl)
 
     if (ssl != NULL) {
         ssl->error = SendAlert(ssl, alert_warning, user_canceled);
+        if ((ssl->error == 0) ||
+                (ssl->error == WC_NO_ERR_TRACE(WANT_WRITE))) {
+            ssl->options.sentUserCanceled = 1;
+        }
         if (ssl->error < 0) {
             WOLFSSL_ERROR(ssl->error);
         }
@@ -1048,9 +1052,21 @@ int wolfSSL_shutdown(WOLFSSL* ssl)
     if (ssl == NULL) {
         ret = WOLFSSL_FATAL_ERROR;
     }
-    else if (ssl->options.quietShutdown) {
+    else if (ssl->options.quietShutdown && (!ssl->options.sentUserCanceled)) {
         WOLFSSL_MSG("quiet shutdown, no close notify sent");
         ret = WOLFSSL_SUCCESS;
+    }
+    else if (ssl->options.quietShutdown) {
+        /* A "user_canceled" alert has gone out so we need a "close_notify" to
+         * follow it per RFC 9846 Section 6.1. */
+        ret = WOLFSSL_SUCCESS;
+        if (!wolfssl_shutdown_flush_alert(ssl, &ret)) {
+            (void)wolfssl_shutdown_send_close_notify(ssl, &ret);
+        }
+        if ((ret == WC_NO_ERR_TRACE(WOLFSSL_SHUTDOWN_NOT_DONE)) &&
+            (ssl->error != WC_NO_ERR_TRACE(WANT_WRITE))) {
+            ret = WOLFSSL_SUCCESS;
+        }
     }
     else {
         int done;
