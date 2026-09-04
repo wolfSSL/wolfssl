@@ -2391,9 +2391,21 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         unsigned char* hash)
     {
         int ret;
+    #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
+        defined(HAVE_CPUID_INTEL)
+        int use_movbe;
+    #endif
 
         if ((sha256 == NULL) || (data == NULL)) {
             return BAD_FUNC_ARG;
+        }
+
+        /* Align 16 for SHA-NI / AVX loads. Skip when data is already
+         * sha256->buffer (LMS); that buffer is not ALIGN16 on 32-bit. */
+        if ((data != (const unsigned char*)sha256->buffer) &&
+            (((wc_ptr_t)data & 0xfU) != 0)) {
+            XMEMCPY(sha256->buffer, data, WC_SHA256_BLOCK_SIZE);
+            data = (const unsigned char*)sha256->buffer;
         }
 
         if (SHA256_UPDATE_REV_BYTES(&sha256->ctx)) {
@@ -2420,56 +2432,64 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
                 XMEMCPY(hash, sha256->digest, WC_SHA256_DIGEST_SIZE);
             }
             else {
-        #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP)
-                __asm__ __volatile__ (
-                    "mov    0x00(%[d]), %%esi\n\t"
-                    "movbe  %%esi, 0x00(%[h])\n\t"
-                    "mov    0x04(%[d]), %%esi\n\t"
-                    "movbe  %%esi, 0x04(%[h])\n\t"
-                    "mov    0x08(%[d]), %%esi\n\t"
-                    "movbe  %%esi, 0x08(%[h])\n\t"
-                    "mov    0x0c(%[d]), %%esi\n\t"
-                    "movbe  %%esi, 0x0c(%[h])\n\t"
-                    "mov    0x10(%[d]), %%esi\n\t"
-                    "movbe  %%esi, 0x10(%[h])\n\t"
-                    "mov    0x14(%[d]), %%esi\n\t"
-                    "movbe  %%esi, 0x14(%[h])\n\t"
-                    "mov    0x18(%[d]), %%esi\n\t"
-                    "movbe  %%esi, 0x18(%[h])\n\t"
-                    "mov    0x1c(%[d]), %%esi\n\t"
-                    "movbe  %%esi, 0x1c(%[h])\n\t"
-                    :
-                    : [d] "r" (sha256->digest), [h] "r" (hash)
-                    : "memory", "esi"
-                );
-        #else
-                word32* hash32 = (word32*)hash;
-                word32* digest = (word32*)sha256->digest;
-            #if WOLFSSL_GENERAL_ALIGNMENT < 4
-                ALIGN16 word32 buf[WC_SHA256_DIGEST_SIZE / sizeof(word32)];
+        #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
+            defined(HAVE_CPUID_INTEL)
+                use_movbe = (IS_INTEL_MOVBE(cpuid_get_flags()) != 0);
+                if (use_movbe) {
+                    __asm__ __volatile__ (
+                        "mov    0x00(%[d]), %%esi\n\t"
+                        "movbe  %%esi, 0x00(%[h])\n\t"
+                        "mov    0x04(%[d]), %%esi\n\t"
+                        "movbe  %%esi, 0x04(%[h])\n\t"
+                        "mov    0x08(%[d]), %%esi\n\t"
+                        "movbe  %%esi, 0x08(%[h])\n\t"
+                        "mov    0x0c(%[d]), %%esi\n\t"
+                        "movbe  %%esi, 0x0c(%[h])\n\t"
+                        "mov    0x10(%[d]), %%esi\n\t"
+                        "movbe  %%esi, 0x10(%[h])\n\t"
+                        "mov    0x14(%[d]), %%esi\n\t"
+                        "movbe  %%esi, 0x14(%[h])\n\t"
+                        "mov    0x18(%[d]), %%esi\n\t"
+                        "movbe  %%esi, 0x18(%[h])\n\t"
+                        "mov    0x1c(%[d]), %%esi\n\t"
+                        "movbe  %%esi, 0x1c(%[h])\n\t"
+                        :
+                        : [d] "r" (sha256->digest), [h] "r" (hash)
+                        : "memory", "esi"
+                    );
+                }
+                else
+        #endif
+                {
+                    /* C fallback, now reachable on x86_64 when the CPU has
+                     * no MOVBE. LMS passes an unaligned interior pointer as
+                     * hash, so the alignment staging must be unconditional:
+                     * WOLFSSL_GENERAL_ALIGNMENT >= 4 does not imply hash is
+                     * aligned here. */
+                    word32* hash32 = (word32*)hash;
+                    word32* digest = (word32*)sha256->digest;
+                    ALIGN16 word32 buf[WC_SHA256_DIGEST_SIZE / sizeof(word32)];
 
-                if (((size_t)digest & 0x3) != 0) {
-                    if (((size_t)hash32 & 0x3) != 0) {
-                        XMEMCPY(buf, digest, WC_SHA256_DIGEST_SIZE);
-                        hash32 = buf;
-                        digest = buf;
+                    if (((size_t)digest & 0x3) != 0) {
+                        if (((size_t)hash32 & 0x3) != 0) {
+                            XMEMCPY(buf, digest, WC_SHA256_DIGEST_SIZE);
+                            hash32 = buf;
+                            digest = buf;
+                        }
+                        else {
+                            XMEMCPY(hash, digest, WC_SHA256_DIGEST_SIZE);
+                            digest = hash32;
+                        }
                     }
-                    else {
-                        XMEMCPY(hash, digest, WC_SHA256_DIGEST_SIZE);
-                        digest = hash32;
+                    else if (((size_t)hash32 & 0x3) != 0) {
+                        hash32 = digest;
+                    }
+                    ByteReverseWords(hash32, digest,
+                        (word32)(sizeof(word32) * 8));
+                    if (hash != (byte*)hash32) {
+                        XMEMCPY(hash, hash32, WC_SHA256_DIGEST_SIZE);
                     }
                 }
-                else if (((size_t)hash32 & 0x3) != 0) {
-                    hash32 = digest;
-                }
-            #endif
-                ByteReverseWords(hash32, digest, (word32)(sizeof(word32) * 8));
-            #if WOLFSSL_GENERAL_ALIGNMENT < 4
-                if (hash != (byte*)hash32) {
-                    XMEMCPY(hash, hash32, WC_SHA256_DIGEST_SIZE);
-                }
-            #endif
-        #endif /* WOLFSSL_X86_64_BUILD && USE_INTEL_SPEEDUP */
             }
             sha256->digest[0] = 0x6A09E667L;
             sha256->digest[1] = 0xBB67AE85L;

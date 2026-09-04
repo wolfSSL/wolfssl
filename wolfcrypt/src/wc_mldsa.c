@@ -2527,6 +2527,8 @@ static void mldsa_encode_w1_88_c(const sword32* w1, byte* w1e)
 static void mldsa_encode_w1_88(const sword32* w1, byte* w1e)
 {
 #ifdef USE_INTEL_SPEEDUP
+    /* Tests call this without wc_MlDsaKey_Init. */
+    cpuid_get_flags_ex(&cpuid_flags);
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         wc_mldsa_encode_w1_88_avx2(w1, w1e);
         RESTORE_VECTOR_REGISTERS();
@@ -2604,6 +2606,8 @@ static void mldsa_encode_w1_32_c(const sword32* w1, byte* w1e)
 static void mldsa_encode_w1_32(const sword32* w1, byte* w1e)
 {
 #ifdef USE_INTEL_SPEEDUP
+    /* Tests call this without wc_MlDsaKey_Init. */
+    cpuid_get_flags_ex(&cpuid_flags);
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         wc_mldsa_encode_w1_32_avx2(w1, w1e);
         RESTORE_VECTOR_REGISTERS();
