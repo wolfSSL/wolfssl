@@ -2019,10 +2019,14 @@ static int test_quic_key_share(int verbose) {
 
     QuicConversation_init(&conv, &tclient, &tserver);
     QuicConversation_fail(&conv);
+    /* No shared group: the server rejects the ClientHello with a fatal
+     * handshake_failure alert instead of a HelloRetryRequest (RFC 8446
+     * 4.2.1). The alert is only recorded by the QUIC transport here, so
+     * the client is still waiting. */
     ExpectIntEQ(wolfSSL_get_error(tserver.ssl, 0),
-                WC_NO_ERR_TRACE(SSL_ERROR_WANT_READ));
+                WC_NO_ERR_TRACE(KEY_SHARE_ERROR));
     ExpectIntEQ(wolfSSL_get_error(tclient.ssl, 0),
-                WC_NO_ERR_TRACE(BAD_KEY_SHARE_DATA));
+                WC_NO_ERR_TRACE(SSL_ERROR_WANT_READ));
     QuicTestContext_free(&tclient);
     QuicTestContext_free(&tserver);
     printf("    test_quic_key_share: no match ok\n");

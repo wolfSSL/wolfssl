@@ -38543,6 +38543,7 @@ const byte* MaskCurve25519PeerKey(const byte* pub, word32 pubSz,
             case WC_NO_ERR_TRACE(INCOMPLETE_DATA):
                 return missing_extension;
             case WC_NO_ERR_TRACE(MATCH_SUITE_ERROR):
+            case WC_NO_ERR_TRACE(KEY_SHARE_ERROR):
             case WC_NO_ERR_TRACE(MISSING_HANDSHAKE_DATA):
             case WC_NO_ERR_TRACE(PSK_MISSING_ERROR):
                 return handshake_failure;
