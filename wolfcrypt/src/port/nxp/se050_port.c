@@ -916,7 +916,7 @@ int wc_se050_erase_object(word32 id)
 #endif
 
     if (cfg_se050_i2c_pi == NULL) {
-        return BAD_FUNC_ARG;
+        return WC_NO_ERR_TRACE(BAD_STATE_E);
     }
 
     if (wolfSSL_CryptHwMutexLock() != 0) {
@@ -1439,6 +1439,9 @@ int wc_se050_get_binary_object(word32 keyId, byte* out, word32* outSz)
     /* If out is NULL, outSz set to required size and LENGTH_ONLY_E returned */
     if (outSz == NULL) {
         return BAD_FUNC_ARG;
+    }
+    if (cfg_se050_i2c_pi == NULL) {
+        return WC_NO_ERR_TRACE(BAD_STATE_E);
     }
 
     if (wolfSSL_CryptHwMutexLock() != 0) {
