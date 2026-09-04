@@ -1973,7 +1973,47 @@ int test_wolfSSL_x509_accessor_guards(void)
         (void)wolfSSL_X509_get_pubkey_buffer(x509, NULL, (int*)&wSz);
         (void)wolfSSL_X509_get_pubkey_buffer(x509, buf, NULL);
 
+        /* --- host and IP matching, both operands of each guard --------- */
+#ifndef NO_ASN
+        /* `(x == NULL) || (chk == NULL)` */
+        (void)wolfSSL_X509_check_host(NULL, "example.com", 11, 0, NULL);
+        (void)wolfSSL_X509_check_host(x509, NULL, 11, 0, NULL);
+        (void)wolfSSL_X509_check_host(x509, "example.com", 11, 0, NULL);
+        /* `chklen > 1 && chk[chklen - 1] == 0` -- a length that includes the
+         * terminator, which a caller using strlen() never passes */
+        (void)wolfSSL_X509_check_host(x509, "example.com", 12, 0, NULL);
+        (void)wolfSSL_X509_check_host(x509, "e", 1, 0, NULL);
+        (void)wolfSSL_X509_check_host(x509, "", 0, 0, NULL);
+
+        /* `(x == NULL) || (x->derCert == NULL) || (ipasc == NULL)` */
+        (void)wolfSSL_X509_check_ip_asc(NULL, "127.0.0.1", 0);
+        (void)wolfSSL_X509_check_ip_asc(x509, NULL, 0);
+        (void)wolfSSL_X509_check_ip_asc(x509, "127.0.0.1", 0);
+        (void)wolfSSL_X509_check_ip_asc(x509, "not-an-ip", 0);
+#endif
+
         wolfSSL_X509_free(x509);
+    }
+
+    /* --- load_certificate_file: `fname == NULL`, and the size bounds ---- */
+    (void)wolfSSL_X509_load_certificate_file(NULL, WOLFSSL_FILETYPE_PEM);
+    /* a file that exists but is empty: sz < 0 || sz > MAX is the guard the
+     * happy path never reaches */
+    {
+        const char* emptyPem = "test-x509-empty.tmp";
+        XFILE ef = XFOPEN(emptyPem, "wb");
+
+        if (ef != XBADFILE) {
+            XFCLOSE(ef);
+            (void)wolfSSL_X509_load_certificate_file(emptyPem,
+                                                     WOLFSSL_FILETYPE_PEM);
+            (void)remove(emptyPem);
+        }
+        /* a directory where a file is expected */
+        (void)wolfSSL_X509_load_certificate_file("certs",
+                                                 WOLFSSL_FILETYPE_PEM);
+        /* an unknown format on a real certificate */
+        (void)wolfSSL_X509_load_certificate_file(svrCertFile, -1);
     }
     (void)wSz;
 #endif
@@ -2408,6 +2448,118 @@ int test_wolfSSL_alloc_failure_sweep(void)
         ExpectNotNull(ctx);
         wolfSSL_CTX_free(ctx);
     }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* ---------------------------------------------------------------------------
+ * DTLS API argument guards, on a DTLS object.
+ *
+ * ssl_api_dtls.c is the weakest of the newly-visible files. Its guards are the
+ * usual NULL-and-zero pairs, but the ACCEPTING half of most of them needs a
+ * DTLS connection -- the same reason the file sat at 3/53 until one was
+ * supplied. These add the entry points the earlier pass did not reach.
+ *
+ * Guards were read from src/ssl_api_dtls.c before writing, not assumed from
+ * ssl.h: wolfSSL_dtls13_pending_work is compiled only under WOLFSSL_DTLS13,
+ * SetCookieSecret only under WOLFSSL_DTLS && !NO_WOLFSSL_SERVER, and several
+ * are additionally gated on !WOLFSSL_LEANPSK.
+ * ------------------------------------------------------------------------- */
+int test_wolfSSL_dtls_api_more_guards(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_LEANPSK) && \
+    !defined(WOLFCRYPT_ONLY) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_CERTS)
+    WOLFSSL_CTX* dctx = NULL;
+    WOLFSSL* dssl = NULL;
+    byte peer[64];
+    unsigned int peerSz = (unsigned int)sizeof(peer);
+    const void* p0 = NULL;
+    unsigned int p0Sz = 0;
+
+    XMEMSET(peer, 0, sizeof(peer));
+    ExpectNotNull(dctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method()));
+    ExpectNotNull(dssl = wolfSSL_new(dctx));
+
+    /* `peer == NULL || peerSz == NULL` -- one call per operand */
+    (void)wolfSSL_dtls_get0_peer(NULL, &p0, &p0Sz);
+    (void)wolfSSL_dtls_get0_peer(dssl, NULL, &p0Sz);
+    (void)wolfSSL_dtls_get0_peer(dssl, &p0, NULL);
+    (void)wolfSSL_dtls_get0_peer(dssl, &p0, &p0Sz);
+
+    /* `ssl && timeleft` -- both operands */
+    {
+        WOLFSSL_TIMEVAL tv;
+
+        XMEMSET(&tv, 0, sizeof(tv));
+        (void)wolfSSL_DTLSv1_get_timeout(NULL, &tv);
+        (void)wolfSSL_DTLSv1_get_timeout(dssl, NULL);
+        (void)wolfSSL_DTLSv1_get_timeout(dssl, &tv);
+    }
+
+    /* `ssl == NULL || timeout < 0` -- and the boundary at zero */
+    (void)wolfSSL_dtls_set_timeout_max(NULL, 5);
+    (void)wolfSSL_dtls_set_timeout_max(dssl, -1);
+    (void)wolfSSL_dtls_set_timeout_max(dssl, 0);
+    (void)wolfSSL_dtls_set_timeout_max(dssl, 5);
+    (void)wolfSSL_dtls_set_timeout_init(dssl, 0);
+
+    /* the peer setters/getters with a real DTLS object */
+    peerSz = (unsigned int)sizeof(peer);
+    (void)wolfSSL_dtls_get_peer(dssl, peer, &peerSz);
+
+#ifdef WOLFSSL_DTLS13
+    /* `ssl != NULL && ssl->dtls13FastTimeout` -- both operands; the flag is
+     * never set on a connection that has not scheduled fast retransmission */
+    (void)wolfSSL_dtls13_use_quick_timeout(NULL);
+    (void)wolfSSL_dtls13_use_quick_timeout(dssl);
+    if (dssl != NULL) {
+        dssl->dtls13FastTimeout = 1;
+        (void)wolfSSL_dtls13_use_quick_timeout(dssl);
+        dssl->dtls13FastTimeout = 0;
+    }
+
+    /* `ssl == NULL || !Dtls13ScheduledWorkReady(ssl)` and the pending-work
+     * chain below it: output buffered, a key update owed, an ack owed. Each
+     * flag is set directly because a connection only reaches these states
+     * mid-flight, between a write that blocked and its retry. */
+    (void)wolfSSL_dtls13_pending_work(NULL);
+    (void)wolfSSL_dtls13_pending_work(dssl);
+    if (dssl != NULL) {
+        dssl->options.handShakeDone = 1;
+        (void)wolfSSL_dtls13_pending_work(dssl);
+        dssl->dtls13DoKeyUpdate = 1;
+        (void)wolfSSL_dtls13_pending_work(dssl);
+        dssl->dtls13DoKeyUpdate = 0;
+        dssl->options.sendKeyUpdate = 1;
+        (void)wolfSSL_dtls13_pending_work(dssl);
+        dssl->options.sendKeyUpdate = 0;
+        dssl->dtls13SendingAckOrRtx = 1;
+        (void)wolfSSL_dtls13_pending_work(dssl);
+        dssl->dtls13SendingAckOrRtx = 0;
+        dssl->options.handShakeDone = 0;
+    }
+    (void)wolfSSL_dtls13_has_pending_msg(dssl);
+#endif
+
+#if !defined(NO_WOLFSSL_SERVER)
+    {
+        byte secret[16];
+
+        XMEMSET(secret, 0xC0, sizeof(secret));
+        /* `secret != NULL && secretSz == 0` -- the "clear the secret" call is
+         * (NULL, 0); a buffer with a zero length is the operand pair no
+         * caller produces */
+        (void)wolfSSL_DTLS_SetCookieSecret(NULL, secret, 0);
+        (void)wolfSSL_DTLS_SetCookieSecret(NULL, NULL, 0);
+        (void)wolfSSL_DTLS_SetCookieSecret(NULL, secret,
+                                           (word32)sizeof(secret));
+    }
+#endif
+
+    wolfSSL_free(dssl);
+    wolfSSL_CTX_free(dctx);
 #endif
     return EXPECT_RESULT();
 }

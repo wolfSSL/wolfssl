@@ -30,6 +30,7 @@ int test_wolfSSL_x509_accessor_guards(void);
 int test_wolfSSL_dtls_api_on_dtls_object(void);
 int test_wolfSSL_load_pathological_files(void);
 int test_wolfSSL_load_from_fifo(void);
+int test_wolfSSL_dtls_api_more_guards(void);
 int test_wolfSSL_alloc_failure_sweep(void);
 
 int test_wolfSSL_get_verify_mode(void);
@@ -94,6 +95,7 @@ int test_wolfSSL_cert_unload(void);
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_dtls_api_on_dtls_object),     \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_load_pathological_files),     \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_load_from_fifo),              \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_dtls_api_more_guards),              \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_alloc_failure_sweep)
 
 #endif /* TESTS_API_SSL_CERT_H */
