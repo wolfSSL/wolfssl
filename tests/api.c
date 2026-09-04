@@ -2866,6 +2866,122 @@ static int test_wolfSSL_set_cipher_list_exclusions(void)
 #endif /* TEST_CIPHER_EXCLUDE_ANON || TEST_CIPHER_EXCLUDE_NULL */
     return EXPECT_RESULT();
 }
+
+/* OpenSSL "aNULL" selects the anonymous suites; a server that only lists
+ * them has no certificate. Check the keyword generates the ADH suites and
+ * that both ends handshake without any certificate over TLS 1.2. */
+#if defined(OPENSSL_EXTRA) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(BUILD_TLS_DH_anon_WITH_AES_128_CBC_SHA) && \
+    !defined(WOLFSSL_SESSION_EXPORT)
+    #define TEST_CIPHER_LIST_ANON
+#endif
+
+#ifdef TEST_CIPHER_LIST_ANON
+static int test_cipher_list_anon_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_NONE, NULL);
+    ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx, "aNULL"), WOLFSSL_SUCCESS);
+    return EXPECT_RESULT();
+}
+
+static int test_cipher_list_anon_on_result(WOLFSSL* ssl)
+{
+    EXPECT_DECLS;
+    ExpectStrEQ(wolfSSL_get_cipher_name(ssl), "ADH-AES128-SHA");
+    return EXPECT_RESULT();
+}
+#endif
+
+static int test_wolfSSL_set_cipher_list_anon(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_CIPHER_LIST_ANON
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    test_ssl_cbf client_cbf;
+    test_ssl_cbf server_cbf;
+
+    /* OPENSSL_COMPATIBLE_DEFAULTS already allows anon on every CTX, so clear
+     * the flag first: the checks below must see the cipher list set it. */
+
+    /* "aNULL" on the CTX allows anon there and on SSLs made from it. A
+     * certificate-less server CTX can only make an SSL once anon is on. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method()));
+    if (ctx != NULL)
+        ctx->useAnon = 0;
+    ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx, "aNULL"), WOLFSSL_SUCCESS);
+    ExpectIntEQ(ctx->useAnon, 1);
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(ssl->options.useAnon, 1);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+
+    /* "aNULL" alone must generate the anonymous suites. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+    if (ctx != NULL)
+        ctx->useAnon = 0;
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL)
+        ssl->options.useAnon = 0;
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "aNULL"), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_suites_contains(ssl, CIPHER_BYTE,
+                TLS_DH_anon_WITH_AES_128_CBC_SHA), 1);
+    ExpectIntEQ(ssl->options.useAnon, 1);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    /* An explicit anonymous suite also allows anon on the SSL. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL)
+        ssl->options.useAnon = 0;
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "ADH-AES128-SHA"),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(ssl->options.useAnon, 1);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+
+    /* A list without anonymous suites must not turn anon on. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+    if (ctx != NULL)
+        ctx->useAnon = 0;
+    ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx, "HIGH:!aNULL"),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(ctx->useAnon, 0);
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(ssl->options.useAnon, 0);
+    ExpectIntEQ(test_suites_contains(ssl, CIPHER_BYTE,
+                TLS_DH_anon_WITH_AES_128_CBC_SHA), 0);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+
+    /* Handshake with no certificates on either side. */
+    XMEMSET(&client_cbf, 0, sizeof(client_cbf));
+    XMEMSET(&server_cbf, 0, sizeof(server_cbf));
+    client_cbf.method = wolfTLSv1_2_client_method;
+    server_cbf.method = wolfTLSv1_2_server_method;
+    client_cbf.caPemFile = "";
+    client_cbf.certPemFile = "";
+    client_cbf.keyPemFile = "";
+    server_cbf.caPemFile = "";
+    server_cbf.certPemFile = "";
+    server_cbf.keyPemFile = "";
+    client_cbf.ctx_ready = test_cipher_list_anon_ctx_ready;
+    server_cbf.ctx_ready = test_cipher_list_anon_ctx_ready;
+    client_cbf.on_result = test_cipher_list_anon_on_result;
+    server_cbf.on_result = test_cipher_list_anon_on_result;
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbf,
+        &server_cbf, NULL), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
 #ifdef TEST_CIPHER_EXCLUDE_ANON
     #undef TEST_CIPHER_EXCLUDE_ANON
 #endif
@@ -42508,6 +42624,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_set_cipher_list_exclusions),
     TEST_DECL(test_tls13_null_cipher_default_list),
     TEST_DECL(test_tls13_null_cipher_explicit_keep),
+    TEST_DECL(test_wolfSSL_set_cipher_list_anon),
     TEST_DECL(test_wolfSSL_set_alpn_protos_default_fails),
     TEST_DECL(test_wolfSSL_CTX_use_certificate),
     TEST_DECL(test_wolfSSL_CTX_use_certificate_file),
