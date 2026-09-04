@@ -18,6 +18,7 @@ clang
 clang-14
 clang-19
 cmake
+flex
 g++-10
 g++-11
 g++-12
