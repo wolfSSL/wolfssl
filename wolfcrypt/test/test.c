@@ -52829,6 +52829,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ed448_test(void)
 #endif
 
 #ifdef WOLFSSL_HAVE_MLKEM
+#ifdef WC_MLKEM_HAVE_NATIVE
 #if !defined(WOLFSSL_NO_KYBER512) && !defined(WOLFSSL_NO_ML_KEM_512) && \
     defined(WOLFSSL_TEST_PQC_SEED_KAT)
 static wc_test_ret_t mlkem512_kat(void)
@@ -57212,10 +57213,35 @@ out:
     return ret;
 }
 #endif /* !WOLFSSL_NO_KYBER1024 && !WOLFSSL_NO_ML_KEM_1024 */
+#endif /* WC_MLKEM_HAVE_NATIVE */
+
+#ifndef WC_MLKEM_HAVE_NATIVE
+/* Any compiled-in parameter set proves the dispatch behaviour; which one is
+ * irrelevant, so pick the first that is actually built. */
+#ifndef WOLFSSL_NO_ML_KEM
+    #if defined(WOLFSSL_WC_ML_KEM_512)
+        #define MLKEM_CB_ONLY_TYPE  WC_ML_KEM_512
+    #elif defined(WOLFSSL_WC_ML_KEM_768)
+        #define MLKEM_CB_ONLY_TYPE  WC_ML_KEM_768
+    #elif defined(WOLFSSL_WC_ML_KEM_1024)
+        #define MLKEM_CB_ONLY_TYPE  WC_ML_KEM_1024
+    #endif
+#endif
+#if !defined(MLKEM_CB_ONLY_TYPE) && defined(WOLFSSL_MLKEM_KYBER)
+    #if defined(WOLFSSL_KYBER512)
+        #define MLKEM_CB_ONLY_TYPE  KYBER512
+    #elif defined(WOLFSSL_KYBER768)
+        #define MLKEM_CB_ONLY_TYPE  KYBER768
+    #elif defined(WOLFSSL_KYBER1024)
+        #define MLKEM_CB_ONLY_TYPE  KYBER1024
+    #endif
+#endif
+#endif /* !WC_MLKEM_HAVE_NATIVE */
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
 {
     wc_test_ret_t ret;
+#ifdef WC_MLKEM_HAVE_NATIVE
     int i;
 #ifndef WC_NO_RNG
     WC_RNG rng;
@@ -57513,6 +57539,212 @@ out:
 #endif
 
     return ret;
+#else /* !WC_MLKEM_HAVE_NATIVE */
+    /* Software ML-KEM is compiled out. Walk the public API with a key that
+     * has no device behind it: every operation must refuse with
+     * NO_VALID_DEVID rather than silently do nothing. The encode and decode
+     * paths this build keeps are exercised too, because a callback that
+     * returns key material relies on them. */
+    ret = 0;
+#ifdef MLKEM_CB_ONLY_TYPE
+    {
+        /* MlKemKey carries maximum-sized polynomial buffers, so keep it off
+         * the stack as the parameter-set tests do. */
+        WC_DECLARE_VAR(key, MlKemKey, 1, HEAP_HINT);
+        int key_inited = 0;
+        int r;
+        word32 pubLen = 0;
+        word32 privLen = 0;
+        word32 ctLen = 0;
+        word32 ssLen = 0;
+        byte* buf = NULL;
+        byte* buf2 = NULL;
+        word32 bufLen = 0;
+
+        WC_ALLOC_VAR(key, MlKemKey, 1, HEAP_HINT);
+        if (!WC_VAR_OK(key))
+            ret = WC_TEST_RET_ENC_EC(MEMORY_E);
+        if (ret == 0) {
+            r = wc_MlKemKey_Init(key, MLKEM_CB_ONLY_TYPE, HEAP_HINT,
+                    INVALID_DEVID);
+            if (r != 0)
+                ret = WC_TEST_RET_ENC_EC(r);
+            else
+                key_inited = 1;
+        }
+#ifndef WOLFSSL_MLKEM_NO_MAKE_KEY
+        if (ret == 0) {
+            byte rand[WC_ML_KEM_MAKEKEY_RAND_SZ];
+
+            XMEMSET(rand, 0, sizeof(rand));
+            /* Argument checks still run ahead of the dispatch report. */
+            r = wc_MlKemKey_MakeKeyWithRandom(key, NULL, (int)sizeof(rand));
+            if (r != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+                ret = WC_TEST_RET_ENC_NC;
+            if (ret == 0) {
+                r = wc_MlKemKey_MakeKeyWithRandom(key, rand,
+                        (int)sizeof(rand) - 1);
+                if (r != WC_NO_ERR_TRACE(BUFFER_E))
+                    ret = WC_TEST_RET_ENC_NC;
+            }
+            if (ret == 0) {
+                r = wc_MlKemKey_MakeKeyWithRandom(key, rand,
+                        (int)sizeof(rand));
+                if (r != WC_NO_ERR_TRACE(NO_VALID_DEVID))
+                    ret = WC_TEST_RET_ENC_NC;
+            }
+        }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY */
+        /* The size queries size every buffer used below. */
+        if (ret == 0) {
+            r = wc_MlKemKey_PublicKeySize(key, &pubLen);
+            if ((r != 0) || (pubLen == 0))
+                ret = WC_TEST_RET_ENC_NC;
+        }
+        if (ret == 0) {
+            r = wc_MlKemKey_PrivateKeySize(key, &privLen);
+            if ((r != 0) || (privLen == 0))
+                ret = WC_TEST_RET_ENC_NC;
+        }
+        if (ret == 0) {
+            r = wc_MlKemKey_CipherTextSize(key, &ctLen);
+            if ((r != 0) || (ctLen == 0))
+                ret = WC_TEST_RET_ENC_NC;
+        }
+        if (ret == 0) {
+            r = wc_MlKemKey_SharedSecretSize(key, &ssLen);
+            if ((r != 0) || (ssLen != WC_ML_KEM_SS_SZ))
+                ret = WC_TEST_RET_ENC_NC;
+        }
+        if (ret == 0) {
+            bufLen = privLen;
+            if (ctLen > bufLen)
+                bufLen = ctLen;
+            buf = (byte*)XMALLOC(bufLen, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            buf2 = (byte*)XMALLOC(bufLen, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            if ((buf == NULL) || (buf2 == NULL)) {
+                ret = WC_TEST_RET_ENC_EC(MEMORY_E);
+            }
+            else {
+                XMEMSET(buf, 0, bufLen);
+                XMEMSET(buf2, 0, bufLen);
+            }
+        }
+#ifndef WOLFSSL_MLKEM_NO_ENCAPSULATE
+        if (ret == 0) {
+            byte rand[WC_ML_KEM_ENC_RAND_SZ];
+            byte ss[WC_ML_KEM_SS_SZ];
+
+            XMEMSET(rand, 0, sizeof(rand));
+            r = wc_MlKemKey_EncapsulateWithRandom(key, NULL, ss, rand,
+                    (int)sizeof(rand));
+            if (r != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+                ret = WC_TEST_RET_ENC_NC;
+            if (ret == 0) {
+                r = wc_MlKemKey_EncapsulateWithRandom(key, buf, ss, rand,
+                        (int)sizeof(rand) - 1);
+                if (r != WC_NO_ERR_TRACE(BUFFER_E))
+                    ret = WC_TEST_RET_ENC_NC;
+            }
+            if (ret == 0) {
+                /* No public key yet, so this is refused before a device is
+                 * asked for. */
+                r = wc_MlKemKey_EncapsulateWithRandom(key, buf, ss, rand,
+                        (int)sizeof(rand));
+                if (r != WC_NO_ERR_TRACE(BAD_STATE_E))
+                    ret = WC_TEST_RET_ENC_NC;
+            }
+        }
+#endif /* !WOLFSSL_MLKEM_NO_ENCAPSULATE */
+        /* Coefficients are packed 12 bits little-endian, so 0xff 0x0f makes
+         * the first one 4095 - above q, and the decode must reject it. */
+        if (ret == 0) {
+            XMEMSET(buf, 0, bufLen);
+            buf[0] = 0xff;
+            buf[1] = 0x0f;
+            r = wc_MlKemKey_DecodePublicKey(key, buf, pubLen);
+            if (r != WC_NO_ERR_TRACE(PUBLIC_KEY_E))
+                ret = WC_TEST_RET_ENC_NC;
+        }
+        /* An all-zero encoding decodes cleanly: every coefficient reads as
+         * zero, which is in reduced range. */
+        if (ret == 0) {
+            XMEMSET(buf, 0, bufLen);
+            r = wc_MlKemKey_DecodePublicKey(key, buf, pubLen);
+            if (r != 0)
+                ret = WC_TEST_RET_ENC_EC(r);
+        }
+        if (ret == 0) {
+            word32 z;
+
+            /* The public encoding carries no derived field, so re-encoding
+             * must reproduce the zeros that went in. */
+            r = wc_MlKemKey_EncodePublicKey(key, buf, pubLen);
+            if (r != 0)
+                ret = WC_TEST_RET_ENC_EC(r);
+            for (z = 0; (ret == 0) && (z < pubLen); z++) {
+                if (buf[z] != 0)
+                    ret = WC_TEST_RET_ENC_NC;
+            }
+        }
+#ifndef WOLFSSL_MLKEM_NO_ENCAPSULATE
+        if (ret == 0) {
+            byte rand[WC_ML_KEM_ENC_RAND_SZ];
+            byte ss[WC_ML_KEM_SS_SZ];
+
+            XMEMSET(rand, 0, sizeof(rand));
+            /* With a public key set, the refusal now comes from the
+             * dispatch. */
+            r = wc_MlKemKey_EncapsulateWithRandom(key, buf, ss, rand,
+                    (int)sizeof(rand));
+            if (r != WC_NO_ERR_TRACE(NO_VALID_DEVID))
+                ret = WC_TEST_RET_ENC_NC;
+        }
+#endif /* !WOLFSSL_MLKEM_NO_ENCAPSULATE */
+        /* dk is dk_PKE || ek_PKE || H(ek_PKE) || z, and decoding rejects a
+         * stored hash that does not match the encoded public key. Fill that
+         * one field in; the rest can stay zero. */
+        if (ret == 0) {
+            word32 hOff = privLen - 2 * WC_ML_KEM_SYM_SZ;
+
+            XMEMSET(buf, 0, bufLen);
+            r = wc_Sha3_256Hash(buf + hOff - pubLen, pubLen, buf + hOff);
+            if (r != 0)
+                ret = WC_TEST_RET_ENC_EC(r);
+        }
+        if (ret == 0) {
+            r = wc_MlKemKey_DecodePrivateKey(key, buf, privLen);
+            if (r != 0)
+                ret = WC_TEST_RET_ENC_EC(r);
+        }
+        if (ret == 0) {
+            /* Every field of that encoding is canonical, so re-encoding must
+             * reproduce it byte for byte. */
+            r = wc_MlKemKey_EncodePrivateKey(key, buf2, privLen);
+            if (r != 0)
+                ret = WC_TEST_RET_ENC_EC(r);
+            else if (XMEMCMP(buf, buf2, privLen) != 0)
+                ret = WC_TEST_RET_ENC_NC;
+        }
+#ifndef WOLFSSL_MLKEM_NO_DECAPSULATE
+        if (ret == 0) {
+            byte ss[WC_ML_KEM_SS_SZ];
+
+            XMEMSET(buf, 0, bufLen);
+            r = wc_MlKemKey_Decapsulate(key, ss, buf, ctLen);
+            if (r != WC_NO_ERR_TRACE(NO_VALID_DEVID))
+                ret = WC_TEST_RET_ENC_NC;
+        }
+#endif /* !WOLFSSL_MLKEM_NO_DECAPSULATE */
+        XFREE(buf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(buf2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        if (key_inited)
+            wc_MlKemKey_Free(key);
+        WC_FREE_VAR(key, HEAP_HINT);
+    }
+#endif /* MLKEM_CB_ONLY_TYPE */
+    return ret;
+#endif /* WC_MLKEM_HAVE_NATIVE */
 }
 #endif /* WOLFSSL_HAVE_MLKEM */
 
@@ -80303,6 +80535,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t blob_test(void)
 /* Example custom context for crypto callback */
 typedef struct {
     int exampleVar; /* flag for testing if only crypt is enabled. */
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WC_MLKEM_HAVE_NATIVE)
+    int mlkemCount; /* ML-KEM callback invocations */
+    int mlkemFail;  /* when set, the ML-KEM handler returns this error */
+#endif
 #ifdef HAVE_ECC
     int eccMakePubCount;  /* EC make-pub callback invocations */
     int eccCheckPubCount; /* EC check-pubkey callback invocations */
@@ -82370,7 +82606,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             myCtx->exampleVar++;
         }
     #endif /* HAVE_FALCON && !WOLF_CRYPTO_CB_ONLY_FALCON */
-    #ifdef WOLFSSL_HAVE_MLKEM
+    #if defined(WOLFSSL_HAVE_MLKEM) && defined(WC_MLKEM_HAVE_NATIVE)
         if (info->pk.type == WC_PK_TYPE_PQC_KEM_KEYGEN) {
             if ((info->pk.pqc_kem_kg.type == WC_PQC_KEM_TYPE_MLKEM) &&
                 (info->pk.pqc_kem_kg.key != NULL)) {
@@ -82437,7 +82673,78 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                 key->prf.devId = prfDevId;
             }
         }
-    #endif /* WOLFSSL_HAVE_MLKEM */
+    #endif /* WOLFSSL_HAVE_MLKEM && WC_MLKEM_HAVE_NATIVE */
+    #if defined(WOLFSSL_HAVE_MLKEM) && !defined(WC_MLKEM_HAVE_NATIVE)
+        /* The software core is stripped, so this device cannot delegate to the
+         * public API the way the other handlers do; it would dispatch straight
+         * back here. It instead answers with its own deterministic material,
+         * which is enough to prove the dispatch reaches a device, that the
+         * ciphertext and shared secret travel back to the caller, and that a
+         * device error is reported as-is. The shared secret is carried in the
+         * first bytes of the ciphertext, so decapsulate only reproduces it
+         * when encapsulate's output made the round trip. */
+        if ((info->pk.type == WC_PK_TYPE_PQC_KEM_KEYGEN) &&
+                (info->pk.pqc_kem_kg.type == WC_PQC_KEM_TYPE_MLKEM) &&
+                (info->pk.pqc_kem_kg.key != NULL)) {
+            MlKemKey* key = (MlKemKey*)info->pk.pqc_kem_kg.key;
+
+            myCtx->mlkemCount++;
+            if (myCtx->mlkemFail != 0) {
+                ret = myCtx->mlkemFail;
+            }
+            else {
+                XMEMSET(key->z, 0x5a, sizeof(key->z));
+                key->flags |= MLKEM_FLAG_BOTH_SET;
+                ret = 0;
+            }
+        }
+        else if ((info->pk.type == WC_PK_TYPE_PQC_KEM_ENCAPS) &&
+                (info->pk.pqc_encaps.type == WC_PQC_KEM_TYPE_MLKEM) &&
+                (info->pk.pqc_encaps.key != NULL)) {
+            MlKemKey* key = (MlKemKey*)info->pk.pqc_encaps.key;
+            word32 ctSz = 0;
+
+            myCtx->mlkemCount++;
+            if (myCtx->mlkemFail != 0) {
+                ret = myCtx->mlkemFail;
+            }
+            else {
+                ret = wc_MlKemKey_CipherTextSize(key, &ctSz);
+            }
+            if (ret == 0) {
+                byte* ct = info->pk.pqc_encaps.ciphertext;
+                byte* ss = info->pk.pqc_encaps.sharedSecret;
+                word32 i;
+
+                for (i = 0; i < WC_ML_KEM_SS_SZ; i++) {
+                    ss[i] = (byte)(key->z[i] ^ 0xa5);
+                }
+                XMEMSET(ct, 0xc7, ctSz);
+                XMEMCPY(ct, ss, WC_ML_KEM_SS_SZ);
+            }
+        }
+        else if ((info->pk.type == WC_PK_TYPE_PQC_KEM_DECAPS) &&
+                (info->pk.pqc_decaps.type == WC_PQC_KEM_TYPE_MLKEM) &&
+                (info->pk.pqc_decaps.key != NULL)) {
+            MlKemKey* key = (MlKemKey*)info->pk.pqc_decaps.key;
+            word32 ctSz = 0;
+
+            myCtx->mlkemCount++;
+            if (myCtx->mlkemFail != 0) {
+                ret = myCtx->mlkemFail;
+            }
+            else {
+                ret = wc_MlKemKey_CipherTextSize(key, &ctSz);
+            }
+            if ((ret == 0) && (info->pk.pqc_decaps.ciphertextLen != ctSz)) {
+                ret = BUFFER_E;
+            }
+            if (ret == 0) {
+                XMEMCPY(info->pk.pqc_decaps.sharedSecret,
+                    info->pk.pqc_decaps.ciphertext, WC_ML_KEM_SS_SZ);
+            }
+        }
+    #endif /* WOLFSSL_HAVE_MLKEM && !WC_MLKEM_HAVE_NATIVE */
     #ifdef WOLFSSL_HAVE_FRODOKEM
         if (info->pk.type == WC_PK_TYPE_PQC_KEM_KEYGEN) {
             if ((info->pk.pqc_kem_kg.type == WC_PQC_KEM_TYPE_FRODOKEM) &&
@@ -84273,6 +84580,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 
     /* example data for callback */
     myCtx.exampleVar = 1;
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WC_MLKEM_HAVE_NATIVE)
+    myCtx.mlkemCount = 0;
+    myCtx.mlkemFail = 0;
+#endif
 #ifdef HAVE_ECC
     myCtx.eccMakePubCount = 0;
     myCtx.eccCheckPubCount = 0;
@@ -84564,6 +84875,93 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 #ifdef WOLFSSL_HAVE_MLKEM
     if (ret == 0)
         ret = mlkem_test();
+#if !defined(WC_MLKEM_HAVE_NATIVE) && defined(MLKEM_CB_ONLY_TYPE) && \
+    !defined(WC_NO_RNG) && !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
+    /* With the software core stripped, the only way an ML-KEM operation can
+     * succeed is through a registered device. Drive all three operations that
+     * way and confirm the results came back, so a dispatch regression cannot
+     * hide behind the NO_VALID_DEVID checks in mlkem_test(). */
+    if (ret == 0) {
+        WC_DECLARE_VAR(key, MlKemKey, 1, HEAP_HINT);
+        WC_DECLARE_VAR(ct, byte, WC_ML_KEM_MAX_CIPHER_TEXT_SIZE, HEAP_HINT);
+        WC_DECLARE_VAR(mlkemRng, WC_RNG, 1, HEAP_HINT);
+        byte ss[WC_ML_KEM_SS_SZ];
+        byte ssDec[WC_ML_KEM_SS_SZ];
+        int key_inited = 0;
+        int rng_inited = 0;
+        int baseline = myCtx.mlkemCount;
+        word32 ctSz = 0;
+        int r;
+
+        WC_ALLOC_VAR(key, MlKemKey, 1, HEAP_HINT);
+        WC_ALLOC_VAR(ct, byte, WC_ML_KEM_MAX_CIPHER_TEXT_SIZE, HEAP_HINT);
+        WC_ALLOC_VAR(mlkemRng, WC_RNG, 1, HEAP_HINT);
+        if ((!WC_VAR_OK(key)) || (!WC_VAR_OK(ct)) || (!WC_VAR_OK(mlkemRng)))
+            ret = WC_TEST_RET_ENC_EC(MEMORY_E);
+        if (ret == 0) {
+            /* The device ignores the RNG; keep it off the callback path. */
+            r = wc_InitRng_ex(mlkemRng, HEAP_HINT, INVALID_DEVID);
+            if (r != 0)
+                ret = WC_TEST_RET_ENC_EC(r);
+            else
+                rng_inited = 1;
+        }
+        if (ret == 0) {
+            r = wc_MlKemKey_Init(key, MLKEM_CB_ONLY_TYPE, HEAP_HINT, devId);
+            if (r != 0)
+                ret = WC_TEST_RET_ENC_EC(r);
+            else
+                key_inited = 1;
+        }
+        if (ret == 0) {
+            r = wc_MlKemKey_MakeKey(key, mlkemRng);
+            if (r != 0)
+                ret = WC_TEST_RET_ENC_EC(r);
+        }
+        if (ret == 0) {
+            r = wc_MlKemKey_CipherTextSize(key, &ctSz);
+            if (r != 0)
+                ret = WC_TEST_RET_ENC_EC(r);
+        }
+        if (ret == 0) {
+            XMEMSET(ct, 0, WC_ML_KEM_MAX_CIPHER_TEXT_SIZE);
+            XMEMSET(ss, 0, sizeof(ss));
+            r = wc_MlKemKey_Encapsulate(key, ct, ss, mlkemRng);
+            if (r != 0)
+                ret = WC_TEST_RET_ENC_EC(r);
+        }
+        if (ret == 0) {
+            XMEMSET(ssDec, 0, sizeof(ssDec));
+            r = wc_MlKemKey_Decapsulate(key, ssDec, ct, ctSz);
+            if (r != 0)
+                ret = WC_TEST_RET_ENC_EC(r);
+        }
+        /* Shared secrets agree only if the device's ciphertext reached the
+         * caller and was handed back to decapsulate unchanged. */
+        if ((ret == 0) && (XMEMCMP(ss, ssDec, sizeof(ss)) != 0))
+            ret = WC_TEST_RET_ENC_NC;
+        /* Three operations, three callback invocations: no silent bypass. */
+        if ((ret == 0) && (myCtx.mlkemCount != baseline + 3))
+            ret = WC_TEST_RET_ENC_NC;
+        /* A device error must reach the caller unchanged. */
+        if (ret == 0) {
+            myCtx.mlkemFail = WC_NO_ERR_TRACE(WC_HW_E);
+            r = wc_MlKemKey_Encapsulate(key, ct, ss, mlkemRng);
+            myCtx.mlkemFail = 0;
+            if (r != WC_NO_ERR_TRACE(WC_HW_E))
+                ret = WC_TEST_RET_ENC_NC;
+        }
+        if (key_inited)
+            wc_MlKemKey_Free(key);
+        if (rng_inited)
+            wc_FreeRng(mlkemRng);
+        WC_FREE_VAR(mlkemRng, HEAP_HINT);
+        WC_FREE_VAR(ct, HEAP_HINT);
+        WC_FREE_VAR(key, HEAP_HINT);
+    }
+#endif /* callback-only ML-KEM dispatch */
 #endif
 #ifdef WOLFSSL_HAVE_FRODOKEM
     if (ret == 0)
