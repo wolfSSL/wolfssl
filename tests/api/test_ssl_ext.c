@@ -1552,8 +1552,13 @@ int test_wolfSSL_api_null_burndown(void)
     (void)wolfSSL_UseSNI(ssl, WOLFSSL_SNI_HOST_NAME, "a", 1);
     (void)wolfSSL_CTX_UseSNI(NULL, WOLFSSL_SNI_HOST_NAME, "a", 1);
     (void)wolfSSL_CTX_UseSNI(ctx, WOLFSSL_SNI_HOST_NAME, NULL, 1);
+    /* SNI_GetRequest and SNI_GetFromBuffer are compiled under
+     * HAVE_SNI && !NO_WOLFSSL_SERVER (src/ssl_api_ext.c) -- they read what a
+     * client sent, so a client-only build has neither. */
+#ifndef NO_WOLFSSL_SERVER
     (void)wolfSSL_SNI_GetRequest(NULL, WOLFSSL_SNI_HOST_NAME, NULL);
     (void)wolfSSL_SNI_GetRequest(ssl, WOLFSSL_SNI_HOST_NAME, NULL);
+#endif
 #endif
 #ifdef HAVE_ALPN
     (void)wolfSSL_UseALPN(NULL, alpnList, 2, WOLFSSL_ALPN_CONTINUE_ON_MISMATCH);
@@ -1667,7 +1672,12 @@ int test_wolfSSL_session_null_burndown(void)
     /* and against a real, unestablished session where one exists */
     sess = wolfSSL_get1_session(ssl);
     if (sess != NULL) {
-        (void)wolfSSL_SESSION_dup(sess);
+        /* SESSION_dup returns a new object the caller owns; discarding it
+         * leaks (LeakSanitizer: 2664 bytes from wolfSSL_NewSession). */
+        WOLFSSL_SESSION* dup = wolfSSL_SESSION_dup(sess);
+
+        if (dup != NULL)
+            wolfSSL_SESSION_free(dup);
         wolfSSL_SESSION_free(sess);
     }
 
@@ -1789,7 +1799,9 @@ int test_wolfSSL_api_null_operands(void)
 #endif
 
     /* --- SNI from a raw ClientHello buffer ------------------------------ */
-#ifdef HAVE_SNI
+    /* Server-side only: it parses what a client sent (HAVE_SNI &&
+     * !NO_WOLFSSL_SERVER in src/ssl_api_ext.c). */
+#if defined(HAVE_SNI) && !defined(NO_WOLFSSL_SERVER)
     {
         byte hello[64];
         word32 outSz = (word32)sizeof(buf);
