@@ -26,6 +26,7 @@ int test_wolfSSL_ech_config_api(void);
 int test_wolfSSL_api_null_burndown(void);
 int test_wolfSSL_session_null_burndown(void);
 int test_wolfSSL_api_null_operands(void);
+int test_wolfSSL_public_null_operands(void);
 
 int test_wolfSSL_NoTicketTLSv12_ext(void);
 int test_wolfSSL_CTX_UseMaxFragment_ext(void);
@@ -115,6 +116,7 @@ int test_wolfSSL_ticket_key_cb_renew_ext(void);
         TEST_DECL_GROUP("ssl_ext", test_wolfSSL_ech_config_api),               \
         TEST_DECL_GROUP("ssl_ext", test_wolfSSL_api_null_burndown),            \
         TEST_DECL_GROUP("ssl_ext", test_wolfSSL_session_null_burndown),        \
-        TEST_DECL_GROUP("ssl_ext", test_wolfSSL_api_null_operands)
+        TEST_DECL_GROUP("ssl_ext", test_wolfSSL_api_null_operands),            \
+        TEST_DECL_GROUP("ssl_ext", test_wolfSSL_public_null_operands)
 
 #endif /* TESTS_API_SSL_EXT_H */
