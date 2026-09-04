@@ -7733,6 +7733,59 @@ static int SetSSL_CTX_CertsAndKeys(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 }
 #endif /* NO_CERTS */
 
+#ifndef NO_DH
+/* Give the SSL object its own copy of the context's DH parameters.
+ *
+ * The parameters are plain buffers with no reference count on them, so a
+ * session must not point at the context's: the context is free to replace
+ * them at any time. They are small and only present when the application
+ * asked for them, so a copy is the cheap way to keep them safe. It is given
+ * back at the end of the handshake and taken again when next needed.
+ *
+ * @param [in, out] ssl  SSL object. Any parameters it owns are let go of.
+ * @param [in]      ctx  SSL context object.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ */
+int CopySSL_CTX_DhParams(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
+{
+    byte* p;
+    byte* g;
+
+    if ((ctx->serverDH_P.buffer == NULL) || (ctx->serverDH_G.buffer == NULL)) {
+        return 0;
+    }
+
+    p = (byte*)XMALLOC(ctx->serverDH_P.length, ssl->heap,
+        DYNAMIC_TYPE_PUBLIC_KEY);
+    g = (byte*)XMALLOC(ctx->serverDH_G.length, ssl->heap,
+        DYNAMIC_TYPE_PUBLIC_KEY);
+    if ((p == NULL) || (g == NULL)) {
+        XFREE(p, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        XFREE(g, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        return MEMORY_E;
+    }
+
+    /* Let go of any parameters this object already had. */
+    if (ssl->buffers.weOwnDH) {
+        XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap,
+            DYNAMIC_TYPE_PUBLIC_KEY);
+        XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap,
+            DYNAMIC_TYPE_PUBLIC_KEY);
+    }
+
+    XMEMCPY(p, ctx->serverDH_P.buffer, ctx->serverDH_P.length);
+    XMEMCPY(g, ctx->serverDH_G.buffer, ctx->serverDH_G.length);
+    ssl->buffers.serverDH_P.buffer = p;
+    ssl->buffers.serverDH_P.length = ctx->serverDH_P.length;
+    ssl->buffers.serverDH_G.buffer = g;
+    ssl->buffers.serverDH_G.length = ctx->serverDH_G.length;
+    ssl->buffers.weOwnDH = 1;
+
+    return 0;
+}
+#endif /* !NO_DH */
+
 int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 {
     int ret = WOLFSSL_SUCCESS; /* set default ret */
@@ -7921,8 +7974,9 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
         !defined(HAVE_SELFTEST)
         ssl->options.dhKeyTested = ctx->dhKeyTested;
     #endif
-    ssl->buffers.serverDH_P = ctx->serverDH_P;
-    ssl->buffers.serverDH_G = ctx->serverDH_G;
+    if (CopySSL_CTX_DhParams(ssl, ctx) != 0) {
+        return MEMORY_E;
+    }
 #endif
 
 #if defined(HAVE_RPK)
@@ -9813,7 +9867,6 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
     }
     XFREE(ssl->buffers.serverDH_Priv.buffer, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
     XFREE(ssl->buffers.serverDH_Pub.buffer, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-    /* parameters (p,g) may be owned by ctx */
     if (ssl->buffers.weOwnDH) {
         XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
@@ -10212,11 +10265,14 @@ void FreeHandshakeResources(WOLFSSL* ssl)
     ssl->buffers.serverDH_Priv.buffer = NULL;
     XFREE(ssl->buffers.serverDH_Pub.buffer, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
     ssl->buffers.serverDH_Pub.buffer = NULL;
-    /* parameters (p,g) may be owned by ctx */
+    /* Release the parameters (p,g) back here rather than hold them for
+     * the life of the connection. */
     if (ssl->buffers.weOwnDH) {
-        XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap,
+            DYNAMIC_TYPE_PUBLIC_KEY);
         ssl->buffers.serverDH_G.buffer = NULL;
-        XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap,
+            DYNAMIC_TYPE_PUBLIC_KEY);
         ssl->buffers.serverDH_P.buffer = NULL;
     }
 #endif /* !NO_DH */
@@ -39362,6 +39418,14 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 #endif
                     {
                         /* Allocate DH key buffers and generate key */
+                        if (ssl->buffers.serverDH_P.buffer == NULL ||
+                            ssl->buffers.serverDH_G.buffer == NULL) {
+                            /* Buffers freed at the end of the last handshake,
+                             * create a new copy from the context. */
+                            if (CopySSL_CTX_DhParams(ssl, ssl->ctx) != 0) {
+                                ERROR_OUT(MEMORY_E, exit_sske);
+                            }
+                        }
                         if (ssl->buffers.serverDH_P.buffer == NULL ||
                             ssl->buffers.serverDH_G.buffer == NULL) {
                             ERROR_OUT(NO_DH_PARAMS, exit_sske);
