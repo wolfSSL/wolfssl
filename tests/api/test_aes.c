@@ -236,9 +236,9 @@ int test_wc_AesSetIV_RestartsStream(void)
     EXPECT_DECLS;
 #if !defined(NO_AES) && defined(WOLFSSL_AES_128) && \
     (defined(HAVE_AES_CBC) || (defined(WOLFSSL_AES_COUNTER) && \
-     (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && \
+     (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)))) && \
      !defined(HAVE_SELFTEST) && !defined(WOLFSSL_AFALG) && \
-     !defined(WOLFSSL_KCAPI)))
+     !defined(WOLFSSL_KCAPI)
     Aes  aes;
     byte key16[] = {
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
