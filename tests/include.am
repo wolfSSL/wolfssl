@@ -175,6 +175,7 @@ EXTRA_DIST += \
               tests/unit-mcdc/test_internal_peerkey_whitebox.c \
               tests/unit-mcdc/test_keys_whitebox.c \
               tests/unit-mcdc/test_internal_record_whitebox.c \
+              tests/unit-mcdc/test_internal_status_whitebox.c \
               tests/unit-mcdc/test_internal_sanity_whitebox.c \
               tests/unit-mcdc/test_internal_suites_whitebox.c \
               tests/unit-mcdc/test_kdf_whitebox.c \

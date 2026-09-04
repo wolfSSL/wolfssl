@@ -29,6 +29,7 @@ test_internal_nullguard_whitebox
 test_internal_peerkey_whitebox
 test_internal_record_whitebox
 test_internal_sanity_whitebox
+test_internal_status_whitebox
 test_internal_suites_whitebox
 test_keys_whitebox
 test_lms_bds_whitebox
