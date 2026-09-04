@@ -1584,6 +1584,14 @@ int wolfSSL_GetOutputSize(WOLFSSL* ssl, int inSz)
     if (inSz > maxSize)
         return INPUT_SIZE_E;
 
+#ifdef HAVE_LIBZ
+    /* SendData() sizes the record for deflate's worst case, so report that
+     * same bound: an incompressible fragment emits more than its plaintext
+     * length. */
+    if (ssl->options.usingCompression)
+        inSz += MAX_COMP_EXTRA;
+#endif
+
     return wolfssl_local_GetRecordSize(ssl, inSz, 1);
 }
 
@@ -3956,6 +3964,17 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     WOLFSSL_ENTER("wolfSSL_set_compression");
     (void)ssl;
 #ifdef HAVE_LIBZ
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+#ifdef WOLFSSL_DTLS
+    /* zlib keeps one deflate stream running across records, so a datagram
+     * that is lost, duplicated or reordered desyncs the peer's inflate state
+     * for the rest of the connection. */
+    if (ssl->options.dtls) {
+        WOLFSSL_MSG("Compression not supported over DTLS");
+        return BAD_FUNC_ARG;
+    }
+#endif
     ssl->options.usingCompression = 1;
     return WOLFSSL_SUCCESS;
 #else
