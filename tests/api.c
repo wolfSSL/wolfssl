@@ -18750,76 +18750,94 @@ static int test_wolfSSL_SSL_CIPHER_find(void)
     if (EXPECT_SUCCESS() && (wolfSSL_sk_SSL_CIPHER_num(sk) > 1)) {
         WOLFSSL* sslLtd = NULL;
         WOLF_STACK_OF(WOLFSSL_CIPHER)* skLtd = NULL;
-        const WOLFSSL_CIPHER* keep = wolfSSL_sk_SSL_CIPHER_value(sk, 0);
         const WOLFSSL_CIPHER* absent = NULL;
         unsigned char absentId[2] = { 0, 0 };
         int i;
 
-        ExpectNotNull(keep);
-        ExpectNotNull(sslLtd = wolfSSL_new(ctx));
-        if (keep != NULL) {
-            ExpectIntEQ(wolfSSL_set_cipher_list(sslLtd,
-                wolfSSL_CIPHER_get_name(keep)), WOLFSSL_SUCCESS);
-        }
-        ExpectNotNull(skLtd = wolfSSL_get_ciphers_compat(sslLtd));
         /* Restricting must really drop suites or the check below would be
-         * satisfied by the SSL's own list instead of the fallback. */
-        ExpectIntLT(wolfSSL_sk_SSL_CIPHER_num(skLtd),
-                    wolfSSL_sk_SSL_CIPHER_num(sk));
-
-        /* Find a suite the restricted SSL dropped. */
-        for (i = 0; EXPECT_SUCCESS() &&
+         * satisfied by the SSL's own list instead of the fallback. Naming a
+         * TLS 1.3 suite leaves the TLS 1.2 list alone, so the first suite is
+         * not always one that narrows anything - keep the first that does. */
+        for (i = 0; EXPECT_SUCCESS() && (skLtd == NULL) &&
                 (i < wolfSSL_sk_SSL_CIPHER_num(sk)); i++) {
-            const WOLFSSL_CIPHER* full = wolfSSL_sk_SSL_CIPHER_value(sk, i);
-            int inLtd = 0;
-            int j;
+            const WOLFSSL_CIPHER* keep = wolfSSL_sk_SSL_CIPHER_value(sk, i);
+            WOLF_STACK_OF(WOLFSSL_CIPHER)* skTry = NULL;
+            WOLFSSL* sslTry = NULL;
 
-            if (full == NULL)
+            if (keep == NULL)
                 continue;
-            for (j = 0; j < wolfSSL_sk_SSL_CIPHER_num(skLtd); j++) {
-                const WOLFSSL_CIPHER* ltd =
-                    wolfSSL_sk_SSL_CIPHER_value(skLtd, j);
+            ExpectNotNull(sslTry = wolfSSL_new(ctx));
+            ExpectIntEQ(wolfSSL_set_cipher_list(sslTry,
+                wolfSSL_CIPHER_get_name(keep)), WOLFSSL_SUCCESS);
+            ExpectNotNull(skTry = wolfSSL_get_ciphers_compat(sslTry));
+            if (EXPECT_SUCCESS() && (wolfSSL_sk_SSL_CIPHER_num(skTry) <
+                    wolfSSL_sk_SSL_CIPHER_num(sk))) {
+                sslLtd = sslTry;
+                skLtd = skTry;
+            }
+            else {
+                wolfSSL_free(sslTry);
+            }
+        }
 
-                if ((ltd != NULL) &&
-                        (ltd->cipherSuite0 == full->cipherSuite0) &&
-                        (ltd->cipherSuite == full->cipherSuite)) {
-                    inLtd = 1;
+        /* Builds whose whole suite list shares one name cannot express a
+         * narrower list, so there is nothing to look up here. */
+        if (EXPECT_SUCCESS() && (skLtd != NULL)) {
+            /* Find a suite the restricted SSL dropped. */
+            for (i = 0; EXPECT_SUCCESS() &&
+                    (i < wolfSSL_sk_SSL_CIPHER_num(sk)); i++) {
+                const WOLFSSL_CIPHER* full =
+                    wolfSSL_sk_SSL_CIPHER_value(sk, i);
+                int inLtd = 0;
+                int j;
+
+                if (full == NULL)
+                    continue;
+                for (j = 0; j < wolfSSL_sk_SSL_CIPHER_num(skLtd); j++) {
+                    const WOLFSSL_CIPHER* ltd =
+                        wolfSSL_sk_SSL_CIPHER_value(skLtd, j);
+
+                    if ((ltd != NULL) &&
+                            (ltd->cipherSuite0 == full->cipherSuite0) &&
+                            (ltd->cipherSuite == full->cipherSuite)) {
+                        inLtd = 1;
+                        break;
+                    }
+                }
+                if (!inLtd) {
+                    absentId[0] = full->cipherSuite0;
+                    absentId[1] = full->cipherSuite;
+                    absent = full;
                     break;
                 }
             }
-            if (!inLtd) {
-                absentId[0] = full->cipherSuite0;
-                absentId[1] = full->cipherSuite;
-                absent = full;
-                break;
-            }
-        }
-        ExpectNotNull(absent);
+            ExpectNotNull(absent);
 
-        ExpectNotNull(found = SSL_CIPHER_find(sslLtd, absentId));
-        if (found != NULL) {
-            ExpectIntEQ(found->cipherSuite0, absentId[0]);
-            ExpectIntEQ(found->cipherSuite,  absentId[1]);
-        }
+            ExpectNotNull(found = SSL_CIPHER_find(sslLtd, absentId));
+            if (found != NULL) {
+                ExpectIntEQ(found->cipherSuite0, absentId[0]);
+                ExpectIntEQ(found->cipherSuite,  absentId[1]);
+            }
 
 #ifdef OPENSSL_ALL
-        /* SSL_CIPHER_description(SSL_CIPHER_find(...)) must describe the suite
-         * that was looked up. Nothing has been negotiated, so a description
-         * taken from the session state would be empty. */
-        if ((found != NULL) && (absent != NULL)) {
-            char descFind[MAX_DESCRIPTION_SZ];
-            char descStack[MAX_DESCRIPTION_SZ];
+            /* SSL_CIPHER_description(SSL_CIPHER_find(...)) must describe the
+             * suite that was looked up. Nothing has been negotiated, so a
+             * description taken from the session state would be empty. */
+            if ((found != NULL) && (absent != NULL)) {
+                char descFind[MAX_DESCRIPTION_SZ];
+                char descStack[MAX_DESCRIPTION_SZ];
 
-            XMEMSET(descFind, 0, sizeof(descFind));
-            XMEMSET(descStack, 0, sizeof(descStack));
-            ExpectNotNull(SSL_CIPHER_description(absent, descStack,
-                (int)sizeof(descStack)));
-            ExpectNotNull(SSL_CIPHER_description(found, descFind,
-                (int)sizeof(descFind)));
-            ExpectStrEQ(descFind, descStack);
-            ExpectNull(XSTRSTR(descFind, "unknown"));
-        }
+                XMEMSET(descFind, 0, sizeof(descFind));
+                XMEMSET(descStack, 0, sizeof(descStack));
+                ExpectNotNull(SSL_CIPHER_description(absent, descStack,
+                    (int)sizeof(descStack)));
+                ExpectNotNull(SSL_CIPHER_description(found, descFind,
+                    (int)sizeof(descFind)));
+                ExpectStrEQ(descFind, descStack);
+                ExpectNull(XSTRSTR(descFind, "unknown"));
+            }
 #endif
+        }
 
         wolfSSL_free(sslLtd);
     }
@@ -23555,6 +23573,7 @@ static int test_wolfSSL_get_ciphers_compat_empty(void)
     return EXPECT_RESULT();
 }
 
+
 static int test_wolfSSL_CTX_ctrl(void)
 {
     EXPECT_DECLS;
@@ -23861,6 +23880,103 @@ static int test_wolfSSL_NCONF_negative_paths(void)
     return EXPECT_RESULT();
 }
 #endif /* OPENSSL_ALL */
+
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || \
+    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+/* SSL_get_cipher_list() walks the cipher list configured on the SSL, highest
+ * priority first, and returns NULL once past the end. No handshake has run
+ * here, so there is no negotiated suite to report. */
+static int test_wolfSSL_get_cipher_list_compat(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT)
+    SSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    const char* name = NULL;
+    int count = 0;
+
+    ExpectNotNull(ctx = SSL_CTX_new(SSLv23_client_method()));
+    ExpectNotNull(ssl = SSL_new(ctx));
+
+    ExpectNull(SSL_get_cipher_list(NULL, 0));
+    ExpectNull(SSL_get_cipher_list(ssl, -1));
+
+    ExpectNotNull(name = SSL_get_cipher_list(ssl, 0));
+    /* Sentinel differs between the IANA and short-name builds. */
+    ExpectStrNE(name, "None");
+    ExpectStrNE(name, "NONE");
+
+    /* Walk to the end of the list. */
+    while (EXPECT_SUCCESS() && SSL_get_cipher_list(ssl, count) != NULL)
+        count++;
+    ExpectIntGT(count, 0);
+    ExpectNull(SSL_get_cipher_list(ssl, count));
+
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY)
+    /* Must agree with the stack SSL_get_ciphers() returns, entry for entry. */
+    {
+        STACK_OF(SSL_CIPHER)* ciphers = NULL;
+        int num = 0;
+        int i;
+
+        ExpectNotNull(ciphers = SSL_get_ciphers(ssl));
+        ExpectIntEQ(num = sk_SSL_CIPHER_num(ciphers), count);
+        for (i = 0; i < num; i++) {
+            ExpectNotNull(name = SSL_get_cipher_list(ssl, i));
+            ExpectStrEQ(name,
+                SSL_CIPHER_get_name(sk_SSL_CIPHER_value(ciphers, i)));
+        }
+    }
+#endif
+
+    SSL_free(ssl);
+    ssl = NULL;
+
+    /* Masking every version filters out all suites, so priority 0 is NULL. */
+    ExpectNotNull(ssl = SSL_new(ctx));
+    wolfSSL_set_options(ssl, SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 |
+        SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2 | SSL_OP_NO_TLSv1_3);
+    ExpectNull(SSL_get_cipher_list(ssl, 0));
+
+    SSL_free(ssl);
+    SSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The list stays the configured suites after a handshake. The old
+ * SSL_get_cipher_list() reported the negotiated suite at priority 0. */
+static int test_wolfSSL_get_cipher_list_compat_after_handshake(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    const char* before = NULL;
+    const char* after = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfSSLv23_client_method, wolfSSLv23_server_method), 0);
+
+    ExpectNotNull(before = SSL_get_cipher_list(ssl_c, 0));
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectNotNull(after = SSL_get_cipher_list(ssl_c, 0));
+    ExpectStrEQ(before, after);
+
+    /* More than one suite is still reachable after the handshake. */
+    ExpectNotNull(SSL_get_cipher_list(ssl_c, 1));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+#endif /* OPENSSL_EXTRA || OPENSSL_ALL || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
 
 static int test_wolfSSL_d2i_and_i2d_PublicKey(void)
 {
@@ -40742,6 +40858,11 @@ TEST_CASE testCases[] = {
 
     TEST_DECL(test_wolfSSL_CTX_ctrl),
 #endif /* OPENSSL_ALL */
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || \
+    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+    TEST_DECL(test_wolfSSL_get_cipher_list_compat),
+    TEST_DECL(test_wolfSSL_get_cipher_list_compat_after_handshake),
+#endif
 #if (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)) && !defined(NO_RSA)
     TEST_DECL(test_wolfSSL_CTX_use_certificate_ASN1),
 #endif /* (OPENSSL_ALL || WOLFSSL_ASIO) && !NO_RSA */
