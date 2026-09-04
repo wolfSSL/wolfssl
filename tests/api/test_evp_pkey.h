@@ -37,6 +37,7 @@ int test_wolfSSL_EVP_PKEY_new_mac_key(void);
 int test_wolfSSL_EVP_PKEY_hkdf(void);
 int test_wolfSSL_EVP_PBE_scrypt(void);
 int test_EVP_PKEY_cmp(void);
+int test_wolfSSL_EVP_PKEY_dup(void);
 int test_wolfSSL_EVP_PKEY_set1_get1_DSA(void);
 int test_wolfSSL_EVP_PKEY_set1_get1_EC_KEY (void);
 int test_wolfSSL_EVP_PKEY_get0_EC_KEY(void);
@@ -94,6 +95,7 @@ int test_wolfSSL_CTX_use_PrivateKey_pkcs8_repopulate(void);
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_hkdf),                   \
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PBE_scrypt),                  \
     TEST_DECL_GROUP("evp_pkey", test_EVP_PKEY_cmp),                            \
+    TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_dup),                    \
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_set1_get1_DSA),          \
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_set1_get1_EC_KEY),       \
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_get0_EC_KEY),            \
