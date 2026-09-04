@@ -973,7 +973,11 @@ int wc_HpkeInitSealContext(Hpke* hpke, HpkeBaseContext* context,
         info, infoSz);
 }
 
-/* encrypt a message using an hpke base context, return 0 or error */
+/* encrypt a message using an hpke base context, return 0 or error.
+ * out must hold at least ptSz + hpke->Nt bytes: ptSz bytes of ciphertext
+ * followed by the hpke->Nt byte AEAD tag written at out + ptSz. hpke->Nt is
+ * 16 for the supported AES-GCM AEADs. No output length is taken, so the
+ * caller is responsible for sizing out. */
 int wc_HpkeContextSealBase(Hpke* hpke, HpkeBaseContext* context,
     byte* aad, word32 aadSz, byte* plaintext, word32 ptSz, byte* out)
 {
@@ -1012,7 +1016,9 @@ int wc_HpkeContextSealBase(Hpke* hpke, HpkeBaseContext* context,
     return ret;
 }
 
-/* encrypt a message using the provided ephemeral and receiver kem keys */
+/* encrypt a message using the provided ephemeral and receiver kem keys.
+ * ciphertext must hold at least ptSz + hpke->Nt bytes (ciphertext plus the
+ * in-line AEAD tag); see wc_HpkeContextSealBase. */
 int wc_HpkeSealBase(Hpke* hpke, void* ephemeralKey, void* receiverKey,
     byte* info, word32 infoSz, byte* aad, word32 aadSz, byte* plaintext,
     word32 ptSz, byte* ciphertext)
