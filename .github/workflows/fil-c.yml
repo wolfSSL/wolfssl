@@ -1,7 +1,7 @@
 name: Fil-C Tests
 
 env:
-  FIL_C_VERSION: v0.674
+  FIL_C_VERSION: v0.684
 
 # START OF COMMON SECTION
 on:
@@ -24,28 +24,135 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        config: [
-          # Add new configs here. Don't use CPPFLAGS.
-          '',
-          '--enable-all',
-        ]
+        # Add new configs here. Fil-C cannot link a .S file, so every config
+        # is built with --disable-asm (added to the configure line below, not
+        # here) unless it sets asm: 'yes'. cflags: is appended to EXTRA_CFLAGS
+        # for a leg that needs a define with no configure option of its own.
+        #
+        # --enable-intelasm and --enable-aesni cannot be added, and neither
+        # can the assembly builds of ML-KEM and ML-DSA. Fil-C gives every
+        # function a capability carrying entry point, which a .S file does not
+        # have, so the link fails on 227 symbols, 64% of them ML-KEM and
+        # ML-DSA. The aarch64 inline assembly build of ML-KEM does not help
+        # either: its constraints are register only, but it takes pointers and
+        # loads through them inside the assembly, which Fil-C also rejects.
+        # Those routines are outside what this job can cover, so a green run
+        # says nothing about them. The C implementations of the same
+        # algorithms are covered by the other legs.
+        #
+        # There is no aarch64 counterpart to the 'default, asm' leg either.
+        # Leaving assembly on for an aarch64 host makes configure define
+        # WOLFSSL_AARCH64_BUILD, so cpuid.h defines HAVE_CPUID_AARCH64 and
+        # cpuid.c includes <asm/hwcap.h>, a Linux kernel header that Fil-C's
+        # sysroot does not ship. That is a property of the sysroot, not of
+        # wolfSSL, and there is no way to keep the assembly while dropping the
+        # CPU id, so the aarch64 legs stay on --disable-asm.
+        include:
+          - name: 'default'
+            config: ''
+          # The default build with assembly left on. No .S file is compiled on
+          # x86_64 or aarch64 without --enable-intelasm/--enable-aesni/
+          # --enable-armasm, so what this adds over 'default' is the inline
+          # assembly in sp_int.c, which is what most users actually build.
+          - name: 'default, asm'
+            config: ''
+            asm: 'yes'
+          - name: 'all'
+            config: '--enable-all'
+          # Builds sp_c64.c, the fixed size SP code, which 'all' does not.
+          - name: 'single precision'
+            config: '--enable-sp'
+          # Same build as 'all', run against the assertion enabled Fil-C
+          # runtime, collecting continuously and scribbling over freed
+          # objects. Turns latent pointer races and stale pointer reads into
+          # deterministic panics for about 1.4x the run time. FUGC_VERIFY is
+          # deliberately left off: it checks the collector's own invariants
+          # and costs more than 14x.
+          - name: 'all, gc stress'
+            config: '--enable-all'
+            gc-stress: 'yes'
+          - name: 'post-quantum'
+            config: '--enable-all --enable-experimental --enable-mldsa --enable-lms --enable-xmss --enable-falcon'
+          - name: 'crypto only'
+            config: '--enable-cryptonly --enable-all-crypto'
+          - name: 'heap math'
+            config: '--enable-all-crypto --enable-heapmath'
+          - name: 'fast math'
+            config: '--enable-fastmath'
+          # _fp_exptmod_ct is covered by the leg above, but the
+          # WC_PROTECT_ENCRYPTED_MEM ladder next to it is a separate copy of
+          # the same code with its own fp_cond_copy calls, and nothing else
+          # here builds it. The fp_exptmod_nb ladder stays uncovered: it needs
+          # --enable-rsa=nonblock, which fails with fastmath on master with
+          # plain gcc too.
+          - name: 'fast math, protect encrypted mem'
+            config: '--enable-fastmath'
+            cflags: '-DWC_PROTECT_ENCRYPTED_MEM'
+          - name: 'small stack'
+            config: '--enable-all --enable-smallstack'
+          # Not combined with --enable-all: the static pool is too small for
+          # that feature set, with Fil-C and with gcc alike.
+          - name: 'static memory'
+            config: '--enable-staticmemory'
+          # Not combined with --enable-all: that pairing fails
+          # scripts/ocsp-stapling_tls13multi.test with gcc as well.
+          # --enable-sniffer on its own still turns on static RSA and static
+          # ephemeral, which is the code this leg is here for.
+          - name: 'sniffer'
+            config: '--enable-sniffer'
+          - name: 'low resource'
+            config: '--enable-lowresource'
+          - name: 'old tls'
+            config: '--enable-oldtls --disable-tls13'
+          - name: 'default, arm64'
+            config: ''
+            runner: 'ubuntu-24.04-arm'
+          - name: 'all, arm64'
+            config: '--enable-all'
+            runner: 'ubuntu-24.04-arm'
     # This should be a safe limit for the tests to run.
-    timeout-minutes: 30
+    timeout-minutes: 45
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
-    runs-on: ubuntu-24.04
-    name: ${{ matrix.config }}
+    runs-on: ${{ matrix.runner || 'ubuntu-24.04' }}
+    name: ${{ matrix.name }}
     steps:
     - name: Download fil-c release
-      run: gh release download ${{ env.FIL_C_VERSION }} --repo pizlonator/fil-c --pattern 'filc-*'
+      run: |
+        case "$(uname -m)" in
+          x86_64)  filc_arch=x86_64 ;;
+          aarch64) filc_arch=aarch64 ;;
+          *) echo "No Fil-C release for $(uname -m)"; exit 1 ;;
+        esac
+        gh release download ${{ env.FIL_C_VERSION }} --repo pizlonator/fil-c \
+            --pattern "filc-*-linux-$filc_arch.tar.xz"
       env:
         GH_TOKEN: ${{ github.token }}
 
     - name: Extract fil-c tarball
-      run: mkdir -p filc && tar -xf filc-*.tar* --strip-components=1 -C filc
+      run: mkdir -p filc && tar -xf filc-*.tar.xz --strip-components=1 -C filc
 
+    # EXTRA_CFLAGS=-g makes Fil-C report file and line for the frames of a
+    # panic instead of just symbol names.
+    #
+    # The environment is set on this step rather than on the job: pizfix/lib
+    # holds Fil-C's own libc, and the download and extract steps run ordinary
+    # glibc linked runner tooling that has no reason to see it.
     - name: Build and test wolfSSL
       uses: wolfSSL/actions-build-autotools-project@v1
+      env:
+        # Fil-C rejects an empty value for these, so use 0 rather than ''. The
+        # non stress legs point at pizfix/lib, which is where the binaries look
+        # anyway, rather than at an empty path.
+        LD_LIBRARY_PATH: ${{ matrix.gc-stress == 'yes' && format('{0}/filc/pizfix/lib_test', github.workspace) || format('{0}/filc/pizfix/lib', github.workspace) }}
+        FUGC_RAGE_MODE: ${{ matrix.gc-stress == 'yes' && '1' || '0' }}
+        FUGC_SCRIBBLE: ${{ matrix.gc-stress == 'yes' && '1' || '0' }}
+        # One collector thread per process on the stress leg. make check runs
+        # several test programs at once, and with rage mode each of them would
+        # otherwise start a collector thread per core and thrash the runner.
+        # 4 elsewhere is the standard runner's core count, which is what Fil-C
+        # would pick on its own; it is set only to keep the value explicit.
+        FUGC_CORES: ${{ matrix.gc-stress == 'yes' && '1' || '4' }}
       with:
         path: wolfssl
-        configure: ${{ matrix.config }} CC=$GITHUB_WORKSPACE/filc/build/bin/filcc --disable-asm CPPFLAGS=-DWC_NO_CACHE_RESISTANT
+        configure: ${{ matrix.config }} CC=$GITHUB_WORKSPACE/filc/build/bin/filcc ${{ matrix.asm == 'yes' && ' ' || '--disable-asm' }} EXTRA_CFLAGS='-g ${{ matrix.cflags }}'
         check: true
