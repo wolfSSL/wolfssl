@@ -646,6 +646,128 @@ int IsTLS_ex(const ProtocolVersion pv)
 }
 
 
+int IsHsSuspendErr(int err)
+{
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (err == WC_NO_ERR_TRACE(WC_PENDING_E))
+        return 1;
+#endif
+#ifdef WOLFSSL_NONBLOCK_OCSP
+    if (err == WC_NO_ERR_TRACE(OCSP_WANT_READ))
+        return 1;
+#endif
+#ifdef WOLFSSL_CHAIN_VERIFY_CB
+    if (err == WC_NO_ERR_TRACE(CHAIN_VERIFY_WANT_E))
+        return 1;
+#endif
+    (void)err;
+    return 0;
+}
+
+#ifdef WOLFSSL_CHAIN_VERIFY_CB
+/* DTLS, raw public keys and OCSP stapling are not supported with the chain
+ * verify callback. Checked when the callback is set, against what the context
+ * or object is configured for, and again when the peer's certificates arrive,
+ * against what was negotiated, so that using them fails as early as
+ * possible. */
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+static int ChainVerifyCbStaplingRequested(TLSX* extensions)
+{
+#if !defined(NO_TLS) && defined(HAVE_CERTIFICATE_STATUS_REQUEST)
+    if (TLSX_Find(extensions, TLSX_STATUS_REQUEST) != NULL)
+        return 1;
+#endif
+#if !defined(NO_TLS) && defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+    if (TLSX_Find(extensions, TLSX_STATUS_REQUEST_V2) != NULL)
+        return 1;
+#endif
+    (void)extensions;
+    return 0;
+}
+#endif
+
+#ifdef HAVE_RPK
+static int ChainVerifyCbRpkConfigured(const RpkConfig* cfg)
+{
+    int i;
+
+    for (i = 0; i < cfg->preferred_ClientCertTypeCnt; i++) {
+        if (cfg->preferred_ClientCertTypes[i] == WOLFSSL_CERT_TYPE_RPK)
+            return 1;
+    }
+    for (i = 0; i < cfg->preferred_ServerCertTypeCnt; i++) {
+        if (cfg->preferred_ServerCertTypes[i] == WOLFSSL_CERT_TYPE_RPK)
+            return 1;
+    }
+    return 0;
+}
+#endif
+
+int ChainVerifyCbCheckCtx(const WOLFSSL_CTX* ctx)
+{
+#ifdef WOLFSSL_DTLS
+    if (ctx->method->version.major == DTLS_MAJOR) {
+        WOLFSSL_MSG("DTLS not supported with chain verify callback");
+        return CHAIN_VERIFY_UNSUPPORTED_E;
+    }
+#endif
+#ifdef HAVE_RPK
+    if (ChainVerifyCbRpkConfigured(&ctx->rpkConfig)) {
+        WOLFSSL_MSG("Raw public key not supported with chain verify callback");
+        return CHAIN_VERIFY_UNSUPPORTED_E;
+    }
+#endif
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+    if ((ctx->method->side != WOLFSSL_SERVER_END) &&
+            (((ctx->cm != NULL) && ctx->cm->ocspMustStaple) ||
+             ChainVerifyCbStaplingRequested(ctx->extensions))) {
+        WOLFSSL_MSG("OCSP stapling not supported with chain verify callback");
+        return CHAIN_VERIFY_UNSUPPORTED_E;
+    }
+#endif
+    (void)ctx;
+    return 0;
+}
+
+int ChainVerifyCbCheckSsl(const WOLFSSL* ssl)
+{
+#ifdef WOLFSSL_DTLS
+    if (ssl->options.dtls) {
+        WOLFSSL_MSG("DTLS not supported with chain verify callback");
+        return CHAIN_VERIFY_UNSUPPORTED_E;
+    }
+#endif
+#ifdef HAVE_RPK
+    if (ChainVerifyCbRpkConfigured(&ssl->options.rpkConfig) ||
+        ((ssl->options.side == WOLFSSL_CLIENT_END) &&
+         (ssl->options.rpkState.received_ServerCertTypeCnt == 1) &&
+         (ssl->options.rpkState.received_ServerCertTypes[0] ==
+                                                    WOLFSSL_CERT_TYPE_RPK)) ||
+        ((ssl->options.side == WOLFSSL_SERVER_END) &&
+         (ssl->options.rpkState.sending_ClientCertTypeCnt == 1) &&
+         (ssl->options.rpkState.sending_ClientCertTypes[0] ==
+                                                    WOLFSSL_CERT_TYPE_RPK))) {
+        WOLFSSL_MSG("Raw public key not supported with chain verify callback");
+        return CHAIN_VERIFY_UNSUPPORTED_E;
+    }
+#endif
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+    if ((ssl->options.side != WOLFSSL_SERVER_END) &&
+            (SSL_CM(ssl)->ocspMustStaple ||
+             ChainVerifyCbStaplingRequested(ssl->extensions) ||
+             ChainVerifyCbStaplingRequested(ssl->ctx->extensions))) {
+        WOLFSSL_MSG("OCSP stapling not supported with chain verify callback");
+        return CHAIN_VERIFY_UNSUPPORTED_E;
+    }
+#endif
+    (void)ssl;
+    return 0;
+}
+#endif /* WOLFSSL_CHAIN_VERIFY_CB */
+
 int IsAtLeastTLSv1_2(const WOLFSSL* ssl)
 {
     if (ssl->version.major == SSLv3_MAJOR && ssl->version.minor >=TLSv1_2_MINOR)
@@ -15956,6 +16078,29 @@ int InitSigPkCb(WOLFSSL* ssl, SignatureCtx* sigCtx)
 #endif /* HAVE_PK_CALLBACKS */
 
 #if !defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)
+
+#ifdef WOLFSSL_CHAIN_VERIFY_CB
+/* The SSL object's callback and user context take precedence over the
+ * context's. */
+static ChainVerifyCb GetChainVerifyCb(const WOLFSSL* ssl)
+{
+    if (ssl->chainVerifyCb != NULL)
+        return ssl->chainVerifyCb;
+    return ssl->ctx->chainVerifyCb;
+}
+
+static void* GetChainVerifyCtx(const WOLFSSL* ssl)
+{
+    if (ssl->chainVerifyCtx != NULL)
+        return ssl->chainVerifyCtx;
+    return ssl->ctx->chainVerifyCtx;
+}
+
+/* Non-zero when the application has replaced chain verification. */
+#define UsingChainVerifyCb(ssl) (GetChainVerifyCb(ssl) != NULL)
+#else
+#define UsingChainVerifyCb(ssl) 0
+#endif /* WOLFSSL_CHAIN_VERIFY_CB */
 void DoCertFatalAlert(WOLFSSL* ssl, int ret)
 {
     int alertWhy;
@@ -15986,6 +16131,12 @@ void DoCertFatalAlert(WOLFSSL* ssl, int ret)
         alertWhy = unsupported_certificate;
     }
 #endif /* HAVE_RPK */
+#ifdef WOLFSSL_CHAIN_VERIFY_CB
+    else if (ret == WC_NO_ERR_TRACE(CHAIN_VERIFY_UNSUPPORTED_E)) {
+        /* a local configuration problem, not the peer's certificate */
+        alertWhy = internal_error;
+    }
+#endif
     else if (ret == WC_NO_ERR_TRACE(NO_PEER_CERT)) {
 #ifdef WOLFSSL_TLS13
         if (ssl->options.tls1_3) {
@@ -17470,7 +17621,8 @@ static int ProcessPeerCertDecodeKey(WOLFSSL* ssl, ProcPeerCertArgs* args,
 
             /* check size of peer RSA key */
             if (ret == 0 && ssl->peerRsaKeyPresent &&
-                              !ssl->options.verifyNone &&
+                              (!ssl->options.verifyNone ||
+                               UsingChainVerifyCb(ssl)) &&
                               wc_RsaEncryptSize(ssl->peerRsaKey)
                                   < ssl->options.minRsaKeySz) {
                 ret = RSA_KEY_SIZE_E;
@@ -17549,7 +17701,8 @@ static int ProcessPeerCertDecodeKey(WOLFSSL* ssl, ProcPeerCertArgs* args,
 
             /* check size of peer ECC key */
             if (ret == 0 && ssl->peerEccDsaKeyPresent &&
-                                  !ssl->options.verifyNone &&
+                                  (!ssl->options.verifyNone ||
+                                   UsingChainVerifyCb(ssl)) &&
                                   wc_ecc_size(ssl->peerEccDsaKey)
                                   < ssl->options.minEccKeySz) {
                 ret = ECC_KEY_SIZE_E;
@@ -17609,7 +17762,7 @@ static int ProcessPeerCertDecodeKey(WOLFSSL* ssl, ProcPeerCertArgs* args,
 
             /* check size of peer ECC key */
             if (ret == 0 && ssl->peerEd25519KeyPresent &&
-                      !ssl->options.verifyNone &&
+                      (!ssl->options.verifyNone || UsingChainVerifyCb(ssl)) &&
                       ED25519_KEY_SIZE < ssl->options.minEccKeySz) {
                 ret = ECC_KEY_SIZE_E;
                 WOLFSSL_ERROR_VERBOSE(ret);
@@ -17667,7 +17820,7 @@ static int ProcessPeerCertDecodeKey(WOLFSSL* ssl, ProcPeerCertArgs* args,
 
             /* check size of peer ECC key */
             if (ret == 0 && ssl->peerEd448KeyPresent &&
-                   !ssl->options.verifyNone &&
+                   (!ssl->options.verifyNone || UsingChainVerifyCb(ssl)) &&
                    ED448_KEY_SIZE < ssl->options.minEccKeySz) {
                 ret = ECC_KEY_SIZE_E;
                 WOLFSSL_ERROR_VERBOSE(ret);
@@ -17720,7 +17873,8 @@ static int ProcessPeerCertDecodeKey(WOLFSSL* ssl, ProcPeerCertArgs* args,
 
             /* check size of peer Falcon key */
             if (ret == 0 && ssl->peerFalconKeyPresent &&
-                   !ssl->options.verifyNone &&
+                   (!ssl->options.verifyNone ||
+                    UsingChainVerifyCb(ssl)) &&
                    FALCON_MAX_KEY_SIZE <
                    ssl->options.minFalconKeySz) {
                 ret = FALCON_KEY_SIZE_E;
@@ -17794,7 +17948,8 @@ static int ProcessPeerCertDecodeKey(WOLFSSL* ssl, ProcPeerCertArgs* args,
 
             /* check size of peer Dilithium key */
             if (ret == 0 && ssl->peerMlDsaKeyPresent &&
-                   !ssl->options.verifyNone &&
+                   (!ssl->options.verifyNone ||
+                    UsingChainVerifyCb(ssl)) &&
                    MLDSA_MAX_KEY_SIZE <
                    ssl->options.minMlDsaKeySz) {
                 ret = MLDSA_KEY_SIZE_E;
@@ -17900,11 +18055,94 @@ static int RpkIsTrusted(WOLFSSL* ssl, const byte* spki, word32 spkiSz)
 }
 #endif /* HAVE_RPK */
 
+#ifdef WOLFSSL_CHAIN_VERIFY_CB
+/* Errors from ParseCert(NO_VERIFY) that report content wolfSSL does not
+ * understand or agree with rather than malformed DER: an unknown critical
+ * extension, an unsupported key or signature algorithm, mismatched signature
+ * algorithm identifiers, or keyCertSign asserted by a non-CA. The certificate
+ * decoded; judging its content is the chain verify callback's job. */
+static int IsCertContentErr(int err)
+{
+    return (err == WC_NO_ERR_TRACE(ASN_CRIT_EXT_E)) ||
+           (err == WC_NO_ERR_TRACE(ASN_SIG_OID_E)) ||
+           (err == WC_NO_ERR_TRACE(ASN_UNKNOWN_OID_E)) ||
+           (err == WC_NO_ERR_TRACE(KEYUSAGE_E));
+}
+
+/* Decode every certificate the peer sent, verifying nothing. The chain verify
+ * callback replaces wolfSSL's trust decision, not its parsing, so DER that
+ * wolfSSL cannot decode fails the handshake before the callback is consulted.
+ * NO_VERIFY skips the signature, issuer and date checks but still walks the
+ * whole structure. */
+static int CheckPeerCertsDecode(WOLFSSL* ssl, ProcPeerCertArgs* args)
+{
+    WC_DECLARE_VAR(cert, DecodedCert, 1, ssl->heap);
+    int ret = 0;
+    int i;
+
+    WC_ALLOC_VAR_EX(cert, DecodedCert, 1, ssl->heap, DYNAMIC_TYPE_DCERT,
+                    return MEMORY_E);
+
+    for (i = 0; i < args->totalCerts; i++) {
+        InitDecodedCert(cert, args->certs[i].buffer, args->certs[i].length,
+                        ssl->heap);
+        ret = ParseCert(cert, CERT_TYPE, NO_VERIFY, NULL);
+        if (IsCertContentErr(ret))
+            ret = 0;
+    #ifdef HAVE_RPK
+        if ((ret == 0) && cert->isRPK) {
+            WOLFSSL_MSG("Raw public key not supported with chain verify "
+                        "callback");
+            ret = CHAIN_VERIFY_UNSUPPORTED_E;
+        }
+    #endif
+        FreeDecodedCert(cert);
+
+        if (ret != 0) {
+            WOLFSSL_MSG_EX("Peer certificate %d failed to decode", i);
+            WOLFSSL_ERROR_VERBOSE(ret);
+            break;
+        }
+    }
+
+    WC_FREE_VAR_EX(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
+
+    return ret;
+}
+
+/* Hand the peer's DER certificates to the application, which has taken over
+ * chain verification completely. Called once per Certificate message, and
+ * again on every re-entry while the callback defers its verdict.
+ *
+ * Returns 0 when accepted, CHAIN_VERIFY_WANT_E to suspend the handshake,
+ * CHAIN_VERIFY_CB_E when rejected, or MEMORY_E. */
+static int DoChainVerifyCb(WOLFSSL* ssl, ProcPeerCertArgs* args)
+{
+    int ret;
+
+    WOLFSSL_MSG("Calling user chain verify callback");
+    ret = GetChainVerifyCb(ssl)(ssl, args->certs, args->totalCerts,
+                                GetChainVerifyCtx(ssl));
+    if (ret == 0) {
+        WOLFSSL_MSG("\tuser chain verify callback accepted");
+        return 0;
+    }
+    if (ret == WC_NO_ERR_TRACE(CHAIN_VERIFY_WANT_E)) {
+        WOLFSSL_MSG("\tuser chain verify callback has no verdict yet");
+        return CHAIN_VERIFY_WANT_E;
+    }
+
+    WOLFSSL_MSG("\tuser chain verify callback rejected");
+    WOLFSSL_ERROR_VERBOSE(CHAIN_VERIFY_CB_E);
+    return CHAIN_VERIFY_CB_E;
+}
+#endif /* WOLFSSL_CHAIN_VERIFY_CB */
+
 int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                      word32 totalSz)
 {
     int ret = 0;
-#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
+#ifdef WOLFSSL_HAVE_HS_SUSPEND
     ProcPeerCertArgs* args = NULL;
     WOLFSSL_ASSERT_SIZEOF_GE(ssl->async->args, *args);
 #elif defined(WOLFSSL_SMALL_STACK)
@@ -17922,7 +18160,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #endif
     WOLFSSL_ENTER("ProcessPeerCerts");
 
-#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
+#ifdef WOLFSSL_HAVE_HS_SUSPEND
     if (ssl->async == NULL) {
         ssl->async = (struct WOLFSSL_ASYNC*)
                 XMALLOC(sizeof(struct WOLFSSL_ASYNC), ssl->heap,
@@ -17962,13 +18200,25 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     }
     else
 #endif /* WOLFSSL_NONBLOCK_OCSP */
+#ifdef WOLFSSL_CHAIN_VERIFY_CB
+    if (ssl->error == WC_NO_ERR_TRACE(CHAIN_VERIFY_WANT_E)) {
+        /* Re-entry after the chain verify callback deferred its verdict. Keep
+         * the saved state so the same certificates are handed back to it. */
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        /* if async operations not pending, reset error code */
+        if (ret == WC_NO_ERR_TRACE(WC_NO_PENDING_E))
+            ret = 0;
+    #endif
+    }
+    else
+#endif /* WOLFSSL_CHAIN_VERIFY_CB */
 #elif defined(WOLFSSL_SMALL_STACK)
     args = (ProcPeerCertArgs*)XMALLOC(
         sizeof(ProcPeerCertArgs), ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (args == NULL) {
         ERROR_OUT(MEMORY_E, exit_ppc);
     }
-#endif /* WOLFSSL_ASYNC_CRYPT || WOLFSSL_NONBLOCK_OCSP */
+#endif /* WOLFSSL_HAVE_HS_SUSPEND */
     {
         /* Reset state */
         ret = 0;
@@ -17976,7 +18226,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         XMEMSET(args, 0, sizeof(ProcPeerCertArgs));
         args->idx = *inOutIdx;
         args->begin = *inOutIdx;
-    #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
+    #ifdef WOLFSSL_HAVE_HS_SUSPEND
         ssl->async->freeArgs = FreeProcPeerCertArgs;
     #endif
     }
@@ -18007,6 +18257,17 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 ret = DoCertReqCtx(ssl, args, input, totalSz);
                 if (ret != 0)
                     goto exit_ppc;
+            }
+        #endif
+
+        #ifdef WOLFSSL_CHAIN_VERIFY_CB
+            /* Before any certificate entry or its extensions is parsed. */
+            if (UsingChainVerifyCb(ssl)) {
+                ret = ChainVerifyCbCheckSsl(ssl);
+                if (ret != 0) {
+                    DoCertFatalAlert(ssl, ret);
+                    goto exit_ppc;
+                }
             }
         #endif
 
@@ -18068,7 +18329,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             * can hold */
                 }
             #else
-                if (args->totalCerts >= ssl->verifyDepth ||
+                /* The verify depth is chain-building policy, which the chain
+                 * verify callback owns; MAX_CHAIN_DEPTH is the buffer. */
+                if ((!UsingChainVerifyCb(ssl) &&
+                     args->totalCerts >= ssl->verifyDepth) ||
                         args->totalCerts >= MAX_CHAIN_DEPTH) {
                     WOLFSSL_ERROR_VERBOSE(MAX_CHAIN_ERROR);
                     ERROR_OUT(MAX_CHAIN_ERROR, exit_ppc);
@@ -18178,6 +18442,45 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
         case TLS_ASYNC_BUILD:
         {
+        #ifdef WOLFSSL_CHAIN_VERIFY_CB
+            /* The application verifies the chain instead of wolfSSL. No chain
+             * is built, so no intermediate is added to the CM either, and
+             * everything wolfSSL would check about the certificates is
+             * skipped below; only the parsing the handshake needs is kept.
+             * Only consult the callback if the Certificate message itself
+             * parsed cleanly - an error here (an empty message, or a chain
+             * past MAX_CHAIN_DEPTH) means it would be handed an incomplete
+             * list. That error is kept and reported by the check below. */
+            if (UsingChainVerifyCb(ssl)) {
+                /* Check once, not again on every re-entry. */
+                if (ret == 0 && args->count > 0 && !args->chainDecoded) {
+                    ret = CheckPeerCertsDecode(ssl, args);
+                    if (ret != 0) {
+                        args->fatal = 1;
+                        DoCertFatalAlert(ssl, ret);
+                        goto exit_ppc;
+                    }
+                    args->chainDecoded = 1;
+                }
+                if (ret == 0 && args->count > 0) {
+                    ret = DoChainVerifyCb(ssl, args);
+                    if (ret == WC_NO_ERR_TRACE(CHAIN_VERIFY_CB_E)) {
+                        args->fatal = 1;
+                    #if defined(OPENSSL_EXTRA) || \
+                        defined(OPENSSL_EXTRA_X509_SMALL)
+                        if (ssl->peerVerifyRet == 0) {
+                            ssl->peerVerifyRet =
+                                WOLFSSL_X509_V_ERR_CERT_REJECTED;
+                        }
+                    #endif
+                        DoCertFatalAlert(ssl, ret);
+                    }
+                    if (ret != 0)
+                        goto exit_ppc;
+                }
+            }
+            else
+        #endif /* WOLFSSL_CHAIN_VERIFY_CB */
             if (args->count > 0) {
 
                 /* check for trusted peer and get untrustedDepth */
@@ -18625,8 +18928,11 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 /* select peer cert (first one) */
                 args->certIdx = 0;
 
+                /* With a chain verify callback the leaf is only parsed, never
+                 * verified - the parse is needed for the peer's public key. */
                 ret = ProcessPeerCertParse(ssl, args, CERT_TYPE,
-                        !ssl->options.verifyNone ? VERIFY : NO_VERIFY,
+                        (!ssl->options.verifyNone && !UsingChainVerifyCb(ssl)) ?
+                            VERIFY : NO_VERIFY,
                         &subjectHash, &alreadySigner);
 #if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
     (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
@@ -18644,7 +18950,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             args->dCertInit = 0;
                             /* once again */
                             ret = ProcessPeerCertParse(ssl, args, CERT_TYPE,
-                                !ssl->options.verifyNone ? VERIFY : NO_VERIFY,
+                                (!ssl->options.verifyNone &&
+                                 !UsingChainVerifyCb(ssl)) ? VERIFY : NO_VERIFY,
                                 &subjectHash, &alreadySigner);
                         }
                         else {
@@ -18653,6 +18960,13 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         }
                     }
 #endif
+            #ifdef WOLFSSL_CHAIN_VERIFY_CB
+                /* The callback accepted this certificate, content wolfSSL
+                 * would object to included. Only what the handshake needs
+                 * from it - the key - can still fail below. */
+                if (UsingChainVerifyCb(ssl) && IsCertContentErr(ret))
+                    ret = 0;
+            #endif
             #ifdef WOLFSSL_ASYNC_CRYPT
                 if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
                     goto exit_ppc;
@@ -18672,7 +18986,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                      * pinned out of band (expected RPK). Applies to both peers
                      * - client checking the server's RPK and server checking
                      * the client's RPK. */
-                    if (args->dCert->isRPK) {
+                    if (args->dCert->isRPK && !UsingChainVerifyCb(ssl)) {
                         int rpkTrusted = RpkIsTrusted(ssl,
                                 args->certs[args->certIdx].buffer,
                                 args->certs[args->certIdx].length);
@@ -18738,7 +19052,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                      * different version has been negotiated using RFC 7250.
                      * OpenSSL doesn't appear to be performing this check.
                      * For TLS 1.3 see RFC8446 Section 4.4.2.3 */
-                    if (ssl->options.side == WOLFSSL_SERVER_END) {
+                    if (ssl->options.side == WOLFSSL_SERVER_END &&
+                            !UsingChainVerifyCb(ssl)) {
                 #if defined(HAVE_RPK)
                         if (args->dCert->isRPK) {
                             /* RPK certs carry no X.509 version; the RPK trust
@@ -18822,14 +19137,27 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
                     #endif /* defined(__APPLE__) && defined(WOLFSSL_SYS_CA_CERTS) */
 
-                    /* Do verify callback. */
-                    args->leafVerifyErr = ret =
-                            DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
-
-                    if (ret != 0) {
+                #ifdef WOLFSSL_CHAIN_VERIFY_CB
+                    /* The chain verify callback already accepted these
+                     * certificates, so anything left here is a decode failure
+                     * and there is no verify callback to override it. */
+                    if (UsingChainVerifyCb(ssl)) {
                         WOLFSSL_MSG("\tfatal cert error");
                         args->fatal = 1;
                         DoCertFatalAlert(ssl, ret);
+                    }
+                    else
+                #endif
+                    {
+                        /* Do verify callback. */
+                        args->leafVerifyErr = ret =
+                                DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
+
+                        if (ret != 0) {
+                            WOLFSSL_MSG("\tfatal cert error");
+                            args->fatal = 1;
+                            DoCertFatalAlert(ssl, ret);
+                        }
                     }
                 }
 
@@ -18894,7 +19222,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             #if defined(HAVE_OCSP) || defined(HAVE_CRL)
                 /* only attempt to check OCSP or CRL if not previous error such
                  * as ASN_BEFORE_DATE_E or ASN_AFTER_DATE_E */
-                if (args->fatal == 0 && ret == 0) {
+                if (args->fatal == 0 && ret == 0 && !UsingChainVerifyCb(ssl)) {
                     if (ProcessPeerCertLeafRevocation(ssl, args, &ret))
                         goto exit_ppc;
                 }
@@ -18930,7 +19258,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
                     else
                 #endif
-                if (args->dCert->extKeyUsageSet) {
+                if (args->dCert->extKeyUsageSet && !UsingChainVerifyCb(ssl)) {
                     if ((ssl->specs.kea == rsa_kea) &&
                         (ssl->options.side == WOLFSSL_CLIENT_END) &&
                         (args->dCert->extKeyUsage & KEYUSE_KEY_ENCIPHER) == 0) {
@@ -18963,7 +19291,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
                     else
                 #endif
-                if (args->dCert->extExtKeyUsageSet) {
+                if (args->dCert->extExtKeyUsageSet &&
+                        !UsingChainVerifyCb(ssl)) {
                     if (ssl->options.side == WOLFSSL_CLIENT_END) {
                         if ((args->dCert->extExtKeyUsage &
                                 (EXTKEYUSE_ANY | EXTKEYUSE_SERVER_AUTH)) == 0) {
@@ -19028,7 +19357,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 }
             #endif
 
-                if (!ssl->options.verifyNone && domainName) {
+                if (!ssl->options.verifyNone && !UsingChainVerifyCb(ssl) &&
+                        domainName) {
                 #ifndef WOLFSSL_ALLOW_NO_CN_IN_SAN
                     /* Per RFC 5280 section 4.2.1.6, "Whenever such identities
                      * are to be bound into a certificate, the subject
@@ -19086,7 +19416,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 }
 
 #ifndef OPENSSL_EXTRA
-                if (!ssl->options.verifyNone && ssl->buffers.ipasc.buffer) {
+                if (!ssl->options.verifyNone && !UsingChainVerifyCb(ssl) &&
+                        ssl->buffers.ipasc.buffer) {
                     if (CheckIPAddr(args->dCert,
                             (const char*)ssl->buffers.ipasc.buffer,
                             (size_t)ssl->buffers.ipasc.length) != 0) {
@@ -19135,8 +19466,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             }
         #endif
 
-            /* Do leaf verify callback when it wasn't called yet */
-            if (ret == 0 || ret != args->leafVerifyErr)
+            /* Do leaf verify callback when it wasn't called yet. Skipped when
+             * the chain verify callback owns the verdict. */
+            if (!UsingChainVerifyCb(ssl) &&
+                    (ret == 0 || ret != args->leafVerifyErr))
                 ret = DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
 
             if (ssl->options.verifyNone &&
@@ -19180,17 +19513,16 @@ exit_ppc:
     WOLFSSL_LEAVE("ProcessPeerCerts", ret);
 
 
-#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
-    if (ret == WC_NO_ERR_TRACE(WC_PENDING_E) ||
-        ret == WC_NO_ERR_TRACE(OCSP_WANT_READ)) {
+#ifdef WOLFSSL_HAVE_HS_SUSPEND
+    if (IsHsSuspendErr(ret)) {
         /* Mark message as not received so it can process again */
         ssl->msgsReceived.got_certificate = 0;
 
         return ret;
     }
-#endif /* WOLFSSL_ASYNC_CRYPT || WOLFSSL_NONBLOCK_OCSP */
+#endif /* WOLFSSL_HAVE_HS_SUSPEND */
 
-#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
+#ifdef WOLFSSL_HAVE_HS_SUSPEND
     /* Cleanup async */
     FreeAsyncCtx(ssl, 0);
 #elif defined(WOLFSSL_SMALL_STACK)
@@ -19200,9 +19532,11 @@ exit_ppc:
     }
 #else
     FreeProcPeerCertArgs(ssl, args);
-#endif /* WOLFSSL_ASYNC_CRYPT || WOLFSSL_NONBLOCK_OCSP || WOLFSSL_SMALL_STACK */
+#endif /* WOLFSSL_HAVE_HS_SUSPEND || WOLFSSL_SMALL_STACK */
 
-#if !defined(WOLFSSL_ASYNC_CRYPT) && defined(WOLFSSL_SMALL_STACK)
+/* args points into ssl->async when the handshake can suspend, so it is only a
+ * separate allocation to free otherwise. */
+#if !defined(WOLFSSL_HAVE_HS_SUSPEND) && defined(WOLFSSL_SMALL_STACK)
     XFREE(args, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
@@ -19227,9 +19561,8 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #ifdef SESSION_CERTS
     /* Reset the session cert chain count in case the session resume failed,
      * do not reset if we are resuming after an async wait */
-#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
-    if (ssl->error != WC_NO_ERR_TRACE(OCSP_WANT_READ) &&
-        ssl->error != WC_NO_ERR_TRACE(WC_PENDING_E))
+#ifdef WOLFSSL_HAVE_HS_SUSPEND
+    if (!IsHsSuspendErr(ssl->error))
 #endif
     {
         ssl->session->chain.count = 0;
@@ -19242,7 +19575,11 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     ret = ProcessPeerCerts(ssl, input, inOutIdx, size);
 
 #ifdef OPENSSL_EXTRA
-    ssl->options.serverState = SERVER_CERT_COMPLETE;
+    /* the certificate is not processed yet if it only suspended */
+#ifdef WOLFSSL_HAVE_HS_SUSPEND
+    if (!IsHsSuspendErr(ret))
+#endif
+        ssl->options.serverState = SERVER_CERT_COMPLETE;
 #endif
 
     WOLFSSL_LEAVE("DoCertificate", ret);
@@ -20178,13 +20515,12 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
            ((defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)) || \
             (defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)) || \
             (defined(HAVE_ED448) && !defined(NO_ED448_CLIENT_AUTH)))
-/* Free the cached handshake messages used for sign/verify, unless an async or
- * non-blocking OCSP operation is still pending. */
+/* Free the cached handshake messages used for sign/verify, unless the
+ * handshake is suspended part way through a message. */
 static void FreeCachedHandshakeMessages(WOLFSSL* ssl, int ret)
 {
-#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
-    if (ret != WC_NO_ERR_TRACE(WC_PENDING_E) &&
-        ret != WC_NO_ERR_TRACE(OCSP_WANT_READ))
+#ifdef WOLFSSL_HAVE_HS_SUSPEND
+    if (!IsHsSuspendErr(ret))
 #endif
     {
         ssl->options.cacheMessages = 0;
@@ -20335,11 +20671,8 @@ int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     /* above checks handshake state */
     /* hello_request not hashed */
     if (type != hello_request
-    #ifdef WOLFSSL_ASYNC_CRYPT
-            && ssl->error != WC_NO_ERR_TRACE(WC_PENDING_E)
-    #endif
-    #ifdef WOLFSSL_NONBLOCK_OCSP
-            && ssl->error != WC_NO_ERR_TRACE(OCSP_WANT_READ)
+    #ifdef WOLFSSL_HAVE_HS_SUSPEND
+            && !IsHsSuspendErr(ssl->error)
     #endif
     ) {
         ret = HashInput(ssl, input + *inOutIdx, (int)size);
@@ -20523,10 +20856,9 @@ int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         WOLFSSL_ERROR_VERBOSE(ret);
     }
 
-#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
-    /* if async, offset index so this msg will be processed again */
-    if ((ret == WC_NO_ERR_TRACE(WC_PENDING_E) ||
-         ret == WC_NO_ERR_TRACE(OCSP_WANT_READ)) && *inOutIdx > 0) {
+#ifdef WOLFSSL_HAVE_HS_SUSPEND
+    /* if suspended, offset index so this msg will be processed again */
+    if (IsHsSuspendErr(ret) && *inOutIdx > 0) {
         *inOutIdx -= HANDSHAKE_HEADER_SZ;
     #ifdef WOLFSSL_DTLS
         if (ssl->options.dtls) {
@@ -20535,12 +20867,11 @@ int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     #endif
     }
 
-    /* make sure async error is cleared */
-    if (ret == 0 && (ssl->error == WC_NO_ERR_TRACE(WC_PENDING_E) ||
-                     ssl->error == WC_NO_ERR_TRACE(OCSP_WANT_READ))) {
+    /* make sure suspend error is cleared */
+    if (ret == 0 && IsHsSuspendErr(ssl->error)) {
         ssl->error = 0;
     }
-#endif /* WOLFSSL_ASYNC_CRYPT || WOLFSSL_NONBLOCK_OCSP */
+#endif /* WOLFSSL_HAVE_HS_SUSPEND */
 
 #ifdef WOLFSSL_DTLS
     if (ret == 0) {
@@ -20662,12 +20993,13 @@ static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             return ret;
         }
 
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        if (ssl->error != WC_NO_ERR_TRACE(WC_PENDING_E))
+    #ifdef WOLFSSL_HAVE_HS_SUSPEND
+        if (!IsHsSuspendErr(ssl->error))
     #endif
         {
-            /* for async this copy was already done, do not replace, since
-             * contents may have been changed for inline operations */
+            /* when resuming a suspended message this copy was already done, do
+             * not replace, since contents may have been changed for inline
+             * operations */
             XMEMCPY(ssl->pendingMsg + ssl->pendingMsgOffset,
                     input + *inOutIdx, inputLength);
         }
@@ -20682,8 +21014,10 @@ static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                      &idx, ssl->pendingMsgType,
                                      ssl->pendingMsgSz - idx,
                                      ssl->pendingMsgSz);
-        #ifdef WOLFSSL_ASYNC_CRYPT
-            if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+        #ifdef WOLFSSL_HAVE_HS_SUSPEND
+            /* ProcPeerCertArgs keeps pointers into pendingMsg across a
+             * suspend, so it must outlive this call. */
+            if (IsHsSuspendErr(ret)) {
                 /* setup to process fragment again */
                 ssl->pendingMsgOffset -= inputLength;
                 *inOutIdx -= inputLength;
@@ -20722,6 +21056,9 @@ int SendFatalAlertOnly(WOLFSSL *ssl, int error)
 #endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     case WC_NO_ERR_TRACE(WC_PENDING_E):
+#endif
+#ifdef WOLFSSL_CHAIN_VERIFY_CB
+    case WC_NO_ERR_TRACE(CHAIN_VERIFY_WANT_E):
 #endif
         return 0;
 
@@ -25120,11 +25457,8 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
     #if defined(HAVE_SECURE_RENEGOTIATION) || defined(WOLFSSL_DTLS13)
         && ssl->error != WC_NO_ERR_TRACE(APP_DATA_READY)
     #endif
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        && ssl->error != WC_NO_ERR_TRACE(WC_PENDING_E)
-    #endif
-    #ifdef WOLFSSL_NONBLOCK_OCSP
-        && ssl->error != WC_NO_ERR_TRACE(OCSP_WANT_READ)
+    #ifdef WOLFSSL_HAVE_HS_SUSPEND
+        && !IsHsSuspendErr(ssl->error)
     #endif
         && (allowSocketErr != 1 ||
             ssl->error != WC_NO_ERR_TRACE(SOCKET_ERROR_E))
@@ -28924,6 +29258,29 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
         }
     }
 
+#ifdef WOLFSSL_CHAIN_VERIFY_CB
+    /* A Certificate suspended by the chain verify callback is resumed before
+     * anything is sent; sending would free its saved state. wolfSSL_negotiate()
+     * resumes it during the handshake, only wolfSSL_read() after it. */
+    if (error == WC_NO_ERR_TRACE(CHAIN_VERIFY_WANT_E)) {
+        int err;
+        if (ssl->options.handShakeState == HANDSHAKE_DONE) {
+            WOLFSSL_MSG("Chain verify callback pending, use wolfSSL_read");
+            return error;
+        }
+        WOLFSSL_MSG("Chain verify callback pending, trying to finish");
+        if ((err = wolfSSL_negotiate(ssl)) != WOLFSSL_SUCCESS) {
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            /* if async would block return WANT_WRITE */
+            if (ssl->error == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+                return WOLFSSL_CBIO_ERR_WANT_WRITE;
+            }
+        #endif
+            return err;
+        }
+    }
+#endif
+
 #ifdef WOLFSSL_EARLY_DATA
     if (ssl->options.side == WOLFSSL_CLIENT_END &&
             ssl->earlyData != no_early_data &&
@@ -29345,8 +29702,9 @@ int ReceiveData(WOLFSSL* ssl, byte* output, size_t sz, int peek)
 #endif /* WOLFSSL_DTLS */
 
     if (error != 0 && error != WC_NO_ERR_TRACE(WANT_WRITE)
-#ifdef WOLFSSL_ASYNC_CRYPT
-            && error != WC_NO_ERR_TRACE(WC_PENDING_E)
+#ifdef WOLFSSL_HAVE_HS_SUSPEND
+            /* a suspended handshake message is resumed by reading again */
+            && !IsHsSuspendErr(error)
 #endif
 #if defined(HAVE_SECURE_RENEGOTIATION) || defined(WOLFSSL_DTLS13)
             && error != WC_NO_ERR_TRACE(APP_DATA_READY)
@@ -30423,6 +30781,15 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case RPK_UNTRUSTED_E:
         return "RFC 7250 Raw Public Key not trusted";
+
+    case CHAIN_VERIFY_WANT_E:
+        return "Chain verify callback has no verdict yet";
+
+    case CHAIN_VERIFY_CB_E:
+        return "Chain verify callback rejected peer certificates";
+
+    case CHAIN_VERIFY_UNSUPPORTED_E:
+        return "Chain verify callback used with unsupported feature";
     }
 
     return "unknown error number";
@@ -46535,13 +46902,8 @@ int wolfSSL_TestAppleNativeCertValidation_AppendCA(WOLFSSL_CTX* ctx,
 void wolfssl_local_MaybeCheckAlertOnErr(WOLFSSL* ssl, int err)
 {
 #if defined(WOLFSSL_CHECK_ALERT_ON_ERR)
-#if defined(WOLFSSL_ASYNC_CRYPT)
-    if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-        return;
-    }
-#endif
-#if defined(WOLFSSL_NONBLOCK_OCSP)
-    if (err == WC_NO_ERR_TRACE(OCSP_WANT_READ)) {
+#if defined(WOLFSSL_HAVE_HS_SUSPEND)
+    if (IsHsSuspendErr(err)) {
         return;
     }
 #endif

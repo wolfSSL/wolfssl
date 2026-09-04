@@ -3245,6 +3245,93 @@ static WC_INLINE int test_rpk_memio_setup(
 #endif /* HAVE_RPK && !NO_TLS && !NO_WOLFSSL_CLIENT && !NO_WOLFSSL_SERVER */
 
 
+#if defined(HAVE_RPK) && defined(WOLFSSL_CHAIN_VERIFY_CB) && \
+    defined(WOLFSSL_TLS13) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+static int test_chain_verify_cb_rpk_cb(WOLFSSL* ssl,
+    const WOLFSSL_BUFFER_INFO* certs, int certsSz, void* ctx)
+{
+    (void)ssl;
+    (void)certs;
+    (void)certsSz;
+    (*(int*)ctx)++;
+    return 0;
+}
+#endif
+
+/* A raw public key is not supported with the chain verify callback. */
+int test_tls13_chain_verify_cb_rpk(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_RPK) && defined(WOLFSSL_CHAIN_VERIFY_CB) && \
+    defined(WOLFSSL_TLS13) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    char certType[MAX_CLIENT_CERT_TYPE_CNT];
+    int calls = 0;
+    int i;
+
+    certType[0] = WOLFSSL_CERT_TYPE_RPK;
+
+    /* First with raw public keys configured before the callback: the setters
+     * refuse it. Then with the callback set first: the handshake fails before
+     * the callback is consulted. */
+    for (i = 0; i < 2; i++) {
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(
+            test_rpk_memio_setup(
+                &test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
+                clntRpkCertFile, WOLFSSL_FILETYPE_ASN1,
+                svrRpkCertFile,  WOLFSSL_FILETYPE_ASN1,
+                cliKeyFile,      CERT_FILETYPE,
+                svrKeyFile,      CERT_FILETYPE )
+            , 0);
+
+        if (i == 1) {
+            ExpectIntEQ(wolfSSL_SetChainVerifyCb(ssl_c,
+                test_chain_verify_cb_rpk_cb), WOLFSSL_SUCCESS);
+            wolfSSL_SetChainVerifyCtx(ssl_c, &calls);
+        }
+
+        /* Both ends negotiate raw public keys only. */
+        ExpectIntEQ(wolfSSL_set_client_cert_type(ssl_c, certType, 1),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set_server_cert_type(ssl_c, certType, 1),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set_client_cert_type(ssl_s, certType, 1),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set_server_cert_type(ssl_s, certType, 1),
+            WOLFSSL_SUCCESS);
+
+        if (i == 0) {
+            ExpectIntEQ(wolfSSL_SetChainVerifyCb(ssl_c,
+                test_chain_verify_cb_rpk_cb),
+                WC_NO_ERR_TRACE(CHAIN_VERIFY_UNSUPPORTED_E));
+            ExpectIntEQ(wolfSSL_SetChainVerifyCb(ssl_s,
+                test_chain_verify_cb_rpk_cb),
+                WC_NO_ERR_TRACE(CHAIN_VERIFY_UNSUPPORTED_E));
+        }
+        else {
+            ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), -1);
+            ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+                WC_NO_ERR_TRACE(CHAIN_VERIFY_UNSUPPORTED_E));
+            ExpectIntEQ(calls, 0);
+        }
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+        ssl_c = ssl_s = NULL;
+        ctx_c = ctx_s = NULL;
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_tls13_rpk_handshake(void)
 {
     EXPECT_DECLS;

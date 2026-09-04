@@ -5491,11 +5491,12 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
 #endif
 
 #if !defined(WOLFSSL_NO_ASYNC_IO) || defined(WOLFSSL_ASYNC_CRYPT) || \
-     defined(WOLFSSL_NONBLOCK_OCSP)
+     defined(WOLFSSL_NONBLOCK_OCSP) || defined(WOLFSSL_CHAIN_VERIFY_CB)
     /* Enable asynchronous support in TLS functions to support one or more of
      * the following:
      * - re-entry after a network blocking return
      * - re-entry after OCSP blocking return
+     * - re-entry after a chain verify callback deferred its verdict
      * - asynchronous cryptography */
     #undef WOLFSSL_ASYNC_IO
     #define WOLFSSL_ASYNC_IO
