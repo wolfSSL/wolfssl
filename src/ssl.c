@@ -3346,6 +3346,16 @@ int wolfSSL_export_keying_material(WOLFSSL *ssl,
         return WOLFSSL_FAILURE;
     }
 
+    /* RFC 8446 Section 7.5 / RFC 5705: keying-material exporters derive from
+     * exporter_master_secret, which exists only after the handshake is
+     * complete. Refuse the export until the handshake has completed so that
+     * a premature call cannot derive material from an uninitialised
+     * exporterSecret buffer. */
+    if (ssl->options.handShakeDone == 0) {
+        WOLFSSL_MSG("Handshake not complete; refusing keying-material export");
+        return WOLFSSL_FAILURE;
+    }
+
     /* Sanity check contextLen to prevent integer overflow when cast to word32
      * and to ensure it fits in the 2-byte length encoding (max 65535). */
     if (use_context && contextLen > WOLFSSL_MAX_16BIT) {
@@ -7506,9 +7516,12 @@ long wolfSSL_set_options(WOLFSSL* ssl, long op)
              * options limit the allowed ciphers so let's try to get as many as
              * possible.
              * - haveStaticECC turns off haveRSA
-             * - haveECDSAsig turns off haveRSAsig */
+             * - haveECDSAsig turns off haveRSAsig
+             * - SUITES_NULL_EXPLICIT includes the integrity-only suites, so
+             *   an explicitly configured one is preserved */
             InitSuites(&tmpSuites, ssl->version, 0, 1, 1, 1, haveECDSAsig, 1, 1,
-                    haveStaticECC, 1, 1, 1, 1, 1, ssl->options.side);
+                    haveStaticECC, 1, SUITES_NULL_EXPLICIT, 1, 1, 1,
+                    ssl->options.side);
             for (in = 0, out = 0; in < ssl->suites->suiteSz; in += SUITE_LEN) {
                 if (FindSuite(&tmpSuites, ssl->suites->suites[in],
                         ssl->suites->suites[in+1]) >= 0) {
