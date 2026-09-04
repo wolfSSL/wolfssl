@@ -89,7 +89,7 @@ static int _getSocUid(void)
 #define RNG_NUM_DWORDS (4u)
 static RNG_Handle rngHandle = NULL;
 
-static void ti_sa2ul_trng_init_common(void)
+static int ti_sa2ul_trng_init_common(void)
 {
     RNG_Handle handle = NULL;
     if (gRngConfig[0].attrs->isOpen == 0) {
@@ -108,13 +108,15 @@ static void ti_sa2ul_trng_init_common(void)
         /* already opened -- use existing handle */
         rngHandle = (RNG_Handle)&gRngConfig[0];
     }
+    return rngHandle == NULL;
 }
 
 #ifdef WOLFSSL_TI_AM64X_RNG_CTR_DRBG
-static void ti_sa2ul_trng_init_drbg(void)
+static uint32_t initialSeed[RNG_DRBG_SEED_MAX_ARRY_SIZE_IN_DWORD];
+
+static int ti_sa2ul_trng_init_drbg(void)
 {
     if (_getSocUid() == 0) {
-        uint32_t initialSeed[RNG_DRBG_SEED_MAX_ARRY_SIZE_IN_DWORD];
         /* seed is 384 bits, uid is 256 bits, so copy uid 1.5x */
         XMEMCPY(initialSeed, socUid, sizeof(socUid));
         XMEMCPY(&initialSeed[8], socUid, sizeof(initialSeed) - sizeof(socUid));
@@ -122,8 +124,9 @@ static void ti_sa2ul_trng_init_drbg(void)
         gRngConfig[0].attrs->seedValue = initialSeed;
         gRngConfig[0].attrs->seedSizeInDwords =
             RNG_DRBG_SEED_MAX_ARRY_SIZE_IN_DWORD;
-        ti_sa2ul_trng_init_common();
+        return ti_sa2ul_trng_init_common();
     }
+    return WC_HW_E;
 }
 
 static int ti_sa2ul_trng_get_drbg(byte* output, word32 sz)
@@ -169,10 +172,10 @@ static int ti_sa2ul_trng_get_drbg(byte* output, word32 sz)
     return 0;
 }
 #else
-static void ti_sa2ul_trng_init_nrbg(void)
+static int ti_sa2ul_trng_init_nrbg(void)
 {
     gRngConfig[0].attrs->mode = RNG_DRBG_DISABLE_MODE;
-    ti_sa2ul_trng_init_common();
+    return ti_sa2ul_trng_init_common();
 }
 
 static int ti_sa2ul_trng_get_nrbg(byte* output, word32 sz)
@@ -198,7 +201,7 @@ static int ti_sa2ul_trng_get_nrbg(byte* output, word32 sz)
 }
 #endif /* WOLFSSL_TI_AM64X_RNG_CTR_DRBG */
 
-static void ti_sa2ul_trng_init(void)
+static int ti_sa2ul_trng_init(void)
 {
 #ifdef WOLFSSL_TI_AM64X_RNG_CTR_DRBG
     return ti_sa2ul_trng_init_drbg();
@@ -505,7 +508,7 @@ static int ti_sa2ul_AesGcmEncrypt(Aes* aes, byte* out,
 
     (void)SA2UL_contextFree(&aes->scObj);
 
-    if (authTag) {
+    if (ret == 0 && authTag != NULL) {
         if (authInSz <= sizeof(scParams.aad)) {
             XMEMCPY(authTag, aes->scObj.computedHash, authTagSz);
         }
@@ -524,7 +527,8 @@ static int ti_sa2ul_AesGcmEncrypt(Aes* aes, byte* out,
                 XMEMCPY(initialCounter, aes->scObj.ctxPrms.iv, WC_AES_BLOCK_SIZE);
             }
             ret = wc_AesEncryptDirect(aes, scratch, initialCounter);
-            xorbuf(authTag, scratch, authTagSz);
+            if (ret == 0)
+                xorbuf(authTag, scratch, authTagSz);
         }
     }
 
@@ -585,7 +589,7 @@ static int ti_sa2ul_AesGcmDecrypt(Aes* aes, byte* out,
 
     (void)SA2UL_contextFree(&aes->scObj);
 
-    if (authTag) {
+    if (ret == 0 && authTag != NULL) {
         if (authInSz <= sizeof(scParams.aad)) {
             if (ConstantCompare(authTag, aes->scObj.computedHash, authTagSz) != 0)
                 ret = WC_NO_ERR_TRACE(AES_GCM_AUTH_E);
@@ -606,9 +610,11 @@ static int ti_sa2ul_AesGcmDecrypt(Aes* aes, byte* out,
                 XMEMCPY(initialCounter, aes->scObj.ctxPrms.iv, WC_AES_BLOCK_SIZE);
             }
             ret = wc_AesEncryptDirect(aes, scratch, initialCounter);
-            xorbuf(Tprime, scratch, sizeof(Tprime));
-            if (ConstantCompare(authTag, Tprime, authTagSz) != 0)
-                ret = WC_NO_ERR_TRACE(AES_GCM_AUTH_E);
+            if (ret == 0) {
+                xorbuf(Tprime, scratch, sizeof(Tprime));
+                if (ConstantCompare(authTag, Tprime, authTagSz) != 0)
+                    ret = WC_NO_ERR_TRACE(AES_GCM_AUTH_E);
+            }
         }
     }
 
@@ -1094,8 +1100,9 @@ int ti_sa2ul_port_init(void)
     int ret = WC_HW_E;
 
 #ifndef WC_NO_RNG
-    ti_sa2ul_trng_init();
-#endif /* WC_NO_RNG */
+    if (ti_sa2ul_trng_init() != 0)
+        return ret;
+#endif
 
     handle = Crypto_open(&cryptoCtx);
     if (handle != NULL) {
