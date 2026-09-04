@@ -524,9 +524,9 @@ impl AeadCore for Aes128Ccm {
 #[cfg(all(aes_ccm, feature = "aead"))]
 impl KeyInit for Aes128Ccm {
     fn new(key: &aead::Key<Self>) -> Self {
-        let mut k = [0u8; 16];
-        k.copy_from_slice(key.as_ref());
-        Aes128Ccm { key: k }
+        let mut out = Aes128Ccm { key: [0u8; 16] };
+        out.key.copy_from_slice(key.as_ref());
+        out
     }
 }
 
@@ -576,9 +576,9 @@ impl AeadCore for Aes192Ccm {
 #[cfg(all(aes_ccm, feature = "aead"))]
 impl KeyInit for Aes192Ccm {
     fn new(key: &aead::Key<Self>) -> Self {
-        let mut k = [0u8; 24];
-        k.copy_from_slice(key.as_ref());
-        Aes192Ccm { key: k }
+        let mut out = Aes192Ccm { key: [0u8; 24] };
+        out.key.copy_from_slice(key.as_ref());
+        out
     }
 }
 
@@ -628,9 +628,9 @@ impl AeadCore for Aes256Ccm {
 #[cfg(all(aes_ccm, feature = "aead"))]
 impl KeyInit for Aes256Ccm {
     fn new(key: &aead::Key<Self>) -> Self {
-        let mut k = [0u8; 32];
-        k.copy_from_slice(key.as_ref());
-        Aes256Ccm { key: k }
+        let mut out = Aes256Ccm { key: [0u8; 32] };
+        out.key.copy_from_slice(key.as_ref());
+        out
     }
 }
 
@@ -1740,9 +1740,9 @@ impl AeadCore for Aes128Gcm {
 #[cfg(all(aes_gcm, feature = "aead"))]
 impl KeyInit for Aes128Gcm {
     fn new(key: &aead::Key<Self>) -> Self {
-        let mut k = [0u8; 16];
-        k.copy_from_slice(key.as_ref());
-        Aes128Gcm { key: k }
+        let mut out = Aes128Gcm { key: [0u8; 16] };
+        out.key.copy_from_slice(key.as_ref());
+        out
     }
 }
 
@@ -1792,9 +1792,9 @@ impl AeadCore for Aes192Gcm {
 #[cfg(all(aes_gcm, feature = "aead"))]
 impl KeyInit for Aes192Gcm {
     fn new(key: &aead::Key<Self>) -> Self {
-        let mut k = [0u8; 24];
-        k.copy_from_slice(key.as_ref());
-        Aes192Gcm { key: k }
+        let mut out = Aes192Gcm { key: [0u8; 24] };
+        out.key.copy_from_slice(key.as_ref());
+        out
     }
 }
 
@@ -1844,9 +1844,9 @@ impl AeadCore for Aes256Gcm {
 #[cfg(all(aes_gcm, feature = "aead"))]
 impl KeyInit for Aes256Gcm {
     fn new(key: &aead::Key<Self>) -> Self {
-        let mut k = [0u8; 32];
-        k.copy_from_slice(key.as_ref());
-        Aes256Gcm { key: k }
+        let mut out = Aes256Gcm { key: [0u8; 32] };
+        out.key.copy_from_slice(key.as_ref());
+        out
     }
 }
 
