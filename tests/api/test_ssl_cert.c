@@ -2289,12 +2289,15 @@ int test_wolfSSL_load_from_fifo(void)
  * allocator installed would break every test that runs after this one in the
  * same binary, which costs the whole variant.
  * ------------------------------------------------------------------------- */
-/* Not under WOLFSSL_SMALL_STACK: that variant segfaults during the sweep
- * while the default one completes it cleanly. Whether that is a small-stack
- * allocation path that does not handle failure, or the harness exhausting
- * something the small-stack build is more sensitive to, is not established --
- * and a crash there discards the whole variant, so it is excluded until the
- * difference is understood rather than left to take the evidence down. */
+/* Not under WOLFSSL_SMALL_STACK, and the reason is now known rather than
+ * suspected: DecodeCertInternal indexes RPKdataASN before checking the ret
+ * that CALLOC_ASNGETDATA sets, so under that build an allocation failure
+ * dereferences NULL while parsing any certificate. A per-index sweep crashes
+ * at five allocation indices (7, 30, 51, 68, 90), all at the same
+ * instruction, reached through load_verify_locations, use_certificate_file,
+ * use_certificate_chain_file and CertManagerVerify. Fixed upstream in
+ * PR 11378; drop this exclusion once that merges and the sweep passes on the
+ * small-stack variant. A crash here would discard the whole variant. */
 #if !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY) && \
     !defined(WOLFSSL_SMALL_STACK) && \
     !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_FILESYSTEM)
@@ -2372,9 +2375,58 @@ static void fi_workload(void)
 #ifdef HAVE_SESSION_TICKET
         (void)wolfSSL_UseSessionTicket(ssl);
 #endif
+#ifdef HAVE_MAX_FRAGMENT
+        (void)wolfSSL_UseMaxFragment(ssl, WOLFSSL_MFL_2_9);
+#endif
+#ifdef HAVE_TRUSTED_CA
+        (void)wolfSSL_UseTrustedCA(ssl, WOLFSSL_TRUSTED_CA_PRE_AGREED,
+                                   NULL, 0);
+#endif
+#ifdef HAVE_OCSP
+        (void)wolfSSL_EnableOCSP(ssl, 0);
+#endif
         (void)wolfSSL_SetVersion(ssl, WOLFSSL_TLSV1_2);
+        (void)wolfSSL_set_cipher_list(ssl, "DEFAULT");
+#ifndef NO_SESSION_CACHE
+        {
+            WOLFSSL_SESSION* s1 = wolfSSL_get1_session(ssl);
+
+            if (s1 != NULL) {
+                WOLFSSL_SESSION* s2 = wolfSSL_SESSION_dup(s1);
+
+                if (s2 != NULL)
+                    wolfSSL_SESSION_free(s2);
+                wolfSSL_SESSION_free(s1);
+            }
+        }
+#endif
         wolfSSL_free(ssl);
     }
+
+    /* A second reach: the CertManager and its CRL/OCSP sub-objects allocate
+     * on their own paths, and every one of those allocations is an error arm
+     * that a working configuration never takes. */
+    {
+        WOLFSSL_CERT_MANAGER* cm = wolfSSL_CertManagerNew();
+
+        if (cm != NULL) {
+            (void)wolfSSL_CertManagerLoadCA(cm, caCertFile, NULL);
+            (void)wolfSSL_CertManagerVerify(cm, svrCertFile,
+                                            WOLFSSL_FILETYPE_PEM);
+#ifdef HAVE_CRL
+            (void)wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECK);
+#endif
+#ifdef HAVE_OCSP
+            (void)wolfSSL_CertManagerEnableOCSP(cm, 0);
+#endif
+            wolfSSL_CertManagerFree(cm);
+        }
+    }
+
+    /* And the chain/buffer loaders, which have their own allocation and
+     * error-propagation chains distinct from the file loaders above. */
+    (void)wolfSSL_CTX_use_certificate_chain_file(ctx, svrCertFile);
+
     wolfSSL_CTX_free(ctx);
 }
 
