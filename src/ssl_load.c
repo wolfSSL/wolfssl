@@ -3310,6 +3310,61 @@ int wolfSSL_CTX_load_verify_locations(WOLFSSL_CTX* ctx, const char* file,
     return WS_RETURN_CODE(ret, 0);
 }
 
+#ifdef OPENSSL_EXTRA
+/* Load CA certificates from a file.
+ *
+ * The file half of wolfSSL_CTX_load_verify_locations(), matching the split
+ * OpenSSL made in 1.1.1.
+ *
+ * @param [in, out] ctx   SSL/TLS context.
+ * @param [in]      file  Name of file containing PEM CA certificates.
+ * @return  1 on success.
+ * @return  0 on failure.
+ */
+int wolfSSL_CTX_load_verify_file(WOLFSSL_CTX* ctx, const char* file)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_load_verify_file");
+
+    /* Use the compat variant so a bad certificate in the file is
+     * tolerated the way OpenSSL tolerates it. */
+    return wolfSSL_CTX_load_verify_locations_compat(ctx, file, NULL);
+}
+
+#ifndef NO_WOLFSSL_DIR
+/* Load CA certificates from every file in a directory.
+ *
+ * The directory half of wolfSSL_CTX_load_verify_locations(), matching the
+ * split OpenSSL made in 1.1.1.
+ *
+ * @param [in, out] ctx   SSL/TLS context.
+ * @param [in]      path  Directory containing PEM CA certificate files.
+ * @return  1 on success.
+ * @return  0 on failure.
+ */
+int wolfSSL_CTX_load_verify_dir(WOLFSSL_CTX* ctx, const char* path)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_load_verify_dir");
+
+    if ((ctx == NULL) || (path == NULL)) {
+        return WOLFSSL_FAILURE;
+    }
+
+    /* Load whatever the directory holds, tolerating certificates that cannot
+     * be used, as the compat variant does.
+     *
+     * The result is deliberately not reported.  OpenSSL registers the
+     * directory for lookup rather than reading it here, so it only fails this
+     * call on a NULL path - a missing, empty or unreadable directory all
+     * report success.  Callers written against that, such as mosquitto's
+     * capath handling, treat a 0 as a fatal configuration error, so returning
+     * one where OpenSSL would not would stop them starting. */
+    (void)wolfSSL_CTX_load_verify_locations_compat(ctx, NULL, path);
+
+    return WOLFSSL_SUCCESS;
+}
+#endif /* !NO_WOLFSSL_DIR */
+#endif /* OPENSSL_EXTRA */
+
 /* Load a file and/or files in path, with OpenSSL-compatible semantics.
  *
  * No c_rehash.
@@ -6244,6 +6299,48 @@ long wolfSSL_CTX_set_tmp_dh(WOLFSSL_CTX* ctx, WOLFSSL_DH* dh)
     }
     return ret;
 }
+
+/* Guarded to match wolfSSL_EVP_PKEY_get0_DH(), which this is a thin wrapper
+ * over; without it there is no way to reach the DH parameters in the key. */
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_QT) || \
+     defined(WOLFSSL_OPENSSH)) && \
+    !defined(NO_DH) && defined(WOLFSSL_DH_EXTRA) && !defined(NO_FILESYSTEM)
+/* Set the Diffie-Hellman parameters to use, from an EVP_PKEY.
+ *
+ * The context takes ownership of dhpkey on success, matching the "set0"
+ * contract; on failure the caller keeps it, as OpenSSL does.
+ *
+ * Returns WOLFSSL_SUCCESS on success, WOLFSSL_FAILURE otherwise.
+ */
+int wolfSSL_CTX_set0_tmp_dh_pkey(WOLFSSL_CTX* ctx, WOLFSSL_EVP_PKEY* dhpkey)
+{
+    WOLFSSL_DH* dh;
+
+    WOLFSSL_ENTER("wolfSSL_CTX_set0_tmp_dh_pkey");
+
+    if (ctx == NULL || dhpkey == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    /* Borrowed from the key, so it must not be freed here. */
+    dh = wolfSSL_EVP_PKEY_get0_DH(dhpkey);
+    if (dh == NULL) {
+        WOLFSSL_MSG("EVP_PKEY does not hold DH parameters");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (wolfSSL_CTX_set_tmp_dh(ctx, dh) != WOLFSSL_SUCCESS) {
+        return WOLFSSL_FAILURE;
+    }
+
+    /* wolfSSL_CTX_set_tmp_dh() copies the parameters, so the key has done its
+     * job and the ownership just taken is discharged by freeing it. */
+    wolfSSL_EVP_PKEY_free(dhpkey);
+
+    return WOLFSSL_SUCCESS;
+}
+#endif /* (OPENSSL_ALL || WOLFSSL_QT || WOLFSSL_OPENSSH) && !NO_DH &&
+        * WOLFSSL_DH_EXTRA && !NO_FILESYSTEM */
 
 #endif /* OPENSSL_EXTRA */
 

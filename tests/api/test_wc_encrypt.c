@@ -164,7 +164,8 @@ int test_wc_Des_CbcEncryptDecryptWithKey(void)
 int test_wc_AesCbcEncryptDecryptWithKey(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(HAVE_AES_DECRYPT)
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(HAVE_AES_DECRYPT) && \
+    defined(WOLFSSL_AES_128)
     const byte key[16] = {
         0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef,
         0xfe,0xdc,0xba,0x98,0x76,0x54,0x32,0x10
@@ -221,7 +222,8 @@ int test_wc_BufferKeyEncryptDecryptDecisionCoverage(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_ASN) && defined(WOLFSSL_ENCRYPTED_KEYS) && \
-    !defined(NO_PWDBASED) && !defined(NO_SHA)
+    !defined(NO_PWDBASED) && !defined(NO_SHA) && \
+    defined(WOLFSSL_AES_128)
     const byte pw[] = { 'p','a','s','s','w','o','r','d' };
     EncryptedInfo info;
     byte der[32];

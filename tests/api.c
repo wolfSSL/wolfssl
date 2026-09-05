@@ -2414,7 +2414,8 @@ static int test_wolfSSL_CTX_set_cipher_list_bytes(void)
     !defined(NO_WOLFSSL_CLIENT) && \
     !defined(HAVE_RENEGOTIATION_INDICATION) && \
     defined(HAVE_AESGCM) && \
-    ((!defined(NO_RSA) && defined(HAVE_ECC)) || !defined(NO_ERROR_STRINGS))
+    ((!defined(NO_RSA) && defined(HAVE_ECC)) || !defined(NO_ERROR_STRINGS)) && \
+    defined(WOLFSSL_AES_128)
 /* Helper function to check if TLS 1.3 suites exist in the suites list */
 static int suites_has_tls13(const byte* suites, word16 suiteSz)
 {
@@ -2448,7 +2449,8 @@ static int test_wolfSSL_set_cipher_list_tls12_keeps_tls13(void)
     !defined(WOLFSSL_NO_TLS12) && \
     !defined(NO_WOLFSSL_CLIENT) && \
     !defined(HAVE_RENEGOTIATION_INDICATION) && \
-    defined(HAVE_AESGCM) && defined(HAVE_ECC) && !defined(NO_RSA)
+    defined(HAVE_AESGCM) && defined(HAVE_ECC) && !defined(NO_RSA) && \
+    defined(WOLFSSL_AES_128)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
 
@@ -2479,7 +2481,8 @@ static int test_wolfSSL_set_cipher_list_tls13_keeps_tls12(void)
     !defined(WOLFSSL_NO_TLS12) && \
     !defined(NO_WOLFSSL_CLIENT) && \
     !defined(HAVE_RENEGOTIATION_INDICATION) && \
-    defined(HAVE_AESGCM) && !defined(NO_ERROR_STRINGS)
+    defined(HAVE_AESGCM) && !defined(NO_ERROR_STRINGS) && \
+    defined(WOLFSSL_AES_128)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
 
@@ -2510,7 +2513,8 @@ static int test_wolfSSL_set_cipher_list_tls12_with_version(void)
     !defined(WOLFSSL_NO_TLS12) && \
     !defined(NO_WOLFSSL_CLIENT) && \
     !defined(HAVE_RENEGOTIATION_INDICATION) && \
-    defined(HAVE_AESGCM) && defined(HAVE_ECC) && !defined(NO_RSA)
+    defined(HAVE_AESGCM) && defined(HAVE_ECC) && !defined(NO_RSA) && \
+    defined(WOLFSSL_AES_128)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
 
@@ -2546,7 +2550,8 @@ static int test_wolfSSL_set_cipher_list_tls13_with_version(void)
     !defined(WOLFSSL_NO_TLS12) && \
     !defined(NO_WOLFSSL_CLIENT) && \
     !defined(HAVE_RENEGOTIATION_INDICATION) && \
-    defined(HAVE_AESGCM) && !defined(NO_ERROR_STRINGS)
+    defined(HAVE_AESGCM) && !defined(NO_ERROR_STRINGS) && \
+    defined(WOLFSSL_AES_128)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
 
@@ -8612,7 +8617,8 @@ static int test_wolfSSL_CTX_verifyDepth_ServerClient_3(void)
 
 #if defined(OPENSSL_ALL) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(WOLFSSL_NO_TLS12) && \
-    defined(HAVE_ECC) && !defined(NO_AES) && !defined(NO_SHA256)
+    defined(HAVE_ECC) && !defined(NO_AES) && !defined(NO_SHA256) && \
+    defined(WOLFSSL_AES_128)
 static int test_wolfSSL_CTX_set_cipher_list_server_ctx_ready(WOLFSSL_CTX* ctx)
 {
     EXPECT_DECLS;
@@ -8632,7 +8638,8 @@ static int test_wolfSSL_CTX_set_cipher_list(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_ALL) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
-    defined(HAVE_ECC) && !defined(NO_AES) && !defined(NO_SHA256)
+    defined(HAVE_ECC) && !defined(NO_AES) && !defined(NO_SHA256) && \
+    defined(WOLFSSL_AES_128)
 
     #if !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX* ctxClient = NULL;
@@ -15355,7 +15362,8 @@ static int test_wolfSSL_set1_host(void)
 
 #if defined(OPENSSL_ALL) && !defined(NO_RSA) && !defined(NO_CERTS) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
-    defined(HAVE_ECC) && !defined(NO_TLS) && defined(HAVE_AESGCM)
+    defined(HAVE_ECC) && !defined(NO_TLS) && defined(HAVE_AESGCM) && \
+    defined(WOLFSSL_AES_128)
 static int test_wolfSSL_get_client_ciphers_ctx_ready(WOLFSSL_CTX* ctx)
 {
     EXPECT_DECLS;
@@ -15398,7 +15406,8 @@ static int test_wolfSSL_get_client_ciphers(void)
     EXPECT_DECLS;
 #if defined(OPENSSL_ALL) && !defined(NO_RSA) && !defined(NO_CERTS) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
-    defined(HAVE_ECC) && !defined(NO_TLS) && defined(HAVE_AESGCM)
+    defined(HAVE_ECC) && !defined(NO_TLS) && defined(HAVE_AESGCM) && \
+    defined(WOLFSSL_AES_128)
     test_ssl_cbf server_cb;
     test_ssl_cbf client_cb;
 
@@ -19420,7 +19429,8 @@ static int test_wolfSSL_set1_curves_list(void)
 }
 
 #if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
-        (defined(OPENSSL_EXTRA) || defined(HAVE_CURL)) && defined(HAVE_ECC)
+        (defined(OPENSSL_EXTRA) || defined(HAVE_CURL)) && defined(HAVE_ECC) && \
+        (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES))
 static int test_wolfSSL_curves_mismatch_ctx_ready(WOLFSSL_CTX* ctx)
 {
     static int counter = 0;
@@ -19452,7 +19462,8 @@ static int test_wolfSSL_curves_mismatch(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
-        (defined(OPENSSL_EXTRA) || defined(HAVE_CURL)) && defined(HAVE_ECC)
+        (defined(OPENSSL_EXTRA) || defined(HAVE_CURL)) && defined(HAVE_ECC) && \
+        (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES))
     test_ssl_cbf func_cb_client;
     test_ssl_cbf func_cb_server;
     size_t i;
@@ -20260,7 +20271,7 @@ static int test_wolfSSL_PKCS8_d2i(void)
     ExpectIntEQ(XMEMCMP(p, pkcs8_buffer, bytes), 0);
     BIO_free(bio);
     bio = NULL;
-#if !defined(NO_AES) && defined(HAVE_AESGCM)
+#if !defined(NO_AES) && defined(HAVE_AESGCM) && defined(WOLFSSL_AES_128)
     ExpectIntEQ(PEM_write_PKCS8PrivateKey(stderr, pkey, EVP_aes_128_gcm(),
         NULL, 0, PasswordCallBack, (void*)"yassl123"), 0);
 #endif
@@ -21267,7 +21278,8 @@ static int test_wolfSSL_cert_cb(void)
     return EXPECT_RESULT();
 }
 
-#if defined(OPENSSL_EXTRA) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
+#if defined(OPENSSL_EXTRA) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_AES_128)
 
 static const char* test_wolfSSL_cert_cb_dyn_ciphers_client_cipher = NULL;
 static const char* test_wolfSSL_cert_cb_dyn_ciphers_client_sigalgs = NULL;
@@ -21362,7 +21374,8 @@ static int test_wolfSSL_cert_cb_dyn_ciphers_server_ctx_ready(WOLFSSL_CTX* ctx)
 static int test_wolfSSL_cert_cb_dyn_ciphers(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
+#if defined(OPENSSL_EXTRA) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_AES_128)
     test_ssl_cbf func_cb_client;
     test_ssl_cbf func_cb_server;
     struct {
@@ -33115,7 +33128,8 @@ static int error_test(void)
         { -356, -356 },
         { -358, -358 },
         { -384, -384 },
-        { -466, -499 },
+        /* -466 is CLIENT_HELLO_CB_E and has a string. */
+        { -467, -499 },
         { WOLFSSL_LAST_E - 1, WC_SPAN2_FIRST_E + 1 },
         { WC_SPAN2_LAST_E - 1, MIN_CODE_E }
     };
@@ -36971,7 +36985,8 @@ static int test_TLSX_CA_NAMES_bad_extension(void)
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
     !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES) && \
     defined(OPENSSL_EXTRA) && defined(BUILD_TLS_CHACHA20_POLY1305_SHA256) && \
-    defined(HAVE_ECC) && !defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT)
+    defined(HAVE_ECC) && !defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT) && \
+    (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES))
     /* This test should only fail (with BUFFER_ERROR) when we actually try to
      * parse the CA Names extension. Otherwise it will return other non-related
      * errors. If CA Names will be parsed in more configurations, that should
@@ -41838,6 +41853,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_ocsp_ctx_request_cache),
     TEST_DECL(test_ocsp_responder),
     TEST_DECL(test_wolfIO_DecodeUrl_crlf_reject),
+    TEST_DECL_GROUP("ocsp", test_ocsp_crl_reason_str),
     TEST_TLS_DECLS,
     TEST_TLS_BOUNDS_DECLS,
     TEST_TLS_MSGTYPE_DECLS,

@@ -1765,6 +1765,11 @@ int wolfSSL_CTX_set1_sigalgs_list(WOLFSSL_CTX* ctx, const char* list)
 {
     int ret = WOLFSSL_SUCCESS;
 
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || \
+    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+    CtxFreeSuitesStack(ctx);
+#endif
+
     WOLFSSL_MSG("wolfSSL_CTX_set1_sigalg_list");
 
     if ((ctx == NULL) || (list == NULL)) {

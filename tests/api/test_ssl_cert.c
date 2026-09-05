@@ -975,6 +975,72 @@ int test_wolfSSL_load_client_CA_file(void)
     return EXPECT_RESULT();
 }
 
+/* Test appending CA names to an existing list from a file and a directory.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_add_cert_subjects_to_stack(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES) && \
+    !defined(NO_BIO) && defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_RSA) && defined(WOLFSSL_PEM_TO_DER)
+    WOLF_STACK_OF(WOLFSSL_X509_NAME)* names = NULL;
+    int num = 0;
+
+    ExpectNotNull(names = wolfSSL_sk_X509_NAME_new(NULL));
+
+    /* NULL parameters are rejected. */
+    ExpectIntEQ(wolfSSL_add_file_cert_subjects_to_stack(NULL, caCertFile), 0);
+    ExpectIntEQ(wolfSSL_add_file_cert_subjects_to_stack(names, NULL), 0);
+
+    /* A file that cannot be opened is an error and adds nothing. */
+    ExpectIntEQ(wolfSSL_add_file_cert_subjects_to_stack(names,
+        "does/not/exist.pem"), 0);
+    ExpectIntEQ(wolfSSL_sk_X509_NAME_num(names), 0);
+
+    /* Every certificate in the file contributes its subject name. */
+    ExpectIntEQ(wolfSSL_add_file_cert_subjects_to_stack(names, caCertFile), 1);
+    ExpectIntGT(num = wolfSSL_sk_X509_NAME_num(names), 0);
+
+    /* The same file again is not an error, but adds no duplicates. */
+    ExpectIntEQ(wolfSSL_add_file_cert_subjects_to_stack(names, caCertFile), 1);
+    ExpectIntEQ(wolfSSL_sk_X509_NAME_num(names), num);
+
+    wolfSSL_sk_X509_NAME_pop_free(names, NULL);
+    names = NULL;
+
+#if !defined(NO_WOLFSSL_DIR) && !defined(WOLFSSL_NUCLEUS) && \
+    !defined(WOLFSSL_NUCLEUS_1_2)
+    ExpectNotNull(names = wolfSSL_sk_X509_NAME_new(NULL));
+
+    /* NULL parameters are rejected. */
+    ExpectIntEQ(wolfSSL_add_dir_cert_subjects_to_stack(NULL, "./certs"), 0);
+    ExpectIntEQ(wolfSSL_add_dir_cert_subjects_to_stack(names, NULL), 0);
+
+    /* A directory that cannot be opened is an error. */
+    ExpectIntEQ(wolfSSL_add_dir_cert_subjects_to_stack(names,
+        "./does-not-exist"), 0);
+    ExpectIntEQ(wolfSSL_sk_X509_NAME_num(names), 0);
+
+    /* Certificates in the directory contribute their subject names. Files
+     * holding no certificate, and subdirectories, are skipped rather than
+     * failing the walk. */
+    ExpectIntEQ(wolfSSL_add_dir_cert_subjects_to_stack(names, "./certs/1024"),
+        1);
+    ExpectIntGT(num = wolfSSL_sk_X509_NAME_num(names), 0);
+
+    /* A second pass over the same directory adds no duplicates. */
+    ExpectIntEQ(wolfSSL_add_dir_cert_subjects_to_stack(names, "./certs/1024"),
+        1);
+    ExpectIntEQ(wolfSSL_sk_X509_NAME_num(names), num);
+
+    wolfSSL_sk_X509_NAME_pop_free(names, NULL);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test requiring mutual authentication.
  *
  * @return  TEST_SUCCESS on success.
@@ -1494,6 +1560,65 @@ int test_wolfSSL_cert_unload(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test the file and directory halves of load_verify_locations.
+ *
+ * mosquitto (src/net.c) uses this pair for its cafile/capath options and
+ * treats a 0 return as a fatal configuration error.
+ */
+int test_wolfSSL_CTX_load_verify_file_dir(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_RSA) && !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+
+    /* Bad parameters are rejected rather than dereferenced. */
+    ExpectIntEQ(wolfSSL_CTX_load_verify_file(NULL, caCertFile), 0);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_file(ctx, NULL), 0);
+#ifdef WOLFSSL_ERROR_CODE_OPENSSL
+    ExpectIntEQ(wolfSSL_CTX_load_verify_file(ctx, "does/not/exist.pem"), 0);
+#else
+    /* Without WOLFSSL_ERROR_CODE_OPENSSL - which --enable-opensslall defines
+     * and --enable-opensslextra alone does not - WS_RETURN_CODE() passes the
+     * loader's error code through instead of turning it into 0.  That is how
+     * the wolfSSL_CTX_load_verify_locations_compat() this is built on has
+     * always behaved, so only the failure is asserted here. */
+    ExpectIntNE(wolfSSL_CTX_load_verify_file(ctx, "does/not/exist.pem"), 1);
+#endif
+
+    /* A readable CA file loads. */
+    ExpectIntEQ(wolfSSL_CTX_load_verify_file(ctx, caCertFile), 1);
+
+#ifndef NO_WOLFSSL_DIR
+    ExpectIntEQ(wolfSSL_CTX_load_verify_dir(NULL, "./certs"), 0);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_dir(ctx, NULL), 0);
+
+    /* A directory holding certificates loads, and files in it that cannot be
+     * used are skipped rather than failing the whole call. */
+    ExpectIntEQ(wolfSSL_CTX_load_verify_dir(ctx, "./certs"), 1);
+
+    /* OpenSSL registers the directory for lookup rather than reading it, so
+     * it only fails this call on a NULL path: a missing or unreadable
+     * directory still reports success, and callers depend on that. */
+    ExpectIntEQ(wolfSSL_CTX_load_verify_dir(ctx, "./does-not-exist"), 1);
+    /* wolfSSL's own entry point keeps its stricter answer for the same
+     * path - only the OpenSSL-named function follows OpenSSL here. */
+#ifdef WOLFSSL_ERROR_CODE_OPENSSL
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx, NULL,
+        "./does-not-exist"), 0);
+#else
+    ExpectIntNE(wolfSSL_CTX_load_verify_locations(ctx, NULL,
+        "./does-not-exist"), 1);
+#endif
+#endif
+
     wolfSSL_CTX_free(ctx);
 #endif
     return EXPECT_RESULT();

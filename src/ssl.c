@@ -3231,6 +3231,10 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
 
 int wolfSSL_CTX_set_cipher_list(WOLFSSL_CTX* ctx, const char* list)
 {
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || \
+    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+    CtxFreeSuitesStack(ctx);
+#endif
     WOLFSSL_ENTER("wolfSSL_CTX_set_cipher_list");
 
     if (ctx == NULL)
@@ -3251,6 +3255,10 @@ int wolfSSL_CTX_set_cipher_list(WOLFSSL_CTX* ctx, const char* list)
 int wolfSSL_CTX_set_cipher_list_bytes(WOLFSSL_CTX* ctx, const byte* list,
                                       const int listSz)
 {
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || \
+    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+    CtxFreeSuitesStack(ctx);
+#endif
     WOLFSSL_ENTER("wolfSSL_CTX_set_cipher_list_bytes");
 
     if (ctx == NULL)
@@ -7025,6 +7033,13 @@ char* wolfSSL_CIPHER_description(const WOLFSSL_CIPHER* cipher, char* in,
     }
 #endif
 
+    /* Everything below describes the suite negotiated on a connection.  A
+     * cipher taken from a context's list has none - wolfSSL_CTX_get_ciphers()
+     * reports configured suites, not a session - so there is nothing to
+     * describe rather than a null connection to walk into. */
+    if (cipher->ssl == NULL)
+        return NULL;
+
     /* Get the cipher description based on the SSL session cipher */
     keaStr = wolfssl_kea_to_string(cipher->ssl->specs.kea);
     authStr = wolfssl_sigalg_to_string(cipher->ssl->specs.sig_algo);
@@ -9397,6 +9412,159 @@ const char* wolfSSL_get_cipher_list_compat(const WOLFSSL* ssl, int priority)
 
     return NULL;
 }
+
+#if defined(OPENSSL_EXTRA) && defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(NO_WOLFSSL_SERVER)
+/* Set the callback invoked when a ClientHello has been received.
+ *
+ * The callback runs before the extensions are processed, so it may inspect
+ * them with wolfSSL_client_hello_get0_ext() and switch the context in use.
+ *
+ * @param [in, out] ctx  SSL/TLS context.
+ * @param [in]      cb   Callback, or NULL to remove one.
+ * @param [in]      arg  User context passed to the callback.
+ */
+void wolfSSL_CTX_set_client_hello_cb(WOLFSSL_CTX* ctx, CallbackClientHello cb,
+    void* arg)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_set_client_hello_cb");
+
+    if (ctx != NULL) {
+        ctx->chCb = cb;
+        ctx->chCbArg = arg;
+    }
+}
+
+/* Find an extension in the ClientHello being processed.
+ *
+ * Only valid from within a ClientHello callback - the data points into the
+ * record being parsed and is not available at any other time. The returned
+ * data is the extension body, without its type and length.
+ *
+ * @param [in]  ssl     SSL object.
+ * @param [in]  type    Extension type to find.
+ * @param [out] out     Extension data.
+ * @param [out] outLen  Length of extension data.
+ * @return  1 when the extension is present.
+ * @return  0 when it is not, on bad parameters, or when called outside a
+ *          ClientHello callback.
+ */
+int wolfSSL_client_hello_get0_ext(WOLFSSL* ssl, unsigned int type,
+    const unsigned char** out, size_t* outLen)
+{
+    word16 idx = 0;
+
+    WOLFSSL_ENTER("wolfSSL_client_hello_get0_ext");
+
+    if ((ssl == NULL) || (out == NULL) || (outLen == NULL) ||
+            (ssl->chExts == NULL)) {
+        return 0;
+    }
+
+    /* Walk the extension block: 2 byte type, 2 byte length, then body. */
+    while ((word32)idx + OPAQUE16_LEN + OPAQUE16_LEN <= ssl->chExtsSz) {
+        word16 extType;
+        word16 extLen;
+
+        ato16(ssl->chExts + idx, &extType);
+        idx += OPAQUE16_LEN;
+        ato16(ssl->chExts + idx, &extLen);
+        idx += OPAQUE16_LEN;
+
+        if ((word32)idx + extLen > ssl->chExtsSz) {
+            /* Truncated extension - stop rather than read past the end. */
+            break;
+        }
+        if (extType == (word16)type) {
+            *out = ssl->chExts + idx;
+            *outLen = (size_t)extLen;
+            return 1;
+        }
+        idx += extLen;
+    }
+
+    return 0;
+}
+#endif
+
+/* Get the cipher suites configured on a context.
+ *
+ * The suites of a context are only populated once a cipher list has been set
+ * on it, so a context left with the library defaults reports no list. The
+ * returned stack is owned by the context and must not be freed by the caller.
+ *
+ * @param [in] ctx  SSL/TLS context.
+ * @return  Stack of cipher suites on success.
+ * @return  NULL when ctx is NULL or no cipher list has been set on it.
+ */
+WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_CTX_get_ciphers(const WOLFSSL_CTX *ctx)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_get_ciphers");
+
+    if ((ctx == NULL) || (ctx->suites == NULL)) {
+        return NULL;
+    }
+
+    /* Populate the stack on first use. */
+    if (ctx->suitesStack == NULL) {
+        int i;
+
+        ((WOLFSSL_CTX*)ctx)->suitesStack =
+            wolfssl_sk_new_type_ex(STACK_TYPE_CIPHER, ctx->heap);
+        if (ctx->suitesStack == NULL) {
+            return NULL;
+        }
+
+        /* Highest priority suite ends up on top of the stack. */
+        for (i = ctx->suites->suiteSz - 2; i >= 0; i -= 2) {
+            struct WOLFSSL_CIPHER cipher;
+
+            /* A couple of suites are placeholders for special options,
+             * skip those. */
+            if (SCSV_Check(ctx->suites->suites[i],
+                    ctx->suites->suites[i+1])) {
+                continue;
+            }
+
+            XMEMSET(&cipher, 0, sizeof(cipher));
+            cipher.cipherSuite0 = ctx->suites->suites[i];
+            cipher.cipherSuite  = ctx->suites->suites[i+1];
+            /* No connection is associated with a context level suite. */
+            cipher.ssl          = NULL;
+#if defined(OPENSSL_ALL)
+            cipher.in_stack     = 1;
+            {
+                const CipherSuiteInfo* names = GetCipherNames();
+                int cipherSz = GetCipherNamesSize();
+                int j;
+
+                for (j = 0; j < cipherSz; j++) {
+                    if ((names[j].cipherSuite0 == cipher.cipherSuite0) &&
+                            (names[j].cipherSuite == cipher.cipherSuite)) {
+                        cipher.offset = (unsigned long)j;
+                        break;
+                    }
+                }
+            }
+#endif
+            if (wolfSSL_sk_insert(ctx->suitesStack, &cipher, 0) <= 0) {
+                WOLFSSL_MSG("Error inserting cipher onto stack");
+                wolfSSL_sk_CIPHER_free(ctx->suitesStack);
+                ((WOLFSSL_CTX*)ctx)->suitesStack = NULL;
+                break;
+            }
+        }
+
+        /* If no ciphers were added, free empty stack and return NULL. */
+        if ((ctx->suitesStack != NULL) &&
+                (wolfSSL_sk_num(ctx->suitesStack) == 0)) {
+            wolfSSL_sk_CIPHER_free(ctx->suitesStack);
+            ((WOLFSSL_CTX*)ctx)->suitesStack = NULL;
+        }
+    }
+
+    return ctx->suitesStack;
+}
 #endif /* OPENSSL_EXTRA || OPENSSL_ALL || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
 #ifdef OPENSSL_ALL
 /* returned pointer is to an internal element in WOLFSSL struct and should not
@@ -10412,6 +10580,21 @@ void wolfSSL_BUF_MEM_free(WOLFSSL_BUF_MEM* buf)
 
         switch (ctx->cipherType) {
 #ifndef NO_AES
+#if defined(HAVE_AES_KEYWRAP)
+            case WC_AES_128_WRAP_TYPE :
+            case WC_AES_192_WRAP_TYPE :
+            case WC_AES_256_WRAP_TYPE :
+#ifdef WOLFSSL_AES_KEYWRAP_PADDING
+            case WC_AES_128_WRAP_PAD_TYPE :
+            case WC_AES_192_WRAP_PAD_TYPE :
+            case WC_AES_256_WRAP_PAD_TYPE :
+#endif
+                /* The value ctx->iv holds for a key wrap is the integrity
+                 * check value, not a chaining register the cipher updates,
+                 * so there is nothing to read back out of the key. */
+                WOLFSSL_MSG("AES key wrap");
+                break;
+#endif
 #if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_DIRECT)
             case WC_AES_128_CBC_TYPE :
             case WC_AES_192_CBC_TYPE :

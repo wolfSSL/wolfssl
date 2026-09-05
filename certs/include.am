@@ -92,6 +92,12 @@ EXTRA_DIST += \
              certs/fpki-cert.der \
              certs/fpki-certpol-cert.der \
              certs/rid-cert.der \
+             certs/any-eku-cert.pem \
+             certs/ns-cert-type-cert.pem \
+             certs/ns-ca-only-cert.pem \
+             certs/code-sign-cert.pem \
+             certs/v1-root-cert.pem \
+             certs/v1-self-issued-cert.pem \
              certs/dh-priv-2048.der \
              certs/dh-priv-2048.pem \
              certs/dh-pub-2048.der \
