@@ -1,0 +1,65 @@
+name: Crypto callback SETKEY tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'release/**' ]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+# END OF COMMON SECTION
+
+jobs:
+  # Native x86_64 'make check' with WOLF_CRYPTO_CB_SETKEY enabled
+  # (--enable-cryptocbutils=setkey). This is the only config that reproduces the
+  # TLS CBC MAC-then-Encrypt failure guarded by test_wc_CryptoCb_TLS_CBC_HMAC:
+  # a crypto-callback device that owns the HMAC key (services the SETKEY op)
+  # leaves the software ipad/opad uncomputed, so the constant-time raw-hash
+  # verify path (Hmac_UpdateFinal_CT) reads empty state and produces a wrong
+  # record MAC unless TLS_hmac routes callback-devId verification through the
+  # update/final HMAC path. Without SETKEY, wc_HmacSetKey always builds the
+  # software key state and the raw-hash path recomputes a correct MAC, so the
+  # test is compiled out and no other CI config exercises it.
+  #  - setkey      : the SETKEY utility alone, on the default feature set.
+  #  - setkey-all  : SETKEY alongside the COPY/FREE utilities and --enable-all,
+  #                  covering the device through the cryptocb copy/free paths.
+  make_check:
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - '--enable-cryptocb --enable-cryptocbutils=setkey'
+          - '--enable-cryptocb --enable-cryptocbutils --enable-all'
+    name: make check (${{ matrix.config }})
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        name: Checkout wolfSSL
+
+      - name: Build and test crypto callback SETKEY
+        run: |
+          ./autogen.sh
+          ./configure ${{ matrix.config }}
+          make -j 4
+          make check
+
+      - name: Print errors
+        if: ${{ failure() }}
+        run: |
+          for file in scripts/*.log test-suite.log
+          do
+              if [ -f "$file" ]; then
+                  echo "${file}:"
+                  cat "$file"
+                  echo "========================================================================"
+              fi
+          done

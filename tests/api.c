@@ -34571,6 +34571,136 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
     return ret;
 }
 
+#if !defined(NO_HMAC) && !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA) && \
+    defined(HAVE_ECC) && defined(HAVE_AES_CBC) && !defined(NO_SHA256) && \
+    defined(HAVE_ENCRYPT_THEN_MAC) && defined(WOLF_CRYPTO_CB) && \
+    defined(WOLF_CRYPTO_CB_SETKEY) && defined(HAVE_IO_TESTS_DEPENDENCIES)
+#define TEST_CRYPTOCB_HMAC_DEV
+
+/* State the HMAC-computing test device hangs off an Hmac's devCtx: the key it
+ * owns (so the caller's software ipad/opad are never computed) plus the
+ * accumulated message. */
+typedef struct HmacDevAccum {
+    byte   key[WC_MAX_BLOCK_SIZE];
+    word32 keyLen;
+    int    macType;
+    byte*  buf;
+    word32 len;
+    word32 cap;
+} HmacDevAccum;
+
+/* Crypto callback modelling a hardware HMAC engine that owns the key: it
+ * services the HMAC SETKEY, so wc_HmacSetKey returns before it computes the
+ * software ipad/opad, and it buffers the message and computes the MAC at final
+ * with a fresh software HMAC. The caller's own software hash state is thus
+ * never populated -- exactly how a real offload engine behaves. That is what
+ * makes the raw-hash constant-time TLS CBC verify path (Hmac_UpdateFinal_CT,
+ * which reads that software state) produce a wrong MAC unless a cryptocb devId
+ * routes verification through the update/final path instead. Requires
+ * WOLF_CRYPTO_CB_SETKEY so the engine can claim the key; everything other than
+ * the HMAC key/update/final is delegated to the shared test_CryptoCb_Func so
+ * the TLS handshake's PK operations still work. */
+static int test_CryptoCb_HmacDev_Func(int thisDevId, wc_CryptoInfo* info,
+    void* ctx)
+{
+    if (info != NULL && info->algo_type == WC_ALGO_TYPE_SETKEY &&
+            info->setkey.type == WC_SETKEY_HMAC) {
+        Hmac*         hmac = (Hmac*)info->setkey.obj;
+        HmacDevAccum* a;
+
+        if (hmac == NULL || info->setkey.keySz > (word32)sizeof(a->key)) {
+            /* cannot hold this key: let software handle it */
+            return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+        }
+        a = (HmacDevAccum*)XMALLOC(sizeof(*a), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (a == NULL) {
+            return WC_NO_ERR_TRACE(MEMORY_E);
+        }
+        XMEMSET(a, 0, sizeof(*a));
+        if (info->setkey.key != NULL && info->setkey.keySz > 0) {
+            XMEMCPY(a->key, info->setkey.key, info->setkey.keySz);
+        }
+        a->keyLen  = info->setkey.keySz;
+        a->macType = hmac->macType;
+        hmac->devCtx = a;
+        return 0; /* handled: software ipad/opad are not computed */
+    }
+
+    if (info != NULL && info->algo_type == WC_ALGO_TYPE_HMAC) {
+        Hmac*         hmac = info->hmac.hmac;
+        HmacDevAccum* a;
+        int           ret = 0;
+
+        if (hmac == NULL) {
+            return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+        }
+        a = (HmacDevAccum*)hmac->devCtx;
+        if (a == NULL) {
+            /* not a key this device owns: let software handle it */
+            return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+        }
+
+        /* update: buffer the data, leave the software hash state untouched */
+        if (info->hmac.in != NULL && info->hmac.inSz > 0) {
+            word32 need = a->len + info->hmac.inSz;
+            if (need > a->cap) {
+                word32 cap = (a->cap == 0) ? 256 : a->cap;
+                byte*  nb;
+                while (cap < need) {
+                    cap *= 2;
+                }
+                nb = (byte*)XMALLOC(cap, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                if (nb == NULL) {
+                    return WC_NO_ERR_TRACE(MEMORY_E);
+                }
+                if (a->len > 0) {
+                    XMEMCPY(nb, a->buf, a->len);
+                }
+                XFREE(a->buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                a->buf = nb;
+                a->cap = cap;
+            }
+            XMEMCPY(a->buf + a->len, info->hmac.in, info->hmac.inSz);
+            a->len = need;
+        }
+
+        /* final: compute the MAC from the buffered message with a separate
+         * software HMAC keyed from the key this device owns */
+        if (info->hmac.digest != NULL) {
+            Hmac tmp;
+
+            ret = wc_HmacInit(&tmp, NULL, INVALID_DEVID);
+            if (ret == 0) {
+                ret = wc_HmacSetKey(&tmp, a->macType, a->key, a->keyLen);
+                if (ret == 0 && a->len > 0) {
+                    ret = wc_HmacUpdate(&tmp, a->buf, a->len);
+                }
+                if (ret == 0) {
+                    ret = wc_HmacFinal(&tmp, info->hmac.digest);
+                }
+                wc_HmacFree(&tmp);
+            }
+            XFREE(a->buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(a, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            hmac->devCtx = NULL;
+        }
+        return ret;
+    }
+    return test_CryptoCb_Func(thisDevId, info, ctx);
+}
+
+/* Force a TLS 1.2 MAC-then-Encrypt CBC-SHA256 suite so the record MAC runs
+ * through the Lucky13 constant-time verify path exercised by the fix. */
+static void test_CryptoCb_cbcMtE_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    if (wolfSSL_CTX_set_cipher_list(ctx, "ECDHE-RSA-AES128-SHA256")
+            == WOLFSSL_SUCCESS) {
+        (void)wolfSSL_CTX_AllowEncryptThenMac(ctx, 0);
+    }
+}
+#endif /* HMAC && !NO_TLS12 && !NO_RSA && HAVE_ECC && HAVE_AES_CBC &&
+        * !NO_SHA256 && HAVE_ENCRYPT_THEN_MAC */
+
 /* These callback helpers are only referenced by test_wc_CryptoCb_registry,
  * whose body is compiled only under WOLF_CRYPTO_CB + WOLFSSL_TEST_STATIC_BUILD
  * (it calls WOLFSSL_LOCAL cryptocb helpers). Match that guard so they are not
@@ -34888,6 +35018,56 @@ static int test_wc_CryptoCb(void)
     #endif
 #endif /* HAVE_IO_TESTS_DEPENDENCIES */
 #endif /* WOLF_CRYPTO_CB */
+    return EXPECT_RESULT();
+}
+
+/* Regression test: a TLS 1.2 MAC-then-Encrypt CBC handshake where the record
+ * (and PRF) HMAC is computed by a crypto callback that never populates the
+ * software hash state. Without routing cryptocb-devId verification through the
+ * update/final HMAC path, TLS_hmac() takes the raw-hash constant-time path,
+ * reads the empty software state, produces a wrong record MAC, and the
+ * handshake fails with a decrypt error. */
+static int test_wc_CryptoCb_TLS_CBC_HMAC(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_CRYPTOCB_HMAC_DEV
+    callback_functions client_cbf;
+    callback_functions server_cbf;
+
+    XMEMSET(&client_cbf, 0, sizeof(client_cbf));
+    XMEMSET(&server_cbf, 0, sizeof(server_cbf));
+
+    client_cbf.method = wolfTLSv1_2_client_method;
+    server_cbf.method = wolfTLSv1_2_server_method;
+
+    /* RSA credentials; the public key file is loaded and the private key is
+     * served through the crypto callback (matching test_wc_CryptoCb_TLS). */
+    client_cbf.caPemFile   = svrCertFile;
+    client_cbf.certPemFile = cliCertFile;
+    client_cbf.keyPemFile  = cliKeyPubFile;
+    server_cbf.caPemFile   = cliCertFile;
+    server_cbf.certPemFile = svrCertFile;
+    server_cbf.keyPemFile  = svrKeyPubFile;
+
+    client_cbf.ctx_ready = test_CryptoCb_cbcMtE_ctx_ready;
+    server_cbf.ctx_ready = test_CryptoCb_cbcMtE_ctx_ready;
+
+    client_cbf.devId = 1;
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(client_cbf.devId,
+        test_CryptoCb_HmacDev_Func, (void*)cliKeyFile), 0);
+    server_cbf.devId = 2;
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(server_cbf.devId,
+        test_CryptoCb_HmacDev_Func, (void*)svrKeyFile), 0);
+
+    test_wolfSSL_client_server(&client_cbf, &server_cbf);
+    ExpectIntEQ(server_cbf.return_code, TEST_SUCCESS);
+    ExpectIntEQ(client_cbf.return_code, TEST_SUCCESS);
+
+    wc_CryptoCb_UnRegisterDevice(client_cbf.devId);
+    wc_CryptoCb_UnRegisterDevice(server_cbf.devId);
+#else
+    return TEST_SKIPPED;
+#endif /* TEST_CRYPTOCB_HMAC_DEV */
     return EXPECT_RESULT();
 }
 
@@ -42021,6 +42201,8 @@ TEST_CASE testCases[] = {
      * unconditionally, as on master. */
     /* Can't memory test as client/server hangs. */
     TEST_DECL(test_wc_CryptoCb),
+    /* Unconditional shell (body self-guards on TEST_CRYPTOCB_HMAC_DEV). */
+    TEST_DECL(test_wc_CryptoCb_TLS_CBC_HMAC),
     /* Can't memory test as client/server hangs. */
     TEST_DECL(test_wolfSSL_CTX_StaticMemory),
 #if !defined(NO_FILESYSTEM) &&                                                 \
