@@ -56,8 +56,38 @@ int  wc_FreeNetRandom(void);
     (deterministic random bit generator) allocated (should be deallocated
     with wc_FreeRng).  This is a blocking operation.
 
+    One WC_RNG may be shared between threads: each generate and reseed holds
+    the instance's lock.  Define WC_RNG_NO_LOCK (configure --disable-rng-lock)
+    to leave the lock out of a build that never shares one; it needs a heap.
+    The lock covers the Hash DRBG; a crypto callback, RDRAND, a hardware TRNG
+    or an async marker answers a generate before it is taken.  A WC_RNG_SEED_CB
+    callback and any hash crypto callback reached during a generate run with
+    the lock held, so they must not use the RNG API.  Initialize only a WC_RNG
+    that is new or has been freed, and let no other thread use the instance
+    across wc_InitRng*() or wc_FreeRng(), which do not lock.  Without the
+    handlers below, an instance whose lock another thread held at fork()
+    stays locked in the child.
+
+    POSIX lets the child of a multithreaded process only exec.  Define
+    WC_RNG_ATFORK (configure --enable-rng-atfork) to install pthread_atfork()
+    handlers instead; wolfCrypt_Init() registers them and must run before any
+    thread or fork, and wc_InitRng*() returns BAD_STATE_E before it.  They
+    hold every instance lock across fork(), which then
+    waits for any generate or reseed in flight, and start the locks over in
+    the child, which reseeds before its next output.  The handlers cover only
+    WC_RNG locks, not other wolfSSL mutexes.
+    They do not cover clone(), vfork() or _Fork().  A fork() from inside a
+    WC_RNG_SEED_CB seed callback or a hash crypto callback reached during a
+    generate, which run with the instance lock held, deadlocks.  The child's
+    first generate reseeds and allocates, so the allocator must be fork safe,
+    as glibc and musl are; the handlers are refused with entropy-memuse, the
+    RNG bank and static memory, whose locks they do not repair.  They stay
+    registered for the life of the process, past wolfCrypt_Cleanup(), so a
+    fork() after the library was unloaded with dlclose() calls unmapped code.
+
     \return 0 on success.
     \return MEMORY_E XMALLOC failed
+    \return BAD_STATE_E WC_RNG_ATFORK build before wolfCrypt_Init()
     \return WINCRYPT_E wc_GenerateSeed: failed to acquire context
     \return CRYPTGEN_E wc_GenerateSeed: failed to get random
     \return BAD_FUNC_ARG wc_RNG_GenerateBlock input is null or sz exceeds
@@ -66,6 +96,8 @@ int  wc_FreeNetRandom(void);
     DRBG_CONT_FAILURE
     \return RNG_FAILURE_E wc_RNG_GenerateBlock: Default error.  rng’s
     status originally not ok, or set to DRBG_FAILED
+    \return BAD_MUTEX_E the lock that lets threads share this rng could not
+    be created; define WC_RNG_NO_LOCK to build without it
 
     \param rng random number generator to be initialized for use
     with a seed and key cipher
@@ -108,6 +140,7 @@ int  wc_InitRng(WC_RNG* rng);
     \return DRBG_CONT_FIPS_E Hash_gen returned DRBG_CONT_FAILURE
     \return RNG_FAILURE_E Default error. rng’s status originally not
     ok, or set to DRBG_FAILED
+    \return BAD_MUTEX_E the rng's lock could not be taken
 
     \param rng random number generator initialized with wc_InitRng
     \param output buffer to which the block is copied
@@ -148,6 +181,7 @@ int  wc_RNG_GenerateBlock(WC_RNG* rng, byte* b, word32 sz);
     \return DRBG_CONT_FIPS_E Hash_gen returned DRBG_CONT_FAILURE
     \return RNG_FAILURE_E Default error.  rng’s status originally not
     ok, or set to DRBG_FAILED
+    \return BAD_MUTEX_E the rng's lock could not be taken
 
     \param rng: random number generator initialized with wc_InitRng
     \param b one byte buffer to which the block is copied
@@ -182,9 +216,10 @@ int  wc_RNG_GenerateByte(WC_RNG* rng, byte* b);
 
     \brief Should be called when RNG no longer needed in order to securely
     free drgb.  Zeros and XFREEs rng-drbg.
+    The WC_RNG must have come from wc_InitRng*() or be zeroed.
 
     \return 0 on success
-    \return BAD_FUNC_ARG rng or rng->drgb null
+    \return BAD_FUNC_ARG rng is NULL
     \return RNG_FAILURE_E Failed to deallocated drbg
 
     \param rng random number generator initialized with wc_InitRng
@@ -317,6 +352,9 @@ WC_RNG* wc_rng_new(byte* nonce, word32 nonceSz, void* heap);
     \return 0 On success
     \return BAD_FUNC_ARG If rng is NULL
     \return MEMORY_E Memory allocation failed
+    \return BAD_MUTEX_E the lock that lets threads share this rng could not
+    be created
+    \return BAD_STATE_E WC_RNG_ATFORK build before wolfCrypt_Init()
 
     \param rng Pointer to store WC_RNG pointer
     \param nonce Nonce buffer (can be NULL)
@@ -359,6 +397,9 @@ void wc_rng_free(WC_RNG* rng);
     \return 0 On success
     \return BAD_FUNC_ARG If rng is NULL
     \return RNG_FAILURE_E Initialization failed
+    \return BAD_MUTEX_E the lock that lets threads share this rng could not
+    be created
+    \return BAD_STATE_E WC_RNG_ATFORK build before wolfCrypt_Init()
 
     \param rng WC_RNG to initialize
     \param heap Heap hint (can be NULL)
@@ -382,6 +423,9 @@ int wc_InitRng_ex(WC_RNG* rng, void* heap, int devId);
     \return 0 On success
     \return BAD_FUNC_ARG If rng is NULL
     \return RNG_FAILURE_E Initialization failed
+    \return BAD_MUTEX_E the lock that lets threads share this rng could not
+    be created
+    \return BAD_STATE_E WC_RNG_ATFORK build before wolfCrypt_Init()
 
     \param rng WC_RNG to initialize
     \param nonce Nonce buffer
@@ -406,6 +450,9 @@ int wc_InitRngNonce(WC_RNG* rng, byte* nonce, word32 nonceSz);
     \return 0 On success
     \return BAD_FUNC_ARG If rng is NULL
     \return RNG_FAILURE_E Initialization failed
+    \return BAD_MUTEX_E the lock that lets threads share this rng could not
+    be created
+    \return BAD_STATE_E WC_RNG_ATFORK build before wolfCrypt_Init()
 
     \param rng WC_RNG to initialize
     \param nonce Nonce buffer
@@ -453,6 +500,7 @@ int wc_SetSeed_Cb(wc_RngSeed_Cb cb);
     \return 0 On success
     \return BAD_FUNC_ARG If rng or seed is NULL
     \return RNG_FAILURE_E Reseed failed
+    \return BAD_MUTEX_E the rng's lock could not be taken
 
     \param rng WC_RNG to reseed
     \param seed Seed buffer

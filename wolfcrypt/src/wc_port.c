@@ -555,6 +555,13 @@ int wolfCrypt_Init(void)
             WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
     #endif
+    #ifdef WC_RNG_LOCK_ATFORK
+        ret = wc_RngAtForkInit();
+        if (ret != 0) {
+            WOLFSSL_MSG("RNG fork handler registration failed");
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
+        }
+    #endif
 
     #if defined(FREESCALE_LTC_TFM) || defined(FREESCALE_LTC_ECC)
         ret = ksdk_port_init();

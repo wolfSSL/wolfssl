@@ -3765,6 +3765,16 @@ if(WOLFSSL_RNG_BANK)
     list(APPEND WOLFSSL_DEFINITIONS "-DWC_RNG_BANK_SUPPORT")
 endif()
 
+# RNG lock (share one WC_RNG between threads)
+add_option("WOLFSSL_RNG_LOCK"
+    "Enable the lock that lets one WC_RNG be shared between threads (default: enabled where the build supports it)"
+    "yes" "yes;no")
+# The lock defaults to yes, so a yes cannot be told from the default; the
+# header leaves it out where threads or the RNG are absent.
+if(NOT WOLFSSL_RNG_LOCK)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWC_RNG_NO_LOCK")
+endif()
+
 # Valgrind (for unit tests)
 add_option("WOLFSSL_VALGRIND"
     "Enable valgrind for unit tests (default: disabled)"
@@ -3991,6 +4001,31 @@ if(NOT WOLFSSL_STATICMEMORY STREQUAL "no")
     if(WOLFSSL_STATICMEMORY STREQUAL "debug")
         list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_STATIC_MEMORY_DEBUG_CALLBACK")
     endif()
+endif()
+
+# RNG fork handlers (a forked child keeps using its WC_RNG).  Below the
+# static memory option because it reads it.
+add_option("WOLFSSL_RNG_ATFORK"
+    "Enable pthread_atfork handlers so a forked child can keep using a WC_RNG (default: disabled)"
+    "no" "yes;no")
+if(WOLFSSL_RNG_ATFORK)
+    if(WOLFSSL_SINGLE_THREADED OR WOLFSSL_LINUX_KM)
+        message(FATAL_ERROR
+            "WOLFSSL_RNG_ATFORK requires threads and no kernel module.")
+    endif()
+    if(NOT WOLFSSL_RNG OR NOT WOLFSSL_RNG_LOCK OR NOT WOLFSSL_HASH_DRBG OR
+       WOLFSSL_RNG_BANK OR WOLFSSL_STATICMEMORY)
+        message(FATAL_ERROR
+            "WOLFSSL_RNG_ATFORK requires WOLFSSL_RNG, WOLFSSL_RNG_LOCK and WOLFSSL_HASH_DRBG, and no WOLFSSL_RNG_BANK or WOLFSSL_STATICMEMORY.")
+    endif()
+    set(RNG_ATFORK_SAVED_LIBS "${CMAKE_REQUIRED_LIBRARIES}")
+    set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_THREAD_LIBS_INIT})
+    check_function_exists("pthread_atfork" HAVE_PTHREAD_ATFORK)
+    set(CMAKE_REQUIRED_LIBRARIES "${RNG_ATFORK_SAVED_LIBS}")
+    if(NOT HAVE_PTHREAD_ATFORK)
+        message(FATAL_ERROR "WOLFSSL_RNG_ATFORK requires pthread_atfork.")
+    endif()
+    list(APPEND WOLFSSL_DEFINITIONS "-DWC_RNG_ATFORK")
 endif()
 
 # TLS (enabled by default; disable for wolfCrypt-only)

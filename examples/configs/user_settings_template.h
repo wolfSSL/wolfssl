@@ -436,6 +436,14 @@ extern "C" {
     #define CUSTOM_RAND_GENERATE_BLOCK  my_rng_gen_block
 #endif
 
+#if 0 /* Threaded build that never shares one WC_RNG between threads */
+    #define WC_RNG_NO_LOCK
+#endif
+#if 0 /* pthread_atfork handlers: a forked child keeps using its WC_RNG */
+    /* needs pthreads and the lock above, so not with WC_RNG_NO_LOCK */
+    #define WC_RNG_ATFORK
+#endif
+
 
 /* ------------------------------------------------------------------------- */
 /* Custom Standard Lib */

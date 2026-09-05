@@ -38,6 +38,25 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #include <wolfssl/wolfcrypt/error-crypt.h>
+#ifndef WC_NO_RNG
+    /* for WC_RNG_HAVE_LOCK and WC_RNG_LOCK_ATFORK */
+    #include <wolfssl/wolfcrypt/random.h>
+#endif
+
+/* Needs the lock, threads it can start, and a heap for the compare buffer. */
+#if defined(WC_RNG_HAVE_LOCK) && !defined(WOLFSSL_ASYNC_CRYPT) && \
+    !defined(HAVE_INTEL_RDRAND) && !defined(WOLF_CRYPTO_CB_FIND) && \
+    !(defined(WOLFSSL_SILABS_SE_ACCEL) && defined(WOLFSSL_SILABS_TRNG)) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && \
+    (defined(WOLFSSL_PTHREADS) || \
+     (defined(USE_WINDOWS_API) && !defined(_WIN32_WCE)))
+    #define WC_TEST_RNG_LOCK
+#endif
+/* The fork test needs a real process model on top of the handlers. */
+#if defined(WC_TEST_RNG_LOCK) && defined(WC_RNG_LOCK_ATFORK) && \
+    (defined(__unix__) || defined(__APPLE__) || defined(__linux__))
+    #define WC_TEST_RNG_FORK
+#endif
 
 #ifdef HAVE_STACK_SIZE
 THREAD_RETURN WOLFSSL_THREAD wolfcrypt_test(void* args);
@@ -251,6 +270,9 @@ extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  srp_test(void);
 #endif
 #ifndef WC_NO_RNG
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_test(void);
+#ifdef WC_TEST_RNG_LOCK
+extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_thread_test(void);
+#endif
 #ifdef WC_RNG_BANK_SUPPORT
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_bank_test(void);
 #endif

@@ -37,6 +37,10 @@ This library contains implementation for the random number generator.
  * WC_RNG_SEED_CB:           Use custom seed callback function    default: off
  * WC_RNG_BANK_SUPPORT:      Enable RNG bank (pre-generated)     default: off
  *                            random data support
+ * WC_RNG_NO_LOCK:           Leave out the lock that lets threads default: off
+ *                            share one WC_RNG (lock on unless set)
+ * WC_RNG_ATFORK:            pthread_atfork handlers so a forked  default: off
+ *                            child can keep using its WC_RNG
  * WOLFSSL_RNG_USE_FULL_SEED: Use full-length seed for DRBG      default: off
  * WOLFSSL_GENSEED_FORTEST:  Use deterministic seed for testing   default: off
  *                            WARNING: not for production use
@@ -485,6 +489,185 @@ static int UnlockDrbgState(void)
 
 #endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS v7+) */
 
+#ifdef WC_RNG_HAVE_LOCK
+#ifdef WC_RNG_LOCK_ATFORK
+/* Every live lock, under drbgStateMutex. */
+static WC_RNG_LOCK* rngList = NULL;
+static int rngAtForkSet = 0;
+/* Set in prepare, read in parent, by the forking thread only. */
+static THREAD_LS_T int rngForkLocked = 0;
+
+/* Before fork(): the forking thread takes every lock. */
+static void RngAtForkPrepare(void)
+{
+    WC_RNG_LOCK* n;
+    rngForkLocked = (LockDrbgState() == 0);
+    if (!rngForkLocked)
+        return;   /* the list cannot be walked safely */
+    for (n = rngList; n != NULL; n = n->next) {
+        if (!n->broken)
+            (void)wc_LockMutex(&n->mutex);
+    }
+}
+
+/* After fork() in the parent: give back what prepare took. */
+static void RngAtForkParent(void)
+{
+    WC_RNG_LOCK* n;
+    if (!rngForkLocked)
+        return;
+    for (n = rngList; n != NULL; n = n->next) {
+        if (!n->broken)
+            (void)wc_UnLockMutex(&n->mutex);
+    }
+    (void)UnlockDrbgState();
+}
+
+/* Child after fork(): new locks, and every DRBG reseeds before its next
+ * output.  If prepare could not lock the list nothing was held, so every
+ * instance is marked broken for good and fails closed. */
+static void RngAtForkChild(void)
+{
+    WC_RNG_LOCK* n;
+    int stateOk;
+    for (n = rngList; n != NULL; n = n->next) {
+        XMEMSET(&n->mutex, 0, sizeof(n->mutex));
+        n->noMutex = (wc_InitMutex(&n->mutex) != 0);
+        n->broken = n->broken || n->noMutex || !rngForkLocked;
+    #ifndef NO_SHA256
+        if (n->drbg != NULL)
+            ((DRBG_internal*)n->drbg)->reseedCtr = WC_RESEED_INTERVAL;
+    #endif
+    #ifdef WOLFSSL_DRBG_SHA512
+        if (n->drbg512 != NULL)
+            ((DRBG_SHA512_internal*)n->drbg512)->reseedCtr =
+                WC_RESEED_INTERVAL;
+    #endif
+    }
+    XMEMSET(&drbgStateMutex, 0, sizeof(drbgStateMutex));
+    stateOk = (wc_InitMutex(&drbgStateMutex) == 0);
+#ifndef WOLFSSL_MUTEX_INITIALIZER
+    drbgStateMutex_inited = stateOk ? WC_DRBG_MUTEX_INITED
+                                    : WC_DRBG_MUTEX_UNINITED;
+#endif
+    if (!stateOk) {
+        for (n = rngList; n != NULL; n = n->next)
+            n->broken = 1;
+    }
+}
+
+/* From wolfCrypt_Init, before any thread or fork: registers the handlers. */
+int wc_RngAtForkInit(void)
+{
+    if (rngAtForkSet)
+        return 0;
+    if (pthread_atfork(RngAtForkPrepare, RngAtForkParent,
+                       RngAtForkChild) != 0)
+        return MEMORY_E;
+    rngAtForkSet = 1;
+    return 0;
+}
+
+static int RngRegister(WC_RNG_LOCK* n)
+{
+    int ret;
+    if (!rngAtForkSet)
+        return BAD_STATE_E;   /* wolfCrypt_Init has not run */
+    ret = LockDrbgState();
+    if (ret != 0)
+        return ret;
+    n->next = rngList;
+    n->prev = &rngList;
+    if (rngList != NULL)
+        rngList->prev = &n->next;
+    rngList = n;
+    (void)UnlockDrbgState();
+    return 0;
+}
+
+static void RngUnregister(WC_RNG_LOCK* n)
+{
+    /* Unlink even without the state mutex: the DRBG is freed next, and a
+     * stale node would point at it at the next fork. */
+    int locked = (LockDrbgState() == 0);
+    *n->prev = n->next;
+    if (n->next != NULL)
+        n->next->prev = n->prev;
+    if (locked)
+        (void)UnlockDrbgState();
+    else
+        WOLFSSL_MSG("RngUnregister: state mutex unavailable");
+}
+#endif /* WC_RNG_LOCK_ATFORK */
+
+/* Creates the lock and, with fork handlers, registers it. */
+static int RngLockInit(WC_RNG* rng)
+{
+    int ret = 0;
+    WC_RNG_LOCK* n = (WC_RNG_LOCK*)XMALLOC(sizeof(*n), rng->heap,
+                                           DYNAMIC_TYPE_RNG);
+    if (n == NULL)
+        return MEMORY_E;
+    XMEMSET(n, 0, sizeof(*n));
+    n->heap = rng->heap;
+    if (wc_InitMutex(&n->mutex) != 0) {
+        XFREE(n, rng->heap, DYNAMIC_TYPE_RNG);
+        return BAD_MUTEX_E;
+    }
+#ifdef WC_RNG_LOCK_ATFORK
+#ifndef NO_SHA256
+    n->drbg = rng->drbg;
+#endif
+#ifdef WOLFSSL_DRBG_SHA512
+    n->drbg512 = rng->drbg512;
+#endif
+    ret = RngRegister(n);
+    if (ret != 0) {
+        (void)wc_FreeMutex(&n->mutex);
+        XFREE(n, rng->heap, DYNAMIC_TYPE_RNG);
+        return ret;
+    }
+#endif
+    rng->lock = n;
+    return ret;
+}
+
+/* Safe on a zeroed WC_RNG that never got a lock. */
+static void RngLockFree(WC_RNG* rng)
+{
+    WC_RNG_LOCK* n = rng->lock;
+    if (n == NULL)
+        return;
+#ifdef WC_RNG_LOCK_ATFORK
+    RngUnregister(n);
+    if (!n->noMutex)
+#endif
+        (void)wc_FreeMutex(&n->mutex);
+    XFREE(n, n->heap, DYNAMIC_TYPE_RNG);
+    rng->lock = NULL;
+}
+
+static int RngLockEnter(WC_RNG* rng)
+{
+    if (rng->lock == NULL)
+        return 0;
+#ifdef WC_RNG_LOCK_ATFORK
+    if (rng->lock->broken)
+        return BAD_MUTEX_E;
+#endif
+    return wc_LockMutex(&rng->lock->mutex);
+}
+
+static void RngLockExit(WC_RNG* rng)
+{
+    if (rng->lock != NULL)
+        (void)wc_UnLockMutex(&rng->lock->mutex);
+}
+#else
+#define RngLockEnter(rng) 0
+#define RngLockExit(rng)  WC_DO_NOTHING
+#endif /* WC_RNG_HAVE_LOCK */
+
 static int wc_RNG_HealthTestLocal(WC_RNG* rng, int reseed, void* heap,
                                   int devId);
 
@@ -704,6 +887,7 @@ int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz)
 
 #ifndef NO_SHA256
     if (rng->drbgType == WC_DRBG_SHA256) {
+        int ret;
         if (rng->drbg == NULL) {
         #if defined(HAVE_INTEL_RDSEED) || defined(HAVE_INTEL_RDRAND)
             if (IS_INTEL_RDRAND(intel_flags)) {
@@ -713,12 +897,18 @@ int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz)
         #endif
             return BAD_FUNC_ARG;
         }
-        return Hash_DRBG_Reseed((DRBG_internal *)rng->drbg, seed, seedSz,
-                                NULL, 0);
+        ret = RngLockEnter(rng);
+        if (ret != 0)
+            return ret;
+        ret = Hash_DRBG_Reseed((DRBG_internal *)rng->drbg, seed, seedSz,
+                               NULL, 0);
+        RngLockExit(rng);
+        return ret;
     }
 #endif
 #ifdef WOLFSSL_DRBG_SHA512
     if (rng->drbgType == WC_DRBG_SHA512) {
+        int ret;
         if (rng->drbg512 == NULL) {
         #if defined(HAVE_INTEL_RDSEED) || defined(HAVE_INTEL_RDRAND)
             if (IS_INTEL_RDRAND(intel_flags)) {
@@ -728,8 +918,13 @@ int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz)
         #endif
             return BAD_FUNC_ARG;
         }
-        return Hash512_DRBG_Reseed((DRBG_SHA512_internal *)rng->drbg512,
-                                   seed, seedSz, NULL, 0);
+        ret = RngLockEnter(rng);
+        if (ret != 0)
+            return ret;
+        ret = Hash512_DRBG_Reseed((DRBG_SHA512_internal *)rng->drbg512,
+                                  seed, seedSz, NULL, 0);
+        RngLockExit(rng);
+        return ret;
     }
 #endif
 
@@ -2340,6 +2535,13 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 #endif /* HAVE_HASHDRBG */
 #endif /* CUSTOM_RAND_GENERATE_BLOCK */
 
+#ifdef WC_RNG_HAVE_LOCK
+    if (ret == 0) {
+        ret = RngLockInit(rng);
+        if (ret != 0)
+            (void)wc_FreeRng(rng);
+    }
+#endif
     return ret;
 }
 
@@ -2589,8 +2791,14 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
     if (sz > RNG_MAX_BLOCK_LEN)
         return BAD_FUNC_ARG;
 
-    if (rng->status != DRBG_OK)
+    ret = RngLockEnter(rng);
+    if (ret != 0)
+        return ret;
+
+    if (rng->status != DRBG_OK) {
+        RngLockExit(rng);
         return RNG_FAILURE_E;
+    }
 
 #if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
     if (rng->pid != getpid()) {
@@ -2598,6 +2806,7 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
         ret = PollAndReSeed(rng);
         if (ret != DRBG_SUCCESS) {
             rng->status = DRBG_FAILED;
+            RngLockExit(rng);
             return RNG_FAILURE_E;
         }
     }
@@ -2645,6 +2854,7 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
         ret = RNG_FAILURE_E;
         rng->status = DRBG_FAILED;
     }
+    RngLockExit(rng);
 #else
 
     /* if we get here then there is an RNG configuration error */
@@ -2708,8 +2918,11 @@ int wc_FreeRng(WC_RNG* rng)
 
 #ifdef WC_RNG_BANK_SUPPORT
     if (rng->status == WC_DRBG_BANKREF)
-        return wc_BankRef_Release(rng);
+        return wc_BankRef_Release(rng);   /* a bank ref never had a lock */
 #endif /* WC_RNG_BANK_SUPPORT */
+#ifdef WC_RNG_HAVE_LOCK
+    RngLockFree(rng);
+#endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT)
     wolfAsync_DevCtxFree(&rng->asyncDev, WOLFSSL_ASYNC_MARKER_RNG);
