@@ -15488,7 +15488,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
     WOLFSSL_X509_NAME* dName = NULL;
 #endif /* WOLFSSL_X509_NAME_AVAILABLE */
 
-    WOLFSSL_MSG("Getting Cert Name");
+    WOLFSSL_MSG_VERBOSE("Getting Cert Name");
 
     /* For OCSP, RFC2560 section 4.1.1 states the issuer hash should be
      * calculated over the entire DER encoding of the Name field, including

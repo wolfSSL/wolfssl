@@ -11798,7 +11798,7 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_sk_X509_OBJECT_deep_copy(
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     void wolfSSL_X509_NAME_free(WOLFSSL_X509_NAME *name)
     {
-        WOLFSSL_ENTER("wolfSSL_X509_NAME_free");
+        WOLFSSL_ENTER_VERBOSE("wolfSSL_X509_NAME_free");
         FreeX509Name(name);
         if (name != NULL) {
             XFREE(name, name->heap, DYNAMIC_TYPE_X509);
@@ -11814,7 +11814,7 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_sk_X509_OBJECT_deep_copy(
     {
         WOLFSSL_X509_NAME* name;
 
-        WOLFSSL_ENTER("wolfSSL_X509_NAME_new_ex");
+        WOLFSSL_ENTER_VERBOSE("wolfSSL_X509_NAME_new_ex");
 
         name = (WOLFSSL_X509_NAME*)XMALLOC(sizeof(WOLFSSL_X509_NAME), heap,
                 DYNAMIC_TYPE_X509);
@@ -14530,7 +14530,7 @@ err:
 
     void wolfSSL_X509_NAME_ENTRY_free(WOLFSSL_X509_NAME_ENTRY* ne)
     {
-        WOLFSSL_ENTER("wolfSSL_X509_NAME_ENTRY_free");
+        WOLFSSL_ENTER_VERBOSE("wolfSSL_X509_NAME_ENTRY_free");
         if (ne != NULL) {
             wolfSSL_ASN1_OBJECT_free(ne->object);
             if (ne->value != NULL) {
@@ -14628,9 +14628,7 @@ err:
     {
         WOLFSSL_X509_NAME_ENTRY* ne;
 
-#ifdef WOLFSSL_DEBUG_OPENSSL
-        WOLFSSL_ENTER("wolfSSL_X509_NAME_ENTRY_create_by_NID");
-#endif
+        WOLFSSL_ENTER_VERBOSE("wolfSSL_X509_NAME_ENTRY_create_by_NID");
 
         if (!data) {
             WOLFSSL_MSG("Bad parameter");
@@ -14665,9 +14663,7 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
 {
     WOLFSSL_ASN1_OBJECT* object = NULL;
 
-#ifdef WOLFSSL_DEBUG_OPENSSL
-    WOLFSSL_ENTER("wolfSSL_X509_NAME_ENTRY_get_object");
-#endif
+    WOLFSSL_ENTER_VERBOSE("wolfSSL_X509_NAME_ENTRY_get_object");
 
     if (ne != NULL) {
         /* Create object from nid - reuse existing object if possible. */
@@ -14788,9 +14784,7 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
         WOLFSSL_X509_NAME_ENTRY* current = NULL;
         int ret, i;
 
-#ifdef WOLFSSL_DEBUG_OPENSSL
-        WOLFSSL_ENTER("wolfSSL_X509_NAME_add_entry");
-#endif
+        WOLFSSL_ENTER_VERBOSE("wolfSSL_X509_NAME_add_entry");
 
         if (name == NULL || entry == NULL || entry->value == NULL) {
             WOLFSSL_MSG("NULL argument passed in");
@@ -14810,7 +14804,7 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
             /* iterate through and find first open spot */
             for (i = 0; i < MAX_NAME_ENTRIES; i++) {
                 if (name->entry[i].set == 0) { /* not set so overwritten */
-                    WOLFSSL_MSG("Found place for name entry");
+                    WOLFSSL_MSG_VERBOSE("Found place for name entry");
                     break;
                 }
             }
@@ -14905,7 +14899,7 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
     {
         int ret;
         WOLFSSL_X509_NAME_ENTRY* entry;
-        WOLFSSL_ENTER("wolfSSL_X509_NAME_add_entry_by_NID");
+        WOLFSSL_ENTER_VERBOSE("wolfSSL_X509_NAME_add_entry_by_NID");
         entry = wolfSSL_X509_NAME_ENTRY_create_by_NID(NULL, nid, type, bytes,
                 len);
         if (entry == NULL)
@@ -14995,9 +14989,7 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
     WOLFSSL_X509_NAME_ENTRY *wolfSSL_X509_NAME_get_entry(
                                         const WOLFSSL_X509_NAME *name, int loc)
     {
-#ifdef WOLFSSL_DEBUG_OPENSSL
-        WOLFSSL_ENTER("wolfSSL_X509_NAME_get_entry");
-#endif
+        WOLFSSL_ENTER_VERBOSE("wolfSSL_X509_NAME_get_entry");
 
         if (name == NULL) {
             return NULL;
@@ -15211,7 +15203,7 @@ WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_sk_X509_NAME_new(
     WOLFSSL_STACK* sk;
     (void)cb;
 
-    WOLFSSL_ENTER("wolfSSL_sk_X509_NAME_new");
+    WOLFSSL_ENTER_VERBOSE("wolfSSL_sk_X509_NAME_new");
 
     sk = wolfSSL_sk_new_node(NULL);
     if (sk != NULL) {

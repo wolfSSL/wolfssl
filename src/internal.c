@@ -29867,7 +29867,9 @@ int RetrySendAlert(WOLFSSL* ssl)
     int ret = 0;
     int type;
     int severity;
-    WOLFSSL_ENTER("RetrySendAlert");
+    /* Called on every I/O and returns immediately when no alert is pending, so
+     * this fires constantly and says nothing. */
+    WOLFSSL_ENTER_VERBOSE("RetrySendAlert");
 
     if (ssl == NULL) {
         return BAD_FUNC_ARG;

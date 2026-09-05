@@ -26,7 +26,7 @@ jobs:
     # Only run from the wolfssl org to avoid burning forks' CI minutes.
     if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v5
 
@@ -44,3 +44,12 @@ jobs:
 
       - name: Run check-headers
         run: ./.github/scripts/check-headers.sh
+
+      # WOLFSSL_VERBOSE_LOGGING gates a branch of logging.h that no other
+      # configuration compiles, so a typo there would reach users rather than
+      # CI. Build only - enabling the tier while running tests would restore
+      # the log volume it exists to avoid.
+      - name: Compile the verbose logging tier
+        run: |
+          ./configure --enable-all CPPFLAGS=-DWOLFSSL_VERBOSE_LOGGING
+          make -j$(nproc)

@@ -174,7 +174,8 @@ static struct SystemCryptoPolicy crypto_policy;
  * OPENSSL_COMPATIBLE_DEFAULTS:
  *                  Default behavior compatible with OpenSSL           default: off
  * NO_WOLFSSL_STUB:            Disable stubs for unimplemented funcs   default: off
- * WOLFSSL_DEBUG_OPENSSL:      Debug logging for OpenSSL compat layer  default: off
+ * WOLFSSL_DEBUG_OPENSSL:
+ *                  Alias for WOLFSSL_VERBOSE_LOGGING                  default: off
  * WOLFSSL_HAVE_ERROR_QUEUE:   OpenSSL-compatible error queue          default: off
  * WOLFSSL_ERROR_CODE_OPENSSL: Use OpenSSL-compatible error codes      default: off
  * WOLFSSL_CIPHER_INTERNALNAME:
