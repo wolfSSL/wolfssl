@@ -91,8 +91,26 @@
 #endif
 
 #include <wolfssl/wolfcrypt/wc_mlkem.h>
+
 #include <wolfssl/wolfcrypt/hash.h>
 #include <wolfssl/wolfcrypt/memory.h>
+
+/* aarch64 claim around the NEON helpers in wc_mlkem_poly.c.  The result lands
+ * in ret, the caller's status variable, and stmt runs only when it is 0, so
+ * nothing may read what stmt writes without first testing ret.  Other builds
+ * run stmt as is. */
+#if defined(__aarch64__) && defined(WOLFSSL_ARMASM)
+    #define MLKEM_ARM64_SVR(stmt)                   \
+        do {                                        \
+            ret = SAVE_VECTOR_REGISTERS2();         \
+            if (ret == 0) {                         \
+                stmt;                               \
+                RESTORE_VECTOR_REGISTERS();         \
+            }                                       \
+        } while (0)
+#else
+    #define MLKEM_ARM64_SVR(stmt) do { stmt; } while (0)
+#endif
 #ifdef WOLF_CRYPTO_CB
     #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
@@ -955,7 +973,9 @@ int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
         /* Generate key pair from random data.
          * Alg 13: Steps 16-18.
          */
-        mlkem_keygen(s, t, e, a, k);
+        ret = mlkem_keygen(s, t, e, a, k);
+    }
+    if (ret == 0) {
 #else
         /* Generate noise using PRF.
          * Alg 13: Steps 8-11: generate s
@@ -1321,8 +1341,9 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c)
 
         /* Convert msg to a polynomial.
          * Step 20: mu <- Decompress_1(ByteDecode_1(m)) */
-        mlkem_from_msg(mu, m);
-
+        MLKEM_ARM64_SVR(mlkem_from_msg(mu, m));
+    }
+    if (ret == 0) {
         /* Initialize the PRF for use in the noise generation. */
         mlkem_prf_init(&key->prf);
         /* Generate noise using PRF.
@@ -1359,7 +1380,7 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c)
 
         /* Perform encapsulation maths.
          *   Steps 18-19, 21: calculate u and v */
-        mlkem_encapsulate(key->pub, u, v, a, y, e1, e2, mu, (int)k);
+        ret = mlkem_encapsulate(key->pub, u, v, a, y, e1, e2, mu, (int)k);
     }
 #else /* WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM */
     if (ret == 0) {
@@ -1393,28 +1414,34 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c)
 
     #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512)
         if (k == WC_ML_KEM_512_K) {
-            /* Step 22: c_1 <- ByteEncode_d_u(Compress_d_u(u)) */
-            mlkem_vec_compress_10(c1, u, k);
-            /* Step 23: c_2 <- ByteEncode_d_v(Compress_d_v(v)) */
-            mlkem_compress_4(c2, v);
+            /* Step 22: c_1 <- ByteEncode_d_u(Compress_d_u(u))
+             * Step 23: c_2 <- ByteEncode_d_v(Compress_d_v(v)) */
+            MLKEM_ARM64_SVR({
+                mlkem_vec_compress_10(c1, u, k);
+                mlkem_compress_4(c2, v);
+            });
             /* Step 24: return c <- (c_1||c_2) */
         }
     #endif
     #if defined(WOLFSSL_KYBER768) || defined(WOLFSSL_WC_ML_KEM_768)
         if (k == WC_ML_KEM_768_K) {
-            /* Step 22: c_1 <- ByteEncode_d_u(Compress_d_u(u)) */
-            mlkem_vec_compress_10(c1, u, k);
-            /* Step 23: c_2 <- ByteEncode_d_v(Compress_d_v(v)) */
-            mlkem_compress_4(c2, v);
+            /* Step 22: c_1 <- ByteEncode_d_u(Compress_d_u(u))
+             * Step 23: c_2 <- ByteEncode_d_v(Compress_d_v(v)) */
+            MLKEM_ARM64_SVR({
+                mlkem_vec_compress_10(c1, u, k);
+                mlkem_compress_4(c2, v);
+            });
             /* Step 24: return c <- (c_1||c_2) */
         }
     #endif
     #if defined(WOLFSSL_KYBER1024) || defined(WOLFSSL_WC_ML_KEM_1024)
         if (k == WC_ML_KEM_1024_K) {
-            /* Step 22: c_1 <- ByteEncode_d_u(Compress_d_u(u)) */
-            mlkem_vec_compress_11(c1, u);
-            /* Step 23: c_2 <- ByteEncode_d_v(Compress_d_v(v)) */
-            mlkem_compress_5(c2, v);
+            /* Step 22: c_1 <- ByteEncode_d_u(Compress_d_u(u))
+             * Step 23: c_2 <- ByteEncode_d_v(Compress_d_v(v)) */
+            MLKEM_ARM64_SVR({
+                mlkem_vec_compress_11(c1, u);
+                mlkem_compress_5(c2, v);
+            });
             /* Step 24: return c <- (c_1||c_2) */
         }
     #endif
@@ -1927,11 +1954,13 @@ static MLKEM_NOINLINE int mlkemkey_decapsulate(MlKemKey* key, byte* m,
 
         /* Decapsulate the cipher text into polynomial.
          * Step 6: w <- v' - InvNTT(s_hat_trans o NTT(u')) */
-        mlkem_decapsulate(key->priv, w, u, v, (int)k);
+        ret = mlkem_decapsulate(key->priv, w, u, v, (int)k);
+    }
+    if (ret == 0) {
 
         /* Convert the polynomial into a array of bytes (message).
          * Step 7: m <- ByteEncode_1(Compress_1(w)) */
-        mlkem_to_msg(m, w);
+        MLKEM_ARM64_SVR(mlkem_to_msg(m, w));
         /* Step 8: return m */
     }
 
@@ -2011,7 +2040,7 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
     int ret = 0;
     unsigned int ctSz = 0;
     unsigned int i = 0;
-    int fail = 0;
+    int fail = -1; /* mismatch until mlkem_cmp() says otherwise */
 #if !defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_NO_MALLOC)
     byte* cmp = NULL;
 #else
@@ -2130,8 +2159,9 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
     }
     if (ret == 0) {
         /* Compare generated cipher text with that passed in. */
-        fail = mlkem_cmp(ct, cmp, (int)ctSz);
-
+        MLKEM_ARM64_SVR(fail = mlkem_cmp(ct, cmp, (int)ctSz));
+    }
+    if (ret == 0) {
 #if defined(WOLFSSL_MLKEM_KYBER) && !defined(WOLFSSL_NO_ML_KEM)
         if (key->type & MLKEM_KYBER)
 #endif
@@ -2727,7 +2757,9 @@ int wc_MlKemKey_EncodePrivateKey(MlKemKey* key, unsigned char* out, word32 len)
 
     if (ret == 0) {
         /* Encode private key that is vector of polynomials. */
-        mlkem_to_bytes(p, key->priv, (int)k);
+        MLKEM_ARM64_SVR(mlkem_to_bytes(p, key->priv, (int)k));
+    }
+    if (ret == 0) {
         p += WC_ML_KEM_POLY_SIZE * k;
 
         /* Encode public key - calculates hash of public key. */
@@ -2836,10 +2868,12 @@ int wc_MlKemKey_EncodePublicKey(MlKemKey* key, unsigned char* out, word32 len)
     }
 
     if (ret == 0) {
+        /* Encode public key polynomial by polynomial. */
+        MLKEM_ARM64_SVR(mlkem_to_bytes(p, key->pub, (int)k));
+    }
+    if (ret == 0) {
         int i;
 
-        /* Encode public key polynomial by polynomial. */
-        mlkem_to_bytes(p, key->pub, (int)k);
         p += k * WC_ML_KEM_POLY_SIZE;
 
         /* Append public seed. */
