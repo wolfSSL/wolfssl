@@ -603,6 +603,10 @@ extern "C" {
 #cmakedefine FP_ECC
 #undef WC_RNG_BANK_SUPPORT
 #cmakedefine WC_RNG_BANK_SUPPORT
+#undef WC_RNG_NO_LOCK
+#cmakedefine WC_RNG_NO_LOCK
+#undef WC_RNG_ATFORK
+#cmakedefine WC_RNG_ATFORK
 #undef HAVE_VALGRIND
 #cmakedefine HAVE_VALGRIND
 #undef HAVE_CRL_MONITOR

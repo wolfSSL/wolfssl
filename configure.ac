@@ -2754,6 +2754,46 @@ then
 fi
 
 
+# RNG lock (share one WC_RNG between threads)
+AC_ARG_ENABLE([rng-lock],
+    [AS_HELP_STRING([--enable-rng-lock],[Enable the lock that lets one WC_RNG be shared between threads (default: enabled where the build supports it)])],
+    [ ENABLED_RNG_LOCK=$enableval ],
+    [ ENABLED_RNG_LOCK=yes ]
+    )
+
+case "$ENABLED_RNG_LOCK" in
+    yes|no) ;;
+    *) AC_MSG_ERROR([--enable-rng-lock takes yes or no]) ;;
+esac
+# raw enable_rng_lock: the option defaults to yes, so only an explicit ask
+# is an error here
+if test "x$enable_rng_lock" = "xyes" && test "$ENABLED_RNG" = "no"
+then
+    AC_MSG_ERROR([--enable-rng-lock requires --enable-rng])
+fi
+if test "$ENABLED_RNG_LOCK" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWC_RNG_NO_LOCK"
+fi
+
+# RNG fork handlers (a forked child keeps using its WC_RNG)
+AC_ARG_ENABLE([rng-atfork],
+    [AS_HELP_STRING([--enable-rng-atfork],[Enable pthread_atfork handlers so a forked child can keep using a WC_RNG (default: disabled)])],
+    [ ENABLED_RNG_ATFORK=$enableval ],
+    [ ENABLED_RNG_ATFORK=no ]
+    )
+
+case "$ENABLED_RNG_ATFORK" in
+    yes|no) ;;
+    *) AC_MSG_ERROR([--enable-rng-atfork takes yes or no]) ;;
+esac
+if test "$ENABLED_RNG_ATFORK" = "yes" && \
+   { test "$ENABLED_RNG" = "no" || test "$ENABLED_RNG_LOCK" = "no"; }
+then
+    AC_MSG_ERROR([--enable-rng-atfork requires --enable-rng and --enable-rng-lock])
+fi
+
+
 # DTLS-SCTP
 AC_ARG_ENABLE([sctp],
     [AS_HELP_STRING([--enable-sctp],[Enable wolfSSL DTLS-SCTP support (default: disabled)])],
@@ -13246,6 +13286,49 @@ fi
 if test "$ac_cv_type___uint128_t" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE___UINT128_T=1"
+fi
+
+# RNG lock and fork handlers need threads; the handlers need pthread_atfork
+# and everything the WC_RNG_LOCK_ATFORK gate in random.h asks for
+# (raw enable_rng_lock: only an explicit ask is an error, the default is yes)
+case "$AM_CFLAGS" in
+    *-DSINGLE_THREADED*) ENABLED_RNG_LOCK_THREADS=no ;;
+    *) ENABLED_RNG_LOCK_THREADS=yes ;;
+esac
+if test "$ENABLED_SINGLETHREADED" = "yes"
+then
+    ENABLED_RNG_LOCK_THREADS=no
+fi
+if test "x$enable_rng_lock" = "xyes" && test "$ENABLED_RNG_LOCK_THREADS" = "no"
+then
+    AC_MSG_ERROR([--enable-rng-lock requires threads])
+fi
+if test "$ENABLED_RNG_ATFORK" = "yes"
+then
+    if test "$ENABLED_RNG_LOCK_THREADS" = "no" || \
+       test "$ENABLED_LINUXKM" = "yes" || test "$ENABLED_BSDKM" = "yes"
+    then
+        AC_MSG_ERROR([--enable-rng-atfork requires threads and no kernel module])
+    fi
+    case "$AM_CFLAGS" in
+        *-DWOLFSSL_STATIC_MEMORY*) ENABLED_RNG_ATFORK_HEAP=no ;;
+        *) ENABLED_RNG_ATFORK_HEAP=yes ;;
+    esac
+    if test "$ENABLED_SELFTEST" = "yes" || test "x$ENABLED_HASHDRBG" != "xyes" || \
+       test "$ENABLED_ENTROPY_MEMUSE" != "no" || test "$ENABLED_RNG_BANK" = "yes" || \
+       test "$ENABLED_RNG_ATFORK_HEAP" = "no" || test "$ENABLED_WNR" = "yes" || \
+       { test "$ENABLED_FIPS" = "yes" && test "${HAVE_FIPS_VERSION_MAJOR:-0}" -lt 7; }
+    then
+        AC_MSG_ERROR([--enable-rng-atfork requires the Hash DRBG and none of selftest, FIPS before v7, entropy-memuse, rng-bank, static memory or netRandom])
+    fi
+    saved_LIBS="$LIBS"
+    AC_SEARCH_LIBS([pthread_atfork], [pthread])
+    LIBS="$saved_LIBS"
+    if test "$ac_cv_search_pthread_atfork" = "no"
+    then
+        AC_MSG_ERROR([--enable-rng-atfork requires pthread_atfork])
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DWC_RNG_ATFORK"
 fi
 
 # Add HAVE_GETPID to AM_CFLAGS for inclusion in options.h

@@ -179,6 +179,13 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
     #include "wolfcrypt/test/test.h"
 #endif
 
+#ifdef WC_TEST_RNG_FORK
+    #include <unistd.h>
+    #include <sys/wait.h>
+    #include <signal.h>
+    #include <time.h>
+#endif
+
 /* printf mappings */
 #ifndef WOLFSSL_LOG_PRINTF
 #if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
@@ -928,6 +935,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  srp_test(void);
 #endif
 #ifndef WC_NO_RNG
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_test(void);
+#ifdef WC_TEST_RNG_LOCK
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_thread_test(void);
+#endif
 #ifdef WC_RNG_BANK_SUPPORT
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_bank_test(void);
 #endif
@@ -2564,6 +2574,12 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_FAIL("RANDOM   test failed!\n", ret);
     else
         TEST_PASS("RANDOM   test passed!\n");
+#ifdef WC_TEST_RNG_LOCK
+    if ((ret = random_thread_test()) != 0)
+        TEST_FAIL("RNGTHRD  test failed!\n", ret);
+    else
+        TEST_PASS("RNGTHRD  test passed!\n");
+#endif
 #ifdef WC_RNG_BANK_SUPPORT
     if ((ret = random_bank_test()) != 0)
         TEST_FAIL("RNGBANK  test failed!\n", ret);
@@ -26733,6 +26749,22 @@ static wc_test_ret_t random_rng_test(void)
     return ret;
 }
 
+/* Freeing a never-initialized, zeroed WC_RNG must stay a no-op.  Not on
+ * Versal, whose wc_FreeRng resets the shared TRNG, nor without a heap, where
+ * a WC_RNG embeds its DRBG and is too big for this stack. */
+#if !defined(WOLFSSL_XILINX_CRYPT_VERSAL) && !defined(WOLFSSL_NO_MALLOC)
+static wc_test_ret_t rng_zeroed_free_test(void)
+{
+    WC_RNG zeroed;
+    int ret;
+    XMEMSET(&zeroed, 0, sizeof(zeroed));
+    ret = wc_FreeRng(&zeroed);
+    return ret == 0 ? 0 : WC_TEST_RET_ENC_EC(ret);
+}
+#else
+#define rng_zeroed_free_test() ((wc_test_ret_t)0)
+#endif
+
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
     !defined(HAVE_INTEL_RDRAND)
 
@@ -26941,6 +26973,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
     byte output[32 * 4];
     wc_test_ret_t ret;
     WOLFSSL_ENTER("random_test");
+
+    ret = rng_zeroed_free_test();
+    if (ret != 0)
+        return ret;
 
 #ifndef NO_SHA256
     ret = wc_RNG_HealthTest(0, test1Entropy, sizeof(test1Entropy), NULL, 0,
@@ -27158,11 +27194,317 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
 {
     WOLFSSL_ENTER("random_test");
 
+    {
+        wc_test_ret_t r = rng_zeroed_free_test();
+        if (r != 0)
+            return r;
+    }
     /* Basic RNG generate block test */
     return random_rng_test();
 }
 
 #endif /* !HAVE_HASHDRBG || CUSTOM_RAND_GENERATE_BLOCK || HAVE_INTEL_RDRAND */
+
+#ifdef WC_TEST_RNG_LOCK
+
+#define WC_RNG_THREAD_TEST_THREADS 4
+#define WC_RNG_THREAD_TEST_DRAWS   96
+#define WC_RNG_THREAD_TEST_BLKSZ   32
+#define WC_RNG_THREAD_TEST_BLOCKS \
+    (WC_RNG_THREAD_TEST_THREADS * WC_RNG_THREAD_TEST_DRAWS)
+
+struct rng_thread_test_args {
+    WC_RNG* rng;
+    byte*   out;      /* this worker's slice, DRAWS * BLKSZ bytes */
+    int     reseeder; /* nonzero: this worker reseeds too */
+    int     ret;
+};
+
+/* Draws from one shared WC_RNG on several threads at once. */
+static THREAD_RETURN WOLFSSL_THREAD rng_thread_test_worker(void* arg)
+{
+    struct rng_thread_test_args* args = (struct rng_thread_test_args*)arg;
+    int i;
+    int ret = 0;
+
+    for (i = 0; i < WC_RNG_THREAD_TEST_DRAWS; i++) {
+        ret = wc_RNG_GenerateBlock(args->rng,
+                                   args->out +
+                                       ((size_t)i * WC_RNG_THREAD_TEST_BLKSZ),
+                                   WC_RNG_THREAD_TEST_BLKSZ);
+        if (ret != 0)
+            break;
+        /* Two workers also reseed, against each other and the generates. */
+        if (args->reseeder && ((i % 8) == 7)) {
+            byte seed[16];
+            XMEMSET(seed, 0xa5, sizeof(seed));
+            ret = wc_RNG_DRBG_Reseed(args->rng, seed, (word32)sizeof(seed));
+            if (ret != 0)
+                break;
+        }
+    }
+    args->ret = ret;
+    WOLFSSL_RETURN_FROM_THREAD(0);
+}
+
+#ifdef WC_TEST_RNG_FORK
+#define WC_RNG_FORK_HOLD_NS 50000000L
+
+struct rng_fork_holder_args {
+    WC_RNG* rng;
+    int     fd;   /* gets one byte once the lock is held */
+};
+
+/* Holds the lock while the other thread enters fork(), as a generate in
+ * flight would; the prepare handler must then wait for it. */
+static THREAD_RETURN WOLFSSL_THREAD rng_fork_test_holder(void* arg)
+{
+    struct rng_fork_holder_args* a = (struct rng_fork_holder_args*)arg;
+    struct timespec hold = { 0, WC_RNG_FORK_HOLD_NS };
+    byte held = 1;
+
+    if (a->rng->lock != NULL && wc_LockMutex(&a->rng->lock->mutex) == 0) {
+        if (write(a->fd, &held, 1) == 1)
+            (void)nanosleep(&hold, NULL);
+        (void)wc_UnLockMutex(&a->rng->lock->mutex);
+    }
+    close(a->fd);   /* EOF if the lock was never held */
+    WOLFSSL_RETURN_FROM_THREAD(0);
+}
+
+/* fork() while another thread holds the lock: the child must finish, and its
+ * next block must differ from the parent's.  Sets the leak flag when the
+ * holder could not be joined, so the caller leaves what it may touch alone. */
+static wc_test_ret_t rng_fork_test(WC_RNG* rng, int* leak)
+{
+    WC_DECLARE_VAR(parent, byte, WC_RNG_THREAD_TEST_BLKSZ, HEAP_HINT);
+    WC_DECLARE_VAR(child, byte, WC_RNG_THREAD_TEST_BLKSZ, HEAP_HINT);
+    struct rng_fork_holder_args* h = NULL;
+    THREAD_TYPE holder = INVALID_THREAD_VAL;   /* joined only if started */
+    wc_test_ret_t ret = 0;
+    int fd[2];
+    int hfd[2];
+    int piped = 0;
+    int started = 0;
+    pid_t pid = -1;
+    int status = 0;
+    byte held = 0;
+
+    WC_ALLOC_VAR(parent, byte, WC_RNG_THREAD_TEST_BLKSZ, HEAP_HINT);
+    WC_ALLOC_VAR(child, byte, WC_RNG_THREAD_TEST_BLKSZ, HEAP_HINT);
+    h = (struct rng_fork_holder_args*)XMALLOC(sizeof(*h), HEAP_HINT,
+                                              DYNAMIC_TYPE_TMP_BUFFER);
+    if ((! WC_VAR_OK(parent)) || (! WC_VAR_OK(child)) || (h == NULL))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), done);
+
+    if (pipe(fd) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+    piped = 1;
+    if (pipe(hfd) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+    piped = 2;
+
+    h->rng = rng;
+    h->fd = hfd[1];
+    if (wolfSSL_NewThread(&holder, &rng_fork_test_holder, h) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+    started = 1;
+    if (read(hfd[0], &held, 1) != 1)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+
+    pid = fork();
+    if (pid == 0) {
+        if (wc_RNG_GenerateBlock(rng, child, WC_RNG_THREAD_TEST_BLKSZ) != 0)
+            _exit(1);
+        if (write(fd[1], child, WC_RNG_THREAD_TEST_BLKSZ) !=
+                (ssize_t)WC_RNG_THREAD_TEST_BLKSZ)
+            _exit(1);
+        /* exec so a leak checker does not blame the child for the parent's
+         * heap */
+        execl("/bin/true", "true", (char*)NULL);
+        execl("/usr/bin/true", "true", (char*)NULL);
+        _exit(0);
+    }
+    close(fd[1]);
+    fd[1] = -1;
+    if (pid < 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+
+    if (read(fd[0], child, WC_RNG_THREAD_TEST_BLKSZ) !=
+            (ssize_t)WC_RNG_THREAD_TEST_BLKSZ)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+    if (waitpid(pid, &status, 0) != pid)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+    pid = -1;
+    if ((! WIFEXITED(status)) || (WEXITSTATUS(status) != 0))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+
+    ret = wc_RNG_GenerateBlock(rng, parent, WC_RNG_THREAD_TEST_BLKSZ);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    /* Both draws follow the fork, so a match means the child kept the
+     * parent's state.  With HAVE_GETPID the pid check reseeds the child too;
+     * the handler alone covers builds without it. */
+    if (XMEMCMP(parent, child, WC_RNG_THREAD_TEST_BLKSZ) == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+
+done:
+    if (pid > 0) {
+        (void)kill(pid, SIGKILL);
+        (void)waitpid(pid, NULL, 0);
+    }
+    if (started && (wolfSSL_JoinThread(holder) != 0)) {
+        *leak = 1;   /* the holder still uses h, rng and its pipe */
+        h = NULL;
+        if (ret == 0)
+            ret = WC_TEST_RET_ENC_NC;
+    }
+    if (piped >= 1) {
+        if (fd[0] >= 0)
+            close(fd[0]);
+        if (fd[1] >= 0)
+            close(fd[1]);
+    }
+    if (piped >= 2) {
+        if (h != NULL || !started)
+            close(hfd[0]);   /* kept open for a lost holder: no SIGPIPE */
+        if (!started)
+            close(hfd[1]);
+    }
+    XFREE(h, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR(parent, HEAP_HINT);
+    WC_FREE_VAR(child, HEAP_HINT);
+    return ret;
+}
+#endif /* WC_TEST_RNG_FORK */
+
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
+{
+    WC_RNG* rng = NULL;
+    THREAD_TYPE threads[WC_RNG_THREAD_TEST_THREADS];
+    struct rng_thread_test_args* args = NULL;
+    byte* out = NULL;
+    int leak = 0;    /* rng, args or out may still be in use by a thread */
+    int started = 0;
+    int nblocks;
+    int i, j;
+    wc_test_ret_t ret = 0;
+
+    WOLFSSL_ENTER("random_thread_test");
+
+    /* Everything a thread can reach is on the heap, so a thread that cannot
+     * be joined is leaked instead of left running over a dead frame. */
+    out = (byte*)XMALLOC((size_t)WC_RNG_THREAD_TEST_BLOCKS *
+                         WC_RNG_THREAD_TEST_BLKSZ, HEAP_HINT,
+                         DYNAMIC_TYPE_TMP_BUFFER);
+    args = (struct rng_thread_test_args*)XMALLOC(
+        sizeof(*args) * WC_RNG_THREAD_TEST_THREADS, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    /* INVALID_DEVID: a crypto callback would answer before the lock. */
+    (void)wc_rng_new_ex(&rng, NULL, 0, HEAP_HINT, INVALID_DEVID);
+    if (out == NULL || args == NULL || rng == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out_free);
+
+#ifdef WC_TEST_RNG_FORK
+    {
+        /* Three registered, the middle one freed, then a fork for each
+         * survivor. */
+        WC_RNG* mid = NULL;
+        WC_RNG* third = NULL;
+        int leak3 = 0;   /* third may still be in use by its holder */
+        (void)wc_rng_new_ex(&mid, NULL, 0, HEAP_HINT, INVALID_DEVID);
+        (void)wc_rng_new_ex(&third, NULL, 0, HEAP_HINT, INVALID_DEVID);
+        if (mid == NULL || third == NULL) {
+            if (mid != NULL)
+                wc_rng_free(mid);
+            if (third != NULL)
+                wc_rng_free(third);
+            ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out_free);
+        }
+        wc_rng_free(mid);   /* the middle of three leaves the registry */
+        ret = rng_fork_test(rng, &leak);
+        if (ret == 0)
+            ret = rng_fork_test(third, &leak3);
+        if (!leak3)
+            wc_rng_free(third);
+        if (ret != 0)
+            goto out_free;
+    }
+
+    /* A lock a fork child could not re-create fails closed. */
+    {
+        byte seed[16];
+        XMEMSET(seed, 0xa5, sizeof(seed));
+        rng->lock->broken = 1;
+        ret = wc_RNG_GenerateBlock(rng, out, WC_RNG_THREAD_TEST_BLKSZ);
+        if (ret != WC_NO_ERR_TRACE(BAD_MUTEX_E)) {
+            rng->lock->broken = 0;
+            ERROR_OUT(ret == 0 ? WC_TEST_RET_ENC_NC : WC_TEST_RET_ENC_EC(ret),
+                      out_free);
+        }
+        ret = wc_RNG_DRBG_Reseed(rng, seed, (word32)sizeof(seed));
+        rng->lock->broken = 0;
+        if (ret != WC_NO_ERR_TRACE(BAD_MUTEX_E)) {
+            ERROR_OUT(ret == 0 ? WC_TEST_RET_ENC_NC : WC_TEST_RET_ENC_EC(ret),
+                      out_free);
+        }
+        ret = 0;
+    }
+#endif
+
+    for (i = 0; i < WC_RNG_THREAD_TEST_THREADS; i++) {
+        args[i].rng = rng;
+        args[i].out = out + ((size_t)i * WC_RNG_THREAD_TEST_DRAWS *
+                             WC_RNG_THREAD_TEST_BLKSZ);
+        args[i].reseeder = (i < 2);
+        args[i].ret = 0;
+        if (wolfSSL_NewThread(&threads[i], &rng_thread_test_worker,
+                              &args[i]) != 0) {
+            break;
+        }
+        started++;
+    }
+
+    for (i = 0; i < started; i++) {
+        if (wolfSSL_JoinThread(threads[i]) != 0)
+            leak = 1;
+    }
+    if (leak)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out_free);
+
+    /* Worker errors first, whatever the thread count. */
+    for (i = 0; i < started; i++) {
+        if (args[i].ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(args[i].ret), out_free);
+    }
+
+    /* Fewer than two threads tested nothing. */
+    if (started < 2)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out_free);
+
+    /* All pairs, as a smoke test; ThreadSanitizer is the real check. */
+    nblocks = started * WC_RNG_THREAD_TEST_DRAWS;
+    for (i = 1; i < nblocks; i++) {
+        for (j = 0; j < i; j++) {
+            if (XMEMCMP(out + ((size_t)i * WC_RNG_THREAD_TEST_BLKSZ),
+                        out + ((size_t)j * WC_RNG_THREAD_TEST_BLKSZ),
+                        WC_RNG_THREAD_TEST_BLKSZ) == 0) {
+                ERROR_OUT(WC_TEST_RET_ENC_NC, out_free);
+            }
+        }
+    }
+
+out_free:
+    if (leak)
+        return ret;   /* a thread may still use rng, args or out */
+    if (rng != NULL)
+        wc_rng_free(rng);
+    XFREE(args, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+
+#endif /* WC_TEST_RNG_LOCK */
 
 #ifdef WC_RNG_BANK_SUPPORT
 
