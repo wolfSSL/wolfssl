@@ -117,10 +117,21 @@
 
 /* This sets which UART to use for the console.  It is something you will have
  * to configure in STMCubeIDE and then change here. */
+#ifdef WOLF_CONF_CONSOLE_UART_GETHANDLE
+/* STM32CubeMX2 (HAL2): the generated configuration selects the console UART
+ * through the MX2 handle getter (mx_<instance>_uart_gethandle(), declared by
+ * mx_hal_def.h), so no HAL1-style extern handle exists. HAL2 also renames
+ * the status type (HAL_OK and friends are unchanged). */
+#include "mx_hal_def.h"
+#undef  HAL_CONSOLE_UART
+#define HAL_CONSOLE_UART (*WOLF_CONF_CONSOLE_UART_GETHANDLE())
+typedef hal_status_t HAL_StatusTypeDef; /* HAL2 renames the status type */
+#else
 #ifndef HAL_CONSOLE_UART
 #define HAL_CONSOLE_UART huart4
 #endif
 extern UART_HandleTypeDef HAL_CONSOLE_UART;
+#endif
 
 /*****************************************************************************
  * Public types/enumerations/variables
@@ -1833,7 +1844,39 @@ double current_time(void)
     return ((double) time.Hours * 3600) + ((double) time.Minutes * 60)
             + (double) time.Seconds + ((double) subsec / 1000);
 }
+#else
+/* No HAL RTC (e.g. STM32CubeMX2 / HAL2 projects): use the millisecond tick */
+double current_time(void)
+{
+    return (double)HAL_GetTick() / 1000.0;
+}
 #endif /* HAL_RTC_MODULE_ENABLED */
+
+#ifdef WOLF_CONF_CONSOLE_UART_GETHANDLE
+/* printf retargeting for STM32CubeMX2 projects, routed to the console UART.
+ * Both are weak or toolchain-specific so a project-provided version wins. */
+#if defined(__ICCARM__)
+size_t __write(int handle, const unsigned char* buf, size_t bufSize)
+{
+    size_t i;
+    (void)handle;
+    for (i = 0; i < bufSize; i++) {
+        (void)HAL_UART_Transmit(&HAL_CONSOLE_UART, (uint8_t*)&buf[i], 1,
+            0xFFFF);
+    }
+    return bufSize;
+}
+#elif defined(__GNUC__)
+/* The STM32CubeMX2 syscalls utility routes newlib _write() to the weak
+ * __io_putchar() hook; implementing the hook is the intended retarget. */
+int __io_putchar(int ch)
+{
+    uint8_t c = (uint8_t)ch;
+    (void)HAL_UART_Transmit(&HAL_CONSOLE_UART, &c, 1, 0xFFFF);
+    return ch;
+}
+#endif
+#endif /* WOLF_CONF_CONSOLE_UART_GETHANDLE */
 
 #ifdef CMSIS_OS2_H_
 void wolfCryptDemo(void* argument)
