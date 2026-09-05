@@ -5,9 +5,26 @@ inputs:
     description: 'Space-separated list of apt packages to install'
     required: true
   retries:
-    description: 'Number of retry attempts'
+    description: 'Number of retry attempts.'
     required: false
-    default: '3'
+    default: '2'
+  budget-seconds:
+    description: >
+      Nominal wall-clock for the whole retry loop, split across the attempts
+      as per-command deadlines, so a wedged mirror is reported by this action
+      instead of the job being cancelled around it. The loop overshoots it by
+      retry-delay plus 10s of SIGKILL grace, and the per-command floors make
+      values below retries*60 inert. This, plus pull-timeout, plus any
+      ccache-setup in the same job, has to fit the caller's timeout-minutes -
+      the defaults need ~16 minutes.
+    required: false
+    default: '600'
+  pull-timeout:
+    description: >
+      Deadline for the ghcr bundle pull. Counts against the same
+      timeout-minutes as budget-seconds.
+    required: false
+    default: '300'
   retry-delay:
     description: 'Initial delay between retries (seconds, doubles each attempt)'
     required: false
@@ -50,7 +67,7 @@ runs:
         # PRs read the public upstream image too rather than a nonexistent
         # ghcr.io/<fork>/wolfssl-ci-debs.
         IMG="ghcr.io/wolfssl/wolfssl-ci-debs:${{ inputs.ghcr-debs-tag }}"
-        if ! docker pull -q "$IMG" >/dev/null 2>&1; then
+        if ! timeout -k 10 ${{ inputs.pull-timeout }} docker pull -q "$IMG" >/dev/null 2>&1; then
           echo "::notice::ghcr bundle $IMG unavailable; using apt"
           exit 0
         fi
@@ -77,21 +94,52 @@ runs:
       if: steps.ghcr.outputs.satisfied != 'true'
       shell: bash
       run: |
-        export DEBIAN_FRONTEND=noninteractive
         RETRIES=${{ inputs.retries }}
         DELAY=${{ inputs.retry-delay }}
+        BUDGET=${{ inputs.budget-seconds }}
         NO_REC=""
         if [ "${{ inputs.no-install-recommends }}" = "true" ]; then
           NO_REC="--no-install-recommends"
         fi
 
+        # A wedged mirror hangs apt rather than failing it, so the retry loop
+        # below never fired and the job burned its whole budget instead.
+        # Defend in depth: apt drops a stalled connection after 30s and retries
+        # it (Acquire timeouts - this is what actually detects a wedge, in
+        # ~90s), `timeout` hard-kills an apt-get that wedged outside its own
+        # I/O loop, then the loop re-runs - re-reading apt-mirrors.txt, so a
+        # retry can land on a different mirror. apt resumes from
+        # archives/partial/, so a killed transfer is not restarted from
+        # scratch.
+        APT_OPTS=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30
+                  -o Acquire::https::Timeout=30)
+
+        # Spend budget-seconds over the attempts rather than a fixed
+        # per-attempt deadline: a caller with a short timeout-minutes would
+        # otherwise be cancelled mid-attempt, before the loop could report
+        # the failure. update gets a sixth of an attempt, install the rest,
+        # with floors so a small budget still leaves apt time to work.
+        PER=$((BUDGET / RETRIES))
+        UPD=$((PER / 6))
+        [ "$UPD" -ge 20 ] || UPD=20
+        INS=$((PER - UPD))
+        [ "$INS" -ge 40 ] || INS=40
+        DEADLINE=$(($(date +%s) + BUDGET))
+
+        # sudo resets the environment, so DEBIAN_FRONTEND has to ride along
+        # on each privileged command rather than being exported once.
         for i in $(seq 1 $RETRIES); do
-          if sudo apt-get update -q && \
-             sudo apt-get install -y $NO_REC ${{ inputs.packages }}; then
+          # A previous attempt killed mid-unpack leaves dpkg needing this.
+          sudo dpkg --configure -a >/dev/null 2>&1 || true
+          if sudo DEBIAN_FRONTEND=noninteractive timeout -k 10 $UPD \
+                 apt-get "${APT_OPTS[@]}" update -q && \
+             sudo DEBIAN_FRONTEND=noninteractive timeout -k 10 $INS \
+                 apt-get "${APT_OPTS[@]}" install -y \
+                 $NO_REC ${{ inputs.packages }}; then
             exit 0
           fi
-          if [ "$i" -eq "$RETRIES" ]; then
-            echo "::error::apt-get failed after $RETRIES attempts"
+          if [ "$i" -eq "$RETRIES" ] || [ "$(date +%s)" -ge "$DEADLINE" ]; then
+            echo "::error::apt-get failed after $i attempt(s) in ${BUDGET}s"
             exit 1
           fi
           echo "::warning::apt-get failed (attempt $i/$RETRIES), retrying in ${DELAY}s..."

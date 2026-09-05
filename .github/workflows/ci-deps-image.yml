@@ -33,8 +33,9 @@ on:
     - cron: '0 2 * * 6'
     # Daily - the kernel-tracking -linuxkm bundle only. linux-headers-$(uname
     # -r) pins to the runner's running kernel (changes ~monthly); the linuxkm
-    # job rebuilds solely when uname -r differs from the published bundle, a
-    # cheap no-op otherwise. A mismatch mid-rollout just falls back to apt.
+    # job rebuilds when uname -r or its package list differs from the
+    # published bundle, a cheap no-op otherwise. A mismatch mid-rollout just
+    # falls back to apt.
     - cron: '0 3 * * *'
   workflow_dispatch:
 
@@ -141,9 +142,9 @@ jobs:
   # Kernel-tracking bundle for the linux kernel-module builds (linuxkm.yml and
   # the membrowse linuxkm targets). linux-headers-$(uname -r) pins to the
   # runner's running kernel, so this runs daily but rebuilds only when the
-  # kernel changed since the published bundle (the image carries the kernel as
-  # a label). A mismatch - e.g. during a gradual runner-image rollout - just
-  # makes install-apt-deps fall back to apt.
+  # kernel or the package list changed since the published bundle (the image
+  # carries both as labels). A mismatch - e.g. during a gradual runner-image
+  # rollout - just makes install-apt-deps fall back to apt.
   linuxkm:
     name: build ubuntu-24.04-linuxkm
     if: github.repository_owner == 'wolfssl'
@@ -154,7 +155,7 @@ jobs:
         shell: bash
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
-      - name: Decide whether the published bundle already matches this kernel
+      - name: Decide whether the published bundle is still current
         id: check
         shell: bash
         run: |
@@ -162,14 +163,25 @@ jobs:
           OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           IMG="ghcr.io/$OWNER/wolfssl-ci-debs:ubuntu-24.04-linuxkm"
           K=$(uname -r)
+          # The package set is defined here, not in the download step below, so
+          # the rebuild gate and the download cannot drift apart. Keyed on the
+          # kernel alone the gate would pin the published package set in place
+          # until the kernel next rolls (~monthly), so a package added here
+          # would never ship. The pkgset label closes that.
+          PKGS="build-essential autoconf automake libtool ccache"
+          PKGSET=$(printf '%s\n' "$PKGS" "linux-headers-$K" | sha256sum | cut -c1-12)
           echo "kernel=$K" >> "$GITHUB_OUTPUT"
-          echo "runner kernel: $K"
+          echo "pkgs=$PKGS" >> "$GITHUB_OUTPUT"
+          echo "pkgset=$PKGSET" >> "$GITHUB_OUTPUT"
+          echo "runner kernel: $K, package set: $PKGSET"
           have=""
+          havepkgset=""
           if docker pull -q "$IMG" >/dev/null 2>&1; then
             have=$(docker inspect --format '{{ index .Config.Labels "kernel" }}' "$IMG" 2>/dev/null || true)
+            havepkgset=$(docker inspect --format '{{ index .Config.Labels "pkgset" }}' "$IMG" 2>/dev/null || true)
           fi
-          echo "published bundle kernel: ${have:-<none>}"
-          if [ "$have" = "$K" ]; then
+          echo "published bundle kernel: ${have:-<none>}, package set: ${havepkgset:-<none>}"
+          if [ "$have" = "$K" ] && [ "$havepkgset" = "$PKGSET" ]; then
             echo "rebuild=false" >> "$GITHUB_OUTPUT"
             echo "Bundle already current for $K; nothing to do."
           else
@@ -183,26 +195,34 @@ jobs:
           set -euo pipefail
           K="${{ steps.check.outputs.kernel }}"
           # linuxkm.yml installs only the headers; the membrowse linuxkm targets
-          # also need the build toolchain. Bundle the union - each consumer
-          # installs its own subset offline.
-          PKGS=(build-essential autoconf automake libtool "linux-headers-$K")
+          # also need the build toolchain, and ccache-setup installs ccache
+          # offline from whatever this bundle staged. Bundle the union - each
+          # consumer installs its own subset offline. The list comes from the
+          # check step so it stays in step with the pkgset the gate compares.
+          read -r -a PKGS <<< "${{ steps.check.outputs.pkgs }} linux-headers-$K"
           echo "Packages: ${PKGS[*]}"
           export DEBIAN_FRONTEND=noninteractive
           rm -rf debs && mkdir -p debs
           sudo apt-get clean
-          retry() { local i; for i in 1 2 3 4 5; do "$@" && return 0; sleep $((2**i)); done; "$@"; }
-          retry sudo apt-get update -q
+          APT_OPTS=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
+          # 2 attempts, not 5: this job's timeout-minutes is 20, and an
+          # attempt cut off mid-flight reports nothing. The explicit return
+          # keeps the real exit code (124 from timeout) and stops a bare
+          # `sleep` from making an exhausted retry look like success.
+          retry() { local i rc=0; for i in 1 2; do "$@" && return 0; rc=$?; [ "$i" -eq 2 ] || sleep 5; done; return "$rc"; }
+          retry sudo timeout -k 10 60 apt-get "${APT_OPTS[@]}" update -q
           # The whole set is required and this bundle is small, so resolve it as
           # one closure and let any download failure fail the job. We push only
           # on success, so a transient mirror error keeps the last good bundle
           # rather than publishing a partial one - which the kernel-label skip
           # would then pin in place until the kernel next changes (~monthly).
-          retry sudo apt-get install -y --download-only "${PKGS[@]}"
+          retry sudo timeout -k 10 300 apt-get "${APT_OPTS[@]}" install -y \
+            --download-only "${PKGS[@]}"
           sudo cp /var/cache/apt/archives/*.deb debs/ 2>/dev/null || true
           echo "Bundled $(ls debs/*.deb 2>/dev/null | wc -l) .deb files"
           test -n "$(ls debs/*.deb 2>/dev/null)"  # headers are never preinstalled
 
-      - name: Build and push bundle (labelled with the kernel)
+      - name: Build and push bundle (labelled with the kernel and package set)
         if: steps.check.outputs.rebuild == 'true'
         shell: bash
         run: |
@@ -210,7 +230,8 @@ jobs:
           K="${{ steps.check.outputs.kernel }}"
           OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           IMG="ghcr.io/$OWNER/wolfssl-ci-debs:ubuntu-24.04-linuxkm"
-          printf 'FROM busybox\nCOPY debs /debs\nLABEL kernel=%s\n' "$K" > Dockerfile.debs
+          printf 'FROM busybox\nCOPY debs /debs\nLABEL kernel=%s\nLABEL pkgset=%s\n' \
+            "$K" "${{ steps.check.outputs.pkgset }}" > Dockerfile.debs
           docker build -f Dockerfile.debs -t "$IMG" .
           docker push "$IMG"
           echo "Pushed $IMG (kernel $K)"

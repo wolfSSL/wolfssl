@@ -91,8 +91,29 @@ jobs:
     steps:
       - name: Install build tools
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ninja-build
+          # A wedged mirror hangs apt instead of failing it. Acquire timeouts
+          # drop a stalled connection, `timeout` hard-kills apt-get if it
+          # wedges anyway, and the loop then retries against a fresh mirror.
+          # Two attempts at 60s+300s stay inside this job's timeout-minutes.
+          APT_OPTS=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30
+                    -o Acquire::https::Timeout=30)
+          apt_retry() {
+            local i
+            for i in 1 2; do
+              # An attempt killed mid-unpack leaves dpkg needing this, or the
+              # next apt-get aborts instantly in debSystem::Lock().
+              sudo dpkg --configure -a >/dev/null 2>&1 || true
+              if sudo timeout -k 10 60 apt-get "${APT_OPTS[@]}" update -q && \
+                 sudo timeout -k 10 300 apt-get "${APT_OPTS[@]}" install -y "$@"; then
+                return 0
+              fi
+              echo "::warning::apt-get failed (attempt $i/2)"
+              sleep 5
+            done
+            echo "::error::apt-get failed after 2 attempts"
+            return 1
+          }
+          apt_retry ninja-build
 
       # Check out wolfSSL first: actions/checkout runs "git clean -ffdx", which
       # would delete an untracked oqs-install/ placed in the workspace by the
@@ -161,8 +182,29 @@ jobs:
     steps:
       - name: Install build tools
         run: |
-          sudo apt-get update
-          sudo apt-get install -y autoconf automake libtool
+          # A wedged mirror hangs apt instead of failing it. Acquire timeouts
+          # drop a stalled connection, `timeout` hard-kills apt-get if it
+          # wedges anyway, and the loop then retries against a fresh mirror.
+          # Two attempts at 60s+300s stay inside this job's timeout-minutes.
+          APT_OPTS=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30
+                    -o Acquire::https::Timeout=30)
+          apt_retry() {
+            local i
+            for i in 1 2; do
+              # An attempt killed mid-unpack leaves dpkg needing this, or the
+              # next apt-get aborts instantly in debSystem::Lock().
+              sudo dpkg --configure -a >/dev/null 2>&1 || true
+              if sudo timeout -k 10 60 apt-get "${APT_OPTS[@]}" update -q && \
+                 sudo timeout -k 10 300 apt-get "${APT_OPTS[@]}" install -y "$@"; then
+                return 0
+              fi
+              echo "::warning::apt-get failed (attempt $i/2)"
+              sleep 5
+            done
+            echo "::error::apt-get failed after 2 attempts"
+            return 1
+          }
+          apt_retry autoconf automake libtool
 
       - name: Checkout wolfSSL
         uses: actions/checkout@v5
