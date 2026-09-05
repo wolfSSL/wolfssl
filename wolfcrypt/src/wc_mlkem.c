@@ -75,6 +75,15 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
+#ifdef WOLFSSL_HAVE_MLKEM
+
+#if FIPS_VERSION3_GE(7,0,0)
+    #ifdef USE_WINDOWS_API
+        #pragma code_seg(".fipsA$na")
+        #pragma const_seg(".fipsB$na")
+    #endif
+#endif
+
 #ifdef WC_MLKEM_NO_ASM
     #undef USE_INTEL_SPEEDUP
     #undef WOLFSSL_ARMASM
@@ -117,8 +126,6 @@
 #if defined(WOLFSSL_MLKEM_DYNAMIC_KEYS) && defined(WOLFSSL_NO_MALLOC)
     #error "Cannot use dynamic key buffers without malloc"
 #endif
-
-#ifdef WOLFSSL_HAVE_MLKEM
 
 #if FIPS_VERSION3_GE(7,0,0)
     const unsigned int wolfCrypt_FIPS_mlkem_ro_sanity[2] =

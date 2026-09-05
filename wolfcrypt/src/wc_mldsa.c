@@ -140,11 +140,18 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
+#if defined(WOLFSSL_HAVE_MLDSA)
+
+#if FIPS_VERSION3_GE(7,0,0)
+    #ifdef USE_WINDOWS_API
+        #pragma code_seg(".fipsA$nc")
+        #pragma const_seg(".fipsB$nc")
+    #endif
+#endif
+
 #ifndef WOLFSSL_MLDSA_NO_ASN1
 #include <wolfssl/wolfcrypt/asn.h>
 #endif
-
-#if defined(WOLFSSL_HAVE_MLDSA)
 
 #if FIPS_VERSION3_GE(7,0,0)
     const unsigned int wolfCrypt_FIPS_mldsa_ro_sanity[2] =
