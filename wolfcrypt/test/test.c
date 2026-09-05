@@ -34915,6 +34915,14 @@ static wc_test_ret_t srp_test_digest(SrpType dgstType)
 
     if (!r) r = wc_SrpVerifyPeersProof(cli, serverProof, serverProofSz);
 
+    /* Regression: a second wc_SrpSetUsername()/wc_SrpComputeKey() must release
+     * (and, for the key, zeroise) the buffer from the first call rather than
+     * leaking it. The exchange above is already verified; these repeat calls
+     * exercise the overwrite path so ASan flags a leak if it regresses. */
+    if (!r) r = wc_SrpSetUsername(cli, username, usernameSz);
+    if (!r) r = wc_SrpComputeKey(cli, clientPubKey, clientPubKeySz,
+                                       serverPubKey, serverPubKeySz);
+
     /* Negative test: corrupted proof must be rejected with SRP_VERIFY_E. */
     if (!r) {
         int rNeg;
@@ -71647,6 +71655,144 @@ static wc_test_ret_t pkcs7authenveloped_run_vectors(byte* rsaCert, word32 rsaCer
     return ret;
 }
 
+#if !defined(NO_RSA) && !defined(NO_AES) && defined(HAVE_AESGCM) && \
+    defined(HAVE_AES_KEYWRAP) && defined(WOLFSSL_AES_128)
+/* Boundary test for the fixed-size auth/unauth attribute arrays in
+ * wc_PKCS7_EncodeAuthEnvelopedData(): filling them to capacity must encode,
+ * while requesting one attribute more than fits must fail cleanly instead of
+ * writing past the arrays. Run under ASan to catch a regression. */
+static wc_test_ret_t pkcs7_authenv_attribs_boundary_test(byte* rsaCert,
+    word32 rsaCertSz, byte* rsaPrivKey, word32 rsaPrivKeySz)
+{
+    wc_test_ret_t ret = 0;
+    wc_PKCS7* pkcs7 = NULL;
+    byte*  enveloped = NULL;
+    int    envSz;
+    byte   content[] = "authenv attribs boundary test";
+
+    /* one past either capacity, so the over-capacity cases stay in bounds */
+#if MAX_AUTH_ATTRIBS_SZ > MAX_UNAUTH_ATTRIBS_SZ
+    #define PKCS7_AE_ATTRIB_CNT (MAX_AUTH_ATTRIBS_SZ + 1)
+#else
+    #define PKCS7_AE_ATTRIB_CNT (MAX_UNAUTH_ATTRIBS_SZ + 1)
+#endif
+    static const byte val[] = { 0x13,0x01, 0x30 };
+    byte        oids[PKCS7_AE_ATTRIB_CNT][5];
+    PKCS7Attrib attribs[PKCS7_AE_ATTRIB_CNT];
+    word32      i;
+
+    for (i = 0; i < (word32)PKCS7_AE_ATTRIB_CNT; i++) {
+        oids[i][0] = 0x06; oids[i][1] = 0x03;
+        oids[i][2] = 0x55; oids[i][3] = 0x04;
+        oids[i][4] = (byte)(0x03 + i);
+        attribs[i].oid     = oids[i];
+        attribs[i].oidSz   = (word32)sizeof(oids[i]);
+        attribs[i].value   = val;
+        attribs[i].valueSz = (word32)sizeof(val);
+    }
+
+    enveloped = (byte*)XMALLOC(PKCS7_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (enveloped == NULL)
+        return WC_TEST_RET_ENC_ERRNO;
+
+    /* contentOID == DATA so no contentType attribute is auto-added; all
+     * MAX_AUTH_ATTRIBS_SZ slots are available to the user attributes. */
+
+    /* exactly MAX_AUTH_ATTRIBS_SZ authenticated attributes: must encode */
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+    if (pkcs7 == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
+    ret = wc_PKCS7_InitWithCert(pkcs7, rsaCert, rsaCertSz);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    pkcs7->content         = content;
+    pkcs7->contentSz       = (word32)XSTRLEN((char*)content);
+    pkcs7->contentOID      = DATA;
+    pkcs7->encryptOID      = AES128GCMb;
+    pkcs7->privateKey      = rsaPrivKey;
+    pkcs7->privateKeySz    = rsaPrivKeySz;
+    pkcs7->authAttribs     = attribs;
+    pkcs7->authAttribsSz   = MAX_AUTH_ATTRIBS_SZ;
+    envSz = wc_PKCS7_EncodeAuthEnvelopedData(pkcs7, enveloped, PKCS7_BUF_SIZE);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+    if (envSz <= 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(envSz), out);
+
+    /* one more authenticated attribute than fits: must fail, not overrun */
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+    if (pkcs7 == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
+    ret = wc_PKCS7_InitWithCert(pkcs7, rsaCert, rsaCertSz);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    pkcs7->content         = content;
+    pkcs7->contentSz       = (word32)XSTRLEN((char*)content);
+    pkcs7->contentOID      = DATA;
+    pkcs7->encryptOID      = AES128GCMb;
+    pkcs7->privateKey      = rsaPrivKey;
+    pkcs7->privateKeySz    = rsaPrivKeySz;
+    pkcs7->authAttribs     = attribs;
+    pkcs7->authAttribsSz   = MAX_AUTH_ATTRIBS_SZ + 1;
+    envSz = wc_PKCS7_EncodeAuthEnvelopedData(pkcs7, enveloped, PKCS7_BUF_SIZE);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+    if (envSz != WC_NO_ERR_TRACE(BUFFER_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(envSz), out);
+
+    /* one more unauthenticated attribute than fits: must fail, not overrun */
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+    if (pkcs7 == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
+    ret = wc_PKCS7_InitWithCert(pkcs7, rsaCert, rsaCertSz);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    pkcs7->content         = content;
+    pkcs7->contentSz       = (word32)XSTRLEN((char*)content);
+    pkcs7->contentOID      = DATA;
+    pkcs7->encryptOID      = AES128GCMb;
+    pkcs7->privateKey      = rsaPrivKey;
+    pkcs7->privateKeySz    = rsaPrivKeySz;
+    pkcs7->unauthAttribs   = attribs;
+    pkcs7->unauthAttribsSz = MAX_UNAUTH_ATTRIBS_SZ + 1;
+    envSz = wc_PKCS7_EncodeAuthEnvelopedData(pkcs7, enveloped, PKCS7_BUF_SIZE);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+    if (envSz != WC_NO_ERR_TRACE(BUFFER_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(envSz), out);
+
+    /* non-DATA contentOID adds a contentType attrib, leaving one slot fewer */
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+    if (pkcs7 == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
+    ret = wc_PKCS7_InitWithCert(pkcs7, rsaCert, rsaCertSz);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    pkcs7->content         = content;
+    pkcs7->contentSz       = (word32)XSTRLEN((char*)content);
+    pkcs7->contentOID      = FIRMWARE_PKG_DATA;
+    pkcs7->encryptOID      = AES128GCMb;
+    pkcs7->privateKey      = rsaPrivKey;
+    pkcs7->privateKeySz    = rsaPrivKeySz;
+    pkcs7->authAttribs     = attribs;
+    pkcs7->authAttribsSz   = MAX_AUTH_ATTRIBS_SZ;
+    envSz = wc_PKCS7_EncodeAuthEnvelopedData(pkcs7, enveloped, PKCS7_BUF_SIZE);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+    if (envSz != WC_NO_ERR_TRACE(BUFFER_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(envSz), out);
+
+    ret = 0;
+
+out:
+    if (pkcs7 != NULL)
+        wc_PKCS7_Free(pkcs7);
+    XFREE(enveloped, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+#endif /* RSA + AESGCM + keywrap + AES128 */
+
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs7authenveloped_test(void)
 {
     wc_test_ret_t ret = 0;
@@ -71723,6 +71869,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs7authenveloped_test(void)
                                          rsaPrivKey, (word32)rsaPrivKeySz,
                                          eccCert, (word32)eccCertSz,
                                          eccPrivKey, (word32)eccPrivKeySz);
+
+#if !defined(NO_RSA) && !defined(NO_AES) && defined(HAVE_AESGCM) && \
+    defined(HAVE_AES_KEYWRAP) && defined(WOLFSSL_AES_128)
+    if (ret == 0)
+        ret = pkcs7_authenv_attribs_boundary_test(rsaCert, (word32)rsaCertSz,
+                                            rsaPrivKey, (word32)rsaPrivKeySz);
+#endif
 
 #ifndef NO_RSA
     XFREE(rsaCert,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);

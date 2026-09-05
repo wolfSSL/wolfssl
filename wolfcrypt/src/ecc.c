@@ -4673,7 +4673,8 @@ int wc_ecc_get_curve_id_from_oid(const byte* oid, word32 len)
         return BAD_FUNC_ARG;
 
 #ifdef HAVE_OID_DECODING
-    decOidSz = (word32)sizeof(decOid);
+    /* in elements, not bytes */
+    decOidSz = (word32)(sizeof(decOid) / sizeof(decOid[0]));
     ret = DecodeObjectId(oid, len, decOid, &decOidSz);
     if (ret != 0) {
         return ret;
@@ -16284,17 +16285,12 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 #endif
 
 #ifndef WOLFSSL_ECIES_OLD
-    if (pubKey == NULL) {
-        WC_ALLOC_VAR_EX(peerKey, ecc_key, 1, ctx->heap,
-            DYNAMIC_TYPE_ECC_BUFFER, ret=MEMORY_E);
-        pubKey = peerKey;
-    }
-    else {
-        /* if a public key was passed in we should free it here before init
-         * and import */
-        wc_ecc_free(pubKey);
-    }
+    /* The ephemeral public key comes from the message; parse it into the
+     * local key object so a caller-supplied pubKey is left untouched. */
+    WC_ALLOC_VAR_EX(peerKey, ecc_key, 1, ctx->heap,
+        DYNAMIC_TYPE_ECC_BUFFER, ret=MEMORY_E);
     if (ret == 0) {
+        pubKey = peerKey;
         ret = wc_ecc_init_ex(pubKey, privKey->heap, INVALID_DEVID);
     }
     if (ret == 0) {
