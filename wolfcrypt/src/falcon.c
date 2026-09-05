@@ -9556,6 +9556,9 @@ int wc_Falcon_PrivateKeyDecode(const byte* input, word32* inOutIdx,
         }
     }
 
+    /* Zeroize the decoded private key before free (matches every other secret
+     * temporary in this file); pubKey is public and needs no scrubbing. */
+    ForceZero(privKey, FALCON_MAX_PRV_KEY_SIZE);
     XFREE(privKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(pubKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
