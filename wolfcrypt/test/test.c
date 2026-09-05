@@ -80434,6 +80434,26 @@ typedef struct {
 #if defined(WC_RSA_PSS) && defined(WOLF_CRYPTO_CB_RSA_PAD)
     int rsaPssVerifyCount; /* RSA-PSS verify callback invocations */
 #endif
+#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM_CRYPTOCB)
+    int sm2SignCount;     /* SM2 sign callback invocations */
+    int sm2VerifyCount;   /* SM2 verify callback invocations */
+    int sm2SecretCount;   /* SM2 shared secret callback invocations */
+    int sm2DigestCount;   /* SM2 create digest callback invocations */
+#endif
+#if defined(WOLFSSL_SM3) && defined(WOLFSSL_SM_CRYPTOCB)
+    int sm3Count;         /* SM3 hash callback invocations */
+#endif
+#if defined(WOLFSSL_SM4) && defined(WOLFSSL_SM_CRYPTOCB)
+    /* Counted per direction ([0] decrypt, [1] encrypt) so a decrypt entry
+     * point that was never wired up cannot hide behind the encrypt one.
+     * Counter mode has a single entry point for both directions, so it keeps
+     * one counter. */
+    int sm4EcbCount[2];   /* SM4-ECB callback invocations */
+    int sm4CbcCount[2];   /* SM4-CBC callback invocations */
+    int sm4CtrCount;      /* SM4-CTR callback invocations */
+    int sm4GcmCount[2];   /* SM4-GCM callback invocations */
+    int sm4CcmCount[2];   /* SM4-CCM callback invocations */
+#endif
 } myCryptoDevCtx;
 
 #ifdef WOLF_CRYPTO_CB_ONLY_RSA
@@ -81930,6 +81950,72 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         }
         #endif
     #endif /* HAVE_ECC */
+    #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM_CRYPTOCB)
+        if (info->pk.type == WC_PK_TYPE_SM2_SIGN) {
+        #ifdef HAVE_ECC_SIGN
+            myCtx->sm2SignCount++;
+
+            /* set devId to invalid, so software is used */
+            info->pk.sm2sign.key->devId = INVALID_DEVID;
+
+            ret = wc_ecc_sm2_sign_hash(
+                info->pk.sm2sign.in, info->pk.sm2sign.inlen,
+                info->pk.sm2sign.out, info->pk.sm2sign.outlen,
+                info->pk.sm2sign.rng, info->pk.sm2sign.key);
+
+            /* reset devId */
+            info->pk.sm2sign.key->devId = devIdArg;
+        #endif
+        }
+        else if (info->pk.type == WC_PK_TYPE_SM2_VERIFY) {
+        #ifdef HAVE_ECC_VERIFY
+            myCtx->sm2VerifyCount++;
+
+            /* set devId to invalid, so software is used */
+            info->pk.sm2verify.key->devId = INVALID_DEVID;
+
+            ret = wc_ecc_sm2_verify_hash(
+                info->pk.sm2verify.sig, info->pk.sm2verify.siglen,
+                info->pk.sm2verify.hash, info->pk.sm2verify.hashlen,
+                info->pk.sm2verify.res, info->pk.sm2verify.key);
+
+            /* reset devId */
+            info->pk.sm2verify.key->devId = devIdArg;
+        #endif
+        }
+        else if (info->pk.type == WC_PK_TYPE_SM2_SHARED_SECRET) {
+        #ifdef HAVE_ECC_DHE
+            myCtx->sm2SecretCount++;
+
+            /* set devId to invalid, so software is used */
+            info->pk.sm2dh.private_key->devId = INVALID_DEVID;
+
+            ret = wc_ecc_sm2_shared_secret(
+                info->pk.sm2dh.private_key, info->pk.sm2dh.public_key,
+                info->pk.sm2dh.out, info->pk.sm2dh.outlen);
+
+            /* reset devId */
+            info->pk.sm2dh.private_key->devId = devIdArg;
+        #endif
+        }
+        else if (info->pk.type == WC_PK_TYPE_SM2_CREATE_DIGEST) {
+        #ifdef WOLFSSL_SM3
+            myCtx->sm2DigestCount++;
+
+            /* set devId to invalid, so software is used */
+            info->pk.sm2digest.key->devId = INVALID_DEVID;
+
+            ret = wc_ecc_sm2_create_digest(
+                info->pk.sm2digest.id, info->pk.sm2digest.idSz,
+                info->pk.sm2digest.msg, info->pk.sm2digest.msgSz,
+                info->pk.sm2digest.hashType, info->pk.sm2digest.out,
+                info->pk.sm2digest.outSz, info->pk.sm2digest.key);
+
+            /* reset devId */
+            info->pk.sm2digest.key->devId = devIdArg;
+        #endif
+        }
+    #endif /* WOLFSSL_SM2 && WOLFSSL_SM_CRYPTOCB */
     #ifdef HAVE_CURVE25519
         if (info->pk.type == WC_PK_TYPE_CURVE25519_KEYGEN) {
             /* set devId to invalid, so software is used */
@@ -82902,9 +82988,193 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         }
     #endif /* !NO_DES3 */
 #endif /* !NO_AES || !NO_DES3 */
+#if defined(WOLFSSL_SM4) && defined(WOLFSSL_SM_CRYPTOCB)
+    #ifdef WOLFSSL_SM4_ECB
+        if (info->cipher.type == WC_CIPHER_SM4_ECB) {
+            if (info->cipher.sm4ecb.sm4 == NULL)
+                return NOT_COMPILED_IN;
+
+            myCtx->sm4EcbCount[info->cipher.enc ? 1 : 0]++;
+
+            /* set devId to invalid, so software is used */
+            info->cipher.sm4ecb.sm4->devId = INVALID_DEVID;
+
+            if (info->cipher.enc) {
+                ret = wc_Sm4EcbEncrypt(
+                    info->cipher.sm4ecb.sm4,
+                    info->cipher.sm4ecb.out,
+                    info->cipher.sm4ecb.in,
+                    info->cipher.sm4ecb.sz);
+            }
+            else {
+                ret = wc_Sm4EcbDecrypt(
+                    info->cipher.sm4ecb.sm4,
+                    info->cipher.sm4ecb.out,
+                    info->cipher.sm4ecb.in,
+                    info->cipher.sm4ecb.sz);
+            }
+
+            /* reset devId */
+            info->cipher.sm4ecb.sm4->devId = devIdArg;
+        }
+    #endif /* WOLFSSL_SM4_ECB */
+    #ifdef WOLFSSL_SM4_CBC
+        if (info->cipher.type == WC_CIPHER_SM4_CBC) {
+            if (info->cipher.sm4cbc.sm4 == NULL)
+                return NOT_COMPILED_IN;
+
+            myCtx->sm4CbcCount[info->cipher.enc ? 1 : 0]++;
+
+            /* set devId to invalid, so software is used */
+            info->cipher.sm4cbc.sm4->devId = INVALID_DEVID;
+
+            if (info->cipher.enc) {
+                ret = wc_Sm4CbcEncrypt(
+                    info->cipher.sm4cbc.sm4,
+                    info->cipher.sm4cbc.out,
+                    info->cipher.sm4cbc.in,
+                    info->cipher.sm4cbc.sz);
+            }
+            else {
+                ret = wc_Sm4CbcDecrypt(
+                    info->cipher.sm4cbc.sm4,
+                    info->cipher.sm4cbc.out,
+                    info->cipher.sm4cbc.in,
+                    info->cipher.sm4cbc.sz);
+            }
+
+            /* reset devId */
+            info->cipher.sm4cbc.sm4->devId = devIdArg;
+        }
+    #endif /* WOLFSSL_SM4_CBC */
+    #ifdef WOLFSSL_SM4_CTR
+        if (info->cipher.type == WC_CIPHER_SM4_CTR) {
+            if (info->cipher.sm4ctr.sm4 == NULL)
+                return NOT_COMPILED_IN;
+
+            myCtx->sm4CtrCount++;
+
+            /* set devId to invalid, so software is used */
+            info->cipher.sm4ctr.sm4->devId = INVALID_DEVID;
+
+            /* counter mode is its own inverse */
+            ret = wc_Sm4CtrEncrypt(
+                info->cipher.sm4ctr.sm4,
+                info->cipher.sm4ctr.out,
+                info->cipher.sm4ctr.in,
+                info->cipher.sm4ctr.sz);
+
+            /* reset devId */
+            info->cipher.sm4ctr.sm4->devId = devIdArg;
+        }
+    #endif /* WOLFSSL_SM4_CTR */
+    #ifdef WOLFSSL_SM4_GCM
+        if (info->cipher.type == WC_CIPHER_SM4_GCM) {
+            if (((info->cipher.enc != 0) &&
+                    (info->cipher.sm4gcm_enc.sm4 == NULL)) ||
+                ((info->cipher.enc == 0) &&
+                    (info->cipher.sm4gcm_dec.sm4 == NULL))) {
+                return NOT_COMPILED_IN;
+            }
+
+            myCtx->sm4GcmCount[info->cipher.enc ? 1 : 0]++;
+
+            if (info->cipher.enc) {
+                /* set devId to invalid, so software is used */
+                info->cipher.sm4gcm_enc.sm4->devId = INVALID_DEVID;
+
+                ret = wc_Sm4GcmEncrypt(
+                    info->cipher.sm4gcm_enc.sm4,
+                    info->cipher.sm4gcm_enc.out,
+                    info->cipher.sm4gcm_enc.in,
+                    info->cipher.sm4gcm_enc.sz,
+                    info->cipher.sm4gcm_enc.nonce,
+                    info->cipher.sm4gcm_enc.nonceSz,
+                    info->cipher.sm4gcm_enc.authTag,
+                    info->cipher.sm4gcm_enc.authTagSz,
+                    info->cipher.sm4gcm_enc.authIn,
+                    info->cipher.sm4gcm_enc.authInSz);
+
+                /* reset devId */
+                info->cipher.sm4gcm_enc.sm4->devId = devIdArg;
+            }
+            else {
+                /* set devId to invalid, so software is used */
+                info->cipher.sm4gcm_dec.sm4->devId = INVALID_DEVID;
+
+                ret = wc_Sm4GcmDecrypt(
+                    info->cipher.sm4gcm_dec.sm4,
+                    info->cipher.sm4gcm_dec.out,
+                    info->cipher.sm4gcm_dec.in,
+                    info->cipher.sm4gcm_dec.sz,
+                    info->cipher.sm4gcm_dec.nonce,
+                    info->cipher.sm4gcm_dec.nonceSz,
+                    info->cipher.sm4gcm_dec.authTag,
+                    info->cipher.sm4gcm_dec.authTagSz,
+                    info->cipher.sm4gcm_dec.authIn,
+                    info->cipher.sm4gcm_dec.authInSz);
+
+                /* reset devId */
+                info->cipher.sm4gcm_dec.sm4->devId = devIdArg;
+            }
+        }
+    #endif /* WOLFSSL_SM4_GCM */
+    #ifdef WOLFSSL_SM4_CCM
+        if (info->cipher.type == WC_CIPHER_SM4_CCM) {
+            if (((info->cipher.enc != 0) &&
+                    (info->cipher.sm4ccm_enc.sm4 == NULL)) ||
+                ((info->cipher.enc == 0) &&
+                    (info->cipher.sm4ccm_dec.sm4 == NULL))) {
+                return NOT_COMPILED_IN;
+            }
+
+            myCtx->sm4CcmCount[info->cipher.enc ? 1 : 0]++;
+
+            if (info->cipher.enc) {
+                /* set devId to invalid, so software is used */
+                info->cipher.sm4ccm_enc.sm4->devId = INVALID_DEVID;
+
+                ret = wc_Sm4CcmEncrypt(
+                    info->cipher.sm4ccm_enc.sm4,
+                    info->cipher.sm4ccm_enc.out,
+                    info->cipher.sm4ccm_enc.in,
+                    info->cipher.sm4ccm_enc.sz,
+                    info->cipher.sm4ccm_enc.nonce,
+                    info->cipher.sm4ccm_enc.nonceSz,
+                    info->cipher.sm4ccm_enc.authTag,
+                    info->cipher.sm4ccm_enc.authTagSz,
+                    info->cipher.sm4ccm_enc.authIn,
+                    info->cipher.sm4ccm_enc.authInSz);
+
+                /* reset devId */
+                info->cipher.sm4ccm_enc.sm4->devId = devIdArg;
+            }
+            else {
+                /* set devId to invalid, so software is used */
+                info->cipher.sm4ccm_dec.sm4->devId = INVALID_DEVID;
+
+                ret = wc_Sm4CcmDecrypt(
+                    info->cipher.sm4ccm_dec.sm4,
+                    info->cipher.sm4ccm_dec.out,
+                    info->cipher.sm4ccm_dec.in,
+                    info->cipher.sm4ccm_dec.sz,
+                    info->cipher.sm4ccm_dec.nonce,
+                    info->cipher.sm4ccm_dec.nonceSz,
+                    info->cipher.sm4ccm_dec.authTag,
+                    info->cipher.sm4ccm_dec.authTagSz,
+                    info->cipher.sm4ccm_dec.authIn,
+                    info->cipher.sm4ccm_dec.authInSz);
+
+                /* reset devId */
+                info->cipher.sm4ccm_dec.sm4->devId = devIdArg;
+            }
+        }
+    #endif /* WOLFSSL_SM4_CCM */
+#endif /* WOLFSSL_SM4 && WOLFSSL_SM_CRYPTOCB */
     }
 #if !defined(NO_SHA) || !defined(NO_SHA256) || \
-    defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512)
+    defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512) || \
+    defined(WOLFSSL_SM3)
     else if (info->algo_type == WC_ALGO_TYPE_HASH) {
     #if !defined(NO_SHA)
         if (info->hash.type == WC_HASH_TYPE_SHA) {
@@ -83216,10 +83486,37 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     #endif /* WOLFSSL_SHAKE256 */
         else
     #endif
+    #if defined(WOLFSSL_SM3) && defined(WOLFSSL_SM_CRYPTOCB)
+        if (info->hash.type == WC_HASH_TYPE_SM3) {
+            if (info->hash.sm3 == NULL)
+                return NOT_COMPILED_IN;
+
+            myCtx->sm3Count++;
+
+            /* set devId to invalid, so software is used */
+            info->hash.sm3->devId = INVALID_DEVID;
+
+            if (info->hash.in != NULL) {
+                ret = wc_Sm3Update(
+                    info->hash.sm3,
+                    info->hash.in,
+                    info->hash.inSz);
+            }
+            if (info->hash.digest != NULL) {
+                ret = wc_Sm3Final(
+                    info->hash.sm3,
+                    info->hash.digest);
+            }
+
+            /* reset devId */
+            info->hash.sm3->devId = devIdArg;
+        }
+        else
+    #endif /* WOLFSSL_SM3 && WOLFSSL_SM_CRYPTOCB */
         {
         }
     }
-#endif /* !NO_SHA || !NO_SHA256 */
+#endif /* !NO_SHA || !NO_SHA256 || SM3 */
 #ifdef WOLF_CRYPTO_CB_COPY
     else if (info->algo_type == WC_ALGO_TYPE_COPY) {
 #ifdef DEBUG_WOLFSSL
@@ -84393,6 +84690,22 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 #if defined(WC_RSA_PSS) && defined(WOLF_CRYPTO_CB_RSA_PAD)
     myCtx.rsaPssVerifyCount = 0;
 #endif
+#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM_CRYPTOCB)
+    myCtx.sm2SignCount = 0;
+    myCtx.sm2VerifyCount = 0;
+    myCtx.sm2SecretCount = 0;
+    myCtx.sm2DigestCount = 0;
+#endif
+#if defined(WOLFSSL_SM3) && defined(WOLFSSL_SM_CRYPTOCB)
+    myCtx.sm3Count = 0;
+#endif
+#if defined(WOLFSSL_SM4) && defined(WOLFSSL_SM_CRYPTOCB)
+    XMEMSET(myCtx.sm4EcbCount, 0, sizeof(myCtx.sm4EcbCount));
+    XMEMSET(myCtx.sm4CbcCount, 0, sizeof(myCtx.sm4CbcCount));
+    myCtx.sm4CtrCount = 0;
+    XMEMSET(myCtx.sm4GcmCount, 0, sizeof(myCtx.sm4GcmCount));
+    XMEMSET(myCtx.sm4CcmCount, 0, sizeof(myCtx.sm4CcmCount));
+#endif
 
     /* set devId to something other than INVALID_DEVID */
     devId = 1;
@@ -84804,6 +85117,39 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     if (ret == 0)
         ret = des3_test();
 #endif /* !NO_DES3 */
+#ifdef WOLFSSL_SM4
+    if (ret == 0)
+        ret = sm4_test();
+    /* Confirm every configured SM4 mode was routed through myCryptoDevCb and
+     * not handled in software behind the callback's back. */
+    #ifdef WOLFSSL_SM_CRYPTOCB
+    #ifdef WOLFSSL_SM4_ECB
+    if (ret == 0 && ((myCtx.sm4EcbCount[0] == 0) ||
+                     (myCtx.sm4EcbCount[1] == 0)))
+        ret = WC_TEST_RET_ENC_NC;
+    #endif
+    #ifdef WOLFSSL_SM4_CBC
+    if (ret == 0 && ((myCtx.sm4CbcCount[0] == 0) ||
+                     (myCtx.sm4CbcCount[1] == 0)))
+        ret = WC_TEST_RET_ENC_NC;
+    #endif
+    #ifdef WOLFSSL_SM4_CTR
+    /* Counter mode encrypts in both directions, so there is only one hook. */
+    if (ret == 0 && myCtx.sm4CtrCount == 0)
+        ret = WC_TEST_RET_ENC_NC;
+    #endif
+    #ifdef WOLFSSL_SM4_GCM
+    if (ret == 0 && ((myCtx.sm4GcmCount[0] == 0) ||
+                     (myCtx.sm4GcmCount[1] == 0)))
+        ret = WC_TEST_RET_ENC_NC;
+    #endif
+    #ifdef WOLFSSL_SM4_CCM
+    if (ret == 0 && ((myCtx.sm4CcmCount[0] == 0) ||
+                     (myCtx.sm4CcmCount[1] == 0)))
+        ret = WC_TEST_RET_ENC_NC;
+    #endif
+    #endif /* WOLFSSL_SM_CRYPTOCB */
+#endif /* WOLFSSL_SM4 */
 #ifndef NO_SHA
     if (ret == 0)
         ret = sha_test();
@@ -84856,6 +85202,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 #endif
 #endif
 #endif
+#ifdef WOLFSSL_SM3
+    if (ret == 0)
+        ret = sm3_test();
+    #ifdef WOLFSSL_SM_CRYPTOCB
+    if (ret == 0 && myCtx.sm3Count == 0)
+        ret = WC_TEST_RET_ENC_NC;
+    #endif
+#endif /* WOLFSSL_SM3 */
 #ifndef NO_HMAC
     #ifndef NO_SHA
     if (ret == 0)
@@ -84956,6 +85310,207 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
         WC_FREE_VAR_EX(ed448Key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif /* HAVE_ED448 */
+
+#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM_CRYPTOCB) && \
+    defined(HAVE_ECC_SIGN) && defined(HAVE_ECC_VERIFY) && !defined(WC_NO_RNG)
+    if (ret == 0) {
+        WC_RNG sm2Rng;
+        int    sm2RngInit = 0;
+        int    sm2KeyAInit = 0;
+        int    sm2KeyBInit = 0;
+        int    sm2Skip = 0;
+        int    sm2Verify = 0;
+        word32 sm2SigLen = ECC_SIG_SIZE;
+        byte   sm2Digest[ECC_DIGEST_SIZE];
+        WC_DECLARE_VAR(sm2KeyA, ecc_key, 1, HEAP_HINT);
+        WC_DECLARE_VAR(sm2KeyB, ecc_key, 1, HEAP_HINT);
+        WC_DECLARE_VAR(sm2Sig, byte, ECC_SIG_SIZE, HEAP_HINT);
+
+        WC_ALLOC_VAR_EX(sm2KeyA, ecc_key, 1, HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER, ret = WC_TEST_RET_ENC_EC(MEMORY_E));
+        if (ret == 0)
+            WC_ALLOC_VAR_EX(sm2KeyB, ecc_key, 1, HEAP_HINT,
+                DYNAMIC_TYPE_TMP_BUFFER, ret = WC_TEST_RET_ENC_EC(MEMORY_E));
+        if (ret == 0)
+            WC_ALLOC_VAR_EX(sm2Sig, byte, ECC_SIG_SIZE, HEAP_HINT,
+                DYNAMIC_TYPE_TMP_BUFFER, ret = WC_TEST_RET_ENC_EC(MEMORY_E));
+
+        XMEMSET(sm2Digest, 0x5a, sizeof(sm2Digest));
+        myCtx.sm2SignCount = 0;
+        myCtx.sm2VerifyCount = 0;
+        myCtx.sm2SecretCount = 0;
+        myCtx.sm2DigestCount = 0;
+
+        if (ret == 0) {
+            ret = wc_InitRng_ex(&sm2Rng, HEAP_HINT, devId);
+            if (ret == 0)
+                sm2RngInit = 1;
+            else
+                ret = WC_TEST_RET_ENC_EC(ret);
+        }
+        if (ret == 0) {
+            ret = wc_ecc_init_ex(sm2KeyA, HEAP_HINT, devId);
+            if (ret == 0)
+                sm2KeyAInit = 1;
+            else
+                ret = WC_TEST_RET_ENC_EC(ret);
+        }
+        if (ret == 0) {
+            ret = wc_ecc_init_ex(sm2KeyB, HEAP_HINT, devId);
+            if (ret == 0)
+                sm2KeyBInit = 1;
+            else
+                ret = WC_TEST_RET_ENC_EC(ret);
+        }
+        if (ret == 0) {
+            ret = wc_ecc_sm2_make_key(&sm2Rng, sm2KeyA, WC_ECC_FLAG_NONE);
+            if (ret == WC_NO_ERR_TRACE(ECC_CURVE_OID_E)) {
+                sm2Skip = 1; /* curve not available in this build */
+                ret = 0;
+            }
+            else if (ret != 0) {
+                ret = WC_TEST_RET_ENC_EC(ret);
+            }
+        }
+        if (ret == 0 && !sm2Skip) {
+            ret = wc_ecc_sm2_make_key(&sm2Rng, sm2KeyB, WC_ECC_FLAG_NONE);
+            if (ret != 0)
+                ret = WC_TEST_RET_ENC_EC(ret);
+        }
+        if (ret == 0 && !sm2Skip) {
+            ret = wc_ecc_sm2_sign_hash(sm2Digest, (word32)sizeof(sm2Digest),
+                sm2Sig, &sm2SigLen, &sm2Rng, sm2KeyA);
+            if (ret != 0)
+                ret = WC_TEST_RET_ENC_EC(ret);
+        }
+        if (ret == 0 && !sm2Skip && myCtx.sm2SignCount == 0)
+            ret = WC_TEST_RET_ENC_NC;
+        if (ret == 0 && !sm2Skip) {
+            ret = wc_ecc_sm2_verify_hash(sm2Sig, sm2SigLen, sm2Digest,
+                (word32)sizeof(sm2Digest), &sm2Verify, sm2KeyA);
+            if (ret != 0)
+                ret = WC_TEST_RET_ENC_EC(ret);
+        }
+        if (ret == 0 && !sm2Skip &&
+                (myCtx.sm2VerifyCount == 0 || sm2Verify != 1)) {
+            ret = WC_TEST_RET_ENC_NC;
+        }
+        /* A corrupted signature must come back rejected through the
+         * callback, not errored. Flip a bit in s, leaving the DER framing
+         * intact so the failure is the math and not a parse. */
+        if (ret == 0 && !sm2Skip) {
+            int sm2VerifyCnt = myCtx.sm2VerifyCount;
+
+            sm2Verify = 1;
+            sm2Sig[sm2SigLen - 1] ^= 0x01;
+            ret = wc_ecc_sm2_verify_hash(sm2Sig, sm2SigLen, sm2Digest,
+                (word32)sizeof(sm2Digest), &sm2Verify, sm2KeyA);
+            sm2Sig[sm2SigLen - 1] ^= 0x01;
+            if (ret != 0) {
+                ret = WC_TEST_RET_ENC_EC(ret);
+            }
+            else if ((sm2Verify == 1) ||
+                    (myCtx.sm2VerifyCount == sm2VerifyCnt)) {
+                ret = WC_TEST_RET_ENC_NC;
+            }
+        }
+    #ifdef WOLFSSL_SM3
+        /* The digest binds the signer id and the public key point, so it has
+         * to reach the device too. Sign and verify over the result to show
+         * what came back is usable. */
+        if (ret == 0 && !sm2Skip) {
+            const byte sm2Id[] = "wolfssl@wolfssl.com";
+            const byte sm2Msg[] = "SM2 crypto callback message";
+            byte sm2Za[WC_SM3_DIGEST_SIZE];
+
+            sm2SigLen = ECC_SIG_SIZE;
+            sm2Verify = 0;
+            XMEMSET(sm2Za, 0, sizeof(sm2Za));
+
+            ret = wc_ecc_sm2_create_digest(sm2Id,
+                (word16)XSTRLEN((const char*)sm2Id), sm2Msg,
+                (int)XSTRLEN((const char*)sm2Msg), WC_HASH_TYPE_SM3, sm2Za,
+                (int)sizeof(sm2Za), sm2KeyA);
+            if (ret != 0)
+                ret = WC_TEST_RET_ENC_EC(ret);
+            else if (myCtx.sm2DigestCount == 0)
+                ret = WC_TEST_RET_ENC_NC;
+
+            if (ret == 0) {
+                ret = wc_ecc_sm2_sign_hash(sm2Za, (word32)sizeof(sm2Za),
+                    sm2Sig, &sm2SigLen, &sm2Rng, sm2KeyA);
+                if (ret != 0)
+                    ret = WC_TEST_RET_ENC_EC(ret);
+            }
+            if (ret == 0) {
+                ret = wc_ecc_sm2_verify_hash(sm2Sig, sm2SigLen, sm2Za,
+                    (word32)sizeof(sm2Za), &sm2Verify, sm2KeyA);
+                if (ret != 0)
+                    ret = WC_TEST_RET_ENC_EC(ret);
+                else if (sm2Verify != 1)
+                    ret = WC_TEST_RET_ENC_NC;
+            }
+        }
+    #endif /* WOLFSSL_SM3 */
+    #if defined(HAVE_ECC_DHE) && defined(ECC_TIMING_RESISTANT)
+        /* blinding needs an RNG on the key before the shared secret */
+        if (ret == 0 && !sm2Skip) {
+            ret = wc_ecc_set_rng(sm2KeyA, &sm2Rng);
+            if (ret == 0)
+                ret = wc_ecc_set_rng(sm2KeyB, &sm2Rng);
+            if (ret != 0)
+                ret = WC_TEST_RET_ENC_EC(ret);
+        }
+    #endif
+    #ifdef HAVE_ECC_DHE
+        if (ret == 0 && !sm2Skip) {
+            WC_DECLARE_VAR(sharedA, byte, ECC_SHARED_SIZE, HEAP_HINT);
+            WC_DECLARE_VAR(sharedB, byte, ECC_SHARED_SIZE, HEAP_HINT);
+            word32 sharedASz = ECC_SHARED_SIZE;
+            word32 sharedBSz = ECC_SHARED_SIZE;
+
+            WC_ALLOC_VAR_EX(sharedA, byte, ECC_SHARED_SIZE, HEAP_HINT,
+                DYNAMIC_TYPE_TMP_BUFFER, ret = WC_TEST_RET_ENC_EC(MEMORY_E));
+            if (ret == 0)
+                WC_ALLOC_VAR_EX(sharedB, byte, ECC_SHARED_SIZE, HEAP_HINT,
+                    DYNAMIC_TYPE_TMP_BUFFER,
+                    ret = WC_TEST_RET_ENC_EC(MEMORY_E));
+
+            if (ret == 0) {
+                ret = wc_ecc_sm2_shared_secret(sm2KeyA, sm2KeyB, sharedA,
+                    &sharedASz);
+                if (ret != 0)
+                    ret = WC_TEST_RET_ENC_EC(ret);
+            }
+            if (ret == 0) {
+                ret = wc_ecc_sm2_shared_secret(sm2KeyB, sm2KeyA, sharedB,
+                    &sharedBSz);
+                if (ret != 0)
+                    ret = WC_TEST_RET_ENC_EC(ret);
+            }
+            /* both sides go through the device and agree on the secret */
+            if (ret == 0 && (myCtx.sm2SecretCount == 0 ||
+                    sharedASz != sharedBSz ||
+                    XMEMCMP(sharedA, sharedB, sharedASz) != 0)) {
+                ret = WC_TEST_RET_ENC_NC;
+            }
+
+            WC_FREE_VAR_EX(sharedB, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            WC_FREE_VAR_EX(sharedA, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+    #endif /* HAVE_ECC_DHE */
+
+        if (sm2KeyBInit)
+            wc_ecc_free(sm2KeyB);
+        if (sm2KeyAInit)
+            wc_ecc_free(sm2KeyA);
+        if (sm2RngInit)
+            wc_FreeRng(&sm2Rng);
+        WC_FREE_VAR_EX(sm2Sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_VAR_EX(sm2KeyB, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_VAR_EX(sm2KeyA, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif /* WOLFSSL_SM2 && WOLFSSL_SM_CRYPTOCB */
 
 #if defined(WOLFSSL_CMAC) && defined(WOLF_CRYPTO_CB_FREE) && \
     !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT)
