@@ -12501,6 +12501,14 @@ static int TLSX_PreSharedKey_Write(PreSharedKey* list, byte* output,
         ret = TLSX_PreSharedKey_GetSizeBinders(list, msgType, &len);
         if (ret < 0)
             return ret;
+        /* Zero the reserved binder region rather than leaving it
+         * uninitialized.  For the outer ClientHello these bytes are
+         * overwritten by TLSX_PreSharedKey_WriteBinders(), but when ECH is
+         * enabled the inner ClientHello is hashed (expanded form), sealed
+         * (encoded form), and used as seal-time AAD (outer form) before
+         * WritePSKBinders() runs, so unwritten binder bytes would leak
+         * heap contents into the HPKE payload and taint the transcript. */
+        XMEMSET(output + idx, 0, len);
         *pSz += idx + len;
     }
     else if (msgType == server_hello) {

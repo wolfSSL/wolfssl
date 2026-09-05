@@ -2051,7 +2051,7 @@ int test_wc_XmssDecisionCoverage(void)
     ExpectIntGT((int)len, 0);
 #endif
 
-    /* wc_XmssKey_Verify: each NULL operand and mLen <= 0 (arg check before any
+    /* wc_XmssKey_Verify: each NULL operand and mLen < 0 (arg check before any
      * state/crypto). Independence: exactly one operand invalid per call. */
     {
         byte vsig[4] = {0};
@@ -2062,7 +2062,7 @@ int test_wc_XmssDecisionCoverage(void)
             (int)sizeof(vmsg)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wc_XmssKey_Verify(&key, vsig, sizeof(vsig), NULL,
             (int)sizeof(vmsg)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-        ExpectIntEQ(wc_XmssKey_Verify(&key, vsig, sizeof(vsig), vmsg, 0),
+        ExpectIntEQ(wc_XmssKey_Verify(&key, vsig, sizeof(vsig), vmsg, -1),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     }
 
@@ -2079,7 +2079,7 @@ int test_wc_XmssDecisionCoverage(void)
     ExpectIntEQ(wc_XmssKey_MakeKey(&key, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
-    /* wc_XmssKey_Sign: each NULL operand + mLen <= 0, all before crypto. */
+    /* wc_XmssKey_Sign: each NULL operand + mLen < 0, all before crypto. */
     {
         byte   ssig[4] = {0};
         word32 ssigSz  = sizeof(ssig);
@@ -2092,7 +2092,7 @@ int test_wc_XmssDecisionCoverage(void)
             (int)sizeof(smsg)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wc_XmssKey_Sign(&key, ssig, &ssigSz, NULL,
             (int)sizeof(smsg)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-        ExpectIntEQ(wc_XmssKey_Sign(&key, ssig, &ssigSz, smsg, 0),
+        ExpectIntEQ(wc_XmssKey_Sign(&key, ssig, &ssigSz, smsg, -1),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     }
 #endif /* !WOLFSSL_XMSS_VERIFY_ONLY */

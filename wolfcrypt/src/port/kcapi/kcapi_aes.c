@@ -208,9 +208,11 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     if (ret == 0) {
         aes->keylen = len;
         aes->rounds = len/4 + 6;
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
         /* Mark key installed so the shared aes.c mode guards accept this
          * context. */
         aes->keyInstalled = 1;
+#endif
 
         /* save key until type is known i.e. CBC, ECB, ... */
         XMEMCPY((byte*)(aes->devKey), key, len);

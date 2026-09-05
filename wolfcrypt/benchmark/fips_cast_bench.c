@@ -280,30 +280,40 @@ static int bench_pct_mlkem(int iters)
         0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB,
         0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB
     };
-    byte   kgrand[WC_ML_KEM_MAKEKEY_RAND_SZ];
-    byte   ss1[WC_ML_KEM_SS_SZ];
-    byte   ss2[WC_ML_KEM_SS_SZ];
-    byte*  ct;
+    WC_DECLARE_VAR(key, MlKemKey, 1, NULL);
+    WC_DECLARE_VAR(kgrand, byte, WC_ML_KEM_MAKEKEY_RAND_SZ, NULL);
+    WC_DECLARE_VAR(ss1, byte, WC_ML_KEM_SS_SZ, NULL);
+    WC_DECLARE_VAR(ss2, byte, WC_ML_KEM_SS_SZ, NULL);
+    byte*  ct = NULL;
     int    failures = 0;
     size_t t;
 
+    WC_ALLOC_VAR_EX(key, MlKemKey, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+                    { failures = MEMORY_E; goto out; });
+    WC_ALLOC_VAR_EX(kgrand, byte, WC_ML_KEM_MAKEKEY_RAND_SZ, NULL,
+                    DYNAMIC_TYPE_TMP_BUFFER, { failures = MEMORY_E; goto out; });
+    WC_ALLOC_VAR_EX(ss1, byte, WC_ML_KEM_SS_SZ, NULL,
+                    DYNAMIC_TYPE_TMP_BUFFER, { failures = MEMORY_E; goto out; });
+    WC_ALLOC_VAR_EX(ss2, byte, WC_ML_KEM_SS_SZ, NULL,
+                    DYNAMIC_TYPE_TMP_BUFFER, { failures = MEMORY_E; goto out; });
     ct = (byte*)XMALLOC(WC_ML_KEM_MAX_CIPHER_TEXT_SIZE, NULL,
                         DYNAMIC_TYPE_TMP_BUFFER);
-    if (ct == NULL)
-        return MEMORY_E;
+    if (ct == NULL) {
+        failures = MEMORY_E;
+        goto out;
+    }
 
-    XMEMSET(kgrand, 0x5A, sizeof(kgrand));
+    XMEMSET(kgrand, 0x5A, WC_ML_KEM_MAKEKEY_RAND_SZ);
 
     pct_hdr("ML-KEM (FIPS 203)", "encapsulate + decapsulate + compare");
 
     for (t = 0; t < sizeof(types) / sizeof(types[0]); t++) {
-        MlKemKey  key;
         double kg_s = 0.0;
         double pct_s = 0.0;
         int       i;
         int       rc;
 
-        rc = wc_MlKemKey_Init(&key, types[t], NULL, INVALID_DEVID);
+        rc = wc_MlKemKey_Init(key, types[t], NULL, INVALID_DEVID);
         if (rc != 0) {
             pct_skip(names[t], rc);
             continue;
@@ -318,21 +328,21 @@ static int bench_pct_mlkem(int iters)
             kgrand[0] = (byte)i;
 
             t0 = bench_now();
-            rc = wc_MlKemKey_MakeKeyWithRandom(&key, kgrand,
-                    (int)sizeof(kgrand));
+            rc = wc_MlKemKey_MakeKeyWithRandom(key, kgrand,
+                    WC_ML_KEM_MAKEKEY_RAND_SZ);
             t1 = bench_now();
             if (rc != 0)
                 break;
             kg_s += bench_delta(t0, t1);
 
             t0 = bench_now();
-            rc = wc_MlKemKey_CipherTextSize(&key, &ctSz);
+            rc = wc_MlKemKey_CipherTextSize(key, &ctSz);
             if (rc == 0) {
-                rc = wc_MlKemKey_EncapsulateWithRandom(&key, ct, ss1, pct_m,
+                rc = wc_MlKemKey_EncapsulateWithRandom(key, ct, ss1, pct_m,
                         (int)sizeof(pct_m));
             }
             if (rc == 0)
-                rc = wc_MlKemKey_Decapsulate(&key, ss2, ct, ctSz);
+                rc = wc_MlKemKey_Decapsulate(key, ss2, ct, ctSz);
             if ((rc == 0) && (XMEMCMP(ss1, ss2, WC_ML_KEM_SS_SZ) != 0))
                 rc = ML_KEM_PCT_E;
             t1 = bench_now();
@@ -348,15 +358,21 @@ static int bench_pct_mlkem(int iters)
         else {
             failures += pct_row(names[t], kg_s, pct_s, iters);
         }
-        wc_MlKemKey_Free(&key);
+        wc_MlKemKey_Free(key);
     }
 
-    /* Fixed-seed material, not a live key, but leaving a shared secret on the
-     * stack of a FIPS benchmark costs nothing to avoid. */
-    XMEMSET(ss1, 0, sizeof(ss1));
-    XMEMSET(ss2, 0, sizeof(ss2));
-    XFREE(ct, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    /* Fixed-seed material, not a live key, but leaving a shared secret in
+     * the work buffers of a FIPS benchmark costs nothing to avoid. */
+    XMEMSET(ss1, 0, WC_ML_KEM_SS_SZ);
+    XMEMSET(ss2, 0, WC_ML_KEM_SS_SZ);
     printf("\n");
+
+out:
+    XFREE(ct, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(ss2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(ss1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(kgrand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return failures;
 }
 #endif /* WOLFSSL_HAVE_MLKEM */
@@ -371,36 +387,42 @@ static int bench_pct_mldsa(int iters)
     static const char* names[]  = { "ML-DSA-44", "ML-DSA-65", "ML-DSA-87" };
     static const byte  pct_msg[] = "wolfSSL ML-DSA PCT";
     static const byte  pct_seed[MLDSA_SEED_SZ] = { 0 };
-    byte   seed[MLDSA_SEED_SZ];
-    byte*  sig;
+    WC_DECLARE_VAR(key, wc_MlDsaKey, 1, NULL);
+    WC_DECLARE_VAR(seed, byte, MLDSA_SEED_SZ, NULL);
+    byte*  sig = NULL;
     int    failures = 0;
     size_t t;
 
+    WC_ALLOC_VAR_EX(key, wc_MlDsaKey, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+                    { failures = MEMORY_E; goto out; });
+    WC_ALLOC_VAR_EX(seed, byte, MLDSA_SEED_SZ, NULL,
+                    DYNAMIC_TYPE_TMP_BUFFER, { failures = MEMORY_E; goto out; });
     sig = (byte*)XMALLOC(MLDSA_MAX_SIG_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (sig == NULL)
-        return MEMORY_E;
+    if (sig == NULL) {
+        failures = MEMORY_E;
+        goto out;
+    }
 
-    XMEMSET(seed, 0x3C, sizeof(seed));
+    XMEMSET(seed, 0x3C, MLDSA_SEED_SZ);
 
     pct_hdr("ML-DSA (FIPS 204)", "sign + verify");
 
     for (t = 0; t < sizeof(levels) / sizeof(levels[0]); t++) {
-        wc_MlDsaKey key;
         double      kg_s = 0.0;
         double      pct_s = 0.0;
         int         i;
         int         rc;
         int         inited = 0;
 
-        rc = wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID);
+        rc = wc_MlDsaKey_Init(key, NULL, INVALID_DEVID);
         if (rc == 0) {
             inited = 1;
-            rc = wc_MlDsaKey_SetParams(&key, levels[t]);
+            rc = wc_MlDsaKey_SetParams(key, levels[t]);
         }
         if (rc != 0) {
             pct_skip(names[t], rc);
             if (inited)
-                wc_MlDsaKey_Free(&key);
+                wc_MlDsaKey_Free(key);
             continue;
         }
 
@@ -412,17 +434,17 @@ static int bench_pct_mldsa(int iters)
             seed[0] = (byte)i;
 
             t0 = bench_now();
-            rc = wc_MlDsaKey_MakeKeyFromSeed(&key, seed);
+            rc = wc_MlDsaKey_MakeKeyFromSeed(key, seed);
             t1 = bench_now();
             if (rc != 0)
                 break;
             kg_s += bench_delta(t0, t1);
 
             t0 = bench_now();
-            rc = wc_MlDsaKey_SignCtxWithSeed(&key, NULL, 0, sig, &sigSz,
+            rc = wc_MlDsaKey_SignCtxWithSeed(key, NULL, 0, sig, &sigSz,
                     pct_msg, (word32)sizeof(pct_msg), pct_seed);
             if (rc == 0) {
-                rc = wc_MlDsaKey_VerifyCtx(&key, sig, sigSz, NULL, 0, pct_msg,
+                rc = wc_MlDsaKey_VerifyCtx(key, sig, sigSz, NULL, 0, pct_msg,
                         (word32)sizeof(pct_msg), &res);
             }
             if ((rc == 0) && (res != 1))
@@ -440,11 +462,15 @@ static int bench_pct_mldsa(int iters)
         else {
             failures += pct_row(names[t], kg_s, pct_s, iters);
         }
-        wc_MlDsaKey_Free(&key);
+        wc_MlDsaKey_Free(key);
     }
 
-    XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     printf("\n");
+
+out:
+    XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(seed, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return failures;
 }
 #endif /* WOLFSSL_HAVE_MLDSA */

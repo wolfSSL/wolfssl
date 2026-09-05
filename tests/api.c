@@ -32585,7 +32585,14 @@ static int test_wolfSSL_crypto_policy_ciphers(void)
         ExpectIntEQ(rc, seclevel_list[i]);
 
         found = crypto_policy_cipher_found(ssl, "RC4", 0);
+#ifndef NO_RC4
+        /* RC4 suites are policy-permitted only at SECLEVEL 1 (legacy). */
         ExpectIntEQ(found, is_legacy);
+#else
+        /* RC4 not compiled in (e.g. FIPS builds): no RC4 suite can appear
+         * regardless of policy permission. */
+        ExpectIntEQ(found, 0);
+#endif
 
         /* We return a different cipher string depending on build settings. */
         #if !defined(WOLFSSL_CIPHER_INTERNALNAME) && \

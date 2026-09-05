@@ -427,7 +427,8 @@ int test_TLSX_CSR2_InitRequests_bounds(void)
 
     ExpectIntEQ(TLSX_UseCertificateStatusRequestV2(&ssl->extensions,
                 WOLFSSL_CSR2_OCSP, 0, ssl->heap, ssl->devId), WOLFSSL_SUCCESS);
-    ext = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST_V2);
+    if (EXPECT_SUCCESS())
+        ext = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST_V2);
     ExpectNotNull(ext);
 
     if (ext != NULL) {
@@ -474,7 +475,8 @@ int test_TLSX_CSR2_ForceRequest_bounds(void)
 
     ExpectIntEQ(TLSX_UseCertificateStatusRequestV2(&ssl->extensions,
                 WOLFSSL_CSR2_OCSP, 0, ssl->heap, ssl->devId), WOLFSSL_SUCCESS);
-    ext = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST_V2);
+    if (EXPECT_SUCCESS())
+        ext = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST_V2);
     ExpectNotNull(ext);
 
     if (ext != NULL) {
@@ -535,7 +537,8 @@ int test_TLSX_CSR_GetRequest_ex_bounds(void)
     ExpectNull(TLSX_CSR_GetRequest_ex(ssl->extensions, 0));
 
     /* csr != NULL, csr->ssl != NULL. */
-    TLSX_Remove(&ssl->extensions, TLSX_STATUS_REQUEST, ssl->heap);
+    if (EXPECT_SUCCESS())
+        TLSX_Remove(&ssl->extensions, TLSX_STATUS_REQUEST, ssl->heap);
     ExpectIntEQ(TLSX_UseCertificateStatusRequest(&ssl->extensions,
                 WOLFSSL_CSR_OCSP, 0, ssl, ssl->heap, ssl->devId),
                 WOLFSSL_SUCCESS);
@@ -576,14 +579,16 @@ int test_wolfSSL_make_eap_keys_bounds(void)
     /* ssl != NULL, ssl->arrays != NULL: wolfSSL_new() -> ReinitSSL() already
      * allocated it, so this is the default state. */
     ExpectNotNull(ssl->arrays);
-    ssl->specs.mac_algorithm = sha256_mac;
+    if (EXPECT_SUCCESS())
+        ssl->specs.mac_algorithm = sha256_mac;
     ExpectIntEQ(wolfSSL_make_eap_keys(ssl, key, sizeof(key), "label"), 0);
 
     /* ssl != NULL, ssl->arrays == NULL: FreeArrays() is what clears it in
      * real use, once the handshake has finished with the randoms/master
      * secret and no longer needs them - called directly here (WOLFSSL_LOCAL)
      * rather than running a full handshake just to reach the same state. */
-    FreeArrays(ssl, 0);
+    if (ssl != NULL)
+        FreeArrays(ssl, 0);
     ExpectNull(ssl->arrays);
     ExpectIntEQ(wolfSSL_make_eap_keys(ssl, key, sizeof(key), "label"),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -714,7 +719,8 @@ int test_BuildTlsHandshakeHash_bounds(void)
 
     /* All valid, mac_algorithm <= sha256_mac (sha256_mac itself): the
      * already-covered independence pair for the first operand. */
-    ssl->specs.mac_algorithm = sha256_mac;
+    if (EXPECT_SUCCESS())
+        ssl->specs.mac_algorithm = sha256_mac;
     hashLen = sizeof(hash);
     ExpectIntEQ(BuildTlsHandshakeHash(ssl, hash, &hashLen), 0);
     ExpectIntEQ(hashLen, WC_SHA256_DIGEST_SIZE);
@@ -723,7 +729,8 @@ int test_BuildTlsHandshakeHash_bounds(void)
      * 4), second operand true - still routes to the SHA-256 hash object
      * (populated regardless of the negotiated MAC, for exactly this kind of
      * lookup), not to an unbuilt BLAKE2b one. */
-    ssl->specs.mac_algorithm = blake2b_mac;
+    if (EXPECT_SUCCESS())
+        ssl->specs.mac_algorithm = blake2b_mac;
     hashLen = sizeof(hash);
     ExpectIntEQ(BuildTlsHandshakeHash(ssl, hash, &hashLen), 0);
     ExpectIntEQ(hashLen, WC_SHA256_DIGEST_SIZE);
@@ -942,7 +949,8 @@ int test_TLSX_Cookie_bounds(void)
      * independence for the second operand. hello_retry_request is not
      * "isRequest" (only client_hello/certificate_request are), so resp must
      * be set for TLSX_GetSize()/TLSX_Write() to not skip the extension. */
-    ext = TLSX_Find(ssl->extensions, TLSX_COOKIE);
+    if (EXPECT_SUCCESS())
+        ext = TLSX_Find(ssl->extensions, TLSX_COOKIE);
     ExpectNotNull(ext);
     if (ext != NULL)
         ext->resp = 1;
@@ -1158,11 +1166,14 @@ int test_TLSX_CSR_SetResponseWithStatusCB_bounds(void)
 
     /* ssl != NULL, SSL_CM(ssl) == NULL: second operand true, first false -
      * independence for the second operand. */
-    origCM = ssl->ctx->cm;
-    ssl->ctx->cm = NULL;
+    if ((ssl != NULL) && (ssl->ctx != NULL)) {
+        origCM = ssl->ctx->cm;
+        ssl->ctx->cm = NULL;
+    }
     ExpectIntEQ(TLSX_CSR_SetResponseWithStatusCB(ssl),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ssl->ctx->cm = origCM;
+    if (EXPECT_SUCCESS())
+        ssl->ctx->cm = origCM;
 
     /* ssl != NULL, SSL_CM(ssl) != NULL, ocsp == NULL (no stapling object
      * allocated yet): both operands of the first guard false, first

@@ -1462,10 +1462,18 @@ int wc_XmssKey_Sign(XmssKey* key, byte* sig, word32* sigLen, const byte* msg,
 {
     int ret = 0;
 
-    /* Validate parameters. */
-    if ((key == NULL) || (sig == NULL) || (sigLen == NULL) || (msg == NULL) ||
-            (msgLen <= 0)) {
+    /* Validate parameters.  A NULL msg is valid for the empty message
+     * (msgLen == 0), which RFC 8391 permits. */
+    if ((key == NULL) || (sig == NULL) || (sigLen == NULL) ||
+            ((msg == NULL) && (msgLen != 0)) || (msgLen < 0)) {
         ret = BAD_FUNC_ARG;
+    }
+    /* An empty message may be passed as (NULL, 0); canonicalize it to a
+     * readable stand-in so that downstream consumers -- hash updates and
+     * crypto callbacks -- never see a NULL pointer. */
+    if ((ret == 0) && (msg == NULL)) {
+        static const byte xmss_empty_msg = 0;
+        msg = &xmss_empty_msg;
     }
     /* Validate state. */
     if ((ret == 0) && (key->state == WC_XMSS_STATE_NOSIGS)) {
@@ -1967,9 +1975,18 @@ int wc_XmssKey_Verify(XmssKey* key, const byte* sig, word32 sigLen,
 {
     int ret = 0;
 
-    /* Validate parameters. */
-    if ((key == NULL) || (sig == NULL) || (m == NULL) || (mLen <= 0)) {
+    /* Validate parameters.  A NULL m is valid for the empty message
+     * (mLen == 0), which RFC 8391 permits. */
+    if ((key == NULL) || (sig == NULL) ||
+            ((m == NULL) && (mLen != 0)) || (mLen < 0)) {
         ret = BAD_FUNC_ARG;
+    }
+    /* An empty message may be passed as (NULL, 0); canonicalize it to a
+     * readable stand-in so that downstream consumers -- hash updates and
+     * crypto callbacks -- never see a NULL pointer. */
+    if ((ret == 0) && (m == NULL)) {
+        static const byte xmss_empty_msg = 0;
+        m = &xmss_empty_msg;
     }
     /* Validate state. */
     if ((ret == 0) && (key->state != WC_XMSS_STATE_OK) &&
