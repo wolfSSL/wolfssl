@@ -1,17 +1,22 @@
-# Cross-library compile testing
+# Cross-library compatibility testing
 
 Compile tests the wolfSSL product family (wolfSSH, wolfCLU, wolfTPM, wolfMQTT,
-wolfPKCS11, wolfProvider) against **this** wolfSSL, so a wolfSSL change that
-would stop a downstream product from *compiling* is caught in CI.
+wolfPKCS11, wolfProvider, wolfCOSE, wolfIP) against **this** wolfSSL, so a
+wolfSSL change that would stop a downstream product from *compiling* is caught
+in CI.
 
-**Compile only. There is no runtime testing here** (the product scripts run
-`make`, never `make check`). Each product is built twice: at the HEAD of its
-default branch and at its latest tagged release.
+Each product is built twice: at the HEAD of its default branch and at its
+latest tagged release. Most products use a small product adapter. wolfCOSE and
+wolfIP use their native Makefile commands inline in the reusable workflow and
+also run deterministic, unprivileged smoke tests after a successful HEAD build.
+Release tags retain compile-only coverage because their older runtime suites may
+not support the current wolfSSL baseline; privileged/network-emulator tests
+remain in those products' own CI.
 
 > Note: the workflow `.yml` files (the reusable engine `cross-library.yml` and
 > the per-product `cross-<product>.yml` callers) live in `.github/workflows/`
 > itself, because GitHub only discovers workflows directly in that directory,
-> not in subfolders. Everything else (these scripts) lives here.
+> not in subfolders. Shared helpers and legacy product adapters live here.
 
 ## Layout
 
@@ -35,11 +40,14 @@ The engine (`cross-library.yml`) runs one job in a clean container
    required `wolfssl_configure` flags and installs it to a local dir.
 4. **`resolve-ref.sh`** resolves the ref to build: the highest version tag
    (`ref_mode: latest`) or the default branch (`ref_mode: head`).
-5. **`<product>.sh`** clones the product at that ref and compiles it against the
-   installed wolfSSL (`--with-wolfssl=<install dir>`).
+5. The selected build mode clones the product at that ref and compiles it
+   against the installed wolfSSL. Script mode uses `<product>.sh`; Makefile mode
+   keeps the product's native build commands inline in `cross-library.yml`.
 6. If the compile fails, **`check-break.sh`** decides whether it was a
    *declared* break (allowed, tracked) or an *undeclared* one (job fails). See
    below.
+7. A Makefile-mode caller runs its inline smoke suite only after a successful
+   default-branch HEAD build. A smoke-test failure is always a failure.
 
 ## Scripts
 
@@ -50,7 +58,8 @@ The engine (`cross-library.yml`) runs one job in a clean container
 | `resolve-ref.sh <repo> <mode>` | Echo the ref for `head` (default branch) or `latest` (highest tag). |
 | `latest-tag.sh <repo>` | Poll the highest version tag (`git ls-remote --sort=-v:refname`, robust to mixed tag styles). |
 | `check-break.sh <product> <ref>` | Break declaration check (see below). |
-| `<product>.sh [-t <ref>] <install> <repo> [product_configure...]` | Per-product build. Most just call `cross_build_autotools`; `wolfprovider.sh` also passes `--with-openssl`. |
+| `<product>.sh [-t <ref>] <install> <repo> [product_configure...]` | Per-product build adapter for script mode. Most just call `cross_build_autotools`; `wolfprovider.sh` also passes `--with-openssl`. |
+| Inline `makefile` cases in `cross-library.yml` | Native Makefile build and maintained-HEAD smoke commands for wolfCOSE and wolfIP. |
 
 ## Break declarations
 
@@ -93,6 +102,9 @@ Because the token names the exact tag, it automatically stops matching once the
 product releases a newer tag, forcing a fresh, explicit declaration if the new
 release is still broken.
 
+Break declarations apply only to compile compatibility. If the maintained
+product HEAD compiles and then its optional smoke test fails, the job is red.
+
 The failure message depends on which leg broke:
 
 - **`latest` (a released tag)**: the tag is immutable, so the job explains the
@@ -107,8 +119,11 @@ The failure message depends on which leg broke:
 
 1. Copy an existing `cross-<product>.yml` caller and set `product`, `repo`,
    `wolfssl_configure` (the wolfSSL flags that product documents), optional
-   `product_configure`, `script`, and optional `apt_packages`.
-2. Add a `scripts/<product>.sh`. If it is a standard autotools project, it is
+   `product_configure`, `script`, and optional `apt_packages`. Script mode is
+   the default and uses `scripts/<product>.sh` when `script` is omitted; set
+   `script` explicitly only when its filename differs.
+2. Add a `scripts/<product>.sh` for script mode. If it is a standard autotools
+   project, it is
    just:
    ```sh
    #!/usr/bin/env bash
@@ -118,6 +133,10 @@ The failure message depends on which leg broke:
    ```
    Non-autotools products (see `wolfprovider.sh`) can `_prepare "$@"` and then
    run their own build steps.
+3. For a project whose own CI is Makefile-based, set `build_mode: makefile` and
+   add an explicitly allowlisted inline build and maintained-HEAD smoke case to
+   `cross-library.yml`. Keep privileged, hardware, and network-emulator flows
+   in the downstream project.
 
 Get each product's required `wolfssl_configure` from that product's own
 README or CI, not by guessing. The flags matter (e.g. wolfPKCS11 and
