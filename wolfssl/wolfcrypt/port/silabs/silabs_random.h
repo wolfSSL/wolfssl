@@ -23,13 +23,14 @@
 #ifndef _SILABS_RANDOM_H_
 #define _SILABS_RANDOM_H_
 
+#include <wolfssl/wolfcrypt/settings.h>
 
-#if defined(WOLFSSL_SILABS_SE_ACCEL)
+#if defined(WOLFSSL_SILABS_SE_TYPES)
 
 #include <wolfssl/wolfcrypt/types.h>
 
 int silabs_GenerateRand(byte* output, word32 sz);
 
-#endif /* WOLFSSL_SILABS_SE_ACCEL */
+#endif /* WOLFSSL_SILABS_SE_TYPES */
 
 #endif /* _SILABS_RANDOM_H_ */

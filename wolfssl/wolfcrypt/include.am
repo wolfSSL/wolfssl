@@ -122,10 +122,6 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/caam/caam_driver.h \
                          wolfssl/wolfcrypt/port/caam/caam_error.h \
                          wolfssl/wolfcrypt/port/caam/caam_qnx.h \
-                         wolfssl/wolfcrypt/port/silabs/silabs_aes.h \
-                         wolfssl/wolfcrypt/port/silabs/silabs_ecc.h \
-                         wolfssl/wolfcrypt/port/silabs/silabs_hash.h \
-                         wolfssl/wolfcrypt/port/silabs/silabs_random.h \
                          wolfssl/wolfcrypt/port/st/stm32.h \
                          wolfssl/wolfcrypt/port/st/stsafe.h \
                          wolfssl/wolfcrypt/port/realtek/rtl8735b.h \
@@ -148,6 +144,17 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/libwolfssl_sources.h \
                          wolfssl/wolfcrypt/libwolfssl_sources_asm.h
 
+
+# Installed unconditionally: settings.h includes silabs_settings.h whenever
+# WOLFSSL_SILABS_CRYPTOCB is set, so a consumer of an installed tree needs it
+# (and, through silabs_cryptocb.h, the host shim) to preprocess wolfssl/ssl.h.
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/silabs/silabs_aes.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/silabs/silabs_ecc.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/silabs/silabs_hash.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/silabs/silabs_random.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/silabs/silabs_settings.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/silabs/silabs_cryptocb.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/silabs/silabs_shim.h
 
 if BUILD_CRYPTOAUTHLIB
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/atmel/atmel.h

@@ -29,7 +29,7 @@ int test_wc_CryptoCb_AsyncPollAesCbc(void);
 int test_wc_CryptoCb_AsyncPollAesCcm(void);
 int test_wc_CryptoCb_AsyncPollDes3(void);
 int test_wc_CryptoCb_AsyncPollUnsupported(void);
-int test_wc_CryptoCb_AsyncPollChachaUnimpl(void);
+int test_wc_CryptoCb_AsyncPollChachaDeclined(void);
 int test_wc_CryptoCb_AsyncPollDesUnimpl(void);
 int test_wc_CryptoCb_AsyncPollTlsAesGcm(void);
 int test_wc_CryptoCb_AsyncPollTlsChachaNotOffloaded(void);
@@ -42,7 +42,7 @@ int test_wc_CryptoCb_AsyncPollTlsBothDirections(void);
     TEST_DECL_GROUP("async", test_wc_CryptoCb_AsyncPollAesCcm),         \
     TEST_DECL_GROUP("async", test_wc_CryptoCb_AsyncPollDes3),           \
     TEST_DECL_GROUP("async", test_wc_CryptoCb_AsyncPollUnsupported),    \
-    TEST_DECL_GROUP("async", test_wc_CryptoCb_AsyncPollChachaUnimpl),   \
+    TEST_DECL_GROUP("async", test_wc_CryptoCb_AsyncPollChachaDeclined), \
     TEST_DECL_GROUP("async", test_wc_CryptoCb_AsyncPollDesUnimpl),      \
     TEST_DECL_GROUP("async", test_wc_CryptoCb_AsyncPollTlsAesGcm),      \
     TEST_DECL_GROUP("async",                                            \

@@ -666,13 +666,12 @@ int test_wc_CryptoCb_AsyncPollUnsupported(void)
 }
 
 /*
- * Negative test: ChaCha20-Poly1305 is named in the crypto callback cipher type
- * table (WC_CIPHER_CHACHA) but has no dispatch, so it is NOT offloadable. With
- * a device registered, a ChaCha20-Poly1305 encrypt must never enter the
- * callback and must run entirely in software. If crypto callback ChaCha
- * support is ever added, this test will fail and must be updated.
+ * ChaCha20-Poly1305 dispatches to the crypto callback (WC_CIPHER_CHACHA), so a
+ * registered device is offered the operation. This device does not implement
+ * ChaCha, so it declines with CRYPTOCB_UNAVAILABLE and the encrypt completes in
+ * software: the callback is entered once but nothing is submitted or polled.
  */
-int test_wc_CryptoCb_AsyncPollChachaUnimpl(void)
+int test_wc_CryptoCb_AsyncPollChachaDeclined(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WOLF_CRYPTO_CB) && \
@@ -698,10 +697,21 @@ int test_wc_CryptoCb_AsyncPollChachaUnimpl(void)
     if (EXPECT_SUCCESS())
         registered = 1;
 
-    /* no crypto callback dispatch for ChaCha: runs in software, cb untouched */
+    /* offered to the device, declined, then completed in software */
     ExpectIntEQ(wc_ChaCha20Poly1305_Encrypt(key, iv,
         test_async_aad12(), 12, test_async_plain32(), 32, out, tag), 0);
+    /* The one-shot AEAD carries no devId and is offered to whichever device
+     * holds callback slot 0. Only assert this device was reached when it
+     * actually owns that slot: a port registered from wolfCrypt_Init (SiLabs
+     * SE, Versal ASU, ...) legitimately holds it in some configurations. */
+#ifdef WOLF_CRYPTO_CB_CHACHA_KEYLESS
+    if (wc_CryptoCb_GetDevIdAtIndex(0) == TEST_ASYNC_HSM_DEVID) {
+        ExpectIntEQ(hsm.invocations, 1);
+    }
+#else
+    /* Without the keyless opt-in the AEAD never reaches a device at all. */
     ExpectIntEQ(hsm.invocations, 0);
+#endif
     ExpectIntEQ(hsm.submits, 0);
     ExpectIntEQ(hsm.polls, 0);
 

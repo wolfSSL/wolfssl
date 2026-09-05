@@ -471,6 +471,10 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
 #endif
 #ifdef WOLF_CRYPTO_CB
     #include <wolfssl/wolfcrypt/cryptocb.h>
+#ifdef WOLFSSL_SILABS_CRYPTOCB
+    /* For WOLFSSL_SILABS_WRAPPED_KEYS_API and the wc_SilabsSe_* prototypes. */
+    #include <wolfssl/wolfcrypt/port/silabs/silabs_cryptocb.h>
+#endif
     #ifdef HAVE_INTEL_QA_SYNC
         #include <wolfssl/wolfcrypt/port/intel/quickassist_sync.h>
     #endif
@@ -80337,6 +80341,14 @@ typedef struct {
 #if defined(WC_RSA_PSS) && defined(WOLF_CRYPTO_CB_RSA_PAD)
     int rsaPssVerifyCount; /* RSA-PSS verify callback invocations */
 #endif
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+    int chachaPolyEncCount; /* ChaCha20-Poly1305 encrypt cb invocations */
+    int chachaPolyDecCount; /* ChaCha20-Poly1305 decrypt cb invocations */
+#endif
+#if (defined(HAVE_PBKDF2) && !defined(NO_HMAC) && !defined(NO_PWDBASED))
+    int pbkdf2Count;      /* PBKDF2 callback invocations */
+    int pbkdf2Decline;    /* when set, decline so software fallback runs */
+#endif
 } myCryptoDevCtx;
 
 #ifdef WOLF_CRYPTO_CB_ONLY_RSA
@@ -82805,6 +82817,53 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         }
     #endif /* !NO_DES3 */
 #endif /* !NO_AES || !NO_DES3 */
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+        if (info->cipher.type == WC_CIPHER_CHACHA) {
+            ChaCha   chacha;
+            Poly1305 poly;
+
+            /* The one-shot AEAD carries no key object and so no devId to
+             * blank out. Forward through the _ex entry points, which have no
+             * callback hook, instead of recursing into the one-shot. */
+            if (info->cipher.enc) {
+                ret = wc_Chacha_SetKey(&chacha,
+                    info->cipher.chacha20_poly1305_enc.inKey,
+                    CHACHA20_POLY1305_AEAD_KEYSIZE);
+                if (ret == 0) {
+                    ret = wc_ChaCha20Poly1305_Encrypt_ex(&chacha, &poly,
+                        info->cipher.chacha20_poly1305_enc.out,
+                        info->cipher.chacha20_poly1305_enc.in,
+                        info->cipher.chacha20_poly1305_enc.inSz,
+                        info->cipher.chacha20_poly1305_enc.inIV,
+                        info->cipher.chacha20_poly1305_enc.outAuthTag,
+                        info->cipher.chacha20_poly1305_enc.inAAD,
+                        info->cipher.chacha20_poly1305_enc.inAADSz);
+                }
+                if (ret == 0)
+                    myCtx->chachaPolyEncCount++;
+            }
+            else {
+                ret = wc_Chacha_SetKey(&chacha,
+                    info->cipher.chacha20_poly1305_dec.inKey,
+                    CHACHA20_POLY1305_AEAD_KEYSIZE);
+                if (ret == 0) {
+                    ret = wc_ChaCha20Poly1305_Decrypt_ex(&chacha, &poly,
+                        info->cipher.chacha20_poly1305_dec.out,
+                        info->cipher.chacha20_poly1305_dec.in,
+                        info->cipher.chacha20_poly1305_dec.inSz,
+                        info->cipher.chacha20_poly1305_dec.inIV,
+                        info->cipher.chacha20_poly1305_dec.inAuthTag,
+                        info->cipher.chacha20_poly1305_dec.inAAD,
+                        info->cipher.chacha20_poly1305_dec.inAADSz);
+                }
+                if (ret == 0)
+                    myCtx->chachaPolyDecCount++;
+            }
+
+            ForceZero(&chacha, sizeof(chacha));
+            ForceZero(&poly, sizeof(poly));
+        }
+#endif /* HAVE_CHACHA && HAVE_POLY1305 */
     }
 #if !defined(NO_SHA) || !defined(NO_SHA256) || \
     defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512)
@@ -84010,6 +84069,24 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
            NULL, INVALID_DEVID);
         }
     #endif /* HAVE_CMAC_KDF */
+    #if (defined(HAVE_PBKDF2) && !defined(NO_HMAC) && !defined(NO_PWDBASED))
+        if (info->kdf.type == WC_KDF_TYPE_PBKDF2) {
+            if (myCtx->pbkdf2Decline) {
+                /* Exercise the decline path: wc_PBKDF2_ex must fall through to
+                 * its own software implementation and still be correct. */
+                return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+            }
+            /* Redirect to software implementation for testing. Passing
+             * INVALID_DEVID keeps wc_PBKDF2_ex from dispatching back here. */
+            ret = wc_PBKDF2_ex(info->kdf.pbkdf2.output,
+                info->kdf.pbkdf2.passwd, info->kdf.pbkdf2.pLen,
+                info->kdf.pbkdf2.salt, info->kdf.pbkdf2.sLen,
+                info->kdf.pbkdf2.iterations, info->kdf.pbkdf2.kLen,
+                info->kdf.pbkdf2.hashType, NULL, INVALID_DEVID);
+            if (ret == 0)
+                myCtx->pbkdf2Count++;
+        }
+    #endif /* HAVE_PBKDF2 && !NO_HMAC && !NO_PWDBASED */
     }
 #if defined(WOLFSSL_SHE) && !defined(NO_AES)
     else if (info->algo_type == WC_ALGO_TYPE_SHE) {
@@ -84296,6 +84373,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 #if defined(WC_RSA_PSS) && defined(WOLF_CRYPTO_CB_RSA_PAD)
     myCtx.rsaPssVerifyCount = 0;
 #endif
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+    myCtx.chachaPolyEncCount = 0;
+    myCtx.chachaPolyDecCount = 0;
+#endif
+#if (defined(HAVE_PBKDF2) && !defined(NO_HMAC) && !defined(NO_PWDBASED))
+    myCtx.pbkdf2Count = 0;
+    myCtx.pbkdf2Decline = 0;
+#endif
 
     /* set devId to something other than INVALID_DEVID */
     devId = 1;
@@ -84321,6 +84406,205 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     if (ret == 0)
         ret = rsa_onlycb_test(&myCtx);
     PRIVATE_KEY_LOCK();
+#endif
+#if defined(WOLFSSL_SILABS_CRYPTOCB) && \
+    defined(WOLFSSL_SILABS_WRAPPED_KEYS_API) && \
+    defined(WOLFSSL_SILABS_CRYPTOCB_CIPHER) && !defined(NO_AES)
+    /* Argument handling of the Secure Vault key APIs. These checks all run
+     * before the Secure Element is consulted, so they are meaningful on a host
+     * build where the SE is a shim that declines everything; the behavioural
+     * side (generate, bind, use, export) needs real silicon or an injectable
+     * shim and is covered on device. */
+    if (ret == 0) {
+        Aes    vaultAes;
+        word32 wrappedSz = 0;
+        byte   blob[64];
+
+        /* NULL out-size, and key sizes the SE has no type for. */
+        if (wc_SilabsSe_AesGetWrappedKeySize(256, NULL) !=
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ret = WC_TEST_RET_ENC_NC;
+        if (ret == 0 && wc_SilabsSe_AesGetWrappedKeySize(0, &wrappedSz) == 0)
+            ret = WC_TEST_RET_ENC_NC;
+        if (ret == 0 && wc_SilabsSe_AesGetWrappedKeySize(64, &wrappedSz) == 0)
+            ret = WC_TEST_RET_ENC_NC;
+        if (ret == 0 && wc_SilabsSe_AesGetWrappedKeySize(255, &wrappedSz) == 0)
+            ret = WC_TEST_RET_ENC_NC;
+
+        /* Binding rejects NULL arguments and an implausible blob length
+         * before it touches the Aes, so the object stays usable. */
+        if (ret == 0 && wc_AesInit(&vaultAes, HEAP_HINT, devId) != 0)
+            ret = WC_TEST_RET_ENC_NC;
+        if (ret == 0) {
+            if (wc_SilabsSe_AesUseWrappedKey(NULL, blob, sizeof(blob), 256)
+                    != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+                ret = WC_TEST_RET_ENC_NC;
+            if (ret == 0 &&
+                wc_SilabsSe_AesUseWrappedKey(&vaultAes, NULL, sizeof(blob),
+                    256) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+                ret = WC_TEST_RET_ENC_NC;
+            if (ret == 0 &&
+                wc_SilabsSe_AesUseWrappedKey(&vaultAes, blob, 1, 256) == 0)
+                ret = WC_TEST_RET_ENC_NC;
+            /* A rejected bind must not have marked the object resident. */
+            if (ret == 0 && vaultAes.ctx.keySet != 0)
+                ret = WC_TEST_RET_ENC_NC;
+            wc_AesFree(&vaultAes);
+        }
+    }
+#endif
+
+#ifndef NO_SHA256
+    /* Hash objects are initialised field by field, not by zeroing the struct,
+     * so a port that hangs lazy-init state off the object has to clear it
+     * itself. Start from deliberately dirty storage: if that sentinel is not
+     * reset, the device skips its own initialisation and the digest is wrong. */
+    if (ret == 0) {
+        WOLFSSL_SMALL_STACK_STATIC const byte abc[] = { 0x61, 0x62, 0x63 };
+        WOLFSSL_SMALL_STACK_STATIC const byte abcHash[] = {
+            0xBA,0x78,0x16,0xBF,0x8F,0x01,0xCF,0xEA,
+            0x41,0x41,0x40,0xDE,0x5D,0xAE,0x22,0x23,
+            0xB0,0x03,0x61,0xA3,0x96,0x17,0x7A,0x9C,
+            0xB4,0x10,0xFF,0x61,0xF2,0x00,0x15,0xAD
+        };
+        wc_Sha256 dirty;
+        byte      digest[WC_SHA256_DIGEST_SIZE];
+
+        XMEMSET(&dirty, 0xA5, sizeof(dirty));
+        if (wc_InitSha256_ex(&dirty, HEAP_HINT, devId) != 0)
+            ret = WC_TEST_RET_ENC_NC;
+#ifdef WOLFSSL_SILABS_CRYPTOCB
+        /* Assert the sentinel directly. The digest check below cannot see this
+         * on a host build, where the shim declines every SE command so the
+         * lazy-init flag is never set in the first place; only a real Secure
+         * Element would surface it through a wrong digest. */
+        if (ret == 0 && dirty.silabsCtx.started != 0)
+            ret = WC_TEST_RET_ENC_NC;
+#endif
+        if (ret == 0 && wc_Sha256Update(&dirty, abc, (word32)sizeof(abc)) != 0)
+            ret = WC_TEST_RET_ENC_NC;
+        if (ret == 0 && wc_Sha256Final(&dirty, digest) != 0)
+            ret = WC_TEST_RET_ENC_NC;
+        if (ret == 0 && XMEMCMP(digest, abcHash, sizeof(digest)) != 0)
+            ret = WC_TEST_RET_ENC_NC;
+        wc_Sha256Free(&dirty);
+    }
+#endif
+
+#if (defined(HAVE_PBKDF2) && !defined(NO_HMAC) && !defined(NO_PWDBASED))
+    if (ret == 0)
+        ret = pbkdf2_test();
+    /* Confirm the derivation actually crossed the callback boundary. */
+    if (ret == 0 && myCtx.pbkdf2Count == 0)
+        ret = WC_TEST_RET_ENC_NC;
+    /* And that declining hands the work back to software correctly: derive the
+     * same key with the device declining and with no device at all, and require
+     * both to match. A fallback that returned the device error, or produced
+     * wrong output, fails here. */
+    if (ret == 0) {
+        WOLFSSL_SMALL_STACK_STATIC const byte pwd[] = "passwordPASSWORD";
+        WOLFSSL_SMALL_STACK_STATIC const byte salt[] = "saltSALTsaltSALT";
+        byte viaCb[24];
+        byte viaSw[24];
+        int  cbRet;
+        int  swRet;
+
+        myCtx.pbkdf2Decline = 1;
+        cbRet = wc_PBKDF2_ex(viaCb, pwd, (int)XSTRLEN((const char*)pwd),
+            salt, (int)XSTRLEN((const char*)salt), 128, (int)sizeof(viaCb),
+            WC_SHA256, NULL, devId);
+        myCtx.pbkdf2Decline = 0;
+
+        swRet = wc_PBKDF2_ex(viaSw, pwd, (int)XSTRLEN((const char*)pwd),
+            salt, (int)XSTRLEN((const char*)salt), 128, (int)sizeof(viaSw),
+            WC_SHA256, NULL, INVALID_DEVID);
+
+        if (cbRet != 0 || swRet != 0)
+            ret = WC_TEST_RET_ENC_NC;
+        else if (XMEMCMP(viaCb, viaSw, sizeof(viaCb)) != 0)
+            ret = WC_TEST_RET_ENC_NC;
+    }
+#endif
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+    if (ret == 0)
+        ret = chacha20_poly1305_aead_test();
+    /* The AEAD one-shot carries no devId, so it dispatches to whichever device
+     * occupies index 0. Only assert the callback was reached when that is this
+     * test's device: a port registered from wolfCrypt_Init (SiLabs SE, Versal
+     * ASU, ...) legitimately holds the keyless slot instead, and declining
+     * there sends the operation to software rather than on to index 1. */
+#ifdef WOLF_CRYPTO_CB_CHACHA_KEYLESS
+    if (ret == 0 && wc_CryptoCb_GetDevIdAtIndex(0) == devId) {
+        if (myCtx.chachaPolyEncCount == 0 || myCtx.chachaPolyDecCount == 0)
+            ret = WC_TEST_RET_ENC_NC;
+    }
+#endif
+    /* AEAD decrypt must fail closed through the callback, not just in
+     * software. A device whose ChaCha20-Poly1305 decrypt returned success on a
+     * tampered tag would otherwise pass this suite unnoticed, so corrupt each
+     * authenticated input in turn and require MAC_CMP_FAILED_E every time and
+     * no plaintext left behind. */
+    if (ret == 0 && wc_CryptoCb_GetDevIdAtIndex(0) == devId) {
+        WOLFSSL_SMALL_STACK_STATIC const byte cpKey[CHACHA20_POLY1305_AEAD_KEYSIZE] = {
+            0x80,0x81,0x82,0x83,0x84,0x85,0x86,0x87,
+            0x88,0x89,0x8a,0x8b,0x8c,0x8d,0x8e,0x8f,
+            0x90,0x91,0x92,0x93,0x94,0x95,0x96,0x97,
+            0x98,0x99,0x9a,0x9b,0x9c,0x9d,0x9e,0x9f
+        };
+        WOLFSSL_SMALL_STACK_STATIC const byte cpIV[CHACHA20_POLY1305_AEAD_IV_SIZE] = {
+            0x07,0x00,0x00,0x00,0x40,0x41,0x42,0x43,0x44,0x45,0x46,0x47
+        };
+        WOLFSSL_SMALL_STACK_STATIC const byte cpAAD[] = {
+            0x50,0x51,0x52,0x53,0xc0,0xc1,0xc2,0xc3,0xc4,0xc5,0xc6,0xc7
+        };
+        byte cpPlain[16];
+        byte cpCipher[16];
+        byte cpOut[16];
+        byte cpTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE];
+        int  i;
+
+        XMEMSET(cpPlain, 0xA5, sizeof(cpPlain));
+        ret = wc_ChaCha20Poly1305_Encrypt(cpKey, cpIV, cpAAD, sizeof(cpAAD),
+            cpPlain, sizeof(cpPlain), cpCipher, cpTag);
+
+        /* i = 0 tamper the tag, 1 the ciphertext, 2 the AAD */
+        for (i = 0; ret == 0 && i < 3; i++) {
+            byte badAAD[sizeof(cpAAD)];
+            byte badCipher[sizeof(cpCipher)];
+            byte badTag[sizeof(cpTag)];
+            int  decRet;
+
+            XMEMCPY(badAAD, cpAAD, sizeof(badAAD));
+            XMEMCPY(badCipher, cpCipher, sizeof(badCipher));
+            XMEMCPY(badTag, cpTag, sizeof(badTag));
+            if (i == 0)
+                badTag[0] ^= 0x01;
+            else if (i == 1)
+                badCipher[0] ^= 0x01;
+            else
+                badAAD[0] ^= 0x01;
+
+            XMEMSET(cpOut, 0x5A, sizeof(cpOut));
+            decRet = wc_ChaCha20Poly1305_Decrypt(cpKey, cpIV,
+                badAAD, sizeof(badAAD), badCipher, sizeof(badCipher),
+                badTag, cpOut);
+            if (decRet != WC_NO_ERR_TRACE(MAC_CMP_FAILED_E)) {
+                ret = WC_TEST_RET_ENC_NC;
+            }
+            else {
+                /* The whole buffer must be zeroed, not merely different from
+                 * the plaintext: leaving the sentinel untouched, or clearing
+                 * only part of it, is still a leak of unauthenticated data. */
+                word32 z;
+                for (z = 0; z < (word32)sizeof(cpOut); z++) {
+                    if (cpOut[z] != 0) {
+                        ret = WC_TEST_RET_ENC_NC;
+                        break;
+                    }
+                }
+            }
+        }
+    }
 #endif
 #if defined(HAVE_ECC)
     PRIVATE_KEY_UNLOCK();

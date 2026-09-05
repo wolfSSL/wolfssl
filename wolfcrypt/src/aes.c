@@ -6136,6 +6136,14 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
             return BAD_FUNC_ARG;
         }
 
+    #ifdef WOLFSSL_SILABS_SE_TYPES
+        /* Installing a plaintext key supersedes any device-resident key bound
+         * by wc_SilabsSe_AesUse*Key(). Without clearing the binding the Secure
+         * Element would keep using the key it still holds while the caller
+         * believes this new one is in effect. */
+        aes->ctx.keySet = 0;
+    #endif
+
     /* sometimes hardware may not support all keylengths (e.g. ESP32-S3) */
     #if defined(WOLFSSL_ESPIDF) && defined(NEED_AES_HW_FALLBACK)
         ESP_LOGV(TAG, "wc_AesSetKey fallback check %d", keylen);
