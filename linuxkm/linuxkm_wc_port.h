@@ -2419,6 +2419,13 @@
         #if defined(USE_KVREALLOC) || !defined(USE_KVMALLOC)
             #define XREALLOC(p, n, h, t) __extension__ ({(void)(h); (void)(t); realloc(p, n);})
         #endif
+        /* The default linuxkm malloc wrappers (see above) assure adequate
+         * alignment.  In particular we do not need to worry about alignments
+         * larger than the allocation size, so rounded-up-size-based alignment
+         * is enough. */
+        #define XMEMALIGN(a, s, h, t)     ((void)(a), (void)(h), (void)(t), malloc(s))
+        #define XFREEALIGN(p, h, t)   do { (void)(h); (void)(t); free(p); } while (0)
+
     #endif /* !XMALLOC_USER && !XMALLOC_OVERRIDE */
 #endif
 
