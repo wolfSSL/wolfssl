@@ -252,6 +252,12 @@ if BUILD_SE050
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/nxp/se050_port.h
 endif
 
+if BUILD_SEC_QORIQ
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/nxp/sec_qoriq.h
+else
+noinst_HEADERS+= wolfssl/wolfcrypt/port/nxp/sec_qoriq.h
+endif
+
 if BUILD_TROPIC01
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/tropicsquare/tropic01.h
 endif

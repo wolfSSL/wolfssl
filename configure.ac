@@ -4723,6 +4723,40 @@ then
     done
 fi
 
+# NXP QorIQ SEC (the PowerPC T-series security engine, a CAAM derivative).
+# Takes a comma separated list selecting the environment backend, e.g.
+#   --enable-sec-qoriq=baremetal
+# "sim" selects the host-runnable simulated backend used by the in-tree
+# tests; it needs no hardware and runs on any architecture.
+AC_ARG_ENABLE([sec-qoriq],
+    [AS_HELP_STRING([--enable-sec-qoriq],[Enable wolfSSL support for the NXP QorIQ SEC engine, T1040/T2080 (default: disabled)])],
+    [ ENABLED_SEC_QORIQ=$enableval ],
+    [ ENABLED_SEC_QORIQ=no ]
+    )
+
+if test "$ENABLED_SEC_QORIQ" != "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SEC_QORIQ"
+
+    for v in `echo $ENABLED_SEC_QORIQ | tr "," " "`
+    do
+      case $v in
+        yes | baremetal)
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SEC_QORIQ_BAREMETAL"
+            ;;
+        linux)
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SEC_QORIQ_LINUX"
+            ;;
+        sim)
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SEC_QORIQ_SIM"
+            ;;
+        *)
+            AC_MSG_ERROR([Invalid choice for --enable-sec-qoriq: $v (want baremetal, linux or sim)])
+            ;;
+      esac
+    done
+fi
+
 AC_ARG_ENABLE([caam],
     [AS_HELP_STRING([--enable-caam],[Enable wolfSSL support for CAAM (default: disabled)])],
     [ ENABLED_CAAM=$enableval ],
@@ -5542,10 +5576,35 @@ fi
 
 # KEY GENERATION
 AC_ARG_ENABLE([keygen],
-    [AS_HELP_STRING([--enable-keygen],[Enable key generation (only applies to RSA key generation) (default: disabled)])],
+    [AS_HELP_STRING([--enable-keygen],[Enable key generation. Takes yes, no, or a comma separated list of: all, no-dh-params (drop DH domain parameter generation, keeping DH key generation; protocols use the fixed FFDHE groups) (default: disabled)])],
     [ ENABLED_KEYGEN=$enableval ],
     [ ENABLED_KEYGEN=no ]
     )
+
+# Expand the list form of --enable-keygen into the individual sub-features.
+ENABLED_DH_GEN_PARAMS=yes
+if test "$ENABLED_KEYGEN" != "no" && test "$ENABLED_KEYGEN" != "yes"
+then
+    for kg in `echo $ENABLED_KEYGEN | tr ',' ' '`
+    do
+        case $kg in
+        all)
+            ;;
+        no-dh-params | nodhparams | nodhparamgen)
+            ENABLED_DH_GEN_PARAMS=no
+            ;;
+        *)
+            AC_MSG_ERROR([Invalid choice for --enable-keygen: $kg. Use yes, no, all or no-dh-params.])
+            ;;
+        esac
+    done
+    ENABLED_KEYGEN=yes
+fi
+
+if test "$ENABLED_DH_GEN_PARAMS" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_DH_GEN_PARAMS"
+fi
 
 if test "$ENABLED_BIND" = "yes" || test "$ENABLED_NTP" = "yes" || \
    test "$ENABLED_LIBSSH2" = "yes" || test "$ENABLED_OPENRESTY" = "yes" || \
@@ -11693,7 +11752,7 @@ then
     fi
 fi
 
-if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes" || test "$ENABLED_CAAM" != "no" || test "x$ENABLED_RTL8735B" != "xno" || test "x$ENABLED_VAULTIC" = "xyes"
+if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes" || test "$ENABLED_CAAM" != "no" || test "$ENABLED_SEC_QORIQ" != "no" || test "x$ENABLED_RTL8735B" != "xno" || test "x$ENABLED_VAULTIC" = "xyes"
 then
     ENABLED_CRYPTOCB=yes
 fi
@@ -13595,6 +13654,7 @@ AM_CONDITIONAL([BUILD_BENCHMARK],[test "$ENABLED_BENCHMARK" = "yes"])
 AM_CONDITIONAL([BUILD_RC2],[test "x$ENABLED_RC2" = "xyes"])
 AM_CONDITIONAL([BUILD_CUDA],[test "x$ENABLED_CUDA" = "xyes"])
 AM_CONDITIONAL([BUILD_CAAM],[test "x$ENABLED_CAAM" != "xno"])
+AM_CONDITIONAL([BUILD_SEC_QORIQ],[test "x$ENABLED_SEC_QORIQ" != "xno"])
 AM_CONDITIONAL([BUILD_QNXCAAM],[test "x$ENABLED_CAAM_QNX" = "xyes"])
 AM_CONDITIONAL([BUILD_IOTSAFE],[test "x$ENABLED_IOTSAFE" = "xyes"])
 AM_CONDITIONAL([BUILD_IOTSAFE_HWRNG],[test "x$ENABLED_IOTSAFE_HWRNG" = "xyes"])
@@ -14019,6 +14079,7 @@ echo "   * BLAKE2S:                    $ENABLED_BLAKE2S"
 echo "   * SipHash:                    $ENABLED_SIPHASH"
 echo "   * CMAC:                       $ENABLED_CMAC"
 echo "   * keygen:                     $ENABLED_KEYGEN"
+echo "   * DH parameter generation:    $ENABLED_DH_GEN_PARAMS"
 echo "   * acert:                      $ENABLED_ACERT"
 echo "   * certgen:                    $ENABLED_CERTGEN"
 echo "   * certreq:                    $ENABLED_CERTREQ"

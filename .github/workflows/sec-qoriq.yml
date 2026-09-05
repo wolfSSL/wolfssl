@@ -1,0 +1,72 @@
+name: NXP QorIQ SEC port
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'release/**' ]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+# END OF COMMON SECTION
+
+# The simulated backend (--enable-sec-qoriq=sim) models the SEC job ring on
+# the build host, so the driver's submission, timeout, reset-escalation and
+# status-decoding logic plus AES/GCM/hash/RNG/modexp known answers run under
+# make check with fault injection and no hardware. The cross jobs keep the
+# real PowerPC backends compiling. A real-hardware smoke gate (T2080/T1040
+# known-answer harness) remains outside CI; see the port README.
+jobs:
+  sec_qoriq_sim:
+    name: simulated backend, autotools and cmake
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: autotools build and check
+        run: |
+          ./autogen.sh
+          ./configure --enable-sec-qoriq=sim --enable-aesctr \
+            --enable-aesecb --enable-keygen
+          make -j
+          make check
+          make distclean
+
+      - name: cmake build and wolfCrypt test
+        run: |
+          cmake -B build-cmake -DWOLFSSL_SEC_QORIQ=sim -DWOLFSSL_EXAMPLES=no
+          cmake --build build-cmake -j
+          cd build-cmake && ./wolfcrypt/test/testwolfcrypt
+
+  sec_qoriq_cross:
+    name: PowerPC cross-compile, ${{ matrix.backend }} backend
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [ baremetal, linux ]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install PowerPC toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-powerpc-linux-gnu
+
+      - name: cross-compile the library
+        run: |
+          ./autogen.sh
+          ./configure --host=powerpc-linux-gnu CC=powerpc-linux-gnu-gcc \
+            --enable-sec-qoriq=${{ matrix.backend }} --disable-shared \
+            --disable-examples --disable-crypttests
+          make -j src/libwolfssl.la

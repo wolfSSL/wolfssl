@@ -89,6 +89,14 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/nxp/dcp_port.c \
               wolfcrypt/src/port/nxp/se050_port.c \
               wolfcrypt/src/port/nxp/README.md \
+              wolfcrypt/src/port/nxp/sec_qoriq.c \
+              wolfcrypt/src/port/nxp/sec_qoriq_cb.c \
+              wolfcrypt/src/port/nxp/sec_qoriq_hash.c \
+              wolfcrypt/src/port/nxp/sec_qoriq_aes.c \
+              wolfcrypt/src/port/nxp/sec_qoriq_rng.c \
+              wolfcrypt/src/port/nxp/sec_qoriq_pkha.c \
+              wolfcrypt/src/port/nxp/sec_qoriq_baremetal.c \
+              wolfcrypt/src/port/nxp/sec_qoriq_linux.c \
               wolfcrypt/src/port/nxp/casper_port.c \
               wolfcrypt/src/port/nxp/hashcrypt_port.c \
               wolfcrypt/src/port/atmel/README.md \
@@ -255,6 +263,18 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/sealsq/vaultic.c
 endif
 EXTRA_DIST += wolfcrypt/src/port/sealsq/README.md
 
+
+if BUILD_SEC_QORIQ
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/nxp/sec_qoriq.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/nxp/sec_qoriq_cb.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/nxp/sec_qoriq_hash.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/nxp/sec_qoriq_aes.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/nxp/sec_qoriq_rng.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/nxp/sec_qoriq_pkha.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/nxp/sec_qoriq_baremetal.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/nxp/sec_qoriq_linux.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/nxp/sec_qoriq_sim.c
+endif
 
 if BUILD_CAAM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/caam/wolfcaam_init.c

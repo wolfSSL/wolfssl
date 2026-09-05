@@ -436,6 +436,9 @@ extern WOLFSSL_TEST_SUBROUTINE int ariagcm_test(MC_ALGID);
 #if defined(WOLF_CRYPTO_CB) && !defined(WC_TEST_NO_CRYPTOCB_SW_TEST)
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void);
 #endif
+#if defined(WOLFSSL_SEC_QORIQ) && defined(WOLFSSL_SEC_QORIQ_SIM)
+extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sec_qoriq_test(void);
+#endif
 #ifdef WOLFSSL_CERT_PIV
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t certpiv_test(void);
 #endif

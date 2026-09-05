@@ -33788,13 +33788,18 @@ int DecodeECC_DSA_Sig_Ex(const byte* sig, word32 sigLen, mp_int* r, mp_int* s,
     /* Clear dynamic data and set mp_ints to put r and s into. */
     XMEMSET(dataASN, 0, sizeof(dataASN));
     if (init) {
-        GetASN_MP(&dataASN[DSASIGASN_IDX_R], r);
-        GetASN_MP(&dataASN[DSASIGASN_IDX_S], s);
+        /* Initialize here rather than leaving it to the item store, which
+         * only does so once an item has parsed. A decode that fails before
+         * that, or that stores r and then fails on s, would otherwise reach
+         * the mp_clear() calls below with values that were never
+         * initialized. */
+        ret = mp_init_multi(r, s, NULL, NULL, NULL, NULL);
+        if (ret != MP_OKAY) {
+            return ret;
+        }
     }
-    else {
-        GetASN_MP_Inited(&dataASN[DSASIGASN_IDX_R], r);
-        GetASN_MP_Inited(&dataASN[DSASIGASN_IDX_S], s);
-    }
+    GetASN_MP_Inited(&dataASN[DSASIGASN_IDX_R], r);
+    GetASN_MP_Inited(&dataASN[DSASIGASN_IDX_S], s);
 
     /* Decode the DSA signature. */
     ret = GetASN_Items(dsaSigASN, dataASN, dsaSigASN_Length, 0, sig, &idx,
