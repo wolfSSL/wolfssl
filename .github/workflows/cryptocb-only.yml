@@ -141,7 +141,10 @@ jobs:
            "configure": ["--enable-slhdsa=yes,sha2", "CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_ECC -DWOLF_CRYPTO_CB_ONLY_RSA -DWOLF_CRYPTO_CB_ONLY_SHA256 -DWOLF_CRYPTO_CB_ONLY_SHA512 -DWOLF_CRYPTO_CB_ONLY_AES -DWOLF_CRYPTO_CB_ONLY_ED25519 -DWOLF_CRYPTO_CB_ONLY_CURVE25519 -DWOLF_CRYPTO_CB_ONLY_CURVE448 -DWOLF_CRYPTO_CB_ONLY_SLHDSA"]},
           {"name": "only", "minutes": 4.0,
            "comment": "Same coverage as the \"all\" entry above, but driven by ./configure --enable-cryptocb=only instead of a hand-written CPPFLAGS list. This is the regression test for the configure option: it must emit exactly the WOLF_CRYPTO_CB_ONLY_* set that \"all\" passes by hand, for the algorithms this base enables. The \"all\" entry deliberately stays on explicit CPPFLAGS so a bug in the configure logic cannot silently weaken both. Note the base already passes --enable-cryptocb; this entry's flags are appended after the base, so --enable-cryptocb=only wins.",
-           "configure": ["--enable-cryptocb=only"]}
+           "configure": ["--enable-cryptocb=only"]},
+          {"name": "setkey", "minutes": 4.0,
+           "comment": "--enable-cryptocbutils turns on all cryptocb utilities (COPY/FREE/SETKEY/EXPORT_KEY/KEYSTORE); this entry needs WOLF_CRYPTO_CB_SETKEY. Exercises test_wc_CryptoCb_TLS_CBC_HMAC: a TLS 1.2 MAC-then-Encrypt CBC handshake whose record HMAC is computed by a callback that owns the key (services the SETKEY op) and leaves the software hash state empty, so TLS_hmac must route it through Hmac_UpdateFinal. No ONLY_* strip here so the device's own software HMAC keeps its providers; the base already enables swdev. No other cryptocb config enables SETKEY, so the test is skipped everywhere else.",
+           "configure": ["--enable-cryptocbutils"]}
           ]}
           EOF
           .github/scripts/parallel-make-check.py \

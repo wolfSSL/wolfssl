@@ -1160,7 +1160,10 @@ int wc_HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
     }
 
 #ifdef WOLF_CRYPTO_CB
-    if (hmac->devId != INVALID_DEVID) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (hmac->devId != INVALID_DEVID)
+    #endif
+    {
         ret = wc_CryptoCb_Hmac(hmac, hmac->macType, msg, length, NULL);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
@@ -1296,7 +1299,11 @@ int wc_HmacFinal(Hmac* hmac, byte* hash)
     }
 
 #ifdef WOLF_CRYPTO_CB
-    if (hmac->devId != INVALID_DEVID) {
+    /* see wc_HmacUpdate() for why WOLF_CRYPTO_CB_FIND dispatches every id */
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (hmac->devId != INVALID_DEVID)
+    #endif
+    {
         ret = wc_CryptoCb_Hmac(hmac, hmac->macType, NULL, 0, hash);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
@@ -1741,8 +1748,15 @@ void wc_HmacFree(Hmac* hmac)
 #endif
 
 #ifdef WOLF_CRYPTO_CB
-    /* handle cleanup case where final is not called */
-    if (hmac->devId != INVALID_DEVID && hmac->devCtx != NULL) {
+    /* handle cleanup case where final is not called. devCtx is only set by a
+     * device, so under WOLF_CRYPTO_CB_FIND (where INVALID_DEVID may be mapped
+     * to one) that alone identifies an op still owned by the device. */
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (hmac->devId != INVALID_DEVID && hmac->devCtx != NULL)
+    #else
+    if (hmac->devCtx != NULL)
+    #endif
+    {
         int  ret;
         byte finalHash[WC_HMAC_BLOCK_SIZE];
         ret = wc_CryptoCb_Hmac(hmac, hmac->macType, NULL, 0, finalHash);
