@@ -11735,6 +11735,9 @@ then
     if test "$ENABLED_FALCON" != "no"; then
         AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB_ONLY_FALCON"
     fi
+    if test "$ENABLED_SLHDSA" != "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB_ONLY_SLHDSA"
+    fi
 fi
 
 if test "$ENABLED_CRYPTOCB_SW_TEST" = "no"
