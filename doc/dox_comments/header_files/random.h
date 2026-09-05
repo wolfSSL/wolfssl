@@ -58,7 +58,7 @@ int  wc_FreeNetRandom(void);
 
     One WC_RNG may be shared between threads: each generate and reseed holds
     the instance's lock.  Define WC_RNG_NO_LOCK (configure --disable-rng-lock)
-    to leave the lock out of a build that never shares one; it needs a heap.
+    to leave the lock out of a build that never shares one.
     The lock covers the Hash DRBG; a crypto callback, RDRAND, a hardware TRNG
     or an async marker answers a generate before it is taken.  A WC_RNG_SEED_CB
     callback and any hash crypto callback reached during a generate run with
@@ -70,8 +70,9 @@ int  wc_FreeNetRandom(void);
 
     POSIX lets the child of a multithreaded process only exec.  Define
     WC_RNG_ATFORK (configure --enable-rng-atfork) to install pthread_atfork()
-    handlers instead; wolfCrypt_Init() registers them and must run before any
-    thread or fork, and wc_InitRng*() returns BAD_STATE_E before it.  They
+    handlers instead; they need a heap, wolfCrypt_Init() registers them and
+    must run before any thread or fork, and wc_InitRng*() returns BAD_STATE_E
+    before it.  They
     hold every instance lock across fork(), which then
     waits for any generate or reseed in flight, and start the locks over in
     the child, which reseeds before its next output.  The handlers cover only

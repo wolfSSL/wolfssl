@@ -47,7 +47,7 @@
 #if defined(WC_RNG_HAVE_LOCK) && !defined(WOLFSSL_ASYNC_CRYPT) && \
     !defined(HAVE_INTEL_RDRAND) && !defined(WOLF_CRYPTO_CB_FIND) && \
     !(defined(WOLFSSL_SILABS_SE_ACCEL) && defined(WOLFSSL_SILABS_TRNG)) && \
-    !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_NO_MALLOC) && \
     (defined(WOLFSSL_PTHREADS) || \
      (defined(USE_WINDOWS_API) && !defined(_WIN32_WCE)))
     #define WC_TEST_RNG_LOCK

@@ -489,7 +489,6 @@ static int UnlockDrbgState(void)
 
 #endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS v7+) */
 
-#ifdef WC_RNG_HAVE_LOCK
 #ifdef WC_RNG_LOCK_ATFORK
 /* Every live lock, under drbgStateMutex. */
 static WC_RNG_LOCK* rngList = NULL;
@@ -598,12 +597,11 @@ static void RngUnregister(WC_RNG_LOCK* n)
     else
         WOLFSSL_MSG("RngUnregister: state mutex unavailable");
 }
-#endif /* WC_RNG_LOCK_ATFORK */
 
-/* Creates the lock and, with fork handlers, registers it. */
+/* Creates the lock and registers it. */
 static int RngLockInit(WC_RNG* rng)
 {
-    int ret = 0;
+    int ret;
     WC_RNG_LOCK* n = (WC_RNG_LOCK*)XMALLOC(sizeof(*n), rng->heap,
                                            DYNAMIC_TYPE_RNG);
     if (n == NULL)
@@ -614,7 +612,6 @@ static int RngLockInit(WC_RNG* rng)
         XFREE(n, rng->heap, DYNAMIC_TYPE_RNG);
         return BAD_MUTEX_E;
     }
-#ifdef WC_RNG_LOCK_ATFORK
 #ifndef NO_SHA256
     n->drbg = rng->drbg;
 #endif
@@ -627,9 +624,8 @@ static int RngLockInit(WC_RNG* rng)
         XFREE(n, rng->heap, DYNAMIC_TYPE_RNG);
         return ret;
     }
-#endif
     rng->lock = n;
-    return ret;
+    return 0;
 }
 
 /* Safe on a zeroed WC_RNG that never got a lock. */
@@ -638,10 +634,8 @@ static void RngLockFree(WC_RNG* rng)
     WC_RNG_LOCK* n = rng->lock;
     if (n == NULL)
         return;
-#ifdef WC_RNG_LOCK_ATFORK
     RngUnregister(n);
     if (!n->noMutex)
-#endif
         (void)wc_FreeMutex(&n->mutex);
     XFREE(n, n->heap, DYNAMIC_TYPE_RNG);
     rng->lock = NULL;
@@ -651,10 +645,8 @@ static int RngLockEnter(WC_RNG* rng)
 {
     if (rng->lock == NULL)
         return 0;
-#ifdef WC_RNG_LOCK_ATFORK
     if (rng->lock->broken)
         return BAD_MUTEX_E;
-#endif
     return wc_LockMutex(&rng->lock->mutex);
 }
 
@@ -662,6 +654,35 @@ static void RngLockExit(WC_RNG* rng)
 {
     if (rng->lock != NULL)
         (void)wc_UnLockMutex(&rng->lock->mutex);
+}
+#elif defined(WC_RNG_HAVE_LOCK)
+/* Without fork handlers the lock lives in the WC_RNG itself: no heap. */
+static int RngLockInit(WC_RNG* rng)
+{
+    if (wc_InitMutex(&rng->lock) != 0)
+        return BAD_MUTEX_E;
+    rng->lockInited = 1;
+    return 0;
+}
+
+/* Safe on a zeroed WC_RNG that never got a lock. */
+static void RngLockFree(WC_RNG* rng)
+{
+    if (rng->lockInited) {
+        (void)wc_FreeMutex(&rng->lock);
+        rng->lockInited = 0;
+    }
+}
+
+static int RngLockEnter(WC_RNG* rng)
+{
+    return rng->lockInited ? wc_LockMutex(&rng->lock) : 0;
+}
+
+static void RngLockExit(WC_RNG* rng)
+{
+    if (rng->lockInited)
+        (void)wc_UnLockMutex(&rng->lock);
 }
 #else
 #define RngLockEnter(rng) 0
