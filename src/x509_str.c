@@ -206,6 +206,7 @@ int wolfSSL_X509_STORE_CTX_init(WOLFSSL_X509_STORE_CTX* ctx,
         #endif
 
         ctx->ctxIntermediates = sk;
+        ctx->setTrustedSk = NULL;
 #ifdef HAVE_CRL
         ctx->crls = NULL;
 #endif
