@@ -1971,6 +1971,22 @@ static void wb_decode_cert_extensions_badargs(void)
         (void)wc_SetUnknownExtCallback(&cert, NULL);
         ret = DecodeCertExtensions(&cert);
         WB_CHECK(ret == 0, "unknown extension, no callback set (skipped, no crash)");
+
+        XMEMSET(&cert, 0, sizeof(cert));
+        cert.extensions = unknownExt;
+        cert.extensionsSz = (int)sizeof(unknownExt);
+        (void)wc_SetUnknownExtCallback32(&cert, NULL);
+        ret = DecodeCertExtensions(&cert);
+        WB_CHECK(ret == 0,
+            "unknown extension 32 bit, no callback set (skipped, no crash)");
+
+        XMEMSET(&cert, 0, sizeof(cert));
+        cert.extensions = unknownExt;
+        cert.extensionsSz = (int)sizeof(unknownExt);
+        (void)wc_SetUnknownExtCallback32Ex(&cert, NULL, NULL);
+        ret = DecodeCertExtensions(&cert);
+        WB_CHECK(ret == 0,
+            "unknown extension 32 bit Ex, no callback set (skipped, no crash)");
     }
 #endif
 }
