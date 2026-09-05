@@ -13,7 +13,9 @@
 #              ("aux" and "test" are reserved: build-aux/, build-test/)
 #   configure  list of extra ./configure arguments
 #   cc         compiler passed to configure as CC=, overriding --cc
-#              ("" leaves CC entirely to configure / the environment)
+#              ("" leaves CC entirely to configure / the environment);
+#              a leading "ccache " is dropped when ccache is not
+#              installed, so such configs still build without it
 #   cflags     CFLAGS for make, overriding --cflags
 #   ldflags    LDFLAGS for make, overriding --ldflags
 #   minutes    expected duration, from the Minutes column of a previous
@@ -142,6 +144,9 @@ ON_GITHUB = os.environ.get("GITHUB_ACTIONS") == "true"
 # Used by configs with "netns": true to give each command its own network
 # namespace (so parallel network tests can't collide on ports).
 BWRAP = shutil.which("bwrap")
+# ccache only speeds the build up: configs that name it still build
+# without it (see without_ccache).
+CCACHE = shutil.which("ccache")
 print_lock = threading.Lock()
 
 # Fail-fast state: the first failure sets stop_event (under fail_lock, so
@@ -209,6 +214,14 @@ def merge_base(base: dict, entry: dict) -> dict:
         else:
             merged[key] = value
     return merged
+
+
+def without_ccache(cc: str) -> str:
+    # fall back to the bare compiler when ccache is not installed
+    words = cc.split(None, 1)
+    if CCACHE is None and len(words) == 2 and words[0] == "ccache":
+        return words[1]
+    return cc
 
 
 def load_configs(opts: argparse.Namespace,
@@ -294,6 +307,7 @@ def load_configs(opts: argparse.Namespace,
         cc = entry.get("cc", opts.cc or "")
         if not isinstance(cc, str):
             error(f"{opts.json}: \"cc\" must be a string in {name!r}")
+        cc = without_ccache(cc)
         for key in ("prepare", "run"):
             cmds = entry.get(key, [])
             if not (isinstance(cmds, list)
@@ -606,8 +620,7 @@ def main() -> int:
                         "pending configs are skipped and in-flight ones "
                         "killed (--no-fail-fast runs everything and "
                         "reports every failure)")
-    p.add_argument("--cc", default="ccache gcc" if shutil.which("ccache")
-                   else None,
+    p.add_argument("--cc", default="ccache gcc" if CCACHE else None,
                    help="compiler passed to configure as CC= for configs "
                         "that do not set their own \"cc\"")
     p.add_argument("--cflags", default="",

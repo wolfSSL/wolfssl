@@ -12,6 +12,33 @@ inputs:
     description: 'Initial delay between retries (seconds, doubles each attempt)'
     required: false
     default: '5'
+  apt-budget:
+    description: >
+      Wall-clock budget (seconds) for retrying the apt install.
+    required: false
+    default: '600'
+  apt-update-timeout:
+    description: >
+      Per-attempt cap (seconds) on apt-get update. The default covers a
+      full failover of every index file at the Acquire timeout below, so
+      a slow-but-recovering mirror is not cut short. Callers that can do
+      without the packages may prefer a smaller value (see 'optional').
+    required: false
+    default: '240'
+  apt-install-timeout:
+    description: >
+      Per-attempt cap (seconds) on apt-get install. The default suits the
+      large bundles; callers installing one small package should pass a
+      much smaller value.
+    required: false
+    default: '600'
+  optional:
+    description: >
+      When 'true', giving up warns instead of failing the step, so the
+      job continues without the packages. The caller is then responsible
+      for checking whether they actually arrived.
+    required: false
+    default: 'false'
   no-install-recommends:
     description: 'Pass --no-install-recommends to apt-get install'
     required: false
@@ -85,13 +112,34 @@ runs:
           NO_REC="--no-install-recommends"
         fi
 
+        # A stalled mirror connection returns no error, so the loop below
+        # cannot see it - apt just waits out its timeout once per index
+        # file, and the runner fetches around twenty of them. Keep that
+        # per-connection timeout short so failing over to the next mirror
+        # is cheap, cap each apt-get so a wedged one is killed, and stop
+        # retrying once the budget is gone.
+        APT_OPTS=(-o Acquire::Retries=2 -o Acquire::http::Timeout=10
+                  -o Acquire::https::Timeout=10)
+        # The budget stops further retries, but an attempt already under
+        # way is never interrupted, so the wall is the two caps below
+        # plus the budget - not the budget alone.
+        deadline=$((SECONDS + ${{ inputs.apt-budget }}))
+
         for i in $(seq 1 $RETRIES); do
-          if sudo apt-get update -q && \
-             sudo apt-get install -y $NO_REC ${{ inputs.packages }}; then
+          if sudo timeout -k 10 ${{ inputs.apt-update-timeout }} \
+               apt-get "${APT_OPTS[@]}" update -q && \
+             sudo timeout -k 10 ${{ inputs.apt-install-timeout }} \
+               apt-get "${APT_OPTS[@]}" install -y $NO_REC \
+               ${{ inputs.packages }}; then
             exit 0
           fi
-          if [ "$i" -eq "$RETRIES" ]; then
-            echo "::error::apt-get failed after $RETRIES attempts"
+          if [ "$i" -eq "$RETRIES" ] || [ "$SECONDS" -ge "$deadline" ]; then
+            if [ "${{ inputs.optional }}" = "true" ]; then
+              echo "::warning::apt-get failed after $i attempt(s);" \
+                   "continuing without ${{ inputs.packages }}"
+              exit 0
+            fi
+            echo "::error::apt-get failed after $i attempt(s)"
             exit 1
           fi
           echo "::warning::apt-get failed (attempt $i/$RETRIES), retrying in ${DELAY}s..."

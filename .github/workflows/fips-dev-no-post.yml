@@ -69,6 +69,9 @@ jobs:
           workflow-id: fips-dev-no-post
           read-only: ${{ github.event_name == 'pull_request' }}
           max-size: 500M
+          # This job pulls the linuxkm bundle, not -minimal; fetching the
+          # latter just for ccache would cost more than the apt path.
+          ghcr-debs-tag: none
 
       - name: Prepare target kernel for module builds
         run: |
