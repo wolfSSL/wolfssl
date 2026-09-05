@@ -4584,6 +4584,7 @@ if(WOLFSSL_EXAMPLES)
         tests/api/test_falcon.c
         tests/api/test_signature.c
         tests/api/test_lms_xmss.c
+        tests/api/test_pkcs11.c
         tests/api/test_dtls.c
         tests/api/test_dtls13.c
         tests/api/test_ssl_cert.c
