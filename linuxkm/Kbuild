@@ -264,6 +264,17 @@ $(obj)/wolfcrypt/src/wc_mldsa_asm.o: OBJECT_FILES_NON_STANDARD := y
 $(obj)/wolfcrypt/src/wc_falcon_fpr_x86_64_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
 $(obj)/wolfcrypt/src/wc_falcon_fpr_x86_64_asm.o: OBJECT_FILES_NON_STANDARD := y
 
+# The arm64 kernel builds with a baseline -march that rejects the crypto and
+# NEON instructions in port/arm/*.S, and with -mgeneral-regs-only, which clang
+# also applies to inline asm.  Widen both for these objects.  An -march only
+# widens what the assembler accepts; it does not change what is emitted.
+ifeq ($(CONFIG_ARM64),y)
+$(obj)/wolfcrypt/src/port/arm/%.o: asflags-y := $(WOLFSSL_ASFLAGS) -march=armv8.2-a+crypto+sha3
+$(obj)/wolfcrypt/src/port/arm/%-asm_c.o: ccflags-y += -march=armv8.2-a+crypto+sha3
+$(obj)/wolfcrypt/src/port/arm/%-asm_c.o: ccflags-remove-y += -mgeneral-regs-only
+$(obj)/wolfcrypt/src/port/arm/%.o: OBJECT_FILES_NON_STANDARD := y
+endif
+
 ifndef READELF
     READELF := readelf
 endif
