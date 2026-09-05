@@ -831,16 +831,19 @@ void BlockSha3(word64* s)
 
 #ifdef WC_SHA3_SW_KECCAK
 #if defined(BIG_ENDIAN_ORDER) || defined(WOLFSSL_WIDE_BYTE)
+/* Mask each cell to an octet: where CHAR_BIT != 8 a cell can hold more than an
+ * octet and would bleed into the neighbouring lane bits.  Matches
+ * readUnalignedWord32/64() in misc.c.  No-op where a byte is an octet. */
 static WC_INLINE word64 Load64Unaligned(const unsigned char *a)
 {
-    return ((word64)a[0] <<  0) |
-           ((word64)a[1] <<  8) |
-           ((word64)a[2] << 16) |
-           ((word64)a[3] << 24) |
-           ((word64)a[4] << 32) |
-           ((word64)a[5] << 40) |
-           ((word64)a[6] << 48) |
-           ((word64)a[7] << 56);
+    return ((word64)(a[0] & 0xFF) <<  0) |
+           ((word64)(a[1] & 0xFF) <<  8) |
+           ((word64)(a[2] & 0xFF) << 16) |
+           ((word64)(a[3] & 0xFF) << 24) |
+           ((word64)(a[4] & 0xFF) << 32) |
+           ((word64)(a[5] & 0xFF) << 40) |
+           ((word64)(a[6] & 0xFF) << 48) |
+           ((word64)(a[7] & 0xFF) << 56);
 }
 
 /* Convert the array of bytes, in little-endian order, to a 64-bit integer.
@@ -853,8 +856,9 @@ static word64 Load64BitLittleEndian(const byte* a)
     word64 n = 0;
     int i;
 
+    /* Masked as in Load64Unaligned() above. */
     for (i = 0; i < 8; i++)
-        n |= (word64)a[i] << (8 * i);
+        n |= (word64)(a[i] & 0xFF) << (8 * i);
 
     return n;
 }

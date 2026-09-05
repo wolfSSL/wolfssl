@@ -783,6 +783,7 @@ typedef struct testVector {
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  macro_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  error_test(void);
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  octets_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  base64_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  base16_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  asn_test(void);
@@ -2454,6 +2455,11 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_FAIL("MEMORY   test failed!\n", ret);
     else
         TEST_PASS("MEMORY   test passed!\n");
+
+    if ( (ret = octets_test()) != 0)
+        TEST_FAIL("octets   test failed!\n", ret);
+    else
+        TEST_PASS("octets   test passed!\n");
 
 #ifndef NO_CODING
     if ( (ret = base64_test()) != 0)
@@ -4296,6 +4302,101 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t error_test(void)
     if (XSTRCMP(out, unknownStr) != 0)
         return WC_TEST_RET_ENC_NC;
 #endif
+
+    return 0;
+}
+
+/* Octet-layout helpers.  WC_PACKED_CELLS() is checked everywhere; the
+ * pack/unpack calls exist only where a byte cell is wider than an octet, and
+ * are gated to match. */
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t octets_test(void)
+{
+#ifdef WOLFSSL_WIDE_BYTE
+    byte src[65];
+    byte packed[65];
+    byte back[65];
+    word32 i;
+    word32 expect;
+    wc_test_ret_t ret;
+#endif
+
+    WOLFSSL_ENTER("octets_test");
+
+    /* Rounds up without wrapping near WORD32_MAX. */
+    if (WC_PACKED_CELLS(0) != 0)
+        return WC_TEST_RET_ENC_NC;
+    if (WC_PACKED_CELLS(1) != 1)
+        return WC_TEST_RET_ENC_NC;
+    if (WC_PACKED_CELLS(0xFFFFFFFFU) < (0xFFFFFFFFU / WC_OCTETS_PER_BYTE))
+        return WC_TEST_RET_ENC_NC;
+
+#ifdef WOLFSSL_WIDE_BYTE
+    for (i = 0; i < (word32)sizeof(src); i++) {
+        src[i] = (byte)((i * 7 + 1) & 0xFF);
+    }
+
+    /* Odd octet count so a partial trailing cell is covered. */
+    ret = wc_PackOctets(packed, (word32)sizeof(packed), src,
+        (word32)sizeof(src), (word32)sizeof(src));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_UnpackOctets(back, (word32)sizeof(back), packed,
+        (word32)sizeof(packed), (word32)sizeof(src));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (XMEMCMP(src, back, sizeof(src)) != 0)
+        return WC_TEST_RET_ENC_NC;
+
+    /* Cell 0 carries the first WC_OCTETS_PER_BYTE octets, low octet first. */
+    expect = 0;
+    for (i = 0; i < WC_OCTETS_PER_BYTE; i++) {
+        expect |= (word32)src[i] << (8 * i);
+    }
+    if ((word32)packed[0] != expect)
+        return WC_TEST_RET_ENC_NC;
+
+    /* Zero length is a no-op, not an error. */
+    if (wc_PackOctets(packed, (word32)sizeof(packed), src,
+            (word32)sizeof(src), 0) != 0)
+        return WC_TEST_RET_ENC_NC;
+    if (wc_UnpackOctets(back, (word32)sizeof(back), packed,
+            (word32)sizeof(packed), 0) != 0)
+        return WC_TEST_RET_ENC_NC;
+
+    if (wc_PackOctets(NULL, (word32)sizeof(packed), src,
+            (word32)sizeof(src), (word32)sizeof(src)) != BAD_FUNC_ARG)
+        return WC_TEST_RET_ENC_NC;
+    if (wc_UnpackOctets(back, (word32)sizeof(back), NULL,
+            (word32)sizeof(packed), (word32)sizeof(src)) != BAD_FUNC_ARG)
+        return WC_TEST_RET_ENC_NC;
+
+    /* Source too short is now rejected, not read past. */
+    if (wc_UnpackOctets(back, (word32)sizeof(back), packed,
+            WC_PACKED_CELLS(sizeof(src)) - 1,
+            (word32)sizeof(src)) != BUFFER_E)
+        return WC_TEST_RET_ENC_NC;
+    if (wc_PackOctets(packed, (word32)sizeof(packed), src,
+            (word32)sizeof(src) - 1, (word32)sizeof(src)) != BUFFER_E)
+        return WC_TEST_RET_ENC_NC;
+
+    /* Exactly-sized destinations must succeed. */
+    if (wc_PackOctets(packed, WC_PACKED_CELLS(sizeof(src)), src,
+            (word32)sizeof(src), (word32)sizeof(src)) != 0)
+        return WC_TEST_RET_ENC_NC;
+    if (wc_UnpackOctets(back, (word32)sizeof(src), packed,
+            WC_PACKED_CELLS(sizeof(src)), (word32)sizeof(src)) != 0)
+        return WC_TEST_RET_ENC_NC;
+    if (XMEMCMP(src, back, sizeof(src)) != 0)
+        return WC_TEST_RET_ENC_NC;
+
+    /* Destination too small, each side of the size relation. */
+    if (wc_UnpackOctets(back, (word32)sizeof(src) - 1, packed,
+            (word32)sizeof(packed), (word32)sizeof(src)) != BUFFER_E)
+        return WC_TEST_RET_ENC_NC;
+    if (wc_PackOctets(packed, WC_PACKED_CELLS(sizeof(src)) - 1, src,
+            (word32)sizeof(src), (word32)sizeof(src)) != BUFFER_E)
+        return WC_TEST_RET_ENC_NC;
+#endif /* WOLFSSL_WIDE_BYTE */
 
     return 0;
 }

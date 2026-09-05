@@ -299,7 +299,7 @@ static void sp_2048_from_mp(sp_digit* r, int size, const mp_int* a)
         /* Recompute mask for the next read index, then advance o by -mask
          * (0 or 1) so it only moves while another digit remains. */
         mask = (mp_digit)0 - (((mp_digit)(i + 1U) - (mp_digit)(unsigned int)a->used) >>
-            (sizeof(mp_digit) * 8 - 1));
+            (sizeof(mp_digit) * CHAR_BIT - 1));
         o += (int)((mp_digit)0 - mask);
     }
 
@@ -361,14 +361,17 @@ static void sp_2048_to_bin_34(sp_digit* r, byte* a)
     a[j] = 0;
     for (i=0; i<34 && j>=0; i++) {
         b = 0;
+        /* Mask to an octet: a (byte) cast does not truncate where CHAR_BIT is
+         * not 8 (e.g. TI C2000 C28x), which would leave high bits in the
+         * output cell.  No-op on 8-bit-byte targets. */
         /* lint allow cast of mismatch sp_digit and int */
-        a[j--] |= (byte)((sp_uint64)r[i] << s); /*lint !e9033*/
+        a[j--] |= (byte)(((sp_uint64)r[i] << s) & 0xFF); /*lint !e9033*/
         b += 8 - s;
         if (j < 0) {
             break;
         }
         while (b < 61) {
-            a[j--] = (byte)(r[i] >> b);
+            a[j--] = (byte)((r[i] >> b) & 0xFF);
             b += 8;
             if (j < 0) {
                 break;
@@ -3894,7 +3897,7 @@ static void sp_2048_from_mp(sp_digit* r, int size, const mp_int* a)
         /* Recompute mask for the next read index, then advance o by -mask
          * (0 or 1) so it only moves while another digit remains. */
         mask = (mp_digit)0 - (((mp_digit)(i + 1U) - (mp_digit)(unsigned int)a->used) >>
-            (sizeof(mp_digit) * 8 - 1));
+            (sizeof(mp_digit) * CHAR_BIT - 1));
         o += (int)((mp_digit)0 - mask);
     }
 
@@ -3956,14 +3959,17 @@ static void sp_2048_to_bin_36(sp_digit* r, byte* a)
     a[j] = 0;
     for (i=0; i<36 && j>=0; i++) {
         b = 0;
+        /* Mask to an octet: a (byte) cast does not truncate where CHAR_BIT is
+         * not 8 (e.g. TI C2000 C28x), which would leave high bits in the
+         * output cell.  No-op on 8-bit-byte targets. */
         /* lint allow cast of mismatch sp_digit and int */
-        a[j--] |= (byte)((sp_uint64)r[i] << s); /*lint !e9033*/
+        a[j--] |= (byte)(((sp_uint64)r[i] << s) & 0xFF); /*lint !e9033*/
         b += 8 - s;
         if (j < 0) {
             break;
         }
         while (b < 57) {
-            a[j--] = (byte)(r[i] >> b);
+            a[j--] = (byte)((r[i] >> b) & 0xFF);
             b += 8;
             if (j < 0) {
                 break;
@@ -7474,7 +7480,7 @@ static void sp_3072_from_mp(sp_digit* r, int size, const mp_int* a)
         /* Recompute mask for the next read index, then advance o by -mask
          * (0 or 1) so it only moves while another digit remains. */
         mask = (mp_digit)0 - (((mp_digit)(i + 1U) - (mp_digit)(unsigned int)a->used) >>
-            (sizeof(mp_digit) * 8 - 1));
+            (sizeof(mp_digit) * CHAR_BIT - 1));
         o += (int)((mp_digit)0 - mask);
     }
 
@@ -7536,14 +7542,17 @@ static void sp_3072_to_bin_52(sp_digit* r, byte* a)
     a[j] = 0;
     for (i=0; i<52 && j>=0; i++) {
         b = 0;
+        /* Mask to an octet: a (byte) cast does not truncate where CHAR_BIT is
+         * not 8 (e.g. TI C2000 C28x), which would leave high bits in the
+         * output cell.  No-op on 8-bit-byte targets. */
         /* lint allow cast of mismatch sp_digit and int */
-        a[j--] |= (byte)((sp_uint64)r[i] << s); /*lint !e9033*/
+        a[j--] |= (byte)(((sp_uint64)r[i] << s) & 0xFF); /*lint !e9033*/
         b += 8 - s;
         if (j < 0) {
             break;
         }
         while (b < 60) {
-            a[j--] = (byte)(r[i] >> b);
+            a[j--] = (byte)((r[i] >> b) & 0xFF);
             b += 8;
             if (j < 0) {
                 break;
@@ -11000,7 +11009,7 @@ static void sp_3072_from_mp(sp_digit* r, int size, const mp_int* a)
         /* Recompute mask for the next read index, then advance o by -mask
          * (0 or 1) so it only moves while another digit remains. */
         mask = (mp_digit)0 - (((mp_digit)(i + 1U) - (mp_digit)(unsigned int)a->used) >>
-            (sizeof(mp_digit) * 8 - 1));
+            (sizeof(mp_digit) * CHAR_BIT - 1));
         o += (int)((mp_digit)0 - mask);
     }
 
@@ -11062,14 +11071,17 @@ static void sp_3072_to_bin_54(sp_digit* r, byte* a)
     a[j] = 0;
     for (i=0; i<54 && j>=0; i++) {
         b = 0;
+        /* Mask to an octet: a (byte) cast does not truncate where CHAR_BIT is
+         * not 8 (e.g. TI C2000 C28x), which would leave high bits in the
+         * output cell.  No-op on 8-bit-byte targets. */
         /* lint allow cast of mismatch sp_digit and int */
-        a[j--] |= (byte)((sp_uint64)r[i] << s); /*lint !e9033*/
+        a[j--] |= (byte)(((sp_uint64)r[i] << s) & 0xFF); /*lint !e9033*/
         b += 8 - s;
         if (j < 0) {
             break;
         }
         while (b < 57) {
-            a[j--] = (byte)(r[i] >> b);
+            a[j--] = (byte)((r[i] >> b) & 0xFF);
             b += 8;
             if (j < 0) {
                 break;
@@ -14765,7 +14777,7 @@ static void sp_4096_from_mp(sp_digit* r, int size, const mp_int* a)
         /* Recompute mask for the next read index, then advance o by -mask
          * (0 or 1) so it only moves while another digit remains. */
         mask = (mp_digit)0 - (((mp_digit)(i + 1U) - (mp_digit)(unsigned int)a->used) >>
-            (sizeof(mp_digit) * 8 - 1));
+            (sizeof(mp_digit) * CHAR_BIT - 1));
         o += (int)((mp_digit)0 - mask);
     }
 
@@ -14827,14 +14839,17 @@ static void sp_4096_to_bin_70(sp_digit* r, byte* a)
     a[j] = 0;
     for (i=0; i<70 && j>=0; i++) {
         b = 0;
+        /* Mask to an octet: a (byte) cast does not truncate where CHAR_BIT is
+         * not 8 (e.g. TI C2000 C28x), which would leave high bits in the
+         * output cell.  No-op on 8-bit-byte targets. */
         /* lint allow cast of mismatch sp_digit and int */
-        a[j--] |= (byte)((sp_uint64)r[i] << s); /*lint !e9033*/
+        a[j--] |= (byte)(((sp_uint64)r[i] << s) & 0xFF); /*lint !e9033*/
         b += 8 - s;
         if (j < 0) {
             break;
         }
         while (b < 59) {
-            a[j--] = (byte)(r[i] >> b);
+            a[j--] = (byte)((r[i] >> b) & 0xFF);
             b += 8;
             if (j < 0) {
                 break;
@@ -18189,7 +18204,7 @@ static void sp_4096_from_mp(sp_digit* r, int size, const mp_int* a)
         /* Recompute mask for the next read index, then advance o by -mask
          * (0 or 1) so it only moves while another digit remains. */
         mask = (mp_digit)0 - (((mp_digit)(i + 1U) - (mp_digit)(unsigned int)a->used) >>
-            (sizeof(mp_digit) * 8 - 1));
+            (sizeof(mp_digit) * CHAR_BIT - 1));
         o += (int)((mp_digit)0 - mask);
     }
 
@@ -18251,14 +18266,17 @@ static void sp_4096_to_bin_78(sp_digit* r, byte* a)
     a[j] = 0;
     for (i=0; i<78 && j>=0; i++) {
         b = 0;
+        /* Mask to an octet: a (byte) cast does not truncate where CHAR_BIT is
+         * not 8 (e.g. TI C2000 C28x), which would leave high bits in the
+         * output cell.  No-op on 8-bit-byte targets. */
         /* lint allow cast of mismatch sp_digit and int */
-        a[j--] |= (byte)((sp_uint64)r[i] << s); /*lint !e9033*/
+        a[j--] |= (byte)(((sp_uint64)r[i] << s) & 0xFF); /*lint !e9033*/
         b += 8 - s;
         if (j < 0) {
             break;
         }
         while (b < 53) {
-            a[j--] = (byte)(r[i] >> b);
+            a[j--] = (byte)((r[i] >> b) & 0xFF);
             b += 8;
             if (j < 0) {
                 break;
@@ -22391,7 +22409,7 @@ static void sp_256_from_mp(sp_digit* r, int size, const mp_int* a)
         /* Recompute mask for the next read index, then advance o by -mask
          * (0 or 1) so it only moves while another digit remains. */
         mask = (mp_digit)0 - (((mp_digit)(i + 1U) - (mp_digit)(unsigned int)a->used) >>
-            (sizeof(mp_digit) * 8 - 1));
+            (sizeof(mp_digit) * CHAR_BIT - 1));
         o += (int)((mp_digit)0 - mask);
     }
 
@@ -26813,14 +26831,17 @@ static void sp_256_to_bin_5(sp_digit* r, byte* a)
     a[j] = 0;
     for (i=0; i<5 && j>=0; i++) {
         b = 0;
+        /* Mask to an octet: a (byte) cast does not truncate where CHAR_BIT is
+         * not 8 (e.g. TI C2000 C28x), which would leave high bits in the
+         * output cell.  No-op on 8-bit-byte targets. */
         /* lint allow cast of mismatch sp_digit and int */
-        a[j--] |= (byte)((sp_uint64)r[i] << s); /*lint !e9033*/
+        a[j--] |= (byte)(((sp_uint64)r[i] << s) & 0xFF); /*lint !e9033*/
         b += 8 - s;
         if (j < 0) {
             break;
         }
         while (b < 52) {
-            a[j--] = (byte)(r[i] >> b);
+            a[j--] = (byte)((r[i] >> b) & 0xFF);
             b += 8;
             if (j < 0) {
                 break;
@@ -29118,7 +29139,7 @@ static void sp_384_from_mp(sp_digit* r, int size, const mp_int* a)
         /* Recompute mask for the next read index, then advance o by -mask
          * (0 or 1) so it only moves while another digit remains. */
         mask = (mp_digit)0 - (((mp_digit)(i + 1U) - (mp_digit)(unsigned int)a->used) >>
-            (sizeof(mp_digit) * 8 - 1));
+            (sizeof(mp_digit) * CHAR_BIT - 1));
         o += (int)((mp_digit)0 - mask);
     }
 
@@ -34148,14 +34169,17 @@ static void sp_384_to_bin_7(sp_digit* r, byte* a)
     a[j] = 0;
     for (i=0; i<7 && j>=0; i++) {
         b = 0;
+        /* Mask to an octet: a (byte) cast does not truncate where CHAR_BIT is
+         * not 8 (e.g. TI C2000 C28x), which would leave high bits in the
+         * output cell.  No-op on 8-bit-byte targets. */
         /* lint allow cast of mismatch sp_digit and int */
-        a[j--] |= (byte)((sp_uint64)r[i] << s); /*lint !e9033*/
+        a[j--] |= (byte)(((sp_uint64)r[i] << s) & 0xFF); /*lint !e9033*/
         b += 8 - s;
         if (j < 0) {
             break;
         }
         while (b < 55) {
-            a[j--] = (byte)(r[i] >> b);
+            a[j--] = (byte)((r[i] >> b) & 0xFF);
             b += 8;
             if (j < 0) {
                 break;
@@ -36544,7 +36568,7 @@ static void sp_521_from_mp(sp_digit* r, int size, const mp_int* a)
         /* Recompute mask for the next read index, then advance o by -mask
          * (0 or 1) so it only moves while another digit remains. */
         mask = (mp_digit)0 - (((mp_digit)(i + 1U) - (mp_digit)(unsigned int)a->used) >>
-            (sizeof(mp_digit) * 8 - 1));
+            (sizeof(mp_digit) * CHAR_BIT - 1));
         o += (int)((mp_digit)0 - mask);
     }
 
@@ -41452,14 +41476,17 @@ static void sp_521_to_bin_9(sp_digit* r, byte* a)
     a[j] = 0;
     for (i=0; i<9 && j>=0; i++) {
         b = 0;
+        /* Mask to an octet: a (byte) cast does not truncate where CHAR_BIT is
+         * not 8 (e.g. TI C2000 C28x), which would leave high bits in the
+         * output cell.  No-op on 8-bit-byte targets. */
         /* lint allow cast of mismatch sp_digit and int */
-        a[j--] |= (byte)((sp_uint64)r[i] << s); /*lint !e9033*/
+        a[j--] |= (byte)(((sp_uint64)r[i] << s) & 0xFF); /*lint !e9033*/
         b += 8 - s;
         if (j < 0) {
             break;
         }
         while (b < 58) {
-            a[j--] = (byte)(r[i] >> b);
+            a[j--] = (byte)((r[i] >> b) & 0xFF);
             b += 8;
             if (j < 0) {
                 break;
@@ -44407,7 +44434,7 @@ static void sp_1024_from_mp(sp_digit* r, int size, const mp_int* a)
         /* Recompute mask for the next read index, then advance o by -mask
          * (0 or 1) so it only moves while another digit remains. */
         mask = (mp_digit)0 - (((mp_digit)(i + 1U) - (mp_digit)(unsigned int)a->used) >>
-            (sizeof(mp_digit) * 8 - 1));
+            (sizeof(mp_digit) * CHAR_BIT - 1));
         o += (int)((mp_digit)0 - mask);
     }
 

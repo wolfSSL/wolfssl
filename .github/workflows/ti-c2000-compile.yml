@@ -157,6 +157,51 @@ jobs:
   #       even though the C28x itself is little-endian.  Those arms are
   #       otherwise unreachable in CI, which is how a WIDE_BYTE arm
   #       referencing a LITTLE_ENDIAN_ORDER-only local once went unnoticed.
+  sp_c32_octet_masks:
+    # sp_c32.c is generated.  Two CHAR_BIT != 8 fixes live in it and have been
+    # dropped by a regeneration before, which breaks ECDSA/ECDH/RSA/DH on
+    # 16-bit-byte targets while every 8-bit build stays green.  Fail loudly.
+    name: sp_c32.c CHAR_BIT != 8 masks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Octet masks present in every sp_*_to_bin_*
+        # Counting occurrences alone would pass a partial regression: if one
+        # serializer lost both masks the counts would simply fall together.
+        # Tie them to the number of generated functions instead, so a dropped
+        # mask or a newly added unmasked serializer both fail.
+        run: |
+          defs=$(grep -cE '^static (void|int) sp_[0-9]+_to_bin_[0-9]+\(' \
+                   wolfcrypt/src/sp_c32.c || true)
+          n=$(grep -c 'a\[j--\] |= (byte)(((sp_uint32)r\[i\] << s) & 0xFF)' \
+                wolfcrypt/src/sp_c32.c || true)
+          m=$(grep -c 'a\[j--\] = (byte)((r\[i\] >> b) & 0xFF)' \
+                wolfcrypt/src/sp_c32.c || true)
+          echo "to_bin functions: $defs  shift-left: $n  shift-right: $m"
+          if [ "$defs" -eq 0 ] || [ "$n" -ne "$defs" ] || [ "$m" -ne "$defs" ]; then
+            echo "::error::sp_c32.c: every sp_*_to_bin_* must carry both & 0xFF"
+            echo "octet masks - expected $defs of each, found $n and $m."
+            echo "Regenerate with the fixed sp/conv.rb templates"
+            echo "(wolfSSL/scripts)."
+            exit 1
+          fi
+      - name: CHAR_BIT used in every sp_*_from_mp constant-time mask
+        run: |
+          defs=$(grep -cE '^static (void|int) sp_[0-9]+_from_mp\(' \
+                   wolfcrypt/src/sp_c32.c || true)
+          n=$(grep -c 'sizeof(mp_digit) \* CHAR_BIT - 1' \
+                wolfcrypt/src/sp_c32.c || true)
+          echo "from_mp functions: $defs  CHAR_BIT masks: $n"
+          if grep -q 'sizeof(mp_digit) \* 8 - 1' wolfcrypt/src/sp_c32.c; then
+            echo "::error::sp_c32.c uses sizeof(mp_digit) * 8; must be CHAR_BIT"
+            exit 1
+          fi
+          if [ "$defs" -eq 0 ] || [ "$n" -ne "$defs" ]; then
+            echo "::error::sp_c32.c: every sp_*_from_mp must use"
+            echo "sizeof(mp_digit) * CHAR_BIT - expected $defs, found $n."
+            exit 1
+          fi
+
   wide_byte_be_compile:
     name: WIDE_BYTE + big-endian compile guard
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
@@ -169,7 +214,7 @@ jobs:
       - name: Syntax-check the octet paths with WIDE_BYTE + BIG_ENDIAN_ORDER
         run: |
           set -e
-          for f in sha sha256 sha512 sha3 misc aes chacha random; do
+          for f in sha sha256 sha512 sha3 misc aes chacha random wc_port; do
             echo "== wolfcrypt/src/$f.c =="
             gcc -fsyntax-only -Werror -I. \
                 -DWOLFSSL_WIDE_BYTE -DBIG_ENDIAN_ORDER \
