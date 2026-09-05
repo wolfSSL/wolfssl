@@ -3679,22 +3679,38 @@ sp_2048_mul_avx2_16 PROC
         cmp	rbp, r8
         jne	L_end_2048_mul_avx2_16
 L_start_2048_mul_avx2_16:
-        vmovdqu	xmm0, OWORD PTR [rbx]
-        vmovups	OWORD PTR [r8], xmm0
-        vmovdqu	xmm0, OWORD PTR [rbx+16]
-        vmovups	OWORD PTR [r8+16], xmm0
-        vmovdqu	xmm0, OWORD PTR [rbx+32]
-        vmovups	OWORD PTR [r8+32], xmm0
-        vmovdqu	xmm0, OWORD PTR [rbx+48]
-        vmovups	OWORD PTR [r8+48], xmm0
-        vmovdqu	xmm0, OWORD PTR [rbx+64]
-        vmovups	OWORD PTR [r8+64], xmm0
-        vmovdqu	xmm0, OWORD PTR [rbx+80]
-        vmovups	OWORD PTR [r8+80], xmm0
-        vmovdqu	xmm0, OWORD PTR [rbx+96]
-        vmovups	OWORD PTR [r8+96], xmm0
-        vmovdqu	xmm0, OWORD PTR [rbx+112]
-        vmovups	OWORD PTR [r8+112], xmm0
+        mov	rax, QWORD PTR [rbx]
+        mov	QWORD PTR [r8], rax
+        mov	rax, QWORD PTR [rbx+8]
+        mov	QWORD PTR [r8+8], rax
+        mov	rax, QWORD PTR [rbx+16]
+        mov	QWORD PTR [r8+16], rax
+        mov	rax, QWORD PTR [rbx+24]
+        mov	QWORD PTR [r8+24], rax
+        mov	rax, QWORD PTR [rbx+32]
+        mov	QWORD PTR [r8+32], rax
+        mov	rax, QWORD PTR [rbx+40]
+        mov	QWORD PTR [r8+40], rax
+        mov	rax, QWORD PTR [rbx+48]
+        mov	QWORD PTR [r8+48], rax
+        mov	rax, QWORD PTR [rbx+56]
+        mov	QWORD PTR [r8+56], rax
+        mov	rax, QWORD PTR [rbx+64]
+        mov	QWORD PTR [r8+64], rax
+        mov	rax, QWORD PTR [rbx+72]
+        mov	QWORD PTR [r8+72], rax
+        mov	rax, QWORD PTR [rbx+80]
+        mov	QWORD PTR [r8+80], rax
+        mov	rax, QWORD PTR [rbx+88]
+        mov	QWORD PTR [r8+88], rax
+        mov	rax, QWORD PTR [rbx+96]
+        mov	QWORD PTR [r8+96], rax
+        mov	rax, QWORD PTR [rbx+104]
+        mov	QWORD PTR [r8+104], rax
+        mov	rax, QWORD PTR [rbx+112]
+        mov	QWORD PTR [r8+112], rax
+        mov	rax, QWORD PTR [rbx+120]
+        mov	QWORD PTR [r8+120], rax
 L_end_2048_mul_avx2_16:
         add	rsp, 128
         pop	rdi
@@ -7479,18 +7495,30 @@ sp_2048_sqr_avx2_16 PROC
         sub	r8, 128
         cmp	r9, r8
         jne	L_end_2048_sqr_avx2_16
-        vmovdqu	xmm0, OWORD PTR [rbp]
-        vmovups	OWORD PTR [r8], xmm0
-        vmovdqu	xmm0, OWORD PTR [rbp+16]
-        vmovups	OWORD PTR [r8+16], xmm0
-        vmovdqu	xmm0, OWORD PTR [rbp+32]
-        vmovups	OWORD PTR [r8+32], xmm0
-        vmovdqu	xmm0, OWORD PTR [rbp+48]
-        vmovups	OWORD PTR [r8+48], xmm0
-        vmovdqu	xmm0, OWORD PTR [rbp+64]
-        vmovups	OWORD PTR [r8+64], xmm0
-        vmovdqu	xmm0, OWORD PTR [rbp+80]
-        vmovups	OWORD PTR [r8+80], xmm0
+        mov	rax, QWORD PTR [rbp]
+        mov	QWORD PTR [r8], rax
+        mov	rax, QWORD PTR [rbp+8]
+        mov	QWORD PTR [r8+8], rax
+        mov	rax, QWORD PTR [rbp+16]
+        mov	QWORD PTR [r8+16], rax
+        mov	rax, QWORD PTR [rbp+24]
+        mov	QWORD PTR [r8+24], rax
+        mov	rax, QWORD PTR [rbp+32]
+        mov	QWORD PTR [r8+32], rax
+        mov	rax, QWORD PTR [rbp+40]
+        mov	QWORD PTR [r8+40], rax
+        mov	rax, QWORD PTR [rbp+48]
+        mov	QWORD PTR [r8+48], rax
+        mov	rax, QWORD PTR [rbp+56]
+        mov	QWORD PTR [r8+56], rax
+        mov	rax, QWORD PTR [rbp+64]
+        mov	QWORD PTR [r8+64], rax
+        mov	rax, QWORD PTR [rbp+72]
+        mov	QWORD PTR [r8+72], rax
+        mov	rax, QWORD PTR [rbp+80]
+        mov	QWORD PTR [r8+80], rax
+        mov	rax, QWORD PTR [rbp+88]
+        mov	QWORD PTR [r8+88], rax
 L_end_2048_sqr_avx2_16:
         add	rsp, 136
         pop	rbx
@@ -17277,18 +17305,30 @@ sp_3072_mul_avx2_12 PROC
         cmp	rbp, r8
         jne	L_end_3072_mul_avx2_12
 L_start_3072_mul_avx2_12:
-        vmovdqu	xmm0, OWORD PTR [rbx]
-        vmovups	OWORD PTR [r8], xmm0
-        vmovdqu	xmm0, OWORD PTR [rbx+16]
-        vmovups	OWORD PTR [r8+16], xmm0
-        vmovdqu	xmm0, OWORD PTR [rbx+32]
-        vmovups	OWORD PTR [r8+32], xmm0
-        vmovdqu	xmm0, OWORD PTR [rbx+48]
-        vmovups	OWORD PTR [r8+48], xmm0
-        vmovdqu	xmm0, OWORD PTR [rbx+64]
-        vmovups	OWORD PTR [r8+64], xmm0
-        vmovdqu	xmm0, OWORD PTR [rbx+80]
-        vmovups	OWORD PTR [r8+80], xmm0
+        mov	rax, QWORD PTR [rbx]
+        mov	QWORD PTR [r8], rax
+        mov	rax, QWORD PTR [rbx+8]
+        mov	QWORD PTR [r8+8], rax
+        mov	rax, QWORD PTR [rbx+16]
+        mov	QWORD PTR [r8+16], rax
+        mov	rax, QWORD PTR [rbx+24]
+        mov	QWORD PTR [r8+24], rax
+        mov	rax, QWORD PTR [rbx+32]
+        mov	QWORD PTR [r8+32], rax
+        mov	rax, QWORD PTR [rbx+40]
+        mov	QWORD PTR [r8+40], rax
+        mov	rax, QWORD PTR [rbx+48]
+        mov	QWORD PTR [r8+48], rax
+        mov	rax, QWORD PTR [rbx+56]
+        mov	QWORD PTR [r8+56], rax
+        mov	rax, QWORD PTR [rbx+64]
+        mov	QWORD PTR [r8+64], rax
+        mov	rax, QWORD PTR [rbx+72]
+        mov	QWORD PTR [r8+72], rax
+        mov	rax, QWORD PTR [rbx+80]
+        mov	QWORD PTR [r8+80], rax
+        mov	rax, QWORD PTR [rbx+88]
+        mov	QWORD PTR [r8+88], rax
 L_end_3072_mul_avx2_12:
         add	rsp, 96
         pop	r14
@@ -22173,12 +22213,18 @@ sp_3072_sqr_avx2_12 PROC
         sub	r8, 96
         cmp	r9, r8
         jne	L_end_3072_sqr_avx2_12
-        vmovdqu	xmm0, OWORD PTR [rbp]
-        vmovups	OWORD PTR [r8], xmm0
-        vmovdqu	xmm0, OWORD PTR [rbp+16]
-        vmovups	OWORD PTR [r8+16], xmm0
-        vmovdqu	xmm0, OWORD PTR [rbp+32]
-        vmovups	OWORD PTR [r8+32], xmm0
+        mov	rax, QWORD PTR [rbp]
+        mov	QWORD PTR [r8], rax
+        mov	rax, QWORD PTR [rbp+8]
+        mov	QWORD PTR [r8+8], rax
+        mov	rax, QWORD PTR [rbp+16]
+        mov	QWORD PTR [r8+16], rax
+        mov	rax, QWORD PTR [rbp+24]
+        mov	QWORD PTR [r8+24], rax
+        mov	rax, QWORD PTR [rbp+32]
+        mov	QWORD PTR [r8+32], rax
+        mov	rax, QWORD PTR [rbp+40]
+        mov	QWORD PTR [r8+40], rax
         mov	rax, QWORD PTR [rbp+48]
         mov	QWORD PTR [r8+48], rax
 L_end_3072_sqr_avx2_12:
@@ -44080,7 +44126,7 @@ sp_256_get_point_33_4 PROC
         movdqu	OWORD PTR [rsp+136], xmm14
         movdqu	OWORD PTR [rsp+152], xmm15
         mov	rax, 1
-        vmovd	xmm13, r8d
+        movd	xmm13, r8d
         add	rdx, 200
         movd	xmm15, eax
         mov	rax, 32
@@ -48107,7 +48153,7 @@ sp_384_get_point_33_6 PROC
         movdqu	OWORD PTR [rsp+136], xmm14
         movdqu	OWORD PTR [rsp+152], xmm15
         mov	rax, 1
-        vmovd	xmm13, r8d
+        movd	xmm13, r8d
         add	rdx, 296
         movd	xmm15, eax
         mov	rax, 32
@@ -48153,7 +48199,7 @@ L_384_get_point_33_6_start_1:
         movdqu	OWORD PTR [rcx+112], xmm4
         movdqu	OWORD PTR [rcx+128], xmm5
         mov	rax, 1
-        vmovd	xmm13, r8d
+        movd	xmm13, r8d
         sub	rdx, 9472
         movd	xmm15, eax
         mov	rax, 32
@@ -50664,14 +50710,22 @@ sp_521_mul_avx2_9 PROC
         cmp	rbp, r8
         jne	L_end_521_mul_avx2_9
 L_start_521_mul_avx2_9:
-        vmovdqu	xmm0, OWORD PTR [rbx]
-        vmovups	OWORD PTR [r8], xmm0
-        vmovdqu	xmm0, OWORD PTR [rbx+16]
-        vmovups	OWORD PTR [r8+16], xmm0
-        vmovdqu	xmm0, OWORD PTR [rbx+32]
-        vmovups	OWORD PTR [r8+32], xmm0
-        vmovdqu	xmm0, OWORD PTR [rbx+48]
-        vmovups	OWORD PTR [r8+48], xmm0
+        mov	rax, QWORD PTR [rbx]
+        mov	QWORD PTR [r8], rax
+        mov	rax, QWORD PTR [rbx+8]
+        mov	QWORD PTR [r8+8], rax
+        mov	rax, QWORD PTR [rbx+16]
+        mov	QWORD PTR [r8+16], rax
+        mov	rax, QWORD PTR [rbx+24]
+        mov	QWORD PTR [r8+24], rax
+        mov	rax, QWORD PTR [rbx+32]
+        mov	QWORD PTR [r8+32], rax
+        mov	rax, QWORD PTR [rbx+40]
+        mov	QWORD PTR [r8+40], rax
+        mov	rax, QWORD PTR [rbx+48]
+        mov	QWORD PTR [r8+48], rax
+        mov	rax, QWORD PTR [rbx+56]
+        mov	QWORD PTR [r8+56], rax
         mov	rax, QWORD PTR [rbx+64]
         mov	QWORD PTR [r8+64], rax
 L_end_521_mul_avx2_9:
@@ -51483,10 +51537,14 @@ sp_521_sqr_avx2_9 PROC
         sub	r8, 72
         cmp	r9, r8
         jne	L_end_521_sqr_avx2_9
-        vmovdqu	xmm0, OWORD PTR [rbp]
-        vmovups	OWORD PTR [r8], xmm0
-        vmovdqu	xmm0, OWORD PTR [rbp+16]
-        vmovups	OWORD PTR [r8+16], xmm0
+        mov	rax, QWORD PTR [rbp]
+        mov	QWORD PTR [r8], rax
+        mov	rax, QWORD PTR [rbp+8]
+        mov	QWORD PTR [r8+8], rax
+        mov	rax, QWORD PTR [rbp+16]
+        mov	QWORD PTR [r8+16], rax
+        mov	rax, QWORD PTR [rbp+24]
+        mov	QWORD PTR [r8+24], rax
 L_end_521_sqr_avx2_9:
         add	rsp, 72
         pop	rbx
@@ -53437,7 +53495,7 @@ sp_521_get_point_33_9 PROC
         movdqu	OWORD PTR [rsp+144], xmm15
         mov	r14, 1
         mov	rax, 1
-        vmovd	xmm13, r8d
+        movd	xmm13, r8d
 IFNDEF SP_ALIGN_16
         add	rdx, 440
 ELSE
@@ -53503,7 +53561,7 @@ ENDIF
         movdqu	OWORD PTR [rcx+160], xmm5
         mov	r14, 1
         mov	rax, 1
-        vmovd	xmm13, r8d
+        movd	xmm13, r8d
 IFNDEF SP_ALIGN_16
         sub	rdx, 14080
 ELSE
@@ -60838,22 +60896,38 @@ sp_1024_mul_avx2_16 PROC
         cmp	rbp, r8
         jne	L_end_1024_mul_avx2_16
 L_start_1024_mul_avx2_16:
-        vmovdqu	xmm0, OWORD PTR [rbx]
-        vmovups	OWORD PTR [r8], xmm0
-        vmovdqu	xmm0, OWORD PTR [rbx+16]
-        vmovups	OWORD PTR [r8+16], xmm0
-        vmovdqu	xmm0, OWORD PTR [rbx+32]
-        vmovups	OWORD PTR [r8+32], xmm0
-        vmovdqu	xmm0, OWORD PTR [rbx+48]
-        vmovups	OWORD PTR [r8+48], xmm0
-        vmovdqu	xmm0, OWORD PTR [rbx+64]
-        vmovups	OWORD PTR [r8+64], xmm0
-        vmovdqu	xmm0, OWORD PTR [rbx+80]
-        vmovups	OWORD PTR [r8+80], xmm0
-        vmovdqu	xmm0, OWORD PTR [rbx+96]
-        vmovups	OWORD PTR [r8+96], xmm0
-        vmovdqu	xmm0, OWORD PTR [rbx+112]
-        vmovups	OWORD PTR [r8+112], xmm0
+        mov	rax, QWORD PTR [rbx]
+        mov	QWORD PTR [r8], rax
+        mov	rax, QWORD PTR [rbx+8]
+        mov	QWORD PTR [r8+8], rax
+        mov	rax, QWORD PTR [rbx+16]
+        mov	QWORD PTR [r8+16], rax
+        mov	rax, QWORD PTR [rbx+24]
+        mov	QWORD PTR [r8+24], rax
+        mov	rax, QWORD PTR [rbx+32]
+        mov	QWORD PTR [r8+32], rax
+        mov	rax, QWORD PTR [rbx+40]
+        mov	QWORD PTR [r8+40], rax
+        mov	rax, QWORD PTR [rbx+48]
+        mov	QWORD PTR [r8+48], rax
+        mov	rax, QWORD PTR [rbx+56]
+        mov	QWORD PTR [r8+56], rax
+        mov	rax, QWORD PTR [rbx+64]
+        mov	QWORD PTR [r8+64], rax
+        mov	rax, QWORD PTR [rbx+72]
+        mov	QWORD PTR [r8+72], rax
+        mov	rax, QWORD PTR [rbx+80]
+        mov	QWORD PTR [r8+80], rax
+        mov	rax, QWORD PTR [rbx+88]
+        mov	QWORD PTR [r8+88], rax
+        mov	rax, QWORD PTR [rbx+96]
+        mov	QWORD PTR [r8+96], rax
+        mov	rax, QWORD PTR [rbx+104]
+        mov	QWORD PTR [r8+104], rax
+        mov	rax, QWORD PTR [rbx+112]
+        mov	QWORD PTR [r8+112], rax
+        mov	rax, QWORD PTR [rbx+120]
+        mov	QWORD PTR [r8+120], rax
 L_end_1024_mul_avx2_16:
         add	rsp, 128
         pop	rdi
@@ -61895,18 +61969,30 @@ sp_1024_sqr_avx2_16 PROC
         sub	r8, 128
         cmp	r9, r8
         jne	L_end_1024_sqr_avx2_16
-        vmovdqu	xmm0, OWORD PTR [rbp]
-        vmovups	OWORD PTR [r8], xmm0
-        vmovdqu	xmm0, OWORD PTR [rbp+16]
-        vmovups	OWORD PTR [r8+16], xmm0
-        vmovdqu	xmm0, OWORD PTR [rbp+32]
-        vmovups	OWORD PTR [r8+32], xmm0
-        vmovdqu	xmm0, OWORD PTR [rbp+48]
-        vmovups	OWORD PTR [r8+48], xmm0
-        vmovdqu	xmm0, OWORD PTR [rbp+64]
-        vmovups	OWORD PTR [r8+64], xmm0
-        vmovdqu	xmm0, OWORD PTR [rbp+80]
-        vmovups	OWORD PTR [r8+80], xmm0
+        mov	rax, QWORD PTR [rbp]
+        mov	QWORD PTR [r8], rax
+        mov	rax, QWORD PTR [rbp+8]
+        mov	QWORD PTR [r8+8], rax
+        mov	rax, QWORD PTR [rbp+16]
+        mov	QWORD PTR [r8+16], rax
+        mov	rax, QWORD PTR [rbp+24]
+        mov	QWORD PTR [r8+24], rax
+        mov	rax, QWORD PTR [rbp+32]
+        mov	QWORD PTR [r8+32], rax
+        mov	rax, QWORD PTR [rbp+40]
+        mov	QWORD PTR [r8+40], rax
+        mov	rax, QWORD PTR [rbp+48]
+        mov	QWORD PTR [r8+48], rax
+        mov	rax, QWORD PTR [rbp+56]
+        mov	QWORD PTR [r8+56], rax
+        mov	rax, QWORD PTR [rbp+64]
+        mov	QWORD PTR [r8+64], rax
+        mov	rax, QWORD PTR [rbp+72]
+        mov	QWORD PTR [r8+72], rax
+        mov	rax, QWORD PTR [rbp+80]
+        mov	QWORD PTR [r8+80], rax
+        mov	rax, QWORD PTR [rbp+88]
+        mov	QWORD PTR [r8+88], rax
 L_end_1024_sqr_avx2_16:
         add	rsp, 136
         pop	rbx
