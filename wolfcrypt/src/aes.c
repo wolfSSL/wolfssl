@@ -19361,17 +19361,17 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
      * fallback is the software XTS (which dispatches per-block via
      * wc_AesDecrypt). */
 #ifdef WOLFSSL_ARM32_AES_DISPATCH
-    if (xaes->aes.use_aes_hw_crypto) {
-        AES_XTS_decrypt_AARCH32(in, out, sz, i, (byte*)xaes->aes.key,
-            (byte*)xaes->tweak.key, (byte*)xaes->aes.tmp, xaes->aes.rounds);
+    if (aes->use_aes_hw_crypto) {
+        AES_XTS_decrypt_AARCH32(in, out, sz, i, (byte*)aes->key,
+            (byte*)xaes->tweak.key, (byte*)aes->tmp, aes->rounds);
         ret = 0;
     }
     else {
         ret = AesXtsDecrypt_sw(xaes, out, in, sz, i);
     }
 #else
-    AES_XTS_decrypt_AARCH32(in, out, sz, i, (byte*)xaes->aes.key,
-        (byte*)xaes->tweak.key, (byte*)xaes->aes.tmp, xaes->aes.rounds);
+    AES_XTS_decrypt_AARCH32(in, out, sz, i, (byte*)aes->key,
+        (byte*)xaes->tweak.key, (byte*)aes->tmp, aes->rounds);
     ret = 0;
 #endif
 #elif defined(WOLFSSL_AESNI)
@@ -19422,8 +19422,8 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 #elif defined(__aarch64__) && defined(WOLFSSL_ARMASM)
 #if !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
     if (aes->use_aes_hw_crypto) {
-        AES_XTS_decrypt_AARCH64(in, out, sz, i, (byte*)xaes->aes.key,
-            (byte*)xaes->tweak.key, (byte*)xaes->aes.tmp, xaes->aes.rounds);
+        AES_XTS_decrypt_AARCH64(in, out, sz, i, (byte*)aes->key,
+            (byte*)xaes->tweak.key, (byte*)aes->tmp, aes->rounds);
         ret = 0;
     }
     else
@@ -19433,8 +19433,8 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
     if (sz >= 64)
 #endif
     {
-        AES_XTS_decrypt_NEON(in, out, sz, i, (byte*)xaes->aes.key,
-            (byte*)xaes->tweak.key, (byte*)xaes->aes.tmp, xaes->aes.rounds);
+        AES_XTS_decrypt_NEON(in, out, sz, i, (byte*)aes->key,
+            (byte*)xaes->tweak.key, (byte*)aes->tmp, aes->rounds);
         ret = 0;
     }
 #ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
@@ -19443,14 +19443,14 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 #endif
 #ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
     {
-        AES_XTS_decrypt(in, out, sz, i, (byte*)xaes->aes.key,
-            (byte*)xaes->tweak.key, (byte*)xaes->aes.tmp, xaes->aes.rounds);
+        AES_XTS_decrypt(in, out, sz, i, (byte*)aes->key,
+            (byte*)xaes->tweak.key, (byte*)aes->tmp, aes->rounds);
         ret = 0;
     }
 #endif
 #elif defined(WOLFSSL_PPC64_ASM)
-    AES_XTS_decrypt(in, out, sz, i, (byte*)xaes->aes.key,
-        (byte*)xaes->tweak.key, (byte*)xaes->aes.tmp, xaes->aes.rounds);
+    AES_XTS_decrypt(in, out, sz, i, (byte*)aes->key,
+        (byte*)xaes->tweak.key, (byte*)aes->tmp, aes->rounds);
     ret = 0;
 #else
     ret = AesXtsDecrypt_sw(xaes, out, in, sz, i);
