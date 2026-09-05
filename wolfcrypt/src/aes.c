@@ -15163,12 +15163,23 @@ int wc_AesGcmEncrypt_ex(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 
     if (ret == 0) {
+        /* Pass the encrypt its nonce out of ivOut rather than aes->reg. Some
+         * backends use aes->reg as scratch space, and an asynchronous backend
+         * keeps the pointer until the operation completes, so aes->reg is not
+         * a stable place to hold the nonce being consumed. */
         XMEMCPY(ivOut, aes->reg, ivOutSz);
         ret = wc_AesGcmEncrypt(aes, out, in, sz,
-                               (byte*)aes->reg, ivOutSz,
+                               ivOut, ivOutSz,
                                authTag, authTagSz,
                                authIn, authInSz);
-        if (ret == 0)
+        /* Put the nonce back unconditionally - a backend may have left scratch
+         * data in aes->reg - so a failed encrypt leaves the counter on the
+         * nonce it did not consume rather than on backend leftovers. */
+        XMEMCPY(aes->reg, ivOut, ivOutSz);
+        /* A nonce handed to an asynchronous backend has been consumed even
+         * though the operation has not finished yet - the counter must still
+         * advance or the next record would reuse this nonce. */
+        if (ret == 0 || ret == WC_NO_ERR_TRACE(WC_PENDING_E))
             IncCtr((byte*)aes->reg, ivOutSz);
     }
 
@@ -16007,14 +16018,19 @@ int wc_AesCcmEncrypt_ex(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 
     if (ret == 0) {
+        /* Keep the nonce being consumed in ivOut rather than aes->reg - see
+         * wc_AesGcmEncrypt_ex() for why aes->reg is not a stable holder. */
+        XMEMCPY(ivOut, aes->reg, aes->nonceSz);
         ret = wc_AesCcmEncrypt(aes, out, in, sz,
-                               (byte*)aes->reg, aes->nonceSz,
+                               ivOut, aes->nonceSz,
                                authTag, authTagSz,
                                authIn, authInSz);
-        if (ret == 0) {
-            XMEMCPY(ivOut, aes->reg, aes->nonceSz);
+        /* Put the nonce back unconditionally - see wc_AesGcmEncrypt_ex(). */
+        XMEMCPY(aes->reg, ivOut, aes->nonceSz);
+        /* Advance past a nonce handed to a backend that defers the work - it
+         * has been consumed even though the operation has not finished. */
+        if (ret == 0 || ret == WC_NO_ERR_TRACE(WC_PENDING_E))
             IncCtr((byte*)aes->reg, aes->nonceSz);
-        }
     }
 
     return ret;
