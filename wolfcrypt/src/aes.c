@@ -18632,6 +18632,12 @@ static int AesXtsInitTweak_sw(XtsAes* xaes, byte* i) {
 
 #endif /* WOLFSSL_AESXTS_STREAM */
 
+/* The aarch64 crypto-extension lane of the streaming entry points. */
+#if defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+    !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+    #define WC_AES_XTS_STREAM_AARCH64
+#endif
+
 #if !defined(WOLFSSL_ARMASM) || (!defined(__aarch64__) && \
     defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)) || \
     defined(WOLFSSL_ARM32_AES_DISPATCH) || defined(WOLFSSL_AESXTS_STREAM)
@@ -18999,7 +19005,7 @@ static int AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
 {
     int ret;
 
-#if defined(WOLFSSL_AESNI)
+#if defined(WOLFSSL_AESNI) || defined(WC_AES_XTS_STREAM_AARCH64)
     Aes *aes;
 #endif
 
@@ -19007,7 +19013,8 @@ static int AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
         return BAD_FUNC_ARG;
     }
 
-#if defined(WOLFSSL_AESNI)
+#if defined(WOLFSSL_AESNI) || defined(WC_AES_XTS_STREAM_AARCH64)
+    /* Encryption always uses xaes->aes, both key layouts. */
     aes = &xaes->aes;
 #endif
 
@@ -19087,6 +19094,15 @@ static int AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
         }
         else
 #endif /* WOLFSSL_AESNI */
+#ifdef WC_AES_XTS_STREAM_AARCH64
+        /* Same lane the one-shot wc_AesXtsEncrypt() takes. */
+        if (aes->use_aes_hw_crypto) {
+            AES_XTS_encrypt_update_AARCH64(in, out, sz, (byte*)aes->key,
+                stream->tweak_block, (byte*)aes->tmp, aes->rounds);
+            ret = 0;
+        }
+        else
+#endif
         {
             ret = AesXtsEncryptUpdate_sw(xaes, out, in, sz, stream->tweak_block);
         }
@@ -19568,7 +19584,7 @@ static int AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
                            struct XtsAesStreamData *stream)
 {
     int ret;
-#if defined(WOLFSSL_AESNI)
+#if defined(WOLFSSL_AESNI) || defined(WC_AES_XTS_STREAM_AARCH64)
     Aes *aes;
 #endif
 
@@ -19576,7 +19592,7 @@ static int AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
         return BAD_FUNC_ARG;
     }
 
-#if defined(WOLFSSL_AESNI)
+#if defined(WOLFSSL_AESNI) || defined(WC_AES_XTS_STREAM_AARCH64)
 #ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
     aes = &xaes->aes_decrypt;
 #else
@@ -19650,6 +19666,16 @@ static int AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
         }
         else
 #endif /* WOLFSSL_AESNI */
+#ifdef WC_AES_XTS_STREAM_AARCH64
+        /* Same lane the one-shot wc_AesXtsDecrypt() takes.  aes is the
+         * decrypt context resolved above, never xaes->aes. */
+        if (aes->use_aes_hw_crypto) {
+            AES_XTS_decrypt_update_AARCH64(in, out, sz, (byte*)aes->key,
+                stream->tweak_block, (byte*)aes->tmp, aes->rounds);
+            ret = 0;
+        }
+        else
+#endif
         {
             ret = AesXtsDecryptUpdate_sw(xaes, out, in, sz,
                                          stream->tweak_block);
