@@ -509,6 +509,45 @@ fn scan_cfg() -> Result<()> {
     /* mlkem / ML-KEM */
     check_cfg(&binding, "wc_MlKemKey_Init", "mlkem");
 
+    /* SLH-DSA */
+    check_cfg(&binding, "wc_SlhDsaKey_Init", "slhdsa");
+    check_cfg(&binding, "wc_SlhDsaKey_MakeKey", "slhdsa_make_key");
+    check_cfg(&binding, "wc_SlhDsaKey_MakeKeyWithRandom", "slhdsa_make_key_with_random");
+    check_cfg(&binding, "wc_SlhDsaKey_Sign", "slhdsa_sign");
+    check_cfg(&binding, "wc_SlhDsaKey_SignWithRandom", "slhdsa_sign_with_random");
+    check_cfg(&binding, "wc_SlhDsaKey_SignMsgDeterministic", "slhdsa_sign_msg_deterministic");
+    check_cfg(&binding, "wc_SlhDsaKey_SignMsgWithRandom", "slhdsa_sign_msg_with_random");
+    check_cfg(&binding, "wc_SlhDsaKey_VerifyMsg", "slhdsa_verify_msg");
+    check_cfg(&binding, "wc_SlhDsaKey_SignHashDeterministic", "slhdsa_sign_hash_deterministic");
+    check_cfg(&binding, "wc_SlhDsaKey_SignHashWithRandom", "slhdsa_sign_hash_with_random");
+    check_cfg(&binding, "wc_SlhDsaKey_SignHash", "slhdsa_sign_hash");
+    check_cfg(&binding, "wc_SlhDsaKey_SignDeterministic", "slhdsa_sign_deterministic");
+    check_cfg(&binding, "wc_SlhDsaKey_Verify", "slhdsa_verify");
+    check_cfg(&binding, "wc_SlhDsaKey_VerifyHash", "slhdsa_verify_hash");
+    check_cfg(&binding, "wc_SlhDsaKey_CheckKey", "slhdsa_check_key");
+    check_cfg(&binding, "wc_SlhDsaKey_ImportPrivate", "slhdsa_import_private");
+    check_cfg(&binding, "wc_SlhDsaKey_ExportPrivate", "slhdsa_export_private");
+    check_cfg(&binding, "wc_SlhDsaKey_ImportPublic", "slhdsa_import");
+    check_cfg(&binding, "wc_SlhDsaKey_ExportPublic", "slhdsa_export");
+    check_cfg(&binding, "wc_SlhDsaKey_PrivateSizeFromParam", "slhdsa_private_size_from_param");
+    check_cfg(&binding, "wc_SlhDsaKey_PublicSizeFromParam", "slhdsa_public_size_from_param");
+    check_cfg(&binding, "wc_SlhDsaKey_SigSizeFromParam", "slhdsa_sig_size_from_param");
+    check_cfg(&binding, "wc_SlhDsaKey_PrivateSize", "slhdsa_private_size");
+    check_cfg(&binding, "wc_SlhDsaKey_PublicSize", "slhdsa_public_size");
+    check_cfg(&binding, "wc_SlhDsaKey_SigSize", "slhdsa_sig_size");
+    check_cfg(&binding, "SlhDsaParam_SLHDSA_SHAKE128S", "slhdsa_shake");
+    check_cfg(&binding, "SlhDsaParam_SLHDSA_SHAKE128F", "slhdsa_shake");
+    check_cfg(&binding, "SlhDsaParam_SLHDSA_SHAKE192S", "slhdsa_shake");
+    check_cfg(&binding, "SlhDsaParam_SLHDSA_SHAKE192F", "slhdsa_shake");
+    check_cfg(&binding, "SlhDsaParam_SLHDSA_SHAKE256S", "slhdsa_shake");
+    check_cfg(&binding, "SlhDsaParam_SLHDSA_SHAKE256F", "slhdsa_shake");
+    check_cfg(&binding, "SlhDsaParam_SLHDSA_SHA2_128S", "slhdsa_sha2");
+    check_cfg(&binding, "SlhDsaParam_SLHDSA_SHA2_128F", "slhdsa_sha2");
+    check_cfg(&binding, "SlhDsaParam_SLHDSA_SHA2_192S", "slhdsa_sha2");
+    check_cfg(&binding, "SlhDsaParam_SLHDSA_SHA2_192F", "slhdsa_sha2");
+    check_cfg(&binding, "SlhDsaParam_SLHDSA_SHA2_256S", "slhdsa_sha2");
+    check_cfg(&binding, "SlhDsaParam_SLHDSA_SHA2_256F", "slhdsa_sha2");
+
     /* lms / HSS */
     check_cfg(&binding, "wc_LmsKey_Init", "lms");
     check_cfg(&binding, "wc_LmsKey_MakeKey", "lms_make_key");
