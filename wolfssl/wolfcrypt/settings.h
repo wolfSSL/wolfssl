@@ -5841,6 +5841,18 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
 #endif
 
 /* Crypto Callback Rules */
+#if defined(WOLFSSL_ALTERA_FCS) && !defined(WOLF_CRYPTO_CB_CMD)
+    #define WOLF_CRYPTO_CB_CMD
+#endif
+#if defined(WOLFSSL_ALTERA_FCS) && !defined(WOLF_CRYPTO_CB_SETKEY)
+    #define WOLF_CRYPTO_CB_SETKEY
+#endif
+#if defined(WOLFSSL_ALTERA_FCS) && !defined(WOLF_CRYPTO_CB_COPY)
+    #define WOLF_CRYPTO_CB_COPY
+#endif
+#if defined(WOLFSSL_ALTERA_FCS) && !defined(WOLF_CRYPTO_CB_FREE)
+    #define WOLF_CRYPTO_CB_FREE
+#endif
 #if defined(WC_TEST_NO_CRYPTOCB_SW_TEST) && !defined(WOLF_CRYPTO_CB)
     #error "Crypto callback SW test" \
            " (WC_TEST_NO_CRYPTOCB_SW_TEST)" \
