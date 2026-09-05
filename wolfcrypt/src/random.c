@@ -5627,19 +5627,12 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
      #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
 
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz){
-        int ret = 0;
-
         (void)os;
 
         if (output == NULL) {
             return BUFFER_E;
         }
-        ret = wolfSSL_CryptHwMutexLock();
-        if (ret == 0) {
-            ret = se050_get_random_number(sz, output);
-            wolfSSL_CryptHwMutexUnLock();
-        }
-        return ret;
+        return se050_get_random_number(sz, output);
     }
 
 #elif defined(WOLFSSL_NXP_RNG_1)

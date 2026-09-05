@@ -26,6 +26,11 @@
 #include <wolfssl/wolfcrypt/visibility.h>
 #include <wolfssl/wolfcrypt/types.h> /* for MATH_INT_T */
 
+#if defined(WOLFSSL_SE050_SCP03_ROTATE) && \
+    (defined(NO_AES) || !defined(WOLFSSL_AES_DIRECT))
+    #error WOLFSSL_SE050_SCP03_ROTATE requires AES direct support
+#endif
+
 #ifdef __GNUC__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wundef"
@@ -98,6 +103,54 @@ enum SE050KeyType {
     SE050_CURVE25519_KEY
 };
 
+/* SE05x secure object permissions. Attaching any policy makes the applet
+ * default-deny all permissions that are not explicitly granted. A value of
+ * zero preserves the applet default policy by attaching no policy. */
+#define WC_SE050_POLICY_ALLOW_DELETE        0x00000001U
+#define WC_SE050_POLICY_ALLOW_WRITE         0x00000002U
+#define WC_SE050_POLICY_ALLOW_READ          0x00000004U
+#define WC_SE050_POLICY_ALLOW_SIGN          0x00000008U
+#define WC_SE050_POLICY_ALLOW_VERIFY        0x00000010U
+#define WC_SE050_POLICY_ALLOW_ENCRYPT       0x00000020U
+#define WC_SE050_POLICY_ALLOW_DECRYPT       0x00000040U
+#define WC_SE050_POLICY_ALLOW_KA            0x00000080U
+#define WC_SE050_POLICY_ALLOW_KD            0x00000100U
+#define WC_SE050_POLICY_ALLOW_GEN           0x00000200U
+#define WC_SE050_POLICY_ALLOW_IMPORT_EXPORT 0x00000400U
+#define WC_SE050_POLICY_ALLOW_ATTEST        0x00000800U
+#define WC_SE050_POLICY_REQUIRE_SM          0x00001000U
+
+/* Platform SCP03 uses one 128-bit ENC, MAC and data-encryption key. */
+typedef struct wc_se050_scp03_keys {
+    byte enc[16];
+    byte mac[16];
+    byte dek[16];
+} wc_se050_scp03_keys;
+
+#ifndef WC_SE050_ATTEST_VALUE_MAX
+#define WC_SE050_ATTEST_VALUE_MAX 1024U
+#endif
+
+#ifndef WOLFSSL_SE050_NO_ATTEST
+/* Result of an attested object read. The public object value is returned in
+ * the same DER form as sss_key_store_get_key(). cipherType, objectType and
+ * curveId describe the object and are used by the host verifier to recover
+ * the exact applet response value. */
+typedef struct wc_se050_attst_result {
+    byte value[WC_SE050_ATTEST_VALUE_MAX];
+    word32 valueSz;
+    byte freshness[16];
+    byte origin;
+    word32 authObjId;
+    word32 policyFlags;
+    word32 cipherType;
+    word32 objectType;
+    word32 curveId;
+    enum wc_HashType hashAlgo;
+    sss_se05x_attst_data_t raw;
+} wc_se050_attst_result;
+#endif
+
 
 #ifdef WOLFSSL_SE050_HASH
 typedef struct {
@@ -111,8 +164,56 @@ typedef struct {
 /* Public Functions */
 WOLFSSL_API int wc_se050_set_config(sss_session_t *pSession,
     sss_key_store_t *pHostKeyStore, sss_key_store_t *pKeyStore);
+/** Return the configured SSS session and keystores. Output pointers may be
+ * NULL. Direct middleware use must be bracketed by wc_se050_lock/unlock. */
+WOLFSSL_API int wc_se050_get_config(sss_session_t **pSession,
+    sss_key_store_t **pHostKeyStore, sss_key_store_t **pKeyStore);
+/** Return the SSS session currently used by the wolfCrypt SE05x port. */
+WOLFSSL_API sss_session_t* wc_se050_get_session(void);
+/** Return the low-level SE05x session, or NULL when none is configured. */
+WOLFSSL_API pSe05xSession_t wc_se050_get_se05x_session(void);
+/** Acquire/release the shared wolfCrypt hardware transport lock. */
+WOLFSSL_API int wc_se050_lock(void);
+WOLFSSL_API void wc_se050_unlock(void);
 #ifdef WOLFSSL_SE050_INIT
 WOLFSSL_API int wc_se050_init(const char* portName);
+/** Close a session opened by wc_se050_init() or wc_se050_init_ex(). */
+WOLFSSL_API int wc_se050_close(void);
+#if defined(SSS_HAVE_HOSTCRYPTO_ANY) && SSS_HAVE_HOSTCRYPTO_ANY && \
+    defined(SSS_HAVE_SCP_SCP03_SSS) && SSS_HAVE_SCP_SCP03_SSS && \
+    defined(SSS_HAVE_SE05X_AUTH_PLATFSCP03) && \
+        SSS_HAVE_SE05X_AUTH_PLATFSCP03
+/** Open Platform SCP03 using caller-supplied 128-bit ENC/MAC/DEK keys. */
+WOLFSSL_API int wc_se050_init_ex(const char* portName,
+    const wc_se050_scp03_keys* keys);
+#endif
+#endif
+
+#ifdef HAVE_HKDF
+/** Deterministically derive the Platform SCP03 ENC, MAC and DEK keys from a
+ * seed. No SE05x session is required, so this can be called before
+ * wolfCrypt_Init() to recover keys after a power cycle. */
+WOLFSSL_API int wc_se050_scp03_derive_keys_seed(const byte* seed,
+    word32 seedSz, wc_se050_scp03_keys* derivedOut);
+#endif
+
+#if defined(WOLFSSL_SE050_SCP03_ROTATE) && \
+    defined(WOLFSSL_SE050_INIT) && \
+    defined(SSS_HAVE_HOSTCRYPTO_ANY) && SSS_HAVE_HOSTCRYPTO_ANY && \
+    defined(SSS_HAVE_SCP_SCP03_SSS) && SSS_HAVE_SCP_SCP03_SSS && \
+    defined(SSS_HAVE_SE05X_AUTH_PLATFSCP03) && \
+        SSS_HAVE_SE05X_AUTH_PLATFSCP03
+/** Destructively replace the Platform SCP03 key set using secured PUT KEY.
+ * The port temporarily authenticates to the Security Domain, then returns
+ * with a fresh IoT applet session authenticated by newKeys. */
+WOLFSSL_API int wc_se050_scp03_rotate_keys(
+    const wc_se050_scp03_keys* newKeys, byte keyVersion);
+#ifdef HAVE_HKDF
+/** Derive three keys with the documented HKDF-SHA256 construction and rotate.
+ * Persist the seed before calling. derivedOut may be NULL. */
+WOLFSSL_API int wc_se050_scp03_rotate_keys_seed(const byte* seed,
+    word32 seedSz, byte keyVersion, wc_se050_scp03_keys* derivedOut);
+#endif
 #endif
 WOLFSSL_API int wc_se050_erase_object(word32 keyId);
 
@@ -120,16 +221,85 @@ WOLFSSL_API int wc_se050_ecc_insert_public_key(word32 keyId,
     const byte* eccDer, word32 eccDerSize);
 WOLFSSL_API int wc_se050_ecc_insert_private_key(word32 keyId,
     const byte* eccDer, word32 eccDerSize);
+/** Insert an ECC public/private key with a flag-based immutable policy. */
+WOLFSSL_API int wc_se050_ecc_insert_public_key_ex(word32 keyId,
+    const byte* eccDer, word32 eccDerSize, word32 policyFlags,
+    word32 authObjId);
+WOLFSSL_API int wc_se050_ecc_insert_private_key_ex(word32 keyId,
+    const byte* eccDer, word32 eccDerSize, word32 policyFlags,
+    word32 authObjId);
+WOLFSSL_API int wc_se050_ecc_insert_public_key_policy(word32 keyId,
+    const byte* eccDer, word32 eccDerSize, const sss_policy_t* policy);
+WOLFSSL_API int wc_se050_ecc_insert_private_key_policy(word32 keyId,
+    const byte* eccDer, word32 eccDerSize, const sss_policy_t* policy);
+#ifdef HAVE_ECC
+/** Generate a persistent ECC key pair at a caller-selected, unused ID with a
+ * flag-based immutable policy. keySize is in bytes. */
+WOLFSSL_API int wc_se050_ecc_generate_key_ex(word32 keyId, int keySize,
+    int curveId, word32 policyFlags, word32 authObjId);
+/** Generate a persistent ECC key pair with a raw middleware policy. */
+WOLFSSL_API int wc_se050_ecc_generate_key_policy(word32 keyId, int keySize,
+    int curveId, const sss_policy_t* policy);
+#endif
 
 WOLFSSL_API int wc_se050_rsa_insert_public_key(word32 keyId,
     const byte* rsaDer, word32 rsaDerSize);
 WOLFSSL_API int wc_se050_rsa_insert_private_key(word32 keyId,
     const byte* rsaDer, word32 rsaDerSize);
+/** Insert an RSA public/private key with a flag-based immutable policy. */
+WOLFSSL_API int wc_se050_rsa_insert_public_key_ex(word32 keyId,
+    const byte* rsaDer, word32 rsaDerSize, word32 policyFlags,
+    word32 authObjId);
+WOLFSSL_API int wc_se050_rsa_insert_private_key_ex(word32 keyId,
+    const byte* rsaDer, word32 rsaDerSize, word32 policyFlags,
+    word32 authObjId);
+WOLFSSL_API int wc_se050_rsa_insert_public_key_policy(word32 keyId,
+    const byte* rsaDer, word32 rsaDerSize, const sss_policy_t* policy);
+WOLFSSL_API int wc_se050_rsa_insert_private_key_policy(word32 keyId,
+    const byte* rsaDer, word32 rsaDerSize, const sss_policy_t* policy);
+#if !defined(NO_RSA) && !defined(WOLFSSL_SE050_NO_RSA)
+/** Generate a persistent RSA key pair at a caller-selected, unused ID with a
+ * flag-based immutable policy. size is in bits and e must be 65537. */
+WOLFSSL_API int wc_se050_rsa_generate_key_ex(word32 keyId, int size, long e,
+    word32 policyFlags, word32 authObjId);
+/** Generate a persistent RSA key pair with a raw middleware policy. */
+WOLFSSL_API int wc_se050_rsa_generate_key_policy(word32 keyId, int size,
+    long e, const sss_policy_t* policy);
+#endif
 
 WOLFSSL_API int wc_se050_insert_binary_object(word32 keyId,
     const byte* object, word32 objectSz);
+/** Insert a binary object with a flag-based immutable policy. */
+WOLFSSL_API int wc_se050_insert_binary_object_ex(word32 keyId,
+    const byte* object, word32 objectSz, word32 policyFlags,
+    word32 authObjId);
+WOLFSSL_API int wc_se050_insert_binary_object_policy(word32 keyId,
+    const byte* object, word32 objectSz, const sss_policy_t* policy);
 WOLFSSL_API int wc_se050_get_binary_object(word32 keyId,
     byte* out, word32* outSz);
+/** Read raw object attributes, including policy records and origin. */
+WOLFSSL_API int wc_se050_get_object_attributes(word32 keyId, byte* attr,
+    word32* attrSz);
+
+#ifndef WOLFSSL_SE050_NO_ATTEST
+/** Read and attest an object using a caller-generated 16-byte freshness
+ * challenge. */
+WOLFSSL_API int wc_se050_attest_object(word32 keyId, word32 attestKeyId,
+    enum wc_HashType hashAlgo, const byte* random, word32 randomSz,
+    wc_se050_attst_result* result);
+/** Verify all returned attestation components with an ECC/RSA public key and
+ * require the independently retained 16-byte freshness challenge. */
+WOLFSSL_API int wc_se050_verify_attestation(
+    const wc_se050_attst_result* result, const byte* attestPubDer,
+    word32 attestPubDerSz, const byte* expectedRandom,
+    word32 expectedRandomSz, int* res);
+/** Attest a key with a caller-generated 16-byte freshness challenge, verify
+ * the signature, and compare its public-key DER. */
+WOLFSSL_API int wc_se050_validate_provisioned_key(word32 keyId,
+    word32 attestKeyId, const byte* expectedPubDer, word32 expectedPubDerSz,
+    const byte* attestPubDer, word32 attestPubDerSz, const byte* random,
+    word32 randomSz, int* res);
+#endif
 
 /* Private Functions */
 WOLFSSL_LOCAL word32 se050_allocate_key(int keyType);

@@ -3290,6 +3290,14 @@
     #define WOLFSSL_CRYPT_HW_MUTEX 1
 #endif
 
+/* SE05x operations share one session and transport. Enable the wolfCrypt
+ * hardware mutex by default so the public SE05x lock API and the port's
+ * internal serialization are effective in normal threaded builds. */
+#if defined(WOLFSSL_SE050) && !defined(SINGLE_THREADED) && \
+    !defined(WOLFSSL_CRYPT_HW_MUTEX)
+    #define WOLFSSL_CRYPT_HW_MUTEX 1
+#endif
+
 #if !defined(XMALLOC_USER) && !defined(MICRIUM_MALLOC) && \
     !defined(WOLFSSL_LEANPSK) && !defined(NO_WOLFSSL_MEMORY) && \
     !defined(XMALLOC_OVERRIDE)
