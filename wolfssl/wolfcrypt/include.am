@@ -98,6 +98,8 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/pic32/pic32mz-crypt.h \
                          wolfssl/wolfcrypt/port/ti/ti-hash.h \
                          wolfssl/wolfcrypt/port/ti/ti-ccm.h \
+                         wolfssl/wolfcrypt/port/ti/ti-c2000.h \
+                         wolfssl/wolfcrypt/port/ti/ti-c2000-entropy.h \
                          wolfssl/wolfcrypt/port/nrf51.h \
                          wolfssl/wolfcrypt/port/nxp/ksdk_port.h \
                          wolfssl/wolfcrypt/port/nxp/dcp_port.h \

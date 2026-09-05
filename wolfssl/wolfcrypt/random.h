@@ -438,6 +438,95 @@ struct WC_RNG {
 
 WOLFSSL_API int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz);
 
+/* Ports layered on the generic noise source turn it on implicitly, so a
+ * user_settings.h only has to name the port. */
+#if defined(WOLFSSL_C2000_ENTROPY) && !defined(WOLFSSL_NOISE_SRC)
+    #define WOLFSSL_NOISE_SRC
+#endif
+
+#ifdef WOLFSSL_NOISE_SRC
+
+/* Generic SP800-90B noise source, for parts with a raw physical noise source
+ * but no TRNG.  The port supplies one callback returning an unconditioned
+ * octet; this layer adds the 4.3 startup test, the 4.4.1 RCT and 4.4.2 APT
+ * continuous tests, a latched fail-closed state, entropy-budget oversampling
+ * and a SHA-256 conditioner suitable for feeding wc_GenerateSeed().
+ * Implementation and entropy model: wolfcrypt/src/random.c.  Worked example:
+ * wolfcrypt/src/port/ti/ti-c2000-entropy.c. */
+
+/* Noise sources one instance can combine. */
+#ifndef WC_NOISE_SRC_MAX
+    #define WC_NOISE_SRC_MAX 2
+#endif
+#if (WC_NOISE_SRC_MAX) < 1 || (WC_NOISE_SRC_MAX) > 16
+    /* wc_NoiseSrc.degraded is a word16 bitmask of dropped sources. */
+    #error "WC_NOISE_SRC_MAX must be 1..16"
+#endif
+
+/* Conditioner output per chunk in octets (SHA-256).  random.c asserts this
+ * against WC_SHA256_DIGEST_SIZE so the two cannot drift; kept as a literal
+ * here to avoid pulling sha256.h into random.h. */
+#define WC_NOISE_CHUNK_SZ 32
+
+/* Raw octets drawn per source per chunk, from the assumed min-entropy hmin
+ * (hundredths of a bit per raw bit) and the oversample factor margin, rounded
+ * up so an hmin that does not divide evenly never under-gathers.  Sizes the
+ * gather of the credited source (index 0); any further source is extra hash
+ * input and is not budgeted.  Exposed so a port can size its work buffer
+ * without duplicating the formula. */
+#define WC_NOISE_RAW_PER_SRC(hmin, margin)                                    \
+    ((word32)((WC_NOISE_CHUNK_SZ *                                            \
+        (((8UL * 100UL * (unsigned long)(margin)) +                           \
+          ((unsigned long)(hmin) - 1UL)) / (unsigned long)(hmin))) / 8U))
+
+/* Fill *octet with one raw, unconditioned noise octet from source srcIdx.
+ * Returns 0 on success, negative on hardware failure. */
+typedef int (*wc_NoiseSampleCb)(void* ctx, int srcIdx, byte* octet);
+
+/* SP800-90B 4.4 state, one per source.  Persists across calls by design: the
+ * tests are continuous, not per-request. */
+typedef struct wc_NoiseHealth {
+    word16 rctCount;
+    word16 rctLast;
+    word16 aptCount;
+    word16 aptRef;
+    word16 aptPos;
+    byte   started;
+} wc_NoiseHealth;
+
+/* Caller-owned instance.  Fill the configuration members, then call
+ * wc_NoiseSrc_Init(); it derives rawPerSrc and owns everything after it. */
+typedef struct wc_NoiseSrc {
+    wc_NoiseSampleCb sampleCb;      /* required */
+    void*            ctx;           /* opaque, passed to sampleCb */
+    const char*      tag;           /* domain separation string, required */
+    byte*            work;          /* caller owned, >= numSrc * rawPerSrc */
+    word32           workSz;
+    word32           startupOctets; /* SP800-90B 4.3, per source */
+    word32           chunkCtr;      /* hashed in so chunks cannot repeat */
+    word32           rawPerSrc;     /* derived by wc_NoiseSrc_Init */
+    wc_NoiseHealth   health[WC_NOISE_SRC_MAX];
+    int              failed;        /* latched, cleared only by _Free */
+    word16           rctCutoff;     /* SP800-90B 4.4.1 */
+    word16           aptWindow;     /* SP800-90B 4.4.2 */
+    word16           aptCutoff;
+    word16           degraded;      /* bitmask of uncredited sources dropped */
+    byte             numSrc;        /* 1 .. WC_NOISE_SRC_MAX */
+    byte             hmin;          /* 1..100, hundredths of a bit per raw bit */
+    byte             margin;        /* oversample factor, >= 1 */
+    byte             inited;
+} wc_NoiseSrc;
+
+WOLFSSL_API int  wc_NoiseSrc_Init(wc_NoiseSrc* src);
+WOLFSSL_API void wc_NoiseSrc_Free(wc_NoiseSrc* src);
+WOLFSSL_API int  wc_NoiseSrc_GenerateSeed(wc_NoiseSrc* src, byte* output,
+                                          word32 sz);
+WOLFSSL_API int  wc_NoiseSrc_GetRaw(wc_NoiseSrc* src, byte* output, word32 len,
+                                    int srcIdx);
+WOLFSSL_API int  wc_NoiseSrc_SelfTest(wc_NoiseSrc* src);
+
+#endif /* WOLFSSL_NOISE_SRC */
+
 
 #ifdef HAVE_WNR
     /* Whitewood netRandom client library */
