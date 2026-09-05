@@ -38,7 +38,7 @@ construction time:
 # Examples
 
 ```rust
-#[cfg(all(mlkem, random))]
+#[cfg(all(mlkem_make_key, mlkem_encapsulate, mlkem_decapsulate, random))]
 {
 use wolfssl_wolfcrypt::random::RNG;
 use wolfssl_wolfcrypt::mlkem::MlKem;
@@ -113,7 +113,7 @@ impl MlKem {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mlkem, random))]
+    /// #[cfg(all(mlkem_make_key, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mlkem::MlKem;
@@ -122,7 +122,7 @@ impl MlKem {
     ///     .expect("Error with generate()");
     /// }
     /// ```
-    #[cfg(random)]
+    #[cfg(all(random, mlkem_make_key))]
     pub fn generate(key_type: i32, rng: &RNG) -> Result<Self, i32> {
         Self::generate_ex(key_type, rng, None, None)
     }
@@ -145,7 +145,7 @@ impl MlKem {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mlkem, random))]
+    /// #[cfg(all(mlkem_make_key, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mlkem::MlKem;
@@ -154,7 +154,7 @@ impl MlKem {
     ///     .expect("Error with generate_ex()");
     /// }
     /// ```
-    #[cfg(random)]
+    #[cfg(all(random, mlkem_make_key))]
     pub fn generate_ex(
         key_type: i32,
         rng: &RNG,
@@ -189,7 +189,7 @@ impl MlKem {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(mlkem)]
+    /// #[cfg(mlkem_make_key)]
     /// {
     /// use wolfssl_wolfcrypt::mlkem::MlKem;
     /// let rand = [0x42u8; 64];
@@ -197,6 +197,7 @@ impl MlKem {
     ///     .expect("Error with generate_with_random()");
     /// }
     /// ```
+    #[cfg(mlkem_make_key)]
     pub fn generate_with_random(key_type: i32, rand: &[u8]) -> Result<Self, i32> {
         Self::generate_with_random_ex(key_type, rand, None, None)
     }
@@ -220,7 +221,7 @@ impl MlKem {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(mlkem)]
+    /// #[cfg(mlkem_make_key)]
     /// {
     /// use wolfssl_wolfcrypt::mlkem::MlKem;
     /// let rand = [0x42u8; 64];
@@ -228,6 +229,7 @@ impl MlKem {
     ///     .expect("Error with generate_with_random_ex()");
     /// }
     /// ```
+    #[cfg(mlkem_make_key)]
     pub fn generate_with_random_ex(
         key_type: i32,
         rand: &[u8],
@@ -452,7 +454,7 @@ impl MlKem {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mlkem, random))]
+    /// #[cfg(all(mlkem_make_key, mlkem_encapsulate, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mlkem::MlKem;
@@ -467,7 +469,7 @@ impl MlKem {
     ///     .expect("Error with encapsulate()");
     /// }
     /// ```
-    #[cfg(random)]
+    #[cfg(all(mlkem_encapsulate, random))]
     pub fn encapsulate(
         &mut self,
         ct: &mut [u8],
@@ -518,7 +520,7 @@ impl MlKem {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(mlkem)]
+    /// #[cfg(all(mlkem_make_key, mlkem_encapsulate))]
     /// {
     /// use wolfssl_wolfcrypt::mlkem::MlKem;
     /// let key_rand = [0x42u8; 64];
@@ -533,6 +535,7 @@ impl MlKem {
     ///     .expect("Error with encapsulate_with_random()");
     /// }
     /// ```
+    #[cfg(mlkem_encapsulate)]
     pub fn encapsulate_with_random(
         &mut self,
         ct: &mut [u8],
@@ -577,8 +580,8 @@ impl MlKem {
     /// # Parameters
     ///
     /// * `ss`: Output buffer for the shared secret.
-    /// * `ct`: Cipher text produced by [`MlKem::encapsulate()`] or
-    ///   [`MlKem::encapsulate_with_random()`].
+    /// * `ct`: Cipher text produced by `MlKem::encapsulate()` or
+    ///   `MlKem::encapsulate_with_random()`.
     ///
     /// # Returns
     ///
@@ -588,7 +591,7 @@ impl MlKem {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mlkem, random))]
+    /// #[cfg(all(mlkem_make_key, mlkem_encapsulate, mlkem_decapsulate, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mlkem::MlKem;
@@ -607,6 +610,7 @@ impl MlKem {
     /// assert_eq!(ss_enc, ss_dec);
     /// }
     /// ```
+    #[cfg(mlkem_decapsulate)]
     pub fn decapsulate(&mut self, ss: &mut [u8], ct: &[u8]) -> Result<(), i32> {
         // Verify the shared secret length is as expected.
         if ss.len() != Self::SHARED_SECRET_SIZE {
@@ -643,7 +647,7 @@ impl MlKem {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mlkem, random))]
+    /// #[cfg(all(mlkem_make_key, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mlkem::MlKem;
@@ -682,7 +686,7 @@ impl MlKem {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mlkem, random))]
+    /// #[cfg(all(mlkem_make_key, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mlkem::MlKem;
@@ -719,7 +723,7 @@ impl MlKem {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mlkem, random))]
+    /// #[cfg(all(mlkem_make_key, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mlkem::MlKem;
@@ -758,7 +762,7 @@ impl MlKem {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mlkem, random))]
+    /// #[cfg(all(mlkem_make_key, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mlkem::MlKem;

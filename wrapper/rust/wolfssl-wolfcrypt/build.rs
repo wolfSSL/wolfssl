@@ -617,7 +617,13 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "WC_MLDSA_87_KEY_SIZE", "mldsa_level5");
 
     /* mlkem / ML-KEM */
-    check_cfg(&binding, "wc_MlKemKey_Init", "mlkem");
+    check_cfg(&binding, "wc_MlKemKey_New", "mlkem");
+    check_cfg(&binding, "wc_MlKemKey_MakeKey", "mlkem_make_key");
+    check_cfg(&binding, "wc_MlKemKey_Encapsulate", "mlkem_encapsulate");
+    check_cfg(&binding, "wc_MlKemKey_Decapsulate", "mlkem_decapsulate");
+    check_cfg(&binding, "WC_ML_KEM_512_K", "mlkem_512");
+    check_cfg(&binding, "WC_ML_KEM_768_K", "mlkem_768");
+    check_cfg(&binding, "WC_ML_KEM_1024_K", "mlkem_1024");
 
     /* lms / HSS */
     check_cfg(&binding, "wc_LmsKey_Init", "lms");

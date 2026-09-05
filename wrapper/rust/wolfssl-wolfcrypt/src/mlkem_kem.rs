@@ -43,7 +43,7 @@ required random bytes from the RNG.
 # Examples
 
 ```rust
-#[cfg(all(mlkem, random, feature = "kem", feature = "rand_core"))]
+#[cfg(all(mlkem_encapsulate, mlkem_decapsulate, mlkem_make_key, mlkem_768, random, feature = "kem", feature = "rand_core"))]
 {
 use kem::{Kem, Encapsulate, Decapsulate};
 use kem::Generate;
@@ -60,7 +60,7 @@ assert_eq!(k_send, k_recv);
 ```
 */
 
-#![cfg(all(feature = "kem", mlkem))]
+#![cfg(all(feature = "kem", mlkem_encapsulate, mlkem_decapsulate, mlkem_make_key))]
 
 use kem::common::array::Array;
 use kem::common::typenum::{U32, U768, U800};
@@ -211,6 +211,7 @@ macro_rules! impl_mlkem_kem {
     };
 }
 
+#[cfg(mlkem_512)]
 impl_mlkem_kem! {
     kem = MlKem512,
     ek = MlKem512EncapsulationKey,
@@ -224,6 +225,7 @@ impl_mlkem_kem! {
     key_type = crate::mlkem::MlKem::TYPE_512,
 }
 
+#[cfg(mlkem_768)]
 impl_mlkem_kem! {
     kem = MlKem768,
     ek = MlKem768EncapsulationKey,
@@ -237,6 +239,7 @@ impl_mlkem_kem! {
     key_type = crate::mlkem::MlKem::TYPE_768,
 }
 
+#[cfg(mlkem_1024)]
 impl_mlkem_kem! {
     kem = MlKem1024,
     ek = MlKem1024EncapsulationKey,

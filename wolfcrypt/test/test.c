@@ -82468,6 +82468,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         }
     #endif /* HAVE_FALCON && !WOLF_CRYPTO_CB_ONLY_FALCON */
     #ifdef WOLFSSL_HAVE_MLKEM
+    #ifndef WOLFSSL_MLKEM_NO_MAKE_KEY
         if (info->pk.type == WC_PK_TYPE_PQC_KEM_KEYGEN) {
             if ((info->pk.pqc_kem_kg.type == WC_PQC_KEM_TYPE_MLKEM) &&
                 (info->pk.pqc_kem_kg.key != NULL)) {
@@ -82488,7 +82489,9 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                 key->prf.devId = prfDevId;
             }
         }
-        else if (info->pk.type == WC_PK_TYPE_PQC_KEM_ENCAPS) {
+    #endif
+    #ifndef WOLFSSL_MLKEM_NO_ENCAPSULATE
+        if (info->pk.type == WC_PK_TYPE_PQC_KEM_ENCAPS) {
             if ((info->pk.pqc_encaps.type == WC_PQC_KEM_TYPE_MLKEM) &&
                 (info->pk.pqc_encaps.key != NULL)) {
                 MlKemKey* key = (MlKemKey*)info->pk.pqc_encaps.key;
@@ -82511,7 +82514,9 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                 key->prf.devId = prfDevId;
             }
         }
-        else if (info->pk.type == WC_PK_TYPE_PQC_KEM_DECAPS) {
+    #endif
+    #ifndef WOLFSSL_MLKEM_NO_DECAPSULATE
+        if (info->pk.type == WC_PK_TYPE_PQC_KEM_DECAPS) {
             if ((info->pk.pqc_decaps.type == WC_PQC_KEM_TYPE_MLKEM) &&
                 (info->pk.pqc_decaps.key != NULL)) {
                 MlKemKey* key = (MlKemKey*)info->pk.pqc_decaps.key;
@@ -82534,6 +82539,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                 key->prf.devId = prfDevId;
             }
         }
+    #endif
     #endif /* WOLFSSL_HAVE_MLKEM */
     #ifdef WOLFSSL_HAVE_FRODOKEM
         if (info->pk.type == WC_PK_TYPE_PQC_KEM_KEYGEN) {
