@@ -206,6 +206,7 @@ $(ASYNC_FILES):
 
 if BUILD_CRYPTOCB
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/cryptocb.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_keystore.c
 endif
 
 if BUILD_PKCS11
