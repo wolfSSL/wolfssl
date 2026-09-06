@@ -127,7 +127,8 @@
     (defined(WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM) && \
      !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE))
 static int mlkem_gen_matrix_i_acc(MLKEM_PRF_T* prf, sword16* r, sword16* a,
-    const sword16* v, int k, byte* seed, int i, int transposed);
+    unsigned int aStride, const sword16* v, int k, byte* seed, int i,
+    int transposed);
 static int mlkem_get_noise_i(MLKEM_PRF_T* prf, int k, sword16* vec2,
     byte* seed, int i, int make);
 static int mlkem_get_noise_eta2_c(MLKEM_PRF_T* prf, sword16* p,
@@ -2035,6 +2036,7 @@ int mlkem_keygen(sword16* s, sword16* t, sword16* e, const sword16* a, int k)
  * @param  [out]      t      Public key vector of polynomials.
  * @param  [in, out]  prf    XOF object.
  * @param  [in]       tp     Temporary polynomial.
+ * @param  [out]      cacheA Matrix to keep the generated A in. May be NULL.
  * @param  [in]       k      Number of polynomials in vector.
  * @param  [in]       rho    Random seed to generate matrix A from.
  * @param  [in, out]  sigma  Random seed to generate noise from.
@@ -2044,12 +2046,15 @@ int mlkem_keygen(sword16* s, sword16* t, sword16* e, const sword16* a, int k)
  * @return  Other negative value when a hash error occurred.
  */
 int mlkem_keygen_seeds(sword16* s, sword16* t, MLKEM_PRF_T* prf,
-    sword16* tp, int k, byte* rho, byte* sigma)
+    sword16* tp, sword16* cacheA, int k, byte* rho, byte* sigma)
 {
     int i;
     int ret = 0;
-    sword16* ai = tp;
     sword16* e = tp;
+    /* Keep the matrix when it is being cached, otherwise generate each
+     * polynomial of it into the one temporary. */
+    sword16* a = (cacheA != NULL) ? cacheA : tp;
+    unsigned int aStride = (cacheA != NULL) ? MLKEM_N : 0;
 
     /* Transform private key. All of result used in public key calculation
      * Step 16: s_hat = NTT(s) */
@@ -2066,7 +2071,9 @@ int mlkem_keygen_seeds(sword16* s, sword16* t, MLKEM_PRF_T* prf,
          * each into the public polynomial.
          * Steps 4-6: generate A[i]
          * Step 18: ... A_hat o s_hat ... */
-        ret = mlkem_gen_matrix_i_acc(prf, t + i * MLKEM_N, ai, s, k, rho, i, 0);
+        ret = mlkem_gen_matrix_i_acc(prf, t + i * MLKEM_N,
+            a + (unsigned int)i * (unsigned int)k * aStride, aStride, s, k,
+            rho, i, 0);
         if (ret != 0) {
            break;
         }
@@ -2254,6 +2261,8 @@ int mlkem_encapsulate(const sword16* pub, sword16* u, sword16* v,
  * @param  [in]       msg    Message to encapsulate.
  * @param  [in]       seed   Random seed to generate matrix A from.
  * @param  [in, out]  coins  Random seed to generate noise from.
+ * @param  [in]       cacheA Cached matrix A to transpose in place of
+ *                           generating it. May be NULL.
  * @return  0 on success.
  * @return  MEMORY_E when dynamic memory allocation fails. Only possible when
  *          WOLFSSL_SMALL_STACK is defined.
@@ -2263,7 +2272,7 @@ int mlkem_encapsulate(const sword16* pub, sword16* u, sword16* v,
  */
 int mlkem_encapsulate_seeds(const sword16* pub, MLKEM_PRF_T* prf, byte* c,
     const byte* cmp, int* fail, sword16* u, sword16* tp, sword16* y, int k,
-    const byte* msg, byte* seed, byte* coins)
+    const byte* msg, byte* seed, byte* coins, const sword16* cacheA)
 {
     int ret = 0;
     int i;
@@ -2302,11 +2311,27 @@ int mlkem_encapsulate_seeds(const sword16* pub, MLKEM_PRF_T* prf, byte* c,
     for (i = 0; i < k; ++i) {
         int j;
 
-        /* Generate a vector of matrix A, a polynomial at a time, multiplying
-         * each into the u polynomial. */
-        ret = mlkem_gen_matrix_i_acc(prf, u, a, y, k, seed, i, 1);
-        if (ret != 0) {
-           break;
+        if (cacheA != NULL) {
+            /* The transpose of the cached matrix: A_trans[i,j] is A[j,i]. */
+            for (j = 0; j < k; j++) {
+                const sword16* aij = cacheA +
+                    ((unsigned int)j * (unsigned int)k + (unsigned int)i) *
+                    MLKEM_N;
+                if (j == 0) {
+                    mlkem_basemul_mont(u, aij, y);
+                }
+                else {
+                    mlkem_basemul_mont_add(u, aij, y + j * MLKEM_N);
+                }
+            }
+        }
+        else {
+            /* Generate a vector of matrix A, a polynomial at a time,
+             * multiplying each into the u polynomial. */
+            ret = mlkem_gen_matrix_i_acc(prf, u, a, 0, y, k, seed, i, 1);
+            if (ret != 0) {
+               break;
+            }
         }
         /* Inverse transform u polynomial. */
         mlkem_invntt(u);
@@ -4528,7 +4553,11 @@ int mlkem_gen_matrix(MLKEM_PRF_T* prf, sword16* a, int k, byte* seed,
  *
  * @param  [in, out]  prf         XOF object.
  * @param  [out]      r           Polynomial holding the multiplied result.
- * @param  [out]      a           Polynomial of uniform integers. Scratch.
+ * @param  [out]      a           Polynomial of uniform integers. Scratch when
+ *                                aStride is 0, otherwise the vector to keep
+ *                                the generated polynomials in.
+ * @param  [in]       aStride     Number of elements between polynomials of a.
+ *                                0 to generate each into the same polynomial.
  * @param  [in]       v           Vector of polynomials to multiply with.
  * @param  [in]       k           Number of dimensions. k x k polynomials.
  * @param  [in]       seed        Bytes to seed XOF generation.
@@ -4539,7 +4568,8 @@ int mlkem_gen_matrix(MLKEM_PRF_T* prf, sword16* a, int k, byte* seed,
  *          WOLFSSL_SMALL_STACK is defined.
  */
 static int mlkem_gen_matrix_i_acc(MLKEM_PRF_T* prf, sword16* r, sword16* a,
-    const sword16* v, int k, byte* seed, int i, int transposed)
+    unsigned int aStride, const sword16* v, int k, byte* seed, int i,
+    int transposed)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     byte* rand;
@@ -4592,18 +4622,19 @@ static int mlkem_gen_matrix_i_acc(MLKEM_PRF_T* prf, sword16* r, sword16* a,
         }
         if (ret == 0) {
             unsigned int ctr;
+            sword16* aj = a + (unsigned int)j * aStride;
 
             /* Sample random bytes to create a polynomial.
              * Alg 7, Step 3 - implicitly counter is 0.
              * Alg 7, Step 4-16. */
-            ctr = mlkem_rej_uniform_c(a, MLKEM_N, rand, GEN_MATRIX_SIZE);
+            ctr = mlkem_rej_uniform_c(aj, MLKEM_N, rand, GEN_MATRIX_SIZE);
             /* Create more blocks if too many rejected.
              * Alg 7, Step 4. */
             while (ctr < MLKEM_N) {
                 /* Alg 7, Step 5. */
                 mlkem_xof_squeezeblocks(prf, rand, 1);
                 /* Alg 7, Step 4-16. */
-                ctr += mlkem_rej_uniform_c(a + ctr, MLKEM_N - ctr, rand,
+                ctr += mlkem_rej_uniform_c(aj + ctr, MLKEM_N - ctr, rand,
                     XOF_BLOCK_SIZE);
             }
 
@@ -4611,10 +4642,10 @@ static int mlkem_gen_matrix_i_acc(MLKEM_PRF_T* prf, sword16* r, sword16* a,
              * Alg 13, Step 18: ... A_hat o s_hat ...
              * Alg 14, Step 18: ... A_hat_trans o y_hat ... */
             if (j == 0) {
-                mlkem_basemul_mont(r, a, v);
+                mlkem_basemul_mont(r, aj, v);
             }
             else {
-                mlkem_basemul_mont_add(r, a, v + j * MLKEM_N);
+                mlkem_basemul_mont_add(r, aj, v + j * MLKEM_N);
             }
         }
     }
