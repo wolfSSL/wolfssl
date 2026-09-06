@@ -4643,14 +4643,16 @@ static int mlkem_gen_matrix_i_acc(MLKEM_PRF_T* prf, sword16* r, sword16* a,
                 }
             }
 
-            /* Multiply the polynomial of the matrix into the result.
-             * Alg 13, Step 18: ... A_hat o s_hat ...
-             * Alg 14, Step 18: ... A_hat_trans o y_hat ... */
-            if (j == 0) {
-                mlkem_basemul_mont(r, aj, v);
-            }
-            else {
-                mlkem_basemul_mont_add(r, aj, v + j * MLKEM_N);
+            if (ret == 0) {
+                /* Multiply the polynomial of the matrix into the result.
+                 * Alg 13, Step 18: ... A_hat o s_hat ...
+                 * Alg 14, Step 18: ... A_hat_trans o y_hat ... */
+                if (j == 0) {
+                    mlkem_basemul_mont(r, aj, v);
+                }
+                else {
+                    mlkem_basemul_mont_add(r, aj, v + j * MLKEM_N);
+                }
             }
         }
     }
