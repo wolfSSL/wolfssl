@@ -207,7 +207,7 @@
 /* Maximum number of bytes one polynomial of a vector is compressed into when
  * encoding a cipher text. ML-KEM-1024 uses 11 bits per coefficient, the other
  * parameter sets use 10. */
-#ifdef WOLFSSL_WC_ML_KEM_1024
+#if defined(WOLFSSL_KYBER1024) || defined(WOLFSSL_WC_ML_KEM_1024)
 #define MLKEM_MAX_COMP_POLY_SZ  MLKEM_POLY_COMPRESSED_SZ(11)
 #else
 #define MLKEM_MAX_COMP_POLY_SZ  MLKEM_POLY_COMPRESSED_SZ(10)
