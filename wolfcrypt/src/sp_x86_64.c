@@ -2037,6 +2037,7 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, const mp_int* em,
 #ifdef HAVE_INTEL_AVX2
     word32 cpuid_flags = cpuid_get_flags();
     int saved_vector_registers = 0;
+    int use_avx2_lane = 0;
 #endif
 
     if (*outLen < 256) {
@@ -2071,10 +2072,14 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, const mp_int* em,
         sp_2048_from_mp(m, 32, mm);
 
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID picks the lane; a failed save is an error, not a lane switch. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-            IS_INTEL_AVX2(cpuid_flags) &&
-            (SAVE_VECTOR_REGISTERS2() == 0))
-            saved_vector_registers = 1;
+            IS_INTEL_AVX2(cpuid_flags)) {
+            use_avx2_lane = 1;
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0)
+                saved_vector_registers = 1;
+        }
 #endif
 
         if (e == 0x10001) {
@@ -2085,13 +2090,15 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, const mp_int* em,
 
             /* Convert to Montgomery form. */
             XMEMSET(a, 0, sizeof(sp_digit) * 32);
-            err = sp_2048_mod_32_cond(r, a, m);
+            /* Keep a failed save's error. */
+            if (err == MP_OKAY)
+                err = sp_2048_mod_32_cond(r, a, m);
             /* Montgomery form: r = a.R mod m */
 
             if (err == MP_OKAY) {
                 /* r = a ^ 0x10000 => r = a squared 16 times */
 #ifdef HAVE_INTEL_AVX2
-                if (saved_vector_registers) {
+                if (use_avx2_lane) {
                     for (i = 15; i >= 0; i--) {
                         sp_2048_mont_sqr_avx2_32(r, r, m, mp);
                     }
@@ -2122,7 +2129,7 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, const mp_int* em,
         }
         else if (e == 0x3) {
 #ifdef HAVE_INTEL_AVX2
-            if (saved_vector_registers) {
+            if (use_avx2_lane) {
                 if (err == MP_OKAY) {
                     sp_2048_sqr_avx2_32(r, ah);
                     err = sp_2048_mod_32_cond(r, r, m);
@@ -2153,7 +2160,9 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, const mp_int* em,
 
             /* Convert to Montgomery form. */
             XMEMSET(a, 0, sizeof(sp_digit) * 32);
-            err = sp_2048_mod_32_cond(a, a, m);
+            /* Keep a failed save's error. */
+            if (err == MP_OKAY)
+                err = sp_2048_mod_32_cond(a, a, m);
 
             if (err == MP_OKAY) {
                 for (i=63; i>=0; i--) {
@@ -2164,7 +2173,7 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, const mp_int* em,
 
                 XMEMCPY(r, a, sizeof(sp_digit) * 32);
 #ifdef HAVE_INTEL_AVX2
-                if (saved_vector_registers) {
+                if (use_avx2_lane) {
                     for (i--; i>=0; i--) {
                         sp_2048_mont_sqr_avx2_32(r, r, m, mp);
                         if (((e >> i) & 1) == 1) {
@@ -2347,6 +2356,7 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, const mp_int* dm,
 #ifdef HAVE_INTEL_AVX2
     word32 cpuid_flags = cpuid_get_flags();
     int saved_vector_registers = 0;
+    int use_avx2_lane = 0;
 #endif
 
     (void)dm;
@@ -2384,22 +2394,32 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, const mp_int* dm,
         sp_2048_from_mp(dp, 16, dpm);
 
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID picks the lane; a failed save is an error, not a lane switch. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
-            saved_vector_registers = 1;
-
-        if (saved_vector_registers)
-            err = sp_2048_mod_exp_avx2_16(tmpa, a, dp, 1024, p, 1);
-        else
+            IS_INTEL_AVX2(cpuid_flags)) {
+            use_avx2_lane = 1;
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0)
+                saved_vector_registers = 1;
+        }
 #endif
-            err = sp_2048_mod_exp_16(tmpa, a, dp, 1024, p, 1);
+
+        /* err may hold a failed save. */
+        if (err == MP_OKAY) {
+#ifdef HAVE_INTEL_AVX2
+            if (use_avx2_lane)
+                err = sp_2048_mod_exp_avx2_16(tmpa, a, dp, 1024, p, 1);
+            else
+#endif
+                err = sp_2048_mod_exp_16(tmpa, a, dp, 1024, p, 1);
+        }
     }
     if (err == MP_OKAY) {
         sp_2048_from_mp(dq, 16, dqm);
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             err = sp_2048_mod_exp_avx2_16(tmpb, a, dq, 1024, q, 1);
-       else
+        else
 #endif
             err = sp_2048_mod_exp_16(tmpb, a, dq, 1024, q, 1);
     }
@@ -2407,7 +2427,7 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, const mp_int* dm,
     if (err == MP_OKAY) {
         c = sp_2048_sub_in_place_16(tmpa, tmpb);
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers) {
+        if (use_avx2_lane) {
             c += sp_2048_cond_add_avx2_16(tmpa, tmpa, p, c);
             sp_2048_cond_add_avx2_16(tmpa, tmpa, p, c);
         }
@@ -2420,7 +2440,7 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, const mp_int* dm,
 
         sp_2048_from_mp(qi, 16, qim);
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_2048_mul_avx2_16(tmpa, tmpa, qi);
         else
 #endif
@@ -2430,7 +2450,7 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, const mp_int* dm,
 
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_2048_mul_avx2_16(tmpa, q, tmpa);
         else
 #endif
@@ -2573,9 +2593,12 @@ int sp_ModExp_2048(const mp_int* base, const mp_int* exp, const mp_int* mod,
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            err = sp_2048_mod_exp_avx2_32(r, b, e, expBits, m, 0);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                err = sp_2048_mod_exp_avx2_32(r, b, e, expBits, m, 0);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -2897,10 +2920,12 @@ int sp_DhExp_2048(const mp_int* base, const byte* exp, word32 expLen,
         if (base->used == 1 && base->dp[0] == 2 && m[31] == (sp_digit)-1) {
 #ifdef HAVE_INTEL_AVX2
             if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                    IS_INTEL_AVX2(cpuid_flags) &&
-                    (SAVE_VECTOR_REGISTERS2() == 0)) {
-                err = sp_2048_mod_exp_2_avx2_32(r, e, (int)expLen * 8, m);
-                RESTORE_VECTOR_REGISTERS();
+                    IS_INTEL_AVX2(cpuid_flags)) {
+                err = SAVE_VECTOR_REGISTERS2();
+                if (err == 0) {
+                    err = sp_2048_mod_exp_2_avx2_32(r, e, (int)expLen * 8, m);
+                    RESTORE_VECTOR_REGISTERS();
+                }
             }
             else
 #endif
@@ -2911,10 +2936,12 @@ int sp_DhExp_2048(const mp_int* base, const byte* exp, word32 expLen,
         {
 #ifdef HAVE_INTEL_AVX2
             if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                    IS_INTEL_AVX2(cpuid_flags) &&
-                    (SAVE_VECTOR_REGISTERS2() == 0)) {
-                err = sp_2048_mod_exp_avx2_32(r, b, e, (int)expLen * 8, m, 0);
-                RESTORE_VECTOR_REGISTERS();
+                    IS_INTEL_AVX2(cpuid_flags)) {
+                err = SAVE_VECTOR_REGISTERS2();
+                if (err == 0) {
+                    err = sp_2048_mod_exp_avx2_32(r, b, e, (int)expLen * 8, m, 0);
+                    RESTORE_VECTOR_REGISTERS();
+                }
             }
             else
 #endif
@@ -2988,9 +3015,12 @@ int sp_ModExp_1024(const mp_int* base, const mp_int* exp, const mp_int* mod,
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            err = sp_2048_mod_exp_avx2_16(r, b, e, expBits, m, 0);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                err = sp_2048_mod_exp_avx2_16(r, b, e, expBits, m, 0);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -4821,6 +4851,7 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
 #ifdef HAVE_INTEL_AVX2
     word32 cpuid_flags = cpuid_get_flags();
     int saved_vector_registers = 0;
+    int use_avx2_lane = 0;
 #endif
 
     if (*outLen < 384) {
@@ -4855,10 +4886,14 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
         sp_3072_from_mp(m, 48, mm);
 
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID picks the lane; a failed save is an error, not a lane switch. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-            IS_INTEL_AVX2(cpuid_flags) &&
-            (SAVE_VECTOR_REGISTERS2() == 0))
-            saved_vector_registers = 1;
+            IS_INTEL_AVX2(cpuid_flags)) {
+            use_avx2_lane = 1;
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0)
+                saved_vector_registers = 1;
+        }
 #endif
 
         if (e == 0x10001) {
@@ -4869,13 +4904,15 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
 
             /* Convert to Montgomery form. */
             XMEMSET(a, 0, sizeof(sp_digit) * 48);
-            err = sp_3072_mod_48_cond(r, a, m);
+            /* Keep a failed save's error. */
+            if (err == MP_OKAY)
+                err = sp_3072_mod_48_cond(r, a, m);
             /* Montgomery form: r = a.R mod m */
 
             if (err == MP_OKAY) {
                 /* r = a ^ 0x10000 => r = a squared 16 times */
 #ifdef HAVE_INTEL_AVX2
-                if (saved_vector_registers) {
+                if (use_avx2_lane) {
                     for (i = 15; i >= 0; i--) {
                         sp_3072_mont_sqr_avx2_48(r, r, m, mp);
                     }
@@ -4906,7 +4943,7 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
         }
         else if (e == 0x3) {
 #ifdef HAVE_INTEL_AVX2
-            if (saved_vector_registers) {
+            if (use_avx2_lane) {
                 if (err == MP_OKAY) {
                     sp_3072_sqr_avx2_48(r, ah);
                     err = sp_3072_mod_48_cond(r, r, m);
@@ -4937,7 +4974,9 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
 
             /* Convert to Montgomery form. */
             XMEMSET(a, 0, sizeof(sp_digit) * 48);
-            err = sp_3072_mod_48_cond(a, a, m);
+            /* Keep a failed save's error. */
+            if (err == MP_OKAY)
+                err = sp_3072_mod_48_cond(a, a, m);
 
             if (err == MP_OKAY) {
                 for (i=63; i>=0; i--) {
@@ -4948,7 +4987,7 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
 
                 XMEMCPY(r, a, sizeof(sp_digit) * 48);
 #ifdef HAVE_INTEL_AVX2
-                if (saved_vector_registers) {
+                if (use_avx2_lane) {
                     for (i--; i>=0; i--) {
                         sp_3072_mont_sqr_avx2_48(r, r, m, mp);
                         if (((e >> i) & 1) == 1) {
@@ -5131,6 +5170,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, const mp_int* dm,
 #ifdef HAVE_INTEL_AVX2
     word32 cpuid_flags = cpuid_get_flags();
     int saved_vector_registers = 0;
+    int use_avx2_lane = 0;
 #endif
 
     (void)dm;
@@ -5168,22 +5208,32 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, const mp_int* dm,
         sp_3072_from_mp(dp, 24, dpm);
 
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID picks the lane; a failed save is an error, not a lane switch. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
-            saved_vector_registers = 1;
-
-        if (saved_vector_registers)
-            err = sp_3072_mod_exp_avx2_24(tmpa, a, dp, 1536, p, 1);
-        else
+            IS_INTEL_AVX2(cpuid_flags)) {
+            use_avx2_lane = 1;
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0)
+                saved_vector_registers = 1;
+        }
 #endif
-            err = sp_3072_mod_exp_24(tmpa, a, dp, 1536, p, 1);
+
+        /* err may hold a failed save. */
+        if (err == MP_OKAY) {
+#ifdef HAVE_INTEL_AVX2
+            if (use_avx2_lane)
+                err = sp_3072_mod_exp_avx2_24(tmpa, a, dp, 1536, p, 1);
+            else
+#endif
+                err = sp_3072_mod_exp_24(tmpa, a, dp, 1536, p, 1);
+        }
     }
     if (err == MP_OKAY) {
         sp_3072_from_mp(dq, 24, dqm);
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             err = sp_3072_mod_exp_avx2_24(tmpb, a, dq, 1536, q, 1);
-       else
+        else
 #endif
             err = sp_3072_mod_exp_24(tmpb, a, dq, 1536, q, 1);
     }
@@ -5191,7 +5241,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, const mp_int* dm,
     if (err == MP_OKAY) {
         c = sp_3072_sub_in_place_24(tmpa, tmpb);
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers) {
+        if (use_avx2_lane) {
             c += sp_3072_cond_add_avx2_24(tmpa, tmpa, p, c);
             sp_3072_cond_add_avx2_24(tmpa, tmpa, p, c);
         }
@@ -5204,7 +5254,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, const mp_int* dm,
 
         sp_3072_from_mp(qi, 24, qim);
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_3072_mul_avx2_24(tmpa, tmpa, qi);
         else
 #endif
@@ -5214,7 +5264,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, const mp_int* dm,
 
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_3072_mul_avx2_24(tmpa, q, tmpa);
         else
 #endif
@@ -5357,9 +5407,12 @@ int sp_ModExp_3072(const mp_int* base, const mp_int* exp, const mp_int* mod,
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            err = sp_3072_mod_exp_avx2_48(r, b, e, expBits, m, 0);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                err = sp_3072_mod_exp_avx2_48(r, b, e, expBits, m, 0);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -5681,10 +5734,12 @@ int sp_DhExp_3072(const mp_int* base, const byte* exp, word32 expLen,
         if (base->used == 1 && base->dp[0] == 2 && m[47] == (sp_digit)-1) {
 #ifdef HAVE_INTEL_AVX2
             if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                    IS_INTEL_AVX2(cpuid_flags) &&
-                    (SAVE_VECTOR_REGISTERS2() == 0)) {
-                err = sp_3072_mod_exp_2_avx2_48(r, e, (int)expLen * 8, m);
-                RESTORE_VECTOR_REGISTERS();
+                    IS_INTEL_AVX2(cpuid_flags)) {
+                err = SAVE_VECTOR_REGISTERS2();
+                if (err == 0) {
+                    err = sp_3072_mod_exp_2_avx2_48(r, e, (int)expLen * 8, m);
+                    RESTORE_VECTOR_REGISTERS();
+                }
             }
             else
 #endif
@@ -5695,10 +5750,12 @@ int sp_DhExp_3072(const mp_int* base, const byte* exp, word32 expLen,
         {
 #ifdef HAVE_INTEL_AVX2
             if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                    IS_INTEL_AVX2(cpuid_flags) &&
-                    (SAVE_VECTOR_REGISTERS2() == 0)) {
-                err = sp_3072_mod_exp_avx2_48(r, b, e, (int)expLen * 8, m, 0);
-                RESTORE_VECTOR_REGISTERS();
+                    IS_INTEL_AVX2(cpuid_flags)) {
+                err = SAVE_VECTOR_REGISTERS2();
+                if (err == 0) {
+                    err = sp_3072_mod_exp_avx2_48(r, b, e, (int)expLen * 8, m, 0);
+                    RESTORE_VECTOR_REGISTERS();
+                }
             }
             else
 #endif
@@ -5772,9 +5829,12 @@ int sp_ModExp_1536(const mp_int* base, const mp_int* exp, const mp_int* mod,
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            err = sp_3072_mod_exp_avx2_24(r, b, e, expBits, m, 0);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                err = sp_3072_mod_exp_avx2_24(r, b, e, expBits, m, 0);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -6832,6 +6892,7 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
 #ifdef HAVE_INTEL_AVX2
     word32 cpuid_flags = cpuid_get_flags();
     int saved_vector_registers = 0;
+    int use_avx2_lane = 0;
 #endif
 
     if (*outLen < 512) {
@@ -6866,10 +6927,14 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
         sp_4096_from_mp(m, 64, mm);
 
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID picks the lane; a failed save is an error, not a lane switch. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-            IS_INTEL_AVX2(cpuid_flags) &&
-            (SAVE_VECTOR_REGISTERS2() == 0))
-            saved_vector_registers = 1;
+            IS_INTEL_AVX2(cpuid_flags)) {
+            use_avx2_lane = 1;
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0)
+                saved_vector_registers = 1;
+        }
 #endif
 
         if (e == 0x10001) {
@@ -6880,13 +6945,15 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
 
             /* Convert to Montgomery form. */
             XMEMSET(a, 0, sizeof(sp_digit) * 64);
-            err = sp_4096_mod_64_cond(r, a, m);
+            /* Keep a failed save's error. */
+            if (err == MP_OKAY)
+                err = sp_4096_mod_64_cond(r, a, m);
             /* Montgomery form: r = a.R mod m */
 
             if (err == MP_OKAY) {
                 /* r = a ^ 0x10000 => r = a squared 16 times */
 #ifdef HAVE_INTEL_AVX2
-                if (saved_vector_registers) {
+                if (use_avx2_lane) {
                     for (i = 15; i >= 0; i--) {
                         sp_4096_mont_sqr_avx2_64(r, r, m, mp);
                     }
@@ -6917,7 +6984,7 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
         }
         else if (e == 0x3) {
 #ifdef HAVE_INTEL_AVX2
-            if (saved_vector_registers) {
+            if (use_avx2_lane) {
                 if (err == MP_OKAY) {
                     sp_4096_sqr_avx2_64(r, ah);
                     err = sp_4096_mod_64_cond(r, r, m);
@@ -6948,7 +7015,9 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
 
             /* Convert to Montgomery form. */
             XMEMSET(a, 0, sizeof(sp_digit) * 64);
-            err = sp_4096_mod_64_cond(a, a, m);
+            /* Keep a failed save's error. */
+            if (err == MP_OKAY)
+                err = sp_4096_mod_64_cond(a, a, m);
 
             if (err == MP_OKAY) {
                 for (i=63; i>=0; i--) {
@@ -6959,7 +7028,7 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
 
                 XMEMCPY(r, a, sizeof(sp_digit) * 64);
 #ifdef HAVE_INTEL_AVX2
-                if (saved_vector_registers) {
+                if (use_avx2_lane) {
                     for (i--; i>=0; i--) {
                         sp_4096_mont_sqr_avx2_64(r, r, m, mp);
                         if (((e >> i) & 1) == 1) {
@@ -7142,6 +7211,7 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, const mp_int* dm,
 #ifdef HAVE_INTEL_AVX2
     word32 cpuid_flags = cpuid_get_flags();
     int saved_vector_registers = 0;
+    int use_avx2_lane = 0;
 #endif
 
     (void)dm;
@@ -7179,22 +7249,32 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, const mp_int* dm,
         sp_4096_from_mp(dp, 32, dpm);
 
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID picks the lane; a failed save is an error, not a lane switch. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
-            saved_vector_registers = 1;
-
-        if (saved_vector_registers)
-            err = sp_2048_mod_exp_avx2_32(tmpa, a, dp, 2048, p, 1);
-        else
+            IS_INTEL_AVX2(cpuid_flags)) {
+            use_avx2_lane = 1;
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0)
+                saved_vector_registers = 1;
+        }
 #endif
-            err = sp_2048_mod_exp_32(tmpa, a, dp, 2048, p, 1);
+
+        /* err may hold a failed save. */
+        if (err == MP_OKAY) {
+#ifdef HAVE_INTEL_AVX2
+            if (use_avx2_lane)
+                err = sp_2048_mod_exp_avx2_32(tmpa, a, dp, 2048, p, 1);
+            else
+#endif
+                err = sp_2048_mod_exp_32(tmpa, a, dp, 2048, p, 1);
+        }
     }
     if (err == MP_OKAY) {
         sp_4096_from_mp(dq, 32, dqm);
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             err = sp_2048_mod_exp_avx2_32(tmpb, a, dq, 2048, q, 1);
-       else
+        else
 #endif
             err = sp_2048_mod_exp_32(tmpb, a, dq, 2048, q, 1);
     }
@@ -7202,7 +7282,7 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, const mp_int* dm,
     if (err == MP_OKAY) {
         c = sp_2048_sub_in_place_32(tmpa, tmpb);
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers) {
+        if (use_avx2_lane) {
             c += sp_4096_cond_add_avx2_32(tmpa, tmpa, p, c);
             sp_4096_cond_add_avx2_32(tmpa, tmpa, p, c);
         }
@@ -7215,7 +7295,7 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, const mp_int* dm,
 
         sp_2048_from_mp(qi, 32, qim);
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_2048_mul_avx2_32(tmpa, tmpa, qi);
         else
 #endif
@@ -7225,7 +7305,7 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, const mp_int* dm,
 
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_2048_mul_avx2_32(tmpa, q, tmpa);
         else
 #endif
@@ -7368,9 +7448,12 @@ int sp_ModExp_4096(const mp_int* base, const mp_int* exp, const mp_int* mod,
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            err = sp_4096_mod_exp_avx2_64(r, b, e, expBits, m, 0);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                err = sp_4096_mod_exp_avx2_64(r, b, e, expBits, m, 0);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -7692,10 +7775,12 @@ int sp_DhExp_4096(const mp_int* base, const byte* exp, word32 expLen,
         if (base->used == 1 && base->dp[0] == 2 && m[63] == (sp_digit)-1) {
 #ifdef HAVE_INTEL_AVX2
             if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                    IS_INTEL_AVX2(cpuid_flags) &&
-                    (SAVE_VECTOR_REGISTERS2() == 0)) {
-                err = sp_4096_mod_exp_2_avx2_64(r, e, (int)expLen * 8, m);
-                RESTORE_VECTOR_REGISTERS();
+                    IS_INTEL_AVX2(cpuid_flags)) {
+                err = SAVE_VECTOR_REGISTERS2();
+                if (err == 0) {
+                    err = sp_4096_mod_exp_2_avx2_64(r, e, (int)expLen * 8, m);
+                    RESTORE_VECTOR_REGISTERS();
+                }
             }
             else
 #endif
@@ -7706,10 +7791,12 @@ int sp_DhExp_4096(const mp_int* base, const byte* exp, word32 expLen,
         {
 #ifdef HAVE_INTEL_AVX2
             if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                    IS_INTEL_AVX2(cpuid_flags) &&
-                    (SAVE_VECTOR_REGISTERS2() == 0)) {
-                err = sp_4096_mod_exp_avx2_64(r, b, e, (int)expLen * 8, m, 0);
-                RESTORE_VECTOR_REGISTERS();
+                    IS_INTEL_AVX2(cpuid_flags)) {
+                err = SAVE_VECTOR_REGISTERS2();
+                if (err == 0) {
+                    err = sp_4096_mod_exp_avx2_64(r, b, e, (int)expLen * 8, m, 0);
+                    RESTORE_VECTOR_REGISTERS();
+                }
             }
             else
 #endif
@@ -10801,7 +10888,14 @@ static int sp_256_ecc_mulmod_4(sp_point_256* r, const sp_point_256* g,
         const sp_digit* k, int map, int ct, void* heap)
 {
 #ifndef FP_ECC
-    return sp_256_ecc_mulmod_win_add_sub_4(r, g, k, map, ct, heap);
+    /* xmm table lookups run only when ct is set; the save is taken on every
+     * call on purpose, so both lanes keep one shape. */
+    int err = SAVE_VECTOR_REGISTERS2();
+    if (err == 0) {
+        err = sp_256_ecc_mulmod_win_add_sub_4(r, g, k, map, ct, heap);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    return err;
 #else
     SP_DECL_VAR(sp_digit, tmp, 2 * 4 * 5);
     sp_cache_256_t* cache;
@@ -10846,16 +10940,20 @@ static int sp_256_ecc_mulmod_4(sp_point_256* r, const sp_point_256* g,
 #endif /* !SINGLE_THREADED && !HAVE_THREAD_LS */
 
     if (err == MP_OKAY) {
-        sp_ecc_get_cache_256(g, &cache);
-        if (cache->cnt == 2)
-            sp_256_gen_stripe_table_4(g, cache->table, tmp, heap);
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0) {
+            sp_ecc_get_cache_256(g, &cache);
+            if (cache->cnt == 2)
+                sp_256_gen_stripe_table_4(g, cache->table, tmp, heap);
 
-        if (cache->cnt < 2) {
-            err = sp_256_ecc_mulmod_win_add_sub_4(r, g, k, map, ct, heap);
-        }
-        else {
-            err = sp_256_ecc_mulmod_stripe_4(r, g, cache->table, k,
-                    map, ct, heap);
+            if (cache->cnt < 2) {
+                err = sp_256_ecc_mulmod_win_add_sub_4(r, g, k, map, ct, heap);
+            }
+            else {
+                err = sp_256_ecc_mulmod_stripe_4(r, g, cache->table, k,
+                        map, ct, heap);
+            }
+            RESTORE_VECTOR_REGISTERS();
         }
 #if !defined(SINGLE_THREADED) && !defined(HAVE_THREAD_LS)
         wc_UnLockMutex(&sp_cache_256_lock);
@@ -11168,7 +11266,13 @@ static int sp_256_ecc_mulmod_avx2_4(sp_point_256* r, const sp_point_256* g,
         const sp_digit* k, int map, int ct, void* heap)
 {
 #ifndef FP_ECC
-    return sp_256_ecc_mulmod_win_add_sub_avx2_4(r, g, k, map, ct, heap);
+    /* The avx2 lane uses vector registers throughout. */
+    int err = SAVE_VECTOR_REGISTERS2();
+    if (err == 0) {
+        err = sp_256_ecc_mulmod_win_add_sub_avx2_4(r, g, k, map, ct, heap);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    return err;
 #else
     SP_DECL_VAR(sp_digit, tmp, 2 * 4 * 5);
     sp_cache_256_t* cache;
@@ -11213,16 +11317,20 @@ static int sp_256_ecc_mulmod_avx2_4(sp_point_256* r, const sp_point_256* g,
 #endif /* !SINGLE_THREADED && !HAVE_THREAD_LS */
 
     if (err == MP_OKAY) {
-        sp_ecc_get_cache_256(g, &cache);
-        if (cache->cnt == 2)
-            sp_256_gen_stripe_table_avx2_4(g, cache->table, tmp, heap);
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0) {
+            sp_ecc_get_cache_256(g, &cache);
+            if (cache->cnt == 2)
+                sp_256_gen_stripe_table_avx2_4(g, cache->table, tmp, heap);
 
-        if (cache->cnt < 2) {
-            err = sp_256_ecc_mulmod_win_add_sub_avx2_4(r, g, k, map, ct, heap);
-        }
-        else {
-            err = sp_256_ecc_mulmod_stripe_avx2_4(r, g, cache->table, k,
-                    map, ct, heap);
+            if (cache->cnt < 2) {
+                err = sp_256_ecc_mulmod_win_add_sub_avx2_4(r, g, k, map, ct, heap);
+            }
+            else {
+                err = sp_256_ecc_mulmod_stripe_avx2_4(r, g, cache->table, k,
+                        map, ct, heap);
+            }
+            RESTORE_VECTOR_REGISTERS();
         }
 #if !defined(SINGLE_THREADED) && !defined(HAVE_THREAD_LS)
         wc_UnLockMutex(&sp_cache_256_lock);
@@ -11265,9 +11373,8 @@ int sp_ecc_mulmod_256(const mp_int* km, const ecc_point* gm, ecc_point* r,
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_256_ecc_mulmod_avx2_4(point, point, k, map, 1, heap);
-            RESTORE_VECTOR_REGISTERS();
         }
         else
 #endif
@@ -11308,6 +11415,7 @@ int sp_ecc_mulmod_add_256(const mp_int* km, const ecc_point* gm,
 #ifdef HAVE_INTEL_AVX2
     word32 cpuid_flags = cpuid_get_flags();
     int saved_vector_registers = 0;
+    int use_avx2_lane = 0;
 #endif
 
     SP_ALLOC_VAR(sp_point_256, point, 2, heap, DYNAMIC_TYPE_ECC);
@@ -11332,17 +11440,25 @@ int sp_ecc_mulmod_add_256(const mp_int* km, const ecc_point* gm,
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
-            saved_vector_registers = 1;
-        if (saved_vector_registers)
+                IS_INTEL_AVX2(cpuid_flags)) {
+            use_avx2_lane = 1;
             err = sp_256_ecc_mulmod_avx2_4(point, point, k, 0, 0, heap);
+        }
         else
 #endif
             err = sp_256_ecc_mulmod_4(point, point, k, 0, 0, heap);
     }
+#ifdef HAVE_INTEL_AVX2
+    /* The mulmod saved for itself; this save is for the point operations. */
+    if ((err == MP_OKAY) && use_avx2_lane) {
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0)
+            saved_vector_registers = 1;
+    }
+#endif
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_256_proj_point_add_avx2_4(point, point, addP, tmp);
         else
 #endif
@@ -11350,7 +11466,7 @@ int sp_ecc_mulmod_add_256(const mp_int* km, const ecc_point* gm,
 
         if (map) {
 #ifdef HAVE_INTEL_AVX2
-            if (saved_vector_registers)
+            if (use_avx2_lane)
                 sp_256_map_avx2_4(point, point, tmp);
             else
 #endif
@@ -11717,8 +11833,13 @@ static const sp_table_entry_256 p256_table[64] = {
 static int sp_256_ecc_mulmod_base_4(sp_point_256* r, const sp_digit* k,
         int map, int ct, void* heap)
 {
-    return sp_256_ecc_mulmod_stripe_4(r, &p256_base, p256_table,
-                                      k, map, ct, heap);
+    int err = SAVE_VECTOR_REGISTERS2();
+    if (err == 0) {
+        err = sp_256_ecc_mulmod_stripe_4(r, &p256_base, p256_table,
+                                         k, map, ct, heap);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    return err;
 }
 
 #ifdef HAVE_INTEL_AVX2
@@ -11742,8 +11863,13 @@ static int sp_256_ecc_mulmod_base_4(sp_point_256* r, const sp_digit* k,
 static int sp_256_ecc_mulmod_base_avx2_4(sp_point_256* r, const sp_digit* k,
         int map, int ct, void* heap)
 {
-    return sp_256_ecc_mulmod_stripe_avx2_4(r, &p256_base, p256_table,
-                                      k, map, ct, heap);
+    int err = SAVE_VECTOR_REGISTERS2();
+    if (err == 0) {
+        err = sp_256_ecc_mulmod_stripe_avx2_4(r, &p256_base, p256_table,
+                                         k, map, ct, heap);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    return err;
 }
 
 #endif /* HAVE_INTEL_AVX2 */
@@ -23893,8 +24019,13 @@ static int sp_256_ecc_mulmod_add_only_4(sp_point_256* r, const sp_point_256* g,
 static int sp_256_ecc_mulmod_base_4(sp_point_256* r, const sp_digit* k,
         int map, int ct, void* heap)
 {
-    return sp_256_ecc_mulmod_add_only_4(r, NULL, p256_table,
-                                      k, map, ct, heap);
+    int err = SAVE_VECTOR_REGISTERS2();
+    if (err == 0) {
+        err = sp_256_ecc_mulmod_add_only_4(r, NULL, p256_table,
+                                         k, map, ct, heap);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    return err;
 }
 
 #ifdef HAVE_INTEL_AVX2
@@ -24004,8 +24135,13 @@ static int sp_256_ecc_mulmod_add_only_avx2_4(sp_point_256* r, const sp_point_256
 static int sp_256_ecc_mulmod_base_avx2_4(sp_point_256* r, const sp_digit* k,
         int map, int ct, void* heap)
 {
-    return sp_256_ecc_mulmod_add_only_avx2_4(r, NULL, p256_table,
-                                      k, map, ct, heap);
+    int err = SAVE_VECTOR_REGISTERS2();
+    if (err == 0) {
+        err = sp_256_ecc_mulmod_add_only_avx2_4(r, NULL, p256_table,
+                                         k, map, ct, heap);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    return err;
 }
 
 #endif /* HAVE_INTEL_AVX2 */
@@ -24037,9 +24173,8 @@ int sp_ecc_mulmod_base_256(const mp_int* km, ecc_point* r, int map, void* heap)
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_256_ecc_mulmod_base_avx2_4(point, k, map, 1, heap);
-            RESTORE_VECTOR_REGISTERS();
         }
         else
 #endif
@@ -24079,6 +24214,7 @@ int sp_ecc_mulmod_base_add_256(const mp_int* km, const ecc_point* am,
 #ifdef HAVE_INTEL_AVX2
     word32 cpuid_flags = cpuid_get_flags();
     int saved_vector_registers = 0;
+    int use_avx2_lane = 0;
 #endif
 
     SP_ALLOC_VAR(sp_point_256, point, 2, NULL, DYNAMIC_TYPE_ECC);
@@ -24102,17 +24238,25 @@ int sp_ecc_mulmod_base_add_256(const mp_int* km, const ecc_point* am,
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
-            saved_vector_registers = 1;
-        if (saved_vector_registers)
+                IS_INTEL_AVX2(cpuid_flags)) {
+            use_avx2_lane = 1;
             err = sp_256_ecc_mulmod_base_avx2_4(point, k, 0, 0, heap);
+        }
         else
 #endif
             err = sp_256_ecc_mulmod_base_4(point, k, 0, 0, heap);
     }
+#ifdef HAVE_INTEL_AVX2
+    /* The mulmod saved for itself; this save is for the point operations. */
+    if ((err == MP_OKAY) && use_avx2_lane) {
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0)
+            saved_vector_registers = 1;
+    }
+#endif
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_256_proj_point_add_avx2_4(point, point, addP, tmp);
         else
 #endif
@@ -24120,7 +24264,7 @@ int sp_ecc_mulmod_base_add_256(const mp_int* km, const ecc_point* am,
 
         if (map) {
 #ifdef HAVE_INTEL_AVX2
-            if (saved_vector_registers)
+            if (use_avx2_lane)
                 sp_256_map_avx2_4(point, point, tmp);
             else
 #endif
@@ -24251,7 +24395,6 @@ int sp_ecc_make_key_256(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
 
 #ifdef HAVE_INTEL_AVX2
     word32 cpuid_flags = cpuid_get_flags();
-    int saved_vector_registers = 0;
 #endif
 
     (void)heap;
@@ -24272,11 +24415,9 @@ int sp_ecc_make_key_256(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
-            saved_vector_registers = 1;
-
-        if (saved_vector_registers)
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_256_ecc_mulmod_base_avx2_4(point, k, 1, 1, NULL);
+        }
         else
 #endif
             err = sp_256_ecc_mulmod_base_4(point, k, 1, 1, NULL);
@@ -24285,7 +24426,8 @@ int sp_ecc_make_key_256(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
 #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers) {
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_256_ecc_mulmod_avx2_4(infinity, point, p256_order, 1, 1,
                                                                           NULL);
         }
@@ -24298,11 +24440,6 @@ int sp_ecc_make_key_256(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
             err = ECC_INF_E;
         }
     }
-#endif
-
-#ifdef HAVE_INTEL_AVX2
-    if (saved_vector_registers)
-        RESTORE_VECTOR_REGISTERS();
 #endif
 
     if (err == MP_OKAY) {
@@ -24485,9 +24622,8 @@ int sp_ecc_secret_gen_256(const mp_int* priv, const ecc_point* pub, byte* out,
         sp_256_point_from_ecc_point_4(point, pub);
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_256_ecc_mulmod_avx2_4(point, point, k, 1, 1, heap);
-            RESTORE_VECTOR_REGISTERS();
         }
         else
 #endif
@@ -25240,32 +25376,39 @@ static void sp_256_mont_inv_order_avx2_4(sp_digit* r, const sp_digit* a,
 static int sp_256_calc_s_4(sp_digit* s, const sp_digit* r, sp_digit* k,
     sp_digit* x, const sp_digit* e, sp_digit* tmp)
 {
-    int err;
+    int err = MP_OKAY;
     sp_digit carry;
     sp_int64 c;
     sp_digit* kInv = k;
 #ifdef HAVE_INTEL_AVX2
     word32 cpuid_flags = cpuid_get_flags();
     int saved_vector_registers = 0;
+    int use_avx2_lane = 0;
 #endif
 
     /* Conv k to Montgomery form (mod order) */
 #ifdef HAVE_INTEL_AVX2
+    /* CPUID picks the lane; a failed save is an error, not a lane switch. */
     if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
-        saved_vector_registers = 1;
-    if (saved_vector_registers)
-        sp_256_mul_avx2_4(k, k, p256_norm_order);
+            IS_INTEL_AVX2(cpuid_flags)) {
+        use_avx2_lane = 1;
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0) {
+            saved_vector_registers = 1;
+            sp_256_mul_avx2_4(k, k, p256_norm_order);
+        }
+    }
     else
 #endif
         sp_256_mul_4(k, k, p256_norm_order);
-    err = sp_256_mod_4(k, k, p256_order);
+    if (err == MP_OKAY)
+        err = sp_256_mod_4(k, k, p256_order);
     if (err == MP_OKAY) {
         sp_256_norm_4(k);
 
         /* kInv = 1/k mod order */
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_256_mont_inv_order_avx2_4(kInv, k, tmp);
         else
 #endif
@@ -25274,7 +25417,7 @@ static int sp_256_calc_s_4(sp_digit* s, const sp_digit* r, sp_digit* k,
 
         /* s = r * x + e */
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_256_mul_avx2_4(x, x, r);
         else
 #endif
@@ -25293,7 +25436,7 @@ static int sp_256_calc_s_4(sp_digit* s, const sp_digit* r, sp_digit* k,
 
         /* s = s * k^-1 mod order */
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_256_mont_mul_order_avx2_4(s, s, kInv);
         else
 #endif
@@ -25373,10 +25516,8 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng,
         if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
             if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                    IS_INTEL_AVX2(cpuid_flags) &&
-                    (SAVE_VECTOR_REGISTERS2() == 0)) {
+                    IS_INTEL_AVX2(cpuid_flags)) {
                 err = sp_256_ecc_mulmod_base_avx2_4(point, k, 1, 1, heap);
-                RESTORE_VECTOR_REGISTERS();
             }
             else
 #endif
@@ -25638,31 +25779,38 @@ extern void sp_256_mod_inv_avx2_4(sp_digit* r, const sp_digit* a, const sp_digit
  * @param [in, out] p1   First point to add and holds result.
  * @param [in]      p2   Second point to add.
  * @param [out]     tmp  Temporary storage for intermediate numbers.
+ * @return  MP_OKAY, or the vector-register save error when the save is refused.
  */
-static void sp_256_add_points_4(sp_point_256* p1, const sp_point_256* p2,
+static int sp_256_add_points_4(sp_point_256* p1, const sp_point_256* p2,
     sp_digit* tmp)
 {
+    int err = MP_OKAY;
 #ifdef HAVE_INTEL_AVX2
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
 #ifdef HAVE_INTEL_AVX2
     if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-        sp_256_proj_point_add_avx2_4(p1, p1, p2, tmp);
-        RESTORE_VECTOR_REGISTERS();
+            IS_INTEL_AVX2(cpuid_flags)) {
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0) {
+            sp_256_proj_point_add_avx2_4(p1, p1, p2, tmp);
+            RESTORE_VECTOR_REGISTERS();
+        }
     }
     else
 #endif
         sp_256_proj_point_add_4(p1, p1, p2, tmp);
-    if (sp_256_iszero_4(p1->z)) {
+    if ((err == MP_OKAY) && sp_256_iszero_4(p1->z)) {
         if (sp_256_iszero_4(p1->x) && sp_256_iszero_4(p1->y)) {
 #ifdef HAVE_INTEL_AVX2
             if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                    IS_INTEL_AVX2(cpuid_flags) &&
-                    (SAVE_VECTOR_REGISTERS2() == 0)) {
-                sp_256_proj_point_dbl_avx2_4(p1, p2, tmp);
-                RESTORE_VECTOR_REGISTERS();
+                    IS_INTEL_AVX2(cpuid_flags)) {
+                err = SAVE_VECTOR_REGISTERS2();
+                if (err == 0) {
+                    sp_256_proj_point_dbl_avx2_4(p1, p2, tmp);
+                    RESTORE_VECTOR_REGISTERS();
+                }
             }
             else
 #endif
@@ -25677,6 +25825,8 @@ static void sp_256_add_points_4(sp_point_256* p1, const sp_point_256* p2,
             XMEMCPY(p1->z, p256_norm_mod, sizeof(p256_norm_mod));
         }
     }
+
+    return err;
 }
 
 /* Calculate the verification point: [e/s]G + [r/s]Q
@@ -25695,7 +25845,7 @@ static void sp_256_add_points_4(sp_point_256* p1, const sp_point_256* p2,
 static int sp_256_calc_vfy_point_4(sp_point_256* p1, sp_point_256* p2,
     sp_digit* s, sp_digit* u1, sp_digit* u2, sp_digit* tmp, void* heap)
 {
-    int err;
+    int err = MP_OKAY;
 #ifdef HAVE_INTEL_AVX2
     word32 cpuid_flags = cpuid_get_flags();
 #endif
@@ -25703,9 +25853,12 @@ static int sp_256_calc_vfy_point_4(sp_point_256* p1, sp_point_256* p2,
 #ifndef WOLFSSL_SP_SMALL
 #ifdef HAVE_INTEL_AVX2
     if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-        sp_256_mod_inv_avx2_4(s, s, p256_order);
-        RESTORE_VECTOR_REGISTERS();
+            IS_INTEL_AVX2(cpuid_flags)) {
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0) {
+            sp_256_mod_inv_avx2_4(s, s, p256_order);
+            RESTORE_VECTOR_REGISTERS();
+        }
     }
     else
 #endif
@@ -25713,30 +25866,37 @@ static int sp_256_calc_vfy_point_4(sp_point_256* p1, sp_point_256* p2,
         sp_256_mod_inv_4(s, s, p256_order);
     }
 #endif /* !WOLFSSL_SP_SMALL */
-    {
+    if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_256_mul_avx2_4(s, s, p256_norm_order);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_256_mul_avx2_4(s, s, p256_norm_order);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
         {
             sp_256_mul_4(s, s, p256_norm_order);
         }
-        err = sp_256_mod_4(s, s, p256_order);
+        if (err == MP_OKAY)
+            err = sp_256_mod_4(s, s, p256_order);
     }
     if (err == MP_OKAY) {
         sp_256_norm_4(s);
 #ifdef WOLFSSL_SP_SMALL
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_256_mont_inv_order_avx2_4(s, s, tmp);
-            sp_256_mont_mul_order_avx2_4(u1, u1, s);
-            sp_256_mont_mul_order_avx2_4(u2, u2, s);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_256_mont_inv_order_avx2_4(s, s, tmp);
+                sp_256_mont_mul_order_avx2_4(u1, u1, s);
+                sp_256_mont_mul_order_avx2_4(u2, u2, s);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -25748,10 +25908,13 @@ static int sp_256_calc_vfy_point_4(sp_point_256* p1, sp_point_256* p2,
 #else
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_256_mont_mul_order_avx2_4(u1, u1, s);
-            sp_256_mont_mul_order_avx2_4(u2, u2, s);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_256_mont_mul_order_avx2_4(u1, u1, s);
+                sp_256_mont_mul_order_avx2_4(u2, u2, s);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -25760,11 +25923,12 @@ static int sp_256_calc_vfy_point_4(sp_point_256* p1, sp_point_256* p2,
             sp_256_mont_mul_order_4(u2, u2, s);
         }
 #endif /* WOLFSSL_SP_SMALL */
+    }
+    if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_256_ecc_mulmod_base_avx2_4(p1, u1, 0, 0, heap);
-            RESTORE_VECTOR_REGISTERS();
         }
         else
 #endif
@@ -25778,9 +25942,8 @@ static int sp_256_calc_vfy_point_4(sp_point_256* p1, sp_point_256* p2,
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_256_ecc_mulmod_avx2_4(p2, p2, u2, 0, 0, heap);
-            RESTORE_VECTOR_REGISTERS();
         }
         else
 #endif
@@ -25791,7 +25954,7 @@ static int sp_256_calc_vfy_point_4(sp_point_256* p1, sp_point_256* p2,
     }
 
     if (err == MP_OKAY) {
-        sp_256_add_points_4(p1, p2, tmp);
+        err = sp_256_add_points_4(p1, p2, tmp);
     }
 
     return err;
@@ -25870,22 +26033,22 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, const mp_int* pX,
         /* u1 = r.z'.z' mod prime */
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_256_mont_sqr_avx2_4(p1->z, p1->z, p256_mod, p256_mp_mod);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_256_mont_sqr_avx2_4(p1->z, p1->z, p256_mod, p256_mp_mod);
+                sp_256_mont_mul_avx2_4(u1, u2, p1->z, p256_mod, p256_mp_mod);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
+        {
             sp_256_mont_sqr_4(p1->z, p1->z, p256_mod, p256_mp_mod);
-#ifdef HAVE_INTEL_AVX2
-        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_256_mont_mul_avx2_4(u1, u2, p1->z, p256_mod, p256_mp_mod);
-            RESTORE_VECTOR_REGISTERS();
-        }
-        else
-#endif
             sp_256_mont_mul_4(u1, u2, p1->z, p256_mod, p256_mp_mod);
+        }
+    }
+    if (err == MP_OKAY) {
         *res = (int)(sp_256_cmp_4(p1->x, u1) == 0);
         if (*res == 0) {
             /* Reload r and add order. */
@@ -25906,18 +26069,21 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, const mp_int* pX,
                 /* u1 = (r + 1*order).z'.z' mod prime */
 #ifdef HAVE_INTEL_AVX2
                 if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                        IS_INTEL_AVX2(cpuid_flags) &&
-                        (SAVE_VECTOR_REGISTERS2() == 0)) {
-                    sp_256_mont_mul_avx2_4(u1, u2, p1->z, p256_mod,
-                        p256_mp_mod);
-                    RESTORE_VECTOR_REGISTERS();
+                        IS_INTEL_AVX2(cpuid_flags)) {
+                    err = SAVE_VECTOR_REGISTERS2();
+                    if (err == 0) {
+                        sp_256_mont_mul_avx2_4(u1, u2, p1->z, p256_mod,
+                            p256_mp_mod);
+                        RESTORE_VECTOR_REGISTERS();
+                    }
                 }
                 else
 #endif
                 {
                     sp_256_mont_mul_4(u1, u2, p1->z, p256_mod, p256_mp_mod);
                 }
-                *res = (sp_256_cmp_4(p1->x, u1) == 0);
+                if (err == MP_OKAY)
+                    *res = (sp_256_cmp_4(p1->x, u1) == 0);
             }
         }
     }
@@ -26252,9 +26418,8 @@ int sp_ecc_check_key_256(const mp_int* pX, const mp_int* pY,
         /* Point * order = infinity */
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_256_ecc_mulmod_avx2_4(p, pub, p256_order, 1, 1, heap);
-            RESTORE_VECTOR_REGISTERS();
         }
         else
 #endif
@@ -26271,10 +26436,8 @@ int sp_ecc_check_key_256(const mp_int* pX, const mp_int* pY,
             /* Base * private = point */
 #ifdef HAVE_INTEL_AVX2
             if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                    IS_INTEL_AVX2(cpuid_flags) &&
-                    (SAVE_VECTOR_REGISTERS2() == 0)) {
+                    IS_INTEL_AVX2(cpuid_flags)) {
                 err = sp_256_ecc_mulmod_base_avx2_4(p, priv, 1, 1, heap);
-                RESTORE_VECTOR_REGISTERS();
             }
             else
 #endif
@@ -26341,9 +26504,12 @@ int sp_ecc_proj_add_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_256_proj_point_add_avx2_4(p, p, q, tmp);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_256_proj_point_add_avx2_4(p, p, q, tmp);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -26400,9 +26566,12 @@ int sp_ecc_proj_dbl_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_256_proj_point_dbl_avx2_4(p, p, tmp);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_256_proj_point_dbl_avx2_4(p, p, tmp);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -26456,9 +26625,12 @@ int sp_ecc_map_256(mp_int* pX, mp_int* pY, mp_int* pZ)
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_256_map_avx2_4(p, p, tmp);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_256_map_avx2_4(p, p, tmp);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -26504,37 +26676,40 @@ static int sp_256_mont_sqrt_4(sp_digit* y)
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            /* t2 = y ^ 0x2 */
-            sp_256_mont_sqr_avx2_4(t2, y, p256_mod, p256_mp_mod);
-            /* t1 = y ^ 0x3 */
-            sp_256_mont_mul_avx2_4(t1, t2, y, p256_mod, p256_mp_mod);
-            /* t2 = y ^ 0xc */
-            sp_256_mont_sqr_n_avx2_4(t2, t1, 2, p256_mod, p256_mp_mod);
-            /* t1 = y ^ 0xf */
-            sp_256_mont_mul_avx2_4(t1, t1, t2, p256_mod, p256_mp_mod);
-            /* t2 = y ^ 0xf0 */
-            sp_256_mont_sqr_n_avx2_4(t2, t1, 4, p256_mod, p256_mp_mod);
-            /* t1 = y ^ 0xff */
-            sp_256_mont_mul_avx2_4(t1, t1, t2, p256_mod, p256_mp_mod);
-            /* t2 = y ^ 0xff00 */
-            sp_256_mont_sqr_n_avx2_4(t2, t1, 8, p256_mod, p256_mp_mod);
-            /* t1 = y ^ 0xffff */
-            sp_256_mont_mul_avx2_4(t1, t1, t2, p256_mod, p256_mp_mod);
-            /* t2 = y ^ 0xffff0000 */
-            sp_256_mont_sqr_n_avx2_4(t2, t1, 16, p256_mod, p256_mp_mod);
-            /* t1 = y ^ 0xffffffff */
-            sp_256_mont_mul_avx2_4(t1, t1, t2, p256_mod, p256_mp_mod);
-            /* t1 = y ^ 0xffffffff00000000 */
-            sp_256_mont_sqr_n_avx2_4(t1, t1, 32, p256_mod, p256_mp_mod);
-            /* t1 = y ^ 0xffffffff00000001 */
-            sp_256_mont_mul_avx2_4(t1, t1, y, p256_mod, p256_mp_mod);
-            /* t1 = y ^ 0xffffffff00000001000000000000000000000000 */
-            sp_256_mont_sqr_n_avx2_4(t1, t1, 96, p256_mod, p256_mp_mod);
-            /* t1 = y ^ 0xffffffff00000001000000000000000000000001 */
-            sp_256_mont_mul_avx2_4(t1, t1, y, p256_mod, p256_mp_mod);
-            sp_256_mont_sqr_n_avx2_4(y, t1, 94, p256_mod, p256_mp_mod);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                /* t2 = y ^ 0x2 */
+                sp_256_mont_sqr_avx2_4(t2, y, p256_mod, p256_mp_mod);
+                /* t1 = y ^ 0x3 */
+                sp_256_mont_mul_avx2_4(t1, t2, y, p256_mod, p256_mp_mod);
+                /* t2 = y ^ 0xc */
+                sp_256_mont_sqr_n_avx2_4(t2, t1, 2, p256_mod, p256_mp_mod);
+                /* t1 = y ^ 0xf */
+                sp_256_mont_mul_avx2_4(t1, t1, t2, p256_mod, p256_mp_mod);
+                /* t2 = y ^ 0xf0 */
+                sp_256_mont_sqr_n_avx2_4(t2, t1, 4, p256_mod, p256_mp_mod);
+                /* t1 = y ^ 0xff */
+                sp_256_mont_mul_avx2_4(t1, t1, t2, p256_mod, p256_mp_mod);
+                /* t2 = y ^ 0xff00 */
+                sp_256_mont_sqr_n_avx2_4(t2, t1, 8, p256_mod, p256_mp_mod);
+                /* t1 = y ^ 0xffff */
+                sp_256_mont_mul_avx2_4(t1, t1, t2, p256_mod, p256_mp_mod);
+                /* t2 = y ^ 0xffff0000 */
+                sp_256_mont_sqr_n_avx2_4(t2, t1, 16, p256_mod, p256_mp_mod);
+                /* t1 = y ^ 0xffffffff */
+                sp_256_mont_mul_avx2_4(t1, t1, t2, p256_mod, p256_mp_mod);
+                /* t1 = y ^ 0xffffffff00000000 */
+                sp_256_mont_sqr_n_avx2_4(t1, t1, 32, p256_mod, p256_mp_mod);
+                /* t1 = y ^ 0xffffffff00000001 */
+                sp_256_mont_mul_avx2_4(t1, t1, y, p256_mod, p256_mp_mod);
+                /* t1 = y ^ 0xffffffff00000001000000000000000000000000 */
+                sp_256_mont_sqr_n_avx2_4(t1, t1, 96, p256_mod, p256_mp_mod);
+                /* t1 = y ^ 0xffffffff00000001000000000000000000000001 */
+                sp_256_mont_mul_avx2_4(t1, t1, y, p256_mod, p256_mp_mod);
+                sp_256_mont_sqr_n_avx2_4(y, t1, 94, p256_mod, p256_mp_mod);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -26606,10 +26781,13 @@ int sp_ecc_uncompress_256(mp_int* xm, int odd, mp_int* ym)
         /* y = x^3 */
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_256_mont_sqr_avx2_4(y, x, p256_mod, p256_mp_mod);
-            sp_256_mont_mul_avx2_4(y, y, x, p256_mod, p256_mp_mod);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_256_mont_sqr_avx2_4(y, x, p256_mod, p256_mp_mod);
+                sp_256_mont_mul_avx2_4(y, y, x, p256_mod, p256_mp_mod);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -26617,6 +26795,8 @@ int sp_ecc_uncompress_256(mp_int* xm, int odd, mp_int* ym)
             sp_256_mont_sqr_4(y, x, p256_mod, p256_mp_mod);
             sp_256_mont_mul_4(y, y, x, p256_mod, p256_mp_mod);
         }
+    }
+    if (err == MP_OKAY) {
         /* y = x^3 - 3x */
         sp_256_mont_sub_4(y, y, x, p256_mod);
         sp_256_mont_sub_4(y, y, x, p256_mod);
@@ -29832,7 +30012,14 @@ static int sp_384_ecc_mulmod_6(sp_point_384* r, const sp_point_384* g,
         const sp_digit* k, int map, int ct, void* heap)
 {
 #ifndef FP_ECC
-    return sp_384_ecc_mulmod_win_add_sub_6(r, g, k, map, ct, heap);
+    /* xmm table lookups run only when ct is set; the save is taken on every
+     * call on purpose, so both lanes keep one shape. */
+    int err = SAVE_VECTOR_REGISTERS2();
+    if (err == 0) {
+        err = sp_384_ecc_mulmod_win_add_sub_6(r, g, k, map, ct, heap);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    return err;
 #else
     SP_DECL_VAR(sp_digit, tmp, 2 * 6 * 7);
     sp_cache_384_t* cache;
@@ -29877,16 +30064,20 @@ static int sp_384_ecc_mulmod_6(sp_point_384* r, const sp_point_384* g,
 #endif /* !SINGLE_THREADED && !HAVE_THREAD_LS */
 
     if (err == MP_OKAY) {
-        sp_ecc_get_cache_384(g, &cache);
-        if (cache->cnt == 2)
-            sp_384_gen_stripe_table_6(g, cache->table, tmp, heap);
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0) {
+            sp_ecc_get_cache_384(g, &cache);
+            if (cache->cnt == 2)
+                sp_384_gen_stripe_table_6(g, cache->table, tmp, heap);
 
-        if (cache->cnt < 2) {
-            err = sp_384_ecc_mulmod_win_add_sub_6(r, g, k, map, ct, heap);
-        }
-        else {
-            err = sp_384_ecc_mulmod_stripe_6(r, g, cache->table, k,
-                    map, ct, heap);
+            if (cache->cnt < 2) {
+                err = sp_384_ecc_mulmod_win_add_sub_6(r, g, k, map, ct, heap);
+            }
+            else {
+                err = sp_384_ecc_mulmod_stripe_6(r, g, cache->table, k,
+                        map, ct, heap);
+            }
+            RESTORE_VECTOR_REGISTERS();
         }
 #if !defined(SINGLE_THREADED) && !defined(HAVE_THREAD_LS)
         wc_UnLockMutex(&sp_cache_384_lock);
@@ -30202,7 +30393,13 @@ static int sp_384_ecc_mulmod_avx2_6(sp_point_384* r, const sp_point_384* g,
         const sp_digit* k, int map, int ct, void* heap)
 {
 #ifndef FP_ECC
-    return sp_384_ecc_mulmod_win_add_sub_avx2_6(r, g, k, map, ct, heap);
+    /* The avx2 lane uses vector registers throughout. */
+    int err = SAVE_VECTOR_REGISTERS2();
+    if (err == 0) {
+        err = sp_384_ecc_mulmod_win_add_sub_avx2_6(r, g, k, map, ct, heap);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    return err;
 #else
     SP_DECL_VAR(sp_digit, tmp, 2 * 6 * 7);
     sp_cache_384_t* cache;
@@ -30247,16 +30444,20 @@ static int sp_384_ecc_mulmod_avx2_6(sp_point_384* r, const sp_point_384* g,
 #endif /* !SINGLE_THREADED && !HAVE_THREAD_LS */
 
     if (err == MP_OKAY) {
-        sp_ecc_get_cache_384(g, &cache);
-        if (cache->cnt == 2)
-            sp_384_gen_stripe_table_avx2_6(g, cache->table, tmp, heap);
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0) {
+            sp_ecc_get_cache_384(g, &cache);
+            if (cache->cnt == 2)
+                sp_384_gen_stripe_table_avx2_6(g, cache->table, tmp, heap);
 
-        if (cache->cnt < 2) {
-            err = sp_384_ecc_mulmod_win_add_sub_avx2_6(r, g, k, map, ct, heap);
-        }
-        else {
-            err = sp_384_ecc_mulmod_stripe_avx2_6(r, g, cache->table, k,
-                    map, ct, heap);
+            if (cache->cnt < 2) {
+                err = sp_384_ecc_mulmod_win_add_sub_avx2_6(r, g, k, map, ct, heap);
+            }
+            else {
+                err = sp_384_ecc_mulmod_stripe_avx2_6(r, g, cache->table, k,
+                        map, ct, heap);
+            }
+            RESTORE_VECTOR_REGISTERS();
         }
 #if !defined(SINGLE_THREADED) && !defined(HAVE_THREAD_LS)
         wc_UnLockMutex(&sp_cache_384_lock);
@@ -30299,9 +30500,8 @@ int sp_ecc_mulmod_384(const mp_int* km, const ecc_point* gm, ecc_point* r,
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_384_ecc_mulmod_avx2_6(point, point, k, map, 1, heap);
-            RESTORE_VECTOR_REGISTERS();
         }
         else
 #endif
@@ -30342,6 +30542,7 @@ int sp_ecc_mulmod_add_384(const mp_int* km, const ecc_point* gm,
 #ifdef HAVE_INTEL_AVX2
     word32 cpuid_flags = cpuid_get_flags();
     int saved_vector_registers = 0;
+    int use_avx2_lane = 0;
 #endif
 
     SP_ALLOC_VAR(sp_point_384, point, 2, heap, DYNAMIC_TYPE_ECC);
@@ -30366,17 +30567,25 @@ int sp_ecc_mulmod_add_384(const mp_int* km, const ecc_point* gm,
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
-            saved_vector_registers = 1;
-        if (saved_vector_registers)
+                IS_INTEL_AVX2(cpuid_flags)) {
+            use_avx2_lane = 1;
             err = sp_384_ecc_mulmod_avx2_6(point, point, k, 0, 0, heap);
+        }
         else
 #endif
             err = sp_384_ecc_mulmod_6(point, point, k, 0, 0, heap);
     }
+#ifdef HAVE_INTEL_AVX2
+    /* The mulmod saved for itself; this save is for the point operations. */
+    if ((err == MP_OKAY) && use_avx2_lane) {
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0)
+            saved_vector_registers = 1;
+    }
+#endif
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_384_proj_point_add_avx2_6(point, point, addP, tmp);
         else
 #endif
@@ -30384,7 +30593,7 @@ int sp_ecc_mulmod_add_384(const mp_int* km, const ecc_point* gm,
 
         if (map) {
 #ifdef HAVE_INTEL_AVX2
-            if (saved_vector_registers)
+            if (use_avx2_lane)
                 sp_384_map_avx2_6(point, point, tmp);
             else
 #endif
@@ -30751,8 +30960,13 @@ static const sp_table_entry_384 p384_table[64] = {
 static int sp_384_ecc_mulmod_base_6(sp_point_384* r, const sp_digit* k,
         int map, int ct, void* heap)
 {
-    return sp_384_ecc_mulmod_stripe_6(r, &p384_base, p384_table,
-                                      k, map, ct, heap);
+    int err = SAVE_VECTOR_REGISTERS2();
+    if (err == 0) {
+        err = sp_384_ecc_mulmod_stripe_6(r, &p384_base, p384_table,
+                                         k, map, ct, heap);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    return err;
 }
 
 #ifdef HAVE_INTEL_AVX2
@@ -30776,8 +30990,13 @@ static int sp_384_ecc_mulmod_base_6(sp_point_384* r, const sp_digit* k,
 static int sp_384_ecc_mulmod_base_avx2_6(sp_point_384* r, const sp_digit* k,
         int map, int ct, void* heap)
 {
-    return sp_384_ecc_mulmod_stripe_avx2_6(r, &p384_base, p384_table,
-                                      k, map, ct, heap);
+    int err = SAVE_VECTOR_REGISTERS2();
+    if (err == 0) {
+        err = sp_384_ecc_mulmod_stripe_avx2_6(r, &p384_base, p384_table,
+                                         k, map, ct, heap);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    return err;
 }
 
 #endif /* HAVE_INTEL_AVX2 */
@@ -48741,8 +48960,13 @@ static int sp_384_ecc_mulmod_add_only_6(sp_point_384* r, const sp_point_384* g,
 static int sp_384_ecc_mulmod_base_6(sp_point_384* r, const sp_digit* k,
         int map, int ct, void* heap)
 {
-    return sp_384_ecc_mulmod_add_only_6(r, NULL, p384_table,
-                                      k, map, ct, heap);
+    int err = SAVE_VECTOR_REGISTERS2();
+    if (err == 0) {
+        err = sp_384_ecc_mulmod_add_only_6(r, NULL, p384_table,
+                                         k, map, ct, heap);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    return err;
 }
 
 #ifdef HAVE_INTEL_AVX2
@@ -48852,8 +49076,13 @@ static int sp_384_ecc_mulmod_add_only_avx2_6(sp_point_384* r, const sp_point_384
 static int sp_384_ecc_mulmod_base_avx2_6(sp_point_384* r, const sp_digit* k,
         int map, int ct, void* heap)
 {
-    return sp_384_ecc_mulmod_add_only_avx2_6(r, NULL, p384_table,
-                                      k, map, ct, heap);
+    int err = SAVE_VECTOR_REGISTERS2();
+    if (err == 0) {
+        err = sp_384_ecc_mulmod_add_only_avx2_6(r, NULL, p384_table,
+                                         k, map, ct, heap);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    return err;
 }
 
 #endif /* HAVE_INTEL_AVX2 */
@@ -48885,9 +49114,8 @@ int sp_ecc_mulmod_base_384(const mp_int* km, ecc_point* r, int map, void* heap)
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_384_ecc_mulmod_base_avx2_6(point, k, map, 1, heap);
-            RESTORE_VECTOR_REGISTERS();
         }
         else
 #endif
@@ -48927,6 +49155,7 @@ int sp_ecc_mulmod_base_add_384(const mp_int* km, const ecc_point* am,
 #ifdef HAVE_INTEL_AVX2
     word32 cpuid_flags = cpuid_get_flags();
     int saved_vector_registers = 0;
+    int use_avx2_lane = 0;
 #endif
 
     SP_ALLOC_VAR(sp_point_384, point, 2, NULL, DYNAMIC_TYPE_ECC);
@@ -48950,17 +49179,25 @@ int sp_ecc_mulmod_base_add_384(const mp_int* km, const ecc_point* am,
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
-            saved_vector_registers = 1;
-        if (saved_vector_registers)
+                IS_INTEL_AVX2(cpuid_flags)) {
+            use_avx2_lane = 1;
             err = sp_384_ecc_mulmod_base_avx2_6(point, k, 0, 0, heap);
+        }
         else
 #endif
             err = sp_384_ecc_mulmod_base_6(point, k, 0, 0, heap);
     }
+#ifdef HAVE_INTEL_AVX2
+    /* The mulmod saved for itself; this save is for the point operations. */
+    if ((err == MP_OKAY) && use_avx2_lane) {
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0)
+            saved_vector_registers = 1;
+    }
+#endif
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_384_proj_point_add_avx2_6(point, point, addP, tmp);
         else
 #endif
@@ -48968,7 +49205,7 @@ int sp_ecc_mulmod_base_add_384(const mp_int* km, const ecc_point* am,
 
         if (map) {
 #ifdef HAVE_INTEL_AVX2
-            if (saved_vector_registers)
+            if (use_avx2_lane)
                 sp_384_map_avx2_6(point, point, tmp);
             else
 #endif
@@ -49099,7 +49336,6 @@ int sp_ecc_make_key_384(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
 
 #ifdef HAVE_INTEL_AVX2
     word32 cpuid_flags = cpuid_get_flags();
-    int saved_vector_registers = 0;
 #endif
 
     (void)heap;
@@ -49120,11 +49356,9 @@ int sp_ecc_make_key_384(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
-            saved_vector_registers = 1;
-
-        if (saved_vector_registers)
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_384_ecc_mulmod_base_avx2_6(point, k, 1, 1, NULL);
+        }
         else
 #endif
             err = sp_384_ecc_mulmod_base_6(point, k, 1, 1, NULL);
@@ -49133,7 +49367,8 @@ int sp_ecc_make_key_384(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
 #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers) {
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_384_ecc_mulmod_avx2_6(infinity, point, p384_order, 1, 1,
                                                                           NULL);
         }
@@ -49146,11 +49381,6 @@ int sp_ecc_make_key_384(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
             err = ECC_INF_E;
         }
     }
-#endif
-
-#ifdef HAVE_INTEL_AVX2
-    if (saved_vector_registers)
-        RESTORE_VECTOR_REGISTERS();
 #endif
 
     if (err == MP_OKAY) {
@@ -49333,9 +49563,8 @@ int sp_ecc_secret_gen_384(const mp_int* priv, const ecc_point* pub, byte* out,
         sp_384_point_from_ecc_point_6(point, pub);
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_384_ecc_mulmod_avx2_6(point, point, k, 1, 1, heap);
-            RESTORE_VECTOR_REGISTERS();
         }
         else
 #endif
@@ -49973,32 +50202,39 @@ static void sp_384_mont_inv_order_avx2_6(sp_digit* r, const sp_digit* a,
 static int sp_384_calc_s_6(sp_digit* s, const sp_digit* r, sp_digit* k,
     sp_digit* x, const sp_digit* e, sp_digit* tmp)
 {
-    int err;
+    int err = MP_OKAY;
     sp_digit carry;
     sp_int64 c;
     sp_digit* kInv = k;
 #ifdef HAVE_INTEL_AVX2
     word32 cpuid_flags = cpuid_get_flags();
     int saved_vector_registers = 0;
+    int use_avx2_lane = 0;
 #endif
 
     /* Conv k to Montgomery form (mod order) */
 #ifdef HAVE_INTEL_AVX2
+    /* CPUID picks the lane; a failed save is an error, not a lane switch. */
     if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
-        saved_vector_registers = 1;
-    if (saved_vector_registers)
-        sp_384_mul_avx2_6(k, k, p384_norm_order);
+            IS_INTEL_AVX2(cpuid_flags)) {
+        use_avx2_lane = 1;
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0) {
+            saved_vector_registers = 1;
+            sp_384_mul_avx2_6(k, k, p384_norm_order);
+        }
+    }
     else
 #endif
         sp_384_mul_6(k, k, p384_norm_order);
-    err = sp_384_mod_6(k, k, p384_order);
+    if (err == MP_OKAY)
+        err = sp_384_mod_6(k, k, p384_order);
     if (err == MP_OKAY) {
         sp_384_norm_6(k);
 
         /* kInv = 1/k mod order */
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_384_mont_inv_order_avx2_6(kInv, k, tmp);
         else
 #endif
@@ -50007,7 +50243,7 @@ static int sp_384_calc_s_6(sp_digit* s, const sp_digit* r, sp_digit* k,
 
         /* s = r * x + e */
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_384_mul_avx2_6(x, x, r);
         else
 #endif
@@ -50026,7 +50262,7 @@ static int sp_384_calc_s_6(sp_digit* s, const sp_digit* r, sp_digit* k,
 
         /* s = s * k^-1 mod order */
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_384_mont_mul_order_avx2_6(s, s, kInv);
         else
 #endif
@@ -50106,10 +50342,8 @@ int sp_ecc_sign_384(const byte* hash, word32 hashLen, WC_RNG* rng,
         if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
             if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                    IS_INTEL_AVX2(cpuid_flags) &&
-                    (SAVE_VECTOR_REGISTERS2() == 0)) {
+                    IS_INTEL_AVX2(cpuid_flags)) {
                 err = sp_384_ecc_mulmod_base_avx2_6(point, k, 1, 1, heap);
-                RESTORE_VECTOR_REGISTERS();
             }
             else
 #endif
@@ -50461,31 +50695,38 @@ static int sp_384_mod_inv_6(sp_digit* r, const sp_digit* a, const sp_digit* m)
  * @param [in, out] p1   First point to add and holds result.
  * @param [in]      p2   Second point to add.
  * @param [out]     tmp  Temporary storage for intermediate numbers.
+ * @return  MP_OKAY, or the vector-register save error when the save is refused.
  */
-static void sp_384_add_points_6(sp_point_384* p1, const sp_point_384* p2,
+static int sp_384_add_points_6(sp_point_384* p1, const sp_point_384* p2,
     sp_digit* tmp)
 {
+    int err = MP_OKAY;
 #ifdef HAVE_INTEL_AVX2
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
 #ifdef HAVE_INTEL_AVX2
     if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-        sp_384_proj_point_add_avx2_6(p1, p1, p2, tmp);
-        RESTORE_VECTOR_REGISTERS();
+            IS_INTEL_AVX2(cpuid_flags)) {
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0) {
+            sp_384_proj_point_add_avx2_6(p1, p1, p2, tmp);
+            RESTORE_VECTOR_REGISTERS();
+        }
     }
     else
 #endif
         sp_384_proj_point_add_6(p1, p1, p2, tmp);
-    if (sp_384_iszero_6(p1->z)) {
+    if ((err == MP_OKAY) && sp_384_iszero_6(p1->z)) {
         if (sp_384_iszero_6(p1->x) && sp_384_iszero_6(p1->y)) {
 #ifdef HAVE_INTEL_AVX2
             if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                    IS_INTEL_AVX2(cpuid_flags) &&
-                    (SAVE_VECTOR_REGISTERS2() == 0)) {
-                sp_384_proj_point_dbl_avx2_6(p1, p2, tmp);
-                RESTORE_VECTOR_REGISTERS();
+                    IS_INTEL_AVX2(cpuid_flags)) {
+                err = SAVE_VECTOR_REGISTERS2();
+                if (err == 0) {
+                    sp_384_proj_point_dbl_avx2_6(p1, p2, tmp);
+                    RESTORE_VECTOR_REGISTERS();
+                }
             }
             else
 #endif
@@ -50502,6 +50743,8 @@ static void sp_384_add_points_6(sp_point_384* p1, const sp_point_384* p2,
             XMEMCPY(p1->z, p384_norm_mod, sizeof(p384_norm_mod));
         }
     }
+
+    return err;
 }
 
 /* Calculate the verification point: [e/s]G + [r/s]Q
@@ -50520,39 +50763,45 @@ static void sp_384_add_points_6(sp_point_384* p1, const sp_point_384* p2,
 static int sp_384_calc_vfy_point_6(sp_point_384* p1, sp_point_384* p2,
     sp_digit* s, sp_digit* u1, sp_digit* u2, sp_digit* tmp, void* heap)
 {
-    int err;
+    int err = MP_OKAY;
 #ifdef HAVE_INTEL_AVX2
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
 #ifndef WOLFSSL_SP_SMALL
     err = sp_384_mod_inv_6(s, s, p384_order);
-    if (err == MP_OKAY)
 #endif /* !WOLFSSL_SP_SMALL */
-    {
+    if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_384_mul_avx2_6(s, s, p384_norm_order);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_384_mul_avx2_6(s, s, p384_norm_order);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
         {
             sp_384_mul_6(s, s, p384_norm_order);
         }
-        err = sp_384_mod_6(s, s, p384_order);
+        if (err == MP_OKAY)
+            err = sp_384_mod_6(s, s, p384_order);
     }
     if (err == MP_OKAY) {
         sp_384_norm_6(s);
 #ifdef WOLFSSL_SP_SMALL
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_384_mont_inv_order_avx2_6(s, s, tmp);
-            sp_384_mont_mul_order_avx2_6(u1, u1, s);
-            sp_384_mont_mul_order_avx2_6(u2, u2, s);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_384_mont_inv_order_avx2_6(s, s, tmp);
+                sp_384_mont_mul_order_avx2_6(u1, u1, s);
+                sp_384_mont_mul_order_avx2_6(u2, u2, s);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -50564,10 +50813,13 @@ static int sp_384_calc_vfy_point_6(sp_point_384* p1, sp_point_384* p2,
 #else
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_384_mont_mul_order_avx2_6(u1, u1, s);
-            sp_384_mont_mul_order_avx2_6(u2, u2, s);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_384_mont_mul_order_avx2_6(u1, u1, s);
+                sp_384_mont_mul_order_avx2_6(u2, u2, s);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -50576,11 +50828,12 @@ static int sp_384_calc_vfy_point_6(sp_point_384* p1, sp_point_384* p2,
             sp_384_mont_mul_order_6(u2, u2, s);
         }
 #endif /* WOLFSSL_SP_SMALL */
+    }
+    if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_384_ecc_mulmod_base_avx2_6(p1, u1, 0, 0, heap);
-            RESTORE_VECTOR_REGISTERS();
         }
         else
 #endif
@@ -50594,9 +50847,8 @@ static int sp_384_calc_vfy_point_6(sp_point_384* p1, sp_point_384* p2,
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_384_ecc_mulmod_avx2_6(p2, p2, u2, 0, 0, heap);
-            RESTORE_VECTOR_REGISTERS();
         }
         else
 #endif
@@ -50607,7 +50859,7 @@ static int sp_384_calc_vfy_point_6(sp_point_384* p1, sp_point_384* p2,
     }
 
     if (err == MP_OKAY) {
-        sp_384_add_points_6(p1, p2, tmp);
+        err = sp_384_add_points_6(p1, p2, tmp);
     }
 
     return err;
@@ -50686,22 +50938,22 @@ int sp_ecc_verify_384(const byte* hash, word32 hashLen, const mp_int* pX,
         /* u1 = r.z'.z' mod prime */
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_384_mont_sqr_avx2_6(p1->z, p1->z, p384_mod, p384_mp_mod);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_384_mont_sqr_avx2_6(p1->z, p1->z, p384_mod, p384_mp_mod);
+                sp_384_mont_mul_avx2_6(u1, u2, p1->z, p384_mod, p384_mp_mod);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
+        {
             sp_384_mont_sqr_6(p1->z, p1->z, p384_mod, p384_mp_mod);
-#ifdef HAVE_INTEL_AVX2
-        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_384_mont_mul_avx2_6(u1, u2, p1->z, p384_mod, p384_mp_mod);
-            RESTORE_VECTOR_REGISTERS();
-        }
-        else
-#endif
             sp_384_mont_mul_6(u1, u2, p1->z, p384_mod, p384_mp_mod);
+        }
+    }
+    if (err == MP_OKAY) {
         *res = (int)(sp_384_cmp_6(p1->x, u1) == 0);
         if (*res == 0) {
             /* Reload r and add order. */
@@ -50722,18 +50974,21 @@ int sp_ecc_verify_384(const byte* hash, word32 hashLen, const mp_int* pX,
                 /* u1 = (r + 1*order).z'.z' mod prime */
 #ifdef HAVE_INTEL_AVX2
                 if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                        IS_INTEL_AVX2(cpuid_flags) &&
-                        (SAVE_VECTOR_REGISTERS2() == 0)) {
-                    sp_384_mont_mul_avx2_6(u1, u2, p1->z, p384_mod,
-                        p384_mp_mod);
-                    RESTORE_VECTOR_REGISTERS();
+                        IS_INTEL_AVX2(cpuid_flags)) {
+                    err = SAVE_VECTOR_REGISTERS2();
+                    if (err == 0) {
+                        sp_384_mont_mul_avx2_6(u1, u2, p1->z, p384_mod,
+                            p384_mp_mod);
+                        RESTORE_VECTOR_REGISTERS();
+                    }
                 }
                 else
 #endif
                 {
                     sp_384_mont_mul_6(u1, u2, p1->z, p384_mod, p384_mp_mod);
                 }
-                *res = (sp_384_cmp_6(p1->x, u1) == 0);
+                if (err == MP_OKAY)
+                    *res = (sp_384_cmp_6(p1->x, u1) == 0);
             }
         }
     }
@@ -51068,9 +51323,8 @@ int sp_ecc_check_key_384(const mp_int* pX, const mp_int* pY,
         /* Point * order = infinity */
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_384_ecc_mulmod_avx2_6(p, pub, p384_order, 1, 1, heap);
-            RESTORE_VECTOR_REGISTERS();
         }
         else
 #endif
@@ -51087,10 +51341,8 @@ int sp_ecc_check_key_384(const mp_int* pX, const mp_int* pY,
             /* Base * private = point */
 #ifdef HAVE_INTEL_AVX2
             if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                    IS_INTEL_AVX2(cpuid_flags) &&
-                    (SAVE_VECTOR_REGISTERS2() == 0)) {
+                    IS_INTEL_AVX2(cpuid_flags)) {
                 err = sp_384_ecc_mulmod_base_avx2_6(p, priv, 1, 1, heap);
-                RESTORE_VECTOR_REGISTERS();
             }
             else
 #endif
@@ -51157,9 +51409,12 @@ int sp_ecc_proj_add_point_384(mp_int* pX, mp_int* pY, mp_int* pZ,
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_384_proj_point_add_avx2_6(p, p, q, tmp);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_384_proj_point_add_avx2_6(p, p, q, tmp);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -51216,9 +51471,12 @@ int sp_ecc_proj_dbl_point_384(mp_int* pX, mp_int* pY, mp_int* pZ,
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_384_proj_point_dbl_avx2_6(p, p, tmp);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_384_proj_point_dbl_avx2_6(p, p, tmp);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -51272,9 +51530,12 @@ int sp_ecc_map_384(mp_int* pX, mp_int* pY, mp_int* pZ)
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_384_map_avx2_6(p, p, tmp);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_384_map_avx2_6(p, p, tmp);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -51326,62 +51587,65 @@ static int sp_384_mont_sqrt_6(sp_digit* y)
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            /* t2 = y ^ 0x2 */
-            sp_384_mont_sqr_avx2_6(t2, y, p384_mod, p384_mp_mod);
-            /* t1 = y ^ 0x3 */
-            sp_384_mont_mul_avx2_6(t1, t2, y, p384_mod, p384_mp_mod);
-            /* t5 = y ^ 0xc */
-            sp_384_mont_sqr_n_avx2_6(t5, t1, 2, p384_mod, p384_mp_mod);
-            /* t1 = y ^ 0xf */
-            sp_384_mont_mul_avx2_6(t1, t1, t5, p384_mod, p384_mp_mod);
-            /* t2 = y ^ 0x1e */
-            sp_384_mont_sqr_avx2_6(t2, t1, p384_mod, p384_mp_mod);
-            /* t3 = y ^ 0x1f */
-            sp_384_mont_mul_avx2_6(t3, t2, y, p384_mod, p384_mp_mod);
-            /* t2 = y ^ 0x3e0 */
-            sp_384_mont_sqr_n_avx2_6(t2, t3, 5, p384_mod, p384_mp_mod);
-            /* t1 = y ^ 0x3ff */
-            sp_384_mont_mul_avx2_6(t1, t3, t2, p384_mod, p384_mp_mod);
-            /* t2 = y ^ 0x7fe0 */
-            sp_384_mont_sqr_n_avx2_6(t2, t1, 5, p384_mod, p384_mp_mod);
-            /* t3 = y ^ 0x7fff */
-            sp_384_mont_mul_avx2_6(t3, t3, t2, p384_mod, p384_mp_mod);
-            /* t2 = y ^ 0x3fff800 */
-            sp_384_mont_sqr_n_avx2_6(t2, t3, 15, p384_mod, p384_mp_mod);
-            /* t4 = y ^ 0x3ffffff */
-            sp_384_mont_mul_avx2_6(t4, t3, t2, p384_mod, p384_mp_mod);
-            /* t2 = y ^ 0xffffffc000000 */
-            sp_384_mont_sqr_n_avx2_6(t2, t4, 30, p384_mod, p384_mp_mod);
-            /* t1 = y ^ 0xfffffffffffff */
-            sp_384_mont_mul_avx2_6(t1, t4, t2, p384_mod, p384_mp_mod);
-            /* t2 = y ^ 0xfffffffffffffff000000000000000 */
-            sp_384_mont_sqr_n_avx2_6(t2, t1, 60, p384_mod, p384_mp_mod);
-            /* t1 = y ^ 0xffffffffffffffffffffffffffffff */
-            sp_384_mont_mul_avx2_6(t1, t1, t2, p384_mod, p384_mp_mod);
-            /* t2 = y ^ 0xffffffffffffffffffffffffffffff000000000000000000000000000000 */
-            sp_384_mont_sqr_n_avx2_6(t2, t1, 120, p384_mod, p384_mp_mod);
-            /* t1 = y ^ 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff */
-            sp_384_mont_mul_avx2_6(t1, t1, t2, p384_mod, p384_mp_mod);
-            /* t2 = y ^ 0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff8000 */
-            sp_384_mont_sqr_n_avx2_6(t2, t1, 15, p384_mod, p384_mp_mod);
-            /* t1 = y ^ 0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff */
-            sp_384_mont_mul_avx2_6(t1, t3, t2, p384_mod, p384_mp_mod);
-            /* t2 = y ^ 0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff80000000 */
-            sp_384_mont_sqr_n_avx2_6(t2, t1, 31, p384_mod, p384_mp_mod);
-            /* t1 = y ^ 0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffbfffffff */
-            sp_384_mont_mul_avx2_6(t1, t4, t2, p384_mod, p384_mp_mod);
-            /* t2 = y ^ 0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffbfffffff0 */
-            sp_384_mont_sqr_n_avx2_6(t2, t1, 4, p384_mod, p384_mp_mod);
-            /* t1 = y ^ 0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffbfffffffc */
-            sp_384_mont_mul_avx2_6(t1, t5, t2, p384_mod, p384_mp_mod);
-            /* t2 = y ^ 0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff0000000000000000 */
-            sp_384_mont_sqr_n_avx2_6(t2, t1, 62, p384_mod, p384_mp_mod);
-            /* t1 = y ^ 0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff0000000000000001 */
-            sp_384_mont_mul_avx2_6(t1, y, t2, p384_mod, p384_mp_mod);
-            /* t2 = y ^ 0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffbfffffffc00000000000000040000000 */
-            sp_384_mont_sqr_n_avx2_6(y, t1, 30, p384_mod, p384_mp_mod);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                /* t2 = y ^ 0x2 */
+                sp_384_mont_sqr_avx2_6(t2, y, p384_mod, p384_mp_mod);
+                /* t1 = y ^ 0x3 */
+                sp_384_mont_mul_avx2_6(t1, t2, y, p384_mod, p384_mp_mod);
+                /* t5 = y ^ 0xc */
+                sp_384_mont_sqr_n_avx2_6(t5, t1, 2, p384_mod, p384_mp_mod);
+                /* t1 = y ^ 0xf */
+                sp_384_mont_mul_avx2_6(t1, t1, t5, p384_mod, p384_mp_mod);
+                /* t2 = y ^ 0x1e */
+                sp_384_mont_sqr_avx2_6(t2, t1, p384_mod, p384_mp_mod);
+                /* t3 = y ^ 0x1f */
+                sp_384_mont_mul_avx2_6(t3, t2, y, p384_mod, p384_mp_mod);
+                /* t2 = y ^ 0x3e0 */
+                sp_384_mont_sqr_n_avx2_6(t2, t3, 5, p384_mod, p384_mp_mod);
+                /* t1 = y ^ 0x3ff */
+                sp_384_mont_mul_avx2_6(t1, t3, t2, p384_mod, p384_mp_mod);
+                /* t2 = y ^ 0x7fe0 */
+                sp_384_mont_sqr_n_avx2_6(t2, t1, 5, p384_mod, p384_mp_mod);
+                /* t3 = y ^ 0x7fff */
+                sp_384_mont_mul_avx2_6(t3, t3, t2, p384_mod, p384_mp_mod);
+                /* t2 = y ^ 0x3fff800 */
+                sp_384_mont_sqr_n_avx2_6(t2, t3, 15, p384_mod, p384_mp_mod);
+                /* t4 = y ^ 0x3ffffff */
+                sp_384_mont_mul_avx2_6(t4, t3, t2, p384_mod, p384_mp_mod);
+                /* t2 = y ^ 0xffffffc000000 */
+                sp_384_mont_sqr_n_avx2_6(t2, t4, 30, p384_mod, p384_mp_mod);
+                /* t1 = y ^ 0xfffffffffffff */
+                sp_384_mont_mul_avx2_6(t1, t4, t2, p384_mod, p384_mp_mod);
+                /* t2 = y ^ 0xfffffffffffffff000000000000000 */
+                sp_384_mont_sqr_n_avx2_6(t2, t1, 60, p384_mod, p384_mp_mod);
+                /* t1 = y ^ 0xffffffffffffffffffffffffffffff */
+                sp_384_mont_mul_avx2_6(t1, t1, t2, p384_mod, p384_mp_mod);
+                /* t2 = y ^ 0xffffffffffffffffffffffffffffff000000000000000000000000000000 */
+                sp_384_mont_sqr_n_avx2_6(t2, t1, 120, p384_mod, p384_mp_mod);
+                /* t1 = y ^ 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff */
+                sp_384_mont_mul_avx2_6(t1, t1, t2, p384_mod, p384_mp_mod);
+                /* t2 = y ^ 0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff8000 */
+                sp_384_mont_sqr_n_avx2_6(t2, t1, 15, p384_mod, p384_mp_mod);
+                /* t1 = y ^ 0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff */
+                sp_384_mont_mul_avx2_6(t1, t3, t2, p384_mod, p384_mp_mod);
+                /* t2 = y ^ 0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff80000000 */
+                sp_384_mont_sqr_n_avx2_6(t2, t1, 31, p384_mod, p384_mp_mod);
+                /* t1 = y ^ 0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffbfffffff */
+                sp_384_mont_mul_avx2_6(t1, t4, t2, p384_mod, p384_mp_mod);
+                /* t2 = y ^ 0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffbfffffff0 */
+                sp_384_mont_sqr_n_avx2_6(t2, t1, 4, p384_mod, p384_mp_mod);
+                /* t1 = y ^ 0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffbfffffffc */
+                sp_384_mont_mul_avx2_6(t1, t5, t2, p384_mod, p384_mp_mod);
+                /* t2 = y ^ 0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff0000000000000000 */
+                sp_384_mont_sqr_n_avx2_6(t2, t1, 62, p384_mod, p384_mp_mod);
+                /* t1 = y ^ 0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff0000000000000001 */
+                sp_384_mont_mul_avx2_6(t1, y, t2, p384_mod, p384_mp_mod);
+                /* t2 = y ^ 0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffbfffffffc00000000000000040000000 */
+                sp_384_mont_sqr_n_avx2_6(y, t1, 30, p384_mod, p384_mp_mod);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -51478,10 +51742,13 @@ int sp_ecc_uncompress_384(mp_int* xm, int odd, mp_int* ym)
         /* y = x^3 */
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_384_mont_sqr_avx2_6(y, x, p384_mod, p384_mp_mod);
-            sp_384_mont_mul_avx2_6(y, y, x, p384_mod, p384_mp_mod);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_384_mont_sqr_avx2_6(y, x, p384_mod, p384_mp_mod);
+                sp_384_mont_mul_avx2_6(y, y, x, p384_mod, p384_mp_mod);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -51489,6 +51756,8 @@ int sp_ecc_uncompress_384(mp_int* xm, int odd, mp_int* ym)
             sp_384_mont_sqr_6(y, x, p384_mod, p384_mp_mod);
             sp_384_mont_mul_6(y, y, x, p384_mod, p384_mp_mod);
         }
+    }
+    if (err == MP_OKAY) {
         /* y = x^3 - 3x */
         sp_384_mont_sub_6(y, y, x, p384_mod);
         sp_384_mont_sub_6(y, y, x, p384_mod);
@@ -54593,7 +54862,14 @@ static int sp_521_ecc_mulmod_9(sp_point_521* r, const sp_point_521* g,
         const sp_digit* k, int map, int ct, void* heap)
 {
 #ifndef FP_ECC
-    return sp_521_ecc_mulmod_win_add_sub_9(r, g, k, map, ct, heap);
+    /* xmm table lookups run only when ct is set; the save is taken on every
+     * call on purpose, so both lanes keep one shape. */
+    int err = SAVE_VECTOR_REGISTERS2();
+    if (err == 0) {
+        err = sp_521_ecc_mulmod_win_add_sub_9(r, g, k, map, ct, heap);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    return err;
 #else
     SP_DECL_VAR(sp_digit, tmp, 2 * 9 * 6);
     sp_cache_521_t* cache;
@@ -54638,16 +54914,20 @@ static int sp_521_ecc_mulmod_9(sp_point_521* r, const sp_point_521* g,
 #endif /* !SINGLE_THREADED && !HAVE_THREAD_LS */
 
     if (err == MP_OKAY) {
-        sp_ecc_get_cache_521(g, &cache);
-        if (cache->cnt == 2)
-            sp_521_gen_stripe_table_9(g, cache->table, tmp, heap);
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0) {
+            sp_ecc_get_cache_521(g, &cache);
+            if (cache->cnt == 2)
+                sp_521_gen_stripe_table_9(g, cache->table, tmp, heap);
 
-        if (cache->cnt < 2) {
-            err = sp_521_ecc_mulmod_win_add_sub_9(r, g, k, map, ct, heap);
-        }
-        else {
-            err = sp_521_ecc_mulmod_stripe_9(r, g, cache->table, k,
-                    map, ct, heap);
+            if (cache->cnt < 2) {
+                err = sp_521_ecc_mulmod_win_add_sub_9(r, g, k, map, ct, heap);
+            }
+            else {
+                err = sp_521_ecc_mulmod_stripe_9(r, g, cache->table, k,
+                        map, ct, heap);
+            }
+            RESTORE_VECTOR_REGISTERS();
         }
 #if !defined(SINGLE_THREADED) && !defined(HAVE_THREAD_LS)
         wc_UnLockMutex(&sp_cache_521_lock);
@@ -54963,7 +55243,13 @@ static int sp_521_ecc_mulmod_avx2_9(sp_point_521* r, const sp_point_521* g,
         const sp_digit* k, int map, int ct, void* heap)
 {
 #ifndef FP_ECC
-    return sp_521_ecc_mulmod_win_add_sub_avx2_9(r, g, k, map, ct, heap);
+    /* The avx2 lane uses vector registers throughout. */
+    int err = SAVE_VECTOR_REGISTERS2();
+    if (err == 0) {
+        err = sp_521_ecc_mulmod_win_add_sub_avx2_9(r, g, k, map, ct, heap);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    return err;
 #else
     SP_DECL_VAR(sp_digit, tmp, 2 * 9 * 6);
     sp_cache_521_t* cache;
@@ -55008,16 +55294,20 @@ static int sp_521_ecc_mulmod_avx2_9(sp_point_521* r, const sp_point_521* g,
 #endif /* !SINGLE_THREADED && !HAVE_THREAD_LS */
 
     if (err == MP_OKAY) {
-        sp_ecc_get_cache_521(g, &cache);
-        if (cache->cnt == 2)
-            sp_521_gen_stripe_table_avx2_9(g, cache->table, tmp, heap);
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0) {
+            sp_ecc_get_cache_521(g, &cache);
+            if (cache->cnt == 2)
+                sp_521_gen_stripe_table_avx2_9(g, cache->table, tmp, heap);
 
-        if (cache->cnt < 2) {
-            err = sp_521_ecc_mulmod_win_add_sub_avx2_9(r, g, k, map, ct, heap);
-        }
-        else {
-            err = sp_521_ecc_mulmod_stripe_avx2_9(r, g, cache->table, k,
-                    map, ct, heap);
+            if (cache->cnt < 2) {
+                err = sp_521_ecc_mulmod_win_add_sub_avx2_9(r, g, k, map, ct, heap);
+            }
+            else {
+                err = sp_521_ecc_mulmod_stripe_avx2_9(r, g, cache->table, k,
+                        map, ct, heap);
+            }
+            RESTORE_VECTOR_REGISTERS();
         }
 #if !defined(SINGLE_THREADED) && !defined(HAVE_THREAD_LS)
         wc_UnLockMutex(&sp_cache_521_lock);
@@ -55060,9 +55350,8 @@ int sp_ecc_mulmod_521(const mp_int* km, const ecc_point* gm, ecc_point* r,
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_521_ecc_mulmod_avx2_9(point, point, k, map, 1, heap);
-            RESTORE_VECTOR_REGISTERS();
         }
         else
 #endif
@@ -55103,6 +55392,7 @@ int sp_ecc_mulmod_add_521(const mp_int* km, const ecc_point* gm,
 #ifdef HAVE_INTEL_AVX2
     word32 cpuid_flags = cpuid_get_flags();
     int saved_vector_registers = 0;
+    int use_avx2_lane = 0;
 #endif
 
     SP_ALLOC_VAR(sp_point_521, point, 2, heap, DYNAMIC_TYPE_ECC);
@@ -55127,17 +55417,25 @@ int sp_ecc_mulmod_add_521(const mp_int* km, const ecc_point* gm,
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
-            saved_vector_registers = 1;
-        if (saved_vector_registers)
+                IS_INTEL_AVX2(cpuid_flags)) {
+            use_avx2_lane = 1;
             err = sp_521_ecc_mulmod_avx2_9(point, point, k, 0, 0, heap);
+        }
         else
 #endif
             err = sp_521_ecc_mulmod_9(point, point, k, 0, 0, heap);
     }
+#ifdef HAVE_INTEL_AVX2
+    /* The mulmod saved for itself; this save is for the point operations. */
+    if ((err == MP_OKAY) && use_avx2_lane) {
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0)
+            saved_vector_registers = 1;
+    }
+#endif
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_521_proj_point_add_avx2_9(point, point, addP, tmp);
         else
 #endif
@@ -55145,7 +55443,7 @@ int sp_ecc_mulmod_add_521(const mp_int* km, const ecc_point* gm,
 
         if (map) {
 #ifdef HAVE_INTEL_AVX2
-            if (saved_vector_registers)
+            if (use_avx2_lane)
                 sp_521_map_avx2_9(point, point, tmp);
             else
 #endif
@@ -55638,8 +55936,13 @@ static const sp_table_entry_521 p521_table[64] = {
 static int sp_521_ecc_mulmod_base_9(sp_point_521* r, const sp_digit* k,
         int map, int ct, void* heap)
 {
-    return sp_521_ecc_mulmod_stripe_9(r, &p521_base, p521_table,
-                                      k, map, ct, heap);
+    int err = SAVE_VECTOR_REGISTERS2();
+    if (err == 0) {
+        err = sp_521_ecc_mulmod_stripe_9(r, &p521_base, p521_table,
+                                         k, map, ct, heap);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    return err;
 }
 
 #ifdef HAVE_INTEL_AVX2
@@ -55663,8 +55966,13 @@ static int sp_521_ecc_mulmod_base_9(sp_point_521* r, const sp_digit* k,
 static int sp_521_ecc_mulmod_base_avx2_9(sp_point_521* r, const sp_digit* k,
         int map, int ct, void* heap)
 {
-    return sp_521_ecc_mulmod_stripe_avx2_9(r, &p521_base, p521_table,
-                                      k, map, ct, heap);
+    int err = SAVE_VECTOR_REGISTERS2();
+    if (err == 0) {
+        err = sp_521_ecc_mulmod_stripe_avx2_9(r, &p521_base, p521_table,
+                                         k, map, ct, heap);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    return err;
 }
 
 #endif /* HAVE_INTEL_AVX2 */
@@ -89688,8 +89996,13 @@ static int sp_521_ecc_mulmod_add_only_9(sp_point_521* r, const sp_point_521* g,
 static int sp_521_ecc_mulmod_base_9(sp_point_521* r, const sp_digit* k,
         int map, int ct, void* heap)
 {
-    return sp_521_ecc_mulmod_add_only_9(r, NULL, p521_table,
-                                      k, map, ct, heap);
+    int err = SAVE_VECTOR_REGISTERS2();
+    if (err == 0) {
+        err = sp_521_ecc_mulmod_add_only_9(r, NULL, p521_table,
+                                         k, map, ct, heap);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    return err;
 }
 
 #ifdef HAVE_INTEL_AVX2
@@ -89799,8 +90112,13 @@ static int sp_521_ecc_mulmod_add_only_avx2_9(sp_point_521* r, const sp_point_521
 static int sp_521_ecc_mulmod_base_avx2_9(sp_point_521* r, const sp_digit* k,
         int map, int ct, void* heap)
 {
-    return sp_521_ecc_mulmod_add_only_avx2_9(r, NULL, p521_table,
-                                      k, map, ct, heap);
+    int err = SAVE_VECTOR_REGISTERS2();
+    if (err == 0) {
+        err = sp_521_ecc_mulmod_add_only_avx2_9(r, NULL, p521_table,
+                                         k, map, ct, heap);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    return err;
 }
 
 #endif /* HAVE_INTEL_AVX2 */
@@ -89832,9 +90150,8 @@ int sp_ecc_mulmod_base_521(const mp_int* km, ecc_point* r, int map, void* heap)
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_521_ecc_mulmod_base_avx2_9(point, k, map, 1, heap);
-            RESTORE_VECTOR_REGISTERS();
         }
         else
 #endif
@@ -89874,6 +90191,7 @@ int sp_ecc_mulmod_base_add_521(const mp_int* km, const ecc_point* am,
 #ifdef HAVE_INTEL_AVX2
     word32 cpuid_flags = cpuid_get_flags();
     int saved_vector_registers = 0;
+    int use_avx2_lane = 0;
 #endif
 
     SP_ALLOC_VAR(sp_point_521, point, 2, NULL, DYNAMIC_TYPE_ECC);
@@ -89897,17 +90215,25 @@ int sp_ecc_mulmod_base_add_521(const mp_int* km, const ecc_point* am,
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
-            saved_vector_registers = 1;
-        if (saved_vector_registers)
+                IS_INTEL_AVX2(cpuid_flags)) {
+            use_avx2_lane = 1;
             err = sp_521_ecc_mulmod_base_avx2_9(point, k, 0, 0, heap);
+        }
         else
 #endif
             err = sp_521_ecc_mulmod_base_9(point, k, 0, 0, heap);
     }
+#ifdef HAVE_INTEL_AVX2
+    /* The mulmod saved for itself; this save is for the point operations. */
+    if ((err == MP_OKAY) && use_avx2_lane) {
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0)
+            saved_vector_registers = 1;
+    }
+#endif
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_521_proj_point_add_avx2_9(point, point, addP, tmp);
         else
 #endif
@@ -89915,7 +90241,7 @@ int sp_ecc_mulmod_base_add_521(const mp_int* km, const ecc_point* am,
 
         if (map) {
 #ifdef HAVE_INTEL_AVX2
-            if (saved_vector_registers)
+            if (use_avx2_lane)
                 sp_521_map_avx2_9(point, point, tmp);
             else
 #endif
@@ -90047,7 +90373,6 @@ int sp_ecc_make_key_521(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
 
 #ifdef HAVE_INTEL_AVX2
     word32 cpuid_flags = cpuid_get_flags();
-    int saved_vector_registers = 0;
 #endif
 
     (void)heap;
@@ -90068,11 +90393,9 @@ int sp_ecc_make_key_521(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
-            saved_vector_registers = 1;
-
-        if (saved_vector_registers)
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_521_ecc_mulmod_base_avx2_9(point, k, 1, 1, NULL);
+        }
         else
 #endif
             err = sp_521_ecc_mulmod_base_9(point, k, 1, 1, NULL);
@@ -90081,7 +90404,8 @@ int sp_ecc_make_key_521(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
 #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers) {
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_521_ecc_mulmod_avx2_9(infinity, point, p521_order, 1, 1,
                                                                           NULL);
         }
@@ -90094,11 +90418,6 @@ int sp_ecc_make_key_521(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
             err = ECC_INF_E;
         }
     }
-#endif
-
-#ifdef HAVE_INTEL_AVX2
-    if (saved_vector_registers)
-        RESTORE_VECTOR_REGISTERS();
 #endif
 
     if (err == MP_OKAY) {
@@ -90281,9 +90600,8 @@ int sp_ecc_secret_gen_521(const mp_int* priv, const ecc_point* pub, byte* out,
         sp_521_point_from_ecc_point_9(point, pub);
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_521_ecc_mulmod_avx2_9(point, point, k, 1, 1, heap);
-            RESTORE_VECTOR_REGISTERS();
         }
         else
 #endif
@@ -90976,32 +91294,39 @@ static void sp_521_mont_inv_order_avx2_9(sp_digit* r, const sp_digit* a,
 static int sp_521_calc_s_9(sp_digit* s, const sp_digit* r, sp_digit* k,
     sp_digit* x, const sp_digit* e, sp_digit* tmp)
 {
-    int err;
+    int err = MP_OKAY;
     sp_digit carry;
     sp_int64 c;
     sp_digit* kInv = k;
 #ifdef HAVE_INTEL_AVX2
     word32 cpuid_flags = cpuid_get_flags();
     int saved_vector_registers = 0;
+    int use_avx2_lane = 0;
 #endif
 
     /* Conv k to Montgomery form (mod order) */
 #ifdef HAVE_INTEL_AVX2
+    /* CPUID picks the lane; a failed save is an error, not a lane switch. */
     if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
-        saved_vector_registers = 1;
-    if (saved_vector_registers)
-        sp_521_mul_avx2_9(k, k, p521_norm_order);
+            IS_INTEL_AVX2(cpuid_flags)) {
+        use_avx2_lane = 1;
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0) {
+            saved_vector_registers = 1;
+            sp_521_mul_avx2_9(k, k, p521_norm_order);
+        }
+    }
     else
 #endif
         sp_521_mul_9(k, k, p521_norm_order);
-    err = sp_521_mod_9(k, k, p521_order);
+    if (err == MP_OKAY)
+        err = sp_521_mod_9(k, k, p521_order);
     if (err == MP_OKAY) {
         sp_521_norm_9(k);
 
         /* kInv = 1/k mod order */
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_521_mont_inv_order_avx2_9(kInv, k, tmp);
         else
 #endif
@@ -91010,7 +91335,7 @@ static int sp_521_calc_s_9(sp_digit* s, const sp_digit* r, sp_digit* k,
 
         /* s = r * x + e */
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_521_mul_avx2_9(x, x, r);
         else
 #endif
@@ -91029,7 +91354,7 @@ static int sp_521_calc_s_9(sp_digit* s, const sp_digit* r, sp_digit* k,
 
         /* s = s * k^-1 mod order */
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_521_mont_mul_order_avx2_9(s, s, kInv);
         else
 #endif
@@ -91109,10 +91434,8 @@ int sp_ecc_sign_521(const byte* hash, word32 hashLen, WC_RNG* rng,
         if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
             if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                    IS_INTEL_AVX2(cpuid_flags) &&
-                    (SAVE_VECTOR_REGISTERS2() == 0)) {
+                    IS_INTEL_AVX2(cpuid_flags)) {
                 err = sp_521_ecc_mulmod_base_avx2_9(point, k, 1, 1, heap);
-                RESTORE_VECTOR_REGISTERS();
             }
             else
 #endif
@@ -91472,31 +91795,38 @@ static int sp_521_mod_inv_9(sp_digit* r, const sp_digit* a, const sp_digit* m)
  * @param [in, out] p1   First point to add and holds result.
  * @param [in]      p2   Second point to add.
  * @param [out]     tmp  Temporary storage for intermediate numbers.
+ * @return  MP_OKAY, or the vector-register save error when the save is refused.
  */
-static void sp_521_add_points_9(sp_point_521* p1, const sp_point_521* p2,
+static int sp_521_add_points_9(sp_point_521* p1, const sp_point_521* p2,
     sp_digit* tmp)
 {
+    int err = MP_OKAY;
 #ifdef HAVE_INTEL_AVX2
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
 #ifdef HAVE_INTEL_AVX2
     if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-        sp_521_proj_point_add_avx2_9(p1, p1, p2, tmp);
-        RESTORE_VECTOR_REGISTERS();
+            IS_INTEL_AVX2(cpuid_flags)) {
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0) {
+            sp_521_proj_point_add_avx2_9(p1, p1, p2, tmp);
+            RESTORE_VECTOR_REGISTERS();
+        }
     }
     else
 #endif
         sp_521_proj_point_add_9(p1, p1, p2, tmp);
-    if (sp_521_iszero_9(p1->z)) {
+    if ((err == MP_OKAY) && sp_521_iszero_9(p1->z)) {
         if (sp_521_iszero_9(p1->x) && sp_521_iszero_9(p1->y)) {
 #ifdef HAVE_INTEL_AVX2
             if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                    IS_INTEL_AVX2(cpuid_flags) &&
-                    (SAVE_VECTOR_REGISTERS2() == 0)) {
-                sp_521_proj_point_dbl_avx2_9(p1, p2, tmp);
-                RESTORE_VECTOR_REGISTERS();
+                    IS_INTEL_AVX2(cpuid_flags)) {
+                err = SAVE_VECTOR_REGISTERS2();
+                if (err == 0) {
+                    sp_521_proj_point_dbl_avx2_9(p1, p2, tmp);
+                    RESTORE_VECTOR_REGISTERS();
+                }
             }
             else
 #endif
@@ -91516,6 +91846,8 @@ static void sp_521_add_points_9(sp_point_521* p1, const sp_point_521* p2,
             XMEMCPY(p1->z, p521_norm_mod, sizeof(p521_norm_mod));
         }
     }
+
+    return err;
 }
 
 /* Calculate the verification point: [e/s]G + [r/s]Q
@@ -91534,39 +91866,45 @@ static void sp_521_add_points_9(sp_point_521* p1, const sp_point_521* p2,
 static int sp_521_calc_vfy_point_9(sp_point_521* p1, sp_point_521* p2,
     sp_digit* s, sp_digit* u1, sp_digit* u2, sp_digit* tmp, void* heap)
 {
-    int err;
+    int err = MP_OKAY;
 #ifdef HAVE_INTEL_AVX2
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
 #ifndef WOLFSSL_SP_SMALL
     err = sp_521_mod_inv_9(s, s, p521_order);
-    if (err == MP_OKAY)
 #endif /* !WOLFSSL_SP_SMALL */
-    {
+    if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_521_mul_avx2_9(s, s, p521_norm_order);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_521_mul_avx2_9(s, s, p521_norm_order);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
         {
             sp_521_mul_9(s, s, p521_norm_order);
         }
-        err = sp_521_mod_9(s, s, p521_order);
+        if (err == MP_OKAY)
+            err = sp_521_mod_9(s, s, p521_order);
     }
     if (err == MP_OKAY) {
         sp_521_norm_9(s);
 #ifdef WOLFSSL_SP_SMALL
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_521_mont_inv_order_avx2_9(s, s, tmp);
-            sp_521_mont_mul_order_avx2_9(u1, u1, s);
-            sp_521_mont_mul_order_avx2_9(u2, u2, s);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_521_mont_inv_order_avx2_9(s, s, tmp);
+                sp_521_mont_mul_order_avx2_9(u1, u1, s);
+                sp_521_mont_mul_order_avx2_9(u2, u2, s);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -91578,10 +91916,13 @@ static int sp_521_calc_vfy_point_9(sp_point_521* p1, sp_point_521* p2,
 #else
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_521_mont_mul_order_avx2_9(u1, u1, s);
-            sp_521_mont_mul_order_avx2_9(u2, u2, s);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_521_mont_mul_order_avx2_9(u1, u1, s);
+                sp_521_mont_mul_order_avx2_9(u2, u2, s);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -91590,11 +91931,12 @@ static int sp_521_calc_vfy_point_9(sp_point_521* p1, sp_point_521* p2,
             sp_521_mont_mul_order_9(u2, u2, s);
         }
 #endif /* WOLFSSL_SP_SMALL */
+    }
+    if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_521_ecc_mulmod_base_avx2_9(p1, u1, 0, 0, heap);
-            RESTORE_VECTOR_REGISTERS();
         }
         else
 #endif
@@ -91608,9 +91950,8 @@ static int sp_521_calc_vfy_point_9(sp_point_521* p1, sp_point_521* p2,
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_521_ecc_mulmod_avx2_9(p2, p2, u2, 0, 0, heap);
-            RESTORE_VECTOR_REGISTERS();
         }
         else
 #endif
@@ -91621,7 +91962,7 @@ static int sp_521_calc_vfy_point_9(sp_point_521* p1, sp_point_521* p2,
     }
 
     if (err == MP_OKAY) {
-        sp_521_add_points_9(p1, p2, tmp);
+        err = sp_521_add_points_9(p1, p2, tmp);
     }
 
     return err;
@@ -91704,22 +92045,22 @@ int sp_ecc_verify_521(const byte* hash, word32 hashLen, const mp_int* pX,
         /* u1 = r.z'.z' mod prime */
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_521_mont_sqr_avx2_9(p1->z, p1->z, p521_mod, p521_mp_mod);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_521_mont_sqr_avx2_9(p1->z, p1->z, p521_mod, p521_mp_mod);
+                sp_521_mont_mul_avx2_9(u1, u2, p1->z, p521_mod, p521_mp_mod);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
+        {
             sp_521_mont_sqr_9(p1->z, p1->z, p521_mod, p521_mp_mod);
-#ifdef HAVE_INTEL_AVX2
-        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_521_mont_mul_avx2_9(u1, u2, p1->z, p521_mod, p521_mp_mod);
-            RESTORE_VECTOR_REGISTERS();
-        }
-        else
-#endif
             sp_521_mont_mul_9(u1, u2, p1->z, p521_mod, p521_mp_mod);
+        }
+    }
+    if (err == MP_OKAY) {
         *res = (int)(sp_521_cmp_9(p1->x, u1) == 0);
         if (*res == 0) {
             /* Reload r and add order. */
@@ -91740,18 +92081,21 @@ int sp_ecc_verify_521(const byte* hash, word32 hashLen, const mp_int* pX,
                 /* u1 = (r + 1*order).z'.z' mod prime */
 #ifdef HAVE_INTEL_AVX2
                 if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                        IS_INTEL_AVX2(cpuid_flags) &&
-                        (SAVE_VECTOR_REGISTERS2() == 0)) {
-                    sp_521_mont_mul_avx2_9(u1, u2, p1->z, p521_mod,
-                        p521_mp_mod);
-                    RESTORE_VECTOR_REGISTERS();
+                        IS_INTEL_AVX2(cpuid_flags)) {
+                    err = SAVE_VECTOR_REGISTERS2();
+                    if (err == 0) {
+                        sp_521_mont_mul_avx2_9(u1, u2, p1->z, p521_mod,
+                            p521_mp_mod);
+                        RESTORE_VECTOR_REGISTERS();
+                    }
                 }
                 else
 #endif
                 {
                     sp_521_mont_mul_9(u1, u2, p1->z, p521_mod, p521_mp_mod);
                 }
-                *res = (sp_521_cmp_9(p1->x, u1) == 0);
+                if (err == MP_OKAY)
+                    *res = (sp_521_cmp_9(p1->x, u1) == 0);
             }
         }
     }
@@ -92089,9 +92433,8 @@ int sp_ecc_check_key_521(const mp_int* pX, const mp_int* pY,
         /* Point * order = infinity */
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_521_ecc_mulmod_avx2_9(p, pub, p521_order, 1, 1, heap);
-            RESTORE_VECTOR_REGISTERS();
         }
         else
 #endif
@@ -92108,10 +92451,8 @@ int sp_ecc_check_key_521(const mp_int* pX, const mp_int* pY,
             /* Base * private = point */
 #ifdef HAVE_INTEL_AVX2
             if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                    IS_INTEL_AVX2(cpuid_flags) &&
-                    (SAVE_VECTOR_REGISTERS2() == 0)) {
+                    IS_INTEL_AVX2(cpuid_flags)) {
                 err = sp_521_ecc_mulmod_base_avx2_9(p, priv, 1, 1, heap);
-                RESTORE_VECTOR_REGISTERS();
             }
             else
 #endif
@@ -92178,9 +92519,12 @@ int sp_ecc_proj_add_point_521(mp_int* pX, mp_int* pY, mp_int* pZ,
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_521_proj_point_add_avx2_9(p, p, q, tmp);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_521_proj_point_add_avx2_9(p, p, q, tmp);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -92237,9 +92581,12 @@ int sp_ecc_proj_dbl_point_521(mp_int* pX, mp_int* pY, mp_int* pZ,
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_521_proj_point_dbl_avx2_9(p, p, tmp);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_521_proj_point_dbl_avx2_9(p, p, tmp);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -92293,9 +92640,12 @@ int sp_ecc_map_521(mp_int* pX, mp_int* pY, mp_int* pZ)
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_521_map_avx2_9(p, p, tmp);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_521_map_avx2_9(p, p, tmp);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -92346,17 +92696,20 @@ static int sp_521_mont_sqrt_9(sp_digit* y)
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            int i;
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                int i;
 
-            XMEMCPY(t, y, sizeof(sp_digit) * 9);
-            for (i=518; i>=0; i--) {
-                sp_521_mont_sqr_avx2_9(t, t, p521_mod, p521_mp_mod);
-                if (p521_sqrt_power[i / 64] & ((sp_uint64)1 << (i % 64)))
-                    sp_521_mont_mul_avx2_9(t, t, y, p521_mod, p521_mp_mod);
+                XMEMCPY(t, y, sizeof(sp_digit) * 9);
+                for (i=518; i>=0; i--) {
+                    sp_521_mont_sqr_avx2_9(t, t, p521_mod, p521_mp_mod);
+                    if (p521_sqrt_power[i / 64] & ((sp_uint64)1 << (i % 64)))
+                        sp_521_mont_mul_avx2_9(t, t, y, p521_mod, p521_mp_mod);
+                }
+                XMEMCPY(y, t, sizeof(sp_digit) * 9);
+                RESTORE_VECTOR_REGISTERS();
             }
-            XMEMCPY(y, t, sizeof(sp_digit) * 9);
-            RESTORE_VECTOR_REGISTERS();
         }
         else
 #endif
@@ -92408,10 +92761,13 @@ int sp_ecc_uncompress_521(mp_int* xm, int odd, mp_int* ym)
         /* y = x^3 */
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_521_mont_sqr_avx2_9(y, x, p521_mod, p521_mp_mod);
-            sp_521_mont_mul_avx2_9(y, y, x, p521_mod, p521_mp_mod);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_521_mont_sqr_avx2_9(y, x, p521_mod, p521_mp_mod);
+                sp_521_mont_mul_avx2_9(y, y, x, p521_mod, p521_mp_mod);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -92419,6 +92775,8 @@ int sp_ecc_uncompress_521(mp_int* xm, int odd, mp_int* ym)
             sp_521_mont_sqr_9(y, x, p521_mod, p521_mp_mod);
             sp_521_mont_mul_9(y, y, x, p521_mod, p521_mp_mod);
         }
+    }
+    if (err == MP_OKAY) {
         /* y = x^3 - 3x */
         sp_521_mont_sub_9(y, y, x, p521_mod);
         sp_521_mont_sub_9(y, y, x, p521_mod);
@@ -95678,6 +96036,7 @@ static int sp_1024_ecc_mulmod_16(sp_point_1024* r, const sp_point_1024* g,
         const sp_digit* k, int map, int ct, void* heap)
 {
 #ifndef FP_ECC
+    /* No xmm table lookups on this lane, so no save. */
     return sp_1024_ecc_mulmod_win_add_sub_16(r, g, k, map, ct, heap);
 #else
     SP_DECL_VAR(sp_digit, tmp, 2 * 16 * 38);
@@ -96031,7 +96390,13 @@ static int sp_1024_ecc_mulmod_avx2_16(sp_point_1024* r, const sp_point_1024* g,
         const sp_digit* k, int map, int ct, void* heap)
 {
 #ifndef FP_ECC
-    return sp_1024_ecc_mulmod_win_add_sub_avx2_16(r, g, k, map, ct, heap);
+    /* The avx2 helpers assert a held save, so this lane saves too. */
+    int err = SAVE_VECTOR_REGISTERS2();
+    if (err == 0) {
+        err = sp_1024_ecc_mulmod_win_add_sub_avx2_16(r, g, k, map, ct, heap);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    return err;
 #else
     SP_DECL_VAR(sp_digit, tmp, 2 * 16 * 38);
     sp_cache_1024_t* cache;
@@ -96076,16 +96441,20 @@ static int sp_1024_ecc_mulmod_avx2_16(sp_point_1024* r, const sp_point_1024* g,
 #endif /* !SINGLE_THREADED && !HAVE_THREAD_LS */
 
     if (err == MP_OKAY) {
-        sp_ecc_get_cache_1024(g, &cache);
-        if (cache->cnt == 2)
-            sp_1024_gen_stripe_table_avx2_16(g, cache->table, tmp, heap);
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0) {
+            sp_ecc_get_cache_1024(g, &cache);
+            if (cache->cnt == 2)
+                sp_1024_gen_stripe_table_avx2_16(g, cache->table, tmp, heap);
 
-        if (cache->cnt < 2) {
-            err = sp_1024_ecc_mulmod_win_add_sub_avx2_16(r, g, k, map, ct, heap);
-        }
-        else {
-            err = sp_1024_ecc_mulmod_stripe_avx2_16(r, g, cache->table, k,
-                    map, ct, heap);
+            if (cache->cnt < 2) {
+                err = sp_1024_ecc_mulmod_win_add_sub_avx2_16(r, g, k, map, ct, heap);
+            }
+            else {
+                err = sp_1024_ecc_mulmod_stripe_avx2_16(r, g, cache->table, k,
+                        map, ct, heap);
+            }
+            RESTORE_VECTOR_REGISTERS();
         }
 #if !defined(SINGLE_THREADED) && !defined(HAVE_THREAD_LS)
         wc_UnLockMutex(&sp_cache_1024_lock);
@@ -96128,9 +96497,8 @@ int sp_ecc_mulmod_1024(const mp_int* km, const ecc_point* gm, ecc_point* r,
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_1024_ecc_mulmod_avx2_16(point, point, k, map, 1, heap);
-            RESTORE_VECTOR_REGISTERS();
         }
         else
 #endif
@@ -99493,6 +99861,7 @@ static const sp_table_entry_1024 p1024_table[256] = {
 static int sp_1024_ecc_mulmod_base_16(sp_point_1024* r, const sp_digit* k,
         int map, int ct, void* heap)
 {
+    /* No xmm table lookups on this lane, so no save. */
     return sp_1024_ecc_mulmod_stripe_16(r, &p1024_base, p1024_table,
                                       k, map, ct, heap);
 }
@@ -99518,8 +99887,13 @@ static int sp_1024_ecc_mulmod_base_16(sp_point_1024* r, const sp_digit* k,
 static int sp_1024_ecc_mulmod_base_avx2_16(sp_point_1024* r, const sp_digit* k,
         int map, int ct, void* heap)
 {
-    return sp_1024_ecc_mulmod_stripe_avx2_16(r, &p1024_base, p1024_table,
-                                      k, map, ct, heap);
+    int err = SAVE_VECTOR_REGISTERS2();
+    if (err == 0) {
+        err = sp_1024_ecc_mulmod_stripe_avx2_16(r, &p1024_base, p1024_table,
+                                         k, map, ct, heap);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    return err;
 }
 
 #endif /* HAVE_INTEL_AVX2 */
@@ -99550,9 +99924,8 @@ int sp_ecc_mulmod_base_1024(const mp_int* km, ecc_point* r, int map, void* heap)
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_1024_ecc_mulmod_base_avx2_16(point, k, map, 1, heap);
-            RESTORE_VECTOR_REGISTERS();
         }
         else
 #endif
@@ -99592,6 +99965,7 @@ int sp_ecc_mulmod_base_add_1024(const mp_int* km, const ecc_point* am,
 #ifdef HAVE_INTEL_AVX2
     word32 cpuid_flags = cpuid_get_flags();
     int saved_vector_registers = 0;
+    int use_avx2_lane = 0;
 #endif
 
     SP_ALLOC_VAR(sp_point_1024, point, 2, NULL, DYNAMIC_TYPE_ECC);
@@ -99615,17 +99989,25 @@ int sp_ecc_mulmod_base_add_1024(const mp_int* km, const ecc_point* am,
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
-            saved_vector_registers = 1;
-        if (saved_vector_registers)
+                IS_INTEL_AVX2(cpuid_flags)) {
+            use_avx2_lane = 1;
             err = sp_1024_ecc_mulmod_base_avx2_16(point, k, 0, 0, heap);
+        }
         else
 #endif
             err = sp_1024_ecc_mulmod_base_16(point, k, 0, 0, heap);
     }
+#ifdef HAVE_INTEL_AVX2
+    /* The mulmod saved for itself; this save is for the point operations. */
+    if ((err == MP_OKAY) && use_avx2_lane) {
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0)
+            saved_vector_registers = 1;
+    }
+#endif
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_1024_proj_point_add_avx2_16(point, point, addP, tmp);
         else
 #endif
@@ -99633,7 +100015,7 @@ int sp_ecc_mulmod_base_add_1024(const mp_int* km, const ecc_point* am,
 
         if (map) {
 #ifdef HAVE_INTEL_AVX2
-            if (saved_vector_registers)
+            if (use_avx2_lane)
                 sp_1024_map_avx2_16(point, point, tmp);
             else
 #endif
@@ -99695,10 +100077,13 @@ int sp_ecc_gen_table_1024(const ecc_point* gm, byte* table, word32* len,
         sp_1024_point_from_ecc_point_16(point, gm);
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            err = sp_1024_gen_stripe_table_avx2_16(point,
-                (sp_table_entry_1024*)table, t, heap);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                err = sp_1024_gen_stripe_table_avx2_16(point,
+                    (sp_table_entry_1024*)table, t, heap);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -99784,10 +100169,13 @@ int sp_ecc_mulmod_table_1024(const mp_int* km, const ecc_point* gm, byte* table,
 #ifndef WOLFSSL_SP_SMALL
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            err = sp_1024_ecc_mulmod_stripe_avx2_16(point, point,
-                (const sp_table_entry_1024*)table, k, map, 0, heap);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                err = sp_1024_ecc_mulmod_stripe_avx2_16(point, point,
+                    (const sp_table_entry_1024*)table, k, map, 0, heap);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -101876,9 +102264,12 @@ int sp_ModExp_Fp_star_1024(const mp_int* base, mp_int* exp, mp_int* res)
 
 #ifdef HAVE_INTEL_AVX2
     if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-        err = sp_ModExp_Fp_star_avx2_1024(base, exp, res);
-        RESTORE_VECTOR_REGISTERS();
+            IS_INTEL_AVX2(cpuid_flags)) {
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0) {
+            err = sp_ModExp_Fp_star_avx2_1024(base, exp, res);
+            RESTORE_VECTOR_REGISTERS();
+        }
     }
     else
 #endif
@@ -103484,9 +103875,12 @@ int sp_Pairing_1024(const ecc_point* pm, const ecc_point* qm, mp_int* res)
 
 #ifdef HAVE_INTEL_AVX2
     if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-        err = sp_Pairing_avx2_1024(pm, qm, res);
-        RESTORE_VECTOR_REGISTERS();
+            IS_INTEL_AVX2(cpuid_flags)) {
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0) {
+            err = sp_Pairing_avx2_1024(pm, qm, res);
+            RESTORE_VECTOR_REGISTERS();
+        }
     }
     else
 #endif
@@ -104618,9 +105012,12 @@ int sp_Pairing_gen_precomp_1024(const ecc_point* pm, byte* table, word32* len)
 
 #ifdef HAVE_INTEL_AVX2
     if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-        err = sp_Pairing_gen_precomp_avx2_1024(pm, table, len);
-        RESTORE_VECTOR_REGISTERS();
+            IS_INTEL_AVX2(cpuid_flags)) {
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0) {
+            err = sp_Pairing_gen_precomp_avx2_1024(pm, table, len);
+            RESTORE_VECTOR_REGISTERS();
+        }
     }
     else
 #endif
@@ -104656,9 +105053,12 @@ int sp_Pairing_precomp_1024(const ecc_point* pm, const ecc_point* qm, mp_int* re
 
 #ifdef HAVE_INTEL_AVX2
     if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-        err = sp_Pairing_precomp_avx2_1024(pm, qm, res, table, len);
-        RESTORE_VECTOR_REGISTERS();
+            IS_INTEL_AVX2(cpuid_flags)) {
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0) {
+            err = sp_Pairing_precomp_avx2_1024(pm, qm, res, table, len);
+            RESTORE_VECTOR_REGISTERS();
+        }
     }
     else
 #endif
@@ -104857,9 +105257,8 @@ int sp_ecc_check_key_1024(const mp_int* pX, const mp_int* pY,
         /* Point * order = infinity */
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_1024_ecc_mulmod_avx2_16(p, pub, p1024_order, 1, 1, heap);
-            RESTORE_VECTOR_REGISTERS();
         }
         else
 #endif
@@ -104876,10 +105275,8 @@ int sp_ecc_check_key_1024(const mp_int* pX, const mp_int* pY,
             /* Base * private = point */
 #ifdef HAVE_INTEL_AVX2
             if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                    IS_INTEL_AVX2(cpuid_flags) &&
-                    (SAVE_VECTOR_REGISTERS2() == 0)) {
+                    IS_INTEL_AVX2(cpuid_flags)) {
                 err = sp_1024_ecc_mulmod_base_avx2_16(p, priv, 1, 1, heap);
-                RESTORE_VECTOR_REGISTERS();
             }
             else
 #endif
