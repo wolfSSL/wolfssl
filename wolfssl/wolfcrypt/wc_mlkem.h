@@ -565,9 +565,9 @@ int mlkem_encapsulate(const sword16* pub, sword16* bp, sword16* v,
     const sword16* m, int kp);
 #else
 WOLFSSL_LOCAL
-int mlkem_encapsulate_seeds(const sword16* pub, MLKEM_PRF_T* prf, sword16* bp,
-    sword16* tp, sword16* sp, int kp, const byte* msg, byte* seed,
-    byte* coins);
+int mlkem_encapsulate_seeds(const sword16* pub, MLKEM_PRF_T* prf, byte* c,
+    const byte* cmp, int* fail, sword16* bp, sword16* tp, sword16* sp, int kp,
+    const byte* msg, byte* seed, byte* coins);
 #endif
 WOLFSSL_LOCAL
 int mlkem_decapsulate(const sword16* priv, sword16* mp, sword16* bp,
@@ -612,7 +612,7 @@ int mlkem_cmp(const byte* a, const byte* b, int sz, int* fail);
 WOLFSSL_LOCAL
 int mlkem_vec_compress_10(byte* r, sword16* v, unsigned int kp);
 WOLFSSL_LOCAL
-int mlkem_vec_compress_11(byte* r, sword16* v);
+int mlkem_vec_compress_11(byte* r, sword16* v, unsigned int kp);
 WOLFSSL_LOCAL
 int mlkem_vec_decompress_10(sword16* v, const unsigned char* b,
     unsigned int kp);
@@ -888,7 +888,8 @@ WOLFSSL_LOCAL void mlkem_thumb2_basemul_mont_add(sword16* r, const sword16* a,
 WOLFSSL_LOCAL void mlkem_thumb2_csubq(sword16* p);
 WOLFSSL_LOCAL void mlkem_thumb2_vec_compress_10(byte* r, sword16* v,
     unsigned int k);
-WOLFSSL_LOCAL void mlkem_thumb2_vec_compress_11(byte* r, sword16* v);
+WOLFSSL_LOCAL void mlkem_thumb2_vec_compress_11(byte* r, sword16* v,
+    unsigned int k);
 WOLFSSL_LOCAL unsigned int mlkem_thumb2_rej_uniform(sword16* p,
     unsigned int len, const byte* r, unsigned int rLen);
 #elif defined(WOLFSSL_ARMASM)

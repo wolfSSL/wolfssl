@@ -3706,7 +3706,7 @@ L_mlkem_thumb2_vec_compress_10_loop:
 	.type	mlkem_thumb2_vec_compress_11, %function
 mlkem_thumb2_vec_compress_11:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
-	ADD	r2, r1, #0x800
+	ADD	r2, r1, r2, LSL #9
 #ifndef WOLFSSL_ARM_ARCH_7M
 	MOV	r8, #0xdbb6
 	MOVT	r8, #0x9d7
@@ -4362,7 +4362,7 @@ L_mlkem_thumb2_vec_compress_11_loop:
 #endif
 #endif /* !WOLFSSL_ARM_ARCH_7M */
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	/* Cycle Count = 807 */
+	/* Cycle Count = 808 */
 	.size	mlkem_thumb2_vec_compress_11,.-mlkem_thumb2_vec_compress_11
 	.text
 	.align	4

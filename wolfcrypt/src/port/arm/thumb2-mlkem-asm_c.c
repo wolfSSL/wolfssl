@@ -3989,16 +3989,19 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_vec_compress_10(byte* r, sword16* v,
 }
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER void mlkem_thumb2_vec_compress_11(byte* r_p, sword16* v_p)
+WC_OMIT_FRAME_POINTER void mlkem_thumb2_vec_compress_11(byte* r_p, sword16* v_p,
+    unsigned int k_p)
 #else
-WC_OMIT_FRAME_POINTER void mlkem_thumb2_vec_compress_11(byte* r, sword16* v)
+WC_OMIT_FRAME_POINTER void mlkem_thumb2_vec_compress_11(byte* r, sword16* v,
+    unsigned int k)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register byte* r __asm__ ("r0") = (byte*)r_p;
     register sword16* v __asm__ ("r1") = (sword16*)v_p;
+    register unsigned int k __asm__ ("r2") = (unsigned int)k_p;
 #else
-    void* L_asm_args[2] = {(void*)(size_t)r, (void*)(size_t)v
+    void* L_asm_args[3] = {(void*)(size_t)r, (void*)(size_t)v, (void*)(size_t)k
     };
     void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
@@ -4006,9 +4009,9 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_vec_compress_11(byte* r, sword16* v)
     __asm__ __volatile__ (
 #ifdef WOLFSSL_NO_VAR_ASSIGN_REG
         "PUSH	{%[L_asm_args]}\n\t"
-        "LDM	%[L_asm_args], {r0, r1}\n\t"
+        "LDM	%[L_asm_args], {r0, r1, r2}\n\t"
 #endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
-        "ADD	r2, r1, #0x800\n\t"
+        "ADD	r2, r1, r2, LSL #9\n\t"
 #ifndef WOLFSSL_ARM_ARCH_7M
         "MOV	r8, #0xdbb6\n\t"
         "MOVT	r8, #0x9d7\n\t"
@@ -4679,12 +4682,12 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_vec_compress_11(byte* r, sword16* v)
 #endif /* !WOLFSSL_ARM_ARCH_7M */
 #ifdef WOLFSSL_NO_VAR_ASSIGN_REG
         "POP	{%[L_asm_args]}\n\t"
-        "STM	%[L_asm_args], {r0, r1}\n\t"
+        "STM	%[L_asm_args], {r0, r1, r2}\n\t"
 #endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-        : [r] "+r" (r), [v] "+r" (v)
+        : [r] "+r" (r), [v] "+r" (v), [k] "+r" (k)
         :
-        : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
+        : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11"
 #else
         : [L_asm_args] "+r" (L_asm_args_p)
@@ -4696,6 +4699,7 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_vec_compress_11(byte* r, sword16* v)
 #ifdef WOLFSSL_NO_VAR_ASSIGN_REG
     r = (byte*)(size_t)L_asm_args[0];
     v = (sword16*)(size_t)L_asm_args[1];
+    k = (unsigned int)(size_t)L_asm_args[2];
 #endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
