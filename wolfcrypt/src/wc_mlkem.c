@@ -63,6 +63,7 @@
  *   performing decapsulation.
  *   MlKemKey is 8KB larger but decapsulation is significantly faster.
  *   Turn on when performing make key and decapsulation with same object.
+ *   Also usable with the small memory options.
  *
  * WOLFSSL_MLKEM_DYNAMIC_KEYS                                      Default: OFF
  *   Dynamically allocates private and public key buffers instead of using
@@ -130,12 +131,6 @@
     #if defined(WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM) || \
         defined(WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM)
         #error "Can't use small memory with assembly optimized code"
-    #endif
-#endif
-#if defined(WOLFSSL_MLKEM_CACHE_A)
-    #if defined(WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM) || \
-        defined(WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM)
-        #error "Can't cache A with small memory code"
     #endif
 #endif
 
@@ -918,9 +913,8 @@ int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
     sword16 e[MLKEM_N];
 #endif
 #endif
-#ifndef WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM
+    /* Matrix A. NULL when it is streamed and not kept. */
     sword16* a = NULL;
-#endif
     sword16* s = NULL;
     sword16* t = NULL;
     /* Number of bytes of e holding secret noise, to be zeroized. */
@@ -1112,7 +1106,7 @@ int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
          * Alg 13: Steps 12-15: generate e
          * Alg 13: Steps 16-18: calculate t_hat from A_hat, s and e
          */
-        ret = mlkem_keygen_seeds(s, t, &key->prf, e, k, rho, sigma);
+        ret = mlkem_keygen_seeds(s, t, &key->prf, e, a, k, rho, sigma);
     }
     if (ret == 0) {
 #endif
@@ -1415,6 +1409,14 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c,
     sword16* u = 0;
 #ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
     sword16* v = 0;
+#else
+    /* Matrix A from key generation, when it was kept. */
+#ifdef WOLFSSL_MLKEM_CACHE_A
+    const sword16* cachedA = ((key->flags & MLKEM_FLAG_A_SET) != 0) ?
+        key->a : NULL;
+#else
+    const sword16* cachedA = NULL;
+#endif
 #endif
 
     /* Establish parameters based on key type. */
@@ -1570,7 +1572,7 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c,
          *   Steps 18-19, 21: calculate u and v
          *   Steps 22-24: c <- (c_1||c_2) */
         ret = mlkem_encapsulate_seeds(key->pub, &key->prf, cb, cmp, fail, u, a,
-            y, (int)k, m, key->pubSeed, r);
+            y, (int)k, m, key->pubSeed, r, cachedA);
     }
     (void)compVecSz;
 #endif /* WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM */
