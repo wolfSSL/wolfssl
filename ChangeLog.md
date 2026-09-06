@@ -715,6 +715,8 @@ PR stands for Pull Request, and PR <NUMBER> references a GitHub pull request num
 * Add PQ documentation for LMS, ML-DSA, ML-KEM, XMSS by @kaleb-himes (PR 10514)
 * Various leak / alloc and zeroization fixes for SLH-DSA by @Frauschi (PR 10698)
 
+* Reduced the ML-KEM small memory heap footprint: `WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM` and `WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM` now generate matrix A a polynomial at a time and multiply each one in as it is generated, encapsulation encodes each polynomial of u into the cipher text as soon as it is calculated, and decapsulation compares the re-encapsulated cipher text a block at a time instead of holding a second copy of it. Key generation drops to one polynomial for every parameter set and decapsulation peaks 38 to 56 percent lower with no change in operation count. by @Frauschi
+
 ## TLS/DTLS
 
 * Multiple TLS 1.3 Encrypted Client Hello (ECH) compliance fixes per RFC 9849, covering rejection handling, ECHConfig parsing, and inner ClientHello validation. by @sebastian-carpenter (PR 10141)

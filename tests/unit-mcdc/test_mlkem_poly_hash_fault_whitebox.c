@@ -29,7 +29,8 @@
  *     mlkem_hash512()     if ((ret == 0) && (data2 != NULL) && (data2Len > 0))
  *     mlkem_gen_matrix_c()  for (i = 0; (ret == 0) && (i < k); i++, ...)
  *                           for (j = 0; (ret == 0) && (j < k); j++)
- *     mlkem_gen_matrix_i()  for (j = 0; (ret == 0) && (j < k); j++)
+ *     mlkem_gen_matrix_i_acc()
+ *                           for (j = 0; (ret == 0) && (j < k); j++)
  *     mlkem_get_noise_c()   for (i = 0; (ret == 0) && (i < k); i++)
  *                           if ((ret == 0) && (vec2 != NULL))
  *                           for (i = 0; (ret == 0) && (i < k); i++)
@@ -254,8 +255,9 @@ static void wb_gen_matrix_c_rows(void)
 #endif
 
 /* ------------------------------------------------------------------------- *
- * mlkem_gen_matrix_i(): the small-memory single-row generator. Only compiled
- * when one of the small-mem arms is on.
+ * mlkem_gen_matrix_i_acc(): the small-memory single-row generator, which
+ * multiplies each polynomial into the result as it is generated. Only
+ * compiled when one of the small-mem arms is on.
  * ------------------------------------------------------------------------- */
 #if defined(WOLFSSL_HAVE_MLKEM) && \
     !(defined(WOLFSSL_ARMASM) && defined(__aarch64__)) && \
@@ -266,36 +268,45 @@ static void wb_gen_matrix_i_rows(void)
 {
     MLKEM_PRF_T    prf;
     static sword16 a[WB_K * MLKEM_N];
+    static sword16 v[WB_K * MLKEM_N];
+    static sword16 r[MLKEM_N];
     byte           seed[WC_ML_KEM_SYM_SZ + 2];
     long           n;
+    unsigned int   j;
 
     mlkem_prf_init(&prf);
     XMEMSET(seed, 0x5c, sizeof(seed));
+    /* Small, in-range coefficients: the multiply is incidental here, only the
+     * generation chain is under test. */
+    for (j = 0; j < WB_K * MLKEM_N; j++) {
+        v[j] = (sword16)(j & 0x7);
+    }
 
     mcdc_fh_disarm();
-    if (mlkem_gen_matrix_i(&prf, a, WB_K, seed, 0, 0) != 0) {
-        WB_NOTE("baseline mlkem_gen_matrix_i failed");
+    if (mlkem_gen_matrix_i_acc(&prf, r, a, v, WB_K, seed, 0, 0) != 0) {
+        WB_NOTE("baseline mlkem_gen_matrix_i_acc failed");
         wb_fail = 1;
     }
 
     for (n = 1; n <= (long)WB_SWEEP; n++) {
         mcdc_fh_arm(n);
-        (void)mlkem_gen_matrix_i(&prf, a, WB_K, seed, 0, 0);
+        (void)mlkem_gen_matrix_i_acc(&prf, r, a, v, WB_K, seed, 0, 0);
         mcdc_fh_disarm();
         mcdc_fh_arm(n);
-        (void)mlkem_gen_matrix_i(&prf, a, WB_K, seed, 1, 1);
+        (void)mlkem_gen_matrix_i_acc(&prf, r, a, v, WB_K, seed, 1, 1);
         mcdc_fh_disarm();
     }
 
     mlkem_prf_free(&prf);
-    WB_NOTE("mlkem_gen_matrix_i success-chain rows exercised");
+    WB_NOTE("mlkem_gen_matrix_i_acc success-chain rows exercised");
 }
 
 #else
 
 static void wb_gen_matrix_i_rows(void)
 {
-    WB_NOTE("mlkem_gen_matrix_i arm not compiled in this variant; skipped");
+    WB_NOTE("mlkem_gen_matrix_i_acc arm not compiled in this variant; "
+        "skipped");
 }
 
 #endif

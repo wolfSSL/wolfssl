@@ -104,8 +104,8 @@
 
 #if defined(WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM) || \
     defined(WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM)
-static int mlkem_gen_matrix_i(MLKEM_PRF_T* prf, sword16* a, int k, byte* seed,
-    int i, int transposed);
+static int mlkem_gen_matrix_i_acc(MLKEM_PRF_T* prf, sword16* r, sword16* a,
+    const sword16* v, int k, byte* seed, int i, int transposed);
 static int mlkem_get_noise_i(MLKEM_PRF_T* prf, int k, sword16* vec2,
     byte* seed, int i, int make);
 static int mlkem_get_noise_eta2_c(MLKEM_PRF_T* prf, sword16* p,
@@ -1224,6 +1224,12 @@ static void mlkem_basemul_mont_add(sword16* r, const sword16* a,
 }
 #endif
 
+/* Small memory key generation multiplies a polynomial of matrix A in as soon
+ * as it is generated and has no use for the whole vector multiplication. */
+#if (!defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+     !defined(WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM)) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Pointwise multiply elements of a and b, into r, and multiply by 2^-16.
  *
  * @param  [out]  r  Result polynomial.
@@ -1248,6 +1254,7 @@ static void mlkem_pointwise_acc_mont(sword16* r, const sword16* a,
     mlkem_basemul_mont_add(r, a + (k - 1) * MLKEM_N, b + (k - 1) * MLKEM_N);
 #endif
 }
+#endif
 
 /******************************************************************************/
 
@@ -1989,7 +1996,7 @@ int mlkem_keygen(sword16* s, sword16* t, sword16* e, const sword16* a, int k)
  * @param  [in, out]  s      Private key vector of polynomials.
  * @param  [out]      t      Public key vector of polynomials.
  * @param  [in, out]  prf    XOF object.
- * @param  [in]       tv     Temporary vector of polynomials.
+ * @param  [in]       tp     Temporary polynomial.
  * @param  [in]       k      Number of polynomials in vector.
  * @param  [in]       rho    Random seed to generate matrix A from.
  * @param  [in, out]  sigma  Random seed to generate noise from.
@@ -1999,12 +2006,12 @@ int mlkem_keygen(sword16* s, sword16* t, sword16* e, const sword16* a, int k)
  * @return  Other negative value when a hash error occurred.
  */
 int mlkem_keygen_seeds(sword16* s, sword16* t, MLKEM_PRF_T* prf,
-    sword16* tv, int k, byte* rho, byte* sigma)
+    sword16* tp, int k, byte* rho, byte* sigma)
 {
     int i;
     int ret = 0;
-    sword16* ai = tv;
-    sword16* e = tv;
+    sword16* ai = tp;
+    sword16* e = tp;
 
     /* Transform private key. All of result used in public key calculation
      * Step 16: s_hat = NTT(s) */
@@ -2017,16 +2024,15 @@ int mlkem_keygen_seeds(sword16* s, sword16* t, MLKEM_PRF_T* prf,
     for (i = 0; i < k; ++i) {
         int j;
 
-        /* Generate a vector of matrix A.
-         * Steps 4-6: generate A[i] */
-        ret = mlkem_gen_matrix_i(prf, ai, k, rho, i, 0);
+        /* Generate a vector of matrix A, a polynomial at a time, multiplying
+         * each into the public polynomial.
+         * Steps 4-6: generate A[i]
+         * Step 18: ... A_hat o s_hat ... */
+        ret = mlkem_gen_matrix_i_acc(prf, t + i * MLKEM_N, ai, s, k, rho, i, 0);
         if (ret != 0) {
            break;
         }
 
-        /* Multiply a by private into public polynomial.
-         * Step 18: ... A_hat o s_hat ... */
-        mlkem_pointwise_acc_mont(t + i * MLKEM_N, ai, s, (unsigned int)k);
         /* Convert public polynomial to Montgomery form.
          * Step 18: ... MontRed(A_hat o s_hat) ... */
         for (j = 0; j < MLKEM_N; ++j) {
@@ -2184,11 +2190,20 @@ int mlkem_encapsulate(const sword16* pub, sword16* u, sword16* v,
 
 #else
 
-/* Encapsulate message.
+/* Encapsulate message and encode the cipher text.
+ *
+ * Each polynomial of u is encoded as soon as it is calculated, so only one is
+ * held at a time. When cmp is NULL the cipher text is written to c; otherwise c
+ * is a scratch buffer of at least MLKEM_MAX_COMP_POLY_SZ bytes and each block is
+ * compared with cmp instead, letting decapsulation avoid a second copy.
  *
  * @param  [in]       pub    Public key vector of polynomials.
  * @param  [in, out]  prf    XOF object.
- * @param  [out]      u      Vector of polynomials.
+ * @param  [out]      c      Cipher text, or one block of it when comparing.
+ * @param  [in]       cmp    Cipher text to compare against. May be NULL.
+ * @param  [in, out]  fail   Set to -1 when cipher text does not match cmp.
+ *                           Only used when cmp is not NULL.
+ * @param  [in, out]  u      Polynomial.
  * @param  [in, out]  tp     Polynomial.
  * @param  [in, out]  y      Vector of polynomials.
  * @param  [in]       k      Number of polynomials in vector.
@@ -2200,16 +2215,30 @@ int mlkem_encapsulate(const sword16* pub, sword16* u, sword16* v,
  *          WOLFSSL_SMALL_STACK is defined.
  * @return  Other negative value when a hash error occurred.
  */
-int mlkem_encapsulate_seeds(const sword16* pub, MLKEM_PRF_T* prf, sword16* u,
-    sword16* tp, sword16* y, int k, const byte* msg, byte* seed, byte* coins)
+int mlkem_encapsulate_seeds(const sword16* pub, MLKEM_PRF_T* prf, byte* c,
+    const byte* cmp, int* fail, sword16* u, sword16* tp, sword16* y, int k,
+    const byte* msg, byte* seed, byte* coins)
 {
     int ret = 0;
     int i;
+    /* Matrix polynomial, e_1 and e_2 are each only live for part of the
+     * calculation and share the one temporary polynomial. */
     sword16* a = tp;
     sword16* e1 = tp;
-    sword16* v = tp;
-    sword16* e2 = tp + MLKEM_N;
+    sword16* e2 = tp;
+    /* v is calculated once u has been encoded and reuses its polynomial. The
+     * message polynomial reuses y as y is not needed once v is calculated. */
+    sword16* v = u;
     sword16* m = y;
+    byte* cb = c;
+    /* Number of bytes a polynomial of u is compressed into. */
+    unsigned int blockSz = MLKEM_POLY_COMPRESSED_SZ(MLKEM_COMP_10BITS);
+
+#if defined(WOLFSSL_KYBER1024) || defined(WOLFSSL_WC_ML_KEM_1024)
+    if (k == WC_ML_KEM_1024_K) {
+        blockSz = MLKEM_POLY_COMPRESSED_SZ(MLKEM_COMP_11BITS);
+    }
+#endif
 
     /* Transform y. All of result used in calculation of u and v. */
     for (i = 0; i < k; ++i) {
@@ -2220,16 +2249,14 @@ int mlkem_encapsulate_seeds(const sword16* pub, MLKEM_PRF_T* prf, sword16* u,
     for (i = 0; i < k; ++i) {
         int j;
 
-        /* Generate a vector of matrix A. */
-        ret = mlkem_gen_matrix_i(prf, a, k, seed, i, 1);
+        /* Generate a vector of matrix A, a polynomial at a time, multiplying
+         * each into the u polynomial. */
+        ret = mlkem_gen_matrix_i_acc(prf, u, a, y, k, seed, i, 1);
         if (ret != 0) {
            break;
         }
-
-        /* Multiply at by y into u polynomial. */
-        mlkem_pointwise_acc_mont(u + i * MLKEM_N, a, y, (unsigned int)k);
         /* Inverse transform u polynomial. */
-        mlkem_invntt(u + i * MLKEM_N);
+        mlkem_invntt(u);
 
         /* Generate noise using PRF. */
         ret = mlkem_get_noise_i(prf, k, e1, coins, i, 0);
@@ -2239,41 +2266,68 @@ int mlkem_encapsulate_seeds(const sword16* pub, MLKEM_PRF_T* prf, sword16* u,
         /* Add errors to u and reduce. */
 #if defined(WOLFSSL_MLKEM_SMALL) || defined(WOLFSSL_MLKEM_NO_LARGE_CODE)
         for (j = 0; j < MLKEM_N; ++j) {
-            sword16 t = (sword16)(u[i * MLKEM_N + j] + e1[j]);
-            u[i * MLKEM_N + j] = MLKEM_BARRETT_RED(t);
+            sword16 t = (sword16)(u[j] + e1[j]);
+            u[j] = MLKEM_BARRETT_RED(t);
         }
 #else
         for (j = 0; j < MLKEM_N; j += 8) {
-            sword16 t0 = (sword16)(u[i * MLKEM_N + j + 0] + e1[j + 0]);
-            sword16 t1 = (sword16)(u[i * MLKEM_N + j + 1] + e1[j + 1]);
-            sword16 t2 = (sword16)(u[i * MLKEM_N + j + 2] + e1[j + 2]);
-            sword16 t3 = (sword16)(u[i * MLKEM_N + j + 3] + e1[j + 3]);
-            sword16 t4 = (sword16)(u[i * MLKEM_N + j + 4] + e1[j + 4]);
-            sword16 t5 = (sword16)(u[i * MLKEM_N + j + 5] + e1[j + 5]);
-            sword16 t6 = (sword16)(u[i * MLKEM_N + j + 6] + e1[j + 6]);
-            sword16 t7 = (sword16)(u[i * MLKEM_N + j + 7] + e1[j + 7]);
-            u[i * MLKEM_N + j + 0] = MLKEM_BARRETT_RED(t0);
-            u[i * MLKEM_N + j + 1] = MLKEM_BARRETT_RED(t1);
-            u[i * MLKEM_N + j + 2] = MLKEM_BARRETT_RED(t2);
-            u[i * MLKEM_N + j + 3] = MLKEM_BARRETT_RED(t3);
-            u[i * MLKEM_N + j + 4] = MLKEM_BARRETT_RED(t4);
-            u[i * MLKEM_N + j + 5] = MLKEM_BARRETT_RED(t5);
-            u[i * MLKEM_N + j + 6] = MLKEM_BARRETT_RED(t6);
-            u[i * MLKEM_N + j + 7] = MLKEM_BARRETT_RED(t7);
+            sword16 t0 = (sword16)(u[j + 0] + e1[j + 0]);
+            sword16 t1 = (sword16)(u[j + 1] + e1[j + 1]);
+            sword16 t2 = (sword16)(u[j + 2] + e1[j + 2]);
+            sword16 t3 = (sword16)(u[j + 3] + e1[j + 3]);
+            sword16 t4 = (sword16)(u[j + 4] + e1[j + 4]);
+            sword16 t5 = (sword16)(u[j + 5] + e1[j + 5]);
+            sword16 t6 = (sword16)(u[j + 6] + e1[j + 6]);
+            sword16 t7 = (sword16)(u[j + 7] + e1[j + 7]);
+            u[j + 0] = MLKEM_BARRETT_RED(t0);
+            u[j + 1] = MLKEM_BARRETT_RED(t1);
+            u[j + 2] = MLKEM_BARRETT_RED(t2);
+            u[j + 3] = MLKEM_BARRETT_RED(t3);
+            u[j + 4] = MLKEM_BARRETT_RED(t4);
+            u[j + 5] = MLKEM_BARRETT_RED(t5);
+            u[j + 6] = MLKEM_BARRETT_RED(t6);
+            u[j + 7] = MLKEM_BARRETT_RED(t7);
         }
 #endif
+
+        /* Encode the polynomial of u into a block of cipher text.
+         * Step 22: c_1 <- ByteEncode_d_u(Compress_d_u(u)) */
+#if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512)
+        if (k == WC_ML_KEM_512_K) {
+            mlkem_vec_compress_10(cb, u, 1);
+        }
+#endif
+#if defined(WOLFSSL_KYBER768) || defined(WOLFSSL_WC_ML_KEM_768)
+        if (k == WC_ML_KEM_768_K) {
+            mlkem_vec_compress_10(cb, u, 1);
+        }
+#endif
+#if defined(WOLFSSL_KYBER1024) || defined(WOLFSSL_WC_ML_KEM_1024)
+        if (k == WC_ML_KEM_1024_K) {
+            mlkem_vec_compress_11(cb, u, 1);
+        }
+#endif
+        if (cmp == NULL) {
+            cb += blockSz;
+        }
+        else {
+            *fail |= mlkem_cmp(cb, cmp, (int)blockSz);
+            cmp += blockSz;
+        }
     }
 
-    /* Multiply public key by y into v polynomial. */
-    mlkem_pointwise_acc_mont(v, pub, y, (unsigned int)k);
-    /* Inverse transform v. */
-    mlkem_invntt(v);
+    if (ret == 0) {
+        /* Multiply public key by y into v polynomial. */
+        mlkem_pointwise_acc_mont(v, pub, y, (unsigned int)k);
+        /* Inverse transform v. */
+        mlkem_invntt(v);
 
-    mlkem_from_msg(m, msg);
+        mlkem_from_msg(m, msg);
 
-    /* Generate noise using PRF. */
-    coins[WC_ML_KEM_SYM_SZ] = WC_OCTET(2 * k);
-    ret = mlkem_get_noise_eta2_c(prf, e2, coins);
+        /* Generate noise using PRF. */
+        coins[WC_ML_KEM_SYM_SZ] = WC_OCTET(2 * k);
+        ret = mlkem_get_noise_eta2_c(prf, e2, coins);
+    }
     if (ret == 0) {
         /* Add errors and message to v and reduce. */
     #if defined(WOLFSSL_MLKEM_SMALL) || defined(WOLFSSL_MLKEM_NO_LARGE_CODE)
@@ -2301,6 +2355,31 @@ int mlkem_encapsulate_seeds(const sword16* pub, MLKEM_PRF_T* prf, sword16* u,
             v[i + 7] = MLKEM_BARRETT_RED(t7);
         }
     #endif
+
+        /* Encode v into the last block of cipher text.
+         * Step 23: c_2 <- ByteEncode_d_v(Compress_d_v(v)) */
+    #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512)
+        if (k == WC_ML_KEM_512_K) {
+            mlkem_compress_4(cb, v);
+            blockSz = MLKEM_POLY_COMPRESSED_SZ(MLKEM_COMP_4BITS);
+        }
+    #endif
+    #if defined(WOLFSSL_KYBER768) || defined(WOLFSSL_WC_ML_KEM_768)
+        if (k == WC_ML_KEM_768_K) {
+            mlkem_compress_4(cb, v);
+            blockSz = MLKEM_POLY_COMPRESSED_SZ(MLKEM_COMP_4BITS);
+        }
+    #endif
+    #if defined(WOLFSSL_KYBER1024) || defined(WOLFSSL_WC_ML_KEM_1024)
+        if (k == WC_ML_KEM_1024_K) {
+            mlkem_compress_5(cb, v);
+            blockSz = MLKEM_POLY_COMPRESSED_SZ(MLKEM_COMP_5BITS);
+        }
+    #endif
+        if (cmp != NULL) {
+            *fail |= mlkem_cmp(cb, cmp, (int)blockSz);
+        }
+        /* Step 24: return c <- (c_1||c_2) */
     }
 
     return ret;
@@ -4204,9 +4283,14 @@ int mlkem_gen_matrix(MLKEM_PRF_T* prf, sword16* a, int k, byte* seed,
 #if defined(WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM) || \
     defined(WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM)
 
-/* Deterministically generate a matrix (or transpose) of uniform integers mod q.
+/* Deterministically generate a vector of a matrix (or transpose) of uniform
+ * integers mod q and multiply it into a vector of polynomials.
  *
  * Seed used with XOF to generate random bytes.
+ *
+ * Each polynomial of the vector of the matrix is multiplied into the result as
+ * soon as it has been generated. Only one polynomial of the matrix is held at
+ * any time rather than the whole vector of k polynomials.
  *
  * FIPS 203, Algorithm 13: K-PKE.KeyGen(d)
  * ...
@@ -4214,15 +4298,21 @@ int mlkem_gen_matrix(MLKEM_PRF_T* prf, sword16* a, int k, byte* seed,
  * 5:         A_hat[i,j] <- SampleNTT(rho||j||i)
  * 6:     end for
  * ...
+ * 18: t_hat <- A_hat o s_hat + e_hat
+ * ...
  * FIPS 203, Algorithm 14: K-PKE.Encrypt(ek_PKE,m,r)
  * ...
  * 5:     for (j <- 0; j < k; j++)
  * 6:         A_hat[i,j] <- SampleNTT(rho||j||i)  (Transposed is rho||i||j)
  * 7:     end for
  * ...
+ * 18: u <- InvNTT(A_hat_trans o y_hat) + e_1
+ * ...
  *
  * @param  [in, out]  prf         XOF object.
- * @param  [out]      a           Matrix of uniform integers.
+ * @param  [out]      r           Polynomial holding the multiplied result.
+ * @param  [out]      a           Polynomial of uniform integers. Scratch.
+ * @param  [in]       v           Vector of polynomials to multiply with.
  * @param  [in]       k           Number of dimensions. k x k polynomials.
  * @param  [in]       seed        Bytes to seed XOF generation.
  * @param  [in]       i           Index of vector to generate.
@@ -4231,8 +4321,8 @@ int mlkem_gen_matrix(MLKEM_PRF_T* prf, sword16* a, int k, byte* seed,
  * @return  MEMORY_E when dynamic memory allocation fails. Only possible when
  *          WOLFSSL_SMALL_STACK is defined.
  */
-static int mlkem_gen_matrix_i(MLKEM_PRF_T* prf, sword16* a, int k, byte* seed,
-    int i, int transposed)
+static int mlkem_gen_matrix_i_acc(MLKEM_PRF_T* prf, sword16* r, sword16* a,
+    const sword16* v, int k, byte* seed, int i, int transposed)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     byte* rand;
@@ -4289,16 +4379,25 @@ static int mlkem_gen_matrix_i(MLKEM_PRF_T* prf, sword16* a, int k, byte* seed,
             /* Sample random bytes to create a polynomial.
              * Alg 7, Step 3 - implicitly counter is 0.
              * Alg 7, Step 4-16. */
-            ctr = mlkem_rej_uniform_c(a + j * MLKEM_N, MLKEM_N, rand,
-                GEN_MATRIX_SIZE);
+            ctr = mlkem_rej_uniform_c(a, MLKEM_N, rand, GEN_MATRIX_SIZE);
             /* Create more blocks if too many rejected.
              * Alg 7, Step 4. */
             while (ctr < MLKEM_N) {
                 /* Alg 7, Step 5. */
                 mlkem_xof_squeezeblocks(prf, rand, 1);
                 /* Alg 7, Step 4-16. */
-                ctr += mlkem_rej_uniform_c(a + j * MLKEM_N + ctr,
-                    MLKEM_N - ctr, rand, XOF_BLOCK_SIZE);
+                ctr += mlkem_rej_uniform_c(a + ctr, MLKEM_N - ctr, rand,
+                    XOF_BLOCK_SIZE);
+            }
+
+            /* Multiply the polynomial of the matrix into the result.
+             * Alg 13, Step 18: ... A_hat o s_hat ...
+             * Alg 14, Step 18: ... A_hat_trans o y_hat ... */
+            if (j == 0) {
+                mlkem_basemul_mont(r, a, v);
+            }
+            else {
+                mlkem_basemul_mont_add(r, a, v + j * MLKEM_N);
             }
         }
     }
@@ -6047,10 +6146,11 @@ void mlkem_vec_compress_10(byte* r, sword16* v, unsigned int k)
  *
  * FIPS 203, Section 4.2.1, Compression and decompression
  *
- * @param  [out]      r  Array of bytes.
- * @param  [in, out]  v  Vector of polynomials.
+ * @param  [out]      r   Array of bytes.
+ * @param  [in, out]  v   Vector of polynomials.
+ * @param  [in]       kp  Number of polynomials in vector.
  */
-static void mlkem_vec_compress_11_c(byte* r, sword16* v)
+static void mlkem_vec_compress_11_c(byte* r, sword16* v, unsigned int kp)
 {
     unsigned int i;
     unsigned int j;
@@ -6058,14 +6158,14 @@ static void mlkem_vec_compress_11_c(byte* r, sword16* v)
     unsigned int k;
 #endif
 
-    for (i = 0; i < 4; i++) {
+    for (i = 0; i < kp; i++) {
         /* Reduce each coefficient to mod q. */
         mlkem_csubq_c(v + i * MLKEM_N);
         /* All values are now positive. */
     }
 
     /* Each polynomial. */
-    for (i = 0; i < 4; i++) {
+    for (i = 0; i < kp; i++) {
         /* Each 8 polynomial coefficients. */
         for (j = 0; j < MLKEM_N; j += 8) {
         #ifdef WOLFSSL_MLKEM_SMALL
@@ -6122,27 +6222,28 @@ static void mlkem_vec_compress_11_c(byte* r, sword16* v)
  *
  * FIPS 203, Section 4.2.1, Compression and decompression
  *
- * @param  [out]      r  Array of bytes.
- * @param  [in, out]  v  Vector of polynomials.
+ * @param  [out]      r   Array of bytes.
+ * @param  [in, out]  v   Vector of polynomials.
+ * @param  [in]       kp  Number of polynomials in vector.
  */
-void mlkem_vec_compress_11(byte* r, sword16* v)
+void mlkem_vec_compress_11(byte* r, sword16* v, unsigned int kp)
 {
 #ifdef USE_INTEL_SPEEDUP
 #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
     if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-        mlkem_compress_11_avx512(r, v, 4);
+        mlkem_compress_11_avx512(r, v, (int)kp);
         RESTORE_VECTOR_REGISTERS();
     }
     else
 #endif
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-        mlkem_compress_11_avx2(r, v, 4);
+        mlkem_compress_11_avx2(r, v, (int)kp);
         RESTORE_VECTOR_REGISTERS();
     }
     else
 #endif
     {
-        mlkem_vec_compress_11_c(r, v);
+        mlkem_vec_compress_11_c(r, v, kp);
     }
 }
 #endif
