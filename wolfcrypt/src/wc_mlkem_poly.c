@@ -1997,7 +1997,12 @@ int mlkem_keygen(sword16* s, sword16* t, sword16* e, const sword16* a, int k)
  * @param  [in, out]  s      Private key vector of polynomials.
  * @param  [out]      t      Public key vector of polynomials.
  * @param  [in, out]  prf    XOF object.
- * @param  [in]       tp     Temporary polynomial.
+ * @param  [out]      tp     Temporary polynomial. Holds the noise polynomial
+ *                           e, and when cacheA is NULL each polynomial of
+ *                           matrix A is generated into it as well. It must
+ *                           not alias s or t: a polynomial of A is multiplied
+ *                           into t before the noise for that row overwrites
+ *                           the same buffer.
  * @param  [out]      cacheA Matrix to keep the generated A in. May be NULL.
  * @param  [in]       k      Number of polynomials in vector.
  * @param  [in]       rho    Random seed to generate matrix A from.
@@ -2208,10 +2213,15 @@ int mlkem_encapsulate(const sword16* pub, sword16* u, sword16* v,
  * @param  [in, out]  prf    XOF object.
  * @param  [out]      c      Cipher text, or one block of it when comparing.
  * @param  [in]       cmp    Cipher text to compare against. May be NULL.
- * @param  [in, out]  fail   Set to -1 when cipher text does not match cmp.
+ * @param  [out]      fail   Set to -1 when cipher text does not match cmp.
  *                           Only used when cmp is not NULL.
- * @param  [in, out]  u      Polynomial.
- * @param  [in, out]  tp     Polynomial.
+ * @param  [in, out]  u      Polynomial. v is calculated into it once u has
+ *                           been encoded, and the message polynomial shares
+ *                           it as well.
+ * @param  [out]      tp     Temporary polynomial, shared in turn by a
+ *                           polynomial of matrix A, e_1 and e_2. Each is only
+ *                           live for part of the calculation, so it must not
+ *                           alias u or y.
  * @param  [in, out]  y      Vector of polynomials.
  * @param  [in]       k      Number of polynomials in vector.
  * @param  [in]       msg    Message to encapsulate.
@@ -2239,6 +2249,10 @@ int mlkem_encapsulate_seeds(const sword16* pub, MLKEM_PRF_T* prf, byte* c,
      * message polynomial reuses y as y is not needed once v is calculated. */
     sword16* v = u;
     sword16* m = y;
+    /* Encapsulation compresses straight into the caller's cipher text;
+     * only the compare path needs the scratch block. Kernels must write
+     * exactly blockSz bytes per polynomial when writing here, since the
+     * cipher text carries no slack after its last block. */
     byte* cb = c;
     /* Number of bytes a polynomial of u is compressed into. */
     unsigned int blockSz = MLKEM_POLY_COMPRESSED_SZ(MLKEM_COMP_10BITS);
@@ -2249,22 +2263,25 @@ int mlkem_encapsulate_seeds(const sword16* pub, MLKEM_PRF_T* prf, byte* c,
     }
 #endif
 
-    /* Comparing against a cipher text requires somewhere to accumulate the
-     * result. */
-    if ((cmp != NULL) && (fail == NULL)) {
-        return BAD_FUNC_ARG;
+    /* The cipher text is written or compared a block at a time, so c is
+     * needed in both modes, and comparing against one requires somewhere to
+     * accumulate the result. */
+    if ((c == NULL) || ((cmp != NULL) && (fail == NULL))) {
+        ret = BAD_FUNC_ARG;
     }
-    if (cmp != NULL) {
+    else if (cmp != NULL) {
         *fail = 0;
     }
 
-    /* Transform y. All of result used in calculation of u and v. */
-    for (i = 0; i < k; ++i) {
-        mlkem_ntt(y + i * MLKEM_N);
+    if (ret == 0) {
+        /* Transform y. All of result used in calculation of u and v. */
+        for (i = 0; i < k; ++i) {
+            mlkem_ntt(y + i * MLKEM_N);
+        }
     }
 
     /* For each polynomial in the vectors. */
-    for (i = 0; i < k; ++i) {
+    for (i = 0; (ret == 0) && (i < k); ++i) {
         int j;
 
         if (cacheA != NULL) {
