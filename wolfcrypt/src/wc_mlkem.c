@@ -70,6 +70,7 @@
  *   Combines with the small memory options: key generation keeps each
  *   polynomial of A as it is generated and encapsulation transposes the kept
  *   matrix, removing most of decapsulation's hashing at no extra memory.
+ *   With WOLFSSL_MLKEM_DYNAMIC_KEYS a decoded key allocates it on first use.
  *
  * WOLFSSL_MLKEM_DYNAMIC_KEYS                                      Default: OFF
  *   Dynamically allocates private and public key buffers instead of using
@@ -1307,7 +1308,10 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c,
     sword16 y[((WC_ML_KEM_MAX_K + 3) * WC_ML_KEM_MAX_K + 3) * MLKEM_N];
 #else
     sword16 y[(WC_ML_KEM_MAX_K + 2) * MLKEM_N];
+#ifndef WOLFSSL_MLKEM_NO_DECAPSULATE
+    /* Only decapsulation asks for a comparison, so only it needs the block. */
     byte block[MLKEM_MAX_COMP_POLY_SZ];
+#endif
 #endif
 #endif
     sword16* u = 0;
@@ -1318,8 +1322,11 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c,
 #ifdef WOLFSSL_MLKEM_CACHE_A
     const sword16* cachedA = ((key->flags & MLKEM_FLAG_A_SET) != 0) ?
         key->a : NULL;
+    /* A decoded key has no cached matrix, so keep the one generated here. */
+    sword16* fillA = NULL;
 #else
     const sword16* cachedA = NULL;
+    sword16* fillA = NULL;
 #endif
 #endif
 
@@ -1466,8 +1473,10 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c,
             /* Cipher text is compared a block at a time as it is calculated. */
 #ifndef WOLFSSL_NO_MALLOC
             cb = (byte*)(a + MLKEM_N);
-#else
+#elif !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
             cb = block;
+#else
+            ret = BAD_FUNC_ARG;
 #endif
         }
 
@@ -1475,8 +1484,27 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c,
          *   Steps 13-17: generate e_1 and e_2
          *   Steps 18-19, 21: calculate u and v
          *   Steps 22-24: c <- (c_1||c_2) */
-        ret = mlkem_encapsulate_seeds(key->pub, &key->prf, cb, cmp, fail, u, a,
-            y, (int)k, m, key->pubSeed, r, cachedA);
+#ifdef WOLFSSL_MLKEM_CACHE_A
+        if ((ret == 0) && (cachedA == NULL)) {
+    #ifdef WOLFSSL_MLKEM_DYNAMIC_KEYS
+            if (key->a == NULL) {
+                /* Optional: without a cache the matrix is streamed. */
+                (void)mlkemkey_alloc_a(key, k);
+            }
+    #endif
+            fillA = key->a;
+        }
+#endif
+        if (ret == 0) {
+            ret = mlkem_encapsulate_seeds(key->pub, &key->prf, cb, cmp, fail,
+                u, a, y, (int)k, m, key->pubSeed, r, cachedA, fillA);
+        }
+#ifdef WOLFSSL_MLKEM_CACHE_A
+        /* Only a complete matrix may be flagged as cached. */
+        if ((ret == 0) && (fillA != NULL)) {
+            key->flags |= MLKEM_FLAG_A_SET;
+        }
+#endif
     }
     (void)compVecSz;
 #endif /* WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM */
@@ -1549,16 +1577,20 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c,
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(y, sizeof(y));
 #endif
-#ifdef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
+#if defined(WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
     /* block holds the cipher text re-encapsulated from the secret decrypted
-     * message. With malloc it sits in the y allocation and is covered above. */
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Add("mlkem encrypt block", block, sizeof(block));
-#endif
-    ForceZero(block, sizeof(block));
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Check(block, sizeof(block));
-#endif
+     * message. With malloc it sits in the y allocation and is covered above.
+     * Nothing is written to it unless a comparison was asked for. */
+    if (cmp != NULL) {
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("mlkem encrypt block", block, sizeof(block));
+    #endif
+        ForceZero(block, sizeof(block));
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(block, sizeof(block));
+    #endif
+    }
 #endif
 #endif
 
