@@ -862,6 +862,8 @@ int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
             ret = NOT_COMPILED_IN;
         }
         else {
+            /* Left 0 on the k == 0 branch above, which errors out before
+             * anything writes e. */
 #ifndef WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM
             eSz = (size_t)(k * MLKEM_N) * sizeof(sword16);
 #else
@@ -1263,7 +1265,7 @@ int wc_MlKemKey_SharedSecretSize(MlKemKey* key, word32* len)
  * @param  [in]      r     Seed to feed to PRF when generating y, e1 and e2.
  * @param  [out]     c     Calculated cipher text. NULL when comparing.
  * @param  [in]      cmp   Cipher text to compare against. May be NULL.
- * @param  [in, out] fail  Set to -1 when cipher text does not match cmp.
+ * @param  [out]     fail  Set to -1 when cipher text does not match cmp.
  *                         Only used when cmp is not NULL.
  * @return  0 on success.
  * @return  NOT_COMPILED_IN when key type is not supported.
@@ -1454,6 +1456,16 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c,
          *   Steps 22-24: c <- (c_1||c_2) */
         ret = mlkem_encapsulate_seeds(key->pub, &key->prf, cb, cmp, fail, u, a,
             y, (int)k, m, key->pubSeed, r, cachedA);
+        /* Each polynomial of the cipher text is encoded into the caller's
+         * buffer as it is calculated, so a failure part way through leaves
+         * some of it written. Do not hand back a partial cipher text. */
+        if ((ret != 0) && (cmp == NULL) && (c != NULL)) {
+            word32 ctSz = 0;
+
+            if (wc_MlKemKey_CipherTextSize(key, &ctSz) == 0) {
+                ForceZero(c, ctSz);
+            }
+        }
     }
     (void)compVecSz;
 #endif /* WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM */
@@ -1522,7 +1534,13 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c,
 #ifdef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
     /* block holds the cipher text re-encapsulated from the secret decrypted
      * message. With malloc it sits in the y allocation and is covered above. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("mlkem encrypt block", block, sizeof(block));
+#endif
     ForceZero(block, sizeof(block));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(block, sizeof(block));
+#endif
 #endif
 #endif
 

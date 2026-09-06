@@ -2249,6 +2249,15 @@ int mlkem_encapsulate_seeds(const sword16* pub, MLKEM_PRF_T* prf, byte* c,
     }
 #endif
 
+    /* Comparing against a cipher text requires somewhere to accumulate the
+     * result. */
+    if ((cmp != NULL) && (fail == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+    if (cmp != NULL) {
+        *fail = 0;
+    }
+
     /* Transform y. All of result used in calculation of u and v. */
     for (i = 0; i < k; ++i) {
         mlkem_ntt(y + i * MLKEM_N);
