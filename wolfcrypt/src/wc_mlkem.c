@@ -32,12 +32,18 @@
  *
  * WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM                                 Default: OFF
  *   Uses less dynamic memory to perform key generation.
+ *   Matrix A is generated a polynomial at a time and multiplied into the
+ *   public key as it goes, so a polynomial of temporary memory is needed
+ *   whatever the parameter set.
  *   Has a small performance trade-off.
  *   Only usable with C implementation.
  *
  * WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM                             Default: OFF
  *   Uses less dynamic memory to perform encapsulation.
- *   Affects decapsulation too as encapsulation called.
+ *   Matrix A is generated a polynomial at a time and each polynomial of u is
+ *   encoded as soon as it is calculated, so neither is held in full: k + 2
+ *   polynomials of temporary memory. Decapsulation calls encapsulation, and
+ *   compares the re-encapsulated cipher text a block at a time.
  *   Has a small performance trade-off.
  *   Only usable with C implementation.
  *
@@ -835,7 +841,8 @@ int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
     sword16 e[WC_ML_KEM_MAX_K * MLKEM_N];
 #endif
 #else
-    sword16 e[WC_ML_KEM_MAX_K * MLKEM_N];
+    /* Small memory generation only holds one polynomial at a time. */
+    sword16 e[MLKEM_N];
 #endif
 #endif
 #ifndef WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM
@@ -843,6 +850,8 @@ int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
 #endif
     sword16* s = NULL;
     sword16* t = NULL;
+    /* Number of bytes of e holding secret noise, to be zeroized. */
+    size_t eSz = 0;
     int ret = 0;
     int k = 0;
 
@@ -869,6 +878,13 @@ int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
         if (k == 0) {
             ret = NOT_COMPILED_IN;
         }
+        else {
+#ifndef WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM
+            eSz = (size_t)(k * MLKEM_N) * sizeof(sword16);
+#else
+            eSz = (size_t)MLKEM_N * sizeof(sword16);
+#endif
+        }
     }
 
 #ifndef WOLFSSL_NO_MALLOC
@@ -885,9 +901,8 @@ int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
             key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 #else
-        /* e (v) */
-        e = (sword16*)XMALLOC((size_t)(k * MLKEM_N) * sizeof(sword16),
-            key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        /* e (p) - matrix A is generated a polynomial at a time into it. */
+        e = (sword16*)XMALLOC(eSz, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
         if (e == NULL) {
             ret = MEMORY_E;
@@ -1036,20 +1051,20 @@ int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
 #ifndef WOLFSSL_NO_MALLOC
     /* Free dynamic memory allocated in function. */
     if (e != NULL) {
-        /* e holds the secret noise vector; zeroize before release. The
-         * (public) matrix A may follow it in the same allocation but does
-         * not need clearing. */
-        ForceZero(e, (size_t)(k * MLKEM_N) * sizeof(sword16));
+        /* e holds the secret noise; zeroize before release. The (public)
+         * matrix A may follow it in the same allocation but does not need
+         * clearing. */
+        ForceZero(e, eSz);
         XFREE(e, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #else
-    /* e is a stack buffer holding the secret noise vector; zeroize it. */
+    /* e is a stack buffer holding the secret noise; zeroize it. */
 #ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Add("mlkem keygen e", e, (size_t)(k * MLKEM_N) * sizeof(sword16));
+    wc_MemZero_Add("mlkem keygen e", e, eSz);
 #endif
-    ForceZero(e, (size_t)(k * MLKEM_N) * sizeof(sword16));
+    ForceZero(e, eSz);
 #ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Check(e, (size_t)(k * MLKEM_N) * sizeof(sword16));
+    wc_MemZero_Check(e, eSz);
 #endif
 #endif
 
@@ -1260,14 +1275,22 @@ int wc_MlKemKey_SharedSecretSize(MlKemKey* key, word32* len)
  *   23: c_2 <- ByteEncode_d_v(Compress_d_v(v))
  *   24: return c <- (c_1||c_2)
  *
- * @param  [in]  key  ML-KEM key object.
- * @param  [in]  m    Random bytes.
- * @param  [in]  r    Seed to feed to PRF when generating y, e1 and e2.
- * @param  [out] c    Calculated cipher text.
+ * When cmp is not NULL each block is compared with it as it is calculated and
+ * the cipher text is not stored, so decapsulation can check the re-encapsulated
+ * cipher text without a second copy. Needs WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM.
+ *
+ * @param  [in]      key   ML-KEM key object.
+ * @param  [in]      m     Random bytes.
+ * @param  [in]      r     Seed to feed to PRF when generating y, e1 and e2.
+ * @param  [out]     c     Calculated cipher text. NULL when comparing.
+ * @param  [in]      cmp   Cipher text to compare against. May be NULL.
+ * @param  [in, out] fail  Set to -1 when cipher text does not match cmp.
+ *                         Only used when cmp is not NULL.
  * @return  0 on success.
  * @return  NOT_COMPILED_IN when key type is not supported.
  */
-static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c)
+static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c,
+    const byte* cmp, int* fail)
 {
     int ret = 0;
     sword16* a = NULL;
@@ -1285,11 +1308,14 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c)
 #ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
     sword16 y[((WC_ML_KEM_MAX_K + 3) * WC_ML_KEM_MAX_K + 3) * MLKEM_N];
 #else
-    sword16 y[3 * WC_ML_KEM_MAX_K * MLKEM_N];
+    sword16 y[(WC_ML_KEM_MAX_K + 2) * MLKEM_N];
+    byte block[MLKEM_MAX_COMP_POLY_SZ];
 #endif
 #endif
     sword16* u = 0;
+#ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
     sword16* v = 0;
+#endif
 
     /* Establish parameters based on key type. */
     switch (key->type) {
@@ -1345,7 +1371,11 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c)
 #ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
         yAllocSz = ((k + 3) * k + 3) * MLKEM_N * sizeof(sword16);
 #else
-        yAllocSz = 3 * k * MLKEM_N * sizeof(sword16);
+        yAllocSz = (k + 2) * MLKEM_N * sizeof(sword16);
+        if (cmp != NULL) {
+            /* One block of cipher text to compare against. */
+            yAllocSz += MLKEM_MAX_COMP_POLY_SZ;
+        }
 #endif
         y = (sword16*)XMALLOC(yAllocSz, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (y == NULL) {
@@ -1411,8 +1441,9 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c)
 #else /* WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM */
     if (ret == 0) {
         /* Assign allocated dynamic memory to pointers.
-         * y (v) | a (v) | u (v) */
-        a = y + MLKEM_N * k;
+         * y (v) | u (p) | a (p) [| block] */
+        u = y + MLKEM_N * k;
+        a = u + MLKEM_N;
 
         /* Initialize the PRF for use in the noise generation. */
         ret = mlkem_prf_reset(&key->prf);
@@ -1423,19 +1454,28 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c)
         ret = mlkem_get_noise(&key->prf, (int)k, y, NULL, NULL, r);
     }
     if (ret == 0) {
-        /* Assign remaining allocated dynamic memory to pointers.
-         * y (v) | at (v) | u (v) */
-        u  = a + MLKEM_N * k;
-        v  = a;
+        byte* cb = c;
 
-        /* Perform encapsulation maths.
+        if (cmp != NULL) {
+            /* Cipher text is compared a block at a time as it is calculated. */
+#ifndef WOLFSSL_NO_MALLOC
+            cb = (byte*)(a + MLKEM_N);
+#else
+            cb = block;
+#endif
+        }
+
+        /* Perform encapsulation maths and encode the cipher text.
          *   Steps 13-17: generate e_1 and e_2
-         *   Steps 18-19, 21: calculate u and v */
-        ret = mlkem_encapsulate_seeds(key->pub, &key->prf, u, a, y, (int)k, m,
-            key->pubSeed, r);
+         *   Steps 18-19, 21: calculate u and v
+         *   Steps 22-24: c <- (c_1||c_2) */
+        ret = mlkem_encapsulate_seeds(key->pub, &key->prf, cb, cmp, fail, u, a,
+            y, (int)k, m, key->pubSeed, r);
     }
+    (void)compVecSz;
 #endif /* WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM */
 
+#ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
     if (ret == 0) {
         byte* c1 = c;
         byte* c2 = c + compVecSz;
@@ -1469,7 +1509,7 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c)
             /* Step 22: c_1 <- ByteEncode_d_u(Compress_d_u(u))
              * Step 23: c_2 <- ByteEncode_d_v(Compress_d_v(v)) */
             MLKEM_ARM64_SVR({
-                ret = mlkem_vec_compress_11(c1, u);
+                ret = mlkem_vec_compress_11(c1, u, k);
                 if (ret == 0)
                     ret = mlkem_compress_5(c2, v);
             });
@@ -1477,6 +1517,9 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c)
         }
     #endif
     }
+    (void)cmp;
+    (void)fail;
+#endif /* !WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM */
 
 #ifndef WOLFSSL_NO_MALLOC
     /* Dispose of dynamic memory allocated in function. The buffer holds secret
@@ -1809,7 +1852,8 @@ int wc_MlKemKey_EncapsulateWithRandom(MlKemKey* key, unsigned char* ct,
 #endif
 #ifdef WOLFSSL_MLKEM_KYBER
         {
-            ret = mlkemkey_encapsulate(key, msg, kr + WC_ML_KEM_SYM_SZ, ct);
+            ret = mlkemkey_encapsulate(key, msg, kr + WC_ML_KEM_SYM_SZ, ct,
+                NULL, NULL);
         }
 #endif
 #if defined(WOLFSSL_MLKEM_KYBER) && !defined(WOLFSSL_NO_ML_KEM)
@@ -1818,7 +1862,8 @@ int wc_MlKemKey_EncapsulateWithRandom(MlKemKey* key, unsigned char* ct,
 #ifndef WOLFSSL_NO_ML_KEM
         {
             /* Step 2: c <- K-PKE.Encrypt(ek,m,r) */
-            ret = mlkemkey_encapsulate(key, rand, kr + WC_ML_KEM_SYM_SZ, ct);
+            ret = mlkemkey_encapsulate(key, rand, kr + WC_ML_KEM_SYM_SZ, ct,
+                NULL, NULL);
         }
 #endif
     }
@@ -2113,11 +2158,15 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
     byte msg[WC_ML_KEM_SYM_SZ];
     byte kr[2 * WC_ML_KEM_SYM_SZ + 1];
     unsigned int i = 0;
+#ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
     int fail = -1; /* mismatch until mlkem_cmp() says otherwise */
 #if !defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_NO_MALLOC)
     byte* cmp = NULL;
 #else
     byte cmp[WC_ML_KEM_MAX_CIPHER_TEXT_SIZE];
+#endif
+#else
+    int fail = 0;
 #endif
 #endif
 
@@ -2206,6 +2255,7 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
     }
 #else
 
+#ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
 #if !defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_NO_MALLOC)
     if (ret == 0) {
         /* Allocate memory for cipher text that is generated. */
@@ -2214,6 +2264,7 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
             ret = MEMORY_E;
         }
     }
+#endif
 #endif
 
     /* msg and kr hold secret decapsulation material; baseline-zero and register
@@ -2239,13 +2290,23 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
             WC_ML_KEM_SYM_SZ, kr);
     }
     if (ret == 0) {
-        /* Encapsulate the message. */
-        ret = mlkemkey_encapsulate(key, msg, kr + WC_ML_KEM_SYM_SZ, cmp);
+        /* Encapsulate the message.
+         * Small memory encapsulation compares the cipher text a block at a
+         * time as it is calculated rather than storing all of it. */
+#ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
+        ret = mlkemkey_encapsulate(key, msg, kr + WC_ML_KEM_SYM_SZ, cmp, NULL,
+            NULL);
+#else
+        ret = mlkemkey_encapsulate(key, msg, kr + WC_ML_KEM_SYM_SZ, NULL, ct,
+            &fail);
+#endif
     }
+#ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
     if (ret == 0) {
         /* Compare generated cipher text with that passed in. */
         MLKEM_ARM64_SVR(ret = mlkem_cmp(ct, cmp, (int)ctSz, &fail));
     }
+#endif
     if (ret == 0) {
 #if defined(WOLFSSL_MLKEM_KYBER) && !defined(WOLFSSL_NO_ML_KEM)
         if (key->type & MLKEM_KYBER)
@@ -2281,6 +2342,7 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
 #endif
     }
 
+#ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
 #if !defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_NO_MALLOC)
     /* Dispose of dynamic memory allocated in function. cmp holds the
      * re-encrypted ciphertext computed from the secret decrypted message;
@@ -2293,6 +2355,7 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
 #else
     /* cmp is a stack buffer holding the re-encrypted ciphertext; zeroize it. */
     ForceZero(cmp, sizeof(cmp));
+#endif
 #endif
 
     ForceZero(msg, sizeof(msg));
