@@ -1376,11 +1376,12 @@ int wc_MlKemKey_SharedSecretSize(MlKemKey* key, word32* len)
  * @param  [in]      key   ML-KEM key object.
  * @param  [in]      m     Random bytes.
  * @param  [in]      r     Seed to feed to PRF when generating y, e1 and e2.
- * @param  [out]     c     Calculated cipher text. NULL when comparing.
+ * @param  [out]     c     Calculated cipher text. Unused when comparing.
  * @param  [in]      cmp   Cipher text to compare against. May be NULL.
- * @param  [out]     fail  Set to -1 when cipher text does not match cmp.
- *                         Only used when cmp is not NULL.
+ * @param  [out]     fail  Set to 0 on a match and -1 on a mismatch, once every
+ *                         block is compared. Only used when cmp is not NULL.
  * @return  0 on success.
+ * @return  BAD_FUNC_ARG when cmp is not NULL and comparing is not compiled in.
  * @return  NOT_COMPILED_IN when key type is not supported.
  */
 static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c,
@@ -1466,6 +1467,11 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c,
         ret = NOT_COMPILED_IN;
         break;
     }
+#ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
+    if ((ret == 0) && (cmp != NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+#endif
 
 #ifndef WOLFSSL_NO_MALLOC
     if (ret == 0) {
@@ -1619,7 +1625,6 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c,
         }
     #endif
     }
-    (void)cmp;
     (void)fail;
 #endif /* !WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM */
 

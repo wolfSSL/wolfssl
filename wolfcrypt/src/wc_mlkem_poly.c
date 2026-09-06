@@ -2242,8 +2242,8 @@ int mlkem_encapsulate(const sword16* pub, sword16* u, sword16* v,
  * @param  [in, out]  prf    XOF object.
  * @param  [out]      c      Cipher text, or one block of it when comparing.
  * @param  [in]       cmp    Cipher text to compare against. May be NULL.
- * @param  [out]      fail   Set to -1 when cipher text does not match cmp.
- *                           Only used when cmp is not NULL.
+ * @param  [out]      fail   Set to 0 on a match and -1 on a mismatch, once
+ *                           every block is compared. Only used when cmp is set.
  * @param  [in, out]  u      Polynomial. Holds v once u is encoded.
  * @param  [out]      tp     Temporary polynomial. Must not alias u or y.
  * @param  [in, out]  y      Vector of polynomials.
@@ -2254,10 +2254,10 @@ int mlkem_encapsulate(const sword16* pub, sword16* u, sword16* v,
  * @param  [in]       cacheA Cached matrix A to transpose in place of
  *                           generating it. May be NULL.
  * @return  0 on success.
+ * @return  BAD_FUNC_ARG when c is NULL, or cmp is not NULL and either fail is
+ *          NULL or decapsulation is not compiled in.
  * @return  MEMORY_E when dynamic memory allocation fails. Only possible when
  *          WOLFSSL_SMALL_STACK is defined.
- * @return  BAD_FUNC_ARG when cmp is not NULL and decapsulation is not compiled
- *          in.
  * @return  Other negative value when a hash error occurred.
  */
 int mlkem_encapsulate_seeds(const sword16* pub, MLKEM_PRF_T* prf, byte* c,
