@@ -8,6 +8,8 @@
 * Made `wc_falcon_check_key()` constant time, and cut Falcon key generation's peak heap by about 20% with a constant-time inversion of f. by @Frauschi
 * Added `--enable-falcon=smallest-mem`, a Falcon signer working in 20*n bytes (12KB peak heap at Falcon-512, 22KB at Falcon-1024). by @Frauschi
 * Added ML-KEM (FIPS 203) key OIDs, SubjectPublicKeyInfo and PKCS#8 encoding, and X.509 certificate support, including issuing an ML-KEM certificate with `wc_MakeCert_ex`. A key initialised with the new `WC_ML_KEM_TYPE_UNSET` takes its parameter set from the DER being decoded. by @Frauschi
+* Reduced the ML-KEM small memory heap footprint: key generation and encapsulation now generate matrix A a polynomial at a time and multiply each one in as it is generated, and decapsulation compares the re-encapsulated cipher text a block at a time. by @Frauschi
+* Allowed `WOLFSSL_MLKEM_CACHE_A` to be used with the ML-KEM small memory options, which previously refused to build together. by @Frauschi
 
 # wolfSSL Release 5.9.4 (Sep 25, 2026)
 
@@ -714,9 +716,6 @@ PR stands for Pull Request, and PR <NUMBER> references a GitHub pull request num
 * Migrate internal ML-KEM consumers to canonical wc_MlKemKey API by @Frauschi (PR 10571)
 * Add PQ documentation for LMS, ML-DSA, ML-KEM, XMSS by @kaleb-himes (PR 10514)
 * Various leak / alloc and zeroization fixes for SLH-DSA by @Frauschi (PR 10698)
-
-* Reduced the ML-KEM small memory heap footprint: `WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM` and `WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM` now generate matrix A a polynomial at a time and multiply each one in as it is generated, encapsulation encodes each polynomial of u into the cipher text as soon as it is calculated, and decapsulation compares the re-encapsulated cipher text a block at a time instead of holding a second copy of it. Key generation drops to one polynomial for every parameter set and decapsulation peaks 38 to 56 percent lower with no change in operation count. by @Frauschi
-* Allowed `WOLFSSL_MLKEM_CACHE_A` to be used with the ML-KEM small memory options, which previously refused to build together. Key generation keeps each polynomial of matrix A as it streams it and encapsulation transposes the kept matrix instead of regenerating it, cutting decapsulation by 38 percent and encapsulation with a locally generated key by 50 percent for the k*k*512 bytes the cached matrix occupies. by @Frauschi
 
 ## TLS/DTLS
 
