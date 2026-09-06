@@ -8308,6 +8308,26 @@ do
   esac
 done
 
+# Naming only a mode, for example --enable-mlkem=original or =all, selects no
+# parameter set and no operation, which would disable everything and fail to
+# build. Default each group unless the user named at least one member of it.
+if test "$ENABLED_MLKEM" != "no" && test "$ENABLED_MLKEM512" = "" && \
+   test "$ENABLED_MLKEM768" = "" && test "$ENABLED_MLKEM1024" = ""
+then
+    ENABLED_MLKEM512=yes
+    ENABLED_MLKEM768=yes
+    ENABLED_MLKEM1024=yes
+fi
+if test "$ENABLED_MLKEM" != "no" && \
+   test "$ENABLED_MLKEM_MAKE_KEY" = "no" && \
+   test "$ENABLED_MLKEM_ENCAPSULATE" = "no" && \
+   test "$ENABLED_MLKEM_DECAPSULATE" = "no"
+then
+    ENABLED_MLKEM_MAKE_KEY=yes
+    ENABLED_MLKEM_ENCAPSULATE=yes
+    ENABLED_MLKEM_DECAPSULATE=yes
+fi
+
 # Selftest uses its own random.c which doesn't support SHA-512 DRBG
 # or runtime DRBG disable/enable APIs
 AS_IF([test "x$ENABLED_SELFTEST" = "xyes"],
