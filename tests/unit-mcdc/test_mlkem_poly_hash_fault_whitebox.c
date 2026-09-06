@@ -256,8 +256,10 @@ static void wb_gen_matrix_c_rows(void)
 
 /* ------------------------------------------------------------------------- *
  * mlkem_gen_matrix_i_acc(): the small-memory single-row generator, which
- * multiplies each polynomial into the result as it is generated. Only
- * compiled when one of the small-mem arms is on.
+ * multiplies each polynomial in as it is generated. Both stride forms are
+ * driven: aStride 0 regenerates into one scratch polynomial (the encapsulate
+ * caller) and aStride MLKEM_N keeps the whole vector (key generation with the
+ * matrix cached).
  * ------------------------------------------------------------------------- */
 #if defined(WOLFSSL_HAVE_MLKEM) && \
     !(defined(WOLFSSL_ARMASM) && defined(__aarch64__)) && \
@@ -283,17 +285,17 @@ static void wb_gen_matrix_i_rows(void)
     }
 
     mcdc_fh_disarm();
-    if (mlkem_gen_matrix_i_acc(&prf, r, a, v, WB_K, seed, 0, 0) != 0) {
+    if (mlkem_gen_matrix_i_acc(&prf, r, a, 0, v, WB_K, seed, 0, 0) != 0) {
         WB_NOTE("baseline mlkem_gen_matrix_i_acc failed");
         wb_fail = 1;
     }
 
     for (n = 1; n <= (long)WB_SWEEP; n++) {
         mcdc_fh_arm(n);
-        (void)mlkem_gen_matrix_i_acc(&prf, r, a, v, WB_K, seed, 0, 0);
+        (void)mlkem_gen_matrix_i_acc(&prf, r, a, 0, v, WB_K, seed, 0, 0);
         mcdc_fh_disarm();
         mcdc_fh_arm(n);
-        (void)mlkem_gen_matrix_i_acc(&prf, r, a, v, WB_K, seed, 1, 1);
+        (void)mlkem_gen_matrix_i_acc(&prf, r, a, MLKEM_N, v, WB_K, seed, 1, 1);
         mcdc_fh_disarm();
     }
 
