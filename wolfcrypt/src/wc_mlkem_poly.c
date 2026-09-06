@@ -2028,7 +2028,7 @@ int mlkem_keygen(sword16* s, sword16* t, sword16* e, const sword16* a, int k)
  * @param  [in, out]  s      Private key vector of polynomials.
  * @param  [out]      t      Public key vector of polynomials.
  * @param  [in, out]  prf    XOF object.
- * @param  [in]       tp     Temporary polynomial.
+ * @param  [out]      tp     Temporary polynomial. Must not alias s or t.
  * @param  [out]      cacheA Matrix to keep the generated A in. May be NULL.
  * @param  [in]       k      Number of polynomials in vector.
  * @param  [in]       rho    Random seed to generate matrix A from.
@@ -2242,10 +2242,10 @@ int mlkem_encapsulate(const sword16* pub, sword16* u, sword16* v,
  * @param  [in, out]  prf    XOF object.
  * @param  [out]      c      Cipher text, or one block of it when comparing.
  * @param  [in]       cmp    Cipher text to compare against. May be NULL.
- * @param  [in, out]  fail   Set to -1 when cipher text does not match cmp.
+ * @param  [out]      fail   Set to -1 when cipher text does not match cmp.
  *                           Only used when cmp is not NULL.
- * @param  [in, out]  u      Polynomial.
- * @param  [in, out]  tp     Polynomial.
+ * @param  [in, out]  u      Polynomial. Holds v once u is encoded.
+ * @param  [out]      tp     Temporary polynomial. Must not alias u or y.
  * @param  [in, out]  y      Vector of polynomials.
  * @param  [in]       k      Number of polynomials in vector.
  * @param  [in]       msg    Message to encapsulate.
@@ -2285,24 +2285,24 @@ int mlkem_encapsulate_seeds(const sword16* pub, MLKEM_PRF_T* prf, byte* c,
     }
 #endif
 
-    /* Comparing against a cipher text requires somewhere to accumulate the
-     * result. */
-    if ((cmp != NULL) && (fail == NULL)) {
-        return BAD_FUNC_ARG;
+    if ((c == NULL) || ((cmp != NULL) && (fail == NULL))) {
+        ret = BAD_FUNC_ARG;
     }
 #ifdef WOLFSSL_MLKEM_NO_DECAPSULATE
     if (cmp != NULL) {
-        return BAD_FUNC_ARG;
+        ret = BAD_FUNC_ARG;
     }
 #endif
 
-    /* Transform y. All of result used in calculation of u and v. */
-    for (i = 0; i < k; ++i) {
-        mlkem_ntt(y + i * MLKEM_N);
+    if (ret == 0) {
+        /* Transform y. All of result used in calculation of u and v. */
+        for (i = 0; i < k; ++i) {
+            mlkem_ntt(y + i * MLKEM_N);
+        }
     }
 
     /* For each polynomial in the vectors. */
-    for (i = 0; i < k; ++i) {
+    for (i = 0; (ret == 0) && (i < k); ++i) {
         int j;
 
         if (cacheA != NULL) {
