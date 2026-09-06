@@ -151,25 +151,15 @@
  *     from this file's fixed/small-scalar inputs.
  */
 
-/* The richest dispatches here are four operands:
- *
- *     IS_INTEL_BMI2(f) && IS_INTEL_ADX(f) && IS_INTEL_AVX2(f) &&
- *         (SAVE_VECTOR_REGISTERS2() == 0)
- *
- * The feature bits are handled by the one-at-a-time masks in main(), but the
- * save operand cannot be flipped that way: in a userspace build types.h
- * resolves SAVE_VECTOR_REGISTERS2() to the literal 0, so "(0 == 0)" is
- * structurally true and has no false side at all. It is real where the save
- * can be refused (the kernel-module build). WC_CHECK_FOR_INTR_SIGNALS is the
- * #ifndef extension point types.h offers for that, so defining it here --
- * before the .c below pulls in any wolfSSL header -- routes every
- * SAVE_VECTOR_REGISTERS2() site through a variable this file controls. Same
- * arrangement as test_wc_mlkem_poly_whitebox.c. */
 /* Sweep depth for the allocation-failure pass. Each index repeats the
  * whole dispatch+crafted driving, and TEST_TIMEOUT is wall clock under
  * MAXPAR, so this stays modest. */
 #define WB_FAULT_MAX_N 20
 
+/* CPUID alone picks each lane; the lane then takes the vector-register save
+ * and a refused save is an error, never a switch of lane.  Userspace resolves
+ * SAVE_VECTOR_REGISTERS2() to 0, so WC_CHECK_FOR_INTR_SIGNALS is defined here,
+ * before any wolfSSL header, to let this file refuse the save on demand. */
 static int wb_intr_ret = 0;
 #define WC_CHECK_FOR_INTR_SIGNALS() (wb_intr_ret)
 
@@ -1154,7 +1144,7 @@ static void wb_run_dispatch_256(void)
         XMEMSET(tmp2, 0, sizeof(tmp2));
         pp1.x[0] = 1; pp1.y[0] = 1; pp1.z[0] = 1;
         pp2.x[0] = 1; pp2.y[0] = 1; pp2.z[0] = 1;
-        sp_256_add_points_4(&pp1, &pp2, tmp2);
+        (void)sp_256_add_points_4(&pp1, &pp2, tmp2);
     }
     {
         sp_point_256 pt;
@@ -1291,7 +1281,7 @@ static void wb_run_dispatch_384(void)
         XMEMSET(tmp2, 0, sizeof(tmp2));
         pp1.x[0] = 1; pp1.y[0] = 1; pp1.z[0] = 1;
         pp2.x[0] = 1; pp2.y[0] = 1; pp2.z[0] = 1;
-        sp_384_add_points_6(&pp1, &pp2, tmp2);
+        (void)sp_384_add_points_6(&pp1, &pp2, tmp2);
     }
     {
         sp_point_384 pt;
@@ -1428,7 +1418,7 @@ static void wb_run_dispatch_521(void)
         XMEMSET(tmp2, 0, sizeof(tmp2));
         pp1.x[0] = 1; pp1.y[0] = 1; pp1.z[0] = 1;
         pp2.x[0] = 1; pp2.y[0] = 1; pp2.z[0] = 1;
-        sp_521_add_points_9(&pp1, &pp2, tmp2);
+        (void)sp_521_add_points_9(&pp1, &pp2, tmp2);
     }
     {
         sp_point_521 pt;
@@ -1995,8 +1985,8 @@ int main(void)
         wb_run_crafted();
         wb_spc_all();
 
-        /* Fourth operand: every feature present but the vector-register save
-         * refused, so each chain falls through on its last condition. */
+        /* Refused save: every lane returns its error instead of running,
+         * so the drivers report failures here by design. */
         cpuid_select_flags(real);
         wb_intr_ret = 1;
         wb_run_ecc();
