@@ -432,10 +432,10 @@ struct MlKemKey {
     byte z[WC_ML_KEM_SYM_SZ];
 #ifdef WOLFSSL_MLKEM_CACHE_A
 #ifndef WOLFSSL_MLKEM_DYNAMIC_KEYS
-    /* A matrix from key generation. */
+    /* Cached matrix A. */
     sword16 a[WC_ML_KEM_MAX_K * WC_ML_KEM_MAX_K * MLKEM_N];
 #else
-    /* A matrix from key generation (dynamically allocated). */
+    /* Cached matrix A (dynamically allocated). */
     sword16* a;
 #endif
 #endif
@@ -567,7 +567,8 @@ int mlkem_encapsulate(const sword16* pub, sword16* bp, sword16* v,
 WOLFSSL_LOCAL
 int mlkem_encapsulate_seeds(const sword16* pub, MLKEM_PRF_T* prf, byte* c,
     const byte* cmp, int* fail, sword16* bp, sword16* tp, sword16* sp, int kp,
-    const byte* msg, byte* seed, byte* coins, const sword16* cacheA);
+    const byte* msg, byte* seed, byte* coins, const sword16* cacheA,
+    sword16* fillA);
 #endif
 WOLFSSL_LOCAL
 int mlkem_decapsulate(const sword16* priv, sword16* mp, sword16* bp,

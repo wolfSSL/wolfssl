@@ -71088,6 +71088,7 @@ static wc_test_ret_t mlkem_cache_a_decode_test(int type, WC_RNG* rng)
     word32 ctLen;
     int peerInit = 0;
     int keyInit = 0;
+    int round;
 
 #ifdef WOLFSSL_SMALL_STACK
     peer = (MlKemKey*)XMALLOC(sizeof(MlKemKey), HEAP_HINT,
@@ -71137,15 +71138,18 @@ static wc_test_ret_t mlkem_cache_a_decode_test(int type, WC_RNG* rng)
     ret = wc_MlKemKey_CipherTextSize(key, &ctLen);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-    ret = wc_MlKemKey_Encapsulate(key, ct, ss, rng);
-    if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-    ret = wc_MlKemKey_Decapsulate(peer, ssDec, ct, ctLen);
-    if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    /* Round 2 reads the matrix round 1 kept. */
+    for (round = 0; round < 2; round++) {
+        ret = wc_MlKemKey_Encapsulate(key, ct, ss, rng);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ret = wc_MlKemKey_Decapsulate(peer, ssDec, ct, ctLen);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    if (XMEMCMP(ss, ssDec, WC_ML_KEM_SS_SZ) != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        if (XMEMCMP(ss, ssDec, WC_ML_KEM_SS_SZ) != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    }
 
     /* Decoding a private key must drop the cached matrix too. */
     ret = wc_MlKemKey_PrivateKeySize(peer, &privLen);
@@ -71162,15 +71166,17 @@ static wc_test_ret_t mlkem_cache_a_decode_test(int type, WC_RNG* rng)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    ret = wc_MlKemKey_Encapsulate(peer, ct, ss, rng);
-    if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-    ret = wc_MlKemKey_Decapsulate(key, ssDec, ct, ctLen);
-    if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    for (round = 0; round < 2; round++) {
+        ret = wc_MlKemKey_Encapsulate(peer, ct, ss, rng);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ret = wc_MlKemKey_Decapsulate(key, ssDec, ct, ctLen);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    if (XMEMCMP(ss, ssDec, WC_ML_KEM_SS_SZ) != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        if (XMEMCMP(ss, ssDec, WC_ML_KEM_SS_SZ) != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    }
 
     ret = 0;
 out:
