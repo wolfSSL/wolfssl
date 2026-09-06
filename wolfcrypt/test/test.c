@@ -64774,53 +64774,106 @@ static wc_test_ret_t mlkem_certgen_test(void)
 static wc_test_ret_t mlkem_cache_a_decode_test(int type, WC_RNG* rng)
 {
     wc_test_ret_t ret;
-    MlKemKey peer;
-    MlKemKey key;
+#ifdef WOLFSSL_SMALL_STACK
+    MlKemKey* peer = NULL;
+    MlKemKey* key = NULL;
+    byte* pub = NULL;
+    byte* priv = NULL;
+    byte* ct = NULL;
+#else
+    MlKemKey peer[1];
+    MlKemKey key[1];
     byte pub[WC_ML_KEM_MAX_PUBLIC_KEY_SIZE];
+    byte priv[WC_ML_KEM_MAX_PRIVATE_KEY_SIZE];
     byte ct[WC_ML_KEM_MAX_CIPHER_TEXT_SIZE];
+#endif
     byte ss[WC_ML_KEM_SS_SZ];
     byte ssDec[WC_ML_KEM_SS_SZ];
     word32 pubLen;
+    word32 privLen;
     word32 ctLen;
     int peerInit = 0;
     int keyInit = 0;
 
-    ret = wc_MlKemKey_Init(&peer, type, HEAP_HINT, INVALID_DEVID);
+#ifdef WOLFSSL_SMALL_STACK
+    peer = (MlKemKey*)XMALLOC(sizeof(MlKemKey), HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    key = (MlKemKey*)XMALLOC(sizeof(MlKemKey), HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    pub = (byte*)XMALLOC(WC_ML_KEM_MAX_PUBLIC_KEY_SIZE, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    priv = (byte*)XMALLOC(WC_ML_KEM_MAX_PRIVATE_KEY_SIZE, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    ct = (byte*)XMALLOC(WC_ML_KEM_MAX_CIPHER_TEXT_SIZE, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (peer == NULL || key == NULL || pub == NULL || priv == NULL ||
+            ct == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
+
+    ret = wc_MlKemKey_Init(peer, type, HEAP_HINT, INVALID_DEVID);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     peerInit = 1;
-    ret = wc_MlKemKey_Init(&key, type, HEAP_HINT, INVALID_DEVID);
+    ret = wc_MlKemKey_Init(key, type, HEAP_HINT, INVALID_DEVID);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     keyInit = 1;
 
     /* The peer owns the key pair the shared secret is checked against. */
-    ret = wc_MlKemKey_MakeKey(&peer, rng);
+    ret = wc_MlKemKey_MakeKey(peer, rng);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-    ret = wc_MlKemKey_PublicKeySize(&peer, &pubLen);
+    ret = wc_MlKemKey_PublicKeySize(peer, &pubLen);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-    ret = wc_MlKemKey_EncodePublicKey(&peer, pub, pubLen);
+    ret = wc_MlKemKey_EncodePublicKey(peer, pub, pubLen);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     /* Populate this object's matrix A cache for an unrelated seed, then decode
      * the peer's public key over the top of it. */
-    ret = wc_MlKemKey_MakeKey(&key, rng);
+    ret = wc_MlKemKey_MakeKey(key, rng);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-    ret = wc_MlKemKey_DecodePublicKey(&key, pub, pubLen);
+    ret = wc_MlKemKey_DecodePublicKey(key, pub, pubLen);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    ret = wc_MlKemKey_CipherTextSize(&key, &ctLen);
+    ret = wc_MlKemKey_CipherTextSize(key, &ctLen);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-    ret = wc_MlKemKey_Encapsulate(&key, ct, ss, rng);
+    ret = wc_MlKemKey_Encapsulate(key, ct, ss, rng);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-    ret = wc_MlKemKey_Decapsulate(&peer, ssDec, ct, ctLen);
+    ret = wc_MlKemKey_Decapsulate(peer, ssDec, ct, ctLen);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    if (XMEMCMP(ss, ssDec, WC_ML_KEM_SS_SZ) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    /* The private key decode must invalidate the cache the same way: a
+     * stale matrix A makes decapsulation's re-encapsulation differ, which
+     * silently returns the implicit rejection secret. */
+    ret = wc_MlKemKey_PrivateKeySize(peer, &privLen);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_MlKemKey_EncodePrivateKey(peer, priv, privLen);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_MlKemKey_MakeKey(key, rng);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_MlKemKey_DecodePrivateKey(key, priv, privLen);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_MlKemKey_Encapsulate(peer, ct, ss, rng);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_MlKemKey_Decapsulate(key, ssDec, ct, ctLen);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -64830,9 +64883,16 @@ static wc_test_ret_t mlkem_cache_a_decode_test(int type, WC_RNG* rng)
     ret = 0;
 out:
     if (keyInit)
-        wc_MlKemKey_Free(&key);
+        wc_MlKemKey_Free(key);
     if (peerInit)
-        wc_MlKemKey_Free(&peer);
+        wc_MlKemKey_Free(peer);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(ct, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(peer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     return ret;
 }
 #endif
@@ -65149,20 +65209,39 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
 #if defined(WOLFSSL_MLKEM_CACHE_A) && !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && !defined(WC_NO_RNG)
-#if !defined(WOLFSSL_NO_KYBER512) && !defined(WOLFSSL_NO_ML_KEM_512)
+#ifndef WOLFSSL_NO_ML_KEM
+#ifndef WOLFSSL_NO_ML_KEM_512
     ret = mlkem_cache_a_decode_test(WC_ML_KEM_512, &rng);
     if (ret != 0)
         goto out;
 #endif
-#if !defined(WOLFSSL_NO_KYBER768) && !defined(WOLFSSL_NO_ML_KEM_768)
+#ifndef WOLFSSL_NO_ML_KEM_768
     ret = mlkem_cache_a_decode_test(WC_ML_KEM_768, &rng);
     if (ret != 0)
         goto out;
 #endif
-#if !defined(WOLFSSL_NO_KYBER1024) && !defined(WOLFSSL_NO_ML_KEM_1024)
+#ifndef WOLFSSL_NO_ML_KEM_1024
     ret = mlkem_cache_a_decode_test(WC_ML_KEM_1024, &rng);
     if (ret != 0)
         goto out;
+#endif
+#endif
+#ifdef WOLFSSL_MLKEM_KYBER
+#ifndef WOLFSSL_NO_KYBER512
+    ret = mlkem_cache_a_decode_test(KYBER512, &rng);
+    if (ret != 0)
+        goto out;
+#endif
+#ifndef WOLFSSL_NO_KYBER768
+    ret = mlkem_cache_a_decode_test(KYBER768, &rng);
+    if (ret != 0)
+        goto out;
+#endif
+#ifndef WOLFSSL_NO_KYBER1024
+    ret = mlkem_cache_a_decode_test(KYBER1024, &rng);
+    if (ret != 0)
+        goto out;
+#endif
 #endif
 #endif
 
