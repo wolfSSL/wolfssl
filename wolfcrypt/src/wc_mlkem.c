@@ -1539,6 +1539,11 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c,
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(y, sizeof(y));
 #endif
+#ifdef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
+    /* block holds the cipher text re-encapsulated from the secret decrypted
+     * message. With malloc it sits in the y allocation and is covered above. */
+    ForceZero(block, sizeof(block));
+#endif
 #endif
 
     return ret;
