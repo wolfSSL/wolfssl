@@ -1523,7 +1523,11 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c,
         }
     #endif
     }
-    (void)cmp;
+    /* This build stores the cipher text rather than comparing it, so a
+     * caller asking for a comparison would otherwise get a silent match. */
+    if (cmp != NULL) {
+        ret = BAD_FUNC_ARG;
+    }
     (void)fail;
 #endif /* !WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM */
 

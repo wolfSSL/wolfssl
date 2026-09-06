@@ -2246,6 +2246,15 @@ int mlkem_encapsulate(const sword16* pub, sword16* u, sword16* v,
 
 #else
 
+#if defined(WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM) && \
+    (defined(USE_INTEL_SPEEDUP) || \
+     (defined(__aarch64__) && defined(WOLFSSL_ARMASM)))
+    /* The write path below compresses straight into the caller's cipher text,
+     * which has no slack after its last block, while the assembly compressors
+     * store past the end of each polynomial. */
+    #error "Small memory encapsulation needs the C compressors"
+#endif
+
 /* Encapsulate message and encode the cipher text.
  *
  * Each polynomial of u is encoded as soon as it is calculated, so only one is
@@ -2274,6 +2283,7 @@ int mlkem_encapsulate(const sword16* pub, sword16* u, sword16* v,
  * @param  [in]       cacheA Cached matrix A to transpose in place of
  *                           generating it. May be NULL.
  * @return  0 on success.
+ * @return  BAD_FUNC_ARG when c is NULL, or cmp is not NULL and fail is NULL.
  * @return  MEMORY_E when dynamic memory allocation fails. Only possible when
  *          WOLFSSL_SMALL_STACK is defined.
  * @return  BAD_FUNC_ARG when cmp is not NULL and decapsulation is not compiled
