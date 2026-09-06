@@ -7410,6 +7410,9 @@ int test_client_nofail(void* args, cbType cb)
     int  sharedCtx = 0;
     int  doUdp = 0;
     const char* cipherName1, *cipherName2;
+    const char* caFile;
+    const char* certFile;
+    const char* keyFile;
 
     wolfSSL_SetLoggingPrefix("client");
 
@@ -7441,6 +7444,23 @@ int test_client_nofail(void* args, cbType cb)
     if (cbf != NULL)
         doUdp = cbf->doUdp;
 
+    /* Extend test_server_nofail()'s existing certFile/keyFile override
+     * pattern (a caller-supplied callback_functions can already replace
+     * the server's default cert/key) to this, the client side, and to
+     * the CA file as well -- previously this always loaded the hardcoded
+     * classical defaults below regardless of what was passed in. */
+    caFile   = caCertFile;
+    certFile = cliCertFile;
+    keyFile  = cliKeyFile;
+    if (cbf != NULL) {
+        if (cbf->caPemFile != NULL)
+            caFile = cbf->caPemFile;
+        if (cbf->certPemFile != NULL)
+            certFile = cbf->certPemFile;
+        if (cbf->keyPemFile != NULL)
+            keyFile = cbf->keyPemFile;
+    }
+
 #ifdef WOLFSSL_ENCRYPTED_KEYS
     wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
@@ -7452,16 +7472,17 @@ int test_client_nofail(void* args, cbType cb)
     if (doUdp)
         udp_connect(&sockfd, wolfSSLIP, ((func_args*)args)->signal->port);
 
-    if (wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0) != WOLFSSL_SUCCESS)
+    if (wolfSSL_CTX_load_verify_locations(ctx, caFile, 0) !=
+                                                              WOLFSSL_SUCCESS)
     {
         /* err_sys("can't load ca file, Please run from wolfSSL home dir");*/
         goto done;
     }
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
-    if (!sharedCtx && wolfSSL_CTX_use_certificate_file(ctx, cliCertFile,
+    if (!sharedCtx && wolfSSL_CTX_use_certificate_file(ctx, certFile,
                                      CERT_FILETYPE) != WOLFSSL_SUCCESS) {
 #else
-    if (wolfSSL_CTX_use_certificate_file(ctx, cliCertFile,
+    if (wolfSSL_CTX_use_certificate_file(ctx, certFile,
                                      CERT_FILETYPE) != WOLFSSL_SUCCESS) {
 #endif
         /*err_sys("can't load client cert file, "
@@ -7469,10 +7490,10 @@ int test_client_nofail(void* args, cbType cb)
         goto done;
     }
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
-    if (!sharedCtx && wolfSSL_CTX_use_PrivateKey_file(ctx, cliKeyFile,
+    if (!sharedCtx && wolfSSL_CTX_use_PrivateKey_file(ctx, keyFile,
                                      CERT_FILETYPE) != WOLFSSL_SUCCESS) {
 #else
-    if (wolfSSL_CTX_use_PrivateKey_file(ctx, cliKeyFile,
+    if (wolfSSL_CTX_use_PrivateKey_file(ctx, keyFile,
                                      CERT_FILETYPE) != WOLFSSL_SUCCESS) {
 #endif
 
