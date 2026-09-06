@@ -2282,6 +2282,9 @@ int mlkem_encapsulate(const sword16* pub, sword16* u, sword16* v,
  * @param  [in, out]  coins  Random seed to generate noise from.
  * @param  [in]       cacheA Cached matrix A to transpose in place of
  *                           generating it. May be NULL.
+ * @param  [out]      fillA  Matrix to keep the generated polynomials of A in,
+ *                           laid out as key generation leaves them. May be
+ *                           NULL. Ignored when cacheA is not NULL.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when c is NULL, or cmp is not NULL and fail is NULL.
  * @return  MEMORY_E when dynamic memory allocation fails. Only possible when
@@ -2292,7 +2295,8 @@ int mlkem_encapsulate(const sword16* pub, sword16* u, sword16* v,
  */
 int mlkem_encapsulate_seeds(const sword16* pub, MLKEM_PRF_T* prf, byte* c,
     const byte* cmp, int* fail, sword16* u, sword16* tp, sword16* y, int k,
-    const byte* msg, byte* seed, byte* coins, const sword16* cacheA)
+    const byte* msg, byte* seed, byte* coins, const sword16* cacheA,
+    sword16* fillA)
 {
     int ret = 0;
     int i;
@@ -2360,9 +2364,19 @@ int mlkem_encapsulate_seeds(const sword16* pub, MLKEM_PRF_T* prf, byte* c,
             }
         }
         else {
+            sword16* arow = a;
+            unsigned int aStride = 0;
+
+            if (fillA != NULL) {
+                /* Row i of the transpose is A[j,i] for each j, which is where
+                 * key generation would have put it. */
+                arow = fillA + (unsigned int)i * MLKEM_N;
+                aStride = (unsigned int)k * MLKEM_N;
+            }
             /* Generate a vector of matrix A, a polynomial at a time,
              * multiplying each into the u polynomial. */
-            ret = mlkem_gen_matrix_i_acc(prf, u, a, 0, y, k, seed, i, 1);
+            ret = mlkem_gen_matrix_i_acc(prf, u, arow, aStride, y, k, seed, i,
+                1);
             if (ret != 0) {
                break;
             }
