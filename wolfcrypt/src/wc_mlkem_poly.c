@@ -4349,12 +4349,14 @@ static int mlkem_gen_matrix_c(MLKEM_PRF_T* prf, sword16* a, int k, byte* seed,
                     GEN_MATRIX_SIZE);
                 /* Create more blocks if too many rejected.
                  * Alg 7, Step 4. */
-                while (ctr < MLKEM_N) {
+                while ((ret == 0) && (ctr < MLKEM_N)) {
                     /* Alg 7, Step 5. */
-                    mlkem_xof_squeezeblocks(prf, rand, 1);
-                    /* Alg 7, Step 4-16. */
-                    ctr += mlkem_rej_uniform_c(a + j * MLKEM_N + ctr,
-                        MLKEM_N - ctr, rand, XOF_BLOCK_SIZE);
+                    ret = mlkem_xof_squeezeblocks(prf, rand, 1);
+                    if (ret == 0) {
+                        /* Alg 7, Step 4-16. */
+                        ctr += mlkem_rej_uniform_c(a + j * MLKEM_N + ctr,
+                            MLKEM_N - ctr, rand, XOF_BLOCK_SIZE);
+                    }
                 }
             }
         }
@@ -4630,22 +4632,26 @@ static int mlkem_gen_matrix_i_acc(MLKEM_PRF_T* prf, sword16* r, sword16* a,
             ctr = mlkem_rej_uniform_c(aj, MLKEM_N, rand, GEN_MATRIX_SIZE);
             /* Create more blocks if too many rejected.
              * Alg 7, Step 4. */
-            while (ctr < MLKEM_N) {
+            while ((ret == 0) && (ctr < MLKEM_N)) {
                 /* Alg 7, Step 5. */
-                mlkem_xof_squeezeblocks(prf, rand, 1);
-                /* Alg 7, Step 4-16. */
-                ctr += mlkem_rej_uniform_c(aj + ctr, MLKEM_N - ctr, rand,
-                    XOF_BLOCK_SIZE);
+                ret = mlkem_xof_squeezeblocks(prf, rand, 1);
+                if (ret == 0) {
+                    /* Alg 7, Step 4-16. */
+                    ctr += mlkem_rej_uniform_c(aj + ctr, MLKEM_N - ctr, rand,
+                        XOF_BLOCK_SIZE);
+                }
             }
 
-            /* Multiply the polynomial of the matrix into the result.
-             * Alg 13, Step 18: ... A_hat o s_hat ...
-             * Alg 14, Step 18: ... A_hat_trans o y_hat ... */
-            if (j == 0) {
-                mlkem_basemul_mont(r, aj, v);
-            }
-            else {
-                mlkem_basemul_mont_add(r, aj, v + j * MLKEM_N);
+            if (ret == 0) {
+                /* Multiply the polynomial of the matrix into the result.
+                 * Alg 13, Step 18: ... A_hat o s_hat ...
+                 * Alg 14, Step 18: ... A_hat_trans o y_hat ... */
+                if (j == 0) {
+                    mlkem_basemul_mont(r, aj, v);
+                }
+                else {
+                    mlkem_basemul_mont_add(r, aj, v + j * MLKEM_N);
+                }
             }
         }
     }
