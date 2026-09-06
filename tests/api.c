@@ -7685,6 +7685,44 @@ void test_wolfSSL_client_server_nofail(callback_functions* client_cb,
     test_wolfSSL_client_server_nofail_ex(client_cb, server_cb, NULL);
 }
 
+#if defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(HAVE_ECC)
+/* Regression test: test_client_nofail() (the client half of the driver
+ * above) used to ignore callback_functions.caPemFile/certPemFile/keyPemFile
+ * entirely and always load the hardcoded classical caCertFile/cliCertFile/
+ * cliKeyFile (see #defines tests.h, e.g., l:684), 
+ * even though its counterpart test_server_nofail() already
+ * honors the equivalent server-side fields. Therefore, a caller could set
+ * client_cb.caPemFile and it would be silently ignored since the client kept
+ * trusting the default CA instead. The test bellow demonstrates the issue with
+ * an ECC server cert/key (certs/server-ecc.pem, signed by certs/ca-ecc-cert.pem already
+ * available in wolfssl) that the default classical CA (certs/ca-cert.pem) cannot verify: 
+ * before the fix, the handshake fails even though the correct CA was supplied. */
+static int test_client_nofail_custom_ca(void)
+{
+    EXPECT_DECLS;
+    callback_functions func_cb_client;
+    callback_functions func_cb_server;
+
+    XMEMSET(&func_cb_client, 0, sizeof(func_cb_client));
+    XMEMSET(&func_cb_server, 0, sizeof(func_cb_server));
+
+    func_cb_server.certPemFile = "./certs/server-ecc.pem";
+    func_cb_server.keyPemFile  = "./certs/ecc-key.pem";
+    func_cb_client.caPemFile   = "./certs/ca-ecc-cert.pem";
+
+    test_wolfSSL_client_server_nofail(&func_cb_client, &func_cb_server);
+
+    ExpectIntEQ(func_cb_client.return_code, TEST_SUCCESS);
+    ExpectIntEQ(func_cb_server.return_code, TEST_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+#else
+static int test_client_nofail_custom_ca(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
 
 #if defined(OPENSSL_EXTRA) && !defined(NO_SESSION_CACHE) && \
    !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT)
@@ -41187,6 +41225,7 @@ TEST_CASE testCases[] = {
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
     TEST_DECL(test_wolfSSL_ERR_peek_last_error_line),
 #endif
+    TEST_DECL(test_client_nofail_custom_ca),
 #ifndef NO_BIO
     TEST_DECL(test_wolfSSL_ERR_print_errors_cb),
     TEST_DECL(test_wolfSSL_GetLoggingCb),
