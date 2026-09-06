@@ -143,7 +143,7 @@
     #error "Cannot use dynamic key buffers without malloc"
 #endif
 
-#ifdef WOLFSSL_WC_ML_KEM_1024
+#if defined(WOLFSSL_KYBER1024) || defined(WOLFSSL_WC_ML_KEM_1024)
     #define MLKEM_MAX_COMP_POLY_SZ  MLKEM_POLY_COMPRESSED_SZ(11)
 #else
     #define MLKEM_MAX_COMP_POLY_SZ  MLKEM_POLY_COMPRESSED_SZ(10)
