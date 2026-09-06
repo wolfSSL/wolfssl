@@ -4054,6 +4054,25 @@ int test_wc_mlkem_decap_fo_reject(void)
     ExpectIntEQ(wc_MlKemKey_Decapsulate(key, ssTampered, ctTampered, ctLen), 0);
     PRIVATE_KEY_LOCK();
 
+    /* The small memory decapsulation compares the re-encapsulated cipher text
+     * one block at a time, so tamper in a later block of u and in the trailing
+     * c_2 as well: byte 32 above only reaches the first block. */
+    XMEMCPY(ctTampered, ct, ctLen);
+    ctTampered[ctLen - 200] ^= 0x01;
+    XMEMSET(ssTampered, 0, sizeof(ssTampered));
+    PRIVATE_KEY_UNLOCK();
+    ExpectIntEQ(wc_MlKemKey_Decapsulate(key, ssTampered, ctTampered, ctLen), 0);
+    PRIVATE_KEY_LOCK();
+    ExpectIntNE(XMEMCMP(ssTampered, ss, WC_ML_KEM_SS_SZ), 0);
+
+    XMEMCPY(ctTampered, ct, ctLen);
+    ctTampered[ctLen - 1] ^= 0x01;
+    XMEMSET(ssTampered, 0, sizeof(ssTampered));
+    PRIVATE_KEY_UNLOCK();
+    ExpectIntEQ(wc_MlKemKey_Decapsulate(key, ssTampered, ctTampered, ctLen), 0);
+    PRIVATE_KEY_LOCK();
+    ExpectIntNE(XMEMCMP(ssTampered, ss, WC_ML_KEM_SS_SZ), 0);
+
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_MlKemKey_Free(key);
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
