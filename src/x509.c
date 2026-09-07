@@ -15748,8 +15748,8 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
         valSz = wolfssl_x509_name_esc_value(str->data, str->length, flags,
                                             NULL);
 
-        /* attribute, '=', value, ", " and null terminator */
-        tmpSz = attrSz + eqSz + valSz + 3;
+        /* attribute, '=', value and ", " */
+        tmpSz = attrSz + eqSz + valSz + 2;
         tmp = (char*)XMALLOC((size_t)tmpSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (tmp == NULL)
             return WOLFSSL_FAILURE;
@@ -15764,13 +15764,6 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
         if (i < count - 1) {
             XMEMCPY(tmp + idx, ", ", 2);
             idx += 2;
-        }
-        else if (bio->type != WOLFSSL_BIO_FILE &&
-                 bio->type != WOLFSSL_BIO_MEMORY) {
-            /* include the terminating null when not writing to a file or
-             * memory BIO */
-            tmp[idx] = '\0';
-            idx++;
         }
 
         if (wolfSSL_BIO_write(bio, tmp, idx) != idx) {
