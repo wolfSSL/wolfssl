@@ -61,11 +61,19 @@ config WOLFSSL_SETTINGS_FILE
 	  special TLS usage, use available Kconfig settings, or select an
 	  alternative config.
 
+config WOLFSSL_HAS_SETTINGS_FILE
+	bool
+	default y if WOLFSSL_SETTINGS_FILE != ""
+	help
+	  Set when the application supplies its own wolfSSL settings file.
+	  That file is authoritative, so every option that works by writing a
+	  define into the module's user_settings.h depends on this being clear.
+
 rsource "Kconfig.tls-generic"
 
 config WOLFCRYPT_FIPS
 	bool "wolfCrypt FIPS support"
-	depends on WOLFSSL_BUILTIN
+	depends on WOLFSSL_BUILTIN && !WOLFSSL_HAS_SETTINGS_FILE
 	help
 	  Enable the wolfCrypt FIPS 140-3 module boundary. Requires the wolfSSL
 	  FIPS bundle (fips.c, fips_test.c, wolfcrypt_first.c, wolfcrypt_last.c)
@@ -113,6 +121,7 @@ endchoice
 
 config WOLFSSL_CRYPTO_ONLY
 	bool "Build wolfCrypt only (no TLS layer)"
+	depends on !WOLFSSL_HAS_SETTINGS_FILE
 	depends on WOLFSSL_BUILTIN
 	help
 	  Define WOLFCRYPT_ONLY: compile only the wolfCrypt crypto library and
@@ -120,6 +129,7 @@ config WOLFSSL_CRYPTO_ONLY
 
 config WOLFSSL_SINGLE_THREADED
 	bool "wolfCrypt single-threaded"
+	depends on !WOLFSSL_HAS_SETTINGS_FILE
 	depends on WOLFSSL_BUILTIN
 	default y if !MULTITHREADING
 	help
@@ -130,52 +140,62 @@ config WOLFSSL_SINGLE_THREADED
 
 config WOLFSSL_DTLS
   bool "wolfSSL DTLS support"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
   help
     Enable DTLS support
 
 config WOLFSSL_ALPN
   bool "wolfSSL ALPN support"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
   help
     Enable ALPN support
 
 config WOLFSSL_PSK
   bool "wolfSSL PSK support"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
   help
     Enable PSK support
 
 config WOLFSSL_MLKEM
   bool "wolfSSL PQC ML-KEM support"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
   help
     Enable PQC ML-KEM support for Key Exchange
 
 config WOLFSSL_MLDSA
   bool "wolfSSL PQC ML-DSA support"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
   help
     Enable PQC ML-DSA (Dilithium) signatures.
 
 config WOLFSSL_LMS
   bool "wolfSSL LMS/HSS hash-based signatures"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
   help
     Enable LMS/HSS stateful hash-based signature verification (verify-only).
 
 config WOLFSSL_XMSS
   bool "wolfSSL XMSS/XMSS^MT hash-based signatures"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
   help
     Enable XMSS/XMSS^MT stateful hash-based signature verification (verify-only).
 
 config WOLFSSL_FALCON
   bool "wolfSSL PQC Falcon signatures"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
   help
     Enable PQC Falcon (FN-DSA) signatures.
 
 config WOLFSSL_RSA
   bool "wolfCrypt RSA support"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
   default y
   help
     Enable RSA (define RSA support; NO_RSA when off).
 
 config WOLFSSL_ECC
   bool "wolfCrypt ECC support"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
   default y
   help
     Enable ECC (HAVE_ECC). At least one curve must be selected below - a
@@ -238,36 +258,42 @@ endif # WOLFSSL_ECC
 
 config WOLFSSL_CHACHA_POLY
   bool "wolfCrypt ChaCha20-Poly1305 support"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
   default y
   help
     Enable ChaCha20 and Poly1305 (HAVE_CHACHA, HAVE_POLY1305).
 
 config WOLFSSL_CURVE25519
   bool "wolfCrypt Curve25519 / Ed25519 support"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
   default n
   help
     Enable Curve25519 and Ed25519 (HAVE_CURVE25519, HAVE_ED25519).
 
 config WOLFSSL_SNI
   bool "wolfSSL Server Name Indication (SNI)"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
   default y
   help
     Enable TLS Server Name Indication (HAVE_SNI).
 
 config WOLFSSL_SESSION_CACHE
   bool "wolfSSL TLS session cache"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
   default y
   help
     Enable the TLS session cache (SMALL_SESSION_CACHE; NO_SESSION_CACHE off).
 
 config WOLFSSL_SESSION_TICKET
   bool "wolfSSL TLS session tickets"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
   default y
   help
     Enable TLS session tickets (HAVE_SESSION_TICKET, TLS 1.3 resumption).
 
 config WOLFSSL_MAX_FRAGMENT_LEN
   int
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
   default 3
   range 1 6
   help
@@ -276,21 +302,25 @@ config WOLFSSL_MAX_FRAGMENT_LEN
 
 config WOLFSSL_SESSION_EXPORT
   bool "wolfSSL session export support"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
   help
     Enable external session cache (HAVE_EXT_CACHE)
 
 config WOLFSSL_KEEP_PEER_CERT
   bool "wolfSSL keep peer certificate support"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
   help
     Retain peer certificate after handshake (KEEP_PEER_CERT)
 
 config WOLFSSL_ALWAYS_VERIFY_CB
   bool "wolfSSL always invoke verify callback"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
   help
     Invoke verify callback on success as well as failure (WOLFSSL_ALWAYS_VERIFY_CB)
 
 config WOLFSSL_OPENSSL_EXTRA_X509_SMALL
   bool "wolfSSL minimal X509 compat APIs"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
   help
     Define OPENSSL_EXTRA_X509_SMALL. Exposes a small subset of X509
     helpers (wolfSSL_X509_free, wolfSSL_get_verify_result, ...) without
