@@ -881,6 +881,11 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
         }
     #endif
 
+        if (sz & (DES_BLOCK_SIZE - 1)) {
+            WOLFSSL_MSG("Buffer length was not a multiple of DES block size");
+            return BAD_LENGTH_E;
+        }
+
         while (len > 0)
         {
             XMEMCPY(temp_block, in + offset, DES_BLOCK_SIZE);
@@ -925,6 +930,11 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
             return BAD_ALIGN_E;
         }
     #endif
+
+        if (sz & (DES_BLOCK_SIZE - 1)) {
+            WOLFSSL_MSG("Buffer length was not a multiple of DES block size");
+            return BAD_LENGTH_E;
+        }
 
         while (len > 0)
         {
@@ -972,6 +982,11 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
             return BAD_ALIGN_E;
         }
     #endif
+
+        if (sz & (DES_BLOCK_SIZE - 1)) {
+            WOLFSSL_MSG("Buffer length was not a multiple of DES block size");
+            return BAD_LENGTH_E;
+        }
 
         while (len > 0)
         {
@@ -1023,6 +1038,11 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
         }
     #endif
 
+        if (sz & (DES_BLOCK_SIZE - 1)) {
+            WOLFSSL_MSG("Buffer length was not a multiple of DES block size");
+            return BAD_LENGTH_E;
+        }
+
         while (len > 0)
         {
             XMEMCPY(temp_block, in + offset, DES_BLOCK_SIZE);
@@ -1073,6 +1093,11 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
         }
     #endif
 
+        if (sz & (DES_BLOCK_SIZE - 1)) {
+            WOLFSSL_MSG("Buffer length was not a multiple of DES block size");
+            return BAD_LENGTH_E;
+        }
+
         while (len > 0)
         {
             XMEMCPY(temp_block, in + offset, DES_BLOCK_SIZE);
@@ -1109,6 +1134,11 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
             return BAD_ALIGN_E;
         }
     #endif
+
+        if (sz & (DES_BLOCK_SIZE - 1)) {
+            WOLFSSL_MSG("Buffer length was not a multiple of DES block size");
+            return BAD_LENGTH_E;
+        }
 
         while (len > 0)
         {
@@ -1147,6 +1177,11 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
 
         if (!des->keySet) {
             return MISSING_KEY;
+        }
+
+        if (sz & (DES_BLOCK_SIZE - 1)) {
+            WOLFSSL_MSG("Buffer length was not a multiple of DES block size");
+            return BAD_LENGTH_E;
         }
 
     #ifdef FREESCALE_MMCAU_CLASSIC
@@ -1197,6 +1232,11 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
 
         if (!des->keySet) {
             return MISSING_KEY;
+        }
+
+        if (sz & (DES_BLOCK_SIZE - 1)) {
+            WOLFSSL_MSG("Buffer length was not a multiple of DES block size");
+            return BAD_LENGTH_E;
         }
 
     #ifdef FREESCALE_MMCAU_CLASSIC
