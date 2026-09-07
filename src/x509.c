@@ -15601,61 +15601,72 @@ static int get_dn_attr_by_nid(int n, const char** buf)
     return len;
 }
 
-/**
- * Escape input string for RFC2253 requirements. The following characters
- * are escaped with a backslash (\):
+/* Escape a name entry value. Mirrors OpenSSL's do_esc_char() for single
+ * byte characters. Only ASN1_STRFLGS_ESC_2253, ASN1_STRFLGS_ESC_CTRL and
+ * ASN1_STRFLGS_ESC_MSB are implemented.
  *
- *     1. A space or '#' at the beginning of the string
- *     2. A space at the end of the string
- *     3. One of: ",", "+", """, "\", "<", ">", ";"
+ * in    - value to escape, may contain NUL bytes
+ * inSz  - length of in
+ * flags - ASN1_STRFLGS_* flags
+ * out   - buffer for escaped value, NULL to only get the length
  *
- * in    - input string to escape
- * inSz  - length of in, not including the null terminator
- * out   - buffer for output string to be written, will be null terminated
- * outSz - size of out
- *
- * Returns size of output string (not counting NULL terminator) on success,
- * negative on error.
+ * Returns number of bytes written, or needed when out is NULL.
  */
-static int wolfSSL_EscapeString_RFC2253(char* in, word32 inSz,
-                                        char* out, word32 outSz)
+static int wolfssl_x509_name_esc_value(const char* in, int inSz,
+                                       unsigned long flags, char* out)
 {
-    word32 inIdx = 0;
-    word32 outIdx = 0;
+    static const char hexDigit[] = "0123456789ABCDEF";
+    const unsigned long escFlags = WOLFSSL_ASN1_STRFLGS_ESC_2253 |
+        WOLFSSL_ASN1_STRFLGS_ESC_CTRL | WOLFSSL_ASN1_STRFLGS_ESC_MSB |
+        WOLFSSL_ASN1_STRFLGS_ESC_QUOTE;
+    int i;
+    int outIdx = 0;
 
-    if (in == NULL || out == NULL || inSz == 0 || outSz == 0) {
-        return BAD_FUNC_ARG;
-    }
+    for (i = 0; i < inSz; i++) {
+        unsigned char c = (unsigned char)in[i];
+        int hex = 0;
+        int bs = 0;
 
-    for (inIdx = 0; inIdx < inSz; inIdx++) {
+        if (c >= 0x80) {
+            hex = (flags & WOLFSSL_ASN1_STRFLGS_ESC_MSB) != 0;
+        }
+        else if ((flags & WOLFSSL_ASN1_STRFLGS_ESC_2253) &&
+                 (c == ',' || c == '+' || c == '"' || c == '\\' ||
+                  c == '<' || c == '>' || c == ';' ||
+                  (i == 0 && (c == ' ' || c == '#')) ||
+                  (i == inSz - 1 && c == ' '))) {
+            bs = 1;
+        }
+        else if ((flags & WOLFSSL_ASN1_STRFLGS_ESC_CTRL) &&
+                 (c < 0x20 || c == 0x7F)) {
+            hex = 1;
+        }
+        else if (c == '\\' && (flags & escFlags)) {
+            /* Any escaping means the escape character itself is escaped. */
+            bs = 1;
+        }
 
-        char c = in[inIdx];
-
-        if (((inIdx == 0) && (c == ' ' || c == '#')) ||
-            ((inIdx == (inSz-1)) && (c == ' ')) ||
-            c == ',' || c == '+' || c == '"' || c == '\\' ||
-            c == '<' || c == '>' || c == ';') {
-
-            if (outIdx > (outSz - 1)) {
-                return BUFFER_E;
+        if (hex) {
+            if (out != NULL) {
+                out[outIdx]     = '\\';
+                out[outIdx + 1] = hexDigit[c >> 4];
+                out[outIdx + 2] = hexDigit[c & 0x0F];
             }
-            out[outIdx] = '\\';
+            outIdx += 3;
+        }
+        else {
+            if (bs) {
+                if (out != NULL)
+                    out[outIdx] = '\\';
+                outIdx++;
+            }
+            if (out != NULL)
+                out[outIdx] = (char)c;
             outIdx++;
         }
-        if (outIdx > (outSz - 1)) {
-            return BUFFER_E;
-        }
-        out[outIdx] = c;
-        outIdx++;
     }
 
-    /* null terminate out */
-    if (outIdx > (outSz -1)) {
-        return BUFFER_E;
-    }
-    out[outIdx] = '\0';
-
-    return (int)outIdx;
+    return outIdx;
 }
 
 /*
@@ -15666,39 +15677,34 @@ static int wolfSSL_EscapeString_RFC2253(char* in, word32 inSz,
  * indent - number of indent spaces to prepend to name string
  * flags  - flags to control function behavior. Not all flags are currently
  *          supported/implemented. Currently supported are:
- *              XN_FLAG_RFC2253 - only the backslash escape requirements from
- *                                RFC22523 currently implemented.
- *              XN_FLAG_DN_REV  - print name reversed. Automatically done by
- *                                XN_FLAG_RFC2253.
+ *              XN_FLAG_DN_REV  - print name reversed.
  *              XN_FLAG_SPC_EQ  - spaces before and after '=' character
+ *              ASN1_STRFLGS_ESC_2253 - backslash escape the RFC 2253
+ *                                      special characters in values
+ *              ASN1_STRFLGS_ESC_CTRL - escape control characters as \XX
+ *              ASN1_STRFLGS_ESC_MSB  - escape bytes above 0x7F as \XX
+ *          XN_FLAG_RFC2253 combines these as in OpenSSL. Entries are always
+ *          separated by ", " and use their short name.
  *
  * Returns WOLFSSL_SUCCESS (1) on success, WOLFSSL_FAILURE (0) on failure.
  */
 int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
                 int indent, unsigned long flags)
 {
-    int i, count = 0, nameStrSz = 0, escapeSz = 0;
-    int eqSpace  = 0;
-    char eqStr[4];
-    char* tmp = NULL;
-    char* nameStr = NULL;
-    const char *buf = NULL;
+    int i, count = 0;
+    int eqSz = 1;
+    const char* eqStr = "=";
     WOLFSSL_X509_NAME_ENTRY* ne;
     WOLFSSL_ASN1_STRING* str;
-    char escaped[ASN_NAME_MAX];
 
     WOLFSSL_ENTER("wolfSSL_X509_NAME_print_ex");
 
     if ((name == NULL) || (bio == NULL))
         return WOLFSSL_FAILURE;
 
-    XMEMSET(eqStr, 0, sizeof(eqStr));
     if (flags & WOLFSSL_XN_FLAG_SPC_EQ) {
-        eqSpace = 2;
-        XSTRNCPY(eqStr, " = ", 4);
-    }
-    else {
-        XSTRNCPY(eqStr, "=", 4);
+        eqStr = " = ";
+        eqSz = 3;
     }
 
     for (i = 0; i < indent; i++) {
@@ -15709,12 +15715,14 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
     count = wolfSSL_X509_NAME_entry_count(name);
 
     for (i = 0; i < count; i++) {
-        int len;
+        const char* attr = NULL;
+        int attrSz;
+        int valSz;
         int tmpSz;
+        int idx;
+        char* tmp;
 
-        /* reverse name order for RFC2253 and DN_REV */
-        if ((flags & WOLFSSL_XN_FLAG_RFC2253) ||
-            (flags & WOLFSSL_XN_FLAG_DN_REV)) {
+        if (flags & WOLFSSL_XN_FLAG_DN_REV) {
             ne = wolfSSL_X509_NAME_get_entry(name, count - i - 1);
         }
         else {
@@ -15727,62 +15735,43 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
         if (str == NULL)
             return WOLFSSL_FAILURE;
 
-        if (flags & WOLFSSL_XN_FLAG_RFC2253) {
-            /* escape string for RFC 2253, ret sz not counting null term */
-            escapeSz = wolfSSL_EscapeString_RFC2253(str->data,
-                            str->length, escaped, sizeof(escaped));
-            if (escapeSz < 0)
-                return WOLFSSL_FAILURE;
-
-            nameStr = escaped;
-            nameStrSz = escapeSz;
-        }
-        else {
-            nameStr = str->data;
-            nameStrSz = str->length;
-        }
-
-        /* len is without null terminator */
-        len = get_dn_attr_by_nid(ne->nid, &buf);
-        if (len == 0 || buf == NULL)
+        /* attrSz is without null terminator */
+        attrSz = get_dn_attr_by_nid(ne->nid, &attr);
+        if (attrSz == 0 || attr == NULL)
             return WOLFSSL_FAILURE;
 
-        /* + 4 for '=', comma space and '\0'*/
-        tmpSz = nameStrSz + len + 4 + eqSpace;
-        tmp = (char*)XMALLOC(tmpSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (tmp == NULL) {
+        /* escaping can triple the value length */
+        if (str->length < 0 || str->length > INT_MAX / 4)
             return WOLFSSL_FAILURE;
-        }
 
+        valSz = wolfssl_x509_name_esc_value(str->data, str->length, flags,
+                                            NULL);
+
+        /* attribute, '=', value, ", " and null terminator */
+        tmpSz = attrSz + eqSz + valSz + 3;
+        tmp = (char*)XMALLOC((size_t)tmpSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (tmp == NULL)
+            return WOLFSSL_FAILURE;
+
+        XMEMCPY(tmp, attr, (size_t)attrSz);
+        idx = attrSz;
+        XMEMCPY(tmp + idx, eqStr, (size_t)eqSz);
+        idx += eqSz;
+        (void)wolfssl_x509_name_esc_value(str->data, str->length, flags,
+                                          tmp + idx);
+        idx += valSz;
         if (i < count - 1) {
-            if (XSNPRINTF(tmp, (size_t)tmpSz, "%s%s%s, ", buf, eqStr, nameStr)
-                >= tmpSz)
-            {
-                WOLFSSL_MSG("buffer overrun");
-                XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                return WOLFSSL_FAILURE;
-            }
-
-            tmpSz = len + nameStrSz + 3 + eqSpace; /* 3 for '=', comma space */
+            XMEMCPY(tmp + idx, ", ", 2);
+            idx += 2;
         }
-        else {
-            if (XSNPRINTF(tmp, (size_t)tmpSz, "%s%s%s", buf, eqStr, nameStr)
-                >= tmpSz)
-            {
-                WOLFSSL_MSG("buffer overrun");
-                XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                return WOLFSSL_FAILURE;
-            }
-            tmpSz = len + nameStrSz + 1 + eqSpace; /* 1 for '=' */
-            if (bio->type != WOLFSSL_BIO_FILE &&
-                                              bio->type != WOLFSSL_BIO_MEMORY) {
-                ++tmpSz; /* include the terminating null when not writing to a
-                          * file.
-                          */
-            }
+        else if (bio->type != WOLFSSL_BIO_FILE &&
+                 bio->type != WOLFSSL_BIO_MEMORY) {
+            /* include the terminating null when not writing to a file */
+            tmp[idx] = '\0';
+            idx++;
         }
 
-        if (wolfSSL_BIO_write(bio, tmp, tmpSz) != tmpSz) {
+        if (wolfSSL_BIO_write(bio, tmp, idx) != idx) {
             XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             return WOLFSSL_FAILURE;
         }
