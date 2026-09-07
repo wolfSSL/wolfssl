@@ -337,9 +337,9 @@ impl aead::AeadCore for ChaCha20Poly1305Aead {
 #[cfg(feature = "aead")]
 impl aead::KeyInit for ChaCha20Poly1305Aead {
     fn new(key: &aead::Key<Self>) -> Self {
-        let mut k = [0u8; 32];
-        k.copy_from_slice(key.as_ref());
-        ChaCha20Poly1305Aead { key: k }
+        let mut out = ChaCha20Poly1305Aead { key: [0u8; 32] };
+        out.key.copy_from_slice(key.as_ref());
+        out
     }
 }
 
@@ -526,9 +526,9 @@ impl aead::AeadCore for XChaCha20Poly1305Aead {
 #[cfg(all(xchacha20_poly1305, feature = "aead"))]
 impl aead::KeyInit for XChaCha20Poly1305Aead {
     fn new(key: &aead::Key<Self>) -> Self {
-        let mut k = [0u8; 32];
-        k.copy_from_slice(key.as_ref());
-        XChaCha20Poly1305Aead { key: k }
+        let mut out = XChaCha20Poly1305Aead { key: [0u8; 32] };
+        out.key.copy_from_slice(key.as_ref());
+        out
     }
 }
 
