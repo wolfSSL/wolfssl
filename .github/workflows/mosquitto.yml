@@ -78,6 +78,9 @@ jobs:
       - name: Install dependencies
         uses: ./.github/actions/install-apt-deps
         with:
+          # Fit the loop inside this job's timeout-minutes.
+          budget-seconds: '120'
+          pull-timeout: '60'
           packages: build-essential libev-dev libssl-dev automake python3-docutils libcunit1 libcunit1-doc libcunit1-dev pkg-config make python3-psutil
           ghcr-debs-tag: ubuntu-24.04-full
 

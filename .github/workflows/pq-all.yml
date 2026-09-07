@@ -51,6 +51,13 @@ jobs:
         with:
           packages: autoconf automake libtool build-essential bubblewrap crossbuild-essential-arm64 crossbuild-essential-armhf
           ghcr-debs-tag: ubuntu-24.04-minimal
+          # crossbuild-essential-* are not in the -minimal bundle (only the
+          # 22.04 lists carry them), and the offline install is all-or-nothing,
+          # so this caller always takes the apt path - see the timeout-minutes
+          # note above. The default budget would cap each install attempt at
+          # 250s and hard-fail a download that merely runs slow; 1200 gives it
+          # 500s an attempt and still reports inside the 45-minute job.
+          budget-seconds: '1200'
 
       # ccache via the cross-platform composite; the script passes the
       # compiler to configure as CC="ccache gcc" (or a per-config "cc").
