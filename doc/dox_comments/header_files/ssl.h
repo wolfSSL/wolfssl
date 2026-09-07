@@ -3218,16 +3218,22 @@ void wolfSSL_CTX_SetCertCbCtx(WOLFSSL_CTX* ctx, void* userCtx);
     wolfSSL_read() or wolfSSL_write() (a certificate received after the
     handshake is resumed by wolfSSL_read() only, and wolfSSL_write() fails with
     CHAIN_VERIFY_WANT_E until then), or any other value to reject with
-    CHAIN_VERIFY_CB_E and a fatal bad_certificate alert. DTLS, raw public keys
-    and OCSP stapling are not supported with the callback: setting it on a
-    context configured for one of them fails, and so does the handshake of a
-    connection using one of them, with CHAIN_VERIFY_UNSUPPORTED_E. Requires
+    CHAIN_VERIFY_CB_E and a fatal bad_certificate alert; 0 is the only
+    accepting value, so returning WOLFSSL_SUCCESS rejects. Because wolfSSL
+    checks nothing itself, wolfSSL_get_verify_result() reports
+    WOLFSSL_X509_V_OK once the callback accepts, recording its verdict rather
+    than a verification wolfSSL performed. DTLS, raw public keys and verifying
+    a stapled OCSP response are not supported with the callback: setting it on
+    a context configured for one of them fails, and so does the handshake of a
+    connection using one of them, with CHAIN_VERIFY_UNSUPPORTED_E. The
+    stapling check covers the client, the side that verifies a stapled
+    response; a server may still staple its own status. Requires
     WOLFSSL_CHAIN_VERIFY_CB (--enable-chain-verify-cb).
 
     \return WOLFSSL_SUCCESS on success.
     \return BAD_FUNC_ARG when ctx is NULL.
     \return CHAIN_VERIFY_UNSUPPORTED_E when the context uses a DTLS method,
-    raw public keys or OCSP stapling.
+    raw public keys or client-side OCSP stapling.
 
     \param ctx pointer to the SSL context, created with wolfSSL_CTX_new().
     \param cb the callback, or NULL to clear it.
@@ -3245,7 +3251,7 @@ void wolfSSL_CTX_SetCertCbCtx(WOLFSSL_CTX* ctx, void* userCtx);
     ...
     WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
     if (wolfSSL_CTX_SetChainVerifyCb(ctx, myChainVerify) != WOLFSSL_SUCCESS) {
-        // context uses DTLS, raw public keys or OCSP stapling
+        // context uses DTLS, raw public keys or client-side stapling
     }
     \endcode
 
@@ -3266,7 +3272,7 @@ int wolfSSL_CTX_SetChainVerifyCb(WOLFSSL_CTX* ctx, ChainVerifyCb cb);
     \return WOLFSSL_SUCCESS on success.
     \return BAD_FUNC_ARG when ssl is NULL.
     \return CHAIN_VERIFY_UNSUPPORTED_E when the object uses DTLS, raw public
-    keys or OCSP stapling.
+    keys or client-side OCSP stapling.
 
     \param ssl pointer to the SSL session, created with wolfSSL_new().
     \param cb the callback, or NULL to fall back to the context's.
@@ -3275,7 +3281,7 @@ int wolfSSL_CTX_SetChainVerifyCb(WOLFSSL_CTX* ctx, ChainVerifyCb cb);
     \code
     WOLFSSL* ssl = wolfSSL_new(ctx);
     if (wolfSSL_SetChainVerifyCb(ssl, myChainVerify) != WOLFSSL_SUCCESS) {
-        // object uses DTLS, raw public keys or OCSP stapling
+        // object uses DTLS, raw public keys or client-side stapling
     }
     \endcode
 

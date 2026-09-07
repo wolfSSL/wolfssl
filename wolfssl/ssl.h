@@ -1758,6 +1758,11 @@ WOLFSSL_API void wolfSSL_CTX_SetCertCbCtx(WOLFSSL_CTX* ctx, void* userCtx);
  * consulted even when verification was turned off with WOLFSSL_VERIFY_NONE,
  * and a rejection fails the handshake either way.
  *
+ * Because wolfSSL checks nothing itself, wolfSSL_get_verify_result() reports
+ * WOLFSSL_X509_V_OK once the callback accepts. That records the callback's
+ * verdict, not a verification wolfSSL performed. A rejection leaves
+ * WOLFSSL_X509_V_ERR_CERT_REJECTED.
+ *
  * wolfSSL still owns the parsing. Every certificate is decoded before the
  * callback runs, and malformed DER fails the handshake without the callback
  * ever seeing it. So does a certificate the parser refuses regardless of the
@@ -1766,21 +1771,32 @@ WOLFSSL_API void wolfSSL_CTX_SetCertCbCtx(WOLFSSL_CTX* ctx, void* userCtx);
  * or agree with - an unknown critical extension, an unsupported key or
  * signature algorithm, a key usage inconsistent with the basic constraints -
  * is not a decoding failure; it is passed through for the callback to judge.
- * The only limit on the chain is the compile-time MAX_CHAIN_DEPTH; the verify
+ * The chain is bounded by the compile-time MAX_CHAIN_DEPTH and by
+ * MAX_CERTIFICATE_SZ, the largest Certificate message accepted; the verify
  * depth does not apply.
  *
- * Two more things still apply. An empty Certificate message is handled by
- * wolfSSL itself (see wolfSSL_CTX_set_verify() and the mutual-auth options)
- * and the callback is not called for it, so certsSz is always at least 1. The
- * minimum peer key sizes set by wolfSSL_CTX_SetMinRsaKey_Sz() and friends are
- * still enforced on the peer's own certificate, even under
- * WOLFSSL_VERIFY_NONE, because the handshake uses that key directly.
+ * Some things still apply. An empty Certificate message is handled by wolfSSL
+ * itself (see wolfSSL_CTX_set_verify() and the mutual-auth options) and the
+ * callback is not called for it, so certsSz is always at least 1. The minimum
+ * peer key sizes set by wolfSSL_CTX_SetMinRsaKey_Sz() and friends are still
+ * enforced on the peer's own certificate, even under WOLFSSL_VERIFY_NONE,
+ * because the handshake uses that key directly, and so is that key being
+ * usable at all: one wolfSSL cannot decode fails with PEER_KEY_ERROR after the
+ * callback accepted. Under secure renegotiation, a peer that renegotiates with
+ * a different certificate still fails with SCR_DIFFERENT_CERT_E.
  *
- * Not supported with the callback: DTLS, raw public keys (RFC 7250) and OCSP
- * stapling. Setting the callback on a context or object already configured
- * for one of them fails with CHAIN_VERIFY_UNSUPPORTED_E, and so does the
- * handshake of a connection that uses one of them, before its Certificate
- * message is parsed.
+ * Not supported with the callback: DTLS, raw public keys (RFC 7250) and
+ * verifying a stapled OCSP response. Setting the callback on a context or
+ * object already configured for one of them fails with
+ * CHAIN_VERIFY_UNSUPPORTED_E, and so does the handshake of a connection that
+ * uses one of them, before its Certificate message is parsed.
+ *
+ * That stapling check covers the side which verifies a stapled response, the
+ * client. A server may still staple its own status, which is not part of
+ * verifying the peer. A server that asks the client to staple instead (a
+ * status_request in its CertificateRequest, under TLS 1.3 post-handshake
+ * authentication) is not refused, but no stapled response is checked for it
+ * either; the callback owns the trust decision.
  *
  * certs   DER certificates in the order the peer sent them, one
  *         WOLFSSL_BUFFER_INFO each: certs[0] is the peer's own certificate,
@@ -1792,7 +1808,8 @@ WOLFSSL_API void wolfSSL_CTX_SetCertCbCtx(WOLFSSL_CTX* ctx, void* userCtx);
  *         wolfSSL_CTX_SetChainVerifyCtx().
  *
  * Return 0 to accept, CHAIN_VERIFY_WANT_E to suspend the handshake, or any
- * other value to reject. Rejection fails the handshake with
+ * other value to reject; 0 is the only accepting value, so returning
+ * WOLFSSL_SUCCESS (1) rejects. Rejection fails the handshake with
  * CHAIN_VERIFY_CB_E and sends one fatal bad_certificate alert; the returned
  * value is not reported to the peer.
  *
