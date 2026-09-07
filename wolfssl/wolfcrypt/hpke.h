@@ -119,6 +119,12 @@ WOLFSSL_API void wc_HpkeFreeKey(Hpke* hpke, word16 kem, void* keypair,
     void* heap);
 WOLFSSL_API int wc_HpkeInitSealContext(Hpke* hpke, HpkeBaseContext* context,
     void* ephemeralKey, void* receiverKey, byte* info, word32 infoSz);
+/* Seal produces ptSz bytes of ciphertext followed in-line by an hpke->Nt byte
+ * AEAD tag, so the caller MUST provide an output buffer ("out"/"ciphertext")
+ * of at least ptSz + hpke->Nt bytes. hpke->Nt is HPKE_Nt_MAX (16) for the
+ * currently supported AES-GCM AEADs. These functions take no output length and
+ * do not bounds check "out"; sizing it to ptSz alone overflows it by hpke->Nt
+ * bytes. */
 WOLFSSL_API int wc_HpkeContextSealBase(Hpke* hpke, HpkeBaseContext* context,
     byte* aad, word32 aadSz, byte* plaintext, word32 ptSz, byte* out);
 WOLFSSL_API int wc_HpkeSealBase(Hpke* hpke, void* ephemeralKey,
