@@ -10822,6 +10822,8 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                     /* Swap keys */
                     ssl->buffers.key     = ssl->buffers.altKey;
                     ssl->buffers.weOwnKey = ssl->buffers.weOwnAltKey;
+                    /* buffers.key is the only owner of the alt key now. */
+                    ssl->buffers.weOwnAltKey = 0;
 
                 #ifdef WOLFSSL_BLIND_PRIVATE_KEY
                     ssl->buffers.keyMask = ssl->buffers.altKeyMask;
