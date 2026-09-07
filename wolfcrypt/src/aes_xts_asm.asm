@@ -3392,6 +3392,7 @@ L_AES_XTS_encrypt_vaes_last_15_aes_enc_block_last:
         lea	rcx, QWORD PTR [rsi+r13]
         vmovdqu	OWORD PTR [rcx], xmm0
 L_AES_XTS_encrypt_vaes_done_enc:
+        vzeroupper
         vmovdqu	xmm6, OWORD PTR [rsp+72]
         vmovdqu	xmm7, OWORD PTR [rsp+88]
         vmovdqu	xmm8, OWORD PTR [rsp+104]
@@ -3872,6 +3873,7 @@ L_AES_XTS_encrypt_update_vaes_last_15_aes_enc_block_last:
         vmovdqu	OWORD PTR [rcx], xmm0
 L_AES_XTS_encrypt_update_vaes_done_enc:
         vmovdqu	OWORD PTR [r8], xmm8
+        vzeroupper
         vmovdqu	xmm6, OWORD PTR [rsp+64]
         vmovdqu	xmm7, OWORD PTR [rsp+80]
         vmovdqu	xmm8, OWORD PTR [rsp+96]
@@ -4461,6 +4463,7 @@ L_AES_XTS_decrypt_vaes_last_31_2_aes_dec_block_last:
         lea	rcx, QWORD PTR [rsi+r13]
         vmovdqu	OWORD PTR [rcx], xmm0
 L_AES_XTS_decrypt_vaes_done_dec:
+        vzeroupper
         vmovdqu	xmm6, OWORD PTR [rsp+72]
         vmovdqu	xmm7, OWORD PTR [rsp+88]
         vmovdqu	xmm8, OWORD PTR [rsp+104]
@@ -5015,6 +5018,7 @@ L_AES_XTS_decrypt_update_vaes_last_31_2_aes_dec_block_last:
         vmovdqu	OWORD PTR [rcx], xmm0
 L_AES_XTS_decrypt_update_vaes_done_dec:
         vmovdqu	OWORD PTR [r8], xmm8
+        vzeroupper
         vmovdqu	xmm6, OWORD PTR [rsp+64]
         vmovdqu	xmm7, OWORD PTR [rsp+80]
         vmovdqu	xmm8, OWORD PTR [rsp+96]
@@ -5607,6 +5611,7 @@ L_AES_XTS_encrypt_avx512_last_15_aes_enc_block_last:
         lea	rcx, QWORD PTR [rsi+r13]
         vmovdqu	OWORD PTR [rcx], xmm0
 L_AES_XTS_encrypt_avx512_done_enc:
+        vzeroupper
         vmovdqu	xmm6, OWORD PTR [rsp+72]
         vmovdqu	xmm7, OWORD PTR [rsp+88]
         vmovdqu	xmm8, OWORD PTR [rsp+104]
@@ -6094,6 +6099,7 @@ L_AES_XTS_encrypt_update_avx512_last_15_aes_enc_block_last:
         vmovdqu	OWORD PTR [rcx], xmm0
 L_AES_XTS_encrypt_update_avx512_done_enc:
         vmovdqu	OWORD PTR [r8], xmm8
+        vzeroupper
         vmovdqu	xmm6, OWORD PTR [rsp+64]
         vmovdqu	xmm7, OWORD PTR [rsp+80]
         vmovdqu	xmm8, OWORD PTR [rsp+96]
@@ -6700,6 +6706,7 @@ L_AES_XTS_decrypt_avx512_last_31_2_aes_dec_block_last:
         lea	rcx, QWORD PTR [rsi+r13]
         vmovdqu	OWORD PTR [rcx], xmm0
 L_AES_XTS_decrypt_avx512_done_dec:
+        vzeroupper
         vmovdqu	xmm6, OWORD PTR [rsp+72]
         vmovdqu	xmm7, OWORD PTR [rsp+88]
         vmovdqu	xmm8, OWORD PTR [rsp+104]
@@ -7271,6 +7278,7 @@ L_AES_XTS_decrypt_update_avx512_last_31_2_aes_dec_block_last:
         vmovdqu	OWORD PTR [rcx], xmm0
 L_AES_XTS_decrypt_update_avx512_done_dec:
         vmovdqu	OWORD PTR [r8], xmm8
+        vzeroupper
         vmovdqu	xmm6, OWORD PTR [rsp+64]
         vmovdqu	xmm7, OWORD PTR [rsp+80]
         vmovdqu	xmm8, OWORD PTR [rsp+96]
