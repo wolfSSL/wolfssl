@@ -9902,7 +9902,8 @@ int test_wolfSSL_dtls_cid_arg_guards(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_DTLS_CID) && defined(WOLFSSL_DTLS) && !defined(NO_RSA) && \
-    !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_CLIENT)
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* plain = NULL;      /* CID never enabled */
     WOLFSSL* enabled = NULL;    /* CID enabled, never negotiated */

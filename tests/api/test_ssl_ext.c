@@ -1524,7 +1524,7 @@ int test_wolfSSL_ech_config_api(void)
 int test_wolfSSL_api_null_burndown(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_CERTS)
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_CERTS) && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
 #ifdef HAVE_ALPN
@@ -1650,7 +1650,7 @@ int test_wolfSSL_api_null_burndown(void)
 int test_wolfSSL_session_null_burndown(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_SESSION_CACHE) && !defined(NO_WOLFSSL_CLIENT)
+#if !defined(NO_SESSION_CACHE) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     WOLFSSL_SESSION* sess = NULL;
@@ -1706,7 +1706,7 @@ int test_wolfSSL_session_null_burndown(void)
 int test_wolfSSL_api_null_operands(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_CERTS)
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_CERTS) && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte  buf[64];
@@ -1801,7 +1801,7 @@ int test_wolfSSL_api_null_operands(void)
     /* --- SNI from a raw ClientHello buffer ------------------------------ */
     /* Server-side only: it parses what a client sent (HAVE_SNI &&
      * !NO_WOLFSSL_SERVER in src/ssl_api_ext.c). */
-#if defined(HAVE_SNI) && !defined(NO_WOLFSSL_SERVER)
+#if defined(HAVE_SNI) && !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
     {
         byte hello[64];
         word32 outSz = (word32)sizeof(buf);
@@ -1884,7 +1884,7 @@ int test_wolfSSL_api_null_operands(void)
 int test_wolfSSL_public_null_operands(void)
 {
     EXPECT_DECLS;
-#if !defined(WOLFCRYPT_ONLY) && !defined(NO_WOLFSSL_CLIENT)
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     char buf[512];
@@ -2022,7 +2022,7 @@ int test_wolfSSL_session_lifecycle_guards(void)
 {
     EXPECT_DECLS;
 #if !defined(WOLFCRYPT_ONLY) && !defined(NO_SESSION_CACHE) && \
-    !defined(NO_WOLFSSL_CLIENT)
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     WOLFSSL_SESSION* fresh = NULL;

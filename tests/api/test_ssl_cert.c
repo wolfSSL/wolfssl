@@ -1528,7 +1528,7 @@ int test_wolfSSL_cert_unload(void)
 int test_wolfSSL_cert_api_arg_guards(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT)
+#if !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
 #ifdef HAVE_RPK
@@ -1637,7 +1637,7 @@ int test_wolfSSL_cert_api_arg_guards(void)
 int test_wolfSSL_crl_ocsp_api_arg_guards(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT)
+#if !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
 
@@ -2568,7 +2568,7 @@ int test_wolfSSL_crl_io_mock(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_CRL) && defined(HAVE_CRL_IO) && !defined(NO_CERTS) && \
-    !defined(NO_WOLFSSL_CLIENT)
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     int i;
@@ -2629,7 +2629,8 @@ int test_wolfSSL_ocsp_stapling_accessors(void)
     EXPECT_DECLS;
 #if defined(HAVE_OCSP) && defined(HAVE_CERTIFICATE_STATUS_REQUEST) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
-    !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_TLS)
     WOLFSSL_CTX* cctx = NULL;   /* client */
     WOLFSSL_CTX* sctx = NULL;   /* server: the side operand's partner */
     WOLFSSL* cssl = NULL;
@@ -2847,7 +2848,8 @@ int test_wolfSSL_x509_accessor_guards(void)
 int test_wolfSSL_dtls_api_on_dtls_object(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_CERTS)
+#if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_CERTS) && \
+    !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX* dctx = NULL;   /* the object the second operand needs */
     WOLFSSL_CTX* tctx = NULL;   /* a TLS one, for the operand's other half */
     WOLFSSL* dssl = NULL;
@@ -2943,7 +2945,8 @@ int test_wolfSSL_dtls_api_on_dtls_object(void)
 int test_wolfSSL_load_pathological_files(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_CLIENT)
+#if !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL_CERT_MANAGER* cm = NULL;
     const char* emptyFile = "test-empty-cert.tmp";
@@ -3035,7 +3038,7 @@ int test_wolfSSL_load_from_fifo(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
-    !defined(NO_WOLFSSL_CLIENT) && defined(__unix__)
+    !defined(NO_WOLFSSL_CLIENT) && defined(__unix__) && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     const char* fifo = "test-cert-fifo.tmp";
     int fd = -1;
@@ -3128,7 +3131,7 @@ int test_wolfSSL_load_from_fifo(void)
 #if defined(USE_WOLFSSL_MEMORY) && \
     !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY) && \
     !defined(WOLFSSL_SMALL_STACK) && \
-    !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_FILESYSTEM)
+    !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_FILESYSTEM) && !defined(NO_TLS)
 
 static int fi_failAt = -1;      /* which allocation to fail; -1 = none */
 static int fi_count;            /* allocations seen since the last reset */
@@ -3280,7 +3283,7 @@ int test_wolfSSL_alloc_failure_sweep(void)
 #if defined(USE_WOLFSSL_MEMORY) && \
     !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY) && \
     !defined(WOLFSSL_SMALL_STACK) && \
-    !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_FILESYSTEM)
+    !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_FILESYSTEM) && !defined(NO_TLS)
     int n;
     int injected = 0;
     int total;
@@ -3364,7 +3367,8 @@ int test_wolfSSL_dtls_api_more_guards(void)
     EXPECT_DECLS;
 #if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_LEANPSK) && \
     !defined(WOLFCRYPT_ONLY) && !defined(NO_WOLFSSL_CLIENT) && \
-    !defined(NO_CERTS)
+    !defined(NO_CERTS) && \
+    !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX* dctx = NULL;
     WOLFSSL* dssl = NULL;
     byte peer[64];
