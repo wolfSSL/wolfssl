@@ -490,8 +490,14 @@ extern "C" {
     #define WOLFSSL_HAVE_MLKEM
     #define WOLFSSL_MLKEM_NO_LARGE_CODE
     #define WOLFSSL_MLKEM_SMALL
-    #define WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM
-    #define WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
+    /* The Intel and AArch64 ML-KEM assembly has no small-memory variant of
+     * key generation or encapsulation, and wc_mlkem.c rejects the pair with an
+     * #error rather than falling back. */
+    #if !defined(CONFIG_WOLFCRYPT_ASM) || \
+        !(defined(CONFIG_X86_64) || defined(CONFIG_ARM64))
+        #define WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM
+        #define WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
+    #endif
     #define WOLFSSL_MLKEM_DYNAMIC_KEYS
 #endif
 
@@ -618,17 +624,31 @@ extern "C" {
         #define WOLFSSL_HAVE_SP_DH
     #endif
 
-    #define WOLFSSL_SP_SMALL      /* use smaller version of code */
+    #ifdef CONFIG_WOLFCRYPT_SP_SMALL
+        #define WOLFSSL_SP_SMALL  /* use smaller version of code */
+    #endif
     //#define WOLFSSL_SP_NO_MALLOC /* disable heap in wolf/SP math */
     //#define SP_DIV_WORD_USE_DIV /* no div64 */
 
-    #if 0
-        /* optional speedup with inline assembly */
-        //#define WOLFSSL_SP_ARM_CORTEX_M_ASM /* Cortex-M3+ */
-        //#define WOLFSSL_SP_ARM_THUMB_ASM    /* Cortex-M0+ thumb */
-        //#define WOLFSSL_SP_ARM32_ASM        /* Cortex-R */
-        //#define WOLFSSL_SP_ARM64_ASM        /* Cortex-A */
-        //#define WOLFSSL_SP_USE_UDIV
+    /* Assembly speedup, keyed on the CPU Zephyr reports. Anything not named
+     * here keeps the C backend. Each pair is two separate backends: the _ASM
+     * macro compiles sp_<cpu>.c for the RSA, DH and ECC sizes it covers, the
+     * other the word primitives sp_int.c uses for everything else. */
+    #ifdef CONFIG_WOLFCRYPT_ASM
+        #if defined(CONFIG_ARMV6_M_ARMV8_M_BASELINE)
+            #define WOLFSSL_SP_ARM_THUMB_ASM
+            #define WOLFSSL_SP_ARM_THUMB
+        #elif defined(CONFIG_ARMV7_M_ARMV8_M_MAINLINE)
+            #define WOLFSSL_SP_ARM_CORTEX_M_ASM
+            #define WOLFSSL_SP_ARM_CORTEX_M
+        #elif defined(CONFIG_ARM64)
+            #define WOLFSSL_SP_ARM64_ASM
+            #define WOLFSSL_SP_ARM64
+        #elif defined(CONFIG_CPU_AARCH32_CORTEX_R) || \
+              defined(CONFIG_CPU_AARCH32_CORTEX_A)
+            #define WOLFSSL_SP_ARM32_ASM
+            #define WOLFSSL_SP_ARM32
+        #endif
     #endif
 #endif
 
@@ -636,27 +656,49 @@ extern "C" {
 /* Assembly Speedups for Symmetric Algorithms */
 /* ------------------------------------------------------------------------- */
 
-#ifdef CONFIG_WOLFCRYPT_ARMASM
+#ifdef CONFIG_WOLFCRYPT_ASM
+/* Mirrors the source selection in CMakeLists.txt. ARMv6-M and ARMv8-M
+ * baseline are absent from both: the Thumb2 port uses UBFX and LDRD, which
+ * those cores do not have, so they keep the C code and the SP speedup only. */
+#if defined(CONFIG_ARMV7_M_ARMV8_M_MAINLINE) || defined(CONFIG_ARM64) || \
+    (defined(CONFIG_ARM) && !defined(CONFIG_CPU_CORTEX_M))
     #define WOLFSSL_ARMASM
     #define WOLFSSL_NO_HASH_RAW
     #define WOLFSSL_ARMASM_INLINE /* use inline .c versions */
     #define WOLFSSL_ARMASM_NO_NEON
 
-    /* Default is ARMv8 */
-
-    #if 0 /* ARMv7 */
-        #define WOLFSSL_ARM_ARCH 7
-        #define WOLFSSL_ARMASM_NO_HW_CRYPTO /* enable if processor does not support aes/sha instructions */
+    /* Without this the Thumb2 sources compile but every caller still takes
+     * the ARMv8 path, so the port selects files and nothing else. */
+    #ifdef CONFIG_CPU_CORTEX_M
+        #define WOLFSSL_ARMASM_THUMB2
     #endif
+
+    /* AArch32 assembles its hardware crypto blocks only when the -mcpu Zephyr
+     * derives from the board already has the extension; AArch64 carries its
+     * own .arch_extension and always assembles them, and cpuid.c then claims
+     * AES, PMULL and SHA-256 unless this is set, so aese traps on a core
+     * without them. */
+    #ifndef __ARM_FEATURE_CRYPTO
+        #define WOLFSSL_ARMASM_NO_HW_CRYPTO
+    #endif
+
+    /* Nothing probes the CPU on bare metal, so cpuid.c claims RDMA whenever
+     * this is not set and mlkem_keygen() runs sqrdmlsh on a core without it. */
+    #if defined(CONFIG_ARM64) && !defined(__ARM_FEATURE_QRDMX)
+        #define WOLFSSL_AARCH64_NO_SQRDMLSH
+    #endif
+#elif defined(CONFIG_X86_64)
+    #define USE_INTEL_SPEEDUP
+    #define WOLFSSL_X86_64_BUILD
 #endif
 
-#ifdef CONFIG_WOLFCRYPT_INTELASM
-    #define USE_INTEL_SPEEDUP
-    #define WOLFSSL_X86_64_BUILD /* 64-bit */
-    //#define WOLFSSL_X86_BUILD /* 32-bit */
-
-    /* Issues with building AESNI "_mm_aesimc_si128" always_inline */
-    //#define WOLFSSL_AESNI
+/* Every 64-bit single-precision backend works in 128-bit intermediates. An
+ * autoconf build learns the type is available from a configure probe; with
+ * user settings nobody sets HAVE___UINT128_T, and sp_int.c then fails on an
+ * undeclared sp_int_word. */
+#if defined(__SIZEOF_INT128__) && !defined(HAVE___UINT128_T)
+    #define HAVE___UINT128_T 1
+#endif
 #endif
 
 

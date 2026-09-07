@@ -136,53 +136,42 @@ if(CONFIG_WOLFSSL)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/st/stm32.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/realtek/rtl8735b.c)
 
-    if(CONFIG_WOLFCRYPT_ARMASM)
-      # tested with board: "qemu_kvm_arm64"
-      if(CONFIG_WOLFCRYPT_ARMASM_THUMB2)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/thumb2-aes-asm_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/thumb2-chacha-asm_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/thumb2-curve25519_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/thumb2-mlkem-asm_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/thumb2-poly1305-asm_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/thumb2-sha256-asm_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/thumb2-sha3-asm_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/thumb2-sha512-asm_c.c)
-      else()
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-aes-asm_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-chacha-asm_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-curve25519_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-mlkem-asm_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-poly1305-asm_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-sha512-asm_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-sha3-asm_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-sha256-asm_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-32-aes-asm_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-32-chacha-asm_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-32-curve25519_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-32-mlkem-asm_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-32-poly1305-asm_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-32-sha512-asm_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-32-sha3-asm_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-32-sha256-asm_c.c)
+    if(CONFIG_WOLFCRYPT_ASM)
+      set(WOLF_ARM_ASM_DIR ${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm)
+
+      # Thumb2 needs UBFX and LDRD, so it is a mainline-only port; ARMv6-M and
+      # ARMv8-M baseline keep the C code here and take only the SP speedup.
+      if(CONFIG_ARMV7_M_ARMV8_M_MAINLINE)
+        set(WOLF_ARM_ASM_PREFIX thumb2)
+      elseif(CONFIG_ARM64)
+        set(WOLF_ARM_ASM_PREFIX armv8)
+      elseif(CONFIG_ARM AND NOT CONFIG_CPU_CORTEX_M)
+        set(WOLF_ARM_ASM_PREFIX armv8-32)
       endif()
 
-
-      # Note: The cmake/gcc-m-cpu.cmake make need updated to add "+crypto -mstrict-align"
-      set(TOOLCHAIN_C_FLAGS "-mcpu=cortex-a53+crypto -mstrict-align")
-    endif()
-
-    if(CONFIG_WOLFCRYPT_INTELASM)
-      # tested with board: "qemu_x86_64"
-      zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/sha256_asm.S)
-      zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/sha512_asm.S)
-      zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/sha3_asm.S)
-      zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/chacha_asm.S)
-      zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/poly1305_asm.S)
-
-      # AESNI
-      zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/aes_asm.S)
-      zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/aes_gcm_x86_asm.S)
-      set(TOOLCHAIN_C_FLAGS "-march=native -maes -msse4 -mpclmul ")
+      if(DEFINED WOLF_ARM_ASM_PREFIX)
+        foreach(f aes chacha mlkem poly1305 sha256 sha3 sha512)
+          zephyr_library_sources(
+            ${WOLF_ARM_ASM_DIR}/${WOLF_ARM_ASM_PREFIX}-${f}-asm_c.c)
+        endforeach()
+        # curve25519 is the one port whose file has no "-asm" infix.
+        zephyr_library_sources(
+          ${WOLF_ARM_ASM_DIR}/${WOLF_ARM_ASM_PREFIX}-curve25519_c.c)
+      elseif(CONFIG_X86_64)
+        # fe_x25519_asm.S, wc_mlkem_asm.S and wc_mldsa_asm.S are here because
+        # curve25519.c, wc_mlkem_poly.c and wc_mldsa.c all take the Intel path
+        # whenever USE_INTEL_SPEEDUP is set, so leaving one out is a link error
+        # the moment an application enables that algorithm. Each is guarded by
+        # its own feature macro, so it costs an empty object when it is off.
+        # The AES sources are not here: everything they define is an _aesni
+        # entry point, and their callers sit behind WOLFSSL_AESNI, which this
+        # module does not define.
+        foreach(f sha256_asm sha512_asm sha3_asm chacha_asm poly1305_asm
+                  fe_x25519_asm wc_mlkem_asm wc_mldsa_asm)
+          zephyr_library_sources(
+            ${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/${f}.S)
+        endforeach()
+      endif()
     endif()
 
     zephyr_library_link_libraries(wolfSSL)
