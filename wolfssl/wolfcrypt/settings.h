@@ -3123,6 +3123,10 @@
 #endif /*(WOLFSSL_APACHE_MYNEWT)*/
 
 #ifdef WOLFSSL_ZEPHYR
+/* Assembly sources reach settings.h through libwolfssl_sources_asm.h and need
+ * only the feature macros. The Zephyr headers below, and the z_realloc
+ * prototype, are C - without this guard the assembler is handed <stdlib.h>. */
+#ifndef __ASSEMBLER__
     #ifdef __cplusplus
         }  /* extern "C" */
     #endif
@@ -3195,6 +3199,7 @@
     #define CONFIG_NET_SOCKETS_POSIX_NAMES
     #endif
     #endif
+#endif /* !__ASSEMBLER__ */
 #endif /* WOLFSSL_ZEPHYR */
 
 #ifdef WOLFSSL_IMX6
