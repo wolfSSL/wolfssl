@@ -578,6 +578,46 @@ static int test_peer_tmp_key_reuse(int group1, int expected1, int group2,
 }
 #endif
 
+#if defined(TEST_PEER_TMP_KEY_X25519) || defined(TEST_PEER_TMP_KEY_X448) || \
+    (defined(TEST_PEER_TMP_KEY_ECC) && defined(WOLFSSL_TLS13))
+/* wolfSSL_clear() has to drop the kept peer key. Left in place, the next
+ * handshake on the object - one that does no (EC)DH, TLS 1.3 psk_ke or a
+ * PSK/RSA key exchange - would report the previous connection's key. */
+static int test_peer_tmp_key_cleared(int group)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    int groups[1];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    groups[0] = group;
+    ExpectIntEQ(wolfSSL_KeepHandshakeResources(ssl_c), 0);
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c, groups, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_get_peer_tmp_key(ssl_c, &pkey), WOLFSSL_SUCCESS);
+    ExpectNotNull(pkey);
+    wolfSSL_EVP_PKEY_free(pkey);
+    pkey = NULL;
+
+    ExpectIntEQ(wolfSSL_clear(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_peer_tmp_key(ssl_c, &pkey), WOLFSSL_FAILURE);
+    ExpectNull(pkey);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    return EXPECT_RESULT();
+}
+#endif
+
 /* SSL_get_peer_tmp_key() has to return the peer's ephemeral key for every key
  * exchange group, not just TLS 1.2 ECDHE. */
 int test_tls_get_peer_tmp_key(void)
@@ -608,6 +648,14 @@ int test_tls_get_peer_tmp_key(void)
 #if defined(TEST_PEER_TMP_KEY_X25519) && defined(TEST_PEER_TMP_KEY_ECC)
     ExpectIntEQ(test_peer_tmp_key_reuse(WOLFSSL_ECC_SECP256R1, WC_EVP_PKEY_EC,
         WOLFSSL_ECC_X25519, WC_EVP_PKEY_X25519), TEST_SUCCESS);
+#endif
+#ifdef TEST_PEER_TMP_KEY_X25519
+    ExpectIntEQ(test_peer_tmp_key_cleared(WOLFSSL_ECC_X25519), TEST_SUCCESS);
+#elif defined(TEST_PEER_TMP_KEY_X448)
+    ExpectIntEQ(test_peer_tmp_key_cleared(WOLFSSL_ECC_X448), TEST_SUCCESS);
+#elif defined(TEST_PEER_TMP_KEY_ECC) && defined(WOLFSSL_TLS13)
+    ExpectIntEQ(test_peer_tmp_key_cleared(WOLFSSL_ECC_SECP256R1),
+        TEST_SUCCESS);
 #endif
     return EXPECT_RESULT();
 }
