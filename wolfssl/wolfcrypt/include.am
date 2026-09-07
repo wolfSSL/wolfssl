@@ -82,6 +82,7 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/wc_mlkem.h \
                          wolfssl/wolfcrypt/wc_frodokem.h \
                          wolfssl/wolfcrypt/wc_frodokem_mat.h \
+                         wolfssl/wolfcrypt/wc_mceliece.h \
                          wolfssl/wolfcrypt/sm2.h \
                          wolfssl/wolfcrypt/sm3.h \
                          wolfssl/wolfcrypt/sm4.h \
@@ -93,6 +94,8 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/wc_compat.h
 
 noinst_HEADERS+= \
+                         wolfssl/wolfcrypt/wc_mceliece_mat.h \
+                         wolfssl/wolfcrypt/wc_mceliece_aff_consts.h \
                          wolfssl/wolfcrypt/port/aria/aria-crypt.h \
                          wolfssl/wolfcrypt/port/aria/aria-cryptocb.h \
                          wolfssl/wolfcrypt/port/pic32/pic32mz-crypt.h \

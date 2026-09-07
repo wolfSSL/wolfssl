@@ -1168,6 +1168,31 @@ add_option(WOLFSSL_FRODOKEM_SME
     "Enable FrodoKEM AArch64 SME acceleration (default: disabled)"
     "no" "yes;no")
 
+# Classic McEliece (requires WOLFSSL_EXPERIMENTAL) (default: disabled)
+add_option(WOLFSSL_MCELIECE
+    "Enable the wolfSSL Classic McEliece reference implementation (requires WOLFSSL_EXPERIMENTAL) (default: disabled)"
+    "no" "yes;no")
+# Classic McEliece parameter sets (each default: enabled)
+add_option(WOLFSSL_MCELIECE_6688128
+    "Enable the mceliece6688128 parameter set (default: enabled)"
+    "yes" "yes;no")
+add_option(WOLFSSL_MCELIECE_6960119
+    "Enable the mceliece6960119 parameter set (default: enabled)"
+    "yes" "yes;no")
+add_option(WOLFSSL_MCELIECE_8192128
+    "Enable the mceliece8192128 parameter set (default: enabled)"
+    "yes" "yes;no")
+# Classic McEliece operations (each default: enabled)
+add_option(WOLFSSL_MCELIECE_MAKE_KEY
+    "Enable Classic McEliece key generation (default: enabled)"
+    "yes" "yes;no")
+add_option(WOLFSSL_MCELIECE_ENCAPSULATE
+    "Enable Classic McEliece encapsulation (default: enabled)"
+    "yes" "yes;no")
+add_option(WOLFSSL_MCELIECE_DECAPSULATE
+    "Enable Classic McEliece decapsulation (default: enabled)"
+    "yes" "yes;no")
+
 message(STATUS "Looking for WOLFSSL_EXPERIMENTAL")
 if (WOLFSSL_EXPERIMENTAL)
     message(STATUS "Looking for WOLFSSL_EXPERIMENTAL - found")
@@ -1286,6 +1311,63 @@ if (WOLFSSL_EXPERIMENTAL)
         message(STATUS "Looking for WOLFSSL_FRODOKEM - not found")
     endif()
 
+    # Checking for experimental feature: Classic McEliece
+    message(STATUS "Looking for WOLFSSL_MCELIECE")
+    if (WOLFSSL_MCELIECE)
+        set(WOLFSSL_FOUND_EXPERIMENTAL_FEATURE 1)
+        message(STATUS "Looking for WOLFSSL_MCELIECE - found")
+
+        # At least one parameter set must be enabled.
+        if (NOT WOLFSSL_MCELIECE_6688128 AND NOT WOLFSSL_MCELIECE_6960119 AND
+            NOT WOLFSSL_MCELIECE_8192128)
+            message(FATAL_ERROR
+                "WOLFSSL_MCELIECE requires at least one of WOLFSSL_MCELIECE_6688128, WOLFSSL_MCELIECE_6960119 or WOLFSSL_MCELIECE_8192128.")
+        endif()
+        # At least one operation must be enabled.
+        if (NOT WOLFSSL_MCELIECE_MAKE_KEY AND NOT WOLFSSL_MCELIECE_ENCAPSULATE
+            AND NOT WOLFSSL_MCELIECE_DECAPSULATE)
+            message(FATAL_ERROR
+                "WOLFSSL_MCELIECE requires at least one of WOLFSSL_MCELIECE_MAKE_KEY, WOLFSSL_MCELIECE_ENCAPSULATE or WOLFSSL_MCELIECE_DECAPSULATE.")
+        endif()
+
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_HAVE_MCELIECE")
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SHA3")
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SHAKE256")
+
+        set_wolfssl_definitions("WOLFSSL_HAVE_MCELIECE" RESULT)
+        set_wolfssl_definitions("WOLFSSL_SHA3"          RESULT)
+        set_wolfssl_definitions("WOLFSSL_SHAKE256"      RESULT)
+
+        # Excluded parameter sets.
+        if (NOT WOLFSSL_MCELIECE_6688128)
+            list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_NO_MCELIECE_6688128")
+            set_wolfssl_definitions("WOLFSSL_NO_MCELIECE_6688128" RESULT)
+        endif()
+        if (NOT WOLFSSL_MCELIECE_6960119)
+            list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_NO_MCELIECE_6960119")
+            set_wolfssl_definitions("WOLFSSL_NO_MCELIECE_6960119" RESULT)
+        endif()
+        if (NOT WOLFSSL_MCELIECE_8192128)
+            list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_NO_MCELIECE_8192128")
+            set_wolfssl_definitions("WOLFSSL_NO_MCELIECE_8192128" RESULT)
+        endif()
+        # Excluded operations.
+        if (NOT WOLFSSL_MCELIECE_MAKE_KEY)
+            list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_MCELIECE_NO_MAKE_KEY")
+            set_wolfssl_definitions("WOLFSSL_MCELIECE_NO_MAKE_KEY" RESULT)
+        endif()
+        if (NOT WOLFSSL_MCELIECE_ENCAPSULATE)
+            list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_MCELIECE_NO_ENCAPSULATE")
+            set_wolfssl_definitions("WOLFSSL_MCELIECE_NO_ENCAPSULATE" RESULT)
+        endif()
+        if (NOT WOLFSSL_MCELIECE_DECAPSULATE)
+            list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_MCELIECE_NO_DECAPSULATE")
+            set_wolfssl_definitions("WOLFSSL_MCELIECE_NO_DECAPSULATE" RESULT)
+        endif()
+    else()
+        message(STATUS "Looking for WOLFSSL_MCELIECE - not found")
+    endif()
+
     # Other experimental feature detection can be added here...
 
     # Were any experimental features found? Display a message.
@@ -1303,6 +1385,9 @@ else()
     endif()
     if (WOLFSSL_FRODOKEM)
         message(FATAL_ERROR "Error: WOLFSSL_FRODOKEM requires WOLFSSL_EXPERIMENTAL at this time.")
+    endif()
+    if (WOLFSSL_MCELIECE)
+        message(FATAL_ERROR "Error: WOLFSSL_MCELIECE requires WOLFSSL_EXPERIMENTAL at this time.")
     endif()
 endif()
 
@@ -4577,6 +4662,7 @@ if(WOLFSSL_EXAMPLES)
         tests/api/test_curve448.c
         tests/api/test_ed448.c
         tests/api/test_frodokem.c
+        tests/api/test_mceliece.c
         tests/api/test_mlkem.c
         tests/api/test_mldsa.c
         tests/api/test_mldsa_legacy.c
