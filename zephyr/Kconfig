@@ -340,24 +340,54 @@ config WOLFSSL_OPENSSL_EXTRA_X509_SMALL
     helpers (wolfSSL_X509_free, wolfSSL_get_verify_result, ...) without
     the rest of OPENSSL_EXTRA.
 
-config WOLFCRYPT_ARMASM
-	bool "wolfCrypt ARM Assembly support"
-	depends on WOLFSSL_BUILTIN
+config WOLFCRYPT_ASM
+	bool "wolfCrypt assembly optimisations"
+	depends on WOLFSSL_BUILTIN && !WOLFSSL_HAS_SETTINGS_FILE
+	depends on ARM || ARM64 || X86_64
 	help
-	  wolfCrypt ARM (ARMv8/ARMv7) assembly support for AES, SHA-2, SHA-3,
-	  ChaCha20/Poly1305 and Curve25519
+	  Use the hand-written assembly for the symmetric algorithms (AES,
+	  SHA-2, SHA-3, ChaCha20/Poly1305, Curve25519) and, on ARM, for the
+	  single-precision math behind RSA, DH and ECC.
 
-config WOLFCRYPT_ARMASM_THUMB2
-	bool "wolfCrypt ARM Thumb2 Assembly support"
-	depends on WOLFCRYPT_ARMASM
-	help
-	  Enable Thumb2 assembly optimizations for ARM processors
+	  The port follows the CPU Zephyr reports:
 
-config WOLFCRYPT_INTELASM
-	bool "wolfCrypt Intel Assembly support"
-	depends on WOLFSSL_BUILTIN
+	    ARMv7-M / ARMv8-M mainline  thumb2 symmetric, Cortex-M math
+	    ARMv6-M / ARMv8-M baseline  math only, Thumb variant
+	    32-bit Cortex-A / Cortex-R  armv8-32 symmetric, ARM32 math
+	    AArch64                     armv8 symmetric, ARM64 math
+	    x86_64                      symmetric only
+
+	  ARMv6-M and ARMv8-M baseline get no symmetric assembly because the
+	  Thumb2 port uses UBFX and LDRD, which those cores lack. On the
+	  mainline cores the math assembly prefers UMAAL, part of the DSP
+	  extension; a part built without it takes the slower UMAAL-free
+	  variant of the same routines.
+
+	  x86_64 gets no single-precision assembly: sp_x86_64_asm.S is AVX
+	  throughout and sp_x86_64.c calls it without a CPUID check, while
+	  Zephyr's x86 context switch never enables the YMM state. Its
+	  symmetric AVX1/AVX2 paths are safe because they are chosen at run
+	  time by CPUID, which this module also teaches to check that the OS
+	  enabled the vector state.
+
+	  32-bit x86 is not offered: only the AES sources have an
+	  implementation at that width, and the rest are guarded to x86_64.
+
+config WOLFCRYPT_SP_SMALL
+	bool "Smaller single-precision math"
+	depends on WOLFSSL_BUILTIN && !WOLFSSL_HAS_SETTINGS_FILE
+	default y
 	help
-	  wolfCrypt Intel Aassembly support (AVX/AVX2/AESNI)
+	  Build the space-optimised variant of the single-precision math
+	  backend. Turning it off trades a markedly larger image for faster
+	  RSA, DH and ECC.
+
+	  Independent of WOLFCRYPT_ASM, which picks the backend while this
+	  picks the variant within it: the assembly sources carry both a
+	  loop-based and an unrolled form of each routine. Leaving this on
+	  therefore keeps the smaller, slower half of the assembly, so
+	  turning it off is what makes WOLFCRYPT_ASM pay off on a part with
+	  the flash to spare.
 
 config WOLFSSL_NO_HAVE_MIN_MAX
 	bool "Force wolfSSL to use its own min/max"
