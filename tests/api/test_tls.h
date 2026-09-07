@@ -82,9 +82,10 @@ int test_wolfSSL_alert_type_string(void);
 int test_wolfSSL_alert_desc_string(void);
 int test_tls12_chain_verify_cb(void);
 int test_tls12_chain_verify_cb_server(void);
-int test_tls13_chain_verify_cb_async(void);
+int test_tls13_chain_verify_cb_defer(void);
 int test_tls13_chain_verify_cb_server(void);
 int test_tls13_chain_verify_cb_reject(void);
+int test_tls13_chain_verify_cb_success_rejects(void);
 int test_tls12_chain_verify_cb_bad_der(void);
 int test_tls12_chain_verify_cb_bad_chain(void);
 int test_tls13_chain_verify_cb_postauth(void);
@@ -168,9 +169,10 @@ int test_tls_param_flags_crl_check(void);
         TEST_DECL_GROUP("tls", test_dhe_psk_max_premaster),                    \
         TEST_DECL_GROUP("tls", test_tls12_chain_verify_cb),                    \
         TEST_DECL_GROUP("tls", test_tls12_chain_verify_cb_server),             \
-        TEST_DECL_GROUP("tls", test_tls13_chain_verify_cb_async),              \
+        TEST_DECL_GROUP("tls", test_tls13_chain_verify_cb_defer),              \
         TEST_DECL_GROUP("tls", test_tls13_chain_verify_cb_server),             \
         TEST_DECL_GROUP("tls", test_tls13_chain_verify_cb_reject),             \
+        TEST_DECL_GROUP("tls", test_tls13_chain_verify_cb_success_rejects),    \
         TEST_DECL_GROUP("tls", test_tls12_chain_verify_cb_bad_der),            \
         TEST_DECL_GROUP("tls", test_tls12_chain_verify_cb_bad_chain),          \
         TEST_DECL_GROUP("tls", test_tls13_chain_verify_cb_postauth),           \
