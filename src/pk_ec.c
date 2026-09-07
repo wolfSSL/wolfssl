@@ -4808,8 +4808,13 @@ int wolfSSL_EC_KEY_oct2key(WOLFSSL_EC_KEY *key, const unsigned char *buf,
 
     if (ret == 1) {
         /* SEC 1: 0x02/0x03 compressed, 0x04 uncompressed. Clearing the low
-         * bit turns the leading byte into the conversion form. */
-        wolfSSL_EC_KEY_set_conv_form(key, buf[0] & ~0x01);
+         * bit turns the leading byte into the conversion form. Any other
+         * leading byte - hybrid, or the single 0x00 of the point at infinity -
+         * names no form wolfSSL_EC_KEY_set_conv_form() takes, so leave the
+         * key's form alone rather than handing it a value it rejects. */
+        if ((buf[0] == 0x02) || (buf[0] == 0x03) || (buf[0] == 0x04)) {
+            wolfSSL_EC_KEY_set_conv_form(key, buf[0] & ~0x01);
+        }
     }
 
     wolfSSL_EC_POINT_free(point);

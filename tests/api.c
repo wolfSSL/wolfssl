@@ -23136,7 +23136,8 @@ static int test_san_first_dns(WOLFSSL_X509* x509, const char** out, int* outLen)
         }
         dnsBuf[len] = '\0';
         *out = dnsBuf;
-        *outLen = gn->d.dNSName->length;
+        /* The copy, not the original: dnsBuf is what the caller sees. */
+        *outLen = len;
     }
     wolfSSL_sk_GENERAL_NAME_pop_free(sk, wolfSSL_GENERAL_NAME_free);
     return num;
