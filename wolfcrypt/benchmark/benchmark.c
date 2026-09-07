@@ -6498,7 +6498,8 @@ static void bench_gmac_internal(int useDeviceID, word32 ivSz,
 
     wc_AesFree((Aes*)&gmac);
 
-    bench_stats_sym_finish(gmacStr, 0, count, bench_size, start, ret);
+    bench_stats_sym_finish(gmacStr, useDeviceID, count, bench_size, start,
+                           ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
