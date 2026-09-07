@@ -18603,13 +18603,18 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         args->fatal = 1;
                     #if defined(OPENSSL_EXTRA) || \
                         defined(OPENSSL_EXTRA_X509_SMALL)
-                        if (ssl->peerVerifyRet == 0) {
-                            ssl->peerVerifyRet =
-                                WOLFSSL_X509_V_ERR_CERT_REJECTED;
-                        }
+                        /* The callback judges the chain as a whole, so its
+                         * verdict replaces any result recorded earlier
+                         * instead of keeping the first error. */
+                        ssl->peerVerifyRet = WOLFSSL_X509_V_ERR_CERT_REJECTED;
                     #endif
                         DoCertFatalAlert(ssl, ret);
                     }
+                #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+                    else if (ret == 0) {
+                        ssl->peerVerifyRet = WOLFSSL_X509_V_OK;
+                    }
+                #endif
                     if (ret != 0)
                         goto exit_ppc;
                 }

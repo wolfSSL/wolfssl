@@ -3516,6 +3516,13 @@ static int test_chain_verify_cb_run(test_chain_verify_cb_ctx* cbCtx, int side,
         }
         ExpectPtrEq(wolfSSL_GetChainVerifyCtx(verifier), cbCtx);
 
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+        /* Seed a stale result, so the callback's verdict has to replace it
+         * rather than being reported as this earlier failure. */
+        wolfSSL_set_verify_result(verifier,
+            WOLFSSL_X509_V_ERR_CERT_HAS_EXPIRED);
+#endif
+
         /* certs[0] must be the peer's own certificate. */
         ExpectIntEQ(test_chain_verify_cb_set_leaf(cbCtx,
             peer->buffers.certificate), 0);
