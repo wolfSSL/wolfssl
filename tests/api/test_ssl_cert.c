@@ -1498,3 +1498,836 @@ int test_wolfSSL_cert_unload(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if !defined(NO_CERTS) && !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT)
+
+/* One row of the verify-mode mapping table: the mode handed to
+ * wolfSSL_[CTX_]set_verify() and the option bits it must produce.
+ * WOLFSSL_VERIFY_POST_HANDSHAKE is not covered here because its option is
+ * conditionally compiled; it is checked separately below. */
+typedef struct {
+    const char* desc;
+    int mode;
+    int verifyNone;
+    int verifyPeer;
+    int failNoCert;
+    int failNoCertxPSK;
+} VerifyModeCase;
+
+/* Callback used only to check that set_verify() stores and clears it. */
+static int test_verify_mode_cb(int preverify, WOLFSSL_X509_STORE_CTX* store)
+{
+    (void)store;
+    return preverify;
+}
+
+static const VerifyModeCase verifyModeCases[] = {
+    /* VERIFY_NONE is the only mode that sets verifyNone. */
+    { "NONE", WOLFSSL_VERIFY_NONE, 1, 0, 0, 0 },
+    { "PEER", WOLFSSL_VERIFY_PEER, 0, 1, 0, 0 },
+    { "PEER|FAIL_IF_NO_PEER_CERT",
+      WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT,
+      0, 1, 1, 0 },
+    { "PEER|FAIL_EXCEPT_PSK",
+      WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_EXCEPT_PSK,
+      0, 1, 0, 1 },
+    /* The two fail-on-no-cert flags are independent bits and may both be
+     * recorded; the PSK exception is applied first at the handshake. */
+    { "PEER|FAIL_IF_NO_PEER_CERT|FAIL_EXCEPT_PSK",
+      WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT |
+          WOLFSSL_VERIFY_FAIL_EXCEPT_PSK,
+      0, 1, 1, 1 },
+    /* FAIL_IF_NO_PEER_CERT on its own is recorded even though a server that
+     * never requests a certificate cannot act on it. */
+    { "FAIL_IF_NO_PEER_CERT", WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT,
+      0, 0, 1, 0 },
+    /* VERIFY_DEFAULT clears every option instead of setting one. That is
+     * why it does not round-trip through get_verify_mode(). */
+    { "DEFAULT", WOLFSSL_VERIFY_DEFAULT, 0, 0, 0, 0 },
+    /* VERIFY_NONE is matched by equality, not as a bit: OR-ing anything else
+     * in means the peer IS verified. */
+    { "NONE|PEER", WOLFSSL_VERIFY_NONE | WOLFSSL_VERIFY_PEER, 0, 1, 0, 0 },
+    /* CLIENT_ONCE is accepted and ignored: on its own it leaves every option
+     * clear, and it never disturbs the flags it is OR-ed with. */
+    { "CLIENT_ONCE", WOLFSSL_VERIFY_CLIENT_ONCE, 0, 0, 0, 0 },
+    { "PEER|CLIENT_ONCE",
+      WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_CLIENT_ONCE, 0, 1, 0, 0 },
+    { "PEER|FAIL_IF_NO_PEER_CERT|CLIENT_ONCE",
+      WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT |
+          WOLFSSL_VERIFY_CLIENT_ONCE,
+      0, 1, 1, 0 }
+};
+
+#endif /* !NO_CERTS && !NO_TLS && !NO_WOLFSSL_CLIENT */
+
+/* Test that every verify mode flag maps onto the expected internal options.
+ *
+ * Unlike test_wolfSSL_get_verify_mode(), this reads the options directly and
+ * so also runs in builds without the OpenSSL compatibility layer, where
+ * wolfSSL_get_verify_mode() is not compiled in.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_verify_mode_options(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_CERTS) && !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    size_t i;
+
+    /* A NULL object is ignored rather than dereferenced. */
+    wolfSSL_CTX_set_verify(NULL, WOLFSSL_VERIFY_PEER, NULL);
+    wolfSSL_set_verify(NULL, WOLFSSL_VERIFY_PEER, NULL);
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    for (i = 0; i < XELEM_CNT(verifyModeCases) && EXPECT_SUCCESS(); i++) {
+        const VerifyModeCase* c = &verifyModeCases[i];
+
+        wolfSSL_CTX_set_verify(ctx, c->mode, NULL);
+        ExpectIntEQ(ctx->verifyNone, c->verifyNone);
+        ExpectIntEQ(ctx->verifyPeer, c->verifyPeer);
+        ExpectIntEQ(ctx->failNoCert, c->failNoCert);
+        ExpectIntEQ(ctx->failNoCertxPSK, c->failNoCertxPSK);
+
+        wolfSSL_set_verify(ssl, c->mode, NULL);
+        ExpectIntEQ(ssl->options.verifyNone, c->verifyNone);
+        ExpectIntEQ(ssl->options.verifyPeer, c->verifyPeer);
+        ExpectIntEQ(ssl->options.failNoCert, c->failNoCert);
+        ExpectIntEQ(ssl->options.failNoCertxPSK, c->failNoCertxPSK);
+
+        if (!EXPECT_SUCCESS()) {
+            fprintf(stderr, "\nverify mode case failed: %s\n", c->desc);
+        }
+    }
+
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+    /* Post-handshake auth is an ordinary bit alongside the others. */
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER |
+        WOLFSSL_VERIFY_POST_HANDSHAKE, NULL);
+    ExpectIntEQ(ctx->verifyPeer, 1);
+    ExpectIntEQ(ctx->verifyPostHandshake, 1);
+    wolfSSL_set_verify(ssl, WOLFSSL_VERIFY_PEER |
+        WOLFSSL_VERIFY_POST_HANDSHAKE, NULL);
+    ExpectIntEQ(ssl->options.verifyPeer, 1);
+    ExpectIntEQ(ssl->options.verifyPostHandshake, 1);
+
+    /* VERIFY_NONE clears it along with everything else. */
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_NONE, NULL);
+    ExpectIntEQ(ctx->verifyPostHandshake, 0);
+    wolfSSL_set_verify(ssl, WOLFSSL_VERIFY_NONE, NULL);
+    ExpectIntEQ(ssl->options.verifyPostHandshake, 0);
+
+    /* So does CLIENT_ONCE on its own, which is to say it selects nothing. */
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER |
+        WOLFSSL_VERIFY_POST_HANDSHAKE, NULL);
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_CLIENT_ONCE, NULL);
+    ExpectIntEQ(ctx->verifyPostHandshake, 0);
+#endif
+
+    /* Setting a mode replaces the previous one rather than accumulating. */
+    wolfSSL_set_verify(ssl, WOLFSSL_VERIFY_PEER |
+        WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+    wolfSSL_set_verify(ssl, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(ssl->options.verifyPeer, 1);
+    ExpectIntEQ(ssl->options.failNoCert, 0);
+
+    /* The verify callback is stored and cleared alongside the mode. */
+    wolfSSL_set_verify(ssl, WOLFSSL_VERIFY_PEER, test_verify_mode_cb);
+    ExpectTrue(ssl->verifyCallback == test_verify_mode_cb);
+    wolfSSL_set_verify(ssl, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectTrue(ssl->verifyCallback == NULL);
+
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, test_verify_mode_cb);
+    ExpectTrue(ctx->verifyCallback == test_verify_mode_cb);
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectTrue(ctx->verifyCallback == NULL);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test that WOLFSSL_VERIFY_CLIENT_ONCE is accepted and ignored.
+ *
+ * The flag exists for source compatibility with OpenSSL. wolfSSL stores no
+ * option for it, so it must neither change the other flags it is OR-ed with
+ * nor be reported back by get_verify_mode().
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_verify_client_once_ignored(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_CERTS) && !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* Adding CLIENT_ONCE to a mode leaves that mode's options untouched. */
+    wolfSSL_set_verify(ssl, WOLFSSL_VERIFY_PEER |
+        WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+    ExpectIntEQ(ssl->options.verifyPeer, 1);
+    ExpectIntEQ(ssl->options.failNoCert, 1);
+    ExpectIntEQ(ssl->options.verifyNone, 0);
+
+    wolfSSL_set_verify(ssl, WOLFSSL_VERIFY_PEER |
+        WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT | WOLFSSL_VERIFY_CLIENT_ONCE,
+        NULL);
+    ExpectIntEQ(ssl->options.verifyPeer, 1);
+    ExpectIntEQ(ssl->options.failNoCert, 1);
+    ExpectIntEQ(ssl->options.verifyNone, 0);
+
+    /* On its own it selects nothing at all - the same state as
+     * WOLFSSL_VERIFY_DEFAULT, not the same as WOLFSSL_VERIFY_NONE. */
+    wolfSSL_set_verify(ssl, WOLFSSL_VERIFY_CLIENT_ONCE, NULL);
+    ExpectIntEQ(ssl->options.verifyNone, 0);
+    ExpectIntEQ(ssl->options.verifyPeer, 0);
+    ExpectIntEQ(ssl->options.failNoCert, 0);
+    ExpectIntEQ(ssl->options.failNoCertxPSK, 0);
+
+    /* CLIENT_ONCE does not turn VERIFY_NONE into something else either:
+     * VERIFY_NONE is matched by equality, so the pair verifies the peer. */
+    wolfSSL_set_verify(ssl, WOLFSSL_VERIFY_NONE | WOLFSSL_VERIFY_CLIENT_ONCE,
+        NULL);
+    ExpectIntEQ(ssl->options.verifyNone, 0);
+
+#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
+    defined(HAVE_STUNNEL) || defined(WOLFSSL_MYSQL_COMPATIBLE) || \
+    defined(WOLFSSL_NGINX)
+    /* The bit is never reported back, on the object or on the context. */
+    wolfSSL_set_verify(ssl, WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_CLIENT_ONCE,
+        NULL);
+    ExpectIntEQ(wolfSSL_get_verify_mode(ssl), WOLFSSL_VERIFY_PEER);
+
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER |
+        WOLFSSL_VERIFY_CLIENT_ONCE, NULL);
+    ExpectIntEQ(wolfSSL_CTX_get_verify_mode(ctx), WOLFSSL_VERIFY_PEER);
+
+    /* WOLFSSL_VERIFY_DEFAULT does not round-trip either: it clears every
+     * option, so the mode reads back as 0. */
+    wolfSSL_set_verify(ssl, WOLFSSL_VERIFY_DEFAULT, NULL);
+    ExpectIntEQ(wolfSSL_get_verify_mode(ssl), 0);
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_DEFAULT, NULL);
+    ExpectIntEQ(wolfSSL_CTX_get_verify_mode(ctx), 0);
+#endif
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test that the context's verify mode is inherited by objects made from it,
+ * and that overriding on an object leaves the context alone.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_verify_mode_ctx_inherit(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_CERTS) && !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    WOLFSSL* ssl2 = NULL;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+
+    /* An object created after the context is configured inherits the mode. */
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER |
+        WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT | WOLFSSL_VERIFY_FAIL_EXCEPT_PSK,
+        NULL);
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(ssl->options.verifyPeer, 1);
+    ExpectIntEQ(ssl->options.failNoCert, 1);
+    ExpectIntEQ(ssl->options.failNoCertxPSK, 1);
+    ExpectIntEQ(ssl->options.verifyNone, 0);
+
+    /* Overriding on the object does not write back to the context. */
+    wolfSSL_set_verify(ssl, WOLFSSL_VERIFY_NONE, NULL);
+    ExpectIntEQ(ssl->options.verifyNone, 1);
+    ExpectIntEQ(ssl->options.verifyPeer, 0);
+    ExpectIntEQ(ssl->options.failNoCert, 0);
+    ExpectIntEQ(ssl->options.failNoCertxPSK, 0);
+    ExpectIntEQ(ctx->verifyNone, 0);
+    ExpectIntEQ(ctx->verifyPeer, 1);
+    ExpectIntEQ(ctx->failNoCert, 1);
+    ExpectIntEQ(ctx->failNoCertxPSK, 1);
+
+    /* So a later object still picks up the context's unchanged mode. */
+    ExpectNotNull(ssl2 = wolfSSL_new(ctx));
+    ExpectIntEQ(ssl2->options.verifyPeer, 1);
+    ExpectIntEQ(ssl2->options.failNoCert, 1);
+    ExpectIntEQ(ssl2->options.failNoCertxPSK, 1);
+    ExpectIntEQ(ssl2->options.verifyNone, 0);
+
+    wolfSSL_free(ssl2);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test that WOLFSSL_VERIFY_NONE really does disable peer verification.
+ *
+ * The client has no CA loaded, so the server's certificate cannot be chained.
+ * Verifying must fail and WOLFSSL_VERIFY_NONE must succeed - the second half
+ * alone would pass even if verification never ran. The mode is always set
+ * explicitly because the default depends on the build: with
+ * OPENSSL_COMPATIBLE_DEFAULTS a new context starts at WOLFSSL_VERIFY_NONE.
+ *
+ * The last case pins the behavior of the equality match on WOLFSSL_VERIFY_NONE:
+ * OR-ing it with WOLFSSL_VERIFY_PEER verifies the peer, it does not disable
+ * verification.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_verify_none_accepts_untrusted(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA)
+    static const struct {
+        const char* desc;
+        int mode;
+        int expectFail;
+    } cases[] = {
+        { "PEER", WOLFSSL_VERIFY_PEER, 1 },
+        { "NONE", WOLFSSL_VERIFY_NONE, 0 },
+        { "NONE|PEER", WOLFSSL_VERIFY_NONE | WOLFSSL_VERIFY_PEER, 1 }
+    };
+    size_t i;
+
+    for (i = 0; i < XELEM_CNT(cases) && EXPECT_SUCCESS(); i++) {
+        WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+        WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+        struct test_memio_ctx test_ctx;
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+        /* Build the client context here so that test_memio_setup() leaves it
+         * alone and no CA is loaded into it. */
+        ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+        if (ctx_c != NULL) {
+            wolfSSL_SetIORecv(ctx_c, test_memio_read_cb);
+            wolfSSL_SetIOSend(ctx_c, test_memio_write_cb);
+        }
+
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+        wolfSSL_set_verify(ssl_c, cases[i].mode, NULL);
+
+        if (cases[i].expectFail) {
+            /* Verifying, with no CA: the chain has no signer. */
+            ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+            ExpectIntEQ(wolfSSL_get_error(ssl_c,
+                WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+                WC_NO_ERR_TRACE(ASN_NO_SIGNER_E));
+        }
+        else {
+            /* Not verifying: the same untrusted certificate is accepted. */
+            ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        }
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+
+        if (!EXPECT_SUCCESS()) {
+            fprintf(stderr, "\nverify none case failed: %s\n", cases[i].desc);
+        }
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* TLS 1.2 PSK suite to use for the FAIL_EXCEPT_PSK exception, if this build
+ * has one. The static-PSK suites (PSK-*) are gated on WOLFSSL_STATIC_PSK,
+ * which --enable-psk alone does not set, so they cannot be the first choice:
+ * naming one unconditionally compiles the PSK half of the test away in every
+ * ordinary PSK build. */
+#if !defined(NO_PSK) && !defined(WOLFSSL_NO_TLS12)
+    #if defined(BUILD_TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256)
+        #define TEST_VFY_PSK_SUITE "ECDHE-PSK-AES128-GCM-SHA256"
+    #elif defined(BUILD_TLS_DHE_PSK_WITH_AES_128_GCM_SHA256)
+        #define TEST_VFY_PSK_SUITE "DHE-PSK-AES128-GCM-SHA256"
+    #elif defined(BUILD_TLS_PSK_WITH_AES_128_GCM_SHA256)
+        #define TEST_VFY_PSK_SUITE "PSK-AES128-GCM-SHA256"
+    #endif
+#endif
+
+/* Test the WOLFSSL_VERIFY_FAIL_EXCEPT_PSK exception on a TLS 1.2 server.
+ *
+ * The client never sends a certificate. The server must accept that on a PSK
+ * suite and reject it on a certificate suite, which is the only difference
+ * between this mode and WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_verify_fail_except_psk(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA) && \
+    !defined(WOLFSSL_NO_CLIENT_AUTH)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+#ifdef TEST_VFY_PSK_SUITE
+    /* A PSK suite is the exception: no peer certificate is required. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER |
+        WOLFSSL_VERIFY_FAIL_EXCEPT_PSK, NULL);
+    wolfSSL_set_psk_client_callback(ssl_c, my_psk_client_cb);
+    wolfSSL_set_psk_server_callback(ssl_s, my_psk_server_cb);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, TEST_VFY_PSK_SUITE),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, TEST_VFY_PSK_SUITE),
+        WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(ssl_s->options.usingPSK_cipher, 1);
+
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c);
+    ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s);
+    ctx_s = NULL;
+#endif /* TEST_VFY_PSK_SUITE */
+
+    /* A certificate suite is not the exception: the same mode and the same
+     * cert-less client are now rejected. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER |
+        WOLFSSL_VERIFY_FAIL_EXCEPT_PSK, NULL);
+
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s,
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WC_NO_ERR_TRACE(NO_PEER_CERT));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_CLIENT_AUTH) && !defined(NO_RSA)
+
+/* Run one handshake where the server demands a client certificate and the
+ * client has none, and check the server rejects it with NO_PEER_CERT.
+ *
+ * The rejection happens in a different place per protocol version, which is
+ * why this is run over several of them: TLS 1.3 rejects after Finished, TLS
+ * 1.2 on the empty Certificate message, and TLS 1.1 and below only reach the
+ * check in DoClientKeyExchange (the empty-Certificate check there is gated on
+ * IsAtLeastTLSv1_2).
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+static int test_vfy_no_client_cert(method_provider method_c,
+    method_provider method_s, int rounds)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        method_c, method_s), 0);
+
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER |
+        WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+
+    /* The client has no certificate loaded, so it answers the server's
+     * request with an empty Certificate message. */
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, rounds, NULL), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s,
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WC_NO_ERR_TRACE(NO_PEER_CERT));
+    ExpectIntEQ(ssl_s->options.havePeerCert, 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    return EXPECT_RESULT();
+}
+
+/* Run one handshake where the server does not verify the peer and the client
+ * does have a certificate, and check the server never asks for it.
+ *
+ * WOLFSSL_VERIFY_NONE on a server means "send no CertificateRequest", which
+ * is only observable from the client: it is never asked, so it never sends
+ * the certificate it holds.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+static int test_vfy_none_server_no_request(method_provider method_c,
+    method_provider method_s, int rounds)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        method_c, method_s), 0);
+
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_NONE, NULL);
+
+    /* Give the client a certificate it could present if it were asked.
+     * CERT_FILETYPE tracks the cliCertFile/cliKeyFile paths, which are DER
+     * rather than PEM in a build without WOLFSSL_PEM_TO_DER. */
+    ExpectIntEQ(wolfSSL_use_certificate_file(ssl_c, cliCertFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_c, cliKeyFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, cliCertFile, NULL),
+        WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, rounds, NULL), 0);
+
+    /* No CertificateRequest arrived, so the client sent no certificate and
+     * the server holds none. */
+    ExpectIntEQ(ssl_c->options.sendVerify, 0);
+    ExpectIntEQ(ssl_s->options.havePeerCert, 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    return EXPECT_RESULT();
+}
+
+#endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES && !WOLFSSL_NO_CLIENT_AUTH */
+
+/* Test that a server requiring a client certificate rejects a client that has
+ * none, on every protocol version the build supports.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_verify_no_client_cert(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_CLIENT_AUTH) && !defined(NO_RSA)
+
+#if defined(WOLFSSL_TLS13)
+    /* TLS 1.3: rejected when the server processes the client's Finished. */
+    ExpectIntEQ(test_vfy_no_client_cert(wolfTLSv1_3_client_method,
+        wolfTLSv1_3_server_method, 10), TEST_SUCCESS);
+#endif
+#if !defined(WOLFSSL_NO_TLS12)
+    /* TLS 1.2: rejected on the empty Certificate message. */
+    ExpectIntEQ(test_vfy_no_client_cert(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method, 10), TEST_SUCCESS);
+#endif
+#if !defined(NO_OLD_TLS)
+    /* TLS 1.1: the empty-Certificate check does not apply below TLS 1.2, so
+     * this is rejected later, in DoClientKeyExchange. */
+    ExpectIntEQ(test_vfy_no_client_cert(wolfTLSv1_1_client_method,
+        wolfTLSv1_1_server_method, 10), TEST_SUCCESS);
+#endif
+#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12)
+    /* DTLS 1.2 over the same TLS 1.2 code path, but across a cookie
+     * exchange and a retransmittable flight. */
+    ExpectIntEQ(test_vfy_no_client_cert(wolfDTLSv1_2_client_method,
+        wolfDTLSv1_2_server_method, 20), TEST_SUCCESS);
+#endif
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_TLS13)
+    ExpectIntEQ(test_vfy_no_client_cert(wolfDTLSv1_3_client_method,
+        wolfDTLSv1_3_server_method, 20), TEST_SUCCESS);
+#endif
+
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test that WOLFSSL_VERIFY_NONE on a server suppresses the certificate
+ * request, on every protocol version the build supports.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_verify_none_server_no_request(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_CLIENT_AUTH) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM)
+
+#if defined(WOLFSSL_TLS13)
+    ExpectIntEQ(test_vfy_none_server_no_request(wolfTLSv1_3_client_method,
+        wolfTLSv1_3_server_method, 10), TEST_SUCCESS);
+#endif
+#if !defined(WOLFSSL_NO_TLS12)
+    ExpectIntEQ(test_vfy_none_server_no_request(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method, 10), TEST_SUCCESS);
+#endif
+#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12)
+    ExpectIntEQ(test_vfy_none_server_no_request(wolfDTLSv1_2_client_method,
+        wolfDTLSv1_2_server_method, 20), TEST_SUCCESS);
+#endif
+
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test that a TLS 1.3 server set to WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT
+ * without WOLFSSL_VERIFY_PEER still refuses a client that has no
+ * certificate.
+ *
+ * The CertificateRequest is sent only for WOLFSSL_VERIFY_PEER, so nothing
+ * asks the client for a certificate and nothing notices it is missing until
+ * DoTls13Finished checks at the end of the handshake.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_verify_tls13_failnocert_only(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    !defined(WOLFSSL_NO_CLIENT_AUTH) && !defined(NO_RSA)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+    ExpectIntEQ(ssl_s->options.verifyPeer, 0);
+    ExpectIntEQ(ssl_s->options.failNoCert, 1);
+
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s,
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WC_NO_ERR_TRACE(NO_PEER_CERT));
+    /* The client was never asked, so it never sent one. */
+    ExpectIntEQ(ssl_s->msgsReceived.got_certificate, 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA)
+
+/* Replace one whole record in a memio buffer with a supplied one.
+ *
+ * Used to put a message on the wire that no conforming wolfSSL peer would
+ * send. Only safe before the cipher spec changes: an encrypted record cannot
+ * be substituted without also re-doing the AEAD.
+ *
+ * The records of one flight may arrive as a single memio message or as one
+ * message each, depending on whether the build groups handshake messages, so
+ * the buffer is walked by record and the containing message resized after.
+ *
+ * @param [in,out] ctx     memio context.
+ * @param [in]     client  1 for the client's inbound buffer (what the server
+ *                         wrote), 0 for the server's inbound buffer.
+ * @param [in]     hsType  handshake type of the record to replace.
+ * @param [in]     rec     replacement record, including its record header.
+ * @param [in]     recSz   length of rec.
+ * @return  0 on success, -1 when no such record is present.
+ */
+static int test_vfy_replace_record(struct test_memio_ctx* ctx, int client,
+    byte hsType, const byte* rec, int recSz)
+{
+    byte* buff;
+    int*  len;
+    int*  msgSizes;
+    int   msgCount;
+    int   off = 0;
+    int   target = -1;
+    int   targetSz = 0;
+    int   delta;
+    int   msgOff;
+    int   i;
+
+    if (client) {
+        buff = ctx->c_buff; len = &ctx->c_len;
+        msgSizes = ctx->c_msg_sizes; msgCount = ctx->c_msg_count;
+    }
+    else {
+        buff = ctx->s_buff; len = &ctx->s_len;
+        msgSizes = ctx->s_msg_sizes; msgCount = ctx->s_msg_count;
+    }
+
+    /* A plaintext record: content type, two version bytes, a two byte
+     * length, then the body - whose first byte is the handshake type. */
+    while (off + RECORD_HEADER_SZ <= *len) {
+        int recLen = (buff[off + 3] << 8) | buff[off + 4];
+
+        if (off + RECORD_HEADER_SZ + recLen > *len) {
+            break;
+        }
+        if (buff[off] == handshake && recLen > 0 &&
+                buff[off + RECORD_HEADER_SZ] == hsType) {
+            target = off;
+            targetSz = RECORD_HEADER_SZ + recLen;
+            break;
+        }
+        off += RECORD_HEADER_SZ + recLen;
+    }
+    if (target < 0) {
+        return -1;
+    }
+
+    delta = recSz - targetSz;
+    if (*len + delta > TEST_MEMIO_BUF_SZ) {
+        return -1;
+    }
+
+    XMEMMOVE(buff + target + recSz, buff + target + targetSz,
+        (size_t)(*len - target - targetSz));
+    XMEMCPY(buff + target, rec, (size_t)recSz);
+    *len += delta;
+
+    /* Resize whichever message holds the record that was replaced. */
+    msgOff = 0;
+    for (i = 0; i < msgCount; i++) {
+        if (target < msgOff + msgSizes[i]) {
+            msgSizes[i] += delta;
+            break;
+        }
+        msgOff += msgSizes[i];
+    }
+
+    return 0;
+}
+
+#endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES && !WOLFSSL_NO_TLS12 &&
+        * !NO_RSA */
+
+/* Test that a client rejects an empty Certificate message from the server.
+ *
+ * No conforming server sends one - a server with no certificate cannot use a
+ * certificate cipher suite at all - so the server's Certificate record is
+ * substituted on the wire. This is the client-side half of the empty
+ * certificate check, which is otherwise never reached.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_verify_empty_server_cert(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    /* Handshake record holding a Certificate message with an empty
+     * certificate_list: record type 22, TLS 1.2, 7 bytes of payload; then
+     * handshake type 11 with a 3 byte body; then a zero list length. */
+    static const byte emptyCert[] = {
+        0x16, 0x03, 0x03, 0x00, 0x07,
+        0x0b, 0x00, 0x00, 0x03,
+        0x00, 0x00, 0x00
+    };
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, NULL);
+
+    /* Client sends its hello. */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    /* Server replies with its flight, still in the clear. */
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+
+    /* Swap the server's Certificate for one carrying no certificates. */
+    ExpectIntEQ(test_vfy_replace_record(&test_ctx, 1, certificate,
+        emptyCert, (int)sizeof(emptyCert)), 0);
+
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(NO_PEER_CERT));
+    ExpectIntEQ(ssl_c->options.havePeerCert, 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test that WOLFSSL_VERIFY_POST_HANDSHAKE defers client authentication past
+ * the initial handshake.
+ *
+ * The CertificateRequest is suppressed during the initial handshake when
+ * post-handshake auth is selected, so a client with no certificate completes
+ * the handshake instead of being rejected. This is the one configuration that
+ * reaches the post-handshake arm of the Finished sanity check with no
+ * request outstanding.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_verify_post_handshake_defers(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    defined(WOLFSSL_POST_HANDSHAKE_AUTH) && !defined(WOLFSSL_NO_CLIENT_AUTH) \
+    && !defined(NO_RSA)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER |
+        WOLFSSL_VERIFY_POST_HANDSHAKE, NULL);
+    ExpectIntEQ(ssl_s->options.verifyPeer, 1);
+    ExpectIntEQ(ssl_s->options.verifyPostHandshake, 1);
+
+    /* The client has no certificate, and is never asked for one during the
+     * initial handshake, so the handshake completes. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(ssl_s->msgsReceived.got_certificate, 0);
+    ExpectIntEQ(ssl_s->options.havePeerCert, 0);
+    ExpectNull(ssl_s->certReqCtx);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}

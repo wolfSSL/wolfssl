@@ -47,6 +47,16 @@ int test_wolfSSL_CTX_cert_store_manager_link(void);
 int test_wolfSSL_cert_cb_ctx(void);
 int test_wolfSSL_get_certificate_api(void);
 int test_wolfSSL_cert_unload(void);
+int test_wolfSSL_verify_mode_options(void);
+int test_wolfSSL_verify_client_once_ignored(void);
+int test_wolfSSL_verify_mode_ctx_inherit(void);
+int test_wolfSSL_verify_none_accepts_untrusted(void);
+int test_wolfSSL_verify_fail_except_psk(void);
+int test_wolfSSL_verify_no_client_cert(void);
+int test_wolfSSL_verify_none_server_no_request(void);
+int test_wolfSSL_verify_tls13_failnocert_only(void);
+int test_wolfSSL_verify_empty_server_cert(void);
+int test_wolfSSL_verify_post_handshake_defers(void);
 
 #define TEST_SSL_CERT_DECLS                                                    \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_get_verify_mode),             \
@@ -75,6 +85,22 @@ int test_wolfSSL_cert_unload(void);
             test_wolfSSL_CTX_cert_store_manager_link),                         \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_cert_cb_ctx),                 \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_get_certificate_api),         \
-        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_cert_unload)
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_cert_unload),                 \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_verify_mode_options),         \
+        TEST_DECL_GROUP("ssl_cert",                                            \
+            test_wolfSSL_verify_client_once_ignored),                          \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_verify_mode_ctx_inherit),     \
+        TEST_DECL_GROUP("ssl_cert",                                            \
+            test_wolfSSL_verify_none_accepts_untrusted),                       \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_verify_fail_except_psk), \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_verify_no_client_cert), \
+        TEST_DECL_GROUP("ssl_cert",                                            \
+            test_wolfSSL_verify_none_server_no_request),                   \
+        TEST_DECL_GROUP("ssl_cert",                                            \
+            test_wolfSSL_verify_tls13_failnocert_only),                     \
+        TEST_DECL_GROUP("ssl_cert",                                            \
+            test_wolfSSL_verify_empty_server_cert),                         \
+        TEST_DECL_GROUP("ssl_cert",                                            \
+            test_wolfSSL_verify_post_handshake_defers)
 
 #endif /* TESTS_API_SSL_CERT_H */
