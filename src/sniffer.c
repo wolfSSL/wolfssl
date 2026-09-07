@@ -768,6 +768,10 @@ static int addKeyLogSnifferServerHelper(const char* address,
                                         char* error);
 #endif /* WOLFSSL_SNIFFER_KEYLOGFILE */
 
+#ifdef HAVE_EXTENDED_MASTER
+static void HashFree(HsHashes* hash);
+#endif
+
 
 /* Initialize overall Sniffer */
 void ssl_InitSniffer_ex(int devId)
@@ -947,6 +951,7 @@ static void FreeSnifferSession(SnifferSession* session)
 
         XFREE(session->ticketID, NULL, DYNAMIC_TYPE_SNIFFER_TICKET_ID);
 #ifdef HAVE_EXTENDED_MASTER
+        HashFree(session->hash);
         XFREE(session->hash, NULL, DYNAMIC_TYPE_HASHES);
 #endif
 #ifdef WOLFSSL_TLS13
@@ -1089,6 +1094,26 @@ static int HashInit(HsHashes* hash)
     return ret;
 }
 
+static void HashFree(HsHashes* hash)
+{
+    if (hash != NULL) {
+#ifndef NO_OLD_TLS
+#ifndef NO_SHA
+        wc_ShaFree(&hash->hashSha);
+#endif
+#ifndef NO_MD5
+        wc_Md5Free(&hash->hashMd5);
+#endif
+#endif /* !NO_OLD_TLS */
+#ifndef NO_SHA256
+        wc_Sha256Free(&hash->hashSha256);
+#endif
+#ifdef WOLFSSL_SHA384
+        wc_Sha384Free(&hash->hashSha384);
+#endif
+    }
+}
+
 static int HashUpdate(HsHashes* hash, const byte* input, int sz)
 {
     int ret = 0;
@@ -1120,22 +1145,28 @@ static int HashUpdate(HsHashes* hash, const byte* input, int sz)
 
 static int HashCopy(HS_Hashes* d, HsHashes* s)
 {
+    int ret = 0;
+
 #ifndef NO_OLD_TLS
 #ifndef NO_SHA
-    XMEMCPY(&d->hashSha, &s->hashSha, sizeof(wc_Sha));
+    if (ret == 0)
+        ret = wc_ShaCopy(&s->hashSha, &d->hashSha);
 #endif
 #ifndef NO_MD5
-    XMEMCPY(&d->hashMd5, &s->hashMd5, sizeof(wc_Md5));
+    if (ret == 0)
+        ret = wc_Md5Copy(&s->hashMd5, &d->hashMd5);
 #endif
 #endif /* !NO_OLD_TLS */
 #ifndef NO_SHA256
-    XMEMCPY(&d->hashSha256, &s->hashSha256, sizeof(wc_Sha256));
+    if (ret == 0)
+        ret = wc_Sha256Copy(&s->hashSha256, &d->hashSha256);
 #endif
 #ifdef WOLFSSL_SHA384
-    XMEMCPY(&d->hashSha384, &s->hashSha384, sizeof(wc_Sha384));
+    if (ret == 0)
+        ret = wc_Sha384Copy(&s->hashSha384, &d->hashSha384);
 #endif
 
-    return 0;
+    return ret;
 }
 
 #endif
@@ -4156,6 +4187,7 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
 
 #ifdef HAVE_EXTENDED_MASTER
     if (!session->flags.expectEms) {
+        HashFree(session->hash);
         XFREE(session->hash, NULL, DYNAMIC_TYPE_HASHES);
         session->hash = NULL;
     }
@@ -5050,6 +5082,7 @@ static int DoHandShake(const byte* input, int* sslBytes,
                                 session, FATAL_ERROR_STATE);
                         ret = WOLFSSL_FATAL_ERROR;
                     }
+                    HashFree(session->hash);
                     XMEMSET(session->hash, 0, sizeof(HsHashes));
                     XFREE(session->hash, NULL, DYNAMIC_TYPE_HASHES);
                     session->hash = NULL;
@@ -5558,6 +5591,7 @@ static SnifferSession* CreateSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
         }
         if (HashInit(newHash) != 0) {
             SetError(EXTENDED_MASTER_HASH_STR, error, NULL, 0);
+            HashFree(newHash);
             XFREE(newHash, NULL, DYNAMIC_TYPE_HASHES);
             XFREE(session, NULL, DYNAMIC_TYPE_SNIFFER_SESSION);
             return NULL;
@@ -5582,23 +5616,20 @@ static SnifferSession* CreateSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
     session->context = GetSnifferServer(ipInfo, tcpInfo);
     if (session->context == NULL) {
         SetError(SERVER_NOT_REG_STR, error, NULL, 0);
-        XFREE(session, NULL, DYNAMIC_TYPE_SNIFFER_SESSION);
+        FreeSnifferSession(session);
         return NULL;
     }
 
     session->sslServer = wolfSSL_new(session->context->ctx);
     if (session->sslServer == NULL) {
         SetError(BAD_NEW_SSL_STR, error, session, FATAL_ERROR_STATE);
-        XFREE(session, NULL, DYNAMIC_TYPE_SNIFFER_SESSION);
+        FreeSnifferSession(session);
         return NULL;
     }
     session->sslClient = wolfSSL_new(session->context->ctx);
     if (session->sslClient == NULL) {
-        wolfSSL_free(session->sslServer);
-        session->sslServer = 0;
-
         SetError(BAD_NEW_SSL_STR, error, session, FATAL_ERROR_STATE);
-        XFREE(session, NULL, DYNAMIC_TYPE_SNIFFER_SESSION);
+        FreeSnifferSession(session);
         return NULL;
     }
     /* put server back into server mode */
