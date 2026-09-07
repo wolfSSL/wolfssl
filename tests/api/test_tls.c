@@ -432,6 +432,17 @@ int test_tls_peer_name_mismatch_verify_result(void)
     return EXPECT_RESULT();
 }
 
+/* SetupStoreCtxCallback() runs the handshake error through GetX509Error()
+ * only under OPENSSL_COMPATIBLE_DEFAULTS. Everywhere else the callback sees
+ * the internal code. */
+#ifdef OPENSSL_COMPATIBLE_DEFAULTS
+    #define TEST_PEER_NAME_IPADDR_ERR  WOLFSSL_X509_V_ERR_IP_ADDRESS_MISMATCH
+    #define TEST_PEER_NAME_DOMAIN_ERR  WOLFSSL_X509_V_ERR_HOSTNAME_MISMATCH
+#else
+    #define TEST_PEER_NAME_IPADDR_ERR  WC_NO_ERR_TRACE(IPADDR_MISMATCH)
+    #define TEST_PEER_NAME_DOMAIN_ERR  WC_NO_ERR_TRACE(DOMAIN_NAME_MISMATCH)
+#endif
+
 /* A peer name mismatch must be reported through SSL_set_verify()'s callback,
  * whichever API named the expected peer. */
 int test_tls_peer_name_mismatch_verify_cb(void)
@@ -443,13 +454,13 @@ int test_tls_peer_name_mismatch_verify_cb(void)
 #ifdef WOLFSSL_IP_ALT_NAME
     /* certs/server-cert.pem carries IP:127.0.0.1 and DNS:example.com. */
     ExpectIntEQ(test_peer_name_mismatch(0, "127.0.0.2",
-        WC_NO_ERR_TRACE(IPADDR_MISMATCH)), TEST_SUCCESS);
+        TEST_PEER_NAME_IPADDR_ERR), TEST_SUCCESS);
     ExpectIntEQ(test_peer_name_mismatch(1, "127.0.0.2",
-        WC_NO_ERR_TRACE(IPADDR_MISMATCH)), TEST_SUCCESS);
+        TEST_PEER_NAME_IPADDR_ERR), TEST_SUCCESS);
     ExpectIntEQ(test_peer_name_mismatch(0, "127.0.0.1", 0), TEST_SUCCESS);
 #endif
     ExpectIntEQ(test_peer_name_mismatch(2, "wrong.example.com",
-        WC_NO_ERR_TRACE(DOMAIN_NAME_MISMATCH)), TEST_SUCCESS);
+        TEST_PEER_NAME_DOMAIN_ERR), TEST_SUCCESS);
     ExpectIntEQ(test_peer_name_mismatch(2, "example.com", 0), TEST_SUCCESS);
 #endif
     return EXPECT_RESULT();
