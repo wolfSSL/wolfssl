@@ -15603,7 +15603,8 @@ static int get_dn_attr_by_nid(int n, const char** buf)
 
 /* Escape a name entry value. Mirrors OpenSSL's do_esc_char() for single
  * byte characters. Only ASN1_STRFLGS_ESC_2253, ASN1_STRFLGS_ESC_CTRL and
- * ASN1_STRFLGS_ESC_MSB are implemented.
+ * ASN1_STRFLGS_ESC_MSB are implemented. ASN1_STRFLGS_ESC_QUOTE does not
+ * quote but, as in OpenSSL, still causes the backslash to be escaped.
  *
  * in    - value to escape, may contain NUL bytes
  * inSz  - length of in
@@ -15766,7 +15767,8 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
         }
         else if (bio->type != WOLFSSL_BIO_FILE &&
                  bio->type != WOLFSSL_BIO_MEMORY) {
-            /* include the terminating null when not writing to a file */
+            /* include the terminating null when not writing to a file or
+             * memory BIO */
             tmp[idx] = '\0';
             idx++;
         }
