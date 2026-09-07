@@ -3034,8 +3034,14 @@
     #define HAVE_AESGCM
 #endif
 
-/* Detect Cortex M3 (no UMAAL) */
-#if defined(__ARM_ARCH_7M__) && !defined(WOLFSSL_ARM_ARCH_7M)
+/* Detect an M-profile core without UMAAL, which selects the UMAAL-free
+ * variants in sp_cortexm.c and the thumb2-* assembly. That is the Cortex-M3,
+ * and equally any ARMv8-M part built without the optional DSP extension - a
+ * case __ARM_ARCH_7M__ alone does not catch. Toolchains define
+ * __ARM_FEATURE_DSP exactly when the extension, and so UMAAL, is present. */
+#if !defined(WOLFSSL_ARM_ARCH_7M) && !defined(__ARM_FEATURE_DSP) && \
+    (defined(__ARM_ARCH_7M__) || \
+     (defined(__ARM_ARCH_PROFILE) && (__ARM_ARCH_PROFILE == 'M')))
     #define WOLFSSL_ARM_ARCH_7M
 #endif
 #if defined(WOLFSSL_SP_ARM_CORTEX_M_ASM) && defined(WOLFSSL_ARM_ARCH_7M)
