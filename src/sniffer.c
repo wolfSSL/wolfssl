@@ -5616,23 +5616,20 @@ static SnifferSession* CreateSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
     session->context = GetSnifferServer(ipInfo, tcpInfo);
     if (session->context == NULL) {
         SetError(SERVER_NOT_REG_STR, error, NULL, 0);
-        XFREE(session, NULL, DYNAMIC_TYPE_SNIFFER_SESSION);
+        FreeSnifferSession(session);
         return NULL;
     }
 
     session->sslServer = wolfSSL_new(session->context->ctx);
     if (session->sslServer == NULL) {
         SetError(BAD_NEW_SSL_STR, error, session, FATAL_ERROR_STATE);
-        XFREE(session, NULL, DYNAMIC_TYPE_SNIFFER_SESSION);
+        FreeSnifferSession(session);
         return NULL;
     }
     session->sslClient = wolfSSL_new(session->context->ctx);
     if (session->sslClient == NULL) {
-        wolfSSL_free(session->sslServer);
-        session->sslServer = 0;
-
         SetError(BAD_NEW_SSL_STR, error, session, FATAL_ERROR_STATE);
-        XFREE(session, NULL, DYNAMIC_TYPE_SNIFFER_SESSION);
+        FreeSnifferSession(session);
         return NULL;
     }
     /* put server back into server mode */
