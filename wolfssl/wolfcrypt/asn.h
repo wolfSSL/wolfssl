@@ -1506,6 +1506,7 @@ enum KeyIdType {
     #define EXTKEYUSE_SSH_CLIENT_AUTH    0x01
     #define EXTKEYUSE_SSH_MSCL           0x02
     #define EXTKEYUSE_SSH_KP_CLIENT_AUTH 0x04
+    #define EXTKEYUSE_SSH_SERVER_AUTH    0x08
 #endif /* WOLFSSL_WOLFSSH */
 
 #define WC_NS_SSL_CLIENT      0x80

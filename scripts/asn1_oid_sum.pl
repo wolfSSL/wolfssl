@@ -958,6 +958,7 @@ my @eku_ocsp_sign = ( 1, 3, 6, 1, 5, 5, 7, 3, 9 );
 my @eku_ssh_client_auth = ( 1, 3, 6, 1, 5, 5, 7, 3, 21 );
 my @eku_ssh_mscl = ( 1, 3, 6, 1, 4, 1, 311, 20, 2, 2 );
 my @eku_ssh_kp_client_auth = ( 1, 3, 6, 1, 5, 2, 3, 4 );
+my @eku_ssh_server_auth = ( 1, 3, 6, 1, 5, 5, 7, 3, 22 );
 
 my @ekus = (
     { name => "EKU_ANY",                oid => \@eku_any                },
@@ -970,6 +971,7 @@ my @ekus = (
     { name => "EKU_SSH_CLIENT_AUTH",    oid => \@eku_ssh_client_auth    },
     { name => "EKU_SSH_MSCL",           oid => \@eku_ssh_mscl           },
     { name => "EKU_SSH_KP_CLIENT_AUTH", oid => \@eku_ssh_kp_client_auth },
+    { name => "EKU_SSH_SERVER_AUTH",    oid => \@eku_ssh_server_auth    },
 );
 
 print_sum_enum("ExtKeyUsage", "_OID", \@ekus);
