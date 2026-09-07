@@ -24,9 +24,16 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
-#include <wolfssl/wolfcrypt/wc_slhdsa.h>
-
 #ifdef WOLFSSL_HAVE_SLHDSA
+
+#if FIPS_VERSION3_GE(7,0,0)
+    #ifdef USE_WINDOWS_API
+        #pragma code_seg(".fipsA$ni")
+        #pragma const_seg(".fipsB$ni")
+    #endif
+#endif
+
+#include <wolfssl/wolfcrypt/wc_slhdsa.h>
 
 #if FIPS_VERSION3_GE(7,0,0) && defined(WOLFSSL_SLHDSA_VERIFY_ONLY)
     #error "SLH-DSA signing is required for the v7 FIPS module"

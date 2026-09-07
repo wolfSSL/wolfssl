@@ -26,6 +26,14 @@
 
 #if defined(WOLFSSL_HAVE_LMS)
 
+#if FIPS_VERSION3_GE(7,0,0)
+    /* the letter d is skipped, codespell rejects it; do not reuse it */
+    #ifdef USE_WINDOWS_API
+        #pragma code_seg(".fipsA$ne")
+        #pragma const_seg(".fipsB$ne")
+    #endif
+#endif
+
 #include <wolfssl/wolfcrypt/wc_lms.h>
 
 #if FIPS_VERSION3_GE(7,0,0)

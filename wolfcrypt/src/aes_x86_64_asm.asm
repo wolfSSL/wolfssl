@@ -41,7 +41,19 @@ IFNDEF _WIN64
 _WIN64 = 1
 ENDIF
 
+fips_version = 0
+IFDEF HAVE_FIPS
+  fips_version = 1
+  IFDEF HAVE_FIPS_VERSION
+    fips_version = HAVE_FIPS_VERSION
+  ENDIF
+ENDIF
+
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_128_Key_Expansion_AESNI PROC
         movdqu	xmm0, OWORD PTR [rcx]
         movdqu	OWORD PTR [rdx], xmm0
@@ -157,8 +169,16 @@ AES_128_Key_Expansion_AESNI PROC
         movdqu	OWORD PTR [rdx+160], xmm0
         ret
 AES_128_Key_Expansion_AESNI ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_192_Key_Expansion_AESNI PROC
         movdqu	xmm0, OWORD PTR [rcx]
         pxor	xmm1, xmm1
@@ -315,8 +335,16 @@ AES_192_Key_Expansion_AESNI PROC
         movdqu	OWORD PTR [rdx+208], xmm1
         ret
 AES_192_Key_Expansion_AESNI ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_256_Key_Expansion_AESNI PROC
         movdqu	xmm0, OWORD PTR [rcx]
         movdqu	xmm1, OWORD PTR [rcx+16]
@@ -467,8 +495,16 @@ AES_256_Key_Expansion_AESNI PROC
         movdqu	OWORD PTR [rdx+224], xmm0
         ret
 AES_256_Key_Expansion_AESNI ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_ECB_encrypt_AESNI PROC
         push	r12
         push	r13
@@ -633,8 +669,16 @@ L_AES_ECB_encrypt_AESNI_done_enc:
         pop	r12
         ret
 AES_ECB_encrypt_AESNI ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_ECB_decrypt_AESNI PROC
         push	r12
         push	r13
@@ -799,8 +843,16 @@ L_AES_ECB_decrypt_AESNI_done_dec:
         pop	r12
         ret
 AES_ECB_decrypt_AESNI ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_CBC_encrypt_AESNI PROC
         push	r12
         push	r13
@@ -862,8 +914,16 @@ L_AES_CBC_encrypt_AESNI_done:
         pop	r12
         ret
 AES_CBC_encrypt_AESNI ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_CBC_decrypt_AESNI PROC
         push	r12
         push	r13
@@ -1048,18 +1108,46 @@ L_AES_CBC_decrypt_AESNI_done_dec:
         pop	r12
         ret
 AES_CBC_decrypt_AESNI ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_aes_ctr_aesni_bswap QWORD 08090a0b0c0d0e0fh, 0001020304050607h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_aes_ctr_aesni_bswap QWORD L_aes_ctr_aesni_bswap
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_aes_ctr_aesni_one QWORD 0000000000000001h, 0000000000000000h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_aes_ctr_aesni_one QWORD L_aes_ctr_aesni_one
 _DATA ENDS
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_CTR_encrypt_AESNI PROC
         push	r12
         push	r13
@@ -1289,9 +1377,17 @@ L_AES_CTR_encrypt_AESNI_done_enc:
         pop	r12
         ret
 AES_CTR_encrypt_AESNI ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
 IFDEF HAVE_INTEL_AVX1
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_ECB_encrypt_avx1 PROC
         push	r12
         push	r13
@@ -1456,8 +1552,16 @@ L_AES_ECB_encrypt_avx1_done_enc:
         pop	r12
         ret
 AES_ECB_encrypt_avx1 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_ECB_decrypt_avx1 PROC
         push	r12
         push	r13
@@ -1622,8 +1726,16 @@ L_AES_ECB_decrypt_avx1_done_dec:
         pop	r12
         ret
 AES_ECB_decrypt_avx1 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_CBC_encrypt_avx1 PROC
         push	r12
         push	r13
@@ -1685,8 +1797,16 @@ L_AES_CBC_encrypt_avx1_done:
         pop	r12
         ret
 AES_CBC_encrypt_avx1 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_CBC_decrypt_avx1 PROC
         push	r12
         push	r13
@@ -1868,18 +1988,46 @@ L_AES_CBC_decrypt_avx1_done_dec:
         pop	r12
         ret
 AES_CBC_decrypt_avx1 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_aes_ctr_avx1_bswap QWORD 08090a0b0c0d0e0fh, 0001020304050607h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_aes_ctr_avx1_bswap QWORD L_aes_ctr_avx1_bswap
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_aes_ctr_avx1_one QWORD 0000000000000001h, 0000000000000000h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_aes_ctr_avx1_one QWORD L_aes_ctr_avx1_one
 _DATA ENDS
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_CTR_encrypt_avx1 PROC
         push	r12
         push	r13
@@ -2094,10 +2242,18 @@ L_AES_CTR_encrypt_avx1_done_enc:
         pop	r12
         ret
 AES_CTR_encrypt_avx1 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
 ENDIF
+ENDIF
 IFDEF HAVE_INTEL_VAES
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_ECB_encrypt_vaes PROC
         push	r12
         push	r13
@@ -2381,8 +2537,16 @@ L_AES_ECB_encrypt_vaes_done_enc:
         pop	r12
         ret
 AES_ECB_encrypt_vaes ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_ECB_decrypt_vaes PROC
         push	r12
         push	r13
@@ -2666,8 +2830,16 @@ L_AES_ECB_decrypt_vaes_done_dec:
         pop	r12
         ret
 AES_ECB_decrypt_vaes ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_CBC_encrypt_vaes PROC
         push	r12
         push	r13
@@ -2729,8 +2901,16 @@ L_AES_CBC_encrypt_vaes_done:
         pop	r12
         ret
 AES_CBC_encrypt_vaes ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_CBC_decrypt_vaes PROC
         push	r12
         push	r13
@@ -3051,13 +3231,31 @@ L_AES_CBC_decrypt_vaes_done_dec:
         pop	r12
         ret
 AES_CBC_decrypt_vaes ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_aes_ctr_bswap_vaes QWORD 08090a0b0c0d0e0fh, 0001020304050607h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_aes_ctr_bswap_vaes QWORD L_aes_ctr_bswap_vaes
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_aes_ctr_inc_vaes QWORD 0000000000000000h, 0000000000000000h
         QWORD 0000000000000001h, 0000000000000000h
@@ -3076,9 +3274,19 @@ L_aes_ctr_inc_vaes QWORD 0000000000000000h, 0000000000000000h
         QWORD 000000000000000eh, 0000000000000000h
         QWORD 000000000000000fh, 0000000000000000h
         QWORD 0000000000000010h, 0000000000000000h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_aes_ctr_inc_vaes QWORD L_aes_ctr_inc_vaes
 _DATA ENDS
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_CTR_encrypt_vaes PROC
         push	r12
         push	r13
@@ -3524,10 +3732,18 @@ L_AES_CTR_encrypt_vaes_done_enc:
         pop	r12
         ret
 AES_CTR_encrypt_vaes ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
 ENDIF
+ENDIF
 IFDEF HAVE_INTEL_AVX512
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_ECB_encrypt_avx512 PROC
         push	r12
         push	r13
@@ -3848,8 +4064,16 @@ L_AES_ECB_encrypt_avx512_done_enc:
         pop	r12
         ret
 AES_ECB_encrypt_avx512 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_ECB_decrypt_avx512 PROC
         push	r12
         push	r13
@@ -4170,8 +4394,16 @@ L_AES_ECB_decrypt_avx512_done_dec:
         pop	r12
         ret
 AES_ECB_decrypt_avx512 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_CBC_encrypt_avx512 PROC
         push	r12
         push	r13
@@ -4232,8 +4464,16 @@ L_AES_CBC_encrypt_avx512_done:
         pop	r12
         ret
 AES_CBC_encrypt_avx512 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_CBC_decrypt_avx512 PROC
         push	r12
         push	r13
@@ -4585,13 +4825,31 @@ L_AES_CBC_decrypt_avx512_done_dec:
         pop	r12
         ret
 AES_CBC_decrypt_avx512 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_aes_ctr_bswap_avx512 QWORD 08090a0b0c0d0e0fh, 0001020304050607h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_aes_ctr_bswap_avx512 QWORD L_aes_ctr_bswap_avx512
 _DATA ENDS
+IF fips_version GE 7
+fipsBb SEGMENT READONLY ALIAS(".fipsB$b") 'CONST'
+ELSE
 _DATA SEGMENT
+ENDIF
 ALIGN 16
 L_aes_ctr_inc_avx512 QWORD 0000000000000000h, 0000000000000000h
         QWORD 0000000000000001h, 0000000000000000h
@@ -4610,9 +4868,19 @@ L_aes_ctr_inc_avx512 QWORD 0000000000000000h, 0000000000000000h
         QWORD 000000000000000eh, 0000000000000000h
         QWORD 000000000000000fh, 0000000000000000h
         QWORD 0000000000000010h, 0000000000000000h
+IF fips_version GE 7
+fipsBb ENDS
+ELSE
+_DATA ENDS
+ENDIF
+_DATA SEGMENT
 ptr_L_aes_ctr_inc_avx512 QWORD L_aes_ctr_inc_avx512
 _DATA ENDS
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_CTR_encrypt_avx512 PROC
         push	r12
         push	r13
@@ -5051,6 +5319,10 @@ L_AES_CTR_encrypt_avx512_done_enc:
         pop	r12
         ret
 AES_CTR_encrypt_avx512 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
 ENDIF
 END

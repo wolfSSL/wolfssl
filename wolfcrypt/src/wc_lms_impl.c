@@ -42,6 +42,15 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
+#ifdef WOLFSSL_HAVE_LMS
+
+#if FIPS_VERSION3_GE(7,0,0)
+    #ifdef USE_WINDOWS_API
+        #pragma code_seg(".fipsA$nf")
+        #pragma const_seg(".fipsB$nf")
+    #endif
+#endif
+
 #include <wolfssl/wolfcrypt/wc_lms.h>
 
 #ifdef NO_INLINE
@@ -50,8 +59,6 @@
     #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
 #endif
-
-#ifdef WOLFSSL_HAVE_LMS
 
 /* Length of R in bytes. */
 #define LMS_R_LEN           4U

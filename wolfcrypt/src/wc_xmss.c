@@ -26,6 +26,13 @@
 
 #ifdef WOLFSSL_HAVE_XMSS
 
+#if FIPS_VERSION3_GE(7,0,0)
+    #ifdef USE_WINDOWS_API
+        #pragma code_seg(".fipsA$ng")
+        #pragma const_seg(".fipsB$ng")
+    #endif
+#endif
+
 #include <wolfssl/wolfcrypt/wc_xmss.h>
 
 #if FIPS_VERSION3_GE(7,0,0)
