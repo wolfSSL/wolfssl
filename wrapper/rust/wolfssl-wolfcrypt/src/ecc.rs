@@ -1300,8 +1300,8 @@ impl ECC {
     ///
     /// # Returns
     ///
-    /// Returns either Ok(ECC) containing the ECC struct instance or Err(e)
-    /// containing the wolfSSL library error code value.
+    /// Returns either Ok(()) if the key is ok or Err(e) containing the wolfSSL
+    /// library error code value.
     ///
     /// # Example
     ///
