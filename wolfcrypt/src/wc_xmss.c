@@ -852,6 +852,9 @@ int wc_XmssKey_Init(XmssKey* key, void* heap, int devId)
         key->devId = devId;
     #endif
         key->state = WC_XMSS_STATE_INITED;
+
+        /* Ensure the CPU features are known. */
+        wc_xmss_init();
     }
 
     return ret;

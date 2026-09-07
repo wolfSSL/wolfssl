@@ -2429,6 +2429,22 @@ do
   esac
 done
 
+# Turning the SHA-256/256 sets off leaves no parameter sets at all unless one
+# of the other hash families is asked for, and LMS with no parameter sets is a
+# library whose LMS API can never be used.
+case $ENABLED_LMS in
+  *no-sha256-256*)
+    case $ENABLED_LMS in
+      *sha256-192*|*shake256*)
+        ;;
+      *)
+        AC_MSG_ERROR([LMS: no-sha256-256 leaves no parameter sets. Add \
+sha256-192 and/or shake256.])
+        ;;
+    esac
+    ;;
+esac
+
 # SLH-DSA
 ENABLED_SLHDSA=yes
 AC_ARG_ENABLE([slhdsa],

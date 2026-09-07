@@ -43,6 +43,7 @@
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #include <wolfssl/wolfcrypt/wc_lms.h>
+#include <wolfssl/wolfcrypt/cpuid.h>
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -52,6 +53,28 @@
 #endif
 
 #ifdef WOLFSSL_HAVE_LMS
+
+#if defined(USE_INTEL_SPEEDUP)
+/* CPU features this implementation may use.  Filled in by wc_lms_init(),
+ * which wc_LmsKey_Init() calls, so anything below can read it without
+ * checking whether it has been worked out yet. */
+static cpuid_flags_atomic_t cpuid_flags = WC_CPUID_ATOMIC_INITIALIZER;
+#endif
+
+/* Work out what this CPU can do.
+ *
+ * Called once per key from wc_LmsKey_Init().  The getter is idempotent, so
+ * repeated calls cost a load and nothing else.
+ *
+ * Internal to the library: WOLFSSL_LOCAL here as well as on the declaration,
+ * or the symbol keeps default visibility and is exported.
+ */
+WOLFSSL_LOCAL void wc_lms_init(void)
+{
+#if defined(USE_INTEL_SPEEDUP)
+    cpuid_get_flags_atomic(&cpuid_flags);
+#endif
+}
 
 /* Length of R in bytes. */
 #define LMS_R_LEN           4U
@@ -660,6 +683,1223 @@ static WC_INLINE int wc_lms_shake256_hash_final(wc_Shake* shake, byte* hash,
 }
 #endif /* WOLFSSL_LMS_SHAKE256 */
 
+#ifdef WC_LMS_N_WAY
+
+/***************************************
+ * Batched chain hashing
+ **************************************/
+
+/* Offsets of the fields of an LM-OTS hash block:
+ *   I || u32str(q) || u16str(i) || u8str(j) || tmp
+ * The caller has already put I, u32str(q) and the SHA-256 padding for the
+ * whole 64-byte block into state->buffer, so only the last three change from
+ * chain to chain and step to step.
+ */
+#define LMS_HASH_IDX_OFF    (LMS_I_LEN + LMS_Q_LEN)
+#define LMS_HASH_J_OFF      (LMS_I_LEN + LMS_Q_LEN + LMS_P_LEN)
+#define LMS_HASH_TMP_OFF    (LMS_I_LEN + LMS_Q_LEN + LMS_P_LEN + LMS_W_LEN)
+
+/* Which range the scheduler runs its chains over.  Passing the coefficient
+ * array and a mode avoids materialising a start/end pair per chain, which at
+ * LMS_MAX_P would be a kilobyte of stack per call.  Key generation is not
+ * here: its chains are all the same length and it has its own batch below. */
+#define LMS_N_WAY_TO_A        0   /* 0 .. a[i]      : signing */
+#define LMS_N_WAY_FROM_A      1   /* a[i] .. 2^w-1  : verification */
+
+/* Lane has no chain to run. */
+#define LMS_N_WAY_IDLE        (-1)
+/* Lane's next hash produces its chain's starting value rather than iterating
+ * it - Appendix A's x_q[i], which is the same hash with j = 0xff. */
+#define LMS_N_WAY_DERIVE      (-1)
+
+#ifdef WC_LMS_SHA256_N_WAY
+/* Hash 'cnt' one-block LM-OTS messages from the SHA-256 initial value.
+ *
+ * Every LM-OTS hash is a single block - 23 + n bytes with the padding the
+ * caller put in - so there is no chaining value to carry and one call to the
+ * assembly does the batch.
+ *
+ * @param [in]  data     cnt blocks, message m at data + m * 64.
+ * @param [out] hash     cnt digests, m at hash + m * WC_SHA256_DIGEST_SIZE.
+ * @param [in]  cnt      Lanes, from wc_lms_n_way_sha256_lanes().
+ */
+static void wc_lms_n_way_sha256(const byte* data, byte* hash, int cnt)
+{
+    static const word32 init[WC_SHA256_DIGEST_SIZE / sizeof(word32)] = {
+        0x6A09E667L, 0xBB67AE85L, 0x3C6EF372L, 0xA54FF53AL,
+        0x510E527FL, 0x9B05688CL, 0x1F83D9ABL, 0x5BE0CD19L
+    };
+    /* Lane-interleaved: word i of message m at st[i * cnt + m]. */
+    ALIGN64 word32 st[WC_SHA256_N_WAY_MAX_CNT *
+                      (WC_SHA256_DIGEST_SIZE / sizeof(word32))];
+    int i;
+    int m;
+
+    for (i = 0; i < (int)(WC_SHA256_DIGEST_SIZE / sizeof(word32)); i++) {
+        for (m = 0; m < cnt; m++) {
+            st[i * cnt + m] = init[i];
+        }
+    }
+
+#ifdef WOLFSSL_LMS_HAVE_INTEL_AVX512
+    if (cnt == 16) {
+    #ifndef NO_AVX512BW_SUPPORT
+        /* Same kernel, one-instruction byte swap where the CPU has BW. */
+        if (IS_INTEL_AVX512_BW(cpuid_flags)) {
+            Transform_Sha256_x16_AVX512_BW(st, data);
+        }
+        else
+    #endif
+        {
+            Transform_Sha256_x16_AVX512(st, data);
+        }
+    }
+    else
+#endif
+    {
+        Transform_Sha256_x8_AVX2(st, data);
+    }
+
+    for (m = 0; m < cnt; m++) {
+        byte* h = hash + m * WC_SHA256_DIGEST_SIZE;
+
+        for (i = 0; i < (int)(WC_SHA256_DIGEST_SIZE / sizeof(word32)); i++) {
+            word32 v = st[i * cnt + m];
+
+            h[i * 4 + 0] = (byte)(v >> 24);
+            h[i * 4 + 1] = (byte)(v >> 16);
+            h[i * 4 + 2] = (byte)(v >>  8);
+            h[i * 4 + 3] = (byte)(v      );
+        }
+    }
+
+    /* The chaining values are secret in the private-key half of LMS. */
+    ForceZero(st, sizeof(st));
+}
+#endif /* WC_LMS_SHA256_N_WAY */
+
+#ifdef WC_LMS_SHAKE_N_WAY
+/* Hash 'cnt' LM-OTS messages with SHAKE-256.
+ *
+ * The message is 23 + n bytes, well inside the 136-byte rate, so absorb,
+ * permute once and squeeze.
+ *
+ * @param [in, out] st    cnt * 25 words of interleaved Keccak state.
+ * @param [in]      data  cnt messages of 'len' bytes, m at data + m * len.
+ * @param [in]      len      Length of each message in bytes.
+ * @param [out]     out   cnt outputs of 'outLen' bytes.
+ * @param [in]      outLen   Length of each output in bytes.
+ * @param [in]      cnt      Lanes, from wc_lms_n_way_lanes().
+ */
+static void wc_lms_n_way_shake(word64* st, const byte* data, word32 len,
+    byte* out, word32 outLen, int cnt)
+{
+    /* Word holding the last byte of the SHAKE-256 rate. */
+    word32 last = WC_SHA3_256_BLOCK_SIZE / 8 - 1;
+    int m;
+
+    XMEMSET(st, 0, (size_t)cnt * 25 * sizeof(word64));
+
+    for (m = 0; m < cnt; m++) {
+        const byte* d = data + (size_t)m * len;
+        word32 i;
+        word32 rem;
+        word64 w;
+
+        for (i = 0; i < len / 8; i++) {
+            st[i * (word32)cnt + (word32)m] = readUnalignedWord64(d + i * 8);
+        }
+        /* Whatever is left of the message, then SHAKE's 0x1f marker. */
+        rem = len & 7;
+        w = 0;
+        for (i = 0; i < rem; i++) {
+            w |= (word64)d[(len & ~7U) + i] << (8 * i);
+        }
+        w |= (word64)0x1f << (8 * rem);
+        st[(len / 8) * (word32)cnt + (word32)m] = w;
+        /* End of the absorbed block. */
+        st[last * (word32)cnt + (word32)m] |= (word64)0x80 << 56;
+    }
+
+#ifdef WOLFSSL_LMS_HAVE_INTEL_AVX512
+    if (cnt == 8) {
+        sha3_blocksx8_avx512(st);
+    }
+    else
+#endif
+    {
+        sha3_blocksx4_avx2(st);
+    }
+
+    for (m = 0; m < cnt; m++) {
+        byte* o = out + (size_t)m * outLen;
+        word32 i;
+
+        for (i = 0; i < outLen / 8; i++) {
+            writeUnalignedWord64(o + i * 8, st[i * (word32)cnt + (word32)m]);
+        }
+        if ((outLen & 7) != 0) {
+            word64 w = st[(outLen / 8) * (word32)cnt + (word32)m];
+
+            for (i = 0; i < (outLen & 7); i++) {
+                o[(outLen & ~7U) + i] = (byte)(w >> (8 * i));
+            }
+        }
+    }
+
+    ForceZero(st, (size_t)cnt * 25 * sizeof(word64));
+}
+#endif /* WC_LMS_SHAKE_N_WAY */
+
+/* The fused kernels are built for the AVX-512 width and lay out a 32-byte
+ * tmp; the 24-byte parameter sets keep the general path. */
+#if defined(WC_LMS_SHA256_N_WAY) && defined(WOLFSSL_LMS_HAVE_INTEL_AVX512)
+    #define WC_LMS_SHA256_N_WAY_FUSED
+    #ifdef WOLFSSL_LMS_SHA256_192
+        /* A 24-byte hash has its own kernels; the shorter message puts tmp
+         * and the padding in different words. */
+        #define LMS_N_WAY_FUSED_LEN(params)                                   \
+            (((params)->hash_len == WC_SHA256_DIGEST_SIZE) ||               \
+             ((params)->hash_len == WC_SHA256_192_DIGEST_SIZE))
+    #else
+        #define LMS_N_WAY_FUSED_LEN(params)                                   \
+            ((params)->hash_len == WC_SHA256_DIGEST_SIZE)
+    #endif
+    #define LMS_N_WAY_FUSED_SHA256(params, lanes)                             \
+        (((lanes) == 16) && (!LMS_N_WAY_IS_SHAKE(params)) &&                  \
+         LMS_N_WAY_FUSED_LEN(params))
+#else
+    #define LMS_N_WAY_FUSED_SHA256(params, lanes)     0
+#endif
+/* SHAKE has fused kernels at both widths, so this needs no AVX-512. */
+#ifdef WC_LMS_SHAKE_N_WAY
+    #define WC_LMS_SHAKE_N_WAY_FUSED
+    #define LMS_N_WAY_FUSED_SHAKE(params, lanes)                              \
+        ((((lanes) == 8) || ((lanes) == 4)) && LMS_N_WAY_IS_SHAKE(params) &&  \
+         ((params)->hash_len == WC_SHA256_DIGEST_SIZE))
+#else
+    #define LMS_N_WAY_FUSED_SHAKE(params, lanes)      0
+#endif
+#if defined(WC_LMS_SHA256_N_WAY_FUSED) || defined(WC_LMS_SHAKE_N_WAY_FUSED)
+    #define WC_LMS_N_WAY_FUSED
+#endif
+#define LMS_N_WAY_FUSED(params, lanes)                                        \
+    (LMS_N_WAY_FUSED_SHA256(params, lanes) ||                                 \
+     LMS_N_WAY_FUSED_SHAKE(params, lanes))
+
+#ifdef WOLFSSL_LMS_SHAKE256
+    #define LMS_N_WAY_IS_SHAKE(params)    LMS_IS_SHAKE((params)->lmOtsType)
+#else
+    #define LMS_N_WAY_IS_SHAKE(params)    0
+#endif
+
+/* Chains to step at once for these parameters, or 0 for the serial path.
+ *
+ * SHAKE has no hardware single-block form to lose to, so it takes the widest
+ * batch the CPU offers.  SHA-256 does: sixteen lanes beat SHA-NI but eight
+ * lose to it, so eight are taken only when the CPU has no SHA extension -
+ * unless WOLFSSL_SHA256_N_WAY asks for them anyway.  See sha256.h for the
+ * measurements.
+ *
+ * @param [in] params  LMS parameters, which name the hash family.
+ * @return  Number of chains to step at once, or 0.
+ */
+/* The AVX-512 kernels these schemes call keep to AVX-512F: no vpshufb, no
+ * vpermb, nothing that needs BW, DQ, VL or VBMI - the byte swap in the SHA-2
+ * transforms is done with a rotate pair and a merge for exactly that reason.
+ * So the foundation bit alone is the right test, and a part with 512-bit
+ * vectors but no AVX512BW still takes the wide path rather than dropping to
+ * AVX2.  ci/check_avx512_isa.rb in the scripts repo holds the generated
+ * output to that; ML-KEM, ML-DSA and FrodoKEM work on 8- and 16-bit lanes
+ * @param [in]      params   LMS parameters.
+ * and do need USE_INTEL_AVX512(). */
+static int wc_lms_n_way_lanes(const LmsParams* params)
+{
+    /* The test is outside the guard: a build can have the SHA-256 batch and
+     * not the SHAKE one, and these parameters must not then be handed the
+     * SHA-256 width. */
+    if (LMS_N_WAY_IS_SHAKE(params)) {
+#ifdef WC_LMS_SHAKE_N_WAY
+    #ifdef WOLFSSL_LMS_HAVE_INTEL_AVX512
+        if (IS_INTEL_AVX512(cpuid_flags)) {
+            return 8;
+        }
+    #endif
+        return IS_INTEL_AVX2(cpuid_flags) ? 4 : 0;
+#else
+        return 0;
+#endif
+    }
+#ifdef WC_LMS_SHA256_N_WAY
+    #ifdef WOLFSSL_LMS_HAVE_INTEL_AVX512
+    if (IS_INTEL_AVX512(cpuid_flags)) {
+        return 16;
+    }
+    #endif
+    #ifndef WOLFSSL_SHA256_N_WAY
+    if (IS_INTEL_SHA(cpuid_flags)) {
+        return 0;
+    }
+    #endif
+    if (IS_INTEL_AVX2(cpuid_flags)) {
+        return 8;
+    }
+#endif
+    (void)params;
+    return 0;
+}
+
+#define LMS_N_WAY_LANES(params)       wc_lms_n_way_lanes(params)
+
+/* Shape of one batch.
+ *
+ * SHA-256 hashes a whole padded block and always produces 32 bytes; SHAKE
+ * absorbs the message as it stands - 23 + n bytes, well inside one
+ * permutation - and produces exactly the hash length.  Everything else about
+ * the batch is the same, so the chain code below is written against these
+ * three numbers rather than duplicated per hash.
+ */
+/* Bytes each lane occupies in n_way_buffer.
+ *
+ * @param [in] state  LMS state.
+ * @return  Length of one lane's hash block.
+ */
+static word32 wc_lmots_n_way_msg_len(const LmsState* state)
+{
+#ifdef WC_LMS_SHAKE_N_WAY
+    if (LMS_IS_SHAKE(state->params->lmOtsType)) {
+        return LMS_HASH_BUFFER_LEN(state->params->hash_len);
+    }
+#endif
+    (void)state;
+    return WC_SHA256_BLOCK_SIZE;
+}
+
+/* Bytes each lane's digest occupies in n_way_hash.
+ *
+ * @param [in] state  LMS state.
+ * @return  Length of one lane's digest.
+ */
+static word32 wc_lmots_n_way_dgst_len(const LmsState* state)
+{
+#ifdef WC_LMS_SHAKE_N_WAY
+    if (LMS_IS_SHAKE(state->params->lmOtsType)) {
+        return state->params->hash_len;
+    }
+#endif
+    (void)state;
+    return WC_SHA256_DIGEST_SIZE;
+}
+
+/* Hash every lane of the batch, n_way_buffer into n_way_hash.
+ *
+ * @param [in, out] state  LMS state.
+ * @param [in]      lanes    Width of the batch.
+ */
+static void wc_lmots_n_way_hash(LmsState* state, int lanes)
+{
+#ifdef WC_LMS_SHAKE_N_WAY
+    if (LMS_IS_SHAKE(state->params->lmOtsType)) {
+        wc_lms_n_way_shake(state->n_way_state, state->n_way_buffer,
+            wc_lmots_n_way_msg_len(state), state->n_way_hash,
+            wc_lmots_n_way_dgst_len(state), lanes);
+        return;
+    }
+#endif
+#ifdef WC_LMS_SHA256_N_WAY
+    wc_lms_n_way_sha256(state->n_way_buffer, state->n_way_hash, lanes);
+#endif
+}
+
+/* Add a completed chain to the K hash, in whichever family is in use.
+ *
+ * @param [in, out] state  LMS state.
+ * @param [in]      hash   Chain result.
+ * @return  0 on success.
+ */
+static int wc_lmots_n_way_k_update(LmsState* state, const byte* hash)
+{
+    word16 hash_len = state->params->hash_len;
+
+#ifdef WC_LMS_SHAKE_N_WAY
+    if (LMS_IS_SHAKE(state->params->lmOtsType)) {
+        return wc_lms_shake256_hash_update(LMS_STATE_SHAKE_K(state), hash,
+            hash_len);
+    }
+#endif
+    return wc_lms_hash_update(LMS_STATE_HASH_K(state), hash, hash_len);
+}
+
+/* First iteration index of a chain.
+ *
+ * @param [in]      mode     Which range the chains run over.
+ * @param [in]      a        Expanded Q coefficients.
+ * @param [in]      c        Chain the lane is running.
+ * @return  First iteration index of the chain.
+ */
+static word16 wc_lmots_n_way_start(int mode, const byte* a, int c)
+{
+    return (mode == LMS_N_WAY_FROM_A) ? (word16)a[c] : 0;
+}
+
+/* Iteration index a chain stops before.
+ *
+ * @param [in]      mode     Which range the chains run over.
+ * @param [in]      a        Expanded Q coefficients.
+ * @param [in]      max      2^w - 1, the length of every chain.
+ * @param [in]      c        Chain the lane is running.
+ * @return  One past the last iteration index of the chain.
+ */
+static word16 wc_lmots_n_way_end(int mode, const byte* a, word16 max, int c)
+{
+    return (mode == LMS_N_WAY_FROM_A) ? max : (word16)a[c];
+}
+
+/* Give lane 'l' chain 'c' and lay out its hash block.
+ *
+ * @param [in, out] state  LMS state.
+ * @param [in]      msgLen Bytes each lane occupies in n_way_buffer.
+ * @param [in]      l      Lane to load.
+ * @param [in]      c      Chain to run in it.
+ * @param [in]      mode   Which range the chains run over.
+ * @param [in]      seed   Seed the starting value is derived from, or NULL
+ *                         when the caller supplies it in 'in'.
+ * @param [in]      in     Chain starting values, one per chain, or NULL.
+ * @param [in]      a      Expanded Q coefficients, or NULL.
+ * @param [out]     lj     Per-lane iteration index, set for this lane.
+ */
+static void wc_lmots_n_way_load(LmsState* state, word32 msgLen, int l,
+    int c, int mode, const byte* seed, const byte* in, const byte* a, int* lj)
+{
+    word16 hash_len = state->params->hash_len;
+    byte* blk = state->n_way_buffer + l * msgLen;
+
+    XMEMCPY(blk, state->buffer, msgLen);
+    c16toa((word16)c, blk + LMS_HASH_IDX_OFF);
+
+    if (seed != NULL) {
+        XMEMCPY(blk + LMS_HASH_TMP_OFF, seed, hash_len);
+        lj[l] = LMS_N_WAY_DERIVE;
+    }
+    else {
+        XMEMCPY(blk + LMS_HASH_TMP_OFF, in + (size_t)c * hash_len, hash_len);
+        lj[l] = wc_lmots_n_way_start(mode, a, c);
+    }
+}
+
+/* Run every LM-OTS chain, keeping all lanes busy.
+ *
+ * The chains of one one-time signature are independent, but they are not the
+ * same length: signing stops chain i after a[i] steps and verification
+ * resumes it there, so a fixed lane-per-chain grouping would run every batch
+ * for as long as its longest chain and discard the rest of the work.  Instead
+ * a lane that finishes its chain picks up the next one straight away - the
+ * iteration index sits in that lane's own hash block, so nothing requires the
+ * lanes to be at the same step.  The batch then costs the total number of
+ * chain steps divided by the lane count however uneven the chains are.
+ *
+ * Results destined for K must be hashed in chain order, so a chain that
+ * finishes early is held in a ring until every earlier chain is done.
+ * Limiting the chains in flight to the ring size is what bounds that: with
+ * twice the lane count of slots, a lane only idles when the oldest chain is
+ * still running.
+ *
+ * @param [in, out] state  LMS state, with buffer holding I || u32str(q) and
+ *                         the block padding.
+ * @param [in]      mode   Which range the chains run over.
+ * @param [in]      seed   Seed to derive the starting values from, or NULL
+ *                         to take them from 'in'.
+ * @param [in]      in     Chain starting values, p * hash_len bytes; used
+ *                         only when seed is NULL.
+ * @param [in]      a      Expanded Q coefficients.
+ * @param [in]      max    2^w - 1, where a chain runs to the end of the range.
+ * @param [out]     out    Chain results, p * hash_len bytes, or NULL to hash
+ *                         each result into hash_k in chain order instead.
+ * @param [in]      lanes  Width of the batch.
+ * @return  0 on success.
+ */
+static int wc_lmots_n_way_chains(LmsState* state, int mode, const byte* seed,
+    const byte* in, const byte* a, word16 max, byte* out, int lanes)
+{
+    const LmsParams* params = state->params;
+    word16 hash_len = params->hash_len;
+    int p = params->p;
+    byte* blocks = state->n_way_buffer;
+    word32 msgLen;
+    word32 dgstLen;
+    int ret = 0;
+    /* Chain each lane is running, and where it is in that chain. */
+    int lchain[WC_LMS_N_WAY_MAX_CNT];
+    int lj[WC_LMS_N_WAY_MAX_CNT];
+    /* Which ring slots hold a result waiting to be hashed into K. */
+    byte done[WC_LMS_N_WAY_WIN];
+    int head = 0;
+    int next = 0;
+    int busy = 0;
+    int l;
+
+    msgLen = wc_lmots_n_way_msg_len(state);
+    dgstLen = wc_lmots_n_way_dgst_len(state);
+    XMEMSET(done, 0, sizeof(done));
+
+    /* Every lane is hashed on every step, so give even the lanes that never
+     * get a chain a block made of data we put there. */
+    for (l = 0; l < lanes; l++) {
+        lchain[l] = LMS_N_WAY_IDLE;
+        wc_lmots_n_way_load(state, msgLen, l, 0, mode, seed, in, a, lj);
+    }
+
+    while (ret == 0) {
+        /* Hash into K everything that is now complete, oldest first. */
+        while ((ret == 0) && (out == NULL) && (head < next) &&
+                done[head % WC_LMS_N_WAY_WIN]) {
+            ret = wc_lmots_n_way_k_update(state,
+                state->n_way_win + (head % WC_LMS_N_WAY_WIN) * hash_len);
+            done[head % WC_LMS_N_WAY_WIN] = 0;
+            head++;
+        }
+        if (ret != 0) {
+            break;
+        }
+
+        /* Fill idle lanes.  With results going to K the ring bounds how far
+         * ahead of the oldest unfinished chain a lane may work. */
+        for (l = 0; (l < lanes) && (next < p); l++) {
+            if (lchain[l] != LMS_N_WAY_IDLE) {
+                continue;
+            }
+            if ((out == NULL) && (next - head >= WC_LMS_N_WAY_WIN)) {
+                break;
+            }
+            lchain[l] = next;
+            wc_lmots_n_way_load(state, msgLen, l, next, mode, seed, in, a, lj);
+            next++;
+            busy++;
+        }
+
+        if (busy == 0) {
+            if (next >= p) {
+                break;
+            }
+            /* Nothing running and nothing assignable means the ring is full
+             * of results the loop above must drain first. */
+            continue;
+        }
+
+        /* One iteration of every running chain, each at its own index. */
+        for (l = 0; l < lanes; l++) {
+            if (lchain[l] != LMS_N_WAY_IDLE) {
+                blocks[l * msgLen + LMS_HASH_J_OFF] =
+                    (lj[l] == LMS_N_WAY_DERIVE) ? LMS_D_FIXED : (byte)lj[l];
+            }
+        }
+
+        wc_lmots_n_way_hash(state, lanes);
+
+        for (l = 0; l < lanes; l++) {
+            int c = lchain[l];
+            int cend;
+            byte* blk;
+
+            if (c == LMS_N_WAY_IDLE) {
+                continue;
+            }
+            blk = blocks + l * msgLen;
+            cend = (int)wc_lmots_n_way_end(mode, a, max, c);
+
+            if (lj[l] == LMS_N_WAY_DERIVE) {
+                /* That hash was x[c]; iteration starts from it. */
+                XMEMCPY(blk + LMS_HASH_TMP_OFF,
+                    state->n_way_hash + l * dgstLen, hash_len);
+                lj[l] = wc_lmots_n_way_start(mode, a, c);
+            }
+            else if (lj[l] < cend) {
+                XMEMCPY(blk + LMS_HASH_TMP_OFF,
+                    state->n_way_hash + l * dgstLen, hash_len);
+                lj[l]++;
+            }
+            /* A chain with start >= end stores nothing: its result is the
+             * value it was loaded with.  It costs one wasted step rather
+             * than a special case in the scheduler. */
+
+            if (lj[l] < cend) {
+                continue;
+            }
+
+            if (out != NULL) {
+                XMEMCPY(out + (size_t)c * hash_len, blk + LMS_HASH_TMP_OFF,
+                    hash_len);
+            }
+            else {
+                XMEMCPY(state->n_way_win + (c % WC_LMS_N_WAY_WIN) * hash_len,
+                    blk + LMS_HASH_TMP_OFF, hash_len);
+                done[c % WC_LMS_N_WAY_WIN] = 1;
+            }
+            lchain[l] = LMS_N_WAY_IDLE;
+            busy--;
+        }
+    }
+
+    return ret;
+}
+
+
+#ifdef WC_LMS_N_WAY_FUSED
+#ifdef WC_LMS_SHA256_N_WAY_FUSED
+/* Read one lane's chain value out of the interleaved state.
+ *
+ * @param [in]      st       Lane-interleaved hash words.
+ * @param [in]      lanes    Width of the batch.
+ * @param [in]      l        Lane to work on.
+ * @param [out]     out      Buffer to hold the lane's hash.
+ * @param [in]      hash_len Length of a hash in bytes.
+ */
+static void wc_lmots_n_way_get(const word32* st, int lanes, int l, byte* out,
+    word16 hash_len)
+{
+    int i;
+
+    for (i = 0; i < (int)(hash_len / 4); i++) {
+        word32 v = st[i * lanes + l];
+
+        out[i * 4 + 0] = (byte)(v >> 24);
+        out[i * 4 + 1] = (byte)(v >> 16);
+        out[i * 4 + 2] = (byte)(v >>  8);
+        out[i * 4 + 3] = (byte)(v      );
+    }
+}
+
+/* Put one lane's chain value into the interleaved state.
+ *
+ * @param [out]     st       Lane-interleaved hash words.
+ * @param [in]      lanes    Width of the batch.
+ * @param [in]      l        Lane to work on.
+ * @param [in]      v        hash_len bytes to store into the lane.
+ * @param [in]      hash_len Length of a hash in bytes.
+ */
+static void wc_lmots_n_way_set(word32* st, int lanes, int l, const byte* v,
+    word16 hash_len)
+{
+    int i;
+
+    for (i = 0; i < (int)(hash_len / 4); i++) {
+        st[i * lanes + l] = ((word32)v[i * 4 + 0] << 24) |
+                            ((word32)v[i * 4 + 1] << 16) |
+                            ((word32)v[i * 4 + 2] <<  8) |
+                             (word32)v[i * 4 + 3];
+    }
+}
+#endif /* WC_LMS_SHA256_N_WAY_FUSED */
+
+/* The template of everything that never varies within an LM-OTS operation,
+ * in whichever form the fused kernels for this hash want it. */
+/* Build the template from the LM-OTS block the caller has set up.
+ *
+ * @param [in, out] state  LMS state holding the block; the template is left
+ *                         in it.
+ */
+static void wc_lmots_n_way_tmpl(LmsState* state)
+{
+    int k;
+
+#ifdef WC_LMS_SHA256_N_WAY_FUSED
+    for (k = 0; k < (int)(WC_SHA256_BLOCK_SIZE / 4); k++) {
+        const byte* b = state->buffer + k * 4;
+
+        state->n_way_tmpl32[k] = ((word32)b[0] << 24) | ((word32)b[1] << 16) |
+                    ((word32)b[2] <<  8) |  (word32)b[3];
+    }
+#endif
+#ifdef WC_LMS_SHAKE_N_WAY_FUSED
+    /* I and q are the first three words of the message. */
+    for (k = 0; k < 3; k++) {
+        const byte* b = state->buffer + k * 8;
+        int i;
+
+        state->n_way_tmpl64[k] = 0;
+        for (i = 7; i >= 0; i--) {
+            state->n_way_tmpl64[k] = (state->n_way_tmpl64[k] << 8) |
+                                     (word64)b[i];
+        }
+    }
+    /* Bytes 20 to 23 of the message are the chain index, j and the first byte
+     * of tmp; the kernel places all three, so clear them here. */
+    state->n_way_tmpl64[2] &= 0x00000000ffffffffULL;
+    /* Then the seed, which the kernel shifts into place when deriving x.  It
+     * is word-aligned here even though it is not in the message. */
+    for (k = 0; k < 4; k++) {
+        const byte* b = state->buffer + LMS_HASH_TMP_OFF + k * 8;
+        int i;
+
+        state->n_way_tmpl64[3 + k] = 0;
+        for (i = 7; i >= 0; i--) {
+            state->n_way_tmpl64[3 + k] =
+                (state->n_way_tmpl64[3 + k] << 8) | (word64)b[i];
+        }
+    }
+#endif
+}
+
+/* Read one lane's chain value out of whichever interleaved state is in use.
+ *
+ * @param [in, out] state    LMS state.
+ * @param [in]      lanes    Width of the batch.
+ * @param [in]      l        Lane to work on.
+ * @param [out]     out      Buffer to hold the lane's hash.
+ * @param [in]      hash_len Length of a hash in bytes.
+ */
+static void wc_lmots_n_way_fused_get(LmsState* state, int lanes, int l,
+    byte* out, word16 hash_len)
+{
+#ifdef WC_LMS_SHAKE_N_WAY_FUSED
+    if (LMS_N_WAY_IS_SHAKE(state->params)) {
+        int i;
+
+        /* SHAKE reads its message little endian, so the digest comes out of
+         * the state that way too. */
+        for (i = 0; i < (int)(hash_len / 8); i++) {
+            word64 v = state->n_way_state[i * lanes + l];
+            int k;
+
+            for (k = 0; k < 8; k++) {
+                out[i * 8 + k] = (byte)(v >> (8 * k));
+            }
+        }
+        return;
+    }
+#endif
+#ifdef WC_LMS_SHA256_N_WAY_FUSED
+    wc_lmots_n_way_get(state->n_way_st, lanes, l, out, hash_len);
+#else
+    (void)lanes;
+    (void)l;
+    (void)out;
+    (void)hash_len;
+#endif
+}
+
+/* Put one lane's chain value into whichever interleaved state is in use.
+ *
+ * @param [in, out] state    LMS state.
+ * @param [in]      lanes    Width of the batch.
+ * @param [in]      l        Lane to work on.
+ * @param [in]      v        hash_len bytes to store into the lane.
+ * @param [in]      hash_len Length of a hash in bytes.
+ */
+static void wc_lmots_n_way_fused_set(LmsState* state, int lanes, int l,
+    const byte* v, word16 hash_len)
+{
+#ifdef WC_LMS_SHAKE_N_WAY_FUSED
+    if (LMS_N_WAY_IS_SHAKE(state->params)) {
+        int i;
+
+        for (i = 0; i < (int)(hash_len / 8); i++) {
+            word64 w = 0;
+            int k;
+
+            for (k = 7; k >= 0; k--) {
+                w = (w << 8) | (word64)v[i * 8 + k];
+            }
+            state->n_way_state[i * lanes + l] = w;
+        }
+        return;
+    }
+#endif
+#ifdef WC_LMS_SHA256_N_WAY_FUSED
+    wc_lmots_n_way_set(state->n_way_st, lanes, l, v, hash_len);
+#else
+    (void)lanes;
+    (void)l;
+    (void)v;
+    (void)hash_len;
+#endif
+}
+
+/* Advance every lane by one iteration, j taken per lane.
+ *
+ * @param [in, out] state    LMS state.
+ * @param [in]      idxv     Chain index of each lane.
+ * @param [in]      jv       Iteration index of each lane.
+ * @param [in]      lanes    Width of the batch.
+ */
+static void wc_lmots_n_way_fused_step(LmsState* state,
+    const word32* idxv, const word32* jv, int lanes)
+{
+#ifdef WC_LMS_SHAKE_N_WAY_FUSED
+    if (LMS_N_WAY_IS_SHAKE(state->params)) {
+#ifdef WOLFSSL_LMS_HAVE_INTEL_AVX512
+        if (lanes == 8) {
+            sha3_lms_blocksx8_avx512(state->n_way_state, state->n_way_tmpl64,
+                idxv, jv, 0);
+            return;
+        }
+#endif
+        sha3_lms_blocksx4_avx2(state->n_way_state, state->n_way_tmpl64,
+            idxv, jv, 0);
+        return;
+    }
+#endif
+    (void)lanes;
+#ifdef WC_LMS_SHA256_N_WAY_FUSED
+#ifdef WOLFSSL_LMS_SHA256_192
+    if (state->params->hash_len == WC_SHA256_192_DIGEST_SIZE) {
+        Transform_Sha256_x16_Lms192Step_AVX512(state->n_way_st,
+            state->n_way_tmpl32, idxv,
+            jv);
+        return;
+    }
+#endif
+    Transform_Sha256_x16_LmsStep_AVX512(state->n_way_st,
+        state->n_way_tmpl32, idxv, jv);
+#endif
+}
+
+#ifndef WOLFSSL_LMS_VERIFY_ONLY
+/* Derive x for a group of chains from the seed - the same hash with
+ * @param [in, out] state    LMS state.
+ * @param [in]      idxv     Chain index of each lane.
+ * @param [in]      idx0     Chain index of lane 0; lane l takes idx0 + l.
+ * @param [in]      lanes    Width of the batch.
+ * j = 0xff - setting the lanes up in the process. */
+static void wc_lmots_n_way_fused_x(LmsState* state,
+    const word32* idxv, word32 idx0, int lanes)
+{
+#ifdef WC_LMS_SHAKE_N_WAY_FUSED
+    if (LMS_N_WAY_IS_SHAKE(state->params)) {
+#ifdef WOLFSSL_LMS_HAVE_INTEL_AVX512
+        if (lanes == 8) {
+            sha3_lms_blocksx8_avx512(state->n_way_state, state->n_way_tmpl64,
+                idxv, idxv, 1);
+            return;
+        }
+#endif
+        sha3_lms_blocksx4_avx2(state->n_way_state, state->n_way_tmpl64,
+            idxv, idxv, 1);
+        return;
+    }
+#endif
+    (void)lanes;
+#ifdef WC_LMS_SHA256_N_WAY_FUSED
+    (void)idxv;
+#ifdef WOLFSSL_LMS_SHA256_192
+    if (state->params->hash_len == WC_SHA256_192_DIGEST_SIZE) {
+        Transform_Sha256_x16_Lms192Init_AVX512(state->n_way_st,
+            state->n_way_tmpl32, idx0);
+        return;
+    }
+#endif
+    Transform_Sha256_x16_LmsInit_AVX512(state->n_way_st,
+        state->n_way_tmpl32, idx0);
+#else
+    (void)idx0;
+#endif
+}
+
+/* Every iteration of a chain in one call, all lanes in step.
+ *
+ * @param [in, out] state    LMS state.
+ * @param [in]      idxv     Chain index of each lane.
+ * @param [in]      max      2^w - 1, the length of every chain.
+ * @param [in]      lanes    Width of the batch.
+ */
+static void wc_lmots_n_way_fused_chain(LmsState* state,
+    const word32* idxv, word32 max, int lanes)
+{
+#ifdef WC_LMS_SHAKE_N_WAY_FUSED
+    if (LMS_N_WAY_IS_SHAKE(state->params)) {
+#ifdef WOLFSSL_LMS_HAVE_INTEL_AVX512
+        if (lanes == 8) {
+            sha3_lms_chainx8_avx512(state->n_way_state, state->n_way_tmpl64,
+                idxv, max);
+            return;
+        }
+#endif
+        sha3_lms_chainx4_avx2(state->n_way_state, state->n_way_tmpl64,
+            idxv, max);
+        return;
+    }
+#endif
+    (void)lanes;
+#ifdef WC_LMS_SHA256_N_WAY_FUSED
+#ifdef WOLFSSL_LMS_SHA256_192
+    if (state->params->hash_len == WC_SHA256_192_DIGEST_SIZE) {
+        Transform_Sha256_x16_Lms192Chain_AVX512(state->n_way_st,
+            state->n_way_tmpl32, idxv,
+            max);
+        return;
+    }
+#endif
+    Transform_Sha256_x16_LmsChain_AVX512(state->n_way_st,
+        state->n_way_tmpl32, idxv, max);
+#endif
+}
+#endif /* !WOLFSSL_LMS_VERIFY_ONLY */
+
+/* Run every LM-OTS chain with the fused step kernel, keeping all lanes busy.
+ *
+ * The same scheduler as the general path - a lane that finishes its chain
+ * picks up the next one, and results bound for K wait in a ring until the
+ * chains before them are done - but the chain values live in the
+ * lane-interleaved state rather than in blocks, so a step is one call and
+ * nothing de-interleaves until a chain finishes.
+ *
+ * Starting a chain in a lane is just writing its value into that lane of the
+ * state: for signing that is the seed, and the first step with j = 0xff turns
+ * it into x[i]; for verification it is the signature's y[i].
+ *
+ * @param [in, out] state  LMS state, with buffer holding I || u32str(q) and
+ *                         the block padding.
+ * @param [in]      mode   Which range the chains run over.
+ * @param [in]      seed   Seed to derive the starting values from, or NULL to
+ *                         take them from 'in'.
+ * @param [in]      in     Chain starting values; used when seed is NULL.
+ * @param [in]      a      Expanded Q coefficients.
+ * @param [in]      max    2^w - 1.
+ * @param [out]     out    Chain results, or NULL to hash each into hash_k in
+ *                         chain order instead.
+ * @param [in]      lanes  Width of the batch.
+ * @return  0 on success.
+ */
+static int wc_lmots_n_way_chains_fused(LmsState* state, int mode,
+    const byte* seed, const byte* in, const byte* a, word16 max, byte* out,
+    int lanes)
+{
+    const LmsParams* params = state->params;
+    word16 hash_len = params->hash_len;
+    int p = params->p;
+    int ret = 0;
+    int lchain[WC_LMS_N_WAY_MAX_CNT];
+    int lj[WC_LMS_N_WAY_MAX_CNT];
+    word32 idxv[WC_LMS_N_WAY_MAX_CNT];
+    word32 jv[WC_LMS_N_WAY_MAX_CNT];
+    byte done[WC_LMS_N_WAY_WIN];
+    byte y[LMS_MAX_NODE_LEN];
+    int head = 0;
+    int next = 0;
+    int busy = 0;
+    int l;
+
+    XMEMSET(done, 0, sizeof(done));
+
+    /* The template holds everything that never varies; the kernel places the
+     * index, j and tmp itself. */
+    wc_lmots_n_way_tmpl(state);
+    for (l = 0; l < lanes; l++) {
+        lchain[l] = LMS_N_WAY_IDLE;
+        lj[l] = 0;
+        idxv[l] = 0;
+        jv[l] = 0;
+        /* Even a lane with no chain is compressed, so give it a value. */
+        wc_lmots_n_way_fused_set(state, lanes, l,
+            (seed != NULL) ? seed : in, hash_len);
+    }
+
+    while (ret == 0) {
+        /* Hash into K everything complete, oldest first. */
+        while ((ret == 0) && (out == NULL) && (head < next) &&
+                done[head % WC_LMS_N_WAY_WIN]) {
+            ret = wc_lmots_n_way_k_update(state,
+                state->n_way_win + (head % WC_LMS_N_WAY_WIN) * hash_len);
+            done[head % WC_LMS_N_WAY_WIN] = 0;
+            head++;
+        }
+        if (ret != 0) {
+            break;
+        }
+
+        /* Fill idle lanes. */
+        for (l = 0; (l < lanes) && (next < p); l++) {
+            int c;
+
+            if (lchain[l] != LMS_N_WAY_IDLE) {
+                continue;
+            }
+            if ((out == NULL) && (next - head >= WC_LMS_N_WAY_WIN)) {
+                break;
+            }
+            c = next;
+            if ((seed == NULL) &&
+                    (wc_lmots_n_way_start(mode, a, c) >=
+                     wc_lmots_n_way_end(mode, a, max, c))) {
+                /* Nothing to do: the result is the input. */
+                if (out != NULL) {
+                    XMEMCPY(out + (size_t)c * hash_len,
+                        in + (size_t)c * hash_len, hash_len);
+                }
+                else {
+                    XMEMCPY(state->n_way_win +
+                            (c % WC_LMS_N_WAY_WIN) * hash_len,
+                        in + (size_t)c * hash_len, hash_len);
+                    done[c % WC_LMS_N_WAY_WIN] = 1;
+                }
+                next++;
+                l--;                    /* the lane is still free */
+                continue;
+            }
+            lchain[l] = c;
+            idxv[l] = (word32)c;
+            if (seed != NULL) {
+                /* The first step with j = 0xff makes x[c] out of the seed. */
+                wc_lmots_n_way_fused_set(state, lanes, l, seed, hash_len);
+                lj[l] = LMS_N_WAY_DERIVE;
+            }
+            else {
+                wc_lmots_n_way_fused_set(state, lanes, l,
+                    in + (size_t)c * hash_len,
+                    hash_len);
+                lj[l] = wc_lmots_n_way_start(mode, a, c);
+            }
+            next++;
+            busy++;
+        }
+
+        if (busy == 0) {
+            if (next >= p) {
+                break;
+            }
+            continue;
+        }
+
+        for (l = 0; l < lanes; l++) {
+            jv[l] = (lj[l] == LMS_N_WAY_DERIVE) ? (word32)LMS_D_FIXED :
+                                                (word32)lj[l];
+        }
+
+        wc_lmots_n_way_fused_step(state, idxv, jv, lanes);
+
+        for (l = 0; l < lanes; l++) {
+            int c = lchain[l];
+            int cend;
+
+            if (c == LMS_N_WAY_IDLE) {
+                continue;
+            }
+            cend = (int)wc_lmots_n_way_end(mode, a, max, c);
+
+            if (lj[l] == LMS_N_WAY_DERIVE) {
+                lj[l] = wc_lmots_n_way_start(mode, a, c);
+            }
+            else {
+                lj[l]++;
+            }
+            if (lj[l] < cend) {
+                continue;
+            }
+
+            wc_lmots_n_way_fused_get(state, lanes, l, y, hash_len);
+            if (out != NULL) {
+                XMEMCPY(out + (size_t)c * hash_len, y, hash_len);
+            }
+            else {
+                XMEMCPY(state->n_way_win + (c % WC_LMS_N_WAY_WIN) * hash_len, y,
+                    hash_len);
+                done[c % WC_LMS_N_WAY_WIN] = 1;
+            }
+            lchain[l] = LMS_N_WAY_IDLE;
+            busy--;
+        }
+    }
+
+    /* The chains that finished on the last step are in the ring but the loop
+     * broke out before coming back round to drain it. */
+    while ((ret == 0) && (out == NULL) && (head < next) &&
+            done[head % WC_LMS_N_WAY_WIN]) {
+        ret = wc_lmots_n_way_k_update(state,
+            state->n_way_win + (head % WC_LMS_N_WAY_WIN) * hash_len);
+        done[head % WC_LMS_N_WAY_WIN] = 0;
+        head++;
+    }
+
+    ForceZero(y, sizeof(y));
+    /* Clear whichever interleaved state the batch used: the SHAKE kernels
+     * keep the chain values in n_way_state, the SHA-256 ones in n_way_st.
+     * Wiping only the latter leaves private WOTS chain values behind in
+     * LmsState for the SHAKE parameter sets. */
+#ifdef WC_LMS_SHAKE_N_WAY
+    if (LMS_N_WAY_IS_SHAKE(state->params)) {
+        ForceZero(state->n_way_state, sizeof(state->n_way_state));
+    }
+    else
+#endif
+    {
+#ifdef WC_LMS_SHA256_N_WAY_FUSED
+        ForceZero(state->n_way_st, sizeof(state->n_way_st));
+#endif
+    }
+    return ret;
+}
+
+#ifndef WOLFSSL_LMS_VERIFY_ONLY
+/* Run every LM-OTS chain of a public key with the fused kernels.
+ *
+ * Laid out like SLH-DSA's SHAKE x4 chain: a block template built once, the
+ * lanes set up once, and the interleaved state then left in the caller's
+ * buffer for the whole chain.  Nothing de-interleaves in between - the
+ * hashes are read out only when the group is done.
+ *
+ * Key generation is the case where every chain of a group is the same length
+ * and every lane sits at the same iteration, so all 2^w - 1 of them go into
+ * one call and the state never leaves registers between them.
+ *
+ * @param [in, out] state  LMS state, with buffer holding I || u32str(q) and
+ *                         the block padding, and hash_k started on the K
+ *                         prefix.
+ * @param [in]      seed   Seed to derive the chain starting values from.
+ * @param [in]      max    2^w - 1, the length of every chain.
+ * @param [in]      lanes  Width of the batch.
+ * @return  0 on success.
+ */
+static int wc_lmots_n_way_pub_chains_fused(LmsState* state, const byte* seed,
+    word16 max, int lanes)
+{
+    const LmsParams* params = state->params;
+    word16 hash_len = params->hash_len;
+    int p = params->p;
+    int ret = 0;
+    word32 idxv[WC_LMS_N_WAY_MAX_CNT];
+    byte y[LMS_MAX_NODE_LEN];
+    int i;
+    int l;
+
+    /* The template: I || u32str(q) || (index) || u8str(0xff) || SEED, with
+     * the padding the caller put in.  The kernels place the index, j and tmp
+     * themselves, so nothing here is touched again. */
+    state->buffer[LMS_HASH_J_OFF] = LMS_D_FIXED;
+    XMEMCPY(state->buffer + LMS_HASH_TMP_OFF, seed, hash_len);
+    wc_lmots_n_way_tmpl(state);
+
+    for (i = 0; (ret == 0) && (i < p); i += lanes) {
+        int cnt = p - i;
+
+        if (cnt > lanes) {
+            cnt = lanes;
+        }
+        for (l = 0; l < lanes; l++) {
+            idxv[l] = (word32)(i + l);
+        }
+
+        /* Set the lanes up and take x[i] in the same call, then run every
+         * iteration of the chain without coming back. */
+        wc_lmots_n_way_fused_x(state, idxv, (word32)i, lanes);
+        wc_lmots_n_way_fused_chain(state, idxv, (word32)max, lanes);
+
+        /* K = H(... || y[i] || ...): the only point the state is read out. */
+        for (l = 0; (ret == 0) && (l < cnt); l++) {
+            wc_lmots_n_way_fused_get(state, lanes, l, y, hash_len);
+            ret = wc_lmots_n_way_k_update(state, y);
+        }
+    }
+
+    ForceZero(y, sizeof(y));
+    /* Clear whichever interleaved state the batch used: the SHAKE kernels
+     * keep the chain values in n_way_state, the SHA-256 ones in n_way_st.
+     * Wiping only the latter leaves private WOTS chain values behind in
+     * LmsState for the SHAKE parameter sets. */
+#ifdef WC_LMS_SHAKE_N_WAY
+    if (LMS_N_WAY_IS_SHAKE(state->params)) {
+        ForceZero(state->n_way_state, sizeof(state->n_way_state));
+    }
+    else
+#endif
+    {
+#ifdef WC_LMS_SHA256_N_WAY_FUSED
+        ForceZero(state->n_way_st, sizeof(state->n_way_st));
+#endif
+    }
+    return ret;
+}
+#endif /* !WOLFSSL_LMS_VERIFY_ONLY */
+#endif /* WC_LMS_N_WAY_FUSED */
+
+#ifndef WOLFSSL_LMS_VERIFY_ONLY
+/* Run every LM-OTS chain of a public key, a group of chains per batch.
+ *
+ * Key generation is the one case where every chain is the same length - all
+ * of them run the full 2^w - 1 iterations - so the lanes stay in step and a
+ * fixed group per batch wastes nothing.  That makes the scheduler above
+ * unnecessary here, and the bookkeeping it needs is measurable: no per-lane
+ * iteration index (one shared j), no completion tracking, and no ring,
+ * because a group's results are already in chain order for K.
+ *
+ * Algorithm 1: for each i, x[i] = H(I || u32str(q) || u16str(i) ||
+ * u8str(0xff) || SEED), then tmp is iterated 2^w - 1 times and hashed into
+ *   K = H(I || u32str(q) || u16str(D_PBLC) || y[0] || ... || y[p-1])
+ *
+ * @param [in, out] state  LMS state, with buffer holding I || u32str(q) and
+ *                         the block padding, and hash_k started on the K
+ *                         prefix.
+ * @param [in]      seed   Seed to derive the chain starting values from.
+ * @param [in]      max    2^w - 1, the length of every chain.
+ * @param [in]      lanes  Width of the batch.
+ * @return  0 on success.
+ */
+static int wc_lmots_n_way_pub_chains(LmsState* state, const byte* seed,
+    word16 max, int lanes)
+{
+    const LmsParams* params = state->params;
+    word16 hash_len = params->hash_len;
+    int p = params->p;
+    byte* blocks = state->n_way_buffer;
+    word32 msgLen;
+    word32 dgstLen;
+    int ret = 0;
+    int i;
+    int l;
+
+    msgLen = wc_lmots_n_way_msg_len(state);
+    dgstLen = wc_lmots_n_way_dgst_len(state);
+
+    for (i = 0; (ret == 0) && (i < p); i += lanes) {
+        int cnt = p - i;
+        word16 j;
+
+        if (cnt > lanes) {
+            cnt = lanes;
+        }
+
+        /* One block per chain.  Lanes past the end of the group repeat its
+         * first chain: they are hashed with the rest and their results
+         * thrown away, which keeps every batch one call. */
+        for (l = 0; l < lanes; l++) {
+            byte* blk = blocks + l * msgLen;
+
+            XMEMCPY(blk, state->buffer, msgLen);
+            c16toa((word16)(i + ((l < cnt) ? l : 0)),
+                blk + LMS_HASH_IDX_OFF);
+            blk[LMS_HASH_J_OFF] = LMS_D_FIXED;
+            XMEMCPY(blk + LMS_HASH_TMP_OFF, seed, hash_len);
+        }
+        /* tmp = x[i] */
+        wc_lmots_n_way_hash(state, lanes);
+        for (l = 0; l < lanes; l++) {
+            XMEMCPY(blocks + l * msgLen + LMS_HASH_TMP_OFF,
+                state->n_way_hash + l * dgstLen, hash_len);
+        }
+
+        /* Every chain is at the same iteration, so one index serves all. */
+        for (j = 0; j < max; j++) {
+            for (l = 0; l < lanes; l++) {
+                blocks[l * msgLen + LMS_HASH_J_OFF] = (byte)j;
+            }
+            wc_lmots_n_way_hash(state, lanes);
+            for (l = 0; l < lanes; l++) {
+                XMEMCPY(blocks + l * msgLen + LMS_HASH_TMP_OFF,
+                    state->n_way_hash + l * dgstLen, hash_len);
+            }
+        }
+
+        /* K = H(... || y[i] || ...); the group is already in chain order. */
+        for (l = 0; (ret == 0) && (l < cnt); l++) {
+            ret = wc_lmots_n_way_k_update(state,
+                blocks + l * msgLen + LMS_HASH_TMP_OFF);
+        }
+    }
+
+    return ret;
+}
+#endif /* !WOLFSSL_LMS_VERIFY_ONLY */
+#endif /* WC_LMS_N_WAY */
+
 /***************************************
  * LM-OTS APIs
  **************************************/
@@ -1014,8 +2254,36 @@ static int wc_lmots_compute_y_from_seed(LmsState* state, const byte* seed,
     }
 #endif /* !WC_LMS_FULL_HASH */
 
+    /* Index of the first chain the serial loop below still has to do.  The
+     * eight-way path leaves nothing behind when it runs, so it sets this to p
+     * and the loop falls straight through. */
+    i = 0;
+#ifdef WC_LMS_N_WAY
+    if (ret == 0) {
+        int lanes = LMS_N_WAY_LANES(params);
+
+        if ((lanes > 0) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            /* Chain i runs from x[i] for a[i] steps, into y[i]. */
+#ifdef WC_LMS_N_WAY_FUSED
+            if (LMS_N_WAY_FUSED(params, lanes)) {
+                ret = wc_lmots_n_way_chains_fused(state, LMS_N_WAY_TO_A, seed,
+                    NULL, a, 0, y, lanes);
+            }
+            else
+#endif
+            {
+                ret = wc_lmots_n_way_chains(state, LMS_N_WAY_TO_A, seed,
+                    NULL, a,
+                    0, y, lanes);
+            }
+            RESTORE_VECTOR_REGISTERS();
+            i = params->p;
+        }
+    }
+#endif
+
     /* Compute y for each coefficient. */
-    for (i = 0; (ret == 0) && (i < params->p); i++) {
+    for (; (ret == 0) && (i < params->p); i++) {
         unsigned int j;
 
         /* tmp = x[i]
@@ -1191,8 +2459,34 @@ static int wc_lmots_compute_kc_from_sig(LmsState* state, const byte* msg,
                 params->ls, a);
         }
 
+        /* Index of the first chain the serial loop below still has to do. */
+        i = 0;
+#ifdef WC_LMS_SHAKE_N_WAY
+        if (ret == 0) {
+            int lanes = LMS_N_WAY_LANES(params);
+
+            if ((lanes > 0) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                /* Chain i resumes at a[i] and runs to 2^w - 1; each result
+                 * is hashed into Kc in chain order. */
+#ifdef WC_LMS_N_WAY_FUSED
+                if (LMS_N_WAY_FUSED(params, lanes)) {
+                    ret = wc_lmots_n_way_chains_fused(state, LMS_N_WAY_FROM_A,
+                        NULL, sig_y, a, (word16)max, NULL, lanes);
+                }
+                else
+#endif
+                {
+                    ret = wc_lmots_n_way_chains(state, LMS_N_WAY_FROM_A, NULL,
+                        sig_y, a, (word16)max, NULL, lanes);
+                }
+                RESTORE_VECTOR_REGISTERS();
+                i = params->p;
+            }
+        }
+#endif
+
         /* Compute z for each coefficient. */
-        for (i = 0; (ret == 0) && (i < params->p); i++) {
+        for (; (ret == 0) && (i < params->p); i++) {
             unsigned int j;
 
             /* I || u32(str) || u16str(i) || ... */
@@ -1200,8 +2494,8 @@ static int wc_lmots_compute_kc_from_sig(LmsState* state, const byte* msg,
 
             /* tmp = y[i].
              * I || u32(str) || u16str(i) || ... || tmp */
-            XMEMCPY(tmp, sig_y, params->hash_len);
-            sig_y += params->hash_len;
+            XMEMCPY(tmp, sig_y + (size_t)i * params->hash_len,
+                params->hash_len);
 
             /* Finish iterations of hash from coefficient to max. */
             for (j = a[i]; (ret == 0) && (j < max); j++) {
@@ -1258,8 +2552,34 @@ static int wc_lmots_compute_kc_from_sig(LmsState* state, const byte* msg,
         }
 #endif /* !WC_LMS_FULL_HASH */
 
+        /* Index of the first chain the serial loop below still has to do. */
+        i = 0;
+#ifdef WC_LMS_N_WAY
+        if (ret == 0) {
+            int lanes = LMS_N_WAY_LANES(params);
+
+            if ((lanes > 0) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                /* Chain i resumes at a[i] and runs to 2^w - 1; each result
+                 * is hashed into Kc in chain order. */
+#ifdef WC_LMS_N_WAY_FUSED
+                if (LMS_N_WAY_FUSED(params, lanes)) {
+                    ret = wc_lmots_n_way_chains_fused(state, LMS_N_WAY_FROM_A,
+                        NULL, sig_y, a, (word16)max, NULL, lanes);
+                }
+                else
+#endif
+                {
+                    ret = wc_lmots_n_way_chains(state, LMS_N_WAY_FROM_A, NULL,
+                        sig_y, a, (word16)max, NULL, lanes);
+                }
+                RESTORE_VECTOR_REGISTERS();
+                i = params->p;
+            }
+        }
+#endif
+
         /* Compute z for each coefficient. */
-        for (i = 0; (ret == 0) && (i < params->p); i++) {
+        for (; (ret == 0) && (i < params->p); i++) {
             unsigned int j;
 
             /* I || u32(str) || u16str(i) || ... */
@@ -1382,7 +2702,36 @@ static int wc_lmots_make_public_hash(LmsState* state, const byte* seed, byte* k)
         ret = wc_lms_shake256_hash_first(LMS_STATE_SHAKE_K(state), buffer,
             LMS_K_PRE_LEN);
 
-        for (i = 0; (ret == 0) && (i < params->p); i++) {
+        /* Index of the first chain the serial loop below still has to do. */
+        i = 0;
+#ifdef WC_LMS_SHAKE_N_WAY
+        if (ret == 0) {
+            int lanes = LMS_N_WAY_LANES(params);
+
+            if ((lanes > 0) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                /* Every chain runs the full 2^w - 1 iterations, so the
+                 * lanes stay in step and the batch needs no scheduling. */
+#ifdef WC_LMS_N_WAY_FUSED
+                /* The kernels lay out a 32-byte tmp: eight state words in
+                 * and the 0x80 in W13.  The 24-byte parameter sets put the
+                 * padding elsewhere, so they keep the general path. */
+                if (LMS_N_WAY_FUSED(params, lanes)) {
+                    ret = wc_lmots_n_way_pub_chains_fused(state, seed,
+                        (word16)max, lanes);
+                }
+                else
+#endif
+                {
+                    ret = wc_lmots_n_way_pub_chains(state, seed, (word16)max,
+                        lanes);
+                }
+                RESTORE_VECTOR_REGISTERS();
+                i = params->p;
+            }
+        }
+#endif
+
+        for (; (ret == 0) && (i < params->p); i++) {
             unsigned int j;
 
             /* tmp = x[i]
@@ -1436,7 +2785,36 @@ static int wc_lmots_make_public_hash(LmsState* state, const byte* seed, byte* k)
         }
 #endif /* !WC_LMS_FULL_HASH */
 
-        for (i = 0; (ret == 0) && (i < params->p); i++) {
+        /* Index of the first chain the serial loop below still has to do. */
+        i = 0;
+#ifdef WC_LMS_N_WAY
+        if (ret == 0) {
+            int lanes = LMS_N_WAY_LANES(params);
+
+            if ((lanes > 0) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                /* Every chain runs the full 2^w - 1 iterations, so the
+                 * lanes stay in step and the batch needs no scheduling. */
+#ifdef WC_LMS_N_WAY_FUSED
+                /* The kernels lay out a 32-byte tmp: eight state words in
+                 * and the 0x80 in W13.  The 24-byte parameter sets put the
+                 * padding elsewhere, so they keep the general path. */
+                if (LMS_N_WAY_FUSED(params, lanes)) {
+                    ret = wc_lmots_n_way_pub_chains_fused(state, seed,
+                        (word16)max, lanes);
+                }
+                else
+#endif
+                {
+                    ret = wc_lmots_n_way_pub_chains(state, seed, (word16)max,
+                        lanes);
+                }
+                RESTORE_VECTOR_REGISTERS();
+                i = params->p;
+            }
+        }
+#endif
+
+        for (; (ret == 0) && (i < params->p); i++) {
             unsigned int j;
 
             /* tmp = x[i]
