@@ -451,10 +451,37 @@ WOLFSSL_LOCAL void BlockSha3(word64 *s);
     WOLFSSL_LOCAL void BlockSha3_base(word64 *s);
 #endif
 
+
+/* Three-way batched Keccak for ML-KEM and ML-DSA. Declared outside the
+ * WC_SHA3_NO_ASM selection above: AArch64 keeps these even under it, because
+ * armv8-sha3-asm is not suppressed by WC_SHA3_NO_ASM. The AArch32 NEON file
+ * is suppressed, so that branch follows it. */
+#if defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_MLDSA)
+#if defined(__aarch64__) && defined(WOLFSSL_ARMASM)
+    WOLFSSL_LOCAL void sha3_blocksx3_neon(word64* s);
+    WOLFSSL_LOCAL void sha3_128_blocksx3_seed_neon(word64* s, byte* seed);
+    WOLFSSL_LOCAL void sha3_256_blocksx3_seed_neon(word64* s, byte* seed);
+    WOLFSSL_LOCAL void sha3_256_blocksx3_seed_64_neon(word64* s, byte* seed);
+    #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
+        WOLFSSL_LOCAL void sha3_blocksx3_crypto(word64* s);
+        WOLFSSL_LOCAL void sha3_128_blocksx3_seed_crypto(word64* s, byte* seed);
+        WOLFSSL_LOCAL void sha3_256_blocksx3_seed_crypto(word64* s, byte* seed);
+        WOLFSSL_LOCAL void sha3_256_blocksx3_seed_64_crypto(word64* s,
+            byte* seed);
+    #endif
+#elif defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_ARMASM_THUMB2) && \
+      !defined(WOLFSSL_ARMASM_NO_NEON) && !defined(WC_SHA3_NO_ASM)
+    WOLFSSL_LOCAL void sha3_blocksx3_neon(word64* s);
+    WOLFSSL_LOCAL void sha3_128_blocksx3_seed_neon(word64* s, byte* seed);
+    WOLFSSL_LOCAL void sha3_256_blocksx3_seed_neon(word64* s, byte* seed);
+    WOLFSSL_LOCAL void sha3_256_blocksx3_seed_64_neon(word64* s, byte* seed);
+#endif
+#endif
+
+
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
-
 #endif /* WOLFSSL_SHA3 */
 #endif /* WOLF_CRYPT_SHA3_H */
 

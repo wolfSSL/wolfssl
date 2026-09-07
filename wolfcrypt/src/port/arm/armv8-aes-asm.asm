@@ -14782,6 +14782,7 @@ AES_GCM_encrypt_AARCH64_EOR3 PROC
 	stp	D10, D11, [x29, #96]
 	stp	D12, D13, [x29, #112]
 	stp	D14, D15, [x29, #128]
+; .arch_extension sha3
 	ldr	w8, [x29, #144]
 	ldr	x9, [x29, #152]
 	ldr	x10, [x29, #160]
@@ -19464,6 +19465,7 @@ AES_GCM_decrypt_AARCH64_EOR3 PROC
 	stp	D10, D11, [x29, #96]
 	stp	D12, D13, [x29, #112]
 	stp	D14, D15, [x29, #128]
+; .arch_extension sha3
 	ldr	w8, [x29, #144]
 	ldr	x9, [x29, #152]
 	ldr	x10, [x29, #160]
@@ -32552,6 +32554,7 @@ AES_GCM_init_AARCH64_EOR3 PROC
 	add	x29, sp, #0
 	stp	D8, D9, [x29, #16]
 	stp	D10, D11, [x29, #32]
+; .arch_extension sha3
 	movi	V6.16B, #0x87
 	ld1	{V5.2D}, [x4]
 	ushr	V6.2D, V6.2D, #56
@@ -32716,6 +32719,7 @@ AES_GCM_ghash_block_AARCH64_EOR3 PROC
 	stp	x29, x30, [sp, #-32]!
 	add	x29, sp, #0
 	stp	D8, D9, [x29, #16]
+; .arch_extension sha3
 	ld1	{V6.2D}, [x1]
 	movi	V7.16B, #0x87
 	ld1	{V5.2D}, [x2]
@@ -32753,6 +32757,7 @@ AES_GCM_aad_update_AARCH64_EOR3 PROC
 	stp	D10, D11, [x29, #32]
 	stp	D12, D13, [x29, #48]
 	stp	D14, D15, [x29, #64]
+; .arch_extension sha3
 	ld1	{V20.2D}, [x2]
 	movi	V21.16B, #0x87
 	ld1	{V12.2D}, [x3]
@@ -33073,6 +33078,7 @@ L_aes_gcm_aad_update_arm64_crypto_eor3_done
 	ALIGN	4
 	EXPORT	AES_GCM_encrypt_block_AARCH64_EOR3
 AES_GCM_encrypt_block_AARCH64_EOR3 PROC
+; .arch_extension sha3
 	ld1	{V5.2D}, [x4]
 	ld1	{V4.2D}, [x3]
 	mov	w5, V5.S[3]
@@ -33135,6 +33141,7 @@ AES_GCM_encrypt_update_AARCH64_EOR3 PROC
 	stp	D10, D11, [x29, #48]
 	stp	D12, D13, [x29, #64]
 	stp	D14, D15, [x29, #80]
+; .arch_extension sha3
 	ld1	{V13.2D}, [x7]
 	movi	V27.16B, #0x87
 	ld1	{V26.2D}, [x5]
@@ -36844,6 +36851,7 @@ L_aes_gcm_encrypt_update_arm64_crypto_eor3_done
 	ALIGN	4
 	EXPORT	AES_GCM_encrypt_final_AARCH64_EOR3
 AES_GCM_encrypt_final_AARCH64_EOR3 PROC
+; .arch_extension sha3
 	ld1	{V5.2D}, [x0]
 	movi	V6.16B, #0x87
 	ld1	{V4.2D}, [x5]
@@ -36916,6 +36924,7 @@ AES_GCM_decrypt_update_AARCH64_EOR3 PROC
 	stp	D10, D11, [x29, #48]
 	stp	D12, D13, [x29, #64]
 	stp	D14, D15, [x29, #80]
+; .arch_extension sha3
 	ld1	{V13.2D}, [x7]
 	movi	V27.16B, #0x87
 	ld1	{V26.2D}, [x5]
@@ -40626,6 +40635,7 @@ L_aes_gcm_decrypt_update_arm64_crypto_eor3_done
 	ALIGN	4
 	EXPORT	AES_GCM_decrypt_final_AARCH64_EOR3
 AES_GCM_decrypt_final_AARCH64_EOR3 PROC
+; .arch_extension sha3
 	ld1	{V5.2D}, [x0]
 	movi	V6.16B, #0x87
 	ld1	{V4.2D}, [x5]

@@ -334,6 +334,1253 @@ L_sha3_arm32_neon_begin:
 	vpop	{d8-d15}
 	bx	lr
 	.size	BlockSha3,.-BlockSha3
+#if defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_MLDSA)
+#ifndef __APPLE__
+	.text
+	.type	L_sha3_arm32_neon_x3_rt, %object
+	.size	L_sha3_arm32_neon_x3_rt, 192
+#else
+	.section	__DATA,__data
+#endif /* __APPLE__ */
+	# 16-byte aligned, 128-bit aligned
+#ifndef __APPLE__
+	.align	4
+#else
+	.p2align	4
+#endif /* __APPLE__ */
+L_sha3_arm32_neon_x3_rt:
+	.quad	0x0000000000000001,0x0000000000008082
+	.quad	0x800000000000808a,0x8000000080008000
+	.quad	0x000000000000808b,0x0000000080000001
+	.quad	0x8000000080008081,0x8000000000008009
+	.quad	0x000000000000008a,0x0000000000000088
+	.quad	0x0000000080008009,0x000000008000000a
+	.quad	0x000000008000808b,0x800000000000008b
+	.quad	0x8000000000008089,0x8000000000008003
+	.quad	0x8000000000008002,0x8000000000000080
+	.quad	0x000000000000800a,0x800000008000000a
+	.quad	0x8000000080008081,0x8000000000008080
+	.quad	0x0000000080000001,0x8000000080008008
+	.text
+	.align	4
+	.globl	sha3_blocksx3_neon
+	WC_ASM_ATT_HIDDEN(sha3_blocksx3_neon)
+	.type	sha3_blocksx3_neon, %function
+sha3_blocksx3_neon:
+	push	{lr}
+	vpush	{d8-d15}
+	sub	sp, sp, #16
+	adr	r1, L_sha3_arm32_neon_x3_rt
+	mov	lr, #3
+L_sha3_arm32_neon_x3_state:
+	vld1.8	{d0-d3}, [r0]!
+	vld1.8	{d4-d7}, [r0]!
+	vld1.8	{d8-d11}, [r0]!
+	vld1.8	{d12-d15}, [r0]!
+	vld1.8	{d16-d19}, [r0]!
+	vld1.8	{d20-d23}, [r0]!
+	vld1.8	{d24}, [r0]
+	sub	r0, r0, #0xc0
+	mov	r2, r1
+	mov	r3, #24
+	mov	r12, sp
+L_sha3_arm32_neon_x3_begin:
+	# Calc b[0..4]
+	veor	d26, d0, d5
+	veor	d27, d1, d6
+	veor	d28, d2, d7
+	veor	d29, d3, d8
+	veor	d25, d4, d9
+	veor	d26, d26, d10
+	veor	d27, d27, d11
+	veor	d28, d28, d12
+	veor	d29, d29, d13
+	veor	d25, d25, d14
+	veor	d26, d26, d15
+	veor	d27, d27, d16
+	veor	d28, d28, d17
+	veor	d29, d29, d18
+	veor	d25, d25, d19
+	veor	d26, d26, d20
+	veor	d27, d27, d21
+	veor	d28, d28, d22
+	veor	d29, d29, d23
+	veor	d25, d25, d24
+	vst1.8	{d25-d26}, [r12]
+	# Calc t[0..4] and XOR into s[i*5..i*5+4]
+	# t[0]
+	vshr.u64	d30, d27, #63
+	vshl.u64	d31, d27, #1
+	veor	d25, d25, d30
+	veor	d25, d25, d31
+	# t[1]
+	vshr.u64	d30, d28, #63
+	vshl.u64	d31, d28, #1
+	veor	d26, d26, d30
+	veor	d26, d26, d31
+	# t[2]
+	vshr.u64	d30, d29, #63
+	vshl.u64	d31, d29, #1
+	veor	d27, d27, d30
+	veor	d27, d27, d31
+	# t[3]
+	vldr.8	d31, [r12]
+	vshr.u64	d30, d31, #63
+	vshl.u64	d31, d31, #1
+	veor	d28, d28, d30
+	veor	d28, d28, d31
+	# t[4]
+	vldr.8	d31, [r12, #8]
+	vshr.u64	d30, d31, #63
+	vshl.u64	d31, d31, #1
+	veor	d29, d29, d30
+	veor	d29, d29, d31
+	sub	r12, r12, #16
+	veor	d0, d0, d25
+	# s[1] => s[10] (tmp)
+	veor	d30, d1, d26
+	vshr.u64	d31, d30, #63
+	vshl.u64	d30, d30, #1
+	veor	d30, d30, d31
+	# s[6] => s[1]
+	veor	d1, d6, d26
+	vshr.u64	d31, d1, #20
+	vshl.u64	d1, d1, #44
+	veor	d1, d1, d31
+	# s[9] => s[6]
+	veor	d6, d9, d29
+	vshr.u64	d31, d6, #44
+	vshl.u64	d6, d6, #20
+	veor	d6, d6, d31
+	# s[22] => s[9]
+	veor	d9, d22, d27
+	vshr.u64	d31, d9, #3
+	vshl.u64	d9, d9, #61
+	veor	d9, d9, d31
+	# s[14] => s[22]
+	veor	d22, d14, d29
+	vshr.u64	d31, d22, #25
+	vshl.u64	d22, d22, #39
+	veor	d22, d22, d31
+	# s[20] => s[14]
+	veor	d14, d20, d25
+	vshr.u64	d31, d14, #46
+	vshl.u64	d14, d14, #18
+	veor	d14, d14, d31
+	# s[2] => s[20]
+	veor	d20, d2, d27
+	vshr.u64	d31, d20, #2
+	vshl.u64	d20, d20, #62
+	veor	d20, d20, d31
+	# s[12] => s[2]
+	veor	d2, d12, d27
+	vshr.u64	d31, d2, #21
+	vshl.u64	d2, d2, #43
+	veor	d2, d2, d31
+	# s[13] => s[12]
+	veor	d12, d13, d28
+	vshr.u64	d31, d12, #39
+	vshl.u64	d12, d12, #25
+	veor	d12, d12, d31
+	# s[19] => s[13]
+	veor	d13, d19, d29
+	vshr.u64	d31, d13, #56
+	vshl.u64	d13, d13, #8
+	veor	d13, d13, d31
+	# s[23] => s[19]
+	veor	d19, d23, d28
+	vshr.u64	d31, d19, #8
+	vshl.u64	d19, d19, #56
+	veor	d19, d19, d31
+	# s[15] => s[23]
+	veor	d23, d15, d25
+	vshr.u64	d31, d23, #23
+	vshl.u64	d23, d23, #41
+	veor	d23, d23, d31
+	# s[4] => s[15]
+	veor	d15, d4, d29
+	vshr.u64	d31, d15, #37
+	vshl.u64	d15, d15, #27
+	veor	d15, d15, d31
+	# s[24] => s[4]
+	veor	d4, d24, d29
+	vshr.u64	d31, d4, #50
+	vshl.u64	d4, d4, #14
+	veor	d4, d4, d31
+	# s[21] => s[24]
+	veor	d24, d21, d26
+	vshr.u64	d31, d24, #62
+	vshl.u64	d24, d24, #2
+	veor	d24, d24, d31
+	# s[8] => s[21]
+	veor	d21, d8, d28
+	vshr.u64	d31, d21, #9
+	vshl.u64	d21, d21, #55
+	veor	d21, d21, d31
+	# s[16] => s[8]
+	veor	d8, d16, d26
+	vshr.u64	d31, d8, #19
+	vshl.u64	d8, d8, #45
+	veor	d8, d8, d31
+	# s[5] => s[16]
+	veor	d16, d5, d25
+	vshr.u64	d31, d16, #28
+	vshl.u64	d16, d16, #36
+	veor	d16, d16, d31
+	# s[3] => s[5]
+	veor	d5, d3, d28
+	vshr.u64	d31, d5, #36
+	vshl.u64	d5, d5, #28
+	veor	d5, d5, d31
+	# s[18] => s[3]
+	veor	d3, d18, d28
+	vshr.u64	d31, d3, #43
+	vshl.u64	d3, d3, #21
+	veor	d3, d3, d31
+	# s[17] => s[18]
+	veor	d18, d17, d27
+	vshr.u64	d31, d18, #49
+	vshl.u64	d18, d18, #15
+	veor	d18, d18, d31
+	# s[11] => s[17]
+	veor	d17, d11, d26
+	vshr.u64	d31, d17, #54
+	vshl.u64	d17, d17, #10
+	veor	d17, d17, d31
+	# s[7] => s[11]
+	veor	d11, d7, d27
+	vshr.u64	d31, d11, #58
+	vshl.u64	d11, d11, #6
+	veor	d11, d11, d31
+	# s[10] => s[7]
+	veor	d7, d10, d25
+	vshr.u64	d31, d7, #61
+	vshl.u64	d7, d7, #3
+	veor	d7, d7, d31
+	# Row Mix
+	vmov	d25, d0
+	vmov	d26, d1
+	vbic	d31, d2, d26
+	veor	d0, d25, d31
+	vbic	d31, d3, d2
+	veor	d1, d26, d31
+	vbic	d31, d4, d3
+	veor	d2, d2, d31
+	vbic	d31, d25, d4
+	veor	d3, d3, d31
+	vbic	d31, d26, d25
+	veor	d4, d4, d31
+	vmov	d25, d5
+	vmov	d26, d6
+	vbic	d31, d7, d26
+	veor	d5, d25, d31
+	vbic	d31, d8, d7
+	veor	d6, d26, d31
+	vbic	d31, d9, d8
+	veor	d7, d7, d31
+	vbic	d31, d25, d9
+	veor	d8, d8, d31
+	vbic	d31, d26, d25
+	veor	d9, d9, d31
+	vmov	d26, d11
+	vbic	d31, d12, d26
+	veor	d10, d30, d31
+	vbic	d31, d13, d12
+	veor	d11, d26, d31
+	vbic	d31, d14, d13
+	veor	d12, d12, d31
+	vbic	d31, d30, d14
+	veor	d13, d13, d31
+	vbic	d31, d26, d30
+	veor	d14, d14, d31
+	vmov	d25, d15
+	vmov	d26, d16
+	vbic	d31, d17, d26
+	veor	d15, d25, d31
+	vbic	d31, d18, d17
+	veor	d16, d26, d31
+	vbic	d31, d19, d18
+	veor	d17, d17, d31
+	vbic	d31, d25, d19
+	veor	d18, d18, d31
+	vbic	d31, d26, d25
+	veor	d19, d19, d31
+	vmov	d25, d20
+	vmov	d26, d21
+	vbic	d31, d22, d26
+	veor	d20, d25, d31
+	vbic	d31, d23, d22
+	veor	d21, d26, d31
+	vbic	d31, d24, d23
+	veor	d22, d22, d31
+	vbic	d31, d25, d24
+	veor	d23, d23, d31
+	vbic	d31, d26, d25
+	veor	d24, d24, d31
+	vld1.8	{d30}, [r2]!
+	subs	r3, r3, #1
+	veor	d0, d0, d30
+	bne	L_sha3_arm32_neon_x3_begin
+	vst1.8	{d0-d3}, [r0]!
+	vst1.8	{d4-d7}, [r0]!
+	vst1.8	{d8-d11}, [r0]!
+	vst1.8	{d12-d15}, [r0]!
+	vst1.8	{d16-d19}, [r0]!
+	vst1.8	{d20-d23}, [r0]!
+	vst1.8	{d24}, [r0]
+	add	r0, r0, #8
+	subs	lr, lr, #1
+	bne	L_sha3_arm32_neon_x3_state
+	add	sp, sp, #16
+	vpop	{d8-d15}
+	pop	{pc}
+	.size	sha3_blocksx3_neon,.-sha3_blocksx3_neon
+#ifndef __APPLE__
+	.text
+	.type	L_sha3_128_blocksx3_seed_neon_rt, %object
+	.size	L_sha3_128_blocksx3_seed_neon_rt, 200
+#else
+	.section	__DATA,__data
+#endif /* __APPLE__ */
+	# 16-byte aligned, 128-bit aligned
+#ifndef __APPLE__
+	.align	4
+#else
+	.p2align	4
+#endif /* __APPLE__ */
+L_sha3_128_blocksx3_seed_neon_rt:
+	.quad	0x0000000000000001,0x0000000000008082
+	.quad	0x800000000000808a,0x8000000080008000
+	.quad	0x000000000000808b,0x0000000080000001
+	.quad	0x8000000080008081,0x8000000000008009
+	.quad	0x000000000000008a,0x0000000000000088
+	.quad	0x0000000080008009,0x000000008000000a
+	.quad	0x000000008000808b,0x800000000000008b
+	.quad	0x8000000000008089,0x8000000000008003
+	.quad	0x8000000000008002,0x8000000000000080
+	.quad	0x000000000000800a,0x800000008000000a
+	.quad	0x8000000080008081,0x8000000000008080
+	.quad	0x0000000080000001,0x8000000080008008
+	.quad	0x8000000000000000
+	.text
+	.align	4
+	.globl	sha3_128_blocksx3_seed_neon
+	WC_ASM_ATT_HIDDEN(sha3_128_blocksx3_seed_neon)
+	.type	sha3_128_blocksx3_seed_neon, %function
+sha3_128_blocksx3_seed_neon:
+	push	{r4, lr}
+	vpush	{d8-d15}
+	sub	sp, sp, #16
+	adr	r2, L_sha3_128_blocksx3_seed_neon_rt
+	mov	r4, #3
+L_sha3_128_blocksx3_seed_neon_state:
+	vld1.8	{d0-d3}, [r1]!
+	sub	r1, r1, #32
+	vldr.8	d4, [r0, #32]
+	veor	d5, d5, d5
+	veor	d6, d6, d6
+	veor	d7, d7, d7
+	veor	d8, d8, d8
+	veor	d9, d9, d9
+	veor	d10, d10, d10
+	veor	d11, d11, d11
+	veor	d12, d12, d12
+	veor	d13, d13, d13
+	veor	d14, d14, d14
+	veor	d15, d15, d15
+	veor	d16, d16, d16
+	veor	d17, d17, d17
+	veor	d18, d18, d18
+	veor	d19, d19, d19
+	vldr.8	d20, [r2, #192]
+	veor	d21, d21, d21
+	veor	d22, d22, d22
+	veor	d23, d23, d23
+	veor	d24, d24, d24
+	mov	r3, r2
+	mov	r12, #24
+	mov	lr, sp
+L_sha3_128_blocksx3_seed_neon_begin:
+	# Calc b[0..4]
+	veor	d26, d0, d5
+	veor	d27, d1, d6
+	veor	d28, d2, d7
+	veor	d29, d3, d8
+	veor	d25, d4, d9
+	veor	d26, d26, d10
+	veor	d27, d27, d11
+	veor	d28, d28, d12
+	veor	d29, d29, d13
+	veor	d25, d25, d14
+	veor	d26, d26, d15
+	veor	d27, d27, d16
+	veor	d28, d28, d17
+	veor	d29, d29, d18
+	veor	d25, d25, d19
+	veor	d26, d26, d20
+	veor	d27, d27, d21
+	veor	d28, d28, d22
+	veor	d29, d29, d23
+	veor	d25, d25, d24
+	vst1.8	{d25-d26}, [lr]
+	# Calc t[0..4] and XOR into s[i*5..i*5+4]
+	# t[0]
+	vshr.u64	d30, d27, #63
+	vshl.u64	d31, d27, #1
+	veor	d25, d25, d30
+	veor	d25, d25, d31
+	# t[1]
+	vshr.u64	d30, d28, #63
+	vshl.u64	d31, d28, #1
+	veor	d26, d26, d30
+	veor	d26, d26, d31
+	# t[2]
+	vshr.u64	d30, d29, #63
+	vshl.u64	d31, d29, #1
+	veor	d27, d27, d30
+	veor	d27, d27, d31
+	# t[3]
+	vldr.8	d31, [lr]
+	vshr.u64	d30, d31, #63
+	vshl.u64	d31, d31, #1
+	veor	d28, d28, d30
+	veor	d28, d28, d31
+	# t[4]
+	vldr.8	d31, [lr, #8]
+	vshr.u64	d30, d31, #63
+	vshl.u64	d31, d31, #1
+	veor	d29, d29, d30
+	veor	d29, d29, d31
+	sub	lr, lr, #16
+	veor	d0, d0, d25
+	# s[1] => s[10] (tmp)
+	veor	d30, d1, d26
+	vshr.u64	d31, d30, #63
+	vshl.u64	d30, d30, #1
+	veor	d30, d30, d31
+	# s[6] => s[1]
+	veor	d1, d6, d26
+	vshr.u64	d31, d1, #20
+	vshl.u64	d1, d1, #44
+	veor	d1, d1, d31
+	# s[9] => s[6]
+	veor	d6, d9, d29
+	vshr.u64	d31, d6, #44
+	vshl.u64	d6, d6, #20
+	veor	d6, d6, d31
+	# s[22] => s[9]
+	veor	d9, d22, d27
+	vshr.u64	d31, d9, #3
+	vshl.u64	d9, d9, #61
+	veor	d9, d9, d31
+	# s[14] => s[22]
+	veor	d22, d14, d29
+	vshr.u64	d31, d22, #25
+	vshl.u64	d22, d22, #39
+	veor	d22, d22, d31
+	# s[20] => s[14]
+	veor	d14, d20, d25
+	vshr.u64	d31, d14, #46
+	vshl.u64	d14, d14, #18
+	veor	d14, d14, d31
+	# s[2] => s[20]
+	veor	d20, d2, d27
+	vshr.u64	d31, d20, #2
+	vshl.u64	d20, d20, #62
+	veor	d20, d20, d31
+	# s[12] => s[2]
+	veor	d2, d12, d27
+	vshr.u64	d31, d2, #21
+	vshl.u64	d2, d2, #43
+	veor	d2, d2, d31
+	# s[13] => s[12]
+	veor	d12, d13, d28
+	vshr.u64	d31, d12, #39
+	vshl.u64	d12, d12, #25
+	veor	d12, d12, d31
+	# s[19] => s[13]
+	veor	d13, d19, d29
+	vshr.u64	d31, d13, #56
+	vshl.u64	d13, d13, #8
+	veor	d13, d13, d31
+	# s[23] => s[19]
+	veor	d19, d23, d28
+	vshr.u64	d31, d19, #8
+	vshl.u64	d19, d19, #56
+	veor	d19, d19, d31
+	# s[15] => s[23]
+	veor	d23, d15, d25
+	vshr.u64	d31, d23, #23
+	vshl.u64	d23, d23, #41
+	veor	d23, d23, d31
+	# s[4] => s[15]
+	veor	d15, d4, d29
+	vshr.u64	d31, d15, #37
+	vshl.u64	d15, d15, #27
+	veor	d15, d15, d31
+	# s[24] => s[4]
+	veor	d4, d24, d29
+	vshr.u64	d31, d4, #50
+	vshl.u64	d4, d4, #14
+	veor	d4, d4, d31
+	# s[21] => s[24]
+	veor	d24, d21, d26
+	vshr.u64	d31, d24, #62
+	vshl.u64	d24, d24, #2
+	veor	d24, d24, d31
+	# s[8] => s[21]
+	veor	d21, d8, d28
+	vshr.u64	d31, d21, #9
+	vshl.u64	d21, d21, #55
+	veor	d21, d21, d31
+	# s[16] => s[8]
+	veor	d8, d16, d26
+	vshr.u64	d31, d8, #19
+	vshl.u64	d8, d8, #45
+	veor	d8, d8, d31
+	# s[5] => s[16]
+	veor	d16, d5, d25
+	vshr.u64	d31, d16, #28
+	vshl.u64	d16, d16, #36
+	veor	d16, d16, d31
+	# s[3] => s[5]
+	veor	d5, d3, d28
+	vshr.u64	d31, d5, #36
+	vshl.u64	d5, d5, #28
+	veor	d5, d5, d31
+	# s[18] => s[3]
+	veor	d3, d18, d28
+	vshr.u64	d31, d3, #43
+	vshl.u64	d3, d3, #21
+	veor	d3, d3, d31
+	# s[17] => s[18]
+	veor	d18, d17, d27
+	vshr.u64	d31, d18, #49
+	vshl.u64	d18, d18, #15
+	veor	d18, d18, d31
+	# s[11] => s[17]
+	veor	d17, d11, d26
+	vshr.u64	d31, d17, #54
+	vshl.u64	d17, d17, #10
+	veor	d17, d17, d31
+	# s[7] => s[11]
+	veor	d11, d7, d27
+	vshr.u64	d31, d11, #58
+	vshl.u64	d11, d11, #6
+	veor	d11, d11, d31
+	# s[10] => s[7]
+	veor	d7, d10, d25
+	vshr.u64	d31, d7, #61
+	vshl.u64	d7, d7, #3
+	veor	d7, d7, d31
+	# Row Mix
+	vmov	d25, d0
+	vmov	d26, d1
+	vbic	d31, d2, d26
+	veor	d0, d25, d31
+	vbic	d31, d3, d2
+	veor	d1, d26, d31
+	vbic	d31, d4, d3
+	veor	d2, d2, d31
+	vbic	d31, d25, d4
+	veor	d3, d3, d31
+	vbic	d31, d26, d25
+	veor	d4, d4, d31
+	vmov	d25, d5
+	vmov	d26, d6
+	vbic	d31, d7, d26
+	veor	d5, d25, d31
+	vbic	d31, d8, d7
+	veor	d6, d26, d31
+	vbic	d31, d9, d8
+	veor	d7, d7, d31
+	vbic	d31, d25, d9
+	veor	d8, d8, d31
+	vbic	d31, d26, d25
+	veor	d9, d9, d31
+	vmov	d26, d11
+	vbic	d31, d12, d26
+	veor	d10, d30, d31
+	vbic	d31, d13, d12
+	veor	d11, d26, d31
+	vbic	d31, d14, d13
+	veor	d12, d12, d31
+	vbic	d31, d30, d14
+	veor	d13, d13, d31
+	vbic	d31, d26, d30
+	veor	d14, d14, d31
+	vmov	d25, d15
+	vmov	d26, d16
+	vbic	d31, d17, d26
+	veor	d15, d25, d31
+	vbic	d31, d18, d17
+	veor	d16, d26, d31
+	vbic	d31, d19, d18
+	veor	d17, d17, d31
+	vbic	d31, d25, d19
+	veor	d18, d18, d31
+	vbic	d31, d26, d25
+	veor	d19, d19, d31
+	vmov	d25, d20
+	vmov	d26, d21
+	vbic	d31, d22, d26
+	veor	d20, d25, d31
+	vbic	d31, d23, d22
+	veor	d21, d26, d31
+	vbic	d31, d24, d23
+	veor	d22, d22, d31
+	vbic	d31, d25, d24
+	veor	d23, d23, d31
+	vbic	d31, d26, d25
+	veor	d24, d24, d31
+	vld1.8	{d30}, [r3]!
+	subs	r12, r12, #1
+	veor	d0, d0, d30
+	bne	L_sha3_128_blocksx3_seed_neon_begin
+	vst1.8	{d0-d3}, [r0]!
+	vst1.8	{d4-d7}, [r0]!
+	vst1.8	{d8-d11}, [r0]!
+	vst1.8	{d12-d15}, [r0]!
+	vst1.8	{d16-d19}, [r0]!
+	vst1.8	{d20-d23}, [r0]!
+	vst1.8	{d24}, [r0]
+	add	r0, r0, #8
+	subs	r4, r4, #1
+	bne	L_sha3_128_blocksx3_seed_neon_state
+	add	sp, sp, #16
+	vpop	{d8-d15}
+	pop	{r4, pc}
+	.size	sha3_128_blocksx3_seed_neon,.-sha3_128_blocksx3_seed_neon
+#ifndef __APPLE__
+	.text
+	.type	L_sha3_256_blocksx3_seed_neon_rt, %object
+	.size	L_sha3_256_blocksx3_seed_neon_rt, 200
+#else
+	.section	__DATA,__data
+#endif /* __APPLE__ */
+	# 16-byte aligned, 128-bit aligned
+#ifndef __APPLE__
+	.align	4
+#else
+	.p2align	4
+#endif /* __APPLE__ */
+L_sha3_256_blocksx3_seed_neon_rt:
+	.quad	0x0000000000000001,0x0000000000008082
+	.quad	0x800000000000808a,0x8000000080008000
+	.quad	0x000000000000808b,0x0000000080000001
+	.quad	0x8000000080008081,0x8000000000008009
+	.quad	0x000000000000008a,0x0000000000000088
+	.quad	0x0000000080008009,0x000000008000000a
+	.quad	0x000000008000808b,0x800000000000008b
+	.quad	0x8000000000008089,0x8000000000008003
+	.quad	0x8000000000008002,0x8000000000000080
+	.quad	0x000000000000800a,0x800000008000000a
+	.quad	0x8000000080008081,0x8000000000008080
+	.quad	0x0000000080000001,0x8000000080008008
+	.quad	0x8000000000000000
+	.text
+	.align	4
+	.globl	sha3_256_blocksx3_seed_neon
+	WC_ASM_ATT_HIDDEN(sha3_256_blocksx3_seed_neon)
+	.type	sha3_256_blocksx3_seed_neon, %function
+sha3_256_blocksx3_seed_neon:
+	push	{r4, lr}
+	vpush	{d8-d15}
+	sub	sp, sp, #16
+	adr	r2, L_sha3_256_blocksx3_seed_neon_rt
+	mov	r4, #3
+L_sha3_256_blocksx3_seed_neon_state:
+	vld1.8	{d0-d3}, [r1]!
+	sub	r1, r1, #32
+	vldr.8	d4, [r0, #32]
+	veor	d5, d5, d5
+	veor	d6, d6, d6
+	veor	d7, d7, d7
+	veor	d8, d8, d8
+	veor	d9, d9, d9
+	veor	d10, d10, d10
+	veor	d11, d11, d11
+	veor	d12, d12, d12
+	veor	d13, d13, d13
+	veor	d14, d14, d14
+	veor	d15, d15, d15
+	vldr.8	d16, [r2, #192]
+	veor	d17, d17, d17
+	veor	d18, d18, d18
+	veor	d19, d19, d19
+	veor	d20, d20, d20
+	veor	d21, d21, d21
+	veor	d22, d22, d22
+	veor	d23, d23, d23
+	veor	d24, d24, d24
+	mov	r3, r2
+	mov	r12, #24
+	mov	lr, sp
+L_sha3_256_blocksx3_seed_neon_begin:
+	# Calc b[0..4]
+	veor	d26, d0, d5
+	veor	d27, d1, d6
+	veor	d28, d2, d7
+	veor	d29, d3, d8
+	veor	d25, d4, d9
+	veor	d26, d26, d10
+	veor	d27, d27, d11
+	veor	d28, d28, d12
+	veor	d29, d29, d13
+	veor	d25, d25, d14
+	veor	d26, d26, d15
+	veor	d27, d27, d16
+	veor	d28, d28, d17
+	veor	d29, d29, d18
+	veor	d25, d25, d19
+	veor	d26, d26, d20
+	veor	d27, d27, d21
+	veor	d28, d28, d22
+	veor	d29, d29, d23
+	veor	d25, d25, d24
+	vst1.8	{d25-d26}, [lr]
+	# Calc t[0..4] and XOR into s[i*5..i*5+4]
+	# t[0]
+	vshr.u64	d30, d27, #63
+	vshl.u64	d31, d27, #1
+	veor	d25, d25, d30
+	veor	d25, d25, d31
+	# t[1]
+	vshr.u64	d30, d28, #63
+	vshl.u64	d31, d28, #1
+	veor	d26, d26, d30
+	veor	d26, d26, d31
+	# t[2]
+	vshr.u64	d30, d29, #63
+	vshl.u64	d31, d29, #1
+	veor	d27, d27, d30
+	veor	d27, d27, d31
+	# t[3]
+	vldr.8	d31, [lr]
+	vshr.u64	d30, d31, #63
+	vshl.u64	d31, d31, #1
+	veor	d28, d28, d30
+	veor	d28, d28, d31
+	# t[4]
+	vldr.8	d31, [lr, #8]
+	vshr.u64	d30, d31, #63
+	vshl.u64	d31, d31, #1
+	veor	d29, d29, d30
+	veor	d29, d29, d31
+	sub	lr, lr, #16
+	veor	d0, d0, d25
+	# s[1] => s[10] (tmp)
+	veor	d30, d1, d26
+	vshr.u64	d31, d30, #63
+	vshl.u64	d30, d30, #1
+	veor	d30, d30, d31
+	# s[6] => s[1]
+	veor	d1, d6, d26
+	vshr.u64	d31, d1, #20
+	vshl.u64	d1, d1, #44
+	veor	d1, d1, d31
+	# s[9] => s[6]
+	veor	d6, d9, d29
+	vshr.u64	d31, d6, #44
+	vshl.u64	d6, d6, #20
+	veor	d6, d6, d31
+	# s[22] => s[9]
+	veor	d9, d22, d27
+	vshr.u64	d31, d9, #3
+	vshl.u64	d9, d9, #61
+	veor	d9, d9, d31
+	# s[14] => s[22]
+	veor	d22, d14, d29
+	vshr.u64	d31, d22, #25
+	vshl.u64	d22, d22, #39
+	veor	d22, d22, d31
+	# s[20] => s[14]
+	veor	d14, d20, d25
+	vshr.u64	d31, d14, #46
+	vshl.u64	d14, d14, #18
+	veor	d14, d14, d31
+	# s[2] => s[20]
+	veor	d20, d2, d27
+	vshr.u64	d31, d20, #2
+	vshl.u64	d20, d20, #62
+	veor	d20, d20, d31
+	# s[12] => s[2]
+	veor	d2, d12, d27
+	vshr.u64	d31, d2, #21
+	vshl.u64	d2, d2, #43
+	veor	d2, d2, d31
+	# s[13] => s[12]
+	veor	d12, d13, d28
+	vshr.u64	d31, d12, #39
+	vshl.u64	d12, d12, #25
+	veor	d12, d12, d31
+	# s[19] => s[13]
+	veor	d13, d19, d29
+	vshr.u64	d31, d13, #56
+	vshl.u64	d13, d13, #8
+	veor	d13, d13, d31
+	# s[23] => s[19]
+	veor	d19, d23, d28
+	vshr.u64	d31, d19, #8
+	vshl.u64	d19, d19, #56
+	veor	d19, d19, d31
+	# s[15] => s[23]
+	veor	d23, d15, d25
+	vshr.u64	d31, d23, #23
+	vshl.u64	d23, d23, #41
+	veor	d23, d23, d31
+	# s[4] => s[15]
+	veor	d15, d4, d29
+	vshr.u64	d31, d15, #37
+	vshl.u64	d15, d15, #27
+	veor	d15, d15, d31
+	# s[24] => s[4]
+	veor	d4, d24, d29
+	vshr.u64	d31, d4, #50
+	vshl.u64	d4, d4, #14
+	veor	d4, d4, d31
+	# s[21] => s[24]
+	veor	d24, d21, d26
+	vshr.u64	d31, d24, #62
+	vshl.u64	d24, d24, #2
+	veor	d24, d24, d31
+	# s[8] => s[21]
+	veor	d21, d8, d28
+	vshr.u64	d31, d21, #9
+	vshl.u64	d21, d21, #55
+	veor	d21, d21, d31
+	# s[16] => s[8]
+	veor	d8, d16, d26
+	vshr.u64	d31, d8, #19
+	vshl.u64	d8, d8, #45
+	veor	d8, d8, d31
+	# s[5] => s[16]
+	veor	d16, d5, d25
+	vshr.u64	d31, d16, #28
+	vshl.u64	d16, d16, #36
+	veor	d16, d16, d31
+	# s[3] => s[5]
+	veor	d5, d3, d28
+	vshr.u64	d31, d5, #36
+	vshl.u64	d5, d5, #28
+	veor	d5, d5, d31
+	# s[18] => s[3]
+	veor	d3, d18, d28
+	vshr.u64	d31, d3, #43
+	vshl.u64	d3, d3, #21
+	veor	d3, d3, d31
+	# s[17] => s[18]
+	veor	d18, d17, d27
+	vshr.u64	d31, d18, #49
+	vshl.u64	d18, d18, #15
+	veor	d18, d18, d31
+	# s[11] => s[17]
+	veor	d17, d11, d26
+	vshr.u64	d31, d17, #54
+	vshl.u64	d17, d17, #10
+	veor	d17, d17, d31
+	# s[7] => s[11]
+	veor	d11, d7, d27
+	vshr.u64	d31, d11, #58
+	vshl.u64	d11, d11, #6
+	veor	d11, d11, d31
+	# s[10] => s[7]
+	veor	d7, d10, d25
+	vshr.u64	d31, d7, #61
+	vshl.u64	d7, d7, #3
+	veor	d7, d7, d31
+	# Row Mix
+	vmov	d25, d0
+	vmov	d26, d1
+	vbic	d31, d2, d26
+	veor	d0, d25, d31
+	vbic	d31, d3, d2
+	veor	d1, d26, d31
+	vbic	d31, d4, d3
+	veor	d2, d2, d31
+	vbic	d31, d25, d4
+	veor	d3, d3, d31
+	vbic	d31, d26, d25
+	veor	d4, d4, d31
+	vmov	d25, d5
+	vmov	d26, d6
+	vbic	d31, d7, d26
+	veor	d5, d25, d31
+	vbic	d31, d8, d7
+	veor	d6, d26, d31
+	vbic	d31, d9, d8
+	veor	d7, d7, d31
+	vbic	d31, d25, d9
+	veor	d8, d8, d31
+	vbic	d31, d26, d25
+	veor	d9, d9, d31
+	vmov	d26, d11
+	vbic	d31, d12, d26
+	veor	d10, d30, d31
+	vbic	d31, d13, d12
+	veor	d11, d26, d31
+	vbic	d31, d14, d13
+	veor	d12, d12, d31
+	vbic	d31, d30, d14
+	veor	d13, d13, d31
+	vbic	d31, d26, d30
+	veor	d14, d14, d31
+	vmov	d25, d15
+	vmov	d26, d16
+	vbic	d31, d17, d26
+	veor	d15, d25, d31
+	vbic	d31, d18, d17
+	veor	d16, d26, d31
+	vbic	d31, d19, d18
+	veor	d17, d17, d31
+	vbic	d31, d25, d19
+	veor	d18, d18, d31
+	vbic	d31, d26, d25
+	veor	d19, d19, d31
+	vmov	d25, d20
+	vmov	d26, d21
+	vbic	d31, d22, d26
+	veor	d20, d25, d31
+	vbic	d31, d23, d22
+	veor	d21, d26, d31
+	vbic	d31, d24, d23
+	veor	d22, d22, d31
+	vbic	d31, d25, d24
+	veor	d23, d23, d31
+	vbic	d31, d26, d25
+	veor	d24, d24, d31
+	vld1.8	{d30}, [r3]!
+	subs	r12, r12, #1
+	veor	d0, d0, d30
+	bne	L_sha3_256_blocksx3_seed_neon_begin
+	vst1.8	{d0-d3}, [r0]!
+	vst1.8	{d4-d7}, [r0]!
+	vst1.8	{d8-d11}, [r0]!
+	vst1.8	{d12-d15}, [r0]!
+	vst1.8	{d16-d19}, [r0]!
+	vst1.8	{d20-d23}, [r0]!
+	vst1.8	{d24}, [r0]
+	add	r0, r0, #8
+	subs	r4, r4, #1
+	bne	L_sha3_256_blocksx3_seed_neon_state
+	add	sp, sp, #16
+	vpop	{d8-d15}
+	pop	{r4, pc}
+	.size	sha3_256_blocksx3_seed_neon,.-sha3_256_blocksx3_seed_neon
+#ifndef __APPLE__
+	.text
+	.type	L_sha3_256_blocksx3_seed_64_neon_rt, %object
+	.size	L_sha3_256_blocksx3_seed_64_neon_rt, 200
+#else
+	.section	__DATA,__data
+#endif /* __APPLE__ */
+	# 16-byte aligned, 128-bit aligned
+#ifndef __APPLE__
+	.align	4
+#else
+	.p2align	4
+#endif /* __APPLE__ */
+L_sha3_256_blocksx3_seed_64_neon_rt:
+	.quad	0x0000000000000001,0x0000000000008082
+	.quad	0x800000000000808a,0x8000000080008000
+	.quad	0x000000000000808b,0x0000000080000001
+	.quad	0x8000000080008081,0x8000000000008009
+	.quad	0x000000000000008a,0x0000000000000088
+	.quad	0x0000000080008009,0x000000008000000a
+	.quad	0x000000008000808b,0x800000000000008b
+	.quad	0x8000000000008089,0x8000000000008003
+	.quad	0x8000000000008002,0x8000000000000080
+	.quad	0x000000000000800a,0x800000008000000a
+	.quad	0x8000000080008081,0x8000000000008080
+	.quad	0x0000000080000001,0x8000000080008008
+	.quad	0x8000000000000000
+	.text
+	.align	4
+	.globl	sha3_256_blocksx3_seed_64_neon
+	WC_ASM_ATT_HIDDEN(sha3_256_blocksx3_seed_64_neon)
+	.type	sha3_256_blocksx3_seed_64_neon, %function
+sha3_256_blocksx3_seed_64_neon:
+	push	{r4, lr}
+	vpush	{d8-d15}
+	sub	sp, sp, #16
+	adr	r2, L_sha3_256_blocksx3_seed_64_neon_rt
+	mov	r4, #3
+L_sha3_256_blocksx3_seed_64_neon_state:
+	vld1.8	{d0-d3}, [r1]!
+	vld1.8	{d4-d7}, [r1]!
+	sub	r1, r1, #0x40
+	vldr.8	d8, [r0, #64]
+	veor	d9, d9, d9
+	veor	d10, d10, d10
+	veor	d11, d11, d11
+	veor	d12, d12, d12
+	veor	d13, d13, d13
+	veor	d14, d14, d14
+	veor	d15, d15, d15
+	vldr.8	d16, [r2, #192]
+	veor	d17, d17, d17
+	veor	d18, d18, d18
+	veor	d19, d19, d19
+	veor	d20, d20, d20
+	veor	d21, d21, d21
+	veor	d22, d22, d22
+	veor	d23, d23, d23
+	veor	d24, d24, d24
+	mov	r3, r2
+	mov	r12, #24
+	mov	lr, sp
+L_sha3_256_blocksx3_seed_64_neon_begin:
+	# Calc b[0..4]
+	veor	d26, d0, d5
+	veor	d27, d1, d6
+	veor	d28, d2, d7
+	veor	d29, d3, d8
+	veor	d25, d4, d9
+	veor	d26, d26, d10
+	veor	d27, d27, d11
+	veor	d28, d28, d12
+	veor	d29, d29, d13
+	veor	d25, d25, d14
+	veor	d26, d26, d15
+	veor	d27, d27, d16
+	veor	d28, d28, d17
+	veor	d29, d29, d18
+	veor	d25, d25, d19
+	veor	d26, d26, d20
+	veor	d27, d27, d21
+	veor	d28, d28, d22
+	veor	d29, d29, d23
+	veor	d25, d25, d24
+	vst1.8	{d25-d26}, [lr]
+	# Calc t[0..4] and XOR into s[i*5..i*5+4]
+	# t[0]
+	vshr.u64	d30, d27, #63
+	vshl.u64	d31, d27, #1
+	veor	d25, d25, d30
+	veor	d25, d25, d31
+	# t[1]
+	vshr.u64	d30, d28, #63
+	vshl.u64	d31, d28, #1
+	veor	d26, d26, d30
+	veor	d26, d26, d31
+	# t[2]
+	vshr.u64	d30, d29, #63
+	vshl.u64	d31, d29, #1
+	veor	d27, d27, d30
+	veor	d27, d27, d31
+	# t[3]
+	vldr.8	d31, [lr]
+	vshr.u64	d30, d31, #63
+	vshl.u64	d31, d31, #1
+	veor	d28, d28, d30
+	veor	d28, d28, d31
+	# t[4]
+	vldr.8	d31, [lr, #8]
+	vshr.u64	d30, d31, #63
+	vshl.u64	d31, d31, #1
+	veor	d29, d29, d30
+	veor	d29, d29, d31
+	sub	lr, lr, #16
+	veor	d0, d0, d25
+	# s[1] => s[10] (tmp)
+	veor	d30, d1, d26
+	vshr.u64	d31, d30, #63
+	vshl.u64	d30, d30, #1
+	veor	d30, d30, d31
+	# s[6] => s[1]
+	veor	d1, d6, d26
+	vshr.u64	d31, d1, #20
+	vshl.u64	d1, d1, #44
+	veor	d1, d1, d31
+	# s[9] => s[6]
+	veor	d6, d9, d29
+	vshr.u64	d31, d6, #44
+	vshl.u64	d6, d6, #20
+	veor	d6, d6, d31
+	# s[22] => s[9]
+	veor	d9, d22, d27
+	vshr.u64	d31, d9, #3
+	vshl.u64	d9, d9, #61
+	veor	d9, d9, d31
+	# s[14] => s[22]
+	veor	d22, d14, d29
+	vshr.u64	d31, d22, #25
+	vshl.u64	d22, d22, #39
+	veor	d22, d22, d31
+	# s[20] => s[14]
+	veor	d14, d20, d25
+	vshr.u64	d31, d14, #46
+	vshl.u64	d14, d14, #18
+	veor	d14, d14, d31
+	# s[2] => s[20]
+	veor	d20, d2, d27
+	vshr.u64	d31, d20, #2
+	vshl.u64	d20, d20, #62
+	veor	d20, d20, d31
+	# s[12] => s[2]
+	veor	d2, d12, d27
+	vshr.u64	d31, d2, #21
+	vshl.u64	d2, d2, #43
+	veor	d2, d2, d31
+	# s[13] => s[12]
+	veor	d12, d13, d28
+	vshr.u64	d31, d12, #39
+	vshl.u64	d12, d12, #25
+	veor	d12, d12, d31
+	# s[19] => s[13]
+	veor	d13, d19, d29
+	vshr.u64	d31, d13, #56
+	vshl.u64	d13, d13, #8
+	veor	d13, d13, d31
+	# s[23] => s[19]
+	veor	d19, d23, d28
+	vshr.u64	d31, d19, #8
+	vshl.u64	d19, d19, #56
+	veor	d19, d19, d31
+	# s[15] => s[23]
+	veor	d23, d15, d25
+	vshr.u64	d31, d23, #23
+	vshl.u64	d23, d23, #41
+	veor	d23, d23, d31
+	# s[4] => s[15]
+	veor	d15, d4, d29
+	vshr.u64	d31, d15, #37
+	vshl.u64	d15, d15, #27
+	veor	d15, d15, d31
+	# s[24] => s[4]
+	veor	d4, d24, d29
+	vshr.u64	d31, d4, #50
+	vshl.u64	d4, d4, #14
+	veor	d4, d4, d31
+	# s[21] => s[24]
+	veor	d24, d21, d26
+	vshr.u64	d31, d24, #62
+	vshl.u64	d24, d24, #2
+	veor	d24, d24, d31
+	# s[8] => s[21]
+	veor	d21, d8, d28
+	vshr.u64	d31, d21, #9
+	vshl.u64	d21, d21, #55
+	veor	d21, d21, d31
+	# s[16] => s[8]
+	veor	d8, d16, d26
+	vshr.u64	d31, d8, #19
+	vshl.u64	d8, d8, #45
+	veor	d8, d8, d31
+	# s[5] => s[16]
+	veor	d16, d5, d25
+	vshr.u64	d31, d16, #28
+	vshl.u64	d16, d16, #36
+	veor	d16, d16, d31
+	# s[3] => s[5]
+	veor	d5, d3, d28
+	vshr.u64	d31, d5, #36
+	vshl.u64	d5, d5, #28
+	veor	d5, d5, d31
+	# s[18] => s[3]
+	veor	d3, d18, d28
+	vshr.u64	d31, d3, #43
+	vshl.u64	d3, d3, #21
+	veor	d3, d3, d31
+	# s[17] => s[18]
+	veor	d18, d17, d27
+	vshr.u64	d31, d18, #49
+	vshl.u64	d18, d18, #15
+	veor	d18, d18, d31
+	# s[11] => s[17]
+	veor	d17, d11, d26
+	vshr.u64	d31, d17, #54
+	vshl.u64	d17, d17, #10
+	veor	d17, d17, d31
+	# s[7] => s[11]
+	veor	d11, d7, d27
+	vshr.u64	d31, d11, #58
+	vshl.u64	d11, d11, #6
+	veor	d11, d11, d31
+	# s[10] => s[7]
+	veor	d7, d10, d25
+	vshr.u64	d31, d7, #61
+	vshl.u64	d7, d7, #3
+	veor	d7, d7, d31
+	# Row Mix
+	vmov	d25, d0
+	vmov	d26, d1
+	vbic	d31, d2, d26
+	veor	d0, d25, d31
+	vbic	d31, d3, d2
+	veor	d1, d26, d31
+	vbic	d31, d4, d3
+	veor	d2, d2, d31
+	vbic	d31, d25, d4
+	veor	d3, d3, d31
+	vbic	d31, d26, d25
+	veor	d4, d4, d31
+	vmov	d25, d5
+	vmov	d26, d6
+	vbic	d31, d7, d26
+	veor	d5, d25, d31
+	vbic	d31, d8, d7
+	veor	d6, d26, d31
+	vbic	d31, d9, d8
+	veor	d7, d7, d31
+	vbic	d31, d25, d9
+	veor	d8, d8, d31
+	vbic	d31, d26, d25
+	veor	d9, d9, d31
+	vmov	d26, d11
+	vbic	d31, d12, d26
+	veor	d10, d30, d31
+	vbic	d31, d13, d12
+	veor	d11, d26, d31
+	vbic	d31, d14, d13
+	veor	d12, d12, d31
+	vbic	d31, d30, d14
+	veor	d13, d13, d31
+	vbic	d31, d26, d30
+	veor	d14, d14, d31
+	vmov	d25, d15
+	vmov	d26, d16
+	vbic	d31, d17, d26
+	veor	d15, d25, d31
+	vbic	d31, d18, d17
+	veor	d16, d26, d31
+	vbic	d31, d19, d18
+	veor	d17, d17, d31
+	vbic	d31, d25, d19
+	veor	d18, d18, d31
+	vbic	d31, d26, d25
+	veor	d19, d19, d31
+	vmov	d25, d20
+	vmov	d26, d21
+	vbic	d31, d22, d26
+	veor	d20, d25, d31
+	vbic	d31, d23, d22
+	veor	d21, d26, d31
+	vbic	d31, d24, d23
+	veor	d22, d22, d31
+	vbic	d31, d25, d24
+	veor	d23, d23, d31
+	vbic	d31, d26, d25
+	veor	d24, d24, d31
+	vld1.8	{d30}, [r3]!
+	subs	r12, r12, #1
+	veor	d0, d0, d30
+	bne	L_sha3_256_blocksx3_seed_64_neon_begin
+	vst1.8	{d0-d3}, [r0]!
+	vst1.8	{d4-d7}, [r0]!
+	vst1.8	{d8-d11}, [r0]!
+	vst1.8	{d12-d15}, [r0]!
+	vst1.8	{d16-d19}, [r0]!
+	vst1.8	{d20-d23}, [r0]!
+	vst1.8	{d24}, [r0]
+	add	r0, r0, #8
+	subs	r4, r4, #1
+	bne	L_sha3_256_blocksx3_seed_64_neon_state
+	add	sp, sp, #16
+	vpop	{d8-d15}
+	pop	{r4, pc}
+	.size	sha3_256_blocksx3_seed_64_neon,.-sha3_256_blocksx3_seed_64_neon
+#endif /* defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_MLDSA) */
 #endif /* WOLFSSL_ARMASM_NO_NEON */
 #ifdef WOLFSSL_ARMASM_NO_NEON
 #ifndef __APPLE__

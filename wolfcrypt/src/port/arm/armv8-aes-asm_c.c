@@ -15068,6 +15068,9 @@ void AES_GCM_encrypt_AARCH64_EOR3(const byte* in, byte* out, word32 sz,
     word32 aadSz, byte* key, byte* gcm_h, byte* tmp, byte* reg, int nr)
 {
     __asm__ __volatile__ (
+#ifdef __APPLE__
+    ".arch_extension sha3\n\t"
+#endif /* __APPLE__ */
         "movi	v27.16b, #0x87\n\t"
         "eor	v26.16b, v26.16b, v26.16b\n\t"
         "ushr	v27.2d, v27.2d, #56\n\t"
@@ -19837,6 +19840,9 @@ int AES_GCM_decrypt_AARCH64_EOR3(const byte* in, byte* out, word32 sz,
     int nr)
 {
     __asm__ __volatile__ (
+#ifdef __APPLE__
+    ".arch_extension sha3\n\t"
+#endif /* __APPLE__ */
         "movi	v27.16b, #0x87\n\t"
         "eor	v26.16b, v26.16b, v26.16b\n\t"
         "ushr	v27.2d, v27.2d, #56\n\t"
@@ -33115,6 +33121,9 @@ void AES_GCM_init_AARCH64_EOR3(byte* key, int nr, const byte* nonce,
     word32 nonceSz, byte* gcm_h, byte* counter, byte* initCtr)
 {
     __asm__ __volatile__ (
+#ifdef __APPLE__
+    ".arch_extension sha3\n\t"
+#endif /* __APPLE__ */
         "movi	v6.16b, #0x87\n\t"
         "ld1	{v5.2d}, [%x[gcm_h]]\n\t"
         "ushr	v6.2d, v6.2d, #56\n\t"
@@ -33289,6 +33298,9 @@ void AES_GCM_init_AARCH64_EOR3(byte* key, int nr, const byte* nonce,
 void AES_GCM_ghash_block_AARCH64_EOR3(const byte* data, byte* tag, byte* gcm_h)
 {
     __asm__ __volatile__ (
+#ifdef __APPLE__
+    ".arch_extension sha3\n\t"
+#endif /* __APPLE__ */
         "ld1	{v6.2d}, [%x[tag]]\n\t"
         "movi	v7.16b, #0x87\n\t"
         "ld1	{v5.2d}, [%x[gcm_h]]\n\t"
@@ -33322,6 +33334,9 @@ void AES_GCM_aad_update_AARCH64_EOR3(const byte* aadt, word32 abytes, byte* tag,
     byte* gcm_h)
 {
     __asm__ __volatile__ (
+#ifdef __APPLE__
+    ".arch_extension sha3\n\t"
+#endif /* __APPLE__ */
         "ld1	{v20.2d}, [%x[tag]]\n\t"
         "movi	v21.16b, #0x87\n\t"
         "ld1	{v12.2d}, [%x[gcm_h]]\n\t"
@@ -33650,6 +33665,9 @@ void AES_GCM_encrypt_block_AARCH64_EOR3(const byte* key, int nr, byte* out,
     const byte* in, byte* counter)
 {
     __asm__ __volatile__ (
+#ifdef __APPLE__
+    ".arch_extension sha3\n\t"
+#endif /* __APPLE__ */
         "ld1	{v5.2d}, [%x[counter]]\n\t"
         "ld1	{v4.2d}, [%x[in]]\n\t"
         "mov	w5, v5.s[3]\n\t"
@@ -33710,6 +33728,9 @@ void AES_GCM_encrypt_update_AARCH64_EOR3(const byte* key, int nr, byte* out,
     const byte* in, word32 nbytes, byte* tag, byte* h, byte* counter)
 {
     __asm__ __volatile__ (
+#ifdef __APPLE__
+    ".arch_extension sha3\n\t"
+#endif /* __APPLE__ */
         "ld1	{v13.2d}, [%x[counter]]\n\t"
         "movi	v27.16b, #0x87\n\t"
         "ld1	{v26.2d}, [%x[tag]]\n\t"
@@ -37453,6 +37474,9 @@ void AES_GCM_encrypt_final_AARCH64_EOR3(byte* tag, byte* authTag, word32 tbytes,
     word32 nbytes, word32 abytes, byte* h, byte* initCtr)
 {
     __asm__ __volatile__ (
+#ifdef __APPLE__
+    ".arch_extension sha3\n\t"
+#endif /* __APPLE__ */
         "ld1	{v5.2d}, [%x[tag]]\n\t"
         "movi	v6.16b, #0x87\n\t"
         "ld1	{v4.2d}, [%x[h]]\n\t"
@@ -37532,6 +37556,9 @@ void AES_GCM_decrypt_update_AARCH64_EOR3(const byte* key, int nr, byte* out,
     const byte* in, word32 nbytes, byte* tag, byte* h, byte* counter)
 {
     __asm__ __volatile__ (
+#ifdef __APPLE__
+    ".arch_extension sha3\n\t"
+#endif /* __APPLE__ */
         "ld1	{v13.2d}, [%x[counter]]\n\t"
         "movi	v27.16b, #0x87\n\t"
         "ld1	{v26.2d}, [%x[tag]]\n\t"
@@ -41277,6 +41304,9 @@ void AES_GCM_decrypt_final_AARCH64_EOR3(byte* tag, const byte* authTag,
     int* res)
 {
     __asm__ __volatile__ (
+#ifdef __APPLE__
+    ".arch_extension sha3\n\t"
+#endif /* __APPLE__ */
         "ld1	{v5.2d}, [%x[tag]]\n\t"
         "movi	v6.16b, #0x87\n\t"
         "ld1	{v4.2d}, [%x[h]]\n\t"
