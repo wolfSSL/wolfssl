@@ -5752,6 +5752,21 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
          * leave it readable as this connection's. */
         ssl->namedGroup = 0;
     #endif
+    #if defined(HAVE_ECC) || defined(HAVE_ED25519) || \
+        defined(HAVE_CURVE25519) || defined(HAVE_ED448) || \
+        defined(HAVE_CURVE448)
+        /* The peer's ephemeral key is now kept past the handshake for
+         * wolfSSL_get_peer_tmp_key(). A next handshake that negotiates no
+         * (EC)DH would otherwise report the previous connection's key. */
+        ssl->ecdhCurveOID = 0;
+        ssl->peerEccKeyPresent = 0;
+    #endif
+    #ifdef HAVE_CURVE25519
+        ssl->peerX25519KeyPresent = 0;
+    #endif
+    #ifdef HAVE_CURVE448
+        ssl->peerX448KeyPresent = 0;
+    #endif
     #ifdef WOLFSSL_DTLS
         ssl->options.dtlsStateful = 0;
     #endif
