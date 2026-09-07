@@ -1261,7 +1261,8 @@ int wc_ShaCopy(wc_Sha* src, wc_Sha* dst)
 #endif
 
 #ifdef WOLFSSL_PIC32MZ_HASH
-    ret = wc_Pic32HashCopy(&src->cache, &dst->cache);
+    ret = wc_Pic32HashCopy(&src->cache, &dst->cache, (byte*)src->buffer,
+        (byte*)dst->buffer, dst->heap);
 #endif
 
 #if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)

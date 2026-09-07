@@ -5097,6 +5097,121 @@ exit:
     return ret;
 }
 
+/* Copy a context and then drive the original and the copy independently.
+ * The message is longer than one block so that ports which buffer the whole
+ * message before hashing (e.g. PIC32MZ) have to spill it to the heap. The
+ * copy must get its own storage rather than share the original's, otherwise
+ * updating or finalizing one context corrupts the other's digest. */
+static wc_test_ret_t md5_copy_update_test(wc_Md5* md5,
+    wc_Md5* md5Copy)
+{
+    wc_test_ret_t ret = 0;
+    byte hash[WC_MD5_DIGEST_SIZE];
+    byte expectA[WC_MD5_DIGEST_SIZE];
+    byte expectB[WC_MD5_DIGEST_SIZE];
+    byte expectS[WC_MD5_DIGEST_SIZE];
+    byte msg[WC_MD5_BLOCK_SIZE + WC_MD5_BLOCK_SIZE / 2];
+    const byte tailA[] = "original";
+    const byte tailB[] = "copy";
+    word32 tailASz = (word32)sizeof(tailA) - 1;
+    word32 tailBSz = (word32)sizeof(tailB) - 1;
+    int i;
+
+    for (i = 0; i < (int)sizeof(msg); i++)
+        msg[i] = (byte)i;
+
+    ret = wc_InitMd5_ex(md5, HEAP_HINT, devId);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_InitMd5_ex(md5Copy, HEAP_HINT, devId);
+    if (ret != 0) {
+        wc_Md5Free(md5);
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+
+    /* Reference digests of msg || tailA, msg || tailB and tailA alone. */
+    ret = wc_Md5Update(md5, msg, (word32)sizeof(msg));
+    if (ret == 0)
+        ret = wc_Md5Update(md5, tailA, tailASz);
+    if (ret == 0)
+        ret = wc_Md5Final(md5, expectA);
+    if (ret == 0)
+        ret = wc_Md5Update(md5, msg, (word32)sizeof(msg));
+    if (ret == 0)
+        ret = wc_Md5Update(md5, tailB, tailBSz);
+    if (ret == 0)
+        ret = wc_Md5Final(md5, expectB);
+    if (ret == 0)
+        ret = wc_Md5Update(md5, tailA, tailASz);
+    if (ret == 0)
+        ret = wc_Md5Final(md5, expectS);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+
+    /* Copy, update both, then finalize both. */
+    ret = wc_Md5Update(md5, msg, (word32)sizeof(msg));
+    if (ret == 0)
+        ret = wc_Md5Copy(md5, md5Copy);
+    if (ret == 0)
+        ret = wc_Md5Update(md5, tailA, tailASz);
+    if (ret == 0)
+        ret = wc_Md5Update(md5Copy, tailB, tailBSz);
+    if (ret == 0)
+        ret = wc_Md5Final(md5, hash);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    if (XMEMCMP(hash, expectA, WC_MD5_DIGEST_SIZE) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+    ret = wc_Md5Final(md5Copy, hash);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    if (XMEMCMP(hash, expectB, WC_MD5_DIGEST_SIZE) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+
+    /* Copy, then finish the original before touching the copy. */
+    ret = wc_Md5Update(md5, msg, (word32)sizeof(msg));
+    if (ret == 0)
+        ret = wc_Md5Copy(md5, md5Copy);
+    if (ret == 0)
+        ret = wc_Md5Update(md5, tailA, tailASz);
+    if (ret == 0)
+        ret = wc_Md5Final(md5, hash);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    if (XMEMCMP(hash, expectA, WC_MD5_DIGEST_SIZE) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+    ret = wc_Md5Update(md5Copy, tailB, tailBSz);
+    if (ret == 0)
+        ret = wc_Md5Final(md5Copy, hash);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    if (XMEMCMP(hash, expectB, WC_MD5_DIGEST_SIZE) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+
+    /* Message that fits in the block buffer: finalizing the original resets
+     * its buffer, which must not change the copy's digest. */
+    ret = wc_Md5Update(md5, tailA, tailASz);
+    if (ret == 0)
+        ret = wc_Md5Copy(md5, md5Copy);
+    if (ret == 0)
+        ret = wc_Md5Final(md5, hash);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    if (XMEMCMP(hash, expectS, WC_MD5_DIGEST_SIZE) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+    ret = wc_Md5Final(md5Copy, hash);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    if (XMEMCMP(hash, expectS, WC_MD5_DIGEST_SIZE) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+
+exit:
+    wc_Md5Free(md5);
+    wc_Md5Free(md5Copy);
+
+    return ret;
+}
+
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t md5_test(void)
 {
     wc_Md5 md5, md5Copy;
@@ -5109,6 +5224,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t md5_test(void)
         return ret;
 #endif
     if ((ret = md5_copy_test(&md5, &md5Copy)) != 0)
+        return ret;
+    if ((ret = md5_copy_update_test(&md5, &md5Copy)) != 0)
         return ret;
     return 0;
 }
@@ -5392,6 +5509,121 @@ exit:
 
     return ret;
 }
+
+/* Copy a context and then drive the original and the copy independently.
+ * The message is longer than one block so that ports which buffer the whole
+ * message before hashing (e.g. PIC32MZ) have to spill it to the heap. The
+ * copy must get its own storage rather than share the original's, otherwise
+ * updating or finalizing one context corrupts the other's digest. */
+static wc_test_ret_t sha_copy_update_test(wc_Sha* sha,
+    wc_Sha* shaCopy)
+{
+    wc_test_ret_t ret = 0;
+    byte hash[WC_SHA_DIGEST_SIZE];
+    byte expectA[WC_SHA_DIGEST_SIZE];
+    byte expectB[WC_SHA_DIGEST_SIZE];
+    byte expectS[WC_SHA_DIGEST_SIZE];
+    byte msg[WC_SHA_BLOCK_SIZE + WC_SHA_BLOCK_SIZE / 2];
+    const byte tailA[] = "original";
+    const byte tailB[] = "copy";
+    word32 tailASz = (word32)sizeof(tailA) - 1;
+    word32 tailBSz = (word32)sizeof(tailB) - 1;
+    int i;
+
+    for (i = 0; i < (int)sizeof(msg); i++)
+        msg[i] = (byte)i;
+
+    ret = wc_InitSha_ex(sha, HEAP_HINT, devId);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_InitSha_ex(shaCopy, HEAP_HINT, devId);
+    if (ret != 0) {
+        wc_ShaFree(sha);
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+
+    /* Reference digests of msg || tailA, msg || tailB and tailA alone. */
+    ret = wc_ShaUpdate(sha, msg, (word32)sizeof(msg));
+    if (ret == 0)
+        ret = wc_ShaUpdate(sha, tailA, tailASz);
+    if (ret == 0)
+        ret = wc_ShaFinal(sha, expectA);
+    if (ret == 0)
+        ret = wc_ShaUpdate(sha, msg, (word32)sizeof(msg));
+    if (ret == 0)
+        ret = wc_ShaUpdate(sha, tailB, tailBSz);
+    if (ret == 0)
+        ret = wc_ShaFinal(sha, expectB);
+    if (ret == 0)
+        ret = wc_ShaUpdate(sha, tailA, tailASz);
+    if (ret == 0)
+        ret = wc_ShaFinal(sha, expectS);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+
+    /* Copy, update both, then finalize both. */
+    ret = wc_ShaUpdate(sha, msg, (word32)sizeof(msg));
+    if (ret == 0)
+        ret = wc_ShaCopy(sha, shaCopy);
+    if (ret == 0)
+        ret = wc_ShaUpdate(sha, tailA, tailASz);
+    if (ret == 0)
+        ret = wc_ShaUpdate(shaCopy, tailB, tailBSz);
+    if (ret == 0)
+        ret = wc_ShaFinal(sha, hash);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    if (XMEMCMP(hash, expectA, WC_SHA_DIGEST_SIZE) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+    ret = wc_ShaFinal(shaCopy, hash);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    if (XMEMCMP(hash, expectB, WC_SHA_DIGEST_SIZE) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+
+    /* Copy, then finish the original before touching the copy. */
+    ret = wc_ShaUpdate(sha, msg, (word32)sizeof(msg));
+    if (ret == 0)
+        ret = wc_ShaCopy(sha, shaCopy);
+    if (ret == 0)
+        ret = wc_ShaUpdate(sha, tailA, tailASz);
+    if (ret == 0)
+        ret = wc_ShaFinal(sha, hash);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    if (XMEMCMP(hash, expectA, WC_SHA_DIGEST_SIZE) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+    ret = wc_ShaUpdate(shaCopy, tailB, tailBSz);
+    if (ret == 0)
+        ret = wc_ShaFinal(shaCopy, hash);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    if (XMEMCMP(hash, expectB, WC_SHA_DIGEST_SIZE) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+
+    /* Message that fits in the block buffer: finalizing the original resets
+     * its buffer, which must not change the copy's digest. */
+    ret = wc_ShaUpdate(sha, tailA, tailASz);
+    if (ret == 0)
+        ret = wc_ShaCopy(sha, shaCopy);
+    if (ret == 0)
+        ret = wc_ShaFinal(sha, hash);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    if (XMEMCMP(hash, expectS, WC_SHA_DIGEST_SIZE) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+    ret = wc_ShaFinal(shaCopy, hash);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    if (XMEMCMP(hash, expectS, WC_SHA_DIGEST_SIZE) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+
+exit:
+    wc_ShaFree(sha);
+    wc_ShaFree(shaCopy);
+
+    return ret;
+}
 #endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS_VERSION_GE(7, 0)) */
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha_test(void)
@@ -5407,6 +5639,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha_test(void)
 #endif
 #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7, 0))
     if ((ret = sha_copy_test(&sha, &shaCopy)) != 0)
+        return ret;
+    if ((ret = sha_copy_update_test(&sha, &shaCopy)) != 0)
         return ret;
 #endif
     return 0;
@@ -6305,6 +6539,121 @@ exit:
 
     return ret;
 }
+
+/* Copy a context and then drive the original and the copy independently.
+ * The message is longer than one block so that ports which buffer the whole
+ * message before hashing (e.g. PIC32MZ) have to spill it to the heap. The
+ * copy must get its own storage rather than share the original's, otherwise
+ * updating or finalizing one context corrupts the other's digest. */
+static wc_test_ret_t sha256_copy_update_test(wc_Sha256* sha,
+    wc_Sha256* shaCopy)
+{
+    wc_test_ret_t ret = 0;
+    byte hash[WC_SHA256_DIGEST_SIZE];
+    byte expectA[WC_SHA256_DIGEST_SIZE];
+    byte expectB[WC_SHA256_DIGEST_SIZE];
+    byte expectS[WC_SHA256_DIGEST_SIZE];
+    byte msg[WC_SHA256_BLOCK_SIZE + WC_SHA256_BLOCK_SIZE / 2];
+    const byte tailA[] = "original";
+    const byte tailB[] = "copy";
+    word32 tailASz = (word32)sizeof(tailA) - 1;
+    word32 tailBSz = (word32)sizeof(tailB) - 1;
+    int i;
+
+    for (i = 0; i < (int)sizeof(msg); i++)
+        msg[i] = (byte)i;
+
+    ret = wc_InitSha256_ex(sha, HEAP_HINT, devId);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_InitSha256_ex(shaCopy, HEAP_HINT, devId);
+    if (ret != 0) {
+        wc_Sha256Free(sha);
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+
+    /* Reference digests of msg || tailA, msg || tailB and tailA alone. */
+    ret = wc_Sha256Update(sha, msg, (word32)sizeof(msg));
+    if (ret == 0)
+        ret = wc_Sha256Update(sha, tailA, tailASz);
+    if (ret == 0)
+        ret = wc_Sha256Final(sha, expectA);
+    if (ret == 0)
+        ret = wc_Sha256Update(sha, msg, (word32)sizeof(msg));
+    if (ret == 0)
+        ret = wc_Sha256Update(sha, tailB, tailBSz);
+    if (ret == 0)
+        ret = wc_Sha256Final(sha, expectB);
+    if (ret == 0)
+        ret = wc_Sha256Update(sha, tailA, tailASz);
+    if (ret == 0)
+        ret = wc_Sha256Final(sha, expectS);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+
+    /* Copy, update both, then finalize both. */
+    ret = wc_Sha256Update(sha, msg, (word32)sizeof(msg));
+    if (ret == 0)
+        ret = wc_Sha256Copy(sha, shaCopy);
+    if (ret == 0)
+        ret = wc_Sha256Update(sha, tailA, tailASz);
+    if (ret == 0)
+        ret = wc_Sha256Update(shaCopy, tailB, tailBSz);
+    if (ret == 0)
+        ret = wc_Sha256Final(sha, hash);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    if (XMEMCMP(hash, expectA, WC_SHA256_DIGEST_SIZE) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+    ret = wc_Sha256Final(shaCopy, hash);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    if (XMEMCMP(hash, expectB, WC_SHA256_DIGEST_SIZE) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+
+    /* Copy, then finish the original before touching the copy. */
+    ret = wc_Sha256Update(sha, msg, (word32)sizeof(msg));
+    if (ret == 0)
+        ret = wc_Sha256Copy(sha, shaCopy);
+    if (ret == 0)
+        ret = wc_Sha256Update(sha, tailA, tailASz);
+    if (ret == 0)
+        ret = wc_Sha256Final(sha, hash);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    if (XMEMCMP(hash, expectA, WC_SHA256_DIGEST_SIZE) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+    ret = wc_Sha256Update(shaCopy, tailB, tailBSz);
+    if (ret == 0)
+        ret = wc_Sha256Final(shaCopy, hash);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    if (XMEMCMP(hash, expectB, WC_SHA256_DIGEST_SIZE) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+
+    /* Message that fits in the block buffer: finalizing the original resets
+     * its buffer, which must not change the copy's digest. */
+    ret = wc_Sha256Update(sha, tailA, tailASz);
+    if (ret == 0)
+        ret = wc_Sha256Copy(sha, shaCopy);
+    if (ret == 0)
+        ret = wc_Sha256Final(sha, hash);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    if (XMEMCMP(hash, expectS, WC_SHA256_DIGEST_SIZE) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+    ret = wc_Sha256Final(shaCopy, hash);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    if (XMEMCMP(hash, expectS, WC_SHA256_DIGEST_SIZE) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+
+exit:
+    wc_Sha256Free(sha);
+    wc_Sha256Free(shaCopy);
+
+    return ret;
+}
 #endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS_VERSION_GE(7, 0)) */
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha256_test(void)
@@ -6325,6 +6674,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha256_test(void)
 #endif
 #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7, 0))
     if ((ret = sha256_copy_test(&sha, &shaCopy)) != 0)
+        return ret;
+    if ((ret = sha256_copy_update_test(&sha, &shaCopy)) != 0)
         return ret;
 #endif
     return 0;

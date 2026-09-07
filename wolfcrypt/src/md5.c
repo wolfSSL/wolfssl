@@ -560,7 +560,8 @@ int wc_Md5Copy(wc_Md5* src, wc_Md5* dst)
     ret = wolfAsync_DevCopy(&src->asyncDev, &dst->asyncDev);
 #endif
 #ifdef WOLFSSL_PIC32MZ_HASH
-    ret = wc_Pic32HashCopy(&src->cache, &dst->cache);
+    ret = wc_Pic32HashCopy(&src->cache, &dst->cache, (byte*)src->buffer,
+        (byte*)dst->buffer, dst->heap);
 #endif
 #ifdef WOLFSSL_HASH_FLAGS
     dst->flags |= WC_HASH_FLAG_ISCOPY;
