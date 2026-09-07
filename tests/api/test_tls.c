@@ -3392,6 +3392,7 @@ typedef struct test_chain_verify_cb_ctx {
     int  calls;       /* how many times the callback ran */
     int  deferrals;   /* how many times to answer CHAIN_VERIFY_WANT_E first */
     int  reject;      /* non-zero to reject the chain */
+    int  rejectRet;   /* value to reject with, 0 for the default -1 */
     int  certsSeen;   /* certsSz of the last call */
     int  leafMatched; /* certs[0] matched the expected leaf DER */
     /* A copy of the expected leaf: the peer may unload its own certificate
@@ -3431,8 +3432,22 @@ static int test_chain_verify_cb(WOLFSSL* ssl, const WOLFSSL_BUFFER_INFO* certs,
     if (cbCtx->calls <= cbCtx->deferrals)
         return WC_NO_ERR_TRACE(CHAIN_VERIFY_WANT_E);
     if (cbCtx->reject)
-        return -1;
+        return (cbCtx->rejectRet != 0) ? cbCtx->rejectRet : -1;
 
+    return 0;
+}
+
+/* F5: the ordinary verify callback must not run while the chain verify
+ * callback owns the verdict. This one rejects, so being called at all fails
+ * the handshake as well as showing up in the count. */
+static int test_chain_verify_cb_verify_calls;
+
+static int test_chain_verify_cb_verify(int preverify,
+    WOLFSSL_X509_STORE_CTX* store)
+{
+    (void)preverify;
+    (void)store;
+    test_chain_verify_cb_verify_calls++;
     return 0;
 }
 
@@ -3456,7 +3471,12 @@ static int test_chain_verify_cb_run(test_chain_verify_cb_ctx* cbCtx, int side,
     EXPECT_DECLS;
     WOLFSSL* verifier = NULL;
     WOLFSSL* peer = NULL;
+    /* Only when the chain verify callback is installed: the negative control
+     * relies on wolfSSL's own verification failing. */
+    VerifyCallback verifyCb = (cbCtx != NULL) ? test_chain_verify_cb_verify
+                                              : NULL;
 
+    test_chain_verify_cb_verify_calls = 0;
     XMEMSET(test_ctx, 0, sizeof(*test_ctx));
     ExpectIntEQ(test_memio_setup(test_ctx, ctx_c, ctx_s, ssl_c, ssl_s,
         client_method, server_method), 0);
@@ -3465,7 +3485,7 @@ static int test_chain_verify_cb_run(test_chain_verify_cb_ctx* cbCtx, int side,
         ExpectIntEQ(wolfSSL_CTX_UnloadCAs(*ctx_c), WOLFSSL_SUCCESS);
         /* explicit, since OPENSSL_COMPATIBLE_DEFAULTS turns verification off
          * on clients by default */
-        wolfSSL_set_verify(*ssl_c, WOLFSSL_VERIFY_PEER, NULL);
+        wolfSSL_set_verify(*ssl_c, WOLFSSL_VERIFY_PEER, verifyCb);
         verifier = *ssl_c;
         peer = *ssl_s;
     }
@@ -3475,7 +3495,8 @@ static int test_chain_verify_cb_run(test_chain_verify_cb_ctx* cbCtx, int side,
         ExpectIntEQ(wolfSSL_use_PrivateKey_file(*ssl_c, cliKeyFile,
             WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
         wolfSSL_set_verify(*ssl_s,
-            WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+            WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT,
+            verifyCb);
         verifier = *ssl_s;
         peer = *ssl_c;
     }
@@ -3558,6 +3579,16 @@ static int test_chain_verify_cb_accept(int side, int deferrals,
     ExpectIntGT(cbCtx.certsSeen, 0);
     ExpectIntEQ(cbCtx.leafMatched, 1);
 
+    /* The callback replaces wolfSSL's decision entirely, so the verify
+     * callback set with wolfSSL_set_verify() is never consulted. */
+    ExpectIntEQ(test_chain_verify_cb_verify_calls, 0);
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    /* Accepting reports success even though wolfSSL verified nothing: this
+     * records the callback's verdict, not a check wolfSSL made. */
+    ExpectIntEQ(wolfSSL_get_verify_result(
+        (side == TEST_CVC_CLIENT) ? ssl_c : ssl_s), WOLFSSL_X509_V_OK);
+#endif
+
     test_chain_verify_cb_free(&ctx_c, &ctx_s, &ssl_c, &ssl_s);
     return EXPECT_RESULT();
 }
@@ -3602,7 +3633,7 @@ int test_tls12_chain_verify_cb_server(void)
     return EXPECT_RESULT();
 }
 
-int test_tls13_chain_verify_cb_async(void)
+int test_tls13_chain_verify_cb_defer(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_CHAIN_VERIFY_CB_TESTS) && defined(WOLFSSL_TLS13)
@@ -3658,6 +3689,37 @@ int test_tls13_chain_verify_cb_reject(void)
     ExpectIntEQ(wolfSSL_get_verify_result(ssl_c),
         WOLFSSL_X509_V_ERR_CERT_REJECTED);
 #endif
+
+    test_chain_verify_cb_free(&ctx_c, &ctx_s, &ssl_c, &ssl_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_tls13_chain_verify_cb_success_rejects(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CHAIN_VERIFY_CB_TESTS) && defined(WOLFSSL_TLS13)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    test_chain_verify_cb_ctx cbCtx;
+
+    XMEMSET(&cbCtx, 0, sizeof(cbCtx));
+    cbCtx.reject = 1;
+    /* Every other wolfSSL verify callback accepts with WOLFSSL_SUCCESS. This
+     * one accepts on 0 only, so 1 has to reject. */
+    cbCtx.rejectRet = WOLFSSL_SUCCESS;
+
+    ExpectIntEQ(test_chain_verify_cb_run(&cbCtx, TEST_CVC_CLIENT,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
+        &ctx_c, &ctx_s, &ssl_c, &ssl_s, &test_ctx), TEST_SUCCESS);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), -1);
+    ExpectIntEQ(cbCtx.calls, 1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(CHAIN_VERIFY_CB_E));
 
     test_chain_verify_cb_free(&ctx_c, &ctx_s, &ssl_c, &ssl_s);
 #endif

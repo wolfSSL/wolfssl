@@ -665,11 +665,12 @@ int IsHsSuspendErr(int err)
 }
 
 #ifdef WOLFSSL_CHAIN_VERIFY_CB
-/* DTLS, raw public keys and OCSP stapling are not supported with the chain
- * verify callback. Checked when the callback is set, against what the context
- * or object is configured for, and again when the peer's certificates arrive,
- * against what was negotiated, so that using them fails as early as
- * possible. */
+/* DTLS, raw public keys and verifying a stapled OCSP response are not
+ * supported with the chain verify callback. Checked when the callback is set,
+ * against what the context or object is configured for, and again when the
+ * peer's certificates arrive, against what was negotiated, so that using them
+ * fails as early as possible. The stapling check is client-side: a server
+ * staples its own status, which is not part of verifying the peer. */
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
 static int ChainVerifyCbStaplingRequested(TLSX* extensions)
@@ -755,12 +756,16 @@ int ChainVerifyCbCheckSsl(const WOLFSSL* ssl)
 #endif
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
-    if ((ssl->options.side != WOLFSSL_SERVER_END) &&
-            (SSL_CM(ssl)->ocspMustStaple ||
-             ChainVerifyCbStaplingRequested(ssl->extensions) ||
-             ChainVerifyCbStaplingRequested(ssl->ctx->extensions))) {
-        WOLFSSL_MSG("OCSP stapling not supported with chain verify callback");
-        return CHAIN_VERIFY_UNSUPPORTED_E;
+    if (ssl->options.side != WOLFSSL_SERVER_END) {
+        const WOLFSSL_CERT_MANAGER* cm = SSL_CM(ssl);
+
+        if (((cm != NULL) && cm->ocspMustStaple) ||
+                ChainVerifyCbStaplingRequested(ssl->extensions) ||
+                ChainVerifyCbStaplingRequested(ssl->ctx->extensions)) {
+            WOLFSSL_MSG("OCSP stapling not supported with chain verify "
+                        "callback");
+            return CHAIN_VERIFY_UNSUPPORTED_E;
+        }
     }
 #endif
     (void)ssl;
@@ -18229,8 +18234,9 @@ static int CheckPeerCertsDecode(WOLFSSL* ssl, ProcPeerCertArgs* args)
  * chain verification completely. Called once per Certificate message, and
  * again on every re-entry while the callback defers its verdict.
  *
- * Returns 0 when accepted, CHAIN_VERIFY_WANT_E to suspend the handshake,
- * CHAIN_VERIFY_CB_E when rejected, or MEMORY_E. */
+ * Returns 0 when accepted, CHAIN_VERIFY_WANT_E to suspend the handshake, or
+ * CHAIN_VERIFY_CB_E when rejected. Only 0 accepts; every other value the
+ * callback returns, WOLFSSL_SUCCESS included, rejects. */
 static int DoChainVerifyCb(WOLFSSL* ssl, ProcPeerCertArgs* args)
 {
     int ret;
@@ -18376,7 +18382,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         #endif
 
         #ifdef WOLFSSL_CHAIN_VERIFY_CB
-            /* Before any certificate entry or its extensions is parsed. */
+            /* Before any certificate entry or its extensions is parsed.
+             * TLS_ASYNC_BUILD checks again, for the passes that skip this
+             * state. */
             if (UsingChainVerifyCb(ssl)) {
                 ret = ChainVerifyCbCheckSsl(ssl);
                 if (ret != 0) {
@@ -18567,6 +18575,18 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
              * past MAX_CHAIN_DEPTH) means it would be handed an incomplete
              * list. That error is kept and reported by the check below. */
             if (UsingChainVerifyCb(ssl)) {
+                /* A deferred verdict resumes at this state, so TLS_ASYNC_BEGIN
+                 * ran only on the first pass. Re-check what the connection is
+                 * configured for; the callback runs application code that can
+                 * change it. */
+                if (ret == 0) {
+                    ret = ChainVerifyCbCheckSsl(ssl);
+                    if (ret != 0) {
+                        args->fatal = 1;
+                        DoCertFatalAlert(ssl, ret);
+                        goto exit_ppc;
+                    }
+                }
                 /* Check once, not again on every re-entry. */
                 if (ret == 0 && args->count > 0 && !args->chainDecoded) {
                     ret = CheckPeerCertsDecode(ssl, args);
