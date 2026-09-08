@@ -511,6 +511,7 @@ int test_wolfSSL_set_tlsext_debug_arg_ext(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && \
+    !defined(NO_TLS) && \
     !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
@@ -560,7 +561,8 @@ static void test_tlsext_debug_cb(WOLFSSL *ssl, int client_server, int type,
 #if defined(OPENSSL_EXTRA) && \
     !defined(NO_TLS) && \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
-    defined(HAVE_TLS_EXTENSIONS)
+    defined(HAVE_TLS_EXTENSIONS) && \
+    (defined(WOLFSSL_TLS13) || defined(HAVE_EXTENDED_MASTER))
 /* Find an extension type in the recorded list; returns its length, -1 if
  * not reported. */
 static int test_tlsext_debug_find_len(const struct test_tlsext_debug_data *d,
@@ -650,8 +652,8 @@ int test_wolfSSL_set_tlsext_debug_callback_handshake_ext(void)
     ExpectTrue(sData.count > 0);
 #if defined(HAVE_EXTENDED_MASTER) || defined(WOLFSSL_TLS13)
     ExpectTrue(cData.count > 0);
-#endif
     ExpectIntEQ(cData.client_server, 1);
+#endif
     ExpectIntEQ(sData.client_server, 0);
 
     /* Known extensions are reported with the expected content. */
