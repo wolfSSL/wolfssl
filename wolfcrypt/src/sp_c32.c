@@ -254,8 +254,13 @@ sp_uint64 __muldi3(sp_uint64 a, sp_uint64 b)
     #define NEED_ADDR_MASK
 #endif
 #if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
-    #if !defined(WC_NO_CACHE_RESISTANT) && \
-        (defined(WOLFSSL_HAVE_SP_DH) || !defined(WOLFSSL_RSA_PUBLIC_ONLY))
+    /* Only the ladder implementations of mod_exp use the address mask: the
+     * small one, and the one WOLFSSL_SP_LADDER_MODEXP selects in place of the
+     * default cache-resistant window.  The windows index a table instead. */
+    #if (defined(WOLFSSL_HAVE_SP_DH) || !defined(WOLFSSL_RSA_PUBLIC_ONLY)) && \
+        ((defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_FAST_MODEXP)) || \
+         (defined(WOLFSSL_SP_LADDER_MODEXP) && !defined(WC_NO_HARDEN) && \
+          !defined(WC_NO_CACHE_RESISTANT)))
         #define NEED_ADDR_MASK
     #endif
 #endif
@@ -2321,6 +2326,40 @@ static int sp_2048_mod_36(sp_digit* r, const sp_digit* a, const sp_digit* m)
     return sp_2048_div_36(a, m, NULL, r);
 }
 
+#if !defined(WC_NO_HARDEN) && !defined(WC_NO_CACHE_RESISTANT) && \
+    !defined(WOLFSSL_SP_LADDER_MODEXP) && \
+    (!defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SP_FAST_MODEXP))
+/* Get an entry from the table by index in a cache resistant manner.
+ *
+ * @param [out] r      Entry retrieved from table.
+ * @param [in]  table  Table of entries to choose from.
+ * @param [in]  idx    Index of entry to retrieve.
+ */
+static void sp_2048_get_from_table_36(sp_digit* r,
+        sp_digit** table, int idx)
+{
+    int e, j;
+    sp_uint32 mask;
+    sp_uint32 diff;
+
+    for (j = 0; j < 72; j++) {
+        r[j] = 0;
+    }
+
+    for (e = 0; e < 16; e++) {
+        /* mask is all-ones when e == idx and all-zeros otherwise. */
+        diff = (sp_uint32)(e ^ idx);
+        diff = (sp_uint32)((diff | (sp_uint32)((sp_uint32)0 - diff)) >>
+                           (32 - 1));
+        mask = (sp_uint32)((sp_uint32)0 - ((sp_uint32)1 - diff));
+
+        for (j = 0; j < 72; j++) {
+            r[j] |= (sp_digit)((sp_uint32)table[e][j] & mask);
+        }
+    }
+}
+#endif
+
 /* Modular exponentiate a to the e mod m. (r = a^e mod m)
  *
  * @param [out] r        A single precision number that is the result of the
@@ -2414,7 +2453,94 @@ static int sp_2048_mod_exp_36(sp_digit* r, const sp_digit* a,
     SP_FREE_VAR(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return err;
+#elif defined(WC_NO_HARDEN)
+    SP_DECL_VAR_LARGE(sp_digit, td, 19 * 72);
+    sp_digit* t[16];
+    sp_digit* norm = NULL;
+    sp_digit* rt = NULL;
+    sp_digit* sq = NULL;
+    sp_digit mp = 1;
+    sp_digit n;
+    int i;
+    int j;
+    int l;
+    int y;
+    int err = MP_OKAY;
+
+    if (bits == 0) {
+        err = MP_VAL;
+    }
+
+    SP_ALLOC_VAR_LARGE(sp_digit, td, 19 * 72, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (err == MP_OKAY) {
+        norm = td;
+        for (i=0; i<16; i++) {
+            t[i] = td + ((i + 1) * 72);
+        }
+        rt = td + (17 * 72);
+        sq = td + (18 * 72);
+
+        sp_2048_mont_setup(m, &mp);
+        sp_2048_mont_norm_36(norm, m);
+
+        if (reduceA != 0) {
+            err = sp_2048_mod_36(t[0], a, m);
+            if (err == MP_OKAY) {
+                sp_2048_mul_36(t[0], t[0], norm);
+                err = sp_2048_mod_36(t[0], t[0], m);
+            }
+        }
+        else {
+            sp_2048_mul_36(t[0], a, norm);
+            err = sp_2048_mod_36(t[0], t[0], m);
+        }
+    }
+
+    if (err == MP_OKAY) {
+        /* t[i] = a ^ (2i + 1) : odd powers only. */
+        sp_2048_mont_sqr_36(sq, t[0], m, mp);
+        for (i = 1; i < 16; i++) {
+            sp_2048_mont_mul_36(t[i], t[i-1], sq, m, mp);
+        }
+
+        /* Result starts at one in Montgomery form. */
+        XMEMCPY(rt, norm, sizeof(sp_digit) * 72);
+
+        for (i = bits - 1; i >= 0; ) {
+            if (((e[i / 29] >> (i % 29)) & 1) == 0) {
+                sp_2048_mont_sqr_36(rt, rt, m, mp);
+                i--;
+            }
+            else {
+                /* Longest window of at most 5 bits ending in a set bit. */
+                l = (i >= 5) ? (i - 5 + 1) : 0;
+                while (((e[l / 29] >> (l % 29)) & 1) == 0) {
+                    l++;
+                }
+                y = 0;
+                for (j = i; j >= l; j--) {
+                    y = (y << 1) | (int)((e[j / 29] >> (j % 29)) & 1);
+                }
+                for (j = i - l + 1; j > 0; j--) {
+                    sp_2048_mont_sqr_36(rt, rt, m, mp);
+                }
+                sp_2048_mont_mul_36(rt, rt, t[(y - 1) / 2], m, mp);
+                i = l - 1;
+            }
+        }
+
+        sp_2048_mont_reduce_36(rt, m, mp);
+        n = sp_2048_cmp_36(rt, m);
+        sp_2048_cond_sub_36(rt, rt, m, (sp_digit)~(n >> 31));
+        XMEMCPY(r, rt, sizeof(*r) * 72);
+    }
+
+    SP_FREE_VAR_LARGE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return err;
 #elif !defined(WC_NO_CACHE_RESISTANT)
+#ifdef WOLFSSL_SP_LADDER_MODEXP
     SP_DECL_VAR(sp_digit, td, 3 * 72);
     sp_digit* t[3] = {0, 0, 0};
     sp_digit* norm = NULL;
@@ -2490,7 +2616,126 @@ static int sp_2048_mod_exp_36(sp_digit* r, const sp_digit* a,
 
     return err;
 #else
-    SP_DECL_VAR(sp_digit, td, (32 * 72) + 72);
+    SP_DECL_VAR_LARGE(sp_digit, td, (16 * 72) + 144);
+    sp_digit* t[16];
+    sp_digit* rt = NULL;
+    sp_digit* ct = NULL;
+    sp_digit* norm = NULL;
+    sp_digit mp = 1;
+    sp_digit n;
+    int i;
+    int c;
+    byte y;
+    int err = MP_OKAY;
+
+    if (bits == 0) {
+        err = MP_VAL;
+    }
+
+    SP_ALLOC_VAR_LARGE(sp_digit, td, (16 * 72) + 144, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (err == MP_OKAY) {
+        norm = td;
+        for (i=0; i<16; i++)
+            t[i] = td + i * 72;
+        rt = td + 1152;
+        ct = td + 1224;
+
+        sp_2048_mont_setup(m, &mp);
+        sp_2048_mont_norm_36(norm, m);
+
+        if (reduceA != 0) {
+            err = sp_2048_mod_36(t[1], a, m);
+            if (err == MP_OKAY) {
+                sp_2048_mul_36(t[1], t[1], norm);
+                err = sp_2048_mod_36(t[1], t[1], m);
+            }
+        }
+        else {
+            sp_2048_mul_36(t[1], a, norm);
+            err = sp_2048_mod_36(t[1], t[1], m);
+        }
+    }
+
+    if (err == MP_OKAY) {
+        sp_2048_mont_sqr_36(t[ 2], t[ 1], m, mp);
+        sp_2048_mont_mul_36(t[ 3], t[ 2], t[ 1], m, mp);
+        sp_2048_mont_sqr_36(t[ 4], t[ 2], m, mp);
+        sp_2048_mont_mul_36(t[ 5], t[ 3], t[ 2], m, mp);
+        sp_2048_mont_sqr_36(t[ 6], t[ 3], m, mp);
+        sp_2048_mont_mul_36(t[ 7], t[ 4], t[ 3], m, mp);
+        sp_2048_mont_sqr_36(t[ 8], t[ 4], m, mp);
+        sp_2048_mont_mul_36(t[ 9], t[ 5], t[ 4], m, mp);
+        sp_2048_mont_sqr_36(t[10], t[ 5], m, mp);
+        sp_2048_mont_mul_36(t[11], t[ 6], t[ 5], m, mp);
+        sp_2048_mont_sqr_36(t[12], t[ 6], m, mp);
+        sp_2048_mont_mul_36(t[13], t[ 7], t[ 6], m, mp);
+        sp_2048_mont_sqr_36(t[14], t[ 7], m, mp);
+        sp_2048_mont_mul_36(t[15], t[ 8], t[ 7], m, mp);
+
+        bits = ((bits + 3) / 4) * 4;
+        i = ((bits + 28) / 29) - 1;
+        c = bits % 29;
+        if (c == 0) {
+            c = 29;
+        }
+        if (i < 36) {
+            n = (sp_uint32)e[i--] << (32 - c);
+        }
+        else {
+            n = 0;
+            i--;
+        }
+        if (c < 4) {
+            n |= (sp_uint32)e[i--] << (3 - c);
+            c += 29;
+        }
+        y = (int)((n >> 28) & 0xf);
+        n = (sp_uint32)n << 4;
+        c -= 4;
+        sp_2048_get_from_table_36(rt, t, y);
+        while ((i >= 0) || (c >= 4)) {
+            if (c >= 4) {
+                y = (byte)((n >> 28) & 0xf);
+                n = (sp_uint32)n << 4;
+                c -= 4;
+            }
+            else if (c == 0) {
+                n = (sp_uint32)e[i--] << 3;
+                y = (byte)((n >> 28) & 0xf);
+                n = (sp_uint32)n << 4;
+                c = 25;
+            }
+            else {
+                y = (byte)((n >> 28) & 0xf);
+                n = (sp_uint32)e[i--] << 3;
+                c = 4 - c;
+                y |= (byte)((n >> (32 - c)) & ((1 << c) - 1));
+                n = (sp_uint32)n << c;
+                c = 29 - c;
+            }
+
+            sp_2048_mont_sqr_36(rt, rt, m, mp);
+            sp_2048_mont_sqr_36(rt, rt, m, mp);
+            sp_2048_mont_sqr_36(rt, rt, m, mp);
+            sp_2048_mont_sqr_36(rt, rt, m, mp);
+
+            sp_2048_get_from_table_36(ct, t, y);
+            sp_2048_mont_mul_36(rt, rt, ct, m, mp);
+        }
+
+        sp_2048_mont_reduce_36(rt, m, mp);
+        n = sp_2048_cmp_36(rt, m);
+        sp_2048_cond_sub_36(rt, rt, m, (sp_digit)~(n >> 31));
+        XMEMCPY(r, rt, sizeof(sp_digit) * 72);
+    }
+
+    SP_FREE_VAR_LARGE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return err;
+#endif
+#else
+    SP_DECL_VAR_LARGE(sp_digit, td, (32 * 72) + 72);
     sp_digit* t[32];
     sp_digit* rt = NULL;
     sp_digit* norm = NULL;
@@ -2505,7 +2750,7 @@ static int sp_2048_mod_exp_36(sp_digit* r, const sp_digit* a,
         err = MP_VAL;
     }
 
-    SP_ALLOC_VAR(sp_digit, td, (32 * 72) + 72, NULL,
+    SP_ALLOC_VAR_LARGE(sp_digit, td, (32 * 72) + 72, NULL,
         DYNAMIC_TYPE_TMP_BUFFER);
     if (err == MP_OKAY) {
         norm = td;
@@ -2618,7 +2863,7 @@ static int sp_2048_mod_exp_36(sp_digit* r, const sp_digit* a,
         XMEMCPY(r, rt, sizeof(sp_digit) * 72);
     }
 
-    SP_FREE_VAR(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_FREE_VAR_LARGE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return err;
 #endif
@@ -3359,6 +3604,40 @@ static int sp_2048_mod_72(sp_digit* r, const sp_digit* a, const sp_digit* m)
 #if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
 #if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || \
                                                      defined(WOLFSSL_HAVE_SP_DH)
+#if !defined(WC_NO_HARDEN) && !defined(WC_NO_CACHE_RESISTANT) && \
+    !defined(WOLFSSL_SP_LADDER_MODEXP) && \
+    (!defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SP_FAST_MODEXP))
+/* Get an entry from the table by index in a cache resistant manner.
+ *
+ * @param [out] r      Entry retrieved from table.
+ * @param [in]  table  Table of entries to choose from.
+ * @param [in]  idx    Index of entry to retrieve.
+ */
+static void sp_2048_get_from_table_72(sp_digit* r,
+        sp_digit** table, int idx)
+{
+    int e, j;
+    sp_uint32 mask;
+    sp_uint32 diff;
+
+    for (j = 0; j < 144; j++) {
+        r[j] = 0;
+    }
+
+    for (e = 0; e < 16; e++) {
+        /* mask is all-ones when e == idx and all-zeros otherwise. */
+        diff = (sp_uint32)(e ^ idx);
+        diff = (sp_uint32)((diff | (sp_uint32)((sp_uint32)0 - diff)) >>
+                           (32 - 1));
+        mask = (sp_uint32)((sp_uint32)0 - ((sp_uint32)1 - diff));
+
+        for (j = 0; j < 144; j++) {
+            r[j] |= (sp_digit)((sp_uint32)table[e][j] & mask);
+        }
+    }
+}
+#endif
+
 /* Modular exponentiate a to the e mod m. (r = a^e mod m)
  *
  * @param [out] r        A single precision number that is the result of the
@@ -3452,7 +3731,94 @@ static int sp_2048_mod_exp_72(sp_digit* r, const sp_digit* a,
     SP_FREE_VAR(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return err;
+#elif defined(WC_NO_HARDEN)
+    SP_DECL_VAR_LARGE(sp_digit, td, 11 * 144);
+    sp_digit* t[8];
+    sp_digit* norm = NULL;
+    sp_digit* rt = NULL;
+    sp_digit* sq = NULL;
+    sp_digit mp = 1;
+    sp_digit n;
+    int i;
+    int j;
+    int l;
+    int y;
+    int err = MP_OKAY;
+
+    if (bits == 0) {
+        err = MP_VAL;
+    }
+
+    SP_ALLOC_VAR_LARGE(sp_digit, td, 11 * 144, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (err == MP_OKAY) {
+        norm = td;
+        for (i=0; i<8; i++) {
+            t[i] = td + ((i + 1) * 144);
+        }
+        rt = td + (9 * 144);
+        sq = td + (10 * 144);
+
+        sp_2048_mont_setup(m, &mp);
+        sp_2048_mont_norm_72(norm, m);
+
+        if (reduceA != 0) {
+            err = sp_2048_mod_72(t[0], a, m);
+            if (err == MP_OKAY) {
+                sp_2048_mul_72(t[0], t[0], norm);
+                err = sp_2048_mod_72(t[0], t[0], m);
+            }
+        }
+        else {
+            sp_2048_mul_72(t[0], a, norm);
+            err = sp_2048_mod_72(t[0], t[0], m);
+        }
+    }
+
+    if (err == MP_OKAY) {
+        /* t[i] = a ^ (2i + 1) : odd powers only. */
+        sp_2048_mont_sqr_72(sq, t[0], m, mp);
+        for (i = 1; i < 8; i++) {
+            sp_2048_mont_mul_72(t[i], t[i-1], sq, m, mp);
+        }
+
+        /* Result starts at one in Montgomery form. */
+        XMEMCPY(rt, norm, sizeof(sp_digit) * 144);
+
+        for (i = bits - 1; i >= 0; ) {
+            if (((e[i / 29] >> (i % 29)) & 1) == 0) {
+                sp_2048_mont_sqr_72(rt, rt, m, mp);
+                i--;
+            }
+            else {
+                /* Longest window of at most 4 bits ending in a set bit. */
+                l = (i >= 4) ? (i - 4 + 1) : 0;
+                while (((e[l / 29] >> (l % 29)) & 1) == 0) {
+                    l++;
+                }
+                y = 0;
+                for (j = i; j >= l; j--) {
+                    y = (y << 1) | (int)((e[j / 29] >> (j % 29)) & 1);
+                }
+                for (j = i - l + 1; j > 0; j--) {
+                    sp_2048_mont_sqr_72(rt, rt, m, mp);
+                }
+                sp_2048_mont_mul_72(rt, rt, t[(y - 1) / 2], m, mp);
+                i = l - 1;
+            }
+        }
+
+        sp_2048_mont_reduce_72(rt, m, mp);
+        n = sp_2048_cmp_72(rt, m);
+        sp_2048_cond_sub_72(rt, rt, m, (sp_digit)~(n >> 31));
+        XMEMCPY(r, rt, sizeof(*r) * 144);
+    }
+
+    SP_FREE_VAR_LARGE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return err;
 #elif !defined(WC_NO_CACHE_RESISTANT)
+#ifdef WOLFSSL_SP_LADDER_MODEXP
     SP_DECL_VAR(sp_digit, td, 3 * 144);
     sp_digit* t[3] = {0, 0, 0};
     sp_digit* norm = NULL;
@@ -3528,7 +3894,126 @@ static int sp_2048_mod_exp_72(sp_digit* r, const sp_digit* a,
 
     return err;
 #else
-    SP_DECL_VAR(sp_digit, td, (16 * 144) + 144);
+    SP_DECL_VAR_LARGE(sp_digit, td, (16 * 144) + 288);
+    sp_digit* t[16];
+    sp_digit* rt = NULL;
+    sp_digit* ct = NULL;
+    sp_digit* norm = NULL;
+    sp_digit mp = 1;
+    sp_digit n;
+    int i;
+    int c;
+    byte y;
+    int err = MP_OKAY;
+
+    if (bits == 0) {
+        err = MP_VAL;
+    }
+
+    SP_ALLOC_VAR_LARGE(sp_digit, td, (16 * 144) + 288, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (err == MP_OKAY) {
+        norm = td;
+        for (i=0; i<16; i++)
+            t[i] = td + i * 144;
+        rt = td + 2304;
+        ct = td + 2448;
+
+        sp_2048_mont_setup(m, &mp);
+        sp_2048_mont_norm_72(norm, m);
+
+        if (reduceA != 0) {
+            err = sp_2048_mod_72(t[1], a, m);
+            if (err == MP_OKAY) {
+                sp_2048_mul_72(t[1], t[1], norm);
+                err = sp_2048_mod_72(t[1], t[1], m);
+            }
+        }
+        else {
+            sp_2048_mul_72(t[1], a, norm);
+            err = sp_2048_mod_72(t[1], t[1], m);
+        }
+    }
+
+    if (err == MP_OKAY) {
+        sp_2048_mont_sqr_72(t[ 2], t[ 1], m, mp);
+        sp_2048_mont_mul_72(t[ 3], t[ 2], t[ 1], m, mp);
+        sp_2048_mont_sqr_72(t[ 4], t[ 2], m, mp);
+        sp_2048_mont_mul_72(t[ 5], t[ 3], t[ 2], m, mp);
+        sp_2048_mont_sqr_72(t[ 6], t[ 3], m, mp);
+        sp_2048_mont_mul_72(t[ 7], t[ 4], t[ 3], m, mp);
+        sp_2048_mont_sqr_72(t[ 8], t[ 4], m, mp);
+        sp_2048_mont_mul_72(t[ 9], t[ 5], t[ 4], m, mp);
+        sp_2048_mont_sqr_72(t[10], t[ 5], m, mp);
+        sp_2048_mont_mul_72(t[11], t[ 6], t[ 5], m, mp);
+        sp_2048_mont_sqr_72(t[12], t[ 6], m, mp);
+        sp_2048_mont_mul_72(t[13], t[ 7], t[ 6], m, mp);
+        sp_2048_mont_sqr_72(t[14], t[ 7], m, mp);
+        sp_2048_mont_mul_72(t[15], t[ 8], t[ 7], m, mp);
+
+        bits = ((bits + 3) / 4) * 4;
+        i = ((bits + 28) / 29) - 1;
+        c = bits % 29;
+        if (c == 0) {
+            c = 29;
+        }
+        if (i < 72) {
+            n = (sp_uint32)e[i--] << (32 - c);
+        }
+        else {
+            n = 0;
+            i--;
+        }
+        if (c < 4) {
+            n |= (sp_uint32)e[i--] << (3 - c);
+            c += 29;
+        }
+        y = (int)((n >> 28) & 0xf);
+        n = (sp_uint32)n << 4;
+        c -= 4;
+        sp_2048_get_from_table_72(rt, t, y);
+        while ((i >= 0) || (c >= 4)) {
+            if (c >= 4) {
+                y = (byte)((n >> 28) & 0xf);
+                n = (sp_uint32)n << 4;
+                c -= 4;
+            }
+            else if (c == 0) {
+                n = (sp_uint32)e[i--] << 3;
+                y = (byte)((n >> 28) & 0xf);
+                n = (sp_uint32)n << 4;
+                c = 25;
+            }
+            else {
+                y = (byte)((n >> 28) & 0xf);
+                n = (sp_uint32)e[i--] << 3;
+                c = 4 - c;
+                y |= (byte)((n >> (32 - c)) & ((1 << c) - 1));
+                n = (sp_uint32)n << c;
+                c = 29 - c;
+            }
+
+            sp_2048_mont_sqr_72(rt, rt, m, mp);
+            sp_2048_mont_sqr_72(rt, rt, m, mp);
+            sp_2048_mont_sqr_72(rt, rt, m, mp);
+            sp_2048_mont_sqr_72(rt, rt, m, mp);
+
+            sp_2048_get_from_table_72(ct, t, y);
+            sp_2048_mont_mul_72(rt, rt, ct, m, mp);
+        }
+
+        sp_2048_mont_reduce_72(rt, m, mp);
+        n = sp_2048_cmp_72(rt, m);
+        sp_2048_cond_sub_72(rt, rt, m, (sp_digit)~(n >> 31));
+        XMEMCPY(r, rt, sizeof(sp_digit) * 144);
+    }
+
+    SP_FREE_VAR_LARGE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return err;
+#endif
+#else
+    SP_DECL_VAR_LARGE(sp_digit, td, (16 * 144) + 144);
     sp_digit* t[16];
     sp_digit* rt = NULL;
     sp_digit* norm = NULL;
@@ -3543,7 +4028,7 @@ static int sp_2048_mod_exp_72(sp_digit* r, const sp_digit* a,
         err = MP_VAL;
     }
 
-    SP_ALLOC_VAR(sp_digit, td, (16 * 144) + 144, NULL,
+    SP_ALLOC_VAR_LARGE(sp_digit, td, (16 * 144) + 144, NULL,
         DYNAMIC_TYPE_TMP_BUFFER);
     if (err == MP_OKAY) {
         norm = td;
@@ -3639,7 +4124,7 @@ static int sp_2048_mod_exp_72(sp_digit* r, const sp_digit* a,
         XMEMCPY(r, rt, sizeof(sp_digit) * 144);
     }
 
-    SP_FREE_VAR(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_FREE_VAR_LARGE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return err;
 #endif
@@ -6323,6 +6808,40 @@ static int sp_3072_mod_53(sp_digit* r, const sp_digit* a, const sp_digit* m)
     return sp_3072_div_53(a, m, NULL, r);
 }
 
+#if !defined(WC_NO_HARDEN) && !defined(WC_NO_CACHE_RESISTANT) && \
+    !defined(WOLFSSL_SP_LADDER_MODEXP) && \
+    (!defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SP_FAST_MODEXP))
+/* Get an entry from the table by index in a cache resistant manner.
+ *
+ * @param [out] r      Entry retrieved from table.
+ * @param [in]  table  Table of entries to choose from.
+ * @param [in]  idx    Index of entry to retrieve.
+ */
+static void sp_3072_get_from_table_53(sp_digit* r,
+        sp_digit** table, int idx)
+{
+    int e, j;
+    sp_uint32 mask;
+    sp_uint32 diff;
+
+    for (j = 0; j < 106; j++) {
+        r[j] = 0;
+    }
+
+    for (e = 0; e < 16; e++) {
+        /* mask is all-ones when e == idx and all-zeros otherwise. */
+        diff = (sp_uint32)(e ^ idx);
+        diff = (sp_uint32)((diff | (sp_uint32)((sp_uint32)0 - diff)) >>
+                           (32 - 1));
+        mask = (sp_uint32)((sp_uint32)0 - ((sp_uint32)1 - diff));
+
+        for (j = 0; j < 106; j++) {
+            r[j] |= (sp_digit)((sp_uint32)table[e][j] & mask);
+        }
+    }
+}
+#endif
+
 /* Modular exponentiate a to the e mod m. (r = a^e mod m)
  *
  * @param [out] r        A single precision number that is the result of the
@@ -6416,7 +6935,94 @@ static int sp_3072_mod_exp_53(sp_digit* r, const sp_digit* a,
     SP_FREE_VAR(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return err;
+#elif defined(WC_NO_HARDEN)
+    SP_DECL_VAR_LARGE(sp_digit, td, 19 * 106);
+    sp_digit* t[16];
+    sp_digit* norm = NULL;
+    sp_digit* rt = NULL;
+    sp_digit* sq = NULL;
+    sp_digit mp = 1;
+    sp_digit n;
+    int i;
+    int j;
+    int l;
+    int y;
+    int err = MP_OKAY;
+
+    if (bits == 0) {
+        err = MP_VAL;
+    }
+
+    SP_ALLOC_VAR_LARGE(sp_digit, td, 19 * 106, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (err == MP_OKAY) {
+        norm = td;
+        for (i=0; i<16; i++) {
+            t[i] = td + ((i + 1) * 106);
+        }
+        rt = td + (17 * 106);
+        sq = td + (18 * 106);
+
+        sp_3072_mont_setup(m, &mp);
+        sp_3072_mont_norm_53(norm, m);
+
+        if (reduceA != 0) {
+            err = sp_3072_mod_53(t[0], a, m);
+            if (err == MP_OKAY) {
+                sp_3072_mul_53(t[0], t[0], norm);
+                err = sp_3072_mod_53(t[0], t[0], m);
+            }
+        }
+        else {
+            sp_3072_mul_53(t[0], a, norm);
+            err = sp_3072_mod_53(t[0], t[0], m);
+        }
+    }
+
+    if (err == MP_OKAY) {
+        /* t[i] = a ^ (2i + 1) : odd powers only. */
+        sp_3072_mont_sqr_53(sq, t[0], m, mp);
+        for (i = 1; i < 16; i++) {
+            sp_3072_mont_mul_53(t[i], t[i-1], sq, m, mp);
+        }
+
+        /* Result starts at one in Montgomery form. */
+        XMEMCPY(rt, norm, sizeof(sp_digit) * 106);
+
+        for (i = bits - 1; i >= 0; ) {
+            if (((e[i / 29] >> (i % 29)) & 1) == 0) {
+                sp_3072_mont_sqr_53(rt, rt, m, mp);
+                i--;
+            }
+            else {
+                /* Longest window of at most 5 bits ending in a set bit. */
+                l = (i >= 5) ? (i - 5 + 1) : 0;
+                while (((e[l / 29] >> (l % 29)) & 1) == 0) {
+                    l++;
+                }
+                y = 0;
+                for (j = i; j >= l; j--) {
+                    y = (y << 1) | (int)((e[j / 29] >> (j % 29)) & 1);
+                }
+                for (j = i - l + 1; j > 0; j--) {
+                    sp_3072_mont_sqr_53(rt, rt, m, mp);
+                }
+                sp_3072_mont_mul_53(rt, rt, t[(y - 1) / 2], m, mp);
+                i = l - 1;
+            }
+        }
+
+        sp_3072_mont_reduce_53(rt, m, mp);
+        n = sp_3072_cmp_53(rt, m);
+        sp_3072_cond_sub_53(rt, rt, m, (sp_digit)~(n >> 31));
+        XMEMCPY(r, rt, sizeof(*r) * 106);
+    }
+
+    SP_FREE_VAR_LARGE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return err;
 #elif !defined(WC_NO_CACHE_RESISTANT)
+#ifdef WOLFSSL_SP_LADDER_MODEXP
     SP_DECL_VAR(sp_digit, td, 3 * 106);
     sp_digit* t[3] = {0, 0, 0};
     sp_digit* norm = NULL;
@@ -6492,7 +7098,126 @@ static int sp_3072_mod_exp_53(sp_digit* r, const sp_digit* a,
 
     return err;
 #else
-    SP_DECL_VAR(sp_digit, td, (32 * 106) + 106);
+    SP_DECL_VAR_LARGE(sp_digit, td, (16 * 106) + 212);
+    sp_digit* t[16];
+    sp_digit* rt = NULL;
+    sp_digit* ct = NULL;
+    sp_digit* norm = NULL;
+    sp_digit mp = 1;
+    sp_digit n;
+    int i;
+    int c;
+    byte y;
+    int err = MP_OKAY;
+
+    if (bits == 0) {
+        err = MP_VAL;
+    }
+
+    SP_ALLOC_VAR_LARGE(sp_digit, td, (16 * 106) + 212, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (err == MP_OKAY) {
+        norm = td;
+        for (i=0; i<16; i++)
+            t[i] = td + i * 106;
+        rt = td + 1696;
+        ct = td + 1802;
+
+        sp_3072_mont_setup(m, &mp);
+        sp_3072_mont_norm_53(norm, m);
+
+        if (reduceA != 0) {
+            err = sp_3072_mod_53(t[1], a, m);
+            if (err == MP_OKAY) {
+                sp_3072_mul_53(t[1], t[1], norm);
+                err = sp_3072_mod_53(t[1], t[1], m);
+            }
+        }
+        else {
+            sp_3072_mul_53(t[1], a, norm);
+            err = sp_3072_mod_53(t[1], t[1], m);
+        }
+    }
+
+    if (err == MP_OKAY) {
+        sp_3072_mont_sqr_53(t[ 2], t[ 1], m, mp);
+        sp_3072_mont_mul_53(t[ 3], t[ 2], t[ 1], m, mp);
+        sp_3072_mont_sqr_53(t[ 4], t[ 2], m, mp);
+        sp_3072_mont_mul_53(t[ 5], t[ 3], t[ 2], m, mp);
+        sp_3072_mont_sqr_53(t[ 6], t[ 3], m, mp);
+        sp_3072_mont_mul_53(t[ 7], t[ 4], t[ 3], m, mp);
+        sp_3072_mont_sqr_53(t[ 8], t[ 4], m, mp);
+        sp_3072_mont_mul_53(t[ 9], t[ 5], t[ 4], m, mp);
+        sp_3072_mont_sqr_53(t[10], t[ 5], m, mp);
+        sp_3072_mont_mul_53(t[11], t[ 6], t[ 5], m, mp);
+        sp_3072_mont_sqr_53(t[12], t[ 6], m, mp);
+        sp_3072_mont_mul_53(t[13], t[ 7], t[ 6], m, mp);
+        sp_3072_mont_sqr_53(t[14], t[ 7], m, mp);
+        sp_3072_mont_mul_53(t[15], t[ 8], t[ 7], m, mp);
+
+        bits = ((bits + 3) / 4) * 4;
+        i = ((bits + 28) / 29) - 1;
+        c = bits % 29;
+        if (c == 0) {
+            c = 29;
+        }
+        if (i < 53) {
+            n = (sp_uint32)e[i--] << (32 - c);
+        }
+        else {
+            n = 0;
+            i--;
+        }
+        if (c < 4) {
+            n |= (sp_uint32)e[i--] << (3 - c);
+            c += 29;
+        }
+        y = (int)((n >> 28) & 0xf);
+        n = (sp_uint32)n << 4;
+        c -= 4;
+        sp_3072_get_from_table_53(rt, t, y);
+        while ((i >= 0) || (c >= 4)) {
+            if (c >= 4) {
+                y = (byte)((n >> 28) & 0xf);
+                n = (sp_uint32)n << 4;
+                c -= 4;
+            }
+            else if (c == 0) {
+                n = (sp_uint32)e[i--] << 3;
+                y = (byte)((n >> 28) & 0xf);
+                n = (sp_uint32)n << 4;
+                c = 25;
+            }
+            else {
+                y = (byte)((n >> 28) & 0xf);
+                n = (sp_uint32)e[i--] << 3;
+                c = 4 - c;
+                y |= (byte)((n >> (32 - c)) & ((1 << c) - 1));
+                n = (sp_uint32)n << c;
+                c = 29 - c;
+            }
+
+            sp_3072_mont_sqr_53(rt, rt, m, mp);
+            sp_3072_mont_sqr_53(rt, rt, m, mp);
+            sp_3072_mont_sqr_53(rt, rt, m, mp);
+            sp_3072_mont_sqr_53(rt, rt, m, mp);
+
+            sp_3072_get_from_table_53(ct, t, y);
+            sp_3072_mont_mul_53(rt, rt, ct, m, mp);
+        }
+
+        sp_3072_mont_reduce_53(rt, m, mp);
+        n = sp_3072_cmp_53(rt, m);
+        sp_3072_cond_sub_53(rt, rt, m, (sp_digit)~(n >> 31));
+        XMEMCPY(r, rt, sizeof(sp_digit) * 106);
+    }
+
+    SP_FREE_VAR_LARGE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return err;
+#endif
+#else
+    SP_DECL_VAR_LARGE(sp_digit, td, (32 * 106) + 106);
     sp_digit* t[32];
     sp_digit* rt = NULL;
     sp_digit* norm = NULL;
@@ -6507,7 +7232,7 @@ static int sp_3072_mod_exp_53(sp_digit* r, const sp_digit* a,
         err = MP_VAL;
     }
 
-    SP_ALLOC_VAR(sp_digit, td, (32 * 106) + 106, NULL,
+    SP_ALLOC_VAR_LARGE(sp_digit, td, (32 * 106) + 106, NULL,
         DYNAMIC_TYPE_TMP_BUFFER);
     if (err == MP_OKAY) {
         norm = td;
@@ -6620,7 +7345,7 @@ static int sp_3072_mod_exp_53(sp_digit* r, const sp_digit* a,
         XMEMCPY(r, rt, sizeof(sp_digit) * 106);
     }
 
-    SP_FREE_VAR(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_FREE_VAR_LARGE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return err;
 #endif
@@ -7135,6 +7860,40 @@ static int sp_3072_mod_106(sp_digit* r, const sp_digit* a, const sp_digit* m)
 }
 
 #if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
+#if !defined(WC_NO_HARDEN) && !defined(WC_NO_CACHE_RESISTANT) && \
+    !defined(WOLFSSL_SP_LADDER_MODEXP) && \
+    (!defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SP_FAST_MODEXP))
+/* Get an entry from the table by index in a cache resistant manner.
+ *
+ * @param [out] r      Entry retrieved from table.
+ * @param [in]  table  Table of entries to choose from.
+ * @param [in]  idx    Index of entry to retrieve.
+ */
+static void sp_3072_get_from_table_106(sp_digit* r,
+        sp_digit** table, int idx)
+{
+    int e, j;
+    sp_uint32 mask;
+    sp_uint32 diff;
+
+    for (j = 0; j < 212; j++) {
+        r[j] = 0;
+    }
+
+    for (e = 0; e < 16; e++) {
+        /* mask is all-ones when e == idx and all-zeros otherwise. */
+        diff = (sp_uint32)(e ^ idx);
+        diff = (sp_uint32)((diff | (sp_uint32)((sp_uint32)0 - diff)) >>
+                           (32 - 1));
+        mask = (sp_uint32)((sp_uint32)0 - ((sp_uint32)1 - diff));
+
+        for (j = 0; j < 212; j++) {
+            r[j] |= (sp_digit)((sp_uint32)table[e][j] & mask);
+        }
+    }
+}
+#endif
+
 /* Modular exponentiate a to the e mod m. (r = a^e mod m)
  *
  * @param [out] r        A single precision number that is the result of the
@@ -7228,7 +7987,94 @@ static int sp_3072_mod_exp_106(sp_digit* r, const sp_digit* a,
     SP_FREE_VAR(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return err;
+#elif defined(WC_NO_HARDEN)
+    SP_DECL_VAR_LARGE(sp_digit, td, 11 * 212);
+    sp_digit* t[8];
+    sp_digit* norm = NULL;
+    sp_digit* rt = NULL;
+    sp_digit* sq = NULL;
+    sp_digit mp = 1;
+    sp_digit n;
+    int i;
+    int j;
+    int l;
+    int y;
+    int err = MP_OKAY;
+
+    if (bits == 0) {
+        err = MP_VAL;
+    }
+
+    SP_ALLOC_VAR_LARGE(sp_digit, td, 11 * 212, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (err == MP_OKAY) {
+        norm = td;
+        for (i=0; i<8; i++) {
+            t[i] = td + ((i + 1) * 212);
+        }
+        rt = td + (9 * 212);
+        sq = td + (10 * 212);
+
+        sp_3072_mont_setup(m, &mp);
+        sp_3072_mont_norm_106(norm, m);
+
+        if (reduceA != 0) {
+            err = sp_3072_mod_106(t[0], a, m);
+            if (err == MP_OKAY) {
+                sp_3072_mul_106(t[0], t[0], norm);
+                err = sp_3072_mod_106(t[0], t[0], m);
+            }
+        }
+        else {
+            sp_3072_mul_106(t[0], a, norm);
+            err = sp_3072_mod_106(t[0], t[0], m);
+        }
+    }
+
+    if (err == MP_OKAY) {
+        /* t[i] = a ^ (2i + 1) : odd powers only. */
+        sp_3072_mont_sqr_106(sq, t[0], m, mp);
+        for (i = 1; i < 8; i++) {
+            sp_3072_mont_mul_106(t[i], t[i-1], sq, m, mp);
+        }
+
+        /* Result starts at one in Montgomery form. */
+        XMEMCPY(rt, norm, sizeof(sp_digit) * 212);
+
+        for (i = bits - 1; i >= 0; ) {
+            if (((e[i / 29] >> (i % 29)) & 1) == 0) {
+                sp_3072_mont_sqr_106(rt, rt, m, mp);
+                i--;
+            }
+            else {
+                /* Longest window of at most 4 bits ending in a set bit. */
+                l = (i >= 4) ? (i - 4 + 1) : 0;
+                while (((e[l / 29] >> (l % 29)) & 1) == 0) {
+                    l++;
+                }
+                y = 0;
+                for (j = i; j >= l; j--) {
+                    y = (y << 1) | (int)((e[j / 29] >> (j % 29)) & 1);
+                }
+                for (j = i - l + 1; j > 0; j--) {
+                    sp_3072_mont_sqr_106(rt, rt, m, mp);
+                }
+                sp_3072_mont_mul_106(rt, rt, t[(y - 1) / 2], m, mp);
+                i = l - 1;
+            }
+        }
+
+        sp_3072_mont_reduce_106(rt, m, mp);
+        n = sp_3072_cmp_106(rt, m);
+        sp_3072_cond_sub_106(rt, rt, m, (sp_digit)~(n >> 31));
+        XMEMCPY(r, rt, sizeof(*r) * 212);
+    }
+
+    SP_FREE_VAR_LARGE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return err;
 #elif !defined(WC_NO_CACHE_RESISTANT)
+#ifdef WOLFSSL_SP_LADDER_MODEXP
     SP_DECL_VAR(sp_digit, td, 3 * 212);
     sp_digit* t[3] = {0, 0, 0};
     sp_digit* norm = NULL;
@@ -7304,7 +8150,126 @@ static int sp_3072_mod_exp_106(sp_digit* r, const sp_digit* a,
 
     return err;
 #else
-    SP_DECL_VAR(sp_digit, td, (16 * 212) + 212);
+    SP_DECL_VAR_LARGE(sp_digit, td, (16 * 212) + 424);
+    sp_digit* t[16];
+    sp_digit* rt = NULL;
+    sp_digit* ct = NULL;
+    sp_digit* norm = NULL;
+    sp_digit mp = 1;
+    sp_digit n;
+    int i;
+    int c;
+    byte y;
+    int err = MP_OKAY;
+
+    if (bits == 0) {
+        err = MP_VAL;
+    }
+
+    SP_ALLOC_VAR_LARGE(sp_digit, td, (16 * 212) + 424, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (err == MP_OKAY) {
+        norm = td;
+        for (i=0; i<16; i++)
+            t[i] = td + i * 212;
+        rt = td + 3392;
+        ct = td + 3604;
+
+        sp_3072_mont_setup(m, &mp);
+        sp_3072_mont_norm_106(norm, m);
+
+        if (reduceA != 0) {
+            err = sp_3072_mod_106(t[1], a, m);
+            if (err == MP_OKAY) {
+                sp_3072_mul_106(t[1], t[1], norm);
+                err = sp_3072_mod_106(t[1], t[1], m);
+            }
+        }
+        else {
+            sp_3072_mul_106(t[1], a, norm);
+            err = sp_3072_mod_106(t[1], t[1], m);
+        }
+    }
+
+    if (err == MP_OKAY) {
+        sp_3072_mont_sqr_106(t[ 2], t[ 1], m, mp);
+        sp_3072_mont_mul_106(t[ 3], t[ 2], t[ 1], m, mp);
+        sp_3072_mont_sqr_106(t[ 4], t[ 2], m, mp);
+        sp_3072_mont_mul_106(t[ 5], t[ 3], t[ 2], m, mp);
+        sp_3072_mont_sqr_106(t[ 6], t[ 3], m, mp);
+        sp_3072_mont_mul_106(t[ 7], t[ 4], t[ 3], m, mp);
+        sp_3072_mont_sqr_106(t[ 8], t[ 4], m, mp);
+        sp_3072_mont_mul_106(t[ 9], t[ 5], t[ 4], m, mp);
+        sp_3072_mont_sqr_106(t[10], t[ 5], m, mp);
+        sp_3072_mont_mul_106(t[11], t[ 6], t[ 5], m, mp);
+        sp_3072_mont_sqr_106(t[12], t[ 6], m, mp);
+        sp_3072_mont_mul_106(t[13], t[ 7], t[ 6], m, mp);
+        sp_3072_mont_sqr_106(t[14], t[ 7], m, mp);
+        sp_3072_mont_mul_106(t[15], t[ 8], t[ 7], m, mp);
+
+        bits = ((bits + 3) / 4) * 4;
+        i = ((bits + 28) / 29) - 1;
+        c = bits % 29;
+        if (c == 0) {
+            c = 29;
+        }
+        if (i < 106) {
+            n = (sp_uint32)e[i--] << (32 - c);
+        }
+        else {
+            n = 0;
+            i--;
+        }
+        if (c < 4) {
+            n |= (sp_uint32)e[i--] << (3 - c);
+            c += 29;
+        }
+        y = (int)((n >> 28) & 0xf);
+        n = (sp_uint32)n << 4;
+        c -= 4;
+        sp_3072_get_from_table_106(rt, t, y);
+        while ((i >= 0) || (c >= 4)) {
+            if (c >= 4) {
+                y = (byte)((n >> 28) & 0xf);
+                n = (sp_uint32)n << 4;
+                c -= 4;
+            }
+            else if (c == 0) {
+                n = (sp_uint32)e[i--] << 3;
+                y = (byte)((n >> 28) & 0xf);
+                n = (sp_uint32)n << 4;
+                c = 25;
+            }
+            else {
+                y = (byte)((n >> 28) & 0xf);
+                n = (sp_uint32)e[i--] << 3;
+                c = 4 - c;
+                y |= (byte)((n >> (32 - c)) & ((1 << c) - 1));
+                n = (sp_uint32)n << c;
+                c = 29 - c;
+            }
+
+            sp_3072_mont_sqr_106(rt, rt, m, mp);
+            sp_3072_mont_sqr_106(rt, rt, m, mp);
+            sp_3072_mont_sqr_106(rt, rt, m, mp);
+            sp_3072_mont_sqr_106(rt, rt, m, mp);
+
+            sp_3072_get_from_table_106(ct, t, y);
+            sp_3072_mont_mul_106(rt, rt, ct, m, mp);
+        }
+
+        sp_3072_mont_reduce_106(rt, m, mp);
+        n = sp_3072_cmp_106(rt, m);
+        sp_3072_cond_sub_106(rt, rt, m, (sp_digit)~(n >> 31));
+        XMEMCPY(r, rt, sizeof(sp_digit) * 212);
+    }
+
+    SP_FREE_VAR_LARGE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return err;
+#endif
+#else
+    SP_DECL_VAR_LARGE(sp_digit, td, (16 * 212) + 212);
     sp_digit* t[16];
     sp_digit* rt = NULL;
     sp_digit* norm = NULL;
@@ -7319,7 +8284,7 @@ static int sp_3072_mod_exp_106(sp_digit* r, const sp_digit* a,
         err = MP_VAL;
     }
 
-    SP_ALLOC_VAR(sp_digit, td, (16 * 212) + 212, NULL,
+    SP_ALLOC_VAR_LARGE(sp_digit, td, (16 * 212) + 212, NULL,
         DYNAMIC_TYPE_TMP_BUFFER);
     if (err == MP_OKAY) {
         norm = td;
@@ -7415,7 +8380,7 @@ static int sp_3072_mod_exp_106(sp_digit* r, const sp_digit* a,
         XMEMCPY(r, rt, sizeof(sp_digit) * 212);
     }
 
-    SP_FREE_VAR(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_FREE_VAR_LARGE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return err;
 #endif
@@ -10673,6 +11638,40 @@ static int sp_3072_mod_56(sp_digit* r, const sp_digit* a, const sp_digit* m)
     return sp_3072_div_56(a, m, NULL, r);
 }
 
+#if !defined(WC_NO_HARDEN) && !defined(WC_NO_CACHE_RESISTANT) && \
+    !defined(WOLFSSL_SP_LADDER_MODEXP) && \
+    (!defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SP_FAST_MODEXP))
+/* Get an entry from the table by index in a cache resistant manner.
+ *
+ * @param [out] r      Entry retrieved from table.
+ * @param [in]  table  Table of entries to choose from.
+ * @param [in]  idx    Index of entry to retrieve.
+ */
+static void sp_3072_get_from_table_56(sp_digit* r,
+        sp_digit** table, int idx)
+{
+    int e, j;
+    sp_uint32 mask;
+    sp_uint32 diff;
+
+    for (j = 0; j < 112; j++) {
+        r[j] = 0;
+    }
+
+    for (e = 0; e < 16; e++) {
+        /* mask is all-ones when e == idx and all-zeros otherwise. */
+        diff = (sp_uint32)(e ^ idx);
+        diff = (sp_uint32)((diff | (sp_uint32)((sp_uint32)0 - diff)) >>
+                           (32 - 1));
+        mask = (sp_uint32)((sp_uint32)0 - ((sp_uint32)1 - diff));
+
+        for (j = 0; j < 112; j++) {
+            r[j] |= (sp_digit)((sp_uint32)table[e][j] & mask);
+        }
+    }
+}
+#endif
+
 /* Modular exponentiate a to the e mod m. (r = a^e mod m)
  *
  * @param [out] r        A single precision number that is the result of the
@@ -10766,7 +11765,94 @@ static int sp_3072_mod_exp_56(sp_digit* r, const sp_digit* a,
     SP_FREE_VAR(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return err;
+#elif defined(WC_NO_HARDEN)
+    SP_DECL_VAR_LARGE(sp_digit, td, 19 * 112);
+    sp_digit* t[16];
+    sp_digit* norm = NULL;
+    sp_digit* rt = NULL;
+    sp_digit* sq = NULL;
+    sp_digit mp = 1;
+    sp_digit n;
+    int i;
+    int j;
+    int l;
+    int y;
+    int err = MP_OKAY;
+
+    if (bits == 0) {
+        err = MP_VAL;
+    }
+
+    SP_ALLOC_VAR_LARGE(sp_digit, td, 19 * 112, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (err == MP_OKAY) {
+        norm = td;
+        for (i=0; i<16; i++) {
+            t[i] = td + ((i + 1) * 112);
+        }
+        rt = td + (17 * 112);
+        sq = td + (18 * 112);
+
+        sp_3072_mont_setup(m, &mp);
+        sp_3072_mont_norm_56(norm, m);
+
+        if (reduceA != 0) {
+            err = sp_3072_mod_56(t[0], a, m);
+            if (err == MP_OKAY) {
+                sp_3072_mul_56(t[0], t[0], norm);
+                err = sp_3072_mod_56(t[0], t[0], m);
+            }
+        }
+        else {
+            sp_3072_mul_56(t[0], a, norm);
+            err = sp_3072_mod_56(t[0], t[0], m);
+        }
+    }
+
+    if (err == MP_OKAY) {
+        /* t[i] = a ^ (2i + 1) : odd powers only. */
+        sp_3072_mont_sqr_56(sq, t[0], m, mp);
+        for (i = 1; i < 16; i++) {
+            sp_3072_mont_mul_56(t[i], t[i-1], sq, m, mp);
+        }
+
+        /* Result starts at one in Montgomery form. */
+        XMEMCPY(rt, norm, sizeof(sp_digit) * 112);
+
+        for (i = bits - 1; i >= 0; ) {
+            if (((e[i / 28] >> (i % 28)) & 1) == 0) {
+                sp_3072_mont_sqr_56(rt, rt, m, mp);
+                i--;
+            }
+            else {
+                /* Longest window of at most 5 bits ending in a set bit. */
+                l = (i >= 5) ? (i - 5 + 1) : 0;
+                while (((e[l / 28] >> (l % 28)) & 1) == 0) {
+                    l++;
+                }
+                y = 0;
+                for (j = i; j >= l; j--) {
+                    y = (y << 1) | (int)((e[j / 28] >> (j % 28)) & 1);
+                }
+                for (j = i - l + 1; j > 0; j--) {
+                    sp_3072_mont_sqr_56(rt, rt, m, mp);
+                }
+                sp_3072_mont_mul_56(rt, rt, t[(y - 1) / 2], m, mp);
+                i = l - 1;
+            }
+        }
+
+        sp_3072_mont_reduce_56(rt, m, mp);
+        n = sp_3072_cmp_56(rt, m);
+        sp_3072_cond_sub_56(rt, rt, m, (sp_digit)~(n >> 31));
+        XMEMCPY(r, rt, sizeof(*r) * 112);
+    }
+
+    SP_FREE_VAR_LARGE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return err;
 #elif !defined(WC_NO_CACHE_RESISTANT)
+#ifdef WOLFSSL_SP_LADDER_MODEXP
     SP_DECL_VAR(sp_digit, td, 3 * 112);
     sp_digit* t[3] = {0, 0, 0};
     sp_digit* norm = NULL;
@@ -10842,7 +11928,126 @@ static int sp_3072_mod_exp_56(sp_digit* r, const sp_digit* a,
 
     return err;
 #else
-    SP_DECL_VAR(sp_digit, td, (32 * 112) + 112);
+    SP_DECL_VAR_LARGE(sp_digit, td, (16 * 112) + 224);
+    sp_digit* t[16];
+    sp_digit* rt = NULL;
+    sp_digit* ct = NULL;
+    sp_digit* norm = NULL;
+    sp_digit mp = 1;
+    sp_digit n;
+    int i;
+    int c;
+    byte y;
+    int err = MP_OKAY;
+
+    if (bits == 0) {
+        err = MP_VAL;
+    }
+
+    SP_ALLOC_VAR_LARGE(sp_digit, td, (16 * 112) + 224, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (err == MP_OKAY) {
+        norm = td;
+        for (i=0; i<16; i++)
+            t[i] = td + i * 112;
+        rt = td + 1792;
+        ct = td + 1904;
+
+        sp_3072_mont_setup(m, &mp);
+        sp_3072_mont_norm_56(norm, m);
+
+        if (reduceA != 0) {
+            err = sp_3072_mod_56(t[1], a, m);
+            if (err == MP_OKAY) {
+                sp_3072_mul_56(t[1], t[1], norm);
+                err = sp_3072_mod_56(t[1], t[1], m);
+            }
+        }
+        else {
+            sp_3072_mul_56(t[1], a, norm);
+            err = sp_3072_mod_56(t[1], t[1], m);
+        }
+    }
+
+    if (err == MP_OKAY) {
+        sp_3072_mont_sqr_56(t[ 2], t[ 1], m, mp);
+        sp_3072_mont_mul_56(t[ 3], t[ 2], t[ 1], m, mp);
+        sp_3072_mont_sqr_56(t[ 4], t[ 2], m, mp);
+        sp_3072_mont_mul_56(t[ 5], t[ 3], t[ 2], m, mp);
+        sp_3072_mont_sqr_56(t[ 6], t[ 3], m, mp);
+        sp_3072_mont_mul_56(t[ 7], t[ 4], t[ 3], m, mp);
+        sp_3072_mont_sqr_56(t[ 8], t[ 4], m, mp);
+        sp_3072_mont_mul_56(t[ 9], t[ 5], t[ 4], m, mp);
+        sp_3072_mont_sqr_56(t[10], t[ 5], m, mp);
+        sp_3072_mont_mul_56(t[11], t[ 6], t[ 5], m, mp);
+        sp_3072_mont_sqr_56(t[12], t[ 6], m, mp);
+        sp_3072_mont_mul_56(t[13], t[ 7], t[ 6], m, mp);
+        sp_3072_mont_sqr_56(t[14], t[ 7], m, mp);
+        sp_3072_mont_mul_56(t[15], t[ 8], t[ 7], m, mp);
+
+        bits = ((bits + 3) / 4) * 4;
+        i = ((bits + 27) / 28) - 1;
+        c = bits % 28;
+        if (c == 0) {
+            c = 28;
+        }
+        if (i < 56) {
+            n = (sp_uint32)e[i--] << (32 - c);
+        }
+        else {
+            n = 0;
+            i--;
+        }
+        if (c < 4) {
+            n |= (sp_uint32)e[i--] << (4 - c);
+            c += 28;
+        }
+        y = (int)((n >> 28) & 0xf);
+        n = (sp_uint32)n << 4;
+        c -= 4;
+        sp_3072_get_from_table_56(rt, t, y);
+        while ((i >= 0) || (c >= 4)) {
+            if (c >= 4) {
+                y = (byte)((n >> 28) & 0xf);
+                n = (sp_uint32)n << 4;
+                c -= 4;
+            }
+            else if (c == 0) {
+                n = (sp_uint32)e[i--] << 4;
+                y = (byte)((n >> 28) & 0xf);
+                n = (sp_uint32)n << 4;
+                c = 24;
+            }
+            else {
+                y = (byte)((n >> 28) & 0xf);
+                n = (sp_uint32)e[i--] << 4;
+                c = 4 - c;
+                y |= (byte)((n >> (32 - c)) & ((1 << c) - 1));
+                n = (sp_uint32)n << c;
+                c = 28 - c;
+            }
+
+            sp_3072_mont_sqr_56(rt, rt, m, mp);
+            sp_3072_mont_sqr_56(rt, rt, m, mp);
+            sp_3072_mont_sqr_56(rt, rt, m, mp);
+            sp_3072_mont_sqr_56(rt, rt, m, mp);
+
+            sp_3072_get_from_table_56(ct, t, y);
+            sp_3072_mont_mul_56(rt, rt, ct, m, mp);
+        }
+
+        sp_3072_mont_reduce_56(rt, m, mp);
+        n = sp_3072_cmp_56(rt, m);
+        sp_3072_cond_sub_56(rt, rt, m, (sp_digit)~(n >> 31));
+        XMEMCPY(r, rt, sizeof(sp_digit) * 112);
+    }
+
+    SP_FREE_VAR_LARGE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return err;
+#endif
+#else
+    SP_DECL_VAR_LARGE(sp_digit, td, (32 * 112) + 112);
     sp_digit* t[32];
     sp_digit* rt = NULL;
     sp_digit* norm = NULL;
@@ -10857,7 +12062,7 @@ static int sp_3072_mod_exp_56(sp_digit* r, const sp_digit* a,
         err = MP_VAL;
     }
 
-    SP_ALLOC_VAR(sp_digit, td, (32 * 112) + 112, NULL,
+    SP_ALLOC_VAR_LARGE(sp_digit, td, (32 * 112) + 112, NULL,
         DYNAMIC_TYPE_TMP_BUFFER);
     if (err == MP_OKAY) {
         norm = td;
@@ -10970,7 +12175,7 @@ static int sp_3072_mod_exp_56(sp_digit* r, const sp_digit* a,
         XMEMCPY(r, rt, sizeof(sp_digit) * 112);
     }
 
-    SP_FREE_VAR(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_FREE_VAR_LARGE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return err;
 #endif
@@ -11567,6 +12772,40 @@ static int sp_3072_mod_112(sp_digit* r, const sp_digit* a, const sp_digit* m)
 #if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
 #if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || \
                                                      defined(WOLFSSL_HAVE_SP_DH)
+#if !defined(WC_NO_HARDEN) && !defined(WC_NO_CACHE_RESISTANT) && \
+    !defined(WOLFSSL_SP_LADDER_MODEXP) && \
+    (!defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SP_FAST_MODEXP))
+/* Get an entry from the table by index in a cache resistant manner.
+ *
+ * @param [out] r      Entry retrieved from table.
+ * @param [in]  table  Table of entries to choose from.
+ * @param [in]  idx    Index of entry to retrieve.
+ */
+static void sp_3072_get_from_table_112(sp_digit* r,
+        sp_digit** table, int idx)
+{
+    int e, j;
+    sp_uint32 mask;
+    sp_uint32 diff;
+
+    for (j = 0; j < 224; j++) {
+        r[j] = 0;
+    }
+
+    for (e = 0; e < 16; e++) {
+        /* mask is all-ones when e == idx and all-zeros otherwise. */
+        diff = (sp_uint32)(e ^ idx);
+        diff = (sp_uint32)((diff | (sp_uint32)((sp_uint32)0 - diff)) >>
+                           (32 - 1));
+        mask = (sp_uint32)((sp_uint32)0 - ((sp_uint32)1 - diff));
+
+        for (j = 0; j < 224; j++) {
+            r[j] |= (sp_digit)((sp_uint32)table[e][j] & mask);
+        }
+    }
+}
+#endif
+
 /* Modular exponentiate a to the e mod m. (r = a^e mod m)
  *
  * @param [out] r        A single precision number that is the result of the
@@ -11660,7 +12899,94 @@ static int sp_3072_mod_exp_112(sp_digit* r, const sp_digit* a,
     SP_FREE_VAR(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return err;
+#elif defined(WC_NO_HARDEN)
+    SP_DECL_VAR_LARGE(sp_digit, td, 11 * 224);
+    sp_digit* t[8];
+    sp_digit* norm = NULL;
+    sp_digit* rt = NULL;
+    sp_digit* sq = NULL;
+    sp_digit mp = 1;
+    sp_digit n;
+    int i;
+    int j;
+    int l;
+    int y;
+    int err = MP_OKAY;
+
+    if (bits == 0) {
+        err = MP_VAL;
+    }
+
+    SP_ALLOC_VAR_LARGE(sp_digit, td, 11 * 224, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (err == MP_OKAY) {
+        norm = td;
+        for (i=0; i<8; i++) {
+            t[i] = td + ((i + 1) * 224);
+        }
+        rt = td + (9 * 224);
+        sq = td + (10 * 224);
+
+        sp_3072_mont_setup(m, &mp);
+        sp_3072_mont_norm_112(norm, m);
+
+        if (reduceA != 0) {
+            err = sp_3072_mod_112(t[0], a, m);
+            if (err == MP_OKAY) {
+                sp_3072_mul_112(t[0], t[0], norm);
+                err = sp_3072_mod_112(t[0], t[0], m);
+            }
+        }
+        else {
+            sp_3072_mul_112(t[0], a, norm);
+            err = sp_3072_mod_112(t[0], t[0], m);
+        }
+    }
+
+    if (err == MP_OKAY) {
+        /* t[i] = a ^ (2i + 1) : odd powers only. */
+        sp_3072_mont_sqr_112(sq, t[0], m, mp);
+        for (i = 1; i < 8; i++) {
+            sp_3072_mont_mul_112(t[i], t[i-1], sq, m, mp);
+        }
+
+        /* Result starts at one in Montgomery form. */
+        XMEMCPY(rt, norm, sizeof(sp_digit) * 224);
+
+        for (i = bits - 1; i >= 0; ) {
+            if (((e[i / 28] >> (i % 28)) & 1) == 0) {
+                sp_3072_mont_sqr_112(rt, rt, m, mp);
+                i--;
+            }
+            else {
+                /* Longest window of at most 4 bits ending in a set bit. */
+                l = (i >= 4) ? (i - 4 + 1) : 0;
+                while (((e[l / 28] >> (l % 28)) & 1) == 0) {
+                    l++;
+                }
+                y = 0;
+                for (j = i; j >= l; j--) {
+                    y = (y << 1) | (int)((e[j / 28] >> (j % 28)) & 1);
+                }
+                for (j = i - l + 1; j > 0; j--) {
+                    sp_3072_mont_sqr_112(rt, rt, m, mp);
+                }
+                sp_3072_mont_mul_112(rt, rt, t[(y - 1) / 2], m, mp);
+                i = l - 1;
+            }
+        }
+
+        sp_3072_mont_reduce_112(rt, m, mp);
+        n = sp_3072_cmp_112(rt, m);
+        sp_3072_cond_sub_112(rt, rt, m, (sp_digit)~(n >> 31));
+        XMEMCPY(r, rt, sizeof(*r) * 224);
+    }
+
+    SP_FREE_VAR_LARGE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return err;
 #elif !defined(WC_NO_CACHE_RESISTANT)
+#ifdef WOLFSSL_SP_LADDER_MODEXP
     SP_DECL_VAR(sp_digit, td, 3 * 224);
     sp_digit* t[3] = {0, 0, 0};
     sp_digit* norm = NULL;
@@ -11736,7 +13062,126 @@ static int sp_3072_mod_exp_112(sp_digit* r, const sp_digit* a,
 
     return err;
 #else
-    SP_DECL_VAR(sp_digit, td, (16 * 224) + 224);
+    SP_DECL_VAR_LARGE(sp_digit, td, (16 * 224) + 448);
+    sp_digit* t[16];
+    sp_digit* rt = NULL;
+    sp_digit* ct = NULL;
+    sp_digit* norm = NULL;
+    sp_digit mp = 1;
+    sp_digit n;
+    int i;
+    int c;
+    byte y;
+    int err = MP_OKAY;
+
+    if (bits == 0) {
+        err = MP_VAL;
+    }
+
+    SP_ALLOC_VAR_LARGE(sp_digit, td, (16 * 224) + 448, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (err == MP_OKAY) {
+        norm = td;
+        for (i=0; i<16; i++)
+            t[i] = td + i * 224;
+        rt = td + 3584;
+        ct = td + 3808;
+
+        sp_3072_mont_setup(m, &mp);
+        sp_3072_mont_norm_112(norm, m);
+
+        if (reduceA != 0) {
+            err = sp_3072_mod_112(t[1], a, m);
+            if (err == MP_OKAY) {
+                sp_3072_mul_112(t[1], t[1], norm);
+                err = sp_3072_mod_112(t[1], t[1], m);
+            }
+        }
+        else {
+            sp_3072_mul_112(t[1], a, norm);
+            err = sp_3072_mod_112(t[1], t[1], m);
+        }
+    }
+
+    if (err == MP_OKAY) {
+        sp_3072_mont_sqr_112(t[ 2], t[ 1], m, mp);
+        sp_3072_mont_mul_112(t[ 3], t[ 2], t[ 1], m, mp);
+        sp_3072_mont_sqr_112(t[ 4], t[ 2], m, mp);
+        sp_3072_mont_mul_112(t[ 5], t[ 3], t[ 2], m, mp);
+        sp_3072_mont_sqr_112(t[ 6], t[ 3], m, mp);
+        sp_3072_mont_mul_112(t[ 7], t[ 4], t[ 3], m, mp);
+        sp_3072_mont_sqr_112(t[ 8], t[ 4], m, mp);
+        sp_3072_mont_mul_112(t[ 9], t[ 5], t[ 4], m, mp);
+        sp_3072_mont_sqr_112(t[10], t[ 5], m, mp);
+        sp_3072_mont_mul_112(t[11], t[ 6], t[ 5], m, mp);
+        sp_3072_mont_sqr_112(t[12], t[ 6], m, mp);
+        sp_3072_mont_mul_112(t[13], t[ 7], t[ 6], m, mp);
+        sp_3072_mont_sqr_112(t[14], t[ 7], m, mp);
+        sp_3072_mont_mul_112(t[15], t[ 8], t[ 7], m, mp);
+
+        bits = ((bits + 3) / 4) * 4;
+        i = ((bits + 27) / 28) - 1;
+        c = bits % 28;
+        if (c == 0) {
+            c = 28;
+        }
+        if (i < 112) {
+            n = (sp_uint32)e[i--] << (32 - c);
+        }
+        else {
+            n = 0;
+            i--;
+        }
+        if (c < 4) {
+            n |= (sp_uint32)e[i--] << (4 - c);
+            c += 28;
+        }
+        y = (int)((n >> 28) & 0xf);
+        n = (sp_uint32)n << 4;
+        c -= 4;
+        sp_3072_get_from_table_112(rt, t, y);
+        while ((i >= 0) || (c >= 4)) {
+            if (c >= 4) {
+                y = (byte)((n >> 28) & 0xf);
+                n = (sp_uint32)n << 4;
+                c -= 4;
+            }
+            else if (c == 0) {
+                n = (sp_uint32)e[i--] << 4;
+                y = (byte)((n >> 28) & 0xf);
+                n = (sp_uint32)n << 4;
+                c = 24;
+            }
+            else {
+                y = (byte)((n >> 28) & 0xf);
+                n = (sp_uint32)e[i--] << 4;
+                c = 4 - c;
+                y |= (byte)((n >> (32 - c)) & ((1 << c) - 1));
+                n = (sp_uint32)n << c;
+                c = 28 - c;
+            }
+
+            sp_3072_mont_sqr_112(rt, rt, m, mp);
+            sp_3072_mont_sqr_112(rt, rt, m, mp);
+            sp_3072_mont_sqr_112(rt, rt, m, mp);
+            sp_3072_mont_sqr_112(rt, rt, m, mp);
+
+            sp_3072_get_from_table_112(ct, t, y);
+            sp_3072_mont_mul_112(rt, rt, ct, m, mp);
+        }
+
+        sp_3072_mont_reduce_112(rt, m, mp);
+        n = sp_3072_cmp_112(rt, m);
+        sp_3072_cond_sub_112(rt, rt, m, (sp_digit)~(n >> 31));
+        XMEMCPY(r, rt, sizeof(sp_digit) * 224);
+    }
+
+    SP_FREE_VAR_LARGE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return err;
+#endif
+#else
+    SP_DECL_VAR_LARGE(sp_digit, td, (16 * 224) + 224);
     sp_digit* t[16];
     sp_digit* rt = NULL;
     sp_digit* norm = NULL;
@@ -11751,7 +13196,7 @@ static int sp_3072_mod_exp_112(sp_digit* r, const sp_digit* a,
         err = MP_VAL;
     }
 
-    SP_ALLOC_VAR(sp_digit, td, (16 * 224) + 224, NULL,
+    SP_ALLOC_VAR_LARGE(sp_digit, td, (16 * 224) + 224, NULL,
         DYNAMIC_TYPE_TMP_BUFFER);
     if (err == MP_OKAY) {
         norm = td;
@@ -11847,7 +13292,7 @@ static int sp_3072_mod_exp_112(sp_digit* r, const sp_digit* a,
         XMEMCPY(r, rt, sizeof(sp_digit) * 224);
     }
 
-    SP_FREE_VAR(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_FREE_VAR_LARGE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return err;
 #endif
@@ -14203,6 +15648,40 @@ static int sp_4096_mod_71(sp_digit* r, const sp_digit* a, const sp_digit* m)
     return sp_4096_div_71(a, m, NULL, r);
 }
 
+#if !defined(WC_NO_HARDEN) && !defined(WC_NO_CACHE_RESISTANT) && \
+    !defined(WOLFSSL_SP_LADDER_MODEXP) && \
+    (!defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SP_FAST_MODEXP))
+/* Get an entry from the table by index in a cache resistant manner.
+ *
+ * @param [out] r      Entry retrieved from table.
+ * @param [in]  table  Table of entries to choose from.
+ * @param [in]  idx    Index of entry to retrieve.
+ */
+static void sp_4096_get_from_table_71(sp_digit* r,
+        sp_digit** table, int idx)
+{
+    int e, j;
+    sp_uint32 mask;
+    sp_uint32 diff;
+
+    for (j = 0; j < 142; j++) {
+        r[j] = 0;
+    }
+
+    for (e = 0; e < 16; e++) {
+        /* mask is all-ones when e == idx and all-zeros otherwise. */
+        diff = (sp_uint32)(e ^ idx);
+        diff = (sp_uint32)((diff | (sp_uint32)((sp_uint32)0 - diff)) >>
+                           (32 - 1));
+        mask = (sp_uint32)((sp_uint32)0 - ((sp_uint32)1 - diff));
+
+        for (j = 0; j < 142; j++) {
+            r[j] |= (sp_digit)((sp_uint32)table[e][j] & mask);
+        }
+    }
+}
+#endif
+
 /* Modular exponentiate a to the e mod m. (r = a^e mod m)
  *
  * @param [out] r        A single precision number that is the result of the
@@ -14296,7 +15775,94 @@ static int sp_4096_mod_exp_71(sp_digit* r, const sp_digit* a,
     SP_FREE_VAR(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return err;
+#elif defined(WC_NO_HARDEN)
+    SP_DECL_VAR_LARGE(sp_digit, td, 19 * 142);
+    sp_digit* t[16];
+    sp_digit* norm = NULL;
+    sp_digit* rt = NULL;
+    sp_digit* sq = NULL;
+    sp_digit mp = 1;
+    sp_digit n;
+    int i;
+    int j;
+    int l;
+    int y;
+    int err = MP_OKAY;
+
+    if (bits == 0) {
+        err = MP_VAL;
+    }
+
+    SP_ALLOC_VAR_LARGE(sp_digit, td, 19 * 142, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (err == MP_OKAY) {
+        norm = td;
+        for (i=0; i<16; i++) {
+            t[i] = td + ((i + 1) * 142);
+        }
+        rt = td + (17 * 142);
+        sq = td + (18 * 142);
+
+        sp_4096_mont_setup(m, &mp);
+        sp_4096_mont_norm_71(norm, m);
+
+        if (reduceA != 0) {
+            err = sp_4096_mod_71(t[0], a, m);
+            if (err == MP_OKAY) {
+                sp_4096_mul_71(t[0], t[0], norm);
+                err = sp_4096_mod_71(t[0], t[0], m);
+            }
+        }
+        else {
+            sp_4096_mul_71(t[0], a, norm);
+            err = sp_4096_mod_71(t[0], t[0], m);
+        }
+    }
+
+    if (err == MP_OKAY) {
+        /* t[i] = a ^ (2i + 1) : odd powers only. */
+        sp_4096_mont_sqr_71(sq, t[0], m, mp);
+        for (i = 1; i < 16; i++) {
+            sp_4096_mont_mul_71(t[i], t[i-1], sq, m, mp);
+        }
+
+        /* Result starts at one in Montgomery form. */
+        XMEMCPY(rt, norm, sizeof(sp_digit) * 142);
+
+        for (i = bits - 1; i >= 0; ) {
+            if (((e[i / 29] >> (i % 29)) & 1) == 0) {
+                sp_4096_mont_sqr_71(rt, rt, m, mp);
+                i--;
+            }
+            else {
+                /* Longest window of at most 5 bits ending in a set bit. */
+                l = (i >= 5) ? (i - 5 + 1) : 0;
+                while (((e[l / 29] >> (l % 29)) & 1) == 0) {
+                    l++;
+                }
+                y = 0;
+                for (j = i; j >= l; j--) {
+                    y = (y << 1) | (int)((e[j / 29] >> (j % 29)) & 1);
+                }
+                for (j = i - l + 1; j > 0; j--) {
+                    sp_4096_mont_sqr_71(rt, rt, m, mp);
+                }
+                sp_4096_mont_mul_71(rt, rt, t[(y - 1) / 2], m, mp);
+                i = l - 1;
+            }
+        }
+
+        sp_4096_mont_reduce_71(rt, m, mp);
+        n = sp_4096_cmp_71(rt, m);
+        sp_4096_cond_sub_71(rt, rt, m, (sp_digit)~(n >> 31));
+        XMEMCPY(r, rt, sizeof(*r) * 142);
+    }
+
+    SP_FREE_VAR_LARGE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return err;
 #elif !defined(WC_NO_CACHE_RESISTANT)
+#ifdef WOLFSSL_SP_LADDER_MODEXP
     SP_DECL_VAR(sp_digit, td, 3 * 142);
     sp_digit* t[3] = {0, 0, 0};
     sp_digit* norm = NULL;
@@ -14372,7 +15938,126 @@ static int sp_4096_mod_exp_71(sp_digit* r, const sp_digit* a,
 
     return err;
 #else
-    SP_DECL_VAR(sp_digit, td, (32 * 142) + 142);
+    SP_DECL_VAR_LARGE(sp_digit, td, (16 * 142) + 284);
+    sp_digit* t[16];
+    sp_digit* rt = NULL;
+    sp_digit* ct = NULL;
+    sp_digit* norm = NULL;
+    sp_digit mp = 1;
+    sp_digit n;
+    int i;
+    int c;
+    byte y;
+    int err = MP_OKAY;
+
+    if (bits == 0) {
+        err = MP_VAL;
+    }
+
+    SP_ALLOC_VAR_LARGE(sp_digit, td, (16 * 142) + 284, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (err == MP_OKAY) {
+        norm = td;
+        for (i=0; i<16; i++)
+            t[i] = td + i * 142;
+        rt = td + 2272;
+        ct = td + 2414;
+
+        sp_4096_mont_setup(m, &mp);
+        sp_4096_mont_norm_71(norm, m);
+
+        if (reduceA != 0) {
+            err = sp_4096_mod_71(t[1], a, m);
+            if (err == MP_OKAY) {
+                sp_4096_mul_71(t[1], t[1], norm);
+                err = sp_4096_mod_71(t[1], t[1], m);
+            }
+        }
+        else {
+            sp_4096_mul_71(t[1], a, norm);
+            err = sp_4096_mod_71(t[1], t[1], m);
+        }
+    }
+
+    if (err == MP_OKAY) {
+        sp_4096_mont_sqr_71(t[ 2], t[ 1], m, mp);
+        sp_4096_mont_mul_71(t[ 3], t[ 2], t[ 1], m, mp);
+        sp_4096_mont_sqr_71(t[ 4], t[ 2], m, mp);
+        sp_4096_mont_mul_71(t[ 5], t[ 3], t[ 2], m, mp);
+        sp_4096_mont_sqr_71(t[ 6], t[ 3], m, mp);
+        sp_4096_mont_mul_71(t[ 7], t[ 4], t[ 3], m, mp);
+        sp_4096_mont_sqr_71(t[ 8], t[ 4], m, mp);
+        sp_4096_mont_mul_71(t[ 9], t[ 5], t[ 4], m, mp);
+        sp_4096_mont_sqr_71(t[10], t[ 5], m, mp);
+        sp_4096_mont_mul_71(t[11], t[ 6], t[ 5], m, mp);
+        sp_4096_mont_sqr_71(t[12], t[ 6], m, mp);
+        sp_4096_mont_mul_71(t[13], t[ 7], t[ 6], m, mp);
+        sp_4096_mont_sqr_71(t[14], t[ 7], m, mp);
+        sp_4096_mont_mul_71(t[15], t[ 8], t[ 7], m, mp);
+
+        bits = ((bits + 3) / 4) * 4;
+        i = ((bits + 28) / 29) - 1;
+        c = bits % 29;
+        if (c == 0) {
+            c = 29;
+        }
+        if (i < 71) {
+            n = (sp_uint32)e[i--] << (32 - c);
+        }
+        else {
+            n = 0;
+            i--;
+        }
+        if (c < 4) {
+            n |= (sp_uint32)e[i--] << (3 - c);
+            c += 29;
+        }
+        y = (int)((n >> 28) & 0xf);
+        n = (sp_uint32)n << 4;
+        c -= 4;
+        sp_4096_get_from_table_71(rt, t, y);
+        while ((i >= 0) || (c >= 4)) {
+            if (c >= 4) {
+                y = (byte)((n >> 28) & 0xf);
+                n = (sp_uint32)n << 4;
+                c -= 4;
+            }
+            else if (c == 0) {
+                n = (sp_uint32)e[i--] << 3;
+                y = (byte)((n >> 28) & 0xf);
+                n = (sp_uint32)n << 4;
+                c = 25;
+            }
+            else {
+                y = (byte)((n >> 28) & 0xf);
+                n = (sp_uint32)e[i--] << 3;
+                c = 4 - c;
+                y |= (byte)((n >> (32 - c)) & ((1 << c) - 1));
+                n = (sp_uint32)n << c;
+                c = 29 - c;
+            }
+
+            sp_4096_mont_sqr_71(rt, rt, m, mp);
+            sp_4096_mont_sqr_71(rt, rt, m, mp);
+            sp_4096_mont_sqr_71(rt, rt, m, mp);
+            sp_4096_mont_sqr_71(rt, rt, m, mp);
+
+            sp_4096_get_from_table_71(ct, t, y);
+            sp_4096_mont_mul_71(rt, rt, ct, m, mp);
+        }
+
+        sp_4096_mont_reduce_71(rt, m, mp);
+        n = sp_4096_cmp_71(rt, m);
+        sp_4096_cond_sub_71(rt, rt, m, (sp_digit)~(n >> 31));
+        XMEMCPY(r, rt, sizeof(sp_digit) * 142);
+    }
+
+    SP_FREE_VAR_LARGE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return err;
+#endif
+#else
+    SP_DECL_VAR_LARGE(sp_digit, td, (32 * 142) + 142);
     sp_digit* t[32];
     sp_digit* rt = NULL;
     sp_digit* norm = NULL;
@@ -14387,7 +16072,7 @@ static int sp_4096_mod_exp_71(sp_digit* r, const sp_digit* a,
         err = MP_VAL;
     }
 
-    SP_ALLOC_VAR(sp_digit, td, (32 * 142) + 142, NULL,
+    SP_ALLOC_VAR_LARGE(sp_digit, td, (32 * 142) + 142, NULL,
         DYNAMIC_TYPE_TMP_BUFFER);
     if (err == MP_OKAY) {
         norm = td;
@@ -14500,7 +16185,7 @@ static int sp_4096_mod_exp_71(sp_digit* r, const sp_digit* a,
         XMEMCPY(r, rt, sizeof(sp_digit) * 142);
     }
 
-    SP_FREE_VAR(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_FREE_VAR_LARGE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return err;
 #endif
@@ -15016,6 +16701,40 @@ static int sp_4096_mod_142(sp_digit* r, const sp_digit* a, const sp_digit* m)
 }
 
 #if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
+#if !defined(WC_NO_HARDEN) && !defined(WC_NO_CACHE_RESISTANT) && \
+    !defined(WOLFSSL_SP_LADDER_MODEXP) && \
+    (!defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SP_FAST_MODEXP))
+/* Get an entry from the table by index in a cache resistant manner.
+ *
+ * @param [out] r      Entry retrieved from table.
+ * @param [in]  table  Table of entries to choose from.
+ * @param [in]  idx    Index of entry to retrieve.
+ */
+static void sp_4096_get_from_table_142(sp_digit* r,
+        sp_digit** table, int idx)
+{
+    int e, j;
+    sp_uint32 mask;
+    sp_uint32 diff;
+
+    for (j = 0; j < 284; j++) {
+        r[j] = 0;
+    }
+
+    for (e = 0; e < 16; e++) {
+        /* mask is all-ones when e == idx and all-zeros otherwise. */
+        diff = (sp_uint32)(e ^ idx);
+        diff = (sp_uint32)((diff | (sp_uint32)((sp_uint32)0 - diff)) >>
+                           (32 - 1));
+        mask = (sp_uint32)((sp_uint32)0 - ((sp_uint32)1 - diff));
+
+        for (j = 0; j < 284; j++) {
+            r[j] |= (sp_digit)((sp_uint32)table[e][j] & mask);
+        }
+    }
+}
+#endif
+
 /* Modular exponentiate a to the e mod m. (r = a^e mod m)
  *
  * @param [out] r        A single precision number that is the result of the
@@ -15109,7 +16828,94 @@ static int sp_4096_mod_exp_142(sp_digit* r, const sp_digit* a,
     SP_FREE_VAR(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return err;
+#elif defined(WC_NO_HARDEN)
+    SP_DECL_VAR_LARGE(sp_digit, td, 11 * 284);
+    sp_digit* t[8];
+    sp_digit* norm = NULL;
+    sp_digit* rt = NULL;
+    sp_digit* sq = NULL;
+    sp_digit mp = 1;
+    sp_digit n;
+    int i;
+    int j;
+    int l;
+    int y;
+    int err = MP_OKAY;
+
+    if (bits == 0) {
+        err = MP_VAL;
+    }
+
+    SP_ALLOC_VAR_LARGE(sp_digit, td, 11 * 284, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (err == MP_OKAY) {
+        norm = td;
+        for (i=0; i<8; i++) {
+            t[i] = td + ((i + 1) * 284);
+        }
+        rt = td + (9 * 284);
+        sq = td + (10 * 284);
+
+        sp_4096_mont_setup(m, &mp);
+        sp_4096_mont_norm_142(norm, m);
+
+        if (reduceA != 0) {
+            err = sp_4096_mod_142(t[0], a, m);
+            if (err == MP_OKAY) {
+                sp_4096_mul_142(t[0], t[0], norm);
+                err = sp_4096_mod_142(t[0], t[0], m);
+            }
+        }
+        else {
+            sp_4096_mul_142(t[0], a, norm);
+            err = sp_4096_mod_142(t[0], t[0], m);
+        }
+    }
+
+    if (err == MP_OKAY) {
+        /* t[i] = a ^ (2i + 1) : odd powers only. */
+        sp_4096_mont_sqr_142(sq, t[0], m, mp);
+        for (i = 1; i < 8; i++) {
+            sp_4096_mont_mul_142(t[i], t[i-1], sq, m, mp);
+        }
+
+        /* Result starts at one in Montgomery form. */
+        XMEMCPY(rt, norm, sizeof(sp_digit) * 284);
+
+        for (i = bits - 1; i >= 0; ) {
+            if (((e[i / 29] >> (i % 29)) & 1) == 0) {
+                sp_4096_mont_sqr_142(rt, rt, m, mp);
+                i--;
+            }
+            else {
+                /* Longest window of at most 4 bits ending in a set bit. */
+                l = (i >= 4) ? (i - 4 + 1) : 0;
+                while (((e[l / 29] >> (l % 29)) & 1) == 0) {
+                    l++;
+                }
+                y = 0;
+                for (j = i; j >= l; j--) {
+                    y = (y << 1) | (int)((e[j / 29] >> (j % 29)) & 1);
+                }
+                for (j = i - l + 1; j > 0; j--) {
+                    sp_4096_mont_sqr_142(rt, rt, m, mp);
+                }
+                sp_4096_mont_mul_142(rt, rt, t[(y - 1) / 2], m, mp);
+                i = l - 1;
+            }
+        }
+
+        sp_4096_mont_reduce_142(rt, m, mp);
+        n = sp_4096_cmp_142(rt, m);
+        sp_4096_cond_sub_142(rt, rt, m, (sp_digit)~(n >> 31));
+        XMEMCPY(r, rt, sizeof(*r) * 284);
+    }
+
+    SP_FREE_VAR_LARGE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return err;
 #elif !defined(WC_NO_CACHE_RESISTANT)
+#ifdef WOLFSSL_SP_LADDER_MODEXP
     SP_DECL_VAR(sp_digit, td, 3 * 284);
     sp_digit* t[3] = {0, 0, 0};
     sp_digit* norm = NULL;
@@ -15185,7 +16991,126 @@ static int sp_4096_mod_exp_142(sp_digit* r, const sp_digit* a,
 
     return err;
 #else
-    SP_DECL_VAR(sp_digit, td, (16 * 284) + 284);
+    SP_DECL_VAR_LARGE(sp_digit, td, (16 * 284) + 568);
+    sp_digit* t[16];
+    sp_digit* rt = NULL;
+    sp_digit* ct = NULL;
+    sp_digit* norm = NULL;
+    sp_digit mp = 1;
+    sp_digit n;
+    int i;
+    int c;
+    byte y;
+    int err = MP_OKAY;
+
+    if (bits == 0) {
+        err = MP_VAL;
+    }
+
+    SP_ALLOC_VAR_LARGE(sp_digit, td, (16 * 284) + 568, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (err == MP_OKAY) {
+        norm = td;
+        for (i=0; i<16; i++)
+            t[i] = td + i * 284;
+        rt = td + 4544;
+        ct = td + 4828;
+
+        sp_4096_mont_setup(m, &mp);
+        sp_4096_mont_norm_142(norm, m);
+
+        if (reduceA != 0) {
+            err = sp_4096_mod_142(t[1], a, m);
+            if (err == MP_OKAY) {
+                sp_4096_mul_142(t[1], t[1], norm);
+                err = sp_4096_mod_142(t[1], t[1], m);
+            }
+        }
+        else {
+            sp_4096_mul_142(t[1], a, norm);
+            err = sp_4096_mod_142(t[1], t[1], m);
+        }
+    }
+
+    if (err == MP_OKAY) {
+        sp_4096_mont_sqr_142(t[ 2], t[ 1], m, mp);
+        sp_4096_mont_mul_142(t[ 3], t[ 2], t[ 1], m, mp);
+        sp_4096_mont_sqr_142(t[ 4], t[ 2], m, mp);
+        sp_4096_mont_mul_142(t[ 5], t[ 3], t[ 2], m, mp);
+        sp_4096_mont_sqr_142(t[ 6], t[ 3], m, mp);
+        sp_4096_mont_mul_142(t[ 7], t[ 4], t[ 3], m, mp);
+        sp_4096_mont_sqr_142(t[ 8], t[ 4], m, mp);
+        sp_4096_mont_mul_142(t[ 9], t[ 5], t[ 4], m, mp);
+        sp_4096_mont_sqr_142(t[10], t[ 5], m, mp);
+        sp_4096_mont_mul_142(t[11], t[ 6], t[ 5], m, mp);
+        sp_4096_mont_sqr_142(t[12], t[ 6], m, mp);
+        sp_4096_mont_mul_142(t[13], t[ 7], t[ 6], m, mp);
+        sp_4096_mont_sqr_142(t[14], t[ 7], m, mp);
+        sp_4096_mont_mul_142(t[15], t[ 8], t[ 7], m, mp);
+
+        bits = ((bits + 3) / 4) * 4;
+        i = ((bits + 28) / 29) - 1;
+        c = bits % 29;
+        if (c == 0) {
+            c = 29;
+        }
+        if (i < 142) {
+            n = (sp_uint32)e[i--] << (32 - c);
+        }
+        else {
+            n = 0;
+            i--;
+        }
+        if (c < 4) {
+            n |= (sp_uint32)e[i--] << (3 - c);
+            c += 29;
+        }
+        y = (int)((n >> 28) & 0xf);
+        n = (sp_uint32)n << 4;
+        c -= 4;
+        sp_4096_get_from_table_142(rt, t, y);
+        while ((i >= 0) || (c >= 4)) {
+            if (c >= 4) {
+                y = (byte)((n >> 28) & 0xf);
+                n = (sp_uint32)n << 4;
+                c -= 4;
+            }
+            else if (c == 0) {
+                n = (sp_uint32)e[i--] << 3;
+                y = (byte)((n >> 28) & 0xf);
+                n = (sp_uint32)n << 4;
+                c = 25;
+            }
+            else {
+                y = (byte)((n >> 28) & 0xf);
+                n = (sp_uint32)e[i--] << 3;
+                c = 4 - c;
+                y |= (byte)((n >> (32 - c)) & ((1 << c) - 1));
+                n = (sp_uint32)n << c;
+                c = 29 - c;
+            }
+
+            sp_4096_mont_sqr_142(rt, rt, m, mp);
+            sp_4096_mont_sqr_142(rt, rt, m, mp);
+            sp_4096_mont_sqr_142(rt, rt, m, mp);
+            sp_4096_mont_sqr_142(rt, rt, m, mp);
+
+            sp_4096_get_from_table_142(ct, t, y);
+            sp_4096_mont_mul_142(rt, rt, ct, m, mp);
+        }
+
+        sp_4096_mont_reduce_142(rt, m, mp);
+        n = sp_4096_cmp_142(rt, m);
+        sp_4096_cond_sub_142(rt, rt, m, (sp_digit)~(n >> 31));
+        XMEMCPY(r, rt, sizeof(sp_digit) * 284);
+    }
+
+    SP_FREE_VAR_LARGE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return err;
+#endif
+#else
+    SP_DECL_VAR_LARGE(sp_digit, td, (16 * 284) + 284);
     sp_digit* t[16];
     sp_digit* rt = NULL;
     sp_digit* norm = NULL;
@@ -15200,7 +17125,7 @@ static int sp_4096_mod_exp_142(sp_digit* r, const sp_digit* a,
         err = MP_VAL;
     }
 
-    SP_ALLOC_VAR(sp_digit, td, (16 * 284) + 284, NULL,
+    SP_ALLOC_VAR_LARGE(sp_digit, td, (16 * 284) + 284, NULL,
         DYNAMIC_TYPE_TMP_BUFFER);
     if (err == MP_OKAY) {
         norm = td;
@@ -15296,7 +17221,7 @@ static int sp_4096_mod_exp_142(sp_digit* r, const sp_digit* a,
         XMEMCPY(r, rt, sizeof(sp_digit) * 284);
     }
 
-    SP_FREE_VAR(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_FREE_VAR_LARGE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return err;
 #endif
@@ -18473,6 +20398,40 @@ static int sp_4096_mod_81(sp_digit* r, const sp_digit* a, const sp_digit* m)
     return sp_4096_div_81(a, m, NULL, r);
 }
 
+#if !defined(WC_NO_HARDEN) && !defined(WC_NO_CACHE_RESISTANT) && \
+    !defined(WOLFSSL_SP_LADDER_MODEXP) && \
+    (!defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SP_FAST_MODEXP))
+/* Get an entry from the table by index in a cache resistant manner.
+ *
+ * @param [out] r      Entry retrieved from table.
+ * @param [in]  table  Table of entries to choose from.
+ * @param [in]  idx    Index of entry to retrieve.
+ */
+static void sp_4096_get_from_table_81(sp_digit* r,
+        sp_digit** table, int idx)
+{
+    int e, j;
+    sp_uint32 mask;
+    sp_uint32 diff;
+
+    for (j = 0; j < 162; j++) {
+        r[j] = 0;
+    }
+
+    for (e = 0; e < 16; e++) {
+        /* mask is all-ones when e == idx and all-zeros otherwise. */
+        diff = (sp_uint32)(e ^ idx);
+        diff = (sp_uint32)((diff | (sp_uint32)((sp_uint32)0 - diff)) >>
+                           (32 - 1));
+        mask = (sp_uint32)((sp_uint32)0 - ((sp_uint32)1 - diff));
+
+        for (j = 0; j < 162; j++) {
+            r[j] |= (sp_digit)((sp_uint32)table[e][j] & mask);
+        }
+    }
+}
+#endif
+
 /* Modular exponentiate a to the e mod m. (r = a^e mod m)
  *
  * @param [out] r        A single precision number that is the result of the
@@ -18566,7 +20525,94 @@ static int sp_4096_mod_exp_81(sp_digit* r, const sp_digit* a,
     SP_FREE_VAR(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return err;
+#elif defined(WC_NO_HARDEN)
+    SP_DECL_VAR_LARGE(sp_digit, td, 19 * 162);
+    sp_digit* t[16];
+    sp_digit* norm = NULL;
+    sp_digit* rt = NULL;
+    sp_digit* sq = NULL;
+    sp_digit mp = 1;
+    sp_digit n;
+    int i;
+    int j;
+    int l;
+    int y;
+    int err = MP_OKAY;
+
+    if (bits == 0) {
+        err = MP_VAL;
+    }
+
+    SP_ALLOC_VAR_LARGE(sp_digit, td, 19 * 162, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (err == MP_OKAY) {
+        norm = td;
+        for (i=0; i<16; i++) {
+            t[i] = td + ((i + 1) * 162);
+        }
+        rt = td + (17 * 162);
+        sq = td + (18 * 162);
+
+        sp_4096_mont_setup(m, &mp);
+        sp_4096_mont_norm_81(norm, m);
+
+        if (reduceA != 0) {
+            err = sp_4096_mod_81(t[0], a, m);
+            if (err == MP_OKAY) {
+                sp_4096_mul_81(t[0], t[0], norm);
+                err = sp_4096_mod_81(t[0], t[0], m);
+            }
+        }
+        else {
+            sp_4096_mul_81(t[0], a, norm);
+            err = sp_4096_mod_81(t[0], t[0], m);
+        }
+    }
+
+    if (err == MP_OKAY) {
+        /* t[i] = a ^ (2i + 1) : odd powers only. */
+        sp_4096_mont_sqr_81(sq, t[0], m, mp);
+        for (i = 1; i < 16; i++) {
+            sp_4096_mont_mul_81(t[i], t[i-1], sq, m, mp);
+        }
+
+        /* Result starts at one in Montgomery form. */
+        XMEMCPY(rt, norm, sizeof(sp_digit) * 162);
+
+        for (i = bits - 1; i >= 0; ) {
+            if (((e[i / 26] >> (i % 26)) & 1) == 0) {
+                sp_4096_mont_sqr_81(rt, rt, m, mp);
+                i--;
+            }
+            else {
+                /* Longest window of at most 5 bits ending in a set bit. */
+                l = (i >= 5) ? (i - 5 + 1) : 0;
+                while (((e[l / 26] >> (l % 26)) & 1) == 0) {
+                    l++;
+                }
+                y = 0;
+                for (j = i; j >= l; j--) {
+                    y = (y << 1) | (int)((e[j / 26] >> (j % 26)) & 1);
+                }
+                for (j = i - l + 1; j > 0; j--) {
+                    sp_4096_mont_sqr_81(rt, rt, m, mp);
+                }
+                sp_4096_mont_mul_81(rt, rt, t[(y - 1) / 2], m, mp);
+                i = l - 1;
+            }
+        }
+
+        sp_4096_mont_reduce_81(rt, m, mp);
+        n = sp_4096_cmp_81(rt, m);
+        sp_4096_cond_sub_81(rt, rt, m, (sp_digit)~(n >> 31));
+        XMEMCPY(r, rt, sizeof(*r) * 162);
+    }
+
+    SP_FREE_VAR_LARGE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return err;
 #elif !defined(WC_NO_CACHE_RESISTANT)
+#ifdef WOLFSSL_SP_LADDER_MODEXP
     SP_DECL_VAR(sp_digit, td, 3 * 162);
     sp_digit* t[3] = {0, 0, 0};
     sp_digit* norm = NULL;
@@ -18642,7 +20688,126 @@ static int sp_4096_mod_exp_81(sp_digit* r, const sp_digit* a,
 
     return err;
 #else
-    SP_DECL_VAR(sp_digit, td, (32 * 162) + 162);
+    SP_DECL_VAR_LARGE(sp_digit, td, (16 * 162) + 324);
+    sp_digit* t[16];
+    sp_digit* rt = NULL;
+    sp_digit* ct = NULL;
+    sp_digit* norm = NULL;
+    sp_digit mp = 1;
+    sp_digit n;
+    int i;
+    int c;
+    byte y;
+    int err = MP_OKAY;
+
+    if (bits == 0) {
+        err = MP_VAL;
+    }
+
+    SP_ALLOC_VAR_LARGE(sp_digit, td, (16 * 162) + 324, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (err == MP_OKAY) {
+        norm = td;
+        for (i=0; i<16; i++)
+            t[i] = td + i * 162;
+        rt = td + 2592;
+        ct = td + 2754;
+
+        sp_4096_mont_setup(m, &mp);
+        sp_4096_mont_norm_81(norm, m);
+
+        if (reduceA != 0) {
+            err = sp_4096_mod_81(t[1], a, m);
+            if (err == MP_OKAY) {
+                sp_4096_mul_81(t[1], t[1], norm);
+                err = sp_4096_mod_81(t[1], t[1], m);
+            }
+        }
+        else {
+            sp_4096_mul_81(t[1], a, norm);
+            err = sp_4096_mod_81(t[1], t[1], m);
+        }
+    }
+
+    if (err == MP_OKAY) {
+        sp_4096_mont_sqr_81(t[ 2], t[ 1], m, mp);
+        sp_4096_mont_mul_81(t[ 3], t[ 2], t[ 1], m, mp);
+        sp_4096_mont_sqr_81(t[ 4], t[ 2], m, mp);
+        sp_4096_mont_mul_81(t[ 5], t[ 3], t[ 2], m, mp);
+        sp_4096_mont_sqr_81(t[ 6], t[ 3], m, mp);
+        sp_4096_mont_mul_81(t[ 7], t[ 4], t[ 3], m, mp);
+        sp_4096_mont_sqr_81(t[ 8], t[ 4], m, mp);
+        sp_4096_mont_mul_81(t[ 9], t[ 5], t[ 4], m, mp);
+        sp_4096_mont_sqr_81(t[10], t[ 5], m, mp);
+        sp_4096_mont_mul_81(t[11], t[ 6], t[ 5], m, mp);
+        sp_4096_mont_sqr_81(t[12], t[ 6], m, mp);
+        sp_4096_mont_mul_81(t[13], t[ 7], t[ 6], m, mp);
+        sp_4096_mont_sqr_81(t[14], t[ 7], m, mp);
+        sp_4096_mont_mul_81(t[15], t[ 8], t[ 7], m, mp);
+
+        bits = ((bits + 3) / 4) * 4;
+        i = ((bits + 25) / 26) - 1;
+        c = bits % 26;
+        if (c == 0) {
+            c = 26;
+        }
+        if (i < 81) {
+            n = (sp_uint32)e[i--] << (32 - c);
+        }
+        else {
+            n = 0;
+            i--;
+        }
+        if (c < 4) {
+            n |= (sp_uint32)e[i--] << (6 - c);
+            c += 26;
+        }
+        y = (int)((n >> 28) & 0xf);
+        n = (sp_uint32)n << 4;
+        c -= 4;
+        sp_4096_get_from_table_81(rt, t, y);
+        while ((i >= 0) || (c >= 4)) {
+            if (c >= 4) {
+                y = (byte)((n >> 28) & 0xf);
+                n = (sp_uint32)n << 4;
+                c -= 4;
+            }
+            else if (c == 0) {
+                n = (sp_uint32)e[i--] << 6;
+                y = (byte)((n >> 28) & 0xf);
+                n = (sp_uint32)n << 4;
+                c = 22;
+            }
+            else {
+                y = (byte)((n >> 28) & 0xf);
+                n = (sp_uint32)e[i--] << 6;
+                c = 4 - c;
+                y |= (byte)((n >> (32 - c)) & ((1 << c) - 1));
+                n = (sp_uint32)n << c;
+                c = 26 - c;
+            }
+
+            sp_4096_mont_sqr_81(rt, rt, m, mp);
+            sp_4096_mont_sqr_81(rt, rt, m, mp);
+            sp_4096_mont_sqr_81(rt, rt, m, mp);
+            sp_4096_mont_sqr_81(rt, rt, m, mp);
+
+            sp_4096_get_from_table_81(ct, t, y);
+            sp_4096_mont_mul_81(rt, rt, ct, m, mp);
+        }
+
+        sp_4096_mont_reduce_81(rt, m, mp);
+        n = sp_4096_cmp_81(rt, m);
+        sp_4096_cond_sub_81(rt, rt, m, (sp_digit)~(n >> 31));
+        XMEMCPY(r, rt, sizeof(sp_digit) * 162);
+    }
+
+    SP_FREE_VAR_LARGE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return err;
+#endif
+#else
+    SP_DECL_VAR_LARGE(sp_digit, td, (32 * 162) + 162);
     sp_digit* t[32];
     sp_digit* rt = NULL;
     sp_digit* norm = NULL;
@@ -18657,7 +20822,7 @@ static int sp_4096_mod_exp_81(sp_digit* r, const sp_digit* a,
         err = MP_VAL;
     }
 
-    SP_ALLOC_VAR(sp_digit, td, (32 * 162) + 162, NULL,
+    SP_ALLOC_VAR_LARGE(sp_digit, td, (32 * 162) + 162, NULL,
         DYNAMIC_TYPE_TMP_BUFFER);
     if (err == MP_OKAY) {
         norm = td;
@@ -18770,7 +20935,7 @@ static int sp_4096_mod_exp_81(sp_digit* r, const sp_digit* a,
         XMEMCPY(r, rt, sizeof(sp_digit) * 162);
     }
 
-    SP_FREE_VAR(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_FREE_VAR_LARGE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return err;
 #endif
@@ -19354,6 +21519,40 @@ static int sp_4096_mod_162(sp_digit* r, const sp_digit* a, const sp_digit* m)
 #if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
 #if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || \
                                                      defined(WOLFSSL_HAVE_SP_DH)
+#if !defined(WC_NO_HARDEN) && !defined(WC_NO_CACHE_RESISTANT) && \
+    !defined(WOLFSSL_SP_LADDER_MODEXP) && \
+    (!defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SP_FAST_MODEXP))
+/* Get an entry from the table by index in a cache resistant manner.
+ *
+ * @param [out] r      Entry retrieved from table.
+ * @param [in]  table  Table of entries to choose from.
+ * @param [in]  idx    Index of entry to retrieve.
+ */
+static void sp_4096_get_from_table_162(sp_digit* r,
+        sp_digit** table, int idx)
+{
+    int e, j;
+    sp_uint32 mask;
+    sp_uint32 diff;
+
+    for (j = 0; j < 324; j++) {
+        r[j] = 0;
+    }
+
+    for (e = 0; e < 16; e++) {
+        /* mask is all-ones when e == idx and all-zeros otherwise. */
+        diff = (sp_uint32)(e ^ idx);
+        diff = (sp_uint32)((diff | (sp_uint32)((sp_uint32)0 - diff)) >>
+                           (32 - 1));
+        mask = (sp_uint32)((sp_uint32)0 - ((sp_uint32)1 - diff));
+
+        for (j = 0; j < 324; j++) {
+            r[j] |= (sp_digit)((sp_uint32)table[e][j] & mask);
+        }
+    }
+}
+#endif
+
 /* Modular exponentiate a to the e mod m. (r = a^e mod m)
  *
  * @param [out] r        A single precision number that is the result of the
@@ -19447,7 +21646,94 @@ static int sp_4096_mod_exp_162(sp_digit* r, const sp_digit* a,
     SP_FREE_VAR(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return err;
+#elif defined(WC_NO_HARDEN)
+    SP_DECL_VAR_LARGE(sp_digit, td, 11 * 324);
+    sp_digit* t[8];
+    sp_digit* norm = NULL;
+    sp_digit* rt = NULL;
+    sp_digit* sq = NULL;
+    sp_digit mp = 1;
+    sp_digit n;
+    int i;
+    int j;
+    int l;
+    int y;
+    int err = MP_OKAY;
+
+    if (bits == 0) {
+        err = MP_VAL;
+    }
+
+    SP_ALLOC_VAR_LARGE(sp_digit, td, 11 * 324, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (err == MP_OKAY) {
+        norm = td;
+        for (i=0; i<8; i++) {
+            t[i] = td + ((i + 1) * 324);
+        }
+        rt = td + (9 * 324);
+        sq = td + (10 * 324);
+
+        sp_4096_mont_setup(m, &mp);
+        sp_4096_mont_norm_162(norm, m);
+
+        if (reduceA != 0) {
+            err = sp_4096_mod_162(t[0], a, m);
+            if (err == MP_OKAY) {
+                sp_4096_mul_162(t[0], t[0], norm);
+                err = sp_4096_mod_162(t[0], t[0], m);
+            }
+        }
+        else {
+            sp_4096_mul_162(t[0], a, norm);
+            err = sp_4096_mod_162(t[0], t[0], m);
+        }
+    }
+
+    if (err == MP_OKAY) {
+        /* t[i] = a ^ (2i + 1) : odd powers only. */
+        sp_4096_mont_sqr_162(sq, t[0], m, mp);
+        for (i = 1; i < 8; i++) {
+            sp_4096_mont_mul_162(t[i], t[i-1], sq, m, mp);
+        }
+
+        /* Result starts at one in Montgomery form. */
+        XMEMCPY(rt, norm, sizeof(sp_digit) * 324);
+
+        for (i = bits - 1; i >= 0; ) {
+            if (((e[i / 26] >> (i % 26)) & 1) == 0) {
+                sp_4096_mont_sqr_162(rt, rt, m, mp);
+                i--;
+            }
+            else {
+                /* Longest window of at most 4 bits ending in a set bit. */
+                l = (i >= 4) ? (i - 4 + 1) : 0;
+                while (((e[l / 26] >> (l % 26)) & 1) == 0) {
+                    l++;
+                }
+                y = 0;
+                for (j = i; j >= l; j--) {
+                    y = (y << 1) | (int)((e[j / 26] >> (j % 26)) & 1);
+                }
+                for (j = i - l + 1; j > 0; j--) {
+                    sp_4096_mont_sqr_162(rt, rt, m, mp);
+                }
+                sp_4096_mont_mul_162(rt, rt, t[(y - 1) / 2], m, mp);
+                i = l - 1;
+            }
+        }
+
+        sp_4096_mont_reduce_162(rt, m, mp);
+        n = sp_4096_cmp_162(rt, m);
+        sp_4096_cond_sub_162(rt, rt, m, (sp_digit)~(n >> 31));
+        XMEMCPY(r, rt, sizeof(*r) * 324);
+    }
+
+    SP_FREE_VAR_LARGE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return err;
 #elif !defined(WC_NO_CACHE_RESISTANT)
+#ifdef WOLFSSL_SP_LADDER_MODEXP
     SP_DECL_VAR(sp_digit, td, 3 * 324);
     sp_digit* t[3] = {0, 0, 0};
     sp_digit* norm = NULL;
@@ -19523,7 +21809,126 @@ static int sp_4096_mod_exp_162(sp_digit* r, const sp_digit* a,
 
     return err;
 #else
-    SP_DECL_VAR(sp_digit, td, (16 * 324) + 324);
+    SP_DECL_VAR_LARGE(sp_digit, td, (16 * 324) + 648);
+    sp_digit* t[16];
+    sp_digit* rt = NULL;
+    sp_digit* ct = NULL;
+    sp_digit* norm = NULL;
+    sp_digit mp = 1;
+    sp_digit n;
+    int i;
+    int c;
+    byte y;
+    int err = MP_OKAY;
+
+    if (bits == 0) {
+        err = MP_VAL;
+    }
+
+    SP_ALLOC_VAR_LARGE(sp_digit, td, (16 * 324) + 648, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (err == MP_OKAY) {
+        norm = td;
+        for (i=0; i<16; i++)
+            t[i] = td + i * 324;
+        rt = td + 5184;
+        ct = td + 5508;
+
+        sp_4096_mont_setup(m, &mp);
+        sp_4096_mont_norm_162(norm, m);
+
+        if (reduceA != 0) {
+            err = sp_4096_mod_162(t[1], a, m);
+            if (err == MP_OKAY) {
+                sp_4096_mul_162(t[1], t[1], norm);
+                err = sp_4096_mod_162(t[1], t[1], m);
+            }
+        }
+        else {
+            sp_4096_mul_162(t[1], a, norm);
+            err = sp_4096_mod_162(t[1], t[1], m);
+        }
+    }
+
+    if (err == MP_OKAY) {
+        sp_4096_mont_sqr_162(t[ 2], t[ 1], m, mp);
+        sp_4096_mont_mul_162(t[ 3], t[ 2], t[ 1], m, mp);
+        sp_4096_mont_sqr_162(t[ 4], t[ 2], m, mp);
+        sp_4096_mont_mul_162(t[ 5], t[ 3], t[ 2], m, mp);
+        sp_4096_mont_sqr_162(t[ 6], t[ 3], m, mp);
+        sp_4096_mont_mul_162(t[ 7], t[ 4], t[ 3], m, mp);
+        sp_4096_mont_sqr_162(t[ 8], t[ 4], m, mp);
+        sp_4096_mont_mul_162(t[ 9], t[ 5], t[ 4], m, mp);
+        sp_4096_mont_sqr_162(t[10], t[ 5], m, mp);
+        sp_4096_mont_mul_162(t[11], t[ 6], t[ 5], m, mp);
+        sp_4096_mont_sqr_162(t[12], t[ 6], m, mp);
+        sp_4096_mont_mul_162(t[13], t[ 7], t[ 6], m, mp);
+        sp_4096_mont_sqr_162(t[14], t[ 7], m, mp);
+        sp_4096_mont_mul_162(t[15], t[ 8], t[ 7], m, mp);
+
+        bits = ((bits + 3) / 4) * 4;
+        i = ((bits + 25) / 26) - 1;
+        c = bits % 26;
+        if (c == 0) {
+            c = 26;
+        }
+        if (i < 162) {
+            n = (sp_uint32)e[i--] << (32 - c);
+        }
+        else {
+            n = 0;
+            i--;
+        }
+        if (c < 4) {
+            n |= (sp_uint32)e[i--] << (6 - c);
+            c += 26;
+        }
+        y = (int)((n >> 28) & 0xf);
+        n = (sp_uint32)n << 4;
+        c -= 4;
+        sp_4096_get_from_table_162(rt, t, y);
+        while ((i >= 0) || (c >= 4)) {
+            if (c >= 4) {
+                y = (byte)((n >> 28) & 0xf);
+                n = (sp_uint32)n << 4;
+                c -= 4;
+            }
+            else if (c == 0) {
+                n = (sp_uint32)e[i--] << 6;
+                y = (byte)((n >> 28) & 0xf);
+                n = (sp_uint32)n << 4;
+                c = 22;
+            }
+            else {
+                y = (byte)((n >> 28) & 0xf);
+                n = (sp_uint32)e[i--] << 6;
+                c = 4 - c;
+                y |= (byte)((n >> (32 - c)) & ((1 << c) - 1));
+                n = (sp_uint32)n << c;
+                c = 26 - c;
+            }
+
+            sp_4096_mont_sqr_162(rt, rt, m, mp);
+            sp_4096_mont_sqr_162(rt, rt, m, mp);
+            sp_4096_mont_sqr_162(rt, rt, m, mp);
+            sp_4096_mont_sqr_162(rt, rt, m, mp);
+
+            sp_4096_get_from_table_162(ct, t, y);
+            sp_4096_mont_mul_162(rt, rt, ct, m, mp);
+        }
+
+        sp_4096_mont_reduce_162(rt, m, mp);
+        n = sp_4096_cmp_162(rt, m);
+        sp_4096_cond_sub_162(rt, rt, m, (sp_digit)~(n >> 31));
+        XMEMCPY(r, rt, sizeof(sp_digit) * 324);
+    }
+
+    SP_FREE_VAR_LARGE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return err;
+#endif
+#else
+    SP_DECL_VAR_LARGE(sp_digit, td, (16 * 324) + 324);
     sp_digit* t[16];
     sp_digit* rt = NULL;
     sp_digit* norm = NULL;
@@ -19538,7 +21943,7 @@ static int sp_4096_mod_exp_162(sp_digit* r, const sp_digit* a,
         err = MP_VAL;
     }
 
-    SP_ALLOC_VAR(sp_digit, td, (16 * 324) + 324, NULL,
+    SP_ALLOC_VAR_LARGE(sp_digit, td, (16 * 324) + 324, NULL,
         DYNAMIC_TYPE_TMP_BUFFER);
     if (err == MP_OKAY) {
         norm = td;
@@ -19634,7 +22039,7 @@ static int sp_4096_mod_exp_162(sp_digit* r, const sp_digit* a,
         XMEMCPY(r, rt, sizeof(sp_digit) * 324);
     }
 
-    SP_FREE_VAR(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_FREE_VAR_LARGE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return err;
 #endif
