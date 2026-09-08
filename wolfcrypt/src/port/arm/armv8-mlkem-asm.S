@@ -33,6 +33,7 @@
 #ifdef WOLFSSL_ARMASM
 #ifdef __aarch64__
 #ifndef WOLFSSL_ARMASM_INLINE
+#ifdef WOLFSSL_HAVE_MLKEM
 #ifndef __APPLE__
 	.text
 	.section	.rodata
@@ -49,7 +50,6 @@
 #endif /* __APPLE__ */
 L_mlkem_aarch64_consts:
 	.short	0x0d01,0xf301,0x4ebf,0x0549,0x5049,0x0000,0x0000,0x0000
-#ifdef WOLFSSL_HAVE_MLKEM
 #ifndef __APPLE__
 	.text
 	.section	.rodata
