@@ -28101,6 +28101,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
         WC_RNG* mid = NULL;
         WC_RNG* third = NULL;
         int leak3 = 0;   /* third may still be in use by its holder */
+        unsigned int prevAlarm;
         (void)wc_rng_new_ex(&mid, NULL, 0, HEAP_HINT, INVALID_DEVID);
         (void)wc_rng_new_ex(&third, NULL, 0, HEAP_HINT, INVALID_DEVID);
         if (mid == NULL || third == NULL) {
@@ -28111,11 +28112,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out_free);
         }
         wc_rng_free(mid);   /* the middle of three leaves the registry */
-        alarm(30);   /* a hung child or holder fails the run instead */
+        prevAlarm = alarm(30);   /* a hung child or holder fails the run */
         ret = rng_fork_test(rng, &leak);
         if (ret == 0)
             ret = rng_fork_test(third, &leak3);
         alarm(0);
+        if (prevAlarm != 0)
+            alarm(prevAlarm);
         if (!leak3)
             wc_rng_free(third);
         if (ret != 0)

@@ -572,7 +572,7 @@ static void RngAtForkChild(void)
 }
 
 /* Registers the handlers once; the pin runs outside drbgStateMutex. */
-int wc_RngAtForkInit(void)
+WOLFSSL_LOCAL int wc_RngAtForkInit(void)
 {
     int ret = LockDrbgState();
     if (ret != 0)

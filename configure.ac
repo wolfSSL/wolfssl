@@ -13392,6 +13392,10 @@ if test "$ENABLED_RNG_LOCK_THREADS" = "no" || test "$ENABLED_RNG" = "no" || \
    test "$ENABLED_LINUXKM" = "yes" || test "$ENABLED_BSDKM" = "yes" || \
    { test "$ENABLED_FIPS" = "yes" && test "${HAVE_FIPS_VERSION_MAJOR:-0}" -lt 7; }
 then
+    if test "x$enable_rng_lock" = "xyes"
+    then
+        AC_MSG_ERROR([--enable-rng-lock requires threads and the Hash DRBG, and none of selftest, FIPS before v7, a kernel module or a custom rand block])
+    fi
     ENABLED_RNG_LOCK=no
 fi
 # a build that cannot carry the handlers drops them, unless asked explicitly
