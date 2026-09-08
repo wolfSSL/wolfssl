@@ -681,6 +681,19 @@ int wc_PufReadSram(wc_PufCtx* ctx, const byte* sramAddr, word32 sramSz)
     return 0;
 }
 
+#ifdef WOLFSSL_PUF_TEST
+/* When set, wc_PufEnroll() and wc_PufReconstructEx() treat the final identity
+ * hash as having failed. Lets the test suite reach the hash-failure cleanup
+ * path without a hash backend that can be forced to fail. Not built unless
+ * WOLFSSL_PUF_TEST is defined. */
+static int puf_test_forceHashFail = 0;
+
+void wc_PufTestForceHashFail(int on)
+{
+    puf_test_forceHashFail = on ? 1 : 0;
+}
+#endif /* WOLFSSL_PUF_TEST */
+
 int wc_PufEnroll(wc_PufCtx* ctx)
 {
     int i, ret;
@@ -742,6 +755,10 @@ int wc_PufEnroll(wc_PufCtx* ctx)
 
     /* compute identity = hash(stableBits) */
     ret = wc_PufHashDirect(ctx->stableBits, WC_PUF_STABLE_BYTES, ctx->identity);
+#ifdef WOLFSSL_PUF_TEST
+    if (puf_test_forceHashFail && ret == 0)
+        ret = WC_FAILURE;   /* exercise the identity-hash failure path */
+#endif
 
     /* zeroize sensitive stack buffers */
     ForceZero(msg, sizeof(msg));
@@ -755,8 +772,18 @@ int wc_PufEnroll(wc_PufCtx* ctx)
     wc_MemZero_Check(helperCw, sizeof(helperCw));
 #endif
 
-    if (ret != 0)
+    if (ret != 0) {
+        /* The identity hash failed after ctx->stableBits and ctx->helperData
+         * were already overwritten above. Drop any state a prior successful
+         * enroll left behind so a failed re-enroll cannot leave
+         * WC_PUF_FLAG_ENROLLED / WC_PUF_FLAG_READY set while stableBits holds
+         * the new material and identity still holds the old hash. This matches
+         * the bch_decode() failure path in wc_PufReconstructEx(). */
+        ctx->flags &= (word32)~(WC_PUF_FLAG_ENROLLED | WC_PUF_FLAG_READY);
+        ForceZero(ctx->stableBits, WC_PUF_STABLE_BYTES);
+        ForceZero(ctx->identity, WC_PUF_ID_SZ);
         return PUF_ENROLL_E;
+    }
 
     ctx->flags |= WC_PUF_FLAG_ENROLLED | WC_PUF_FLAG_READY;
     return 0;
@@ -829,6 +856,7 @@ int wc_PufReconstructEx(wc_PufCtx* ctx, const byte* helperData,
             ForceZero(noisyCw, sizeof(noisyCw));
             ForceZero(msg, sizeof(msg));
             ForceZero(ctx->stableBits, WC_PUF_STABLE_BYTES);
+            ForceZero(ctx->identity, WC_PUF_ID_SZ);
         #ifdef WOLFSSL_CHECK_MEM_ZERO
             wc_MemZero_Check(rawCw, sizeof(rawCw));
             wc_MemZero_Check(helperCw, sizeof(helperCw));
@@ -847,6 +875,10 @@ int wc_PufReconstructEx(wc_PufCtx* ctx, const byte* helperData,
 
     /* compute identity */
     ret = wc_PufHashDirect(ctx->stableBits, WC_PUF_STABLE_BYTES, ctx->identity);
+#ifdef WOLFSSL_PUF_TEST
+    if (puf_test_forceHashFail && ret == 0)
+        ret = WC_FAILURE;   /* exercise the identity-hash failure path */
+#endif
 
     /* zeroize sensitive stack buffers */
     ForceZero(rawCw, sizeof(rawCw));
@@ -860,8 +892,17 @@ int wc_PufReconstructEx(wc_PufCtx* ctx, const byte* helperData,
     wc_MemZero_Check(msg, sizeof(msg));
 #endif
 
-    if (ret != 0)
+    if (ret != 0) {
+        /* The identity hash failed after ctx->stableBits was rebuilt. Clear it
+         * and WC_PUF_FLAG_READY exactly as the bch_decode() failure path above
+         * so a failed re-reconstruction cannot leave a prior run's READY flag
+         * set while stableBits holds the new material and identity still holds
+         * the old hash. */
+        ctx->flags &= (word32)~WC_PUF_FLAG_READY;
+        ForceZero(ctx->stableBits, WC_PUF_STABLE_BYTES);
+        ForceZero(ctx->identity, WC_PUF_ID_SZ);
         return PUF_RECONSTRUCT_E;
+    }
 
     ctx->flags |= WC_PUF_FLAG_READY;
     return 0;
