@@ -1019,6 +1019,7 @@ L_sha256_len_neon_start
 	ret
 	ENDP
 	IF :LNOT::DEF:WOLFSSL_ARMASM_NO_HW_CRYPTO
+; .arch_extension crypto
 	AREA	|.rodata|, DATA, READONLY, ALIGN=4
 	ALIGN	8
 L_SHA256_trans_crypto_len_k

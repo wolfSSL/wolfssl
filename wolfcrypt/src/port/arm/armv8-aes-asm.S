@@ -35,6 +35,7 @@
 #ifndef WOLFSSL_ARMASM_INLINE
 #if !defined(NO_AES) && defined(WOLFSSL_ARMASM)
 #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
+.arch_extension crypto
 #ifndef __APPLE__
 .text
 .globl	AES_set_key_AARCH64
