@@ -61,6 +61,8 @@ int test_dtls13_epoch_slot_reuse_replay(void);
 int test_dtls13_epoch_slot_reuse_decrypt_epoch(void);
 int test_dtls13_plaintext_ack_after_handshake(void);
 int test_dtls13_reset_clears_alert_history(void);
+int test_dtls13_rtx_timeout_want_write(void);
+int test_dtls13_rtx_timeout_want_write_read(void);
 
 #define TEST_DTLS13_DECLS                                                      \
     TEST_DECL_GROUP("dtls13", test_dtls13_bad_epoch_ch),                       \
@@ -74,6 +76,8 @@ int test_dtls13_reset_clears_alert_history(void);
     TEST_DECL_GROUP("dtls13", test_dtls13_finished_send_error_propagation),    \
     TEST_DECL_GROUP("dtls13", test_dtls13_basic_connection_id),                \
     TEST_DECL_GROUP("dtls13", test_dtls13_hrr_want_write),                     \
+    TEST_DECL_GROUP("dtls13", test_dtls13_rtx_timeout_want_write),             \
+    TEST_DECL_GROUP("dtls13", test_dtls13_rtx_timeout_want_write_read),        \
     TEST_DECL_GROUP("dtls13", test_dtls13_every_write_want_write),             \
     TEST_DECL_GROUP("dtls13", test_dtls13_epochs),                             \
     TEST_DECL_GROUP("dtls13", test_dtls13_alert_with_pending_output),          \
