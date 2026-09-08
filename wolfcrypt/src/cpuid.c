@@ -22,6 +22,10 @@
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #include <wolfssl/wolfcrypt/cpuid.h>
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
+    #include <wolfssl/wolfcrypt/fips.h>
+    #include <wolfssl/wolfcrypt/fips_test.h>
+#endif
 
 #if defined(HAVE_CPUID) || defined(HAVE_CPUID_INTEL) || \
     defined(HAVE_CPUID_AARCH64) || defined(HAVE_CPUID_ARM32) || \
@@ -947,9 +951,32 @@
         return WOLFSSL_ATOMIC_LOAD(cpuid_flags);
     }
 
+    /* A new feature set is a new operating environment: re-run the power-on
+     * self test, which resets every CAST to run again on the new lanes.
+     * The kernel module suspends signal handling around the self test. */
+    static WC_INLINE void cpuid_recast(void)
+    {
+    #if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
+        int ret;
+        if (WC_SIG_IGNORE_BEGIN() < 0) {
+            WOLFSSL_MSG("cpuid: cannot suspend signals for the self test");
+            return;
+        }
+        ret = wolfCrypt_IntegrityTest_fips();
+        (void)WC_SIG_IGNORE_END();
+        if (ret != 0)
+            WOLFSSL_MSG("cpuid: self test failed after a feature change");
+    #endif
+    }
+
     void cpuid_select_flags(cpuid_flags_t flags)
     {
-        WOLFSSL_ATOMIC_STORE(cpuid_flags, flags);
+        cpuid_flags_t current_flags = WOLFSSL_ATOMIC_LOAD(cpuid_flags);
+        while (! wolfSSL_Atomic_Uint_CompareExchange
+               (&cpuid_flags, &current_flags, flags))
+            WC_RELAX_LONG_LOOP();
+        if (current_flags != flags)
+            cpuid_recast();
     }
 
     void cpuid_set_flag(cpuid_flags_t flag)
@@ -958,6 +985,8 @@
         while (! wolfSSL_Atomic_Uint_CompareExchange
                (&cpuid_flags, &current_flags, current_flags | flag))
             WC_RELAX_LONG_LOOP();
+        if ((current_flags | flag) != current_flags)
+            cpuid_recast();
     }
 
     void cpuid_clear_flag(cpuid_flags_t flag)
@@ -966,6 +995,8 @@
         while (! wolfSSL_Atomic_Uint_CompareExchange
                (&cpuid_flags, &current_flags, current_flags & ~flag))
             WC_RELAX_LONG_LOOP();
+        if ((current_flags & ~flag) != current_flags)
+            cpuid_recast();
     }
 
 #endif /* HAVE_CPUID */
