@@ -162,6 +162,19 @@ static int wc_MemFailCount_AllocMem(void)
 
     return ret;
 }
+/* An allocation was counted by wc_MemFailCount_AllocMem() above, but the
+ * underlying allocator then returned NULL (a caller-installed failing
+ * allocator via wolfSSL_SetAllocators(), or a genuine out-of-memory). No
+ * block exists to be freed, so undo the count to keep Total (allocs)
+ * balanced with Frees. */
+static void wc_MemFailCount_AllocFailed(void)
+{
+    wc_LockMutex(&memFailMutex);
+    if (mem_fail_allocs > 0) {
+        mem_fail_allocs--;
+    }
+    wc_UnLockMutex(&memFailMutex);
+}
 static void wc_MemFailCount_FreeMem(void)
 {
     wc_LockMutex(&memFailMutex);
@@ -406,7 +419,16 @@ void* wolfSSL_Malloc(size_t size)
             free(res); /* native heap */
         }
         gMemFailCount = gMemFailCountSeed; /* reset */
+    #ifdef WOLFSSL_MEM_FAIL_COUNT
+        wc_MemFailCount_AllocFailed();
+    #endif
         return NULL;
+    }
+#endif
+
+#ifdef WOLFSSL_MEM_FAIL_COUNT
+    if (res == NULL) {
+        wc_MemFailCount_AllocFailed();
     }
 #endif
 
