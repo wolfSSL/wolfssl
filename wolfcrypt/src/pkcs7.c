@@ -14566,8 +14566,11 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             recipientSetSz = (word32)ret;
         #ifndef NO_PKCS7_STREAM
             pkcs7->stream->aad = decryptedKey;
-            /* get the full recipient set */
-            pkcs7->stream->expected     = recipientSetSz;
+            /* Get the full recipient set. An indefinite-length set reports a
+             * size of 0, which is no request at all, so ask for the header the
+             * walk needs to start. */
+            pkcs7->stream->expected     = (recipientSetSz > 0)? recipientSetSz :
+                (word32)(MAX_LENGTH_SZ + MAX_VERSION_SZ + ASN_TAG_SZ);
             pkcs7->stream->recipientSz  = ret;
             pkcs7->stream->recipientRemain = recipientSetSz;
         #endif
@@ -14640,7 +14643,11 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             pkcs7->stream->expected = MAX_LENGTH_SZ + MAX_VERSION_SZ +
                 ASN_TAG_SZ + MAX_LENGTH_SZ;
         #else
-            idx = tmpIdx + recipientSetSz;
+            /* A zero size is an indefinite-length set with no end to step to;
+             * moving the index by it lands back on the start of the set. */
+            if (recipientSetSz > 0) {
+                idx = tmpIdx + recipientSetSz;
+            }
         #endif
             wc_PKCS7_ChangeState(pkcs7, WC_PKCS7_ENV_3);
             FALL_THROUGH;
@@ -15967,7 +15974,9 @@ int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             tmpIdx = idx;
             pkcs7->stream->recipientSz    = ret;
             pkcs7->stream->recipientRemain = (word32)ret;
-            pkcs7->stream->expected       = (word32)ret;
+            /* see WC_PKCS7_ENV_2 on the zero size */
+            pkcs7->stream->expected       = (ret > 0)? (word32)ret :
+                (word32)(MAX_LENGTH_SZ + MAX_VERSION_SZ + ASN_TAG_SZ);
         #else
             recipientSetStart = idx;
             recipientSetSz    = (word32)ret;
