@@ -6749,6 +6749,11 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
 
 #if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_EARLY_DATA)
     ssl->options.ticketPredatesCtx = 0;
+#ifndef NO_SESSION_CACHE
+    /* Re-derived from this ClientHello's ticket. A stale value from the first
+     * hello of an HRR exchange must not gate 0-RTT for the second. */
+    ssl->options.ticketCacheHit = 0;
+#endif
 #endif
 
     ext = TLSX_Find(ssl->extensions, TLSX_PRE_SHARED_KEY);
@@ -7208,16 +7213,16 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
                 && !hasCertWithExternPsk
     #endif
     #if defined(HAVE_SESSION_TICKET) && !defined(NO_SESSION_CACHE)
-                /* RFC 8446 section 8: accept 0-RTT once per ticket. The entry
-                 * is evicted below, so a replay misses. Best effort. */
+                /* RFC 8446 section 8: accept 0-RTT once per ticket. Consuming
+                 * the cache entry is what bounds the replay, so only accept
+                 * when the entry was really evicted. Best effort. */
                 && ssl->options.ticketCacheHit
+                && wolfSSL_SSL_CTX_remove_session(ssl->ctx, ssl->session) == 1
     #endif
             ) {
                 extEarlyData->resp = 1;
     #if defined(HAVE_SESSION_TICKET) && !defined(NO_SESSION_CACHE)
                 WOLFSSL_MSG("Accepting early data for a cached ticket session");
-                /* Consume the entry so the next use of this ticket misses. */
-                (void)wolfSSL_SSL_CTX_remove_session(ssl->ctx, ssl->session);
     #endif
 
                 /* Derive early data decryption key. */

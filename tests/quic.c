@@ -2262,6 +2262,7 @@ static int test_quic_early_data(int verbose) {
     /* RFC 8446 Sect. 8: 0-RTT is single use, so the next connection resumes
      * with the ticket this one issued, not the one it just spent. */
     wolfSSL_SESSION_free(session);
+    session = NULL;
     ExpectNotNull(session = wolfSSL_get1_session(tclient.ssl));
 
     QuicTestContext_free(&tclient);
