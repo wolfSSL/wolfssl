@@ -18642,6 +18642,13 @@ void AES_XTS_decrypt_update_avx512(const unsigned char *in, unsigned char *out, 
 
 #endif /* WOLFSSL_AESNI */
 
+#if defined(WOLFSSL_AESXTS_STREAM) && \
+    defined(WC_AESXTS_STREAM_NO_REQUEST_ACCOUNTING) && FIPS_VERSION3_GE(6,0,0)
+    /* SP800-38E's per-tweak limit is enforced from this byte count, so
+     * switching the count off would switch the limit off with it. */
+    #error "WC_AESXTS_STREAM_NO_REQUEST_ACCOUNTING is not allowed in a FIPS build"
+#endif
+
 #ifdef HAVE_AES_ECB
 #if (!defined(WOLFSSL_ARMASM) || (!defined(__aarch64__) && \
     defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)) || \
@@ -19167,11 +19174,17 @@ static int AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
     }
 
 #ifndef WC_AESXTS_STREAM_NO_REQUEST_ACCOUNTING
+    /* A FIPS build is stopped by the SP800-38E check below at 16,777,216
+     * bytes, so this sum cannot reach the top of a word32 there.  Outside FIPS
+     * that limit is only a recommendation (SP800-38E p.2, on IEEE 1619 5.1),
+     * so a stream may run longer; refuse once the count can no longer advance
+     * rather than keep going unaccounted. */
     if (! WC_SAFE_SUM_WORD32(stream->bytes_crypted_with_this_tweak, sz,
                              stream->bytes_crypted_with_this_tweak))
     {
         WOLFSSL_MSG("Overflow of stream->bytes_crypted_with_this_tweak "
                     "in AesXtsEncryptUpdate().");
+        return BAD_FUNC_ARG;
     }
 #endif
 #if FIPS_VERSION3_GE(6,0,0)
@@ -19496,13 +19509,16 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
     aes = &xaes->aes;
 #endif
 
-/* FIPS TODO: SP800-38E - Restrict data unit to 2^20 blocks per key. A block is
- * WC_AES_BLOCK_SIZE or 16-bytes (128-bits). So each key may only be used to
- * protect up to 1,048,576 blocks of WC_AES_BLOCK_SIZE (16,777,216 bytes or
- * 134,217,728-bits) Add helpful printout and message along with BAD_FUNC_ARG
- * return whenever sz / WC_AES_BLOCK_SIZE > 1,048,576 or equal to that and sz is
- * not a sequence of complete blocks.
- */
+#if FIPS_VERSION3_GE(6,0,0)
+    /* SP800-38E - Restrict data unit to 2^20 blocks per key. A block is
+     * WC_AES_BLOCK_SIZE or 16-bytes (128-bits). So each key may only be used to
+     * protect up to 1,048,576 blocks of WC_AES_BLOCK_SIZE (16,777,216 bytes)
+     */
+    if (sz > FIPS_AES_XTS_MAX_BYTES_PER_TWEAK) {
+        WOLFSSL_MSG("Request exceeds allowed bytes per SP800-38E");
+        return BAD_FUNC_ARG;
+    }
+#endif
 
     /* rounds == 0 means no software key schedule: XTS has no crypto
      * callback dispatch, so a device-owned key is unusable here. */
@@ -19777,11 +19793,29 @@ static int AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
     }
 
 #ifndef WC_AESXTS_STREAM_NO_REQUEST_ACCOUNTING
+    /* A FIPS build is stopped by the SP800-38E check below at 16,777,216
+     * bytes, so this sum cannot reach the top of a word32 there.  Outside FIPS
+     * that limit is only a recommendation (SP800-38E p.2, on IEEE 1619 5.1),
+     * so a stream may run longer; refuse once the count can no longer advance
+     * rather than keep going unaccounted. */
     if (! WC_SAFE_SUM_WORD32(stream->bytes_crypted_with_this_tweak, sz,
                              stream->bytes_crypted_with_this_tweak))
     {
         WOLFSSL_MSG("Overflow of stream->bytes_crypted_with_this_tweak "
                     "in AesXtsDecryptUpdate().");
+        return BAD_FUNC_ARG;
+    }
+#endif
+#if FIPS_VERSION3_GE(6,0,0)
+    /* SP800-38E - Restrict data unit to 2^20 blocks per key. A block is
+     * WC_AES_BLOCK_SIZE or 16-bytes (128-bits). So each key may only be used to
+     * protect up to 1,048,576 blocks of WC_AES_BLOCK_SIZE (16,777,216 bytes)
+     */
+    if (stream->bytes_crypted_with_this_tweak >
+        FIPS_AES_XTS_MAX_BYTES_PER_TWEAK)
+    {
+        WOLFSSL_MSG("Request exceeds allowed bytes per SP800-38E");
+        return BAD_FUNC_ARG;
     }
 #endif
 

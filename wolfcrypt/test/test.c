@@ -17496,6 +17496,7 @@ static wc_test_ret_t aes_xts_large_test_common(XtsAes *aes,
          * the tweak is 128-bit and advanced by the cipher, not by this count.
          * A stream primed near the limit must either be refused outright or
          * still agree with the one-shot. */
+#ifndef WC_AESXTS_STREAM_NO_REQUEST_ACCOUNTING
         {
             word32 before;
 
@@ -17516,15 +17517,31 @@ static wc_test_ret_t aes_xts_large_test_common(XtsAes *aes,
             XMEMSET(buf, 0, WC_AES_BLOCK_SIZE * 2);
             ret = wc_AesXtsEncryptUpdate(aes, buf, plain,
                 WC_AES_BLOCK_SIZE * 2, &stream);
-            if (ret == 0) {
-                if (XMEMCMP(buf, ref, WC_AES_BLOCK_SIZE * 2) != 0)
-                    ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-                if (stream.bytes_crypted_with_this_tweak < before)
-                    ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-            }
-            else if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            /* The count can no longer advance, so the call must be refused
+             * rather than run unaccounted. */
+            if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+                ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+            if (stream.bytes_crypted_with_this_tweak < before)
+                ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+#if FIPS_VERSION3_GE(6,0,0)
+            /* SP800-38E caps a data unit at 2^20 blocks.  Decrypt is held to
+             * the same limit as encrypt. */
+            ret = wc_AesXtsSetKeyNoInit(aes, k1, k1Sz, AES_DECRYPTION);
+            if (ret != 0)
                 ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            ret = wc_AesXtsDecryptInit(aes, i1, i1Sz, &stream);
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            stream.bytes_crypted_with_this_tweak =
+                FIPS_AES_XTS_MAX_BYTES_PER_TWEAK;
+            ret = wc_AesXtsDecryptUpdate(aes, buf, ref,
+                WC_AES_BLOCK_SIZE, &stream);
+            if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+                ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
         }
+#endif /* !WC_AESXTS_STREAM_NO_REQUEST_ACCOUNTING */
         ret = 0;
 #undef XTS_STREAM_SZ
     }
