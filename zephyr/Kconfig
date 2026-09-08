@@ -69,8 +69,6 @@ config WOLFSSL_HAS_SETTINGS_FILE
 	  That file is authoritative, so every option that works by writing a
 	  define into the module's user_settings.h depends on this being clear.
 
-rsource "Kconfig.tls-generic"
-
 config WOLFCRYPT_FIPS
 	bool "wolfCrypt FIPS support"
 	depends on WOLFSSL_BUILTIN && !WOLFSSL_HAS_SETTINGS_FILE
@@ -137,6 +135,22 @@ config WOLFSSL_SINGLE_THREADED
 	  single-threaded system or when the caller serializes all access. Defaults
 	  on when the kernel has no threading (!MULTITHREADING), so consumers such
 	  as wolfPSA do not need to select it themselves.
+
+config WOLFSSL_TLS_VERSION_1_2
+  bool "TLS 1.2"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
+  default y
+  help
+    Enable TLS 1.2. Clearing this and WOLFSSL_TLS_VERSION_1_3 leaves the
+    build with no TLS version at all, which only makes sense alongside
+    WOLFSSL_CRYPTO_ONLY.
+
+config WOLFSSL_TLS_VERSION_1_3
+  bool "TLS 1.3"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
+  default y
+  help
+    Enable TLS 1.3 (WOLFSSL_TLS13).
 
 config WOLFSSL_DTLS
   bool "wolfSSL DTLS support"
