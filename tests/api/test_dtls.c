@@ -3595,6 +3595,92 @@ int test_dtls_memio_wolfio_invalid_peer(void)
     return EXPECT_RESULT();
 }
 
+/* On an unconnected socket the default receive callback pins the peer address
+ * once the handshake is stateful. A datagram from another address after that
+ * point must be dropped, not turned into a fatal error for the handshake in
+ * progress. */
+int test_dtls_memio_wolfio_foreign_peer(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
+    !defined(WOLFSSL_PEER_ADDRESS_CHANGES)
+    size_t i;
+    struct {
+        method_provider client_meth;
+        method_provider server_meth;
+    } params[] = {
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_DTLS13)
+        { wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method },
+#endif
+#if !defined(WOLFSSL_NO_TLS12) && defined(WOLFSSL_DTLS)
+        { wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method },
+#endif
+    };
+    XMEMSET(&test_memio_wolfio_ctx, 0, sizeof(test_memio_wolfio_ctx));
+    for (i = 0; i < XELEM_CNT(params) && !EXPECT_FAIL(); i++) {
+        WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+        WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+        struct test_memio_ctx test_ctx;
+        SOCKADDR_IN* peer = (SOCKADDR_IN*)&test_memio_wolfio_ctx.peer_addr;
+        const char foreign[] = "not from the pinned peer";
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                params[i].client_meth, params[i].server_meth), 0);
+
+        test_memio_wolfio_ctx.test_ctx = &test_ctx;
+        test_memio_wolfio_ctx.ssl_s = ssl_s;
+        /* Large number to error out if any syscalls are called with it */
+        test_memio_wolfio_ctx.fd = 6000;
+        XMEMSET(&test_memio_wolfio_ctx.peer_addr, 0,
+                sizeof(test_memio_wolfio_ctx.peer_addr));
+        test_memio_wolfio_ctx.peer_addr.ss_family = AF_INET;
+        peer->sin_port = 1;
+
+        wolfSSL_dtls_set_using_nonblock(ssl_s, 1);
+        wolfSSL_SetRecvFrom(ssl_s, test_memio_wolfio_recvfrom);
+        wolfSSL_SetSendTo(ssl_s, test_memio_wolfio_sendto);
+        /* Restore default functions */
+        wolfSSL_SSLSetIORecv(ssl_s, EmbedReceiveFrom);
+        wolfSSL_SSLSetIOSend(ssl_s, EmbedSendTo);
+        ExpectIntEQ(wolfSSL_set_fd(ssl_s, test_memio_wolfio_ctx.fd),
+                    WOLFSSL_SUCCESS);
+
+        /* First ClientHello, cookie request, second ClientHello with the
+         * cookie: the server verifies it, becomes stateful and pins the
+         * peer address. */
+        ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+        ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+        ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+        ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+        ExpectIntEQ(ssl_s->options.dtlsStateful, 1);
+
+        /* A datagram from another address is dropped */
+        peer->sin_port = 2;
+        ExpectIntEQ(test_memio_inject_message(&test_ctx, 0, foreign,
+                sizeof(foreign)), 0);
+        ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+        ExpectIntEQ(test_ctx.s_len, 0);
+
+        /* The pinned peer completes the handshake */
+        peer->sin_port = 1;
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+        wolfSSL_free(ssl_s);
+        wolfSSL_free(ssl_c);
+        wolfSSL_CTX_free(ctx_s);
+        wolfSSL_CTX_free(ctx_c);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_dtls_mtu_split_messages(void)
 {
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \

@@ -62,6 +62,7 @@ int test_dtls_certreq_order(void);
 int test_dtls_memio_wolfio(void);
 int test_dtls_memio_wolfio_stateless(void);
 int test_dtls_memio_wolfio_invalid_peer(void);
+int test_dtls_memio_wolfio_foreign_peer(void);
 int test_dtls_mtu_fragment_headroom(void);
 int test_dtls_mtu_split_messages(void);
 int test_dtls_set_session_min_downgrade(void);
@@ -250,6 +251,7 @@ int test_dtls_no_cookie_ch_pause(WOLFSSL* ssl, void* ctx);
         TEST_DECL_GROUP("dtls", test_dtls_mtu_split_messages),                 \
         TEST_DECL_GROUP("dtls", test_dtls_memio_wolfio_stateless),             \
         TEST_DECL_GROUP("dtls", test_dtls_memio_wolfio_invalid_peer),          \
+        TEST_DECL_GROUP("dtls", test_dtls_memio_wolfio_foreign_peer),          \
         TEST_DECL_GROUP("dtls", test_dtls_set_session_min_downgrade),          \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_export),                     \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_import_dh_key_sz),          \
