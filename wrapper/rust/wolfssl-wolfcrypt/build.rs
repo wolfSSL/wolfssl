@@ -464,7 +464,6 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "wc_AesCcmSetKey", "aes_ccm");
     check_cfg(&binding, "wc_AesCfbEncrypt", "aes_cfb");
     check_cfg(&binding, "wc_AesCtrEncrypt", "aes_ctr");
-    check_cfg(&binding, "wc_AesCtsEncrypt", "aes_cts");
     check_cfg(&binding, "wc_AesCfbDecrypt", "aes_cfb_decrypt");
     check_cfg(&binding, "wc_AesOfbDecrypt", "aes_ofb_decrypt");
     check_cfg(&binding, "wc_AesEaxInit", "aes_eax");
