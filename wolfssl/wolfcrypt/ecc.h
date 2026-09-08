@@ -128,6 +128,17 @@
     #define MAX_ECC_BITS_NEEDED    112
 #endif
 
+/* The bit ECC_KEY_MAX_BITS adds for an order larger than the prime.  It is an
+ * internal sizing detail rather than part of the curve size a user configures,
+ * so ecc.c folds it into MAX_ECC_BITS_USE and builds ECC_KEY_MAX_BITS from the
+ * same macro, and MAX_ECC_BITS keeps meaning the plain largest curve. */
+#if defined(WOLFSSL_CUSTOM_CURVES) || (ECC_MIN_KEY_SZ <= 160) || \
+    (defined(HAVE_ECC_KOBLITZ) && (ECC_MIN_KEY_SZ <= 224))
+    #define MAX_ECC_BITS_EXTRA 1
+#else
+    #define MAX_ECC_BITS_EXTRA 0
+#endif
+
 #ifndef MAX_ECC_BITS
     #define MAX_ECC_BITS MAX_ECC_BITS_NEEDED
 #else
@@ -152,6 +163,11 @@
     /* add byte if not aligned */
     #define MAX_ECC_BYTES     ((MAX_ECC_BITS / 8) + 1)
 #endif
+
+/* Bytes needed to hold a curve order.  MAX_ECC_BYTES sizes to the prime, but
+ * the curves MAX_ECC_BITS_EXTRA covers have an order a bit -- and so a byte --
+ * longer than that, e.g. secp160r1 and secp224k1. */
+#define MAX_ECC_ORDER_BYTES   (((MAX_ECC_BITS + MAX_ECC_BITS_EXTRA) + 7) / 8)
 
 #ifndef ECC_MAX_PAD_SZ
     /* ECC maximum padding size (when MSB is set extra byte required for R and S) */
