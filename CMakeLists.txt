@@ -146,6 +146,9 @@ check_function_exists("strftime" HAVE_STRFTIME)
 check_function_exists("__atomic_fetch_add" HAVE_C___ATOMIC)
 check_function_exists("getpid" HAVE_GETPID)
 check_function_exists("accept4" HAVE_ACCEPT4)
+if(HAVE_GETPID)
+    add_definitions("-DHAVE_GETPID")   # the library and options.h must agree
+endif()
 
 include(CheckSymbolExists)
 check_symbol_exists(isascii "ctype.h" HAVE_ISASCII)
