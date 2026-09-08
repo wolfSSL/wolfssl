@@ -25,6 +25,7 @@
 ;       ../wolfssl/wolfcrypt/src/port/arm/armv8-aes-asm.asm
 	IF :LNOT::DEF:NO_AES :LAND: {TRUE}
 	IF :LNOT::DEF:WOLFSSL_ARMASM_NO_HW_CRYPTO
+; .arch_extension crypto
 	AREA	|.text|, CODE, READONLY
 	ALIGN	4
 	EXPORT	AES_set_key_AARCH64
