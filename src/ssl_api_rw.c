@@ -838,7 +838,18 @@ int wolfSSL_SendUserCanceled(WOLFSSL* ssl)
             int quietShutdown = ssl->options.quietShutdown;
             ssl->options.quietShutdown = 0;
             ret = wolfSSL_shutdown(ssl);
-            ssl->options.quietShutdown = quietShutdown;
+            if (quietShutdown) {
+                if (ssl->error == WC_NO_ERR_TRACE(WANT_WRITE)) {
+                    /* The close_notify is still in the output buffer. Leave
+                     * quiet shutdown off so the caller's retry of
+                     * wolfSSL_shutdown() flushes it, and have that call give
+                     * the setting back once the flush reaches a decision. */
+                    ssl->options.quietShutdownRestore = 1;
+                }
+                else {
+                    ssl->options.quietShutdown = 1;
+                }
+            }
         }
     }
 
@@ -1057,22 +1068,8 @@ int wolfSSL_shutdown(WOLFSSL* ssl)
         ret = WOLFSSL_FATAL_ERROR;
     }
     else if (ssl->options.quietShutdown) {
-        int done = 0;
-
-        /* Quiet shutdown means no close_notify is originated here. One that
-         * an earlier call already committed but could not send (WANT_WRITE)
-         * is not covered by that: wolfSSL_SendUserCanceled() clears quiet
-         * shutdown only for the call that sends the RFC 9846 paired
-         * close_notify and then restores it, so the retry that gets the
-         * alert out lands here. Flush it before reporting success. */
-        if (ssl->options.sentNotify) {
-            done = wolfssl_shutdown_flush_alert(ssl, &ret);
-        }
-        if ((!done) || (ssl->error >= 0)) {
-            WOLFSSL_MSG("quiet shutdown, no close notify sent");
-            ret = WOLFSSL_SUCCESS;
-        }
-        /* else the flush failed - ret and ssl->error already say why. */
+        WOLFSSL_MSG("quiet shutdown, no close notify sent");
+        ret = WOLFSSL_SUCCESS;
     }
     else {
         int done;
@@ -1126,6 +1123,15 @@ int wolfSSL_shutdown(WOLFSSL* ssl)
             }
             ret = WOLFSSL_FATAL_ERROR;
         }
+    }
+
+    /* wolfSSL_SendUserCanceled() turned quiet shutdown off so that the
+     * close_notify it left in the output buffer could be flushed here. Give
+     * the caller's setting back once the flush has reached a decision. */
+    if ((ssl != NULL) && ssl->options.quietShutdownRestore &&
+            (ssl->error != WC_NO_ERR_TRACE(WANT_WRITE))) {
+        ssl->options.quietShutdownRestore = 0;
+        ssl->options.quietShutdown = 1;
     }
 
     #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
