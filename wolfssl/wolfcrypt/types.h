@@ -1669,8 +1669,9 @@ enum wc_CipherType {
     WC_CIPHER_SM4_CTR = 18,
     WC_CIPHER_SM4_GCM = 19,
     WC_CIPHER_SM4_CCM = 20,
+    WC_CIPHER_SM4 = 21,
     #undef _WC_CIPHER_MAX
-    #define _WC_CIPHER_MAX WC_CIPHER_SM4_CCM
+    #define _WC_CIPHER_MAX WC_CIPHER_SM4
 #endif
 
     WC_CIPHER_MAX = _WC_CIPHER_MAX
