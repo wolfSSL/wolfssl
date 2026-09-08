@@ -251,6 +251,10 @@ int test_wolfSSL_RAND_bytes(void)
         ExpectIntEQ(reaped && WIFEXITED(waitstatus) &&
                     WEXITSTATUS(waitstatus) == 0, 1);
     }
+    else {
+        close(pipefds[0]);
+        close(pipefds[1]);
+    }
     RAND_cleanup();
 #endif
 #endif

@@ -65,7 +65,8 @@ int  wc_FreeNetRandom(void);
     POSIX lets a forked child of a threaded process only exec.  Where the
     build has pthread_atfork(), unnamed POSIX semaphores and the dladdr()
     pin, fork handlers let the child keep using its WC_RNG: the parent holds
-    every lock across fork() and the child releases them and reseeds.  The
+    every lock across fork() and the child releases them and reseeds, so
+    each fork() waits for every live instance's generate in flight.  The
     child should use an instance it already has: wc_InitRng() there still
     waits on a mutex the handlers do not cover.  --disable-rng-atfork leaves
     them out; a user_settings build defines WC_RNG_ATFORK to turn them on.

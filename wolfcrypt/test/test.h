@@ -24,6 +24,10 @@
 #define WOLFCRYPT_TEST_H
 
 #include <wolfssl/wolfcrypt/types.h>
+#ifndef WC_NO_RNG
+    /* for WC_RNG_HAVE_LOCK and WC_RNG_LOCK_ATFORK; above extern "C" */
+    #include <wolfssl/wolfcrypt/random.h>
+#endif
 
 #ifdef __cplusplus
     extern "C" {
@@ -38,10 +42,6 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #include <wolfssl/wolfcrypt/error-crypt.h>
-#ifndef WC_NO_RNG
-    /* for WC_RNG_HAVE_LOCK and WC_RNG_LOCK_ATFORK */
-    #include <wolfssl/wolfcrypt/random.h>
-#endif
 
 /* Needs the lock, threads it can start, and a heap for the compare buffer. */
 #if defined(WC_RNG_HAVE_LOCK) && !defined(WOLFSSL_ASYNC_CRYPT) && \
@@ -55,7 +55,7 @@
 #endif
 /* The fork test needs a real process model on top of the handlers. */
 #if defined(WC_TEST_RNG_LOCK) && defined(WC_RNG_LOCK_ATFORK) && \
-    (defined(__unix__) || defined(__linux__))
+    !defined(__STRICT_ANSI__) && (defined(__unix__) || defined(__linux__))
     #define WC_TEST_RNG_FORK
 #endif
 
