@@ -762,6 +762,8 @@ int wc_RsaPublicKeyDecode_ex(const byte* input, word32* inOutIdx, word32 inSz,
     word32 seqEndIdx = inSz;
 #if defined(OPENSSL_EXTRA) || defined(RSA_DECODE_EXTRA)
     word32 localIdx;
+    word32 bitStrEndIdx;
+    int    bitStrLen = 0;
     byte   tag;
 #endif
 
@@ -771,52 +773,83 @@ int wc_RsaPublicKeyDecode_ex(const byte* input, word32* inOutIdx, word32 inSz,
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
+    /* Everything parsed out of the SubjectPublicKeyInfo / RSAPublicKey
+     * SEQUENCE is bounded by it, not by the end of the buffer. */
+    seqEndIdx = *inOutIdx + (word32)length;
+    if (seqEndIdx > inSz)
+        return ASN_PARSE_E;
+
 #if defined(OPENSSL_EXTRA) || defined(RSA_DECODE_EXTRA)
     localIdx = *inOutIdx;
-    if (GetASNTag(input, &localIdx, &tag, inSz) < 0)
+    if (GetASNTag(input, &localIdx, &tag, seqEndIdx) < 0)
         return BUFFER_E;
 
     if (tag != ASN_INTEGER) {
+        word32 algEndIdx;
+
         /* not from decoded cert, will have algo id, skip past */
-        if (GetSequence(input, inOutIdx, &length, inSz) < 0)
+        if (GetSequence(input, inOutIdx, &length, seqEndIdx) < 0)
             return ASN_PARSE_E;
 
-        if (SkipObjectId(input, inOutIdx, inSz) < 0)
+        /* The AlgorithmIdentifier holds the algorithm OID and its parameters
+         * and nothing else - subjectPublicKey is a sibling of it, not part of
+         * it. Parse within the declared length and require it to be used up
+         * exactly: an over-long one would otherwise have its excess skipped
+         * silently, letting one encoding be read two ways. */
+        algEndIdx = *inOutIdx + (word32)length;
+        if (algEndIdx > seqEndIdx)
+            return ASN_PARSE_E;
+
+        if (SkipObjectId(input, inOutIdx, algEndIdx) < 0)
             return ASN_PARSE_E;
 
         /* Option NULL ASN.1 tag */
-        if (*inOutIdx  >= inSz) {
+        if (*inOutIdx  >= seqEndIdx) {
             return BUFFER_E;
         }
 
-        localIdx = *inOutIdx;
-        if (GetASNTag(input, &localIdx, &tag, inSz) < 0)
+        if (*inOutIdx < algEndIdx) {
+            localIdx = *inOutIdx;
+            if (GetASNTag(input, &localIdx, &tag, algEndIdx) < 0)
+                return ASN_PARSE_E;
+
+            if (tag == ASN_TAG_NULL) {
+                ret = GetASNNull(input, inOutIdx, algEndIdx);
+                if (ret != 0)
+                    return ret;
+            }
+        #ifdef WC_RSA_PSS
+            /* Skip RSA PSS parameters. */
+            else if (tag == (ASN_SEQUENCE | ASN_CONSTRUCTED)) {
+                if (GetSequence(input, inOutIdx, &length, algEndIdx) < 0)
+                    return ASN_PARSE_E;
+                *inOutIdx += (word32)length;
+            }
+        #endif
+        }
+
+        if (*inOutIdx != algEndIdx)
             return ASN_PARSE_E;
 
-        if (tag == ASN_TAG_NULL) {
-            ret = GetASNNull(input, inOutIdx, inSz);
-            if (ret != 0)
-                return ret;
-        }
-    #ifdef WC_RSA_PSS
-        /* Skip RSA PSS parameters. */
-        else if (tag == (ASN_SEQUENCE | ASN_CONSTRUCTED)) {
-            if (GetSequence(input, inOutIdx, &length, inSz) < 0)
-                return ASN_PARSE_E;
-            *inOutIdx += length;
-        }
-    #endif
-
         /* should have bit tag length and seq next */
-        ret = CheckBitString(input, inOutIdx, NULL, inSz, 1, NULL);
+        ret = CheckBitString(input, inOutIdx, &bitStrLen, seqEndIdx, 1, NULL);
         if (ret != 0)
             return ret;
 
-        if (GetSequence(input, inOutIdx, &length, inSz) < 0)
+        /* The subjectPublicKey BIT STRING ends the SubjectPublicKeyInfo -
+         * nothing may follow it - and holds the RSAPublicKey and nothing
+         * else. */
+        bitStrEndIdx = *inOutIdx + (word32)bitStrLen;
+        if (bitStrEndIdx != seqEndIdx)
+            return ASN_PARSE_E;
+
+        if (GetSequence(input, inOutIdx, &length, bitStrEndIdx) < 0)
             return ASN_PARSE_E;
 
         /* Calculate where the sequence should end for public key validation */
         seqEndIdx = *inOutIdx + (word32)length;
+        if (seqEndIdx != bitStrEndIdx)
+            return ASN_PARSE_E;
     }
 #endif /* OPENSSL_EXTRA */
 
@@ -852,6 +885,11 @@ int wc_RsaPublicKeyDecode_ex(const byte* input, word32* inOutIdx, word32 inSz,
         /* First integer is small and there's more data - looks like
          * version field of a private key, not a modulus */
         return ASN_RSA_KEY_E;
+    }
+
+    /* RSAPublicKey holds the modulus and the exponent and nothing else. */
+    if (*inOutIdx != seqEndIdx) {
+        return ASN_PARSE_E;
     }
 
     return ret;
@@ -2680,7 +2718,16 @@ static int GetValidity(DecodedCert* cert, int verify, int maxIdx)
         badDate = ASN_BEFORE_DATE_E; /* continue parsing */
 
     if (GetDate(cert, ASN_AFTER, verify, maxIdx) < 0)
-        return ASN_AFTER_DATE_E;
+        badDate = ASN_AFTER_DATE_E; /* continue parsing */
+
+    /* Validity holds notBefore and notAfter and nothing else. A length longer
+     * than the two dates would have the excess skipped silently, letting the
+     * certificate be read two ways - the subject and subjectPublicKeyInfo a
+     * strict parser sees are not the ones read here. Checked before any date
+     * error is returned: a date error is overridable by the verify callback
+     * and a malformed encoding must not be reclassified as one. */
+    if (cert->srcIdx != (word32)maxIdx)
+        return ASN_PARSE_E;
 
     if (badDate != 0)
         return badDate;
@@ -2766,8 +2813,16 @@ int wc_GetPubX509(DecodedCert* cert, int verify, int* badDate)
         if ( (ret = GetName(cert, ASN_ISSUER, (int)cert->sigIndex)) < 0)
             return ret;
 
-        if ( (ret = GetValidity(cert, verify, (int)cert->sigIndex)) < 0)
+        if ( (ret = GetValidity(cert, verify, (int)cert->sigIndex)) < 0) {
+            /* Only a date error is deferred for the caller to override. A
+             * malformed encoding is a failure of the certificate, not
+             * something a verify callback may wave through. */
+            if ((ret != WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E)) &&
+                    (ret != WC_NO_ERR_TRACE(ASN_AFTER_DATE_E))) {
+                return ret;
+            }
             *badDate = ret;
+        }
 #ifdef WOLFSSL_CERT_REQ
     }
 #endif
@@ -7819,6 +7874,15 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
     int    version, length;
     int    curve_id = ECC_CURVE_DEF;
     word32 oidSum, localIdx;
+    /* Declared end of the outer SEQUENCE and of the AlgorithmIdentifier.
+     * Everything below is parsed within them, not within the buffer. There is
+     * no AlgorithmIdentifier in the private key format, so the outer SEQUENCE
+     * bounds the curve there. */
+    word32 seqEndIdx;
+    word32 algEndIdx;
+    /* End of the SEC1 [1] public key wrapper. Without one the public key
+     * BIT STRING ends the outer SEQUENCE. */
+    word32 pubEndIdx;
     byte   tag, isPrivFormat = 0;
 
     if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0)
@@ -7827,12 +7891,18 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
+    seqEndIdx = *inOutIdx + (word32)length;
+    if (seqEndIdx > inSz)
+        return ASN_PARSE_E;
+    algEndIdx = seqEndIdx;
+    pubEndIdx = seqEndIdx;
+
     /* Check if ECC private key is being used and skip private portion */
-    if (GetMyVersion(input, inOutIdx, &version, inSz) >= 0) {
+    if (GetMyVersion(input, inOutIdx, &version, seqEndIdx) >= 0) {
         isPrivFormat = 1;
 
         /* Type private key */
-        if (*inOutIdx >= inSz)
+        if (*inOutIdx >= seqEndIdx)
             return ASN_PARSE_E;
         tag = input[*inOutIdx];
         *inOutIdx += 1;
@@ -7840,42 +7910,55 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
             return ASN_PARSE_E;
 
         /* Skip Private Key */
-        if (GetLength(input, inOutIdx, &length, inSz) < 0)
+        if (GetLength(input, inOutIdx, &length, seqEndIdx) < 0)
             return ASN_PARSE_E;
         if (length > ECC_MAXSIZE)
             return BUFFER_E;
         *inOutIdx += (word32)length;
 
         /* Private Curve Header */
-        if (*inOutIdx >= inSz)
+        if (*inOutIdx >= seqEndIdx)
             return ASN_PARSE_E;
         tag = input[*inOutIdx];
         *inOutIdx += 1;
         if (tag != ECC_PREFIX_0)
             return ASN_ECC_KEY_E;
-        if (GetLength(input, inOutIdx, &length, inSz) <= 0)
+        if (GetLength(input, inOutIdx, &length, seqEndIdx) <= 0)
+            return ASN_PARSE_E;
+
+        /* The [0] parameters wrapper holds the curve and nothing else. */
+        algEndIdx = *inOutIdx + (word32)length;
+        if (algEndIdx > seqEndIdx)
             return ASN_PARSE_E;
     }
     /* Standard ECC public key */
     else {
-        if (GetSequence(input, inOutIdx, &length, inSz) < 0)
+        if (GetSequence(input, inOutIdx, &length, seqEndIdx) < 0)
             return ASN_PARSE_E;
 
-        ret = SkipObjectId(input, inOutIdx, inSz);
+        /* The AlgorithmIdentifier holds the algorithm OID and the curve
+         * parameters and nothing else - the public key BIT STRING is a
+         * sibling of it, not part of it. */
+        algEndIdx = *inOutIdx + (word32)length;
+        if (algEndIdx > seqEndIdx)
+            return ASN_PARSE_E;
+
+        ret = SkipObjectId(input, inOutIdx, algEndIdx);
         if (ret != 0)
             return ret;
     }
 
-    if (*inOutIdx >= inSz) {
+    if (*inOutIdx >= seqEndIdx) {
         return BUFFER_E;
     }
 
     localIdx = *inOutIdx;
-    if (GetASNTag(input, &localIdx, &tag, inSz) == 0 &&
+    if (GetASNTag(input, &localIdx, &tag, algEndIdx) == 0 &&
             tag == (ASN_SEQUENCE | ASN_CONSTRUCTED)) {
 #ifdef WOLFSSL_CUSTOM_CURVES
         ecc_set_type* curve;
         int len;
+        int specVersion;
         char* point = NULL;
 
         ret = 0;
@@ -7895,19 +7978,21 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
         #endif
             curve->id = ECC_CURVE_CUSTOM;
 
-            if (GetSequence(input, inOutIdx, &length, inSz) < 0)
+            if (GetSequence(input, inOutIdx, &length, algEndIdx) < 0)
                 ret = ASN_PARSE_E;
         }
 
         if (ret == 0) {
-            GetInteger7Bit(input, inOutIdx, inSz);
-            if (GetSequence(input, inOutIdx, &length, inSz) < 0)
+            /* SpecifiedECDomain version - only version 2 and above may carry
+             * a hash algorithm. */
+            specVersion = GetInteger7Bit(input, inOutIdx, algEndIdx);
+            if (GetSequence(input, inOutIdx, &length, algEndIdx) < 0)
                 ret = ASN_PARSE_E;
         }
         if (ret == 0) {
             char* p = NULL;
-            SkipObjectId(input, inOutIdx, inSz);
-            ret = ASNToHexString(input, inOutIdx, &p, inSz,
+            SkipObjectId(input, inOutIdx, algEndIdx);
+            ret = ASNToHexString(input, inOutIdx, &p, algEndIdx,
                                             key->heap, DYNAMIC_TYPE_ECC_BUFFER);
             if (ret == 0) {
 #ifndef WOLFSSL_ECC_CURVE_STATIC
@@ -7921,12 +8006,12 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
         if (ret == 0) {
             curve->size = (int)XSTRLEN(curve->prime) / 2;
 
-            if (GetSequence(input, inOutIdx, &length, inSz) < 0)
+            if (GetSequence(input, inOutIdx, &length, algEndIdx) < 0)
                 ret = ASN_PARSE_E;
         }
         if (ret == 0) {
             char* af = NULL;
-            ret = ASNToHexString(input, inOutIdx, &af, inSz,
+            ret = ASNToHexString(input, inOutIdx, &af, algEndIdx,
                                             key->heap, DYNAMIC_TYPE_ECC_BUFFER);
             if (ret == 0) {
 #ifndef WOLFSSL_ECC_CURVE_STATIC
@@ -7939,7 +8024,7 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
         }
         if (ret == 0) {
             char* bf = NULL;
-            ret = ASNToHexString(input, inOutIdx, &bf, inSz,
+            ret = ASNToHexString(input, inOutIdx, &bf, algEndIdx,
                                             key->heap, DYNAMIC_TYPE_ECC_BUFFER);
             if (ret == 0) {
 #ifndef WOLFSSL_ECC_CURVE_STATIC
@@ -7952,17 +8037,17 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
         }
         if (ret == 0) {
             localIdx = *inOutIdx;
-            if (*inOutIdx < inSz && GetASNTag(input, &localIdx, &tag, inSz)
+            if (*inOutIdx < algEndIdx && GetASNTag(input, &localIdx, &tag, algEndIdx)
                     == 0 && tag == ASN_BIT_STRING) {
                 len = 0;
-                ret = GetASNHeader(input, ASN_BIT_STRING, inOutIdx, &len, inSz);
+                ret = GetASNHeader(input, ASN_BIT_STRING, inOutIdx, &len, algEndIdx);
                 if (ret > 0)
                     ret = 0; /* reset on success */
                 *inOutIdx += (word32)len;
             }
         }
         if (ret == 0) {
-            ret = ASNToHexString(input, inOutIdx, (char**)&point, inSz,
+            ret = ASNToHexString(input, inOutIdx, (char**)&point, algEndIdx,
                                             key->heap, DYNAMIC_TYPE_ECC_BUFFER);
 
             /* sanity check that point buffer is not smaller than the expected
@@ -7999,7 +8084,7 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
             ((char*)curve->Gx)[curve->size * 2] = '\0';
             ((char*)curve->Gy)[curve->size * 2] = '\0';
             XFREE(point, key->heap, DYNAMIC_TYPE_ECC_BUFFER);
-            ret = ASNToHexString(input, inOutIdx, &o, inSz,
+            ret = ASNToHexString(input, inOutIdx, &o, algEndIdx,
                                             key->heap, DYNAMIC_TYPE_ECC_BUFFER);
             if (ret == 0) {
 #ifndef WOLFSSL_ECC_CURVE_STATIC
@@ -8011,7 +8096,7 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
             }
         }
         if (ret == 0) {
-            curve->cofactor = GetInteger7Bit(input, inOutIdx, inSz);
+            curve->cofactor = GetInteger7Bit(input, inOutIdx, algEndIdx);
 
         #ifndef WOLFSSL_ECC_CURVE_STATIC
             curve->oid = NULL;
@@ -8021,13 +8106,44 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
             curve->oidSz = 0;
             curve->oidSum = 0;
 
-            if (wc_ecc_set_custom_curve(key, curve) < 0) {
-                ret = ASN_PARSE_E;
+            /* Optional hash AlgorithmIdentifier - X9.62 SpecifiedECDomain
+             * places one after the optional cofactor. Not used here, but it
+             * has to be stepped over, and it has to lie inside the
+             * parameters. */
+            if (*inOutIdx < algEndIdx) {
+                localIdx = *inOutIdx;
+                if ((GetASNTag(input, &localIdx, &tag, algEndIdx) == 0) &&
+                        (tag == (ASN_SEQUENCE | ASN_CONSTRUCTED))) {
+                    if (specVersion < 2) {
+                        ret = ASN_PARSE_E;
+                    }
+                    else if (GetSequence(input, inOutIdx, &length,
+                            algEndIdx) < 0) {
+                        ret = ASN_PARSE_E;
+                    }
+                    else {
+                        *inOutIdx += (word32)length;
+                    }
+                }
             }
 
-            key->deallocSet = 1;
+            /* The explicit parameters end the AlgorithmIdentifier. Checked
+             * before the curve is installed: on a malformed encoding any
+             * curve already on the key must stay reachable, and this one is
+             * freed below rather than orphaned. */
+            if (ret == 0) {
+                if (*inOutIdx != algEndIdx) {
+                    ret = ASN_PARSE_E;
+                }
+                else if (wc_ecc_set_custom_curve(key, curve) < 0) {
+                    ret = ASN_PARSE_E;
+                }
+                else {
+                    key->deallocSet = 1;
 
-            curve = NULL;
+                    curve = NULL;
+                }
+            }
         }
         if (curve != NULL)
             wc_ecc_free_curve(curve, key->heap);
@@ -8040,7 +8156,7 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
     }
     else {
         /* ecc params information */
-        ret = GetObjectId(input, inOutIdx, &oidSum, oidIgnoreType, inSz);
+        ret = GetObjectId(input, inOutIdx, &oidSum, oidIgnoreType, algEndIdx);
         if (ret != 0)
             return ret;
 
@@ -8052,22 +8168,40 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
         }
     }
 
+    /* The curve - named or explicit - ends the parameters holding it: the
+     * AlgorithmIdentifier, or the [0] wrapper of an ECPrivateKey. Anything
+     * left in them would be skipped silently, letting a length that reaches
+     * into the public key BIT STRING be read two ways. */
+    if (*inOutIdx != algEndIdx)
+        return ASN_PARSE_E;
+
     if (isPrivFormat) {
         /* Public Curve Header - skip */
-        if (*inOutIdx >= inSz)
+        if (*inOutIdx >= seqEndIdx)
             return ASN_PARSE_E;
         tag = input[*inOutIdx];
         *inOutIdx += 1;
         if (tag != ECC_PREFIX_1)
             return ASN_ECC_KEY_E;
-        if (GetLength(input, inOutIdx, &length, inSz) <= 0)
+        if (GetLength(input, inOutIdx, &length, seqEndIdx) <= 0)
+            return ASN_PARSE_E;
+
+        /* The [1] wrapper holds the public key BIT STRING and nothing else,
+         * and is the last field of the ECPrivateKey. */
+        pubEndIdx = *inOutIdx + (word32)length;
+        if (pubEndIdx != seqEndIdx)
             return ASN_PARSE_E;
     }
 
     /* key header */
-    ret = CheckBitString(input, inOutIdx, &length, inSz, 1, NULL);
+    ret = CheckBitString(input, inOutIdx, &length, pubEndIdx, 1, NULL);
     if (ret != 0)
         return ret;
+
+    /* The BIT STRING ends what holds it: the [1] wrapper, or the outer
+     * SEQUENCE of a SubjectPublicKeyInfo. */
+    if (*inOutIdx + (word32)length != pubEndIdx)
+        return ASN_PARSE_E;
 
     /* This is the raw point data compressed or uncompressed. */
     if (wc_ecc_import_x963_ex(input + *inOutIdx, (word32)length, key,
