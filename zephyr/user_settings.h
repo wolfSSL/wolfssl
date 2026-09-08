@@ -185,7 +185,7 @@ extern "C" {
 //#define NO_WOLFSSL_CLIENT /* Optionally disable TLS client code */
 
 /* TLS v1.3 */
-#if defined(CONFIG_WOLFSSL_TLS_VERSION_1_3) || defined(CONFIG_WOLFSSL_TLS13_ENABLED)
+#ifdef CONFIG_WOLFSSL_TLS_VERSION_1_3
     #define WOLFSSL_TLS13
 #endif
 
