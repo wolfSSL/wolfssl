@@ -5982,10 +5982,11 @@ void wolfSSL_CTX_set_client_cert_cb(WOLFSSL_CTX *ctx, client_cert_cb cb);
 
     Set the certificate on the WOLFSSL object, with wolfSSL_use_certificate_file
     and friends, or hand it a different context with wolfSSL_set_SSL_CTX.
-    Loading one on the WOLFSSL_CTX the handshake is running against is refused
-    while the callback runs, from the callback or any other thread, and returns
-    failure with BAD_STATE_E: sessions already made from that context point at
-    its certificate, and replacing it would free what they are reading.
+    Loading one on the WOLFSSL_CTX the handshake is running against, including
+    one handed over with wolfSSL_set_SSL_CTX, is refused from inside the
+    callback and fails with BAD_STATE_E, logged and put on the error queue:
+    sessions already made from that context point at its certificate, and
+    replacing it would free what they are reading.
 
     \param ctx The WOLFSSL_CTX object.
     \param cb  The callback function for certificate setup.

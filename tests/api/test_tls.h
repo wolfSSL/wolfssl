@@ -56,6 +56,7 @@ int test_sni_cb_ctx_cert_swap_refused(void);
 int test_cert_setup_cb_ctx_cert_swap_refused(void);
 int test_cb_ctx_cert_swap_other_session(void);
 int test_sni_cb_switch_ctx_unblocked(void);
+int test_sni_cb_switch_ctx_load_refused(void);
 int test_tls13_resumption_with_alpn(void);
 int test_tls12_session_id_resumption_alpn_mismatch(void);
 int test_tls13_session_resumption_alpn_mismatch(void);
@@ -107,6 +108,7 @@ int test_wolfSSL_get_shared_ciphers(void);
         TEST_DECL_GROUP("tls", test_cert_setup_cb_ctx_cert_swap_refused),     \
         TEST_DECL_GROUP("tls", test_cb_ctx_cert_swap_other_session),          \
         TEST_DECL_GROUP("tls", test_sni_cb_switch_ctx_unblocked),             \
+        TEST_DECL_GROUP("tls", test_sni_cb_switch_ctx_load_refused),          \
         TEST_DECL_GROUP("tls", test_tls13_resumption_with_alpn),              \
         TEST_DECL_GROUP("tls", test_tls12_session_id_resumption_alpn_mismatch),\
         TEST_DECL_GROUP("tls", test_tls13_session_resumption_alpn_mismatch),   \

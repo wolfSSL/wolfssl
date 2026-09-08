@@ -8846,6 +8846,13 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     (void)ret;
 #endif
 
+    /* A callback handing the session over keeps its guard, on the context the
+     * session is about to point at. */
+    if (ssl->options.inCtxCb && (CtxCallbackMove(ssl, ctx) != 0)) {
+        wolfSSL_CTX_free(ctx);
+        return NULL;
+    }
+
     if (ssl->ctx != NULL)
         wolfSSL_CTX_free(ssl->ctx);
     ssl->ctx = ctx;

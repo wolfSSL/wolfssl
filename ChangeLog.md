@@ -3,28 +3,17 @@
 ## Behavioral Changes
 
 * **Behavioral change (loading a certificate or key on a context while one of
-  its callbacks runs)**: the sni callback set with
-  `wolfSSL_CTX_set_servername_callback()` and the certificate setup callback set
-  with `wolfSSL_CTX_set_cert_cb()` run in the middle of a handshake, at which
-  point every session made from that context is pointing at the context's
-  certificate, chain and key.  Replacing one of those frees what those
-  handshakes are reading.  Such a load is now refused while one of those
-  callbacks is running on the context, from the callback itself or from any
-  other thread, and the reason, `BAD_STATE_E`, is left where
-  `wolfSSL_get_error()` and the OpenSSL error queue can report it.  The calls
-  affected are `wolfSSL_CTX_use_certificate()`, its `_file` and `_buffer` forms,
-  `wolfSSL_CTX_use_PrivateKey_file()`, `_buffer`, `_Id` and `_Label`, the
-  `wolfSSL_CTX_use_AltPrivateKey_*` family, the
-  `wolfSSL_CTX_use_certificate_chain_*` family,
-  `wolfSSL_CTX_load_verify_chain_buffer_format()` with DER input, which also
-  replaces the chain, `wolfSSL_CTX_add0_chain_cert()`,
-  `wolfSSL_CTX_add1_chain_cert()`, `wolfSSL_CTX_add_extra_chain_cert()`,
-  `SSL_CTX_set0_chain()` and `SSL_CTX_set1_chain()`.  An application that set a
-  certificate this way should set it on the session instead, with
-  `wolfSSL_use_certificate_file()` and its relatives, or hand the session a
-  different context with `wolfSSL_set_SSL_CTX()`; both are untouched, as are
-  loads into the trust store such as `wolfSSL_CTX_load_verify_locations()` and
-  anything called once no callback is running.
+  its callbacks runs)**: loading a certificate or key on a `WOLFSSL_CTX` while
+  its sni callback or certificate setup callback is running is now refused with
+  `BAD_STATE_E`.  The calls affected are `wolfSSL_CTX_use_certificate()` and
+  its `_file` and `_buffer` forms, `wolfSSL_CTX_use_PrivateKey_file()`,
+  `_buffer`, `_Id` and `_Label`, the `wolfSSL_CTX_use_AltPrivateKey_*` and
+  `wolfSSL_CTX_use_certificate_chain_*` families,
+  `wolfSSL_CTX_load_verify_chain_buffer_format()` with DER input,
+  `wolfSSL_CTX_add0_chain_cert()`, `wolfSSL_CTX_add1_chain_cert()`,
+  `wolfSSL_CTX_add_extra_chain_cert()`, `SSL_CTX_set0_chain()` and
+  `SSL_CTX_set1_chain()`.  Set the certificate on the `WOLFSSL` object instead,
+  or switch it to a context that already holds one with `wolfSSL_set_SSL_CTX()`.
 
 * **Behavioral change (`wc_PufReadSram` health tests the raw SRAM readout)**:
   the raw readout is now health tested before the context accepts it, and a

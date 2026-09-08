@@ -7786,30 +7786,41 @@ int CopySSL_CTX_DhParams(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 }
 #endif /* !NO_DH */
 
-/* Note that an application callback is about to run on a context.
+/* Add to the count of callbacks running on a context, under its lock.
  *
- * The count is kept on the context, under its lock, so a callback on any
- * thread is seen. The context is also held so that it outlives a callback
- * that swaps it out of the session; CtxCallbackExit() lets go of it again.
- *
- * @param [in, out] ctx  SSL context object the callback belongs to.
+ * @param [in, out] ctx  SSL context object.
+ * @param [in]      by   Amount to add, which may be negative.
  * @return  0 on success.
  * @return  BAD_MUTEX_E when the context's lock cannot be taken.
  */
-int CtxCallbackEnter(WOLFSSL_CTX* ctx)
+static int CtxCallbackCount(WOLFSSL_CTX* ctx, int by)
 {
-    int ret;
+    int ret = wolfSSL_RefWithMutexLock(&ctx->ref);
 
-    wolfSSL_RefWithMutexInc(&ctx->ref, &ret);
     if (ret == 0) {
-        ret = wolfSSL_RefWithMutexLock(&ctx->ref);
-        if (ret == 0) {
-            ctx->callbackCnt++;
-            wolfSSL_RefWithMutexUnlock(&ctx->ref);
-        }
-        else {
-            wolfSSL_CTX_free(ctx);
-        }
+        ctx->callbackCnt += by;
+        wolfSSL_RefWithMutexUnlock(&ctx->ref);
+    }
+
+    return ret;
+}
+
+/* Note that an application callback is about to run on a session's context.
+ *
+ * The count is kept on the context, under its lock, so a callback on any
+ * thread is seen. The session is marked as well, so that handing it another
+ * context during the callback carries the count over with CtxCallbackMove().
+ *
+ * @param [in, out] ssl  SSL object the callback is for.
+ * @return  0 on success.
+ * @return  BAD_MUTEX_E when the context's lock cannot be taken.
+ */
+int CtxCallbackEnter(WOLFSSL* ssl)
+{
+    int ret = CtxCallbackCount(ssl->ctx, 1);
+
+    if (ret == 0) {
+        ssl->options.inCtxCb = 1;
     }
 
     return ret;
@@ -7817,16 +7828,37 @@ int CtxCallbackEnter(WOLFSSL_CTX* ctx)
 
 /* Note that the callback has returned.
  *
- * @param [in, out] ctx  SSL context object handed to CtxCallbackEnter().
+ * @param [in, out] ssl  SSL object the callback was for.
  */
-void CtxCallbackExit(WOLFSSL_CTX* ctx)
+void CtxCallbackExit(WOLFSSL* ssl)
 {
-    if (wolfSSL_RefWithMutexLock(&ctx->ref) == 0) {
-        ctx->callbackCnt--;
-        wolfSSL_RefWithMutexUnlock(&ctx->ref);
+    if (ssl->options.inCtxCb) {
+        ssl->options.inCtxCb = 0;
+        (void)CtxCallbackCount(ssl->ctx, -1);
     }
-    /* Let go of the hold taken by CtxCallbackEnter(). */
-    wolfSSL_CTX_free(ctx);
+}
+
+/* Carry a running callback over to the context the session is switching to,
+ * so a load on that one is refused from here on just as on the first.
+ *
+ * @param [in, out] ssl  SSL object inside a callback, on its old context.
+ * @param [in, out] ctx  SSL context object the session is switching to.
+ * @return  0 on success.
+ * @return  BAD_MUTEX_E when a context's lock cannot be taken.
+ */
+int CtxCallbackMove(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
+{
+    int ret = CtxCallbackCount(ssl->ctx, -1);
+
+    if (ret == 0) {
+        ret = CtxCallbackCount(ctx, 1);
+    }
+    if (ret != 0) {
+        /* Nothing is counted any more, so there is nothing to take off. */
+        ssl->options.inCtxCb = 0;
+    }
+
+    return ret;
 }
 
 #ifndef NO_CERTS
@@ -7858,7 +7890,7 @@ int CheckCtxCertLoad(WOLFSSL_CTX* ctx)
         if ((ret == 0) && (running > 0)) {
             WOLFSSL_MSG("Cert load refused: callback running on context");
             ret = BAD_STATE_E;
-            WOLFSSL_ERROR_VERBOSE(ret);
+            WOLFSSL_ERROR(ret);
         }
     }
 
@@ -45719,17 +45751,13 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
         /* Stunnel supports a custom sni callback to switch an SSL's ctx
         * when SNI is received. Call it now if exists */
         if(ssl && ssl->ctx && ssl->ctx->sniRecvCb) {
-            WOLFSSL_CTX* cbCtx = ssl->ctx;
-
             WOLFSSL_MSG("Calling custom sni callback");
-            ret = CtxCallbackEnter(cbCtx);
+            ret = CtxCallbackEnter(ssl);
             if (ret != 0) {
                 return ret;
             }
             sniRet = ssl->ctx->sniRecvCb(ssl, &ad, ssl->ctx->sniRecvCbArg);
-            /* The callback may have switched this session to another context,
-             * so leave the one it was called on rather than ssl->ctx. */
-            CtxCallbackExit(cbCtx);
+            CtxCallbackExit(ssl);
             switch (sniRet) {
                 case warning_return:
                     WOLFSSL_MSG("Error in custom sni callback. Warning alert");
