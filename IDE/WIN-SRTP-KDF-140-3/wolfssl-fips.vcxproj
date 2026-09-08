@@ -40,6 +40,20 @@
     <Keyword>Win32Proj</Keyword>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="WolfSSLSpAsm">
+    <!-- Feature macros the single precision (SP) x86_64 assembly is guarded by.
+         ml64.exe cannot read user_settings.h, so every opt-in IFDEF section of
+         wolfcrypt\src\sp_x86_64_asm.asm has to be enabled on the assembler
+         command line instead.  ECC P-384, ECC P-521, RSA/DH 4096 and SAKKE 1024
+         are opt in; if the C build enables one of them (WOLFSSL_SP_384,
+         WOLFSSL_SP_521, WOLFSSL_SP_4096, WOLFSSL_SP_1024) the matching define
+         has to be listed here as well or the link fails with LNK2001 on the
+         sp_384_* / sp_521_* / sp_4096_* / sp_1024_* symbols.  Left empty by
+         default because changing what is assembled changes the FIPS module
+         boundary and therefore the in-core integrity hash.  Enable with:
+             msbuild /p:WolfSSLSpAsmDefs="/DWOLFSSL_SP_384 /DWOLFSSL_SP_4096" -->
+    <WolfSSLSpAsmDefs Condition="'$(WolfSSLSpAsmDefs)'==''"></WolfSSLSpAsmDefs>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <PlatformToolset>v143</PlatformToolset>
@@ -378,10 +392,10 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">false</ExcludedFromBuild>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ml64.exe /DHAVE_FIPS /DHAVE_FIPS_VERSION=5 /DHAVE_FIPS_VERSION_MINOR=1 /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">ml64.exe /DHAVE_FIPS /DHAVE_FIPS_VERSION=5 /DHAVE_FIPS_VERSION_MINOR=1 /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ml64.exe /DHAVE_FIPS /DHAVE_FIPS_VERSION=5 /DHAVE_FIPS_VERSION_MINOR=1 /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">ml64.exe /DHAVE_FIPS /DHAVE_FIPS_VERSION=5 /DHAVE_FIPS_VERSION_MINOR=1 /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ml64.exe $(WolfSSLSpAsmDefs) /DHAVE_FIPS /DHAVE_FIPS_VERSION=5 /DHAVE_FIPS_VERSION_MINOR=1 /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">ml64.exe $(WolfSSLSpAsmDefs) /DHAVE_FIPS /DHAVE_FIPS_VERSION=5 /DHAVE_FIPS_VERSION_MINOR=1 /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ml64.exe $(WolfSSLSpAsmDefs) /DHAVE_FIPS /DHAVE_FIPS_VERSION=5 /DHAVE_FIPS_VERSION_MINOR=1 /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">ml64.exe $(WolfSSLSpAsmDefs) /DHAVE_FIPS /DHAVE_FIPS_VERSION=5 /DHAVE_FIPS_VERSION_MINOR=1 /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename).obj</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">$(IntDir)%(Filename).obj</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(Filename).obj</Outputs>
