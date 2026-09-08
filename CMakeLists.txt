@@ -4059,7 +4059,7 @@ if(WOLFSSL_RNG_ATFORK)
         set(RNG_ATFORK_SAVED_TARGET "${CMAKE_TRY_COMPILE_TARGET_TYPE}")
         set(CMAKE_TRY_COMPILE_TARGET_TYPE EXECUTABLE)
         set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_THREAD_LIBS_INIT})
-        check_function_exists("pthread_atfork" HAVE_PTHREAD_ATFORK)
+        check_function_exists("pthread_atfork" WOLFSSL_HAVE_PTHREAD_ATFORK)
         set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_DL_LIBS} ${CMAKE_THREAD_LIBS_INIT})
         check_c_source_compiles("
             #if defined(__linux__) || defined(__ANDROID__) || \
@@ -4085,12 +4085,12 @@ if(WOLFSSL_RNG_ATFORK)
                         (void)dlopen(name, RTLD_NOLOAD | RTLD_NODELETE | RTLD_LAZY);
                 }
                 return 0;
-            }" HAVE_DLADDR)
+            }" WOLFSSL_HAVE_DLADDR_PIN)
         set(CMAKE_REQUIRED_LIBRARIES "${RNG_ATFORK_SAVED_LIBS}")
         set(CMAKE_TRY_COMPILE_TARGET_TYPE "${RNG_ATFORK_SAVED_TARGET}")
-        if(NOT HAVE_PTHREAD_ATFORK)
+        if(NOT WOLFSSL_HAVE_PTHREAD_ATFORK)
             set(RNG_ATFORK_NEEDS "pthread_atfork")
-        elseif(NOT HAVE_DLADDR)
+        elseif(NOT WOLFSSL_HAVE_DLADDR_PIN)
             set(RNG_ATFORK_NEEDS "dladdr, dlopen and unnamed POSIX semaphores")
         endif()
     endif()

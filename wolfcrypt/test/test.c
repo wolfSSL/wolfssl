@@ -28168,6 +28168,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
         if (args[i].ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(args[i].ret), out_free);
     }
+    if (rng->status != WC_DRBG_OK)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out_free);
 
     /* Fewer than two threads tested nothing. */
     if (started < 2)

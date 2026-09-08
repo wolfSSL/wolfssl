@@ -53,7 +53,8 @@
     defined(WC_RNG_ATFORK) && !defined(__APPLE__) && \
     !defined(WOLFSSL_NO_MALLOC) && !defined(HAVE_ENTROPY_MEMUSE) && \
     !defined(WC_RNG_BANK_SUPPORT) && !defined(WOLFSSL_STATIC_MEMORY) && \
-    !defined(HAVE_WNR) && !defined(WOLFSSL_CHECK_MEM_ZERO)
+    !defined(HAVE_WNR) && !defined(WOLFSSL_CHECK_MEM_ZERO) && \
+    !defined(WOLFSSL_TRACK_MEMORY) && !defined(WOLFSSL_MEM_FAIL_COUNT)
     #define WC_RNG_LOCK_ATFORK
 #endif
 
@@ -116,6 +117,7 @@ typedef struct WC_RNG_LOCK {
     void* drbg;                  /* states a fork child must reseed */
     void* drbg512;
     int broken;   /* fails closed; set only by a lone child or on a dead sem */
+    int cancel;   /* the holder's cancel state, back on exit */
 } WC_RNG_LOCK;
 WOLFSSL_LOCAL int wc_RngAtForkInit(void);   /* from wolfCrypt_Init */
 WOLFSSL_LOCAL void wc_RngPinImage(void* fn);   /* keeps fn's image mapped */
@@ -601,8 +603,9 @@ WOLFSSL_ABI WOLFSSL_API WC_RNG* wc_rng_new(byte* nonce, word32 nonceSz,
                                            void* heap);
 WOLFSSL_API int wc_rng_new_ex(WC_RNG **rng, byte* nonce, word32 nonceSz,
                               void* heap, int devId);
-/* wc_rng_new*, wc_InitRng*, wc_FreeRng and wc_rng_free do not take the
- * instance lock: no other thread may use the instance across them. */
+/* wc_rng_new*, wc_InitRng*, wc_InitRng_BankRef, wc_FreeRng and wc_rng_free
+ * do not take the instance lock: no other thread may use the instance across
+ * them. */
 WOLFSSL_ABI WOLFSSL_API void wc_rng_free(WC_RNG* rng);
 
 

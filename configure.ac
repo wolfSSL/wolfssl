@@ -13384,7 +13384,7 @@ if test "x$enable_rng_lock" = "xyes" && test "$ENABLED_RNG_LOCK_THREADS" = "no"
 then
     AC_MSG_ERROR([--enable-rng-lock requires threads])
 fi
-if test "$ENABLED_RNG_LOCK_THREADS" = "no"
+if test "$ENABLED_RNG_LOCK_THREADS" = "no" || test "$ENABLED_RNG" = "no"
 then
     ENABLED_RNG_LOCK=no
 fi
@@ -13403,7 +13403,7 @@ then
         RNG_ATFORK_NEEDS="${RNG_ATFORK_NEEDS:+$RNG_ATFORK_NEEDS, and }threads and no kernel module"
     fi
     case "$AM_CFLAGS $CPPFLAGS $CFLAGS" in
-        *-DWOLFSSL_STATIC_MEMORY*|*-DWOLFSSL_NO_MALLOC*|*-DCUSTOM_RAND_GENERATE_BLOCK*|*-DWOLFSSL_CHECK_MEM_ZERO*|*-DWOLFSSL_USER_MUTEX*)
+        *-DWOLFSSL_STATIC_MEMORY*|*-DWOLFSSL_NO_MALLOC*|*-DCUSTOM_RAND_GENERATE_BLOCK*|*-DWOLFSSL_CHECK_MEM_ZERO*|*-DWOLFSSL_TRACK_MEMORY*|*-DWOLFSSL_MEM_FAIL_COUNT*|*-DWOLFSSL_USER_MUTEX*)
             ENABLED_RNG_ATFORK_FLAGS=no ;;
         *) ENABLED_RNG_ATFORK_FLAGS=yes ;;
     esac
@@ -13412,7 +13412,7 @@ then
        test "$ENABLED_RNG_ATFORK_FLAGS" = "no" || test "$ENABLED_WNR" = "yes" || \
        { test "$ENABLED_FIPS" = "yes" && test "${HAVE_FIPS_VERSION_MAJOR:-0}" -lt 7; }
     then
-        RNG_ATFORK_NEEDS="${RNG_ATFORK_NEEDS:+$RNG_ATFORK_NEEDS, and }the Hash DRBG with a heap and none of selftest, FIPS before v7, entropy-memuse, rng-bank, static memory, netRandom or memory zero checking"
+        RNG_ATFORK_NEEDS="${RNG_ATFORK_NEEDS:+$RNG_ATFORK_NEEDS, and }the Hash DRBG with a heap and none of selftest, FIPS before v7, entropy-memuse, rng-bank, static memory, netRandom, memory zero checking or memory tracking"
     fi
     if test -z "$RNG_ATFORK_NEEDS"
     then
@@ -13458,7 +13458,6 @@ then
             [AC_MSG_RESULT([yes])],
             [AC_MSG_RESULT([no])
              RNG_ATFORK_NEEDS="dladdr, dlopen and unnamed POSIX semaphores"])
-        RNG_ATFORK_DL_LIBS="$LIBS"
         LIBS="$saved_LIBS"
     fi
     if test -n "$RNG_ATFORK_NEEDS"
@@ -13474,9 +13473,9 @@ fi
 if test "$ENABLED_RNG_ATFORK" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWC_RNG_ATFORK"
-    LIBS="$RNG_ATFORK_DL_LIBS"   # -ldl where dladdr needed it
-    case "$ac_cv_search_dladdr" in
-        -l*) PC_LIBS_PRIVATE="$PC_LIBS_PRIVATE $ac_cv_search_dladdr" ;;
+    case "$ac_cv_search_dladdr" in   # -ldl where dladdr needed it
+        -l*) LIBS="$ac_cv_search_dladdr $LIBS"
+             PC_LIBS_PRIVATE="$PC_LIBS_PRIVATE $ac_cv_search_dladdr" ;;
     esac
 fi
 

@@ -675,19 +675,33 @@ static void RngLockFree(WC_RNG* rng)
     rng->lock = NULL;
 }
 
+/* Cancellation stays off while the lock is held: a reseed reads a device,
+ * a cancellation point, and a cancelled holder would strand every fork(). */
 static int RngLockEnter(WC_RNG* rng)
 {
+    int old = PTHREAD_CANCEL_ENABLE;
+    int ret;
     if (rng->lock == NULL)
         return 0;
     if (rng->lock->broken)
         return BAD_MUTEX_E;
-    return RngSemWait(&rng->lock->sem);
+    (void)pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &old);
+    ret = RngSemWait(&rng->lock->sem);
+    if (ret != 0)
+        (void)pthread_setcancelstate(old, NULL);
+    else
+        rng->lock->cancel = old;
+    return ret;
 }
 
 static void RngLockExit(WC_RNG* rng)
 {
-    if (rng->lock != NULL)
-        (void)sem_post(&rng->lock->sem);
+    int old;
+    if (rng->lock == NULL)
+        return;
+    old = rng->lock->cancel;
+    (void)sem_post(&rng->lock->sem);
+    (void)pthread_setcancelstate(old, NULL);
 }
 #elif defined(WC_RNG_HAVE_LOCK)
 /* Without fork handlers the lock lives in the WC_RNG itself: no heap. */
