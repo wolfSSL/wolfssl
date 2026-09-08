@@ -3947,17 +3947,17 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
         SetError(SERVER_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
         return WOLFSSL_FATAL_ERROR;
     }
+    if (b > ID_LEN) {
+        SetError(SERVER_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
+        return WOLFSSL_FATAL_ERROR;
+    }
     if (b) {
-        if (ID_LEN > *sslBytes) {
-            SetError(SERVER_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
-            return WOLFSSL_FATAL_ERROR;
-        }
     #ifdef WOLFSSL_TLS13
-        XMEMCPY(session->sslServer->session->sessionID, input, ID_LEN);
-        session->sslServer->session->sessionIDSz = ID_LEN;
+        XMEMCPY(session->sslServer->session->sessionID, input, b);
+        session->sslServer->session->sessionIDSz = b;
     #endif
-        XMEMCPY(session->sslServer->arrays->sessionID, input, ID_LEN);
-        session->sslServer->arrays->sessionIDSz = ID_LEN;
+        XMEMCPY(session->sslServer->arrays->sessionID, input, b);
+        session->sslServer->arrays->sessionIDSz = b;
         session->sslServer->options.haveSessionId = 1;
     }
     input     += b;
@@ -4194,6 +4194,8 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
 #endif
 
     if (session->sslServer->options.haveSessionId) {
+        /* The session cache only matches a full length id, so a shorter
+         * one is not treated as a resumption. */
         if (session->sslServer->arrays->sessionIDSz == ID_LEN &&
                 session->sslClient->arrays->sessionIDSz == ID_LEN &&
                 XMEMCMP(session->sslServer->arrays->sessionID,
@@ -4370,19 +4372,24 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
     /* store session in case trying to resume */
     bLen = *input++;
     *sslBytes -= ENUM_LEN;
+    if (bLen > ID_LEN) {
+        SetError(CLIENT_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
+        return WOLFSSL_FATAL_ERROR;
+    }
+    /* make sure can read through session id */
+    if (bLen > *sslBytes) {
+        SetError(CLIENT_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
+        return WOLFSSL_FATAL_ERROR;
+    }
     if (bLen) {
-        if (ID_LEN > *sslBytes) {
-            SetError(CLIENT_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
-            return WOLFSSL_FATAL_ERROR;
-        }
         Trace(CLIENT_RESUME_TRY_STR);
 #ifdef WOLFSSL_TLS13
-        XMEMCPY(session->sslClient->session->sessionID, input, ID_LEN);
-        session->sslClient->session->sessionIDSz = ID_LEN;
+        XMEMCPY(session->sslClient->session->sessionID, input, bLen);
+        session->sslClient->session->sessionIDSz = bLen;
 #endif
         if (session->sslClient->arrays) {
-            XMEMCPY(session->sslClient->arrays->sessionID, input, ID_LEN);
-            session->sslClient->arrays->sessionIDSz = ID_LEN;
+            XMEMCPY(session->sslClient->arrays->sessionID, input, bLen);
+            session->sslClient->arrays->sessionIDSz = bLen;
         }
         session->sslClient->options.haveSessionId = 1;
     }
