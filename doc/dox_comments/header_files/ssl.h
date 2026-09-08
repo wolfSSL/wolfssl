@@ -14761,7 +14761,7 @@ int  wolfSSL_connect(WOLFSSL* ssl);
     WOLFSSL* ssl;
     char secret[32];
     ...
-    ret = wolfSSL__send_hrr_cookie(ssl, secret, sizeof(secret));
+    ret = wolfSSL_send_hrr_cookie(ssl, secret, sizeof(secret));
     if (ret != WOLFSSL_SUCCESS) {
         // failed to set use of Cookie and secret
     }
@@ -14833,6 +14833,9 @@ int  wolfSSL_set_hrr_cookie_secret_secondary(WOLFSSL* ssl,
     This delegates to wolfSSL_disable_cookie(): on a DTLS object it also
     disables the DTLS 1.2 HelloVerifyRequest exchange, and it fails with
     BAD_STATE_E once the handshake has committed to stateful processing.
+    Without the cookie exchange a DTLS v1.3 server has nothing to verify before
+    it commits, so it processes the first ClientHello statefully and, when
+    built with WOLFSSL_DTLS_CH_FRAG, reassembles a fragmented one.
 
     \param [in,out] ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
 
@@ -14844,8 +14847,75 @@ int  wolfSSL_set_hrr_cookie_secret_secondary(WOLFSSL* ssl,
 
     \sa wolfSSL_disable_cookie
     \sa wolfSSL_send_hrr_cookie
+    \sa wolfSSL_dtls13_allow_ch_frag
 */
 int wolfSSL_disable_hrr_cookie(WOLFSSL* ssl);
+
+/*!
+    \ingroup Setup
+
+    \brief This function is called on a DTLS v1.3 server to let it reassemble
+    a fragmented ClientHello once the cookie in it has been verified, that is
+    the second ClientHello a client sends after a HelloRetryRequest. A
+    post-quantum key share does not fit one datagram, so this is enabled by
+    default when ML-KEM is compiled in and the function is kept for
+    compatibility. With the cookie exchange disabled (see
+    wolfSSL_disable_hrr_cookie()) the server is stateful from the first
+    datagram and any ClientHello is reassembled. Requires
+    WOLFSSL_DTLS_CH_FRAG (--enable-dtls-frag-ch, forced on with ML-KEM).
+
+    \param [in,out] ssl a pointer to a WOLFSSL structure, created using
+    wolfSSL_new().
+    \param [in] enabled 1 to allow reassembly, 0 to drop fragments.
+
+    \return WOLFSSL_SUCCESS if successful
+    \return BAD_FUNC_ARG if ssl is NULL
+    \return WOLFSSL_FAILURE if invoked on a client
+
+    _Example_
+    \code
+    WOLFSSL* ssl;
+    ...
+    wolfSSL_dtls13_allow_ch_frag(ssl, 1);
+    \endcode
+
+    \sa wolfSSL_send_hrr_cookie
+    \sa wolfSSL_disable_hrr_cookie
+*/
+int wolfSSL_dtls13_allow_ch_frag(WOLFSSL* ssl, int enabled);
+
+/*!
+    \ingroup Setup
+
+    \brief This function is called on a DTLS v1.3 server to skip the cookie
+    exchange when a client resumes with a valid session ticket or PSK. The
+    resumption then costs one round trip less and the server can process
+    early data (0-RTT), which is otherwise dropped because the server does not
+    keep state until it has verified a cookie. The price is that a forged
+    ClientHello carrying a captured ticket or PSK identity consumes server
+    resources without a return-routability check. Requires
+    WOLFSSL_DTLS13_NO_HRR_ON_RESUME.
+
+    \param [in,out] ssl a pointer to a WOLFSSL structure, created using
+    wolfSSL_new().
+    \param [in] enabled 1 to skip the cookie exchange on resumption, 0 to
+    always do it.
+
+    \return WOLFSSL_SUCCESS if successful
+    \return BAD_FUNC_ARG if ssl is NULL
+    \return WOLFSSL_FAILURE if invoked on a client
+
+    _Example_
+    \code
+    WOLFSSL* ssl;
+    ...
+    wolfSSL_dtls13_no_hrr_on_resume(ssl, 1);
+    \endcode
+
+    \sa wolfSSL_send_hrr_cookie
+    \sa wolfSSL_disable_hrr_cookie
+*/
+int wolfSSL_dtls13_no_hrr_on_resume(WOLFSSL* ssl, int enabled);
 
 /*!
     \ingroup Setup

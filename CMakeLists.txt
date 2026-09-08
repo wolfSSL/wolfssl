@@ -1022,9 +1022,9 @@ if(WOLFSSL_DTLS_CID)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_DTLS_CID")
 endif()
 
-# DTLS 1.3 Fragment ClientHello
+# DTLS 1.3 ClientHello fragmentation handling
 add_option("WOLFSSL_DTLS_CH_FRAG"
-    "Enable wolfSSL DTLS 1.3 Fragment ClientHello (default: disabled)"
+    "Compile DTLS 1.3 ClientHello fragmentation handling: server-side reassembly and the client key-share policy. Forced on with ML-KEM. (default: disabled)"
     "no" "yes;no")
 
 if(WOLFSSL_DTLS_CH_FRAG)

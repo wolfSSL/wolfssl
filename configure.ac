@@ -7213,9 +7213,9 @@ then
   AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTLS_CID"
 fi
 
-# DTLS 1.3 Fragment Second ClientHello
+# DTLS 1.3 ClientHello fragmentation handling
 AC_ARG_ENABLE([dtls-frag-ch],
-    [AS_HELP_STRING([--enable-dtls-frag-ch],[Enable wolfSSL DTLS 1.3 ClientHello fragmenting (default: disabled)])],
+    [AS_HELP_STRING([--enable-dtls-frag-ch],[Compile DTLS 1.3 ClientHello fragmentation handling: server-side reassembly and the client key-share policy. Forced on with ML-KEM. (default: disabled)])],
     [ ENABLED_DTLS_CH_FRAG=$enableval ],
     [ ENABLED_DTLS_CH_FRAG=no ]
     )
@@ -14996,6 +14996,7 @@ echo "   * Mosquitto                   $ENABLED_MOSQUITTO"
 echo "   * ERROR_STRINGS:              $ENABLED_ERROR_STRINGS"
 echo "   * DTLS:                       $ENABLED_DTLS"
 echo "   * DTLS v1.3:                  $ENABLED_DTLS13"
+echo "   * DTLS v1.3 ClientHello frag: $ENABLED_DTLS_CH_FRAG"
 echo "   * SCTP:                       $ENABLED_SCTP"
 echo "   * SRTP:                       $ENABLED_SRTP"
 echo "   * Indefinite Length:          $ENABLED_BER_INDEF"
