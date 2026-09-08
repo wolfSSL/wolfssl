@@ -28121,7 +28121,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
         if (ret != 0)
             goto out_free;
     }
+#endif /* WC_TEST_RNG_FORK */
 
+#ifdef WC_RNG_LOCK_ATFORK
     /* A lock marked broken fails closed. */
     {
         byte seed[16];
@@ -28141,7 +28143,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
         }
         ret = 0;
     }
-#endif
+#endif /* WC_RNG_LOCK_ATFORK */
 
     for (i = 0; i < WC_RNG_THREAD_TEST_THREADS; i++) {
         args[i].rng = rng;

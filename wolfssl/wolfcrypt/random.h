@@ -34,6 +34,16 @@
     #include <wolfssl/wolfcrypt/fips.h>
 #endif /* HAVE_FIPS_VERSION >= 2 */
 
+/* make sure Hash DRBG is enabled, unless WC_NO_HASHDRBG is defined
+    or CUSTOM_RAND_GENERATE_BLOCK is defined */
+#if !defined(WC_NO_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
+    #undef  HAVE_HASHDRBG
+    #define HAVE_HASHDRBG
+    #ifndef WC_RESEED_INTERVAL
+        #define WC_RESEED_INTERVAL (1000000)
+    #endif
+#endif
+
 /* One lock per WC_RNG so threads can share it.  WC_RNG_NO_LOCK opts out;
  * kernel modules have their own lock-free design.  Bank builds keep it: they
  * still hand out plain instances. */
@@ -93,16 +103,6 @@
 #if !defined(CUSTOM_RAND_TYPE)
     /* To maintain compatibility the default is byte */
     #define CUSTOM_RAND_TYPE    byte
-#endif
-
-/* make sure Hash DRBG is enabled, unless WC_NO_HASHDRBG is defined
-    or CUSTOM_RAND_GENERATE_BLOCK is defined */
-#if !defined(WC_NO_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
-    #undef  HAVE_HASHDRBG
-    #define HAVE_HASHDRBG
-    #ifndef WC_RESEED_INTERVAL
-        #define WC_RESEED_INTERVAL (1000000)
-    #endif
 #endif
 
 #ifdef WC_RNG_LOCK_ATFORK

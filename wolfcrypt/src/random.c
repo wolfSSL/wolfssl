@@ -498,8 +498,7 @@ static int UnlockDrbgState(void)
 static WC_RNG_LOCK* rngList = NULL;   /* every live lock, under rngListSem */
 static sem_t rngListSem;
 static int rngAtForkSet = 0;    /* handlers registered, never unregistered */
-static int rngForkLocked = 0;   /* set in prepare; forks run one at a time */
-static int rngListDead = 0;    /* a child that lost the registry fails closed */
+static int rngListDead = 0;    /* registry unusable: every handler backs off */
 
 /* sem_wait() is a cancellation point; a cancel here would strand the lock. */
 static int RngSemWait(sem_t* s)
@@ -521,9 +520,12 @@ static int RngSemWait(sem_t* s)
 static void RngAtForkPrepare(void)
 {
     WC_RNG_LOCK* n;
-    rngForkLocked = (RngSemWait(&rngListSem) == 0);
-    if (!rngForkLocked)
-        return;   /* the list cannot be walked safely */
+    if (rngListDead)
+        return;
+    if (RngSemWait(&rngListSem) != 0) {
+        rngListDead = 1;   /* nothing held, and never again */
+        return;
+    }
     for (n = rngList; n != NULL; n = n->next) {
         if (!n->broken && RngSemWait(&n->sem) != 0)
             n->broken = 1;
@@ -534,7 +536,7 @@ static void RngAtForkPrepare(void)
 static void RngAtForkParent(void)
 {
     WC_RNG_LOCK* n;
-    if (!rngForkLocked)
+    if (rngListDead)
         return;
     for (n = rngList; n != NULL; n = n->next) {
         if (!n->broken)
@@ -549,7 +551,7 @@ static void RngAtForkChild(void)
 {
     WC_RNG_LOCK* n;
     for (n = rngList; n != NULL; n = n->next) {   /* forward links stay whole */
-        if (!rngForkLocked) {
+        if (rngListDead) {
             n->broken = 1;
             continue;
         }
@@ -565,10 +567,8 @@ static void RngAtForkChild(void)
         if (!n->broken)
             (void)sem_post(&n->sem);
     }
-    if (rngForkLocked)
+    if (!rngListDead)
         (void)sem_post(&rngListSem);
-    else
-        rngListDead = 1;
 }
 
 /* Registers the handlers once; the pin runs outside drbgStateMutex. */
