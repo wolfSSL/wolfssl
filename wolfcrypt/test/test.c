@@ -62785,7 +62785,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t falcon_test(void)
 
 #if defined(WOLFSSL_HAVE_MLDSA)
 
-#ifndef WC_MLDSA_HAVE_NATIVE
 /* Any compiled-in level proves the dispatch behaviour; which one is
  * irrelevant, so pick the first that is actually built. */
 #ifndef WOLFSSL_NO_ML_DSA_44
@@ -62795,7 +62794,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t falcon_test(void)
 #elif !defined(WOLFSSL_NO_ML_DSA_87)
     #define MLDSA_CB_ONLY_LEVEL  WC_ML_DSA_87
 #endif
-#endif /* !WC_MLDSA_HAVE_NATIVE */
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mldsa_test(void)
 {
@@ -81675,9 +81673,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t blob_test(void)
 /* Example custom context for crypto callback */
 typedef struct {
     int exampleVar; /* flag for testing if only crypt is enabled. */
-#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WC_MLDSA_HAVE_NATIVE)
-    int mldsaCount; /* ML-DSA callback invocations */
-    int mldsaFail;  /* when set, the ML-DSA handler returns this error */
+#if defined(WOLFSSL_HAVE_MLDSA)
+    int mldsaCount;    /* ML-DSA callback invocations */
+    int mldsaFail;     /* when set, the ML-DSA handler returns this error */
+    int mldsaCbActive; /* when clear, the handler declines so a native build
+                        * still runs the real ML-DSA test */
 #endif
 #ifdef HAVE_ECC
     int eccMakePubCount;  /* EC make-pub callback invocations */
@@ -82783,7 +82783,7 @@ static int myCryptoCbExportPointX963(const ecc_set_type* dp, ecc_point* pub,
 #endif /* HAVE_ECC && !WOLFSSL_NO_MALLOC && HAVE_ECC_KEY_EXPORT */
 
 /* Example crypto dev callback function that calls software version */
-#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WC_MLDSA_HAVE_NATIVE)
+#if defined(WOLFSSL_HAVE_MLDSA)
 #define MLDSA_CB_SIG_LEN 32
 
 /* Seed the device is asked to generate from, shared with the test below so
@@ -83872,22 +83872,26 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             myCtx->exampleVar++;
         }
     #endif /* HAVE_FALCON && !WOLF_CRYPTO_CB_ONLY_FALCON */
-    #if defined(WOLFSSL_HAVE_MLDSA) && !defined(WC_MLDSA_HAVE_NATIVE)
-        /* The software core is stripped, so this device cannot delegate to the
-         * public API the way the other handlers do; it would dispatch straight
-         * back here. It answers with its own deterministic signature instead,
-         * which is enough to prove the dispatch reaches a device for all four
-         * ML-DSA operations, that the signature and the verify result travel
-         * back to the caller, and that a device error is reported as-is. The
-         * signature covers the message and the context, so a call site that
-         * drops either is caught by the verify step. */
-        if ((info->pk.type == WC_PK_TYPE_PQC_SIG_KEYGEN) &&
+    #if defined(WOLFSSL_HAVE_MLDSA)
+        /* This device cannot delegate to the public API the way the other
+         * handlers do; it would dispatch straight back here, and under
+         * CB_ONLY there is no software core to reach. It answers with its
+         * own deterministic signature instead, which proves the dispatch
+         * reaches a device for all four ML-DSA operations, that the signature
+         * and the verify result travel back, and that a device error is
+         * reported as-is. The signature covers the message and the context,
+         * so a call site that drops either is caught by the verify step. */
+        if (!myCtx->mldsaCbActive) {
+            /* Leave ret as CRYPTOCB_UNAVAILABLE so the caller uses software. */
+        }
+        else if (((info->pk.type == WC_PK_TYPE_PQC_SIG_KEYGEN) ||
+             (info->pk.type == WC_PK_TYPE_PQC_SIG_KEYGEN_SEED)) &&
                 (info->pk.pqc_sig_kg.type == WC_PQC_SIG_TYPE_MLDSA)) {
             myCtx->mldsaCount++;
             if (myCtx->mldsaFail != 0) {
                 ret = myCtx->mldsaFail;
             }
-            else if (info->pk.pqc_sig_kg.seed != NULL) {
+            else if (info->pk.type == WC_PK_TYPE_PQC_SIG_KEYGEN_SEED) {
                 /* Seeded generation: the seed must arrive whole. A real
                  * device would expand it; this one only checks it. */
                 ret = ((info->pk.pqc_sig_kg.seedSz ==
@@ -83901,7 +83905,10 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                  * whether this object holds the bytes, and it holds neither,
                  * so both stay clear. Signing and verifying dispatch before
                  * those flags are looked at. */
-                ret = 0;
+                /* A plain keygen carrying a seed means a seeded call reached
+                 * the device as a request for an unrelated random key. */
+                ret = (info->pk.pqc_sig_kg.seed == NULL) ? 0 :
+                      WC_NO_ERR_TRACE(BAD_STATE_E);
             }
         }
         else if ((info->pk.type == WC_PK_TYPE_PQC_SIG_SIGN) &&
@@ -83943,6 +83950,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                 ret = 0;
             }
         }
+    #ifdef WOLFSSL_MLDSA_CHECK_KEY
         else if ((info->pk.type == WC_PK_TYPE_PQC_SIG_CHECK_PRIV_KEY) &&
                 (info->pk.pqc_sig_check.type == WC_PQC_SIG_TYPE_MLDSA)) {
             wc_MlDsaKey* ck = (wc_MlDsaKey*)info->pk.pqc_sig_check.key;
@@ -83972,7 +83980,8 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                       0 : WC_NO_ERR_TRACE(BAD_STATE_E);
             }
         }
-    #endif /* WOLFSSL_HAVE_MLDSA && !WC_MLDSA_HAVE_NATIVE */
+    #endif /* WOLFSSL_MLDSA_CHECK_KEY */
+    #endif /* WOLFSSL_HAVE_MLDSA */
     #ifdef WOLFSSL_HAVE_MLKEM
         if (info->pk.type == WC_PK_TYPE_PQC_KEM_KEYGEN) {
             if ((info->pk.pqc_kem_kg.type == WC_PQC_KEM_TYPE_MLKEM) &&
@@ -86003,9 +86012,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 
     /* example data for callback */
     myCtx.exampleVar = 1;
-#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WC_MLDSA_HAVE_NATIVE)
+#if defined(WOLFSSL_HAVE_MLDSA)
     myCtx.mldsaCount = 0;
     myCtx.mldsaFail = 0;
+    myCtx.mldsaCbActive = 0;
 #endif
 #ifdef HAVE_ECC
     myCtx.eccMakePubCount = 0;
@@ -86312,15 +86322,15 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 #ifdef WOLFSSL_HAVE_MLDSA
     if (ret == 0)
         ret = mldsa_test();
-#if !defined(WC_MLDSA_HAVE_NATIVE) && !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+#if !defined(WOLFSSL_MLDSA_NO_SIGN) && \
     !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
     !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
     !defined(WC_NO_RNG) && defined(MLDSA_CB_ONLY_LEVEL)
-    /* With the software core stripped, an ML-DSA operation can only succeed
-     * through a registered device. Drive key generation, signing, verifying
-     * and the private-key check that way and confirm the results came back,
-     * so a dispatch regression cannot hide behind the NO_VALID_DEVID checks
-     * in mldsa_test(). */
+    /* Drive key generation, seeded generation, signing, verifying and the
+     * private-key check through a registered device and confirm the results
+     * came back. Runs in native builds too, so the seeded dispatch is covered
+     * where a software path exists to hide a regression. */
+    myCtx.mldsaCbActive = 1;
     if (ret == 0) {
         WC_DECLARE_VAR(key, wc_MlDsaKey, 1, HEAP_HINT);
         WC_DECLARE_VAR(mldsaRng, WC_RNG, 1, HEAP_HINT);
@@ -86462,7 +86472,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
         WC_FREE_VAR(mldsaRng, HEAP_HINT);
         WC_FREE_VAR(key, HEAP_HINT);
     }
-#endif /* !WC_MLDSA_HAVE_NATIVE && sign && verify && !WC_NO_RNG */
+    myCtx.mldsaCbActive = 0;
+#endif /* sign && verify && make key && !WC_NO_RNG */
 #endif
 #ifdef WOLFSSL_HAVE_SLHDSA
     if (ret == 0) {
