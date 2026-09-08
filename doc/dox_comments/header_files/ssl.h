@@ -14857,10 +14857,10 @@ int wolfSSL_disable_hrr_cookie(WOLFSSL* ssl);
     \brief This function is called on a DTLS v1.3 server to let it reassemble
     a fragmented ClientHello once the cookie in it has been verified, that is
     the second ClientHello a client sends after a HelloRetryRequest. A
-    post-quantum key share does not fit one datagram, so this is enabled by
-    default when ML-KEM is compiled in and the function is kept for
-    compatibility. For reassembling a ClientHello before its cookie is
-    verified see wolfSSL_dtls13_reassemble_ch_before_cookie(). With the cookie
+    post-quantum key share does not fit one datagram, so this is on by
+    default and the function is kept for compatibility. For reassembling a
+    ClientHello before its cookie is verified see
+    wolfSSL_dtls13_reassemble_ch_before_cookie(). With the cookie
     exchange disabled (see wolfSSL_disable_hrr_cookie()) the server is
     stateful from the first datagram and any ClientHello is reassembled.
     Requires WOLFSSL_DTLS_CH_FRAG (--enable-dtls-frag-ch, forced on with
@@ -14892,7 +14892,8 @@ int wolfSSL_dtls13_allow_ch_frag(WOLFSSL* ssl, int enabled);
 
     \brief This function is called on a DTLS v1.3 server to let it reassemble
     a fragmented ClientHello from a peer whose cookie is not verified yet, and
-    run the cookie check on the complete message. It is on by default. A
+    run the cookie check on the complete message. It is on by default, in
+    every build with WOLFSSL_DTLS_CH_FRAG. A
     ClientHello that carries a post-quantum key share does not fit one
     datagram, and RFC 9147 Section 5.5 requires a receiver to buffer or
     process a handshake fragment, so with this off the server silently drops

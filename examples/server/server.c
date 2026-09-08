@@ -1046,9 +1046,10 @@ static const char* server_usage_msg[][71] = {
         "-Q          Request certificate from client post-handshake\n", /* 49 */
 #endif
 #ifdef WOLFSSL_SEND_HRR_COOKIE
-        "-J [n]      Server sends Cookie Extension containing state\n"
-        "            ('n' disables all server cookies, including the\n"
-        "            DTLS 1.2 HelloVerifyRequest exchange)\n",          /* 50 */
+        "-J [n]      Server sends Cookie Extension containing state (on by\n"
+        "            default for DTLS 1.3; 'n' disables all server cookies,\n"
+        "            including the DTLS 1.2 HelloVerifyRequest exchange)\n",
+                                                                    /* 50 */
 #endif
 #endif /* WOLFSSL_TLS13 */
 #ifdef WOLFSSL_EARLY_DATA
@@ -1495,6 +1496,11 @@ static void Usage(void)
 #ifdef WOLFSSL_DTLS
     printf("-4 <seq>    DTLS fake would-block for message seq\n");
 #endif
+#ifdef WOLFSSL_DTLS_CH_FRAG
+    printf("--reassemble-before-cookie [n] DTLS 1.3: reassemble a fragmented\n"
+           "            ClientHello before its cookie is verified (default on,\n"
+           "            n to disable)\n");
+#endif
 #ifdef WOLFSSL_MULTICAST
     printf("%s", msg[++msgId]);     /* -3 */
 #endif
@@ -1675,6 +1681,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     !defined(NO_PSK)
         { "psk-with-certs", 0, 271 },
 #endif
+#ifdef WOLFSSL_DTLS_CH_FRAG
+        { "reassemble-before-cookie", 2, 272 }, /* optional argument */
+#endif
         { 0, 0, 0 }
     };
 #endif
@@ -1794,6 +1803,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif /* HAVE_SECURE_RENEGOTIATION */
 #ifdef WOLFSSL_SEND_HRR_COOKIE
     int hrrCookie = 0;
+#ifdef WOLFSSL_DTLS_CH_FRAG
+    int reassembleBeforeCookie = -1; /* -1 keeps the library default */
+#endif
 #endif
     byte mcastID = 0;
 #if !defined(NO_DH) && !defined(HAVE_FIPS) && \
@@ -2574,7 +2586,14 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 }
             }
             break;
-#endif /* WOLFSSL_CID */
+#endif /* WOLFSSL_DTLS_CID */
+#ifdef WOLFSSL_DTLS_CH_FRAG
+        case 272:
+            reassembleBeforeCookie = 1;
+            if (myoptarg != NULL && XSTRCMP(myoptarg, "n") == 0)
+                reassembleBeforeCookie = 0;
+            break;
+#endif /* WOLFSSL_DTLS_CH_FRAG */
         case 264:
 #ifdef HAVE_SUPPORTED_CURVES
         #ifdef WOLFSSL_TLS13
@@ -3746,8 +3765,14 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif /* WOLFSSL_DTLS_CID */
 
 #ifdef WOLFSSL_DTLS_CH_FRAG
-    if (doDTLS)
+    if (doDTLS) {
         wolfSSL_dtls13_allow_ch_frag(ssl, 1);
+        if (reassembleBeforeCookie != -1 &&
+                wolfSSL_dtls13_reassemble_ch_before_cookie(ssl,
+                    reassembleBeforeCookie) != WOLFSSL_SUCCESS) {
+            err_sys("unable to set ClientHello reassembly before the cookie");
+        }
+    }
 #endif
 
 #ifndef WOLFSSL_CALLBACKS

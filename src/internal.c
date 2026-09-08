@@ -8885,18 +8885,19 @@ static int InitSSL_DtlsServer(WOLFSSL* ssl)
                 return ret;
             }
         }
-    #if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CH_FRAG) && \
-        defined(WOLFSSL_HAVE_MLKEM)
+    #if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CH_FRAG)
         if (IsAtLeastTLSv1_3(ssl->version)) {
-            /* Allow large PQC ClientHellos to fragment independently of the
-             * cookie policy, including the first CH when cookies are off. */
+            /* Reassemble a fragmented ClientHello independently of the cookie
+             * policy, including the first CH when cookies are off: a
+             * post-quantum key share does not fit one datagram, and any client
+             * behind a small MTU fragments too. */
             ret = wolfSSL_dtls13_allow_ch_frag(ssl, 1);
             if (ret != WOLFSSL_SUCCESS) {
                 WOLFSSL_MSG("DTLS1.3 CH frag error");
                 return ret;
             }
         }
-    #endif /* WOLFSSL_DTLS13 && WOLFSSL_DTLS_CH_FRAG && WOLFSSL_HAVE_MLKEM */
+    #endif /* WOLFSSL_DTLS13 && WOLFSSL_DTLS_CH_FRAG */
     }
 
     return 0;

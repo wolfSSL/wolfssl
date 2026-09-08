@@ -44,9 +44,8 @@
  *     things:
  *     - Server: reassemble a fragmented ClientHello whose cookie has been
  *       verified, that is the second ClientHello after a HelloRetryRequest.
- *       Turned on with wolfSSL_dtls13_allow_ch_frag(); on by default when
- *       ML-KEM is compiled in, since a post-quantum key share does not fit
- *       one datagram.
+ *       On by default; wolfSSL_dtls13_allow_ch_frag() is kept for
+ *       compatibility.
  *     - Server: reassemble a fragmented ClientHello before its cookie is
  *       verified, then run the cookie check on the complete message. What is
  *       held for a peer whose return routability is not yet proven is bounded
