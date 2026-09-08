@@ -58371,26 +58371,27 @@ out:
             if (r != WC_NO_ERR_TRACE(PUBLIC_KEY_E))
                 ret = WC_TEST_RET_ENC_NC;
         }
-        /* An all-zero encoding decodes cleanly: every coefficient reads as
-         * zero, which is in reduced range. */
+        /* Decode a key with non-zero coefficients: 0x55 bytes make every
+         * 12 bit coefficient 0x555, which is below q, so the packing is
+         * exercised rather than a buffer that is zero either way. The seed
+         * that follows the vector gets its own value. */
         if (ret == 0) {
-            XMEMSET(buf, 0, bufLen);
+            XMEMSET(buf, 0x55, pubLen - WC_ML_KEM_SYM_SZ);
+            XMEMSET(buf + pubLen - WC_ML_KEM_SYM_SZ, 0xa5, WC_ML_KEM_SYM_SZ);
             r = wc_MlKemKey_DecodePublicKey(key, buf, pubLen);
             if (r != 0)
                 ret = WC_TEST_RET_ENC_EC(r);
         }
         if (ret == 0) {
-            word32 z;
-
-            /* The public encoding carries no derived field, so re-encoding
-             * must reproduce the zeros that went in. */
-            r = wc_MlKemKey_EncodePublicKey(key, buf, pubLen);
+            /* Re-encode into a second buffer so the comparison cannot be
+             * satisfied by the input being left in place. The public
+             * encoding carries no derived field, so it must come back byte
+             * for byte. */
+            r = wc_MlKemKey_EncodePublicKey(key, buf2, pubLen);
             if (r != 0)
                 ret = WC_TEST_RET_ENC_EC(r);
-            for (z = 0; (ret == 0) && (z < pubLen); z++) {
-                if (buf[z] != 0)
-                    ret = WC_TEST_RET_ENC_NC;
-            }
+            else if (XMEMCMP(buf, buf2, pubLen) != 0)
+                ret = WC_TEST_RET_ENC_NC;
         }
 #ifndef WOLFSSL_MLKEM_NO_ENCAPSULATE
         if (ret == 0) {
