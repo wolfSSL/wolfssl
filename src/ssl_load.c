@@ -2677,9 +2677,10 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff, long sz,
     if ((ret == 0) && (sz < 0)) {
         ret = BAD_FUNC_ARG;
     }
-    /* Sessions made from this context hold these by pointer. */
+    /* Sessions made from this context hold these and the chain by pointer. */
     if ((ret == 0) && (ssl == NULL) && ((type == CERT_TYPE) ||
-            (type == PRIVATEKEY_TYPE) || (type == ALT_PRIVATEKEY_TYPE))) {
+            (type == PRIVATEKEY_TYPE) || (type == ALT_PRIVATEKEY_TYPE) ||
+            userChain)) {
         ret = CheckCtxCertLoad(ctx);
     }
 
@@ -4595,6 +4596,9 @@ int wolfSSL_CTX_use_AltPrivateKey_Id(WOLFSSL_CTX* ctx, const unsigned char* id,
     if ((ctx == NULL) || (id == NULL) || (sz < 0)) {
         ret = 0;
     }
+    if ((ret == 1) && (CheckCtxCertLoad(ctx) != 0)) {
+        ret = 0;
+    }
 
     if (ret == 1) {
         FreeDer(&ctx->altPrivateKey);
@@ -4643,6 +4647,9 @@ int wolfSSL_CTX_use_AltPrivateKey_Label(WOLFSSL_CTX* ctx, const char* label,
     WOLFSSL_ENTER("wolfSSL_CTX_use_AltPrivateKey_Label");
 
     if ((ctx == NULL) || (label == NULL)) {
+        ret = 0;
+    }
+    if ((ret == 1) && (CheckCtxCertLoad(ctx) != 0)) {
         ret = 0;
     }
 

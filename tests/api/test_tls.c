@@ -30,6 +30,7 @@
 
 #include <tests/utils.h>
 #include <tests/api/test_tls.h>
+#include <tests/api/api.h>
 #include <wolfssl/internal.h>
 #include <wolfssl/ssl.h>
 
@@ -2446,6 +2447,13 @@ enum {
     CB_CERT_CTX_KEYID,      /* points the key at an id held elsewhere */
     CB_CERT_CTX_KEYLABEL,   /* points the key at a label held elsewhere */
 #endif
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WOLFSSL_DUAL_ALG_CERTS)
+    CB_CERT_CTX_ALTID,      /* points the alternative key at an id */
+    CB_CERT_CTX_ALTLABEL,   /* points the alternative key at a label */
+#endif
+#ifdef USE_CERT_BUFFERS_2048
+    CB_CERT_CTX_CACHAIN,    /* loads a CA chain that the context also sends */
+#endif
     CB_CERT_MODE_CNT
 };
 
@@ -2455,9 +2463,12 @@ typedef struct CbCertCase {
     WOLFSSL_CTX* ctx;   /* context the handshake is running against */
     int mode;           /* one of the CB_CERT_* values */
     int called;         /* how many times the callback ran */
+    int setupFailed;    /* the callback could not get what it needed */
     int loadRet;        /* what the load call returned */
     const void* ctxCertBefore;
     const void* ctxCertAfter;
+    const void* ctxChainBefore;
+    const void* ctxChainAfter;
 } CbCertCase;
 
 /* Whether the case has the callback reach for the context. */
@@ -2475,6 +2486,7 @@ static void cb_cert_action(WOLFSSL* ssl, CbCertCase* test)
 {
     test->called++;
     test->ctxCertBefore = (const void*)test->ctx->certificate;
+    test->ctxChainBefore = (const void*)test->ctx->certChain;
 
     switch (test->mode) {
         case CB_CERT_ON_SSL:
@@ -2502,6 +2514,26 @@ static void cb_cert_action(WOLFSSL* ssl, CbCertCase* test)
                 "a-label", INVALID_DEVID);
             break;
     #endif
+    #if defined(WOLF_PRIVATE_KEY_ID) && defined(WOLFSSL_DUAL_ALG_CERTS)
+        case CB_CERT_CTX_ALTID: {
+            static const byte altKeyId[] = { 0x05, 0x06, 0x07, 0x08 };
+
+            test->loadRet = wolfSSL_CTX_use_AltPrivateKey_Id(test->ctx,
+                altKeyId, (long)sizeof(altKeyId), INVALID_DEVID);
+            break;
+        }
+        case CB_CERT_CTX_ALTLABEL:
+            test->loadRet = wolfSSL_CTX_use_AltPrivateKey_Label(test->ctx,
+                "an-alt-label", INVALID_DEVID);
+            break;
+    #endif
+    #ifdef USE_CERT_BUFFERS_2048
+        case CB_CERT_CTX_CACHAIN:
+            test->loadRet = wolfSSL_CTX_load_verify_chain_buffer_format(
+                test->ctx, ca_cert_der_2048, sizeof_ca_cert_der_2048,
+                WOLFSSL_FILETYPE_ASN1);
+            break;
+    #endif
     #ifdef OPENSSL_EXTRA
         case CB_CERT_CTX_X509: {
             WOLFSSL_X509* x509 = wolfSSL_X509_load_certificate_file(svrCertFile,
@@ -2510,6 +2542,9 @@ static void cb_cert_action(WOLFSSL* ssl, CbCertCase* test)
             if (x509 != NULL) {
                 test->loadRet = wolfSSL_CTX_use_certificate(test->ctx, x509);
                 wolfSSL_X509_free(x509);
+            }
+            else {
+                test->setupFailed = 1;
             }
             break;
         }
@@ -2521,6 +2556,9 @@ static void cb_cert_action(WOLFSSL* ssl, CbCertCase* test)
                 test->loadRet = wolfSSL_CTX_add1_chain_cert(test->ctx, x509);
                 wolfSSL_X509_free(x509);
             }
+            else {
+                test->setupFailed = 1;
+            }
             break;
         }
     #endif
@@ -2530,6 +2568,7 @@ static void cb_cert_action(WOLFSSL* ssl, CbCertCase* test)
     }
 
     test->ctxCertAfter = (const void*)test->ctx->certificate;
+    test->ctxChainAfter = (const void*)test->ctx->certChain;
 }
 
 #ifdef HAVE_SNI
@@ -2605,14 +2644,16 @@ static int test_cb_cert_swap(method_provider method_c,
      * completes either way. */
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
-    /* The whole test rests on the callback having run. */
+    /* The whole test rests on the callback having run and made its call. */
     ExpectIntGT(test.called, 0);
+    ExpectIntEQ(test.setupFailed, 0);
 
     if (cb_cert_touches_ctx(mode)) {
         /* The load was turned away and the context kept what it had, so no
          * session was left pointing at a freed buffer. */
         ExpectIntNE(test.loadRet, WOLFSSL_SUCCESS);
         ExpectPtrEq(test.ctxCertAfter, test.ctxCertBefore);
+        ExpectPtrEq(test.ctxChainAfter, test.ctxChainBefore);
     }
     else {
         ExpectIntEQ(test.loadRet, WOLFSSL_SUCCESS);
@@ -2695,8 +2736,9 @@ static int sni_cb_switch_ctx(WOLFSSL* ssl, int* ad, void* arg)
 #endif
 
 /* Switching contexts from the callback must leave neither context marked as
- * being in one: the note is per thread and is put back as it was, so both
- * contexts can still be loaded once the handshake is over. */
+ * being in one: the count comes off the context the callback ran on, and the
+ * one it switched to was never counted, so both can still be loaded once the
+ * handshake is over. */
 int test_sni_cb_switch_ctx_unblocked(void)
 {
     EXPECT_DECLS;

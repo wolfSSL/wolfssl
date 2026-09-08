@@ -8527,6 +8527,11 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
             ret = WOLFSSL_FAILURE;
             break;
         }
+        /* Sessions made from this context hold the chain by pointer. */
+        if (CheckCtxCertLoad(ctx) != 0) {
+            ret = WOLFSSL_FAILURE;
+            break;
+        }
         /* Clear certificate chain */
         FreeDer(&ctx->certChain);
         if (sk) {
