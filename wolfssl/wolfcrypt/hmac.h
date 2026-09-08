@@ -69,6 +69,14 @@ enum {
     HMAC_FIPS_MIN_KEY = 14,   /* 112 bit key length minimum. Note that this
                                * minimum also applies to the salt length for
                                * HKDF. */
+#if FIPS_VERSION3_GE(7,0,0)
+    HMAC_FIPS_MAX_KEY = 128,  /* 1024 bit key length maximum for the approved
+                               * mode.  FIPS 198-1 Section 4 (step 2) reduces
+                               * a key longer than the block size to
+                               * K0 = H(K), so longer keys compute correctly,
+                               * but key lengths above 1024 bits are outside
+                               * the module's CAVP-tested HMAC key range. */
+#endif
     IPAD    = 0x36,
     OPAD    = 0x5C,
 

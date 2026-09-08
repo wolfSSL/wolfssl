@@ -695,6 +695,77 @@ static int Hash_DRBG_Reseed(DRBG_internal* drbg, const byte* seed, word32 seedSz
         *              and array_add_one (shared utility) which both must
         *              remain available to SHA-512-only builds */
 
+#if FIPS_VERSION3_GE(7,0,0)
+/* SP 800-90A Rev. 1 Section 9.2 requires the reseed function to obtain its
+ * entropy input from "a randomness source ... that supports the security
+ * strength of the DRBG" and lists entropy_input among the information "not
+ * provided by the consuming application": "it shall not be provided by the
+ * consuming application as an input parameter during the reseed request"
+ * (reseed process step 4: Get_entropy_input).  Section 9.2 does permit
+ * additional_input from the consuming application, and its length may be
+ * zero, so the caller's bytes are mixed as the additional_input argument of
+ * the Section 10.1.1.3 reseed algorithm while fresh entropy is drawn from
+ * the module's seed source exactly as the end-of-seedlife reseed in
+ * PollAndReSeed() draws it. */
+static int Rng_ReseedFromSeedSource(WC_RNG* rng, const byte* addIn,
+                                    word32 addInSz)
+{
+    int ret;
+#ifdef WOLFSSL_SMALL_STACK
+    byte* newSeed = (byte*)XMALLOC(SEED_SZ + SEED_BLOCK_SZ, rng->heap,
+        DYNAMIC_TYPE_SEED);
+    if (newSeed == NULL) {
+        return MEMORY_E;
+    }
+#else
+    byte newSeed[SEED_SZ + SEED_BLOCK_SZ];
+#endif
+
+#ifdef WC_RNG_SEED_CB
+    if (seedCb == NULL) {
+        ret = DRBG_NO_SEED_CB;
+    }
+    else {
+        ret = seedCb(&rng->seed, newSeed, SEED_SZ + SEED_BLOCK_SZ);
+        if (ret != 0) {
+            ret = DRBG_FAILURE;
+        }
+    }
+#else
+    ret = wc_GenerateSeed(&rng->seed, newSeed, SEED_SZ + SEED_BLOCK_SZ);
+    if (ret != 0) {
+        ret = DRBG_FAILURE;
+    }
+#endif
+    if (ret == DRBG_SUCCESS) {
+        ret = wc_RNG_TestSeed(newSeed, SEED_SZ + SEED_BLOCK_SZ);
+    }
+    if (ret == DRBG_SUCCESS) {
+#ifndef NO_SHA256
+        if (rng->drbgType == WC_DRBG_SHA256) {
+            ret = Hash_DRBG_Reseed((DRBG_internal *)rng->drbg,
+                                   newSeed + SEED_BLOCK_SZ, SEED_SZ,
+                                   addIn, addInSz);
+        }
+#endif
+#ifdef WOLFSSL_DRBG_SHA512
+        if (rng->drbgType == WC_DRBG_SHA512) {
+            ret = Hash512_DRBG_Reseed((DRBG_SHA512_internal *)rng->drbg512,
+                                      newSeed + SEED_BLOCK_SZ, SEED_SZ,
+                                      addIn, addInSz);
+        }
+#endif
+    }
+    /* SP 800-90A Rev. 1 Section 8.6.6: the entropy input is a critical
+     * security parameter, so it does not outlive the reseed. */
+    ForceZero(newSeed, SEED_SZ + SEED_BLOCK_SZ);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(newSeed, rng->heap, DYNAMIC_TYPE_SEED);
+#endif
+    return ret;
+}
+#endif /* FIPS_VERSION3_GE(7,0,0) */
+
 /* Returns: DRBG_SUCCESS and DRBG_FAILURE or BAD_FUNC_ARG on fail */
 int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz)
 {
@@ -713,8 +784,14 @@ int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz)
         #endif
             return BAD_FUNC_ARG;
         }
+#if FIPS_VERSION3_GE(7,0,0)
+        /* Caller bytes become additional_input; entropy comes from the
+         * module's seed source (SP 800-90A Rev. 1 Section 9.2). */
+        return Rng_ReseedFromSeedSource(rng, seed, seedSz);
+#else
         return Hash_DRBG_Reseed((DRBG_internal *)rng->drbg, seed, seedSz,
                                 NULL, 0);
+#endif
     }
 #endif
 #ifdef WOLFSSL_DRBG_SHA512
@@ -728,8 +805,14 @@ int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz)
         #endif
             return BAD_FUNC_ARG;
         }
+#if FIPS_VERSION3_GE(7,0,0)
+        /* Caller bytes become additional_input; entropy comes from the
+         * module's seed source (SP 800-90A Rev. 1 Section 9.2). */
+        return Rng_ReseedFromSeedSource(rng, seed, seedSz);
+#else
         return Hash512_DRBG_Reseed((DRBG_SHA512_internal *)rng->drbg512,
                                    seed, seedSz, NULL, 0);
+#endif
     }
 #endif
 

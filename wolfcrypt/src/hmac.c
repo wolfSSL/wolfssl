@@ -622,6 +622,19 @@ int wc_HmacSetKey_ex(Hmac* hmac, int type, const byte* key, word32 length,
             WOLFSSL_ERROR_VERBOSE(HMAC_MIN_KEYLEN_E);
             return HMAC_MIN_KEYLEN_E;
         }
+#if FIPS_VERSION3_GE(7,0,0)
+        /* FIPS 198-1 Section 4 (step 2) sets K0 = H(K) when the key is
+         * longer than the block size, so any length computes correctly, but
+         * the module's CAVP HMAC testing covers key lengths only up to
+         * 1024 bits and FIPS 140-3 IG C.B does not permit an algorithm
+         * implementation to be used in the approved mode outside its tested
+         * scope, so reject longer keys unless the caller explicitly opts out
+         * of the approved-mode limits with allowFlag. */
+        if (length > HMAC_FIPS_MAX_KEY) {
+            WOLFSSL_ERROR_VERBOSE(BAD_LENGTH_E);
+            return BAD_LENGTH_E;
+        }
+#endif
     }
 
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY)
