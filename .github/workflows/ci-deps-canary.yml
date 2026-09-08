@@ -1,0 +1,124 @@
+name: CI deps canary
+
+# The contract test between ci-deps-image.yml (which publishes the .deb
+# bundles) and the workflows that install from them.
+#
+# A bundle that cannot satisfy what a workflow asks for does not fail
+# anything: install-apt-deps just falls back to the apt mirror and the job
+# passes, slowly. That is how 25% of PR jobs came to be back on the mirror
+# without anyone noticing. So the coupling is asserted here, right after every
+# rebuild: for each bundle, install the widest package set any workflow
+# requests with require-bundle (a fallback is an error, not a warning), then
+# simulate every other set against the same bundle.
+#
+# check-ci-deps.py enforces the same contract statically on every PR; this
+# workflow catches what static checking cannot - a dependency that is missing
+# from the bundle rather than a package name that is missing from the list.
+
+on:
+  # Right after ci-deps-image publishes, whatever triggered it.
+  workflow_run:
+    workflows: [ "CI deps image" ]
+    types: [ completed ]
+  # And daily, to catch a runner-image rollout that changes what is
+  # preinstalled underneath a bundle that has not moved.
+  schedule:
+    - cron: '0 5 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: ci-deps-canary-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  load:
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install python3-yaml
+        uses: ./.github/actions/install-apt-deps
+        with:
+          budget-seconds: '120'
+          pull-timeout: '60'
+          packages: python3-yaml
+          ghcr-debs-tag: ubuntu-24.04-full
+
+      # One entry per bundle tag, each carrying the widest set requested
+      # against it. The per-tag job re-derives the rest of its sets itself.
+      - name: Derive the bundle matrix from the workflows
+        id: matrix
+        run: |
+          set -euo pipefail
+          M=$(./.github/scripts/check-ci-deps.py --matrix)
+          echo "$M" | python3 -m json.tool
+          echo "matrix=$M" >> "$GITHUB_OUTPUT"
+
+  contract:
+    needs: load
+    name: ${{ matrix.tag }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.load.outputs.matrix) }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      # Taken before anything is installed, so the simulations below all
+      # resolve against the state a real job starts from. Without it the
+      # install below would satisfy the later sets for them.
+      - name: Snapshot dpkg state
+        run: cp /var/lib/dpkg/status "$RUNNER_TEMP/dpkg-status.pristine"
+
+      # require-bundle: a fallback to the apt mirror fails this job. That is
+      # the whole point of the workflow.
+      - name: Offline install of the widest set
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: ${{ matrix.probe }}
+          ghcr-debs-tag: ${{ matrix.tag }}
+          require-bundle: 'true'
+
+      - name: Every other set this bundle must satisfy
+        run: |
+          set -uo pipefail
+          SNAP="$RUNNER_TEMP/dpkg-status.pristine"
+          # Same local-repo options install-apt-deps used, plus the pristine
+          # dpkg status. -s resolves without unpacking; the unroutable proxy
+          # means a set that needs anything outside the bundle fails here
+          # instead of quietly reaching the mirror.
+          APT_LOCAL=(-o Dir::Etc::SourceList="$WOLFSSL_APT_BUNDLE_SOURCES"
+                     -o Dir::Etc::SourceParts=/dev/null
+                     -o Dir::State::Lists="$WOLFSSL_APT_BUNDLE_LISTS"
+                     -o Dir::State::status="$SNAP"
+                     -o Acquire::Languages=none
+                     -o Acquire::Retries=0
+                     -o APT::Sandbox::User=root
+                     -o Acquire::http::Proxy=http://127.0.0.1:9
+                     -o Acquire::https::Proxy=http://127.0.0.1:9)
+          fail=0
+          while IFS= read -r pkgset; do
+            [ -n "$pkgset" ] || continue
+            # eval, because a set may contain linux-headers-$(uname -r) - the
+            # action interpolates it into a run: block, so this is the same
+            # expansion the real job gets.
+            eval "pkgs=($pkgset)"
+            if sudo DEBIAN_FRONTEND=noninteractive apt-get "${APT_LOCAL[@]}" \
+                 install -y -s "${pkgs[@]}" > sim.log 2>&1; then
+              echo "ok: $pkgset"
+            else
+              echo "::error::the ${{ matrix.tag }} bundle cannot satisfy: $pkgset"
+              tail -20 sim.log
+              fail=1
+            fi
+          done < <(./.github/scripts/check-ci-deps.py --sets "${{ matrix.tag }}")
+          exit "$fail"
