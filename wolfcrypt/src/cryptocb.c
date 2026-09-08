@@ -251,6 +251,9 @@ static const char* GetCipherTypeStr(int cipher)
 #if defined(WOLFSSL_SM4) && defined(WOLFSSL_SM4_CCM)
         case WC_CIPHER_SM4_CCM: return "SM4 CCM";
 #endif
+#ifdef WOLFSSL_SM4
+        case WC_CIPHER_SM4: return "SM4";
+#endif
     }
     return NULL;
 }
