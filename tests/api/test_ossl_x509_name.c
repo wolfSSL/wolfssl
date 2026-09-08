@@ -361,11 +361,35 @@ int test_wolfSSL_X509_NAME_print_ex(void)
     const char* expNormal  = "C=US, CN=wolfssl.com";
     const char* expEqSpace = "C = US, CN = wolfssl.com";
     const char* expReverse = "CN=wolfssl.com, C=US";
+    const char* expRFC2253 = "CN=wolfssl.com,C=US";
+    const char* expMultiline =
+        "countryName               = US\n"
+        "commonName                = wolfssl.com";
+    const char* expMultilineInd =
+        "  countryName               = US\n"
+        "  commonName                = wolfssl.com";
+    const char* expSemi = "C=US; CN=wolfssl.com";
+    const char* expNoName = "US, wolfssl.com";
+    const char* expLongName = "countryName=US, commonName=wolfssl.com";
+    const char* expAligned = "C         =US, CN        =wolfssl.com";
+    const char* expIndent = "   C=US, CN=wolfssl.com";
 
     const char* expNotEscaped = "C= US,+\"\\ , CN=#wolfssl.com<>;";
     const char* expNotEscapedRev = "CN=#wolfssl.com<>;, C= US,+\"\\ ";
-    const char* expRFC5523 =
-        "CN=\\#wolfssl.com\\<\\>\\;, C=\\ US\\,\\+\\\"\\\\\\ ";
+    const char* expRFC2253Esc =
+        "CN=\\#wolfssl.com\\<\\>\\;,C=\\ US\\,\\+\\\"\\\\\\ ";
+    const char* expEscaped =
+        "C=\\ US\\,\\+\\\"\\\\\\ , CN=\\#wolfssl.com\\<\\>\\;";
+    const char* expEscapedComma =
+        "C=\\ US\\,\\+\\\"\\\\\\ ,CN=\\#wolfssl.com\\<\\>\\;";
+    const unsigned char valNul[] = "with\0null";
+    const unsigned char expNul[] = "CN=with\0null";
+    const char* expNulCtrl = "CN=with\\00null";
+    const unsigned char valBs[] = "a\\b";
+    const char* expBsCtrl = "CN=a\\\\b";
+    const unsigned char valMsb[] = "\xC3\xA9";
+    const char* expMsb = "CN=\\C3\\A9";
+    const char* expSpace = "CN=\\ ";
 
     /* Test with real cert (svrCertFile) first */
     ExpectNotNull(bio = BIO_new(BIO_s_file()));
@@ -452,12 +476,92 @@ int test_wolfSSL_X509_NAME_print_ex(void)
         BIO_free(membio);
         membio = NULL;
 
-        /* Test flags: XN_FLAG_RFC2253 - should be reversed */
+        /* Test flags: XN_FLAG_RFC2253 - reversed, comma separated */
         ExpectNotNull(membio = BIO_new(BIO_s_mem()));
         ExpectIntEQ(X509_NAME_print_ex(membio, name, 0,
                     XN_FLAG_RFC2253), WOLFSSL_SUCCESS);
         ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
-        ExpectIntEQ(memSz, XSTRLEN(expReverse));
+        ExpectIntEQ(memSz, XSTRLEN(expRFC2253));
+        ExpectIntEQ(XSTRNCMP((char*)mem, expRFC2253, XSTRLEN(expRFC2253)), 0);
+        BIO_free(membio);
+        membio = NULL;
+
+        /* Test flags: XN_FLAG_MULTILINE - one entry per line, long names
+         * aligned, spaces around '=' */
+        ExpectNotNull(membio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(X509_NAME_print_ex(membio, name, 0, XN_FLAG_MULTILINE),
+            WOLFSSL_SUCCESS);
+        ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        ExpectIntEQ(memSz, XSTRLEN(expMultiline));
+        ExpectIntEQ(XSTRNCMP((char*)mem, expMultiline, XSTRLEN(expMultiline)),
+            0);
+        BIO_free(membio);
+        membio = NULL;
+
+        /* Test flags: XN_FLAG_MULTILINE with indent - every line indented */
+        ExpectNotNull(membio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(X509_NAME_print_ex(membio, name, 2, XN_FLAG_MULTILINE),
+            WOLFSSL_SUCCESS);
+        ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        ExpectIntEQ(memSz, XSTRLEN(expMultilineInd));
+        ExpectIntEQ(XSTRNCMP((char*)mem, expMultilineInd,
+            XSTRLEN(expMultilineInd)), 0);
+        BIO_free(membio);
+        membio = NULL;
+
+        /* Test flags: XN_FLAG_SEP_SPLUS_SPC */
+        ExpectNotNull(membio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(X509_NAME_print_ex(membio, name, 0,
+                    XN_FLAG_SEP_SPLUS_SPC | ASN1_STRFLGS_ESC_2253 |
+                    ASN1_STRFLGS_UTF8_CONVERT), WOLFSSL_SUCCESS);
+        ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        ExpectIntEQ(memSz, XSTRLEN(expSemi));
+        ExpectIntEQ(XSTRNCMP((char*)mem, expSemi, XSTRLEN(expSemi)), 0);
+        BIO_free(membio);
+        membio = NULL;
+
+        /* Test flags: XN_FLAG_FN_NONE */
+        ExpectNotNull(membio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(X509_NAME_print_ex(membio, name, 0,
+                    XN_FLAG_SEP_CPLUS_SPC | XN_FLAG_FN_NONE |
+                    ASN1_STRFLGS_UTF8_CONVERT), WOLFSSL_SUCCESS);
+        ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        ExpectIntEQ(memSz, XSTRLEN(expNoName));
+        ExpectIntEQ(XSTRNCMP((char*)mem, expNoName, XSTRLEN(expNoName)), 0);
+        BIO_free(membio);
+        membio = NULL;
+
+        /* Test flags: XN_FLAG_FN_LN */
+        ExpectNotNull(membio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(X509_NAME_print_ex(membio, name, 0,
+                    XN_FLAG_SEP_CPLUS_SPC | XN_FLAG_FN_LN |
+                    ASN1_STRFLGS_UTF8_CONVERT), WOLFSSL_SUCCESS);
+        ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        ExpectIntEQ(memSz, XSTRLEN(expLongName));
+        ExpectIntEQ(XSTRNCMP((char*)mem, expLongName, XSTRLEN(expLongName)),
+            0);
+        BIO_free(membio);
+        membio = NULL;
+
+        /* Test flags: XN_FLAG_FN_SN | XN_FLAG_FN_ALIGN */
+        ExpectNotNull(membio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(X509_NAME_print_ex(membio, name, 0,
+                    XN_FLAG_SEP_CPLUS_SPC | XN_FLAG_FN_SN | XN_FLAG_FN_ALIGN |
+                    ASN1_STRFLGS_UTF8_CONVERT), WOLFSSL_SUCCESS);
+        ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        ExpectIntEQ(memSz, XSTRLEN(expAligned));
+        ExpectIntEQ(XSTRNCMP((char*)mem, expAligned, XSTRLEN(expAligned)), 0);
+        BIO_free(membio);
+        membio = NULL;
+
+        /* Test indent without XN_FLAG_SEP_MULTILINE - only the first line */
+        ExpectNotNull(membio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(X509_NAME_print_ex(membio, name, 3,
+                    XN_FLAG_SEP_CPLUS_SPC | ASN1_STRFLGS_UTF8_CONVERT),
+                    WOLFSSL_SUCCESS);
+        ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        ExpectIntEQ(memSz, XSTRLEN(expIndent));
+        ExpectIntEQ(XSTRNCMP((char*)mem, expIndent, XSTRLEN(expIndent)), 0);
         BIO_free(membio);
         membio = NULL;
 
@@ -496,13 +600,14 @@ int test_wolfSSL_X509_NAME_print_ex(void)
         BIO_free(membio);
         membio = NULL;
 
-        /* Test flags: XN_FLAG_RFC5523 - should be reversed and escaped */
+        /* Test flags: XN_FLAG_RFC2253 - reversed, escaped, comma separated */
         ExpectNotNull(membio = BIO_new(BIO_s_mem()));
         ExpectIntEQ(X509_NAME_print_ex(membio, name, 0,
                     XN_FLAG_RFC2253), WOLFSSL_SUCCESS);
         ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
-        ExpectIntEQ(memSz, XSTRLEN(expRFC5523));
-        ExpectIntEQ(XSTRNCMP((char*)mem, expRFC5523, XSTRLEN(expRFC5523)), 0);
+        ExpectIntEQ(memSz, XSTRLEN(expRFC2253Esc));
+        ExpectIntEQ(XSTRNCMP((char*)mem, expRFC2253Esc,
+            XSTRLEN(expRFC2253Esc)), 0);
         BIO_free(membio);
         membio = NULL;
 
@@ -514,6 +619,147 @@ int test_wolfSSL_X509_NAME_print_ex(void)
         ExpectIntEQ(memSz, XSTRLEN(expNotEscapedRev));
         ExpectIntEQ(XSTRNCMP((char*)mem, expNotEscapedRev,
                     XSTRLEN(expNotEscapedRev)), 0);
+        BIO_free(membio);
+        membio = NULL;
+
+        /* Test flags: ASN1_STRFLGS_ESC_2253 - escaped but not reversed.
+         * Flags as used by OpenVPN. */
+        ExpectNotNull(membio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(X509_NAME_print_ex(membio, name, 0,
+                    XN_FLAG_SEP_CPLUS_SPC | XN_FLAG_FN_SN |
+                    ASN1_STRFLGS_ESC_2253 | ASN1_STRFLGS_UTF8_CONVERT),
+                    WOLFSSL_SUCCESS);
+        ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        ExpectIntEQ(memSz, XSTRLEN(expEscaped));
+        ExpectIntEQ(XSTRNCMP((char*)mem, expEscaped, XSTRLEN(expEscaped)), 0);
+        BIO_free(membio);
+        membio = NULL;
+
+        /* Test flags: XN_FLAG_RFC2253 without XN_FLAG_DN_REV - escaped but
+         * not reversed */
+        ExpectNotNull(membio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(X509_NAME_print_ex(membio, name, 0,
+                    XN_FLAG_RFC2253 & ~XN_FLAG_DN_REV), WOLFSSL_SUCCESS);
+        ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        ExpectIntEQ(memSz, XSTRLEN(expEscapedComma));
+        ExpectIntEQ(XSTRNCMP((char*)mem, expEscapedComma,
+            XSTRLEN(expEscapedComma)), 0);
+        BIO_free(membio);
+        membio = NULL;
+
+        X509_NAME_free(name);
+        name = NULL;
+    }
+
+    /* Test NUL, control and non-ASCII bytes in values */
+    {
+        ExpectNotNull(name = X509_NAME_new());
+        ExpectIntEQ(X509_NAME_add_entry_by_txt(name, "commonName",
+                    MBSTRING_UTF8, valNul, sizeof(valNul) - 1, -1, 0),
+                    WOLFSSL_SUCCESS);
+
+        /* Test without flags - NUL byte is written as is. OpenSSL falls
+         * back to X509_NAME_print() here and escapes it. */
+        ExpectNotNull(membio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(X509_NAME_print_ex(membio, name, 0, 0), WOLFSSL_SUCCESS);
+        ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        ExpectIntEQ(memSz, sizeof(expNul) - 1);
+        ExpectIntEQ(XMEMCMP(mem, expNul, sizeof(expNul) - 1), 0);
+        BIO_free(membio);
+        membio = NULL;
+
+        /* Test flags: ASN1_STRFLGS_ESC_2253 - NUL byte is written as is */
+        ExpectNotNull(membio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(X509_NAME_print_ex(membio, name, 0,
+                    XN_FLAG_SEP_CPLUS_SPC | XN_FLAG_FN_SN |
+                    ASN1_STRFLGS_ESC_2253 | ASN1_STRFLGS_UTF8_CONVERT),
+                    WOLFSSL_SUCCESS);
+        ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        ExpectIntEQ(memSz, sizeof(expNul) - 1);
+        ExpectIntEQ(XMEMCMP(mem, expNul, sizeof(expNul) - 1), 0);
+        BIO_free(membio);
+        membio = NULL;
+
+        /* Test flags: ASN1_STRFLGS_ESC_CTRL - NUL byte is escaped */
+        ExpectNotNull(membio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(X509_NAME_print_ex(membio, name, 0,
+                    XN_FLAG_SEP_CPLUS_SPC | ASN1_STRFLGS_ESC_CTRL |
+                    ASN1_STRFLGS_UTF8_CONVERT), WOLFSSL_SUCCESS);
+        ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        ExpectIntEQ(memSz, XSTRLEN(expNulCtrl));
+        ExpectIntEQ(XSTRNCMP((char*)mem, expNulCtrl, XSTRLEN(expNulCtrl)), 0);
+        BIO_free(membio);
+        membio = NULL;
+
+        X509_NAME_free(name);
+        name = NULL;
+
+        /* Backslash is escaped whenever any escaping is done */
+        ExpectNotNull(name = X509_NAME_new());
+        ExpectIntEQ(X509_NAME_add_entry_by_txt(name, "commonName",
+                    MBSTRING_UTF8, valBs, sizeof(valBs) - 1, -1, 0),
+                    WOLFSSL_SUCCESS);
+        ExpectNotNull(membio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(X509_NAME_print_ex(membio, name, 0,
+                    XN_FLAG_SEP_CPLUS_SPC | ASN1_STRFLGS_ESC_CTRL |
+                    ASN1_STRFLGS_UTF8_CONVERT), WOLFSSL_SUCCESS);
+        ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        ExpectIntEQ(memSz, XSTRLEN(expBsCtrl));
+        ExpectIntEQ(XSTRNCMP((char*)mem, expBsCtrl, XSTRLEN(expBsCtrl)), 0);
+        BIO_free(membio);
+        membio = NULL;
+        X509_NAME_free(name);
+        name = NULL;
+
+        ExpectNotNull(name = X509_NAME_new());
+        ExpectIntEQ(X509_NAME_add_entry_by_txt(name, "commonName",
+                    MBSTRING_UTF8, valMsb, sizeof(valMsb) - 1, -1, 0),
+                    WOLFSSL_SUCCESS);
+
+        /* Test without flags - non-ASCII bytes are written as is */
+        ExpectNotNull(membio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(X509_NAME_print_ex(membio, name, 0, 0), WOLFSSL_SUCCESS);
+        ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        ExpectIntEQ(memSz, 3 + sizeof(valMsb) - 1);
+        ExpectIntEQ(XMEMCMP(mem + 3, valMsb, sizeof(valMsb) - 1), 0);
+        BIO_free(membio);
+        membio = NULL;
+
+        /* Test flags: ASN1_STRFLGS_ESC_MSB - non-ASCII bytes are escaped */
+        ExpectNotNull(membio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(X509_NAME_print_ex(membio, name, 0,
+                    XN_FLAG_SEP_CPLUS_SPC | ASN1_STRFLGS_ESC_MSB |
+                    ASN1_STRFLGS_UTF8_CONVERT), WOLFSSL_SUCCESS);
+        ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        ExpectIntEQ(memSz, XSTRLEN(expMsb));
+        ExpectIntEQ(XSTRNCMP((char*)mem, expMsb, XSTRLEN(expMsb)), 0);
+        BIO_free(membio);
+        membio = NULL;
+
+        /* Test flags: XN_FLAG_RFC2253 - includes ASN1_STRFLGS_ESC_MSB */
+        ExpectNotNull(membio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(X509_NAME_print_ex(membio, name, 0,
+                    XN_FLAG_RFC2253), WOLFSSL_SUCCESS);
+        ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        ExpectIntEQ(memSz, XSTRLEN(expMsb));
+        ExpectIntEQ(XSTRNCMP((char*)mem, expMsb, XSTRLEN(expMsb)), 0);
+        BIO_free(membio);
+        membio = NULL;
+        X509_NAME_free(name);
+        name = NULL;
+
+        /* A lone space is both a leading and a trailing space */
+        ExpectNotNull(name = X509_NAME_new());
+        ExpectIntEQ(X509_NAME_add_entry_by_txt(name, "commonName",
+                    MBSTRING_UTF8, (const byte*)" ", 1, -1, 0),
+                    WOLFSSL_SUCCESS);
+        ExpectNotNull(membio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(X509_NAME_print_ex(membio, name, 0,
+                    XN_FLAG_SEP_CPLUS_SPC | ASN1_STRFLGS_ESC_2253 |
+                    ASN1_STRFLGS_UTF8_CONVERT), WOLFSSL_SUCCESS);
+        ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        ExpectIntEQ(memSz, XSTRLEN(expSpace));
+        ExpectIntEQ(XSTRNCMP((char*)mem, expSpace, XSTRLEN(expSpace)), 0);
         BIO_free(membio);
 
         X509_NAME_free(name);
