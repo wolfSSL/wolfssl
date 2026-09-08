@@ -16686,6 +16686,9 @@ int wolfSSL_request_certificate(WOLFSSL* ssl)
     ssl->msgsReceived.got_certificate = 0;
     ssl->msgsReceived.got_certificate_verify = 0;
     ssl->msgsReceived.got_finished = 0;
+    /* Each round must prove possession again; these are only ever set to 1. */
+    ssl->options.havePeerCert = 0;
+    ssl->options.havePeerVerify = 0;
 
     ret = SendTls13CertificateRequest(ssl, &certReqCtx->ctx, certReqCtx->len);
     if (ret == WC_NO_ERR_TRACE(WANT_WRITE))
