@@ -194,6 +194,7 @@ static const char* GetPkTypeStr(int pk)
 #if defined(WOLFSSL_HAVE_MLDSA) || defined(HAVE_FALCON) || \
     defined(WOLFSSL_HAVE_SLHDSA)
         case WC_PK_TYPE_PQC_SIG_KEYGEN: return "PQC Sig KeyGen";
+        case WC_PK_TYPE_PQC_SIG_KEYGEN_SEED: return "PQC Sig KeyGen Seed";
         case WC_PK_TYPE_PQC_SIG_SIGN: return "PQC Sig Sign";
         case WC_PK_TYPE_PQC_SIG_VERIFY: return "PQC Sig Verify";
         case WC_PK_TYPE_PQC_SIG_CHECK_PRIV_KEY: return "PQC Sig CheckPrivKey";
@@ -2010,14 +2011,22 @@ int wc_CryptoCb_MakePqcSignatureKeyEx(WC_RNG* rng, int type, int keySize,
 
     /* get devId; an unbound key still goes through the find callback */
     devId = wc_CryptoCb_PqcSigGetDevId(type, key);
+#ifndef WOLF_CRYPTO_CB_FIND
+    if (devId == INVALID_DEVID)
+        return ret;
+#endif
 
-    /* locate registered callback */
+    /* locate registered callback. A slot sits at INVALID_DEVID while it is
+     * being registered or retired, so never dispatch through one. */
     dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
-    if (dev && dev->cb) {
+    if (dev && dev->cb && (dev->devId != INVALID_DEVID)) {
         wc_CryptoInfo cryptoInfo;
         XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
         cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
-        cryptoInfo.pk.type = WC_PK_TYPE_PQC_SIG_KEYGEN;
+        /* Seeded generation is a different operation: a device that does not
+         * know this type declines and the caller keeps the seed. */
+        cryptoInfo.pk.type = (seed != NULL) ? WC_PK_TYPE_PQC_SIG_KEYGEN_SEED :
+            WC_PK_TYPE_PQC_SIG_KEYGEN;
         cryptoInfo.pk.pqc_sig_kg.rng = rng;
         cryptoInfo.pk.pqc_sig_kg.size = keySize;
         cryptoInfo.pk.pqc_sig_kg.key = key;

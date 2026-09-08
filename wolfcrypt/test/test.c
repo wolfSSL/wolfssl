@@ -82788,14 +82788,20 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     #endif /* WOLFSSL_HAVE_LMS || WOLFSSL_HAVE_XMSS */
     #if defined(WOLFSSL_HAVE_SLHDSA)
     #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
-        if (info->pk.type == WC_PK_TYPE_PQC_SIG_KEYGEN) {
+        if ((info->pk.type == WC_PK_TYPE_PQC_SIG_KEYGEN) ||
+                (info->pk.type == WC_PK_TYPE_PQC_SIG_KEYGEN_SEED)) {
             int pqcType = info->pk.pqc_sig_kg.type;
             (void)pqcType;
             if (pqcType == WC_PQC_SIG_TYPE_SLHDSA) {
                 SlhDsaKey* sk = (SlhDsaKey*)info->pk.pqc_sig_kg.key;
                 const byte* seed = info->pk.pqc_sig_kg.seed;
                 sk->devId = INVALID_DEVID;
-                if (seed != NULL) {
+                /* The seed must travel with the type that announces it. */
+                if ((seed != NULL) !=
+                        (info->pk.type == WC_PK_TYPE_PQC_SIG_KEYGEN_SEED)) {
+                    ret = WC_NO_ERR_TRACE(BAD_STATE_E);
+                }
+                else if (seed != NULL) {
                     /* SK.seed || SK.prf || PK.seed, each of n bytes. */
                     word32 n = info->pk.pqc_sig_kg.seedSz / 3;
                     ret = wc_SlhDsaKey_MakeKeyWithRandom(sk, seed, n,

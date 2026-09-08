@@ -631,6 +631,7 @@ static int swdev_pqc_sig(wc_CryptoInfo* info, int type, int pkType)
     switch (pkType) {
 #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
     case WC_PK_TYPE_PQC_SIG_KEYGEN:
+    case WC_PK_TYPE_PQC_SIG_KEYGEN_SEED:
         return swdev_slhdsa_keygen(info);
     case WC_PK_TYPE_PQC_SIG_SIGN:
         return swdev_slhdsa_sign(info);
@@ -1380,6 +1381,7 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
     #ifdef WOLFSSL_HAVE_SLHDSA
         #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
         case WC_PK_TYPE_PQC_SIG_KEYGEN:
+        case WC_PK_TYPE_PQC_SIG_KEYGEN_SEED:
             return swdev_pqc_sig(info, info->pk.pqc_sig_kg.type,
                 info->pk.type);
         case WC_PK_TYPE_PQC_SIG_SIGN:

@@ -1717,8 +1717,11 @@ enum wc_PkType {
      * representative rather than message and context. */
     WC_PK_TYPE_PQC_SIG_SIGN_MSG   = 47,
     WC_PK_TYPE_PQC_SIG_VERIFY_MSG = 48,
+    /* Seeded key generation. Its own type so a device that cannot derive
+     * from a seed declines instead of generating an unrelated key. */
+    WC_PK_TYPE_PQC_SIG_KEYGEN_SEED = 49,
     #undef _WC_PK_TYPE_MAX
-    #define _WC_PK_TYPE_MAX WC_PK_TYPE_PQC_SIG_VERIFY_MSG
+    #define _WC_PK_TYPE_MAX WC_PK_TYPE_PQC_SIG_KEYGEN_SEED
 #endif
     WC_PK_TYPE_MAX = _WC_PK_TYPE_MAX
 };
