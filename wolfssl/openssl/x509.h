@@ -64,6 +64,8 @@
 #define WOLFSSL_XN_FLAG_DUMP_UNKNOWN_FIELDS (1 << 24)
 #define WOLFSSL_XN_FLAG_FN_ALIGN        (1 << 25)
 
+/* wolfSSL_X509_NAME_print_ex() flattens multi-valued RDNs: their attributes
+ * are separated like RDNs, never with '+'. */
 #define WOLFSSL_XN_FLAG_RFC2253 (WOLFSSL_ASN1_STRFLGS_RFC2253 | \
                                  WOLFSSL_XN_FLAG_SEP_COMMA_PLUS | \
                                  WOLFSSL_XN_FLAG_DN_REV | \

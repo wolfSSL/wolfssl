@@ -15675,17 +15675,24 @@ static int wolfssl_x509_name_esc_value(const char* in, int inSz,
  *
  * bio    - output BIO to place name string. Does not include null terminator.
  * name   - input name to convert to string
- * indent - number of indent spaces to prepend to name string
- * flags  - flags to control function behavior. Not all flags are currently
- *          supported/implemented. Currently supported are:
- *              XN_FLAG_DN_REV  - print name reversed.
- *              XN_FLAG_SPC_EQ  - spaces before and after '=' character
+ * indent - number of indent spaces to prepend to name string, and to every
+ *          line with XN_FLAG_SEP_MULTILINE
+ * flags  - flags to control function behavior, as in OpenSSL:
+ *              XN_FLAG_SEP_COMMA_PLUS, XN_FLAG_SEP_CPLUS_SPC,
+ *              XN_FLAG_SEP_SPLUS_SPC, XN_FLAG_SEP_MULTILINE - entry
+ *                                      separator, ", " when none is set
+ *              XN_FLAG_FN_SN, XN_FLAG_FN_LN, XN_FLAG_FN_NONE - attribute
+ *                                      name style, XN_FLAG_FN_OID prints
+ *                                      short names
+ *              XN_FLAG_FN_ALIGN      - pad the attribute name
+ *              XN_FLAG_DN_REV        - print name reversed
+ *              XN_FLAG_SPC_EQ        - spaces before and after '='
  *              ASN1_STRFLGS_ESC_2253 - backslash escape the RFC 2253
  *                                      special characters in values
  *              ASN1_STRFLGS_ESC_CTRL - escape control characters as \XX
  *              ASN1_STRFLGS_ESC_MSB  - escape bytes above 0x7F as \XX
- *          XN_FLAG_RFC2253 combines these as in OpenSSL. Entries are always
- *          separated by ", " and use their short name.
+ *          Multi-valued RDNs are flattened: their attributes are separated
+ *          like RDNs.
  *
  * Returns WOLFSSL_SUCCESS (1) on success, WOLFSSL_FAILURE (0) on failure.
  */
@@ -15695,6 +15702,11 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
     int i, count = 0;
     int eqSz = 1;
     const char* eqStr = "=";
+    int sepSz = 2;
+    const char* sep = ", ";
+    int lineIndent = 0;
+    int fnOpt;
+    int fnWidth = 0;
     WOLFSSL_X509_NAME_ENTRY* ne;
     WOLFSSL_ASN1_STRING* str;
 
@@ -15703,9 +15715,39 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
     if ((name == NULL) || (bio == NULL))
         return WOLFSSL_FAILURE;
 
+    if (indent < 0)
+        indent = 0;
+
+    switch (flags & WOLFSSL_XN_FLAG_SEP_MASK) {
+        case WOLFSSL_XN_FLAG_SEP_COMMA_PLUS:
+            sep = ",";
+            sepSz = 1;
+            break;
+        case WOLFSSL_XN_FLAG_SEP_SPLUS_SPC:
+            sep = "; ";
+            sepSz = 2;
+            break;
+        case WOLFSSL_XN_FLAG_SEP_MULTILINE:
+            sep = "\n";
+            sepSz = 1;
+            lineIndent = indent;
+            break;
+        default:
+            /* XN_FLAG_SEP_CPLUS_SPC or no separator flag */
+            break;
+    }
+
     if (flags & WOLFSSL_XN_FLAG_SPC_EQ) {
         eqStr = " = ";
         eqSz = 3;
+    }
+
+    fnOpt = (int)(flags & WOLFSSL_XN_FLAG_FN_MASK);
+    if (flags & WOLFSSL_XN_FLAG_FN_ALIGN) {
+        if (fnOpt == WOLFSSL_XN_FLAG_FN_SN)
+            fnWidth = 10;
+        else if (fnOpt == WOLFSSL_XN_FLAG_FN_LN)
+            fnWidth = 25;
     }
 
     for (i = 0; i < indent; i++) {
@@ -15717,10 +15759,12 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
 
     for (i = 0; i < count; i++) {
         const char* attr = NULL;
-        int attrSz;
+        int attrSz = 0;
+        int padSz = 0;
         int valSz;
         int tmpSz;
         int idx;
+        int j;
         char* tmp;
 
         if (flags & WOLFSSL_XN_FLAG_DN_REV) {
@@ -15736,10 +15780,25 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
         if (str == NULL)
             return WOLFSSL_FAILURE;
 
-        /* attrSz is without null terminator */
-        attrSz = get_dn_attr_by_nid(ne->nid, &attr);
-        if (attrSz == 0 || attr == NULL)
-            return WOLFSSL_FAILURE;
+        if (fnOpt == WOLFSSL_XN_FLAG_FN_NONE) {
+            /* no attribute name */
+        }
+#ifdef OPENSSL_EXTRA
+        else if (fnOpt == WOLFSSL_XN_FLAG_FN_LN) {
+            attr = wolfSSL_OBJ_nid2ln(ne->nid);
+            if (attr == NULL)
+                return WOLFSSL_FAILURE;
+            attrSz = (int)XSTRLEN(attr);
+        }
+#endif
+        else {
+            /* attrSz is without null terminator */
+            attrSz = get_dn_attr_by_nid(ne->nid, &attr);
+            if (attrSz == 0 || attr == NULL)
+                return WOLFSSL_FAILURE;
+        }
+        if (attrSz < fnWidth)
+            padSz = fnWidth - attrSz;
 
         /* escaping can triple the value length */
         if (str->length < 0 || str->length > INT_MAX / 4)
@@ -15748,22 +15807,27 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
         valSz = wolfssl_x509_name_esc_value(str->data, str->length, flags,
                                             NULL);
 
-        /* attribute, '=', value and ", " */
-        tmpSz = attrSz + eqSz + valSz + 2;
+        /* attribute, padding, '=', value and separator, +1 for empty */
+        tmpSz = attrSz + padSz + eqSz + valSz + sepSz + 1;
         tmp = (char*)XMALLOC((size_t)tmpSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (tmp == NULL)
             return WOLFSSL_FAILURE;
 
-        XMEMCPY(tmp, attr, (size_t)attrSz);
-        idx = attrSz;
-        XMEMCPY(tmp + idx, eqStr, (size_t)eqSz);
-        idx += eqSz;
+        idx = 0;
+        if (fnOpt != WOLFSSL_XN_FLAG_FN_NONE) {
+            XMEMCPY(tmp, attr, (size_t)attrSz);
+            idx = attrSz;
+            XMEMSET(tmp + idx, ' ', (size_t)padSz);
+            idx += padSz;
+            XMEMCPY(tmp + idx, eqStr, (size_t)eqSz);
+            idx += eqSz;
+        }
         (void)wolfssl_x509_name_esc_value(str->data, str->length, flags,
                                           tmp + idx);
         idx += valSz;
         if (i < count - 1) {
-            XMEMCPY(tmp + idx, ", ", 2);
-            idx += 2;
+            XMEMCPY(tmp + idx, sep, (size_t)sepSz);
+            idx += sepSz;
         }
 
         if (wolfSSL_BIO_write(bio, tmp, idx) != idx) {
@@ -15772,6 +15836,13 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
         }
 
         XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+        if (i < count - 1) {
+            for (j = 0; j < lineIndent; j++) {
+                if (wolfSSL_BIO_write(bio, " ", 1) != 1)
+                    return WOLFSSL_FAILURE;
+            }
+        }
     }
 
     return WOLFSSL_SUCCESS;
