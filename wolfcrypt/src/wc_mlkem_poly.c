@@ -122,8 +122,10 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#if defined(WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM) || \
-    defined(WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM)
+#if (defined(WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM) && \
+     !defined(WOLFSSL_MLKEM_NO_MAKE_KEY)) || \
+    (defined(WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM) && \
+     !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE))
 static int mlkem_gen_matrix_i(MLKEM_PRF_T* prf, sword16* a, int k, byte* seed,
     int i, int transposed);
 static int mlkem_get_noise_i(MLKEM_PRF_T* prf, int k, sword16* vec2,
@@ -4271,8 +4273,10 @@ int mlkem_gen_matrix(MLKEM_PRF_T* prf, sword16* a, int k, byte* seed,
 
 #endif
 
-#if defined(WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM) || \
-    defined(WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM)
+#if (defined(WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM) && \
+     !defined(WOLFSSL_MLKEM_NO_MAKE_KEY)) || \
+    (defined(WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM) && \
+     !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE))
 
 /* Deterministically generate a matrix (or transpose) of uniform integers mod q.
  *
@@ -5807,8 +5811,10 @@ int mlkem_get_noise(MLKEM_PRF_T* prf, int k, sword16* vec1, sword16* vec2,
 #endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
         * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 
-#if defined(WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM) || \
-    defined(WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM)
+#if (defined(WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM) && \
+     !defined(WOLFSSL_MLKEM_NO_MAKE_KEY)) || \
+    (defined(WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM) && \
+     !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE))
 /* Get the noise/error by calculating random bytes and sampling to a binomial
  * distribution.
  *
@@ -5913,9 +5919,8 @@ int mlkem_cmp(const byte* a, const byte* b, int sz)
 
 /******************************************************************************/
 
-/* CB_ONLY strips the assembly, and on ARM the C version is chosen at compile
- * time rather than at runtime as it is on Intel, so keep it compiled or
- * mlkem_csubq_c has no definition left for the encode helpers to call. */
+/* The assembly is compiled out under WOLF_CRYPTO_CB_ONLY_MLKEM, but
+ * mlkem_to_bytes_c() stays and calls this, so keep the C version there. */
 #if !defined(WOLFSSL_ARMASM) || defined(WOLF_CRYPTO_CB_ONLY_MLKEM)
 
 /* Conditional subtraction of q to each coefficient of a polynomial.
