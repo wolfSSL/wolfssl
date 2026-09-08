@@ -168,10 +168,12 @@
     #include "wolfssl/internal.h"
 #endif
 
-#if defined(WOLFSSL_SNIFFER) && defined(WOLFSSL_SNIFFER_CHAIN_INPUT)
+#ifdef WOLFSSL_SNIFFER
     #include <wolfssl/sniffer.h>
     #include <wolfssl/sniffer_error.h>
-    #include <sys/uio.h>
+    #ifdef WOLFSSL_SNIFFER_CHAIN_INPUT
+        #include <sys/uio.h>
+    #endif
 #endif
 
 #ifdef WOLFSSL_HAVE_MLDSA
@@ -40120,6 +40122,229 @@ static int test_sniffer_chain_input_overflow(void)
 }
 #endif /* WOLFSSL_SNIFFER && WOLFSSL_SNIFFER_CHAIN_INPUT */
 
+#if defined(WOLFSSL_SNIFFER) && !defined(WOLFSSL_SNIFFER_WATCH) && \
+    defined(WOLFSSL_PEM_TO_DER) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM) && !defined(WOLFSSL_NO_TLS12)
+
+/* Minimum IPv4 and TCP header sizes. The sniffer's own IP_HDR_SZ, TCP_HDR_SZ,
+ * TCP_SYN and TCP_ACK are private to src/sniffer.c. */
+#define SNIFFER_TEST_IP_SZ  20
+#define SNIFFER_TEST_TCP_SZ 20
+#define SNIFFER_TEST_HDR_SZ (SNIFFER_TEST_IP_SZ + SNIFFER_TEST_TCP_SZ)
+#define SNIFFER_TEST_SYN    0x02
+#define SNIFFER_TEST_ACK    0x10
+#define SNIFFER_TEST_ID_SZ  16
+
+static const byte snifferTestSrvIp[4] = { 127, 0, 0, 1 };
+static const byte snifferTestCliIp[4] = { 127, 0, 0, 2 };
+
+/* Build an IPv4 + TCP packet. Checksums stay zero; the sniffer reads the
+ * addresses, ports, sequence and flags but never verifies a checksum.
+ * Returns the packet length. */
+static int SnifferTestPacket(byte* pkt, int toServer, word32 seq, byte flags,
+                             word16 cliPort, const byte* payload, int payloadSz)
+{
+    int total = SNIFFER_TEST_HDR_SZ + payloadSz;
+    word16 srcPort = toServer ? cliPort : wolfSSLPort;
+    word16 dstPort = toServer ? wolfSSLPort : cliPort;
+    const byte* srcIp = toServer ? snifferTestCliIp : snifferTestSrvIp;
+    const byte* dstIp = toServer ? snifferTestSrvIp : snifferTestCliIp;
+    byte* tcp;
+
+    XMEMSET(pkt, 0, (size_t)total);
+
+    pkt[0] = 0x45;                        /* IPv4, 5 word header */
+    pkt[2] = (byte)(total >> 8);
+    pkt[3] = (byte)total;
+    pkt[8] = 64;                          /* TTL */
+    pkt[9] = 6;                           /* TCP */
+    XMEMCPY(pkt + 12, srcIp, sizeof(snifferTestSrvIp));
+    XMEMCPY(pkt + 16, dstIp, sizeof(snifferTestSrvIp));
+
+    tcp = pkt + SNIFFER_TEST_IP_SZ;
+    tcp[0] = (byte)(srcPort >> 8);
+    tcp[1] = (byte)srcPort;
+    tcp[2] = (byte)(dstPort >> 8);
+    tcp[3] = (byte)dstPort;
+    tcp[4] = (byte)(seq >> 24);
+    tcp[5] = (byte)(seq >> 16);
+    tcp[6] = (byte)(seq >> 8);
+    tcp[7] = (byte)seq;
+    tcp[12] = 0x50;                       /* 5 word TCP header */
+    tcp[13] = flags;
+
+    if (payloadSz > 0)
+        XMEMCPY(pkt + SNIFFER_TEST_HDR_SZ, payload, (size_t)payloadSz);
+
+    return total;
+}
+
+/* Feed a bare TCP segment with no payload. */
+static int SnifferTestTcp(word16 cliPort, word32 seq, int toServer, byte flags,
+                          char* err)
+{
+    byte  pkt[SNIFFER_TEST_HDR_SZ];
+    byte* data = NULL;
+    int   pktSz;
+
+    pktSz = SnifferTestPacket(pkt, toServer, seq, flags, cliPort, NULL, 0);
+
+    return ssl_DecodePacket(pkt, pktSz, &data, err);
+}
+
+/* Feed a hello whose session id length byte is sessionIdLen, followed by
+ * tailSz bytes of tail. The declared length is not checked against tailSz, so
+ * a caller can claim more session id than the record holds. */
+static int SnifferTestHello(word16 cliPort, word32 seq, int toServer,
+                            byte hsType, byte sessionIdLen, const byte* tail,
+                            int tailSz, char* err)
+{
+    byte  rec[128];
+    byte* pkt;
+    byte* data = NULL;
+    int   bodySz = VERSION_SZ + RAN_LEN + ENUM_LEN + tailSz;
+    int   recSz = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ + bodySz;
+    int   pktSz;
+    int   idx;
+    int   ret;
+
+    if (recSz > (int)sizeof(rec))
+        return BAD_FUNC_ARG;
+
+    /* Sized to the packet exactly, so a read past the end of the record lands
+     * outside the allocation where a sanitizer can see it. */
+    pkt = (byte*)XMALLOC((size_t)(SNIFFER_TEST_HDR_SZ + recSz), NULL,
+                         DYNAMIC_TYPE_TMP_BUFFER);
+    if (pkt == NULL)
+        return MEMORY_E;
+
+    rec[0] = handshake;
+    rec[1] = SSLv3_MAJOR;
+    rec[2] = TLSv1_2_MINOR;
+    rec[3] = (byte)((HANDSHAKE_HEADER_SZ + bodySz) >> 8);
+    rec[4] = (byte)(HANDSHAKE_HEADER_SZ + bodySz);
+    rec[5] = hsType;
+    rec[6] = 0;
+    rec[7] = (byte)(bodySz >> 8);
+    rec[8] = (byte)bodySz;
+
+    idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
+    rec[idx++] = SSLv3_MAJOR;
+    rec[idx++] = TLSv1_2_MINOR;
+    XMEMSET(rec + idx, 0, RAN_LEN);
+    idx += RAN_LEN;
+    rec[idx++] = sessionIdLen;
+    if (tailSz > 0)
+        XMEMCPY(rec + idx, tail, (size_t)tailSz);
+
+    pktSz = SnifferTestPacket(pkt, toServer, seq, 0, cliPort, rec, recSz);
+
+    ret = ssl_DecodePacket(pkt, pktSz, &data, err);
+    XFREE(pkt, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+
+/* The hello parsers must honor the wire session id length: reject a declared
+ * length above ID_LEN, and reject one that runs past the record. */
+static int test_sniffer_hello_session_id_len(void)
+{
+    EXPECT_DECLS;
+    char err[WOLFSSL_MAX_ERROR_SZ];
+    byte tail[40];
+    byte cliTail[SNIFFER_TEST_ID_SZ + 6];
+    byte srvTail[SNIFFER_TEST_ID_SZ + 3];
+    byte cliTailFull[ID_LEN + 6];
+    byte srvTailFull[ID_LEN + 3];
+    /* cipher suite list of one, then one compression method */
+    static const byte validTail[6] = { 0x00, 0x02, 0x00, 0x2f, 0x01, 0x00 };
+
+    XMEMSET(tail, 0, sizeof(tail));
+    XMEMSET(err, 0, sizeof(err));
+
+    ssl_InitSniffer();
+    ExpectIntEQ(ssl_SetPrivateKey("127.0.0.1", wolfSSLPort,
+        svrKeyFile, FILETYPE_PEM, NULL, err), 0);
+
+    /* ClientHello claiming one byte more session id than the buffer holds.
+     * More bytes than that remain, so only the length check can reject it. */
+    ExpectIntEQ(SnifferTestTcp(40001, 1000, 1, SNIFFER_TEST_SYN, err), 0);
+    ExpectIntEQ(SnifferTestHello(40001, 1001, 1, client_hello, ID_LEN + 1,
+        tail, (int)sizeof(tail), err), WOLFSSL_SNIFFER_FATAL_ERROR);
+
+    /* ClientHello with a length under ID_LEN that runs past the record end.
+     * Without the bounds check the copy reads past the packet. */
+    ExpectIntEQ(SnifferTestTcp(40003, 3000, 1, SNIFFER_TEST_SYN, err), 0);
+    ExpectIntEQ(SnifferTestHello(40003, 3001, 1, client_hello, 20,
+        tail, 5, err), WOLFSSL_SNIFFER_FATAL_ERROR);
+
+    /* ServerHello needs a ClientHello ahead of it, and a server SYN-ACK to
+     * start the server sequence. */
+    ExpectIntEQ(SnifferTestTcp(40004, 4000, 1, SNIFFER_TEST_SYN, err), 0);
+    ExpectIntEQ(SnifferTestTcp(40004, 5000, 0,
+        SNIFFER_TEST_SYN | SNIFFER_TEST_ACK, err), 0);
+    ExpectIntEQ(SnifferTestHello(40004, 4001, 1, client_hello, 0,
+        validTail, (int)sizeof(validTail), err), 0);
+    ExpectIntEQ(SnifferTestHello(40004, 5001, 0, server_hello, ID_LEN + 1,
+        tail, (int)sizeof(tail), err), WOLFSSL_SNIFFER_FATAL_ERROR);
+
+    /* A session id, then the cipher suite list and compression method that
+     * follow it in a ClientHello. */
+    XMEMSET(cliTail, 0xA0, SNIFFER_TEST_ID_SZ);
+    XMEMCPY(cliTail + SNIFFER_TEST_ID_SZ, validTail, sizeof(validTail));
+
+    /* A different session id, then the single suite and method a ServerHello
+     * selects. */
+    XMEMSET(srvTail, 0xB0, SNIFFER_TEST_ID_SZ);
+    srvTail[SNIFFER_TEST_ID_SZ + 0] = 0x00;
+    srvTail[SNIFFER_TEST_ID_SZ + 1] = 0x2f;
+    srvTail[SNIFFER_TEST_ID_SZ + 2] = 0x00;
+
+    /* Both hellos carry a session id shorter than ID_LEN, and the record holds
+     * no more than that. The ids differ, so no resumption is attempted. */
+    ExpectIntEQ(SnifferTestTcp(40005, 6000, 1, SNIFFER_TEST_SYN, err), 0);
+    ExpectIntEQ(SnifferTestTcp(40005, 7000, 0,
+        SNIFFER_TEST_SYN | SNIFFER_TEST_ACK, err), 0);
+    ExpectIntEQ(SnifferTestHello(40005, 6001, 1, client_hello,
+        SNIFFER_TEST_ID_SZ, cliTail, (int)sizeof(cliTail), err), 0);
+    ExpectIntEQ(SnifferTestHello(40005, 7001, 0, server_hello,
+        SNIFFER_TEST_ID_SZ, srvTail, (int)sizeof(srvTail), err), 0);
+
+    /* Same short session id on both sides. Only a full length id can be found
+     * in the session cache, so this is not a resumption. */
+    XMEMCPY(srvTail, cliTail, SNIFFER_TEST_ID_SZ);
+    ExpectIntEQ(SnifferTestTcp(40006, 8000, 1, SNIFFER_TEST_SYN, err), 0);
+    ExpectIntEQ(SnifferTestTcp(40006, 9000, 0,
+        SNIFFER_TEST_SYN | SNIFFER_TEST_ACK, err), 0);
+    ExpectIntEQ(SnifferTestHello(40006, 8001, 1, client_hello,
+        SNIFFER_TEST_ID_SZ, cliTail, (int)sizeof(cliTail), err), 0);
+    ExpectIntEQ(SnifferTestHello(40006, 9001, 0, server_hello,
+        SNIFFER_TEST_ID_SZ, srvTail, (int)sizeof(srvTail), err), 0);
+
+    /* Same full length session id on both sides is a resumption. With no
+     * cached session to resume from, the session is dropped. */
+    XMEMSET(cliTailFull, 0xC0, ID_LEN);
+    XMEMCPY(cliTailFull + ID_LEN, validTail, sizeof(validTail));
+    XMEMCPY(srvTailFull, cliTailFull, ID_LEN);
+    srvTailFull[ID_LEN + 0] = 0x00;
+    srvTailFull[ID_LEN + 1] = 0x2f;
+    srvTailFull[ID_LEN + 2] = 0x00;
+    ExpectIntEQ(SnifferTestTcp(40007, 10000, 1, SNIFFER_TEST_SYN, err), 0);
+    ExpectIntEQ(SnifferTestTcp(40007, 11000, 0,
+        SNIFFER_TEST_SYN | SNIFFER_TEST_ACK, err), 0);
+    ExpectIntEQ(SnifferTestHello(40007, 10001, 1, client_hello, ID_LEN,
+        cliTailFull, (int)sizeof(cliTailFull), err), 0);
+    ExpectIntEQ(SnifferTestHello(40007, 11001, 0, server_hello, ID_LEN,
+        srvTailFull, (int)sizeof(srvTailFull), err),
+        WOLFSSL_SNIFFER_FATAL_ERROR);
+
+    ssl_FreeSniffer();
+
+    return EXPECT_RESULT();
+}
+#endif /* WOLFSSL_SNIFFER && !WOLFSSL_SNIFFER_WATCH && WOLFSSL_PEM_TO_DER &&
+        * !NO_RSA && !NO_FILESYSTEM && !WOLFSSL_NO_TLS12 */
+
 /* Test: wc_DhAgree must reject p-1 as peer public key.
  * ffdhe2048 p ends with ...FFFFFFFFFFFFFFFF so p-1 ends ...FFFFFFFFFFFFFFFE */
 static int test_DhAgree_rejects_p_minus_1(void)
@@ -42133,6 +42358,11 @@ TEST_CASE testCases[] = {
 
 #if defined(WOLFSSL_SNIFFER) && defined(WOLFSSL_SNIFFER_CHAIN_INPUT)
     TEST_DECL(test_sniffer_chain_input_overflow),
+#endif
+#if defined(WOLFSSL_SNIFFER) && !defined(WOLFSSL_SNIFFER_WATCH) && \
+    defined(WOLFSSL_PEM_TO_DER) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM) && !defined(WOLFSSL_NO_TLS12)
+    TEST_DECL(test_sniffer_hello_session_id_len),
 #endif
 
     /* This test needs to stay at the end to clean up any caches allocated. */
