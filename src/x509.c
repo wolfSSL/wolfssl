@@ -533,7 +533,7 @@ static int wolfssl_dns_entry_othername_to_gn(DNS_entry* dns,
     unsigned char* p = (unsigned char *)dns->name;
     long len = dns->len;
 
-#ifdef WOLFSSL_FPKI
+#if defined(WOLFSSL_FPKI) || defined(WOLFSSL_DTN)
     if (dns->oidSum != 0) {
         /* UPN OID: 1.3.6.1.4.1.311.20.2.3 */
         static const unsigned char upn_oid[] = {
@@ -564,7 +564,15 @@ static int wolfssl_dns_entry_othername_to_gn(DNS_entry* dns,
             goto err;
         }
 
-        tag = WOLFSSL_V_ASN1_UTF8STRING;
+    #ifdef WOLFSSL_DTN
+        if (dns->oidSum == BUNDLE_EID_OID) {
+            tag = WOLFSSL_V_ASN1_IA5STRING;
+        }
+        else
+    #endif
+        {
+            tag = WOLFSSL_V_ASN1_UTF8STRING;
+        }
     }
     else
 #endif
