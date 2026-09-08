@@ -233,6 +233,8 @@ extern "C" {
 #cmakedefine NO_RC4
 #undef NO_RSA
 #cmakedefine NO_RSA
+#undef NO_SESSION_CACHE
+#cmakedefine NO_SESSION_CACHE
 #undef NO_SESSION_CACHE_REF
 #cmakedefine NO_SESSION_CACHE_REF
 #undef NO_SHA
