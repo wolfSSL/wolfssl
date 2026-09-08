@@ -1136,9 +1136,7 @@ _Transform_Sha512_Len_crypto:
 	adrp x4, L_SHA512_trans_crypto_len_k@PAGE
 	add  x4, x4, L_SHA512_trans_crypto_len_k@PAGEOFF
 #endif /* __APPLE__ */
-#ifdef __APPLE__
 .arch_extension sha3
-#endif /* __APPLE__ */
 	# Load K into vector registers
 	ld1	{v8.2d, v9.2d, v10.2d, v11.2d}, [x4], #0x40
 	ld1	{v12.2d, v13.2d, v14.2d, v15.2d}, [x4], #0x40
