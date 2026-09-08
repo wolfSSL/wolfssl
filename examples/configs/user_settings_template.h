@@ -436,6 +436,18 @@ extern "C" {
     #define CUSTOM_RAND_GENERATE_BLOCK  my_rng_gen_block
 #endif
 
+#if 0 /* Threaded build that never shares one WC_RNG between threads */
+    #define WC_RNG_NO_LOCK
+#endif
+#if 0 /* pthread_atfork handlers: a forked child keeps using its WC_RNG */
+    /* configure probes for this; here it is asserted.  Needs pthreads,
+     * a heap, the lock above (not WC_RNG_NO_LOCK) and unnamed POSIX
+     * semaphores (sem_init, so not macOS); the pin needs dladdr and dlopen,
+     * -ldl on glibc before 2.34, and keeps the library mapped, since the
+     * handlers cannot be removed */
+    #define WC_RNG_ATFORK
+#endif
+
 
 /* ------------------------------------------------------------------------- */
 /* Custom Standard Lib */

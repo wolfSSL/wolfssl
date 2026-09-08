@@ -21,7 +21,9 @@
 
 #include <tests/unit.h>
 
-#if defined(__linux__) || defined(__FreeBSD__)
+/* the same guard as the fork test below */
+#if defined(OPENSSL_EXTRA) && defined(HAVE_GETPID) && !defined(__MINGW64__) && \
+    !defined(__MINGW32__)
 #include <unistd.h>
 #include <sys/wait.h>
 #endif
@@ -218,30 +220,36 @@ int test_wolfSSL_RAND_bytes(void)
     ExpectIntGE(pid, 0);
     if (pid == 0) {
         ssize_t n_written = 0;
+        int ok;
 
         /* Child process. */
         close(pipefds[0]);
-        RAND_bytes(randbuf, sizeof(randbuf));
+        ok = (RAND_bytes(randbuf, sizeof(randbuf)) == 1);
         n_written = write(pipefds[1], randbuf, sizeof(randbuf));
         close(pipefds[1]);
-        exit(n_written == sizeof(randbuf) ? 0 : 1);
+        exit((ok && n_written == sizeof(randbuf)) ? 0 : 1);
     }
-    else {
+    else if (pid > 0) {
         /* Parent process. */
         byte childrand[8] = {0};
         int waitstatus = 0;
+        int reaped;
 
         close(pipefds[1]);
         ExpectIntEQ(RAND_bytes(randbuf, sizeof(randbuf)), 1);
         ExpectIntEQ(read(pipefds[0], childrand, sizeof(childrand)),
             sizeof(childrand));
-    #ifdef WOLFSSL_NO_GETPID
+    #if defined(WOLFSSL_NO_GETPID) && !defined(WC_RNG_LOCK_ATFORK)
+        /* nothing reseeds the child: neither the pid check nor the handlers */
         ExpectBufEQ(randbuf, childrand, sizeof(randbuf));
     #else
         ExpectBufNE(randbuf, childrand, sizeof(randbuf));
     #endif
         close(pipefds[0]);
-        waitpid(pid, &waitstatus, 0);
+        /* reap first, whatever happened above; then judge it */
+        reaped = (waitpid(pid, &waitstatus, 0) == pid);
+        ExpectIntEQ(reaped && WIFEXITED(waitstatus) &&
+                    WEXITSTATUS(waitstatus) == 0, 1);
     }
     RAND_cleanup();
 #endif
