@@ -2557,6 +2557,9 @@ int test_wolfSSL_verify_post_handshake_defers(void)
     return EXPECT_RESULT();
 }
 
+static int g_crlIoCalls;
+static int g_crlIoResult;
+
 static int test_crl_io_mock(WOLFSSL_CRL* crl, const char* url, int urlSz)
 {
     (void)crl; (void)url; (void)urlSz;
