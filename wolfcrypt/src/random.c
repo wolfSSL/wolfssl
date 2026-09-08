@@ -140,7 +140,7 @@ This library contains implementation for the random number generator.
 
 #include <wolfssl/wolfcrypt/random.h>
 #ifdef WC_RNG_LOCK_ATFORK
-    #include <errno.h>
+    #include <errno.h>   /* for the fork handlers, whatever the seed source */
 #endif
 #ifdef WC_HAVE_RNG_BANKREF
     #if defined(HAVE_FIPS) && !defined(WOLFSSL_EXPERIMENTAL_SETTINGS)
@@ -569,6 +569,7 @@ static int UnlockDrbgState(void)
 static WC_RNG_LOCK* rngList = NULL;   /* every live lock, under rngListSem */
 static sem_t rngListSem;
 static int rngAtForkSet = 0;    /* handlers registered, never unregistered */
+static int rngImagePinned = 0; /* so a failed registration does not re-pin */
 static int rngListDead = 0;    /* registry unusable: every handler backs off */
 
 /* sem_wait() is a cancellation point; a cancel here would strand the lock. */
@@ -648,7 +649,7 @@ WOLFSSL_LOCAL int wc_RngAtForkInit(void)
     int ret = LockDrbgState();
     if (ret != 0)
         return ret;
-    if (!rngAtForkSet) {
+    if (!rngAtForkSet && !rngImagePinned) {
         /* pin outside the lock: dlopen() takes the loader lock.  Racing
          * first callers may both pin, which is harmless. */
         (void)UnlockDrbgState();
@@ -656,6 +657,7 @@ WOLFSSL_LOCAL int wc_RngAtForkInit(void)
         ret = LockDrbgState();
         if (ret != 0)
             return ret;
+        rngImagePinned = 1;
     }
     if (!rngAtForkSet) {
         ret = (sem_init(&rngListSem, 0, 1) == 0) ? 0 : BAD_MUTEX_E;
@@ -677,7 +679,11 @@ static int RngRegister(WC_RNG_LOCK* n)
     int ret = wc_RngAtForkInit();
     if (ret != 0)
         return ret;
-    if (rngListDead || RngSemWait(&rngListSem) != 0)
+    if (rngListDead) {
+        WOLFSSL_MSG("RngRegister: registry dead since a fork");
+        return BAD_MUTEX_E;
+    }
+    if (RngSemWait(&rngListSem) != 0)
         return BAD_MUTEX_E;
     ret = (sem_init(&n->sem, 0, 1) == 0) ? 0 : BAD_MUTEX_E;
     if (ret == 0) {
