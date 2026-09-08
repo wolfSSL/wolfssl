@@ -14769,6 +14769,7 @@ L_aes_gcm_decrypt_arm64_crypto_done
 	ENDP
 	ENDIF
 	IF :DEF:WOLFSSL_ARMASM_CRYPTO_SHA3
+; .arch_extension sha3
 	AREA	|.text|, CODE, READONLY
 	ALIGN	4
 	EXPORT	AES_GCM_encrypt_AARCH64_EOR3
@@ -32545,6 +32546,7 @@ L_aes_gcm_decrypt_final_arm64_crypto_tag_loaded
 	ENDP
 	ENDIF
 	IF :DEF:WOLFSSL_ARMASM_CRYPTO_SHA3
+; .arch_extension sha3
 	AREA	|.text|, CODE, READONLY
 	ALIGN	4
 	EXPORT	AES_GCM_init_AARCH64_EOR3
