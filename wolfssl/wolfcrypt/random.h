@@ -35,7 +35,8 @@
 #endif /* HAVE_FIPS_VERSION >= 2 */
 
 /* One lock per WC_RNG so threads can share it.  WC_RNG_NO_LOCK opts out;
- * kernel modules have their own lock-free design. */
+ * kernel modules have their own lock-free design.  Bank builds keep it: they
+ * still hand out plain instances. */
 #if !defined(WC_RNG_NO_LOCK) && !defined(SINGLE_THREADED) && \
     !defined(WC_NO_RNG) && \
     !defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_BSDKM) && \
@@ -114,7 +115,7 @@ typedef struct WC_RNG_LOCK {
     struct WC_RNG_LOCK** prev;   /* the link that leads here */
     void* drbg;                  /* states a fork child must reseed */
     void* drbg512;
-    int broken;                  /* fails closed after a fork went wrong */
+    int broken;   /* fails closed; set only by a lone child or on a dead sem */
 } WC_RNG_LOCK;
 WOLFSSL_LOCAL int wc_RngAtForkInit(void);   /* from wolfCrypt_Init */
 WOLFSSL_LOCAL void wc_RngPinImage(void* fn);   /* keeps fn's image mapped */

@@ -13384,6 +13384,10 @@ if test "x$enable_rng_lock" = "xyes" && test "$ENABLED_RNG_LOCK_THREADS" = "no"
 then
     AC_MSG_ERROR([--enable-rng-lock requires threads])
 fi
+if test "$ENABLED_RNG_LOCK_THREADS" = "no"
+then
+    ENABLED_RNG_LOCK=no
+fi
 # a build that cannot carry the handlers drops them, unless asked explicitly
 if test "$ENABLED_RNG_ATFORK" = "yes"
 then
@@ -13399,7 +13403,7 @@ then
         RNG_ATFORK_NEEDS="${RNG_ATFORK_NEEDS:+$RNG_ATFORK_NEEDS, and }threads and no kernel module"
     fi
     case "$AM_CFLAGS $CPPFLAGS $CFLAGS" in
-        *-DWOLFSSL_STATIC_MEMORY*|*-DWOLFSSL_NO_MALLOC*|*-DCUSTOM_RAND_GENERATE_BLOCK*|*-DWOLFSSL_CHECK_MEM_ZERO*)
+        *-DWOLFSSL_STATIC_MEMORY*|*-DWOLFSSL_NO_MALLOC*|*-DCUSTOM_RAND_GENERATE_BLOCK*|*-DWOLFSSL_CHECK_MEM_ZERO*|*-DWOLFSSL_USER_MUTEX*)
             ENABLED_RNG_ATFORK_FLAGS=no ;;
         *) ENABLED_RNG_ATFORK_FLAGS=yes ;;
     esac
@@ -14257,6 +14261,7 @@ echo "   * XCHACHA:                    $ENABLED_XCHACHA"
 echo "   * Hash DRBG:                  $ENABLED_HASHDRBG"
 echo "   * SHA-256 Hash DRBG:          $ENABLED_SHA256_DRBG"
 echo "   * SHA-512 Hash DRBG:          $ENABLED_SHA512_DRBG"
+echo "   * RNG lock:                   $ENABLED_RNG_LOCK"
 echo "   * RNG fork handlers:          $ENABLED_RNG_ATFORK"
 echo "   * MmemUse Entropy:"
 echo "   * (AKA: wolfEntropy):         $ENABLED_ENTROPY_MEMUSE"

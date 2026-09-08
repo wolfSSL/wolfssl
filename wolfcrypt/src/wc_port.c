@@ -433,6 +433,7 @@ WOLFSSL_LOCAL void wc_RngPinImage(void* fn)
     Dl_info info;
     const char* name;   /* a pointer on most libcs, an array on Cygwin */
     if (dladdr(fn, &info) == 0 || (name = info.dli_fname) == NULL ||
+        name[0] == '\0' ||
         dlopen(name, RTLD_NOLOAD | RTLD_NODELETE | RTLD_LAZY) == NULL) {
         /* no dlopen() handle means no dlclose() can reach this image */
         WOLFSSL_MSG("RNG fork handlers: no dlopen handle, nothing to pin");

@@ -505,7 +505,7 @@ static int rngListDead = 0;    /* a child that lost the registry fails closed */
 static int RngSemWait(sem_t* s)
 {
     int ret = 0;
-    int old;
+    int old = PTHREAD_CANCEL_ENABLE;
     (void)pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &old);
     while (sem_wait(s) != 0) {
         if (errno != EINTR) {
@@ -578,7 +578,8 @@ int wc_RngAtForkInit(void)
     if (ret != 0)
         return ret;
     if (!rngAtForkSet) {
-        /* pin outside the lock: dlopen() takes the loader lock */
+        /* pin outside the lock: dlopen() takes the loader lock.  Racing
+         * first callers may both pin, which is harmless. */
         (void)UnlockDrbgState();
         wc_RngPinImage((void*)(wc_ptr_t)RngAtForkPrepare);
         ret = LockDrbgState();
