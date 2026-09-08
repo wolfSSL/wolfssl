@@ -2478,6 +2478,12 @@ static int cb_cert_touches_ctx(int mode)
     return (mode != CB_CERT_NO_CHANGE) && (mode != CB_CERT_ON_SSL);
 }
 
+/* The calls that read the error queue are only built alongside it here. */
+#if defined(WOLFSSL_HAVE_ERROR_QUEUE) && defined(OPENSSL_EXTRA)
+    #define CB_CERT_ERR_QUEUE
+#endif
+
+#ifdef CB_CERT_ERR_QUEUE
 /* Whether the error queue holds the refusal, past anything else on it. */
 static int cb_cert_refusal_queued(void)
 {
@@ -2492,6 +2498,7 @@ static int cb_cert_refusal_queued(void)
 
     return found;
 }
+#endif
 
 /* Carry out what the case asks for, recording what the load returned.
  *
@@ -2503,7 +2510,9 @@ static void cb_cert_action(WOLFSSL* ssl, CbCertCase* test)
     test->called++;
     test->ctxCertBefore = (const void*)test->ctx->certificate;
     test->ctxChainBefore = (const void*)test->ctx->certChain;
+#ifdef CB_CERT_ERR_QUEUE
     wolfSSL_ERR_clear_error();
+#endif
 
     switch (test->mode) {
         case CB_CERT_ON_SSL:
@@ -2586,7 +2595,9 @@ static void cb_cert_action(WOLFSSL* ssl, CbCertCase* test)
 
     test->ctxCertAfter = (const void*)test->ctx->certificate;
     test->ctxChainAfter = (const void*)test->ctx->certChain;
+#ifdef CB_CERT_ERR_QUEUE
     test->queued = cb_cert_refusal_queued();
+#endif
 }
 
 #ifdef HAVE_SNI
@@ -2672,7 +2683,7 @@ static int test_cb_cert_swap(method_provider method_c,
         ExpectIntNE(test.loadRet, WOLFSSL_SUCCESS);
         ExpectPtrEq(test.ctxCertAfter, test.ctxCertBefore);
         ExpectPtrEq(test.ctxChainAfter, test.ctxChainBefore);
-    #ifdef WOLFSSL_HAVE_ERROR_QUEUE
+    #ifdef CB_CERT_ERR_QUEUE
         /* The reason is left where the application can read it. */
         ExpectIntEQ(test.queued, 1);
     #endif
@@ -2777,10 +2788,14 @@ static int sni_cb_switch_ctx_then_load(WOLFSSL* ssl, int* ad, void* arg)
     if (wolfSSL_set_SSL_CTX(ssl, test->ctx) == NULL) {
         return fatal_return;
     }
+#ifdef CB_CERT_ERR_QUEUE
     wolfSSL_ERR_clear_error();
+#endif
     test->loadRet = wolfSSL_CTX_use_certificate_file(test->ctx, svrCertFile,
         CERT_FILETYPE);
+#ifdef CB_CERT_ERR_QUEUE
     test->queued = cb_cert_refusal_queued();
+#endif
     return 0;
 }
 #endif
@@ -2874,7 +2889,7 @@ int test_sni_cb_switch_ctx_load_refused(void)
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
     ExpectIntEQ(test.called, 1);
     ExpectIntNE(test.loadRet, WOLFSSL_SUCCESS);
-#ifdef WOLFSSL_HAVE_ERROR_QUEUE
+#ifdef CB_CERT_ERR_QUEUE
     ExpectIntEQ(test.queued, 1);
 #endif
 
