@@ -582,6 +582,7 @@ int wolfCrypt_Init(void)
         }
     #endif
     #ifdef WC_RNG_LOCK_ATFORK
+        /* here, before the app has threads, so no fork can race it */
         ret = wc_RngAtForkInit();
         if (ret != 0) {
             WOLFSSL_MSG("RNG fork handler registration failed");

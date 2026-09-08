@@ -444,8 +444,9 @@ extern "C" {
      * a heap, the lock above (not WC_RNG_NO_LOCK) and unnamed POSIX
      * semaphores (sem_init, so not macOS); the pin needs dladdr and dlopen,
      * -ldl on glibc before 2.34, and keeps the library mapped, since the
-     * handlers cannot be removed.  Left out with entropy-memuse, the RNG
-     * bank, netRandom, selftest, FIPS before v7 or memory zero checking */
+     * handlers cannot be removed.  Left out with SINGLE_THREADED,
+     * entropy-memuse, the RNG bank, netRandom, selftest, FIPS before v7,
+     * memory zero checking, memory tracking or failure counting */
     #define WC_RNG_ATFORK
 #endif
 

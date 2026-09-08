@@ -13385,9 +13385,11 @@ then
     AC_MSG_ERROR([--enable-rng-lock requires threads])
 fi
 case "$AM_CFLAGS $CPPFLAGS $CFLAGS" in
-    *-DCUSTOM_RAND_GENERATE_BLOCK*) ENABLED_RNG_LOCK=no ;;
+    *-DCUSTOM_RAND_GENERATE_BLOCK*) ENABLED_RNG_LOCK_CUSTOM=yes ;;
+    *) ENABLED_RNG_LOCK_CUSTOM=no ;;
 esac
 if test "$ENABLED_RNG_LOCK_THREADS" = "no" || test "$ENABLED_RNG" = "no" || \
+   test "$ENABLED_RNG_LOCK_CUSTOM" = "yes" || \
    test "$ENABLED_SELFTEST" = "yes" || test "x$ENABLED_HASHDRBG" != "xyes" || \
    test "$ENABLED_LINUXKM" = "yes" || test "$ENABLED_BSDKM" = "yes" || \
    { test "$ENABLED_FIPS" = "yes" && test "${HAVE_FIPS_VERSION_MAJOR:-0}" -lt 7; }
