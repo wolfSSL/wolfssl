@@ -1877,7 +1877,7 @@ int GetASN_Items(const ASNItem* asn, ASNGetData *data, int count, int complete,
 #endif
 
     /* Set the end index at each depth to be the length. */
-    for (i=0; i<GET_ASN_MAX_DEPTH; i++) {
+    for (i = 0; i < GET_ASN_MAX_DEPTH; i++) {
         endIdx[i] = length;
     }
 
@@ -1889,13 +1889,18 @@ int GetASN_Items(const ASNItem* asn, ASNGetData *data, int count, int complete,
         data[i].offset = idx;
         /* Length of data in ASN.1 item starts empty. */
         data[i].length = 0;
-        /* Get current item depth. */
-        depth = asn[i].depth;
         if (depth >= GET_ASN_MAX_DEPTH) {
     #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
             WOLFSSL_MSG("Depth in template too large");
     #endif
             return ASN_PARSE_E;
+        }
+        /* Determine the current depth by checking index against end indices.
+         * Don't go lower than the expected depth. Depths lower than first
+         * may not have an end index set yet. */
+        while ((depth > asn[i].depth) &&
+                     ((depth <= asn[0].depth) || (idx == endIdx[depth]))) {
+            depth--;
         }
         /* Keep track of minimum depth. */
         if (depth < minDepth) {
@@ -1917,10 +1922,30 @@ int GetASN_Items(const ASNItem* asn, ASNGetData *data, int count, int complete,
             }
         }
 
-        /* Check for end of data or not a choice and tag not matching. */
+        /* A constructed item the data has not used up is not finished. When
+         * the items must completely use up the data, moving out of it would
+         * leave the excess to be skipped silently - reject. Otherwise the
+         * template is deliberately describing only a prefix of the data - the
+         * first of a SEQUENCE OF, say - and the rest is the caller's to walk,
+         * so follow the template back out. */
+        if (depth > asn[i].depth) {
+            if (complete) {
+        #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
+                WOLFSSL_MSG_VSNPRINTF("Depth %d in template, %d in data: %d",
+                        asn[i].depth, depth, i);
+        #endif
+                return ASN_PARSE_E;
+            }
+            depth = asn[i].depth;
+        }
+
+        /* Check for data not reaching this depth, end of data, or not a choice
+         * and tag not matching. Data not this deep means the item's enclosing
+         * item was never entered and the item cannot be present. */
         tmpW32Val = endIdx[depth];
         XFENCE(); /* Prevent memory access */
-        if (idx == tmpW32Val || (data[i].dataType != ASN_DATA_TYPE_CHOICE &&
+        if ((depth < asn[i].depth) || idx == tmpW32Val ||
+                                (data[i].dataType != ASN_DATA_TYPE_CHOICE &&
                               (input[idx] & ~ASN_CONSTRUCTED) != asn[i].tag)) {
             if (asn[i].optional) {
                 /* Skip over ASN.1 items underneath this optional item. */
@@ -2088,6 +2113,9 @@ int GetASN_Items(const ASNItem* asn, ASNGetData *data, int count, int complete,
             /* Store reference to data and length. */
             data[i].data.ref.data = input + idx;
             data[i].data.ref.length = (word32)len;
+            /* Index left at the start of the content - the items that
+             * follow are parsed out of this one, so move into it. */
+            depth++;
             continue;
         }
 
