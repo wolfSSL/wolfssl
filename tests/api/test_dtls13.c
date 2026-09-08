@@ -2486,3 +2486,128 @@ int test_dtls13_reset_clears_alert_history(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13)
+/* Reports a receive timeout for the first *ctx calls, then no data. A
+ * scheduled ACK takes one timeout of its own before the retransmit runs. */
+static int test_dtls13_rtx_timeout_read_cb(WOLFSSL *ssl, char *data, int sz,
+        void *ctx)
+{
+    int* timeouts = (int*)ctx;
+    (void)ssl;
+    (void)data;
+    (void)sz;
+    if (*timeouts > 0) {
+        (*timeouts)--;
+        return WOLFSSL_CBIO_ERR_TIMEOUT;
+    }
+    return WOLFSSL_CBIO_ERR_WANT_READ;
+}
+#endif
+
+/* A receive timeout makes DTLS 1.3 send an ACK or retransmit. When the
+ * transport cannot take it, the handshake reports want-write and the retry
+ * completes the send. */
+int test_dtls13_rtx_timeout_want_write(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL *ssl_c = NULL;
+    struct test_memio_ctx test_ctx;
+    int timeouts = 1;
+    int sentBefore;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, NULL, &ssl_c, NULL,
+        wolfDTLSv1_3_client_method, NULL), 0);
+
+    /* Send the ClientHello flight and wait on the server. */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    sentBefore = test_ctx.s_len;
+
+    /* The next receive reports a timeout while the transport refuses
+     * writes. */
+    wolfSSL_SetIOReadCtx(ssl_c, &timeouts);
+    wolfSSL_SSLSetIORecv(ssl_c, test_dtls13_rtx_timeout_read_cb);
+    test_memio_simulate_want_write(&test_ctx, 1, 1);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_WRITE);
+    ExpectIntEQ(test_ctx.s_len, sentBefore);
+
+    /* With writes allowed again the retransmission reaches the peer. */
+    test_memio_simulate_want_write(&test_ctx, 1, 0);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntGT(test_ctx.s_len, sentBefore);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The same timeout on the read path. wolfSSL_read() reports want-write and
+ * marks the record it held, which wolfSSL_dtls13_do_scheduled_work() sends. */
+int test_dtls13_rtx_timeout_want_write_read(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    const char msg[] = "read-path";
+    const int msgLen = sizeof(msg);
+    char readBuf[sizeof(msg)];
+    int timeouts = 2;
+    int sentBefore;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Leave a KeyUpdate buffered so a timeout has something to retransmit. */
+    ExpectIntEQ(wolfSSL_update_keys(ssl_c), WOLFSSL_SUCCESS);
+    sentBefore = test_ctx.s_len;
+
+    /* The next receive reports a timeout while the transport refuses
+     * writes. */
+    wolfSSL_SetIOReadCtx(ssl_c, &timeouts);
+    wolfSSL_SSLSetIORecv(ssl_c, test_dtls13_rtx_timeout_read_cb);
+    test_memio_simulate_want_write(&test_ctx, 1, 1);
+    XMEMSET(readBuf, 0, sizeof(readBuf));
+    ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_WRITE);
+    ExpectIntEQ(test_ctx.s_len, sentBefore);
+
+    /* Reading again reports no data rather than an error, and the record the
+     * timeout could not write is still owed. */
+    test_memio_simulate_want_write(&test_ctx, 1, 0);
+    ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_dtls13_pending_work(ssl_c), 1);
+
+    /* The pump sends it. */
+    ExpectIntEQ(wolfSSL_dtls13_do_scheduled_work(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntGT(test_ctx.s_len, sentBefore);
+    ExpectIntEQ(wolfSSL_dtls13_pending_work(ssl_c), 0);
+
+    /* The connection still carries application data. */
+    wolfSSL_SSLSetIORecv(ssl_c, test_memio_read_cb);
+    wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_write(ssl_s, msg, msgLen), msgLen);
+    XMEMSET(readBuf, 0, sizeof(readBuf));
+    ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), msgLen);
+    ExpectStrEQ(readBuf, msg);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}

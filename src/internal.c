@@ -12178,8 +12178,8 @@ WC_MAYBE_UNUSED static int SendHandshakeMsg(WOLFSSL* ssl, byte* input,
 }
 
 
-/* return bytes received, WOLFSSL_FATAL_ERROR on error,
- * or BAD_FUNC_ARG if ssl is null */
+/* return bytes received, WANT_READ or WANT_WRITE to call again,
+ * WOLFSSL_FATAL_ERROR on error, or BAD_FUNC_ARG if ssl is null */
 static int wolfSSLReceive(WOLFSSL* ssl, byte* buf, word32 sz)
 {
     int recvd;
@@ -12265,8 +12265,14 @@ retry:
             #ifdef WOLFSSL_DTLS
 #ifdef WOLFSSL_DTLS13
                 if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version)) {
-                    /* TODO: support WANT_WRITE here */
-                    if (Dtls13RtxTimeout(ssl) < 0) {
+                    int rtxRet = Dtls13RtxTimeout(ssl);
+                    if (rtxRet == WC_NO_ERR_TRACE(WANT_WRITE)) {
+                        /* Record that this ACK or retransmit still owes a
+                         * write, so the next flush sends it. */
+                        ssl->dtls13SendingAckOrRtx = 1;
+                        return WC_NO_ERR_TRACE(WANT_WRITE);
+                    }
+                    if (rtxRet < 0) {
                         WOLFSSL_MSG(
                             "Error trying to retransmit DTLS buffered message");
                         return WOLFSSL_FATAL_ERROR;
@@ -24327,6 +24333,11 @@ static int GetInputData_ex(WOLFSSL *ssl, word32 size, word32 readAhead)
                      (word32)inSz);
         if (in == WC_NO_ERR_TRACE(WANT_READ))
             return WC_NO_ERR_TRACE(WANT_READ);
+
+#ifdef WOLFSSL_DTLS13
+        if (in == WC_NO_ERR_TRACE(WANT_WRITE))
+            return WC_NO_ERR_TRACE(WANT_WRITE);
+#endif
 
         if (in < 0) {
             WOLFSSL_ERROR_VERBOSE(SOCKET_ERROR_E);
