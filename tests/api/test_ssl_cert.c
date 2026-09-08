@@ -2557,6 +2557,11 @@ int test_wolfSSL_verify_post_handshake_defers(void)
     return EXPECT_RESULT();
 }
 
+/* Compiled exactly when the body of test_wolfSSL_crl_io_mock() below is: the
+ * mock has no other caller, so a wider condition here leaves it defined and
+ * unused, which -Werror=unused-function rejects. Keep the two in step. */
+#if defined(HAVE_CRL) && defined(HAVE_CRL_IO) && !defined(NO_CERTS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
 static int g_crlIoCalls;
 static int g_crlIoResult;
 
@@ -2566,6 +2571,7 @@ static int test_crl_io_mock(WOLFSSL_CRL* crl, const char* url, int urlSz)
     g_crlIoCalls++;
     return g_crlIoResult;
 }
+#endif
 
 int test_wolfSSL_crl_io_mock(void)
 {
