@@ -26,6 +26,9 @@
 #elif defined(__FreeBSD__)
     /* for __FreeBSD_version */
     #include <sys/param.h>
+#elif (defined(__CYGWIN__) || defined(__MSYS__)) && !defined(_GNU_SOURCE)
+    /* dladdr and Dl_info, for the RNG fork handler pin, hide behind it */
+    #define _GNU_SOURCE 1
 #endif
 
 /*
@@ -115,8 +118,12 @@ Threading/Mutex options:
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
 #endif
-#if defined(HAVE_HASHDRBG) && !defined(WC_NO_RNG)
+#ifndef WC_NO_RNG
+    /* random.h defines HAVE_HASHDRBG itself, so no HAVE_HASHDRBG test here */
     #include <wolfssl/wolfcrypt/random.h>
+    #ifdef WC_RNG_LOCK_ATFORK
+        #include <dlfcn.h>   /* the pin, which the handlers require */
+    #endif
 #endif
 
 #ifdef FREESCALE_LTC_TFM
@@ -415,6 +422,24 @@ static WC_DECLARE_INIT_STATE(wolfcrypt_init_state);
 int aarch64_use_sb = 0;
 #endif
 
+#ifdef WC_RNG_LOCK_ATFORK
+#if !defined(RTLD_NOLOAD) || !defined(RTLD_NODELETE)
+    #error "WC_RNG_ATFORK needs RTLD_NOLOAD and RTLD_NODELETE"
+#endif
+/* The fork handlers can never be unregistered, so the image that holds them
+ * is pinned against dlclose() before they are registered. */
+WOLFSSL_LOCAL void wc_RngPinImage(void* fn)
+{
+    Dl_info info;
+    const char* name;   /* a pointer on most libcs, an array on Cygwin */
+    if (dladdr(fn, &info) == 0 || (name = info.dli_fname) == NULL ||
+        dlopen(name, RTLD_NOLOAD | RTLD_NODELETE | RTLD_LAZY) == NULL) {
+        /* no dlopen() handle means no dlclose() can reach this image */
+        WOLFSSL_MSG("RNG fork handlers: no dlopen handle, nothing to pin");
+    }
+}
+#endif
+
 /* Used to initialize state for wolfcrypt
    return 0 on success
  */
@@ -552,6 +577,13 @@ int wolfCrypt_Init(void)
         ret = wc_DrbgState_MutexInit();
         if (ret != 0) {
             WOLFSSL_MSG("DRBG state mutex init failed");
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
+        }
+    #endif
+    #ifdef WC_RNG_LOCK_ATFORK
+        ret = wc_RngAtForkInit();
+        if (ret != 0) {
+            WOLFSSL_MSG("RNG fork handler registration failed");
             WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
     #endif

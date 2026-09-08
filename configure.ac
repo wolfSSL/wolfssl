@@ -2790,6 +2790,48 @@ then
 fi
 
 
+# RNG lock (share one WC_RNG between threads)
+AC_ARG_ENABLE([rng-lock],
+    [AS_HELP_STRING([--enable-rng-lock],[Enable the lock that lets one WC_RNG be shared between threads (default: enabled where the build supports it)])],
+    [ ENABLED_RNG_LOCK=$enableval ],
+    [ ENABLED_RNG_LOCK=yes ]
+    )
+
+case "$ENABLED_RNG_LOCK" in
+    yes|no) ;;
+    *) AC_MSG_ERROR([--enable-rng-lock takes yes or no]) ;;
+esac
+# only an explicit ask is an error: the default is yes
+if test "x$enable_rng_lock" = "xyes" && test "$ENABLED_RNG" = "no"
+then
+    AC_MSG_ERROR([--enable-rng-lock requires --enable-rng])
+fi
+if test "$ENABLED_RNG_LOCK" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWC_RNG_NO_LOCK"
+fi
+
+# RNG fork handlers (a forked child keeps using its WC_RNG); decided below
+AC_ARG_ENABLE([rng-atfork],
+    [AS_HELP_STRING([--enable-rng-atfork],[Enable pthread_atfork handlers so a forked child can keep using a WC_RNG (default: enabled where supported)])],
+    [ ENABLED_RNG_ATFORK=$enableval ],
+    [ ENABLED_RNG_ATFORK=yes ]
+    )
+
+case "$ENABLED_RNG_ATFORK" in
+    yes|no) ;;
+    *) AC_MSG_ERROR([--enable-rng-atfork takes yes or no]) ;;
+esac
+if test "$ENABLED_RNG" = "no" || test "$ENABLED_RNG_LOCK" = "no"
+then
+    if test "x$enable_rng_atfork" = "xyes"
+    then
+        AC_MSG_ERROR([--enable-rng-atfork requires --enable-rng and --enable-rng-lock])
+    fi
+    ENABLED_RNG_ATFORK=no
+fi
+
+
 # DTLS-SCTP
 AC_ARG_ENABLE([sctp],
     [AS_HELP_STRING([--enable-sctp],[Enable wolfSSL DTLS-SCTP support (default: disabled)])],
@@ -13328,6 +13370,112 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE___UINT128_T=1"
 fi
 
+# RNG lock and fork handlers need threads; the handlers need everything the
+# WC_RNG_LOCK_ATFORK gate in random.h asks for
+case "$AM_CFLAGS $CPPFLAGS $CFLAGS" in
+    *-DSINGLE_THREADED*) ENABLED_RNG_LOCK_THREADS=no ;;
+    *) ENABLED_RNG_LOCK_THREADS=yes ;;
+esac
+if test "$ENABLED_SINGLETHREADED" = "yes"
+then
+    ENABLED_RNG_LOCK_THREADS=no
+fi
+if test "x$enable_rng_lock" = "xyes" && test "$ENABLED_RNG_LOCK_THREADS" = "no"
+then
+    AC_MSG_ERROR([--enable-rng-lock requires threads])
+fi
+# a build that cannot carry the handlers drops them, unless asked explicitly
+if test "$ENABLED_RNG_ATFORK" = "yes"
+then
+    RNG_ATFORK_NEEDS=""
+    if test "$ENABLED_USERSETTINGS" = "yes"
+    then
+        # user_settings.h owns every define in that mode
+        RNG_ATFORK_NEEDS="user_settings.h to define WC_RNG_ATFORK"
+    fi
+    if test "$ENABLED_RNG_LOCK_THREADS" = "no" || \
+       test "$ENABLED_LINUXKM" = "yes" || test "$ENABLED_BSDKM" = "yes"
+    then
+        RNG_ATFORK_NEEDS="${RNG_ATFORK_NEEDS:+$RNG_ATFORK_NEEDS, and }threads and no kernel module"
+    fi
+    case "$AM_CFLAGS $CPPFLAGS $CFLAGS" in
+        *-DWOLFSSL_STATIC_MEMORY*|*-DWOLFSSL_NO_MALLOC*|*-DCUSTOM_RAND_GENERATE_BLOCK*|*-DWOLFSSL_CHECK_MEM_ZERO*)
+            ENABLED_RNG_ATFORK_FLAGS=no ;;
+        *) ENABLED_RNG_ATFORK_FLAGS=yes ;;
+    esac
+    if test "$ENABLED_SELFTEST" = "yes" || test "x$ENABLED_HASHDRBG" != "xyes" || \
+       test "$ENABLED_ENTROPY_MEMUSE" != "no" || test "$ENABLED_RNG_BANK" = "yes" || \
+       test "$ENABLED_RNG_ATFORK_FLAGS" = "no" || test "$ENABLED_WNR" = "yes" || \
+       { test "$ENABLED_FIPS" = "yes" && test "${HAVE_FIPS_VERSION_MAJOR:-0}" -lt 7; }
+    then
+        RNG_ATFORK_NEEDS="${RNG_ATFORK_NEEDS:+$RNG_ATFORK_NEEDS, and }the Hash DRBG with a heap and none of selftest, FIPS before v7, entropy-memuse, rng-bank, static memory, netRandom or memory zero checking"
+    fi
+    if test -z "$RNG_ATFORK_NEEDS"
+    then
+        saved_LIBS="$LIBS"
+        AC_SEARCH_LIBS([pthread_atfork], [pthread])
+        LIBS="$saved_LIBS"
+        if test "$ac_cv_search_pthread_atfork" = "no"
+        then
+            RNG_ATFORK_NEEDS="pthread_atfork"
+        fi
+    fi
+    if test -z "$RNG_ATFORK_NEEDS"
+    then
+        # link the real pin: a bare symbol probe passes where the header
+        # hides dladdr or lacks the RTLD flags
+        saved_LIBS="$LIBS"
+        AC_SEARCH_LIBS([dladdr], [dl])
+        AC_MSG_CHECKING([whether dladdr, dlopen and unnamed POSIX semaphores are available])
+        AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+            #if defined(__linux__) || defined(__ANDROID__) || \
+                defined(__CYGWIN__) || defined(__MSYS__)
+            #define _GNU_SOURCE 1   /* as wc_port.c does */
+            #endif
+            #include <stddef.h>
+            #include <stdint.h>
+            #include <dlfcn.h>
+            #include <semaphore.h>
+            #ifdef __APPLE__
+            #error "macOS has only named semaphores, which a forked child shares"
+            #endif
+            ]], [[
+            Dl_info info;
+            const char* name;
+            sem_t s;
+            if (sem_init(&s, 0, 1) == 0)
+                (void)sem_post(&s);
+            if (dladdr((void*)(uintptr_t)main, &info) != 0) {
+                name = info.dli_fname;
+                if (name != NULL && name[0] != '\0')
+                    (void)dlopen(name, RTLD_NOLOAD | RTLD_NODELETE | RTLD_LAZY);
+            }
+            ]])],
+            [AC_MSG_RESULT([yes])],
+            [AC_MSG_RESULT([no])
+             RNG_ATFORK_NEEDS="dladdr, dlopen and unnamed POSIX semaphores"])
+        RNG_ATFORK_DL_LIBS="$LIBS"
+        LIBS="$saved_LIBS"
+    fi
+    if test -n "$RNG_ATFORK_NEEDS"
+    then
+        if test "x$enable_rng_atfork" = "xyes"
+        then
+            AC_MSG_ERROR([--enable-rng-atfork requires $RNG_ATFORK_NEEDS])
+        fi
+        AC_MSG_NOTICE([RNG fork handlers off: they need $RNG_ATFORK_NEEDS])
+        ENABLED_RNG_ATFORK=no
+    fi
+fi
+if test "$ENABLED_RNG_ATFORK" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWC_RNG_ATFORK"
+    LIBS="$RNG_ATFORK_DL_LIBS"   # -ldl where dladdr needed it
+    case "$ac_cv_search_dladdr" in
+        -l*) PC_LIBS_PRIVATE="$PC_LIBS_PRIVATE $ac_cv_search_dladdr" ;;
+    esac
+fi
+
 # Add HAVE_GETPID to AM_CFLAGS for inclusion in options.h
 if test "$ac_cv_func_getpid" = "yes"
 then
@@ -14109,6 +14257,7 @@ echo "   * XCHACHA:                    $ENABLED_XCHACHA"
 echo "   * Hash DRBG:                  $ENABLED_HASHDRBG"
 echo "   * SHA-256 Hash DRBG:          $ENABLED_SHA256_DRBG"
 echo "   * SHA-512 Hash DRBG:          $ENABLED_SHA512_DRBG"
+echo "   * RNG fork handlers:          $ENABLED_RNG_ATFORK"
 echo "   * MmemUse Entropy:"
 echo "   * (AKA: wolfEntropy):         $ENABLED_ENTROPY_MEMUSE"
 echo "   * PWDBASED:                   $ENABLED_PWDBASED"

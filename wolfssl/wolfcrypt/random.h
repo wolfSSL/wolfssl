@@ -34,6 +34,32 @@
     #include <wolfssl/wolfcrypt/fips.h>
 #endif /* HAVE_FIPS_VERSION >= 2 */
 
+/* One lock per WC_RNG so threads can share it.  WC_RNG_NO_LOCK opts out;
+ * kernel modules have their own lock-free design. */
+#if !defined(WC_RNG_NO_LOCK) && !defined(SINGLE_THREADED) && \
+    !defined(WC_NO_RNG) && \
+    !defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_BSDKM) && \
+    defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    #define WC_RNG_HAVE_LOCK
+#endif
+
+/* pthread_atfork handlers so a forked child can keep using its WC_RNG.
+ * configure and CMake define WC_RNG_ATFORK where the dlclose pin and unnamed
+ * semaphores exist; builds whose locks the handlers cannot cover are left
+ * out. */
+#if defined(WC_RNG_HAVE_LOCK) && defined(WOLFSSL_PTHREADS) && \
+    defined(WC_RNG_ATFORK) && !defined(__APPLE__) && \
+    !defined(WOLFSSL_NO_MALLOC) && !defined(HAVE_ENTROPY_MEMUSE) && \
+    !defined(WC_RNG_BANK_SUPPORT) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(HAVE_WNR) && !defined(WOLFSSL_CHECK_MEM_ZERO)
+    #define WC_RNG_LOCK_ATFORK
+#endif
+
+#ifdef WC_RNG_LOCK_ATFORK
+    #include <semaphore.h>   /* outside extern "C" */
+#endif
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -75,6 +101,23 @@
     #ifndef WC_RESEED_INTERVAL
         #define WC_RESEED_INTERVAL (1000000)
     #endif
+#endif
+
+#ifdef WC_RNG_LOCK_ATFORK
+/* On the heap so a memset of the WC_RNG cannot break the fork registry.  An
+ * unnamed semaphore: fork() copies it and sem_post() is the one unlock a
+ * child handler may call.  macOS has only named ones, so no handlers there. */
+typedef struct WC_RNG_LOCK {
+    sem_t sem;
+    void* heap;
+    struct WC_RNG_LOCK* next;
+    struct WC_RNG_LOCK** prev;   /* the link that leads here */
+    void* drbg;                  /* states a fork child must reseed */
+    void* drbg512;
+    int broken;                  /* fails closed after a fork went wrong */
+} WC_RNG_LOCK;
+WOLFSSL_LOCAL int wc_RngAtForkInit(void);   /* from wolfCrypt_Init */
+WOLFSSL_LOCAL void wc_RngPinImage(void* fn);   /* keeps fn's image mapped */
 #endif
 
 
@@ -426,6 +469,15 @@ struct WC_RNG {
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
     int devId;
 #endif
+#ifdef WC_RNG_LOCK_ATFORK
+    /* NULL until wc_InitRng succeeds.  Initialize only a new or freed WC_RNG:
+     * wc_InitRng over a live one leaks this and grows the fork registry that
+     * every fork() walks. */
+    WC_RNG_LOCK* lock;
+#elif defined(WC_RNG_HAVE_LOCK)
+    wolfSSL_Mutex lock;   /* serializes generate and reseed */
+    byte lockInited;      /* nonzero once lock exists */
+#endif
 };
 
 #endif /* NO FIPS or have FIPS v2*/
@@ -548,6 +600,8 @@ WOLFSSL_ABI WOLFSSL_API WC_RNG* wc_rng_new(byte* nonce, word32 nonceSz,
                                            void* heap);
 WOLFSSL_API int wc_rng_new_ex(WC_RNG **rng, byte* nonce, word32 nonceSz,
                               void* heap, int devId);
+/* wc_rng_new*, wc_InitRng*, wc_FreeRng and wc_rng_free do not take the
+ * instance lock: no other thread may use the instance across them. */
 WOLFSSL_ABI WOLFSSL_API void wc_rng_free(WC_RNG* rng);
 
 
