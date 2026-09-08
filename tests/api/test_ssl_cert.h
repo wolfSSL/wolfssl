@@ -57,6 +57,7 @@ int test_wolfSSL_verify_none_server_no_request(void);
 int test_wolfSSL_verify_tls13_failnocert_only(void);
 int test_wolfSSL_verify_empty_server_cert(void);
 int test_wolfSSL_verify_post_handshake_defers(void);
+int test_wolfSSL_self_issued_chain_ca_no_keycertsign(void);
 
 #define TEST_SSL_CERT_DECLS                                                    \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_get_verify_mode),             \
@@ -101,6 +102,8 @@ int test_wolfSSL_verify_post_handshake_defers(void);
         TEST_DECL_GROUP("ssl_cert",                                            \
             test_wolfSSL_verify_empty_server_cert),                         \
         TEST_DECL_GROUP("ssl_cert",                                            \
-            test_wolfSSL_verify_post_handshake_defers)
+            test_wolfSSL_verify_post_handshake_defers),                        \
+        TEST_DECL_GROUP("ssl_cert",                                            \
+            test_wolfSSL_self_issued_chain_ca_no_keycertsign)
 
 #endif /* TESTS_API_SSL_CERT_H */
