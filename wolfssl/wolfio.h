@@ -1057,7 +1057,13 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
 
 #ifndef XHTONS
     #if !defined(WOLFSSL_NO_SOCK) && (defined(USE_WOLFSSL_IO) || defined(HAVE_HTTP_CLIENT))
-        #define XHTONS(a) htons((a))
+        #if defined(WOLFSSL_ZEPHYR) && KERNEL_VERSION_NUMBER >= 0x40400
+            /* Zephyr 4.4 renamed htons() to net_htons() and brings the old name
+             * back only under CONFIG_NET_NAMESPACE_COMPAT_MODE. */
+            #define XHTONS(a) net_htons((a))
+        #else
+            #define XHTONS(a) htons((a))
+        #endif
     #else
         /* we don't have sockets, so define our own htons and ntohs */
         #ifdef BIG_ENDIAN_ORDER
@@ -1069,7 +1075,13 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
 #endif
 #ifndef XNTOHS
     #if !defined(WOLFSSL_NO_SOCK) && (defined(USE_WOLFSSL_IO) || defined(HAVE_HTTP_CLIENT))
-        #define XNTOHS(a) ntohs((a))
+        #if defined(WOLFSSL_ZEPHYR) && KERNEL_VERSION_NUMBER >= 0x40400
+            /* Zephyr 4.4 renamed ntohs() to net_ntohs() and brings the old name
+             * back only under CONFIG_NET_NAMESPACE_COMPAT_MODE. */
+            #define XNTOHS(a) net_ntohs((a))
+        #else
+            #define XNTOHS(a) ntohs((a))
+        #endif
     #else
         /* we don't have sockets, so define our own htons and ntohs */
         #ifdef BIG_ENDIAN_ORDER
