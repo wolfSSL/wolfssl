@@ -36,6 +36,14 @@ int test_dtls13_frag_ch_pq_no_cookie(void);
 int test_dtls_frag_ch(void);
 int test_dtls13_frag_ch1_no_cookie(void);
 int test_dtls13_no_cookie_handoff(void);
+int test_dtls13_reassemble_ch_before_cookie_api(void);
+int test_dtls13_frag_ch1_reassemble(void);
+int test_dtls13_frag_ch2_cookie_not_first(void);
+int test_dtls13_frag_ch1_interleaved_peers(void);
+int test_dtls13_frag_ch1_evict_oldest(void);
+int test_dtls13_frag_ch1_over_bound(void);
+int test_dtls13_frag_ch1_length_mismatch(void);
+int test_dtls13_rx_bytes(void);
 int test_dtls_empty_keyshare_with_cookie(void);
 int test_dtls13_missing_finished_client(void);
 int test_dtls13_missing_finished_server(void);
@@ -78,6 +86,14 @@ int test_dtls13_ech_rejected_ticket_consumed(void);
     TEST_DECL_GROUP("dtls13", test_dtls_frag_ch),                              \
     TEST_DECL_GROUP("dtls13", test_dtls13_frag_ch1_no_cookie),                 \
     TEST_DECL_GROUP("dtls13", test_dtls13_no_cookie_handoff),                  \
+    TEST_DECL_GROUP("dtls13", test_dtls13_reassemble_ch_before_cookie_api),    \
+    TEST_DECL_GROUP("dtls13", test_dtls13_frag_ch1_reassemble),                \
+    TEST_DECL_GROUP("dtls13", test_dtls13_frag_ch2_cookie_not_first),          \
+    TEST_DECL_GROUP("dtls13", test_dtls13_frag_ch1_interleaved_peers),         \
+    TEST_DECL_GROUP("dtls13", test_dtls13_frag_ch1_evict_oldest),              \
+    TEST_DECL_GROUP("dtls13", test_dtls13_rx_bytes),                          \
+    TEST_DECL_GROUP("dtls13", test_dtls13_frag_ch1_over_bound),                \
+    TEST_DECL_GROUP("dtls13", test_dtls13_frag_ch1_length_mismatch),           \
     TEST_DECL_GROUP("dtls13", test_dtls_empty_keyshare_with_cookie),           \
     TEST_DECL_GROUP("dtls13", test_dtls13_missing_finished_client),            \
     TEST_DECL_GROUP("dtls13", test_dtls13_missing_finished_server),            \

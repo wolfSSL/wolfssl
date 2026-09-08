@@ -8198,6 +8198,11 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 return WOLFSSL_FATAL_ERROR;
             }
         }
+#ifdef WOLFSSL_DTLS_CH_FRAG
+        /* Other peers' ClientHellos buffered before this cookie verified would
+         * stall the handshake from the head of the list. */
+        DtlsMsgListPurgeUnverified(ssl, ssl->keys.dtls_peer_handshake_number);
+#endif
     }
     ssl->options.dtlsStateful = 1;
 #endif /* WOLFSSL_DTLS */

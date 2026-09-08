@@ -3177,6 +3177,11 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     #elif defined(WOLFSSL_DTLS_MTU)
         ctx->dtlsMtuSz = MAX_MTU;
     #endif
+    #if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CH_FRAG)
+        /* Serve clients whose ClientHello does not fit one datagram. Bounded;
+         * see wolfSSL_CTX_dtls13_reassemble_ch_before_cookie(). */
+        ctx->dtls13ReassembleChBeforeCookie = 1;
+    #endif
 #endif
 
 #ifndef NO_CERTS
@@ -9057,6 +9062,10 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     #if defined(WOLFSSL_SCTP) || defined(WOLFSSL_DTLS_MTU)
         ssl->dtlsMtuSz                  = ctx->dtlsMtuSz;
     #endif
+    #if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CH_FRAG)
+        ssl->options.dtls13ReassembleChBeforeCookie =
+                                          ctx->dtls13ReassembleChBeforeCookie;
+    #endif
     ssl->dtls_timeout_init              = DTLS_TIMEOUT_INIT;
     ssl->dtls_timeout_max               = DTLS_TIMEOUT_MAX;
     ssl->dtls_timeout                   = ssl->dtls_timeout_init;
@@ -10996,6 +11005,9 @@ void DtlsMsgDelete(DtlsMsg* item, void* heap)
             item->fragBucketList = next;
         }
         XFREE(item->raw, heap, DYNAMIC_TYPE_DTLS_FRAG);
+#ifdef WOLFSSL_DTLS_CH_FRAG
+        XFREE(item->peer.sa, heap, DYNAMIC_TYPE_SOCKADDR);
+#endif
         XFREE(item, heap, DYNAMIC_TYPE_DTLS_MSG);
     }
 }
@@ -11239,7 +11251,7 @@ int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte ty
     WOLFSSL_ENTER("DtlsMsgSet");
 
     if (msg == NULL || data == NULL || msg->sz != totalLen ||
-            fragOffsetEnd > totalLen) {
+            fragOffset > totalLen || fragSz > totalLen - fragOffset) {
         WOLFSSL_ERROR_VERBOSE(BAD_FUNC_ARG);
         return BAD_FUNC_ARG;
     }
@@ -11296,10 +11308,6 @@ int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte ty
             if (cur == NULL) {
                 /* We reached the end of the list. data is after and disjointed
                  * from anything we have received so far. */
-                if (msg->fragBucketListCount >= DTLS_FRAG_POOL_SZ) {
-                    WOLFSSL_ERROR_VERBOSE(DTLS_TOO_MANY_FRAGMENTS_E);
-                    return DTLS_TOO_MANY_FRAGMENTS_E;
-                }
                 prev->m.m.next =
                         DtlsMsgCreateFragBucket(fragOffset, data, fragSz, heap);
                 if (prev->m.m.next == NULL)
@@ -11310,10 +11318,6 @@ int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte ty
             else if (fragOffsetEnd < cur->m.m.offset) {
                     /* Fragment is entirely before cur with a gap */
                     DtlsFragBucket** prev_next;
-                    if (msg->fragBucketListCount >= DTLS_FRAG_POOL_SZ) {
-                        WOLFSSL_ERROR_VERBOSE(DTLS_TOO_MANY_FRAGMENTS_E);
-                        return DTLS_TOO_MANY_FRAGMENTS_E;
-                    }
                     prev_next = prev != NULL
                             ? &prev->m.m.next : &msg->fragBucketList;
                     *prev_next = DtlsMsgCreateFragBucket(fragOffset, data,
@@ -11356,91 +11360,270 @@ int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte ty
 }
 
 
-DtlsMsg* DtlsMsgFind(DtlsMsg* head, word16 epoch, word32 seq)
+#ifdef WOLFSSL_DTLS_CH_FRAG
+/* Whether msg was received from peer. The peer is compared as the opaque bytes
+ * the I/O layer or the application set, exactly as the cookie binds them; an
+ * empty peer matches only an empty peer. */
+
+/* For review: the concept of peer is general, but here we are using
+* WOLFSSL_SOCKADDR*, do you see the need to have a custom peer compare if I/O
+* provide its own peer? can this be postponed? */
+static int DtlsMsgPeerEqual(const DtlsMsg* msg, const WOLFSSL_SOCKADDR* peer)
+{
+    if (msg->peer.sz != peer->sz)
+        return 0;
+    /* For review: I see the optimization for peer->sz == 0 but I do think it's
+* better for a first cut to aim at readability instead */
+    return peer->sz == 0 || XMEMCMP(msg->peer.sa, peer->sa, peer->sz) == 0;
+}
+#endif
+
+/* Whether msg is the message with the given epoch and sequence number. With
+ * peer set it must also come from that peer, which tells apart the
+ * ClientHellos of different peers buffered before their cookies verify. */
+static int DtlsMsgMatch(const DtlsMsg* msg, word16 epoch, word32 seq,
+                        const WOLFSSL_SOCKADDR* peer)
+{
+    int match = msg->epoch == epoch && msg->seq == seq;
+#ifdef WOLFSSL_DTLS_CH_FRAG
+    if (match && peer != NULL)
+        match = DtlsMsgPeerEqual(msg, peer);
+#else
+    (void)peer;
+#endif
+    return match;
+}
+
+DtlsMsg* DtlsMsgFind(DtlsMsg* head, word16 epoch, word32 seq,
+                     const WOLFSSL_SOCKADDR* peer)
 {
     WOLFSSL_ENTER("DtlsMsgFind");
-    while (head != NULL && !(head->epoch == epoch && head->seq == seq)) {
+    while (head != NULL && !DtlsMsgMatch(head, epoch, seq, peer)) {
         head = head->next;
     }
     return head;
 }
 
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CH_FRAG)
+/* The peer a handshake message of the given type is keyed on in the receive
+ * list, or NULL when it is not keyed. Only a plaintext ClientHello a DTLS 1.3
+ * server receives before it has verified a cookie is keyed: while stateless the
+ * default I/O callback accepts datagrams from any address, so ClientHellos of
+ * different peers must not be reassembled into one. Once the server is stateful
+ * the peer is pinned and, for encrypted messages, AEAD is the binding. */
+/* for review: it's unclear to me why we need this function */
+const WOLFSSL_SOCKADDR* DtlsMsgUnverifiedPeer(WOLFSSL* ssl, byte type)
+{
+    if (ssl->options.side == WOLFSSL_SERVER_END && !ssl->options.dtlsStateful &&
+            type == client_hello && ssl->keys.decryptedCur != 1)
+        return &ssl->buffers.dtlsCtx.peer;
+    return NULL;
+}
 
-/* Returns 0 when the fragment was stored, negative when it was dropped. */
+/* The current peer's cookie has verified. Drop every buffered message except
+ * its ClientHello with sequence number seq: the rest are other peers'
+ * unverified ClientHellos, which this now stateful object no longer serves,
+ * or stale fragments of this peer's earlier ClientHello. Either kind would sit
+ * ahead of the verified message in the list and stall
+ * Dtls13ProcessBufferedMessages(). */
+/* for review: check this with rfc 9147 as well. The momemnt we verify a Peer,
+* can't we just flush the all list? */
+void DtlsMsgListPurgeUnverified(WOLFSSL* ssl, word32 seq)
+{
+    DtlsMsg** prevNext = &ssl->dtls_rx_msg_list;
+
+    WOLFSSL_ENTER("DtlsMsgListPurgeUnverified");
+    while (*prevNext != NULL) {
+        DtlsMsg* cur = *prevNext;
+        if (cur->seq == seq &&
+                DtlsMsgPeerEqual(cur, &ssl->buffers.dtlsCtx.peer)) {
+            prevNext = &cur->next;
+        }
+        else {
+            *prevNext = cur->next;
+            DtlsMsgDelete(cur, ssl->heap);
+            ssl->dtls_rx_msg_list_sz--;
+        }
+    }
+}
+#endif /* WOLFSSL_DTLS13 && WOLFSSL_DTLS_CH_FRAG */
+
+/* Key msg on peer, a copy of the address bytes. NULL peer keys nothing. */
+static int DtlsMsgSetPeer(DtlsMsg* msg, const WOLFSSL_SOCKADDR* peer,
+                          void* heap)
+{
+/* for review: can we do an anlaysis of the benefit of maintaining DTLS_CH_FRAG
+* compile-time knob? */
+#ifdef WOLFSSL_DTLS_CH_FRAG
+    if (peer != NULL && peer->sz > 0) {
+        if (wolfssl_local_SockAddrSet(&msg->peer, peer->sa, peer->sz, heap)
+                != WOLFSSL_SUCCESS) {
+            return MEMORY_E;
+        }
+    }
+#else
+    (void)msg;
+    (void)peer;
+    (void)heap;
+#endif
+    return 0;
+}
+
+/* RX raw owns the former single fragment allocation after assembly. */
+static size_t DtlsMsgRetainedBytes(const DtlsMsg* msg)
+{
+    const DtlsFragBucket* frag;
+    size_t bytes = sizeof(DtlsMsg);
+#ifdef WOLFSSL_DTLS_CH_FRAG
+    bytes += msg->peer.bufSz;
+#endif
+    if (msg->raw != NULL)
+        bytes += sizeof(DtlsFragBucket) + msg->sz;
+    for (frag = msg->fragBucketList; frag != NULL; frag = frag->m.m.next)
+        bytes += sizeof(DtlsFragBucket) + frag->m.m.sz;
+    return bytes;
+}
+
+size_t DtlsMsgListRetainedBytes(const DtlsMsg* head)
+{
+    size_t bytes = 0;
+    for (; head != NULL; head = head->next)
+        bytes += DtlsMsgRetainedBytes(head);
+    return bytes;
+}
+
+/* Project the resulting retained allocation, not the temporary peak while
+ * reallocating/merging buckets. Sorted buckets neither overlap nor touch. */
+static size_t DtlsMsgProjectedBytes(const DtlsMsg* msg, word32 offset,
+                                    word32 length)
+{
+    const DtlsFragBucket* frag;
+    word32 end = offset + length;
+    size_t bytes = DtlsMsgRetainedBytes(msg);
+
+    if (msg->ready)
+        return bytes;
+    for (frag = msg->fragBucketList; frag != NULL; frag = frag->m.m.next) {
+        word32 fragEnd = frag->m.m.offset + frag->m.m.sz;
+        if (fragEnd < offset)
+            continue;
+        if (frag->m.m.offset > end)
+            break;
+        offset = min(offset, frag->m.m.offset);
+        end = max(end, fragEnd);
+        bytes -= sizeof(DtlsFragBucket) + frag->m.m.sz;
+    }
+    return bytes + sizeof(DtlsFragBucket) + (end - offset);
+}
+
+/* Check the single-entry bound first: an impossible fragment must not evict
+ * unrelated entries. Unverified entries are maintained in LRU list order. */
+static int DtlsMsgRxAdmit(WOLFSSL* ssl, DtlsMsg* current, size_t projected,
+                          int unverified)
+{
+    size_t bytes;
+    size_t old = current == NULL ? 0 : DtlsMsgRetainedBytes(current);
+
+    if (projected > WOLFSSL_DTLS_RX_MAX_BYTES)
+        return DTLS_TOO_MANY_FRAGMENTS_E;
+    bytes = DtlsMsgListRetainedBytes(ssl->dtls_rx_msg_list) - old;
+    if (!unverified && bytes > WOLFSSL_DTLS_RX_MAX_BYTES - projected)
+        return DTLS_TOO_MANY_FRAGMENTS_E;
+    while (bytes > WOLFSSL_DTLS_RX_MAX_BYTES - projected) {
+        DtlsMsg** link = &ssl->dtls_rx_msg_list;
+        DtlsMsg* victim;
+        while (*link == current && *link != NULL)
+            link = &(*link)->next;
+        victim = *link;
+        if (victim == NULL)
+            return DTLS_TOO_MANY_FRAGMENTS_E;
+        bytes -= DtlsMsgRetainedBytes(victim);
+        *link = victim->next;
+        DtlsMsgDelete(victim, ssl->heap);
+        ssl->dtls_rx_msg_list_sz--;
+    }
+    return 0;
+}
+
 int DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq, const byte* data,
         word32 dataSz, byte type, word32 fragOffset, word32 fragSz, void* heap)
 {
-    /* See if seq exists in the list. If it isn't in the list, make
-     * a new item of size dataSz, copy fragSz bytes from data to msg->msg
-     * starting at offset fragOffset, and add fragSz to msg->fragSz. If
-     * the seq is in the list and it isn't full, copy fragSz bytes from
-     * data to msg->msg starting at offset fragOffset, and add fragSz to
-     * msg->fragSz. Insertions take into account data already in the list
-     * in case there are overlaps in the handshake message due to retransmit
-     * messages. The new item should be inserted into the list in its
-     * proper position.
-     *
-     * 1. Find seq in list, or where seq should go in list. If seq not in
-     *    list, create new item and insert into list. Either case, keep
-     *    pointer to item.
-     * 2. Copy the data from the message to the stored message where it
-     *    belongs without overlaps.
-     */
+    DtlsMsg* cur;
+    const WOLFSSL_SOCKADDR* peer = NULL;
+    size_t projected;
+    size_t peerSz = 0;
+    word32 received;
+    int isNew;
+    int ret;
 
-    DtlsMsg* head = ssl->dtls_rx_msg_list;
-    byte encrypted = ssl->keys.decryptedCur == 1;
-    int ret = 0;
     WOLFSSL_ENTER("DtlsMsgStore");
+    if (data == NULL || fragOffset > dataSz || fragSz > dataSz - fragOffset)
+        return BAD_FUNC_ARG;
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CH_FRAG)
+    peer = DtlsMsgUnverifiedPeer(ssl, type);
+    if (peer != NULL)
+        peerSz = peer->sz;
+#endif
+    cur = DtlsMsgFind(ssl->dtls_rx_msg_list, epoch, seq, peer);
+    isNew = cur == NULL;
+    /* A fragment that contradicts what this unverified peer sent before is
+     * dropped like any bad message from a peer a stateless server has not
+     * verified; it must not end the server. */
+    if (!isNew && (cur->sz != dataSz || cur->type != type))
+        return peer != NULL ? 0 : BAD_FUNC_ARG;
 
-    if (head != NULL) {
-        DtlsMsg* cur = DtlsMsgFind(head, epoch, seq);
-        if (cur == NULL) {
-            cur = DtlsMsgNew(dataSz, 0, heap);
-            if (cur == NULL) {
-                WOLFSSL_MSG("DtlsMsgNew allocation failed");
-                ret = MEMORY_E;
-                ssl->error = ret;
-            }
-            else {
-                ret = DtlsMsgSet(cur, seq, epoch, data, type,
-                             fragOffset, fragSz, heap, dataSz, encrypted);
-                if (ret < 0) {
-                    DtlsMsgDelete(cur, heap);
-                }
-                else {
-                    ssl->dtls_rx_msg_list_sz++;
-                    head = DtlsMsgInsert(head, cur);
-                }
-            }
-        }
-        else {
-            /* If this fails, the data is just dropped. */
-            ret = DtlsMsgSet(cur, seq, epoch, data, type, fragOffset,
-                    fragSz, heap, dataSz, encrypted);
+    /* Even a tiny first fragment cannot admit an unverified ClientHello whose
+     * announced completed allocation can never fit. Check before any eviction. */
+    if (peer != NULL && (peerSz > WOLFSSL_DTLS_RX_MAX_BYTES ||
+            sizeof(DtlsMsg) + sizeof(DtlsFragBucket) + (size_t)dataSz >
+                WOLFSSL_DTLS_RX_MAX_BYTES - peerSz))
+        return 0;
+
+    if (isNew)
+        projected = sizeof(DtlsMsg) + peerSz + sizeof(DtlsFragBucket) + fragSz;
+    else
+        projected = DtlsMsgProjectedBytes(cur, fragOffset, fragSz);
+    ret = DtlsMsgRxAdmit(ssl, cur, projected, peer != NULL);
+    if (ret != 0)
+        return peer != NULL ? 0 : ret;
+
+    if (isNew) {
+        cur = DtlsMsgNew(dataSz, 0, heap);
+        if (cur == NULL)
+            return MEMORY_E;
+        ret = DtlsMsgSetPeer(cur, peer, heap);
+        if (ret != 0) {
+            DtlsMsgDelete(cur, heap);
+            return ret;
         }
     }
-    else {
-        head = DtlsMsgNew(dataSz, 0, heap);
-        if (head == NULL) {
-            WOLFSSL_MSG("DtlsMsgNew allocation failed");
-            ret = MEMORY_E;
-            ssl->error = ret;
-        }
-        else if ((ret = DtlsMsgSet(head, seq, epoch, data, type, fragOffset,
-                    fragSz, heap, dataSz, encrypted)) < 0) {
-            DtlsMsgDelete(head, heap);
-            head = NULL;
-        }
-        else {
-            ssl->dtls_rx_msg_list_sz++;
-        }
+    received = cur->bytesReceived;
+    ret = DtlsMsgSet(cur, seq, epoch, data, type, fragOffset, fragSz, heap,
+                     dataSz, ssl->keys.decryptedCur == 1);
+    if (ret != 0) {
+        if (isNew)
+            DtlsMsgDelete(cur, heap);
+        return ret;
     }
-
-    ssl->dtls_rx_msg_list = head;
-
-    return ret;
+    if (isNew)
+        ssl->dtls_rx_msg_list_sz++;
+    if (peer != NULL && (isNew || cur->bytesReceived > received)) {
+        DtlsMsg** link = &ssl->dtls_rx_msg_list;
+        if (!isNew) {
+            while (*link != cur)
+                link = &(*link)->next;
+            *link = cur->next;
+        }
+        while (*link != NULL)
+            link = &(*link)->next;
+        cur->next = NULL;
+        *link = cur;
+    }
+    else if (isNew) {
+        ssl->dtls_rx_msg_list = DtlsMsgInsert(ssl->dtls_rx_msg_list, cur);
+    }
+    return 0;
 }
-
 
 /* DtlsMsgInsert() is an in-order insert. */
 DtlsMsg* DtlsMsgInsert(DtlsMsg* head, DtlsMsg* item)
@@ -22128,15 +22311,13 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
          * with newer and newer cookies.) */
         if (type != client_hello) {
             WOLFSSL_MSG("Current message is out of order");
-            if (ssl->dtls_rx_msg_list_sz >= DTLS_POOL_SZ) {
-                WOLFSSL_MSG("Reached rx msg limit error");
-                return DTLS_TOO_MANY_FRAGMENTS_E;
-            }
 
-            DtlsMsgStore(ssl, ssl->keys.curEpoch,
+            ret = DtlsMsgStore(ssl, ssl->keys.curEpoch,
                          ssl->keys.dtls_peer_handshake_number,
                          input + *inOutIdx, size, type,
                          fragOffset, fragSz, ssl->heap);
+            if (ret != 0)
+                return ret;
             *inOutIdx += fragSz;
             ret = 0;
             #ifndef WOLFSSL_DTLS_RESEND_ONLY_TIMEOUT
@@ -22196,15 +22377,12 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             return 0;
         }
 
-        if (ssl->dtls_rx_msg_list_sz >= DTLS_POOL_SZ) {
-            WOLFSSL_MSG("Reached rx msg limit error");
-            WOLFSSL_ERROR(DTLS_TOO_MANY_FRAGMENTS_E);
-            return DTLS_TOO_MANY_FRAGMENTS_E;
-        }
-        DtlsMsgStore(ssl, ssl->keys.curEpoch,
+        ret = DtlsMsgStore(ssl, ssl->keys.curEpoch,
                      ssl->keys.dtls_peer_handshake_number,
                      input + *inOutIdx, size, type,
                      fragOffset, fragSz, ssl->heap);
+        if (ret != 0)
+            return ret;
         *inOutIdx += fragSz;
         ret = 0;
         if (ssl->dtls_rx_msg_list != NULL && ssl->dtls_rx_msg_list->ready)
@@ -22218,24 +22396,18 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #ifdef WOLFSSL_ASYNC_CRYPT
         if (ssl->devId != INVALID_DEVID) {
             word32 idx = *inOutIdx;
-            if (ssl->dtls_rx_msg_list_sz >= DTLS_POOL_SZ) {
-                WOLFSSL_ERROR(BUFFER_ERROR);
-                return BUFFER_ERROR;
-            }
             if (idx + fragSz > totalSz)
                 return BUFFER_E;
             *inOutIdx = idx + fragSz;
             /* In async mode always store the message and process it with
              * DtlsMsgDrain because in case of a WC_PENDING_E it will be
              * easier this way. */
-            if (ssl->dtls_rx_msg_list_sz >= DTLS_POOL_SZ) {
-                WOLFSSL_MSG("Reached rx msg limit error");
-                return DTLS_TOO_MANY_FRAGMENTS_E;
-            }
-            DtlsMsgStore(ssl, ssl->keys.curEpoch,
+            ret = DtlsMsgStore(ssl, ssl->keys.curEpoch,
                          ssl->keys.dtls_peer_handshake_number,
                          input + idx, size, type,
                          fragOffset, fragSz, ssl->heap);
+            if (ret != 0)
+                return ret;
             ret = DtlsMsgDrain(ssl);
         }
         else

@@ -14859,10 +14859,12 @@ int wolfSSL_disable_hrr_cookie(WOLFSSL* ssl);
     the second ClientHello a client sends after a HelloRetryRequest. A
     post-quantum key share does not fit one datagram, so this is enabled by
     default when ML-KEM is compiled in and the function is kept for
-    compatibility. With the cookie exchange disabled (see
-    wolfSSL_disable_hrr_cookie()) the server is stateful from the first
-    datagram and any ClientHello is reassembled. Requires
-    WOLFSSL_DTLS_CH_FRAG (--enable-dtls-frag-ch, forced on with ML-KEM).
+    compatibility. For reassembling a ClientHello before its cookie is
+    verified see wolfSSL_dtls13_reassemble_ch_before_cookie(). With the cookie
+    exchange disabled (see wolfSSL_disable_hrr_cookie()) the server is
+    stateful from the first datagram and any ClientHello is reassembled.
+    Requires WOLFSSL_DTLS_CH_FRAG (--enable-dtls-frag-ch, forced on with
+    ML-KEM).
 
     \param [in,out] ssl a pointer to a WOLFSSL structure, created using
     wolfSSL_new().
@@ -14879,10 +14881,100 @@ int wolfSSL_disable_hrr_cookie(WOLFSSL* ssl);
     wolfSSL_dtls13_allow_ch_frag(ssl, 1);
     \endcode
 
+    \sa wolfSSL_dtls13_reassemble_ch_before_cookie
     \sa wolfSSL_send_hrr_cookie
     \sa wolfSSL_disable_hrr_cookie
 */
 int wolfSSL_dtls13_allow_ch_frag(WOLFSSL* ssl, int enabled);
+
+/*!
+    \ingroup Setup
+
+    \brief This function is called on a DTLS v1.3 server to let it reassemble
+    a fragmented ClientHello from a peer whose cookie is not verified yet, and
+    run the cookie check on the complete message. It is on by default. A
+    ClientHello that carries a post-quantum key share does not fit one
+    datagram, and RFC 9147 Section 5.5 requires a receiver to buffer or
+    process a handshake fragment, so with this off the server silently drops
+    the first ClientHello of every such client. When the cookie is already in
+    the first fragment the server verifies it at once and buffers nothing.
+
+    This setting lets the server hold ClientHello fragments in memory before
+    it verifies the cookie. A peer that spoofs its source address can make the
+    server retain up to WOLFSSL_DTLS_RX_MAX_BYTES bytes per WOLFSSL receive
+    list (default MAX_HANDSHAKE_SZ + 16 KiB, overridable at compile time).
+    This includes message structures, allocated peer identities and fragment
+    bucket metadata and payload. It excludes allocator-internal overhead and
+    temporary allocations during bucket replacement. Admission checks the
+    resulting retained size before allocation. Unverified entries are evicted
+    least recently used first; only successfully adding new bytes refreshes
+    recency, not duplicate fragments. An entry that cannot fit by itself is
+    dropped without evicting other entries. MAX_HANDSHAKE_SZ still applies.
+    Once stateful, the same budget applies but exhaustion returns
+    DTLS_TOO_MANY_FRAGMENTS_E rather than evicting handshake progress.
+    Size the budget for the expected messages, metadata and concurrent peers.
+    Cookie verification still proves return routability before key derivation.
+    Peers are told apart by the address the I/O layer reports, or by whatever
+    bytes the application set with wolfSSL_dtls_set_peer() on a custom
+    transport; without a peer address every unverified fragment shares one
+    entry. WOLFSSL_PEER_ADDRESS_CHANGES disables the address check in the
+    default I/O callback and is not compatible with serving several unverified
+    peers on one object. To keep 0-RTT on a server that sends cookies see
+    WOLFSSL_DTLS13_NO_HRR_ON_RESUME. Requires WOLFSSL_DTLS_CH_FRAG.
+
+    \param [in,out] ssl a pointer to a WOLFSSL structure, created using
+    wolfSSL_new().
+    \param [in] enabled 1 to reassemble before the cookie check, 0 to hold
+    nothing until a cookie has verified.
+
+    \return WOLFSSL_SUCCESS if successful
+    \return BAD_FUNC_ARG if ssl is NULL
+    \return SIDE_ERROR if invoked on a client
+
+    _Example_
+    \code
+    WOLFSSL* ssl;
+    ...
+    // hold nothing before the peer's address is proven
+    wolfSSL_dtls13_reassemble_ch_before_cookie(ssl, 0);
+    \endcode
+
+    \sa wolfSSL_CTX_dtls13_reassemble_ch_before_cookie
+    \sa wolfSSL_dtls13_allow_ch_frag
+    \sa wolfSSL_send_hrr_cookie
+    \sa wolfSSL_disable_hrr_cookie
+    \sa wolfSSL_dtls_set_peer
+*/
+int wolfSSL_dtls13_reassemble_ch_before_cookie(WOLFSSL* ssl, int enabled);
+
+/*!
+    \ingroup Setup
+
+    \brief This function sets the default of
+    wolfSSL_dtls13_reassemble_ch_before_cookie() for every WOLFSSL created
+    from the context. See that function for what the setting trades.
+    Requires WOLFSSL_DTLS_CH_FRAG.
+
+    \param [in,out] ctx a pointer to a WOLFSSL_CTX structure, created using
+    wolfSSL_CTX_new().
+    \param [in] enabled 1 to reassemble before the cookie check, 0 to hold
+    nothing until a cookie has verified.
+
+    \return WOLFSSL_SUCCESS if successful
+    \return BAD_FUNC_ARG if ctx is NULL
+    \return SIDE_ERROR if the context is for clients
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx;
+    ...
+    wolfSSL_CTX_dtls13_reassemble_ch_before_cookie(ctx, 0);
+    \endcode
+
+    \sa wolfSSL_dtls13_reassemble_ch_before_cookie
+*/
+int wolfSSL_CTX_dtls13_reassemble_ch_before_cookie(WOLFSSL_CTX* ctx,
+    int enabled);
 
 /*!
     \ingroup Setup

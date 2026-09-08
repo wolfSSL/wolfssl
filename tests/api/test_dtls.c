@@ -5784,6 +5784,115 @@ int test_wolfSSL_DtlsUpdateWindow(void)
 }
 #endif /* WOLFSSL_DTLS */
 
+/* RX admission counts retained allocations, not messages or fragments. */
+int test_wolfSSL_DTLS_rx_bytes(void)
+{
+    EXPECT_DECLS;
+#ifdef WOLFSSL_DTLS
+    WOLFSSL ssl[1];
+    byte* data = NULL;
+    DtlsMsg* msg = NULL;
+    byte* raw = NULL;
+    size_t base = sizeof(DtlsMsg) + sizeof(DtlsFragBucket);
+    word32 len = (word32)(WOLFSSL_DTLS_RX_MAX_BYTES - base);
+    word32 i;
+
+    data = (byte*)XMALLOC(WOLFSSL_DTLS_RX_MAX_BYTES, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (data == NULL)
+        return MEMORY_E;
+    XMEMSET(ssl, 0, sizeof(*ssl));
+    XMEMSET(data, 0x5a, WOLFSSL_DTLS_RX_MAX_BYTES);
+    ssl->options.dtlsStateful = 1;
+    ExpectIntEQ(DtlsMsgListRetainedBytes(NULL), 0);
+    /* Separate one-byte buckets cost a header each; bridging releases one. */
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, data, 4, certificate, 0, 1, NULL), 0);
+    ExpectIntEQ(DtlsMsgListRetainedBytes(ssl->dtls_rx_msg_list), base + 1);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, data, 4, certificate, 3, 1, NULL), 0);
+    ExpectIntEQ(DtlsMsgListRetainedBytes(ssl->dtls_rx_msg_list),
+        base + sizeof(DtlsFragBucket) + 2);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, data, 4, certificate, 1, 2, NULL), 0);
+    ExpectNotNull(msg = ssl->dtls_rx_msg_list);
+    ExpectIntEQ(msg->ready, 1);
+    ExpectNull(msg->fragBucketList);
+    ExpectNotNull(raw = msg->raw);
+    ExpectBufEQ(msg->fullMsg, data, 4);
+    ExpectIntEQ(DtlsMsgListRetainedBytes(msg), base + 4);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, data, 4, certificate, 0, 4, NULL), 0);
+    ExpectPtrEq(msg->raw, raw);
+    ExpectIntEQ(DtlsMsgListRetainedBytes(msg), base + 4);
+    DtlsMsgListDelete(ssl->dtls_rx_msg_list, NULL);
+    ssl->dtls_rx_msg_list = NULL;
+    ssl->dtls_rx_msg_list_sz = 0;
+    ExpectIntEQ(DtlsMsgListRetainedBytes(ssl->dtls_rx_msg_list), 0);
+
+    /* Exactly full is admitted. Neither new entries nor growth may evict. */
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, data, len + 1, certificate,
+        0, len, NULL), 0);
+    ExpectNotNull(msg = ssl->dtls_rx_msg_list);
+    ExpectIntEQ(DtlsMsgListRetainedBytes(msg), WOLFSSL_DTLS_RX_MAX_BYTES);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, data, 1, certificate, 0, 1, NULL),
+        DTLS_TOO_MANY_FRAGMENTS_E);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, data, len + 1, certificate,
+        len, 1, NULL), DTLS_TOO_MANY_FRAGMENTS_E);
+    ExpectPtrEq(ssl->dtls_rx_msg_list, msg);
+    ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 1);
+    ExpectIntEQ(msg->bytesReceived, len);
+    ExpectIntEQ(DtlsMsgListRetainedBytes(msg), WOLFSSL_DTLS_RX_MAX_BYTES);
+    DtlsMsgListDelete(ssl->dtls_rx_msg_list, NULL);
+    ssl->dtls_rx_msg_list = NULL;
+    ssl->dtls_rx_msg_list_sz = 0;
+
+    /* Fill with tiny messages: metadata, not an old count cap, is the limit. */
+    for (i = 0; i < WOLFSSL_DTLS_RX_MAX_BYTES / (base + 1) &&
+            EXPECT_SUCCESS(); i++) {
+        ExpectIntEQ(DtlsMsgStore(ssl, 0, i, data, 1, certificate, 0, 1, NULL), 0);
+        ExpectIntEQ(DtlsMsgListRetainedBytes(ssl->dtls_rx_msg_list),
+            (i + 1) * (base + 1));
+    }
+    ExpectIntEQ(ssl->dtls_rx_msg_list_sz, i);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, i, data, 1, certificate, 0, 1, NULL),
+        DTLS_TOO_MANY_FRAGMENTS_E);
+    ExpectIntEQ(ssl->dtls_rx_msg_list_sz, i);
+    DtlsMsgListDelete(ssl->dtls_rx_msg_list, NULL);
+    ssl->dtls_rx_msg_list = NULL;
+    ssl->dtls_rx_msg_list_sz = 0;
+    ExpectIntEQ(DtlsMsgListRetainedBytes(ssl->dtls_rx_msg_list), 0);
+
+    /* A merge that reduces retained bytes must succeed even at capacity. */
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, data, 4, certificate, 0, 1, NULL), 0);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, data, 4, certificate, 3, 1, NULL), 0);
+    len = (word32)(WOLFSSL_DTLS_RX_MAX_BYTES - 2 * base -
+        sizeof(DtlsFragBucket) - 2);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 1, data, len, certificate, 0, len, NULL), 0);
+    ExpectIntEQ(DtlsMsgListRetainedBytes(ssl->dtls_rx_msg_list),
+        WOLFSSL_DTLS_RX_MAX_BYTES);
+    ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, data, 4, certificate, 1, 2, NULL), 0);
+    ExpectIntEQ(ssl->dtls_rx_msg_list_sz, 2);
+    ExpectIntEQ(DtlsMsgListRetainedBytes(ssl->dtls_rx_msg_list),
+        WOLFSSL_DTLS_RX_MAX_BYTES - sizeof(DtlsFragBucket) + 2);
+    DtlsMsgListDelete(ssl->dtls_rx_msg_list, NULL);
+    ssl->dtls_rx_msg_list = NULL;
+    ssl->dtls_rx_msg_list_sz = 0;
+
+    /* More than 255 buckets: neither the old cap nor a byte counter remains. */
+    if (WOLFSSL_DTLS_RX_MAX_BYTES >= sizeof(DtlsMsg) +
+            260 * (sizeof(DtlsFragBucket) + 1)) {
+        for (i = 0; i < 260 && EXPECT_SUCCESS(); i++) {
+            ExpectIntEQ(DtlsMsgStore(ssl, 0, 0, data, 520, certificate,
+                2 * i, 1, NULL), 0);
+        }
+        ExpectNotNull(msg = ssl->dtls_rx_msg_list);
+        ExpectIntEQ(msg->fragBucketListCount, 260);
+        ExpectIntEQ(DtlsMsgListRetainedBytes(msg),
+            sizeof(DtlsMsg) + 260 * (sizeof(DtlsFragBucket) + 1));
+        DtlsMsgListDelete(ssl->dtls_rx_msg_list, NULL);
+    }
+    XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
 #ifdef WOLFSSL_DTLS
 static int DFB_TEST(WOLFSSL* ssl, word32 seq, word32 len, word32 f_offset,
         word32 f_len, word32 f_count, byte ready, word32 bytesReceived)
@@ -5805,11 +5914,12 @@ static int DFB_TEST(WOLFSSL* ssl, word32 seq, word32 len, word32 f_offset,
     ExpectIntLE(f_offset + f_len, sizeof(msg));
 
     if (EXPECT_SUCCESS())
-        DtlsMsgStore(ssl, 0, seq, msg + f_offset, len, certificate, f_offset, f_len, NULL);
+        ExpectIntEQ(DtlsMsgStore(ssl, 0, seq, msg + f_offset, len,
+            certificate, f_offset, f_len, NULL), 0);
 
     ExpectNotNull(ssl->dtls_rx_msg_list);
 
-    ExpectNotNull(cur = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, seq));
+    ExpectNotNull(cur = DtlsMsgFind(ssl->dtls_rx_msg_list, 0, seq, NULL));
     ExpectIntEQ(cur->fragBucketListCount, f_count);
     ExpectIntEQ(cur->ready, ready);
     ExpectIntEQ(cur->bytesReceived, bytesReceived);

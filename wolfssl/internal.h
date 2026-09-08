@@ -1244,8 +1244,13 @@ enum {
     #define WOLFSSL_DTLS_MTU_ADDITIONAL_READ_BUFFER 500
 #endif /* WOLFSSL_DTLS_MTU_ADDITIONAL_READ_BUFFER */
 
-#ifndef WOLFSSL_DTLS_FRAG_POOL_SZ
-    #define WOLFSSL_DTLS_FRAG_POOL_SZ 10
+/* Allocated bytes retained by each WOLFSSL's DTLS receive message list,
+ * including message, peer and fragment metadata. Leave room for a maximum
+ * certificate message and other buffered messages. Override for the deployment.
+ * Bucket replacement may temporarily exceed this retained-memory budget;
+ * allocator-internal overhead is not counted. */
+#ifndef WOLFSSL_DTLS_RX_MAX_BYTES
+    #define WOLFSSL_DTLS_RX_MAX_BYTES (MAX_HANDSHAKE_SZ + 16UL * 1024UL)
 #endif
 
 /* set minimum DH key size allowed */
@@ -1664,10 +1669,7 @@ enum Misc {
     DTLS_RECORD_EXTRA        = 8,  /* diff from normal */
     DTLS_HANDSHAKE_SEQ_SZ    = 2,  /* handshake header sequence number */
     DTLS_HANDSHAKE_FRAG_SZ   = 3,  /* fragment offset and length are 24 bit */
-    DTLS_POOL_SZ             = 20, /* allowed number of list items in TX and
-                                    * RX pool */
-    DTLS_FRAG_POOL_SZ        = WOLFSSL_DTLS_FRAG_POOL_SZ,
-                                   /* allowed number of fragments per msg */
+    DTLS_POOL_SZ             = 20, /* allowed number of list items in TX pool */
     DTLS_EXPORT_PRO          = 165,/* wolfSSL protocol for serialized session */
     DTLS_EXPORT_STATE_PRO    = 166,/* wolfSSL protocol for serialized state */
     TLS_EXPORT_PRO           = 167,/* wolfSSL protocol for serialized TLS */
@@ -4546,6 +4548,11 @@ struct WOLFSSL_CTX {
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SCTP)
     byte        dtlsSctp:1;         /* DTLS-over-SCTP mode */
 #endif
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CH_FRAG)
+    byte        dtls13ReassembleChBeforeCookie:1; /* Server reassembles a
+                                                   * ClientHello before its
+                                                   * cookie is verified */
+#endif
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     byte        disableECH:1;
     byte        enableEchTrialDecrypt:1;  /* Trial decryption of the
@@ -5894,6 +5901,7 @@ struct Options {
 #endif
 #ifdef WOLFSSL_DTLS_CH_FRAG
     word16            dtls13ChFrag:1;
+    word16            dtls13ReassembleChBeforeCookie:1;
 #endif
 #endif
 #ifdef WOLFSSL_TLS13
@@ -6413,9 +6421,14 @@ typedef struct DtlsMsg {
     word32          seq;       /* Handshake sequence number    */
     word32          sz;        /* Length of whole message      */
     byte            type;
-    byte            fragBucketListCount;
+    word32          fragBucketListCount;
     byte            ready:1;
     byte            encrypted:1;
+#ifdef WOLFSSL_DTLS_CH_FRAG
+    WOLFSSL_SOCKADDR peer;     /* Sender of a plaintext ClientHello buffered
+                                * before its cookie was verified. Never set
+                                * on an encrypted message: AEAD binds those. */
+#endif
 } DtlsMsg;
 
 
@@ -7908,6 +7921,8 @@ WOLFSSL_LOCAL int Tls13KeyUpdateLimitReached(WOLFSSL* ssl);
         #define DtlsMsgListDelete wolfSSL_DtlsMsgListDelete
         #define DtlsMsgFind wolfSSL_DtlsMsgFind
         #define DtlsMsgStore wolfSSL_DtlsMsgStore
+        #define DtlsMsgListRetainedBytes wolfSSL_DtlsMsgListRetainedBytes
+        #define DtlsMsgListPurgeUnverified wolfSSL_DtlsMsgListPurgeUnverified
     #endif /* WOLFSSL_API_PREFIX_MAP */
     WOLFSSL_LOCAL DtlsMsg* DtlsMsgNew(word32 sz, byte tx, void* heap);
     WOLFSSL_LOCAL void DtlsMsgDelete(DtlsMsg* item, void* heap);
@@ -7917,8 +7932,16 @@ WOLFSSL_LOCAL int Tls13KeyUpdateLimitReached(WOLFSSL* ssl);
                                   const byte* data, byte type,
                                   word32 fragOffset, word32 fragSz, void* heap,
                                   word32 totalLen, byte encrypted);
-    WOLFSSL_TEST_VIS DtlsMsg* DtlsMsgFind(DtlsMsg* head, word16 epoch, word32 seq);
+    WOLFSSL_TEST_VIS DtlsMsg* DtlsMsgFind(DtlsMsg* head, word16 epoch,
+                                          word32 seq,
+                                          const WOLFSSL_SOCKADDR* peer);
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CH_FRAG)
+    WOLFSSL_LOCAL const WOLFSSL_SOCKADDR* DtlsMsgUnverifiedPeer(WOLFSSL* ssl,
+                                                               byte type);
+    WOLFSSL_TEST_VIS void DtlsMsgListPurgeUnverified(WOLFSSL* ssl, word32 seq);
+#endif
 
+    WOLFSSL_TEST_VIS size_t DtlsMsgListRetainedBytes(const DtlsMsg* head);
     WOLFSSL_TEST_VIS int DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq,
                                     const byte* data, word32 dataSz, byte type,
                                     word32 fragOffset, word32 fragSz,

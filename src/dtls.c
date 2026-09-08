@@ -40,12 +40,32 @@
  *       disable the cookie exchange on resumption
  *     - Continue like with a normal connection
  * WOLFSSL_DTLS_CH_FRAG
- *     Allow a server to process a fragmented second/verified (one containing a
- *     valid cookie response) ClientHello message. The first/unverified (one
- *     without a cookie extension) ClientHello MUST be unfragmented so that the
- *     DTLS server can process it statelessly. This is only implemented for
- *     DTLS 1.3. The user MUST call wolfSSL_dtls13_allow_ch_frag() on the server
- *     to explicitly enable this during runtime.
+ *     Compile DTLS 1.3 ClientHello fragmentation handling. It covers three
+ *     things:
+ *     - Server: reassemble a fragmented ClientHello whose cookie has been
+ *       verified, that is the second ClientHello after a HelloRetryRequest.
+ *       Turned on with wolfSSL_dtls13_allow_ch_frag(); on by default when
+ *       ML-KEM is compiled in, since a post-quantum key share does not fit
+ *       one datagram.
+ *     - Server: reassemble a fragmented ClientHello before its cookie is
+ *       verified, then run the cookie check on the complete message. What is
+ *       held for a peer whose return routability is not yet proven is bounded
+ *       by WOLFSSL_DTLS_RX_MAX_BYTES per receive list, including allocated
+ *       message, peer and fragment metadata and payload, but not allocator
+ *       overhead or temporary bucket-replacement allocations. Entries are
+ *       keyed by peer address; the least recently progressed is evicted first.
+ *       Duplicates do not refresh recency. Once stateful, budget exhaustion
+ *       is a hard error instead of eviction. On by default;
+ *       wolfSSL_dtls13_reassemble_ch_before_cookie() turns it off for a
+ *       server that must hold nothing before the address is proven, at the
+ *       price of dropping every fragmented first ClientHello (RFC 9147
+ *       Section 5.5 requires a receiver to buffer or process a fragment).
+ *     - Client: send an empty key share in the first ClientHello when the
+ *       message would not fit one datagram, so it never fragments, at the
+ *       cost of one HelloRetryRequest round trip.
+ *     With the cookie exchange disabled (wolfSSL_disable_hrr_cookie()) the
+ *     server is stateful from the first datagram and reassembles any
+ *     ClientHello.
  */
 
 #ifndef WOLFCRYPT_ONLY
