@@ -376,7 +376,7 @@ int test_wolfSSL_X509_NAME_print_ex(void)
 
     const char* expNotEscaped = "C= US,+\"\\ , CN=#wolfssl.com<>;";
     const char* expNotEscapedRev = "CN=#wolfssl.com<>;, C= US,+\"\\ ";
-    const char* expRFC5523 =
+    const char* expRFC2253Esc =
         "CN=\\#wolfssl.com\\<\\>\\;,C=\\ US\\,\\+\\\"\\\\\\ ";
     const char* expEscaped =
         "C=\\ US\\,\\+\\\"\\\\\\ , CN=\\#wolfssl.com\\<\\>\\;";
@@ -605,8 +605,9 @@ int test_wolfSSL_X509_NAME_print_ex(void)
         ExpectIntEQ(X509_NAME_print_ex(membio, name, 0,
                     XN_FLAG_RFC2253), WOLFSSL_SUCCESS);
         ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
-        ExpectIntEQ(memSz, XSTRLEN(expRFC5523));
-        ExpectIntEQ(XSTRNCMP((char*)mem, expRFC5523, XSTRLEN(expRFC5523)), 0);
+        ExpectIntEQ(memSz, XSTRLEN(expRFC2253Esc));
+        ExpectIntEQ(XSTRNCMP((char*)mem, expRFC2253Esc,
+            XSTRLEN(expRFC2253Esc)), 0);
         BIO_free(membio);
         membio = NULL;
 
