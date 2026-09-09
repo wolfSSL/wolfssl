@@ -3617,6 +3617,13 @@ WOLFSSL_ABI WOLFSSL_API WOLFSSL_X509_NAME* wolfSSL_X509_get_subject_name(
 
 WOLFSSL_API int wolfSSL_X509_get_signature_type(WOLFSSL_X509* x509);
 WOLFSSL_API int wolfSSL_X509_get_isCA(WOLFSSL_X509* x509);
+/* Defined alongside wolfSSL_X509_get_isCA() in x509.c, so needs that block's
+ * guard as well as WOLFSSL_CERT_EXT. */
+#if defined(WOLFSSL_CERT_EXT) && (defined(KEEP_PEER_CERT) || \
+    defined(SESSION_CERTS) || defined(OPENSSL_EXTRA) || \
+    defined(OPENSSL_EXTRA_X509_SMALL))
+WOLFSSL_API int wolfSSL_X509_get_certPoliciesTruncated(WOLFSSL_X509* x509);
+#endif
 WOLFSSL_API int wolfSSL_X509_get_signature(WOLFSSL_X509* x509,
     unsigned char* buf, int* bufSz);
 WOLFSSL_API int wolfSSL_X509_get_pubkey_buffer(WOLFSSL_X509* x509,

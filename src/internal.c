@@ -15687,16 +15687,19 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
         x509->certPolicySet = dCert->extCertPolicySet;
         x509->certPolicyCrit = dCert->extCertPolicyCrit;
     #endif
-    #ifdef WOLFSSL_CERT_EXT
-        {
-            int i;
-            for (i = 0; i < dCert->extCertPoliciesNb && i < MAX_CERTPOL_NB; i++)
-                XMEMCPY(x509->certPolicies[i], dCert->extCertPolicies[i],
-                                                                MAX_CERTPOL_SZ);
-            x509->certPoliciesNb = dCert->extCertPoliciesNb;
-        }
-    #endif /* WOLFSSL_CERT_EXT */
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+#ifdef WOLFSSL_CERT_EXT
+    /* Outside the OPENSSL_EXTRA guard: wolfSSL_X509_get_certPoliciesTruncated()
+     * is also available to KEEP_PEER_CERT / SESSION_CERTS builds. */
+    {
+        int i;
+        for (i = 0; i < dCert->extCertPoliciesNb && i < MAX_CERTPOL_NB; i++)
+            XMEMCPY(x509->certPolicies[i], dCert->extCertPolicies[i],
+                                                            MAX_CERTPOL_SZ);
+        x509->certPoliciesNb = dCert->extCertPoliciesNb;
+        x509->certPoliciesTruncated = dCert->extCertPoliciesTruncated;
+    }
+#endif /* WOLFSSL_CERT_EXT */
 #ifdef OPENSSL_ALL
     if (dCert->extSubjAltNameSrc != NULL && dCert->extSubjAltNameSz != 0) {
         x509->subjAltNameSrc = (byte*)XMALLOC(dCert->extSubjAltNameSz, x509->heap,

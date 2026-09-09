@@ -54,8 +54,8 @@
  *  13. DecodeExtKeyUsage() .............................. :20815,:20861
  *  14. DecodeSubtree() .................................. :21075-:21124
  *  15. DecodeNameConstraints() hasUnsupported ................. :21217
- *  16. DecodePolicyOID() ................................ :21240,:21272
- *  17. DecodeCertPolicy() ............................... :21346-:21401
+ *  16. DecodePolicyOID() ................................ :22077,:22096
+ *  17. DecodeCertPolicy() ............................... :22145-:22277
  *  18. DecodeSubjDirAttr() .............................. :21473-:21495
  *  19. DecodeSubjInfoAcc() ..................................... :21570
  *  20. DecodeExtensionType() dispatch .......... :21834,:21871,:21903
@@ -1412,9 +1412,16 @@ static void wb_decode_name_constraints(void) { WB_NOTE("IGNORE_NAME_CONSTRAINTS;
 #endif
 
 /* ------------------------------------------------------------------------- *
- * Section 16: DecodePolicyOID() (global function).
- *   :21240  out==NULL || in==NULL || outSz<4 || inSz<2
- *   :21272  w<0 || (word32)w>outSz-outIdx     (output-buffer overflow guard)
+ * Section 16: DecodePolicyOID() (global function) and the DecodeOidArc()
+ * helper it calls for every arc.
+ *   :22077  out==NULL || in==NULL || outSz<4 || inSz==0
+ *   :22096  w<0 || (word32)w>=outSz            (first-identifier overflow)
+ *   :22109  w<0 || (word32)w>=outSz-outIdx     (later-arc overflow)
+ *   :22044  DecodeOidArc(): cnt==0 && byte==0x80        (non-minimal)
+ *   :22046  DecodeOidArc(): cnt==WC_OID_ARC_MAX_BYTES-1 (over-long, >5 bytes)
+ *   :22049  DecodeOidArc(): v > 0xFFFFFFFF>>7            (shift overflow)
+ *   :22065  DecodeOidArc(): loop exhausts inSz without a terminating byte
+ *           (truncated, mid-continuation)
  * ------------------------------------------------------------------------- */
 static void wb_decode_policy_oid(void)
 {
@@ -1423,30 +1430,37 @@ static void wb_decode_policy_oid(void)
     /* 2.5.29.32.0 (anyPolicy): 55 1D 20 00. */
     static const byte oidBytes[] = { 0x55, 0x1D, 0x20, 0x00 };
 
-    WB_NOTE("DecodePolicyOID(): bad-args OR [:21240]");
+    WB_NOTE("DecodePolicyOID(): bad-args OR [:22077]");
     WB_CHECK(DecodePolicyOID(NULL, sizeof(out), oidBytes, sizeof(oidBytes))
                 == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "out==NULL");
     WB_CHECK(DecodePolicyOID(out, sizeof(out), NULL, sizeof(oidBytes))
                 == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "in==NULL");
     WB_CHECK(DecodePolicyOID(out, 3, oidBytes, sizeof(oidBytes))
                 == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "outSz<4");
-    WB_CHECK(DecodePolicyOID(out, sizeof(out), oidBytes, 1)
-                == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "inSz<2");
+    WB_CHECK(DecodePolicyOID(out, sizeof(out), oidBytes, 0)
+                == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "inSz==0");
+    /* One content byte is legal ("1.2"), not a bad argument. */
+    WB_CHECK(DecodePolicyOID(out, sizeof(out), oidBytes, 1) > 0,
+                "inSz==1 accepted");
     ret = DecodePolicyOID(out, sizeof(out), oidBytes, sizeof(oidBytes));
     WB_CHECK(ret > 0 && strcmp(out, "2.5.29.32.0") == 0,
             "all args valid (all 4 operands false)");
 
-    WB_NOTE("DecodePolicyOID(): output buffer overflow guard [:21272]");
-    /* A tiny output buffer forces the ".%u" snprintf to not fit after the
-     * first "b.b" segment is written. */
+    WB_NOTE("DecodePolicyOID(): first-identifier overflow guard [:22096]");
+    /* First arc alone ("2.47", 4 chars) doesn't fit outSz==4. */
     {
         /* outSz must be >= 4 to get past the argument guard. With outSz == 6
-         * the ".29" segment fits exactly (XSNPRINTF returns 3, remaining is
-         * 3) and outIdx then equals outSz, so the loop exits on its own
-         * condition and the overflow guard is never true -- that row only
-         * supplies the guard's FALSE side.
+         * the first identifier ("2.5", 3 chars) fits comfortably within
+         * outSz == 6 (w == 3 < outSz), so the first-identifier guard
+         * [:22096] takes its FALSE side and decoding moves into the arc
+         * loop. There the ".29" segment also needs 3 chars, but only 3
+         * bytes remain (outSz - outIdx == 6 - 3 == 3) -- that is exactly
+         * enough for the 3 characters and no room for the terminating NUL,
+         * so the loop's guard (w >= outSz - outIdx, i.e. 3 >= 3) is true
+         * and the call returns BUFFER_E. This row exercises the first
+         * guard's FALSE side; it does not claim the overall call succeeds.
          *
-         * outSz == 5 is the size that trips it: "2.5" leaves 2 bytes, the
+         * outSz == 5 is one byte tighter still: "2.5" leaves 2 bytes, the
          * ".29" segment needs 3, XSNPRINTF returns 3 > 2 and the guard's
          * 2nd operand is true.
          *
@@ -1455,27 +1469,80 @@ static void wb_decode_policy_oid(void)
          * never a negative value for these arguments. */
         char tiny6[6];
         char tiny5[5];
+        char tiny4[4];
+        static const byte firstIdBig[] = { 0x7F, 0x01 };
 
         ret = DecodePolicyOID(tiny6, sizeof(tiny6), oidBytes,
                 sizeof(oidBytes));
-        WB_CHECK(ret > 0, ":21326 2nd operand false (segment fits exactly)");
+        WB_CHECK(ret == WC_NO_ERR_TRACE(BUFFER_E),
+                ":22096 2nd operand false (first identifier fits), "
+                "then [:22109] catches the next arc with no room for NUL");
 
         ret = DecodePolicyOID(tiny5, sizeof(tiny5), oidBytes,
                 sizeof(oidBytes));
         WB_CHECK(ret == WC_NO_ERR_TRACE(BUFFER_E),
-                ":21326 2nd operand true (segment does not fit)");
+                ":22109 2nd operand true (segment does not fit)");
+
+        ret = DecodePolicyOID(tiny4, sizeof(tiny4), firstIdBig,
+                sizeof(firstIdBig));
+        WB_CHECK(ret == WC_NO_ERR_TRACE(BUFFER_E),
+                "first identifier alone overflows outSz "
+                "(w<0 or overflow true)");
     }
     ret = DecodePolicyOID(out, sizeof(out), oidBytes, sizeof(oidBytes));
-    WB_CHECK(ret > 0, "ample output buffer (overflow guard false)");
+    WB_CHECK(ret > 0, "ample output buffer (both overflow guards false)");
+
+    WB_NOTE("DecodeOidArc(): non-minimal leading continuation byte [:22044]");
+    {
+        static const byte nonMinimal[] = { 0x80, 0x2A };
+        ret = DecodePolicyOID(out, sizeof(out), nonMinimal,
+                sizeof(nonMinimal));
+        WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_OBJECT_ID_E),
+                "cnt==0 && byte==0x80 (non-minimal true)");
+    }
+
+    WB_NOTE("DecodeOidArc(): over-long arc, more than 5 continuation "
+            "bytes [:22046]");
+    {
+        static const byte overlong[] =
+            { 0x81, 0x81, 0x81, 0x81, 0x81, 0x00 };
+        ret = DecodePolicyOID(out, sizeof(out), overlong,
+                sizeof(overlong));
+        WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_OID_ARC_TOO_BIG_E),
+                "cnt==WC_OID_ARC_MAX_BYTES-1 (over-long true)");
+    }
+
+    WB_NOTE("DecodeOidArc(): accumulator shift would overflow word32 [:22049]");
+    {
+        static const byte shiftOverflow[] = { 0xFF, 0xFF, 0xFF, 0xFF };
+        ret = DecodePolicyOID(out, sizeof(out), shiftOverflow,
+                sizeof(shiftOverflow));
+        WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_OID_ARC_TOO_BIG_E),
+                "v > 0xFFFFFFFF>>7 (shift overflow true)");
+    }
+
+    WB_NOTE("DecodeOidArc(): truncated, mid-continuation with no "
+            "terminator [:22065]");
+    {
+        static const byte truncatedArc[] = { 0x81, 0x81 };
+        ret = DecodePolicyOID(out, sizeof(out), truncatedArc,
+                sizeof(truncatedArc));
+        WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_OBJECT_ID_E),
+                "loop exhausts inSz without a terminating byte "
+                "(truncated true)");
+    }
 }
 
 /* ------------------------------------------------------------------------- *
  * Section 17: DecodeCertPolicy() (static, called directly).
  * Gated on WOLFSSL_SEP || WOLFSSL_CERT_EXT, same as the source.
- *   :21346  while ((ret==0) && (idx<seqEnd) && (extCertPoliciesNb<MAX_CERTPOL_NB))
- *           total_length==0 empty-SEQUENCE check, reached before that loop
- *   :21369  ret==0 && cert->deviceType==NULL          (WOLFSSL_SEP)
- *   :21401  duplicate-OID scan loop (WOLFSSL_CERT_EXT, !WOLFSSL_DUP_CERTPOL)
+ *   :22183  while ((ret==0) && (idx<seqEnd) &&
+ *           (extCertPoliciesNb<MAX_CERTPOL_NB))
+ *   :22215  DecodePolicyOID(...) <= 0             (skip this policy)
+ *   :22225  ret==0 && !skipPolicy && deviceType==NULL       (WOLFSSL_SEP)
+ *   :22247  duplicate-OID scan loop (WOLFSSL_CERT_EXT, !WOLFSSL_DUP_CERTPOL)
+ *   :22268  ret==0 && idx<total_length && extCertPoliciesNb>=MAX_CERTPOL_NB
+ *           (loop stopped on the cap, so the rest were dropped)
  * MAX_CERTPOL_NB is 2, so three policies exercise the count limit.
  * ------------------------------------------------------------------------- */
 #if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT)
@@ -1490,25 +1557,23 @@ static void wb_decode_cert_policy(void)
         0x30,0x08, 0x30,0x06, 0x06,0x04,0x55,0x1D,0x20,0x00
     };
     /* Two distinct policies: the second iteration finds deviceType already
-     * set (:21369 2nd operand false) and runs the duplicate scan with a
-     * non-empty list (:21401 2nd operand true). */
+     * set (:22225 2nd operand false) and runs the duplicate scan with a
+     * non-empty list (:22247 2nd operand true). */
     static const byte twoPolicies[] = {
         0x30,0x10,
           0x30,0x06, 0x06,0x04,0x55,0x1D,0x20,0x00,
           0x30,0x06, 0x06,0x04,0x55,0x1D,0x20,0x01,
     };
     /* Three distinct policies -- exercises the MAX_CERTPOL_NB==2 cap (3rd
-     * operand of :21346 goes false while idx<total_length is still true). */
+     * operand of :22183 -- line :22185 -- goes false while idx<seqEnd is
+     * still true). */
     static const byte threePolicies[] = {
         0x30,0x18,
           0x30,0x06, 0x06,0x04,0x55,0x1D,0x20,0x00,
           0x30,0x06, 0x06,0x04,0x55,0x1D,0x20,0x01,
           0x30,0x06, 0x06,0x04,0x55,0x1D,0x20,0x02,
     };
-    /* Two IDENTICAL policy OIDs -- 2nd occurrence is a duplicate, hits
-     * :21401's XMEMCMP==0 true arm and then re-tests the loop condition
-     * with ret != 0 (1st operand false). Only compiled without
-     * WOLFSSL_DUP_CERTPOL. */
+    /* Two IDENTICAL policy OIDs -- 2nd occurrence is a duplicate. */
     static const byte dupPolicies[] = {
         0x30,0x10,
           0x30,0x06, 0x06,0x04,0x55,0x1D,0x20,0x00,
@@ -1516,9 +1581,31 @@ static void wb_decode_cert_policy(void)
     };
     /* PolicyInformation holding an INTEGER instead of an OBJECT_ID: the
      * template parse fails inside the loop, so the deviceType step at
-     * :21369 runs with ret != 0 (1st operand false). */
-    static const byte badPolicy[] = {
+     * :22225 runs with ret != 0 (1st operand false). */
+    static const byte badPolicyInt[] = {
         0x30,0x05, 0x30,0x03, 0x02,0x01,0x00
+    };
+    /* One policy whose OID content is { 0x80, 0x01, 0x01 }: a non-minimal
+     * first arc. GetASNObjectId() only checks the last byte's continuation
+     * bit, so the generic parser accepts it and DecodePolicyOID() is the
+     * one that rejects it -- the skip-this-policy path. */
+    static const byte badPolicyOid[] = {
+        0x30,0x07,
+          0x30,0x05, 0x06,0x03,0x80,0x01,0x01,
+    };
+    /* One policy OID "1.2.100.100...100" (50 trailing arcs of value 100)
+     * that decodes to a 203-char dotted string -- past MAX_CERTPOL_SZ==200
+     * -- so DecodePolicyOID() returns BUFFER_E rather than
+     * ASN_OID_ARC_TOO_BIG_E, exercising the skip-this-policy path via its
+     * other error return. */
+    static const byte oversizedPolicy[] = {
+        0x30,0x37, 0x30,0x35, 0x06,0x33,
+          0x2A,
+          0x64,0x64,0x64,0x64,0x64,0x64,0x64,0x64,0x64,0x64,
+          0x64,0x64,0x64,0x64,0x64,0x64,0x64,0x64,0x64,0x64,
+          0x64,0x64,0x64,0x64,0x64,0x64,0x64,0x64,0x64,0x64,
+          0x64,0x64,0x64,0x64,0x64,0x64,0x64,0x64,0x64,0x64,
+          0x64,0x64,0x64,0x64,0x64,0x64,0x64,0x64,0x64,0x64,
     };
     /* Zero policies. */
     static const byte noPolicies[] = { 0x30, 0x00 };
@@ -1529,7 +1616,8 @@ static void wb_decode_cert_policy(void)
     WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
             "empty SEQUENCE rejected: RFC 5280 4.2.1.4 requires SIZE (1..MAX)");
 
-    WB_NOTE("DecodeCertPolicy(): one policy (loop true then false) [:21346,:21369]");
+    WB_NOTE("DecodeCertPolicy(): one policy (loop true then false) "
+            "[:22183,:22225]");
     XMEMSET(&cert, 0, sizeof(cert));
     ret = DecodeCertPolicy(onePolicy, sizeof(onePolicy), &cert);
 #if defined(WOLFSSL_CERT_EXT)
@@ -1540,36 +1628,43 @@ static void wb_decode_cert_policy(void)
 #endif
 #ifdef WOLFSSL_SEP
     WB_CHECK(cert.deviceType != NULL,
-            "deviceType populated from first policy OID (:21369 both true)");
+            "deviceType populated from first policy OID (:22225 both true)");
     if (cert.deviceType != NULL) {
         XFREE(cert.deviceType, cert.heap, DYNAMIC_TYPE_X509_EXT);
     }
 #endif
 
-    WB_NOTE("DecodeCertPolicy(): second policy, deviceType already set [:21369]");
+    WB_NOTE("DecodeCertPolicy(): second policy, deviceType already "
+            "set [:22225]");
     XMEMSET(&cert, 0, sizeof(cert));
     ret = DecodeCertPolicy(twoPolicies, sizeof(twoPolicies), &cert);
-    WB_CHECK(ret == 0, "two policies accepted (:21369 2nd operand false on "
-            "the second, :21401 2nd operand true)");
+    WB_CHECK(ret == 0, "two policies accepted (:22225 2nd operand false on "
+            "the second, :22247 2nd operand true)");
 #ifdef WOLFSSL_SEP
     if (cert.deviceType != NULL) {
         XFREE(cert.deviceType, cert.heap, DYNAMIC_TYPE_X509_EXT);
     }
 #endif
 
-    WB_NOTE("DecodeCertPolicy(): malformed PolicyInformation [:21369 1st operand]");
+    WB_NOTE("DecodeCertPolicy(): malformed PolicyInformation "
+            "[:22225 1st operand]");
     XMEMSET(&cert, 0, sizeof(cert));
-    ret = DecodeCertPolicy(badPolicy, sizeof(badPolicy), &cert);
+    ret = DecodeCertPolicy(badPolicyInt, sizeof(badPolicyInt), &cert);
     WB_CHECK(ret != 0 && cert.deviceType == NULL,
-            "INTEGER in place of the policy OID (:21369 1st operand false)");
+            "INTEGER in place of the policy OID (:22225 1st operand false)");
 
 #if defined(WOLFSSL_CERT_EXT)
-    WB_NOTE("DecodeCertPolicy(): MAX_CERTPOL_NB cap with 3 policies [:21346 3rd operand]");
+    WB_NOTE("DecodeCertPolicy(): MAX_CERTPOL_NB cap with 3 policies "
+            "[:22185 3rd operand]");
     XMEMSET(&cert, 0, sizeof(cert));
     ret = DecodeCertPolicy(threePolicies, sizeof(threePolicies), &cert);
     WB_CHECK(ret == 0 && cert.extCertPoliciesNb == MAX_CERTPOL_NB,
             "loop stops at MAX_CERTPOL_NB even though bytes remain "
             "(3rd operand false while 1st/2nd stay true)");
+    WB_NOTE("DecodeCertPolicy(): cap hit with bytes left -> truncated "
+            "[:22269]");
+    WB_CHECK(cert.extCertPoliciesTruncated == 1,
+            "policies past the cap were dropped (all three operands true)");
 #ifdef WOLFSSL_SEP
     if (cert.deviceType != NULL) {
         XFREE(cert.deviceType, cert.heap, DYNAMIC_TYPE_X509_EXT);
@@ -1577,7 +1672,7 @@ static void wb_decode_cert_policy(void)
 #endif
 
 #ifndef WOLFSSL_DUP_CERTPOL
-    WB_NOTE("DecodeCertPolicy(): duplicate-OID rejection [:21401]");
+    WB_NOTE("DecodeCertPolicy(): duplicate-OID rejection [:22247]");
     XMEMSET(&cert, 0, sizeof(cert));
     ret = DecodeCertPolicy(dupPolicies, sizeof(dupPolicies), &cert);
     WB_CHECK(ret == WC_NO_ERR_TRACE(CERTPOLICIES_E),
@@ -1588,6 +1683,38 @@ static void wb_decode_cert_policy(void)
     }
 #endif
 #endif /* !WOLFSSL_DUP_CERTPOL */
+
+    WB_NOTE("DecodeCertPolicy(): undecodable policy OID is skipped [:22215]");
+    XMEMSET(&cert, 0, sizeof(cert));
+    ret = DecodeCertPolicy(badPolicyOid, sizeof(badPolicyOid), &cert);
+    WB_CHECK(ret == 0 && cert.extCertPoliciesNb == 0 &&
+             cert.extCertPoliciesTruncated == 1,
+            "policy dropped and flagged, rest of the certificate still parses");
+#ifdef WOLFSSL_SEP
+    /* :22225 second operand false: skipPolicy suppresses deviceType too. */
+    WB_CHECK(cert.deviceType == NULL,
+            "skipped policy not recorded as deviceType (skipPolicy true)");
+    if (cert.deviceType != NULL) {
+        XFREE(cert.deviceType, cert.heap, DYNAMIC_TYPE_X509_EXT);
+    }
+#endif
+
+    WB_NOTE("DecodeCertPolicy(): oversized policy OID skipped via "
+            "BUFFER_E [:22215]");
+    XMEMSET(&cert, 0, sizeof(cert));
+    ret = DecodeCertPolicy(oversizedPolicy, sizeof(oversizedPolicy), &cert);
+    WB_CHECK(ret == 0 && cert.extCertPoliciesNb == 0 &&
+             cert.extCertPoliciesTruncated == 1,
+            "policy whose decoded string overflows MAX_CERTPOL_SZ is "
+            "dropped and flagged via DecodePolicyOID's BUFFER_E return, "
+            "rest of the certificate still parses");
+#ifdef WOLFSSL_SEP
+    WB_CHECK(cert.deviceType == NULL,
+            "oversized policy not recorded as deviceType (skipPolicy true)");
+    if (cert.deviceType != NULL) {
+        XFREE(cert.deviceType, cert.heap, DYNAMIC_TYPE_X509_EXT);
+    }
+#endif
 #endif /* WOLFSSL_CERT_EXT */
 }
 #else

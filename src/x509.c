@@ -1322,6 +1322,11 @@ static int wolfssl_x509_add_subj_alt_name_ext(WOLFSSL_X509 *x509,
 }
 
 #ifdef WOLFSSL_CUSTOM_OID
+/* Text buffer size for a custom extension OID: the largest DER OID that
+ * wc_SetCustomExtension() can re-encode at certificate-generation time
+ * (MAX_OID_SZ content bytes), expanded to dotted-decimal. */
+#define WOLFSSL_CUSTOM_EXT_OID_STR_SZ WC_OID_STR_SZ(MAX_OID_SZ)
+
 /* Handle the default (unrecognized NID) case of wolfSSL_X509_add_ext when
  * custom-OID extensions are enabled: copy the extension OID text and value
  * into the next free slot in x509->custom_exts, taking ownership of the
@@ -1333,9 +1338,19 @@ static int wolfssl_x509_add_custom_ext(WOLFSSL_X509 *x509,
     byte *val = NULL;
     int err = 0;
 
-    if ((ext->obj == NULL) || (ext->value.length == 0) ||
-        (ext->value.data == NULL)) {
+    if ((ext->obj == NULL) || (ext->obj->obj == NULL) ||
+        (ext->value.length == 0) || (ext->value.data == NULL)) {
         WOLFSSL_MSG("Extension has insufficient information.");
+        return WOLFSSL_FAILURE;
+    }
+
+    /* ext->obj->obj is the DER TLV. Up to MAX_OID_SZ content bytes take a
+     * 2-byte header, so anything longer than MAX_OID_SZ + 2 in total cannot
+     * be re-encoded by wc_SetCustomExtension() when the certificate is
+     * generated. Reject it here, with a clear failure, rather than much
+     * later in wolfSSL_X509_make_der(). */
+    if (ext->obj->objSz > MAX_OID_SZ + 2) {
+        WOLFSSL_MSG("Custom extension OID too long.");
         return WOLFSSL_FAILURE;
     }
 
@@ -1345,8 +1360,12 @@ static int wolfssl_x509_add_custom_ext(WOLFSSL_X509 *x509,
         return WOLFSSL_FAILURE;
     }
 
-    /* This is a viable custom extension. */
-    oid = (char*)XMALLOC(MAX_OID_STRING_SZ, x509->heap,
+    /* This is a viable custom extension.
+     * MAX_OID_STRING_SZ (64) is a "typical" OID text size, not a hard
+     * limit -- a DER OID of MAX_OID_SZ (32) content bytes can need more
+     * than 64 decimal characters (many multi-digit arcs), so size the text
+     * buffer from the DER bound checked above instead. */
+    oid = (char*)XMALLOC(WOLFSSL_CUSTOM_EXT_OID_STR_SZ, x509->heap,
         DYNAMIC_TYPE_X509_EXT);
     val = (byte*)XMALLOC(ext->value.length, x509->heap,
         DYNAMIC_TYPE_X509_EXT);
@@ -1357,7 +1376,8 @@ static int wolfssl_x509_add_custom_ext(WOLFSSL_X509 *x509,
 
     if (err == 0) {
         XMEMCPY(val, ext->value.data, ext->value.length);
-        if (wolfSSL_OBJ_obj2txt(oid, MAX_OID_STRING_SZ, ext->obj, 1) < 0) {
+        if (wolfSSL_OBJ_obj2txt(oid, WOLFSSL_CUSTOM_EXT_OID_STR_SZ, ext->obj,
+                1) <= 0) {
             err = 1;
         }
     }
@@ -4270,6 +4290,31 @@ int wolfSSL_X509_get_isCA(WOLFSSL_X509* x509)
 
     return isCA;
 }
+
+#ifdef WOLFSSL_CERT_EXT
+/* Returns whether a certificatePolicies entry was dropped when this
+ * WOLFSSL_X509 was parsed (an entry that didn't decode, or more than
+ * MAX_CERTPOL_NB of them) - x509->certPoliciesNb then undercounts. Mirrors
+ * wc_GetDecodedCertPoliciesTruncated() for the DecodedCert this X509 was
+ * copied from.
+ *
+ * x509  X509 to check. Must have been parsed already.
+ * returns 1 if a policy was dropped, 0 otherwise (including x509 == NULL).
+ */
+int wolfSSL_X509_get_certPoliciesTruncated(WOLFSSL_X509* x509)
+{
+    int truncated = 0;
+
+    WOLFSSL_ENTER("wolfSSL_X509_get_certPoliciesTruncated");
+
+    if (x509 != NULL)
+        truncated = x509->certPoliciesTruncated;
+
+    WOLFSSL_LEAVE("wolfSSL_X509_get_certPoliciesTruncated", truncated);
+
+    return truncated;
+}
+#endif /* WOLFSSL_CERT_EXT */
 
 WOLFSSL_X509* wolfSSL_X509_d2i_ex(WOLFSSL_X509** x509, const byte* in, int len,
     void* heap)
@@ -7942,8 +7987,13 @@ static int X509PrintReqAttributes(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
     do {
         attr = wolfSSL_X509_REQ_get_attr(x509, i);
         if (attr != NULL) {
-            char lName[NAME_SZ/4]; /* NAME_SZ default is 80 */
-            int lNameSz = NAME_SZ/4;
+            /* Sized for a numeric-form OID, not the NAME_SZ/4 column width:
+             * wolfSSL_OBJ_obj2txt() fails rather than truncates when the
+             * name does not fit, and an attribute OID outside the object
+             * table prints in dotted-decimal form. */
+            char lName[MAX_OID_STRING_SZ];
+            int lNameSz = (int)sizeof(lName);
+            int padSz;
             const byte* data;
 
             if (wolfSSL_OBJ_obj2txt(lName, lNameSz, attr->object, 0)
@@ -7952,6 +8002,12 @@ static int X509PrintReqAttributes(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
                 return WOLFSSL_FAILURE;
             }
             lNameSz = (int)XSTRLEN(lName);
+            /* A name longer than the column just goes unpadded; a negative
+             * width would left-justify and pad instead. */
+            padSz = (NAME_SZ/4) - lNameSz;
+            if (padSz < 0) {
+                padSz = 0;
+            }
             data = wolfSSL_ASN1_STRING_get0_data(
                     attr->value->value.asn1_string);
             if (data == NULL) {
@@ -7960,7 +8016,7 @@ static int X509PrintReqAttributes(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
             }
             if ((scratchLen = XSNPRINTF(scratch, MAX_WIDTH,
                           "%*s%s%*s:%s\n", indent+4, "",
-                          lName, (NAME_SZ/4)-lNameSz, "", data))
+                          lName, padSz, "", data))
                 >= MAX_WIDTH)
             {
                 return WOLFSSL_FAILURE;

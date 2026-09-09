@@ -1425,6 +1425,12 @@ enum Misc_ASN {
     COUNTRY_CODE_LEN   = 2         /* RFC 3739 */
 };
 
+/* Upper bound, including the NUL terminator, on the dotted-decimal text of
+ * a DER OID with derSz content bytes: the first byte prints as at most
+ * "2.47" and every other byte contributes at most three digits plus a
+ * '.' separator (a multi-byte arc needs fewer characters per byte). */
+#define WC_OID_STR_SZ(derSz)    ((derSz) * 4 + 1)
+
 #ifndef WC_MAX_NAME_ENTRIES
     /* entries added to x509 name struct */
     #ifdef OPENSSL_EXTRA
@@ -2122,6 +2128,7 @@ struct DecodedCert {
 #ifdef WOLFSSL_CERT_EXT
     char    extCertPolicies[MAX_CERTPOL_NB][MAX_CERTPOL_SZ];
     int     extCertPoliciesNb;
+    int     extCertPoliciesTruncated; /* cert policies dropped flag */
 #endif /* WOLFSSL_CERT_EXT */
 #ifndef IGNORE_NETSCAPE_CERT_TYPE
     byte    nsCertType;
@@ -2539,10 +2546,10 @@ WOLFSSL_API int wc_SetUnknownExtCallbackEx(DecodedCert* cert,
                                                void *ctx);
 #endif
 
-WOLFSSL_LOCAL int DecodePolicyOID(char *out, word32 outSz, const byte *in,
-                                  word32 inSz);
-WOLFSSL_LOCAL int EncodePolicyOID(byte *out, word32 *outSz,
-                                  const char *in, void* heap);
+WOLFSSL_TEST_VIS int DecodePolicyOID(char *out, word32 outSz,
+                                         const byte *in, word32 inSz);
+WOLFSSL_TEST_VIS int EncodePolicyOID(byte *out, word32 *outSz,
+                                         const char *in, void* heap);
 WOLFSSL_TEST_VIS int DecodeExtensionType(const byte* input, word32 length,
                                          word32 oid, byte critical,
                                          DecodedCert* cert, int *isUnknownExt);
