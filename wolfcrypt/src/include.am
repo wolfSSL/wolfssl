@@ -38,6 +38,13 @@ EXTRA_DIST += wolfcrypt/src/port/arm/armv8-poly1305-asm.asm
 EXTRA_DIST += wolfcrypt/src/port/arm/armv8-sha256-asm.asm
 EXTRA_DIST += wolfcrypt/src/port/arm/armv8-sha3-asm.asm
 EXTRA_DIST += wolfcrypt/src/port/arm/armv8-sha512-asm.asm
+# ARM64 crypto as NEON C intrinsics, for MSVC on Windows ARM64 (built via CMake
+# with WOLFSSL_ARMASM_INTRINSICS, or the MSVC project files). Not built by
+# autotools, which targets GCC/Clang where the assembly path applies.
+EXTRA_DIST += wolfcrypt/src/port/arm/armv8-aes-intrinsics-msvc.c
+EXTRA_DIST += wolfcrypt/src/port/arm/armv8-sha-intrinsics-msvc.c
+EXTRA_DIST += wolfcrypt/src/port/arm/armv8-poly1305-intrinsics-msvc.c
+EXTRA_DIST += wolfcrypt/src/port/arm/armv8-chacha-intrinsics-msvc.c
 EXTRA_DIST += wolfcrypt/src/wc_dsp.c
 EXTRA_DIST += wolfcrypt/src/sp_dsp32.c
 EXTRA_DIST += wolfcrypt/src/sp_x86_64_asm.asm
