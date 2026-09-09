@@ -579,15 +579,16 @@
         #define WOLFSSL_ATOMIC_LOAD(x) atomic_load(&(x))
         #define WOLFSSL_ATOMIC_STORE(x, val) atomic_store(&(x), val)
         #define WOLFSSL_ATOMIC_OPS
-    #elif defined(__GNUC__) && defined(__ATOMIC_CONSUME)
-        /* direct calls using gcc-style compiler built-ins */
+    #elif defined(__GNUC__) && defined(__ATOMIC_SEQ_CST)
+        /* direct calls using gcc-style compiler built-ins, matching the
+         * implicit semantics of atomic_load() and atomic_store() */
         typedef volatile int wolfSSL_Atomic_Int;
         typedef volatile unsigned int wolfSSL_Atomic_Uint;
         #define WOLFSSL_ATOMIC_INITIALIZER(x) (x)
         #define WOLFSSL_ATOMIC_LOAD(x) __atomic_load_n(&(x), \
-                                                       __ATOMIC_CONSUME)
+                                                       __ATOMIC_SEQ_CST)
         #define WOLFSSL_ATOMIC_STORE(x, val) __atomic_store_n(&(x), \
-                                                  val, __ATOMIC_RELEASE)
+                                                  val, __ATOMIC_SEQ_CST)
         #define WOLFSSL_ATOMIC_OPS
     #elif defined(_MSC_VER) && defined(USE_WINDOWS_API) && \
             !defined(WOLFSSL_NOT_WINDOWS_API)
