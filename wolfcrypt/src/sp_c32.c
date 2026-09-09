@@ -261,8 +261,43 @@ sp_uint64 __muldi3(sp_uint64 a, sp_uint64 b)
 #endif
 
 #ifdef NEED_ADDR_MASK
+#ifdef WC_NO_PTR_INT_CAST
+/* Conditionally copy len bytes from a to r when copy is 1, in constant time.
+ * Used where a pointer cannot be rebuilt from integer arithmetic on two
+ * addresses, such as on capability based targets. Both candidates are always
+ * touched, so which one was selected is not observable. */
+WC_MAYBE_UNUSED static void sp_cond_memcpy(void* r, const void* a, int copy,
+    size_t len)
+{
+    byte* rb = (byte*)r;
+    const byte* ab = (const byte*)a;
+    byte mask = (byte)(0U - (unsigned int)(copy != 0));
+    size_t i;
+
+    for (i = 0; i < len; i++) {
+        rb[i] ^= (byte)((rb[i] ^ ab[i]) & mask);
+    }
+}
+
+/* Set r to a when sel is 0 and to b when sel is 1, in constant time.
+ * Writes r without reading it, so r may be an uninitialized scratch buffer. */
+WC_MAYBE_UNUSED static void sp_cond_select(void* r, const void* a,
+    const void* b, int sel, size_t len)
+{
+    byte* rb = (byte*)r;
+    const byte* ab = (const byte*)a;
+    const byte* bb = (const byte*)b;
+    byte mask = (byte)(0U - (unsigned int)(sel != 0));
+    size_t i;
+
+    for (i = 0; i < len; i++) {
+        rb[i] = (byte)((ab[i] & (byte)~mask) | (bb[i] & mask));
+    }
+}
+#else
 /* Mask for address to obfuscate which of the two address will be used. */
 static const size_t addr_mask[2] = { 0, (size_t)-1 };
+#endif
 #endif
 
 #if defined(WOLFSSL_SP_NONBLOCK) && (!defined(WOLFSSL_SP_NO_MALLOC) || \
@@ -2146,17 +2181,21 @@ static WC_INLINE sp_digit sp_2048_div_word_36(sp_digit d1, sp_digit d0,
     sp_int64 d = ((sp_int64)d1 << 29) + d0;
 
     return d / div;
-#elif defined(__x86_64__) || defined(__i386__)
+#elif (defined(__x86_64__) || defined(__i386__)) && !defined(WOLFSSL_NO_ASM)
     sp_int64 d = ((sp_int64)d1 << 29) + d0;
     sp_uint32 lo = (sp_uint32)d;
     sp_digit hi = (sp_digit)(d >> 32);
+    sp_digit rem;
 
+    /* idiv puts the remainder in dx, so dx must be an output and not just an
+     * input, or the compiler assumes it still holds hi afterwards. */
     __asm__ __volatile__ (
         "idiv %2"
-        : "+a" (lo)
-        : "d" (hi), "r" (div)
+        : "+a" (lo), "=d" (rem)
+        : "r" (div), "1" (hi)
         : "cc"
     );
+    (void)rem;
 
     return (sp_digit)lo;
 #elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
@@ -2398,13 +2437,22 @@ static int sp_2048_mod_exp_36(sp_digit* r, const sp_digit* a,
 
             sp_2048_mont_mul_36(t[y^1], t[0], t[1], m, mp);
 
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_select(t[2], t[0], t[1], (y), sizeof(*t[2]) * 36 * 2);
+            #else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 36 * 2);
+            #endif
             sp_2048_mont_sqr_36(t[2], t[2], m, mp);
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_memcpy(t[0], t[2], (y)^1, sizeof(*t[2]) * 36 * 2);
+            sp_cond_memcpy(t[1], t[2], (y), sizeof(*t[2]) * 36 * 2);
+            #else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 36 * 2);
+            #endif
         }
 
         sp_2048_mont_reduce_36(t[0], m, mp);
@@ -2474,13 +2522,22 @@ static int sp_2048_mod_exp_36(sp_digit* r, const sp_digit* a,
 
             sp_2048_mont_mul_36(t[y^1], t[0], t[1], m, mp);
 
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_select(t[2], t[0], t[1], (y), sizeof(*t[2]) * 36 * 2);
+            #else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 36 * 2);
+            #endif
             sp_2048_mont_sqr_36(t[2], t[2], m, mp);
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_memcpy(t[0], t[2], (y)^1, sizeof(*t[2]) * 36 * 2);
+            sp_cond_memcpy(t[1], t[2], (y), sizeof(*t[2]) * 36 * 2);
+            #else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 36 * 2);
+            #endif
         }
 
         sp_2048_mont_reduce_36(t[0], m, mp);
@@ -3181,17 +3238,21 @@ static WC_INLINE sp_digit sp_2048_div_word_72(sp_digit d1, sp_digit d0,
     sp_int64 d = ((sp_int64)d1 << 29) + d0;
 
     return d / div;
-#elif defined(__x86_64__) || defined(__i386__)
+#elif (defined(__x86_64__) || defined(__i386__)) && !defined(WOLFSSL_NO_ASM)
     sp_int64 d = ((sp_int64)d1 << 29) + d0;
     sp_uint32 lo = (sp_uint32)d;
     sp_digit hi = (sp_digit)(d >> 32);
+    sp_digit rem;
 
+    /* idiv puts the remainder in dx, so dx must be an output and not just an
+     * input, or the compiler assumes it still holds hi afterwards. */
     __asm__ __volatile__ (
         "idiv %2"
-        : "+a" (lo)
-        : "d" (hi), "r" (div)
+        : "+a" (lo), "=d" (rem)
+        : "r" (div), "1" (hi)
         : "cc"
     );
+    (void)rem;
 
     return (sp_digit)lo;
 #elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
@@ -3436,13 +3497,22 @@ static int sp_2048_mod_exp_72(sp_digit* r, const sp_digit* a,
 
             sp_2048_mont_mul_72(t[y^1], t[0], t[1], m, mp);
 
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_select(t[2], t[0], t[1], (y), sizeof(*t[2]) * 72 * 2);
+            #else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 72 * 2);
+            #endif
             sp_2048_mont_sqr_72(t[2], t[2], m, mp);
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_memcpy(t[0], t[2], (y)^1, sizeof(*t[2]) * 72 * 2);
+            sp_cond_memcpy(t[1], t[2], (y), sizeof(*t[2]) * 72 * 2);
+            #else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 72 * 2);
+            #endif
         }
 
         sp_2048_mont_reduce_72(t[0], m, mp);
@@ -3512,13 +3582,22 @@ static int sp_2048_mod_exp_72(sp_digit* r, const sp_digit* a,
 
             sp_2048_mont_mul_72(t[y^1], t[0], t[1], m, mp);
 
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_select(t[2], t[0], t[1], (y), sizeof(*t[2]) * 72 * 2);
+            #else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 72 * 2);
+            #endif
             sp_2048_mont_sqr_72(t[2], t[2], m, mp);
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_memcpy(t[0], t[2], (y)^1, sizeof(*t[2]) * 72 * 2);
+            sp_cond_memcpy(t[1], t[2], (y), sizeof(*t[2]) * 72 * 2);
+            #else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 72 * 2);
+            #endif
         }
 
         sp_2048_mont_reduce_72(t[0], m, mp);
@@ -3763,9 +3842,13 @@ static int sp_2048_mod_exp_72_nb(sp_2048_mod_exp_72_ctx* ctx,
         ctx->state = 7;
         break;
     case 7: /* COPY_OUT: constant-time copy &t[y] -> t[2] */
+        #ifdef WC_NO_PTR_INT_CAST
+        sp_cond_select(ctx->t[2], ctx->t[0], ctx->t[1], (ctx->y), sizeof(sp_digit) * 72 * 2);
+        #else
         XMEMCPY(ctx->t[2], (void*)(((size_t)ctx->t[0] & addr_mask[ctx->y ^ 1]) +
                                    ((size_t)ctx->t[1] & addr_mask[ctx->y])),
                 sizeof(sp_digit) * 72 * 2);
+        #endif
         ctx->state = 8;
         break;
     case 8: /* SQR: t[2] = t[2]^2 in Montgomery form */
@@ -3773,9 +3856,14 @@ static int sp_2048_mod_exp_72_nb(sp_2048_mod_exp_72_ctx* ctx,
         ctx->state = 9;
         break;
     case 9: /* COPY_BACK: constant-time copy t[2] -> &t[y]; advance bit */
+        #ifdef WC_NO_PTR_INT_CAST
+        sp_cond_memcpy(ctx->t[0], ctx->t[2], (ctx->y)^1, sizeof(sp_digit) * 72 * 2);
+        sp_cond_memcpy(ctx->t[1], ctx->t[2], (ctx->y), sizeof(sp_digit) * 72 * 2);
+        #else
         XMEMCPY((void*)(((size_t)ctx->t[0] & addr_mask[ctx->y ^ 1]) +
                         ((size_t)ctx->t[1] & addr_mask[ctx->y])), ctx->t[2],
                 sizeof(sp_digit) * 72 * 2);
+        #endif
         ctx->c--;
         ctx->state = 5;
         break;
@@ -6151,17 +6239,21 @@ static WC_INLINE sp_digit sp_3072_div_word_53(sp_digit d1, sp_digit d0,
     sp_int64 d = ((sp_int64)d1 << 29) + d0;
 
     return d / div;
-#elif defined(__x86_64__) || defined(__i386__)
+#elif (defined(__x86_64__) || defined(__i386__)) && !defined(WOLFSSL_NO_ASM)
     sp_int64 d = ((sp_int64)d1 << 29) + d0;
     sp_uint32 lo = (sp_uint32)d;
     sp_digit hi = (sp_digit)(d >> 32);
+    sp_digit rem;
 
+    /* idiv puts the remainder in dx, so dx must be an output and not just an
+     * input, or the compiler assumes it still holds hi afterwards. */
     __asm__ __volatile__ (
         "idiv %2"
-        : "+a" (lo)
-        : "d" (hi), "r" (div)
+        : "+a" (lo), "=d" (rem)
+        : "r" (div), "1" (hi)
         : "cc"
     );
+    (void)rem;
 
     return (sp_digit)lo;
 #elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
@@ -6403,13 +6495,22 @@ static int sp_3072_mod_exp_53(sp_digit* r, const sp_digit* a,
 
             sp_3072_mont_mul_53(t[y^1], t[0], t[1], m, mp);
 
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_select(t[2], t[0], t[1], (y), sizeof(*t[2]) * 53 * 2);
+            #else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 53 * 2);
+            #endif
             sp_3072_mont_sqr_53(t[2], t[2], m, mp);
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_memcpy(t[0], t[2], (y)^1, sizeof(*t[2]) * 53 * 2);
+            sp_cond_memcpy(t[1], t[2], (y), sizeof(*t[2]) * 53 * 2);
+            #else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 53 * 2);
+            #endif
         }
 
         sp_3072_mont_reduce_53(t[0], m, mp);
@@ -6479,13 +6580,22 @@ static int sp_3072_mod_exp_53(sp_digit* r, const sp_digit* a,
 
             sp_3072_mont_mul_53(t[y^1], t[0], t[1], m, mp);
 
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_select(t[2], t[0], t[1], (y), sizeof(*t[2]) * 53 * 2);
+            #else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 53 * 2);
+            #endif
             sp_3072_mont_sqr_53(t[2], t[2], m, mp);
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_memcpy(t[0], t[2], (y)^1, sizeof(*t[2]) * 53 * 2);
+            sp_cond_memcpy(t[1], t[2], (y), sizeof(*t[2]) * 53 * 2);
+            #else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 53 * 2);
+            #endif
         }
 
         sp_3072_mont_reduce_53(t[0], m, mp);
@@ -6962,17 +7072,21 @@ static WC_INLINE sp_digit sp_3072_div_word_106(sp_digit d1, sp_digit d0,
     sp_int64 d = ((sp_int64)d1 << 29) + d0;
 
     return d / div;
-#elif defined(__x86_64__) || defined(__i386__)
+#elif (defined(__x86_64__) || defined(__i386__)) && !defined(WOLFSSL_NO_ASM)
     sp_int64 d = ((sp_int64)d1 << 29) + d0;
     sp_uint32 lo = (sp_uint32)d;
     sp_digit hi = (sp_digit)(d >> 32);
+    sp_digit rem;
 
+    /* idiv puts the remainder in dx, so dx must be an output and not just an
+     * input, or the compiler assumes it still holds hi afterwards. */
     __asm__ __volatile__ (
         "idiv %2"
-        : "+a" (lo)
-        : "d" (hi), "r" (div)
+        : "+a" (lo), "=d" (rem)
+        : "r" (div), "1" (hi)
         : "cc"
     );
+    (void)rem;
 
     return (sp_digit)lo;
 #elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
@@ -7215,13 +7329,22 @@ static int sp_3072_mod_exp_106(sp_digit* r, const sp_digit* a,
 
             sp_3072_mont_mul_106(t[y^1], t[0], t[1], m, mp);
 
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_select(t[2], t[0], t[1], (y), sizeof(*t[2]) * 106 * 2);
+            #else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 106 * 2);
+            #endif
             sp_3072_mont_sqr_106(t[2], t[2], m, mp);
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_memcpy(t[0], t[2], (y)^1, sizeof(*t[2]) * 106 * 2);
+            sp_cond_memcpy(t[1], t[2], (y), sizeof(*t[2]) * 106 * 2);
+            #else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 106 * 2);
+            #endif
         }
 
         sp_3072_mont_reduce_106(t[0], m, mp);
@@ -7291,13 +7414,22 @@ static int sp_3072_mod_exp_106(sp_digit* r, const sp_digit* a,
 
             sp_3072_mont_mul_106(t[y^1], t[0], t[1], m, mp);
 
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_select(t[2], t[0], t[1], (y), sizeof(*t[2]) * 106 * 2);
+            #else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 106 * 2);
+            #endif
             sp_3072_mont_sqr_106(t[2], t[2], m, mp);
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_memcpy(t[0], t[2], (y)^1, sizeof(*t[2]) * 106 * 2);
+            sp_cond_memcpy(t[1], t[2], (y), sizeof(*t[2]) * 106 * 2);
+            #else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 106 * 2);
+            #endif
         }
 
         sp_3072_mont_reduce_106(t[0], m, mp);
@@ -7542,9 +7674,13 @@ static int sp_3072_mod_exp_106_nb(sp_3072_mod_exp_106_ctx* ctx,
         ctx->state = 7;
         break;
     case 7: /* COPY_OUT: constant-time copy &t[y] -> t[2] */
+        #ifdef WC_NO_PTR_INT_CAST
+        sp_cond_select(ctx->t[2], ctx->t[0], ctx->t[1], (ctx->y), sizeof(sp_digit) * 106 * 2);
+        #else
         XMEMCPY(ctx->t[2], (void*)(((size_t)ctx->t[0] & addr_mask[ctx->y ^ 1]) +
                                    ((size_t)ctx->t[1] & addr_mask[ctx->y])),
                 sizeof(sp_digit) * 106 * 2);
+        #endif
         ctx->state = 8;
         break;
     case 8: /* SQR: t[2] = t[2]^2 in Montgomery form */
@@ -7552,9 +7688,14 @@ static int sp_3072_mod_exp_106_nb(sp_3072_mod_exp_106_ctx* ctx,
         ctx->state = 9;
         break;
     case 9: /* COPY_BACK: constant-time copy t[2] -> &t[y]; advance bit */
+        #ifdef WC_NO_PTR_INT_CAST
+        sp_cond_memcpy(ctx->t[0], ctx->t[2], (ctx->y)^1, sizeof(sp_digit) * 106 * 2);
+        sp_cond_memcpy(ctx->t[1], ctx->t[2], (ctx->y), sizeof(sp_digit) * 106 * 2);
+        #else
         XMEMCPY((void*)(((size_t)ctx->t[0] & addr_mask[ctx->y ^ 1]) +
                         ((size_t)ctx->t[1] & addr_mask[ctx->y])), ctx->t[2],
                 sizeof(sp_digit) * 106 * 2);
+        #endif
         ctx->c--;
         ctx->state = 5;
         break;
@@ -10504,17 +10645,21 @@ static WC_INLINE sp_digit sp_3072_div_word_56(sp_digit d1, sp_digit d0,
     sp_int64 d = ((sp_int64)d1 << 28) + d0;
 
     return d / div;
-#elif defined(__x86_64__) || defined(__i386__)
+#elif (defined(__x86_64__) || defined(__i386__)) && !defined(WOLFSSL_NO_ASM)
     sp_int64 d = ((sp_int64)d1 << 28) + d0;
     sp_uint32 lo = (sp_uint32)d;
     sp_digit hi = (sp_digit)(d >> 32);
+    sp_digit rem;
 
+    /* idiv puts the remainder in dx, so dx must be an output and not just an
+     * input, or the compiler assumes it still holds hi afterwards. */
     __asm__ __volatile__ (
         "idiv %2"
-        : "+a" (lo)
-        : "d" (hi), "r" (div)
+        : "+a" (lo), "=d" (rem)
+        : "r" (div), "1" (hi)
         : "cc"
     );
+    (void)rem;
 
     return (sp_digit)lo;
 #elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
@@ -10756,13 +10901,22 @@ static int sp_3072_mod_exp_56(sp_digit* r, const sp_digit* a,
 
             sp_3072_mont_mul_56(t[y^1], t[0], t[1], m, mp);
 
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_select(t[2], t[0], t[1], (y), sizeof(*t[2]) * 56 * 2);
+            #else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 56 * 2);
+            #endif
             sp_3072_mont_sqr_56(t[2], t[2], m, mp);
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_memcpy(t[0], t[2], (y)^1, sizeof(*t[2]) * 56 * 2);
+            sp_cond_memcpy(t[1], t[2], (y), sizeof(*t[2]) * 56 * 2);
+            #else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 56 * 2);
+            #endif
         }
 
         sp_3072_mont_reduce_56(t[0], m, mp);
@@ -10832,13 +10986,22 @@ static int sp_3072_mod_exp_56(sp_digit* r, const sp_digit* a,
 
             sp_3072_mont_mul_56(t[y^1], t[0], t[1], m, mp);
 
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_select(t[2], t[0], t[1], (y), sizeof(*t[2]) * 56 * 2);
+            #else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 56 * 2);
+            #endif
             sp_3072_mont_sqr_56(t[2], t[2], m, mp);
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_memcpy(t[0], t[2], (y)^1, sizeof(*t[2]) * 56 * 2);
+            sp_cond_memcpy(t[1], t[2], (y), sizeof(*t[2]) * 56 * 2);
+            #else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 56 * 2);
+            #endif
         }
 
         sp_3072_mont_reduce_56(t[0], m, mp);
@@ -11394,17 +11557,21 @@ static WC_INLINE sp_digit sp_3072_div_word_112(sp_digit d1, sp_digit d0,
     sp_int64 d = ((sp_int64)d1 << 28) + d0;
 
     return d / div;
-#elif defined(__x86_64__) || defined(__i386__)
+#elif (defined(__x86_64__) || defined(__i386__)) && !defined(WOLFSSL_NO_ASM)
     sp_int64 d = ((sp_int64)d1 << 28) + d0;
     sp_uint32 lo = (sp_uint32)d;
     sp_digit hi = (sp_digit)(d >> 32);
+    sp_digit rem;
 
+    /* idiv puts the remainder in dx, so dx must be an output and not just an
+     * input, or the compiler assumes it still holds hi afterwards. */
     __asm__ __volatile__ (
         "idiv %2"
-        : "+a" (lo)
-        : "d" (hi), "r" (div)
+        : "+a" (lo), "=d" (rem)
+        : "r" (div), "1" (hi)
         : "cc"
     );
+    (void)rem;
 
     return (sp_digit)lo;
 #elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
@@ -11650,13 +11817,22 @@ static int sp_3072_mod_exp_112(sp_digit* r, const sp_digit* a,
 
             sp_3072_mont_mul_112(t[y^1], t[0], t[1], m, mp);
 
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_select(t[2], t[0], t[1], (y), sizeof(*t[2]) * 112 * 2);
+            #else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 112 * 2);
+            #endif
             sp_3072_mont_sqr_112(t[2], t[2], m, mp);
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_memcpy(t[0], t[2], (y)^1, sizeof(*t[2]) * 112 * 2);
+            sp_cond_memcpy(t[1], t[2], (y), sizeof(*t[2]) * 112 * 2);
+            #else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 112 * 2);
+            #endif
         }
 
         sp_3072_mont_reduce_112(t[0], m, mp);
@@ -11726,13 +11902,22 @@ static int sp_3072_mod_exp_112(sp_digit* r, const sp_digit* a,
 
             sp_3072_mont_mul_112(t[y^1], t[0], t[1], m, mp);
 
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_select(t[2], t[0], t[1], (y), sizeof(*t[2]) * 112 * 2);
+            #else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 112 * 2);
+            #endif
             sp_3072_mont_sqr_112(t[2], t[2], m, mp);
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_memcpy(t[0], t[2], (y)^1, sizeof(*t[2]) * 112 * 2);
+            sp_cond_memcpy(t[1], t[2], (y), sizeof(*t[2]) * 112 * 2);
+            #else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 112 * 2);
+            #endif
         }
 
         sp_3072_mont_reduce_112(t[0], m, mp);
@@ -11977,9 +12162,13 @@ static int sp_3072_mod_exp_112_nb(sp_3072_mod_exp_112_ctx* ctx,
         ctx->state = 7;
         break;
     case 7: /* COPY_OUT: constant-time copy &t[y] -> t[2] */
+        #ifdef WC_NO_PTR_INT_CAST
+        sp_cond_select(ctx->t[2], ctx->t[0], ctx->t[1], (ctx->y), sizeof(sp_digit) * 112 * 2);
+        #else
         XMEMCPY(ctx->t[2], (void*)(((size_t)ctx->t[0] & addr_mask[ctx->y ^ 1]) +
                                    ((size_t)ctx->t[1] & addr_mask[ctx->y])),
                 sizeof(sp_digit) * 112 * 2);
+        #endif
         ctx->state = 8;
         break;
     case 8: /* SQR: t[2] = t[2]^2 in Montgomery form */
@@ -11987,9 +12176,14 @@ static int sp_3072_mod_exp_112_nb(sp_3072_mod_exp_112_ctx* ctx,
         ctx->state = 9;
         break;
     case 9: /* COPY_BACK: constant-time copy t[2] -> &t[y]; advance bit */
+        #ifdef WC_NO_PTR_INT_CAST
+        sp_cond_memcpy(ctx->t[0], ctx->t[2], (ctx->y)^1, sizeof(sp_digit) * 112 * 2);
+        sp_cond_memcpy(ctx->t[1], ctx->t[2], (ctx->y), sizeof(sp_digit) * 112 * 2);
+        #else
         XMEMCPY((void*)(((size_t)ctx->t[0] & addr_mask[ctx->y ^ 1]) +
                         ((size_t)ctx->t[1] & addr_mask[ctx->y])), ctx->t[2],
                 sizeof(sp_digit) * 112 * 2);
+        #endif
         ctx->c--;
         ctx->state = 5;
         break;
@@ -14037,17 +14231,21 @@ static WC_INLINE sp_digit sp_4096_div_word_71(sp_digit d1, sp_digit d0,
     sp_int64 d = ((sp_int64)d1 << 29) + d0;
 
     return d / div;
-#elif defined(__x86_64__) || defined(__i386__)
+#elif (defined(__x86_64__) || defined(__i386__)) && !defined(WOLFSSL_NO_ASM)
     sp_int64 d = ((sp_int64)d1 << 29) + d0;
     sp_uint32 lo = (sp_uint32)d;
     sp_digit hi = (sp_digit)(d >> 32);
+    sp_digit rem;
 
+    /* idiv puts the remainder in dx, so dx must be an output and not just an
+     * input, or the compiler assumes it still holds hi afterwards. */
     __asm__ __volatile__ (
         "idiv %2"
-        : "+a" (lo)
-        : "d" (hi), "r" (div)
+        : "+a" (lo), "=d" (rem)
+        : "r" (div), "1" (hi)
         : "cc"
     );
+    (void)rem;
 
     return (sp_digit)lo;
 #elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
@@ -14289,13 +14487,22 @@ static int sp_4096_mod_exp_71(sp_digit* r, const sp_digit* a,
 
             sp_4096_mont_mul_71(t[y^1], t[0], t[1], m, mp);
 
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_select(t[2], t[0], t[1], (y), sizeof(*t[2]) * 71 * 2);
+            #else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 71 * 2);
+            #endif
             sp_4096_mont_sqr_71(t[2], t[2], m, mp);
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_memcpy(t[0], t[2], (y)^1, sizeof(*t[2]) * 71 * 2);
+            sp_cond_memcpy(t[1], t[2], (y), sizeof(*t[2]) * 71 * 2);
+            #else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 71 * 2);
+            #endif
         }
 
         sp_4096_mont_reduce_71(t[0], m, mp);
@@ -14365,13 +14572,22 @@ static int sp_4096_mod_exp_71(sp_digit* r, const sp_digit* a,
 
             sp_4096_mont_mul_71(t[y^1], t[0], t[1], m, mp);
 
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_select(t[2], t[0], t[1], (y), sizeof(*t[2]) * 71 * 2);
+            #else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 71 * 2);
+            #endif
             sp_4096_mont_sqr_71(t[2], t[2], m, mp);
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_memcpy(t[0], t[2], (y)^1, sizeof(*t[2]) * 71 * 2);
+            sp_cond_memcpy(t[1], t[2], (y), sizeof(*t[2]) * 71 * 2);
+            #else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 71 * 2);
+            #endif
         }
 
         sp_4096_mont_reduce_71(t[0], m, mp);
@@ -14849,17 +15065,21 @@ static WC_INLINE sp_digit sp_4096_div_word_142(sp_digit d1, sp_digit d0,
     sp_int64 d = ((sp_int64)d1 << 29) + d0;
 
     return d / div;
-#elif defined(__x86_64__) || defined(__i386__)
+#elif (defined(__x86_64__) || defined(__i386__)) && !defined(WOLFSSL_NO_ASM)
     sp_int64 d = ((sp_int64)d1 << 29) + d0;
     sp_uint32 lo = (sp_uint32)d;
     sp_digit hi = (sp_digit)(d >> 32);
+    sp_digit rem;
 
+    /* idiv puts the remainder in dx, so dx must be an output and not just an
+     * input, or the compiler assumes it still holds hi afterwards. */
     __asm__ __volatile__ (
         "idiv %2"
-        : "+a" (lo)
-        : "d" (hi), "r" (div)
+        : "+a" (lo), "=d" (rem)
+        : "r" (div), "1" (hi)
         : "cc"
     );
+    (void)rem;
 
     return (sp_digit)lo;
 #elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
@@ -15102,13 +15322,22 @@ static int sp_4096_mod_exp_142(sp_digit* r, const sp_digit* a,
 
             sp_4096_mont_mul_142(t[y^1], t[0], t[1], m, mp);
 
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_select(t[2], t[0], t[1], (y), sizeof(*t[2]) * 142 * 2);
+            #else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 142 * 2);
+            #endif
             sp_4096_mont_sqr_142(t[2], t[2], m, mp);
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_memcpy(t[0], t[2], (y)^1, sizeof(*t[2]) * 142 * 2);
+            sp_cond_memcpy(t[1], t[2], (y), sizeof(*t[2]) * 142 * 2);
+            #else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 142 * 2);
+            #endif
         }
 
         sp_4096_mont_reduce_142(t[0], m, mp);
@@ -15178,13 +15407,22 @@ static int sp_4096_mod_exp_142(sp_digit* r, const sp_digit* a,
 
             sp_4096_mont_mul_142(t[y^1], t[0], t[1], m, mp);
 
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_select(t[2], t[0], t[1], (y), sizeof(*t[2]) * 142 * 2);
+            #else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 142 * 2);
+            #endif
             sp_4096_mont_sqr_142(t[2], t[2], m, mp);
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_memcpy(t[0], t[2], (y)^1, sizeof(*t[2]) * 142 * 2);
+            sp_cond_memcpy(t[1], t[2], (y), sizeof(*t[2]) * 142 * 2);
+            #else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 142 * 2);
+            #endif
         }
 
         sp_4096_mont_reduce_142(t[0], m, mp);
@@ -15429,9 +15667,13 @@ static int sp_4096_mod_exp_142_nb(sp_4096_mod_exp_142_ctx* ctx,
         ctx->state = 7;
         break;
     case 7: /* COPY_OUT: constant-time copy &t[y] -> t[2] */
+        #ifdef WC_NO_PTR_INT_CAST
+        sp_cond_select(ctx->t[2], ctx->t[0], ctx->t[1], (ctx->y), sizeof(sp_digit) * 142 * 2);
+        #else
         XMEMCPY(ctx->t[2], (void*)(((size_t)ctx->t[0] & addr_mask[ctx->y ^ 1]) +
                                    ((size_t)ctx->t[1] & addr_mask[ctx->y])),
                 sizeof(sp_digit) * 142 * 2);
+        #endif
         ctx->state = 8;
         break;
     case 8: /* SQR: t[2] = t[2]^2 in Montgomery form */
@@ -15439,9 +15681,14 @@ static int sp_4096_mod_exp_142_nb(sp_4096_mod_exp_142_ctx* ctx,
         ctx->state = 9;
         break;
     case 9: /* COPY_BACK: constant-time copy t[2] -> &t[y]; advance bit */
+        #ifdef WC_NO_PTR_INT_CAST
+        sp_cond_memcpy(ctx->t[0], ctx->t[2], (ctx->y)^1, sizeof(sp_digit) * 142 * 2);
+        sp_cond_memcpy(ctx->t[1], ctx->t[2], (ctx->y), sizeof(sp_digit) * 142 * 2);
+        #else
         XMEMCPY((void*)(((size_t)ctx->t[0] & addr_mask[ctx->y ^ 1]) +
                         ((size_t)ctx->t[1] & addr_mask[ctx->y])), ctx->t[2],
                 sizeof(sp_digit) * 142 * 2);
+        #endif
         ctx->c--;
         ctx->state = 5;
         break;
@@ -18309,17 +18556,21 @@ static WC_INLINE sp_digit sp_4096_div_word_81(sp_digit d1, sp_digit d0,
     sp_int64 d = ((sp_int64)d1 << 26) + d0;
 
     return d / div;
-#elif defined(__x86_64__) || defined(__i386__)
+#elif (defined(__x86_64__) || defined(__i386__)) && !defined(WOLFSSL_NO_ASM)
     sp_int64 d = ((sp_int64)d1 << 26) + d0;
     sp_uint32 lo = (sp_uint32)d;
     sp_digit hi = (sp_digit)(d >> 32);
+    sp_digit rem;
 
+    /* idiv puts the remainder in dx, so dx must be an output and not just an
+     * input, or the compiler assumes it still holds hi afterwards. */
     __asm__ __volatile__ (
         "idiv %2"
-        : "+a" (lo)
-        : "d" (hi), "r" (div)
+        : "+a" (lo), "=d" (rem)
+        : "r" (div), "1" (hi)
         : "cc"
     );
+    (void)rem;
 
     return (sp_digit)lo;
 #elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
@@ -18562,13 +18813,22 @@ static int sp_4096_mod_exp_81(sp_digit* r, const sp_digit* a,
 
             sp_4096_mont_mul_81(t[y^1], t[0], t[1], m, mp);
 
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_select(t[2], t[0], t[1], (y), sizeof(*t[2]) * 81 * 2);
+            #else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 81 * 2);
+            #endif
             sp_4096_mont_sqr_81(t[2], t[2], m, mp);
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_memcpy(t[0], t[2], (y)^1, sizeof(*t[2]) * 81 * 2);
+            sp_cond_memcpy(t[1], t[2], (y), sizeof(*t[2]) * 81 * 2);
+            #else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 81 * 2);
+            #endif
         }
 
         sp_4096_mont_reduce_81(t[0], m, mp);
@@ -18638,13 +18898,22 @@ static int sp_4096_mod_exp_81(sp_digit* r, const sp_digit* a,
 
             sp_4096_mont_mul_81(t[y^1], t[0], t[1], m, mp);
 
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_select(t[2], t[0], t[1], (y), sizeof(*t[2]) * 81 * 2);
+            #else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 81 * 2);
+            #endif
             sp_4096_mont_sqr_81(t[2], t[2], m, mp);
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_memcpy(t[0], t[2], (y)^1, sizeof(*t[2]) * 81 * 2);
+            sp_cond_memcpy(t[1], t[2], (y), sizeof(*t[2]) * 81 * 2);
+            #else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 81 * 2);
+            #endif
         }
 
         sp_4096_mont_reduce_81(t[0], m, mp);
@@ -19185,17 +19454,21 @@ static WC_INLINE sp_digit sp_4096_div_word_162(sp_digit d1, sp_digit d0,
     sp_int64 d = ((sp_int64)d1 << 26) + d0;
 
     return d / div;
-#elif defined(__x86_64__) || defined(__i386__)
+#elif (defined(__x86_64__) || defined(__i386__)) && !defined(WOLFSSL_NO_ASM)
     sp_int64 d = ((sp_int64)d1 << 26) + d0;
     sp_uint32 lo = (sp_uint32)d;
     sp_digit hi = (sp_digit)(d >> 32);
+    sp_digit rem;
 
+    /* idiv puts the remainder in dx, so dx must be an output and not just an
+     * input, or the compiler assumes it still holds hi afterwards. */
     __asm__ __volatile__ (
         "idiv %2"
-        : "+a" (lo)
-        : "d" (hi), "r" (div)
+        : "+a" (lo), "=d" (rem)
+        : "r" (div), "1" (hi)
         : "cc"
     );
+    (void)rem;
 
     return (sp_digit)lo;
 #elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
@@ -19443,13 +19716,22 @@ static int sp_4096_mod_exp_162(sp_digit* r, const sp_digit* a,
 
             sp_4096_mont_mul_162(t[y^1], t[0], t[1], m, mp);
 
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_select(t[2], t[0], t[1], (y), sizeof(*t[2]) * 162 * 2);
+            #else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 162 * 2);
+            #endif
             sp_4096_mont_sqr_162(t[2], t[2], m, mp);
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_memcpy(t[0], t[2], (y)^1, sizeof(*t[2]) * 162 * 2);
+            sp_cond_memcpy(t[1], t[2], (y), sizeof(*t[2]) * 162 * 2);
+            #else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 162 * 2);
+            #endif
         }
 
         sp_4096_mont_reduce_162(t[0], m, mp);
@@ -19519,13 +19801,22 @@ static int sp_4096_mod_exp_162(sp_digit* r, const sp_digit* a,
 
             sp_4096_mont_mul_162(t[y^1], t[0], t[1], m, mp);
 
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_select(t[2], t[0], t[1], (y), sizeof(*t[2]) * 162 * 2);
+            #else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 162 * 2);
+            #endif
             sp_4096_mont_sqr_162(t[2], t[2], m, mp);
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_memcpy(t[0], t[2], (y)^1, sizeof(*t[2]) * 162 * 2);
+            sp_cond_memcpy(t[1], t[2], (y), sizeof(*t[2]) * 162 * 2);
+            #else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 162 * 2);
+            #endif
         }
 
         sp_4096_mont_reduce_162(t[0], m, mp);
@@ -19770,9 +20061,13 @@ static int sp_4096_mod_exp_162_nb(sp_4096_mod_exp_162_ctx* ctx,
         ctx->state = 7;
         break;
     case 7: /* COPY_OUT: constant-time copy &t[y] -> t[2] */
+        #ifdef WC_NO_PTR_INT_CAST
+        sp_cond_select(ctx->t[2], ctx->t[0], ctx->t[1], (ctx->y), sizeof(sp_digit) * 162 * 2);
+        #else
         XMEMCPY(ctx->t[2], (void*)(((size_t)ctx->t[0] & addr_mask[ctx->y ^ 1]) +
                                    ((size_t)ctx->t[1] & addr_mask[ctx->y])),
                 sizeof(sp_digit) * 162 * 2);
+        #endif
         ctx->state = 8;
         break;
     case 8: /* SQR: t[2] = t[2]^2 in Montgomery form */
@@ -19780,9 +20075,14 @@ static int sp_4096_mod_exp_162_nb(sp_4096_mod_exp_162_ctx* ctx,
         ctx->state = 9;
         break;
     case 9: /* COPY_BACK: constant-time copy t[2] -> &t[y]; advance bit */
+        #ifdef WC_NO_PTR_INT_CAST
+        sp_cond_memcpy(ctx->t[0], ctx->t[2], (ctx->y)^1, sizeof(sp_digit) * 162 * 2);
+        sp_cond_memcpy(ctx->t[1], ctx->t[2], (ctx->y), sizeof(sp_digit) * 162 * 2);
+        #else
         XMEMCPY((void*)(((size_t)ctx->t[0] & addr_mask[ctx->y ^ 1]) +
                         ((size_t)ctx->t[1] & addr_mask[ctx->y])), ctx->t[2],
                 sizeof(sp_digit) * 162 * 2);
+        #endif
         ctx->c--;
         ctx->state = 5;
         break;
@@ -23028,13 +23328,22 @@ static int sp_256_ecc_mulmod_9(sp_point_256* r, const sp_point_256* g,
 
             sp_256_proj_point_add_9(&t[y^1], &t[0], &t[1], tmp);
 
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_select(&t[2], &t[0], &t[1], (y), sizeof(sp_point_256));
+            #else
             XMEMCPY(&t[2], (void*)(((size_t)&t[0] & addr_mask[y^1]) +
                                    ((size_t)&t[1] & addr_mask[y])),
                     sizeof(sp_point_256));
+            #endif
             sp_256_proj_point_dbl_9(&t[2], &t[2], tmp);
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_memcpy(&t[0], &t[2], (y)^1, sizeof(sp_point_256));
+            sp_cond_memcpy(&t[1], &t[2], (y), sizeof(sp_point_256));
+            #else
             XMEMCPY((void*)(((size_t)&t[0] & addr_mask[y^1]) +
                             ((size_t)&t[1] & addr_mask[y])), &t[2],
                     sizeof(sp_point_256));
+            #endif
         }
 
         if (map != 0) {
@@ -23139,9 +23448,13 @@ static int sp_256_ecc_mulmod_9_nb(sp_ecc_ctx_t* sp_ctx, sp_point_256* r,
         err = sp_256_proj_point_add_9_nb((sp_ecc_ctx_t*)&ctx->add_ctx,
             &ctx->t[ctx->y^1], &ctx->t[0], &ctx->t[1], ctx->tmp);
         if (err == MP_OKAY) {
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_select(&ctx->t[2], &ctx->t[0], &ctx->t[1], (ctx->y), sizeof(sp_point_256));
+            #else
             XMEMCPY(&ctx->t[2], (void*)(((size_t)&ctx->t[0] & addr_mask[ctx->y^1]) +
                                         ((size_t)&ctx->t[1] & addr_mask[ctx->y])),
                     sizeof(sp_point_256));
+            #endif
             XMEMSET(&ctx->dbl_ctx, 0, sizeof(ctx->dbl_ctx));
             ctx->state = 6;
         }
@@ -23150,9 +23463,14 @@ static int sp_256_ecc_mulmod_9_nb(sp_ecc_ctx_t* sp_ctx, sp_point_256* r,
         err = sp_256_proj_point_dbl_9_nb((sp_ecc_ctx_t*)&ctx->dbl_ctx, &ctx->t[2],
             &ctx->t[2], ctx->tmp);
         if (err == MP_OKAY) {
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_memcpy(&ctx->t[0], &ctx->t[2], (ctx->y)^1, sizeof(sp_point_256));
+            sp_cond_memcpy(&ctx->t[1], &ctx->t[2], (ctx->y), sizeof(sp_point_256));
+            #else
             XMEMCPY((void*)(((size_t)&ctx->t[0] & addr_mask[ctx->y^1]) +
                             ((size_t)&ctx->t[1] & addr_mask[ctx->y])), &ctx->t[2],
                     sizeof(sp_point_256));
+            #endif
             ctx->state = 4;
             ctx->c--;
         }
@@ -30359,13 +30677,22 @@ static int sp_384_ecc_mulmod_15(sp_point_384* r, const sp_point_384* g,
 
             sp_384_proj_point_add_15(&t[y^1], &t[0], &t[1], tmp);
 
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_select(&t[2], &t[0], &t[1], (y), sizeof(sp_point_384));
+            #else
             XMEMCPY(&t[2], (void*)(((size_t)&t[0] & addr_mask[y^1]) +
                                    ((size_t)&t[1] & addr_mask[y])),
                     sizeof(sp_point_384));
+            #endif
             sp_384_proj_point_dbl_15(&t[2], &t[2], tmp);
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_memcpy(&t[0], &t[2], (y)^1, sizeof(sp_point_384));
+            sp_cond_memcpy(&t[1], &t[2], (y), sizeof(sp_point_384));
+            #else
             XMEMCPY((void*)(((size_t)&t[0] & addr_mask[y^1]) +
                             ((size_t)&t[1] & addr_mask[y])), &t[2],
                     sizeof(sp_point_384));
+            #endif
         }
 
         if (map != 0) {
@@ -30470,9 +30797,13 @@ static int sp_384_ecc_mulmod_15_nb(sp_ecc_ctx_t* sp_ctx, sp_point_384* r,
         err = sp_384_proj_point_add_15_nb((sp_ecc_ctx_t*)&ctx->add_ctx,
             &ctx->t[ctx->y^1], &ctx->t[0], &ctx->t[1], ctx->tmp);
         if (err == MP_OKAY) {
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_select(&ctx->t[2], &ctx->t[0], &ctx->t[1], (ctx->y), sizeof(sp_point_384));
+            #else
             XMEMCPY(&ctx->t[2], (void*)(((size_t)&ctx->t[0] & addr_mask[ctx->y^1]) +
                                         ((size_t)&ctx->t[1] & addr_mask[ctx->y])),
                     sizeof(sp_point_384));
+            #endif
             XMEMSET(&ctx->dbl_ctx, 0, sizeof(ctx->dbl_ctx));
             ctx->state = 6;
         }
@@ -30481,9 +30812,14 @@ static int sp_384_ecc_mulmod_15_nb(sp_ecc_ctx_t* sp_ctx, sp_point_384* r,
         err = sp_384_proj_point_dbl_15_nb((sp_ecc_ctx_t*)&ctx->dbl_ctx, &ctx->t[2],
             &ctx->t[2], ctx->tmp);
         if (err == MP_OKAY) {
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_memcpy(&ctx->t[0], &ctx->t[2], (ctx->y)^1, sizeof(sp_point_384));
+            sp_cond_memcpy(&ctx->t[1], &ctx->t[2], (ctx->y), sizeof(sp_point_384));
+            #else
             XMEMCPY((void*)(((size_t)&ctx->t[0] & addr_mask[ctx->y^1]) +
                             ((size_t)&ctx->t[1] & addr_mask[ctx->y])), &ctx->t[2],
                     sizeof(sp_point_384));
+            #endif
             ctx->state = 4;
             ctx->c--;
         }
@@ -37755,13 +38091,22 @@ static int sp_521_ecc_mulmod_21(sp_point_521* r, const sp_point_521* g,
 
             sp_521_proj_point_add_21(&t[y^1], &t[0], &t[1], tmp);
 
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_select(&t[2], &t[0], &t[1], (y), sizeof(sp_point_521));
+            #else
             XMEMCPY(&t[2], (void*)(((size_t)&t[0] & addr_mask[y^1]) +
                                    ((size_t)&t[1] & addr_mask[y])),
                     sizeof(sp_point_521));
+            #endif
             sp_521_proj_point_dbl_21(&t[2], &t[2], tmp);
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_memcpy(&t[0], &t[2], (y)^1, sizeof(sp_point_521));
+            sp_cond_memcpy(&t[1], &t[2], (y), sizeof(sp_point_521));
+            #else
             XMEMCPY((void*)(((size_t)&t[0] & addr_mask[y^1]) +
                             ((size_t)&t[1] & addr_mask[y])), &t[2],
                     sizeof(sp_point_521));
+            #endif
         }
 
         if (map != 0) {
@@ -37866,9 +38211,13 @@ static int sp_521_ecc_mulmod_21_nb(sp_ecc_ctx_t* sp_ctx, sp_point_521* r,
         err = sp_521_proj_point_add_21_nb((sp_ecc_ctx_t*)&ctx->add_ctx,
             &ctx->t[ctx->y^1], &ctx->t[0], &ctx->t[1], ctx->tmp);
         if (err == MP_OKAY) {
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_select(&ctx->t[2], &ctx->t[0], &ctx->t[1], (ctx->y), sizeof(sp_point_521));
+            #else
             XMEMCPY(&ctx->t[2], (void*)(((size_t)&ctx->t[0] & addr_mask[ctx->y^1]) +
                                         ((size_t)&ctx->t[1] & addr_mask[ctx->y])),
                     sizeof(sp_point_521));
+            #endif
             XMEMSET(&ctx->dbl_ctx, 0, sizeof(ctx->dbl_ctx));
             ctx->state = 6;
         }
@@ -37877,9 +38226,14 @@ static int sp_521_ecc_mulmod_21_nb(sp_ecc_ctx_t* sp_ctx, sp_point_521* r,
         err = sp_521_proj_point_dbl_21_nb((sp_ecc_ctx_t*)&ctx->dbl_ctx, &ctx->t[2],
             &ctx->t[2], ctx->tmp);
         if (err == MP_OKAY) {
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_memcpy(&ctx->t[0], &ctx->t[2], (ctx->y)^1, sizeof(sp_point_521));
+            sp_cond_memcpy(&ctx->t[1], &ctx->t[2], (ctx->y), sizeof(sp_point_521));
+            #else
             XMEMCPY((void*)(((size_t)&ctx->t[0] & addr_mask[ctx->y^1]) +
                             ((size_t)&ctx->t[1] & addr_mask[ctx->y])), &ctx->t[2],
                     sizeof(sp_point_521));
+            #endif
             ctx->state = 4;
             ctx->c--;
         }
@@ -44808,17 +45162,21 @@ static WC_INLINE sp_digit sp_1024_div_word_42(sp_digit d1, sp_digit d0,
     sp_int64 d = ((sp_int64)d1 << 25) + d0;
 
     return d / div;
-#elif defined(__x86_64__) || defined(__i386__)
+#elif (defined(__x86_64__) || defined(__i386__)) && !defined(WOLFSSL_NO_ASM)
     sp_int64 d = ((sp_int64)d1 << 25) + d0;
     sp_uint32 lo = (sp_uint32)d;
     sp_digit hi = (sp_digit)(d >> 32);
+    sp_digit rem;
 
+    /* idiv puts the remainder in dx, so dx must be an output and not just an
+     * input, or the compiler assumes it still holds hi afterwards. */
     __asm__ __volatile__ (
         "idiv %2"
-        : "+a" (lo)
-        : "d" (hi), "r" (div)
+        : "+a" (lo), "=d" (rem)
+        : "r" (div), "1" (hi)
         : "cc"
     );
+    (void)rem;
 
     return (sp_digit)lo;
 #elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
@@ -46419,13 +46777,22 @@ static int sp_1024_ecc_mulmod_42(sp_point_1024* r, const sp_point_1024* g,
 
             sp_1024_proj_point_add_42(&t[y^1], &t[0], &t[1], tmp);
 
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_select(&t[2], &t[0], &t[1], (y), sizeof(sp_point_1024));
+            #else
             XMEMCPY(&t[2], (void*)(((size_t)&t[0] & addr_mask[y^1]) +
                                    ((size_t)&t[1] & addr_mask[y])),
                     sizeof(sp_point_1024));
+            #endif
             sp_1024_proj_point_dbl_42(&t[2], &t[2], tmp);
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_memcpy(&t[0], &t[2], (y)^1, sizeof(sp_point_1024));
+            sp_cond_memcpy(&t[1], &t[2], (y), sizeof(sp_point_1024));
+            #else
             XMEMCPY((void*)(((size_t)&t[0] & addr_mask[y^1]) +
                             ((size_t)&t[1] & addr_mask[y])), &t[2],
                     sizeof(sp_point_1024));
+            #endif
         }
 
         if (map != 0) {
@@ -46530,9 +46897,13 @@ static int sp_1024_ecc_mulmod_42_nb(sp_ecc_ctx_t* sp_ctx, sp_point_1024* r,
         err = sp_1024_proj_point_add_42_nb((sp_ecc_ctx_t*)&ctx->add_ctx,
             &ctx->t[ctx->y^1], &ctx->t[0], &ctx->t[1], ctx->tmp);
         if (err == MP_OKAY) {
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_select(&ctx->t[2], &ctx->t[0], &ctx->t[1], (ctx->y), sizeof(sp_point_1024));
+            #else
             XMEMCPY(&ctx->t[2], (void*)(((size_t)&ctx->t[0] & addr_mask[ctx->y^1]) +
                                         ((size_t)&ctx->t[1] & addr_mask[ctx->y])),
                     sizeof(sp_point_1024));
+            #endif
             XMEMSET(&ctx->dbl_ctx, 0, sizeof(ctx->dbl_ctx));
             ctx->state = 6;
         }
@@ -46541,9 +46912,14 @@ static int sp_1024_ecc_mulmod_42_nb(sp_ecc_ctx_t* sp_ctx, sp_point_1024* r,
         err = sp_1024_proj_point_dbl_42_nb((sp_ecc_ctx_t*)&ctx->dbl_ctx, &ctx->t[2],
             &ctx->t[2], ctx->tmp);
         if (err == MP_OKAY) {
+            #ifdef WC_NO_PTR_INT_CAST
+            sp_cond_memcpy(&ctx->t[0], &ctx->t[2], (ctx->y)^1, sizeof(sp_point_1024));
+            sp_cond_memcpy(&ctx->t[1], &ctx->t[2], (ctx->y), sizeof(sp_point_1024));
+            #else
             XMEMCPY((void*)(((size_t)&ctx->t[0] & addr_mask[ctx->y^1]) +
                             ((size_t)&ctx->t[1] & addr_mask[ctx->y])), &ctx->t[2],
                     sizeof(sp_point_1024));
+            #endif
             ctx->state = 4;
             ctx->c--;
         }
