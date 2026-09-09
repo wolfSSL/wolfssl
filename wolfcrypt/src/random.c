@@ -1742,6 +1742,7 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
             /* Accumulate failure flag - once set, stays set */
             rctFailed |= (repCount >= WC_RNG_SEED_RCT_CUTOFF);
         }
+        ForceZero(&prevByte, sizeof(prevByte));
     }
 
     /* SP800-90B 4.4.2 - Adaptive Proportion Test (APT)
@@ -1799,6 +1800,8 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
                           WC_RNG_SEED_APT_CUTOFF);
         }
 
+        /* Histogram of the live seed (ISO/IEC 19790:2012 7.9.7). */
+        ForceZero(byteCounts, MAX_ENTROPY_BITS * sizeof(word16));
     #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SMALL_STACK_CACHE)
         XFREE(byteCounts, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     #endif

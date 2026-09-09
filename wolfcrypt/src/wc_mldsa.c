@@ -9617,6 +9617,10 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
         }
         /* Step 11: Check we have a valid signature. */
         while ((ret == 0) && (!valid));
+        if (ret != 0) {
+            /* sig holds a rejected candidate (ISO/IEC 19790:2012 7.9.7). */
+            ForceZero(sig, params->sigSz);
+        }
     }
     if (ret == 0) {
         byte* ze = sig + params->lambda / 4;
@@ -10198,6 +10202,10 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
         }
         /* Step 11: Check we have a valid signature. */
         while ((ret == 0) && (!valid));
+        if (ret != 0) {
+            /* sig holds a rejected candidate (ISO/IEC 19790:2012 7.9.7). */
+            ForceZero(sig, params->sigSz);
+        }
     }
 
     ForceZero(priv_rand_seed, sizeof(priv_rand_seed));
@@ -12337,6 +12345,12 @@ int wc_MlDsaKey_SetParams(wc_MlDsaKey* key, byte level)
         }
 #endif
 
+#if !defined(WOLFSSL_MLDSA_DYNAMIC_KEYS) && \
+    !defined(WOLFSSL_MLDSA_ASSIGN_KEY) && !defined(WOLFSSL_MLDSA_VERIFY_ONLY)
+        if (key->prvKeySet) {
+            ForceZero(key->k, sizeof(key->k));
+        }
+#endif
         /* Store level and indicate public and private key are not set. */
         key->level = level % WC_ML_DSA_DRAFT;
         key->pubKeySet = 0;

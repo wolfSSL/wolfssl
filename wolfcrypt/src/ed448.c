@@ -1603,10 +1603,18 @@ int wc_ed448_export_key(const ed448_key* key, byte* priv, word32 *privSz,
     int ret = 0;
 
     /* export 'full' private part */
+    /* Check the public arguments before anything is written to priv. */
+    if ((pub == NULL) || (pubSz == NULL)) {
+        return BAD_FUNC_ARG;
+    }
     ret = wc_ed448_export_private(key, priv, privSz);
     if (ret == 0) {
         /* export public part */
         ret = wc_ed448_export_public(key, pub, pubSz);
+        if (ret != 0) {
+            /* Public export failed: do not hand back the private key. */
+            ForceZero(priv, *privSz);
+        }
     }
 
     return ret;

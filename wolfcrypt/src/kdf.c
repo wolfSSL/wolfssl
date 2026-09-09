@@ -282,6 +282,7 @@ int wc_PRF_TLSv1(byte* digest, word32 digLen, const byte* secret,
         }
     }
 
+    ForceZero(sha_result, MAX_PRF_DIG);
 #if defined(WOLFSSL_CHECK_MEM_ZERO)
     wc_MemZero_Check(sha_result, MAX_PRF_DIG);
 #endif
@@ -1591,6 +1592,7 @@ int wc_KDA_KDF_twostep_cmac(const byte * salt, word32 salt_len,
 
     #ifdef WOLFSSL_SMALL_STACK
     if (cmac) {
+        ForceZero(cmac, sizeof(Cmac));
         XFREE(cmac, heap, DYNAMIC_TYPE_CMAC);
         cmac = NULL;
     }
@@ -1764,6 +1766,7 @@ int wc_KDA_KDF_PRF_cmac(const byte* Kin, word32 KinSz,
 
     #ifdef WOLFSSL_SMALL_STACK
     if (cmac) {
+        ForceZero(cmac, sizeof(Cmac));
         XFREE(cmac, heap, DYNAMIC_TYPE_CMAC);
         cmac = NULL;
     }

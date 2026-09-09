@@ -507,8 +507,10 @@ void wc_Sha512Free(wc_Sha512* sha512)
         /* If they want the standard free, they can call it themselves */
         /* via their callback setting devId to INVALID_DEVID */
         /* otherwise assume the callback handled it */
-        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            ForceZero(sha512, sizeof(*sha512));
             return;
+        }
         /* fall-through when unavailable */
     }
 
@@ -535,6 +537,8 @@ int wc_Sha512GetHash(wc_Sha512* sha512, byte* hash)
         ret = wc_Sha512Final(tmpSha512, hash);
         wc_Sha512Free(tmpSha512);
     }
+
+    ForceZero(tmpSha512, sizeof(*tmpSha512));
 
     WC_FREE_VAR_EX(tmpSha512, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
@@ -649,6 +653,8 @@ int wc_Sha512_224GetHash(wc_Sha512* sha512, byte* hash)
         wc_Sha512_224Free(tmpSha512);
     }
 
+    ForceZero(tmpSha512, sizeof(*tmpSha512));
+
     WC_FREE_VAR_EX(tmpSha512, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
@@ -728,6 +734,8 @@ int wc_Sha512_256GetHash(wc_Sha512* sha512, byte* hash)
         ret = wc_Sha512_256Final(tmpSha512, hash);
         wc_Sha512_256Free(tmpSha512);
     }
+
+    ForceZero(tmpSha512, sizeof(*tmpSha512));
 
     WC_FREE_VAR_EX(tmpSha512, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
@@ -829,8 +837,10 @@ void wc_Sha384Free(wc_Sha384* sha384)
         /* If they want the standard free, they can call it themselves */
         /* via their callback setting devId to INVALID_DEVID */
         /* otherwise assume the callback handled it */
-        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            ForceZero(sha384, sizeof(*sha384));
             return;
+        }
         /* fall-through when unavailable */
     }
 
@@ -857,6 +867,8 @@ int wc_Sha384GetHash(wc_Sha384* sha384, byte* hash)
         ret = wc_Sha384Final(tmpSha384, hash);
         wc_Sha384Free(tmpSha384);
     }
+
+    ForceZero(tmpSha384, sizeof(*tmpSha384));
 
     WC_FREE_VAR_EX(tmpSha384, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
@@ -2592,8 +2604,10 @@ void wc_Sha512Free(wc_Sha512* sha512)
         /* If they want the standard free, they can call it themselves */
         /* via their callback setting devId to INVALID_DEVID */
         /* otherwise assume the callback handled it */
-        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            ForceZero(sha512, sizeof(*sha512));
             return;
+        }
         /* fall-through when unavailable */
     }
 
@@ -2703,8 +2717,8 @@ int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
 
     XMEMCPY(sha->buffer, buffer, WC_SHA512_BLOCK_SIZE);
 #endif
-#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SMALL_STACK_CACHE)
     ForceZero(buffer, WC_SHA512_BLOCK_SIZE);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SMALL_STACK_CACHE)
     XFREE(buffer, sha->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return ret;
@@ -3068,8 +3082,10 @@ void wc_Sha384Free(wc_Sha384* sha384)
         /* If they want the standard free, they can call it themselves */
         /* via their callback setting devId to INVALID_DEVID */
         /* otherwise assume the callback handled it */
-        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            ForceZero(sha384, sizeof(*sha384));
             return;
+        }
         /* fall-through when unavailable */
     }
 
@@ -3159,6 +3175,8 @@ static int Sha512_Family_GetHash(wc_Sha512* sha512, byte* hash,
         ret = finalfp(tmpSha512, hash);
         wc_Sha512Free(tmpSha512);
     }
+
+    ForceZero(tmpSha512, sizeof(*tmpSha512));
 
     WC_FREE_VAR_EX(tmpSha512, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
@@ -3605,6 +3623,8 @@ int wc_Sha384GetHash(wc_Sha384* sha384, byte* hash)
         ret = wc_Sha384Final(tmpSha384, hash);
         wc_Sha384Free(tmpSha384);
     }
+
+    ForceZero(tmpSha384, sizeof(*tmpSha384));
 
     WC_FREE_VAR_EX(tmpSha384, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 

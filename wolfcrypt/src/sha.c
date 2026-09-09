@@ -850,6 +850,7 @@ int wc_ShaFinalRaw(wc_Sha* sha, byte* hash)
         ByteReverseWords((word32*)digest, (word32*)sha->digest, WC_SHA_DIGEST_SIZE);
     }
     XMEMCPY(hash, (byte *)&digest[0], WC_SHA_DIGEST_SIZE);
+    ForceZero(digest, sizeof(digest));
 #else
     XMEMCPY(hash, sha->digest, WC_SHA_DIGEST_SIZE);
 #endif
@@ -1135,8 +1136,10 @@ void wc_ShaFree(wc_Sha* sha)
         /* If they want the standard free, they can call it themselves */
         /* via their callback setting devId to INVALID_DEVID */
         /* otherwise assume the callback handled it */
-        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            ForceZero(sha, sizeof(*sha));
             return;
+        }
         /* fall-through when unavailable */
     }
 

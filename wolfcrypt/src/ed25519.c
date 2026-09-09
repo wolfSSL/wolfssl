@@ -1773,10 +1773,18 @@ int wc_ed25519_export_key(const ed25519_key* key,
     int ret;
 
     /* export 'full' private part */
+    /* Check the public arguments before anything is written to priv. */
+    if ((pub == NULL) || (pubSz == NULL)) {
+        return BAD_FUNC_ARG;
+    }
     ret = wc_ed25519_export_private(key, priv, privSz);
     if (ret == 0) {
         /* export public part */
         ret = wc_ed25519_export_public(key, pub, pubSz);
+        if (ret != 0) {
+            /* Public export failed: do not hand back the private key. */
+            ForceZero(priv, *privSz);
+        }
     }
 
     return ret;
