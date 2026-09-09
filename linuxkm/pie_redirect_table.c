@@ -109,6 +109,17 @@ const struct wolfssl_linuxkm_pie_redirect_table
 
     /* Quotient in the low word, remainder in the high word, as the EABI
      * expects in r0 and r1. */
+    /* The EABI pair is r0 = quotient, r1 = remainder; a 64-bit return puts its
+     * low word in r0 only on little-endian, so pack by byte order. */
+    #ifdef __ARMEB__
+        #define WC_AEABI_PACK(q, r) (((unsigned long long)(q) << 32) | (r))
+        #define WC_AEABI_Q(v) ((unsigned int)((v) >> 32))
+        #define WC_AEABI_R(v) ((unsigned int)(v))
+    #else
+        #define WC_AEABI_PACK(q, r) (((unsigned long long)(r) << 32) | (q))
+        #define WC_AEABI_Q(v) ((unsigned int)(v))
+        #define WC_AEABI_R(v) ((unsigned int)((v) >> 32))
+    #endif
     unsigned long long __aeabi_uidivmod(unsigned int n, unsigned int d);
     unsigned long long __aeabi_uidivmod(unsigned int n, unsigned int d) {
         unsigned int q = 0, r = 0;
@@ -122,7 +133,7 @@ const struct wolfssl_linuxkm_pie_redirect_table
             r -= d & mask;
             q |= (1u << i) & mask;
         }
-        return ((unsigned long long)r << 32) | q;
+        return WC_AEABI_PACK(q, r);
     }
 
     /* Signed forms work on unsigned magnitudes so INT_MIN is well defined;
@@ -143,10 +154,10 @@ const struct wolfssl_linuxkm_pie_redirect_table
         unsigned int un = nneg ? (0u - (unsigned int)n) : (unsigned int)n;
         unsigned int ud = (d < 0) ? (0u - (unsigned int)d) : (unsigned int)d;
         unsigned long long um = __aeabi_uidivmod(un, ud);
-        unsigned int uq = (unsigned int)um;
-        unsigned int ur = (unsigned int)(um >> 32);
+        unsigned int uq = WC_AEABI_Q(um);
+        unsigned int ur = WC_AEABI_R(um);
         int q = qneg ? (int)(0u - uq) : (int)uq;
         int r = nneg ? (int)(0u - ur) : (int)ur;
-        return ((unsigned long long)(unsigned int)r << 32) | (unsigned int)q;
+        return WC_AEABI_PACK((unsigned int)q, (unsigned int)r);
     }
 #endif /* CONFIG_ARM */
