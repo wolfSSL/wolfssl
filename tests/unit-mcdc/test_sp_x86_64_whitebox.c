@@ -189,6 +189,18 @@ static int wb_intr_ret = 0;
 #include <stdio.h>
 
 static int wb_fail = 0;
+/* Set while the save is refused.  Every driven operation must fail then, so
+ * these two counters turn that pass from a coverage sweep into a check. */
+static int wb_expect_refusal = 0;
+static int wb_contract_fail = 0;  /* a refused save failed to stop a call */
+static long wb_refused_ok = 0;    /* failed as required */
+static long wb_refused_bad = 0;   /* succeeded despite a refused save */
+#define WB_OUTCOME(ret) do {                                    \
+    if (wb_expect_refusal) {                                    \
+        if ((ret) == 0) wb_refused_bad++; else wb_refused_ok++;  \
+    } } while (0)
+/* Evaluates the call once, records its outcome, yields it to the caller. */
+#define WB_CHECK(call) __extension__ ({ int wb_r_ = (call); WB_OUTCOME(wb_r_); wb_r_; })
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
 
 /* Crafted-input driver shared with the sp_c64.c/sp_c32.c white-boxes: the
@@ -260,12 +272,12 @@ static void wb_run_ecc_curve(int curve_id, int fieldSz, const char* label)
         return;
     }
 
-    if (wc_ecc_make_key_ex(&rng, fieldSz, &keyA, curve_id) != 0) {
+    if (WB_CHECK(wc_ecc_make_key_ex(&rng, fieldSz, &keyA, curve_id)) != 0) {
         WB_NOTE("wc_ecc_make_key_ex(keyA) failed");
         wb_fail = 1;
         ok = 0;
     }
-    if (ok && wc_ecc_make_key_ex(&rng, fieldSz, &keyB, curve_id) != 0) {
+    if (ok && WB_CHECK(wc_ecc_make_key_ex(&rng, fieldSz, &keyB, curve_id)) != 0) {
         WB_NOTE("wc_ecc_make_key_ex(keyB) failed");
         wb_fail = 1;
         ok = 0;
@@ -273,20 +285,20 @@ static void wb_run_ecc_curve(int curve_id, int fieldSz, const char* label)
 
     if (ok) {
         sigLen = (word32)sizeof(sig);
-        if (wc_ecc_sign_hash(wb_digest, (word32)sizeof(wb_digest), sig,
-                &sigLen, &rng, &keyA) != 0) {
+        if (WB_CHECK(wc_ecc_sign_hash(wb_digest, (word32)sizeof(wb_digest), sig,
+                &sigLen, &rng, &keyA)) != 0) {
             WB_NOTE("wc_ecc_sign_hash failed");
             wb_fail = 1;
         }
-        else if (wc_ecc_verify_hash(sig, sigLen, wb_digest,
-                (word32)sizeof(wb_digest), &verifyRes, &keyA) != 0) {
+        else if (WB_CHECK(wc_ecc_verify_hash(sig, sigLen, wb_digest,
+                (word32)sizeof(wb_digest), &verifyRes, &keyA)) != 0) {
             WB_NOTE("wc_ecc_verify_hash failed");
             wb_fail = 1;
         }
 
         PRIVATE_KEY_UNLOCK();
         secretALen = (word32)sizeof(secretA);
-        if (wc_ecc_shared_secret(&keyA, &keyB, secretA, &secretALen) != 0) {
+        if (WB_CHECK(wc_ecc_shared_secret(&keyA, &keyB, secretA, &secretALen)) != 0) {
             WB_NOTE("wc_ecc_shared_secret(A,B) failed");
             wb_fail = 1;
         }
@@ -1579,12 +1591,12 @@ static void wb_run_crafted_curve(int curve_id, int fieldSz,
         return;
     }
 
-    if (wc_ecc_make_key_ex(&rng, fieldSz, &keyA, curve_id) != 0) {
+    if (WB_CHECK(wc_ecc_make_key_ex(&rng, fieldSz, &keyA, curve_id)) != 0) {
         WB_NOTE("wc_ecc_make_key_ex(keyA) failed (crafted)");
         wb_fail = 1;
         ok = 0;
     }
-    if (ok && wc_ecc_make_key_ex(&rng, fieldSz, &keyB, curve_id) != 0) {
+    if (ok && WB_CHECK(wc_ecc_make_key_ex(&rng, fieldSz, &keyB, curve_id)) != 0) {
         WB_NOTE("wc_ecc_make_key_ex(keyB) failed (crafted)");
         wb_fail = 1;
         ok = 0;
@@ -1985,17 +1997,33 @@ int main(void)
         wb_run_crafted();
         wb_spc_all();
 
-        /* Refused save: every lane returns its error instead of running,
-         * so the drivers report failures here by design. */
+        /* Refused save: every lane returns its error instead of running, so
+         * the drivers report failures here by design.  The counters turn that
+         * into a check: a call that SUCCEEDS with the save refused means the
+         * dispatch found another way to run, which is what this file exists
+         * to keep out. */
         cpuid_select_flags(real);
         wb_intr_ret = 1;
+        wb_expect_refusal = 1;
         wb_run_ecc();
         wb_run_rsa_signverify();
         wb_run_dh();
         wb_run_dispatch();
         wb_run_crafted();
         wb_spc_all();
+        wb_expect_refusal = 0;
         wb_intr_ret = 0;
+
+        printf("  [wb] refused save: %ld calls failed as required, %ld ran anyway\n",
+               wb_refused_ok, wb_refused_bad);
+        if (wb_refused_bad != 0) {
+            printf("  [wb] FAIL: a refused vector-register save did not stop the call\n");
+            wb_contract_fail = 1;
+        }
+        if (wb_refused_ok == 0) {
+            printf("  [wb] FAIL: nothing was seen failing, so this check proves nothing\n");
+            wb_contract_fail = 1;
+        }
 
         wb_run_rsa_free();
 
@@ -2042,5 +2070,6 @@ int main(void)
     printf("  no SP feature; nothing to exercise\n");
 #endif
     (void)wb_fail;
-    return 0;
+    /* Coverage sweeps stay advisory; the fail-closed contract does not. */
+    return wb_contract_fail;
 }
