@@ -952,8 +952,9 @@
     }
 
     /* A new feature set is a new operating environment: re-run the power-on
-     * self test, which resets every CAST to run again on the new lanes.
-     * The kernel module suspends signal handling around the self test. */
+     * self test, then run every CAST now instead of waiting for first use,
+     * which is what the kernel module does at load.  Signals
+     * stay suspended across both so a CAST cannot be cut short. */
     static WC_INLINE void cpuid_recast(void)
     {
     #if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
@@ -963,6 +964,8 @@
             return;
         }
         ret = wolfCrypt_IntegrityTest_fips();
+        if (ret == 0)
+            ret = wc_RunAllCast_fips();
         (void)WC_SIG_IGNORE_END();
         if (ret != 0)
             WOLFSSL_MSG("cpuid: self test failed after a feature change");
