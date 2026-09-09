@@ -2508,9 +2508,30 @@ int wolfSSL_i2a_ASN1_OBJECT(WOLFSSL_BIO *bp, WOLFSSL_ASN1_OBJECT *a)
     word32 idx = 0;
     const char null_str[] = "NULL";
     const char invalid_str[] = "<INVALID>";
-    char buf[80];
+    char stackBuf[80];
+    char* heapBuf = NULL;
+    char* buf = stackBuf;
+    int bufSz = (int)sizeof(stackBuf);
 
     WOLFSSL_ENTER("wolfSSL_i2a_ASN1_OBJECT");
+
+    /* The text form is a name from the object table, all shorter than
+     * stackBuf, or for an unknown object the dotted-decimal OID, bounded by
+     * WC_OID_STR_SZ() of the DER size. Only use the heap when that bound is
+     * larger than stackBuf; if the allocation fails, keep stackBuf and let
+     * the conversion fail as it always did. DecodePolicyOID() refuses
+     * ASN_LONG_LENGTH or more content bytes, so a bigger objSz cannot
+     * decode anyway and is not sized for. */
+    if ((bp != NULL) && (a != NULL) &&
+            (a->objSz <= (word32)(ASN_LONG_LENGTH + 2)) &&
+            (WC_OID_STR_SZ(a->objSz) > sizeof(stackBuf))) {
+        heapBuf = (char*)XMALLOC(WC_OID_STR_SZ(a->objSz), NULL,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        if (heapBuf != NULL) {
+            buf = heapBuf;
+            bufSz = (int)WC_OID_STR_SZ(a->objSz);
+        }
+    }
 
     /* Validate parameters. */
     if (bp == NULL) {
@@ -2522,7 +2543,7 @@ int wolfSSL_i2a_ASN1_OBJECT(WOLFSSL_BIO *bp, WOLFSSL_ASN1_OBJECT *a)
         length = wolfSSL_BIO_write(bp, null_str, (int)XSTRLEN(null_str));
     }
     /* Try getting text version and write it out. */
-    else if ((length = wolfSSL_i2t_ASN1_OBJECT(buf, sizeof(buf), a)) > 0) {
+    else if ((length = wolfSSL_i2t_ASN1_OBJECT(buf, bufSz, a)) > 0) {
         length = wolfSSL_BIO_write(bp, buf, length);
     }
     /* Look for DER header. */
@@ -2539,6 +2560,7 @@ int wolfSSL_i2a_ASN1_OBJECT(WOLFSSL_BIO *bp, WOLFSSL_ASN1_OBJECT *a)
         length += wolfSSL_BIO_dump(bp, (const char*)(a->obj + idx), cLen);
     }
 
+    XFREE(heapBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return length;
 }
 #endif /* !NO_BIO */
@@ -5845,7 +5867,8 @@ int wc_OBJ_sn2nid(const char *sn)
      * buffer.
      *
      * String is of the form "1.2.840.113549.1.9.1" and is always NUL
-     * terminated. Truncated when the buffer is too small.
+     * terminated. Unlike OpenSSL's OBJ_obj2txt(), fails outright on a too
+     * small buffer rather than truncating.
      *
      * @param [out] buf     Buffer to hold string.
      * @param [in]  bufLen  Length of buffer in bytes.
@@ -5853,6 +5876,7 @@ int wc_OBJ_sn2nid(const char *sn)
      * @return  Length of string that would be written, excluding the NUL
      *          terminator, on success.
      * @return  0 when decoding the object fails.
+     * @return  ASN_PARSE_E when the object's length cannot be parsed.
      */
     static int wolfssl_obj2txt_numeric(char *buf, int bufLen,
                                        const WOLFSSL_ASN1_OBJECT *a)
@@ -5861,6 +5885,9 @@ int wc_OBJ_sn2nid(const char *sn)
         int    length;
         word32 idx = 0;
         byte   tag;
+
+        /* Fail closed: buf is always NUL terminated, even on error. */
+        buf[0] = '\0';
 
         if (GetASNTag(a->obj, &idx, &tag, a->objSz) != 0) {
             return WOLFSSL_FAILURE;
@@ -5876,17 +5903,11 @@ int wc_OBJ_sn2nid(const char *sn)
             return ASN_PARSE_E;
         }
 
-        /* save an extra byte for null term. */
-        if (bufLen < MAX_OID_STRING_SZ) {
-            bufSz = bufLen - 1;
-        }
-        else {
-            bufSz = MAX_OID_STRING_SZ - 1;
-        }
-
-        if ((bufSz = DecodePolicyOID(buf, (word32)bufSz, a->obj + idx,
+        /* DecodePolicyOID() accounts for the NUL terminator itself. */
+        if ((bufSz = DecodePolicyOID(buf, (word32)bufLen, a->obj + idx,
                     (word32)length)) <= 0) {
             WOLFSSL_MSG("Error decoding OID");
+            buf[0] = '\0';
             return WOLFSSL_FAILURE;
         }
 

@@ -760,6 +760,9 @@ const char* wc_GetErrorString(int error)
     case WRONG_TYPE_OBJECT_E:
         return "Object is wrong type for requested operation";
 
+    case ASN_OID_ARC_TOO_BIG_E:
+        return "ASN.1 OID arc value too large to represent";
+
     case MAX_CODE_E:
     case WC_SPAN1_MIN_CODE_E:
     case MIN_CODE_E:

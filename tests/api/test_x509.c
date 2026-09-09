@@ -1237,3 +1237,86 @@ int test_x509_REQ_sign_mldsa(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* wolfSSL_OBJ_obj2txt() no longer truncates a numeric OID that does not
+ * fit, so X509PrintReqAttributes() must size its name buffer for one: an
+ * attribute OID outside the object table prints in dotted-decimal form,
+ * longer than the NAME_SZ/4 column. */
+int test_x509_REQ_print_unknown_attr_oid(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_CERT_REQ) && defined(WOLFSSL_CERT_GEN) && \
+    defined(WOLFSSL_CERT_EXT) && !defined(NO_BIO) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && \
+    defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256) && !defined(NO_SHA256)
+    WOLFSSL_EVP_PKEY* priv = NULL;
+    WOLFSSL_EVP_PKEY* pub  = NULL;
+    WOLFSSL_X509*     req  = NULL;
+    WOLFSSL_X509_NAME* name = NULL;
+    WOLFSSL_X509_ATTRIBUTE* attr = NULL;
+    WOLFSSL_BIO*      bio  = NULL;
+    const unsigned char* ecPriv = ecc_clikey_der_256;
+    const unsigned char* ecPub  = ecc_clikeypub_der_256;
+    /* 1.3.6.1.4.1.99999.4294967295.4294967295.4294967295: not in
+     * wolfssl_object_info and 51 characters, longer than the NAME_SZ/4
+     * column in every configuration, so it goes unpadded. */
+    static const byte unknownOid[] = { 0x06, 0x17, 0x2b, 0x06, 0x01, 0x04,
+        0x01, 0x86, 0x8d, 0x1f, 0x8f, 0xff, 0xff, 0xff, 0x7f, 0x8f, 0xff,
+        0xff, 0xff, 0x7f, 0x8f, 0xff, 0xff, 0xff, 0x7f };
+    const char expected[] =
+        "        1.3.6.1.4.1.99999.4294967295.4294967295.4294967295:pw\n";
+    char* mem = NULL;
+    char* out = NULL;
+    int memSz = 0;
+
+    ExpectNotNull(priv = wolfSSL_d2i_PrivateKey(EVP_PKEY_EC, NULL, &ecPriv,
+                    (long)sizeof_ecc_clikey_der_256));
+    ExpectNotNull(pub = wolfSSL_d2i_PUBKEY(NULL, &ecPub,
+                    (long)sizeof_ecc_clikeypub_der_256));
+
+    ExpectNotNull(req = wolfSSL_X509_REQ_new());
+    ExpectNotNull(name = wolfSSL_X509_NAME_new());
+    ExpectIntEQ(wolfSSL_X509_NAME_add_entry_by_txt(name, "commonName",
+                    MBSTRING_UTF8, (const byte*)"Test", 4, -1, 0),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_REQ_set_subject_name(req, name), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_REQ_set_pubkey(req, pub), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_REQ_add1_attr_by_NID(req,
+                    WC_NID_pkcs9_challengePassword, WOLFSSL_MBSTRING_ASC,
+                    (const unsigned char*)"pw", -1), WOLFSSL_SUCCESS);
+    /* Repoint the attribute's object at an OID the table doesn't know, the
+     * way a parsed CSR with a private attribute would look. The DER is
+     * static, so no dynamic flag is set and free leaves it alone. */
+    ExpectNotNull(attr = wolfSSL_X509_REQ_get_attr(req, 0));
+    if (attr != NULL && attr->object != NULL) {
+        attr->object->nid = WC_NID_undef;
+        attr->object->type = WC_NID_undef;
+        attr->object->obj = unknownOid;
+        attr->object->objSz = (unsigned int)sizeof(unknownOid);
+    }
+    ExpectIntEQ(wolfSSL_X509_REQ_sign(req, priv, wolfSSL_EVP_sha256()),
+                WOLFSSL_SUCCESS);
+
+    ExpectNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
+    ExpectIntEQ(wolfSSL_X509_REQ_print(bio, req), WOLFSSL_SUCCESS);
+    ExpectIntGT(memSz = wolfSSL_BIO_get_mem_data(bio, &mem), 0);
+    if (EXPECT_SUCCESS() && mem != NULL) {
+        /* BIO data is not NUL terminated: copy before searching. */
+        ExpectNotNull(out = (char*)XMALLOC((size_t)memSz + 1, NULL,
+            DYNAMIC_TYPE_TMP_BUFFER));
+        if (out != NULL) {
+            XMEMCPY(out, mem, (size_t)memSz);
+            out[memSz] = '\0';
+            ExpectNotNull(XSTRSTR(out, expected));
+        }
+    }
+
+    XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_BIO_free(bio);
+    wolfSSL_X509_NAME_free(name);
+    wolfSSL_X509_free(req);
+    wolfSSL_EVP_PKEY_free(pub);
+    wolfSSL_EVP_PKEY_free(priv);
+#endif
+    return EXPECT_RESULT();
+}
