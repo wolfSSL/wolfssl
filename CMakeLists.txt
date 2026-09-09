@@ -251,12 +251,191 @@ endif()
 #       - Distro
 #       - Linux Kernel Module
 #       - Single precision math
-#       - Enable all
-#       - Enable all crypto
 
 # For reproducible build, gate out from the build anything that might
 # introduce semantically frivolous jitter, maximizing chance of
 # identical object files.
+
+####################################################
+# Feature bundles (parity with configure.ac)
+####################################################
+# WOLFSSL_ENTERPRISE, WOLFSSL_ALL, WOLFSSL_ALL_CRYPTO,
+# WOLFSSL_ALL_QUANTUM_CRYPTO and WOLFSSL_ALL_OSP mirror the configure.ac
+# options of the same names.
+#
+# Two ordering rules make this work, and both are why the section sits
+# here rather than beside the features it turns on:
+#
+#   * A bundle records its choices with force_option(), and add_option()
+#     consumes that record when the option is declared.  So a bundle has
+#     to run ahead of every add_option() it targets -- ahead of the
+#     application bundles below, and ahead of the feature options.
+#   * The bundles cascade outermost first (enterprise -> all -> all-crypto
+#     / all-osp / all-quantum-crypto), and default_option() keeps the
+#     first choice recorded for any one option.  An outer bundle's
+#     deliberate exclusion therefore survives an inner bundle's default,
+#     which is how the matching `test "$enable_x" = ""` guards behave in
+#     configure.ac.
+
+add_option(WOLFSSL_ENTERPRISE
+    "Enable maximum interoperability feature set, comparable to a default OpenSSL build (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_ENTERPRISE)
+    default_option(WOLFSSL_ALL "yes")
+    default_option(WOLFSSL_ALL_QUANTUM_CRYPTO "yes")
+
+    # RC2, 3DES and SAKKE are the deliberate departures from OpenSSL
+    # parity.  Recorded before WOLFSSL_ALL_CRYPTO runs so they stand.
+    default_option(WOLFSSL_RC2 "no")
+    default_option(WOLFSSL_DES3 "no")
+    default_option(WOLFSSL_SAKKE "no")
+
+    # OpenSSL still compiles TLS 1.0/1.1 in; it refuses them at run time
+    # through the security level, which wolfSSL has no equivalent of.
+    # TLS 1.0 pulls old TLS back on, so -DWOLFSSL_OLD_TLS=no has to
+    # suppress both of these to mean anything.
+    if(NOT DEFINED WOLFSSL_OLD_TLS OR WOLFSSL_OLD_TLS)
+        default_option(WOLFSSL_TLSV10 "yes")
+    endif()
+    default_option(WOLFSSL_OLD_TLS "yes")
+
+    # configure.ac emits these next to the old-TLS version strings for the
+    # OpenSSL compatibility layer; they are consumed by applications, not by
+    # wolfSSL itself.
+    if(NOT DEFINED WOLFSSL_OLD_TLS OR WOLFSSL_OLD_TLS)
+        list(APPEND WOLFSSL_DEFINITIONS "-DSSL_TXT_TLSV1" "-DSSL_TXT_TLSV1_1")
+    endif()
+
+    default_option(WOLFSSL_SECURE_RENEGOTIATION "yes")
+    default_option(WOLFSSL_KEYING_MATERIAL "yes")
+    default_option(WOLFSSL_HPKE "yes")
+    default_option(WOLFSSL_AESCTS "yes")
+    default_option(WOLFSSL_AESGCMSIV "yes")
+    default_option(WOLFSSL_SMIME "yes")
+    default_option(WOLFSSL_TSP "yes")
+
+    # No CMake option covers these yet; emit the macros directly, the way
+    # the application bundles below do for the same reason.
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DWOLFSSL_ACERT"
+        "-DWOLFSSL_ALLOW_LEGACY_SERVER_CONNECT"
+        "-DOPENSSL_COMPATIBLE_DEFAULTS")
+
+    # The system-wide crypto-policy reader: the nearest thing wolfSSL has
+    # to OpenSSL's security level and openssl.cnf.  Compiling it in only
+    # exposes the wolfSSL_crypto_policy_*() API and bakes in the default
+    # path -- nothing is read until the application asks for it.
+    if(NOT DEFINED WOLFSSL_SYS_CRYPTO_POLICY_FILE)
+        set(WOLFSSL_SYS_CRYPTO_POLICY_FILE
+            "/etc/crypto-policies/back-ends/wolfssl.config")
+    endif()
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DWOLFSSL_SYS_CRYPTO_POLICY"
+        "-DWOLFSSL_CRYPTO_POLICY_FILE=\"${WOLFSSL_SYS_CRYPTO_POLICY_FILE}\"")
+endif()
+
+add_option(WOLFSSL_ALL
+    "Enable all wolfSSL features, except SSLv3 (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_ALL)
+    default_option(WOLFSSL_ALL_CRYPTO "yes")
+    default_option(WOLFSSL_ALL_OSP "yes")
+
+    # WOLFSSL_HPKE is not in configure.ac's --enable-all list: it arrives
+    # there because --enable-ech implies it.  CMake's ECH has no such
+    # implication and hard-errors without it, so name it explicitly.
+    foreach(_o
+        WOLFSSL_HPKE
+        WOLFSSL_ALPN WOLFSSL_CRL_MONITOR WOLFSSL_DTLS WOLFSSL_DTLS13
+        WOLFSSL_DTLS_CH_FRAG WOLFSSL_DTLS_MTU WOLFSSL_DTLS_CID WOLFSSL_EARLYDATA
+        WOLFSSL_ECH WOLFSSL_HRR_COOKIE WOLFSSL_MCAST WOLFSSL_OCSP
+        WOLFSSL_OCSPSTAPLING WOLFSSL_OCSPSTAPLING_V2 WOLFSSL_OPENSSLALL
+        WOLFSSL_OPENSSLEXTRA WOLFSSL_POSTAUTH WOLFSSL_QUIC WOLFSSL_SAVECERT
+        WOLFSSL_SAVESESSION WOLFSSL_SCEP WOLFSSL_SESSION_TICKET WOLFSSL_SNI
+        WOLFSSL_SRTP WOLFSSL_TLS13)
+        default_option(${_o} "yes")
+    endforeach()
+
+    # TLS extensions and certificate handling that have no CMake option.
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DHAVE_TLS_EXTENSIONS" "-DHAVE_MAX_FRAGMENT" "-DHAVE_TRUNCATED_HMAC"
+        "-DHAVE_TRUSTED_CA" "-DHAVE_RPK" "-DHAVE_CRL_IO" "-DHAVE_IO_TIMEOUT"
+        "-DWOLFSSL_DER_LOAD" "-DKEEP_OUR_CERT" "-DKEEP_PEER_CERT"
+        "-DWOLFSSL_SUBJ_DIR_ATTR" "-DWOLFSSL_FPKI" "-DWOLFSSL_SUBJ_INFO_ACC"
+        "-DWOLFSSL_CERT_NAME_ALL" "-DWOLFSSL_VERBOSE_ERRORS"
+        "-DWOLFSSL_HAVE_CERT_SERVICE" "-DHAVE_OCSP_RESPONDER"
+        "-DWOLFSSL_TLS_OCSP_MULTI")
+
+    # configure.ac derives this from session tickets under TLS 1.3; CMake's
+    # option is explicit, so name it.
+    default_option(WOLFSSL_TICKET_NONCE_MALLOC "yes")
+endif()
+
+add_option(WOLFSSL_ALL_CRYPTO
+    "Enable all wolfCrypt algorithms except quantum-resistant asymmetric (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_ALL_CRYPTO)
+    foreach(_o
+        WOLFSSL_AESCBC_LENGTH_CHECKS WOLFSSL_AESCCM WOLFSSL_AESCFB WOLFSSL_AESCTR
+        WOLFSSL_AESEAX WOLFSSL_AESECB WOLFSSL_AESGCM WOLFSSL_AESKEYWRAP
+        WOLFSSL_AESOFB WOLFSSL_AESSIV WOLFSSL_ANON WOLFSSL_ARC4 WOLFSSL_ATOMICUSER
+        WOLFSSL_BASE16 WOLFSSL_BASE64_ENCODE WOLFSSL_BLAKE2 WOLFSSL_BLAKE2S
+        WOLFSSL_CAMELLIA WOLFSSL_CERTEXT WOLFSSL_CERTGEN WOLFSSL_CERTREQ
+        WOLFSSL_CMAC WOLFSSL_CMAC_KDF WOLFSSL_CRL WOLFSSL_CRYPTOCB WOLFSSL_CSHAKE
+        WOLFSSL_CURVE25519 WOLFSSL_CURVE448 WOLFSSL_DH_DEFAULT_PARAMS WOLFSSL_DH
+        WOLFSSL_DES3 WOLFSSL_DSA WOLFSSL_ECCCUSTCURVES WOLFSSL_ECC_ENCRYPT
+        WOLFSSL_ECCSI WOLFSSL_ED25519 WOLFSSL_ED448 WOLFSSL_ENCKEYS WOLFSSL_FPECC
+        WOLFSSL_HASHFLAGS WOLFSSL_HKDF WOLFSSL_INDEF WOLFSSL_KEYGEN WOLFSSL_KMAC
+        WOLFSSL_MD2 WOLFSSL_MD4 WOLFSSL_MD5 WOLFSSL_PKCALLBACKS WOLFSSL_PKCS7
+        WOLFSSL_PWDBASED WOLFSSL_RIPEMD WOLFSSL_RNG_BANK WOLFSSL_RSA_PSS
+        WOLFSSL_SAKKE WOLFSSL_SEP WOLFSSL_SESSIONCERTS WOLFSSL_SHA224 WOLFSSL_SHA3
+        WOLFSSL_SHA512 WOLFSSL_SHAKE128 WOLFSSL_SHAKE256 WOLFSSL_SIPHASH WOLFSSL_SRP
+        WOLFSSL_SUPPORTED_CURVES WOLFSSL_TLSX WOLFSSL_X963KDF WOLFSSL_XCHACHA)
+        default_option(${_o} "yes")
+    endforeach()
+
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DHAVE_AES_DECRYPT" "-DHAVE_AES_ECB" "-DWOLFSSL_ALT_NAMES"
+        "-DWOLFSSL_ASN_ALL" "-DWOLFSSL_DH_EXTRA" "-DWOLFSSL_HAVE_ISSUER_NAMES"
+        "-DWOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT" "-DWC_KDF_NIST_SP_800_56C"
+        "-DHAVE_ECC_CDH" "-DHAVE_ECC_KOBLITZ" "-DHAVE_ECC_SECPR2"
+        "-DHAVE_ECC_SECPR3" "-DHAVE_ECC_BRAINPOOL" "-DHAVE_FFDHE_2048"
+        "-DHAVE_FFDHE_3072" "-DHAVE_COMP_KEY" "-DHAVE_NULL_CIPHER"
+        "-DHAVE_SCRYPT" "-DWOLFSSL_AESGCM_STREAM" "-DWOLFSSL_AES_XTS"
+        "-DWOLFSSL_AESXTS_STREAM" "-DWC_SRTP_KDF"
+        "-DWOLFSSL_ED25519_STREAMING_VERIFY"
+        "-DWOLFSSL_ED448_STREAMING_VERIFY")
+endif()
+
+add_option(WOLFSSL_ALL_QUANTUM_CRYPTO
+    "Enable all quantum-resistant asymmetric algorithms (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_ALL_QUANTUM_CRYPTO)
+    foreach(_o WOLFSSL_MLKEM WOLFSSL_MLDSA WOLFSSL_LMS WOLFSSL_XMSS WOLFSSL_SLHDSA)
+        default_option(${_o} "yes")
+    endforeach()
+endif()
+
+add_option(WOLFSSL_ALL_OSP
+    "Enable all OSP meta feature sets (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_ALL_OSP)
+    # WOLFSSL_STUNNEL is declared further down but has no block emitting its
+    # macro, unlike the other application bundles, so set it here.
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_STUNNEL")
+
+    foreach(_o
+        WOLFSSL_TAILSCALE WOLFSSL_WEBSERVER WOLFSSL_SMIME WOLFSSL_OPENSSH
+        WOLFSSL_LIGHTY WOLFSSL_NGINX WOLFSSL_OPENVPN WOLFSSL_ASIO
+        WOLFSSL_LIBWEBSOCKETS WOLFSSL_STUNNEL WOLFSSL_CURL)
+        default_option(${_o} "yes")
+    endforeach()
+endif()
 
 ####################################################
 # Application / integration support bundles (parity with configure.ac)
@@ -294,12 +473,16 @@ if(WOLFSSL_HAPROXY)
     list(APPEND WOLFSSL_DEFINITIONS "-DFP_MAX_BITS=16384" "-DHAVE_ALPN" "-DHAVE_ANON" "-DHAVE_COMP_KEY" "-DHAVE_CRL" "-DHAVE_EXT_CACHE" "-DHAVE_EX_DATA" "-DHAVE_MAX_FRAGMENT" "-DHAVE_OPENSSL_CMD" "-DHAVE_SECURE_RENEGOTIATION" "-DHAVE_SESSION_TICKET" "-DHAVE_TRUNCATED_HMAC" "-DHAVE_TRUSTED_CA" "-DKEEP_OUR_CERT" "-DKEEP_PEER_CERT" "-DNO_SESSION_CACHE_REF" "-DOPENSSL_ALL" "-DOPENSSL_COMPATIBLE_DEFAULTS" "-DOPENSSL_EXTRA" "-DRSA_MAX_SIZE=8192" "-DSESSION_CERTS" "-DSP_INT_BITS=8192" "-DWC_RSA_NO_PADDING" "-DWOLFSSL_ALLOW_SSLV3" "-DWOLFSSL_ALT_CERT_CHAINS" "-DWOLFSSL_ALWAYS_KEEP_SNI" "-DWOLFSSL_ALWAYS_VERIFY_CB" "-DWOLFSSL_CERT_GEN" "-DWOLFSSL_CERT_NAME_ALL" "-DWOLFSSL_CERT_REQ" "-DWOLFSSL_CHECK_ALERT_ON_ERR" "-DWOLFSSL_EITHER_SIDE" "-DWOLFSSL_ERROR_CODE_OPENSSL" "-DWOLFSSL_HAPROXY" "-DWOLFSSL_KEEP_RNG_SEED_FD_OPEN" "-DWOLFSSL_KEY_GEN" "-DWOLFSSL_PRIORITIZE_PSK" "-DWOLFSSL_SIGNER_DER_CERT" "-DWOLFSSL_TICKET_HAVE_ID" "-DWOLFSSL_TLS13_NO_PEEK_HANDSHAKE_DONE" "-DWOLFSSL_TRUST_PEER_CERT")
 endif()
 
+# Note: no -DSINGLE_THREADED here.  configure.ac's --enable-lighty does not
+# set it, and defining it makes the whole library non-thread-safe rather
+# than just the lighttpd integration -- which surfaced when WOLFSSL_ALL_OSP
+# started enabling this bundle.
 add_option("WOLFSSL_LIGHTY" "Enable lighttpd/lighty support (default: disabled)" "no" "yes;no")
 if(WOLFSSL_LIGHTY)
     foreach(_o WOLFSSL_CRL WOLFSSL_MD5 WOLFSSL_OCSP WOLFSSL_OCSPSTAPLING WOLFSSL_OCSPSTAPLING_V2)
         force_option(${_o} "yes")
     endforeach()
-    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_ALPN" "-DHAVE_CRL" "-DHAVE_EXT_CACHE" "-DHAVE_EX_DATA" "-DHAVE_LIGHTY" "-DHAVE_MAX_FRAGMENT" "-DHAVE_OPENSSL_CMD" "-DHAVE_SESSION_TICKET" "-DHAVE_TRUNCATED_HMAC" "-DHAVE_TRUSTED_CA" "-DHAVE_WOLFSSL_SSL_H=1" "-DKEEP_OUR_CERT" "-DKEEP_PEER_CERT" "-DOPENSSL_ALL" "-DOPENSSL_EXTRA" "-DOPENSSL_NO_COMP" "-DOPENSSL_NO_SSL2" "-DOPENSSL_NO_SSL3" "-DSESSION_CERTS" "-DSINGLE_THREADED" "-DWOLFSSL_ALWAYS_KEEP_SNI" "-DWOLFSSL_ALWAYS_VERIFY_CB" "-DWOLFSSL_CERT_GEN" "-DWOLFSSL_ENCRYPTED_KEYS" "-DWOLFSSL_KEY_GEN")
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_ALPN" "-DHAVE_CRL" "-DHAVE_EXT_CACHE" "-DHAVE_EX_DATA" "-DHAVE_LIGHTY" "-DHAVE_MAX_FRAGMENT" "-DHAVE_OPENSSL_CMD" "-DHAVE_SESSION_TICKET" "-DHAVE_TRUNCATED_HMAC" "-DHAVE_TRUSTED_CA" "-DHAVE_WOLFSSL_SSL_H=1" "-DKEEP_OUR_CERT" "-DKEEP_PEER_CERT" "-DOPENSSL_ALL" "-DOPENSSL_EXTRA" "-DOPENSSL_NO_COMP" "-DOPENSSL_NO_SSL2" "-DOPENSSL_NO_SSL3" "-DSESSION_CERTS" "-DWOLFSSL_ALWAYS_KEEP_SNI" "-DWOLFSSL_ALWAYS_VERIFY_CB" "-DWOLFSSL_CERT_GEN" "-DWOLFSSL_ENCRYPTED_KEYS" "-DWOLFSSL_KEY_GEN")
 endif()
 
 add_option("WOLFSSL_WPAS" "Enable wpa_supplicant support (default: disabled)" "no" "yes;no")
