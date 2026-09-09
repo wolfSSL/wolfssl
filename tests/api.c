@@ -21982,6 +21982,14 @@ static THREAD_RETURN WOLFSSL_THREAD test_logging(void* args)
 }
 #endif
 
+/* types.h must drop ERROR_QUEUE_PER_THREAD in a threaded build whose
+ * THREAD_LS_T is not real thread-local storage; the per-thread queue would be
+ * one unlocked global shared by every thread. */
+#if defined(ERROR_QUEUE_PER_THREAD) && !defined(SINGLE_THREADED) && \
+    !defined(WC_THREAD_LS_T_IS_REAL)
+    #error "ERROR_QUEUE_PER_THREAD without thread-local storage must fall back to the mutex protected queue"
+#endif
+
 static int test_error_queue_per_thread(void)
 {
     int res = TEST_SKIPPED;

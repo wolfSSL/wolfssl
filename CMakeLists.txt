@@ -4489,9 +4489,14 @@ if(WOLFSSL_SECURE_RENEGOTIATION_INFO AND WOLFSSL_ASN AND WOLFSSL_TLSV12
 endif()
 
 # Per-thread OpenSSL-compat error queue
-add_option("WOLFSSL_ERROR_QUEUE_PER_THREAD" "Enable a per-thread OpenSSL-compatible error queue (default: disabled)" "no" "yes;no")
+add_option("WOLFSSL_ERROR_QUEUE_PER_THREAD" "Enable a per-thread OpenSSL-compatible error queue, falling back to the shared global queue without thread-local storage (default: disabled)" "no" "yes;no")
 if(WOLFSSL_ERROR_QUEUE_PER_THREAD)
     list(APPEND WOLFSSL_DEFINITIONS "-DERROR_QUEUE_PER_THREAD")
+    if(NOT WOLFSSL_SINGLE_THREADED AND
+       NOT "-DHAVE_THREAD_LS" IN_LIST WOLFSSL_DEFINITIONS)
+        message(WARNING "WOLFSSL_ERROR_QUEUE_PER_THREAD needs thread-local "
+            "storage; using the shared, mutex protected error queue instead")
+    endif()
 endif()
 
 # Anonymous cipher suites (requires DH)
