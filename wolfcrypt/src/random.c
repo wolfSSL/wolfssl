@@ -805,19 +805,6 @@ int wc_RNG_DRBG_GetReseedCtr(const WC_RNG* rng,
     return 0;
 }
 
-/* wc_RNG_DRBG_ScheduleReseed() drives reseedCtr up to WC_RESEED_INTERVAL to
- * force a reseed.  The SHA-256 DRBG's reseedCtr is 32-bit when
- * WORD64_AVAILABLE is undefined (random.h), so a reseed interval above 2^32
- * would truncate to 0 and silently defeat the forced reseed (SP 800-90A Rev1
- * sec 9.3).  Fail the build rather than mis-reseed.  This is a compile-time
- * assert rather than a preprocessor #if because WC_RESEED_INTERVAL may be
- * defined with a (word64) cast (settings.h kernel path) that the preprocessor
- * cannot evaluate; the outer #if uses only defined() so the 64-bit path skips
- * it without expanding that cast. */
-#if defined(WC_RESEED_INTERVAL) && !defined(WORD64_AVAILABLE)
-    wc_static_assert((WC_RESEED_INTERVAL) <= 0xFFFFFFFFUL);
-#endif
-
 /* Mark rng due for reseed: the next generate operation reseeds from the
  * module's built-in or registered seed source before producing output, and
  * wc_RNG_DRBG_Reseed_Now() performs the same reseed immediately.  This can
@@ -2393,7 +2380,7 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 #else
             ret = wc_GenerateSeed(&rng->seed, seed, seedSz);
 #endif /* WC_RNG_SEED_CB */
-            }
+        }
 #ifdef WOLFSSL_CHECK_MEM_ZERO
             /* seed now holds entropy; register across DRBG instantiation */
             wc_MemZero_Add("_InitRng seed", seed, seedSz);
@@ -2926,7 +2913,21 @@ int wc_RNG_DRBG_ReseedRBGC(WC_RNG* leaf, WC_RNG* root, const byte* nonce,
 
 #ifdef WC_RNG_HAVE_NEXT_SEED
 
-/* Banked-next-seed ("aperture") protocol.
+    /* Banked-next-seed services.  _NextSeedGenerate() banks up to n more
+     * bytes from the module's seed source (clamped to the space remaining;
+     * ALREADY_E when the bank is ready or being consumed), health-testing
+     * and publishing the bank when it completes (NOT_READY_E when the health
+     * test could not run and the call should simply be retried); a
+     * scheduling daemon may call it without owning the instance.
+     * _NextSeedCurrent() reports the raw aperture value (racy snapshot).
+     * _NextSeedNow() claims a ready bank and performs a source-free
+     * credited reseed with it -- safe in atomic context -- or returns
+     * NOT_READY_E when no bank is ready; _NextSeedNow_Nonce() is the same
+     * with a nonce as uncredited additional input.  All report
+     * MISSING_RNG_E for an instance with no DRBG (RDRAND et al.).  The
+     * caller must own the instance for _NextSeedNow[_Nonce](). */
+
+/* Banked-next-seed protocol.
  *
  * Entropy is gathered incrementally, in-boundary, from the
  * module's seed source by wc_RNG_DRBG_NextSeedGenerate(), and consumed
@@ -3045,7 +3046,7 @@ int wc_RNG_DRBG_NextSeedGenerate(WC_RNG* rng, word32 n)
         else if (ret == WC_NO_ERR_TRACE(MEMORY_E)) {
             /* wc_RNG_TestSeed() did nothing with the data -- not
              * dispositive. */
-            return RETRY_E;
+            return NOT_READY_E;
         }
         else if ((ret == WC_NO_ERR_TRACE(ENTROPY_RT_E)) ||
                  (ret == WC_NO_ERR_TRACE(ENTROPY_APT_E)))
@@ -4519,7 +4520,7 @@ static WC_INLINE int IntelRDseed64_r(word64* rnd)
         if (IntelRDseed64(rnd) == 0)
             return 0;
     }
-    return -1;
+    return NOT_READY_E;
 }
 
 /* return 0 on success */
@@ -4533,7 +4534,7 @@ static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz)
     (void)os;
 
     if (!IS_INTEL_RDSEED(intel_flags))
-        return -1;
+        return WC_HW_E;
 
     /* Note, access to rdseed_sanity_status is benignly racey on multithreaded
      * targets.
@@ -4561,14 +4562,14 @@ static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz)
                     "check CPU microcode version.", sanity_word2);
 #endif
                 rdseed_sanity_status = -1;
-                return -1;
+                return WC_HW_E;
             }
         }
 
         rdseed_sanity_status = 1;
     }
     else if (rdseed_sanity_status < 0) {
-        return -1;
+        return WC_HW_E;
     }
 
     for (; (sz / sizeof(word64)) > 0; sz -= sizeof(word64),
