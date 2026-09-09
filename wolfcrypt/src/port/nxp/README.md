@@ -548,7 +548,7 @@ move the crossover down toward small-record sizes.
 
 `els_pkc_port.c` offloads wolfCrypt to the EdgeLock subsystem found on the
 RW612 and related parts, through the crypto callback interface. The ELS
-peripheral serves SHA-256.
+peripheral serves SHA-256, SHA-384 and SHA-512.
 
 Anything the hardware does not serve is declined with `CRYPTOCB_UNAVAILABLE`
 and completed in software, so an unsupported algorithm or key size costs
@@ -591,9 +591,10 @@ it with `WOLFSSL_ELS_PKC_TIMEOUT_MS`, `WOLFSSL_ELS_PKC_IRQ_PRIO`, and
 before the thread sleeps, and zero never spins.
 
 **Offload state lives in the caller's object.** A hash keeps its ELS state in
-the same `wc_Sha256` fields the software implementation would have used, so
-nothing is allocated, a struct copy duplicates a context correctly, and the
-port needs neither the copy nor the free crypto-callback hook.
+the same `wc_Sha256`/`wc_Sha512` fields the software implementation would
+have used, so nothing is allocated, a struct copy duplicates a context
+correctly, and the port needs neither the copy nor the free crypto-callback
+hook.
 
 ### Vendor library
 
