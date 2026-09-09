@@ -6132,6 +6132,43 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         return 0;
     }
 
+#elif defined(WOLFSSL_NUVOTON_TRNG)
+    /* Nuvoton NuMicro M2354 TRNG, reached through the port's hardware layer so
+     * that a TrustZone build gets it through the same veneer as everything
+     * else. See wolfcrypt/src/port/nuvoton/nuvoton_hw.c.
+     *
+     * This arm is needed even though the port is a crypto callback device: a
+     * WC_RNG created with INVALID_DEVID never reaches the callback, and this
+     * part has no /dev/random to fall back on. */
+    #include "wolfcrypt/src/port/nuvoton/nuvoton_hw.h"
+
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        int ret;
+
+        (void)os;
+
+        if (output == NULL || sz == 0) {
+            return BAD_FUNC_ARG;
+        }
+
+        /* This is the path a WC_RNG built with INVALID_DEVID takes, so the
+         * crypto callback device may never have been registered and the CRPT
+         * clocks and the TRNG may still be down. Bring them up for the call
+         * and drop the reference afterwards; the init is reference counted, so
+         * an application that did register keeps its own. */
+        ret = wc_nuvoton_hw_init();
+        if (ret != 0) {
+            return ret;
+        }
+
+        ret = wc_nuvoton_hw_trng(output, sz);
+
+        wc_nuvoton_hw_cleanup();
+
+        return ret;
+    }
+
 #elif defined(WOLFSSL_VA416X0_TRNG)
     /* Vorago VA416x0 hardware TRNG (an Arm CryptoCell-style entropy block).
      * Used to seed the SP800-90A Hash-DRBG (keep HAVE_HASHDRBG enabled); the
