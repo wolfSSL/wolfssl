@@ -2012,9 +2012,13 @@ int wc_SignEccsiHash(EccsiKey* key, WC_RNG* rng, enum wc_HashType hashType,
         err = eccsi_gen_sig(key, rng, hashType, msg, msgSz, r, s);
     }
 
-    /* Step 5: s' = ( (( HE + r * SSK )^-1) * j ) modulo q, erase j */
+    /* Step 5: s' = ( (( HE + r * SSK )^-1) * j ) modulo q, erase j
+     * Invert via Fermat's little theorem (s^(order-2) mod order) */
     if (err == 0) {
-        err = mp_invmod(s, &key->params.order, s);
+        err = mp_sub_d(&key->params.order, 2, &key->tmp);
+        if (err == MP_OKAY) {
+            err = mp_exptmod(s, &key->tmp, &key->params.order, s);
+        }
     }
     if (err == 0) {
         j = wc_ecc_key_get_priv(&key->pubkey);
