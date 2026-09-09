@@ -49,6 +49,10 @@ WOLFSSL_API int wc_rng_bank_init_nonce(
     int i;
     int ret;
     int need_reenable_vec = 0;
+#ifdef WC_RNG_HAVE_RBGC
+    WC_RNG root;
+    int root_inited = 0;
+#endif
 
     if ((ctx == NULL) || (n_rngs <= 0))
         return BAD_FUNC_ARG;
@@ -77,8 +81,16 @@ WOLFSSL_API int wc_rng_bank_init_nonce(
         ret = MEMORY_E;
 #endif
 
+#ifdef WC_RNG_HAVE_RBGC
+    if ((ret == 0) && (flags & WC_RNG_BANK_FLAG_INIT_RBGC)) {
+        ret = wc_InitRngNonce_ex(&root, nonce, nonceSz, heap, devId);
+        if (ret == 0)
+            root_inited = 1;
+    }
+#else
     (void)nonce;
     (void)nonceSz;
+#endif
 
     if (ret == 0) {
         XMEMSET(ctx->rngs, 0, sizeof(*ctx->rngs) * (size_t)n_rngs);
@@ -98,6 +110,21 @@ WOLFSSL_API int wc_rng_bank_init_nonce(
                 if (flags & WC_RNG_BANK_FLAG_NO_VECTOR_OPS)
                     need_reenable_vec = (DISABLE_VECTOR_REGISTERS() == 0);
 
+#ifdef WC_RNG_HAVE_RBGC
+                if (flags & WC_RNG_BANK_FLAG_INIT_RBGC) {
+                    ret = wc_InitRngNonceRBGC(
+                        WC_RNG_BANK_INST_TO_RNG(rng_inst),
+                        &root,
+                        (byte *)&rng_inst, sizeof(byte *)
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+                        , WC_RNG_INIT_FLAGS_LOCK_REQUIRED
+#else
+                        , WC_RNG_INIT_FLAGS_NONE
+#endif
+                        );
+                }
+                else
+#endif
                 {
 #ifdef WC_RNG_INIT_FLAGS_LOCK_REQUIRED
                     ret = wc_InitRngNonce_ex2(
@@ -174,6 +201,10 @@ out:
     if (ret != 0)
         (void)wc_rng_bank_fini(ctx);
 
+#ifdef WC_RNG_HAVE_RBGC
+    if (root_inited)
+        wc_FreeRng(&root);
+#endif
 
     return ret;
 }
@@ -1136,19 +1167,28 @@ WOLFSSL_API int wc_rng_bank_inst_checkin(
 #define WC_RNG_BANK_INST_OP_DAEMON ((WC_ATOMIC_INT_ARG)1)
 #define WC_RNG_BANK_INST_OP_REINIT ((WC_ATOMIC_INT_ARG)2)
 
-WOLFSSL_API int wc_rng_bank_next_seed_generate(
+static int wc_rng_bank_next_seed_generate_local(
     struct wc_rng_bank *bank,
     int inst_offset,
-    word32 n)
+    word32 n,
+    WC_RNG *root)
 {
     int ret;
     WC_ATOMIC_INT_ARG expected = 0;
 
-    if ((bank == NULL) || (! (bank->flags & WC_RNG_BANK_FLAG_INITED)) ||
-        (inst_offset < 0) || (inst_offset >= bank->n_rngs))
-    {
+    if (bank == NULL)
         return BAD_FUNC_ARG;
-    }
+    if (! (bank->flags & WC_RNG_BANK_FLAG_INITED))
+        return BAD_FUNC_ARG;
+    if (inst_offset < 0)
+        return BAD_FUNC_ARG;
+    if (inst_offset >= bank->n_rngs)
+        return BAD_FUNC_ARG;
+
+#ifndef WC_RNG_HAVE_RBGC
+    if (root != NULL)
+        return NOT_COMPILED_IN;
+#endif
 
     if (! wolfSSL_Atomic_Int_CompareExchange(&bank->inst_op_gate, &expected,
                                              WC_RNG_BANK_INST_OP_DAEMON))
@@ -1158,12 +1198,40 @@ WOLFSSL_API int wc_rng_bank_next_seed_generate(
         return BUSY_E;
     }
 
-    ret = wc_RNG_DRBG_NextSeedGenerate(
-        WC_RNG_BANK_INST_TO_RNG(&bank->rngs[inst_offset]), n);
+#ifdef WC_RNG_HAVE_RBGC
+    if (root != NULL) {
+        ret = wc_RNG_DRBG_NextSeedGenerate_RBGC(
+            WC_RNG_BANK_INST_TO_RNG(&bank->rngs[inst_offset]), root, n);
+    }
+    else
+#endif
+    {
+        ret = wc_RNG_DRBG_NextSeedGenerate(
+            WC_RNG_BANK_INST_TO_RNG(&bank->rngs[inst_offset]), n);
+    }
 
     WOLFSSL_ATOMIC_STORE(bank->inst_op_gate, 0);
 
     return ret;
+}
+
+WOLFSSL_API int wc_rng_bank_next_seed_generate_rbgc(
+    struct wc_rng_bank *bank,
+    int inst_offset,
+    word32 n,
+    WC_RNG *root)
+{
+    if (root == NULL)
+        return BAD_FUNC_ARG;
+    return wc_rng_bank_next_seed_generate_local(bank, inst_offset, n, root);
+}
+
+WOLFSSL_API int wc_rng_bank_next_seed_generate(
+    struct wc_rng_bank *bank,
+    int inst_offset,
+    word32 n)
+{
+    return wc_rng_bank_next_seed_generate_local(bank, inst_offset, n, NULL);
 }
 
 #endif /* WC_RNG_HAVE_NEXT_SEED */
@@ -1382,9 +1450,7 @@ WOLFSSL_API int wc_rng_bank_recover_inst(
     return ret;
 }
 
-
-#if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
-    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+#ifdef WC_RNG_HAVE_RBGC
 /* Unified mechanics for wc_rng_bank_spawn() and wc_rng_bank_spawn_new():
  * check out -> wc_InitRngNonceRBGC[_New]() -> check in, following the
  * exactly-one-destination convention of random.c's SpawnRngRBGC().  All
@@ -1427,21 +1493,27 @@ static int rng_bank_spawn(
     if (ret != 0)
         return ret;
 
+    {
+        word32 child_init_flags = WC_RNG_INIT_FLAGS_NONE;
     if (leaf_stack != NULL) {
         ret = wc_InitRngNonceRBGC(leaf_stack,
                                   WC_RNG_BANK_INST_TO_RNG(rng_inst),
-                                  nonce, nonceSz);
+                                  nonce, nonceSz,
+                                  child_init_flags
+                                 );
     }
     else {
 #ifndef WC_NO_CONSTRUCTORS
         ret = wc_InitRngNonceRBGC_New(leaf_heap,
                                       WC_RNG_BANK_INST_TO_RNG(rng_inst),
-                                      nonce, nonceSz);
+                                      nonce, nonceSz,
+                                      child_init_flags);
 #else
         /* Unreachable: wc_rng_bank_spawn_new() is absent under
          * WC_NO_CONSTRUCTORS, so leaf_heap is always null here. */
         ret = BAD_FUNC_ARG;
 #endif
+    }
     }
 
     checkin_ret = wc_rng_bank_inst_checkin(&rng_inst);
@@ -1491,8 +1563,7 @@ WOLFSSL_API int wc_rng_bank_spawn_new(
                           preferred_inst_offset, timeout_secs, flags);
 }
 #endif /* !WC_NO_CONSTRUCTORS */
-#endif /* HAVE_HASHDRBG && !CUSTOM_RAND_GENERATE_BLOCK &&
-        * (!HAVE_FIPS || FIPS_VERSION3_GE(7,0,0)) */
+#endif /* WC_RNG_HAVE_RBGC */
 
 WOLFSSL_API int wc_rng_bank_seed(struct wc_rng_bank *bank,
                                  const byte* seed, word32 seedSz,

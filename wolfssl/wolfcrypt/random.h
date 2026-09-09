@@ -43,6 +43,16 @@
     WOLFSSL_LOCAL int wolfCrypt_FIPS_DRBG_sanity(void);
 #endif
 
+#ifndef WC_RNG_NO_RBGC
+    #if !defined(WC_RNG_HAVE_RBGC) && \
+        defined(HAVE_HASHDRBG) && \
+        !defined(CUSTOM_RAND_GENERATE_BLOCK)
+        #define WC_RNG_HAVE_RBGC
+    #endif
+#else
+    #undef WC_RNG_HAVE_RBGC
+#endif
+
 /* _FULL_MUTEX is opt-in, and depends on WC_RNG_HAVE_LOCK. */
 #ifdef WC_RNG_NO_LOCK_FULL_MUTEX
     #undef WC_RNG_HAVE_LOCK_FULL_MUTEX
@@ -356,6 +366,9 @@ struct DRBG_internal {
 #ifdef WC_RNG_HAVE_NEXT_SEED
     byte nextSeed[WC_DRBG_NEXT_SEED_LEN];
     WC_DRBG_nextSeedLen_t nextSeedLen;
+    #ifdef WC_RNG_HAVE_RBGC
+    int nextSeedRBGCStratum;
+    #endif
 #endif
     void* heap;
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
@@ -381,6 +394,9 @@ struct DRBG_SHA512_internal {
 #ifdef WC_RNG_HAVE_NEXT_SEED
     byte nextSeed[WC_DRBG_NEXT_SEED_LEN];
     WC_DRBG_nextSeedLen_t nextSeedLen;
+    #ifdef WC_RNG_HAVE_RBGC
+    int nextSeedRBGCStratum;
+    #endif
 #endif
     void* heap;
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
@@ -412,6 +428,7 @@ enum wc_RngHealthState {
 };
 
 #define WC_RNG_FLAG_NONE           0
+#define WC_RNG_FLAG_RBGC_NEXT_SEED (1U << 0)
 #define WC_RNG_FLAG_FULL_MUTEX     (1U << 1)
 #define WC_RNG_FLAG_BANKREF        (1U << 2)
 
@@ -422,11 +439,9 @@ struct WC_RNG {
     void* heap;
     byte status;
     word32 flags;
-    /* Set when this instance was seeded from another DRBG's output
-     * (wc_InitRng*RBGC(), wc_RNG_DRBG_ReseedRBGC()) -- an SP 800-90C chain
-     * leaf.  Sticky by policy: a leaf is never usable as a chain root, even
-     * after a subsequent reseed from the module's seed source. */
-    byte isRbgcLeaf;
+#ifdef WC_RNG_HAVE_RBGC
+    int RBGCStratum;
+#endif
 #ifdef WC_RNG_HAVE_LOCK
     WC_RNG_lock_t lock;
     #ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
@@ -700,7 +715,12 @@ WOLFSSL_API int wc_RNG_DRBG_Present(const WC_RNG* rng);
         #endif
     #endif
 
-    WOLFSSL_API int wc_RNG_DRBG_IsRBGCLeaf(const WC_RNG* rng);
+#ifdef WC_RNG_HAVE_RBGC
+    WOLFSSL_API int wc_RNG_DRBG_GetRBGCStratum(const WC_RNG* rng);
+    #ifdef WC_RNG_HAVE_NEXT_SEED
+    WOLFSSL_API int wc_RNG_DRBG_GetNextSeedRBGCStratum(const WC_RNG* rng);
+    #endif
+#endif /* WC_RNG_HAVE_RBGC */
     WOLFSSL_API int wc_RNG_DRBG_GetReseedCtr(const WC_RNG* rng,
                                              wc_drbg_reseed_ctr_t* reseedCtr);
     WOLFSSL_API int wc_RNG_DRBG_ScheduleReseed(WC_RNG* rng);
@@ -813,21 +833,33 @@ WOLFSSL_API int wc_RNG_DRBG_Present(const WC_RNG* rng);
 
 #endif /* HAVE_HASHDRBG */
 
-#if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
-    /* SP 800-90C RBG-chain spawn: instantiate leaf as a subordinate DRBG
-     * seeded from root's generate output.  The _New variants allocate the
-     * leaf from root's heap; release those with wc_rng_free(). */
-    WOLFSSL_API int wc_InitRngRBGC(WC_RNG* leaf, WC_RNG* root);
-    WOLFSSL_API int wc_InitRngNonceRBGC(WC_RNG* leaf, WC_RNG* root,
-                                        byte* nonce, word32 nonceSz);
-#ifndef WC_NO_CONSTRUCTORS
-    WOLFSSL_API int wc_InitRngRBGC_New(WC_RNG** leaf, WC_RNG* root);
-    WOLFSSL_API int wc_InitRngNonceRBGC_New(WC_RNG** leaf, WC_RNG* root,
-                                            byte* nonce, word32 nonceSz);
-#endif /* !WC_NO_CONSTRUCTORS */
-    WOLFSSL_API int wc_RNG_DRBG_ReseedRBGC(WC_RNG* leaf, WC_RNG* root,
+#ifdef WC_RNG_HAVE_RBGC
+    /* SP 800-90C RBG-chain spawn: instantiate child as a subordinate DRBG
+     * seeded from parent's generate output.  The _New variants allocate the
+     * child from parent's heap; release them with ordinary wc_rng_free(). */
+    WOLFSSL_API int wc_InitRngRBGC(WC_RNG* child, WC_RNG* parent, word32 flags);
+    WOLFSSL_API int wc_InitRngNonceRBGC(WC_RNG* child, WC_RNG* parent,
+                                        const byte* nonce, word32 nonceSz,
+                                        word32 flags);
+    #ifndef WC_NO_CONSTRUCTORS
+    /* flags are per-object (WC_RNG_INIT_FLAGS_*), deliberately NOT
+     * inherited from the parent: a child's lock policy is its own. */
+    WOLFSSL_API int wc_InitRngRBGC_New(WC_RNG** child, WC_RNG* parent,
+                                       word32 flags);
+    WOLFSSL_API int wc_InitRngNonceRBGC_New(WC_RNG** child, WC_RNG* parent,
+                                            const byte* nonce, word32 nonceSz,
+                                            word32 flags);
+    #endif /* !WC_NO_CONSTRUCTORS */
+    /* Note, only a root RNG -- stratum 0, i.e. primary-seeded -- is permitted
+     * to generate reseed bytes (wolfCrypt policy; stricter than SP 800-90C
+     * 7.1.2.2, which also permits parent reseed). */
+    WOLFSSL_API int wc_RNG_DRBG_ReseedRBGC(WC_RNG* rng, WC_RNG* root,
                                            const byte* nonce, word32 nonceSz);
-#endif /* HAVE_HASHDRBG && !CUSTOM_RAND_GENERATE_BLOCK */
+    WOLFSSL_API int wc_RNG_DRBG_ReseedRBGC_Uncredited(WC_RNG* rng,
+                                                      WC_RNG* root,
+                                                      const byte* nonce,
+                                                      word32 nonceSz);
+#endif /* WC_RNG_HAVE_RBGC */
 
 #ifdef WC_RNG_HAVE_NEXT_SEED
     #define WC_DRBG_NEXT_SEED_EMPTY 0
@@ -837,6 +869,11 @@ WOLFSSL_API int wc_RNG_DRBG_Present(const WC_RNG* rng);
     #define WC_DRBG_NEXT_SEED_CONSUMING ((WC_ATOMIC_INT_ARG)(-1))
 
     WOLFSSL_API int wc_RNG_DRBG_NextSeedGenerate(WC_RNG* rng, word32 n);
+#ifdef WC_RNG_HAVE_RBGC
+    WOLFSSL_API int wc_RNG_DRBG_NextSeedGenerate_RBGC(WC_RNG* rng,
+                                                      WC_RNG *root,
+                                                      word32 n);
+#endif
     WOLFSSL_API int wc_RNG_DRBG_NextSeedCurrent(WC_RNG* rng,
                                                 WC_ATOMIC_INT_ARG* n);
     WOLFSSL_API int wc_RNG_DRBG_NextSeedNow_Nonce(WC_RNG* rng,
