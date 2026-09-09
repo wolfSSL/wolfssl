@@ -1766,6 +1766,8 @@ static WARN_UNUSED_RESULT int Hash_gen(DRBG_internal* drbg, byte* out,
     wc_MemZero_Check(digest, WC_SHA256_DIGEST_SIZE);
 #endif
 #endif
+    /* digest holds the last output block (ISO/IEC 19790:2012 7.9.7). */
+    ForceZero(digest, WC_SHA256_DIGEST_SIZE);
 
 #ifndef WOLFSSL_SMALL_STACK_CACHE
     WC_FREE_VAR_EX(digest, drbg->heap, DYNAMIC_TYPE_DIGEST);
@@ -2436,6 +2438,8 @@ static WARN_UNUSED_RESULT int Hash512_gen(DRBG_SHA512_internal* drbg,
     wc_MemZero_Check(digest, WC_SHA512_DIGEST_SIZE);
 #endif
 #endif
+    /* See Hash_gen. */
+    ForceZero(digest, WC_SHA512_DIGEST_SIZE);
 
 #ifndef WOLFSSL_SMALL_STACK_CACHE
     WC_FREE_VAR_EX(digest, drbg->heap, DYNAMIC_TYPE_DIGEST);
