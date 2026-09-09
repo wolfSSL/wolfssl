@@ -6352,8 +6352,7 @@ static sword32 mldsa_mont_red(sword64 a)
     (!defined(WOLFSSL_MLDSA_NO_SIGN) || \
      (defined(WOLFSSL_MLDSA_SMALL) && \
       (!defined(WOLFSSL_MLDSA_NO_MAKE_KEY) || \
-       (!defined(WOLFSSL_MLDSA_NO_VERIFY) && \
-        !defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM)) || \
+       !defined(WOLFSSL_MLDSA_NO_VERIFY) || \
        defined(WOLFSSL_MLDSA_CHECK_KEY))))
 /* Reduce 32-bit a modulo q. r = a mod q.
  *
@@ -8358,8 +8357,7 @@ static void mldsa_vec_mul(sword32* r, sword32* a, sword32* b, byte l)
 #if !defined(WOLFSSL_MLDSA_NO_SIGN) || \
     (defined(WOLFSSL_MLDSA_SMALL) && \
      (!defined(WOLFSSL_MLDSA_NO_MAKE_KEY) || \
-      (!defined(WOLFSSL_MLDSA_NO_VERIFY) && \
-       !defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM)) || \
+      !defined(WOLFSSL_MLDSA_NO_VERIFY) || \
       defined(WOLFSSL_MLDSA_CHECK_KEY)))
 /* Modulo reduce values in polynomial. Range (-2^31)..(2^31-1).
  *
@@ -9986,6 +9984,11 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                     wt[e] = mldsa_mont_red(t64[e]);
                 }
             #endif
+            #ifdef WOLFSSL_MLDSA_SMALL
+                /* Reduce before invntt to avoid sword32 overflow, as
+                 * mldsa_make_key_from_seed() does with mldsa_vec_red(). */
+                mldsa_poly_red(wt);
+            #endif
                 mldsa_invntt_full(wt);
                 /* Step 14, Step 22: Make values positive and decompose. */
                 mldsa_make_pos(wt);
@@ -11167,6 +11170,11 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
         #endif
 
             /* Step 10: w = NTT-1(A o NTT(z) - NTT(c) o NTT(t1)) */
+        #ifdef WOLFSSL_MLDSA_SMALL
+            /* Reduce before invntt to avoid sword32 overflow, as
+             * mldsa_make_key_from_seed() does with mldsa_vec_red(). */
+            mldsa_poly_red(w);
+        #endif
             mldsa_invntt_full(w);
 
         #ifndef WOLFSSL_NO_ML_DSA_44
