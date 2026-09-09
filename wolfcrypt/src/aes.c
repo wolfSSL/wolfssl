@@ -1066,6 +1066,7 @@ static WC_INLINE void wc_Stm32_CrypAesBlock(const byte* in, byte* out)
 
             if (AES_set_encrypt_key_AESNI(userKey,bits,temp_key)
                 == WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+                ForceZero(temp_key, sizeof(Aes));
                 WC_FREE_VAR_EX(temp_key, aes->heap, DYNAMIC_TYPE_AES);
                 return BAD_FUNC_ARG;
             }
@@ -1099,6 +1100,9 @@ static WC_INLINE void wc_Stm32_CrypAesBlock(const byte* in, byte* out)
 
             Key_Schedule[0] = Temp_Key_Schedule[nr];
 
+            /* temp_key holds the expanded key schedule
+             * (ISO/IEC 19790:2012 7.9.7). */
+            ForceZero(temp_key, sizeof(Aes));
             WC_FREE_VAR_EX(temp_key, aes->heap, DYNAMIC_TYPE_AES);
 
             return 0;
@@ -17598,13 +17602,14 @@ static int AesKeyWrapRaw(Aes* aes, word32 inSz, byte* out, const byte* aiv)
     VECTOR_REGISTERS_POP;
 #endif
 
-    if (ret != 0)
-        return ret;
+    if (ret == 0) {
+        /* C[0] = A */
+        XMEMCPY(out, tmp, KEYWRAP_BLOCK_SIZE);
+    }
+    /* tmp holds A || P[i] on an encrypt failure (ISO/IEC 19790:2012 7.9.7). */
+    ForceZero(tmp, sizeof(tmp));
 
-    /* C[0] = A */
-    XMEMCPY(out, tmp, KEYWRAP_BLOCK_SIZE);
-
-    return 0;
+    return ret;
 }
 
 int wc_AesKeyWrap_ex(Aes *aes, const byte* in, word32 inSz, byte* out,
@@ -17766,13 +17771,16 @@ static int AesKeyUnWrapRaw(Aes* aes, const byte* in, word32 inSz, byte* out,
     VECTOR_REGISTERS_POP;
 #endif
 
-    if (ret != 0)
-        return ret;
+    if (ret == 0) {
+        /* return recovered A */
+        XMEMCPY(aOut, tmp, KEYWRAP_BLOCK_SIZE);
+    }
+    /* tmp ends holding the first 8 bytes of the recovered key
+     * (ISO/IEC 19790:2012 7.9.7). */
+    ForceZero(tmp, sizeof(tmp));
+    ForceZero(t, sizeof(t));
 
-    /* return recovered A */
-    XMEMCPY(aOut, tmp, KEYWRAP_BLOCK_SIZE);
-
-    return 0;
+    return ret;
 }
 
 int wc_AesKeyUnWrap_ex(Aes *aes, const byte* in, word32 inSz, byte* out,

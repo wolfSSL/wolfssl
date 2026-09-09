@@ -1182,6 +1182,10 @@ void wc_ShaFree(wc_Sha* sha)
 #if defined(PSOC6_HASH_SHA1)
     wc_Psoc6_Sha_Free();
 #endif
+
+    /* digest and buffer hold keyed material for HMAC-SHA1 and the SSH KDF
+     * (ISO/IEC 19790:2012 7.9.7). */
+    ForceZero(sha, sizeof(*sha));
 }
 
 #endif /* !MAX3266X_SHA */

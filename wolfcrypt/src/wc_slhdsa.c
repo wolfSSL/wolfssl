@@ -5227,6 +5227,8 @@ static int slhdsakey_hash_f_ti_x4(const byte* pk_seed, byte* addr, byte* node,
             slhdsakey_shake256_get_hash_x4(state, node, n);
         }
 
+        /* state holds four FORS secret leaves (ISO/IEC 19790:2012 7.9.7). */
+        ForceZero(state, sizeof(word64) * SLHDSA_SHAKE_X4_STATE_W);
         WC_FREE_VAR_EX(state, heap, DYNAMIC_TYPE_SLHDSA);
     }
 
@@ -5347,6 +5349,10 @@ static int slhdsakey_fors_node_x4_z0(SlhDsaKey* key, const byte* sk_seed,
         ret = HASH_F(key, pk_seed, adrs, node, n, node);
     }
 
+    if (ret != 0) {
+        /* node may still hold the FORS secret leaf. */
+        ForceZero(node, n);
+    }
     return ret;
 }
 
@@ -5419,6 +5425,8 @@ static int slhdsakey_fors_node_x4_z1(SlhDsaKey* key, const byte* sk_seed,
         ret = HASH_H(key, pk_seed, adrs, nodes, n, node);
     }
 
+    /* nodes held two FORS secret leaves (ISO/IEC 19790:2012 7.9.7). */
+    ForceZero(nodes, sizeof(nodes));
     return ret;
 }
 
@@ -5546,6 +5554,10 @@ static int slhdsakey_fors_node_x4_low(SlhDsaKey* key, const byte* sk_seed,
         ret = HASH_H(key, pk_seed, adrs, nodes, n, node);
     }
 
+    /* nodes may still hold FORS secret leaves (ISO/IEC 19790:2012 7.9.7). */
+    if (WC_VAR_OK(nodes)) {
+        ForceZero(nodes, (1 << SLHDSA_MAX_FORS_NODE_DEPTH) * SLHDSA_MAX_N);
+    }
     WC_FREE_VAR_EX(nodes, key->heap, DYNAMIC_TYPE_SLHDSA);
     return ret;
 }
@@ -5774,6 +5786,10 @@ static int slhdsakey_fors_node_c(SlhDsaKey* key, const byte* sk_seed, word32 i,
             /* Step 5: Compute node from public key seed, address and value. */
             ret = HASH_F(key, pk_seed, adrs, node, n, node);
         }
+        if (ret != 0) {
+            /* node may still hold the FORS secret leaf. */
+            ForceZero(node, n);
+        }
     }
     /* Step 6: Non leaf node. */
     else {
@@ -5843,6 +5859,11 @@ static int slhdsakey_fors_node_c(SlhDsaKey* key, const byte* sk_seed, word32 i,
             }
         }
 
+        /* nodes may still hold FORS secret leaves
+         * (ISO/IEC 19790:2012 7.9.7). */
+        if (WC_VAR_OK(nodes)) {
+            ForceZero(nodes, (SLHDSA_MAX_A + 1) * SLHDSA_MAX_N);
+        }
         WC_FREE_VAR_EX(nodes, key->heap, DYNAMIC_TYPE_SLHDSA);
     }
 
@@ -5898,6 +5919,10 @@ static int slhdsakey_fors_node_c(SlhDsaKey* key, const byte* sk_seed, word32 i,
             /* Step 5: Compute node from public key seed, address and value. */
             ret = HASH_F(key, pk_seed, adrs, node, n, node);
         }
+        if (ret != 0) {
+            /* node may still hold the FORS secret leaf. */
+            ForceZero(node, n);
+        }
     }
     else {
         byte nodes[2 * SLHDSA_MAX_N];
@@ -5918,6 +5943,8 @@ static int slhdsakey_fors_node_c(SlhDsaKey* key, const byte* sk_seed, word32 i,
             /* Step 11: Compute node from public key seed, address and nodes. */
             ret = HASH_H(key, pk_seed, adrs, nodes, n, node);
         }
+        /* nodes held two FORS secret leaves (ISO/IEC 19790:2012 7.9.7). */
+        ForceZero(nodes, sizeof(nodes));
     }
 
     return ret;

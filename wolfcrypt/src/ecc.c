@@ -12478,6 +12478,16 @@ static int _ecc_import_private_key_ex(const byte* priv, word32 privSz,
 
 #endif
 
+    if (ret != 0) {
+        /* Rejected scalar must not stay in the key
+         * (ISO/IEC 19790:2012 7.9.7). */
+        mp_forcezero(key->k);
+    #ifdef WOLFSSL_ECC_BLIND_K
+        mp_forcezero(key->kb);
+        mp_forcezero(key->ku);
+    #endif
+    }
+
 #ifdef WOLFSSL_MAXQ10XX_CRYPTO
     if ((ret == 0) && (key->devId != INVALID_DEVID)) {
         ret = wc_MAXQ10XX_EccSetKey(key, key->dp->size);
