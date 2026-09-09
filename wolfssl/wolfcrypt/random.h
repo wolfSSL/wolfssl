@@ -374,6 +374,7 @@ struct OS_Seed {
      * source-fed (re)seeds in the module (gather SEED_SZ + SEED_BLOCK_SZ, apply
      * the block-offset remainder). */
     #define WC_DRBG_NEXT_SEED_LEN (WC_DRBG_SEED_SZ + WC_DRBG_SEED_BLOCK_SZ)
+    #define WC_DRBG_NEXT_UNCREDITED_SEED_LEN 64
 #endif
 
 struct DRBG_internal {
@@ -390,6 +391,8 @@ struct DRBG_internal {
     #ifdef WC_RNG_HAVE_RBGC
     int nextSeedRBGCStratum;
     #endif
+    byte nextUncreditedSeed[WC_DRBG_NEXT_UNCREDITED_SEED_LEN];
+    WC_DRBG_nextSeedLen_t nextUncreditedSeedLen;
 #endif
     void* heap;
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
@@ -418,6 +421,8 @@ struct DRBG_SHA512_internal {
     #ifdef WC_RNG_HAVE_RBGC
     int nextSeedRBGCStratum;
     #endif
+    byte nextUncreditedSeed[WC_DRBG_NEXT_UNCREDITED_SEED_LEN];
+    WC_DRBG_nextSeedLen_t nextUncreditedSeedLen;
 #endif
     void* heap;
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
@@ -919,6 +924,10 @@ WOLFSSL_API int wc_RNG_DRBG_Present(const WC_RNG* rng);
                                                    const byte* nonce,
                                                    word32 nonceSz);
     WOLFSSL_API int wc_RNG_DRBG_NextSeedNow(WC_RNG* rng);
+    WOLFSSL_API int wc_RNG_DRBG_NextUncreditedSeedStore(WC_RNG* rng,
+                                                        const byte *nonce,
+                                                        word32 nonceSz);
+    WOLFSSL_API int wc_RNG_DRBG_NextUncreditedSeedNow(WC_RNG* rng);
 
 #endif /* WC_RNG_HAVE_NEXT_SEED */
 
