@@ -984,10 +984,12 @@ static void wb_import_pub_raw_guard(void)
 
 #ifdef WOLF_PRIVATE_KEY_ID
 /********************************************
- * 874: wc_XmssKey_InitId()'s
+ * 871: wc_XmssKey_InitId()'s "if (key == NULL || (id == NULL && len > 0))"
+ * 874: same function's
  *   "if (ret == 0 && (len < 0 || len > XMSS_MAX_ID_LEN))"
  * 878: same function's
- *   "if (ret == 0 && id != NULL && len != 0)"
+ *   "if (ret == 0 && id != NULL && len != 0)"; its "id == NULL" half is
+ *   unreachable, since 871 has already rejected that with a positive len.
  * 903: wc_XmssKey_InitLabel()'s "if (key == NULL || label == NULL)"
  * 907: same function's
  *   "if (labelLen == 0 || labelLen > XMSS_MAX_LABEL_LEN)"
@@ -1042,11 +1044,27 @@ static void wb_init_id_label(void)
         wb_fail = 1;
     }
 
-    /* 878 false: id == NULL (len != 0 held true). */
+    /* 871 true: id == NULL with a positive len. */
     XMEMSET(&key, 0, sizeof(key));
     ret = wc_XmssKey_InitId(&key, NULL, 4, NULL, INVALID_DEVID);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("InitId(id==NULL,len>0) did not fail");
+        wb_fail = 1;
+    }
+
+    /* 871 false + 874 true: a negative len is a length error either way. */
+    XMEMSET(&key, 0, sizeof(key));
+    ret = wc_XmssKey_InitId(&key, NULL, -1, NULL, INVALID_DEVID);
+    if (ret != WC_NO_ERR_TRACE(BUFFER_E)) {
+        WB_NOTE("InitId(id==NULL,len<0) did not report BUFFER_E");
+        wb_fail = 1;
+    }
+
+    /* 871 false + 878 false: id == NULL is only accepted with len == 0. */
+    XMEMSET(&key, 0, sizeof(key));
+    ret = wc_XmssKey_InitId(&key, NULL, 0, NULL, INVALID_DEVID);
     if (ret != 0 || key.idLen != 0) {
-        WB_NOTE("InitId id==NULL row unexpectedly copied an id");
+        WB_NOTE("InitId(id==NULL,len=0) unexpectedly failed");
         wb_fail = 1;
     }
 

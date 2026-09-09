@@ -1559,7 +1559,7 @@ int  wc_HmacInit_Id(Hmac* hmac, unsigned char* id, int len, void* heap,
 {
     int ret = 0;
 
-    if (hmac == NULL)
+    if (hmac == NULL || (id == NULL && len > 0))
         ret = BAD_FUNC_ARG;
     if (ret == 0 && (len < 0 || len > HMAC_MAX_ID_LEN))
         ret = BUFFER_E;

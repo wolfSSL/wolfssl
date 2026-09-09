@@ -8967,7 +8967,7 @@ int wc_falcon_init_id(falcon_key* key, const unsigned char* id, int len,
 {
     int ret = 0;
 
-    if (key == NULL)
+    if (key == NULL || (id == NULL && len > 0))
         ret = BAD_FUNC_ARG;
     if (ret == 0 && (len < 0 || len > FALCON_MAX_ID_LEN))
         ret = BUFFER_E;

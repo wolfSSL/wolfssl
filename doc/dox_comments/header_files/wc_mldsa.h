@@ -103,7 +103,8 @@ int wc_MlDsaKey_Delete(wc_MlDsaKey* key, wc_MlDsaKey** key_p);
     buffer immediately after this call returns.
 
     \return 0 on success.
-    \return BAD_FUNC_ARG if key is NULL.
+    \return BAD_FUNC_ARG if key is NULL, or if id is NULL and len is
+    positive.
     \return BUFFER_E if len is negative or exceeds MLDSA_MAX_ID_LEN.
 
     \param [in,out] key Pointer to the wc_MlDsaKey to initialize.

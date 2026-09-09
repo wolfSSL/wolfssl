@@ -3485,7 +3485,9 @@ int wc_AesGetKeySize(Aes* aes, word32* keySize);
     which is set for PKCS11 support.
 
     \return 0 On success.
-    \return BAD_FUNC_ARG If aes or id is NULL, or if len is invalid.
+    \return BAD_FUNC_ARG If aes is NULL, or if id is NULL while len is
+    positive.
+    \return BUFFER_E If len is negative or greater than AES_MAX_ID_LEN.
 
     \param aes pointer to the AES structure to initialize
     \param id pointer to the ID buffer

@@ -975,8 +975,9 @@ int test_wc_HmacCopy(void)
 } /* END test_wc_HmacCopy */
 
 /*
- * MC/DC: wc_HmacInit_Id()'s two guards -- (ret == 0 && (len < 0 ||
- * len > HMAC_MAX_ID_LEN)) and (ret == 0 && id != NULL && len != 0).
+ * MC/DC: wc_HmacInit_Id()'s three guards -- (hmac == NULL || (id == NULL &&
+ * len != 0)), (ret == 0 && (len < 0 || len > HMAC_MAX_ID_LEN)) and
+ * (ret == 0 && id != NULL && len != 0).
  * Compiled out entirely unless WOLF_PRIVATE_KEY_ID is defined.
  */
 int test_wc_HmacInit_Id(void)
@@ -1004,8 +1005,17 @@ int test_wc_HmacInit_Id(void)
     ExpectIntEQ(wc_HmacInit_Id(&hmac, id, HMAC_MAX_ID_LEN + 1, NULL,
         INVALID_DEVID), WC_NO_ERR_TRACE(BUFFER_E));
 
-    /* id == NULL, len valid: skips the copy, still succeeds. */
-    ExpectIntEQ(wc_HmacInit_Id(&hmac, NULL, 16, NULL, INVALID_DEVID), 0);
+    /* id == NULL with a positive length: no identifier can be recorded. */
+    ExpectIntEQ(wc_HmacInit_Id(&hmac, NULL, 16, NULL, INVALID_DEVID),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* a negative len is a length error whether or not id is NULL */
+    ExpectIntEQ(wc_HmacInit_Id(&hmac, NULL, -1, NULL, INVALID_DEVID),
+        WC_NO_ERR_TRACE(BUFFER_E));
+
+    /* id == NULL, len == 0: no identifier requested, succeeds. */
+    ExpectIntEQ(wc_HmacInit_Id(&hmac, NULL, 0, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(hmac.idLen, 0);
     wc_HmacFree(&hmac);
 
     /* len == 0, id != NULL: skips the copy (len != 0 false), succeeds. */

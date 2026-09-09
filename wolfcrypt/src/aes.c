@@ -16190,14 +16190,14 @@ int  wc_AesInit_Id(Aes* aes, unsigned char* id, int len, void* heap, int devId)
 {
     int ret = 0;
 
-    if (aes == NULL)
+    if (aes == NULL || (id == NULL && len > 0))
         ret = BAD_FUNC_ARG;
     if (ret == 0 && (len < 0 || len > AES_MAX_ID_LEN))
         ret = BUFFER_E;
 
     if (ret == 0)
         ret = wc_AesInit(aes, heap, devId);
-    if (ret == 0) {
+    if (ret == 0 && id != NULL && len != 0) {
         XMEMCPY(aes->id, id, (size_t)len);
         aes->idLen = len;
         aes->labelLen = 0;

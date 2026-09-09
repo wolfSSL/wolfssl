@@ -1001,8 +1001,11 @@ int test_wc_FalconDecisionCoverage(void)
         /* len > FALCON_MAX_ID_LEN -> second length operand determines */
         ExpectIntEQ(wc_falcon_init_id(&idkey, idbytes, FALCON_MAX_ID_LEN + 1,
             NULL, INVALID_DEVID), WC_NO_ERR_TRACE(BUFFER_E));
-        /* id==NULL with valid len -> (id!=NULL) operand F, skips copy */
-        ExpectIntEQ(wc_falcon_init_id(&idkey, NULL, 4, NULL, INVALID_DEVID), 0);
+        /* id==NULL with a positive len -> no identifier to store */
+        ExpectIntEQ(wc_falcon_init_id(&idkey, NULL, 4, NULL, INVALID_DEVID),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* id==NULL with len==0 -> (id!=NULL) operand F, skips copy */
+        ExpectIntEQ(wc_falcon_init_id(&idkey, NULL, 0, NULL, INVALID_DEVID), 0);
         /* len==0 with non-NULL id -> (len!=0) operand F, skips copy */
         ExpectIntEQ(wc_falcon_init_id(&idkey, idbytes, 0, NULL, INVALID_DEVID),
             0);
