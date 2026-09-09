@@ -77,9 +77,10 @@ WOLFSSL_API int wc_KeyStore_ExportWrapped(int devId,
     word32 format, byte* blob, word32* blobSz, const void* ctx);
 
 /* Derive a new stored key from an existing one without either touching RAM.
- * derivSz is algorithm-specific and often fixed by the hardware. */
+ * keySz is the size in bytes of the key to create, or 0 to leave it to the
+ * device; derivSz is algorithm-specific and often fixed by the hardware. */
 WOLFSSL_API int wc_KeyStore_Derive(int devId,
-    const byte* keyRef, word32 keyRefSz, word32 keyType,
+    const byte* keyRef, word32 keyRefSz, word32 keyType, word32 keySz,
     const byte* srcKeyRef, word32 srcKeyRefSz,
     word32 kdfType, const byte* deriv, word32 derivSz,
     word32 attrs, const void* ctx);

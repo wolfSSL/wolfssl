@@ -69943,6 +69943,7 @@ static int keystoreTestCb(int cbDevId, wc_CryptoInfo* info, void* ctx)
             c->lastSrcKeyRef = info->keystore.op.derive.srcKeyRef;
             c->lastOtherRefSz = info->keystore.op.derive.srcKeyRefSz;
             c->lastKeyType   = info->keystore.op.derive.keyType;
+            c->lastKeySz     = info->keystore.op.derive.keySz;
             c->lastAttrs     = info->keystore.op.derive.attrs;
             c->lastKdfType   = info->keystore.op.derive.kdfType;
             c->lastDeriv     = info->keystore.op.derive.deriv;
@@ -70051,14 +70052,15 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t keystore_cb_test(void)
     }
 
     ret = wc_KeyStore_Derive(ksDevId, kref, (word32)sizeof(kref),
-            WC_KEYSTORE_KEY_CMAC, sref, (word32)sizeof(sref),
-            WC_KDF_TYPE_HKDF, dd, (word32)sizeof(dd),
+            WC_KEYSTORE_KEY_CMAC, WC_AES_BLOCK_SIZE, sref,
+            (word32)sizeof(sref), WC_KDF_TYPE_HKDF, dd, (word32)sizeof(dd),
             WC_KEYSTORE_ATTR_PERSISTENT, NULL);
     if (ret != 0 || ctx.lastOp != WC_KEYSTORE_DERIVE ||
         ctx.lastKeyRef != kref || ctx.lastKeyRefSz != (word32)sizeof(kref) ||
         ctx.lastSrcKeyRef != sref ||
         ctx.lastOtherRefSz != (word32)sizeof(sref) ||
         ctx.lastKeyType != WC_KEYSTORE_KEY_CMAC ||
+        ctx.lastKeySz != WC_AES_BLOCK_SIZE ||
         ctx.lastAttrs != WC_KEYSTORE_ATTR_PERSISTENT ||
         ctx.lastKdfType != WC_KDF_TYPE_HKDF ||
         ctx.lastDeriv != dd || ctx.lastDerivSz != (word32)sizeof(dd)) {
