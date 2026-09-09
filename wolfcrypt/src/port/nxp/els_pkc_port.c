@@ -62,7 +62,8 @@
 
 /* Each of these checks a slot reference first, because a permission
  * violation resets the SoC. */
-#ifdef ELS_HAVE_AES_BLOCK_CIPHER
+#if defined(ELS_HAVE_AES_BLOCK_CIPHER) || \
+    (!defined(NO_AES) && defined(HAVE_AESGCM))
     #define ELS_HAVE_SLOT_KEYS
 #endif
 
@@ -980,6 +981,258 @@ static int ElsAesCipher(Aes* aes, byte* out, const byte* in, word32 sz,
 
 #endif /* ELS_HAVE_AES_BLOCK_CIPHER */
 
+/* Every stage takes whole blocks; the true AAD and data lengths reach the
+ * hardware only in Finalize. */
+
+#ifdef HAVE_AESGCM
+
+#define ELS_GCM_BLOCK MCUXCLELS_AEAD_IV_BLOCK_SIZE
+
+/* An internal key is named by keyIdx and the memory pair is then ignored. */
+static const uint8_t* ElsGcmKeyPtr(mcuxClEls_AeadOption_t opt, const Aes* aes)
+{
+    return (opt.bits.extkey == MCUXCLELS_AEAD_EXTERN_KEY)
+           ? (const uint8_t*)aes->devKey : NULL;
+}
+
+static size_t ElsGcmKeyLen(mcuxClEls_AeadOption_t opt, const Aes* aes)
+{
+    return (opt.bits.extkey == MCUXCLELS_AEAD_EXTERN_KEY)
+           ? (size_t)aes->keylen : 0u;
+}
+
+/* Each stage below is its own function so the flow-protection macro pair stays
+ * within one scope, matching the rest of this port. Caller holds the lock. */
+
+static int ElsGcmInit(mcuxClEls_AeadOption_t opt, mcuxClEls_KeyIndex_t keyIdx,
+                      const Aes* aes, const byte* j0, byte* aeadCtx)
+{
+    MCUX_CSSL_FP_FUNCTION_CALL_BEGIN(r, t, mcuxClEls_Aead_Init_Async(
+        opt, keyIdx, ElsGcmKeyPtr(opt, aes), ElsGcmKeyLen(opt, aes),
+        j0, (size_t)ELS_GCM_BLOCK, aeadCtx));
+    if ((MCUX_CSSL_FP_FUNCTION_CALLED(mcuxClEls_Aead_Init_Async) != t) ||
+        (MCUXCLELS_STATUS_OK_WAIT != r)) {
+        return WC_NO_ERR_TRACE(WC_HW_E);
+    }
+    MCUX_CSSL_FP_FUNCTION_CALL_END();
+
+    return ElsWait();
+}
+
+static int ElsGcmAadChunk(mcuxClEls_AeadOption_t opt,
+                          mcuxClEls_KeyIndex_t keyIdx, const Aes* aes,
+                          const byte* aad, word32 len, byte* aeadCtx)
+{
+    MCUX_CSSL_FP_FUNCTION_CALL_BEGIN(r, t, mcuxClEls_Aead_UpdateAad_Async(
+        opt, keyIdx, ElsGcmKeyPtr(opt, aes), ElsGcmKeyLen(opt, aes),
+        aad, (size_t)len, aeadCtx));
+    if ((MCUX_CSSL_FP_FUNCTION_CALLED(mcuxClEls_Aead_UpdateAad_Async) != t) ||
+        (MCUXCLELS_STATUS_OK_WAIT != r)) {
+        return WC_NO_ERR_TRACE(WC_HW_E);
+    }
+    MCUX_CSSL_FP_FUNCTION_CALL_END();
+
+    return ElsWait();
+}
+
+static int ElsGcmDataChunk(mcuxClEls_AeadOption_t opt,
+                           mcuxClEls_KeyIndex_t keyIdx, const Aes* aes,
+                           const byte* in, word32 len, byte* out,
+                           byte* aeadCtx)
+{
+    MCUX_CSSL_FP_FUNCTION_CALL_BEGIN(r, t, mcuxClEls_Aead_UpdateData_Async(
+        opt, keyIdx, ElsGcmKeyPtr(opt, aes), ElsGcmKeyLen(opt, aes),
+        in, (size_t)len, out, aeadCtx));
+    if ((MCUX_CSSL_FP_FUNCTION_CALLED(mcuxClEls_Aead_UpdateData_Async) != t) ||
+        (MCUXCLELS_STATUS_OK_WAIT != r)) {
+        return WC_NO_ERR_TRACE(WC_HW_E);
+    }
+    MCUX_CSSL_FP_FUNCTION_CALL_END();
+
+    return ElsWait();
+}
+
+static int ElsGcmFinal(mcuxClEls_AeadOption_t opt, mcuxClEls_KeyIndex_t keyIdx,
+                       const Aes* aes, word32 aadSz, word32 dataSz,
+                       byte* tag, byte* aeadCtx)
+{
+    MCUX_CSSL_FP_FUNCTION_CALL_BEGIN(r, t, mcuxClEls_Aead_Finalize_Async(
+        opt, keyIdx, ElsGcmKeyPtr(opt, aes), ElsGcmKeyLen(opt, aes),
+        (size_t)aadSz, (size_t)dataSz, tag, aeadCtx));
+    if ((MCUX_CSSL_FP_FUNCTION_CALLED(mcuxClEls_Aead_Finalize_Async) != t) ||
+        (MCUXCLELS_STATUS_OK_WAIT != r)) {
+        return WC_NO_ERR_TRACE(WC_HW_E);
+    }
+    MCUX_CSSL_FP_FUNCTION_CALL_END();
+
+    return ElsWait();
+}
+
+/* AAD is fed as whole blocks; Finalize's aadLength says how much of the
+ * zero-padded last block was real. */
+static int ElsGcmAad(mcuxClEls_AeadOption_t opt, mcuxClEls_KeyIndex_t keyIdx,
+                     const Aes* aes, const byte* aad, word32 aadSz,
+                     byte* aeadCtx)
+{
+    ALIGN32 byte block[ELS_GCM_BLOCK];
+    word32 full = aadSz & ~(word32)(ELS_GCM_BLOCK - 1u);
+    word32 tail = aadSz - full;
+    int ret = 0;
+
+    if (full > 0u) {
+        ret = ElsGcmAadChunk(opt, keyIdx, aes, aad, full, aeadCtx);
+    }
+
+    if (ret == 0 && tail > 0u) {
+        XMEMSET(block, 0, sizeof(block));
+        XMEMCPY(block, aad + full, tail);
+        ret = ElsGcmAadChunk(opt, keyIdx, aes, block, ELS_GCM_BLOCK, aeadCtx);
+        ForceZero(block, sizeof(block));
+    }
+
+    return ret;
+}
+
+static int ElsAesGcm(Aes* aes, byte* out, const byte* in, word32 sz,
+                     const byte* iv, word32 ivSz,
+                     byte* authTag, word32 authTagSz,
+                     const byte* authIn, word32 authInSz, int encrypt)
+{
+    mcuxClEls_AeadOption_t opt;
+    mcuxClEls_AeadOption_t stageOpt;
+    wc_ElsPkc_KeyRef ref;
+    ALIGN32 byte aeadCtx[MCUXCLELS_AEAD_CONTEXT_SIZE];
+    ALIGN32 byte j0[ELS_GCM_BLOCK];
+    ALIGN32 byte inBlock[ELS_GCM_BLOCK];
+    ALIGN32 byte outBlock[ELS_GCM_BLOCK];
+    byte   tag[MCUXCLELS_AEAD_TAG_SIZE];
+    word32 full, tail;
+    int    slotted = 0;
+    int ret;
+
+    if (aes == NULL || iv == NULL || authTag == NULL) {
+        return WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+    }
+    if ((sz > 0 && (in == NULL || out == NULL)) ||
+        (authInSz > 0 && authIn == NULL)) {
+        return WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+    }
+
+    XMEMSET(&ref, 0, sizeof(ref));
+    ret = ElsAesRef(aes, &ref);
+    if (ret == 0) {
+        slotted = 1;
+    }
+    else if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+        return ret;
+    }
+    /* Only a 12-byte IV maps onto Aead_Init's J0. A short tag is a prefix of
+     * the full one; AES-192 has no ELS key size. */
+    if (!slotted && !ElsAesKeyOk(aes)) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+    if (ivSz != GCM_NONCE_MID_SZ || authTagSz == 0 ||
+        authTagSz > MCUXCLELS_AEAD_TAG_SIZE) {
+        return slotted ? WC_NO_ERR_TRACE(BAD_FUNC_ARG)
+                       : WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+
+    /* For a 96-bit IV, J0 is IV || 0x00000001 (SP 800-38D, 7.1). */
+    XMEMSET(j0, 0, sizeof(j0));
+    XMEMCPY(j0, iv, ivSz);
+    j0[ELS_GCM_BLOCK - 1] = 0x01;
+
+    opt.word.value   = 0u;
+    opt.bits.dcrpt   = encrypt ? MCUXCLELS_AEAD_ENCRYPT
+                               : MCUXCLELS_AEAD_DECRYPT;
+    opt.bits.extkey  = slotted ? MCUXCLELS_AEAD_INTERN_KEY
+                               : MCUXCLELS_AEAD_EXTERN_KEY;
+    opt.bits.acpsie  = MCUXCLELS_AEAD_STATE_IN_ENABLE;
+    opt.bits.lastinit = MCUXCLELS_AEAD_LASTINIT_FALSE;
+
+    ret = ElsLock();
+    if (ret != 0) {
+        return ret;
+    }
+
+    /* Prove the slot before the four-stage sequence starts, so a bad reference
+     * fails before any context is built. */
+    if (slotted) {
+        ret = ElsCheckSlot(&ref, WC_ELSPKC_KEY_AES);
+        if (ret != 0) {
+            ElsUnlock();
+            return ret;
+        }
+    }
+
+    /* Init builds the context rather than continuing one, so it must not be
+     * told to read a state in - aeadCtx holds nothing yet. */
+    stageOpt = opt;
+    stageOpt.bits.acpsie = MCUXCLELS_AEAD_STATE_IN_DISABLE;
+    ret = ElsGcmInit(stageOpt, (mcuxClEls_KeyIndex_t)ref.slot, aes, j0,
+                     aeadCtx);
+
+    if (ret == 0 && authInSz > 0) {
+        ret = ElsGcmAad(opt, (mcuxClEls_KeyIndex_t)ref.slot, aes, authIn,
+                        authInSz, aeadCtx);
+    }
+
+    if (ret == 0 && sz > 0) {
+        full = sz & ~(word32)(ELS_GCM_BLOCK - 1u);
+        tail = sz - full;
+
+        if (full > 0) {
+            ret = ElsGcmDataChunk(opt, (mcuxClEls_KeyIndex_t)ref.slot, aes,
+                                  in, full, out, aeadCtx);
+        }
+        if (ret == 0 && tail > 0) {
+            /* msgendw carries the real byte count of the final block while
+             * the block itself still arrives zero-padded. */
+            stageOpt = opt;
+            stageOpt.bits.msgendw = (uint32_t)tail;
+
+            XMEMSET(inBlock, 0, sizeof(inBlock));
+            XMEMCPY(inBlock, in + full, tail);
+            ret = ElsGcmDataChunk(stageOpt, (mcuxClEls_KeyIndex_t)ref.slot,
+                                  aes, inBlock, ELS_GCM_BLOCK, outBlock,
+                                  aeadCtx);
+            if (ret == 0) {
+                XMEMCPY(out + full, outBlock, tail);
+            }
+        }
+    }
+
+    if (ret == 0) {
+        ret = ElsGcmFinal(opt, (mcuxClEls_KeyIndex_t)ref.slot, aes, authInSz,
+                          sz, tag, aeadCtx);
+    }
+
+    ElsUnlock();
+
+    if (ret == 0) {
+        if (encrypt) {
+            XMEMCPY(authTag, tag, authTagSz);
+        }
+        else if (wc_ConstantCompare(tag, authTag, (int)authTagSz) != 0) {
+            ret = WC_NO_ERR_TRACE(AES_GCM_AUTH_E);
+        }
+    }
+    /* No unverified plaintext is left behind, whichever stage failed. */
+    if (ret != 0 && !encrypt && sz > 0) {
+        ForceZero(out, sz);
+    }
+
+    ForceZero(tag, sizeof(tag));
+    ForceZero(j0, sizeof(j0));
+    ForceZero(inBlock, sizeof(inBlock));
+    ForceZero(outBlock, sizeof(outBlock));
+    ForceZero(aeadCtx, sizeof(aeadCtx));
+
+    return ret;
+}
+
+#endif /* HAVE_AESGCM */
+
 #endif /* !NO_AES */
 
 int wc_ElsPkc_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
@@ -1001,6 +1254,36 @@ int wc_ElsPkc_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
 #ifndef NO_AES
         case WC_ALGO_TYPE_CIPHER:
             switch (info->cipher.type) {
+    #ifdef HAVE_AESGCM
+                case WC_CIPHER_AES_GCM:
+                    if (info->cipher.enc) {
+                        ret = ElsAesGcm(info->cipher.aesgcm_enc.aes,
+                                info->cipher.aesgcm_enc.out,
+                                info->cipher.aesgcm_enc.in,
+                                info->cipher.aesgcm_enc.sz,
+                                info->cipher.aesgcm_enc.iv,
+                                info->cipher.aesgcm_enc.ivSz,
+                                info->cipher.aesgcm_enc.authTag,
+                                info->cipher.aesgcm_enc.authTagSz,
+                                info->cipher.aesgcm_enc.authIn,
+                                info->cipher.aesgcm_enc.authInSz, 1);
+                    }
+                    else {
+                        /* the decrypt struct keeps authTag const; the port
+                         * only ever compares against it */
+                        ret = ElsAesGcm(info->cipher.aesgcm_dec.aes,
+                                info->cipher.aesgcm_dec.out,
+                                info->cipher.aesgcm_dec.in,
+                                info->cipher.aesgcm_dec.sz,
+                                info->cipher.aesgcm_dec.iv,
+                                info->cipher.aesgcm_dec.ivSz,
+                                (byte*)info->cipher.aesgcm_dec.authTag,
+                                info->cipher.aesgcm_dec.authTagSz,
+                                info->cipher.aesgcm_dec.authIn,
+                                info->cipher.aesgcm_dec.authInSz, 0);
+                    }
+                    break;
+    #endif
     #ifdef HAVE_AES_CBC
                 case WC_CIPHER_AES_CBC:
                     ret = ElsAesCipher(info->cipher.aescbc.aes,
