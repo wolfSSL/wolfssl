@@ -605,9 +605,20 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "wc_InitRsaKey", "rsa");
     check_cfg(&binding, "wc_RsaDirect", "rsa_direct");
     check_cfg(&binding, "wc_MakeRsaKey", "rsa_keygen");
-    check_cfg(&binding, "wc_RsaPSS_Sign", "rsa_pss");
+    /* wc_RsaPSS_Verify, not wc_RsaPSS_Sign: signing is additionally guarded
+     * out by the public-only and verify-only build options, so only the
+     * verify side tracks WC_RSA_PSS itself. */
+    check_cfg(&binding, "wc_RsaPSS_Verify", "rsa_pss");
     check_cfg(&binding, "wc_RsaPublicEncrypt_ex", "rsa_oaep");
     check_cfg(&binding, "wc_RsaSetRNG", "rsa_setrng");
+    /* The RSA "only" build options subtract API, so each cfg names what is
+     * left rather than the C macro: rsa_private is !WOLFSSL_RSA_PUBLIC_ONLY,
+     * rsa_sign is !WOLFSSL_RSA_VERIFY_ONLY and rsa_ssl_verify is
+     * !WOLFSSL_RSA_VERIFY_INLINE.  Each sentinel is a function guarded by
+     * exactly one of those macros. */
+    check_cfg(&binding, "wc_RsaPrivateDecrypt", "rsa_private");
+    check_cfg(&binding, "wc_RsaPublicEncrypt", "rsa_sign");
+    check_cfg(&binding, "wc_RsaSSL_Verify", "rsa_ssl_verify");
     // WC_MGF1SHA512_224 and WC_MGF1SHA512_256 are unconditional #defines in
     // rsa.h, so their presence says nothing about whether SHA-512/224 and
     // SHA-512/256 are actually built in. Require the hash as well.
