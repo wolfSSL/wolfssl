@@ -291,6 +291,9 @@ int wc_curve448_make_key(WC_RNG* rng, int keysize, curve448_key* key)
         else {
             ForceZero(key->k, sizeof(key->k));
             XMEMSET(key->p, 0, sizeof(key->p));
+            /* A zeroised SSP shall not be reusable
+             * (ISO/IEC 19790:2012 7.9.7 [09.29]). */
+            key->privSet = 0;
         }
     }
 #endif /* WOLF_CRYPTO_CB_ONLY_CURVE448 */
