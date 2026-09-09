@@ -149,7 +149,7 @@ include(CheckSymbolExists)
 check_symbol_exists(isascii "ctype.h" HAVE_ISASCII)
 check_symbol_exists(getpid "unistd.h" HAVE_GETPID)   # pid_t comes with it
 if(HAVE_GETPID)
-    add_definitions("-DHAVE_GETPID")   # the library and options.h must agree
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_GETPID")   # as options.h says
 endif()
 
 include(CheckTypeSize)
@@ -4268,6 +4268,7 @@ generate_build_flags()
 if(WOLFSSL_USER_SETTINGS)
     # Replace all options and just use WOLFSSL_USER_SETTINGS
     set(WOLFSSL_DEFINITIONS "-DWOLFSSL_USER_SETTINGS")
+    set(HAVE_GETPID OFF)   # user_settings.h decides; keeps options.h in step
 endif()
 
 if(WOLFSSL_USER_SETTINGS_ASM)

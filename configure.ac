@@ -13372,7 +13372,7 @@ fi
 
 # RNG lock and fork handlers need threads; the handlers need everything the
 # WC_RNG_LOCK_ATFORK gate in random.h asks for
-case "$AM_CFLAGS $CPPFLAGS $CFLAGS" in
+case "$AM_CFLAGS $CPPFLAGS $CFLAGS $EXTRA_CFLAGS" in
     *-DSINGLE_THREADED*) ENABLED_RNG_LOCK_THREADS=no ;;
     *) ENABLED_RNG_LOCK_THREADS=yes ;;
 esac
@@ -13384,7 +13384,7 @@ if test "x$enable_rng_lock" = "xyes" && test "$ENABLED_RNG_LOCK_THREADS" = "no"
 then
     AC_MSG_ERROR([--enable-rng-lock requires threads])
 fi
-case "$AM_CFLAGS $CPPFLAGS $CFLAGS" in
+case "$AM_CFLAGS $CPPFLAGS $CFLAGS $EXTRA_CFLAGS" in
     *-DCUSTOM_RAND_GENERATE_BLOCK*) ENABLED_RNG_LOCK_CUSTOM=yes ;;
     *) ENABLED_RNG_LOCK_CUSTOM=no ;;
 esac
@@ -13414,7 +13414,7 @@ then
     then
         RNG_ATFORK_NEEDS="${RNG_ATFORK_NEEDS:+$RNG_ATFORK_NEEDS, and }threads and no kernel module"
     fi
-    case "$AM_CFLAGS $CPPFLAGS $CFLAGS" in
+    case "$AM_CFLAGS $CPPFLAGS $CFLAGS $EXTRA_CFLAGS" in
         *-DWOLFSSL_STATIC_MEMORY*|*-DWOLFSSL_NO_MALLOC*|*-DCUSTOM_RAND_GENERATE_BLOCK*|*-DWOLFSSL_CHECK_MEM_ZERO*|*-DWOLFSSL_TRACK_MEMORY*|*-DWOLFSSL_MEM_FAIL_COUNT*|*-DWOLFSSL_USER_MUTEX*)
             ENABLED_RNG_ATFORK_FLAGS=no ;;
         *) ENABLED_RNG_ATFORK_FLAGS=yes ;;

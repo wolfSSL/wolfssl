@@ -28168,7 +28168,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
             alarm(prevAlarm);
     #endif
         if (churning && wolfSSL_JoinThread(churn) != 0) {
-            leak = 1;   /* the churn thread may still use c */
+            c = NULL;   /* leaked: the churn thread may still use it */
+            if (ret == 0)
+                ret = WC_TEST_RET_ENC_NC;
         }
         else {
             if (ret == 0 && (!churning || c->ret != 0))
