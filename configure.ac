@@ -4018,6 +4018,12 @@ then
     ENABLED_AESSIV=yes
 fi
 
+if test "$ENABLED_FIPS" != "no" && test "$HAVE_FIPS_VERSION" -ge 7 && \
+   { test "$ENABLED_AESSIV" = "yes" || test "$ENABLED_AESEAX" = "yes"; }
+then
+    AC_MSG_ERROR([AES-SIV and AES-EAX are not in the FIPS module boundary: drop --enable-aessiv, --enable-aeseax or --enable-chrony from a FIPS v7 build.])
+fi
+
 # AES-GCM-SIV (RFC 8452)
 AC_ARG_ENABLE([aesgcm-siv],
     [AS_HELP_STRING([--enable-aesgcm-siv],[Enable AES-GCM-SIV (RFC 8452) (default: disabled)])],

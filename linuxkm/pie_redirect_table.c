@@ -86,3 +86,67 @@ const struct wolfssl_linuxkm_pie_redirect_table
         return dest;
     }
 #endif
+
+#if defined(CONFIG_ARM)
+    /* 32-bit Arm code calls the EABI division helpers and the container cannot
+     * reach the kernel's, so they live here.  Division by zero returns 0. */
+    unsigned int __aeabi_uidiv(unsigned int n, unsigned int d);
+    unsigned int __aeabi_uidiv(unsigned int n, unsigned int d) {
+        unsigned int q = 0, r = 0;
+        int i;
+        if (d == 0)
+            return 0u;
+        for (i = 31; i >= 0; i--) {
+            /* Restoring division with a mask instead of a branch. */
+            unsigned int mask;
+            r = (r << 1) | ((n >> i) & 1u);
+            mask = 0u - (unsigned int)(r >= d);
+            r -= d & mask;
+            q |= (1u << i) & mask;
+        }
+        return q;
+    }
+
+    /* Quotient in the low word, remainder in the high word, as the EABI
+     * expects in r0 and r1. */
+    unsigned long long __aeabi_uidivmod(unsigned int n, unsigned int d);
+    unsigned long long __aeabi_uidivmod(unsigned int n, unsigned int d) {
+        unsigned int q = 0, r = 0;
+        int i;
+        if (d == 0)
+            return 0ULL;
+        for (i = 31; i >= 0; i--) {
+            unsigned int mask;
+            r = (r << 1) | ((n >> i) & 1u);
+            mask = 0u - (unsigned int)(r >= d);
+            r -= d & mask;
+            q |= (1u << i) & mask;
+        }
+        return ((unsigned long long)r << 32) | q;
+    }
+
+    /* Signed forms work on unsigned magnitudes so INT_MIN is well defined;
+     * INT_MIN / -1 returns INT_MIN, as SDIV does. */
+    int __aeabi_idiv(int n, int d);
+    int __aeabi_idiv(int n, int d) {
+        int neg = (n < 0) ^ (d < 0);
+        unsigned int un = (n < 0) ? (0u - (unsigned int)n) : (unsigned int)n;
+        unsigned int ud = (d < 0) ? (0u - (unsigned int)d) : (unsigned int)d;
+        unsigned int uq = __aeabi_uidiv(un, ud);
+        return neg ? (int)(0u - uq) : (int)uq;
+    }
+
+    unsigned long long __aeabi_idivmod(int n, int d);
+    unsigned long long __aeabi_idivmod(int n, int d) {
+        int nneg = (n < 0);
+        int qneg = (n < 0) ^ (d < 0);
+        unsigned int un = nneg ? (0u - (unsigned int)n) : (unsigned int)n;
+        unsigned int ud = (d < 0) ? (0u - (unsigned int)d) : (unsigned int)d;
+        unsigned long long um = __aeabi_uidivmod(un, ud);
+        unsigned int uq = (unsigned int)um;
+        unsigned int ur = (unsigned int)(um >> 32);
+        int q = qneg ? (int)(0u - uq) : (int)uq;
+        int r = nneg ? (int)(0u - ur) : (int)ur;
+        return ((unsigned long long)(unsigned int)r << 32) | (unsigned int)q;
+    }
+#endif /* CONFIG_ARM */

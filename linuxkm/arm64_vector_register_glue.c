@@ -1,5 +1,5 @@
 /* arm64_vector_register_glue.c: glue logic to claim and release the FPSIMD
- * and NEON registers on arm64
+ * and NEON registers on arm64, and the NEON registers on 32-bit Arm
  *
  * Copyright (C) 2006-2026 wolfSSL Inc.
  *
@@ -23,20 +23,33 @@
 /* included by linuxkm/module_hooks.c */
 #ifndef WC_SKIP_INCLUDED_C_FILES
 
-#if !defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) || !defined(CONFIG_ARM64)
-    #error arm64 vector register glue included in non-vectorized or non-arm64 project.
+#if !defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) || \
+    (!defined(CONFIG_ARM64) && !defined(CONFIG_ARM))
+    #error arm vector register glue included in non-vectorized or non-arm project.
 #endif
 
 #ifndef CONFIG_KERNEL_MODE_NEON
     /* Without this option the kernel exports no kernel_neon_begin() and
      * may_use_simd() is always false (linux-6.6.99 fpsimd.c:1904, simd.h:46). */
-    #error wolfSSL linuxkm on arm64 requires CONFIG_KERNEL_MODE_NEON.
+    #error wolfSSL linuxkm on arm requires CONFIG_KERNEL_MODE_NEON.
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 19, 0)
+#if defined(CONFIG_ARM64) && LINUX_VERSION_CODE >= KERNEL_VERSION(6, 19, 0)
     /* Written against the void kernel_neon_begin() of linux-6.6.99.  6.19
      * changes that signature and has not been read here. */
     #error arm64 vector register glue does not yet support kernel_neon_begin() with a state buffer (6.19+).
+#endif
+
+#if defined(CONFIG_ARM) && LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0)
+    /* From 6.4 may_use_simd() tests only in_hardirq(), but kernel_neon_begin()
+     * also BUGs on irqs_disabled() (linux-6.16.12 vfpmodule.c); test it too. */
+    #define wc_svr_arm_neon_usable() (may_use_simd() && !irqs_disabled())
+#elif defined(CONFIG_ARM)
+    /* Before 6.4 kernel_neon_begin() BUGs on in_interrupt() (linux-6.1.62
+     * vfpmodule.c): NEON is refused in softirq, allowed with interrupts off. */
+    #define wc_svr_arm_neon_usable() may_use_simd()
+#else
+    #define wc_svr_arm_neon_usable() may_use_simd()
 #endif
 
 #ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
@@ -121,7 +134,7 @@ __must_check int wc_can_save_vector_registers_x86(void)
     if (st->depth > 0)
         ret = (st->inhibit_at == 0);
     else
-        ret = may_use_simd() ? 1 : 0;
+        ret = wc_svr_arm_neon_usable() ? 1 : 0;
     preempt_enable();
 
     return ret;
@@ -165,7 +178,8 @@ __must_check int wc_save_vector_registers_x86(enum wc_svr_flags flags)
     /* Outermost claim.  The preempt_disable() above is carried to the
      * matching release.  What holds the CPU on a kernel that builds
      * preempt_disable() as a barrier is the bottom-half disable below, taken
-     * either by kernel_neon_begin() or by wc_svr_arm64_pin_bh(). */
+     * by kernel_neon_begin() (on 32-bit Arm before 6.4 it disables preemption
+     * instead) or by wc_svr_arm64_pin_bh(). */
     if (flags & WC_SVR_FLAG_INHIBIT) {
         wc_svr_arm64_pin_bh(st);
         st->depth = 1;
@@ -176,7 +190,7 @@ __must_check int wc_save_vector_registers_x86(enum wc_svr_flags flags)
         return 0;
     }
 
-    if (! may_use_simd()) {
+    if (! wc_svr_arm_neon_usable()) {
         if (flags & WC_SVR_FLAG_MAYBE_INHIBIT) {
             /* Held without the registers: nested claims are refused. */
             wc_svr_arm64_pin_bh(st);

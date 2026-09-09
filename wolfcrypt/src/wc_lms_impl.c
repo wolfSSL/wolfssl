@@ -2344,7 +2344,7 @@ static int wc_lms_treehash_update(LmsState* state, LmsPrivState* privState,
     byte* left = dp + LMS_D_LEN;
     byte* temp = left + params->hash_len;
     WC_DECLARE_VAR(stack, byte, (LMS_MAX_HEIGHT + 1) * LMS_MAX_NODE_LEN, 0);
-    byte* sp;
+    byte* sp = NULL;
     byte* spEnd;
     word32 max_cb = (word32)1 << params->cacheBits;
     word32 i;

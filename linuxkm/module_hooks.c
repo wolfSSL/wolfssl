@@ -254,6 +254,12 @@ extern int wolfcrypt_benchmark_main(int argc, char** argv);
 #endif /* WOLFSSL_LINUXKM_BENCHMARKS */
 
 #ifndef WOLFSSL_LINUXKM_USE_MUTEXES
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 11, 0)
+    #define wc_lkm_in_hardirq() in_irq()
+#else
+    #define wc_lkm_in_hardirq() in_hardirq()
+#endif
+
 int wc_lkm_LockMutex(wolfSSL_Mutex* m)
 {
     unsigned long irq_flags;
@@ -261,6 +267,48 @@ int wc_lkm_LockMutex(wolfSSL_Mutex* m)
     if ((m == NULL) || (m->magic != WC_LINUXKM_SPINLOCK_MAGIC))
         return BAD_FUNC_ARG;
 #endif
+
+#ifdef WC_LINUXKM_MUTEX_BH
+    m->bh_held = 0;
+    if (in_nmi() || wc_lkm_in_hardirq()) {
+        /* The holder may be the context this interrupt landed on, so never
+         * wait for it. */
+        if (spin_trylock_irqsave(&m->lock, irq_flags)) {
+            m->irq_flags = irq_flags;
+            return 0;
+        }
+        return BAD_MUTEX_E;
+    }
+    if (! irqs_disabled()) {
+        if (spin_trylock_bh(&m->lock)) {
+            m->bh_held = 1;
+            return 0;
+        }
+        if (! wc_linuxkm_can_block()) {
+#if IS_ENABLED(CONFIG_PREEMPT_RT)
+            /* An RT spinlock sleeps, so an atomic caller cannot wait. */
+            return BUSY_E;
+#else
+            spin_lock_bh(&m->lock);
+            m->bh_held = 1;
+            return 0;
+#endif
+        }
+        for (;;) {
+            int sig_ret = wc_linuxkm_check_for_intr_signals();
+            if (sig_ret)
+                return sig_ret;
+            cond_resched();
+            if (spin_trylock_bh(&m->lock)) {
+                m->bh_held = 1;
+                return 0;
+            }
+        }
+    }
+    /* Interrupts are already off, so the interrupts-off form costs nothing
+     * more; the vector registers are not claimable here in any case. */
+#endif /* WC_LINUXKM_MUTEX_BH */
+
     /* first, try the cheap way. */
     if (spin_trylock_irqsave(&m->lock, irq_flags)) {
         m->irq_flags = irq_flags;
@@ -305,6 +353,23 @@ int wc_lkm_LockMutex(wolfSSL_Mutex* m)
         }
     }
     __builtin_unreachable();
+}
+
+int wc_lkm_UnLockMutex(wolfSSL_Mutex* m)
+{
+#ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+    if ((m == NULL) || (m->magic != WC_LINUXKM_SPINLOCK_MAGIC))
+        return BAD_FUNC_ARG;
+#endif
+#ifdef WC_LINUXKM_MUTEX_BH
+    if (m->bh_held) {
+        m->bh_held = 0;
+        spin_unlock_bh(&m->lock);
+        return 0;
+    }
+#endif
+    spin_unlock_irqrestore(&m->lock, m->irq_flags);
+    return 0;
 }
 #endif
 
@@ -654,7 +719,8 @@ int wc_linuxkm_GenerateSeed_IntelRD(struct OS_Seed* os, byte* output, word32 sz)
 
 #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
     #include "linuxkm/x86_vector_register_glue.c"
-#elif defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_ARM64)
+#elif defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && \
+      (defined(CONFIG_ARM64) || defined(CONFIG_ARM))
     #include "linuxkm/arm64_vector_register_glue.c"
 #endif
 
@@ -1848,7 +1914,7 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     wolfssl_linuxkm_pie_redirect_table.get_current = my_get_current_thread;
 
 #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && \
-    (defined(CONFIG_X86) || defined(CONFIG_ARM64))
+    (defined(CONFIG_X86) || defined(CONFIG_ARM64) || defined(CONFIG_ARM))
     wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_allocate_svr_states = wc_linuxkm_allocate_svr_states;
     wolfssl_linuxkm_pie_redirect_table.wc_can_save_vector_registers_x86 = wc_can_save_vector_registers_x86;
     wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_free_svr_states = wc_linuxkm_free_svr_states;
@@ -2047,6 +2113,7 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 
 #ifndef WOLFSSL_LINUXKM_USE_MUTEXES
     wolfssl_linuxkm_pie_redirect_table.wc_lkm_LockMutex = wc_lkm_LockMutex;
+    wolfssl_linuxkm_pie_redirect_table.wc_lkm_UnLockMutex = wc_lkm_UnLockMutex;
 #endif
 
 #ifdef CONFIG_ARM64

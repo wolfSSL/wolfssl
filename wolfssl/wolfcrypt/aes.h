@@ -546,11 +546,14 @@ struct Aes {
 
 #ifdef WOLFSSL_AES_XTS
     #if FIPS_VERSION3_GE(6,0,0)
-        /* SP800-38E - Restrict data unit to 2^20 blocks per key. A block is
-         * WC_AES_BLOCK_SIZE or 16-bytes (128-bits). So each key may only be used to
-         * protect up to 1,048,576 blocks of WC_AES_BLOCK_SIZE (16,777,216 bytes)
-         */
+        /* SP 800-38E section 4: a data unit (one tweak) is at most 2^20 AES
+         * blocks, 16,777,216 bytes.  Per data unit, not per key. */
         #define FIPS_AES_XTS_MAX_BYTES_PER_TWEAK 16777216
+        #if defined(WOLFSSL_AESXTS_STREAM) && \
+            defined(WC_AESXTS_STREAM_NO_REQUEST_ACCOUNTING)
+            /* Without the accounting the streaming limit is never enforced. */
+            #error "SP 800-38E per-data-unit limit would go unenforced."
+        #endif
     #endif
     struct XtsAes {
         Aes aes;
