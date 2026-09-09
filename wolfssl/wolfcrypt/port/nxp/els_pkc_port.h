@@ -43,6 +43,9 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/cryptocb.h>
+#ifdef WOLF_CRYPTO_CB_KEYSTORE
+    #include <wolfssl/wolfcrypt/wc_keystore.h>
+#endif
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>
 #endif
@@ -121,6 +124,14 @@ WOLFSSL_API int wc_ElsPkc_MakeKeyRef(const wc_ElsPkc_KeyRef* ref, byte* out,
                                      word32* outSz);
 WOLFSSL_API int wc_ElsPkc_ParseKeyRef(const byte* in, word32 inSz,
                                       wc_ElsPkc_KeyRef* ref);
+
+#ifdef WOLF_CRYPTO_CB_KEYSTORE
+/* Pick a free slot, a pair for a 256-bit or ECC key; keySz 0 lets the device
+ * decide. MEMORY_E when full. Advisory: reserve and generate together. */
+WOLFSSL_API int wc_ElsPkc_ReserveSlot(byte keyClass, word32 keySz,
+                                      wc_ElsPkc_KeyRef* ref);
+
+#endif
 
 #ifdef HAVE_ECC
 /* Bind key to the slot ref names, the port's devId and P-256. For key

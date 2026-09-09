@@ -629,12 +629,15 @@ algorithms, so ML-KEM and ML-DSA stay on the CPU.
 
 `els_pkc_port.c` offloads wolfCrypt to the EdgeLock subsystem found on the
 RW612 and related parts, through the crypto callback interface. The ELS
-peripheral serves SHA-256, SHA-384, SHA-512, AES (ECB/CBC/CTR), AES-GCM,
-CMAC, the DRBG, and ECDSA on P-256 for a key that names a slot; the PKC
-coprocessor serves RSA, X25519, and ECDSA on every curve, P-256 included when
-the key holds ordinary material.
-NXP rates the ELS DRBG at 128 bits of security strength, which caps
-wolfCrypt's Hash-DRBG at 128 bits where it supplies the seed.
+peripheral serves SHA-256, SHA-384, SHA-512, AES (ECB/CBC/CTR), AES-GCM, CMAC,
+the DRBG, every P-256 ECDSA verify, and P-256 signing with a key that names a
+slot; the PKC coprocessor serves RSA, X25519, and the rest of ECDSA, P-256
+signing with ordinary key material included. Five key store operations cover
+importing and exporting wrapped keys, deriving one key from another, deleting
+a key, and reading back what a slot holds. Generating happens through
+`wc_ecc_make_key()` instead. NXP rates the ELS DRBG at 128 bits of security
+strength, which caps wolfCrypt's Hash-DRBG at 128 bits where it supplies the
+seed.
 
 Anything the hardware does not serve is declined with `CRYPTOCB_UNAVAILABLE`
 and completed in software, so an unsupported algorithm or key size costs
@@ -703,8 +706,19 @@ bytes. A key in a slot has no software copy, so with one a partial block
 fails with `BAD_LENGTH_E` and such an IV with `BAD_FUNC_ARG`.
 
 **ECDH is not offloaded at all.** ELS deposits the agreed secret in a key
-slot, which cannot be read back, while the wolfCrypt ECDH callback has to
-hand a buffer to its caller - so the callback declines and software answers.
+slot, which cannot be read back, while the wolfCrypt ECDH callback has to hand
+a buffer to its caller - so the callback declines and software answers. A slot
+key fails there with `ECC_BAD_ARG_E`, since its `ecc_key` holds only the
+public point. An in-slot agreement would need `mcuxClEls_EccKeyExchange_Async`
+exposed through a key store operation, which this port does not yet do, so a
+slot generated as `WC_ELSPKC_KEY_ECC_DH` has no consumer here yet.
+
+`wc_KeyStore_Derive()` drives the SP800-108 CMAC KDF only, as
+`WC_KDF_TYPE_NONE`, from a `WC_ELSPKC_KEY_CKDF` source, in either of the two
+sizes an ELS slot key can have - pass 16 or 32 bytes as `keySz`, or 0 for the
+128-bit default. A 256-bit key spans the slot pair, so the reference must name
+the first of two free slots, and a `WC_ELSPKC_KEY_ECC_SEED` target must be 256
+bits, which 0 selects for it.
 
 **The PKC uses the ELS DRBG where 128 bits are enough.** That is the ELS
 DRBG's security strength on this part, and `mcuxClEcc_Sign` refuses P-384 and
@@ -716,6 +730,42 @@ Neither engine accepts a nonce from the caller, so an RFC 6979 or
 `wc_GenerateRandom()` is a different path and does reach the ELS DRBG
 directly. The PKC workarea is a fixed hardware region shared by every PKC
 consumer, which is why PKC work runs under the same lock as ELS.
+
+**Key store permissions are per-purpose.** `uaes` and `ucmac` are separate
+permission bits, so a slot holding both needs one reference per class, and
+`wrpok` is set at creation and cannot be added later - a key not made
+exportable can never leave. A generated key's public point is available only
+at the moment of generation; the hardware will not hand it back afterwards.
+An imported key whose container lacks the permission of the reference's
+class is deleted again, and the import fails with `BAD_STATE_E`. Delete and
+export refuse a reference whose class the slot's key does not carry, so a
+stale reference cannot destroy a key that has since reused its slot.
+
+**Two derivation rules the hardware enforces.** The ELS mixes the requested
+property word into every CKDF, so the same parent and derivation data give a
+different key when the protection bits or `wrpok` differ (`kactv` makes no
+difference). A derived key therefore takes its privileged and secure bits from
+its parent, as NXP's own recipes do, and a seeded key generation keeps the
+seed's. And only the die unique key in slot 0 may parent a wrap-capable KWK:
+deriving one from any other key trips the tamper controller, so
+`wc_KeyStore_Derive()` refuses it with `BAD_STATE_E`. An unwrap-only KWK
+(`WC_KEYSTORE_ATTR_UNWRAP_ONLY`) derives from any `WC_ELSPKC_KEY_CKDF` source.
+
+**EdgeLock 2GO.** Keys provisioned through NXP's EdgeLock 2GO service descend
+from `NXP_DIE_EL2GOOEM_MK_SK`, which the boot ROM leaves in slots 4 and 5 only
+when secure boot is enabled (RW61x user manual UM11865, section 12.11, table
+99). The port carries no EdgeLock 2GO code. An application derives the import
+keys from that slot with `wc_KeyStore_Derive()`, checks each secure object's
+CMAC with a slot bound through `wc_ElsPkc_CmacUseSlot()`, and unwraps the key
+container with `wc_KeyStore_ImportWrapped()`; since the port copies the
+parent's protection bits, the keys come out identical to those of NXP's RW61x
+driver. A P-256 key arrives as a `WC_ELSPKC_KEY_ECC_SEED` holding the private
+scalar, and `wc_ElsPkc_EccKeyGenFromSeed()` turns it into a key pair in the
+same slots and returns the public point; the ELS marks the result
+wrap-exportable by itself. If loading that point fails, the seed is already
+consumed and the pair stays in the slots without it. The derivation data and
+the secure object format are in NXP's EdgeLock 2GO agent,
+https://github.com/NXP/el2go-agent.
 
 ### Vendor library
 
