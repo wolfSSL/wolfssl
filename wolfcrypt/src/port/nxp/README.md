@@ -548,7 +548,8 @@ move the crossover down toward small-record sizes.
 
 `els_pkc_port.c` offloads wolfCrypt to the EdgeLock subsystem found on the
 RW612 and related parts, through the crypto callback interface. The ELS
-peripheral serves SHA-256, SHA-384, SHA-512, AES (ECB/CBC/CTR) and AES-GCM.
+peripheral serves SHA-256, SHA-384, SHA-512, AES (ECB/CBC/CTR), AES-GCM and
+CMAC.
 
 Anything the hardware does not serve is declined with `CRYPTOCB_UNAVAILABLE`
 and completed in software, so an unsupported algorithm or key size costs
@@ -562,9 +563,10 @@ created without an explicit device still reaches the hardware.
 `WC_NO_DEFAULT_DEVID` turns that off and leaves routing to the caller.
 
 Keys that live in the ELS key store are referenced rather than exported.
-`wc_ElsPkc_AesUseSlot()` attaches a slot reference to an AES key, so the key
-material never leaves the hardware. It is the documented entry point:
-`wc_ElsPkc_MakeKeyRef()` is the lower-level primitive it builds on.
+`wc_ElsPkc_AesUseSlot()` and `wc_ElsPkc_CmacUseSlot()` attach a slot
+reference to a key, so the key material never leaves the hardware. They are
+the documented entry point: `wc_ElsPkc_MakeKeyRef()` is the lower-level
+primitive they build on.
 
 ### Hardware behaviour worth knowing
 
@@ -598,9 +600,12 @@ before the thread sleeps, and zero never spins.
 
 **Offload state lives in the caller's object.** A hash keeps its ELS state in
 the same `wc_Sha256`/`wc_Sha512` fields the software implementation would
-have used, so nothing is allocated, a struct copy duplicates a context
-correctly, and the port needs neither the copy nor the free crypto-callback
-hook.
+have used, and a CMAC in the `Cmac` ones, so nothing is allocated, a struct
+copy duplicates a context correctly, and the port needs neither the copy nor
+the free crypto-callback hook. It also means such a context has to be
+finished before the last `wolfCrypt_Cleanup()`: with the device gone, wolfCrypt
+carries on in software from the engine's state, and a hash returns a wrong
+digest.
 
 **What the hardware declines**, so it runs in software instead: AES-192 (no
 ELS key size), any trailing partial block, and an AES-GCM IV other than 12
