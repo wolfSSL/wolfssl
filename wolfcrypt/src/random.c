@@ -3214,6 +3214,7 @@ int wc_RNG_lock_clear_extra(WC_RNG* rng, WC_RNG_lock_arg_t extra_bits)
     return 0;
 }
 
+#ifdef HAVE_HASHDRBG
 WOLFSSL_API int wc_RNG_invalidate_entropy(WC_RNG* rng) {
     WC_RNG_lock_arg_t cur_lock;
 
@@ -3260,6 +3261,7 @@ WOLFSSL_API int wc_RNG_invalidate_entropy(WC_RNG* rng) {
 
     return 0;
 }
+#endif /* HAVE_HASHDRBG */
 
 #endif /* WC_RNG_HAVE_LOCK */
 
