@@ -1356,6 +1356,14 @@ int DeriveHandshakeSecret(WOLFSSL* ssl)
                 mac2hash(ssl->specs.mac_algorithm));
         PRIVATE_KEY_LOCK();
     }
+    if (ret != WC_NO_ERR_TRACE(WC_PENDING_E)) {
+        /* Last use of the early secret and of the PSK it was extracted from -
+         * zeroize both. */
+        ForceZero(ssl->arrays->secret, SECRET_LEN);
+#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+        ForceZero(ssl->arrays->psk_key, MAX_PSK_KEY_LEN);
+#endif
+    }
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Add("DeriveHandshakeSecret key", key, WC_MAX_DIGEST_SIZE);
@@ -13758,7 +13766,7 @@ tls13_send_finished_derives:
             ssl->kdfDeriveStep = TLS13_SEND_KDF_FIN_MASTER_SECRET;
         }
         /* Last use of preMasterSecret - zeroize as soon as possible. */
-        ForceZero(ssl->arrays->preMasterSecret, ssl->arrays->preMasterSz);
+        ForceZero(ssl->arrays->preMasterSecret, ENCRYPT_LEN);
 #ifdef WOLFSSL_EARLY_DATA
 
 #ifdef WOLFSSL_DTLS13
@@ -15546,8 +15554,7 @@ int DoTls13MsgDerives(WOLFSSL* ssl, byte type)
                 }
                 /* Zeroized only after the derive completed: a pend retry
                  * still reads preMasterSecret. */
-                ForceZero(ssl->arrays->preMasterSecret,
-                    ssl->arrays->preMasterSz);
+                ForceZero(ssl->arrays->preMasterSecret, ENCRYPT_LEN);
                 ssl->kdfMsgStep = TLS13_MSG_KDF_FIN_MASTER_SECRET;
             }
     #ifdef WOLFSSL_EARLY_DATA
