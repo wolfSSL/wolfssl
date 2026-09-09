@@ -631,7 +631,7 @@ algorithms, so ML-KEM and ML-DSA stay on the CPU.
 RW612 and related parts, through the crypto callback interface. The ELS
 peripheral serves SHA-256, SHA-384, SHA-512, AES (ECB/CBC/CTR), AES-GCM,
 CMAC, the DRBG, and ECDSA on P-256 for a key that names a slot; the PKC
-coprocessor serves RSA.
+coprocessor serves RSA and X25519.
 NXP rates the ELS DRBG at 128 bits of security strength, which caps
 wolfCrypt's Hash-DRBG at 128 bits where it supplies the seed.
 
