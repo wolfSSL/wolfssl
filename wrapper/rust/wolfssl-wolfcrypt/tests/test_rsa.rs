@@ -2,17 +2,29 @@
 
 mod common;
 
-#[cfg(any(all(sha256, random, rsa_pss), random, rsa_direct))]
+/* Every test below other than test_rsa_generate() loads a key from a file and
+ * runs a private key operation, both of which the RSA "only" build options
+ * take away. */
+#[cfg(any(all(random, rsa_private, rsa_sign),
+          all(sha256, random, rsa_oaep, rsa_private),
+          all(rsa_direct, rsa_private)))]
 use std::fs;
-#[cfg(random)]
+#[cfg(any(all(random, rsa_private, rsa_sign),
+          all(sha256, random, rsa_oaep, rsa_private)))]
 use std::rc::Rc;
-#[cfg(random)]
+#[cfg(any(rsa_keygen,
+          all(random, rsa_private, rsa_sign),
+          all(sha256, random, rsa_oaep, rsa_private),
+          all(rsa_direct, rsa_private)))]
 use wolfssl_wolfcrypt::random::RNG;
-#[cfg(any(random, rsa_direct, rsa_keygen))]
+#[cfg(any(rsa_keygen,
+          all(random, rsa_private, rsa_sign),
+          all(sha256, random, rsa_oaep, rsa_private),
+          all(rsa_direct, rsa_private)))]
 use wolfssl_wolfcrypt::rsa::*;
 
 #[test]
-#[cfg(rsa_keygen)]
+#[cfg(all(random, rsa_keygen, rsa_sign))]
 fn test_rsa_generate() {
     common::setup();
 
@@ -58,7 +70,7 @@ fn test_rsa_generate() {
 }
 
 #[test]
-#[cfg(random)]
+#[cfg(all(random, rsa_private, rsa_sign))]
 fn test_rsa_encrypt_decrypt() {
     let rng = Rc::new(RNG::new().expect("Error creating RNG"));
     let key_path = "../../../certs/client-keyPub.der";
@@ -81,7 +93,7 @@ fn test_rsa_encrypt_decrypt() {
 }
 
 #[test]
-#[cfg(all(sha256, random, rsa_pss))]
+#[cfg(all(sha256, random, rsa_pss, rsa_private, rsa_sign))]
 fn test_rsa_pss() {
     let rng = Rc::new(RNG::new().expect("Error creating RNG"));
 
@@ -108,7 +120,7 @@ fn test_rsa_pss() {
 }
 
 #[test]
-#[cfg(rsa_direct)]
+#[cfg(all(random, rsa_direct, rsa_private))]
 fn test_rsa_direct() {
     let rng = RNG::new().expect("Error creating RNG");
 
@@ -128,7 +140,7 @@ fn test_rsa_direct() {
 }
 
 #[test]
-#[cfg(all(sha256, random, rsa_oaep))]
+#[cfg(all(sha256, random, rsa_oaep, rsa_private))]
 fn test_rsa_oaep() {
     common::setup();
 
@@ -159,7 +171,7 @@ fn test_rsa_oaep() {
 }
 
 #[test]
-#[cfg(all(sha256, random, rsa_oaep))]
+#[cfg(all(sha256, random, rsa_oaep, rsa_private))]
 fn test_rsa_oaep_with_label() {
     common::setup();
 
@@ -192,7 +204,7 @@ fn test_rsa_oaep_with_label() {
 }
 
 #[test]
-#[cfg(random)]
+#[cfg(all(random, rsa_private, rsa_sign, rsa_ssl_verify))]
 fn test_rsa_ssl() {
     let rng = Rc::new(RNG::new().expect("Error creating RNG"));
 
