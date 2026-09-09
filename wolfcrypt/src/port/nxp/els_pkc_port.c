@@ -3242,6 +3242,17 @@ static int ElsPkcEccVerify(const byte* sigDer, word32 sigLen,
 #define ELS_KS_KEY_128_SZ 16u
 #define ELS_KS_KEY_256_SZ 32u
 
+/* NXP_DIE_INT_MK_SK, the die unique key the ROM leaves in slots 0 and 1. */
+#define ELS_DIE_INT_MK_SLOT 0
+#define ELS_DIE_INT_MK_PROPS (MCUXCLELS_KEYPROPERTY_VALUE_ACTIVE | \
+                              MCUXCLELS_KEYPROPERTY_VALUE_CKDF | \
+                              MCUXCLELS_KEYPROPERTY_VALUE_DUK)
+
+/* SP800-108 derivation data for NXP_DIE_KEK_SK, published by NXP. */
+static const byte elsDieKekDeriv[ELS_KS_DERIV_SZ] = {
+    0x94, 0xbe, 0x03, 0xac, 0x8b, 0x59, 0x32, 0x45, 0x11, 0x7f, 0xf8, 0x3f
+};
+
 /* Map a stored key's ELS properties onto the facility's vocabulary. */
 static word32 ElsKsTypeFromProp(const mcuxClEls_KeyProp_t* prop)
 {
@@ -3704,7 +3715,8 @@ static int ElsKsDerive(wc_CryptoInfo* info)
     }
     if (ret == 0 && target.keyClass == WC_ELSPKC_KEY_KWK &&
         !(info->keystore.op.derive.attrs & WC_KEYSTORE_ATTR_UNWRAP_ONLY) &&
-        (srcProp.word.value & MCUXCLELS_KEYPROPERTY_VALUE_DUK) == 0) {
+        (src.slot != ELS_DIE_INT_MK_SLOT ||
+         (srcProp.word.value & MCUXCLELS_KEYPROPERTY_VALUE_DUK) == 0)) {
         /* A key that can wrap may only descend from the die unique key; from
          * any other parent the engine trips the tamper controller. */
         ret = WC_NO_ERR_TRACE(BAD_STATE_E);
@@ -3737,6 +3749,60 @@ static int ElsKsDerive(wc_CryptoInfo* info)
     }
 
     ElsUnlock();
+
+    return ret;
+}
+
+int wc_ElsPkc_DeriveDieKek(wc_ElsPkc_KeyRef* ref)
+{
+    mcuxClEls_KeyProp_t prop, src;
+    int ret;
+
+    if (ref == NULL) {
+        return WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+    }
+
+    ret = wc_ElsPkc_ReserveSlot(WC_ELSPKC_KEY_KWK, ELS_KS_KEY_256_SZ, ref);
+
+    if (ret == 0) {
+        ret = ElsLock();
+    }
+    if (ret != 0) {
+        /* ReserveSlot has already filled ref, so scrub it rather than return
+         * a well-formed reference to a slot nothing was derived into. */
+        XMEMSET(ref, 0, sizeof(*ref));
+        return ret;
+    }
+
+    /* ReserveSlot dropped the lock, so the pair may have been taken since. */
+    ret = ElsSlotPairFree(ref->slot);
+
+    /* The ROM's recipe exactly; the engine refuses properties the parent
+     * cannot confer. */
+    if (ret == 0) {
+        ret = ElsKsProps(ELS_DIE_INT_MK_SLOT, &src);
+    }
+    /* Deriving from an unfit parent resets the SoC instead of failing. */
+    if (ret == 0 &&
+        (src.word.value & ELS_DIE_INT_MK_PROPS) != ELS_DIE_INT_MK_PROPS) {
+        ret = WC_NO_ERR_TRACE(BAD_STATE_E);
+    }
+    if (ret == 0) {
+        prop.word.value = 0u;
+        prop.bits.upprot_priv = src.bits.upprot_priv;
+        prop.bits.upprot_sec  = src.bits.upprot_sec;
+        prop.bits.ksize       = MCUXCLELS_KEYPROPERTY_KEY_SIZE_256;
+        prop.word.value |= MCUXCLELS_KEYPROPERTY_VALUE_KWK;
+
+        ret = ElsKsDeriveRun(ELS_DIE_INT_MK_SLOT, ref->slot, prop,
+                             elsDieKekDeriv);
+    }
+
+    ElsUnlock();
+
+    if (ret != 0) {
+        XMEMSET(ref, 0, sizeof(*ref));
+    }
 
     return ret;
 }
