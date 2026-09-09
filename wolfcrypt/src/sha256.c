@@ -2400,6 +2400,7 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
                               WC_SHA256_DIGEST_SIZE);
         }
         XMEMCPY(hash, digest, WC_SHA256_DIGEST_SIZE);
+        ForceZero(digest, sizeof(digest));
     #else
         XMEMCPY(hash, sha256->digest, WC_SHA256_DIGEST_SIZE);
     #endif
@@ -2478,13 +2479,16 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         #endif
         {
             byte buffer[WC_SHA256_BLOCK_SIZE];
+            int tret;
             ByteReverseWords((word32*)buffer, (word32*)data,
                 WC_SHA256_BLOCK_SIZE);
         #ifdef __aarch64__
-            return Transform_Sha256_aarch64(sha256, buffer);
+            tret = Transform_Sha256_aarch64(sha256, buffer);
         #else
-            return Transform_Sha256(sha256, buffer);
+            tret = Transform_Sha256(sha256, buffer);
         #endif
+            ForceZero(buffer, sizeof(buffer));
+            return tret;
         }
     #else
         return Transform_Sha256(sha256, data);
@@ -3129,8 +3133,10 @@ int wc_Sha224Reset(wc_Sha224* sha224) {
             /* If they want the standard free, they can call it themselves */
             /* via their callback setting devId to INVALID_DEVID */
             /* otherwise assume the callback handled it */
-            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+                ForceZero(sha224, sizeof(*sha224));
                 return;
+            }
             /* fall-through when unavailable */
         }
 
@@ -3206,8 +3212,10 @@ void wc_Sha256Free(wc_Sha256* sha256)
         /* If they want the standard free, they can call it themselves */
         /* via their callback setting devId to INVALID_DEVID */
         /* otherwise assume the callback handled it */
-        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            ForceZero(sha256, sizeof(*sha256));
             return;
+        }
         /* fall-through when unavailable */
     }
 
@@ -3418,6 +3426,8 @@ int wc_Sha224Reset(wc_Sha224* sha224) {
             wc_Sha224Free(tmpSha224);
         }
 
+        ForceZero(tmpSha224, sizeof(*tmpSha224));
+
         WC_FREE_VAR_EX(tmpSha224, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return ret;
     }
@@ -3565,6 +3575,9 @@ int wc_Sha256GetHash(wc_Sha256* sha256, byte* hash)
         ret = wc_Sha256Final(tmpSha256, hash);
         wc_Sha256Free(tmpSha256);
     }
+
+
+    ForceZero(tmpSha256, sizeof(*tmpSha256));
 
 
     WC_FREE_VAR_EX(tmpSha256, NULL, DYNAMIC_TYPE_TMP_BUFFER);
