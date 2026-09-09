@@ -187,6 +187,24 @@
   limit needs roughly 23.7 million early data records on one connection, so no
   practical caller is affected.
 
+* **Behavioral change (LMS/XMSS reloaded keys hold no public key)**:
+  `wc_LmsKey_Reload()` and `wc_XmssKey_Reload()` restore enough private state
+  to sign, but neither populates the key's public half.  The LMS software
+  reload passes `NULL` as `wc_hss_reload_key()`'s `pub_root`, the XMSS
+  software reload reads the secret key only to sanity check it and
+  `ForceZero`s it immediately, and under `WOLF_CRYPTO_CB` a device-backed
+  reload is a no-op that touches nothing.  The key nevertheless reached
+  `WC_LMS_STATE_OK` / `WC_XMSS_STATE_OK`, so `wc_LmsKey_ExportPubRaw()`,
+  `wc_XmssKey_ExportPubRaw()`, the `ExportPub` / `ExportPub_ex` and
+  `PublicKeyToDer` wrappers, and both `Verify` functions returned success
+  while handing back, or verifying against, an all-zero public key.  Keys now
+  carry an explicit `pubSet` flag, set only where the public key is really
+  populated - key generation, `ImportPubRaw` and an `ExportPub_ex`
+  destination - and those functions return `BAD_STATE_E` when it is unset.
+  Signing with a reloaded key is unaffected.  Callers that need the public
+  key of a reloaded key must keep the one exported at generation time, or
+  load it into a separate key with `ImportPubRaw`.
+
 ## New Features
 
 * Added Argon2 (RFC 9106) password hashing with all three variants - Argon2d, Argon2i and Argon2id - via `--enable-argon2`. Only version 0x13 is implemented. Provides the one-shot `wc_Argon2()`/`wc_Argon2_ex()` and a reusable context API (`wc_Argon2Init`/`wc_Argon2SetParams`/`wc_Argon2DeriveTag`/`wc_Argon2Free`, plus `wc_Argon2New`/`wc_Argon2Delete` unless `WC_NO_CONSTRUCTORS`) that allocates the memory block array once for applications deriving many tags. `--enable-argon2-threads` fills the segments of a slice in parallel, which does not change the derived tag: the one-shot functions use a thread per lane, and the context API takes a count from `wc_Argon2SetThreads()`. by @SparkiDev
