@@ -2147,9 +2147,423 @@ static int linuxkm_affinity_unlock(void *arg) {
 #endif /* !WOLFSSL_USE_SAVE_VECTOR_REGISTERS */
 }
 
+/* Registry of every kernel-module RNG object needing state-invalidation
+ * coverage: banks (default and tfm-private) and long-lived process-context
+ * RBGC leaves from LKCAPI_INITRNG().  Atomic-born leaves are deliberately
+ * excluded (see linuxkm_InitRng_DefaultRBGC()): the mutex is thereby never
+ * taken from atomic context, so it can sleep, and the daemon's leaf pass
+ * may gather entropy under it. */
+struct linuxkm_rng_object {
+    struct linuxkm_rng_object *prev, *next;
+    int is_bank;
+    union {
+        WC_RNG *rng;
+        struct wc_rng_bank *bank;
+    };
+};
+static DEFINE_MUTEX(wc_linuxkm_rng_registry_mutex);
+static struct linuxkm_rng_object *wc_linuxkm_rng_registry_head;
+/* Generation counter gating the daemon's registered-leaf recovery sweep:
+ * incremented by wc_linuxkm_rng_state_invalidate() before it releases the registry
+ * mutex, snapshotted by the daemon at sweep start, CAS'd from the snapshot
+ * to 0 at completion.  A CAS failure means an invalidation landed since
+ * the snapshot -- the counter stays hot and the next pass re-sweeps.  The
+ * daemon thereby pays one atomic load per iteration instead of a mutexed
+ * list walk. */
+static wolfSSL_Atomic_Int wc_linuxkm_rng_registry_needs_recovery = 0;
+
+static void wc_linuxkm_rng_registry_link(struct linuxkm_rng_object *obj)
+{
+    mutex_lock(&wc_linuxkm_rng_registry_mutex);
+    obj->prev = NULL;
+    obj->next = wc_linuxkm_rng_registry_head;
+    if (obj->next)
+        obj->next->prev = obj;
+    wc_linuxkm_rng_registry_head = obj;
+    mutex_unlock(&wc_linuxkm_rng_registry_mutex);
+}
+
+static void wc_linuxkm_rng_registry_unlink(struct linuxkm_rng_object *obj)
+{
+    mutex_lock(&wc_linuxkm_rng_registry_mutex);
+    if (obj->prev)
+        obj->prev->next = obj->next;
+    else
+        wc_linuxkm_rng_registry_head = obj->next;
+    if (obj->next)
+        obj->next->prev = obj->prev;
+    mutex_unlock(&wc_linuxkm_rng_registry_mutex);
+}
+
+/* wc_FreeRng() free hook for registered leaves: O(1) unlink (arg is the
+ * registry entry), then free the entry.  Process context by the atomic-born
+ * exclusion rule. */
+static int wc_linuxkm_rng_registry_free_hook(const WC_RNG *rng, void *arg)
+{
+    struct linuxkm_rng_object *obj = (struct linuxkm_rng_object *)arg;
+    (void)rng;
+    wc_linuxkm_rng_registry_unlink(obj);
+    kfree(obj);
+    return 0;
+}
+
+static void wc_linuxkm_rng_registry_add_rng(WC_RNG *rng)
+{
+    struct linuxkm_rng_object *obj = kmalloc(sizeof(*obj), GFP_KERNEL);
+    if (obj == NULL)
+        return; /* best-effort: an unregistered leaf is merely unprotected */
+    obj->is_bank = 0;
+    obj->rng = rng;
+    if (wc_RNG_register_free_hook(rng, wc_linuxkm_rng_registry_free_hook,
+                                  obj) != 0)
+    {
+        kfree(obj);
+        return;
+    }
+    wc_linuxkm_rng_registry_link(obj);
+}
+
+static int wc_linuxkm_rng_registry_bank_free_hook(
+    const struct wc_rng_bank *bank, void *arg)
+{
+    struct linuxkm_rng_object *obj = (struct linuxkm_rng_object *)arg;
+    (void)bank;
+    wc_linuxkm_rng_registry_unlink(obj);
+    kfree(obj);
+    return 0;
+}
+
+static void wc_linuxkm_rng_registry_add_bank(struct wc_rng_bank *bank)
+{
+    struct linuxkm_rng_object *obj = kmalloc(sizeof(*obj), GFP_KERNEL);
+    if (obj == NULL)
+        return; /* best-effort: an unregistered bank is merely unprotected */
+    obj->is_bank = 1;
+    obj->bank = bank;
+    if (wc_rng_bank_register_free_hook(bank,
+            wc_linuxkm_rng_registry_bank_free_hook, obj) != 0)
+    {
+        kfree(obj);
+        return;
+    }
+    wc_linuxkm_rng_registry_link(obj);
+}
+
 #define WC_LINUXKM_ENTROPY_DAEMON_MAGIC 0x6f77666c
 
+/* platform announcement (VM fork/clone, resume from hibernation) that RNG
+ * state assumptions no longer hold: invalidate the daemon's local root
+ * directly (it is unleased by design), invalidate every bank instance,
+ * and wake the daemon -- its loop-head check recovers the root first, and
+ * consumers recover per-instance through the NEEDS_RECOVERY_E protocol
+ * and the daemon's recovery pass. */
+static int wc_linuxkm_rng_state_invalidate(void) {
+    struct linuxkm_rng_object *obj;
+    int ret = 0;
+
+    /* Process context (vmfork notifier / pm notifier); the registry mutex
+     * is sleepable and never taken from atomic context. */
+    mutex_lock(&wc_linuxkm_rng_registry_mutex);
+    for (obj = wc_linuxkm_rng_registry_head; obj != NULL; obj = obj->next) {
+        if (obj->is_bank) {
+            WC_RNG *daemon_root;
+            int this_ret = wc_rng_bank_invalidate_entropy(obj->bank, 0);
+            if ((this_ret != 0) && (ret == 0))
+                ret = this_ret;
 #ifndef WC_LINUXKM_NO_ENTROPY_DAEMON
+            daemon_root = wc_rng_bank_daemon_root_get(obj->bank);
+            if (daemon_root != NULL)
+                (void)wc_RNG_invalidate_entropy(daemon_root);
+            if (WOLFSSL_ATOMIC_LOAD(obj->bank->daemon_magic) ==
+                WC_LINUXKM_ENTROPY_DAEMON_MAGIC)
+            {
+                struct task_struct *t = (struct task_struct *)obj->bank->daemon;
+                if (t != NULL)
+                    wake_up_process(t);
+            }
+            else
+#endif
+            {
+                /* daemon-less bank: recover synchronously -- the
+                 * FOR_RECOVERY claim path in wc_rng_bank_reseed_range()'s
+                 * checkouts claims the quarantined instances. */
+                this_ret = wc_rng_bank_reseed_range(obj->bank, 0, -1,
+                    WC_LINUXKM_INITRNG_TIMEOUT_SEC, WC_RNG_BANK_FLAG_CAN_WAIT);
+                if ((this_ret != 0) && (ret == 0))
+                    ret = this_ret;
+            }
+        }
+        else {
+            (void)wc_RNG_invalidate_entropy(obj->rng);
+        }
+    }
+    (void)wolfSSL_Atomic_Int_FetchAdd(&wc_linuxkm_rng_registry_needs_recovery,
+                                      1);
+    mutex_unlock(&wc_linuxkm_rng_registry_mutex);
+
+    if (ret != 0) {
+        pr_err("ERROR: wc_linuxkm_rng_state_invalidate() walk returned err %d.\n", ret);
+        return -EINVAL;
+    }
+    pr_notice("wolfssl: RNG state invalidated; all instances will recover by credited reseed\n");
+    return 0;
+}
+
+/* Stock-kernel event coverage for the invalidation machinery: the kernel
+ * already broadcasts the two state-duplication events publicly -- VM fork
+ * (vmgenid, via the random_vmfork notifier chain, kernels >= 5.18) and
+ * resume from hibernation (pm notifier) -- so no kernel patch is needed to
+ * receive them.  Both chains are blocking (process context), so the
+ * handler's registry mutex is legal, and both unregister calls return only
+ * after in-flight callbacks complete, so uninstall-before-teardown is
+ * race-free. */
+
+#if IS_ENABLED(CONFIG_VMGENID)
+static int wc_linuxkm_rng_vmfork_notify(struct notifier_block *nb,
+                                        unsigned long action, void *data)
+{
+    int ret;
+    (void)nb;
+    (void)action;
+    (void)data; /* the vmfork chain carries no payload; on kernels with the
+                 * callback patch, the fork id itself reaches the module as
+                 * harvest via the mix_pool_bytes hook. */
+    ret = wc_linuxkm_rng_state_invalidate();
+    if (ret != 0)
+        pr_err("libwolfssl: wc_linuxkm_rng_vmfork_notify: "
+               "wc_linuxkm_rng_state_invalidate failed with code %d.\n", ret);
+    return NOTIFY_OK;
+}
+static struct notifier_block wc_linuxkm_rng_vmfork_nb = {
+    .notifier_call = wc_linuxkm_rng_vmfork_notify
+};
+#endif /* CONFIG_VMGENID */
+
+#ifdef CONFIG_PM_SLEEP
+static int wc_linuxkm_rng_pm_notify(struct notifier_block *nb,
+                                    unsigned long action, void *data)
+{
+    (void)nb;
+    (void)data;
+    /* mirror the native crng's policy: hibernation writes RNG state to
+     * disk (duplication-class); suspend-to-RAM does not. */
+    if ((action == PM_POST_HIBERNATION) || (action == PM_POST_RESTORE)) {
+        int ret = wc_linuxkm_rng_state_invalidate();
+        if (ret != 0)
+            pr_err("libwolfssl: wc_linuxkm_rng_pm_notify for action 0x%lx: "
+                   "wc_linuxkm_rng_state_invalidate failed with code %d.\n", action, ret);
+    }
+    return NOTIFY_OK;
+}
+static struct notifier_block wc_linuxkm_rng_pm_nb = {
+    .notifier_call = wc_linuxkm_rng_pm_notify
+};
+#endif /* CONFIG_PM_SLEEP */
+
+static int wc_linuxkm_rng_notifiers_installed = 0;
+
+static void wc_linuxkm_rng_notifiers_install(void)
+{
+    if (wc_linuxkm_rng_notifiers_installed)
+        return;
+#if IS_ENABLED(CONFIG_VMGENID)
+    if (register_random_vmfork_notifier(&wc_linuxkm_rng_vmfork_nb) != 0)
+        pr_warn("libwolfssl: register_random_vmfork_notifier failed -- "
+                "no VM-fork RNG invalidation coverage.\n");
+#endif
+#ifdef CONFIG_PM_SLEEP
+    if (register_pm_notifier(&wc_linuxkm_rng_pm_nb) != 0)
+        pr_warn("libwolfssl: register_pm_notifier failed -- "
+                "no hibernation RNG invalidation coverage.\n");
+#endif
+    wc_linuxkm_rng_notifiers_installed = 1;
+}
+
+static void wc_linuxkm_rng_notifiers_uninstall(void)
+{
+    if (! wc_linuxkm_rng_notifiers_installed)
+        return;
+#ifdef CONFIG_PM_SLEEP
+    (void)unregister_pm_notifier(&wc_linuxkm_rng_pm_nb);
+#endif
+#if IS_ENABLED(CONFIG_VMGENID)
+    (void)unregister_random_vmfork_notifier(&wc_linuxkm_rng_vmfork_nb);
+#endif
+    wc_linuxkm_rng_notifiers_installed = 0;
+}
+
+static ssize_t wc_linuxkm_rng_state_invalidate_handler(struct kobject *kobj,
+                                            struct kobj_attribute *attr,
+                                            const char *buf, size_t count)
+{
+    int mode = 0;
+    int ret;
+
+    (void)kobj;
+    (void)attr;
+
+    if (kstrtoint(buf, 10, &mode) < 0)
+        return -EINVAL;
+    if (mode == 1) {
+        /* direct local exercise */
+        ret = wc_linuxkm_rng_state_invalidate();
+#ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+        pr_info("wc_linuxkm_rng_state_invalidate_handler: called wc_linuxkm_rng_state_invalidate, retval %d.\n", ret);
+#endif
+        return ret ? -EIO : (ssize_t)count;
+    }
+#if IS_ENABLED(CONFIG_VMGENID)
+    if (mode == 2) {
+        u8 fake_id[16];
+        get_random_bytes(fake_id, sizeof fake_id);  /* any unique blob */
+        add_vmfork_randomness(fake_id, sizeof fake_id);  /* full wire */
+#ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+        pr_info("wc_linuxkm_rng_state_invalidate_handler: called add_vmfork_randomness.\n");
+#endif
+        return (ssize_t)count;
+    }
+#endif /* CONFIG_VMGENID */
+#if IS_ENABLED(CONFIG_PM_SLEEP)
+    if (mode == 3) {
+        /* synthetic PM_POST_HIBERNATION delivered directly to our own pm
+         * callback: exercises the wake-from-hibernation leg from the
+         * notifier boundary inward.  (Injecting into the kernel's pm chain
+         * itself would deliver a fake hibernation event to every
+         * registered subsystem -- not a test, an incident.) */
+        ret = wc_linuxkm_rng_pm_notify(&wc_linuxkm_rng_pm_nb,
+                                       PM_POST_HIBERNATION, NULL);
+#ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+        pr_info("wc_linuxkm_rng_state_invalidate_handler: called wc_linuxkm_rng_pm_notify(PM_POST_HIBERNATION), retval %d.\n", ret);
+#endif
+        return (ret == NOTIFY_OK) ? (ssize_t)count : -EIO;
+    }
+#endif /* CONFIG_PM_SLEEP */
+
+    return -EINVAL;
+}
+
+static struct kobj_attribute wc_linuxkm_rng_state_invalidate_attr =
+    __ATTR(rng_state_invalidate, 0220, NULL, wc_linuxkm_rng_state_invalidate_handler);
+
+#ifndef WC_LINUXKM_NO_ENTROPY_DAEMON
+
+#if defined(WC_LINUXKM_VMGENID_POLL) || \
+    (defined(CONFIG_ACPI) && !IS_ENABLED(CONFIG_VMGENID))
+/* Without CONFIG_VMGENID, we can only detect VM fork events by polling.
+ * Mainline gained vmgenid and the random_vmfork notifier chain together in
+ * kernel 5.18, so on older kernels and kernels with CONFIG_VMGENID configured
+ * off, there is no event to subscribe to -- but the ACPI VM Generation ID
+ * device (Microsoft spec; exposed by QEMU, Hyper-V, VMware) is still present,
+ * and its 16-byte counter changes exactly when the hypervisor
+ * forks/clones/restores the VM.  The daemon polls it each iteration (a 16-byte
+ * compare of a memremap'd page -- effectively free) and, on change, invalidates
+ * all module RNG state and recovers its own root immediately, folding the new
+ * generation id into the credited recovery reseed as nonce.  Detection latency
+ * is bounded by the daemon nap.
+ *
+ * All state is per-daemon, on the daemon's stack: wc_linuxkm_entropy_daemon()
+ * is threadsafe, and concurrent daemons discover, map, and poll
+ * independently.  Redundant detections by multiple daemons are benign:
+ * wc_linuxkm_rng_state_invalidate() is idempotent, and the sweep generation
+ * counter dedups the recovery work.
+ */
+
+#ifndef WC_LINUXKM_VMGENID_POLL
+    #define WC_LINUXKM_VMGENID_POLL
+#endif
+
+struct wc_linuxkm_vmgenid_poll_state {
+    void *map;
+    int state; /* 0 untried, 1 mapped, -1 absent */
+    u8 last[16];
+};
+
+static acpi_status wc_linuxkm_vmgenid_acpi_cb(acpi_handle handle, u32 depth,
+                                              void *context, void **ret)
+{
+    struct wc_linuxkm_vmgenid_poll_state *st =
+        (struct wc_linuxkm_vmgenid_poll_state *)context;
+    struct acpi_buffer buf = { ACPI_ALLOCATE_BUFFER, NULL };
+    union acpi_object *obj;
+    u64 gpa;
+
+    (void)depth;
+
+    if (ACPI_FAILURE(acpi_evaluate_object(handle, (acpi_string)"ADDR", NULL, &buf)))
+        return AE_OK; /* not it -- keep walking */
+    obj = (union acpi_object *)buf.pointer;
+    if ((obj != NULL) && (obj->type == ACPI_TYPE_PACKAGE) &&
+        (obj->package.count == 2) &&
+        (obj->package.elements[0].type == ACPI_TYPE_INTEGER) &&
+        (obj->package.elements[1].type == ACPI_TYPE_INTEGER))
+    {
+        gpa = (obj->package.elements[0].integer.value & 0xffffffffULL) |
+              (obj->package.elements[1].integer.value << 32);
+        if (gpa != 0) {
+            st->map = memremap(gpa, 16, MEMREMAP_WB);
+            if (st->map != NULL) {
+                kfree(buf.pointer);
+                *ret = st->map;
+                return AE_CTRL_TERMINATE;
+            }
+        }
+    }
+    kfree(buf.pointer);
+    return AE_OK;
+}
+
+static void wc_linuxkm_vmgenid_poll(struct wc_linuxkm_vmgenid_poll_state *st,
+                                    WC_RNG *local_root)
+{
+    if (st->state == 0) {
+        /* one-time discovery, in daemon task context.  The device's _CID
+         * is "VM_Gen_Counter" per the Microsoft spec (QEMU adds _HID
+         * "QEMUVGID"); acpi_get_devices() matches against both HID and
+         * CID lists. */
+        void *found = NULL;
+        (void)acpi_get_devices("VM_Gen_Counter", wc_linuxkm_vmgenid_acpi_cb,
+                               st, &found);
+        if (found == NULL)
+            (void)acpi_get_devices("QEMUVGID", wc_linuxkm_vmgenid_acpi_cb,
+                                   st, &found);
+        if (found != NULL) {
+            memcpy(st->last, st->map, 16);
+            st->state = 1;
+            pr_info("libwolfssl: vmgenid ACPI poller active (VM-fork "
+                    "RNG invalidation coverage).\n");
+        }
+        else {
+            st->state = -1; /* bare metal or no device */
+        }
+        return;
+    }
+    if (st->state != 1)
+        return;
+
+    if (memcmp(st->map, st->last, 16) != 0) {
+        memcpy(st->last, st->map, 16);
+        pr_notice("libwolfssl: VM generation change detected by poller.\n");
+        (void)wc_linuxkm_rng_state_invalidate();
+        /* recover our root immediately, folding the new generation id in
+         * as the credited reseed's nonce; the loop-head recovery check
+         * then finds the flag already clear.  (Invalidate-then-reseed
+         * ordering keeps the recovery-entry scrub ahead of the fold.) */
+        if (local_root != NULL)
+            (void)wc_RNG_DRBG_Reseed_Now(local_root, (const byte *)st->last,
+                                         16);
+    }
+}
+
+static void wc_linuxkm_vmgenid_poll_teardown(
+    struct wc_linuxkm_vmgenid_poll_state *st)
+{
+    if (st->map != NULL) {
+        memunmap(st->map);
+        st->map = NULL;
+    }
+    st->state = 0;
+}
+#endif /* CONFIG_ACPI && !CONFIG_VMGENID */
 
 /* Entropy-banking daemon for the default rng bank: cycles the bank's
  * instances, keeping each DRBG's nextSeed aperture full so that
@@ -2228,6 +2642,9 @@ static int wc_linuxkm_entropy_daemon(void *arg)
     struct wc_rng_bank *bank = (struct wc_rng_bank *)arg;
     int i;
     int ret;
+#ifdef WC_LINUXKM_VMGENID_POLL
+    struct wc_linuxkm_vmgenid_poll_state vmgenid_poll_state = {};
+#endif
 
     if (WOLFSSL_ATOMIC_LOAD(bank->daemon_magic) != WC_LINUXKM_ENTROPY_DAEMON_MAGIC)
         return -EINVAL;
@@ -2254,7 +2671,7 @@ static int wc_linuxkm_entropy_daemon(void *arg)
             local_root = NULL;
         }
         else {
-            /* published in the bank's daemon-root slot; retracted before
+            /* published for wc_linuxkm_rng_state_invalidate(); retracted before
              * teardown.  safe: the random_bytes handlers are unregistered
              * (and drained) before the daemon is stopped. */
             (void)wc_rng_bank_daemon_root_set(bank, local_root);
@@ -2287,6 +2704,10 @@ static int wc_linuxkm_entropy_daemon(void *arg)
 
         if (kthread_should_stop())
             break;
+
+#ifdef WC_LINUXKM_VMGENID_POLL
+        wc_linuxkm_vmgenid_poll(&vmgenid_poll_state, local_root);
+#endif
 
 #if defined(WC_RNG_HAVE_LOCK) && \
     (defined(WC_RNG_HAVE_POOL) || defined(WC_RNG_HAVE_NEXT_SEED))
@@ -2405,6 +2826,45 @@ static int wc_linuxkm_entropy_daemon(void *arg)
 
         /* if we're coping with congestion hits, continue here, don't bog down
          * in primary seed ops. */
+#if defined(WC_RNG_HAVE_NEXT_SEED) && defined(WC_RNG_HAVE_RBGC)
+        /* registered-leaf pass: bank RBGC seeds from local_root into
+         * long-lived leaves that are invalidated or chain-backed, so their
+         * next generate recovers/promotes in place
+         * (WC_RNG_INIT_FLAGS_RECOVER_AND_PROMOTE_FROM_NEXT_SEED).
+         * Sleepable-mutex context; entropy gathers are legal under it by
+         * the atomic-born exclusion rule. */
+        if (local_root != NULL) {
+            WC_ATOMIC_INT_ARG needs_recovery_snapshot =
+                WOLFSSL_ATOMIC_LOAD(wc_linuxkm_rng_registry_needs_recovery);
+            if (needs_recovery_snapshot != 0) {
+                struct linuxkm_rng_object *obj;
+                mutex_lock(&wc_linuxkm_rng_registry_mutex);
+                for (obj = wc_linuxkm_rng_registry_head; obj != NULL;
+                     obj = obj->next)
+                {
+                    WC_RNG_lock_arg_t leaf_lock_state;
+                    if (obj->is_bank)
+                        continue;
+                    if (wc_RNG_lock_read(obj->rng, &leaf_lock_state) != 0)
+                        continue;
+                    if ((leaf_lock_state & WC_RNG_LOCK_ENTROPY_INVALIDATED) ||
+                        (wc_RNG_DRBG_GetRBGCStratum(obj->rng) > 0))
+                    {
+                        if (wc_RNG_DRBG_NextSeedGenerate_RBGC(obj->rng,
+                                local_root, WC_DRBG_NEXT_SEED_LEN) == 0)
+                            progress = 1;
+                    }
+                }
+                mutex_unlock(&wc_linuxkm_rng_registry_mutex);
+                /* on failure, an invalidation landed since the snapshot:
+                 * leave the counter hot and re-sweep next pass. */
+                (void)wolfSSL_Atomic_Int_CompareExchange(
+                    &wc_linuxkm_rng_registry_needs_recovery,
+                    &needs_recovery_snapshot, 0);
+            }
+        }
+#endif /* WC_RNG_HAVE_NEXT_SEED && WC_RNG_HAVE_RBGC */
+
         if (congested_progress)
             goto next_pass;
 
@@ -2497,6 +2957,9 @@ static int wc_linuxkm_entropy_daemon(void *arg)
                     s._stats_n_nextuncreditedseed_redeemed);
         }
 #endif /* WC_RNG_DEBUG_STATS */
+#ifdef WC_LINUXKM_VMGENID_POLL
+        wc_linuxkm_vmgenid_poll_teardown(&vmgenid_poll_state);
+#endif
         (void)wc_rng_bank_daemon_root_set(bank, NULL);
         (void)wc_FreeRng(local_root);
         XFREE(local_root, NULL, DYNAMIC_TYPE_RNG);
@@ -2610,6 +3073,9 @@ static int wc_linuxkm_rng_bank_init(struct wc_rng_bank *ctx)
         else
             ret = -EINVAL;
     }
+
+    if (ret == 0)
+        wc_linuxkm_rng_registry_add_bank(ctx);
 
     return ret;
 }
@@ -2832,6 +3298,13 @@ WC_MAYBE_UNUSED static int linuxkm_InitRng_DefaultRBGC(WC_RNG* rng) {
                             "with code %d; falling through to wc_InitRng().\n",
                             ret);
         ret = wc_InitRng(rng);
+    }
+    if (ret == 0) {
+        /* Long-lived process-context leaves join the invalidation registry;
+         * atomic-born leaves are excluded by rule (and are transient by
+         * nature).  Registration is best-effort. */
+        if (can_sleep)
+            wc_linuxkm_rng_registry_add_rng(rng);
     }
     return ret;
 }
@@ -3755,6 +4228,30 @@ static struct wc_rng_bank default_bank;
 static int default_bank_inited;
 #endif
 
+#ifdef WC_RNG_DEBUG_STATS
+/* control channel at /sys/module/libwolfssl/rng_stats: echo 1 to dump the
+ * current RNG stats to the kernel log on demand (they otherwise appear
+ * only at teardown). */
+static ssize_t wc_linuxkm_rng_stats_handler(struct kobject *kobj,
+                                            struct kobj_attribute *attr,
+                                            const char *buf, size_t count)
+{
+    int arg;
+
+    (void)kobj;
+    (void)attr;
+
+    if (kstrtoint(buf, 10, &arg) || (arg != 1))
+        return -EINVAL;
+    if (! default_bank_inited)
+        return -ENODEV;
+    wc_linuxkm_rng_dump_stats(&default_bank);
+    return (ssize_t)count;
+}
+static struct kobj_attribute wc_linuxkm_rng_stats_attr =
+    __ATTR(rng_stats, 0220, NULL, wc_linuxkm_rng_stats_handler);
+#endif /* WC_RNG_DEBUG_STATS */
+
 static int wc_linuxkm_drbg_startup(void)
 {
     int ret;
@@ -3971,6 +4468,10 @@ static int wc_linuxkm_drbg_startup(void)
     pr_info("%s registered as systemwide default stdrng.\n", wc_linuxkm_drbg.base.cra_driver_name);
     pr_info("libwolfssl: to unload module, first echo 1 > /sys/module/libwolfssl/deinstall_algs\n");
 
+    /* stock-notifier invalidation coverage rides with the registered
+     * DRBGs, patched and unpatched kernels alike. */
+    wc_linuxkm_rng_notifiers_install();
+
 #ifdef LINUXKM_DRBG_GET_RANDOM_BYTES
 
     #ifdef WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS
@@ -4063,6 +4564,11 @@ static int wc_linuxkm_drbg_cleanup(void) {
          * way.  It's written to be retryable.
          */
         int ret;
+
+        /* the notifier callbacks walk the RNG registry: uninstall them
+         * before any of what they reference is dismantled.  unregister
+         * returns only after in-flight callbacks complete. */
+        wc_linuxkm_rng_notifiers_uninstall();
 
     #ifdef LINUXKM_DRBG_GET_RANDOM_BYTES
 
