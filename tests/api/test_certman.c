@@ -441,11 +441,9 @@ int test_wolfSSL_CertManagerLoadCABuffer_ex(void)
     ExpectIntEQ(ret, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
 #elif defined(NO_RSA)
     ExpectIntEQ(ret, WC_NO_ERR_TRACE(ASN_UNKNOWN_OID_E));
-#elif !(WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS && \
-        WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY) && !defined(NO_ASN_TIME) && \
-      defined(WOLFSSL_TRUST_PEER_CERT) && defined(OPENSSL_COMPATIBLE_DEFAULTS)
-    ExpectIntEQ(ret, WC_NO_ERR_TRACE(ASN_AFTER_DATE_E));
 #else
+    /* The flag applies to the trusted-peer copy loaded for OpenSSL
+     * compatibility too: no date re-check. */
     ExpectIntEQ(ret, WOLFSSL_SUCCESS);
 #endif
 
