@@ -36,8 +36,16 @@
     #error "WOLFSSL_ELS_PKC key slot references require WOLF_PRIVATE_KEY_ID"
 #endif
 
+/* NO_ASN switches ecc.c to raw R||S, which the ECDSA arms do not handle. */
+#if defined(HAVE_ECC) && defined(NO_ASN)
+    #error "WOLFSSL_ELS_PKC ECC support requires ASN.1"
+#endif
+
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/cryptocb.h>
+#ifdef HAVE_ECC
+    #include <wolfssl/wolfcrypt/ecc.h>
+#endif
 #ifndef NO_AES
     #include <wolfssl/wolfcrypt/aes.h>
 #endif
@@ -65,8 +73,7 @@
  *   4    1     slot
  *   5    1     flags
  *   6    2     reserved, zero
- *   8    8     bind - first 8 bytes of SHA-256 over the X9.62 public point,
- *              zero for symmetric keys
+ *   8    8     bind, reserved and zero; nothing computes or checks it yet
  */
 
 /* Highest slot index a reference may name, mirroring the vendor header's
@@ -95,8 +102,8 @@ enum wc_ElsPkc_KeyClass {
     WC_ELSPKC_KEY_MAX      = WC_ELSPKC_KEY_HKDF
 };
 
-/* bit0 is set when bind[] carries a real value; bits 1-2 are creation-time
- * attributes, meaningful only on a key generation. */
+/* bit0 is reserved and refused; bits 1-2 are creation-time attributes,
+ * meaningful only on a key generation. */
 #define WC_ELSPKC_REF_FLAG_BIND       0x01
 #define WC_ELSPKC_REF_FLAG_EXPORTABLE 0x02  /* ELS wrpok */
 #define WC_ELSPKC_REF_FLAG_PERSISTENT 0x04  /* ELS frtn  */
@@ -114,6 +121,20 @@ WOLFSSL_API int wc_ElsPkc_MakeKeyRef(const wc_ElsPkc_KeyRef* ref, byte* out,
                                      word32* outSz);
 WOLFSSL_API int wc_ElsPkc_ParseKeyRef(const byte* in, word32 inSz,
                                       wc_ElsPkc_KeyRef* ref);
+
+#ifdef HAVE_ECC
+/* Bind key to the slot ref names, the port's devId and P-256. For key
+ * generation the slot is empty until wc_ecc_make_key(). */
+WOLFSSL_API int wc_ElsPkc_EccUseSlot(ecc_key* key, const wc_ElsPkc_KeyRef* ref,
+                                     void* heap, int devId);
+
+#ifdef HAVE_ECC_KEY_IMPORT
+/* Turn the ECC_SEED key seed names into a P-256 pair of keyClass in the
+ * same slots; key then holds the public point. */
+WOLFSSL_API int wc_ElsPkc_EccKeyGenFromSeed(ecc_key* key,
+    const wc_ElsPkc_KeyRef* seed, byte keyClass, void* heap, int devId);
+#endif
+#endif
 
 #ifndef NO_AES
 /* Same for an Aes; keylen stays 0 and the engine takes the size from the
