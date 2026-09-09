@@ -347,13 +347,24 @@ WOLFSSL_API int wc_rng_bank_fini(struct wc_rng_bank *ctx) {
             }
         }
 
+        if (ctx->free_hook != NULL) {
+            /* teardown is committed: fire the free hook (one-shot). */
+            wc_rng_bank_free_hook_cb_t free_hook = ctx->free_hook;
+            ctx->free_hook = NULL;
+            (void)free_hook(ctx, ctx->free_hook_arg);
+            ctx->free_hook_arg = NULL;
+        }
+
         for (i = 0; i < ctx->n_rngs; ++i) {
             /* Lease-taking teardown: wc_FreeRng() on a _LOCK_REQUIRED
              * instance is (correctly) refused without the lease, so take
              * it -- structurally uncontended at refcount zero with the
              * held-check above passed.  The latch dies held in dying
              * memory, per the uncleared-on-free contract. */
-            if (wc_rng_bank_inst_lock_get(&ctx->rngs[i], 0) != 0) {
+            if ((wc_rng_bank_inst_lock_get(&ctx->rngs[i], 0) != 0) &&
+                (wc_rng_bank_inst_lock_get_conditional(&ctx->rngs[i],
+                     WC_RNG_LOCK_ENTROPY_INVALIDATED, 0) != 0))
+            {
                 /* can't happen absent corruption; leak, don't crash. */
 #ifdef WC_VERBOSE_RNG
                 WOLFSSL_DEBUG_PRINTF(
@@ -568,6 +579,11 @@ WOLFSSL_API int wc_rng_bank_checkout(
     int n_rngs_tried = 0;
     int diverted_unusable = 0;
     WC_ATOMIC_INT_ARG new_refcount;
+#ifdef WC_RNG_HAVE_NEXT_SEED
+    WC_ATOMIC_INT_ARG NextSeedCurrent = 0;
+    int recovered_claim = 0;
+#endif
+    int maybe_recovery_claim = 0;
 
 
     if (rng_inst == NULL)
@@ -713,8 +729,56 @@ WOLFSSL_API int wc_rng_bank_checkout(
             }
         }
 
-        if (wc_rng_bank_inst_lock_get(&bank->rngs[preferred_inst_offset],
+#ifdef WC_RNG_HAVE_NEXT_SEED
+        recovered_claim = 0;
+#endif
+        maybe_recovery_claim = 0;
+        if ((wc_rng_bank_inst_lock_get(&bank->rngs[preferred_inst_offset],
                                lock_extra_bits) == 0)
+            ||
+            /* recovery-intent checkouts claim quarantined
+             * (_ENTROPY_INVALIDATED) instances too -- the claimant is about
+             * to recover them; ordinary consumers stay refused... */
+            ((flags & WC_RNG_BANK_FLAG_FOR_RECOVERY) &&
+             (wc_rng_bank_inst_lock_get_conditional(
+                  &bank->rngs[preferred_inst_offset],
+                  WC_RNG_LOCK_ENTROPY_INVALIDATED,
+                  lock_extra_bits) == 0))
+#ifdef WC_RNG_HAVE_NEXT_SEED
+            ||
+            /* ...UNLESS recovery is pure computation: when the quarantined
+             * instance's banked next seed reads READY, any claimant
+             * completes the recovery -- the invalidation purge guarantees
+             * a READY bank is post-event, and a recovered_claim forces the
+             * consume-at-checkout leg below (independent of bank consume
+             * policy), performing the credited reseed from banked material
+             * before the instance is handed out.  Without this admission,
+             * the quarantine stands in front of the only machinery that
+             * can lift it, and no bank instance ever recovers (observed as
+             * system-wide checkout timeouts after a live
+             * state-invalidation event). */
+            ((wc_RNG_DRBG_NextSeedCurrent(
+                  WC_RNG_BANK_INST_TO_RNG(&bank->rngs[preferred_inst_offset]),
+                  &NextSeedCurrent) == 0) &&
+             (NextSeedCurrent == WC_DRBG_NEXT_SEED_READY) &&
+             (wc_rng_bank_inst_lock_get_conditional(
+                  &bank->rngs[preferred_inst_offset],
+                  WC_RNG_LOCK_ENTROPY_INVALIDATED,
+                  lock_extra_bits) == 0) &&
+             ((recovered_claim = 1) != 0))
+#endif /* WC_RNG_HAVE_NEXT_SEED */
+            ||
+            /* last resort, by caller declaration: admit to the quarantined
+             * instance anyway, transferring the recovery obligation to the
+             * caller (checkout will return NEEDS_RECOVERY_E with the lease
+             * held -- see WC_RNG_BANK_FLAG_MAYBE_FOR_RECOVERY). */
+            ((flags & WC_RNG_BANK_FLAG_MAYBE_FOR_RECOVERY) &&
+             (wc_rng_bank_inst_lock_get_conditional(
+                  &bank->rngs[preferred_inst_offset],
+                  WC_RNG_LOCK_ENTROPY_INVALIDATED,
+                  lock_extra_bits) == 0) &&
+             ((maybe_recovery_claim = 1) != 0))
+            )
         {
             int inst_unusable;
             wc_drbg_reseed_ctr_t cur_reseed_ctr = 0;
@@ -722,9 +786,10 @@ WOLFSSL_API int wc_rng_bank_checkout(
             *rng_inst = &bank->rngs[preferred_inst_offset];
 
 #ifdef WC_RNG_HAVE_NEXT_SEED
-            if (((flags | bank->flags) & WC_RNG_BANK_FLAG_CONSUME_NEXT_SEED) &&
-                (! (flags & WC_RNG_BANK_FLAG_FOR_RECOVERY)) &&
-                (! ((flags | bank->flags) & WC_RNG_BANK_FLAG_PREDICTION_RESISTANCE)))
+            if ((recovered_claim != 0) ||
+                (((flags | bank->flags) & WC_RNG_BANK_FLAG_CONSUME_NEXT_SEED) &&
+                 (! (flags & WC_RNG_BANK_FLAG_FOR_RECOVERY)) &&
+                 (! ((flags | bank->flags) & WC_RNG_BANK_FLAG_PREDICTION_RESISTANCE))))
             {
                 /* Consume a ready banked next seed, if any, BEFORE the
                  * usability evaluation below, so that evaluation judges the
@@ -746,8 +811,15 @@ WOLFSSL_API int wc_rng_bank_checkout(
                  *       out under incumbent bare-targeted semantics --
                  *       identically to any other out-of-service instance.
                  */
-                (void)wc_RNG_DRBG_NextSeedNow(
-                    WC_RNG_BANK_INST_TO_RNG(*rng_inst));
+                if (wc_RNG_DRBG_NextSeedNow(
+                        WC_RNG_BANK_INST_TO_RNG(*rng_inst)) == 0)
+                {
+#ifndef WC_RNG_HAVE_LOCK
+                    /* consumption is a credited reseed; mirror the
+                     * in-boundary clear (see wc_rng_bank_reseed_range()). */
+                    (void)wc_rng_bank_inst_lock_clear_invalidated(*rng_inst);
+#endif
+                }
             }
 #endif /* WC_RNG_HAVE_NEXT_SEED */
 
@@ -797,7 +869,12 @@ WOLFSSL_API int wc_rng_bank_checkout(
                    (wc_RNG_DRBG_GetReseedCtr(
                        WC_RNG_BANK_INST_TO_RNG(*rng_inst),
                        &cur_reseed_ctr) == 0) &&
-                   (cur_reseed_ctr >= WC_RESEED_INTERVAL)))))
+                   (cur_reseed_ctr >= WC_RESEED_INTERVAL)
+            #ifdef WC_RNG_HAVE_NEXT_SEED
+                   && (wc_RNG_DRBG_NextSeedCurrent(WC_RNG_BANK_INST_TO_RNG(*rng_inst), &NextSeedCurrent) == 0)
+                   && (NextSeedCurrent != WC_DRBG_NEXT_SEED_READY)
+            #endif
+                      ))))
             {
                 if (inst_unusable)
                     diverted_unusable = 1;
@@ -808,7 +885,8 @@ WOLFSSL_API int wc_rng_bank_checkout(
 #ifdef WC_VERBOSE_RNG
                 if ((! (bank->flags & WC_RNG_BANK_FLAG_QUIET)) &&
                     (! (flags & (WC_RNG_BANK_FLAG_CAN_WAIT |
-                                 WC_RNG_BANK_FLAG_FOR_RECOVERY))) &&
+                                 WC_RNG_BANK_FLAG_FOR_RECOVERY |
+                                 WC_RNG_BANK_FLAG_MAYBE_FOR_RECOVERY))) &&
                     (wc_RNG_DRBG_GetReseedCtr(
                         WC_RNG_BANK_INST_TO_RNG(*rng_inst),
                         &cur_reseed_ctr) == 0) &&
@@ -858,6 +936,44 @@ WOLFSSL_API int wc_rng_bank_checkout(
                     }
                 }
 #endif /* WOLFSSL_USE_SAVE_VECTOR_REGISTERS */
+
+                if (maybe_recovery_claim) {
+                    WC_RNG_lock_arg_t claimed_lock_state = 0;
+                    if ((wc_rng_bank_inst_lock_read(*rng_inst,
+                                                    &claimed_lock_state) == 0)
+                        && (claimed_lock_state &
+                            WC_RNG_LOCK_ENTROPY_INVALIDATED))
+                    {
+#ifdef WC_RNG_HAVE_NEXT_SEED
+                        /* material may have raced in since the admission
+                         * scan: a successful banked consume cures the
+                         * instance and downgrades this to an ordinary
+                         * checkout. */
+                        if (wc_RNG_DRBG_NextSeedNow(
+                                WC_RNG_BANK_INST_TO_RNG(*rng_inst)) != 0)
+#endif
+                        {
+                            /* The robust-mutex (EOWNERDEAD) pattern: an
+                             * error return WITH the acquisition complete
+                             * and persistent.  As with pthread robust
+                             * mutexes, "this resource needs consistency
+                             * recovery" is only safely reportable to a
+                             * caller that already holds it -- reporting
+                             * without the lease races the diagnosis
+                             * against concurrent state changes, and
+                             * leasing without the report invites blind
+                             * use of unrecovered state.  The caller owns
+                             * the lease: recover (credited reseed clears
+                             * the quarantine) or check in.
+                             *
+                             * NOT via out: -- that's the failure path,
+                             * which unwinds refcount and affinity state.
+                             * This return holds everything the success
+                             * return below holds. */
+                            return NEEDS_RECOVERY_E;
+                        }
+                    }
+                }
 
                 return 0; /* Short-circuit return, holding onto bank refcount,
                            * RNG lock, affinity locks, and (if applicable)
@@ -962,6 +1078,16 @@ out:
     }
 
     return ret;
+}
+
+WOLFSSL_API int wc_rng_bank_register_free_hook(struct wc_rng_bank *bank,
+    wc_rng_bank_free_hook_cb_t free_hook, void *arg)
+{
+    if (bank == NULL)
+        return BAD_FUNC_ARG;
+    bank->free_hook = free_hook;
+    bank->free_hook_arg = arg;
+    return 0;
 }
 
 
@@ -1124,6 +1250,7 @@ WOLFSSL_API int wc_rng_bank_checkin(
 #endif
         if (ret == WC_NO_ERR_TRACE(OBJECT_NOT_LOCKED_E))
             return ret;
+        /* else NEEDS_RECOVERY_E -- proceed with check-in. */
     }
 
     *rng_inst = NULL;
@@ -1495,6 +1622,8 @@ static int rng_bank_spawn(
 
     {
         word32 child_init_flags = WC_RNG_INIT_FLAGS_NONE;
+        if (flags & WC_RNG_BANK_FLAG_SPAWN_RECOVER_AND_PROMOTE)
+            child_init_flags |= WC_RNG_INIT_FLAGS_RECOVER_AND_PROMOTE_FROM_NEXT_SEED;
     if (leaf_stack != NULL) {
         ret = wc_InitRngNonceRBGC(leaf_stack,
                                   WC_RNG_BANK_INST_TO_RNG(rng_inst),
@@ -1565,10 +1694,11 @@ WOLFSSL_API int wc_rng_bank_spawn_new(
 #endif /* !WC_NO_CONSTRUCTORS */
 #endif /* WC_RNG_HAVE_RBGC */
 
-WOLFSSL_API int wc_rng_bank_seed(struct wc_rng_bank *bank,
-                                 const byte* seed, word32 seedSz,
-                                 int timeout_secs,
-                                 word32 flags)
+WOLFSSL_API int wc_rng_bank_seed_range(struct wc_rng_bank *bank,
+                                       int first_inst, int last_inst,
+                                       const byte* seed, word32 seedSz,
+                                       int timeout_secs,
+                                       word32 flags)
 {
     int ret = 0;
     int n;
@@ -1585,6 +1715,9 @@ WOLFSSL_API int wc_rng_bank_seed(struct wc_rng_bank *bank,
                  WC_RNG_BANK_FLAG_CONSUME_NEXT_SEED |
                  WC_RNG_BANK_FLAG_FOR_RECOVERY))
         return BAD_FUNC_ARG;
+
+    if (first_inst < 0)
+        return BAD_INDEX_E;
 
     if (bank == NULL) {
 #ifdef WC_RNG_BANK_DEFAULT_SUPPORT
@@ -1609,10 +1742,25 @@ WOLFSSL_API int wc_rng_bank_seed(struct wc_rng_bank *bank,
             return 0;
     }
 
+    if (first_inst >= bank->n_rngs) {
+        ret = BAD_INDEX_E;
+        goto out;
+    }
+    if (last_inst < 0)
+        last_inst = bank->n_rngs - 1;
+    else if (last_inst >= bank->n_rngs) {
+        ret = BAD_INDEX_E;
+        goto out;
+    }
+    else if (last_inst < first_inst) {
+        ret = BAD_INDEX_E;
+        goto out;
+    }
+
     /* This iteration counts down, whereas the iteration in get_drbg() counts
      * up, to assure they can't possibly phase-lock to each other.
      */
-    for (n = bank->n_rngs - 1; n >= 0; --n) {
+    for (n = last_inst; n >= first_inst; --n) {
         struct wc_rng_bank_inst *drbg;
         ret = wc_rng_bank_checkout(bank, &drbg, n, timeout_secs,
                                    flags & ~(word32)
@@ -1666,6 +1814,8 @@ WOLFSSL_API int wc_rng_bank_seed(struct wc_rng_bank *bank,
             break;
     }
 
+out:
+
 #ifdef WC_RNG_BANK_DEFAULT_SUPPORT
     if (bank_is_default)
         (void)wc_rng_bank_default_checkin(&bank);
@@ -1674,9 +1824,19 @@ WOLFSSL_API int wc_rng_bank_seed(struct wc_rng_bank *bank,
     return ret;
 }
 
-WOLFSSL_API int wc_rng_bank_reseed(struct wc_rng_bank *bank,
-                                   int timeout_secs,
-                                   word32 flags)
+WOLFSSL_API int wc_rng_bank_seed(struct wc_rng_bank *bank,
+                                 const byte* seed, word32 seedSz,
+                                 int timeout_secs,
+                                 word32 flags)
+{
+    return wc_rng_bank_seed_range(bank, 0, -1, seed, seedSz, timeout_secs,
+                                  flags);
+}
+
+WOLFSSL_API int wc_rng_bank_reseed_range(struct wc_rng_bank *bank,
+                                         int first_inst, int last_inst,
+                                         int timeout_secs,
+                                         word32 flags)
 {
     int n;
     int ret;
@@ -1699,6 +1859,9 @@ WOLFSSL_API int wc_rng_bank_reseed(struct wc_rng_bank *bank,
                  WC_RNG_BANK_FLAG_FOR_RECOVERY))
         return BAD_FUNC_ARG;
 
+    if (first_inst < 0)
+        return BAD_INDEX_E;
+
     if (bank == NULL) {
 #ifdef WC_RNG_BANK_DEFAULT_SUPPORT
         ret = wc_rng_bank_default_checkout(&bank);
@@ -1714,13 +1877,29 @@ WOLFSSL_API int wc_rng_bank_reseed(struct wc_rng_bank *bank,
             return BAD_STATE_E;
     }
 
+    if (first_inst >= bank->n_rngs) {
+        ret = BAD_INDEX_E;
+        goto out;
+    }
+    if (last_inst < 0)
+        last_inst = bank->n_rngs - 1;
+    else if (last_inst >= bank->n_rngs) {
+        ret = BAD_INDEX_E;
+        goto out;
+    }
+    else if (last_inst < first_inst) {
+        ret = BAD_INDEX_E;
+        goto out;
+    }
+
     if ((timeout_secs > 0) && (flags & WC_RNG_BANK_FLAG_CAN_WAIT))
         ts1 = XTIME(0);
 
-    for (n = bank->n_rngs - 1; n >= 0; --n) {
+    for (n = last_inst; n >= first_inst; --n) {
         struct wc_rng_bank_inst *drbg;
 
-        ret = wc_rng_bank_checkout(bank, &drbg, n, timeout_secs, flags);
+        ret = wc_rng_bank_checkout(bank, &drbg, n, timeout_secs,
+                                   flags | WC_RNG_BANK_FLAG_FOR_RECOVERY);
         if (ret != 0)
             goto out;
 
@@ -1750,8 +1929,14 @@ WOLFSSL_API int wc_rng_bank_reseed(struct wc_rng_bank *bank,
                 time_t ts2;
                 ret = wc_RNG_DRBG_Reseed_Now(WC_RNG_BANK_INST_TO_RNG(drbg),
                                              NULL, 0);
-                if (ret == 0)
+                if (ret == 0) {
+#ifndef WC_RNG_HAVE_LOCK
+                    /* the pre-lock boundary can't see the inst-side latch:
+                     * mirror the in-boundary clear-on-credited-reseed. */
+                    (void)wc_rng_bank_inst_lock_clear_invalidated(drbg);
+#endif
                     break;
+                }
                 if ((timeout_secs == 0) ||
                     (! (flags & WC_RNG_BANK_FLAG_CAN_WAIT)))
                 {
@@ -1762,8 +1947,8 @@ WOLFSSL_API int wc_rng_bank_reseed(struct wc_rng_bank *bank,
                     if (ts2 - ts1 > timeout_secs) {
 #ifdef WC_VERBOSE_RNG
                         WOLFSSL_DEBUG_PRINTF(
-                            "ERROR: timeout after attempted reseed by "
-                            "wc_RNG_GenerateBlock() for DRBG #%d, err %d.", n, ret);
+                            "ERROR: timeout trying wc_RNG_DRBG_Reseed_Now() "
+                            "for DRBG #%d, err %d.", n, ret);
 #endif
                         ret = WC_TIMEOUT_E;
                         break;
@@ -1809,6 +1994,56 @@ WOLFSSL_API int wc_rng_bank_reseed(struct wc_rng_bank *bank,
     ret = 0;
 
 out:
+
+#ifdef WC_RNG_BANK_DEFAULT_SUPPORT
+    if (bank_is_default)
+        (void)wc_rng_bank_default_checkin(&bank);
+#endif
+
+    return ret;
+}
+
+WOLFSSL_API int wc_rng_bank_reseed(struct wc_rng_bank *bank,
+                                   int timeout_secs,
+                                   word32 flags)
+{
+    return wc_rng_bank_reseed_range(bank, 0, -1, timeout_secs, flags);
+}
+
+WOLFSSL_API int wc_rng_bank_invalidate_entropy(struct wc_rng_bank *bank,
+                                               word32 flags)
+{
+    int n;
+    int ret = 0;
+#ifdef WC_RNG_BANK_DEFAULT_SUPPORT
+    int bank_is_default = 0;
+#endif
+
+    if (flags != 0)
+        return BAD_FUNC_ARG;
+
+    if (bank == NULL) {
+#ifdef WC_RNG_BANK_DEFAULT_SUPPORT
+        ret = wc_rng_bank_default_checkout(&bank);
+        if (ret != 0)
+            return ret;
+        bank_is_default = 1;
+#else
+        return BAD_FUNC_ARG;
+#endif
+    }
+    else {
+        if (! (bank->flags & WC_RNG_BANK_FLAG_INITED))
+            return BAD_STATE_E;
+    }
+
+    /* Best-effort-complete: an error on one instance must not leave the
+     * rest un-flagged.  First error wins the return. */
+    for (n = 0; n < bank->n_rngs; n++) {
+        int this_ret = wc_rng_bank_inst_invalidate_entropy(&bank->rngs[n]);
+        if ((this_ret != 0) && (ret == 0))
+            ret = this_ret;
+    }
 
 #ifdef WC_RNG_BANK_DEFAULT_SUPPORT
     if (bank_is_default)
