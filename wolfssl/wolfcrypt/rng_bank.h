@@ -745,7 +745,6 @@ static WC_INLINE WC_MAYBE_UNUSED int wc_rng_bank_inst_lock_clear_extra(struct wc
     return 0;
 }
 
-
 #endif /* !WC_RNG_HAVE_LOCK */
 
 #ifdef WC_RNG_DEBUG_STATS

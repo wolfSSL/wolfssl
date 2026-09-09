@@ -459,6 +459,10 @@ enum wc_RngHealthState {
 #define WC_RNG_FLAG_BANKREF        (1U << 2)
 #define WC_RNG_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED (1U << 3)
 
+#ifdef WC_RNG_WANT_DEBUG_STATS
+    #define WC_RNG_DEBUG_STATS
+#endif
+
 #ifdef WC_RNG_DEBUG_STATS
     #ifdef WORD64_AVAILABLE
         typedef word64 wc_rng_debug_counter_t;
