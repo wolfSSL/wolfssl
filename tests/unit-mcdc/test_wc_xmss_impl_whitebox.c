@@ -1353,7 +1353,7 @@ static void wb_bds_hardening(void)
             wc_xmss_bds_next_idx(&state, &bds[0], sk_seed, pk_seed, addr,
                 rows[i].i, height, &offset, &sp);
 
-            printf("  [wb] bds_next_idx i=%-2u %s -> ret %d\n",
+            printf("  [wb] bds_next_idx i=%-2U %s -> ret %d\n",
                    (unsigned)rows[i].i, rows[i].what, state.ret);
             if (rows[i].expectFail && (state.ret == 0)) {
                 WB_NOTE("FAIL: retain guard did not fire");
