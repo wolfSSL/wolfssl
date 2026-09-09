@@ -4084,6 +4084,7 @@ static const byte qc_statements_cert[] = {
     0x26, 0xbc, 0x54, 0x5d, 0x3f, 0x85, 0xae, 0xb8, 0xb4, 0x88, 0xfe,
 };
 
+#ifndef IGNORE_NAME_CONSTRAINTS
 /* CA certificate whose DER orders Name Constraints before Basic
  * Constraints. RFC 5280 4.2.1.10 allows name constraints in a CA
  * certificate; the encoding order of the two extensions is not
@@ -4169,6 +4170,7 @@ static const byte nc_before_bc_ca_cert[] = {
     0x54,
 };
 
+#ifndef WOLFSSL_NO_ASN_STRICT
 /* Same shape but CA:FALSE: name constraints in a non-CA certificate,
  * which RFC 5280 4.2.1.10 forbids. */
 static const byte nc_before_bc_non_ca_cert[] = {
@@ -4247,6 +4249,8 @@ static const byte nc_before_bc_non_ca_cert[] = {
     0x1b, 0xe6, 0xd4, 0x03, 0x9e, 0x01, 0x67, 0x83, 0x74, 0x80, 0x7c, 0xd6,
     0x84,
 };
+#endif /* !WOLFSSL_NO_ASN_STRICT */
+#endif /* !IGNORE_NAME_CONSTRAINTS */
 
 #endif /* !NO_ASN && !NO_CERTS && !NO_RSA */
 
