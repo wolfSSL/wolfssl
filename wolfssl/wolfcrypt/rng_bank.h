@@ -75,6 +75,16 @@
  * without this flag; the flag makes the intent explicit and
  * interaction-safe. */
 #define WC_RNG_BANK_FLAG_FOR_RECOVERY         (1U << 8)
+/* WC_RNG_BANK_FLAG_MAYBE_FOR_RECOVERY admits the caller to a quarantined
+ * (WC_RNG_LOCK_ENTROPY_INVALIDATED) instance when no cheaper admission
+ * applies, accepting the recovery obligation: wc_rng_bank_checkout() may
+ * then return NEEDS_RECOVERY_E with the checkout otherwise complete --
+ * *rng_inst set, instance lock (and any affinity/vector-inhibit state)
+ * HELD.  The caller owns the lease and must either recover the instance
+ * (a credited reseed, e.g. wc_RNG_DRBG_Reseed_Now(), clears the
+ * quarantine) or check it back in.  Ordinary consumers that cannot
+ * complete a recovery must not pass this flag. */
+#define WC_RNG_BANK_FLAG_MAYBE_FOR_RECOVERY (1U << 9)
 /* WC_RNG_BANK_FLAG_ERROR_ON_RNG_FAILED guarantees that
  * wc_rng_bank_checkout() (and APIs built on it, e.g. wc_rng_bank_spawn())
  * either returns a lease on an in-service instance (status WC_DRBG_OK) or
@@ -88,7 +98,7 @@
  * instances is BAD_STATE_E.  Contradicts, and is rejected with,
  * _FOR_RECOVERY.  Applies to instance status only; reseed-due diversion
  * semantics are unchanged. */
-#define WC_RNG_BANK_FLAG_ERROR_ON_RNG_FAILED  (1U << 9)
+#define WC_RNG_BANK_FLAG_ERROR_ON_RNG_FAILED  (1U << 10)
 /* WC_RNG_BANK_FLAG_QUIET suppresses the facility's WC_VERBOSE_RNG
  * operational warnings -- expected-condition notices such as the
  * reseed-due-instance handout, reinit retry/timeout reports, the
@@ -97,7 +107,7 @@
  * log.  A bank-level flag only, set at wc_rng_bank_init(); it has no
  * per-call meaning and never suppresses refcount/consistency
  * diagnostics. */
-#define WC_RNG_BANK_FLAG_QUIET                (1U << 10)
+#define WC_RNG_BANK_FLAG_QUIET                (1U << 11)
 /* WC_RNG_BANK_FLAG_NO_CHECKOUT_REFCOUNTING (bank-level, set at
  * wc_rng_bank_init()) declares that the bank's lifetime is guaranteed by
  * its container to enclose all checkouts (e.g. a bank embedded in a
@@ -110,23 +120,13 @@
  * Contract: with this flag, a wc_rng_bank_fini() racing live checkouts is
  * a use-after-free instead of BUSY_E -- only containers whose teardown
  * provably quiesces consumers first may set it. */
-#define WC_RNG_BANK_FLAG_NO_CHECKOUT_REFCOUNTING (1U << 11)
-#define WC_RNG_BANK_FLAG_INIT_RBGC   (1U << 12)
-/* WC_RNG_BANK_FLAG_MAYBE_FOR_RECOVERY admits the caller to a quarantined
- * (WC_RNG_LOCK_ENTROPY_INVALIDATED) instance when no cheaper admission
- * applies, accepting the recovery obligation: wc_rng_bank_checkout() may
- * then return NEEDS_RECOVERY_E with the checkout otherwise complete --
- * *rng_inst set, instance lock (and any affinity/vector-inhibit state)
- * HELD.  The caller owns the lease and must either recover the instance
- * (a credited reseed, e.g. wc_RNG_DRBG_Reseed_Now(), clears the
- * quarantine) or check it back in.  Ordinary consumers that cannot
- * complete a recovery must not pass this flag. */
-#define WC_RNG_BANK_FLAG_MAYBE_FOR_RECOVERY (1U << 13)
-#define WC_RNG_BANK_FLAG_DEFAULT_BANK (1U << 13)
-#define WC_RNG_BANK_FLAG_PREDICTION_RESISTANCE (1U << 14)
+#define WC_RNG_BANK_FLAG_NO_CHECKOUT_REFCOUNTING (1U << 12)
+#define WC_RNG_BANK_FLAG_INIT_RBGC   (1U << 13)
+#define WC_RNG_BANK_FLAG_DEFAULT_BANK (1U << 14)
+#define WC_RNG_BANK_FLAG_PREDICTION_RESISTANCE (1U << 15)
 /* wc_rng_bank_spawn[_new]() only: the child is born with
  * WC_RNG_INIT_FLAGS_RECOVER_AND_PROMOTE_FROM_NEXT_SEED. */
-#define WC_RNG_BANK_FLAG_SPAWN_RECOVER_AND_PROMOTE (1U << 15)
+#define WC_RNG_BANK_FLAG_SPAWN_RECOVER_AND_PROMOTE (1U << 16)
 
 /* base lock states are WC_RNG_LOCK_FREE / WC_RNG_LOCK_HELD in random.h;
  * these annotation bits ride above WC_RNG_LOCK_HELD via
