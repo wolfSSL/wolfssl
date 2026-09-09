@@ -216,9 +216,19 @@ int wc_AesGcmEncrypt_silabs (Aes* aes, byte* out, const byte* in, word32 sz,
                             const byte* authIn, word32 authInSz)
 {
     sl_status_t status;
-    if ((in == NULL) || (out == NULL) || (iv == NULL) || (authTag == NULL) ||
+    byte dummy[1] = { 0 };
+
+    if ((iv == NULL) || (authTag == NULL) ||
+            (sz != 0 && (in == NULL || out == NULL)) ||
             (authIn == NULL && authInSz != 0) || (aes == NULL)) {
         return BAD_FUNC_ARG;
+    }
+
+    /* the SE manager wants valid payload addresses even for an empty
+     * message; aliasing in and out is safe because no byte is moved */
+    if (sz == 0) {
+        in = dummy;
+        out = dummy;
     }
 
     status = sl_se_gcm_crypt_and_tag(
@@ -244,9 +254,17 @@ int wc_AesGcmDecrypt_silabs (Aes* aes, byte* out, const byte* in, word32 sz,
                             const byte* authIn, word32 authInSz)
 {
     sl_status_t status;
-    if ((in == NULL) || (out == NULL) || (iv == NULL) || (authTag == NULL) ||
+    byte dummy[1] = { 0 };
+
+    if ((iv == NULL) || (authTag == NULL) ||
+            (sz != 0 && (in == NULL || out == NULL)) ||
             (authIn == NULL && authInSz != 0) || (aes == NULL)) {
         return BAD_FUNC_ARG;
+    }
+
+    if (sz == 0) {
+        in = dummy;
+        out = dummy;
     }
 
     status = sl_se_gcm_auth_decrypt(
@@ -275,10 +293,18 @@ int wc_AesCcmEncrypt_silabs (Aes* aes, byte* out, const byte* in, word32 sz,
                              const byte* authIn, word32 authInSz)
 {
     sl_status_t status;
-    if ((in == NULL) || (out == NULL) || (iv == NULL) || (authTag == NULL) ||
+    byte dummy[1] = { 0 };
+
+    if ((iv == NULL) || (authTag == NULL) ||
+            (sz != 0 && (in == NULL || out == NULL)) ||
             (ivSz < CCM_NONCE_MIN_SZ) || (ivSz > CCM_NONCE_MAX_SZ) ||
             (authIn == NULL && authInSz != 0) || (aes == NULL)) {
         return BAD_FUNC_ARG;
+    }
+
+    if (sz == 0) {
+        in = dummy;
+        out = dummy;
     }
 
     {
@@ -316,10 +342,18 @@ int wc_AesCcmDecrypt_silabs (Aes* aes, byte* out, const byte* in, word32 sz,
                             const byte* authIn, word32 authInSz)
 {
     sl_status_t status;
-    if ((in == NULL) || (out == NULL) || (iv == NULL) || (authTag == NULL) ||
+    byte dummy[1] = { 0 };
+
+    if ((iv == NULL) || (authTag == NULL) ||
+            (sz != 0 && (in == NULL || out == NULL)) ||
             (ivSz < CCM_NONCE_MIN_SZ) || (ivSz > CCM_NONCE_MAX_SZ) ||
             (authIn == NULL && authInSz != 0) || (aes == NULL)) {
         return BAD_FUNC_ARG;
+    }
+
+    if (sz == 0) {
+        in = dummy;
+        out = dummy;
     }
 
     {
