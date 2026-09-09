@@ -261,6 +261,29 @@ int wc_MlDsaKey_MakeKeyFromSeed(wc_MlDsaKey* key, const byte* seed);
 /*!
     \ingroup ML_DSA
 
+    \brief Derives public key for a wc_MlDsaKey with private key set.
+    No-op if already set.
+
+    Software only; fails if devId is set and public key is unset.
+
+    \return 0 on success or already set.
+    \return BAD_FUNC_ARG if invalid args, or the public key is not yet set
+    and key has a devId set.
+    \return MEMORY_E on allocation failure.
+    \return PUBLIC_KEY_E if the derived public key does not match the t0 or
+    tr values stored in the private key.
+    \return Other negative on error.
+
+    \param [in,out] key Pointer to wc_MlDsaKey.
+
+    \sa wc_MlDsaKey_ImportPrivRaw
+    \sa wc_MlDsaKey_MakeKey
+*/
+int wc_MlDsaKey_MakePublicKey(wc_MlDsaKey* key);
+
+/*!
+    \ingroup ML_DSA
+
     \brief Signs a message with ML-DSA using the FIPS 204
     randomized-with-context signing API. Pass ctx=NULL and ctxLen=0
     for an empty context.
