@@ -635,7 +635,10 @@ into a wolfSSL tree.
   supplied through `CONFIG_WOLFSSL_SETTINGS_FILE`, the feature Kconfigs do
   not apply and `WOLFSSL_ELS_PKC` has to be defined in that file instead.
 - **MCUXpresso SDK / autoconf.** `--with-els-pkc=PATH` and
-  `--with-mcux-sdk=PATH`.
+  `--with-mcux-sdk=PATH`. See
+  [IDE/MCUEXPRESSO/RW612](../../../IDE/MCUEXPRESSO/RW612) for the worked
+  setup, the compiler flags that matter, a known-good `user_settings.h`, and
+  the run-time API.
 
 Everything in the port is gated on `WOLFSSL_ELS_PKC`. Without that macro the
 file compiles to an empty translation unit and reaches no vendor header,
