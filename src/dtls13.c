@@ -803,6 +803,18 @@ int Dtls13RtxAddAck(WOLFSSL* ssl, w64wrapper epoch, w64wrapper seq)
     return 0;
 }
 
+/* RFC 9147 Sec 7: only ack a record whose message we processed or buffered.
+ * Acking a dropped message stops the peer retransmitting it and deadlocks. */
+static void Dtls13RtxAddAckForCurRecord(WOLFSSL* ssl)
+{
+    /* Stateless processing must not touch the ssl object. */
+    if (!ssl->options.dtlsStateful)
+        return;
+
+    if (Dtls13RtxAddAck(ssl, ssl->keys.curEpoch64, ssl->keys.curSeq) != 0)
+        WOLFSSL_MSG("can't save ack fragment");
+}
+
 static void Dtls13RtxFlushAcks(WOLFSSL* ssl)
 {
     Dtls13RecordNumber *list, *rn;
@@ -934,8 +946,9 @@ static void Dtls13SaveOrFlushClientHello(WOLFSSL* ssl)
     }
 }
 
+/* implicitAck is set when the flight we send already acks this record. */
 static int Dtls13RtxMsgRecvd(WOLFSSL* ssl, enum HandShakeType hs,
-    word32 fragOffset)
+    word32 fragOffset, byte* implicitAck)
 {
     WOLFSSL_ENTER("Dtls13RtxMsgRecvd");
 
@@ -965,6 +978,10 @@ static int Dtls13RtxMsgRecvd(WOLFSSL* ssl, enum HandShakeType hs,
         /* retransmission detected. */
         ssl->dtls13Rtx.retransmit = 1;
 
+        /* Already processed, so acking is allowed. It stops a peer that
+         * retransmitted because our earlier ack was lost. */
+        Dtls13RtxAddAckForCurRecord(ssl);
+
         /* the other peer may have retransmitted because an ACK for a flight
            that needs explicit ACK was lost.*/
         if (ssl->dtls13Rtx.seenRecords != NULL)
@@ -985,6 +1002,7 @@ static int Dtls13RtxMsgRecvd(WOLFSSL* ssl, enum HandShakeType hs,
            should be rare and simplifies the code. Otherwise, it would be
            necessary to track which record number contained a CertificateRequest
            with a particular context id */
+        *implicitAck = 1;
         Dtls13RtxRemoveCurAck(ssl);
     }
 
@@ -1616,19 +1634,14 @@ int Dtls13ParseUnifiedRecordLayer(WOLFSSL* ssl, const byte* input,
 
 int Dtls13RecordRecvd(WOLFSSL* ssl)
 {
-    int ret;
-
     if (ssl->curRL.type != handshake)
         return 0;
 
     if (!ssl->options.dtls13SendMoreAcks)
         ssl->dtls13FastTimeout = 1;
 
-    ret = Dtls13RtxAddAck(ssl, ssl->keys.curEpoch64, ssl->keys.curSeq);
-    if (ret != 0)
-        WOLFSSL_MSG("can't save ack fragment");
-
-    return ret;
+    /* Acking happens in Dtls13RtxAddAckForCurRecord(). */
+    return 0;
 }
 
 static void Dtls13RtxMoveToEndOfList(WOLFSSL* ssl, Dtls13RtxRecord** prevNext,
@@ -1874,10 +1887,12 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
     byte usingAsyncCrypto;
     word32 messageLength;
     byte handshakeType;
+    byte implicitAck;
     word32 idx;
     int ret;
 
     idx = 0;
+    implicitAck = 0;
     ret = GetDtlsHandShakeHeader(ssl, input, &idx, &handshakeType,
         &messageLength, &fragOff, &fragLength, size);
     if (ret != 0)
@@ -1937,7 +1952,8 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
     if (fragOff + fragLength > messageLength)
         return BUFFER_ERROR;
 
-    ret = Dtls13RtxMsgRecvd(ssl, (enum HandShakeType)handshakeType, fragOff);
+    ret = Dtls13RtxMsgRecvd(ssl, (enum HandShakeType)handshakeType, fragOff,
+        &implicitAck);
     if (ret != 0)
         return ret;
 
@@ -2001,10 +2017,13 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
             ssl->keys.dtls_expected_peer_handshake_number ||
         usingAsyncCrypto) {
         if (ssl->dtls_rx_msg_list_sz < DTLS_POOL_SZ) {
-            DtlsMsgStore(ssl, (word16)w64GetLow32(ssl->keys.curEpoch64),
-                ssl->keys.dtls_peer_handshake_number,
-                input + DTLS_HANDSHAKE_HEADER_SZ, messageLength, handshakeType,
-                fragOff, fragLength, ssl->heap);
+            /* Only ack a fragment we really buffered. */
+            if (DtlsMsgStore(ssl, (word16)w64GetLow32(ssl->keys.curEpoch64),
+                    ssl->keys.dtls_peer_handshake_number,
+                    input + DTLS_HANDSHAKE_HEADER_SZ, messageLength,
+                    handshakeType, fragOff, fragLength, ssl->heap) == 0) {
+                Dtls13RtxAddAckForCurRecord(ssl);
+            }
         }
         else {
             /* DTLS_POOL_SZ outstanding messages is way more than enough for any
@@ -2024,6 +2043,9 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
     *processedSize = idx;
     if (ret != 0)
         return ret;
+
+    if (!implicitAck)
+        Dtls13RtxAddAckForCurRecord(ssl);
 
     Dtls13MsgWasProcessed(ssl, (enum HandShakeType)handshakeType);
 

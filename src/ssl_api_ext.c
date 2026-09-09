@@ -1008,7 +1008,8 @@ static int _Rehandshake(WOLFSSL* ssl)
         ret = SECURE_RENEGOTIATION_E;
     }
     #ifdef WOLFSSL_DTLS
-    else if ((ssl->options.dtls) && (ssl->keys.dtls_epoch == 0xFFFF)) {
+    else if ((ssl->options.dtls) && ((ssl->keys.dtls_epoch == 0xFFFF) ||
+            (ssl->keys.peerSeq[0].nextEpoch == 0xFFFF))) {
         WOLFSSL_MSG("Secure Renegotiation not allowed. Epoch would wrap");
         ret = SECURE_RENEGOTIATION_E;
     }
