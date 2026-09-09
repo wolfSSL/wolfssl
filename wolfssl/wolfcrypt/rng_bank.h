@@ -40,6 +40,11 @@
     #error WC_RNG_BANK_SUPPORT requires RNG support.
 #endif
 
+#ifndef WOLFSSL_NO_ATOMICS
+    #define WC_RNG_BANK_HAVE_DAEMON_SUPPORT
+    #define WC_RNG_BANK_DAEMON_MAGIC_FREE 0U
+#endif
+
 #define WC_RNG_BANK_FLAG_NONE                     0
 #define WC_RNG_BANK_FLAG_INITED               (1U << 0)
 #define WC_RNG_BANK_FLAG_CAN_FAIL_OVER_INST   (1U << 1)
@@ -117,6 +122,7 @@
  * quarantine) or check it back in.  Ordinary consumers that cannot
  * complete a recovery must not pass this flag. */
 #define WC_RNG_BANK_FLAG_MAYBE_FOR_RECOVERY (1U << 13)
+#define WC_RNG_BANK_FLAG_DEFAULT_BANK (1U << 13)
 #define WC_RNG_BANK_FLAG_PREDICTION_RESISTANCE (1U << 14)
 /* wc_rng_bank_spawn[_new]() only: the child is born with
  * WC_RNG_INIT_FLAGS_RECOVER_AND_PROMOTE_FROM_NEXT_SEED. */
@@ -153,6 +159,9 @@ struct wc_rng_bank;
 typedef int (*wc_rng_bank_free_hook_cb_t)(const struct wc_rng_bank *bank,
                                           void *arg);
 
+#define WC_RNG_BANK_INST_FLAG_NONE 0
+#define WC_RNG_BANK_INST_FLAG_ALREADY_WARNED (1U << 0)
+
 struct wc_rng_bank_inst {
     #ifdef WC_RNG_HAVE_LOCK
         /* the exclusivity latch lives in rng.lock (wc_RNG_lock_*()) --
@@ -167,6 +176,7 @@ struct wc_rng_bank_inst {
     #endif
     struct wc_rng_bank *bank;
     WC_RNG rng;
+    volatile word32 flags;
 };
 
 #if defined(WOLFSSL_NO_MALLOC) && defined(NO_WOLFSSL_MEMORY) && \
@@ -206,6 +216,14 @@ struct wc_rng_bank {
     struct wc_rng_bank_inst rngs[WC_RNG_BANK_STATIC_SIZE];
 #else
     struct wc_rng_bank_inst *rngs; /* typically one per CPU ID, plus a few */
+#endif
+#ifdef WC_RNG_BANK_HAVE_DAEMON_SUPPORT
+    wolfSSL_Atomic_Uint daemon_magic;
+    void *daemon; /* e.g. a task_struct* for a wc_linuxkm_entropy_daemon() */
+    /* the daemon's private root DRBG, published for the state-invalidation
+     * handler (see wc_rng_bank_daemon_root_set()); the daemon owns its
+     * lifecycle and clears it before teardown. */
+    WC_RNG *daemon_root;
 #endif
 };
 
@@ -273,6 +291,22 @@ WOLFSSL_API int wc_rng_bank_checkout(
     int timeout_secs,
     word32 flags);
 
+#ifdef WC_RNG_BANK_HAVE_DAEMON_SUPPORT
+/* Note, these APIs must be called in order, _reserve -> _register ->
+ * _unregister -> _release, for lifecycle hygiene.  A registered daemon must be
+ * _unregister()ed, and the bank _release()d, before wc_rng_bank_fini(),
+ * otherwise _fini() will return BUSY_E. */
+WOLFSSL_API int wc_rng_bank_daemon_reserve(struct wc_rng_bank *bank,
+                                           WC_ATOMIC_UINT_ARG magic);
+WOLFSSL_API int wc_rng_bank_daemon_register(struct wc_rng_bank *bank,
+                                            void *daemon,
+                                            WC_ATOMIC_UINT_ARG magic);
+WOLFSSL_API int wc_rng_bank_daemon_unregister(struct wc_rng_bank *bank,
+                                              void **daemon,
+                                              WC_ATOMIC_UINT_ARG magic);
+WOLFSSL_API int wc_rng_bank_daemon_release(struct wc_rng_bank *bank,
+                                           WC_ATOMIC_UINT_ARG magic);
+#endif /* WC_RNG_BANK_HAVE_DAEMON_SUPPORT */
 
 #if defined(WC_DRBG_BANKREF) && !defined(WC_HAVE_RNG_BANKREF)
     /* forward compat for FIPS v5.2.4 random.h */
@@ -286,6 +320,28 @@ WOLFSSL_LOCAL int wc_local_rng_bank_checkout_for_bankref(
 #endif
 
 WOLFSSL_API int wc_rng_bank_get_inst_id(struct wc_rng_bank_inst *rng_inst);
+
+static WC_INLINE int WC_ARG_NOT_NULL(1) wc_rng_bank_inst_flags_up(
+    struct wc_rng_bank_inst *rng_inst, word32 flags)
+{
+    if (! (rng_inst->flags & flags)) {
+        rng_inst->flags = rng_inst->flags | flags;
+        return 1;
+    }
+    else
+        return 0;
+}
+
+static WC_INLINE int WC_ARG_NOT_NULL(1) wc_rng_bank_inst_flags_down(
+    struct wc_rng_bank_inst *rng_inst, word32 flags)
+{
+    if (rng_inst->flags & flags) {
+        rng_inst->flags = rng_inst->flags & ~flags;
+        return 1;
+    }
+    else
+        return 0;
+}
 
 WOLFSSL_API int wc_rng_bank_checkin(
     struct wc_rng_bank *bank,
@@ -406,6 +462,14 @@ WOLFSSL_API int wc_rng_bank_reseed_range(struct wc_rng_bank *bank,
 WOLFSSL_API int wc_rng_bank_invalidate_entropy(struct wc_rng_bank *bank,
                                                word32 flags);
 
+#ifdef WC_RNG_BANK_HAVE_DAEMON_SUPPORT
+/* Publish (or, with NULL, retract) the daemon's private root DRBG for the
+ * state-invalidation handler.  Caller (the daemon) owns the ordering:
+ * publish after successful init, retract before teardown. */
+WOLFSSL_API int wc_rng_bank_daemon_root_set(struct wc_rng_bank *bank,
+                                            WC_RNG *daemon_root);
+WOLFSSL_API WC_RNG *wc_rng_bank_daemon_root_get(struct wc_rng_bank *bank);
+#endif
 
 /* Register a callback fired by wc_rng_bank_fini() once its refcount and
  * leak gates pass -- i.e. once teardown is committed -- e.g. to unlink the

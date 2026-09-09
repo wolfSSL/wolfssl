@@ -451,6 +451,7 @@ WOLFSSL_API int wc_rng_bank_default_set(struct wc_rng_bank *bank) {
         return ret;
     }
     if (wolfSSL_Atomic_Ptr_CompareExchange((void * volatile *)&default_rng_bank, (void **)&cur_default_rng_bank, bank)) {
+        bank->flags |= WC_RNG_BANK_FLAG_DEFAULT_BANK;
         return 0;
     }
     else {
@@ -535,6 +536,7 @@ WOLFSSL_API int wc_rng_bank_default_clear(struct wc_rng_bank *bank) {
     if (wolfSSL_Atomic_Ptr_CompareExchange((void * volatile *)&default_rng_bank, (void **)&bank, NULL)) {
         int ret;
         WC_ATOMIC_INT_ARG new_refcount;
+        bank->flags &= ~WC_RNG_BANK_FLAG_DEFAULT_BANK;
         wolfSSL_RefDec2(&bank->refcount, &new_refcount, &ret);
 #ifdef WC_VERBOSE_RNG
         /* wc_rng_bank_fini() is the sole responsibility of the context that
@@ -1090,6 +1092,120 @@ WOLFSSL_API int wc_rng_bank_register_free_hook(struct wc_rng_bank *bank,
     return 0;
 }
 
+#ifdef WC_RNG_BANK_HAVE_DAEMON_SUPPORT
+
+WOLFSSL_API int wc_rng_bank_daemon_reserve(struct wc_rng_bank *bank, WC_ATOMIC_UINT_ARG magic) {
+    int ret;
+    WC_ATOMIC_INT_ARG new_refcount;
+
+    if ((bank == NULL) || (magic == WC_RNG_BANK_DAEMON_MAGIC_FREE))
+        return BAD_FUNC_ARG;
+
+    if (bank->daemon != NULL)
+        return BUSY_E;
+
+    {
+        WC_ATOMIC_UINT_ARG expected = WC_RNG_BANK_DAEMON_MAGIC_FREE;
+        if (! wolfSSL_Atomic_Uint_CompareExchange(&bank->daemon_magic, &expected,
+                                                 magic))
+            return BUSY_E;
+    }
+
+    wolfSSL_RefInc_IfAtLeast(&bank->refcount, 1, &new_refcount, &ret);
+    if (ret != 0) {
+#ifdef WC_VERBOSE_RNG
+        WOLFSSL_DEBUG_PRINTF(
+            "wc_rng_bank_daemon_reserve() called with refcount %d.\n",
+            new_refcount);
+#endif
+        WOLFSSL_ATOMIC_STORE(bank->daemon_magic, WC_RNG_BANK_DAEMON_MAGIC_FREE);
+        return ret;
+    }
+
+    return 0;
+}
+
+WOLFSSL_API int wc_rng_bank_daemon_register(struct wc_rng_bank *bank, void *daemon, WC_ATOMIC_UINT_ARG magic) {
+    if ((bank == NULL) || (daemon == NULL) || (magic == WC_RNG_BANK_DAEMON_MAGIC_FREE))
+        return BAD_FUNC_ARG;
+
+    if (bank->daemon != NULL)
+        return ALREADY_E;
+
+    if (WOLFSSL_ATOMIC_LOAD(bank->daemon_magic) != magic)
+        return WRONG_TYPE_OBJECT_E;
+
+    bank->daemon = daemon;
+
+    return 0;
+}
+
+WOLFSSL_API int wc_rng_bank_daemon_unregister(struct wc_rng_bank *bank, void **daemon, WC_ATOMIC_UINT_ARG magic) {
+    if ((bank == NULL) || (daemon == NULL) || (magic == WC_RNG_BANK_DAEMON_MAGIC_FREE))
+        return BAD_FUNC_ARG;
+
+    if (WOLFSSL_ATOMIC_LOAD(bank->daemon_magic) != magic)
+        return WRONG_TYPE_OBJECT_E;
+
+    if (bank->daemon == NULL)
+        return ALREADY_E;
+
+    *daemon = bank->daemon;
+    bank->daemon = NULL;
+
+    return 0;
+}
+
+WOLFSSL_API int wc_rng_bank_daemon_release(struct wc_rng_bank *bank, WC_ATOMIC_UINT_ARG magic) {
+    int ret;
+    WC_ATOMIC_INT_ARG new_refcount;
+
+    if ((bank == NULL) || (magic == WC_RNG_BANK_DAEMON_MAGIC_FREE))
+        return BAD_FUNC_ARG;
+
+    if (WOLFSSL_ATOMIC_LOAD(bank->daemon_magic) != magic)
+        return WRONG_TYPE_OBJECT_E;
+
+    if (bank->daemon != NULL)
+        return BUSY_E;
+
+    wolfSSL_RefDec2(&bank->refcount, &new_refcount, &ret);
+#ifdef WC_VERBOSE_RNG
+    /* wc_rng_bank_fini() is the sole responsibility of the context that
+     * called wc_rng_bank_daemon_reserve() for this wc_rng_bank.
+     */
+    if (new_refcount < 1)
+        WOLFSSL_DEBUG_PRINTF(
+        "wc_rng_bank_daemon_release() popped refcount to %d.\n", new_refcount);
+    if (! (bank->flags & WC_RNG_BANK_FLAG_INITED))
+        WOLFSSL_DEBUG_PRINTF(
+            "BUG: wc_rng_bank_daemon_release() bank is already uninited.\n");
+#else
+    (void)new_refcount;
+#endif
+
+    WOLFSSL_ATOMIC_STORE(bank->daemon_magic, WC_RNG_BANK_DAEMON_MAGIC_FREE);
+
+    return 0;
+}
+
+WOLFSSL_API int wc_rng_bank_daemon_root_set(struct wc_rng_bank *bank,
+                                            WC_RNG *daemon_root)
+{
+    if (bank == NULL)
+        return BAD_FUNC_ARG;
+    bank->daemon_root = daemon_root;
+    return 0;
+}
+
+WOLFSSL_API WC_RNG *wc_rng_bank_daemon_root_get(struct wc_rng_bank *bank)
+{
+    if (bank == NULL)
+        return NULL;
+    return bank->daemon_root;
+}
+
+#endif /* WC_RNG_BANK_HAVE_DAEMON_SUPPORT */
 
 #ifdef WC_HAVE_RNG_BANKREF
 /* wc_local_rng_bank_checkout_for_bankref() is the shim to the real WC_RNG when
