@@ -522,6 +522,46 @@ static int AesAuthBounce(const byte* src, word32 sz, void* heap, byte** save,
     return 0;
 }
 
+#ifdef HAVE_AESCCM
+/* Tag for an empty message with no AAD: CBC-MAC over B0 alone, masked with
+ * S0 (RFC 3610 section 2.2). B0 and A0 differ only in the flags byte, and the
+ * length field of each is zero, so A0, already in aes->reg, supplies both. */
+static int AesCcmEmptyTag(Aes* aes, word32 authTagSz, word32* tag)
+{
+    ALIGN16 word32 blocks[2 * (WC_AES_BLOCK_SIZE / sizeof(word32))];
+    ALIGN16 word32 enc[2 * (WC_AES_BLOCK_SIZE / sizeof(word32))];
+    word32 i;
+    int    ret = 0;
+    bool   ok;
+
+    XMEMCPY(blocks, aes->reg, WC_AES_BLOCK_SIZE);
+    XMEMCPY(&blocks[WC_AES_BLOCK_SIZE / sizeof(word32)], aes->reg,
+        WC_AES_BLOCK_SIZE);
+    ((byte*)blocks)[0] |= (byte)((((authTagSz - 2U) / 2U) & 0x7U) << 3);
+
+    wolfSSL_TI_lockCCM();
+    ROM_AESReset(AES_BASE);
+    ROM_AESConfigSet(AES_BASE,
+        (aes->keylen-8) | AES_CFG_DIR_ENCRYPT | AES_CFG_MODE_ECB);
+    ROM_AESKey1Set(AES_BASE, aes->key, (aes->keylen-8));
+    ok = ROM_AESDataProcess(AES_BASE, blocks, enc, sizeof(blocks));
+    wolfSSL_TI_unlockCCM();
+
+    if (ok == false) {
+        ret = WC_HW_E;
+    }
+    else {
+        for (i = 0; i < WC_AES_BLOCK_SIZE / sizeof(word32); i++) {
+            tag[i] = enc[i] ^ enc[i + (WC_AES_BLOCK_SIZE / sizeof(word32))];
+        }
+    }
+
+    ForceZero(enc, sizeof(enc));
+
+    return ret;
+}
+#endif /* HAVE_AESCCM */
+
 static int AesAuthEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
                               const byte* nonce, word32 nonceSz,
                               byte* authTag, word32 authTagSz,
@@ -546,6 +586,15 @@ static int AesAuthEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     AesAuthSetIv(aes, nonce, nonceSz, L, mode);
 
     if (inSz == 0 && authInSz == 0) {
+#ifdef HAVE_AESCCM
+        if (mode == AES_CFG_MODE_CCM) {
+            ret = AesCcmEmptyTag(aes, authTagSz, tmpTag);
+            if (ret == 0) {
+                XMEMCPY(authTag, tmpTag, authTagSz);
+            }
+            return ret;
+        }
+#endif
         /* This is a special case that cannot use the GCM mode because the
          * data and AAD lengths are both zero. The work around is to perform
          * an ECB encryption on IV. */
@@ -658,6 +707,17 @@ static int AesAuthDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     AesAuthSetIv(aes, nonce, nonceSz, L, mode);
 
     if (inSz == 0 && authInSz == 0) {
+#ifdef HAVE_AESCCM
+        if (mode == AES_CFG_MODE_CCM) {
+            ret = AesCcmEmptyTag(aes, authTagSz, tmpTag);
+            if ((ret == 0) &&
+                    (ConstantCompare(authTag, (byte*)tmpTag,
+                        (int)authTagSz) != 0)) {
+                ret = AES_CCM_AUTH_E;
+            }
+            return ret;
+        }
+#endif
         /* This is a special case that cannot use the GCM mode because the
          * data and AAD lengths are both zero. The work around is to perform
          * an ECB encryption on IV. */
