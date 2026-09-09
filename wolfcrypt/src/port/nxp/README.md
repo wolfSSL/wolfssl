@@ -548,7 +548,7 @@ move the crossover down toward small-record sizes.
 
 `els_pkc_port.c` offloads wolfCrypt to the EdgeLock subsystem found on the
 RW612 and related parts, through the crypto callback interface. The ELS
-peripheral serves SHA-256, SHA-384 and SHA-512.
+peripheral serves SHA-256, SHA-384, SHA-512 and AES (ECB/CBC/CTR).
 
 Anything the hardware does not serve is declined with `CRYPTOCB_UNAVAILABLE`
 and completed in software, so an unsupported algorithm or key size costs
@@ -561,15 +561,21 @@ cannot walk away with a confident bad result.
 created without an explicit device still reaches the hardware.
 `WC_NO_DEFAULT_DEVID` turns that off and leaves routing to the caller.
 
+Keys that live in the ELS key store are referenced rather than exported.
+`wc_ElsPkc_AesUseSlot()` attaches a slot reference to an AES key, so the key
+material never leaves the hardware. It is the documented entry point:
+`wc_ElsPkc_MakeKeyRef()` is the lower-level primitive it builds on.
+
 ### Hardware behaviour worth knowing
 
 **A rejected request resets the SoC, by default.** ELS answers an invalid key
 permission or a failed unwrap by signalling the Intrusion and Tamper Response
 Controller, which on its reset-on-tamper default drives a chip reset rather
-than returning an error. The port validates its arguments in software before
-issuing a command, and does not cancel an operation already in flight,
-because `mcuxClEls_Reset_Async(MCUXCLELS_RESET_CANCEL)` is itself a tamper
-event. An integration that has retargeted the ITRC can define
+than returning an error. The port validates every slot reference against the
+hardware in software before issuing a command, and does not cancel an
+operation already in flight, because
+`mcuxClEls_Reset_Async(MCUXCLELS_RESET_CANCEL)` is itself a tamper event. An
+integration that has retargeted the ITRC can define
 `WOLFSSL_ELS_PKC_ALLOW_CANCEL`, and a late completion interrupt then cancels
 and fails the operation instead of degrading to the vendor's synchronous
 wait. Do not probe the hardware with deliberately malformed references.
@@ -595,6 +601,9 @@ the same `wc_Sha256`/`wc_Sha512` fields the software implementation would
 have used, so nothing is allocated, a struct copy duplicates a context
 correctly, and the port needs neither the copy nor the free crypto-callback
 hook.
+
+**What the hardware declines**, so it runs in software instead: AES-192 (no
+ELS key size), and any trailing partial block.
 
 ### Vendor library
 
