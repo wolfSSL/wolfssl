@@ -2694,15 +2694,23 @@ int test_wolfSSL_ocsp_stapling_accessors(void)
         /* Drive the format operands directly. A stapled response carrying a
          * GeneralizedTime rather than a UTCTime is legal, rare, and not
          * something the test responder emits -- so this is the only way the
-         * second half of that decision is ever taken. */
-        cssl->ocspProducedDateFormat = ASN_UTC_TIME;
-        (void)wolfSSL_get_ocsp_producedDate(cssl, when, sizeof(when), &fmt);
-        (void)wolfSSL_get_ocsp_producedDate(cssl, NULL, sizeof(when), &fmt);
-        (void)wolfSSL_get_ocsp_producedDate(cssl, when, sizeof(when), NULL);
-        (void)wolfSSL_get_ocsp_producedDate(cssl, when, 1, &fmt);
-        cssl->ocspProducedDateFormat = ASN_GENERALIZED_TIME;
-        (void)wolfSSL_get_ocsp_producedDate(cssl, when, sizeof(when), &fmt);
-        cssl->ocspProducedDateFormat = 0;
+         * second half of that decision is ever taken.
+         *
+         * Guarded because Expect* records a failure and carries on rather than
+         * returning: if wolfSSL_new() above failed, cssl is NULL here and
+         * these are dereferences of it, which is what the static analyser
+         * reported. Every call that merely PASSES cssl is safe either way --
+         * the API checks it -- so only the direct field writes need this. */
+        if (cssl != NULL) {
+            cssl->ocspProducedDateFormat = ASN_UTC_TIME;
+            (void)wolfSSL_get_ocsp_producedDate(cssl, when, sizeof(when), &fmt);
+            (void)wolfSSL_get_ocsp_producedDate(cssl, NULL, sizeof(when), &fmt);
+            (void)wolfSSL_get_ocsp_producedDate(cssl, when, sizeof(when), NULL);
+            (void)wolfSSL_get_ocsp_producedDate(cssl, when, 1, &fmt);
+            cssl->ocspProducedDateFormat = ASN_GENERALIZED_TIME;
+            (void)wolfSSL_get_ocsp_producedDate(cssl, when, sizeof(when), &fmt);
+            cssl->ocspProducedDateFormat = 0;
+        }
     }
 #endif
 

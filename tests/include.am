@@ -173,6 +173,8 @@ EXTRA_DIST += \
               tests/unit-mcdc/test_internal_certerror_whitebox.c \
               tests/unit-mcdc/test_internal_clienthello_whitebox.c \
               tests/unit-mcdc/test_internal_cryptocb_whitebox.c \
+              tests/unit-mcdc/test_ssl_certman_whitebox.c \
+              tests/unit-mcdc/test_ssl_sess_whitebox.c \
               tests/unit-mcdc/test_internal_dhskehash_whitebox.c \
               tests/unit-mcdc/test_internal_eddsa_whitebox.c \
               tests/unit-mcdc/test_internal_nullguard_whitebox.c \
