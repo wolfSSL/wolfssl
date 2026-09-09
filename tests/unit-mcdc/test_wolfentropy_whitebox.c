@@ -81,7 +81,7 @@
  * those DO come from sha3.o in the archive. Refusing one of them is therefore
  * the reachable equivalent: Entropy_MemUse() -> Entropy_GetNoise() ->
  * Entropy_HealthTest_Startup() propagates it into `ret` before the sample
- * loop at :781 is ever evaluated. mcdc_fault_hash.h does not carry SHA-3 (no
+ * loop at :792 is ever evaluated. mcdc_fault_hash.h does not carry SHA-3 (no
  * white-box has needed it before), so the wrapper is local to this TU.
  *
  * The wrapper is defined BEFORE the macro exists, so it still reaches the
@@ -329,12 +329,12 @@ static void wb_get_loop_early_exit(void)
  *   "for (i = 0; (ret == 0) && (i < ENTROPY_INITIAL_COUNT); i++)"
  * On a healthy host the loop always runs to completion, so idx0 ("ret == 0")
  * only ever shows TRUE and the loop is only ever left through idx1. `ret` is
- * assignable inside the loop (the two health tests at :782-:786), but real
+ * assignable inside the loop (the two health tests at :793-:796), but real
  * MemUse jitter never trips REP_CUTOFF/PROP_CUTOFF, and the noise buffer is
  * filled by the file-static Entropy_GetNoise() which cannot be rigged
  * directly. The reachable lever is the one thing Entropy_GetNoise() depends on
  * from outside this file: refuse the conditioner's SHA3-256 update, so
- * Entropy_MemUse() fails, Entropy_GetNoise() returns that error at :779, and
+ * Entropy_MemUse() fails, Entropy_GetNoise() returns that error at :790, and
  * the loop condition is evaluated once with ret != 0 -- idx0 FALSE, the
  * missing half. The healthy call immediately before it (same binary) supplies
  * (T,T) and, at i == ENTROPY_INITIAL_COUNT, (T,F). */
@@ -392,22 +392,22 @@ static void wb_startup_noise_fail(void)
 
 /* ---- wc_Entropy_Get() mutex-failure vectors ------------------------------ *
  *
- *   881: if ((ret == 0) && (wc_LockMutex(&entropy_mutex) != 0))
- *   893: if ((ret == 0) && ((prop_total == 0) || (!rep_have_prev)))
+ *   893: if ((ret == 0) && (wc_LockMutex(&entropy_mutex) != 0))
+ *   906: if ((ret == 0) && ((prop_total == 0) || (!rep_have_prev)))
  *
- * A live, correctly initialised mutex always locks, so 881 only ever shows
- * (T,F) and 893 only ever shows its idx0 TRUE half. mcdc_fault_mutex.h
+ * A live, correctly initialised mutex always locks, so 893 only ever shows
+ * (T,F) and 906 only ever shows its idx0 TRUE half. mcdc_fault_mutex.h
  * redirects this TU's wc_LockMutex() through a hook; mcdc_fm_lock_once makes
  * the NEXT lock -- and only that one -- refuse:
  *
- *   armed   -> 881 (T,T) -> ret = BAD_MUTEX_E, which then makes 893's idx0
+ *   armed   -> 893 (T,T) -> ret = BAD_MUTEX_E, which then makes 906's idx0
  *              FALSE at the very next decision (same call, same binary)
- *   unarmed -> 881 (T,F) and 893 idx0 TRUE
+ *   unarmed -> 893 (T,F) and 906 idx0 TRUE
  *
  * A refused lock is the one path wc_Entropy_Get() must NOT unlock on, and it
- * doesn't: the tail is guarded on the mutex error code, so no unlock of an
+ * doesn't: the tail is guarded on `locked`, so no unlock of an
  * unheld mutex happens and no global state is touched. The idx0 operand of
- * 881 itself stays a justified residual: outside HAVE_FIPS builds nothing
+ * 893 itself stays a justified residual: outside HAVE_FIPS builds nothing
  * runs between "ret = 0" and this test, so ret is 0 by construction and the
  * operand has no independence pair here.
  * ------------------------------------------------------------------------ */
