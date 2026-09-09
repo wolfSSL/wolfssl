@@ -1630,8 +1630,14 @@ int test_wolfSSL_api_null_burndown(void)
     (void)wolfSSL_pending(ssl);
 
     /* --- cipher and curve name lookups: ssl.c --------------------------- */
+    /* wolfSSL_get_curve_name is compiled only when some key-agreement group
+     * exists to name (src/ssl.c). --disable-ecc with no curve25519/448/DH and
+     * no ML-KEM leaves it declared and undefined. */
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448) || \
+    !defined(NO_DH) || (defined(WOLFSSL_TLS13) && defined(WOLFSSL_HAVE_MLKEM))
     (void)wolfSSL_get_curve_name(NULL);
     (void)wolfSSL_get_curve_name(ssl);
+#endif
     (void)wolfSSL_get_cipher_name(NULL);
     (void)wolfSSL_get_cipher_name(ssl);
     (void)wolfSSL_get_cipher(NULL);

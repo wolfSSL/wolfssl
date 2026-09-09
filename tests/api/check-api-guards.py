@@ -50,6 +50,9 @@ API = {
     'wolfSSL_SNI_GetFromBuffer':     (['NO_TLS', 'NO_WOLFSSL_SERVER'], ['HAVE_SNI']),
     'wolfSSL_UseSupportedCurve':     (['NO_TLS'], ['HAVE_SUPPORTED_CURVES']),
     'wolfSSL_CTX_UseSupportedCurve': (['NO_TLS'], ['HAVE_SUPPORTED_CURVES']),
+    # src/ssl.c, compiled only when some key-agreement group exists to name.
+    # ANY_GROUP below stands for that disjunction.
+    'wolfSSL_get_curve_name':        ([], ['ANY_GROUP']),
     # wolfcrypt/src/memory.c, under USE_WOLFSSL_MEMORY -- which --enable-leantls
     # removes by way of WOLFSSL_LEANPSK
     'wolfSSL_SetAllocators':         ([], ['USE_WOLFSSL_MEMORY']),
@@ -167,6 +170,13 @@ def check(path, only=None):
                         if f'!defined({m})' not in chain and f'ifndef {m}' not in chain]
             miss_on = [m for m in on
                        if f'defined({m})' not in chain and f'ifdef {m}' not in chain]
+            # ANY_GROUP is satisfied by any one of the group macros
+            if 'ANY_GROUP' in miss_on:
+                if any(f'defined({g})' in chain or f'ifdef {g}' in chain
+                       or f'!defined({g})' in chain
+                       for g in ('HAVE_ECC', 'HAVE_CURVE25519', 'HAVE_CURVE448',
+                                 'NO_DH', 'WOLFSSL_HAVE_MLKEM')):
+                    miss_on = [m for m in miss_on if m != 'ANY_GROUP']
             # WOLFSSL_DTLS implies TLS is compiled in, so a DTLS-guarded block
             # never needs !NO_TLS spelled out as well.
             if any(f'defined({m})' in chain or f'ifdef {m}' in chain
