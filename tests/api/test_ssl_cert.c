@@ -3125,22 +3125,24 @@ int test_wolfSSL_load_from_fifo(void)
  * allocator installed would break every test that runs after this one in the
  * same binary, which costs the whole variant.
  * ------------------------------------------------------------------------- */
-/* Not under WOLFSSL_SMALL_STACK, and the reason is now known rather than
- * suspected: DecodeCertInternal indexes RPKdataASN before checking the ret
- * that CALLOC_ASNGETDATA sets, so under that build an allocation failure
- * dereferences NULL while parsing any certificate. A per-index sweep crashes
- * at five allocation indices (7, 30, 51, 68, 90), all at the same
- * instruction, reached through load_verify_locations, use_certificate_file,
- * use_certificate_chain_file and CertManagerVerify. Fixed upstream in
- * PR 11378; drop this exclusion once that merges and the sweep passes on the
- * small-stack variant. A crash here would discard the whole variant. */
+/* This ran everywhere except WOLFSSL_SMALL_STACK for a while, because under
+ * that build DecodeCertInternal indexed RPKdataASN before checking the ret
+ * that CALLOC_ASNGETDATA sets, so failing an allocation dereferenced NULL
+ * while parsing any certificate -- a per-index sweep crashed at five
+ * allocation indices (7, 30, 51, 68, 90), all the same instruction, reached
+ * through load_verify_locations, use_certificate_file,
+ * use_certificate_chain_file and CertManagerVerify. That was reported and
+ * fixed upstream in PR 11378, which is in the tree, so the small-stack
+ * exclusion is gone and the sweep now runs on every variant. A crash here
+ * still costs the whole variant, so it is worth re-checking after any change
+ * to the ASN.1 allocation macros. */
 /* wolfSSL_SetAllocators lives in wolfcrypt/src/memory.c under
  * #ifdef USE_WOLFSSL_MEMORY; without it the symbol is declared and never
  * defined. */
 #if defined(USE_WOLFSSL_MEMORY) && \
     !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY) && \
-    !defined(WOLFSSL_SMALL_STACK) && \
-    !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_FILESYSTEM) && !defined(NO_TLS)
+    !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_TLS)
 
 static int fi_failAt = -1;      /* which allocation to fail; -1 = none */
 static int fi_count;            /* allocations seen since the last reset */
@@ -3291,8 +3293,8 @@ int test_wolfSSL_alloc_failure_sweep(void)
  * defined. */
 #if defined(USE_WOLFSSL_MEMORY) && \
     !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY) && \
-    !defined(WOLFSSL_SMALL_STACK) && \
-    !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_FILESYSTEM) && !defined(NO_TLS)
+    !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_TLS)
     int n;
     int injected = 0;
     int total;
