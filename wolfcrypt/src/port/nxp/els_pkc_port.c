@@ -288,12 +288,19 @@ static int ElsEnable(void)
 /* State lives in the caller's object and the lock is held per call, since
  * TLS 1.3 keeps several transcript hashes open at once. ELS never pads. */
 
-#ifndef NO_SHA256
+#if !defined(NO_SHA256) || defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512)
 
 #define ELS_SHA256_BLOCK MCUXCLELS_HASH_BLOCK_SIZE_SHA_256
 #define ELS_SHA256_STATE MCUXCLELS_HASH_STATE_SIZE_SHA_256
 
-#define ELS_HASH_MAX_BLOCK ELS_SHA256_BLOCK
+/* SHA-384 and SHA-512 share the engine's block and state size, differing in
+ * the mode selector, the digest truncation and a 128-bit length field. */
+#if defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512)
+    #define ELS_HASH_SHA512
+    #define ELS_HASH_MAX_BLOCK MCUXCLELS_HASH_BLOCK_SIZE_SHA_512
+#else
+    #define ELS_HASH_MAX_BLOCK ELS_SHA256_BLOCK
+#endif
 
 /* State uses the object's own digest[] and buffer[], so a struct copy
  * duplicates it and nothing needs freeing. */
@@ -303,9 +310,13 @@ static int ElsEnable(void)
 wc_static_assert(WC_SHA256_DIGEST_SIZE == ELS_SHA256_STATE);
 wc_static_assert(WC_SHA256_BLOCK_SIZE == ELS_SHA256_BLOCK);
 #endif
+#ifdef ELS_HASH_SHA512
+wc_static_assert(WC_SHA512_DIGEST_SIZE == MCUXCLELS_HASH_STATE_SIZE_SHA_512);
+wc_static_assert(WC_SHA512_BLOCK_SIZE == MCUXCLELS_HASH_BLOCK_SIZE_SHA_512);
+#endif
 
 /* The fields above exist only in the software arm of the #ifdef chain in
- * sha256.h; another SHA-2 port replaces them with its own. */
+ * sha256.h and sha512.h; another SHA-2 port replaces them with its own. */
 #if defined(FREESCALE_LTC_SHA) || defined(STM32_HASH_SHA2) || \
     defined(WOLFSSL_SILABS_SE_ACCEL) || defined(WOLFSSL_IMXRT_DCP) || \
     defined(PSOC6_HASH_SHA2) || \
@@ -333,6 +344,22 @@ wc_static_assert(WC_SHA256_BLOCK_SIZE == ELS_SHA256_BLOCK);
 static const word32 elsSha256Iv[8] = {
     0x6a09e667U, 0xbb67ae85U, 0x3c6ef372U, 0xa54ff53aU,
     0x510e527fU, 0x9b05688cU, 0x1f83d9abU, 0x5be0cd19U
+};
+#endif
+#ifdef WOLFSSL_SHA384
+static const word64 elsSha384Iv[8] = {
+    W64LIT(0xcbbb9d5dc1059ed8), W64LIT(0x629a292a367cd507),
+    W64LIT(0x9159015a3070dd17), W64LIT(0x152fecd8f70e5939),
+    W64LIT(0x67332667ffc00b31), W64LIT(0x8eb44a8768581511),
+    W64LIT(0xdb0c2e0d64f98fa7), W64LIT(0x47b5481dbefa4fa4)
+};
+#endif
+#ifdef WOLFSSL_SHA512
+static const word64 elsSha512Iv[8] = {
+    W64LIT(0x6a09e667f3bcc908), W64LIT(0xbb67ae8584caa73b),
+    W64LIT(0x3c6ef372fe94f82b), W64LIT(0xa54ff53a5f1d36f1),
+    W64LIT(0x510e527fade682d1), W64LIT(0x9b05688c2b3e6c1f),
+    W64LIT(0x1f83d9abfb41bd6b), W64LIT(0x5be0cd19137e2179)
 };
 #endif
 
@@ -389,6 +416,31 @@ static void ElsHashBindSha256(ElsHashObj* o, wc_Sha256* sha)
     o->lenSz    = WC_SHA256_BLOCK_SIZE - WC_SHA256_PAD_SIZE;
     o->mode     = MCUXCLELS_HASH_MODE_SHA_256;
     o->wide     = 0;
+}
+#endif
+
+#ifdef ELS_HASH_SHA512
+static void ElsHashBindSha512(ElsHashObj* o, wc_Sha512* sha, byte mode)
+{
+    o->devCtx   = &sha->devCtx;
+    o->state    = (byte*)sha->digest;
+    o->buf      = (byte*)sha->buffer;
+    o->buffered = &sha->buffLen;
+    o->lo       = &sha->loLen;
+    o->hi       = &sha->hiLen;
+#if defined(WOLFSSL_SHA384) && defined(WOLFSSL_SHA512)
+    o->iv       = (mode == MCUXCLELS_HASH_MODE_SHA_384) ? (const void*)elsSha384Iv
+                                                        : (const void*)elsSha512Iv;
+#elif defined(WOLFSSL_SHA384)
+    o->iv       = elsSha384Iv;
+#else
+    o->iv       = elsSha512Iv;
+#endif
+    o->stateSz  = (word32)MCUXCLELS_HASH_STATE_SIZE_SHA_512;
+    o->blockSz  = (word32)MCUXCLELS_HASH_BLOCK_SIZE_SHA_512;
+    o->lenSz    = WC_SHA512_BLOCK_SIZE - WC_SHA512_PAD_SIZE;
+    o->mode     = mode;
+    o->wide     = 1;
 }
 #endif
 
@@ -578,12 +630,12 @@ static int ElsHashFinal(ElsHashObj* o, byte* digest, word32 digestSz)
     return ret;
 }
 
-#endif /* !NO_SHA256 */
+#endif /* !NO_SHA256 || WOLFSSL_SHA384 || WOLFSSL_SHA512 */
 
 int wc_ElsPkc_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
 {
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
-#ifndef NO_SHA256
+#if !defined(NO_SHA256) || defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512)
     ElsHashObj hobj;
 #endif
 
@@ -597,7 +649,7 @@ int wc_ElsPkc_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
     switch (info->algo_type) {
 
 
-#ifndef NO_SHA256
+#if !defined(NO_SHA256) || defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512)
         case WC_ALGO_TYPE_HASH:
             /* update passes (data, len, NULL) and final passes (NULL, 0,
              * digest), never both. */
@@ -618,6 +670,46 @@ int wc_ElsPkc_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
                     }
                     else {
                         /* update of zero bytes with no buffer */
+                        ret = 0;
+                    }
+                    break;
+    #endif
+    #ifdef WOLFSSL_SHA384
+                case WC_HASH_TYPE_SHA384:
+                    if (info->hash.sha384 == NULL) {
+                        break;
+                    }
+                    ElsHashBindSha512(&hobj, info->hash.sha384,
+                                      MCUXCLELS_HASH_MODE_SHA_384);
+                    if (info->hash.digest != NULL) {
+                        ret = ElsHashFinal(&hobj, info->hash.digest,
+                                           WC_SHA384_DIGEST_SIZE);
+                    }
+                    else if (info->hash.in != NULL) {
+                        ret = ElsHashUpdate(&hobj, info->hash.in,
+                                            info->hash.inSz);
+                    }
+                    else {
+                        ret = 0;
+                    }
+                    break;
+    #endif
+    #ifdef WOLFSSL_SHA512
+                case WC_HASH_TYPE_SHA512:
+                    if (info->hash.sha512 == NULL) {
+                        break;
+                    }
+                    ElsHashBindSha512(&hobj, info->hash.sha512,
+                                      MCUXCLELS_HASH_MODE_SHA_512);
+                    if (info->hash.digest != NULL) {
+                        ret = ElsHashFinal(&hobj, info->hash.digest,
+                                           WC_SHA512_DIGEST_SIZE);
+                    }
+                    else if (info->hash.in != NULL) {
+                        ret = ElsHashUpdate(&hobj, info->hash.in,
+                                            info->hash.inSz);
+                    }
+                    else {
                         ret = 0;
                     }
                     break;
