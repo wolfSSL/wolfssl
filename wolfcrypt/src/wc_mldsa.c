@@ -13297,6 +13297,11 @@ int wc_MlDsaKey_CheckKey(wc_MlDsaKey* key)
  * @param [out]     out     Array to hold public key.
  * @param [in, out] outLen  On in, the number of bytes in array.
  *                          On out, the number bytes put into array.
+ *
+ * @note If only the private key is set, this derives and caches the public
+ *       key in `key`. Not safe to call concurrently with any other
+ *       operation on the same `key`.
+ *
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when a parameter is NULL.
  * @return  BUFFER_E when outLen is less than WC_MLDSA_44_PUB_KEY_SIZE.
@@ -13373,6 +13378,11 @@ int wc_MlDsaKey_ExportPubRaw(wc_MlDsaKey* key, byte* out, word32* outLen)
         }
     }
 
+#ifdef WC_MLDSA_HAVE_MAKE_PUBLIC_KEY
+    if ((ret == 0) && (!key->pubKeySet)) {
+        ret = wc_MlDsaKey_MakePublicKey(key);
+    }
+#endif
     /* Check public key available. */
     if ((ret == 0) && (!key->pubKeySet)) {
         ret = BAD_FUNC_ARG;
@@ -14126,7 +14136,7 @@ int wc_MlDsaKey_PrivateKeyDecode(wc_MlDsaKey* key, const byte* input,
 #endif
         else if (pubKeyLen == 0 && privKeyLen != 0)
         {
-            /* No public key data, only import private key data. */
+            /* Import private key only. Public key derived on demand. */
             ret = wc_MlDsaKey_ImportPrivRaw(key, privKey, privKeyLen);
         }
         else {
@@ -14542,6 +14552,32 @@ int wc_MlDsaKey_PublicKeyDecode(wc_MlDsaKey* key, const byte* input,
 
 #ifndef WOLFSSL_MLDSA_NO_ASN1
 
+#if defined(WC_ENABLE_ASYM_KEY_EXPORT) || defined(WOLFSSL_MLDSA_PRIVATE_KEY)
+/* Returns true if a public key is available to encode, or can be derived.
+ * Shared by wc_MlDsaKey_PublicKeyToDer() and wc_MlDsaKey_KeyToDer(). */
+static WC_INLINE int mldsa_have_pub_for_der(const wc_MlDsaKey* key,
+    const byte* output)
+{
+    int havePub = key->pubKeySet;
+#ifdef WC_MLDSA_HAVE_MAKE_PUBLIC_KEY
+    havePub |= (output == NULL) && key->prvKeySet;
+#else
+    (void)output;
+#endif
+    return havePub;
+}
+
+#if defined(WOLFSSL_MLDSA_DYNAMIC_KEYS) || defined(WOLFSSL_MLDSA_ASSIGN_KEY)
+/* Returns key->p if set, else placeholder. Prevents NULL pointer dereference
+ * during size queries. Shared by DER export functions. */
+static WC_INLINE const byte* mldsa_pub_ptr_for_der(const wc_MlDsaKey* key,
+    const byte* placeholder)
+{
+    return (key->p != NULL) ? key->p : placeholder;
+}
+#endif
+#endif /* WC_ENABLE_ASYM_KEY_EXPORT || WOLFSSL_MLDSA_PRIVATE_KEY */
+
 #ifdef WC_ENABLE_ASYM_KEY_EXPORT
 /* Encode the public part of a ML-DSA key in DER.
  *
@@ -14551,6 +14587,11 @@ int wc_MlDsaKey_PublicKeyDecode(wc_MlDsaKey* key, const byte* input,
  * @param [out] output   Buffer to put encoded data in.
  * @param [in]  len      Size of buffer in bytes.
  * @param [in]  withAlg  Whether to use SubjectPublicKeyInfo format.
+ *
+ * @note If only the private key is set, this derives and caches the public
+ *       key in `key`. Not safe to call concurrently with any other
+ *       operation on the same `key`.
+ *
  * @return  Size of encoded data in bytes on success.
  * @return  BAD_FUNC_ARG when key is NULL.
  * @return  MEMORY_E when dynamic memory allocation failed.
@@ -14566,9 +14607,22 @@ int wc_MlDsaKey_PublicKeyToDer(wc_MlDsaKey* key, byte* output, word32 len,
     if (key == NULL) {
         ret = BAD_FUNC_ARG;
     }
-    /* Check we have a public key to encode. */
-    if ((ret == 0) && (!key->pubKeySet)) {
-        ret = BAD_FUNC_ARG;
+#ifdef WC_MLDSA_HAVE_MAKE_PUBLIC_KEY
+    /* Only derive when actually encoding: the size query (output == NULL)
+     * depends solely on key->params, so answering it must not cost a
+     * keygen-priced derivation, nor mutate the key. */
+    if ((ret == 0) && (output != NULL) && (!key->pubKeySet)) {
+        ret = wc_MlDsaKey_MakePublicKey(key);
+    }
+#endif
+    /* Check we have a public key to encode. A size query on a private-only key
+     * is answerable without it - the key derived above is a fixed size for the
+     * level - but a key with no material at all is still rejected, so the
+     * query stays usable as a "does this key have a public part" probe. */
+    if (ret == 0) {
+        if (!mldsa_have_pub_for_der(key, output)) {
+            ret = BAD_FUNC_ARG;
+        }
     }
 
     if (ret == 0) {
@@ -14610,7 +14664,14 @@ int wc_MlDsaKey_PublicKeyToDer(wc_MlDsaKey* key, byte* output, word32 len,
     }
 
     if (ret == 0) {
-        ret = SetAsymKeyDerPublic(key->p, pubKeyLen, output, len, keyType,
+#if defined(WOLFSSL_MLDSA_DYNAMIC_KEYS) || defined(WOLFSSL_MLDSA_ASSIGN_KEY)
+        byte placeholder = 0;
+        const byte* pub = mldsa_pub_ptr_for_der(key, &placeholder);
+#else
+        const byte* pub = key->p;
+#endif
+
+        ret = SetAsymKeyDerPublic(pub, pubKeyLen, output, len, keyType,
             withAlg);
     }
 
@@ -14634,46 +14695,80 @@ int wc_MlDsaKey_PublicKeyToDer(wc_MlDsaKey* key, byte* output, word32 len,
  * @param [in]  key     ML-DSA key object.
  * @param [out] output  Buffer to put encoded data in.
  * @param [in]  len     Size of buffer in bytes.
+ *
+ * @note If only the private key is set, this derives and caches the public
+ *       key in `key`. Not safe to call concurrently with any other
+ *       operation on the same `key`.
+ *
  * @return  Size of encoded data in bytes on success.
  * @return  BAD_FUNC_ARG when key is NULL.
  * @return  MEMORY_E when dynamic memory allocation failed.
  */
 int wc_MlDsaKey_KeyToDer(wc_MlDsaKey* key, byte* output, word32 len)
 {
-    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+    int ret = 0;
 
+    /* Validate key pointer first so the derive guard below is safe. */
+    if (key == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+#ifdef WC_MLDSA_HAVE_MAKE_PUBLIC_KEY
+    /* Only derive when actually encoding: the size query (output == NULL)
+     * depends solely on the level, so answering it must not cost a
+     * keygen-priced derivation, nor mutate the key. Matches
+     * wc_MlDsaKey_PublicKeyToDer(). */
+    if ((ret == 0) && (output != NULL) && key->prvKeySet && !key->pubKeySet) {
+        ret = wc_MlDsaKey_MakePublicKey(key);
+    }
+#endif
     /* Validate parameters and check public and private key set. */
-    if ((key != NULL) && key->prvKeySet && key->pubKeySet) {
-        /* Create DER for level. */
-    #if defined(WOLFSSL_MLDSA_FIPS204_DRAFT)
-        if (key->params == NULL) {
-            ret = BAD_FUNC_ARG;
-        }
-        else if (key->params->level == WC_ML_DSA_44_DRAFT) {
-            ret = SetAsymKeyDer(key->k, WC_MLDSA_44_KEY_SIZE, key->p,
-                WC_MLDSA_44_PUB_KEY_SIZE, output, len, DILITHIUM_LEVEL2k);
-        }
-        else if (key->params->level == WC_ML_DSA_65_DRAFT) {
-            ret = SetAsymKeyDer(key->k, WC_MLDSA_65_KEY_SIZE, key->p,
-                WC_MLDSA_65_PUB_KEY_SIZE, output, len, DILITHIUM_LEVEL3k);
-        }
-        else if (key->params->level == WC_ML_DSA_87_DRAFT) {
-            ret = SetAsymKeyDer(key->k, WC_MLDSA_87_KEY_SIZE, key->p,
-                WC_MLDSA_87_PUB_KEY_SIZE, output, len, DILITHIUM_LEVEL5k);
-        }
-        else
+    if (ret == 0) {
+    #if defined(WOLFSSL_MLDSA_DYNAMIC_KEYS) || defined(WOLFSSL_MLDSA_ASSIGN_KEY)
+        byte placeholder = 0;
+        const byte* pub = mldsa_pub_ptr_for_der(key, &placeholder);
+    #else
+        const byte* pub = key->p;
     #endif
-        if (key->level == WC_ML_DSA_44) {
-            ret = SetAsymKeyDer(key->k, WC_MLDSA_44_KEY_SIZE, key->p,
-                WC_MLDSA_44_PUB_KEY_SIZE, output, len, ML_DSA_44k);
+
+        if (key->prvKeySet && mldsa_have_pub_for_der(key, output)) {
+            /* Create DER for level. */
+        #if defined(WOLFSSL_MLDSA_FIPS204_DRAFT)
+            if (key->params == NULL) {
+                ret = BAD_FUNC_ARG;
+            }
+            else if (key->params->level == WC_ML_DSA_44_DRAFT) {
+                ret = SetAsymKeyDer(key->k, WC_MLDSA_44_KEY_SIZE, pub,
+                    WC_MLDSA_44_PUB_KEY_SIZE, output, len, DILITHIUM_LEVEL2k);
+            }
+            else if (key->params->level == WC_ML_DSA_65_DRAFT) {
+                ret = SetAsymKeyDer(key->k, WC_MLDSA_65_KEY_SIZE, pub,
+                    WC_MLDSA_65_PUB_KEY_SIZE, output, len, DILITHIUM_LEVEL3k);
+            }
+            else if (key->params->level == WC_ML_DSA_87_DRAFT) {
+                ret = SetAsymKeyDer(key->k, WC_MLDSA_87_KEY_SIZE, pub,
+                    WC_MLDSA_87_PUB_KEY_SIZE, output, len, DILITHIUM_LEVEL5k);
+            }
+            else
+        #endif
+            if (key->level == WC_ML_DSA_44) {
+                ret = SetAsymKeyDer(key->k, WC_MLDSA_44_KEY_SIZE, pub,
+                    WC_MLDSA_44_PUB_KEY_SIZE, output, len, ML_DSA_44k);
+            }
+            else if (key->level == WC_ML_DSA_65) {
+                ret = SetAsymKeyDer(key->k, WC_MLDSA_65_KEY_SIZE, pub,
+                    WC_MLDSA_65_PUB_KEY_SIZE, output, len, ML_DSA_65k);
+            }
+            else if (key->level == WC_ML_DSA_87) {
+                ret = SetAsymKeyDer(key->k, WC_MLDSA_87_KEY_SIZE, pub,
+                    WC_MLDSA_87_PUB_KEY_SIZE, output, len, ML_DSA_87k);
+            }
+            else {
+                /* Level not set. */
+                ret = BAD_FUNC_ARG;
+            }
         }
-        else if (key->level == WC_ML_DSA_65) {
-            ret = SetAsymKeyDer(key->k, WC_MLDSA_65_KEY_SIZE, key->p,
-                WC_MLDSA_65_PUB_KEY_SIZE, output, len, ML_DSA_65k);
-        }
-        else if (key->level == WC_ML_DSA_87) {
-            ret = SetAsymKeyDer(key->k, WC_MLDSA_87_KEY_SIZE, key->p,
-                WC_MLDSA_87_PUB_KEY_SIZE, output, len, ML_DSA_87k);
+        else {
+            ret = BAD_FUNC_ARG;
         }
     }
 

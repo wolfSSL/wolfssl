@@ -784,9 +784,15 @@ int wc_MlDsaKey_ImportKey(wc_MlDsaKey* key, const byte* priv, word32 privSz,
     \brief Exports the raw ML-DSA public key. On entry *outLen is the
     size of out; on success it is updated to the bytes written.
 
+    If only the private key is set, the public key is derived and cached
+    in key. Don't share key across threads during this call.
+
     \return 0 on success.
     \return BAD_FUNC_ARG if any required pointer is NULL.
     \return BUFFER_E if *outLen is smaller than the public key size.
+    \return MEMORY_E if deriving the public key fails to allocate.
+    \return PUBLIC_KEY_E if deriving the public key fails to verify
+    against the private key.
 
     \param [in] key Pointer to a wc_MlDsaKey with a public key.
     \param [out] out Buffer that receives the public key.
@@ -846,6 +852,10 @@ int wc_MlDsaKey_ExportKey(wc_MlDsaKey* key, byte* priv, word32 *privSz,
 
     Only available when WOLFSSL_MLDSA_NO_ASN1 is not defined.
 
+    For a private-only encoding the public key is left unset. The export
+    functions derive it on demand, and fail with PUBLIC_KEY_E or MEMORY_E if
+    that derivation does not succeed.
+
     \return 0 on success.
     \return BAD_FUNC_ARG if any required pointer is NULL.
     \return ASN_PARSE_E on malformed encoding.
@@ -858,6 +868,7 @@ int wc_MlDsaKey_ExportKey(wc_MlDsaKey* key, byte* priv, word32 *privSz,
 
     \sa wc_MlDsaKey_PrivateKeyToDer
     \sa wc_MlDsaKey_PublicKeyDecode
+    \sa wc_MlDsaKey_MakePublicKey
 */
 int wc_MlDsaKey_PrivateKeyDecode(wc_MlDsaKey* key, const byte* input,
     word32 inSz, word32* inOutIdx);
@@ -895,11 +906,19 @@ int wc_MlDsaKey_PublicKeyDecode(wc_MlDsaKey* key, const byte* input,
 
     Pass NULL as output to query the required buffer size.
 
+    If only the private key is set and output is non-NULL, the public
+    key is derived and cached in key; don't share key across threads
+    during such a call. A size query (output == NULL) never derives
+    and never mutates key.
+
     \return Size of the encoded DER in bytes on success.
     \return BAD_FUNC_ARG if key is NULL or no parameter set is
     selected.
     \return BUFFER_E if output is non-NULL and inLen is smaller than
     the required size.
+    \return MEMORY_E if deriving the public key fails to allocate.
+    \return PUBLIC_KEY_E if deriving the public key fails to verify
+    against the private key.
 
     \param [in] key Pointer to a wc_MlDsaKey with a public key.
     \param [out] output Buffer that receives the DER encoding, or
@@ -921,11 +940,19 @@ int wc_MlDsaKey_PublicKeyToDer(wc_MlDsaKey* key, byte* output,
     PKCS#8 OneAsymmetricKey structure. Pass NULL as output to query
     the required buffer size.
 
+    If only the private key is set and output is non-NULL, the public
+    key is derived and cached in key; don't share key across threads
+    during such a call. A size query (output == NULL) never derives
+    and never mutates key.
+
     \return Size of the encoded DER in bytes on success.
     \return BAD_FUNC_ARG if key is NULL or no parameter set is
     selected.
     \return MISSING_KEY if the private key has not been set.
     \return BUFFER_E if output is non-NULL and inLen is too small.
+    \return MEMORY_E if deriving the public key fails to allocate.
+    \return PUBLIC_KEY_E if deriving the public key fails to verify
+    against the private key.
 
     \param [in] key Pointer to a wc_MlDsaKey with the private key.
     \param [out] output Buffer that receives the DER encoding, or

@@ -39,7 +39,9 @@ int test_mldsa_der(void);
 int test_mldsa_oneasymkey_version(void);
 int test_mldsa_make_key_from_seed(void);
 int test_mldsa_make_public_key(void);
+int test_mldsa_private_key_export_derives_public_key(void);
 int test_mldsa_verify_pubkeyset_guard(void);
+int test_mldsa_private_key_export_derive_fail(void);
 int test_mldsa_make_public_key_cache_invalidation(void);
 int test_mldsa_make_public_key_tr_mismatch(void);
 int test_mldsa_sig_kats(void);
@@ -87,7 +89,9 @@ int test_mldsa_cb_free(void);
     TEST_DECL_GROUP("mldsa", test_mldsa_oneasymkey_version),                   \
     TEST_DECL_GROUP("mldsa", test_mldsa_make_key_from_seed),                   \
     TEST_DECL_GROUP("mldsa", test_mldsa_make_public_key),                      \
+    TEST_DECL_GROUP("mldsa", test_mldsa_private_key_export_derives_public_key), \
     TEST_DECL_GROUP("mldsa", test_mldsa_verify_pubkeyset_guard),               \
+    TEST_DECL_GROUP("mldsa", test_mldsa_private_key_export_derive_fail),       \
     TEST_DECL_GROUP("mldsa", test_mldsa_make_public_key_cache_invalidation),   \
     TEST_DECL_GROUP("mldsa", test_mldsa_make_public_key_tr_mismatch),          \
     TEST_DECL_GROUP("mldsa", test_mldsa_sig_kats),                             \
