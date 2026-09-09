@@ -45,6 +45,7 @@ int test_ParseCert_tbs_sig_oid_mismatch(void);
 int test_ParseCert_empty_san(void);
 int test_ParseCert_multi_valued_rdn(void);
 int test_ParseCert_critical_qc_statements(void);
+int test_ParseCert_nc_before_basic_constraints(void);
 int test_wc_DecodeObjectId(void);
 int test_ToTraditional_ex_handcrafted(void);
 int test_ToTraditional_ex_roundtrip(void);
@@ -77,6 +78,7 @@ int test_wc_AsnFeatureCoverage(void);
     TEST_DECL_GROUP("asn", test_ParseCert_empty_san),               \
     TEST_DECL_GROUP("asn", test_ParseCert_multi_valued_rdn),        \
     TEST_DECL_GROUP("asn", test_ParseCert_critical_qc_statements),  \
+    TEST_DECL_GROUP("asn", test_ParseCert_nc_before_basic_constraints), \
     TEST_DECL_GROUP("asn", test_wc_DecodeObjectId),                 \
     TEST_DECL_GROUP("asn", test_ToTraditional_ex_handcrafted),      \
     TEST_DECL_GROUP("asn", test_ToTraditional_ex_roundtrip),        \

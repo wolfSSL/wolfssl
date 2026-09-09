@@ -22789,16 +22789,10 @@ WOLFSSL_TEST_VIS int DecodeExtensionType(const byte* input, word32 length,
              defined(WOLFSSL_X509_TINY_NAME_CONSTRAINTS))
         /* Name constraints. */
         case NAME_CONS_OID:
-        #ifndef WOLFSSL_NO_ASN_STRICT
-            /* Verify RFC 5280 Sec 4.2.1.10 rule:
-                "The name constraints extension,
-                which MUST be used only in a CA certificate" */
-            if (!cert->isCA) {
-                WOLFSSL_MSG("Name constraints allowed only for CA certs");
-                WOLFSSL_ERROR_VERBOSE(ASN_NAME_INVALID_E);
-                ret = ASN_NAME_INVALID_E;
-            }
-        #endif
+            /* RFC 5280 Sec 4.2.1.10 requires name constraints only in a CA
+             * certificate. Checked after all extensions are decoded: isCA
+             * comes from basic constraints, which may be encoded after this
+             * extension. */
             VERIFY_AND_SET_OID(cert->extNameConstraintSet);
             cert->extNameConstraintCrit = critical ? 1 : 0;
             if (DecodeNameConstraints(input, length, cert) < 0) {
@@ -23080,6 +23074,16 @@ static int DecodeCertExtensions(DecodedCert* cert)
             ret = 0;
         }
     }
+
+#if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(IGNORE_NAME_CONSTRAINTS)
+    /* RFC 5280 Sec 4.2.1.10: "The name constraints extension, which MUST be
+     * used only in a CA certificate". */
+    if ((ret == 0) && cert->extNameConstraintSet && (!cert->isCA)) {
+        WOLFSSL_MSG("Name constraints allowed only for CA certs");
+        WOLFSSL_ERROR_VERBOSE(ASN_NAME_INVALID_E);
+        ret = ASN_NAME_INVALID_E;
+    }
+#endif
 
     if (ret == 0) {
         /* Use criticality return. */
