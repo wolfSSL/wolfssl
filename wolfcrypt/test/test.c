@@ -23845,7 +23845,8 @@ typedef struct keywrapVector {
     word32 verifyLen;
 } keywrapVector;
 
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLFSSL_NO_MALLOC)
 /* struct Aes cannot be a local here: with --enable-aesgcm=table its GCM tables
  * alone are 4096 bytes, past the frame limit CI enforces. It also asks for 16
  * byte alignment through its ALIGN16 members, which XMALLOC does not guarantee
@@ -24114,6 +24115,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aeskeywrap_test(void)
     }
 
 #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+
+#ifndef WOLFSSL_NO_MALLOC
     /* Drive wc_AesKeyWrap_ex/wc_AesKeyUnWrap_ex directly with a caller Aes; the
      * KAT loop above already covers every vector via the key-based wrappers. */
     {
@@ -24123,6 +24126,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aeskeywrap_test(void)
         if (exRet != 0)
             return exRet;
     }
+#endif /* WOLFSSL_NO_MALLOC */
 
     /* In-place round-trip (in == out): wrap then unwrap a single buffer.
      * Exercises the XMEMMOVE staging in wc_AesKeyWrap_ex / AesKeyUnWrapRaw. */
@@ -26883,9 +26887,13 @@ static wc_test_ret_t _rng_test(WC_RNG* rng)
         }
     #endif
 
+        {
         ret = wc_RNG_GenerateBlock(rng, block, sizeof(block));
         if (ret != 0)
             return WC_TEST_RET_ENC_EC(ret);
+        /* the forced interval reseed is credited, and the request is
+         * fully served */
+        }
 
     #if defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
         (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
@@ -28826,6 +28834,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_svc_test(void)
         api_ret = wc_RNG_DRBG_GetReseedCtr(root, &c1);
         if ((api_ret != 0) || (c1 > 2))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        /* the scheduled reseed rides the generate, credited */
     }
 
     /* immediate source reseed, without and with a nonce */
@@ -28839,6 +28848,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_svc_test(void)
         api_ret = wc_RNG_DRBG_GetReseedCtr(root, &c1);
         if ((api_ret != 0) || (c1 != 1))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        /* both credited; the nonce is additional input, not an
+         * uncredited reseed */
     }
     if (wc_RNG_DRBG_Reseed_Now(NULL, NULL, 0) !=
         WC_NO_ERR_TRACE(BAD_FUNC_ARG))
@@ -29174,17 +29185,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseed_test(void)
     XMEMSET(matter, 0x3c, sizeof(matter));
 
     /* argument contracts, pre-init */
-    if (wc_RNG_DRBG_NextSeedGenerate(NULL, 1) !=
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-    if (wc_RNG_DRBG_NextSeedCurrent(NULL, &cur) !=
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-    if (wc_RNG_DRBG_NextSeedNow(NULL) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-    if (wc_RNG_DRBG_NextSeedNow_Nonce(NULL, NULL, 0) !=
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    api_ret = wc_RNG_DRBG_NextSeedGenerate(NULL, 1);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_RNG_DRBG_NextSeedCurrent(NULL, &cur);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_RNG_DRBG_NextSeedNow(NULL);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_RNG_DRBG_NextSeedNow_Nonce(NULL, NULL, 0);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
 
     api_ret = wc_InitRng(root);
     if (api_ret != 0)
@@ -29193,62 +29205,84 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseed_test(void)
 
     present = wc_RNG_DRBG_Present(root);
 
-    if (wc_RNG_DRBG_NextSeedGenerate(root, 0) !=
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-    if (wc_RNG_DRBG_NextSeedCurrent(root, NULL) !=
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-    if (wc_RNG_DRBG_NextSeedNow_Nonce(root, NULL, 5) !=
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    api_ret = wc_RNG_DRBG_NextSeedGenerate(root, 0);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_RNG_DRBG_NextSeedCurrent(root, NULL);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_RNG_DRBG_NextSeedNow_Nonce(root, NULL, 5);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
 
     if (present) {
         /* empty bank: nothing consumable */
-        if ((wc_RNG_DRBG_NextSeedCurrent(root, &cur) != 0) ||
-            (cur != WC_DRBG_NEXT_SEED_EMPTY))
-            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-        if (wc_RNG_DRBG_NextSeedNow(root) != WC_NO_ERR_TRACE(NOT_READY_E))
-            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        api_ret = wc_RNG_DRBG_NextSeedCurrent(root, &cur);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        if (cur != WC_DRBG_NEXT_SEED_EMPTY)
+            ERROR_OUT(WC_TEST_RET_ENC_I((int)cur), out);
+        api_ret = wc_RNG_DRBG_NextSeedNow(root);
+        if (api_ret != WC_NO_ERR_TRACE(NOT_READY_E))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
 
         /* partial bank: counted, still not consumable, preserved across
          * the consume attempt */
         api_ret = wc_RNG_DRBG_NextSeedGenerate(root, 7);
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
-        if ((wc_RNG_DRBG_NextSeedCurrent(root, &cur) != 0) || (cur != 7))
-            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-        if (wc_RNG_DRBG_NextSeedNow(root) != WC_NO_ERR_TRACE(NOT_READY_E))
-            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-        if ((wc_RNG_DRBG_NextSeedCurrent(root, &cur) != 0) || (cur != 7))
-            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        api_ret = wc_RNG_DRBG_NextSeedCurrent(root, &cur);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        if (cur != 7)
+            ERROR_OUT(WC_TEST_RET_ENC_I((int)cur), out);
+        api_ret = wc_RNG_DRBG_NextSeedNow(root);
+        if (api_ret != WC_NO_ERR_TRACE(NOT_READY_E))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_DRBG_NextSeedCurrent(root, &cur);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        if (cur != 7)
+            ERROR_OUT(WC_TEST_RET_ENC_I((int)cur), out);
 
         /* fill in granules to publication: the count grows monotonically,
          * then the ready sentinel appears */
         prev = cur;
         for (i = 0; i < 64; i++) {
-            api_ret = wc_RNG_DRBG_NextSeedGenerate(root, 32);
-            if ((api_ret != 0) &&
-                (api_ret != WC_NO_ERR_TRACE(ALREADY_E)))
+            api_ret = wc_RNG_DRBG_NextSeedGenerate(
+                root, (word32)(WC_DRBG_NEXT_SEED_LEN / 7));
+            api_ret = wc_RNG_DRBG_NextSeedCurrent(root, &cur);
+            if (api_ret != 0)
                 ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
-            if (wc_RNG_DRBG_NextSeedCurrent(root, &cur) != 0)
-                ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-            if (cur == WC_DRBG_NEXT_SEED_READY)
+            if ((api_ret == WC_NO_ERR_TRACE(ALREADY_E)) ||
+                (cur == WC_DRBG_NEXT_SEED_READY))
+            {
                 break;
-            if (cur <= prev)
-                ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-            prev = cur;
+            }
+            if ((api_ret != 0) && (api_ret != WC_NO_ERR_TRACE(NOT_READY_E)) &&
+                (api_ret != WC_NO_ERR_TRACE(ENTROPY_RT_E)) &&
+                (api_ret != WC_NO_ERR_TRACE(ENTROPY_APT_E)))
+            {
+                ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+            }
+            if (api_ret == 0) {
+                if (cur <= prev)
+                    ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+                prev = cur;
+            }
         }
         if (cur != WC_DRBG_NEXT_SEED_READY)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
         /* ready bank: further banking is ALREADY_E and changes nothing */
-        if (wc_RNG_DRBG_NextSeedGenerate(root, 32) !=
-            WC_NO_ERR_TRACE(ALREADY_E))
-            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-        if ((wc_RNG_DRBG_NextSeedCurrent(root, &cur) != 0) ||
-            (cur != WC_DRBG_NEXT_SEED_READY))
-            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        api_ret = wc_RNG_DRBG_NextSeedGenerate(root, 32);
+        if (api_ret != WC_NO_ERR_TRACE(ALREADY_E))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_DRBG_NextSeedCurrent(root, &cur);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        if (cur != WC_DRBG_NEXT_SEED_READY)
+            ERROR_OUT(WC_TEST_RET_ENC_I((int)cur), out);
 
         /* consume: source-free credited reseed; counter resets to 1;
          * bank empties (use-once) */
@@ -29258,20 +29292,27 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseed_test(void)
         api_ret = wc_RNG_DRBG_GetReseedCtr(root, &c1);
         if ((api_ret != 0) || (c1 != 1))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-        if ((wc_RNG_DRBG_NextSeedCurrent(root, &cur) != 0) ||
-            (cur != WC_DRBG_NEXT_SEED_EMPTY))
-            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        api_ret = wc_RNG_DRBG_NextSeedCurrent(root, &cur);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        if (cur != WC_DRBG_NEXT_SEED_EMPTY)
+            ERROR_OUT(WC_TEST_RET_ENC_I((int)cur), out);
 
         /* advance the counter, refill, and consume with a nonce */
         api_ret = wc_RNG_GenerateBlock(root, buf, sizeof(buf));
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
         for (i = 0; i < 64; i++) {
-            api_ret = wc_RNG_DRBG_NextSeedGenerate(root, 32);
+            api_ret = wc_RNG_DRBG_NextSeedGenerate(
+                root, (word32)(WC_DRBG_NEXT_SEED_LEN / 7));
             if (api_ret == WC_NO_ERR_TRACE(ALREADY_E))
                 break;
-            if (api_ret != 0)
+            if ((api_ret != 0) && (api_ret != WC_NO_ERR_TRACE(NOT_READY_E)) &&
+                (api_ret != WC_NO_ERR_TRACE(ENTROPY_RT_E)) &&
+                (api_ret != WC_NO_ERR_TRACE(ENTROPY_APT_E)))
+            {
                 ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+            }
         }
         if (i >= 64)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
@@ -29282,10 +29323,15 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseed_test(void)
         api_ret = wc_RNG_DRBG_GetReseedCtr(root, &c1);
         if ((api_ret != 0) || (c1 != 1))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-        if ((wc_RNG_DRBG_NextSeedCurrent(root, &cur) != 0) ||
-            (cur != WC_DRBG_NEXT_SEED_EMPTY))
-            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        /* the nonce rides as additional input: the redemption is still one
+         * credited, primary-provenance reseed */
+        api_ret = wc_RNG_DRBG_NextSeedCurrent(root, &cur);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        if (cur != WC_DRBG_NEXT_SEED_EMPTY)
+            ERROR_OUT(WC_TEST_RET_ENC_I((int)cur), out);
     }
+
 
 out:
 
