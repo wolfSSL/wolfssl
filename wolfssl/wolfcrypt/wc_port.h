@@ -620,8 +620,11 @@
 #endif /* !WOLFSSL_NO_ATOMICS */
 
 #ifdef WOLFSSL_NO_ATOMICS
-    typedef volatile int wolfSSL_Atomic_Int;
-    typedef volatile unsigned int wolfSSL_Atomic_Uint;
+    /* Note, not volatile.  _NO_ATOMICS configs promise no concurrent mutation
+     * (single-threaded, or externally serialized); volatile would imply
+     * protection these types do not and cannot provide here. */
+    typedef int wolfSSL_Atomic_Int;
+    typedef unsigned int wolfSSL_Atomic_Uint;
     #define WOLFSSL_ATOMIC_INITIALIZER(x) (x)
     #define WOLFSSL_ATOMIC_LOAD(x) (x)
     #define WOLFSSL_ATOMIC_STORE(x, val) (x) = (val)
@@ -1582,11 +1585,18 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #endif
 
 #elif defined(TIME_OVERRIDES)
-    /* Override XTIME() and XGMTIME() functionality.
-       Requires user to provide these functions:
-        time_t XTIME(time_t * timer) {}
-        struct tm* XGMTIME(const time_t* timer, struct tm* tmp) {}
-    */
+    /* User-supplied override XTIME() and XGMTIME() functionality.
+     *
+     * Requires user-supplied macro definitions for XTIME() and XGMTIME(),
+     * mapping to function with signatures time_t time_f(time_t * timer) and
+     * struct tm* gmtime_f(const time_t* timer, struct tm* tmp) respectively.
+     */
+    #ifndef XTIME
+            #error TIME_OVERRIDES requires a user-supplied XTIME definition.
+    #endif
+    #ifndef XGMTIME
+            #error TIME_OVERRIDES requires a user-supplied XGMTIME definition.
+    #endif
     #ifndef HAVE_TIME_T_TYPE
         #define USE_WOLF_TIME_T
     #endif
