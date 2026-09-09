@@ -4084,7 +4084,9 @@ static const byte qc_statements_cert[] = {
     0x26, 0xbc, 0x54, 0x5d, 0x3f, 0x85, 0xae, 0xb8, 0xb4, 0x88, 0xfe,
 };
 
-#ifndef IGNORE_NAME_CONSTRAINTS
+#if !defined(IGNORE_NAME_CONSTRAINTS) && \
+    (!defined(WOLFSSL_X509_TINY) || \
+     defined(WOLFSSL_X509_TINY_NAME_CONSTRAINTS))
 /* CA certificate whose DER orders Name Constraints before Basic
  * Constraints. RFC 5280 4.2.1.10 allows name constraints in a CA
  * certificate; the encoding order of the two extensions is not
@@ -4250,7 +4252,7 @@ static const byte nc_before_bc_non_ca_cert[] = {
     0x84,
 };
 #endif /* !WOLFSSL_NO_ASN_STRICT */
-#endif /* !IGNORE_NAME_CONSTRAINTS */
+#endif /* !IGNORE_NAME_CONSTRAINTS && name constraints supported */
 
 #endif /* !NO_ASN && !NO_CERTS && !NO_RSA */
 
@@ -4395,7 +4397,8 @@ int test_ParseCert_nc_before_basic_constraints(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_ASN) && !defined(NO_CERTS) && !defined(NO_RSA) && \
-    !defined(IGNORE_NAME_CONSTRAINTS)
+    !defined(IGNORE_NAME_CONSTRAINTS) && \
+    (!defined(WOLFSSL_X509_TINY) || defined(WOLFSSL_X509_TINY_NAME_CONSTRAINTS))
     DecodedCert cert;
 
     /* CA certificate: name constraints precede basic constraints. */
