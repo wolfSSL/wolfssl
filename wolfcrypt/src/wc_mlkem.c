@@ -978,9 +978,9 @@ int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
         key->flags |= MLKEM_FLAG_A_SET;
 #endif
     }
-    else if (key != NULL) {
-        /* Keygen failed after s and z were written; key is NULL on the
-         * argument-check path (ISO/IEC 19790:2012 7.9.7). */
+    else if ((key != NULL) && (k != 0)) {
+        /* Keygen failed after s and z were written; k is 0 until the
+         * argument checks passed (ISO/IEC 19790:2012 7.9.7). */
 #ifdef WOLFSSL_MLKEM_DYNAMIC_KEYS
         if (key->priv != NULL) {
             ForceZero(key->priv, key->privAllocSz);

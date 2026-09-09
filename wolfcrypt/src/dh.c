@@ -1021,7 +1021,10 @@ int wc_DhSetNonBlock(DhKey* key, DhNb* nb)
         return BAD_FUNC_ARG;
 
     if (nb != NULL) {
-        XMEMSET(nb, 0, sizeof(DhNb));
+        ForceZero(nb, sizeof(DhNb));
+    }
+    if ((key->nb != NULL) && (key->nb != nb)) {
+        ForceZero(key->nb, sizeof(DhNb));
     }
 
     /* Pass NULL to disable non-blocking mode. */
@@ -1048,6 +1051,11 @@ int wc_FreeDhKey(DhKey* key)
     #endif
     #ifdef WOLFSSL_KCAPI_DH
         KcapiDh_Free(key);
+    #endif
+    #ifdef WC_DH_NONBLOCK
+        if (key->nb != NULL) {
+            ForceZero(key->nb, sizeof(DhNb));
+        }
     #endif
     #ifdef WOLFSSL_CHECK_MEM_ZERO
         /* Deregister any mem-zero entries covering this key (e.g. key->priv
@@ -1495,6 +1503,7 @@ static int wc_DhGenerateKeyPair_Sync(DhKey* key, WC_RNG* rng,
     byte* priv, word32* privSz, byte* pub, word32* pubSz)
 {
     int ret;
+    int privWritten;
 
     if (key == NULL || rng == NULL || priv == NULL || privSz == NULL ||
         pub == NULL || pubSz == NULL) {
@@ -1502,6 +1511,8 @@ static int wc_DhGenerateKeyPair_Sync(DhKey* key, WC_RNG* rng,
     }
 
     ret = GeneratePrivateDh(key, rng, priv, privSz);
+    /* From here *privSz is the length actually written. */
+    privWritten = (ret == 0);
 
     if (ret == 0)
         ret = GeneratePublicDh(key, priv, *privSz, pub, pubSz);
@@ -1511,6 +1522,11 @@ static int wc_DhGenerateKeyPair_Sync(DhKey* key, WC_RNG* rng,
     if (ret == 0)
         ret = _ffc_pairwise_consistency_test(key, pub, *pubSz, priv, *privSz);
 #endif /* FIPS V5 or later || WOLFSSL_VALIDATE_DH_KEYGEN */
+    if (privWritten && (ret != 0)) {
+        /* A failed pair is not handed back (ISO/IEC 19790:2012 7.9.7). */
+        ForceZero(priv, *privSz);
+        *privSz = 0;
+    }
 
     return ret;
 }
@@ -2563,6 +2579,8 @@ int wc_DhImportKeyPair(DhKey* key, const byte* priv, word32 privSz,
         if (priv[0] == 0) {
             privSz--; priv++;
         }
+        /* Never overwrite one SSP with another (ISO/IEC 19790:2012 [09.31]). */
+        mp_forcezero(&key->priv);
         if (mp_init(&key->priv) != MP_OKAY)
             havePriv = 0;
     }

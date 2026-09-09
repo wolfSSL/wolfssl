@@ -1747,7 +1747,7 @@ void wc_HmacFree(Hmac* hmac)
         byte finalHash[WC_HMAC_BLOCK_SIZE];
         ret = wc_CryptoCb_Hmac(hmac, hmac->macType, NULL, 0, finalHash);
         (void)ret; /* must ignore return code here */
-        (void)finalHash;
+        ForceZero(finalHash, sizeof(finalHash));
     }
 #endif
 

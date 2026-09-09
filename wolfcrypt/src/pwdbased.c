@@ -590,6 +590,7 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
                     byte  tmp[WC_MAX_BLOCK_SIZE + 1];
                     ret = mp_to_unsigned_bin(res, tmp);
                     XMEMCPY(I + i, tmp + 1, v);
+                    ForceZero(tmp, sizeof(tmp));
                 }
                 else if (outSz < (int)v) {
                     XMEMSET(I + i, 0, v - (word32)outSz);
@@ -895,6 +896,7 @@ static void scryptSalsa(word32* out, word32* in)
     for (i = 0; i < 16; i++)
         out[i] = ByteReverseWord32(ByteReverseWord32(in[i]) + x[i]);
 #endif
+    ForceZero(x, sizeof(x));
 }
 
 /* Mix a block using Salsa20/8.
@@ -948,6 +950,7 @@ static void scryptBlockMix(byte* b, byte* y, int r)
         }
 #endif
     }
+    ForceZero(x, sizeof(x));
 }
 
 /* Random oracles mix.
