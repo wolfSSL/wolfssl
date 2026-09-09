@@ -259,6 +259,11 @@ extern int wolfcrypt_benchmark_main(int argc, char** argv);
 #else
     #define wc_lkm_in_hardirq() in_hardirq()
 #endif
+#ifdef WC_LINUXKM_MUTEX_BH
+    #define WC_LKM_MUTEX_BH_CLEAR(m) ((m)->bh_held = 0)
+#else
+    #define WC_LKM_MUTEX_BH_CLEAR(m) WC_DO_NOTHING
+#endif
 
 int wc_lkm_LockMutex(wolfSSL_Mutex* m)
 {
@@ -269,12 +274,14 @@ int wc_lkm_LockMutex(wolfSSL_Mutex* m)
 #endif
 
 #ifdef WC_LINUXKM_MUTEX_BH
-    m->bh_held = 0;
+    /* bh_held belongs to the holder: it is written only once the lock is
+     * held, never by a context still waiting for it. */
     if (in_nmi() || wc_lkm_in_hardirq()) {
         /* The holder may be the context this interrupt landed on, so never
          * wait for it. */
         if (spin_trylock_irqsave(&m->lock, irq_flags)) {
             m->irq_flags = irq_flags;
+            m->bh_held = 0;
             return 0;
         }
         return BAD_MUTEX_E;
@@ -312,6 +319,7 @@ int wc_lkm_LockMutex(wolfSSL_Mutex* m)
     /* first, try the cheap way. */
     if (spin_trylock_irqsave(&m->lock, irq_flags)) {
         m->irq_flags = irq_flags;
+        WC_LKM_MUTEX_BH_CLEAR(m);
         return 0;
     }
     if (in_nmi())
@@ -332,6 +340,7 @@ int wc_lkm_LockMutex(wolfSSL_Mutex* m)
          */
         spin_lock_irqsave(&m->lock, irq_flags);
         m->irq_flags = irq_flags;
+        WC_LKM_MUTEX_BH_CLEAR(m);
         return 0;
 #endif /* !CONFIG_PREEMPT_RT */
     }
@@ -348,6 +357,7 @@ int wc_lkm_LockMutex(wolfSSL_Mutex* m)
              * busy-wait. */
             if (spin_trylock_irqsave(&m->lock, irq_flags)) {
                 m->irq_flags = irq_flags;
+                WC_LKM_MUTEX_BH_CLEAR(m);
                 return 0;
             }
         }
