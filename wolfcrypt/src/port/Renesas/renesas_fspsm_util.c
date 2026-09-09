@@ -421,38 +421,41 @@ int fspsm_EccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
             if (ret != FSP_SUCCESS) {
                 WOLFSSL_PKMSG("Failed secp256r1_EphemeralWrappedKeyPairGenerate"
                                 " %d\n", ret);
-                return ret;
-            }
-
-            /* copy generated ecdh public key into buffer */
-            pubKeyDer[0] = ECC_POINT_UNCOMP;
-            *pubKeySz = 1 + sizeof(cbInfo->internal->ecc_ecdh_public_key);
-            XMEMCPY(&pubKeyDer[1], &cbInfo->internal->ecc_ecdh_public_key,
-                        sizeof(cbInfo->internal->ecc_ecdh_public_key));
-
-            /* Generate Premaster Secret */
-            ret = FSPSM_TLS_PREMASTERGEN(
-                (uint32_t*)
-                    &cbInfo->internal->encrypted_ephemeral_ecdh_public_key,
-                    &cbInfo->internal->ecc_p256_wrapped_key,
-                    (uint32_t*)out/* pre-master secret 64 bytes */);
-            if (ret != FSP_SUCCESS) {
-                WOLFSSL_PKMSG("Failed PreMasterSecretGenerateForECC_secp256r1 %d\n", ret);
-                return ret;
             }
             else {
-                /* set master secret generation callback for use */
-                wolfSSL_CTX_SetGenMasterSecretCb(ssl->ctx,
-                                                Renesas_cmn_genMasterSecret);
-                wolfSSL_SetGenMasterSecretCtx(ssl, cbInfo);
+                /* copy generated ecdh public key into buffer */
+                pubKeyDer[0] = ECC_POINT_UNCOMP;
+                *pubKeySz = 1 + sizeof(cbInfo->internal->ecc_ecdh_public_key);
+                XMEMCPY(&pubKeyDer[1], &cbInfo->internal->ecc_ecdh_public_key,
+                            sizeof(cbInfo->internal->ecc_ecdh_public_key));
+
+                /* Generate Premaster Secret */
+                ret = FSPSM_TLS_PREMASTERGEN(
+                    (uint32_t*)
+                        &cbInfo->internal->encrypted_ephemeral_ecdh_public_key,
+                        &cbInfo->internal->ecc_p256_wrapped_key,
+                        (uint32_t*)out/* pre-master secret 64 bytes */);
+                if (ret != FSP_SUCCESS) {
+                    WOLFSSL_PKMSG("Failed PreMasterSecretGenerateForECC_secp256r1 %d\n", ret);
+                }
+                else {
+                    /* set master secret generation callback for use */
+                    wolfSSL_CTX_SetGenMasterSecretCb(ssl->ctx,
+                                                    Renesas_cmn_genMasterSecret);
+                    wolfSSL_SetGenMasterSecretCtx(ssl, cbInfo);
+                }
             }
+
+            /* unlock hw */
+            wc_fspsm_hw_unlock();
+
+            if (ret != FSP_SUCCESS)
+                return ret;
         }
         else {
             WOLFSSL_MSG("Failed to lock sce hw ");
+            return ret;
         }
-
-        /* unlock hw */
-        wc_fspsm_hw_unlock();
 
         *outlen = 64;
         WOLFSSL_PKMSG("PK ECC PMS: ret %d, PubKeySz %d, OutLen %d\n",
