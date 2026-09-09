@@ -346,6 +346,10 @@ static int InitSha256(wc_Sha256* sha256)
     sha256->hSession = NULL;
 #endif
 
+#if defined(WOLFSSL_TI_AM64X) && !defined(WOLFSSL_TI_AM64X_NO_SHA)
+    XMEMSET(&sha256->scObj, 0, sizeof(sha256->scObj));
+#endif
+
     return 0;
 }
 #endif
