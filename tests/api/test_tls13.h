@@ -154,6 +154,10 @@ int test_tls13_ticket_psk_modes_uses_policy(void);
 int test_tls13_send_session_ticket_psk_modes(void);
 int test_tls13_new_session_ticket_ext_framing(void);
 int test_tls13_new_session_ticket_keeps_ems(void);
+int test_tls13_hs_secret_zeroized_psk_ke(void);
+int test_tls13_hs_secret_zeroized_sha384(void);
+int test_tls13_early_secret_zeroized(void);
+int test_tls13_psk_key_zeroized(void);
 
 #define TEST_TLS13_DECLS                                        \
     TEST_DECL_GROUP("tls13", test_tls13_apis),                  \
@@ -286,6 +290,10 @@ int test_tls13_new_session_ticket_keeps_ems(void);
     TEST_DECL_GROUP("tls13", test_tls13_new_session_ticket_ext_framing), \
     TEST_DECL_GROUP("tls13", test_tls13_new_session_ticket_keeps_ems), \
     TEST_DECL_GROUP("tls13", test_tls13_psk_mode_mismatch_falls_back), \
-    TEST_DECL_GROUP("tls13", test_tls13_ticket_psk_modes_uses_policy)
+    TEST_DECL_GROUP("tls13", test_tls13_ticket_psk_modes_uses_policy), \
+    TEST_DECL_GROUP("tls13", test_tls13_hs_secret_zeroized_psk_ke), \
+    TEST_DECL_GROUP("tls13", test_tls13_hs_secret_zeroized_sha384), \
+    TEST_DECL_GROUP("tls13", test_tls13_early_secret_zeroized), \
+    TEST_DECL_GROUP("tls13", test_tls13_psk_key_zeroized)
 
 #endif /* WOLFCRYPT_TEST_TLS13_H */
