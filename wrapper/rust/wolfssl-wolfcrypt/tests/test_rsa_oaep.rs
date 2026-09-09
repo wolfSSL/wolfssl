@@ -1,4 +1,6 @@
-#![cfg(all(rsa, rsa_oaep, random))]
+/* The OAEP wrappers pair an encrypting key with a decrypting key, which
+ * WOLFSSL_RSA_PUBLIC_ONLY builds do not provide. */
+#![cfg(all(rsa, rsa_oaep, random, rsa_private))]
 
 mod common;
 
