@@ -106,6 +106,7 @@
  * a use-after-free instead of BUSY_E -- only containers whose teardown
  * provably quiesces consumers first may set it. */
 #define WC_RNG_BANK_FLAG_NO_CHECKOUT_REFCOUNTING (1U << 11)
+#define WC_RNG_BANK_FLAG_INIT_RBGC   (1U << 12)
 #define WC_RNG_BANK_FLAG_PREDICTION_RESISTANCE (1U << 14)
 
 /* base lock states are WC_RNG_LOCK_FREE / WC_RNG_LOCK_HELD in random.h;
@@ -290,6 +291,11 @@ WOLFSSL_API int wc_rng_bank_next_seed_generate(
     struct wc_rng_bank *bank,
     int inst_offset,
     word32 n);
+WOLFSSL_API int wc_rng_bank_next_seed_generate_rbgc(
+    struct wc_rng_bank *bank,
+    int inst_offset,
+    word32 n,
+    WC_RNG *root);
 #endif
 
 WOLFSSL_API int wc_rng_bank_inst_reinit(
@@ -313,26 +319,25 @@ WOLFSSL_API int wc_rng_bank_recover_inst(
     int timeout_secs,
     word32 flags);
 
+#ifdef WC_RNG_HAVE_RBGC
 
-#if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
-    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
-/* Spawn an SP 800-90C chain leaf from a bank instance: check out an
+/* Spawn an SP 800-90C chain RNG from a bank instance: check out a parent
  * instance (honoring the usual selection flags), wc_InitRngNonceRBGC() /
- * wc_InitRngNonceRBGC_New() the leaf from it, and check the instance back
- * in.  The leaf's lifetime is thereafter decoupled from the bank: it is
- * lock-free for its owner and is released with wc_FreeRng() (stack form)
- * or wc_rng_free() (heap form).  nonce/nonceSz may be NULL/0 for a plain
- * spawn; per the bank's distinctness convention, passing the address of
- * the leaf's owning object or request is recommended.  bank == NULL uses
- * the default bank where support is compiled in.
- * WC_RNG_BANK_FLAG_CONSUME_NEXT_SEED composes (banked reseed before the
- * spawn draw); WC_RNG_BANK_FLAG_SEED_UNCREDITED and
- * WC_RNG_BANK_FLAG_FOR_RECOVERY are rejected.
- * WC_RNG_BANK_FLAG_ERROR_ON_RNG_FAILED is implied: the root is guaranteed
- * in-service, or an error is returned with no lease and no leaf. */
+ * wc_InitRngNonceRBGC_New() the child from it, and check the parent instance
+ * back in.  The child's lifetime is thereafter decoupled from the parent and
+ * its bank: it is lock-free for its owner and is released with wc_FreeRng()
+ * (stack form) or wc_rng_free() (heap form).  The child's RBGC stratum is one
+ * plus the parent's stratum at time of instantiation.  nonce/nonceSz may be
+ * NULL/0 for a plain spawn; an example of a recommended nonce is Linux kernel
+ * random_get_entropy() (which is typically a racy read of a high-resolution
+ * timer).  bank == NULL uses the default bank where support is compiled in.
+ * WC_RNG_BANK_FLAG_CONSUME_NEXT_SEED composes (banked reseed before the spawn
+ * draw); WC_RNG_BANK_FLAG_SEED_UNCREDITED and WC_RNG_BANK_FLAG_FOR_RECOVERY are
+ * rejected.  WC_RNG_BANK_FLAG_ERROR_ON_RNG_FAILED is implied: the parent is
+ * guaranteed in-service, or an error is returned with no lease and no child. */
 WOLFSSL_API int wc_rng_bank_spawn(
     struct wc_rng_bank *bank,
-    WC_RNG *leaf_rng,
+    WC_RNG *child_rng,
     byte *nonce,
     word32 nonceSz,
     int preferred_inst_offset,
@@ -342,15 +347,15 @@ WOLFSSL_API int wc_rng_bank_spawn(
 #ifndef WC_NO_CONSTRUCTORS
 WOLFSSL_API int wc_rng_bank_spawn_new(
     struct wc_rng_bank *bank,
-    WC_RNG **leaf_rng,
+    WC_RNG **child_rng,
     byte *nonce,
     word32 nonceSz,
     int preferred_inst_offset,
     int timeout_secs,
     word32 flags);
 #endif /* !WC_NO_CONSTRUCTORS */
-#endif /* HAVE_HASHDRBG && !CUSTOM_RAND_GENERATE_BLOCK &&
-        * (!HAVE_FIPS || FIPS_VERSION3_GE(7,0,0)) */
+
+#endif /* WC_RNG_HAVE_RBGC */
 
 WOLFSSL_API int wc_rng_bank_seed(struct wc_rng_bank *bank,
                                  const byte* seed, word32 seedSz,
@@ -689,6 +694,35 @@ static WC_INLINE WC_MAYBE_UNUSED int wc_rng_bank_inst_lock_clear_extra(struct wc
     wc_static_assert((WC_RESEED_INTERVAL) <= 0xFFFFFFFFUL);
 #endif
 
+#ifdef WC_RNG_HAVE_RBGC
+
+#define wc_InitRngRBGC(leaf, root, flags) \
+    wc_InitRngNonceRBGC(leaf, root, NULL, 0, flags)
+
+WC_MAYBE_UNUSED static WC_INLINE int wc_InitRngRBGC_New(WC_RNG** leaf, WC_RNG* root, word32 flags) {
+    if ((leaf == NULL) || (root == NULL))
+        return BAD_FUNC_ARG;
+    *leaf = (WC_RNG*)XMALLOC(sizeof(WC_RNG), root->heap, DYNAMIC_TYPE_RNG);
+    if (*leaf == NULL)
+        return MEMORY_E;
+    else
+        return wc_InitRngNonceRBGC(*leaf, root, NULL, 0, flags);
+}
+
+WC_MAYBE_UNUSED static WC_INLINE int wc_InitRngNonceRBGC_New(WC_RNG** leaf, WC_RNG* root,
+                                                             const byte* nonce, word32 nonceSz,
+                                                             word32 flags)
+{
+    if ((leaf == NULL) || (root == NULL))
+        return BAD_FUNC_ARG;
+    *leaf = (WC_RNG*)XMALLOC(sizeof(WC_RNG), root->heap, DYNAMIC_TYPE_RNG);
+    if (*leaf == NULL)
+        return MEMORY_E;
+    else
+        return wc_InitRngNonceRBGC(*leaf, root, nonce, nonceSz, flags);
+}
+
+#endif /* WC_RNG_HAVE_RBGC */
 
 WC_MAYBE_UNUSED static WC_INLINE int wc_RNG_GetStatus(const WC_RNG* rng)
 {
@@ -811,6 +845,17 @@ static WC_INLINE WC_MAYBE_UNUSED int wc_rng_bank_inst_reseed_now(
     return wc_RNG_DRBG_Reseed_Now(WC_RNG_BANK_INST_TO_RNG(inst),
                                   nonce, nonceSz);
 }
+#ifdef WC_RNG_HAVE_RBGC
+static WC_INLINE WC_MAYBE_UNUSED int wc_rng_bank_inst_reseed_rbgc(
+    struct wc_rng_bank_inst *inst, WC_RNG* root, const byte* nonce,
+    word32 nonceSz)
+{
+    if (inst == NULL)
+        return BAD_FUNC_ARG;
+    return wc_RNG_DRBG_ReseedRBGC(WC_RNG_BANK_INST_TO_RNG(inst), root,
+                                  nonce, nonceSz);
+}
+#endif /* WC_RNG_HAVE_RBGC */
 
 #else /* !WC_RNG_HAVE_LOCK */
 
@@ -825,6 +870,28 @@ static WC_INLINE WC_MAYBE_UNUSED int wc_rng_bank_inst_reseed_now(
     return ret;
 }
 
+#ifdef WC_RNG_HAVE_RBGC
+static WC_INLINE WC_MAYBE_UNUSED int wc_rng_bank_inst_reseed_rbgc(
+    struct wc_rng_bank_inst *inst, WC_RNG* root, const byte* nonce,
+    word32 nonceSz)
+{
+    int ret;
+    if (inst == NULL)
+        return BAD_FUNC_ARG;
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
+    /* the pre-v7 boundary's wc_RNG_DRBG_ReseedRBGC() predates the nonce
+     * parameters; honest rejection, as with the boundary's Reseed_Now(). */
+    if (nonceSz > 0)
+        return NOT_COMPILED_IN;
+    (void)nonce;
+    ret = wc_RNG_DRBG_ReseedRBGC(WC_RNG_BANK_INST_TO_RNG(inst), root);
+#else
+    ret = wc_RNG_DRBG_ReseedRBGC(WC_RNG_BANK_INST_TO_RNG(inst), root,
+                                 nonce, nonceSz);
+#endif
+    return ret;
+}
+#endif /* WC_RNG_HAVE_RBGC */
 
 #endif /* !WC_RNG_HAVE_LOCK */
 
