@@ -2785,6 +2785,7 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
             /* Accumulate failure flag - once set, stays set */
             rctFailed |= (repCount >= WC_RNG_SEED_RCT_CUTOFF);
         }
+        ForceZero(&prevByte, sizeof(prevByte));
     }
 
     /* SP800-90B 4.4.2 Adaptive Proportion Test: the first byte of each window
