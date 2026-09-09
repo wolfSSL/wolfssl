@@ -355,8 +355,10 @@ enum wolfCrypt_ErrorCodes {
     WRONG_TYPE_OBJECT_E = -1032, /* Object is wrong type for requested */
                                  /* operation */
 
-    WC_SPAN2_LAST_E     = -1032, /* Update to indicate last used error code */
-    WC_LAST_E           = -1032, /* the last code used either here or in
+    ASN_OID_ARC_TOO_BIG_E = -1033, /* OID arc too big */
+
+    WC_SPAN2_LAST_E     = -1033, /* Update to indicate last used error code */
+    WC_LAST_E           = -1033, /* the last code used either here or in
                                   * error-ssl.h */
 
     WC_SPAN2_MIN_CODE_E = -1999, /* Last usable code in span 2 */

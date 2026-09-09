@@ -29,6 +29,7 @@
 #endif
 
 #include <wolfssl/openssl/objects.h>
+#include <wolfssl/openssl/x509v3.h>
 #include <wolfssl/openssl/evp.h>
 #include <wolfssl/openssl/pkcs12.h>
 #include <tests/api/api.h>
@@ -76,6 +77,62 @@ int test_OBJ_NAME_do_all(void)
 
     return res;
 }
+
+/* test_wolfSSL_OBJ()'s guard, plus what installing a failing allocator needs:
+ * keep the helpers and their one use site under the same condition. */
+#if defined(OPENSSL_EXTRA) && !defined(NO_SHA256) && !defined(NO_ASN) && \
+    !defined(HAVE_FIPS) && !defined(NO_SHA) && defined(WOLFSSL_CERT_EXT) && \
+    defined(WOLFSSL_CERT_GEN) && !defined(NO_BIO) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(WOLFSSL_DEBUG_MEMORY) && !defined(WOLFSSL_NO_MALLOC) && \
+    defined(USE_WOLFSSL_MEMORY)
+    #define TEST_OSSL_OBJ_OOM
+#endif
+
+#ifdef TEST_OSSL_OBJ_OOM
+/* Allocators installed around a single call to exercise its
+ * allocation-failure path: malloc refuses every request when
+ * test_ossl_obj_fail_after < 0, otherwise only the (fail_after + 1)th one
+ * since test_ossl_obj_alloc_seen was reset. free and realloc delegate to the
+ * allocators that were installed before, so blocks they own (for example
+ * under WOLFSSL_TRACK_MEMORY) are still handled by their owner. */
+static wolfSSL_Malloc_cb  test_ossl_obj_prev_malloc  = NULL;
+static wolfSSL_Free_cb    test_ossl_obj_prev_free    = NULL;
+static wolfSSL_Realloc_cb test_ossl_obj_prev_realloc = NULL;
+static int test_ossl_obj_fail_after = -1;
+static int test_ossl_obj_alloc_seen = 0;
+static void* test_ossl_obj_fail_malloc(size_t size)
+{
+    int refuse = (test_ossl_obj_fail_after < 0) ||
+                 (test_ossl_obj_alloc_seen == test_ossl_obj_fail_after);
+
+    test_ossl_obj_alloc_seen++;
+    if (refuse) {
+        return NULL;
+    }
+    if (test_ossl_obj_prev_malloc != NULL) {
+        return test_ossl_obj_prev_malloc(size);
+    }
+    return malloc(size);
+}
+static void test_ossl_obj_free(void* ptr)
+{
+    if (test_ossl_obj_prev_free != NULL) {
+        test_ossl_obj_prev_free(ptr);
+    }
+    else {
+        free(ptr);
+    }
+}
+static void* test_ossl_obj_realloc(void* ptr, size_t size)
+{
+    if (test_ossl_obj_prev_realloc != NULL) {
+        return test_ossl_obj_prev_realloc(ptr, size);
+    }
+    return realloc(ptr, size);
+}
+#endif
 
 int test_wolfSSL_OBJ(void)
 {
@@ -131,6 +188,201 @@ int test_wolfSSL_OBJ(void)
     ExpectIntEQ(OBJ_txt2nid(buf), NID_sha256);
 #endif
     ExpectIntGT(OBJ_obj2txt(buf, (int)sizeof(buf), obj, 0), 0);
+    /* OBJ_obj2txt follows OpenSSL for a too-small buffer: truncate to
+     * bufLen - 1 characters plus NUL and return the full length (22), so
+     * the caller can resize. */
+    {
+        /* Size 2, the smallest accepted. */
+        char smallBuf[2];
+        XMEMSET(smallBuf, 'A', sizeof(smallBuf));
+        ExpectIntEQ(OBJ_obj2txt(smallBuf, (int)sizeof(smallBuf), obj, 1),
+            22);
+        ExpectStrEQ(smallBuf, "2");
+    }
+    {
+        /* Size 4 cannot hold the first identifier "2.16". */
+        char smallBuf[4];
+        XMEMSET(smallBuf, 'A', sizeof(smallBuf));
+        ExpectIntEQ(OBJ_obj2txt(smallBuf, (int)sizeof(smallBuf), obj, 1),
+            22);
+        ExpectStrEQ(smallBuf, "2.1");
+    }
+    {
+        /* Size 5 fits "2.16" but not the ".840" arc. */
+        char smallBuf[5];
+        XMEMSET(smallBuf, 'A', sizeof(smallBuf));
+        ExpectIntEQ(OBJ_obj2txt(smallBuf, (int)sizeof(smallBuf), obj, 1),
+            22);
+        ExpectStrEQ(smallBuf, "2.16");
+    }
+    {
+        /* Size 0: OpenSSL's sizing call, nothing written. */
+        char untouched[2] = { 'A', 'A' };
+        char named[64];
+        ExpectIntEQ(OBJ_obj2txt(NULL, 0, obj, 1), 22);
+        ExpectIntEQ(OBJ_obj2txt(untouched, 0, obj, 1), 22);
+        ExpectIntEQ(untouched[0], 'A');
+        ExpectIntEQ(OBJ_obj2txt(NULL, 0, obj, 0),
+            OBJ_obj2txt(named, (int)sizeof(named), obj, 0));
+    }
+    {
+        /* Size 22 is one short of the NUL. */
+        char smallBuf[22];
+        XMEMSET(smallBuf, 'A', sizeof(smallBuf));
+        ExpectIntEQ(OBJ_obj2txt(smallBuf, (int)sizeof(smallBuf), obj, 1),
+            22);
+        ExpectStrEQ(smallBuf, "2.16.840.1.101.3.4.2.");
+    }
+    /* Fallback to numeric form for unknown objects. */
+    {
+        const byte unknownDer[] = { 0x06, 0x0a, 0x2b, 0x06, 0x01, 0x04,
+            0x01, 0x86, 0x8d, 0x1f, 0x01, 0x02 };
+        const byte* p = unknownDer;
+        WOLFSSL_ASN1_OBJECT* unknown = NULL;
+        char nameBuf[64];
+
+        ExpectNotNull(unknown = wolfSSL_d2i_ASN1_OBJECT(NULL, &p,
+            (long)sizeof(unknownDer)));
+        ExpectIntEQ(OBJ_obj2txt(nameBuf, (int)sizeof(nameBuf), unknown, 0),
+            21);
+        ExpectStrEQ(nameBuf, "1.3.6.1.4.1.99999.1.2");
+        wolfSSL_ASN1_OBJECT_free(unknown);
+    }
+    /* Every output form follows the same short-buffer contract. */
+    {
+        const byte ekuDer[] = { 0x06, 0x08, 0x2b, 0x06, 0x01, 0x05, 0x05,
+            0x07, 0x03, 0x01 };
+        const byte* p = ekuDer;
+        WOLFSSL_ASN1_OBJECT* eku = NULL;
+        WOLFSSL_ASN1_OBJECT* gn = NULL;
+        WOLFSSL_ASN1_OBJECT* named = NULL;
+        char full[64];
+        char tiny[4];
+        int fullLen = 0;
+
+        ExpectNotNull(named = OBJ_nid2obj(NID_sha256));
+        ExpectIntGT(fullLen = OBJ_obj2txt(full, (int)sizeof(full), named, 0),
+            (int)sizeof(tiny));
+        ExpectIntEQ(OBJ_obj2txt(tiny, (int)sizeof(tiny), named, 0), fullLen);
+        ExpectIntEQ(XMEMCMP(tiny, full, sizeof(tiny) - 1), 0);
+        ExpectIntEQ(tiny[sizeof(tiny) - 1], '\0');
+
+        ExpectNotNull(eku = wolfSSL_d2i_ASN1_OBJECT(NULL, &p,
+            (long)sizeof(ekuDer)));
+        ExpectIntGT(fullLen = OBJ_obj2txt(full, (int)sizeof(full), eku, 0),
+            (int)sizeof(tiny));
+
+        ExpectIntEQ(OBJ_obj2txt(tiny, (int)sizeof(tiny), eku, 0), fullLen);
+        ExpectIntEQ(OBJ_obj2txt(NULL, 0, eku, 0), fullLen);
+        ExpectIntEQ(XMEMCMP(tiny, full, sizeof(tiny) - 1), 0);
+        ExpectIntEQ(tiny[sizeof(tiny) - 1], '\0');
+        wolfSSL_ASN1_OBJECT_free(eku);
+
+        ExpectNotNull(gn = wolfSSL_ASN1_OBJECT_new());
+        if (gn != NULL) {
+            gn->type = WOLFSSL_GEN_DNS;
+            gn->obj = (const unsigned char*)"example.com";
+            gn->objSz = 11;
+        }
+        ExpectIntEQ(OBJ_obj2txt(tiny, (int)sizeof(tiny), gn, 0), 11);
+        ExpectStrEQ(tiny, "exa");
+        wolfSSL_ASN1_OBJECT_free(gn);
+        wolfSSL_ASN1_OBJECT_free(named);
+    }
+    /* >128 content bytes should fail cleanly. */
+    {
+        byte hugeDer[3 + 128];
+        WOLFSSL_ASN1_OBJECT* huge = NULL;
+        char hugeBuf[64];
+
+        hugeDer[0] = ASN_OBJECT_ID;
+        hugeDer[1] = 0x81;
+        hugeDer[2] = 128;
+        XMEMSET(hugeDer + 3, 0x01, 128);
+        ExpectNotNull(huge = wolfSSL_ASN1_OBJECT_new());
+        if (huge != NULL) {
+            huge->obj = hugeDer;
+            huge->objSz = (unsigned int)sizeof(hugeDer);
+        }
+        XMEMSET(hugeBuf, 'A', sizeof(hugeBuf));
+        ExpectIntEQ(OBJ_obj2txt(hugeBuf, (int)sizeof(hugeBuf), huge, 1),
+            WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+        ExpectIntEQ(hugeBuf[0], '\0');
+        wolfSSL_ASN1_OBJECT_free(huge);
+    }
+#ifdef TEST_OSSL_OBJ_OOM
+    /* Truncation should not allocate on the heap. */
+    {
+        char smallBuf[8];
+        wolfSSL_Malloc_cb prevM = NULL;
+        wolfSSL_Free_cb prevF = NULL;
+        wolfSSL_Realloc_cb prevR = NULL;
+        int installed = 0;
+
+        XMEMSET(smallBuf, 'A', sizeof(smallBuf));
+        ExpectIntEQ(wolfSSL_GetAllocators(&prevM, &prevF, &prevR), 0);
+        if (EXPECT_SUCCESS()) {
+            test_ossl_obj_prev_malloc = prevM;
+            test_ossl_obj_prev_free = prevF;
+            test_ossl_obj_prev_realloc = prevR;
+            test_ossl_obj_fail_after = -1;
+            installed = (wolfSSL_SetAllocators(test_ossl_obj_fail_malloc,
+                test_ossl_obj_free, test_ossl_obj_realloc) == 0);
+            ExpectIntEQ(installed, 1);
+        }
+        if (installed) {
+            ExpectIntEQ(OBJ_obj2txt(smallBuf, (int)sizeof(smallBuf), obj, 1),
+                22);
+            ExpectStrEQ(smallBuf, "2.16.84");
+        }
+
+        /* Test i2a_ASN1_OBJECT stack buffer fallback on OOM. */
+        if (installed) {
+            byte longDer[2 + MAX_OID_SZ];
+            WOLFSSL_ASN1_OBJECT* longObj = NULL;
+            WOLFSSL_BIO* longBio = NULL;
+            char out[80];
+            const char* longTxt = "1.3.6.1.4.1.99999"
+                ".127.127.127.127.127.127.127.127.127.127.127.127"
+                ".127.127.127.127.127.127.127.127.127.127.127.127";
+
+            longDer[0] = ASN_OBJECT_ID;
+            longDer[1] = MAX_OID_SZ;
+            longDer[2] = 0x2b; longDer[3] = 0x06; longDer[4] = 0x01;
+            longDer[5] = 0x04; longDer[6] = 0x01; longDer[7] = 0x86;
+            longDer[8] = 0x8d; longDer[9] = 0x1f;
+            XMEMSET(longDer + 10, 0x7f, MAX_OID_SZ - 8);
+
+            /* Create objects before allocator swap so they succeed. */
+            (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
+            ExpectNotNull(longObj = wolfSSL_ASN1_OBJECT_new());
+            ExpectNotNull(longBio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
+            if (longObj != NULL) {
+                longObj->obj = longDer;
+                longObj->objSz = (unsigned int)sizeof(longDer);
+            }
+            test_ossl_obj_alloc_seen = 0;
+            test_ossl_obj_fail_after = 0;
+            ExpectIntEQ(wolfSSL_SetAllocators(test_ossl_obj_fail_malloc,
+                test_ossl_obj_free, test_ossl_obj_realloc), 0);
+            ExpectIntEQ(wolfSSL_i2a_ASN1_OBJECT(longBio, longObj), 79);
+            (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
+            test_ossl_obj_fail_after = -1;
+            XMEMSET(out, 0, sizeof(out));
+            ExpectIntEQ(wolfSSL_BIO_read(longBio, out, 79), 79);
+            ExpectIntEQ(XMEMCMP(out, longTxt, 79), 0);
+            wolfSSL_BIO_free(longBio);
+            wolfSSL_ASN1_OBJECT_free(longObj);
+        }
+    }
+#endif
+    /* Buffer sized to exactly fit must succeed. */
+    {
+        char exactBuf[23];
+        ExpectIntEQ(OBJ_obj2txt(exactBuf, (int)sizeof(exactBuf), obj, 1),
+            22);
+        ExpectStrEQ(exactBuf, "2.16.840.1.101.3.4.2.1");
+    }
     ExpectNotNull(obj2 = OBJ_dup(obj));
     ExpectIntEQ(OBJ_cmp(obj, obj2), 0);
     ASN1_OBJECT_free(obj);

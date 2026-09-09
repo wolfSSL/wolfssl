@@ -1322,6 +1322,9 @@ static int wolfssl_x509_add_subj_alt_name_ext(WOLFSSL_X509 *x509,
 }
 
 #ifdef WOLFSSL_CUSTOM_OID
+/* Max text buffer size for a custom extension OID */
+#define WOLFSSL_CUSTOM_EXT_OID_STR_SZ WC_OID_STR_SZ(MAX_OID_SZ)
+
 /* Handle the default (unrecognized NID) case of wolfSSL_X509_add_ext when
  * custom-OID extensions are enabled: copy the extension OID text and value
  * into the next free slot in x509->custom_exts, taking ownership of the
@@ -1332,11 +1335,31 @@ static int wolfssl_x509_add_custom_ext(WOLFSSL_X509 *x509,
     char *oid = NULL;
     byte *val = NULL;
     int err = 0;
+    int oidStrLen;
 
-    if ((ext->obj == NULL) || (ext->value.length == 0) ||
-        (ext->value.data == NULL)) {
+    if ((ext->obj == NULL) || (ext->obj->obj == NULL) ||
+        (ext->value.length == 0) || (ext->value.data == NULL)) {
         WOLFSSL_MSG("Extension has insufficient information.");
         return WOLFSSL_FAILURE;
+    }
+
+    /* Reject extension OIDs whose content is too long to re-encode later:
+     * parse past the tag/length header rather than assuming a short-form
+     * (single-byte) length octet, so a long-form header on the same
+     * content size is not rejected differently. */
+    {
+        word32 oidIdx = 0;
+        byte oidTag = 0;
+        int oidLen = 0;
+
+        if ((GetASNTag(ext->obj->obj, &oidIdx, &oidTag, ext->obj->objSz)
+                    < 0) ||
+                (GetLength(ext->obj->obj, &oidIdx, &oidLen,
+                        ext->obj->objSz) < 0) ||
+                (oidLen > (int)MAX_OID_SZ)) {
+            WOLFSSL_MSG("Custom extension OID too long.");
+            return WOLFSSL_FAILURE;
+        }
     }
 
     if ((x509->customExtCount < 0) ||
@@ -1346,7 +1369,7 @@ static int wolfssl_x509_add_custom_ext(WOLFSSL_X509 *x509,
     }
 
     /* This is a viable custom extension. */
-    oid = (char*)XMALLOC(MAX_OID_STRING_SZ, x509->heap,
+    oid = (char*)XMALLOC(WOLFSSL_CUSTOM_EXT_OID_STR_SZ, x509->heap,
         DYNAMIC_TYPE_X509_EXT);
     val = (byte*)XMALLOC(ext->value.length, x509->heap,
         DYNAMIC_TYPE_X509_EXT);
@@ -1357,7 +1380,10 @@ static int wolfssl_x509_add_custom_ext(WOLFSSL_X509 *x509,
 
     if (err == 0) {
         XMEMCPY(val, ext->value.data, ext->value.length);
-        if (wolfSSL_OBJ_obj2txt(oid, MAX_OID_STRING_SZ, ext->obj, 1) < 0) {
+
+        oidStrLen = wolfSSL_OBJ_obj2txt(oid, WOLFSSL_CUSTOM_EXT_OID_STR_SZ,
+            ext->obj, 1);
+        if ((oidStrLen <= 0) || (oidStrLen >= WOLFSSL_CUSTOM_EXT_OID_STR_SZ)) {
             err = 1;
         }
     }
@@ -4270,6 +4296,27 @@ int wolfSSL_X509_get_isCA(WOLFSSL_X509* x509)
 
     return isCA;
 }
+
+#ifdef WOLFSSL_CERT_EXT
+/* Returns whether a certificatePolicies entry was dropped when parsed.
+ *
+ * x509  X509 to check. Must have been parsed already.
+ * returns 1 if a policy was dropped, 0 otherwise (including x509 == NULL).
+ */
+int wolfSSL_X509_get_certPoliciesTruncated(WOLFSSL_X509* x509)
+{
+    int truncated = 0;
+
+    WOLFSSL_ENTER("wolfSSL_X509_get_certPoliciesTruncated");
+
+    if (x509 != NULL)
+        truncated = x509->certPoliciesTruncated;
+
+    WOLFSSL_LEAVE("wolfSSL_X509_get_certPoliciesTruncated", truncated);
+
+    return truncated;
+}
+#endif /* WOLFSSL_CERT_EXT */
 
 WOLFSSL_X509* wolfSSL_X509_d2i_ex(WOLFSSL_X509** x509, const byte* in, int len,
     void* heap)
@@ -7942,16 +7989,22 @@ static int X509PrintReqAttributes(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
     do {
         attr = wolfSSL_X509_REQ_get_attr(x509, i);
         if (attr != NULL) {
-            char lName[NAME_SZ/4]; /* NAME_SZ default is 80 */
-            int lNameSz = NAME_SZ/4;
+            /* Sized for numeric-form OID instead of NAME_SZ/4 column width. */
+            char lName[MAX_OID_STRING_SZ];
+            int lNameSz = (int)sizeof(lName);
+            int padSz;
             const byte* data;
 
-            if (wolfSSL_OBJ_obj2txt(lName, lNameSz, attr->object, 0)
-                == WC_NO_ERR_TRACE(WOLFSSL_FAILURE))
-            {
+            lNameSz = wolfSSL_OBJ_obj2txt(lName, lNameSz, attr->object, 0);
+            if ((lNameSz == WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) ||
+                    (lNameSz >= (int)sizeof(lName))) {
                 return WOLFSSL_FAILURE;
             }
-            lNameSz = (int)XSTRLEN(lName);
+
+            padSz = (NAME_SZ/4) - lNameSz;
+            if (padSz < 0) {
+                padSz = 0;
+            }
             data = wolfSSL_ASN1_STRING_get0_data(
                     attr->value->value.asn1_string);
             if (data == NULL) {
@@ -7960,7 +8013,7 @@ static int X509PrintReqAttributes(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
             }
             if ((scratchLen = XSNPRINTF(scratch, MAX_WIDTH,
                           "%*s%s%*s:%s\n", indent+4, "",
-                          lName, (NAME_SZ/4)-lNameSz, "", data))
+                          lName, padSz, "", data))
                 >= MAX_WIDTH)
             {
                 return WOLFSSL_FAILURE;

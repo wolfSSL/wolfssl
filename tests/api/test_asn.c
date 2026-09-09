@@ -3419,6 +3419,898 @@ int test_wc_DecodeObjectId(void)
     return EXPECT_RESULT();
 }
 
+int test_EncodePolicyOID(void)
+{
+    EXPECT_DECLS;
+
+#if (defined(WOLFSSL_CERT_EXT) || defined(OPENSSL_EXTRA) || \
+        defined(OPENSSL_EXTRA_X509_SMALL)) \
+        && !defined(NO_CERTS) && !defined(NO_ASN)
+    {
+        byte out[MAX_OID_SZ];
+        word32 outSz;
+
+        /* Test 1: combined first identifier fits in one byte.
+         * "1.2.3.4.5" -> 40*1+2=42 (0x2a), then 3, 4, 5 */
+        outSz = sizeof(out);
+        ExpectIntEQ(EncodePolicyOID(out, &outSz, "1.2.3.4.5", NULL), 0);
+        ExpectIntEQ((int)outSz, 4);
+        ExpectIntEQ(out[0], 0x2a);
+        ExpectIntEQ(out[1], 3);
+        ExpectIntEQ(out[2], 4);
+        ExpectIntEQ(out[3], 5);
+
+        /* Test 2: combined first identifier needs multi-byte base-128
+         * encoding. "2.100" -> 40*2+100=180 -> 0x81 0x34 */
+        outSz = sizeof(out);
+        ExpectIntEQ(EncodePolicyOID(out, &outSz, "2.100", NULL), 0);
+        ExpectIntEQ((int)outSz, 2);
+        ExpectIntEQ(out[0], 0x81);
+        ExpectIntEQ(out[1], 0x34);
+
+        /* Test 3: X=2 combined identifier well past 127, still valid
+         * per X.690 since X=2 has no upper bound on Y. "2.999" ->
+         * 40*2+999=1079 -> 0x88 0x37 */
+        outSz = sizeof(out);
+        ExpectIntEQ(EncodePolicyOID(out, &outSz, "2.999", NULL), 0);
+        ExpectIntEQ((int)outSz, 2);
+        ExpectIntEQ(out[0], 0x88);
+        ExpectIntEQ(out[1], 0x37);
+
+        /* Test 4: X=0/X=1 with Y>=40 cannot round-trip (combined value
+         * would collide with the X=2 range) and must be rejected. */
+        outSz = sizeof(out);
+        ExpectIntEQ(EncodePolicyOID(out, &outSz, "1.200", NULL),
+                    WC_NO_ERR_TRACE(ASN_OBJECT_ID_E));
+        outSz = sizeof(out);
+        ExpectIntEQ(EncodePolicyOID(out, &outSz, "0.40", NULL),
+                    WC_NO_ERR_TRACE(ASN_OBJECT_ID_E));
+
+        /* Test 5: X=0/X=1 with Y just under 40 is the valid boundary */
+        outSz = sizeof(out);
+        ExpectIntEQ(EncodePolicyOID(out, &outSz, "1.39", NULL), 0);
+        ExpectIntEQ((int)outSz, 1);
+        ExpectIntEQ(out[0], 40 + 39);
+
+        /* Test 5b: single-byte combined identifier at the top of its range.
+         * "2.40.1" -> 40*2+40=120 (0x78), then 1. */
+        outSz = sizeof(out);
+        ExpectIntEQ(EncodePolicyOID(out, &outSz, "2.40.1", NULL), 0);
+        ExpectIntEQ((int)outSz, 2);
+        ExpectIntEQ(out[0], 0x78);
+        ExpectIntEQ(out[1], 1);
+
+        /* Test 5c: "2.47.1" -> 40*2+47=127 (0x7F), the largest single-byte
+         * combined identifier, then 1. */
+        outSz = sizeof(out);
+        ExpectIntEQ(EncodePolicyOID(out, &outSz, "2.47.1", NULL), 0);
+        ExpectIntEQ((int)outSz, 2);
+        ExpectIntEQ(out[0], 0x7F);
+        ExpectIntEQ(out[1], 1);
+
+        /* Test 5d: "2.48" -> 128, smallest value needing multi-byte
+         * encoding (0x81 0x00). Old encoder wrote a bare undecodable 0x80. */
+        outSz = sizeof(out);
+        ExpectIntEQ(EncodePolicyOID(out, &outSz, "2.48", NULL), 0);
+        ExpectIntEQ((int)outSz, 2);
+        ExpectIntEQ(out[0], 0x81);
+        ExpectIntEQ(out[1], 0x00);
+
+        /* Test 6: first arc out of range */
+        outSz = sizeof(out);
+        ExpectIntEQ(EncodePolicyOID(out, &outSz, "3.1", NULL),
+                    WC_NO_ERR_TRACE(ASN_OBJECT_ID_E));
+
+        /* Test 7: negative arcs must not wrap to a huge word32 and slip
+         * past the range checks. */
+        outSz = sizeof(out);
+        ExpectIntEQ(EncodePolicyOID(out, &outSz, "2.-1", NULL),
+                    WC_NO_ERR_TRACE(ASN_OBJECT_ID_E));
+        outSz = sizeof(out);
+        ExpectIntEQ(EncodePolicyOID(out, &outSz, "1.-5", NULL),
+                    WC_NO_ERR_TRACE(ASN_OBJECT_ID_E));
+        outSz = sizeof(out);
+        ExpectIntEQ(EncodePolicyOID(out, &outSz, "-1.2", NULL),
+                    WC_NO_ERR_TRACE(ASN_OBJECT_ID_E));
+
+        /* Test 8: a later (non-combined) arc >= 128 encodes correctly
+         * with a large-enough buffer. "1.2.16384" -> combined id 42
+         * (0x2a) + arc 16384 -> 0x81 0x80 0x00 (same multi-byte value
+         * as Test 9 below, but here with room to check the actual
+         * bytes at the later-arc call site, not just BUFFER_E). */
+        outSz = sizeof(out);
+        ExpectIntEQ(EncodePolicyOID(out, &outSz, "1.2.16384", NULL), 0);
+        ExpectIntEQ((int)outSz, 4);
+        ExpectIntEQ(out[0], 0x2a);
+        ExpectIntEQ(out[1], 0x81);
+        ExpectIntEQ(out[2], 0x80);
+        ExpectIntEQ(out[3], 0x00);
+
+        /* Test 9: BUFFER_E when the output buffer is too small for the
+         * combined first identifier's multi-byte encoding.
+         * "2.16304" -> 40*2+16304=16384 -> needs 3 bytes (0x81 0x80 0x00),
+         * outSz=2 is one byte short. */
+        outSz = 2;
+        ExpectIntEQ(EncodePolicyOID(out, &outSz, "2.16304", NULL),
+                    WC_NO_ERR_TRACE(BUFFER_E));
+
+        /* Test 10: BUFFER_E when the output buffer is too small for a
+         * later (non-combined) arc's multi-byte encoding.
+         * "1.2.16384" -> combined id 42 (1 byte) + arc 16384 (3 bytes,
+         * same as above) -> needs 4 bytes total, outSz=3 is one short. */
+        outSz = 3;
+        ExpectIntEQ(EncodePolicyOID(out, &outSz, "1.2.16384", NULL),
+                    WC_NO_ERR_TRACE(BUFFER_E));
+
+        /* Test 11: NULL/bad args */
+        outSz = sizeof(out);
+        ExpectIntEQ(EncodePolicyOID(NULL, &outSz, "1.2.3", NULL),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(EncodePolicyOID(out, NULL, "1.2.3", NULL),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(EncodePolicyOID(out, &outSz, NULL, NULL),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        outSz = 1; /* *outSz < 2 is rejected up front */
+        ExpectIntEQ(EncodePolicyOID(out, &outSz, "1.2.3", NULL),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* Test 12: fewer than the two arcs needed to form the combined
+         * first identifier must be rejected, not silently succeed with
+         * an empty (zero-length) output. */
+        outSz = sizeof(out);
+        ExpectIntEQ(EncodePolicyOID(out, &outSz, "2", NULL),
+                    WC_NO_ERR_TRACE(ASN_OBJECT_ID_E));
+        outSz = sizeof(out);
+        ExpectIntEQ(EncodePolicyOID(out, &outSz, "", NULL),
+                    WC_NO_ERR_TRACE(ASN_OBJECT_ID_E));
+
+        /* Test 13: non-digit characters anywhere in an arc, including
+         * trailing junk after otherwise-valid digits, must be rejected
+         * rather than silently truncated the way atoi() would. */
+        outSz = sizeof(out);
+        ExpectIntEQ(EncodePolicyOID(out, &outSz, "1.2.abc", NULL),
+                    WC_NO_ERR_TRACE(ASN_OBJECT_ID_E));
+        outSz = sizeof(out);
+        ExpectIntEQ(EncodePolicyOID(out, &outSz, "1.2.3junk", NULL),
+                    WC_NO_ERR_TRACE(ASN_OBJECT_ID_E));
+
+        /* Test 13b: empty arcs (leading/trailing/doubled '.') must be
+         * rejected. XSTRTOK collapses runs of the delimiter and skips
+         * leading/trailing ones, so without an explicit check these would
+         * silently encode identically to the non-empty-arc string. */
+        outSz = sizeof(out);
+        ExpectIntEQ(EncodePolicyOID(out, &outSz, "1..2.3", NULL),
+                    WC_NO_ERR_TRACE(ASN_OBJECT_ID_E));
+        outSz = sizeof(out);
+        ExpectIntEQ(EncodePolicyOID(out, &outSz, ".1.2.3", NULL),
+                    WC_NO_ERR_TRACE(ASN_OBJECT_ID_E));
+        outSz = sizeof(out);
+        ExpectIntEQ(EncodePolicyOID(out, &outSz, "1.2.3.", NULL),
+                    WC_NO_ERR_TRACE(ASN_OBJECT_ID_E));
+
+        /* Test 13c: leading zeros are rejected so "1.02.3" cannot alias
+         * "1.2.3"; a lone "0" arc is still fine. */
+        outSz = sizeof(out);
+        ExpectIntEQ(EncodePolicyOID(out, &outSz, "1.02.3", NULL),
+                    WC_NO_ERR_TRACE(ASN_OBJECT_ID_E));
+        outSz = sizeof(out);
+        ExpectIntEQ(EncodePolicyOID(out, &outSz, "1.2.003", NULL),
+                    WC_NO_ERR_TRACE(ASN_OBJECT_ID_E));
+        outSz = sizeof(out);
+        ExpectIntEQ(EncodePolicyOID(out, &outSz, "01.2.3", NULL),
+                    WC_NO_ERR_TRACE(ASN_OBJECT_ID_E));
+        outSz = sizeof(out);
+        ExpectIntEQ(EncodePolicyOID(out, &outSz, "1.0.3", NULL), 0);
+        ExpectIntEQ(outSz, 2);
+        ExpectIntEQ(out[0], 0x28);
+        ExpectIntEQ(out[1], 0x03);
+        outSz = sizeof(out);
+        ExpectIntEQ(EncodePolicyOID(out, &outSz, "0.0", NULL), 0);
+        ExpectIntEQ(outSz, 1);
+        ExpectIntEQ(out[0], 0x00);
+
+        /* Test 14: an arc value that overflows a word32 gets the distinct
+         * ASN_OID_ARC_TOO_BIG_E, not ASN_OBJECT_ID_E. */
+        outSz = sizeof(out);
+        ExpectIntEQ(EncodePolicyOID(out, &outSz, "1.2.4294967296", NULL),
+                    WC_NO_ERR_TRACE(ASN_OID_ARC_TOO_BIG_E));
+
+        /* Test 14b: Y fits a word32 alone but wraps the 40*X+Y sum. */
+        outSz = sizeof(out);
+        ExpectIntEQ(EncodePolicyOID(out, &outSz, "2.4294967295", NULL),
+                    WC_NO_ERR_TRACE(ASN_OID_ARC_TOO_BIG_E));
+
+        /* Test 15: round-trip through DecodePolicyOID, same "2.100"
+         * value as Test 2 to exercise the decode side's matching fix. */
+        {
+            char decoded[32];
+
+            outSz = sizeof(out);
+            ExpectIntEQ(EncodePolicyOID(out, &outSz, "2.100", NULL), 0);
+            ExpectIntGT(DecodePolicyOID(decoded, sizeof(decoded), out,
+                        outSz), 0);
+            ExpectStrEQ(decoded, "2.100");
+
+            outSz = sizeof(out);
+            ExpectIntEQ(EncodePolicyOID(out, &outSz, "2.5.4", NULL), 0);
+            ExpectIntGT(DecodePolicyOID(decoded, sizeof(decoded), out,
+                        outSz), 0);
+            ExpectStrEQ(decoded, "2.5.4");
+
+            /* A single content byte is a legal OID and must decode, not
+             * be rejected as a bad argument. */
+            outSz = sizeof(out);
+            ExpectIntEQ(EncodePolicyOID(out, &outSz, "2.5", NULL), 0);
+            ExpectIntEQ((int)outSz, 1);
+            ExpectIntGT(DecodePolicyOID(decoded, sizeof(decoded), out,
+                        outSz), 0);
+            ExpectStrEQ(decoded, "2.5");
+
+            /* decode side of the single-byte [120,127] boundary:
+             * "2.40.1" -> 0x78 0x01. Old decoder wrongly gave "3.0.1". */
+            {
+                const byte oid2_40[] = { 0x78, 0x01 };
+                ExpectIntGT(DecodePolicyOID(decoded, sizeof(decoded),
+                            oid2_40, sizeof(oid2_40)), 0);
+                ExpectStrEQ(decoded, "2.40.1");
+            }
+
+            outSz = sizeof(out);
+            ExpectIntEQ(EncodePolicyOID(out, &outSz, "2.999", NULL), 0);
+            ExpectIntGT(DecodePolicyOID(decoded, sizeof(decoded), out,
+                        outSz), 0);
+            ExpectStrEQ(decoded, "2.999");
+
+            outSz = sizeof(out);
+            ExpectIntEQ(EncodePolicyOID(out, &outSz, "1.2.3.4.5", NULL),
+                        0);
+            ExpectIntGT(DecodePolicyOID(decoded, sizeof(decoded), out,
+                        outSz), 0);
+            ExpectStrEQ(decoded, "1.2.3.4.5");
+
+            /* Test 16: truncated mid-continuation first identifier, no
+             * terminating byte. */
+            {
+                const byte truncated[] = { 0x81, 0x81 };
+                ExpectIntEQ(DecodePolicyOID(decoded, sizeof(decoded),
+                            truncated, sizeof(truncated)),
+                            WC_NO_ERR_TRACE(ASN_OBJECT_ID_E));
+            }
+
+            /* Test 17: reject over-long first identifier (cnt > 4) */
+            {
+                const byte overlong[] =
+                    { 0x81, 0x81, 0x81, 0x81, 0x81, 0x00 };
+                ExpectIntEQ(DecodePolicyOID(decoded, sizeof(decoded),
+                            overlong, sizeof(overlong)),
+                            WC_NO_ERR_TRACE(ASN_OID_ARC_TOO_BIG_E));
+            }
+
+            /* Test 18: every byte has its continuation bit set, so the arc
+             * never terminates: truncated (malformed DER) takes precedence
+             * over the value being too big. */
+            {
+                const byte overflow[] = { 0xFF, 0xFF, 0xFF, 0xFF };
+                ExpectIntEQ(DecodePolicyOID(decoded, sizeof(decoded),
+                            overflow, sizeof(overflow)),
+                            WC_NO_ERR_TRACE(ASN_OBJECT_ID_E));
+            }
+
+            /* Test 18b: a terminated first identifier that overflows word32
+             * (2^32, and a 5-byte all-ones one) is valid DER we cannot
+             * represent. */
+            {
+                const byte tooBig[] = { 0x90, 0x80, 0x80, 0x80, 0x00 };
+                const byte tooBig2[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0x7F };
+                ExpectIntEQ(DecodePolicyOID(decoded, sizeof(decoded),
+                            tooBig, sizeof(tooBig)),
+                            WC_NO_ERR_TRACE(ASN_OID_ARC_TOO_BIG_E));
+                ExpectIntEQ(DecodePolicyOID(decoded, sizeof(decoded),
+                            tooBig2, sizeof(tooBig2)),
+                            WC_NO_ERR_TRACE(ASN_OID_ARC_TOO_BIG_E));
+            }
+
+            /* Test 19: return BUFFER_E when decoded string exceeds small
+             * outSz */
+            {
+                char small[4];
+                const byte firstIdBig[] = { 0x81, 0x80, 0x00 };
+                ExpectIntEQ(DecodePolicyOID(small, sizeof(small),
+                            firstIdBig, sizeof(firstIdBig)),
+                            WC_NO_ERR_TRACE(BUFFER_E));
+            }
+
+            /* Test 20: return BUFFER_E when string exact-fits outSz but
+             * lacks NUL space */
+            {
+                char buf4[4];
+                const byte oidExactFit[] = { 0x5A, 0x01 };
+                ExpectIntEQ(DecodePolicyOID(buf4, sizeof(buf4),
+                            oidExactFit, sizeof(oidExactFit)),
+                            WC_NO_ERR_TRACE(BUFFER_E));
+            }
+
+            /* Test 20b: same exact-fit BUFFER_E as Test 20, on a
+             * trailing arc. */
+            {
+                char buf6[6];
+                const byte oidTailExact[] = { 0x2a, 0x22 };
+                ExpectIntEQ(DecodePolicyOID(buf6, sizeof(buf6),
+                            oidTailExact, sizeof(oidTailExact)),
+                            WC_NO_ERR_TRACE(BUFFER_E));
+            }
+
+            /* Test 20c: exact-fit success -- outSz is exactly
+             * strlen(result)+1, one byte more than Test 20b's buf6, which
+             * must fail. Pins the boundary from the success side so the
+             * ">=" guard couldn't be one-too-strict without a test
+             * failing. */
+            {
+                char exact6[6];
+                const byte oidExact[] = { 0x2a, 0x03 };
+                ExpectIntEQ(DecodePolicyOID(exact6, sizeof(exact6),
+                            oidExact, sizeof(oidExact)), 5);
+                ExpectStrEQ(exact6, "1.2.3");
+            }
+
+        #ifndef WOLFSSL_NO_ASN_STRICT
+            /* Test 21: reject non-minimal base-128 first identifier */
+            {
+                const byte nonMinimal[] = { 0x80, 0x2a };
+                ExpectIntEQ(DecodePolicyOID(decoded, sizeof(decoded),
+                            nonMinimal, sizeof(nonMinimal)),
+                            WC_NO_ERR_TRACE(ASN_OBJECT_ID_E));
+            }
+
+        #endif /* !WOLFSSL_NO_ASN_STRICT */
+
+            /* Test 22: truncated trailing arc, no terminating byte. */
+            {
+                const byte truncTail[] = { 0x2a, 0x81 };
+                ExpectIntEQ(DecodePolicyOID(decoded, sizeof(decoded),
+                            truncTail, sizeof(truncTail)),
+                            WC_NO_ERR_TRACE(ASN_OBJECT_ID_E));
+            }
+
+        #ifndef WOLFSSL_NO_ASN_STRICT
+            /* Test 23: non-minimal encoding rejected on a later arc too,
+             * not just the first identifier. */
+            {
+                const byte nonMinimalTail[] = { 0x2a, 0x80, 0x03 };
+                ExpectIntEQ(DecodePolicyOID(decoded, sizeof(decoded),
+                            nonMinimalTail, sizeof(nonMinimalTail)),
+                            WC_NO_ERR_TRACE(ASN_OBJECT_ID_E));
+            }
+
+        #endif /* !WOLFSSL_NO_ASN_STRICT */
+
+            /* Test 24: word32 overflow on a later (non-first) arc gets
+             * ASN_OID_ARC_TOO_BIG_E too, not just the first identifier. */
+            {
+                const byte overflowTail[] =
+                    { 0x2a, 0x90, 0x80, 0x80, 0x80, 0x00 };
+                ExpectIntEQ(DecodePolicyOID(decoded, sizeof(decoded),
+                            overflowTail, sizeof(overflowTail)),
+                            WC_NO_ERR_TRACE(ASN_OID_ARC_TOO_BIG_E));
+            }
+
+            /* Test 25: the largest in-range arc (2^32-1) round-trips. */
+            outSz = sizeof(out);
+            ExpectIntEQ(EncodePolicyOID(out, &outSz, "1.2.4294967295",
+                        NULL), 0);
+            ExpectIntGT(DecodePolicyOID(decoded, sizeof(decoded), out,
+                        outSz), 0);
+            ExpectStrEQ(decoded, "1.2.4294967295");
+
+            /* Test 26: a longer, real-world OID round-trips. */
+            outSz = sizeof(out);
+            ExpectIntEQ(EncodePolicyOID(out, &outSz, "1.2.840.113549.1",
+                        HEAP_HINT), 0);
+            ExpectIntGT(DecodePolicyOID(decoded, sizeof(decoded), out,
+                        outSz), 0);
+            ExpectStrEQ(decoded, "1.2.840.113549.1");
+
+            /* Test 27: DecodePolicyOID's own guard clauses. */
+            {
+                const byte validIn[] = { 0x2a, 0x03 }; /* "1.2.3" */
+
+                ExpectIntEQ(DecodePolicyOID(NULL, sizeof(decoded),
+                            validIn, sizeof(validIn)),
+                            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+                ExpectIntEQ(DecodePolicyOID(decoded, sizeof(decoded),
+                            NULL, sizeof(validIn)),
+                            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+                /* outSz < 4 is rejected up front. */
+                ExpectIntEQ(DecodePolicyOID(decoded, 3,
+                            validIn, sizeof(validIn)),
+                            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+                /* outSz == 0 is the length-only mode: nothing written, full
+                 * length returned, out may be NULL. */
+                XMEMSET(decoded, 'A', sizeof(decoded));
+                ExpectIntEQ(DecodePolicyOID(decoded, 0,
+                            validIn, sizeof(validIn)), 5);
+                ExpectIntEQ(decoded[0], 'A');
+                ExpectIntEQ(DecodePolicyOID(NULL, 0,
+                            validIn, sizeof(validIn)), 5);
+                /* inSz == 0 is rejected up front. */
+                ExpectIntEQ(DecodePolicyOID(decoded, sizeof(decoded),
+                            validIn, 0),
+                            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+                /* inSz >= ASN_LONG_LENGTH (0x80) is rejected up front. */
+                {
+                    byte longIn[0x80];
+
+                    XMEMSET(longIn, 0, sizeof(longIn));
+                    ExpectIntEQ(DecodePolicyOID(decoded, sizeof(decoded),
+                                longIn, (word32)sizeof(longIn)),
+                                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+                }
+            }
+        }
+    }
+#endif /* cert-gen/openssl-extra && !NO_CERTS && !NO_ASN */
+
+    return EXPECT_RESULT();
+}
+
+/*
+ * End-to-end round trip test for certificate policy OID with multi-byte
+ * base-128 encoding.
+ */
+int test_EncodePolicyOID_certgen(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    !defined(NO_RSA) && !defined(NO_CERTS) && !defined(NO_ASN) && \
+    !defined(NO_ASN_TIME) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048) && !defined(HAVE_FIPS)
+    {
+        RsaKey key;
+        WC_RNG rng;
+        Cert cert;
+        DecodedCert decoded;
+        byte* der;
+        int certSz = 0;
+        word32 idx = 0;
+
+        der = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        ExpectNotNull(der);
+
+        XMEMSET(&key, 0, sizeof(key));
+        XMEMSET(&rng, 0, sizeof(rng));
+        ExpectIntEQ(wc_InitRsaKey(&key, HEAP_HINT), 0);
+        ExpectIntEQ(wc_InitRng(&rng), 0);
+        ExpectIntEQ(wc_RsaPrivateKeyDecode(client_key_der_2048, &idx, &key,
+                    sizeof_client_key_der_2048), 0);
+
+        ExpectIntEQ(wc_InitCert(&cert), 0);
+        cert.isCA = 0;
+        cert.sigType = CTC_SHA256wRSA;
+        XSTRNCPY(cert.subject.country, "US", CTC_NAME_SIZE - 1);
+        XSTRNCPY(cert.subject.state, "OR", CTC_NAME_SIZE - 1);
+        XSTRNCPY(cert.subject.org, "wolfSSL", CTC_NAME_SIZE - 1);
+        XSTRNCPY(cert.subject.commonName, "www.wolfssl.com",
+                CTC_NAME_SIZE - 1);
+        /* multi-byte combined first identifier (40*2+100=180 -> 0x81
+         * 0x34), the exact class of OID the fix targets. */
+        XSTRNCPY(cert.certPolicies[0], "2.100.3", CTC_MAX_CERTPOL_SZ - 1);
+        cert.certPoliciesNb = 1;
+
+        if (der != NULL) {
+            ExpectIntGT(certSz = wc_MakeSelfCert(&cert, der, FOURK_BUF, &key,
+                        &rng), 0);
+        }
+
+        if (EXPECT_SUCCESS()) {
+            XMEMSET(&decoded, 0, sizeof(decoded));
+            wc_InitDecodedCert(&decoded, der, (word32)certSz, HEAP_HINT);
+            ExpectIntEQ(wc_ParseCert(&decoded, CERT_TYPE, NO_VERIFY, NULL),
+                    0);
+            ExpectIntEQ(decoded.extCertPoliciesNb, 1);
+            ExpectStrEQ(decoded.extCertPolicies[0], "2.100.3");
+            {
+                int truncated = 1;
+                ExpectIntEQ(wc_GetDecodedCertPoliciesTruncated(&decoded,
+                            &truncated), 0);
+                ExpectIntEQ(truncated, 0);
+            }
+            wc_FreeDecodedCert(&decoded);
+        }
+
+    #ifndef WOLFSSL_NO_ASN_STRICT
+        /* A malformed policy OID (not DER) fails the whole parse. Corrupt
+         * "2.100.3" ({ 0x81, 0x34, 0x03 }) to a non-minimal first arc
+         * (leading 0x80); same length, so no other offset shifts. Match the
+         * full TLV to avoid a false hit on some unrelated byte. */
+        if (EXPECT_SUCCESS()) {
+            int i;
+            int found = 0;
+            const byte oidBytes[] = { 0x06, 0x03, 0x81, 0x34, 0x03 };
+
+            for (i = 0; i + (int)sizeof(oidBytes) <= certSz; i++) {
+                if (XMEMCMP(der + i, oidBytes, sizeof(oidBytes)) == 0) {
+                    der[i + 2] = 0x80;
+                    found = 1;
+                    break;
+                }
+            }
+            ExpectIntEQ(found, 1);
+
+            XMEMSET(&decoded, 0, sizeof(decoded));
+            wc_InitDecodedCert(&decoded, der, (word32)certSz, HEAP_HINT);
+            ExpectIntEQ(wc_ParseCert(&decoded, CERT_TYPE, NO_VERIFY, NULL),
+                    WC_NO_ERR_TRACE(ASN_PARSE_E));
+            wc_FreeDecodedCert(&decoded);
+        }
+    #endif /* !WOLFSSL_NO_ASN_STRICT */
+
+        /* An arc that overflows a word32 (e.g. a 2.25 UUID-based OID) is
+         * handled more leniently: only that policy is skipped. Encode
+         * "2.100.4294967295" (2^32-1, valid at encode time) then bump its
+         * trailing arc to 2^32 in the DER, same trick as above. */
+        ExpectIntEQ(wc_InitCert(&cert), 0);
+        cert.isCA = 0;
+        cert.sigType = CTC_SHA256wRSA;
+        XSTRNCPY(cert.subject.country, "US", CTC_NAME_SIZE - 1);
+        XSTRNCPY(cert.subject.state, "OR", CTC_NAME_SIZE - 1);
+        XSTRNCPY(cert.subject.org, "wolfSSL", CTC_NAME_SIZE - 1);
+        XSTRNCPY(cert.subject.commonName, "www.wolfssl.com",
+                CTC_NAME_SIZE - 1);
+        XSTRNCPY(cert.certPolicies[0], "2.100.3", CTC_MAX_CERTPOL_SZ - 1);
+        XSTRNCPY(cert.certPolicies[1], "2.100.4294967295",
+                CTC_MAX_CERTPOL_SZ - 1);
+        cert.certPoliciesNb = 2;
+
+        certSz = 0;
+        if (der != NULL) {
+            ExpectIntGT(certSz = wc_MakeSelfCert(&cert, der, FOURK_BUF, &key,
+                        &rng), 0);
+        }
+
+        if (EXPECT_SUCCESS()) {
+            int i;
+            int found = 0;
+            const byte oidBytes[] =
+                { 0x06, 0x07, 0x81, 0x34, 0x8F, 0xFF, 0xFF, 0xFF, 0x7F };
+            const byte oidOverflow[] =
+                { 0x90, 0x80, 0x80, 0x80, 0x00 };
+
+            for (i = 0; i + (int)sizeof(oidBytes) <= certSz; i++) {
+                if (XMEMCMP(der + i, oidBytes, sizeof(oidBytes)) == 0) {
+                    XMEMCPY(der + i + 4, oidOverflow, sizeof(oidOverflow));
+                    found = 1;
+                    break;
+                }
+            }
+            ExpectIntEQ(found, 1);
+
+            XMEMSET(&decoded, 0, sizeof(decoded));
+            wc_InitDecodedCert(&decoded, der, (word32)certSz, HEAP_HINT);
+            ExpectIntEQ(wc_ParseCert(&decoded, CERT_TYPE, NO_VERIFY, NULL),
+                    0);
+            ExpectIntEQ(decoded.extCertPoliciesNb, 1);
+            ExpectStrEQ(decoded.extCertPolicies[0], "2.100.3");
+            /* extCertPoliciesNb undercounts (1, not 2) because the
+             * oversized-arc policy was skipped - the flag lets callers
+             * detect that instead of mistaking it for a genuine 1-policy
+             * cert. */
+            {
+                int truncated = 0;
+                ExpectIntEQ(wc_GetDecodedCertPoliciesTruncated(&decoded,
+                            &truncated), 0);
+                ExpectIntEQ(truncated, 1);
+                ExpectIntEQ(wc_GetDecodedCertPoliciesTruncated(NULL,
+                            &truncated), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+                ExpectIntEQ(wc_GetDecodedCertPoliciesTruncated(&decoded, NULL),
+                        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            }
+            wc_FreeDecodedCert(&decoded);
+
+            /* Now set the continuation bit on that arc's last byte too, so
+             * it never terminates: a truncated arc is malformed DER and
+             * fails the parse, however large its partial value. */
+            if (found) {
+            #ifdef WOLFSSL_NO_ASN_STRICT
+                int truncated = 0;
+            #endif
+                der[i + 8] = 0x80;
+                XMEMSET(&decoded, 0, sizeof(decoded));
+                wc_InitDecodedCert(&decoded, der, (word32)certSz, HEAP_HINT);
+            #ifndef WOLFSSL_NO_ASN_STRICT
+                ExpectIntEQ(wc_ParseCert(&decoded, CERT_TYPE, NO_VERIFY,
+                            NULL), WC_NO_ERR_TRACE(ASN_PARSE_E));
+            #else
+                /* The escape hatch: dropped and flagged instead. */
+                ExpectIntEQ(wc_ParseCert(&decoded, CERT_TYPE, NO_VERIFY,
+                            NULL), 0);
+                ExpectIntEQ(decoded.extCertPoliciesNb, 1);
+                ExpectIntEQ(wc_GetDecodedCertPoliciesTruncated(&decoded,
+                            &truncated), 0);
+                ExpectIntEQ(truncated, 1);
+            #endif
+                wc_FreeDecodedCert(&decoded);
+            }
+        }
+
+        XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        wc_FreeRng(&rng);
+        wc_FreeRsaKey(&key);
+    }
+#endif
+
+    return EXPECT_RESULT();
+}
+
+/* wc_SetCustomExtension() keeps the caller's OID string pointer, so
+ * EncodeExtensions() re-encodes it at generation time and must report a
+ * string that has since gone bad instead of emitting a broken extension. */
+int test_wc_SetCustomExtension_mutated_oid(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_ASN_TEMPLATE) && defined(WOLFSSL_CERT_GEN) && \
+    defined(WOLFSSL_CERT_EXT) && \
+    defined(WOLFSSL_CUSTOM_OID) && defined(HAVE_OID_ENCODING) && \
+    !defined(NO_RSA) && !defined(NO_ASN_TIME) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048) && !defined(HAVE_FIPS)
+    {
+        RsaKey key;
+        WC_RNG rng;
+        Cert cert;
+        byte* der;
+        char oid[] = "1.2.3.4";
+        const byte extDer[] = { 0x04, 0x01, 0x2a };
+        word32 idx = 0;
+
+        der = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        ExpectNotNull(der);
+
+        XMEMSET(&key, 0, sizeof(key));
+        XMEMSET(&rng, 0, sizeof(rng));
+        ExpectIntEQ(wc_InitRsaKey(&key, HEAP_HINT), 0);
+        ExpectIntEQ(wc_InitRng(&rng), 0);
+        ExpectIntEQ(wc_RsaPrivateKeyDecode(client_key_der_2048, &idx, &key,
+                    sizeof_client_key_der_2048), 0);
+
+        ExpectIntEQ(wc_InitCert(&cert), 0);
+        cert.isCA = 0;
+        cert.sigType = CTC_SHA256wRSA;
+        XSTRNCPY(cert.subject.commonName, "www.wolfssl.com",
+                CTC_NAME_SIZE - 1);
+        ExpectIntEQ(wc_SetCustomExtension(&cert, 0, oid, extDer,
+                    (word32)sizeof(extDer)), 0);
+
+        /* Valid at registration, first arc > 2 by generation time. */
+        oid[0] = '9';
+        if (der != NULL) {
+            ExpectIntEQ(wc_MakeSelfCert(&cert, der, FOURK_BUF, &key, &rng),
+                        WC_NO_ERR_TRACE(ASN_OBJECT_ID_E));
+        }
+
+        wc_FreeRng(&rng);
+        wc_FreeRsaKey(&key);
+        XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Self-signed ECDSA P-256 certificate (CN=policies) carrying five
+ * certificatePolicies entries, 1.2.3.1 through 1.2.3.5, and a private
+ * extension with OID 1.2.3.4.5 (DER 2a 03 04 05) holding a UTF8String.
+ * Generated with openssl req -x509; only its parse matters, not its
+ * signature. Five is more than CTC_MAX_CERTPOL_NB, which wolfSSL's own
+ * generator will not exceed, so this pins the MAX_CERTPOL_NB cap through
+ * the public API in whichever ASN decoder the library was built with. */
+#if defined(WOLFSSL_CERT_EXT) && !defined(NO_CERTS) && !defined(NO_ASN) && \
+    !defined(NO_ASN_TIME) && defined(HAVE_ECC) && !defined(NO_SHA256)
+static const byte fivePoliciesCert[] = {
+    0x30, 0x82, 0x01, 0xb8, 0x30, 0x82, 0x01, 0x5e, 0xa0, 0x03, 0x02, 0x01,
+    0x02, 0x02, 0x14, 0x6d, 0x80, 0x65, 0xc1, 0xf7, 0x5f, 0x2f, 0x07, 0x80,
+    0x67, 0xca, 0x34, 0x13, 0x2c, 0xd5, 0xca, 0xb3, 0xf5, 0x1f, 0x75, 0x30,
+    0x0a, 0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x04, 0x03, 0x02, 0x30,
+    0x13, 0x31, 0x11, 0x30, 0x0f, 0x06, 0x03, 0x55, 0x04, 0x03, 0x0c, 0x08,
+    0x70, 0x6f, 0x6c, 0x69, 0x63, 0x69, 0x65, 0x73, 0x30, 0x1e, 0x17, 0x0d,
+    0x32, 0x36, 0x30, 0x39, 0x31, 0x34, 0x31, 0x38, 0x33, 0x37, 0x35, 0x36,
+    0x5a, 0x17, 0x0d, 0x34, 0x36, 0x30, 0x39, 0x30, 0x39, 0x31, 0x38, 0x33,
+    0x37, 0x35, 0x36, 0x5a, 0x30, 0x13, 0x31, 0x11, 0x30, 0x0f, 0x06, 0x03,
+    0x55, 0x04, 0x03, 0x0c, 0x08, 0x70, 0x6f, 0x6c, 0x69, 0x63, 0x69, 0x65,
+    0x73, 0x30, 0x59, 0x30, 0x13, 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d,
+    0x02, 0x01, 0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07,
+    0x03, 0x42, 0x00, 0x04, 0xb5, 0x43, 0x85, 0xfb, 0x8b, 0x46, 0x72, 0x2c,
+    0x6f, 0x59, 0x05, 0x4e, 0x34, 0x42, 0xe3, 0x19, 0x25, 0xc5, 0xe4, 0x99,
+    0x84, 0x2a, 0x63, 0x88, 0xfb, 0x3c, 0x8e, 0xf1, 0x0b, 0x6e, 0x85, 0x11,
+    0x3a, 0xfc, 0xc3, 0x4d, 0xac, 0x4a, 0x07, 0x8e, 0x61, 0x5b, 0x7e, 0x0c,
+    0xa9, 0xb7, 0x1b, 0x82, 0x2a, 0xfa, 0x23, 0x93, 0x7e, 0xd6, 0xc5, 0x72,
+    0x19, 0x41, 0x5c, 0x3d, 0x75, 0x1a, 0xfd, 0xe9, 0xa3, 0x81, 0x8f, 0x30,
+    0x81, 0x8c, 0x30, 0x1d, 0x06, 0x03, 0x55, 0x1d, 0x0e, 0x04, 0x16, 0x04,
+    0x14, 0x38, 0x32, 0xfe, 0x38, 0x4b, 0x7c, 0xcc, 0x37, 0xcc, 0xd4, 0xcb,
+    0xbb, 0x9b, 0x7c, 0x4e, 0xf7, 0xcc, 0x50, 0x16, 0xcf, 0x30, 0x1f, 0x06,
+    0x03, 0x55, 0x1d, 0x23, 0x04, 0x18, 0x30, 0x16, 0x80, 0x14, 0x38, 0x32,
+    0xfe, 0x38, 0x4b, 0x7c, 0xcc, 0x37, 0xcc, 0xd4, 0xcb, 0xbb, 0x9b, 0x7c,
+    0x4e, 0xf7, 0xcc, 0x50, 0x16, 0xcf, 0x30, 0x0f, 0x06, 0x03, 0x55, 0x1d,
+    0x13, 0x01, 0x01, 0xff, 0x04, 0x05, 0x30, 0x03, 0x01, 0x01, 0xff, 0x30,
+    0x2c, 0x06, 0x03, 0x55, 0x1d, 0x20, 0x04, 0x25, 0x30, 0x23, 0x30, 0x05,
+    0x06, 0x03, 0x2a, 0x03, 0x01, 0x30, 0x05, 0x06, 0x03, 0x2a, 0x03, 0x02,
+    0x30, 0x05, 0x06, 0x03, 0x2a, 0x03, 0x03, 0x30, 0x05, 0x06, 0x03, 0x2a,
+    0x03, 0x04, 0x30, 0x05, 0x06, 0x03, 0x2a, 0x03, 0x05, 0x30, 0x0b, 0x06,
+    0x04, 0x2a, 0x03, 0x04, 0x05, 0x04, 0x03, 0x0c, 0x01, 0x78, 0x30, 0x0a,
+    0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x04, 0x03, 0x02, 0x03, 0x48,
+    0x00, 0x30, 0x45, 0x02, 0x20, 0x7b, 0x15, 0xb4, 0x39, 0x85, 0x2f, 0xdd,
+    0xed, 0xda, 0x58, 0xf7, 0xf6, 0x5d, 0xff, 0x8f, 0x8f, 0x1e, 0x3e, 0x64,
+    0xe8, 0x2b, 0xd6, 0x17, 0xc7, 0xfd, 0x11, 0x51, 0x4a, 0x09, 0xcb, 0x4a,
+    0xab, 0x02, 0x21, 0x00, 0xc9, 0x56, 0xf0, 0x90, 0x33, 0xb4, 0xe5, 0x96,
+    0x13, 0xcf, 0x59, 0x80, 0x1b, 0xcb, 0x4a, 0x92, 0x28, 0x34, 0xba, 0x76,
+    0x20, 0xc4, 0x66, 0x15, 0x17, 0x0a, 0xdc, 0x62, 0x1e, 0xda, 0x2c, 0x27
+};
+#endif
+
+int test_ParseCert_policies_past_max(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_CERT_EXT) && !defined(NO_CERTS) && !defined(NO_ASN) && \
+    !defined(NO_ASN_TIME) && defined(HAVE_ECC) && !defined(NO_SHA256)
+    DecodedCert decoded;
+    int truncated = 0;
+
+    XMEMSET(&decoded, 0, sizeof(decoded));
+    wc_InitDecodedCert(&decoded, fivePoliciesCert,
+        (word32)sizeof(fivePoliciesCert), HEAP_HINT);
+    ExpectIntEQ(wc_ParseCert(&decoded, CERT_TYPE, NO_VERIFY, NULL), 0);
+    ExpectIntEQ(decoded.extCertPoliciesNb, MAX_CERTPOL_NB);
+    ExpectStrEQ(decoded.extCertPolicies[0], "1.2.3.1");
+    ExpectIntEQ(wc_GetDecodedCertPoliciesTruncated(&decoded, &truncated), 0);
+    ExpectIntEQ(truncated, 1);
+    wc_FreeDecodedCert(&decoded);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* wolfSSL_X509_print() should fail when an extension OID has a non-minimal arc */
+int test_wolfSSL_X509_print_nonminimal_ext_oid(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_CERT_EXT) && !defined(NO_CERTS) && !defined(NO_ASN) && \
+    !defined(NO_ASN_TIME) && defined(HAVE_ECC) && !defined(NO_SHA256) && \
+    defined(OPENSSL_EXTRA) && !defined(NO_BIO) && \
+    !defined(WOLFSSL_NO_ASN_STRICT)
+    /* 1.2.3.4.5 with the second arc encoded as 80 04: valid length, not
+     * minimal. */
+    const byte goodOid[] = { 0x06, 0x04, 0x2a, 0x03, 0x04, 0x05 };
+    byte* der = NULL;
+    WOLFSSL_X509* x509 = NULL;
+    WOLFSSL_BIO* bio = NULL;
+    int i;
+    int found = 0;
+
+    ExpectNotNull(der = (byte*)XMALLOC(sizeof(fivePoliciesCert), HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (der != NULL) {
+        XMEMCPY(der, fivePoliciesCert, sizeof(fivePoliciesCert));
+    }
+
+    /* Control: the certificate as generated prints. */
+    ExpectNotNull(x509 = wolfSSL_X509_d2i(NULL, der,
+        (int)sizeof(fivePoliciesCert)));
+    ExpectNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
+    ExpectIntEQ(wolfSSL_X509_print(bio, x509), WOLFSSL_SUCCESS);
+    wolfSSL_BIO_free(bio);
+    bio = NULL;
+    wolfSSL_X509_free(x509);
+    x509 = NULL;
+
+    for (i = 0; der != NULL &&
+            i + (int)sizeof(goodOid) <= (int)sizeof(fivePoliciesCert); i++) {
+        if (XMEMCMP(der + i, goodOid, sizeof(goodOid)) == 0) {
+            der[i + 3] = 0x80;
+            found = 1;
+            break;
+        }
+    }
+    ExpectIntEQ(found, 1);
+
+    if (found) {
+        ExpectNotNull(x509 = wolfSSL_X509_d2i(NULL, der,
+            (int)sizeof(fivePoliciesCert)));
+        ExpectNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
+        ExpectIntEQ(wolfSSL_X509_print(bio, x509),
+            WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+        wolfSSL_BIO_free(bio);
+        wolfSSL_X509_free(x509);
+    }
+
+    XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Ensure the truncated flag survives CopyDecodedToX509() into WOLFSSL_X509 */
+int test_wolfSSL_X509_get_certPoliciesTruncated(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    !defined(NO_RSA) && !defined(NO_CERTS) && !defined(NO_ASN) && \
+    !defined(NO_ASN_TIME) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048) && !defined(HAVE_FIPS) && \
+    (defined(KEEP_PEER_CERT) || defined(SESSION_CERTS) || \
+     defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+    {
+        RsaKey key;
+        WC_RNG rng;
+        Cert cert;
+        WOLFSSL_X509* x509 = NULL;
+        byte* der;
+        int certSz = 0;
+        word32 idx = 0;
+
+        der = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        ExpectNotNull(der);
+
+        XMEMSET(&key, 0, sizeof(key));
+        XMEMSET(&rng, 0, sizeof(rng));
+        ExpectIntEQ(wc_InitRsaKey(&key, HEAP_HINT), 0);
+        ExpectIntEQ(wc_InitRng(&rng), 0);
+        ExpectIntEQ(wc_RsaPrivateKeyDecode(client_key_der_2048, &idx, &key,
+                    sizeof_client_key_der_2048), 0);
+
+        ExpectIntEQ(wc_InitCert(&cert), 0);
+        cert.isCA = 0;
+        cert.sigType = CTC_SHA256wRSA;
+        XSTRNCPY(cert.subject.country, "US", CTC_NAME_SIZE - 1);
+        XSTRNCPY(cert.subject.state, "OR", CTC_NAME_SIZE - 1);
+        XSTRNCPY(cert.subject.org, "wolfSSL", CTC_NAME_SIZE - 1);
+        XSTRNCPY(cert.subject.commonName, "www.wolfssl.com",
+                CTC_NAME_SIZE - 1);
+        XSTRNCPY(cert.certPolicies[0], "2.100.4294967295",
+                CTC_MAX_CERTPOL_SZ - 1);
+        cert.certPoliciesNb = 1;
+
+        if (der != NULL) {
+            ExpectIntGT(certSz = wc_MakeSelfCert(&cert, der, FOURK_BUF, &key,
+                        &rng), 0);
+        }
+
+        ExpectIntEQ(wolfSSL_X509_get_certPoliciesTruncated(NULL), 0);
+
+        /* Clean certificate: the one policy is kept, nothing dropped. */
+        if (EXPECT_SUCCESS()) {
+            ExpectNotNull(x509 = wolfSSL_X509_d2i(NULL, der, certSz));
+            ExpectIntEQ(wolfSSL_X509_get_certPoliciesTruncated(x509), 0);
+            wolfSSL_X509_free(x509);
+            x509 = NULL;
+        }
+
+        /* Unrepresentable policy (arc >= 2^32) should be dropped and reported. */
+        if (EXPECT_SUCCESS()) {
+            int i;
+            int found = 0;
+            const byte oidBytes[] =
+                { 0x06, 0x07, 0x81, 0x34, 0x8F, 0xFF, 0xFF, 0xFF, 0x7F };
+            const byte oidOverflow[] =
+                { 0x90, 0x80, 0x80, 0x80, 0x00 };
+
+            for (i = 0; i + (int)sizeof(oidBytes) <= certSz; i++) {
+                if (XMEMCMP(der + i, oidBytes, sizeof(oidBytes)) == 0) {
+                    XMEMCPY(der + i + 4, oidOverflow, sizeof(oidOverflow));
+                    found = 1;
+                    break;
+                }
+            }
+            ExpectIntEQ(found, 1);
+
+            ExpectNotNull(x509 = wolfSSL_X509_d2i(NULL, der, certSz));
+            ExpectIntEQ(wolfSSL_X509_get_certPoliciesTruncated(x509), 1);
+            wolfSSL_X509_free(x509);
+            x509 = NULL;
+        }
+
+        wc_FreeRng(&rng);
+        wc_FreeRsaKey(&key);
+        XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(HAVE_PKCS8) && !defined(NO_ASN) && \
     (defined(WOLFSSL_TEST_CERT) || defined(OPENSSL_EXTRA) || \
      defined(OPENSSL_EXTRA_X509_SMALL) || defined(WOLFSSL_PUBLIC_ASN)) && \

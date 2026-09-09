@@ -4235,6 +4235,7 @@ static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert)
 
 #if defined(WOLFSSL_CERT_EXT)
         cert->extCertPoliciesNb = 0;
+        cert->extCertPoliciesTruncated = 0;
 #endif
 
     if (GetSequence(input, &idx, &total_length, sz) < 0) {
@@ -4257,6 +4258,11 @@ static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert)
     /* Unwrap certificatePolicies */
     do {
         int length = 0;
+    #ifdef WOLFSSL_CERT_EXT
+        /* Set when this policy's OID can't be decoded, so that nothing
+         * derived from it gets recorded. */
+        int skipPolicy = 0;
+    #endif
 
         if (GetSequence(input, &idx, &policy_length, sz) < 0) {
             WOLFSSL_MSG("\tGet CertPolicy seq failed");
@@ -4276,7 +4282,40 @@ static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert)
                 return ASN_PARSE_E;
             }
 
+    #ifdef WOLFSSL_CERT_EXT
+            /* Clear the slot: the duplicate check below compares the full
+             * MAX_CERTPOL_SZ slot, not just the decoded length. */
+            XMEMSET(cert->extCertPolicies[cert->extCertPoliciesNb], 0,
+                    MAX_CERTPOL_SZ);
+
+            /* Malformed DER (non-minimal or truncated arc) fails the parse
+             * as RFC 5280 requires, unless WOLFSSL_NO_ASN_STRICT, which drops
+             * it like an OID that is valid DER but cannot be represented (an
+             * arc over 32 bits, 128 or more content bytes, or text longer
+             * than MAX_CERTPOL_SZ): dropped and flagged. */
+            {
+                int decRet = DecodePolicyOID(cert->extCertPolicies[
+                                   cert->extCertPoliciesNb], MAX_CERTPOL_SZ,
+                                   input + idx, length);
+            #ifndef WOLFSSL_NO_ASN_STRICT
+                if (decRet == WC_NO_ERR_TRACE(ASN_OBJECT_ID_E)) {
+                    WOLFSSL_MSG("\tMalformed policy OID");
+                    WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
+                    return ASN_PARSE_E;
+                }
+            #endif
+                if (decRet <= 0) {
+                    WOLFSSL_MSG("\tSkipping policy OID that can't be "
+                                "represented");
+                    skipPolicy = 1;
+                    cert->extCertPoliciesTruncated = 1;
+                }
+            }
+    #endif
+
     #ifdef WOLFSSL_SEP
+            /* Raw DER, not text: a policy the decode above could not
+             * represent still counts here. */
             if (cert->deviceType == NULL) {
                 cert->deviceType = (byte*)XMALLOC((size_t)length, cert->heap,
                                                         DYNAMIC_TYPE_X509_EXT);
@@ -4290,21 +4329,13 @@ static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert)
     #endif
 
     #ifdef WOLFSSL_CERT_EXT
-            /* decode cert policy */
-            if (DecodePolicyOID(cert->extCertPolicies[
-                                cert->extCertPoliciesNb], MAX_CERTPOL_SZ,
-                                input + idx, length) <= 0) {
-                WOLFSSL_MSG("\tCouldn't decode CertPolicy");
-                WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
-                return ASN_PARSE_E;
-            }
         #ifndef WOLFSSL_DUP_CERTPOL
             /* From RFC 5280 section 4.2.1.4 "A certificate policy OID MUST
              * NOT appear more than once in a certificate policies
              * extension". This is a sanity check for duplicates.
              * extCertPolicies should only have OID values, additional
              * qualifiers need to be stored in a separate array. */
-            for (i = 0; i < cert->extCertPoliciesNb; i++) {
+            for (i = 0; !skipPolicy && (i < cert->extCertPoliciesNb); i++) {
                 if (XMEMCMP(cert->extCertPolicies[i],
                             cert->extCertPolicies[cert->extCertPoliciesNb],
                             MAX_CERTPOL_SZ) == 0) {
@@ -4315,7 +4346,9 @@ static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert)
                 }
             }
         #endif /* !WOLFSSL_DUP_CERTPOL */
-            cert->extCertPoliciesNb++;
+            if (!skipPolicy) {
+                cert->extCertPoliciesNb++;
+            }
     #endif
         }
         idx += (word32)policy_length;
@@ -4325,6 +4358,18 @@ static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert)
         && cert->extCertPoliciesNb < MAX_CERTPOL_NB
     #endif
     );
+
+    #ifdef WOLFSSL_CERT_EXT
+    /* Loop stopped on the MAX_CERTPOL_NB cap with data left: the rest are
+     * dropped too. idx is an absolute offset into input, so compare it
+     * against seqEnd (idx after the SEQUENCE header, plus total_length),
+     * not against total_length itself. */
+    if ((idx < seqEnd) &&
+            (cert->extCertPoliciesNb >= MAX_CERTPOL_NB)) {
+        WOLFSSL_MSG("\tDropping policies past MAX_CERTPOL_NB");
+        cert->extCertPoliciesTruncated = 1;
+    }
+    #endif
 
     WOLFSSL_LEAVE("DecodeCertPolicy", 0);
     return 0;
