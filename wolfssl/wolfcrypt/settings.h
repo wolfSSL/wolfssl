@@ -4842,6 +4842,31 @@
     #error "CURVE25519_SMALL/ED25519_SMALL are incompatible with the Intel x64 curve25519/ed25519 assembly (CURVED25519_X64); define NO_CURVED25519_X64 to keep the small implementation, or remove the SMALL settings to use the assembly"
 #endif
 
+
+/* A 32-bit Arm crypto-extension build otherwise compiles base and crypto AES
+ * and SHA-256 and picks at run time; a FIPS build keeps one implementation. */
+#if (defined(HAVE_FIPS) || defined(WOLFSSL_FIPS_READY) || \
+     defined(WOLFSSL_FIPS_DEV)) && \
+    defined(WOLFSSL_ARMASM) && !defined(__aarch64__) && \
+    !defined(WOLFSSL_ARMASM_THUMB2) && !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+    #ifndef WOLFSSL_ARMASM_NO_BASE_IMPL
+        #define WOLFSSL_ARMASM_NO_BASE_IMPL
+    #endif
+    #ifndef WOLFSSL_ARMASM_NO_NEON_IMPL
+        #define WOLFSSL_ARMASM_NO_NEON_IMPL
+    #endif
+    /* The kernel module is the system random source and is entered from every
+     * context, so its SHA-2 runs on the scalar lanes and SHA-3 in C. */
+    #ifdef WOLFSSL_LINUXKM
+        #ifndef WOLFSSL_ARMASM_NO_NEON
+            #define WOLFSSL_ARMASM_NO_NEON
+        #endif
+        #ifndef WC_SHA3_NO_ASM
+            #define WC_SHA3_NO_ASM
+        #endif
+    #endif
+#endif
+
 #if defined(WOLFSSL_ARMASM)
     #ifdef __aarch64__
         #define CURVED25519_ASM_64BIT
