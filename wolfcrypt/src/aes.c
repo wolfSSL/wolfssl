@@ -6783,15 +6783,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         secDesc->pointer7 = NULL;
         secDesc->nextDescriptorPtr = NULL;
 
-#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
-        size = AES_BUFFER_SIZE;
-#endif
         while (sz) {
             secDesc->header = descHeader;
             XMEMCPY(secReg, aes->reg, WC_AES_BLOCK_SIZE);
-#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
-            sz -= AES_BUFFER_SIZE;
-#else
             if (sz < AES_BUFFER_SIZE) {
                 size = sz;
                 sz = 0;
@@ -6799,7 +6793,6 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
                 size = AES_BUFFER_SIZE;
                 sz -= AES_BUFFER_SIZE;
             }
-#endif
 
             secDesc->length4 = size;
             secDesc->length5 = size;
