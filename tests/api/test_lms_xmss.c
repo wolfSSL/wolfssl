@@ -379,9 +379,11 @@ static int test_lms_xmss_cryptocb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 }
 #endif
 
-/* Must be the exact guard of the verify test below. */
-#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY) && \
-    defined(WOLF_CRYPTO_CB)
+/* Must be the exact union of the two verify test guards below. */
+#if defined(WOLF_CRYPTO_CB) && \
+    ((defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)) || \
+     (defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY) && \
+      defined(TEST_XMSS_H10_AVAILABLE)))
 
 /* Number of stateful signature verifications the accelerator below answered. */
 static int test_lms_xmss_verify_calls;
@@ -594,8 +596,7 @@ int test_wc_LmsKey_reload_devid_verify(void)
 }
 
 #if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY) && \
-    defined(WOLF_CRYPTO_CB) && !defined(NO_FILESYSTEM) && \
-    defined(TEST_XMSS_H10_AVAILABLE)
+    !defined(NO_FILESYSTEM) && defined(TEST_XMSS_H10_AVAILABLE)
 /* Per-process temp file so parallel unit.test runs sharing /tmp do not
  * clobber each other's stateful XMSS private key. */
 static const char* xmss_devid_priv_key_file(void)
@@ -723,6 +724,105 @@ int test_wc_XmssKey_reload_devid(void)
     wc_XmssKey_Free(&key);
     wc_FreeRng(&rng);
     (void)remove(XMSS_DEVID_TEST_PRIV_KEY_FILE);
+    wc_CryptoCb_UnRegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID);
+#endif
+    return EXPECT_RESULT();
+}
+
+/*
+ * Same scenario as test_wc_LmsKey_reload_no_pub, for XMSS. The software
+ * reload reads the secret key only to sanity-check it and ForceZeros it
+ * immediately, so key->pk is never populated.
+ */
+int test_wc_XmssKey_reload_no_pub(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY) && \
+    !defined(NO_FILESYSTEM) && defined(TEST_XMSS_H10_AVAILABLE)
+    XmssKey key;
+    XmssKey dst;
+    WC_RNG  rng;
+    byte    msg[] = "test message for XMSS signing";
+    byte    sig[4096];
+    word32  sigSz;
+    byte    pub[128];
+    word32  pubSz;
+
+    /* Zero so cleanup is safe if an early alloc failure skips init. */
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&dst, 0, sizeof(dst));
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    /* A generated key holds its public key and exports it. */
+    (void)remove(XMSS_DEVID_TEST_PRIV_KEY_FILE);
+    ExpectIntEQ(test_xmss_init_key_ex(&key, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_XmssKey_MakeKey(&key, &rng), 0);
+    pubSz = sizeof(pub);
+    ExpectIntEQ(wc_XmssKey_ExportPubRaw(&key, pub, &pubSz), 0);
+    wc_XmssKey_Free(&key);
+
+    /* The same key reloaded from storage signs but holds no public key. */
+    ExpectIntEQ(test_xmss_init_key_ex(&key, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_XmssKey_Reload(&key), 0);
+    sigSz = sizeof(sig);
+    ExpectIntEQ(wc_XmssKey_Sign(&key, sig, &sigSz, msg, sizeof(msg)), 0);
+
+    pubSz = sizeof(pub);
+    ExpectIntEQ(wc_XmssKey_ExportPubRaw(&key, pub, &pubSz),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(wc_XmssKey_ExportPub_ex(&dst, &key, NULL, INVALID_DEVID),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(wc_XmssKey_Verify(&key, sig, sigSz, msg, sizeof(msg)),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+
+    wc_XmssKey_Free(&key);
+    wc_FreeRng(&rng);
+    (void)remove(XMSS_DEVID_TEST_PRIV_KEY_FILE);
+#endif
+    return EXPECT_RESULT();
+}
+
+/*
+ * Same scenario as test_wc_LmsKey_reload_devid_verify, for XMSS.
+ */
+int test_wc_XmssKey_reload_devid_verify(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY) && \
+    defined(WOLF_CRYPTO_CB) && defined(TEST_XMSS_H10_AVAILABLE)
+    XmssKey key;
+    byte    msg[] = "test message for XMSS signing";
+    byte*   sig = NULL;
+    word32  sigSz = 0;
+
+    /* Zero so cleanup is safe if an early alloc failure skips init. */
+    XMEMSET(&key, 0, sizeof(key));
+    test_lms_xmss_verify_calls = 0;
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID,
+        test_lms_xmss_verify_cryptocb, NULL), 0);
+
+    /* No read callback, so the reload leaves the state with the device. */
+    ExpectIntEQ(wc_XmssKey_Init(&key, NULL, TEST_LMS_XMSS_CRYPTOCB_DEVID), 0);
+    ExpectIntEQ(wc_XmssKey_SetParamStr(&key, "XMSS-SHA2_10_256"), 0);
+    ExpectIntEQ(wc_XmssKey_Reload(&key), 0);
+    ExpectNull(key.sk);
+
+    /* Only the signature length is checked before the device is asked, so the
+     * buffer contents do not matter. */
+    ExpectIntEQ(wc_XmssKey_GetSigLen(&key, &sigSz), 0);
+    ExpectIntGT(sigSz, 0);
+    ExpectNotNull(sig = (byte*)XMALLOC(sigSz, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    if (sig != NULL) {
+        XMEMSET(sig, 0, sigSz);
+        ExpectIntEQ(wc_XmssKey_Verify(&key, sig, sigSz, msg, sizeof(msg)), 0);
+        ExpectIntEQ(test_lms_xmss_verify_calls, 1);
+    }
+
+    XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_XmssKey_Free(&key);
     wc_CryptoCb_UnRegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID);
 #endif
     return EXPECT_RESULT();
@@ -2197,6 +2297,21 @@ int test_wc_XmssDecisionCoverage(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_XmssKey_GetSigLen(&key, &len), 0);
     ExpectIntGT((int)len, 0);
+
+    /* wc_XmssKey_ExportPub_ex / ExportPubRaw: params are set but no key has
+     * been made, so key->pk is still zeroed. Both exports must fail on the
+     * state operand rather than hand back a zeroed public key. */
+    {
+        XmssKey dst;
+        byte    pub[2 * WC_XMSS_MAX_N + XMSS_OID_LEN];
+        word32  pubSz = (word32)sizeof(pub);
+
+        XMEMSET(&dst, 0, sizeof(dst));
+        ExpectIntEQ(wc_XmssKey_ExportPub_ex(&dst, &key, NULL, INVALID_DEVID),
+            WC_NO_ERR_TRACE(BAD_STATE_E));
+        ExpectIntEQ(wc_XmssKey_ExportPubRaw(&key, pub, &pubSz),
+            WC_NO_ERR_TRACE(BAD_STATE_E));
+    }
 #endif
 
     /* wc_XmssKey_Verify: each NULL operand and mLen < 0 (arg check before any

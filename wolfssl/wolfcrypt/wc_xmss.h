@@ -388,6 +388,7 @@ struct XmssKey {
     char                 label[XMSS_MAX_LABEL_LEN];
     int                  labelLen;
 #endif
+    WC_BITFIELD          pubSet:1;  /* pk holds a public key */
 };
 
 #ifndef WC_XMSSKEY_TYPE_DEFINED

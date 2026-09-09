@@ -275,6 +275,10 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng);
     callback the software reload runs as usual, which needs the write
     callback set too.
 
+    A reloaded key holds no public key: neither arm populates it.
+    Call wc_XmssKey_ImportPubRaw() on a separate key to verify, or keep
+    the public key exported at generation time.
+
     \return 0 on success, including the device-backed no-op.
     \return BAD_FUNC_ARG if any required pointer is NULL.
     \return WC_XMSS_RC_* mapped error if the read callback fails.
@@ -414,6 +418,7 @@ void wc_XmssKey_Free(XmssKey* key);
 
     \return 0 on success.
     \return BAD_FUNC_ARG if keyDst or keySrc is NULL.
+    \return BAD_STATE_E if keySrc holds no public key.
 
     \param [in,out] keyDst Pointer to an initialized destination
     XmssKey.
@@ -432,6 +437,7 @@ int wc_XmssKey_ExportPub(XmssKey* keyDst, const XmssKey* keySrc);
 
     \return 0 on success.
     \return BAD_FUNC_ARG if keyDst or keySrc is NULL.
+    \return BAD_STATE_E if keySrc holds no public key.
 
     \param [in,out] keyDst Pointer to an XmssKey to populate.
     \param [in] keySrc Pointer to an XmssKey with the public key.
@@ -452,6 +458,7 @@ int wc_XmssKey_ExportPub_ex(XmssKey* keyDst, const XmssKey* keySrc,
 
     \return 0 on success.
     \return BAD_FUNC_ARG if any required pointer is NULL.
+    \return BAD_STATE_E if key holds no public key.
     \return BUFFER_E if *outLen is smaller than the public key size.
 
     \param [in] key Pointer to an XmssKey.
@@ -520,6 +527,7 @@ int wc_XmssKey_ImportPubRaw_ex(XmssKey* key, const byte* in, word32 inLen,
 
     \return 0 on a valid signature.
     \return BAD_FUNC_ARG if any required pointer is NULL.
+    \return BAD_STATE_E if key holds no public key.
     \return SIG_VERIFY_E (or similar) if the signature is invalid or
     malformed.
 

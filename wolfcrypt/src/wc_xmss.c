@@ -1231,6 +1231,7 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng)
              * subsequent Sign/Verify calls don't fail with BAD_STATE_E. */
             if (ret == 0) {
                 key->state = WC_XMSS_STATE_OK;
+                key->pubSet = 1;
             }
             return ret;
         }
@@ -1310,6 +1311,7 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng)
 
     if (ret == 0) {
         key->state = WC_XMSS_STATE_OK;
+        key->pubSet = 1;
     }
 
     WC_FREE_VAR_EX(seed, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1334,6 +1336,9 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng)
  *
  * With a crypto callback device, the read callback and not the devId decides
  * whether the software reload runs. See wc_XmssKey_Reload below.
+ *
+ * Neither arm populates key->pk, so the reloaded key can sign but cannot
+ * export a public key or verify.
  *
  * @params [in] key  XMSS key to load.
  *
@@ -1624,6 +1629,7 @@ int wc_XmssKey_GetPubLen(const XmssKey* key, word32* len)
  *
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when a key is NULL.
+ * @return  BAD_STATE_E when the source holds no public key.
  * @return  Other negative when digest algorithm initialization failed.
  */
 int wc_XmssKey_ExportPub_ex(XmssKey* keyDst, const XmssKey* keySrc,
@@ -1639,6 +1645,15 @@ int wc_XmssKey_ExportPub_ex(XmssKey* keyDst, const XmssKey* keySrc,
     if ((keyDst == NULL) || (keySrc == NULL)) {
         ret = BAD_FUNC_ARG;
     }
+    /* A signing-ready state doesn't mean a public key exists; Reload
+     * reaches WC_XMSS_STATE_OK without populating key->pk. */
+    if ((ret == 0) && ((!keySrc->pubSet) ||
+            ((keySrc->state != WC_XMSS_STATE_OK) &&
+             (keySrc->state != WC_XMSS_STATE_VERIFYONLY) &&
+             (keySrc->state != WC_XMSS_STATE_NOSIGS)))) {
+        WOLFSSL_MSG("error: XMSS key not ready for export");
+        ret = BAD_STATE_E;
+    }
 
     if (ret == 0) {
         /* Zeroize the new key. */
@@ -1646,6 +1661,7 @@ int wc_XmssKey_ExportPub_ex(XmssKey* keyDst, const XmssKey* keySrc,
 
         /* Copy over the public key. */
         XMEMCPY(keyDst->pk, keySrc->pk, sizeof(keySrc->pk));
+        keyDst->pubSet = 1;
 
         /* Copy over the key info. */
         keyDst->oid = keySrc->oid;
@@ -1682,6 +1698,7 @@ int wc_XmssKey_ExportPub(XmssKey* keyDst, const XmssKey* keySrc)
  *
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when a parameter is NULL.
+ * @return  BAD_STATE_E when the key holds no public key.
  * @return  BUFFER_E if array is too small.
  */
 int wc_XmssKey_ExportPubRaw(const XmssKey* key, byte* out, word32* outLen)
@@ -1692,6 +1709,15 @@ int wc_XmssKey_ExportPubRaw(const XmssKey* key, byte* out, word32* outLen)
     /* Validate parameters. */
     if ((key == NULL) || (out == NULL) || (outLen == NULL)) {
         ret = BAD_FUNC_ARG;
+    }
+    /* Params and a signing-ready state don't mean a public key exists;
+     * Reload reaches WC_XMSS_STATE_OK without populating key->pk. */
+    if ((ret == 0) && ((!key->pubSet) ||
+            ((key->state != WC_XMSS_STATE_OK) &&
+             (key->state != WC_XMSS_STATE_VERIFYONLY) &&
+             (key->state != WC_XMSS_STATE_NOSIGS)))) {
+        WOLFSSL_MSG("error: XMSS key not ready for export");
+        ret = BAD_STATE_E;
     }
 
     /* Get the public key length. */
@@ -1856,6 +1882,7 @@ int wc_XmssKey_ImportPubRaw_ex(XmssKey* key, const byte* in, word32 inLen,
             key->is_xmssmt = is_xmssmt ? 1 : 0;
         }
         XMEMCPY(key->pk, in + XMSS_OID_LEN, matched->pk_len);
+        key->pubSet = 1;
         key->state = WC_XMSS_STATE_VERIFYONLY;
     }
 
@@ -1909,6 +1936,7 @@ int wc_XmssKey_ImportPubRaw(XmssKey* key, const byte* in, word32 inLen)
     if (ret == 0) {
         /* Copy the public key data into key. */
         XMEMCPY(key->pk, in + XMSS_OID_LEN, pubLen - XMSS_OID_LEN);
+        key->pubSet = 1;
 
         /* Update state to verify-only as we don't have a private key. */
         key->state = WC_XMSS_STATE_VERIFYONLY;
@@ -2023,6 +2051,13 @@ int wc_XmssKey_Verify(XmssKey* key, const byte* sig, word32 sigLen,
         ret = 0; /* fall through to software path */
     }
 #endif
+
+    /* Only the software verifier needs the public key locally; a device
+     * holds its own copy. */
+    if ((ret == 0) && (!key->pubSet)) {
+        WOLFSSL_MSG("error: XMSS key holds no public key");
+        ret = BAD_STATE_E;
+    }
 
     if (ret == 0) {
         WC_DECLARE_VAR(state, XmssState, 1, 0);
