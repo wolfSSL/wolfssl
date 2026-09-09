@@ -2818,6 +2818,50 @@ int test_wolfSSL_EVP_des_ede3_ecb_no_key(void)
     return EXPECT_RESULT();
 }
 
+/*
+ * The DES-CBC branch of wolfSSL_EVP_Cipher used to discard the return value of
+ * wc_Des_CbcEncrypt / wc_Des_CbcDecrypt. Because ret starts at WOLFSSL_FAILURE
+ * (numerically zero), the "if (ret == 0)" success path then ran unconditionally
+ * and a rounded byte count was reported even when the DES call had rejected the
+ * request. A length that is not a multiple of DES_BLOCK_SIZE makes the software
+ * DES path return BAD_LENGTH_E, so the one-shot EVP_Cipher call must now fail
+ * rather than return a positive length. A block-multiple length still succeeds.
+ *
+ * FIPS builds use the FIPS-certified DES3 implementation for 3DES, but single
+ * DES is not a FIPS algorithm, so skip the test for FIPS.
+ */
+int test_wolfSSL_EVP_Cipher_des_cbc_error(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_DES3) && !defined(HAVE_FIPS) && defined(OPENSSL_EXTRA)
+    EVP_CIPHER_CTX* ctx = NULL;
+    const byte key[8] = { 0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef };
+    const byte iv[8]  = { 0x12,0x34,0x56,0x78,0x90,0xab,0xcd,0xef };
+    const byte in[16] = {
+        0x4e,0x6f,0x77,0x20,0x69,0x73,0x20,0x74,
+        0x68,0x65,0x20,0x74,0x69,0x6d,0x65,0x20
+    };
+    byte out[16];
+
+    XMEMSET(out, 0, sizeof(out));
+
+    /* Not a multiple of DES_BLOCK_SIZE: the DES call fails and EVP_Cipher must
+     * report the failure, not a rounded byte count. */
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(EVP_CipherInit(ctx, EVP_des_cbc(), key, iv, 1), 1);
+    ExpectIntLT(EVP_Cipher(ctx, out, in, 15), 0);
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
+
+    /* A block-multiple length still succeeds and reports the full length. */
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(EVP_CipherInit(ctx, EVP_des_cbc(), key, iv, 1), 1);
+    ExpectIntEQ(EVP_Cipher(ctx, out, in, (word32)sizeof(in)), (int)sizeof(in));
+    EVP_CIPHER_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test for integer overflow in EVP AEAD AAD accumulation.
  *
  * wolfSSL_EVP_CipherUpdate_GCM_AAD (and the CCM/ARIA variants) compute
