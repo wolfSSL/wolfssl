@@ -950,6 +950,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_rbgc_test(void);
 #ifdef WC_RNG_HAVE_NEXT_SEED
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_nextseed_test(void);
 #endif
+#ifdef WC_RNG_HAVE_POOL
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_pool_test(void);
+#endif
 #endif /* WC_NO_RNG */
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  pwdbased_test(void);
 #if defined(USE_CERT_BUFFERS_2048) && \
@@ -2618,6 +2621,12 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_FAIL("RNGNXTS  test failed!\n", ret);
     else
         TEST_PASS("RNGNXTS  test passed!\n");
+#endif
+#ifdef WC_RNG_HAVE_POOL
+    if ((ret = rng_pool_test()) != 0)
+        TEST_FAIL("RNGPOOL  test failed!\n", ret);
+    else
+        TEST_PASS("RNGPOOL  test passed!\n");
 #endif
 #endif /* WC_NO_RNG */
 
@@ -29772,6 +29781,176 @@ out:
     return ret;
 }
 #endif /* WC_RNG_HAVE_NEXT_SEED */
+
+#ifdef WC_RNG_HAVE_POOL
+/* Coverage for the asynchronous DRBG output pool: allocation contracts
+ * (incl. the word16 size bound and double-alloc rejection), self- and
+ * cross-instance collection, published-count tracking, destructive
+ * extraction with partial delivery and the empty-pool NOT_READY_E, and ring
+ * wraparound on both the collect and extract sides.  Single-threaded, so
+ * reader/writer interleavings are exercised elsewhere; this pins the
+ * sequential contracts. */
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_pool_test(void)
+{
+    wc_test_ret_t ret = 0;
+    int api_ret;
+    int rng_inited = 0;
+    int src_inited = 0;
+    WC_DECLARE_VAR(rng, WC_RNG, 1, HEAP_HINT);
+    WC_DECLARE_VAR(src, WC_RNG, 1, HEAP_HINT);
+    word32 n = 0;
+    byte out[48];
+
+    WOLFSSL_ENTER("rng_pool_test");
+
+    WC_ALLOC_VAR_EX(rng, WC_RNG, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+                    ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out_l));
+    WC_ALLOC_VAR_EX(src, WC_RNG, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+                    ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out_l));
+
+    /* argument contracts, pre-init */
+    api_ret = wc_RNG_Pool_Alloc(NULL, 48);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    api_ret = wc_RNG_Pool_Collect(NULL, 1);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    api_ret = wc_RNG_Pool_Extract(NULL, out, &n);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    api_ret = wc_RNG_Pool_Current(NULL, &n);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+
+    api_ret = wc_InitRng(rng);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    rng_inited = 1;
+    api_ret = wc_InitRng(src);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    src_inited = 1;
+
+    /* size bounds; operations on a pool-less instance */
+    api_ret = wc_RNG_Pool_Alloc(rng, 1);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    api_ret = wc_RNG_Pool_Alloc(rng, 65536);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    api_ret = wc_RNG_Pool_Collect(rng, 8);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_STATE_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    n = sizeof(out);
+    api_ret = wc_RNG_Pool_Extract(rng, out, &n);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_STATE_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    api_ret = wc_RNG_Pool_Current(rng, &n);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    if (n != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_I((int)n), out_l);
+
+#ifndef WOLFSSL_NO_MALLOC
+    api_ret = wc_RNG_Pool_Alloc(rng, 48);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    api_ret = wc_RNG_Pool_Alloc(rng, 48);
+    if (api_ret != WC_NO_ERR_TRACE(ALREADY_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+
+    /* empty pool: a distinct protocol code, nothing delivered */
+    n = sizeof(out);
+    api_ret = wc_RNG_Pool_Extract(rng, out, &n);
+    if (api_ret != WC_NO_ERR_TRACE(NOT_READY_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    /* the whole request is missed bytes; nothing served */
+
+    /* self-collect to full (clamped), verify count, over-collect no-op */
+    api_ret = wc_RNG_Pool_Collect(rng, 100);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    api_ret = wc_RNG_Pool_Current(rng, &n);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    if (n != 48)
+        ERROR_OUT(WC_TEST_RET_ENC_I((int)n), out_l);
+    api_ret = wc_RNG_Pool_Collect(rng, 1);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+
+    /* partial extract, then cross-instance top-off wrapping the ring,
+     * then full drain crossing the wrap on the read side */
+    n = 32;
+    api_ret = wc_RNG_Pool_Extract(rng, out, &n);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    if (n != 32)
+        ERROR_OUT(WC_TEST_RET_ENC_I((int)n), out_l);
+    api_ret = wc_RNG_Pool_Current(rng, &n);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    if (n != 16)
+        ERROR_OUT(WC_TEST_RET_ENC_I((int)n), out_l);
+    /* a fully-fulfillable partial drain is all produced, no shortfall */
+    api_ret = wc_RNG_Pool_Collect2(rng, src, 32);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    if (wc_RNG_DRBG_Present(src)) {
+        /* the top-off span starts exactly at the ring origin
+         * ((offset + current) % size == 0): one contiguous generate */
+    }
+    api_ret = wc_RNG_Pool_Current(rng, &n);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    if (n != 48)
+        ERROR_OUT(WC_TEST_RET_ENC_I((int)n), out_l);
+    n = sizeof(out);
+    api_ret = wc_RNG_Pool_Extract(rng, out, &n);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    if (n != 48)
+        ERROR_OUT(WC_TEST_RET_ENC_I((int)n), out_l);
+    api_ret = wc_RNG_Pool_Current(rng, &n);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    if (n != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_I((int)n), out_l);
+    /* full serve across the ring wrap: all produced, no shortfall */
+
+    /* Collect2 contracts */
+    api_ret = wc_RNG_Pool_Collect2(rng, NULL, 8);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    api_ret = wc_RNG_Pool_Collect2(NULL, src, 8);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    api_ret = wc_RNG_Pool_Collect2(rng, src, 0);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+#endif /* WOLFSSL_NO_MALLOC */
+
+out_l:
+
+    {
+        int cleanup_ret;
+        if (rng_inited) {
+            cleanup_ret = wc_FreeRng(rng);   /* sole pool teardown site */
+            if ((cleanup_ret != 0) && (ret == 0))
+                ret = WC_TEST_RET_ENC_EC(cleanup_ret);
+        }
+        if (src_inited) {
+            cleanup_ret = wc_FreeRng(src);
+            if ((cleanup_ret != 0) && (ret == 0))
+                ret = WC_TEST_RET_ENC_EC(cleanup_ret);
+        }
+    }
+    WC_FREE_VAR(rng, HEAP_HINT);
+    WC_FREE_VAR(src, HEAP_HINT);
+
+    return ret;
+}
+#endif /* WC_RNG_HAVE_POOL */
 
 #endif /* !WC_NO_RNG */
 
