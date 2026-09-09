@@ -760,7 +760,8 @@ int wc_linuxkm_GenerateSeed_IntelRD(struct OS_Seed* os, byte* output, word32 sz)
 
 #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
     #include "linuxkm/x86_vector_register_glue.c"
-#elif defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_ARM64)
+#elif defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && \
+      (defined(CONFIG_ARM64) || defined(CONFIG_ARM))
     #include "linuxkm/arm64_vector_register_glue.c"
 #endif
 
@@ -1954,7 +1955,7 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     wolfssl_linuxkm_pie_redirect_table.get_current = my_get_current_thread;
 
 #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && \
-    (defined(CONFIG_X86) || defined(CONFIG_ARM64))
+    (defined(CONFIG_X86) || defined(CONFIG_ARM64) || defined(CONFIG_ARM))
     wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_allocate_svr_states = wc_linuxkm_allocate_svr_states;
     wolfssl_linuxkm_pie_redirect_table.wc_can_save_vector_registers_x86 = wc_can_save_vector_registers_x86;
     wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_free_svr_states = wc_linuxkm_free_svr_states;

@@ -154,16 +154,34 @@ ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
 
     ifndef NO_PIE_FLAG
       ifeq ($(KERNEL_ARCH),arm)
-        ifneq "$(HAVE_INTCMP)" "yes"
-            $(error $$NO_PIE_FLAG is unset -- supply NO_PIE_FLAG=1 for target kernel <5.11, else supply NO_PIE_FLAG=0.)
+        ifeq "$(VERSION)" ""
+            $(error $$VERSION is unset, cannot tell whether the target kernel predates 5.11.)
         endif
-        ifeq ($(intcmp $(VERSION),5,1,0,0),1)
-          NO_PIE_FLAG := 1
-          $(info Note: disabling -fPIE to avoid R_ARM_REL32 on pre-5.11 target kernel.)
-        else
-          ifeq ($(intcmp $(VERSION),5,0,1,0)-$(intcmp $(PATCHLEVEL),11,1,0,0),1-1)
+        ifeq "$(HAVE_INTCMP)" "yes"
+          ifeq ($(intcmp $(VERSION),5,1,0,0),1)
             NO_PIE_FLAG := 1
             $(info Note: disabling -fPIE to avoid R_ARM_REL32 on pre-5.11 target kernel.)
+          else
+            ifeq ($(intcmp $(VERSION),5,0,1,0)-$(intcmp $(PATCHLEVEL),11,1,0,0),1-1)
+              NO_PIE_FLAG := 1
+              $(info Note: disabling -fPIE to avoid R_ARM_REL32 on pre-5.11 target kernel.)
+            else
+              NO_PIE_FLAG := 0
+            endif
+          endif
+        else
+          # GNU make before 4.4 has no $(intcmp), so the pre-5.11 versions are
+          # enumerated: major 0 to 4, or major 5 with minor 0 to 10.
+          ifneq ($(filter 0 1 2 3 4,$(VERSION)),)
+            NO_PIE_FLAG := 1
+            $(info Note: disabling -fPIE to avoid R_ARM_REL32 on pre-5.11 target kernel.)
+          else ifeq "$(VERSION)" "5"
+            ifneq ($(filter 0 1 2 3 4 5 6 7 8 9 10,$(PATCHLEVEL)),)
+              NO_PIE_FLAG := 1
+              $(info Note: disabling -fPIE to avoid R_ARM_REL32 on pre-5.11 target kernel.)
+            else
+              NO_PIE_FLAG := 0
+            endif
           else
             NO_PIE_FLAG := 0
           endif
@@ -275,6 +293,16 @@ $(obj)/wolfcrypt/src/port/arm/%-asm_c.o: ccflags-remove-y += -mgeneral-regs-only
 $(obj)/wolfcrypt/src/port/arm/%.o: OBJECT_FILES_NON_STANDARD := y
 endif
 
+# The 32-bit Arm kernel builds soft-float with a baseline -march; the port asm
+# needs the ARMv8-A crypto and NEON instructions accepted, as above.
+ifeq ($(CONFIG_ARM),y)
+# --noexecstack keeps the GNU-stack note on an object whose whole body is
+# compiled out, such as the SHA-3 assembly under WC_SHA3_NO_ASM.
+$(obj)/wolfcrypt/src/port/arm/%.o: asflags-y := $(WOLFSSL_ASFLAGS) -march=armv8-a -mfpu=crypto-neon-fp-armv8 -Wa,--noexecstack
+$(obj)/wolfcrypt/src/port/arm/%-asm_c.o: ccflags-y += -march=armv8-a -mfpu=crypto-neon-fp-armv8
+$(obj)/wolfcrypt/src/port/arm/%.o: OBJECT_FILES_NON_STANDARD := y
+endif
+
 ifndef READELF
     READELF := readelf
 endif
@@ -383,7 +411,8 @@ RENAME_PIE_TEXT_AND_DATA_SECTIONS := \
 			next;						\
 		    }							\
 		    else if ($$4 == "OBJECT") {				\
-			if (! ($$7 in wolfcrypt_data_sections)) {	\
+			if (! ($$7 in wolfcrypt_data_sections) &&	\
+			    ! ($$7 in wolfcrypt_text_sections)) {	\
 			    if ((other_sections[$$7] == ".printk_index") || \
 				(($$8 ~ /^_entry\.[0-9]+$$|^kernel_read_file_str$$/) &&		\
 				 (other_sections[$$7] == ".data.rel.ro.local"))) \
@@ -406,6 +435,8 @@ RENAME_PIE_TEXT_AND_DATA_SECTIONS := \
 	    echo '  wolfCrypt .{text,data,rodata,bss} sections containerized to .{text,data,rodata}_wolfcrypt'; \
 	fi
 endif
+# The 32-bit Arm assembler keeps its constant tables in the text section, so an
+# OBJECT symbol there is expected; x86 and arm64 keep theirs in rodata.
 
 # auto-generate the exported symbol list, leveraging the WOLFSSL_API visibility tags.
 # exclude symbols that don't match wc_* or wolf*.

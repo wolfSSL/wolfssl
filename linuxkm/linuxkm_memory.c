@@ -64,6 +64,10 @@ static const struct reloc_layout_ent {
     [WC_R_AARCH64_LDST64_ABS_LO12_NC] = { "R_AARCH64_LDST64_ABS_LO12_NC", 0b00000000001111111111110000000000, 32, .is_signed = 0, .is_relative = 0, .is_pages = 0, .is_pair_lo = 1, .is_pair_hi = 0 },
     [WC_R_AARCH64_PREL32]             = { "R_AARCH64_PREL32",                                           ~0UL, 32, .is_signed = 1, .is_relative = 1, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
     [WC_R_ARM_ABS32]                  = { "R_ARM_ABS32",                                                ~0UL, 32, .is_signed = 0, .is_relative = 0, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
+    /* ARM-mode BL and B: signed 24-bit word offset in bits 23 to 0, emitted
+     * by a 32-bit Arm kernel built without CONFIG_THUMB2_KERNEL. */
+    [WC_R_ARM_CALL]                   = { "R_ARM_CALL",                   0b00000000111111111111111111111111, 32, .is_signed = 1, .is_relative = 1, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
+    [WC_R_ARM_JUMP24]                 = { "R_ARM_JUMP24",                 0b00000000111111111111111111111111, 32, .is_signed = 1, .is_relative = 1, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
     [WC_R_ARM_PREL31]                 = { "R_ARM_PREL31",                 0b01111111111111111111111111111111, 32, .is_signed = 1, .is_relative = 1, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
     [WC_R_ARM_REL32]                  = { "R_ARM_REL32",                                                ~0UL, 32, .is_signed = 1, .is_relative = 1, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
     [WC_R_ARM_THM_CALL]               = { "R_ARM_THM_CALL",               0b00000111111111110010111111111111, 32, .is_signed = 1, .is_relative = 1, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
@@ -413,6 +417,8 @@ ssize_t wc_reloc_normalize_segment(
             break;
 
         case WC_R_ARM_ABS32:
+        case WC_R_ARM_CALL:
+        case WC_R_ARM_JUMP24:
         case WC_R_ARM_PREL31:
         case WC_R_ARM_REL32:
         case WC_R_ARM_THM_CALL:
