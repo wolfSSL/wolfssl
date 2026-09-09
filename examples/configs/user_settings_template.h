@@ -443,7 +443,8 @@ extern "C" {
 #if 0 /* pthread_atfork handlers: a forked child keeps using its WC_RNG */
     /* configure probes for this; here it is asserted.  Needs pthreads,
      * a heap, the lock above (not WC_RNG_NO_LOCK) and unnamed POSIX
-     * semaphores (sem_init, so not macOS); the pin needs dladdr and dlopen,
+     * semaphores (sem_init, so not macOS) and pthread_setcancelstate (so
+     * not Android); the pin needs dladdr and dlopen,
      * -ldl on glibc before 2.34, and keeps the library mapped, since the
      * handlers cannot be removed.  Left out with SINGLE_THREADED,
      * entropy-memuse, the RNG bank, netRandom, selftest, FIPS before v7,
