@@ -1416,6 +1416,33 @@ static int ElsEccRef(const ecc_key* key, wc_ElsPkc_KeyRef* ref)
     return wc_ElsPkc_ParseKeyRef(key->id, (word32)key->idLen, ref);
 }
 
+#ifdef HAVE_ECC_SIGN
+/* 1 when the caller asked for RFC 6979 or a set k; neither engine takes one. */
+static int ElsEccCustomNonce(const ecc_key* key)
+{
+#if defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
+    defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
+    if (key->deterministic) {
+        return 1;
+    }
+#endif
+#if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP)
+    #ifndef WOLFSSL_NO_MALLOC
+    if (key->sign_k != NULL) {
+        return 1;
+    }
+    #else
+    if (key->sign_k_set) {
+        return 1;
+    }
+    #endif
+#endif
+    (void)key;
+
+    return 0;
+}
+#endif /* HAVE_ECC_SIGN */
+
 /* P-256 is the only curve with a slot to reference. */
 static int ElsEccCurveOk(const ecc_key* key)
 {
@@ -2448,6 +2475,756 @@ static int ElsPkcX25519(curve25519_key* privKey, curve25519_key* pubKey,
 
 #endif /* HAVE_CURVE25519 */
 
+/* Every curve, and P-256 for a key without a slot. Domain parameters are
+ * converted into shared scratch under the lock. */
+
+#if defined(HAVE_ECC) && \
+    (defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY))
+
+#define ELS_PKC_ECC_MAX_P MCUXCLECC_WEIERECC_MAX_SIZE_PRIMEP
+#define ELS_PKC_ECC_MAX_N MCUXCLECC_WEIERECC_MAX_SIZE_BASEPOINTORDER
+
+/* Curve constants for the operation in flight, kept for the next one on the
+ * same built-in curve. Caller holds the lock. */
+static struct {
+    ALIGN32 byte a[ELS_PKC_ECC_MAX_P];
+    ALIGN32 byte b[ELS_PKC_ECC_MAX_P];
+    ALIGN32 byte p[ELS_PKC_ECC_MAX_P];
+    ALIGN32 byte g[2 * ELS_PKC_ECC_MAX_P];
+    ALIGN32 byte n[ELS_PKC_ECC_MAX_N];
+    const ecc_set_type* set;
+} elsPkcCurve;
+
+/* wolfCrypt stores curve constants as hex text; the engine wants fixed-width
+ * big-endian octets with leading zeros. */
+static int ElsPkcHexToBin(const char* hex, byte* out, word32 len)
+{
+    mp_int t;
+    int ret;
+
+    if (hex == NULL) {
+        return WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+    }
+    ret = mp_init(&t);
+    if (ret != 0) {
+        return ret;
+    }
+    ret = mp_read_radix(&t, hex, MP_RADIX_HEX);
+    if (ret == 0) {
+        ret = mp_to_unsigned_bin_len(&t, out, (int)len);
+    }
+    mp_clear(&t);
+
+    return ret;
+}
+
+/* Marshal a wolfCrypt curve into the engine's parameter block. */
+static int ElsPkcLoadCurve(const ecc_key* key, mcuxClEcc_DomainParam_t* dp,
+                           word32* lenPOut)
+{
+    const ecc_set_type* set;
+    word32 lenP;
+    int ret;
+
+    if (key == NULL || key->dp == NULL) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+    set  = key->dp;
+    lenP = (word32)set->size;
+    /* lenP sizes writes into buffers dimensioned by both constants - the order
+     * is carried at the prime's width - so it has to respect the smaller. */
+    if (lenP == 0 || lenP > ELS_PKC_ECC_MAX_P || lenP > ELS_PKC_ECC_MAX_N) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+
+    if (elsPkcCurve.set == set) {
+        goto loaded;
+    }
+    elsPkcCurve.set = NULL;
+
+    ret = ElsPkcHexToBin(set->Af, elsPkcCurve.a, lenP);
+    if (ret == 0) ret = ElsPkcHexToBin(set->Bf,    elsPkcCurve.b, lenP);
+    if (ret == 0) ret = ElsPkcHexToBin(set->prime, elsPkcCurve.p, lenP);
+    if (ret == 0) ret = ElsPkcHexToBin(set->Gx,    elsPkcCurve.g, lenP);
+    if (ret == 0) ret = ElsPkcHexToBin(set->Gy,    elsPkcCurve.g + lenP, lenP);
+    /* The order is carried at the prime's width; secp160r1/r2, whose order is
+     * a byte longer, fail here and stay in software. */
+    if (ret == 0) ret = ElsPkcHexToBin(set->order, elsPkcCurve.n, lenP);
+    if (ret != 0) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+    /* Both leading bytes must be nonzero per the engine's contract. */
+    if (elsPkcCurve.p[0] == 0 || elsPkcCurve.n[0] == 0) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+    /* Only wolfCrypt's own table entries outlive the call. */
+    elsPkcCurve.set = (wc_ecc_get_curve_params(key->idx) == set) ? set : NULL;
+
+loaded:
+    dp->pA = elsPkcCurve.a;
+    dp->pB = elsPkcCurve.b;
+    dp->pP = elsPkcCurve.p;
+    dp->pG = elsPkcCurve.g;
+    dp->pN = elsPkcCurve.n;
+    dp->misc = mcuxClEcc_DomainParam_misc_Pack(lenP, lenP);
+
+    *lenPOut = lenP;
+
+    return 0;
+}
+
+#ifdef HAVE_ECC_SIGN
+
+static int ElsPkcEccSignRun(mcuxClSession_Descriptor_t* sess,
+                            mcuxClEcc_Sign_Param_t* prm)
+{
+    MCUX_CSSL_FP_FUNCTION_CALL_BEGIN(r, t, mcuxClEcc_Sign(sess, prm));
+    if ((MCUX_CSSL_FP_FUNCTION_CALLED(mcuxClEcc_Sign) != t) ||
+        (MCUXCLECC_STATUS_OK != r)) {
+        return WC_NO_ERR_TRACE(WC_HW_E);
+    }
+    MCUX_CSSL_FP_FUNCTION_CALL_END();
+
+    return 0;
+}
+
+static int ElsPkcEccSign(const byte* in, word32 inlen, byte* out,
+                         word32* outlen, ecc_key* key)
+{
+    mcuxClSession_Descriptor_t* sess = NULL;
+    mcuxClEcc_Sign_Param_t prm;
+    ALIGN32 byte priv[ELS_PKC_ECC_MAX_N];
+    ALIGN32 byte sig[2 * ELS_PKC_ECC_MAX_N];
+    ALIGN32 byte hash[ELS_PKC_ECC_MAX_N];
+    word32 lenP = 0, privSz;
+    int ret;
+
+    if (in == NULL || out == NULL || outlen == NULL || key == NULL) {
+        return WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+    }
+    /* The digest is copied into a fixed buffer, which bounds this more tightly
+     * than the eight-bit byteLenHash field does. */
+    if (inlen == 0 || inlen > 255 || inlen > sizeof(hash) ||
+        ElsEccCustomNonce(key)) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+
+    ret = ElsLock();
+    if (ret != 0) {
+        return ret;
+    }
+
+    ret = ElsPkcLoadCurve(key, &prm.curveParam, &lenP);
+
+    if (ret == 0) {
+        privSz = lenP;
+#ifdef HAVE_ECC_KEY_EXPORT
+        ret = wc_ecc_export_private_only(key, priv, &privSz);
+#else
+        ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+#endif
+        if (ret != 0 || privSz != lenP) {
+            ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+        }
+    }
+
+    if (ret == 0) {
+        XMEMCPY(hash, in, inlen);
+
+        prm.pHash       = hash;
+        prm.pPrivateKey = priv;
+        prm.pSignature  = sig;
+        prm.optLen      = mcuxClEcc_Sign_Param_optLen_Pack(inlen);
+        prm.pMode       = &mcuxClEcc_ECDSA_ProtocolDescriptor;
+
+        ret = ElsPkcSessionOpen(&sess, lenP > 32u);
+        if (ret == 0) {
+            ret = ElsPkcEccSignRun(sess, &prm);
+            ElsPkcSessionClose(sess, ret == WC_NO_ERR_TRACE(WC_HW_E));
+        }
+    }
+
+    ElsUnlock();
+
+    if (ret == 0) {
+        /* raw R||S out of the engine, DER at the callback boundary */
+        ret = StoreECC_DSA_Sig_Bin(out, outlen, sig, lenP, sig + lenP, lenP);
+    }
+
+    ForceZero(priv, sizeof(priv));
+    ForceZero(hash, sizeof(hash));
+    ForceZero(sig, sizeof(sig));
+
+    return ret;
+}
+
+#endif /* HAVE_ECC_SIGN */
+
+#ifdef HAVE_ECC_VERIFY
+
+#ifdef WOLFSSL_CUSTOM_CURVES
+static int ElsPkcPointMultRun(mcuxClSession_Descriptor_t* sess,
+                              mcuxClEcc_PointMult_Param_t* prm)
+{
+    MCUX_CSSL_FP_FUNCTION_CALL_BEGIN(r, t, mcuxClEcc_PointMult(sess, prm));
+    if (MCUX_CSSL_FP_FUNCTION_CALLED(mcuxClEcc_PointMult) != t) {
+        return WC_NO_ERR_TRACE(WC_HW_E);
+    }
+    if (MCUXCLECC_STATUS_INVALID_PARAMS == r) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+    if (MCUXCLECC_STATUS_OK != r) {
+        return WC_NO_ERR_TRACE(WC_HW_E);
+    }
+    MCUX_CSSL_FP_FUNCTION_CALL_END();
+
+    return 0;
+}
+
+/* Keyed on the whole domain, since every explicit-parameter curve reports
+ * ECC_CURVE_CUSTOM. */
+static struct {
+    ALIGN32 byte precG[2 * ELS_PKC_ECC_MAX_P];
+    byte   dom[5 * ELS_PKC_ECC_MAX_P];  /* p || a || b || G */
+    word32 lenP;
+    byte   valid;
+} elsPkcPrecG;
+
+static void ElsPkcPrecGDomain(const mcuxClEcc_DomainParam_t* dp, word32 lenP,
+                              byte* dom)
+{
+    XMEMCPY(dom, dp->pP, lenP);
+    XMEMCPY(dom + lenP, dp->pA, lenP);
+    XMEMCPY(dom + 2u * lenP, dp->pB, lenP);
+    XMEMCPY(dom + 3u * lenP, dp->pG, 2u * lenP);
+}
+#endif /* WOLFSSL_CUSTOM_CURVES */
+
+/* PrecG = (2^(byteLenN*4))*G for input verification, under the same guards
+ * as ecc.c. A custom curve's is computed. */
+typedef struct ElsPkcPrecGEntry {
+    int         curveId;
+    word32      lenP;
+    const byte* precG;
+} ElsPkcPrecGEntry;
+
+/* The curve gates of ecc.c's table, which ecc.c keeps private. */
+#if (defined(HAVE_ECC112) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 112
+    #define ELS_PKC_ECC112
+#endif
+#if (defined(HAVE_ECC128) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 128
+    #define ELS_PKC_ECC128
+#endif
+#if (defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 160
+    #define ELS_PKC_ECC160
+#endif
+#if (defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 192
+    #define ELS_PKC_ECC192
+#endif
+#if (defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 224
+    #define ELS_PKC_ECC224
+#endif
+#if (defined(HAVE_ECC239) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 239
+    #define ELS_PKC_ECC239
+#endif
+#if (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
+    #define ELS_PKC_ECC256
+#endif
+#if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 384
+    #define ELS_PKC_ECC384
+#endif
+#if (defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 512
+    #define ELS_PKC_ECC512
+#endif
+#if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 521
+    #define ELS_PKC_ECC521
+#endif
+
+#if defined(ELS_PKC_ECC112) && \
+    !defined(NO_ECC_SECP)
+static const byte elsPkcPrecGSecp112r1[2 * 14] = {  /* SECP112R1 */
+    0xAB, 0x76, 0x6C, 0xBE, 0x5F, 0x14, 0xE7, 0xC7, 0xB4, 0x67, 0x81, 0x12,
+    0x7E, 0x03, 0x84, 0xE6, 0xB1, 0xDB, 0x60, 0x93, 0x50, 0x82, 0xDD, 0xAA,
+    0x2F, 0x64, 0x1B, 0x51
+};
+#endif
+
+#if defined(ELS_PKC_ECC128) && \
+    !defined(NO_ECC_SECP)
+static const byte elsPkcPrecGSecp128r1[2 * 16] = {  /* SECP128R1 */
+    0x8A, 0xB9, 0x90, 0x7E, 0x91, 0x28, 0x33, 0xFC, 0x5B, 0x10, 0xF2, 0x01,
+    0x40, 0xA6, 0x3E, 0xF0, 0xFA, 0x2F, 0xC2, 0x33, 0x76, 0x21, 0xCE, 0x72,
+    0x40, 0x13, 0xDF, 0x3B, 0x6F, 0x3D, 0xCF, 0x65
+};
+#endif
+
+#if defined(ELS_PKC_ECC160) && \
+    defined(HAVE_ECC_BRAINPOOL)
+static const byte elsPkcPrecGBrainpoolp160r1[2 * 20] = {  /* BRAINPOOLP160R1 */
+    0x8E, 0x63, 0xBD, 0x39, 0x39, 0xFC, 0x8E, 0x94, 0xBB, 0x51, 0x87, 0x25,
+    0xD3, 0xB8, 0x21, 0x0C, 0xB1, 0x9B, 0xD5, 0xA1, 0x4D, 0x1E, 0x97, 0x7B,
+    0x17, 0xA6, 0x83, 0x90, 0x8E, 0x13, 0x88, 0x36, 0xAF, 0x10, 0x15, 0xA3,
+    0x68, 0xDE, 0x44, 0x48
+};
+#endif
+
+#if defined(ELS_PKC_ECC192) && \
+    !defined(NO_ECC_SECP)
+static const byte elsPkcPrecGSecp192r1[2 * 24] = {  /* SECP192R1 */
+    0x51, 0xA5, 0x81, 0xD9, 0x18, 0x4A, 0xC7, 0x37, 0x47, 0x30, 0xD4, 0xF4,
+    0x80, 0xD1, 0x09, 0x0B, 0xB1, 0x99, 0x63, 0xD8, 0xC0, 0xA1, 0xE3, 0x40,
+    0x5B, 0xD8, 0x1E, 0xE2, 0xE0, 0xBB, 0x9F, 0x6E, 0x7C, 0xDF, 0xCE, 0xA0,
+    0x2F, 0x68, 0x3F, 0x16, 0xEC, 0xC5, 0x67, 0x31, 0xE6, 0x99, 0x12, 0xA5
+};
+#endif
+
+#if defined(ELS_PKC_ECC192) && \
+    defined(HAVE_ECC_SECPR2)
+static const byte elsPkcPrecGPrime192v2[2 * 24] = {  /* PRIME192V2 */
+    0x0F, 0x81, 0x09, 0x2A, 0xE6, 0x45, 0x5D, 0xB7, 0x6E, 0xC5, 0x18, 0xDC,
+    0x04, 0xA6, 0x25, 0x99, 0x88, 0xF9, 0xAE, 0x41, 0xB7, 0xCF, 0x44, 0xC4,
+    0xEC, 0xDA, 0xA4, 0x7C, 0x25, 0x27, 0x26, 0x27, 0x1C, 0x40, 0x4C, 0x1B,
+    0x55, 0x9C, 0x79, 0x71, 0x13, 0x73, 0xED, 0x13, 0x86, 0xA2, 0x33, 0xD7
+};
+#endif
+
+#if defined(ELS_PKC_ECC192) && \
+    defined(HAVE_ECC_SECPR3)
+static const byte elsPkcPrecGPrime192v3[2 * 24] = {  /* PRIME192V3 */
+    0x58, 0x27, 0x5C, 0x4B, 0xC2, 0x74, 0xE9, 0x83, 0x6A, 0xCE, 0x2E, 0xDD,
+    0xE4, 0x4B, 0xF4, 0x94, 0xBE, 0x8F, 0x86, 0x61, 0x7E, 0x22, 0x02, 0x71,
+    0xA0, 0xD8, 0x9C, 0x98, 0x1D, 0x5C, 0x7F, 0xE2, 0xA4, 0x37, 0xAD, 0xB4,
+    0xCA, 0x6A, 0x8A, 0x43, 0x42, 0xCC, 0x4D, 0x4C, 0x07, 0x9C, 0xBD, 0x07
+};
+#endif
+
+#if defined(ELS_PKC_ECC192) && \
+    defined(HAVE_ECC_BRAINPOOL)
+static const byte elsPkcPrecGBrainpoolp192r1[2 * 24] = {  /* BRAINPOOLP192R1 */
+    0x77, 0x3D, 0x02, 0x97, 0x1E, 0x97, 0x2E, 0x92, 0x08, 0x6B, 0x6F, 0x1D,
+    0xB5, 0xB5, 0x55, 0x27, 0xB4, 0x00, 0x6C, 0xD5, 0x6E, 0x55, 0x38, 0x4C,
+    0x80, 0x7F, 0x61, 0x5C, 0x01, 0xCE, 0x04, 0x88, 0xA3, 0xD9, 0x34, 0x6E,
+    0x66, 0x34, 0xC2, 0xCE, 0x32, 0x82, 0x8E, 0x3D, 0x30, 0x14, 0x23, 0x4C
+};
+#endif
+
+#if defined(ELS_PKC_ECC224) && \
+    !defined(NO_ECC_SECP)
+static const byte elsPkcPrecGSecp224r1[2 * 28] = {  /* SECP224R1 */
+    0x04, 0x99, 0xAA, 0x8A, 0x5F, 0x8E, 0xBE, 0xEF, 0xEC, 0x27, 0xA4, 0xE1,
+    0x3A, 0x0B, 0x91, 0xFB, 0x29, 0x91, 0xFA, 0xB0, 0xA0, 0x06, 0x41, 0x96,
+    0x6C, 0xAB, 0x26, 0xE3, 0x69, 0x16, 0xF6, 0xD4, 0x33, 0x8C, 0x5B, 0x81,
+    0xD7, 0x7A, 0xAE, 0x82, 0xF7, 0x06, 0x84, 0xD9, 0x29, 0x61, 0x0D, 0x54,
+    0x50, 0x75, 0x10, 0x40, 0x77, 0x66, 0xAF, 0x5D
+};
+#endif
+
+#if defined(ELS_PKC_ECC224) && \
+    defined(HAVE_ECC_BRAINPOOL)
+static const byte elsPkcPrecGBrainpoolp224r1[2 * 28] = {  /* BRAINPOOLP224R1 */
+    0xB3, 0xCD, 0xA5, 0xBC, 0x06, 0x99, 0xB4, 0xA5, 0xD7, 0xC8, 0x4B, 0x0E,
+    0xEE, 0x59, 0x10, 0x79, 0x61, 0x9F, 0x1D, 0x35, 0x79, 0x4A, 0xDD, 0x48,
+    0x18, 0x67, 0x1C, 0xAC, 0xBC, 0x2D, 0xC0, 0x34, 0xFE, 0xF3, 0x2E, 0x40,
+    0xD6, 0xD7, 0x50, 0xA1, 0x3B, 0x07, 0xA6, 0x8C, 0x4D, 0x88, 0xB7, 0x67,
+    0x6E, 0x60, 0x80, 0xC1, 0xBB, 0x4A, 0x54, 0x47
+};
+#endif
+
+#if defined(ELS_PKC_ECC239) && \
+    !defined(NO_ECC_SECP)
+static const byte elsPkcPrecGPrime239v1[2 * 30] = {  /* PRIME239V1 */
+    0x35, 0xFE, 0x64, 0x2B, 0x09, 0x5F, 0x1E, 0x6F, 0x16, 0x04, 0xB1, 0x6F,
+    0x77, 0x69, 0x34, 0x3A, 0xEC, 0x0F, 0xEE, 0x90, 0x4B, 0xCB, 0xE7, 0x45,
+    0xC8, 0xDE, 0x0B, 0xDF, 0xE2, 0x69, 0x02, 0xA1, 0x73, 0x21, 0xBF, 0x3F,
+    0x1A, 0xA0, 0xE4, 0xF1, 0x9B, 0xBA, 0x3B, 0xE4, 0xB2, 0xC6, 0xE0, 0x69,
+    0xF5, 0x47, 0x9F, 0x56, 0xA9, 0xE7, 0x67, 0x9F, 0xD8, 0xC7, 0xE7, 0x08
+};
+#endif
+
+#if defined(ELS_PKC_ECC239) && \
+    defined(HAVE_ECC_SECPR2)
+static const byte elsPkcPrecGPrime239v2[2 * 30] = {  /* PRIME239V2 */
+    0x2C, 0xCE, 0xC8, 0x07, 0x91, 0xF3, 0x58, 0x99, 0x5E, 0x55, 0x43, 0x3E,
+    0xCC, 0x2F, 0x82, 0xDF, 0x31, 0x9C, 0x29, 0x01, 0x4A, 0x0C, 0x27, 0x27,
+    0x74, 0x9F, 0xB5, 0xB4, 0xB0, 0x5C, 0x34, 0x95, 0xBC, 0x6F, 0xA7, 0x7E,
+    0xBC, 0x6A, 0x5F, 0x16, 0x02, 0x27, 0xB5, 0xD2, 0x35, 0xFB, 0x51, 0x68,
+    0x1A, 0x74, 0x1D, 0xBF, 0xBE, 0xC2, 0x37, 0x43, 0xBE, 0x34, 0x3B, 0x70
+};
+#endif
+
+#if defined(ELS_PKC_ECC239) && \
+    defined(HAVE_ECC_SECPR3)
+static const byte elsPkcPrecGPrime239v3[2 * 30] = {  /* PRIME239V3 */
+    0x09, 0x69, 0x0E, 0xBA, 0xDD, 0xAE, 0xC9, 0x1E, 0xF0, 0x96, 0xA4, 0x9C,
+    0x6D, 0x77, 0xD3, 0x2D, 0x5C, 0x81, 0x03, 0x5A, 0xC2, 0x8D, 0xEB, 0x75,
+    0xD1, 0x22, 0xB3, 0x09, 0x86, 0x7E, 0x11, 0x6C, 0xDA, 0x12, 0xDE, 0x47,
+    0xAA, 0x2C, 0x94, 0x5E, 0x29, 0xB2, 0x3B, 0x05, 0xCF, 0x19, 0xAC, 0xC2,
+    0x3D, 0x82, 0xBF, 0xAC, 0x51, 0x06, 0x9D, 0x97, 0xB7, 0x0F, 0xDD, 0xF4
+};
+#endif
+
+#if defined(ELS_PKC_ECC256) && \
+    !defined(NO_ECC_SECP)
+static const byte elsPkcPrecGSecp256r1[2 * 32] = {  /* SECP256R1 */
+    0x44, 0x7D, 0x73, 0x9B, 0xEE, 0xDB, 0x5E, 0x67, 0xFB, 0x98, 0x2F, 0xD5,
+    0x88, 0xC6, 0x76, 0x6E, 0xFC, 0x35, 0xFF, 0x7D, 0xC2, 0x97, 0xEA, 0xC3,
+    0x57, 0xC8, 0x4F, 0xC9, 0xD7, 0x89, 0xBD, 0x85, 0x2D, 0x48, 0x25, 0xAB,
+    0x83, 0x41, 0x31, 0xEE, 0xE1, 0x2E, 0x9D, 0x95, 0x3A, 0x4A, 0xAF, 0xF7,
+    0x3D, 0x34, 0x9B, 0x95, 0xA7, 0xFA, 0xE5, 0x00, 0x0C, 0x7E, 0x33, 0xC9,
+    0x72, 0xE2, 0x5B, 0x32
+};
+#endif
+
+#if defined(ELS_PKC_ECC256) && \
+    defined(HAVE_ECC_BRAINPOOL)
+static const byte elsPkcPrecGBrainpoolp256r1[2 * 32] = {  /* BRAINPOOLP256R1 */
+    0x4A, 0x14, 0xC0, 0x30, 0x3B, 0x85, 0x6C, 0x94, 0xB4, 0x43, 0x85, 0x11,
+    0x7F, 0x87, 0xED, 0x9D, 0x12, 0x00, 0xCA, 0x9B, 0x11, 0x00, 0x65, 0x90,
+    0xEB, 0x6B, 0x65, 0x1C, 0xF5, 0x84, 0x72, 0xC9, 0x7B, 0x81, 0xE4, 0x70,
+    0xDA, 0xE2, 0xD5, 0xEF, 0xE6, 0x38, 0x73, 0x49, 0x8B, 0x47, 0xCC, 0x5E,
+    0xD5, 0x44, 0xA0, 0x68, 0xCD, 0x73, 0x21, 0x17, 0x52, 0x9C, 0x5C, 0xD6,
+    0x28, 0xF8, 0x52, 0xD1
+};
+#endif
+
+#if (defined(WOLFSSL_SM2))
+static const byte elsPkcPrecGSm2p256v1[2 * 32] = {  /* SM2P256V1 */
+    0xB6, 0x92, 0xE5, 0xB5, 0x74, 0xD5, 0x5D, 0xA9, 0x3D, 0xB7, 0xB2, 0x48,
+    0x88, 0xC2, 0x1F, 0x3A, 0x2B, 0x23, 0x08, 0xF6, 0x48, 0x4E, 0x1B, 0x38,
+    0xEA, 0xE3, 0xD9, 0xA9, 0xD1, 0x3A, 0x42, 0xED, 0xA1, 0x75, 0x05, 0x1B,
+    0x0F, 0x3F, 0xB6, 0x13, 0x5A, 0x92, 0x4F, 0x85, 0x54, 0x49, 0x26, 0xF9,
+    0xDB, 0x61, 0xAC, 0x17, 0x73, 0x43, 0x8E, 0x6D, 0xD1, 0x86, 0x46, 0x9D,
+    0xE2, 0x95, 0xE5, 0xAB
+};
+#endif
+
+#if defined(ELS_PKC_ECC384) && \
+    !defined(NO_ECC_SECP)
+static const byte elsPkcPrecGSecp384r1[2 * 48] = {  /* SECP384R1 */
+    0xC1, 0x9E, 0x0B, 0x4C, 0x80, 0x01, 0x19, 0xC4, 0x40, 0xF7, 0xF9, 0xE7,
+    0x06, 0x42, 0x12, 0x79, 0xB4, 0x2A, 0x31, 0xAF, 0x8A, 0x3E, 0x29, 0x7D,
+    0xDB, 0x29, 0x87, 0x89, 0x4D, 0x10, 0xDD, 0xEA, 0xBA, 0x06, 0x54, 0x58,
+    0xA4, 0xF5, 0x2D, 0x78, 0xA6, 0x28, 0xB0, 0x9A, 0xAA, 0x03, 0xBD, 0x53,
+    0x16, 0xF3, 0xFD, 0xBF, 0x03, 0x56, 0xB3, 0x01, 0xE5, 0xA0, 0x19, 0x1D,
+    0x1F, 0x5B, 0x77, 0xF6, 0x57, 0x7A, 0x30, 0xEA, 0xE3, 0x56, 0x7A, 0xF9,
+    0xC1, 0xC7, 0xCA, 0xD1, 0x35, 0xF6, 0xEB, 0xF2, 0xAF, 0x68, 0xAA, 0x6D,
+    0xE6, 0x39, 0xD8, 0x58, 0x82, 0x2D, 0x0F, 0xC5, 0xE6, 0xC8, 0x8C, 0x41
+};
+#endif
+
+#if defined(ELS_PKC_ECC384) && \
+    defined(HAVE_ECC_BRAINPOOL)
+static const byte elsPkcPrecGBrainpoolp384r1[2 * 48] = {  /* BRAINPOOLP384R1 */
+    0x23, 0x69, 0xDB, 0xB6, 0x39, 0x7C, 0x99, 0xF1, 0x89, 0x74, 0xB5, 0x68,
+    0x8E, 0x81, 0xAF, 0x98, 0xDF, 0x4D, 0xDA, 0xCC, 0xBB, 0x1F, 0xDC, 0x04,
+    0xE1, 0x8A, 0x5D, 0x2D, 0x02, 0xC7, 0xF7, 0x27, 0x02, 0xA3, 0x53, 0xBC,
+    0x53, 0x45, 0xA9, 0x46, 0x6B, 0xF5, 0x50, 0xB0, 0x4D, 0x99, 0x4B, 0x04,
+    0x6F, 0x47, 0xB1, 0x1D, 0xAA, 0x3B, 0x12, 0x4F, 0x93, 0xB0, 0x87, 0x75,
+    0x92, 0x5F, 0xF0, 0xA8, 0x12, 0x73, 0x68, 0xF1, 0x07, 0x42, 0xFA, 0x8F,
+    0xCD, 0x41, 0xCA, 0xE9, 0x33, 0x34, 0xCE, 0x66, 0x43, 0xF1, 0x43, 0xE6,
+    0x50, 0x0C, 0xB2, 0xC1, 0x0E, 0xE1, 0x88, 0xBB, 0x14, 0x50, 0x4C, 0x85
+};
+#endif
+
+#if defined(ELS_PKC_ECC512) && \
+    defined(HAVE_ECC_BRAINPOOL)
+static const byte elsPkcPrecGBrainpoolp512r1[2 * 64] = {  /* BRAINPOOLP512R1 */
+    0x7B, 0x59, 0x13, 0xF7, 0x66, 0xC4, 0xED, 0x95, 0xD5, 0x26, 0x2C, 0xE1,
+    0xB8, 0xF1, 0xB2, 0xAF, 0xC0, 0x56, 0xFD, 0x65, 0x8F, 0x28, 0x48, 0x70,
+    0x79, 0xA8, 0x3D, 0x9B, 0x94, 0x5E, 0x84, 0x60, 0x1B, 0xAE, 0x0F, 0x47,
+    0xAC, 0xA3, 0xB9, 0x4E, 0x97, 0x50, 0x2F, 0x33, 0x73, 0x0A, 0x37, 0x21,
+    0x9D, 0x18, 0x9C, 0x54, 0x08, 0xAC, 0x7D, 0xA5, 0xCA, 0x44, 0x81, 0x27,
+    0xEF, 0x66, 0xEF, 0xB5, 0x3B, 0x4D, 0x8E, 0x45, 0x4F, 0xFC, 0x59, 0x3A,
+    0x37, 0x27, 0xEA, 0x1E, 0xEA, 0x20, 0xB7, 0x08, 0xC2, 0x1F, 0xCA, 0x91,
+    0x61, 0x30, 0x6A, 0xF0, 0xE4, 0x66, 0x56, 0xA7, 0x5F, 0xC4, 0x50, 0xA8,
+    0xFB, 0x4E, 0xDB, 0x0D, 0xBC, 0x57, 0x88, 0x77, 0x24, 0xEC, 0x6F, 0x84,
+    0x4E, 0xB4, 0x96, 0xC3, 0x3E, 0x94, 0x70, 0xF8, 0xDA, 0x00, 0x92, 0xC9,
+    0xD6, 0x10, 0x45, 0x3C, 0xC2, 0xF4, 0x58, 0x72
+};
+#endif
+
+#if defined(ELS_PKC_ECC521) && \
+    !defined(NO_ECC_SECP)
+static const byte elsPkcPrecGSecp521r1[2 * 66] = {  /* SECP521R1 */
+    0x00, 0x8E, 0x81, 0x8D, 0x28, 0xF3, 0x81, 0xD8, 0xB2, 0x05, 0xED, 0xFF,
+    0x69, 0x61, 0x3B, 0x96, 0x2E, 0x0C, 0x77, 0xD2, 0x23, 0xEF, 0x25, 0xCC,
+    0x1C, 0x99, 0xD9, 0xA6, 0x2E, 0x4F, 0x25, 0x72, 0xC1, 0x61, 0x7A, 0xD0,
+    0xF5, 0xE9, 0xA8, 0x6B, 0x71, 0x04, 0xE8, 0x97, 0x00, 0xD4, 0xDA, 0x71,
+    0x3C, 0xB4, 0x08, 0xF3, 0xDE, 0x44, 0x65, 0xF8, 0x6A, 0xC4, 0xEE, 0x31,
+    0xE7, 0x1A, 0x28, 0x64, 0x92, 0xAD, 0x01, 0x3E, 0xFD, 0xBC, 0x85, 0x6E,
+    0x8F, 0x68, 0xBF, 0x44, 0xD4, 0xE1, 0x9F, 0xC7, 0xC3, 0x26, 0xFE, 0x48,
+    0xA1, 0x6F, 0x78, 0x55, 0xC8, 0x08, 0x66, 0x23, 0x71, 0x96, 0xBF, 0x8F,
+    0x72, 0xEA, 0x0D, 0xCB, 0x42, 0x22, 0x85, 0xDC, 0x03, 0x70, 0x68, 0x9F,
+    0xBE, 0x72, 0x6F, 0x8C, 0xE0, 0x45, 0xA4, 0x03, 0x8B, 0x64, 0x0F, 0x2B,
+    0x67, 0x17, 0x76, 0x0F, 0x72, 0x12, 0x31, 0xCF, 0x8C, 0xDF, 0x1F, 0x60
+};
+#endif
+
+static const ElsPkcPrecGEntry elsPkcPrecGTable[] = {
+#if defined(ELS_PKC_ECC112) && \
+    !defined(NO_ECC_SECP)
+    { ECC_SECP112R1, 14, elsPkcPrecGSecp112r1 },
+#endif
+#if defined(ELS_PKC_ECC128) && \
+    !defined(NO_ECC_SECP)
+    { ECC_SECP128R1, 16, elsPkcPrecGSecp128r1 },
+#endif
+#if defined(ELS_PKC_ECC160) && \
+    defined(HAVE_ECC_BRAINPOOL)
+    { ECC_BRAINPOOLP160R1, 20, elsPkcPrecGBrainpoolp160r1 },
+#endif
+#if defined(ELS_PKC_ECC192) && \
+    !defined(NO_ECC_SECP)
+    { ECC_SECP192R1, 24, elsPkcPrecGSecp192r1 },
+#endif
+#if defined(ELS_PKC_ECC192) && \
+    defined(HAVE_ECC_SECPR2)
+    { ECC_PRIME192V2, 24, elsPkcPrecGPrime192v2 },
+#endif
+#if defined(ELS_PKC_ECC192) && \
+    defined(HAVE_ECC_SECPR3)
+    { ECC_PRIME192V3, 24, elsPkcPrecGPrime192v3 },
+#endif
+#if defined(ELS_PKC_ECC192) && \
+    defined(HAVE_ECC_BRAINPOOL)
+    { ECC_BRAINPOOLP192R1, 24, elsPkcPrecGBrainpoolp192r1 },
+#endif
+#if defined(ELS_PKC_ECC224) && \
+    !defined(NO_ECC_SECP)
+    { ECC_SECP224R1, 28, elsPkcPrecGSecp224r1 },
+#endif
+#if defined(ELS_PKC_ECC224) && \
+    defined(HAVE_ECC_BRAINPOOL)
+    { ECC_BRAINPOOLP224R1, 28, elsPkcPrecGBrainpoolp224r1 },
+#endif
+#if defined(ELS_PKC_ECC239) && \
+    !defined(NO_ECC_SECP)
+    { ECC_PRIME239V1, 30, elsPkcPrecGPrime239v1 },
+#endif
+#if defined(ELS_PKC_ECC239) && \
+    defined(HAVE_ECC_SECPR2)
+    { ECC_PRIME239V2, 30, elsPkcPrecGPrime239v2 },
+#endif
+#if defined(ELS_PKC_ECC239) && \
+    defined(HAVE_ECC_SECPR3)
+    { ECC_PRIME239V3, 30, elsPkcPrecGPrime239v3 },
+#endif
+#if defined(ELS_PKC_ECC256) && \
+    !defined(NO_ECC_SECP)
+    { ECC_SECP256R1, 32, elsPkcPrecGSecp256r1 },
+#endif
+#if defined(ELS_PKC_ECC256) && \
+    defined(HAVE_ECC_BRAINPOOL)
+    { ECC_BRAINPOOLP256R1, 32, elsPkcPrecGBrainpoolp256r1 },
+#endif
+#if (defined(WOLFSSL_SM2))
+    { ECC_SM2P256V1, 32, elsPkcPrecGSm2p256v1 },
+#endif
+#if defined(ELS_PKC_ECC384) && \
+    !defined(NO_ECC_SECP)
+    { ECC_SECP384R1, 48, elsPkcPrecGSecp384r1 },
+#endif
+#if defined(ELS_PKC_ECC384) && \
+    defined(HAVE_ECC_BRAINPOOL)
+    { ECC_BRAINPOOLP384R1, 48, elsPkcPrecGBrainpoolp384r1 },
+#endif
+#if defined(ELS_PKC_ECC512) && \
+    defined(HAVE_ECC_BRAINPOOL)
+    { ECC_BRAINPOOLP512R1, 64, elsPkcPrecGBrainpoolp512r1 },
+#endif
+#if defined(ELS_PKC_ECC521) && \
+    !defined(NO_ECC_SECP)
+    { ECC_SECP521R1, 66, elsPkcPrecGSecp521r1 },
+#endif
+    { ECC_CURVE_INVALID, 0, NULL }  /* terminator, and keeps it non-empty */
+};
+
+/* Point at the value for this curve, deriving it only for a curve the table
+ * does not carry. Caller holds the lock and has loaded the curve. */
+static int ElsPkcPrecGet(mcuxClSession_Descriptor_t* sess,
+                         const mcuxClEcc_DomainParam_t* dp, int curveId,
+                         word32 lenP, const byte** precG)
+{
+    int i;
+#ifdef WOLFSSL_CUSTOM_CURVES
+    mcuxClEcc_PointMult_Param_t prm;
+    ALIGN32 byte scalar[ELS_PKC_ECC_MAX_N];
+    byte dom[5 * ELS_PKC_ECC_MAX_P];
+    int ret;
+#endif
+
+    for (i = 0; elsPkcPrecGTable[i].precG != NULL; i++) {
+        if (elsPkcPrecGTable[i].curveId == curveId &&
+            elsPkcPrecGTable[i].lenP == lenP) {
+            *precG = elsPkcPrecGTable[i].precG;
+            return 0;
+        }
+    }
+
+#ifdef WOLFSSL_CUSTOM_CURVES
+    ElsPkcPrecGDomain(dp, lenP, dom);
+    if (elsPkcPrecG.valid && elsPkcPrecG.lenP == lenP &&
+        XMEMCMP(elsPkcPrecG.dom, dom, 5u * lenP) == 0) {
+        *precG = elsPkcPrecG.precG;
+        return 0;
+    }
+    elsPkcPrecG.valid = 0;
+    /* The exponent byteLenN*4 is half the order's bit width, so the single set
+     * bit lands halfway through the scalar. Even byte lengths only. */
+    if ((lenP & 1u) != 0) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+    XMEMSET(scalar, 0, sizeof(scalar));
+    scalar[lenP / 2u - 1u] = 0x01;
+
+    prm.curveParam = *dp;
+    prm.pScalar    = scalar;
+    prm.pPoint     = dp->pG;
+    prm.pResult    = elsPkcPrecG.precG;
+    prm.optLen     = 0u;
+
+    ret = ElsPkcPointMultRun(sess, &prm);
+    if (ret == 0) {
+        XMEMCPY(elsPkcPrecG.dom, dom, 5u * lenP);
+        elsPkcPrecG.lenP  = lenP;
+        elsPkcPrecG.valid = 1;
+        *precG = elsPkcPrecG.precG;
+    }
+
+    return ret;
+#else
+    (void)sess;
+    (void)dp;
+
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+#endif
+}
+
+static int ElsPkcEccVerifyRun(mcuxClSession_Descriptor_t* sess,
+                              mcuxClEcc_Verify_Param_t* prm, int* res)
+{
+    MCUX_CSSL_FP_FUNCTION_CALL_BEGIN(r, t, mcuxClEcc_Verify(sess, prm));
+    if (MCUX_CSSL_FP_FUNCTION_CALLED(mcuxClEcc_Verify) != t) {
+        return WC_NO_ERR_TRACE(WC_HW_E);
+    }
+    /* The PKC reports a bad signature through INVALID_SIGNATURE. */
+    if (MCUXCLECC_STATUS_OK == r) {
+        *res = 1;
+    }
+    else if (MCUXCLECC_STATUS_INVALID_SIGNATURE == r) {
+        *res = 0;
+    }
+    /* An off-curve public key; software gives its own answer for one. */
+    else if (MCUXCLECC_STATUS_INVALID_PARAMS == r) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+    else {
+        return WC_NO_ERR_TRACE(WC_HW_E);
+    }
+    MCUX_CSSL_FP_FUNCTION_CALL_END();
+
+    return 0;
+}
+
+static int ElsPkcEccVerify(const byte* sigDer, word32 sigLen,
+                           const byte* digest, word32 hashLen, int* res,
+                           ecc_key* key)
+{
+    mcuxClSession_Descriptor_t* sess = NULL;
+    mcuxClEcc_Verify_Param_t prm;
+    ALIGN32 byte sig[2 * ELS_PKC_ECC_MAX_N];
+    ALIGN32 byte hash[ELS_PKC_ECC_MAX_N];
+    ALIGN32 byte pub[2 * ELS_PKC_ECC_MAX_P];
+    ALIGN32 byte rOut[ELS_PKC_ECC_MAX_N];
+    byte   x963[1 + 2 * ELS_PKC_ECC_MAX_P];
+    const byte* precG = NULL;
+    word32 x963Sz = sizeof(x963);
+    word32 lenP = 0, rLen, sLen;
+    int    ret;
+
+    if (sigDer == NULL || digest == NULL || res == NULL || key == NULL) {
+        return WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+    }
+    /* As in the signer: the fixed buffer bounds this more tightly than the
+     * eight-bit byteLenHash field does. */
+    if (hashLen == 0 || hashLen > 255 || hashLen > sizeof(hash) ||
+        !ElsEccSigDerOk(sigDer, sigLen)) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+
+    *res = 0;
+
+    ret = ElsLock();
+    if (ret != 0) {
+        return ret;
+    }
+
+    ret = ElsPkcLoadCurve(key, &prm.curveParam, &lenP);
+
+    if (ret == 0) {
+        rLen = lenP;
+        sLen = lenP;
+        if (DecodeECC_DSA_Sig_Bin(sigDer, sigLen, sig, &rLen,
+                                  sig + lenP, &sLen) != 0) {
+            ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+        }
+        if (ret == 0) {
+            ret = ElsPadSigComponent(sig, rLen, lenP);
+        }
+        if (ret == 0) {
+            ret = ElsPadSigComponent(sig + lenP, sLen, lenP);
+        }
+        if (ret == 0) {
+            ret = ElsEccSigRange(sig, elsPkcCurve.n, lenP);
+        }
+    }
+
+    if (ret == 0) {
+#ifdef HAVE_ECC_KEY_EXPORT
+        ret = wc_ecc_export_x963_ex(key, x963, &x963Sz, 0);
+#else
+        ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+#endif
+        if (ret != 0 || x963Sz != (1u + 2u * lenP) || x963[0] != 0x04) {
+            ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+        }
+        else {
+            XMEMCPY(pub, x963 + 1, 2u * lenP);
+        }
+    }
+
+    if (ret == 0) {
+        XMEMCPY(hash, digest, hashLen);
+        /* Verify consumes no nonce, so it never needs the 256-bit DRBG. */
+        ret = ElsPkcSessionOpen(&sess, 0);
+        if (ret == 0) {
+            ret = ElsPkcPrecGet(sess, &prm.curveParam, key->dp->id, lenP,
+                                &precG);
+            if (ret == 0) {
+                prm.pPrecG     = precG;
+                prm.pHash      = hash;
+                prm.pSignature = sig;
+                prm.pPublicKey = pub;
+                prm.pOutputR   = rOut;
+                prm.optLen     = mcuxClEcc_Verify_Param_optLen_Pack(hashLen);
+
+                ret = ElsPkcEccVerifyRun(sess, &prm, res);
+            }
+            ElsPkcSessionClose(sess, ret == WC_NO_ERR_TRACE(WC_HW_E));
+        }
+    }
+
+    ElsUnlock();
+
+    ForceZero(hash, sizeof(hash));
+    ForceZero(rOut, sizeof(rOut));
+
+    return ret;
+}
+
+#endif /* HAVE_ECC_VERIFY */
+#endif /* HAVE_ECC && (HAVE_ECC_SIGN || HAVE_ECC_VERIFY) */
+
 /* Serving WC_ALGO_TYPE_SEED as well as _RNG means wolfCrypt's own Hash-DRBG is
  * seeded from the hardware, not just the direct generate path. */
 
@@ -2939,6 +3716,11 @@ int wc_ElsPkc_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
                     ret = ElsEccSign(info->pk.eccsign.in,
                             info->pk.eccsign.inlen, info->pk.eccsign.out,
                             info->pk.eccsign.outlen, info->pk.eccsign.key);
+                    if (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+                        ret = ElsPkcEccSign(info->pk.eccsign.in,
+                                info->pk.eccsign.inlen, info->pk.eccsign.out,
+                                info->pk.eccsign.outlen, info->pk.eccsign.key);
+                    }
                     break;
     #endif
     #if defined(HAVE_ECC) && defined(HAVE_ECC_VERIFY)
@@ -2955,6 +3737,14 @@ int wc_ElsPkc_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
                             info->pk.eccverify.hashlen,
                             info->pk.eccverify.res,
                             info->pk.eccverify.key);
+                    if (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+                        ret = ElsPkcEccVerify(info->pk.eccverify.sig,
+                                info->pk.eccverify.siglen,
+                                info->pk.eccverify.hash,
+                                info->pk.eccverify.hashlen,
+                                info->pk.eccverify.res,
+                                info->pk.eccverify.key);
+                    }
                     break;
     #endif
                 /* No WC_PK_TYPE_ECDH: ELS leaves the agreed secret in a slot. */
