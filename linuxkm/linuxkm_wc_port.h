@@ -799,8 +799,6 @@
             #ifdef CONFIG_PM_SLEEP
             #include <linux/suspend.h>
             #endif
-            #include <linux/acpi.h>
-            #include <linux/io.h>
         #endif /* !WC_CONTAINERIZE_THIS */
 
     #endif /* LINUXKM_LKCAPI_REGISTER */

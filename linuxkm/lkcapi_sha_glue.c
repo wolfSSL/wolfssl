@@ -49,6 +49,15 @@
 #include <wolfssl/wolfcrypt/sha.h>
 #include <wolfssl/wolfcrypt/hmac.h>
 
+#ifdef LINUXKM_LKCAPI_REGISTER
+    _Pragma("GCC diagnostic push");
+    _Pragma("GCC diagnostic ignored \"-Wpointer-arith\"");
+    _Pragma("GCC diagnostic ignored \"-Wbad-function-cast\"");
+    #include <linux/acpi.h>
+    #include <linux/io.h>
+    _Pragma("GCC diagnostic pop");
+#endif
+
 #define WOLFKM_SHA1_NAME "sha1"
 #define WOLFKM_SHA2_224_NAME "sha224"
 #define WOLFKM_SHA2_256_NAME "sha256"
@@ -2066,6 +2075,7 @@ struct wc_swallow_the_semicolon
 #endif
 
 static volatile int wc_linuxkm_rng_initing_default_bank_flag = 0;
+static struct wc_rng_bank *default_bank;
 
 #ifndef WC_LINUXKM_INITRNG_TIMEOUT_SEC
     #define WC_LINUXKM_INITRNG_TIMEOUT_SEC 30
@@ -2977,6 +2987,11 @@ static int wc_linuxkm_rng_bank_init(struct wc_rng_bank *ctx)
     word32 flags = WC_RNG_BANK_FLAG_CAN_WAIT;
     unsigned long uncredited_nonce = random_get_entropy();
 
+    if (wc_linuxkm_rng_initing_default_bank_flag && (default_bank != NULL)) {
+        pr_err("BUG: wc_linuxkm_rng_bank_init() called with wc_linuxkm_rng_initing_default_bank_flag asserted and default_bank != NULL.\n");
+        return -EINVAL;
+    }
+
 #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && \
     defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
     /* before v7, the SHA-2 implementations couldn't dynamically switch between
@@ -3024,8 +3039,9 @@ static int wc_linuxkm_rng_bank_init(struct wc_rng_bank *ctx)
                     pr_err("ERROR: wc_rng_bank_default_set() in wc_linuxkm_rng_bank_init() returned err %d\n", ret);
                     WC_DUMP_BACKTRACE_NONDEBUG;
                 }
-#ifndef WC_LINUXKM_NO_ENTROPY_DAEMON
                 else {
+                    default_bank = ctx;
+#ifndef WC_LINUXKM_NO_ENTROPY_DAEMON
                     /* Try to launch the entropy daemon.  Failure is nonfatal:
                      * the inline reseed and recovery paths serve daemonless
                      * operation. */
@@ -3052,8 +3068,8 @@ static int wc_linuxkm_rng_bank_init(struct wc_rng_bank *ctx)
                             }
                         }
                     }
-                }
 #endif /* !WC_LINUXKM_NO_ENTROPY_DAEMON */
+                }
             }
         }
         else {
@@ -3175,6 +3191,11 @@ static int wc_linuxkm_rng_bank_fini(struct wc_rng_bank *ctx) {
 #endif /* !WC_LINUXKM_NO_ENTROPY_DAEMON */
 
     if (ctx->flags & WC_RNG_BANK_FLAG_DEFAULT_BANK) {
+        /* clear the _inited flag unconditionally -- if either
+         * wc_rng_bank_default_clear() or wc_rng_bank_fini() fails, then the ctx
+         * is in an indeterminate state and should not be accessed. */
+        default_bank = NULL;
+
         ret = wc_rng_bank_default_clear(ctx);
         if (ret != 0)
             pr_err("ERROR: wc_rng_bank_default_clear() in wc_linuxkm_rng_bank_fini() returned code %d\n", ret);
@@ -4222,12 +4243,6 @@ static int wc_get_random_bytes_user_kretprobe_installed = 0;
 
 #endif /* LINUXKM_DRBG_GET_RANDOM_BYTES */
 
-#if defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT) && \
-    (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0))
-static struct wc_rng_bank default_bank;
-static int default_bank_inited;
-#endif
-
 #ifdef WC_RNG_DEBUG_STATS
 /* control channel at /sys/module/libwolfssl/rng_stats: echo 1 to dump the
  * current RNG stats to the kernel log on demand (they otherwise appear
@@ -4243,9 +4258,9 @@ static ssize_t wc_linuxkm_rng_stats_handler(struct kobject *kobj,
 
     if (kstrtoint(buf, 10, &arg) || (arg != 1))
         return -EINVAL;
-    if (! default_bank_inited)
+    if (! default_bank)
         return -ENODEV;
-    wc_linuxkm_rng_dump_stats(&default_bank);
+    wc_linuxkm_rng_dump_stats(default_bank);
     return (ssize_t)count;
 }
 static struct kobj_attribute wc_linuxkm_rng_stats_attr =
@@ -4431,13 +4446,13 @@ static int wc_linuxkm_drbg_startup(void)
     else
 #endif /* CONFIG_CRYPTO_FIPS */
     {
-        ret = wc_linuxkm_rng_bank_init(&default_bank);
+        static struct wc_rng_bank local_default_bank;
+        ret = wc_linuxkm_rng_bank_init(&local_default_bank);
         wc_linuxkm_rng_initing_default_bank_flag = 0;
         if (ret) {
             pr_err("ERROR: wc_linuxkm_rng_bank_init returned %d\n", ret);
             return ret;
         }
-        default_bank_inited = 1;
     }
 
 #endif /* >= 7.1.0 */
@@ -4455,9 +4470,8 @@ static int wc_linuxkm_drbg_startup(void)
         if (ret != 0) {
 #if defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT) && \
     (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0))
-            if (default_bank_inited) {
-                (void)wc_linuxkm_rng_bank_fini(&default_bank);
-                default_bank_inited = 0;
+            if (default_bank != NULL) {
+                (void)wc_linuxkm_rng_bank_fini(default_bank);
             }
 #endif
             return -ECANCELED;
@@ -4630,11 +4644,10 @@ static int wc_linuxkm_drbg_cleanup(void) {
         }
         else
 #endif /* CONFIG_CRYPTO_FIPS */
-        if (default_bank_inited) {
-            ret = wc_linuxkm_rng_bank_fini(&default_bank);
+        if (default_bank) {
+            ret = wc_linuxkm_rng_bank_fini(default_bank);
             if (ret)
                 pr_err("ERROR: wc_linuxkm_rng_bank_fini in wc_linuxkm_drbg_cleanup failed: %d\n", ret);
-            default_bank_inited = 0;
         }
 #endif /* >= 7.1.0 */
 
