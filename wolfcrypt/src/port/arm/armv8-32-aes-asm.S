@@ -23435,7 +23435,8 @@ AES_encrypt_blocks_AARCH32:
 L_aes_encrypt_blocks_arm32_crypto_192_start_4:
 	cmp	r2, #4
 	blt	L_aes_encrypt_blocks_arm32_crypto_192_start_2
-	vldm.8	r0!, {q12-q15}
+	vld1.8	{q12-q13}, [r0]!
+	vld1.8	{q14-q15}, [r0]!
 	aese.8	q12, q0
 	aesmc.8	q12, q12
 	aese.8	q13, q0
@@ -23537,7 +23538,8 @@ L_aes_encrypt_blocks_arm32_crypto_192_start_4:
 	veor.32	q15, q15, q10
 	sub	r3, r3, #48
 	sub	r2, r2, #4
-	vstm.8	r1!, {q12-q15}
+	vst1.8	{q12-q13}, [r1]!
+	vst1.8	{q14-q15}, [r1]!
 	cmp	r2, #4
 	bge	L_aes_encrypt_blocks_arm32_crypto_192_start_4
 L_aes_encrypt_blocks_arm32_crypto_192_start_2:
@@ -23643,7 +23645,8 @@ L_aes_encrypt_blocks_arm32_crypto_start_256:
 L_aes_encrypt_blocks_arm32_crypto_256_start_4:
 	cmp	r2, #4
 	blt	L_aes_encrypt_blocks_arm32_crypto_256_start_2
-	vldm.8	r0!, {q12-q15}
+	vld1.8	{q12-q13}, [r0]!
+	vld1.8	{q14-q15}, [r0]!
 	aese.8	q12, q0
 	aesmc.8	q12, q12
 	aese.8	q13, q0
@@ -23763,7 +23766,8 @@ L_aes_encrypt_blocks_arm32_crypto_256_start_4:
 	veor.32	q15, q15, q10
 	sub	r3, r3, #0x50
 	sub	r2, r2, #4
-	vstm.8	r1!, {q12-q15}
+	vst1.8	{q12-q13}, [r1]!
+	vst1.8	{q14-q15}, [r1]!
 	cmp	r2, #4
 	bge	L_aes_encrypt_blocks_arm32_crypto_256_start_4
 L_aes_encrypt_blocks_arm32_crypto_256_start_2:
@@ -23885,7 +23889,8 @@ L_aes_encrypt_blocks_arm32_crypto_start_128:
 L_aes_encrypt_blocks_arm32_crypto_128_start_4:
 	cmp	r2, #4
 	blt	L_aes_encrypt_blocks_arm32_crypto_128_start_2
-	vldm.8	r0!, {q12-q15}
+	vld1.8	{q12-q13}, [r0]!
+	vld1.8	{q14-q15}, [r0]!
 	aese.8	q12, q0
 	aesmc.8	q12, q12
 	aese.8	q13, q0
@@ -23967,7 +23972,8 @@ L_aes_encrypt_blocks_arm32_crypto_128_start_4:
 	aese.8	q15, q9
 	veor.32	q15, q15, q10
 	sub	r2, r2, #4
-	vstm.8	r1!, {q12-q15}
+	vst1.8	{q12-q13}, [r1]!
+	vst1.8	{q14-q15}, [r1]!
 	cmp	r2, #4
 	bge	L_aes_encrypt_blocks_arm32_crypto_128_start_4
 L_aes_encrypt_blocks_arm32_crypto_128_start_2:
@@ -24070,7 +24076,8 @@ AES_decrypt_blocks_AARCH32:
 	cmp	r2, #4
 	blt	L_aes_decrypt_blocks_arm32_crypto_192_start_2
 L_aes_decrypt_blocks_arm32_crypto_192_start_4:
-	vldm.8	r0!, {q12-q15}
+	vld1.8	{q12-q13}, [r0]!
+	vld1.8	{q14-q15}, [r0]!
 	aesd.8	q12, q0
 	aesimc.8	q12, q12
 	aesd.8	q13, q0
@@ -24172,7 +24179,8 @@ L_aes_decrypt_blocks_arm32_crypto_192_start_4:
 	veor.32	q15, q15, q10
 	sub	r3, r3, #48
 	sub	r2, r2, #4
-	vstm.8	r1!, {q12-q15}
+	vst1.8	{q12-q13}, [r1]!
+	vst1.8	{q14-q15}, [r1]!
 	cmp	r2, #4
 	bge	L_aes_decrypt_blocks_arm32_crypto_192_start_4
 L_aes_decrypt_blocks_arm32_crypto_192_start_2:
@@ -24278,7 +24286,8 @@ L_aes_decrypt_blocks_arm32_crypto_start_256:
 	cmp	r2, #4
 	blt	L_aes_decrypt_blocks_arm32_crypto_256_start_2
 L_aes_decrypt_blocks_arm32_crypto_256_start_4:
-	vldm.8	r0!, {q12-q15}
+	vld1.8	{q12-q13}, [r0]!
+	vld1.8	{q14-q15}, [r0]!
 	aesd.8	q12, q0
 	aesimc.8	q12, q12
 	aesd.8	q13, q0
@@ -24398,7 +24407,8 @@ L_aes_decrypt_blocks_arm32_crypto_256_start_4:
 	veor.32	q15, q15, q10
 	sub	r3, r3, #0x50
 	sub	r2, r2, #4
-	vstm.8	r1!, {q12-q15}
+	vst1.8	{q12-q13}, [r1]!
+	vst1.8	{q14-q15}, [r1]!
 	cmp	r2, #4
 	bge	L_aes_decrypt_blocks_arm32_crypto_256_start_4
 L_aes_decrypt_blocks_arm32_crypto_256_start_2:
@@ -24520,7 +24530,8 @@ L_aes_decrypt_blocks_arm32_crypto_start_128:
 	cmp	r2, #4
 	blt	L_aes_decrypt_blocks_arm32_crypto_128_start_2
 L_aes_decrypt_blocks_arm32_crypto_128_start_4:
-	vldm.8	r0!, {q12-q15}
+	vld1.8	{q12-q13}, [r0]!
+	vld1.8	{q14-q15}, [r0]!
 	aesd.8	q12, q0
 	aesimc.8	q12, q12
 	aesd.8	q13, q0
@@ -24602,7 +24613,8 @@ L_aes_decrypt_blocks_arm32_crypto_128_start_4:
 	aesd.8	q15, q9
 	veor.32	q15, q15, q10
 	sub	r2, r2, #4
-	vstm.8	r1!, {q12-q15}
+	vst1.8	{q12-q13}, [r1]!
+	vst1.8	{q14-q15}, [r1]!
 	cmp	r2, #4
 	bge	L_aes_decrypt_blocks_arm32_crypto_128_start_4
 L_aes_decrypt_blocks_arm32_crypto_128_start_2:

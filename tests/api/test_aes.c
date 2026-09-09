@@ -5410,8 +5410,12 @@ int test_wc_AesGcmDecrypt_WipeOnAuthFail(void)
 {
     EXPECT_DECLS;
 /* Only the software, AES-NI and Arm lanes wipe; the offload back ends and the
- * ACVP harness build return the computed plaintext. */
-#if !defined(NO_AES) && defined(HAVE_AESGCM) && defined(HAVE_AES_DECRYPT) && \
+ * ACVP harness build return the computed plaintext.  A FIPS build before v7,
+ * and a --enable-selftest build, compile an older boundary aes.c that has no
+ * wipe. */
+#if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    !defined(HAVE_SELFTEST) && \
+    !defined(NO_AES) && defined(HAVE_AESGCM) && defined(HAVE_AES_DECRYPT) && \
     defined(WOLFSSL_AES_256) && !defined(WOLFSSL_AFALG) && \
     !defined(WOLFSSL_KCAPI) && !defined(WOLFSSL_DEVCRYPTO_AES) && \
     !defined(WOLFSSL_ASYNC_CRYPT) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
@@ -6341,6 +6345,80 @@ int test_wc_AesXtsStream_CounterOverflow(void)
     return EXPECT_RESULT();
 }
 
+/* Callers hand AES plain byte buffers, so every entry must accept any
+ * alignment; the 32-bit Arm bulk block routine once required word alignment. */
+int test_wc_AesUnalignedBuffers(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && defined(WOLFSSL_AES_128) && \
+    (defined(HAVE_AES_ECB) || defined(WOLFSSL_AES_XTS)) && \
+    !defined(WOLFSSL_AFALG) && !defined(WOLFSSL_KCAPI)
+    /* XTS needs two distinct keys, so the halves differ. */
+    static const byte key32[] = {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x66, 0x65, 0x64, 0x63, 0x62, 0x61, 0x39, 0x38,
+        0x37, 0x36, 0x35, 0x34, 0x33, 0x32, 0x31, 0x30
+    };
+    /* Eight blocks: enough for the four-block bulk path to run twice. */
+    const word32 sz = WC_AES_BLOCK_SIZE * 8;
+    byte in[WC_AES_BLOCK_SIZE * 8 + 4];
+    byte out[WC_AES_BLOCK_SIZE * 8 + 4];
+    byte ref[WC_AES_BLOCK_SIZE * 8];
+    word32 i, offIn, offOut;
+
+    for (i = 0; i < sizeof(in); i++)
+        in[i] = (byte)(i * 7 + 3);
+
+#ifdef HAVE_AES_ECB
+    {
+        Aes aes;
+        XMEMSET(&aes, 0, sizeof(aes));
+        ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_AesSetKey(&aes, key32, 16, NULL, AES_ENCRYPTION), 0);
+        ExpectIntEQ(wc_AesEcbEncrypt(&aes, ref, in, sz), 0);
+        for (offIn = 0; offIn < 4; offIn++) {
+            for (offOut = 0; offOut < 4; offOut++) {
+                XMEMMOVE(in + offIn, in, sz);
+                XMEMSET(out, 0, sizeof(out));
+                ExpectIntEQ(wc_AesEcbEncrypt(&aes, out + offOut, in + offIn,
+                    sz), 0);
+                ExpectBufEQ(out + offOut, ref, sz);
+                XMEMMOVE(in, in + offIn, sz);
+            }
+        }
+        wc_AesFree(&aes);
+    }
+#endif
+#ifdef WOLFSSL_AES_XTS
+    {
+        static const byte tweak[WC_AES_BLOCK_SIZE] = {
+            0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+            0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+        };
+        XtsAes xaes;
+        XMEMSET(&xaes, 0, sizeof(xaes));
+        ExpectIntEQ(wc_AesXtsSetKey(&xaes, key32, sizeof(key32),
+            AES_ENCRYPTION, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_AesXtsEncrypt(&xaes, ref, in, sz, tweak,
+            sizeof(tweak)), 0);
+        for (offIn = 0; offIn < 4; offIn++) {
+            for (offOut = 0; offOut < 4; offOut++) {
+                XMEMMOVE(in + offIn, in, sz);
+                XMEMSET(out, 0, sizeof(out));
+                ExpectIntEQ(wc_AesXtsEncrypt(&xaes, out + offOut, in + offIn,
+                    sz, tweak, sizeof(tweak)), 0);
+                ExpectBufEQ(out + offOut, ref, sz);
+                XMEMMOVE(in, in + offIn, sz);
+            }
+        }
+        wc_AesXtsFree(&xaes);
+    }
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
 /* SP 800-38E section 4: a data unit (one tweak) is at most 2^20 AES blocks. */
 int test_wc_AesXtsDataUnitLimit(void)
 {
@@ -6429,7 +6507,8 @@ int test_wc_AesXtsDataUnitLimit(void)
                 &xs), 0);
             wc_AesXtsFree(&aes);
 
-#if FIPS_VERSION3_GE(6,0,0) && defined(HAVE_AES_DECRYPT)
+/* v6.0.0 limits the one-shot decrypt but not the streaming one. */
+#if FIPS_VERSION3_GE(7,0,0) && defined(HAVE_AES_DECRYPT)
             done = 0;
             XMEMSET(&xs, 0, sizeof(xs));
             ExpectIntEQ(wc_AesXtsSetKey(&aes, key32, sizeof(key32),

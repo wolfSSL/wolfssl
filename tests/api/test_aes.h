@@ -87,6 +87,7 @@ int test_wc_AesXtsStream(void);
 int test_wc_AesXtsStream_MidStreamState(void);
 int test_wc_AesXtsStream_ReinitAfterFinal(void);
 int test_wc_AesXtsStream_CounterOverflow(void);
+int test_wc_AesUnalignedBuffers(void);
 int test_wc_AesXtsDataUnitLimit(void);
 int test_wc_AesGcmDecrypt_WipeOnAuthFail(void);
 #if defined(WOLFSSL_AES_EAX) && defined(WOLFSSL_AES_256) && \
@@ -248,6 +249,7 @@ int test_wc_CryptoCb_AesKeyWrapEcbCompose(void);
     TEST_DECL_GROUP("aes", test_wc_AesXtsStream_MidStreamState),     \
     TEST_DECL_GROUP("aes", test_wc_AesXtsStream_ReinitAfterFinal),  \
     TEST_DECL_GROUP("aes", test_wc_AesXtsStream_CounterOverflow),   \
+    TEST_DECL_GROUP("aes", test_wc_AesUnalignedBuffers),           \
     TEST_DECL_GROUP("aes", test_wc_AesXtsDataUnitLimit),            \
     TEST_DECL_GROUP("aes", test_wc_AesGcmDecrypt_WipeOnAuthFail),    \
     TEST_DECL_GROUP("aes", test_wc_AesCbc_MonteCarlo),    \
