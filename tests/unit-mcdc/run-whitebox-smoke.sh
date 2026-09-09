@@ -54,7 +54,11 @@ for tu in "$HERE"/*_whitebox.c; do
              >"$work/$name.log" 2>&1; then
         skip+=("$name"); continue
     fi
-    if ( cd "$BUILD" && "$work/$name.bin" ) >>"$work/$name.log" 2>&1; then
+    # These TUs report row failures as text and still exit 0, so that the
+    # MC/DC harness keeps the variant's coverage; exit status alone is not a
+    # verdict.
+    if ( cd "$BUILD" && "$work/$name.bin" ) >>"$work/$name.log" 2>&1 &&
+            ! grep -q "with failures" "$work/$name.log"; then
         pass+=("$name")
     elif [ -f "$EXPECTED" ] && grep -qx "$name" "$EXPECTED"; then
         # It passed here before, so this is a regression, not a configuration
