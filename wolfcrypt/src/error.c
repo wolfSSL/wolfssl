@@ -790,6 +790,9 @@ const char* wc_GetErrorString(int error)
     case HWPUF_ZEROIZE_E:
         return "HWPUF zeroize failed";
 
+    case ASN_OID_ARC_TOO_BIG_E:
+        return "ASN.1 OID arc value too large to represent";
+
     case MAX_CODE_E:
     case WC_SPAN1_MIN_CODE_E:
     case MIN_CODE_E:

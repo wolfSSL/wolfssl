@@ -92,6 +92,48 @@
   leak must stop doing so, and the returned key is shared with the
   certificate, so it must be treated as read only.
 
+* **Behavioral change (certificate policies that cannot be represented)**: a
+  `certificatePolicies` entry whose OID is valid DER but cannot be represented
+  is now dropped from `DecodedCert.extCertPolicies`, instead of failing to parse
+  or parsing incorrectly. Applications can detect this with
+  `wc_GetDecodedCertPoliciesTruncated()` or
+  `wolfSSL_X509_get_certPoliciesTruncated()`. Invalid DER policy OIDs now
+  explicitly fail to parse, whether or not `WOLFSSL_CERT_EXT` is defined, so
+  a certificate's validity does not depend on the features the library was
+  built with. Note this rejects the whole certificate, not just the offending
+  policy: an arc that is not minimally encoded (a leading `0x80` byte) makes
+  `DecodeCertPolicy()` return `ASN_PARSE_E`, so a peer certificate that
+  previously connected - while yielding a garbage policy string - now fails
+  certificate verification. Build with `WOLFSSL_NO_ASN_STRICT` to keep the
+  lenient behavior.
+
+* **Behavioral change (`wolfSSL_X509_add_ext` custom extension OIDs)**: custom-OID
+  extensions whose DER OID exceeds `MAX_OID_SZ` (32) content bytes are now
+  rejected immediately by `wolfSSL_X509_add_ext()` with `WOLFSSL_FAILURE`.
+
+* **Behavioral change (single-byte OIDs)**: an OID whose DER content is one
+  byte (like `2.5`) is now successfully decoded instead of failing.
+
+* **API (`DecodePolicyOID` and `EncodePolicyOID` visibility)**: internal helpers
+  are now `WOLFSSL_TEST_VIS` instead of `WOLFSSL_LOCAL` so they can be exported
+  for unit tests. They are not public API.
+
+* **Behavioral change (`wolfSSL_OBJ_obj2txt` and `wolfSSL_i2t_ASN1_OBJECT` output)**:
+  a buffer too small for the text now follows OpenSSL behavior: the output is
+  truncated to `buf_len - 1` characters plus NUL and the full length is returned.
+  Numeric OID arcs 2.40-2.47 now render correctly per X.690.
+
+* **Behavioral change (printing a certificate with a malformed OID)**: because
+  OID decoding is now strict about non-minimal (`0x80`-prefixed) and truncated
+  base-128 arcs, `wolfSSL_X509_print()` and `wolfSSL_X509_REQ_print()` now
+  return `WOLFSSL_FAILURE` when an extension or signature OID is not minimally
+  encoded DER, where such an OID was previously rendered leniently.
+
+* **API (`wc_SetExtKeyUsageOID` and `wc_SetCustomExtension` return codes)**:
+  malformed OID strings are now rejected and reported as `ASN_OBJECT_ID_E` or
+  `ASN_OID_ARC_TOO_BIG_E`, rather than returning `BUFFER_E` or being silently
+  accepted.
+
 ## Post-Quantum Cryptography (PQC)
 
 * Added opt-in per-key Falcon signing caches (`--enable-falcon=cache-key`, `cache-basis`), roughly doubling signing speed with the default integer fpr backend. by @Frauschi
@@ -140,6 +182,11 @@
   port, so `unit.test` failed to link with undefined references. Their guards
   now list `WOLFSSL_CRYPTOCELL` alongside the other ports that replace the
   software curve arithmetic.
+
+* **Fix (OID strings whose first two arcs combine to 128 or more)**: correctly
+  base-128 encode the X.690 combined first identifier (`40*X+Y`) instead of
+  writing it as a single byte. The decoder is also updated to match and is
+  stricter about arcs.
 
 ## Fixes
 
