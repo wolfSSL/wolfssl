@@ -761,6 +761,33 @@ static int Hash256_DRBG_Reseed(DRBG_internal* drbg, const byte* seed, word32 see
 
 #endif /* !NO_SHA256 */
 
+/* WC_RNG_DEBUG_STATS collection points.
+ *
+ * Placement doctrine: each counter is maintained at the single funnel that
+ * owns the distinction it records --
+ *   - reseed counts in Hash_DRBG_Reseed() (every reseed flavor routes
+ *     through it: interval backstop, Reseed_Now, RBGC, banked redemption);
+ *   - request/byte counts in the DRBG arm of wc_RNG_GenerateBlock()
+ *     (hardware-offload arms -- RDRAND, Silabs, async, cryptocb, custom --
+ *     are deliberately uncounted: these are DRBG-facility statistics);
+ *   - banked-seed redemption provenance in wc_RNG_DRBG_NextSeedNow_Nonce();
+ *   - seed health failures at the two sites that observe them per-instance
+ *     (PollAndReSeed(), NextSeedGenerate);
+ *   - chain-provenance bytes (RBGC_bytes_produced: output generated while
+ *     the instance's own RBGCStratum > 0) in the same generate funnel;
+ *   - pool byte accounting in wc_RNG_Pool_Extract(), under the consumer's
+ *     instance lock: bytes produced by reading from the pool, and bytes
+ *     requested but not fulfilled (empty-pool and partial-serve shortfall),
+ *     so requested == produced + missed on the capacity paths.  The
+ *     failed-DRBG burn path deliberately counts nothing: it is a failure
+ *     event (visible via rng->status), not a capacity signal.
+ *
+ * Counters are plain (non-atomic) adds/increments, and update under the owner's
+ * exclusive access (the lock contract shared by all WC_RNG operations) except
+ * where labeled racy: those are unreliable under concurrency, by design.  Every
+ * site carries its own #ifdef WC_RNG_DEBUG_STATS gate so the facility is
+ * removable outright with unifdef. */
+
 static int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz,
                             const byte* additional, word32 additionalSz,
                             int credited)
@@ -821,6 +848,14 @@ static int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz,
 
         ret = Hash256_DRBG_Reseed(drbg, seed, seedSz,
                                           additional, additionalSz, credited);
+#ifdef WC_RNG_DEBUG_STATS
+        if (ret == 0) {
+            if (credited)
+                ++rng->_stats_credited_reseeds;
+            else
+                ++rng->_stats_uncredited_reseeds;
+        }
+#endif
         goto out;
     }
 #endif
@@ -853,6 +888,14 @@ static int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz,
 
         ret = Hash512_DRBG_Reseed(drbg512, seed, seedSz,
                                   additional, additionalSz, credited);
+#ifdef WC_RNG_DEBUG_STATS
+        if (ret == 0) {
+            if (credited)
+                ++rng->_stats_credited_reseeds;
+            else
+                ++rng->_stats_uncredited_reseeds;
+        }
+#endif
         goto out;
     }
 #endif
@@ -2263,6 +2306,10 @@ static int _InitRng(WC_RNG* rng, const byte* nonce, word32 nonceSz,
         XMEMSET(rng, 0, WC_OFFSETOF(WC_RNG, lock));
         XMEMSET((byte *)rng + WC_OFFSETOF(WC_RNG, lock) + sizeof(rng->lock), 0, sizeof(*rng) -
                 (WC_OFFSETOF(WC_RNG, lock) + sizeof(rng->lock)));
+        #ifdef WC_RNG_DEBUG_STATS
+        if (flags & WC_RNG_INIT_FLAGS_LOCK_INITIALLY)
+            rng->_stats_locks_taken = 1;
+        #endif
 #ifdef WOLFSSL_NO_ATOMICS
         rng->lock = initial_flags;
 #else
@@ -2861,6 +2908,9 @@ int wc_RNG_lock_get(WC_RNG* rng, WC_RNG_lock_arg_t extra_bits)
      * contending getters sleep here rather than seeing BUSY_E. */
     if (rng->flags & WC_RNG_FLAG_FULL_MUTEX) {
         if (wc_LockMutex(&rng->mutex) != 0) {
+            #ifdef WC_RNG_DEBUG_STATS
+            ++rng->_stats_locks_refused; /* racy */
+            #endif
             return BAD_MUTEX_E;
         }
     }
@@ -2874,6 +2924,9 @@ int wc_RNG_lock_get(WC_RNG* rng, WC_RNG_lock_arg_t extra_bits)
     cur_lock = WOLFSSL_ATOMIC_LOAD(rng->lock);
 
     if (cur_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED) {
+        #ifdef WC_RNG_DEBUG_STATS
+        ++rng->_stats_locks_refused; /* racy */
+        #endif
 #ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
         if (rng->flags & WC_RNG_FLAG_FULL_MUTEX)
             (void)wc_UnLockMutex(&rng->mutex);
@@ -2886,9 +2939,15 @@ int wc_RNG_lock_get(WC_RNG* rng, WC_RNG_lock_arg_t extra_bits)
             &rng->lock, &cur_lock,
             cur_lock | WC_RNG_LOCK_HELD | extra_bits)))
     {
+        #ifdef WC_RNG_DEBUG_STATS
+        ++rng->_stats_locks_taken;
+        #endif
         return 0;
     }
 
+    #ifdef WC_RNG_DEBUG_STATS
+    ++rng->_stats_locks_refused;
+    #endif
 
 #ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
     /* CAS failure with the mutex held means a non-mutex claimant holds
@@ -2917,6 +2976,9 @@ int wc_RNG_lock_get_conditional(WC_RNG* rng, WC_RNG_lock_arg_t expected_extra_bi
      * contending getters sleep here rather than seeing BUSY_E. */
     if (rng->flags & WC_RNG_FLAG_FULL_MUTEX) {
         if (wc_LockMutex(&rng->mutex) != 0) {
+            #ifdef WC_RNG_DEBUG_STATS
+            ++rng->_stats_locks_refused; /* racy */
+            #endif
             return BAD_MUTEX_E;
         }
     }
@@ -2935,6 +2997,9 @@ int wc_RNG_lock_get_conditional(WC_RNG* rng, WC_RNG_lock_arg_t expected_extra_bi
     if ((cur_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED) &&
         (! (expected_extra_bits & WC_RNG_LOCK_ENTROPY_INVALIDATED)))
     {
+        #ifdef WC_RNG_DEBUG_STATS
+        ++rng->_stats_locks_refused; /* racy */
+        #endif
 #ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
         if (rng->flags & WC_RNG_FLAG_FULL_MUTEX)
             (void)wc_UnLockMutex(&rng->mutex);
@@ -2951,9 +3016,15 @@ int wc_RNG_lock_get_conditional(WC_RNG* rng, WC_RNG_lock_arg_t expected_extra_bi
             &rng->lock, &expected,
             expected | WC_RNG_LOCK_HELD | want_extra_bits)))
     {
+        #ifdef WC_RNG_DEBUG_STATS
+        ++rng->_stats_locks_taken;
+        #endif
         return 0;
     }
 
+    #ifdef WC_RNG_DEBUG_STATS
+    ++rng->_stats_locks_refused; /* racy */
+    #endif
 
 #ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
     /* CAS failure with the mutex held means a non-mutex claimant holds
@@ -2982,6 +3053,9 @@ int wc_RNG_lock_put(WC_RNG* rng, WC_RNG_lock_arg_t extra_bits)
     if (! (cur_lock & WC_RNG_LOCK_HELD))
         return OBJECT_NOT_LOCKED_E;
 
+    #ifdef WC_RNG_DEBUG_STATS
+    ++rng->_stats_locks_released;
+    #endif
 
     for (;;) {
         new_lock = cur_lock & (((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U) & ~WC_RNG_LOCK_HELD);
@@ -3017,6 +3091,9 @@ int wc_RNG_lock_put_conditional(WC_RNG* rng, WC_RNG_lock_arg_t expected_extra_bi
     if (! (cur_lock & WC_RNG_LOCK_HELD))
         return OBJECT_NOT_LOCKED_E;
 
+    #ifdef WC_RNG_DEBUG_STATS
+    ++rng->_stats_locks_released;
+    #endif
 
     for (;;) {
         new_lock = cur_lock & (((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U) & ~WC_RNG_LOCK_HELD);
@@ -3056,6 +3133,9 @@ int wc_RNG_lock_put_conditional(WC_RNG* rng, WC_RNG_lock_arg_t expected_extra_bi
     /* conditional release failed: the caller is still the holder, at both
      * layers -- the mutex stays held. */
 
+    #ifdef WC_RNG_DEBUG_STATS
+    --rng->_stats_locks_released;
+    #endif
 
     return UNEXPECTED_STATE_E;
 }
@@ -3361,6 +3441,9 @@ int wc_RNG_Pool_Extract(WC_RNG* rng, byte* out, word32* n)
 
     snap.state = WOLFSSL_ATOMIC_LOAD(rng->poolState);
     if (snap.pool.current == 0) {
+#ifdef WC_RNG_DEBUG_STATS
+        rng->_stats_pool_bytes_missed += *n;
+#endif
         return NOT_READY_E;
     }
     m = *n;
@@ -3387,6 +3470,10 @@ int wc_RNG_Pool_Extract(WC_RNG* rng, byte* out, word32* n)
      * conservative (see the protocol comment). */
     WOLFSSL_ATOMIC_STORE(rng->poolState, next.state);
 
+#ifdef WC_RNG_DEBUG_STATS
+    rng->_stats_pool_bytes_produced += m;
+    rng->_stats_pool_bytes_missed += *n - m; /* shortfall on partial serve */
+#endif
     *n = m;
 
     return 0;
@@ -3548,6 +3635,9 @@ static int wc_RNG_DRBG_ReseedRBGC_local(WC_RNG* rng, WC_RNG* root, const byte* n
             ret = wc_RNG_DRBG_Reseed_Nonce(rng, seed, SEED_SZ, nonce, nonceSz);
             if (ret == 0) {
                 rng->RBGCStratum = root->RBGCStratum + 1;
+    #ifdef WC_RNG_DEBUG_STATS
+                ++rng->_stats_RBGC_reseeds;
+    #endif
             }
         }
         else {
@@ -3614,6 +3704,9 @@ static int PollAndReSeed(WC_RNG* rng, const byte* additional,
             ret = wc_GenerateSeed(&rng->seed, newSeed,
                               SEED_SZ + SEED_BLOCK_SZ);
             if (ret != 0) {
+    #ifdef WC_RNG_DEBUG_STATS
+                ++rng->_stats_seed_failures;
+    #endif
     #ifdef WC_VERBOSE_RNG
                 WOLFSSL_DEBUG_PRINTF(
                     "ERROR: wc_GenerateSeed() in PollAndReSeed() failed with "
@@ -3625,6 +3718,10 @@ static int PollAndReSeed(WC_RNG* rng, const byte* additional,
         }
         if (ret == DRBG_SUCCESS) {
             ret = wc_RNG_TestSeed(newSeed, SEED_SZ + SEED_BLOCK_SZ);
+    #ifdef WC_RNG_DEBUG_STATS
+            if (ret != DRBG_SUCCESS)
+                ++rng->_stats_seed_failures;
+    #endif
     #ifdef WC_VERBOSE_RNG
             if (ret != DRBG_SUCCESS)
                 WOLFSSL_DEBUG_PRINTF(
@@ -3968,6 +4065,9 @@ static int wc_RNG_DRBG_NextSeedGenerate_local(WC_RNG* rng, WC_RNG *root, byte *n
     if (cur == (WC_ATOMIC_INT_ARG)nextSeedSz) {
         if (nonce != NULL) {
             WOLFSSL_ATOMIC_STORE(*lenp, WC_DRBG_NEXT_SEED_READY);
+            #ifdef WC_RNG_DEBUG_STATS
+            ++rng->_stats_n_nextuncreditedseed_banked;
+            #endif
             return 0;
         }
 #ifdef WC_RNG_HAVE_RBGC
@@ -3975,6 +4075,9 @@ static int wc_RNG_DRBG_NextSeedGenerate_local(WC_RNG* rng, WC_RNG *root, byte *n
          * wc_RNG_TestSeed(). */
         if (*nextSeedRBGCStratum_p > 0) {
             WOLFSSL_ATOMIC_STORE(*lenp, WC_DRBG_NEXT_SEED_READY);
+            #ifdef WC_RNG_DEBUG_STATS
+            ++rng->_stats_n_nextseed_banked;
+            #endif
             return 0;
         }
 #endif
@@ -3983,6 +4086,9 @@ static int wc_RNG_DRBG_NextSeedGenerate_local(WC_RNG* rng, WC_RNG *root, byte *n
         ret = wc_RNG_TestSeed(seed, nextSeedSz);
         if (ret == 0) {
             WOLFSSL_ATOMIC_STORE(*lenp, WC_DRBG_NEXT_SEED_READY);
+            #ifdef WC_RNG_DEBUG_STATS
+            ++rng->_stats_n_nextseed_banked;
+            #endif
             return 0;
         }
         else if (ret == WC_NO_ERR_TRACE(MEMORY_E)) {
@@ -3996,6 +4102,9 @@ static int wc_RNG_DRBG_NextSeedGenerate_local(WC_RNG* rng, WC_RNG *root, byte *n
             /* Use-once: a failed test consumes the material.  Release
              * store: the ForceZero() must be visible before the empty
              * aperture is. */
+            #ifdef WC_RNG_DEBUG_STATS
+            ++rng->_stats_seed_failures;
+            #endif
             ForceZero(seed, nextSeedSz);
             WOLFSSL_ATOMIC_STORE(*lenp, WC_DRBG_NEXT_SEED_EMPTY);
             return ret;
@@ -4098,6 +4207,16 @@ int wc_RNG_DRBG_NextSeedNow_Nonce(WC_RNG* rng, const byte* nonce,
     ret = Hash_DRBG_Reseed(rng, seed + SEED_BLOCK_SZ, SEED_SZ,
                            nonce, nonceSz, 1 /* credited */);
 
+    #ifdef WC_RNG_DEBUG_STATS
+    if (ret == 0) {
+        #ifdef WC_RNG_HAVE_RBGC
+        if (*nextSeedRBGCStratum_p > 0)
+            ++rng->_stats_n_nextseed_RBGC_redeemed;
+        else
+        #endif
+            ++rng->_stats_n_nextseed_primary_redeemed;
+    }
+    #endif
 
     #ifdef WC_RNG_HAVE_RBGC
     if (ret == 0) {
@@ -4191,6 +4310,10 @@ int wc_RNG_DRBG_NextUncreditedSeedNow(WC_RNG* rng)
 
     ret = wc_RNG_DRBG_Reseed_Uncredited(rng, seed, nextSeedSz);
 
+#ifdef WC_RNG_DEBUG_STATS
+    if (ret == 0)
+        ++rng->_stats_n_nextuncreditedseed_redeemed;
+#endif
 
     WOLFSSL_ATOMIC_STORE(*lenp, WC_DRBG_NEXT_SEED_EMPTY);
 
@@ -4272,6 +4395,10 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
     if (rng->status != DRBG_OK)
         return RNG_FAILURE_E;
 
+#ifdef WC_RNG_DEBUG_STATS
+    ++rng->_stats_total_requests;
+    rng->_stats_total_bytes_requested += sz;
+#endif
 
 #if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
     if (rng->pid != getpid()) {
@@ -4366,6 +4493,14 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 
     if (ret == DRBG_SUCCESS) {
         ret = 0;
+#ifdef WC_RNG_DEBUG_STATS
+        rng->_stats_total_bytes_produced += sz;
+    #ifdef WC_RNG_HAVE_RBGC
+        /* chain-provenance output: generated while chain-backed */
+        if (rng->RBGCStratum > 0)
+            rng->_stats_RBGC_bytes_produced += sz;
+    #endif
+#endif
     }
     else if (ret == WC_NO_ERR_TRACE(DRBG_CONT_FAILURE)) {
         ret = DRBG_CONT_FIPS_E;
@@ -8526,6 +8661,112 @@ int wc_hwrng_generate_block(byte *output, word32 sz)
 }
 #endif
 
+#ifdef WC_RNG_DEBUG_STATS
+
+WOLFSSL_API int wc_rng_debug_stats_snap(struct wc_rng_debug_stats_snapshot *s,
+                                        const WC_RNG *rng)
+{
+    if ((s == NULL) || (rng == NULL))
+        return BAD_FUNC_ARG;
+
+    s->_stats_total_bytes_requested = rng->_stats_total_bytes_requested;
+    s->_stats_total_bytes_produced  = rng->_stats_total_bytes_produced;
+    s->_stats_total_requests        = rng->_stats_total_requests;
+    s->_stats_credited_reseeds      = rng->_stats_credited_reseeds;
+    s->_stats_uncredited_reseeds    = rng->_stats_uncredited_reseeds;
+    s->_stats_seed_failures         = rng->_stats_seed_failures;
+    s->_stats_locks_taken           = rng->_stats_locks_taken;
+    s->_stats_locks_released        = rng->_stats_locks_released;
+    s->_stats_locks_refused         = rng->_stats_locks_refused;
+#ifdef WC_RNG_HAVE_RBGC
+    s->_stats_RBGC_bytes_produced   = rng->_stats_RBGC_bytes_produced;
+    s->_stats_RBGC_reseeds          = rng->_stats_RBGC_reseeds;
+#endif
+#ifdef WC_RNG_HAVE_POOL
+    s->_stats_pool_bytes_produced   = rng->_stats_pool_bytes_produced;
+    s->_stats_pool_bytes_missed     = rng->_stats_pool_bytes_missed;
+#endif
+#ifdef WC_RNG_HAVE_NEXT_SEED
+    s->_stats_n_nextseed_primary_redeemed    = rng->_stats_n_nextseed_primary_redeemed;
+    s->_stats_n_nextseed_RBGC_redeemed       = rng->_stats_n_nextseed_RBGC_redeemed;
+    s->_stats_n_nextuncreditedseed_redeemed  = rng->_stats_n_nextuncreditedseed_redeemed;
+    s->_stats_n_nextseed_banked     = rng->_stats_n_nextseed_banked;
+    s->_stats_n_nextuncreditedseed_banked = rng->_stats_n_nextuncreditedseed_banked;
+#endif
+
+    return 0;
+}
+
+WOLFSSL_API int wc_rng_debug_stats_restore(
+    const struct wc_rng_debug_stats_snapshot *s,
+    WC_RNG *rng)
+{
+    if ((s == NULL) || (rng == NULL))
+        return BAD_FUNC_ARG;
+
+    rng->_stats_total_bytes_requested = s->_stats_total_bytes_requested;
+    rng->_stats_total_bytes_produced  = s->_stats_total_bytes_produced;
+    rng->_stats_total_requests        = s->_stats_total_requests;
+    rng->_stats_credited_reseeds      = s->_stats_credited_reseeds;
+    rng->_stats_uncredited_reseeds    = s->_stats_uncredited_reseeds;
+    rng->_stats_seed_failures         = s->_stats_seed_failures;
+    rng->_stats_locks_taken           = s->_stats_locks_taken;
+    rng->_stats_locks_released        = s->_stats_locks_released;
+    rng->_stats_locks_refused         = s->_stats_locks_refused;
+#ifdef WC_RNG_HAVE_RBGC
+    rng->_stats_RBGC_bytes_produced   = s->_stats_RBGC_bytes_produced;
+    rng->_stats_RBGC_reseeds          = s->_stats_RBGC_reseeds;
+#endif
+#ifdef WC_RNG_HAVE_POOL
+    rng->_stats_pool_bytes_produced   = s->_stats_pool_bytes_produced;
+    rng->_stats_pool_bytes_missed     = s->_stats_pool_bytes_missed;
+#endif
+#ifdef WC_RNG_HAVE_NEXT_SEED
+    rng->_stats_n_nextseed_primary_redeemed    = s->_stats_n_nextseed_primary_redeemed;
+    rng->_stats_n_nextseed_RBGC_redeemed       = s->_stats_n_nextseed_RBGC_redeemed;
+    rng->_stats_n_nextuncreditedseed_redeemed  = s->_stats_n_nextuncreditedseed_redeemed;
+    rng->_stats_n_nextseed_banked     = s->_stats_n_nextseed_banked;
+    rng->_stats_n_nextuncreditedseed_banked = s->_stats_n_nextuncreditedseed_banked;
+#endif
+
+    return 0;
+}
+
+WOLFSSL_API int wc_rng_debug_stats_sum(struct wc_rng_debug_stats_snapshot *s,
+                                        const WC_RNG *rng)
+{
+    if ((s == NULL) || (rng == NULL))
+        return BAD_FUNC_ARG;
+
+    s->_stats_total_bytes_requested += rng->_stats_total_bytes_requested;
+    s->_stats_total_bytes_produced  += rng->_stats_total_bytes_produced;
+    s->_stats_total_requests        += rng->_stats_total_requests;
+    s->_stats_credited_reseeds      += rng->_stats_credited_reseeds;
+    s->_stats_uncredited_reseeds    += rng->_stats_uncredited_reseeds;
+    s->_stats_seed_failures         += rng->_stats_seed_failures;
+    s->_stats_locks_taken           += rng->_stats_locks_taken;
+    s->_stats_locks_released        += rng->_stats_locks_released;
+    s->_stats_locks_refused         += rng->_stats_locks_refused;
+#ifdef WC_RNG_HAVE_RBGC
+    s->_stats_RBGC_bytes_produced   += rng->_stats_RBGC_bytes_produced;
+    s->_stats_RBGC_reseeds          += rng->_stats_RBGC_reseeds;
+#endif
+#ifdef WC_RNG_HAVE_POOL
+    s->_stats_pool_bytes_produced   += rng->_stats_pool_bytes_produced;
+    s->_stats_pool_bytes_missed     += rng->_stats_pool_bytes_missed;
+#endif
+#ifdef WC_RNG_HAVE_NEXT_SEED
+    s->_stats_n_nextseed_primary_redeemed    += rng->_stats_n_nextseed_primary_redeemed;
+    s->_stats_n_nextseed_RBGC_redeemed       += rng->_stats_n_nextseed_RBGC_redeemed;
+    s->_stats_n_nextuncreditedseed_redeemed  += rng->_stats_n_nextuncreditedseed_redeemed;
+    s->_stats_n_nextseed_banked     += rng->_stats_n_nextseed_banked;
+    s->_stats_n_nextuncreditedseed_banked += rng->_stats_n_nextuncreditedseed_banked;
+#endif
+
+    return 0;
+}
+
+#endif /* WC_RNG_DEBUG_STATS */
 
 
 #endif /* WC_NO_RNG */

@@ -4653,6 +4653,11 @@
         #define WC_VERBOSE_RNG
     #endif
 
+    #if defined(WC_VERBOSE_RNG) && defined(WOLFSSL_KERNEL_VERBOSE_DEBUG) && \
+        !defined(WC_RNG_NO_DEBUG_STATS) && !defined(WC_RNG_DEBUG_STATS)
+        #define WC_RNG_DEBUG_STATS
+    #endif
+
     #if WOLFSSL_GENERAL_ALIGNMENT < SIZEOF_LONG
         #undef WOLFSSL_GENERAL_ALIGNMENT
         #define WOLFSSL_GENERAL_ALIGNMENT SIZEOF_LONG

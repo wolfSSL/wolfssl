@@ -26844,6 +26844,68 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t XChaCha20Poly1305_test(void)
 #endif /* defined(HAVE_XCHACHA) && defined(HAVE_POLY1305) */
 
 #ifndef WC_NO_RNG
+#ifdef WC_RNG_DEBUG_STATS
+/* Snapshot-and-delta assertion kit for the WC_RNG_DEBUG_STATS counters.
+ *
+ * Usage: RNG_STATS_DECLS; as the LAST declaration in the block (it
+ * declares two snapshot cells, so two instances can be tracked across one
+ * API call, e.g. a chain reseed's source and target).  RNG_STATS_SNAP[2]()
+ * snapshots an instance; RNG_STATS_EXPECT[2]() asserts an exact
+ * counter delta since the matching snapshot, RNG_STATS_EXPECT_GE[2]() a
+ * minimum delta, and RNG_STATS_EXPECT_SAME_DELTA() that two counters of
+ * one instance moved together.  fail_action is executed on mismatch
+ * (e.g. ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out)), so the
+ * encoded line number pinpoints the failing assertion; the observed
+ * delta (for _SAME_DELTA, the difference of the two deltas) is available
+ * to fail_action as rng_stats_d_ for encoding via WC_TEST_RET_ENC_I().  Without
+ * WC_RNG_DEBUG_STATS everything expands to nothing.
+ */
+
+#define RNG_STATS_DECLS                                              \
+    struct wc_rng_debug_stats_snapshot rng_stats_s WC_MAYBE_UNUSED,  \
+                       rng_stats_s2 WC_MAYBE_UNUSED
+#define RNG_STATS_SNAP(rng)  wc_rng_debug_stats_snap(&rng_stats_s, (rng))
+#define RNG_STATS_SNAP2(rng) wc_rng_debug_stats_snap(&rng_stats_s2, (rng))
+#define RNG_STATS_D_(snap, rng, field) ((rng)->field - (snap).field)
+#define RNG_STATS_EXPECT_(snap, rng, field, delta, fail_action)      \
+    do {                                                             \
+        wc_rng_debug_counter_t rng_stats_d_ =                        \
+            RNG_STATS_D_(snap, rng, field);                          \
+        if (rng_stats_d_ != (wc_rng_debug_counter_t)(delta)) {       \
+            fail_action;                                             \
+        }                                                            \
+    } while (0)
+#define RNG_STATS_EXPECT(rng, field, delta, fail_action)             \
+    RNG_STATS_EXPECT_(rng_stats_s, rng, field, delta, fail_action)
+#define RNG_STATS_EXPECT2(rng, field, delta, fail_action)            \
+    RNG_STATS_EXPECT_(rng_stats_s2, rng, field, delta, fail_action)
+#define RNG_STATS_EXPECT_GE(rng, field, delta, fail_action)          \
+    do {                                                             \
+        wc_rng_debug_counter_t rng_stats_d_ =                        \
+            RNG_STATS_D_(rng_stats_s, rng, field);                   \
+        if (rng_stats_d_ < (wc_rng_debug_counter_t)(delta)) {        \
+            fail_action;                                             \
+        }                                                            \
+    } while (0)
+#define RNG_STATS_EXPECT_SAME_DELTA(rng, f1, f2, fail_action)        \
+    do {                                                             \
+        wc_rng_debug_counter_t rng_stats_d_ =                        \
+            RNG_STATS_D_(rng_stats_s, rng, f1) -                     \
+            RNG_STATS_D_(rng_stats_s, rng, f2);                      \
+        if (rng_stats_d_ != 0) {                                     \
+            fail_action;                                             \
+        }                                                            \
+    } while (0)
+#else /* !WC_RNG_DEBUG_STATS */
+#define RNG_STATS_DECLS
+#define RNG_STATS_SNAP(rng) WC_DO_NOTHING
+#define RNG_STATS_SNAP2(rng) WC_DO_NOTHING
+#define RNG_STATS_EXPECT(rng, field, delta, fail_action) WC_DO_NOTHING
+#define RNG_STATS_EXPECT2(rng, field, delta, fail_action) WC_DO_NOTHING
+#define RNG_STATS_EXPECT_GE(rng, field, delta, fail_action) WC_DO_NOTHING
+#define RNG_STATS_EXPECT_SAME_DELTA(rng, f1, f2, fail_action) WC_DO_NOTHING
+#endif /* WC_RNG_DEBUG_STATS */
+
 static wc_test_ret_t _rng_test(WC_RNG* rng)
 {
     byte block[32];
@@ -26910,11 +26972,23 @@ static wc_test_ret_t _rng_test(WC_RNG* rng)
     #endif
 
         {
+        RNG_STATS_DECLS;
+        RNG_STATS_SNAP(rng);
         ret = wc_RNG_GenerateBlock(rng, block, sizeof(block));
         if (ret != 0)
             return WC_TEST_RET_ENC_EC(ret);
         /* the forced interval reseed is credited, and the request is
          * fully served */
+        RNG_STATS_EXPECT(rng, _stats_credited_reseeds, 1,
+                         return WC_TEST_RET_ENC_I((int)rng_stats_d_));
+        RNG_STATS_EXPECT(rng, _stats_uncredited_reseeds, 0,
+                         return WC_TEST_RET_ENC_I((int)rng_stats_d_));
+        RNG_STATS_EXPECT(rng, _stats_total_requests, 1,
+                         return WC_TEST_RET_ENC_I((int)rng_stats_d_));
+        RNG_STATS_EXPECT(rng, _stats_total_bytes_requested, sizeof(block),
+                         return WC_TEST_RET_ENC_I((int)rng_stats_d_));
+        RNG_STATS_EXPECT(rng, _stats_total_bytes_produced, sizeof(block),
+                         return WC_TEST_RET_ENC_I((int)rng_stats_d_));
         }
 
     #if defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
@@ -29086,6 +29160,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_svc_test(void)
     wc_drbg_reseed_ctr_t c2 = 0;
     byte buf[32];
     byte matter[32];
+    RNG_STATS_DECLS;
 
     WOLFSSL_ENTER("rng_drbg_svc_test");
 
@@ -29172,6 +29247,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_svc_test(void)
             (c1 != (wc_drbg_reseed_ctr_t)WC_RESEED_INTERVAL))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     }
+    RNG_STATS_SNAP(root);
     api_ret = wc_RNG_GenerateBlock(root, buf, sizeof(buf));
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
@@ -29180,9 +29256,16 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_svc_test(void)
         if ((api_ret != 0) || (c1 > 2))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         /* the scheduled reseed rides the generate, credited */
+        RNG_STATS_EXPECT(root, _stats_credited_reseeds, 1,
+                         ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
+        RNG_STATS_EXPECT(root, _stats_total_requests, 1,
+                         ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
+        RNG_STATS_EXPECT(root, _stats_total_bytes_produced, sizeof(buf),
+                         ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
     }
 
     /* immediate source reseed, without and with a nonce */
+    RNG_STATS_SNAP(root);
     api_ret = wc_RNG_DRBG_Reseed_Now(root, NULL, 0);
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
@@ -29195,6 +29278,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_svc_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         /* both credited; the nonce is additional input, not an
          * uncredited reseed */
+        RNG_STATS_EXPECT(root, _stats_credited_reseeds, 2,
+                         ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
+        RNG_STATS_EXPECT(root, _stats_uncredited_reseeds, 0,
+                         ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
     }
     if (wc_RNG_DRBG_Reseed_Now(NULL, NULL, 0) !=
         WC_NO_ERR_TRACE(BAD_FUNC_ARG))
@@ -29888,6 +29975,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
     byte buf[32];
     byte matter[32];
 
+    RNG_STATS_DECLS;
+
     WOLFSSL_ENTER("rng_drbg_rbgc_test");
 
     XMEMSET(matter, 0xa5, sizeof(matter));
@@ -29921,6 +30010,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     }
+    RNG_STATS_SNAP(&root);
     api_ret = wc_InitRngRBGC(&leaf, &root, WC_RNG_INIT_FLAGS_NONE);
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
@@ -29930,6 +30020,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
         if ((api_ret != 0) || (c2 <= c1))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         /* the spawn draw is one fully-served generate on the parent */
+        RNG_STATS_EXPECT(&root, _stats_total_requests, 1,
+                         ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
+        RNG_STATS_EXPECT_GE(&root, _stats_total_bytes_produced, 1,
+                            ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
+        RNG_STATS_EXPECT_SAME_DELTA(&root, _stats_total_bytes_requested,
+                                    _stats_total_bytes_produced,
+                                    ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
     }
     api_ret = wc_RNG_DRBG_GetRBGCStratum(&leaf);
     if (api_ret != 1)
@@ -29937,12 +30034,17 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
     api_ret = wc_RNG_DRBG_GetRBGCStratum(&root);
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
+    RNG_STATS_SNAP2(&leaf);
     api_ret = wc_RNG_GenerateBlock(&leaf, buf, sizeof(buf));
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
     if (present) {
         /* chain-provenance accounting: bytes generated at stratum 1 count
          * in both the total and the RBGC ledgers */
+        RNG_STATS_EXPECT2(&leaf, _stats_total_bytes_produced, sizeof(buf),
+                          ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
+        RNG_STATS_EXPECT2(&leaf, _stats_RBGC_bytes_produced, sizeof(buf),
+                          ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
     }
 
     api_ret = wc_RNG_DRBG_ReseedRBGC(&root, &leaf, NULL, 0);
@@ -29950,6 +30052,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
 
     /* reseed-from-root, without and with a nonce; counter resets */
+    RNG_STATS_SNAP(&root);
+    RNG_STATS_SNAP2(&leaf);
     api_ret = wc_RNG_DRBG_ReseedRBGC(&leaf, &root, NULL, 0);
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
@@ -29962,6 +30066,17 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         /* target: two credited chain reseeds; source: two fully-served
          * seed draws */
+        RNG_STATS_EXPECT2(&leaf, _stats_credited_reseeds, 2,
+                          ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
+        RNG_STATS_EXPECT2(&leaf, _stats_RBGC_reseeds, 2,
+                          ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
+        RNG_STATS_EXPECT2(&leaf, _stats_uncredited_reseeds, 0,
+                          ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
+        RNG_STATS_EXPECT(&root, _stats_total_requests, 2,
+                         ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
+        RNG_STATS_EXPECT_SAME_DELTA(&root, _stats_total_bytes_requested,
+                                    _stats_total_bytes_produced,
+                                    ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
     }
     api_ret = wc_RNG_DRBG_ReseedRBGC(&leaf, &leaf, NULL, 0);
     if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
@@ -29977,6 +30092,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
     api_ret = wc_RNG_DRBG_ScheduleReseed(&leaf);
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    RNG_STATS_SNAP2(&leaf);
     api_ret = wc_RNG_GenerateBlock(&leaf, buf, sizeof(buf));
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
@@ -29986,6 +30102,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
     if (present) {
         /* the primary reseed precedes the byte production, so the served
          * bytes are not chain-provenance */
+        RNG_STATS_EXPECT2(&leaf, _stats_credited_reseeds, 1,
+                          ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
+        RNG_STATS_EXPECT2(&leaf, _stats_total_bytes_produced, sizeof(buf),
+                          ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
+        RNG_STATS_EXPECT2(&leaf, _stats_RBGC_bytes_produced, 0,
+                          ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
     }
 
 #if !defined(WC_NO_CONSTRUCTORS)
@@ -30284,6 +30406,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseed_test(void)
     byte buf[32];
     byte matter[16];
 
+    RNG_STATS_DECLS;
+
     WOLFSSL_ENTER("rng_drbg_nextseed_test");
 
     WC_ALLOC_VAR_EX(root, WC_RNG, 1, HEAP_HINT,
@@ -30394,6 +30518,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseed_test(void)
 
         /* consume: source-free credited reseed; counter resets to 1;
          * bank empties (use-once) */
+        RNG_STATS_SNAP(root);
         api_ret = wc_RNG_DRBG_NextSeedNow(root);
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
@@ -30402,7 +30527,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseed_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         /* redemption of a primary-provenance bank: credited, counted as a
          * primary redemption */
+        RNG_STATS_EXPECT(root, _stats_credited_reseeds, 1,
+                         ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
+        RNG_STATS_EXPECT(root, _stats_n_nextseed_primary_redeemed, 1,
+                         ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
 #ifdef WC_RNG_HAVE_RBGC
+        RNG_STATS_EXPECT(root, _stats_n_nextseed_RBGC_redeemed, 0,
+                         ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
 #endif
         api_ret = wc_RNG_DRBG_NextSeedCurrent(root, &cur);
         if (api_ret != 0)
@@ -30428,6 +30559,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseed_test(void)
         }
         if (i >= 64)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        RNG_STATS_SNAP(root);
         api_ret = wc_RNG_DRBG_NextSeedNow_Nonce(root, matter,
                                                 sizeof(matter));
         if (api_ret != 0)
@@ -30437,6 +30569,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseed_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         /* the nonce rides as additional input: the redemption is still one
          * credited, primary-provenance reseed */
+        RNG_STATS_EXPECT(root, _stats_credited_reseeds, 1,
+                         ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
+        RNG_STATS_EXPECT(root, _stats_uncredited_reseeds, 0,
+                         ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
+        RNG_STATS_EXPECT(root, _stats_n_nextseed_primary_redeemed, 1,
+                         ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
         api_ret = wc_RNG_DRBG_NextSeedCurrent(root, &cur);
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
@@ -30613,6 +30751,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_pool_test(void)
     word32 n = 0;
     byte out[48];
 
+    RNG_STATS_DECLS;
+
     WOLFSSL_ENTER("rng_pool_test");
 
     WC_ALLOC_VAR_EX(rng, WC_RNG, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
@@ -30673,10 +30813,15 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_pool_test(void)
 
     /* empty pool: a distinct protocol code, nothing delivered */
     n = sizeof(out);
+    RNG_STATS_SNAP(rng);
     api_ret = wc_RNG_Pool_Extract(rng, out, &n);
     if (api_ret != WC_NO_ERR_TRACE(NOT_READY_E))
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
     /* the whole request is missed bytes; nothing served */
+    RNG_STATS_EXPECT(rng, _stats_pool_bytes_missed, sizeof(out),
+                     ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out_l));
+    RNG_STATS_EXPECT(rng, _stats_pool_bytes_produced, 0,
+                     ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out_l));
 
     /* self-collect to full (clamped), verify count, over-collect no-op */
     api_ret = wc_RNG_Pool_Collect(rng, 100);
@@ -30694,6 +30839,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_pool_test(void)
     /* partial extract, then cross-instance top-off wrapping the ring,
      * then full drain crossing the wrap on the read side */
     n = 32;
+    RNG_STATS_SNAP(rng);
     api_ret = wc_RNG_Pool_Extract(rng, out, &n);
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
@@ -30705,12 +30851,21 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_pool_test(void)
     if (n != 16)
         ERROR_OUT(WC_TEST_RET_ENC_I((int)n), out_l);
     /* a fully-fulfillable partial drain is all produced, no shortfall */
+    RNG_STATS_EXPECT(rng, _stats_pool_bytes_produced, 32,
+                     ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out_l));
+    RNG_STATS_EXPECT(rng, _stats_pool_bytes_missed, 0,
+                     ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out_l));
+    RNG_STATS_SNAP2(src);
     api_ret = wc_RNG_Pool_Collect2(rng, src, 32);
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
     if (wc_RNG_DRBG_Present(src)) {
         /* the top-off span starts exactly at the ring origin
          * ((offset + current) % size == 0): one contiguous generate */
+        RNG_STATS_EXPECT2(src, _stats_total_requests, 1,
+                          ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out_l));
+        RNG_STATS_EXPECT2(src, _stats_total_bytes_produced, 32,
+                          ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out_l));
     }
     api_ret = wc_RNG_Pool_Current(rng, &n);
     if (api_ret != 0)
@@ -30718,6 +30873,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_pool_test(void)
     if (n != 48)
         ERROR_OUT(WC_TEST_RET_ENC_I((int)n), out_l);
     n = sizeof(out);
+    RNG_STATS_SNAP(rng);
     api_ret = wc_RNG_Pool_Extract(rng, out, &n);
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
@@ -30729,6 +30885,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_pool_test(void)
     if (n != 0)
         ERROR_OUT(WC_TEST_RET_ENC_I((int)n), out_l);
     /* full serve across the ring wrap: all produced, no shortfall */
+    RNG_STATS_EXPECT(rng, _stats_pool_bytes_produced, 48,
+                     ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out_l));
+    RNG_STATS_EXPECT(rng, _stats_pool_bytes_missed, 0,
+                     ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out_l));
 
     /* Collect2 contracts */
     api_ret = wc_RNG_Pool_Collect2(rng, NULL, 8);

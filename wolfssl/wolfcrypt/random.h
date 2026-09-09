@@ -459,6 +459,13 @@ enum wc_RngHealthState {
 #define WC_RNG_FLAG_BANKREF        (1U << 2)
 #define WC_RNG_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED (1U << 3)
 
+#ifdef WC_RNG_DEBUG_STATS
+    #ifdef WORD64_AVAILABLE
+        typedef word64 wc_rng_debug_counter_t;
+    #else
+        typedef word32 wc_rng_debug_counter_t;
+    #endif
+#endif
 
 /* RNG context */
 struct WC_RNG {
@@ -466,13 +473,30 @@ struct WC_RNG {
     void* heap;
     byte status;
     word32 flags;
+    #ifdef WC_RNG_DEBUG_STATS
+        wc_rng_debug_counter_t _stats_total_bytes_requested;
+        wc_rng_debug_counter_t _stats_total_bytes_produced;
+        wc_rng_debug_counter_t _stats_total_requests;
+        wc_rng_debug_counter_t _stats_credited_reseeds;
+        wc_rng_debug_counter_t _stats_uncredited_reseeds;
+        wc_rng_debug_counter_t _stats_seed_failures;
+    #endif
 #ifdef WC_RNG_HAVE_RBGC
     int RBGCStratum;
+    #ifdef WC_RNG_DEBUG_STATS
+        wc_rng_debug_counter_t _stats_RBGC_bytes_produced;
+        wc_rng_debug_counter_t _stats_RBGC_reseeds;
+    #endif
 #endif
 #ifdef WC_RNG_HAVE_LOCK
     WC_RNG_lock_t lock;
     #ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
     wolfSSL_Mutex mutex;
+    #endif
+    #ifdef WC_RNG_DEBUG_STATS
+        wc_rng_debug_counter_t _stats_locks_taken;
+        wc_rng_debug_counter_t _stats_locks_released;
+        wc_rng_debug_counter_t _stats_locks_refused; /* racy */
     #endif
 #endif
 #ifdef WC_RNG_HAVE_FREE_HOOK
@@ -485,8 +509,24 @@ struct WC_RNG {
     byte* pool;
     word16 poolSize;
     WC_RNG_pool_state_t poolState;
+    #ifdef WC_RNG_DEBUG_STATS
+        wc_rng_debug_counter_t _stats_pool_bytes_produced;
+        wc_rng_debug_counter_t _stats_pool_bytes_missed;
+    #endif
 #endif
 
+#ifdef WC_RNG_DEBUG_STATS
+    #ifdef WC_RNG_HAVE_NEXT_SEED
+        wc_rng_debug_counter_t _stats_n_nextseed_primary_redeemed;
+        wc_rng_debug_counter_t _stats_n_nextseed_RBGC_redeemed;
+        wc_rng_debug_counter_t _stats_n_nextuncreditedseed_redeemed;
+        /* production-side twins of the consumption counters above; plain
+         * increments, racy if there are competing seed bankers (usually
+         * there aren't). */
+        wc_rng_debug_counter_t _stats_n_nextseed_banked;
+        wc_rng_debug_counter_t _stats_n_nextuncreditedseed_banked;
+    #endif
+#endif
 
 #if defined(HAVE_HASHDRBG) || defined(WC_HAVE_RNG_BANKREF)
 
@@ -977,6 +1017,42 @@ WOLFSSL_API int wc_RNG_register_free_hook(WC_RNG* rng,
     WOLFSSL_API int wc_RNG_Pool_Current(WC_RNG* rng, word32* n);
 #endif /* WC_RNG_HAVE_POOL */
 
+#ifdef WC_RNG_DEBUG_STATS
+struct wc_rng_debug_stats_snapshot {
+    wc_rng_debug_counter_t _stats_total_bytes_requested;
+    wc_rng_debug_counter_t _stats_total_bytes_produced;
+    wc_rng_debug_counter_t _stats_total_requests;
+    wc_rng_debug_counter_t _stats_credited_reseeds;
+    wc_rng_debug_counter_t _stats_uncredited_reseeds;
+    wc_rng_debug_counter_t _stats_seed_failures;
+    wc_rng_debug_counter_t _stats_locks_taken;
+    wc_rng_debug_counter_t _stats_locks_released;
+    wc_rng_debug_counter_t _stats_locks_refused;
+#ifdef WC_RNG_HAVE_RBGC
+    wc_rng_debug_counter_t _stats_RBGC_bytes_produced;
+    wc_rng_debug_counter_t _stats_RBGC_reseeds;
+#endif
+#ifdef WC_RNG_HAVE_POOL
+    wc_rng_debug_counter_t _stats_pool_bytes_produced;
+    wc_rng_debug_counter_t _stats_pool_bytes_missed;
+#endif
+#ifdef WC_RNG_HAVE_NEXT_SEED
+    wc_rng_debug_counter_t _stats_n_nextseed_primary_redeemed;
+    wc_rng_debug_counter_t _stats_n_nextseed_RBGC_redeemed;
+    wc_rng_debug_counter_t _stats_n_nextuncreditedseed_redeemed;
+    wc_rng_debug_counter_t _stats_n_nextseed_banked;
+    wc_rng_debug_counter_t _stats_n_nextuncreditedseed_banked;
+#endif
+};
+
+WOLFSSL_API int wc_rng_debug_stats_snap(struct wc_rng_debug_stats_snapshot *s,
+                                        const WC_RNG *rng);
+WOLFSSL_API int wc_rng_debug_stats_restore(
+    const struct wc_rng_debug_stats_snapshot *s,
+    WC_RNG *rng);
+WOLFSSL_API int wc_rng_debug_stats_sum(struct wc_rng_debug_stats_snapshot *s,
+                                       const WC_RNG *rng);
+#endif /* WC_RNG_DEBUG_STATS */
 
 #ifdef __cplusplus
     } /* extern "C" */

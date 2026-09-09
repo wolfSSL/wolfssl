@@ -744,6 +744,10 @@ static WC_INLINE WC_MAYBE_UNUSED int wc_rng_bank_inst_lock_clear_extra(struct wc
 
 #endif /* !WC_RNG_HAVE_LOCK */
 
+#ifdef WC_RNG_DEBUG_STATS
+WOLFSSL_API int wc_rng_bank_debug_stats_snap(struct wc_rng_debug_stats_snapshot *s,
+                                             struct wc_rng_bank *bank);
+#endif
 
 /* ---- Legacy FIPS boundary compatibility --------------------------------
  *
