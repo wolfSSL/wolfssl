@@ -18669,6 +18669,13 @@ static int AesXtsInitTweak_sw(XtsAes* xaes, byte* i) {
 
 #endif /* WOLFSSL_AESXTS_STREAM */
 
+/* aarch64 parts with the AES crypto extensions run the same asm as the
+ * one-shot entry; NEON and table parts have no streaming asm yet. */
+#if defined(WOLFSSL_AESXTS_STREAM) && defined(__aarch64__) && \
+    defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+    #define WC_AES_XTS_STREAM_AARCH64
+#endif
+
 #if !defined(WOLFSSL_ARMASM) || (!defined(__aarch64__) && \
     defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)) || \
     defined(WOLFSSL_ARM32_AES_DISPATCH) || defined(WOLFSSL_AESXTS_STREAM)
@@ -19036,15 +19043,20 @@ static int AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
 {
     int ret;
 
-#if defined(WOLFSSL_AESNI)
+#if defined(WOLFSSL_AESNI) || defined(WC_AES_XTS_STREAM_AARCH64)
     Aes *aes;
+#endif
+#ifdef WC_AES_XTS_STREAM_AARCH64
+    /* Scratch for the asm's ciphertext-stealing tail.  Not xaes->aes.tmp:
+     * that is shared across concurrent requests on one tfm. */
+    ALIGN16 byte xts_tmp[WC_AES_BLOCK_SIZE];
 #endif
 
     if (xaes == NULL || out == NULL || in == NULL) {
         return BAD_FUNC_ARG;
     }
 
-#if defined(WOLFSSL_AESNI)
+#if defined(WOLFSSL_AESNI) || defined(WC_AES_XTS_STREAM_AARCH64)
     aes = &xaes->aes;
 #endif
 
@@ -19124,6 +19136,17 @@ static int AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
         }
         else
 #endif /* WOLFSSL_AESNI */
+#ifdef WC_AES_XTS_STREAM_AARCH64
+        if (aes->use_aes_hw_crypto) {
+            SAVE_VECTOR_REGISTERS(return _svr_ret;);
+            AES_XTS_encrypt_update_AARCH64(in, out, sz, (byte*)aes->key,
+                stream->tweak_block, xts_tmp, (int)aes->rounds);
+            ret = 0;
+            ForceZero(xts_tmp, sizeof(xts_tmp));
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
         {
             ret = AesXtsEncryptUpdate_sw(xaes, out, in, sz, stream->tweak_block);
         }
@@ -19605,15 +19628,20 @@ static int AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
                            struct XtsAesStreamData *stream)
 {
     int ret;
-#if defined(WOLFSSL_AESNI)
+#if defined(WOLFSSL_AESNI) || defined(WC_AES_XTS_STREAM_AARCH64)
     Aes *aes;
+#endif
+#ifdef WC_AES_XTS_STREAM_AARCH64
+    /* Scratch for the asm's ciphertext-stealing tail.  Not xaes->aes.tmp:
+     * that is shared across concurrent requests on one tfm. */
+    ALIGN16 byte xts_tmp[WC_AES_BLOCK_SIZE];
 #endif
 
     if (xaes == NULL || out == NULL || in == NULL) {
         return BAD_FUNC_ARG;
     }
 
-#if defined(WOLFSSL_AESNI)
+#if defined(WOLFSSL_AESNI) || defined(WC_AES_XTS_STREAM_AARCH64)
 #ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
     aes = &xaes->aes_decrypt;
 #else
@@ -19687,6 +19715,17 @@ static int AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
         }
         else
 #endif /* WOLFSSL_AESNI */
+#ifdef WC_AES_XTS_STREAM_AARCH64
+        if (aes->use_aes_hw_crypto) {
+            SAVE_VECTOR_REGISTERS(return _svr_ret;);
+            AES_XTS_decrypt_update_AARCH64(in, out, sz, (byte*)aes->key,
+                stream->tweak_block, xts_tmp, (int)aes->rounds);
+            ret = 0;
+            ForceZero(xts_tmp, sizeof(xts_tmp));
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
         {
             ret = AesXtsDecryptUpdate_sw(xaes, out, in, sz,
                                          stream->tweak_block);
