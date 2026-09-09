@@ -808,6 +808,14 @@ static int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz,
 #if defined(WC_RNG_HAVE_LOCK) && defined(WC_RNG_HAVE_NEXT_SEED)
         if (cur_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED) {
             WOLFSSL_ATOMIC_STORE(drbg->nextSeedLen, WC_DRBG_NEXT_SEED_EMPTY);
+            /* the uncredited stir aperture is purged too, for provenance
+             * uniformity; best-effort (an in-flight depositor may
+             * resurrect a partial fill -- benign, stirs carry no
+             * divergence burden), and never zeroized (racy, and
+             * interleaved entropy of compatible provenance is harmless).
+             */
+            WOLFSSL_ATOMIC_STORE(drbg->nextUncreditedSeedLen,
+                                 WC_DRBG_NEXT_SEED_EMPTY);
         }
 #endif
 
@@ -837,6 +845,9 @@ static int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz,
 #if defined(WC_RNG_HAVE_LOCK) && defined(WC_RNG_HAVE_NEXT_SEED)
         if (cur_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED) {
             WOLFSSL_ATOMIC_STORE(drbg512->nextSeedLen, WC_DRBG_NEXT_SEED_EMPTY);
+            /* see the SHA-256 arm re best-effort and no-zeroize. */
+            WOLFSSL_ATOMIC_STORE(drbg512->nextUncreditedSeedLen,
+                                 WC_DRBG_NEXT_SEED_EMPTY);
         }
 #endif
 
@@ -1393,6 +1404,8 @@ static int Hash_DRBG_Instantiate(DRBG_internal* drbg, const byte* seed,
     XMEMSET(drbg, 0, sizeof(DRBG_internal));
 #ifdef WC_RNG_HAVE_NEXT_SEED
     wolfSSL_Atomic_Int_Init(&drbg->nextSeedLen, WC_DRBG_NEXT_SEED_EMPTY);
+    wolfSSL_Atomic_Int_Init(&drbg->nextUncreditedSeedLen,
+                            WC_DRBG_NEXT_SEED_EMPTY);
 #endif
     drbg->heap = heap;
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
@@ -1906,6 +1919,8 @@ static int Hash512_DRBG_Instantiate(DRBG_SHA512_internal* drbg,
     XMEMSET(drbg, 0, sizeof(DRBG_SHA512_internal));
 #ifdef WC_RNG_HAVE_NEXT_SEED
     wolfSSL_Atomic_Int_Init(&drbg->nextSeedLen, WC_DRBG_NEXT_SEED_EMPTY);
+    wolfSSL_Atomic_Int_Init(&drbg->nextUncreditedSeedLen,
+                            WC_DRBG_NEXT_SEED_EMPTY);
 #endif
     drbg->heap = heap;
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
@@ -3152,11 +3167,13 @@ WOLFSSL_API int wc_RNG_invalidate_entropy(WC_RNG* rng) {
 #ifndef NO_SHA256
     if ((rng->drbgType == WC_DRBG_SHA256) && (rng->drbg != NULL)) {
         WOLFSSL_ATOMIC_STORE(((DRBG_internal *)rng->drbg)->nextSeedLen, WC_DRBG_NEXT_SEED_EMPTY);
+        WOLFSSL_ATOMIC_STORE(((DRBG_internal *)rng->drbg)->nextUncreditedSeedLen, WC_DRBG_NEXT_SEED_EMPTY);
     }
 #endif
 #ifdef WOLFSSL_DRBG_SHA512
     if ((rng->drbgType == WC_DRBG_SHA512) && (rng->drbg512 != NULL)) {
         WOLFSSL_ATOMIC_STORE(((DRBG_SHA512_internal *)rng->drbg512)->nextSeedLen, WC_DRBG_NEXT_SEED_EMPTY);
+        WOLFSSL_ATOMIC_STORE(((DRBG_SHA512_internal *)rng->drbg512)->nextUncreditedSeedLen, WC_DRBG_NEXT_SEED_EMPTY);
     }
 #endif
 #endif /* WC_RNG_HAVE_NEXT_SEED */
@@ -3776,6 +3793,27 @@ static WC_INLINE int NextSeedPtrs(WC_RNG* rng, byte** seed, word32 *nextSeedSz, 
     return MISSING_RNG_E;
 }
 
+static WC_INLINE int NextUncreditedSeedPtrs(WC_RNG* rng, byte** seed, word32 *nextSeedSz, wolfSSL_Atomic_Int** len)
+{
+#ifndef NO_SHA256
+    if ((rng->drbgType == WC_DRBG_SHA256) && (rng->drbg != NULL)) {
+        *seed = ((DRBG_internal*)rng->drbg)->nextUncreditedSeed;
+        *nextSeedSz = (word32)sizeof(((DRBG_internal*)rng->drbg)->nextUncreditedSeed);
+        *len  = &((DRBG_internal*)rng->drbg)->nextUncreditedSeedLen;
+        return 0;
+    }
+#endif
+#ifdef WOLFSSL_DRBG_SHA512
+    if ((rng->drbgType == WC_DRBG_SHA512) && (rng->drbg512 != NULL)) {
+        *seed = ((DRBG_SHA512_internal*)rng->drbg512)->nextUncreditedSeed;
+        *nextSeedSz = (word32)sizeof(((DRBG_SHA512_internal*)rng->drbg512)->nextUncreditedSeed);
+        *len  = &((DRBG_SHA512_internal*)rng->drbg512)->nextUncreditedSeedLen;
+        return 0;
+    }
+#endif
+    return MISSING_RNG_E;
+}
+
 /* Bank up to n more bytes of seed material from a supplied root RNG into
  * rng's next-seed bank.  Callable without owning the instance (the scheduling
  * daemon's entry point); deliberately independent of rng->status so that
@@ -3785,7 +3823,7 @@ static WC_INLINE int NextSeedPtrs(WC_RNG* rng, byte** seed, word32 *nextSeedSz, 
  * published; a failed test consumes the material (use-once) and returns the
  * test's error, leaving an empty bank for the next cycle.  A gather failure
  * leaves the partial bank intact for retry. */
-static int wc_RNG_DRBG_NextSeedGenerate_local(WC_RNG* rng, WC_RNG *root, word32 n)
+static int wc_RNG_DRBG_NextSeedGenerate_local(WC_RNG* rng, WC_RNG *root, byte *nonce, word32 n)
 {
     byte* seed;
     wolfSSL_Atomic_Int* lenp;
@@ -3795,6 +3833,9 @@ static int wc_RNG_DRBG_NextSeedGenerate_local(WC_RNG* rng, WC_RNG *root, word32 
     int ret;
 
     if ((rng == NULL) || (n == 0))
+        return BAD_FUNC_ARG;
+
+    if ((root != NULL) && (nonce != NULL))
         return BAD_FUNC_ARG;
 
     /* Note, rng need not be locked -- that's the whole point of the
@@ -3813,7 +3854,10 @@ static int wc_RNG_DRBG_NextSeedGenerate_local(WC_RNG* rng, WC_RNG *root, word32 
 #endif
     }
 
-    ret = NextSeedPtrs(rng, &seed, &nextSeedSz, &lenp, &nextSeedRBGCStratum_p);
+    if (nonce)
+        ret = NextUncreditedSeedPtrs(rng, &seed, &nextSeedSz, &lenp);
+    else
+        ret = NextSeedPtrs(rng, &seed, &nextSeedSz, &lenp, &nextSeedRBGCStratum_p);
     if (ret != 0) {
         /* No DRBG instantiated -- nothing to bank (RDRAND et al.). */
         return ret;
@@ -3821,6 +3865,19 @@ static int wc_RNG_DRBG_NextSeedGenerate_local(WC_RNG* rng, WC_RNG *root, word32 
 
     cur = *lenp;
     if ((cur < 0) || (cur >= (WC_ATOMIC_INT_ARG)nextSeedSz)) {
+
+        if (nonce) {
+            /* The accumulator is full (READY) or being consumed: fold the
+             * arriving entropy in rather than discarding it.  The sentinel
+             * check is deliberately advisory in this lane -- a torn read by a
+             * racing consumer, or an XOR lost to a racing depositor, yields
+             * interleaved stir material of compatible provenance, which is
+             * always harmless. */
+            if (n > nextSeedSz)
+                n = nextSeedSz;
+            xorbuf(seed, nonce, n);
+            return 0;
+        }
 
         if (cur != (WC_ATOMIC_INT_ARG)nextSeedSz) {
             /* Ready, consuming, or other sentinel -- nothing to do. */
@@ -3832,6 +3889,12 @@ static int wc_RNG_DRBG_NextSeedGenerate_local(WC_RNG* rng, WC_RNG *root, word32 
     }
 
     if (n > 0) {
+        if (nonce != NULL) {
+            if (n > nextSeedSz - (word32)cur)
+                n = nextSeedSz - (word32)cur;
+            XMEMCPY(seed + cur, nonce, n);
+        }
+        else
 #ifdef WC_RNG_HAVE_RBGC
         if (root) {
             /* If primary seed bytes were carried forward, reset now to avoid
@@ -3903,6 +3966,10 @@ static int wc_RNG_DRBG_NextSeedGenerate_local(WC_RNG* rng, WC_RNG *root, word32 
     }
 
     if (cur == (WC_ATOMIC_INT_ARG)nextSeedSz) {
+        if (nonce != NULL) {
+            WOLFSSL_ATOMIC_STORE(*lenp, WC_DRBG_NEXT_SEED_READY);
+            return 0;
+        }
 #ifdef WC_RNG_HAVE_RBGC
         /* If RBGC bytes were used for the reseed, then we can skip
          * wc_RNG_TestSeed(). */
@@ -3946,12 +4013,12 @@ static int wc_RNG_DRBG_NextSeedGenerate_local(WC_RNG* rng, WC_RNG *root, word32 
 int wc_RNG_DRBG_NextSeedGenerate_RBGC(WC_RNG* rng, WC_RNG *root, word32 n) {
     if (root == NULL)
         return BAD_FUNC_ARG;
-    return wc_RNG_DRBG_NextSeedGenerate_local(rng, root, n);
+    return wc_RNG_DRBG_NextSeedGenerate_local(rng, root, NULL, n);
 }
 #endif
 
 int wc_RNG_DRBG_NextSeedGenerate(WC_RNG* rng, word32 n) {
-    return wc_RNG_DRBG_NextSeedGenerate_local(rng, NULL, n);
+    return wc_RNG_DRBG_NextSeedGenerate_local(rng, NULL, NULL, n);
 }
 
 /* Report the raw aperture value: a racy snapshot by design.  Values in [0, bank
@@ -4064,6 +4131,72 @@ int wc_RNG_DRBG_NextSeedNow(WC_RNG* rng) {
     return wc_RNG_DRBG_NextSeedNow_Nonce(rng, NULL, 0);
 }
 
+/* Deposit raw uncredited stir material into rng's accumulator.  Callable
+ * from any context and without owning the instance: the deposit protocol
+ * (read-copy-store) is multi-writer-tolerant -- every published span was
+ * written by its publisher, lost updates merely drop entropy, and
+ * interleaved fragments of compatible provenance are harmless.  A full
+ * accumulator publishes WC_DRBG_NEXT_SEED_READY (no health test -- no
+ * claim is being made) and blocks further deposits until consumed. */
+int wc_RNG_DRBG_NextUncreditedSeedStore(WC_RNG* rng, const byte *nonce,
+                                        word32 nonceSz)
+{
+    if ((nonce == NULL) || (nonceSz == 0))
+        return BAD_FUNC_ARG;
+    /* _local's nonce arm only reads the buffer; the parameter is non-const
+     * for the benefit of the other arms. */
+    return wc_RNG_DRBG_NextSeedGenerate_local(rng, NULL, (byte *)nonce,
+                                              nonceSz);
+}
+
+/* Consume a ready uncredited accumulator in an immediate uncredited
+ * (stirring) reseed.  The caller must own the instance.  The credited=0
+ * path holds the three no-ops by construction: the reseed counter is not
+ * reset, WC_RNG_LOCK_ENTROPY_INVALIDATED is not cleared, and RBGCStratum
+ * is unchanged -- a stir must never masquerade as recovery or promotion.
+ * Use-once: the material is consumed (accumulation reopens) whether or not
+ * the reseed succeeds.  The buffer is never zeroized (racy against
+ * depositors, and always a net entropy loss). */
+int wc_RNG_DRBG_NextUncreditedSeedNow(WC_RNG* rng)
+{
+    byte* seed;
+    wolfSSL_Atomic_Int* lenp;
+    word32 nextSeedSz;
+    WC_ATOMIC_INT_ARG expected = WC_DRBG_NEXT_SEED_READY;
+    int ret;
+
+    if (rng == NULL)
+        return BAD_FUNC_ARG;
+
+    ret = rng_lock_required_check(rng);
+    if (ret != 0)
+        return ret;
+
+    /* Mirror wc_RNG_GenerateBlock(): only an in-service DRBG may reseed. */
+    if (rng->status != DRBG_OK)
+        return RNG_FAILURE_E;
+
+    ret = NextUncreditedSeedPtrs(rng, &seed, &nextSeedSz, &lenp);
+    if (ret != 0) {
+        /* No DRBG instantiated -- nothing to stir (RDRAND et al.). */
+        return ret;
+    }
+
+    if (! wolfSSL_Atomic_Int_CompareExchange(lenp, &expected,
+                                             WC_DRBG_NEXT_SEED_CONSUMING))
+    {
+        /* No ready accumulator -- nothing consumed; reported distinctly. */
+        return NOT_READY_E;
+    }
+
+    ret = wc_RNG_DRBG_Reseed_Uncredited(rng, seed, nextSeedSz);
+
+
+    WOLFSSL_ATOMIC_STORE(*lenp, WC_DRBG_NEXT_SEED_EMPTY);
+
+    return ret;
+}
+
 #endif /* WC_RNG_HAVE_NEXT_SEED */
 
 #endif /* HAVE_HASHDRBG */
@@ -4172,6 +4305,33 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
         }
     }
 #endif
+
+#ifdef WC_RNG_HAVE_NEXT_SEED
+    /* Universal opportunistic stir: a READY uncredited accumulator is
+     * consumed by any generate, unconditionally -- stirs are always
+     * harmless, and are invisible to the credited legs above (no counter
+     * reset, no flag clear, no stratum change).  One relaxed load when
+     * empty. */
+    {
+        int stir_ready = 0;
+#ifndef NO_SHA256
+        if ((rng->drbgType == WC_DRBG_SHA256) && (rng->drbg != NULL) &&
+            (WOLFSSL_ATOMIC_LOAD(((DRBG_internal *)rng->drbg)->nextUncreditedSeedLen) == WC_DRBG_NEXT_SEED_READY))
+        {
+            stir_ready = 1;
+        }
+#endif
+#ifdef WOLFSSL_DRBG_SHA512
+        if ((rng->drbgType == WC_DRBG_SHA512) && (rng->drbg512 != NULL) &&
+            (WOLFSSL_ATOMIC_LOAD(((DRBG_SHA512_internal *)rng->drbg512)->nextUncreditedSeedLen) == WC_DRBG_NEXT_SEED_READY))
+        {
+            stir_ready = 1;
+        }
+#endif
+        if (stir_ready)
+            (void)wc_RNG_DRBG_NextUncreditedSeedNow(rng);
+    }
+#endif /* WC_RNG_HAVE_NEXT_SEED */
 
 #ifndef NO_SHA256
     if (rng->drbgType == WC_DRBG_SHA256) {
