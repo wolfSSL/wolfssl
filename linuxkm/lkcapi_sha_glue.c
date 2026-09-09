@@ -51,8 +51,20 @@
 
 #ifdef LINUXKM_LKCAPI_REGISTER
     _Pragma("GCC diagnostic push");
+    _Pragma("GCC diagnostic ignored \"-Wunused-parameter\"");
     _Pragma("GCC diagnostic ignored \"-Wpointer-arith\"");
+    _Pragma("GCC diagnostic ignored \"-Wshadow\"");
+    _Pragma("GCC diagnostic ignored \"-Wnested-externs\"");
+    _Pragma("GCC diagnostic ignored \"-Wredundant-decls\"");
+    _Pragma("GCC diagnostic ignored \"-Wsign-compare\"");
+    _Pragma("GCC diagnostic ignored \"-Wpointer-sign\"");
     _Pragma("GCC diagnostic ignored \"-Wbad-function-cast\"");
+#ifndef __clang__
+    _Pragma("GCC diagnostic ignored \"-Wdiscarded-qualifiers\"");
+#endif
+#if defined(__GNUC__) && (__GNUC__ >= 17)
+    _Pragma("GCC diagnostic ignored \"-Wconstant-logical-operand\"");
+#endif
     #include <linux/acpi.h>
     #include <linux/io.h>
     _Pragma("GCC diagnostic pop");
@@ -2157,12 +2169,22 @@ static int linuxkm_affinity_unlock(void *arg) {
 #endif /* !WOLFSSL_USE_SAVE_VECTOR_REGISTERS */
 }
 
+#define WC_LINUXKM_ENTROPY_DAEMON_MAGIC 0x6f77666c
+
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+
+#define WC_LINUXKM_HAVE_RNG_REGISTRY
+
 /* Registry of every kernel-module RNG object needing state-invalidation
  * coverage: banks (default and tfm-private) and long-lived process-context
  * RBGC leaves from LKCAPI_INITRNG().  Atomic-born leaves are deliberately
  * excluded (see linuxkm_InitRng_DefaultRBGC()): the mutex is thereby never
  * taken from atomic context, so it can sleep, and the daemon's leaf pass
- * may gather entropy under it. */
+ * may gather entropy under it.
+ *
+ * Not usable on old FIPS because the mechanism fundamentally depends on
+ * wc_RNG_register_free_hook().
+ */
 struct linuxkm_rng_object {
     struct linuxkm_rng_object *prev, *next;
     int is_bank;
@@ -2258,8 +2280,6 @@ static void wc_linuxkm_rng_registry_add_bank(struct wc_rng_bank *bank)
     }
     wc_linuxkm_rng_registry_link(obj);
 }
-
-#define WC_LINUXKM_ENTROPY_DAEMON_MAGIC 0x6f77666c
 
 /* platform announcement (VM fork/clone, resume from hibernation) that RNG
  * state assumptions no longer hold: invalidate the daemon's local root
@@ -2455,7 +2475,13 @@ static ssize_t wc_linuxkm_rng_state_invalidate_handler(struct kobject *kobj,
 static struct kobj_attribute wc_linuxkm_rng_state_invalidate_attr =
     __ATTR(rng_state_invalidate, 0220, NULL, wc_linuxkm_rng_state_invalidate_handler);
 
+#define WC_LINUXKM_HAVE_RNG_STATE_INVALIDATE_HANDLER
+
+#endif /* !HAVE_FIPS || FIPS_VERSION3_GE(7,0,0) */
+
 #ifndef WC_LINUXKM_NO_ENTROPY_DAEMON
+
+#ifdef WC_LINUXKM_HAVE_RNG_REGISTRY
 
 #if defined(WC_LINUXKM_VMGENID_POLL) || \
     (defined(CONFIG_ACPI) && !IS_ENABLED(CONFIG_VMGENID))
@@ -2574,6 +2600,8 @@ static void wc_linuxkm_vmgenid_poll_teardown(
     st->state = 0;
 }
 #endif /* CONFIG_ACPI && !CONFIG_VMGENID */
+
+#endif /* WC_LINUXKM_HAVE_RNG_REGISTRY */
 
 /* Entropy-banking daemon for the default rng bank: cycles the bank's
  * instances, keeping each DRBG's nextSeed aperture full so that
@@ -3090,8 +3118,10 @@ static int wc_linuxkm_rng_bank_init(struct wc_rng_bank *ctx)
             ret = -EINVAL;
     }
 
+#ifdef WC_LINUXKM_HAVE_RNG_REGISTRY
     if (ret == 0)
         wc_linuxkm_rng_registry_add_bank(ctx);
+#endif
 
     return ret;
 }
@@ -3320,6 +3350,7 @@ WC_MAYBE_UNUSED static int linuxkm_InitRng_DefaultRBGC(WC_RNG* rng) {
                             ret);
         ret = wc_InitRng(rng);
     }
+#ifdef WC_LINUXKM_HAVE_RNG_REGISTRY
     if (ret == 0) {
         /* Long-lived process-context leaves join the invalidation registry;
          * atomic-born leaves are excluded by rule (and are transient by
@@ -3327,6 +3358,7 @@ WC_MAYBE_UNUSED static int linuxkm_InitRng_DefaultRBGC(WC_RNG* rng) {
         if (can_sleep)
             wc_linuxkm_rng_registry_add_rng(rng);
     }
+#endif
     return ret;
 }
 
@@ -3365,7 +3397,9 @@ WC_MAYBE_UNUSED static int linuxkm_InitRng_DefaultRef(WC_RNG* rng) {
     #define WC_LINUXKM_DRBG_SMALL_LIMIT 8
 #endif
 
+#ifdef WC_RNG_HAVE_POOL
 wc_static_assert(WC_LINUXKM_DRBG_SMALL_LIMIT <= WC_LINUXKM_RNG_POOL_SIZE);
+#endif
 
 static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
                                     const u8 *src, unsigned int slen,
@@ -4482,9 +4516,11 @@ static int wc_linuxkm_drbg_startup(void)
     pr_info("%s registered as systemwide default stdrng.\n", wc_linuxkm_drbg.base.cra_driver_name);
     pr_info("libwolfssl: to unload module, first echo 1 > /sys/module/libwolfssl/deinstall_algs\n");
 
+#ifdef WC_LINUXKM_HAVE_RNG_REGISTRY
     /* stock-notifier invalidation coverage rides with the registered
      * DRBGs, patched and unpatched kernels alike. */
     wc_linuxkm_rng_notifiers_install();
+#endif
 
 #ifdef LINUXKM_DRBG_GET_RANDOM_BYTES
 
@@ -4579,10 +4615,12 @@ static int wc_linuxkm_drbg_cleanup(void) {
          */
         int ret;
 
+#ifdef WC_LINUXKM_HAVE_RNG_REGISTRY
         /* the notifier callbacks walk the RNG registry: uninstall them
          * before any of what they reference is dismantled.  unregister
          * returns only after in-flight callbacks complete. */
         wc_linuxkm_rng_notifiers_uninstall();
+#endif
 
     #ifdef LINUXKM_DRBG_GET_RANDOM_BYTES
 
