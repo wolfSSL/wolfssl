@@ -437,6 +437,7 @@ extern "C" {
 #endif
 
 #if 0 /* Threaded build that never shares one WC_RNG between threads */
+    #undef  WC_RNG_NO_LOCK
     #define WC_RNG_NO_LOCK
 #endif
 #if 0 /* pthread_atfork handlers: a forked child keeps using its WC_RNG */
@@ -447,6 +448,7 @@ extern "C" {
      * handlers cannot be removed.  Left out with SINGLE_THREADED,
      * entropy-memuse, the RNG bank, netRandom, selftest, FIPS before v7,
      * memory zero checking, memory tracking or failure counting */
+    #undef  WC_RNG_ATFORK
     #define WC_RNG_ATFORK
 #endif
 
