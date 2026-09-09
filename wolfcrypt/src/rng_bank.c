@@ -1492,6 +1492,10 @@ WOLFSSL_API int wc_rng_bank_inst_reinit(
     time_t ts1 = 0;
     int devId;
     WC_RNG_lock_arg_t cur_lock = 0;
+#ifdef WC_RNG_DEBUG_STATS
+    struct wc_rng_debug_stats_snapshot s;
+    int stats_snap_ret;
+#endif
 
     if (rng_inst == NULL)
         return BAD_FUNC_ARG;
@@ -1545,6 +1549,10 @@ WOLFSSL_API int wc_rng_bank_inst_reinit(
     if (ret < 0)
         return ret;
 
+#ifdef WC_RNG_DEBUG_STATS
+    stats_snap_ret =
+        wc_rng_debug_stats_snap(&s, WC_RNG_BANK_INST_TO_RNG(rng_inst));
+#endif
 
     wc_FreeRng(&rng_inst->rng);
 
@@ -1565,6 +1573,11 @@ WOLFSSL_API int wc_rng_bank_inst_reinit(
             if (cur_lock != 0) {
                 ret = wc_rng_bank_inst_lock_set_extra(rng_inst, cur_lock);
             }
+#ifdef WC_RNG_DEBUG_STATS
+            if (stats_snap_ret == 0)
+                wc_rng_debug_stats_restore(
+                    &s, WC_RNG_BANK_INST_TO_RNG(rng_inst));
+#endif
             break;
         }
 
@@ -2270,5 +2283,29 @@ WOLFSSL_API int wc_rng_new_bankref(struct wc_rng_bank *bank, WC_RNG **rng) {
 
 #endif /* WC_HAVE_RNG_BANKREF */
 
+#ifdef WC_RNG_DEBUG_STATS
+
+WOLFSSL_API int wc_rng_bank_debug_stats_snap(struct wc_rng_debug_stats_snapshot *s,
+                                             struct wc_rng_bank *bank)
+{
+    int i;
+    int ret;
+
+    if ((s == NULL) || (bank == NULL))
+        return BAD_FUNC_ARG;
+
+    XMEMSET(s, 0, sizeof(*s));
+
+    for (i = 0; i < bank->n_rngs; ++i) {
+        WC_RNG *rng = WC_RNG_BANK_INST_TO_RNG(&bank->rngs[i]);
+        ret = wc_rng_debug_stats_sum(s, rng);
+        if (ret != 0)
+            break;
+    }
+
+    return ret;
+}
+
+#endif /* WC_RNG_DEBUG_STATS */
 
 #endif /* WC_RNG_BANK_SUPPORT */
