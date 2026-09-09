@@ -31184,6 +31184,12 @@ int test_wc_MldsaDecisionCoverage2(void)
         ExpectIntEQ(wc_MlDsaKey_InitId(&idKey, oversizeId,
             (int)sizeof(oversizeId), NULL, INVALID_DEVID),
             WC_NO_ERR_TRACE(BUFFER_E));
+        /* InitId: id == NULL with a non-zero len. */
+        ExpectIntEQ(wc_MlDsaKey_InitId(&idKey, NULL, (int)sizeof(id), NULL,
+            INVALID_DEVID), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* InitId: id == NULL with len == 0 -> nothing to store, accepted. */
+        ExpectIntEQ(wc_MlDsaKey_InitId(&idKey, NULL, 0, NULL, INVALID_DEVID),
+            0);
         /* InitId: valid, id != NULL && len != 0 -> copied in. */
         ExpectIntEQ(wc_MlDsaKey_InitId(&idKey, id, (int)sizeof(id), NULL,
             INVALID_DEVID), 0);

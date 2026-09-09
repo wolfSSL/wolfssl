@@ -10089,19 +10089,28 @@ int test_wc_AesKeyExportArgMcdc(void)
 
     /* wc_AesInit_Id(): cond ret == 0 independence (aes == NULL forces
      * ret != 0 before the len check, with the same "bad" len in both
-     * rows), plus len < 0 / len > AES_MAX_ID_LEN independently. */
+     * rows), plus len < 0 / len > AES_MAX_ID_LEN independently, and both
+     * sides of the NULL-id operand. */
     {
         Aes aes;
         XMEMSET(&aes, 0, sizeof(aes));
         ExpectIntEQ(wc_AesInit_Id(&aes, id, sizeof(id), NULL,
             INVALID_DEVID), 0);
+        /* the NULL-id init below re-tags; free this one first */
+        wc_AesFree(&aes);
         ExpectIntEQ(wc_AesInit_Id(NULL, id, -1, NULL, INVALID_DEVID),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_AesInit_Id(&aes, NULL, sizeof(id), NULL,
+            INVALID_DEVID), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_AesInit_Id(&aes, NULL, 0, NULL, INVALID_DEVID), 0);
         ExpectIntEQ(wc_AesInit_Id(&aes, id, -1, NULL, INVALID_DEVID),
+            WC_NO_ERR_TRACE(BUFFER_E));
+        /* a negative len is a length error whether or not id is NULL */
+        ExpectIntEQ(wc_AesInit_Id(&aes, NULL, -1, NULL, INVALID_DEVID),
             WC_NO_ERR_TRACE(BUFFER_E));
         ExpectIntEQ(wc_AesInit_Id(&aes, id, AES_MAX_ID_LEN + 1, NULL,
             INVALID_DEVID), WC_NO_ERR_TRACE(BUFFER_E));
-        wc_AesFree(&aes); /* first init succeeded; free its lifecycle tag */
+        wc_AesFree(&aes); /* paired with the NULL-id/zero-len init above */
     }
 
     /* wc_AesInit_Label(): aes/label == NULL OR-chain, plus labelLen == 0 /

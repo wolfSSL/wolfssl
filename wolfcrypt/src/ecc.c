@@ -6614,7 +6614,7 @@ int wc_ecc_init_id(ecc_key* key, unsigned char* id, int len, void* heap,
     word32 keyId = 0;
 #endif
 
-    if (key == NULL)
+    if (key == NULL || (id == NULL && len > 0))
         ret = BAD_FUNC_ARG;
     if (ret == 0 && (len < 0 || len > ECC_MAX_ID_LEN))
         ret = BUFFER_E;

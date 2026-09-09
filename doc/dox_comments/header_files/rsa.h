@@ -48,7 +48,8 @@ int  wc_InitRsaKey(RsaKey* key, void* heap);
 
     \return 0 Returned upon successfully initializing the RSA structure for
     use with encryption and decryption
-    \return BAD_FUNC_ARGS Returned if the RSA key pointer evaluates to NULL
+    \return BAD_FUNC_ARGS Returned if the RSA key pointer evaluates to NULL,
+    or if id is NULL while len is positive
     \return BUFFER_E Returned if len is less than 0 or greater than
     RSA_MAX_ID_LEN.
 

@@ -2955,6 +2955,9 @@ int test_wc_EccDecisionCoverage(void)
         XMEMSET(&idKey, 0, sizeof(idKey));
         ExpectIntEQ(wc_ecc_init_id(&idKey, NULL, 0, NULL, INVALID_DEVID), 0);
         wc_ecc_free(&idKey);
+        XMEMSET(&idKey, 0, sizeof(idKey));
+        ExpectIntEQ(wc_ecc_init_id(&idKey, NULL, sizeof(idbuf), NULL,
+            INVALID_DEVID), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         /* id != NULL, len == 0: the uncovered-condition report 6483's 3rd operand (len != 0)
          * independence pair -- id!=NULL fixed TRUE across this call and
          * the all-true "copy" call below, len toggled 0 vs nonzero. */

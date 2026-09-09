@@ -1679,10 +1679,15 @@ int test_wc_RsaDecisionCoverage(void)
         /* key == NULL rejects (line ~394). */
         ExpectIntEQ(wc_InitRsaKey_Id(NULL, (byte*)idBuf, 4, HEAP_HINT,
             INVALID_DEVID), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-        /* line ~400: id==NULL and len==0 both SUCCEED (key initialized, no id
-         * copied) - must free the initialized key. */
+        /* id==NULL with a positive len is rejected before init, so there is
+         * no key to free. */
         XMEMSET(&idKey, 0, sizeof(idKey));
         ExpectIntEQ(wc_InitRsaKey_Id(&idKey, NULL, 4, HEAP_HINT, INVALID_DEVID),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* id==NULL with len==0 still succeeds (key initialized, no id copied)
+         * - must free the initialized key. */
+        XMEMSET(&idKey, 0, sizeof(idKey));
+        ExpectIntEQ(wc_InitRsaKey_Id(&idKey, NULL, 0, HEAP_HINT, INVALID_DEVID),
             0);
         DoExpectIntEQ(wc_FreeRsaKey(&idKey), 0);
         XMEMSET(&idKey, 0, sizeof(idKey));

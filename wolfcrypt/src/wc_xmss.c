@@ -874,7 +874,7 @@ int wc_XmssKey_Init(XmssKey* key, void* heap, int devId)
  * @param [in]     devId  Device identifier.
  *
  * @return  0 on success.
- * @return  BAD_FUNC_ARG when key is NULL.
+ * @return  BAD_FUNC_ARG when key is NULL, or id is NULL with a positive len.
  * @return  BUFFER_E when len is negative or exceeds XMSS_MAX_ID_LEN.
  */
 int wc_XmssKey_InitId(XmssKey* key, const unsigned char* id, int len,
@@ -882,7 +882,7 @@ int wc_XmssKey_InitId(XmssKey* key, const unsigned char* id, int len,
 {
     int ret = 0;
 
-    if (key == NULL)
+    if (key == NULL || (id == NULL && len > 0))
         ret = BAD_FUNC_ARG;
     if (ret == 0 && (len < 0 || len > XMSS_MAX_ID_LEN))
         ret = BUFFER_E;

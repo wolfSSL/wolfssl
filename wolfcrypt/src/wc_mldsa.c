@@ -12176,7 +12176,7 @@ int wc_MlDsaKey_Init(wc_MlDsaKey* key, void* heap, int devId)
  * @param [in]  heap   Dynamic memory allocation hint.
  * @param [in]  devId  Device identifier.
  * @return  0 on success.
- * @return  BAD_FUNC_ARG when key is NULL.
+ * @return  BAD_FUNC_ARG when key is NULL or id is NULL and len is positive.
  * @return  BUFFER_E when len is negative or too long for the id field.
  */
 int wc_MlDsaKey_InitId(wc_MlDsaKey* key, const unsigned char* id, int len,
@@ -12184,7 +12184,7 @@ int wc_MlDsaKey_InitId(wc_MlDsaKey* key, const unsigned char* id, int len,
 {
     int ret = 0;
 
-    if (key == NULL) {
+    if ((key == NULL) || ((id == NULL) && (len > 0))) {
         ret = BAD_FUNC_ARG;
     }
     if ((ret == 0) && ((len < 0) || (len > MLDSA_MAX_ID_LEN))) {
