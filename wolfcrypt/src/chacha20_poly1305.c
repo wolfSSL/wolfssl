@@ -34,6 +34,10 @@ or Authenticated Encryption with Additional Data (AEAD) algorithm.
 #include <wolfssl/wolfcrypt/chacha20_poly1305.h>
 #include <wolfssl/wolfcrypt/cpuid.h>
 
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
+
 #ifdef NO_INLINE
 #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -442,6 +446,23 @@ WOLFSSL_API int wc_ChaCha20Poly1305_Encrypt_ex(ChaCha* chacha, Poly1305* poly,
         return BAD_FUNC_ARG;
     }
 
+#ifdef WOLF_CRYPTO_CB
+    /* devId comes from wc_Chacha_SetKey_ex(). This is the path the TLS
+     * record layer uses. Software runs if the device declines.
+     *
+     * wc_Chacha_SetKey_ex() also accepts a 16 byte key, which this AEAD is
+     * not defined for and which the callback carries no length for, so a
+     * device would key itself with 32 bytes and diverge from software. Keep
+     * those contexts on the software path. */
+    if (chacha->devId != INVALID_DEVID &&
+            chacha->devKeySz == CHACHA20_POLY1305_AEAD_KEYSIZE) {
+        ret = wc_CryptoCb_Chacha20Poly1305Encrypt(chacha->devId, chacha->devKey,
+            nonce, aad, aadSz, in, sz, out, tag);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret;
+    }
+#endif
+
 #ifdef WOLFSSL_CHACHA20_POLY1305_SHORT
     if (sz <= CHACHA20_POLY1305_SHORT_MAX)
         return chacha20_poly1305_encrypt_short(chacha, poly, out, in, sz,
@@ -531,6 +552,17 @@ WOLFSSL_API int wc_ChaCha20Poly1305_Decrypt_ex(ChaCha* chacha, Poly1305* poly,
             (aadSz > 0 && aad == NULL)) {
         return BAD_FUNC_ARG;
     }
+
+#ifdef WOLF_CRYPTO_CB
+    /* See the encrypt counterpart, including the 16 byte key exclusion. */
+    if (chacha->devId != INVALID_DEVID &&
+            chacha->devKeySz == CHACHA20_POLY1305_AEAD_KEYSIZE) {
+        ret = wc_CryptoCb_Chacha20Poly1305Decrypt(chacha->devId, chacha->devKey,
+            nonce, aad, aadSz, in, sz, tag, out);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret;
+    }
+#endif
 
 #ifdef WOLFSSL_CHACHA20_POLY1305_SHORT
     if (sz <= CHACHA20_POLY1305_SHORT_MAX)
@@ -801,10 +833,10 @@ int wc_ChaCha20Poly1305_CheckTag(
     return ret;
 }
 
-int wc_ChaCha20Poly1305_Init(ChaChaPoly_Aead* aead,
+int wc_ChaCha20Poly1305_Init_ex(ChaChaPoly_Aead* aead,
     const byte inKey[CHACHA20_POLY1305_AEAD_KEYSIZE],
     const byte inIV[CHACHA20_POLY1305_AEAD_IV_SIZE],
-    int isEncrypt)
+    int isEncrypt, void* heap, int devId)
 {
     int ret;
     byte authKey[CHACHA20_POLY1305_AEAD_KEYSIZE];
@@ -833,8 +865,10 @@ int wc_ChaCha20Poly1305_Init(ChaChaPoly_Aead* aead,
     aead->isEncrypt = isEncrypt ? 1 : 0;
 
     /* Initialize the ChaCha20 context (key and iv) */
-    ret = wc_Chacha_SetKey(&aead->chacha, inKey,
-        CHACHA20_POLY1305_AEAD_KEYSIZE);
+    ret = wc_Chacha_SetKey_ex(&aead->chacha, inKey,
+        CHACHA20_POLY1305_AEAD_KEYSIZE, heap, devId);
+    (void)heap;
+    (void)devId;
     if (ret == 0) {
         ret = wc_Chacha_SetIV(&aead->chacha, inIV,
             CHACHA20_POLY1305_AEAD_INITIAL_COUNTER);
@@ -868,6 +902,15 @@ int wc_ChaCha20Poly1305_Init(ChaChaPoly_Aead* aead,
 #endif
 
     return ret;
+}
+
+int wc_ChaCha20Poly1305_Init(ChaChaPoly_Aead* aead,
+    const byte inKey[CHACHA20_POLY1305_AEAD_KEYSIZE],
+    const byte inIV[CHACHA20_POLY1305_AEAD_IV_SIZE],
+    int isEncrypt)
+{
+    return wc_ChaCha20Poly1305_Init_ex(aead, inKey, inIV, isEncrypt, NULL,
+        INVALID_DEVID);
 }
 
 /* optional additional authentication data */
