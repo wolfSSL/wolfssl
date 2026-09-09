@@ -9616,9 +9616,19 @@ static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
    int        err;
    ecc_point* mG = NULL;
    ecc_point* mQ = NULL;
+#if defined(WOLFSSL_CHECK_VER_FAULTS) && !defined(ECC_SHAMIR) && \
+    !defined(FREESCALE_LTC_ECC)
+   ecc_point* mG1 = NULL;
+   ecc_point* mQ1 = NULL;
+#endif
 #ifdef WOLFSSL_NO_MALLOC
    ecc_point  lcl_mG;
    ecc_point  lcl_mQ;
+#if defined(WOLFSSL_CHECK_VER_FAULTS) && !defined(ECC_SHAMIR) && \
+    !defined(FREESCALE_LTC_ECC)
+   ecc_point  lcl_mG1;
+   ecc_point  lcl_mQ1;
+#endif
 #endif
 
    DECL_MP_INT_SIZE_DYN(w, ECC_KEY_MAX_BITS_NONULLCHECK(key), MAX_ECC_BITS_USE);
@@ -9771,6 +9781,21 @@ static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
    #endif
        err = wc_ecc_new_point_ex(&mQ, key->heap);
    }
+#if defined(WOLFSSL_CHECK_VER_FAULTS) && !defined(ECC_SHAMIR) && \
+    !defined(FREESCALE_LTC_ECC)
+   if (err == MP_OKAY) {
+   #ifdef WOLFSSL_NO_MALLOC
+       mG1 = &lcl_mG1;
+   #endif
+       err = wc_ecc_new_point_ex(&mG1, key->heap);
+   }
+   if (err == MP_OKAY) {
+   #ifdef WOLFSSL_NO_MALLOC
+       mQ1 = &lcl_mQ1;
+   #endif
+       err = wc_ecc_new_point_ex(&mQ1, key->heap);
+   }
+#endif
 
    /*  w  = s^-1 mod n */
    if (err == MP_OKAY)
@@ -9823,32 +9848,34 @@ static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
 #ifndef ECC_SHAMIR
     if (err == MP_OKAY)
     {
-     #ifdef WOLFSSL_CHECK_VER_FAULTS
-        ecc_point mG1, mQ1;
-        wc_ecc_copy_point(mQ, &mQ1);
-        wc_ecc_copy_point(mG, &mG1);
-     #endif
-
         mp_digit mp = 0;
+
+     #ifdef WOLFSSL_CHECK_VER_FAULTS
+        err = wc_ecc_copy_point(mQ, mQ1);
+        if (err == MP_OKAY)
+            err = wc_ecc_copy_point(mG, mG1);
+     #endif
 
         if (!mp_iszero((MP_INT_SIZE*)u1)) {
             /* compute u1*mG + u2*mQ = mG */
-            err = wc_ecc_mulmod_ex(u1, mG, mG, curve->Af, curve->prime, 0,
+            if (err == MP_OKAY)
+                err = wc_ecc_mulmod_ex(u1, mG, mG, curve->Af, curve->prime, 0,
                                                                      key->heap);
         #ifdef WOLFSSL_CHECK_VER_FAULTS
-            if (err == MP_OKAY && wc_ecc_cmp_point(mG, &mG1) == MP_EQ) {
+            if (err == MP_OKAY && wc_ecc_cmp_point(mG, mG1) == MP_EQ) {
                 err = BAD_STATE_E;
             }
 
             /* store new value for comparing with after add operation */
-           wc_ecc_copy_point(mG, &mG1);
+            if (err == MP_OKAY)
+                err = wc_ecc_copy_point(mG, mG1);
         #endif
             if (err == MP_OKAY) {
                 err = wc_ecc_mulmod_ex(u2, mQ, mQ, curve->Af, curve->prime, 0,
                                                                      key->heap);
             }
         #ifdef WOLFSSL_CHECK_VER_FAULTS
-            if (err == MP_OKAY && wc_ecc_cmp_point(mQ, &mQ1) == MP_EQ) {
+            if (err == MP_OKAY && wc_ecc_cmp_point(mQ, mQ1) == MP_EQ) {
                 err = BAD_STATE_E;
             }
         #endif
@@ -9864,7 +9891,7 @@ static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
                 err = ecc_projective_add_point_safe(mG, mQ, mG, curve->Af,
                                                         curve->prime, mp, NULL);
         #ifdef WOLFSSL_CHECK_VER_FAULTS
-            if (err == MP_OKAY && wc_ecc_cmp_point(mG, &mG1) == MP_EQ) {
+            if (err == MP_OKAY && wc_ecc_cmp_point(mG, mG1) == MP_EQ) {
                 err = BAD_STATE_E;
             }
             if (err == MP_OKAY && wc_ecc_cmp_point(mG, mQ) == MP_EQ) {
@@ -9874,7 +9901,8 @@ static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
         }
         else {
             /* compute 0*mG + u2*mQ = mG */
-            err = wc_ecc_mulmod_ex(u2, mQ, mG, curve->Af, curve->prime, 0,
+            if (err == MP_OKAY)
+                err = wc_ecc_mulmod_ex(u2, mQ, mG, curve->Af, curve->prime, 0,
                                                                      key->heap);
             /* find the montgomery mp */
             if (err == MP_OKAY)
@@ -9912,6 +9940,11 @@ static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
    /* cleanup */
    wc_ecc_del_point_ex(mG, key->heap);
    wc_ecc_del_point_ex(mQ, key->heap);
+#if defined(WOLFSSL_CHECK_VER_FAULTS) && !defined(ECC_SHAMIR) && \
+    !defined(FREESCALE_LTC_ECC)
+   wc_ecc_del_point_ex(mG1, key->heap);
+   wc_ecc_del_point_ex(mQ1, key->heap);
+#endif
 
    mp_clear(e);
    mp_clear(w);
