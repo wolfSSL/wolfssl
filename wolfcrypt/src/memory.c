@@ -371,6 +371,10 @@ void* wolfSSL_Malloc(size_t size)
         #ifdef WOLFSSL_TRAP_MALLOC_SZ
         if (size > WOLFSSL_TRAP_MALLOC_SZ) {
             WOLFSSL_MSG("Malloc too big!");
+        #ifdef WOLFSSL_MEM_FAIL_COUNT
+            /* Allocation was counted above but no block exists to free. */
+            wc_MemFailCount_AllocFailed();
+        #endif
             return NULL;
         }
         #endif
