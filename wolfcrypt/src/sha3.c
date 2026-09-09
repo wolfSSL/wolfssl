@@ -1589,12 +1589,10 @@ static void wc_Sha3Free(wc_Sha3* sha3)
     int ret = 0;
 #endif
 
-    (void)sha3;
-
-#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
     if (sha3 == NULL)
         return;
 
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
     #ifndef WOLF_CRYPTO_CB_FIND
     if (sha3->devId != INVALID_DEVID)
     #endif
@@ -1624,6 +1622,10 @@ static void wc_Sha3Free(wc_Sha3* sha3)
 #if defined(PSOC6_HASH_SHA3)
     wc_Psoc6_Sha_Free();
 #endif
+
+    /* s and t hold absorbed keys and seeds for Ed448, ML-KEM, ML-DSA,
+     * SLH-DSA, LMS, XMSS and HMAC-SHA3 (ISO/IEC 19790:2012 7.9.7). */
+    ForceZero(sha3, sizeof(*sha3));
 }
 
 /* Copy the state of the SHA3 operation.
@@ -2235,6 +2237,9 @@ int wc_Shake128_Absorb(wc_Shake* shake, const byte* data, word32 len)
         byte hash[1];
         ret = Sha3Final(shake, 0x1f, hash, WC_SHA3_128_COUNT, 0);
     }
+    /* Sha3Final does not clear t; the absorbed seed would stay for the
+     * squeeze lifetime (ISO/IEC 19790:2012 7.9.7). */
+    ForceZero(shake->t, sizeof(shake->t));
     /* No partial data. */
     shake->i = 0;
 
@@ -2548,6 +2553,9 @@ int wc_Shake256_Absorb(wc_Shake* shake, const byte* data, word32 len)
         byte hash[1];
         ret = Sha3Final(shake, 0x1f, hash, WC_SHA3_256_COUNT, 0);
     }
+    /* Sha3Final does not clear t; the absorbed seed would stay for the
+     * squeeze lifetime (ISO/IEC 19790:2012 7.9.7). */
+    ForceZero(shake->t, sizeof(shake->t));
     /* No partial data. */
     shake->i = 0;
 

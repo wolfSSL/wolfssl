@@ -1183,6 +1183,17 @@ static int RsaMGF1(enum wc_HashType hType, byte* seed, word32 seedSz,
         ret = wc_Hash(hType, tmp, (seedSz + 4), tmp, tmpSz);
 #endif
         if (ret != 0) {
+            /* tmp holds the OAEP seed (ISO/IEC 19790:2012 7.9.7). */
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+            if (tmpF) {
+                ForceZero(tmp, tmpSz);
+            }
+            else {
+                ForceZero(tmpA, sizeof(tmpA));
+            }
+#else
+            ForceZero(tmp, sizeof(tmp));
+#endif
             /* check for if dynamic memory was needed, then free */
 #ifdef WOLFSSL_SMALL_STACK_CACHE
             wc_HashFree(hash, hType);
@@ -1201,6 +1212,17 @@ static int RsaMGF1(enum wc_HashType hType, byte* seed, word32 seedSz,
         }
         counter++;
     } while (idx < outSz);
+    /* tmp holds the OAEP seed (ISO/IEC 19790:2012 7.9.7). */
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    if (tmpF) {
+        ForceZero(tmp, tmpSz);
+    }
+    else {
+        ForceZero(tmpA, sizeof(tmpA));
+    }
+#else
+    ForceZero(tmp, sizeof(tmp));
+#endif
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     /* check for if dynamic memory was needed, then free */
     if (tmpF) {

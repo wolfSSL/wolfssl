@@ -792,6 +792,12 @@ int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key)
             }
 #endif
             key->pubSet = (ret == 0);
+            if (ret != 0) {
+                /* Public half failed: drop the scalar too
+                 * (ISO/IEC 19790:2012 7.9.7). */
+                ForceZero(key->k, sizeof(key->k));
+                key->privSet = 0;
+            }
         }
     }
 #endif /* !WOLFSSL_SE050 */

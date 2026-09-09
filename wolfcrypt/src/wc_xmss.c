@@ -794,6 +794,9 @@ static WC_INLINE int wc_xmsskey_signupdate(XmssKey* key, byte* sig,
                 /* Free state after use. */
                 wc_xmss_state_free(state);
             }
+            /* State holds S_XMSS, SK_PRF and WOTS+ secrets
+             * (ISO/IEC 19790:2012 7.9.7). */
+            ForceZero(state, sizeof(XmssState));
             WC_FREE_VAR_EX(state, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }
@@ -1288,10 +1291,14 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng)
                 if (ret != 0) {
                     WOLFSSL_MSG("error: XMSS keygen failed");
                     key->state = WC_XMSS_STATE_BAD;
+                    ForceZero(key->sk, key->sk_len);
                 }
                 /* Free state after use. */
                 wc_xmss_state_free(state);
             }
+            /* State holds S_XMSS, SK_PRF and WOTS+ secrets
+             * (ISO/IEC 19790:2012 7.9.7). */
+            ForceZero(state, sizeof(XmssState));
             WC_FREE_VAR_EX(state, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }
@@ -1314,6 +1321,14 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng)
         key->pubSet = 1;
     }
 
+    /* seed came straight from the DRBG (ISO/IEC 19790:2012 7.9.7). */
+#ifdef WOLFSSL_SMALL_STACK
+    if (seed != NULL) {
+        ForceZero(seed, 3U * key->params->n);
+    }
+#else
+    ForceZero(seed, sizeof(seed));
+#endif
     WC_FREE_VAR_EX(seed, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
@@ -1578,15 +1593,19 @@ int  wc_XmssKey_SigsLeft(XmssKey* key)
         WOLFSSL_MSG("error: can't sign, XMSS key not in good state");
         ret = 0;
     }
-    /* Read the current secret key from NV storage.*/
-    else if (key->read_private_key(key->sk, key->sk_len, key->context) !=
-             WC_XMSS_RC_READ_TO_MEMORY) {
-        WOLFSSL_MSG("error: XMSS read_private_key failed");
-        ret = 0;
-    }
     else {
-        /* Ask implementation to check index in private key. */
-        ret = wc_xmss_sigsleft(key->params, key->sk);
+        /* Read the current secret key from NV storage.*/
+        if (key->read_private_key(key->sk, key->sk_len, key->context) !=
+                 WC_XMSS_RC_READ_TO_MEMORY) {
+            WOLFSSL_MSG("error: XMSS read_private_key failed");
+            ret = 0;
+        }
+        else {
+            /* Ask implementation to check index in private key. */
+            ret = wc_xmss_sigsleft(key->params, key->sk);
+        }
+        /* Only the index was needed (ISO/IEC 19790:2012 7.9.7). */
+        ForceZero(key->sk, key->sk_len);
     }
 
     return ret;
@@ -2074,6 +2093,9 @@ int wc_XmssKey_Verify(XmssKey* key, const byte* sig, word32 sigLen,
                 /* Free state after use. */
                 wc_xmss_state_free(state);
             }
+            /* State holds S_XMSS, SK_PRF and WOTS+ secrets
+             * (ISO/IEC 19790:2012 7.9.7). */
+            ForceZero(state, sizeof(XmssState));
             WC_FREE_VAR_EX(state, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }

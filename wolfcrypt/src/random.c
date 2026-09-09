@@ -847,6 +847,8 @@ static int Hash_gen(DRBG_internal* drbg, byte* out, word32 outSz, const byte* V)
     defined(WOLFSSL_CHECK_MEM_ZERO)
     wc_MemZero_Check(data, DRBG_SEED_LEN);
 #endif
+    /* digest holds the last output block (ISO/IEC 19790:2012 7.9.7). */
+    ForceZero(digest, WC_SHA256_DIGEST_SIZE);
 
 #ifndef WOLFSSL_SMALL_STACK_CACHE
     WC_FREE_VAR_EX(digest, drbg->heap, DYNAMIC_TYPE_DIGEST);
@@ -1446,6 +1448,8 @@ static int Hash512_gen(DRBG_SHA512_internal* drbg, byte* out, word32 outSz,
     defined(WOLFSSL_CHECK_MEM_ZERO)
     wc_MemZero_Check(data, DRBG_SHA512_SEED_LEN);
 #endif
+    /* See Hash_gen. */
+    ForceZero(digest, WC_SHA512_DIGEST_SIZE);
 
 #ifndef WOLFSSL_SMALL_STACK_CACHE
     WC_FREE_VAR_EX(digest, drbg->heap, DYNAMIC_TYPE_DIGEST);
@@ -1917,6 +1921,7 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     int drbg_scratch_instantiated = 0;
 #endif
+    int drbg_instantiated = 0;
 #endif
 
     (void)nonce;
@@ -2238,6 +2243,8 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
     #endif
 
             if (ret == DRBG_SUCCESS) {
+                /* Instantiate clears the block on entry. */
+                drbg_instantiated = 1;
 #ifndef NO_SHA256
                 if (rng->drbgType == WC_DRBG_SHA256)
                     ret = Hash_DRBG_Instantiate((DRBG_internal *)rng->drbg,
@@ -2275,8 +2282,14 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
     WC_FREE_VAR_EX(seed, rng->heap, DYNAMIC_TYPE_SEED);
 
     if (ret != DRBG_SUCCESS) {
+        (void)drbg_instantiated;
     #ifndef NO_SHA256
         if (rng->drbgType == WC_DRBG_SHA256) {
+            /* A failed instantiate may have left V in the block
+             * (ISO/IEC 19790:2012 7.9.7). */
+            if (drbg_instantiated) {
+                (void)Hash_DRBG_Uninstantiate((DRBG_internal *)rng->drbg);
+            }
         #if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_STATIC_MEMORY)
             XFREE(rng->drbg, rng->heap, DYNAMIC_TYPE_RNG);
         #endif
@@ -2295,6 +2308,11 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
     #endif /* !NO_SHA256 */
     #ifdef WOLFSSL_DRBG_SHA512
         if (rng->drbgType == WC_DRBG_SHA512) {
+            /* See the SHA-256 branch above. */
+            if (drbg_instantiated) {
+                (void)Hash512_DRBG_Uninstantiate(
+                    (DRBG_SHA512_internal *)rng->drbg512);
+            }
         #if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_STATIC_MEMORY)
             XFREE(rng->drbg512, rng->heap, DYNAMIC_TYPE_RNG);
         #endif
