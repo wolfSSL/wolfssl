@@ -128,6 +128,45 @@ config WOLFSSL_CRYPTO_CB
     (WOLF_PRIVATE_KEY_ID), which is what lets a TLS key live on that device
     instead of in the application's memory.
 
+config WOLFSSL_SYS_INIT
+	bool "Initialize wolfSSL from a SYS_INIT hook"
+	depends on WOLFSSL_BUILTIN
+	help
+	  Call wolfSSL_Init() at boot, from POST_KERNEL, instead of leaving it
+	  to whichever library call happens to run first. A wolfCrypt-only
+	  build calls wolfCrypt_Init() instead, since wolfSSL_Init() is not
+	  compiled without the TLS layer.
+
+	  wolfCrypt initializes and seeds its DRBG lazily either way, so this
+	  matters only when initialization also brings up a peripheral. A port
+	  that does selects this itself; a settings-file build gets no such
+	  select and has to set it by hand.
+
+config WOLFSSL_ELS_PKC
+	bool "NXP EdgeLock (ELS) hardware offload"
+	depends on WOLFSSL_BUILTIN && !WOLFSSL_HAS_SETTINGS_FILE
+	depends on !BUILD_WITH_TFM
+	depends on SOC_SERIES_RW6XX
+	select MCUX_ELS_PKC
+	select WOLFSSL_SYS_INIT
+	help
+	  Route wolfCrypt operations to the on-chip EdgeLock secure subsystem
+	  through the crypto callback interface. Operations the hardware does
+	  not implement fall back to software.
+
+	  Selects MCUX_ELS_PKC, which is what puts the vendor headers on the
+	  include path, and WOLFSSL_SYS_INIT, which brings the subsystem up at
+	  boot. A settings-file build turns the port on by defining
+	  WOLFSSL_ELS_PKC itself, since these options only write the module's
+	  user_settings.h, and has to set CONFIG_MCUX_ELS_PKC=y and
+	  CONFIG_WOLFSSL_SYS_INIT=y by hand.
+
+	  Not selectable in a TF-M build, where els_pkc does not create its
+	  McuxElsPkc CMake target.
+
+	  Restricted to RW6XX because els_pkc exports src/platforms/<soc>, where
+	  mcux_els.h lives, only under CONFIG_SOC_SERIES_RW6XX.
+
 config WOLFSSL_CRYPTO_ONLY
 	bool "Build wolfCrypt only (no TLS layer)"
 	depends on !WOLFSSL_HAS_SETTINGS_FILE

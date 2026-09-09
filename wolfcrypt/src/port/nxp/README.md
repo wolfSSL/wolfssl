@@ -544,6 +544,89 @@ move the crossover down toward small-record sizes.
   GCM including a corrupted-tag rejection, RNG4, and ECDSA/ECDH cross-checked
   against the software implementation.
 
+## NXP EdgeLock (ELS)
+
+`els_pkc_port.c` offloads wolfCrypt to the EdgeLock subsystem found on the
+RW612 and related parts, through the crypto callback interface. The ELS
+peripheral serves SHA-256.
+
+Anything the hardware does not serve is declined with `CRYPTOCB_UNAVAILABLE`
+and completed in software, so an unsupported algorithm or key size costs
+performance, never correctness. A hardware failure is deliberately not
+treated as a decline: it is reported, so a caller that ignores the return
+cannot walk away with a confident bad result.
+
+`wolfCrypt_Init()` brings the subsystem up and registers the callback, and
+`wc_CryptoCb_DefaultDevID()` answers `WOLFSSL_ELS_PKC_DEVID`, so a context
+created without an explicit device still reaches the hardware.
+`WC_NO_DEFAULT_DEVID` turns that off and leaves routing to the caller.
+
+### Hardware behaviour worth knowing
+
+**A rejected request resets the SoC, by default.** ELS answers an invalid key
+permission or a failed unwrap by signalling the Intrusion and Tamper Response
+Controller, which on its reset-on-tamper default drives a chip reset rather
+than returning an error. The port validates its arguments in software before
+issuing a command, and does not cancel an operation already in flight,
+because `mcuxClEls_Reset_Async(MCUXCLELS_RESET_CANCEL)` is itself a tamper
+event. An integration that has retargeted the ITRC can define
+`WOLFSSL_ELS_PKC_ALLOW_CANCEL`, and a late completion interrupt then cancels
+and fails the operation instead of degrading to the vendor's synchronous
+wait. Do not probe the hardware with deliberately malformed references.
+
+**ELS is a system-wide peripheral, and the port's lock covers only wolfSSL.**
+Every operation is an `_Async` call followed by
+`mcuxClEls_WaitForOperation()`, serialized under one mutex. An application
+calling `mcuxClEls` directly, or a second OS task, can drive the peripheral
+behind wolfSSL's back, and an integration that mixes the two has to arbitrate
+above both. Reaching the hardware through wolfPSA does not raise this: that
+provider is itself a wolfCrypt caller, so it arrives through the same lock.
+
+**Completion is interrupt-driven where a kernel is available**, with the
+vendor busy-spin as the fallback before the interrupt is armed. Crypto calls
+from an ISR work only in a single-threaded build, since the port's mutex
+cannot be taken there otherwise. Tune
+it with `WOLFSSL_ELS_PKC_TIMEOUT_MS`, `WOLFSSL_ELS_PKC_IRQ_PRIO`, and
+`WOLFSSL_ELS_PKC_SPIN_US` - the last is how long a completion is spun for
+before the thread sleeps, and zero never spins.
+
+**Offload state lives in the caller's object.** A hash keeps its ELS state in
+the same `wc_Sha256` fields the software implementation would have used, so
+nothing is allocated, a struct copy duplicates a context correctly, and the
+port needs neither the copy nor the free crypto-callback hook.
+
+### Vendor library
+
+The port depends on NXP's CLNS library, `els_pkc`, which ships as an
+MCUXpresso SDK component and is published at
+<https://github.com/NXP/els_pkc>. wolfSSL neither builds nor vendors it: the
+port calls into CLNS and the application links it, the same arrangement the
+SE050 port uses. A library built with this port therefore carries unresolved
+`mcuxCl*` references by design.
+
+`els_pkc` is under NXP's proprietary `LA_OPT_Online Code Hosting` license,
+not an open source license, and its clause 3.7 forbids subjecting it to a
+license requiring source disclosure. Fetch it at build time; do not copy it
+into a wolfSSL tree.
+
+### Building
+
+- **Zephyr.** The wolfSSL Zephyr module compiles the port like every other
+  wolfCrypt port and turns it on with `CONFIG_WOLFSSL_ELS_PKC=y`, alongside
+  `CONFIG_MCUX_ELS_PKC=y` for the vendor headers. When a settings file is
+  supplied through `CONFIG_WOLFSSL_SETTINGS_FILE`, the feature Kconfigs do
+  not apply and `WOLFSSL_ELS_PKC` has to be defined in that file instead.
+
+Everything in the port is gated on `WOLFSSL_ELS_PKC`. Without that macro the
+file compiles to an empty translation unit and reaches no vendor header,
+which is why it can sit in the build unconditionally. It also means a
+mis-wired build succeeds with the port silently absent, so verify by symbol
+rather than by object file:
+
+```sh
+nm src/.libs/libwolfssl.a | grep wc_ElsPkc
+```
+
 ## Support
 
 For questions please email support@wolfssl.com

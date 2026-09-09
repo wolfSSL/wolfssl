@@ -283,6 +283,14 @@ extern "C" {
     #define WOLFSSL_AES_CFB
 #endif
 
+/* No WOLF_CRYPTO_CB_FIND: the Zephyr entropy driver supplies the seed. */
+#ifdef CONFIG_WOLFSSL_ELS_PKC
+    #define WOLFSSL_ELS_PKC
+    #ifndef WOLF_CRYPTO_CB
+        #define WOLF_CRYPTO_CB
+    #endif
+#endif
+
 /* ------------------------------------------------------------------------- */
 /* Algorithms */
 /* ------------------------------------------------------------------------- */

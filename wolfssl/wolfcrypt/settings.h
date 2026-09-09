@@ -464,6 +464,23 @@
     #include <wolfssl/wolfcrypt/port/nuvoton/nuvoton_settings.h>
 #endif
 
+/* Map WC_USE_DEVID for the test and benchmark, which cannot include
+ * els_pkc_port.h. */
+#ifdef WOLFSSL_ELS_PKC
+    #ifndef WOLFSSL_ELS_PKC_DEVID
+        #define WOLFSSL_ELS_PKC_DEVID 0x454C /* 'EL' - an id, not an address */
+    #endif
+    #if !defined(WC_USE_DEVID) && !defined(WC_NO_DEFAULT_DEVID)
+        #define WC_USE_DEVID WOLFSSL_ELS_PKC_DEVID
+    #endif
+    /* The engine state in digest[] is unusable by the raw accessors. */
+    #if !defined(NO_SHA256) || defined(WOLFSSL_SHA384) || \
+        defined(WOLFSSL_SHA512)
+        #undef  WOLFSSL_NO_HASH_RAW
+        #define WOLFSSL_NO_HASH_RAW
+    #endif
+#endif
+
 /* Forward propagation of the legacy parent gate to the canonical name
  * (HAVE_DILITHIUM -> WOLFSSL_HAVE_MLDSA). Always active: required so that
  * a user_settings.h or build flag using only the legacy spelling still
