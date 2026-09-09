@@ -27942,6 +27942,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     int leaf_rng_inited = 0;
     WC_DECLARE_VAR(leaf_rng, WC_RNG, 1, HEAP_HINT);
 #endif
+#ifdef WC_RNG_BANK_HAVE_DAEMON_SUPPORT
+    void *daemon_out = NULL;
+#endif
 
     WC_CALLOC_VAR_EX(bank, struct wc_rng_bank, 1, HEAP_HINT,
                     DYNAMIC_TYPE_TMP_BUFFER,
@@ -28889,6 +28892,118 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
 #endif /* WC_RNG_HAVE_NEXT_SEED */
     }
 #endif /* !HAVE_FIPS || FIPS_VERSION3_GE(7,0,0) */
+
+#ifdef WC_RNG_BANK_HAVE_DAEMON_SUPPORT
+    #define RBT_MAGIC   ((WC_ATOMIC_UINT_ARG)0x746e6164) /* arbitrary nonzero */
+    #define RBT_MAGIC_2 ((WC_ATOMIC_UINT_ARG)0x746e6145)
+
+    /* arg validation: NULL bank, FREE magic */
+    ret = wc_rng_bank_daemon_reserve(NULL, RBT_MAGIC);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_rng_bank_daemon_reserve(bank, WC_RNG_BANK_DAEMON_MAGIC_FREE);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* register/unregister/release before any reserve: slot magic is FREE,
+     * so the caller's magic can never match. */
+    ret = wc_rng_bank_daemon_register(bank, (void *)&ret, RBT_MAGIC);
+    if (ret != WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_rng_bank_daemon_unregister(bank, &daemon_out, RBT_MAGIC);
+    if (ret != WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_rng_bank_daemon_release(bank, RBT_MAGIC);
+    if (ret != WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* reserve claims the slot */
+    ret = wc_rng_bank_daemon_reserve(bank, RBT_MAGIC);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* the reservation's bank ref makes fini refuse: the documented
+     * leak-to-BUSY_E demotion, probed directly. */
+    ret = wc_rng_bank_fini(bank);
+    if (ret != WC_NO_ERR_TRACE(BUSY_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* double-reserve, same and different magic: slot occupied. */
+    ret = wc_rng_bank_daemon_reserve(bank, RBT_MAGIC);
+    if (ret != WC_NO_ERR_TRACE(BUSY_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_rng_bank_daemon_reserve(bank, RBT_MAGIC_2);
+    if (ret != WC_NO_ERR_TRACE(BUSY_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* register: NULL daemon rejected; wrong magic rejected; then accepted. */
+    ret = wc_rng_bank_daemon_register(bank, NULL, RBT_MAGIC);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_rng_bank_daemon_register(bank, (void *)&ret, RBT_MAGIC_2);
+    if (ret != WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_rng_bank_daemon_register(bank, (void *)&ret, RBT_MAGIC);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* double-register: occupied. */
+    ret = wc_rng_bank_daemon_register(bank, (void *)&outbuf1, RBT_MAGIC);
+    if (ret != WC_NO_ERR_TRACE(ALREADY_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* release while registered: refused, registration intact. */
+    ret = wc_rng_bank_daemon_release(bank, RBT_MAGIC);
+    if (ret != WC_NO_ERR_TRACE(BUSY_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* unregister: NULL out and wrong magic rejected; then hands back the
+     * registered pointer, exactly once. */
+    ret = wc_rng_bank_daemon_unregister(bank, NULL, RBT_MAGIC);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_rng_bank_daemon_unregister(bank, &daemon_out, RBT_MAGIC_2);
+    if (ret != WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_rng_bank_daemon_unregister(bank, &daemon_out, RBT_MAGIC);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (daemon_out != (void *)&ret)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    /* at-most-once: second unregister finds the slot empty. */
+    daemon_out = NULL;
+    ret = wc_rng_bank_daemon_unregister(bank, &daemon_out, RBT_MAGIC);
+    if (ret != WC_NO_ERR_TRACE(ALREADY_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (daemon_out != NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    /* release frees the slot and drops the reservation ref. */
+    ret = wc_rng_bank_daemon_release(bank, RBT_MAGIC);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* released slot: stale-magic ops can't match FREE. */
+    ret = wc_rng_bank_daemon_release(bank, RBT_MAGIC);
+    if (ret != WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* slot is reusable, under a different magic, for the
+     * reserve -> spawn-failed -> release unwind shape (no register). */
+    ret = wc_rng_bank_daemon_reserve(bank, RBT_MAGIC_2);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_rng_bank_daemon_release(bank, RBT_MAGIC_2);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* refcount balance is implicitly audited by the closing
+     * wc_rng_bank_fini(bank) succeeding below. */
+
+    #undef RBT_MAGIC
+    #undef RBT_MAGIC_2
+#endif /* WC_RNG_BANK_HAVE_DAEMON_SUPPORT */
 
 out:
 
