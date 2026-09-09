@@ -363,6 +363,10 @@ int wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng);
     taken to be device-backed and Reload is a no-op. With a read
     callback the software reload runs as usual.
 
+    A reloaded key holds no public key: neither arm populates it.
+    Call wc_LmsKey_ImportPubRaw() on a separate key to verify, or keep
+    the public key exported at generation time.
+
     \return 0 on success, including the device-backed no-op.
     \return BAD_FUNC_ARG if any required pointer is NULL.
     \return WC_LMS_RC_* mapped error if the read callback fails.
@@ -500,6 +504,7 @@ void wc_LmsKey_Free(LmsKey* key);
 
     \return 0 on success.
     \return BAD_FUNC_ARG if keyDst or keySrc is NULL.
+    \return BAD_STATE_E if keySrc holds no public key.
 
     \param [in,out] keyDst Pointer to an initialized destination
     LmsKey.
@@ -518,6 +523,7 @@ int wc_LmsKey_ExportPub(LmsKey* keyDst, const LmsKey* keySrc);
 
     \return 0 on success.
     \return BAD_FUNC_ARG if keyDst or keySrc is NULL.
+    \return BAD_STATE_E if keySrc holds no public key.
 
     \param [in,out] keyDst Pointer to an LmsKey to populate.
     \param [in] keySrc Pointer to an LmsKey with the public key.
@@ -538,6 +544,7 @@ int wc_LmsKey_ExportPub_ex(LmsKey* keyDst, const LmsKey* keySrc, void* heap,
 
     \return 0 on success.
     \return BAD_FUNC_ARG if any required pointer is NULL.
+    \return BAD_STATE_E if key holds no public key.
     \return BUFFER_E if *outLen is smaller than the public key size.
 
     \param [in] key Pointer to an LmsKey.
@@ -579,6 +586,7 @@ int wc_LmsKey_ImportPubRaw(LmsKey* key, const byte* in, word32 inLen);
 
     \return 0 on a valid signature.
     \return BAD_FUNC_ARG if any required pointer is NULL.
+    \return BAD_STATE_E if key holds no public key.
     \return SIG_VERIFY_E (or similar) if the signature is invalid or
     malformed.
 
