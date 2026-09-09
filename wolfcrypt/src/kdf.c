@@ -900,6 +900,8 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
     }
 
     _HashFree(enmhashId, &hash);
+    /* hash absorbed the shared secret K (ISO/IEC 19790:2012 7.9.7). */
+    ForceZero(&hash, sizeof(hash));
 
     return ret;
 }
