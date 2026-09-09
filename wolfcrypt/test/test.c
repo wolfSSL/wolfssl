@@ -81432,6 +81432,10 @@ typedef struct {
     int chachaPolyEncCount; /* ChaCha20-Poly1305 encrypt cb invocations */
     int chachaPolyDecCount; /* ChaCha20-Poly1305 decrypt cb invocations */
 #endif
+#if (defined(HAVE_PBKDF2) && !defined(NO_HMAC) && !defined(NO_PWDBASED))
+    int pbkdf2Count;      /* PBKDF2 callback invocations */
+    int pbkdf2Decline;    /* when set, decline so software fallback runs */
+#endif
 } myCryptoDevCtx;
 
 #ifdef WOLF_CRYPTO_CB_ONLY_RSA
@@ -85270,6 +85274,24 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
            NULL, INVALID_DEVID);
         }
     #endif /* HAVE_CMAC_KDF */
+    #if (defined(HAVE_PBKDF2) && !defined(NO_HMAC) && !defined(NO_PWDBASED))
+        if (info->kdf.type == WC_KDF_TYPE_PBKDF2) {
+            if (myCtx->pbkdf2Decline) {
+                /* Exercise the decline path: wc_PBKDF2_ex must fall through to
+                 * its own software implementation and still be correct. */
+                return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+            }
+            /* Redirect to software implementation for testing. Passing
+             * INVALID_DEVID keeps wc_PBKDF2_ex from dispatching back here. */
+            ret = wc_PBKDF2_ex(info->kdf.pbkdf2.output,
+                info->kdf.pbkdf2.passwd, info->kdf.pbkdf2.pLen,
+                info->kdf.pbkdf2.salt, info->kdf.pbkdf2.sLen,
+                info->kdf.pbkdf2.iterations, info->kdf.pbkdf2.kLen,
+                info->kdf.pbkdf2.hashType, NULL, INVALID_DEVID);
+            if (ret == 0)
+                myCtx->pbkdf2Count++;
+        }
+    #endif /* HAVE_PBKDF2 && !NO_HMAC && !NO_PWDBASED */
     }
 #if defined(WOLFSSL_SHE) && !defined(NO_AES)
     else if (info->algo_type == WC_ALGO_TYPE_SHE) {
@@ -85682,6 +85704,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     myCtx.chachaPolyEncCount = 0;
     myCtx.chachaPolyDecCount = 0;
 #endif
+#if (defined(HAVE_PBKDF2) && !defined(NO_HMAC) && !defined(NO_PWDBASED))
+    myCtx.pbkdf2Count = 0;
+    myCtx.pbkdf2Decline = 0;
+#endif
 
     /* set devId to something other than INVALID_DEVID */
     devId = 1;
@@ -85708,7 +85734,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
         ret = rsa_onlycb_test(&myCtx);
     PRIVATE_KEY_LOCK();
 #endif
-
 
 
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && \
@@ -86286,6 +86311,34 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     PRIVATE_KEY_UNLOCK();
     if (ret == 0)
         ret = pbkdf2_test();
+    /* Confirm the derivation actually crossed the callback boundary. */
+    if (ret == 0 && myCtx.pbkdf2Count == 0)
+        ret = WC_TEST_RET_ENC_NC;
+    /* And that declining hands the work back to software: derive the same key
+     * with the device declining and with no device, and require a match. */
+    if (ret == 0) {
+        WOLFSSL_SMALL_STACK_STATIC const byte pwd[] = "passwordPASSWORD";
+        WOLFSSL_SMALL_STACK_STATIC const byte salt[] = "saltSALTsaltSALT";
+        byte viaCb[24];
+        byte viaSw[24];
+        int  cbRet;
+        int  swRet;
+
+        myCtx.pbkdf2Decline = 1;
+        cbRet = wc_PBKDF2_ex(viaCb, pwd, (int)XSTRLEN((const char*)pwd),
+            salt, (int)XSTRLEN((const char*)salt), 128, (int)sizeof(viaCb),
+            WC_SHA256, NULL, devId);
+        myCtx.pbkdf2Decline = 0;
+
+        swRet = wc_PBKDF2_ex(viaSw, pwd, (int)XSTRLEN((const char*)pwd),
+            salt, (int)XSTRLEN((const char*)salt), 128, (int)sizeof(viaSw),
+            WC_SHA256, NULL, INVALID_DEVID);
+
+        if (cbRet != 0 || swRet != 0)
+            ret = WC_TEST_RET_ENC_NC;
+        else if (XMEMCMP(viaCb, viaSw, sizeof(viaCb)) != 0)
+            ret = WC_TEST_RET_ENC_NC;
+    }
     PRIVATE_KEY_LOCK();
     #endif
 #endif

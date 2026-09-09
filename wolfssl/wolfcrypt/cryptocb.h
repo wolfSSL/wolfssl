@@ -955,7 +955,8 @@ typedef struct wc_CryptoInfo {
         } op;
     } keystore;
 #endif /* WOLF_CRYPTO_CB_KEYSTORE */
-#if defined(HAVE_HKDF) || defined(HAVE_CMAC_KDF)
+#if defined(HAVE_HKDF) || defined(HAVE_CMAC_KDF) || \
+    (defined(HAVE_PBKDF2) && !defined(NO_HMAC) && !defined(NO_PWDBASED))
     struct {
         int type; /* enum wc_KdfType */
     #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
@@ -1003,12 +1004,24 @@ typedef struct wc_CryptoInfo {
                 word32      outSz;   /* Desired size of out key material. */
             } twostep_cmac;
         #endif /* HAVE_CMAC_KDf */
+        #if (defined(HAVE_PBKDF2) && !defined(NO_HMAC) && !defined(NO_PWDBASED))
+            struct {                   /* PBKDF2 (PKCS#5 v2.0) */
+                byte*       output;    /* derived key out, kLen bytes */
+                const byte* passwd;
+                const byte* salt;
+                int         pLen;
+                int         sLen;
+                int         iterations;
+                int         kLen;
+                int         hashType;  /* enum wc_HashType */
+            } pbkdf2;
+        #endif /* HAVE_PBKDF2 && !NO_HMAC && !NO_PWDBASED */
             /* Future KDF type structures here */
     #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
         };
     #endif
     } kdf;
-#endif /* HAVE_HKDF || HAVE_CMAC_KDF */
+#endif /* HAVE_HKDF || HAVE_CMAC_KDF || (HAVE_PBKDF2 && !NO_HMAC) */
 #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
     };
 #endif
@@ -1365,6 +1378,11 @@ WOLFSSL_LOCAL int wc_CryptoCb_Hkdf_Expand(int hashType, const byte* inKey,
                     byte* out, word32 outSz, int devId);
 #endif /* HAVE_HKDF && !NO_HMAC */
 
+#if (defined(HAVE_PBKDF2) && !defined(NO_HMAC) && !defined(NO_PWDBASED))
+WOLFSSL_LOCAL int wc_CryptoCb_Pbkdf2(byte* output, const byte* passwd, int pLen,
+    const byte* salt, int sLen, int iterations, int kLen, int hashType,
+    int devId);
+#endif /* HAVE_PBKDF2 && !NO_HMAC && !NO_PWDBASED */
 
 #if defined(HAVE_CMAC_KDF)
 WOLFSSL_LOCAL int wc_CryptoCb_Kdf_TwostepCmac(const byte * salt, word32 saltSz,

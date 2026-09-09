@@ -301,6 +301,8 @@ static const char* GetKdfTypeStr(int type)
             return "HKDF Extract";
         case WC_KDF_TYPE_HKDF_EXPAND:
             return "HKDF Expand";
+        case WC_KDF_TYPE_PBKDF2:
+            return "PBKDF2";
         case WC_KDF_TYPE_TWOSTEP_CMAC:
             return "TWOSTEP_CMAC";
     }
@@ -3654,6 +3656,38 @@ int wc_CryptoCb_DefaultDevID(void)
     return ret;
 }
 
+#if (defined(HAVE_PBKDF2) && !defined(NO_HMAC) && !defined(NO_PWDBASED))
+int wc_CryptoCb_Pbkdf2(byte* output, const byte* passwd, int pLen,
+    const byte* salt, int sLen, int iterations, int kLen, int hashType,
+    int devId)
+{
+    int       ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    /* Find registered callback device */
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_KDF);
+
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+
+        cryptoInfo.algo_type             = WC_ALGO_TYPE_KDF;
+        cryptoInfo.kdf.type              = WC_KDF_TYPE_PBKDF2;
+        cryptoInfo.kdf.pbkdf2.output     = output;
+        cryptoInfo.kdf.pbkdf2.passwd     = passwd;
+        cryptoInfo.kdf.pbkdf2.pLen       = pLen;
+        cryptoInfo.kdf.pbkdf2.salt       = salt;
+        cryptoInfo.kdf.pbkdf2.sLen       = sLen;
+        cryptoInfo.kdf.pbkdf2.iterations = iterations;
+        cryptoInfo.kdf.pbkdf2.kLen       = kLen;
+        cryptoInfo.kdf.pbkdf2.hashType   = hashType;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif /* HAVE_PBKDF2 && !NO_HMAC && !NO_PWDBASED */
 
 #if defined(HAVE_HKDF) && !defined(NO_HMAC)
 int wc_CryptoCb_Hkdf(int hashType, const byte* inKey, word32 inKeySz,
