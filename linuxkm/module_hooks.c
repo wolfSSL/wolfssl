@@ -252,6 +252,11 @@ int wc_lkm_LockMutex(wolfSSL_Mutex* m)
     if (in_nmi())
         return BUSY_E;
     if (! wc_linuxkm_can_block()) {
+#if IS_ENABLED(CONFIG_PREEMPT_RT)
+        /* RT spinlock_t is a sleeping rtmutex; an atomic caller has no legal
+         * wait -- the entry trylock was its one shot. */
+        return BUSY_E;
+#else /* !CONFIG_PREEMPT_RT */
         /* Note, this catches calls while SAVE_VECTOR_REGISTERS()ed as
          * required, because in_softirq() is always true while saved,
          * even for WC_FPU_INHIBITED_FLAG contexts.
@@ -263,6 +268,7 @@ int wc_lkm_LockMutex(wolfSSL_Mutex* m)
         spin_lock_irqsave(&m->lock, irq_flags);
         m->irq_flags = irq_flags;
         return 0;
+#endif /* !CONFIG_PREEMPT_RT */
     }
     else {
         for (;;) {
@@ -270,6 +276,11 @@ int wc_lkm_LockMutex(wolfSSL_Mutex* m)
             if (sig_ret)
                 return sig_ret;
             cond_resched();
+            /* FWIW, on PREEMPT_RT kernels, this polls a sleeping lock instead
+             * of blocking on it, which bypasses priority inheritance: legal,
+             * but a low-priority holder under a high-priority RT poller
+             * inherits nothing and the loop degrades to prioritized
+             * busy-wait. */
             if (spin_trylock_irqsave(&m->lock, irq_flags)) {
                 m->irq_flags = irq_flags;
                 return 0;
