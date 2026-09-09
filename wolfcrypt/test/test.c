@@ -52,6 +52,13 @@
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
+    /* With NO_INLINE the misc.c implementations live in the library and are
+     * WOLFSSL_LOCAL, so they do not link from here. Use the exported wrapper
+     * for the one this file needs. WOLFSSL_NO_FORCE_ZERO means the user
+     * supplies ForceZero() with external linkage, so call it directly. */
+    #ifndef WOLFSSL_NO_FORCE_ZERO
+        #define ForceZero wc_ForceZero
+    #endif
 #else
     #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
@@ -81421,6 +81428,10 @@ typedef struct {
     int hkdfPendArm;   /* pend the next this-many HKDF callback calls */
     int hkdfPendCount; /* pends issued; test asserts non-zero */
 #endif
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+    int chachaPolyEncCount; /* ChaCha20-Poly1305 encrypt cb invocations */
+    int chachaPolyDecCount; /* ChaCha20-Poly1305 decrypt cb invocations */
+#endif
 } myCryptoDevCtx;
 
 #ifdef WOLF_CRYPTO_CB_ONLY_RSA
@@ -83980,6 +83991,69 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         }
     #endif /* !NO_DES3 */
 #endif /* !NO_AES || !NO_DES3 */
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && \
+    !defined(WOLFSSL_NO_MALLOC)
+        if (info->cipher.type == WC_CIPHER_CHACHA) {
+            ChaCha*   chacha;
+            Poly1305* poly;
+
+            /* Poly1305 is near 1KB with the AVX-512 backend, and this frame
+             * sits under every nested software call the test makes, so keep
+             * both off the stack - see WOLFSSL_TEST_MAX_RELATIVE_STACK_BYTES. */
+            chacha = (ChaCha*)XMALLOC(sizeof(*chacha), HEAP_HINT,
+                DYNAMIC_TYPE_CIPHER);
+            poly = (Poly1305*)XMALLOC(sizeof(*poly), HEAP_HINT,
+                DYNAMIC_TYPE_CIPHER);
+            if (chacha == NULL || poly == NULL) {
+                XFREE(chacha, HEAP_HINT, DYNAMIC_TYPE_CIPHER);
+                XFREE(poly, HEAP_HINT, DYNAMIC_TYPE_CIPHER);
+                return MEMORY_E;
+            }
+
+            /* The one-shot AEAD carries no key object and so no devId to
+             * blank out. Forward through the _ex entry points, which have no
+             * callback hook, instead of recursing into the one-shot. */
+            if (info->cipher.enc) {
+                ret = wc_Chacha_SetKey(chacha,
+                    info->cipher.chacha20_poly1305_enc.inKey,
+                    CHACHA20_POLY1305_AEAD_KEYSIZE);
+                if (ret == 0) {
+                    ret = wc_ChaCha20Poly1305_Encrypt_ex(chacha, poly,
+                        info->cipher.chacha20_poly1305_enc.out,
+                        info->cipher.chacha20_poly1305_enc.in,
+                        info->cipher.chacha20_poly1305_enc.inSz,
+                        info->cipher.chacha20_poly1305_enc.inIV,
+                        info->cipher.chacha20_poly1305_enc.outAuthTag,
+                        info->cipher.chacha20_poly1305_enc.inAAD,
+                        info->cipher.chacha20_poly1305_enc.inAADSz);
+                }
+                if (ret == 0)
+                    myCtx->chachaPolyEncCount++;
+            }
+            else {
+                ret = wc_Chacha_SetKey(chacha,
+                    info->cipher.chacha20_poly1305_dec.inKey,
+                    CHACHA20_POLY1305_AEAD_KEYSIZE);
+                if (ret == 0) {
+                    ret = wc_ChaCha20Poly1305_Decrypt_ex(chacha, poly,
+                        info->cipher.chacha20_poly1305_dec.out,
+                        info->cipher.chacha20_poly1305_dec.in,
+                        info->cipher.chacha20_poly1305_dec.inSz,
+                        info->cipher.chacha20_poly1305_dec.inIV,
+                        info->cipher.chacha20_poly1305_dec.inAuthTag,
+                        info->cipher.chacha20_poly1305_dec.inAAD,
+                        info->cipher.chacha20_poly1305_dec.inAADSz);
+                }
+                if (ret == 0)
+                    myCtx->chachaPolyDecCount++;
+            }
+
+            ForceZero(chacha, sizeof(*chacha));
+            ForceZero(poly, sizeof(*poly));
+            XFREE(chacha, HEAP_HINT, DYNAMIC_TYPE_CIPHER);
+            XFREE(poly, HEAP_HINT, DYNAMIC_TYPE_CIPHER);
+        }
+#endif /* HAVE_CHACHA && HAVE_POLY1305 && !WOLFSSL_NO_MALLOC */
     }
 #if !defined(NO_SHA) || !defined(NO_SHA256) || \
     defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512)
@@ -85604,6 +85678,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     myCtx.hkdfPendArm = 0;
     myCtx.hkdfPendCount = 0;
 #endif
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+    myCtx.chachaPolyEncCount = 0;
+    myCtx.chachaPolyDecCount = 0;
+#endif
 
     /* set devId to something other than INVALID_DEVID */
     devId = 1;
@@ -85630,6 +85708,115 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
         ret = rsa_onlycb_test(&myCtx);
     PRIVATE_KEY_LOCK();
 #endif
+
+
+
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && \
+    !defined(WOLFSSL_NO_MALLOC)
+    /* chacha20_poly1305_aead_test() is not repeated here: it drives the legacy
+     * one-shot, which carries no devId and so never reaches the callback.
+     * AEAD decrypt must fail closed through the callback, not just in
+     * software. Corrupt each authenticated input in turn and require
+     * MAC_CMP_FAILED_E every time, with no plaintext left behind. */
+    if (ret == 0) {
+        WOLFSSL_SMALL_STACK_STATIC const byte cpKey[CHACHA20_POLY1305_AEAD_KEYSIZE] = {
+            0x80,0x81,0x82,0x83,0x84,0x85,0x86,0x87,
+            0x88,0x89,0x8a,0x8b,0x8c,0x8d,0x8e,0x8f,
+            0x90,0x91,0x92,0x93,0x94,0x95,0x96,0x97,
+            0x98,0x99,0x9a,0x9b,0x9c,0x9d,0x9e,0x9f
+        };
+        WOLFSSL_SMALL_STACK_STATIC const byte cpIV[CHACHA20_POLY1305_AEAD_IV_SIZE] = {
+            0x07,0x00,0x00,0x00,0x40,0x41,0x42,0x43,0x44,0x45,0x46,0x47
+        };
+        WOLFSSL_SMALL_STACK_STATIC const byte cpAAD[] = {
+            0x50,0x51,0x52,0x53,0xc0,0xc1,0xc2,0xc3,0xc4,0xc5,0xc6,0xc7
+        };
+        byte cpPlain[16];
+        byte cpCipher[16];
+        byte cpOut[16];
+        byte cpTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE];
+        ChaCha*   cpChacha;
+        Poly1305* cpPoly;
+        int  i;
+
+        /* Heap rather than stack: Poly1305 alone is near 1KB with the AVX-512
+         * backend, and the callback this reaches adds a frame of its own - see
+         * WOLFSSL_TEST_MAX_RELATIVE_STACK_BYTES. */
+        cpChacha = (ChaCha*)XMALLOC(sizeof(*cpChacha), HEAP_HINT,
+            DYNAMIC_TYPE_CIPHER);
+        cpPoly = (Poly1305*)XMALLOC(sizeof(*cpPoly), HEAP_HINT,
+            DYNAMIC_TYPE_CIPHER);
+        if (cpChacha == NULL || cpPoly == NULL)
+            ret = WC_TEST_RET_ENC_NC;
+
+        /* Bind the ChaCha context to this test's device, which is what routes
+         * the AEAD through the callback - the legacy one-shot carries no devId
+         * and deliberately stays in software. */
+        if (ret == 0) {
+            XMEMSET(cpChacha, 0, sizeof(*cpChacha));
+            XMEMSET(cpPoly, 0, sizeof(*cpPoly));
+            XMEMSET(cpPlain, 0xA5, sizeof(cpPlain));
+            ret = wc_Chacha_SetKey_ex(cpChacha, cpKey, sizeof(cpKey), HEAP_HINT,
+                devId);
+        }
+        if (ret == 0) {
+            ret = wc_ChaCha20Poly1305_Encrypt_ex(cpChacha, cpPoly, cpCipher,
+                cpPlain, sizeof(cpPlain), cpIV, cpTag, cpAAD, sizeof(cpAAD));
+        }
+        /* The encrypt above must have crossed the callback boundary. */
+        if (ret == 0 && myCtx.chachaPolyEncCount == 0)
+            ret = WC_TEST_RET_ENC_NC;
+
+        /* i = 0 tamper the tag, 1 the ciphertext, 2 the AAD */
+        for (i = 0; ret == 0 && i < 3; i++) {
+            byte badAAD[sizeof(cpAAD)];
+            byte badCipher[sizeof(cpCipher)];
+            byte badTag[sizeof(cpTag)];
+            int  decRet;
+
+            XMEMCPY(badAAD, cpAAD, sizeof(badAAD));
+            XMEMCPY(badCipher, cpCipher, sizeof(badCipher));
+            XMEMCPY(badTag, cpTag, sizeof(badTag));
+            if (i == 0)
+                badTag[0] ^= 0x01;
+            else if (i == 1)
+                badCipher[0] ^= 0x01;
+            else
+                badAAD[0] ^= 0x01;
+
+            XMEMSET(cpOut, 0x5A, sizeof(cpOut));
+            decRet = wc_Chacha_SetKey_ex(cpChacha, cpKey, sizeof(cpKey),
+                HEAP_HINT, devId);
+            if (decRet == 0) {
+                decRet = wc_ChaCha20Poly1305_Decrypt_ex(cpChacha, cpPoly,
+                    cpOut, badCipher, sizeof(badCipher), cpIV, badTag,
+                    badAAD, sizeof(badAAD));
+            }
+            if (decRet != WC_NO_ERR_TRACE(MAC_CMP_FAILED_E)) {
+                ret = WC_TEST_RET_ENC_NC;
+            }
+            else {
+                /* The whole buffer must be zeroed, not merely different from
+                 * the plaintext: leaving the sentinel untouched, or clearing
+                 * only part of it, is still a leak of unauthenticated data. */
+                word32 z;
+                for (z = 0; z < (word32)sizeof(cpOut); z++) {
+                    if (cpOut[z] != 0) {
+                        ret = WC_TEST_RET_ENC_NC;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (cpChacha != NULL)
+            ForceZero(cpChacha, sizeof(*cpChacha));
+        if (cpPoly != NULL)
+            ForceZero(cpPoly, sizeof(*cpPoly));
+        XFREE(cpChacha, HEAP_HINT, DYNAMIC_TYPE_CIPHER);
+        XFREE(cpPoly, HEAP_HINT, DYNAMIC_TYPE_CIPHER);
+    }
+#endif /* HAVE_CHACHA && HAVE_POLY1305 && !WOLFSSL_NO_MALLOC */
 #if defined(HAVE_ECC)
     PRIVATE_KEY_UNLOCK();
     if (ret == 0)
