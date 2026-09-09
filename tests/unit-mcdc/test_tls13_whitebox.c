@@ -742,10 +742,10 @@ static void wb_sanity_check_msgs(void)
 
 /* ------------------------------------------------------------------------- *
  * The RFC 8446 Section 4.4.2.2 rule on the chain this end sends:
- * IsSha1SignedCert(), CheckCertChainSigAlgo() and the check at the head of
+ * GetCertSigAlgo(), CheckCertChainSigAlgo() and the check at the head of
  * SendTls13Certificate().
  *
- * IsSha1SignedCert() reads two fields of a DER encoded certificate, the
+ * GetCertSigAlgo() reads two fields of a DER encoded certificate, the
  * tbsCertificate (for its length only) and the signatureAlgorithm that
  * follows it, so the vectors below are AlgorithmIdentifiers with a one byte
  * placeholder in front rather than complete certificates. That is what makes
@@ -817,34 +817,48 @@ static void wb_expect_sha1(const char* what, int got, int want)
         printf("  [wb] %s: expected %d, got %d\n", what, want, got);
 }
 
+/* GetCertSigAlgo() replaced IsSha1SignedCert(): it reports the certificate's
+ * whole signature scheme rather than answering one question, so the SHA-1
+ * question this decision table is written against is asked here, the same way
+ * CheckCertChainSigAlgo() asks it. */
+static int wb_sha1_signed(const byte* der, word32 derSz)
+{
+    byte hashAlgo = no_mac;
+    byte sigAlgo = invalid_sa_algo;
+
+    if (!GetCertSigAlgo(der, derSz, &hashAlgo, &sigAlgo))
+        return 0;
+    return hashAlgo == sha_mac;
+}
+
 static void wb_is_sha1_signed_cert(void)
 {
     /* (T,-,-) */
     wb_expect_sha1("sha1WithRSAEncryption",
-        IsSha1SignedCert(wb_sig_sha1_rsa, (word32)sizeof(wb_sig_sha1_rsa)), 1);
+        wb_sha1_signed(wb_sig_sha1_rsa, (word32)sizeof(wb_sig_sha1_rsa)), 1);
     /* (F,T,-) */
     wb_expect_sha1("ecdsa-with-SHA1",
-        IsSha1SignedCert(wb_sig_sha1_ecdsa, (word32)sizeof(wb_sig_sha1_ecdsa)),
+        wb_sha1_signed(wb_sig_sha1_ecdsa, (word32)sizeof(wb_sig_sha1_ecdsa)),
         1);
     /* (F,F,T) */
     wb_expect_sha1("id-dsa-with-sha1",
-        IsSha1SignedCert(wb_sig_sha1_dsa, (word32)sizeof(wb_sig_sha1_dsa)), 1);
+        wb_sha1_signed(wb_sig_sha1_dsa, (word32)sizeof(wb_sig_sha1_dsa)), 1);
     /* (F,F,F), and the (F,-,-) partner of the RSASSA-PSS decision. */
     wb_expect_sha1("sha256WithRSAEncryption",
-        IsSha1SignedCert(wb_sig_sha256_rsa, (word32)sizeof(wb_sig_sha256_rsa)),
+        wb_sha1_signed(wb_sig_sha256_rsa, (word32)sizeof(wb_sig_sha256_rsa)),
         0);
 #if defined(WC_RSA_PSS) && !defined(NO_RSA)
     /* (T,T,T): the parameters decode, and to SHA-1. */
     wb_expect_sha1("id-RSASSA-PSS, absent parameters",
-        IsSha1SignedCert(wb_sig_pss_absent, (word32)sizeof(wb_sig_pss_absent)),
+        wb_sha1_signed(wb_sig_pss_absent, (word32)sizeof(wb_sig_pss_absent)),
         1);
     /* (T,T,F): the signature OID matches but the parameters do not decode, so
      * the digest is unknown and the certificate is not treated as SHA-1. */
     wb_expect_sha1("id-RSASSA-PSS, undecodable parameters",
-        IsSha1SignedCert(wb_sig_pss_bad, (word32)sizeof(wb_sig_pss_bad)), 0);
+        wb_sha1_signed(wb_sig_pss_bad, (word32)sizeof(wb_sig_pss_bad)), 0);
 #endif
 
-    WB_NOTE("IsSha1SignedCert signature algorithm arms driven with both "
+    WB_NOTE("GetCertSigAlgo signature algorithm arms driven with both "
             "halves of each independence pair");
 }
 
@@ -990,7 +1004,7 @@ static void wb_cert_chain_sigalgo(void)
 }
 #else
 static void wb_is_sha1_signed_cert(void)
-{ WB_NOTE("IsSha1SignedCert not compiled in this variant; skipped"); }
+{ WB_NOTE("GetCertSigAlgo not compiled in this variant; skipped"); }
 static void wb_cert_chain_sigalgo(void)
 { WB_NOTE("CheckCertChainSigAlgo not compiled in this variant; skipped"); }
 #endif /* WB_HAVE_SSL_FIXTURE && !NO_CERTS && !WOLFSSL_NO_SIGALG */

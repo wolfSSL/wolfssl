@@ -4486,11 +4486,11 @@ void* wolfSSL_SESSION_get_ex_data(const WOLFSSL_SESSION* session, int idx)
 #ifdef HAVE_EX_DATA_CRYPTO
 int wolfSSL_SESSION_get_ex_new_index(long ctx_l,void* ctx_ptr,
         WOLFSSL_CRYPTO_EX_new* new_func, WOLFSSL_CRYPTO_EX_dup* dup_func,
-        WOLFSSL_CRYPTO_EX_free* free_func)
+        WOLFSSL_CRYPTO_EX_free* free_cb)
 {
     WOLFSSL_ENTER("wolfSSL_SESSION_get_ex_new_index");
     return wolfssl_local_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_SSL_SESSION,
-            ctx_l, ctx_ptr, new_func, dup_func, free_func);
+            ctx_l, ctx_ptr, new_func, dup_func, free_cb);
 }
 #endif /* HAVE_EX_DATA_CRYPTO */
 #endif /* HAVE_EX_DATA */
