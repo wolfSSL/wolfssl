@@ -1360,12 +1360,15 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
         }
 #endif
 
+    #ifdef FREESCALE_MMCAU_CLASSIC
+        if ((wc_ptr_t)outBlock % WOLFSSL_MMCAU_ALIGNMENT) {
+            WOLFSSL_MSG("Bad cau_aes_encrypt alignment");
+            return BAD_ALIGN_E;
+        }
+    #endif
+
         if (wolfSSL_CryptHwMutexLock() == 0) {
         #ifdef FREESCALE_MMCAU_CLASSIC
-            if ((wc_ptr_t)outBlock % WOLFSSL_MMCAU_ALIGNMENT) {
-                WOLFSSL_MSG("Bad cau_aes_encrypt alignment");
-                return BAD_ALIGN_E;
-            }
             cau_aes_encrypt(inBlock, (byte*)aes->key, aes->rounds, outBlock);
         #else
             MMCAU_AES_EncryptEcb(inBlock, (byte*)aes->key, aes->rounds,
@@ -1386,12 +1389,15 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
                 return ret;
         }
 #endif
+    #ifdef FREESCALE_MMCAU_CLASSIC
+        if ((wc_ptr_t)outBlock % WOLFSSL_MMCAU_ALIGNMENT) {
+            WOLFSSL_MSG("Bad cau_aes_decrypt alignment");
+            return BAD_ALIGN_E;
+        }
+    #endif
+
         if (wolfSSL_CryptHwMutexLock() == 0) {
         #ifdef FREESCALE_MMCAU_CLASSIC
-            if ((wc_ptr_t)outBlock % WOLFSSL_MMCAU_ALIGNMENT) {
-                WOLFSSL_MSG("Bad cau_aes_decrypt alignment");
-                return BAD_ALIGN_E;
-            }
             cau_aes_decrypt(inBlock, (byte*)aes->key, aes->rounds, outBlock);
         #else
             MMCAU_AES_DecryptEcb(inBlock, (byte*)aes->key, aes->rounds,
