@@ -480,6 +480,7 @@ struct WC_RNG {
 #elif defined(WC_RNG_HAVE_LOCK)
     wolfSSL_Mutex lock;   /* serializes generate and reseed */
     byte lockInited;      /* nonzero once lock exists */
+    int lockCancel;       /* the holder's cancel state, back on exit */
 #endif
 };
 

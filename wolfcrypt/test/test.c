@@ -27925,9 +27925,19 @@ static THREAD_RETURN WOLFSSL_THREAD rng_thread_test_worker(void* arg)
 #ifdef WC_TEST_RNG_FORK
 #define WC_RNG_FORK_HOLD_NS 50000000L
 
+/* Elapsed nanoseconds, capped at two seconds so nothing overflows. */
+static long rng_test_elapsed_ns(const struct timespec* a,
+                                const struct timespec* b)
+{
+    if (b->tv_sec - a->tv_sec >= 2)
+        return 2000000000L;
+    return (b->tv_sec - a->tv_sec) * 1000000000L + (b->tv_nsec - a->tv_nsec);
+}
+
 struct rng_fork_holder_args {
     WC_RNG* rng;
-    int     fd;   /* gets one byte once the lock is held */
+    int     fd;    /* gets one byte once the lock is held */
+    int     rfd;   /* the go byte arrives here; the hold is timed from it */
 };
 
 /* Holds the lock while the other thread enters fork(), as a generate in
@@ -27939,6 +27949,7 @@ static THREAD_RETURN WOLFSSL_THREAD rng_fork_test_holder(void* arg)
     struct rng_fork_holder_args* a = (struct rng_fork_holder_args*)arg;
     struct timespec start, now;
     byte held = 1;
+    byte go = 0;
     int rc = -1;
 
     if (a->rng->lock != NULL) {
@@ -27947,18 +27958,18 @@ static THREAD_RETURN WOLFSSL_THREAD rng_fork_test_holder(void* arg)
         } while (rc != 0 && errno == EINTR);
     }
     if (rc == 0) {
-        if (write(a->fd, &held, 1) == 1 &&
+        /* hold for the full time only once the tester says it is timing */
+        if (write(a->fd, &held, 1) == 1 && read(a->rfd, &go, 1) == 1 &&
             clock_gettime(CLOCK_MONOTONIC, &start) == 0) {
             do {
                 if (clock_gettime(CLOCK_MONOTONIC, &now) != 0)
                     break;
-            } while (now.tv_sec - start.tv_sec < 2 &&   /* no overflow */
-                     (now.tv_sec - start.tv_sec) * 1000000000L +
-                     (now.tv_nsec - start.tv_nsec) < WC_RNG_FORK_HOLD_NS);
+            } while (rng_test_elapsed_ns(&start, &now) < WC_RNG_FORK_HOLD_NS);
         }
         (void)sem_post(&a->rng->lock->sem);
     }
     close(a->fd);   /* EOF if the lock was never held */
+    close(a->rfd);
     WOLFSSL_RETURN_FROM_THREAD(0);
 }
 
@@ -27973,11 +27984,14 @@ static wc_test_ret_t rng_fork_test(WC_RNG* rng)
     wc_test_ret_t ret = 0;
     int fd[2];
     int hfd[2];
+    int gfd[2];
     int piped = 0;
     int started = 0;
     pid_t pid = -1;
     int status = 0;
     byte held = 0;
+    byte go = 1;
+    struct timespec t0, t1;
 
     WC_ALLOC_VAR(parent, byte, WC_RNG_THREAD_TEST_BLKSZ, HEAP_HINT);
     WC_ALLOC_VAR(child, byte, WC_RNG_THREAD_TEST_BLKSZ, HEAP_HINT);
@@ -27992,16 +28006,24 @@ static wc_test_ret_t rng_fork_test(WC_RNG* rng)
     if (pipe(hfd) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     piped = 2;
+    if (pipe(gfd) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+    piped = 3;
 
     h->rng = rng;
     h->fd = hfd[1];
+    h->rfd = gfd[0];
     if (wolfSSL_NewThread(&holder, &rng_fork_test_holder, h) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     started = 1;
     if (read(hfd[0], &held, 1) != 1)
         ERROR_OUT(WC_TEST_RET_ENC_NC, done);
 
+    (void)clock_gettime(CLOCK_MONOTONIC, &t0);   /* before the go byte */
+    if (write(gfd[1], &go, 1) != 1)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     pid = fork();
+    (void)clock_gettime(CLOCK_MONOTONIC, &t1);
     if (pid == 0) {
         if (wc_RNG_GenerateBlock(rng, child, WC_RNG_THREAD_TEST_BLKSZ) != 0)
             _exit(1);
@@ -28017,6 +28039,9 @@ static wc_test_ret_t rng_fork_test(WC_RNG* rng)
     close(fd[1]);
     fd[1] = -1;
     if (pid < 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+    /* prepare had to wait for the holder, so fork() took most of the hold */
+    if (rng_test_elapsed_ns(&t0, &t1) < WC_RNG_FORK_HOLD_NS / 2)
         ERROR_OUT(WC_TEST_RET_ENC_NC, done);
 
     if (read(fd[0], child, WC_RNG_THREAD_TEST_BLKSZ) !=
@@ -28041,6 +28066,8 @@ done:
         (void)kill(pid, SIGKILL);
         (void)waitpid(pid, NULL, 0);
     }
+    if (piped >= 3)
+        close(gfd[1]);   /* EOF frees a holder still waiting for go */
     if (started && (wolfSSL_JoinThread(holder) != 0) && ret == 0)
         ret = WC_TEST_RET_ENC_NC;
     if (piped >= 1) {
@@ -28054,11 +28081,68 @@ done:
         if (!started)
             close(hfd[1]);
     }
+    if (piped >= 3 && !started)
+        close(gfd[0]);
     XFREE(h, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     WC_FREE_VAR(parent, HEAP_HINT);
     WC_FREE_VAR(child, HEAP_HINT);
     return ret;
 }
+/* A generate on a held instance must not finish until the holder lets go. */
+static wc_test_ret_t rng_lock_wait_test(WC_RNG* rng)
+{
+    WC_DECLARE_VAR(blk, byte, WC_RNG_THREAD_TEST_BLKSZ, HEAP_HINT);
+    struct rng_fork_holder_args* h = NULL;
+    THREAD_TYPE holder = INVALID_THREAD_VAL;
+    struct timespec t0, t1;
+    wc_test_ret_t ret = 0;
+    int hfd[2] = { -1, -1 };
+    int gfd[2] = { -1, -1 };
+    int started = 0;
+    byte held = 0;
+    byte go = 1;
+
+    WC_ALLOC_VAR(blk, byte, WC_RNG_THREAD_TEST_BLKSZ, HEAP_HINT);
+    h = (struct rng_fork_holder_args*)XMALLOC(sizeof(*h), HEAP_HINT,
+                                              DYNAMIC_TYPE_TMP_BUFFER);
+    if ((! WC_VAR_OK(blk)) || h == NULL || pipe(hfd) != 0 || pipe(gfd) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), done);
+    h->rng = rng;
+    h->fd = hfd[1];
+    h->rfd = gfd[0];
+    if (wolfSSL_NewThread(&holder, &rng_fork_test_holder, h) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+    started = 1;
+    if (read(hfd[0], &held, 1) != 1)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+    (void)clock_gettime(CLOCK_MONOTONIC, &t0);   /* before the go byte */
+    if (write(gfd[1], &go, 1) != 1)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+    ret = wc_RNG_GenerateBlock(rng, blk, WC_RNG_THREAD_TEST_BLKSZ);
+    (void)clock_gettime(CLOCK_MONOTONIC, &t1);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    if (rng_test_elapsed_ns(&t0, &t1) < WC_RNG_FORK_HOLD_NS / 2)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);   /* it did not wait */
+
+done:
+    if (gfd[1] >= 0)
+        close(gfd[1]);   /* EOF frees a holder still waiting for go */
+    if (started && (wolfSSL_JoinThread(holder) != 0) && ret == 0)
+        ret = WC_TEST_RET_ENC_NC;
+    if (hfd[0] >= 0)
+        close(hfd[0]);
+    if (!started) {
+        if (hfd[1] >= 0)
+            close(hfd[1]);
+        if (gfd[0] >= 0)
+            close(gfd[0]);
+    }
+    XFREE(h, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR(blk, HEAP_HINT);
+    return ret;
+}
+
 struct rng_churn_args {
     int  ret;   /* first failure, if any */
     long ns;    /* how long to keep registering and freeing */
@@ -28082,9 +28166,7 @@ static THREAD_RETURN WOLFSSL_THREAD rng_fork_test_churn(void* arg)
         wc_rng_free(r);
         if (clock_gettime(CLOCK_MONOTONIC, &now) != 0)
             break;
-    } while (now.tv_sec - start.tv_sec < 2 &&
-             (now.tv_sec - start.tv_sec) * 1000000000L +
-             (now.tv_nsec - start.tv_nsec) < a->ns);
+    } while (rng_test_elapsed_ns(&start, &now) < a->ns);
     WOLFSSL_RETURN_FROM_THREAD(0);
 }
 
@@ -28123,9 +28205,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
         struct rng_churn_args* c = NULL;
         THREAD_TYPE churn = INVALID_THREAD_VAL;   /* joined only if started */
         int churning = 0;
-    #ifndef NO_MAIN_DRIVER
-        unsigned int prevAlarm;
-    #endif
         (void)wc_rng_new_ex(&mid, NULL, 0, HEAP_HINT, INVALID_DEVID);
         (void)wc_rng_new_ex(&third, NULL, 0, HEAP_HINT, INVALID_DEVID);
         if (mid == NULL || third == NULL) {
@@ -28136,6 +28215,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out_free);
         }
         wc_rng_free(mid);   /* the middle of three leaves the registry */
+        ret = rng_lock_wait_test(rng);
+        if (ret != 0) {
+            wc_rng_free(third);
+            goto out_free;
+        }
         c = (struct rng_churn_args*)XMALLOC(sizeof(*c), HEAP_HINT,
                                             DYNAMIC_TYPE_TMP_BUFFER);
         if (c == NULL) {
@@ -28146,17 +28230,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
         c->ns = 6 * WC_RNG_FORK_HOLD_NS;   /* outlasts both fork tests */
         if (wolfSSL_NewThread(&churn, &rng_fork_test_churn, c) == 0)
             churning = 1;
-    #ifndef NO_MAIN_DRIVER
-        prevAlarm = alarm(30);   /* a hung child or holder fails the run */
-    #endif
         ret = rng_fork_test(rng);
         if (ret == 0)
             ret = rng_fork_test(third);
-    #ifndef NO_MAIN_DRIVER
-        alarm(0);
-        if (prevAlarm != 0)
-            alarm(prevAlarm);
-    #endif
         if (churning && wolfSSL_JoinThread(churn) != 0 && ret == 0)
             ret = WC_TEST_RET_ENC_NC;
         else if (ret == 0 && (!churning || c->ret != 0))
