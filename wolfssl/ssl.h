@@ -1486,6 +1486,8 @@ WOLFSSL_API int wolfSSL_get_wfd(const WOLFSSL* ssl);
 WOLFSSL_ABI WOLFSSL_API int  wolfSSL_connect(WOLFSSL* ssl);
 WOLFSSL_ABI WOLFSSL_API int  wolfSSL_write(
     WOLFSSL* ssl, const void* data, int sz);
+WOLFSSL_API int wolfSSL_send_tls13_cover_traffic(
+    WOLFSSL* ssl, int paddingSz);
 WOLFSSL_API int wolfSSL_write_ex(WOLFSSL* ssl, const void* data, size_t sz,
     size_t* wr);
 WOLFSSL_ABI WOLFSSL_API int  wolfSSL_read(WOLFSSL* ssl, void* data, int sz);
