@@ -107,7 +107,11 @@ jobs:
           {"name": "cryptonly-curve448", "minutes": 0.8,
            "configure": ["--enable-cryptonly", "--enable-curve448"]},
           {"name": "cryptonly-ed448", "minutes": 0.8,
-           "configure": ["--enable-cryptonly", "--enable-ed448"]}
+           "configure": ["--enable-cryptonly", "--enable-ed448"]},
+          {"name": "cryptonly-slhdsa-swdev", "minutes": 1,
+           "comment": "SLH-DSA as the only public key algorithm, dispatched through cryptocb to swdev. Guards swdev's WC_ALGO_TYPE_PK case, which is compiled out when none of RSA, ECC, Ed25519 and Curve25519 is enabled and would take every SLH-DSA callback with it.",
+           "configure": ["--enable-cryptonly", "--enable-slhdsa=yes,sha2",
+             "--enable-cryptocb", "--enable-swdev"]}
           ]}
           EOF
           .github/scripts/parallel-make-check.py \
