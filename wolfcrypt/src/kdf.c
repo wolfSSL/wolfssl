@@ -846,6 +846,8 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
                 ret = _HashFinal(enmhashId, &hash, lastBlock);
                 if (ret == 0)
                     XMEMCPY(key, lastBlock, remainder);
+                /* lastBlock held derived key material (ISO/IEC 19790 7.9). */
+                ForceZero(lastBlock, sizeof(lastBlock));
             }
         }
         else {
@@ -891,6 +893,8 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
                     ret = _HashFinal(enmhashId, &hash, lastBlock);
                 if (ret == 0)
                     XMEMCPY(key + runningKeySz, lastBlock, remainder);
+                /* lastBlock held derived key material (ISO/IEC 19790 7.9). */
+                ForceZero(lastBlock, sizeof(lastBlock));
             }
         }
     }
