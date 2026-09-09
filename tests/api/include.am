@@ -147,7 +147,8 @@ tests_unit_test_SOURCES += tests/api/test_tls13_bounds.c
 tests_unit_test_SOURCES += tests/api/test_tls13_features.c
 endif
 
-EXTRA_DIST += tests/api/api.h
+EXTRA_DIST += tests/api/check-api-guards.py \
+              tests/api/api.h
 EXTRA_DIST += tests/api/api_decl.h
 EXTRA_DIST += tests/api/test_md2.h
 EXTRA_DIST += tests/api/test_md4.h
