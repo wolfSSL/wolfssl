@@ -95,6 +95,7 @@ test_sp_x86_64_fault_whitebox
 test_sp_x86_64_whitebox
 test_srp_whitebox
 test_ssl_certman_whitebox
+test_ssl_sess_whitebox
 test_tfm_fault_whitebox
 test_tls13_null_whitebox
 test_tls13_whitebox
