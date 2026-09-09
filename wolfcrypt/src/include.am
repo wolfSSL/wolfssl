@@ -20,6 +20,7 @@ EXTRA_DIST += wolfcrypt/src/aes_asm.asm
 EXTRA_DIST += wolfcrypt/src/aes_x86_64_asm.asm
 EXTRA_DIST += wolfcrypt/src/aes_gcm_asm.asm
 EXTRA_DIST += wolfcrypt/src/aes_gcm_x86_asm.asm
+EXTRA_DIST += wolfcrypt/src/aes_gcm_x86_asm.S
 EXTRA_DIST += wolfcrypt/src/aes_xts_asm.asm
 EXTRA_DIST += wolfcrypt/src/aes_xts_x86_asm.asm
 EXTRA_DIST += wolfcrypt/src/chacha_asm.asm
