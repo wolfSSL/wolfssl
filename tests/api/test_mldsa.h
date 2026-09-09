@@ -38,6 +38,7 @@ int test_mldsa_public_der_decode(void);
 int test_mldsa_der(void);
 int test_mldsa_oneasymkey_version(void);
 int test_mldsa_make_key_from_seed(void);
+int test_mldsa_verify_pubkeyset_guard(void);
 int test_mldsa_sig_kats(void);
 int test_mldsa_sign_ctx_kats(void);
 int test_mldsa_verify_ctx_kats(void);
@@ -82,6 +83,7 @@ int test_mldsa_cb_free(void);
     TEST_DECL_GROUP("mldsa", test_mldsa_der),                                  \
     TEST_DECL_GROUP("mldsa", test_mldsa_oneasymkey_version),                   \
     TEST_DECL_GROUP("mldsa", test_mldsa_make_key_from_seed),                   \
+    TEST_DECL_GROUP("mldsa", test_mldsa_verify_pubkeyset_guard),               \
     TEST_DECL_GROUP("mldsa", test_mldsa_sig_kats),                             \
     TEST_DECL_GROUP("mldsa", test_mldsa_sign_ctx_kats),                        \
     TEST_DECL_GROUP("mldsa", test_mldsa_verify_ctx_kats),                      \
