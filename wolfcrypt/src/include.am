@@ -131,6 +131,15 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/silabs/silabs_hash.c \
               wolfcrypt/src/port/silabs/silabs_random.c \
               wolfcrypt/src/port/silabs/README.md \
+              wolfcrypt/src/port/nuvoton/nuvoton_hw.h \
+              wolfcrypt/src/port/nuvoton/nuvoton_hw.c \
+              wolfcrypt/src/port/nuvoton/nuvoton_cryptocb.c \
+              wolfcrypt/src/port/nuvoton/nuvoton_cb_rng.c \
+              wolfcrypt/src/port/nuvoton/nuvoton_cb_hash.c \
+              wolfcrypt/src/port/nuvoton/nuvoton_cb_cipher.c \
+              wolfcrypt/src/port/nuvoton/nuvoton_cb_pk.c \
+              wolfcrypt/src/port/nuvoton/nuvoton_key.c \
+              wolfcrypt/src/port/nuvoton/README.md \
               wolfcrypt/src/port/st/stm32.c \
               wolfcrypt/src/port/st/README.md \
               wolfcrypt/src/port/st/STM32MP13.md \

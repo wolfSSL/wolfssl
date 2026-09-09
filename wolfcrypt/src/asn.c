@@ -33869,17 +33869,22 @@ int DecodeECC_DSA_Sig_Ex(const byte* sig, word32 sigLen, mp_int* r, mp_int* s,
 #endif
 
 
-#ifdef WOLFSSL_ASN_TEMPLATE
-#if defined(HAVE_ECC) && defined(WOLFSSL_CUSTOM_CURVES)
+#ifdef WOLFSSL_ASN_HEX_STRING
 /* Convert data to hex string.
  *
  * Big-endian byte array is converted to big-endian hexadecimal string.
  *
+ * Written for the custom ECC curve parameters, which SEC 1 carries as byte
+ * arrays and ecc_set_type holds as strings. Hardware ports whose driver takes
+ * key material the same way reuse it rather than growing their own copy; see
+ * WOLFSSL_ASN_HEX_STRING in asn.h. Base16_Decode() goes the other way and
+ * accepts either case, so the two pair up.
+ *
  * @param [in]  input  Buffer containing data.
  * @param [in]  inSz   Size of data in buffer.
- * @param [out] out    Buffer to hold hex string.
+ * @param [out] out    Buffer to hold hex string. Needs inSz * 2 + 1 bytes.
  */
-static void DataToHexString(const byte* input, word32 inSz, char* out)
+void wc_DataToHexString(const byte* input, word32 inSz, char* out)
 {
     static const char hexChar[] = { '0', '1', '2', '3', '4', '5', '6', '7',
                                     '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
@@ -33893,7 +33898,10 @@ static void DataToHexString(const byte* input, word32 inSz, char* out)
     /* NUL terminate string. */
     out[i * 2] = '\0';
 }
+#endif /* WOLFSSL_ASN_HEX_STRING */
 
+#ifdef WOLFSSL_ASN_TEMPLATE
+#if defined(HAVE_ECC) && defined(WOLFSSL_CUSTOM_CURVES)
 #ifndef WOLFSSL_ECC_CURVE_STATIC
 /* Convert data to hex string and place in allocated buffer.
  *
@@ -33920,7 +33928,7 @@ static int DataToHexStringAlloc(const byte* input, word32 inSz, char** out,
     }
     else {
         /* Convert to hex string. */
-        DataToHexString(input, inSz, str);
+        wc_DataToHexString(input, inSz, str);
         *out = str;
     }
 
@@ -34123,23 +34131,23 @@ static int EccSpecifiedECDomainDecode(const byte* input, word32 inSz,
     #else
     if (ret == 0) {
         /* Base X-ordinate */
-        DataToHexString(base + 1, (word32)curve->size, (char *)curve->Gx);
+        wc_DataToHexString(base + 1, (word32)curve->size, (char *)curve->Gx);
         /* Base Y-ordinate */
-        DataToHexString(base + 1 + curve->size, (word32)curve->size, (char *)curve->Gy);
+        wc_DataToHexString(base + 1 + curve->size, (word32)curve->size, (char *)curve->Gy);
         /* Prime */
-        DataToHexString(dataASN[ECCSPECIFIEDASN_IDX_PRIME_P].data.ref.data,
+        wc_DataToHexString(dataASN[ECCSPECIFIEDASN_IDX_PRIME_P].data.ref.data,
                         dataASN[ECCSPECIFIEDASN_IDX_PRIME_P].data.ref.length,
                         (char *)curve->prime);
         /* Parameter A */
-        DataToHexString(dataASN[ECCSPECIFIEDASN_IDX_PARAM_A].data.ref.data,
+        wc_DataToHexString(dataASN[ECCSPECIFIEDASN_IDX_PARAM_A].data.ref.data,
                         dataASN[ECCSPECIFIEDASN_IDX_PARAM_A].data.ref.length,
                         (char *)curve->Af);
         /* Parameter B */
-        DataToHexString(dataASN[ECCSPECIFIEDASN_IDX_PARAM_B].data.ref.data,
+        wc_DataToHexString(dataASN[ECCSPECIFIEDASN_IDX_PARAM_B].data.ref.data,
                         dataASN[ECCSPECIFIEDASN_IDX_PARAM_B].data.ref.length,
                         (char *)curve->Bf);
         /* Order of curve */
-        DataToHexString(dataASN[ECCSPECIFIEDASN_IDX_ORDER].data.ref.data,
+        wc_DataToHexString(dataASN[ECCSPECIFIEDASN_IDX_ORDER].data.ref.data,
                         dataASN[ECCSPECIFIEDASN_IDX_ORDER].data.ref.length,
                         (char *)curve->order);
     }
