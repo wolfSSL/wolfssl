@@ -4115,3 +4115,74 @@ int test_wc_AsnFeatureCoverage(void)
 #endif /* !NO_ASN && HAVE_ECC && USE_CERT_BUFFERS_256 && !HAVE_FIPS */
     return EXPECT_RESULT();
 }
+
+/* RFC 5280 4.2.1.4 defines PolicyInformation.policyQualifiers as
+ * SEQUENCE SIZE (1..MAX) OF PolicyQualifierInfo OPTIONAL, so a policy set
+ * without qualifiers must encode as a SEQUENCE holding only the OID, never
+ * an empty "30 00" qualifier SEQUENCE after it. */
+int test_SetCertificatePolicies_no_empty_qualifiers(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    !defined(NO_RSA) && !defined(NO_CERTS) && !defined(NO_ASN) && \
+    !defined(NO_ASN_TIME) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048) && !defined(HAVE_FIPS)
+    {
+        RsaKey key;
+        WC_RNG rng;
+        Cert cert;
+        byte* der;
+        int certSz = 0;
+        word32 idx = 0;
+        /* "1.2.3" */
+        const byte oidTlv[] = { 0x06, 0x02, 0x2a, 0x03 };
+
+        der = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        ExpectNotNull(der);
+
+        XMEMSET(&key, 0, sizeof(key));
+        XMEMSET(&rng, 0, sizeof(rng));
+        ExpectIntEQ(wc_InitRsaKey(&key, HEAP_HINT), 0);
+        ExpectIntEQ(wc_InitRng(&rng), 0);
+        ExpectIntEQ(wc_RsaPrivateKeyDecode(client_key_der_2048, &idx, &key,
+                    sizeof_client_key_der_2048), 0);
+
+        ExpectIntEQ(wc_InitCert(&cert), 0);
+        cert.isCA = 0;
+        cert.sigType = CTC_SHA256wRSA;
+        XSTRNCPY(cert.subject.country, "US", CTC_NAME_SIZE - 1);
+        XSTRNCPY(cert.subject.commonName, "www.wolfssl.com",
+                CTC_NAME_SIZE - 1);
+        XSTRNCPY(cert.certPolicies[0], "1.2.3", CTC_MAX_CERTPOL_SZ - 1);
+        cert.certPoliciesNb = 1;
+
+        if (der != NULL) {
+            ExpectIntGT(certSz = wc_MakeSelfCert(&cert, der, FOURK_BUF, &key,
+                        &rng), 0);
+        }
+
+        if (EXPECT_SUCCESS()) {
+            int i;
+            int found = 0;
+
+            for (i = 2; i + (int)sizeof(oidTlv) <= certSz; i++) {
+                if (XMEMCMP(der + i, oidTlv, sizeof(oidTlv)) == 0 &&
+                        der[i - 2] == 0x30) {
+                    /* The enclosing PolicyInformation SEQUENCE must be
+                     * exactly the OID TLV: 30 04 06 02 2a 03. A length of
+                     * 6 would mean an empty policyQualifiers follows. */
+                    ExpectIntEQ(der[i - 1], sizeof(oidTlv));
+                    found = 1;
+                    break;
+                }
+            }
+            ExpectIntEQ(found, 1);
+        }
+
+        wc_FreeRng(&rng);
+        wc_FreeRsaKey(&key);
+        XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif
+    return EXPECT_RESULT();
+}
