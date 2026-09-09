@@ -504,6 +504,8 @@ static WC_INLINE int wc_lms_sha256_192_hash_block(wc_Sha256* sha256,
     if (ret == 0) {
         XMEMCPY(hash, output, WC_SHA256_192_DIGEST_SIZE);
     }
+    /* Prefix is x_q[i] or a child SEED (ISO/IEC 19790:2012 7.9.7). */
+    ForceZero(output, sizeof(output));
 
     return ret;
 }
@@ -567,6 +569,8 @@ static WC_INLINE int wc_lms_hash_sha256_192(wc_Sha256* sha256, byte* data,
         }
     }
 #endif /* !WC_LMS_FULL_HASH */
+    /* Prefix is x_q[i] or a child SEED (ISO/IEC 19790:2012 7.9.7). */
+    ForceZero(output, sizeof(output));
 
     return ret;
 }
@@ -611,6 +615,8 @@ static WC_INLINE int wc_lms_hash_sha256_192_final(wc_Sha256* sha256, byte* hash)
         sha256->hiLen = 0;
         sha256->loLen = 0;
     }
+    /* Prefix is x_q[i] or a child SEED (ISO/IEC 19790:2012 7.9.7). */
+    ForceZero(output, sizeof(output));
 
     return ret;
 #else
@@ -621,6 +627,8 @@ static WC_INLINE int wc_lms_hash_sha256_192_final(wc_Sha256* sha256, byte* hash)
     if (ret == 0) {
         XMEMCPY(hash, output, WC_SHA256_192_DIGEST_SIZE);
     }
+    /* Prefix is x_q[i] or a child SEED (ISO/IEC 19790:2012 7.9.7). */
+    ForceZero(output, sizeof(output));
 
     return ret;
 #endif
@@ -4432,6 +4440,8 @@ static int wc_hss_derive_seed_i(LmsState* state, const byte* id,
         /* Copy part of hash as new I into private key. */
         XMEMCPY(seed_i, tmp, LMS_I_LEN);
     }
+    /* buffer held the parent SEED (ISO/IEC 19790:2012 7.9.7). */
+    ForceZero(buffer, sizeof(buffer));
 
     return ret;
 }
