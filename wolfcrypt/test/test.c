@@ -30329,6 +30329,142 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseed_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_I((int)cur), out);
     }
 
+    /* --- uncredited stir aperture (NextUncreditedSeed) lifecycle --- */
+    if (present) {
+        byte frag[16];
+        XMEMSET(frag, 0x71, sizeof(frag));
+
+        if (wc_RNG_DRBG_NextUncreditedSeedStore(NULL, frag, sizeof(frag)) !=
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        {
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        }
+        if (wc_RNG_DRBG_NextUncreditedSeedStore(root, NULL, 1) !=
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        {
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        }
+        if (wc_RNG_DRBG_NextUncreditedSeedStore(root, frag, 0) !=
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        {
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        }
+
+        /* partial accumulation is not consumable. */
+        api_ret = wc_RNG_DRBG_NextUncreditedSeedStore(root, frag,
+                                                      sizeof(frag));
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_DRBG_NextUncreditedSeedNow(root);
+        if (api_ret != WC_NO_ERR_TRACE(NOT_READY_E))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+
+        /* fill to the top: READY; excess deposits absorbed by xorbuf();
+         * oversize deposits clamp. */
+        for (i = 0; i < (int)(WC_DRBG_NEXT_UNCREDITED_SEED_LEN /
+                              sizeof(frag)); i++)
+        {
+            api_ret = wc_RNG_DRBG_NextUncreditedSeedStore(root, frag,
+                                                          sizeof(frag));
+            if (api_ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        }
+        /* deposits on a READY accumulator fold in place using xorbuf()
+         * (advisory sentinel): absorbed, never refused. */
+        api_ret = wc_RNG_DRBG_NextUncreditedSeedStore(root, frag, sizeof(frag));
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+
+#if !defined(HAVE_INTEL_RDSEED) && !defined(HAVE_INTEL_RDRAND)
+        /* consumption is a stir, not an epoch: the reseed counter is not
+         * reset. */
+        {
+            wc_drbg_reseed_ctr_t ctr_before = 0, ctr_after = 0;
+            api_ret = wc_RNG_DRBG_GetReseedCtr(root, &ctr_before);
+            if (api_ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+            api_ret = wc_RNG_DRBG_NextUncreditedSeedNow(root);
+            if (api_ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+            api_ret = wc_RNG_DRBG_GetReseedCtr(root, &ctr_after);
+            if (api_ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+            if (ctr_after < ctr_before)
+                ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        }
+#else
+        api_ret = wc_RNG_DRBG_NextUncreditedSeedNow(root);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+#endif
+
+        /* use-once: accumulation reopened. */
+        api_ret = wc_RNG_DRBG_NextUncreditedSeedNow(root);
+        if (api_ret != WC_NO_ERR_TRACE(NOT_READY_E))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_DRBG_NextUncreditedSeedStore(root, frag,
+                                                      sizeof(frag));
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+
+        /* top up and verify the universal opportunistic consume at
+         * generate: post-generate, the accumulator is spent. */
+        for (i = 0; i < (int)(WC_DRBG_NEXT_UNCREDITED_SEED_LEN /
+                              sizeof(frag)); i++)
+        {
+            api_ret = wc_RNG_DRBG_NextUncreditedSeedStore(root, frag,
+                                                          sizeof(frag));
+            if (api_ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        }
+        api_ret = wc_RNG_GenerateBlock(root, buf, sizeof(buf));
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_DRBG_NextUncreditedSeedNow(root);
+        if (api_ret != WC_NO_ERR_TRACE(NOT_READY_E))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    }
+
+#if defined(WC_RNG_HAVE_LOCK) && defined(WC_RNG_HAVE_RBGC)
+    /* a stir must never masquerade as recovery or promotion: consumption
+     * preserves WC_RNG_LOCK_ENTROPY_INVALIDATED and RBGCStratum. */
+    if (present) {
+        WC_RNG leaf;
+        WC_RNG_lock_arg_t lock_state;
+        byte frag64[WC_DRBG_NEXT_UNCREDITED_SEED_LEN];
+        XMEMSET(frag64, 0x5e, sizeof(frag64));
+
+        api_ret = wc_InitRngNonceRBGC(&leaf, root, NULL, 0,
+                                      WC_RNG_INIT_FLAGS_NONE);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_invalidate_entropy(&leaf);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        /* deposit post-event (the event purge emptied the accumulator). */
+        api_ret = wc_RNG_DRBG_NextUncreditedSeedStore(&leaf, frag64,
+                                                      sizeof(frag64));
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_DRBG_NextUncreditedSeedNow(&leaf);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_lock_read(&leaf, &lock_state);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        if (! (lock_state & WC_RNG_LOCK_ENTROPY_INVALIDATED))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        if (wc_RNG_DRBG_GetRBGCStratum(&leaf) != 1)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        /* recover for a clean teardown. */
+        api_ret = wc_RNG_DRBG_Reseed_Now(&leaf, NULL, 0);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_FreeRng(&leaf);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    }
+#endif /* WC_RNG_HAVE_LOCK && WC_RNG_HAVE_RBGC */
 
 out:
 
