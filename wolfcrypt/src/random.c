@@ -799,17 +799,44 @@ static void RngLockFree(WC_RNG* rng)
     }
 }
 
+/* Cancellation stays off while the lock is held, where the platform has
+ * cancellation at all: a reseed reads a device, a cancellation point. */
 static int RngLockEnter(WC_RNG* rng)
 {
-    if (rng->autoLockInited && wc_LockMutex(&rng->autoLock) != 0)
+#ifdef PTHREAD_CANCEL_DISABLE
+    int old = PTHREAD_CANCEL_ENABLE;
+#endif
+    if (!rng->autoLockInited)
+        return 0;
+#ifdef PTHREAD_CANCEL_DISABLE
+    (void)pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &old);
+#endif
+    if (wc_LockMutex(&rng->autoLock) != 0) {
+    #ifdef PTHREAD_CANCEL_DISABLE
+        (void)pthread_setcancelstate(old, NULL);
+    #endif
         return BAD_MUTEX_E;
+    }
+#ifdef PTHREAD_CANCEL_DISABLE
+    rng->autoLockCancel = old;
+#endif
     return 0;
 }
 
 static void RngLockExit(WC_RNG* rng)
 {
-    if (rng->autoLockInited)
-        (void)wc_UnLockMutex(&rng->autoLock);
+#ifdef PTHREAD_CANCEL_DISABLE
+    int old;
+#endif
+    if (!rng->autoLockInited)
+        return;
+#ifdef PTHREAD_CANCEL_DISABLE
+    old = rng->autoLockCancel;   /* read before the unlock hands the slot on */
+#endif
+    (void)wc_UnLockMutex(&rng->autoLock);
+#ifdef PTHREAD_CANCEL_DISABLE
+    (void)pthread_setcancelstate(old, NULL);
+#endif
 }
 #else
 #define RngLockEnter(rng) 0
@@ -5661,6 +5688,7 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
         return 0;
 
 #ifdef WOLF_CRYPTO_CB
+    /* before the lock: a callback may fall back to this same instance */
     #ifndef WOLF_CRYPTO_CB_FIND
     if (rng->devId != INVALID_DEVID)
     #endif
@@ -5672,22 +5700,35 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
     }
 #endif
 
+    ret = RngLockEnter(rng);   /* held across every other backend */
+    if (ret != 0)
+        return ret;
+
 #ifdef HAVE_INTEL_RDRAND
-    if (IS_INTEL_RDRAND(intel_flags))
-        return wc_GenerateRand_IntelRD(NULL, output, sz);
+    if (IS_INTEL_RDRAND(intel_flags)) {
+        ret = wc_GenerateRand_IntelRD(NULL, output, sz);
+        RngLockExit(rng);
+        return ret;
+    }
 #endif
 
 #if defined(WOLFSSL_SILABS_SE_ACCEL) && defined(WOLFSSL_SILABS_TRNG)
-    return silabs_GenerateRand(output, sz);
+    ret = silabs_GenerateRand(output, sz);
+    RngLockExit(rng);
+    return ret;
 #endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT)
     if (rng->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RNG) {
         /* these are blocking */
     #ifdef HAVE_CAVIUM
-        return NitroxRngGenerateBlock(rng, output, sz);
+        ret = NitroxRngGenerateBlock(rng, output, sz);
+        RngLockExit(rng);
+        return ret;
     #elif defined(HAVE_INTEL_QA) && defined(QAT_ENABLE_RNG)
-        return IntelQaDrbg(&rng->asyncDev, output, sz);
+        ret = IntelQaDrbg(&rng->asyncDev, output, sz);
+        RngLockExit(rng);
+        return ret;
     #else
         /* simulator not supported */
     #endif
@@ -5705,12 +5746,10 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 #else
 
 #ifdef HAVE_HASHDRBG
-    if (sz > RNG_MAX_BLOCK_LEN)
+    if (sz > RNG_MAX_BLOCK_LEN) {
+        RngLockExit(rng);
         return BAD_FUNC_ARG;
-
-    ret = RngLockEnter(rng);
-    if (ret != 0)
-        return ret;
+    }
 
     if (rng->status != DRBG_OK) {
         RngLockExit(rng);

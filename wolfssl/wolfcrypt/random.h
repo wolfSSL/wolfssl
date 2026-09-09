@@ -663,6 +663,7 @@ struct WC_RNG {
 #elif defined(WC_RNG_HAVE_AUTO_LOCK)
     wolfSSL_Mutex autoLock;   /* serializes generate and reseed */
     byte autoLockInited;      /* nonzero once lock exists */
+    int autoLockCancel;       /* the holder's cancel state, back on exit */
 #endif
 };
 

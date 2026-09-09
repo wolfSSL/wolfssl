@@ -58,9 +58,11 @@ int  wc_FreeNetRandom(void);
 
     One WC_RNG may be shared between threads: each generate and reseed holds
     the instance lock.  WC_RNG_NO_LOCK (configure --disable-rng-lock) leaves
-    the lock out.  A seed or hash crypto callback runs with the lock held, so
-    it must not use the RNG API.  wc_InitRng*() and wc_FreeRng() do not lock;
-    initialize only a new or freed WC_RNG, with no other thread using it.
+    the lock out.  Every backend but a crypto callback runs with the lock
+    held; a callback answers first, so it may fall back to the same instance.
+    A seed callback runs with the lock held and must not use the RNG API.
+    wc_InitRng*() and wc_FreeRng() do not lock; initialize only a new or
+    freed WC_RNG, with no other thread using it.
 
     POSIX lets a forked child of a threaded process only exec.  Where the
     build has pthread_atfork(), unnamed POSIX semaphores and the dladdr()
