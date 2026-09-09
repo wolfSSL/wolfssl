@@ -1809,6 +1809,9 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 #ifndef __ARCH_MEMCMP_NO_REDIRECT
     wolfssl_linuxkm_pie_redirect_table.memcmp = memcmp;
 #endif
+#ifdef CONFIG_ARM
+    wolfssl_linuxkm_pie_redirect_table.__div0 = __div0;
+#endif
 #ifndef CONFIG_FORTIFY_SOURCE
 #ifndef __ARCH_MEMCPY_NO_REDIRECT
 #ifdef CONFIG_ARM64

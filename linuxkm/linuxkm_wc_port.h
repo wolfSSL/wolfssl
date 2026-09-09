@@ -201,6 +201,12 @@
         #define WOLFSSL_DEBUG_PRINTF_FN printk
     #endif
 
+#ifdef CONFIG_ARM
+    /* Exported by arch/arm/kernel/traps.c; asmlinkage is empty for C here and
+     * linux/linkage.h is not included yet at this point in the header. */
+    void __div0(void);
+#endif
+
 #ifndef WOLFSSL_LINUXKM_USE_MUTEXES
     struct wolfSSL_Mutex;
     extern int wc_lkm_LockMutex(struct wolfSSL_Mutex* m);
@@ -1235,6 +1241,11 @@
 
     #ifndef __ARCH_MEMCMP_NO_REDIRECT
         typeof(memcmp) *memcmp;
+    #endif
+    #ifdef CONFIG_ARM
+        /* The kernel's divide-by-zero reporter, for the EABI division
+         * helpers the container defines (arch/arm/kernel/traps.c). */
+        void (*__div0)(void);
     #endif
     #ifndef __ARCH_MEMCPY_NO_REDIRECT
         typeof(memcpy) *memcpy;
