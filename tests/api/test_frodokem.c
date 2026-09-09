@@ -2168,7 +2168,9 @@ int test_wc_frodokem_cb_pending_rejected(void)
 
         /* Encapsulate: pending is rejected and neither output is written. */
         seen.ret = WC_NO_ERR_TRACE(WC_PENDING_E);
-        XMEMSET(ct, TEST_FRODOKEM_CB_FILL, ctLen);
+        if (ct != NULL) {
+            XMEMSET(ct, TEST_FRODOKEM_CB_FILL, ctLen);
+        }
         XMEMSET(ss, TEST_FRODOKEM_CB_FILL, ssLen);
         ExpectIntEQ(wc_FrodoKemKey_Encapsulate(key, ct, ss, &rng),
             WC_NO_ERR_TRACE(BAD_STATE_E));
