@@ -2287,15 +2287,15 @@ int wolfSSL_CTX_set_tlsext_ticket_key_cb(WOLFSSL_CTX *ctx, ticketCompatCb cb)
     OPENSSL_EXTRA || HAVE_LIGHTY */
 
 #if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
-    !defined(NO_WOLFSSL_SERVER)
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
 /* Serialize the session ticket encryption keys.
  *
  * @param [in]  ctx     SSL/TLS context object.
  * @param [out] keys    Buffer to hold session ticket keys.
  * @param [in]  keylen  Length of buffer.
  * @return  WOLFSSL_SUCCESS on success.
- * @return  WOLFSSL_FAILURE when ctx is NULL, keys is NULL or keylen is not the
- *          correct length.
+ * @return  WOLFSSL_FAILURE when ctx is NULL, keys is NULL, keylen is not the
+ *          correct length or the key context mutex cannot be locked.
  */
 long wolfSSL_CTX_get_tlsext_ticket_keys(WOLFSSL_CTX *ctx,
      unsigned char *keys, int keylen)
@@ -2306,6 +2306,12 @@ long wolfSSL_CTX_get_tlsext_ticket_keys(WOLFSSL_CTX *ctx,
             (keylen != WOLFSSL_TICKET_KEYS_SZ)) {
         ret = WOLFSSL_FAILURE;
     }
+#ifndef SINGLE_THREADED
+    else if (wc_LockMutex(&ctx->ticketKeyCtx.mutex) != 0) {
+        WOLFSSL_MSG("Couldn't lock key context mutex");
+        ret = WOLFSSL_FAILURE;
+    }
+#endif
     else {
         XMEMCPY(keys, ctx->ticketKeyCtx.name, WOLFSSL_TICKET_NAME_SZ);
         keys += WOLFSSL_TICKET_NAME_SZ;
@@ -2316,6 +2322,9 @@ long wolfSSL_CTX_get_tlsext_ticket_keys(WOLFSSL_CTX *ctx,
         c32toa(ctx->ticketKeyCtx.expirary[0], keys);
         keys += OPAQUE32_LEN;
         c32toa(ctx->ticketKeyCtx.expirary[1], keys);
+#ifndef SINGLE_THREADED
+        wc_UnLockMutex(&ctx->ticketKeyCtx.mutex);
+#endif
     }
 
     return ret;
@@ -2327,8 +2336,8 @@ long wolfSSL_CTX_get_tlsext_ticket_keys(WOLFSSL_CTX *ctx,
  * @param [in]      keys_vp  Session ticket keys.
  * @param [in]      keylen   Length of data.
  * @return  WOLFSSL_SUCCESS on success.
- * @return  WOLFSSL_FAILURE when ctx is NULL, keys is NULL or keylen is not the
- *          correct length.
+ * @return  WOLFSSL_FAILURE when ctx is NULL, keys is NULL, keylen is not the
+ *          correct length or the key context mutex cannot be locked.
  */
 long wolfSSL_CTX_set_tlsext_ticket_keys(WOLFSSL_CTX *ctx,
      const void *keys_vp, int keylen)
@@ -2340,6 +2349,12 @@ long wolfSSL_CTX_set_tlsext_ticket_keys(WOLFSSL_CTX *ctx,
             (keylen != WOLFSSL_TICKET_KEYS_SZ)) {
         ret = WOLFSSL_FAILURE;
     }
+#ifndef SINGLE_THREADED
+    else if (wc_LockMutex(&ctx->ticketKeyCtx.mutex) != 0) {
+        WOLFSSL_MSG("Couldn't lock key context mutex");
+        ret = WOLFSSL_FAILURE;
+    }
+#endif
     else {
         XMEMCPY(ctx->ticketKeyCtx.name, keys, WOLFSSL_TICKET_NAME_SZ);
         keys += WOLFSSL_TICKET_NAME_SZ;
@@ -2350,6 +2365,9 @@ long wolfSSL_CTX_set_tlsext_ticket_keys(WOLFSSL_CTX *ctx,
         ato32(keys, &ctx->ticketKeyCtx.expirary[0]);
         keys += OPAQUE32_LEN;
         ato32(keys, &ctx->ticketKeyCtx.expirary[1]);
+#ifndef SINGLE_THREADED
+        wc_UnLockMutex(&ctx->ticketKeyCtx.mutex);
+#endif
     }
 
     return ret;
