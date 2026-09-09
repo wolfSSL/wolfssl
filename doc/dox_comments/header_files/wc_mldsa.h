@@ -454,6 +454,7 @@ int wc_MlDsaKey_SignWithSeed(wc_MlDsaKey* key, byte* sig, word32* sigLen,
     \return 0 if verification completed (check res for the result).
     \return BAD_FUNC_ARG if any required pointer is NULL or ctxLen is
     invalid.
+    \return PUBLIC_KEY_E when the public key is not set.
 
     \param [in,out] key Pointer to a wc_MlDsaKey with the public key.
     \param [in] sig Signature bytes to verify.
@@ -481,6 +482,7 @@ int wc_MlDsaKey_VerifyCtx(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     \return 0 if verification completed (check res for the result).
     \return BAD_FUNC_ARG if any required pointer is NULL, ctxLen is
     invalid, or hashAlg is unsupported.
+    \return PUBLIC_KEY_E when the public key is not set.
 
     \param [in,out] key Pointer to a wc_MlDsaKey with the public key.
     \param [in] sig Signature bytes to verify.
@@ -509,6 +511,7 @@ int wc_MlDsaKey_VerifyCtxHash(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     \return 0 if verification completed (check res for the result).
     \return BAD_FUNC_ARG if any required pointer is NULL or muLen is
     not 64.
+    \return PUBLIC_KEY_E when the public key is not set.
 
     \param [in,out] key Pointer to a wc_MlDsaKey with the public key.
     \param [in] sig Signature bytes to verify.

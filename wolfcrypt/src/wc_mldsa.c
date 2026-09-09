@@ -10804,6 +10804,11 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
     int valid = 0;
     sword32 hi;
 
+    if (!key->pubKeySet) {
+        *res = 0;
+        return PUBLIC_KEY_E;
+    }
+
     /* Ensure the signature is the right size for the parameters. */
     if (sigLen != params->sigSz) {
         ret = BUFFER_E;
@@ -10998,6 +11003,11 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
     /* Bytes of encoded z per polynomial - z is streamed one poly at a time. */
     word32 zStride = (word32)(MLDSA_N / 8) * (word32)(params->gamma1_bits + 1);
 #endif
+
+    if (!key->pubKeySet) {
+        *res = 0;
+        return PUBLIC_KEY_E;
+    }
 
     /* Ensure the signature is the right size for the parameters. */
     if (sigLen != params->sigSz) {
@@ -11899,6 +11909,18 @@ int wc_MlDsaKey_SignMuWithSeed(wc_MlDsaKey* key, byte* sig, word32 *sigLen,
 #endif /* !WOLFSSL_MLDSA_NO_SIGN */
 
 #ifndef WOLFSSL_MLDSA_NO_VERIFY
+/* Reject verification up front when no public key is set. */
+static WC_INLINE int mldsa_check_pub_for_verify(const wc_MlDsaKey* key,
+    int* res)
+{
+    int ret = 0;
+    if (!key->pubKeySet) {
+        *res = 0;
+        ret = PUBLIC_KEY_E;
+    }
+    return ret;
+}
+
 /* Verify the message using the ML-DSA public key.
  *
  *  sig         [in]  Signature to verify.
@@ -11909,8 +11931,9 @@ int wc_MlDsaKey_SignMuWithSeed(wc_MlDsaKey* key, byte* sig, word32 *sigLen,
  *  msgLen      [in]  Length of the message in bytes.
  *  res         [out] *res is set to 1 on successful verification.
  *  key         [in]  ML-DSA key to use to verify.
- *  returns BAD_FUNC_ARG when a parameter is NULL, public key not set
- *          or ctx is NULL and ctxLen is not 0,
+ *  returns BAD_FUNC_ARG when a parameter is NULL or ctx is NULL and
+ *          ctxLen is not 0,
+ *          PUBLIC_KEY_E if no public key,
  *          BUFFER_E when sigLen is less than WC_MLDSA_44_SIG_SIZE,
  *          0 otherwise.
  */
@@ -11956,6 +11979,10 @@ int wc_MlDsaKey_VerifyCtx(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
 #endif
 
     if (ret == 0) {
+        ret = mldsa_check_pub_for_verify(key, res);
+    }
+
+    if (ret == 0) {
         /* Verify message with signature. */
         ret = mldsa_verify_ctx_msg(key, ctx, ctxLen, msg, msgLen, sig,
             sigLen, res);
@@ -11973,7 +12000,8 @@ int wc_MlDsaKey_VerifyCtx(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
  *  msgLen      [in]  Length of the message in bytes.
  *  res         [out] *res is set to 1 on successful verification.
  *  key         [in]  ML-DSA key to use to verify.
- *  returns BAD_FUNC_ARG when a parameter is NULL or contextLen is zero when and
+ *  returns BAD_FUNC_ARG when a parameter is NULL,
+ *          PUBLIC_KEY_E if no public key,
  *          BUFFER_E when sigLen is less than WC_MLDSA_44_SIG_SIZE,
  *          0 otherwise.
  * NOTE: This is a pre-FIPS 204 API without context support. New code should
@@ -12014,6 +12042,10 @@ int wc_MlDsaKey_Verify(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
 #endif
 
     if (ret == 0) {
+        ret = mldsa_check_pub_for_verify(key, res);
+    }
+
+    if (ret == 0) {
         /* Verify message with signature. */
         ret = mldsa_verify_msg(key, msg, msgLen, sig, sigLen, res);
     }
@@ -12033,8 +12065,9 @@ int wc_MlDsaKey_Verify(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
  *  hashLen     [in]  Length of the message hash in bytes.
  *  res         [out] *res is set to 1 on successful verification.
  *  key         [in]  ML-DSA key to use to verify.
- *  returns BAD_FUNC_ARG when a parameter is NULL, public key not set
- *          or ctx is NULL and ctxLen is not 0,
+ *  returns BAD_FUNC_ARG when a parameter is NULL or ctx is NULL and
+ *          ctxLen is not 0,
+ *          PUBLIC_KEY_E if no public key,
  *          BUFFER_E when sigLen is less than WC_MLDSA_44_SIG_SIZE,
  *          0 otherwise.
  */
@@ -12067,6 +12100,10 @@ int wc_MlDsaKey_VerifyCtxHash(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
         }
     }
 #endif
+
+    if (ret == 0) {
+        ret = mldsa_check_pub_for_verify(key, res);
+    }
 
     if (ret == 0) {
         /* Verify message with signature. */
@@ -12126,6 +12163,7 @@ int wc_MlDsaKey_SetPrecompA(wc_MlDsaKey* key, const sword32* a, word32 aLen,
  *  res         [out] *res is set to 1 on successful verification.
  *  key         [in]  ML-DSA key to use to verify.
  *  returns BAD_FUNC_ARG when a parameter is NULL or muLen is not 64,
+ *          PUBLIC_KEY_E if no public key,
  *          0 otherwise.
  */
 int wc_MlDsaKey_VerifyMu(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
@@ -12142,6 +12180,10 @@ int wc_MlDsaKey_VerifyMu(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
         ret = BAD_FUNC_ARG;
     }
 
+    /* No early pubKeySet check needed here, unlike the other verify entry
+     * points: mu is supplied by the caller, so key->p is never touched before
+     * mldsa_verify_with_mu()'s own pubKeySet guard, which sets *res and
+     * returns PUBLIC_KEY_E identically. */
     if (ret == 0) {
         ret = mldsa_verify_with_mu(key, mu, sig, sigLen, res);
     }
