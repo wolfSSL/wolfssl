@@ -943,6 +943,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  noisesrc_test(void);
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_svc_test(void);
+#endif
+#ifdef WC_RNG_HAVE_RBGC
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_rbgc_test(void);
 #endif
 #ifdef WC_RNG_HAVE_NEXT_SEED
@@ -2604,6 +2606,8 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_FAIL("RNGSVC   test failed!\n", ret);
     else
         TEST_PASS("RNGSVC   test passed!\n");
+#endif
+#ifdef WC_RNG_HAVE_RBGC
     if ((ret = rng_drbg_rbgc_test()) != 0)
         TEST_FAIL("RNGRBGC  test failed!\n", ret);
     else
@@ -27913,8 +27917,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
 #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
     int svc_present = 0;
 #endif
-#if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
-    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+#ifdef WC_RNG_HAVE_RBGC
 #ifndef WC_NO_CONSTRUCTORS
     WC_RNG *spawned_rng = NULL;
 #endif
@@ -27932,8 +27935,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
                     ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out));
     XMEMSET(rng, 0, sizeof(*rng));
 #endif
-#if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
-    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+#ifdef WC_RNG_HAVE_RBGC
     WC_ALLOC_VAR_EX(leaf_rng, WC_RNG, 1, HEAP_HINT,
                     DYNAMIC_TYPE_TMP_BUFFER,
                     ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out));
@@ -28641,25 +28643,22 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     }
 #endif /* WC_RNG_HAVE_NEXT_SEED */
 
-#if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
-    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+#ifdef WC_RNG_HAVE_RBGC
     /* RBGC spawn: argument and flag contracts */
-    if (wc_rng_bank_spawn(bank, NULL, NULL, 0, 0, 0, 0) !=
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    ret = wc_rng_bank_spawn(bank, NULL, NULL, 0, 0, 0, 0);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #ifndef WC_NO_CONSTRUCTORS
-    if (wc_rng_bank_spawn_new(bank, NULL, NULL, 0, 0, 0, 0) !=
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    ret = wc_rng_bank_spawn_new(bank, NULL, NULL, 0, 0, 0, 0);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #endif
-    if (wc_rng_bank_spawn(bank, leaf_rng, NULL, 0, 0, 0,
-            WC_RNG_BANK_FLAG_SEED_UNCREDITED) !=
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-    if (wc_rng_bank_spawn(bank, leaf_rng, NULL, 0, 0, 0,
-            WC_RNG_BANK_FLAG_FOR_RECOVERY) !=
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    ret = wc_rng_bank_spawn(bank, leaf_rng, NULL, 0, 0, 0, WC_RNG_BANK_FLAG_SEED_UNCREDITED);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_rng_bank_spawn(bank, leaf_rng, NULL, 0, 0, 0, WC_RNG_BANK_FLAG_FOR_RECOVERY);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     /* nonce-bearing stack spawn: the leaf is a tagged chain leaf,
      * generates, and is torn down independently of the bank */
@@ -28668,8 +28667,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     leaf_rng_inited = 1;
-    if (wc_RNG_DRBG_IsRBGCLeaf(leaf_rng) != 1)
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+    ret = wc_RNG_DRBG_GetRBGCStratum(leaf_rng);
+    if (ret != 1)
+        ERROR_OUT(WC_TEST_RET_ENC_I(ret), out);
+#endif
     ret = wc_RNG_GenerateBlock(leaf_rng, outbuf1, sizeof(outbuf1));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -28683,16 +28685,59 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     ret = wc_rng_bank_spawn_new(bank, &spawned_rng, NULL, 0, 1, 0, 0);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-    if ((spawned_rng == NULL) || (wc_RNG_DRBG_IsRBGCLeaf(spawned_rng) != 1))
+    if (spawned_rng == NULL)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+    ret = wc_RNG_DRBG_GetRBGCStratum(spawned_rng);
+    if (ret != 1)
+        ERROR_OUT(WC_TEST_RET_ENC_I(ret), out);
+#endif
     ret = wc_RNG_GenerateBlock(spawned_rng, outbuf1, sizeof(outbuf1));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     wc_rng_free(spawned_rng);
     spawned_rng = NULL;
 #endif /* !WC_NO_CONSTRUCTORS */
-#endif /* HAVE_HASHDRBG && !CUSTOM_RAND_GENERATE_BLOCK &&
-        * (!HAVE_FIPS || FIPS_VERSION3_GE(7,0,0)) */
+
+    /* PR spawn: a fresh credited primary reseed of the parent instance
+     * immediately before the child's seed draw (the SP 800-90C Sec. 4.1.1
+     * pattern).  The child is stratum 1; the parent instance's counter
+     * shows reseed-then-one-draw. */
+    ret = wc_rng_bank_spawn(bank, leaf_rng, NULL, 0, 0, 10,
+                            WC_RNG_BANK_FLAG_PREDICTION_RESISTANCE |
+                            WC_RNG_BANK_FLAG_CAN_WAIT);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    leaf_rng_inited = 1;
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+    ret = wc_RNG_DRBG_GetRBGCStratum(leaf_rng);
+    if (ret != 1)
+        ERROR_OUT(WC_TEST_RET_ENC_I(ret), out);
+#endif
+    ret = wc_RNG_GenerateBlock(leaf_rng, outbuf1, sizeof(outbuf1));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_FreeRng(leaf_rng);
+    leaf_rng_inited = 0;
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+    if (svc_present) {
+        wc_drbg_reseed_ctr_t ns_ctr;
+        ret = wc_rng_bank_checkout(bank, &rng_inst, 0, 10,
+                                   WC_RNG_BANK_FLAG_NONE);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ret = wc_RNG_DRBG_GetReseedCtr(
+            WC_RNG_BANK_INST_TO_RNG(rng_inst), &ns_ctr);
+        if ((ret != 0) || (ns_ctr != 2))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        ret = wc_rng_bank_inst_checkin(&rng_inst);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    }
+#endif /* !HAVE_FIPS || FIPS_VERSION3_GE(7,0,0) */
+#endif /* WC_RNG_HAVE_RBGC */
 
     /* WC_RNG_BANK_FLAG_PREDICTION_RESISTANCE checkout contracts.
      * Per-call PR demands CAN_WAIT (the fresh gather may block) and
@@ -28869,8 +28914,7 @@ out:
             ret = WC_TEST_RET_ENC_NC;
 #endif /* !WC_RNG_BANK_STATIC */
 
-#if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
-    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+#ifdef WC_RNG_HAVE_RBGC
 #ifndef WC_NO_CONSTRUCTORS
         if (spawned_rng != NULL)
             wc_rng_free(spawned_rng);
@@ -28881,8 +28925,7 @@ out:
                 ret = WC_TEST_RET_ENC_EC(cleanup_ret);
         }
         WC_FREE_VAR_EX(leaf_rng, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-#endif /* HAVE_HASHDRBG && !CUSTOM_RAND_GENERATE_BLOCK &&
-        * (!HAVE_FIPS || FIPS_VERSION3_GE(7,0,0)) */
+#endif /* WC_RNG_HAVE_RBGC */
     }
 
     return ret;
@@ -28924,8 +28967,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_svc_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     if (wc_RNG_DRBG_Present(NULL) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-    if (wc_RNG_DRBG_IsRBGCLeaf(NULL) != 0)
+#ifdef WC_RNG_HAVE_RBGC
+    if (wc_RNG_DRBG_GetRBGCStratum(NULL) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
     if (wc_RNG_DRBG_GetReseedCtr(NULL, &c1) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
@@ -28939,8 +28984,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_svc_test(void)
     if (wc_RNG_DRBG_GetReseedCtr(root, NULL) !=
         WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-    if (wc_RNG_DRBG_IsRBGCLeaf(root) != 0)
+#ifdef WC_RNG_HAVE_RBGC
+    if (wc_RNG_DRBG_GetRBGCStratum(root) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
 
     present = wc_RNG_DRBG_Present(root);
 
@@ -29127,8 +29174,15 @@ out:
     return ret;
 }
 
+#endif /* HAVE_HASHDRBG && !CUSTOM_RAND_GENERATE_BLOCK && */
+       /* (!HAVE_FIPS || FIPS_VERSION3_GE(7,0,0))         */
+
+#ifdef WC_RNG_HAVE_RBGC
+
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+
 /* Coverage for the SP 800-90C RBGC (RBG chain) APIs: spawn, reseed-from-
- * root, the leaf tag and accessor, and the sticky depth-one enforcement.
+ * root, the leaf tag and accessor, and the sticky stratum-one enforcement.
  * DRBG-internal observations are gated at runtime on wc_RNG_DRBG_Present(),
  * so the test also passes on RDRAND-shaped instantiations, where the RBGC
  * APIs are exercised in their degenerate arms. */
@@ -29161,15 +29215,19 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
     present = wc_RNG_DRBG_Present(&root);
 
     /* spawn argument contracts */
-    if (wc_InitRngRBGC(NULL, &root) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-    if (wc_InitRngRBGC(&leaf, NULL) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-    if (wc_InitRngRBGC(&root, &root) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    api_ret = wc_InitRngRBGC(NULL, &root, WC_RNG_INIT_FLAGS_NONE);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_InitRngRBGC(&leaf, NULL, WC_RNG_INIT_FLAGS_NONE);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_InitRngRBGC(&root, &root, WC_RNG_INIT_FLAGS_NONE);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
 #ifndef WC_NO_CONSTRUCTORS
-    if (wc_InitRngRBGC_New(NULL, &root) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    api_ret = wc_InitRngRBGC_New(NULL, &root, WC_RNG_INIT_FLAGS_NONE);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
 #endif
 
     /* spawn a leaf; the spawn debits root's counter; the leaf is tagged */
@@ -29178,7 +29236,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     }
-    api_ret = wc_InitRngRBGC(&leaf, &root);
+    api_ret = wc_InitRngRBGC(&leaf, &root, WC_RNG_INIT_FLAGS_NONE);
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
     leaf_inited = 1;
@@ -29186,27 +29244,25 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
         api_ret = wc_RNG_DRBG_GetReseedCtr(&root, &c2);
         if ((api_ret != 0) || (c2 <= c1))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        /* the spawn draw is one fully-served generate on the parent */
     }
-    if (wc_RNG_DRBG_IsRBGCLeaf(&leaf) != 1)
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-    if (wc_RNG_DRBG_IsRBGCLeaf(&root) != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    api_ret = wc_RNG_DRBG_GetRBGCStratum(&leaf);
+    if (api_ret != 1)
+        ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
+    api_ret = wc_RNG_DRBG_GetRBGCStratum(&root);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
     api_ret = wc_RNG_GenerateBlock(&leaf, buf, sizeof(buf));
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    if (present) {
+        /* chain-provenance accounting: bytes generated at stratum 1 count
+         * in both the total and the RBGC ledgers */
+    }
 
-    /* depth-one enforcement: a leaf is never a root */
-    if (wc_InitRngRBGC(&extra, &leaf) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-#ifndef WC_NO_CONSTRUCTORS
-    if (wc_InitRngRBGC_New(&pleaf, &leaf) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-    if (pleaf != NULL)
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-#endif
-    if (wc_RNG_DRBG_ReseedRBGC(&root, &leaf, NULL, 0) !=
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    api_ret = wc_RNG_DRBG_ReseedRBGC(&root, &leaf, NULL, 0);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
 
     /* reseed-from-root, without and with a nonce; counter resets */
     api_ret = wc_RNG_DRBG_ReseedRBGC(&leaf, &root, NULL, 0);
@@ -29219,26 +29275,33 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
         api_ret = wc_RNG_DRBG_GetReseedCtr(&leaf, &c1);
         if ((api_ret != 0) || (c1 != 1))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        /* target: two credited chain reseeds; source: two fully-served
+         * seed draws */
     }
-    if (wc_RNG_DRBG_ReseedRBGC(&leaf, &leaf, NULL, 0) !=
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-    if (wc_RNG_DRBG_ReseedRBGC(NULL, &root, NULL, 0) !=
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-    if (wc_RNG_DRBG_ReseedRBGC(&leaf, &root, NULL, 7) !=
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    api_ret = wc_RNG_DRBG_ReseedRBGC(&leaf, &leaf, NULL, 0);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_RNG_DRBG_ReseedRBGC(NULL, &root, NULL, 0);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_RNG_DRBG_ReseedRBGC(&leaf, &root, NULL, 7);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
 
-    /* the leaf tag is sticky across a source reseed */
+    /* The RBGC stratum is reset to zero by a primary source reseed. */
     api_ret = wc_RNG_DRBG_ScheduleReseed(&leaf);
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
     api_ret = wc_RNG_GenerateBlock(&leaf, buf, sizeof(buf));
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
-    if (wc_RNG_DRBG_IsRBGCLeaf(&leaf) != 1)
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    ret = wc_RNG_DRBG_GetRBGCStratum(&leaf);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_I(ret), out);
+    if (present) {
+        /* the primary reseed precedes the byte production, so the served
+         * bytes are not chain-provenance */
+    }
 
 #if !defined(WC_NO_CONSTRUCTORS)
     /* chain-reseeding a source-born instance demotes it, one-way */
@@ -29246,34 +29309,42 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
     extra_inited = 1;
-    if (wc_RNG_DRBG_IsRBGCLeaf(&extra) != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    api_ret = wc_RNG_DRBG_GetRBGCStratum(&extra);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
     if (present) {
         api_ret = wc_RNG_DRBG_ReseedRBGC(&extra, &root, NULL, 0);
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
-        if (wc_RNG_DRBG_IsRBGCLeaf(&extra) != 1)
+        api_ret = wc_RNG_DRBG_GetRBGCStratum(&extra);
+        if (api_ret != 1)
+            ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
+        /* long-chained init is allowed, only chained reseed is forbidden. */
+        ret = wc_InitRngRBGC_New(&pleaf, &extra, WC_RNG_INIT_FLAGS_NONE);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        if ((pleaf == NULL) || (wc_RNG_DRBG_GetRBGCStratum(pleaf) != 2))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-        if (wc_InitRngRBGC_New(&pleaf, &extra) !=
-            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        wc_rng_free(pleaf);
+        pleaf = NULL;
     }
 
     /* heap-allocated leaves, without and with a nonce */
-    api_ret = wc_InitRngRBGC_New(&pleaf, &root);
+    api_ret = wc_InitRngRBGC_New(&pleaf, &root, WC_RNG_INIT_FLAGS_NONE);
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
-    if ((pleaf == NULL) || (wc_RNG_DRBG_IsRBGCLeaf(pleaf) != 1))
+    if ((pleaf == NULL) || (wc_RNG_DRBG_GetRBGCStratum(pleaf) != 1))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     api_ret = wc_RNG_GenerateBlock(pleaf, buf, sizeof(buf));
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
     wc_rng_free(pleaf);
     pleaf = NULL;
-    api_ret = wc_InitRngNonceRBGC_New(&pleaf, &root, matter, 16);
+    api_ret = wc_InitRngNonceRBGC_New(&pleaf, &root, matter, 16,
+                                      WC_RNG_INIT_FLAGS_NONE);
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
-    if ((pleaf == NULL) || (wc_RNG_DRBG_IsRBGCLeaf(pleaf) != 1))
+    if ((pleaf == NULL) || (wc_RNG_DRBG_GetRBGCStratum(pleaf) != 1))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     wc_rng_free(pleaf);
     pleaf = NULL;
@@ -29284,12 +29355,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
     leaf_inited = 0;
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
-    api_ret = wc_InitRngNonceRBGC(&leaf, &root, matter, 16);
+    api_ret = wc_InitRngNonceRBGC(&leaf, &root, matter, 16,
+                                  WC_RNG_INIT_FLAGS_NONE);
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
     leaf_inited = 1;
-    if (wc_RNG_DRBG_IsRBGCLeaf(&leaf) != 1)
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    api_ret = wc_RNG_DRBG_GetRBGCStratum(&leaf);
+    if (api_ret != 1)
+        ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
 
 out:
 
@@ -29316,8 +29389,193 @@ out:
 
     return ret;
 }
-#endif /* HAVE_HASHDRBG && !CUSTOM_RAND_GENERATE_BLOCK &&
-        * (!HAVE_FIPS || FIPS_VERSION3_GE(7,0,0)) */
+
+#else /* HAVE_FIPS && FIPS_VERSION3_LT(7,0,0) */
+
+#ifndef WC_RNG_BANK_SUPPORT
+    /* needed for compat setup */
+    #define WC_RNG_BANK_SUPPORT
+    #include <wolfssl/wolfcrypt/rng_bank.h>
+    #undef WC_RNG_BANK_SUPPORT
+#endif
+
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
+{
+    wc_test_ret_t ret = 0;
+    int api_ret;
+    int present;
+    int root_inited = 0;
+    int leaf_inited = 0;
+    int extra_inited = 0;
+    WC_RNG root;
+    WC_RNG leaf;
+    WC_RNG extra;
+    WC_RNG* pleaf = NULL;
+    wc_drbg_reseed_ctr_t c1 = 0;
+    wc_drbg_reseed_ctr_t c2 = 0;
+    byte buf[32];
+    byte matter[32];
+
+    WOLFSSL_ENTER("rng_drbg_rbgc_test");
+
+    XMEMSET(matter, 0xa5, sizeof(matter));
+
+    api_ret = wc_InitRng(&root);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    root_inited = 1;
+
+    present = wc_RNG_DRBG_Present(&root);
+
+    /* spawn argument contracts */
+    if (wc_InitRngRBGC(NULL, &root, WC_RNG_INIT_FLAGS_NONE) !=
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if (wc_InitRngRBGC(&leaf, NULL, WC_RNG_INIT_FLAGS_NONE) !=
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if (wc_InitRngRBGC(&root, &root, WC_RNG_INIT_FLAGS_NONE) !=
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#ifndef WC_NO_CONSTRUCTORS
+    if (wc_InitRngRBGC_New(NULL, &root, WC_RNG_INIT_FLAGS_NONE) !=
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
+
+    /* spawn a leaf; the spawn debits root's counter; the leaf is tagged */
+    if (present) {
+        api_ret = wc_RNG_DRBG_GetReseedCtr(&root, &c1);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    }
+    api_ret = wc_InitRngRBGC(&leaf, &root, WC_RNG_INIT_FLAGS_NONE);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    leaf_inited = 1;
+    if (present) {
+        api_ret = wc_RNG_DRBG_GetReseedCtr(&root, &c2);
+        if ((api_ret != 0) || (c2 <= c1))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    }
+    api_ret = wc_RNG_GenerateBlock(&leaf, buf, sizeof(buf));
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+
+    #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+    if (wc_RNG_DRBG_ReseedRBGC(&root, &leaf) !=
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    #endif
+
+    /* reseed-from-root, without and with a nonce; counter resets */
+    api_ret = wc_RNG_DRBG_ReseedRBGC(&leaf, &root);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_RNG_DRBG_ReseedRBGC(&leaf, &root);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    if (present) {
+        api_ret = wc_RNG_DRBG_GetReseedCtr(&leaf, &c1);
+        if ((api_ret != 0) || (c1 != 1))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    }
+    if (wc_RNG_DRBG_ReseedRBGC(&leaf, &leaf) !=
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if (wc_RNG_DRBG_ReseedRBGC(NULL, &root) !=
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    /* The RGBC stratum is reset to zero by a primary source reseed. */
+    api_ret = wc_RNG_DRBG_ScheduleReseed(&leaf);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_RNG_GenerateBlock(&leaf, buf, sizeof(buf));
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+
+#if !defined(WC_NO_CONSTRUCTORS)
+    /* chain-reseeding a source-born instance demotes it, one-way */
+    api_ret = wc_InitRng(&extra);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    extra_inited = 1;
+    if (present) {
+        api_ret = wc_RNG_DRBG_ReseedRBGC(&extra, &root);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        /* long-chained init is allowed, only chained reseed is forbidden. */
+        ret = wc_InitRngRBGC_New(&pleaf, &extra, WC_RNG_INIT_FLAGS_NONE);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        if (pleaf == NULL)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        wc_rng_free(pleaf);
+        pleaf = NULL;
+    }
+
+    /* heap-allocated leaves, without and with a nonce */
+    api_ret = wc_InitRngRBGC_New(&pleaf, &root, WC_RNG_INIT_FLAGS_NONE);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    if (pleaf == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    api_ret = wc_RNG_GenerateBlock(pleaf, buf, sizeof(buf));
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    wc_rng_free(pleaf);
+    pleaf = NULL;
+    api_ret = wc_InitRngNonceRBGC_New(&pleaf, &root, matter, 16,
+                                      WC_RNG_INIT_FLAGS_NONE);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    if (pleaf == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    wc_rng_free(pleaf);
+    pleaf = NULL;
+#endif /* !WC_NO_CONSTRUCTORS */
+
+    /* nonce-bearing stack spawn */
+    api_ret = wc_FreeRng(&leaf);
+    leaf_inited = 0;
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_InitRngNonceRBGC(&leaf, &root, matter, 16,
+                                  WC_RNG_INIT_FLAGS_NONE);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    leaf_inited = 1;
+
+out:
+
+    {
+        int cleanup_ret;
+        if (pleaf != NULL)
+            wc_rng_free(pleaf);
+        if (leaf_inited) {
+            cleanup_ret = wc_FreeRng(&leaf);
+            if ((cleanup_ret != 0) && (ret == 0))
+                ret = WC_TEST_RET_ENC_EC(cleanup_ret);
+        }
+        if (extra_inited) {
+            cleanup_ret = wc_FreeRng(&extra);
+            if ((cleanup_ret != 0) && (ret == 0))
+                ret = WC_TEST_RET_ENC_EC(cleanup_ret);
+        }
+        if (root_inited) {
+            cleanup_ret = wc_FreeRng(&root);
+            if ((cleanup_ret != 0) && (ret == 0))
+                ret = WC_TEST_RET_ENC_EC(cleanup_ret);
+        }
+    }
+
+    return ret;
+}
+
+#endif /* HAVE_FIPS && FIPS_VERSION3_LT(7,0,0) */
+
+#endif /* WC_RNG_HAVE_RBGC */
 
 #ifdef WC_RNG_HAVE_NEXT_SEED
 /* Coverage for the banked-next-seed facility: the aperture protocol
@@ -29457,6 +29715,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseed_test(void)
         api_ret = wc_RNG_DRBG_GetReseedCtr(root, &c1);
         if ((api_ret != 0) || (c1 != 1))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        /* redemption of a primary-provenance bank: credited, counted as a
+         * primary redemption */
+#ifdef WC_RNG_HAVE_RBGC
+#endif
         api_ret = wc_RNG_DRBG_NextSeedCurrent(root, &cur);
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
