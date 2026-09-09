@@ -1751,8 +1751,10 @@ static int rng_bank_spawn(
 
     {
         word32 child_init_flags = WC_RNG_INIT_FLAGS_NONE;
+#ifdef WC_RNG_INIT_FLAGS_RECOVER_AND_PROMOTE_FROM_NEXT_SEED
         if (flags & WC_RNG_BANK_FLAG_SPAWN_RECOVER_AND_PROMOTE)
             child_init_flags |= WC_RNG_INIT_FLAGS_RECOVER_AND_PROMOTE_FROM_NEXT_SEED;
+#endif
     if (leaf_stack != NULL) {
         ret = wc_InitRngNonceRBGC(leaf_stack,
                                   WC_RNG_BANK_INST_TO_RNG(rng_inst),
