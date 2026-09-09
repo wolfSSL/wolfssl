@@ -1602,8 +1602,11 @@ static void wc_Sha3Free(wc_Sha3* sha3)
         /* If they want the standard free, they can call it themselves */
         /* via their callback setting devId to INVALID_DEVID */
         /* otherwise assume the callback handled it */
-        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            ForceZero(sha3->s, sizeof(sha3->s));
+            ForceZero(sha3->t, sizeof(sha3->t));
             return;
+        }
         /* fall-through when unavailable */
     }
 
@@ -1705,6 +1708,8 @@ static int wc_Sha3GetHash(wc_Sha3* sha3, byte* hash, word32 p, word32 len)
     if (ret == 0) {
         ret = wc_Sha3Final(tmpSha3, hash, p, len);
     }
+
+    ForceZero(tmpSha3, sizeof(*tmpSha3));
 
     WC_FREE_VAR_EX(tmpSha3, sha3->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;

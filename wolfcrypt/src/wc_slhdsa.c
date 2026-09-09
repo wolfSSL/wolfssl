@@ -7225,11 +7225,17 @@ int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key, const byte* sk_seed,
         {
             /* The seeds are now staged in the key as the contiguous
              * SK.seed || SK.prf || PK.seed the callback expects. */
+            key->flags &= (word16)~WC_SLHDSA_FLAG_BOTH_KEYS;
             ret = wc_CryptoCb_MakePqcSignatureKeyEx(NULL,
                 WC_PQC_SIG_TYPE_SLHDSA, (int)key->params->param, key->sk,
                 3U * key->params->n, key);
-            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+                if ((key->flags & WC_SLHDSA_FLAG_PRIVATE) == 0) {
+                    /* Device owns the key (ISO/IEC 19790:2012 7.9.7). */
+                    ForceZero(key->sk, 2U * key->params->n);
+                }
                 return ret;
+            }
             /* fall-through when unavailable */
             ret = 0;
         }
@@ -7337,6 +7343,7 @@ static int slhdsakey_sign(SlhDsaKey* key, byte* md, byte* sig)
     word32 l;
     byte pk_fors[SLHDSA_MAX_N];
     byte n = key->params->n;
+    byte* sigFors = sig;
 
     /* Steps 1, 7-13: Set address based on message digest. */
     slhdsakey_set_ha_from_md(key, md, adrs, t, &l);
@@ -7354,6 +7361,11 @@ static int slhdsakey_sign(SlhDsaKey* key, byte* md, byte* sig)
         /* Steps 17-18: Hypertree sign FORS public key. */
         ret = slhdsakey_ht_sign(key, pk_fors, key->sk, key->sk + 2 * n, t, l,
             sig);
+    }
+    if (ret != 0) {
+        /* Unreleased FORS secrets may be in sig
+         * (ISO/IEC 19790:2012 7.9.7). */
+        ForceZero(sigFors, key->params->k * (1 + key->params->a) * n);
     }
 
     return ret;
