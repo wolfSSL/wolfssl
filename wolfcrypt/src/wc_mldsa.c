@@ -6363,6 +6363,11 @@ static sword32 mldsa_mont_red(sword64 a)
 
 #if !defined(WOLFSSL_MLDSA_SMALL) || \
     (!defined(WOLFSSL_MLDSA_NO_SIGN) || \
+     (!defined(WOLFSSL_MLDSA_SMALL_MEM_POLY64) && \
+      ((!defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+        defined(WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM)) || \
+       (!defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+        defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM)))) || \
      (defined(WOLFSSL_MLDSA_SMALL) && \
       (!defined(WOLFSSL_MLDSA_NO_MAKE_KEY) || \
        (!defined(WOLFSSL_MLDSA_NO_VERIFY) && \
@@ -7918,6 +7923,10 @@ static void mldsa_invntt(sword32* r)
 
 /* Inverse Number-Theoretic Transform.
  *
+ * Cannot overflow when |r[i]| < Q: the sum lane is left unreduced across
+ * all 8 levels, so it reaches 256 times the input bound, and
+ * 256 * Q < 2^31.
+ *
  * @param [in, out] r  Polynomial to transform.
  */
 static void mldsa_invntt_full(sword32* r)
@@ -8369,6 +8378,11 @@ static void mldsa_vec_mul(sword32* r, sword32* a, sword32* b, byte l)
 #endif
 
 #if !defined(WOLFSSL_MLDSA_NO_SIGN) || \
+    (!defined(WOLFSSL_MLDSA_SMALL_MEM_POLY64) && \
+     ((!defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+       defined(WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM)) || \
+      (!defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+       defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM)))) || \
     (defined(WOLFSSL_MLDSA_SMALL) && \
      (!defined(WOLFSSL_MLDSA_NO_MAKE_KEY) || \
       (!defined(WOLFSSL_MLDSA_NO_VERIFY) && \
@@ -9111,6 +9125,10 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
             for (e = 0; e < MLDSA_N; e++) {
                 tt[e] = mldsa_mont_red(t64[e]);
             }
+        #else
+            /* Sum of l Montgomery products reaches l*Q; bring it back
+             * inside |x| < Q, where mldsa_invntt_full() cannot overflow. */
+            mldsa_poly_red(tt);
         #endif
             mldsa_invntt_full(tt);
             mldsa_add(tt, s2t);
@@ -10000,6 +10018,11 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                 for (e = 0; e < MLDSA_N; e++) {
                     wt[e] = mldsa_mont_red(t64[e]);
                 }
+            #else
+                /* Sum of l Montgomery products reaches l*Q; bring it back
+                 * inside |x| < Q, where mldsa_invntt_full() cannot
+                 * overflow. */
+                mldsa_poly_red(wt);
             #endif
                 mldsa_invntt_full(wt);
                 /* Step 14, Step 22: Make values positive and decompose. */
@@ -11179,6 +11202,11 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
             for (e = 0; e < MLDSA_N; e++) {
                 w[e] = mldsa_mont_red(t64[e]);
             }
+        #else
+            /* Sum of l + 1 Montgomery products reaches (l + 1)*Q; bring it
+             * back inside |x| < Q, where mldsa_invntt_full() cannot
+             * overflow. */
+            mldsa_poly_red(w);
         #endif
 
             /* Step 10: w = NTT-1(A o NTT(z) - NTT(c) o NTT(t1)) */
