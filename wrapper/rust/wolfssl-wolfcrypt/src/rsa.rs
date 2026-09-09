@@ -86,11 +86,11 @@ impl RSA {
     pub const HASH_TYPE_MD5        : u32 = sys::wc_HashType_WC_HASH_TYPE_MD5;
     #[cfg(sha)]
     pub const HASH_TYPE_SHA        : u32 = sys::wc_HashType_WC_HASH_TYPE_SHA;
-    #[cfg(sha256)]
+    #[cfg(sha224)]
     pub const HASH_TYPE_SHA224     : u32 = sys::wc_HashType_WC_HASH_TYPE_SHA224;
     #[cfg(sha256)]
     pub const HASH_TYPE_SHA256     : u32 = sys::wc_HashType_WC_HASH_TYPE_SHA256;
-    #[cfg(sha512)]
+    #[cfg(sha384)]
     pub const HASH_TYPE_SHA384     : u32 = sys::wc_HashType_WC_HASH_TYPE_SHA384;
     #[cfg(sha512)]
     pub const HASH_TYPE_SHA512     : u32 = sys::wc_HashType_WC_HASH_TYPE_SHA512;
