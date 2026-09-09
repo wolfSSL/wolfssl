@@ -629,9 +629,10 @@ algorithms, so ML-KEM and ML-DSA stay on the CPU.
 
 `els_pkc_port.c` offloads wolfCrypt to the EdgeLock subsystem found on the
 RW612 and related parts, through the crypto callback interface. The ELS
-peripheral serves SHA-256, SHA-384, SHA-512, AES (ECB/CBC/CTR), AES-GCM, CMAC
-and the DRBG. NXP rates that DRBG at 128 bits of security strength, so where it
-seeds wolfCrypt's Hash-DRBG, that DRBG is capped at 128 bits too.
+peripheral serves SHA-256, SHA-384, SHA-512, AES (ECB/CBC/CTR), AES-GCM,
+CMAC, the DRBG, and ECDSA on P-256 for a key that names a slot.
+NXP rates the ELS DRBG at 128 bits of security strength, which caps
+wolfCrypt's Hash-DRBG at 128 bits where it supplies the seed.
 
 Anything the hardware does not serve is declined with `CRYPTOCB_UNAVAILABLE`
 and completed in software, so an unsupported algorithm or key size costs
@@ -645,10 +646,11 @@ created without an explicit device still reaches the hardware.
 `WC_NO_DEFAULT_DEVID` turns that off and leaves routing to the caller.
 
 Keys that live in the ELS key store are referenced rather than exported.
-`wc_ElsPkc_AesUseSlot()` and `wc_ElsPkc_CmacUseSlot()` attach a slot
-reference to a key, so the key material never leaves the hardware. They are
-the documented entry point: `wc_ElsPkc_MakeKeyRef()` is the lower-level
-primitive they build on.
+`wc_ElsPkc_EccUseSlot()`, `wc_ElsPkc_AesUseSlot()` and
+`wc_ElsPkc_CmacUseSlot()` attach a slot reference to a key, so the private
+key never leaves the hardware. They are the documented entry point:
+`wc_ElsPkc_MakeKeyRef()` is the lower-level primitive they build on, and for
+ECC the helper additionally pins the curve, which the offload requires.
 
 ### Hardware behaviour worth knowing
 
@@ -689,10 +691,18 @@ finished before the last `wolfCrypt_Cleanup()`: with the device gone, wolfCrypt
 carries on in software from the engine's state, and a hash returns a wrong
 digest.
 
+ELS declines an ECDSA digest that is not a full 32 bytes - reachable, since
+`wc_ecc_sign_hash()` takes a digest of any length and a SHA-1 hash under
+P-256 is 20 bytes - so that signature is made in software.
+
 **What the hardware declines**, so it runs in software instead: AES-192 (no
 ELS key size), any trailing partial block, and an AES-GCM IV other than 12
 bytes. A key in a slot has no software copy, so with one a partial block
 fails with `BAD_LENGTH_E` and such an IV with `BAD_FUNC_ARG`.
+
+**ECDH is not offloaded at all.** ELS deposits the agreed secret in a key
+slot, which cannot be read back, while the wolfCrypt ECDH callback has to
+hand a buffer to its caller - so the callback declines and software answers.
 
 ### Vendor library
 
