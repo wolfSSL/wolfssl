@@ -295,6 +295,32 @@ static int linuxkm_lkcapi_sysfs_install(void) {
             (void)linuxkm_lkcapi_sysfs_deinstall_node(&install_algs_attr, NULL);
             return ret;
         }
+
+#ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG
+        ret = linuxkm_lkcapi_sysfs_install_node(&wc_linuxkm_rng_state_invalidate_attr,
+                                                NULL);
+        if (ret) {
+            (void)linuxkm_lkcapi_sysfs_deinstall_node(&deinstall_algs_attr,
+                                                      NULL);
+            (void)linuxkm_lkcapi_sysfs_deinstall_node(&install_algs_attr,
+                                                      NULL);
+            return ret;
+        }
+#if defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT) && \
+    defined(WC_RNG_DEBUG_STATS)
+        ret = linuxkm_lkcapi_sysfs_install_node(&wc_linuxkm_rng_stats_attr,
+                                                NULL);
+        if (ret) {
+            (void)linuxkm_lkcapi_sysfs_deinstall_node(&wc_linuxkm_rng_state_invalidate_attr,
+                                                      NULL);
+            (void)linuxkm_lkcapi_sysfs_deinstall_node(&deinstall_algs_attr,
+                                                      NULL);
+            (void)linuxkm_lkcapi_sysfs_deinstall_node(&install_algs_attr,
+                                                      NULL);
+            return ret;
+        }
+#endif
+#endif /* LINUXKM_LKCAPI_REGISTER_HASH_DRBG */
         installed_sysfs_LKCAPI_files = 1;
     }
     return 0;
@@ -302,7 +328,24 @@ static int linuxkm_lkcapi_sysfs_install(void) {
 
 static int linuxkm_lkcapi_sysfs_deinstall(void) {
     if (installed_sysfs_LKCAPI_files) {
-        int ret = linuxkm_lkcapi_sysfs_deinstall_node(&install_algs_attr, NULL);
+        int ret;
+#ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG
+#if defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT) && \
+    defined(WC_RNG_DEBUG_STATS)
+        ret = linuxkm_lkcapi_sysfs_deinstall_node(&wc_linuxkm_rng_stats_attr,
+                                                  NULL);
+        if (ret)
+            return ret;
+#endif
+        /* removed first (LIFO), and in any case before RNG teardown can
+         * begin: the store handler walks the registry and reaches the
+         * daemon root. */
+        ret = linuxkm_lkcapi_sysfs_deinstall_node(&wc_linuxkm_rng_state_invalidate_attr,
+                                                  NULL);
+        if (ret)
+            return ret;
+#endif /* LINUXKM_LKCAPI_REGISTER_HASH_DRBG */
+        ret = linuxkm_lkcapi_sysfs_deinstall_node(&install_algs_attr, NULL);
         if (ret)
             return ret;
         ret = linuxkm_lkcapi_sysfs_deinstall_node(&deinstall_algs_attr, NULL);
