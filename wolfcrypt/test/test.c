@@ -28117,9 +28117,8 @@ static THREAD_RETURN WOLFSSL_THREAD rng_fork_test_holder(void* arg)
 }
 
 /* fork() while another thread holds the lock: the child must finish with a
- * different next block.  The hold is best effort; the checks hold either way.
- * Sets leak when the holder could not be joined. */
-static wc_test_ret_t rng_fork_test(WC_RNG* rng, int* leak)
+ * different next block.  The hold is best effort; the checks hold anyway. */
+static wc_test_ret_t rng_fork_test(WC_RNG* rng)
 {
     WC_DECLARE_VAR(parent, byte, WC_RNG_THREAD_TEST_BLKSZ, HEAP_HINT);
     WC_DECLARE_VAR(child, byte, WC_RNG_THREAD_TEST_BLKSZ, HEAP_HINT);
@@ -28196,12 +28195,8 @@ done:
         (void)kill(pid, SIGKILL);
         (void)waitpid(pid, NULL, 0);
     }
-    if (started && (wolfSSL_JoinThread(holder) != 0)) {
-        *leak = 1;   /* the holder still uses h, rng and its pipe */
-        h = NULL;
-        if (ret == 0)
-            ret = WC_TEST_RET_ENC_NC;
-    }
+    if (started && (wolfSSL_JoinThread(holder) != 0) && ret == 0)
+        ret = WC_TEST_RET_ENC_NC;
     if (piped >= 1) {
         if (fd[0] >= 0)
             close(fd[0]);
@@ -28209,8 +28204,7 @@ done:
             close(fd[1]);
     }
     if (piped >= 2) {
-        if (h != NULL || !started)
-            close(hfd[0]);   /* kept open for a lost holder: no SIGPIPE */
+        close(hfd[0]);
         if (!started)
             close(hfd[1]);
     }
@@ -28256,7 +28250,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
     THREAD_TYPE threads[WC_RNG_THREAD_TEST_THREADS];
     struct rng_thread_test_args* args = NULL;
     byte* out = NULL;
-    int leak = 0;    /* rng, args or out may still be in use by a thread */
     int started = 0;
     int nblocks;
     int i, j;
@@ -28264,8 +28257,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
 
     WOLFSSL_ENTER("random_thread_test");
 
-    /* Everything a thread can reach is on the heap, so a thread that cannot
-     * be joined is leaked instead of left running over a dead frame. */
     out = (byte*)XMALLOC((size_t)WC_RNG_THREAD_TEST_BLOCKS *
                          WC_RNG_THREAD_TEST_BLKSZ, HEAP_HINT,
                          DYNAMIC_TYPE_TMP_BUFFER);
@@ -28286,7 +28277,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
         struct rng_churn_args* c = NULL;
         THREAD_TYPE churn = INVALID_THREAD_VAL;   /* joined only if started */
         int churning = 0;
-        int leak3 = 0;   /* third may still be in use by its holder */
     #ifndef NO_MAIN_DRIVER
         unsigned int prevAlarm;
     #endif
@@ -28313,27 +28303,20 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
     #ifndef NO_MAIN_DRIVER
         prevAlarm = alarm(30);   /* a hung child or holder fails the run */
     #endif
-        ret = rng_fork_test(rng, &leak);
+        ret = rng_fork_test(rng);
         if (ret == 0)
-            ret = rng_fork_test(third, &leak3);
+            ret = rng_fork_test(third);
     #ifndef NO_MAIN_DRIVER
         alarm(0);
         if (prevAlarm != 0)
             alarm(prevAlarm);
     #endif
-        if (churning && wolfSSL_JoinThread(churn) != 0) {
-            c = NULL;   /* leaked: the churn thread may still use it */
-            if (ret == 0)
-                ret = WC_TEST_RET_ENC_NC;
-        }
-        else {
-            if (ret == 0 && (!churning || c->ret != 0))
-                ret = churning ? WC_TEST_RET_ENC_EC(c->ret)
-                               : WC_TEST_RET_ENC_NC;
-            XFREE(c, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        }
-        if (!leak3)
-            wc_rng_free(third);
+        if (churning && wolfSSL_JoinThread(churn) != 0 && ret == 0)
+            ret = WC_TEST_RET_ENC_NC;
+        else if (ret == 0 && (!churning || c->ret != 0))
+            ret = churning ? WC_TEST_RET_ENC_EC(c->ret) : WC_TEST_RET_ENC_NC;
+        XFREE(c, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        wc_rng_free(third);
         if (ret != 0)
             goto out_free;
     }
@@ -28376,10 +28359,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
 
     for (i = 0; i < started; i++) {
         if (wolfSSL_JoinThread(threads[i]) != 0)
-            leak = 1;
+            ret = WC_TEST_RET_ENC_NC;
     }
-    if (leak)
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out_free);
+    if (ret != 0)
+        goto out_free;
 
     /* Worker errors first, whatever the thread count. */
     for (i = 0; i < started; i++) {
@@ -28406,8 +28389,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
     }
 
 out_free:
-    if (leak)
-        return ret;   /* a thread may still use rng, args or out */
     if (rng != NULL)
         wc_rng_free(rng);
     XFREE(args, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
