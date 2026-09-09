@@ -35,12 +35,12 @@ This library contains implementation for the random number generator.
  * WC_RNG_BLOCKING:          Make RNG operations blocking         default: off
  * WC_VERBOSE_RNG:           Enable verbose RNG debug output      default: off
  * WC_RNG_SEED_CB:           Use custom seed callback function    default: off
- * WC_RNG_BANK_SUPPORT:      Enable RNG bank (pre-generated)     default: off
- *                            random data support
- * WOLFSSL_RNG_USE_FULL_SEED: Use full-length seed for DRBG      default: off
+ * WC_HAVE_RNG_BANKREF:      Enable RNG bank indirect RNG         default: off
+ *                            support
+ * WOLFSSL_RNG_USE_FULL_SEED: Use full-length seed for DRBG       default: off
  * WOLFSSL_GENSEED_FORTEST:  Use deterministic seed for testing   default: off
  *                            WARNING: not for production use
- * WOLFSSL_KEEP_RNG_SEED_FD_OPEN: Keep /dev/random fd open       default: off
+ * WOLFSSL_KEEP_RNG_SEED_FD_OPEN: Keep /dev/random fd open        default: off
  *                            between seed operations
  *
  * Custom RNG Sources:
@@ -135,7 +135,10 @@ This library contains implementation for the random number generator.
 
 
 #include <wolfssl/wolfcrypt/random.h>
-#ifdef WC_RNG_BANK_SUPPORT
+#ifdef WC_HAVE_RNG_BANKREF
+    #if defined(HAVE_FIPS) && !defined(WOLFSSL_EXPERIMENTAL_SETTINGS)
+        #error WC_HAVE_RNG_BANKREF is unsupported in FIPS configurations.
+    #endif
     #include <wolfssl/wolfcrypt/rng_bank.h>
 #endif
 #include <wolfssl/wolfcrypt/cpuid.h>
@@ -297,6 +300,37 @@ This library contains implementation for the random number generator.
 #endif /* USE_WINDOWS_API */
 #endif
 
+/* RNG health states */
+#define DRBG_NOT_INIT     WC_DRBG_NOT_INIT
+#define DRBG_OK           WC_DRBG_OK
+#define DRBG_FAILED       WC_DRBG_FAILED
+#define DRBG_CONT_FAILED  WC_DRBG_CONT_FAILED
+
+/* enforcement helper for WC_RNG_LOCK_REQUIRED: instance-consuming public APIs
+ * call this on entry. */
+static WC_MAYBE_UNUSED WC_INLINE int rng_lock_required_check(WC_RNG* rng)
+{
+    if (rng == NULL)
+        return BAD_FUNC_ARG;
+#ifndef WC_RNG_HAVE_LOCK
+    return 0;
+#else /* WC_RNG_HAVE_LOCK */
+    else {
+    #ifdef WOLFSSL_NO_ATOMICS
+        WC_RNG_lock_t lock_state = rng->lock;
+    #else
+        WC_RNG_lock_arg_t lock_state = WOLFSSL_ATOMIC_LOAD(rng->lock);
+    #endif
+        if ((lock_state & WC_RNG_LOCK_REQUIRED) &&
+            (! (lock_state & WC_RNG_LOCK_HELD)))
+        {
+            return OBJECT_NOT_LOCKED_E;
+        }
+        return 0;
+    }
+#endif /* WC_RNG_HAVE_LOCK */
+}
+
 /* Read-only accessor for the RNG health status (enum wc_RngHealthState).
  * Returns the status, or BAD_FUNC_ARG for a NULL rng. */
 int wc_RNG_GetStatus(const WC_RNG* rng)
@@ -373,12 +407,6 @@ enum {
     #define WC_DRBG_FAILED (byte)WC_ERR_TRACE(WC_DRBG_FAILED)
     #define WC_DRBG_CONT_FAILED (byte)WC_ERR_TRACE(WC_DRBG_CONT_FAILED)
 #endif
-
-/* RNG health states */
-#define DRBG_NOT_INIT     WC_DRBG_NOT_INIT
-#define DRBG_OK           WC_DRBG_OK
-#define DRBG_FAILED       WC_DRBG_FAILED
-#define DRBG_CONT_FAILED  WC_DRBG_CONT_FAILED
 
 #define SEED_SZ           WC_DRBG_SEED_SZ
 #define MAX_SEED_SZ       WC_DRBG_MAX_SEED_SZ
@@ -806,6 +834,10 @@ int wc_RNG_DRBG_Reseed_Nonce(WC_RNG* rng, const byte* seed, word32 seedSz,
         return BAD_FUNC_ARG;
     }
 
+    ret = rng_lock_required_check(rng);
+    if (ret != 0)
+        return ret;
+
     ret = Hash_DRBG_Reseed(rng, seed, seedSz, nonce, nonceSz, 1 /* credited */);
 
     return ret;
@@ -888,6 +920,12 @@ int wc_RNG_DRBG_Reseed_Nonce_Uncredited(WC_RNG* rng, const byte* seed, word32 se
 {
     if (rng == NULL || seed == NULL)
         return BAD_FUNC_ARG;
+
+    {
+        int lock_ret = rng_lock_required_check(rng);
+        if (lock_ret != 0)
+            return lock_ret;
+    }
 
     return Hash_DRBG_Reseed(rng, seed, seedSz, nonce, nonceSz, 0 /* credited */);
 }
@@ -2062,8 +2100,26 @@ int wc_Sha512Drbg_IsDisabled(void)
 #endif /* HAVE_HASHDRBG */
 /* End NIST DRBG Code */
 
-static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
-                    void* heap, int devId, WC_RNG* seedRng)
+/* Semantics of "flags":
+ *
+ * Security attributes are fixed at instantiation and caller-declared -- the
+ * constructor never reads the target object.  _LOCK_REQUIRED sets the sticky
+ * WC_RNG_LOCK_REQUIRED latch bit at birth, so there is no reachable state in
+ * which the instance serves without its lock policy.  _LOCK_INITIALLY sets
+ * WC_RNG_LOCK_HELD at birth: the caller is the lease holder from the first
+ * instruction -- the flag for constructing into a held lease (a lease-holding
+ * reinitialization keeps the instance invariantly locked across the reinit), to
+ * be released by wc_RNG_lock_put() as usual.  _USE_FULL_MUTEX layers a blocking
+ * wolfSSL_Mutex outermost around wc_RNG_lock_get() and wc_RNG_lock_put*() --
+ * for user-mode sharing of one instance among threads, where spinning on the
+ * CAS would be wrong; contending getters sleep in wc_LockMutex().  The inner
+ * latch (and every other wc_RNG_lock_*() operation) is unchanged.
+ * NOT_COMPILED_IN unless WC_RNG_HAVE_LOCK_FULL_MUTEX; composes with
+ * _LOCK_INITIALLY (born held at both layers).  wc_FreeRng() releases (if the
+ * latch is held) and frees the mutex.
+ */
+static int _InitRng(WC_RNG* rng, const byte* nonce, word32 nonceSz,
+                    void* heap, int devId, WC_RNG* seedRng, word32 flags)
 {
     int ret = 0;
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
@@ -2089,8 +2145,30 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
     if (nonce == NULL && nonceSz != 0)
         return BAD_FUNC_ARG;
 
-    XMEMSET(rng, 0, sizeof(*rng));
+#ifdef WC_RNG_HAVE_LOCK
+    if (flags & (WC_RNG_INIT_FLAGS_LOCK_REQUIRED |
+                 WC_RNG_INIT_FLAGS_LOCK_INITIALLY))
+    {
+        word32 initial_flags =
+            ((flags & WC_RNG_INIT_FLAGS_LOCK_REQUIRED) ?
+             WC_RNG_LOCK_REQUIRED : 0) |
+            ((flags & WC_RNG_INIT_FLAGS_LOCK_INITIALLY) ?
+             WC_RNG_LOCK_HELD : 0);
+        XMEMSET(rng, 0, WC_OFFSETOF(WC_RNG, lock));
+        XMEMSET((byte *)rng + WC_OFFSETOF(WC_RNG, lock) + sizeof(rng->lock), 0, sizeof(*rng) -
+                (WC_OFFSETOF(WC_RNG, lock) + sizeof(rng->lock)));
+#ifdef WOLFSSL_NO_ATOMICS
+        rng->lock = initial_flags;
+#else
+        wolfSSL_Atomic_Uint_Init(&rng->lock, initial_flags);
+#endif
+    }
+    else
+#endif /* WC_RNG_HAVE_LOCK */
+    {
+        XMEMSET(rng, 0, sizeof(*rng));
     rng->isRbgcLeaf = (seedRng != NULL);
+    }
 
 
 #ifdef WOLFSSL_HEAP_TEST
@@ -2520,6 +2598,23 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 #endif /* HAVE_HASHDRBG */
 #endif /* CUSTOM_RAND_GENERATE_BLOCK */
 
+    if ((ret == 0) && (flags & WC_RNG_INIT_FLAGS_USE_FULL_MUTEX)) {
+#ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
+        /* deliberately the last init step: no failure path can strand an
+         * initialized mutex. */
+        if (wc_InitMutex(&rng->mutex) != 0)
+            return BAD_MUTEX_E;
+        rng->flags |= WC_RNG_FLAG_FULL_MUTEX;
+        if (flags & WC_RNG_INIT_FLAGS_LOCK_INITIALLY) {
+            /* born held at both layers: the constructor's caller holds
+             * the whole latch, mutex included. */
+            (void)wc_LockMutex(&rng->mutex);
+        }
+#else
+        return NOT_COMPILED_IN;
+#endif
+    }
+
     return ret;
 }
 
@@ -2559,7 +2654,8 @@ int wc_rng_new_ex(WC_RNG **rng, byte* nonce, word32 nonceSz,
         return MEMORY_E;
     }
 
-    ret = _InitRng(*rng, nonce, nonceSz, heap, devId, NULL);
+    ret = _InitRng(*rng, nonce, nonceSz, heap, devId, NULL,
+                   WC_RNG_INIT_FLAGS_NONE);
     if (ret != 0) {
         XFREE(*rng, heap, DYNAMIC_TYPE_RNG);
         *rng = NULL;
@@ -2585,27 +2681,305 @@ void wc_rng_free(WC_RNG* rng)
 WOLFSSL_ABI
 int wc_InitRng(WC_RNG* rng)
 {
-    return _InitRng(rng, NULL, 0, NULL, INVALID_DEVID, NULL);
+    return _InitRng(rng, NULL, 0, NULL, INVALID_DEVID, NULL,
+                    WC_RNG_INIT_FLAGS_NONE);
 }
 
 
 int wc_InitRng_ex(WC_RNG* rng, void* heap, int devId)
 {
-    return _InitRng(rng, NULL, 0, heap, devId, NULL);
+    return _InitRng(rng, NULL, 0, heap, devId, NULL,
+                    WC_RNG_INIT_FLAGS_NONE);
 }
 
 
-int wc_InitRngNonce(WC_RNG* rng, byte* nonce, word32 nonceSz)
+int wc_InitRngNonce(WC_RNG* rng, const byte* nonce, word32 nonceSz)
 {
-    return _InitRng(rng, nonce, nonceSz, NULL, INVALID_DEVID, NULL);
+    return _InitRng(rng, nonce, nonceSz, NULL, INVALID_DEVID, NULL,
+                    WC_RNG_INIT_FLAGS_NONE);
 }
 
 
-int wc_InitRngNonce_ex(WC_RNG* rng, byte* nonce, word32 nonceSz,
+int wc_InitRngNonce_ex(WC_RNG* rng, const byte* nonce, word32 nonceSz,
                        void* heap, int devId)
 {
-    return _InitRng(rng, nonce, nonceSz, heap, devId, NULL);
+    return _InitRng(rng, nonce, nonceSz, heap, devId, NULL,
+                    WC_RNG_INIT_FLAGS_NONE);
 }
+
+int wc_InitRng_ex2(WC_RNG* rng, void* heap, int devId, word32 flags)
+{
+    return _InitRng(rng, NULL, 0, heap, devId, NULL, flags);
+}
+
+int wc_InitRngNonce_ex2(WC_RNG* rng, const byte* nonce, word32 nonceSz,
+                        void* heap, int devId, word32 flags)
+{
+    return _InitRng(rng, nonce, nonceSz, heap, devId, NULL, flags);
+}
+
+#ifdef WC_RNG_HAVE_LOCK
+
+/* Note, in CAS updates here, the stored value derives only from expected and
+ * the caller's arguments, never from a prior load.  This assures no race with
+ * unlocked changes to any bits.
+ */
+
+int wc_RNG_lock_get(WC_RNG* rng, WC_RNG_lock_arg_t extra_bits)
+{
+    WC_RNG_lock_arg_t cur_lock;
+
+    if (rng == NULL)
+        return BAD_FUNC_ARG;
+
+#ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
+    /* outermost blocking layer, when constructed with _USE_FULL_MUTEX:
+     * contending getters sleep here rather than seeing BUSY_E. */
+    if (rng->flags & WC_RNG_FLAG_FULL_MUTEX) {
+        if (wc_LockMutex(&rng->mutex) != 0) {
+            return BAD_MUTEX_E;
+        }
+    }
+#endif
+
+    /* extra_bits is allowed to assert WC_RNG_LOCK_REQUIRED, which is in the
+     * reserved section. */
+    extra_bits &= ~((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U) |
+        WC_RNG_LOCK_REQUIRED;
+
+    cur_lock = WOLFSSL_ATOMIC_LOAD(rng->lock);
+
+    if ((! (cur_lock & WC_RNG_LOCK_HELD)) &&
+        (wolfSSL_Atomic_Uint_CompareExchange(
+            &rng->lock, &cur_lock,
+            cur_lock | WC_RNG_LOCK_HELD | extra_bits)))
+    {
+        return 0;
+    }
+
+
+#ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
+    /* CAS failure with the mutex held means a non-mutex claimant holds
+     * the latch (mixed-discipline use); back out the mutex. */
+    if (rng->flags & WC_RNG_FLAG_FULL_MUTEX)
+        (void)wc_UnLockMutex(&rng->mutex);
+#endif
+
+    if (cur_lock & WC_RNG_LOCK_HELD)
+        return BUSY_E;
+    else /* not reachable */
+        return UNEXPECTED_STATE_E;
+}
+
+int wc_RNG_lock_get_conditional(WC_RNG* rng, WC_RNG_lock_arg_t expected_extra_bits, WC_RNG_lock_arg_t want_extra_bits)
+{
+    WC_RNG_lock_arg_t cur_lock, expected;
+
+    if (rng == NULL)
+        return BAD_FUNC_ARG;
+
+#ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
+    /* outermost blocking layer, when constructed with _USE_FULL_MUTEX:
+     * contending getters sleep here rather than seeing BUSY_E. */
+    if (rng->flags & WC_RNG_FLAG_FULL_MUTEX) {
+        if (wc_LockMutex(&rng->mutex) != 0) {
+            return BAD_MUTEX_E;
+        }
+    }
+#endif
+
+    /* *_extra_bits are allowed to assert WC_RNG_LOCK_REQUIRED, which is in the
+     * reserved section. */
+    expected_extra_bits &= ~((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U) |
+        WC_RNG_LOCK_REQUIRED;
+    want_extra_bits &= ~((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U) |
+        WC_RNG_LOCK_REQUIRED;
+
+    cur_lock = WOLFSSL_ATOMIC_LOAD(rng->lock);
+
+    expected = (cur_lock & (((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U) &
+                            ~WC_RNG_LOCK_HELD)) |
+        expected_extra_bits;
+
+    if ((! (cur_lock & WC_RNG_LOCK_HELD)) &&
+        (wolfSSL_Atomic_Uint_CompareExchange(
+            &rng->lock, &expected,
+            expected | WC_RNG_LOCK_HELD | want_extra_bits)))
+    {
+        return 0;
+    }
+
+
+#ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
+    /* CAS failure with the mutex held means a non-mutex claimant holds
+     * the latch (mixed-discipline use); back out the mutex. */
+    if (rng->flags & WC_RNG_FLAG_FULL_MUTEX)
+        (void)wc_UnLockMutex(&rng->mutex);
+#endif
+
+    if (expected & WC_RNG_LOCK_HELD)
+        return BUSY_E;
+    else
+        return UNEXPECTED_STATE_E;
+}
+
+int wc_RNG_lock_put(WC_RNG* rng, WC_RNG_lock_arg_t extra_bits)
+{
+    WC_RNG_lock_arg_t cur_lock, new_lock;
+    if (rng == NULL)
+        return BAD_FUNC_ARG;
+    cur_lock = WOLFSSL_ATOMIC_LOAD(rng->lock);
+    if (! (cur_lock & WC_RNG_LOCK_HELD))
+        return OBJECT_NOT_LOCKED_E;
+
+
+    for (;;) {
+        new_lock = cur_lock & (((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U) & ~WC_RNG_LOCK_HELD);
+        /* extra_bits is allowed to assert WC_RNG_LOCK_REQUIRED, which is in the
+         * reserved section. */
+        extra_bits &= ~((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U) |
+            WC_RNG_LOCK_REQUIRED;
+        new_lock |= extra_bits;
+        if (wolfSSL_Atomic_Uint_CompareExchange(
+                &rng->lock, &cur_lock, new_lock))
+            break;
+    }
+
+#ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
+    if (rng->flags & WC_RNG_FLAG_FULL_MUTEX)
+        (void)wc_UnLockMutex(&rng->mutex);
+#endif
+
+    return 0;
+}
+
+int wc_RNG_lock_put_conditional(WC_RNG* rng, WC_RNG_lock_arg_t expected_extra_bits, WC_RNG_lock_arg_t want_extra_bits)
+{
+    WC_RNG_lock_arg_t cur_lock, expected, new_lock;
+
+    if (rng == NULL)
+        return BAD_FUNC_ARG;
+
+    cur_lock = WOLFSSL_ATOMIC_LOAD(rng->lock);
+    if (! (cur_lock & WC_RNG_LOCK_HELD))
+        return OBJECT_NOT_LOCKED_E;
+
+
+    for (;;) {
+        new_lock = cur_lock & (((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U) & ~WC_RNG_LOCK_HELD);
+        /* want_extra_bits is allowed to assert WC_RNG_LOCK_REQUIRED, which is in the
+         * reserved section. */
+        want_extra_bits &= ~((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U) |
+            WC_RNG_LOCK_REQUIRED;
+        new_lock |= want_extra_bits;
+
+        expected = WC_RNG_LOCK_HELD | expected_extra_bits;
+
+        new_lock |= (expected_extra_bits & WC_RNG_LOCK_REQUIRED);
+
+        if (wolfSSL_Atomic_Uint_CompareExchange(
+                &rng->lock, &expected,
+                new_lock))
+        {
+#ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
+            if (rng->flags & WC_RNG_FLAG_FULL_MUTEX)
+                (void)wc_UnLockMutex(&rng->mutex);
+#endif
+            return 0;
+        }
+        if ((expected & ((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U)) !=
+            (expected_extra_bits & ((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U)))
+        {
+            break;
+        }
+
+        cur_lock = expected;
+    }
+
+    /* conditional release failed: the caller is still the holder, at both
+     * layers -- the mutex stays held. */
+
+
+    return UNEXPECTED_STATE_E;
+}
+
+int wc_RNG_lock_read(WC_RNG* rng, WC_RNG_lock_arg_t* state)
+{
+    if ((rng == NULL) || (state == NULL))
+        return BAD_FUNC_ARG;
+    *state = WOLFSSL_ATOMIC_LOAD(rng->lock);
+    return 0;
+}
+
+int wc_RNG_lock_set_extra(WC_RNG* rng, WC_RNG_lock_arg_t extra_bits)
+{
+    WC_RNG_lock_arg_t cur_lock, new_lock;
+    if (rng == NULL)
+        return BAD_FUNC_ARG;
+    cur_lock = WOLFSSL_ATOMIC_LOAD(rng->lock);
+
+    for (;;) {
+        new_lock = cur_lock & ((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U);
+        /* extra_bits is allowed to assert WC_RNG_LOCK_REQUIRED, which is in the
+         * reserved section. */
+        extra_bits &= ~((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U) |
+            WC_RNG_LOCK_REQUIRED;
+        new_lock |= extra_bits;
+
+        if (wolfSSL_Atomic_Uint_CompareExchange(
+                &rng->lock, &cur_lock,
+                new_lock))
+            break;
+    }
+    return 0;
+}
+
+int wc_RNG_lock_add_extra(WC_RNG* rng, WC_RNG_lock_arg_t extra_bits)
+{
+    WC_RNG_lock_arg_t cur_lock;
+    if (rng == NULL)
+        return BAD_FUNC_ARG;
+    cur_lock = WOLFSSL_ATOMIC_LOAD(rng->lock);
+
+    /* extra_bits is allowed to assert WC_RNG_LOCK_REQUIRED, which is in the
+     * reserved section. */
+    extra_bits &= ~((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U) |
+        WC_RNG_LOCK_REQUIRED;
+
+    for (;;) {
+        if (wolfSSL_Atomic_Uint_CompareExchange(
+                &rng->lock, &cur_lock,
+                cur_lock | extra_bits))
+            break;
+    }
+    return 0;
+}
+
+int wc_RNG_lock_clear_extra(WC_RNG* rng, WC_RNG_lock_arg_t extra_bits)
+{
+    WC_RNG_lock_arg_t cur_lock;
+    if (rng == NULL)
+        return BAD_FUNC_ARG;
+    if (extra_bits & WC_RNG_LOCK_REQUIRED) {
+        /* WC_RNG_LOCK_REQUIRED is sticky by contract */
+        return BAD_FUNC_ARG;
+    }
+    cur_lock = WOLFSSL_ATOMIC_LOAD(rng->lock);
+
+    extra_bits &= ~((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U);
+
+    for (;;) {
+        if (wolfSSL_Atomic_Uint_CompareExchange(
+                &rng->lock, &cur_lock,
+                cur_lock & ~extra_bits))
+            break;
+    }
+    return 0;
+}
+
+#endif /* WC_RNG_HAVE_LOCK */
+
+
 
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
 
@@ -2660,7 +3034,8 @@ static int SpawnRngRBGC(WC_RNG* new_leaf_stack, WC_RNG** new_leaf_heap,
             return MEMORY_E;
     }
 
-    ret = _InitRng(leaf, nonce, nonceSz, root->heap, devId, root);
+    ret = _InitRng(leaf, nonce, nonceSz, root->heap, devId, root,
+                   WC_RNG_INIT_FLAGS_NONE);
 
     if (new_leaf_heap != NULL) {
         if (ret != 0) {
@@ -2820,6 +3195,10 @@ int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* nonce, word32 nonceSz)
         return BAD_FUNC_ARG;
     if ((nonce == NULL) && (nonceSz > 0))
         return BAD_FUNC_ARG;
+    ret = rng_lock_required_check(rng);
+    if (ret != 0)
+        return ret;
+
     /* Mirror wc_RNG_GenerateBlock(): only an in-service DRBG may reseed. */
     if (rng->status != DRBG_OK)
         return RNG_FAILURE_E;
@@ -2867,6 +3246,10 @@ int wc_RNG_DRBG_ReseedRBGC(WC_RNG* leaf, WC_RNG* root, const byte* nonce,
     {
         return BAD_FUNC_ARG;
     }
+    ret = rng_lock_required_check(leaf);
+    if (ret != 0)
+        return ret;
+
     /* Depth-one chains only, by policy: a leaf is never a root. */
     if (root->isRbgcLeaf)
         return BAD_FUNC_ARG;
@@ -3104,6 +3487,10 @@ int wc_RNG_DRBG_NextSeedNow_Nonce(WC_RNG* rng, const byte* nonce,
     if ((nonce == NULL) && (nonceSz != 0))
         return BAD_FUNC_ARG;
 
+    ret = rng_lock_required_check(rng);
+    if (ret != 0)
+        return ret;
+
     /* Mirror wc_RNG_GenerateBlock(): only an in-service DRBG may reseed. */
     if (rng->status != DRBG_OK)
         return RNG_FAILURE_E;
@@ -3156,11 +3543,9 @@ int wc_RNG_DRBG_NextSeedNow(WC_RNG* rng) {
 #endif /* HAVE_HASHDRBG */
 
 /* place a generated block in output */
-#ifdef WC_RNG_BANK_SUPPORT
-/* NOLINTNEXTLINE(misc-no-recursion) */
+#ifdef WC_HAVE_RNG_BANKREF
 static int wc_local_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 #else
-/* NOLINTNEXTLINE(misc-no-recursion) */
 WOLFSSL_ABI
 int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 #endif
@@ -3169,6 +3554,10 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 
     if (rng == NULL || output == NULL)
         return BAD_FUNC_ARG;
+
+    ret = rng_lock_required_check(rng);
+    if (ret != 0)
+        return ret;
 
     if (sz == 0)
         return 0;
@@ -3289,15 +3678,20 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
     return ret;
 }
 
-#ifdef WC_RNG_BANK_SUPPORT
+#ifdef WC_HAVE_RNG_BANKREF
 WOLFSSL_ABI
-/* NOLINTNEXTLINE(misc-no-recursion) */
 int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 {
     if (rng == NULL)
         return BAD_FUNC_ARG;
 
-    if (rng->status == WC_DRBG_BANKREF) {
+    {
+        int lock_ret = rng_lock_required_check(rng);
+        if (lock_ret != 0)
+            return lock_ret;
+    }
+
+    if (rng->flags & WC_RNG_FLAG_BANKREF) {
         int ret;
         struct wc_rng_bank_inst *bank_inst = NULL;
 
@@ -3337,14 +3731,19 @@ int wc_FreeRng(WC_RNG* rng)
 {
     int ret = 0;
 
+    if (rng != NULL) {
+        ret = rng_lock_required_check(rng);
+        if (ret != 0)
+            return ret;
+    }
 
     if (rng == NULL)
         return BAD_FUNC_ARG;
 
-#ifdef WC_RNG_BANK_SUPPORT
-    if (rng->status == WC_DRBG_BANKREF)
+#ifdef WC_HAVE_RNG_BANKREF
+    if (rng->flags & WC_RNG_FLAG_BANKREF)
         return wc_BankRef_Release(rng);
-#endif /* WC_RNG_BANK_SUPPORT */
+#endif /* WC_HAVE_RNG_BANKREF */
 
 
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -3435,6 +3834,22 @@ int wc_FreeRng(WC_RNG* rng)
         rng->seed.seedFdOpen = 0;
     }
 #endif
+
+#ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
+    if (rng->flags & WC_RNG_FLAG_FULL_MUTEX) {
+        /* If the latch is held, the caller is the holder (enforced when
+         * _LOCK_REQUIRED) and owns the mutex: release it before
+         * destruction.  A free latch means the mutex is unowned. */
+        if (WOLFSSL_ATOMIC_LOAD(rng->lock) & WC_RNG_LOCK_HELD)
+            (void)wc_UnLockMutex(&rng->mutex);
+        (void)wc_FreeMutex(&rng->mutex);
+        rng->flags &= ~WC_RNG_FLAG_FULL_MUTEX;
+    }
+#endif
+
+    /* Note, rng->lock must *not* be cleared -- it may still be arbitrating
+     * access even after wc_FreeRng().
+     */
 
     return ret;
 }
