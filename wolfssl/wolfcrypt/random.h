@@ -994,7 +994,9 @@ WOLFSSL_API int wc_RNG_DRBG_Present(const WC_RNG* rng);
                                           WC_RNG_lock_arg_t extra_bits);
     WOLFSSL_API int wc_RNG_lock_clear_extra(WC_RNG* rng,
                                             WC_RNG_lock_arg_t extra_bits);
+    #ifdef HAVE_HASHDRBG
     WOLFSSL_API int wc_RNG_invalidate_entropy(WC_RNG* rng);
+    #endif
 #endif /* WC_RNG_HAVE_LOCK */
 
 #ifdef WC_RNG_HAVE_FREE_HOOK
