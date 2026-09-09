@@ -3084,46 +3084,6 @@ static int TrustPeerCertFile(WOLFSSL_CTX* ctx, const char* file, int format,
 
     return ret;
 }
-
-/* Load a buffer of certificate/s as trusted peer certificates with the
- * caller's verification setting.
- *
- * @param [in, out] ctx     SSL context object.
- * @param [in]      in      Buffer holding certificate/s.
- * @param [in]      sz      Length of data in buffer in bytes.
- * @param [in]      format  Format of data: WOLFSSL_FILETYPE_PEM or
- *                             WOLFSSL_FILETYPE_ASN1.
- * @param [in]      verify  How to verify the certificate/s.
- * @return  1 on success.
- * @return  0 on failure.
- * @return  BAD_FUNC_ARG when ctx or in is NULL, or sz is less than zero.
- * @return  Negative on error.
- */
-static int TrustPeerCertBuffer(WOLFSSL_CTX* ctx, const unsigned char* in,
-    long sz, int format, int verify)
-{
-    int ret;
-
-    /* Validate parameters. */
-    if ((ctx == NULL) || (in == NULL) || (sz < 0)) {
-        ret = BAD_FUNC_ARG;
-    }
-    else {
-        /* When PEM, treat as certificate chain of trusted peer
-         * certificates. */
-        if (format == WOLFSSL_FILETYPE_PEM) {
-            ret = ProcessChainBuffer(ctx, NULL, in, sz, TRUSTED_PEER_TYPE,
-                verify, "peer");
-        }
-        /* When DER, load the trusted peer certificate. */
-        else {
-            ret = ProcessBuffer(ctx, in, sz, format, TRUSTED_PEER_TYPE, NULL,
-                NULL, 0, verify, "peer");
-        }
-    }
-
-    return ret;
-}
 #endif /* WOLFSSL_TRUST_PEER_CERT */
 
 #ifndef NO_WOLFSSL_DIR
@@ -4301,6 +4261,48 @@ int wolfSSL_use_RSAPrivateKey_file(WOLFSSL* ssl, const char* file, int format)
 #endif /* NO_FILESYSTEM */
 
 #endif /* OPENSSL_EXTRA */
+
+#if defined(WOLFSSL_TRUST_PEER_CERT)
+/* Load a buffer of certificate/s as trusted peer certificates with the
+ * caller's verification setting.
+ *
+ * @param [in, out] ctx     SSL context object.
+ * @param [in]      in      Buffer holding certificate/s.
+ * @param [in]      sz      Length of data in buffer in bytes.
+ * @param [in]      format  Format of data: WOLFSSL_FILETYPE_PEM or
+ *                             WOLFSSL_FILETYPE_ASN1.
+ * @param [in]      verify  How to verify the certificate/s.
+ * @return  1 on success.
+ * @return  0 on failure.
+ * @return  BAD_FUNC_ARG when ctx or in is NULL, or sz is less than zero.
+ * @return  Negative on error.
+ */
+static int TrustPeerCertBuffer(WOLFSSL_CTX* ctx, const unsigned char* in,
+    long sz, int format, int verify)
+{
+    int ret;
+
+    /* Validate parameters. */
+    if ((ctx == NULL) || (in == NULL) || (sz < 0)) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        /* When PEM, treat as certificate chain of trusted peer
+         * certificates. */
+        if (format == WOLFSSL_FILETYPE_PEM) {
+            ret = ProcessChainBuffer(ctx, NULL, in, sz, TRUSTED_PEER_TYPE,
+                verify, "peer");
+        }
+        /* When DER, load the trusted peer certificate. */
+        else {
+            ret = ProcessBuffer(ctx, in, sz, format, TRUSTED_PEER_TYPE, NULL,
+                NULL, 0, verify, "peer");
+        }
+    }
+
+    return ret;
+}
+#endif /* WOLFSSL_TRUST_PEER_CERT */
 
 /* Load a buffer of certificate/s into SSL context.
  *
