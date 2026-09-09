@@ -2196,6 +2196,10 @@ int wc_Sha512Drbg_IsDisabled(void)
 }
 #endif /* WOLFSSL_DRBG_SHA512 */
 #endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS v7+) */
+#else
+    /* no Hash DRBG, so no lock for the backends to hold */
+    #define RngLockEnter(rng) 0
+    #define RngLockExit(rng)  WC_DO_NOTHING
 #endif /* HAVE_HASHDRBG */
 /* End NIST DRBG Code */
 
