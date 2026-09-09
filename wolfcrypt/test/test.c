@@ -944,11 +944,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  noisesrc_test(void);
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_svc_test(void);
 #endif
+#if defined(WC_RNG_BANK_SUPPORT) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(5,2,4))
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_entropy_invalidate_test(void);
+#endif
 #ifdef WC_RNG_HAVE_RBGC
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_rbgc_test(void);
-#endif
-#ifdef WC_RNG_BANK_SUPPORT
-WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_entropy_invalidate_test(void);
 #endif
 #ifdef WC_RNG_HAVE_NEXT_SEED
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_nextseed_test(void);
@@ -2613,17 +2614,18 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     else
         TEST_PASS("RNGSVC   test passed!\n");
 #endif
+#if defined(WC_RNG_BANK_SUPPORT) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(5,2,4))
+    if ((ret = rng_entropy_invalidate_test()) != 0)
+        TEST_FAIL("RNGINVAL test failed!\n", ret);
+    else
+        TEST_PASS("RNGINVAL test passed!\n");
+#endif
 #ifdef WC_RNG_HAVE_RBGC
     if ((ret = rng_drbg_rbgc_test()) != 0)
         TEST_FAIL("RNGRBGC  test failed!\n", ret);
     else
         TEST_PASS("RNGRBGC  test passed!\n");
-#endif
-#ifdef WC_RNG_BANK_SUPPORT
-    if ((ret = rng_entropy_invalidate_test()) != 0)
-        TEST_FAIL("RNGINVAL test failed!\n", ret);
-    else
-        TEST_PASS("RNGINVAL test passed!\n");
 #endif
 #ifdef WC_RNG_HAVE_NEXT_SEED
     if ((ret = rng_drbg_nextseed_test()) != 0)
@@ -29397,6 +29399,9 @@ out:
 #endif /* HAVE_HASHDRBG && !CUSTOM_RAND_GENERATE_BLOCK && */
        /* (!HAVE_FIPS || FIPS_VERSION3_GE(7,0,0))         */
 
+#if defined(WC_RNG_BANK_SUPPORT) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(5,2,4))
+
 /* Unit coverage for WC_RNG_LOCK_ENTROPY_INVALIDATED and the
  * invalidation-recovery protocol (VM fork / resume), exercised through the
  * regime-portable bank-instance latch interface so it runs identically
@@ -29407,7 +29412,7 @@ out:
  * invalidation, clear_extra immunity, and (v7+) unlocked recovery through
  * the forced credited reseed, banked-next-seed purge, and RBGC chain
  * recovery. */
-#ifdef WC_RNG_BANK_SUPPORT
+
 #ifdef WC_RNG_HAVE_FREE_HOOK
 static int rng_inval_test_bank_hook_fired = 0;
 static int rng_inval_test_bank_hook_cb(const struct wc_rng_bank *bank,
@@ -29947,7 +29952,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_entropy_invalidate_test(void)
 
     return ret;
 }
-#endif /* WC_RNG_BANK_SUPPORT */
+#endif /* WC_RNG_BANK_SUPPORT && (!HAVE_FIPS || FIPS_VERSION3_GE(5,2,4)) */
 
 #ifdef WC_RNG_HAVE_RBGC
 
