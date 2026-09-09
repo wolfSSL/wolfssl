@@ -944,7 +944,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  noisesrc_test(void);
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_svc_test(void);
 #endif
-#if defined(WC_RNG_BANK_SUPPORT) && \
+#if defined(WC_RNG_BANK_SUPPORT) && defined(HAVE_HASHDRBG) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(5,2,4))
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_entropy_invalidate_test(void);
 #endif
@@ -2614,7 +2614,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     else
         TEST_PASS("RNGSVC   test passed!\n");
 #endif
-#if defined(WC_RNG_BANK_SUPPORT) && \
+#if defined(WC_RNG_BANK_SUPPORT) && defined(HAVE_HASHDRBG) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(5,2,4))
     if ((ret = rng_entropy_invalidate_test()) != 0)
         TEST_FAIL("RNGINVAL test failed!\n", ret);
@@ -28007,7 +28007,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
 #endif /* !WC_RNG_BANK_STATIC */
     static const char bank_arg[] = "hi";
     byte outbuf1[16], outbuf2[16];
+#ifdef HAVE_HASHDRBG
     int i;
+#endif
 #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
     int svc_present = 0;
 #endif
@@ -28237,6 +28239,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
 
+#ifdef HAVE_HASHDRBG
     ret = wc_rng_bank_reseed(NULL, 10, WC_RNG_BANK_FLAG_NONE);
 #ifdef WC_RNG_BANK_DEFAULT_SUPPORT
     if (ret != WC_NO_ERR_TRACE(NO_DEFAULT_FOUND_E))
@@ -28269,6 +28272,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
         }
     }
+#endif /* HAVE_HASHDRBG */
 
     rng_bank_affinity_get_id_id = 0;
     /* WC_RNG_BANK_FLAG_CAN_WAIT needed to avoiding warning message that the
@@ -28298,6 +28302,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (XMEMCMP(outbuf1, outbuf2, sizeof(outbuf1)) == 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
+#ifdef HAVE_HASHDRBG
     ret = wc_rng_bank_seed(bank, (byte *)bank_arg, (word32)sizeof(bank_arg), 10, WC_RNG_BANK_FLAG_CAN_WAIT);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -28382,6 +28387,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
+#endif /* HAVE_HASHDRBG */
+
     ret = wc_rng_bank_checkout(NULL, &rng_inst, -1, 10, WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST | WC_RNG_BANK_FLAG_AFFINITY_LOCK);
 #ifdef WC_RNG_BANK_DEFAULT_SUPPORT
     if (ret != WC_NO_ERR_TRACE(NO_DEFAULT_FOUND_E))
@@ -28457,6 +28464,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
+#ifdef HAVE_HASHDRBG
+
     ret = wc_rng_bank_seed(NULL, (byte *)bank_arg, (word32)sizeof(bank_arg), 10, WC_RNG_BANK_FLAG_CAN_WAIT);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -28469,14 +28478,20 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
+#endif /* HAVE_HASHDRBG */
+
     ret = wc_rng_bank_default_clear(bank);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+#ifdef HAVE_HASHDRBG
 
     /* seedSz == 0 probe with no default bank set: NO_DEFAULT_FOUND_E. */
     ret = wc_rng_bank_seed(NULL, NULL, 0, 10, WC_RNG_BANK_FLAG_CAN_WAIT);
     if (ret != WC_NO_ERR_TRACE(NO_DEFAULT_FOUND_E))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+#endif /* HAVE_HASHDRBG */
 
 #endif /* WC_RNG_BANK_DEFAULT_SUPPORT */
 
@@ -28516,6 +28531,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     ret = wc_rng_bank_checkin(bank2, &rng_inst2);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+#ifdef HAVE_HASHDRBG
 
     ret = wc_rng_bank_seed(bank2, (byte *)bank_arg, (word32)sizeof(bank_arg), 10, WC_RNG_BANK_FLAG_CAN_WAIT);
     if (ret != 0)
@@ -28569,6 +28586,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     ret = wc_rng_bank_checkin(bank2, &rng_inst2);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+#endif /* HAVE_HASHDRBG */
 
 #if defined(WC_HAVE_RNG_BANKREF) && !defined(WC_NO_CONSTRUCTORS)
     ret = wc_rng_new_bankref(NULL, &rng2);
@@ -28849,7 +28868,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+#if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && defined(HAVE_HASHDRBG)
     if (svc_present) {
         wc_drbg_reseed_ctr_t ns_ctr;
         /* effective PR: the leased instance is freshly credited-reseeded
@@ -28967,7 +28986,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #endif /* WC_RNG_HAVE_NEXT_SEED */
     }
-#endif /* !HAVE_FIPS || FIPS_VERSION3_GE(7,0,0) */
+#endif /* (!HAVE_FIPS || FIPS_VERSION3_GE(7,0,0)) && HAVE_HASHDRBG */
 
 #ifdef WC_RNG_BANK_HAVE_DAEMON_SUPPORT
     #define RBT_MAGIC   ((WC_ATOMIC_UINT_ARG)0x746e6164) /* arbitrary nonzero */
@@ -29399,7 +29418,7 @@ out:
 #endif /* HAVE_HASHDRBG && !CUSTOM_RAND_GENERATE_BLOCK && */
        /* (!HAVE_FIPS || FIPS_VERSION3_GE(7,0,0))         */
 
-#if defined(WC_RNG_BANK_SUPPORT) && \
+#if defined(WC_RNG_BANK_SUPPORT) && defined(HAVE_HASHDRBG) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(5,2,4))
 
 /* Unit coverage for WC_RNG_LOCK_ENTROPY_INVALIDATED and the
@@ -29862,7 +29881,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_entropy_invalidate_test(void)
 #endif /* WC_RNG_HAVE_RBGC */
     }
 #endif /* NEXT_SEED && RBGC && !RDSEED && !RDRAND */
-#endif /* WC_RNG_HAVE_LOCK && (!HAVE_FIPS || >= 7.0.0) */
+#endif /* WC_RNG_HAVE_LOCK && HAVE_HASHDRBG && (!HAVE_FIPS || >= 7.0.0) */
 
 #if defined(WC_RNG_BANK_DEFAULT_SUPPORT) && defined(WC_RNG_HAVE_LOCK) && \
     !defined(WC_NO_CONSTRUCTORS)

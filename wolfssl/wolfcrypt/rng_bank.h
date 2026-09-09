@@ -433,6 +433,8 @@ WOLFSSL_API int wc_rng_bank_spawn_new(
 
 #endif /* WC_RNG_HAVE_RBGC */
 
+#ifdef HAVE_HASHDRBG
+
 WOLFSSL_API int wc_rng_bank_seed(struct wc_rng_bank *bank,
                                  const byte* seed, word32 seedSz,
                                  int timeout_secs,
@@ -461,6 +463,8 @@ WOLFSSL_API int wc_rng_bank_reseed_range(struct wc_rng_bank *bank,
  * error, returning the first error.  flags must be 0. */
 WOLFSSL_API int wc_rng_bank_invalidate_entropy(struct wc_rng_bank *bank,
                                                word32 flags);
+
+#endif /* HAVE_HASHDRBG */
 
 #ifdef WC_RNG_BANK_HAVE_DAEMON_SUPPORT
 /* Publish (or, with NULL, retract) the daemon's private root DRBG for the
@@ -974,6 +978,8 @@ WC_MAYBE_UNUSED static WC_INLINE int wc_RNG_DRBG_Reseed_Now(
 
 #endif /* HAVE_FIPS && FIPS_VERSION3_LT(7,0,0) */
 
+#ifdef HAVE_HASHDRBG
+
 /* Portable invalidation-recovery helpers.  With the in-boundary latch
  * (WC_RNG_HAVE_LOCK), invalidation and clear-on-credited-reseed are
  * module-enforced and these merely forward; with the bank-side latch,
@@ -1088,6 +1094,8 @@ static WC_INLINE WC_MAYBE_UNUSED int wc_rng_bank_inst_reseed_rbgc(
 #endif /* WC_RNG_HAVE_RBGC */
 
 #endif /* !WC_RNG_HAVE_LOCK */
+
+#endif /* HAVE_HASHDRBG */
 
 #endif /* WC_RNG_BANK_SUPPORT */
 

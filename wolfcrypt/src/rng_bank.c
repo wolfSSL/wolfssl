@@ -783,7 +783,9 @@ WOLFSSL_API int wc_rng_bank_checkout(
             )
         {
             int inst_unusable;
+#ifdef HAVE_HASHDRBG
             wc_drbg_reseed_ctr_t cur_reseed_ctr = 0;
+#endif
 
             *rng_inst = &bank->rngs[preferred_inst_offset];
 
@@ -843,9 +845,13 @@ WOLFSSL_API int wc_rng_bank_checkout(
              * such instances -- never due for reseed -- so no separate
              * DRBG-presence test is needed here.
              */
+#ifdef HAVE_HASHDRBG
             inst_unusable =
                 (wc_RNG_GetStatus(WC_RNG_BANK_INST_TO_RNG(*rng_inst)) !=
                  WC_DRBG_OK);
+#else
+            inst_unusable = 0;
+#endif
 
             /* Divert (release and move on / retry) when:
              *
@@ -861,9 +867,16 @@ WOLFSSL_API int wc_rng_bank_checkout(
              *     service or is due for reseed for a caller that can't
              *     wait.  (The lap disarm is the anti-livelock provision;
              *     with (a) in force, the guarantee supersedes it.)
+             *
+             * Without HAVE_HASHDRBG neither divert cause can exist --
+             * inst_unusable is constant 0 and there is no reseed
+             * schedule -- so the failover disjunct is compiled out
+             * entirely: nothing to divert for, never divert.
              */
             if ((inst_unusable &&
-                 (flags & WC_RNG_BANK_FLAG_ERROR_ON_RNG_FAILED)) ||
+                 (flags & WC_RNG_BANK_FLAG_ERROR_ON_RNG_FAILED))
+#ifdef HAVE_HASHDRBG
+                ||
                 ((flags & WC_RNG_BANK_FLAG_CAN_FAIL_OVER_INST) &&
                  (n_rngs_tried < bank->n_rngs) &&
                  (inst_unusable ||
@@ -876,7 +889,9 @@ WOLFSSL_API int wc_rng_bank_checkout(
                    && (wc_RNG_DRBG_NextSeedCurrent(WC_RNG_BANK_INST_TO_RNG(*rng_inst), &NextSeedCurrent) == 0)
                    && (NextSeedCurrent != WC_DRBG_NEXT_SEED_READY)
             #endif
-                      ))))
+                      )))
+#endif /* HAVE_HASHDRBG */
+                )
             {
                 if (inst_unusable)
                     diverted_unusable = 1;
@@ -884,6 +899,7 @@ WOLFSSL_API int wc_rng_bank_checkout(
                 *rng_inst = NULL;
             }
             else {
+#ifdef HAVE_HASHDRBG
 #ifdef WC_VERBOSE_RNG
                 if ((! (bank->flags & WC_RNG_BANK_FLAG_QUIET)) &&
                     (! (flags & (WC_RNG_BANK_FLAG_CAN_WAIT |
@@ -922,6 +938,7 @@ WOLFSSL_API int wc_rng_bank_checkout(
                         goto out;
                     }
                 }
+#endif /* HAVE_HASHDRBG */
 
 #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
                 if ((flags | bank->flags) & WC_RNG_BANK_FLAG_NO_VECTOR_OPS) {
@@ -1825,6 +1842,8 @@ WOLFSSL_API int wc_rng_bank_spawn_new(
 #endif /* !WC_NO_CONSTRUCTORS */
 #endif /* WC_RNG_HAVE_RBGC */
 
+#ifdef HAVE_HASHDRBG
+
 WOLFSSL_API int wc_rng_bank_seed_range(struct wc_rng_bank *bank,
                                        int first_inst, int last_inst,
                                        const byte* seed, word32 seedSz,
@@ -2183,6 +2202,8 @@ WOLFSSL_API int wc_rng_bank_invalidate_entropy(struct wc_rng_bank *bank,
 
     return ret;
 }
+
+#endif /* HAVE_HASHDRBG */
 
 #ifdef WC_HAVE_RNG_BANKREF
 
