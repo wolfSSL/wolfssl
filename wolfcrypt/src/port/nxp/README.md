@@ -625,12 +625,13 @@ kernel carrying NXP's downstream `ele_mu` driver; the upstream `fsl-se` driver
 rejects userspace SAB writes with `EINVAL`. The enclave exposes no post-quantum
 algorithms, so ML-KEM and ML-DSA stay on the CPU.
 
-## NXP EdgeLock (ELS)
+## NXP EdgeLock (ELS + PKC)
 
 `els_pkc_port.c` offloads wolfCrypt to the EdgeLock subsystem found on the
 RW612 and related parts, through the crypto callback interface. The ELS
 peripheral serves SHA-256, SHA-384, SHA-512, AES (ECB/CBC/CTR), AES-GCM,
-CMAC, the DRBG, and ECDSA on P-256 for a key that names a slot.
+CMAC, the DRBG, and ECDSA on P-256 for a key that names a slot; the PKC
+coprocessor serves RSA.
 NXP rates the ELS DRBG at 128 bits of security strength, which caps
 wolfCrypt's Hash-DRBG at 128 bits where it supplies the seed.
 
@@ -703,6 +704,12 @@ fails with `BAD_LENGTH_E` and such an IV with `BAD_FUNC_ARG`.
 **ECDH is not offloaded at all.** ELS deposits the agreed secret in a key
 slot, which cannot be read back, while the wolfCrypt ECDH callback has to
 hand a buffer to its caller - so the callback declines and software answers.
+
+**The PKC uses a CTR_DRBG, not the ELS DRBG.** The ELS DRBG's security
+strength is 128 bits on this part, which the PKC's own key operations
+outgrow. A plain `wc_GenerateRandom()` is a different path and does reach the
+ELS DRBG directly. The PKC workarea is a fixed hardware region shared by
+every PKC consumer, which is why PKC work runs under the same lock as ELS.
 
 ### Vendor library
 
