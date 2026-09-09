@@ -22303,6 +22303,48 @@ static int test_wolfSSL_GetLoggingCb(void)
 
 #endif /* !NO_BIO */
 
+/*
+ * Emptying the error queue must also reset the read cursor, otherwise the
+ * next pull dereferences a freed node. Each emptying call runs with the
+ * cursor on a live node, so the entry must really be queued first.
+ */
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_HAVE_ERROR_QUEUE) && \
+    !defined(_WIN32) && !defined(NO_ERROR_QUEUE) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
+static int test_wc_ERR_empty_cb(const char *str, size_t len, void *u)
+{
+    (void)str;
+    (void)len;
+    (*(int*)u)++;
+    return 0;
+}
+#endif
+static int test_wc_ERR_empty_resets_cursor(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_HAVE_ERROR_QUEUE) && \
+    !defined(_WIN32) && !defined(NO_ERROR_QUEUE)
+    ERR_clear_error();
+    ERR_put_error(0, SYS_F_ACCEPT, -173, "ssl.c", 0);
+    ExpectIntNE(ERR_peek_error(), 0);
+    ExpectIntEQ(wc_ERR_remove_state(), 0);
+    ExpectIntEQ(ERR_get_error(), 0);
+
+#if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
+    {
+        int calls = 0;
+
+        ERR_put_error(0, SYS_F_BIND, -275, "asn.c", 100);
+        ExpectIntNE(ERR_peek_error(), 0);
+        ERR_print_errors_cb(test_wc_ERR_empty_cb, &calls);
+        ExpectIntEQ(calls, 1);
+        ExpectIntEQ(ERR_get_error(), 0);
+    }
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Note the lack of wolfSSL_ prefix...this is a compatibility layer test. */
 static int test_GENERAL_NAME_set0_othername(void)
 {
@@ -46682,6 +46724,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_ERR_remove_state),
     TEST_DECL(test_wc_ERR_print_errors_fp),
 #endif
+    TEST_DECL(test_wc_ERR_empty_resets_cursor),
     TEST_DECL(test_wolfSSL_configure_args),
     TEST_DECL(test_wolfSSL_sk_SSL_CIPHER),
     TEST_DECL(test_wolfSSL_SSL_CIPHER_find),
