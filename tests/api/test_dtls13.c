@@ -2486,3 +2486,105 @@ int test_dtls13_reset_clears_alert_history(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* RFC 9147 Section 4: a DTLS 1.3 receiver MUST ignore legacy_record_version
+ * "for all purposes".  Garble those two bytes in the first unencrypted record
+ * of the server's first flight (the HelloRetryRequest produced by the DTLS 1.3
+ * stateless cookie exchange; the record header is not covered by the transcript
+ * hash) and the handshake must still complete.  For DTLS 1.2 the record layer
+ * version is still meaningful, so the same tampering must be rejected. */
+int test_dtls13_ignore_legacy_record_version(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+
+    /* Run the ClientHello, then the server's first flight. */
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WOLFSSL_ERROR_WANT_READ);
+
+    /* Bytes 1 and 2 of the record header are legacy_record_version. */
+    ExpectIntGT(test_ctx.c_len, DTLS_RECORD_HEADER_SZ);
+    if (EXPECT_SUCCESS()) {
+        test_ctx.c_buff[1] = 0xEE;
+        test_ctx.c_buff[2] = 0xEE;
+    }
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c);
+    ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s);
+    ctx_s = NULL;
+
+#ifndef WOLFSSL_NO_TLS12
+    /* Same tampering under TLS 1.2 must still be caught. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method), 0);
+
+    /* The record layer version of ClientHello, HelloVerifyRequest and
+     * ServerHello is deliberately not checked: the version is not negotiated
+     * yet when they are exchanged. Run the cookie exchange first, then tamper
+     * with the record that follows the ServerHello. */
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS); /* ClientHello */
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS); /* HelloVerifyRequest */
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS); /* ClientHello+cookie */
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS); /* server flight */
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WOLFSSL_ERROR_WANT_READ);
+
+    /* Skip over the ServerHello record and garble the next record's version. */
+    ExpectIntGT(test_ctx.c_len, DTLS_RECORD_HEADER_SZ);
+    ExpectIntEQ(test_ctx.c_buff[0], handshake);
+    ExpectIntEQ(test_ctx.c_buff[DTLS_RECORD_HEADER_SZ], server_hello);
+    if (EXPECT_SUCCESS()) {
+        int idx = DTLS_RECORD_HEADER_SZ +
+            ((int)test_ctx.c_buff[DTLS_RECORD_HEADER_SZ - 2] << 8) +
+            (int)test_ctx.c_buff[DTLS_RECORD_HEADER_SZ - 1];
+
+        ExpectIntGT(test_ctx.c_len, idx + DTLS_RECORD_HEADER_SZ);
+        ExpectIntEQ(test_ctx.c_buff[idx], handshake);
+        if (EXPECT_SUCCESS()) {
+            test_ctx.c_buff[idx + 1] = 0xEE;
+            test_ctx.c_buff[idx + 2] = 0xEE;
+        }
+    }
+
+    /* GetDtlsHandShakeHeader() detects the version mismatch (VERSION_ERROR),
+     * but DoDtlsHandShakeMsg() reports any header parsing failure to the
+     * caller as PARSE_ERROR. */
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WC_NO_ERR_TRACE(PARSE_ERROR));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
