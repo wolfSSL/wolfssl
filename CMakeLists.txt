@@ -4073,6 +4073,7 @@ if(WOLFSSL_RNG_ATFORK)
             #include <stdint.h>
             #include <dlfcn.h>
             #include <semaphore.h>
+            #include <pthread.h>
             #ifdef __APPLE__
             #error macOS has only named semaphores, which a forked child shares
             #endif
@@ -4080,8 +4081,10 @@ if(WOLFSSL_RNG_ATFORK)
                 Dl_info info;
                 const char* name;
                 sem_t s;
+                int old;
                 if (sem_init(&s, 0, 1) == 0)
                     (void)sem_post(&s);
+                (void)pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, &old);
                 if (dladdr((void*)(uintptr_t)main, &info) != 0) {
                     name = info.dli_fname;
                     if (name != NULL && name[0] != 0)
@@ -4094,7 +4097,7 @@ if(WOLFSSL_RNG_ATFORK)
         if(NOT WOLFSSL_HAVE_PTHREAD_ATFORK)
             set(RNG_ATFORK_NEEDS "pthread_atfork")
         elseif(NOT WOLFSSL_HAVE_DLADDR_PIN)
-            set(RNG_ATFORK_NEEDS "dladdr, dlopen and unnamed POSIX semaphores")
+            set(RNG_ATFORK_NEEDS "dladdr, dlopen, unnamed semaphores and thread cancellation")
         endif()
     endif()
     if(RNG_ATFORK_NEEDS)

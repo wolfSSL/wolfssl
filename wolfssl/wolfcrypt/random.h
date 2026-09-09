@@ -56,9 +56,9 @@
 #endif
 
 /* pthread_atfork handlers so a forked child can keep using its WC_RNG.
- * configure and CMake define WC_RNG_ATFORK where the dlclose pin and unnamed
- * semaphores exist; builds whose locks the handlers cannot cover are left
- * out. */
+ * configure and CMake define WC_RNG_ATFORK where the dlclose pin, unnamed
+ * semaphores and thread cancellation exist; builds whose locks the handlers
+ * cannot cover are left out. */
 #if defined(WC_RNG_HAVE_LOCK) && defined(WOLFSSL_PTHREADS) && \
     defined(WC_RNG_ATFORK) && !defined(__APPLE__) && \
     !defined(WOLFSSL_NO_MALLOC) && !defined(HAVE_ENTROPY_MEMUSE) && \
