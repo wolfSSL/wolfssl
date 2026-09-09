@@ -186,6 +186,7 @@ int test_wolfSSL_RAND_bytes(void)
     byte randbuf[8] = {0};
     int pipefds[2] = {0};
     pid_t pid = 0;
+    int piped;
 #endif
 
     /* sanity check */
@@ -215,8 +216,9 @@ int test_wolfSSL_RAND_bytes(void)
     /* No global methods set. */
     ExpectIntEQ(RAND_seed(seed, sizeof(seed)), 1);
 
-    ExpectIntEQ(pipe(pipefds), 0);
-    pid = fork();
+    piped = (pipe(pipefds) == 0);
+    ExpectIntEQ(piped, 1);
+    pid = piped ? fork() : -1;
     ExpectIntGE(pid, 0);
     if (pid == 0) {
         ssize_t n_written = 0;
@@ -251,7 +253,7 @@ int test_wolfSSL_RAND_bytes(void)
         ExpectIntEQ(reaped && WIFEXITED(waitstatus) &&
                     WEXITSTATUS(waitstatus) == 0, 1);
     }
-    else {
+    else if (piped) {
         close(pipefds[0]);
         close(pipefds[1]);
     }

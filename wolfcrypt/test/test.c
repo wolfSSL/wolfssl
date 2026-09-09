@@ -28065,6 +28065,35 @@ done:
     WC_FREE_VAR(child, HEAP_HINT);
     return ret;
 }
+struct rng_churn_args {
+    int  ret;   /* first failure, if any */
+    long ns;    /* how long to keep registering and freeing */
+};
+
+/* Registers and frees instances while the fork tests run, so the registry
+ * changes under the handlers. */
+static THREAD_RETURN WOLFSSL_THREAD rng_fork_test_churn(void* arg)
+{
+    struct rng_churn_args* a = (struct rng_churn_args*)arg;
+    struct timespec start, now;
+    WC_RNG* r;
+
+    if (clock_gettime(CLOCK_MONOTONIC, &start) != 0)
+        WOLFSSL_RETURN_FROM_THREAD(0);
+    do {
+        r = NULL;
+        a->ret = wc_rng_new_ex(&r, NULL, 0, HEAP_HINT, INVALID_DEVID);
+        if (a->ret != 0)
+            break;
+        wc_rng_free(r);
+        if (clock_gettime(CLOCK_MONOTONIC, &now) != 0)
+            break;
+    } while (now.tv_sec - start.tv_sec < 2 &&
+             (now.tv_sec - start.tv_sec) * 1000000000L +
+             (now.tv_nsec - start.tv_nsec) < a->ns);
+    WOLFSSL_RETURN_FROM_THREAD(0);
+}
+
 #endif /* WC_TEST_RNG_FORK */
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
@@ -28100,6 +28129,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
          * survivor. */
         WC_RNG* mid = NULL;
         WC_RNG* third = NULL;
+        struct rng_churn_args* c = NULL;
+        THREAD_TYPE churn = INVALID_THREAD_VAL;   /* joined only if started */
+        int churning = 0;
         int leak3 = 0;   /* third may still be in use by its holder */
     #ifndef NO_MAIN_DRIVER
         unsigned int prevAlarm;
@@ -28114,6 +28146,16 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out_free);
         }
         wc_rng_free(mid);   /* the middle of three leaves the registry */
+        c = (struct rng_churn_args*)XMALLOC(sizeof(*c), HEAP_HINT,
+                                            DYNAMIC_TYPE_TMP_BUFFER);
+        if (c == NULL) {
+            wc_rng_free(third);
+            ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out_free);
+        }
+        c->ret = 0;
+        c->ns = 6 * WC_RNG_FORK_HOLD_NS;   /* outlasts both fork tests */
+        if (wolfSSL_NewThread(&churn, &rng_fork_test_churn, c) == 0)
+            churning = 1;
     #ifndef NO_MAIN_DRIVER
         prevAlarm = alarm(30);   /* a hung child or holder fails the run */
     #endif
@@ -28125,6 +28167,15 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
         if (prevAlarm != 0)
             alarm(prevAlarm);
     #endif
+        if (churning && wolfSSL_JoinThread(churn) != 0) {
+            leak = 1;   /* the churn thread may still use c */
+        }
+        else {
+            if (ret == 0 && (!churning || c->ret != 0))
+                ret = churning ? WC_TEST_RET_ENC_EC(c->ret)
+                               : WC_TEST_RET_ENC_NC;
+            XFREE(c, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        }
         if (!leak3)
             wc_rng_free(third);
         if (ret != 0)

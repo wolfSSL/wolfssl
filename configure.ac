@@ -13430,7 +13430,7 @@ then
     then
         saved_LIBS="$LIBS"
         AC_SEARCH_LIBS([pthread_atfork], [pthread])
-        LIBS="$saved_LIBS"
+        LIBS="$saved_LIBS"   # detection only: AX_PTHREAD already added the library
         if test "$ac_cv_search_pthread_atfork" = "no"
         then
             RNG_ATFORK_NEEDS="pthread_atfork"
