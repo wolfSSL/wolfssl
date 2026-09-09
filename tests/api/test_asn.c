@@ -3863,17 +3863,17 @@ static int test_asn_findValidityTime(const byte* der, word32 derSz, byte tag,
 {
     word32 i, j;
 
-    if (der == NULL || derSz < (word32)contentSz + 2u)
+    if (der == NULL || derSz < (word32)contentSz + 2U)
         return 0;
 
-    for (i = 0; i + 2u + contentSz <= derSz; i++) {
+    for (i = 0; i + 2U + contentSz <= derSz; i++) {
         if (der[i] != tag || der[i + 1] != contentSz)
             continue;
-        for (j = 0; j < (word32)contentSz - 1u; j++) {
+        for (j = 0; j < (word32)contentSz - 1U; j++) {
             if (der[i + 2 + j] < '0' || der[i + 2 + j] > '9')
                 break;
         }
-        if (j == (word32)contentSz - 1u &&
+        if (j == (word32)contentSz - 1U &&
                 der[i + 2 + j] == 'Z') {
             return 1;
         }

@@ -91,7 +91,7 @@ static void wb_set_msgs(WOLFSSL* ssl, word32 mask)
 
     XMEMSET(&ssl->msgsReceived, 0, sizeof(ssl->msgsReceived));
     for (i = 0; i < M_COUNT; i++) {
-        if ((mask & (1u << i)) == 0)
+        if ((mask & (1U << i)) == 0)
             continue;
         switch (i) {
             case M_HELLO_REQUEST:    ssl->msgsReceived.got_hello_request = 1;
@@ -146,14 +146,14 @@ enum {
 
 static void wb_set_opts(WOLFSSL* ssl, word32 mask)
 {
-    ssl->options.resuming        = (mask & (1u << O_RESUMING))   ? 1 : 0;
-    ssl->options.verifyPeer      = (mask & (1u << O_VERIFY_PEER)) ? 1 : 0;
-    ssl->options.usingPSK_cipher = (mask & (1u << O_PSK_CIPHER)) ? 1 : 0;
-    ssl->options.usingAnon_cipher= (mask & (1u << O_ANON_CIPHER)) ? 1 : 0;
-    ssl->options.havePeerCert    = (mask & (1u << O_HAVE_PEER_CERT)) ? 1 : 0;
-    ssl->options.havePeerVerify  = (mask & (1u << O_HAVE_PEER_VERIFY)) ? 1 : 0;
+    ssl->options.resuming        = (mask & (1U << O_RESUMING))   ? 1 : 0;
+    ssl->options.verifyPeer      = (mask & (1U << O_VERIFY_PEER)) ? 1 : 0;
+    ssl->options.usingPSK_cipher = (mask & (1U << O_PSK_CIPHER)) ? 1 : 0;
+    ssl->options.usingAnon_cipher= (mask & (1U << O_ANON_CIPHER)) ? 1 : 0;
+    ssl->options.havePeerCert    = (mask & (1U << O_HAVE_PEER_CERT)) ? 1 : 0;
+    ssl->options.havePeerVerify  = (mask & (1U << O_HAVE_PEER_VERIFY)) ? 1 : 0;
 #ifdef WOLFSSL_DTLS
-    ssl->options.dtls            = (mask & (1u << O_DTLS)) ? 1 : 0;
+    ssl->options.dtls            = (mask & (1U << O_DTLS)) ? 1 : 0;
 #endif
 }
 
@@ -180,8 +180,8 @@ static void wb_call(WOLFSSL* ssl, byte type, int side, word32 msgs,
  * exchange values that server_hello_done and certificate_request test. */
 static void wb_sweep_type(WOLFSSL* ssl, byte type, int side)
 {
-    const word32 msgAll = (1u << M_COUNT) - 1u;
-    const word32 optAll = (1u << O_COUNT) - 1u;
+    const word32 msgAll = (1U << M_COUNT) - 1U;
+    const word32 optAll = (1U << O_COUNT) - 1U;
     word32 optEnds[2];
     int i, e;
 
@@ -193,8 +193,8 @@ static void wb_sweep_type(WOLFSSL* ssl, byte type, int side)
         wb_call(ssl, type, side, 0,      optEnds[e], rsa_kea, 0);
         wb_call(ssl, type, side, msgAll, optEnds[e], rsa_kea, 0);
         for (i = 0; i < M_COUNT; i++) {
-            wb_call(ssl, type, side, 1u << i,          optEnds[e], rsa_kea, 0);
-            wb_call(ssl, type, side, msgAll & ~(1u << i), optEnds[e],
+            wb_call(ssl, type, side, 1U << i,          optEnds[e], rsa_kea, 0);
+            wb_call(ssl, type, side, msgAll & ~(1U << i), optEnds[e],
                     rsa_kea, 0);
         }
     }
@@ -203,8 +203,8 @@ static void wb_sweep_type(WOLFSSL* ssl, byte type, int side)
     for (e = 0; e < 2; e++) {
         word32 msgs = e ? msgAll : 0;
         for (i = 0; i < O_COUNT; i++) {
-            wb_call(ssl, type, side, msgs, 1u << i,          rsa_kea, 0);
-            wb_call(ssl, type, side, msgs, optAll & ~(1u << i), rsa_kea, 0);
+            wb_call(ssl, type, side, msgs, 1U << i,          rsa_kea, 0);
+            wb_call(ssl, type, side, msgs, optAll & ~(1U << i), rsa_kea, 0);
         }
     }
 
@@ -213,7 +213,7 @@ static void wb_sweep_type(WOLFSSL* ssl, byte type, int side)
      * negotiates one kea per connection. The message state omits
      * server_key_exchange so the enclosing decision is entered. */
     {
-        const word32 msgs = msgAll & ~(1u << M_SERVER_KEY_EXCH);
+        const word32 msgs = msgAll & ~(1U << M_SERVER_KEY_EXCH);
         static const byte keas[3] = { rsa_kea, psk_kea, ecc_diffie_hellman_kea };
         size_t k;
 
@@ -250,7 +250,7 @@ typedef struct {
     const char* what;
 } SanityBase;
 
-#define B(x) (1u << (x))
+#define B(x) (1U << (x))
 
 static const SanityBase kBases[] = {
     { hello_request, WOLFSSL_CLIENT_END, 0, "HelloRequest" },
@@ -302,7 +302,7 @@ static const SanityBase kBases[] = {
 
 static void wb_sweep_baselines(WOLFSSL* ssl)
 {
-    const word32 optAll = (1u << O_COUNT) - 1u;
+    const word32 optAll = (1U << O_COUNT) - 1U;
     size_t r;
     int i;
 
@@ -314,14 +314,14 @@ static void wb_sweep_baselines(WOLFSSL* ssl)
 
         /* one operand true at a time, the rest still false */
         for (i = 0; i < M_COUNT; i++)
-            wb_call(ssl, b->type, b->side, b->base ^ (1u << i), 0, rsa_kea, 0);
+            wb_call(ssl, b->type, b->side, b->base ^ (1U << i), 0, rsa_kea, 0);
 
         /* the option operands in the same chains -- resuming, verifyPeer,
          * usingPSK_cipher, usingAnon_cipher, havePeerCert, havePeerVerify,
          * dtls -- paired against the accepting baseline. */
         for (i = 0; i < O_COUNT; i++) {
-            wb_call(ssl, b->type, b->side, b->base, 1u << i, rsa_kea, 0);
-            wb_call(ssl, b->type, b->side, b->base, optAll & ~(1u << i),
+            wb_call(ssl, b->type, b->side, b->base, 1U << i, rsa_kea, 0);
+            wb_call(ssl, b->type, b->side, b->base, optAll & ~(1U << i),
                     rsa_kea, 0);
         }
 

@@ -8914,7 +8914,7 @@ static void df_pol_replay(DfCtx* c, DfPkt* p)
 static void df_pol_seq_future(DfCtx* c, DfPkt* p)
 {
     if (p->idx != c->target) return;
-    df_set_seq(p, 0, 0x000FFFFFu);
+    df_set_seq(p, 0, 0x000FFFFFU);
     c->nMod++;
 }
 
@@ -8968,7 +8968,7 @@ static void df_pol_frag_beyond(DfCtx* c, DfPkt* p)
     if (p->idx != c->target || p->type != handshake) return;
     if (p->len < DFH_HDR_SZ + DFHS_HDR_SZ) return;
     hs = p->data + DFH_HDR_SZ;
-    df_set_u24(hs + DFHS_FRAGOFF, 0x00FFFFu);
+    df_set_u24(hs + DFHS_FRAGOFF, 0x00FFFFU);
     c->nMod++;
 }
 
@@ -8980,7 +8980,7 @@ static void df_pol_frag_over(DfCtx* c, DfPkt* p)
     if (p->idx != c->target || p->type != handshake) return;
     if (p->len < DFH_HDR_SZ + DFHS_HDR_SZ) return;
     hs = p->data + DFH_HDR_SZ;
-    df_set_u24(hs + DFHS_FRAGLEN, 0x00FFFFu);
+    df_set_u24(hs + DFHS_FRAGLEN, 0x00FFFFU);
     c->nMod++;
 }
 

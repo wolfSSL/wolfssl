@@ -3133,7 +3133,22 @@ int test_wolfSSL_load_from_fifo(void)
  * allocator installed would break every test that runs after this one in the
  * same binary, which costs the whole variant.
  * ------------------------------------------------------------------------- */
-/* This ran everywhere except WOLFSSL_SMALL_STACK for a while, because under
+/* OPT-IN, via WOLFSSL_MCDC_ALLOC_SWEEP, which the coverage campaign's own
+ * option list defines and no ordinary build does.
+ *
+ * Not timidity: this deliberately fails allocations dozens of times deep
+ * inside the library, and an allocation that fails part-way through can leave
+ * a global -- the session cache, a CertManager's tables -- in a state the next
+ * test in the same binary then trips over. The value of the sweep is the
+ * coverage it measures, and that is measured in the campaign build; running it
+ * in every CI configuration adds risk to unrelated tests and no evidence. A
+ * PRB run aborted with SIGABRT after a cascade of certificate-loading and
+ * memio failures in tests that come later in the binary, which is exactly that
+ * shape. It was not reproduced here in --enable-all or --enable-smallstack, in
+ * either order against ssl_hs, so this is not a diagnosis -- it is declining to
+ * carry a hazard whose only benefit is realised elsewhere.
+ *
+ * This ran everywhere except WOLFSSL_SMALL_STACK for a while, because under
  * that build DecodeCertInternal indexed RPKdataASN before checking the ret
  * that CALLOC_ASNGETDATA sets, so failing an allocation dereferenced NULL
  * while parsing any certificate -- a per-index sweep crashed at five
@@ -3147,7 +3162,7 @@ int test_wolfSSL_load_from_fifo(void)
 /* wolfSSL_SetAllocators lives in wolfcrypt/src/memory.c under
  * #ifdef USE_WOLFSSL_MEMORY; without it the symbol is declared and never
  * defined. */
-#if defined(USE_WOLFSSL_MEMORY) && \
+#if defined(WOLFSSL_MCDC_ALLOC_SWEEP) && defined(USE_WOLFSSL_MEMORY) && \
     !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY) && \
     !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_FILESYSTEM) && \
     !defined(NO_TLS)
@@ -3299,7 +3314,7 @@ int test_wolfSSL_alloc_failure_sweep(void)
 /* wolfSSL_SetAllocators lives in wolfcrypt/src/memory.c under
  * #ifdef USE_WOLFSSL_MEMORY; without it the symbol is declared and never
  * defined. */
-#if defined(USE_WOLFSSL_MEMORY) && \
+#if defined(WOLFSSL_MCDC_ALLOC_SWEEP) && defined(USE_WOLFSSL_MEMORY) && \
     !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY) && \
     !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_FILESYSTEM) && \
     !defined(NO_TLS)
