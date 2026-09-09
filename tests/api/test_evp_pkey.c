@@ -1203,6 +1203,7 @@ int test_wolfSSL_EVP_PKEY_copy_parameters(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_DH) && defined(WOLFSSL_KEY_GEN) && \
+    !defined(WOLFSSL_NO_DH_GEN_PARAMS) && \
     !defined(HAVE_SELFTEST) && defined(WOLFSSL_DH_EXTRA) && \
      (defined(OPENSSL_ALL) || defined(WOLFSSL_QT)) && !defined(NO_FILESYSTEM)
     WOLFSSL_EVP_PKEY* params = NULL;
