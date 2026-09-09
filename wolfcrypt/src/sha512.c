@@ -2735,8 +2735,7 @@ int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
 
 #if defined(WOLFSSL_ARMASM) || defined(WOLFSSL_RISCV_ASM)
     ByteReverseWords64(buffer, (word64*)data, WC_SHA512_BLOCK_SIZE);
-    Transform_Sha512(sha, (const byte*)buffer);
-    ret = 0;
+    ret = Transform_Sha512(sha, (const byte*)buffer);
 #elif defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM)
     /* PPC assembly uses the (sha, data) form and reads the block directly
      * (big-endian native - any little-endian reversal was done above). */
