@@ -13369,6 +13369,8 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm, byte* pub)
 #else
     XMEMCPY(key.pub, pub, HSS_MAX_PUBLIC_KEY_LEN);
 #endif
+    /* The copies above bypass the API that would record this. */
+    key.pubSet = 1;
 
     ret = wc_LmsKey_SetWriteCb(&key, lms_write_key_mem);
     if (ret) {

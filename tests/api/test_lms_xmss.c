@@ -355,6 +355,11 @@ int test_wc_LmsKey_reload_cache(void)
     #define TEST_XMSS_H10_AVAILABLE
 #endif
 
+#ifdef WOLF_CRYPTO_CB
+/* devId of the accelerators registered by the reload tests below. */
+#define TEST_LMS_XMSS_CRYPTOCB_DEVID 0x4C4D5853 /* "LMXS" */
+#endif
+
 /* Must be the exact union of the two test guards below, or the callback has
  * no caller and -Wunused-function fails the build. */
 #if defined(WOLF_CRYPTO_CB) && \
@@ -363,9 +368,6 @@ int test_wc_LmsKey_reload_cache(void)
      (defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY) && \
       !defined(NO_FILESYSTEM) && defined(TEST_XMSS_H10_AVAILABLE)))
 
-/* devId of the accelerator registered by the reload tests below. */
-#define TEST_LMS_XMSS_CRYPTOCB_DEVID 0x4C4D5853 /* "LMXS" */
-
 /* An accelerator with no stateful hash-based signature support: declines
  * everything, so the software implementation is used. */
 static int test_lms_xmss_cryptocb(int devIdArg, wc_CryptoInfo* info, void* ctx)
@@ -373,6 +375,31 @@ static int test_lms_xmss_cryptocb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     (void)devIdArg;
     (void)info;
     (void)ctx;
+    return CRYPTOCB_UNAVAILABLE;
+}
+#endif
+
+/* Must be the exact guard of the verify test below. */
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY) && \
+    defined(WOLF_CRYPTO_CB)
+
+/* Number of stateful signature verifications the accelerator below answered. */
+static int test_lms_xmss_verify_calls;
+
+/* An accelerator that owns the key: it answers stateful signature
+ * verification and declines everything else. */
+static int test_lms_xmss_verify_cryptocb(int devIdArg, wc_CryptoInfo* info,
+    void* ctx)
+{
+    (void)devIdArg;
+    (void)ctx;
+
+    if ((info != NULL) && (info->algo_type == WC_ALGO_TYPE_PK) &&
+            (info->pk.type == WC_PK_TYPE_PQC_STATEFUL_SIG_VERIFY)) {
+        test_lms_xmss_verify_calls++;
+        *info->pk.pqc_stateful_sig_verify.res = 1;
+        return 0;
+    }
     return CRYPTOCB_UNAVAILABLE;
 }
 #endif
@@ -450,6 +477,117 @@ int test_wc_LmsKey_reload_devid(void)
     wc_LmsKey_Free(&key);
     wc_FreeRng(&rng);
     (void)remove(LMS_TEST_PRIV_KEY_FILE);
+    wc_CryptoCb_UnRegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID);
+#endif
+    return EXPECT_RESULT();
+}
+
+/*
+ * Test that a reloaded LMS key refuses to hand out a public key.
+ *
+ * Neither Reload arm populates key->pub: the software path passes NULL as
+ * wc_hss_reload_key()'s pub_root, and the HSM path does no work at all. The
+ * key still reaches WC_LMS_STATE_OK so that it can sign.
+ *
+ * Without the fix: export returns 0 and an all-zero public key.
+ * With the fix:    export and verify return BAD_STATE_E, signing still works.
+ */
+int test_wc_LmsKey_reload_no_pub(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY) && \
+    !defined(NO_FILESYSTEM)
+    LmsKey  key;
+    LmsKey  dst;
+    WC_RNG  rng;
+    byte    msg[] = "test message for LMS signing";
+    byte    sig[2048];
+    word32  sigSz;
+    byte    pub[64];
+    word32  pubSz;
+
+    /* Zero so cleanup is safe if an early alloc failure skips init. */
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&dst, 0, sizeof(dst));
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    /* A generated key holds its public key and exports it. */
+    (void)remove(LMS_TEST_PRIV_KEY_FILE);
+    ExpectIntEQ(test_lms_init_key(&key, &rng), 0);
+    ExpectIntEQ(wc_LmsKey_MakeKey(&key, &rng), 0);
+    pubSz = sizeof(pub);
+    ExpectIntEQ(wc_LmsKey_ExportPubRaw(&key, pub, &pubSz), 0);
+    wc_LmsKey_Free(&key);
+
+    /* The same key reloaded from storage signs but holds no public key. */
+    ExpectIntEQ(test_lms_init_key(&key, &rng), 0);
+    ExpectIntEQ(wc_LmsKey_Reload(&key), 0);
+    sigSz = sizeof(sig);
+    ExpectIntEQ(wc_LmsKey_Sign(&key, sig, &sigSz, msg, sizeof(msg)), 0);
+
+    pubSz = sizeof(pub);
+    ExpectIntEQ(wc_LmsKey_ExportPubRaw(&key, pub, &pubSz),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(wc_LmsKey_ExportPub_ex(&dst, &key, NULL, INVALID_DEVID),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(wc_LmsKey_Verify(&key, sig, sigSz, msg, sizeof(msg)),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+
+    wc_LmsKey_Free(&key);
+    wc_FreeRng(&rng);
+    (void)remove(LMS_TEST_PRIV_KEY_FILE);
+#endif
+    return EXPECT_RESULT();
+}
+
+/*
+ * Test that a device-backed LMS key reloaded from its device can still be
+ * verified through the crypto callback.
+ *
+ * The HSM reload arm leaves the local public key unset by design, so the
+ * public-key requirement must not be enforced before the device dispatch.
+ *
+ * Without the fix: Verify returns BAD_STATE_E and the callback never runs.
+ * With the fix:    the callback answers and Verify succeeds.
+ */
+int test_wc_LmsKey_reload_devid_verify(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY) && \
+    defined(WOLF_CRYPTO_CB)
+    LmsKey  key;
+    byte    msg[] = "test message for LMS signing";
+    byte*   sig = NULL;
+    word32  sigSz = 0;
+
+    /* Zero so cleanup is safe if an early alloc failure skips init. */
+    XMEMSET(&key, 0, sizeof(key));
+    test_lms_xmss_verify_calls = 0;
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID,
+        test_lms_xmss_verify_cryptocb, NULL), 0);
+
+    /* No read callback, so the reload leaves the state with the device. */
+    ExpectIntEQ(wc_LmsKey_Init(&key, NULL, TEST_LMS_XMSS_CRYPTOCB_DEVID), 0);
+    ExpectIntEQ(test_lms_set_params(&key), 0);
+    ExpectIntEQ(wc_LmsKey_Reload(&key), 0);
+    ExpectNull(key.priv_data);
+
+    /* Only the signature length is checked before the device is asked, so the
+     * buffer contents do not matter. */
+    ExpectIntEQ(wc_LmsKey_GetSigLen(&key, &sigSz), 0);
+    ExpectIntGT(sigSz, 0);
+    ExpectNotNull(sig = (byte*)XMALLOC(sigSz, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    if (sig != NULL) {
+        XMEMSET(sig, 0, sigSz);
+        ExpectIntEQ(wc_LmsKey_Verify(&key, sig, sigSz, msg, sizeof(msg)), 0);
+        ExpectIntEQ(test_lms_xmss_verify_calls, 1);
+    }
+
+    XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_LmsKey_Free(&key);
     wc_CryptoCb_UnRegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID);
 #endif
     return EXPECT_RESULT();
@@ -1801,6 +1939,16 @@ int test_wc_LmsDecisionCoverage(void)
         ExpectIntEQ(wc_LmsKey_GetSigLen(&bare, &sigLen),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         wc_LmsKey_Free(&bare);
+    }
+
+    /* wc_LmsKey_ExportPubRaw: params are set but no key has been made, so
+     * key->pub is still zeroed. Exporting it must fail on the state operand
+     * rather than hand back a buffer of zeros. */
+    {
+        byte   pub[64];
+        word32 pubSz = (word32)sizeof(pub);
+        ExpectIntEQ(wc_LmsKey_ExportPubRaw(&key, pub, &pubSz),
+            WC_NO_ERR_TRACE(BAD_STATE_E));
     }
 
     /* wc_LmsKey_Verify: each NULL operand and msgSz < 0. The arg checks fire

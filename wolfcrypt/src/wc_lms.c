@@ -1033,6 +1033,7 @@ void wc_LmsKey_Free(LmsKey* key)
         key->heap = NULL;
     #endif
         XMEMSET(key->pub, 0, sizeof(key->pub));
+        key->pubSet = 0;
         key->params = NULL;
     #ifdef WOLF_CRYPTO_CB
         key->devId = INVALID_DEVID;
@@ -1198,6 +1199,7 @@ int wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng)
              * subsequent Sign/Verify calls don't fail with BAD_STATE_E. */
             if (ret == 0) {
                 key->state = WC_LMS_STATE_OK;
+                key->pubSet = 1;
             }
             return ret;
         }
@@ -1280,6 +1282,7 @@ int wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng)
     if (ret == 0) {
         /* Update state. */
         key->state = WC_LMS_STATE_OK;
+        key->pubSet = 1;
     }
 
     return ret;
@@ -1295,6 +1298,9 @@ int wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng)
  *
  * With a crypto callback device, the read callback and not the devId decides
  * whether the software reload runs. See wc_LmsKey_Reload below.
+ *
+ * Neither arm populates key->pub, so the reloaded key can sign but cannot
+ * export a public key or verify.
  *
  * @param [in, out] key  LMS key.
  *
@@ -1684,9 +1690,10 @@ int wc_LmsKey_ExportPub_ex(LmsKey* keyDst, const LmsKey* keySrc,
     if ((keyDst == NULL) || (keySrc == NULL)) {
         ret = BAD_FUNC_ARG;
     }
-    if ((ret == 0) && (keySrc->state != WC_LMS_STATE_OK) &&
-            (keySrc->state != WC_LMS_STATE_VERIFYONLY) &&
-            (keySrc->state != WC_LMS_STATE_NOSIGS)) {
+    if ((ret == 0) && ((!keySrc->pubSet) ||
+            ((keySrc->state != WC_LMS_STATE_OK) &&
+             (keySrc->state != WC_LMS_STATE_VERIFYONLY) &&
+             (keySrc->state != WC_LMS_STATE_NOSIGS)))) {
         ret = BAD_STATE_E;
     }
 
@@ -1696,6 +1703,7 @@ int wc_LmsKey_ExportPub_ex(LmsKey* keyDst, const LmsKey* keySrc,
     if (ret == 0) {
         keyDst->params = keySrc->params;
         XMEMCPY(keyDst->pub, keySrc->pub, sizeof(keySrc->pub));
+        keyDst->pubSet = 1;
 
         /* Mark this key as verify only, to prevent misuse. */
         keyDst->state = WC_LMS_STATE_VERIFYONLY;
@@ -1720,6 +1728,7 @@ int wc_LmsKey_ExportPub_ex(LmsKey* keyDst, const LmsKey* keySrc,
  * @param [in]  keySrc  LMS key to copy.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when keyDst or keySrc is NULL.
+ * @return  BAD_STATE_E when keySrc holds no public key.
  */
 int wc_LmsKey_ExportPub(LmsKey* keyDst, const LmsKey* keySrc)
 {
@@ -1744,6 +1753,7 @@ int wc_LmsKey_ExportPub(LmsKey* keyDst, const LmsKey* keySrc)
  *                          On out, the length of the public key in bytes.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when key, out or outLen is NULL.
+ * @return  BAD_STATE_E when in the wrong state for the operation.
  * @return  BUFFER_E when outLen is too small to hold encoded public key.
  */
 int wc_LmsKey_ExportPubRaw(const LmsKey* key, byte* out, word32* outLen)
@@ -1754,6 +1764,15 @@ int wc_LmsKey_ExportPubRaw(const LmsKey* key, byte* out, word32* outLen)
     if ((key == NULL) || (out == NULL) || (outLen == NULL) ||
             (key->params == NULL)) {
         ret = BAD_FUNC_ARG;
+    }
+    /* Params and a signing-ready state don't mean a public key exists;
+     * Reload reaches WC_LMS_STATE_OK without populating key->pub. */
+    if ((ret == 0) && ((!key->pubSet) ||
+            ((key->state != WC_LMS_STATE_OK) &&
+             (key->state != WC_LMS_STATE_VERIFYONLY) &&
+             (key->state != WC_LMS_STATE_NOSIGS)))) {
+        WOLFSSL_MSG("error: LMS key not ready for export");
+        ret = BAD_STATE_E;
     }
     /* Check size of out is sufficient. */
     if ((ret == 0) &&
@@ -1892,6 +1911,7 @@ int wc_LmsKey_ImportPubRaw(LmsKey* key, const byte* in, word32 inLen)
          * above), so promoting to VERIFYONLY is always correct. */
         key->params = matched;
         XMEMCPY(key->pub, in, inLen);
+        key->pubSet = 1;
         key->state = WC_LMS_STATE_VERIFYONLY;
     }
 
@@ -1987,6 +2007,13 @@ int wc_LmsKey_Verify(LmsKey* key, const byte* sig, word32 sigSz,
         ret = 0; /* fall through to software path */
     }
 #endif
+
+    /* Only the software verifier needs the public key locally; a device
+     * holds its own copy. */
+    if ((ret == 0) && (!key->pubSet)) {
+        WOLFSSL_MSG("error: LMS key holds no public key");
+        ret = BAD_STATE_E;
+    }
 
     if (ret == 0) {
         WC_DECLARE_VAR(state, LmsState, 1, 0);

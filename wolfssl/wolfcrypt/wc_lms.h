@@ -788,6 +788,7 @@ struct LmsKey {
     char label[LMS_MAX_LABEL_LEN];
     int  labelLen;
 #endif
+    WC_BITFIELD pubSet:1;  /* pub holds a public key */
 };
 
 #ifndef WC_LMSKEY_TYPE_DEFINED
