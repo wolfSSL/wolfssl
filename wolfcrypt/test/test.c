@@ -987,7 +987,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pbkdf2_test(void);
 #if !defined(NO_PWDBASED) && defined(HAVE_SCRYPT)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t scrypt_test(void);
 #endif
-#ifdef HAVE_ARGON2
+#if defined(HAVE_ARGON2) && !defined(WOLFSSL_NO_MALLOC)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t argon2_test(void);
 #endif
 #ifdef HAVE_ECC
@@ -3159,7 +3159,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_PASS("PWDBASED test passed!\n");
 #endif
 
-#ifdef HAVE_ARGON2
+#if defined(HAVE_ARGON2) && !defined(WOLFSSL_NO_MALLOC)
     if ( (ret = argon2_test()) != 0)
         TEST_FAIL("ARGON2   test failed!\n", ret);
     else
@@ -29864,7 +29864,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_entropy_invalidate_test(void)
 #endif /* NEXT_SEED && RBGC && !RDSEED && !RDRAND */
 #endif /* WC_RNG_HAVE_LOCK && (!HAVE_FIPS || >= 7.0.0) */
 
-#if defined(WC_RNG_BANK_DEFAULT_SUPPORT) && defined(WC_RNG_HAVE_LOCK)
+#if defined(WC_RNG_BANK_DEFAULT_SUPPORT) && defined(WC_RNG_HAVE_LOCK) && \
+    !defined(WC_NO_CONSTRUCTORS)
     /* WC_RNG_BANK_FLAG_MAYBE_FOR_RECOVERY contract: checkout of a
      * quarantined instance returns NEEDS_RECOVERY_E with the lease held;
      * a credited reseed by the lease-holder recovers it. */
@@ -29922,7 +29923,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_entropy_invalidate_test(void)
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
     }
-#endif /* WC_RNG_BANK_DEFAULT_SUPPORT && WC_RNG_HAVE_LOCK */
+#endif /* WC_RNG_BANK_DEFAULT_SUPPORT && WC_RNG_HAVE_LOCK && */
+       /* !WC_NO_CONSTRUCTORS */
 
   out:
 
@@ -41090,7 +41092,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t openssl_evpSig_test(void)
 #endif /* OPENSSL_EXTRA */
 
 
-#ifdef HAVE_ARGON2
+#if defined(HAVE_ARGON2) && !defined(WOLFSSL_NO_MALLOC)
 /* Test vectors from RFC 9106 section 5, which uses the same inputs for all
  * three variants: p=4, T=32, m=32, t=3, v=0x13, with a secret and associated
  * data supplied. */
@@ -41224,7 +41226,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t argon2_test(void)
 
     return 0;
 }
-#endif /* HAVE_ARGON2 */
+#endif /* HAVE_ARGON2 && !WOLFSSL_NO_MALLOC */
 
 #ifndef NO_PWDBASED
 #ifdef HAVE_SCRYPT

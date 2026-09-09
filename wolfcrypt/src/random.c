@@ -3920,7 +3920,7 @@ static WC_INLINE int NextUncreditedSeedPtrs(WC_RNG* rng, byte** seed, word32 *ne
  * published; a failed test consumes the material (use-once) and returns the
  * test's error, leaving an empty bank for the next cycle.  A gather failure
  * leaves the partial bank intact for retry. */
-static int wc_RNG_DRBG_NextSeedGenerate_local(WC_RNG* rng, WC_RNG *root, byte *nonce, word32 n)
+static int wc_RNG_DRBG_NextSeedGenerate_local(WC_RNG* rng, WC_RNG *root, const byte *nonce, word32 n)
 {
     byte* seed;
     wolfSSL_Atomic_Int* lenp;
@@ -4264,7 +4264,7 @@ int wc_RNG_DRBG_NextUncreditedSeedStore(WC_RNG* rng, const byte *nonce,
         return BAD_FUNC_ARG;
     /* _local's nonce arm only reads the buffer; the parameter is non-const
      * for the benefit of the other arms. */
-    return wc_RNG_DRBG_NextSeedGenerate_local(rng, NULL, (byte *)nonce,
+    return wc_RNG_DRBG_NextSeedGenerate_local(rng, NULL, nonce,
                                               nonceSz);
 }
 
