@@ -3488,6 +3488,22 @@ static int wc_mix_pool_bytes(const void *buf, size_t len) {
      * so only the module's own seed source resets the reseed schedule. */
     ret = wc_RNG_DRBG_Reseed_Uncredited(WC_RNG_BANK_INST_TO_RNG(drbg), buf,
                                         (word32)len);
+#ifdef WC_RNG_HAVE_NEXT_SEED
+    /* The leased instance was just stirred directly, above.  The daemon root --
+     * the one node the harvest wire otherwise never reaches -- is single-owner
+     * and can't be stirred from here; deposit the fragment into its uncredited
+     * accumulator instead (writer-safe without a lease: read-copy-store, see
+     * wc_RNG_DRBG_NextUncreditedSeedStore()), for consumption at the root's own
+     * next generate.  The supplied entropy is unconditionally absorbed by
+     * wc_RNG_DRBG_NextUncreditedSeedStore() -- if nextUncreditedSeedLen is
+     * already full, the absorption is by xorbuf(). */
+    if (len > 0) {
+        WC_RNG *stir_root = wc_rng_bank_daemon_root_get(ctx);
+        if (stir_root != NULL)
+            (void)wc_RNG_DRBG_NextUncreditedSeedStore(stir_root, (const byte *)buf,
+                                                      (word32)len);
+    }
+#endif /* WC_RNG_HAVE_NEXT_SEED */
     if (ret != 0)
         ret = -EINVAL;
 
