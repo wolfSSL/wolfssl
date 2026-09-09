@@ -75,6 +75,14 @@
     #endif
 #endif
 
+#ifndef WC_RNG_NO_FREE_HOOK
+    #define WC_RNG_HAVE_FREE_HOOK
+#endif
+#ifdef WC_RNG_HAVE_FREE_HOOK
+    struct WC_RNG; /* tag forward-declaration for the callback signature */
+    typedef int (*wc_RNG_free_hook_cb_t)(const struct WC_RNG *rng, void *arg);
+#endif
+
 #ifndef WC_RNG_NO_LOCK
     #ifndef WC_RNG_HAVE_LOCK
         #define WC_RNG_HAVE_LOCK
@@ -444,6 +452,7 @@ enum wc_RngHealthState {
 #define WC_RNG_FLAG_RBGC_NEXT_SEED (1U << 0)
 #define WC_RNG_FLAG_FULL_MUTEX     (1U << 1)
 #define WC_RNG_FLAG_BANKREF        (1U << 2)
+#define WC_RNG_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED (1U << 3)
 
 
 /* RNG context */
@@ -460,6 +469,12 @@ struct WC_RNG {
     #ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
     wolfSSL_Mutex mutex;
     #endif
+#endif
+#ifdef WC_RNG_HAVE_FREE_HOOK
+    /* fired by wc_FreeRng() before state destruction (one-shot);
+     * see wc_RNG_register_free_hook(). */
+    wc_RNG_free_hook_cb_t free_hook;
+    void *free_hook_arg;
 #endif
 #ifdef WC_RNG_HAVE_POOL
     byte* pool;
@@ -665,6 +680,12 @@ WOLFSSL_API int  wc_InitRngNonce(WC_RNG* rng, const byte* nonce, word32 nonceSz)
 #define WC_RNG_INIT_FLAGS_LOCK_REQUIRED   (1U << 0)
 #define WC_RNG_INIT_FLAGS_LOCK_INITIALLY  (1U << 1)
 #define WC_RNG_INIT_FLAGS_USE_FULL_MUTEX  (1U << 2)
+/* At each generate, if a banked next seed is READY, consume it when the
+ * instance is flagged _ENTROPY_INVALIDATED (recovery; any provenance), or
+ * when the instance is chain-backed and the banked seed is primary
+ * (promotion).  For externally-refreshed long-lived RNGs, e.g. the kernel
+ * module's registered RBGC leaves. */
+#define WC_RNG_INIT_FLAGS_RECOVER_AND_PROMOTE_FROM_NEXT_SEED (1U << 3)
 
 WOLFSSL_API int  wc_InitRng_ex2(WC_RNG* rng, void* heap, int devId,
                                 word32 flags);
@@ -924,7 +945,19 @@ WOLFSSL_API int wc_RNG_DRBG_Present(const WC_RNG* rng);
                                           WC_RNG_lock_arg_t extra_bits);
     WOLFSSL_API int wc_RNG_lock_clear_extra(WC_RNG* rng,
                                             WC_RNG_lock_arg_t extra_bits);
+    WOLFSSL_API int wc_RNG_invalidate_entropy(WC_RNG* rng);
 #endif /* WC_RNG_HAVE_LOCK */
+
+#ifdef WC_RNG_HAVE_FREE_HOOK
+/* Register a callback fired by wc_FreeRng() immediately before state
+ * destruction, e.g. to unlink the object from an external registry.
+ * One-shot: cleared before firing.  A NULL free_hook unregisters.
+ * Reinitialization (wc_InitRng*() on a live object) clears any
+ * registered hook without firing it: hooks are per-lifetime. */
+WOLFSSL_API int wc_RNG_register_free_hook(WC_RNG* rng,
+                                          wc_RNG_free_hook_cb_t free_hook,
+                                          void *arg);
+#endif
 
 #ifdef WC_RNG_HAVE_POOL
     WOLFSSL_API int wc_RNG_Pool_Alloc(WC_RNG* rng, word32 size);
