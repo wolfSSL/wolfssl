@@ -70,6 +70,7 @@ int test_wc_MldsaDecisionCoverage2(void);
 int test_wc_MldsaDerDecisionCoverage(void);
 int test_mldsa_cb_free(void);
 
+int test_wc_MlDsaKey_SetPrecompA(void);
 #define TEST_MLDSA_DECLS                                                       \
     TEST_DECL_GROUP("mldsa", test_mldsa),                                      \
     TEST_DECL_GROUP("mldsa", test_mldsa_sign_pubonly_fails),                   \
@@ -101,6 +102,7 @@ int test_mldsa_cb_free(void);
     TEST_DECL_GROUP("mldsa", test_mldsa_legacy_shim),                         \
     TEST_DECL_GROUP("mldsa", test_wc_MldsaDecisionCoverage2),                  \
     TEST_DECL_GROUP("mldsa", test_wc_MldsaDerDecisionCoverage),                \
-    TEST_DECL_GROUP("mldsa", test_mldsa_cb_free)
+    TEST_DECL_GROUP("mldsa", test_mldsa_cb_free),                              \
+    TEST_DECL_GROUP("mldsa", test_wc_MlDsaKey_SetPrecompA)
 
 #endif /* WOLFCRYPT_TEST_MLDSA_H */

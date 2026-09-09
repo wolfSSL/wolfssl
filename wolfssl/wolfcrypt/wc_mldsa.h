@@ -634,6 +634,16 @@ struct wc_MlDsaKey {
 
     const wc_MlDsaParams* params;
     wc_Shake shake;
+#ifdef WOLFSSL_MLDSA_VERIFY_PRECOMP_A
+    /* Caller-supplied matrix A, expanded off-target and typically flash
+     * resident.  NULL means expand it here as usual.  Read only, never freed:
+     * it must outlive the key.  aPreLen and aPreRho record what it was bound
+     * to, so a later SetParams or key import cannot leave a stale matrix in
+     * use - see mldsa_precomp_a(). */
+    const sword32* aPre;
+    word32 aPreLen;
+    byte aPreRho[MLDSA_PUB_SEED_SZ];
+#endif
 #ifndef WC_MLDSA_FIXED_ARRAY
 #ifdef WC_MLDSA_CACHE_MATRIX_A
     sword32* a;
@@ -763,6 +773,24 @@ int wc_MlDsaKey_VerifyCtxHash(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
 WOLFSSL_API
 int wc_MlDsaKey_VerifyMu(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     const byte* mu, word32 muLen, int* res);
+
+#ifdef WOLFSSL_MLDSA_VERIFY_PRECOMP_A
+/* Supply a matrix A expanded off-target for this key's rho, so verify can skip
+ * the SHAKE128 rejection sampling that otherwise dominates it.  a holds
+ * k * l * MLDSA_N sword32 in row-major (r, s) order, exactly as ExpandA
+ * produces them, and must remain valid for the life of the key.
+ *
+ * SECURITY: A is derived from the public key and must be protected exactly as
+ * the public key is - an attacker able to substitute it can influence
+ * verification.  rho is checked against the imported key to catch a mismatched
+ * or stale matrix, so import the public key first.
+ *
+ * Returns 0, BAD_FUNC_ARG on NULL, a bad length, or no public key imported
+ * yet, PUBLIC_KEY_E when rho does not match the imported key. */
+WOLFSSL_API
+int wc_MlDsaKey_SetPrecompA(wc_MlDsaKey* key, const sword32* a, word32 aLen,
+    const byte* rho, word32 rhoLen);
+#endif
 
 #ifndef WC_NO_CONSTRUCTORS
 WOLFSSL_API
