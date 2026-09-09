@@ -9720,6 +9720,16 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         return se050_get_random_number(sz, output);
     }
 
+#elif defined(WOLFSSL_ELS_PKC)
+    #include <wolfssl/wolfcrypt/port/nxp/els_pkc_port.h>
+
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        (void)os;
+
+        return wc_ElsPkc_GenerateSeed(output, sz);
+    }
+
 #elif defined(WOLFSSL_NXP_RNG_1)
     #include "fsl_rng.h"
 

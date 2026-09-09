@@ -141,6 +141,12 @@ WOLFSSL_API int wc_ElsPkc_Cleanup(void);
  * being initialised with that devId. */
 WOLFSSL_API int wc_ElsPkc_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx);
 
+#ifndef WC_NO_RNG
+/* wc_GenerateSeed() where no OS entropy source precedes it in random.c. Fails
+ * with BAD_STATE_E until wc_ElsPkc_Init() has run. */
+WOLFSSL_LOCAL int wc_ElsPkc_GenerateSeed(byte* output, word32 sz);
+#endif
+
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
