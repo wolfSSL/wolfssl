@@ -43,6 +43,19 @@
     WOLFSSL_LOCAL int wolfCrypt_FIPS_DRBG_sanity(void);
 #endif
 
+#ifndef WC_RNG_NO_POOL
+    #ifndef WC_RNG_HAVE_POOL
+        #define WC_RNG_HAVE_POOL
+    #endif
+    #ifdef WOLFSSL_NO_ATOMICS
+        typedef word32 WC_RNG_pool_state_t;
+    #else
+        typedef wolfSSL_Atomic_Uint WC_RNG_pool_state_t;
+    #endif
+#else
+    #undef WC_RNG_HAVE_POOL
+#endif
+
 #ifndef WC_RNG_NO_RBGC
     #if !defined(WC_RNG_HAVE_RBGC) && \
         defined(HAVE_HASHDRBG) && \
@@ -447,6 +460,11 @@ struct WC_RNG {
     #ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
     wolfSSL_Mutex mutex;
     #endif
+#endif
+#ifdef WC_RNG_HAVE_POOL
+    byte* pool;
+    word16 poolSize;
+    WC_RNG_pool_state_t poolState;
 #endif
 
 
@@ -908,6 +926,14 @@ WOLFSSL_API int wc_RNG_DRBG_Present(const WC_RNG* rng);
                                             WC_RNG_lock_arg_t extra_bits);
 #endif /* WC_RNG_HAVE_LOCK */
 
+#ifdef WC_RNG_HAVE_POOL
+    WOLFSSL_API int wc_RNG_Pool_Alloc(WC_RNG* rng, word32 size);
+    WOLFSSL_API int wc_RNG_Pool_Collect(WC_RNG* rng, word32 n);
+    WOLFSSL_API int wc_RNG_Pool_Collect2(WC_RNG* rng_dest, WC_RNG* rng_src,
+                                         word32 n);
+    WOLFSSL_API int wc_RNG_Pool_Extract(WC_RNG* rng, byte* out, word32* n);
+    WOLFSSL_API int wc_RNG_Pool_Current(WC_RNG* rng, word32* n);
+#endif /* WC_RNG_HAVE_POOL */
 
 
 #ifdef __cplusplus
