@@ -2846,9 +2846,16 @@ int test_wolfSSL_EVP_Cipher_des_cbc_error(void)
     XMEMSET(out, 0, sizeof(out));
 
     /* Not a multiple of DES_BLOCK_SIZE: the DES call fails and EVP_Cipher must
-     * report the failure, not a rounded byte count. */
+     * report the failure, not a rounded byte count. Both the encrypt and the
+     * decrypt arm of the switch must propagate the error. */
     ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
     ExpectIntEQ(EVP_CipherInit(ctx, EVP_des_cbc(), key, iv, 1), 1);
+    ExpectIntLT(EVP_Cipher(ctx, out, in, 15), 0);
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
+
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(EVP_CipherInit(ctx, EVP_des_cbc(), key, iv, 0), 1);
     ExpectIntLT(EVP_Cipher(ctx, out, in, 15), 0);
     EVP_CIPHER_CTX_free(ctx);
     ctx = NULL;
