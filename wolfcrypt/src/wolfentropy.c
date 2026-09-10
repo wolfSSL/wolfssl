@@ -46,6 +46,12 @@ data, use this implementation to seed and re-seed the DRBG.
 #endif
 
 #include <wolfssl/wolfcrypt/sha3.h>
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
 #if defined(__APPLE__) || defined(__MACH__)
     #include <mach/mach_time.h>
 #endif
