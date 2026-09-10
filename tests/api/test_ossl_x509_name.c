@@ -961,3 +961,247 @@ int test_wolfSSL_X509_NAME_ENTRY_get_object(void)
     return EXPECT_RESULT();
 }
 
+
+/* X509_NAME_oneline() must escape the '/' RDN separator and the '+'
+ * multi-valued RDN separator when they appear inside an attribute value, as
+ * OpenSSL 3 does. Otherwise a single attribute whose value contains them
+ * (CN="foo/O=bar") renders byte-identical to a name made of several
+ * attributes (CN=foo, O=bar) and the two are indistinguishable to callers
+ * that compare the one-line form (wolfSSL/wolfssl#11392). The same flat
+ * string backs X509_NAME_cmp() and X509_check_issued().
+ *
+ * Unlike OpenSSL, a '\' inside a value is escaped as well. Otherwise
+ * CN="foo\", O=bar still renders as CN="foo/O=bar" does, and CN="a\+b" as
+ * CN="a+b" does, and wolfSSL compares names by this string. */
+int test_wolfSSL_X509_NAME_oneline_escape(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
+    X509_NAME* nameA = NULL;    /* one RDN:  CN="foo/O=bar"           */
+    X509_NAME* nameB = NULL;    /* two RDNs: CN=foo, O=bar            */
+    X509_NAME* namePlus = NULL; /* one RDN:  CN="a+b"                 */
+    X509_NAME* nameBackslash = NULL; /* one RDN:  CN="a\+b"           */
+    X509_NAME* nameTrail = NULL; /* two RDNs: CN="foo\", O=bar        */
+    X509_NAME* nameLong = NULL; /* one RDN:  CN=<399 +'s>             */
+    static byte longName[400];
+    char* onelineA = NULL;
+    char* onelineB = NULL;
+    char* onelinePlus = NULL;
+    char* onelineBackslash = NULL;
+    char* onelineTrail = NULL;
+    char* onelineLong = NULL;
+    const char* expA = "/CN=foo\\/O=bar";
+    const char* expB = "/CN=foo/O=bar";
+    const char* expPlus = "/CN=a\\+b";
+    const char* expBackslash = "/CN=a\\\\\\+b";
+    const char* expTrail = "/CN=foo\\\\/O=bar";
+
+    /* load characters into long name */
+    XMEMSET((char*)longName, '+', sizeof(longName) - 1);
+
+    ExpectNotNull(nameA = X509_NAME_new());
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(nameA, NID_commonName,
+        MBSTRING_UTF8, (const byte*)"foo/O=bar", 9, -1, 0), WOLFSSL_SUCCESS);
+
+    ExpectNotNull(nameB = X509_NAME_new());
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(nameB, NID_commonName,
+        MBSTRING_UTF8, (const byte*)"foo", 3, -1, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(nameB, NID_organizationName,
+        MBSTRING_UTF8, (const byte*)"bar", 3, -1, 0), WOLFSSL_SUCCESS);
+
+    ExpectNotNull(namePlus = X509_NAME_new());
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(namePlus, NID_commonName,
+        MBSTRING_UTF8, (const byte*)"a+b", 3, -1, 0), WOLFSSL_SUCCESS);
+
+    ExpectNotNull(nameBackslash = X509_NAME_new());
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(nameBackslash,
+                NID_commonName, MBSTRING_UTF8,
+                (const byte*)"a\\+b", 4, -1, 0), WOLFSSL_SUCCESS);
+
+    ExpectNotNull(nameTrail = X509_NAME_new());
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(nameTrail, NID_commonName,
+        MBSTRING_UTF8, (const byte*)"foo\\", 4, -1, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(nameTrail, NID_organizationName,
+        MBSTRING_UTF8, (const byte*)"bar", 3, -1, 0), WOLFSSL_SUCCESS);
+
+    ExpectNotNull(nameLong = X509_NAME_new());
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(nameLong, NID_commonName,
+                MBSTRING_UTF8, longName, sizeof(longName) - 1, -1, 0),
+                WOLFSSL_SUCCESS);
+
+    /* Names built from entries. Sanity check first: a name without special
+     * characters in its values is rendered as before. */
+    ExpectNotNull(onelineB = X509_NAME_oneline(nameB, NULL, 0));
+    ExpectStrEQ(onelineB, expB);
+
+    /* A '/' inside a value is escaped and the two names differ. */
+    ExpectNotNull(onelineA = X509_NAME_oneline(nameA, NULL, 0));
+    ExpectStrEQ(onelineA, expA);
+    ExpectIntNE(X509_NAME_cmp(nameA, nameB), 0);
+
+    /* A '+' inside a value is escaped. */
+    ExpectNotNull(onelinePlus = X509_NAME_oneline(namePlus, NULL, 0));
+    ExpectStrEQ(onelinePlus, expPlus);
+
+    /* A backslash in a value is data, not an escape: CN="a\+b" must not
+     * render or compare the same as CN="a+b". */
+    ExpectNotNull(onelineBackslash =
+            X509_NAME_oneline(nameBackslash, NULL, 0));
+    ExpectStrEQ(onelineBackslash, expBackslash);
+    ExpectIntNE(X509_NAME_cmp(namePlus, nameBackslash), 0);
+
+    /* A trailing backslash must not escape the following separator. */
+    ExpectNotNull(onelineTrail = X509_NAME_oneline(nameTrail, NULL, 0));
+    ExpectStrEQ(onelineTrail, expTrail);
+    ExpectIntNE(X509_NAME_cmp(nameA, nameTrail), 0);
+
+    /* Every character of the long value is escaped. */
+    ExpectNotNull(onelineLong = X509_NAME_oneline(nameLong, NULL, 0));
+    if (EXPECT_SUCCESS()) {
+        int i;
+        int len;
+        const char* val = onelineLong + XSTRLEN("/CN=");
+
+        ExpectIntEQ(XSTRNCMP(onelineLong, "/CN=", XSTRLEN("/CN=")), 0);
+        len = (int)XSTRLEN(val);
+        ExpectIntEQ(len, (sizeof(longName) - 1) * 2);
+        for (i = 0; EXPECT_SUCCESS() && (i + 1 < len); i += 2) {
+            ExpectIntEQ(val[i], '\\');
+            ExpectIntEQ(val[i + 1], '+');
+        }
+    }
+
+    /* A duplicated name has its one-line form rebuilt from the raw entry
+     * values, so it must come out identical and not be escaped twice. */
+    {
+        X509_NAME* orig[6];
+        int i;
+
+        orig[0] = nameA;
+        orig[1] = nameB;
+        orig[2] = namePlus;
+        orig[3] = nameBackslash;
+        orig[4] = nameTrail;
+        orig[5] = nameLong;
+
+        for (i = 0; i < (int)(sizeof(orig) / sizeof(*orig)); i++) {
+            X509_NAME* dup = NULL;
+            X509_NAME* dupDup = NULL;
+            char* origLine = NULL;
+            char* dupLine = NULL;
+
+            ExpectNotNull(dup = X509_NAME_dup(orig[i]));
+            ExpectNotNull(dupDup = X509_NAME_dup(dup));
+            ExpectNotNull(origLine = X509_NAME_oneline(orig[i], NULL, 0));
+            ExpectNotNull(dupLine = X509_NAME_oneline(dupDup, NULL, 0));
+            ExpectStrEQ(dupLine, origLine);
+            ExpectIntEQ(X509_NAME_cmp(orig[i], dup), 0);
+            ExpectIntEQ(X509_NAME_cmp(orig[i], dupDup), 0);
+
+            XFREE(dupLine, NULL, DYNAMIC_TYPE_OPENSSL);
+            XFREE(origLine, NULL, DYNAMIC_TYPE_OPENSSL);
+            X509_NAME_free(dupDup);
+            X509_NAME_free(dup);
+        }
+    }
+#if defined(WOLFSSL_CERT_GEN) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    !defined(NO_ASN_TIME) && defined(USE_CERT_BUFFERS_2048)
+    /* Names parsed from a certificate, as in the report: the flat string is
+     * produced by the certificate parser, not by the entry functions. */
+    {
+        X509_NAME* names[4];
+        const char* exp[4];
+        char* certOneline[4] = { NULL, NULL, NULL, NULL };
+        EVP_PKEY* priv = NULL;
+        EVP_PKEY* pub = NULL;
+        const unsigned char* keyPt = client_key_der_2048;
+        const unsigned char* pubPt = client_keypub_der_2048;
+        int i;
+
+        names[0] = nameA;
+        names[1] = nameB;
+        names[2] = nameBackslash;
+        names[3] = nameTrail;
+        exp[0] = expA;
+        exp[1] = expB;
+        exp[2] = expBackslash;
+        exp[3] = expTrail;
+
+        ExpectNotNull(priv = wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, NULL, &keyPt,
+            (long)sizeof_client_key_der_2048));
+        ExpectNotNull(pub = wolfSSL_d2i_PUBKEY(NULL, &pubPt,
+            (long)sizeof_client_keypub_der_2048));
+
+        for (i = 0; i < 4; i++) {
+            X509* x509 = NULL;
+            X509* parsed = NULL;
+            const unsigned char* der = NULL;
+            int derSz = 0;
+            DecodedCert dCert;
+
+            ExpectNotNull(x509 = X509_new());
+            ExpectIntNE(X509_set_version(x509, 2L), 0);
+            ExpectIntEQ(X509_set_subject_name(x509, names[i]),
+                WOLFSSL_SUCCESS);
+            ExpectIntEQ(X509_set_issuer_name(x509, names[i]),
+                WOLFSSL_SUCCESS);
+            ExpectIntEQ(X509_set_pubkey(x509, pub), WOLFSSL_SUCCESS);
+            ExpectIntGT(X509_sign(x509, priv, EVP_sha256()), 0);
+
+            ExpectNotNull(der = wolfSSL_X509_get_der(x509, &derSz));
+
+            /* The parser's own flat subject string. This is what a build
+             * without OPENSSL_EXTRA hands to X509_NAME_oneline(); with
+             * OPENSSL_EXTRA the X509's copy is rebuilt from the entries. */
+            if ((der != NULL) && (derSz > 0)) {
+                wc_InitDecodedCert(&dCert, der, (word32)derSz, NULL);
+                ExpectIntEQ(wc_ParseCert(&dCert, CERT_TYPE, NO_VERIFY, NULL),
+                    0);
+                ExpectStrEQ(dCert.subject, exp[i]);
+                ExpectStrEQ(dCert.issuer, exp[i]);
+                wc_FreeDecodedCert(&dCert);
+            }
+
+            /* Re-parse the signed encoding so the subject comes from the
+             * certificate parser rather than from the entries set above. */
+            ExpectNotNull(parsed = d2i_X509(NULL, &der, derSz));
+            ExpectNotNull(certOneline[i] = X509_NAME_oneline(
+                X509_get_subject_name(parsed), NULL, 0));
+            ExpectStrEQ(certOneline[i], exp[i]);
+
+            X509_free(parsed);
+            X509_free(x509);
+        }
+
+        /* The structurally different subjects must not collide with the
+         * single RDN CN="foo/O=bar". */
+        if (certOneline[0] != NULL && certOneline[1] != NULL) {
+            ExpectIntNE(XSTRCMP(certOneline[0], certOneline[1]), 0);
+        }
+        if (certOneline[0] != NULL && certOneline[3] != NULL) {
+            ExpectIntNE(XSTRCMP(certOneline[0], certOneline[3]), 0);
+        }
+
+        for (i = 0; i < 4; i++) {
+            XFREE(certOneline[i], NULL, DYNAMIC_TYPE_OPENSSL);
+        }
+        EVP_PKEY_free(pub);
+        EVP_PKEY_free(priv);
+    }
+#endif
+
+    XFREE(onelinePlus, NULL, DYNAMIC_TYPE_OPENSSL);
+    XFREE(onelineBackslash, NULL, DYNAMIC_TYPE_OPENSSL);
+    XFREE(onelineTrail, NULL, DYNAMIC_TYPE_OPENSSL);
+    XFREE(onelineA, NULL, DYNAMIC_TYPE_OPENSSL);
+    XFREE(onelineB, NULL, DYNAMIC_TYPE_OPENSSL);
+    XFREE(onelineLong, NULL, DYNAMIC_TYPE_OPENSSL);
+    X509_NAME_free(namePlus);
+    X509_NAME_free(nameBackslash);
+    X509_NAME_free(nameTrail);
+    X509_NAME_free(nameLong);
+    X509_NAME_free(nameA);
+    X509_NAME_free(nameB);
+#endif
+    return EXPECT_RESULT();
+}
