@@ -2287,7 +2287,7 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, const mp_int* dm,
         *outLen = 256;
     }
 
-    /* only zeroing private "d" */
+    /* zero the whole work buffer: d, a/r and m */
     SP_ZEROFREE_VAR(sp_digit, d, 32 * 4, NULL, DYNAMIC_TYPE_RSA);
 
     return err;
@@ -5071,7 +5071,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, const mp_int* dm,
         *outLen = 384;
     }
 
-    /* only zeroing private "d" */
+    /* zero the whole work buffer: d, a/r and m */
     SP_ZEROFREE_VAR(sp_digit, d, 48 * 4, NULL, DYNAMIC_TYPE_RSA);
 
     return err;
@@ -7082,7 +7082,7 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, const mp_int* dm,
         *outLen = 512;
     }
 
-    /* only zeroing private "d" */
+    /* zero the whole work buffer: d, a/r and m */
     SP_ZEROFREE_VAR(sp_digit, d, 64 * 4, NULL, DYNAMIC_TYPE_RSA);
 
     return err;
