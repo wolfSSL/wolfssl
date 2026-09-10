@@ -15097,6 +15097,11 @@ struct ecEncCtx {
     word32    kdfSaltSz;   /* size of kdfSalt */
     word32    kdfInfoSz;   /* size of kdfInfo */
     word32    macSaltSz;   /* size of macSalt */
+#ifdef WOLF_CRYPTO_CB
+    /* Device for ECIES. Not copied from the ECC key: unset means software,
+     * or the WOLF_CRYPTO_CB_FIND finder, even if the key has a device. */
+    int       devId;
+#endif
     void*     heap;        /* heap hint for memory used */
     byte      clientSalt[EXCHANGE_SALT_SZ];  /* for msg exchange */
     byte      serverSalt[EXCHANGE_SALT_SZ];  /* for msg exchange */
@@ -15196,6 +15201,30 @@ int wc_ecc_ctx_get_rng(ecEncCtx* ctx, WC_RNG** rng)
         return BAD_FUNC_ARG;
 
     *rng = ctx->rng;
+
+    return 0;
+}
+
+/* Pick the device that ECIES uses; it is never copied from the ECC key. Unset
+ * means software, or the WOLF_CRYPTO_CB_FIND finder. Kept across ctx reset. */
+int wc_ecc_ctx_set_dev_id(ecEncCtx* ctx, int devId)
+{
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+
+    ctx->devId = devId;
+
+    return 0;
+}
+
+/* Read back the device set above.  Callback code can use this to learn
+ * which device it was called for. */
+int wc_ecc_ctx_get_dev_id(ecEncCtx* ctx, int* devId)
+{
+    if (ctx == NULL || devId == NULL)
+        return BAD_FUNC_ARG;
+
+    *devId = ctx->devId;
 
     return 0;
 }
@@ -15408,6 +15437,12 @@ static void ecc_ctx_init(ecEncCtx* ctx, int flags, WC_RNG* rng)
         ctx->macAlgo  = ecHMAC_SHA256;
         ctx->protocol = (byte)flags;
         ctx->rng      = rng;
+    #ifdef WOLF_CRYPTO_CB
+        /* The XMEMSET above leaves this at 0, and 0 is a real devId.  Start
+         * in software; the caller picks a device with
+         * wc_ecc_ctx_set_dev_id(). */
+        ctx->devId    = INVALID_DEVID;
+    #endif
 
         if (flags == REQ_RESP_CLIENT)
             ctx->cliSt = ecCLI_INIT;
@@ -15422,15 +15457,25 @@ WOLFSSL_ABI
 int wc_ecc_ctx_reset(ecEncCtx* ctx, WC_RNG* rng)
 {
     void* heap;
+#ifdef WOLF_CRYPTO_CB
+    int   devId;
+#endif
 
     if (ctx == NULL || rng == NULL)
         return BAD_FUNC_ARG;
 
     /* ecc_ctx_init clears the whole context, so carry the heap hint over it.
-     * The context has to be freed to the heap it was allocated from. */
+     * The context has to be freed to the heap it was allocated from.  Keep
+     * the device too: reset means "reuse this context", so it must stay. */
     heap = ctx->heap;
+#ifdef WOLF_CRYPTO_CB
+    devId = ctx->devId;
+#endif
     ecc_ctx_init(ctx, ctx->protocol, rng);
     ctx->heap = heap;
+#ifdef WOLF_CRYPTO_CB
+    ctx->devId = devId;
+#endif
 
     return ecc_ctx_set_salt(ctx, ctx->protocol);
 }
@@ -15445,6 +15490,11 @@ ecEncCtx* wc_ecc_ctx_new_ex(int flags, WC_RNG* rng, void* heap)
     if (ctx) {
         ctx->protocol = (byte)flags;
         ctx->heap     = heap;
+    #ifdef WOLF_CRYPTO_CB
+        /* wc_ecc_ctx_reset() below keeps devId across ecc_ctx_init(), so it
+         * needs a real value first.  This memory starts out uninitialized. */
+        ctx->devId    = INVALID_DEVID;
+    #endif
     }
 
     ret = wc_ecc_ctx_reset(ctx, rng);
@@ -15674,21 +15724,22 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     byte*        encKey = NULL;
     byte*        encIv = NULL;
     byte*        macKey = NULL;
-    /* devId to hand the DEM AES/HMAC primitives; ecc_key only carries a devId
-     * field with PLUTON_CRYPTO_ECC or WOLF_CRYPTO_CB, so default to INVALID. */
+    /* Device for the ECIES callback and the AES/HMAC steps. It comes only
+     * from the context; unset means software, or the finder with CB_FIND. */
     int          eciesDevId = INVALID_DEVID;
 
     if (privKey == NULL || pubKey == NULL || msg == NULL || out == NULL ||
                            outSz  == NULL)
         return BAD_FUNC_ARG;
 
-#if defined(PLUTON_CRYPTO_ECC) || defined(WOLF_CRYPTO_CB)
-    eciesDevId = privKey->devId;
-#endif
-
 #ifdef WOLF_CRYPTO_CB
+    /* Read this before ctx is swapped for the local default below.  A NULL
+     * context has no device and stays INVALID_DEVID. */
+    if (ctx != NULL)
+        eciesDevId = ctx->devId;
+
     #ifndef WOLF_CRYPTO_CB_FIND
-    if (privKey->devId != INVALID_DEVID)
+    if (eciesDevId != INVALID_DEVID)
     #endif
     {
         /* Snapshot single-use state so we can tell whether the callback handled
@@ -15696,8 +15747,8 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
          * (which advances the state itself, below). */
         byte cliStBefore = (ctx != NULL) ? ctx->cliSt : 0;
         byte srvStBefore = (ctx != NULL) ? ctx->srvSt : 0;
-        ret = wc_CryptoCb_EciesEncrypt(privKey, pubKey, msg, msgSz, out, outSz,
-                                       ctx, compressed);
+        ret = wc_CryptoCb_EciesEncrypt(eciesDevId, privKey, pubKey, msg, msgSz,
+                                       out, outSz, ctx, compressed);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
             /* Pure-hardware service left the state alone; enforce single-use
              * here so the ctx can't be reused (nonce reuse for static-nonce
@@ -15822,15 +15873,18 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
         sharedSz += pubKeySz;
     #endif
         switch (ctx->kdfAlgo) {
+            /* The KDF hands ECIES temporaries to a callback and cannot wait
+             * for a pending result, so it always runs in software. */
             case ecHKDF_SHA256 :
-                ret = wc_HKDF(WC_SHA256, sharedSecret, sharedSz, ctx->kdfSalt,
-                           ctx->kdfSaltSz, ctx->kdfInfo, ctx->kdfInfoSz,
-                           keys, (word32)keysLen);
+                ret = wc_HKDF_ex(WC_SHA256, sharedSecret, sharedSz,
+                           ctx->kdfSalt, ctx->kdfSaltSz, ctx->kdfInfo,
+                           ctx->kdfInfoSz, keys, (word32)keysLen,
+                           privKey->heap, INVALID_DEVID);
                 break;
             case ecHKDF_SHA1 :
-                ret = wc_HKDF(WC_SHA, sharedSecret, sharedSz, ctx->kdfSalt,
+                ret = wc_HKDF_ex(WC_SHA, sharedSecret, sharedSz, ctx->kdfSalt,
                            ctx->kdfSaltSz, ctx->kdfInfo, ctx->kdfInfoSz,
-                           keys, (word32)keysLen);
+                           keys, (word32)keysLen, privKey->heap, INVALID_DEVID);
                 break;
 #if defined(HAVE_X963_KDF) && !defined(NO_HASH_WRAPPER)
             case ecKDF_X963_SHA1 :
@@ -16127,8 +16181,8 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     byte*        encKey = NULL;
     const byte*  encIv = NULL;
     byte*        macKey = NULL;
-    /* devId to hand the DEM AES/HMAC primitives; ecc_key only carries a devId
-     * field with PLUTON_CRYPTO_ECC or WOLF_CRYPTO_CB, so default to INVALID. */
+    /* Device for the ECIES callback and the AES/HMAC steps. It comes only
+     * from the context; unset means software, or the finder with CB_FIND. */
     int          eciesDevId = INVALID_DEVID;
 
 
@@ -16139,13 +16193,14 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
         return BAD_FUNC_ARG;
 #endif
 
-#if defined(PLUTON_CRYPTO_ECC) || defined(WOLF_CRYPTO_CB)
-    eciesDevId = privKey->devId;
-#endif
-
 #ifdef WOLF_CRYPTO_CB
+    /* Read this before ctx is swapped for the local default below.  A NULL
+     * context has no device and stays INVALID_DEVID. */
+    if (ctx != NULL)
+        eciesDevId = ctx->devId;
+
     #ifndef WOLF_CRYPTO_CB_FIND
-    if (privKey->devId != INVALID_DEVID)
+    if (eciesDevId != INVALID_DEVID)
     #endif
     {
         /* Snapshot single-use state so we can tell whether the callback handled
@@ -16153,8 +16208,8 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
          * (which advances the state itself, below). */
         byte cliStBefore = (ctx != NULL) ? ctx->cliSt : 0;
         byte srvStBefore = (ctx != NULL) ? ctx->srvSt : 0;
-        ret = wc_CryptoCb_EciesDecrypt(privKey, pubKey, msg, msgSz, out, outSz,
-                                       ctx);
+        ret = wc_CryptoCb_EciesDecrypt(eciesDevId, privKey, pubKey, msg, msgSz,
+                                       out, outSz, ctx);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
             /* Pure-hardware service left the state alone; enforce single-use
              * here.  A re-entrant software callback already advanced it. */
@@ -16335,15 +16390,18 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
         sharedSz += pubKeySz;
     #endif
         switch (ctx->kdfAlgo) {
+            /* The KDF hands ECIES temporaries to a callback and cannot wait
+             * for a pending result, so it always runs in software. */
             case ecHKDF_SHA256 :
-                ret = wc_HKDF(WC_SHA256, sharedSecret, sharedSz, ctx->kdfSalt,
-                           ctx->kdfSaltSz, ctx->kdfInfo, ctx->kdfInfoSz,
-                           keys, (word32)keysLen);
+                ret = wc_HKDF_ex(WC_SHA256, sharedSecret, sharedSz,
+                           ctx->kdfSalt, ctx->kdfSaltSz, ctx->kdfInfo,
+                           ctx->kdfInfoSz, keys, (word32)keysLen,
+                           privKey->heap, INVALID_DEVID);
                 break;
             case ecHKDF_SHA1 :
-                ret = wc_HKDF(WC_SHA, sharedSecret, sharedSz, ctx->kdfSalt,
+                ret = wc_HKDF_ex(WC_SHA, sharedSecret, sharedSz, ctx->kdfSalt,
                            ctx->kdfSaltSz, ctx->kdfInfo, ctx->kdfInfoSz,
-                           keys, (word32)keysLen);
+                           keys, (word32)keysLen, privKey->heap, INVALID_DEVID);
                 break;
 #if defined(HAVE_X963_KDF) && !defined(NO_HASH_WRAPPER)
             case ecKDF_X963_SHA1 :

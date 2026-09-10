@@ -1851,7 +1851,11 @@ void wc_ecc_ctx_free(ecEncCtx* ctx);
     // do more secure communication
     \endcode
 
+    \note The device id set with wc_ecc_ctx_set_dev_id() (WOLF_CRYPTO_CB
+    builds) is kept across the reset, like the heap hint.
+
     \sa wc_ecc_ctx_new
+    \sa wc_ecc_ctx_set_dev_id
 */
 
 int wc_ecc_ctx_reset(ecEncCtx* ctx, WC_RNG* rng);  /* reset for use again w/o alloc/free */
@@ -1887,6 +1891,71 @@ int wc_ecc_ctx_reset(ecEncCtx* ctx, WC_RNG* rng);  /* reset for use again w/o al
 
 int wc_ecc_ctx_set_algo(ecEncCtx* ctx, byte encAlgo, byte kdfAlgo,
     byte macAlgo);
+
+/*!
+    \ingroup ECC
+
+    \brief This function picks the device that ECIES operations using this
+    context run on. Only available when WOLF_CRYPTO_CB is defined. A context
+    starts at INVALID_DEVID, meaning software: ECIES does not copy the
+    device from the private key, so this must be called for a crypto
+    callback to be reached. The value is used both for the whole-operation
+    ECIES callback and for the AES/HMAC steps of the software path. The KDF
+    step always runs in software.
+    Passing a NULL context to wc_ecc_encrypt() or wc_ecc_decrypt() always
+    means software. When WOLF_CRYPTO_CB_FIND is defined, an unset device id
+    still goes through the registered finder, as it does for every other
+    wolfCrypt operation. The setting is kept across wc_ecc_ctx_reset().
+
+    \return 0 Returned upon successfully setting the device id.
+    \return BAD_FUNC_ARG Returned if the given context is NULL.
+
+    \param ctx pointer to the ecEncCtx for which to set the device id
+    \param devId device id to use, or INVALID_DEVID for software
+
+    _Example_
+    \code
+    ecEncCtx* ctx = wc_ecc_ctx_new(REQ_RESP_CLIENT, &rng);
+    if (wc_ecc_ctx_set_dev_id(ctx, myDevId) != 0) {
+	    // error setting device id
+    }
+    \endcode
+
+    \sa wc_ecc_ctx_get_dev_id
+    \sa wc_ecc_ctx_new
+    \sa wc_ecc_ctx_reset
+*/
+
+int wc_ecc_ctx_set_dev_id(ecEncCtx* ctx, int devId);
+
+/*!
+    \ingroup ECC
+
+    \brief This function reads back the device id set with
+    wc_ecc_ctx_set_dev_id(). Crypto callback code can use it to learn which
+    device it was called for. Only available when WOLF_CRYPTO_CB is defined.
+    A context that was never given a device reads back INVALID_DEVID.
+
+    \return 0 Returned upon successfully reading the device id.
+    \return BAD_FUNC_ARG Returned if the given context or output pointer
+    is NULL.
+
+    \param ctx pointer to the ecEncCtx to read the device id from
+    \param devId pointer that receives the device id
+
+    _Example_
+    \code
+    int devId;
+    if (wc_ecc_ctx_get_dev_id(ctx, &devId) != 0) {
+	    // error reading device id
+    }
+    \endcode
+
+    \sa wc_ecc_ctx_set_dev_id
+    \sa wc_ecc_ctx_new
+*/
+
+int wc_ecc_ctx_get_dev_id(ecEncCtx* ctx, int* devId);
 
 /*!
     \ingroup ECC
@@ -2088,8 +2157,13 @@ int wc_ecc_ctx_set_info(ecEncCtx* ctx, const byte* info, int sz);
     }
     \endcode
 
+    \note The device this runs on comes from the context
+    (wc_ecc_ctx_set_dev_id), not from privKey->devId. A NULL context, or one
+    that was never given a device, runs in software.
+
     \sa wc_ecc_encrypt_ex
     \sa wc_ecc_decrypt
+    \sa wc_ecc_ctx_set_dev_id
 */
 
 int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
@@ -2165,8 +2239,13 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     }
     \endcode
 
+    \note The device this runs on comes from the context
+    (wc_ecc_ctx_set_dev_id), not from privKey->devId. A NULL context, or one
+    that was never given a device, runs in software.
+
     \sa wc_ecc_encrypt
     \sa wc_ecc_decrypt
+    \sa wc_ecc_ctx_set_dev_id
 */
 
 int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
@@ -2236,8 +2315,13 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     }
     \endcode
 
+    \note The device this runs on comes from the context
+    (wc_ecc_ctx_set_dev_id), not from privKey->devId. A NULL context, or one
+    that was never given a device, runs in software.
+
     \sa wc_ecc_encrypt
     \sa wc_ecc_encrypt_ex
+    \sa wc_ecc_ctx_set_dev_id
 */
 
 int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,

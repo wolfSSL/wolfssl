@@ -59,6 +59,8 @@ int test_wc_ecc_encryptDecrypt(void);
 int test_wc_ecc_ecies_gcm(void);
 int test_wc_ecc_ecies_gcm_no_rng(void);
 int test_wc_ecc_ecies_cryptocb(void);
+int test_wc_ecc_ecies_devid_not_inherited(void);
+int test_wc_ecc_ecies_ctx_devid_steps(void);
 int test_wc_ecc_del_point(void);
 int test_wc_ecc_pointFns(void);
 int test_wc_ecc_shared_secret_ssh(void);
@@ -109,6 +111,8 @@ int test_wc_EccDecisionCoverage4(void);
     TEST_DECL_GROUP("ecc", test_wc_ecc_ecies_gcm),                      \
     TEST_DECL_GROUP("ecc", test_wc_ecc_ecies_gcm_no_rng),               \
     TEST_DECL_GROUP("ecc", test_wc_ecc_ecies_cryptocb),                 \
+    TEST_DECL_GROUP("ecc", test_wc_ecc_ecies_devid_not_inherited),      \
+    TEST_DECL_GROUP("ecc", test_wc_ecc_ecies_ctx_devid_steps),          \
     TEST_DECL_GROUP("ecc", test_wc_ecc_del_point),                      \
     TEST_DECL_GROUP("ecc", test_wc_ecc_pointFns),                       \
     TEST_DECL_GROUP("ecc", test_wc_ecc_shared_secret_ssh),              \
