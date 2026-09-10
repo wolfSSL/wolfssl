@@ -82,7 +82,7 @@
 #ifdef WOLFSSL_ESP32_CRYPT
     #include <wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h>
 #endif
-#if defined(WOLFSSL_SILABS_SE_ACCEL)
+#if defined(WOLFSSL_SILABS_SE_TYPES)
     #include <wolfssl/wolfcrypt/port/silabs/silabs_hash.h>
 #endif
 #if defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)
@@ -161,7 +161,14 @@ struct wc_Sha {
     #else
     word32  digest[WC_SHA_DIGEST_SIZE / sizeof(word32)];
     #endif
-#endif
+#endif /* end of the hardware-vs-software member chain */
+
+/* The callback port keeps the software implementation compiled in for
+ * fallback, so the SE context is added alongside those members rather than
+ * replacing them - hence this block sits outside the chain closed above. */
+#if defined(WOLFSSL_SILABS_CRYPTOCB)
+    wc_silabs_sha_t silabsCtx;
+#endif /* WOLFSSL_SILABS_CRYPTOCB */
     void*   heap;
 #ifdef WOLFSSL_PIC32MZ_HASH
     hashUpdCache cache; /* cache for updates */

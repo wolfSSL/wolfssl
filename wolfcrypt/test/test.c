@@ -481,6 +481,10 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
 #endif
 #ifdef WOLF_CRYPTO_CB
     #include <wolfssl/wolfcrypt/cryptocb.h>
+#ifdef WOLFSSL_SILABS_CRYPTOCB
+    /* For WOLFSSL_SILABS_WRAPPED_KEYS_API and the wc_SilabsSe_* prototypes. */
+    #include <wolfssl/wolfcrypt/port/silabs/silabs_cryptocb.h>
+#endif
     #ifdef HAVE_INTEL_QA_SYNC
         #include <wolfssl/wolfcrypt/port/intel/quickassist_sync.h>
     #endif
@@ -85734,8 +85738,162 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
         ret = rsa_onlycb_test(&myCtx);
     PRIVATE_KEY_LOCK();
 #endif
+#if defined(WOLFSSL_SILABS_CRYPTOCB) && \
+    defined(WOLFSSL_SILABS_WRAPPED_KEYS_API) && \
+    defined(WOLFSSL_SILABS_CRYPTOCB_ECC) && defined(HAVE_ECC)
+    /* Binding a resident key over an ecc_key that held a software scalar must
+     * not leave it behind: the object stays typed ECC_PRIVATEKEY, so
+     * wc_ecc_export_private_only() would hand back the old secret. */
+    if (ret == 0) {
+        ecc_key vaultEcc;
+        WC_RNG  vaultRng;
+        byte    priv[MAX_ECC_BYTES];
+        word32  privSz = (word32)sizeof(priv);
+        byte    wrapped[256];
+        int     haveKey = 0;
+        int     haveRng = 0;
 
+        if (wc_InitRng_ex(&vaultRng, HEAP_HINT, devId) != 0)
+            ret = WC_TEST_RET_ENC_NC;
+        else
+            haveRng = 1;
+        if (ret == 0) {
+            if (wc_ecc_init_ex(&vaultEcc, HEAP_HINT, devId) != 0)
+                ret = WC_TEST_RET_ENC_NC;
+            else
+                haveKey = 1;
+        }
+        /* A real software P-256 private key first. */
+        if (ret == 0 && wc_ecc_make_key(&vaultRng, 32, &vaultEcc) != 0)
+            ret = WC_TEST_RET_ENC_NC;
+        if (ret == 0 &&
+            wc_ecc_export_private_only(&vaultEcc, priv, &privSz) != 0)
+            ret = WC_TEST_RET_ENC_NC;
+        if (ret == 0 && privSz == 0)
+            ret = WC_TEST_RET_ENC_NC;
 
+        /* Check both outcomes: a host shim declines the bind, real silicon
+         * accepts it.
+         *   succeeded -> the old scalar must be gone
+         *   declined  -> the object must be untouched, catching a scrub that
+         *                runs before the bind is known to succeed */
+        if (ret == 0) {
+            byte   after[MAX_ECC_BYTES];
+            word32 afterSz = (word32)sizeof(after);
+            int    bindRet;
+            int    exportRet;
+
+            XMEMSET(wrapped, 0, sizeof(wrapped));
+            XMEMSET(after, 0, sizeof(after));
+            bindRet = wc_SilabsSe_EccUseWrappedKey(&vaultEcc, wrapped,
+                sizeof(wrapped), ECC_SECP256R1);
+            exportRet = wc_ecc_export_private_only(&vaultEcc, after, &afterSz);
+
+            if (bindRet == 0) {
+                /* Either the export refuses, or it yields nothing resembling
+                 * the old scalar. Handing back the original is the failure. */
+                if (exportRet == 0 && afterSz == privSz &&
+                    XMEMCMP(after, priv, privSz) == 0) {
+                    ret = WC_TEST_RET_ENC_NC;
+                }
+            }
+            else {
+                /* A rejected bind must leave the key exactly as it was. */
+                if (exportRet != 0 || afterSz != privSz ||
+                    XMEMCMP(after, priv, privSz) != 0) {
+                    ret = WC_TEST_RET_ENC_NC;
+                }
+            }
+            ForceZero(after, sizeof(after));
+        }
+
+        if (haveKey)
+            wc_ecc_free(&vaultEcc);
+        if (haveRng)
+            wc_FreeRng(&vaultRng);
+        ForceZero(priv, sizeof(priv));
+    }
+#endif
+
+#if defined(WOLFSSL_SILABS_CRYPTOCB) && \
+    defined(WOLFSSL_SILABS_WRAPPED_KEYS_API) && \
+    defined(WOLFSSL_SILABS_CRYPTOCB_CIPHER) && !defined(NO_AES)
+    /* Argument handling of the Secure Vault key APIs. These run before the SE
+     * is consulted, so they are meaningful on a host build; the behavioural
+     * side needs real silicon and is covered on device. */
+    if (ret == 0) {
+        Aes    vaultAes;
+        word32 wrappedSz = 0;
+        byte   blob[64];
+
+        /* NULL out-size, and key sizes the SE has no type for. */
+        if (wc_SilabsSe_AesGetWrappedKeySize(256, NULL) !=
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ret = WC_TEST_RET_ENC_NC;
+        if (ret == 0 && wc_SilabsSe_AesGetWrappedKeySize(0, &wrappedSz) == 0)
+            ret = WC_TEST_RET_ENC_NC;
+        if (ret == 0 && wc_SilabsSe_AesGetWrappedKeySize(64, &wrappedSz) == 0)
+            ret = WC_TEST_RET_ENC_NC;
+        if (ret == 0 && wc_SilabsSe_AesGetWrappedKeySize(255, &wrappedSz) == 0)
+            ret = WC_TEST_RET_ENC_NC;
+
+        /* Binding rejects NULL arguments and an implausible blob length
+         * before it touches the Aes, so the object stays usable. */
+        if (ret == 0 && wc_AesInit(&vaultAes, HEAP_HINT, devId) != 0)
+            ret = WC_TEST_RET_ENC_NC;
+        if (ret == 0) {
+            if (wc_SilabsSe_AesUseWrappedKey(NULL, blob, sizeof(blob), 256)
+                    != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+                ret = WC_TEST_RET_ENC_NC;
+            if (ret == 0 &&
+                wc_SilabsSe_AesUseWrappedKey(&vaultAes, NULL, sizeof(blob),
+                    256) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+                ret = WC_TEST_RET_ENC_NC;
+            if (ret == 0 &&
+                wc_SilabsSe_AesUseWrappedKey(&vaultAes, blob, 1, 256) == 0)
+                ret = WC_TEST_RET_ENC_NC;
+            /* A rejected bind must not have marked the object resident. */
+            if (ret == 0 && vaultAes.ctx.keySet != 0)
+                ret = WC_TEST_RET_ENC_NC;
+            wc_AesFree(&vaultAes);
+        }
+    }
+#endif
+
+#ifndef NO_SHA256
+    /* Hash objects are initialised field by field, not by zeroing, so a port
+     * hanging lazy-init state off the object must clear it. Start from dirty
+     * storage: an unreset sentinel makes the device skip its own init. */
+    if (ret == 0) {
+        WOLFSSL_SMALL_STACK_STATIC const byte abc[] = { 0x61, 0x62, 0x63 };
+        WOLFSSL_SMALL_STACK_STATIC const byte abcHash[] = {
+            0xBA,0x78,0x16,0xBF,0x8F,0x01,0xCF,0xEA,
+            0x41,0x41,0x40,0xDE,0x5D,0xAE,0x22,0x23,
+            0xB0,0x03,0x61,0xA3,0x96,0x17,0x7A,0x9C,
+            0xB4,0x10,0xFF,0x61,0xF2,0x00,0x15,0xAD
+        };
+        wc_Sha256 dirty;
+        byte      digest[WC_SHA256_DIGEST_SIZE];
+
+        XMEMSET(&dirty, 0xA5, sizeof(dirty));
+        if (wc_InitSha256_ex(&dirty, HEAP_HINT, devId) != 0)
+            ret = WC_TEST_RET_ENC_NC;
+#ifdef WOLFSSL_SILABS_CRYPTOCB
+        /* Assert the sentinel directly: on a host build the shim declines
+         * every command so the flag is never set, and only real silicon would
+         * surface this through a wrong digest. */
+        if (ret == 0 && dirty.silabsCtx.started != 0)
+            ret = WC_TEST_RET_ENC_NC;
+#endif
+        if (ret == 0 && wc_Sha256Update(&dirty, abc, (word32)sizeof(abc)) != 0)
+            ret = WC_TEST_RET_ENC_NC;
+        if (ret == 0 && wc_Sha256Final(&dirty, digest) != 0)
+            ret = WC_TEST_RET_ENC_NC;
+        if (ret == 0 && XMEMCMP(digest, abcHash, sizeof(digest)) != 0)
+            ret = WC_TEST_RET_ENC_NC;
+        wc_Sha256Free(&dirty);
+    }
+#endif
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && \
     !defined(WOLFSSL_NO_MALLOC)
     /* chacha20_poly1305_aead_test() is not repeated here: it drives the legacy

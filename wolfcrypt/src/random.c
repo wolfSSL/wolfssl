@@ -232,7 +232,7 @@ This library contains implementation for the random number generator.
     #endif
 #endif
 
-#if defined(WOLFSSL_SILABS_SE_ACCEL)
+#if defined(WOLFSSL_SILABS_SE_TYPES)
 #include <wolfssl/wolfcrypt/port/silabs/silabs_random.h>
 #endif
 
@@ -4942,7 +4942,14 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
      */
     #define USE_TEST_GENSEED
 
-#elif defined(WOLFSSL_SILABS_SE_ACCEL)
+#elif defined(WOLFSSL_SILABS_SE_TYPES) && !defined(WOLFSSL_SILABS_HOST_TEST)
+    /* Both Silicon Labs ports seed from the SE TRNG. Gated on SE_TYPES, not
+     * SE_ACCEL, so the crypto callback port seeds too: the SE is the only
+     * entropy source on the part, so otherwise an RNG built with INVALID_DEVID
+     * fails with RNG_FAILURE_E and the software fallback path is unusable.
+     *
+     * The host compile test is excluded - its shim declines every command, so
+     * that build must fall through to the host's own entropy source. */
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         (void)os;
