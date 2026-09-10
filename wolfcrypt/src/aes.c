@@ -13114,9 +13114,9 @@ static WARN_UNUSED_RESULT int AesGcmCryptUpdate_C(
     else
 #endif /* HAVE_AES_ECB */
     {
+        ALIGN32 byte scratch[WC_AES_BLOCK_SIZE];
         /* Encrypt block by block. */
         while (blocks--) {
-            ALIGN32 byte scratch[WC_AES_BLOCK_SIZE];
             IncrementGcmCounter(AES_COUNTER(aes));
             /* Encrypt counter into a buffer. */
             ret = wc_AesEncrypt(aes, AES_COUNTER(aes), scratch);
@@ -13126,11 +13126,11 @@ static WARN_UNUSED_RESULT int AesGcmCryptUpdate_C(
             }
             /* XOR plain text into encrypted counter into cipher text buffer. */
             xorbufout(out, scratch, in, WC_AES_BLOCK_SIZE);
-            ForceZero(scratch, sizeof(scratch));
             /* Data complete. */
             in  += WC_AES_BLOCK_SIZE;
             out += WC_AES_BLOCK_SIZE;
         }
+        ForceZero(scratch, sizeof(scratch));
     }
 
     if (partial != 0) {
@@ -16699,6 +16699,15 @@ void wc_AesFree(Aes* aes)
         /* If callback wants standard free, it can set devId to INVALID_DEVID.
          * Otherwise assume the callback handled cleanup. */
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            /* Release heap state first; the wipe drops its pointers. */
+        #if defined(WOLFSSL_AESGCM_STREAM) && defined(WOLFSSL_SMALL_STACK) && \
+            !defined(WOLFSSL_AESNI)
+            if (aes->streamData != NULL) {
+                ForceZero(aes->streamData, aes->streamData_sz);
+                XFREE(aes->streamData, aes->heap, DYNAMIC_TYPE_AES);
+                aes->streamData = NULL;
+            }
+        #endif
             ForceZero(aes, sizeof(Aes));
             return;
         }
@@ -18219,6 +18228,10 @@ static int AesKeyUnWrapRaw(Aes* aes, const byte* in, word32 inSz, byte* out,
     if (ret == 0) {
         /* return recovered A */
         XMEMCPY(aOut, tmp, KEYWRAP_BLOCK_SIZE);
+    }
+    else {
+        /* Partially recovered plaintext (ISO/IEC 19790:2012 7.9.7). */
+        ForceZero(out, inSz - KEYWRAP_BLOCK_SIZE);
     }
     /* tmp ends holding the first 8 bytes of the recovered key
      * (ISO/IEC 19790:2012 7.9.7). */
