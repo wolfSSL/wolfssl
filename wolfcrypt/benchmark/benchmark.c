@@ -6998,8 +6998,8 @@ void bench_aesxts(void)
     /* bench_size drops with -blocks and BENCH_EMBEDDED is 1 KiB, so keep two
      * chunks or this times one Update() and calls it streaming. */
     chunk = (word32)BENCH_XTS_CHUNK;
-    if (chunk > (word32)bench_size / 2u) {
-        chunk = ((word32)bench_size / 2u) & ~(word32)(WC_AES_BLOCK_SIZE - 1);
+    if (chunk > (word32)bench_size / 2U) {
+        chunk = ((word32)bench_size / 2U) & ~(word32)(WC_AES_BLOCK_SIZE - 1);
     }
     if (chunk < (word32)WC_AES_BLOCK_SIZE) {
         chunk = (word32)WC_AES_BLOCK_SIZE;

@@ -17524,6 +17524,24 @@ static wc_test_ret_t aes_xts_large_test_common(XtsAes *aes,
             if (stream.bytes_crypted_with_this_tweak < before)
                 ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
+            /* Decrypt is held to the same rule: refuse rather than run
+             * unaccounted once the count can no longer advance. */
+            ret = wc_AesXtsSetKeyNoInit(aes, k1, k1Sz, AES_DECRYPTION);
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            ret = wc_AesXtsDecryptInit(aes, i1, i1Sz, &stream);
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            stream.bytes_crypted_with_this_tweak = 0xFFFFFFF0U;
+            before = stream.bytes_crypted_with_this_tweak;
+            XMEMSET(buf, 0, WC_AES_BLOCK_SIZE * 2);
+            ret = wc_AesXtsDecryptUpdate(aes, buf, ref,
+                WC_AES_BLOCK_SIZE * 2, &stream);
+            if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+                ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+            if (stream.bytes_crypted_with_this_tweak < before)
+                ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
 #if FIPS_VERSION3_GE(6,0,0)
             /* SP800-38E caps a data unit at 2^20 blocks.  Decrypt is held to
              * the same limit as encrypt. */
@@ -17538,6 +17556,17 @@ static wc_test_ret_t aes_xts_large_test_common(XtsAes *aes,
             ret = wc_AesXtsDecryptUpdate(aes, buf, ref,
                 WC_AES_BLOCK_SIZE, &stream);
             if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+                ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+            /* The one-shot decrypt entry enforces the same cap, and refuses
+             * the size before touching either buffer. */
+            XMEMSET(buf, 0x5A, WC_AES_BLOCK_SIZE);
+            ret = wc_AesXtsDecrypt(aes, buf, ref,
+                FIPS_AES_XTS_MAX_BYTES_PER_TWEAK + WC_AES_BLOCK_SIZE,
+                i1, i1Sz);
+            if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+                ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+            if ((buf[0] != 0x5A) || (buf[WC_AES_BLOCK_SIZE - 1] != 0x5A))
                 ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
         }

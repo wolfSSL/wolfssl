@@ -8121,6 +8121,15 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
                 return MISSING_KEY;
             }
 
+    #if defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) && \
+        defined(__aarch64__)
+            /* Claimed before the drain below: failing after it would return an
+             * error with aes->left already decremented and output written. */
+            if (aes->use_aes_hw_crypto) {
+                SAVE_VECTOR_REGISTERS(return _svr_ret;);
+            }
+    #endif
+
             /* consume any unused bytes left in aes->tmp */
             processed = min(aes->left, sz);
             xorbufout(out, in, (byte*)aes->tmp + WC_AES_BLOCK_SIZE - aes->left,
@@ -8157,7 +8166,6 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
               #endif /* WOLFSSL_ARM32_AES_DISPATCH */
             #else
             if (aes->use_aes_hw_crypto) {
-                SAVE_VECTOR_REGISTERS(return _svr_ret;);
                 AES_CTR_encrypt_AARCH64(in, out, sz, (byte*)aes->reg,
                     (byte*)aes->key, (byte*)aes->tmp, &aes->left, aes->rounds);
                 RESTORE_VECTOR_REGISTERS();
@@ -18765,6 +18773,16 @@ static int AesXtsInitTweak_sw(XtsAes* xaes, byte* i) {
     #define WC_AES_XTS_STREAM_AARCH64
 #endif
 
+/* The per-tweak allowance is committed before the vector-register claim, so a
+ * failed claim must give it back or a retry spends it twice. */
+#ifndef WC_AESXTS_STREAM_NO_REQUEST_ACCOUNTING
+    #define WC_XTS_UNCOMMIT(stream, sz)                                     \
+        do { (stream)->bytes_crypted_with_this_tweak -= (word32)(sz); }     \
+        while (0)
+#else
+    #define WC_XTS_UNCOMMIT(stream, sz) WC_DO_NOTHING
+#endif
+
 #if !defined(WOLFSSL_ARMASM) || (!defined(__aarch64__) && \
     defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)) || \
     defined(WOLFSSL_ARM32_AES_DISPATCH) || defined(WOLFSSL_AESXTS_STREAM)
@@ -19246,7 +19264,8 @@ static int AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
 #endif /* WOLFSSL_AESNI */
 #ifdef WC_AES_XTS_STREAM_AARCH64
         if (aes->use_aes_hw_crypto) {
-            SAVE_VECTOR_REGISTERS(return _svr_ret;);
+            SAVE_VECTOR_REGISTERS(WC_XTS_UNCOMMIT(stream, sz);
+                                  return _svr_ret;);
             AES_XTS_encrypt_update_AARCH64(in, out, sz, (byte*)aes->key,
                 stream->tweak_block, xts_tmp, (int)aes->rounds);
             ret = 0;
@@ -19866,7 +19885,8 @@ static int AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
 #endif /* WOLFSSL_AESNI */
 #ifdef WC_AES_XTS_STREAM_AARCH64
         if (aes->use_aes_hw_crypto) {
-            SAVE_VECTOR_REGISTERS(return _svr_ret;);
+            SAVE_VECTOR_REGISTERS(WC_XTS_UNCOMMIT(stream, sz);
+                                  return _svr_ret;);
             AES_XTS_decrypt_update_AARCH64(in, out, sz, (byte*)aes->key,
                 stream->tweak_block, xts_tmp, (int)aes->rounds);
             ret = 0;

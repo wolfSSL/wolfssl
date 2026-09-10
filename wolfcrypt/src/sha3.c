@@ -1212,7 +1212,7 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, word32 p, word32 l
 #endif
 #endif
 
-#ifdef USE_INTEL_SPEEDUP
+#if defined(USE_INTEL_SPEEDUP) || defined(SHA3_NEEDS_VREG_CLAIM)
     if (SHA3_BLOCK_VREGS(sha3_block)) {
         int ret = SAVE_VECTOR_REGISTERS2();
         if (ret != 0) {
