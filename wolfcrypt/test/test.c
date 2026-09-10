@@ -1529,6 +1529,10 @@ static WC_MAYBE_UNUSED Aes* test_AesGcmNew(void* heap, int declaredDevId,
         #else
             static byte gTestMemory[576*1024];  /* ML-DSA full mem */
         #endif
+    #elif defined(WOLFSSL_NO_MALLOC) && defined(OPENSSL_EXTRA)
+        /* No malloc, so the compatibility layer's NULL-heap allocations come
+         * out of this pool as well, not the system heap. */
+        static byte gTestMemory[1024*1024];
     #elif defined(BENCH_EMBEDDED)
         static byte gTestMemory[14000];
     #elif defined(WOLFSSL_CERT_EXT)
