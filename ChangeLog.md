@@ -39,6 +39,14 @@
   dimensions is rejected with `CACHE_MATCH_ERROR` instead of being copied in.
   A saved cache from an older release cannot be restored by this one.
 
+* **Behavioral change (`X509_get0_pubkey()` returns a borrowed key)**:
+  `wolfSSL_X509_get_pubkey()` now returns the public key cached on the
+  certificate with a new reference, and the new `wolfSSL_X509_get0_pubkey()`
+  (`X509_get0_pubkey()`, `X509_REQ_get0_pubkey()`) returns it without one, as
+  in OpenSSL.  Code that freed the result of `X509_get0_pubkey()` to avoid a
+  leak must stop doing so, and the returned key is shared with the
+  certificate, so it must be treated as read only.
+
 ## Post-Quantum Cryptography (PQC)
 
 * Added opt-in per-key Falcon signing caches (`--enable-falcon=cache-key`, `cache-basis`), roughly doubling signing speed with the default integer fpr backend. by @Frauschi
