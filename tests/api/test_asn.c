@@ -3852,6 +3852,224 @@ int test_wc_SignCert_buffer_bounds(void)
     return EXPECT_RESULT();
 }
 
+#if defined(TEST_SIGN_CERT_BOUNDS_RSA) || defined(TEST_SIGN_CERT_BOUNDS_ECC)
+#define TEST_MAKECERT_SERIAL
+#endif
+
+#ifdef TEST_MAKECERT_SERIAL
+/* Longest serialNumber TLV the cases below expect. */
+#define TEST_SERIAL_TLV_MAX 8
+
+/* Find the serialNumber TLV in a certificate body. wc_MakeCert() writes a
+ * TBSCertificate, so the [0] EXPLICIT version precedes the serial. */
+static const byte* test_cert_serial_tlv(const byte* body, int bodySz)
+{
+    int i;
+
+    for (i = 0; ((i + 5 + TEST_SERIAL_TLV_MAX) <= bodySz) && (i < 16); i++) {
+        if ((body[i] == 0xA0) && (body[i + 1] == 0x03) &&
+            (body[i + 2] == ASN_INTEGER) && (body[i + 3] == 0x01) &&
+            (body[i + 5] == ASN_INTEGER)) {
+            return &body[i + 5];
+        }
+    }
+
+    return NULL;
+}
+
+/* Build a certificate body carrying the given serial. */
+static int test_cert_make_serial(Cert* cert, WC_RNG* rng, void* key,
+    byte* out, word32 outSz, const byte* serial, int serialSz)
+{
+    int ret;
+    int copySz = serialSz;
+
+    ret = wc_InitCert(cert);
+    if (ret != 0)
+        return ret;
+
+    /* Keep the copy inside cert->serial so an over-long size can still be
+     * handed to the generator to exercise its bound check. */
+    if (copySz > CTC_SERIAL_SIZE)
+        copySz = CTC_SERIAL_SIZE;
+    if (copySz < 0)
+        copySz = 0;
+
+    cert->isCA = 0;
+    XMEMCPY(cert->serial, serial, (size_t)copySz);
+    cert->serialSz = serialSz;
+    XSTRNCPY(cert->subject.country, "US", CTC_NAME_SIZE);
+    XSTRNCPY(cert->subject.org, "wolfSSL", CTC_NAME_SIZE);
+    XSTRNCPY(cert->subject.commonName, "serial-encoding", CTC_NAME_SIZE);
+
+#ifdef TEST_SIGN_CERT_BOUNDS_RSA
+    cert->sigType = CTC_SHA256wRSA;
+    return wc_MakeCert(cert, out, outSz, (RsaKey*)key, NULL, rng);
+#else
+    cert->sigType = CTC_SHA256wECDSA;
+    return wc_MakeCert(cert, out, outSz, NULL, (ecc_key*)key, rng);
+#endif
+}
+#endif /* TEST_MAKECERT_SERIAL */
+
+/*
+ * A caller-supplied serial number must be encoded as a minimal DER INTEGER.
+ *
+ * A fixed-width device serial carries leading zero bytes that DER does not
+ * allow, and the encoder only ever adds the sign pad, so those bytes used to
+ * reach the certificate untouched. The result failed to parse, here and in
+ * every other strict decoder.
+ */
+int test_wc_MakeCert_serial_encoding(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_MAKECERT_SERIAL
+    static const struct {
+        byte serial[CTC_SERIAL_SIZE];
+        int  serialSz;
+        byte expect[TEST_SERIAL_TLV_MAX];
+        int  expectSz;
+    } cases[] = {
+        /* Redundant leading zeros are dropped. */
+        { { 0x00, 0x00, 0x00, 0x01 }, 4, { 0x02, 0x01, 0x01 }, 3 },
+        { { 0x00, 0x00, 0x12, 0x34 }, 4, { 0x02, 0x02, 0x12, 0x34 }, 4 },
+        { { 0x00, 0x12, 0x34, 0x56 }, 4, { 0x02, 0x03, 0x12, 0x34, 0x56 }, 5 },
+        /* Already minimal, so left alone. */
+        { { 0x12, 0x34, 0x56, 0x78 }, 4,
+          { 0x02, 0x04, 0x12, 0x34, 0x56, 0x78 }, 6 },
+        /* A set MSB still gets the sign pad it needs. */
+        { { 0x80, 0x00, 0x00, 0x01 }, 4,
+          { 0x02, 0x05, 0x00, 0x80, 0x00, 0x00, 0x01 }, 7 },
+        /* A sign pad the caller already supplied is not doubled. */
+        { { 0x00, 0x80, 0x01 }, 3, { 0x02, 0x03, 0x00, 0x80, 0x01 }, 5 }
+    };
+    static const byte zeroSerial[4] = { 0x00, 0x00, 0x00, 0x00 };
+    static const byte zeroTlv[3] = { 0x02, 0x01, 0x00 };
+    byte   maxSerial[CTC_SERIAL_SIZE];
+    WC_RNG rng;
+    Cert   cert;
+    DecodedCert decoded;
+    byte*  body = NULL;
+    const byte* tlv = NULL;
+    int    rngInit = 0;
+    int    bodySz = 0;
+    int    signedSz = 0;
+    int    i;
+#ifdef TEST_SIGN_CERT_BOUNDS_RSA
+    RsaKey key;
+    word32 idx = 0;
+#else
+    ecc_key key;
+    word32 idx = 0;
+#endif
+    int    keyInit = 0;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&cert, 0, sizeof(cert));
+    XMEMSET(&key, 0, sizeof(key));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) rngInit = 1;
+
+    ExpectNotNull(body = (byte*)XMALLOC(SIGN_CERT_SCRATCH_SZ, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+
+#ifdef TEST_SIGN_CERT_BOUNDS_RSA
+    ExpectIntEQ(wc_InitRsaKey_ex(&key, HEAP_HINT, testDevId), 0);
+    if (EXPECT_SUCCESS()) keyInit = 1;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(server_key_der_2048, &idx, &key,
+        sizeof_server_key_der_2048), 0);
+#else
+    ExpectIntEQ(wc_ecc_init_ex(&key, HEAP_HINT, testDevId), 0);
+    if (EXPECT_SUCCESS()) keyInit = 1;
+    ExpectIntEQ(wc_EccPrivateKeyDecode(ecc_key_der_256, &idx, &key,
+        sizeof_ecc_key_der_256), 0);
+#endif
+
+    for (i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        ExpectIntGT(bodySz = test_cert_make_serial(&cert, &rng, &key, body,
+            SIGN_CERT_SCRATCH_SZ, cases[i].serial, cases[i].serialSz), 0);
+        ExpectNotNull(tlv = test_cert_serial_tlv(body, bodySz));
+        if (EXPECT_SUCCESS() && (tlv != NULL)) {
+            ExpectIntEQ(tlv[1] + 2, cases[i].expectSz);
+            ExpectIntEQ(XMEMCMP(tlv, cases[i].expect,
+                (size_t)cases[i].expectSz), 0);
+        }
+
+        /* What wolfSSL emits, wolfSSL has to be able to parse back. */
+        ExpectIntGT(signedSz = wc_SignCert(bodySz, cert.sigType, body,
+            SIGN_CERT_SCRATCH_SZ,
+#ifdef TEST_SIGN_CERT_BOUNDS_RSA
+            &key, NULL,
+#else
+            NULL, &key,
+#endif
+            &rng), 0);
+        if (EXPECT_SUCCESS()) {
+            wc_InitDecodedCert(&decoded, body, (word32)signedSz, HEAP_HINT);
+            ExpectIntEQ(wc_ParseCert(&decoded, CERT_TYPE, NO_VERIFY, NULL), 0);
+            wc_FreeDecodedCert(&decoded);
+        }
+    }
+
+#if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_PYTHON) && \
+    !defined(WOLFSSL_ASN_ALLOW_0_SERIAL)
+    /* RFC 5280 4.1.2.2 needs a positive serial, so blank silicon has to fail
+     * at generation rather than mint a certificate nothing will accept. */
+    ExpectIntEQ(test_cert_make_serial(&cert, &rng, &key, body,
+        SIGN_CERT_SCRATCH_SZ, zeroSerial, (int)sizeof(zeroSerial)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    (void)zeroTlv;
+#elif defined(WOLFSSL_ASN_TEMPLATE)
+    /* The permissive build still has to emit the canonical zero encoding.
+     * The original back end rejects zero regardless of this macro. */
+    ExpectIntGT(bodySz = test_cert_make_serial(&cert, &rng, &key, body,
+        SIGN_CERT_SCRATCH_SZ, zeroSerial, (int)sizeof(zeroSerial)), 0);
+    ExpectNotNull(tlv = test_cert_serial_tlv(body, bodySz));
+    if (EXPECT_SUCCESS() && (tlv != NULL)) {
+        ExpectIntEQ(XMEMCMP(tlv, zeroTlv, sizeof(zeroTlv)), 0);
+    }
+#else
+    (void)zeroSerial;
+    (void)zeroTlv;
+#endif
+
+    /* Exactly CTC_SERIAL_SIZE is the largest serial that must be accepted. */
+    XMEMSET(maxSerial, 0x11, sizeof(maxSerial));
+    ExpectIntGT(bodySz = test_cert_make_serial(&cert, &rng, &key, body,
+        SIGN_CERT_SCRATCH_SZ, maxSerial, CTC_SERIAL_SIZE), 0);
+    ExpectNotNull(tlv = test_cert_serial_tlv(body, bodySz));
+    if (EXPECT_SUCCESS() && (tlv != NULL)) {
+        ExpectIntEQ(tlv[1], CTC_SERIAL_SIZE);
+    }
+
+    /* A negative size is rejected by both ASN back ends. */
+    ExpectIntEQ(test_cert_make_serial(&cert, &rng, &key, body,
+        SIGN_CERT_SCRATCH_SZ, cases[0].serial, -1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+#ifdef WOLFSSL_ASN_TEMPLATE
+    /* Over the 20 octet ceiling RFC 5280 4.1.2.2 sets. The original ASN
+     * back end truncates through SetSerialNumber() instead of erroring. */
+    ExpectIntEQ(test_cert_make_serial(&cert, &rng, &key, body,
+        SIGN_CERT_SCRATCH_SZ, cases[0].serial, CTC_SERIAL_SIZE + 1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+
+    XFREE(body, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (keyInit) {
+#ifdef TEST_SIGN_CERT_BOUNDS_RSA
+        wc_FreeRsaKey(&key);
+#else
+        wc_ecc_free(&key);
+#endif
+    }
+    if (rngInit)
+        wc_FreeRng(&rng);
+#endif /* TEST_MAKECERT_SERIAL */
+    return EXPECT_RESULT();
+}
+
 /*
  * MC/DC wave 2 - decision-targeted negative paths for PKCS#8 wrap/parse
  * and RSA key decode. Targets argument-check, short-buffer, and
