@@ -2506,16 +2506,22 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 }
             }
         }
-        if ((copyLen + strLen) >= (int)(WC_ASN_NAME_MAX - idx))
         {
-            WOLFSSL_MSG("ASN Name too big, skipping");
-            tooBig = TRUE;
+            /* Length of the value once special characters are escaped. */
+            word32 escLen = X509CertEscapeName(NULL,
+                    (const char*)&input[srcIdx], (word32)strLen);
+
+            if (((word32)copyLen + escLen) >= (word32)(WC_ASN_NAME_MAX - idx))
+            {
+                WOLFSSL_MSG("ASN Name too big, skipping");
+                tooBig = TRUE;
+            }
         }
         if ((copy != NULL) && !tooBig) {
             XMEMCPY(&full[idx], copy, (size_t)copyLen);
             idx += (word32)copyLen;
-            XMEMCPY(&full[idx], &input[srcIdx], (size_t)strLen);
-            idx += (word32)strLen;
+            idx += X509CertEscapeName(&full[idx], (const char*)&input[srcIdx],
+                (word32)strLen);
         }
         #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
             !defined(WOLFCRYPT_ONLY)

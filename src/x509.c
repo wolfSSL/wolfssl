@@ -14694,7 +14694,7 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
      * returns the number of entries added
      */
     static int AddAllEntry(WOLFSSL_X509_NAME* name, char* fullName,
-            int fullNameSz, int* idx)
+            word32 fullNameSz, int* idx)
     {
         int i;
         int ret = 0;
@@ -14722,14 +14722,19 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
                 data = wolfSSL_ASN1_STRING_data(e->value);
                 if (data != NULL) {
                     sz = (int)XSTRLEN((const char*)data);
-                    XMEMCPY(fullName + *idx, data, sz);
-                    *idx += sz;
+                    if ((fullNameSz - (word32)*idx) >=
+                            X509CertEscapeName(NULL, (const char*)data,
+                                (word32)sz)) {
+                        *idx += (int)X509CertEscapeName(fullName + *idx,
+                                (const char*)data, (word32)sz);
+                    }
+                    else {
+                        return BUFFER_E;
+                    }
                 }
-
                 ret++;
             }
         }
-        (void)fullNameSz;
         return ret;
     }
 
@@ -14738,7 +14743,8 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
      * returns 0 on success */
     static int RebuildFullName(WOLFSSL_X509_NAME* name)
     {
-        int totalLen = 0, i, idx, entryCount = 0;
+        word32 totalLen = 0;
+        int i, idx, entryCount = 0;
 
         if (name == NULL)
             return BAD_FUNC_ARG;
@@ -14747,14 +14753,34 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
             if (name->entry[i].set) {
                 WOLFSSL_X509_NAME_ENTRY* e;
                 WOLFSSL_ASN1_OBJECT* obj;
+                const char* data;
+                word32 intermediateVal = 0;
 
                 e = &name->entry[i];
                 obj = wolfSSL_X509_NAME_ENTRY_get_object(e);
                 if (obj == NULL)
                     return BAD_FUNC_ARG;
 
-                totalLen += (int)XSTRLEN(obj->sName) + 2;/*+2 for '/' and '=' */
-                totalLen += wolfSSL_ASN1_STRING_length(e->value);
+                /* Each addition is checked against the room left below
+                 * INT_MAX - 1, which keeps totalLen + 1 (the null added
+                 * later) representable as a positive int. */
+                /*+2 for '/' and '=' */
+                intermediateVal = (word32)XSTRLEN(obj->sName) + 2;
+                if (intermediateVal > (word32)INT_MAX - 1 - totalLen)
+                    return BUFFER_E;
+                totalLen += intermediateVal;
+
+                data = (e->value != NULL) ? e->value->data : NULL;
+                if (data == NULL) {
+                    continue;
+                }
+                /* Certain characters need to be escaped, so ask for the
+                 * length of the value once escaped. */
+                intermediateVal = X509CertEscapeName(NULL, data,
+                    (word32)XSTRLEN(data));
+                if (intermediateVal > (word32)INT_MAX - 1 - totalLen)
+                    return BUFFER_E;
+                totalLen += intermediateVal;
             }
         }
 
