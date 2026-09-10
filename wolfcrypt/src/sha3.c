@@ -2273,7 +2273,7 @@ int wc_Shake128_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
         return BAD_FUNC_ARG;
     }
 
-#ifdef USE_INTEL_SPEEDUP
+#if defined(USE_INTEL_SPEEDUP) || defined(SHA3_NEEDS_VREG_CLAIM)
 #ifdef WC_C_DYNAMIC_FALLBACK
     sha3_block = SHA3_BLOCK;
 #endif
@@ -2288,7 +2288,7 @@ int wc_Shake128_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
 #endif
         }
     }
-#endif /* USE_INTEL_SPEEDUP */
+#endif
 
     for (; (blockCnt > 0); blockCnt--) {
     #ifdef SHA3_FUNC_PTR
@@ -2306,7 +2306,7 @@ int wc_Shake128_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
         out += WC_SHA3_128_COUNT * 8;
     }
 
-#ifdef USE_INTEL_SPEEDUP
+#if defined(USE_INTEL_SPEEDUP) || defined(SHA3_NEEDS_VREG_CLAIM)
     if (SHA3_BLOCK_VREGS(sha3_block))
         RESTORE_VECTOR_REGISTERS();
 #endif
@@ -2579,7 +2579,7 @@ int wc_Shake256_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
         return BAD_FUNC_ARG;
     }
 
-#ifdef USE_INTEL_SPEEDUP
+#if defined(USE_INTEL_SPEEDUP) || defined(SHA3_NEEDS_VREG_CLAIM)
 #ifdef WC_C_DYNAMIC_FALLBACK
     sha3_block = SHA3_BLOCK;
 #endif
@@ -2594,7 +2594,7 @@ int wc_Shake256_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
 #endif
         }
     }
-#endif /* USE_INTEL_SPEEDUP */
+#endif
 
     for (; (blockCnt > 0); blockCnt--) {
     #ifdef SHA3_FUNC_PTR
@@ -2612,7 +2612,7 @@ int wc_Shake256_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
         out += WC_SHA3_256_COUNT * 8;
     }
 
-#ifdef USE_INTEL_SPEEDUP
+#if defined(USE_INTEL_SPEEDUP) || defined(SHA3_NEEDS_VREG_CLAIM)
     if (SHA3_BLOCK_VREGS(sha3_block))
         RESTORE_VECTOR_REGISTERS();
 #endif
