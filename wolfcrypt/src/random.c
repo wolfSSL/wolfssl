@@ -3596,6 +3596,14 @@ int wc_InitRngNonceRBGC_New(WC_RNG** child, WC_RNG* parent, const byte* nonce,
  * BOTH rng and root.  On credited success, rng is (or remains) a chain RNG:
  * its current seed period is chain-backed, so RBGCStratum is set, and it is not
  * usable as a reseed root.
+ *
+ * By default, consistent with SP 800-90C 7.1.2.2, reseed by an RBGC root is
+ * allowed, provided its stratum is less than the child's stratum (no stratum
+ * downgrade allowed, no cycles possible); build-time option
+ * WC_RNG_NO_RBGC_RESEED restricts credited reseeds to primary-seeded roots.
+ *
+ * Uncredited reseeds by wc_RNG_DRBG_ReseedRBGC_local() are unconditionally
+ * permitted (these are just stirs).
  */
 static int wc_RNG_DRBG_ReseedRBGC_local(WC_RNG* rng, WC_RNG* root, const byte* nonce,
                                         word32 nonceSz, int credited)
@@ -3620,9 +3628,16 @@ static int wc_RNG_DRBG_ReseedRBGC_local(WC_RNG* rng, WC_RNG* root, const byte* n
     seed = rng->newSeed_buf;
 #endif
 
-    /* Reseed from root only, by policy. */
-    if (root->RBGCStratum > 0)
+    if (credited && (root->RBGCStratum > 0)
+#ifndef WC_RNG_NO_RBGC_RESEED
+        && (root->RBGCStratum >= rng->RBGCStratum)
+#else
+    /* Credited reseed from root only, by policy. */
+#endif
+        )
+    {
         return BAD_FUNC_ARG;
+    }
 
     if (rng->status != DRBG_OK)
         return RNG_FAILURE_E;
@@ -3943,8 +3958,16 @@ static int wc_RNG_DRBG_NextSeedGenerate_local(WC_RNG* rng, WC_RNG *root, const b
 
     if (root) {
 #ifdef WC_RNG_HAVE_RBGC
-        if (root->RBGCStratum > 0)
+        if ((root->RBGCStratum > 0)
+    #ifndef WC_RNG_NO_RBGC_RESEED
+            && (root->RBGCStratum >= rng->RBGCStratum)
+    #else
+            /* Credited reseed from root only, by policy. */
+    #endif
+            )
+        {
             return BAD_FUNC_ARG;
+        }
         ret = rng_lock_required_check(root);
         if (ret != 0)
             return ret;
