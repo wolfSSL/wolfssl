@@ -24,6 +24,7 @@ Support for STM32 on-chip crypto hardware acceleration across the following fami
 | `WOLFSSL_STM32C0`     | C0xx (not yet supported in settings.h; SW only)                     |
 | `WOLFSSL_STM32C5`     | C5xx (TinyAES / HASH / RNG / SAES / V2 PKA sign-only / DHUK / CCB)   |
 | `WOLFSSL_STM32N6`     | N6xx (TinyAES / HASH / RNG / SAES / V2 PKA / DHUK; M55 core)        |
+| `WOLFSSL_STM32V8`     | V873 only (CRYP / HASH / RNG / SAES / V2 PKA sign+verify; M85 core)  |
 | `WOLFSSL_STM32MP13`   | MP13 (CRYP / HASH / RNG / PKA; Cortex-A7)                           |
 | `WOLFSSL_STM32MP25`   | MP25 (not yet supported in settings.h; Cortex-A35 + M33)            |
 

@@ -297,6 +297,35 @@
         WC_STM32_CLK_DIS(AHB3ENR, RCC_AHB3ENR_HASHEN)
     #define WC_STM32_RNG_CLK_ENABLE() \
         WC_STM32_CLK_EN(AHB3ENR, RCC_AHB3ENR_RNGEN)
+#elif defined(WOLFSSL_STM32V8)
+    /* V8 (Cortex-M85), per STM32V873.svd: CRYP + HASH + RNG + SAES + PKA
+     * on AHB3 bits 0/1/2/3/8 -- same topology as N6, including the "fat"
+     * CRYP (AES-192 capable, F4/H7 register shape) alongside a TinyAES-
+     * shape SAES. Unlike N6 (where the CRYP is locked to the security
+     * domain and AES must route through SAES), the V8 always runs Secure
+     * and the CRYP is reachable, so the default AES path is the fat CRYP;
+     * WOLFSSL_STM32_USE_SAES opts into the SAES instance instead (losing
+     * AES-192). The CCB peripheral (AHB3 bit 15) exists in silicon but is
+     * not supported (no V8 entry in the WC_STM32_HAS_DHUK / WC_STM32_HAS_CCB
+     * gates below). */
+    #ifdef RCC_AHB3ENR_CRYPEN
+        #define WC_STM32_AES_CLK_ENABLE() \
+            WC_STM32_CLK_EN(AHB3ENR, RCC_AHB3ENR_CRYPEN)
+        #define WC_STM32_AES_CLK_DISABLE() \
+            WC_STM32_CLK_DIS(AHB3ENR, RCC_AHB3ENR_CRYPEN)
+    #endif
+    #ifdef RCC_AHB3ENR_SAESEN
+        #define WC_STM32_SAES_CLK_ENABLE() \
+            WC_STM32_CLK_EN(AHB3ENR, RCC_AHB3ENR_SAESEN)
+        #define WC_STM32_SAES_CLK_DISABLE() \
+            WC_STM32_CLK_DIS(AHB3ENR, RCC_AHB3ENR_SAESEN)
+    #endif
+    #define WC_STM32_HASH_CLK_ENABLE() \
+        WC_STM32_CLK_EN(AHB3ENR, RCC_AHB3ENR_HASHEN)
+    #define WC_STM32_HASH_CLK_DISABLE() \
+        WC_STM32_CLK_DIS(AHB3ENR, RCC_AHB3ENR_HASHEN)
+    #define WC_STM32_RNG_CLK_ENABLE() \
+        WC_STM32_CLK_EN(AHB3ENR, RCC_AHB3ENR_RNGEN)
 #elif defined(WOLFSSL_STM32H7S)
     /* H7RS/H7S3: classic H7 fat CRYP + classic H7 HASH (same register
      * shapes as H753) but RCC clock-enable bits moved to AHB3ENR, and
@@ -348,6 +377,24 @@
          * F767/G491/F767 -- RNG-only parts) don't need an instance. */
         #error "STM32 BARE: no AES/CRYP/SAES instance pointer found"
     #endif
+#endif
+
+/* Named ALGOMODE values for the fat CRYP IP (3-bit field at CR bits 5:3
+ * plus the ALGOMODE[3] extension at bit 19 for GCM/CCM; same encoding on
+ * F2/F4/F7/H7/MP13/V8 per RM0090/RM0433). ST's official CMSIS device
+ * headers define these named forms; an SVD-generated bare header (e.g.
+ * STM32V8, where ST publishes no DFP yet) may carry only the raw field
+ * bits, so provide the named values from those. */
+#if defined(CRYP_CR_ALGOMODE_0) && !defined(CRYP_CR_ALGOMODE_AES_ECB)
+    #define CRYP_CR_ALGOMODE_AES_ECB  (CRYP_CR_ALGOMODE_2)
+    #define CRYP_CR_ALGOMODE_AES_CBC  (CRYP_CR_ALGOMODE_0 | \
+                                       CRYP_CR_ALGOMODE_2)
+    #define CRYP_CR_ALGOMODE_AES_CTR  (CRYP_CR_ALGOMODE_1 | \
+                                       CRYP_CR_ALGOMODE_2)
+    #define CRYP_CR_ALGOMODE_AES_KEY  (CRYP_CR_ALGOMODE_0 | \
+                                       CRYP_CR_ALGOMODE_1 | \
+                                       CRYP_CR_ALGOMODE_2)
+    #define CRYP_CR_ALGOMODE_AES_GCM  (0x00080000UL) /* ALGOMODE[3], bit 19 */
 #endif
 
 /* Companion macro for the IP-instance clock enable. Routes to
@@ -462,6 +509,15 @@
             do { RCC->AHB3ENR |= RCC_AHB3ENR_PKAEN; (void)RCC->AHB3ENR; } \
                 while (0)
     #endif
+#elif defined(WOLFSSL_STM32V8)
+    /* V8: PKA on AHB3 bit 8, V2 layout. PKA_CR.MODE has both 0x24 (sign) and
+     * 0x26 (verify), so unlike C5/H563 it needs neither _SIGN_ONLY nor
+     * _VERIFY_ONLY. */
+    #ifdef RCC_AHB3ENR_PKAEN
+        #define WC_STM32_PKA_CLK_ENABLE() \
+            do { RCC->AHB3ENR |= RCC_AHB3ENR_PKAEN; (void)RCC->AHB3ENR; } \
+                while (0)
+    #endif
 #elif defined(WOLFSSL_STM32H7S)
     /* H7S: PKA on AHB3 alongside HASH/RNG/CRYP/SAES. V2 layout. */
     #ifdef RCC_AHB3ENR_PKAEN
@@ -478,14 +534,15 @@
  * bits) instead of causing a redefinition; otherwise we define our own. */
 #if defined(WOLFSSL_STM32H5) || defined(WOLFSSL_STM32MP13) || \
     defined(WOLFSSL_STM32N6) || defined(WOLFSSL_STM32H7S) || \
-    defined(WOLFSSL_STM32U3) || defined(WOLFSSL_STM32C5)
+    defined(WOLFSSL_STM32U3) || defined(WOLFSSL_STM32C5) || \
+    defined(WOLFSSL_STM32V8)
     /* New-generation HASH IP. The CMSIS struct shape varies within the
      * family list -- H5 renames the instance digest registers from
      * `HR[5]` to `HRA[5]`, but U3 / N6 keep the legacy `HR[5]` name
      * even though the IP otherwise behaves like the new generation.
-     * Gate the macro on H5 only (verified by inspection of each
+     * Gate the macro on H5 and V8 (verified by inspection of each
      * family's CMSIS header). */
-    #if defined(WOLFSSL_STM32H5)
+    #if defined(WOLFSSL_STM32H5) || defined(WOLFSSL_STM32V8)
         #define WC_STM32_HASH_INSTANCE_HRA
     #endif
     /* 4-bit ALGO field at bits 20:17 */
@@ -508,6 +565,25 @@
     #ifndef HASH_ALGOSELECTION_SHA512_224
         #define HASH_ALGOSELECTION_SHA512_224 (HASH_CR_ALGO_0 | HASH_CR_ALGO_2 | \
                                                HASH_CR_ALGO_3)
+    #endif
+    /* SHA-3 ALGO codes 0x4..0x7 (validated against NIST vectors on STM32V8
+     * silicon; SHAKE = 0x8/0x9 with a fixed-length squeeze). These fallback
+     * definitions serve BARE builds of SHA-3-capable parts whose device
+     * header does not carry the HAL names (MP13 bare today; V8 once its
+     * SHA-3 context-save procedure is known). CubeMX builds get them from
+     * the HAL, so the #ifndef guards keep those authoritative. */
+    #ifndef HASH_ALGOSELECTION_SHA3_224
+        #define HASH_ALGOSELECTION_SHA3_224   HASH_CR_ALGO_2
+    #endif
+    #ifndef HASH_ALGOSELECTION_SHA3_256
+        #define HASH_ALGOSELECTION_SHA3_256   (HASH_CR_ALGO_0 | HASH_CR_ALGO_2)
+    #endif
+    #ifndef HASH_ALGOSELECTION_SHA3_384
+        #define HASH_ALGOSELECTION_SHA3_384   (HASH_CR_ALGO_1 | HASH_CR_ALGO_2)
+    #endif
+    #ifndef HASH_ALGOSELECTION_SHA3_512
+        #define HASH_ALGOSELECTION_SHA3_512   (HASH_CR_ALGO_0 | \
+                                               HASH_CR_ALGO_1 | HASH_CR_ALGO_2)
     #endif
     #ifndef HASH_ALGOSELECTION_SHA512_256
         #define HASH_ALGOSELECTION_SHA512_256 (HASH_CR_ALGO_1 | HASH_CR_ALGO_2 | \
@@ -593,7 +669,7 @@
     #define STM32_HASH_SHA2
     #if defined(WOLFSSL_STM32MP13) || defined(WOLFSSL_STM32H7S) || \
         defined(WOLFSSL_STM32N6) || defined(WOLFSSL_STM32H5) || \
-        defined(WOLFSSL_STM32U3)
+        defined(WOLFSSL_STM32U3) || defined(WOLFSSL_STM32V8)
         #define HASH_CR_SIZE    103
         #define HASH_MAX_DIGEST 64 /* Up to SHA512 */
 
@@ -607,6 +683,19 @@
     #endif
     #if defined(WOLFSSL_STM32MP13)
         #define STM32_HASH_SHA3
+    #endif
+    /* STM32V8: the HASH block's SHA-3 is real (ALGO codes 0x4..0x7 verified
+     * against NIST vectors at register level), but wolfSSL's context
+     * save/restore/copy fails on it -- wolfcrypt_test SHA-3 vector 0 breaks
+     * at the GetHash/Copy step. MP13 saves SHA3CFGR for this; V8 has no such
+     * register and its SHA-3 context-switch procedure is not yet known
+     * (no reference manual). SHA-3 stays software on V8 until it is. */
+    #if defined(WOLFSSL_STM32MP13)
+        /* SHA3CFGR (XOF length) is an MP13 register, not a universal part of
+         * the SHA-3 capability -- STM32V873.svd has SHA-3 ALGO codes but no
+         * such register. Gate the context field and its save/restore on this
+         * rather than on STM32_HASH_SHA3 so other parts still compile. */
+        #define WC_STM32_HASH_HAS_SHA3CFGR
     #endif
 #else
     #define HASH_CR_SIZE    50
@@ -624,7 +713,8 @@
 /* These HASH HAL's have no MD5 implementation */
 #if defined(WOLFSSL_STM32MP13) || defined(WOLFSSL_STM32H7S) || \
     defined(WOLFSSL_STM32N6) || defined(WOLFSSL_STM32H5) || \
-    defined(WOLFSSL_STM32U3) || defined(WOLFSSL_STM32C5)
+    defined(WOLFSSL_STM32U3) || defined(WOLFSSL_STM32C5) || \
+    defined(WOLFSSL_STM32V8)
     #define STM32_NOMD5
 #endif
 
@@ -653,10 +743,12 @@
 
 /* STM32 register size in bytes */
 #define STM32_HASH_REG_SIZE  4
-/* Maximum FIFO buffer is 64 bits for SHA256, 128 bits for SHA512 and 144 bits
- * for SHA3 */
+/* FIFO words, sized to the largest rate the HASH IP may accumulate: SHA-256
+ * 16, SHA-512 32, SHA3-224 36, SHAKE128 42. Was 36, which is 6 short of
+ * SHAKE128 -- unreachable while sha3.c forces WC_SHA3_SW_KECCAK for SHAKE,
+ * but a part with a usable hardware SHAKE would overrun it. */
 #if defined(STM32_HASH_SHA3)
-    #define STM32_HASH_FIFO_SIZE 36
+    #define STM32_HASH_FIFO_SIZE 42
 #elif defined(STM32_HASH_SHA512) || defined(STM32_HASH_SHA384)
     #define STM32_HASH_FIFO_SIZE 32
 #else
@@ -670,7 +762,7 @@ typedef struct {
     uint32_t HASH_STR;
     uint32_t HASH_CR;
     uint32_t HASH_CSR[HASH_CR_SIZE];
-#ifdef STM32_HASH_SHA3
+#ifdef WC_STM32_HASH_HAS_SHA3CFGR
     uint32_t SHA3CFGR;
 #endif
 
@@ -741,7 +833,7 @@ struct Aes;
             defined(WOLFSSL_STM32U5) || defined(WOLFSSL_STM32U3) || \
             defined(WOLFSSL_STM32H5) || defined(WOLFSSL_STM32MP13) || \
             defined(WOLFSSL_STM32H7S) || defined(WOLFSSL_STM32N6) || \
-            defined(WOLFSSL_STM32G0))
+            defined(WOLFSSL_STM32V8) || defined(WOLFSSL_STM32G0))
         /* Hardware supports AES GCM acceleration */
         #define STM32_CRYPTO_AES_GCM
     #endif
@@ -788,7 +880,8 @@ struct Aes;
          defined(WOLFSSL_STM32H7) || defined(WOLFSSL_STM32U5) || \
          defined(WOLFSSL_STM32U3) || defined(WOLFSSL_STM32H5) || \
          defined(WOLFSSL_STM32MP13) || defined(WOLFSSL_STM32H7S) || \
-         defined(WOLFSSL_STM32N6) || defined(WOLFSSL_STM32G0))
+         defined(WOLFSSL_STM32N6) || defined(WOLFSSL_STM32V8) || \
+         defined(WOLFSSL_STM32G0))
         #define STM32_HAL_V2
     #endif
 
@@ -804,7 +897,7 @@ struct Aes;
         /* newer crypt HAL requires auth header size as 4 bytes (word) */
         #if defined(CRYP_HEADERWIDTHUNIT_BYTE) && \
             !defined(WOLFSSL_STM32MP13) && !defined(WOLFSSL_STM32H7S) && \
-            !defined(WOLFSSL_STM32N6)
+            !defined(WOLFSSL_STM32N6) && !defined(WOLFSSL_STM32V8)
             #define STM_CRYPT_HEADER_WIDTH 1
         #else
             #define STM_CRYPT_HEADER_WIDTH 4
