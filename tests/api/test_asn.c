@@ -4043,6 +4043,16 @@ int test_wc_MakeCert_serial_encoding(void)
         ExpectIntEQ(tlv[1], CTC_SERIAL_SIZE);
     }
 
+#ifdef WOLFSSL_ASN_TEMPLATE
+    /* A 20 byte serial with the high bit set needs a sign pad, which would
+     * push the encoded value to 21 octets. */
+    XMEMSET(maxSerial, 0x11, sizeof(maxSerial));
+    maxSerial[0] = 0x80;
+    ExpectIntEQ(test_cert_make_serial(&cert, &rng, &key, body,
+        SIGN_CERT_SCRATCH_SZ, maxSerial, CTC_SERIAL_SIZE),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+
     /* A negative size is rejected by both ASN back ends. */
     ExpectIntEQ(test_cert_make_serial(&cert, &rng, &key, body,
         SIGN_CERT_SCRATCH_SZ, cases[0].serial, -1),

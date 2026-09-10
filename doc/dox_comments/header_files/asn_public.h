@@ -117,9 +117,12 @@ void  wc_CertFree(Cert* cert);
 
     A serial number left at the wc_InitCert default (cert->serialSz of 0) is
     randomly generated. A caller-supplied serial is taken as a big-endian
-    magnitude of at most CTC_SERIAL_SIZE bytes and is encoded as a minimal DER
-    INTEGER, so any leading zero bytes of a fixed-width serial are dropped and
-    the sign pad is added when needed. Do not prepend a sign pad by hand.
+    value of at most CTC_SERIAL_SIZE bytes and is normalized to a minimal DER
+    INTEGER: redundant leading zero bytes are stripped and the sign pad is
+    added back when the high bit is set. Supplying the magnitude alone is
+    enough; a sign pad the caller adds is accepted and is not duplicated.
+    The encoded value, including any sign pad, must not exceed
+    CTC_SERIAL_SIZE octets.
 
     \return Success On successfully making an x509 certificate from the
     specified input cert, returns the size of the cert generated.
@@ -127,10 +130,10 @@ void  wc_CertFree(Cert* cert);
     with XMALLOC
     \return BUFFER_E Returned if the provided derBuffer is too small to
     store the generated certificate
-    \return BAD_FUNC_ARG Returned if cert->serialSz is negative or larger
-    than CTC_SERIAL_SIZE, or if the serial number is zero. RFC 5280 4.1.2.2
-    requires a positive serial; define WOLFSSL_ASN_ALLOW_0_SERIAL to permit
-    a zero serial.
+    \return BAD_FUNC_ARG Returned if cert->serialSz is negative, if the
+    encoded serial would exceed CTC_SERIAL_SIZE octets, or if the serial
+    number is zero. RFC 5280 4.1.2.2 requires a positive serial of at most
+    20 octets; define WOLFSSL_ASN_ALLOW_0_SERIAL to permit a zero serial.
     \return Others Additional error messages may be returned if the cert
     generation is not successful.
 

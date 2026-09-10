@@ -2143,8 +2143,10 @@ static int wb_patch_zero_serial(byte* der, int derSz)
     int i;
 
     for (i = 0; ((i + 8) <= derSz) && (i < 16); i++) {
+        /* [0] EXPLICIT { INTEGER 2 } then the serial INTEGER holding 1. */
         if ((der[i] == 0xA0) && (der[i + 1] == 0x03) &&
             (der[i + 2] == ASN_INTEGER) && (der[i + 3] == 0x01) &&
+            (der[i + 4] == 0x02) &&
             (der[i + 5] == ASN_INTEGER) && (der[i + 6] == 0x01) &&
             (der[i + 7] == 0x01)) {
             der[i + 7] = 0x00;

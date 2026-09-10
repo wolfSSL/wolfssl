@@ -30924,6 +30924,7 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
     word32 sbjRawLen = 0;
     const byte* serialPtr = NULL;
     word32 serialLen = 0;
+    word32 encodedLen = 0;
     byte localBefore[MAX_DATE_SIZE];
     byte localAfter[MAX_DATE_SIZE];
 
@@ -31041,13 +31042,24 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
             serialLen--;
             serialPtr++;
         }
+        /* The sign pad added for a set high bit counts towards the RFC 5280
+         * 4.1.2.2 limit of 20 octets. */
+        encodedLen = serialLen;
+        if ((serialPtr[0] & 0x80) != 0) {
+            encodedLen++;
+        }
+        if (encodedLen > CTC_SERIAL_SIZE) {
+            WOLFSSL_MSG("Encoded serial number longer than 20 octets");
+            WOLFSSL_ERROR_VERBOSE(BAD_FUNC_ARG);
+            ret = BAD_FUNC_ARG;
+        }
     }
 #if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_PYTHON) && \
     !defined(WOLFSSL_ASN_ALLOW_0_SERIAL)
     /* RFC 5280 4.1.2.2 requires a positive serial number. Reject zero rather
      * than emit a certificate wolfSSL itself will not parse. */
     if ((ret == 0) && (serialLen == 1) && (serialPtr[0] == 0)) {
-        WOLFSSL_MSG("Error serial number of 0 for generated certificate");
+        WOLFSSL_MSG("Serial number must be positive (non-zero)");
         WOLFSSL_ERROR_VERBOSE(BAD_FUNC_ARG);
         ret = BAD_FUNC_ARG;
     }
