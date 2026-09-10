@@ -57,6 +57,13 @@ API = {
     # removes by way of WOLFSSL_LEANPSK
     'wolfSSL_SetAllocators':         ([], ['USE_WOLFSSL_MEMORY']),
     'wolfSSL_GetAllocators':         ([], ['USE_WOLFSSL_MEMORY']),
+    # src/ssl_certman.c: declared unconditionally in ssl.h, implemented only
+    # inside #ifndef NO_FILESYSTEM. (LoadCA also reads PEM only, but that is a
+    # fixture question, not a link one, so it is not encoded here.)
+    'wolfSSL_CertManagerLoadCA':     (['NO_FILESYSTEM'], []),
+    'wolfSSL_CertManagerVerify':     (['NO_FILESYSTEM'], []),
+    'wolfSSL_CertManagerLoadCRL':    (['NO_FILESYSTEM'], []),
+    'wolfSSL_CertManagerLoadCRLFile': (['NO_FILESYSTEM'], []),
 }
 
 
