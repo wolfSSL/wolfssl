@@ -2238,7 +2238,13 @@ int test_wolfSSL_hs_info_cb(void)
  * fail. What is being tested is that it fails rather than crashes, leaks or
  * hangs, and the coverage comes from the paths it takes on the way out.
  * ------------------------------------------------------------------------- */
-#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD) && \
+/* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES, not the _BUILD variant: the _BUILD
+ * macro is certificate-agnostic and is also defined for NO_CERTS builds, where
+ * test_memio_setup() installs neither credentials nor a PSK callback and no
+ * handshake can complete. This sweep asserts that unmodified handshakes do
+ * complete, so it needs the credential-bearing guard. Keep it identical on the
+ * test body below, or the helper is compiled unused. */
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA)
 
 /* One handshake, with one byte flipped at one point.
@@ -2321,6 +2327,10 @@ static int test_wire_mangle_one(method_provider mc, method_provider ms,
                    wolfSSL_is_init_finished(ssl_s));
     }
 
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
     return ret;
 }
 
@@ -2329,7 +2339,7 @@ static int test_wire_mangle_one(method_provider mc, method_provider ms,
 int test_tls_wire_mangle(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD) && \
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA)
     /* Offsets chosen against the record and handshake framing rather than at
      * random: 0 is the record type, 1-2 the record version, 3-4 the record
@@ -2348,7 +2358,6 @@ int test_tls_wire_mangle(void)
     int round, o, m, d;
     int applied[WM_METHODS][WM_DIRS];
     int broke[WM_METHODS][WM_DIRS];
-    int clean = 0;
 
     XMEMSET(applied, 0, sizeof(applied));
     XMEMSET(broke, 0, sizeof(broke));
@@ -2388,6 +2397,45 @@ int test_tls_wire_mangle(void)
 
 #undef WM_RUN
 
+    /* A clean run of the same fixture, per method and per direction, before
+     * any of the counts above are believed. Without one for each method,
+     * broke[] cannot tell "the mutation broke this handshake" from "this
+     * method's fixture never completes a handshake at all" -- a pre-broken
+     * TLS 1.3 or DTLS setup that still puts bytes on the wire satisfies both
+     * applied[] and broke[] while proving nothing. It also gives every
+     * decision the corrupted runs took one way its partner in this same
+     * binary.
+     *
+     * Round 99 matches no iteration, so the first call flips nothing and runs
+     * whole rounds. The second uses an offset past the end of any buffer, so
+     * it takes the client-only step -- costing the round one server turn --
+     * and still flips nothing: that is what shows the stepping itself does
+     * not stop a handshake. */
+#define WM_CLEAN(cm, sm)                                                     \
+    do {                                                                     \
+        int hs = 0;                                                          \
+        ExpectIntEQ(test_wire_mangle_one((cm), (sm), WM_S2C, 99, 0, 0x00,    \
+                                         &hs), 0);                           \
+        ExpectIntEQ(hs, 1);                                                  \
+        hs = 0;                                                              \
+        ExpectIntEQ(test_wire_mangle_one((cm), (sm), WM_C2S, 0,              \
+                                         TEST_MEMIO_BUF_SZ, 0x00, &hs), 0);  \
+        ExpectIntEQ(hs, 1);                                                  \
+    } while (0)
+
+    WM_CLEAN(wolfTLSv1_2_client_method, wolfTLSv1_2_server_method);
+#ifdef WOLFSSL_TLS13
+    WM_CLEAN(wolfTLSv1_3_client_method, wolfTLSv1_3_server_method);
+#endif
+#ifdef WOLFSSL_DTLS
+    WM_CLEAN(wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method);
+#endif
+#ifdef WOLFSSL_DTLS13
+    WM_CLEAN(wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method);
+#endif
+
+#undef WM_CLEAN
+
     /* Every compiled method must have corrupted a byte in each direction; a
      * zero means that whole protocol's sweep, or that whole direction of it,
      * ran clean traffic. And a corrupted byte must have broken at least one
@@ -2413,24 +2461,6 @@ int test_tls_wire_mangle(void)
 #endif
     }
 
-    /* A clean handshake through the same path, so every decision the corrupted
-     * runs took one way has its partner in this same binary. Round 99 matches
-     * no iteration, so nothing is flipped -- and it must complete, which is
-     * what proves the fixture itself works and the failures above came from
-     * the mutations rather than from a broken setup. */
-    ExpectIntEQ(test_wire_mangle_one(wolfTLSv1_2_client_method,
-        wolfTLSv1_2_server_method, WM_S2C, 99, 0, 0x00, &clean), 0);
-    ExpectIntEQ(clean, 1);
-
-    /* And one that does take the client-only step, at an offset past the end
-     * of any buffer so nothing is flipped. Stepping the client on its own
-     * costs the round one server turn; this shows that on its own that does
-     * not stop the handshake, so the failures counted above came from the
-     * mutations rather than from the stepping. */
-    ExpectIntEQ(test_wire_mangle_one(wolfTLSv1_2_client_method,
-        wolfTLSv1_2_server_method, WM_C2S, 0, TEST_MEMIO_BUF_SZ, 0x00,
-        &clean), 0);
-    ExpectIntEQ(clean, 1);
 #endif
     return EXPECT_RESULT();
 }
