@@ -1774,6 +1774,26 @@ int wolfSSL_GetHmacMaxSize(void)
 }
 
 #ifdef HAVE_HKDF
+    /* Wait out an async HMAC sub-op: the HKDF loops cannot resume
+     * mid-chain. QAT/Cavium only (not covered by CI); a crypto callback
+     * pending must instead propagate so the caller can re-invoke. */
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC) && \
+    (defined(HAVE_INTEL_QA) || defined(HAVE_CAVIUM))
+    /* QAT/Cavium only: WOLFSSL_ASYNC_REINVOKE is never defined for these
+     * backends (see internal.h), so an HKDF sub-op can only pend on the
+     * hardware device, never on a re-invokable crypto callback. Wait
+     * unconditionally: the HKDF loops cannot resume mid-chain. */
+    #define HKDF_HMAC_WAIT(ret, hmac)                                      \
+        do {                                                               \
+            (ret) = wc_AsyncWait((ret), &(hmac)->asyncDev,                 \
+                                 WC_ASYNC_FLAG_NONE);                      \
+        } while (0)
+#else
+    /* No HMAC device to wait on, or the pending must reach the caller
+     * (crypto callback re-invocation); hmac is unevaluated. */
+    #define HKDF_HMAC_WAIT(ret, hmac) WC_DO_NOTHING
+#endif
+
     /* HMAC-KDF-Extract.
      * RFC 5869 - HMAC-based Extract-and-Expand Key Derivation Function (HKDF).
      *
@@ -1799,7 +1819,9 @@ int wolfSSL_GetHmacMaxSize(void)
         }
 
 #ifdef WOLF_CRYPTO_CB
-        /* Try crypto callback first */
+        /* Try crypto callback first. Only CRYPTOCB_UNAVAILABLE falls back
+         * to software. WC_PENDING_E is returned as-is: the caller polls,
+         * re-invoking with identical arguments until it clears. */
         if (devId != INVALID_DEVID) {
             ret = wc_CryptoCb_Hkdf_Extract(type, salt, saltSz, inKey, inKeySz,
                                            out, devId);
@@ -1832,10 +1854,14 @@ int wolfSSL_GetHmacMaxSize(void)
         #else
             ret = wc_HmacSetKey(myHmac, type, localSalt, saltSz);
         #endif
-            if (ret == 0)
+            if (ret == 0) {
                 ret = wc_HmacUpdate(myHmac, inKey, inKeySz);
-            if (ret == 0)
+                HKDF_HMAC_WAIT(ret, myHmac);
+            }
+            if (ret == 0) {
                 ret = wc_HmacFinal(myHmac,  out);
+                HKDF_HMAC_WAIT(ret, myHmac);
+            }
             wc_HmacFree(myHmac);
         }
         WC_FREE_VAR_EX(myHmac, NULL, DYNAMIC_TYPE_HMAC);
@@ -1891,7 +1917,8 @@ int wolfSSL_GetHmacMaxSize(void)
             return BAD_FUNC_ARG;
 
 #ifdef WOLF_CRYPTO_CB
-        /* Try crypto callback first for complete operation */
+        /* Try crypto callback first. WC_PENDING_E is returned to the
+         * caller to poll, as in wc_HKDF_Extract_ex(). */
         if (devId != INVALID_DEVID) {
             ret = wc_CryptoCb_Hkdf_Expand(type, inKey, inKeySz, info, infoSz,
                                            out, outSz, devId);
@@ -1927,15 +1954,19 @@ int wolfSSL_GetHmacMaxSize(void)
             if (ret != 0)
                 break;
             ret = wc_HmacUpdate(myHmac, tmp, tmpSz);
+            HKDF_HMAC_WAIT(ret, myHmac);
             if (ret != 0)
                 break;
             ret = wc_HmacUpdate(myHmac, info, infoSz);
+            HKDF_HMAC_WAIT(ret, myHmac);
             if (ret != 0)
                 break;
             ret = wc_HmacUpdate(myHmac, &n, 1);
+            HKDF_HMAC_WAIT(ret, myHmac);
             if (ret != 0)
                 break;
             ret = wc_HmacFinal(myHmac, tmp);
+            HKDF_HMAC_WAIT(ret, myHmac);
             if (ret != 0)
                 break;
 
@@ -1988,7 +2019,8 @@ int wolfSSL_GetHmacMaxSize(void)
         (void)devId; /* suppress unused parameter warning */
 
 #ifdef WOLF_CRYPTO_CB
-        /* Try crypto callback first for complete operation */
+        /* Try crypto callback first. WC_PENDING_E is returned to the
+         * caller to poll, as in wc_HKDF_Extract_ex(). */
         if (devId != INVALID_DEVID) {
              ret = wc_CryptoCb_Hkdf(type, inKey, inKeySz, salt, saltSz, info,
                                    infoSz, out, outSz, devId);
@@ -2006,6 +2038,8 @@ int wolfSSL_GetHmacMaxSize(void)
         XMEMSET(prk, 0, WC_MAX_DIGEST_SIZE);
         wc_MemZero_Add("wc_HKDF_ex prk", prk, WC_MAX_DIGEST_SIZE);
 #endif
+        /* Restartable, not resumable: the retry redoes extract, so a
+         * device that pends must serve the repeat from its result. */
         ret = wc_HKDF_Extract_ex(type, salt, saltSz, inKey, inKeySz, prk, heap,
                                  devId);
         if (ret == 0) {
@@ -2026,6 +2060,8 @@ int wolfSSL_GetHmacMaxSize(void)
         return wc_HKDF_ex(type, inKey, inKeySz, salt, saltSz, info, infoSz, out,
                           outSz, NULL, INVALID_DEVID);
     }
+
+#undef HKDF_HMAC_WAIT
 
 #endif /* HAVE_HKDF */
 

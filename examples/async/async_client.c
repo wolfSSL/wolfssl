@@ -252,8 +252,11 @@ int client_async_test(int argc, char** argv)
     AsyncTlsCryptoCbCtx cryptoCbCtx;
 #endif
 #ifdef WOLFSSL_STATIC_MEMORY
-    static byte memory[300000];
-    static byte memoryIO[34500];
+    /* Sized for a TLS 1.3 mutual-auth handshake with every supported
+     * operation class pending: suspended verifies during mutual auth raise
+     * the bucket high-water mark well above the synchronous footprint. */
+    static byte memory[800000];
+    static byte memoryIO[64000];
     #if !defined(WOLFSSL_STATIC_MEMORY_LEAN)
     WOLFSSL_MEM_CONN_STATS ssl_stats;
     #endif
@@ -304,6 +307,7 @@ int client_async_test(int argc, char** argv)
     if (devId == INVALID_DEVID)
         devId = 1;
     XMEMSET(&cryptoCbCtx, 0, sizeof(cryptoCbCtx));
+    cryptoCbCtx.tls12 = tls12;
     if (wc_CryptoCb_RegisterDevice(devId, AsyncTlsCryptoCb, &cryptoCbCtx) != 0) {
         fprintf(stderr, "ERROR: wc_CryptoCb_RegisterDevice failed\n");
         goto out;
@@ -567,6 +571,10 @@ int client_async_test(int argc, char** argv)
 #ifdef WOLFSSL_DEBUG_NONBLOCK
     printf("WANT_READ/WRITE count: %d\n", wouldblock_count);
     printf("WC_PENDING_E count: %d\n", pending_count);
+#ifdef WOLF_CRYPTO_CB
+    printf("Device WC_PENDING_E returns: %d (table-full completions: %d)\n",
+           cryptoCbCtx.pendingCount, cryptoCbCtx.jobFullCount);
+#endif
 #endif
     ret = 0;
 

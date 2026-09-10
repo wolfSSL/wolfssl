@@ -46,8 +46,23 @@ typedef struct wc_CryptoInfo wc_CryptoInfo;
 
 #ifdef WOLF_CRYPTO_CB
 /* Example custom context for crypto callback */
+/* Max simultaneous simulated pending requests (device job table) */
+#ifndef ASYNC_TLS_PEND_JOBS
+#define ASYNC_TLS_PEND_JOBS 64
+#endif
 typedef struct {
-    int pendingCount; /* track pending tries test count */
+    int pendingCount; /* total WC_PENDING_E returns (statistic) */
+    /* Simulated device job table. A pended request is identified by a
+     * hash of its wc_CryptoInfo so the re-invocation with identical
+     * arguments can be matched and completed. */
+    unsigned long jobHash[ASYNC_TLS_PEND_JOBS];
+    int  jobTries[ASYNC_TLS_PEND_JOBS];
+    int  jobCount;
+    int  jobFullCount; /* requests completed synchronously: table full */
+    /* Set by the application when TLS 1.2 was selected: restricts the
+     * simulated pending to the operations the TLS 1.2 state machines can
+     * retry. TLS 1.3 (0, the default) pends every supported class. */
+    int  tls12;
 } AsyncTlsCryptoCbCtx;
 int AsyncTlsCryptoCb(int devIdArg, wc_CryptoInfo* info, void* ctx);
 #endif /* WOLF_CRYPTO_CB */

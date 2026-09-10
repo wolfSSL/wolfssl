@@ -245,6 +245,19 @@ int wc_HKDF_Extract(
     \return HMAC_MIN_KEYLEN_E May be returned when using a FIPS implementation
     and the key length specified is shorter than the minimum acceptable FIPS
     standard
+    \return WC_PENDING_E May be returned in a WOLF_CRYPTO_CB build when the
+    registered crypto callback device has taken the request but not yet
+    finished it. The caller must re-invoke with identical arguments until the
+    result is no longer WC_PENDING_E; HKDF has no WC_ASYNC_DEV, so this is a
+    poll and not a wc_AsyncWait(). In a WOLFSSL_ASYNC_CRYPT build the TLS 1.3
+    key schedule resumes a pending HKDF request by re-invoking the callback
+    with identical arguments; without WOLFSSL_ASYNC_CRYPT a device also used
+    for TLS 1.3 must complete HKDF requests synchronously. wc_HKDF_ex()
+    follows the same contract and re-issues its extract step on every retry,
+    so a device that pends must serve a repeated identical request from its
+    completed result. There is no request handle: a device should key its
+    completion tracking on the output pointer plus the argument tuple, and
+    one that cannot correlate a retry that way must not pend.
 
     \param type hash type to use for the HKDF. Valid types are: WC_MD5, WC_SHA,
     WC_SHA256, WC_SHA384, WC_SHA512, WC_SHA3_224, WC_SHA3_256, WC_SHA3_384 or
@@ -357,6 +370,19 @@ int wc_HKDF_Expand(
     \return HMAC_MIN_KEYLEN_E May be returned when using a FIPS implementation
     and the key length specified is shorter than the minimum acceptable FIPS
     standard
+    \return WC_PENDING_E May be returned in a WOLF_CRYPTO_CB build when the
+    registered crypto callback device has taken the request but not yet
+    finished it. The caller must re-invoke with identical arguments until the
+    result is no longer WC_PENDING_E; HKDF has no WC_ASYNC_DEV, so this is a
+    poll and not a wc_AsyncWait(). In a WOLFSSL_ASYNC_CRYPT build the TLS 1.3
+    key schedule resumes a pending HKDF request by re-invoking the callback
+    with identical arguments; without WOLFSSL_ASYNC_CRYPT a device also used
+    for TLS 1.3 must complete HKDF requests synchronously. wc_HKDF_ex()
+    follows the same contract and re-issues its extract step on every retry,
+    so a device that pends must serve a repeated identical request from its
+    completed result. There is no request handle: a device should key its
+    completion tracking on the output pointer plus the argument tuple, and
+    one that cannot correlate a retry that way must not pend.
 
     \param type hash type to use for the HKDF. Valid types are: WC_MD5, WC_SHA,
     WC_SHA256, WC_SHA384, WC_SHA512, WC_SHA3_224, WC_SHA3_256, WC_SHA3_384 or
@@ -459,6 +485,11 @@ int wc_Tls13_HKDF_Extract(
     \return HMAC_MIN_KEYLEN_E May be returned when using a FIPS implementation
     and the key length specified is shorter than the minimum acceptable FIPS
     standard
+    \return WC_PENDING_E May be returned in a WOLF_CRYPTO_CB build when the
+    registered crypto callback device has taken the request but not yet
+    finished it; the caller re-invokes with identical arguments until the
+    result is no longer WC_PENDING_E. The TLS 1.3 key schedule does this in
+    WOLFSSL_ASYNC_CRYPT builds.
 
     \param prk     Generated pseudorandom key
     \param salt    Salt. May be NULL; saltLen is then ignored unless a crypto
@@ -510,6 +541,11 @@ int wc_Tls13_HKDF_Extract_ex(
     \return HMAC_MIN_KEYLEN_E May be returned when using a FIPS implementation
     and the key length specified is shorter than the minimum acceptable FIPS
     standard
+    \return WC_PENDING_E May be returned in a WOLF_CRYPTO_CB build when the
+    registered crypto callback device has taken the request but not yet
+    finished it; the caller re-invokes with identical arguments until the
+    result is no longer WC_PENDING_E. The TLS 1.3 key schedule does this in
+    WOLFSSL_ASYNC_CRYPT builds.
 
     \param okm         Generated pseudorandom key - output key material.
     \param okmLen      Length of generated pseudorandom key - output key material.
@@ -591,6 +627,11 @@ int wc_Tls13_HKDF_Expand_Label(
     \return HMAC_MIN_KEYLEN_E May be returned when using a FIPS implementation
     and the key length specified is shorter than the minimum acceptable FIPS
     standard
+    \return WC_PENDING_E May be returned in a WOLF_CRYPTO_CB build when the
+    registered crypto callback device has taken the request but not yet
+    finished it; the caller re-invokes with identical arguments until the
+    result is no longer WC_PENDING_E. The TLS 1.3 key schedule does this in
+    WOLFSSL_ASYNC_CRYPT builds.
 
     \param okm         Generated pseudorandom key - output key material.
     \param okmLen      Length of generated pseudorandom key - output key material.

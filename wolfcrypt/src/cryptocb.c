@@ -77,8 +77,9 @@ Crypto Callback Build Options:
 #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WOLF_CRYPTO_CB_ASYNC_POLL) && \
     !defined(WOLFSSL_ASYNC_CRYPT_SW) && !defined(HAVE_INTEL_QA) && \
     !defined(HAVE_CAVIUM) && !defined(WOLF_CRYPTO_CB_ASYNC_NO_WARN)
-    #warning "crypto callbacks with async crypt may not work for TLS. Define \
-WOLF_CRYPTO_CB_ASYNC_POLL to enable it, or WOLF_CRYPTO_CB_ASYNC_NO_WARN to \
+    #warning "crypto callbacks with async crypt cannot complete TLS 1.2 \
+record ciphers (TLS 1.3 resumes them by re-invoking the callback). Define \
+WOLF_CRYPTO_CB_ASYNC_POLL to enable them, or WOLF_CRYPTO_CB_ASYNC_NO_WARN to \
 silence."
 #endif
 

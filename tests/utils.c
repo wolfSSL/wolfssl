@@ -129,7 +129,44 @@ int test_memio_read_cb(WOLFSSL *ssl, char *data, int sz, void *ctx)
     if (*len == 0 || *msg_pos >= *msg_count)
         return WOLFSSL_CBIO_ERR_WANT_READ;
 
-    /* Calculate how much we can read from current message */
+    if (!is_dtls) {
+        /* TLS is a byte stream: serve across message boundaries so
+         * pending-crypto re-read patterns cannot desync the slots. */
+        int rem;
+
+        read_sz = *len;
+        if (read_sz > sz)
+            read_sz = sz;
+
+        XMEMCPY(data, buf, (size_t)read_sz);
+        XMEMMOVE(buf, buf + read_sz, (size_t)(*len - read_sz));
+        *len -= read_sz;
+
+        rem = read_sz;
+        while (rem > 0 && *msg_pos < *msg_count) {
+            if (msg_sizes[*msg_pos] > rem) {
+                msg_sizes[*msg_pos] -= rem;
+                rem = 0;
+            }
+            else {
+                rem -= msg_sizes[*msg_pos];
+                msg_sizes[*msg_pos] = 0;
+                (*msg_pos)++;
+            }
+        }
+        if (rem != 0) {
+            /* Slot accounting desynced from the byte count; fail loudly. */
+            return WOLFSSL_CBIO_ERR_GENERAL;
+        }
+        if (*msg_pos >= *msg_count && *len == 0) {
+            *msg_pos = 0;
+            *msg_count = 0;
+        }
+
+        return read_sz;
+    }
+
+    /* DTLS: datagram boundaries matter, serve one message at a time. */
     read_sz = msg_sizes[*msg_pos];
     if (read_sz > sz)
         read_sz = sz;
