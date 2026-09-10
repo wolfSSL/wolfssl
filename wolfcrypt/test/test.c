@@ -29938,6 +29938,20 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_entropy_invalidate_test(void)
         api_ret = wc_rng_bank_inst_checkin(&minst);
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        /* patrol recovery: instance 1 is still quarantined; a single
+         * wc_rng_bank_recover_inst() clears it, after which an ordinary
+         * checkout succeeds. */
+        api_ret = wc_rng_bank_recover_inst(mb, 1, 0, WC_RNG_BANK_FLAG_NONE);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_rng_bank_checkout(mb, &minst, 1, 0,
+                                       WC_RNG_BANK_FLAG_NONE);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_rng_bank_inst_checkin(&minst);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+
         api_ret = wc_rng_bank_free(&mb);
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
