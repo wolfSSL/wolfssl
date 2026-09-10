@@ -29348,8 +29348,6 @@ static int test_wc_SignCRL_ed448(void)
     /* The key file carries the private key only, so derive the public key that
      * Ed448 signing needs. */
     ExpectIntEQ(wc_ed448_make_public(&key, key.p, ED448_PUB_KEY_SIZE), 0);
-    if (EXPECT_SUCCESS())
-        key.pubKeySet = 1;
 
     if (EXPECT_SUCCESS()) {
         ExpectIntEQ(crl_sign_verify_ex2(certDer, (word32)certDerSz,

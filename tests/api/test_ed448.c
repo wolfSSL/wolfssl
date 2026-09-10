@@ -90,6 +90,95 @@ int test_wc_ed448_make_key(void)
 
 
 /*
+ * Testing that wc_ed448_make_public() adopts the derived key into the key
+ * object when the key arrived without a public half.
+ */
+int test_wc_ed448_make_public_stores_pub(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT) && \
+    defined(HAVE_ED448_KEY_EXPORT)
+    ed448_key key;
+    ed448_key privOnly;
+    WC_RNG    rng;
+    byte      priv[ED448_KEY_SIZE];
+    byte      pub[ED448_PUB_KEY_SIZE];
+    byte      derived[ED448_PUB_KEY_SIZE];
+    byte      exported[ED448_PRV_KEY_SIZE];
+    word32    privSz = sizeof(priv);
+    word32    pubSz = sizeof(pub);
+    word32    exportedSz = sizeof(exported);
+#if defined(HAVE_ED448_SIGN) && defined(HAVE_ED448_VERIFY)
+    ed448_key pubOnly;
+    byte      msg[] = "Everybody gets Friday off.\n";
+    byte      sig[ED448_SIG_SIZE];
+    word32    sigSz = sizeof(sig);
+    int       verify_ok = 0;
+#endif
+
+    XMEMSET(&key, 0, sizeof(ed448_key));
+    XMEMSET(&privOnly, 0, sizeof(ed448_key));
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    XMEMSET(derived, 0, sizeof(derived));
+    XMEMSET(exported, 0, sizeof(exported));
+#if defined(HAVE_ED448_SIGN) && defined(HAVE_ED448_VERIFY)
+    XMEMSET(&pubOnly, 0, sizeof(ed448_key));
+    XMEMSET(sig, 0, sizeof(sig));
+#endif
+
+    ExpectIntEQ(wc_ed448_init(&key), 0);
+    ExpectIntEQ(wc_ed448_init(&privOnly), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key), 0);
+
+    PRIVATE_KEY_UNLOCK();
+    ExpectIntEQ(wc_ed448_export_private_only(&key, priv, &privSz), 0);
+    PRIVATE_KEY_LOCK();
+    ExpectIntEQ(wc_ed448_export_public(&key, pub, &pubSz), 0);
+
+    /* A PKCS#8 v1 PrivateKeyInfo has no public-key field, so this is the
+     * state a decoded private key arrives in. */
+    ExpectIntEQ(wc_ed448_import_private_only(priv, privSz, &privOnly), 0);
+    ExpectIntEQ(wc_ed448_make_public(&privOnly, derived, sizeof(derived)), 0);
+    ExpectIntEQ(XMEMCMP(derived, pub, ED448_PUB_KEY_SIZE), 0);
+
+    /* Setting pubKeySet is not enough: wc_ed448_sign_msg() gates on the flag
+     * and hashes key->p, so a key left with an empty p signs over zeros. */
+    ExpectIntEQ(XMEMCMP(privOnly.p, pub, ED448_PUB_KEY_SIZE), 0);
+
+    /* wc_ed448_export_private() gates on privKeySet alone and hands back all
+     * of key->k, so the mirrored public half has to be there too. */
+    PRIVATE_KEY_UNLOCK();
+    ExpectIntEQ(wc_ed448_export_private(&privOnly, exported, &exportedSz), 0);
+    PRIVATE_KEY_LOCK();
+    ExpectIntEQ(exportedSz, ED448_PRV_KEY_SIZE);
+    ExpectIntEQ(XMEMCMP(exported, priv, ED448_KEY_SIZE), 0);
+    ExpectIntEQ(XMEMCMP(exported + ED448_KEY_SIZE, pub, ED448_PUB_KEY_SIZE), 0);
+
+#if defined(HAVE_ED448_SIGN) && defined(HAVE_ED448_VERIFY)
+    /* Verify against a key that only ever saw the real public half, so a
+     * signature made over an empty p cannot verify against itself. */
+    ExpectIntEQ(wc_ed448_init(&pubOnly), 0);
+    ExpectIntEQ(wc_ed448_import_public(pub, pubSz, &pubOnly), 0);
+    ExpectIntEQ(wc_ed448_sign_msg(msg, sizeof(msg), sig, &sigSz, &privOnly,
+        NULL, 0), 0);
+    ExpectIntEQ(wc_ed448_verify_msg(sig, sigSz, msg, sizeof(msg), &verify_ok,
+        &pubOnly, NULL, 0), 0);
+    ExpectIntEQ(verify_ok, 1);
+#endif
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_ed448_free(&key);
+    wc_ed448_free(&privOnly);
+#if defined(HAVE_ED448_SIGN) && defined(HAVE_ED448_VERIFY)
+    wc_ed448_free(&pubOnly);
+#endif
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ed448_make_public_stores_pub */
+
+
+/*
  * Testing wc_ed448_init()
  */
 int test_wc_ed448_init(void)

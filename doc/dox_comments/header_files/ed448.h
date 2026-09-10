@@ -3,7 +3,9 @@
 
     \brief This function generates the Ed448 public key from the private key.
     It stores the public key in the buffer pubKey, and sets the bytes
-    written to this buffer in pubKeySz.
+    written to this buffer in pubKeySz. If the key object does not already
+    carry a public key, the derived key is also stored in it, so that the key
+    can be used for signing.
 
     \return 0 Returned upon successfully making the public key.
     \return BAD_FUNC_ARG Returned ifi key or pubKey evaluate to NULL, or if the
@@ -11,7 +13,7 @@
     \return MEMORY_E Returned if there is an error allocating memory
     during function execution.
 
-    \param [in] key Pointer to the ed448_key for which to generate a key.
+    \param [in,out] key Pointer to the ed448_key for which to generate a key.
     \param [out] pubKey Pointer to the buffer in which to store the public key.
     \param [in] pubKeySz Size of the pubKey buffer in bytes.
 
