@@ -2312,7 +2312,7 @@ WOLFSSL_API int wc_rng_bank_debug_stats_snap(struct wc_rng_debug_stats_snapshot 
                                              struct wc_rng_bank *bank)
 {
     int i;
-    int ret;
+    int ret = 0;
 
     if ((s == NULL) || (bank == NULL))
         return BAD_FUNC_ARG;

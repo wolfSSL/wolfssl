@@ -2086,6 +2086,14 @@ struct wc_swallow_the_semicolon
     #error LINUXKM_LKCAPI_REGISTER_HASH_DRBG requires WC_RNG_BANK_DEFAULT_SUPPORT.
 #endif
 
+#ifdef WC_RNG_DEBUG_STATS
+    #if defined(SIZEOF_LONG) && (SIZEOF_LONG == 8)
+        #define WC_RNG_STAT_FMT "%ld"
+    #else
+        #define WC_RNG_STAT_FMT "%lld"
+    #endif
+#endif
+
 static volatile int wc_linuxkm_rng_initing_default_bank_flag = 0;
 static struct wc_rng_bank *default_bank;
 
@@ -2445,8 +2453,26 @@ static ssize_t wc_linuxkm_rng_state_invalidate_handler(struct kobject *kobj,
 #if IS_ENABLED(CONFIG_VMGENID)
     if (mode == 2) {
         u8 fake_id[16];
+#if !IS_MODULE(CONFIG_VMGENID) && defined(WC_LINUXKM_HAVE_MY_KALLSYMS_LOOKUP_NAME)
+        static typeof(add_vmfork_randomness) *my_add_vmfork_randomness = NULL;
+#endif
+
         get_random_bytes(fake_id, sizeof fake_id);  /* any unique blob */
+
+#if IS_MODULE(CONFIG_VMGENID)
         add_vmfork_randomness(fake_id, sizeof fake_id);  /* full wire */
+#elif defined(WC_LINUXKM_HAVE_MY_KALLSYMS_LOOKUP_NAME)
+        /* add_vmfork_randomness() is exported only if vmgenid is a module --
+         * work around it. */
+        if (my_add_vmfork_randomness == NULL)
+            my_add_vmfork_randomness = my_kallsyms_lookup_name("add_vmfork_randomness");
+        if (my_add_vmfork_randomness == NULL)
+            return -ENOSYS;
+        my_add_vmfork_randomness(fake_id, sizeof fake_id);  /* full wire */
+#else
+        return -ENOSYS;
+#endif
+
 #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
         pr_info("wc_linuxkm_rng_state_invalidate_handler: called add_vmfork_randomness.\n");
 #endif
@@ -2981,10 +3007,10 @@ static int wc_linuxkm_entropy_daemon(void *arg)
 #ifdef WC_RNG_DEBUG_STATS
         struct wc_rng_debug_stats_snapshot s;
         if (wc_rng_debug_stats_snap(&s, local_root) == 0) {
-            pr_info("RNG INFO: wc_entropyd root total_bytes_requested=%lu\n"
-                    "    total_bytes_produced=%lu total_requests=%lu\n"
-                    "    credited_reseeds=%lu uncredited_reseeds=%lu seed_failures=%lu\n"
-                    "    n_nextuncreditedseed_banked=%lu n_nextuncreditedseed_redeemed=%lu\n",
+            pr_info("RNG INFO: wc_entropyd root total_bytes_requested=" WC_RNG_STAT_FMT "\n"
+                    "    total_bytes_produced=" WC_RNG_STAT_FMT " total_requests=" WC_RNG_STAT_FMT "\n"
+                    "    credited_reseeds=" WC_RNG_STAT_FMT " uncredited_reseeds=" WC_RNG_STAT_FMT " seed_failures=" WC_RNG_STAT_FMT "\n"
+                    "    n_nextuncreditedseed_banked=" WC_RNG_STAT_FMT " n_nextuncreditedseed_redeemed=" WC_RNG_STAT_FMT "\n",
                     s._stats_total_bytes_requested,
                     s._stats_total_bytes_produced,
                     s._stats_total_requests,
@@ -3140,10 +3166,10 @@ static void wc_linuxkm_rng_dump_stats(struct wc_rng_bank *ctx)
         if ((daemon_root != NULL) &&
             (wc_rng_debug_stats_snap(&s, daemon_root) == 0))
         {
-            pr_info("RNG INFO: wc_entropyd root total_bytes_requested=%lu\n"
-                    "    total_bytes_produced=%lu total_requests=%lu\n"
-                    "    credited_reseeds=%lu uncredited_reseeds=%lu seed_failures=%lu\n"
-                    "    n_nextuncreditedseed_banked=%lu n_nextuncreditedseed_redeemed=%lu\n",
+            pr_info("RNG INFO: wc_entropyd root total_bytes_requested=" WC_RNG_STAT_FMT "\n"
+                    "    total_bytes_produced=" WC_RNG_STAT_FMT " total_requests=" WC_RNG_STAT_FMT "\n"
+                    "    credited_reseeds=" WC_RNG_STAT_FMT " uncredited_reseeds=" WC_RNG_STAT_FMT " seed_failures=" WC_RNG_STAT_FMT "\n"
+                    "    n_nextuncreditedseed_banked=" WC_RNG_STAT_FMT " n_nextuncreditedseed_redeemed=" WC_RNG_STAT_FMT "\n",
                     s._stats_total_bytes_requested,
                     s._stats_total_bytes_produced,
                     s._stats_total_requests,
@@ -3156,19 +3182,19 @@ static void wc_linuxkm_rng_dump_stats(struct wc_rng_bank *ctx)
     }
 
     if (wc_rng_bank_debug_stats_snap(&s, ctx) == 0) {
-            pr_info("RNG INFO: default bank size=%d total_bytes_requested=%lu\n"
-                    "    total_bytes_produced=%lu total_requests=%lu\n"
-                    "    credited_reseeds=%lu uncredited_reseeds=%lu seed_failures=%lu\n"
-                    "    locks_taken=%lu locks_released=%lu locks_refused=%lu\n"
+            pr_info("RNG INFO: default bank size=%d total_bytes_requested=" WC_RNG_STAT_FMT "\n"
+                    "    total_bytes_produced=" WC_RNG_STAT_FMT " total_requests=" WC_RNG_STAT_FMT "\n"
+                    "    credited_reseeds=" WC_RNG_STAT_FMT " uncredited_reseeds=" WC_RNG_STAT_FMT " seed_failures=" WC_RNG_STAT_FMT "\n"
+                    "    locks_taken=" WC_RNG_STAT_FMT " locks_released=" WC_RNG_STAT_FMT " locks_refused=" WC_RNG_STAT_FMT "\n"
 #ifdef WC_RNG_HAVE_RBGC
-                    "    RBGC_bytes_produced=%lu RBGC_reseeds=%lu\n"
+                    "    RBGC_bytes_produced=" WC_RNG_STAT_FMT " RBGC_reseeds=" WC_RNG_STAT_FMT "\n"
 #endif
 #ifdef WC_RNG_HAVE_POOL
-                    "    pool_bytes_produced=%lu pool_bytes_missed=%lu\n"
+                    "    pool_bytes_produced=" WC_RNG_STAT_FMT " pool_bytes_missed=" WC_RNG_STAT_FMT "\n"
 #endif
 #ifdef WC_RNG_HAVE_NEXT_SEED
-                    "    n_nextseed_primary_redeemed=%lu n_nextseed_RBGC_redeemed=%lu\n"
-                    "    n_nextseed_banked=%lu n_nextuncreditedseed_banked=%lu n_nextuncreditedseed_redeemed=%lu\n"
+                    "    n_nextseed_primary_redeemed=" WC_RNG_STAT_FMT " n_nextseed_RBGC_redeemed=" WC_RNG_STAT_FMT "\n"
+                    "    n_nextseed_banked=" WC_RNG_STAT_FMT " n_nextuncreditedseed_banked=" WC_RNG_STAT_FMT " n_nextuncreditedseed_redeemed=" WC_RNG_STAT_FMT "\n"
 #endif
                     ,
                     ctx->n_rngs,
