@@ -45,6 +45,10 @@ CC_=${CC:-cc}
 LDEXTRA=""
 [ "$(uname -s)" = "Darwin" ] &&
     LDEXTRA="-framework CoreFoundation -framework Security"
+# aes.c's AESNI intrinsics do not compile without the -maes that configure
+# puts in AM_CFLAGS, so take the build's own target flags.
+TARGETFLAGS=$(sed -n 's/^AM_CFLAGS *= *//p' "$BUILD/Makefile" 2>/dev/null |
+                  tr ' ' '\n' | grep -E '^-m' | tr '\n' ' ')
 work=$(mktemp -d); trap 'rm -rf "$work"' EXIT
 
 pass=(); skip=(); fail=(); unsupported=()
@@ -61,7 +65,7 @@ for tu in "$HERE"/*_whitebox.c; do
     if ! ( cd "$BUILD" && $CC_ -O0 -g -I"$BUILD" -I"$SRC" -I"$SRC/tests" \
              -DWOLFSSL_TEST_STATIC_BUILD -DHAVE_CONFIG_H \
              -DWOLFSSL_USE_OPTIONS_H \
-             -DUSE_CERT_BUFFERS_2048 -DUSE_CERT_BUFFERS_256 \
+             -DUSE_CERT_BUFFERS_2048 -DUSE_CERT_BUFFERS_256 $TARGETFLAGS \
              -o "$work/$name.bin" "$tu" "$work/t.a" -lm -lpthread $LDEXTRA ) \
              >"$work/$name.log" 2>&1; then
         skip+=("$name"); continue
@@ -79,13 +83,15 @@ for tu in "$HERE"/*_whitebox.c; do
         fail+=("$name")
     else
         # Builds against this configuration but does not run clean under it.
-        # Thesewhite-boxes target a narrower build; not a finding here.
+        # These white-boxes target a narrower build; not a finding here.
         unsupported+=("$name")
     fi
 done
 
+list_pass() { [ ${#pass[@]} -eq 0 ] || printf '%s\n' "${pass[@]}"; }
+
 if [ "$UPDATE" = 1 ]; then
-    printf '%s\n' "${pass[@]}" | sort > "$EXPECTED"
+    list_pass | sort > "$EXPECTED"
     echo "wrote $(wc -l < "$EXPECTED") entries to ${EXPECTED#$SRC/}"
     exit 0
 fi
@@ -95,7 +101,7 @@ echo "white-box smoke: ${#pass[@]} passed, ${#skip[@]} not built here, ${#unsupp
 rc=0
 [ ${#fail[@]} -eq 0 ] || rc=1
 if [ -f "$EXPECTED" ]; then
-    printf '%s\n' "${pass[@]}" | sort > "$work/got.txt"
+    list_pass | sort > "$work/got.txt"
     missing=$(comm -23 "$EXPECTED" "$work/got.txt")
     if [ -n "$missing" ]; then
         echo "REGRESSION: these built and passed before and do not now:"
