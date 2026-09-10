@@ -639,9 +639,13 @@ int wc_linuxkm_GenerateSeed_IntelRD(struct OS_Seed* os, byte* output, word32 sz)
     static struct kobj_attribute FIPS_optest_trig_attr = __ATTR(FIPS_optest_run_code, 0220, NULL, FIPS_optest_trig_handler);
     static int installed_sysfs_FIPS_optest_trig_files = 0;
 #ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
-    static struct kobj_attribute FIPS_optest_trig_audit_accel_attr = __ATTR(FIPS_optest_run_code_audit_accel, 0220, NULL, FIPS_optest_trig_handler);
+    static ssize_t FIPS_optest_trig_audit_accel_handler(struct kobject *kobj, struct kobj_attribute *attr,
+                                       const char *buf, size_t count);
+    static struct kobj_attribute FIPS_optest_trig_audit_accel_attr = __ATTR(FIPS_optest_run_code_audit_accel, 0220, NULL, FIPS_optest_trig_audit_accel_handler);
     static int installed_sysfs_FIPS_optest_trig_audit_accel_files = 0;
-    static struct kobj_attribute FIPS_optest_trig_audit_c_attr = __ATTR(FIPS_optest_run_code_audit_c, 0220, NULL, FIPS_optest_trig_handler);
+    static ssize_t FIPS_optest_trig_audit_c_handler(struct kobject *kobj, struct kobj_attribute *attr,
+                                       const char *buf, size_t count);
+    static struct kobj_attribute FIPS_optest_trig_audit_c_attr = __ATTR(FIPS_optest_run_code_audit_c, 0220, NULL, FIPS_optest_trig_audit_c_handler);
     static int installed_sysfs_FIPS_optest_trig_audit_c_files = 0;
 #endif
 #endif
@@ -2332,7 +2336,13 @@ typedef struct test_func_args {
     int return_code;
 } test_func_args;
 
-static ssize_t FIPS_optest_trig_handler(struct kobject *kobj, struct kobj_attribute *attr,
+enum FIPS_optest_audit_mode {
+    FIPS_OPTEST_AUDIT_NONE = 0,
+    FIPS_OPTEST_AUDIT_ACCEL,
+    FIPS_OPTEST_AUDIT_C
+};
+
+static ssize_t FIPS_optest_trig_common(enum FIPS_optest_audit_mode audit_mode,
                                    const char *buf, const size_t count)
 {
     int ret;
@@ -2345,10 +2355,9 @@ static ssize_t FIPS_optest_trig_handler(struct kobject *kobj, struct kobj_attrib
 #ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
     long long unsigned int svr_disallowed_before_optest = 0, svr_disallowed_after_optest;
     ssize_t ret_count = 0;
+#else
+    (void)audit_mode;
 #endif
-
-    (void)kobj;
-    (void)attr;
 
     /* buf may or may not have an LF at end -- tolerate both.  there is no
      * terminating null in either case.
@@ -2425,10 +2434,10 @@ static ssize_t FIPS_optest_trig_handler(struct kobject *kobj, struct kobj_attrib
      * algorithm consumers.
      */
 
-    if ((attr == &FIPS_optest_trig_audit_accel_attr) ||
-        (attr == &FIPS_optest_trig_audit_c_attr))
+    if ((audit_mode == FIPS_OPTEST_AUDIT_ACCEL) ||
+        (audit_mode == FIPS_OPTEST_AUDIT_C))
     {
-        if (attr == &FIPS_optest_trig_audit_c_attr) {
+        if (audit_mode == FIPS_OPTEST_AUDIT_C) {
             ret = DISABLE_VECTOR_REGISTERS();
             if (ret != 0) {
                 pr_err("ERROR: DISABLE_VECTOR_REGISTERS() for FIPS_optest_trig_handler() returned %d.\n", ret);
@@ -2443,7 +2452,7 @@ static ssize_t FIPS_optest_trig_handler(struct kobject *kobj, struct kobj_attrib
     ret = linuxkm_op_test_1(argc, &argv[0]);
 
 #ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
-    if (attr == &FIPS_optest_trig_audit_c_attr) {
+    if (audit_mode == FIPS_OPTEST_AUDIT_C) {
         REENABLE_VECTOR_REGISTERS();
         svr_disallowed_after_optest = wc_svr_disallowed_count_current();
         if (svr_disallowed_after_optest == svr_disallowed_before_optest) {
@@ -2451,7 +2460,7 @@ static ssize_t FIPS_optest_trig_handler(struct kobject *kobj, struct kobj_attrib
             ret_count = -EINVAL;
         }
     }
-    else if (attr == &FIPS_optest_trig_audit_accel_attr) {
+    else if (audit_mode == FIPS_OPTEST_AUDIT_ACCEL) {
         svr_disallowed_after_optest = wc_svr_disallowed_count_current();
         if (svr_disallowed_after_optest != svr_disallowed_before_optest) {
             pr_err("ERROR: wc_svr_disallowed_count_current() incremented (+%llu) during optest.\n", svr_disallowed_after_optest - svr_disallowed_before_optest);
@@ -2507,6 +2516,34 @@ out:
     return (ssize_t)count;
 #endif
 }
+
+static ssize_t FIPS_optest_trig_handler(struct kobject *kobj, struct kobj_attribute *attr,
+                                   const char *buf, const size_t count)
+{
+    (void)kobj;
+    (void)attr;
+    return FIPS_optest_trig_common(FIPS_OPTEST_AUDIT_NONE, buf, count);
+}
+
+#ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
+
+static ssize_t FIPS_optest_trig_audit_accel_handler(struct kobject *kobj, struct kobj_attribute *attr,
+                                   const char *buf, const size_t count)
+{
+    (void)kobj;
+    (void)attr;
+    return FIPS_optest_trig_common(FIPS_OPTEST_AUDIT_ACCEL, buf, count);
+}
+
+static ssize_t FIPS_optest_trig_audit_c_handler(struct kobject *kobj, struct kobj_attribute *attr,
+                                   const char *buf, const size_t count)
+{
+    (void)kobj;
+    (void)attr;
+    return FIPS_optest_trig_common(FIPS_OPTEST_AUDIT_C, buf, count);
+}
+
+#endif /* WC_LINUXKM_SVR_DYNAMIC_AUDITING */
 
 #endif /* FIPS_OPTEST */
 
