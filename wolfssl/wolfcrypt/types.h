@@ -40,6 +40,14 @@ decouple library dependencies with standard string, memory and so on.
 library files.
 #endif
 
+#if defined(WOLF_CRYPTO_CB) && (defined(WOLFSSL_SM2) || \
+    defined(WOLFSSL_SM3) || defined(WOLFSSL_SM4))
+    /* Other crypto callbacks use WOLFSSL_CRYPTO_CB, but this one is temporatily
+     * added for SM crypto to enable clean merges of this feature between repos.
+     * It can be removed once the feature is fully integrated. */
+    #define WOLF_CRYPTO_CB_SM
+#endif
+
 #ifdef __APPLE__
     #include <AvailabilityMacros.h>
 #endif
