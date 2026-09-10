@@ -429,6 +429,9 @@ session opened by `wc_se050_init()` or `wc_se050_init_ex()` and clears the
 configured pointers. It returns `BAD_STATE_E` when wolfSSL does not own the
 active session. A second initialization attempt while any SE05x session is
 configured also returns `BAD_STATE_E` instead of replacing or leaking it.
+When SCP03 rotation support is compiled in, both initialization APIs retain an
+internal copy of a non-NULL transport port name, so the caller may release its
+input buffer after initialization returns.
 
 The SE05x transport is shared with wolfCrypt. Threaded SE05x builds enable the
 wolfCrypt hardware mutex by default. Every direct middleware call
@@ -700,6 +703,9 @@ The direct API wraps all three new keys with the current DEK, closes the IoT
 applet session, authenticates to the Supplementary Security Domain, sends one
 secured GlobalPlatform PUT KEY command, and verifies the three returned KCVs.
 It then returns with a fresh IoT applet session authenticated by the new keys.
+`keyVersion` must match the Platform SCP03 version configured in the middleware
+as `EX_SSS_AUTH_SE05X_KEY_VERSION_NO`; a mismatch returns `BAD_FUNC_ARG` before
+the active session is closed.
 The host AES block operation stages its input and output through 16-byte-aligned
 buffers, which is required by strict-alignment hardware AES backends such as
 STM32H7.

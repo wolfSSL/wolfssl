@@ -106,6 +106,11 @@ static ex_sss_boot_ctx_t gBootCtx;
     #define SE050_RUNTIME_SCP03
 #endif
 
+#if defined(SE050_RUNTIME_SCP03) && \
+    defined(WOLFSSL_SE050_SCP03_ROTATE)
+static char* gSe050PortName;
+#endif
+
 int wc_se050_set_config(sss_session_t *pSession, sss_key_store_t *pHostKeyStore,
     sss_key_store_t *pKeyStore)
 {
@@ -325,6 +330,51 @@ static sss_key_store_t* se050_boot_host_key_store(void)
     return NULL;
 }
 
+#if defined(SE050_RUNTIME_SCP03) && \
+    defined(WOLFSSL_SE050_SCP03_ROTATE)
+static void se050_free_port_name(void)
+{
+    if (gSe050PortName != NULL) {
+        XFREE(gSe050PortName, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        gSe050PortName = NULL;
+    }
+}
+
+static int se050_save_port_name(const char* portName,
+    const char** savedPortName)
+{
+    size_t portNameSz;
+
+    if (savedPortName == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    if (gSe050PortName != NULL) {
+        return WC_NO_ERR_TRACE(BAD_STATE_E);
+    }
+    if (portName == NULL) {
+        portName = SE050_DEFAULT_PORT;
+    }
+    if (portName == NULL) {
+        *savedPortName = NULL;
+        return 0;
+    }
+
+    portNameSz = XSTRLEN(portName);
+    if (portNameSz == (size_t)-1) {
+        return BAD_FUNC_ARG;
+    }
+    portNameSz++;
+    gSe050PortName = (char*)XMALLOC(portNameSz, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (gSe050PortName == NULL) {
+        return MEMORY_E;
+    }
+    XMEMCPY(gSe050PortName, portName, portNameSz);
+    *savedPortName = gSe050PortName;
+    return 0;
+}
+#endif
+
 #ifdef SE050_RUNTIME_SCP03
 static int se050_set_scp03_static_keys(const wc_se050_scp03_keys* keys)
 {
@@ -463,9 +513,17 @@ int wc_se050_init(const char* portName)
     if (se050_boot_context_is_open()) {
         return WC_NO_ERR_TRACE(BAD_STATE_E);
     }
+#if defined(SE050_RUNTIME_SCP03) && \
+    defined(WOLFSSL_SE050_SCP03_ROTATE)
+    ret = se050_save_port_name(portName, &portName);
+    if (ret != 0) {
+        return ret;
+    }
+#else
     if (portName == NULL) {
         portName = SE050_DEFAULT_PORT;
     }
+#endif
 
     XMEMSET(&gBootCtx, 0, sizeof(gBootCtx));
     status = ex_sss_boot_open(&gBootCtx, portName);
@@ -483,6 +541,7 @@ int wc_se050_init(const char* portName)
             if (ret != 0) {
                 ex_sss_session_close(&gBootCtx);
                 XMEMSET(&gBootCtx, 0, sizeof(gBootCtx));
+                se050_free_port_name();
                 return ret;
             }
         }
@@ -492,6 +551,10 @@ int wc_se050_init(const char* portName)
         if (ret != 0) {
             ex_sss_session_close(&gBootCtx);
             XMEMSET(&gBootCtx, 0, sizeof(gBootCtx));
+#if defined(SE050_RUNTIME_SCP03) && \
+    defined(WOLFSSL_SE050_SCP03_ROTATE)
+            se050_free_port_name();
+#endif
         }
 
     #ifdef WOLFSSL_SE050_FACTORY_RESET
@@ -503,6 +566,10 @@ int wc_se050_init(const char* portName)
     else {
         ex_sss_session_close(&gBootCtx);
         XMEMSET(&gBootCtx, 0, sizeof(gBootCtx));
+#if defined(SE050_RUNTIME_SCP03) && \
+    defined(WOLFSSL_SE050_SCP03_ROTATE)
+        se050_free_port_name();
+#endif
         WOLFSSL_MSG("Failed to open SE050 context");
         ret = WC_HW_E;
     }
@@ -550,11 +617,31 @@ static int se050_init_scp03_mode(const char* portName,
 
 int wc_se050_init_ex(const char* portName, const wc_se050_scp03_keys* keys)
 {
+#ifdef WOLFSSL_SE050_SCP03_ROTATE
+    int ret;
+
+    if (keys == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    if (se050_boot_context_is_open()) {
+        return WC_NO_ERR_TRACE(BAD_STATE_E);
+    }
+    ret = se050_save_port_name(portName, &portName);
+    if (ret != 0) {
+        return ret;
+    }
+    ret = se050_init_scp03_mode(portName, keys, 0);
+    if (ret != 0) {
+        se050_free_port_name();
+    }
+    return ret;
+#else
     return se050_init_scp03_mode(portName, keys, 0);
+#endif
 }
 #endif
 
-int wc_se050_close(void)
+static int se050_close_internal(int preservePortName)
 {
     int ret;
 
@@ -571,7 +658,20 @@ int wc_se050_close(void)
     gKeyStore = NULL;
     XMEMSET(&gBootCtx, 0, sizeof(gBootCtx));
     wolfSSL_CryptHwMutexUnLock();
+#if defined(SE050_RUNTIME_SCP03) && \
+    defined(WOLFSSL_SE050_SCP03_ROTATE)
+    if (!preservePortName) {
+        se050_free_port_name();
+    }
+#else
+    (void)preservePortName;
+#endif
     return 0;
+}
+
+int wc_se050_close(void)
+{
+    return se050_close_internal(0);
 }
 #endif
 
@@ -829,6 +929,7 @@ int wc_se050_scp03_rotate_keys(const wc_se050_scp03_keys* newKeys,
 {
     wc_se050_scp03_keys currentKeys;
     const wc_se050_scp03_keys* reopenKeys;
+    NXSCP03_StaticCtx_t* staticCtx;
     const char* portName;
     int keysChanged = 0;
     int closeRet;
@@ -845,7 +946,15 @@ int wc_se050_scp03_rotate_keys(const wc_se050_scp03_keys* newKeys,
         return WC_NO_ERR_TRACE(BAD_STATE_E);
     }
 
-    portName = gBootCtx.se05x_open_ctx.portName;
+    staticCtx = gBootCtx.se05x_open_ctx.auth.ctx.scp03.pStatic_ctx;
+    if (staticCtx == NULL) {
+        return WC_NO_ERR_TRACE(BAD_STATE_E);
+    }
+    if (keyVersion != staticCtx->keyVerNo) {
+        return BAD_FUNC_ARG;
+    }
+
+    portName = gSe050PortName;
     ret = se050_scp03_get_static_keys(&currentKeys);
     if (ret != 0) {
         return ret;
@@ -854,13 +963,13 @@ int wc_se050_scp03_rotate_keys(const wc_se050_scp03_keys* newKeys,
     /* Platform SCP03 protects both the IoT applet and its Security Domain,
      * but PUT KEY is accepted only by the latter. Reopen against the SSD for
      * the update, then always return to a fresh IoT applet session. */
-    ret = wc_se050_close();
+    ret = se050_close_internal(1);
     if (ret == 0) {
         ret = se050_init_scp03_mode(portName, &currentKeys, 1);
     }
     if (ret == 0) {
         ret = se050_scp03_put_keys(newKeys, keyVersion, &keysChanged);
-        closeRet = wc_se050_close();
+        closeRet = se050_close_internal(1);
         if (closeRet != 0) {
             ret = closeRet;
         }
@@ -871,6 +980,7 @@ int wc_se050_scp03_rotate_keys(const wc_se050_scp03_keys* newKeys,
         reopenRet = se050_init_scp03_mode(portName, reopenKeys, 0);
         if (reopenRet != 0) {
             ret = reopenRet;
+            se050_free_port_name();
         }
     }
     ForceZero(&currentKeys, sizeof(currentKeys));
@@ -1734,8 +1844,12 @@ int wc_se050_attest_object(word32 keyId, word32 attestKeyId,
             (sss_se05x_key_store_t*)&keyStore, seObject, result->value,
             &valueSz, &valueBitSz, seAttestObject, algorithm,
             result->freshness, sizeof(result->freshness), &result->raw);
-        if (status == kStatus_SSS_Success) {
+        if ((status == kStatus_SSS_Success) &&
+                (valueSz <= sizeof(result->value))) {
             result->valueSz = (word32)valueSz;
+        }
+        else {
+            status = kStatus_SSS_Fail;
         }
     }
     wolfSSL_CryptHwMutexUnLock();
@@ -2115,6 +2229,7 @@ int wc_se050_verify_attestation(const wc_se050_attst_result* result,
             (attestPubDerSz == 0U) || (expectedRandom == NULL) ||
             (expectedRandomSz != SE050_ATTEST_RANDOM_SIZE) ||
             (res == NULL) ||
+            (result->valueSz > sizeof(result->value)) ||
             (result->raw.valid_number == 0U) ||
             (result->raw.valid_number > SE05X_MAX_ATTST_DATA)) {
         return BAD_FUNC_ARG;
@@ -3726,10 +3841,13 @@ int se050_rsa_private_decrypt(const byte* in, word32 inLen, byte* out,
 static int se050_map_curve(int curve_id, int keySize,
     int* keySizeBits, sss_cipher_type_t* pcurve_type)
 {
+    int expectedKeySize;
     int ret = 0;
     sss_cipher_type_t curve_type = kSSS_CipherType_NONE;
 
-    *keySizeBits = keySize * 8; /* set default */
+    if ((keySizeBits == NULL) || (keySize <= 0) || (keySize > 66)) {
+        return BAD_FUNC_ARG;
+    }
     switch (curve_id) {
         case ECC_SECP160K1:
         case ECC_SECP192K1:
@@ -3764,7 +3882,6 @@ static int se050_map_curve(int curve_id, int keySize,
             break;
         case ECC_SECP521R1:
             curve_type = kSSS_CipherType_EC_NIST_P;
-            *keySizeBits = 521;
             break;
         case ECC_PRIME239V1:
         case ECC_PRIME192V2:
@@ -3773,8 +3890,36 @@ static int se050_map_curve(int curve_id, int keySize,
             ret = ECC_CURVE_OID_E;
             break;
     }
-    if (pcurve_type)
-        *pcurve_type = curve_type;
+    if (ret == 0) {
+        if (curve_id == ECC_CURVE_DEF) {
+            switch (keySize) {
+                case 20:
+                case 24:
+                case 28:
+                case 32:
+                case 48:
+                case 66:
+                    break;
+                default:
+                    ret = BAD_FUNC_ARG;
+                    break;
+            }
+        }
+        else {
+            expectedKeySize = wc_ecc_get_curve_size_from_id(curve_id);
+            if (expectedKeySize != keySize) {
+                ret = BAD_FUNC_ARG;
+            }
+        }
+    }
+    if (ret == 0) {
+        *keySizeBits = ((curve_id == ECC_SECP521R1) ||
+            ((curve_id == ECC_CURVE_DEF) && (keySize == 66))) ?
+            521 : keySize * 8;
+        if (pcurve_type != NULL) {
+            *pcurve_type = curve_type;
+        }
+    }
     return ret;
 }
 

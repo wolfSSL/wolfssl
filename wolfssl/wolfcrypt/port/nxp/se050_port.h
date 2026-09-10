@@ -176,6 +176,8 @@ WOLFSSL_API pSe05xSession_t wc_se050_get_se05x_session(void);
 WOLFSSL_API int wc_se050_lock(void);
 WOLFSSL_API void wc_se050_unlock(void);
 #ifdef WOLFSSL_SE050_INIT
+/** Open the configured SE05x transport. The port name is copied when SCP03
+ * rotation support is enabled and may be released after this call returns. */
 WOLFSSL_API int wc_se050_init(const char* portName);
 /** Close a session opened by wc_se050_init() or wc_se050_init_ex(). */
 WOLFSSL_API int wc_se050_close(void);
@@ -183,7 +185,8 @@ WOLFSSL_API int wc_se050_close(void);
     defined(SSS_HAVE_SCP_SCP03_SSS) && SSS_HAVE_SCP_SCP03_SSS && \
     defined(SSS_HAVE_SE05X_AUTH_PLATFSCP03) && \
         SSS_HAVE_SE05X_AUTH_PLATFSCP03
-/** Open Platform SCP03 using caller-supplied 128-bit ENC/MAC/DEK keys. */
+/** Open Platform SCP03 using caller-supplied 128-bit ENC/MAC/DEK keys. The port
+ * name is copied when rotation support is enabled. */
 WOLFSSL_API int wc_se050_init_ex(const char* portName,
     const wc_se050_scp03_keys* keys);
 #endif
@@ -205,7 +208,8 @@ WOLFSSL_API int wc_se050_scp03_derive_keys_seed(const byte* seed,
         SSS_HAVE_SE05X_AUTH_PLATFSCP03
 /** Destructively replace the Platform SCP03 key set using secured PUT KEY.
  * The port temporarily authenticates to the Security Domain, then returns
- * with a fresh IoT applet session authenticated by newKeys. */
+ * with a fresh IoT applet session authenticated by newKeys. keyVersion must
+ * match the version configured by EX_SSS_AUTH_SE05X_KEY_VERSION_NO. */
 WOLFSSL_API int wc_se050_scp03_rotate_keys(
     const wc_se050_scp03_keys* newKeys, byte keyVersion);
 #ifdef HAVE_HKDF
@@ -234,7 +238,7 @@ WOLFSSL_API int wc_se050_ecc_insert_private_key_policy(word32 keyId,
     const byte* eccDer, word32 eccDerSize, const sss_policy_t* policy);
 #ifdef HAVE_ECC
 /** Generate a persistent ECC key pair at a caller-selected, unused ID with a
- * flag-based immutable policy. keySize is in bytes. */
+ * flag-based immutable policy. keySize is in bytes and must match curveId. */
 WOLFSSL_API int wc_se050_ecc_generate_key_ex(word32 keyId, int keySize,
     int curveId, word32 policyFlags, word32 authObjId);
 /** Generate a persistent ECC key pair with a raw middleware policy. */
