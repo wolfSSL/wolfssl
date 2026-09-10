@@ -1239,16 +1239,6 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
         goto out;
     }
 
-#if WC_LINUXKM_GCM_SVR_BATCH > 0
-    if (SAVE_VECTOR_REGISTERS2() == 0) {
-        svr_batch_left = WC_LINUXKM_GCM_SVR_BATCH;
-        /* all returns henceforth must be via the out: label. */
-    }
-    /* else on failure, proceed unbatched -- per-call SVRs still work (or C
-     * fallback engages).
-     */
-#endif
-
 #ifdef LINUXKM_LKCAPI_REGISTER_AESGCM_RFC4106
     if (rfc4106_p) {
         byte rfc4106_iv[12];

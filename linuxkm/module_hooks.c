@@ -130,8 +130,12 @@ static int wolfcrypt_inited;
 static int wolfssl_inited;
 #endif
 
+static void wc_linuxkm_deinstall(void);
+
 static int libwolfssl_cleanup(void) {
     int ret;
+
+    wc_linuxkm_deinstall();
 
 #ifndef WOLFCRYPT_ONLY
     if (wolfssl_inited) {
@@ -1432,12 +1436,7 @@ static int wolfssl_init(void)
 
 module_init(wolfssl_init);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
-static void __exit wolfssl_exit(void)
-#else
-static void wolfssl_exit(void)
-#endif
-{
+static void wc_linuxkm_deinstall(void) {
 #ifdef HAVE_FIPS
     (void)linuxkm_sysfs_deinstall_attr(&FIPS_rerun_self_test_attr.attr, &installed_sysfs_FIPS_files);
 #ifdef FIPS_OPTEST
@@ -1453,6 +1452,15 @@ static void wolfssl_exit(void)
     (void)linuxkm_lkcapi_unregister();
     (void)linuxkm_lkcapi_sysfs_deinstall();
 #endif
+}
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
+static void __exit wolfssl_exit(void)
+#else
+static void wolfssl_exit(void)
+#endif
+{
+    wc_linuxkm_deinstall();
 
 #if defined(HAVE_FIPS) && !defined(WOLFSSL_FIPS_DEV_NO_POST)
     {
@@ -2297,6 +2305,8 @@ static WC_MAYBE_UNUSED void *my_kallsyms_lookup_name(const char *name) {
 
 #ifdef HAVE_FIPS
 
+static wolfSSL_Atomic_Int in_fips_test = WOLFSSL_ATOMIC_INITIALIZER(-1);
+
 static ssize_t FIPS_rerun_self_test_handler(WC_MODULE_ATTR_CONST struct module_attribute *mattr, struct module_kobject *mk,
                                    const char *buf, size_t count)
 {
@@ -2313,6 +2323,17 @@ static ssize_t FIPS_rerun_self_test_handler(WC_MODULE_ATTR_CONST struct module_a
         return -EINVAL;
     }
 
+    {
+        WC_ATOMIC_INT_ARG expected_in_fips_test = -1;
+        if (! wolfSSL_Atomic_Int_CompareExchange(
+                &in_fips_test, &expected_in_fips_test, task_pid_nr(current)))
+        {
+            pr_err("ERROR: %s called by pid %d while pid %d is running a FIPS test in another thread.\n",
+                   __func__, task_pid_nr(current), expected_in_fips_test);
+            return -EBUSY;
+        }
+    }
+
     pr_info("wolfCrypt: rerunning FIPS self-test on command.\n");
 
     if (WC_SIG_IGNORE_BEGIN() >= 0) {
@@ -2325,11 +2346,13 @@ static ssize_t FIPS_rerun_self_test_handler(WC_MODULE_ATTR_CONST struct module_a
     }
     if (ret != 0) {
         pr_err("ERROR: wolfCrypt_IntegrityTest_fips: error %d\n", ret);
+        WOLFSSL_ATOMIC_STORE(in_fips_test, -1);
         return -EINVAL;
     }
 
     ret = wolfCrypt_GetStatus_fips();
     if (ret != 0) {
+        WOLFSSL_ATOMIC_STORE(in_fips_test, -1);
         pr_err("ERROR: wolfCrypt_GetStatus_fips() failed with code %d: %s\n", ret, wc_GetErrorString(ret));
         if (ret == WC_NO_ERR_TRACE(IN_CORE_FIPS_E))
             return -ELIBBAD;
@@ -2339,6 +2362,7 @@ static ssize_t FIPS_rerun_self_test_handler(WC_MODULE_ATTR_CONST struct module_a
 
     ret = wc_RunAllCast_fips();
     if (ret != 0) {
+        WOLFSSL_ATOMIC_STORE(in_fips_test, -1);
         pr_err("ERROR: wc_RunAllCast_fips() failed with return value %d\n", ret);
         return -EINVAL;
     }
@@ -2353,6 +2377,7 @@ static ssize_t FIPS_rerun_self_test_handler(WC_MODULE_ATTR_CONST struct module_a
 
     ret = DISABLE_VECTOR_REGISTERS();
     if (ret != 0) {
+        WOLFSSL_ATOMIC_STORE(in_fips_test, -1);
         pr_err("ERROR: DISABLE_VECTOR_REGISTERS() for wc_RunAllCast_fips() returned %d.\n", ret);
         return -EINVAL;
     }
@@ -2362,10 +2387,13 @@ static ssize_t FIPS_rerun_self_test_handler(WC_MODULE_ATTR_CONST struct module_a
     REENABLE_VECTOR_REGISTERS();
 
     if (ret != 0) {
+        WOLFSSL_ATOMIC_STORE(in_fips_test, -1);
         pr_err("ERROR: wc_RunAllCast_fips() with DISABLE_VECTOR_REGISTERS() returned %d.\n", ret);
         return -EINVAL;
     }
 #endif /* WC_LINUXKM_SVR_DYNAMIC_AUDITING */
+
+    WOLFSSL_ATOMIC_STORE(in_fips_test, -1);
 
     pr_info("wolfCrypt FIPS re-self-test succeeded: all algorithms verified and available.\n");
 
@@ -2393,7 +2421,6 @@ static ssize_t FIPS_optest_trig_common(enum FIPS_optest_audit_mode audit_mode,
     char code_buf[5];
     size_t corrected_count;
     int i;
-    static wolfSSL_Atomic_Int in_optest = WOLFSSL_ATOMIC_INITIALIZER(-1);
 #ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
     long long unsigned int svr_disallowed_before_optest = 0, svr_disallowed_after_optest;
     ssize_t ret_count = 0;
@@ -2444,15 +2471,15 @@ static ssize_t FIPS_optest_trig_common(enum FIPS_optest_audit_mode audit_mode,
 #endif
 
     {
-        WC_ATOMIC_INT_ARG expected_in_optest = -1;
+        WC_ATOMIC_INT_ARG expected_in_fips_test = -1;
         if (! wolfSSL_Atomic_Int_CompareExchange(
-                &in_optest, &expected_in_optest, task_pid_nr(current)))
+                &in_fips_test, &expected_in_fips_test, task_pid_nr(current)))
         {
 #ifdef LINUXKM_LKCAPI_REGISTER
             WOLFSSL_ATOMIC_STORE(linuxkm_lkcapi_registering_now, 0);
 #endif
-            pr_err("ERROR: FIPS_optest_trig_handler() called by pid %d while pid %d is running optest in another thread.\n",
-                   task_pid_nr(current), expected_in_optest);
+            pr_err("ERROR: %s called by pid %d while pid %d is running a FIPS test in another thread.\n",
+                   __func__, task_pid_nr(current), expected_in_fips_test);
             return -EBUSY;
         }
     }
@@ -2469,11 +2496,12 @@ static ssize_t FIPS_optest_trig_common(enum FIPS_optest_audit_mode audit_mode,
 
 #ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
 
-    /* The audits treat wc_svr_disallowed_count as
-     * ours alone: in_optest excludes the other trigger nodes, and
-     * getting linuxkm_lkcapi_registering_now then checking
-     * linuxkm_lkcapi_registered excludes registered-
-     * algorithm consumers.
+    /* The audits treat wc_svr_disallowed_count as ours alone: in_fips_test
+     * excludes the other trigger nodes, and getting
+     * linuxkm_lkcapi_registering_now then checking linuxkm_lkcapi_registered
+     * excludes registered-algorithm consumers.  Optests entail transient
+     * degradation states, necessitating the registered-algorithm exclusion
+     * bidirectionally.
      */
 
     if ((audit_mode == FIPS_OPTEST_AUDIT_ACCEL) ||
@@ -2547,7 +2575,7 @@ out:
     printf("Module status is: %d\n", wolfCrypt_GetStatus_fips());
     printf("Module mode is: %d\n", wolfCrypt_GetMode_fips());
 
-    WOLFSSL_ATOMIC_STORE(in_optest, -1);
+    WOLFSSL_ATOMIC_STORE(in_fips_test, -1);
 #ifdef LINUXKM_LKCAPI_REGISTER
     WOLFSSL_ATOMIC_STORE(linuxkm_lkcapi_registering_now, 0);
 #endif
