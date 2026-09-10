@@ -22,8 +22,6 @@ wolfSSL supports the following hardware acceleration on the LPC55S69:
 The following caveats should be noted about the LPC55S69 hardware acceleration:
 - AES-CTR mode fails when the counter wraps from all FF's to 0.  User should
 ensure this never happens, by properly managing the iv/counter in use.
-- AES-CFB and AES-OFB only support full 16-byte blocks and multiples thereof.
-Encrypt/Decrypt requests of other sizes will fail.
 - RSA acceleration is only supported for public keys.  Private key operations
 will use a fully software implementation.
 - When the HashCrypt engine is in use for SHA-1 or SHA-256, it must not be
