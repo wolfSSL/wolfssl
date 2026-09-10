@@ -1865,7 +1865,8 @@ static int test_untrusted_inter_no_stale_anchor(X509* leaf, X509* inter,
  * The chain is genuine and verifies at the default depth (covered by
  * test_untrusted_inter_two_level); here the depth is capped below the chain
  * length so the budget is consumed before the trusted root is reached.  The
- * fix must report it as "certificate chain too long". */
+ * fix must report it as "certificate chain too long". Also covers valid,
+ * negative, INT_MAX and unset depths. */
 static int test_untrusted_inter_depth_exhaustion(X509* leafDeep, X509* inter,
     X509* inter2, X509* root)
 {
@@ -1881,12 +1882,183 @@ static int test_untrusted_inter_depth_exhaustion(X509* leafDeep, X509* inter,
     ExpectIntGT(sk_X509_push(untrusted, inter2), 0);
     ExpectNotNull(ctx = X509_STORE_CTX_new());
     ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leafDeep, untrusted), 1);
-    /* Cap the path-building budget below the chain length so the walk runs
-     * out of depth before it can reach the trusted root. */
+    /* depth N allows N intermediates; this chain has two */
+    X509_STORE_CTX_set_depth(ctx, 0);
+    ExpectIntEQ(X509_verify_cert(ctx), 0);
+    ExpectIntEQ(X509_STORE_CTX_get_error(ctx),
+        X509_V_ERR_CERT_CHAIN_TOO_LONG);
+    /* Check that depth of 1 also fails */
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leafDeep, untrusted), 1);
     X509_STORE_CTX_set_depth(ctx, 1);
     ExpectIntEQ(X509_verify_cert(ctx), 0);
     ExpectIntEQ(X509_STORE_CTX_get_error(ctx),
         X509_V_ERR_CERT_CHAIN_TOO_LONG);
+    /* check that correct depth value is accepted */
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leafDeep, untrusted), 1);
+    X509_STORE_CTX_set_depth(ctx, 2);
+    ExpectIntEQ(X509_verify_cert(ctx), 1);
+    /* init clears a depth set before it */
+    X509_STORE_CTX_set_depth(ctx, 0);
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leafDeep, untrusted), 1);
+    ExpectIntEQ(X509_verify_cert(ctx), 1);
+    /* negative depth rejects the chain */
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leafDeep, untrusted), 1);
+    X509_STORE_CTX_set_depth(ctx, -1);
+    ExpectIntEQ(X509_verify_cert(ctx), 0);
+    ExpectIntEQ(X509_STORE_CTX_get_error(ctx),
+        X509_V_ERR_CERT_CHAIN_TOO_LONG);
+    /* INT_MAX must not overflow the depth budget */
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leafDeep, untrusted), 1);
+    X509_STORE_CTX_set_depth(ctx, INT_MAX);
+    ExpectIntEQ(X509_verify_cert(ctx), 1);
+    /* a positive depth written directly (no setter) is still honored */
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leafDeep, untrusted), 1);
+    if (ctx != NULL)
+        ctx->depth = 1;
+    ExpectIntEQ(X509_verify_cert(ctx), 0);
+    ExpectIntEQ(X509_STORE_CTX_get_error(ctx),
+        X509_V_ERR_CERT_CHAIN_TOO_LONG);
+    X509_STORE_CTX_free(ctx);
+    X509_STORE_free(store);
+    sk_X509_free(untrusted);
+    return EXPECT_RESULT();
+}
+
+/* The trust anchor never counts against depth, including one from
+ * trusted_stack or store->certs + PARTIAL_CHAIN.
+ *
+ *     int-ca <- root          verifies at depth 0
+ *     leaf <- int-ca <- root  verifies at depth 1, too long at depth 0
+ *     leaf <- int-ca          int-ca in store->certs: verifies at depth 0
+ *                             only with PARTIAL_CHAIN (store or ctx flag);
+ *                             int-ca is not self-issued, so without it the
+ *                             chain is too long */
+static int test_untrusted_inter_depth_trusted_stack(X509* leaf, X509* inter,
+    X509* root)
+{
+    EXPECT_DECLS;
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+    STACK_OF(X509)* trusted = NULL;
+    STACK_OF(X509)* untrusted = NULL;
+
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectNotNull(trusted = sk_X509_new_null());
+    ExpectIntGT(sk_X509_push(trusted, root), 0);
+    ExpectNotNull(untrusted = sk_X509_new_null());
+    ExpectIntGT(sk_X509_push(untrusted, inter), 0);
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, inter, NULL), 1);
+    X509_STORE_CTX_trusted_stack(ctx, trusted);
+    X509_STORE_CTX_set_depth(ctx, 0);
+    ExpectIntEQ(X509_verify_cert(ctx), 1);
+
+    /* A negative depth rejects every chain, even a cert issued
+     * directly by the anchor or the self-signed anchor itself */
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, inter, NULL), 1);
+    X509_STORE_CTX_trusted_stack(ctx, trusted);
+    X509_STORE_CTX_set_depth(ctx, -1);
+    ExpectIntEQ(X509_verify_cert(ctx), 0);
+    ExpectIntEQ(X509_STORE_CTX_get_error(ctx),
+        X509_V_ERR_CERT_CHAIN_TOO_LONG);
+    ExpectIntEQ(X509_STORE_CTX_get_error_depth(ctx), 0);
+
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, root, NULL), 1);
+    X509_STORE_CTX_trusted_stack(ctx, trusted);
+    X509_STORE_CTX_set_depth(ctx, 0);
+    ExpectIntEQ(X509_verify_cert(ctx), 1);
+
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, root, NULL), 1);
+    X509_STORE_CTX_trusted_stack(ctx, trusted);
+    X509_STORE_CTX_set_depth(ctx, INT_MIN);
+    ExpectIntEQ(X509_verify_cert(ctx), 0);
+    ExpectIntEQ(X509_STORE_CTX_get_error(ctx),
+        X509_V_ERR_CERT_CHAIN_TOO_LONG);
+
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leaf, untrusted), 1);
+    X509_STORE_CTX_trusted_stack(ctx, trusted);
+    X509_STORE_CTX_set_depth(ctx, 1);
+    ExpectIntEQ(X509_verify_cert(ctx), 1);
+
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leaf, untrusted), 1);
+    X509_STORE_CTX_trusted_stack(ctx, trusted);
+    X509_STORE_CTX_set_depth(ctx, 0);
+    ExpectIntEQ(X509_verify_cert(ctx), 0);
+    ExpectIntEQ(X509_STORE_CTX_get_error(ctx),
+        X509_V_ERR_CERT_CHAIN_TOO_LONG);
+    X509_STORE_CTX_free(ctx);
+    ctx = NULL;
+    X509_STORE_free(store);
+    store = NULL;
+
+    /* int-ca in store->certs is trusted but not self-issued: without
+     * PARTIAL_CHAIN it cannot end the path, so depth 0 is too long */
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_add_cert(store, inter), 1);
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leaf, NULL), 1);
+    X509_STORE_CTX_set_depth(ctx, 0);
+    ExpectIntEQ(X509_verify_cert(ctx), 0);
+    ExpectIntEQ(X509_STORE_CTX_get_error(ctx),
+        X509_V_ERR_CERT_CHAIN_TOO_LONG);
+
+    /* ctx-level PARTIAL_CHAIN anchors the leaf at int-ca at depth 0 */
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leaf, NULL), 1);
+    X509_STORE_CTX_set_flags(ctx, X509_V_FLAG_PARTIAL_CHAIN);
+    X509_STORE_CTX_set_depth(ctx, 0);
+    ExpectIntEQ(X509_verify_cert(ctx), 1);
+    /* fresh ctx below: init does not clear the ctx-level flag */
+    X509_STORE_CTX_free(ctx);
+    ctx = NULL;
+
+    /* store-level PARTIAL_CHAIN does the same */
+    ExpectIntEQ(X509_STORE_set_flags(store, X509_V_FLAG_PARTIAL_CHAIN), 1);
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leaf, NULL), 1);
+    X509_STORE_CTX_set_depth(ctx, 0);
+    ExpectIntEQ(X509_verify_cert(ctx), 1);
+
+    X509_STORE_CTX_free(ctx);
+    X509_STORE_free(store);
+    sk_X509_free(untrusted);
+    sk_X509_free(trusted);
+    return EXPECT_RESULT();
+}
+
+/* Issuer cycle: loop-a and loop-b are CAs that issued each other and
+ * loop-leaf is issued by loop-a; none reach the trusted root.  Path building
+ * must not walk leaf <- loop-a <- loop-b <- loop-a <- ... until the depth
+ * budget runs out: at INT_MAX ("unlimited") that is ~2^31 signature checks
+ * and chain pushes.  A cert already on the path is never reused as an issuer,
+ * so the cycle, not the budget, ends the search. */
+static int test_untrusted_inter_issuer_cycle(X509* loopLeaf, X509* loopA,
+    X509* loopB, X509* root)
+{
+    EXPECT_DECLS;
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+    STACK_OF(X509)* untrusted = NULL;
+
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_add_cert(store, root), 1);
+    ExpectNotNull(untrusted = sk_X509_new_null());
+    ExpectIntGT(sk_X509_push(untrusted, loopA), 0);
+    ExpectIntGT(sk_X509_push(untrusted, loopB), 0);
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, loopLeaf, untrusted), 1);
+    X509_STORE_CTX_set_depth(ctx, INT_MAX);
+    ExpectIntEQ(X509_verify_cert(ctx), 0);
+    ExpectIntEQ(X509_STORE_CTX_get_error(ctx),
+        X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY);
+
+    /* default depth: still "no issuer", not "chain too long" */
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, loopLeaf, untrusted), 1);
+    ExpectIntEQ(X509_verify_cert(ctx), 0);
+    ExpectIntEQ(X509_STORE_CTX_get_error(ctx),
+        X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY);
+
     X509_STORE_CTX_free(ctx);
     X509_STORE_free(store);
     sk_X509_free(untrusted);
@@ -2312,6 +2484,9 @@ int test_X509_verify_cert_untrusted_inter(void)
     X509* tamperedInter = NULL;
     X509* root = NULL;
     X509* wrongRoot = NULL;
+    X509* loopA = NULL;
+    X509* loopB = NULL;
+    X509* loopLeaf = NULL;
     int sanityRes = 0;
     int twoLevelRes = 0;
     int emptyStoreRes = 0;
@@ -2320,6 +2495,8 @@ int test_X509_verify_cert_untrusted_inter(void)
     int reusedStoreRes = 0;
     int noStaleRes = 0;
     int depthExhaustRes = 0;
+    int depthTrustedStackRes = 0;
+    int issuerCycleRes = 0;
     int trustedStackCleanupRes = 0;
     int trustedStackUnchangedRes = 0;
     int retryRes = 0;
@@ -2341,6 +2518,10 @@ int test_X509_verify_cert_untrusted_inter(void)
     ExpectNotNull(root = untrusted_inter_load(UA_CERT_DIR "root-ca-cert.pem"));
     ExpectNotNull(wrongRoot =
         untrusted_inter_load(UA_CERT_DIR "alt-ca-cert.pem"));
+    ExpectNotNull(loopA = untrusted_inter_load(UA_CERT_DIR "loop-a-cert.pem"));
+    ExpectNotNull(loopB = untrusted_inter_load(UA_CERT_DIR "loop-b-cert.pem"));
+    ExpectNotNull(loopLeaf =
+        untrusted_inter_load(UA_CERT_DIR "loop-leaf-cert.pem"));
 
     /* Run every sub-case unconditionally - each reports its own result - so a
      * regression in one does not mask the others. */
@@ -2360,6 +2541,8 @@ int test_X509_verify_cert_untrusted_inter(void)
                             root);
         depthExhaustRes = test_untrusted_inter_depth_exhaustion(leafDeep,
                             inter, inter2, root);
+        depthTrustedStackRes = test_untrusted_inter_depth_trusted_stack(leaf,
+                            inter, root);
         trustedStackCleanupRes = test_untrusted_inter_trusted_stack_cleanup(
                             leaf, inter, root);
         trustedStackUnchangedRes =
@@ -2384,6 +2567,7 @@ int test_X509_verify_cert_untrusted_inter(void)
         ExpectIntEQ(reusedStoreRes, 1);
         ExpectIntEQ(noStaleRes, 1);
         ExpectIntEQ(depthExhaustRes, 1);
+        ExpectIntEQ(depthTrustedStackRes, 1);
         ExpectIntEQ(trustedStackCleanupRes, 1);
         ExpectIntEQ(trustedStackUnchangedRes, 1);
         ExpectIntEQ(retryRes, 1);
@@ -2394,6 +2578,12 @@ int test_X509_verify_cert_untrusted_inter(void)
 #endif
         ExpectIntEQ(storeStackRes, 1);
     }
+    /* Own guard so a missing loop fixture does not skip the sub-cases above. */
+    if (loopA != NULL && loopB != NULL && loopLeaf != NULL && root != NULL) {
+        issuerCycleRes = test_untrusted_inter_issuer_cycle(loopLeaf, loopA,
+                            loopB, root);
+        ExpectIntEQ(issuerCycleRes, 1);
+    }
 
     X509_free(leaf);
     X509_free(leafDeep);
@@ -2402,6 +2592,9 @@ int test_X509_verify_cert_untrusted_inter(void)
     X509_free(tamperedInter);
     X509_free(root);
     X509_free(wrongRoot);
+    X509_free(loopA);
+    X509_free(loopB);
+    X509_free(loopLeaf);
 #undef UA_CERT_DIR
 #endif /* OPENSSL_EXTRA && !NO_RSA && !NO_CERTS && !NO_FILESYSTEM */
     return EXPECT_RESULT();
