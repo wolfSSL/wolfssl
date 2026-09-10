@@ -1481,16 +1481,10 @@ int wc_RNG_DRBG_NextUncreditedSeedNow(WC_RNG* rng);
 
     \return 0 Success
     \return BAD_FUNC_ARG rng is null.
-    \return NEEDS_RECOVERY_E The instance's entropy is invalidated; recover
-    before use.
     \return BUSY_E The lock is held.
-    \return NEEDS_RECOVERY_E The instance is entropy-invalidated (see
-    wc_RNG_invalidate_entropy()); recover by credited reseed.
-    \return BAD_MUTEX_E (WC_RNG_HAVE_LOCK_FULL_MUTEX) The outer mutex failed.
-    \return UNEXPECTED_STATE_E Spurious acquisition failure; retry.
-    \return BUSY_E The lock is held.
-    \return NEEDS_RECOVERY_E The instance is entropy-invalidated (see
-    wc_RNG_invalidate_entropy()); recover by credited reseed.
+    \return NEEDS_RECOVERY_E The instance's entropy is invalidated (see
+    wc_RNG_invalidate_entropy()); recover with a credited reseed before
+    use.
     \return BAD_MUTEX_E (WC_RNG_HAVE_LOCK_FULL_MUTEX) The outer mutex failed.
     \return UNEXPECTED_STATE_E Spurious acquisition failure; retry.
 
