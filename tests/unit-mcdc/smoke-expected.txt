@@ -1,3 +1,4 @@
+test_aes_whitebox
 test_asn_cert_whitebox
 test_asn_ext_whitebox
 test_asn_fault_whitebox
