@@ -82,6 +82,15 @@
     #error WC_LINUXKM_C_FALLBACK_IN_SHIMS is defined but WC_FLAG_DONT_USE_VECTOR_OPS is missing.
 #endif
 
+#if IS_ENABLED(CONFIG_PREEMPT_RT) && !defined(WC_LINUXKM_SVR_NO_BATCHING)
+    /* SVR batching holds the FPU section across scatterwalk advancement, which
+     * PREEMPT_RT forbids: walk/map paths must run preemptible (see
+     * Documentation/core-api/real-time/architecture-porting.rst).  Per-op SVRs
+     * remain RT-legal.
+     */
+    #define WC_LINUXKM_SVR_NO_BATCHING
+#endif
+
 /* note the FIPS code will be returned on failure even in non-FIPS builds. */
 #define LINUXKM_LKCAPI_AES_KAT_MISMATCH_E AES_KAT_FIPS_E
 #define LINUXKM_LKCAPI_AESGCM_KAT_MISMATCH_E AESGCM_KAT_FIPS_E
