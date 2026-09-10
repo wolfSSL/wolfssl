@@ -574,7 +574,7 @@ do {                                                                           \
     ExpectIntEQ(wc_##name##_Final(&dst, hashDst, WC_##upper##_COUNT * 8), 0);  \
     ExpectBufEQ(hashSrc, emptyHash, WC_##upper##_COUNT * 8);                   \
     ExpectBufEQ(hashDst, emptyHash, WC_##upper##_COUNT * 8);                   \
-    wc_##name##_Free(&src);                                                    \
+    wc_##name##_Free(&dst);                                                    \
                                                                                \
     /* Test buffered data is copied. */                                        \
     ExpectIntEQ(wc_##name##_Update(&src, (byte*)"abc", 3), 0);                 \
@@ -583,7 +583,7 @@ do {                                                                           \
     ExpectIntEQ(wc_##name##_Final(&dst, hashDst, WC_##upper##_COUNT * 8), 0);  \
     ExpectBufEQ(hashSrc, abcHash, WC_##upper##_COUNT * 8);                     \
     ExpectBufEQ(hashDst, abcHash, WC_##upper##_COUNT * 8);                     \
-    wc_##name##_Free(&src);                                                    \
+    wc_##name##_Free(&dst);                                                    \
                                                                                \
     /* Test count of length is copied. */                                      \
     ExpectIntEQ(wc_##name##_Update(&src, data, sizeof(data)), 0);              \
