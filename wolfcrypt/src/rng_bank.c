@@ -1755,7 +1755,23 @@ WOLFSSL_API int wc_rng_bank_recover_inst(
          * operation gate is retryable on a later patrol turn. */
         ret = wc_rng_bank_inst_reinit(bank, rng_inst, timeout_secs, flags);
     }
+#if defined(WC_RNG_HAVE_LOCK) && defined(HAVE_HASHDRBG)
+    else {
+        WC_RNG_lock_arg_t lock_state = 0;
+        if ((wc_rng_bank_inst_lock_read(rng_inst, &lock_state) == 0) &&
+            (lock_state & WC_RNG_LOCK_ENTROPY_INVALIDATED))
+        {
+            /* In service but quarantined: one credited reseed clears the
+             * quarantine -- lighter than reinit, preserving instance
+             * identity. */
+            ret = wc_RNG_DRBG_Reseed_Now(WC_RNG_BANK_INST_TO_RNG(rng_inst),
+                                         NULL, 0);
+        }
+        /* else: healthy -- a stale lockless status observation; no-op. */
+    }
+#else
     /* else: healthy -- a stale lockless status observation; no-op. */
+#endif
 
     checkin_ret = wc_rng_bank_checkin(bank, &rng_inst);
     if ((checkin_ret != 0) && (ret == 0))

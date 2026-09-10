@@ -3388,7 +3388,13 @@ static struct wc_rng_bank_inst *linuxkm_get_drbg(struct wc_rng_bank *ctx) {
 
 static void linuxkm_put_drbg(struct wc_rng_bank_inst **drbg) {
     int ret = wc_rng_bank_inst_checkin(drbg);
-    if (ret != 0) {
+    if (ret == WC_NO_ERR_TRACE(NEEDS_RECOVERY_E)) {
+        /* informational: checked in successfully; the instance is
+         * entropy-invalidated (e.g. a state-invalidation event landed
+         * mid-lease) and recovers via the checkout admissions or the
+         * patrol. */
+    }
+    else if (ret != 0) {
         pr_err("ERROR: wc_rng_bank_inst_checkin() in linuxkm_put_drbg() "
                "returned err %d.\n", ret);
         WC_DUMP_BACKTRACE_NONDEBUG;
