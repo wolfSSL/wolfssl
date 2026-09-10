@@ -2241,13 +2241,34 @@ int test_wolfSSL_hs_info_cb(void)
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD) && \
     !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA)
 
-/* One handshake, with one byte flipped at one point. `dir` selects the
- * direction: 0 corrupts what the server sent, 1 corrupts what the client sent.
+/* One handshake, with one byte flipped at one point.
+ *
+ * `dir` selects whose bytes get hit. test_memio_write_cb stores by the
+ * WRITER's side, so c_buff holds what the server wrote and s_buff what the
+ * client wrote:
+ *
+ *   dir 0 (server -> client): one round of test_memio_do_handshake() runs the
+ *   client and then the server, so at the end of a round the client's bytes
+ *   have already been consumed and only the server's are in flight. Mangle
+ *   c_buff.
+ *
+ *   dir 1 (client -> server): step the client on its own so its output is
+ *   left pending, then mangle s_buff before the server reads it. This is the
+ *   only way to reach the server's receive and error paths -- driving whole
+ *   rounds and mangling s_buff corrupted nothing at all, because s_buff was
+ *   empty every time.
+ *
  * `round` is how many exchange rounds to let pass first, which is what selects
  * WHICH handshake message gets hit -- the ClientHello, the certificate, the
- * key exchange, the Finished. */
+ * key exchange, the Finished.
+ *
+ * Returns 1 if a byte was actually corrupted, 0 otherwise, and reports through
+ * *hsDone whether the handshake nevertheless completed on both sides. Without
+ * the second output a broken fixture -- no handshake ever completing -- looks
+ * exactly like a healthy sweep. */
 static int test_wire_mangle_one(method_provider mc, method_provider ms,
-                                int round, int off, byte mask)
+                                int dir, int round, int off, byte mask,
+                                int* hsDone)
 {
     struct test_memio_ctx test_ctx;
     WOLFSSL_CTX* ctx_c = NULL;
@@ -2256,6 +2277,9 @@ static int test_wire_mangle_one(method_provider mc, method_provider ms,
     WOLFSSL* ssl_s = NULL;
     int i;
     int ret = 0;
+
+    if (hsDone != NULL)
+        *hsDone = 0;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     if (test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s, mc, ms)
@@ -2272,18 +2296,17 @@ static int test_wire_mangle_one(method_provider mc, method_provider ms,
     for (i = 0; i < 12; i++) {
         int rounds = 0;
 
-        (void)test_memio_do_handshake(ssl_c, ssl_s, 1, &rounds);
+        if (i == round && dir == 1) {
+            /* Client only, so what it writes stays queued in s_buff. */
+            (void)wolfSSL_connect(ssl_c);
+        }
+        else {
+            (void)test_memio_do_handshake(ssl_c, ssl_s, 1, &rounds);
+        }
 
         if (i == round) {
-            /* c_buff is what the SERVER wrote and the client has yet to
-             * read: test_memio_write_cb stores by the writer's side, and a
-             * round of test_memio_do_handshake runs the client and then the
-             * server, so at this point the client's own bytes have already
-             * been consumed out of s_buff and only this direction is in
-             * flight. Mangling s_buff here corrupted nothing at all -- it was
-             * empty every time -- which an aggregate assertion hid. */
-            byte* buf = test_ctx.c_buff;
-            int   len = test_ctx.c_len;
+            byte* buf = (dir == 0) ? test_ctx.c_buff : test_ctx.s_buff;
+            int   len = (dir == 0) ? test_ctx.c_len  : test_ctx.s_len;
 
             if (len > off) {
                 buf[off] ^= mask;
@@ -2293,10 +2316,11 @@ static int test_wire_mangle_one(method_provider mc, method_provider ms,
         }
     }
 
-    wolfSSL_free(ssl_c);
-    wolfSSL_free(ssl_s);
-    wolfSSL_CTX_free(ctx_c);
-    wolfSSL_CTX_free(ctx_s);
+    if (hsDone != NULL) {
+        *hsDone = (wolfSSL_is_init_finished(ssl_c) &&
+                   wolfSSL_is_init_finished(ssl_s));
+    }
+
     return ret;
 }
 
@@ -2314,63 +2338,99 @@ int test_tls_wire_mangle(void)
     static const int offsets[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 13,
                                    20, 45, 80, 120, 200, 400, 900 };
     static const byte masks[] = { 0x01, 0x80, 0xff };
-    /* Per method, not just in total: one aggregate count is satisfied by a
-     * single mutation anywhere, which lets an entire protocol's sweep be a
-     * no-op unnoticed. A method that is not compiled stays zero and is
-     * excluded from the assertion by the same #ifdef that skips its calls. */
+    /* Per method and per direction, not just in total: one aggregate count is
+     * satisfied by a single mutation anywhere, which lets an entire protocol's
+     * sweep -- or one whole direction of it -- be a no-op unnoticed. A method
+     * that is not compiled stays zero and is excluded from the assertions by
+     * the same #ifdef that skips its calls. */
     enum { WM_TLS12, WM_TLS13, WM_DTLS12, WM_DTLS13, WM_METHODS };
-    int round, o, m;
-    int applied[WM_METHODS];
+    enum { WM_S2C, WM_C2S, WM_DIRS };
+    int round, o, m, d;
+    int applied[WM_METHODS][WM_DIRS];
+    int broke[WM_METHODS][WM_DIRS];
+    int clean = 0;
 
     XMEMSET(applied, 0, sizeof(applied));
+    XMEMSET(broke, 0, sizeof(broke));
 
+#define WM_RUN(idx, cm, sm)                                                  \
+    do {                                                                     \
+        int hs = 0;                                                          \
+        int hit = test_wire_mangle_one((cm), (sm), d, round, offsets[o],     \
+                                       masks[m], &hs);                       \
+        applied[idx][d] += hit;                                              \
+        if (hit && !hs)                                                      \
+            broke[idx][d]++;                                                 \
+    } while (0)
+
+    for (d = 0; d < WM_DIRS; d++) {
     for (round = 0; round < 7; round++) {
         for (o = 0; o < (int)(sizeof(offsets) / sizeof(offsets[0])); o++) {
             for (m = 0; m < (int)(sizeof(masks) / sizeof(masks[0])); m++) {
-                    applied[WM_TLS12] +=
-                        test_wire_mangle_one(wolfTLSv1_2_client_method,
-                            wolfTLSv1_2_server_method, round, offsets[o],
-                            masks[m]);
+                    WM_RUN(WM_TLS12, wolfTLSv1_2_client_method,
+                        wolfTLSv1_2_server_method);
 #ifdef WOLFSSL_TLS13
-                    applied[WM_TLS13] +=
-                        test_wire_mangle_one(wolfTLSv1_3_client_method,
-                            wolfTLSv1_3_server_method, round, offsets[o],
-                            masks[m]);
+                    WM_RUN(WM_TLS13, wolfTLSv1_3_client_method,
+                        wolfTLSv1_3_server_method);
 #endif
 #ifdef WOLFSSL_DTLS
-                    applied[WM_DTLS12] +=
-                        test_wire_mangle_one(wolfDTLSv1_2_client_method,
-                            wolfDTLSv1_2_server_method, round, offsets[o],
-                            masks[m]);
+                    WM_RUN(WM_DTLS12, wolfDTLSv1_2_client_method,
+                        wolfDTLSv1_2_server_method);
 #endif
 #ifdef WOLFSSL_DTLS13
-                    applied[WM_DTLS13] +=
-                        test_wire_mangle_one(wolfDTLSv1_3_client_method,
-                            wolfDTLSv1_3_server_method, round, offsets[o],
-                            masks[m]);
+                    WM_RUN(WM_DTLS13, wolfDTLSv1_3_client_method,
+                        wolfDTLSv1_3_server_method);
 #endif
             }
         }
     }
+    }
 
-    /* Every compiled method must have corrupted a byte somewhere; a zero
-     * means that whole protocol's sweep ran clean traffic. */
-    ExpectIntGT(applied[WM_TLS12], 0);
+#undef WM_RUN
+
+    /* Every compiled method must have corrupted a byte in each direction; a
+     * zero means that whole protocol's sweep, or that whole direction of it,
+     * ran clean traffic. And a corrupted byte must have broken at least one
+     * handshake: if none of them ever failed, the mutations never reached a
+     * parser and the error arms this test claims are untouched. Not every
+     * applied vector may fail -- a flipped byte in a session id, a random or
+     * an ignored extension is carried through to a complete handshake -- so
+     * this is asserted over the sweep, not per vector. */
+    for (d = 0; d < WM_DIRS; d++) {
+        ExpectIntGT(applied[WM_TLS12][d], 0);
+        ExpectIntGT(broke[WM_TLS12][d], 0);
 #ifdef WOLFSSL_TLS13
-    ExpectIntGT(applied[WM_TLS13], 0);
+        ExpectIntGT(applied[WM_TLS13][d], 0);
+        ExpectIntGT(broke[WM_TLS13][d], 0);
 #endif
 #ifdef WOLFSSL_DTLS
-    ExpectIntGT(applied[WM_DTLS12], 0);
+        ExpectIntGT(applied[WM_DTLS12][d], 0);
+        ExpectIntGT(broke[WM_DTLS12][d], 0);
 #endif
 #ifdef WOLFSSL_DTLS13
-    ExpectIntGT(applied[WM_DTLS13], 0);
+        ExpectIntGT(applied[WM_DTLS13][d], 0);
+        ExpectIntGT(broke[WM_DTLS13][d], 0);
 #endif
+    }
 
     /* A clean handshake through the same path, so every decision the corrupted
      * runs took one way has its partner in this same binary. Round 99 matches
-     * no iteration, so nothing is flipped and it reports no mutation. */
+     * no iteration, so nothing is flipped -- and it must complete, which is
+     * what proves the fixture itself works and the failures above came from
+     * the mutations rather than from a broken setup. */
     ExpectIntEQ(test_wire_mangle_one(wolfTLSv1_2_client_method,
-        wolfTLSv1_2_server_method, 99, 0, 0x00), 0);
+        wolfTLSv1_2_server_method, WM_S2C, 99, 0, 0x00, &clean), 0);
+    ExpectIntEQ(clean, 1);
+
+    /* And one that does take the client-only step, at an offset past the end
+     * of any buffer so nothing is flipped. Stepping the client on its own
+     * costs the round one server turn; this shows that on its own that does
+     * not stop the handshake, so the failures counted above came from the
+     * mutations rather than from the stepping. */
+    ExpectIntEQ(test_wire_mangle_one(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method, WM_C2S, 0, TEST_MEMIO_BUF_SZ, 0x00,
+        &clean), 0);
+    ExpectIntEQ(clean, 1);
 #endif
     return EXPECT_RESULT();
 }
