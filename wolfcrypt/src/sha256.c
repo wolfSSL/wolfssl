@@ -2995,6 +2995,22 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
             /* via their callback setting devId to INVALID_DEVID */
             /* otherwise assume the callback handled it */
             if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+                /* Release heap state first; the wipe drops its pointers. */
+                #ifdef WOLFSSL_SMALL_STACK_CACHE
+                if (sha224->W != NULL) {
+                    ForceZero(sha224->W,
+                        sizeof(word32) * WC_SHA224_BLOCK_SIZE);
+                    XFREE(sha224->W, sha224->heap, DYNAMIC_TYPE_DIGEST);
+                    sha224->W = NULL;
+                }
+                #endif
+                #ifdef WOLFSSL_HASH_KEEP
+                if (sha224->msg != NULL) {
+                    ForceZero(sha224->msg, sha224->len);
+                    XFREE(sha224->msg, sha224->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                    sha224->msg = NULL;
+                }
+                #endif
                 ForceZero(sha224, sizeof(*sha224));
                 return;
             }
@@ -3074,6 +3090,22 @@ void wc_Sha256Free(wc_Sha256* sha256)
         /* via their callback setting devId to INVALID_DEVID */
         /* otherwise assume the callback handled it */
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            /* Release heap state first; the wipe drops its pointers. */
+            #ifdef WOLFSSL_SMALL_STACK_CACHE
+            if (sha256->W != NULL) {
+                ForceZero(sha256->W,
+                    sizeof(word32) * WC_SHA256_BLOCK_SIZE);
+                XFREE(sha256->W, sha256->heap, DYNAMIC_TYPE_DIGEST);
+                sha256->W = NULL;
+            }
+            #endif
+            #ifdef WOLFSSL_HASH_KEEP
+            if (sha256->msg != NULL) {
+                ForceZero(sha256->msg, sha256->len);
+                XFREE(sha256->msg, sha256->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                sha256->msg = NULL;
+            }
+            #endif
             ForceZero(sha256, sizeof(*sha256));
             return;
         }
