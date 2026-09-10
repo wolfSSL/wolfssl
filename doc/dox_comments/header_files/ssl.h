@@ -5268,6 +5268,16 @@ long wolfSSL_BIO_get_mem_ptr(WOLFSSL_BIO *bio, WOLFSSL_BUF_MEM **m);
 
     \brief This function copies the name of the x509 into a buffer.
 
+    The name is written in the one-line form "/type=value/type=value..."
+    (e.g. "/C=US/O=Org/CN=example.com"). Within an attribute value, each
+    "\\", "/" and "+" is prefixed with a "\\" so that it cannot be mistaken
+    for a separator (e.g. a CN of "a/b" is written "/CN=a\\/b"). The format
+    is similar to, but not byte-identical with, OpenSSL's
+    X509_NAME_oneline(): wolfSSL also escapes "\\", does not hex-escape
+    bytes outside 0x20-0x7E (OpenSSL writes them as "\\xHH"), and always
+    separates attributes with "/", even within a multi-valued RDN (OpenSSL
+    uses "+").
+
     \return A char pointer to the buffer with the WOLFSSL_X509_NAME structures
     name member’s data is returned if the function executed normally.
 
