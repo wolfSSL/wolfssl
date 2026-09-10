@@ -222,6 +222,6 @@ if(CONFIG_WOLFSSL)
     # after wolfssl_external on the linkers command line.
   endif()
 
-  target_link_libraries(wolfSSL INTERFACE zephyr_interface)
+  zephyr_link_libraries(wolfSSL)
 
 endif()
