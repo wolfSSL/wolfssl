@@ -8757,6 +8757,10 @@ int test_dtls13_wire_mangle(void)
 #define DFHS_FRAGLEN 9      /* 3 bytes */
 #define DFHS_HDR_SZ  12
 
+/* Packets a policy actually altered since the last reset. Single-threaded,
+ * like the rest of this harness. */
+static int df_mutations;
+
 typedef struct DfPkt {
     byte data[DF_MAX_SZ];
     int  len;
@@ -8821,9 +8825,26 @@ static int df_send(WOLFSSL* ssl, char* buf, int sz, void* ctx)
     c->n++;
 
     /* The policy sees the packet in flight, with its header parsed, and may
-     * edit it, drop it, delay it or clone it before anyone receives it. */
-    if (c->policy != NULL)
+     * edit it, drop it, delay it or clone it before anyone receives it.
+     *
+     * Counted, because a policy that matches no packet in a given run is
+     * indistinguishable from one that ran clean traffic: the sweep would pass
+     * having forged nothing. Comparing the whole DfPkt across the call catches
+     * an edit, a drop, a hold and a clone alike, without every policy having
+     * to report for itself. */
+    if (c->policy != NULL) {
+        DfPkt before;
+        int   acted = c->nDrop + c->nDup + c->nMod + c->nHold + c->nCoalesce;
+
+        XMEMCPY(&before, p, sizeof(before));
         c->policy(c, p);
+        /* Both halves are needed: a policy that edits bytes changes the packet
+         * and touches no counter, while one that replays or drops leaves the
+         * packet alone and moves a counter. */
+        if (XMEMCMP(&before, p, sizeof(before)) != 0 ||
+                c->nDrop + c->nDup + c->nMod + c->nHold + c->nCoalesce != acted)
+            df_mutations++;
+    }
 
     return sz;
 }
@@ -9788,6 +9809,7 @@ static int df_run(method_provider mc, method_provider ms,
 
 static int df_sweep(method_provider mc, method_provider ms)
 {
+    int vacuous = 0;
     static const DfPolicy pols[] = {
         df_pol_replay, df_pol_seq_future, df_pol_seq_past,
         df_pol_epoch_future, df_pol_epoch_zero, df_pol_drop, df_pol_reorder,
@@ -9810,9 +9832,33 @@ static int df_sweep(method_provider mc, method_provider ms)
     /* target 0..3 selects which datagram of that direction is acted on, so
      * each forgery is tried against the ClientHello, the server's flight, the
      * client's second flight and the finished exchange. */
-    for (i = 0; i < sizeof(pols) / sizeof(pols[0]); i++)
+    /* A policy that matches no packet forges nothing, and a sweep made only of
+     * those would report success having sent clean traffic throughout. Some
+     * are legitimately inapplicable -- df_pol_ch_bad_group needs a key_share,
+     * which DTLS 1.2 has no reason to send, and the deepest body pokes fall
+     * past the end of a short ClientHello -- so a vacuous policy is named
+     * rather than failed, and the sweep as a whole is required to have forged
+     * something. */
+    df_mutations = 0;
+    for (i = 0; i < sizeof(pols) / sizeof(pols[0]); i++) {
+        int before = df_mutations;
+
         for (t = 0; t < 4; t++)
             (void)df_run(mc, ms, pols[i], t);
+        if (df_mutations == before) {
+            fprintf(stderr, "  df_sweep: policy %d matched no packet\n",
+                    (int)i);
+            vacuous++;
+        }
+    }
+    if (df_mutations == 0) {
+        fprintf(stderr, "df_sweep: no policy altered anything\n");
+        return -1;
+    }
+    if (vacuous > 0) {
+        fprintf(stderr, "  df_sweep: %d of %d policies did not apply here\n",
+                vacuous, (int)(sizeof(pols) / sizeof(pols[0])));
+    }
 
     /* the same policies again over a resuming handshake, where the hello
      * carries the PSK extensions the operands above read */

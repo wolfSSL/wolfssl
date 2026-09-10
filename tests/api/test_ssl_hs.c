@@ -2266,7 +2266,7 @@ static int test_wire_mangle_one(method_provider mc, method_provider ms,
         wolfSSL_free(ssl_s);
         wolfSSL_CTX_free(ctx_c);
         wolfSSL_CTX_free(ctx_s);
-        return 0;
+        return 0;   /* no usable credentials: no mutation either */
     }
 
     for (i = 0; i < 12; i++) {
@@ -2278,10 +2278,11 @@ static int test_wire_mangle_one(method_provider mc, method_provider ms,
             byte* buf = dir ? test_ctx.s_buff : test_ctx.c_buff;
             int   len = dir ? test_ctx.s_len  : test_ctx.c_len;
 
-            if (len > off)
+            if (len > off) {
                 buf[off] ^= mask;
-            else
-                ret = 1;    /* nothing in flight here; note it and carry on */
+                ret = 1;    /* a byte was actually corrupted */
+            }
+            /* else: nothing in flight at this round/offset; ret stays 0 */
         }
     }
 
@@ -2306,27 +2307,29 @@ int test_tls_wire_mangle(void)
     static const int offsets[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 13,
                                    20, 45, 80, 120, 200, 400, 900 };
     static const byte masks[] = { 0x01, 0x80, 0xff };
-    int round, o, m, dir;
+    /* applied: a round/offset pair with nothing in flight corrupts nothing,
+     * and a sweep made only of those would pass having mangled no traffic. */
+    int round, o, m, dir, applied = 0;
 
     for (round = 0; round < 7; round++) {
         for (o = 0; o < (int)(sizeof(offsets) / sizeof(offsets[0])); o++) {
             for (m = 0; m < (int)(sizeof(masks) / sizeof(masks[0])); m++) {
                 for (dir = 0; dir < 2; dir++) {
-                    (void)test_wire_mangle_one(wolfTLSv1_2_client_method,
+                    applied += test_wire_mangle_one(wolfTLSv1_2_client_method,
                         wolfTLSv1_2_server_method, round, offsets[o],
                         masks[m], dir);
 #ifdef WOLFSSL_TLS13
-                    (void)test_wire_mangle_one(wolfTLSv1_3_client_method,
+                    applied += test_wire_mangle_one(wolfTLSv1_3_client_method,
                         wolfTLSv1_3_server_method, round, offsets[o],
                         masks[m], dir);
 #endif
 #ifdef WOLFSSL_DTLS
-                    (void)test_wire_mangle_one(wolfDTLSv1_2_client_method,
+                    applied += test_wire_mangle_one(wolfDTLSv1_2_client_method,
                         wolfDTLSv1_2_server_method, round, offsets[o],
                         masks[m], dir);
 #endif
 #ifdef WOLFSSL_DTLS13
-                    (void)test_wire_mangle_one(wolfDTLSv1_3_client_method,
+                    applied += test_wire_mangle_one(wolfDTLSv1_3_client_method,
                         wolfDTLSv1_3_server_method, round, offsets[o],
                         masks[m], dir);
 #endif
@@ -2335,8 +2338,12 @@ int test_tls_wire_mangle(void)
         }
     }
 
+    /* At least one of those rounds must have corrupted a real byte. */
+    ExpectIntGT(applied, 0);
+
     /* A clean handshake through the same path, so every decision the corrupted
-     * runs took one way has its partner in this same binary. */
+     * runs took one way has its partner in this same binary. Round 99 matches
+     * no iteration, so nothing is flipped and it reports no mutation. */
     ExpectIntEQ(test_wire_mangle_one(wolfTLSv1_2_client_method,
         wolfTLSv1_2_server_method, 99, 0, 0x00, 0), 0);
 #endif

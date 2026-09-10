@@ -2581,7 +2581,8 @@ int test_wolfSSL_crl_io_mock(void)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     int i;
-    static const int results[] = { 0, -1, 1 };
+    static const int results[] = { 0, -1, 1,
+                                   WOLFSSL_CBIO_ERR_WANT_READ };
 
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
     ExpectIntEQ(wolfSSL_CTX_EnableCRL(ctx, WOLFSSL_CRL_CHECK),
@@ -2594,16 +2595,38 @@ int test_wolfSSL_crl_io_mock(void)
     (void)wolfSSL_SetCRL_IOCb(ssl, NULL);
     (void)wolfSSL_CTX_SetCRL_IOCb(ctx, NULL);
 
-    /* then the callback installed, returning each of the outcomes a
-     * distribution point can produce */
-    for (i = 0; i < (int)(sizeof(results) / sizeof(results[0])); i++) {
-        g_crlIoResult = results[i];
-        g_crlIoCalls = 0;
-        (void)wolfSSL_CTX_SetCRL_IOCb(ctx, test_crl_io_mock);
-        (void)wolfSSL_SetCRL_IOCb(ssl, test_crl_io_mock);
-        /* loading a certificate whose CRL is missing is what drives the
-         * callback; the load itself is allowed to fail */
-        (void)wolfSSL_CTX_load_verify_locations(ctx, caCertFile, NULL);
+    (void)wolfSSL_CTX_SetCRL_IOCb(ctx, test_crl_io_mock);
+    (void)wolfSSL_SetCRL_IOCb(ssl, test_crl_io_mock);
+
+    /* Then the callback for real. Loading a CA does not consult a CRL, so
+     * driving this through load_verify_locations left the mock uncalled and
+     * the whole loop measuring nothing; the callback is reached from the CRL
+     * check inside certificate verification. */
+    {
+        WOLFSSL_CERT_MANAGER* cm = NULL;
+        int invoked = 0;
+
+        ExpectNotNull(cm = wolfSSL_CertManagerNew());
+        ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECK),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, caCertFile, NULL),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CertManagerSetCRL_IOCb(cm, test_crl_io_mock),
+                    WOLFSSL_SUCCESS);
+
+        for (i = 0; i < (int)(sizeof(results) / sizeof(results[0])); i++) {
+            g_crlIoResult = results[i];
+            g_crlIoCalls = 0;
+            /* no CRL is loaded for this issuer, so the check has to fetch one;
+             * the verify itself is expected to fail */
+            (void)wolfSSL_CertManagerVerify(cm, svrCertFile,
+                                            WOLFSSL_FILETYPE_PEM);
+            if (g_crlIoCalls > 0)
+                invoked++;
+        }
+        /* If none of them reached the transport the rows below it are vacuous */
+        ExpectIntGT(invoked, 0);
+        wolfSSL_CertManagerFree(cm);
     }
 
     wolfSSL_free(ssl);
@@ -2761,7 +2784,7 @@ int test_wolfSSL_x509_accessor_guards(void)
     WOLFSSL_X509* x509 = NULL;
     byte  buf[2048];
     int   iSz = (int)sizeof(buf);
-    word32 wSz = (word32)sizeof(buf);
+    int    wSz = (int)sizeof(buf);
     const byte* der = NULL;
     int   derSz = 0;
 
@@ -2810,9 +2833,9 @@ int test_wolfSSL_x509_accessor_guards(void)
         (void)wolfSSL_X509_check_host(x509, NULL, 0, 0, NULL);
         (void)wolfSSL_X509_check_host(NULL, "example.com", 11, 0, NULL);
 #endif
-        wSz = (word32)sizeof(buf);
-        (void)wolfSSL_X509_get_pubkey_buffer(x509, buf, (int*)&wSz);
-        (void)wolfSSL_X509_get_pubkey_buffer(x509, NULL, (int*)&wSz);
+        wSz = (int)sizeof(buf);
+        (void)wolfSSL_X509_get_pubkey_buffer(x509, buf, &wSz);
+        (void)wolfSSL_X509_get_pubkey_buffer(x509, NULL, &wSz);
         (void)wolfSSL_X509_get_pubkey_buffer(x509, buf, NULL);
 
         /* --- host and IP matching, both operands of each guard --------- */
@@ -3054,8 +3077,11 @@ int test_wolfSSL_load_pathological_files(void)
 int test_wolfSSL_load_from_fifo(void)
 {
     EXPECT_DECLS;
+/* __linux__, not __unix__: the fixture holds the FIFO open with O_RDWR, which
+ * POSIX leaves undefined for FIFOs. Linux defines it; elsewhere the open could
+ * fail and every check below would silently skip. */
 #if !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
-    !defined(NO_WOLFSSL_CLIENT) && defined(__unix__) && !defined(NO_TLS)
+    !defined(NO_WOLFSSL_CLIENT) && defined(__linux__) && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     const char* fifo = "test-cert-fifo.tmp";
     int fd = -1;
