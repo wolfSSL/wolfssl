@@ -97,8 +97,23 @@ static void wb_record(const Rec* r, WOLFSSL* ssl)
     g_input[0] = r->type;
     g_input[1] = r->pvMajor;
     g_input[2] = r->pvMinor;
-    g_input[3] = (byte)(r->len >> 8);
-    g_input[4] = (byte)(r->len & 0xff);
+#ifdef WOLFSSL_DTLS
+    if (r->dtls) {
+        /* RFC 6347 4.1: epoch at 3-4 and a 48-bit sequence at 5-10 sit
+         * between the version and the length, so a DTLS row must put the
+         * length at 11-12. Writing it at 3-4 made every DTLS row declare a
+         * zero length and carry the intended length as an epoch. */
+        g_input[3]  = 0;
+        g_input[4]  = r->curEpoch;   /* the epoch the record claims */
+        g_input[11] = (byte)(r->len >> 8);
+        g_input[12] = (byte)(r->len & 0xff);
+    }
+    else
+#endif
+    {
+        g_input[3] = (byte)(r->len >> 8);
+        g_input[4] = (byte)(r->len & 0xff);
+    }
 
     ssl->buffers.inputBuffer.buffer = g_input;
     ssl->buffers.inputBuffer.bufferSize = (word32)sizeof(g_input);
