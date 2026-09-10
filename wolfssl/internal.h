@@ -4239,7 +4239,8 @@ struct WOLFSSL_CTX {
     byte        haveStaticECC:1;  /* static server ECC private key */
     byte        partialWrite:1;   /* only one msg per write call */
     byte        autoRetry:1;      /* retry read/write on a WANT_{READ|WRITE} */
-    byte        quietShutdown:1;  /* don't send close notify */
+    byte        quietShutdown:1;  /* don't send close notify, unless a
+                                   * user_canceled alert owes the peer one */
     byte        groupMessages:1;  /* group handshake messages before sending */
     byte        minDowngrade;     /* minimum downgrade version */
     byte        haveEMS:1;        /* have extended master secret extension */
@@ -5470,6 +5471,8 @@ struct Options {
     word16            isClosed:1;         /* if we consider conn closed */
     word16            closeNotify:1;      /* we've received a close notify */
     word16            sentNotify:1;       /* we've sent a close notify */
+    word16            sentUserCanceled:1; /* we've sent a user_canceled and
+                                           * owe the peer a close notify */
     word16            usingCompression:1; /* are we using compression */
     word16            haveRSA:1;          /* RSA available */
     word16            haveECC:1;          /* ECC available */
@@ -5493,7 +5496,9 @@ struct Options {
 #endif
 #endif
     word16            partialWrite:1;     /* only one msg per write call */
-    word16            quietShutdown:1;    /* don't send close notify */
+    word16            quietShutdown:1;    /* don't send close notify, unless a
+                                           * user_canceled alert owes the peer
+                                           * one - see sentUserCanceled */
     word16            certOnly:1;         /* stop once we get cert */
     word16            groupMessages:1;    /* group handshake messages */
     word16            saveArrays:1;       /* save array Memory for user get keys

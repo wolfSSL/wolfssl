@@ -827,6 +827,13 @@ int wolfSSL_dtls_set_export(WOLFSSL* ssl, wc_dtls_export func);
     passed to function then sz will be set to the size of buffer needed
     for serializing the WOLFSSL session.
 
+    One piece of shutdown state is not carried: a "user_canceled" alert sent
+    with wolfSSL_SendUserCanceled() owes the peer a close notify, and that
+    obligation is not part of the serialized form. A session exported between
+    the two alerts and imported elsewhere loses it, so a quiet shutdown on the
+    imported session sends nothing. Complete the shutdown before exporting to
+    avoid it.
+
     \return Success If successful, the amount of the buffer used will
     be returned.
     \return Failure All unsuccessful return values will be less than 0.
@@ -866,6 +873,13 @@ int wolfSSL_dtls_export(WOLFSSL* ssl, unsigned char* buf,
     WOLFSSL_SESSION_EXPORT_DEBUG defined.
     WARNING: buf contains sensitive information about the state and is best to
              be encrypted before storing if stored.
+
+    As with wolfSSL_dtls_export(), a "user_canceled" alert sent with
+    wolfSSL_SendUserCanceled() owes the peer a close notify, and that
+    obligation is not part of the serialized form. A session exported between
+    the two alerts and imported elsewhere loses it, so a quiet shutdown on the
+    imported session sends nothing. Complete the shutdown before exporting to
+    avoid it.
 
     \return the number of bytes written into buffer 'buf'
 
@@ -2541,6 +2555,31 @@ void wolfSSL_free(WOLFSSL* ssl);
     previously found none; call wolfSSL_ERR_clear_error() if leftover entries
     matter.
 
+    With quiet shutdown enabled through wolfSSL_set_quiet_shutdown() no close
+    notify is sent and SSL_SUCCESS is returned. That covers the already closed
+    or reset connection described above as well: quiet shutdown reports
+    success for it rather than SSL_FATAL_ERROR with SOCKET_PEER_CLOSED_E, or
+    SSL_SHUTDOWN_ALREADY_DONE_E where WOLFSSL_SHUTDOWNONCE is defined.
+
+    The shutdown is recorded as complete, as OpenSSL records it, so
+    wolfSSL_get_error() reports SSL_ERROR_ZERO_RETURN, and under OPENSSL_EXTRA
+    or WOLFSSL_WPAS_SMALL wolfSSL_get_shutdown() reports a full bidirectional
+    shutdown. Other builds have no record to report - the option bits are
+    returned as they stand, so 0 when no alert was sent. Under OPENSSL_EXTRA
+    with WOLFSSL_ERROR_CODE_OPENSSL a later wolfSSL_read() reports failure
+    instead of returning buffered application data.
+
+    The exception is a connection that has sent a "user_canceled" alert with
+    wolfSSL_SendUserCanceled(). RFC 9846 Section 6.1 obliges that alert to be
+    followed by a close notify, so quiet shutdown sends it. The call can
+    therefore perform I/O and return SSL_FATAL_ERROR. Ask wolfSSL_get_error()
+    which one it is: SSL_ERROR_WANT_WRITE means the alert is buffered and the
+    call should be repeated when the transport is ready, while any other error
+    is the transport's own and is not retryable. It never waits for the peer's
+    reply. On QUIC, a send_alert callback that refuses the alert leaves
+    nothing sent, and the result is SSL_SHUTDOWN_NOT_DONE just as it is
+    without quiet shutdown.
+
     \param ssl pointer to the SSL session created with wolfSSL_new().
 
     _Example_
@@ -2551,8 +2590,11 @@ void wolfSSL_free(WOLFSSL* ssl);
     WOLFSSL* ssl = 0;
     ...
     ret = wolfSSL_shutdown(ssl);
-    if (ret != 0) {
-	    // failed to shut down SSL connection
+    if (ret == WOLFSSL_SHUTDOWN_NOT_DONE) {
+        // the peer has yet to reply - call again to complete the exchange
+    }
+    else if (ret != WOLFSSL_SUCCESS) {
+        // failed to shut down SSL connection, see wolfSSL_get_error()
     }
     \endcode
 
@@ -2576,11 +2618,26 @@ int  wolfSSL_shutdown(WOLFSSL* ssl);
     which is also WOLFSSL_FAILURE, so in that configuration the return value
     alone does not separate this case from the one below.
     \return WOLFSSL_FAILURE when ssl is NULL or the alert could not be sent.
-    Call wolfSSL_get_error() for the reason.
+    Call wolfSSL_get_error() for the reason. SSL_ERROR_WANT_WRITE usually
+    means the alert is queued, or held for the next send to retry, rather than
+    lost, so the peer is owed the close notify behind it; where the alert
+    could not be taken on at all nothing is owed and a quiet shutdown stays
+    silent. Either way, call wolfSSL_shutdown() again once the transport is
+    ready rather than abandoning the connection - it sends what is owed and
+    nothing more.
     \return WOLFSSL_FATAL_ERROR when the shutdown that follows the alert
     fails. Call wolfSSL_get_error() for the reason.
     \return SSL_SHUTDOWN_ALREADY_DONE_E when the connection was already shut
-    down and WOLFSSL_SHUTDOWNONCE is defined.
+    down and WOLFSSL_SHUTDOWNONCE is defined. Quiet shutdown reports
+    WOLFSSL_SUCCESS for that state instead.
+
+    Quiet shutdown, set with wolfSSL_set_quiet_shutdown(), does not suppress
+    the close notify here: RFC 9846 Section 6.1 obliges it to follow the
+    "user_canceled" alert. What it skips is waiting for the peer's reply, so
+    the result is WOLFSSL_SUCCESS rather than WOLFSSL_SHUTDOWN_NOT_DONE once
+    both alerts have gone out. When the close notify could not be handed to
+    the transport at all - a QUIC send_alert callback that refuses it -
+    WOLFSSL_SHUTDOWN_NOT_DONE is still what is reported.
 
     \param ssl pointer to the SSL session, created with wolfSSL_new().
 
@@ -2597,7 +2654,21 @@ int  wolfSSL_shutdown(WOLFSSL* ssl);
 
     ret = wolfSSL_SendUserCanceled(ssl);
     if (ret != WOLFSSL_SUCCESS) {
-        // failed to shut the connection down, see wolfSSL_get_error()
+        // Ask the error, not the return value: under WOLFSSL_ERROR_CODE_OPENSSL
+        // WOLFSSL_SHUTDOWN_NOT_DONE and WOLFSSL_FAILURE are both 0.
+        int err = wolfSSL_get_error(ssl, ret);
+
+        if (err == WOLFSSL_ERROR_WANT_WRITE) {
+            // the alert is buffered - call wolfSSL_shutdown() again when the
+            // transport is ready so the close notify follows it
+        }
+        else if (err == WOLFSSL_ERROR_NONE) {
+            // both alerts are out and the peer has yet to reply - call
+            // wolfSSL_shutdown() again to finish the exchange
+        }
+        else {
+            // failed to shut the connection down, see wolfSSL_get_error()
+        }
     }
     \endcode
 
