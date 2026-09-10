@@ -120,6 +120,11 @@
     #define EFBIG WC_ERR_TRACE(my_EFBIG)
 #endif
 
+#ifdef CONFIG_HAVE_KPROBES
+    static WC_MAYBE_UNUSED void *my_kallsyms_lookup_name(const char *name);
+    #define WC_LINUXKM_HAVE_MY_KALLSYMS_LOOKUP_NAME
+#endif
+
 static int libwolfssl_inited;
 
 static int libwolfssl_cleanup(void) {
@@ -610,10 +615,6 @@ int wc_linuxkm_GenerateSeed_IntelRD(struct OS_Seed* os, byte* output, word32 sz)
 
 #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
     #include "linuxkm/x86_vector_register_glue.c"
-#endif
-
-#ifdef CONFIG_HAVE_KPROBES
-    static WC_MAYBE_UNUSED void *my_kallsyms_lookup_name(const char *name);
 #endif
 
 #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(WC_C_DYNAMIC_FALLBACK) && \
