@@ -18281,9 +18281,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             if (ssl->options.tls1_3 && args->count > 1 &&
                     GetPeerCertType(ssl) == WOLFSSL_CERT_TYPE_RPK) {
                 WOLFSSL_MSG("Multiple certs with raw public key negotiated");
-                ret = UNSUPPORTED_CERTIFICATE;
+                ret = INVALID_PARAMETER;
                 WOLFSSL_ERROR_VERBOSE(ret);
-                DoCertFatalAlert(ssl, ret);
                 goto exit_ppc;
             }
         #endif /* HAVE_RPK && WOLFSSL_TLS13 */
