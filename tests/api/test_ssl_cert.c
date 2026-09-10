@@ -2559,9 +2559,18 @@ int test_wolfSSL_verify_post_handshake_defers(void)
 
 /* Compiled exactly when the body of test_wolfSSL_crl_io_mock() below is: the
  * mock has no other caller, so a wider condition here leaves it defined and
- * unused, which -Werror=unused-function rejects. Keep the two in step. */
+ * unused, which -Werror=unused-function rejects. Keep the two in step.
+ * NO_FILESYSTEM is in the condition because the body drives the callback
+ * through wolfSSL_CertManagerLoadCA()/Verify(), which ssl.h declares
+ * unconditionally but src/ssl_certman.c only implements inside
+ * #ifndef NO_FILESYSTEM. WOLFSSL_PEM_TO_DER is in it because the CA has to
+ * be a PEM file: wolfSSL_CertManagerLoadCA() goes through
+ * wolfSSL_CTX_load_verify_locations(), which takes no format argument and
+ * reads PEM only -- handing it certs/client-crl-dist.der fails with
+ * ASN_NO_PEM_HEADER, so there is no DER fixture to fall back to. */
 #if defined(HAVE_CRL) && defined(HAVE_CRL_IO) && !defined(NO_CERTS) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    !defined(NO_FILESYSTEM) && defined(WOLFSSL_PEM_TO_DER)
 static int g_crlIoCalls;
 static int g_crlIoResult;
 
@@ -2577,7 +2586,8 @@ int test_wolfSSL_crl_io_mock(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_CRL) && defined(HAVE_CRL_IO) && !defined(NO_CERTS) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    !defined(NO_FILESYSTEM) && defined(WOLFSSL_PEM_TO_DER)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     int i;
