@@ -1,0 +1,105 @@
+name: Silicon Labs EFR32 Secure Element port Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'release/**' ]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ '*' ]
+  # Weekday-morning cron seeds the master-scoped ccache that PR runs restore
+  # read-only (see ccache-setup).
+  schedule:
+    - cron: '41 10 * * 1-5'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+# END OF COMMON SECTION
+
+jobs:
+  # Build gate for the EFR32 Secure Element crypto-callback port.
+  # --enable-silabs-cryptocb defaults to the host-test profile, which sets
+  # WOLFSSL_SILABS_HOST_TEST and swaps the SE Manager headers for
+  # silabs_shim.h. Every shim operation returns SL_STATUS_NOT_SUPPORTED, so
+  # this does no crypto; what it covers is that the port compiles, that the
+  # cryptocb dispatch and info-struct field access are right across engine
+  # combinations, and that every engine's decline path falls back to software
+  # rather than failing.
+  #
+  # That last part is why testwolfcrypt runs below: with a device registered
+  # whose every operation declines, a green run means the fall-back is wired
+  # correctly on each engine. Crypto correctness on the Secure Element is
+  # validated on EFR32xG25 silicon, not here (see the port README).
+  build:
+    name: build + software fall-back (--enable-silabs-cryptocb)
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        name: Checkout wolfSSL
+
+      - name: Install dependencies
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: autoconf automake libtool build-essential
+          ghcr-debs-tag: ubuntu-24.04-minimal
+
+      - name: Set up ccache
+        uses: ./.github/actions/ccache-setup
+        with:
+          workflow-id: silabs-cryptocb
+          read-only: ${{ github.event_name == 'pull_request' }}
+          max-size: 100M
+
+      - name: Build all configs (compile-only, out-of-tree)
+        run: |
+          cat > "$RUNNER_TEMP/silabs-configs.json" <<'EOF'
+          [
+          {"name": "full", "minutes": 3,
+           "comment": "Every engine the port dispatches: hash, AES (GCM/CCM/CTR/ECB), CMAC, ChaCha20-Poly1305, ECC, HKDF and PBKDF2.",
+           "configure": ["--enable-silabs-cryptocb", "--enable-cryptocb", "--enable-ecc",
+            "--enable-aesgcm", "--enable-aesccm", "--enable-aesctr", "--enable-aesecb",
+            "--enable-cmac", "--enable-pwdbased", "--enable-hkdf", "--enable-chacha",
+            "--enable-poly1305"]},
+          {"name": "full-smallstack", "minutes": 3,
+           "comment": "Same coverage with WOLFSSL_SMALL_STACK, which moves the port's working buffers to the heap.",
+           "configure": ["--enable-silabs-cryptocb", "--enable-cryptocb", "--enable-ecc",
+            "--enable-aesgcm", "--enable-aesccm", "--enable-aesctr", "--enable-aesecb",
+            "--enable-cmac", "--enable-pwdbased", "--enable-hkdf", "--enable-chacha",
+            "--enable-poly1305", "CPPFLAGS=-DWOLFSSL_SMALL_STACK"]},
+          {"name": "min", "minutes": 2,
+           "comment": "Defaults only: no CMAC, no CCM, no PBKDF2 -> exercises the compile guards that take those engines out.",
+           "configure": ["--enable-silabs-cryptocb", "--enable-cryptocb"]}
+          ]
+          EOF
+          .github/scripts/parallel-make-check.py --build-only \
+            "$RUNNER_TEMP/silabs-configs.json"
+
+      - name: Run testwolfcrypt against a device that declines everything
+        run: |
+          ./autogen.sh
+          ./configure --enable-silabs-cryptocb --enable-cryptocb --enable-ecc \
+            --enable-aesgcm --enable-aesccm --enable-aesctr --enable-aesecb \
+            --enable-cmac --enable-pwdbased --enable-hkdf --enable-chacha \
+            --enable-poly1305
+          make -j"$(nproc)"
+          ./wolfcrypt/test/testwolfcrypt
+
+      - name: ccache stats
+        if: always()
+        run: ccache -s || true
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          retention-days: 7
+          name: silabs-cryptocb-logs
+          path: |
+            build-*/config.log
+          if-no-files-found: ignore
