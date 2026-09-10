@@ -59,7 +59,7 @@
 #ifdef WOLFSSL_ESP32_CRYPT
     #include <wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h>
 #endif
-#if defined(WOLFSSL_SILABS_SE_ACCEL)
+#if defined(WOLFSSL_SILABS_SE_TYPES)
     #include <wolfssl/wolfcrypt/port/silabs/silabs_hash.h>
 #endif
 #if defined(WOLFSSL_PSOC6_CRYPTO)
@@ -176,7 +176,7 @@ struct wc_Sha512 {
      !defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA384))
     WC_ESP32SHA ctx;
 #endif
-#if defined(WOLFSSL_SILABS_SE_ACCEL)
+#if defined(WOLFSSL_SILABS_SE_TYPES)
     wc_silabs_sha_t silabsCtx;
 #endif
 #ifdef WOLFSSL_KCAPI_HASH
