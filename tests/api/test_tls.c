@@ -541,8 +541,10 @@ static int test_peer_tmp_key_group(int group, int tls13, int expectedType)
 }
 #endif
 
-#if defined(TEST_PEER_TMP_KEY_X25519) && \
-    (defined(TEST_PEER_TMP_KEY_X448) || defined(TEST_PEER_TMP_KEY_ECC))
+/* The helper handshakes over TLS 1.3, so ECC alone needs it built. X25519 and
+ * X448 already imply it. */
+#if defined(TEST_PEER_TMP_KEY_X25519) || \
+    (defined(TEST_PEER_TMP_KEY_ECC) && defined(WOLFSSL_TLS13))
 /* Kept peer keys outlive the connection they came from. A reused object has to
  * report the key of the group it just negotiated, not the one before it. */
 static int test_peer_tmp_key_reuse(int group1, int expected1, int group2,
@@ -658,6 +660,17 @@ int test_tls_get_peer_tmp_key(void)
 #endif
 #if defined(TEST_PEER_TMP_KEY_X25519) && defined(TEST_PEER_TMP_KEY_ECC)
     ExpectIntEQ(test_peer_tmp_key_reuse(WOLFSSL_ECC_SECP256R1, WC_EVP_PKEY_EC,
+        WOLFSSL_ECC_X25519, WC_EVP_PKEY_X25519), TEST_SUCCESS);
+#endif
+    /* Same group twice. wolfSSL_clear() clears the present flag but keeps the
+     * key object, so the second handshake imports over the first one's key
+     * instead of taking the ReuseKey() path. */
+#if defined(TEST_PEER_TMP_KEY_ECC) && defined(WOLFSSL_TLS13)
+    ExpectIntEQ(test_peer_tmp_key_reuse(WOLFSSL_ECC_SECP256R1, WC_EVP_PKEY_EC,
+        WOLFSSL_ECC_SECP256R1, WC_EVP_PKEY_EC), TEST_SUCCESS);
+#endif
+#ifdef TEST_PEER_TMP_KEY_X25519
+    ExpectIntEQ(test_peer_tmp_key_reuse(WOLFSSL_ECC_X25519, WC_EVP_PKEY_X25519,
         WOLFSSL_ECC_X25519, WC_EVP_PKEY_X25519), TEST_SUCCESS);
 #endif
 #ifdef TEST_PEER_TMP_KEY_X25519
