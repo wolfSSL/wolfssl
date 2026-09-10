@@ -2605,6 +2605,22 @@ void wc_Sha512Free(wc_Sha512* sha512)
         /* via their callback setting devId to INVALID_DEVID */
         /* otherwise assume the callback handled it */
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            /* Release heap state first; the wipe drops its pointers. */
+            #ifdef WOLFSSL_SMALL_STACK_CACHE
+            if (sha512->W != NULL) {
+                ForceZero(sha512->W,
+                    (sizeof(word64) * 16) + WC_SHA512_BLOCK_SIZE);
+                XFREE(sha512->W, sha512->heap, DYNAMIC_TYPE_DIGEST);
+                sha512->W = NULL;
+            }
+            #endif
+            #ifdef WOLFSSL_HASH_KEEP
+            if (sha512->msg != NULL) {
+                ForceZero(sha512->msg, sha512->len);
+                XFREE(sha512->msg, sha512->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                sha512->msg = NULL;
+            }
+            #endif
             ForceZero(sha512, sizeof(*sha512));
             return;
         }
@@ -3083,6 +3099,22 @@ void wc_Sha384Free(wc_Sha384* sha384)
         /* via their callback setting devId to INVALID_DEVID */
         /* otherwise assume the callback handled it */
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            /* Release heap state first; the wipe drops its pointers. */
+            #ifdef WOLFSSL_SMALL_STACK_CACHE
+            if (sha384->W != NULL) {
+                ForceZero(sha384->W,
+                    (sizeof(word64) * 16) + WC_SHA512_BLOCK_SIZE);
+                XFREE(sha384->W, sha384->heap, DYNAMIC_TYPE_DIGEST);
+                sha384->W = NULL;
+            }
+            #endif
+            #ifdef WOLFSSL_HASH_KEEP
+            if (sha384->msg != NULL) {
+                ForceZero(sha384->msg, sha384->len);
+                XFREE(sha384->msg, sha384->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                sha384->msg = NULL;
+            }
+            #endif
             ForceZero(sha384, sizeof(*sha384));
             return;
         }
