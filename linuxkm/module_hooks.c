@@ -125,28 +125,36 @@
     #define WC_LINUXKM_HAVE_MY_KALLSYMS_LOOKUP_NAME
 #endif
 
-static int libwolfssl_inited;
+static int wolfcrypt_inited;
+#ifndef WOLFCRYPT_ONLY
+static int wolfssl_inited;
+#endif
 
 static int libwolfssl_cleanup(void) {
     int ret;
-    if (libwolfssl_inited) {
-        libwolfssl_inited = 0;
-#ifdef WOLFCRYPT_ONLY
-        ret = wolfCrypt_Cleanup();
-        if (ret != 0)
-            pr_err("ERROR: wolfCrypt_Cleanup() failed: %s\n", wc_GetErrorString(ret));
-        else
-            pr_info("wolfCrypt " LIBWOLFSSL_VERSION_STRING " cleanup complete.\n");
-#else
+
+#ifndef WOLFCRYPT_ONLY
+    if (wolfssl_inited) {
+        wolfssl_inited = 0;
         ret = wolfSSL_Cleanup();
         if (ret != WOLFSSL_SUCCESS)
             pr_err("ERROR: wolfSSL_Cleanup() failed: %s\n", wc_GetErrorString(ret));
         else
             pr_info("wolfSSL " LIBWOLFSSL_VERSION_STRING " cleanup complete.\n");
+    }
 #endif
+
+    if (wolfcrypt_inited) {
+        wolfcrypt_inited = 0;
+        ret = wolfCrypt_Cleanup();
     }
     else
         ret = 0;
+
+    if (ret != 0)
+        pr_err("ERROR: wolfCrypt_Cleanup() failed: %s\n", wc_GetErrorString(ret));
+    else
+        pr_info("wolfCrypt " LIBWOLFSSL_VERSION_STRING " cleanup complete.\n");
 
 #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(HAVE_FIPS)
     wc_linuxkm_free_svr_states();
@@ -296,12 +304,25 @@ int wc_lkm_LockMutex(wolfSSL_Mutex* m)
 }
 #endif
 
-WC_MAYBE_UNUSED static int linuxkm_lkcapi_sysfs_install_node(struct kobj_attribute *node, int *installed_flag)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 14, 0)
+    /* linux "module: Constify 'struct module_attribute'" (v6.14-rc1) */
+    #define WC_MODULE_ATTR_CONST const
+#else
+    #define WC_MODULE_ATTR_CONST
+#endif
+
+/* Note, nodes on THIS_MODULE->mkobj.kobj are dispatched by module_sysfs_ops
+ * (see module_ktype in kernel/params.c), so their handlers must be typed as
+ * struct module_attribute callbacks, not struct kobj_attribute callbacks --
+ * the latter only work by layout coincidence, and trap on kernels with
+ * CONFIG_CFI_CLANG.
+ */
+WC_MAYBE_UNUSED static int linuxkm_sysfs_install_attr(struct attribute *attr, int *installed_flag)
 {
     if ((installed_flag == NULL) || (! *installed_flag)) {
-        int ret = sysfs_create_file(&THIS_MODULE->mkobj.kobj, &node->attr);
+        int ret = sysfs_create_file(&THIS_MODULE->mkobj.kobj, attr);
         if (ret) {
-            pr_err("ERROR: sysfs_create_file failed for %s: %d\n", node->attr.name, ret);
+            pr_err("ERROR: sysfs_create_file failed for %s: %d\n", attr->name, ret);
             return ret;
         }
         if (installed_flag)
@@ -310,14 +331,28 @@ WC_MAYBE_UNUSED static int linuxkm_lkcapi_sysfs_install_node(struct kobj_attribu
     return 0;
 }
 
-WC_MAYBE_UNUSED static int linuxkm_lkcapi_sysfs_deinstall_node(struct kobj_attribute *node, int *installed_flag)
+WC_MAYBE_UNUSED static int linuxkm_sysfs_deinstall_attr(struct attribute *attr, int *installed_flag)
 {
     if ((installed_flag == NULL) || *installed_flag) {
-        sysfs_remove_file(&THIS_MODULE->mkobj.kobj, &node->attr);
+        sysfs_remove_file(&THIS_MODULE->mkobj.kobj, attr);
         if (installed_flag)
             *installed_flag = 0;
     }
     return 0;
+}
+
+/* Transitional wrappers for not-yet-converted struct kobj_attribute callers.
+ * Remove these, and the callers' CFI-incompatible handler typing, by
+ * converting the callers to struct module_attribute per the pattern above.
+ */
+WC_MAYBE_UNUSED static int linuxkm_lkcapi_sysfs_install_node(struct kobj_attribute *node, int *installed_flag)
+{
+    return linuxkm_sysfs_install_attr(&node->attr, installed_flag);
+}
+
+WC_MAYBE_UNUSED static int linuxkm_lkcapi_sysfs_deinstall_node(struct kobj_attribute *node, int *installed_flag)
+{
+    return linuxkm_sysfs_deinstall_attr(&node->attr, installed_flag);
 }
 
 #ifdef WC_LINUXKM_SUPPORT_DUMP_TO_FILE
@@ -392,9 +427,9 @@ MODULE_PARM_DESC(rodata_dump_path,
 #endif /* WC_LINUXKM_SUPPORT_DUMP_TO_FILE */
 
 #ifdef HAVE_FIPS
-    static ssize_t FIPS_rerun_self_test_handler(struct kobject *kobj, struct kobj_attribute *attr,
+    static ssize_t FIPS_rerun_self_test_handler(WC_MODULE_ATTR_CONST struct module_attribute *mattr, struct module_kobject *mk,
                                        const char *buf, size_t count);
-    static struct kobj_attribute FIPS_rerun_self_test_attr = __ATTR(FIPS_rerun_self_test, 0220, NULL, FIPS_rerun_self_test_handler);
+    static struct module_attribute FIPS_rerun_self_test_attr = __ATTR(FIPS_rerun_self_test, 0220, NULL, FIPS_rerun_self_test_handler);
     static int installed_sysfs_FIPS_files = 0;
 #endif
 
@@ -634,18 +669,18 @@ int wc_linuxkm_GenerateSeed_IntelRD(struct OS_Seed* os, byte* output, word32 sz)
     #ifdef HAVE_WC_FIPS_OPTEST_CONTESTFAILURE_EXPORT
         WOLFSSL_API extern wolfSSL_Atomic_Int wc_fips_optest_conTestFailure;
     #endif
-    static ssize_t FIPS_optest_trig_handler(struct kobject *kobj, struct kobj_attribute *attr,
+    static ssize_t FIPS_optest_trig_handler(WC_MODULE_ATTR_CONST struct module_attribute *mattr, struct module_kobject *mk,
                                        const char *buf, size_t count);
-    static struct kobj_attribute FIPS_optest_trig_attr = __ATTR(FIPS_optest_run_code, 0220, NULL, FIPS_optest_trig_handler);
+    static struct module_attribute FIPS_optest_trig_attr = __ATTR(FIPS_optest_run_code, 0220, NULL, FIPS_optest_trig_handler);
     static int installed_sysfs_FIPS_optest_trig_files = 0;
 #ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
-    static ssize_t FIPS_optest_trig_audit_accel_handler(struct kobject *kobj, struct kobj_attribute *attr,
+    static ssize_t FIPS_optest_trig_audit_accel_handler(WC_MODULE_ATTR_CONST struct module_attribute *mattr, struct module_kobject *mk,
                                        const char *buf, size_t count);
-    static struct kobj_attribute FIPS_optest_trig_audit_accel_attr = __ATTR(FIPS_optest_run_code_audit_accel, 0220, NULL, FIPS_optest_trig_audit_accel_handler);
+    static struct module_attribute FIPS_optest_trig_audit_accel_attr = __ATTR(FIPS_optest_run_code_audit_accel, 0220, NULL, FIPS_optest_trig_audit_accel_handler);
     static int installed_sysfs_FIPS_optest_trig_audit_accel_files = 0;
-    static ssize_t FIPS_optest_trig_audit_c_handler(struct kobject *kobj, struct kobj_attribute *attr,
+    static ssize_t FIPS_optest_trig_audit_c_handler(WC_MODULE_ATTR_CONST struct module_attribute *mattr, struct module_kobject *mk,
                                        const char *buf, size_t count);
-    static struct kobj_attribute FIPS_optest_trig_audit_c_attr = __ATTR(FIPS_optest_run_code_audit_c, 0220, NULL, FIPS_optest_trig_audit_c_handler);
+    static struct module_attribute FIPS_optest_trig_audit_c_attr = __ATTR(FIPS_optest_run_code_audit_c, 0220, NULL, FIPS_optest_trig_audit_c_handler);
     static int installed_sysfs_FIPS_optest_trig_audit_c_files = 0;
 #endif
 #endif
@@ -1058,22 +1093,29 @@ static int wolfssl_init(void)
     }
 #endif /* WC_RNG_SEED_CB */
 
-#ifdef WOLFCRYPT_ONLY
+    /* Always call wolfCrypt_Init() directly, even in TLS builds, to assure
+     * mutex-free scheduler context during allocations.  wolfSSL_Init() still
+     * uses a mutex, which puts the initialization thread in atomic context.
+     * The redundant wolfCrypt_Init() via wolfSSL_Init() is harmless --
+     * wolfCrypt counts initialization depth.
+     */
     ret = wolfCrypt_Init();
     if (ret != 0) {
         pr_err("ERROR: wolfCrypt_Init() failed: %s\n", wc_GetErrorString(ret));
         (void)libwolfssl_cleanup();
         return -ECANCELED;
     }
-#else
+    wolfcrypt_inited = 1;
+
+#ifndef WOLFCRYPT_ONLY
     ret = wolfSSL_Init();
     if (ret != WOLFSSL_SUCCESS) {
         pr_err("ERROR: wolfSSL_Init() failed: %s\n", wc_GetErrorString(ret));
         (void)libwolfssl_cleanup();
         return -ECANCELED;
     }
+    wolfssl_inited = 1;
 #endif
-    libwolfssl_inited = 1;
 
 #if defined(HAVE_FIPS) && FIPS_VERSION3_GT(5,2,0) && !defined(WOLFSSL_FIPS_DEV_NO_POST)
 
@@ -1207,23 +1249,23 @@ static int wolfssl_init(void)
     }
     #endif
 
-    ret = linuxkm_lkcapi_sysfs_install_node(&FIPS_optest_trig_attr, &installed_sysfs_FIPS_optest_trig_files);
+    ret = linuxkm_sysfs_install_attr(&FIPS_optest_trig_attr.attr, &installed_sysfs_FIPS_optest_trig_files);
     if (ret != 0) {
-        pr_err("ERROR: linuxkm_lkcapi_sysfs_install_node() failed for %s (code %d).\n", FIPS_optest_trig_attr.attr.name, ret);
+        pr_err("ERROR: linuxkm_sysfs_install_attr() failed for %s (code %d).\n", FIPS_optest_trig_attr.attr.name, ret);
         (void)libwolfssl_cleanup();
         return -ECANCELED;
     }
 
 #ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
-    ret = linuxkm_lkcapi_sysfs_install_node(&FIPS_optest_trig_audit_accel_attr, &installed_sysfs_FIPS_optest_trig_audit_accel_files);
+    ret = linuxkm_sysfs_install_attr(&FIPS_optest_trig_audit_accel_attr.attr, &installed_sysfs_FIPS_optest_trig_audit_accel_files);
     if (ret != 0) {
-        pr_err("ERROR: linuxkm_lkcapi_sysfs_install_node() failed for %s (code %d).\n", FIPS_optest_trig_audit_accel_attr.attr.name, ret);
+        pr_err("ERROR: linuxkm_sysfs_install_attr() failed for %s (code %d).\n", FIPS_optest_trig_audit_accel_attr.attr.name, ret);
         (void)libwolfssl_cleanup();
         return -ECANCELED;
     }
-    ret = linuxkm_lkcapi_sysfs_install_node(&FIPS_optest_trig_audit_c_attr, &installed_sysfs_FIPS_optest_trig_audit_c_files);
+    ret = linuxkm_sysfs_install_attr(&FIPS_optest_trig_audit_c_attr.attr, &installed_sysfs_FIPS_optest_trig_audit_c_files);
     if (ret != 0) {
-        pr_err("ERROR: linuxkm_lkcapi_sysfs_install_node() failed for %s (code %d).\n", FIPS_optest_trig_audit_c_attr.attr.name, ret);
+        pr_err("ERROR: linuxkm_sysfs_install_attr() failed for %s (code %d).\n", FIPS_optest_trig_audit_c_attr.attr.name, ret);
         (void)libwolfssl_cleanup();
         return -ECANCELED;
     }
@@ -1342,7 +1384,7 @@ static int wolfssl_init(void)
 #endif /* LINUXKM_LKCAPI_REGISTER */
 
 #ifdef HAVE_FIPS
-    (void)linuxkm_lkcapi_sysfs_install_node(&FIPS_rerun_self_test_attr, &installed_sysfs_FIPS_files);
+    (void)linuxkm_sysfs_install_attr(&FIPS_rerun_self_test_attr.attr, &installed_sysfs_FIPS_files);
 #endif
 
 #ifdef WOLFSSL_LINUXKM_BENCHMARKS
@@ -1397,12 +1439,12 @@ static void wolfssl_exit(void)
 #endif
 {
 #ifdef HAVE_FIPS
-    (void)linuxkm_lkcapi_sysfs_deinstall_node(&FIPS_rerun_self_test_attr, &installed_sysfs_FIPS_files);
+    (void)linuxkm_sysfs_deinstall_attr(&FIPS_rerun_self_test_attr.attr, &installed_sysfs_FIPS_files);
 #ifdef FIPS_OPTEST
-    (void)linuxkm_lkcapi_sysfs_deinstall_node(&FIPS_optest_trig_attr, &installed_sysfs_FIPS_optest_trig_files);
+    (void)linuxkm_sysfs_deinstall_attr(&FIPS_optest_trig_attr.attr, &installed_sysfs_FIPS_optest_trig_files);
 #ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
-    (void)linuxkm_lkcapi_sysfs_deinstall_node(&FIPS_optest_trig_audit_accel_attr, &installed_sysfs_FIPS_optest_trig_audit_accel_files);
-    (void)linuxkm_lkcapi_sysfs_deinstall_node(&FIPS_optest_trig_audit_c_attr, &installed_sysfs_FIPS_optest_trig_audit_c_files);
+    (void)linuxkm_sysfs_deinstall_attr(&FIPS_optest_trig_audit_accel_attr.attr, &installed_sysfs_FIPS_optest_trig_audit_accel_files);
+    (void)linuxkm_sysfs_deinstall_attr(&FIPS_optest_trig_audit_c_attr.attr, &installed_sysfs_FIPS_optest_trig_audit_c_files);
 #endif
 #endif
 #endif
@@ -2255,13 +2297,13 @@ static WC_MAYBE_UNUSED void *my_kallsyms_lookup_name(const char *name) {
 
 #ifdef HAVE_FIPS
 
-static ssize_t FIPS_rerun_self_test_handler(struct kobject *kobj, struct kobj_attribute *attr,
+static ssize_t FIPS_rerun_self_test_handler(WC_MODULE_ATTR_CONST struct module_attribute *mattr, struct module_kobject *mk,
                                    const char *buf, size_t count)
 {
     int ret;
 
-    (void)kobj;
-    (void)attr;
+    (void)mattr;
+    (void)mk;
 
     /* only recognize "1" and "1\n". */
     if ((count < 1) || (count > 2) ||
@@ -2517,29 +2559,29 @@ out:
 #endif
 }
 
-static ssize_t FIPS_optest_trig_handler(struct kobject *kobj, struct kobj_attribute *attr,
+static ssize_t FIPS_optest_trig_handler(WC_MODULE_ATTR_CONST struct module_attribute *mattr, struct module_kobject *mk,
                                    const char *buf, const size_t count)
 {
-    (void)kobj;
-    (void)attr;
+    (void)mattr;
+    (void)mk;
     return FIPS_optest_trig_common(FIPS_OPTEST_AUDIT_NONE, buf, count);
 }
 
 #ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
 
-static ssize_t FIPS_optest_trig_audit_accel_handler(struct kobject *kobj, struct kobj_attribute *attr,
+static ssize_t FIPS_optest_trig_audit_accel_handler(WC_MODULE_ATTR_CONST struct module_attribute *mattr, struct module_kobject *mk,
                                    const char *buf, const size_t count)
 {
-    (void)kobj;
-    (void)attr;
+    (void)mattr;
+    (void)mk;
     return FIPS_optest_trig_common(FIPS_OPTEST_AUDIT_ACCEL, buf, count);
 }
 
-static ssize_t FIPS_optest_trig_audit_c_handler(struct kobject *kobj, struct kobj_attribute *attr,
+static ssize_t FIPS_optest_trig_audit_c_handler(WC_MODULE_ATTR_CONST struct module_attribute *mattr, struct module_kobject *mk,
                                    const char *buf, const size_t count)
 {
-    (void)kobj;
-    (void)attr;
+    (void)mattr;
+    (void)mk;
     return FIPS_optest_trig_common(FIPS_OPTEST_AUDIT_C, buf, count);
 }
 
