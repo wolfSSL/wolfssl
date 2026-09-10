@@ -2139,6 +2139,7 @@ int test_wc_ecc_ecies_gcm(void)
 
 #if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && !defined(WC_NO_RNG) && \
     defined(WOLF_CRYPTO_CB) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(NO_SHA256) && \
     (defined(HAVE_AES_CBC) || \
      (defined(HAVE_AESGCM) && (defined(WOLFSSL_ECIES_GEN_IV) || \
         defined(WOLFSSL_ECIES_OLD) || \
@@ -2206,6 +2207,7 @@ int test_wc_ecc_ecies_cryptocb(void)
     EXPECT_DECLS;
 #if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && !defined(WC_NO_RNG) && \
     defined(WOLF_CRYPTO_CB) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(NO_SHA256) && \
     (defined(HAVE_AES_CBC) || \
      (defined(HAVE_AESGCM) && (defined(WOLFSSL_ECIES_GEN_IV) || \
         defined(WOLFSSL_ECIES_OLD) || \
@@ -2316,6 +2318,7 @@ int test_wc_ecc_ecies_devid_not_inherited(void)
     EXPECT_DECLS;
 #if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && !defined(WC_NO_RNG) && \
     defined(WOLF_CRYPTO_CB) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(NO_SHA256) && \
     (defined(HAVE_AES_CBC) || \
      (defined(HAVE_AESGCM) && (defined(WOLFSSL_ECIES_GEN_IV) || \
         defined(WOLFSSL_ECIES_OLD) || \
@@ -2460,6 +2463,7 @@ int test_wc_ecc_ecies_devid_not_inherited(void)
 
 #if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && !defined(WC_NO_RNG) && \
     defined(WOLF_CRYPTO_CB) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(NO_SHA256) && \
     (defined(HAVE_AES_CBC) || \
      (defined(HAVE_AESGCM) && (defined(WOLFSSL_ECIES_GEN_IV) || \
         defined(WOLFSSL_ECIES_OLD) || \
@@ -2503,6 +2507,7 @@ int test_wc_ecc_ecies_ctx_devid_steps(void)
     EXPECT_DECLS;
 #if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && !defined(WC_NO_RNG) && \
     defined(WOLF_CRYPTO_CB) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(NO_SHA256) && \
     (defined(HAVE_AES_CBC) || \
      (defined(HAVE_AESGCM) && (defined(WOLFSSL_ECIES_GEN_IV) || \
         defined(WOLFSSL_ECIES_OLD) || \
