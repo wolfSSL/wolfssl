@@ -879,7 +879,7 @@ static int wc_curve25519_shared_secret_nb(curve25519_key* privKey,
     }
 
     if (ret != FP_WOULDBLOCK) {
-        XMEMSET(privKey->nb_ctx, 0, sizeof(x25519_nb_ctx_t));
+        ForceZero(privKey->nb_ctx, sizeof(x25519_nb_ctx_t));
     }
 
     return ret;

@@ -3496,7 +3496,7 @@ int wc_Sha224Reset(wc_Sha224* sha224) {
         dst->W = (word32*)XMALLOC(sizeof(word32) * WC_SHA256_BLOCK_SIZE,
                                   dst->heap, DYNAMIC_TYPE_DIGEST);
         if (dst->W == NULL) {
-            XMEMSET(dst, 0, sizeof(wc_Sha224));
+            ForceZero(dst, sizeof(wc_Sha224));
             return MEMORY_E;
         }
     #endif
@@ -3653,7 +3653,7 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
     dst->W = (word32*)XMALLOC(sizeof(word32) * WC_SHA256_BLOCK_SIZE,
                               dst->heap, DYNAMIC_TYPE_DIGEST);
     if (dst->W == NULL) {
-        XMEMSET(dst, 0, sizeof(wc_Sha256));
+        ForceZero(dst, sizeof(wc_Sha256));
         return MEMORY_E;
     }
 #endif
