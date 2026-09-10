@@ -2017,6 +2017,19 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
         } while(0)
 #endif
 
+/* Compiler barrier that also treats the memory at ptr as read, so a wipe of
+ * that memory cannot be dropped as a dead store. The GNU form emits no CPU
+ * fence; cross-thread ordering is the caller's job. Without GNU asm (other
+ * compilers, or WOLFSSL_NO_ASM) it falls back to WC_BARRIER(). */
+#ifdef WC_BARRIER_DATA
+    /* use user-supplied WC_BARRIER_DATA() definition. */
+#elif defined(__GNUC__) && !defined(WOLFSSL_NO_ASM)
+    #define WC_BARRIER_DATA(ptr) \
+        __asm__ __volatile__("" : : "r"(ptr) : "memory")
+#else
+    #define WC_BARRIER_DATA(ptr) do { (void)(ptr); WC_BARRIER(); } while (0)
+#endif
+
 
     /* AFTER user_settings.h is loaded,
     ** determine if POSIX multi-threaded: HAVE_PTHREAD  */

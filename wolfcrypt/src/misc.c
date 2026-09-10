@@ -791,7 +791,9 @@ WC_MISC_STATIC WC_INLINE void ForceZero(void* mem, size_t len)
     byte *zb = (byte *)mem;
     unsigned long *zl;
 
-    XFENCE();
+    /* Make the compiler put the buffer's current contents at mem, so the
+     * wipe below hits the memory that holds them and not a copy. */
+    WC_BARRIER_DATA(mem);
 
     while ((wc_ptr_t)zb & (wc_ptr_t)(sizeof(unsigned long) - 1U)) {
         if (len == 0)
@@ -814,7 +816,10 @@ WC_MISC_STATIC WC_INLINE void ForceZero(void* mem, size_t len)
         --len;
     }
 
-    XFENCE();
+    /* The caller is done with the buffer, so the compiler may drop the
+     * stores above as dead. The barrier makes the buffer look read by
+     * opaque code. No CPU fence is needed for that. */
+    WC_BARRIER_DATA(mem);
 }
 #endif
 

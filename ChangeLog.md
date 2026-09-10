@@ -1,6 +1,11 @@
 # wolfSSL Release (unreleased)
 
 ## Behavioral Changes
+* **Behavioral change (`ForceZero()` issues no CPU fences)**: the wipe is
+  kept alive by a compiler barrier that takes the buffer address, which also
+  keeps it from being optimized away for buffers that never leave the inlined
+  code.  A caller that needs the zeroed memory to be visible to another core
+  must order it itself with a lock or an atomic release.
 
 * **Behavioral change (`wc_PufReadSram` health tests the raw SRAM readout)**:
   the raw readout is now health tested before the context accepts it, and a
