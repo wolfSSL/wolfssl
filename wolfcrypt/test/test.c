@@ -70052,7 +70052,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t keystore_cb_test(void)
     }
 
     ret = wc_KeyStore_Derive(ksDevId, kref, (word32)sizeof(kref),
-            WC_KEYSTORE_KEY_CMAC, WC_AES_BLOCK_SIZE, sref,
+            WC_KEYSTORE_KEY_CMAC, AES_128_KEY_SIZE, sref,
             (word32)sizeof(sref), WC_KDF_TYPE_HKDF, dd, (word32)sizeof(dd),
             WC_KEYSTORE_ATTR_PERSISTENT, NULL);
     if (ret != 0 || ctx.lastOp != WC_KEYSTORE_DERIVE ||
@@ -70060,7 +70060,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t keystore_cb_test(void)
         ctx.lastSrcKeyRef != sref ||
         ctx.lastOtherRefSz != (word32)sizeof(sref) ||
         ctx.lastKeyType != WC_KEYSTORE_KEY_CMAC ||
-        ctx.lastKeySz != WC_AES_BLOCK_SIZE ||
+        ctx.lastKeySz != AES_128_KEY_SIZE ||
         ctx.lastAttrs != WC_KEYSTORE_ATTR_PERSISTENT ||
         ctx.lastKdfType != WC_KDF_TYPE_HKDF ||
         ctx.lastDeriv != dd || ctx.lastDerivSz != (word32)sizeof(dd)) {
