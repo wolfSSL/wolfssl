@@ -1846,7 +1846,7 @@ static MLKEM_NOINLINE int mlkemkey_decapsulate(MlKemKey* key, byte* m,
 {
     int ret = 0;
     sword16* v;
-    sword16* w;
+    sword16* w = NULL;
     unsigned int k = 0;
     unsigned int compVecSz = 0;
 #if defined(WOLFSSL_SMALL_STACK) || \
