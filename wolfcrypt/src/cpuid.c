@@ -951,6 +951,24 @@
         return WOLFSSL_ATOMIC_LOAD(cpuid_flags);
     }
 
+    /* Changing the flags means re-testing the lanes, and that takes locks and
+     * memory.  A caller that cannot block, such as an interrupt handler, would
+     * deadlock on its own CPU.  So refuse the whole request there and leave the
+     * flags alone: a caller that changed lanes without re-testing them would be
+     * worse.  Callers that can block are unaffected. */
+    static WC_INLINE int cpuid_may_recast(void)
+    {
+    #if defined(WOLFSSL_LINUXKM) && defined(HAVE_FIPS) && \
+        FIPS_VERSION3_GE(7,0,0)
+        if (! wc_linuxkm_can_block()) {
+            WOLFSSL_MSG("cpuid: refusing a feature change from a context that "
+                        "cannot block; flags unchanged");
+            return 0;
+        }
+    #endif
+        return 1;
+    }
+
     /* A new feature set is a new operating environment: re-run the power-on
      * self test, then run every CAST now instead of waiting for first use,
      * which is what the kernel module does at load.  Signals
@@ -975,6 +993,8 @@
     void cpuid_select_flags(cpuid_flags_t flags)
     {
         cpuid_flags_t current_flags = WOLFSSL_ATOMIC_LOAD(cpuid_flags);
+        if ((current_flags != flags) && (! cpuid_may_recast()))
+            return;
         while (! wolfSSL_Atomic_Uint_CompareExchange
                (&cpuid_flags, &current_flags, flags))
             WC_RELAX_LONG_LOOP();
@@ -985,6 +1005,8 @@
     void cpuid_set_flag(cpuid_flags_t flag)
     {
         cpuid_flags_t current_flags = WOLFSSL_ATOMIC_LOAD(cpuid_flags);
+        if (((current_flags | flag) != current_flags) && (! cpuid_may_recast()))
+            return;
         while (! wolfSSL_Atomic_Uint_CompareExchange
                (&cpuid_flags, &current_flags, current_flags | flag))
             WC_RELAX_LONG_LOOP();
@@ -995,6 +1017,8 @@
     void cpuid_clear_flag(cpuid_flags_t flag)
     {
         cpuid_flags_t current_flags = WOLFSSL_ATOMIC_LOAD(cpuid_flags);
+        if (((current_flags & ~flag) != current_flags) && (! cpuid_may_recast()))
+            return;
         while (! wolfSSL_Atomic_Uint_CompareExchange
                (&cpuid_flags, &current_flags, current_flags & ~flag))
             WC_RELAX_LONG_LOOP();
