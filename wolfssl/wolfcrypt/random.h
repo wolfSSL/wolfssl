@@ -932,8 +932,10 @@ WOLFSSL_API int wc_RNG_DRBG_Present(const WC_RNG* rng);
     #define WC_DRBG_NEXT_SEED_EMPTY 0
     /* All sentinel states are negative; non-negative values are banked byte
      * counts. */
-    #define WC_DRBG_NEXT_SEED_READY ((WC_ATOMIC_INT_ARG)(-2))
-    #define WC_DRBG_NEXT_SEED_CONSUMING ((WC_ATOMIC_INT_ARG)(-1))
+    #define WC_DRBG_NEXT_SEED_PRODUCING (-1)
+    #define WC_DRBG_NEXT_SEED_READY     (-2)
+    #define WC_DRBG_NEXT_SEED_CONSUMING (-3)
+    #define WC_DRBG_NEXT_SEED_PURGED    (-4)
 
     WOLFSSL_API int wc_RNG_DRBG_NextSeedGenerate(WC_RNG* rng, word32 n);
 #ifdef WC_RNG_HAVE_RBGC

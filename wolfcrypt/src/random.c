@@ -789,6 +789,60 @@ static int Hash256_DRBG_Reseed(DRBG_internal* drbg, const byte* seed,
  * site carries its own #ifdef WC_RNG_DEBUG_STATS gate so the facility is
  * removable outright with unifdef. */
 
+#ifdef WC_RNG_HAVE_NEXT_SEED
+/* Purge the credited next-seed aperture.  A plain store would race an
+ * in-flight producer: the producer's publish must lose against a purge,
+ * never the reverse, or material generated before a state-invalidation
+ * event could surface READY after it -- exactly the resurrection the
+ * provenance guarantee forbids.  A producer mid-fill (PRODUCING) owns
+ * the buffer, so the purge only repaints the sentinel (PRODUCING ->
+ * PURGED); the producer's failed publish-CAS observes the repaint and
+ * reopens the aperture EMPTY (see NextSeedProducerRelease()) -- the
+ * sentinel alone suppresses the pre-event material; seed-aperture
+ * buffers are never zeroized outside consumption.  All other states
+ * purge directly to EMPTY.  (The uncredited stir aperture keeps its
+ * plain-store purge:
+ * stirs carry no claims, so resurrection there is benign by the
+ * three-no-ops doctrine.) */
+static void NextSeedPurge(wolfSSL_Atomic_Int *lenp)
+{
+    WC_ATOMIC_INT_ARG cur = WOLFSSL_ATOMIC_LOAD(*lenp);
+    for (;;) {
+        WC_ATOMIC_INT_ARG want;
+        if (cur == WC_DRBG_NEXT_SEED_PURGED)
+            return; /* already handed off to a producer's unwind. */
+        want = (cur == WC_DRBG_NEXT_SEED_PRODUCING) ?
+            WC_DRBG_NEXT_SEED_PURGED : WC_DRBG_NEXT_SEED_EMPTY;
+        if (wolfSSL_Atomic_Int_CompareExchange(lenp, &cur, want))
+            return;
+        /* cur was reloaded by the failed exchange; re-evaluate. */
+    }
+}
+
+/* Release a producer claim (PRODUCING) on the credited aperture,
+ * installing val (a fill offset, the full length, READY, or EMPTY).
+ * Returns 0 on release, else BUSY_E: the release CAS can fail for
+ * exactly one reason -- a concurrent NextSeedPurge() repainted the
+ * claim PURGED (producers cannot claim a PRODUCING word, consumers
+ * only exchange from READY, and the purge is the sole writer against
+ * a claim).  The producer's material then predates the invalidation
+ * event and must not surface: the aperture reopens EMPTY, which is
+ * the whole suppression -- an EMPTY aperture is never consumed, and
+ * the next fill overwrites from offset zero.  The buffer is never
+ * zeroized (house rule for the seed apertures): zeroization buys
+ * nothing here -- suppression is the sentinel's job, and a
+ * fork-sibling clone holds the same bytes regardless. */
+static int NextSeedProducerRelease(wolfSSL_Atomic_Int *lenp,
+                                   WC_ATOMIC_INT_ARG val)
+{
+    WC_ATOMIC_INT_ARG expected = WC_DRBG_NEXT_SEED_PRODUCING;
+    if (wolfSSL_Atomic_Int_CompareExchange(lenp, &expected, val))
+        return 0;
+    WOLFSSL_ATOMIC_STORE(*lenp, WC_DRBG_NEXT_SEED_EMPTY);
+    return BUSY_E;
+}
+#endif /* WC_RNG_HAVE_NEXT_SEED */
+
 static int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz,
                             const byte* additional, word32 additionalSz,
                             int credited)
@@ -835,7 +889,7 @@ static int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz,
 
 #if defined(WC_RNG_HAVE_LOCK) && defined(WC_RNG_HAVE_NEXT_SEED)
         if (cur_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED) {
-            WOLFSSL_ATOMIC_STORE(drbg->nextSeedLen, WC_DRBG_NEXT_SEED_EMPTY);
+            NextSeedPurge(&drbg->nextSeedLen);
             /* the uncredited stir aperture is purged too, for provenance
              * uniformity; best-effort (an in-flight depositor may
              * resurrect a partial fill -- benign, stirs carry no
@@ -880,7 +934,7 @@ static int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz,
 
 #if defined(WC_RNG_HAVE_LOCK) && defined(WC_RNG_HAVE_NEXT_SEED)
         if (cur_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED) {
-            WOLFSSL_ATOMIC_STORE(drbg512->nextSeedLen, WC_DRBG_NEXT_SEED_EMPTY);
+            NextSeedPurge(&drbg512->nextSeedLen);
             /* see the SHA-256 arm re best-effort and no-zeroize. */
             WOLFSSL_ATOMIC_STORE(drbg512->nextUncreditedSeedLen,
                                  WC_DRBG_NEXT_SEED_EMPTY);
@@ -3266,16 +3320,14 @@ WOLFSSL_API int wc_RNG_invalidate_entropy(WC_RNG* rng) {
 #ifdef WC_RNG_HAVE_NEXT_SEED
 #ifndef NO_SHA256
     if ((rng->drbgType == WC_DRBG_SHA256) && (rng->drbg != NULL)) {
-        WOLFSSL_ATOMIC_STORE(((DRBG_internal *)rng->drbg)->nextSeedLen,
-                             WC_DRBG_NEXT_SEED_EMPTY);
+        NextSeedPurge(&((DRBG_internal *)rng->drbg)->nextSeedLen);
         WOLFSSL_ATOMIC_STORE(((DRBG_internal *)rng->drbg)->nextUncreditedSeedLen,
                              WC_DRBG_NEXT_SEED_EMPTY);
     }
 #endif
 #ifdef WOLFSSL_DRBG_SHA512
     if ((rng->drbgType == WC_DRBG_SHA512) && (rng->drbg512 != NULL)) {
-        WOLFSSL_ATOMIC_STORE(((DRBG_SHA512_internal *)rng->drbg512)->nextSeedLen,
-                             WC_DRBG_NEXT_SEED_EMPTY);
+        NextSeedPurge(&((DRBG_SHA512_internal *)rng->drbg512)->nextSeedLen);
         WOLFSSL_ATOMIC_STORE(((DRBG_SHA512_internal *)rng->drbg512)->nextUncreditedSeedLen,
                              WC_DRBG_NEXT_SEED_EMPTY);
     }
@@ -4022,10 +4074,9 @@ static int wc_RNG_DRBG_NextSeedGenerate_local(WC_RNG* rng, WC_RNG *root,
         return ret;
     }
 
-    cur = *lenp;
-    if ((cur < 0) || (cur >= (WC_ATOMIC_INT_ARG)nextSeedSz)) {
-
-        if (nonce) {
+    cur = WOLFSSL_ATOMIC_LOAD(*lenp);
+    if (nonce) {
+        if ((cur < 0) || (cur >= (WC_ATOMIC_INT_ARG)nextSeedSz)) {
             /* The accumulator is full (READY) or being consumed: fold the
              * arriving entropy in rather than discarding it.  The sentinel
              * check is deliberately advisory in this lane -- a torn read by a
@@ -4037,14 +4088,44 @@ static int wc_RNG_DRBG_NextSeedGenerate_local(WC_RNG* rng, WC_RNG *root,
             xorbuf(seed, nonce, n);
             return 0;
         }
-
-        if (cur != (WC_ATOMIC_INT_ARG)nextSeedSz) {
-            /* Ready, consuming, or other sentinel -- nothing to do. */
-            return WC_NO_ERR_TRACE(ALREADY_E); /* not an error */
+    }
+    else {
+        /* Producer claim: exactly one banker may fill or publish at a
+         * time.  Concurrent fills would be tolerable as BYTES (a torn
+         * mix is still entropy) but poisonous as CLAIMS: interleaved
+         * primary/RBGC production could publish material under the
+         * wrong stratum or health-test disposition.  The claim makes
+         * produce-side exclusivity a CAS, matching the consume side's
+         * READY -> CONSUMING claim.  This lane only: the uncredited
+         * accumulator above stays multi-writer by design. */
+        for (;;) {
+            if ((cur == WC_DRBG_NEXT_SEED_PRODUCING) ||
+                (cur == WC_DRBG_NEXT_SEED_PURGED))
+            {
+                /* A producer is in flight (or unwinding a purge):
+                 * retryable on a later banking cycle.  Traced: the
+                 * competing producer -- typically the entropy daemon
+                 * -- is the diagnosis a surprised caller needs. */
+                return BUSY_E;
+            }
+            if (cur < 0) {
+                /* Ready or consuming -- nothing to do. */
+                return WC_NO_ERR_TRACE(ALREADY_E); /* not an error */
+            }
+            if (wolfSSL_Atomic_Int_CompareExchange(lenp, &cur,
+                    WC_DRBG_NEXT_SEED_PRODUCING))
+                break;
+            /* cur was reloaded by the failed exchange; re-evaluate. */
         }
-        /* Complete but unpublished (interrupted between fill completion and
-         * publication): retry the health test and publication below. */
-        n = 0;
+        if (cur == (WC_ATOMIC_INT_ARG)nextSeedSz) {
+            /* Complete but unpublished (interrupted between fill
+             * completion and publication): retry the health test and
+             * publication below. */
+            n = 0;
+        }
+        /* From here to release/publication the aperture word is
+         * PRODUCING; fill progress lives only in the local cur, and
+         * every exit passes through NextSeedProducerRelease(). */
     }
 
     if (n > 0) {
@@ -4057,18 +4138,21 @@ static int wc_RNG_DRBG_NextSeedGenerate_local(WC_RNG* rng, WC_RNG *root,
 #ifdef WC_RNG_HAVE_RBGC
         if (root) {
             /* If primary seed bytes were carried forward, reset now to avoid
-             * wc_RNG_TestSeed() at completion. */
-            if ((cur > 0) && (*nextSeedRBGCStratum_p == 0)) {
+             * wc_RNG_TestSeed() at completion.  Local only: the word is
+             * held at PRODUCING. */
+            if ((cur > 0) && (*nextSeedRBGCStratum_p == 0))
                 cur = 0;
-                WOLFSSL_ATOMIC_STORE(*lenp, cur);
-            }
 
             if (n > nextSeedSz - (word32)cur)
                 n = nextSeedSz - (word32)cur;
 
             ret = wc_RNG_GenerateBlock(root, seed + cur, n);
             if (ret != 0) {
-                /* Partial bank preserved -- retry on a later cycle. */
+                /* Partial bank preserved -- retry on a later cycle.
+                 * (If a purge landed meanwhile, the release discards
+                 * instead; the draw failure is the more informative
+                 * code and wins over the release's BUSY_E.) */
+                (void)NextSeedProducerRelease(lenp, cur);
                 return ret;
             }
 
@@ -4099,11 +4183,10 @@ static int wc_RNG_DRBG_NextSeedGenerate_local(WC_RNG* rng, WC_RNG *root,
 
 #ifdef WC_RNG_HAVE_RBGC
             /* If RBGC seed bytes were carried forward, reset now to avoid
-             * intermixture and force wc_RNG_TestSeed() at completion. */
-            if ((cur > 0) && (*nextSeedRBGCStratum_p > 0)) {
+             * intermixture and force wc_RNG_TestSeed() at completion.
+             * Local only: the word is held at PRODUCING. */
+            if ((cur > 0) && (*nextSeedRBGCStratum_p > 0))
                 cur = 0;
-                WOLFSSL_ATOMIC_STORE(*lenp, cur);
-            }
 #endif
 
             if (n > nextSeedSz - (word32)cur)
@@ -4111,7 +4194,12 @@ static int wc_RNG_DRBG_NextSeedGenerate_local(WC_RNG* rng, WC_RNG *root,
 
             ret = wc_GenerateSeed(&os, seed + cur, n);
             if (ret != 0) {
-                /* Partial bank preserved -- retry on a later cycle. */
+                /* Partial bank preserved -- retry on a later cycle.
+                 * (If a purge landed meanwhile, the release discards
+                 * instead; the seed-gather failure is the more
+                 * informative code and wins over the release's
+                 * BUSY_E.) */
+                (void)NextSeedProducerRelease(lenp, cur);
                 return ret;
             }
 
@@ -4121,7 +4209,17 @@ static int wc_RNG_DRBG_NextSeedGenerate_local(WC_RNG* rng, WC_RNG *root,
         }
 
         cur += (int)n;
-        WOLFSSL_ATOMIC_STORE(*lenp, cur);
+        if (nonce != NULL)
+            WOLFSSL_ATOMIC_STORE(*lenp, cur);
+    }
+
+    if (nonce == NULL && cur < (WC_ATOMIC_INT_ARG)nextSeedSz) {
+        /* Partial credited fill this call: release the claim back to
+         * the fill offset for a later cycle to resume.  A purge
+         * meanwhile discards instead, and the release's BUSY_E
+         * percolates -- returning 0 would claim banked progress the
+         * purge just evaporated. */
+        return NextSeedProducerRelease(lenp, cur);
     }
 
     if (cur == (WC_ATOMIC_INT_ARG)nextSeedSz) {
@@ -4136,7 +4234,12 @@ static int wc_RNG_DRBG_NextSeedGenerate_local(WC_RNG* rng, WC_RNG *root,
         /* If RBGC bytes were used for the reseed, then we can skip
          * wc_RNG_TestSeed(). */
         if (*nextSeedRBGCStratum_p > 0) {
-            WOLFSSL_ATOMIC_STORE(*lenp, WC_DRBG_NEXT_SEED_READY);
+            ret = NextSeedProducerRelease(lenp, WC_DRBG_NEXT_SEED_READY);
+            if (ret != 0) {
+                /* Purged while producing (BUSY_E): nothing banked;
+                 * post-event material wanted.  Retryable. */
+                return ret;
+            }
             #ifdef WC_RNG_DEBUG_STATS
             ++rng->_stats_n_nextseed_banked;
             #endif
@@ -4147,7 +4250,12 @@ static int wc_RNG_DRBG_NextSeedGenerate_local(WC_RNG* rng, WC_RNG *root,
          * that wc_RNG_DRBG_NextSeedNow() is pure computation. */
         ret = wc_RNG_TestSeed(seed, nextSeedSz);
         if (ret == 0) {
-            WOLFSSL_ATOMIC_STORE(*lenp, WC_DRBG_NEXT_SEED_READY);
+            ret = NextSeedProducerRelease(lenp, WC_DRBG_NEXT_SEED_READY);
+            if (ret != 0) {
+                /* Purged while producing (BUSY_E): nothing banked;
+                 * post-event material wanted.  Retryable. */
+                return ret;
+            }
             #ifdef WC_RNG_DEBUG_STATS
             ++rng->_stats_n_nextseed_banked;
             #endif
@@ -4155,24 +4263,39 @@ static int wc_RNG_DRBG_NextSeedGenerate_local(WC_RNG* rng, WC_RNG *root,
         }
         else if (ret == WC_NO_ERR_TRACE(MEMORY_E)) {
             /* wc_RNG_TestSeed() did nothing with the data -- not
-             * dispositive. */
+             * dispositive.  Release complete-but-unpublished for a
+             * later retry; a purge-discard's BUSY_E percolates (the
+             * retry cause is then the purge, not the test). */
+            ret = NextSeedProducerRelease(lenp,
+                                          (WC_ATOMIC_INT_ARG)nextSeedSz);
+            if (ret != 0)
+                return ret;
             return NOT_READY_E;
         }
         else if ((ret == WC_NO_ERR_TRACE(ENTROPY_RT_E)) ||
                  (ret == WC_NO_ERR_TRACE(ENTROPY_APT_E)))
         {
-            /* Use-once: a failed test consumes the material.  Release
-             * store: the ForceZero() must be visible before the empty
-             * aperture is. */
+            /* Use-once: a failed test consumes the material. */
             #ifdef WC_RNG_DEBUG_STATS
             ++rng->_stats_seed_failures;
             #endif
-            ForceZero(seed, nextSeedSz);
-            WOLFSSL_ATOMIC_STORE(*lenp, WC_DRBG_NEXT_SEED_EMPTY);
+            /* Use-once on a failed test is enforced by the sentinel
+             * alone: an EMPTY aperture is never consumed, and the next
+             * fill overwrites from offset zero.  The buffer is never
+             * zeroized (house rule for the seed apertures).  Burn and
+             * purge-discard converge on EMPTY; the release handles
+             * both, and the health-test failure is the more
+             * informative code and wins over the release's BUSY_E. */
+            (void)NextSeedProducerRelease(lenp, WC_DRBG_NEXT_SEED_EMPTY);
             return ret;
         }
         else {
-            /* Buggy or brokey */
+            /* Buggy or brokey.  Release complete-but-unpublished; the
+             * material is untested but intact, and a later cycle
+             * re-adjudicates.  The primary error is the more
+             * informative code and wins over a purge-discard's
+             * BUSY_E. */
+            (void)NextSeedProducerRelease(lenp, (WC_ATOMIC_INT_ARG)nextSeedSz);
             return ret;
         }
     }
