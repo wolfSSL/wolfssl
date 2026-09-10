@@ -528,7 +528,7 @@ int wc_HmacCopy(Hmac* src, Hmac* dst) {
         if (hashes_copied >= 3)
             HmacKeyFreeHash(src->macType, &dst->o_hash);
 #endif
-        XMEMSET(dst, 0, sizeof(*dst));
+        ForceZero(dst, sizeof(*dst));
     }
     return ret;
 }

@@ -6114,7 +6114,7 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
         err = mp_set(key->pubkey.z, 1);
     if (err) {
         key->privKey = NULL;
-        XMEMSET(key->keyRaw, 0, sizeof(key->keyRaw));
+        ForceZero(key->keyRaw, sizeof(key->keyRaw));
         return err;
     }
 
@@ -17399,7 +17399,7 @@ int wc_ecc_set_nonblock(ecc_key *key, ecc_nb_ctx_t* ctx)
     /* If a different context is already set, clear it before replacing.
      * The caller is responsible for freeing any heap-allocated context. */
     if (key->nb_ctx != NULL && key->nb_ctx != ctx) {
-        XMEMSET(key->nb_ctx, 0, sizeof(ecc_nb_ctx_t));
+        ForceZero(key->nb_ctx, sizeof(ecc_nb_ctx_t));
     }
     if (ctx != NULL) {
         XMEMSET(ctx, 0, sizeof(ecc_nb_ctx_t));

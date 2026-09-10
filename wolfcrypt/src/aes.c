@@ -15466,7 +15466,7 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     wolfSSL_CryptHwMutexUnLock();
 
     if (status != kStatus_Success) {
-        XMEMSET(out, 0, inSz);
+        ForceZero(out, inSz);
         return AES_CCM_AUTH_E;
     }
     return 0;
@@ -15959,7 +15959,7 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
             WOLFSSL_MSG("Preserve output for vector responses");
             #else
             if (inSz > 0)
-                XMEMSET(out, 0, inSz);
+                ForceZero(out, inSz);
             #endif
             ret = AES_CCM_AUTH_E;
         }
