@@ -160,6 +160,16 @@
     #define SHA3_NEEDS_VREG_CLAIM
 #endif
 
+#if defined(WOLFSSL_ARMASM) && !defined(__aarch64__) && \
+    !defined(WOLFSSL_ARMASM_THUMB2) && !defined(WC_SHA3_NO_ASM) && \
+    !defined(WOLFSSL_ARMASM_NO_NEON) && !defined(WOLFSSL_ARMASM_INLINE)
+    /* The one 32-bit Arm block is NEON (port/arm/armv8-32-sha3-asm.S saves
+     * d8-d15), so it always needs the registers.  The predicate ignores its
+     * argument because 32-bit Arm calls BlockSha3 directly, with no pointer. */
+    #define SHA3_BLOCK_VREGS(f) 1
+    #define SHA3_NEEDS_VREG_CLAIM
+#endif
+
 #if !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_RISCV_ASM) && \
     !defined(WOLFSSL_PPC64_ASM) && !defined(WOLFSSL_PPC32_ASM)
 
@@ -1004,7 +1014,7 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, word32 p)
     if (SHA3_BLOCK_VREGS(sha3_block)) {
         ret = SAVE_VECTOR_REGISTERS2();
         if (ret != 0) {
-#ifdef WC_C_DYNAMIC_FALLBACK
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(SHA3_FUNC_PTR)
             sha3_block = BlockSha3;
             sha3_block_n = NULL;
             ret = 0;
@@ -1216,7 +1226,7 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, word32 p, word32 l
     if (SHA3_BLOCK_VREGS(sha3_block)) {
         int ret = SAVE_VECTOR_REGISTERS2();
         if (ret != 0) {
-#ifdef WC_C_DYNAMIC_FALLBACK
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(SHA3_FUNC_PTR)
             sha3_block = BlockSha3;
 #else
             return ret;
@@ -2274,14 +2284,14 @@ int wc_Shake128_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
     }
 
 #if defined(USE_INTEL_SPEEDUP) || defined(SHA3_NEEDS_VREG_CLAIM)
-#ifdef WC_C_DYNAMIC_FALLBACK
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(SHA3_FUNC_PTR)
     sha3_block = SHA3_BLOCK;
 #endif
 
     if (SHA3_BLOCK_VREGS(sha3_block)) {
         int ret = SAVE_VECTOR_REGISTERS2();
         if (ret != 0) {
-#ifdef WC_C_DYNAMIC_FALLBACK
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(SHA3_FUNC_PTR)
             sha3_block = BlockSha3;
 #else
             return ret;
@@ -2580,14 +2590,14 @@ int wc_Shake256_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
     }
 
 #if defined(USE_INTEL_SPEEDUP) || defined(SHA3_NEEDS_VREG_CLAIM)
-#ifdef WC_C_DYNAMIC_FALLBACK
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(SHA3_FUNC_PTR)
     sha3_block = SHA3_BLOCK;
 #endif
 
     if (SHA3_BLOCK_VREGS(sha3_block)) {
         int ret = SAVE_VECTOR_REGISTERS2();
         if (ret != 0) {
-#ifdef WC_C_DYNAMIC_FALLBACK
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(SHA3_FUNC_PTR)
             sha3_block = BlockSha3;
 #else
             return ret;
