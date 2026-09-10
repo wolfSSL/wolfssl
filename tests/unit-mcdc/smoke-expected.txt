@@ -1,5 +1,8 @@
+test_asn_cert_whitebox
 test_asn_ext_whitebox
 test_asn_fault_whitebox
+test_asn_keys_whitebox
+test_asn_revocation_whitebox
 test_asn_whitebox
 test_blake2b_whitebox
 test_blake2s_whitebox
@@ -39,6 +42,9 @@ test_mlkem_fault_whitebox
 test_mlkem_poly_hash_fault_whitebox
 test_pkcs12_fault_whitebox
 test_pkcs12_parse_whitebox
+test_pkcs12_whitebox
+test_pkcs7_arg_whitebox
+test_pkcs7_craft_whitebox
 test_pkcs7_decode_whitebox
 test_pkcs7_lever_whitebox
 test_pkcs7_mutate_whitebox
