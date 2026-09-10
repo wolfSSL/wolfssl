@@ -652,8 +652,9 @@ int wolfIO_SockIsDGram(int sfd)
     /* optvalue 'type' is of size int */
     XSOCKLENT length = (XSOCKLENT)sizeof(type);
 
-    if (getsockopt(sfd, SOL_SOCKET, SO_TYPE, (XSOCKOPT_TYPE_OPTVAL_TYPE)&type,
-            &length) == 0 && type != SOCK_DGRAM) {
+    if (XSOCKET_GETSOCKOPT(sfd, SOL_SOCKET, SO_TYPE,
+            (XSOCKOPT_TYPE_OPTVAL_TYPE)&type, &length) == 0 &&
+            type != SOCK_DGRAM) {
         return 0;
     }
     else {
@@ -798,7 +799,7 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
             #endif /* WOLFSSL_DTLS13 */
                 timeout.tv_sec = dtls_timeout;
         #endif /* USE_WINDOWS_API */
-            if (setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout,
+            if (XSOCKET_SETSOCKOPT(sd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout,
                     sizeof(timeout)) != 0) {
                 WOLFSSL_MSG("setsockopt rcvtimeo failed");
             }
@@ -1029,7 +1030,7 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
         return BAD_FUNC_ARG;
 
     XMEMSET(&peer, 0, sizeof(peer));
-    if (getpeername(sd, (SOCKADDR*)&peer, &peerSz) != 0) {
+    if (XSOCKET_GETPEERNAME(sd, (SOCKADDR*)&peer, &peerSz) != 0) {
         WOLFSSL_MSG("getpeername failed in EmbedGenerateCookie");
         return GEN_COOKIE_E;
     }
@@ -1562,7 +1563,7 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
     (void)to_sec;
 #endif /* HAVE_IO_TIMEOUT */
 
-    ret = connect(*sockfd, (SOCKADDR *)&addr, sockaddr_len);
+    ret = XSOCKET_CONNECT(*sockfd, (SOCKADDR *)&addr, sockaddr_len);
 #ifdef HAVE_IO_TIMEOUT
     if ((ret != 0) && (to_sec > 0)) {
 #ifdef USE_WINDOWS_API
@@ -1643,14 +1644,15 @@ int wolfIO_TcpBind(SOCKET_T* sockfd, word16 port)
     {
         int optval  = 1;
         XSOCKLENT optlen = sizeof(optval);
-        ret = setsockopt(*sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, optlen);
+        ret = XSOCKET_SETSOCKOPT(*sockfd, SOL_SOCKET, SO_REUSEADDR, &optval,
+                                 optlen);
     }
 #endif
 
     if (ret == 0)
-        ret = bind(*sockfd, (SOCKADDR *)sin, sockaddr_len);
+        ret = XSOCKET_BIND(*sockfd, (SOCKADDR *)sin, sockaddr_len);
     if (ret == 0)
-        ret = listen(*sockfd, SOMAXCONN);
+        ret = XSOCKET_LISTEN(*sockfd, SOMAXCONN);
 
     if (ret != 0) {
         WOLFSSL_MSG("wolfIO_TcpBind failed");

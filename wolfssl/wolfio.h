@@ -497,8 +497,24 @@
         #define WOLFSSL_MAX_SEND_SZ       256
     #endif
 
-    #define SEND_FUNCTION send
-    #define RECV_FUNCTION recv
+    #if KERNEL_VERSION_NUMBER >= 0x40100
+        /* Zephyr 4.1 removed CONFIG_NET_SOCKETS_POSIX_NAMES. The zsock_ names
+         * are always present; the types and constants below still need
+         * CONFIG_NET_NAMESPACE_COMPAT_MODE from 4.4 on. */
+        #define SEND_FUNCTION          zsock_send
+        #define RECV_FUNCTION          zsock_recv
+        #define DTLS_SENDTO_FUNCTION   zsock_sendto
+        #define DTLS_RECVFROM_FUNCTION zsock_recvfrom
+        #define XSOCKET_BIND           zsock_bind
+        #define XSOCKET_CONNECT        zsock_connect
+        #define XSOCKET_LISTEN         zsock_listen
+        #define XSOCKET_GETSOCKOPT     zsock_getsockopt
+        #define XSOCKET_SETSOCKOPT     zsock_setsockopt
+        #define XSOCKET_GETPEERNAME    zsock_getpeername
+    #else
+        #define SEND_FUNCTION send
+        #define RECV_FUNCTION recv
+    #endif
 #elif defined(WOLFSSL_LINUXKM)
     #define SEND_FUNCTION linuxkm_send
     #define RECV_FUNCTION linuxkm_recv
@@ -511,6 +527,28 @@
     #if !defined(HAVE_SOCKADDR) && !defined(WOLFSSL_NO_SOCK)
         #define HAVE_SOCKADDR
     #endif
+#endif
+
+/* Socket calls wolfSSL makes that have no wrapper of their own. A port that
+ * spells them differently overrides these above; everyone else gets the BSD
+ * names, so the expansion is unchanged. */
+#ifndef XSOCKET_BIND
+    #define XSOCKET_BIND        bind
+#endif
+#ifndef XSOCKET_CONNECT
+    #define XSOCKET_CONNECT     connect
+#endif
+#ifndef XSOCKET_LISTEN
+    #define XSOCKET_LISTEN      listen
+#endif
+#ifndef XSOCKET_GETSOCKOPT
+    #define XSOCKET_GETSOCKOPT  getsockopt
+#endif
+#ifndef XSOCKET_SETSOCKOPT
+    #define XSOCKET_SETSOCKOPT  setsockopt
+#endif
+#ifndef XSOCKET_GETPEERNAME
+    #define XSOCKET_GETPEERNAME getpeername
 #endif
 
 #ifndef WOLFSSL_NO_SOCK

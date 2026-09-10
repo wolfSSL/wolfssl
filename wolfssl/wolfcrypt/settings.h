@@ -3157,34 +3157,10 @@
     void *z_realloc(void *ptr, size_t size);
     #define realloc   z_realloc
 
-    #if KERNEL_VERSION_NUMBER >= 0x40100
-    /* Zephyr >= 4.1 removed CONFIG_NET_SOCKETS_POSIX_NAMES and the
-     * corresponding macro block in <zephyr/net/socket.h>.
-     * Define our own compile-time remapping to zsock_* so that wolfSSL
-     * always calls Zephyr's network stack directly, avoiding host-libc
-     * symbol conflicts on native_sim. */
-    #define socket      zsock_socket
-    #define bind        zsock_bind
-    #define connect     zsock_connect
-    #define listen      zsock_listen
-    #define accept      zsock_accept
-    #define send        zsock_send
-    #define recv        zsock_recv
-    #define sendto      zsock_sendto
-    #define recvfrom    zsock_recvfrom
-    #define setsockopt  zsock_setsockopt
-    #define getsockopt  zsock_getsockopt
-    #define shutdown    zsock_shutdown
-    #define getpeername zsock_getpeername
-    #define getsockname zsock_getsockname
-    /* Note: close, poll, inet_pton, inet_ntop are NOT remapped here.
-     * They are general POSIX functions still declared in Zephyr's POSIX
-     * headers; redefining them conflicts with __syscall declarations in
-     * <zephyr/net/socket.h>. close is handled via CloseSocket in wolfio.h,
-     * inet_pton/inet_ntop via XINET_PTON/XINET_NTOP in wolfio.h. */
-    #else
-    /* Zephyr < 4.1: define CONFIG_NET_SOCKETS_POSIX_NAMES so that
-     * <net/socket.h> provides the POSIX name remapping macros. */
+    /* Zephyr < 4.1: ask <net/socket.h> for the POSIX socket names. Newer
+     * Zephyr dropped this option; wolfSSL reaches the zsock_* API by name
+     * through the XSOCKET_* macros in wolfio.h instead. */
+    #if KERNEL_VERSION_NUMBER < 0x40100
     #if !defined(CONFIG_NET_SOCKETS_POSIX_NAMES) && !defined(CONFIG_POSIX_API)
     #define CONFIG_NET_SOCKETS_POSIX_NAMES
     #endif

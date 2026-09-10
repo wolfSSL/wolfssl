@@ -2057,10 +2057,19 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 #if !defined(NO_FILESYSTEM)
     #define wc_fopen_owner_only(path) XFOPEN((path), "w+b")
 #endif
+#if defined(WOLFSSL_ZEPHYR) && KERNEL_VERSION_NUMBER >= 0x40100
+    /* Zephyr offers these under their zsock_ names in every configuration;
+     * the POSIX aliases need the compat mode from 4.4 on. */
+    #define wc_socket_cloexec(domain, type, protocol) \
+        zsock_socket((domain), (type), (protocol))
+    #define wc_accept_cloexec(sockfd, addr, addrlen) \
+        zsock_accept((sockfd), (addr), (addrlen))
+#else
     #define wc_socket_cloexec(domain, type, protocol) \
         socket((domain), (type), (protocol))
     #define wc_accept_cloexec(sockfd, addr, addrlen) \
         accept((sockfd), (addr), (addrlen))
+#endif
 #endif
 
 #ifdef __cplusplus
