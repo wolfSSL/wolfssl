@@ -56,9 +56,12 @@ for tu in "$HERE"/*_whitebox.c; do
     cp "$LIB" "$work/t.a"
     mem=$(ar t "$work/t.a" | grep -E "_la-${base}\.o$" | head -1)
     [ -n "$mem" ] && ar d "$work/t.a" "$mem" 2>/dev/null
+    # certs_test.h gates its DER arrays behind USE_CERT_BUFFERS_*, which no
+    # configure option sets; eight white-boxes need them to compile at all.
     if ! ( cd "$BUILD" && $CC_ -O0 -g -I"$BUILD" -I"$SRC" -I"$SRC/tests" \
              -DWOLFSSL_TEST_STATIC_BUILD -DHAVE_CONFIG_H \
              -DWOLFSSL_USE_OPTIONS_H \
+             -DUSE_CERT_BUFFERS_2048 -DUSE_CERT_BUFFERS_256 \
              -o "$work/$name.bin" "$tu" "$work/t.a" -lm -lpthread $LDEXTRA ) \
              >"$work/$name.log" 2>&1; then
         skip+=("$name"); continue
