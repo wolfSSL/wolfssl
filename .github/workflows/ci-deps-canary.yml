@@ -105,6 +105,13 @@ jobs:
                      -o APT::Sandbox::User=root
                      -o Acquire::http::Proxy=http://127.0.0.1:9
                      -o Acquire::https::Proxy=http://127.0.0.1:9)
+          # Into a file, so a static contract error fails the job: the exit
+          # status of a process substitution is not reported.
+          if ! ./.github/scripts/check-ci-deps.py --sets "${{ matrix.tag }}" \
+               > sets.txt; then
+            echo "::error::check-ci-deps.py rejected the workflows"
+            exit 1
+          fi
           fail=0
           while IFS= read -r pkgset; do
             [ -n "$pkgset" ] || continue
@@ -120,5 +127,5 @@ jobs:
               tail -20 sim.log
               fail=1
             fi
-          done < <(./.github/scripts/check-ci-deps.py --sets "${{ matrix.tag }}")
+          done < sets.txt
           exit "$fail"

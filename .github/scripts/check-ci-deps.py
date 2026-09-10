@@ -20,6 +20,7 @@
 #
 # Findings are emitted as GitHub workflow commands (::error / ::warning) so
 # they surface as annotations, and as plain text so the log reads locally.
+# Any error exits non-zero, in --matrix and --sets mode too.
 
 import json
 import pathlib
@@ -111,7 +112,10 @@ def series(text: str) -> str:
 
 
 class Checker:
-    def __init__(self, lists: dict):
+    def __init__(self, lists: dict, stream=sys.stdout):
+        # --matrix and --sets hand stdout to their caller as data, so findings
+        # go to stderr there instead of corrupting it.
+        self.stream = stream
         self.lists = lists
         self.errors = 0
         self.warnings = 0
@@ -126,11 +130,11 @@ class Checker:
         self.calls = []
 
     def error(self, where: str, msg: str) -> None:
-        print(f"::error file={where}::{msg}")
+        print(f"::error file={where}::{msg}", file=self.stream)
         self.errors += 1
 
     def warn(self, where: str, msg: str) -> None:
-        print(f"::warning file={where}::{msg}")
+        print(f"::warning file={where}::{msg}", file=self.stream)
         self.warnings += 1
 
     def check_call(self, where: str, tag: str, packages: str,
@@ -355,17 +359,25 @@ def main() -> int:
               file=sys.stderr)
         return 1
 
-    checker = Checker(load_lists())
+    data_mode = matrix or sets_for is not None
+    checker = Checker(load_lists(),
+                      stream=sys.stderr if data_mode else sys.stdout)
     paths = sorted(pathlib.Path(".github/workflows").rglob("*.yml"))
     paths += sorted(pathlib.Path(".github/workflows").rglob("*.yaml"))
     for path in paths:
         checker.check_file(path)
     checker.check_membrowse()
-    if matrix:
-        emit_matrix(checker)
-        return 0
-    if sets_for:
-        return emit_sets(checker, sets_for)
+    if data_mode:
+        if matrix:
+            emit_matrix(checker)
+            rc = 0
+        else:
+            rc = emit_sets(checker, sets_for)
+        if checker.errors:
+            print(f"FAILED: {checker.errors} problem(s) - see the ::error "
+                  f"lines above", file=sys.stderr)
+            return 1
+        return rc
     # After every call, so "requested by no workflow" sees the full set.
     checker.check_lists()
 
