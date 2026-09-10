@@ -17566,8 +17566,13 @@ static wc_test_ret_t aes_xts_large_test_common(XtsAes *aes,
                 i1, i1Sz);
             if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
                 ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-            if ((buf[0] != 0x5A) || (buf[WC_AES_BLOCK_SIZE - 1] != 0x5A))
-                ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+            {
+                word32 b;
+                for (b = 0; b < (word32)WC_AES_BLOCK_SIZE; b++) {
+                    if (buf[b] != 0x5A)
+                        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+                }
+            }
 #endif
         }
 #endif /* !WC_AESXTS_STREAM_NO_REQUEST_ACCOUNTING */
