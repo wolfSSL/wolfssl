@@ -7527,7 +7527,10 @@ exit:
 
     /* this is a software only variant of SHA3 not supported by external
      * hardware devices */
-#if defined(WOLFSSL_HASH_FLAGS) && !defined(WOLFSSL_ASYNC_CRYPT)
+/* The legacy Keccak-256 pad is not FIPS 202, so a v7 module ignores the flag
+ * and this vector cannot hold there; sha3.c carries the same condition. */
+#if defined(WOLFSSL_HASH_FLAGS) && !defined(WOLFSSL_ASYNC_CRYPT) && \
+    !FIPS_VERSION3_GE(7,0,0)
     {
         /* test vector with hash of empty string */
         static const char* Keccak256EmptyOut =
@@ -7558,7 +7561,7 @@ exit:
     keccak_exit:
         wc_Sha3_256_Free(&ksha);
     }
-#endif /* WOLFSSL_HASH_FLAGS && !WOLFSSL_ASYNC_CRYPT */
+#endif /* WOLFSSL_HASH_FLAGS && !WOLFSSL_ASYNC_CRYPT && !FIPS_VERSION3_GE(7,0,0) */
 
     return ret;
 }
