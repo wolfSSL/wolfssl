@@ -45,94 +45,27 @@
     #define WC_RNG_BANK_DAEMON_MAGIC_FREE 0U
 #endif
 
-#define WC_RNG_BANK_FLAG_NONE                     0
-#define WC_RNG_BANK_FLAG_INITED               (1U << 0)
-#define WC_RNG_BANK_FLAG_CAN_FAIL_OVER_INST   (1U << 1)
-#define WC_RNG_BANK_FLAG_CAN_WAIT             (1U << 2)
-#define WC_RNG_BANK_FLAG_NO_VECTOR_OPS        (1U << 3)
-#define WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST (1U << 4)
-#define WC_RNG_BANK_FLAG_AFFINITY_LOCK        (1U << 5)
-/* WC_RNG_BANK_FLAG_SEED_UNCREDITED applies only to wc_rng_bank_seed(): the
- * supplied seed material is mixed into each instance without entropy credit
- * (wc_RNG_DRBG_Reseed_Uncredited()), leaving the reseed schedule governed
- * solely by the module's own seed source. */
-#define WC_RNG_BANK_FLAG_SEED_UNCREDITED      (1U << 6)
-/* WC_RNG_BANK_FLAG_CONSUME_NEXT_SEED applies only to wc_rng_bank_checkout():
- * if the checked-out instance has a ready banked next seed (see
- * wc_RNG_DRBG_NextSeedGenerate() et al.), consume it in an immediate,
- * source-free credited reseed before returning the instance; a no-op when
- * no bank is ready or the build/instance has no next-seed support.  Safe in
- * atomic context. */
-#define WC_RNG_BANK_FLAG_CONSUME_NEXT_SEED    (1U << 7)
-/* WC_RNG_BANK_FLAG_FOR_RECOVERY declares a recovery-intent checkout of a
- * specific instance (e.g. by a reseed-and-recovery daemon's patrol):
- * out-of-service status is expected and accepted, and the
- * WC_RNG_BANK_FLAG_CONSUME_NEXT_SEED arm is suppressed (a consume would
- * fail on exactly the instances recovery targets).  Requires an explicit
- * instance: rejected in combination with _CAN_FAIL_OVER_INST or
- * _PREFER_AFFINITY_INST, and by the seed/reseed walkers.  Note that a
- * targeted (non-failover) checkout admits out-of-service instances with or
- * without this flag; the flag makes the intent explicit and
- * interaction-safe. */
-#define WC_RNG_BANK_FLAG_FOR_RECOVERY         (1U << 8)
-/* WC_RNG_BANK_FLAG_MAYBE_FOR_RECOVERY admits the caller to a quarantined
- * (WC_RNG_LOCK_ENTROPY_INVALIDATED) instance when no cheaper admission
- * applies, accepting the recovery obligation: wc_rng_bank_checkout() may
- * then return NEEDS_RECOVERY_E with the checkout otherwise complete --
- * *rng_inst set, instance lock (and any affinity/vector-inhibit state)
- * HELD.  The caller owns the lease and must either recover the instance
- * (a credited reseed, e.g. wc_RNG_DRBG_Reseed_Now(), clears the
- * quarantine) or check it back in.  Ordinary consumers that cannot
- * complete a recovery must not pass this flag. */
-#define WC_RNG_BANK_FLAG_MAYBE_FOR_RECOVERY (1U << 9)
-/* WC_RNG_BANK_FLAG_ERROR_ON_RNG_FAILED guarantees that
- * wc_rng_bank_checkout() (and APIs built on it, e.g. wc_rng_bank_spawn())
- * either returns a lease on an in-service instance (status WC_DRBG_OK) or
- * returns an error with NO lease held -- never a lease on an out-of-service
- * instance.  This closes the two paths that can otherwise lease one: a
- * targeted (non-failover) checkout, and a failover checkout after a full
- * unsuccessful lap (the anti-livelock disarm).  Under _CAN_WAIT, an
- * out-of-service instance is retried within the timeout budget (allowing a
- * recovery patrol to restore it) before the error is returned; the
- * distinguished error for a lap or wait that found only out-of-service
- * instances is BAD_STATE_E.  Contradicts, and is rejected with,
- * _FOR_RECOVERY.  Applies to instance status only; reseed-due diversion
- * semantics are unchanged. */
-#define WC_RNG_BANK_FLAG_ERROR_ON_RNG_FAILED  (1U << 10)
-/* WC_RNG_BANK_FLAG_QUIET suppresses the facility's WC_VERBOSE_RNG
- * operational warnings -- expected-condition notices such as the
- * reseed-due-instance handout, reinit retry/timeout reports, the
- * all-instances-busy notice, and the seed-walker's out-of-service reports
- * -- so that deliberate exercising (e.g. unit tests) doesn't spam the
- * log.  A bank-level flag only, set at wc_rng_bank_init(); it has no
- * per-call meaning and never suppresses refcount/consistency
- * diagnostics. */
-#define WC_RNG_BANK_FLAG_QUIET                (1U << 11)
-/* WC_RNG_BANK_FLAG_NO_CHECKOUT_REFCOUNTING (bank-level, set at
- * wc_rng_bank_init()) declares that the bank's lifetime is guaranteed by
- * its container to enclose all checkouts (e.g. a bank embedded in a
- * kernel crypto tfm context, torn down only after the API has quiesced
- * callers).  Per-checkout refcount traffic -- the one bank-global RMW
- * pair on the readout hot path -- is suppressed; refcount checks degrade
- * to read-only validity tests.  The refcount itself remains, serving its
- * standing roles: the INITED baseline, default-bank registration
- * (wc_rng_bank_default_set()), and per-bankref lifetime references.
- * Contract: with this flag, a wc_rng_bank_fini() racing live checkouts is
- * a use-after-free instead of BUSY_E -- only containers whose teardown
- * provably quiesces consumers first may set it. */
-#define WC_RNG_BANK_FLAG_NO_CHECKOUT_REFCOUNTING (1U << 12)
-#define WC_RNG_BANK_FLAG_INIT_RBGC   (1U << 13)
-#define WC_RNG_BANK_FLAG_DEFAULT_BANK (1U << 14)
-#define WC_RNG_BANK_FLAG_PREDICTION_RESISTANCE (1U << 15)
-/* wc_rng_bank_spawn[_new]() only: the child is born with
- * WC_RNG_INIT_FLAGS_RECOVER_AND_PROMOTE_FROM_NEXT_SEED. */
+#define WC_RNG_BANK_FLAG_NONE                      0
+#define WC_RNG_BANK_FLAG_INITED                    (1U << 0)
+#define WC_RNG_BANK_FLAG_CAN_FAIL_OVER_INST        (1U << 1)
+#define WC_RNG_BANK_FLAG_CAN_WAIT                  (1U << 2)
+#define WC_RNG_BANK_FLAG_NO_VECTOR_OPS             (1U << 3)
+#define WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST      (1U << 4)
+#define WC_RNG_BANK_FLAG_AFFINITY_LOCK             (1U << 5)
+#define WC_RNG_BANK_FLAG_SEED_UNCREDITED           (1U << 6)
+#define WC_RNG_BANK_FLAG_CONSUME_NEXT_SEED         (1U << 7)
+#define WC_RNG_BANK_FLAG_FOR_RECOVERY              (1U << 8)
+#define WC_RNG_BANK_FLAG_MAYBE_FOR_RECOVERY        (1U << 9)
+#define WC_RNG_BANK_FLAG_ERROR_ON_RNG_FAILED       (1U << 10)
+#define WC_RNG_BANK_FLAG_QUIET                     (1U << 11)
+#define WC_RNG_BANK_FLAG_NO_CHECKOUT_REFCOUNTING   (1U << 12)
+#define WC_RNG_BANK_FLAG_INIT_RBGC                 (1U << 13)
+#define WC_RNG_BANK_FLAG_DEFAULT_BANK              (1U << 14)
+#define WC_RNG_BANK_FLAG_PREDICTION_RESISTANCE     (1U << 15)
 #define WC_RNG_BANK_FLAG_SPAWN_RECOVER_AND_PROMOTE (1U << 16)
 
-/* base lock states are WC_RNG_LOCK_FREE / WC_RNG_LOCK_HELD in random.h;
- * these annotation bits ride above WC_RNG_LOCK_HELD via
- * wc_RNG_lock_get()/_set_extra()/_clear_extra(). */
-
 #ifndef WC_RNG_HAVE_LOCK
+    /* Definitions for backward-compat / WC_RNG_NO_LOCK */
     #define WC_RNG_LOCK_FREE 0
     #define WC_RNG_LOCK_HELD (1U<<0)
     #define WC_RNG_LOCK_REQUIRED (1U<<1)
@@ -147,6 +80,9 @@
     #endif
 #endif
 
+/* When WC_RNG_HAVE_LOCK, base lock states are in random.h and the lock word
+ * itself is in WC_RNG.lock; these annotation bits ride above the base bits via
+ * wc_RNG_lock_get() / _set_extra() / _clear_extra(). */
 #define WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED (1U<<(WC_RNG_LOCK_EXTRA_SHIFT+0))
 #define WC_RNG_BANK_INST_LOCK_VEC_OPS_INH     (1U<<(WC_RNG_LOCK_EXTRA_SHIFT+1))
 
@@ -164,9 +100,8 @@ typedef int (*wc_rng_bank_free_hook_cb_t)(const struct wc_rng_bank *bank,
 
 struct wc_rng_bank_inst {
     #ifdef WC_RNG_HAVE_LOCK
-        /* the exclusivity latch lives in rng.lock (wc_RNG_lock_*()) --
-         * in-FIPS-boundary, module-enforced.  This struct persists for the
-         * parent pointer and future bank-side slots. */
+        /* the exclusivity latch lives in WC_RNG.lock (wc_RNG_lock_*()) --
+         * in-FIPS-boundary, module-enforced. */
     #else
         #ifdef WOLFSSL_NO_ATOMICS
             word32 lock;
@@ -192,8 +127,6 @@ struct wc_rng_bank {
     wolfSSL_Ref refcount;
     void *heap;
     word32 flags;
-    /* fired by wc_rng_bank_fini() after its gates pass, before teardown
-     * (one-shot); see wc_rng_bank_register_free_hook(). */
     wc_rng_bank_free_hook_cb_t free_hook;
     void *free_hook_arg;
     wc_affinity_lock_fn_t affinity_lock_cb;
@@ -203,19 +136,12 @@ struct wc_rng_bank {
     int n_rngs;
     int first_failover_inst;
 #ifdef WC_RNG_HAVE_NEXT_SEED
-    /* Serializes whole-instance operations (wc_rng_bank_inst_reinit()'s
-     * free/reinstantiate cycle) against the entropy daemon's lockless
-     * banking calls (wc_rng_bank_next_seed_generate()).  0 = free,
-     * WC_RNG_BANK_INST_OP_DAEMON = daemon banking in progress,
-     * WC_RNG_BANK_INST_OP_REINIT = reinit in progress.  Lease-holders
-     * never consult it: instance-lock exclusion already covers every
-     * lease-holder <-> reinit and lease-holder <-> consume interaction. */
     wolfSSL_Atomic_Int inst_op_gate;
 #endif
 #ifdef WC_RNG_BANK_STATIC
     struct wc_rng_bank_inst rngs[WC_RNG_BANK_STATIC_SIZE];
 #else
-    struct wc_rng_bank_inst *rngs; /* typically one per CPU ID, plus a few */
+    struct wc_rng_bank_inst *rngs;
 #endif
 #ifdef WC_RNG_BANK_HAVE_DAEMON_SUPPORT
     wolfSSL_Atomic_Uint daemon_magic;
@@ -351,18 +277,6 @@ WOLFSSL_API int wc_rng_bank_inst_checkin(
     struct wc_rng_bank_inst **rng_inst);
 
 #ifdef WC_RNG_HAVE_NEXT_SEED
-/* Daemon entry point for banking next-seed material: resolves the instance
- * at inst_offset and calls wc_RNG_DRBG_NextSeedGenerate(rng, n) under the
- * bank's whole-instance-operation gate, so a concurrent
- * wc_rng_bank_inst_reinit() can never free the DRBG out from under the
- * gather.  Returns BUSY_E (skip this turn) when the gate is held by a
- * reinit; ALREADY_E when the instance's bank is already complete (sleep
- * until consumed); MISSING_RNG_E when the instance has no DRBG (RDRAND
- * et al.) and can be retired from the banking rotation permanently.
- * Other errors are transient gather/health-test failures: skip the turn
- * and alarm if persistent.  The caller must hold a bank reference (e.g.
- * per the daemon association) for the duration of the call.
- */
 WOLFSSL_API int wc_rng_bank_next_seed_generate(
     struct wc_rng_bank *bank,
     int inst_offset,
@@ -380,15 +294,6 @@ WOLFSSL_API int wc_rng_bank_inst_reinit(
     int timeout_secs,
     word32 flags);
 
-/* Patrol helper: check out the instance at inst_offset with
- * WC_RNG_BANK_FLAG_FOR_RECOVERY, reinitialize it iff it is out of service,
- * and check it back in.  A healthy instance is a success no-op, so callers
- * can invoke this unconditionally on a status observed locklessly (a stale
- * observation costs one harmless round trip).  Returns BUSY_E when the
- * instance lock or the whole-instance-operation gate is contended -- retry
- * on a later patrol turn.  flags may include WC_RNG_BANK_FLAG_CAN_WAIT and
- * WC_RNG_BANK_FLAG_AFFINITY_LOCK, which are passed through; bank must be
- * non-NULL. */
 WOLFSSL_API int wc_rng_bank_recover_inst(
     struct wc_rng_bank *bank,
     int inst_offset,
@@ -397,20 +302,6 @@ WOLFSSL_API int wc_rng_bank_recover_inst(
 
 #ifdef WC_RNG_HAVE_RBGC
 
-/* Spawn an SP 800-90C chain RNG from a bank instance: check out a parent
- * instance (honoring the usual selection flags), wc_InitRngNonceRBGC() /
- * wc_InitRngNonceRBGC_New() the child from it, and check the parent instance
- * back in.  The child's lifetime is thereafter decoupled from the parent and
- * its bank: it is lock-free for its owner and is released with wc_FreeRng()
- * (stack form) or wc_rng_free() (heap form).  The child's RBGC stratum is one
- * plus the parent's stratum at time of instantiation.  nonce/nonceSz may be
- * NULL/0 for a plain spawn; an example of a recommended nonce is Linux kernel
- * random_get_entropy() (which is typically a racy read of a high-resolution
- * timer).  bank == NULL uses the default bank where support is compiled in.
- * WC_RNG_BANK_FLAG_CONSUME_NEXT_SEED composes (banked reseed before the spawn
- * draw); WC_RNG_BANK_FLAG_SEED_UNCREDITED and WC_RNG_BANK_FLAG_FOR_RECOVERY are
- * rejected.  WC_RNG_BANK_FLAG_ERROR_ON_RNG_FAILED is implied: the parent is
- * guaranteed in-service, or an error is returned with no lease and no child. */
 WOLFSSL_API int wc_rng_bank_spawn(
     struct wc_rng_bank *bank,
     WC_RNG *child_rng,
@@ -455,30 +346,17 @@ WOLFSSL_API int wc_rng_bank_reseed_range(struct wc_rng_bank *bank,
                                          int timeout_secs,
                                          word32 flags);
 
-/* Set WC_RNG_LOCK_ENTROPY_INVALIDATED on every instance (see
- * wc_RNG_invalidate_entropy()): cached entropy products are discarded, and
- * each instance is forced through a credited reseed before its next
- * generate serves output.  Lock-free and constant-time per instance; safe
- * from the state-invalidation event context.  Walks every instance even on
- * error, returning the first error.  flags must be 0. */
 WOLFSSL_API int wc_rng_bank_invalidate_entropy(struct wc_rng_bank *bank,
                                                word32 flags);
 
 #endif /* HAVE_HASHDRBG */
 
 #ifdef WC_RNG_BANK_HAVE_DAEMON_SUPPORT
-/* Publish (or, with NULL, retract) the daemon's private root DRBG for the
- * state-invalidation handler.  Caller (the daemon) owns the ordering:
- * publish after successful init, retract before teardown. */
 WOLFSSL_API int wc_rng_bank_daemon_root_set(struct wc_rng_bank *bank,
                                             WC_RNG *daemon_root);
 WOLFSSL_API WC_RNG *wc_rng_bank_daemon_root_get(struct wc_rng_bank *bank);
 #endif
 
-/* Register a callback fired by wc_rng_bank_fini() once its refcount and
- * leak gates pass -- i.e. once teardown is committed -- e.g. to unlink the
- * bank from an external registry.  One-shot: cleared before firing.  A
- * NULL free_hook unregisters. */
 WOLFSSL_API int wc_rng_bank_register_free_hook(struct wc_rng_bank *bank,
     wc_rng_bank_free_hook_cb_t free_hook, void *arg);
 
