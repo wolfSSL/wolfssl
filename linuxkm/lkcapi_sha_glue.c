@@ -2430,15 +2430,15 @@ static void wc_linuxkm_rng_notifiers_uninstall(void)
     wc_linuxkm_rng_notifiers_installed = 0;
 }
 
-static ssize_t wc_linuxkm_rng_state_invalidate_handler(struct kobject *kobj,
-                                            struct kobj_attribute *attr,
+static ssize_t wc_linuxkm_rng_state_invalidate_handler(WC_MODULE_ATTR_CONST struct module_attribute *mattr,
+                                            struct module_kobject *mk,
                                             const char *buf, size_t count)
 {
     int mode = 0;
     int ret;
 
-    (void)kobj;
-    (void)attr;
+    (void)mattr;
+    (void)mk;
 
     if (kstrtoint(buf, 10, &mode) < 0)
         return -EINVAL;
@@ -2498,7 +2498,7 @@ static ssize_t wc_linuxkm_rng_state_invalidate_handler(struct kobject *kobj,
     return -EINVAL;
 }
 
-static struct kobj_attribute wc_linuxkm_rng_state_invalidate_attr =
+static struct module_attribute wc_linuxkm_rng_state_invalidate_attr =
     __ATTR(rng_state_invalidate, 0220, NULL, wc_linuxkm_rng_state_invalidate_handler);
 
 #define WC_LINUXKM_HAVE_RNG_STATE_INVALIDATE_HANDLER
@@ -4307,14 +4307,14 @@ static int wc_get_random_bytes_user_kretprobe_installed = 0;
 /* control channel at /sys/module/libwolfssl/rng_stats: echo 1 to dump the
  * current RNG stats to the kernel log on demand (they otherwise appear
  * only at teardown). */
-static ssize_t wc_linuxkm_rng_stats_handler(struct kobject *kobj,
-                                            struct kobj_attribute *attr,
+static ssize_t wc_linuxkm_rng_stats_handler(WC_MODULE_ATTR_CONST struct module_attribute *mattr,
+                                            struct module_kobject *mk,
                                             const char *buf, size_t count)
 {
     int arg;
 
-    (void)kobj;
-    (void)attr;
+    (void)mattr;
+    (void)mk;
 
     if (kstrtoint(buf, 10, &arg) || (arg != 1))
         return -EINVAL;
@@ -4323,7 +4323,7 @@ static ssize_t wc_linuxkm_rng_stats_handler(struct kobject *kobj,
     wc_linuxkm_rng_dump_stats(default_bank);
     return (ssize_t)count;
 }
-static struct kobj_attribute wc_linuxkm_rng_stats_attr =
+static struct module_attribute wc_linuxkm_rng_stats_attr =
     __ATTR(rng_stats, 0220, NULL, wc_linuxkm_rng_stats_handler);
 #endif /* WC_RNG_DEBUG_STATS */
 
