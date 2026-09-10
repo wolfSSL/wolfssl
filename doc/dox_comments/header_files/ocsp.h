@@ -285,8 +285,9 @@ int wc_OcspResponder_AddSigner(OcspResponder* responder,
     \param responder        Pointer to the OcspResponder.
     \param caSubject        The issuing CA subject name in the one-line
                             distinguished name format used internally by
-                            the library (e.g. "/C=US/O=Org/CN=CA"). To
-                            avoid mismatches,
+                            the library (e.g. "/C=US/O=Org/CN=CA"), in
+                            which a "\\", "/" or "+" inside a value is
+                            prefixed with a "\\". To avoid mismatches,
                             obtain this value from wc_GetDecodedCertSubject()
                             rather than constructing the string manually.
     \param caSubjectSz      Length of the caSubject string in bytes,

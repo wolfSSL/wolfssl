@@ -2504,6 +2504,7 @@ WOLFSSL_LOCAL int CalcHashId_ex(const byte* data, word32 len, byte* hash,
 WOLFSSL_LOCAL int GetHashId(const byte* id, int length, byte* hash,
     int hashAlg);
 WOLFSSL_LOCAL int GetName(DecodedCert* cert, int nameType, int maxIdx);
+WOLFSSL_LOCAL word32 X509CertEscapeName(char* out, const char* in, word32 inSz);
 
 #ifdef ASN_BER_TO_DER
 WOLFSSL_API int wc_BerToDer(const byte* ber, word32 berSz, byte* der,
