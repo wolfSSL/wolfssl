@@ -29305,8 +29305,6 @@ static int test_wc_SignCRL_ed25519(void)
     /* The key file carries the private key only, so derive the public key that
      * Ed25519 signing needs. */
     ExpectIntEQ(wc_ed25519_make_public(&key, key.p, ED25519_PUB_KEY_SIZE), 0);
-    if (EXPECT_SUCCESS())
-        key.pubKeySet = 1;
 
     if (EXPECT_SUCCESS()) {
         ExpectIntEQ(crl_sign_verify_ex2(certDer, (word32)certDerSz,

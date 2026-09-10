@@ -1,14 +1,14 @@
 /*!
     \ingroup ED25519
 
-    \brief この関数は、ed25519_keyオブジェクトに格納された秘密鍵からEd25519公開鍵を生成します。公開鍵をバッファpubKeyに格納します。
+    \brief この関数は、ed25519_keyオブジェクトに格納された秘密鍵からEd25519公開鍵を生成します。公開鍵をバッファpubKeyに格納します。キーオブジェクトがまだ公開鍵を保持していない場合、導出された鍵はキーオブジェクトにも格納され、署名に使用できるようになります。
 
     \return 0 公開鍵の作成に成功した場合に返されます。
     \return BAD_FUNC_ARG keyまたはpubKeyがNULLと評価された場合、または指定されたキーサイズが32バイトでない場合に返されます（Ed25519は32バイトのキーを持ちます）。
     \return ECC_PRIV_KEY_E ed25519_keyオブジェクトに秘密鍵が含まれていない場合に返されます。
     \return MEMORY_E 関数実行中にメモリの割り当てエラーが発生した場合に返されます。
 
-    \param [in] key キーを生成するed25519_keyへのポインタ。
+    \param [in,out] key キーを生成するed25519_keyへのポインタ。
     \param [out] pubKey 公開鍵を格納するバッファへのポインタ。
     \param [in] pubKeySz 公開鍵のサイズ。ED25519_PUB_KEY_SIZEである必要があります。
 
@@ -23,7 +23,7 @@
 
     wc_ed25519_init(&key);
     wc_ed25519_import_private_only(priv, sizeof(priv), &key);
-    ret = wc_ed25519_make_public(&key, pub, &pubSz);
+    ret = wc_ed25519_make_public(&key, pub, pubSz);
     if (ret != 0) {
         // 公開鍵の作成エラー
     }

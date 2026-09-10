@@ -22,7 +22,7 @@
 
     wc_ed448_init(&key);
     wc_ed448_import_private_only(priv, sizeof(priv), &key);
-    ret = wc_ed448_make_public(&key, pub, &pubSz);
+    ret = wc_ed448_make_public(&key, pub, pubSz);
     if (ret != 0) {
         // 公開鍵の作成エラー
     }
