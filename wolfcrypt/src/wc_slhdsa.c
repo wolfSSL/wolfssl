@@ -7225,7 +7225,7 @@ int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key, const byte* sk_seed,
         {
             /* The seeds are now staged in the key as the contiguous
              * SK.seed || SK.prf || PK.seed the callback expects. */
-            key->flags &= (word16)~WC_SLHDSA_FLAG_BOTH_KEYS;
+            key->flags &= ~((int)WC_SLHDSA_FLAG_BOTH_KEYS);
             ret = wc_CryptoCb_MakePqcSignatureKeyEx(NULL,
                 WC_PQC_SIG_TYPE_SLHDSA, (int)key->params->param, key->sk,
                 3U * key->params->n, key);

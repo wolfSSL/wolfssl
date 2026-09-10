@@ -1052,11 +1052,6 @@ int wc_FreeDhKey(DhKey* key)
     #ifdef WOLFSSL_KCAPI_DH
         KcapiDh_Free(key);
     #endif
-    #ifdef WC_DH_NONBLOCK
-        if (key->nb != NULL) {
-            ForceZero(key->nb, sizeof(DhNb));
-        }
-    #endif
     #ifdef WOLFSSL_CHECK_MEM_ZERO
         /* Deregister any mem-zero entries covering this key (e.g. key->priv
          * registered by wc_DhImportKeyPair) now that its fields are zeroed.
