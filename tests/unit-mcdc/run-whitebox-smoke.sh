@@ -26,6 +26,9 @@
 # It is generated with gcc, which is what the workflow uses; set CC to match
 # before regenerating.
 set -uo pipefail
+# sort and comm must agree on collation, or the comparison below is wrong:
+# en_US.UTF-8 ignores the underscores that separate these names.
+export LC_ALL=C
 
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 SRC=$(cd "$HERE/../.." && pwd)
@@ -37,6 +40,11 @@ UPDATE=0
 LIB="$BUILD/src/.libs/libwolfssl.a"
 [ -f "$LIB" ] || { echo "no static library at $LIB"; echo "configure with --enable-static"; exit 2; }
 CC_=${CC:-cc}
+# options.h can enable the Apple native cert validation, which needs the
+# system frameworks at link time.
+LDEXTRA=""
+[ "$(uname -s)" = "Darwin" ] &&
+    LDEXTRA="-framework CoreFoundation -framework Security"
 work=$(mktemp -d); trap 'rm -rf "$work"' EXIT
 
 pass=(); skip=(); fail=(); unsupported=()
@@ -50,7 +58,8 @@ for tu in "$HERE"/*_whitebox.c; do
     [ -n "$mem" ] && ar d "$work/t.a" "$mem" 2>/dev/null
     if ! ( cd "$BUILD" && $CC_ -O0 -g -I"$BUILD" -I"$SRC" -I"$SRC/tests" \
              -DWOLFSSL_TEST_STATIC_BUILD -DHAVE_CONFIG_H \
-             -o "$work/$name.bin" "$tu" "$work/t.a" -lm -lpthread ) \
+             -DWOLFSSL_USE_OPTIONS_H \
+             -o "$work/$name.bin" "$tu" "$work/t.a" -lm -lpthread $LDEXTRA ) \
              >"$work/$name.log" 2>&1; then
         skip+=("$name"); continue
     fi
