@@ -2563,6 +2563,7 @@ WOLFSSL_LOCAL int GetName(DecodedCert* cert, int nameType, int maxIdx);
 WOLFSSL_LOCAL int GetCertX509Name(DecodedCert* cert, int nameType,
     void* target);
 #endif
+WOLFSSL_LOCAL word32 X509CertEscapeName(char* out, const char* in, word32 inSz);
 
 #ifdef ASN_BER_TO_DER
 WOLFSSL_API int wc_BerToDer(const byte* ber, word32 berSz, byte* der,
