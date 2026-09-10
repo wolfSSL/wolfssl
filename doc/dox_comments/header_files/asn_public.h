@@ -3630,7 +3630,15 @@ int wc_GetSubjectPubKeyInfoDerFromCert(const byte* certDer,
     This function copies the subject name string from a DecodedCert
     structure into the provided buffer. The string uses a one-line
     distinguished name format with "/" delimiters
-    (e.g. "/C=US/O=Org/CN=example.com"). The output is NOT
+    (e.g. "/C=US/O=Org/CN=example.com"). Within an attribute value,
+    each "\\", "/" and "+" is prefixed with a "\\" so that it cannot be
+    mistaken for a separator (e.g. a CN of "a/b" is written "/CN=a\\/b").
+    The format is similar to, but not byte-identical with, OpenSSL's
+    X509_NAME_oneline(): wolfSSL also escapes "\\", does not hex-escape
+    bytes outside 0x20-0x7E (OpenSSL writes them as "\\xHH"), and always
+    separates attributes with "/", even within a multi-valued RDN (OpenSSL
+    uses "+"). Compare against strings produced by this library rather
+    than by OpenSSL or by hand. The output is NOT
     NUL-terminated; the caller should append a NUL byte if needed.
     If buf is NULL, the required buffer size is returned
     in bufSz and LENGTH_ONLY_E is returned.
@@ -3664,7 +3672,15 @@ int wc_GetDecodedCertSubject(const struct DecodedCert* cert,
     This function copies the issuer name string from a DecodedCert
     structure into the provided buffer. The string uses a one-line
     distinguished name format with "/" delimiters
-    (e.g. "/C=US/O=Org/CN=example.com"). The output is NOT
+    (e.g. "/C=US/O=Org/CN=example.com"). Within an attribute value,
+    each "\\", "/" and "+" is prefixed with a "\\" so that it cannot be
+    mistaken for a separator (e.g. a CN of "a/b" is written "/CN=a\\/b").
+    The format is similar to, but not byte-identical with, OpenSSL's
+    X509_NAME_oneline(): wolfSSL also escapes "\\", does not hex-escape
+    bytes outside 0x20-0x7E (OpenSSL writes them as "\\xHH"), and always
+    separates attributes with "/", even within a multi-valued RDN (OpenSSL
+    uses "+"). Compare against strings produced by this library rather
+    than by OpenSSL or by hand. The output is NOT
     NUL-terminated; the caller should append a NUL byte if needed.
     If buf is NULL, the required buffer size is returned
     in bufSz and LENGTH_ONLY_E is returned.
