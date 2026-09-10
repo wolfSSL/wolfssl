@@ -461,7 +461,13 @@ void wolfSSL_Free(void *ptr)
     wc_MemZero_Check(((unsigned char*)ptr) + MEM_ALIGN, *(size_t*)ptr);
 #endif
 #ifdef WOLFSSL_MEM_FAIL_COUNT
-    wc_MemFailCount_FreeMem();
+    /* Only count a free when there is a block to release. wolfSSL_Free(NULL)
+     * releases nothing (ISO/IEC 9899:2018 7.22.3.3: free(NULL) is a no-op),
+     * and a failed wolfSSL_Malloc() no longer counts an allocation, so a NULL
+     * free must not be counted either or Frees would exceed Total. */
+    if (ptr != NULL) {
+        wc_MemFailCount_FreeMem();
+    }
 #endif
 
     if (free_function) {
