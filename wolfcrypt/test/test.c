@@ -81654,6 +81654,11 @@ typedef struct {
     int hkdfPendArm;   /* pend the next this-many HKDF callback calls */
     int hkdfPendCount; /* pends issued; test asserts non-zero */
 #endif
+#ifdef WOLFSSL_HAVE_FRODOKEM
+    int frodoKgCount;     /* FrodoKEM keygen callback invocations */
+    int frodoEncapsCount; /* FrodoKEM encapsulate callback invocations */
+    int frodoDecapsCount; /* FrodoKEM decapsulate callback invocations */
+#endif
 } myCryptoDevCtx;
 
 #ifdef WOLF_CRYPTO_CB_ONLY_RSA
@@ -82530,6 +82535,140 @@ exit_onlycb:
     return ret;
 }
 #endif /* WOLF_CRYPTO_CB_ONLY_CURVE25519 */
+
+#if defined(WOLFSSL_HAVE_FRODOKEM) && defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) \
+    && defined(FRODOKEM_TEST_TYPE) && !defined(WC_NO_RNG) \
+    && !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY) \
+    && !defined(WOLFSSL_FRODOKEM_NO_ENCAPSULATE) \
+    && !defined(WOLFSSL_FRODOKEM_NO_DECAPSULATE)
+static int frodokem_buf_is(const byte* p, byte v, word32 len)
+{
+    word32 i;
+
+    for (i = 0; i < len; i++) {
+        if (p[i] != v)
+            return 0;
+    }
+    return 1;
+}
+
+/* With software FrodoKEM stripped, every operation must reach the device.
+ * Drive all three through the stub and check the outputs it produced, then
+ * confirm a declining device still reports NO_VALID_DEVID. */
+static wc_test_ret_t frodokem_onlycb_test(myCryptoDevCtx* ctx)
+{
+    wc_test_ret_t ret = 0;
+    FrodoKemKey* key;
+    byte* ct;
+    byte ss[FRODOKEM_MAX_LENSEC];
+    byte ss2[FRODOKEM_MAX_LENSEC];
+    word32 ctLen = 0;
+    word32 ssLen = 0;
+    int kgBase = ctx->frodoKgCount;
+    int encBase = ctx->frodoEncapsCount;
+    int decBase = ctx->frodoDecapsCount;
+    int key_inited = 0;
+    int rngInit = 0;
+    WC_RNG rng;
+    int r;
+
+    /* FrodoKemKey holds maximum-sized matrices; keep it off the stack. */
+    key = (FrodoKemKey*)XMALLOC(sizeof(*key), HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    ct = (byte*)XMALLOC(FRODOKEM_MAX_CIPHER_TEXT_SIZE, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if ((key == NULL) || (ct == NULL))
+        ret = WC_TEST_RET_ENC_NC;
+
+    if (ret == 0) {
+        r = wc_InitRng_ex(&rng, HEAP_HINT, INVALID_DEVID);
+        if (r != 0)
+            ret = WC_TEST_RET_ENC_EC(r);
+        else
+            rngInit = 1;
+    }
+    if (ret == 0) {
+        r = wc_FrodoKemKey_Init(key, FRODOKEM_TEST_TYPE, HEAP_HINT, devId);
+        if (r != 0)
+            ret = WC_TEST_RET_ENC_EC(r);
+        else
+            key_inited = 1;
+    }
+    if (ret == 0) {
+        r = wc_FrodoKemKey_CipherTextSize(key, &ctLen);
+        if (r != 0)
+            ret = WC_TEST_RET_ENC_EC(r);
+    }
+    if (ret == 0) {
+        r = wc_FrodoKemKey_SharedSecretSize(key, &ssLen);
+        if (r != 0)
+            ret = WC_TEST_RET_ENC_EC(r);
+    }
+
+    /* cb handles the op, expects 0(success) and the stub's key state */
+    if (ret == 0) {
+        ctx->exampleVar = 99;
+        r = wc_FrodoKemKey_MakeKey(key, &rng);
+        if (r != 0)
+            ret = WC_TEST_RET_ENC_EC(r);
+        else if (ctx->frodoKgCount == kgBase)
+            ret = WC_TEST_RET_ENC_NC;
+        else if ((key->flags & FRODOKEM_FLAG_BOTH_SET) !=
+                 FRODOKEM_FLAG_BOTH_SET)
+            ret = WC_TEST_RET_ENC_NC;
+    }
+    if (ret == 0) {
+        XMEMSET(ct, 0, ctLen);
+        XMEMSET(ss, 0, ssLen);
+        r = wc_FrodoKemKey_Encapsulate(key, ct, ss, &rng);
+        if (r != 0)
+            ret = WC_TEST_RET_ENC_EC(r);
+        else if (ctx->frodoEncapsCount == encBase)
+            ret = WC_TEST_RET_ENC_NC;
+        else if (!frodokem_buf_is(ct, 0xC7, ctLen) ||
+                 !frodokem_buf_is(ss, 0x5E, ssLen))
+            ret = WC_TEST_RET_ENC_NC;
+    }
+    if (ret == 0) {
+        XMEMSET(ss2, 0, ssLen);
+        r = wc_FrodoKemKey_Decapsulate(key, ss2, ct, ctLen);
+        if (r != 0)
+            ret = WC_TEST_RET_ENC_EC(r);
+        else if (ctx->frodoDecapsCount == decBase)
+            ret = WC_TEST_RET_ENC_NC;
+        else if (XMEMCMP(ss, ss2, ssLen) != 0)
+            ret = WC_TEST_RET_ENC_NC;
+    }
+
+    /* cb delegates, expects NO_VALID_DEVID(failure) from every operation */
+    if (ret == 0) {
+        ctx->exampleVar = 1;
+        r = wc_FrodoKemKey_MakeKey(key, &rng);
+        if (r != WC_NO_ERR_TRACE(NO_VALID_DEVID))
+            ret = WC_TEST_RET_ENC_NC;
+    }
+    if (ret == 0) {
+        r = wc_FrodoKemKey_Encapsulate(key, ct, ss, &rng);
+        if (r != WC_NO_ERR_TRACE(NO_VALID_DEVID))
+            ret = WC_TEST_RET_ENC_NC;
+    }
+    if (ret == 0) {
+        r = wc_FrodoKemKey_Decapsulate(key, ss2, ct, ctLen);
+        if (r != WC_NO_ERR_TRACE(NO_VALID_DEVID))
+            ret = WC_TEST_RET_ENC_NC;
+    }
+    ctx->exampleVar = 1;
+
+    if (key_inited)
+        wc_FrodoKemKey_Free(key);
+    if (rngInit)
+        wc_FreeRng(&rng);
+    XFREE(ct, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+#endif /* FRODOKEM && CB_ONLY_FRODOKEM && TEST_TYPE && !WC_NO_RNG */
 
 #if defined(WOLF_CRYPTO_CB_ONLY_CURVE448) && !defined(WOLFSSL_SWDEV)
 /* Is every byte of buf the marker value v? */
@@ -83846,19 +83985,33 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             }
         }
     #endif /* WOLFSSL_HAVE_MLKEM */
-    #if defined(WOLFSSL_HAVE_FRODOKEM) && \
-        !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM)
+    #if defined(WOLFSSL_HAVE_FRODOKEM)
         /* exampleVar counts the branches taken so cryptocb_test can confirm
-         * FrodoKEM really went through the callback. */
+         * FrodoKEM really went through the callback. Under CB_ONLY the stub
+         * cannot delegate to the public API, so exampleVar 99 makes it answer
+         * with deterministic material and anything else lets the call fall
+         * through to the API, which has no software left and reports
+         * NO_VALID_DEVID. */
         if (info->pk.type == WC_PK_TYPE_PQC_KEM_KEYGEN) {
             if ((info->pk.pqc_kem_kg.type == WC_PQC_KEM_TYPE_FRODOKEM) &&
                 (info->pk.pqc_kem_kg.key != NULL)) {
                 FrodoKemKey* key = (FrodoKemKey*)info->pk.pqc_kem_kg.key;
                 /* set devId to invalid, so software is used */
                 key->devId = INVALID_DEVID;
+            #ifdef WOLF_CRYPTO_CB_ONLY_FRODOKEM
+                if (myCtx->exampleVar == 99) {
+                    key->devId = devIdArg;
+                    if (info->pk.pqc_kem_kg.rng == NULL)
+                        return BAD_FUNC_ARG;
+                    key->flags |= FRODOKEM_FLAG_BOTH_SET;
+                    myCtx->frodoKgCount++;
+                    return 0;
+                }
+            #endif
                 ret = wc_FrodoKemKey_MakeKey(key, info->pk.pqc_kem_kg.rng);
                 key->devId = devIdArg;
                 myCtx->exampleVar++;
+                myCtx->frodoKgCount++;
             }
         }
         else if (info->pk.type == WC_PK_TYPE_PQC_KEM_ENCAPS) {
@@ -83866,12 +84019,26 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                 (info->pk.pqc_encaps.key != NULL)) {
                 FrodoKemKey* key = (FrodoKemKey*)info->pk.pqc_encaps.key;
                 key->devId = INVALID_DEVID;
+            #ifdef WOLF_CRYPTO_CB_ONLY_FRODOKEM
+                if (myCtx->exampleVar == 99) {
+                    key->devId = devIdArg;
+                    /* deterministic output so the caller can prove the
+                     * callback's result actually reached it */
+                    XMEMSET(info->pk.pqc_encaps.ciphertext, 0xC7,
+                        info->pk.pqc_encaps.ciphertextLen);
+                    XMEMSET(info->pk.pqc_encaps.sharedSecret, 0x5E,
+                        info->pk.pqc_encaps.sharedSecretLen);
+                    myCtx->frodoEncapsCount++;
+                    return 0;
+                }
+            #endif
                 ret = wc_FrodoKemKey_Encapsulate(key,
                     info->pk.pqc_encaps.ciphertext,
                     info->pk.pqc_encaps.sharedSecret,
                     info->pk.pqc_encaps.rng);
                 key->devId = devIdArg;
                 myCtx->exampleVar++;
+                myCtx->frodoEncapsCount++;
             }
         }
         else if (info->pk.type == WC_PK_TYPE_PQC_KEM_DECAPS) {
@@ -83879,15 +84046,27 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                 (info->pk.pqc_decaps.key != NULL)) {
                 FrodoKemKey* key = (FrodoKemKey*)info->pk.pqc_decaps.key;
                 key->devId = INVALID_DEVID;
+            #ifdef WOLF_CRYPTO_CB_ONLY_FRODOKEM
+                if (myCtx->exampleVar == 99) {
+                    key->devId = devIdArg;
+                    /* same secret the encapsulate stub produced, so the
+                     * caller's round-trip comparison is meaningful */
+                    XMEMSET(info->pk.pqc_decaps.sharedSecret, 0x5E,
+                        info->pk.pqc_decaps.sharedSecretLen);
+                    myCtx->frodoDecapsCount++;
+                    return 0;
+                }
+            #endif
                 ret = wc_FrodoKemKey_Decapsulate(key,
                     info->pk.pqc_decaps.sharedSecret,
                     info->pk.pqc_decaps.ciphertext,
                     info->pk.pqc_decaps.ciphertextLen);
                 key->devId = devIdArg;
                 myCtx->exampleVar++;
+                myCtx->frodoDecapsCount++;
             }
         }
-    #endif /* WOLFSSL_HAVE_FRODOKEM && !WOLF_CRYPTO_CB_ONLY_FRODOKEM */
+    #endif /* WOLFSSL_HAVE_FRODOKEM */
     }
     else if (info->algo_type == WC_ALGO_TYPE_CIPHER) {
 #if !defined(NO_AES) || !defined(NO_DES3)
@@ -85823,6 +86002,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 
     /* example data for callback */
     myCtx.exampleVar = 1;
+#ifdef WOLFSSL_HAVE_FRODOKEM
+    myCtx.frodoKgCount = 0;
+    myCtx.frodoEncapsCount = 0;
+    myCtx.frodoDecapsCount = 0;
+#endif
 #ifdef HAVE_ECC
     myCtx.eccMakePubCount = 0;
     myCtx.eccCheckPubCount = 0;
@@ -86121,17 +86305,36 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     if (ret == 0)
         ret = mlkem_test();
 #endif
+#if defined(WOLFSSL_HAVE_FRODOKEM) && defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) \
+    && defined(FRODOKEM_TEST_TYPE) && !defined(WC_NO_RNG) \
+    && !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY) \
+    && !defined(WOLFSSL_FRODOKEM_NO_ENCAPSULATE) \
+    && !defined(WOLFSSL_FRODOKEM_NO_DECAPSULATE)
+    if (ret == 0)
+        ret = frodokem_onlycb_test(&myCtx);
+#endif
 #if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM)
     if (ret == 0) {
         /* Route FrodoKEM through the crypto callback (global devId is set) and
-         * confirm the cb path was actually exercised via the hit counter, so a
-         * silent software fallback can't mask a dispatch regression.
-         * frodokem_test builds every key with the test devId, so keygen,
-         * encapsulate and decapsulate all reach the callback. */
+         * confirm the cb path was actually exercised, so a silent software
+         * fallback can't mask a dispatch regression. Each operation is counted
+         * on its own: a shared counter would let keygen alone stand in for a
+         * broken encapsulate or decapsulate. frodokem_test builds every key
+         * with the test devId, so all three reach the callback. */
         int baseline = myCtx.exampleVar;
         ret = frodokem_test();
-        if ((ret == 0) && (myCtx.exampleVar == baseline))
+#ifndef WOLFSSL_FRODOKEM_NO_MAKE_KEY
+        if ((ret == 0) && (myCtx.frodoKgCount == 0))
             ret = WC_TEST_RET_ENC_NC;
+#endif
+#ifndef WOLFSSL_FRODOKEM_NO_ENCAPSULATE
+        if ((ret == 0) && (myCtx.frodoEncapsCount == 0))
+            ret = WC_TEST_RET_ENC_NC;
+#endif
+#ifndef WOLFSSL_FRODOKEM_NO_DECAPSULATE
+        if ((ret == 0) && (myCtx.frodoDecapsCount == 0))
+            ret = WC_TEST_RET_ENC_NC;
+#endif
         myCtx.exampleVar = baseline;
     }
 #if defined(WOLF_CRYPTO_CB_FIND) && !defined(WOLFSSL_SWDEV) && \
@@ -86144,6 +86347,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
         FrodoKemKey* key = (FrodoKemKey*)XMALLOC(sizeof(*key), HEAP_HINT,
             DYNAMIC_TYPE_TMP_BUFFER);
         int baseline = myCtx.exampleVar;
+        int kgBase = myCtx.frodoKgCount;
         int key_inited = 0;
         WC_RNG rng;
         int rngInit = 0;
@@ -86174,9 +86378,58 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
             myCryptoCbFindInvalidLeft = 0;
             if (r != 0)
                 ret = WC_TEST_RET_ENC_EC(r);
-            else if (myCtx.exampleVar == baseline)
+            else if (myCtx.frodoKgCount == kgBase)
                 ret = WC_TEST_RET_ENC_NC; /* never reached the device */
         }
+#if !defined(WOLFSSL_FRODOKEM_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_FRODOKEM_NO_DECAPSULATE)
+        /* Encapsulate and decapsulate resolve through the finder the same way,
+         * so a lookup regression in either cannot hide behind keygen. */
+        if (ret == 0) {
+            byte* ct = (byte*)XMALLOC(FRODOKEM_MAX_CIPHER_TEXT_SIZE, HEAP_HINT,
+                DYNAMIC_TYPE_TMP_BUFFER);
+            byte ss[FRODOKEM_MAX_LENSEC];
+            byte ss2[FRODOKEM_MAX_LENSEC];
+            word32 ctLen = 0;
+            word32 ssLen = 0;
+            int encBase = myCtx.frodoEncapsCount;
+            int decBase = myCtx.frodoDecapsCount;
+
+            if (ct == NULL)
+                ret = WC_TEST_RET_ENC_NC;
+            if (ret == 0) {
+                r = wc_FrodoKemKey_CipherTextSize(key, &ctLen);
+                if (r != 0)
+                    ret = WC_TEST_RET_ENC_EC(r);
+            }
+            if (ret == 0) {
+                r = wc_FrodoKemKey_SharedSecretSize(key, &ssLen);
+                if (r != 0)
+                    ret = WC_TEST_RET_ENC_EC(r);
+            }
+            if (ret == 0) {
+                myCryptoCbFindInvalidLeft = 1;
+                r = wc_FrodoKemKey_Encapsulate(key, ct, ss, &rng);
+                myCryptoCbFindInvalidLeft = 0;
+                if (r != 0)
+                    ret = WC_TEST_RET_ENC_EC(r);
+                else if (myCtx.frodoEncapsCount == encBase)
+                    ret = WC_TEST_RET_ENC_NC;
+            }
+            if (ret == 0) {
+                myCryptoCbFindInvalidLeft = 1;
+                r = wc_FrodoKemKey_Decapsulate(key, ss2, ct, ctLen);
+                myCryptoCbFindInvalidLeft = 0;
+                if (r != 0)
+                    ret = WC_TEST_RET_ENC_EC(r);
+                else if (myCtx.frodoDecapsCount == decBase)
+                    ret = WC_TEST_RET_ENC_NC;
+                else if (XMEMCMP(ss, ss2, ssLen) != 0)
+                    ret = WC_TEST_RET_ENC_NC;
+            }
+            XFREE(ct, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+#endif
         myCtx.exampleVar = baseline;
         if (key_inited)
             wc_FrodoKemKey_Free(key);
