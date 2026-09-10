@@ -5484,19 +5484,27 @@ static void FreeX509Contents(WOLFSSL_X509* x509)
             wolfSSL_ASN1_OBJECT_free(x509->algor.algorithm);
             x509->algor.algorithm = NULL;
         }
-        if (x509->key.algor) {
-            wolfSSL_X509_ALGOR_free(x509->key.algor);
-            x509->key.algor = NULL;
-        }
-        if (x509->key.pkey) {
-            wolfSSL_EVP_PKEY_free(x509->key.pkey);
-            x509->key.pkey = NULL;
-        }
         if (x509->subjAltNameSrc != NULL) {
             XFREE(x509->subjAltNameSrc, x509->heap, DYNAMIC_TYPE_X509_EXT);
             x509->subjAltNameSrc= NULL;
         }
     #endif /* OPENSSL_ALL */
+    #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+        (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
+         defined(WOLFSSL_APACHE_HTTPD) || defined(WOLFSSL_HAPROXY) || \
+         defined(WOLFSSL_WPAS))
+        if (x509->key.algor) {
+            wolfSSL_X509_ALGOR_free(x509->key.algor);
+            x509->key.algor = NULL;
+        }
+    #endif
+    #ifdef OPENSSL_EXTRA_X509_SMALL
+        /* Public key cached by wolfSSL_X509_get_pubkey() and friends. */
+        if (x509->key.pkey) {
+            wolfSSL_EVP_PKEY_free(x509->key.pkey);
+            x509->key.pkey = NULL;
+        }
+    #endif
     #if defined(WOLFSSL_CERT_REQ) && defined(OPENSSL_ALL)
         if (x509->reqAttributes) {
             wolfSSL_sk_pop_free(x509->reqAttributes, NULL);
@@ -15249,6 +15257,11 @@ static void CopyDecodedSepFields(WOLFSSL_X509* x509, DecodedCert* dCert)
  * error, matching the original. */
 static int CopyDecodedPubKey(WOLFSSL_X509* x509, DecodedCert* dCert, int ret)
 {
+#ifdef OPENSSL_EXTRA_X509_SMALL
+    /* Drop the key decoded from a previous public key. */
+    wolfSSL_EVP_PKEY_free(x509->key.pkey);
+    x509->key.pkey = NULL;
+#endif
     if (dCert->publicKey != NULL && dCert->pubKeySize != 0) {
         x509->pubKey.buffer = (byte*)XMALLOC(
                         dCert->pubKeySize, x509->heap, DYNAMIC_TYPE_PUBLIC_KEY);
@@ -15277,9 +15290,6 @@ static int CopyDecodedPubKey(WOLFSSL_X509* x509, DecodedCert* dCert, int ret)
                     WOLFSSL_ERROR_VERBOSE(ret);
                 }
             }
-
-            wolfSSL_EVP_PKEY_free(x509->key.pkey);
-            x509->key.pkey = NULL;
 
             switch (dCert->keyOID) {
             #ifdef HAVE_ED25519

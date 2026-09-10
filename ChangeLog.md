@@ -1,6 +1,13 @@
 # wolfSSL Release (unreleased)
 
 ## Behavioral Changes
+* **Behavioral change (`X509_get0_pubkey()` returns a borrowed key)**:
+  `wolfSSL_X509_get_pubkey()` now returns the public key cached on the
+  certificate with a new reference, and the new `wolfSSL_X509_get0_pubkey()`
+  (`X509_get0_pubkey()`, `X509_REQ_get0_pubkey()`) returns it without one, as
+  in OpenSSL.  Code that freed the result of `X509_get0_pubkey()` to avoid a
+  leak must stop doing so, and the returned key is shared with the
+  certificate, so it must be treated as read only.
 
 * **Behavioral change (`wc_PufReadSram` health tests the raw SRAM readout)**:
   the raw readout is now health tested before the context accepts it, and a

@@ -6397,19 +6397,19 @@ int wolfSSL_X509_NAME_get_text_by_NID(WOLFSSL_X509_NAME* name,
     return (textSz - 1); /* do not include null character in size */
 }
 
-/* Creates a new WOLFSSL_EVP_PKEY structure that has the public key from x509
+/* Decodes the public key of x509 into a new WOLFSSL_EVP_PKEY.
  *
  * returns a pointer to the created WOLFSSL_EVP_PKEY on success and NULL on fail
  */
-WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
+static WOLFSSL_EVP_PKEY* X509DecodePubKey(WOLFSSL_X509* x509)
 {
     WOLFSSL_EVP_PKEY* key = NULL;
     int ret = 0;
 
     (void)ret;
 
-    WOLFSSL_ENTER("wolfSSL_X509_get_pubkey");
-    if (x509 != NULL) {
+    if (x509 != NULL && x509->pubKey.buffer != NULL &&
+            x509->pubKey.length > 0) {
         key = wolfSSL_EVP_PKEY_new_ex(x509->heap);
         if (key != NULL) {
             if (x509->pubKeyOID == RSAk) {
@@ -6553,6 +6553,70 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
         }
     }
     return key;
+}
+
+/* Returns the public key cached in x509, decoding it on first use.
+ *
+ * The key is owned by x509 and freed with it. Concurrent first calls each
+ * decode; the first to publish wins and the others free their copy.
+ */
+static WOLFSSL_EVP_PKEY* X509CachedPubKey(WOLFSSL_X509* x509)
+{
+    WOLFSSL_EVP_PKEY* key;
+
+    if (x509 == NULL)
+        return NULL;
+    key = x509->key.pkey;
+    if (key == NULL) {
+        key = X509DecodePubKey(x509);
+        if (key != NULL) {
+        #ifdef WOLFSSL_ATOMIC_OPS
+            WOLFSSL_EVP_PKEY* current = NULL;
+            if (!wolfSSL_Atomic_Ptr_CompareExchange(
+                    (void* volatile*)&x509->key.pkey, (void**)&current, key)) {
+                wolfSSL_EVP_PKEY_free(key);
+                key = current;
+            }
+        #else
+            x509->key.pkey = key;
+        #endif
+            x509->key.pubKeyOID = x509->pubKeyOID;
+        }
+    }
+    return key;
+}
+
+/* Returns the public key of x509 with a new reference.
+ *
+ * returns a pointer to the WOLFSSL_EVP_PKEY on success and NULL on fail.
+ * The caller frees it with wolfSSL_EVP_PKEY_free().
+ */
+WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
+{
+    WOLFSSL_EVP_PKEY* key;
+
+    WOLFSSL_ENTER("wolfSSL_X509_get_pubkey");
+    key = X509CachedPubKey(x509);
+    if (key != NULL) {
+        int ret;
+        wolfSSL_RefInc(&key->ref, &ret);
+        if (ret != 0) {
+            WOLFSSL_MSG("Failed to lock pkey mutex");
+            key = NULL;
+        }
+    }
+    return key;
+}
+
+/* Returns the public key of x509 without a new reference.
+ *
+ * returns a pointer to the WOLFSSL_EVP_PKEY on success and NULL on fail.
+ * The key is valid for the lifetime of x509 and must not be freed.
+ */
+WOLFSSL_EVP_PKEY* wolfSSL_X509_get0_pubkey(WOLFSSL_X509* x509)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_get0_pubkey");
+    return X509CachedPubKey(x509);
 }
 #endif /* OPENSSL_EXTRA_X509_SMALL */
 
@@ -11494,6 +11558,9 @@ WOLFSSL_X509_PUBKEY* wolfSSL_X509_get_X509_PUBKEY(const WOLFSSL_X509* x509)
         return NULL;
     }
 
+    /* Decode the key so pkey is usable through the returned object. */
+    (void)X509CachedPubKey((WOLFSSL_X509*)x509);
+
     return (WOLFSSL_X509_PUBKEY*)&x509->key;
 }
 
@@ -11509,12 +11576,17 @@ int wolfSSL_X509_PUBKEY_get0_param(WOLFSSL_ASN1_OBJECT **ppkalg,
         WOLFSSL_MSG("X509_PUBKEY struct not populated");
         return WOLFSSL_FAILURE;
     }
+    if ((pk || ppklen) && !pub->pkey) {
+        WOLFSSL_MSG("X509_PUBKEY has no decoded key");
+        return WOLFSSL_FAILURE;
+    }
 
     if (!pub->algor) {
         if (!(pub->algor = wolfSSL_X509_ALGOR_new())) {
             return WOLFSSL_FAILURE;
         }
-        pub->algor->algorithm = wolfSSL_OBJ_nid2obj(pub->pubKeyOID);
+        pub->algor->algorithm = wolfSSL_OBJ_nid2obj(
+            oid2nid((word32)pub->pubKeyOID, oidKeyType));
         if (pub->algor->algorithm == NULL) {
             WOLFSSL_MSG("Failed to create object from NID");
             return WOLFSSL_FAILURE;
@@ -11546,6 +11618,15 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_PUBKEY_get(WOLFSSL_X509_PUBKEY* key)
         return NULL;
     }
     WOLFSSL_LEAVE("wolfSSL_X509_PUBKEY_get", WOLFSSL_SUCCESS);
+    return key->pkey;
+}
+
+/* Returns the pkey without a new reference. */
+WOLFSSL_EVP_PKEY* wolfSSL_X509_PUBKEY_get0(WOLFSSL_X509_PUBKEY* key)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_PUBKEY_get0");
+    if (key == NULL)
+        return NULL;
     return key->pkey;
 }
 
@@ -16768,6 +16849,7 @@ int wolfSSL_X509_set_pubkey(WOLFSSL_X509 *cert, WOLFSSL_EVP_PKEY *pkey)
                 return WOLFSSL_FAILURE;
             }
             cert->pubKeyOID = ECDSAk;
+            cert->pkCurveOID = ecc->dp->oidSum;
         }
         break;
 #endif
@@ -16885,6 +16967,19 @@ int wolfSSL_X509_set_pubkey(WOLFSSL_X509 *cert, WOLFSSL_EVP_PKEY *pkey)
     XFREE(cert->pubKey.buffer, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
     cert->pubKey.buffer = p;
     cert->pubKey.length = (unsigned int)derSz;
+    /* Drop what was decoded from the previous public key, unless the caller
+     * passed that very key. */
+    if (cert->key.pkey != pkey) {
+        wolfSSL_EVP_PKEY_free(cert->key.pkey);
+        cert->key.pkey = NULL;
+    }
+    cert->key.pubKeyOID = cert->pubKeyOID;
+#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
+    defined(WOLFSSL_APACHE_HTTPD) || defined(WOLFSSL_HAPROXY) || \
+    defined(WOLFSSL_WPAS)
+    wolfSSL_X509_ALGOR_free(cert->key.algor);
+    cert->key.algor = NULL;
+#endif
 
     return WOLFSSL_SUCCESS;
 }

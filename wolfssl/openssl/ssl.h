@@ -566,8 +566,9 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_get_subject_name(x)        wolfSSL_X509_get_subject_name((WOLFSSL_X509*)(x))
 #define X509_REQ_get_subject_name       wolfSSL_X509_get_subject_name
 #define X509_get_pubkey                 wolfSSL_X509_get_pubkey
-#define X509_get0_pubkey                wolfSSL_X509_get_pubkey
+#define X509_get0_pubkey                wolfSSL_X509_get0_pubkey
 #define X509_REQ_get_pubkey             wolfSSL_X509_get_pubkey
+#define X509_REQ_get0_pubkey            wolfSSL_X509_get0_pubkey
 #define X509_get_notBefore              wolfSSL_X509_get_notBefore
 #define X509_get0_notBefore             wolfSSL_X509_get_notBefore
 #define X509_getm_notBefore             wolfSSL_X509_get_notBefore
@@ -880,6 +881,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define X509_get0_tbs_sigalg            wolfSSL_X509_get0_tbs_sigalg
 #define X509_PUBKEY_get0_param          wolfSSL_X509_PUBKEY_get0_param
 #define X509_PUBKEY_get                 wolfSSL_X509_PUBKEY_get
+#define X509_PUBKEY_get0                wolfSSL_X509_PUBKEY_get0
 #define X509_PUBKEY_set                 wolfSSL_X509_PUBKEY_set
 #define X509_ALGOR_get0                 wolfSSL_X509_ALGOR_get0
 #define X509_ALGOR_set0                 wolfSSL_X509_ALGOR_set0
