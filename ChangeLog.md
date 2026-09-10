@@ -187,6 +187,19 @@
   limit needs roughly 23.7 million early data records on one connection, so no
   practical caller is affected.
 
+* **Behavioral change (TLS 1.3 server ChangeCipherSpec)**: a TLS 1.3 server
+  now answers a ClientHello carrying a non-empty `legacy_session_id` with a
+  ChangeCipherSpec record, as RFC 8446 Appendix D.4 describes for middlebox
+  compatibility mode.  It only did so before in builds defining
+  `WOLFSSL_TLS13_MIDDLEBOX_COMPAT`, which only `--enable-tls13-middlebox-compat`
+  and `--enable-jni` set and neither is on by default, so a default-built
+  server stayed silent and peers that expect the record - Erlang's `ssl`
+  among them - aborted the handshake with an unexpected_message alert.  A
+  client sending an empty session id still sees none, and DTLS and QUIC are
+  unaffected.  One visible difference: `wolfSSL_get_state()` no longer passes
+  through `WOLFSSL_SS_SERVER_CHANGECIPHERSPEC` or
+  `WOLFSSL_SS_CLIENT_CHANGECIPHERSPEC` on a TLS 1.3 connection.
+
 ## New Features
 
 * Added Argon2 (RFC 9106) password hashing with all three variants - Argon2d, Argon2i and Argon2id - via `--enable-argon2`. Only version 0x13 is implemented. Provides the one-shot `wc_Argon2()`/`wc_Argon2_ex()` and a reusable context API (`wc_Argon2Init`/`wc_Argon2SetParams`/`wc_Argon2DeriveTag`/`wc_Argon2Free`, plus `wc_Argon2New`/`wc_Argon2Delete` unless `WC_NO_CONSTRUCTORS`) that allocates the memory block array once for applications deriving many tags. `--enable-argon2-threads` fills the segments of a slice in parallel, which does not change the derived tag: the one-shot functions use a thread per lane, and the context API takes a count from `wc_Argon2SetThreads()`. by @SparkiDev
