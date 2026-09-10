@@ -835,7 +835,10 @@
             #endif
         #endif
         #ifndef CAN_SAVE_VECTOR_REGISTERS
-            #if defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_OFF)
+            #if defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_OFF) && \
+                defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON)
+                #error Conflicting DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_* settings.
+            #elif defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_OFF)
                 #define CAN_SAVE_VECTOR_REGISTERS() 0
             #elif defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON)
                 #define CAN_SAVE_VECTOR_REGISTERS() 1
