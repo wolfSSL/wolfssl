@@ -2606,10 +2606,17 @@ int test_wolfSSL_crl_io_mock(void)
         WOLFSSL_CERT_MANAGER* cm = NULL;
         int invoked = 0;
 
+        /* A certificate that actually carries a distribution point. Under
+         * WOLFSSL_CRL_ALLOW_MISSING_CDP, CheckCertCRL returns before the
+         * callback for a certificate without one, so driving this with
+         * svrCertFile would leave the mock uncalled in that build. This one
+         * is self-signed, so it is its own CA. */
+        const char* cdpCert = "./certs/client-crl-dist.pem";
+
         ExpectNotNull(cm = wolfSSL_CertManagerNew());
         ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECK),
                     WOLFSSL_SUCCESS);
-        ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, caCertFile, NULL),
+        ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, cdpCert, NULL),
                     WOLFSSL_SUCCESS);
         ExpectIntEQ(wolfSSL_CertManagerSetCRL_IOCb(cm, test_crl_io_mock),
                     WOLFSSL_SUCCESS);
@@ -2619,7 +2626,7 @@ int test_wolfSSL_crl_io_mock(void)
             g_crlIoCalls = 0;
             /* no CRL is loaded for this issuer, so the check has to fetch one;
              * the verify itself is expected to fail */
-            (void)wolfSSL_CertManagerVerify(cm, svrCertFile,
+            (void)wolfSSL_CertManagerVerify(cm, cdpCert,
                                             WOLFSSL_FILETYPE_PEM);
             if (g_crlIoCalls > 0)
                 invoked++;
