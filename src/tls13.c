@@ -16119,7 +16119,7 @@ int DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     /* If there is a pending fragmented handshake message,
      * pending message size will be non-zero. */
     if (ssl->pendingMsgSz == 0) {
-    #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
+    #ifdef WOLFSSL_HAVE_HS_SUSPEND
         word32 startIdx = *inOutIdx;
     #endif
 
