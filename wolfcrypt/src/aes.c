@@ -18789,16 +18789,6 @@ static int AesXtsInitTweak_sw(XtsAes* xaes, byte* i) {
     #define WC_AES_XTS_STREAM_AARCH64
 #endif
 
-/* The per-tweak allowance is committed before the vector-register claim, so a
- * failed claim must give it back or a retry spends it twice. */
-#ifndef WC_AESXTS_STREAM_NO_REQUEST_ACCOUNTING
-    #define WC_XTS_UNCOMMIT(stream, sz)                                     \
-        do { (stream)->bytes_crypted_with_this_tweak -= (word32)(sz); }     \
-        while (0)
-#else
-    #define WC_XTS_UNCOMMIT(stream, sz) WC_DO_NOTHING
-#endif
-
 #if !defined(WOLFSSL_ARMASM) || (!defined(__aarch64__) && \
     defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)) || \
     defined(WOLFSSL_ARM32_AES_DISPATCH) || defined(WOLFSSL_AESXTS_STREAM)
@@ -19174,10 +19164,19 @@ int wc_AesXtsEncryptInit(XtsAes* xaes, const byte* i, word32 iSz,
  *
  * returns 0 on success
  */
+/* The byte count is written back only after the work succeeds.  A failed
+ * vector-register claim processes no data, so the count must not move: an
+ * earlier version added it up front, and a retry was then charged twice and
+ * could be refused for passing the SP800-38E limit it never really reached.
+ * Holding the new total in a local until the end leaves no error path with
+ * anything to undo. */
 static int AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 sz,
                            struct XtsAesStreamData *stream)
 {
     int ret;
+#ifndef WC_AESXTS_STREAM_NO_REQUEST_ACCOUNTING
+    word32 newTweakBytes;
+#endif
 
 #if defined(WOLFSSL_AESNI) || defined(WC_AES_XTS_STREAM_AARCH64)
     Aes *aes;
@@ -19214,7 +19213,7 @@ static int AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
      * so a stream may run longer; refuse once the count can no longer advance
      * rather than keep going unaccounted. */
     if (! WC_SAFE_SUM_WORD32(stream->bytes_crypted_with_this_tweak, sz,
-                             stream->bytes_crypted_with_this_tweak))
+                             newTweakBytes))
     {
         WOLFSSL_MSG("Overflow of stream->bytes_crypted_with_this_tweak "
                     "in AesXtsEncryptUpdate().");
@@ -19226,8 +19225,7 @@ static int AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
      * WC_AES_BLOCK_SIZE or 16-bytes (128-bits). So each key may only be used to
      * protect up to 1,048,576 blocks of WC_AES_BLOCK_SIZE (16,777,216 bytes)
      */
-    if (stream->bytes_crypted_with_this_tweak >
-        FIPS_AES_XTS_MAX_BYTES_PER_TWEAK)
+    if (newTweakBytes > FIPS_AES_XTS_MAX_BYTES_PER_TWEAK)
     {
         WOLFSSL_MSG("Request exceeds allowed bytes per SP800-38E");
         return BAD_FUNC_ARG;
@@ -19280,8 +19278,7 @@ static int AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
 #endif /* WOLFSSL_AESNI */
 #ifdef WC_AES_XTS_STREAM_AARCH64
         if (aes->use_aes_hw_crypto) {
-            SAVE_VECTOR_REGISTERS(WC_XTS_UNCOMMIT(stream, sz);
-                                  return _svr_ret;);
+            SAVE_VECTOR_REGISTERS(return _svr_ret;);
             AES_XTS_encrypt_update_AARCH64(in, out, sz, (byte*)aes->key,
                 stream->tweak_block, xts_tmp, (int)aes->rounds);
             ret = 0;
@@ -19294,6 +19291,12 @@ static int AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
             ret = AesXtsEncryptUpdate_sw(xaes, out, in, sz, stream->tweak_block);
         }
     }
+
+#ifndef WC_AESXTS_STREAM_NO_REQUEST_ACCOUNTING
+    if (ret == 0) {
+        stream->bytes_crypted_with_this_tweak = newTweakBytes;
+    }
+#endif
 
     return ret;
 }
@@ -19790,10 +19793,19 @@ int wc_AesXtsDecryptInit(XtsAes* xaes, const byte* i, word32 iSz,
  *
  * returns 0 on success
  */
+/* The byte count is written back only after the work succeeds.  A failed
+ * vector-register claim processes no data, so the count must not move: an
+ * earlier version added it up front, and a retry was then charged twice and
+ * could be refused for passing the SP800-38E limit it never really reached.
+ * Holding the new total in a local until the end leaves no error path with
+ * anything to undo. */
 static int AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 sz,
                            struct XtsAesStreamData *stream)
 {
     int ret;
+#ifndef WC_AESXTS_STREAM_NO_REQUEST_ACCOUNTING
+    word32 newTweakBytes;
+#endif
 #if defined(WOLFSSL_AESNI) || defined(WC_AES_XTS_STREAM_AARCH64)
     Aes *aes;
 #endif
@@ -19834,7 +19846,7 @@ static int AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
      * so a stream may run longer; refuse once the count can no longer advance
      * rather than keep going unaccounted. */
     if (! WC_SAFE_SUM_WORD32(stream->bytes_crypted_with_this_tweak, sz,
-                             stream->bytes_crypted_with_this_tweak))
+                             newTweakBytes))
     {
         WOLFSSL_MSG("Overflow of stream->bytes_crypted_with_this_tweak "
                     "in AesXtsDecryptUpdate().");
@@ -19846,8 +19858,7 @@ static int AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
      * WC_AES_BLOCK_SIZE or 16-bytes (128-bits). So each key may only be used to
      * protect up to 1,048,576 blocks of WC_AES_BLOCK_SIZE (16,777,216 bytes)
      */
-    if (stream->bytes_crypted_with_this_tweak >
-        FIPS_AES_XTS_MAX_BYTES_PER_TWEAK)
+    if (newTweakBytes > FIPS_AES_XTS_MAX_BYTES_PER_TWEAK)
     {
         WOLFSSL_MSG("Request exceeds allowed bytes per SP800-38E");
         return BAD_FUNC_ARG;
@@ -19901,8 +19912,7 @@ static int AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
 #endif /* WOLFSSL_AESNI */
 #ifdef WC_AES_XTS_STREAM_AARCH64
         if (aes->use_aes_hw_crypto) {
-            SAVE_VECTOR_REGISTERS(WC_XTS_UNCOMMIT(stream, sz);
-                                  return _svr_ret;);
+            SAVE_VECTOR_REGISTERS(return _svr_ret;);
             AES_XTS_decrypt_update_AARCH64(in, out, sz, (byte*)aes->key,
                 stream->tweak_block, xts_tmp, (int)aes->rounds);
             ret = 0;
@@ -19916,6 +19926,12 @@ static int AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
                                          stream->tweak_block);
         }
     }
+
+#ifndef WC_AESXTS_STREAM_NO_REQUEST_ACCOUNTING
+    if (ret == 0) {
+        stream->bytes_crypted_with_this_tweak = newTweakBytes;
+    }
+#endif
 
     return ret;
 }
