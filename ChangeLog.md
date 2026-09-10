@@ -8,6 +8,15 @@
 * Made `wc_falcon_check_key()` constant time, and cut Falcon key generation's peak heap by about 20% with a constant-time inversion of f. by @Frauschi
 * Added `--enable-falcon=smallest-mem`, a Falcon signer working in 20*n bytes (12KB peak heap at Falcon-512, 22KB at Falcon-1024). by @Frauschi
 
+## Behavioral Changes
+* **Behavioral change (`X509_get0_pubkey()` returns a borrowed key)**:
+  `wolfSSL_X509_get_pubkey()` now returns the public key cached on the
+  certificate with a new reference, and the new `wolfSSL_X509_get0_pubkey()`
+  (`X509_get0_pubkey()`, `X509_REQ_get0_pubkey()`) returns it without one, as
+  in OpenSSL.  Code that freed the result of `X509_get0_pubkey()` to avoid a
+  leak must stop doing so, and the returned key is shared with the
+  certificate, so it must be treated as read only.
+
 # wolfSSL Release 5.9.4 (Sep 25, 2026)
 
 Release 5.9.4 has been developed according to wolfSSL's development and QA
