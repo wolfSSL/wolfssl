@@ -30073,6 +30073,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
                           ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
     }
 
+    /* root(0) from leaf(1): refused -- no stratum downgrade. */
     api_ret = wc_RNG_DRBG_ReseedRBGC(&root, &leaf, NULL, 0);
     if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
@@ -30152,12 +30153,96 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
         api_ret = wc_RNG_DRBG_GetRBGCStratum(&extra);
         if (api_ret != 1)
             ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
-        /* long-chained init is allowed, only chained reseed is forbidden. */
+        /* long-chained init is allowed; chained reseeds are governed by the
+         * no-downgrade rule probed below. */
         ret = wc_InitRngRBGC_New(&pleaf, &extra, WC_RNG_INIT_FLAGS_NONE);
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
         if ((pleaf == NULL) || (wc_RNG_DRBG_GetRBGCStratum(pleaf) != 2))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+        /* force leaf back to primary class (stratum 0) for the source-class
+         * probes below. */
+        api_ret = wc_RNG_DRBG_ScheduleReseed(&leaf);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_GenerateBlock(&leaf, buf, sizeof(buf));
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_DRBG_GetRBGCStratum(&leaf);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
+
+        /* chained credited reseeds: permitted iff the source's stratum
+         * strictly improves on (is less than) the target's. */
+        api_ret = wc_RNG_DRBG_ReseedRBGC(pleaf, &extra, NULL, 0);
+        if (api_ret != 0) /* 1 < 2: allowed */
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_DRBG_GetRBGCStratum(pleaf);
+        if (api_ret != 2) /* acquires extra+1 */
+            ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
+        api_ret = wc_RNG_DRBG_ReseedRBGC(&extra, pleaf, NULL, 0);
+        if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) /* 2 >= 1: refused */
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_DRBG_ReseedRBGC(&leaf, &extra, NULL, 0);
+        if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) /* 1 >= 0: refused --
+                                     * primary-born instances never downgrade
+                                     * by chained reseed. */
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+
+        /* primary-class (stratum-0) sources are always welcome, root or
+         * not. */
+        api_ret = wc_RNG_DRBG_ReseedRBGC(&extra, &leaf, NULL, 0);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_DRBG_GetRBGCStratum(&extra);
+        if (api_ret != 1)
+            ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
+
+        /* lateral (equal-stratum) chained reseeds are refused: the strict
+         * inequality is what makes cycles impossible. */
+        api_ret = wc_RNG_DRBG_ReseedRBGC(&leaf, &root, NULL, 0);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_DRBG_GetRBGCStratum(&leaf);
+        if (api_ret != 1)
+            ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
+        api_ret = wc_RNG_DRBG_ReseedRBGC(&extra, &leaf, NULL, 0);
+        if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) /* 1 >= 1: refused */
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+
+        /* uncredited chained reseeds are unrestricted (stirs claim
+         * nothing): any source stratum, target stratum untouched. */
+        api_ret = wc_RNG_DRBG_ReseedRBGC_Uncredited(&extra, pleaf, NULL, 0);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_DRBG_GetRBGCStratum(&extra);
+        if (api_ret != 1)
+            ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
+
+#ifdef WC_RNG_HAVE_NEXT_SEED
+        /* the banked twin obeys the same rule: refuse banking whose
+         * redemption would violate no-downgrade... */
+        api_ret = wc_RNG_DRBG_NextSeedGenerate_RBGC(&extra, pleaf, 1);
+        if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) /* 2 >= 1: refused */
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        /* ...and permit improving banked material, whose redemption
+         * carries the recorded stratum. */
+        api_ret = wc_RNG_DRBG_NextSeedGenerate_RBGC(pleaf, &extra,
+                                                    0xffffffffU);
+        if (api_ret != 0) /* 1 < 2: allowed; oversize fill clamps */
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_DRBG_GetNextSeedRBGCStratum(pleaf);
+        if (api_ret != 2)
+            ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
+        api_ret = wc_RNG_DRBG_NextSeedNow(pleaf);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_DRBG_GetRBGCStratum(pleaf);
+        if (api_ret != 2)
+            ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
+#endif /* WC_RNG_HAVE_NEXT_SEED */
+
         wc_rng_free(pleaf);
         pleaf = NULL;
     }

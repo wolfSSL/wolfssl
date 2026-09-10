@@ -66,7 +66,6 @@
     #undef WC_RNG_HAVE_RBGC
 #endif
 
-/* _FULL_MUTEX is opt-in, and depends on WC_RNG_HAVE_LOCK. */
 #ifdef WC_RNG_NO_LOCK_FULL_MUTEX
     #undef WC_RNG_HAVE_LOCK_FULL_MUTEX
 #elif defined(WC_RNG_HAVE_LOCK_FULL_MUTEX)
@@ -79,7 +78,7 @@
     #define WC_RNG_HAVE_FREE_HOOK
 #endif
 #ifdef WC_RNG_HAVE_FREE_HOOK
-    struct WC_RNG; /* tag forward-declaration for the callback signature */
+    struct WC_RNG;
     typedef int (*wc_RNG_free_hook_cb_t)(const struct WC_RNG *rng, void *arg);
 #endif
 
@@ -367,8 +366,6 @@ struct OS_Seed {
     #define RNG_HEALTH_TEST_CHECK_SIZE_SHA512 (WC_SHA512_DIGEST_SIZE * 4)
 #endif
 
-#ifndef NO_SHA256
-
 #ifdef WC_RNG_HAVE_NEXT_SEED
     /* Length of the banked next seed: identical byte accounting to other
      * source-fed (re)seeds in the module (gather SEED_SZ + SEED_BLOCK_SZ, apply
@@ -377,12 +374,18 @@ struct OS_Seed {
     #define WC_DRBG_NEXT_UNCREDITED_SEED_LEN 64
 #endif
 
-struct DRBG_internal {
+#ifndef WC_DRBG_RESEED_CTR_TYPE_DEFINED
+#define WC_DRBG_RESEED_CTR_TYPE_DEFINED
     #ifdef WORD64_AVAILABLE
-    word64 reseedCtr;
+    typedef word64 wc_drbg_reseed_ctr_t;
     #else
-    word32 reseedCtr;
+    typedef word32 wc_drbg_reseed_ctr_t;
     #endif
+#endif
+
+#ifndef NO_SHA256
+struct DRBG_internal {
+    wc_drbg_reseed_ctr_t reseedCtr;
     byte V[DRBG_SEED_LEN];
     byte C[DRBG_SEED_LEN];
 #ifdef WC_RNG_HAVE_NEXT_SEED
@@ -408,11 +411,7 @@ struct DRBG_internal {
 
 #ifdef WOLFSSL_DRBG_SHA512
 struct DRBG_SHA512_internal {
-    #ifdef WORD64_AVAILABLE
-    word64 reseedCtr;
-    #else
-    word32 reseedCtr;
-    #endif
+    wc_drbg_reseed_ctr_t reseedCtr;
     byte V[DRBG_SHA512_SEED_LEN];
     byte C[DRBG_SHA512_SEED_LEN];
 #ifdef WC_RNG_HAVE_NEXT_SEED
@@ -504,8 +503,6 @@ struct WC_RNG {
     #endif
 #endif
 #ifdef WC_RNG_HAVE_FREE_HOOK
-    /* fired by wc_FreeRng() before state destruction (one-shot);
-     * see wc_RNG_register_free_hook(). */
     wc_RNG_free_hook_cb_t free_hook;
     void *free_hook_arg;
 #endif
@@ -524,9 +521,6 @@ struct WC_RNG {
         wc_rng_debug_counter_t _stats_n_nextseed_primary_redeemed;
         wc_rng_debug_counter_t _stats_n_nextseed_RBGC_redeemed;
         wc_rng_debug_counter_t _stats_n_nextuncreditedseed_redeemed;
-        /* production-side twins of the consumption counters above; plain
-         * increments, racy if there are competing seed bankers (usually
-         * there aren't). */
         wc_rng_debug_counter_t _stats_n_nextseed_banked;
         wc_rng_debug_counter_t _stats_n_nextuncreditedseed_banked;
     #endif
@@ -791,18 +785,6 @@ WOLFSSL_API int wc_RNG_DRBG_Present(const WC_RNG* rng);
                                            word32 nonceSz);
     WOLFSSL_API int wc_RNG_TestSeed(const byte* seed, word32 seedSz);
 
-    /* Reseed-counter width tracks struct DRBG_internal above.  The sentinel
-     * lets wolfssl/wolfcrypt/rng_bank.h supply the same typedef when building
-     * against a legacy FIPS random.h that predates it. */
-    #ifndef WC_DRBG_RESEED_CTR_TYPE_DEFINED
-    #define WC_DRBG_RESEED_CTR_TYPE_DEFINED
-        #ifdef WORD64_AVAILABLE
-        typedef word64 wc_drbg_reseed_ctr_t;
-        #else
-        typedef word32 wc_drbg_reseed_ctr_t;
-        #endif
-    #endif
-
 #ifdef WC_RNG_HAVE_RBGC
     WOLFSSL_API int wc_RNG_DRBG_GetRBGCStratum(const WC_RNG* rng);
     #ifdef WC_RNG_HAVE_NEXT_SEED
@@ -930,7 +912,7 @@ WOLFSSL_API int wc_RNG_DRBG_Present(const WC_RNG* rng);
                                         const byte* nonce, word32 nonceSz,
                                         word32 flags);
     #ifndef WC_NO_CONSTRUCTORS
-    /* flags are per-object (WC_RNG_INIT_FLAGS_*), deliberately NOT
+    /* Flags are per-object (WC_RNG_INIT_FLAGS_*), deliberately not
      * inherited from the parent: a child's lock policy is its own. */
     WOLFSSL_API int wc_InitRngRBGC_New(WC_RNG** child, WC_RNG* parent,
                                        word32 flags);
@@ -938,9 +920,6 @@ WOLFSSL_API int wc_RNG_DRBG_Present(const WC_RNG* rng);
                                             const byte* nonce, word32 nonceSz,
                                             word32 flags);
     #endif /* !WC_NO_CONSTRUCTORS */
-    /* Note, only a root RNG -- stratum 0, i.e. primary-seeded -- is permitted
-     * to generate reseed bytes (wolfCrypt policy; stricter than SP 800-90C
-     * 7.1.2.2, which also permits parent reseed). */
     WOLFSSL_API int wc_RNG_DRBG_ReseedRBGC(WC_RNG* rng, WC_RNG* root,
                                            const byte* nonce, word32 nonceSz);
     WOLFSSL_API int wc_RNG_DRBG_ReseedRBGC_Uncredited(WC_RNG* rng,
