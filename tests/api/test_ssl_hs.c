@@ -2247,7 +2247,7 @@ int test_wolfSSL_hs_info_cb(void)
  * WHICH handshake message gets hit -- the ClientHello, the certificate, the
  * key exchange, the Finished. */
 static int test_wire_mangle_one(method_provider mc, method_provider ms,
-                                int round, int off, byte mask, int dir)
+                                int round, int off, byte mask)
 {
     struct test_memio_ctx test_ctx;
     WOLFSSL_CTX* ctx_c = NULL;
@@ -2275,8 +2275,15 @@ static int test_wire_mangle_one(method_provider mc, method_provider ms,
         (void)test_memio_do_handshake(ssl_c, ssl_s, 1, &rounds);
 
         if (i == round) {
-            byte* buf = dir ? test_ctx.s_buff : test_ctx.c_buff;
-            int   len = dir ? test_ctx.s_len  : test_ctx.c_len;
+            /* c_buff is what the SERVER wrote and the client has yet to
+             * read: test_memio_write_cb stores by the writer's side, and a
+             * round of test_memio_do_handshake runs the client and then the
+             * server, so at this point the client's own bytes have already
+             * been consumed out of s_buff and only this direction is in
+             * flight. Mangling s_buff here corrupted nothing at all -- it was
+             * empty every time -- which an aggregate assertion hid. */
+            byte* buf = test_ctx.c_buff;
+            int   len = test_ctx.c_len;
 
             if (len > off) {
                 buf[off] ^= mask;
@@ -2307,45 +2314,63 @@ int test_tls_wire_mangle(void)
     static const int offsets[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 13,
                                    20, 45, 80, 120, 200, 400, 900 };
     static const byte masks[] = { 0x01, 0x80, 0xff };
-    /* applied: a round/offset pair with nothing in flight corrupts nothing,
-     * and a sweep made only of those would pass having mangled no traffic. */
-    int round, o, m, dir, applied = 0;
+    /* Per method, not just in total: one aggregate count is satisfied by a
+     * single mutation anywhere, which lets an entire protocol's sweep be a
+     * no-op unnoticed. A method that is not compiled stays zero and is
+     * excluded from the assertion by the same #ifdef that skips its calls. */
+    enum { WM_TLS12, WM_TLS13, WM_DTLS12, WM_DTLS13, WM_METHODS };
+    int round, o, m;
+    int applied[WM_METHODS];
+
+    XMEMSET(applied, 0, sizeof(applied));
 
     for (round = 0; round < 7; round++) {
         for (o = 0; o < (int)(sizeof(offsets) / sizeof(offsets[0])); o++) {
             for (m = 0; m < (int)(sizeof(masks) / sizeof(masks[0])); m++) {
-                for (dir = 0; dir < 2; dir++) {
-                    applied += test_wire_mangle_one(wolfTLSv1_2_client_method,
-                        wolfTLSv1_2_server_method, round, offsets[o],
-                        masks[m], dir);
+                    applied[WM_TLS12] +=
+                        test_wire_mangle_one(wolfTLSv1_2_client_method,
+                            wolfTLSv1_2_server_method, round, offsets[o],
+                            masks[m]);
 #ifdef WOLFSSL_TLS13
-                    applied += test_wire_mangle_one(wolfTLSv1_3_client_method,
-                        wolfTLSv1_3_server_method, round, offsets[o],
-                        masks[m], dir);
+                    applied[WM_TLS13] +=
+                        test_wire_mangle_one(wolfTLSv1_3_client_method,
+                            wolfTLSv1_3_server_method, round, offsets[o],
+                            masks[m]);
 #endif
 #ifdef WOLFSSL_DTLS
-                    applied += test_wire_mangle_one(wolfDTLSv1_2_client_method,
-                        wolfDTLSv1_2_server_method, round, offsets[o],
-                        masks[m], dir);
+                    applied[WM_DTLS12] +=
+                        test_wire_mangle_one(wolfDTLSv1_2_client_method,
+                            wolfDTLSv1_2_server_method, round, offsets[o],
+                            masks[m]);
 #endif
 #ifdef WOLFSSL_DTLS13
-                    applied += test_wire_mangle_one(wolfDTLSv1_3_client_method,
-                        wolfDTLSv1_3_server_method, round, offsets[o],
-                        masks[m], dir);
+                    applied[WM_DTLS13] +=
+                        test_wire_mangle_one(wolfDTLSv1_3_client_method,
+                            wolfDTLSv1_3_server_method, round, offsets[o],
+                            masks[m]);
 #endif
-                }
             }
         }
     }
 
-    /* At least one of those rounds must have corrupted a real byte. */
-    ExpectIntGT(applied, 0);
+    /* Every compiled method must have corrupted a byte somewhere; a zero
+     * means that whole protocol's sweep ran clean traffic. */
+    ExpectIntGT(applied[WM_TLS12], 0);
+#ifdef WOLFSSL_TLS13
+    ExpectIntGT(applied[WM_TLS13], 0);
+#endif
+#ifdef WOLFSSL_DTLS
+    ExpectIntGT(applied[WM_DTLS12], 0);
+#endif
+#ifdef WOLFSSL_DTLS13
+    ExpectIntGT(applied[WM_DTLS13], 0);
+#endif
 
     /* A clean handshake through the same path, so every decision the corrupted
      * runs took one way has its partner in this same binary. Round 99 matches
      * no iteration, so nothing is flipped and it reports no mutation. */
     ExpectIntEQ(test_wire_mangle_one(wolfTLSv1_2_client_method,
-        wolfTLSv1_2_server_method, 99, 0, 0x00, 0), 0);
+        wolfTLSv1_2_server_method, 99, 0, 0x00), 0);
 #endif
     return EXPECT_RESULT();
 }
