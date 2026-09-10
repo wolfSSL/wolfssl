@@ -3255,7 +3255,7 @@ int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst)
     dst->W = (word64 *)XMALLOC((sizeof(word64) * 16) + WC_SHA512_BLOCK_SIZE,
                                dst->heap, DYNAMIC_TYPE_DIGEST);
     if (dst->W == NULL) {
-        XMEMSET(dst, 0, sizeof(wc_Sha512));
+        ForceZero(dst, sizeof(wc_Sha512));
         return MEMORY_E;
     }
 #endif
@@ -3699,7 +3699,7 @@ int wc_Sha384Copy(wc_Sha384* src, wc_Sha384* dst)
     dst->W = (word64 *)XMALLOC((sizeof(word64) * 16) + WC_SHA384_BLOCK_SIZE,
                                dst->heap, DYNAMIC_TYPE_DIGEST);
     if (dst->W == NULL) {
-        XMEMSET(dst, 0, sizeof(wc_Sha384));
+        ForceZero(dst, sizeof(wc_Sha384));
         return MEMORY_E;
     }
 #endif
