@@ -774,6 +774,21 @@ int wc_LoadStaticMemory_ex(WOLFSSL_HEAP_HINT** pHint,
 #endif
     *pHint = hint;
 
+#ifdef WOLFSSL_NO_MALLOC
+    /* a NULL-heap XMALLOC has no other source in this build, so only a pool
+     * holding general buckets can serve one */
+    if (wolfSSL_GetGlobalHeapHint() == NULL) {
+        int i;
+
+        for (i = 0; i < WOLFMEM_MAX_BUCKETS; i++) {
+            if (heap->ava[i] != NULL) {
+                (void)wolfSSL_SetGlobalHeapHint(hint);
+                break;
+            }
+        }
+    }
+#endif
+
     (void)maxSz;
     return 0;
 }
@@ -797,6 +812,12 @@ int wc_LoadStaticMemory(WOLFSSL_HEAP_HINT** pHint,
 void wc_UnloadStaticMemory(WOLFSSL_HEAP_HINT* heap)
 {
     WOLFSSL_ENTER("wc_UnloadStaticMemory");
+
+    /* the hint lives in the pool buffer, so it dies with it */
+    if (heap != NULL && wolfSSL_GetGlobalHeapHint() == (void*)heap) {
+        (void)wolfSSL_SetGlobalHeapHint(NULL);
+    }
+
 #ifndef SINGLE_THREADED
     if (heap != NULL && heap->memory != NULL) {
         wc_FreeMutex(&heap->memory->memory_mutex);
