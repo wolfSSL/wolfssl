@@ -825,6 +825,9 @@ static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl, CRL_Entry* crle,
 {
     CRL_Entry* curr = NULL;
     CRL_Entry* prev = NULL;
+#if defined(OPENSSL_EXTRA)
+    CRL_Entry* oldHead;
+#endif
 #ifdef HAVE_CRL_UPDATE_CB
     CrlInfo old;
     CrlInfo cnew;
@@ -845,6 +848,10 @@ static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl, CRL_Entry* crle,
         WOLFSSL_MSG("wc_LockRwLock_Wr failed");
         return BAD_MUTEX_E;
     }
+
+#if defined(OPENSSL_EXTRA)
+    oldHead = crl->crlList;
+#endif
 
     for (curr = crl->crlList; curr != NULL; curr = curr->next) {
         if (XMEMCMP(curr->issuerHash, crle->issuerHash, CRL_DIGEST_SIZE) == 0) {
@@ -892,6 +899,14 @@ static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl, CRL_Entry* crle,
         crle->next = crl->crlList;
         crl->crlList = crle;
     }
+
+#if defined(OPENSSL_EXTRA)
+    /* Cached STACK_OF(X509_REVOKED) is built from the head entry only */
+    if ((crl->crlList != oldHead) && (crl->revokedStack != NULL)) {
+        wolfSSL_sk_pop_free(crl->revokedStack, NULL);
+        crl->revokedStack = NULL;
+    }
+#endif
 
     wc_UnLockRwLock(&crl->crlLock);
     return 0;
@@ -1743,6 +1758,14 @@ static int SwapLists(WOLFSSL_CRL* crl)
     /* swap lists */
     tmp->crlList  = crl->crlList;
     crl->crlList = newList;
+
+#if defined(OPENSSL_EXTRA)
+    /* Head entry changed, cached STACK_OF(X509_REVOKED) is stale */
+    if (crl->revokedStack != NULL) {
+        wolfSSL_sk_pop_free(crl->revokedStack, NULL);
+        crl->revokedStack = NULL;
+    }
+#endif
 
     wc_UnLockRwLock(&crl->crlLock);
 
