@@ -2093,8 +2093,7 @@ int wc_XmssKey_Verify(XmssKey* key, const byte* sig, word32 sigLen,
                 /* Free state after use. */
                 wc_xmss_state_free(state);
             }
-            /* State holds S_XMSS, SK_PRF and WOTS+ secrets
-             * (ISO/IEC 19790:2012 7.9.7). */
+            /* Scratch state; no SSPs on the verify path. */
             ForceZero(state, sizeof(XmssState));
             WC_FREE_VAR_EX(state, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }

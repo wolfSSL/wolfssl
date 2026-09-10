@@ -1603,8 +1603,7 @@ static void wc_Sha3Free(wc_Sha3* sha3)
         /* via their callback setting devId to INVALID_DEVID */
         /* otherwise assume the callback handled it */
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
-            ForceZero(sha3->s, sizeof(sha3->s));
-            ForceZero(sha3->t, sizeof(sha3->t));
+            ForceZero(sha3, sizeof(*sha3));
             return;
         }
         /* fall-through when unavailable */
