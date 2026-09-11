@@ -1789,6 +1789,7 @@ static int test_quic_key_update_rejected(int verbose) {
     WOLFSSL_CTX * ctx_s = NULL;
     QuicTestContext tclient, tserver;
     QuicConversation conv;
+    WOLFSSL_ALERT_HISTORY h;
     uint8_t lbuffer[16];
     size_t len;
     int ret;
@@ -1826,6 +1827,11 @@ static int test_quic_key_update_rejected(int verbose) {
      * requires - and exactly one alert for one message. */
     ExpectIntEQ(tserver.alert, unexpected_message);
     ExpectIntEQ(tserver.alert_count, 1);
+    /* Recorded as the plain TLS alert, as on TLS connections; a transport
+     * code would be offset by 0x0100 (see test_quic_ticket_max_early_data). */
+    ExpectIntEQ(wolfSSL_get_alert_history(tserver.ssl, &h), WOLFSSL_SUCCESS);
+    ExpectIntEQ(h.last_tx.code, unexpected_message);
+    ExpectIntEQ(h.last_tx.level, alert_fatal);
 
     QuicTestContext_free(&tclient);
     QuicTestContext_free(&tserver);
@@ -2214,6 +2220,7 @@ static int test_quic_ticket_max_early_data(int verbose) {
     WOLFSSL_CTX *    ctx_s = NULL;
     QuicTestContext  tclient, tserver;
     QuicConversation conv;
+    WOLFSSL_ALERT_HISTORY h;
     /* A NewSessionTicket carrying only an early_data extension. */
     byte             ticket[] = {
         0x04,                        /* NewSessionTicket */
@@ -2265,6 +2272,13 @@ static int test_quic_ticket_max_early_data(int verbose) {
         WC_NO_ERR_TRACE(INVALID_PARAMETER));
     ExpectIntEQ(tclient.alert, WOLFSSL_QUIC_ERR_PROTOCOL_VIOLATION);
     ExpectIntEQ(tclient.alert_count, 1);
+    ExpectIntEQ(wolfSSL_get_alert_history(tclient.ssl, &h), WOLFSSL_SUCCESS);
+    /* The history keeps transport codes offset out of the TLS alert range:
+     * 0x010a here, plain 0x0a for the alert in test_quic_key_update_rejected.
+     */
+    ExpectIntEQ(h.last_tx.code,
+        WOLFSSL_QUIC_ERR_CRYPTO_ERROR | WOLFSSL_QUIC_ERR_PROTOCOL_VIOLATION);
+    ExpectIntEQ(h.last_tx.level, alert_fatal);
 
     QuicTestContext_free(&tclient);
     QuicTestContext_free(&tserver);

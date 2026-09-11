@@ -13334,6 +13334,7 @@ static int TLSX_EarlyData_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         if (WOLFSSL_IS_QUIC(ssl) && maxSz != WOLFSSL_MAX_32BIT) {
             WOLFSSL_MSG("QUIC ticket early data size not 0xffffffff");
             wolfSSL_quic_send_alert(ssl, alert_fatal,
+                                    WOLFSSL_QUIC_ERR_CRYPTO_ERROR |
                                     WOLFSSL_QUIC_ERR_PROTOCOL_VIOLATION);
             WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
             return INVALID_PARAMETER;
