@@ -33,6 +33,7 @@
 #ifdef WOLFSSL_ARMASM
 #ifdef __aarch64__
 #ifndef WOLFSSL_ARMASM_INLINE
+#ifdef WOLFSSL_HAVE_MLKEM
 #ifndef __APPLE__
 	.text
 	.section	.rodata
@@ -49,7 +50,6 @@
 #endif /* __APPLE__ */
 L_mlkem_aarch64_consts:
 	.short	0x0d01,0xf301,0x4ebf,0x0549,0x5049,0x0000,0x0000,0x0000
-#ifdef WOLFSSL_HAVE_MLKEM
 #ifndef __APPLE__
 	.text
 	.section	.rodata
@@ -9765,6 +9765,7 @@ L_sha3_aarch64_r:
 	.quad	0x8000000080008081,0x8000000000008080
 	.quad	0x0000000080000001,0x8000000080008008
 #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
+.arch_extension sha3
 #ifndef __APPLE__
 .text
 .globl	mlkem_sha3_blocksx3_crypto

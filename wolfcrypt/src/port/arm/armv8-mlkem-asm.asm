@@ -23,11 +23,11 @@
 ;   cd ../scripts
 ;   ruby ./kyber/kyber.rb arm64 \
 ;       ../wolfssl/wolfcrypt/src/port/arm/armv8-mlkem-asm.asm
+	IF :DEF:WOLFSSL_HAVE_MLKEM
 	AREA	|.rodata|, DATA, READONLY, ALIGN=4
 	ALIGN	8
 L_mlkem_aarch64_consts
 	DCW	0x0d01, 0xf301, 0x4ebf, 0x0549, 0x5049, 0x0000, 0x0000, 0x0000
-	IF :DEF:WOLFSSL_HAVE_MLKEM
 	AREA	|.rodata|, DATA, READONLY, ALIGN=4
 	ALIGN	8
 L_mlkem_aarch64_zetas
@@ -9216,6 +9216,7 @@ L_sha3_aarch64_r
 	DCQ	0x8000000080008081, 0x8000000000008080
 	DCQ	0x0000000080000001, 0x8000000080008008
 	IF :DEF:WOLFSSL_ARMASM_CRYPTO_SHA3
+; .arch_extension sha3
 	AREA	|.text|, CODE, READONLY
 	ALIGN	4
 	EXPORT	mlkem_sha3_blocksx3_crypto
