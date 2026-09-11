@@ -751,6 +751,13 @@ extern "C" {
 
 #endif /* WOLFSSL_SETTINGS_FILE */
 
+/* The port is silent when its define is missing: els_pkc_port.c compiles to
+ * nothing and no crypto callback is ever registered. */
+#if defined(CONFIG_WOLFSSL_ELS_PKC) && \
+    (!defined(WOLFSSL_ELS_PKC) || !defined(WOLF_CRYPTO_CB))
+#error "CONFIG_WOLFSSL_ELS_PKC=y needs the settings file to define WOLFSSL_ELS_PKC and WOLF_CRYPTO_CB"
+#endif
+
 #endif /* CONFIG_WOLFSSL */
 
 #endif /* USER_SETTINGS_H */

@@ -144,7 +144,7 @@ config WOLFSSL_SYS_INIT
 
 config WOLFSSL_ELS_PKC
 	bool "NXP EdgeLock (ELS) hardware offload"
-	depends on WOLFSSL_BUILTIN && !WOLFSSL_HAS_SETTINGS_FILE
+	depends on WOLFSSL_BUILTIN
 	depends on !BUILD_WITH_TFM
 	depends on SOC_SERIES_RW6XX
 	select MCUX_ELS_PKC
@@ -156,10 +156,11 @@ config WOLFSSL_ELS_PKC
 
 	  Selects MCUX_ELS_PKC, which is what puts the vendor headers on the
 	  include path, and WOLFSSL_SYS_INIT, which brings the subsystem up at
-	  boot. A settings-file build turns the port on by defining
-	  WOLFSSL_ELS_PKC itself, since these options only write the module's
-	  user_settings.h, and has to set CONFIG_MCUX_ELS_PKC=y and
-	  CONFIG_WOLFSSL_SYS_INIT=y by hand.
+	  boot. Neither is expressible in a settings file, so this option stays
+	  available there; what it will not do is write WOLFSSL_ELS_PKC and
+	  WOLF_CRYPTO_CB into a build whose settings file is authoritative.
+	  Both go in the settings file, and user_settings.h fails the build if
+	  either is missing.
 
 	  Not selectable in a TF-M build, where els_pkc does not create its
 	  McuxElsPkc CMake target.
