@@ -34418,8 +34418,8 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
             #ifdef HAVE_SECRET_CALLBACK
                 ssl->sessionSecretCb == NULL &&
             #endif
-                LowResTimer() >=
-                    (ssl->session->bornOn + ssl->session->timeout)) {
+                (LowResTimer() - ssl->session->bornOn) >=
+                    ssl->session->timeout) {
                 WOLFSSL_MSG("Stored session ticket expired; full handshake");
                 ssl->options.resuming = 0;
                 /* The stale ticket stays on the session object, which may be
