@@ -646,10 +646,15 @@ int wolfCrypt_Init(void)
     #endif
 
     #if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_INIT)
-        ret = wc_se050_init(NULL);
-        if (ret != 0) {
-            WOLFSSL_MSG("SE050 init failed");
-            WOLFCRYPT_INIT_RAISE_BAD_STATE();
+        /* An application may need runtime SCP03 keys to open the SE05x
+         * before calling wolfCrypt_Init(). Keep that configured session
+         * instead of trying to replace it with the compiled-in defaults. */
+        if (wc_se050_get_session() == NULL) {
+            ret = wc_se050_init(NULL);
+            if (ret != 0) {
+                WOLFSSL_MSG("SE050 init failed");
+                WOLFCRYPT_INIT_RAISE_BAD_STATE();
+            }
         }
     #endif
 
@@ -875,6 +880,16 @@ int wolfCrypt_Cleanup(void)
         {
             int ret2 = sl_se_deinit();
             if (ret == 0)
+                ret = ret2;
+        }
+    #endif
+    #if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_INIT)
+        if (wc_se050_get_session() != NULL) {
+            int ret2 = wc_se050_close();
+
+            /* A session installed with wc_se050_set_config() is owned by the
+             * application and wc_se050_close() deliberately rejects it. */
+            if ((ret == 0) && (ret2 != WC_NO_ERR_TRACE(BAD_STATE_E)))
                 ret = ret2;
         }
     #endif
