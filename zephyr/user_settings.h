@@ -209,6 +209,14 @@ extern "C" {
     #define IGNORE_NAME_CONSTRAINTS
 #endif
 
+/* OCSP */
+#if defined(CONFIG_WOLFSSL_OCSP)
+    #define HAVE_OCSP
+#endif
+#if defined(CONFIG_WOLFSSL_OCSP_STAPLING)
+    #define HAVE_CERTIFICATE_STATUS_REQUEST
+#endif
+
 /* Session Cache */
 #if defined(CONFIG_WOLFSSL_SESSION_CACHE)
     #define SMALL_SESSION_CACHE
@@ -271,9 +279,15 @@ extern "C" {
     #define WOLFSSL_SET_CIPHER_BYTES
 #endif
 
+#if defined(CONFIG_WOLFSSL_CRYPTO_CB)
+    #define WOLF_CRYPTO_CB
+#endif
+
 /* wolfTPM Zephyr */
 #if defined(CONFIG_WOLFTPM)
-    #define WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB
+        #define WOLF_CRYPTO_CB
+    #endif
     #define WOLFSSL_AES_CFB
 #endif
 
