@@ -1092,6 +1092,65 @@ int test_wc_RNG_SeedCb(void)
     return EXPECT_RESULT();
 }
 
+#if defined(WC_RNG_SEED_CB) && defined(HAVE_HASHDRBG) && \
+    !defined(CUSTOM_RAND_GENERATE_BLOCK) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID) && \
+    !defined(WC_RNG_SEED_APT_CUTOFF) && !defined(WC_RNG_SEED_APT_WINDOW) && \
+    !defined(WC_RNG_SEED_RCT_CUTOFF)
+/* Stuck noise source: every seed byte is zero. */
+static int test_random_seedCb_stuck(OS_Seed* os, byte* seed, word32 sz)
+{
+    (void)os;
+    XMEMSET(seed, 0, sz);
+    return 0;
+}
+#endif
+
+/* A stuck seed source at reseed reports the SP 800-90B RCT code.
+ * rng.pid = 0 never matches the process, so the next generate reseeds. */
+int test_wc_RNG_ReseedVerdict(void)
+{
+    EXPECT_DECLS;
+#if defined(WC_RNG_SEED_CB) && defined(HAVE_HASHDRBG) && \
+    !defined(CUSTOM_RAND_GENERATE_BLOCK) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID) && \
+    !defined(WC_RNG_SEED_APT_CUTOFF) && !defined(WC_RNG_SEED_APT_WINDOW) && \
+    !defined(WC_RNG_SEED_RCT_CUTOFF)
+    WC_RNG rng;
+    byte   out[32];
+
+    /* Do not inherit whatever source the previous test left installed: under
+     * HAVE_FIPS seedCb starts NULL and wc_InitRng() would fail. */
+    DoExpectIntEQ(wc_SetSeed_Cb(WC_GENERATE_SEED_DEFAULT), 0);
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    /* Control: a forced reseed from a working source succeeds. */
+    rng.pid = 0;
+    ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, sizeof(out)), 0);
+
+    ExpectIntEQ(wc_SetSeed_Cb(test_random_seedCb_stuck), 0);
+    rng.pid = 0;
+#if FIPS_VERSION3_GE(7,0,0)
+    ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, sizeof(out)),
+        WC_NO_ERR_TRACE(ENTROPY_RT_E));
+#else
+    ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, sizeof(out)),
+        WC_NO_ERR_TRACE(RNG_FAILURE_E));
+#endif
+    /* The failed instance stays failed. */
+    ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, sizeof(out)),
+        WC_NO_ERR_TRACE(RNG_FAILURE_E));
+
+    /* Do-form: restore even after a failed check, or later tests inherit it. */
+    DoExpectIntEQ(wc_SetSeed_Cb(WC_GENERATE_SEED_DEFAULT), 0);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* CUSTOM_RAND_GENERATE_BLOCK: an external RNG function bypasses Hash_DRBG
  * generation entirely in wc_RNG_GenerateBlock() (and _InitRng() itself is
  * skipped, since it is guarded by
