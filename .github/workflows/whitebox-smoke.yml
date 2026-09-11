@@ -39,6 +39,10 @@ jobs:
 
       - name: Install build dependencies
         run: |
+          # No wolfSSL job installs from the runner's Google/Microsoft apt repos,
+          # and a bad index on either fails apt-get update for everyone. Drop them.
+          grep -rlE 'dl\.google\.com|packages\.microsoft\.com' \
+            /etc/apt/sources.list.d/ 2>/dev/null | xargs -r sudo rm -vf || true
           sudo apt-get update
           sudo apt-get install -y autoconf automake libtool
 

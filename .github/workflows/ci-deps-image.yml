@@ -98,6 +98,11 @@ jobs:
           # so a hang never tripped it. Defend in depth: apt drops a stalled
           # connection after 30s and retries it (Acquire timeouts), `timeout`
           # hard-kills a wedged apt-get, then retry() re-runs from scratch.
+
+          # No wolfSSL job installs from the runner's Google/Microsoft apt repos,
+          # and a bad index on either fails apt-get update for everyone. Drop them.
+          grep -rlE 'dl\.google\.com|packages\.microsoft\.com' \
+            /etc/apt/sources.list.d/ 2>/dev/null | xargs -r sudo rm -vf || true
           APT_OPTS=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
           retry() { local i; for i in 1 2 3 4 5; do "$@" && return 0; sleep $((2**i)); done; "$@"; }
           retry sudo timeout -k 10 120 apt-get "${APT_OPTS[@]}" update -q
@@ -204,6 +209,10 @@ jobs:
           export DEBIAN_FRONTEND=noninteractive
           rm -rf debs && mkdir -p debs
           sudo apt-get clean
+          # No wolfSSL job installs from the runner's Google/Microsoft apt repos,
+          # and a bad index on either fails apt-get update for everyone. Drop them.
+          grep -rlE 'dl\.google\.com|packages\.microsoft\.com' \
+            /etc/apt/sources.list.d/ 2>/dev/null | xargs -r sudo rm -vf || true
           APT_OPTS=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
           # 2 attempts, not 5: this job's timeout-minutes is 20, and an
           # attempt cut off mid-flight reports nothing. The explicit return
