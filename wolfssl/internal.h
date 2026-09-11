@@ -268,6 +268,8 @@
     #undef HAVE_AES_CBC
 #endif
 
+/* AES-CBC suites need HAVE_AES_DECRYPT to decrypt records (see BUILD_AES). */
+
 /* When adding new ciphersuites, make sure that they have appropriate
  * guards for WOLFSSL_HARDEN_TLS. */
 #if defined(WOLFSSL_HARDEN_TLS) && \
@@ -301,7 +303,8 @@
 #endif /* !WOLFSSL_AEAD_ONLY */
 
     #if !defined(NO_RSA) && !defined(NO_AES) && !defined(NO_TLS)
-        #if !defined(NO_SHA) && defined(HAVE_AES_CBC)
+        #if !defined(NO_SHA) && defined(HAVE_AES_CBC) && \
+            defined(HAVE_AES_DECRYPT)
             #if defined(WOLFSSL_STATIC_RSA)
                 #ifdef WOLFSSL_AES_128
                     #define BUILD_TLS_RSA_WITH_AES_128_CBC_SHA
@@ -312,7 +315,8 @@
             #endif
         #endif
         #if defined(WOLFSSL_STATIC_RSA)
-            #if !defined (NO_SHA256) && defined(HAVE_AES_CBC)
+            #if !defined (NO_SHA256) && defined(HAVE_AES_CBC) && \
+                defined(HAVE_AES_DECRYPT)
                 #ifdef WOLFSSL_AES_128
                     #define BUILD_TLS_RSA_WITH_AES_128_CBC_SHA256
                 #endif
@@ -369,7 +373,7 @@
 
 #if defined(WOLFSSL_STATIC_PSK)
     #if !defined(NO_PSK) && !defined(NO_AES) && !defined(NO_TLS)
-        #if !defined(NO_SHA)
+        #if !defined(NO_SHA) && defined(HAVE_AES_DECRYPT)
             #ifdef WOLFSSL_AES_128
                 #define BUILD_TLS_PSK_WITH_AES_128_CBC_SHA
             #endif
@@ -379,7 +383,7 @@
         #endif
         #ifndef NO_SHA256
             #ifdef WOLFSSL_AES_128
-                #ifdef HAVE_AES_CBC
+                #if defined(HAVE_AES_CBC) && defined(HAVE_AES_DECRYPT)
                     #define BUILD_TLS_PSK_WITH_AES_128_CBC_SHA256
                 #endif
                 #ifdef HAVE_AESGCM
@@ -398,7 +402,7 @@
             #endif
         #endif
         #if defined(WOLFSSL_SHA384) && defined(WOLFSSL_AES_256)
-            #ifdef HAVE_AES_CBC
+            #if defined(HAVE_AES_CBC) && defined(HAVE_AES_DECRYPT)
                 #define BUILD_TLS_PSK_WITH_AES_256_CBC_SHA384
             #endif
             #ifdef HAVE_AESGCM
@@ -442,17 +446,20 @@
          * suites). https://www.rfc-editor.org/rfc/rfc9325#section-4.1 */
 
         #if !defined(NO_SHA)
-            #if defined(WOLFSSL_AES_128) && defined(HAVE_AES_CBC)
+            #if defined(WOLFSSL_AES_128) && defined(HAVE_AES_CBC) && \
+                defined(HAVE_AES_DECRYPT)
                 #define BUILD_TLS_DHE_RSA_WITH_AES_128_CBC_SHA
             #endif
-            #if defined(WOLFSSL_AES_256) && defined(HAVE_AES_CBC)
+            #if defined(WOLFSSL_AES_256) && defined(HAVE_AES_CBC) && \
+                defined(HAVE_AES_DECRYPT)
                 #define BUILD_TLS_DHE_RSA_WITH_AES_256_CBC_SHA
             #endif
             #if !defined(NO_DES3) && !defined(NO_DES3_TLS_SUITES)
                 #define BUILD_TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA
             #endif
         #endif
-        #if !defined(NO_SHA256) && defined(HAVE_AES_CBC)
+        #if !defined(NO_SHA256) && defined(HAVE_AES_CBC) && \
+            defined(HAVE_AES_DECRYPT)
             #ifdef WOLFSSL_AES_128
                 #define BUILD_TLS_DHE_RSA_WITH_AES_128_CBC_SHA256
             #endif
@@ -465,7 +472,7 @@
     #if defined(HAVE_ANON) && !defined(NO_TLS) && !defined(NO_DH) && \
         !defined(NO_AES)
         #if !defined(NO_SHA) && defined(HAVE_AES_CBC) && \
-                defined(WOLFSSL_AES_128)
+                defined(HAVE_AES_DECRYPT) && defined(WOLFSSL_AES_128)
             #define BUILD_TLS_DH_anon_WITH_AES_128_CBC_SHA
         #endif
         #if defined(WOLFSSL_SHA384) && defined(HAVE_AESGCM) && \
@@ -481,7 +488,7 @@
          * suites). https://www.rfc-editor.org/rfc/rfc9325#section-4.1 */
         #ifndef NO_SHA256
             #if !defined(NO_AES) && defined(WOLFSSL_AES_128) && \
-                                                           defined(HAVE_AES_CBC)
+                defined(HAVE_AES_CBC) && defined(HAVE_AES_DECRYPT)
                 #define BUILD_TLS_DHE_PSK_WITH_AES_128_CBC_SHA256
             #endif
             #ifdef HAVE_NULL_CIPHER
@@ -490,7 +497,7 @@
         #endif
         #ifdef WOLFSSL_SHA384
             #if !defined(NO_AES) && defined(WOLFSSL_AES_256) && \
-                                                           defined(HAVE_AES_CBC)
+                defined(HAVE_AES_CBC) && defined(HAVE_AES_DECRYPT)
                 #define BUILD_TLS_DHE_PSK_WITH_AES_256_CBC_SHA384
             #endif
             #ifdef HAVE_NULL_CIPHER
@@ -502,7 +509,8 @@
     #if (defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
                                      defined(HAVE_CURVE448)) && !defined(NO_TLS)
         #if !defined(NO_AES)
-            #if !defined(NO_SHA) && defined(HAVE_AES_CBC)
+            #if !defined(NO_SHA) && defined(HAVE_AES_CBC) && \
+                defined(HAVE_AES_DECRYPT)
                 #if !defined(NO_RSA)
                     #ifdef WOLFSSL_AES_128
                         #define BUILD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
@@ -541,7 +549,7 @@
                 #endif
             #endif /* NO_SHA */
             #if !defined(NO_SHA256) && defined(WOLFSSL_AES_128) && \
-                                                           defined(HAVE_AES_CBC)
+                defined(HAVE_AES_CBC) && defined(HAVE_AES_DECRYPT)
                 #if !defined(NO_RSA)
                     #define BUILD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
                     #if defined(WOLFSSL_STATIC_DH) && defined(HAVE_ECC)
@@ -559,7 +567,7 @@
             #endif
 
             #if defined(WOLFSSL_SHA384) && defined(WOLFSSL_AES_256) && \
-                                                           defined(HAVE_AES_CBC)
+                defined(HAVE_AES_CBC) && defined(HAVE_AES_DECRYPT)
                 #if !defined(NO_RSA)
                     #define BUILD_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384
                     #if defined(WOLFSSL_STATIC_DH) && defined(HAVE_ECC)
@@ -671,7 +679,8 @@
             #endif
         #endif
         #if !defined(NO_PSK) && !defined(NO_SHA256) && !defined(NO_AES) && \
-            defined(WOLFSSL_AES_128) && defined(HAVE_AES_CBC)
+            defined(WOLFSSL_AES_128) && defined(HAVE_AES_CBC) && \
+            defined(HAVE_AES_DECRYPT)
             #define BUILD_TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256
         #endif
         #if !defined(NO_PSK) && !defined(NO_SHA256) && !defined(NO_AES) && \

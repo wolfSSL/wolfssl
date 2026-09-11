@@ -3835,6 +3835,12 @@
         #undef  HAVE_AES_DECRYPT
         #define HAVE_AES_DECRYPT
     #endif
+    /* GCM and CCM decrypt only use AES encrypt, so keep them with
+     * NO_AES_DECRYPT. */
+    #undef  HAVE_AESGCM_DECRYPT
+    #define HAVE_AESGCM_DECRYPT
+    #undef  HAVE_AESCCM_DECRYPT
+    #define HAVE_AESCCM_DECRYPT
     #ifndef NO_AES_CBC
         #undef  HAVE_AES_CBC
         #define HAVE_AES_CBC

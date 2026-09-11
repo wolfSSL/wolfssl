@@ -55,6 +55,8 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
  * WOLFSSL_AES_EAX:         Enable AES-EAX AEAD mode              default: off
  * WOLFSSL_CMAC:            Enable AES-CMAC (RFC 4493)            default: off
  * HAVE_AESCCM:             Enable AES-CCM mode                   default: off
+ * HAVE_AESCCM_DECRYPT:     Enable AES-CCM decryption             default: on
+ *                           (when HAVE_AESCCM is enabled)
  * HAVE_AES_KEYWRAP:        Enable AES key wrap (RFC 3394)        default: off
  * WOLFSSL_AES_KEYWRAP_PADDING: AES key wrap padding (RFC 5649) default: off
  * WOLFSSL_AES_CBC_LENGTH_CHECKS: Validate CBC input length       default: off
@@ -15341,7 +15343,7 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         authIn, authInSz);
 }
 
-#ifdef HAVE_AES_DECRYPT
+#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AESCCM_DECRYPT)
 int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
                    const byte* nonce, word32 nonceSz,
                    const byte* authTag, word32 authTagSz,
@@ -15410,7 +15412,7 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     return (kStatus_Success == status) ? 0 : BAD_FUNC_ARG;
 }
 
-#ifdef HAVE_AES_DECRYPT
+#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AESCCM_DECRYPT)
 int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
                    const byte* nonce, word32 nonceSz,
                    const byte* authTag, word32 authTagSz,
@@ -15458,7 +15460,7 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     }
     return 0;
 }
-#endif /* HAVE_AES_DECRYPT */
+#endif /* HAVE_AES_DECRYPT || HAVE_AESCCM_DECRYPT */
 
 #else
 
@@ -15773,7 +15775,7 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     return ret;
 }
 
-#ifdef HAVE_AES_DECRYPT
+#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AESCCM_DECRYPT)
 /* Software AES - CCM Decrypt */
 int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
                    const byte* nonce, word32 nonceSz,
@@ -15966,7 +15968,7 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     return ret;
 }
 
-#endif /* HAVE_AES_DECRYPT */
+#endif /* HAVE_AES_DECRYPT || HAVE_AESCCM_DECRYPT */
 #endif /* software CCM */
 
 /* abstract functions that call lower level AESCCM functions */

@@ -25651,8 +25651,8 @@ static int test_wc_CreateEncryptedPKCS8Key(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_PKCS8) && !defined(NO_PWDBASED) && defined(WOLFSSL_AES_256) \
- && !defined(NO_AES_CBC) && !defined(NO_RSA) && !defined(NO_SHA) && \
-    !defined(NO_ASN_CRYPT)
+ && !defined(NO_AES_CBC) && defined(HAVE_AES_DECRYPT) && !defined(NO_RSA) && \
+    !defined(NO_SHA) && !defined(NO_ASN_CRYPT)
     WC_RNG rng;
     byte* encKey = NULL;
     word32 encKeySz = 0;
@@ -25694,7 +25694,8 @@ static int test_wc_CreateEncryptedPKCS8Key(void)
 
 #if defined(HAVE_PKCS8) && !defined(NO_ASN) && !defined(NO_PWDBASED) && \
     !defined(NO_SHA) && !defined(NO_ASN_CRYPT) && ((defined(WOLFSSL_AES_256) && \
-    !defined(NO_AES_CBC)) || !defined(NO_DES3) || !defined(NO_RC4))
+    !defined(NO_AES_CBC) && defined(HAVE_AES_DECRYPT)) || !defined(NO_DES3) || \
+    !defined(NO_RC4))
 /* Encrypt a block-aligned plaintext PKCS#8 and verify the trailing encrypted
  * OCTET STRING length. expExtra is the padding expected: a full block for CBC
  * ciphers, 0 for stream ciphers. Also confirms a decrypt round-trip. */
@@ -25763,7 +25764,7 @@ static int test_wc_EncryptPKCS8Key_blockAligned(void)
     EXPECT_DECLS;
 #if defined(HAVE_PKCS8) && !defined(NO_ASN) && !defined(NO_PWDBASED) \
  && defined(WOLFSSL_AES_256) && !defined(NO_AES_CBC) && !defined(NO_SHA) \
- && !defined(NO_ASN_CRYPT)
+ && defined(HAVE_AES_DECRYPT) && !defined(NO_ASN_CRYPT)
     EXPECT_TEST(enc_pkcs8_pad_check(PKCS5, PBES2, AES256CBCb, AES_BLOCK_SIZE));
 #endif
     return EXPECT_RESULT();
@@ -25838,7 +25839,7 @@ static int test_wc_EncryptPKCS8Key_ex_goodHmac(void)
     EXPECT_DECLS;
 #if defined(HAVE_PKCS8) && !defined(NO_ASN) && !defined(NO_PWDBASED) \
  && defined(WOLFSSL_AES_256) && !defined(NO_AES_CBC) && !defined(NO_ASN_CRYPT) \
- && !defined(NO_SHA256) && !defined(NO_HMAC)
+ && defined(HAVE_AES_DECRYPT) && !defined(NO_SHA256) && !defined(NO_HMAC)
     WC_RNG rng;
     word32 outSz = 0;
     word32 encSz = 0;
@@ -37520,7 +37521,7 @@ static int test_certreq_sighash_algos(void)
     !defined(WOLFSSL_MAX_STRENGTH) && defined(HAVE_ECC) && \
     !defined(NO_SHA256) && defined(WOLFSSL_SHA384) && \
     defined(WOLFSSL_AES_256) && defined(HAVE_AES_CBC) && \
-    !defined(WOLFSSL_NO_TLS12)
+    defined(HAVE_AES_DECRYPT) && !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX *ctx_c = NULL;
     WOLFSSL_CTX *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL;
