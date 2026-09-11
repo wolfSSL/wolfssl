@@ -67,12 +67,12 @@ int wc_KeyStore_ExportWrapped(int devId,
 }
 
 int wc_KeyStore_Derive(int devId,
-    const byte* keyRef, word32 keyRefSz, word32 keyType,
+    const byte* keyRef, word32 keyRefSz, word32 keyType, word32 keySz,
     const byte* srcKeyRef, word32 srcKeyRefSz,
     word32 kdfType, const byte* deriv, word32 derivSz,
     word32 attrs, const void* ctx)
 {
-    return wc_CryptoCb_KeyStoreDerive(devId, keyRef, keyRefSz, keyType,
+    return wc_CryptoCb_KeyStoreDerive(devId, keyRef, keyRefSz, keyType, keySz,
         srcKeyRef, srcKeyRefSz, kdfType, deriv, derivSz, attrs, ctx);
 }
 

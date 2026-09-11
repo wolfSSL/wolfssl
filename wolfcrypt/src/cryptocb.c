@@ -3987,7 +3987,7 @@ int wc_CryptoCb_KeyStoreExportWrapped(int devId,
 }
 
 int wc_CryptoCb_KeyStoreDerive(int devId,
-    const byte* keyRef, word32 keyRefSz, word32 keyType,
+    const byte* keyRef, word32 keyRefSz, word32 keyType, word32 keySz,
     const byte* srcKeyRef, word32 srcKeyRefSz,
     word32 kdfType, const byte* deriv, word32 derivSz,
     word32 attrs, const void* ctx)
@@ -4013,6 +4013,7 @@ int wc_CryptoCb_KeyStoreDerive(int devId,
         cryptoInfo.keystore.op.derive.keyRef      = keyRef;
         cryptoInfo.keystore.op.derive.keyRefSz    = keyRefSz;
         cryptoInfo.keystore.op.derive.keyType     = keyType;
+        cryptoInfo.keystore.op.derive.keySz       = keySz;
         cryptoInfo.keystore.op.derive.srcKeyRef   = srcKeyRef;
         cryptoInfo.keystore.op.derive.srcKeyRefSz = srcKeyRefSz;
         cryptoInfo.keystore.op.derive.deriv       = deriv;

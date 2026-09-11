@@ -910,6 +910,7 @@ typedef struct wc_CryptoInfo {
                 const byte* keyRef;        /* opaque: where it should land */
                 word32      keyRefSz;
                 word32      keyType;       /* enum wc_KeyStoreKeyType */
+                word32      keySz;         /* bytes; 0 = device's own default */
                 word32      attrs;         /* WC_KEYSTORE_ATTR_* */
                 const byte* srcKeyRef;     /* opaque: the derivation key */
                 word32      srcKeyRefSz;
@@ -1418,7 +1419,7 @@ WOLFSSL_LOCAL int wc_CryptoCb_KeyStoreExportWrapped(int devId,
     const byte* wrapKeyRef, word32 wrapKeyRefSz,
     word32 format, byte* blob, word32* blobSz, const void* ctx);
 WOLFSSL_LOCAL int wc_CryptoCb_KeyStoreDerive(int devId,
-    const byte* keyRef, word32 keyRefSz, word32 keyType,
+    const byte* keyRef, word32 keyRefSz, word32 keyType, word32 keySz,
     const byte* srcKeyRef, word32 srcKeyRefSz,
     word32 kdfType, const byte* deriv, word32 derivSz,
     word32 attrs, const void* ctx);

@@ -253,6 +253,9 @@ int wc_KeyStore_ExportWrapped(int devId,
     \param keyRefSz length of keyRef in bytes
     \param keyType what the derived key is for, from enum wc_KeyStoreKeyType,
     or WC_KEYSTORE_KEY_NONE to leave it to the device
+    \param keySz size in bytes of the key to create, or 0 to leave it to the
+    device. Unlike the other operations there is nothing else to infer it
+    from: the derivation data length is the input's, not the output's
     \param srcKeyRef opaque reference naming the derivation key
     \param srcKeyRefSz length of srcKeyRef in bytes
     \param kdfType derivation function, from enum wc_KdfType.
@@ -266,7 +269,7 @@ int wc_KeyStore_ExportWrapped(int devId,
     _Example_
     \code
     ret = wc_KeyStore_Derive(devId, keyRef, sizeof(keyRef),
-                             WC_KEYSTORE_KEY_AES,
+                             WC_KEYSTORE_KEY_AES, AES_256_KEY_SIZE,
                              parentRef, sizeof(parentRef),
                              WC_KDF_TYPE_NONE, deriv, sizeof(deriv),
                              WC_KEYSTORE_ATTR_EXPORTABLE, NULL);
@@ -275,7 +278,7 @@ int wc_KeyStore_ExportWrapped(int devId,
     \sa wc_KeyStore_GetInfo
 */
 int wc_KeyStore_Derive(int devId,
-    const byte* keyRef, word32 keyRefSz, word32 keyType,
+    const byte* keyRef, word32 keyRefSz, word32 keyType, word32 keySz,
     const byte* srcKeyRef, word32 srcKeyRefSz,
     word32 kdfType, const byte* deriv, word32 derivSz,
     word32 attrs, const void* ctx);

@@ -120,6 +120,7 @@ static int KsCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             seen->otherRef   = info->keystore.op.derive.srcKeyRef;
             seen->otherRefSz = info->keystore.op.derive.srcKeyRefSz;
             seen->keyType    = info->keystore.op.derive.keyType;
+            seen->keySz      = info->keystore.op.derive.keySz;
             seen->attrs    = info->keystore.op.derive.attrs;
             seen->kdfType  = info->keystore.op.derive.kdfType;
             seen->deriv    = info->keystore.op.derive.deriv;
@@ -386,11 +387,12 @@ int test_wc_KeyStore_Derive(void)
      * kdfType and attrs numerically apart or a transposition reads as equal. */
     ExpectIntEQ(wc_KeyStore_Derive(KS_TEST_DEVID,
         ksKeyRef, (word32)sizeof(ksKeyRef), WC_KEYSTORE_KEY_AES,
-        ksOtherRef, (word32)sizeof(ksOtherRef),
+        AES_256_KEY_SIZE, ksOtherRef, (word32)sizeof(ksOtherRef),
         WC_KDF_TYPE_HKDF, ksDeriv, (word32)sizeof(ksDeriv),
         WC_KEYSTORE_ATTR_PERSISTENT, ksCallerCtx), 0);
     ExpectIntEQ(seen.op, WC_KEYSTORE_DERIVE);
     ExpectIntEQ(seen.keyType, WC_KEYSTORE_KEY_AES);
+    ExpectIntEQ(seen.keySz, AES_256_KEY_SIZE);
     ExpectPtrEq(seen.keyRef, ksKeyRef);
     ExpectIntEQ(seen.keyRefSz, (word32)sizeof(ksKeyRef));
     ExpectPtrEq(seen.otherRef, ksOtherRef);
@@ -403,21 +405,22 @@ int test_wc_KeyStore_Derive(void)
 
     /* WC_KDF_TYPE_NONE asks for the device's own derivation */
     ExpectIntEQ(wc_KeyStore_Derive(KS_TEST_DEVID,
-        ksKeyRef, (word32)sizeof(ksKeyRef), WC_KEYSTORE_KEY_NONE,
+        ksKeyRef, (word32)sizeof(ksKeyRef), WC_KEYSTORE_KEY_NONE, 0,
         ksOtherRef, (word32)sizeof(ksOtherRef),
         WC_KDF_TYPE_NONE, ksDeriv, (word32)sizeof(ksDeriv),
         WC_KEYSTORE_ATTR_EXPORTABLE, NULL), 0);
     ExpectIntEQ(seen.kdfType, WC_KDF_TYPE_NONE);
+    ExpectIntEQ(seen.keySz, 0); /* 0 leaves the size to the device */
     ExpectIntEQ(seen.attrs, WC_KEYSTORE_ATTR_EXPORTABLE);
 
     seen.calls = 0;
     ExpectIntEQ(wc_KeyStore_Derive(KS_TEST_DEVID,
-        ksKeyRef, (word32)sizeof(ksKeyRef), WC_KEYSTORE_KEY_AES, NULL, 0,
+        ksKeyRef, (word32)sizeof(ksKeyRef), WC_KEYSTORE_KEY_AES, 0, NULL, 0,
         WC_KDF_TYPE_NONE, ksDeriv, (word32)sizeof(ksDeriv), 0, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     /* No derivation data means no length beside it. */
     ExpectIntEQ(wc_KeyStore_Derive(KS_TEST_DEVID,
-        ksKeyRef, (word32)sizeof(ksKeyRef), WC_KEYSTORE_KEY_AES,
+        ksKeyRef, (word32)sizeof(ksKeyRef), WC_KEYSTORE_KEY_AES, 0,
         ksOtherRef, (word32)sizeof(ksOtherRef),
         WC_KDF_TYPE_NONE, NULL, (word32)sizeof(ksDeriv), 0, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -532,7 +535,7 @@ int test_wc_KeyStore_NoDevice(void)
     ExpectIntEQ(keySz, 0);
     ExpectIntEQ(attrs, 0);
     ExpectIntEQ(wc_KeyStore_Derive(KS_TEST_DEVID,
-        ksKeyRef, (word32)sizeof(ksKeyRef), WC_KEYSTORE_KEY_AES,
+        ksKeyRef, (word32)sizeof(ksKeyRef), WC_KEYSTORE_KEY_AES, 0,
         ksOtherRef, (word32)sizeof(ksOtherRef),
         WC_KDF_TYPE_NONE, ksDeriv, (word32)sizeof(ksDeriv), 0, NULL),
         WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE));
