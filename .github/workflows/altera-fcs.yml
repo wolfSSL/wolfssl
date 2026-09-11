@@ -1,0 +1,105 @@
+name: Altera Agilex 5 FCS port tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'release/**' ]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+# END OF COMMON SECTION
+
+# The stub exposes only the libfcs interface and always reports unavailable
+# hardware. This checks port compilation, build guards, linkage, and software
+# fallback without treating host output as SDM cryptographic validation.
+# Functional offload remains covered by wolfcrypttest on Agilex 5 hardware.
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Autotools all algorithms
+            system: autotools
+            option: all
+            extra: --enable-aesctr
+          - name: Autotools RNG only
+            system: autotools
+            option: rng
+            extra: ''
+          - name: Autotools without ECC
+            system: autotools
+            option: all
+            extra: --enable-aesctr --disable-ecc
+          - name: CMake all algorithms
+            system: cmake
+            option: all
+            extra: ''
+          - name: CMake RNG only
+            system: cmake
+            option: rng
+            extra: ''
+
+    steps:
+      - uses: actions/checkout@v5
+        name: Checkout wolfSSL
+
+      - name: Install dependencies
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: autoconf automake libtool build-essential cmake
+          ghcr-debs-tag: ubuntu-24.04-minimal
+
+      - name: Build no-hardware dependency stubs
+        run: |
+          stub="$RUNNER_TEMP/altera-fcs-stub"
+          mkdir -p "$stub/include" "$stub/lib"
+          cp tests/altera-fcs-stub/libfcs.h \
+            tests/altera-fcs-stub/libfcs_osal_types.h "$stub/include/"
+          cc -I"$stub/include" -c \
+            tests/altera-fcs-stub/libfcs_stub.c -o "$stub/libfcs_stub.o"
+          ar rcs "$stub/lib/libFCS.a" "$stub/libfcs_stub.o"
+          cc -c tests/altera-fcs-stub/fdt_stub.c -o "$stub/fdt_stub.o"
+          ar rcs "$stub/lib/libfdt.a" "$stub/fdt_stub.o"
+          echo "ALTERA_FCS_STUB=$stub" >> "$GITHUB_ENV"
+
+      - name: Build and test with Autotools
+        if: matrix.system == 'autotools'
+        run: |
+          set -o pipefail
+          ./autogen.sh
+          CPPFLAGS="-I$ALTERA_FCS_STUB/include" \
+          LDFLAGS="-L$ALTERA_FCS_STUB/lib" \
+            ./configure --enable-alterafcs=${{ matrix.option }} \
+              --disable-shared ${{ matrix.extra }}
+          make -j"$(nproc)"
+          ./wolfcrypt/test/testwolfcrypt | tee altera-fcs-test.log
+          grep -q 'ALTERA-FCS test skipped: hardware unavailable' \
+            altera-fcs-test.log
+
+      - name: Build and test with CMake
+        if: matrix.system == 'cmake'
+        run: |
+          set -o pipefail
+          cmake -S . -B build \
+            -DWOLFSSL_ALTERA_FCS=${{ matrix.option }} \
+            -DALTERA_FCS_INCLUDE_DIR="$ALTERA_FCS_STUB/include" \
+            -DALTERA_FCS_OSAL_INCLUDE_DIR="$ALTERA_FCS_STUB/include" \
+            -DALTERA_FCS_LIBRARY="$ALTERA_FCS_STUB/lib/libFCS.a" \
+            -DALTERA_FDT_LIBRARY="$ALTERA_FCS_STUB/lib/libfdt.a"
+          cmake --build build --target wolfcrypttest -j"$(nproc)"
+          ./build/wolfcrypt/test/testwolfcrypt | tee altera-fcs-test.log
+          grep -q 'ALTERA-FCS test skipped: hardware unavailable' \
+            altera-fcs-test.log

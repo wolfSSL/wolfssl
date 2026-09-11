@@ -2,6 +2,7 @@
 # All paths should be given relative to the root
 
 nobase_include_HEADERS+= \
+                         wolfssl/wolfcrypt/port/altera/altera_fcs.h \
                          wolfssl/wolfcrypt/aes.h \
                          wolfssl/wolfcrypt/arc4.h \
                          wolfssl/wolfcrypt/argon2.h \
