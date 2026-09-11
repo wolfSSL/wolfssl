@@ -812,6 +812,8 @@ int wolfSSL_recv(WOLFSSL* ssl, void* data, int sz, int flags)
 }
 #endif
 
+static int wolfssl_shutdown_internal(WOLFSSL* ssl, int allowInInit);
+
 /* Send a user_canceled alert to the peer and shut down the connection.
  *
  * @param [in, out] ssl  SSL/TLS object.
@@ -830,7 +832,9 @@ int wolfSSL_SendUserCanceled(WOLFSSL* ssl)
             WOLFSSL_ERROR(ssl->error);
         }
         else {
-            ret = wolfSSL_shutdown(ssl);
+            /* RFC 8446 Section 6.1: user_canceled cancels a handshake in
+             * progress and has to be followed by a close_notify. */
+            ret = wolfssl_shutdown_internal(ssl, 1);
         }
     }
 
@@ -1040,12 +1044,71 @@ static int wolfssl_shutdown_recv_close_notify(WOLFSSL* ssl)
 WOLFSSL_ABI
 int wolfSSL_shutdown(WOLFSSL* ssl)
 {
+    return wolfssl_shutdown_internal(ssl, 0);
+}
+
+/* Whether the handshake failed outright rather than being still in flight.
+ * WANT_READ/WANT_WRITE, a pending async operation and a pending non-blocking
+ * OCSP/CRL lookup mean it can still continue, anything else recorded in
+ * ssl->error means it cannot.
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @return  1 when the handshake has failed, 0 when it can still progress.
+ */
+static int wolfssl_handshake_failed(const WOLFSSL* ssl)
+{
+    return (ssl->error != 0) &&
+        (ssl->error != WC_NO_ERR_TRACE(WANT_READ)) &&
+        (ssl->error != WC_NO_ERR_TRACE(WANT_WRITE))
+#ifdef WOLFSSL_ASYNC_CRYPT
+        && (ssl->error != WC_NO_ERR_TRACE(WC_PENDING_E))
+#endif
+#ifdef WOLFSSL_NONBLOCK_OCSP
+        /* ProcessPeerCerts() resumes off this error, which sending the alert
+         * would overwrite. */
+        && (ssl->error != WC_NO_ERR_TRACE(OCSP_WANT_READ))
+#endif
+#ifdef WOLFSSL_CERT_SETUP_CB
+        /* The certificate setup callback asked to be called again. Positive
+         * value, so no WC_NO_ERR_TRACE(). */
+        && (ssl->error != WOLFSSL_ERROR_WANT_X509_LOOKUP)
+#endif
+        ;
+}
+
+/* Body of wolfSSL_shutdown().
+ *
+ * @param [in, out] ssl          SSL/TLS object.
+ * @param [in]      allowInInit  Whether to shut down a handshake that has not
+ *                               completed.
+ */
+static int wolfssl_shutdown_internal(WOLFSSL* ssl, int allowInInit)
+{
     int ret = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
 
     WOLFSSL_ENTER("wolfSSL_shutdown");
 
     /* Validate parameter. */
     if (ssl == NULL) {
+        ret = WOLFSSL_FATAL_ERROR;
+    }
+    /* close_notify only means anything on an established connection. OpenSSL
+     * fails here with SSL_R_SHUTDOWN_WHILE_IN_INIT and sends nothing. Gate on
+     * handShakeDone, not handShakeState, so a renegotiation in flight does not
+     * block shutdown. A handshake that already failed is not in flight - the
+     * caller is tearing down and the peer still has to be told, otherwise it
+     * sees a truncated connection instead of an alert. */
+    else if ((!allowInInit) && (!ssl->options.handShakeDone) &&
+             (!wolfssl_handshake_failed(ssl))) {
+        WOLFSSL_MSG("Shutdown called before the handshake completed");
+        /* Queue NOT_READY_ERROR but leave ssl->error alone. ssl->error is a
+         * single slot that also gates handshake progress and drives
+         * wolfssl_handshake_failed() above, so writing it here would abort
+         * the in-flight handshake and make this guard skip itself on the
+         * next call. The queued error is what OpenSSL reports for
+         * SSL_R_SHUTDOWN_WHILE_IN_INIT, and it is separate from the retry
+         * state either way. */
+        WOLFSSL_ERROR(NOT_READY_ERROR);
         ret = WOLFSSL_FATAL_ERROR;
     }
     else if (ssl->options.quietShutdown) {

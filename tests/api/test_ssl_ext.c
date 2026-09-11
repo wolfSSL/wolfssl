@@ -254,6 +254,20 @@ int test_wolfSSL_set1_groups_list_ext(void)
 #endif
 #endif
 
+#if !defined(NO_DH) && defined(HAVE_FFDHE_2048)
+    /* Finite field groups are accepted by their OpenSSL names, on their own
+     * and mixed into a list of curves. */
+    ExpectIntEQ(wolfSSL_CTX_set1_groups_list(ctx, "ffdhe2048"),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set1_groups_list(ssl, "P-256:ffdhe2048"),
+        WOLFSSL_SUCCESS);
+    /* set1_curves_list() is EC-only and still rejects them. */
+    ExpectIntEQ(wolfSSL_CTX_set1_curves_list(ctx, "ffdhe2048"),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_set1_curves_list(ssl, "P-256:ffdhe2048"),
+        WOLFSSL_FAILURE);
+#endif
+
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
 #endif
