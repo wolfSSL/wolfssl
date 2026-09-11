@@ -550,7 +550,11 @@ static int slhdsakey_hash_shake_3(wc_Shake* shake, const byte* data1,
 
 #ifndef WC_SHA3_NO_ASM
     /* Check availability of AVX2 instructions. */
-    if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    /* CPUID picks the lane; a refused save is an error, never another lane. */
+    if (IS_INTEL_AVX2(cpuid_flags)) {
+        int svr_ret = SAVE_VECTOR_REGISTERS2();
+        if (svr_ret != 0)
+            return svr_ret;
         /* Process the state using AVX2 instructions. */
         sha3_block_avx2(state);
         RESTORE_VECTOR_REGISTERS();
@@ -662,7 +666,11 @@ static int slhdsakey_hash_shake_4(wc_Shake* shake, const byte* data1,
 
 #ifndef WC_SHA3_NO_ASM
     /* Check availability of AVX2 instructions. */
-    if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    /* CPUID picks the lane; a refused save is an error, never another lane. */
+    if (IS_INTEL_AVX2(cpuid_flags)) {
+        int svr_ret = SAVE_VECTOR_REGISTERS2();
+        if (svr_ret != 0)
+            return svr_ret;
         /* Process the state using AVX2 instructions. */
         sha3_block_avx2(state);
         RESTORE_VECTOR_REGISTERS();
@@ -4719,11 +4727,14 @@ static int slhdsakey_wots_pkgen(SlhDsaKey* key, const byte* sk_seed,
 #if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL) && \
     !defined(WOLFSSL_SLHDSA_NO_SHAKE)
         if (!SLHDSA_IS_SHA2(key->params->param) &&
-                IS_INTEL_AVX2(cpuid_flags) &&
-                (SAVE_VECTOR_REGISTERS2() == 0)) {
-            ret = slhdsakey_wots_pkgen_chain_x4(key, sk_seed, pk_seed, adrs,
-                sk_adrs);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            /* A refused save falls through so the hash below is still freed. */
+            ret = SAVE_VECTOR_REGISTERS2();
+            if (ret == 0) {
+                ret = slhdsakey_wots_pkgen_chain_x4(key, sk_seed, pk_seed,
+                    adrs, sk_adrs);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -5178,8 +5189,10 @@ static int slhdsakey_wots_sign(SlhDsaKey* key, const byte* m,
     !defined(WOLFSSL_SLHDSA_NO_SHAKE)
     /* Steps 11-17: Generate signature from msg. */
     if (!SLHDSA_IS_SHA2(key->params->param) &&
-            IS_INTEL_AVX2(cpuid_flags) &&
-            (SAVE_VECTOR_REGISTERS2() == 0)) {
+            IS_INTEL_AVX2(cpuid_flags)) {
+        int svr_ret = SAVE_VECTOR_REGISTERS2();
+        if (svr_ret != 0)
+            return svr_ret;
         ret = slhdsakey_wots_sign_chain_x4(key, msg, sk_seed, pk_seed, adrs,
             sk_adrs, sig);
         RESTORE_VECTOR_REGISTERS();
@@ -5845,8 +5858,10 @@ static int slhdsakey_wots_pk_from_sig(SlhDsaKey* key, const byte* sig,
 #if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL) && \
     !defined(WOLFSSL_SLHDSA_NO_SHAKE)
     if (!SLHDSA_IS_SHA2(key->params->param) &&
-            IS_INTEL_AVX2(cpuid_flags) &&
-            (SAVE_VECTOR_REGISTERS2() == 0)) {
+            IS_INTEL_AVX2(cpuid_flags)) {
+        int svr_ret = SAVE_VECTOR_REGISTERS2();
+        if (svr_ret != 0)
+            return svr_ret;
         ret = slhdsakey_wots_pk_from_sig_x4(key, sig, msg, pk_seed, adrs,
             pk_sig);
         RESTORE_VECTOR_REGISTERS();
@@ -7576,9 +7591,12 @@ static int slhdsakey_fors_sign(SlhDsaKey* key, const byte* md,
     #if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL) && \
     !defined(WOLFSSL_SLHDSA_NO_SHAKE)
         if (!SLHDSA_IS_SHA2(key->params->param) &&
-                IS_INTEL_AVX2(cpuid_flags) &&
-                (SAVE_VECTOR_REGISTERS2() == 0)) {
+                IS_INTEL_AVX2(cpuid_flags)) {
             word16 idx = indices[i];
+            int svr_ret = SAVE_VECTOR_REGISTERS2();
+
+            if (svr_ret != 0)
+                return svr_ret;
             /* Step 5: For each bit: */
             for (j = 0; j < a; j++) {
                 /* Calculate side. */
@@ -8482,11 +8500,14 @@ static int slhdsakey_fors_pk_from_sig(SlhDsaKey* key, const byte* sig_fors,
 #if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL) && \
     !defined(WOLFSSL_SLHDSA_NO_SHAKE)
     if ((ret == 0) && !SLHDSA_IS_SHA2(key->params->param) &&
-            IS_INTEL_AVX2(cpuid_flags) &&
-            (SAVE_VECTOR_REGISTERS2() == 0)) {
-        ret = slhdsakey_fors_pk_from_sig_x4(key, sig_fors, indices, pk_seed,
-            adrs);
-        RESTORE_VECTOR_REGISTERS();
+            IS_INTEL_AVX2(cpuid_flags)) {
+        /* A refused save falls through so the hash below is still freed. */
+        ret = SAVE_VECTOR_REGISTERS2();
+        if (ret == 0) {
+            ret = slhdsakey_fors_pk_from_sig_x4(key, sig_fors, indices,
+                pk_seed, adrs);
+            RESTORE_VECTOR_REGISTERS();
+        }
     }
     else
 #endif
