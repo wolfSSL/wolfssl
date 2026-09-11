@@ -8806,6 +8806,33 @@ static void df_parse(DfPkt* p)
 
 /* ------------------------------------------------------------ IO callbacks */
 
+/* Field by field, not one XMEMCMP over the whole DfPkt: the struct mixes byte
+ * and word16 members after a run of ints, so it carries padding and has no
+ * unique object representation. Comparing it as raw memory reads those padding
+ * bytes -- which is what bugprone-suspicious-memory-comparison rejects, and
+ * they carry no meaning anyway. Only data[] up to the declared length matters.
+ */
+static int df_pkt_differs(const DfPkt* a, const DfPkt* b)
+{
+    int n;
+
+    if (a->len != b->len || a->toServer != b->toServer || a->idx != b->idx ||
+            a->hold != b->hold || a->taken != b->taken ||
+            a->type != b->type || a->epoch != b->epoch ||
+            a->hsType != b->hsType || a->msgSeq != b->msgSeq) {
+        return 1;
+    }
+
+    n = a->len;
+    if (n < 0) {
+        n = 0;
+    }
+    if (n > DF_MAX_SZ) {
+        n = DF_MAX_SZ;
+    }
+    return XMEMCMP(a->data, b->data, (size_t)n) != 0;
+}
+
 static int df_send(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 {
     DfCtx* c = (DfCtx*)ctx;
@@ -8841,7 +8868,7 @@ static int df_send(WOLFSSL* ssl, char* buf, int sz, void* ctx)
         /* Both halves are needed: a policy that edits bytes changes the packet
          * and touches no counter, while one that replays or drops leaves the
          * packet alone and moves a counter. */
-        if (XMEMCMP(&before, p, sizeof(before)) != 0 ||
+        if (df_pkt_differs(&before, p) ||
                 c->nDrop + c->nDup + c->nMod + c->nHold + c->nCoalesce != acted)
             df_mutations++;
     }
