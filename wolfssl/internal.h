@@ -1402,6 +1402,11 @@ enum {
 #define DTLS_CID_MAX_SIZE 0
 #endif /* WOLFSSL_DTLS_CID */
 
+/* This bounds the CID that we ask to receive and, for DTLS 1.2, also the
+ * peer-chosen CID that we send.
+ * For DTLS 1.3 the CID that we send is chosen by the peer and this does not
+ * bound it, only the wire format does (RFC 9146 Section 3: the ConnectionId
+ * is an opaque<0..2^8-1>). */
 #if DTLS_CID_MAX_SIZE > 255
 #error "Max size for DTLS CID is 255 bytes"
 #endif
@@ -5625,6 +5630,11 @@ struct Options {
 #endif
 #ifdef WOLFSSL_DTLS_CID
     word16            useDtlsCID:1;
+#ifdef WOLFSSL_DTLS13
+    word16            haveSupportedVersions:1; /* Current Hello's version
+                                                * pre-scan succeeded and found
+                                                * supported_versions. */
+#endif
 #endif /* WOLFSSL_DTLS_CID */
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     word16            echAccepted:1;

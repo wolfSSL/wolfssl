@@ -5626,6 +5626,9 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     case TLS_ASYNC_BEGIN:
     {
     byte b;
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CID)
+    ssl->options.haveSupportedVersions = 0;
+#endif
 #ifdef WOLFSSL_CALLBACKS
     if (ssl->hsInfoOn) AddPacketName(ssl, "ServerHello");
     if (ssl->toInfoOn) AddLateName("ServerHello", &ssl->timeoutInfo);
@@ -7888,6 +7891,10 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     int wantDowngrade = 0;
     word16 totalExtSz = 0;
 
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CID)
+    /* Reset for each ClientHello, including retries and legacy fallbacks. */
+    ssl->options.haveSupportedVersions = 0;
+#endif
 #ifdef WOLFSSL_CALLBACKS
     if (ssl->hsInfoOn) AddPacketName(ssl, "ClientHello");
     if (ssl->toInfoOn) AddLateName("ClientHello", &ssl->timeoutInfo);
@@ -13611,12 +13618,12 @@ static int SendTls13Finished(WOLFSSL* ssl)
 
     ssl->options.buildingMsg = 1;
 
-    outputSz = WC_MAX_DIGEST_SIZE + DTLS_HANDSHAKE_HEADER_SZ + MAX_MSG_EXTRA;
+    outputSz = WC_MAX_DIGEST_SIZE + headerSz + MAX_MSG_EXTRA;
 #ifdef WOLFSSL_DTLS13
-    /* MAX_MSG_EXTRA only budgets RECORD_HEADER_SZ. The DTLS 1.3 unified header
-     * is longer and grows with the TX CID. */
+    /* MAX_MSG_EXTRA reserves RECORD_HEADER_SZ, which is the size of the DTLS
+     * 1.3 unified header without the CID, so only the CID is missing. */
     if (isDtls)
-        outputSz += Dtls13GetRlHeaderLength(ssl, 1);
+        outputSz += DtlsGetCidTxSize(ssl);
 #endif /* WOLFSSL_DTLS13 */
     /* Check buffers are big enough and grow if needed. */
     if ((ret = CheckAvailableSize(ssl, outputSz)) != 0)

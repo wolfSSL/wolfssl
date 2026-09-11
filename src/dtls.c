@@ -1350,9 +1350,14 @@ int TLSX_ConnectionID_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         return BUFFER_ERROR;
 
 #if DTLS_CID_MAX_SIZE < 255
-    /* The peer's CID becomes our TX CID. RFC 9146 allows up to 255 bytes, our
-     * send buffers are sized for DTLS_CID_MAX_SIZE. */
-    if (cidSz > DTLS_CID_MAX_SIZE) {
+    /* Only a Hello whose version pre-scan selected DTLS 1.3 can use a TX CID
+     * beyond the DTLS_CID_MAX_SIZE. DTLS 1.2 doesn't support longer TX CID */
+    if (cidSz > DTLS_CID_MAX_SIZE
+#ifdef WOLFSSL_DTLS13
+            && (!ssl->options.haveSupportedVersions ||
+                !IsAtLeastTLSv1_3(ssl->version))
+#endif
+            ) {
         WOLFSSL_MSG("Peer CID larger than DTLS_CID_MAX_SIZE");
         WOLFSSL_ERROR_VERBOSE(DTLS_CID_ERROR);
         return DTLS_CID_ERROR;
@@ -1505,9 +1510,6 @@ int DtlsCidReplaceTx(WOLFSSL* ssl, const byte* cid, byte size)
 
     if (ssl == NULL || cid == NULL || size == 0)
         return BAD_FUNC_ARG;
-
-    if (size > DTLS_CID_MAX_SIZE)
-        return LENGTH_ERROR;
 
     cidInfo = DtlsCidGetInfo(ssl);
     if (cidInfo == NULL)

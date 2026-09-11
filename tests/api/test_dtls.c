@@ -794,8 +794,9 @@ static int test_dtls13_build_post_hs_msg(WOLFSSL* ssl_c, WOLFSSL* ssl_s,
         byte hsType, const byte* body, word16 bodyLen, byte* rec, int* recSz)
 {
     EXPECT_DECLS;
-    /* largest body a caller builds: a cid_immediate with an oversized CID */
-    byte msg[DTLS_HANDSHAKE_HEADER_SZ + 2 + 1 + (DTLS_CID_MAX_SIZE + 1) + 1];
+    /* largest body a caller builds: a cid_immediate with the longest CID the
+     * wire format allows (RFC 9146 Section 3: opaque<0..2^8-1>) */
+    byte msg[DTLS_HANDSHAKE_HEADER_SZ + 2 + 1 + 255 + 1];
     size_t idx = 0;
 
     if (DTLS_HANDSHAKE_HEADER_SZ + bodyLen > (int)sizeof(msg)) {
@@ -989,6 +990,80 @@ int test_dtls13_new_connection_id(void)
     return EXPECT_RESULT();
 }
 
+int test_dtls13_new_connection_id_long_cid(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CID)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char server_cid[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+    /* RFC 9146 Section 3: ConnectionId is opaque<0..2^8-1> */
+    byte newCid[255];
+    byte immBody[2 + 1 + sizeof(newCid) + 1];
+    word16 immBodyLen = 0;
+    unsigned char cidBuf[sizeof(newCid)];
+    unsigned int cidSz = 0;
+    const unsigned char* parsedCid = NULL;
+    int grsOld = 0, grsNew = 0;
+    byte rec[512];
+    int recSz = (int)sizeof(rec);
+    byte readBuf[16];
+    word16 i;
+
+    for (i = 0; i < (word16)sizeof(newCid); i++)
+        newCid[i] = (byte)i;
+    immBody[immBodyLen++] = (byte)((1 + sizeof(newCid)) >> 8); /* cidsLen hi */
+    immBody[immBodyLen++] = (byte)(1 + sizeof(newCid));        /* cidsLen lo */
+    immBody[immBodyLen++] = (byte)sizeof(newCid);              /* CID length */
+    XMEMCPY(immBody + immBodyLen, newCid, sizeof(newCid));
+    immBodyLen += (word16)sizeof(newCid);
+    immBody[immBodyLen++] = 0x00;                 /* usage cid_immediate */
+
+    /* The peer chooses the CID that we put in the records we send, and it can
+     * be as long as 255 bytes. DTLS_CID_MAX_SIZE bounds only the CID that we
+     * ask to receive, thus it must not limit this one. */
+    ExpectIntEQ(test_dtls13_cid_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+            &ssl_s, server_cid, sizeof(server_cid)), TEST_SUCCESS);
+    /* Exchange application data first so the server's traffic-epoch keys are
+     * fully installed, then prime the record-size overhead cache while the
+     * negotiated CID is still in use. */
+    ExpectIntEQ(wolfSSL_write(ssl_c, "hi", 3), 3);
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), 3);
+    ExpectIntGT(grsOld = wolfssl_local_GetRecordSize(ssl_s, 200, 1), 0);
+
+    ExpectIntEQ(test_dtls13_build_post_hs_msg(ssl_c, ssl_s, new_connection_id,
+            immBody, immBodyLen, rec, &recSz), TEST_SUCCESS);
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 0, (const char*)rec,
+            recSz), 0);
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    TEST_DTLS13_PUMP(ssl_s);
+
+    ExpectIntEQ(wolfSSL_dtls_cid_get_tx_size(ssl_s, &cidSz), 1);
+    ExpectIntEQ(cidSz, (unsigned int)sizeof(newCid));
+    ExpectIntEQ(wolfSSL_dtls_cid_get_tx(ssl_s, cidBuf, sizeof(cidBuf)), 1);
+    ExpectBufEQ(cidBuf, newCid, sizeof(newCid));
+    /* the ACK of that message already carries the whole new CID */
+    ExpectIntGT(test_ctx.c_len, 0);
+    ExpectNotNull(parsedCid = wolfSSL_dtls_cid_parse(test_ctx.c_buff,
+            (unsigned int)test_ctx.c_len, sizeof(newCid)));
+    if (parsedCid != NULL)
+        ExpectBufEQ(parsedCid, newCid, sizeof(newCid));
+    /* the record framing must have grown with the CID */
+    ExpectIntGT(grsNew = wolfssl_local_GetRecordSize(ssl_s, 200, 1), 0);
+    ExpectIntEQ(grsNew - grsOld,
+            (int)sizeof(newCid) - (int)sizeof(server_cid));
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_dtls13_new_connection_id_not_negotiated(void)
 {
     EXPECT_DECLS;
@@ -1057,35 +1132,224 @@ int test_dtls13_request_connection_id(void)
     return EXPECT_RESULT();
 }
 
-/* Parse a connection_id extension of the given CID length as a ServerHello. */
-#if defined(WOLFSSL_DTLS_CID) && !defined(NO_WOLFSSL_CLIENT) && \
-    !defined(WOLFSSL_NO_TLS12) && DTLS_CID_MAX_SIZE < 255
-static int test_dtls_cid_negotiate_sz(byte cidSz, int expected)
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_DTLS_CID) && defined(HAVE_ECC) && !defined(NO_RSA) && \
+    (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && DTLS_CID_MAX_SIZE < 255
+/* Rewrite the first, unfragmented Hello in a captured datagram. Keep the
+ * generated cipher suites/key share, replace CID and supported_versions, and
+ * discard any following records. minor == 0 omits supported_versions.
+ * The output is separate from input so increasing the CID cannot overwrite
+ * extensions that have not yet been copied. */
+static int test_dtls_cid_rewrite_hello(const byte* input, int inputSz,
+        byte* output, int outputSz, byte minor, int cidFirst, byte cidSz,
+        byte legacyMinor)
+{
+    int off = DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ;
+    int end, extLenOff, idx, cidWritten = 0;
+    word32 bodySz, fragSz, fragOff;
+    word16 len;
+    byte cid[4 + 1 + 255];
+    int cidExtSz = 5 + cidSz;
+    int isClient;
+
+    if (inputSz < off + VERSION_SZ + RAN_LEN + 1 || input[0] != handshake)
+        return -1;
+    isClient = input[DTLS_RECORD_HEADER_SZ] == client_hello;
+    if (!isClient && input[DTLS_RECORD_HEADER_SZ] != server_hello)
+        return -1;
+    ato24(input + DTLS_RECORD_HEADER_SZ + 1, &bodySz);
+    ato24(input + DTLS_RECORD_HEADER_SZ + 6, &fragOff);
+    ato24(input + DTLS_RECORD_HEADER_SZ + 9, &fragSz);
+    ato16(input + DTLS_RECORD_HEADER_SZ - 2, &len);
+    if (fragOff != 0 || fragSz != bodySz || bodySz < VERSION_SZ + RAN_LEN + 1 ||
+            bodySz > (word32)(inputSz - off) ||
+            len > inputSz - DTLS_RECORD_HEADER_SZ ||
+            bodySz + DTLS_HANDSHAKE_HEADER_SZ > len)
+        return -1;
+    end = off + (int)bodySz;
+    off += VERSION_SZ + RAN_LEN;
+    off += 1 + input[off]; /* session ID */
+    if (off >= end)
+        return -1;
+    if (isClient) {
+        off += 1 + input[off]; /* legacy cookie */
+        if (off + 2 > end)
+            return -1;
+        ato16(input + off, &len);
+        off += 2 + len; /* cipher suites */
+        if (off >= end)
+            return -1;
+        off += 1 + input[off]; /* compression methods */
+    }
+    else
+        off += 3; /* cipher suite and compression method */
+    if (off + 2 > end)
+        return -1;
+    extLenOff = off;
+    ato16(input + off, &len);
+    off += 2;
+    if (off + len != end || end + cidExtSz + 7 > outputSz)
+        return -1;
+
+    XMEMCPY(output, input, (size_t)off);
+    output[DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ + 1] = legacyMinor;
+    idx = off;
+    c16toa(TLSXT_CONNECTION_ID, cid);
+    c16toa((word16)(1 + cidSz), cid + 2);
+    cid[4] = cidSz;
+    XMEMSET(cid + 5, 0x5A, cidSz);
+    if (cidFirst || minor == 0) {
+        XMEMCPY(output + idx, cid, (size_t)cidExtSz);
+        idx += cidExtSz;
+        cidWritten = 1;
+    }
+    while (off < end) {
+        word16 type;
+        if (off + 4 > end)
+            return -1;
+        ato16(input + off, &type);
+        ato16(input + off + 2, &len);
+        if (off + 4 + len > end)
+            return -1;
+        if (type == TLSXT_SUPPORTED_VERSIONS) {
+            if (minor != 0) {
+                c16toa(type, output + idx);
+                c16toa((word16)(isClient ? 3 : 2), output + idx + 2);
+                idx += 4;
+                if (isClient)
+                    output[idx++] = 2;
+                output[idx++] = DTLS_MAJOR;
+                output[idx++] = minor;
+                if (!cidWritten) {
+                    XMEMCPY(output + idx, cid, (size_t)cidExtSz);
+                    idx += cidExtSz;
+                    cidWritten = 1;
+                }
+            }
+        }
+        else if (type != TLSXT_CONNECTION_ID) {
+            XMEMCPY(output + idx, input + off, (size_t)(4 + len));
+            idx += 4 + len;
+        }
+        off += 4 + len;
+    }
+    if (!cidWritten)
+        return -1;
+    c16toa((word16)(idx - extLenOff - 2), output + extLenOff);
+    bodySz = (word32)(idx - DTLS_RECORD_HEADER_SZ - DTLS_HANDSHAKE_HEADER_SZ);
+    c32to24(bodySz, output + DTLS_RECORD_HEADER_SZ + 1);
+    c32to24(bodySz, output + DTLS_RECORD_HEADER_SZ + 9);
+    c16toa((word16)(idx - DTLS_RECORD_HEADER_SZ),
+            output + DTLS_RECORD_HEADER_SZ - 2);
+    return idx;
+}
+
+/* Drive the real Hello handlers using only public wolfSSL APIs. Changing a
+ * Hello changes the transcript, so stop after the receiving endpoint processes
+ * it rather than trying to finish with the unmodified sender. */
+static int test_dtls_cid_wire(byte msgType, byte minor, int cidFirst,
+        byte cidSz, byte legacyMinor, int retry, int expected)
 {
     EXPECT_DECLS;
-    WOLFSSL_CTX* ctx = NULL;
-    WOLFSSL* ssl = NULL;
-    byte ext[4 + 1 + 255];
-    word16 extSz = 0;
-    word16 i;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL, *receiver;
+    struct test_memio_ctx test_ctx;
+    byte input[4096], output[4096], cid[255], wantCid[255];
+    int inputSz, outputSz, ret, round;
+#ifdef HAVE_SUPPORTED_CURVES
+    int group = WOLFSSL_ECC_SECP256R1;
+#endif
+    unsigned int txSz = 0;
+    int toClient = msgType == server_hello;
+    method_provider clientMethod = wolfDTLS_client_method;
 
-    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method()));
-    ExpectNotNull(ssl = wolfSSL_new(ctx));
-    ExpectIntEQ(wolfSSL_dtls_cid_use(ssl), 1);
+#ifndef WOLFSSL_NO_TLS12
+    /* Exercise the legacy client handler directly. */
+    if (toClient && minor == 0)
+        clientMethod = wolfDTLSv1_2_client_method;
+#endif
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            clientMethod, wolfDTLS_server_method), 0);
+    ExpectIntEQ(wolfSSL_dtls_cid_use(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls_cid_use(ssl_s), WOLFSSL_SUCCESS);
+#ifdef HAVE_SUPPORTED_CURVES
+    /* Keep the generated Hello unfragmented, including in PQ-enabled builds. */
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c, &group, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_groups(ssl_s, &group, 1), WOLFSSL_SUCCESS);
+#endif
+#ifdef WOLFSSL_DTLS13
+    ExpectIntEQ(wolfSSL_disable_hrr_cookie(ssl_s), WOLFSSL_SUCCESS);
+    if (retry)
+        ExpectIntEQ(wolfSSL_NoKeyShares(ssl_c), WOLFSSL_SUCCESS);
+#else
+    (void)retry;
+#endif
+    receiver = toClient ? ssl_c : ssl_s;
 
-    c16toa((word16)TLSX_CONNECTION_ID, ext + extSz);
-    extSz += OPAQUE16_LEN;
-    c16toa((word16)(cidSz + 1), ext + extSz);
-    extSz += OPAQUE16_LEN;
-    ext[extSz++] = cidSz;
-    for (i = 0; i < cidSz; i++)
-        ext[extSz++] = 0x5A;
+    for (round = 0; round <= retry && EXPECT_SUCCESS(); round++) {
+        ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+                WOLFSSL_ERROR_WANT_READ);
+#ifndef WOLFSSL_DTLS13
+        /* Complete the mandatory HelloVerifyRequest exchange before mutating
+         * the verified ClientHello or generating the real ServerHello. */
+        ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+                WOLFSSL_ERROR_WANT_READ);
+        ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+                WOLFSSL_ERROR_WANT_READ);
+#endif
+        if (toClient) {
+            ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+            ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+                    WOLFSSL_ERROR_WANT_READ);
+        }
+        inputSz = (int)sizeof(input);
+        ExpectIntEQ(test_memio_copy_message(&test_ctx, toClient,
+                (char*)input, &inputSz, 0), 0);
+        ExpectIntGT(inputSz, DTLS_RECORD_HEADER_SZ);
+        if (!EXPECT_SUCCESS())
+            break;
+        /* On the retry round, this must be another ClientHello, proving the
+         * client processed an HRR rather than a normal server flight. */
+        ExpectIntEQ(input[DTLS_RECORD_HEADER_SZ], msgType);
+        outputSz = test_dtls_cid_rewrite_hello(input, inputSz, output,
+                (int)sizeof(output),
+                retry && round == 0 ? DTLSv1_3_MINOR : minor, cidFirst, cidSz,
+                retry && round == 0 ? DTLSv1_2_MINOR : legacyMinor);
+        ExpectIntGT(outputSz, 0);
+        if (!EXPECT_SUCCESS())
+            break;
+        test_memio_clear_buffer(&test_ctx, toClient);
+        ExpectIntEQ(test_memio_inject_message(&test_ctx, toClient,
+                (const char*)output, outputSz), 0);
+        ret = toClient ? wolfSSL_connect(ssl_c) : wolfSSL_accept(ssl_s);
+        ExpectIntEQ(ret, WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(receiver, ret),
+                round < retry ? WOLFSSL_ERROR_WANT_READ : expected);
+        if (round < retry || expected == WOLFSSL_ERROR_WANT_READ) {
+            ExpectIntEQ(wolfSSL_version(receiver),
+                    round < retry || minor == DTLSv1_3_MINOR ?
+                    DTLS1_3_VERSION : DTLS1_2_VERSION);
+        }
+        ExpectIntEQ(wolfSSL_dtls_cid_get_tx_size(receiver, &txSz),
+                WOLFSSL_SUCCESS);
+        ExpectIntEQ(txSz,
+                expected == WOLFSSL_ERROR_WANT_READ || retry ? cidSz : 0);
+        if (txSz > 0 && EXPECT_SUCCESS()) {
+            XMEMSET(wantCid, 0x5A, cidSz);
+            ExpectIntEQ(wolfSSL_dtls_cid_get_tx(receiver, cid, sizeof(cid)),
+                    WOLFSSL_SUCCESS);
+            ExpectBufEQ(cid, wantCid, cidSz);
+        }
+    }
 
-    ExpectIntEQ(TLSX_Parse(ssl, ext, extSz, server_hello, NULL), expected);
-
-    wolfSSL_free(ssl);
-    wolfSSL_CTX_free(ctx);
-
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
     return EXPECT_RESULT();
 }
 #endif
@@ -1093,13 +1357,45 @@ static int test_dtls_cid_negotiate_sz(byte cidSz, int expected)
 int test_dtls_cid_negotiate_oversize(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_DTLS_CID) && !defined(NO_WOLFSSL_CLIENT) && \
-    !defined(WOLFSSL_NO_TLS12) && DTLS_CID_MAX_SIZE < 255
-    /* send paths size their buffers for at most DTLS_CID_MAX_SIZE */
-    ExpectIntEQ(test_dtls_cid_negotiate_sz(DTLS_CID_MAX_SIZE + 1,
-            WC_NO_ERR_TRACE(DTLS_CID_ERROR)), TEST_SUCCESS);
-    ExpectIntEQ(test_dtls_cid_negotiate_sz(DTLS_CID_MAX_SIZE, 0),
-            TEST_SUCCESS);
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_DTLS_CID) && defined(HAVE_ECC) && !defined(NO_RSA) && \
+    (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && DTLS_CID_MAX_SIZE < 255
+#ifdef WOLFSSL_DTLS13
+    int order;
+#endif
+    byte msgType;
+    for (msgType = client_hello; msgType <= (byte)server_hello; msgType++) {
+#ifndef WOLFSSL_NO_TLS12
+        /* A legacy ServerHello and a DTLS 1.3 server falling back on CH. */
+        ExpectIntEQ(test_dtls_cid_wire(msgType, 0, 0, DTLS_CID_MAX_SIZE + 1,
+                DTLSv1_2_MINOR, 0, WC_NO_ERR_TRACE(DTLS_CID_ERROR)),
+                TEST_SUCCESS);
+        ExpectIntEQ(test_dtls_cid_wire(msgType, 0, 0, DTLS_CID_MAX_SIZE,
+                DTLSv1_2_MINOR, 0, WOLFSSL_ERROR_WANT_READ), TEST_SUCCESS);
+#endif
+#ifdef WOLFSSL_DTLS13
+        for (order = 0; order < 2; order++) {
+            ExpectIntEQ(test_dtls_cid_wire(msgType, DTLSv1_3_MINOR, order, 255,
+                    DTLSv1_2_MINOR, 0, WOLFSSL_ERROR_WANT_READ), TEST_SUCCESS);
+#ifndef WOLFSSL_NO_TLS12
+            if (msgType == client_hello) {
+                ExpectIntEQ(test_dtls_cid_wire(msgType, DTLSv1_2_MINOR, order,
+                        DTLS_CID_MAX_SIZE + 1, DTLSv1_2_MINOR, 0,
+                        WC_NO_ERR_TRACE(DTLS_CID_ERROR)), TEST_SUCCESS);
+            }
+#endif
+        }
+#endif
+    }
+#if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_NO_TLS12)
+    /* Absent supported_versions with an invalid legacy 1.3 value: version can
+     * remain at its initial 1.3 value. Also repeat after a stateful HRR, so the
+     * previous Hello really did negotiate 1.3 and install the same TX CID. */
+    ExpectIntEQ(test_dtls_cid_wire(client_hello, 0, 0, DTLS_CID_MAX_SIZE + 1,
+            DTLSv1_3_MINOR, 0, WC_NO_ERR_TRACE(DTLS_CID_ERROR)), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls_cid_wire(client_hello, 0, 0, DTLS_CID_MAX_SIZE + 1,
+            DTLSv1_3_MINOR, 1, WC_NO_ERR_TRACE(DTLS_CID_ERROR)), TEST_SUCCESS);
+#endif
 #endif
     return EXPECT_RESULT();
 }
@@ -1140,30 +1436,149 @@ int test_dtls13_cid_msg_malformed(void)
             immZeroLenCid, sizeof(immZeroLenCid), 1,
             WC_NO_ERR_TRACE(INVALID_PARAMETER), illegal_parameter),
             TEST_SUCCESS);
-#if DTLS_CID_MAX_SIZE < 255
-    /* cid_immediate with a single CID larger than we support: it is skipped,
-     * leaving no usable CID */
-    {
-        byte oversize[2 + 1 + (DTLS_CID_MAX_SIZE + 1) + 1];
-        word16 oversizeLen = 0;
-        word16 k;
-
-        oversize[oversizeLen++] = 0x00;                              /* len hi */
-        oversize[oversizeLen++] = (byte)(1 + DTLS_CID_MAX_SIZE + 1); /* len lo */
-        oversize[oversizeLen++] = (byte)(DTLS_CID_MAX_SIZE + 1);     /* CID len */
-        for (k = 0; k < DTLS_CID_MAX_SIZE + 1; k++)
-            oversize[oversizeLen++] = 0x55;
-        oversize[oversizeLen++] = 0x00;                            /* immediate */
-
-        ExpectIntEQ(test_dtls13_post_hs_cid_msg_err(new_connection_id,
-                oversize, oversizeLen, 1, WC_NO_ERR_TRACE(INVALID_PARAMETER),
-                illegal_parameter), TEST_SUCCESS);
-    }
-#endif /* DTLS_CID_MAX_SIZE < 255 */
 #endif
     return EXPECT_RESULT();
 }
 
+int test_dtls13_cid_oversized_tx(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CID)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char client_cid[] = { 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 };
+    const int serverCidSz = 255;
+    ConnectionID* serverCid = NULL;
+    unsigned int cidSz = 0;
+    int protectedRecords = 0;
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+
+    ExpectIntEQ(wolfSSL_dtls_cid_use(ssl_c), 1);
+    ExpectIntEQ(wolfSSL_dtls_cid_use(ssl_s), 1);
+    ExpectIntEQ(wolfSSL_dtls_cid_set(ssl_s, client_cid, sizeof(client_cid)), 1);
+
+    /* The connection_id extension carries the CID that its sender wants to
+     * receive, and an implementation "MUST still be able to send CIDs of
+     * different lengths to other parties" (RFC 9146 Section 3).
+     * DTLS_CID_MAX_SIZE only bounds the CID that we ask for, so a peer can
+     * make us send one of up to 255 bytes. wolfSSL_dtls_cid_set() applies our
+     * own bound, thus bypass the API and build the client CID directly. */
+    ExpectNotNull(ssl_c->dtlsCidInfo);
+    ExpectNotNull(serverCid = (ConnectionID*)XMALLOC(
+            sizeof(*serverCid) + (size_t)serverCidSz, ssl_c->heap,
+            DYNAMIC_TYPE_TLSX));
+    if (EXPECT_SUCCESS()) {
+        serverCid->length = (byte)serverCidSz;
+        for (i = 0; i < serverCidSz; i++)
+            serverCid->id[i] = (byte)i;
+        ssl_c->dtlsCidInfo->rx = serverCid;
+    }
+
+    /* Drive the handshake until the server has sent its Finished. The number of
+     * rounds depends on the build, thus loop while the server answers. */
+    while (EXPECT_SUCCESS() &&
+            ssl_s->options.acceptState < TLS13_ACCEPT_FINISHED_SENT) {
+        ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+        ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+        /* stop if the server does not answer, do not loop forever */
+        ExpectIntGT(test_ctx.c_len, 0);
+    }
+
+    /* the server must keep the CID that the client asked for ... */
+    ExpectIntEQ(wolfSSL_dtls_cid_get_tx_size(ssl_s, &cidSz), 1);
+    ExpectIntEQ(cidSz, (unsigned int)serverCidSz);
+
+    /* ... and put all of it in each protected record of the flight */
+    for (i = 0; EXPECT_SUCCESS() && i < test_ctx.c_msg_count; i++) {
+        const char* msg = NULL;
+        const unsigned char* wireCid = NULL;
+        int msgSz = 0;
+
+        ExpectIntEQ(test_memio_get_message(&test_ctx, 1, &msg, &msgSz, i), 0);
+        if (EXPECT_SUCCESS()) {
+            wireCid = wolfSSL_dtls_cid_parse((const unsigned char*)msg,
+                    (unsigned int)msgSz, (unsigned int)serverCidSz);
+        }
+        if (wireCid == NULL)
+            continue; /* plaintext record, it carries no CID */
+        ExpectBufEQ(wireCid, serverCid->id, serverCidSz);
+        protectedRecords++;
+    }
+    ExpectIntGT(protectedRecords, 0);
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_dtls13_cid_oversized_tx_post_hs(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CID)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char server_cid[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+    const int newCidSz = 255;
+    ConnectionID* newCid = NULL;
+    const unsigned char* wireCid = NULL;
+    const char* msg = NULL;
+    int msgSz = 0;
+    int i;
+
+    ExpectIntEQ(test_dtls13_cid_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+            &ssl_s, server_cid, sizeof(server_cid)), TEST_SUCCESS);
+
+    /* A peer can give us a longer CID after the handshake with a
+     * NewConnectionId message (RFC 9147 Section 9); install the new CID
+     * directly to keep this test focused on the post-handshake framing. */
+    ExpectNotNull(ssl_s->dtlsCidInfo);
+    ExpectNotNull(newCid = (ConnectionID*)XMALLOC(
+            sizeof(*newCid) + (size_t)newCidSz, ssl_s->heap,
+            DYNAMIC_TYPE_TLSX));
+    if (EXPECT_SUCCESS()) {
+        newCid->length = (byte)newCidSz;
+        for (i = 0; i < newCidSz; i++)
+            newCid->id[i] = (byte)i;
+        XFREE(ssl_s->dtlsCidInfo->tx, ssl_s->heap, DYNAMIC_TYPE_TLSX);
+        ssl_s->dtlsCidInfo->tx = newCid;
+        /* the CID changes the record framing, drop the cached overhead */
+        ssl_s->recordSzOverhead = 0;
+    }
+
+    /* the server must build its KeyUpdate with the whole CID in the header */
+    ExpectIntEQ(wolfSSL_update_keys(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_get_message(&test_ctx, 1, &msg, &msgSz, 0), 0);
+    ExpectNotNull(wireCid = wolfSSL_dtls_cid_parse((const unsigned char*)msg,
+            (unsigned int)msgSz, (unsigned int)newCidSz));
+    ExpectBufEQ(wireCid, newCid->id, newCidSz);
+
+    /* and the same for the close_notify alert */
+    ExpectIntEQ(wolfSSL_shutdown(ssl_s), WOLFSSL_SHUTDOWN_NOT_DONE);
+    ExpectIntEQ(test_memio_get_message(&test_ctx, 1, &msg, &msgSz, 1), 0);
+    ExpectNotNull(wireCid = wolfSSL_dtls_cid_parse((const unsigned char*)msg,
+            (unsigned int)msgSz, (unsigned int)newCidSz));
+    ExpectBufEQ(wireCid, newCid->id, newCidSz);
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
+#endif
+    return EXPECT_RESULT();
+}
 
 int test_dtls_version_checking(void)
 {

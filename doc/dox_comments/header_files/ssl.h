@@ -16928,6 +16928,9 @@ int wolfSSL_dtls_cid_get0_rx(WOLFSSL* ssl, unsigned char** cid);
 
 \brief Get the size of the ConnectionID used to send records in this
 connection. See RFC 9146 and RFC 9147. The size is stored in the parameter size.
+The send ConnectionID is chosen by the peer. On DTLS 1.3 it may be up to 255
+bytes and is not bounded by wolfSSL_dtls_cid_max_size(); on DTLS 1.2 it never
+exceeds wolfSSL_dtls_cid_max_size().
 
  \return WOLFSSL_SUCCESS if ConnectionID size was correctly stored, error
  code otherwise
@@ -16948,7 +16951,11 @@ int wolfSSL_dtls_cid_get_tx_size(WOLFSSL* ssl, unsigned int* size);
 
 \brief Copy the ConnectionID used when sending records in this connection into
 the buffer pointer by the parameter buffer. See RFC 9146 and RFC 9147. The
-available size need to be provided in bufferSz.
+available size need to be provided in bufferSz. The send ConnectionID is chosen
+by the peer. On DTLS 1.3 it may be up to 255 bytes and is not bounded by
+wolfSSL_dtls_cid_max_size(), so size the buffer from
+wolfSSL_dtls_cid_get_tx_size() (or use 255 bytes) rather than from
+wolfSSL_dtls_cid_max_size(), otherwise this returns LENGTH_ERROR.
 
  \return WOLFSSL_SUCCESS if ConnectionID was correctly copied, error code
  otherwise
@@ -16971,7 +16978,9 @@ int wolfSSL_dtls_cid_get_tx(WOLFSSL* ssl, unsigned char* buffer,
 /*!
 
 \brief Get the ConnectionID used when sending records in this connection. See
-RFC 9146 and RFC 9147.
+RFC 9146 and RFC 9147. The send ConnectionID is chosen by the peer. On DTLS 1.3
+it may be up to 255 bytes and is not bounded by wolfSSL_dtls_cid_max_size(); use
+wolfSSL_dtls_cid_get_tx_size() to learn its length.
 
  \return WOLFSSL_SUCCESS if ConnectionID was correctly retrieved, error code
  otherwise
@@ -16988,6 +16997,22 @@ RFC 9146 and RFC 9147.
  \sa wolfSSL_dtls_cid_get_tx_size
 */
 int wolfSSL_dtls_cid_get0_tx(WOLFSSL* ssl, unsigned char** cid);
+
+/*!
+
+\brief Get the maximum size of the ConnectionID that this build can receive,
+that is the largest size accepted by wolfSSL_dtls_cid_set(). This is the
+compile time define DTLS_CID_MAX_SIZE and it can never be bigger than 255
+bytes. It does not bound the ConnectionID used to send records, which is chosen
+by the peer and, on DTLS 1.3, may be up to 255 bytes.
+
+ \return the maximum receive ConnectionID size in bytes
+
+ \sa wolfSSL_dtls_cid_set
+ \sa wolfSSL_dtls_cid_get_rx_size
+ \sa wolfSSL_dtls_cid_get_tx_size
+*/
+int wolfSSL_dtls_cid_max_size(void);
 
 /*!
 
