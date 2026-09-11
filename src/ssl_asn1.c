@@ -1647,6 +1647,71 @@ int wolfSSL_a2i_ASN1_INTEGER(WOLFSSL_BIO *bio, WOLFSSL_ASN1_INTEGER *asn1,
  * @return  0 when bp or a is NULL.
  * @return  0 DER header in data is invalid.
  */
+/* Write an ASN.1 string to a BIO as hex digits.
+ *
+ * Long values are wrapped with a backslash and newline every 35 bytes, and an
+ * empty string is written as a single "0", both matching OpenSSL. The type
+ * argument is accepted for compatibility and, as in OpenSSL, is not used.
+ *
+ * @param [in] bp    BIO to write to.
+ * @param [in] a     ASN.1 string.
+ * @param [in] type  Ignored.
+ * @return  Number of characters written on success.
+ * @return  0 when a is NULL.
+ * @return  -1 on error.
+ */
+int wolfSSL_i2a_ASN1_STRING(WOLFSSL_BIO *bp, const WOLFSSL_ASN1_STRING *a,
+    int type)
+{
+    int n = 0;
+    int i;
+
+    WOLFSSL_ENTER("wolfSSL_i2a_ASN1_STRING");
+
+    /* OpenSSL ignores the type as well. */
+    (void)type;
+
+    if (a == NULL) {
+        return 0;
+    }
+    if ((bp == NULL) || (a->length < 0) ||
+            ((a->length > 0) && (a->data == NULL))) {
+        return -1;
+    }
+
+    /* An empty string is reported as a single zero. */
+    if (a->length == 0) {
+        if (wolfSSL_BIO_write(bp, "0", 1) != 1) {
+            return -1;
+        }
+        return 1;
+    }
+
+    for (i = 0; i < a->length; i++) {
+        byte hex[3];
+        word32 hexLen = (word32)sizeof(hex);
+
+        /* Wrap the line every 35 bytes, as OpenSSL does. */
+        if ((i != 0) && ((i % 35) == 0)) {
+            if (wolfSSL_BIO_write(bp, "\\\n", 2) != 2) {
+                return -1;
+            }
+            n += 2;
+        }
+
+        if (Base16_Encode((const byte*)a->data + i, 1, hex, &hexLen) != 0) {
+            return -1;
+        }
+        /* Base16_Encode NUL terminates - write just the two digits. */
+        if (wolfSSL_BIO_write(bp, hex, 2) != 2) {
+            return -1;
+        }
+        n += 2;
+    }
+
+    return n;
+}
+
 int wolfSSL_i2a_ASN1_INTEGER(WOLFSSL_BIO *bp, const WOLFSSL_ASN1_INTEGER *a)
 {
     int err = 0;

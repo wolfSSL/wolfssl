@@ -8476,4 +8476,3 @@ int test_wolfSSL_set_secret(void)
 #endif
     return EXPECT_RESULT();
 }
-

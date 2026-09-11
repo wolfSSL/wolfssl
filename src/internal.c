@@ -3041,6 +3041,39 @@ void FreeEchConfigs(WOLFSSL_EchConfig* configs, void* heap)
  * wolfSSL_CTX_load_static_memory after CTX creation, which means variables
  * allocated in InitSSL_Ctx were allocated from heap and should be free'd with
  * a NULL heap hint. */
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || \
+    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+/* Drop any cipher suite stack handed out by wolfSSL_CTX_get_ciphers().
+ *
+ * Called only when the configured cipher list itself changes. Loading a
+ * certificate must not invalidate it: the caller may still be holding the
+ * pointer, and OpenSSL does not rebuild its list there either.
+ */
+void CtxFreeSuitesStack(WOLFSSL_CTX* ctx)
+{
+    if (ctx == NULL) {
+        return;
+    }
+
+    /* Under the same lock wolfSSL_CTX_get_ciphers() builds the stack with, so
+     * that a cipher list change on one thread cannot free the stack another
+     * thread is still building.  No caller holds the lock already. */
+    if (wolfSSL_RefWithMutexLock(&ctx->ref) != 0) {
+        WOLFSSL_MSG("Failed to lock CTX mutex to free cipher stack");
+        return;
+    }
+
+    if (ctx->suitesStack != NULL) {
+        wolfSSL_sk_SSL_CIPHER_free(ctx->suitesStack);
+        ctx->suitesStack = NULL;
+    }
+
+    if (wolfSSL_RefWithMutexUnlock(&ctx->ref) != 0) {
+        WOLFSSL_MSG("Failed to unlock CTX mutex after freeing cipher stack");
+    }
+}
+#endif
+
 void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 {
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && \
@@ -3067,6 +3100,13 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 #endif
     ctx->method = NULL;
 
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || \
+    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+    if (ctx->suitesStack != NULL) {
+        wolfSSL_sk_SSL_CIPHER_free(ctx->suitesStack);
+        ctx->suitesStack = NULL;
+    }
+#endif
     XFREE(ctx->suites, ctx->heap, DYNAMIC_TYPE_SUITES);
     ctx->suites = NULL;
 
@@ -30473,6 +30513,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case SSL_SHUTDOWN_ALREADY_DONE_E:
         return "Shutdown has already occurred";
 
+    case CLIENT_HELLO_CB_E:
+        return "ClientHello callback failed handshake";
+
     case TLS13_SECRET_CB_E:
         return "TLS1.3 Secret Callback Error";
 
@@ -41304,6 +41347,39 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         return ret;
     }
 
+#if defined(OPENSSL_EXTRA) && defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(NO_WOLFSSL_SERVER)
+    /* Hand the ClientHello to the application before its extensions are
+     * processed, so it can pick a context.  exts may be NULL: extensions are
+     * optional in a TLS 1.2 ClientHello and the callback still runs for one
+     * that carries none, as it does in OpenSSL, where
+     * wolfSSL_client_hello_get0_ext() then simply finds nothing.  Returns 0 to
+     * carry on, or CLIENT_HELLO_CB_E after sending the alert the callback
+     * asked for. */
+    static int DoClientHelloCb(WOLFSSL* ssl, const byte* exts, word16 extsSz)
+    {
+        int ret = 0;
+        int chAlert = handshake_failure;
+
+        ssl->chExts = exts;
+        ssl->chExtsSz = extsSz;
+        ret = ssl->ctx->chCb(ssl, &chAlert, ssl->ctx->chCbArg);
+        ssl->chExts = NULL;
+        ssl->chExtsSz = 0;
+
+        if (ret != WOLFSSL_CLIENT_HELLO_SUCCESS) {
+            WOLFSSL_MSG("ClientHello callback failed handshake");
+            SendAlert(ssl, alert_fatal, chAlert);
+            ret = CLIENT_HELLO_CB_E;
+        }
+        else {
+            ret = 0;
+        }
+
+        return ret;
+    }
+#endif
+
     /* handle processing of client_hello (1) */
     int DoClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                              word32 helloSz)
@@ -41802,6 +41878,31 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
          * renegotiation, where Options is not zeroed) cannot trigger a spurious
          * RFC 8422 abort below. */
         ssl->options.peerNoUncompPF = 0;
+#endif
+
+#if defined(OPENSSL_EXTRA) && defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(NO_WOLFSSL_SERVER)
+        if (ssl->ctx->chCb != NULL) {
+            const byte* chExts = NULL;
+            word16 chExtsSz = 0;
+
+            /* The extension block is optional, so offer it only when one is
+             * there in full.  A truncated block is left for the parsing below
+             * to reject, rather than shown to the application. */
+            if (((i - begin) + OPAQUE16_LEN) <= helloSz) {
+                ato16(&input[i], &chExtsSz);
+                if (((i - begin) + OPAQUE16_LEN + chExtsSz) <= helloSz) {
+                    chExts = input + i + OPAQUE16_LEN;
+                }
+                else {
+                    chExtsSz = 0;
+                }
+            }
+
+            if ((ret = DoClientHelloCb(ssl, chExts, chExtsSz)) != 0) {
+                goto out;
+            }
+        }
 #endif
 
         /* tls extensions */
