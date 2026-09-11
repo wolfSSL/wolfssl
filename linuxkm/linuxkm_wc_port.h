@@ -839,6 +839,12 @@
             #endif
         #endif
         #else /* CONFIG_ARM64 */
+            /* arch/arm64/include/asm/simd.h, and may_use_simd() with it,
+             * arrived in 4.14; the module otherwise accepts 3.16 and up. */
+            #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0) && \
+                !defined(WC_DEBUG_FORCE_KERNEL_SETTINGS)
+                #error arm64 vector registers need may_use_simd(), added in 4.14.
+            #endif
             #include <asm/simd.h> /* may_use_simd() */
             #include <asm/neon.h> /* kernel_neon_begin(), kernel_neon_end() */
         #endif
