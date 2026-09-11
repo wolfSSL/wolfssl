@@ -369,7 +369,7 @@ struct OS_Seed {
      * source-fed (re)seeds in the module (gather SEED_SZ + SEED_BLOCK_SZ, apply
      * the block-offset remainder). */
     #define WC_DRBG_NEXT_SEED_LEN (WC_DRBG_SEED_SZ + WC_DRBG_SEED_BLOCK_SZ)
-    #define WC_DRBG_NEXT_UNCREDITED_SEED_LEN 64
+    #define WC_DRBG_NEXT_STIR_LEN 64
 #endif
 
 #ifndef WC_DRBG_RESEED_CTR_TYPE_DEFINED
@@ -392,8 +392,8 @@ struct DRBG_internal {
     #ifdef WC_RNG_HAVE_RBGC
     int nextSeedRBGCStratum;
     #endif
-    byte nextUncreditedSeed[WC_DRBG_NEXT_UNCREDITED_SEED_LEN];
-    WC_DRBG_nextSeedLen_t nextUncreditedSeedLen;
+    byte nextStir[WC_DRBG_NEXT_STIR_LEN];
+    WC_DRBG_nextSeedLen_t nextStirLen;
 #endif
     void* heap;
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
@@ -418,8 +418,8 @@ struct DRBG_SHA512_internal {
     #ifdef WC_RNG_HAVE_RBGC
     int nextSeedRBGCStratum;
     #endif
-    byte nextUncreditedSeed[WC_DRBG_NEXT_UNCREDITED_SEED_LEN];
-    WC_DRBG_nextSeedLen_t nextUncreditedSeedLen;
+    byte nextStir[WC_DRBG_NEXT_STIR_LEN];
+    WC_DRBG_nextSeedLen_t nextStirLen;
 #endif
     void* heap;
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
@@ -478,8 +478,8 @@ struct WC_RNG {
         wc_rng_debug_counter_t _stats_total_bytes_requested;
         wc_rng_debug_counter_t _stats_total_bytes_produced;
         wc_rng_debug_counter_t _stats_total_requests;
-        wc_rng_debug_counter_t _stats_credited_reseeds;
-        wc_rng_debug_counter_t _stats_uncredited_reseeds;
+        wc_rng_debug_counter_t _stats_reseeds;
+        wc_rng_debug_counter_t _stats_stirs;
         wc_rng_debug_counter_t _stats_seed_failures;
     #endif
 #ifdef WC_RNG_HAVE_RBGC
@@ -516,11 +516,11 @@ struct WC_RNG {
 
 #ifdef WC_RNG_DEBUG_STATS
     #ifdef WC_RNG_HAVE_NEXT_SEED
-        wc_rng_debug_counter_t _stats_n_nextseed_primary_redeemed;
-        wc_rng_debug_counter_t _stats_n_nextseed_RBGC_redeemed;
-        wc_rng_debug_counter_t _stats_n_nextuncreditedseed_redeemed;
-        wc_rng_debug_counter_t _stats_n_nextseed_banked;
-        wc_rng_debug_counter_t _stats_n_nextuncreditedseed_banked;
+        wc_rng_debug_counter_t _stats_nextseedsprimary_redeemed;
+        wc_rng_debug_counter_t _stats_nextseedsRBGC_redeemed;
+        wc_rng_debug_counter_t _stats_nextstirs_redeemed;
+        wc_rng_debug_counter_t _stats_nextseedsbanked;
+        wc_rng_debug_counter_t _stats_nextstirs_banked;
     #endif
 #endif
 
@@ -773,10 +773,10 @@ WOLFSSL_API int wc_RNG_DRBG_Present(const WC_RNG* rng);
     WOLFSSL_API int wc_RNG_DRBG_Reseed_Nonce(WC_RNG* rng, const byte* seed,
                                              word32 seedSz, const byte *nonce,
                                              word32 nonceSz);
-    WOLFSSL_API int wc_RNG_DRBG_Reseed_Uncredited(WC_RNG* rng,
+    WOLFSSL_API int wc_RNG_DRBG_Stir(WC_RNG* rng,
                                                   const byte* seed,
                                                   word32 seedSz);
-    WOLFSSL_API int wc_RNG_DRBG_Reseed_Nonce_Uncredited(
+    WOLFSSL_API int wc_RNG_DRBG_Stir_Nonce(
                                  WC_RNG* rng, const byte* seed, word32 seedSz,
                                  const byte *nonce, word32 nonceSz);
     WOLFSSL_API int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* nonce,
@@ -920,7 +920,7 @@ WOLFSSL_API int wc_RNG_DRBG_Present(const WC_RNG* rng);
     #endif /* !WC_NO_CONSTRUCTORS */
     WOLFSSL_API int wc_RNG_DRBG_ReseedRBGC(WC_RNG* rng, WC_RNG* root,
                                            const byte* nonce, word32 nonceSz);
-    WOLFSSL_API int wc_RNG_DRBG_ReseedRBGC_Uncredited(WC_RNG* rng,
+    WOLFSSL_API int wc_RNG_DRBG_StirRBGC(WC_RNG* rng,
                                                       WC_RNG* root,
                                                       const byte* nonce,
                                                       word32 nonceSz);
@@ -947,10 +947,10 @@ WOLFSSL_API int wc_RNG_DRBG_Present(const WC_RNG* rng);
                                                    const byte* nonce,
                                                    word32 nonceSz);
     WOLFSSL_API int wc_RNG_DRBG_NextSeedNow(WC_RNG* rng);
-    WOLFSSL_API int wc_RNG_DRBG_NextUncreditedSeedStore(WC_RNG* rng,
+    WOLFSSL_API int wc_RNG_DRBG_NextStirStore(WC_RNG* rng,
                                                         const byte *nonce,
                                                         word32 nonceSz);
-    WOLFSSL_API int wc_RNG_DRBG_NextUncreditedSeedNow(WC_RNG* rng);
+    WOLFSSL_API int wc_RNG_DRBG_NextStirNow(WC_RNG* rng);
 
 #endif /* WC_RNG_HAVE_NEXT_SEED */
 
@@ -1007,8 +1007,8 @@ struct wc_rng_debug_stats_snapshot {
     wc_rng_debug_counter_t _stats_total_bytes_requested;
     wc_rng_debug_counter_t _stats_total_bytes_produced;
     wc_rng_debug_counter_t _stats_total_requests;
-    wc_rng_debug_counter_t _stats_credited_reseeds;
-    wc_rng_debug_counter_t _stats_uncredited_reseeds;
+    wc_rng_debug_counter_t _stats_reseeds;
+    wc_rng_debug_counter_t _stats_stirs;
     wc_rng_debug_counter_t _stats_seed_failures;
     wc_rng_debug_counter_t _stats_locks_taken;
     wc_rng_debug_counter_t _stats_locks_released;
@@ -1022,11 +1022,11 @@ struct wc_rng_debug_stats_snapshot {
     wc_rng_debug_counter_t _stats_pool_bytes_missed;
 #endif
 #ifdef WC_RNG_HAVE_NEXT_SEED
-    wc_rng_debug_counter_t _stats_n_nextseed_primary_redeemed;
-    wc_rng_debug_counter_t _stats_n_nextseed_RBGC_redeemed;
-    wc_rng_debug_counter_t _stats_n_nextuncreditedseed_redeemed;
-    wc_rng_debug_counter_t _stats_n_nextseed_banked;
-    wc_rng_debug_counter_t _stats_n_nextuncreditedseed_banked;
+    wc_rng_debug_counter_t _stats_nextseedsprimary_redeemed;
+    wc_rng_debug_counter_t _stats_nextseedsRBGC_redeemed;
+    wc_rng_debug_counter_t _stats_nextstirs_redeemed;
+    wc_rng_debug_counter_t _stats_nextseedsbanked;
+    wc_rng_debug_counter_t _stats_nextstirs_banked;
 #endif
 };
 
