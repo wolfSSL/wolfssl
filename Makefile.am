@@ -169,6 +169,9 @@ EXTRA_DIST+= valgrind-bash.supp
 EXTRA_DIST+= fips-hash.sh
 EXTRA_DIST+= fips-hash-offline.sh
 EXTRA_DIST+= .github/scripts/check-source-text.sh
+EXTRA_DIST+= .github/scripts/check-forcezero-dse.sh
+EXTRA_DIST+= .github/scripts/check-barrier-arms.sh
+EXTRA_DIST+= .github/scripts/check-sink-relro.sh
 EXTRA_DIST+= gencertbuf.pl
 EXTRA_DIST+= README.md
 EXTRA_DIST+= README-async.md
@@ -288,6 +291,14 @@ endif
 if USE_VALGRIND
 TESTS_ENVIRONMENT=./valgrind-error.sh
 endif
+
+# Single AM_TESTS_ENVIRONMENT (automake limit), used by check-forcezero-dse.test.
+AM_TESTS_ENVIRONMENT = \
+    WCTEST_CC='$(CC)'; export WCTEST_CC; \
+    WCTEST_BUILDDIR='$(abs_top_builddir)'; export WCTEST_BUILDDIR; \
+    WCTEST_SRCDIR='$(abs_top_srcdir)'; export WCTEST_SRCDIR; \
+    WCTEST_CPPFLAGS='$(CPPFLAGS)'; export WCTEST_CPPFLAGS; \
+    WCTEST_CFLAGS='$(AM_CFLAGS) $(CFLAGS)'; export WCTEST_CFLAGS;
 
 TEST_EXTENSIONS=.test
 TESTS += $(check_PROGRAMS)

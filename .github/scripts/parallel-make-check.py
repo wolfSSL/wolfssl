@@ -142,6 +142,12 @@ ON_GITHUB = os.environ.get("GITHUB_ACTIONS") == "true"
 # Used by configs with "netns": true to give each command its own network
 # namespace (so parallel network tests can't collide on ports).
 BWRAP = shutil.which("bwrap")
+# Scripts that use automake's exit-77 "skipped" convention for an
+# unsupported combination, not a failure. Every other run step (including
+# other .github/scripts/check-*.sh helpers added later) fails on any
+# nonzero exit, since 77 can otherwise collide with an unrelated exit
+# status (e.g. a wc_test_ret_t from testwolfcrypt).
+SKIP_OK_SCRIPTS = ("check-forcezero-dse.sh", "check-sink-relro.sh")
 print_lock = threading.Lock()
 
 # Fail-fast state: the first failure sets stop_event (under fail_lock, so
@@ -437,6 +443,7 @@ def run_config(cfg: Config, opts: argparse.Namespace) -> tuple[str | None,
               "--dev-bind", "/", "/", "--chdir", str(bdir)]
              if cfg.netns and BWRAP else [])
     failed: str | None = None
+    skipped = 0
     start = time.monotonic()
     log = bdir / "make-check.log"
 
@@ -493,7 +500,11 @@ def run_config(cfg: Config, opts: argparse.Namespace) -> tuple[str | None,
             finally:
                 with procs_lock:
                     live_procs.discard(proc)
-            if rc != 0:
+            is_skip_ok = any(s in a for a in cmd for s in SKIP_OK_SCRIPTS)
+            if rc == 77 and is_skip_ok:
+                print(f"+ {step}: SKIP (exit 77)", file=logf, flush=True)
+                skipped += 1
+            elif rc != 0:
                 failed = record_failure(step)
                 break
     minutes = (time.monotonic() - start) / 60
@@ -504,7 +515,8 @@ def run_config(cfg: Config, opts: argparse.Namespace) -> tuple[str | None,
         elif not failed:
             # One line per passing config; the full logs would bloat the CI
             # log (they stay in build-<name>/make-check.log).
-            print(f"{cfg.name}: pass [{minutes:.1f} min]")
+            skip_note = f" ({skipped} skipped)" if skipped else ""
+            print(f"{cfg.name}: pass{skip_note} [{minutes:.1f} min]")
             if stale_estimate(cfg, minutes):
                 warn(f"{cfg.name}: ran {minutes:.1f} min but \"minutes\" "
                      f"says {cfg.minutes:g} (>50% off) - update it in the "
