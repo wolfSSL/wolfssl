@@ -416,6 +416,20 @@ int wc_FrodoKemKey_Free(FrodoKemKey* key)
         ret = BAD_FUNC_ARG;
     }
     else {
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
+        /* Let the device release its side of the key (anything it hung off
+         * devCtx). Always continue to the software cleanup below. In a
+         * find-callback build the key may keep an unset device id and still be
+         * owned by a device, so the dispatcher does the lookup. */
+    #ifndef WOLF_CRYPTO_CB_FIND
+        if (key->devId != INVALID_DEVID)
+    #endif
+        {
+            (void)wc_CryptoCb_Free(key->devId, WC_ALGO_TYPE_PK,
+                WC_PK_TYPE_PQC_KEM_KEYGEN, WC_PQC_KEM_TYPE_FRODOKEM,
+                (void*)key);
+        }
+#endif
         /* Zeroize secret material. */
         ForceZero(key->s, sizeof(key->s));
         ForceZero(key->sMat, sizeof(key->sMat));
@@ -428,6 +442,12 @@ int wc_FrodoKemKey_Free(FrodoKemKey* key)
         wc_AesFree(&key->aes);
 #endif
         key->flags = 0;
+#ifdef WOLF_CRYPTO_CB
+        /* Mark the key as having no device so a second free does not call
+         * out to it again. */
+        key->devCtx = NULL;
+        key->devId = INVALID_DEVID;
+#endif
     }
 
     return ret;
@@ -557,6 +577,7 @@ int wc_FrodoKemKey_PublicKeySize(const FrodoKemKey* key, word32* len)
     return ret;
 }
 
+#ifndef WOLF_CRYPTO_CB_ONLY_FRODOKEM
 /* Wipe the secret-derived Keccak state retained in the reusable SHAKE object
  * after an operation.
  *
@@ -579,6 +600,7 @@ static void frodokem_wipe_shake(FrodoKemKey* key)
         }
     }
 }
+#endif /* !WOLF_CRYPTO_CB_ONLY_FRODOKEM */
 
 /******************************************************************************/
 /* Key generation.                                                            */
@@ -605,6 +627,7 @@ int wc_FrodoKemKey_MakeKeyWithRandom(FrodoKemKey* key,
 {
     const FrodoKemParams* p = NULL;
     int ret = 0;
+#ifndef WOLF_CRYPTO_CB_ONLY_FRODOKEM
     int n = 0;
     void* heap = NULL;
     const byte* seedSE;
@@ -615,6 +638,7 @@ int wc_FrodoKemKey_MakeKeyWithRandom(FrodoKemKey* key,
     word16* bMat = NULL;
     word16* row = NULL;
     byte* seInput = NULL;
+#endif /* !WOLF_CRYPTO_CB_ONLY_FRODOKEM */
 
     if ((key == NULL) || (rand == NULL)) {
         ret = BAD_FUNC_ARG;
@@ -629,6 +653,14 @@ int wc_FrodoKemKey_MakeKeyWithRandom(FrodoKemKey* key,
         }
     }
 
+#ifdef WOLF_CRYPTO_CB_ONLY_FRODOKEM
+    if (ret == 0) {
+        /* No software fallback: only a crypto callback can service the
+         * request, and no callback takes caller-chosen key generation
+         * randomness. */
+        ret = NO_VALID_DEVID;
+    }
+#else
     if (ret == 0) {
         n = p->n;
         heap = key->heap;
@@ -695,6 +727,7 @@ int wc_FrodoKemKey_MakeKeyWithRandom(FrodoKemKey* key,
 
     /* Wipe secret-derived residue from the reusable SHAKE state. */
     frodokem_wipe_shake(key);
+#endif /* WOLF_CRYPTO_CB_ONLY_FRODOKEM */
 
     return ret;
 }
@@ -741,8 +774,14 @@ int wc_FrodoKemKey_MakeKey(FrodoKemKey* key, WC_RNG* rng)
     }
 #ifdef WOLF_CRYPTO_CB
     /* Offload to a registered crypto callback when a device is set; fall
-     * through to the software path when the callback is unavailable. */
+     * through to the software path when the callback is unavailable. A
+     * find-callback build lets the dispatcher locate the device, so the key's
+     * device id is not consulted. */
+#ifndef WOLF_CRYPTO_CB_FIND
     if ((ret == 0) && (key->devId != INVALID_DEVID)) {
+#else
+    if (ret == 0) {
+#endif
         ret = wc_CryptoCb_MakePqcKemKey(rng, WC_PQC_KEM_TYPE_FRODOKEM,
             key->type, key);
         if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
@@ -822,6 +861,7 @@ int wc_FrodoKemKey_EncapsulateWithRandom(FrodoKemKey* key, unsigned char* ct,
 {
     const FrodoKemParams* p = NULL;
     int ret = 0;
+#ifndef WOLF_CRYPTO_CB_ONLY_FRODOKEM
     int n = 0;
     int nn = FRODOKEM_NBAR_SQ;
     void* heap = NULL;
@@ -849,6 +889,7 @@ int wc_FrodoKemKey_EncapsulateWithRandom(FrodoKemKey* key, unsigned char* ct,
 #endif
     byte* kVal;
     size_t matSz = 0;
+#endif /* !WOLF_CRYPTO_CB_ONLY_FRODOKEM */
 
     if ((key == NULL) || (ct == NULL) || (ss == NULL) || (rand == NULL)) {
         ret = BAD_FUNC_ARG;
@@ -866,6 +907,14 @@ int wc_FrodoKemKey_EncapsulateWithRandom(FrodoKemKey* key, unsigned char* ct,
         }
     }
 
+#ifdef WOLF_CRYPTO_CB_ONLY_FRODOKEM
+    if (ret == 0) {
+        /* No software fallback: only a crypto callback can service the
+         * request, and no callback takes caller-chosen encapsulation
+         * randomness. */
+        ret = NO_VALID_DEVID;
+    }
+#else
     if (ret == 0) {
         n = p->n;
         heap = key->heap;
@@ -965,6 +1014,7 @@ int wc_FrodoKemKey_EncapsulateWithRandom(FrodoKemKey* key, unsigned char* ct,
 
     /* Wipe secret-derived residue from the reusable SHAKE state. */
     frodokem_wipe_shake(key);
+#endif /* WOLF_CRYPTO_CB_ONLY_FRODOKEM */
 
     return ret;
 }
@@ -1014,8 +1064,14 @@ int wc_FrodoKemKey_Encapsulate(FrodoKemKey* key, unsigned char* ct,
     }
 #ifdef WOLF_CRYPTO_CB
     /* Offload to a registered crypto callback when a device is set; fall
-     * through to the software path when the callback is unavailable. */
+     * through to the software path when the callback is unavailable. A
+     * find-callback build lets the dispatcher locate the device, so the key's
+     * device id is not consulted. */
+#ifndef WOLF_CRYPTO_CB_FIND
     if ((ret == 0) && (key->devId != INVALID_DEVID)) {
+#else
+    if (ret == 0) {
+#endif
         ret = wc_CryptoCb_PqcEncapsulate(ct, (word32)p->ctSize, ss,
             (word32)p->lenSec, rng, WC_PQC_KEM_TYPE_FRODOKEM, key);
         if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
@@ -1095,6 +1151,8 @@ int wc_FrodoKemKey_Decapsulate(FrodoKemKey* key, unsigned char* ss,
 {
     const FrodoKemParams* p = NULL;
     int ret = 0;
+    int cbHandled = 0;
+#ifndef WOLF_CRYPTO_CB_ONLY_FRODOKEM
     int n = 0;
     int i;
     int nn = FRODOKEM_NBAR_SQ;
@@ -1133,7 +1191,7 @@ int wc_FrodoKemKey_Decapsulate(FrodoKemKey* key, unsigned char* ss,
     word32 isEq;
     byte mask;
     size_t matSz = 0;
-    int cbHandled = 0;
+#endif /* !WOLF_CRYPTO_CB_ONLY_FRODOKEM */
 
     if ((key == NULL) || (ss == NULL) || (ct == NULL)) {
         ret = BAD_FUNC_ARG;
@@ -1143,9 +1201,6 @@ int wc_FrodoKemKey_Decapsulate(FrodoKemKey* key, unsigned char* ss,
         if (p == NULL) {
             ret = NOT_COMPILED_IN;
         }
-        else if ((key->flags & FRODOKEM_FLAG_PRIV_SET) == 0) {
-            ret = BAD_STATE_E;
-        }
         else if (len != (word32)p->ctSize) {
             ret = BUFFER_E;
         }
@@ -1153,8 +1208,14 @@ int wc_FrodoKemKey_Decapsulate(FrodoKemKey* key, unsigned char* ss,
 
 #ifdef WOLF_CRYPTO_CB
     /* Offload to a registered crypto callback when a device is set; fall
-     * through to the software path when the callback is unavailable. */
+     * through to the software path when the callback is unavailable. A
+     * find-callback build lets the dispatcher locate the device, so the key's
+     * device id is not consulted. */
+#ifndef WOLF_CRYPTO_CB_FIND
     if ((ret == 0) && (key->devId != INVALID_DEVID)) {
+#else
+    if (ret == 0) {
+#endif
         ret = wc_CryptoCb_PqcDecapsulate(ct, len, ss, (word32)p->lenSec,
             WC_PQC_KEM_TYPE_FRODOKEM, key);
         if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
@@ -1165,6 +1226,21 @@ int wc_FrodoKemKey_Decapsulate(FrodoKemKey* key, unsigned char* ss,
         }
     }
 #endif
+
+    /* Check for a private key to decapsulate with. Done after dispatch for
+     * cases where the private key lives in a device. */
+    if ((ret == 0) && !cbHandled &&
+            ((key->flags & FRODOKEM_FLAG_PRIV_SET) == 0)) {
+        ret = BAD_STATE_E;
+    }
+
+#ifdef WOLF_CRYPTO_CB_ONLY_FRODOKEM
+    if ((ret == 0) && !cbHandled) {
+        /* No software fallback: only a crypto callback can service the
+         * request. */
+        ret = NO_VALID_DEVID;
+    }
+#else
     if ((ret == 0) && !cbHandled) {
         n = p->n;
         heap = key->heap;
@@ -1299,6 +1375,7 @@ int wc_FrodoKemKey_Decapsulate(FrodoKemKey* key, unsigned char* ss,
 
     /* Wipe secret-derived residue from the reusable SHAKE state. */
     frodokem_wipe_shake(key);
+#endif /* WOLF_CRYPTO_CB_ONLY_FRODOKEM */
 
     return ret;
 }

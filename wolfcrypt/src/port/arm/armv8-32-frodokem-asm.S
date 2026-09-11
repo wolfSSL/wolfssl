@@ -32,7 +32,7 @@
 #ifdef WOLFSSL_ARMASM
 #if !defined(__aarch64__) && !defined(WOLFSSL_ARMASM_THUMB2)
 #ifndef WOLFSSL_ARMASM_INLINE
-#ifdef WOLFSSL_HAVE_FRODOKEM
+#if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM)
 #ifndef WOLFSSL_ARMASM_NO_NEON
 	.text
 	.align	4
@@ -402,8 +402,8 @@ L_frodokem_mul_add_sb_plus_e_neon_j:
 	pop	{r4, r5, r6, r7, r8, r9, pc}
 	.size	frodokem_mul_add_sb_plus_e_neon,.-frodokem_mul_add_sb_plus_e_neon
 #endif /* WOLFSSL_ARMASM_NO_NEON */
-#endif /* WOLFSSL_HAVE_FRODOKEM */
-#ifdef WOLFSSL_HAVE_FRODOKEM
+#endif /* WOLFSSL_HAVE_FRODOKEM && !WOLF_CRYPTO_CB_ONLY_FRODOKEM */
+#if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM)
 #ifndef WOLFSSL_ARMASM_NO_NEON
 	.fpu	crypto-neon-fp-armv8
 	.text
@@ -507,8 +507,8 @@ L_frodokem_gen_a_rows_aes_arm32_aes:
 	pop	{r4, r5, r6, r7, r8, r9, pc}
 	.size	frodokem_gen_a_rows_aes_arm32,.-frodokem_gen_a_rows_aes_arm32
 #endif /* WOLFSSL_ARMASM_NO_NEON */
-#endif /* WOLFSSL_HAVE_FRODOKEM */
-#ifdef WOLFSSL_HAVE_FRODOKEM
+#endif /* WOLFSSL_HAVE_FRODOKEM && !WOLF_CRYPTO_CB_ONLY_FRODOKEM */
+#if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM)
 #ifdef __ARM_FEATURE_SIMD32
 #if (!defined(__ARM_NEON) && !defined(__ARM_NEON__)) || defined(WOLFSSL_ARMASM_NO_NEON)
 	.text
@@ -694,7 +694,7 @@ L_frodokem_mul_add_sb_plus_e_simd32_j:
 	.size	frodokem_mul_add_sb_plus_e_simd32,.-frodokem_mul_add_sb_plus_e_simd32
 #endif /* (!defined(__ARM_NEON) && !defined(__ARM_NEON__)) || defined(WOLFSSL_ARMASM_NO_NEON) */
 #endif /* __ARM_FEATURE_SIMD32 */
-#endif /* WOLFSSL_HAVE_FRODOKEM */
+#endif /* WOLFSSL_HAVE_FRODOKEM && !WOLF_CRYPTO_CB_ONLY_FRODOKEM */
 
 #if defined(__linux__) && defined(__ELF__)
 .section	.note.GNU-stack,"",%progbits
