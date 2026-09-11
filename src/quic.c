@@ -897,21 +897,24 @@ int wolfSSL_quic_send(WOLFSSL* ssl)
 
 /* Report a fatal handshake failure to the QUIC protocol handler, which closes
  * the connection with it (RFC 9001 Section 4.8). code is a TLS
- * AlertDescription or, for failures RFC 9001 defines as a QUIC connection
- * error rather than a TLS alert, a WOLFSSL_QUIC_ERR_* transport error code
- * (RFC 9000 Section 20.1). Returns 0 when the handler accepted it. */
+ * AlertDescription, or WOLFSSL_QUIC_ERR_CRYPTO_ERROR | code for a QUIC
+ * transport error (RFC 9000 Section 20.1), which keeps the two apart in the
+ * alert history. Returns 0 when the handler accepted it. */
 int wolfSSL_quic_send_alert(WOLFSSL* ssl, int severity, int code)
 {
     int ret;
 
     WOLFSSL_ENTER("wolfSSL_quic_send_alert");
-    WOLFSSL_MSG_EX("quic_send_alert: %d", code);
+    WOLFSSL_MSG_EX("quic_send_alert: 0x%x", code);
 
-    /* Record as the TLS record path does, so the callers' duplicate-alert
-     * guards cover QUIC connections too. */
+    /* Recorded as given: TLS alerts stay in alert space as on TLS
+     * connections, transport codes arrive offset above it. The level drives
+     * the callers' duplicate-alert guards. */
     ssl->alert_history.last_tx.code = code;
     ssl->alert_history.last_tx.level = severity;
 
+    /* The callback byte is the code's low byte: the AlertDescription of a TLS
+     * alert, or the transport code itself. */
     ret = !ssl->quic.method->send_alert(ssl, ssl->quic.enc_level_write,
                                         (uint8_t)code);
     if (ret) {
