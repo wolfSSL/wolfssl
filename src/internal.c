@@ -8070,7 +8070,7 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 
 int InitHandshakeHashes(WOLFSSL* ssl)
 {
-    int ret;
+    int ret = 0;
 
     /* make sure existing handshake hashes are free'd */
     if (ssl->hsHashes != NULL) {
@@ -8119,7 +8119,7 @@ int InitHandshakeHashes(WOLFSSL* ssl)
         wc_Sha384SetFlags(&ssl->hsHashes->hashSha384, WC_HASH_FLAG_WILLCOPY);
     #endif
 #endif
-#ifdef WOLFSSL_SHA512
+#ifdef WOLFSSL_HS_HASH_SHA512
     ret = wc_InitSha512_ex(&ssl->hsHashes->hashSha512, ssl->heap, ssl->devId);
     if (ret != 0)
         return ret;
@@ -8155,7 +8155,7 @@ void Free_HS_Hashes(HS_Hashes* hsHashes, void* heap)
     #ifdef WOLFSSL_SHA384
         wc_Sha384Free(&hsHashes->hashSha384);
     #endif
-    #ifdef WOLFSSL_SHA512
+    #ifdef WOLFSSL_HS_HASH_SHA512
         wc_Sha512Free(&hsHashes->hashSha512);
     #endif
     #ifdef WOLFSSL_SM3
@@ -8232,7 +8232,7 @@ int InitHandshakeHashesAndCopy(WOLFSSL* ssl, HS_Hashes* source,
         ret = wc_Sha384Copy(&source->hashSha384,
             &(*destination)->hashSha384);
     #endif
-    #ifdef WOLFSSL_SHA512
+    #ifdef WOLFSSL_HS_HASH_SHA512
     if (ret == 0)
         ret = wc_Sha512Copy(&source->hashSha512,
             &(*destination)->hashSha512);
@@ -11806,7 +11806,7 @@ int HashRaw(WOLFSSL* ssl, const byte* data, int sz)
         WOLFSSL_BUFFER(digest, WC_SHA384_DIGEST_SIZE);
     #endif
     #endif
-    #ifdef WOLFSSL_SHA512
+    #ifdef WOLFSSL_HS_HASH_SHA512
         ret = wc_Sha512Update(&ssl->hsHashes->hashSha512, data, (word32)sz);
         if (ret != 0)
             return ret;
@@ -26636,7 +26636,7 @@ int BuildCertHashes(const WOLFSSL* ssl, Hashes* hashes)
                 if (ret != 0)
                     return ret;
             #endif
-            #ifdef WOLFSSL_SHA512
+            #ifdef WOLFSSL_HS_HASH_SHA512
                 ret = wc_Sha512GetHash(&ssl->hsHashes->hashSha512,
                                        hashes->sha512);
                 if (ret != 0)
