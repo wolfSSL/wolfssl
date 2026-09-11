@@ -501,7 +501,7 @@ void mlkem_init(void);
 
 #ifndef WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM
 WOLFSSL_LOCAL
-void mlkem_keygen(sword16* priv, sword16* pub, sword16* e, const sword16* a,
+int mlkem_keygen(sword16* priv, sword16* pub, sword16* e, const sword16* a,
     int kp);
 #else
 WOLFSSL_LOCAL
@@ -510,7 +510,7 @@ int mlkem_keygen_seeds(sword16* priv, sword16* pub, MLKEM_PRF_T* prf,
 #endif
 #ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
 WOLFSSL_LOCAL
-void mlkem_encapsulate(const sword16* pub, sword16* bp, sword16* v,
+int mlkem_encapsulate(const sword16* pub, sword16* bp, sword16* v,
     const sword16* at, sword16* sp, const sword16* ep, const sword16* epp,
     const sword16* m, int kp);
 #else
@@ -520,7 +520,7 @@ int mlkem_encapsulate_seeds(const sword16* pub, MLKEM_PRF_T* prf, sword16* bp,
     byte* coins);
 #endif
 WOLFSSL_LOCAL
-void mlkem_decapsulate(const sword16* priv, sword16* mp, sword16* bp,
+int mlkem_decapsulate(const sword16* priv, sword16* mp, sword16* bp,
     const sword16* v, int kp);
 
 WOLFSSL_LOCAL

@@ -654,6 +654,8 @@ int wc_linuxkm_GenerateSeed_IntelRD(struct OS_Seed* os, byte* output, word32 sz)
 
 #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
     #include "linuxkm/x86_vector_register_glue.c"
+#elif defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_ARM64)
+    #include "linuxkm/arm64_vector_register_glue.c"
 #endif
 
 #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(WC_C_DYNAMIC_FALLBACK) && \
@@ -1702,10 +1704,20 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 #endif
 #ifndef CONFIG_FORTIFY_SOURCE
 #ifndef __ARCH_MEMCPY_NO_REDIRECT
+#ifdef CONFIG_ARM64
+    /* The plain names resolve to the module's own definitions here, so name
+     * the kernel's implementations (arch/arm64/lib/memcpy.S:243, memset.S:206). */
+    wolfssl_linuxkm_pie_redirect_table.memcpy = __memcpy;
+#else
     wolfssl_linuxkm_pie_redirect_table.memcpy = memcpy;
 #endif
+#endif
 #ifndef __ARCH_MEMSET_NO_REDIRECT
+#ifdef CONFIG_ARM64
+    wolfssl_linuxkm_pie_redirect_table.memset = __memset;
+#else
     wolfssl_linuxkm_pie_redirect_table.memset = memset;
+#endif
 #endif
 #ifndef __ARCH_MEMMOVE_NO_REDIRECT
     wolfssl_linuxkm_pie_redirect_table.memmove = memmove;
@@ -1835,7 +1847,8 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 
     wolfssl_linuxkm_pie_redirect_table.get_current = my_get_current_thread;
 
-#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && \
+    (defined(CONFIG_X86) || defined(CONFIG_ARM64))
     wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_allocate_svr_states = wc_linuxkm_allocate_svr_states;
     wolfssl_linuxkm_pie_redirect_table.wc_can_save_vector_registers_x86 = wc_can_save_vector_registers_x86;
     wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_free_svr_states = wc_linuxkm_free_svr_states;
