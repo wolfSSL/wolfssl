@@ -29233,7 +29233,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_svc_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     }
 
-    /* uncredited mixing preserves the counter */
+    /* uncredited mixing never resets the counter -- it increments it by
+     * exactly one: a stir is a specified generate (additional_input,
+     * zero-length output), and a generate counts. */
     if (present) {
         api_ret = wc_RNG_DRBG_GetReseedCtr(root, &c1);
         if (api_ret != 0)
@@ -29244,7 +29246,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_svc_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
     if (present) {
         api_ret = wc_RNG_DRBG_GetReseedCtr(root, &c2);
-        if ((api_ret != 0) || (c2 != c1))
+        if ((api_ret != 0) || (c2 != c1 + 1))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     }
 
@@ -29556,11 +29558,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_entropy_invalidate_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     }
 
-    /* an uncredited reseed must not clear the flag; a credited one must. */
+    /* an uncredited stir cannot run on a quarantined instance at all --
+     * the latch (checked atomically, ahead of the racy counter) refuses
+     * it: NOT_READY_E, with counter and flag untouched by
+     * construction. */
     XMEMSET(block, 0x5a, sizeof(block));
     api_ret = wc_RNG_DRBG_Reseed_Uncredited(WC_RNG_BANK_INST_TO_RNG(held),
                                             block, sizeof(block));
-    if (api_ret != 0)
+    if (api_ret != WC_NO_ERR_TRACE(NOT_READY_E))
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
     api_ret = wc_rng_bank_inst_lock_read(held, &lock_state);
     if (api_ret != 0)
@@ -30824,8 +30829,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseed_test(void)
                                                       sizeof(frag64));
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        /* consumption refuses on the quarantined instance (latch checked
+         * atomically ahead of the racy counter); the use-once aperture
+         * reopens EMPTY regardless -- stirs are best-effort, and
+         * accumulation simply resumes. */
         api_ret = wc_RNG_DRBG_NextUncreditedSeedNow(&leaf);
-        if (api_ret != 0)
+        if (api_ret != WC_NO_ERR_TRACE(NOT_READY_E))
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
         api_ret = wc_RNG_lock_read(&leaf, &lock_state);
         if (api_ret != 0)
