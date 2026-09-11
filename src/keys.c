@@ -3935,6 +3935,28 @@ int StoreKeys(WOLFSSL* ssl, const byte* keyData, int side)
     return 0;
 }
 
+#if !defined(NO_OLD_TLS) || defined(HAVE_EXTENDED_MASTER)
+static void CleanPreMaster(WOLFSSL* ssl)
+{
+    int sz = (int)(ssl->arrays->preMasterSz);
+
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("CleanPreMaster preMasterSecret",
+                   ssl->arrays->preMasterSecret, sz);
+#endif
+
+    ForceZero(ssl->arrays->preMasterSecret, sz);
+
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(ssl->arrays->preMasterSecret, sz);
+#endif
+
+    XFREE(ssl->arrays->preMasterSecret, ssl->heap, DYNAMIC_TYPE_SECRET);
+    ssl->arrays->preMasterSecret = NULL;
+    ssl->arrays->preMasterSz = 0;
+}
+#endif /* !NO_OLD_TLS || HAVE_EXTENDED_MASTER */
+
 #ifndef NO_OLD_TLS
 int DeriveKeys(WOLFSSL* ssl)
 {
@@ -4059,27 +4081,6 @@ int DeriveKeys(WOLFSSL* ssl)
     WC_FREE_VAR_EX(sha, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
-}
-
-
-static void CleanPreMaster(WOLFSSL* ssl)
-{
-    int sz = (int)(ssl->arrays->preMasterSz);
-
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Add("CleanPreMaster preMasterSecret",
-                   ssl->arrays->preMasterSecret, sz);
-#endif
-
-    ForceZero(ssl->arrays->preMasterSecret, sz);
-
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Check(ssl->arrays->preMasterSecret, sz);
-#endif
-
-    XFREE(ssl->arrays->preMasterSecret, ssl->heap, DYNAMIC_TYPE_SECRET);
-    ssl->arrays->preMasterSecret = NULL;
-    ssl->arrays->preMasterSz = 0;
 }
 
 
@@ -4231,6 +4232,18 @@ static int MakeSslMasterSecret(WOLFSSL* ssl)
 /* Master wrapper, doesn't use SSL stack space in TLS mode */
 int MakeMasterSecret(WOLFSSL* ssl)
 {
+#ifdef HAVE_EXTENDED_MASTER
+    /* User requires EMS but it was not negotiated: abort rather than derive
+     * a standard master secret (RFC 7627). */
+    if (ssl->options.requireEMS && !ssl->options.haveEMS) {
+        WOLFSSL_MSG("EMS required but not negotiated with peer");
+        SendAlert(ssl, alert_fatal, handshake_failure);
+        WOLFSSL_ERROR_VERBOSE(EXT_MASTER_SECRET_NEEDED_E);
+        if (ssl->arrays->preMasterSecret != NULL)
+            CleanPreMaster(ssl);
+        return EXT_MASTER_SECRET_NEEDED_E;
+    }
+#endif
     /* append secret to premaster : premaster | SerSi | CliSi */
 #ifndef NO_OLD_TLS
     if (ssl->options.tls) return MakeTlsMasterSecret(ssl);
