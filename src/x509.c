@@ -14717,10 +14717,9 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
                 data = wolfSSL_ASN1_STRING_data(e->value);
                 if (data != NULL) {
                     sz = (int)XSTRLEN((const char*)data);
-                    XMEMCPY(fullName + *idx, data, sz);
-                    *idx += sz;
+                    *idx += (int)X509CertEscapeName(fullName + *idx,
+                            (const char*)data, (word32)sz);
                 }
-
                 ret++;
             }
         }
@@ -14742,6 +14741,7 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
             if (name->entry[i].set) {
                 WOLFSSL_X509_NAME_ENTRY* e;
                 WOLFSSL_ASN1_OBJECT* obj;
+                const char* data;
 
                 e = &name->entry[i];
                 obj = wolfSSL_X509_NAME_ENTRY_get_object(e);
@@ -14749,7 +14749,14 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
                     return BAD_FUNC_ARG;
 
                 totalLen += (int)XSTRLEN(obj->sName) + 2;/*+2 for '/' and '=' */
-                totalLen += wolfSSL_ASN1_STRING_length(e->value);
+                data = (e->value != NULL) ? e->value->data : NULL;
+                if (data == NULL) {
+                    continue;
+                }
+                /* Certain characters need to be escaped, so ask for the
+                 * length of the value once escaped. */
+                totalLen += (int)X509CertEscapeName(NULL, data,
+                    (word32)XSTRLEN(data));
             }
         }
 

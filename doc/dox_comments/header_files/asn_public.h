@@ -3613,7 +3613,12 @@ int wc_GetSubjectPubKeyInfoDerFromCert(const byte* certDer,
     This function copies the subject name string from a DecodedCert
     structure into the provided buffer. The string uses a one-line
     distinguished name format with "/" delimiters
-    (e.g. "/C=US/O=Org/CN=example.com"). The output is NOT
+    (e.g. "/C=US/O=Org/CN=example.com"). Within an attribute value,
+    each "\\", "/" and "+" is prefixed with a "\\" so that it cannot be
+    mistaken for a separator (e.g. a CN of "a/b" is written "/CN=a\\/b").
+    Escaping "\\" differs from OpenSSL 3, which escapes only "/" and "+",
+    so compare against strings produced by this library rather than by
+    OpenSSL or by hand. The output is NOT
     NUL-terminated; the caller should append a NUL byte if needed.
     If buf is NULL, the required buffer size is returned
     in bufSz and LENGTH_ONLY_E is returned.
@@ -3647,7 +3652,12 @@ int wc_GetDecodedCertSubject(const struct DecodedCert* cert,
     This function copies the issuer name string from a DecodedCert
     structure into the provided buffer. The string uses a one-line
     distinguished name format with "/" delimiters
-    (e.g. "/C=US/O=Org/CN=example.com"). The output is NOT
+    (e.g. "/C=US/O=Org/CN=example.com"). Within an attribute value,
+    each "\\", "/" and "+" is prefixed with a "\\" so that it cannot be
+    mistaken for a separator (e.g. a CN of "a/b" is written "/CN=a\\/b").
+    Escaping "\\" differs from OpenSSL 3, which escapes only "/" and "+",
+    so compare against strings produced by this library rather than by
+    OpenSSL or by hand. The output is NOT
     NUL-terminated; the caller should append a NUL byte if needed.
     If buf is NULL, the required buffer size is returned
     in bufSz and LENGTH_ONLY_E is returned.

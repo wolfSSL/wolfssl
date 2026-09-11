@@ -14967,6 +14967,44 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
 }
 #endif /* WOLFSSL_RID_ALT_NAME && !WC_ASN_NO_HEAP */
 
+static byte DoesCharNeedEscape(char c)
+{
+    return (c == '/' || c == '+' || c == '\\');
+}
+
+/* Escape the characters of an X509 name component that would make the
+ * one-line form of the name ambiguous: \, +, and / are all escaped.
+ *
+ * @param [out] out     Buffer the escaped name is written to. May be NULL to
+ *                      only calculate the required length.
+ * @param [in]  in      Buffer holding the X509 name component.
+ * @param [in]  inSz    Length of the in buffer.
+ * @return  Number of bytes written to out. When out is NULL, the number of
+ *          bytes that would be written.
+ */
+word32 X509CertEscapeName(char* out, const char* in, word32 inSz)
+{
+    word32 escSz = 0;
+    word32 i;
+
+    if (in == NULL) {
+        return 0;
+    }
+
+    for (i = 0; i < inSz; i++) {
+        if (DoesCharNeedEscape(in[i])) {
+            if (out != NULL)
+                out[escSz] = '\\';
+            escSz++;
+        }
+        if (out != NULL)
+            out[escSz] = in[i];
+        escSz++;
+    }
+
+    return escSz;
+}
+
 #ifdef WOLFSSL_ASN_TEMPLATE
 
 #if defined(WOLFSSL_CERT_GEN) || !defined(NO_CERTS)
@@ -15435,17 +15473,20 @@ static int GetRDN(DecodedCert* cert, char* full, word32* idx, int* nid,
         }
     #endif
         if (ret == 0) {
+            /* Length of the value once special characters are escaped. */
+            word32 escLen = X509CertEscapeName(NULL, (const char*)str, strLen);
+
             /* Check there is space for this in the full name string and
              * terminating NUL character. */
-            if ((typeStrLen + strLen) < (word32)(WC_ASN_NAME_MAX - *idx))
+            if ((typeStrLen + escLen) < (word32)(WC_ASN_NAME_MAX - *idx))
             {
-                /* Add RDN to full string. Binary values are copied verbatim,
+                /* Add RDN to full string. Values are escaped but not decoded,
                  * so this display string may truncate at an embedded NUL - use
                  * the WOLFSSL_X509_NAME entry for the full value. */
                 XMEMCPY(&full[*idx], typeStr, typeStrLen);
                 *idx += typeStrLen;
-                XMEMCPY(&full[*idx], str, strLen);
-                *idx += strLen;
+                *idx += X509CertEscapeName(&full[*idx], (const char*)str,
+                        strLen);
             }
             else {
                 WOLFSSL_MSG("ASN Name too big, skipping");
