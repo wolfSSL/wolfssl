@@ -1909,6 +1909,52 @@ int test_wolfssl_local_MatchUriNameConstraint(void)
     ExpectIntEQ(uriNC("https://host.com.evil.com",    "host.com"), 0);
     ExpectIntEQ(uriNC("https://other.com",            "host.com"), 0);
 
+    /* Only the initial scheme delimiter can introduce an authority. URLs
+     * embedded in an authority-less URI do not supply its host. */
+    ExpectIntEQ(uriNC("urn:example:opaque",           "host.com"), 0);
+    ExpectIntEQ(uriNC("urn:example:https://host.com/x",
+                "host.com"), 0);
+    ExpectIntEQ(uriNC("foo:/path/https://host.com/x",
+                "host.com"), 0);
+    ExpectIntEQ(uriNC("urn:example?next=https://host.com/x",
+                "host.com"), 0);
+    ExpectIntEQ(uriNC("urn:example#https://host.com/x",
+                "host.com"), 0);
+    ExpectIntEQ(uriNC("sip:victim.example?next=https://host.com/x",
+                "host.com"), 0);
+    ExpectIntEQ(uriNC("urn:example?next=https://a.host.com/x",
+                ".host.com"), 0);
+
+    /* With a real authority, later URLs must not affect host matching. */
+    ExpectIntEQ(uriNC("https://other.com/https://host.com/x",
+                "host.com"), 0);
+    ExpectIntEQ(uriNC("https://other.com?next=https://host.com/x",
+                "host.com"), 0);
+    ExpectIntEQ(uriNC("https://other.com#https://host.com/x",
+                "host.com"), 0);
+    ExpectIntEQ(uriNC("https://host.com?next=https://other.com/x",
+                "host.com"), 1);
+
+    /* Scheme syntax, not a whitelist:
+     * ALPHA *(ALPHA / DIGIT / "+" / "-" / "."). */
+    ExpectIntEQ(uriNC("a://host.com",                 "host.com"), 1);
+    ExpectIntEQ(uriNC("Custom+v2-test.1://host.com",   "host.com"), 1);
+    ExpectIntEQ(uriNC("://host.com",                  "host.com"), 0);
+    ExpectIntEQ(uriNC("1https://host.com",            "host.com"), 0);
+    ExpectIntEQ(uriNC("ht/tps://host.com",            "host.com"), 0);
+    ExpectIntEQ(uriNC("ht_tps://host.com",            "host.com"), 0);
+    ExpectIntEQ(uriNC(" https://host.com",            "host.com"), 0);
+    ExpectIntEQ(uriNC("https",                       "host.com"), 0);
+    ExpectIntEQ(uriNC("https:",                      "host.com"), 0);
+    ExpectIntEQ(uriNC("https:/",                     "host.com"), 0);
+    /* Explicit lengths must bound the scheme and separator scans. */
+    ExpectIntEQ(wolfssl_local_MatchUriNameConstraint("abc://host.com", 3,
+                "host.com", 8), 0);
+    ExpectIntEQ(wolfssl_local_MatchUriNameConstraint("abc://host.com", 4,
+                "host.com", 8), 0);
+    ExpectIntEQ(wolfssl_local_MatchUriNameConstraint("abc://host.com", 5,
+                "host.com", 8), 0);
+
     /* A single trailing dot is the absolute-FQDN marker: "host.com." and
      * "host.com" denote the same host and must compare equal, matching the
      * DNS name-constraint path. */
