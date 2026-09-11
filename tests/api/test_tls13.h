@@ -68,6 +68,8 @@ int test_tls13_0rtt_default_off(void);
 int test_tls13_0rtt_stateless_replay(void);
 int test_tls13_remove_session_return(void);
 int test_tls13_0rtt_ext_cache_eviction(void);
+int test_tls13_0rtt_ext_cache_replay(void);
+int test_tls13_0rtt_remove_cb_replay(void);
 int test_tls13_early_data_bad_record_mac(void);
 int test_tls13_0rtt_fresh_start(void);
 int test_tls13_0rtt_fresh_start_check_args(void);
@@ -177,6 +179,8 @@ int test_tls13_cryptocb_async(void);
     TEST_DECL_GROUP("tls13", test_tls13_0rtt_stateless_replay), \
     TEST_DECL_GROUP("tls13", test_tls13_remove_session_return), \
     TEST_DECL_GROUP("tls13", test_tls13_0rtt_ext_cache_eviction), \
+    TEST_DECL_GROUP("tls13", test_tls13_0rtt_ext_cache_replay), \
+    TEST_DECL_GROUP("tls13", test_tls13_0rtt_remove_cb_replay), \
     TEST_DECL_GROUP("tls13", test_tls13_early_data_bad_record_mac), \
     TEST_DECL_GROUP("tls13", test_tls13_0rtt_fresh_start), \
     TEST_DECL_GROUP("tls13", test_tls13_0rtt_fresh_start_check_args), \
