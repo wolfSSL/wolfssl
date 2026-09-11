@@ -4088,6 +4088,23 @@ static int test_wolfSSL_CTX_load_verify_locations_ex(void)
     ExpectIntEQ(wolfSSL_CTX_load_verify_locations_ex(ctx, ca_expired_cert, NULL,
             WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY), WOLFSSL_SUCCESS);
 
+#ifndef NO_ASN_TIME
+    /* A context that verifies peers must not defeat the flag: the
+     * effective verify setting, including skip-date, applies to the
+     * trusted-peer copy loaded for OpenSSL compatibility too. The
+     * trusted-peer copy is only attempted when built with
+     * WOLFSSL_TRUST_PEER_CERT and OPENSSL_COMPATIBLE_DEFAULTS; other
+     * builds exercise the CA copy only. */
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntNE(wolfSSL_CTX_load_verify_locations_ex(ctx, ca_expired_cert, NULL,
+            WOLFSSL_LOAD_FLAG_NONE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations_ex(ctx, ca_expired_cert, NULL,
+            WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY), WOLFSSL_SUCCESS);
+#endif
+
     wolfSSL_CTX_free(ctx);
 #endif
 

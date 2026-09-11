@@ -14786,6 +14786,22 @@ enum {
 /* Number of items in ASN.1 template for an RDN. */
 #define rdnASN_Length (sizeof(rdnASN) / sizeof(ASNItem))
 
+/* ASN.1 template for an AttributeTypeAndValue parsed on its own.
+ * Used for the extra AVAs of a multi-valued RDN, where one SET holds
+ * several AttributeTypeAndValues. Items are aligned onto rdnASN data at
+ * RDNASN_IDX_ATTR_SEQ by passing dataASN + RDNASN_IDX_ATTR_SEQ.
+ */
+static const ASNItem avaASN[] = {
+/* ATTR_SEQ  */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+                            /* AttributeType */
+/* ATTR_TYPE */     { 1, ASN_OBJECT_ID, 0, 0, 0 },
+                            /* AttributeValue: Choice of tags - rdnChoice. */
+/* ATTR_VAL  */     { 1, 0, 0, 0, 0 },
+};
+
+/* Number of items in ASN.1 template for an AttributeTypeAndValue. */
+#define avaASN_Length (sizeof(avaASN) / sizeof(ASNItem))
+
 /* Supported types of encodings (tags) for RDN strings.
  * X.509: RFC 5280, 4.1.2.4 - DirectoryString
  * (IA5 String not listed in RFC but required for alternative types)
@@ -15476,6 +15492,73 @@ static int GetRDN(DecodedCert* cert, char* full, word32* idx, int* nid,
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
 #ifdef WOLFSSL_ASN_TEMPLATE
+/* Add the attribute value last parsed into an X509_NAME.
+ *
+ * @param [in, out] dName  X509_NAME to add to. May be NULL when no NID
+ *                         was found for the attribute type.
+ * @param [in]      nid    OpenSSL NID of the attribute type. 0 when unknown.
+ * @param [in]      val    Parsed attribute value (rdnChoice data).
+ * @return  0 on success.
+ * @return  ASN_PARSE_E when the string is empty or the entry could not be
+ *          added.
+ */
+#ifdef WOLFSSL_X509_NAME_AVAILABLE
+static int AddRDNToName(WOLFSSL_X509_NAME* dName, int nid, ASNGetData* val)
+{
+    int ret = 0;
+    int enc;
+    const byte* str;
+    word32 strLen;
+    byte   tag = val->tag;
+
+    /* Get string reference. */
+    GetASN_GetRef(val, &str, &strLen);
+
+    /* Strip the BIT STRING unused-bits count octet before the length check
+     * below. GetRDN() has already validated the tag and that the value is
+     * byte aligned. */
+    if ((tag == ASN_BIT_STRING) && (strLen > 0)) {
+        str++;
+        strLen--;
+    }
+
+#ifndef WOLFSSL_NO_ASN_STRICT
+    /* RFC 5280 section 4.1.2.4 lists a DirectoryString as being
+     * 1..MAX in length */
+    if (strLen < 1) {
+        WOLFSSL_MSG("Non conforming DirectoryString of length 0 was found");
+        WOLFSSL_MSG("Use WOLFSSL_NO_ASN_STRICT if wanting to allow empty "
+                    "DirectoryString's");
+        return ASN_PARSE_E;
+    }
+#endif
+
+    /* Convert BER tag to a OpenSSL type. */
+    switch (tag) {
+        case CTC_UTF8:
+            enc = WOLFSSL_MBSTRING_UTF8;
+            break;
+        case CTC_PRINTABLE:
+            enc = WOLFSSL_V_ASN1_PRINTABLESTRING;
+            break;
+        case ASN_BIT_STRING:
+            enc = WOLFSSL_V_ASN1_BIT_STRING;
+            break;
+        default:
+            WOLFSSL_MSG("Unknown encoding type, default UTF8");
+            enc = WOLFSSL_MBSTRING_UTF8;
+    }
+    if ((nid != 0) && (dName != NULL)) {
+        /* Add an entry to the X509_NAME. */
+        if (wolfSSL_X509_NAME_add_entry_by_NID(dName, nid, enc, str,
+                (int)strLen, -1, -1) != WOLFSSL_SUCCESS) {
+            ret = ASN_PARSE_E;
+        }
+    }
+    return ret;
+}
+#endif /* WOLFSSL_X509_NAME_AVAILABLE */
+
 static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                        const byte* input, word32* inOutIdx, word32 maxIdx)
 {
@@ -15540,15 +15623,23 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
         /* Process all RDNs in name. */
         while ((ret == 0) && (srcIdx < maxIdx)) {
             int nid = 0;
+            /* End of the SET holding this RDN's AttributeTypeAndValues. */
+            word32 setEnd = 0;
 
             /* Initialize for data and setup RDN choice. */
             GetASN_Choice(&dataASN[RDNASN_IDX_ATTR_VAL], rdnChoice);
             /* Ignore type OID as too many to store in table. */
             GetASN_OID(&dataASN[RDNASN_IDX_ATTR_TYPE], oidIgnoreType);
-            /* Parse RDN. */
-            ret = GetASN_Items(rdnASN, dataASN, rdnASN_Length, 1, input,
+            /* Parse the SET and its first AttributeTypeAndValue. The SET is
+             * not required to be fully used: RFC 5280 4.1.2.4 defines an RDN
+             * as SET SIZE (1..MAX) OF AttributeTypeAndValue, so a
+             * multi-valued RDN holds more than one. */
+            ret = GetASN_Items(rdnASN, dataASN, rdnASN_Length, 0, input,
                                &srcIdx, maxIdx);
             if (ret == 0) {
+                /* SET contents start at its first member. */
+                setEnd = dataASN[RDNASN_IDX_ATTR_SEQ].offset +
+                         dataASN[RDNASN_IDX_SET].length;
                 /* Put RDN data into certificate. */
                 ret = GetRDN(cert, full, &idx, &nid, nameType == ASN_SUBJECT,
                              dataASN);
@@ -15557,58 +15648,34 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
             /* TODO: push this back up to ssl.c
              * (do parsing for WOLFSSL_X509_NAME on demand) */
             if (ret == 0) {
-                int enc;
-                const byte* str;
-                word32 strLen;
-                byte   tag = dataASN[RDNASN_IDX_ATTR_VAL].tag;
-
-                /* Get string reference. */
-                GetASN_GetRef(&dataASN[RDNASN_IDX_ATTR_VAL], &str, &strLen);
-
-                /* Strip the BIT STRING unused-bits count octet before the
-                 * length check below. GetRDN() has already validated the tag
-                 * and that the value is byte aligned. */
-                if ((tag == ASN_BIT_STRING) && (strLen > 0)) {
-                    str++;
-                    strLen--;
-                }
-
-            #ifndef WOLFSSL_NO_ASN_STRICT
-                /* RFC 5280 section 4.1.2.4 lists a DirectoryString as being
-                 * 1..MAX in length */
-                if (ret == 0 && strLen < 1) {
-                    WOLFSSL_MSG("Non conforming DirectoryString of length 0 was"
-                                " found");
-                    WOLFSSL_MSG("Use WOLFSSL_NO_ASN_STRICT if wanting to allow"
-                                " empty DirectoryString's");
-                    ret = ASN_PARSE_E;
-                }
-            #endif
-
-                /* Convert BER tag to a OpenSSL type. */
-                switch (tag) {
-                    case CTC_UTF8:
-                        enc = WOLFSSL_MBSTRING_UTF8;
-                        break;
-                    case CTC_PRINTABLE:
-                        enc = WOLFSSL_V_ASN1_PRINTABLESTRING;
-                        break;
-                    case ASN_BIT_STRING:
-                        enc = WOLFSSL_V_ASN1_BIT_STRING;
-                        break;
-                    default:
-                        WOLFSSL_MSG("Unknown encoding type, default UTF8");
-                        enc = WOLFSSL_MBSTRING_UTF8;
-                }
-                if ((ret == 0) && (nid != 0)) {
-                    /* Add an entry to the X509_NAME. */
-                    if (wolfSSL_X509_NAME_add_entry_by_NID(dName, nid, enc, str,
-                            (int)strLen, -1, -1) != WOLFSSL_SUCCESS) {
-                        ret = ASN_PARSE_E;
-                    }
-                }
+                ret = AddRDNToName(dName, nid, &dataASN[RDNASN_IDX_ATTR_VAL]);
             }
         #endif
+
+            /* Remaining AttributeTypeAndValues of a multi-valued RDN. Bound
+             * by the SET so an AttributeTypeAndValue outside it is not
+             * folded into this RDN. */
+            while ((ret == 0) && (srcIdx < setEnd)) {
+                /* Each AttributeTypeAndValue starts with no NID: an unknown
+                 * type OID must not be filed under the previous entry's
+                 * NID. */
+                nid = 0;
+                GetASN_Choice(&dataASN[RDNASN_IDX_ATTR_VAL], rdnChoice);
+                GetASN_OID(&dataASN[RDNASN_IDX_ATTR_TYPE], oidIgnoreType);
+                /* avaASN items align onto the rdnASN data items. */
+                ret = GetASN_Items(avaASN, dataASN + RDNASN_IDX_ATTR_SEQ,
+                                   avaASN_Length, 1, input, &srcIdx, setEnd);
+                if (ret == 0) {
+                    ret = GetRDN(cert, full, &idx, &nid,
+                                 nameType == ASN_SUBJECT, dataASN);
+                }
+            #ifdef WOLFSSL_X509_NAME_AVAILABLE
+                if (ret == 0) {
+                    ret = AddRDNToName(dName, nid,
+                                       &dataASN[RDNASN_IDX_ATTR_VAL]);
+                }
+            #endif
+            }
         }
     }
     if (ret == 0) {
@@ -22769,16 +22836,10 @@ WOLFSSL_TEST_VIS int DecodeExtensionType(const byte* input, word32 length,
              defined(WOLFSSL_X509_TINY_NAME_CONSTRAINTS))
         /* Name constraints. */
         case NAME_CONS_OID:
-        #ifndef WOLFSSL_NO_ASN_STRICT
-            /* Verify RFC 5280 Sec 4.2.1.10 rule:
-                "The name constraints extension,
-                which MUST be used only in a CA certificate" */
-            if (!cert->isCA) {
-                WOLFSSL_MSG("Name constraints allowed only for CA certs");
-                WOLFSSL_ERROR_VERBOSE(ASN_NAME_INVALID_E);
-                ret = ASN_NAME_INVALID_E;
-            }
-        #endif
+            /* RFC 5280 Sec 4.2.1.10 requires name constraints only in a CA
+             * certificate. Checked after all extensions are decoded: isCA
+             * comes from basic constraints, which may be encoded after this
+             * extension. */
             VERIFY_AND_SET_OID(cert->extNameConstraintSet);
             cert->extNameConstraintCrit = critical ? 1 : 0;
             if (DecodeNameConstraints(input, length, cert) < 0) {
@@ -23060,6 +23121,16 @@ static int DecodeCertExtensions(DecodedCert* cert)
             ret = 0;
         }
     }
+
+#if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(IGNORE_NAME_CONSTRAINTS)
+    /* RFC 5280 Sec 4.2.1.10: "The name constraints extension, which MUST be
+     * used only in a CA certificate". */
+    if ((ret == 0) && cert->extNameConstraintSet && (!cert->isCA)) {
+        WOLFSSL_MSG("Name constraints allowed only for CA certs");
+        WOLFSSL_ERROR_VERBOSE(ASN_NAME_INVALID_E);
+        ret = ASN_NAME_INVALID_E;
+    }
+#endif
 
     if (ret == 0) {
         /* Use criticality return. */

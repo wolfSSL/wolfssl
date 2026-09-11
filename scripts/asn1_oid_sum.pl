@@ -483,6 +483,7 @@ my @policy_map = ( 2, 5, 29, 33 );
 my @policy_const = ( 2, 5, 29, 36 );
 my @issue_alt_names = ( 2, 5, 29, 18 );
 my @tls_feature = ( 1, 3, 6, 1, 5, 5, 7, 1, 24 );
+my @acme_identifier = ( 1, 3, 6, 1, 5, 5, 7, 1, 31 );
 my @dns_srv = ( 1, 3, 6, 1, 5, 5, 7, 8, 7 );
 my @netscape_ct = ( 2, 16, 840, 1, 113730, 1, 1 );
 my @ocsp_nocheck = ( 1, 3, 6, 1, 5, 5, 7, 48, 1, 5 );
@@ -513,6 +514,7 @@ my @exts = (
     { name => "POLICY_CONST",           oid => \@policy_const           },
     { name => "ISSUE_ALT_NAMES",        oid => \@issue_alt_names        },
     { name => "TLS_FEATURE",            oid => \@tls_feature            },
+    { name => "ACME_IDENTIFIER",        oid => \@acme_identifier        },
     { name => "DNS_SRV",                oid => \@dns_srv                },
     { name => "NETSCAPE_CT",            oid => \@netscape_ct            },
     { name => "OCSP_NOCHECK",           oid => \@ocsp_nocheck           },
