@@ -53,7 +53,7 @@
  *
  * --enable-fips=dev is deliberately NOT excluded: it compiles the wrappers, so
  * the module really does return the indicator under it and the test follows the
- * module.  Teaching fips.c about WOLFSSL_FIPS_DEV is not an option -- a
+ * module.  Teaching fips.c about WOLFSSL_FIPS_DEV is not an option: a
  * development-only macro must never reach the module source.
  */
 #if defined(HAVE_FIPS) && defined(WC_HAVE_FIPS_INDICATOR) && \
