@@ -5405,9 +5405,77 @@ int test_wc_AesCcmAeadEdgeCases(void)
  * AES-XTS
  ******************************************************************************/
 
+/* A failed AES-GCM decrypt must not hand back the plaintext it computed. */
+int test_wc_AesGcmDecrypt_WipeOnAuthFail(void)
+{
+    EXPECT_DECLS;
+/* Only the software, AES-NI and Arm lanes wipe; the offload back ends and the
+ * ACVP harness build return the computed plaintext.  A FIPS build before v7,
+ * and a --enable-selftest build, compile an older boundary aes.c that has no
+ * wipe. */
+#if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    !defined(HAVE_SELFTEST) && \
+    !defined(NO_AES) && defined(HAVE_AESGCM) && defined(HAVE_AES_DECRYPT) && \
+    defined(WOLFSSL_AES_256) && !defined(WOLFSSL_AFALG) && \
+    !defined(WOLFSSL_KCAPI) && !defined(WOLFSSL_DEVCRYPTO_AES) && \
+    !defined(WOLFSSL_ASYNC_CRYPT) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_STM32_BARE) && \
+    !defined(STM32_CRYPTO_AES_GCM) && !defined(WOLFSSL_PSOC6_CRYPTO) && \
+    !defined(WOLFSSL_RISCV_ASM) && \
+    !defined(WOLFSSL_RISCV_VECTOR_CRYPTO_ASM) && \
+    !defined(FREESCALE_LTC_AES_GCM) && !defined(ACVP_VECTOR_TESTING) && \
+    !defined(WOLFSSL_XILINX_CRYPT) && !defined(WOLFSSL_AFALG_XILINX_AES)
+    static const byte key[] = {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+    static const byte iv[] = {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62
+    };
+    Aes aes;
+    byte pt[WC_AES_BLOCK_SIZE * 5];
+    byte ct[sizeof(pt)];
+    byte dec[sizeof(pt)];
+    byte zeros[sizeof(pt)];
+    byte tag[WC_AES_BLOCK_SIZE];
+    word32 i;
+
+    for (i = 0; i < (word32)sizeof(pt); i++) {
+        pt[i] = (byte)(0x40 + i);
+    }
+    XMEMSET(zeros, 0, sizeof(zeros));
+    XMEMSET(&aes, 0, sizeof(aes));
+
+    ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesGcmSetKey(&aes, key, sizeof(key)), 0);
+    ExpectIntEQ(wc_AesGcmEncrypt(&aes, ct, pt, sizeof(pt), iv, sizeof(iv),
+        tag, sizeof(tag), NULL, 0), 0);
+
+    /* Corrupt the tag: the decrypt must fail and dec must be all zero. */
+    tag[0] ^= 0x01;
+    XMEMSET(dec, 0xff, sizeof(dec));
+    ExpectIntEQ(wc_AesGcmDecrypt(&aes, dec, ct, sizeof(ct), iv, sizeof(iv),
+        tag, sizeof(tag), NULL, 0), WC_NO_ERR_TRACE(AES_GCM_AUTH_E));
+    ExpectBufEQ(dec, zeros, sizeof(dec));
+
+    /* Control: the good tag recovers the plaintext, so the zeros were a wipe. */
+    tag[0] ^= 0x01;
+    XMEMSET(dec, 0, sizeof(dec));
+    ExpectIntEQ(wc_AesGcmDecrypt(&aes, dec, ct, sizeof(ct), iv, sizeof(iv),
+        tag, sizeof(tag), NULL, 0), 0);
+    ExpectBufEQ(dec, pt, sizeof(pt));
+    wc_AesFree(&aes);
+#endif
+    return EXPECT_RESULT();
+}
+
 /*
  * test function for wc_AesXtsSetKey()
  */
+
 int test_wc_AesXtsSetKey(void)
 {
     EXPECT_DECLS;
@@ -6230,10 +6298,251 @@ int test_wc_AesXtsStream_ReinitAfterFinal(void)
  * AES-XTS sector APIs
  ******************************************************************************/
 
+/* A streaming request that would overflow the per-tweak byte counter is
+ * refused before any data is touched, and the counter is left as it was. */
+int test_wc_AesXtsStream_CounterOverflow(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && defined(WOLFSSL_AES_XTS) && \
+    defined(WOLFSSL_AES_256) && defined(WOLFSSL_AESXTS_STREAM) && \
+    !defined(WC_AESXTS_STREAM_NO_REQUEST_ACCOUNTING) && \
+    !defined(WOLFSSL_AFALG) && !defined(WOLFSSL_KCAPI)
+    static const byte key32[] = {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+    static const byte tweak[] = {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+    XtsAes aes;
+    XtsAesStreamData xs;
+    byte buf[WC_AES_BLOCK_SIZE * 2];
+
+    XMEMSET(&aes, 0, sizeof(aes));
+    XMEMSET(&xs, 0, sizeof(xs));
+    XMEMSET(buf, 0x5a, sizeof(buf));
+    ExpectIntEQ(wc_AesXtsSetKey(&aes, key32, sizeof(key32),
+        AES_ENCRYPTION, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesXtsEncryptInit(&aes, tweak, sizeof(tweak), &xs), 0);
+    ExpectIntEQ(wc_AesXtsEncryptUpdate(&aes, buf, buf, WC_AES_BLOCK_SIZE,
+        &xs), 0);
+    /* One block is counted, so this size overflows a 32-bit total. */
+    ExpectIntEQ(wc_AesXtsEncryptUpdate(&aes, buf, buf,
+        0xFFFFFFF0U, &xs), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* The refused request did not touch the counter: a block still fits. */
+    ExpectIntEQ(wc_AesXtsEncryptUpdate(&aes, buf, buf, WC_AES_BLOCK_SIZE,
+        &xs), 0);
+    ExpectIntEQ(wc_AesXtsEncryptFinal(&aes, NULL, NULL, 0, &xs), 0);
+    wc_AesXtsFree(&aes);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Callers hand AES plain byte buffers, so every entry must accept any
+ * alignment; the 32-bit Arm bulk block routine once required word alignment. */
+int test_wc_AesUnalignedBuffers(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && defined(WOLFSSL_AES_128) && \
+    (defined(HAVE_AES_ECB) || defined(WOLFSSL_AES_XTS)) && \
+    !defined(WOLFSSL_AFALG) && !defined(WOLFSSL_KCAPI)
+    /* XTS needs two distinct keys, so the halves differ. */
+    static const byte key32[] = {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x66, 0x65, 0x64, 0x63, 0x62, 0x61, 0x39, 0x38,
+        0x37, 0x36, 0x35, 0x34, 0x33, 0x32, 0x31, 0x30
+    };
+    /* Eight blocks: enough for the four-block bulk path to run twice. */
+    const word32 sz = WC_AES_BLOCK_SIZE * 8;
+    byte in[WC_AES_BLOCK_SIZE * 8 + 4];
+    byte out[WC_AES_BLOCK_SIZE * 8 + 4];
+    byte ref[WC_AES_BLOCK_SIZE * 8];
+    word32 i, offIn, offOut;
+
+    for (i = 0; i < sizeof(in); i++)
+        in[i] = (byte)(i * 7 + 3);
+
+#ifdef HAVE_AES_ECB
+    {
+        Aes aes;
+        XMEMSET(&aes, 0, sizeof(aes));
+        ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_AesSetKey(&aes, key32, 16, NULL, AES_ENCRYPTION), 0);
+        ExpectIntEQ(wc_AesEcbEncrypt(&aes, ref, in, sz), 0);
+        for (offIn = 0; offIn < 4; offIn++) {
+            for (offOut = 0; offOut < 4; offOut++) {
+                XMEMMOVE(in + offIn, in, sz);
+                XMEMSET(out, 0, sizeof(out));
+                ExpectIntEQ(wc_AesEcbEncrypt(&aes, out + offOut, in + offIn,
+                    sz), 0);
+                ExpectBufEQ(out + offOut, ref, sz);
+                XMEMMOVE(in, in + offIn, sz);
+            }
+        }
+        wc_AesFree(&aes);
+    }
+#endif
+#ifdef WOLFSSL_AES_XTS
+    {
+        static const byte tweak[WC_AES_BLOCK_SIZE] = {
+            0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+            0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+        };
+        XtsAes xaes;
+        XMEMSET(&xaes, 0, sizeof(xaes));
+        ExpectIntEQ(wc_AesXtsSetKey(&xaes, key32, sizeof(key32),
+            AES_ENCRYPTION, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_AesXtsEncrypt(&xaes, ref, in, sz, tweak,
+            sizeof(tweak)), 0);
+        for (offIn = 0; offIn < 4; offIn++) {
+            for (offOut = 0; offOut < 4; offOut++) {
+                XMEMMOVE(in + offIn, in, sz);
+                XMEMSET(out, 0, sizeof(out));
+                ExpectIntEQ(wc_AesXtsEncrypt(&xaes, out + offOut, in + offIn,
+                    sz, tweak, sizeof(tweak)), 0);
+                ExpectBufEQ(out + offOut, ref, sz);
+                XMEMMOVE(in, in + offIn, sz);
+            }
+        }
+        wc_AesXtsFree(&xaes);
+    }
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+/* SP 800-38E section 4: a data unit (one tweak) is at most 2^20 AES blocks. */
+int test_wc_AesXtsDataUnitLimit(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && defined(WOLFSSL_AES_XTS) && \
+    defined(WOLFSSL_AES_256) && FIPS_VERSION3_GE(6,0,0) && \
+    !defined(WOLFSSL_AFALG) && !defined(WOLFSSL_KCAPI)
+    static const byte key32[] = {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+    static const byte tweak[] = {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+    const word32 tweakLen = (word32)sizeof(tweak);
+    const word32 limit = FIPS_AES_XTS_MAX_BYTES_PER_TWEAK;
+    XtsAes aes;
+    byte buf[WC_AES_BLOCK_SIZE * 2];
+
+    XMEMSET(&aes, 0, sizeof(aes));
+    XMEMSET(buf, 0, sizeof(buf));
+
+    /* One shot: one block over the limit is refused before any data is
+     * touched, so a small buffer is fine. */
+    ExpectIntEQ(wc_AesXtsSetKey(&aes, key32, sizeof(key32),
+        AES_ENCRYPTION, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesXtsEncrypt(&aes, buf, buf, limit + WC_AES_BLOCK_SIZE,
+        tweak, tweakLen), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    wc_AesXtsFree(&aes);
+#if FIPS_VERSION3_GE(6,0,0) && defined(HAVE_AES_DECRYPT)
+    ExpectIntEQ(wc_AesXtsSetKey(&aes, key32, sizeof(key32),
+        AES_DECRYPTION, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesXtsDecrypt(&aes, buf, buf, limit + WC_AES_BLOCK_SIZE,
+        tweak, tweakLen), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    wc_AesXtsFree(&aes);
+#endif
+
+#ifdef WOLFSSL_AESXTS_STREAM
+    {
+        /* Streaming: near the limit a request that would overflow is refused
+         * and a smaller one still fits, proving the refusal was not counted. */
+        XtsAesStreamData xs;
+        const word32 chunk = 64 * 1024;
+        word32 done = 0;
+        byte* big = (byte*)XMALLOC(chunk * 2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+        ExpectNotNull(big);
+        if (big != NULL) {
+            XMEMSET(big, 0x5a, chunk * 2);
+            XMEMSET(&xs, 0, sizeof(xs));
+            ExpectIntEQ(wc_AesXtsSetKey(&aes, key32, sizeof(key32),
+                AES_ENCRYPTION, NULL, INVALID_DEVID), 0);
+            ExpectIntEQ(wc_AesXtsEncryptInit(&aes, tweak, tweakLen,
+                &xs), 0);
+            while (EXPECT_SUCCESS() && done + chunk < limit) {
+                ExpectIntEQ(wc_AesXtsEncryptUpdate(&aes, big, big, chunk,
+                    &xs), 0);
+                done += chunk;
+            }
+            ExpectIntEQ(wc_AesXtsEncryptUpdate(&aes, big, big, chunk * 2,
+                &xs), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            ExpectIntEQ(wc_AesXtsEncryptUpdate(&aes, big, big, chunk,
+                &xs), 0);
+            ExpectIntEQ(wc_AesXtsEncryptUpdate(&aes, buf, buf,
+                WC_AES_BLOCK_SIZE, &xs), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            ExpectIntEQ(wc_AesXtsEncryptFinal(&aes, NULL, NULL, 0,
+                &xs), 0);
+            wc_AesXtsFree(&aes);
+
+            /* A new tweak is a new data unit. */
+            XMEMSET(&xs, 0, sizeof(xs));
+            ExpectIntEQ(wc_AesXtsSetKey(&aes, key32, sizeof(key32),
+                AES_ENCRYPTION, NULL, INVALID_DEVID), 0);
+            ExpectIntEQ(wc_AesXtsEncryptInit(&aes, tweak, tweakLen,
+                &xs), 0);
+            ExpectIntEQ(wc_AesXtsEncryptUpdate(&aes, big, big, chunk,
+                &xs), 0);
+            ExpectIntEQ(wc_AesXtsEncryptFinal(&aes, NULL, NULL, 0,
+                &xs), 0);
+            wc_AesXtsFree(&aes);
+
+/* v6.0.0 limits the one-shot decrypt but not the streaming one. */
+#if FIPS_VERSION3_GE(7,0,0) && defined(HAVE_AES_DECRYPT)
+            done = 0;
+            XMEMSET(&xs, 0, sizeof(xs));
+            ExpectIntEQ(wc_AesXtsSetKey(&aes, key32, sizeof(key32),
+                AES_DECRYPTION, NULL, INVALID_DEVID), 0);
+            ExpectIntEQ(wc_AesXtsDecryptInit(&aes, tweak, tweakLen,
+                &xs), 0);
+            while (EXPECT_SUCCESS() && done + chunk < limit) {
+                ExpectIntEQ(wc_AesXtsDecryptUpdate(&aes, big, big, chunk,
+                    &xs), 0);
+                done += chunk;
+            }
+            ExpectIntEQ(wc_AesXtsDecryptUpdate(&aes, big, big, chunk * 2,
+                &xs), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            ExpectIntEQ(wc_AesXtsDecryptUpdate(&aes, big, big, chunk,
+                &xs), 0);
+            ExpectIntEQ(wc_AesXtsDecryptUpdate(&aes, buf, buf,
+                WC_AES_BLOCK_SIZE, &xs), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            ExpectIntEQ(wc_AesXtsDecryptFinal(&aes, NULL, NULL, 0,
+                &xs), 0);
+            wc_AesXtsFree(&aes);
+#endif
+            XFREE(big, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+    }
+#endif /* WOLFSSL_AESXTS_STREAM */
+#endif
+    return EXPECT_RESULT();
+}
+
 /*
  * test function for wc_AesXtsEncryptSector, wc_AesXtsDecryptSector,
  * wc_AesXtsEncryptConsecutiveSectors, and wc_AesXtsDecryptConsecutiveSectors
  */
+
 int test_wc_AesXtsEncryptDecryptSector(void)
 {
     EXPECT_DECLS;

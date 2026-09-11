@@ -204,6 +204,7 @@
 #ifndef WOLFSSL_LINUXKM_USE_MUTEXES
     struct wolfSSL_Mutex;
     extern int wc_lkm_LockMutex(struct wolfSSL_Mutex* m);
+    extern int wc_lkm_UnLockMutex(struct wolfSSL_Mutex* m);
 #endif
 
     #ifndef WC_LINUXKM_INTR_SIGNALS
@@ -253,6 +254,11 @@
           defined(WOLFSSL_SP_ARM_CORTEX_M_ASM)
         #if !defined(CONFIG_ARM) && !defined(CONFIG_ARM64)
             #error ARM SIMD extensions requested, but CONFIG_ARM* is not set.
+        #endif
+        /* A kernel module runs privileged, so the 32-bit Arm feature test reads
+         * ID_ISAR5 directly instead of the userspace getauxval() path. */
+        #if defined(CONFIG_ARM) && !defined(WOLFSSL_ARM32_PRIVILEGE_MODE)
+            #define WOLFSSL_ARM32_PRIVILEGE_MODE
         #endif
         #define WOLFSSL_LINUXKM_SIMD
         #define WOLFSSL_LINUXKM_SIMD_ARM
@@ -807,8 +813,11 @@
         #define WOLFSSL_USE_SAVE_VECTOR_REGISTERS
     #endif
 
+    /* x86 and arm64 share one interface: the x86_vector_register_glue.c and
+     * arm64_vector_register_glue.c entry points keep the wc_*_x86 names so
+     * the callers and the PIE redirect table are the same on both. */
     #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && \
-        defined(CONFIG_X86)
+        (defined(CONFIG_X86) || defined(CONFIG_ARM64) || defined(CONFIG_ARM))
 
         extern __must_check int wc_linuxkm_allocate_svr_states(void);
         extern void wc_linuxkm_free_svr_states(void);
@@ -821,6 +830,7 @@
         WOLFSSL_API __must_check int wc_save_vector_registers_x86(enum wc_svr_flags flags);
         WOLFSSL_API void wc_restore_vector_registers_x86(enum wc_svr_flags flags);
 
+        #ifdef CONFIG_X86
         #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
             #include <asm/i387.h>
             #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
@@ -833,6 +843,10 @@
                 /* added by 266d051601 */
                 #include <crypto/internal/simd.h>
             #endif
+        #endif
+        #else /* CONFIG_ARM64 || CONFIG_ARM */
+            #include <asm/simd.h> /* may_use_simd() */
+            #include <asm/neon.h> /* kernel_neon_begin(), kernel_neon_end() */
         #endif
         #ifndef CAN_SAVE_VECTOR_REGISTERS
             #if defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_OFF) && \
@@ -943,6 +957,8 @@
             #define REENABLE_VECTOR_REGISTERS() wc_restore_vector_registers_x86(WC_SVR_FLAG_INHIBIT)
         #endif
 
+        /* A 0 return means a section is open on both glues, whether or not
+         * the registers came with it, so the caller must always release it. */
         #ifndef SAVE_VECTOR_REGISTERS_MAYBE_INHIBIT
             #if (defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON) || \
                  defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_OFF))
@@ -955,42 +971,6 @@
         #endif
         #ifndef RESTORE_VECTOR_REGISTERS_MAYBE_INHIBITED
             #define RESTORE_VECTOR_REGISTERS_MAYBE_INHIBITED() wc_restore_vector_registers_x86(WC_SVR_FLAG_MAYBE_INHIBIT)
-        #endif
-
-    #elif defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && (defined(CONFIG_ARM) || defined(CONFIG_ARM64))
-
-        #error kernel module ARM SIMD is not yet tested or usable.
-
-        #include <asm/fpsimd.h>
-
-        static WARN_UNUSED_RESULT inline int save_vector_registers_arm(void)
-        {
-            preempt_disable();
-            if (! may_use_simd()) {
-                preempt_enable();
-                return BAD_STATE_E;
-            } else {
-                fpsimd_preserve_current_state();
-                return 0;
-            }
-        }
-        static inline void restore_vector_registers_arm(void)
-        {
-            fpsimd_restore_current_state();
-            preempt_enable();
-        }
-
-        #ifndef SAVE_VECTOR_REGISTERS
-            #define SAVE_VECTOR_REGISTERS(fail_clause) { int _svr_ret = save_vector_registers_arm(); if (_svr_ret != 0) { fail_clause } }
-        #endif
-        #ifndef SAVE_VECTOR_REGISTERS2
-            #define SAVE_VECTOR_REGISTERS2() save_vector_registers_arm()
-        #endif
-        #ifndef CAN_SAVE_VECTOR_REGISTERS
-            #define CAN_SAVE_VECTOR_REGISTERS() can_save_vector_registers_arm()
-        #endif
-        #ifndef RESTORE_VECTOR_REGISTERS
-            #define RESTORE_VECTOR_REGISTERS() restore_vector_registers_arm()
         #endif
 
     #elif (defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) &&    \
@@ -1350,13 +1330,14 @@
 
         #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
 
-            #ifdef CONFIG_X86
+            #if defined(CONFIG_X86) || defined(CONFIG_ARM64) || \
+                defined(CONFIG_ARM)
                 typeof(wc_linuxkm_allocate_svr_states) *wc_linuxkm_allocate_svr_states;
                 typeof(wc_can_save_vector_registers_x86) *wc_can_save_vector_registers_x86;
                 typeof(wc_linuxkm_free_svr_states) *wc_linuxkm_free_svr_states;
                 typeof(wc_restore_vector_registers_x86) *wc_restore_vector_registers_x86;
                 typeof(wc_save_vector_registers_x86) *wc_save_vector_registers_x86;
-            #elif !defined(WC_DEBUG_FORCE_KERNEL_SETTINGS) /* !CONFIG_X86 */
+            #elif !defined(WC_DEBUG_FORCE_KERNEL_SETTINGS) /* !CONFIG_X86 && !CONFIG_ARM64 && !CONFIG_ARM */
                 #error WOLFSSL_USE_SAVE_VECTOR_REGISTERS is set for an unimplemented architecture.
             #endif /* arch */
 
@@ -1515,6 +1496,7 @@
         typeof(_cond_resched) *_cond_resched;
         #ifndef WOLFSSL_LINUXKM_USE_MUTEXES
         typeof(wc_lkm_LockMutex) *wc_lkm_LockMutex;
+        typeof(wc_lkm_UnLockMutex) *wc_lkm_UnLockMutex;
         #endif
 
         typeof(wc_linuxkm_can_block) *wc_linuxkm_can_block;
@@ -1709,7 +1691,8 @@
     #undef get_current
     #define get_current WC_PIE_INDIRECT_SYM(get_current)
 
-    #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
+    #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && \
+        (defined(CONFIG_X86) || defined(CONFIG_ARM64) || defined(CONFIG_ARM))
         #define wc_linuxkm_allocate_svr_states WC_PIE_INDIRECT_SYM(wc_linuxkm_allocate_svr_states)
         #define wc_can_save_vector_registers_x86 WC_PIE_INDIRECT_SYM(wc_can_save_vector_registers_x86)
         #define wc_linuxkm_free_svr_states WC_PIE_INDIRECT_SYM(wc_linuxkm_free_svr_states)
@@ -2056,7 +2039,8 @@
     #if !defined(BUILDING_WOLFSSL)
         /* some caller code needs these. */
         #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS)
-            #if defined(CONFIG_X86)
+            #if defined(CONFIG_X86) || defined(CONFIG_ARM64) || \
+                defined(CONFIG_ARM)
                 WOLFSSL_API __must_check int wc_can_save_vector_registers_x86(void);
                 WOLFSSL_API __must_check int wc_save_vector_registers_x86(enum wc_svr_flags flags);
                 WOLFSSL_API void wc_restore_vector_registers_x86(enum wc_svr_flags flags);
@@ -2066,9 +2050,9 @@
                 #ifndef REENABLE_VECTOR_REGISTERS
                     #define REENABLE_VECTOR_REGISTERS() wc_restore_vector_registers_x86(WC_SVR_FLAG_INHIBIT)
                 #endif
-            #elif !defined(WC_DEBUG_FORCE_KERNEL_SETTINGS) /* !CONFIG_X86 */
+            #elif !defined(WC_DEBUG_FORCE_KERNEL_SETTINGS) /* !CONFIG_X86 && !CONFIG_ARM64 && !CONFIG_ARM */
                 #error WOLFSSL_USE_SAVE_VECTOR_REGISTERS is set for an unimplemented architecture.
-            #endif /* !CONFIG_X86 */
+            #endif /* !CONFIG_X86 && !CONFIG_ARM64 && !CONFIG_ARM */
         #endif /* WOLFSSL_USE_SAVE_VECTOR_REGISTERS */
         #ifdef WC_LINUXKM_USE_HEAP_WRAPPERS
             WOLFSSL_API extern void *wc_linuxkm_malloc(size_t size);
@@ -2142,9 +2126,22 @@
          */
         #include <linux/spinlock.h>
 
+        /* Arm can only claim NEON with interrupts on, so this lock takes bottom
+         * halves off instead; 32-bit Arm before 6.4 is the other way round. */
+        #if defined(CONFIG_ARM64) || \
+            (defined(CONFIG_ARM) && LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0))
+            #define WC_LINUXKM_MUTEX_BH
+            #define WC_LINUXKM_MUTEX_BH_INIT .bh_held = 0,
+        #else
+            #define WC_LINUXKM_MUTEX_BH_INIT
+        #endif
+
         typedef struct wolfSSL_Mutex {
             spinlock_t lock;
             unsigned long irq_flags;
+        #ifdef WC_LINUXKM_MUTEX_BH
+            int bh_held;
+        #endif
         #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
             unsigned int magic;
         #endif
@@ -2156,6 +2153,7 @@
             #define WOLFSSL_MUTEX_INITIALIZER(lockname) { \
                .lock =__SPIN_LOCK_UNLOCKED(lockname),     \
                .irq_flags = 0,                            \
+               WC_LINUXKM_MUTEX_BH_INIT                   \
                .magic = WC_LINUXKM_SPINLOCK_MAGIC         \
             }
 
@@ -2163,6 +2161,7 @@
 
             #define WOLFSSL_MUTEX_INITIALIZER(lockname) { \
                .lock =__SPIN_LOCK_UNLOCKED(lockname),     \
+               WC_LINUXKM_MUTEX_BH_INIT                   \
                .irq_flags = 0                             \
             }
 
@@ -2177,6 +2176,9 @@
             spin_lock_init(&m->lock);
         #endif
             m->irq_flags = 0;
+        #ifdef WC_LINUXKM_MUTEX_BH
+            m->bh_held = 0;
+        #endif
         #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
             m->magic = WC_LINUXKM_SPINLOCK_MAGIC;
         #endif
@@ -2217,15 +2219,19 @@
 
         #endif /* !WC_CONTAINERIZE_THIS */
 
+        /* Unlocking is out of line for the same reason as locking: the
+         * bottom-half form calls kernel functions a container cannot reach. */
+        #ifdef WC_CONTAINERIZE_THIS
         static __always_inline int wc_UnLockMutex(wolfSSL_Mutex* m)
         {
-        #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
-            if ((m == NULL) || (m->magic != WC_LINUXKM_SPINLOCK_MAGIC))
-                return -1;
-        #endif
-            spin_unlock_irqrestore(&m->lock, m->irq_flags);
-            return 0;
+            return WC_PIE_INDIRECT_SYM(wc_lkm_UnLockMutex)(m);
         }
+        #else /* !WC_CONTAINERIZE_THIS */
+        static __always_inline int wc_UnLockMutex(wolfSSL_Mutex* m)
+        {
+            return wc_lkm_UnLockMutex(m);
+        }
+        #endif /* !WC_CONTAINERIZE_THIS */
 
     #endif
 
