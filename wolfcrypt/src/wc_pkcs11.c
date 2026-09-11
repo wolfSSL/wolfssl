@@ -3705,8 +3705,8 @@ static int Pkcs11ECDSASig_Decode(const byte* in, word32 inSz, byte* sig,
 {
     int ret = 0;
     word32 i = 0;
+    word32 len, seqLen = 2;
     byte   tag;
-    int len, seqLen = 2;
 
     /* Make sure zeros in place when decoding short integers. */
     XMEMSET(sig, 0, sz * 2);
@@ -3733,10 +3733,12 @@ static int Pkcs11ECDSASig_Decode(const byte* in, word32 inSz, byte* sig,
         ret = ASN_PARSE_E;
     if (ret == 0 && tag != ASN_INTEGER)
         ret = ASN_PARSE_E;
-    if (ret == 0 && (len = in[i++]) > sz + 1)
+    if (ret == 0 && i >= inSz)
+        ret = ASN_PARSE_E;
+    if (ret == 0 && (len = in[i++]) == 0)
         ret = ASN_PARSE_E;
     /* Check there is space for INT data */
-    if (ret == 0 && i + len > inSz)
+    if (ret == 0 && (i > inSz || len > inSz - i))
         ret = ASN_PARSE_E;
     if (ret == 0) {
         /* Skip leading zero */
@@ -3744,23 +3746,29 @@ static int Pkcs11ECDSASig_Decode(const byte* in, word32 inSz, byte* sig,
             i++;
             len--;
         }
+        if (len > sz)
+            ret = ASN_PARSE_E;
+    }
+    if (ret == 0) {
         /* Copy r into sig. */
         XMEMCPY(sig + sz - len, in + i, len);
         i += len;
     }
 
     /* Check min data for: INT. */
-    if (ret == 0 && i + 2 > inSz)
+    if (ret == 0 && (i > inSz || inSz - i < 2))
         ret = ASN_PARSE_E;
     /* Check INT */
     if (ret == 0 && GetASNTag(in, &i, &tag, inSz) != 0)
         ret = ASN_PARSE_E;
     if (ret == 0 && tag != ASN_INTEGER)
         ret = ASN_PARSE_E;
-    if (ret == 0 && (len = in[i++]) > sz + 1)
+    if (ret == 0 && i >= inSz)
+        ret = ASN_PARSE_E;
+    if (ret == 0 && (len = in[i++]) == 0)
         ret = ASN_PARSE_E;
     /* Check there is space for INT data */
-    if (ret == 0 && i + len > inSz)
+    if (ret == 0 && (i > inSz || len > inSz - i))
         ret = ASN_PARSE_E;
     if (ret == 0) {
         /* Skip leading zero */
@@ -3768,6 +3776,10 @@ static int Pkcs11ECDSASig_Decode(const byte* in, word32 inSz, byte* sig,
             i++;
             len--;
         }
+        if (len > sz)
+            ret = ASN_PARSE_E;
+    }
+    if (ret == 0) {
         /* Copy s into sig. */
         XMEMCPY(sig + sz + sz - len, in + i, len);
     }
