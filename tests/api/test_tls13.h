@@ -33,6 +33,11 @@ int test_tls13_rpk_handshake_no_negotiation(void);
 int test_tls13_pha(void);
 int test_tls13_ctx_dh_rotation(void);
 int test_tls13_accept_state_dh_copy(void);
+int test_tls13_pha_resumption(void);
+int test_tls13_pha_resumption_bare_finished(void);
+int test_tls13_pha_resumption_blank_cert(void);
+int test_tls13_psk_cert_request_in_handshake(void);
+int test_tls13_pha_resumption_second_round(void);
 int test_tls13_rpk_untrusted(void);
 int test_tls13_rpk_trust(void);
 int test_tls13_rpk_unoffered_cert_type(void);
@@ -144,6 +149,11 @@ int test_tls13_cryptocb_async(void);
     TEST_DECL_GROUP("tls13", test_tls13_pha),                   \
     TEST_DECL_GROUP("tls13", test_tls13_ctx_dh_rotation),       \
     TEST_DECL_GROUP("tls13", test_tls13_accept_state_dh_copy),  \
+    TEST_DECL_GROUP("tls13", test_tls13_pha_resumption),        \
+    TEST_DECL_GROUP("tls13", test_tls13_pha_resumption_bare_finished), \
+    TEST_DECL_GROUP("tls13", test_tls13_pha_resumption_blank_cert), \
+    TEST_DECL_GROUP("tls13", test_tls13_psk_cert_request_in_handshake), \
+    TEST_DECL_GROUP("tls13", test_tls13_pha_resumption_second_round), \
     TEST_DECL_GROUP("tls13", test_tls13_rpk_untrusted),         \
     TEST_DECL_GROUP("tls13", test_tls13_rpk_trust),             \
     TEST_DECL_GROUP("tls13", test_tls13_rpk_unoffered_cert_type), \
