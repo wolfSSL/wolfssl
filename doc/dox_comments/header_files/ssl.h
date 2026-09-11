@@ -686,7 +686,8 @@ int wolfSSL_use_old_poly(WOLFSSL* ssl, int value);
 /*!
     \brief The wolfSSL_dtls_import() function is used to parse in a serialized
     session state. This allows for picking up the connection after the
-    handshake has been completed.
+    handshake has been completed. Post-handshake authentication is not
+    available on an imported connection.
 
     \return Success If successful, the amount of the buffer read will be
     returned.
@@ -727,7 +728,10 @@ int wolfSSL_dtls_import(WOLFSSL* ssl, const unsigned char* buf,
 
 /*!
     \brief Used to import a serialized TLS session. This function is for
-    importing the state of the connection.
+    importing the state of the connection. A TLS 1.3 session serialized with
+    export version 7 or later carries its traffic and resumption secrets, so
+    a KeyUpdate and the issuing of a NewSessionTicket work on the imported
+    connection; an older serialization restores the record layer alone.
     WARNING: buf contains sensitive information about the state and is best to
     be encrypted before storing if stored.
     Additional debug info can be displayed with the macro
@@ -750,7 +754,8 @@ int wolfSSL_tls_import(WOLFSSL* ssl, const unsigned char* buf,
     the callback function for exporting a session. It is allowed to
     pass in NULL as the parameter func to clear the export function
     previously stored. Used on the server side and is called immediately
-    after handshake is completed.
+    after handshake is completed, for DTLS 1.2 only; a DTLS 1.3 session
+    is exported with wolfSSL_dtls_export().
 
     \return SSL_SUCCESS upon success.
     \return BAD_FUNC_ARG If null or not expected arguments are passed in
@@ -788,7 +793,9 @@ int wolfSSL_CTX_dtls_set_export(WOLFSSL_CTX* ctx,
     \brief The wolfSSL_dtls_set_export() function is used to set the callback
     function for exporting a session. It is allowed to pass in NULL as the
     parameter func to clear the export function previously stored. Used on
-    the server side and is called immediately after handshake is completed.
+    the server side and is called immediately after handshake is completed,
+    for DTLS 1.2 only; a DTLS 1.3 session is exported with
+    wolfSSL_dtls_export().
 
     \return SSL_SUCCESS upon success.
     \return BAD_FUNC_ARG If null or not expected arguments are passed in
@@ -825,7 +832,17 @@ int wolfSSL_dtls_set_export(WOLFSSL* ssl, wc_dtls_export func);
     overhead than using a function callback for sending a session and
     choice over when the session is serialized. If buffer is NULL when
     passed to function then sz will be set to the size of buffer needed
-    for serializing the WOLFSSL session.
+    for serializing the WOLFSSL session. The export is refused with a
+    negative return before a DTLS 1.3 handshake is done, while a KeyUpdate is
+    in progress, a fragmented message is half sent, a handshake message other
+    than NewSessionTicket is waiting for the peer's ACK, a post-handshake
+    CertificateRequest is unanswered, or a write dup of the object exists. A
+    NewSessionTicket still waiting for its ACK is not exported and is lost.
+    The session tickets themselves are not serialized: any ticket already
+    issued or received is discarded by the export. For a DTLS 1.3 session the
+    blob carries the resumption secret and the ticket nonce, so an imported
+    server can still issue a NewSessionTicket that resumes; use
+    wolfSSL_get1_session before exporting to keep a received ticket.
 
     \return Success If successful, the amount of the buffer used will
     be returned.
@@ -861,7 +878,14 @@ int wolfSSL_dtls_export(WOLFSSL* ssl, unsigned char* buf,
     \brief Used to export a serialized TLS session. This function is for
     exporting a serialized state of the connection.
     In most cases wolfSSL_get1_session should be used instead of
-    wolfSSL_tls_export.
+    wolfSSL_tls_export. The export of a TLS 1.3 session is refused with a
+    negative return before the handshake is done or while a KeyUpdate
+    response is pending.
+    The session tickets themselves are not serialized: any ticket already
+    issued or received is discarded by the export. A TLS 1.3 blob carries the
+    resumption secret and the ticket nonce, so an imported server can still
+    issue a NewSessionTicket that resumes; use wolfSSL_get1_session before
+    exporting to keep a received ticket.
     Additional debug info can be displayed with the macro
     WOLFSSL_SESSION_EXPORT_DEBUG defined.
     WARNING: buf contains sensitive information about the state and is best to
