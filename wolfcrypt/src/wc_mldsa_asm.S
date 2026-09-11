@@ -43,7 +43,7 @@
 #endif /* HAVE_INTEL_AVX512 */
 #endif /* NO_AVX512_SUPPORT */
 
-#ifdef WOLFSSL_HAVE_MLDSA
+#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLF_CRYPTO_CB_ONLY_MLDSA)
 #ifdef HAVE_INTEL_AVX2
 #ifndef __APPLE__
 .data
@@ -39757,8 +39757,8 @@ _wc_mldsa_poly_make_pos_avx2:
 .size	wc_mldsa_poly_make_pos_avx2,.-wc_mldsa_poly_make_pos_avx2
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
-#endif /* WOLFSSL_HAVE_MLDSA */
-#ifdef WOLFSSL_HAVE_MLDSA
+#endif /* WOLFSSL_HAVE_MLDSA && !WOLF_CRYPTO_CB_ONLY_MLDSA */
+#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLF_CRYPTO_CB_ONLY_MLDSA)
 #ifndef NO_AVX512_SUPPORT
 #ifndef HAVE_INTEL_AVX512
 #define HAVE_INTEL_AVX512
@@ -63877,8 +63877,8 @@ _wc_mldsa_poly_make_pos_avx512:
 .size	wc_mldsa_poly_make_pos_avx512,.-wc_mldsa_poly_make_pos_avx512
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX512 */
-#endif /* WOLFSSL_HAVE_MLDSA */
-#ifdef WOLFSSL_HAVE_MLDSA
+#endif /* WOLFSSL_HAVE_MLDSA && !WOLF_CRYPTO_CB_ONLY_MLDSA */
+#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLF_CRYPTO_CB_ONLY_MLDSA)
 #ifndef NO_AVX512_SUPPORT
 #ifndef NO_AVX512_VBMI_SUPPORT
 #ifndef HAVE_INTEL_AVX512_VBMI
@@ -64484,7 +64484,7 @@ _wc_mldsa_encode_t0_t1_avx512_vbmi:
 .size	wc_mldsa_encode_t0_t1_avx512_vbmi,.-wc_mldsa_encode_t0_t1_avx512_vbmi
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX512_VBMI */
-#endif /* WOLFSSL_HAVE_MLDSA */
+#endif /* WOLFSSL_HAVE_MLDSA && !WOLF_CRYPTO_CB_ONLY_MLDSA */
 
 #if defined(__linux__) && defined(__ELF__)
 .section	.note.GNU-stack,"",%progbits
