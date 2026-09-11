@@ -43,49 +43,11 @@
     WOLFSSL_LOCAL int wolfCrypt_FIPS_DRBG_sanity(void);
 #endif
 
-#ifndef WC_RNG_NO_POOL
-    #ifndef WC_RNG_HAVE_POOL
-        #define WC_RNG_HAVE_POOL
-    #endif
-    #ifdef WOLFSSL_NO_ATOMICS
-        typedef word32 WC_RNG_pool_state_t;
-    #else
-        typedef wolfSSL_Atomic_Uint WC_RNG_pool_state_t;
-    #endif
-#else
-    #undef WC_RNG_HAVE_POOL
-#endif
+/***** Setup for RNG extra features *****/
 
-#ifndef WC_RNG_NO_RBGC
-    #if !defined(WC_RNG_HAVE_RBGC) && \
-        defined(HAVE_HASHDRBG) && \
-        !defined(CUSTOM_RAND_GENERATE_BLOCK)
-        #define WC_RNG_HAVE_RBGC
-    #endif
-#else
-    #undef WC_RNG_HAVE_RBGC
-#endif
-
-#ifdef WC_RNG_NO_LOCK_FULL_MUTEX
-    #undef WC_RNG_HAVE_LOCK_FULL_MUTEX
-#elif defined(WC_RNG_HAVE_LOCK_FULL_MUTEX)
-    #ifdef WC_RNG_NO_LOCK
-        #error FULL_MUTEX depends on WC_RNG_HAVE_LOCK.
-    #endif
-#endif
-
-#ifndef WC_RNG_NO_FREE_HOOK
-    #define WC_RNG_HAVE_FREE_HOOK
-#endif
-#ifdef WC_RNG_HAVE_FREE_HOOK
-    struct WC_RNG;
-    typedef int (*wc_RNG_free_hook_cb_t)(const struct WC_RNG *rng, void *arg);
-#endif
-
-#ifndef WC_RNG_NO_LOCK
-    #ifndef WC_RNG_HAVE_LOCK
-        #define WC_RNG_HAVE_LOCK
-    #endif
+#if (defined(WC_RNG_EXTRAS) || defined(WC_RNG_WANT_LOCK)) && \
+    !defined(WC_RNG_NO_LOCK)
+    #define WC_RNG_HAVE_LOCK
     #ifdef WOLFSSL_NO_ATOMICS
         typedef word32 WC_RNG_lock_t;
         typedef word32 WC_RNG_lock_arg_t;
@@ -97,14 +59,27 @@
     #undef WC_RNG_HAVE_LOCK
 #endif
 
-#if !defined(HAVE_HASHDRBG) || defined(CUSTOM_RAND_GENERATE_BLOCK) && \
-    !defined(WC_RNG_NO_NEXT_SEED)
-    #define WC_RNG_NO_NEXT_SEED
-#endif
-#ifndef WC_RNG_NO_NEXT_SEED
-    #ifndef WC_RNG_HAVE_NEXT_SEED
-        #define WC_RNG_HAVE_NEXT_SEED
+#ifdef WC_RNG_WANT_LOCK_FULL_MUTEX
+    #ifndef WC_RNG_HAVE_LOCK
+        #error FULL_MUTEX depends on WC_RNG_HAVE_LOCK.
     #endif
+    #define WC_RNG_HAVE_LOCK_FULL_MUTEX
+#else
+    #undef WC_RNG_HAVE_LOCK_FULL_MUTEX
+#endif
+
+#if (defined(WC_RNG_EXTRAS) || defined(WC_RNG_WANT_RBGC)) && \
+    !defined(WC_RNG_NO_RBGC) && defined(HAVE_HASHDRBG) && \
+    !defined(CUSTOM_RAND_GENERATE_BLOCK)
+    #define WC_RNG_HAVE_RBGC
+#else
+    #undef WC_RNG_HAVE_RBGC
+#endif
+
+#if (defined(WC_RNG_EXTRAS) || defined(WC_RNG_WANT_NEXT_SEED)) && \
+    !defined(WC_RNG_NO_NEXT_SEED) && defined(HAVE_HASHDRBG) && \
+    !defined(CUSTOM_RAND_GENERATE_BLOCK)
+    #define WC_RNG_HAVE_NEXT_SEED
     #ifdef WOLFSSL_NO_ATOMICS
         typedef sword32 WC_DRBG_nextSeedLen_t;
     #else
@@ -113,6 +88,29 @@
 #else
     #undef WC_RNG_HAVE_NEXT_SEED
 #endif
+
+#if (defined(WC_RNG_EXTRAS) || defined(WC_RNG_WANT_POOL)) && \
+    !defined(WC_RNG_NO_POOL)
+    #define WC_RNG_HAVE_POOL
+    #ifdef WOLFSSL_NO_ATOMICS
+        typedef word32 WC_RNG_pool_state_t;
+    #else
+        typedef wolfSSL_Atomic_Uint WC_RNG_pool_state_t;
+    #endif
+#else
+    #undef WC_RNG_HAVE_POOL
+#endif
+
+#if (defined(WC_RNG_EXTRAS) || defined(WC_RNG_WANT_FREE_HOOK)) && \
+    !defined(WC_RNG_NO_FREE_HOOK)
+    #define WC_RNG_HAVE_FREE_HOOK
+    struct WC_RNG;
+    typedef int (*wc_RNG_free_hook_cb_t)(const struct WC_RNG *rng, void *arg);
+#else
+    #undef WC_RNG_HAVE_FREE_HOOK
+#endif
+
+/***** End setup for RNG extra features *****/
 
  /* Maximum generate block length */
 #ifndef RNG_MAX_BLOCK_LEN

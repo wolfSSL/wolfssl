@@ -804,6 +804,7 @@ static int Hash256_DRBG_Reseed(DRBG_internal* drbg, const byte* seed,
  * plain-store purge:
  * stirs carry no claims, so resurrection there is benign by the
  * three-no-ops doctrine.) */
+#ifdef WC_RNG_HAVE_LOCK
 static void NextSeedPurge(wolfSSL_Atomic_Int *lenp)
 {
     WC_ATOMIC_INT_ARG cur = WOLFSSL_ATOMIC_LOAD(*lenp);
@@ -818,6 +819,7 @@ static void NextSeedPurge(wolfSSL_Atomic_Int *lenp)
         /* cur was reloaded by the failed exchange; re-evaluate. */
     }
 }
+#endif /* WC_RNG_HAVE_LOCK */
 
 /* Release a producer claim (PRODUCING) on the credited aperture,
  * installing val (a fill offset, the full length, READY, or EMPTY).
