@@ -17566,12 +17566,35 @@ static wc_test_ret_t aes_xts_large_test_common(XtsAes *aes,
             ret = wc_AesXtsDecryptInit(aes, i1, i1Sz, &stream);
             if (ret != 0)
                 ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            /* A block that lands exactly ON the cap is still allowed: the
+             * check is "greater than", not "greater or equal". */
             stream.bytes_crypted_with_this_tweak =
-                FIPS_AES_XTS_MAX_BYTES_PER_TWEAK;
+                FIPS_AES_XTS_MAX_BYTES_PER_TWEAK - WC_AES_BLOCK_SIZE;
+            ret = wc_AesXtsDecryptUpdate(aes, buf, ref,
+                WC_AES_BLOCK_SIZE, &stream);
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            if (stream.bytes_crypted_with_this_tweak !=
+                    (word32)FIPS_AES_XTS_MAX_BYTES_PER_TWEAK)
+                ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+            /* The next block is over the cap: refused, and it must leave the
+             * output and the count exactly as they were. */
+            before = stream.bytes_crypted_with_this_tweak;
+            XMEMSET(buf, 0x5A, WC_AES_BLOCK_SIZE);
             ret = wc_AesXtsDecryptUpdate(aes, buf, ref,
                 WC_AES_BLOCK_SIZE, &stream);
             if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
                 ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+            if (stream.bytes_crypted_with_this_tweak != before)
+                ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+            {
+                word32 b;
+                for (b = 0; b < (word32)WC_AES_BLOCK_SIZE; b++) {
+                    if (buf[b] != 0x5A)
+                        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+                }
+            }
 
             /* The one-shot decrypt entry enforces the same cap, and refuses
              * the size before touching either buffer. */
