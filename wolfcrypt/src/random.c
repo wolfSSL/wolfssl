@@ -4290,7 +4290,7 @@ void wc_NoiseSrc_Free(wc_NoiseSrc* src)
     if (src->work != NULL && src->workSz > 0) {
         ForceZero(src->work, src->workSz);
     }
-    XMEMSET(src->health, 0, sizeof(src->health));
+    ForceZero(src->health, sizeof(src->health));
     src->chunkCtr = 0;
     src->failed   = 0;
     src->degraded = 0;
