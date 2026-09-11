@@ -33722,10 +33722,11 @@ static int DecodePrivateKey_ex(WOLFSSL *ssl, byte keyType, const DerBuffer* key,
 
         /* Set start of data to beginning of buffer. */
         idx = 0;
-        /* Decode the key assuming it is an ECC private key. */
-        ret = wc_EccPrivateKeyDecode(key->buffer, &idx,
+        /* Decode as ECC private key. Skip public point derivation
+         * since the private scalar alone is sufficient here. */
+        ret = EccPrivateKeyDecodeEx(key->buffer, &idx,
                                      (ecc_key*)*hsKey,
-                                     key->length);
+                                     key->length, 0);
     #ifdef WOLF_PRIVATE_KEY_ID
         /* if using external key then allow using a public key */
         if (ret != 0 && (ssl->devId != INVALID_DEVID

@@ -2997,8 +2997,10 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
         #endif
             if (ret == 0) {
                 idx = 0;
-                ret = wc_EccPrivateKeyDecode(args->keyBuf->buffer, &idx,
-                    &args->key->priv.ecc, args->keyBuf->length);
+                /* Skip public point derivation; wc_ecc_shared_secret()
+                 * accepts an ECC_PRIVATEKEY_ONLY key. */
+                ret = EccPrivateKeyDecodeEx(args->keyBuf->buffer, &idx,
+                    &args->key->priv.ecc, args->keyBuf->length, 0);
                 if (ret != 0) {
                     SetError(ECC_DECODE_STR, error, session, FATAL_ERROR_STATE);
                 }
