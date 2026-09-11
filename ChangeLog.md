@@ -344,6 +344,11 @@
   the certificate type extensions, and more generally any malformed handshake
   message reported with `BUFFER_E`.
 
+* **Fix (empty policyQualifiers in generated certificatePolicies)**: a
+  PolicyInformation entry set with `certPolicies` no longer carries an empty
+  `policyQualifiers` SEQUENCE (`30 00`), which RFC 5280 defines as
+  `SIZE (1..MAX)`.
+
 # wolfSSL Release 5.9.2 (Jun 23, 2026)
 
 Release 5.9.2 has been developed according to wolfSSL's development and QA

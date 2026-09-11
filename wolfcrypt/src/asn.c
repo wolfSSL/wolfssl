@@ -28747,11 +28747,13 @@ static int SetCertificatePolicies(byte *output,
 
         oidSz = sizeof(oid);
         XMEMSET(oid, 0, oidSz);
+        /* Clear before setting noOut, otherwise the clear undoes it and an
+         * empty policyQualifiers SEQUENCE (30 00) is emitted. */
+        XMEMSET(dataASN, 0, sizeof(dataASN));
         dataASN[POLICYINFOASN_IDX_QUALI].noOut = 1;
 
         ret = EncodePolicyOID(oid, &oidSz, input[i], heap);
         if (ret == 0) {
-            XMEMSET(dataASN, 0, sizeof(dataASN));
             SetASN_Buffer(&dataASN[POLICYINFOASN_IDX_ID], oid, oidSz);
             ret = SizeASN_Items(policyInfoASN, dataASN, policyInfoASN_Length,
                                 &piSz);
