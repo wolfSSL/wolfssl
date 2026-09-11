@@ -14,7 +14,8 @@
 #   configure  list of extra ./configure arguments
 #   cc         compiler passed to configure as CC=, overriding --cc
 #              ("" leaves CC entirely to configure / the environment)
-#   cflags     CFLAGS for make, overriding --cflags
+#   cflags     CFLAGS for make, overriding --cflags (with --append-flags,
+#              appended to the CFLAGS configure chose instead)
 #   ldflags    LDFLAGS for make, overriding --ldflags
 #   minutes    expected duration, from the Minutes column of a previous
 #              run's summary (default 1.0). Schedule weight only - configs
@@ -92,6 +93,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import signal
 import subprocess
@@ -379,6 +381,18 @@ def warn(msg: str) -> None:
           else f"WARNING: {msg}")
 
 
+def configured_flags(bdir: Path) -> dict[str, str]:
+    # The CFLAGS and LDFLAGS configure settled on, from the build dir's
+    # Makefile (automake writes them as plain "VAR = value" lines).
+    found = {"CFLAGS": "", "LDFLAGS": ""}
+    with open(bdir / "Makefile") as mf:
+        for line in mf:
+            m = re.match(r"(CFLAGS|LDFLAGS) = (.*)$", line)
+            if m:
+                found[m.group(1)] = m.group(2).strip()
+    return found
+
+
 def stale_estimate(cfg: Config, minutes: float) -> bool:
     # "minutes" is only a scheduling estimate (configs run longest-first;
     # --shard balances by it), never a pass/fail bound. Flag a finished
@@ -401,8 +415,18 @@ def run_config(cfg: Config, opts: argparse.Namespace) -> tuple[str | None,
     configure = [str(SRCDIR / "configure")] + cfg.configure
     if cfg.cc:
         configure.append(f"CC={cfg.cc}")
-    flags = [f"CFLAGS={cfg.cflags}"] if cfg.cflags else []
-    flags += [f"LDFLAGS={cfg.ldflags}"] if cfg.ldflags else []
+    def flag_args() -> list[str]:
+        # Resolved per make command, not once up front: with --append-flags
+        # the configure-chosen values are only known after the configure
+        # step has written the build dir's Makefile.
+        cflags, ldflags = cfg.cflags, cfg.ldflags
+        if opts.append_flags:
+            chosen = configured_flags(bdir)
+            cflags = f"{chosen['CFLAGS']} {cflags}".strip()
+            ldflags = f"{chosen['LDFLAGS']} {ldflags}".strip()
+        flags = [f"CFLAGS={cflags}"] if cflags else []
+        flags += [f"LDFLAGS={ldflags}"] if ldflags else []
+        return flags
     # No -j here: wolfSSL's configure enables make's jobserver by default
     # (AX_AM_JOBSERVER adds AM_MAKEFLAGS += -j<nproc+1>), and that explicit
     # -j on every automake sub-make overrides whatever the top-level make
@@ -410,7 +434,6 @@ def run_config(cfg: Config, opts: argparse.Namespace) -> tuple[str | None,
     # hop. Measured across this pool, the jobserver default also utilizes
     # the CPUs better than a capped -j (configs' serial phases - configure,
     # link - get backfilled by other configs' compile jobs).
-    make = ["make"] + flags
     steps: list[tuple[str, list[str] | Callable[[], object]]] = []
     if cfg.user_settings:
         # Staged before configure; --enable-usersettings builds pick it up
@@ -420,14 +443,16 @@ def run_config(cfg: Config, opts: argparse.Namespace) -> tuple[str | None,
                                           bdir / "user_settings.h")))
     steps += [(" ".join(cmd), cmd) for cmd in cfg.prepare]
     if cfg.build:
-        steps += [("configure", configure), ("make", make)]
+        steps += [("configure", configure),
+                  ("make", lambda: ["make"] + flag_args())]
         if cfg.check:
             steps += [
                 # Prebuild the check programs without running any tests so
                 # "make check" below is pure test execution.
-                ("make check TESTS=", make + ["check", "TESTS="]),
+                ("make check TESTS=",
+                 lambda: ["make"] + flag_args() + ["check", "TESTS="]),
                 ("private dirs", lambda: privatize_dirs(bdir, opts.private_dir)),
-                ("make check", ["make"] + flags + ["check"]),
+                ("make check", lambda: ["make"] + flag_args() + ["check"]),
             ]
     steps += [(" ".join(cmd), cmd) for cmd in cfg.run]
     # With "netns", each command runs in its own network namespace; --chdir
@@ -459,13 +484,17 @@ def run_config(cfg: Config, opts: argparse.Namespace) -> tuple[str | None,
                 failed = "aborted"
                 break
             if callable(cmd):
+                # A callable either does the step itself or returns the
+                # argv list to run, built now that earlier steps have run.
                 try:
-                    cmd()
+                    result = cmd()
                 except Exception as e:  # one config's bug, not the run's
                     print(f"+ {step}: {e!r}", file=logf, flush=True)
                     failed = record_failure(step)
                     break
-                continue
+                if not isinstance(result, list):
+                    continue
+                cmd = result
             cmd = netns + cmd
             print(f"+ {' '.join(cmd)}", file=logf, flush=True)
             # stdin=DEVNULL so a test that reads stdin sees EOF (as in CI)
@@ -612,6 +641,13 @@ def main() -> int:
                         "that do not set their own \"cc\"")
     p.add_argument("--cflags", default="",
                    help="CFLAGS for configs that do not set their own")
+    p.add_argument("--append-flags", action=argparse.BooleanOptionalAction,
+                   default=False,
+                   help="append the CFLAGS/LDFLAGS given here or in a "
+                        "config to the values configure chose, instead "
+                        "of replacing them at make time: keeps the "
+                        "configured warning set (wolfSSL's -Wall -Wextra "
+                        "family) in force under -Werror")
     p.add_argument("--ldflags", default="",
                    help="LDFLAGS for configs that do not set their own")
     p.add_argument("--private-dir", action="append", default=[],
