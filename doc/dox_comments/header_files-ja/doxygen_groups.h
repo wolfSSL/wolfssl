@@ -259,6 +259,20 @@
     \defgroup PKCS7 アルゴリズム - PKCS7
     \defgroup PKCS11 アルゴリズム - PKCS11
     \defgroup PKCS12 アルゴリズム - PKCS12
+    PKCS #12（RFC 7292）はPFXバンドル形式を定義しています。これは、秘密鍵とその証明書、
+    およびチェーン内のCA証明書をまとめて格納する、パスワードで保護された単一のファイルです。
+    一般的な.p12ファイルや.pfxファイルはこの形式です。wolfCryptのサポートは
+    --enable-pkcs12を指定するか、HAVE_PKCS12を定義することで有効になります。
+    またパスワードベースの鍵導出（--enable-pwdbased）も必要です。
+
+    バンドルの読み込みは、WC_PKCS12構造体を割り当て（wc_PKCS12_new()または
+    wc_PKCS12_new_ex()）、DERをデコードし（wc_d2i_PKCS12()または
+    wc_d2i_PKCS12_fp()）、wc_PKCS12_parse()でMACを検証して内容を復号する、
+    という手順で行います。wc_PKCS12_parse()はDER形式の秘密鍵、証明書、
+    および任意でCAチェーンを返します。\n
+    バンドルの書き出しは、wc_PKCS12_create()で構造体を構築し、
+    wc_i2d_PKCS12()でエンコードすることで行います。\n
+    <wolfssl/wolfcrypt/pkcs12.h>をご参照ください。
     \defgroup Password アルゴリズム - パスワードベース
     \defgroup Poly1305 アルゴリズム - Poly1305
     \defgroup PUF アルゴリズム - PUF
