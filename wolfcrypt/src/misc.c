@@ -795,9 +795,10 @@ WC_MISC_STATIC WC_INLINE void ForceZero(void* mem, size_t len)
      * wipe below hits the memory that holds them and not a copy. */
     WC_BARRIER_DATA(mem);
 
-    while ((wc_ptr_t)zb & (wc_ptr_t)(sizeof(unsigned long) - 1U)) {
-        if (len == 0)
-            return;
+    /* No early return here: a short unaligned buffer must still reach the
+     * trailing barrier, or its wipe can be dropped as a dead store. */
+    while ((len != 0) &&
+            ((wc_ptr_t)zb & (wc_ptr_t)(sizeof(unsigned long) - 1U))) {
         *zb++ = 0;
         --len;
     }
