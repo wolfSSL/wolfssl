@@ -2628,7 +2628,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             case 'G' :
             #ifdef WOLFSSL_SCTP
                 doDTLS = 1;
-                dtlsUDP = 1;
                 dtlsSCTP = 1;
             #endif
                 break;

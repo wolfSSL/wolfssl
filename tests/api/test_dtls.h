@@ -97,6 +97,7 @@ int test_dtls12_scr_epoch_wrap(void);
 int test_dtls12_scr_client_epoch_wrap(void);
 int test_dtls12_cid_record_type_swap(void);
 int test_dtls12_cid_not_negotiated(void);
+int test_dtls_sctp_app_data_size(void);
 int test_dtls12_missing_finished(void);
 int test_dtls12_cookie_secret_secondary(void);
 int test_dtls12_cookie_secret_secondary_dropped(void);
@@ -149,6 +150,7 @@ int test_WOLFSSL_dtls_version_alert(void);
         TEST_DECL_GROUP("dtls", test_dtls_cid_negotiate_oversize),             \
         TEST_DECL_GROUP("dtls", test_dtls13_cid_oversized_tx),                 \
         TEST_DECL_GROUP("dtls", test_dtls13_cid_oversized_tx_post_hs),         \
+        TEST_DECL_GROUP("dtls", test_dtls_sctp_app_data_size),                 \
         TEST_DECL_GROUP("dtls", test_dtls_version_checking),                   \
         TEST_DECL_GROUP("dtls",                                                \
             test_dtls_drop_invalid_record_during_handshake),                   \
