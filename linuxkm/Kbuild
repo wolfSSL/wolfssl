@@ -230,7 +230,26 @@ endif
 $(obj)/$(LIBWOLFSSL_NAME).mod.o: ccflags-y := $(PIE_SUPPORT_FLAGS)
 $(obj)/wolfcrypt/test/test.o: ccflags-y += -DNO_MAIN_DRIVER -DWOLFSSL_NO_OPTIONS_H
 $(obj)/wolfcrypt/src/aes.o: ccflags-y := $(WOLFSSL_CFLAGS) $(WOLFSSL_CFLAGS_YES_VECTOR_INSNS) $(PIE_FLAGS) $(PIE_SUPPORT_FLAGS)
-$(obj)/wolfcrypt/benchmark/benchmark.o: ccflags-y := $(WOLFSSL_CFLAGS) $(CFLAGS_FPU_ENABLE) $(CFLAGS_SIMD_ENABLE) $(CFLAGS_AUTO_VECTORIZE_DISABLE) $(PIE_SUPPORT_FLAGS) -DNO_MAIN_FUNCTION -DWOLFSSL_NO_OPTIONS_H
+# benchmark.c is the timing harness, not the crypto.  It runs the loops, counts
+# iterations and prints rows; the algorithms it measures live in other objects
+# (aes_gcm_asm.o, sha256_asm.o and friends), which keep their vector
+# instructions.  Nothing here changes what is benchmarked or how fast it runs.
+#
+# This object used to be built with the FPU and SSE enabled because the
+# statistics were computed in double.  They are integers now, so it gets the
+# same flags as every other object.
+#
+# Taking the permission away matters because the compiler spends it on
+# whatever it likes, such as zeroing a local buffer with SSE, and it does that
+# on entry to the function, before bench_stats_start() opens the FPU bracket.
+# Kernel code may not touch vector registers outside that bracket.  To check
+# that none are left:
+#   objdump -d linuxkm/wolfcrypt/benchmark/benchmark.o | grep -c '%xmm'
+# which must print 0.
+#
+# The bracket itself stays.  It is there for the crypto being measured, which
+# does use SIMD.
+$(obj)/wolfcrypt/benchmark/benchmark.o: ccflags-y := $(WOLFSSL_CFLAGS) $(WOLFSSL_CFLAGS_NO_VECTOR_INSNS) $(PIE_SUPPORT_FLAGS) -DNO_MAIN_FUNCTION -DWOLFSSL_NO_OPTIONS_H
 
 asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPUSIMD_DISABLE)
 
