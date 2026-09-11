@@ -5626,6 +5626,9 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     case TLS_ASYNC_BEGIN:
     {
     byte b;
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CID)
+    ssl->options.haveSupportedVersions = 0;
+#endif
 #ifdef WOLFSSL_CALLBACKS
     if (ssl->hsInfoOn) AddPacketName(ssl, "ServerHello");
     if (ssl->toInfoOn) AddLateName("ServerHello", &ssl->timeoutInfo);
@@ -7888,6 +7891,10 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     int wantDowngrade = 0;
     word16 totalExtSz = 0;
 
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CID)
+    /* Reset for each ClientHello, including retries and legacy fallbacks. */
+    ssl->options.haveSupportedVersions = 0;
+#endif
 #ifdef WOLFSSL_CALLBACKS
     if (ssl->hsInfoOn) AddPacketName(ssl, "ClientHello");
     if (ssl->toInfoOn) AddLateName("ClientHello", &ssl->timeoutInfo);

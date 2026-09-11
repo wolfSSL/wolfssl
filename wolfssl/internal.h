@@ -5630,6 +5630,11 @@ struct Options {
 #endif
 #ifdef WOLFSSL_DTLS_CID
     word16            useDtlsCID:1;
+#ifdef WOLFSSL_DTLS13
+    word16            haveSupportedVersions:1; /* Current Hello's version
+                                                * pre-scan succeeded and found
+                                                * supported_versions. */
+#endif
 #endif /* WOLFSSL_DTLS_CID */
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     word16            echAccepted:1;

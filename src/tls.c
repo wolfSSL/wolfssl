@@ -18438,6 +18438,9 @@ int TLSX_ParseVersion(WOLFSSL* ssl, const byte* input, word16 length,
         offset += size;
     }
 
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CID)
+    ssl->options.haveSupportedVersions = (ret == 0 && *found);
+#endif
     return ret;
 }
 #endif
