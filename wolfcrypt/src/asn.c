@@ -14688,76 +14688,6 @@ static const CertNameData certNameSubject[] = {
         WC_NID_userId
 #endif
     },
-#ifdef WOLFSSL_CERT_NAME_ALL
-    /* Name, id 41 */
-    {
-        "/N=", 3,
-    #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
-        WC_OFFSETOF(DecodedCert, subjectN),
-        WC_OFFSETOF(DecodedCert, subjectNLen),
-        WC_OFFSETOF(DecodedCert, subjectNEnc),
-#ifdef WOLFSSL_HAVE_ISSUER_NAMES
-        0,
-        0,
-        0,
-#endif
-    #endif
-    #ifdef WOLFSSL_X509_NAME_AVAILABLE
-        WC_NID_name
-    #endif
-    },
-    /* Given Name, id 42 */
-    {
-        "/GN=", 4,
-    #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
-        WC_OFFSETOF(DecodedCert, subjectGN),
-        WC_OFFSETOF(DecodedCert, subjectGNLen),
-        WC_OFFSETOF(DecodedCert, subjectGNEnc),
-#ifdef WOLFSSL_HAVE_ISSUER_NAMES
-        0,
-        0,
-        0,
-#endif
-    #endif
-    #ifdef WOLFSSL_X509_NAME_AVAILABLE
-        WC_NID_givenName
-    #endif
-    },
-    /* initials, id 43 */
-    {
-        "/initials=", 10,
-    #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
-        WC_OFFSETOF(DecodedCert, subjectI),
-        WC_OFFSETOF(DecodedCert, subjectILen),
-        WC_OFFSETOF(DecodedCert, subjectIEnc),
-#ifdef WOLFSSL_HAVE_ISSUER_NAMES
-        0,
-        0,
-        0,
-#endif
-    #endif
-    #ifdef WOLFSSL_X509_NAME_AVAILABLE
-        WC_NID_initials
-    #endif
-    },
-    /* DN Qualifier Name, id 46 */
-    {
-        "/dnQualifier=", 13,
-    #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
-        WC_OFFSETOF(DecodedCert, subjectDNQ),
-        WC_OFFSETOF(DecodedCert, subjectDNQLen),
-        WC_OFFSETOF(DecodedCert, subjectDNQEnc),
-#ifdef WOLFSSL_HAVE_ISSUER_NAMES
-        0,
-        0,
-        0,
-#endif
-    #endif
-    #ifdef WOLFSSL_X509_NAME_AVAILABLE
-        WC_NID_dnQualifier
-    #endif
-    },
-#endif /* WOLFSSL_CERT_NAME_ALL */
 };
 
 static const int certNameSubjectSz =
@@ -15192,6 +15122,31 @@ static int SetSubject(DecodedCert* cert, int id, const byte* str, int strLen,
         cert->subjectEmailLen = strLen;
     }
 #endif
+#if (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)) && \
+    defined(WOLFSSL_CERT_NAME_ALL)
+    /* certNameSubject[] is indexed by id - 3 and its last entry is
+     * ASN_USER_ID, so these ids cannot be reached through it. */
+    else if (id == ASN_NAME) {
+        cert->subjectN = (char*)(wc_ptr_t)str;
+        cert->subjectNLen = strLen;
+        cert->subjectNEnc = (char)tag;
+    }
+    else if (id == ASN_GIVEN_NAME) {
+        cert->subjectGN = (char*)(wc_ptr_t)str;
+        cert->subjectGNLen = strLen;
+        cert->subjectGNEnc = (char)tag;
+    }
+    else if (id == ASN_INITIALS) {
+        cert->subjectI = (char*)(wc_ptr_t)str;
+        cert->subjectILen = strLen;
+        cert->subjectIEnc = (char)tag;
+    }
+    else if (id == ASN_DNQUALIFIER) {
+        cert->subjectDNQ = (char*)(wc_ptr_t)str;
+        cert->subjectDNQLen = strLen;
+        cert->subjectDNQEnc = (char)tag;
+    }
+#endif
 #ifdef WOLFSSL_CERT_EXT
     /* TODO: consider mapping id to an index and using SetCertNameSubect*(). */
     else if (id == ASN_JURIS_C) {
@@ -15293,6 +15248,37 @@ static int GetRDN(DecodedCert* cert, char* full, word32* idx, int* nid,
             *nid = WC_NID_x500UniqueIdentifier;
         #endif
         }
+    #ifdef WOLFSSL_CERT_NAME_ALL
+        /* Also outside the contiguous range the table covers. */
+        else if (id == ASN_NAME) {
+            typeStr = WOLFSSL_NAME;
+            typeStrLen = sizeof(WOLFSSL_NAME) - 1;
+        #ifdef WOLFSSL_X509_NAME_AVAILABLE
+            *nid = WC_NID_name;
+        #endif
+        }
+        else if (id == ASN_GIVEN_NAME) {
+            typeStr = WOLFSSL_GIVEN_NAME;
+            typeStrLen = sizeof(WOLFSSL_GIVEN_NAME) - 1;
+        #ifdef WOLFSSL_X509_NAME_AVAILABLE
+            *nid = WC_NID_givenName;
+        #endif
+        }
+        else if (id == ASN_INITIALS) {
+            typeStr = WOLFSSL_INITIALS;
+            typeStrLen = sizeof(WOLFSSL_INITIALS) - 1;
+        #ifdef WOLFSSL_X509_NAME_AVAILABLE
+            *nid = WC_NID_initials;
+        #endif
+        }
+        else if (id == ASN_DNQUALIFIER) {
+            typeStr = WOLFSSL_DNQUALIFIER;
+            typeStrLen = sizeof(WOLFSSL_DNQUALIFIER) - 1;
+        #ifdef WOLFSSL_X509_NAME_AVAILABLE
+            *nid = WC_NID_dnQualifier;
+        #endif
+        }
+    #endif /* WOLFSSL_CERT_NAME_ALL */
     }
     else if (oidSz == sizeof(attrEmailOid) && XMEMCMP(oid, attrEmailOid, oidSz) == 0) {
         /* Set the email id, type string, length and NID. */
