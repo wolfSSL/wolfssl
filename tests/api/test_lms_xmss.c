@@ -41,7 +41,7 @@
 #include <tests/api/test_lms_xmss.h>
 
 /* getpid() gives the stateful LMS/XMSS test key files a per-process name so
- * parallel unit.test runs on a shared /tmp do not clobber each other. */
+ * parallel unit.test runs in one directory do not clobber each other. */
 #if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
 #include <unistd.h>
 #endif
@@ -54,17 +54,17 @@
 
 #include <wolfssl/wolfcrypt/wc_lms.h>
 
-/* Per-process temp file: parallel unit.test runs (e.g. CI shards that share
- * /tmp) must not clobber each other's stateful LMS private key. */
+/* Per-process temp file: parallel unit.test runs (e.g. CI shards sharing a
+ * working directory) must not clobber each other's stateful LMS private key. */
 static const char* lms_test_priv_key_file(void)
 {
     static char lmsPath[64];
     if (lmsPath[0] == '\0') {
     #if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
         (void)XSNPRINTF(lmsPath, sizeof(lmsPath),
-            "/tmp/wolfssl_test_lms_%d.key", (int)getpid());
+            "./wolfssl_test_lms_%d.key", (int)getpid());
     #else
-        (void)XSNPRINTF(lmsPath, sizeof(lmsPath), "/tmp/wolfssl_test_lms.key");
+        (void)XSNPRINTF(lmsPath, sizeof(lmsPath), "./wolfssl_test_lms.key");
     #endif
     }
     return lmsPath;
@@ -597,18 +597,18 @@ int test_wc_LmsKey_reload_devid_verify(void)
 
 #if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY) && \
     !defined(NO_FILESYSTEM) && defined(TEST_XMSS_H10_AVAILABLE)
-/* Per-process temp file so parallel unit.test runs sharing /tmp do not
- * clobber each other's stateful XMSS private key. */
+/* Per-process temp file so parallel unit.test runs sharing a working
+ * directory do not clobber each other's stateful XMSS private key. */
 static const char* xmss_devid_priv_key_file(void)
 {
     static char xmssPath[64];
     if (xmssPath[0] == '\0') {
     #if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
         (void)XSNPRINTF(xmssPath, sizeof(xmssPath),
-            "/tmp/wolfssl_test_xmss_devid_%d.key", (int)getpid());
+            "./wolfssl_test_xmss_devid_%d.key", (int)getpid());
     #else
         (void)XSNPRINTF(xmssPath, sizeof(xmssPath),
-            "/tmp/wolfssl_test_xmss_devid.key");
+            "./wolfssl_test_xmss_devid.key");
     #endif
     }
     return xmssPath;
@@ -1661,18 +1661,18 @@ int test_rfc9802_lms_x509_gen(void)
 #if defined(WOLFSSL_ASN_TEMPLATE) && defined(WOLFSSL_HAVE_XMSS) && \
     !defined(WOLFSSL_XMSS_VERIFY_ONLY) && \
     defined(WOLFSSL_CERT_GEN) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
-/* Per-process temp file: parallel unit.test runs (e.g. CI shards that share
- * /tmp) must not clobber each other's stateful XMSS private key. */
+/* Per-process temp file: parallel unit.test runs (e.g. CI shards sharing a
+ * working directory) must not clobber each other's stateful XMSS private key. */
 static const char* xmss_gen_priv_key_file(void)
 {
     static char xmssPath[64];
     if (xmssPath[0] == '\0') {
     #if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
         (void)XSNPRINTF(xmssPath, sizeof(xmssPath),
-            "/tmp/wolfssl_test_xmss_gen_%d.key", (int)getpid());
+            "./wolfssl_test_xmss_gen_%d.key", (int)getpid());
     #else
         (void)XSNPRINTF(xmssPath, sizeof(xmssPath),
-            "/tmp/wolfssl_test_xmss_gen.key");
+            "./wolfssl_test_xmss_gen.key");
     #endif
     }
     return xmssPath;

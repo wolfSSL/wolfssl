@@ -117,6 +117,8 @@ tests/bio_write_test.txt
 tests/test-log-dump-to-file.txt
 tests/cert_cache.tmp
 test-write-dhparams.pem
+wolfssl_test_lms*.key
+wolfssl_test_xmss*.key
 cert.der
 cert.pem
 certecc.der
