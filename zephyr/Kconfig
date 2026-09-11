@@ -204,6 +204,22 @@ config WOLFSSL_SESSION_CACHE
   help
     Enable the TLS session cache (SMALL_SESSION_CACHE; NO_SESSION_CACHE off).
 
+config WOLFSSL_OCSP
+  bool "wolfSSL OCSP certificate revocation checking"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
+  default n
+  help
+    Enable OCSP (HAVE_OCSP).
+
+config WOLFSSL_OCSP_STAPLING
+  bool "wolfSSL OCSP stapling"
+  depends on WOLFSSL_OCSP
+  default n
+  help
+    Enable the TLS certificate status request extension
+    (HAVE_CERTIFICATE_STATUS_REQUEST), with which a client asks the server
+    to staple an OCSP response for its own certificate to the handshake.
+
 config WOLFSSL_SESSION_TICKET
   bool "wolfSSL TLS session tickets"
   default y

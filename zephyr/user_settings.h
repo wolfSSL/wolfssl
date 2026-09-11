@@ -209,6 +209,14 @@ extern "C" {
     #define IGNORE_NAME_CONSTRAINTS
 #endif
 
+/* OCSP */
+#if defined(CONFIG_WOLFSSL_OCSP)
+    #define HAVE_OCSP
+#endif
+#if defined(CONFIG_WOLFSSL_OCSP_STAPLING)
+    #define HAVE_CERTIFICATE_STATUS_REQUEST
+#endif
+
 /* Session Cache */
 #if defined(CONFIG_WOLFSSL_SESSION_CACHE)
     #define SMALL_SESSION_CACHE
