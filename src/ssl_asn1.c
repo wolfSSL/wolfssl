@@ -2123,9 +2123,7 @@ void wolfSSL_ASN1_OBJECT_free(WOLFSSL_ASN1_OBJECT* obj)
     if (obj != NULL) {
         /* Check for dynamically allocated copy of encoded data. */
         if ((obj->dynamic & WOLFSSL_ASN1_DYNAMIC_DATA) != 0) {
-        #ifdef WOLFSSL_DEBUG_OPENSSL
-            WOLFSSL_MSG("Freeing ASN1 data");
-        #endif
+            WOLFSSL_MSG_VERBOSE("Freeing ASN1 data");
             XFREE((void*)obj->obj, obj->heap, DYNAMIC_TYPE_ASN1);
             obj->obj = NULL;
         }
@@ -2138,9 +2136,7 @@ void wolfSSL_ASN1_OBJECT_free(WOLFSSL_ASN1_OBJECT* obj)
     #endif
         /* Check whether object was dynamically allocated. */
         if ((obj->dynamic & WOLFSSL_ASN1_DYNAMIC) != 0) {
-    #ifdef WOLFSSL_DEBUG_OPENSSL
-            WOLFSSL_MSG("Freeing ASN1 OBJECT");
-    #endif
+            WOLFSSL_MSG_VERBOSE("Freeing ASN1 OBJECT");
             XFREE(obj, NULL, DYNAMIC_TYPE_ASN1);
         }
     }
@@ -2632,9 +2628,7 @@ WOLFSSL_ASN1_STRING* wolfSSL_ASN1_STRING_new(void)
 {
     WOLFSSL_ASN1_STRING* asn1;
 
-#ifdef WOLFSSL_DEBUG_OPENSSL
-    WOLFSSL_ENTER("wolfSSL_ASN1_STRING_new");
-#endif
+    WOLFSSL_ENTER_VERBOSE("wolfSSL_ASN1_STRING_new");
 
     asn1 = (WOLFSSL_ASN1_STRING*)XMALLOC(sizeof(WOLFSSL_ASN1_STRING), NULL,
         DYNAMIC_TYPE_OPENSSL);
@@ -2655,9 +2649,7 @@ WOLFSSL_ASN1_STRING* wolfSSL_ASN1_STRING_type_new(int type)
 {
     WOLFSSL_ASN1_STRING* asn1;
 
-#ifdef WOLFSSL_DEBUG_OPENSSL
-    WOLFSSL_ENTER("wolfSSL_ASN1_STRING_type_new");
-#endif
+    WOLFSSL_ENTER_VERBOSE("wolfSSL_ASN1_STRING_type_new");
 
     asn1 = wolfSSL_ASN1_STRING_new();
     if (asn1 != NULL) {
@@ -2673,9 +2665,7 @@ WOLFSSL_ASN1_STRING* wolfSSL_ASN1_STRING_type_new(int type)
  */
 void wolfSSL_ASN1_STRING_free(WOLFSSL_ASN1_STRING* asn1)
 {
-#ifdef WOLFSSL_DEBUG_OPENSSL
-    WOLFSSL_ENTER("wolfSSL_ASN1_STRING_free");
-#endif
+    WOLFSSL_ENTER_VERBOSE("wolfSSL_ASN1_STRING_free");
 
     /* Check we have an object to free. */
     if (asn1 != NULL) {
@@ -3158,9 +3148,7 @@ int wolfSSL_ASN1_STRING_type(const WOLFSSL_ASN1_STRING* asn1)
 {
     int type = 0;
 
-#ifdef WOLFSSL_DEBUG_OPENSSL
-    WOLFSSL_ENTER("wolfSSL_ASN1_STRING_type");
-#endif
+    WOLFSSL_ENTER_VERBOSE("wolfSSL_ASN1_STRING_type");
 
     if (asn1 != NULL) {
         type = asn1->type;
@@ -3200,9 +3188,7 @@ unsigned char* wolfSSL_ASN1_STRING_data(WOLFSSL_ASN1_STRING* asn)
 {
     char* data = NULL;
 
-#ifdef WOLFSSL_DEBUG_OPENSSL
-    WOLFSSL_ENTER("wolfSSL_ASN1_STRING_data");
-#endif
+    WOLFSSL_ENTER_VERBOSE("wolfSSL_ASN1_STRING_data");
 
     if (asn != NULL) {
         data = asn->data;
@@ -3221,9 +3207,7 @@ int wolfSSL_ASN1_STRING_length(const WOLFSSL_ASN1_STRING* asn)
 {
     int len = 0;
 
-#ifdef WOLFSSL_DEBUG_OPENSSL
-    WOLFSSL_ENTER("wolfSSL_ASN1_STRING_length");
-#endif
+    WOLFSSL_ENTER_VERBOSE("wolfSSL_ASN1_STRING_length");
 
     if (asn) {
         len = asn->length;
@@ -3248,9 +3232,7 @@ int wolfSSL_ASN1_STRING_set(WOLFSSL_ASN1_STRING* asn1, const void* data, int sz)
 {
     int ret = 1;
 
-#ifdef WOLFSSL_DEBUG_OPENSSL
-    WOLFSSL_ENTER("wolfSSL_ASN1_STRING_set");
-#endif
+    WOLFSSL_ENTER_VERBOSE("wolfSSL_ASN1_STRING_set");
 
     /* Validate parameters. */
     if ((asn1 == NULL) || ((data == NULL) && (sz != 0))) {
@@ -5722,9 +5704,7 @@ int wc_OBJ_sn2nid(const char *sn)
         const char* sName = NULL;
         int i;
 
-#ifdef WOLFSSL_DEBUG_OPENSSL
-        WOLFSSL_ENTER("wolfSSL_OBJ_nid2obj");
-#endif
+        WOLFSSL_ENTER_VERBOSE("wolfSSL_OBJ_nid2obj");
 
         for (i = 0; i < (int)wolfssl_object_info_sz; i++) {
             if (wolfssl_object_info[i].nid == id) {
@@ -6110,9 +6090,7 @@ int wc_OBJ_sn2nid(const char *sn)
         word32 idx = 0;
         int ret;
 
-#ifdef WOLFSSL_DEBUG_OPENSSL
-        WOLFSSL_ENTER("wolfSSL_OBJ_obj2nid");
-#endif
+        WOLFSSL_ENTER_VERBOSE("wolfSSL_OBJ_obj2nid");
 
         if (o == NULL) {
             return WOLFSSL_FATAL_ERROR;
