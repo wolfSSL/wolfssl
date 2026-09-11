@@ -1364,7 +1364,7 @@ int test_dtls_cid_negotiate_oversize(void)
     int order;
 #endif
     byte msgType;
-    for (msgType = client_hello; msgType <= server_hello; msgType++) {
+    for (msgType = client_hello; msgType <= (byte)server_hello; msgType++) {
 #ifndef WOLFSSL_NO_TLS12
         /* A legacy ServerHello and a DTLS 1.3 server falling back on CH. */
         ExpectIntEQ(test_dtls_cid_wire(msgType, 0, 0, DTLS_CID_MAX_SIZE + 1,
