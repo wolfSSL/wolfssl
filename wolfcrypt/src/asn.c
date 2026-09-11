@@ -19400,6 +19400,39 @@ static int UriRegNameHasNonEmptyLabels(const char* host, int hostSz)
     return 1;
 }
 
+/* Validate the RFC 3986 scheme and return its terminating colon, or NULL.
+ * scheme = ALPHA *(ALPHA / DIGIT / "+" / "-" / ".") */
+static const char* GetUriSchemeEnd(const char* uri, int uriSz)
+{
+    int i;
+
+    if (uri == NULL) {
+        return NULL;
+    }
+    for (i = 0; i < uriSz; i++) {
+        char c = uri[i];
+
+        if (i > 0 && c == ':') {
+            return uri + i;
+        }
+        if (('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z')) {
+            continue;
+        }
+        /* The first character must be a letter. */
+        if (i == 0) {
+            return NULL;
+        }
+        if ('0' <= c && c <= '9') {
+            continue;
+        }
+        if (c == '+' || c == '-' || c == '.') {
+            continue;
+        }
+        return NULL;
+    }
+    return NULL;
+}
+
 static int GetUriHost(const char* uri, int uriSz, const char** host,
     int* hostSz, UriHostType* hostType)
 {
@@ -19408,23 +19441,22 @@ static int GetUriHost(const char* uri, int uriSz, const char** host,
     const char* p;
     const char* uriEnd;
 
-    /* Need at least 3 bytes for the "://" scheme separator; rejecting short
-     * inputs early also keeps the loop bound (uriEnd - 2) from forming a
-     * pointer before `uri`. */
+    /* Early-out for short inputs; the uriEnd - p < 3 guard below bounds
+     * the authority separator reads after the scheme colon. */
     if (uri == NULL || uriSz < 3 || host == NULL || hostSz == NULL ||
             hostType == NULL) {
         return 0;
     }
 
     uriEnd = uri + uriSz;
-    hostStart = NULL;
-    for (p = uri; p < uriEnd - 2; p++) {
-        if (p[0] == ':' && p[1] == '/' && p[2] == '/') {
-            hostStart = p + 3;
-            break;
-        }
+    /* Only "//" immediately after the scheme colon introduces an authority;
+     * a later "://" in a path, query or fragment is not an authority. */
+    p = GetUriSchemeEnd(uri, uriSz);
+    if (p == NULL || uriEnd - p < 3 || p[1] != '/' || p[2] != '/') {
+        return 0;
     }
-    if (hostStart == NULL || hostStart >= uriEnd) {
+    hostStart = p + 3;
+    if (hostStart >= uriEnd) {
         return 0;
     }
 
