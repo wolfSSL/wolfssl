@@ -1008,6 +1008,9 @@ WOLFSSL_API int wc_GetSubjectPubKeyInfoDerFromCert(const byte* certDer,
                                                    word32* pubKeyDerSz);
 WOLFSSL_API int wc_GetDecodedCertSubject(const struct DecodedCert* cert,
                                          char* buf, word32* bufSz);
+WOLFSSL_API int wc_GetDecodedCertSubjectRaw(const struct DecodedCert* cert,
+                                            const byte** subjectRaw,
+                                            int* subjectRawSz);
 WOLFSSL_API int wc_GetDecodedCertIssuer(const struct DecodedCert* cert,
                                         char* buf, word32* bufSz);
 WOLFSSL_API int wc_GetDecodedCertSerial(const struct DecodedCert* cert,
