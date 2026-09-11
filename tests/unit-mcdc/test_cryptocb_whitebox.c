@@ -157,11 +157,19 @@
 #define WOLF_CRYPTO_CB_FIND
 #endif
 
+/* Pick up the build's feature defines, else WOLF_CRYPTO_CB is never seen
+ * here and this whole file compiles down to its "nothing to exercise" stub. */
+#ifndef WOLFSSL_USER_SETTINGS
+#include <wolfssl/options.h>
+#endif
+
 #include <wolfcrypt/src/cryptocb.c>
 
 #include <stdio.h>
 
 static int wb_fail = 0;
+/* Set by a check of what the code must do, not by a coverage skip. */
+static int wb_bad = 0;
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
 
 #ifdef WOLF_CRYPTO_CB
@@ -1386,11 +1394,11 @@ int main(void)
         wc_CryptoCb_Init();
         gCryptoDev[0].cb = wb_cb;
         if (wc_CryptoCb_RegisterDevice(WB_DEVID, wb_cb, NULL) != 0)
-            wb_fail = 1;
+            wb_bad = 1;
         if (wc_CryptoCb_GetDevice(WB_DEVID) == &gCryptoDev[0])
-            wb_fail = 1;
+            wb_bad = 1;
         if (gCryptoDev[0].devId != INVALID_DEVID || gCryptoDev[0].cb != wb_cb)
-            wb_fail = 1;
+            wb_bad = 1;
 
         /* With every other slot registered, the scan must reject the half
          * filled slot rather than hand it out: no free slot, BUFFER_E. */
@@ -1400,9 +1408,9 @@ int main(void)
         }
         if (wc_CryptoCb_RegisterDevice(WB_DEVID_NOCB, NULL, NULL) !=
                 WC_NO_ERR_TRACE(BUFFER_E))
-            wb_fail = 1;
+            wb_bad = 1;
         if (gCryptoDev[0].devId != INVALID_DEVID || gCryptoDev[0].cb != wb_cb)
-            wb_fail = 1;
+            wb_bad = 1;
         WB_NOTE("GetFreeDevice: devId==INVALID_DEVID&&cb==NULL [:409] "
                 "(T,F) half filled slot skipped, full-table BUFFER_E");
 
@@ -1425,10 +1433,10 @@ int main(void)
     (void)wb_find_cb;
 #endif
 
-    printf("done (%s)\n", wb_fail ? "with skips" : "ok");
+    printf("done (%s)\n", wb_bad ? "FAILED" : wb_fail ? "with skips" : "ok");
 #else
     printf("  WOLF_CRYPTO_CB not defined; nothing to exercise\n");
 #endif /* WOLF_CRYPTO_CB */
     (void)wb_fail;
-    return 0;
+    return wb_bad ? 1 : 0;
 }
