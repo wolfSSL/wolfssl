@@ -3,7 +3,8 @@
 
     \brief This function generates the Ed25519 public key from the private key,
     stored in the ed25519_key object. It stores the public key in the buffer
-    pubKey.
+    pubKey. If the key object does not already carry a public key, the derived
+    key is also stored in it, so that the key can be used for signing.
 
     \return 0 Returned upon successfully making the public key.
     \return BAD_FUNC_ARG Returned if key or pubKey evaluate to NULL, or if the
@@ -13,7 +14,7 @@
     \return MEMORY_E Returned if there is an error allocating memory
     during function execution.
 
-    \param [in] key Pointer to the ed25519_key for which to generate a key.
+    \param [in,out] key Pointer to the ed25519_key for which to generate a key.
     \param [out] pubKey Pointer to the buffer in which to store the public key.
     \param [in] pubKeySz Size of the public key. Should be ED25519_PUB_KEY_SIZE.
 
@@ -28,7 +29,7 @@
 
     wc_ed25519_init(&key);
     wc_ed25519_import_private_only(priv, sizeof(priv), &key);
-    ret = wc_ed25519_make_public(&key, pub, &pubSz);
+    ret = wc_ed25519_make_public(&key, pub, pubSz);
     if (ret != 0) {
         // error making public key
     }

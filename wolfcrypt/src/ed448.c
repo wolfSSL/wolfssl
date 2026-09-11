@@ -315,7 +315,24 @@ static int ed448_is_small_order(const byte p[ED448_PUB_KEY_SIZE])
     return 0;
 }
 
+/* Mirror a derived public key into the key object, in the layout
+ * wc_ed448_make_key() leaves: key->p, and a copy after the private key in
+ * key->k.  Only ever called for a key with no public half yet - deriving into
+ * scratch and comparing against key->p is how wc_ed448_check_key() works.
+ */
+static void ed448_store_public(ed448_key* key, const byte* pubKey)
+{
+    if (pubKey != key->p) {
+        XMEMCPY(key->p, pubKey, ED448_PUB_KEY_SIZE);
+    }
+    /* put public key after private key, on the same buffer */
+    XMEMMOVE(key->k + ED448_KEY_SIZE, key->p, ED448_PUB_KEY_SIZE);
+}
+
 /* Derive the public key for the private key.
+ *
+ * Also stores the derived key in the key object when it did not already carry
+ * a public half.
  *
  * key       [in]  Ed448 key object.
  * pubKey    [in]  Byte array to hold the public key.
@@ -328,6 +345,7 @@ static int ed448_is_small_order(const byte p[ED448_PUB_KEY_SIZE])
 int wc_ed448_make_public(ed448_key* key, unsigned char* pubKey, word32 pubKeySz)
 {
     int   ret = 0;
+    int   storePub = 0;
     byte  az[ED448_PRV_KEY_SIZE];
     ge448_p2 A;
 
@@ -337,6 +355,14 @@ int wc_ed448_make_public(ed448_key* key, unsigned char* pubKey, word32 pubKeySz)
 
     if ((ret == 0) && (!key->privKeySet)) {
         ret = ECC_PRIV_KEY_E;
+    }
+
+    if (ret == 0) {
+        /* The key doesn't carry its public half yet (e.g. it was decoded from
+         * a PKCS#8 v1 PrivateKeyInfo, which holds only the seed): fill it in
+         * as well, so pubKeySet below doesn't end up set on a key whose p/k
+         * are still empty. */
+        storePub = !key->pubKeySet;
     }
 
     if (ret == 0)
@@ -354,6 +380,8 @@ int wc_ed448_make_public(ed448_key* key, unsigned char* pubKey, word32 pubKeySz)
     if (ret == 0) {
         ge448_to_bytes(pubKey, &A);
 
+        if (storePub)
+            ed448_store_public(key, pubKey);
         key->pubKeySet = 1;
     }
 
@@ -391,23 +419,22 @@ int wc_ed448_make_key(WC_RNG* rng, int keySz, ed448_key* key)
     }
     if (ret == 0) {
         key->privKeySet = 1;
+        /* pubKeySet was just cleared, so this also stores the public key in
+         * key->p and after the private key in key->k */
         ret = wc_ed448_make_public(key, key->p, ED448_PUB_KEY_SIZE);
         if (ret != 0) {
             key->privKeySet = 0;
             ForceZero(key->k, ED448_KEY_SIZE);
         }
     }
+#if FIPS_VERSION3_GE(6,0,0)
     if (ret == 0) {
-        /* put public key after private key, on the same buffer */
-        XMEMMOVE(key->k + ED448_KEY_SIZE, key->p, ED448_PUB_KEY_SIZE);
-
-    #if FIPS_VERSION3_GE(6,0,0)
         ret = wc_ed448_check_key(key);
         if (ret == 0) {
             ret = ed448_pairwise_consistency_test(key, rng);
         }
-    #endif
     }
+#endif
 
     return ret;
 }
@@ -1401,7 +1428,7 @@ int wc_ed448_import_private_key_ex(const byte* priv, word32 privSz,
     }
 
     /* make the private key (priv + pub) */
-    XMEMCPY(key->k + ED448_KEY_SIZE, key->p, ED448_PUB_KEY_SIZE);
+    ed448_store_public(key, key->p);
 
     return ret;
 }

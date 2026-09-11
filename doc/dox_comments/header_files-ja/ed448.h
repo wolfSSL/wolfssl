@@ -1,13 +1,13 @@
 /*!
     \ingroup ED448
 
-    \brief この関数は、秘密鍵からEd448公開鍵を生成します。公開鍵をバッファpubKeyに格納し、このバッファに書き込まれたバイト数をpubKeySzに設定します。
+    \brief この関数は、秘密鍵からEd448公開鍵を生成します。公開鍵をバッファpubKeyに格納し、このバッファに書き込まれたバイト数をpubKeySzに設定します。キーオブジェクトがまだ公開鍵を保持していない場合、導出された鍵はキーオブジェクトにも格納され、署名に使用できるようになります。
 
     \return 0 公開鍵の作成に成功した場合に返されます。
     \return BAD_FUNC_ARG keyまたはpubKeyがNULLと評価された場合、または指定されたキーサイズが57バイトでない場合に返されます（Ed448は57バイトのキーを持ちます）。
     \return MEMORY_E 関数実行中にメモリの割り当てエラーが発生した場合に返されます。
 
-    \param [in] key キーを生成するed448_keyへのポインタ。
+    \param [in,out] key キーを生成するed448_keyへのポインタ。
     \param [out] pubKey 公開鍵を格納するバッファへのポインタ。
     \param [in] pubKeySz pubKeyバッファのサイズ(バイト単位)。
 
@@ -22,7 +22,7 @@
 
     wc_ed448_init(&key);
     wc_ed448_import_private_only(priv, sizeof(priv), &key);
-    ret = wc_ed448_make_public(&key, pub, &pubSz);
+    ret = wc_ed448_make_public(&key, pub, pubSz);
     if (ret != 0) {
         // 公開鍵の作成エラー
     }

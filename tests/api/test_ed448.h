@@ -25,6 +25,7 @@
 #include <tests/api/api_decl.h>
 
 int test_wc_ed448_make_key(void);
+int test_wc_ed448_make_public_stores_pub(void);
 int test_wc_ed448_init(void);
 int test_wc_ed448_sign_msg(void);
 int test_wc_ed448_verify_sig_S_range(void);
@@ -48,6 +49,7 @@ int test_wc_ed448_cryptocb(void);
 
 #define TEST_ED448_DECLS                                          \
     TEST_DECL_GROUP("ed448", test_wc_ed448_make_key),             \
+    TEST_DECL_GROUP("ed448", test_wc_ed448_make_public_stores_pub), \
     TEST_DECL_GROUP("ed448", test_wc_ed448_init),                 \
     TEST_DECL_GROUP("ed448", test_wc_ed448_sign_msg),             \
     TEST_DECL_GROUP("ed448", test_wc_ed448_verify_sig_S_range),   \
