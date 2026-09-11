@@ -807,8 +807,11 @@
         #define WOLFSSL_USE_SAVE_VECTOR_REGISTERS
     #endif
 
+    /* x86 and arm64 share one interface: the x86_vector_register_glue.c and
+     * arm64_vector_register_glue.c entry points keep the wc_*_x86 names so
+     * the callers and the PIE redirect table are the same on both. */
     #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && \
-        defined(CONFIG_X86)
+        (defined(CONFIG_X86) || defined(CONFIG_ARM64))
 
         extern __must_check int wc_linuxkm_allocate_svr_states(void);
         extern void wc_linuxkm_free_svr_states(void);
@@ -821,6 +824,7 @@
         WOLFSSL_API __must_check int wc_save_vector_registers_x86(enum wc_svr_flags flags);
         WOLFSSL_API void wc_restore_vector_registers_x86(enum wc_svr_flags flags);
 
+        #ifdef CONFIG_X86
         #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
             #include <asm/i387.h>
             #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
@@ -833,6 +837,10 @@
                 /* added by 266d051601 */
                 #include <crypto/internal/simd.h>
             #endif
+        #endif
+        #else /* CONFIG_ARM64 */
+            #include <asm/simd.h> /* may_use_simd() */
+            #include <asm/neon.h> /* kernel_neon_begin(), kernel_neon_end() */
         #endif
         #ifndef CAN_SAVE_VECTOR_REGISTERS
             #if defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_OFF) && \
@@ -943,6 +951,8 @@
             #define REENABLE_VECTOR_REGISTERS() wc_restore_vector_registers_x86(WC_SVR_FLAG_INHIBIT)
         #endif
 
+        /* A 0 return means a section is open on both glues, whether or not
+         * the registers came with it, so the caller must always release it. */
         #ifndef SAVE_VECTOR_REGISTERS_MAYBE_INHIBIT
             #if (defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON) || \
                  defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_OFF))
@@ -957,41 +967,9 @@
             #define RESTORE_VECTOR_REGISTERS_MAYBE_INHIBITED() wc_restore_vector_registers_x86(WC_SVR_FLAG_MAYBE_INHIBIT)
         #endif
 
-    #elif defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && (defined(CONFIG_ARM) || defined(CONFIG_ARM64))
+    #elif defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_ARM)
 
-        #error kernel module ARM SIMD is not yet tested or usable.
-
-        #include <asm/fpsimd.h>
-
-        static WARN_UNUSED_RESULT inline int save_vector_registers_arm(void)
-        {
-            preempt_disable();
-            if (! may_use_simd()) {
-                preempt_enable();
-                return BAD_STATE_E;
-            } else {
-                fpsimd_preserve_current_state();
-                return 0;
-            }
-        }
-        static inline void restore_vector_registers_arm(void)
-        {
-            fpsimd_restore_current_state();
-            preempt_enable();
-        }
-
-        #ifndef SAVE_VECTOR_REGISTERS
-            #define SAVE_VECTOR_REGISTERS(fail_clause) { int _svr_ret = save_vector_registers_arm(); if (_svr_ret != 0) { fail_clause } }
-        #endif
-        #ifndef SAVE_VECTOR_REGISTERS2
-            #define SAVE_VECTOR_REGISTERS2() save_vector_registers_arm()
-        #endif
-        #ifndef CAN_SAVE_VECTOR_REGISTERS
-            #define CAN_SAVE_VECTOR_REGISTERS() can_save_vector_registers_arm()
-        #endif
-        #ifndef RESTORE_VECTOR_REGISTERS
-            #define RESTORE_VECTOR_REGISTERS() restore_vector_registers_arm()
-        #endif
+        #error kernel module 32-bit ARM SIMD is not yet tested or usable.
 
     #elif (defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) &&    \
           (!defined(SAVE_VECTOR_REGISTERS) ||               \
@@ -1350,13 +1328,13 @@
 
         #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
 
-            #ifdef CONFIG_X86
+            #if defined(CONFIG_X86) || defined(CONFIG_ARM64)
                 typeof(wc_linuxkm_allocate_svr_states) *wc_linuxkm_allocate_svr_states;
                 typeof(wc_can_save_vector_registers_x86) *wc_can_save_vector_registers_x86;
                 typeof(wc_linuxkm_free_svr_states) *wc_linuxkm_free_svr_states;
                 typeof(wc_restore_vector_registers_x86) *wc_restore_vector_registers_x86;
                 typeof(wc_save_vector_registers_x86) *wc_save_vector_registers_x86;
-            #elif !defined(WC_DEBUG_FORCE_KERNEL_SETTINGS) /* !CONFIG_X86 */
+            #elif !defined(WC_DEBUG_FORCE_KERNEL_SETTINGS) /* !CONFIG_X86 && !CONFIG_ARM64 */
                 #error WOLFSSL_USE_SAVE_VECTOR_REGISTERS is set for an unimplemented architecture.
             #endif /* arch */
 
@@ -1709,7 +1687,8 @@
     #undef get_current
     #define get_current WC_PIE_INDIRECT_SYM(get_current)
 
-    #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
+    #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && \
+        (defined(CONFIG_X86) || defined(CONFIG_ARM64))
         #define wc_linuxkm_allocate_svr_states WC_PIE_INDIRECT_SYM(wc_linuxkm_allocate_svr_states)
         #define wc_can_save_vector_registers_x86 WC_PIE_INDIRECT_SYM(wc_can_save_vector_registers_x86)
         #define wc_linuxkm_free_svr_states WC_PIE_INDIRECT_SYM(wc_linuxkm_free_svr_states)
@@ -2056,7 +2035,7 @@
     #if !defined(BUILDING_WOLFSSL)
         /* some caller code needs these. */
         #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS)
-            #if defined(CONFIG_X86)
+            #if defined(CONFIG_X86) || defined(CONFIG_ARM64)
                 WOLFSSL_API __must_check int wc_can_save_vector_registers_x86(void);
                 WOLFSSL_API __must_check int wc_save_vector_registers_x86(enum wc_svr_flags flags);
                 WOLFSSL_API void wc_restore_vector_registers_x86(enum wc_svr_flags flags);
@@ -2066,9 +2045,9 @@
                 #ifndef REENABLE_VECTOR_REGISTERS
                     #define REENABLE_VECTOR_REGISTERS() wc_restore_vector_registers_x86(WC_SVR_FLAG_INHIBIT)
                 #endif
-            #elif !defined(WC_DEBUG_FORCE_KERNEL_SETTINGS) /* !CONFIG_X86 */
+            #elif !defined(WC_DEBUG_FORCE_KERNEL_SETTINGS) /* !CONFIG_X86 && !CONFIG_ARM64 */
                 #error WOLFSSL_USE_SAVE_VECTOR_REGISTERS is set for an unimplemented architecture.
-            #endif /* !CONFIG_X86 */
+            #endif /* !CONFIG_X86 && !CONFIG_ARM64 */
         #endif /* WOLFSSL_USE_SAVE_VECTOR_REGISTERS */
         #ifdef WC_LINUXKM_USE_HEAP_WRAPPERS
             WOLFSSL_API extern void *wc_linuxkm_malloc(size_t size);
