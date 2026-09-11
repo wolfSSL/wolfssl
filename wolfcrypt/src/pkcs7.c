@@ -935,6 +935,14 @@ void wc_PKCS7_SetUnknownExtCallback(wc_PKCS7* pkcs7, wc_UnknownExtCallback cb)
         pkcs7->unknownExtCallback = cb;
     }
 }
+
+void wc_PKCS7_SetUnknownExtCallback32(wc_PKCS7* pkcs7,
+        wc_UnknownExtCallback32 cb)
+{
+    if (pkcs7 != NULL) {
+        pkcs7->unknownExtCallback32 = cb;
+    }
+}
 #endif
 
 /* Certificate structure holding der pointer, size, and pointer to next
@@ -1252,6 +1260,7 @@ int wc_PKCS7_InitWithCert(wc_PKCS7* pkcs7, byte* derCert, word32 derCertSz)
     Pkcs7Cert* lastCert;
 #ifdef WC_ASN_UNKNOWN_EXT_CB
     wc_UnknownExtCallback cb;
+    wc_UnknownExtCallback32 cb32;
 #endif
 
     if (pkcs7 == NULL || (derCert == NULL && derCertSz != 0)) {
@@ -1262,6 +1271,7 @@ int wc_PKCS7_InitWithCert(wc_PKCS7* pkcs7, byte* derCert, word32 derCertSz)
     devId = pkcs7->devId;
     cert = pkcs7->certList;
 #ifdef WC_ASN_UNKNOWN_EXT_CB
+    cb32 = pkcs7->unknownExtCallback32; /* save / restore callback */
     cb = pkcs7->unknownExtCallback; /* save / restore callback */
 #endif
     ret = wc_PKCS7_Init(pkcs7, heap, devId);
@@ -1269,6 +1279,7 @@ int wc_PKCS7_InitWithCert(wc_PKCS7* pkcs7, byte* derCert, word32 derCertSz)
         return ret;
 
 #ifdef WC_ASN_UNKNOWN_EXT_CB
+    pkcs7->unknownExtCallback32 = cb32;
     pkcs7->unknownExtCallback = cb;
 #endif
     pkcs7->certList = cert;
@@ -1318,8 +1329,13 @@ int wc_PKCS7_InitWithCert(wc_PKCS7* pkcs7, byte* derCert, word32 derCertSz)
 
         InitDecodedCert(dCert, derCert, derCertSz, pkcs7->heap);
 #ifdef WC_ASN_UNKNOWN_EXT_CB
-        if (pkcs7->unknownExtCallback != NULL)
+        if (pkcs7->unknownExtCallback32 != NULL) {
+            wc_SetUnknownExtCallback32(dCert, pkcs7->unknownExtCallback32);
+        }
+
+        if (pkcs7->unknownExtCallback != NULL) {
             wc_SetUnknownExtCallback(dCert, pkcs7->unknownExtCallback);
+        }
 #endif
         ret = ParseCert(dCert, CA_TYPE, NO_VERIFY, 0);
         if (ret < 0) {
@@ -5453,8 +5469,13 @@ static int wc_PKCS7_EcdsaVerify(wc_PKCS7* pkcs7, byte* sig, int sigSz,
         /* This allows the user to not error out in the case of extensions that
          * we are not aware of. */
 #ifdef WC_ASN_UNKNOWN_EXT_CB
-        if (pkcs7->unknownExtCallback != NULL)
+        if (pkcs7->unknownExtCallback32 != NULL) {
+            wc_SetUnknownExtCallback32(dCert, pkcs7->unknownExtCallback32);
+        }
+
+        if (pkcs7->unknownExtCallback != NULL) {
             wc_SetUnknownExtCallback(dCert, pkcs7->unknownExtCallback);
+        }
 #endif
 
         /* not verifying, only using this to extract public key */
@@ -5591,8 +5612,13 @@ static int wc_PKCS7_MlDsaVerify(wc_PKCS7* pkcs7, byte* sig, int sigSz,
         InitDecodedCert(dCert, pkcs7->cert[i], pkcs7->certSz[i], pkcs7->heap);
 
 #ifdef WC_ASN_UNKNOWN_EXT_CB
-        if (pkcs7->unknownExtCallback != NULL)
+        if (pkcs7->unknownExtCallback32 != NULL) {
+            wc_SetUnknownExtCallback32(dCert, pkcs7->unknownExtCallback32);
+        }
+
+        if (pkcs7->unknownExtCallback != NULL) {
             wc_SetUnknownExtCallback(dCert, pkcs7->unknownExtCallback);
+        }
 #endif
 
         /* not verifying, only using this to extract public key */

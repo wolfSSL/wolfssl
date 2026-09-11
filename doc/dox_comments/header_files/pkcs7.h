@@ -1252,10 +1252,16 @@ wc_PKCS7* wc_PKCS7_New(void* heap, int devId);
     \ingroup PKCS7
     \brief Sets unknown extension callback.
 
+    Each OID arc is passed to the callback as a word16, so arcs with values
+    > 65535 are truncated. Use wc_PKCS7_SetUnknownExtCallback32() in new code.
+
     \return none No returns
 
     \param pkcs7 PKCS7 structure
     \param cb Callback function
+
+    \note When both a word16 and a word32 callback are registered on the same
+    wc_PKCS7 structure, only the word32 callback is invoked.
 
     _Example_
     \code
@@ -1263,9 +1269,39 @@ wc_PKCS7* wc_PKCS7_New(void* heap, int devId);
     \endcode
 
     \sa wc_PKCS7_Init
+    \sa wc_PKCS7_SetUnknownExtCallback32
 */
 void wc_PKCS7_SetUnknownExtCallback(wc_PKCS7* pkcs7,
                                     wc_UnknownExtCallback cb);
+
+/*!
+    \ingroup PKCS7
+    \brief Sets unknown extension callback.
+
+    Behaves exactly like wc_PKCS7_SetUnknownExtCallback() except that each OID
+    arc is passed to the callback as a word32, so arcs with values > 65535 are
+    represented without truncation.
+
+    \return none No returns
+
+    \param pkcs7 PKCS7 structure
+    \param cb Callback function
+
+    \note A word32 callback takes precedence over a word16 one: when both
+    wc_PKCS7_SetUnknownExtCallback() and wc_PKCS7_SetUnknownExtCallback32()
+    have been called on the same wc_PKCS7 structure, only the word32 callback
+    is invoked.
+
+    _Example_
+    \code
+    wc_PKCS7_SetUnknownExtCallback32(pkcs7, myCallback32);
+    \endcode
+
+    \sa wc_PKCS7_Init
+    \sa wc_PKCS7_SetUnknownExtCallback
+*/
+void wc_PKCS7_SetUnknownExtCallback32(wc_PKCS7* pkcs7,
+                                      wc_UnknownExtCallback32 cb);
 
 /*!
     \ingroup PKCS7
