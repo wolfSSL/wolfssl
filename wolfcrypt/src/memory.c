@@ -544,7 +544,14 @@ void* wolfSSL_Realloc(void *ptr, size_t size)
     }
 
 #ifdef WOLFSSL_MEM_FAIL_COUNT
-    if (ptr != NULL) {
+    /* realloc(NULL, n) is malloc. AllocMem() already counted it; if the
+     * allocator returns NULL for a positive size, no block exists to free.
+     * Do not undo a failed realloc of a live pointer: that path still
+     * counts a free below and the original block remains. */
+    if (res == NULL && ptr == NULL && size > 0) {
+        wc_MemFailCount_AllocFailed();
+    }
+    else if (ptr != NULL) {
         wc_MemFailCount_FreeMem();
     }
 #endif
