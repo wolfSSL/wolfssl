@@ -48124,7 +48124,14 @@ static wc_test_ret_t ecc_encrypt_e2e_test(WC_RNG* rng, ecc_key* userA, ecc_key* 
     if (ret != 0)
         goto done;
 
-#ifndef WOLFSSL_ECIES_OLD
+#ifdef WOLFSSL_ECIES_OLD
+    /* tmpKey still holds B's public key from the reply above. */
+    tmpKey->dp = userA->dp;
+    ret = wc_ecc_copy_point(&userA->pubkey, &tmpKey->pubkey);
+    if (ret != 0) {
+        ret = WC_TEST_RET_ENC_EC(ret); goto done;
+    }
+#else
     wc_ecc_free(tmpKey);
 #endif
     /* B decrypts msg (request) from A - out has a compressed public key */
