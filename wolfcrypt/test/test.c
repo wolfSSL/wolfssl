@@ -941,7 +941,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_bank_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  noisesrc_test(void);
 #endif
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
-    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && !defined(HAVE_SELFTEST)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_svc_test(void);
 #endif
 #if defined(WC_RNG_BANK_SUPPORT) && defined(HAVE_HASHDRBG) && \
@@ -2608,7 +2608,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_PASS("NOISESRC test passed!\n");
 #endif
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
-    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && !defined(HAVE_SELFTEST)
     if ((ret = rng_drbg_svc_test()) != 0)
         TEST_FAIL("RNGSVC   test failed!\n", ret);
     else
@@ -29162,7 +29162,7 @@ out:
 #endif /* WC_RNG_BANK_SUPPORT */
 
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
-    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && !defined(HAVE_SELFTEST)
 /* Coverage for the DRBG state accessor / reseed scheduling services and the
  * per-key RNG clear APIs.  Probes that observe DRBG internals via the
  * accessors are gated at runtime on wc_RNG_DRBG_Present(), so the test also
