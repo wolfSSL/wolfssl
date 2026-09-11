@@ -842,7 +842,7 @@ int NitroxAesGcmEncrypt(Aes* aes,
         authInSz, authIn, authTag);
 }
 
-#ifdef HAVE_AES_DECRYPT
+#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AESGCM_DECRYPT)
 int NitroxAesGcmDecrypt(Aes* aes,
     byte* out, const byte* in, word32 sz,
     const byte* key, word32 keySz,
@@ -865,7 +865,7 @@ int NitroxAesGcmDecrypt(Aes* aes,
     return NitroxAesDecrypt(aes, AES_GCM, key, ivTmp, out, in, sz,
         authInSz, authIn, authTag);
 }
-#endif /* HAVE_AES_DECRYPT */
+#endif /* HAVE_AES_DECRYPT || HAVE_AESGCM_DECRYPT */
 #endif /* HAVE_AESGCM */
 
 #endif /* HAVE_AES_CBC || HAVE_AESGCM */

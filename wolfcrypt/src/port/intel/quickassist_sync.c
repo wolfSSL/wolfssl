@@ -203,11 +203,11 @@ static int IntelQaGetCyInstanceCount(void);
         static int IntelQaSymAesGcmEncrypt(IntelQaDev*, byte*,
                 const byte*, word32, const byte*, word32, const byte*, word32,
                 byte*, word32, const byte*, word32);
-    #ifdef HAVE_AES_DECRYPT
+    #if defined(HAVE_AES_DECRYPT) || defined(HAVE_AESGCM_DECRYPT)
         static int IntelQaSymAesGcmDecrypt(IntelQaDev*, byte*,
                 const byte*, word32, const byte*, word32, const byte*, word32,
                 const byte*, word32, const byte*, word32);
-    #endif /* HAVE_AES_DECRYPT */
+    #endif /* HAVE_AES_DECRYPT || HAVE_AESGCM_DECRYPT */
     #endif /* HAVE_AESGCM */
 #endif /* !NO_AES */
 
@@ -1173,7 +1173,7 @@ int IntelQaSymAesGcmEncrypt(IntelQaDev* dev,
         CPA_CY_SYM_CIPHER_DIRECTION_ENCRYPT,
         CPA_CY_SYM_HASH_AES_GCM, authTag, authTagSz, authIn, authInSz);
 }
-#ifdef HAVE_AES_DECRYPT
+#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AESGCM_DECRYPT)
 int IntelQaSymAesGcmDecrypt(IntelQaDev* dev,
             byte* out, const byte* in, word32 sz,
             const byte* key, word32 keySz,
@@ -1187,7 +1187,7 @@ int IntelQaSymAesGcmDecrypt(IntelQaDev* dev,
         CPA_CY_SYM_CIPHER_DIRECTION_DECRYPT,
         CPA_CY_SYM_HASH_AES_GCM, (byte*)authTag, authTagSz, authIn, authInSz);
 }
-#endif /* HAVE_AES_DECRYPT */
+#endif /* HAVE_AES_DECRYPT || HAVE_AESGCM_DECRYPT */
 #endif /* HAVE_AESGCM */
 
 #ifndef NO_DES3
@@ -1281,6 +1281,7 @@ int IntelQaSymSync_CryptoDevCb(int devId, struct wc_CryptoInfo* info, void* ctx)
                         info->cipher.aesgcm_enc.authInSz);
             }
             else {
+            #if defined(HAVE_AES_DECRYPT) || defined(HAVE_AESGCM_DECRYPT)
                 Aes* aes = info->cipher.aesgcm_dec.aes;
                 if (aes == NULL)
                     return BAD_FUNC_ARG;
@@ -1296,6 +1297,7 @@ int IntelQaSymSync_CryptoDevCb(int devId, struct wc_CryptoInfo* info, void* ctx)
                         info->cipher.aesgcm_dec.authTagSz,
                         info->cipher.aesgcm_dec.authIn,
                         info->cipher.aesgcm_dec.authInSz);
+            #endif
             }
         }
         #endif /* HAVE_AESGCM */

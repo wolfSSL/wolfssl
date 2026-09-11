@@ -1331,14 +1331,14 @@ WOLFSSL_LOCAL void AES_GCM_encrypt_update_RISCV64(const byte* key, int nr,
     byte* counter);
 WOLFSSL_LOCAL void AES_GCM_encrypt_final_RISCV64(byte* tag, byte* authTag,
     word32 tbytes, word32 nbytes, word32 abytes, byte* h, byte* initCtr);
-#ifdef HAVE_AES_DECRYPT
+#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AESGCM_DECRYPT)
 WOLFSSL_LOCAL void AES_GCM_decrypt_update_RISCV64(const byte* key, int nr,
     byte* out, const byte* in, word32 nbytes, byte* tag, byte* h,
     byte* counter);
 WOLFSSL_LOCAL void AES_GCM_decrypt_final_RISCV64(byte* tag, const byte* authTag,
     word32 tbytes, word32 nbytes, word32 abytes, byte* h, byte* initCtr,
     int* res);
-#endif
+#endif /* HAVE_AES_DECRYPT || HAVE_AESGCM_DECRYPT */
 #endif /* WOLFSSL_AESGCM_STREAM */
 #endif /* HAVE_AESGCM */
 #endif /* WOLFSSL_RISCV_ASM */
