@@ -660,7 +660,7 @@ int test_wc_slhdsa_make_key(void)
 
         ExpectIntEQ(wc_SlhDsaKey_MakeKeyWithRandom(&key, sk_seed,
             sizeof(sk_seed), sk_prf, sizeof(sk_prf), pk_seed, sizeof(pk_seed)),
-            0);
+            SEED_OK);
         wc_SlhDsaKey_Free(&key);
     }
 #endif
@@ -763,7 +763,7 @@ int test_wc_slhdsa_sign(void)
             msg, sizeof(msg), sig, &sigLen, NULL),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wc_SlhDsaKey_SignWithRandom(&key, ctx, sizeof(ctx),
-            msg, sizeof(msg), sig, &sigLen, addRnd), 0);
+            msg, sizeof(msg), sig, &sigLen, addRnd), SEED_OK);
         ExpectIntEQ(sigLen, expSigLen);
 
         wc_SlhDsaKey_Free(&key);
@@ -1174,7 +1174,8 @@ int test_wc_slhdsa_sign_hash(void)
             hash, TEST_SLHDSA_PH_SZ, TEST_SLHDSA_PH, sig, &sigLen, NULL),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wc_SlhDsaKey_SignHashWithRandom(&key, ctx, sizeof(ctx),
-            hash, TEST_SLHDSA_PH_SZ, TEST_SLHDSA_PH, sig, &sigLen, addRnd), 0);
+            hash, TEST_SLHDSA_PH_SZ, TEST_SLHDSA_PH, sig, &sigLen, addRnd),
+            SEED_OK);
         ExpectIntEQ(wc_SlhDsaKey_VerifyHash(&key, ctx, sizeof(ctx), hash,
             TEST_SLHDSA_PH_SZ, TEST_SLHDSA_PH, sig, sigLen), 0);
     }
@@ -1302,7 +1303,7 @@ int test_wc_slhdsa_sign_msg(void)
      * silently rely on the previous call having set it to params->sigLen. */
     sigLen = WC_SLHDSA_MAX_SIG_LEN;
     ExpectIntEQ(wc_SlhDsaKey_SignMsgWithRandom(&key, mprime, sizeof(mprime),
-        sig, &sigLen, addRnd), 0);
+        sig, &sigLen, addRnd), SEED_OK);
     ExpectIntEQ(wc_SlhDsaKey_VerifyMsg(&key, mprime, sizeof(mprime), sig,
         sigLen), 0);
 
