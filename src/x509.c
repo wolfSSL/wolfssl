@@ -7942,30 +7942,54 @@ static int X509PrintReqAttributes(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
     do {
         attr = wolfSSL_X509_REQ_get_attr(x509, i);
         if (attr != NULL) {
-            char lName[NAME_SZ/4]; /* NAME_SZ default is 80 */
-            int lNameSz = NAME_SZ/4;
+            /* Sized for the numeric-form dotted OID string
+             * (MAX_OID_STRING_SZ), not just the NAME_SZ/4 column width used
+             * below for alignment -- an ordinary OID (e.g. pkcs9
+             * extensionRequest, "1.2.840.113549.1.9.14", 21 chars) already
+             * exceeds NAME_SZ/4 == 20. */
+            char lName[MAX_OID_STRING_SZ];
+            int lNameLen;
+            int padSz;
             const byte* data;
+            int dataLen;
 
-            if (wolfSSL_OBJ_obj2txt(lName, lNameSz, attr->object, 0)
+            if (wolfSSL_OBJ_obj2txt(lName, (int)sizeof(lName), attr->object, 0)
                 == WC_NO_ERR_TRACE(WOLFSSL_FAILURE))
             {
                 return WOLFSSL_FAILURE;
             }
-            lNameSz = (int)XSTRLEN(lName);
+            lNameLen = (int)XSTRLEN(lName);
+            /* Column padding assumes names shorter than NAME_SZ/4; clamp so
+             * a longer name (still valid) just isn't padded instead of
+             * passing a negative width to '%*s'. */
+            padSz = (NAME_SZ/4) - lNameLen;
+            if (padSz < 0) {
+                padSz = 0;
+            }
             data = wolfSSL_ASN1_STRING_get0_data(
                     attr->value->value.asn1_string);
             if (data == NULL) {
                 WOLFSSL_MSG("No REQ attribute found when expected");
                 return WOLFSSL_FAILURE;
             }
-            if ((scratchLen = XSNPRINTF(scratch, MAX_WIDTH,
-                          "%*s%s%*s:%s\n", indent+4, "",
-                          lName, (NAME_SZ/4)-lNameSz, "", data))
-                >= MAX_WIDTH)
+            dataLen = (int)XSTRLEN((const char*)data);
+
+            /* Write the line in pieces: the indented, padded name from
+             * scratch, then the value straight from the attribute, then the
+             * newline. A value of any length prints in full, and nothing is
+             * sized from certificate data. */
+            if ((scratchLen = XSNPRINTF(scratch, MAX_WIDTH, "%*s%s%*s:",
+                          indent+4, "", lName, padSz, "")) < 0 ||
+                scratchLen >= MAX_WIDTH)
             {
                 return WOLFSSL_FAILURE;
             }
-            if (wolfSSL_BIO_write(bio, scratch, scratchLen) <= 0) {
+            /* A short write would silently truncate the line: require every
+             * piece to be written in full. */
+            if ((wolfSSL_BIO_write(bio, scratch, scratchLen) != scratchLen) ||
+                ((dataLen > 0) &&
+                 (wolfSSL_BIO_write(bio, data, dataLen) != dataLen)) ||
+                (wolfSSL_BIO_write(bio, "\n", 1) != 1)) {
                 WOLFSSL_MSG("Error writing REQ attribute");
                 return WOLFSSL_FAILURE;
             }
