@@ -279,9 +279,15 @@ extern "C" {
     #define WOLFSSL_SET_CIPHER_BYTES
 #endif
 
+#if defined(CONFIG_WOLFSSL_CRYPTO_CB)
+    #define WOLF_CRYPTO_CB
+#endif
+
 /* wolfTPM Zephyr */
 #if defined(CONFIG_WOLFTPM)
-    #define WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB
+        #define WOLF_CRYPTO_CB
+    #endif
     #define WOLFSSL_AES_CFB
 #endif
 

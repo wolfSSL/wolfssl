@@ -111,6 +111,17 @@ config WOLFCRYPT_FIPS_READY
 
 endchoice
 
+config WOLFSSL_CRYPTO_CB
+  bool "wolfCrypt crypto callbacks"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
+  default n
+  help
+    Enable the crypto callback interface (WOLF_CRYPTO_CB), through which an
+    application registers a device with wc_CryptoCb_RegisterDevice() and
+    routes wolfCrypt operations to it. Also enables key references
+    (WOLF_PRIVATE_KEY_ID), which is what lets a TLS key live on that device
+    instead of in the application's memory.
+
 config WOLFSSL_CRYPTO_ONLY
 	bool "Build wolfCrypt only (no TLS layer)"
 	depends on WOLFSSL_BUILTIN
