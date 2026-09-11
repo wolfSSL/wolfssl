@@ -162,6 +162,19 @@ static int wc_MemFailCount_AllocMem(void)
 
     return ret;
 }
+/* An allocation was counted by wc_MemFailCount_AllocMem() above, but the
+ * underlying allocator then returned NULL (a caller-installed failing
+ * allocator via wolfSSL_SetAllocators(), or a genuine out-of-memory). No
+ * block exists to be freed, so undo the count to keep Total (allocs)
+ * balanced with Frees. */
+static void wc_MemFailCount_AllocFailed(void)
+{
+    wc_LockMutex(&memFailMutex);
+    if (mem_fail_allocs > 0) {
+        mem_fail_allocs--;
+    }
+    wc_UnLockMutex(&memFailMutex);
+}
 static void wc_MemFailCount_FreeMem(void)
 {
     wc_LockMutex(&memFailMutex);
@@ -358,6 +371,10 @@ void* wolfSSL_Malloc(size_t size)
         #ifdef WOLFSSL_TRAP_MALLOC_SZ
         if (size > WOLFSSL_TRAP_MALLOC_SZ) {
             WOLFSSL_MSG("Malloc too big!");
+        #ifdef WOLFSSL_MEM_FAIL_COUNT
+            /* Allocation was counted above but no block exists to free. */
+            wc_MemFailCount_AllocFailed();
+        #endif
             return NULL;
         }
         #endif
@@ -406,7 +423,16 @@ void* wolfSSL_Malloc(size_t size)
             free(res); /* native heap */
         }
         gMemFailCount = gMemFailCountSeed; /* reset */
+    #ifdef WOLFSSL_MEM_FAIL_COUNT
+        wc_MemFailCount_AllocFailed();
+    #endif
         return NULL;
+    }
+#endif
+
+#ifdef WOLFSSL_MEM_FAIL_COUNT
+    if (res == NULL) {
+        wc_MemFailCount_AllocFailed();
     }
 #endif
 
@@ -435,7 +461,13 @@ void wolfSSL_Free(void *ptr)
     wc_MemZero_Check(((unsigned char*)ptr) + MEM_ALIGN, *(size_t*)ptr);
 #endif
 #ifdef WOLFSSL_MEM_FAIL_COUNT
-    wc_MemFailCount_FreeMem();
+    /* Only count a free when there is a block to release. wolfSSL_Free(NULL)
+     * releases nothing (ISO/IEC 9899:2018 7.22.3.3: free(NULL) is a no-op),
+     * and a failed wolfSSL_Malloc() no longer counts an allocation, so a NULL
+     * free must not be counted either or Frees would exceed Total. */
+    if (ptr != NULL) {
+        wc_MemFailCount_FreeMem();
+    }
 #endif
 
     if (free_function) {
@@ -512,7 +544,14 @@ void* wolfSSL_Realloc(void *ptr, size_t size)
     }
 
 #ifdef WOLFSSL_MEM_FAIL_COUNT
-    if (ptr != NULL) {
+    /* realloc(NULL, n) is malloc. AllocMem() already counted it; if the
+     * allocator returns NULL for a positive size, no block exists to free.
+     * Do not undo a failed realloc of a live pointer: that path still
+     * counts a free below and the original block remains. */
+    if (res == NULL && ptr == NULL && size > 0) {
+        wc_MemFailCount_AllocFailed();
+    }
+    else if (ptr != NULL) {
         wc_MemFailCount_FreeMem();
     }
 #endif

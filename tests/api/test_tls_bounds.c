@@ -1466,6 +1466,8 @@ int test_ProcessChainOCSPRequest_bounds(void)
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     if (ssl != NULL) {
         TLSX* ext = NULL;
+        DerBuffer* savedCert = ssl->buffers.certificate;
+        DerBuffer* savedChain = ssl->buffers.certChain;
         ExpectIntEQ(TLSX_UseCertificateStatusRequest(&ssl->extensions,
                     WOLFSSL_CSR_OCSP, 0, ssl, ssl->heap, ssl->devId),
                     WOLFSSL_SUCCESS);
@@ -1475,10 +1477,14 @@ int test_ProcessChainOCSPRequest_bounds(void)
         /* A certificate had to be loaded for wolfSSL_new() to succeed (see
          * test_tls_bounds_load_server_cert()); clear both buffers back to
          * NULL so ProcessChainOCSPRequest() sees exactly the "chain ==
-         * NULL" state under test. */
+         * NULL" state under test. The SSL owns these buffers (weOwnCert),
+         * so save and restore them - nulling them outright leaked the DER
+         * copy that wolfSSL_new() allocated. */
         ssl->buffers.certChain = NULL;
         ssl->buffers.certificate = NULL;
         ExpectIntEQ(ProcessChainOCSPRequest(ssl), 0);
+        ssl->buffers.certificate = savedCert;
+        ssl->buffers.certChain = savedChain;
     }
     wolfSSL_free(ssl);
     ssl = NULL;
