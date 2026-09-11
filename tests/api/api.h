@@ -39,23 +39,8 @@
 
 #include <wolfssl/wolfcrypt/hash.h>
 
-/* A successful PQ seed-input call reports WC_FIPS_NOT_APPROVED from a module
- * whose wrappers normalise the indicator, and a plain 0 from every other build.
- *
- * WC_HAVE_FIPS_INDICATOR is the CAPABILITY macro fips.h defines for exactly
- * that, and gating on it rather than on the version alone is what lets this
- * change merge BEFORE the FIPS-side PR: against a bundle without it the module
- * returns 0 and so does SEED_OK; against one with it, both are the indicator.
- * The test tracks the module actually present instead of assuming one.
- *
- * FIPS_NO_WRAPPERS (settings.h, for WC_FIPS_LL_CRYPTO and
- * WOLFSSL_FIPS_DEV_NO_POST) compiles no wrappers at all, so those expect 0.
- *
- * --enable-fips=dev is deliberately NOT excluded: it compiles the wrappers, so
- * the module really does return the indicator under it and the test follows the
- * module.  Teaching fips.c about WOLFSSL_FIPS_DEV is not an option: a
- * development-only macro must never reach the module source.
- */
+/* A successful PQ seed-input call returns WC_FIPS_NOT_APPROVED from v7 module
+ * wrappers whose fips.h defines WC_HAVE_FIPS_INDICATOR, and 0 otherwise. */
 #if defined(HAVE_FIPS) && defined(WC_HAVE_FIPS_INDICATOR) && \
     FIPS_VERSION3_GE(7,0,0) && !defined(FIPS_NO_WRAPPERS)
     #define SEED_OK  WC_FIPS_NOT_APPROVED
