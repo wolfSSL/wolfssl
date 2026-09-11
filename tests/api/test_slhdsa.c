@@ -4263,26 +4263,17 @@ int test_slhdsa_cb_free(void)
     return EXPECT_RESULT();
 }
 
-/* The seed-input service indicator, asserted on a SUCCESSFUL call.
- *
- * See test_wc_MlKemKey_seed_service_indicator() for the rationale.  FIPS 205
- * sec 9.1 is the SLH-DSA equivalent: the module shall generate its own keygen
- * randomness, so a caller-supplied one is performed but reported
- * non-approved.  wc_SlhDsaKey_MakeKeyWithRandom() returns 0 or a negative
- * error and never a length, so the positive indicator is unambiguous.
- */
+/* SLH-DSA keygen from caller seeds succeeds and returns SEED_OK, the service
+ * indicator for a seed-input call (api.h). */
 int test_wc_SlhDsaKey_seed_service_indicator(void)
 {
     EXPECT_DECLS;
-/* wc_SlhDsaKey_MakeKeyWithRandom() is declared inside
- * "#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY" in wc_slhdsa.h, and nothing else
- * gates it, so that is the one guard this test needs. */
+/* wc_slhdsa.h declares wc_SlhDsaKey_MakeKeyWithRandom() only under
+ * #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY. */
 #if defined(WOLFSSL_HAVE_SLHDSA) && !defined(WOLFSSL_SLHDSA_VERIFY_ONLY)
     SlhDsaKey key;
-    /* n is 16/24/32 for the 128/192/256 parameter sets (FIPS 205 Table 2).
-     * The public key is PK.seed || PK.root, each n bytes (FIPS 205 sec 9.1),
-     * so n is half of PublicSize.  Derived rather than tabulated so it covers
-     * every parameter set and cannot drift from the implementation. */
+    /* PK is PK.seed || PK.root, n bytes each (FIPS 205 sec 9.1), so n is half
+     * of PublicSize. */
     byte seeds[3][WC_SLHDSA_N_256];  /* n is at most 32 */
     int n = 0;
 

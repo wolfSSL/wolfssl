@@ -31736,12 +31736,8 @@ int test_wc_MlDsaKey_SetPrecompA(void)
     return EXPECT_RESULT();
 }
 
-/* The seed-input service indicator, asserted on a SUCCESSFUL call.
- *
- * SEED_OK is WC_FIPS_NOT_APPROVED when the module defines
- * WC_HAVE_FIPS_INDICATOR and 0 otherwise, so the same assertion states the
- * intended behavior for both.
- */
+/* ML-DSA keygen from a caller seed succeeds and returns SEED_OK, the service
+ * indicator for a seed-input call (api.h). */
 int test_wc_MlDsaKey_seed_service_indicator(void)
 {
     EXPECT_DECLS;

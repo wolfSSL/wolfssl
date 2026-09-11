@@ -30212,16 +30212,8 @@ static int test_wolfSSL_d2i_X509_REQ(void)
          * Verify the signature in the CSR
          */
 #ifdef WC_FIPS_RSA_VERIFY_MIN_2048
-        /* certs/csr.ext.der carries a 1024-bit RSA key.  CMVP IG C.F
-         * ("Signature verification"): "For the FIPS 186-5 signature
-         * verification, the modulus size shall be at least 2048."  A 1024-bit
-         * modulus is only verifiable under a FIPS 186-4 legacy SigVer claim,
-         * which this module does not make, so the approved service rejects it
-         * and verification fails by design.
-         * Gated on the module's capability macro (fips.h) rather than
-         * FIPS_VERSION3_GE(7,0,0): an earlier module reports a version that
-         * satisfies that predicate but enforces the floor on key generation
-         * only, so it still verifies the 1024-bit signature. */
+        /* certs/csr.ext.der has a 1024-bit RSA key; IG C.F requires at least
+         * 2048 bits for FIPS 186-5 signature verification. */
         ExpectIntEQ(X509_REQ_verify(req, pub_key), 0);
 #else
         ExpectIntEQ(X509_REQ_verify(req, pub_key), 1);
