@@ -1201,6 +1201,19 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, word32 p, word32 l
     if (sha3->i >= rate)
         return BAD_STATE_E;
 
+#if defined(USE_INTEL_SPEEDUP) || defined(SHA3_NEEDS_VREG_CLAIM)
+    if (SHA3_BLOCK_VREGS(sha3_block)) {
+        int ret = SAVE_VECTOR_REGISTERS2();
+        if (ret != 0) {
+#if defined(USE_INTEL_SPEEDUP) && defined(WC_C_DYNAMIC_FALLBACK)
+            sha3_block = BlockSha3;
+#else
+            return ret;
+#endif
+        }
+    }
+#endif
+
 #if !defined(BIG_ENDIAN_ORDER) && !defined(WC_SHA3_FAULT_HARDEN) && \
     !defined(WOLFSSL_WIDE_BYTE)
     xorbuf(sha3->s, sha3->t, sha3->i);
@@ -1235,22 +1248,14 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, word32 p, word32 l
     }
 #ifdef WC_SHA3_FAULT_HARDEN
     if (check != p) {
+#if defined(USE_INTEL_SPEEDUP) || defined(SHA3_NEEDS_VREG_CLAIM)
+        if (SHA3_BLOCK_VREGS(sha3_block)) {
+            RESTORE_VECTOR_REGISTERS();
+        }
+#endif
         return BAD_COND_E;
     }
 #endif
-#endif
-
-#if defined(USE_INTEL_SPEEDUP) || defined(SHA3_NEEDS_VREG_CLAIM)
-    if (SHA3_BLOCK_VREGS(sha3_block)) {
-        int ret = SAVE_VECTOR_REGISTERS2();
-        if (ret != 0) {
-#if defined(USE_INTEL_SPEEDUP) && defined(WC_C_DYNAMIC_FALLBACK)
-            sha3_block = BlockSha3;
-#else
-            return ret;
-#endif
-        }
-    }
 #endif
 
     for (j = 0; l - j >= rate; j += rate) {
