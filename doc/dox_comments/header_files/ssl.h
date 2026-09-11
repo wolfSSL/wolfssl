@@ -5298,6 +5298,91 @@ char*       wolfSSL_X509_NAME_oneline(WOLFSSL_X509_NAME* name, char* in, int sz)
 /*!
     \ingroup CertsKeys
 
+    \brief This function returns the public key of the certificate with a new
+    reference. The key is decoded once and cached on the certificate, so the
+    same object is returned on every call. Treat it as read only. Free the
+    reference with wolfSSL_EVP_PKEY_free().
+
+    \return pointer to the WOLFSSL_EVP_PKEY on success.
+    \return NULL if x509 is NULL, has no public key, or the key cannot be
+    decoded.
+
+    \param x509 pointer to a WOLFSSL_X509 structure.
+
+    _Example_
+    \code
+    WOLFSSL_X509* x509;
+    WOLFSSL_EVP_PKEY* key;
+    ...
+    key = wolfSSL_X509_get_pubkey(x509);
+    if (key == NULL) {
+        // failed to get the public key
+    }
+    ...
+    wolfSSL_EVP_PKEY_free(key);
+    \endcode
+
+    \sa wolfSSL_X509_get0_pubkey
+    \sa wolfSSL_EVP_PKEY_free
+*/
+WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief This function returns the public key of the certificate without a
+    new reference. The key is owned by the certificate, stays valid for its
+    lifetime, and must not be freed. Treat it as read only.
+
+    \return pointer to the WOLFSSL_EVP_PKEY on success.
+    \return NULL if x509 is NULL, has no public key, or the key cannot be
+    decoded.
+
+    \param x509 pointer to a WOLFSSL_X509 structure.
+
+    _Example_
+    \code
+    WOLFSSL_X509* x509;
+    WOLFSSL_EVP_PKEY* key;
+    ...
+    key = wolfSSL_X509_get0_pubkey(x509);
+    if (key == NULL) {
+        // failed to get the public key
+    }
+    // do not free key
+    \endcode
+
+    \sa wolfSSL_X509_get_pubkey
+*/
+WOLFSSL_EVP_PKEY* wolfSSL_X509_get0_pubkey(const WOLFSSL_X509* x509);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief This function returns the key held by a WOLFSSL_X509_PUBKEY without
+    a new reference. The key must not be freed.
+
+    \return pointer to the WOLFSSL_EVP_PKEY on success.
+    \return NULL if key is NULL or holds no key.
+
+    \param key pointer to a WOLFSSL_X509_PUBKEY structure.
+
+    _Example_
+    \code
+    WOLFSSL_X509* x509;
+    WOLFSSL_EVP_PKEY* pkey;
+    ...
+    pkey = wolfSSL_X509_PUBKEY_get0(wolfSSL_X509_get_X509_PUBKEY(x509));
+    \endcode
+
+    \sa wolfSSL_X509_PUBKEY_get
+    \sa wolfSSL_X509_get_X509_PUBKEY
+*/
+WOLFSSL_EVP_PKEY* wolfSSL_X509_PUBKEY_get0(WOLFSSL_X509_PUBKEY* key);
+
+/*!
+    \ingroup CertsKeys
+
     \brief This function returns the name of the certificate issuer.
 
     \return point a pointer to the WOLFSSL_X509 struct’s issuer member is
