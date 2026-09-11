@@ -265,7 +265,7 @@ extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_svc_test(void);
 #endif
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_rbgc_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_entropy_invalidate_test(void);
-extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_nextseed_test(void);
+extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_nextseedstest(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_pool_test(void);
 #endif /* WC_NO_RNG */
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  pwdbased_test(void);

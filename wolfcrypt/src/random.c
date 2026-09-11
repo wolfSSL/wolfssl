@@ -891,7 +891,7 @@ static int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz,
              * divergence burden), and never zeroized (racy, and
              * interleaved entropy of compatible provenance is harmless).
              */
-            WOLFSSL_ATOMIC_STORE(drbg->nextUncreditedSeedLen,
+            WOLFSSL_ATOMIC_STORE(drbg->nextStirLen,
                                  WC_DRBG_NEXT_SEED_EMPTY);
         }
 #endif
@@ -899,10 +899,7 @@ static int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz,
         ret = Hash256_DRBG_Reseed(drbg, seed, seedSz, additional, additionalSz);
 #ifdef WC_RNG_DEBUG_STATS
         if (ret == 0) {
-            if (credited)
-                ++rng->_stats_credited_reseeds;
-            else
-                ++rng->_stats_uncredited_reseeds;
+            ++rng->_stats_reseeds;
         }
 #endif
         goto out;
@@ -930,7 +927,7 @@ static int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz,
         if (cur_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED) {
             NextSeedPurge(&drbg512->nextSeedLen);
             /* see the SHA-256 arm re best-effort and no-zeroize. */
-            WOLFSSL_ATOMIC_STORE(drbg512->nextUncreditedSeedLen,
+            WOLFSSL_ATOMIC_STORE(drbg512->nextStirLen,
                                  WC_DRBG_NEXT_SEED_EMPTY);
         }
 #endif
@@ -939,10 +936,7 @@ static int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz,
                                   additional, additionalSz);
 #ifdef WC_RNG_DEBUG_STATS
         if (ret == 0) {
-            if (credited)
-                ++rng->_stats_credited_reseeds;
-            else
-                ++rng->_stats_uncredited_reseeds;
+            ++rng->_stats_reseeds;
         }
 #endif
         goto out;
@@ -1476,7 +1470,7 @@ static int Hash_DRBG_Instantiate(DRBG_internal* drbg, const byte* seed,
     XMEMSET(drbg, 0, sizeof(DRBG_internal));
 #ifdef WC_RNG_HAVE_NEXT_SEED
     wolfSSL_Atomic_Int_Init(&drbg->nextSeedLen, WC_DRBG_NEXT_SEED_EMPTY);
-    wolfSSL_Atomic_Int_Init(&drbg->nextUncreditedSeedLen,
+    wolfSSL_Atomic_Int_Init(&drbg->nextStirLen,
                             WC_DRBG_NEXT_SEED_EMPTY);
 #endif
     drbg->heap = heap;
@@ -1990,7 +1984,7 @@ static int Hash512_DRBG_Instantiate(DRBG_SHA512_internal* drbg,
     XMEMSET(drbg, 0, sizeof(DRBG_SHA512_internal));
 #ifdef WC_RNG_HAVE_NEXT_SEED
     wolfSSL_Atomic_Int_Init(&drbg->nextSeedLen, WC_DRBG_NEXT_SEED_EMPTY);
-    wolfSSL_Atomic_Int_Init(&drbg->nextUncreditedSeedLen,
+    wolfSSL_Atomic_Int_Init(&drbg->nextStirLen,
                             WC_DRBG_NEXT_SEED_EMPTY);
 #endif
     drbg->heap = heap;
@@ -2081,13 +2075,13 @@ static int Hash_DRBG_StirGenerate(WC_RNG* rng, const byte* add, word32 addSz)
 #endif
 #ifdef WC_RNG_DEBUG_STATS
     if (ret == 0)
-        ++rng->_stats_uncredited_reseeds; /* counts uncredited
+        ++rng->_stats_stirs; /* counts uncredited
                                            * stir-generates. */
 #endif
     return ret;
 }
 
-int wc_RNG_DRBG_Reseed_Nonce_Uncredited(WC_RNG* rng,
+int wc_RNG_DRBG_Stir_Nonce(WC_RNG* rng,
                                         const byte* seed, word32 seedSz,
                                         const byte *nonce, word32 nonceSz)
 {
@@ -2115,9 +2109,9 @@ int wc_RNG_DRBG_Reseed_Nonce_Uncredited(WC_RNG* rng,
     }
 }
 
-int wc_RNG_DRBG_Reseed_Uncredited(WC_RNG* rng, const byte* seed, word32 seedSz)
+int wc_RNG_DRBG_Stir(WC_RNG* rng, const byte* seed, word32 seedSz)
 {
-    return wc_RNG_DRBG_Reseed_Nonce_Uncredited(rng, seed, seedSz, NULL,
+    return wc_RNG_DRBG_Stir_Nonce(rng, seed, seedSz, NULL,
                                                0);
 }
 
@@ -3391,14 +3385,14 @@ WOLFSSL_API int wc_RNG_invalidate_entropy(WC_RNG* rng) {
 #ifndef NO_SHA256
     if ((rng->drbgType == WC_DRBG_SHA256) && (rng->drbg != NULL)) {
         NextSeedPurge(&((DRBG_internal *)rng->drbg)->nextSeedLen);
-        WOLFSSL_ATOMIC_STORE(((DRBG_internal *)rng->drbg)->nextUncreditedSeedLen,
+        WOLFSSL_ATOMIC_STORE(((DRBG_internal *)rng->drbg)->nextStirLen,
                              WC_DRBG_NEXT_SEED_EMPTY);
     }
 #endif
 #ifdef WOLFSSL_DRBG_SHA512
     if ((rng->drbgType == WC_DRBG_SHA512) && (rng->drbg512 != NULL)) {
         NextSeedPurge(&((DRBG_SHA512_internal *)rng->drbg512)->nextSeedLen);
-        WOLFSSL_ATOMIC_STORE(((DRBG_SHA512_internal *)rng->drbg512)->nextUncreditedSeedLen,
+        WOLFSSL_ATOMIC_STORE(((DRBG_SHA512_internal *)rng->drbg512)->nextStirLen,
                              WC_DRBG_NEXT_SEED_EMPTY);
     }
 #endif
@@ -3805,7 +3799,7 @@ static int wc_RNG_DRBG_ReseedRBGC_local(WC_RNG* rng, WC_RNG* root,
             }
         }
         else {
-            ret = wc_RNG_DRBG_Reseed_Nonce_Uncredited(rng, seed, SEED_SZ, nonce,
+            ret = wc_RNG_DRBG_Stir_Nonce(rng, seed, SEED_SZ, nonce,
                                                       nonceSz);
         }
     }
@@ -3820,7 +3814,7 @@ int wc_RNG_DRBG_ReseedRBGC(WC_RNG* rng, WC_RNG* root, const byte* nonce,
     return wc_RNG_DRBG_ReseedRBGC_local(rng, root, nonce, nonceSz, 1);
 }
 
-int wc_RNG_DRBG_ReseedRBGC_Uncredited(WC_RNG* rng, WC_RNG* root,
+int wc_RNG_DRBG_StirRBGC(WC_RNG* rng, WC_RNG* root,
                                       const byte* nonce, word32 nonceSz)
 {
     return wc_RNG_DRBG_ReseedRBGC_local(rng, root, nonce, nonceSz, 0);
@@ -3935,7 +3929,7 @@ static int PollAndReSeed(WC_RNG* rng, const byte* additional,
  * module's own reseed function, and the reseed counter is reset iff the
  * reseed succeeds.  If nonceSz > 0, nonce is incorporated into the same
  * reseed derivation as (uncredited) additional input, with the semantics of
- * wc_RNG_DRBG_Reseed_Uncredited(), in a single state transition.  On failure
+ * wc_RNG_DRBG_Stir(), in a single state transition.  On failure
  * the reseed counter is not reset and rng->status reflects the failure
  * exactly as a generate-time reseed failure would.  The caller must hold
  * exclusive access to rng, as for all WC_RNG operations. */
@@ -4060,25 +4054,25 @@ static WC_INLINE int NextSeedPtrs(WC_RNG* rng, byte** seed, word32 *nextSeedSz,
     return MISSING_RNG_E;
 }
 
-static WC_INLINE int NextUncreditedSeedPtrs(WC_RNG* rng, byte** seed,
+static WC_INLINE int NextStirPtrs(WC_RNG* rng, byte** seed,
                                             word32 *nextSeedSz,
                                             wolfSSL_Atomic_Int** len)
 {
 #ifndef NO_SHA256
     if ((rng->drbgType == WC_DRBG_SHA256) && (rng->drbg != NULL)) {
-        *seed = ((DRBG_internal*)rng->drbg)->nextUncreditedSeed;
+        *seed = ((DRBG_internal*)rng->drbg)->nextStir;
         *nextSeedSz =
-            (word32)sizeof(((DRBG_internal*)rng->drbg)->nextUncreditedSeed);
-        *len  = &((DRBG_internal*)rng->drbg)->nextUncreditedSeedLen;
+            (word32)sizeof(((DRBG_internal*)rng->drbg)->nextStir);
+        *len  = &((DRBG_internal*)rng->drbg)->nextStirLen;
         return 0;
     }
 #endif
 #ifdef WOLFSSL_DRBG_SHA512
     if ((rng->drbgType == WC_DRBG_SHA512) && (rng->drbg512 != NULL)) {
-        *seed = ((DRBG_SHA512_internal*)rng->drbg512)->nextUncreditedSeed;
+        *seed = ((DRBG_SHA512_internal*)rng->drbg512)->nextStir;
         *nextSeedSz =
-            (word32)sizeof(((DRBG_SHA512_internal*)rng->drbg512)->nextUncreditedSeed);
-        *len  = &((DRBG_SHA512_internal*)rng->drbg512)->nextUncreditedSeedLen;
+            (word32)sizeof(((DRBG_SHA512_internal*)rng->drbg512)->nextStir);
+        *len  = &((DRBG_SHA512_internal*)rng->drbg512)->nextStirLen;
         return 0;
     }
 #endif
@@ -4135,7 +4129,7 @@ static int wc_RNG_DRBG_NextSeedGenerate_local(WC_RNG* rng, WC_RNG *root,
     }
 
     if (nonce)
-        ret = NextUncreditedSeedPtrs(rng, &seed, &nextSeedSz, &lenp);
+        ret = NextStirPtrs(rng, &seed, &nextSeedSz, &lenp);
     else
         ret = NextSeedPtrs(rng, &seed, &nextSeedSz, &lenp,
                            &nextSeedRBGCStratum_p);
@@ -4296,7 +4290,7 @@ static int wc_RNG_DRBG_NextSeedGenerate_local(WC_RNG* rng, WC_RNG *root,
         if (nonce != NULL) {
             WOLFSSL_ATOMIC_STORE(*lenp, WC_DRBG_NEXT_SEED_READY);
             #ifdef WC_RNG_DEBUG_STATS
-            ++rng->_stats_n_nextuncreditedseed_banked;
+            ++rng->_stats_nextstirs_banked;
             #endif
             return 0;
         }
@@ -4311,7 +4305,7 @@ static int wc_RNG_DRBG_NextSeedGenerate_local(WC_RNG* rng, WC_RNG *root,
                 return ret;
             }
             #ifdef WC_RNG_DEBUG_STATS
-            ++rng->_stats_n_nextseed_banked;
+            ++rng->_stats_nextseedsbanked;
             #endif
             return 0;
         }
@@ -4327,7 +4321,7 @@ static int wc_RNG_DRBG_NextSeedGenerate_local(WC_RNG* rng, WC_RNG *root,
                 return ret;
             }
             #ifdef WC_RNG_DEBUG_STATS
-            ++rng->_stats_n_nextseed_banked;
+            ++rng->_stats_nextseedsbanked;
             #endif
             return 0;
         }
@@ -4465,10 +4459,10 @@ int wc_RNG_DRBG_NextSeedNow_Nonce(WC_RNG* rng, const byte* nonce,
     if (ret == 0) {
         #ifdef WC_RNG_HAVE_RBGC
         if (*nextSeedRBGCStratum_p > 0)
-            ++rng->_stats_n_nextseed_RBGC_redeemed;
+            ++rng->_stats_nextseedsRBGC_redeemed;
         else
         #endif
-            ++rng->_stats_n_nextseed_primary_redeemed;
+            ++rng->_stats_nextseedsprimary_redeemed;
     }
     #endif
 
@@ -4511,7 +4505,7 @@ int wc_RNG_DRBG_NextSeedNow(WC_RNG* rng) {
  * interleaved fragments of compatible provenance are harmless.  A full
  * accumulator publishes WC_DRBG_NEXT_SEED_READY (no health test -- no
  * claim is being made) and blocks further deposits until consumed. */
-int wc_RNG_DRBG_NextUncreditedSeedStore(WC_RNG* rng, const byte *nonce,
+int wc_RNG_DRBG_NextStirStore(WC_RNG* rng, const byte *nonce,
                                         word32 nonceSz)
 {
     if ((nonce == NULL) || (nonceSz == 0))
@@ -4530,7 +4524,7 @@ int wc_RNG_DRBG_NextUncreditedSeedStore(WC_RNG* rng, const byte *nonce,
  * Use-once: the material is consumed (accumulation reopens) whether or not
  * the reseed succeeds.  The buffer is never zeroized (racy against
  * depositors, and always a net entropy loss). */
-int wc_RNG_DRBG_NextUncreditedSeedNow(WC_RNG* rng)
+int wc_RNG_DRBG_NextStirNow(WC_RNG* rng)
 {
     byte* seed;
     wolfSSL_Atomic_Int* lenp;
@@ -4549,7 +4543,7 @@ int wc_RNG_DRBG_NextUncreditedSeedNow(WC_RNG* rng)
     if (rng->status != DRBG_OK)
         return RNG_FAILURE_E;
 
-    ret = NextUncreditedSeedPtrs(rng, &seed, &nextSeedSz, &lenp);
+    ret = NextStirPtrs(rng, &seed, &nextSeedSz, &lenp);
     if (ret != 0) {
         /* No DRBG instantiated -- nothing to stir (RDRAND et al.). */
         return ret;
@@ -4566,7 +4560,7 @@ int wc_RNG_DRBG_NextUncreditedSeedNow(WC_RNG* rng)
 
 #ifdef WC_RNG_DEBUG_STATS
     if (ret == 0)
-        ++rng->_stats_n_nextuncreditedseed_redeemed;
+        ++rng->_stats_nextstirs_redeemed;
 #endif
 
     WOLFSSL_ATOMIC_STORE(*lenp, WC_DRBG_NEXT_SEED_EMPTY);
@@ -4670,14 +4664,14 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
         #ifndef NO_SHA256
         if ((rng->drbgType == WC_DRBG_SHA256) && (rng->drbg != NULL)) {
             NextSeedPurge(&((DRBG_internal *)rng->drbg)->nextSeedLen);
-            WOLFSSL_ATOMIC_STORE(((DRBG_internal *)rng->drbg)->nextUncreditedSeedLen,
+            WOLFSSL_ATOMIC_STORE(((DRBG_internal *)rng->drbg)->nextStirLen,
                                  WC_DRBG_NEXT_SEED_EMPTY);
         }
         #endif
         #ifdef WOLFSSL_DRBG_SHA512
         if ((rng->drbgType == WC_DRBG_SHA512) && (rng->drbg512 != NULL)) {
             NextSeedPurge(&((DRBG_SHA512_internal *)rng->drbg512)->nextSeedLen);
-            WOLFSSL_ATOMIC_STORE(((DRBG_SHA512_internal *)rng->drbg512)->nextUncreditedSeedLen,
+            WOLFSSL_ATOMIC_STORE(((DRBG_SHA512_internal *)rng->drbg512)->nextStirLen,
                                  WC_DRBG_NEXT_SEED_EMPTY);
         }
         #endif
@@ -4717,7 +4711,7 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
         int stir_ready = 0;
 #ifndef NO_SHA256
         if ((rng->drbgType == WC_DRBG_SHA256) && (rng->drbg != NULL) &&
-            (WOLFSSL_ATOMIC_LOAD(((DRBG_internal *)rng->drbg)->nextUncreditedSeedLen)
+            (WOLFSSL_ATOMIC_LOAD(((DRBG_internal *)rng->drbg)->nextStirLen)
              == WC_DRBG_NEXT_SEED_READY))
         {
             stir_ready = 1;
@@ -4725,14 +4719,14 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 #endif
 #ifdef WOLFSSL_DRBG_SHA512
         if ((rng->drbgType == WC_DRBG_SHA512) && (rng->drbg512 != NULL) &&
-            (WOLFSSL_ATOMIC_LOAD(((DRBG_SHA512_internal *)rng->drbg512)->nextUncreditedSeedLen)
+            (WOLFSSL_ATOMIC_LOAD(((DRBG_SHA512_internal *)rng->drbg512)->nextStirLen)
              == WC_DRBG_NEXT_SEED_READY))
         {
             stir_ready = 1;
         }
 #endif
         if (stir_ready)
-            (void)wc_RNG_DRBG_NextUncreditedSeedNow(rng);
+            (void)wc_RNG_DRBG_NextStirNow(rng);
     }
 #endif /* WC_RNG_HAVE_NEXT_SEED */
 
@@ -8947,8 +8941,8 @@ WOLFSSL_API int wc_rng_debug_stats_snap(struct wc_rng_debug_stats_snapshot *s,
     s->_stats_total_bytes_requested = rng->_stats_total_bytes_requested;
     s->_stats_total_bytes_produced  = rng->_stats_total_bytes_produced;
     s->_stats_total_requests        = rng->_stats_total_requests;
-    s->_stats_credited_reseeds      = rng->_stats_credited_reseeds;
-    s->_stats_uncredited_reseeds    = rng->_stats_uncredited_reseeds;
+    s->_stats_reseeds               = rng->_stats_reseeds;
+    s->_stats_stirs                 = rng->_stats_stirs;
     s->_stats_seed_failures         = rng->_stats_seed_failures;
     s->_stats_locks_taken           = rng->_stats_locks_taken;
     s->_stats_locks_released        = rng->_stats_locks_released;
@@ -8962,11 +8956,11 @@ WOLFSSL_API int wc_rng_debug_stats_snap(struct wc_rng_debug_stats_snapshot *s,
     s->_stats_pool_bytes_missed     = rng->_stats_pool_bytes_missed;
 #endif
 #ifdef WC_RNG_HAVE_NEXT_SEED
-    s->_stats_n_nextseed_primary_redeemed    = rng->_stats_n_nextseed_primary_redeemed;
-    s->_stats_n_nextseed_RBGC_redeemed       = rng->_stats_n_nextseed_RBGC_redeemed;
-    s->_stats_n_nextuncreditedseed_redeemed  = rng->_stats_n_nextuncreditedseed_redeemed;
-    s->_stats_n_nextseed_banked     = rng->_stats_n_nextseed_banked;
-    s->_stats_n_nextuncreditedseed_banked = rng->_stats_n_nextuncreditedseed_banked;
+    s->_stats_nextseedsprimary_redeemed = rng->_stats_nextseedsprimary_redeemed;
+    s->_stats_nextseedsRBGC_redeemed = rng->_stats_nextseedsRBGC_redeemed;
+    s->_stats_nextstirs_redeemed    = rng->_stats_nextstirs_redeemed;
+    s->_stats_nextseedsbanked       = rng->_stats_nextseedsbanked;
+    s->_stats_nextstirs_banked      = rng->_stats_nextstirs_banked;
 #endif
 
     return 0;
@@ -8982,8 +8976,8 @@ WOLFSSL_API int wc_rng_debug_stats_restore(
     rng->_stats_total_bytes_requested = s->_stats_total_bytes_requested;
     rng->_stats_total_bytes_produced  = s->_stats_total_bytes_produced;
     rng->_stats_total_requests        = s->_stats_total_requests;
-    rng->_stats_credited_reseeds      = s->_stats_credited_reseeds;
-    rng->_stats_uncredited_reseeds    = s->_stats_uncredited_reseeds;
+    rng->_stats_reseeds               = s->_stats_reseeds;
+    rng->_stats_stirs                 = s->_stats_stirs;
     rng->_stats_seed_failures         = s->_stats_seed_failures;
     rng->_stats_locks_taken           = s->_stats_locks_taken;
     rng->_stats_locks_released        = s->_stats_locks_released;
@@ -8997,11 +8991,11 @@ WOLFSSL_API int wc_rng_debug_stats_restore(
     rng->_stats_pool_bytes_missed     = s->_stats_pool_bytes_missed;
 #endif
 #ifdef WC_RNG_HAVE_NEXT_SEED
-    rng->_stats_n_nextseed_primary_redeemed    = s->_stats_n_nextseed_primary_redeemed;
-    rng->_stats_n_nextseed_RBGC_redeemed       = s->_stats_n_nextseed_RBGC_redeemed;
-    rng->_stats_n_nextuncreditedseed_redeemed  = s->_stats_n_nextuncreditedseed_redeemed;
-    rng->_stats_n_nextseed_banked     = s->_stats_n_nextseed_banked;
-    rng->_stats_n_nextuncreditedseed_banked = s->_stats_n_nextuncreditedseed_banked;
+    rng->_stats_nextseedsprimary_redeemed = s->_stats_nextseedsprimary_redeemed;
+    rng->_stats_nextseedsRBGC_redeemed = s->_stats_nextseedsRBGC_redeemed;
+    rng->_stats_nextstirs_redeemed    = s->_stats_nextstirs_redeemed;
+    rng->_stats_nextseedsbanked       = s->_stats_nextseedsbanked;
+    rng->_stats_nextstirs_banked      = s->_stats_nextstirs_banked;
 #endif
 
     return 0;
@@ -9016,8 +9010,8 @@ WOLFSSL_API int wc_rng_debug_stats_sum(struct wc_rng_debug_stats_snapshot *s,
     s->_stats_total_bytes_requested += rng->_stats_total_bytes_requested;
     s->_stats_total_bytes_produced  += rng->_stats_total_bytes_produced;
     s->_stats_total_requests        += rng->_stats_total_requests;
-    s->_stats_credited_reseeds      += rng->_stats_credited_reseeds;
-    s->_stats_uncredited_reseeds    += rng->_stats_uncredited_reseeds;
+    s->_stats_reseeds               += rng->_stats_reseeds;
+    s->_stats_stirs                 += rng->_stats_stirs;
     s->_stats_seed_failures         += rng->_stats_seed_failures;
     s->_stats_locks_taken           += rng->_stats_locks_taken;
     s->_stats_locks_released        += rng->_stats_locks_released;
@@ -9031,11 +9025,11 @@ WOLFSSL_API int wc_rng_debug_stats_sum(struct wc_rng_debug_stats_snapshot *s,
     s->_stats_pool_bytes_missed     += rng->_stats_pool_bytes_missed;
 #endif
 #ifdef WC_RNG_HAVE_NEXT_SEED
-    s->_stats_n_nextseed_primary_redeemed    += rng->_stats_n_nextseed_primary_redeemed;
-    s->_stats_n_nextseed_RBGC_redeemed       += rng->_stats_n_nextseed_RBGC_redeemed;
-    s->_stats_n_nextuncreditedseed_redeemed  += rng->_stats_n_nextuncreditedseed_redeemed;
-    s->_stats_n_nextseed_banked     += rng->_stats_n_nextseed_banked;
-    s->_stats_n_nextuncreditedseed_banked += rng->_stats_n_nextuncreditedseed_banked;
+    s->_stats_nextseedsprimary_redeemed += rng->_stats_nextseedsprimary_redeemed;
+    s->_stats_nextseedsRBGC_redeemed += rng->_stats_nextseedsRBGC_redeemed;
+    s->_stats_nextstirs_redeemed    += rng->_stats_nextstirs_redeemed;
+    s->_stats_nextseedsbanked       += rng->_stats_nextseedsbanked;
+    s->_stats_nextstirs_banked      += rng->_stats_nextstirs_banked;
 #endif
 
     return 0;

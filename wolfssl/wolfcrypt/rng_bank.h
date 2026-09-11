@@ -52,7 +52,7 @@
 #define WC_RNG_BANK_FLAG_NO_VECTOR_OPS             (1U << 3)
 #define WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST      (1U << 4)
 #define WC_RNG_BANK_FLAG_AFFINITY_LOCK             (1U << 5)
-#define WC_RNG_BANK_FLAG_SEED_UNCREDITED           (1U << 6)
+#define WC_RNG_BANK_FLAG_STIR                      (1U << 6)
 #define WC_RNG_BANK_FLAG_CONSUME_NEXT_SEED         (1U << 7)
 #define WC_RNG_BANK_FLAG_FOR_RECOVERY              (1U << 8)
 #define WC_RNG_BANK_FLAG_MAYBE_FOR_RECOVERY        (1U << 9)
@@ -635,7 +635,7 @@ WOLFSSL_API int wc_rng_bank_debug_stats_snap(struct wc_rng_debug_stats_snapshot 
  * Pre-v7 FIPS boundaries do not export the DRBG accessor and reseed
  * scheduling services that wolfcrypt/src/random.c supplies as of FIPS v7
  * (wc_RNG_GetStatus(), wc_RNG_DRBG_Present(), wc_RNG_DRBG_GetReseedCtr(),
- * wc_RNG_DRBG_ScheduleReseed(), wc_RNG_DRBG_Reseed_Uncredited(), and
+ * wc_RNG_DRBG_ScheduleReseed(), wc_RNG_DRBG_Stir(), and
  * wc_RNG_DRBG_Reseed_Now()).  Supply source-compatible static fallbacks
  * here, implemented via the public DRBG struct definitions in the legacy
  * random.h.  These fallbacks are the historic direct-access mechanism, now
@@ -784,7 +784,7 @@ WC_MAYBE_UNUSED static WC_INLINE int wc_RNG_DRBG_ScheduleReseed(WC_RNG* rng)
 }
 
 #if FIPS_VERSION3_NE(5,2,4)
-WC_MAYBE_UNUSED static WC_INLINE int wc_RNG_DRBG_Reseed_Uncredited(
+WC_MAYBE_UNUSED static WC_INLINE int wc_RNG_DRBG_Stir(
     WC_RNG* rng, const byte* seed, word32 seedSz)
 {
     wc_drbg_reseed_ctr_t saved_ctr;
@@ -837,7 +837,7 @@ WC_MAYBE_UNUSED static WC_INLINE int wc_RNG_DRBG_Reseed_Now(
         /* On the legacy boundary, nonce incorporation is a separate
          * (uncredited) transition following the reseed, rather than part of
          * the same reseed derivation. */
-        ret = wc_RNG_DRBG_Reseed_Uncredited(rng, nonce, nonceSz);
+        ret = wc_RNG_DRBG_Stir(rng, nonce, nonceSz);
     }
 
     if ((ret != 0) &&

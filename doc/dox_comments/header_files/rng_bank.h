@@ -534,7 +534,7 @@ int wc_rng_bank_recover_inst(struct wc_rng_bank *bank, int inst_offset,
     high-resolution timer (e.g. Linux kernel random_get_entropy()).
     WC_RNG_BANK_FLAG_CONSUME_NEXT_SEED composes: a ready banked seed is
     redeemed on the parent before the spawn draw.
-    WC_RNG_BANK_FLAG_SEED_UNCREDITED and WC_RNG_BANK_FLAG_FOR_RECOVERY are
+    WC_RNG_BANK_FLAG_STIR and WC_RNG_BANK_FLAG_FOR_RECOVERY are
     rejected.  WC_RNG_BANK_FLAG_ERROR_ON_RNG_FAILED is implied: the parent
     is guaranteed in-service, or an error is returned with no lease and no
     child.
@@ -590,7 +590,7 @@ int wc_rng_bank_spawn_new(struct wc_rng_bank *bank, WC_RNG **child_rng,
     \ingroup Random
 
     \brief Reseed every instance with caller-supplied seed material.
-    WC_RNG_BANK_FLAG_SEED_UNCREDITED mixes the material in without
+    WC_RNG_BANK_FLAG_STIR mixes the material in without
     crediting it.
 
     \return 0 Success
@@ -807,7 +807,7 @@ int wc_rng_bank_daemon_release(struct wc_rng_bank *bank,
 
     \brief Bind the daemon's RBG-chain root to the bank, for chain-sourced
     banking (wc_rng_bank_next_seed_generate_rbgc()) and harvest deposit
-    (wc_RNG_DRBG_NextUncreditedSeedStore() on the root).
+    (wc_RNG_DRBG_NextStirStore() on the root).
 
     \return 0 Success
     \return BAD_FUNC_ARG bank is null.

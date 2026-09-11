@@ -648,7 +648,7 @@ WOLFSSL_API int wc_rng_bank_checkout(
     else {
         if (((flags | bank->flags) & WC_RNG_BANK_FLAG_PREDICTION_RESISTANCE) &&
             (((! (flags & WC_RNG_BANK_FLAG_CAN_WAIT))) ||
-             (flags & WC_RNG_BANK_FLAG_SEED_UNCREDITED)))
+             (flags & WC_RNG_BANK_FLAG_STIR)))
         {
             ret = BAD_FUNC_ARG;
             goto out;
@@ -1806,7 +1806,7 @@ static int rng_bank_spawn(
     if ((leaf_stack == NULL) == (leaf_heap == NULL))
         return BAD_FUNC_ARG;
 
-    if (flags & (WC_RNG_BANK_FLAG_SEED_UNCREDITED |
+    if (flags & (WC_RNG_BANK_FLAG_STIR |
                  WC_RNG_BANK_FLAG_FOR_RECOVERY))
         return BAD_FUNC_ARG;
 
@@ -1972,7 +1972,7 @@ WOLFSSL_API int wc_rng_bank_seed_range(struct wc_rng_bank *bank,
         struct wc_rng_bank_inst *drbg;
         ret = wc_rng_bank_checkout(bank, &drbg, n, timeout_secs,
                                    flags & ~(word32)
-                                       (WC_RNG_BANK_FLAG_SEED_UNCREDITED |
+                                       (WC_RNG_BANK_FLAG_STIR |
                                         WC_RNG_BANK_FLAG_CONSUME_NEXT_SEED));
         if (ret != 0) {
 #ifdef WC_VERBOSE_RNG
@@ -2002,8 +2002,8 @@ WOLFSSL_API int wc_rng_bank_seed_range(struct wc_rng_bank *bank,
 #endif
             ret = BAD_STATE_E;
         }
-        else if ((ret = ((flags & WC_RNG_BANK_FLAG_SEED_UNCREDITED)
-                         ? wc_RNG_DRBG_Reseed_Uncredited(
+        else if ((ret = ((flags & WC_RNG_BANK_FLAG_STIR)
+                         ? wc_RNG_DRBG_Stir(
                                WC_RNG_BANK_INST_TO_RNG(drbg), seed, seedSz)
                          : wc_RNG_DRBG_Reseed(
                                WC_RNG_BANK_INST_TO_RNG(drbg), seed, seedSz)))
@@ -2056,13 +2056,13 @@ WOLFSSL_API int wc_rng_bank_reseed_range(struct wc_rng_bank *bank,
     /* wc_rng_bank_reseed() must walk every instance by explicit index -- forbid
      * flags that would let wc_rng_bank_checkout() pick a different instance
      * than requested.  Same restriction applies in wc_rng_bank_seed().
-     * WC_RNG_BANK_FLAG_SEED_UNCREDITED applies only to wc_rng_bank_seed() --
+     * WC_RNG_BANK_FLAG_STIR applies only to wc_rng_bank_seed() --
      * a bank reseed is always from the module's own seed source, and always
      * credited.
      */
     if (flags & (WC_RNG_BANK_FLAG_CAN_FAIL_OVER_INST |
                  WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST |
-                 WC_RNG_BANK_FLAG_SEED_UNCREDITED |
+                 WC_RNG_BANK_FLAG_STIR |
                  WC_RNG_BANK_FLAG_CONSUME_NEXT_SEED |
                  WC_RNG_BANK_FLAG_FOR_RECOVERY))
         return BAD_FUNC_ARG;

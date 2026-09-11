@@ -1041,7 +1041,7 @@ int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* nonce, word32 nonceSz);
     \param nonceSz Length of nonce in bytes.
 
     \sa wc_RNG_DRBG_Reseed
-    \sa wc_RNG_DRBG_Reseed_Nonce_Uncredited
+    \sa wc_RNG_DRBG_Stir_Nonce
 */
 int wc_RNG_DRBG_Reseed_Nonce(WC_RNG* rng, const byte* seed, word32 seedSz,
                              const byte *nonce, word32 nonceSz);
@@ -1063,14 +1063,14 @@ int wc_RNG_DRBG_Reseed_Nonce(WC_RNG* rng, const byte* seed, word32 seedSz,
     \param seedSz Length of seed in bytes.
 
     \sa wc_RNG_DRBG_Reseed
-    \sa wc_RNG_DRBG_Reseed_Nonce_Uncredited
+    \sa wc_RNG_DRBG_Stir_Nonce
 */
-int wc_RNG_DRBG_Reseed_Uncredited(WC_RNG* rng, const byte* seed, word32 seedSz);
+int wc_RNG_DRBG_Stir(WC_RNG* rng, const byte* seed, word32 seedSz);
 
 /*!
     \ingroup Random
 
-    \brief The nonce-bearing form of wc_RNG_DRBG_Reseed_Uncredited().
+    \brief The nonce-bearing form of wc_RNG_DRBG_Stir().
 
     \return 0 Success
     \return BAD_FUNC_ARG rng or seed is null.
@@ -1082,10 +1082,10 @@ int wc_RNG_DRBG_Reseed_Uncredited(WC_RNG* rng, const byte* seed, word32 seedSz);
     \param nonce Optional additional input.
     \param nonceSz Length of nonce in bytes.
 
-    \sa wc_RNG_DRBG_Reseed_Uncredited
+    \sa wc_RNG_DRBG_Stir
     \sa wc_RNG_DRBG_Reseed_Nonce
 */
-int wc_RNG_DRBG_Reseed_Nonce_Uncredited(WC_RNG* rng, const byte* seed,
+int wc_RNG_DRBG_Stir_Nonce(WC_RNG* rng, const byte* seed,
                                         word32 seedSz, const byte *nonce,
                                         word32 nonceSz);
 
@@ -1208,8 +1208,8 @@ int wc_InitRngNonceRBGC_New(WC_RNG** child, WC_RNG* parent, const byte* nonce,
     are impossible by construction, consistent with SP 800-90C 7.1.2.2.
     Lateral (equal-stratum) and downgrading reseeds are refused with
     BAD_FUNC_ARG.  Building WC_RNG_NO_RBGC_RESEED restricts credited chain
-    reseeds to primary-seeded roots.  Uncredited chain reseeds
-    (wc_RNG_DRBG_ReseedRBGC_Uncredited()) are exempt from all of this: they
+    reseeds to primary-seeded roots.  Uncredited chain stirs
+    (wc_RNG_DRBG_StirRBGC()) are exempt from all of this: they
     are stirs, claim nothing, and leave rng's stratum untouched.
 
     \return 0 Success
@@ -1224,7 +1224,7 @@ int wc_InitRngNonceRBGC_New(WC_RNG** child, WC_RNG* parent, const byte* nonce,
     \param nonceSz Length of nonce in bytes.
 
     \sa wc_InitRngRBGC
-    \sa wc_RNG_DRBG_ReseedRBGC_Uncredited
+    \sa wc_RNG_DRBG_StirRBGC
     \sa wc_RNG_DRBG_Reseed_Now
 */
 int wc_RNG_DRBG_ReseedRBGC(WC_RNG* rng, WC_RNG* root, const byte* nonce,
@@ -1246,7 +1246,7 @@ int wc_RNG_DRBG_ReseedRBGC(WC_RNG* rng, WC_RNG* root, const byte* nonce,
     \param nonceSz Length of nonce in bytes.
 
     \sa wc_RNG_DRBG_ReseedRBGC
-    \sa wc_RNG_DRBG_Reseed_Uncredited
+    \sa wc_RNG_DRBG_Stir
     \details Unrestricted by the credited no-downgrade rule: any source
     stratum is accepted, and rng's reseed counter, stratum, and
     entropy-invalidated state are all left untouched -- an uncredited
@@ -1254,7 +1254,7 @@ int wc_RNG_DRBG_ReseedRBGC(WC_RNG* rng, WC_RNG* root, const byte* nonce,
     or promotion.
 
 */
-int wc_RNG_DRBG_ReseedRBGC_Uncredited(WC_RNG* rng, WC_RNG* root,
+int wc_RNG_DRBG_StirRBGC(WC_RNG* rng, WC_RNG* root,
                                       const byte* nonce, word32 nonceSz);
 
 /*!
@@ -1432,7 +1432,7 @@ int wc_RNG_DRBG_NextSeedNow_Nonce(WC_RNG* rng, const byte* nonce,
     \ingroup Random
 
     \brief Bank caller-supplied material (up to
-    WC_DRBG_NEXT_UNCREDITED_SEED_LEN bytes) in the uncredited accumulator
+    WC_DRBG_NEXT_STIR_LEN bytes) in the uncredited accumulator
     beside the banked next seed.  Writer-safe without a lease
     (read-copy-store); if the accumulator is already full, the material is
     absorbed by xor.  Harvested entropy deposited here improves the instance
@@ -1446,17 +1446,17 @@ int wc_RNG_DRBG_NextSeedNow_Nonce(WC_RNG* rng, const byte* nonce,
     \param nonce Material to bank.
     \param nonceSz Length of nonce in bytes.
 
-    \sa wc_RNG_DRBG_NextUncreditedSeedNow
-    \sa wc_RNG_DRBG_Reseed_Uncredited
+    \sa wc_RNG_DRBG_NextStirNow
+    \sa wc_RNG_DRBG_Stir
 */
-int wc_RNG_DRBG_NextUncreditedSeedStore(WC_RNG* rng, const byte *nonce,
+int wc_RNG_DRBG_NextStirStore(WC_RNG* rng, const byte *nonce,
                                         word32 nonceSz);
 
 /*!
     \ingroup Random
 
     \brief Stir the banked uncredited accumulator into the DRBG as an
-    uncredited, source-free reseed -- safe in atomic context; the reseed
+    uncredited, source-free mix-in -- safe in atomic context; the reseed
     counter is not reset.  The caller must own the instance.
 
     \return 0 Success
@@ -1467,9 +1467,9 @@ int wc_RNG_DRBG_NextUncreditedSeedStore(WC_RNG* rng, const byte *nonce,
 
     \param rng The RNG object to stir.
 
-    \sa wc_RNG_DRBG_NextUncreditedSeedStore
+    \sa wc_RNG_DRBG_NextStirStore
 */
-int wc_RNG_DRBG_NextUncreditedSeedNow(WC_RNG* rng);
+int wc_RNG_DRBG_NextStirNow(WC_RNG* rng);
 
 /*!
     \ingroup Random
