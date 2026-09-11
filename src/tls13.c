@@ -64,6 +64,11 @@
  * WOLFSSL_CHECK_SIG_FAULTS: Verify signature after ECC signing    default: off
  *                            to detect fault injection attacks
  * WOLFSSL_CIPHER_TEXT_CHECK: Verify ciphertext integrity          default: off
+ * WOLFSSL_TLS13_NULL_CIPHER_IN_DEFAULT: Include RFC 9150 suites   default: off
+ *                            in the default cipher suite list (requires
+ *                            HAVE_NULL_CIPHER). Without it the integrity-only
+ *                            suites must be requested explicitly in the
+ *                            cipher list, by name or with "eNULL".
  *
  * TLS 1.3 PSK:
  * WOLFSSL_PSK_ONE_ID:       Single PSK identity per connect       default: off
