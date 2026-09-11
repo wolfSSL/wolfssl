@@ -1654,6 +1654,11 @@ add_option("WOLFSSL_CERTGENCACHE"
     "Enable decoded cert caching (default: disabled)"
     "no" "yes;no")
 
+# Chain verify callback
+add_option("WOLFSSL_CHAIN_VERIFY_CB"
+    "Enable replacing peer certificate verification with a user callback (default: disabled)"
+    "no" "yes;no")
+
 # HKDF
 add_option("WOLFSSL_HKDF"
     "Enable HKDF (HMAC-KDF) support (default: disabled)"
@@ -3128,6 +3133,10 @@ if(WOLFSSL_CERTEXT)
 endif()
 if(WOLFSSL_CERTGENCACHE)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_CERT_GEN_CACHE")
+endif()
+
+if(WOLFSSL_CHAIN_VERIFY_CB)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_CHAIN_VERIFY_CB")
 endif()
 
 if(WOLFSSL_CRYPTOCB)
