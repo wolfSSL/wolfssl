@@ -17531,6 +17531,7 @@ static wc_test_ret_t aes_xts_large_test_common(XtsAes *aes,
                 }
             }
 
+#ifdef HAVE_AES_DECRYPT
             /* Decrypt is held to the same rule: refuse rather than run
              * unaccounted once the count can no longer advance. */
             ret = wc_AesXtsSetKeyNoInit(aes, k1, k1Sz, AES_DECRYPTION);
@@ -17588,6 +17589,7 @@ static wc_test_ret_t aes_xts_large_test_common(XtsAes *aes,
                 }
             }
 #endif
+#endif /* HAVE_AES_DECRYPT */
         }
 #endif /* !WC_AESXTS_STREAM_NO_REQUEST_ACCOUNTING */
         ret = 0;
