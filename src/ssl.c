@@ -8552,6 +8552,11 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
             ret = WOLFSSL_FAILURE;
             break;
         }
+        /* Sessions made from this context hold the chain by pointer. */
+        if (CheckCtxCertLoad(ctx) != 0) {
+            ret = WOLFSSL_FAILURE;
+            break;
+        }
         /* Clear certificate chain */
         FreeDer(&ctx->certChain);
         if (sk) {
@@ -8865,6 +8870,13 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 #else
     (void)ret;
 #endif
+
+    /* A callback handing the session over keeps its guard, on the context the
+     * session is about to point at. */
+    if (ssl->options.inCtxCb && (CtxCallbackMove(ssl, ctx) != 0)) {
+        wolfSSL_CTX_free(ctx);
+        return NULL;
+    }
 
     if (ssl->ctx != NULL)
         wolfSSL_CTX_free(ssl->ctx);

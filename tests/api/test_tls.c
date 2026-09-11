@@ -30,6 +30,7 @@
 
 #include <tests/utils.h>
 #include <tests/api/test_tls.h>
+#include <tests/api/api.h>
 #include <wolfssl/internal.h>
 #include <wolfssl/ssl.h>
 
@@ -2420,6 +2421,546 @@ int test_tls13_session_resumption_sni_mismatch(void)
     wolfSSL_SESSION_free(sess);
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_TLS13)) && \
+    (defined(HAVE_SNI) || defined(WOLFSSL_CERT_SETUP_CB)) && \
+    !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+
+/* What the callback under test does before it returns. The CB_CERT_CTX_ ones
+ * each reach a different context buffer. */
+enum {
+    CB_CERT_NO_CHANGE = 0,  /* leaves everything as it found it */
+    CB_CERT_ON_SSL,         /* sets a certificate on this session alone */
+    CB_CERT_CTX_CERT,       /* loads a certificate on the context in use */
+    CB_CERT_CTX_KEY,        /* loads a key on the context in use */
+#ifdef OPENSSL_EXTRA
+    CB_CERT_CTX_CHAIN,      /* adds to the chain on the context in use */
+    CB_CERT_CTX_X509,       /* sets the certificate from an X509 object */
+#endif
+#ifdef WOLF_PRIVATE_KEY_ID
+    CB_CERT_CTX_KEYID,      /* points the key at an id held elsewhere */
+    CB_CERT_CTX_KEYLABEL,   /* points the key at a label held elsewhere */
+#endif
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WOLFSSL_DUAL_ALG_CERTS)
+    CB_CERT_CTX_ALTID,      /* points the alternative key at an id */
+    CB_CERT_CTX_ALTLABEL,   /* points the alternative key at a label */
+#endif
+#ifdef USE_CERT_BUFFERS_2048
+    CB_CERT_CTX_CACHAIN,    /* loads a CA chain that the context also sends */
+#endif
+    CB_CERT_MODE_CNT
+};
+
+/* Everything a case needs, handed to the callback through its user argument
+ * so that cases share no state. */
+typedef struct CbCertCase {
+    WOLFSSL_CTX* ctx;   /* context the handshake is running against */
+    int mode;           /* one of the CB_CERT_* values */
+    int called;         /* how many times the callback ran */
+    int setupFailed;    /* the callback could not get what it needed */
+    int loadRet;        /* what the load call returned */
+    int queued;         /* the refusal was put on the error queue */
+    const void* ctxCertBefore;
+    const void* ctxCertAfter;
+    const void* ctxChainBefore;
+    const void* ctxChainAfter;
+} CbCertCase;
+
+/* Whether the case has the callback reach for the context. */
+static int cb_cert_touches_ctx(int mode)
+{
+    return (mode != CB_CERT_NO_CHANGE) && (mode != CB_CERT_ON_SSL);
+}
+
+/* The calls that read the error queue are only built alongside it here. */
+#if defined(WOLFSSL_HAVE_ERROR_QUEUE) && defined(OPENSSL_EXTRA)
+    #define CB_CERT_ERR_QUEUE
+#endif
+
+#ifdef CB_CERT_ERR_QUEUE
+/* Whether the error queue holds the refusal, past anything else on it. */
+static int cb_cert_refusal_queued(void)
+{
+    int found = 0;
+    unsigned long err;
+
+    while ((err = wolfSSL_ERR_get_error()) != 0) {
+        if (err == (unsigned long)-WC_NO_ERR_TRACE(BAD_STATE_E)) {
+            found = 1;
+        }
+    }
+
+    return found;
+}
+#endif
+
+/* Carry out what the case asks for, recording what the load returned.
+ *
+ * @param [in]      ssl   SSL object the callback was called on.
+ * @param [in, out] test  Case being run.
+ */
+static void cb_cert_action(WOLFSSL* ssl, CbCertCase* test)
+{
+    test->called++;
+    test->ctxCertBefore = (const void*)test->ctx->certificate;
+    test->ctxChainBefore = (const void*)test->ctx->certChain;
+#ifdef CB_CERT_ERR_QUEUE
+    wolfSSL_ERR_clear_error();
+#endif
+
+    switch (test->mode) {
+        case CB_CERT_ON_SSL:
+            test->loadRet = wolfSSL_use_certificate_file(ssl, svrCertFile,
+                CERT_FILETYPE);
+            break;
+        case CB_CERT_CTX_CERT:
+            test->loadRet = wolfSSL_CTX_use_certificate_file(test->ctx,
+                svrCertFile, CERT_FILETYPE);
+            break;
+        case CB_CERT_CTX_KEY:
+            test->loadRet = wolfSSL_CTX_use_PrivateKey_file(test->ctx,
+                svrKeyFile, CERT_FILETYPE);
+            break;
+    #ifdef WOLF_PRIVATE_KEY_ID
+        case CB_CERT_CTX_KEYID: {
+            static const byte keyId[] = { 0x01, 0x02, 0x03, 0x04 };
+
+            test->loadRet = wolfSSL_CTX_use_PrivateKey_Id(test->ctx, keyId,
+                (long)sizeof(keyId), INVALID_DEVID);
+            break;
+        }
+        case CB_CERT_CTX_KEYLABEL:
+            test->loadRet = wolfSSL_CTX_use_PrivateKey_Label(test->ctx,
+                "a-label", INVALID_DEVID);
+            break;
+    #endif
+    #if defined(WOLF_PRIVATE_KEY_ID) && defined(WOLFSSL_DUAL_ALG_CERTS)
+        case CB_CERT_CTX_ALTID: {
+            static const byte altKeyId[] = { 0x05, 0x06, 0x07, 0x08 };
+
+            test->loadRet = wolfSSL_CTX_use_AltPrivateKey_Id(test->ctx,
+                altKeyId, (long)sizeof(altKeyId), INVALID_DEVID);
+            break;
+        }
+        case CB_CERT_CTX_ALTLABEL:
+            test->loadRet = wolfSSL_CTX_use_AltPrivateKey_Label(test->ctx,
+                "an-alt-label", INVALID_DEVID);
+            break;
+    #endif
+    #ifdef USE_CERT_BUFFERS_2048
+        case CB_CERT_CTX_CACHAIN:
+            test->loadRet = wolfSSL_CTX_load_verify_chain_buffer_format(
+                test->ctx, ca_cert_der_2048, sizeof_ca_cert_der_2048,
+                WOLFSSL_FILETYPE_ASN1);
+            break;
+    #endif
+    #ifdef OPENSSL_EXTRA
+        case CB_CERT_CTX_X509: {
+            WOLFSSL_X509* x509 = wolfSSL_X509_load_certificate_file(svrCertFile,
+                WOLFSSL_FILETYPE_PEM);
+
+            if (x509 != NULL) {
+                test->loadRet = wolfSSL_CTX_use_certificate(test->ctx, x509);
+                wolfSSL_X509_free(x509);
+            }
+            else {
+                test->setupFailed = 1;
+            }
+            break;
+        }
+        case CB_CERT_CTX_CHAIN: {
+            WOLFSSL_X509* x509 = wolfSSL_X509_load_certificate_file(svrCertFile,
+                WOLFSSL_FILETYPE_PEM);
+
+            if (x509 != NULL) {
+                test->loadRet = wolfSSL_CTX_add1_chain_cert(test->ctx, x509);
+                wolfSSL_X509_free(x509);
+            }
+            else {
+                test->setupFailed = 1;
+            }
+            break;
+        }
+    #endif
+        default:
+            test->loadRet = WOLFSSL_SUCCESS;
+            break;
+    }
+
+    test->ctxCertAfter = (const void*)test->ctx->certificate;
+    test->ctxChainAfter = (const void*)test->ctx->certChain;
+#ifdef CB_CERT_ERR_QUEUE
+    test->queued = cb_cert_refusal_queued();
+#endif
+}
+
+#ifdef HAVE_SNI
+static int sni_cb_cert_swap(WOLFSSL* ssl, int* ad, void* arg)
+{
+    (void)ad;
+    cb_cert_action(ssl, (CbCertCase*)arg);
+    return 0;
+}
+#endif
+
+#ifdef WOLFSSL_CERT_SETUP_CB
+/* This one reports success with 1. */
+static int cert_setup_cb_cert_swap(WOLFSSL* ssl, void* arg)
+{
+    cb_cert_action(ssl, (CbCertCase*)arg);
+    return 1;
+}
+#endif
+
+/* Drive one handshake whose callback does what mode asks for.
+ *
+ * @param [in] method_c   Client method to handshake with.
+ * @param [in] method_s   Server method to handshake with.
+ * @param [in] useCertCb  Use the certificate setup callback rather than the
+ *                        sni callback.
+ * @param [in] mode       One of the CB_CERT_* values.
+ * @return  TEST_SUCCESS on success.
+ */
+static int test_cb_cert_swap(method_provider method_c,
+    method_provider method_s, int useCertCb, int mode)
+{
+    EXPECT_DECLS;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    CbCertCase test;
+#ifdef HAVE_SNI
+    const char* sni = "example.com";
+#endif
+
+    XMEMSET(&test, 0, sizeof(test));
+    test.mode = mode;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    /* The server object is built here rather than by test_memio_setup so the
+     * chain is on the context before the session takes a pointer to it. */
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, NULL,
+        method_c, method_s), 0);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_file(ctx_s, svrCertFile),
+        WOLFSSL_SUCCESS);
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+    wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+    wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+    test.ctx = ctx_s;
+
+    if (useCertCb) {
+    #ifdef WOLFSSL_CERT_SETUP_CB
+        wolfSSL_CTX_set_cert_cb(ctx_s, cert_setup_cb_cert_swap, &test);
+    #endif
+    }
+    else {
+    #ifdef HAVE_SNI
+        wolfSSL_CTX_set_servername_callback(ctx_s, sni_cb_cert_swap);
+        ExpectIntEQ(wolfSSL_CTX_set_servername_arg(ctx_s, &test),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_UseSNI(ssl_c, WOLFSSL_SNI_HOST_NAME, sni,
+            (word16)XSTRLEN(sni)), WOLFSSL_SUCCESS);
+    #endif
+    }
+
+    /* Refusing the load leaves the handshake with everything it needs, so it
+     * completes either way. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* The whole test rests on the callback having run and made its call. */
+    ExpectIntGT(test.called, 0);
+    ExpectIntEQ(test.setupFailed, 0);
+
+    if (cb_cert_touches_ctx(mode)) {
+        /* The load was turned away and the context kept what it had, so no
+         * session was left pointing at a freed buffer. */
+        ExpectIntNE(test.loadRet, WOLFSSL_SUCCESS);
+        ExpectPtrEq(test.ctxCertAfter, test.ctxCertBefore);
+        ExpectPtrEq(test.ctxChainAfter, test.ctxChainBefore);
+    #ifdef CB_CERT_ERR_QUEUE
+        /* The reason is left where the application can read it. */
+        ExpectIntEQ(test.queued, 1);
+    #endif
+    }
+    else {
+        ExpectIntEQ(test.loadRet, WOLFSSL_SUCCESS);
+        ExpectIntEQ(test.queued, 0);
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    return EXPECT_RESULT();
+}
+
+/* Run every mode against whichever protocol versions are built in. */
+static int test_cb_cert_swap_modes(int useCertCb)
+{
+    EXPECT_DECLS;
+    int mode;
+
+    for (mode = 0; mode < CB_CERT_MODE_CNT; mode++) {
+    #ifndef WOLFSSL_NO_TLS12
+        ExpectIntEQ(test_cb_cert_swap(wolfTLSv1_2_client_method,
+            wolfTLSv1_2_server_method, useCertCb, mode), TEST_SUCCESS);
+    #endif
+    #ifdef WOLFSSL_TLS13
+        ExpectIntEQ(test_cb_cert_swap(wolfTLSv1_3_client_method,
+            wolfTLSv1_3_server_method, useCertCb, mode), TEST_SUCCESS);
+    #endif
+    }
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/* A callback cannot replace the certificate or key on the context its own
+ * handshake is running against. Sessions hold those buffers by pointer, so
+ * replacing one frees what handshakes in flight are reading. The load is
+ * refused, which leaves every session untouched. Setting a certificate on the
+ * session alone still works, as that is the session's own.
+ *
+ * This is the sni callback; the certificate setup callback is checked by
+ * test_cert_setup_cb_ctx_cert_swap_refused. */
+int test_sni_cb_ctx_cert_swap_refused(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_TLS13)) && \
+    defined(HAVE_SNI) && \
+    !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+    ExpectIntEQ(test_cb_cert_swap_modes(0), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The same for the certificate setup callback, the other place a handshake
+ * hands control to the application while holding the context's certificate. */
+int test_cert_setup_cb_ctx_cert_swap_refused(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_TLS13)) && \
+    defined(WOLFSSL_CERT_SETUP_CB) && \
+    !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+    ExpectIntEQ(test_cb_cert_swap_modes(1), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(HAVE_SNI) && \
+    (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && \
+    !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+/* Hands the session a different context, which is what this callback is for. */
+static int sni_cb_switch_ctx(WOLFSSL* ssl, int* ad, void* arg)
+{
+    (void)ad;
+    return (wolfSSL_set_SSL_CTX(ssl, (WOLFSSL_CTX*)arg) != NULL) ?
+        0 : fatal_return;
+}
+
+/* What the switching callback did, handed to it through its user argument. */
+typedef struct CbSwitchCase {
+    WOLFSSL_CTX* ctx;   /* context to hand the session */
+    int called;         /* how many times the callback ran */
+    int loadRet;        /* what loading on that context returned */
+    int queued;         /* the refusal was put on the error queue */
+} CbSwitchCase;
+
+/* Hands the session a different context and then loads on that one. The
+ * session now points at its certificate, so the load must be refused just as
+ * one on the first context would be. */
+static int sni_cb_switch_ctx_then_load(WOLFSSL* ssl, int* ad, void* arg)
+{
+    CbSwitchCase* test = (CbSwitchCase*)arg;
+
+    (void)ad;
+    test->called++;
+    if (wolfSSL_set_SSL_CTX(ssl, test->ctx) == NULL) {
+        return fatal_return;
+    }
+#ifdef CB_CERT_ERR_QUEUE
+    wolfSSL_ERR_clear_error();
+#endif
+    test->loadRet = wolfSSL_CTX_use_certificate_file(test->ctx, svrCertFile,
+        CERT_FILETYPE);
+#ifdef CB_CERT_ERR_QUEUE
+    test->queued = cb_cert_refusal_queued();
+#endif
+    return 0;
+}
+#endif
+
+/* Switching contexts from the callback must leave neither context marked as
+ * being in one: the count follows the session to the context it switched to
+ * and comes off again when the callback returns, so both can still be loaded
+ * once the handshake is over. */
+int test_sni_cb_switch_ctx_unblocked(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(HAVE_SNI) && \
+    (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && \
+    !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL, *ctx_s2 = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    const char* sni = "example.com";
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    /* The context the callback hands over to, set up the same way. */
+    ExpectNotNull(ctx_s2 = wolfSSL_CTX_new(wolfTLSv1_2_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_s2, svrCertFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s2, svrKeyFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    wolfSSL_CTX_set_servername_callback(ctx_s, sni_cb_switch_ctx);
+    ExpectIntEQ(wolfSSL_CTX_set_servername_arg(ctx_s, ctx_s2), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSNI(ssl_c, WOLFSSL_SNI_HOST_NAME, sni,
+        (word16)XSTRLEN(sni)), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Both contexts take a load afterwards. The one the session started on
+     * would stay refused if the note had been left behind on it. */
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_s2, svrCertFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_s2);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The guard follows the session to a context handed over from the callback:
+ * the session now points at that context's certificate, so loading on it from
+ * the rest of the callback is refused too. Once the handshake is over, both
+ * contexts take a load again. */
+int test_sni_cb_switch_ctx_load_refused(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(HAVE_SNI) && \
+    (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && \
+    !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL, *ctx_s2 = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    CbSwitchCase test;
+    const char* sni = "example.com";
+
+    XMEMSET(&test, 0, sizeof(test));
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectNotNull(ctx_s2 = wolfSSL_CTX_new(wolfTLSv1_2_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_s2, svrCertFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s2, svrKeyFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    test.ctx = ctx_s2;
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    wolfSSL_CTX_set_servername_callback(ctx_s, sni_cb_switch_ctx_then_load);
+    ExpectIntEQ(wolfSSL_CTX_set_servername_arg(ctx_s, &test), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSNI(ssl_c, WOLFSSL_SNI_HOST_NAME, sni,
+        (word16)XSTRLEN(sni)), WOLFSSL_SUCCESS);
+
+    /* The refused load leaves the handed-over context whole, so the handshake
+     * completes on it. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(test.called, 1);
+    ExpectIntNE(test.loadRet, WOLFSSL_SUCCESS);
+#ifdef CB_CERT_ERR_QUEUE
+    ExpectIntEQ(test.queued, 1);
+#endif
+
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_s2, svrCertFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_s2);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A second session on the same context must be unharmed by a callback that
+ * reached for the context's certificate. Detecting the swap after the fact
+ * only ever protected the session whose callback made the call; refusing the
+ * load protects the rest of them too. */
+int test_cb_ctx_cert_swap_other_session(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(HAVE_SNI) && \
+    !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+    struct test_memio_ctx test_ctx1;
+    struct test_memio_ctx test_ctx2;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c1 = NULL, *ssl_s1 = NULL;
+    WOLFSSL *ssl_c2 = NULL, *ssl_s2 = NULL;
+    CbCertCase test;
+    const char* sni = "example.com";
+
+    XMEMSET(&test, 0, sizeof(test));
+    test.mode = CB_CERT_CTX_CERT;
+    XMEMSET(&test_ctx1, 0, sizeof(test_ctx1));
+    XMEMSET(&test_ctx2, 0, sizeof(test_ctx2));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx1, &ctx_c, &ctx_s, &ssl_c1, &ssl_s1,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    test.ctx = ctx_s;
+
+    /* Both sessions exist before anything is loaded, so both are holding the
+     * context's certificate. */
+    ExpectNotNull(ssl_c2 = wolfSSL_new(ctx_c));
+    wolfSSL_SetIOWriteCtx(ssl_c2, &test_ctx2);
+    wolfSSL_SetIOReadCtx(ssl_c2, &test_ctx2);
+    ExpectNotNull(ssl_s2 = wolfSSL_new(ctx_s));
+    wolfSSL_SetIOWriteCtx(ssl_s2, &test_ctx2);
+    wolfSSL_SetIOReadCtx(ssl_s2, &test_ctx2);
+
+    wolfSSL_CTX_set_servername_callback(ctx_s, sni_cb_cert_swap);
+    ExpectIntEQ(wolfSSL_CTX_set_servername_arg(ctx_s, &test), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSNI(ssl_c1, WOLFSSL_SNI_HOST_NAME, sni,
+        (word16)XSTRLEN(sni)), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c1, ssl_s1, 10, NULL), 0);
+    ExpectIntGT(test.called, 0);
+    ExpectIntNE(test.loadRet, WOLFSSL_SUCCESS);
+
+    /* The second session runs no callback of its own and must still find its
+     * certificate where it left it. */
+    wolfSSL_CTX_set_servername_callback(ctx_s, NULL);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c2, ssl_s2, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c1);
+    wolfSSL_free(ssl_s1);
+    wolfSSL_free(ssl_c2);
+    wolfSSL_free(ssl_s2);
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_CTX_free(ctx_s);
 #endif

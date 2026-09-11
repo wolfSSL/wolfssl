@@ -2677,6 +2677,12 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff, long sz,
     if ((ret == 0) && (sz < 0)) {
         ret = BAD_FUNC_ARG;
     }
+    /* Sessions made from this context hold these and the chain by pointer. */
+    if ((ret == 0) && (ssl == NULL) && ((type == CERT_TYPE) ||
+            (type == PRIVATEKEY_TYPE) || (type == ALT_PRIVATEKEY_TYPE) ||
+            userChain)) {
+        ret = CheckCtxCertLoad(ctx);
+    }
 
 #ifdef WOLFSSL_SMALL_STACK
     if (ret == 0) {
@@ -4464,6 +4470,10 @@ int wolfSSL_CTX_use_PrivateKey_Id(WOLFSSL_CTX* ctx, const unsigned char* id,
         return 0;
     }
 
+    if (CheckCtxCertLoad(ctx) != 0) {
+        return 0;
+    }
+
     /* Dispose of old private key and allocate and copy in id. */
     FreeDer(&ctx->privateKey);
     if (AllocCopyDer(&ctx->privateKey, id, (word32)sz, PRIVATEKEY_TYPE,
@@ -4542,6 +4552,10 @@ int wolfSSL_CTX_use_PrivateKey_Label(WOLFSSL_CTX* ctx, const char* label,
 
     sz = (word32)XSTRLEN(label) + 1;
 
+    if (CheckCtxCertLoad(ctx) != 0) {
+        return 0;
+    }
+
     /* Dispose of old private key and allocate and copy in label. */
     FreeDer(&ctx->privateKey);
     if (AllocCopyDer(&ctx->privateKey, (const byte*)label, (word32)sz,
@@ -4580,6 +4594,9 @@ int wolfSSL_CTX_use_AltPrivateKey_Id(WOLFSSL_CTX* ctx, const unsigned char* id,
     WOLFSSL_ENTER("wolfSSL_CTX_use_AltPrivateKey_Id");
 
     if ((ctx == NULL) || (id == NULL) || (sz < 0)) {
+        ret = 0;
+    }
+    if ((ret == 1) && (CheckCtxCertLoad(ctx) != 0)) {
         ret = 0;
     }
 
@@ -4630,6 +4647,9 @@ int wolfSSL_CTX_use_AltPrivateKey_Label(WOLFSSL_CTX* ctx, const char* label,
     WOLFSSL_ENTER("wolfSSL_CTX_use_AltPrivateKey_Label");
 
     if ((ctx == NULL) || (label == NULL)) {
+        ret = 0;
+    }
+    if ((ret == 1) && (CheckCtxCertLoad(ctx) != 0)) {
         ret = 0;
     }
 
@@ -5207,6 +5227,11 @@ static int wolfssl_ctx_add_to_chain(WOLFSSL_CTX* ctx, const byte* der,
 {
     int res;
 
+    /* Sessions made from this context hold the chain by pointer. */
+    if (CheckCtxCertLoad(ctx) != 0) {
+        return 0;
+    }
+
     /* Add chain to DER buffer. */
     res = wolfssl_add_to_chain(&ctx->certChain, 1, der, (word32)derSz,
         ctx->heap);
@@ -5299,6 +5324,10 @@ int wolfSSL_CTX_use_certificate(WOLFSSL_CTX *ctx, WOLFSSL_X509 *x)
         res = 0;
     }
 
+    if ((res == 1) && (CheckCtxCertLoad(ctx) != 0)) {
+        res = 0;
+    }
+
     if (res == 1) {
         /* Replace certificate buffer with one holding the new certificate. */
         FreeDer(&ctx->certificate);
@@ -5383,6 +5412,11 @@ int wolfSSL_CTX_add1_chain_cert(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509)
 
     /* Validate parameters. */
     if ((ctx == NULL) || (x509 == NULL) || (x509->derCert == NULL)) {
+        ret = 0;
+    }
+
+    /* Sessions made from this context hold the chain by pointer. */
+    if ((ret == 1) && (CheckCtxCertLoad(ctx) != 0)) {
         ret = 0;
     }
 

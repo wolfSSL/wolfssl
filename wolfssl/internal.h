@@ -2355,6 +2355,19 @@ WOLFSSL_LOCAL int  HashOutput(WOLFSSL* ssl, const byte* output, int sz,
                               int ivSz);
 WOLFSSL_LOCAL int  HashInput(WOLFSSL* ssl, const byte* input, int sz);
 
+/* Bracket a call out to an application callback, so that a certificate or key
+ * load on the session's context can be refused while it runs. */
+WOLFSSL_LOCAL int CtxCallbackEnter(WOLFSSL* ssl);
+WOLFSSL_LOCAL void CtxCallbackExit(WOLFSSL* ssl);
+/* Carry a running callback over to the context the session is switching to. */
+WOLFSSL_LOCAL int CtxCallbackMove(WOLFSSL* ssl, WOLFSSL_CTX* ctx);
+
+#ifndef NO_CERTS
+/* Call before replacing a certificate or key on a context, to refuse the
+ * change while a callback is running on it. */
+WOLFSSL_LOCAL int CheckCtxCertLoad(WOLFSSL_CTX* ctx);
+#endif
+
 #ifdef HAVE_SNI
 #ifndef NO_WOLFSSL_SERVER
 WOLFSSL_LOCAL int SNI_Callback(WOLFSSL* ssl);
@@ -4177,6 +4190,7 @@ struct WOLFSSL_CTX {
 #endif
     wolfSSL_RefWithMutex ref;
     int         err;              /* error code in case of mutex not created */
+    int         callbackCnt;      /* callbacks running on this context */
 #ifndef NO_DH
     buffer      serverDH_P;
     buffer      serverDH_G;
@@ -5646,6 +5660,7 @@ struct Options {
 #endif
     word16            returnOnGoodCh:1;
     word16            disableRead:1;
+    word16            inCtxCb:1;          /* inside a callback on the context */
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WOLFSSL_ASYNC_CERT_YIELD)
     /* Opt-in (WOLFSSL_ASYNC_CERT_YIELD): set when we deliberately returned
      * WC_PENDING_E between peer certificate verifies so a cooperative scheduler
