@@ -36,6 +36,10 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          # check-api-guards.py diffs against the base branch, so it
+          # needs more than the default shallow checkout.
+          fetch-depth: 0
 
       - name: Install build dependencies
         run: |
@@ -50,6 +54,17 @@ jobs:
           ./configure --enable-all --enable-static --disable-shared \
                       CPPFLAGS=-DWOLFSSL_TEST_STATIC_BUILD
           make -j"$(nproc)"
+
+      - name: Check API availability guards
+        # tests/api is one binary built in every CI configuration, so a test
+        # that calls an API the build did not compile is a link error that
+        # takes the whole binary down -- and it is invisible to anything that
+        # only reads headers, because plenty of API is declared unconditionally
+        # and implemented under a narrower condition. This checks the call
+        # sites this branch changed against the conditions the implementations
+        # actually carry. It costs a second and needs no build, so it runs
+        # before the smoke build rather than after it.
+        run: python3 tests/api/check-api-guards.py origin/${{ github.base_ref || 'master' }}
 
       - name: Run white-box smoke
         # smoke-expected.txt is generated with gcc; six TUs build under clang
