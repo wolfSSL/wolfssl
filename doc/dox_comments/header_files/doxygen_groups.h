@@ -335,6 +335,22 @@
     \defgroup Math Math API
     \defgroup Memory Memory Handling
     \defgroup Random Random Number Generation
+    Makes the unguessable numbers used for keys and other secrets.  It
+    takes a little true randomness from an entropy source and stretches
+    it into as much output as you ask for.
+
+    When that source is wolfEntropy, see \ref wolfEntropy.
+
+    \defgroup wolfEntropy Entropy Source - wolfEntropy (MemUse)
+    Randomness has to start somewhere.  wolfEntropy gets it by timing
+    memory reads: each one takes a slightly different, unpredictable
+    amount of time, and those tiny differences are the raw material.
+    It watches its own output and returns an error rather than hand
+    back randomness that looks broken.
+
+    Turn it on with --enable-wolfEntropy.  Most code never calls these
+    functions; the random number generator (\ref Random) does it for
+    you.
     \defgroup Signature Signature API
     \defgroup openSSL OpenSSL API
     \defgroup wolfCrypt wolfCrypt Init and Cleanup
