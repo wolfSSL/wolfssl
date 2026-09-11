@@ -299,6 +299,22 @@
     \defgroup PKCS7 Algorithms - PKCS7
     \defgroup TSP Time-Stamp Protocol (RFC 3161)
     \defgroup PKCS11 Algorithms - PKCS11
+    \defgroup PKCS12 Algorithms - PKCS12
+    PKCS #12 (RFC 7292) defines the PFX bundle format, a single password
+    protected file that carries a private key together with its
+    certificate and any CA certificates in the chain. It is the format
+    behind the common .p12 and .pfx files. wolfCrypt support is enabled
+    with --enable-pkcs12 or by defining HAVE_PKCS12, and also requires
+    password based key derivation (--enable-pwdbased).
+
+    A bundle is read by allocating a WC_PKCS12 structure
+    (wc_PKCS12_new() or wc_PKCS12_new_ex()), decoding the DER into it
+    (wc_d2i_PKCS12() or wc_d2i_PKCS12_fp()), then verifying the MAC and
+    decrypting the contents with wc_PKCS12_parse(), which returns the
+    DER private key, the certificate, and optionally the CA chain.\n
+    A bundle is written by building the structure with
+    wc_PKCS12_create() and encoding it with wc_i2d_PKCS12().\n
+    See <wolfssl/wolfcrypt/pkcs12.h>.
     \defgroup Password Algorithms - Password Based
     \defgroup Poly1305 Algorithms - Poly1305
     \defgroup PUF Algorithms - PUF
