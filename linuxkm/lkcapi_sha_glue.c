@@ -2876,7 +2876,7 @@ static int wc_linuxkm_entropy_daemon(void *arg)
                     (pool_n < (word32)inst_rng->poolSize))
                 {
                     unsigned long uncredited_nonce = random_get_entropy();
-                    (void)wc_RNG_DRBG_Reseed_Uncredited(local_root,
+                    (void)wc_RNG_DRBG_Stir(local_root,
                                                         (byte *)&uncredited_nonce,
                                                         (word32)sizeof uncredited_nonce);
                     ForceZero(&uncredited_nonce, (word32)sizeof uncredited_nonce);
@@ -3024,19 +3024,19 @@ static int wc_linuxkm_entropy_daemon(void *arg)
             pr_info("RNG INFO: wc_entropyd root total_bytes_requested=" WC_RNG_STAT_FMT "\n"
                     "    total_bytes_produced=" WC_RNG_STAT_FMT
                         " total_requests=" WC_RNG_STAT_FMT "\n"
-                    "    credited_reseeds=" WC_RNG_STAT_FMT
-                        " uncredited_reseeds=" WC_RNG_STAT_FMT
+                    "    reseeds=" WC_RNG_STAT_FMT
+                        " stirs=" WC_RNG_STAT_FMT
                         " seed_failures=" WC_RNG_STAT_FMT "\n"
-                    "    n_nextuncreditedseed_banked=" WC_RNG_STAT_FMT
-                        " n_nextuncreditedseed_redeemed=" WC_RNG_STAT_FMT "\n",
+                    "    nextstirs_banked=" WC_RNG_STAT_FMT
+                        " nextstirs_redeemed=" WC_RNG_STAT_FMT "\n",
                     s._stats_total_bytes_requested,
                     s._stats_total_bytes_produced,
                     s._stats_total_requests,
-                    s._stats_credited_reseeds,
-                    s._stats_uncredited_reseeds,
+                    s._stats_reseeds,
+                    s._stats_stirs,
                     s._stats_seed_failures,
-                    s._stats_n_nextuncreditedseed_banked,
-                    s._stats_n_nextuncreditedseed_redeemed);
+                    s._stats_nextstirs_banked,
+                    s._stats_nextstirs_redeemed);
         }
 #endif /* WC_RNG_DEBUG_STATS */
 #ifdef WC_LINUXKM_VMGENID_POLL
@@ -3200,19 +3200,19 @@ static void wc_linuxkm_rng_dump_stats(struct wc_rng_bank *ctx)
             pr_info("RNG INFO: wc_entropyd root total_bytes_requested=" WC_RNG_STAT_FMT "\n"
                     "    total_bytes_produced=" WC_RNG_STAT_FMT
                         " total_requests=" WC_RNG_STAT_FMT "\n"
-                    "    credited_reseeds=" WC_RNG_STAT_FMT
-                        " uncredited_reseeds=" WC_RNG_STAT_FMT
+                    "    reseeds=" WC_RNG_STAT_FMT
+                        " stirs=" WC_RNG_STAT_FMT
                         " seed_failures=" WC_RNG_STAT_FMT "\n"
-                    "    n_nextuncreditedseed_banked=" WC_RNG_STAT_FMT
-                        " n_nextuncreditedseed_redeemed=" WC_RNG_STAT_FMT "\n",
+                    "    stirs_banked=" WC_RNG_STAT_FMT
+                        " stirs_redeemed=" WC_RNG_STAT_FMT "\n",
                     s._stats_total_bytes_requested,
                     s._stats_total_bytes_produced,
                     s._stats_total_requests,
-                    s._stats_credited_reseeds,
-                    s._stats_uncredited_reseeds,
+                    s._stats_reseeds,
+                    s._stats_stirs,
                     s._stats_seed_failures,
-                    s._stats_n_nextuncreditedseed_banked,
-                    s._stats_n_nextuncreditedseed_redeemed);
+                    s._stats_nextstirs_banked,
+                    s._stats_nextstirs_redeemed);
         }
     }
 
@@ -3220,8 +3220,8 @@ static void wc_linuxkm_rng_dump_stats(struct wc_rng_bank *ctx)
             pr_info("RNG INFO: default bank size=%d total_bytes_requested=" WC_RNG_STAT_FMT "\n"
                     "    total_bytes_produced=" WC_RNG_STAT_FMT
                         " total_requests=" WC_RNG_STAT_FMT "\n"
-                    "    credited_reseeds=" WC_RNG_STAT_FMT
-                        " uncredited_reseeds=" WC_RNG_STAT_FMT
+                    "    reseeds=" WC_RNG_STAT_FMT
+                        " stirs=" WC_RNG_STAT_FMT
                         " seed_failures=" WC_RNG_STAT_FMT "\n"
                     "    locks_taken=" WC_RNG_STAT_FMT
                         " locks_released=" WC_RNG_STAT_FMT
@@ -3235,19 +3235,19 @@ static void wc_linuxkm_rng_dump_stats(struct wc_rng_bank *ctx)
                         " pool_bytes_missed=" WC_RNG_STAT_FMT "\n"
 #endif
 #ifdef WC_RNG_HAVE_NEXT_SEED
-                    "    n_nextseed_primary_redeemed=" WC_RNG_STAT_FMT
-                        " n_nextseed_RBGC_redeemed=" WC_RNG_STAT_FMT "\n"
-                    "    n_nextseed_banked=" WC_RNG_STAT_FMT
-                        " n_nextuncreditedseed_banked=" WC_RNG_STAT_FMT
-                        " n_nextuncreditedseed_redeemed=" WC_RNG_STAT_FMT "\n"
+                    "    nextseedsprimary_redeemed=" WC_RNG_STAT_FMT
+                        " nextseedsRBGC_redeemed=" WC_RNG_STAT_FMT "\n"
+                    "    nextseedsbanked=" WC_RNG_STAT_FMT
+                        " nextstirs_banked=" WC_RNG_STAT_FMT
+                        " nextstirs_redeemed=" WC_RNG_STAT_FMT "\n"
 #endif
                     ,
                     ctx->n_rngs,
                     s._stats_total_bytes_requested,
                     s._stats_total_bytes_produced,
                     s._stats_total_requests,
-                    s._stats_credited_reseeds,
-                    s._stats_uncredited_reseeds,
+                    s._stats_reseeds,
+                    s._stats_stirs,
                     s._stats_seed_failures,
                     s._stats_locks_taken,
                     s._stats_locks_released,
@@ -3261,11 +3261,11 @@ static void wc_linuxkm_rng_dump_stats(struct wc_rng_bank *ctx)
                     ,s._stats_pool_bytes_missed
 #endif
 #ifdef WC_RNG_HAVE_NEXT_SEED
-                    ,s._stats_n_nextseed_primary_redeemed
-                    ,s._stats_n_nextseed_RBGC_redeemed
-                    ,s._stats_n_nextseed_banked
-                    ,s._stats_n_nextuncreditedseed_banked
-                    ,s._stats_n_nextuncreditedseed_redeemed
+                    ,s._stats_nextseedsprimary_redeemed
+                    ,s._stats_nextseedsRBGC_redeemed
+                    ,s._stats_nextseedsbanked
+                    ,s._stats_nextstirs_banked
+                    ,s._stats_nextstirs_redeemed
 #endif
                 );
     }
@@ -3540,10 +3540,10 @@ static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
          * Mix it in without entropy credit -- the reseed counter is
          * unmodified, so only the module's own seed source resets the
          * reseed schedule. */
-        ret = wc_RNG_DRBG_Reseed_Uncredited(WC_RNG_BANK_INST_TO_RNG(drbg),
+        ret = wc_RNG_DRBG_Stir(WC_RNG_BANK_INST_TO_RNG(drbg),
                                             src, slen);
         if (ret != 0) {
-            pr_warn_once("WARNING: wc_RNG_DRBG_Reseed_Uncredited returned %d\n",ret);
+            pr_warn_once("WARNING: wc_RNG_DRBG_Stir returned %d\n",ret);
             ret = -EINVAL;
             goto out;
         }
@@ -3815,7 +3815,7 @@ static int wc_linuxkm_drbg_seed(struct wc_rng_bank *ctx,
     ret = wc_rng_bank_seed_range(ctx, 0, LINUXKM_RNG_BANK_LAST_SAFELY_CONTENDABLE,
                                  seed, slen, WC_LINUXKM_INITRNG_TIMEOUT_SEC,
                                  WC_RNG_BANK_FLAG_CAN_WAIT |
-                                 WC_RNG_BANK_FLAG_SEED_UNCREDITED);
+                                 WC_RNG_BANK_FLAG_STIR);
     if (ret != 0) {
         pr_err("wc_rng_bank_seed() in wc_linuxkm_drbg_seed() returned err %d.\n", ret);
         ret = -EINVAL;
@@ -4121,23 +4121,23 @@ static int wc_mix_pool_bytes(const void *buf, size_t len) {
     }
 
     /* Mix without crediting the contributed entropy --
-     * wc_RNG_DRBG_Reseed_Uncredited() leaves the reseed counter unmodified,
+     * wc_RNG_DRBG_Stir() leaves the reseed counter unmodified,
      * so only the module's own seed source resets the reseed schedule. */
-    ret = wc_RNG_DRBG_Reseed_Uncredited(WC_RNG_BANK_INST_TO_RNG(drbg), buf,
+    ret = wc_RNG_DRBG_Stir(WC_RNG_BANK_INST_TO_RNG(drbg), buf,
                                         (word32)len);
 #ifdef WC_RNG_HAVE_NEXT_SEED
     /* The leased instance was just stirred directly, above.  The daemon root --
      * the one node the harvest wire otherwise never reaches -- is single-owner
      * and can't be stirred from here; deposit the fragment into its uncredited
      * accumulator instead (writer-safe without a lease: read-copy-store, see
-     * wc_RNG_DRBG_NextUncreditedSeedStore()), for consumption at the root's own
+     * wc_RNG_DRBG_NextStirStore()), for consumption at the root's own
      * next generate.  The supplied entropy is unconditionally absorbed by
-     * wc_RNG_DRBG_NextUncreditedSeedStore() -- if nextUncreditedSeedLen is
+     * wc_RNG_DRBG_NextStirStore() -- if nextStirLen is
      * already full, the absorption is by xorbuf(). */
     if (len > 0) {
         WC_RNG *stir_root = wc_rng_bank_daemon_root_get(ctx);
         if (stir_root != NULL)
-            (void)wc_RNG_DRBG_NextUncreditedSeedStore(stir_root, (const byte *)buf,
+            (void)wc_RNG_DRBG_NextStirStore(stir_root, (const byte *)buf,
                                                       (word32)len);
     }
 #endif /* WC_RNG_HAVE_NEXT_SEED */

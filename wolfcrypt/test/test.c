@@ -952,7 +952,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_entropy_invalidate_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_rbgc_test(void);
 #endif
 #ifdef WC_RNG_HAVE_NEXT_SEED
-WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_nextseed_test(void);
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_nextseedstest(void);
 #endif
 #ifdef WC_RNG_HAVE_POOL
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_pool_test(void);
@@ -2628,7 +2628,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_PASS("RNGRBGC  test passed!\n");
 #endif
 #ifdef WC_RNG_HAVE_NEXT_SEED
-    if ((ret = rng_drbg_nextseed_test()) != 0)
+    if ((ret = rng_drbg_nextseedstest()) != 0)
         TEST_FAIL("RNGNXTS  test failed!\n", ret);
     else
         TEST_PASS("RNGNXTS  test passed!\n");
@@ -26981,9 +26981,9 @@ static wc_test_ret_t _rng_test(WC_RNG* rng)
             return WC_TEST_RET_ENC_EC(ret);
         /* the forced interval reseed is credited, and the request is
          * fully served */
-        RNG_STATS_EXPECT(rng, _stats_credited_reseeds, 1,
+        RNG_STATS_EXPECT(rng, _stats_reseeds, 1,
                          return WC_TEST_RET_ENC_I((int)rng_stats_d_));
-        RNG_STATS_EXPECT(rng, _stats_uncredited_reseeds, 0,
+        RNG_STATS_EXPECT(rng, _stats_stirs, 0,
                          return WC_TEST_RET_ENC_I((int)rng_stats_d_));
         RNG_STATS_EXPECT(rng, _stats_total_requests, 1,
                          return WC_TEST_RET_ENC_I((int)rng_stats_d_));
@@ -28769,7 +28769,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #endif
-    ret = wc_rng_bank_spawn(bank, leaf_rng, NULL, 0, 0, 0, WC_RNG_BANK_FLAG_SEED_UNCREDITED);
+    ret = wc_rng_bank_spawn(bank, leaf_rng, NULL, 0, 0, 0, WC_RNG_BANK_FLAG_STIR);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_rng_bank_spawn(bank, leaf_rng, NULL, 0, 0, 0, WC_RNG_BANK_FLAG_FOR_RECOVERY);
@@ -28861,7 +28861,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     ret = wc_rng_bank_checkout(bank, &rng_inst, 0, 10, WC_RNG_BANK_FLAG_PREDICTION_RESISTANCE);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-    ret = wc_rng_bank_checkout(bank, &rng_inst, 0, 10, WC_RNG_BANK_FLAG_PREDICTION_RESISTANCE | WC_RNG_BANK_FLAG_CAN_WAIT | WC_RNG_BANK_FLAG_SEED_UNCREDITED);
+    ret = wc_rng_bank_checkout(bank, &rng_inst, 0, 10, WC_RNG_BANK_FLAG_PREDICTION_RESISTANCE | WC_RNG_BANK_FLAG_CAN_WAIT | WC_RNG_BANK_FLAG_STIR);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_rng_bank_checkout(bank, &rng_inst, 0, 10, WC_RNG_BANK_FLAG_PREDICTION_RESISTANCE | WC_RNG_BANK_FLAG_CAN_WAIT | WC_RNG_BANK_FLAG_FOR_RECOVERY);
@@ -29241,7 +29241,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_svc_test(void)
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     }
-    api_ret = wc_RNG_DRBG_Reseed_Uncredited(root, matter, sizeof(matter));
+    api_ret = wc_RNG_DRBG_Stir(root, matter, sizeof(matter));
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
     if (present) {
@@ -29279,7 +29279,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_svc_test(void)
         if ((api_ret != 0) || (c1 > 2))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         /* the scheduled reseed rides the generate, credited */
-        RNG_STATS_EXPECT(root, _stats_credited_reseeds, 1,
+        RNG_STATS_EXPECT(root, _stats_reseeds, 1,
                          ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
         RNG_STATS_EXPECT(root, _stats_total_requests, 1,
                          ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
@@ -29301,9 +29301,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_svc_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         /* both credited; the nonce is additional input, not an
          * uncredited reseed */
-        RNG_STATS_EXPECT(root, _stats_credited_reseeds, 2,
+        RNG_STATS_EXPECT(root, _stats_reseeds, 2,
                          ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
-        RNG_STATS_EXPECT(root, _stats_uncredited_reseeds, 0,
+        RNG_STATS_EXPECT(root, _stats_stirs, 0,
                          ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
     }
     if (wc_RNG_DRBG_Reseed_Now(NULL, NULL, 0) !=
@@ -29563,7 +29563,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_entropy_invalidate_test(void)
      * it: NOT_READY_E, with counter and flag untouched by
      * construction. */
     XMEMSET(block, 0x5a, sizeof(block));
-    api_ret = wc_RNG_DRBG_Reseed_Uncredited(WC_RNG_BANK_INST_TO_RNG(held),
+    api_ret = wc_RNG_DRBG_Stir(WC_RNG_BANK_INST_TO_RNG(held),
                                             block, sizeof(block));
     if (api_ret != WC_NO_ERR_TRACE(NOT_READY_E))
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
@@ -30112,11 +30112,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         /* target: two credited chain reseeds; source: two fully-served
          * seed draws */
-        RNG_STATS_EXPECT2(&leaf, _stats_credited_reseeds, 2,
+        RNG_STATS_EXPECT2(&leaf, _stats_reseeds, 2,
                           ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
         RNG_STATS_EXPECT2(&leaf, _stats_RBGC_reseeds, 2,
                           ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
-        RNG_STATS_EXPECT2(&leaf, _stats_uncredited_reseeds, 0,
+        RNG_STATS_EXPECT2(&leaf, _stats_stirs, 0,
                           ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
         RNG_STATS_EXPECT(&root, _stats_total_requests, 2,
                          ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
@@ -30148,7 +30148,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
     if (present) {
         /* the primary reseed precedes the byte production, so the served
          * bytes are not chain-provenance */
-        RNG_STATS_EXPECT2(&leaf, _stats_credited_reseeds, 1,
+        RNG_STATS_EXPECT2(&leaf, _stats_reseeds, 1,
                           ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
         RNG_STATS_EXPECT2(&leaf, _stats_total_bytes_produced, sizeof(buf),
                           ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
@@ -30232,7 +30232,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
 
         /* uncredited chained reseeds are unrestricted (stirs claim
          * nothing): any source stratum, target stratum untouched. */
-        api_ret = wc_RNG_DRBG_ReseedRBGC_Uncredited(&extra, pleaf, NULL, 0);
+        api_ret = wc_RNG_DRBG_StirRBGC(&extra, pleaf, NULL, 0);
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
         api_ret = wc_RNG_DRBG_GetRBGCStratum(&extra);
@@ -30522,7 +30522,7 @@ out:
  * source-free consumption resetting the reseed counter, use-once
  * emptying, and the argument contracts.  DRBG-internal probes are gated
  * at runtime on wc_RNG_DRBG_Present(). */
-WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseed_test(void)
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseedstest(void)
 {
     wc_test_ret_t ret = 0;
     int api_ret;
@@ -30538,7 +30538,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseed_test(void)
 
     RNG_STATS_DECLS;
 
-    WOLFSSL_ENTER("rng_drbg_nextseed_test");
+    WOLFSSL_ENTER("rng_drbg_nextseedstest");
 
     WC_ALLOC_VAR_EX(root, WC_RNG, 1, HEAP_HINT,
                     DYNAMIC_TYPE_TMP_BUFFER,
@@ -30657,12 +30657,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseed_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         /* redemption of a primary-provenance bank: credited, counted as a
          * primary redemption */
-        RNG_STATS_EXPECT(root, _stats_credited_reseeds, 1,
+        RNG_STATS_EXPECT(root, _stats_reseeds, 1,
                          ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
-        RNG_STATS_EXPECT(root, _stats_n_nextseed_primary_redeemed, 1,
+        RNG_STATS_EXPECT(root, _stats_nextseedsprimary_redeemed, 1,
                          ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
 #ifdef WC_RNG_HAVE_RBGC
-        RNG_STATS_EXPECT(root, _stats_n_nextseed_RBGC_redeemed, 0,
+        RNG_STATS_EXPECT(root, _stats_nextseedsRBGC_redeemed, 0,
                          ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
 #endif
         api_ret = wc_RNG_DRBG_NextSeedCurrent(root, &cur);
@@ -30699,11 +30699,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseed_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         /* the nonce rides as additional input: the redemption is still one
          * credited, primary-provenance reseed */
-        RNG_STATS_EXPECT(root, _stats_credited_reseeds, 1,
+        RNG_STATS_EXPECT(root, _stats_reseeds, 1,
                          ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
-        RNG_STATS_EXPECT(root, _stats_uncredited_reseeds, 0,
+        RNG_STATS_EXPECT(root, _stats_stirs, 0,
                          ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
-        RNG_STATS_EXPECT(root, _stats_n_nextseed_primary_redeemed, 1,
+        RNG_STATS_EXPECT(root, _stats_nextseedsprimary_redeemed, 1,
                          ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
         api_ret = wc_RNG_DRBG_NextSeedCurrent(root, &cur);
         if (api_ret != 0)
@@ -30712,49 +30712,49 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseed_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_I((int)cur), out);
     }
 
-    /* --- uncredited stir aperture (NextUncreditedSeed) lifecycle --- */
+    /* --- uncredited stir aperture (NextStir) lifecycle --- */
     if (present) {
         byte frag[16];
         XMEMSET(frag, 0x71, sizeof(frag));
 
-        if (wc_RNG_DRBG_NextUncreditedSeedStore(NULL, frag, sizeof(frag)) !=
+        if (wc_RNG_DRBG_NextStirStore(NULL, frag, sizeof(frag)) !=
             WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         {
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         }
-        if (wc_RNG_DRBG_NextUncreditedSeedStore(root, NULL, 1) !=
+        if (wc_RNG_DRBG_NextStirStore(root, NULL, 1) !=
             WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         {
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         }
-        if (wc_RNG_DRBG_NextUncreditedSeedStore(root, frag, 0) !=
+        if (wc_RNG_DRBG_NextStirStore(root, frag, 0) !=
             WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         {
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         }
 
         /* partial accumulation is not consumable. */
-        api_ret = wc_RNG_DRBG_NextUncreditedSeedStore(root, frag,
+        api_ret = wc_RNG_DRBG_NextStirStore(root, frag,
                                                       sizeof(frag));
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
-        api_ret = wc_RNG_DRBG_NextUncreditedSeedNow(root);
+        api_ret = wc_RNG_DRBG_NextStirNow(root);
         if (api_ret != WC_NO_ERR_TRACE(NOT_READY_E))
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
 
         /* fill to the top: READY; excess deposits absorbed by xorbuf();
          * oversize deposits clamp. */
-        for (i = 0; i < (int)(WC_DRBG_NEXT_UNCREDITED_SEED_LEN /
+        for (i = 0; i < (int)(WC_DRBG_NEXT_STIR_LEN /
                               sizeof(frag)); i++)
         {
-            api_ret = wc_RNG_DRBG_NextUncreditedSeedStore(root, frag,
+            api_ret = wc_RNG_DRBG_NextStirStore(root, frag,
                                                           sizeof(frag));
             if (api_ret != 0)
                 ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
         }
         /* deposits on a READY accumulator fold in place using xorbuf()
          * (advisory sentinel): absorbed, never refused. */
-        api_ret = wc_RNG_DRBG_NextUncreditedSeedStore(root, frag, sizeof(frag));
+        api_ret = wc_RNG_DRBG_NextStirStore(root, frag, sizeof(frag));
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
 
@@ -30766,7 +30766,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseed_test(void)
             api_ret = wc_RNG_DRBG_GetReseedCtr(root, &ctr_before);
             if (api_ret != 0)
                 ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
-            api_ret = wc_RNG_DRBG_NextUncreditedSeedNow(root);
+            api_ret = wc_RNG_DRBG_NextStirNow(root);
             if (api_ret != 0)
                 ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
             api_ret = wc_RNG_DRBG_GetReseedCtr(root, &ctr_after);
@@ -30776,26 +30776,26 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseed_test(void)
                 ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         }
 #else
-        api_ret = wc_RNG_DRBG_NextUncreditedSeedNow(root);
+        api_ret = wc_RNG_DRBG_NextStirNow(root);
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
 #endif
 
         /* use-once: accumulation reopened. */
-        api_ret = wc_RNG_DRBG_NextUncreditedSeedNow(root);
+        api_ret = wc_RNG_DRBG_NextStirNow(root);
         if (api_ret != WC_NO_ERR_TRACE(NOT_READY_E))
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
-        api_ret = wc_RNG_DRBG_NextUncreditedSeedStore(root, frag,
+        api_ret = wc_RNG_DRBG_NextStirStore(root, frag,
                                                       sizeof(frag));
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
 
         /* top up and verify the universal opportunistic consume at
          * generate: post-generate, the accumulator is spent. */
-        for (i = 0; i < (int)(WC_DRBG_NEXT_UNCREDITED_SEED_LEN /
+        for (i = 0; i < (int)(WC_DRBG_NEXT_STIR_LEN /
                               sizeof(frag)); i++)
         {
-            api_ret = wc_RNG_DRBG_NextUncreditedSeedStore(root, frag,
+            api_ret = wc_RNG_DRBG_NextStirStore(root, frag,
                                                           sizeof(frag));
             if (api_ret != 0)
                 ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
@@ -30803,7 +30803,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseed_test(void)
         api_ret = wc_RNG_GenerateBlock(root, buf, sizeof(buf));
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
-        api_ret = wc_RNG_DRBG_NextUncreditedSeedNow(root);
+        api_ret = wc_RNG_DRBG_NextStirNow(root);
         if (api_ret != WC_NO_ERR_TRACE(NOT_READY_E))
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
     }
@@ -30814,7 +30814,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseed_test(void)
     if (present) {
         WC_RNG leaf;
         WC_RNG_lock_arg_t lock_state;
-        byte frag64[WC_DRBG_NEXT_UNCREDITED_SEED_LEN];
+        byte frag64[WC_DRBG_NEXT_STIR_LEN];
         XMEMSET(frag64, 0x5e, sizeof(frag64));
 
         api_ret = wc_InitRngNonceRBGC(&leaf, root, NULL, 0,
@@ -30825,7 +30825,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseed_test(void)
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
         /* deposit post-event (the event purge emptied the accumulator). */
-        api_ret = wc_RNG_DRBG_NextUncreditedSeedStore(&leaf, frag64,
+        api_ret = wc_RNG_DRBG_NextStirStore(&leaf, frag64,
                                                       sizeof(frag64));
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
@@ -30833,7 +30833,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseed_test(void)
          * atomically ahead of the racy counter); the use-once aperture
          * reopens EMPTY regardless -- stirs are best-effort, and
          * accumulation simply resumes. */
-        api_ret = wc_RNG_DRBG_NextUncreditedSeedNow(&leaf);
+        api_ret = wc_RNG_DRBG_NextStirNow(&leaf);
         if (api_ret != WC_NO_ERR_TRACE(NOT_READY_E))
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
         api_ret = wc_RNG_lock_read(&leaf, &lock_state);
