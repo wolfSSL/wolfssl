@@ -19634,6 +19634,21 @@ int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx, word32 size,
         if (ConstantCompare(input + *inOutIdx,
                    (const byte*)&ssl->hsHashes->verifyHashes, (int)size) != 0) {
             WOLFSSL_MSG("Verify finished error on hashes");
+#ifdef HAVE_SESSION_TICKET
+            /* Drop the unverified ticket (SetTicket() made the session
+             * unique, so this cannot clear one shared with the app). */
+            if (ssl->options.side == WOLFSSL_CLIENT_END &&
+                    ssl->msgsReceived.got_session_ticket) {
+                ForceZero(ssl->session->ticket, ssl->session->ticketLen);
+                if (ssl->session->ticketLenAlloc > 0) {
+                    XFREE(ssl->session->ticket, ssl->heap,
+                          DYNAMIC_TYPE_SESSION_TICK);
+                    ssl->session->ticket = ssl->session->staticTicket;
+                    ssl->session->ticketLenAlloc = 0;
+                }
+                ssl->session->ticketLen = 0;
+            }
+#endif
             WOLFSSL_ERROR_VERBOSE(VERIFY_FINISHED_ERROR);
             return VERIFY_FINISHED_ERROR;
         }
@@ -19672,6 +19687,21 @@ int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx, word32 size,
         ssl->cbmode = WOLFSSL_CB_MODE_WRITE;
         ssl->options.clientState = CLIENT_FINISHED_COMPLETE;
 #endif
+        /* The server is authenticated only now, so this is the first point at
+         * which the session may be cached (a full handshake, or a resumption
+         * that renewed the ticket, from RFC 5246 Section 7.2.2). */
+        if (sniff == NO_SNIFF && (!ssl->options.resuming
+#ifdef HAVE_SESSION_TICKET
+                /* A renewal only: an empty ticket clears ticketLen. */
+                || (ssl->msgsReceived.got_session_ticket &&
+                    ssl->session->ticketLen > 0)
+#endif
+                )) {
+            SetupSession(ssl);
+#ifndef NO_SESSION_CACHE
+            AddSession(ssl);
+#endif
+        }
         if (!ssl->options.resuming) {
 #ifdef OPENSSL_EXTRA
             if (ssl->CBIS != NULL) {
@@ -27432,11 +27462,13 @@ int SendFinished(WOLFSSL* ssl)
         return BUILD_MSG_ERROR;
 
     if (!ssl->options.resuming) {
-        SetupSession(ssl);
-#ifndef NO_SESSION_CACHE
-        AddSession(ssl);
-#endif
+        /* Client side is cached by DoFinished(), which is the first point at
+         * which the server Finished has been verified. */
         if (ssl->options.side == WOLFSSL_SERVER_END) {
+            SetupSession(ssl);
+#ifndef NO_SESSION_CACHE
+            AddSession(ssl);
+#endif
         #ifdef OPENSSL_EXTRA
             ssl->options.serverState = SERVER_FINISHED_COMPLETE;
             ssl->cbmode = WOLFSSL_CB_MODE_WRITE;
@@ -38427,6 +38459,14 @@ int SetTicket(WOLFSSL* ssl, const byte* ticket, word32 length)
         else
 #endif
         {
+            /* A server issuing a ticket sends no session ID, so keep caching
+             * under a generated one rather than under the ticket bytes. */
+            if (!ssl->session->haveAltSessionID &&
+                    ssl->arrays->sessionIDSz == 0 &&
+                    wc_RNG_GenerateBlock(ssl->rng, ssl->session->altSessionID,
+                                         ID_LEN) == 0) {
+                ssl->session->haveAltSessionID = 1;
+            }
             XMEMSET(ssl->arrays->sessionID, 0, ID_LEN);
             XMEMCPY(ssl->arrays->sessionID,
                                  ssl->session->ticket + length - sessIdLen,
@@ -38456,7 +38496,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 
     /* A renewed ticket while resuming confirms resumption; check before the
-     * SetupSession() below refreshes the cached suite/EMS and masks a downgrade.
+     * SetupSession() in DoFinished refreshes the cached suite/EMS and masks a
+     * downgrade.
      * (The ChangeCipherSpec check covers the no-renewal case.) */
     if (ssl->options.resuming) {
         ret = CheckResumptionConsistency(ssl);
@@ -38483,11 +38524,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         return ret;
     *inOutIdx += length;
     if (length > 0) {
+        /* The session is not cached here, the
+         * server Finished is still unverified.
+         * DoFinished() caches once it verifies. */
         ssl->timeout = lifetime;
-        SetupSession(ssl);
-#ifndef NO_SESSION_CACHE
-        AddSession(ssl);
-#endif
     }
 
     ssl->expect_session_ticket = 0;
