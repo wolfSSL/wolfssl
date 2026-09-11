@@ -755,6 +755,7 @@ int caamFindUnusedPartition()
 }
 
 
+#ifndef WOLFSSL_CAAM_NO_SM
 /* return the address of the given partition number "part" */
 CAAM_ADDRESS caamGetPartition(int part, int sz)
 {
@@ -793,6 +794,7 @@ int caamFreePart(int partNum)
 
     return 0;
 }
+#endif /* !WOLFSSL_CAAM_NO_SM */
 
 
 /* Internal function to help write to a secure partition

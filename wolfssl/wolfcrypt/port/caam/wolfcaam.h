@@ -32,11 +32,13 @@
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam_seco.h>
 #elif defined(WOLFSSL_IMXRT1170_CAAM)
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam_fsl_nxp.h>
+#elif defined(WOLFSSL_CAAM_LINUX)
+    #include <wolfssl/wolfcrypt/port/caam/wolfcaam_linux.h>
 #endif
 
 #if defined(WOLFSSL_IMX6_CAAM) || defined(WOLFSSL_IMX6_CAAM_RNG) || \
     defined(WOLFSSL_QNX_CAAM) || defined(WOLFSSL_SECO_CAAM) || \
-        defined(WOLFSSL_IMXRT1170_CAAM)
+        defined(WOLFSSL_IMXRT1170_CAAM) || defined(WOLFSSL_CAAM_LINUX)
 
 
 /* unique devId for CAAM use on crypto callbacks */
@@ -69,8 +71,10 @@ WOLFSSL_LOCAL int  wc_caamAddAndWait(CAAM_BUFFER* buf, int sz, word32 arg[4],
         word32 type);
 
 WOLFSSL_LOCAL int caamFindUnusedPartition(void);
+#ifndef WOLFSSL_CAAM_NO_SM
 WOLFSSL_LOCAL CAAM_ADDRESS caamGetPartition(int part, int sz);
 WOLFSSL_LOCAL int caamFreePart(int partNum);
+#endif
 WOLFSSL_LOCAL int caamWriteToPartition(CAAM_ADDRESS addr, const unsigned char* in, int inSz);
 WOLFSSL_LOCAL int caamReadPartition(CAAM_ADDRESS addr, unsigned char* out, int outSz);
 
@@ -97,7 +101,7 @@ WOLFSSL_API int wc_caamCoverKey(byte* in, word32 inSz, byte* out, word32* outSz,
 #define WC_CAAM_MAX_ENTROPY 44
 
 #if !defined(WOLFSSL_QNX_CAAM) && !defined(WOLFSSL_SECO_CAAM) && \
-        !defined(WOLFSSL_IMXRT1170_CAAM)
+        !defined(WOLFSSL_IMXRT1170_CAAM) && !defined(WOLFSSL_CAAM_LINUX)
     WOLFSSL_API int wc_caamSetResource(IODevice ioDev);
     #ifndef WC_CAAM_READ
         #define WC_CAAM_READ(reg)      wc_caamReadRegister((reg))
