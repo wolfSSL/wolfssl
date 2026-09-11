@@ -2132,6 +2132,31 @@ static void wb_fill_name(CertName* name, const char* cn)
 /* Build one fixture. Returns 0 on success. Never asserts on the *content*
  * of the result beyond "the generator accepted it": the whole point of some
  * of these shapes is that a strict parser will later reject them. */
+/* Rewrite a freshly built body's serial number to zero.
+ *
+ * wc_MakeCert() refuses to emit a zero serial (RFC 5280 4.1.2.2), so a
+ * zero-serial fixture is built with 0x01 and the single content octet is
+ * patched here before signing. The encoded length does not change, so the
+ * signature still covers the whole body. */
+static int wb_patch_zero_serial(byte* der, int derSz)
+{
+    int i;
+
+    for (i = 0; ((i + 8) <= derSz) && (i < 16); i++) {
+        /* [0] EXPLICIT { INTEGER 2 } then the serial INTEGER holding 1. */
+        if ((der[i] == 0xA0) && (der[i + 1] == 0x03) &&
+            (der[i + 2] == ASN_INTEGER) && (der[i + 3] == 0x01) &&
+            (der[i + 4] == 0x02) &&
+            (der[i + 5] == ASN_INTEGER) && (der[i + 6] == 0x01) &&
+            (der[i + 7] == 0x01)) {
+            der[i + 7] = 0x00;
+            return 0;
+        }
+    }
+
+    return -1;
+}
+
 static int wb_make_fixture(WbFix* out, const WbSpec* spec)
 {
     Cert* cert;
@@ -2194,7 +2219,9 @@ static int wb_make_fixture(WbFix* out, const WbSpec* spec)
         }
 
         if (spec->zeroSerial) {
+            /* Patched down to 0 after the body is built. */
             XMEMSET(cert->serial, 0, sizeof(cert->serial));
+            cert->serial[0] = 0x01;
             cert->serialSz = 1;
         }
         else {
@@ -2247,6 +2274,9 @@ static int wb_make_fixture(WbFix* out, const WbSpec* spec)
         if (ret > 0) {
             ret = 0;
         }
+    }
+    if (ret == 0 && spec->zeroSerial) {
+        ret = wb_patch_zero_serial(out->der, cert->bodySz);
     }
     if (ret == 0) {
         bodySz = cert->bodySz;

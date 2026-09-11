@@ -115,12 +115,25 @@ void  wc_CertFree(Cert* cert);
     either an rsaKey or an eccKey to generate the certificate.  The certificate
     must be initialized with wc_InitCert before this method is called.
 
+    A serial number left at the wc_InitCert default (cert->serialSz of 0) is
+    randomly generated. A caller-supplied serial is taken as a big-endian
+    value of at most CTC_SERIAL_SIZE bytes and is normalized to a minimal DER
+    INTEGER: redundant leading zero bytes are stripped and the sign pad is
+    added back when the high bit is set. Supplying the magnitude alone is
+    enough; a sign pad the caller adds is accepted and is not duplicated.
+    The encoded value, including any sign pad, must not exceed
+    CTC_SERIAL_SIZE octets.
+
     \return Success On successfully making an x509 certificate from the
     specified input cert, returns the size of the cert generated.
     \return MEMORY_E Returned if there is an error allocating memory
     with XMALLOC
     \return BUFFER_E Returned if the provided derBuffer is too small to
     store the generated certificate
+    \return BAD_FUNC_ARG Returned if cert->serialSz is negative, if the
+    encoded serial would exceed CTC_SERIAL_SIZE octets, or if the serial
+    number is zero. RFC 5280 4.1.2.2 requires a positive serial of at most
+    20 octets; define WOLFSSL_ASN_ALLOW_0_SERIAL to permit a zero serial.
     \return Others Additional error messages may be returned if the cert
     generation is not successful.
 
@@ -156,9 +169,13 @@ int  wc_MakeCert(Cert* cert, byte* derBuffer, word32 derSz, RsaKey* rsaKey,
     \ingroup ASN
     \brief Makes certificate with generic key type support.
 
+    The serial number contract is the same as wc_MakeCert().
+
     \return Size of certificate on success
     \return MEMORY_E if memory allocation fails
     \return BUFFER_E if buffer too small
+    \return BAD_FUNC_ARG if the serial number is zero, negative in size, or
+    longer than CTC_SERIAL_SIZE
     \return Other error codes on failure
 
     \param cert Initialized cert structure
