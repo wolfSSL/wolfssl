@@ -354,9 +354,11 @@ enum wolfCrypt_ErrorCodes {
     OBJECT_NOT_LOCKED_E = -1031, /* Required lock on object is not held */
     WRONG_TYPE_OBJECT_E = -1032, /* Object is wrong type for requested */
                                  /* operation */
+    NEEDS_RECOVERY_E    = -1033, /* Object needs recovery before use */
+    UNEXPECTED_STATE_E  = -1034, /* Object has unexpected state */
 
-    WC_SPAN2_LAST_E     = -1032, /* Update to indicate last used error code */
-    WC_LAST_E           = -1032, /* the last code used either here or in
+    WC_SPAN2_LAST_E     = -1034, /* Update to indicate last used error code */
+    WC_LAST_E           = -1034, /* the last code used either here or in
                                   * error-ssl.h */
 
     WC_SPAN2_MIN_CODE_E = -1999, /* Last usable code in span 2 */

@@ -1698,6 +1698,7 @@ then
     test "$enable_base16" = "" && enable_base16=yes
     test "$enable_ssh" = "" && test "$enable_hmac" != "no" && enable_ssh=yes
     test "$enable_rng_bank" = "" && enable_rng_bank=yes
+    test "$enable_rng_extras" = "" && enable_rng_extras=yes
     test "$enable_dh" = "" && enable_dh=yes
     test "$enable_defaultdhparams" = "" && enable_defaultdhparams=yes
 
@@ -1915,6 +1916,8 @@ then
         test "$enable_supportedcurves" = "" && enable_supportedcurves=yes
     fi
     test "$enable_rng" != "no" && test "$enable_rng_bank" = "" && enable_rng_bank=yes
+    test "$enable_rng" != "no" && test "$enable_rng_extras" = "" && enable_rng_extras=yes
+
     if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -ge 6
     then
         test "$enable_aes" != "no" && test "$enable_aescfb" = "" && enable_aescfb=yes
@@ -2775,6 +2778,20 @@ if test "$ENABLED_RNG" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DWC_NO_RNG"
 fi
+
+
+# RNG extras
+AC_ARG_ENABLE([rng-extras],
+    [AS_HELP_STRING([--enable-rng-extras],[Enable RNG locks, pools, RBGC, and daemon support (default: disabled)])],
+    [ ENABLED_RNG_EXTRAS=$enableval ],
+    [ ENABLED_RNG_EXTRAS=$KERNEL_MODE_DEFAULTS ]
+    )
+
+if test "$ENABLED_RNG_EXTRAS" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWC_RNG_EXTRAS"
+fi
+
 
 AC_ARG_ENABLE([rng-bank],
     [AS_HELP_STRING([--enable-rng-bank],[Enable compiling and using RNG banks (default: disabled)])],
@@ -7155,7 +7172,8 @@ AS_CASE([$FIPS_VERSION],
             -DECC_USER_CURVES \
             -DHAVE_ECC384 \
             -DHAVE_ECC521 \
-            -DWOLFSSL_VALIDATE_FFC_IMPORT"
+            -DWOLFSSL_VALIDATE_FFC_IMPORT \
+            -DWC_RNG_EXTRAS"
 
         # KCAPI API does not support custom k for sign, don't force enable ECC key sizes and don't use seed callback
         AS_IF([test "x$ENABLED_KCAPI_ECC" = "xno"],

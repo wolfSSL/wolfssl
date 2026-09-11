@@ -795,6 +795,10 @@
                 }
             #endif
             #define WC_LKM_REFCOUNT_TO_INT(refcount) wc_lkm_refcount_to_int(&(refcount))
+            #include <linux/notifier.h>
+            #ifdef CONFIG_PM_SLEEP
+            #include <linux/suspend.h>
+            #endif
         #endif /* !WC_CONTAINERIZE_THIS */
 
     #endif /* LINUXKM_LKCAPI_REGISTER */

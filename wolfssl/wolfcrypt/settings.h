@@ -1527,7 +1527,7 @@
     /* user needs to define XTIME to function that provides
      * seconds since Unix epoch */
     #ifndef XTIME
-        #error XTIME must be defined in wolfSSL settings.h
+        #error XTIME must be defined in wolfSSL user_settings.h
         /* #define XTIME fnSecondsSinceEpoch */
     #endif
 
@@ -4632,20 +4632,30 @@
     #endif
 
     #ifndef WC_RESEED_INTERVAL
-        /* In kernel mode, use the maximum reseed interval allowed by
+        /* In kernel mode, use the maximum mandatory reseed threshold allowed by
          * NIST SP 800-90A Rev. 1, to avoid unnecessary delays in DRBG
          * generation.
          */
         #if defined(HAVE_FIPS) && \
             FIPS_VERSION_LT(6,0) && FIPS_VERSION3_NE(5,2,4)
             #define WC_RESEED_INTERVAL UINT_MAX
+        #elif defined(WC_16BIT_CPU) || defined(WC_32BIT_CPU) || defined(NO_64BIT)
+            #define WC_RESEED_INTERVAL UINT_MAX
+        #elif defined(__x86_64__) || defined(__ia64__) || \
+              defined(__aarch64__) || defined(__mips64)
+            #define WC_RESEED_INTERVAL (1UL << 48UL)
         #else
-            #define WC_RESEED_INTERVAL (((word64)1UL)<<48UL)
+            #define WC_RESEED_INTERVAL UINT_MAX
         #endif
     #endif
 
     #if !defined(WC_NO_VERBOSE_RNG) && !defined(WC_VERBOSE_RNG)
         #define WC_VERBOSE_RNG
+    #endif
+
+    #if defined(WC_VERBOSE_RNG) && defined(WOLFSSL_KERNEL_VERBOSE_DEBUG) && \
+        !defined(WC_RNG_NO_DEBUG_STATS) && !defined(WC_RNG_WANT_DEBUG_STATS)
+        #define WC_RNG_WANT_DEBUG_STATS
     #endif
 
     #if WOLFSSL_GENERAL_ALIGNMENT < SIZEOF_LONG
@@ -5984,10 +5994,6 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
 #if defined(NO_WOLFSSL_CLIENT) && defined(NO_WOLFSSL_SERVER) && \
     !defined(WOLFCRYPT_ONLY) && !defined(NO_TLS)
 #error "If TLS is enabled please make sure either client or server is enabled."
-#endif
-
-#if defined(WC_RNG_BANK_SUPPORT) && defined(NO_ASN_TIME)
-    #undef WC_RNG_BANK_SUPPORT
 #endif
 
 /* The OCSP responder time-stamps every response it generates (producedAt,

@@ -138,7 +138,7 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
                 esp_start_heap = esp_this_heap;                              \
             }                                                                \
             ESP_LOGI(ESPIDF_TAG, "%s #%d; Heap free: %d",                    \
-                                ((b) ? (b) : ""),  /* breadcrumb string */    \
+                                ((b) ? (b) : ""),  /* breadcrumb string */   \
                                 ((i) ? (i) : 0),   /* index */               \
                                  esp_this_heap);
 
@@ -165,7 +165,6 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
         #define PRINT_HEAP_ADDRESS(p) WC_DO_NOTHING;
     #endif
 #endif /* WOLFSSL_ESPIDF */
-
 
 #ifdef USE_FLAT_TEST_H
     #ifdef HAVE_CONFIG_H
@@ -941,6 +940,23 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_bank_test(void);
 #ifdef WOLFSSL_NOISE_SRC
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  noisesrc_test(void);
 #endif
+#if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && !defined(HAVE_SELFTEST)
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_svc_test(void);
+#endif
+#if defined(WC_RNG_BANK_SUPPORT) && defined(HAVE_HASHDRBG) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(5,2,4))
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_entropy_invalidate_test(void);
+#endif
+#ifdef WC_RNG_HAVE_RBGC
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_rbgc_test(void);
+#endif
+#ifdef WC_RNG_HAVE_NEXT_SEED
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_nextseedstest(void);
+#endif
+#ifdef WC_RNG_HAVE_POOL
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_pool_test(void);
+#endif
 #endif /* WC_NO_RNG */
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  pwdbased_test(void);
 #if defined(USE_CERT_BUFFERS_2048) && \
@@ -971,7 +987,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pbkdf2_test(void);
 #if !defined(NO_PWDBASED) && defined(HAVE_SCRYPT)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t scrypt_test(void);
 #endif
-#ifdef HAVE_ARGON2
+#if defined(HAVE_ARGON2) && !defined(WOLFSSL_NO_MALLOC)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t argon2_test(void);
 #endif
 #ifdef HAVE_ECC
@@ -2591,6 +2607,38 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     else
         TEST_PASS("NOISESRC test passed!\n");
 #endif
+#if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && !defined(HAVE_SELFTEST)
+    if ((ret = rng_drbg_svc_test()) != 0)
+        TEST_FAIL("RNGSVC   test failed!\n", ret);
+    else
+        TEST_PASS("RNGSVC   test passed!\n");
+#endif
+#if defined(WC_RNG_BANK_SUPPORT) && defined(HAVE_HASHDRBG) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(5,2,4))
+    if ((ret = rng_entropy_invalidate_test()) != 0)
+        TEST_FAIL("RNGINVAL test failed!\n", ret);
+    else
+        TEST_PASS("RNGINVAL test passed!\n");
+#endif
+#ifdef WC_RNG_HAVE_RBGC
+    if ((ret = rng_drbg_rbgc_test()) != 0)
+        TEST_FAIL("RNGRBGC  test failed!\n", ret);
+    else
+        TEST_PASS("RNGRBGC  test passed!\n");
+#endif
+#ifdef WC_RNG_HAVE_NEXT_SEED
+    if ((ret = rng_drbg_nextseedstest()) != 0)
+        TEST_FAIL("RNGNXTS  test failed!\n", ret);
+    else
+        TEST_PASS("RNGNXTS  test passed!\n");
+#endif
+#ifdef WC_RNG_HAVE_POOL
+    if ((ret = rng_pool_test()) != 0)
+        TEST_FAIL("RNGPOOL  test failed!\n", ret);
+    else
+        TEST_PASS("RNGPOOL  test passed!\n");
+#endif
 #endif /* WC_NO_RNG */
 
 #ifdef WOLFSSL_SHAKE128
@@ -3111,7 +3159,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_PASS("PWDBASED test passed!\n");
 #endif
 
-#ifdef HAVE_ARGON2
+#if defined(HAVE_ARGON2) && !defined(WOLFSSL_NO_MALLOC)
     if ( (ret = argon2_test()) != 0)
         TEST_FAIL("ARGON2   test failed!\n", ret);
     else
@@ -23821,7 +23869,8 @@ typedef struct keywrapVector {
     word32 verifyLen;
 } keywrapVector;
 
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLFSSL_NO_MALLOC)
 /* struct Aes cannot be a local here: with --enable-aesgcm=table its GCM tables
  * alone are 4096 bytes, past the frame limit CI enforces. It also asks for 16
  * byte alignment through its ALIGN16 members, which XMALLOC does not guarantee
@@ -24090,6 +24139,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aeskeywrap_test(void)
     }
 
 #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+
+#ifndef WOLFSSL_NO_MALLOC
     /* Drive wc_AesKeyWrap_ex/wc_AesKeyUnWrap_ex directly with a caller Aes; the
      * KAT loop above already covers every vector via the key-based wrappers. */
     {
@@ -24099,6 +24150,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aeskeywrap_test(void)
         if (exRet != 0)
             return exRet;
     }
+#endif /* WOLFSSL_NO_MALLOC */
 
     /* In-place round-trip (in == out): wrap then unwrap a single buffer.
      * Exercises the XMEMMOVE staging in wc_AesKeyWrap_ex / AesKeyUnWrapRaw. */
@@ -26794,6 +26846,68 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t XChaCha20Poly1305_test(void)
 #endif /* defined(HAVE_XCHACHA) && defined(HAVE_POLY1305) */
 
 #ifndef WC_NO_RNG
+#ifdef WC_RNG_DEBUG_STATS
+/* Snapshot-and-delta assertion kit for the WC_RNG_DEBUG_STATS counters.
+ *
+ * Usage: RNG_STATS_DECLS; as the LAST declaration in the block (it
+ * declares two snapshot cells, so two instances can be tracked across one
+ * API call, e.g. a chain reseed's source and target).  RNG_STATS_SNAP[2]()
+ * snapshots an instance; RNG_STATS_EXPECT[2]() asserts an exact
+ * counter delta since the matching snapshot, RNG_STATS_EXPECT_GE[2]() a
+ * minimum delta, and RNG_STATS_EXPECT_SAME_DELTA() that two counters of
+ * one instance moved together.  fail_action is executed on mismatch
+ * (e.g. ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out)), so the
+ * encoded line number pinpoints the failing assertion; the observed
+ * delta (for _SAME_DELTA, the difference of the two deltas) is available
+ * to fail_action as rng_stats_d_ for encoding via WC_TEST_RET_ENC_I().  Without
+ * WC_RNG_DEBUG_STATS everything expands to nothing.
+ */
+
+#define RNG_STATS_DECLS                                              \
+    struct wc_rng_debug_stats_snapshot rng_stats_s WC_MAYBE_UNUSED,  \
+                       rng_stats_s2 WC_MAYBE_UNUSED
+#define RNG_STATS_SNAP(rng)  wc_rng_debug_stats_snap(&rng_stats_s, (rng))
+#define RNG_STATS_SNAP2(rng) wc_rng_debug_stats_snap(&rng_stats_s2, (rng))
+#define RNG_STATS_D_(snap, rng, field) ((rng)->field - (snap).field)
+#define RNG_STATS_EXPECT_(snap, rng, field, delta, fail_action)      \
+    do {                                                             \
+        wc_rng_debug_counter_t rng_stats_d_ =                        \
+            RNG_STATS_D_(snap, rng, field);                          \
+        if (rng_stats_d_ != (wc_rng_debug_counter_t)(delta)) {       \
+            fail_action;                                             \
+        }                                                            \
+    } while (0)
+#define RNG_STATS_EXPECT(rng, field, delta, fail_action)             \
+    RNG_STATS_EXPECT_(rng_stats_s, rng, field, delta, fail_action)
+#define RNG_STATS_EXPECT2(rng, field, delta, fail_action)            \
+    RNG_STATS_EXPECT_(rng_stats_s2, rng, field, delta, fail_action)
+#define RNG_STATS_EXPECT_GE(rng, field, delta, fail_action)          \
+    do {                                                             \
+        wc_rng_debug_counter_t rng_stats_d_ =                        \
+            RNG_STATS_D_(rng_stats_s, rng, field);                   \
+        if (rng_stats_d_ < (wc_rng_debug_counter_t)(delta)) {        \
+            fail_action;                                             \
+        }                                                            \
+    } while (0)
+#define RNG_STATS_EXPECT_SAME_DELTA(rng, f1, f2, fail_action)        \
+    do {                                                             \
+        wc_rng_debug_counter_t rng_stats_d_ =                        \
+            RNG_STATS_D_(rng_stats_s, rng, f1) -                     \
+            RNG_STATS_D_(rng_stats_s, rng, f2);                      \
+        if (rng_stats_d_ != 0) {                                     \
+            fail_action;                                             \
+        }                                                            \
+    } while (0)
+#else /* !WC_RNG_DEBUG_STATS */
+#define RNG_STATS_DECLS
+#define RNG_STATS_SNAP(rng) WC_DO_NOTHING
+#define RNG_STATS_SNAP2(rng) WC_DO_NOTHING
+#define RNG_STATS_EXPECT(rng, field, delta, fail_action) WC_DO_NOTHING
+#define RNG_STATS_EXPECT2(rng, field, delta, fail_action) WC_DO_NOTHING
+#define RNG_STATS_EXPECT_GE(rng, field, delta, fail_action) WC_DO_NOTHING
+#define RNG_STATS_EXPECT_SAME_DELTA(rng, f1, f2, fail_action) WC_DO_NOTHING
+#endif /* WC_RNG_DEBUG_STATS */
+
 static wc_test_ret_t _rng_test(WC_RNG* rng)
 {
     byte block[32];
@@ -26859,9 +26973,25 @@ static wc_test_ret_t _rng_test(WC_RNG* rng)
         }
     #endif
 
+        {
+        RNG_STATS_DECLS;
+        RNG_STATS_SNAP(rng);
         ret = wc_RNG_GenerateBlock(rng, block, sizeof(block));
         if (ret != 0)
             return WC_TEST_RET_ENC_EC(ret);
+        /* the forced interval reseed is credited, and the request is
+         * fully served */
+        RNG_STATS_EXPECT(rng, _stats_reseeds, 1,
+                         return WC_TEST_RET_ENC_I((int)rng_stats_d_));
+        RNG_STATS_EXPECT(rng, _stats_stirs, 0,
+                         return WC_TEST_RET_ENC_I((int)rng_stats_d_));
+        RNG_STATS_EXPECT(rng, _stats_total_requests, 1,
+                         return WC_TEST_RET_ENC_I((int)rng_stats_d_));
+        RNG_STATS_EXPECT(rng, _stats_total_bytes_requested, sizeof(block),
+                         return WC_TEST_RET_ENC_I((int)rng_stats_d_));
+        RNG_STATS_EXPECT(rng, _stats_total_bytes_produced, sizeof(block),
+                         return WC_TEST_RET_ENC_I((int)rng_stats_d_));
+        }
 
     #if defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
         (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
@@ -27871,13 +28001,28 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
 #ifndef WC_RNG_BANK_STATIC
     struct wc_rng_bank *bank2 = NULL;
     struct wc_rng_bank_inst *rng_inst2 = NULL;
-#ifdef WC_HAVE_RNG_BANKREF
+#if defined(WC_HAVE_RNG_BANKREF) && !defined(WC_NO_CONSTRUCTORS)
     WC_RNG *rng2 = NULL;
 #endif
 #endif /* !WC_RNG_BANK_STATIC */
     static const char bank_arg[] = "hi";
     byte outbuf1[16], outbuf2[16];
+#ifdef HAVE_HASHDRBG
     int i;
+#endif
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+    int svc_present = 0;
+#endif
+#ifdef WC_RNG_HAVE_RBGC
+#ifndef WC_NO_CONSTRUCTORS
+    WC_RNG *spawned_rng = NULL;
+#endif
+    int leaf_rng_inited = 0;
+    WC_DECLARE_VAR(leaf_rng, WC_RNG, 1, HEAP_HINT);
+#endif
+#ifdef WC_RNG_BANK_HAVE_DAEMON_SUPPORT
+    void *daemon_out = NULL;
+#endif
 
     WC_CALLOC_VAR_EX(bank, struct wc_rng_bank, 1, HEAP_HINT,
                     DYNAMIC_TYPE_TMP_BUFFER,
@@ -27888,6 +28033,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
                     DYNAMIC_TYPE_TMP_BUFFER,
                     ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out));
     XMEMSET(rng, 0, sizeof(*rng));
+#endif
+#ifdef WC_RNG_HAVE_RBGC
+    WC_ALLOC_VAR_EX(leaf_rng, WC_RNG, 1, HEAP_HINT,
+                    DYNAMIC_TYPE_TMP_BUFFER,
+                    ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out));
 #endif
 
     ret = wc_rng_bank_init(NULL, WC_RNG_BANK_STATIC_SIZE, WC_RNG_BANK_FLAG_CAN_WAIT, 10, HEAP_HINT, INVALID_DEVID);
@@ -27904,6 +28054,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
 #ifndef DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON
                            WC_RNG_BANK_FLAG_NO_VECTOR_OPS |
 #endif
+                           WC_RNG_BANK_FLAG_QUIET |
                            WC_RNG_BANK_FLAG_CAN_WAIT,
                            10, HEAP_HINT, INVALID_DEVID);
     if (ret != 0)
@@ -27969,6 +28120,30 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
 
+    {
+        struct wc_rng_bank_inst *neg_inst = NULL;
+
+        ret = wc_rng_bank_inst_checkin(NULL);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+        ret = wc_rng_bank_inst_checkin(&neg_inst);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+        /* A misaligned pointer within the instance array is memory-safe to
+         * probe through wc_rng_bank_checkin() -- the caller-supplied bank is
+         * validated before any instance dereference -- and exercises
+         * rng_inst_matches_bank()'s mid-instance alignment rejection.
+         * (The same probe through wc_rng_bank_inst_checkin() would be
+         * undefined behavior: that API must read (*rng_inst)->bank before
+         * any validation can run.) */
+        neg_inst = (struct wc_rng_bank_inst *)((wc_ptr_t)bank->rngs + 1);
+        ret = wc_rng_bank_checkin(bank, &neg_inst);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    }
+
     ret = wc_rng_bank_checkin(bank, &rng_inst);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -27982,9 +28157,40 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     if (rng_inst != bank->rngs + 3)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-    ret = wc_rng_bank_checkin(bank, &rng_inst);
+    ret = wc_rng_bank_inst_checkin(&rng_inst);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* A duplicate (stale-copy) check-in must be rejected with BAD_STATE_E or
+     * OBJECT_NOT_LOCKED_E -- the instance's HELD flag is already clear --
+     * without mutating the bank, through both entry points.  Hold a second
+     * instance across the stale check-ins: with the bank refcount at 1,
+     * rng_inst_matches_bank() rejects with BAD_STATE_E/OBJECT_NOT_LOCKED_E
+     * before the HELD-flag guard in wc_rng_bank_checkin() -- the guard under
+     * test here -- is reached. */
+    ret = wc_rng_bank_checkout(bank, &rng_inst, 3, 10, WC_RNG_BANK_FLAG_NONE);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    {
+        struct wc_rng_bank_inst *stale_inst = rng_inst;
+        struct wc_rng_bank_inst *held_inst = NULL;
+        ret = wc_rng_bank_checkout(bank, &held_inst, 2, 10,
+                                   WC_RNG_BANK_FLAG_NONE);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ret = wc_rng_bank_inst_checkin(&rng_inst);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ret = wc_rng_bank_checkin(bank, &stale_inst);
+        if (ret != WC_NO_ERR_TRACE(OBJECT_NOT_LOCKED_E))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ret = wc_rng_bank_inst_checkin(&stale_inst);
+        if (ret != WC_NO_ERR_TRACE(OBJECT_NOT_LOCKED_E))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ret = wc_rng_bank_inst_checkin(&held_inst);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    }
 
     rng_bank_affinity_get_id_id = 3;
     ret = wc_rng_bank_checkout(bank, &rng_inst, -1, 10, WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST | WC_RNG_BANK_FLAG_AFFINITY_LOCK);
@@ -27997,7 +28203,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    ret = wc_rng_bank_checkin(bank, &rng_inst);
+    ret = wc_rng_bank_inst_checkin(&rng_inst);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     if (rng_inst != NULL)
@@ -28008,8 +28214,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
 
 #ifdef WC_HAVE_RNG_BANKREF
     ret = wc_InitRng_BankRef(NULL, rng);
+#ifdef WC_RNG_BANK_DEFAULT_SUPPORT
+    if (ret != WC_NO_ERR_TRACE(NO_DEFAULT_FOUND_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#else
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif
 
     ret = wc_InitRng_BankRef(bank, NULL);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
@@ -28028,9 +28239,15 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
 
+#ifdef HAVE_HASHDRBG
     ret = wc_rng_bank_reseed(NULL, 10, WC_RNG_BANK_FLAG_NONE);
+#ifdef WC_RNG_BANK_DEFAULT_SUPPORT
+    if (ret != WC_NO_ERR_TRACE(NO_DEFAULT_FOUND_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#else
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif
 
     ret = wc_rng_bank_reseed(bank, 10, WC_RNG_BANK_FLAG_NONE);
     if (ret != 0)
@@ -28055,6 +28272,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
         }
     }
+#endif /* HAVE_HASHDRBG */
 
     rng_bank_affinity_get_id_id = 0;
     /* WC_RNG_BANK_FLAG_CAN_WAIT needed to avoiding warning message that the
@@ -28077,13 +28295,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(rng_inst), outbuf2, sizeof(outbuf2));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-    ret = wc_rng_bank_checkin(bank, &rng_inst);
+    ret = wc_rng_bank_inst_checkin(&rng_inst);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     if (XMEMCMP(outbuf1, outbuf2, sizeof(outbuf1)) == 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
+#ifdef HAVE_HASHDRBG
     ret = wc_rng_bank_seed(bank, (byte *)bank_arg, (word32)sizeof(bank_arg), 10, WC_RNG_BANK_FLAG_CAN_WAIT);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -28103,15 +28322,27 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     /* can't wc_rng_bank_seed() while holding an inst (deadlock/timeout) --
      * check in then check back out.
      */
-    ret = wc_rng_bank_checkin(bank, &rng_inst);
+    ret = wc_rng_bank_inst_checkin(&rng_inst);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     ret = wc_rng_bank_seed(NULL, (byte *)bank_arg, (word32)sizeof(bank_arg), 10, WC_RNG_BANK_FLAG_CAN_WAIT);
+#ifdef WC_RNG_BANK_DEFAULT_SUPPORT
+    if (ret != WC_NO_ERR_TRACE(NO_DEFAULT_FOUND_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#else
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif
 
     ret = wc_rng_bank_seed(bank, (byte *)bank_arg, (word32)sizeof(bank_arg), 10, WC_RNG_BANK_FLAG_CAN_WAIT);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* seedSz == 0 short-circuits: no-op success for an explicit inited
+     * bank, and for the default form while a default is set.  (The
+     * seed pointer is never read on these paths.) */
+    ret = wc_rng_bank_seed(bank, NULL, 0, 10, WC_RNG_BANK_FLAG_CAN_WAIT);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -28130,8 +28361,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (XMEMCMP(outbuf1, outbuf2, sizeof(outbuf1)) == 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
+    /* NULL bank to wc_rng_bank_inst_reinit() tells it to use the bank with
+     * which rng_inst is associated. */
     ret = wc_rng_bank_inst_reinit(NULL, rng_inst, 10, WC_RNG_BANK_FLAG_CAN_WAIT);
-    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+    if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     /* bogus pointer test */
@@ -28150,21 +28383,25 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (XMEMCMP(outbuf1, outbuf2, sizeof(outbuf1)) == 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
-    ret = wc_rng_bank_checkin(NULL, &rng_inst);
-    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-
     ret = wc_rng_bank_checkin(bank, &rng_inst);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
+#endif /* HAVE_HASHDRBG */
+
     ret = wc_rng_bank_checkout(NULL, &rng_inst, -1, 10, WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST | WC_RNG_BANK_FLAG_AFFINITY_LOCK);
+#ifdef WC_RNG_BANK_DEFAULT_SUPPORT
+    if (ret != WC_NO_ERR_TRACE(NO_DEFAULT_FOUND_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#else
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif
 
 #ifdef WC_HAVE_RNG_BANKREF
-    if (wolfSSL_RefCur(bank->refcount) != 2)
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    ret = wolfSSL_RefCur(bank->refcount);
+    if (ret != 2)
+        ERROR_OUT(WC_TEST_RET_ENC_I(ret), out);
 
     ret = wc_rng_bank_fini(bank);
     if (ret != WC_NO_ERR_TRACE(BUSY_E))
@@ -28172,8 +28409,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
 
     wc_FreeRng(rng);
 
-    if (wolfSSL_RefCur(bank->refcount) != 1)
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    ret = wolfSSL_RefCur(bank->refcount);
+    if (ret != 1)
+        ERROR_OUT(WC_TEST_RET_ENC_I(ret), out);
 #endif
 
 #ifdef WC_RNG_BANK_DEFAULT_SUPPORT
@@ -28211,7 +28449,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     wc_FreeRng(rng);
 
-#ifndef WC_RNG_BANK_STATIC
+#if !defined(WC_RNG_BANK_STATIC) && !defined(WC_NO_CONSTRUCTORS)
     ret = wc_rng_new_bankref(NULL, &rng2);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -28226,6 +28464,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
+#ifdef HAVE_HASHDRBG
+
     ret = wc_rng_bank_seed(NULL, (byte *)bank_arg, (word32)sizeof(bank_arg), 10, WC_RNG_BANK_FLAG_CAN_WAIT);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -28234,9 +28474,24 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
+    ret = wc_rng_bank_seed(NULL, NULL, 0, 10, WC_RNG_BANK_FLAG_CAN_WAIT);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+#endif /* HAVE_HASHDRBG */
+
     ret = wc_rng_bank_default_clear(bank);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+#ifdef HAVE_HASHDRBG
+
+    /* seedSz == 0 probe with no default bank set: NO_DEFAULT_FOUND_E. */
+    ret = wc_rng_bank_seed(NULL, NULL, 0, 10, WC_RNG_BANK_FLAG_CAN_WAIT);
+    if (ret != WC_NO_ERR_TRACE(NO_DEFAULT_FOUND_E))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+#endif /* HAVE_HASHDRBG */
 
 #endif /* WC_RNG_BANK_DEFAULT_SUPPORT */
 
@@ -28246,7 +28501,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
 
 #else /* !WC_RNG_BANK_STATIC */
 
-    ret = wc_rng_bank_new(&bank2, WC_RNG_BANK_STATIC_SIZE + 1, WC_RNG_BANK_FLAG_NONE, 10, HEAP_HINT, INVALID_DEVID);
+    ret = wc_rng_bank_new(&bank2, WC_RNG_BANK_STATIC_SIZE + 1, WC_RNG_BANK_FLAG_QUIET, 10, HEAP_HINT, INVALID_DEVID);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -28276,6 +28531,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     ret = wc_rng_bank_checkin(bank2, &rng_inst2);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+#ifdef HAVE_HASHDRBG
 
     ret = wc_rng_bank_seed(bank2, (byte *)bank_arg, (word32)sizeof(bank_arg), 10, WC_RNG_BANK_FLAG_CAN_WAIT);
     if (ret != 0)
@@ -28330,10 +28587,17 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-#ifdef WC_HAVE_RNG_BANKREF
+#endif /* HAVE_HASHDRBG */
+
+#if defined(WC_HAVE_RNG_BANKREF) && !defined(WC_NO_CONSTRUCTORS)
     ret = wc_rng_new_bankref(NULL, &rng2);
+#ifdef WC_RNG_BANK_DEFAULT_SUPPORT
+    if (ret != WC_NO_ERR_TRACE(NO_DEFAULT_FOUND_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#else
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif
 
     ret = wc_rng_new_bankref(bank2, NULL);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
@@ -28353,8 +28617,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (XMEMCMP(outbuf1, outbuf2, sizeof(outbuf1)) == 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
-    if (wolfSSL_RefCur(bank2->refcount) != 2)
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    ret = wolfSSL_RefCur(bank2->refcount);
+    if (ret != 2)
+        ERROR_OUT(WC_TEST_RET_ENC_I(ret), out);
 
     ret = wc_rng_bank_free(&bank2);
     if (ret != WC_NO_ERR_TRACE(BUSY_E))
@@ -28363,8 +28628,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     wc_rng_free(rng2);
     rng2 = NULL;
 
-    if (wolfSSL_RefCur(bank2->refcount) != 1)
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    ret = wolfSSL_RefCur(bank2->refcount);
+    if (ret != 1)
+        ERROR_OUT(WC_TEST_RET_ENC_I(ret), out);
 
 #endif /* WC_HAVE_RNG_BANKREF */
 
@@ -28375,6 +28641,464 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
 #endif /* !WC_RNG_BANK_STATIC */
+
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+    /* ---- rng_bank service extensions: recovery-patrol and in-service-
+     * guarantee checkout flags, wc_rng_bank_inst_checkin(), the daemon
+     * banking entry point with consume-at-checkout, and the RBGC spawn
+     * APIs.  DRBG-internal probes are runtime-gated on
+     * wc_RNG_DRBG_Present(). ---- */
+
+    (void)svc_present;
+
+    /* plain check-out roundtrip via the one-arg check-in */
+    ret = wc_rng_bank_checkout(bank, &rng_inst, 0, 0, 0);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    svc_present = wc_RNG_DRBG_Present(WC_RNG_BANK_INST_TO_RNG(rng_inst));
+    ret = wc_rng_bank_inst_checkin(&rng_inst);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (rng_inst != NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+#endif /* !HAVE_FIPS || FIPS_VERSION3_GE(7,0,0) */
+
+    /* the in-service guarantee on a healthy instance is transparent */
+    ret = wc_rng_bank_checkout(bank, &rng_inst, 0, 0,
+                               WC_RNG_BANK_FLAG_ERROR_ON_RNG_FAILED);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_rng_bank_inst_checkin(&rng_inst);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* contradictory flag combinations */
+    ret = wc_rng_bank_checkout(bank, &rng_inst, 0, 0, WC_RNG_BANK_FLAG_FOR_RECOVERY | WC_RNG_BANK_FLAG_ERROR_ON_RNG_FAILED);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_rng_bank_checkout(bank, &rng_inst, 0, 0, WC_RNG_BANK_FLAG_FOR_RECOVERY | WC_RNG_BANK_FLAG_CAN_FAIL_OVER_INST);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* recovery patrol: argument contracts; a healthy instance is a
+     * success no-op */
+    ret = wc_rng_bank_recover_inst(NULL, 0, 0, 0);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_rng_bank_recover_inst(bank, 0, 0, WC_RNG_BANK_FLAG_CONSUME_NEXT_SEED);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (wc_rng_bank_recover_inst(bank, WC_RNG_BANK_STATIC_SIZE, 0, 0) == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    ret = wc_rng_bank_recover_inst(bank, 0, 0, 0);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+#ifdef WC_RNG_HAVE_NEXT_SEED
+    /* daemon banking entry point: argument contracts */
+    ret = wc_rng_bank_next_seed_generate(NULL, 0, 32);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_rng_bank_next_seed_generate(bank, -1, 32);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_rng_bank_next_seed_generate(bank, WC_RNG_BANK_STATIC_SIZE, 32);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_rng_bank_next_seed_generate(bank, 0, 0);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    if (svc_present) {
+        wc_drbg_reseed_ctr_t ns_ctr;
+        /* bank instance 0's next seed to publication, then consume it at
+         * checkout: an atomic-context-safe credited reseed (counter
+         * lands at 1) */
+        for (i = 0; i < 64; i++) {
+            ret = wc_rng_bank_next_seed_generate(bank, 0, (word32)(WC_DRBG_NEXT_SEED_LEN / 7));
+            if (ret == WC_NO_ERR_TRACE(ALREADY_E))
+                break;
+            if ((ret != 0) && (ret != WC_NO_ERR_TRACE(NOT_READY_E)) &&
+                (ret != WC_NO_ERR_TRACE(ENTROPY_RT_E)) &&
+                (ret != WC_NO_ERR_TRACE(ENTROPY_APT_E)))
+            {
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            }
+        }
+        if (i >= 64)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        ret = wc_rng_bank_checkout(bank, &rng_inst, 0, 0,
+                                   WC_RNG_BANK_FLAG_CONSUME_NEXT_SEED);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ret = wc_RNG_DRBG_GetReseedCtr(
+            WC_RNG_BANK_INST_TO_RNG(rng_inst), &ns_ctr);
+        if ((ret != 0) || (ns_ctr != 1))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(rng_inst),
+                                   outbuf1, sizeof(outbuf1));
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ret = wc_rng_bank_inst_checkin(&rng_inst);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+        /* consume with no bank ready is transparent: counter undisturbed */
+        ret = wc_rng_bank_checkout(bank, &rng_inst, 0, 0,
+                                   WC_RNG_BANK_FLAG_CONSUME_NEXT_SEED);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ret = wc_RNG_DRBG_GetReseedCtr(
+            WC_RNG_BANK_INST_TO_RNG(rng_inst), &ns_ctr);
+        if ((ret != 0) || (ns_ctr != 2))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        ret = wc_rng_bank_inst_checkin(&rng_inst);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    }
+#endif /* WC_RNG_HAVE_NEXT_SEED */
+
+#ifdef WC_RNG_HAVE_RBGC
+    /* RBGC spawn: argument and flag contracts */
+    ret = wc_rng_bank_spawn(bank, NULL, NULL, 0, 0, 0, 0);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#ifndef WC_NO_CONSTRUCTORS
+    ret = wc_rng_bank_spawn_new(bank, NULL, NULL, 0, 0, 0, 0);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif
+    ret = wc_rng_bank_spawn(bank, leaf_rng, NULL, 0, 0, 0, WC_RNG_BANK_FLAG_STIR);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_rng_bank_spawn(bank, leaf_rng, NULL, 0, 0, 0, WC_RNG_BANK_FLAG_FOR_RECOVERY);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* nonce-bearing stack spawn: the leaf is a tagged chain leaf,
+     * generates, and is torn down independently of the bank */
+    ret = wc_rng_bank_spawn(bank, leaf_rng, outbuf2, sizeof(outbuf2), 0, 0,
+                            0);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    leaf_rng_inited = 1;
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+    ret = wc_RNG_DRBG_GetRBGCStratum(leaf_rng);
+    if (ret != 1)
+        ERROR_OUT(WC_TEST_RET_ENC_I(ret), out);
+#endif
+    ret = wc_RNG_GenerateBlock(leaf_rng, outbuf1, sizeof(outbuf1));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_FreeRng(leaf_rng);
+    leaf_rng_inited = 0;
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+#ifndef WC_NO_CONSTRUCTORS
+    /* heap spawn from the second instance */
+    ret = wc_rng_bank_spawn_new(bank, &spawned_rng, NULL, 0, 1, 0, 0);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (spawned_rng == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+    ret = wc_RNG_DRBG_GetRBGCStratum(spawned_rng);
+    if (ret != 1)
+        ERROR_OUT(WC_TEST_RET_ENC_I(ret), out);
+#endif
+    ret = wc_RNG_GenerateBlock(spawned_rng, outbuf1, sizeof(outbuf1));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    wc_rng_free(spawned_rng);
+    spawned_rng = NULL;
+#endif /* !WC_NO_CONSTRUCTORS */
+
+    /* PR spawn: a fresh credited primary reseed of the parent instance
+     * immediately before the child's seed draw (the SP 800-90C Sec. 4.1.1
+     * pattern).  The child is stratum 1; the parent instance's counter
+     * shows reseed-then-one-draw. */
+    ret = wc_rng_bank_spawn(bank, leaf_rng, NULL, 0, 0, 10,
+                            WC_RNG_BANK_FLAG_PREDICTION_RESISTANCE |
+                            WC_RNG_BANK_FLAG_CAN_WAIT);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    leaf_rng_inited = 1;
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+    ret = wc_RNG_DRBG_GetRBGCStratum(leaf_rng);
+    if (ret != 1)
+        ERROR_OUT(WC_TEST_RET_ENC_I(ret), out);
+#endif
+    ret = wc_RNG_GenerateBlock(leaf_rng, outbuf1, sizeof(outbuf1));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_FreeRng(leaf_rng);
+    leaf_rng_inited = 0;
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+    if (svc_present) {
+        wc_drbg_reseed_ctr_t ns_ctr;
+        ret = wc_rng_bank_checkout(bank, &rng_inst, 0, 10,
+                                   WC_RNG_BANK_FLAG_NONE);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ret = wc_RNG_DRBG_GetReseedCtr(
+            WC_RNG_BANK_INST_TO_RNG(rng_inst), &ns_ctr);
+        if ((ret != 0) || (ns_ctr != 2))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        ret = wc_rng_bank_inst_checkin(&rng_inst);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    }
+#endif /* !HAVE_FIPS || FIPS_VERSION3_GE(7,0,0) */
+#endif /* WC_RNG_HAVE_RBGC */
+
+    /* WC_RNG_BANK_FLAG_PREDICTION_RESISTANCE checkout contracts.
+     * Per-call PR demands CAN_WAIT (the fresh gather may block) and
+     * contradicts uncredited and recovery seeding. */
+    ret = wc_rng_bank_checkout(bank, &rng_inst, 0, 10, WC_RNG_BANK_FLAG_PREDICTION_RESISTANCE);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_rng_bank_checkout(bank, &rng_inst, 0, 10, WC_RNG_BANK_FLAG_PREDICTION_RESISTANCE | WC_RNG_BANK_FLAG_CAN_WAIT | WC_RNG_BANK_FLAG_STIR);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_rng_bank_checkout(bank, &rng_inst, 0, 10, WC_RNG_BANK_FLAG_PREDICTION_RESISTANCE | WC_RNG_BANK_FLAG_CAN_WAIT | WC_RNG_BANK_FLAG_FOR_RECOVERY);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+#if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && defined(HAVE_HASHDRBG)
+    if (svc_present) {
+        wc_drbg_reseed_ctr_t ns_ctr;
+        /* effective PR: the leased instance is freshly credited-reseeded
+         * (counter exactly 1) before any caller draw */
+        ret = wc_rng_bank_checkout(bank, &rng_inst, 0, 10,
+                                   WC_RNG_BANK_FLAG_PREDICTION_RESISTANCE |
+                                   WC_RNG_BANK_FLAG_CAN_WAIT);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ret = wc_RNG_DRBG_GetReseedCtr(
+            WC_RNG_BANK_INST_TO_RNG(rng_inst), &ns_ctr);
+        if ((ret != 0) || (ns_ctr != 1))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(rng_inst),
+                                   outbuf1, sizeof(outbuf1));
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ret = wc_rng_bank_inst_checkin(&rng_inst);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+        /* bank-wide PR posture: same freshness on every sleepable lease;
+         * atomic callers are refused outright; recovery is exempt. */
+        bank->flags |= WC_RNG_BANK_FLAG_PREDICTION_RESISTANCE;
+        ret = wc_rng_bank_checkout(bank, &rng_inst, 0, 10, WC_RNG_BANK_FLAG_NONE);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ret = wc_rng_bank_checkout(bank, &rng_inst, 0, 10,
+                                   WC_RNG_BANK_FLAG_CAN_WAIT);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ret = wc_RNG_DRBG_GetReseedCtr(
+            WC_RNG_BANK_INST_TO_RNG(rng_inst), &ns_ctr);
+        if ((ret != 0) || (ns_ctr != 1))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        /* take the instance out of service while holding it */
+        WC_RNG_BANK_INST_TO_RNG(rng_inst)->status = WC_DRBG_FAILED;
+        ret = wc_rng_bank_inst_checkin(&rng_inst);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        /* a bare-targeted PR checkout refuses to serve -- or heal -- a
+         * failed instance (recovery is the sole restoration path), and
+         * unwinds completely */
+        ret = wc_rng_bank_checkout(bank, &rng_inst, 0, 10, WC_RNG_BANK_FLAG_CAN_WAIT);
+        if (ret != WC_NO_ERR_TRACE(RNG_FAILURE_E))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        if (rng_inst != NULL)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        /* recovery is exempt from the bank-wide posture */
+        ret = wc_rng_bank_recover_inst(bank, 0, 10,
+                                       WC_RNG_BANK_FLAG_CAN_WAIT);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        /* restored: PR-served again, proving no leaked lock or refcount */
+        ret = wc_rng_bank_checkout(bank, &rng_inst, 0, 10,
+                                   WC_RNG_BANK_FLAG_CAN_WAIT);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ret = wc_RNG_DRBG_GetReseedCtr(
+            WC_RNG_BANK_INST_TO_RNG(rng_inst), &ns_ctr);
+        if ((ret != 0) || (ns_ctr != 1))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        ret = wc_rng_bank_inst_checkin(&rng_inst);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        bank->flags &= ~(word32)WC_RNG_BANK_FLAG_PREDICTION_RESISTANCE;
+
+#ifdef WC_RNG_HAVE_NEXT_SEED
+        /* PR supersedes CONSUME_NEXT_SEED: the fresh reseed is performed,
+         * and the banked seed is left intact for a later consumer */
+        for (i = 0; i < 64; i++) {
+            ret = wc_rng_bank_next_seed_generate(bank, 0,
+                (word32)(WC_DRBG_NEXT_SEED_LEN / 7));
+            if (ret == WC_NO_ERR_TRACE(ALREADY_E))
+                break;
+            if ((ret != 0) && (ret != WC_NO_ERR_TRACE(NOT_READY_E)) &&
+                (ret != WC_NO_ERR_TRACE(ENTROPY_RT_E)) &&
+                (ret != WC_NO_ERR_TRACE(ENTROPY_APT_E)))
+            {
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            }
+        }
+        if (i >= 64)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        ret = wc_rng_bank_checkout(bank, &rng_inst, 0, 10,
+                                   WC_RNG_BANK_FLAG_PREDICTION_RESISTANCE |
+                                   WC_RNG_BANK_FLAG_CAN_WAIT |
+                                   WC_RNG_BANK_FLAG_CONSUME_NEXT_SEED);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        {
+            WC_ATOMIC_INT_ARG pr_ns_cur = 0;
+            ret = wc_RNG_DRBG_GetReseedCtr(
+                WC_RNG_BANK_INST_TO_RNG(rng_inst), &ns_ctr);
+            if ((ret != 0) || (ns_ctr != 1))
+                ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+            ret = wc_RNG_DRBG_NextSeedCurrent( WC_RNG_BANK_INST_TO_RNG(rng_inst), &pr_ns_cur);
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            if (pr_ns_cur != WC_DRBG_NEXT_SEED_READY)
+                ERROR_OUT(WC_TEST_RET_ENC_I((int)pr_ns_cur), out);
+            /* the surviving banked seed remains redeemable */
+            ret = wc_RNG_DRBG_NextSeedNow(
+                WC_RNG_BANK_INST_TO_RNG(rng_inst));
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            ret = wc_RNG_DRBG_NextSeedCurrent( WC_RNG_BANK_INST_TO_RNG(rng_inst), &pr_ns_cur);
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            if (pr_ns_cur != WC_DRBG_NEXT_SEED_EMPTY)
+                ERROR_OUT(WC_TEST_RET_ENC_I((int)pr_ns_cur), out);
+        }
+        ret = wc_rng_bank_inst_checkin(&rng_inst);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif /* WC_RNG_HAVE_NEXT_SEED */
+    }
+#endif /* (!HAVE_FIPS || FIPS_VERSION3_GE(7,0,0)) && HAVE_HASHDRBG */
+
+#ifdef WC_RNG_BANK_HAVE_DAEMON_SUPPORT
+    #define RBT_MAGIC   ((WC_ATOMIC_UINT_ARG)0x746e6164) /* arbitrary nonzero */
+    #define RBT_MAGIC_2 ((WC_ATOMIC_UINT_ARG)0x746e6145)
+
+    /* arg validation: NULL bank, FREE magic */
+    ret = wc_rng_bank_daemon_reserve(NULL, RBT_MAGIC);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_rng_bank_daemon_reserve(bank, WC_RNG_BANK_DAEMON_MAGIC_FREE);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* register/unregister/release before any reserve: slot magic is FREE,
+     * so the caller's magic can never match. */
+    ret = wc_rng_bank_daemon_register(bank, (void *)&ret, RBT_MAGIC);
+    if (ret != WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_rng_bank_daemon_unregister(bank, &daemon_out, RBT_MAGIC);
+    if (ret != WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_rng_bank_daemon_release(bank, RBT_MAGIC);
+    if (ret != WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* reserve claims the slot */
+    ret = wc_rng_bank_daemon_reserve(bank, RBT_MAGIC);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* the reservation's bank ref makes fini refuse: the documented
+     * leak-to-BUSY_E demotion, probed directly. */
+    ret = wc_rng_bank_fini(bank);
+    if (ret != WC_NO_ERR_TRACE(BUSY_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* double-reserve, same and different magic: slot occupied. */
+    ret = wc_rng_bank_daemon_reserve(bank, RBT_MAGIC);
+    if (ret != WC_NO_ERR_TRACE(BUSY_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_rng_bank_daemon_reserve(bank, RBT_MAGIC_2);
+    if (ret != WC_NO_ERR_TRACE(BUSY_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* register: NULL daemon rejected; wrong magic rejected; then accepted. */
+    ret = wc_rng_bank_daemon_register(bank, NULL, RBT_MAGIC);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_rng_bank_daemon_register(bank, (void *)&ret, RBT_MAGIC_2);
+    if (ret != WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_rng_bank_daemon_register(bank, (void *)&ret, RBT_MAGIC);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* double-register: occupied. */
+    ret = wc_rng_bank_daemon_register(bank, (void *)&outbuf1, RBT_MAGIC);
+    if (ret != WC_NO_ERR_TRACE(ALREADY_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* release while registered: refused, registration intact. */
+    ret = wc_rng_bank_daemon_release(bank, RBT_MAGIC);
+    if (ret != WC_NO_ERR_TRACE(BUSY_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* unregister: NULL out and wrong magic rejected; then hands back the
+     * registered pointer, exactly once. */
+    ret = wc_rng_bank_daemon_unregister(bank, NULL, RBT_MAGIC);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_rng_bank_daemon_unregister(bank, &daemon_out, RBT_MAGIC_2);
+    if (ret != WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_rng_bank_daemon_unregister(bank, &daemon_out, RBT_MAGIC);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (daemon_out != (void *)&ret)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    /* at-most-once: second unregister finds the slot empty. */
+    daemon_out = NULL;
+    ret = wc_rng_bank_daemon_unregister(bank, &daemon_out, RBT_MAGIC);
+    if (ret != WC_NO_ERR_TRACE(ALREADY_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (daemon_out != NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    /* release frees the slot and drops the reservation ref. */
+    ret = wc_rng_bank_daemon_release(bank, RBT_MAGIC);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* released slot: stale-magic ops can't match FREE. */
+    ret = wc_rng_bank_daemon_release(bank, RBT_MAGIC);
+    if (ret != WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* slot is reusable, under a different magic, for the
+     * reserve -> spawn-failed -> release unwind shape (no register). */
+    ret = wc_rng_bank_daemon_reserve(bank, RBT_MAGIC_2);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_rng_bank_daemon_release(bank, RBT_MAGIC_2);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* refcount balance is implicitly audited by the closing
+     * wc_rng_bank_fini(bank) succeeding below. */
+
+    #undef RBT_MAGIC
+    #undef RBT_MAGIC_2
+#endif /* WC_RNG_BANK_HAVE_DAEMON_SUPPORT */
 
 out:
 
@@ -28400,7 +29124,7 @@ out:
         WC_FREE_VAR_EX(bank, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
 #ifndef WC_RNG_BANK_STATIC
-#ifdef WC_HAVE_RNG_BANKREF
+#if defined(WC_HAVE_RNG_BANKREF) && !defined(WC_NO_CONSTRUCTORS)
         if (rng2)
             wc_rng_free(rng2);
 #endif
@@ -28417,12 +29141,1922 @@ out:
         if ((bank2 != NULL) && (ret == 0))
             ret = WC_TEST_RET_ENC_NC;
 #endif /* !WC_RNG_BANK_STATIC */
+
+#ifdef WC_RNG_HAVE_RBGC
+#ifndef WC_NO_CONSTRUCTORS
+        if (spawned_rng != NULL)
+            wc_rng_free(spawned_rng);
+#endif
+        if (leaf_rng_inited) {
+            cleanup_ret = wc_FreeRng(leaf_rng);
+            if ((cleanup_ret != 0) && (ret == 0))
+                ret = WC_TEST_RET_ENC_EC(cleanup_ret);
+        }
+        WC_FREE_VAR_EX(leaf_rng, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif /* WC_RNG_HAVE_RBGC */
     }
 
     return ret;
 }
 
 #endif /* WC_RNG_BANK_SUPPORT */
+
+#if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && !defined(HAVE_SELFTEST)
+/* Coverage for the DRBG state accessor / reseed scheduling services and the
+ * per-key RNG clear APIs.  Probes that observe DRBG internals via the
+ * accessors are gated at runtime on wc_RNG_DRBG_Present(), so the test also
+ * passes on RDRAND-shaped instantiations.  (The clear-API probes ride this
+ * test's gate for economy; a CUSTOM_RAND_GENERATE_BLOCK config loses only
+ * that sliver of coverage.)  The SP 800-90C RBGC APIs are covered
+ * separately, in rng_drbg_rbgc_test(). */
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_svc_test(void)
+{
+    wc_test_ret_t ret = 0;
+    int api_ret;
+    int present;
+    int root_inited = 0;
+    WC_DECLARE_VAR(root, WC_RNG, 1, HEAP_HINT);
+    wc_drbg_reseed_ctr_t c1 = 0;
+    wc_drbg_reseed_ctr_t c2 = 0;
+    byte buf[32];
+    byte matter[32];
+    RNG_STATS_DECLS;
+
+    WOLFSSL_ENTER("rng_drbg_svc_test");
+
+    WC_ALLOC_VAR_EX(root, WC_RNG, 1, HEAP_HINT,
+                    DYNAMIC_TYPE_TMP_BUFFER,
+                    ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out));
+
+    XMEMSET(matter, 0x5a, sizeof(matter));
+
+    /* accessor argument contracts, pre-init */
+    if (wc_RNG_GetStatus(NULL) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if (wc_RNG_DRBG_Present(NULL) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#ifdef WC_RNG_HAVE_RBGC
+    if (wc_RNG_DRBG_GetRBGCStratum(NULL) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
+    if (wc_RNG_DRBG_GetReseedCtr(NULL, &c1) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    api_ret = wc_InitRng(root);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    root_inited = 1;
+
+    if (wc_RNG_GetStatus(root) != WC_DRBG_OK)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if (wc_RNG_DRBG_GetReseedCtr(root, NULL) !=
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#ifdef WC_RNG_HAVE_RBGC
+    if (wc_RNG_DRBG_GetRBGCStratum(root) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
+
+    present = wc_RNG_DRBG_Present(root);
+
+    /* generate advances the reseed counter */
+    if (present) {
+        api_ret = wc_RNG_DRBG_GetReseedCtr(root, &c1);
+        if ((api_ret != 0) || (c1 < 1))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        api_ret = wc_RNG_GenerateBlock(root, buf, sizeof(buf));
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_DRBG_GetReseedCtr(root, &c2);
+        if ((api_ret != 0) || (c2 <= c1))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    }
+
+    /* uncredited mixing never resets the counter -- it increments it by
+     * exactly one: a stir is a specified generate (additional_input,
+     * zero-length output), and a generate counts. */
+    if (present) {
+        api_ret = wc_RNG_DRBG_GetReseedCtr(root, &c1);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    }
+    api_ret = wc_RNG_DRBG_Stir(root, matter, sizeof(matter));
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    if (present) {
+        api_ret = wc_RNG_DRBG_GetReseedCtr(root, &c2);
+        if ((api_ret != 0) || (c2 != c1 + 1))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    }
+
+    /* credited reseed resets the counter */
+    api_ret = wc_RNG_DRBG_Reseed(root, matter, sizeof(matter));
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    if (present) {
+        api_ret = wc_RNG_DRBG_GetReseedCtr(root, &c1);
+        if ((api_ret != 0) || (c1 != 1))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    }
+
+    /* schedule-then-generate performs a source reseed */
+    api_ret = wc_RNG_DRBG_ScheduleReseed(root);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    if (present) {
+        api_ret = wc_RNG_DRBG_GetReseedCtr(root, &c1);
+        if ((api_ret != 0) ||
+            (c1 != (wc_drbg_reseed_ctr_t)WC_RESEED_INTERVAL))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    }
+    RNG_STATS_SNAP(root);
+    api_ret = wc_RNG_GenerateBlock(root, buf, sizeof(buf));
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    if (present) {
+        api_ret = wc_RNG_DRBG_GetReseedCtr(root, &c1);
+        if ((api_ret != 0) || (c1 > 2))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        /* the scheduled reseed rides the generate, credited */
+        RNG_STATS_EXPECT(root, _stats_reseeds, 1,
+                         ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
+        RNG_STATS_EXPECT(root, _stats_total_requests, 1,
+                         ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
+        RNG_STATS_EXPECT(root, _stats_total_bytes_produced, sizeof(buf),
+                         ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
+    }
+
+    /* immediate source reseed, without and with a nonce */
+    RNG_STATS_SNAP(root);
+    api_ret = wc_RNG_DRBG_Reseed_Now(root, NULL, 0);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_RNG_DRBG_Reseed_Now(root, matter, 16);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    if (present) {
+        api_ret = wc_RNG_DRBG_GetReseedCtr(root, &c1);
+        if ((api_ret != 0) || (c1 != 1))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        /* both credited; the nonce is additional input, not an
+         * uncredited reseed */
+        RNG_STATS_EXPECT(root, _stats_reseeds, 2,
+                         ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
+        RNG_STATS_EXPECT(root, _stats_stirs, 0,
+                         ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
+    }
+    if (wc_RNG_DRBG_Reseed_Now(NULL, NULL, 0) !=
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if (wc_RNG_DRBG_Reseed_Now(root, NULL, 5) !=
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    /* per-key RNG clear APIs */
+#if !defined(NO_RSA)
+    {
+        WC_DECLARE_VAR(rsaKey, RsaKey, 1, HEAP_HINT);
+        int rsaKey_inited = 0;
+        WC_ALLOC_VAR_EX(rsaKey, RsaKey, 1, HEAP_HINT,
+                    DYNAMIC_TYPE_TMP_BUFFER,
+                    ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out));
+        api_ret = wc_InitRsaKey(rsaKey, HEAP_HINT);
+        if (api_ret != 0)
+            api_ret = WC_TEST_RET_ENC_EC(api_ret);
+        else {
+            rsaKey_inited = 1;
+            api_ret = wc_RsaSetRNG(rsaKey, root);
+            if (api_ret != 0) {
+                api_ret = WC_TEST_RET_ENC_EC(api_ret);
+            }
+        }
+        if (api_ret == 0) {
+            /* the setter's NULL rejection is contractual and preserved */
+            if ((wc_RsaSetRNG(rsaKey, NULL) != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) ||
+                (wc_RsaClearRNG(rsaKey) != 0) ||
+                (wc_RsaClearRNG(NULL) != WC_NO_ERR_TRACE(BAD_FUNC_ARG)))
+            {
+                api_ret = WC_TEST_RET_ENC_NC;
+            }
+        }
+        if (rsaKey_inited)
+            (void)wc_FreeRsaKey(rsaKey);
+        WC_FREE_VAR(rsaKey, HEAP_HINT);
+        if (api_ret != 0)
+            ERROR_OUT(api_ret, out);
+    }
+#endif /* !NO_RSA */
+#ifdef HAVE_ECC
+    {
+        WC_DECLARE_VAR(eccKey, ecc_key, 1, HEAP_HINT);
+        int eccKey_inited = 0;
+        WC_ALLOC_VAR_EX(eccKey, ecc_key, 1, HEAP_HINT,
+                    DYNAMIC_TYPE_TMP_BUFFER,
+                    ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out));
+        api_ret = wc_ecc_init(eccKey);
+        if (api_ret != 0)
+            api_ret = WC_TEST_RET_ENC_EC(api_ret);
+        else {
+            eccKey_inited = 1;
+            if ((wc_ecc_set_rng(eccKey, root) != 0) ||
+                (wc_ecc_clear_rng(eccKey) != 0)
+#ifdef ECC_TIMING_RESISTANT
+                || (wc_ecc_clear_rng(NULL) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+#endif
+               )
+            {
+                api_ret = WC_TEST_RET_ENC_NC;
+            }
+        }
+        if (eccKey_inited)
+            (void)wc_ecc_free(eccKey);
+        WC_FREE_VAR(eccKey, HEAP_HINT);
+        if (api_ret != 0)
+            ERROR_OUT(api_ret, out);
+    }
+#endif /* HAVE_ECC */
+#if defined(HAVE_CURVE25519) && defined(WOLFSSL_CURVE25519_BLINDING)
+    {
+        WC_DECLARE_VAR(cvKey, curve25519_key, 1, HEAP_HINT);
+        int cvKey_inited = 0;
+        WC_ALLOC_VAR_EX(cvKey, curve25519_key, 1, HEAP_HINT,
+                    DYNAMIC_TYPE_TMP_BUFFER,
+                    ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out));
+        api_ret = wc_curve25519_init(cvKey);
+        if (api_ret != 0)
+            api_ret = WC_TEST_RET_ENC_EC(api_ret);
+        else {
+            cvKey_inited = 1;
+            if ((wc_curve25519_set_rng(cvKey, root) != 0) ||
+                (wc_curve25519_clear_rng(cvKey) != 0) ||
+                (wc_curve25519_clear_rng(NULL) !=
+                 WC_NO_ERR_TRACE(BAD_FUNC_ARG)))
+            {
+                api_ret = WC_TEST_RET_ENC_NC;
+            }
+        }
+        if (cvKey_inited)
+            wc_curve25519_free(cvKey);
+        WC_FREE_VAR(cvKey, HEAP_HINT);
+        if (api_ret != 0)
+            ERROR_OUT(api_ret, out);
+    }
+#endif /* HAVE_CURVE25519 && WOLFSSL_CURVE25519_BLINDING */
+
+out:
+
+    if (root_inited) {
+        int cleanup_ret = wc_FreeRng(root);
+        if ((cleanup_ret != 0) && (ret == 0))
+            ret = WC_TEST_RET_ENC_EC(cleanup_ret);
+    }
+
+    WC_FREE_VAR(root, HEAP_HINT);
+
+    return ret;
+}
+
+#endif /* HAVE_HASHDRBG && !CUSTOM_RAND_GENERATE_BLOCK && */
+       /* (!HAVE_FIPS || FIPS_VERSION3_GE(7,0,0))         */
+
+#if defined(WC_RNG_BANK_SUPPORT) && defined(HAVE_HASHDRBG) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(5,2,4))
+
+/* Unit coverage for WC_RNG_LOCK_ENTROPY_INVALIDATED and the
+ * invalidation-recovery protocol (VM fork / resume), exercised through the
+ * regime-portable bank-instance latch interface so it runs identically
+ * against the in-boundary (v7+) lock and the pre-v7 rng_bank.h shims.
+ * Covers: flag set/read, lock refusal and conditional-claim recovery,
+ * credited-vs-uncredited clearing, put-side reporting with the flag riding
+ * through release, put_conditional convergence under a mid-hold
+ * invalidation, clear_extra immunity, and (v7+) unlocked recovery through
+ * the forced credited reseed, banked-next-seed purge, and RBGC chain
+ * recovery. */
+
+#ifdef WC_RNG_HAVE_FREE_HOOK
+static int rng_inval_test_bank_hook_fired = 0;
+static int rng_inval_test_bank_hook_cb(const struct wc_rng_bank *bank,
+                                       void *arg)
+{
+    (void)bank;
+    if (arg == (void *)&rng_inval_test_bank_hook_fired)
+        rng_inval_test_bank_hook_fired++;
+    return 0;
+}
+static int rng_inval_test_hook_fired = 0;
+static int rng_inval_test_hook_cb(const WC_RNG *rng, void *arg)
+{
+    (void)rng;
+    if (arg == (void *)&rng_inval_test_hook_fired)
+        rng_inval_test_hook_fired++;
+    return 0;
+}
+#endif
+
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_entropy_invalidate_test(void)
+{
+    wc_test_ret_t ret = 0;
+    int api_ret;
+    WC_DECLARE_VAR(bank, struct wc_rng_bank, 1, HEAP_HINT);
+    struct wc_rng_bank_inst *inst = NULL;
+    struct wc_rng_bank_inst *held = NULL;
+    WC_RNG_lock_arg_t lock_state;
+    byte block[32];
+    int bank_inited = 0;
+#ifdef WC_RNG_HAVE_RBGC
+    WC_RNG root;
+    int root_inited = 0;
+#endif
+    const WC_RNG_lock_arg_t annot_a = (1U << WC_RNG_LOCK_EXTRA_SHIFT);
+
+    WOLFSSL_ENTER("rng_entropy_invalidate_test");
+
+    WC_CALLOC_VAR_EX(bank, struct wc_rng_bank, 1, HEAP_HINT,
+                    DYNAMIC_TYPE_TMP_BUFFER,
+                    return WC_TEST_RET_ENC_EC(MEMORY_E));
+
+    api_ret = wc_rng_bank_init(bank, WC_RNG_BANK_STATIC_SIZE,
+                               WC_RNG_BANK_FLAG_CAN_WAIT, 10, HEAP_HINT,
+                               INVALID_DEVID);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    bank_inited = 1;
+#ifdef WC_RNG_HAVE_FREE_HOOK
+    rng_inval_test_bank_hook_fired = 0;
+    api_ret = wc_rng_bank_register_free_hook(bank, rng_inval_test_bank_hook_cb,
+                    (void *)&rng_inval_test_bank_hook_fired);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+#endif
+
+    if (wc_rng_bank_inst_invalidate_entropy(NULL) !=
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+    {
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    }
+
+    /* take a working instance the front way; keep the pointer past the
+     * check-in (the storage is the bank's). */
+    api_ret = wc_rng_bank_checkout(bank, &inst, 0, 10, 0);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    held = inst;
+    api_ret = wc_rng_bank_checkin(bank, &inst);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+
+    /* fresh instance: flag clear. */
+    api_ret = wc_rng_bank_inst_lock_read(held, &lock_state);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    if (lock_state & WC_RNG_LOCK_ENTROPY_INVALIDATED)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    /* invalidate while unheld: flag set, reseed scheduled. */
+    api_ret = wc_rng_bank_inst_invalidate_entropy(held);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_rng_bank_inst_lock_read(held, &lock_state);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    if (! (lock_state & WC_RNG_LOCK_ENTROPY_INVALIDATED))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if (lock_state & WC_RNG_LOCK_HELD)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#if (!defined(HAVE_INTEL_RDSEED) && !defined(HAVE_INTEL_RDRAND)) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(5,2,4))
+    {
+        wc_drbg_reseed_ctr_t reseed_ctr = 0;
+        api_ret = wc_RNG_DRBG_GetReseedCtr(WC_RNG_BANK_INST_TO_RNG(held),
+                                           &reseed_ctr);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        if (reseed_ctr < (wc_drbg_reseed_ctr_t)WC_RESEED_INTERVAL)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    }
+#endif
+
+    /* lock refusal on both get flavors; conditional claim carries the
+     * flag through acquisition. */
+    api_ret = wc_rng_bank_inst_lock_get(held, 0);
+    if (api_ret != WC_NO_ERR_TRACE(NEEDS_RECOVERY_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_rng_bank_inst_lock_get_conditional(held, 0, 0);
+    if (api_ret != WC_NO_ERR_TRACE(NEEDS_RECOVERY_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_rng_bank_inst_lock_get_conditional(
+        held, WC_RNG_LOCK_ENTROPY_INVALIDATED, 0);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_rng_bank_inst_lock_read(held, &lock_state);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    if ((! (lock_state & WC_RNG_LOCK_HELD)) ||
+        (! (lock_state & WC_RNG_LOCK_ENTROPY_INVALIDATED)))
+    {
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    }
+
+    /* an uncredited stir cannot run on a quarantined instance at all --
+     * the latch (checked atomically, ahead of the racy counter) refuses
+     * it: NOT_READY_E, with counter and flag untouched by
+     * construction. */
+    XMEMSET(block, 0x5a, sizeof(block));
+    api_ret = wc_RNG_DRBG_Stir(WC_RNG_BANK_INST_TO_RNG(held),
+                                            block, sizeof(block));
+    if (api_ret != WC_NO_ERR_TRACE(NOT_READY_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_rng_bank_inst_lock_read(held, &lock_state);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    if (! (lock_state & WC_RNG_LOCK_ENTROPY_INVALIDATED))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    api_ret = wc_rng_bank_inst_reseed_now(held, NULL, 0);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_rng_bank_inst_lock_read(held, &lock_state);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    if (lock_state & WC_RNG_LOCK_ENTROPY_INVALIDATED)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    api_ret = wc_rng_bank_inst_lock_put(held);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+
+    /* mid-hold invalidation: put reports NEEDS_RECOVERY_E, the flag rides
+     * through the release. */
+    api_ret = wc_rng_bank_inst_lock_get(held, 0);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_rng_bank_inst_invalidate_entropy(held);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_rng_bank_inst_lock_put(held);
+    if (api_ret != WC_NO_ERR_TRACE(NEEDS_RECOVERY_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_rng_bank_inst_lock_read(held, &lock_state);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    if ((lock_state & WC_RNG_LOCK_HELD) ||
+        (! (lock_state & WC_RNG_LOCK_ENTROPY_INVALIDATED)))
+    {
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    }
+
+    /* the flag is not clearable through the annotation interface. */
+    api_ret = wc_rng_bank_inst_lock_get_conditional(
+        held, WC_RNG_LOCK_ENTROPY_INVALIDATED, 0);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_rng_bank_inst_lock_clear_extra(
+        held, WC_RNG_LOCK_ENTROPY_INVALIDATED);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_rng_bank_inst_lock_read(held, &lock_state);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    if (! (lock_state & WC_RNG_LOCK_ENTROPY_INVALIDATED))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if (wc_rng_bank_inst_lock_clear_extra(held, WC_RNG_LOCK_REQUIRED) !=
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+    {
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    }
+
+    /* put_conditional under the flag: converges promptly to
+     * NEEDS_RECOVERY_E (regression probe for the expected-reconstruction
+     * refresh), releases, and preserves the flag. */
+    api_ret = wc_rng_bank_inst_lock_set_extra(held, annot_a);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    /* bank instances are born REQUIRED; the conditional release must
+     * report the sticky bit among the expected extras, as check-in does. */
+    api_ret = wc_rng_bank_inst_lock_read(held, &lock_state);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_rng_bank_inst_lock_put_conditional(held,
+        annot_a | (lock_state & WC_RNG_LOCK_REQUIRED));
+    if (api_ret != WC_NO_ERR_TRACE(NEEDS_RECOVERY_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_rng_bank_inst_lock_read(held, &lock_state);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    if ((lock_state & WC_RNG_LOCK_HELD) ||
+        (lock_state & annot_a) ||
+        (! (lock_state & WC_RNG_LOCK_ENTROPY_INVALIDATED)))
+    {
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    }
+
+#ifdef WC_RNG_HAVE_RBGC
+    /* credited-chain recovery: an RBGC reseed from a healthy root clears
+     * the flag, exactly as a primary reseed does. */
+    api_ret = wc_InitRng(&root);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    root_inited = 1;
+    api_ret = wc_rng_bank_inst_lock_get_conditional(
+        held, WC_RNG_LOCK_ENTROPY_INVALIDATED, 0);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_rng_bank_inst_reseed_rbgc(held, &root, NULL, 0);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_rng_bank_inst_lock_read(held, &lock_state);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    if (lock_state & WC_RNG_LOCK_ENTROPY_INVALIDATED)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    api_ret = wc_rng_bank_inst_lock_put(held);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+#else
+    /* recover for a clean teardown. */
+    api_ret = wc_rng_bank_inst_lock_get_conditional(
+        held, WC_RNG_LOCK_ENTROPY_INVALIDATED, 0);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_rng_bank_inst_reseed_now(held, NULL, 0);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_rng_bank_inst_lock_put(held);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+#endif /* WC_RNG_HAVE_RBGC */
+
+    /* bank-wide invalidation, and recovery via credited bank reseed. */
+    api_ret = wc_rng_bank_invalidate_entropy(bank, 0);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_rng_bank_inst_lock_read(held, &lock_state);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    if (! (lock_state & WC_RNG_LOCK_ENTROPY_INVALIDATED))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if (wc_rng_bank_invalidate_entropy(bank, WC_RNG_BANK_FLAG_QUIET) !=
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+    {
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    }
+    api_ret = wc_rng_bank_reseed_range(bank, 0, -1, 10,
+                                       WC_RNG_BANK_FLAG_CAN_WAIT);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_rng_bank_inst_lock_read(held, &lock_state);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    if (lock_state & WC_RNG_LOCK_ENTROPY_INVALIDATED)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+#if defined(WC_RNG_HAVE_LOCK) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    /* v7+ in-boundary extras: unlocked recovery through the generate
+     * path's forced credited reseed, and the banked-next-seed purge. */
+    {
+        WC_RNG* held_rng = WC_RNG_BANK_INST_TO_RNG(held);
+
+        api_ret = wc_RNG_invalidate_entropy(held_rng);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_rng_bank_inst_lock_get_conditional(
+            held, WC_RNG_LOCK_ENTROPY_INVALIDATED, 0);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_GenerateBlock(held_rng, block, sizeof(block));
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_rng_bank_inst_lock_read(held, &lock_state);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        if (lock_state & WC_RNG_LOCK_ENTROPY_INVALIDATED)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#ifdef WC_RNG_HAVE_NEXT_SEED
+        api_ret = wc_RNG_DRBG_NextSeedGenerate(held_rng, WC_DRBG_NEXT_SEED_LEN);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+#ifdef WC_RNG_HAVE_RBGC
+        api_ret = wc_RNG_DRBG_GetNextSeedRBGCStratum(held_rng);
+        if (api_ret < 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+#endif
+        api_ret = wc_RNG_invalidate_entropy(held_rng);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+#ifdef WC_RNG_HAVE_RBGC
+        api_ret = wc_RNG_DRBG_GetNextSeedRBGCStratum(held_rng);
+        if (api_ret != WC_NO_ERR_TRACE(NOT_READY_E))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+#endif
+        api_ret = wc_rng_bank_inst_reseed_now(held, NULL, 0);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+#endif /* WC_RNG_HAVE_NEXT_SEED */
+        api_ret = wc_rng_bank_inst_lock_put(held);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    }
+
+#ifdef WC_RNG_HAVE_FREE_HOOK
+    /* free-hook lifecycle: register, fire-on-free (one-shot, arg intact),
+     * NULL-unregister. */
+    {
+        WC_RNG hook_rng;
+        api_ret = wc_InitRng(&hook_rng);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        if (wc_RNG_register_free_hook(NULL, rng_inval_test_hook_cb, NULL) !=
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        {
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        }
+        api_ret = wc_RNG_register_free_hook(&hook_rng, rng_inval_test_hook_cb,
+                                            (void *)&rng_inval_test_hook_fired);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        rng_inval_test_hook_fired = 0;
+        api_ret = wc_FreeRng(&hook_rng);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        if (rng_inval_test_hook_fired != 1)
+            ERROR_OUT(WC_TEST_RET_ENC_I(rng_inval_test_hook_fired), out);
+        /* NULL-unregister: no fire on free. */
+        api_ret = wc_InitRng(&hook_rng);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_register_free_hook(&hook_rng, rng_inval_test_hook_cb,
+                                            (void *)&rng_inval_test_hook_fired);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_register_free_hook(&hook_rng, NULL, NULL);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_FreeRng(&hook_rng);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        if (rng_inval_test_hook_fired != 1)
+            ERROR_OUT(WC_TEST_RET_ENC_I(rng_inval_test_hook_fired), out);
+    }
+#endif /* WC_RNG_HAVE_FREE_HOOK */
+
+#if defined(WC_RNG_HAVE_NEXT_SEED) && defined(WC_RNG_HAVE_RBGC) && \
+    !defined(HAVE_INTEL_RDSEED) && !defined(HAVE_INTEL_RDRAND)
+    /* WC_RNG_INIT_FLAGS_RECOVER_AND_PROMOTE_FROM_NEXT_SEED:
+     * recovery-consumption and chain-promotion at generate. */
+    {
+        WC_RNG flag_rng;
+        api_ret = wc_InitRng_ex2(&flag_rng, HEAP_HINT, INVALID_DEVID,
+                    WC_RNG_INIT_FLAGS_RECOVER_AND_PROMOTE_FROM_NEXT_SEED);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        /* recovery: invalidate (purges the aperture), bank a fresh primary
+         * seed post-event, and generate -- consumption clears the flag. */
+        api_ret = wc_RNG_invalidate_entropy(&flag_rng);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_DRBG_NextSeedGenerate(&flag_rng,
+                                               WC_DRBG_NEXT_SEED_LEN);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_GenerateBlock(&flag_rng, block, sizeof(block));
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_lock_read(&flag_rng, &lock_state);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        if (lock_state & WC_RNG_LOCK_ENTROPY_INVALIDATED)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        api_ret = wc_RNG_DRBG_GetRBGCStratum(&flag_rng);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
+        api_ret = wc_FreeRng(&flag_rng);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+#ifdef WC_RNG_HAVE_RBGC
+        /* promotion: chain-backed leaf with a banked primary seed
+         * upgrades to stratum 0 at generate; without the flag it must
+         * not. */
+        {
+            WC_RNG proot;
+            api_ret = wc_InitRng(&proot);
+            if (api_ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+            api_ret = wc_InitRngNonceRBGC(&flag_rng, &proot, NULL, 0,
+                    WC_RNG_INIT_FLAGS_RECOVER_AND_PROMOTE_FROM_NEXT_SEED);
+            if (api_ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+            api_ret = wc_RNG_DRBG_GetRBGCStratum(&flag_rng);
+            if (api_ret != 1)
+                ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
+            api_ret = wc_RNG_DRBG_NextSeedGenerate(&flag_rng,
+                                                   WC_DRBG_NEXT_SEED_LEN);
+            if (api_ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+            api_ret = wc_RNG_GenerateBlock(&flag_rng, block, sizeof(block));
+            if (api_ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+            api_ret = wc_RNG_DRBG_GetRBGCStratum(&flag_rng);
+            if (api_ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
+            api_ret = wc_FreeRng(&flag_rng);
+            if (api_ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+            /* negative: unflagged leaf keeps its stratum. */
+            api_ret = wc_InitRngNonceRBGC(&flag_rng, &proot, NULL, 0,
+                                          WC_RNG_INIT_FLAGS_NONE);
+            if (api_ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+            api_ret = wc_RNG_DRBG_NextSeedGenerate(&flag_rng,
+                                                   WC_DRBG_NEXT_SEED_LEN);
+            if (api_ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+            api_ret = wc_RNG_GenerateBlock(&flag_rng, block, sizeof(block));
+            if (api_ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+            api_ret = wc_RNG_DRBG_GetRBGCStratum(&flag_rng);
+            if (api_ret != 1)
+                ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
+            api_ret = wc_FreeRng(&flag_rng);
+            if (api_ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+            api_ret = wc_FreeRng(&proot);
+            if (api_ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        }
+#endif /* WC_RNG_HAVE_RBGC */
+    }
+#endif /* NEXT_SEED && RBGC && !RDSEED && !RDRAND */
+#endif /* WC_RNG_HAVE_LOCK && HAVE_HASHDRBG && (!HAVE_FIPS || >= 7.0.0) */
+
+#if defined(WC_RNG_BANK_DEFAULT_SUPPORT) && defined(WC_RNG_HAVE_LOCK) && \
+    !defined(WC_NO_CONSTRUCTORS)
+    /* WC_RNG_BANK_FLAG_MAYBE_FOR_RECOVERY contract: checkout of a
+     * quarantined instance returns NEEDS_RECOVERY_E with the lease held;
+     * a credited reseed by the lease-holder recovers it. */
+    {
+        struct wc_rng_bank *mb = NULL;
+        struct wc_rng_bank_inst *minst = NULL;
+        WC_RNG_lock_arg_t mlock = 0;
+
+        api_ret = wc_rng_bank_new(&mb, 2, WC_RNG_BANK_FLAG_NONE, 0, HEAP_HINT,
+                                  INVALID_DEVID);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_rng_bank_invalidate_entropy(mb, 0);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        /* without the flag: refused (retry disabled: timeout_secs 0). */
+        api_ret = wc_rng_bank_checkout(mb, &minst, 0, 0,
+                                       WC_RNG_BANK_FLAG_NONE);
+        if (api_ret == 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        if (minst != NULL)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        /* with the flag: leased-but-quarantined. */
+        api_ret = wc_rng_bank_checkout(mb, &minst, 0, 0,
+                                       WC_RNG_BANK_FLAG_MAYBE_FOR_RECOVERY);
+        if (api_ret != WC_NO_ERR_TRACE(NEEDS_RECOVERY_E))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        if (minst == NULL)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        api_ret = wc_rng_bank_inst_lock_read(minst, &mlock);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        if (! (mlock & WC_RNG_LOCK_HELD))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        if (! (mlock & WC_RNG_LOCK_ENTROPY_INVALIDATED))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        /* the lease-holder recovers: credited reseed clears quarantine. */
+        api_ret = wc_RNG_DRBG_Reseed_Now(WC_RNG_BANK_INST_TO_RNG(minst),
+                                         NULL, 0);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_rng_bank_inst_lock_read(minst, &mlock);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        if (mlock & WC_RNG_LOCK_ENTROPY_INVALIDATED)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        api_ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(minst), block,
+                                       sizeof(block));
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_rng_bank_inst_checkin(&minst);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        /* patrol recovery: instance 1 is still quarantined; a single
+         * wc_rng_bank_recover_inst() clears it, after which an ordinary
+         * checkout succeeds. */
+        api_ret = wc_rng_bank_recover_inst(mb, 1, 0, WC_RNG_BANK_FLAG_NONE);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_rng_bank_checkout(mb, &minst, 1, 0,
+                                       WC_RNG_BANK_FLAG_NONE);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_rng_bank_inst_checkin(&minst);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+
+        api_ret = wc_rng_bank_free(&mb);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    }
+#endif /* WC_RNG_BANK_DEFAULT_SUPPORT && WC_RNG_HAVE_LOCK && */
+       /* !WC_NO_CONSTRUCTORS */
+
+  out:
+
+    if (held != NULL)
+        (void)wc_rng_bank_inst_lock_put(held);
+
+#ifdef WC_RNG_HAVE_RBGC
+    if (root_inited) {
+        api_ret = wc_FreeRng(&root);
+        if ((ret == 0) && (api_ret != 0))
+            ret = WC_TEST_RET_ENC_EC(api_ret);
+    }
+#endif
+    if (bank_inited) {
+        api_ret = wc_rng_bank_fini(bank);
+        if ((ret == 0) && (api_ret != 0))
+            ret = WC_TEST_RET_ENC_EC(api_ret);
+#ifdef WC_RNG_HAVE_FREE_HOOK
+        if ((ret == 0) && (api_ret == 0) &&
+            (rng_inval_test_bank_hook_fired != 1))
+        {
+            ret = WC_TEST_RET_ENC_I(rng_inval_test_bank_hook_fired);
+        }
+#endif
+    }
+    WC_FREE_VAR_EX(bank, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+#endif /* WC_RNG_BANK_SUPPORT && (!HAVE_FIPS || FIPS_VERSION3_GE(5,2,4)) */
+
+#ifdef WC_RNG_HAVE_RBGC
+
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+
+/* Coverage for the SP 800-90C RBGC (RBG chain) APIs: spawn, reseed-from-
+ * root, the leaf tag and accessor, and the sticky stratum-one enforcement.
+ * DRBG-internal observations are gated at runtime on wc_RNG_DRBG_Present(),
+ * so the test also passes on RDRAND-shaped instantiations, where the RBGC
+ * APIs are exercised in their degenerate arms. */
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
+{
+    wc_test_ret_t ret = 0;
+    int api_ret;
+    int present;
+    int root_inited = 0;
+    int leaf_inited = 0;
+    int extra_inited = 0;
+    WC_RNG root;
+    WC_RNG leaf;
+    WC_RNG extra;
+    WC_RNG* pleaf = NULL;
+    wc_drbg_reseed_ctr_t c1 = 0;
+    wc_drbg_reseed_ctr_t c2 = 0;
+    byte buf[32];
+    byte matter[32];
+
+    RNG_STATS_DECLS;
+
+    WOLFSSL_ENTER("rng_drbg_rbgc_test");
+
+    XMEMSET(matter, 0xa5, sizeof(matter));
+
+    api_ret = wc_InitRng(&root);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    root_inited = 1;
+
+    present = wc_RNG_DRBG_Present(&root);
+
+    /* spawn argument contracts */
+    api_ret = wc_InitRngRBGC(NULL, &root, WC_RNG_INIT_FLAGS_NONE);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_InitRngRBGC(&leaf, NULL, WC_RNG_INIT_FLAGS_NONE);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_InitRngRBGC(&root, &root, WC_RNG_INIT_FLAGS_NONE);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+#ifndef WC_NO_CONSTRUCTORS
+    api_ret = wc_InitRngRBGC_New(NULL, &root, WC_RNG_INIT_FLAGS_NONE);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+#endif
+
+    /* spawn a leaf; the spawn debits root's counter; the leaf is tagged */
+    if (present) {
+        api_ret = wc_RNG_DRBG_GetReseedCtr(&root, &c1);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    }
+    RNG_STATS_SNAP(&root);
+    api_ret = wc_InitRngRBGC(&leaf, &root, WC_RNG_INIT_FLAGS_NONE);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    leaf_inited = 1;
+    if (present) {
+        api_ret = wc_RNG_DRBG_GetReseedCtr(&root, &c2);
+        if ((api_ret != 0) || (c2 <= c1))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        /* the spawn draw is one fully-served generate on the parent */
+        RNG_STATS_EXPECT(&root, _stats_total_requests, 1,
+                         ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
+        RNG_STATS_EXPECT_GE(&root, _stats_total_bytes_produced, 1,
+                            ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
+        RNG_STATS_EXPECT_SAME_DELTA(&root, _stats_total_bytes_requested,
+                                    _stats_total_bytes_produced,
+                                    ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
+    }
+    api_ret = wc_RNG_DRBG_GetRBGCStratum(&leaf);
+    if (api_ret != 1)
+        ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
+    api_ret = wc_RNG_DRBG_GetRBGCStratum(&root);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
+    RNG_STATS_SNAP2(&leaf);
+    api_ret = wc_RNG_GenerateBlock(&leaf, buf, sizeof(buf));
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    if (present) {
+        /* chain-provenance accounting: bytes generated at stratum 1 count
+         * in both the total and the RBGC ledgers */
+        RNG_STATS_EXPECT2(&leaf, _stats_total_bytes_produced, sizeof(buf),
+                          ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
+        RNG_STATS_EXPECT2(&leaf, _stats_RBGC_bytes_produced, sizeof(buf),
+                          ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
+    }
+
+    /* root(0) from leaf(1): refused -- no stratum downgrade. */
+    api_ret = wc_RNG_DRBG_ReseedRBGC(&root, &leaf, NULL, 0);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+
+    /* reseed-from-root, without and with a nonce; counter resets */
+    RNG_STATS_SNAP(&root);
+    RNG_STATS_SNAP2(&leaf);
+    api_ret = wc_RNG_DRBG_ReseedRBGC(&leaf, &root, NULL, 0);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_RNG_DRBG_ReseedRBGC(&leaf, &root, matter, 16);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    if (present) {
+        api_ret = wc_RNG_DRBG_GetReseedCtr(&leaf, &c1);
+        if ((api_ret != 0) || (c1 != 1))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        /* target: two credited chain reseeds; source: two fully-served
+         * seed draws */
+        RNG_STATS_EXPECT2(&leaf, _stats_reseeds, 2,
+                          ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
+        RNG_STATS_EXPECT2(&leaf, _stats_RBGC_reseeds, 2,
+                          ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
+        RNG_STATS_EXPECT2(&leaf, _stats_stirs, 0,
+                          ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
+        RNG_STATS_EXPECT(&root, _stats_total_requests, 2,
+                         ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
+        RNG_STATS_EXPECT_SAME_DELTA(&root, _stats_total_bytes_requested,
+                                    _stats_total_bytes_produced,
+                                    ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
+    }
+    api_ret = wc_RNG_DRBG_ReseedRBGC(&leaf, &leaf, NULL, 0);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_RNG_DRBG_ReseedRBGC(NULL, &root, NULL, 0);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_RNG_DRBG_ReseedRBGC(&leaf, &root, NULL, 7);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+
+    /* The RBGC stratum is reset to zero by a primary source reseed. */
+    api_ret = wc_RNG_DRBG_ScheduleReseed(&leaf);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    RNG_STATS_SNAP2(&leaf);
+    api_ret = wc_RNG_GenerateBlock(&leaf, buf, sizeof(buf));
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    ret = wc_RNG_DRBG_GetRBGCStratum(&leaf);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_I(ret), out);
+    if (present) {
+        /* the primary reseed precedes the byte production, so the served
+         * bytes are not chain-provenance */
+        RNG_STATS_EXPECT2(&leaf, _stats_reseeds, 1,
+                          ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
+        RNG_STATS_EXPECT2(&leaf, _stats_total_bytes_produced, sizeof(buf),
+                          ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
+        RNG_STATS_EXPECT2(&leaf, _stats_RBGC_bytes_produced, 0,
+                          ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
+    }
+
+#if !defined(WC_NO_CONSTRUCTORS)
+    /* chain-reseeding a source-born instance demotes it, one-way */
+    api_ret = wc_InitRng(&extra);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    extra_inited = 1;
+    api_ret = wc_RNG_DRBG_GetRBGCStratum(&extra);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
+    if (present) {
+        api_ret = wc_RNG_DRBG_ReseedRBGC(&extra, &root, NULL, 0);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_DRBG_GetRBGCStratum(&extra);
+        if (api_ret != 1)
+            ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
+        /* long-chained init is allowed; chained reseeds are governed by the
+         * no-downgrade rule probed below. */
+        ret = wc_InitRngRBGC_New(&pleaf, &extra, WC_RNG_INIT_FLAGS_NONE);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        if ((pleaf == NULL) || (wc_RNG_DRBG_GetRBGCStratum(pleaf) != 2))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+        /* force leaf back to primary class (stratum 0) for the source-class
+         * probes below. */
+        api_ret = wc_RNG_DRBG_ScheduleReseed(&leaf);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_GenerateBlock(&leaf, buf, sizeof(buf));
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_DRBG_GetRBGCStratum(&leaf);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
+
+        /* chained credited reseeds: permitted iff the source's stratum
+         * strictly improves on (is less than) the target's. */
+        api_ret = wc_RNG_DRBG_ReseedRBGC(pleaf, &extra, NULL, 0);
+        if (api_ret != 0) /* 1 < 2: allowed */
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_DRBG_GetRBGCStratum(pleaf);
+        if (api_ret != 2) /* acquires extra+1 */
+            ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
+        api_ret = wc_RNG_DRBG_ReseedRBGC(&extra, pleaf, NULL, 0);
+        if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) /* 2 >= 1: refused */
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_DRBG_ReseedRBGC(&leaf, &extra, NULL, 0);
+        if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) /* 1 >= 0: refused --
+                                     * primary-born instances never downgrade
+                                     * by chained reseed. */
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+
+        /* primary-class (stratum-0) sources are always welcome, root or
+         * not. */
+        api_ret = wc_RNG_DRBG_ReseedRBGC(&extra, &leaf, NULL, 0);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_DRBG_GetRBGCStratum(&extra);
+        if (api_ret != 1)
+            ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
+
+        /* lateral (equal-stratum) chained reseeds are refused: the strict
+         * inequality is what makes cycles impossible. */
+        api_ret = wc_RNG_DRBG_ReseedRBGC(&leaf, &root, NULL, 0);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_DRBG_GetRBGCStratum(&leaf);
+        if (api_ret != 1)
+            ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
+        api_ret = wc_RNG_DRBG_ReseedRBGC(&extra, &leaf, NULL, 0);
+        if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) /* 1 >= 1: refused */
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+
+        /* uncredited chained reseeds are unrestricted (stirs claim
+         * nothing): any source stratum, target stratum untouched. */
+        api_ret = wc_RNG_DRBG_StirRBGC(&extra, pleaf, NULL, 0);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_DRBG_GetRBGCStratum(&extra);
+        if (api_ret != 1)
+            ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
+
+#ifdef WC_RNG_HAVE_NEXT_SEED
+        /* the banked twin obeys the same rule: refuse banking whose
+         * redemption would violate no-downgrade... */
+        api_ret = wc_RNG_DRBG_NextSeedGenerate_RBGC(&extra, pleaf, 1);
+        if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) /* 2 >= 1: refused */
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        /* ...and permit improving banked material, whose redemption
+         * carries the recorded stratum. */
+        api_ret = wc_RNG_DRBG_NextSeedGenerate_RBGC(pleaf, &extra,
+                                                    0xffffffffU);
+        if (api_ret != 0) /* 1 < 2: allowed; oversize fill clamps */
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_DRBG_GetNextSeedRBGCStratum(pleaf);
+        if (api_ret != 2)
+            ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
+        api_ret = wc_RNG_DRBG_NextSeedNow(pleaf);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_DRBG_GetRBGCStratum(pleaf);
+        if (api_ret != 2)
+            ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
+#endif /* WC_RNG_HAVE_NEXT_SEED */
+
+        wc_rng_free(pleaf);
+        pleaf = NULL;
+    }
+
+    /* heap-allocated leaves, without and with a nonce */
+    api_ret = wc_InitRngRBGC_New(&pleaf, &root, WC_RNG_INIT_FLAGS_NONE);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    if ((pleaf == NULL) || (wc_RNG_DRBG_GetRBGCStratum(pleaf) != 1))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    api_ret = wc_RNG_GenerateBlock(pleaf, buf, sizeof(buf));
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    wc_rng_free(pleaf);
+    pleaf = NULL;
+    api_ret = wc_InitRngNonceRBGC_New(&pleaf, &root, matter, 16,
+                                      WC_RNG_INIT_FLAGS_NONE);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    if ((pleaf == NULL) || (wc_RNG_DRBG_GetRBGCStratum(pleaf) != 1))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    wc_rng_free(pleaf);
+    pleaf = NULL;
+#endif /* !WC_NO_CONSTRUCTORS */
+
+    /* nonce-bearing stack spawn */
+    api_ret = wc_FreeRng(&leaf);
+    leaf_inited = 0;
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_InitRngNonceRBGC(&leaf, &root, matter, 16,
+                                  WC_RNG_INIT_FLAGS_NONE);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    leaf_inited = 1;
+    api_ret = wc_RNG_DRBG_GetRBGCStratum(&leaf);
+    if (api_ret != 1)
+        ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
+
+out:
+
+    {
+        int cleanup_ret;
+        if (pleaf != NULL)
+            wc_rng_free(pleaf);
+        if (leaf_inited) {
+            cleanup_ret = wc_FreeRng(&leaf);
+            if ((cleanup_ret != 0) && (ret == 0))
+                ret = WC_TEST_RET_ENC_EC(cleanup_ret);
+        }
+        if (extra_inited) {
+            cleanup_ret = wc_FreeRng(&extra);
+            if ((cleanup_ret != 0) && (ret == 0))
+                ret = WC_TEST_RET_ENC_EC(cleanup_ret);
+        }
+        if (root_inited) {
+            cleanup_ret = wc_FreeRng(&root);
+            if ((cleanup_ret != 0) && (ret == 0))
+                ret = WC_TEST_RET_ENC_EC(cleanup_ret);
+        }
+    }
+
+    return ret;
+}
+
+#else /* HAVE_FIPS && FIPS_VERSION3_LT(7,0,0) */
+
+#ifndef WC_RNG_BANK_SUPPORT
+    /* needed for compat setup */
+    #define WC_RNG_BANK_SUPPORT
+    #include <wolfssl/wolfcrypt/rng_bank.h>
+    #undef WC_RNG_BANK_SUPPORT
+#endif
+
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
+{
+    wc_test_ret_t ret = 0;
+    int api_ret;
+    int present;
+    int root_inited = 0;
+    int leaf_inited = 0;
+    int extra_inited = 0;
+    WC_RNG root;
+    WC_RNG leaf;
+    WC_RNG extra;
+    WC_RNG* pleaf = NULL;
+    wc_drbg_reseed_ctr_t c1 = 0;
+    wc_drbg_reseed_ctr_t c2 = 0;
+    byte buf[32];
+    byte matter[32];
+
+    WOLFSSL_ENTER("rng_drbg_rbgc_test");
+
+    XMEMSET(matter, 0xa5, sizeof(matter));
+
+    api_ret = wc_InitRng(&root);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    root_inited = 1;
+
+    present = wc_RNG_DRBG_Present(&root);
+
+    /* spawn argument contracts */
+    if (wc_InitRngRBGC(NULL, &root, WC_RNG_INIT_FLAGS_NONE) !=
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if (wc_InitRngRBGC(&leaf, NULL, WC_RNG_INIT_FLAGS_NONE) !=
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if (wc_InitRngRBGC(&root, &root, WC_RNG_INIT_FLAGS_NONE) !=
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#ifndef WC_NO_CONSTRUCTORS
+    if (wc_InitRngRBGC_New(NULL, &root, WC_RNG_INIT_FLAGS_NONE) !=
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
+
+    /* spawn a leaf; the spawn debits root's counter; the leaf is tagged */
+    if (present) {
+        api_ret = wc_RNG_DRBG_GetReseedCtr(&root, &c1);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    }
+    api_ret = wc_InitRngRBGC(&leaf, &root, WC_RNG_INIT_FLAGS_NONE);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    leaf_inited = 1;
+    if (present) {
+        api_ret = wc_RNG_DRBG_GetReseedCtr(&root, &c2);
+        if ((api_ret != 0) || (c2 <= c1))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    }
+    api_ret = wc_RNG_GenerateBlock(&leaf, buf, sizeof(buf));
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+
+    #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+    if (wc_RNG_DRBG_ReseedRBGC(&root, &leaf) !=
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    #endif
+
+    /* reseed-from-root, without and with a nonce; counter resets */
+    api_ret = wc_RNG_DRBG_ReseedRBGC(&leaf, &root);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_RNG_DRBG_ReseedRBGC(&leaf, &root);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    if (present) {
+        api_ret = wc_RNG_DRBG_GetReseedCtr(&leaf, &c1);
+        if ((api_ret != 0) || (c1 != 1))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    }
+    if (wc_RNG_DRBG_ReseedRBGC(&leaf, &leaf) !=
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if (wc_RNG_DRBG_ReseedRBGC(NULL, &root) !=
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    /* The RGBC stratum is reset to zero by a primary source reseed. */
+    api_ret = wc_RNG_DRBG_ScheduleReseed(&leaf);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_RNG_GenerateBlock(&leaf, buf, sizeof(buf));
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+
+#if !defined(WC_NO_CONSTRUCTORS)
+    /* chain-reseeding a source-born instance demotes it, one-way */
+    api_ret = wc_InitRng(&extra);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    extra_inited = 1;
+    if (present) {
+        api_ret = wc_RNG_DRBG_ReseedRBGC(&extra, &root);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        /* long-chained init is allowed, only chained reseed is forbidden. */
+        ret = wc_InitRngRBGC_New(&pleaf, &extra, WC_RNG_INIT_FLAGS_NONE);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        if (pleaf == NULL)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        wc_rng_free(pleaf);
+        pleaf = NULL;
+    }
+
+    /* heap-allocated leaves, without and with a nonce */
+    api_ret = wc_InitRngRBGC_New(&pleaf, &root, WC_RNG_INIT_FLAGS_NONE);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    if (pleaf == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    api_ret = wc_RNG_GenerateBlock(pleaf, buf, sizeof(buf));
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    wc_rng_free(pleaf);
+    pleaf = NULL;
+    api_ret = wc_InitRngNonceRBGC_New(&pleaf, &root, matter, 16,
+                                      WC_RNG_INIT_FLAGS_NONE);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    if (pleaf == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    wc_rng_free(pleaf);
+    pleaf = NULL;
+#endif /* !WC_NO_CONSTRUCTORS */
+
+    /* nonce-bearing stack spawn */
+    api_ret = wc_FreeRng(&leaf);
+    leaf_inited = 0;
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_InitRngNonceRBGC(&leaf, &root, matter, 16,
+                                  WC_RNG_INIT_FLAGS_NONE);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    leaf_inited = 1;
+
+out:
+
+    {
+        int cleanup_ret;
+        if (pleaf != NULL)
+            wc_rng_free(pleaf);
+        if (leaf_inited) {
+            cleanup_ret = wc_FreeRng(&leaf);
+            if ((cleanup_ret != 0) && (ret == 0))
+                ret = WC_TEST_RET_ENC_EC(cleanup_ret);
+        }
+        if (extra_inited) {
+            cleanup_ret = wc_FreeRng(&extra);
+            if ((cleanup_ret != 0) && (ret == 0))
+                ret = WC_TEST_RET_ENC_EC(cleanup_ret);
+        }
+        if (root_inited) {
+            cleanup_ret = wc_FreeRng(&root);
+            if ((cleanup_ret != 0) && (ret == 0))
+                ret = WC_TEST_RET_ENC_EC(cleanup_ret);
+        }
+    }
+
+    return ret;
+}
+
+#endif /* HAVE_FIPS && FIPS_VERSION3_LT(7,0,0) */
+
+#endif /* WC_RNG_HAVE_RBGC */
+
+#ifdef WC_RNG_HAVE_NEXT_SEED
+/* Coverage for the banked-next-seed facility: the aperture protocol
+ * (fill / publish / claim / release) as observed through
+ * wc_RNG_DRBG_NextSeedCurrent(), the distinct protocol results
+ * (NOT_READY_E, ALREADY_E), advance health testing at publish,
+ * source-free consumption resetting the reseed counter, use-once
+ * emptying, and the argument contracts.  DRBG-internal probes are gated
+ * at runtime on wc_RNG_DRBG_Present(). */
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseedstest(void)
+{
+    wc_test_ret_t ret = 0;
+    int api_ret;
+    int present;
+    int root_inited = 0;
+    int i;
+    WC_DECLARE_VAR(root, WC_RNG, 1, HEAP_HINT);
+    WC_ATOMIC_INT_ARG cur = 0;
+    WC_ATOMIC_INT_ARG prev = 0;
+    wc_drbg_reseed_ctr_t c1 = 0;
+    byte buf[32];
+    byte matter[16];
+
+    RNG_STATS_DECLS;
+
+    WOLFSSL_ENTER("rng_drbg_nextseedstest");
+
+    WC_ALLOC_VAR_EX(root, WC_RNG, 1, HEAP_HINT,
+                    DYNAMIC_TYPE_TMP_BUFFER,
+                    ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out));
+
+    XMEMSET(matter, 0x3c, sizeof(matter));
+
+    /* argument contracts, pre-init */
+    api_ret = wc_RNG_DRBG_NextSeedGenerate(NULL, 1);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_RNG_DRBG_NextSeedCurrent(NULL, &cur);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_RNG_DRBG_NextSeedNow(NULL);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_RNG_DRBG_NextSeedNow_Nonce(NULL, NULL, 0);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+
+    api_ret = wc_InitRng(root);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    root_inited = 1;
+
+    present = wc_RNG_DRBG_Present(root);
+
+    api_ret = wc_RNG_DRBG_NextSeedGenerate(root, 0);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_RNG_DRBG_NextSeedCurrent(root, NULL);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    api_ret = wc_RNG_DRBG_NextSeedNow_Nonce(root, NULL, 5);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+
+    if (present) {
+        /* empty bank: nothing consumable */
+        api_ret = wc_RNG_DRBG_NextSeedCurrent(root, &cur);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        if (cur != WC_DRBG_NEXT_SEED_EMPTY)
+            ERROR_OUT(WC_TEST_RET_ENC_I((int)cur), out);
+        api_ret = wc_RNG_DRBG_NextSeedNow(root);
+        if (api_ret != WC_NO_ERR_TRACE(NOT_READY_E))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+
+        /* partial bank: counted, still not consumable, preserved across
+         * the consume attempt */
+        api_ret = wc_RNG_DRBG_NextSeedGenerate(root, 7);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_DRBG_NextSeedCurrent(root, &cur);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        if (cur != 7)
+            ERROR_OUT(WC_TEST_RET_ENC_I((int)cur), out);
+        api_ret = wc_RNG_DRBG_NextSeedNow(root);
+        if (api_ret != WC_NO_ERR_TRACE(NOT_READY_E))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_DRBG_NextSeedCurrent(root, &cur);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        if (cur != 7)
+            ERROR_OUT(WC_TEST_RET_ENC_I((int)cur), out);
+
+        /* fill in granules to publication: the count grows monotonically,
+         * then the ready sentinel appears */
+        prev = cur;
+        for (i = 0; i < 64; i++) {
+            api_ret = wc_RNG_DRBG_NextSeedGenerate(
+                root, (word32)(WC_DRBG_NEXT_SEED_LEN / 7));
+            api_ret = wc_RNG_DRBG_NextSeedCurrent(root, &cur);
+            if (api_ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+            if ((api_ret == WC_NO_ERR_TRACE(ALREADY_E)) ||
+                (cur == WC_DRBG_NEXT_SEED_READY))
+            {
+                break;
+            }
+            if ((api_ret != 0) && (api_ret != WC_NO_ERR_TRACE(NOT_READY_E)) &&
+                (api_ret != WC_NO_ERR_TRACE(ENTROPY_RT_E)) &&
+                (api_ret != WC_NO_ERR_TRACE(ENTROPY_APT_E)))
+            {
+                ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+            }
+            if (api_ret == 0) {
+                if (cur <= prev)
+                    ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+                prev = cur;
+            }
+        }
+        if (cur != WC_DRBG_NEXT_SEED_READY)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+        /* ready bank: further banking is ALREADY_E and changes nothing */
+        api_ret = wc_RNG_DRBG_NextSeedGenerate(root, 32);
+        if (api_ret != WC_NO_ERR_TRACE(ALREADY_E))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_DRBG_NextSeedCurrent(root, &cur);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        if (cur != WC_DRBG_NEXT_SEED_READY)
+            ERROR_OUT(WC_TEST_RET_ENC_I((int)cur), out);
+
+        /* consume: source-free credited reseed; counter resets to 1;
+         * bank empties (use-once) */
+        RNG_STATS_SNAP(root);
+        api_ret = wc_RNG_DRBG_NextSeedNow(root);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_DRBG_GetReseedCtr(root, &c1);
+        if ((api_ret != 0) || (c1 != 1))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        /* redemption of a primary-provenance bank: credited, counted as a
+         * primary redemption */
+        RNG_STATS_EXPECT(root, _stats_reseeds, 1,
+                         ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
+        RNG_STATS_EXPECT(root, _stats_nextseedsprimary_redeemed, 1,
+                         ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
+#ifdef WC_RNG_HAVE_RBGC
+        RNG_STATS_EXPECT(root, _stats_nextseedsRBGC_redeemed, 0,
+                         ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
+#endif
+        api_ret = wc_RNG_DRBG_NextSeedCurrent(root, &cur);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        if (cur != WC_DRBG_NEXT_SEED_EMPTY)
+            ERROR_OUT(WC_TEST_RET_ENC_I((int)cur), out);
+
+        /* advance the counter, refill, and consume with a nonce */
+        api_ret = wc_RNG_GenerateBlock(root, buf, sizeof(buf));
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        for (i = 0; i < 64; i++) {
+            api_ret = wc_RNG_DRBG_NextSeedGenerate(
+                root, (word32)(WC_DRBG_NEXT_SEED_LEN / 7));
+            if (api_ret == WC_NO_ERR_TRACE(ALREADY_E))
+                break;
+            if ((api_ret != 0) && (api_ret != WC_NO_ERR_TRACE(NOT_READY_E)) &&
+                (api_ret != WC_NO_ERR_TRACE(ENTROPY_RT_E)) &&
+                (api_ret != WC_NO_ERR_TRACE(ENTROPY_APT_E)))
+            {
+                ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+            }
+        }
+        if (i >= 64)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        RNG_STATS_SNAP(root);
+        api_ret = wc_RNG_DRBG_NextSeedNow_Nonce(root, matter,
+                                                sizeof(matter));
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_DRBG_GetReseedCtr(root, &c1);
+        if ((api_ret != 0) || (c1 != 1))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        /* the nonce rides as additional input: the redemption is still one
+         * credited, primary-provenance reseed */
+        RNG_STATS_EXPECT(root, _stats_reseeds, 1,
+                         ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
+        RNG_STATS_EXPECT(root, _stats_stirs, 0,
+                         ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
+        RNG_STATS_EXPECT(root, _stats_nextseedsprimary_redeemed, 1,
+                         ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
+        api_ret = wc_RNG_DRBG_NextSeedCurrent(root, &cur);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        if (cur != WC_DRBG_NEXT_SEED_EMPTY)
+            ERROR_OUT(WC_TEST_RET_ENC_I((int)cur), out);
+    }
+
+    /* --- uncredited stir aperture (NextStir) lifecycle --- */
+    if (present) {
+        byte frag[16];
+        XMEMSET(frag, 0x71, sizeof(frag));
+
+        if (wc_RNG_DRBG_NextStirStore(NULL, frag, sizeof(frag)) !=
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        {
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        }
+        if (wc_RNG_DRBG_NextStirStore(root, NULL, 1) !=
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        {
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        }
+        if (wc_RNG_DRBG_NextStirStore(root, frag, 0) !=
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        {
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        }
+
+        /* partial accumulation is not consumable. */
+        api_ret = wc_RNG_DRBG_NextStirStore(root, frag,
+                                                      sizeof(frag));
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_DRBG_NextStirNow(root);
+        if (api_ret != WC_NO_ERR_TRACE(NOT_READY_E))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+
+        /* fill to the top: READY; excess deposits absorbed by xorbuf();
+         * oversize deposits clamp. */
+        for (i = 0; i < (int)(WC_DRBG_NEXT_STIR_LEN /
+                              sizeof(frag)); i++)
+        {
+            api_ret = wc_RNG_DRBG_NextStirStore(root, frag,
+                                                          sizeof(frag));
+            if (api_ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        }
+        /* deposits on a READY accumulator fold in place using xorbuf()
+         * (advisory sentinel): absorbed, never refused. */
+        api_ret = wc_RNG_DRBG_NextStirStore(root, frag, sizeof(frag));
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+
+#if !defined(HAVE_INTEL_RDSEED) && !defined(HAVE_INTEL_RDRAND)
+        /* consumption is a stir, not an epoch: the reseed counter is not
+         * reset. */
+        {
+            wc_drbg_reseed_ctr_t ctr_before = 0, ctr_after = 0;
+            api_ret = wc_RNG_DRBG_GetReseedCtr(root, &ctr_before);
+            if (api_ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+            api_ret = wc_RNG_DRBG_NextStirNow(root);
+            if (api_ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+            api_ret = wc_RNG_DRBG_GetReseedCtr(root, &ctr_after);
+            if (api_ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+            if (ctr_after < ctr_before)
+                ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        }
+#else
+        api_ret = wc_RNG_DRBG_NextStirNow(root);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+#endif
+
+        /* use-once: accumulation reopened. */
+        api_ret = wc_RNG_DRBG_NextStirNow(root);
+        if (api_ret != WC_NO_ERR_TRACE(NOT_READY_E))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_DRBG_NextStirStore(root, frag,
+                                                      sizeof(frag));
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+
+        /* top up and verify the universal opportunistic consume at
+         * generate: post-generate, the accumulator is spent. */
+        for (i = 0; i < (int)(WC_DRBG_NEXT_STIR_LEN /
+                              sizeof(frag)); i++)
+        {
+            api_ret = wc_RNG_DRBG_NextStirStore(root, frag,
+                                                          sizeof(frag));
+            if (api_ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        }
+        api_ret = wc_RNG_GenerateBlock(root, buf, sizeof(buf));
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_DRBG_NextStirNow(root);
+        if (api_ret != WC_NO_ERR_TRACE(NOT_READY_E))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    }
+
+#if defined(WC_RNG_HAVE_LOCK) && defined(WC_RNG_HAVE_RBGC)
+    /* a stir must never masquerade as recovery or promotion: consumption
+     * preserves WC_RNG_LOCK_ENTROPY_INVALIDATED and RBGCStratum. */
+    if (present) {
+        WC_RNG leaf;
+        WC_RNG_lock_arg_t lock_state;
+        byte frag64[WC_DRBG_NEXT_STIR_LEN];
+        XMEMSET(frag64, 0x5e, sizeof(frag64));
+
+        api_ret = wc_InitRngNonceRBGC(&leaf, root, NULL, 0,
+                                      WC_RNG_INIT_FLAGS_NONE);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_invalidate_entropy(&leaf);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        /* deposit post-event (the event purge emptied the accumulator). */
+        api_ret = wc_RNG_DRBG_NextStirStore(&leaf, frag64,
+                                                      sizeof(frag64));
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        /* consumption refuses on the quarantined instance (latch checked
+         * atomically ahead of the racy counter); the use-once aperture
+         * reopens EMPTY regardless -- stirs are best-effort, and
+         * accumulation simply resumes. */
+        api_ret = wc_RNG_DRBG_NextStirNow(&leaf);
+        if (api_ret != WC_NO_ERR_TRACE(NOT_READY_E))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_RNG_lock_read(&leaf, &lock_state);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        if (! (lock_state & WC_RNG_LOCK_ENTROPY_INVALIDATED))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        if (wc_RNG_DRBG_GetRBGCStratum(&leaf) != 1)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        /* recover for a clean teardown. */
+        api_ret = wc_RNG_DRBG_Reseed_Now(&leaf, NULL, 0);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        api_ret = wc_FreeRng(&leaf);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+    }
+#endif /* WC_RNG_HAVE_LOCK && WC_RNG_HAVE_RBGC */
+
+out:
+
+    if (root_inited) {
+        int cleanup_ret = wc_FreeRng(root);
+        if ((cleanup_ret != 0) && (ret == 0))
+            ret = WC_TEST_RET_ENC_EC(cleanup_ret);
+    }
+    WC_FREE_VAR(root, HEAP_HINT);
+
+    return ret;
+}
+#endif /* WC_RNG_HAVE_NEXT_SEED */
+
+#ifdef WC_RNG_HAVE_POOL
+/* Coverage for the asynchronous DRBG output pool: allocation contracts
+ * (incl. the word16 size bound and double-alloc rejection), self- and
+ * cross-instance collection, published-count tracking, destructive
+ * extraction with partial delivery and the empty-pool NOT_READY_E, and ring
+ * wraparound on both the collect and extract sides.  Single-threaded, so
+ * reader/writer interleavings are exercised elsewhere; this pins the
+ * sequential contracts. */
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_pool_test(void)
+{
+    wc_test_ret_t ret = 0;
+    int api_ret;
+    int rng_inited = 0;
+    int src_inited = 0;
+    WC_DECLARE_VAR(rng, WC_RNG, 1, HEAP_HINT);
+    WC_DECLARE_VAR(src, WC_RNG, 1, HEAP_HINT);
+    word32 n = 0;
+    byte out[48];
+
+    RNG_STATS_DECLS;
+
+    WOLFSSL_ENTER("rng_pool_test");
+
+    WC_ALLOC_VAR_EX(rng, WC_RNG, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+                    ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out_l));
+    WC_ALLOC_VAR_EX(src, WC_RNG, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+                    ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out_l));
+
+    /* argument contracts, pre-init */
+    api_ret = wc_RNG_Pool_Alloc(NULL, 48);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    api_ret = wc_RNG_Pool_Collect(NULL, 1);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    api_ret = wc_RNG_Pool_Extract(NULL, out, &n);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    api_ret = wc_RNG_Pool_Current(NULL, &n);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+
+    api_ret = wc_InitRng(rng);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    rng_inited = 1;
+    api_ret = wc_InitRng(src);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    src_inited = 1;
+
+    /* size bounds; operations on a pool-less instance */
+    api_ret = wc_RNG_Pool_Alloc(rng, 1);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    api_ret = wc_RNG_Pool_Alloc(rng, 65536);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    api_ret = wc_RNG_Pool_Collect(rng, 8);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_STATE_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    n = sizeof(out);
+    api_ret = wc_RNG_Pool_Extract(rng, out, &n);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_STATE_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    api_ret = wc_RNG_Pool_Current(rng, &n);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    if (n != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_I((int)n), out_l);
+
+#ifndef WOLFSSL_NO_MALLOC
+    api_ret = wc_RNG_Pool_Alloc(rng, 48);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    api_ret = wc_RNG_Pool_Alloc(rng, 48);
+    if (api_ret != WC_NO_ERR_TRACE(ALREADY_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+
+    /* empty pool: a distinct protocol code, nothing delivered */
+    n = sizeof(out);
+    RNG_STATS_SNAP(rng);
+    api_ret = wc_RNG_Pool_Extract(rng, out, &n);
+    if (api_ret != WC_NO_ERR_TRACE(NOT_READY_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    /* the whole request is missed bytes; nothing served */
+    RNG_STATS_EXPECT(rng, _stats_pool_bytes_missed, sizeof(out),
+                     ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out_l));
+    RNG_STATS_EXPECT(rng, _stats_pool_bytes_produced, 0,
+                     ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out_l));
+
+    /* self-collect to full (clamped), verify count, over-collect no-op */
+    api_ret = wc_RNG_Pool_Collect(rng, 100);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    api_ret = wc_RNG_Pool_Current(rng, &n);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    if (n != 48)
+        ERROR_OUT(WC_TEST_RET_ENC_I((int)n), out_l);
+    api_ret = wc_RNG_Pool_Collect(rng, 1);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+
+    /* partial extract, then cross-instance top-off wrapping the ring,
+     * then full drain crossing the wrap on the read side */
+    n = 32;
+    RNG_STATS_SNAP(rng);
+    api_ret = wc_RNG_Pool_Extract(rng, out, &n);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    if (n != 32)
+        ERROR_OUT(WC_TEST_RET_ENC_I((int)n), out_l);
+    api_ret = wc_RNG_Pool_Current(rng, &n);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    if (n != 16)
+        ERROR_OUT(WC_TEST_RET_ENC_I((int)n), out_l);
+    /* a fully-fulfillable partial drain is all produced, no shortfall */
+    RNG_STATS_EXPECT(rng, _stats_pool_bytes_produced, 32,
+                     ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out_l));
+    RNG_STATS_EXPECT(rng, _stats_pool_bytes_missed, 0,
+                     ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out_l));
+    RNG_STATS_SNAP2(src);
+    api_ret = wc_RNG_Pool_Collect2(rng, src, 32);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    if (wc_RNG_DRBG_Present(src)) {
+        /* the top-off span starts exactly at the ring origin
+         * ((offset + current) % size == 0): one contiguous generate */
+        RNG_STATS_EXPECT2(src, _stats_total_requests, 1,
+                          ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out_l));
+        RNG_STATS_EXPECT2(src, _stats_total_bytes_produced, 32,
+                          ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out_l));
+    }
+    api_ret = wc_RNG_Pool_Current(rng, &n);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    if (n != 48)
+        ERROR_OUT(WC_TEST_RET_ENC_I((int)n), out_l);
+    n = sizeof(out);
+    RNG_STATS_SNAP(rng);
+    api_ret = wc_RNG_Pool_Extract(rng, out, &n);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    if (n != 48)
+        ERROR_OUT(WC_TEST_RET_ENC_I((int)n), out_l);
+    api_ret = wc_RNG_Pool_Current(rng, &n);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    if (n != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_I((int)n), out_l);
+    /* full serve across the ring wrap: all produced, no shortfall */
+    RNG_STATS_EXPECT(rng, _stats_pool_bytes_produced, 48,
+                     ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out_l));
+    RNG_STATS_EXPECT(rng, _stats_pool_bytes_missed, 0,
+                     ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out_l));
+
+    /* Collect2 contracts */
+    api_ret = wc_RNG_Pool_Collect2(rng, NULL, 8);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    api_ret = wc_RNG_Pool_Collect2(NULL, src, 8);
+    if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+    api_ret = wc_RNG_Pool_Collect2(rng, src, 0);
+    if (api_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out_l);
+#endif /* WOLFSSL_NO_MALLOC */
+
+out_l:
+
+    {
+        int cleanup_ret;
+        if (rng_inited) {
+            cleanup_ret = wc_FreeRng(rng);   /* sole pool teardown site */
+            if ((cleanup_ret != 0) && (ret == 0))
+                ret = WC_TEST_RET_ENC_EC(cleanup_ret);
+        }
+        if (src_inited) {
+            cleanup_ret = wc_FreeRng(src);
+            if ((cleanup_ret != 0) && (ret == 0))
+                ret = WC_TEST_RET_ENC_EC(cleanup_ret);
+        }
+    }
+    WC_FREE_VAR(rng, HEAP_HINT);
+    WC_FREE_VAR(src, HEAP_HINT);
+
+    return ret;
+}
+#endif /* WC_RNG_HAVE_POOL */
 
 #endif /* !WC_NO_RNG */
 
@@ -38585,7 +41219,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t openssl_evpSig_test(void)
 #endif /* OPENSSL_EXTRA */
 
 
-#ifdef HAVE_ARGON2
+#if defined(HAVE_ARGON2) && !defined(WOLFSSL_NO_MALLOC)
 /* Test vectors from RFC 9106 section 5, which uses the same inputs for all
  * three variants: p=4, T=32, m=32, t=3, v=0x13, with a secret and associated
  * data supplied. */
@@ -38719,7 +41353,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t argon2_test(void)
 
     return 0;
 }
-#endif /* HAVE_ARGON2 */
+#endif /* HAVE_ARGON2 && !WOLFSSL_NO_MALLOC */
 
 #ifndef NO_PWDBASED
 #ifdef HAVE_SCRYPT
@@ -86108,9 +88742,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 #endif
 
     /* Driver coverage for the new CryptoCb hooks: confirm each op is routed
-     * through myCryptoDevCb (counter bumped) and the round-trip is correct. */
+     * through myCryptoDevCb (counter bumped) and the round-trip is correct.
+     *
+     * The FIPS wrappers force the devId to FIPS_INVALID_DEVID, so we skip
+     * the check for FIPS. */
 #if defined(HAVE_ED448) && defined(HAVE_ED448_SIGN) && \
-    defined(HAVE_ED448_VERIFY) && !defined(WC_NO_RNG)
+    defined(HAVE_ED448_VERIFY) && !defined(WC_NO_RNG) && \
+    !defined(HAVE_FIPS)
     if (ret == 0) {
         WC_RNG ed448Rng;
         int    ed448RngInit = 0;
@@ -86174,7 +88812,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 #endif /* HAVE_ED448 */
 
 #if defined(WOLFSSL_CMAC) && defined(WOLF_CRYPTO_CB_FREE) && \
-    !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT)
+    !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT) && \
+    !defined(HAVE_FIPS)
     if (ret == 0) {
         byte   cmacKey[WC_AES_BLOCK_SIZE] = {
             0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
@@ -86234,7 +88873,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 
 #if defined(WC_RSA_PSS) && defined(WOLF_CRYPTO_CB_RSA_PAD) && \
     !defined(NO_RSA) && !defined(WC_NO_RNG) && defined(WOLFSSL_KEY_GEN) && \
-    !defined(NO_SHA256)
+    !defined(NO_SHA256) && !defined(HAVE_FIPS)
     if (ret == 0) {
         WC_RNG rsaRng;
         int    rsaRngInit = 0;
