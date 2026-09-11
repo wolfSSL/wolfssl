@@ -2046,6 +2046,14 @@ int wc_Sha3_512_Copy(wc_Sha3* src, wc_Sha3* dst)
 int wc_Sha3_SetFlags(wc_Sha3* sha3, word32 flags)
 {
     if (sha3) {
+    #if FIPS_VERSION3_GE(7,0,0)
+        /* Keccak-256 is a different hash from SHA3-256, so refuse the request
+         * instead of accepting it and hashing with the other one
+         * (FIPS 202 6.1). */
+        if ((flags & WC_HASH_SHA3_KECCAK256) != 0) {
+            return FIPS_NOT_ALLOWED_E;
+        }
+    #endif
         sha3->flags = flags;
     }
     return 0;
