@@ -5354,7 +5354,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509);
 
     \sa wolfSSL_X509_get_pubkey
 */
-WOLFSSL_EVP_PKEY* wolfSSL_X509_get0_pubkey(WOLFSSL_X509* x509);
+WOLFSSL_EVP_PKEY* wolfSSL_X509_get0_pubkey(const WOLFSSL_X509* x509);
 
 /*!
     \ingroup CertsKeys
