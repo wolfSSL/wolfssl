@@ -326,6 +326,13 @@ int wc_SrpSetUsername(Srp* srp, const byte* username, word32 size)
     if (!srp || !username)
         return BAD_FUNC_ARG;
 
+    if (srp->user) {
+        ForceZero(srp->user, srp->userSz);
+        XFREE(srp->user, srp->heap, DYNAMIC_TYPE_SRP);
+        srp->user = NULL;
+        srp->userSz = 0;
+    }
+
     /* +1 for NULL char */
     srp->user = (byte*)XMALLOC(size + 1, srp->heap, DYNAMIC_TYPE_SRP);
     if (srp->user == NULL)
@@ -675,6 +682,13 @@ static int wc_SrpSetKey(Srp* srp, byte* secret, word32 size)
         return digestSz;
 
     XMEMSET(digest, 0, SRP_MAX_DIGEST_SIZE);
+
+    if (srp->key) {
+        ForceZero(srp->key, srp->keySz);
+        XFREE(srp->key, srp->heap, DYNAMIC_TYPE_SRP);
+        srp->key = NULL;
+        srp->keySz = 0;
+    }
 
     srp->key = (byte*)XMALLOC(2 * (word32)digestSz, srp->heap, DYNAMIC_TYPE_SRP);
     if (srp->key == NULL)

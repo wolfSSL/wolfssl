@@ -997,11 +997,8 @@ WOLFSSL_API int wc_rng_bank_reseed(struct wc_rng_bank *bank,
                     "for DRBG #%d returned %d.", n, ret);
 #endif
             (void)wc_rng_bank_checkin(bank, &drbg);
-            if ((ret == WC_NO_ERR_TRACE(WC_TIMEOUT_E)) ||
-                (ret == WC_NO_ERR_TRACE(INTERRUPTED_E)))
-            {
+            if (ret != 0)
                 return ret;
-            }
             ret = WC_CHECK_FOR_INTR_SIGNALS();
             if (ret == WC_NO_ERR_TRACE(INTERRUPTED_E))
                 return ret;

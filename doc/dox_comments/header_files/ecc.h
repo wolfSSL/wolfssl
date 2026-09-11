@@ -2184,9 +2184,9 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     the encryption type specified by ctx.
 
     \return 0 Returned upon successfully decrypting the input message
-    \return BAD_FUNC_ARG Returned if privKey, pubKey, msg, msgSz, out,
-    or outSz are NULL, or the ctx object specifies an unsupported
-    encryption type
+    \return BAD_FUNC_ARG Returned if privKey, msg, msgSz, out, or outSz
+    are NULL (or pubKey is NULL when built with WOLFSSL_ECIES_OLD), or
+    the ctx object specifies an unsupported encryption type
     \return BAD_ENC_STATE_E Returned if the ctx object given is in
     a state that is not appropriate for decryption
     \return BUFFER_E Returned if the supplied output buffer is too
@@ -2199,8 +2199,11 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 
     \param privKey pointer to the ecc_key object containing the private
     key to use for decryption
-    \param pubKey pointer to the ecc_key object containing the public
-    key of the peer with whom one wishes to communicate
+    \param pubKey only used when built with WOLFSSL_ECIES_OLD: pointer to
+    the ecc_key object containing the public key of the peer with whom one
+    wishes to communicate. In the default message format the sender's
+    ephemeral public key is read from the start of msg instead and pubKey
+    is ignored (it may be NULL and is left unmodified)
     \param msg pointer to the buffer holding the ciphertext to decrypt
     \param msgSz size of the buffer to decrypt
     \param out pointer to the buffer in which to store the decrypted plaintext

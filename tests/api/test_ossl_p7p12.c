@@ -1045,7 +1045,8 @@ int test_wolfSSL_PEM_write_bio_PKCS7(void)
         XMEMCPY(key, client_key_der_1024, keySz);
         XMEMCPY(cert, client_cert_der_1024, certSz);
     #else
-        unsigned char   cert[ONEK_BUF];
+        /* cert file is larger than ONEK_BUF */
+        unsigned char   cert[TWOK_BUF];
         unsigned char   key[ONEK_BUF];
         XFILE           fp = XBADFILE;
         int             certSz;
@@ -1053,8 +1054,7 @@ int test_wolfSSL_PEM_write_bio_PKCS7(void)
 
         ExpectTrue((fp = XFOPEN("./certs/1024/client-cert.der", "rb")) !=
             XBADFILE);
-        ExpectIntGT(certSz = (int)XFREAD(cert, 1, sizeof_client_cert_der_1024,
-            fp), 0);
+        ExpectIntGT(certSz = (int)XFREAD(cert, 1, sizeof(cert), fp), 0);
         if (fp != XBADFILE) {
             XFCLOSE(fp);
             fp = XBADFILE;
@@ -1062,8 +1062,7 @@ int test_wolfSSL_PEM_write_bio_PKCS7(void)
 
         ExpectTrue((fp = XFOPEN("./certs/1024/client-key.der", "rb")) !=
             XBADFILE);
-        ExpectIntGT(keySz = (int)XFREAD(key, 1, sizeof_client_key_der_1024, fp),
-            0);
+        ExpectIntGT(keySz = (int)XFREAD(key, 1, sizeof(key), fp), 0);
         if (fp != XBADFILE) {
             XFCLOSE(fp);
             fp = XBADFILE;
