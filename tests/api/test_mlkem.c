@@ -4652,17 +4652,11 @@ int test_wc_mlkem_encode_key_len_decision(void)
 
 /* The seed-input service indicator, asserted on a SUCCESSFUL call.
  *
- * Counterpart to the SEED_ARG_ERR() invalid-argument assertions: those cover
- * the "still reaches argument validation" half of the contract, this covers
- * the half that makes the service acceptable in an approved module: a call
- * that succeeds reports WC_FIPS_NOT_APPROVED (lab-confirmed 2026-07-24;
- * FIPS 203 sec 6 says the module shall generate its own keygen randomness).
- *
  * The indicator is unambiguous here: wc_MlKemKey_MakeKeyWithRandom() returns
  * 0 or a negative error and never a length or count, so a positive 1 cannot
  * be confused for a result the way it could on an API like wc_RsaSSL_Verify()
- * that returns a plaintext length.  SEED_OK is WC_FIPS_NOT_APPROVED in a FIPS
- * v7+ build and 0 elsewhere.
+ * that returns a plaintext length.  SEED_OK is WC_FIPS_NOT_APPROVED when the
+ * module defines WC_HAVE_FIPS_INDICATOR and 0 otherwise.
  */
 int test_wc_MlKemKey_seed_service_indicator(void)
 {

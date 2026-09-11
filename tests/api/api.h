@@ -46,8 +46,7 @@
  * that, and gating on it rather than on the version alone is what lets this
  * change merge BEFORE the FIPS-side PR: against a bundle without it the module
  * returns 0 and so does SEED_OK; against one with it, both are the indicator.
- * The test tracks the module actually present instead of assuming one.  The
- * same pattern is already used for Ed25519ctx below and in benchmark.c.
+ * The test tracks the module actually present instead of assuming one.
  *
  * FIPS_NO_WRAPPERS (settings.h, for WC_FIPS_LL_CRYPTO and
  * WOLFSSL_FIPS_DEV_NO_POST) compiles no wrappers at all, so those expect 0.
