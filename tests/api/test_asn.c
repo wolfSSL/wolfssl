@@ -1909,8 +1909,8 @@ int test_wolfssl_local_MatchUriNameConstraint(void)
     ExpectIntEQ(uriNC("https://host.com.evil.com",    "host.com"), 0);
     ExpectIntEQ(uriNC("https://other.com",            "host.com"), 0);
 
-    /* Only the initial scheme delimiter can introduce an authority. URLs
-     * embedded in an authority-less URI do not supply its host. */
+    /* Only the initial scheme delimiter can introduce an authority. A URI
+     * embedded in an authority-less URI does not supply its host. */
     ExpectIntEQ(uriNC("urn:example:opaque",           "host.com"), 0);
     ExpectIntEQ(uriNC("urn:example:https://host.com/x",
                 "host.com"), 0);

@@ -432,7 +432,7 @@ static void wb_uri_host_helpers(void)
 
     WB_NOTE("GetUriHost(): scheme + four-operand authority guard");
     /* No colon in the bounded segment -> GetUriSchemeEnd() returns NULL. */
-    WB_CHECK(wolfssl_local_MatchUriNameConstraint("not-a-uri-at-all", 15,
+    WB_CHECK(wolfssl_local_MatchUriNameConstraint("not-a-uri-at-all", 16,
                 "host.com", 8) == 0, "no scheme colon present");
     /* Valid scheme followed by both slashes: all guard operands false. */
     WB_CHECK(wolfssl_local_MatchUriNameConstraint("abc://host.com", 14,
@@ -442,9 +442,9 @@ static void wb_uri_host_helpers(void)
     WB_CHECK(wolfssl_local_MatchUriNameConstraint("abc://host.com", 5,
                 "host.com", 8) == 0, "only one byte after scheme colon");
     /* Exact-host constraints ensure subtree rejection cannot mask a bug. */
-    WB_CHECK(wolfssl_local_MatchUriNameConstraint("ab:cd://host.com/x", 17,
+    WB_CHECK(wolfssl_local_MatchUriNameConstraint("ab:cd://host.com/x", 18,
                 "host.com", 8) == 0, "scheme colon not followed by '/'");
-    WB_CHECK(wolfssl_local_MatchUriNameConstraint("a:/b://host.com/x", 16,
+    WB_CHECK(wolfssl_local_MatchUriNameConstraint("a:/b://host.com/x", 17,
                 "host.com", 8) == 0, "scheme colon followed by only one '/'");
 
     WB_NOTE("GetUriHost(): IP-literal '[' bracket scan [:18772]");
