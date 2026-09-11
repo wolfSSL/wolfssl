@@ -152,6 +152,14 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
  * GCM streaming path, and the block routine the XTS software helpers call.
  * wc_AesEncrypt() and wc_AesDecrypt() hold no claim of their own.  Every
  * other build expands these to nothing. */
+/* gcmKeySet gates streaming GCM.  A failed claim leaves H underived, so the
+ * flag must go back off or streaming would run with a stale H. */
+#ifdef WOLFSSL_AESGCM_STREAM
+    #define WC_AES_GCM_UNKEY(aes) do { (aes)->gcmKeySet = 0; } while (0)
+#else
+    #define WC_AES_GCM_UNKEY(aes) WC_DO_NOTHING
+#endif
+
 #if defined(__aarch64__) && defined(WOLFSSL_ARMASM)
     #define WC_AES_ARM64_SVR_BEGIN() SAVE_VECTOR_REGISTERS(return _svr_ret;)
     #define WC_AES_ARM64_SVR_END()   RESTORE_VECTOR_REGISTERS()
@@ -8891,7 +8899,8 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
       #endif /* WOLFSSL_ARM32_AES_DISPATCH */
     #else
         if (aes->use_aes_hw_crypto && aes->use_pmull_hw_crypto) {
-            SAVE_VECTOR_REGISTERS(return _svr_ret;);
+            SAVE_VECTOR_REGISTERS(WC_AES_GCM_UNKEY(aes);
+                                  return _svr_ret;);
             AES_GCM_set_key_AARCH64(iv, (byte*)aes->key, aes->gcm.H,
                 aes->rounds);
             RESTORE_VECTOR_REGISTERS();
@@ -8902,7 +8911,8 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 #if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_NEON) && \
     defined(WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP)
         {
-            SAVE_VECTOR_REGISTERS(return _svr_ret;);
+            SAVE_VECTOR_REGISTERS(WC_AES_GCM_UNKEY(aes);
+                                  return _svr_ret;);
             AES_ECB_encrypt_NEON(iv, aes->gcm.H, WC_AES_BLOCK_SIZE,
                 (const unsigned char*)aes->key, aes->rounds);
             RESTORE_VECTOR_REGISTERS();
