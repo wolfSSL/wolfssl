@@ -3852,6 +3852,105 @@ int test_wc_SignCert_buffer_bounds(void)
     return EXPECT_RESULT();
 }
 
+#if !defined(NO_ASN) && !defined(NO_CERTS) && !defined(NO_RSA) && \
+    !defined(NO_SHA256) && defined(WOLFSSL_CERT_GEN) && \
+    defined(WOLFSSL_CERT_NAME_ALL) && defined(USE_CERT_BUFFERS_2048)
+    #define TEST_CERT_NAME_ALL_SUBJECT
+#endif
+
+/* Round trip the WOLFSSL_CERT_NAME_ALL subject RDNs: their ids sit outside the
+ * range certNameSubject[] covers, so each needs its own decode branch. */
+int test_wc_CertNameAllSubject(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_CERT_NAME_ALL_SUBJECT
+    RsaKey      key;
+    WC_RNG      rng;
+    byte*       der = NULL;
+    word32      idx = 0;
+    int         derSz = 0;
+    int         rngInit = 0;
+    int         keyInit = 0;
+    int         dCertInit = 0;
+    Cert        cert;
+    DecodedCert dCert;
+    const char* dnName      = "Jane Roe";
+    const char* givenName   = "Jane";
+    const char* initials    = "JR";
+    const char* dnQualifier = "dnq-1";
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&cert, 0, sizeof(cert));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) rngInit = 1;
+
+    ExpectNotNull(der = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+
+    ExpectIntEQ(wc_InitRsaKey_ex(&key, HEAP_HINT, testDevId), 0);
+    if (EXPECT_SUCCESS()) keyInit = 1;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(server_key_der_2048, &idx, &key,
+        sizeof_server_key_der_2048), 0);
+
+    ExpectIntEQ(wc_InitCert(&cert), 0);
+    if (EXPECT_SUCCESS()) {
+        cert.sigType = CTC_SHA256wRSA;
+        XSTRNCPY(cert.subject.country, "US", CTC_NAME_SIZE);
+        XSTRNCPY(cert.subject.org, "wolfSSL", CTC_NAME_SIZE);
+        XSTRNCPY(cert.subject.commonName, "certNameAll", CTC_NAME_SIZE);
+        XSTRNCPY(cert.subject.dnName, dnName, CTC_NAME_SIZE);
+        XSTRNCPY(cert.subject.givenName, givenName, CTC_NAME_SIZE);
+        XSTRNCPY(cert.subject.initials, initials, CTC_NAME_SIZE);
+        XSTRNCPY(cert.subject.dnQualifier, dnQualifier, CTC_NAME_SIZE);
+    }
+    ExpectIntGT(derSz = wc_MakeSelfCert(&cert, der, FOURK_BUF, &key, &rng), 0);
+
+    if (EXPECT_SUCCESS() && (der != NULL)) {
+        wc_InitDecodedCert(&dCert, der, (word32)derSz, HEAP_HINT);
+        dCertInit = 1;
+        ExpectIntEQ(wc_ParseCert(&dCert, CERT_TYPE, NO_VERIFY, NULL), 0);
+    }
+
+    if (EXPECT_SUCCESS() && dCertInit) {
+        ExpectNotNull(dCert.subjectN);
+        ExpectIntEQ(dCert.subjectNLen, (int)XSTRLEN(dnName));
+        if (dCert.subjectN != NULL)
+            ExpectIntEQ(XMEMCMP(dCert.subjectN, dnName, XSTRLEN(dnName)), 0);
+
+        ExpectNotNull(dCert.subjectGN);
+        ExpectIntEQ(dCert.subjectGNLen, (int)XSTRLEN(givenName));
+        if (dCert.subjectGN != NULL)
+            ExpectIntEQ(XMEMCMP(dCert.subjectGN, givenName,
+                XSTRLEN(givenName)), 0);
+
+        ExpectNotNull(dCert.subjectI);
+        ExpectIntEQ(dCert.subjectILen, (int)XSTRLEN(initials));
+        if (dCert.subjectI != NULL)
+            ExpectIntEQ(XMEMCMP(dCert.subjectI, initials, XSTRLEN(initials)),
+                0);
+
+        ExpectNotNull(dCert.subjectDNQ);
+        ExpectIntEQ(dCert.subjectDNQLen, (int)XSTRLEN(dnQualifier));
+        if (dCert.subjectDNQ != NULL)
+            ExpectIntEQ(XMEMCMP(dCert.subjectDNQ, dnQualifier,
+                XSTRLEN(dnQualifier)), 0);
+
+        ExpectNotNull(XSTRSTR(dCert.subject, WOLFSSL_NAME));
+        ExpectNotNull(XSTRSTR(dCert.subject, WOLFSSL_GIVEN_NAME));
+        ExpectNotNull(XSTRSTR(dCert.subject, WOLFSSL_INITIALS));
+        ExpectNotNull(XSTRSTR(dCert.subject, WOLFSSL_DNQUALIFIER));
+    }
+
+    if (dCertInit) wc_FreeDecodedCert(&dCert);
+    if (keyInit) wc_FreeRsaKey(&key);
+    if (rngInit) wc_FreeRng(&rng);
+    XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif /* TEST_CERT_NAME_ALL_SUBJECT */
+    return EXPECT_RESULT();
+}
+
 /*
  * MC/DC wave 2 - decision-targeted negative paths for PKCS#8 wrap/parse
  * and RSA key decode. Targets argument-check, short-buffer, and
