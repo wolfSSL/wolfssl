@@ -899,7 +899,9 @@ int test_TLSX_ALPN_GetSize_overflow(void)
                 WC_NO_ERR_TRACE(LENGTH_ERROR));
 
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
     return EXPECT_RESULT();
 #else
     return TEST_SKIPPED;
@@ -1742,7 +1744,9 @@ int test_TLSX_PopulateExtensions_bounds(void)
         ExpectNull(TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* The point-format decision's four leaf conditions are
      * "(!IsAtLeastTLSv1_3(ssl->version) || ssl->options.downgrade) &&
@@ -1765,7 +1769,9 @@ int test_TLSX_PopulateExtensions_bounds(void)
         ExpectNull(TLSX_Find(ssl->extensions, TLSX_EC_POINT_FORMATS));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* ctx-level Find == NULL (default, fresh ctx): operand 2 true -
      * independence for operand 2, paired against the vector above. */
@@ -1774,7 +1780,9 @@ int test_TLSX_PopulateExtensions_bounds(void)
     ExpectIntEQ(TLSX_PopulateExtensions(ssl, 0), 0);
     ExpectNotNull(TLSX_Find(ssl->extensions, TLSX_EC_POINT_FORMATS));
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif
 
     /* Operand 1 of "ssl->options.resuming && ssl->session->namedGroup != 0":
@@ -1792,7 +1800,9 @@ int test_TLSX_PopulateExtensions_bounds(void)
         ssl->options.resuming = 0;
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
 #ifdef HAVE_SESSION_TICKET
     /* Operand 1 of "ssl->options.resuming && ssl->session->ticketLen > 0":
@@ -1818,7 +1828,9 @@ int test_TLSX_PopulateExtensions_bounds(void)
         ssl->session->ticketLen = 0;
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif /* HAVE_SESSION_TICKET */
 
     /* Operand 1 of "client_psk_cb != NULL || client_psk_tls13_cb != NULL":
@@ -1835,7 +1847,9 @@ int test_TLSX_PopulateExtensions_bounds(void)
         ExpectIntEQ(TLSX_PopulateExtensions(ssl, 0), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* Both operands of "psk_keySz > MAX_PSK_KEY_LEN" and "not equal to USE_HW_PSK",
      * reached through the plain client_psk_cb path. */
@@ -1855,6 +1869,7 @@ int test_TLSX_PopulateExtensions_bounds(void)
                     WC_NO_ERR_TRACE(PSK_KEY_ERROR));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
 #endif
 
     mode = 1;
@@ -1867,6 +1882,7 @@ int test_TLSX_PopulateExtensions_bounds(void)
         ExpectIntEQ(TLSX_PopulateExtensions(ssl, 0), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
 
     mode = 2;
     ExpectNotNull(ssl = wolfSSL_new(ctx));
@@ -1878,8 +1894,10 @@ int test_TLSX_PopulateExtensions_bounds(void)
         ExpectIntEQ(TLSX_PopulateExtensions(ssl, 0), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
 
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
     return EXPECT_RESULT();
 #else
     return TEST_SKIPPED;
@@ -1922,6 +1940,7 @@ int test_TLSX_PopulateSupportedGroups_bounds(void)
     wolfSSL_free(ssl);
     ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* "2048/8 >= minDhKeySz && 2048/8 <= maxDhKeySz": both operands. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
@@ -1950,8 +1969,10 @@ int test_TLSX_PopulateSupportedGroups_bounds(void)
         ExpectIntEQ(TLSX_PopulateExtensions(ssl, 0), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
 
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
     return EXPECT_RESULT();
 #else
     return TEST_SKIPPED;
@@ -2033,7 +2054,9 @@ int test_TLSX_CSR_Parse_bounds(void)
         ssl->ctx->cm = origCM;
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* Client side, isRequest == false, TLS 1.3: the internal ticket-style
      * malloc for csr->responses[idx].buffer.
@@ -2089,7 +2112,9 @@ int test_TLSX_CSR_Parse_bounds(void)
         ssl->response_idx = 0;
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     return EXPECT_RESULT();
 #else
@@ -2542,7 +2567,9 @@ int test_TLSX_ext_msgtype_dispatch_bounds(void)
                     &offset), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* The "both false" baseline row for each of the three OR-shaped msgType
      * splits above (SupportedVersions/ClientCertificateType/
@@ -2582,7 +2609,9 @@ int test_TLSX_ext_msgtype_dispatch_bounds(void)
                     &offset), WC_NO_ERR_TRACE(SANITY_MSG_E));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
@@ -2602,7 +2631,9 @@ int test_TLSX_ext_msgtype_dispatch_bounds(void)
                     &offset), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
@@ -2622,7 +2653,9 @@ int test_TLSX_ext_msgtype_dispatch_bounds(void)
                     &offset), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     return EXPECT_RESULT();
 #else
@@ -2695,7 +2728,9 @@ int test_TLSX_SecureRenegotiation_Write_bounds(void)
         }
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     return EXPECT_RESULT();
 #else
