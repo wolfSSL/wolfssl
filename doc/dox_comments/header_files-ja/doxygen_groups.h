@@ -258,6 +258,7 @@
     \defgroup MD5 アルゴリズム - MD5
     \defgroup PKCS7 アルゴリズム - PKCS7
     \defgroup PKCS11 アルゴリズム - PKCS11
+    \defgroup PKCS12 アルゴリズム - PKCS12
     \defgroup Password アルゴリズム - パスワードベース
     \defgroup Poly1305 アルゴリズム - Poly1305
     \defgroup PUF アルゴリズム - PUF
