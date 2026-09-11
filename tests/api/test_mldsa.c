@@ -7737,36 +7737,36 @@ int test_mldsa_make_key_from_seed(void)
     ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
 #ifndef WOLFSSL_NO_ML_DSA_44
     ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_44), 0);
-    ExpectIntEQ(wc_MlDsaKey_MakeKeyFromSeed(key, seed_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakeKeyFromSeed(key, seed_44), SEED_OK);
     ExpectIntEQ(XMEMCMP(key->p, pk_44, sizeof(pk_44)), 0);
     ExpectIntEQ(XMEMCMP(key->k, sk_44, sizeof(sk_44)), 0);
 #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
     ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_44_DRAFT), 0);
-    ExpectIntEQ(wc_MlDsaKey_MakeKeyFromSeed(key, seed_44_draft), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakeKeyFromSeed(key, seed_44_draft), SEED_OK);
     ExpectIntEQ(XMEMCMP(key->p, pk_44_draft, sizeof(pk_44_draft)), 0);
     ExpectIntEQ(XMEMCMP(key->k, sk_44_draft, sizeof(sk_44_draft)), 0);
 #endif
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_65
     ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_65), 0);
-    ExpectIntEQ(wc_MlDsaKey_MakeKeyFromSeed(key, seed_65), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakeKeyFromSeed(key, seed_65), SEED_OK);
     ExpectIntEQ(XMEMCMP(key->p, pk_65, sizeof(pk_65)), 0);
     ExpectIntEQ(XMEMCMP(key->k, sk_65, sizeof(sk_65)), 0);
 #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
     ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_65_DRAFT), 0);
-    ExpectIntEQ(wc_MlDsaKey_MakeKeyFromSeed(key, seed_65_draft), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakeKeyFromSeed(key, seed_65_draft), SEED_OK);
     ExpectIntEQ(XMEMCMP(key->p, pk_65_draft, sizeof(pk_65_draft)), 0);
     ExpectIntEQ(XMEMCMP(key->k, sk_65_draft, sizeof(sk_65_draft)), 0);
 #endif
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_87
     ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_87), 0);
-    ExpectIntEQ(wc_MlDsaKey_MakeKeyFromSeed(key, seed_87), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakeKeyFromSeed(key, seed_87), SEED_OK);
     ExpectIntEQ(XMEMCMP(key->p, pk_87, sizeof(pk_87)), 0);
     ExpectIntEQ(XMEMCMP(key->k, sk_87, sizeof(sk_87)), 0);
 #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
     ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_87_DRAFT), 0);
-    ExpectIntEQ(wc_MlDsaKey_MakeKeyFromSeed(key, seed_87_draft), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakeKeyFromSeed(key, seed_87_draft), SEED_OK);
     ExpectIntEQ(XMEMCMP(key->p, pk_87_draft, sizeof(pk_87_draft)), 0);
     ExpectIntEQ(XMEMCMP(key->k, sk_87_draft, sizeof(sk_87_draft)), 0);
 #endif
@@ -12563,7 +12563,8 @@ int test_mldsa_sig_kats(void)
     ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, sk_44, (word32)sizeof(sk_44)),
         0);
     sigLen = PARAMS_ML_DSA_44_SIG_SIZE;
-    ExpectIntEQ(wc_MlDsaKey_SignWithSeed(key, sig, &sigLen, msg_44, (word32)sizeof(msg_44), rnd_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_SignWithSeed(key, sig, &sigLen, msg_44, (word32)sizeof(msg_44), rnd_44),
+        SEED_OK);
     ExpectIntEQ(sigLen, PARAMS_ML_DSA_44_SIG_SIZE);
     ExpectIntEQ(XMEMCMP(sig, sig_44, sizeof(sig_44)), 0);
 #endif
@@ -12572,7 +12573,8 @@ int test_mldsa_sig_kats(void)
     ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, sk_65, (word32)sizeof(sk_65)),
         0);
     sigLen = PARAMS_ML_DSA_65_SIG_SIZE;
-    ExpectIntEQ(wc_MlDsaKey_SignWithSeed(key, sig, &sigLen, msg_65, (word32)sizeof(msg_65), rnd_65), 0);
+    ExpectIntEQ(wc_MlDsaKey_SignWithSeed(key, sig, &sigLen, msg_65, (word32)sizeof(msg_65), rnd_65),
+        SEED_OK);
     ExpectIntEQ(sigLen, PARAMS_ML_DSA_65_SIG_SIZE);
     ExpectIntEQ(XMEMCMP(sig, sig_65, sizeof(sig_65)), 0);
 #endif
@@ -12581,7 +12583,8 @@ int test_mldsa_sig_kats(void)
     ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, sk_87, (word32)sizeof(sk_87)),
         0);
     sigLen = PARAMS_ML_DSA_87_SIG_SIZE;
-    ExpectIntEQ(wc_MlDsaKey_SignWithSeed(key, sig, &sigLen, msg_87, (word32)sizeof(msg_87), rnd_87), 0);
+    ExpectIntEQ(wc_MlDsaKey_SignWithSeed(key, sig, &sigLen, msg_87, (word32)sizeof(msg_87), rnd_87),
+        SEED_OK);
     ExpectIntEQ(sigLen, PARAMS_ML_DSA_87_SIG_SIZE);
     ExpectIntEQ(XMEMCMP(sig, sig_87, sizeof(sig_87)), 0);
 #endif
@@ -16758,7 +16761,8 @@ int test_mldsa_sign_ctx_kats(void)
     ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_44), 0);
     ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, sk_44, (word32)sizeof(sk_44)), 0);
     sigLen = MLDSA_MAX_SIG_SIZE;
-    ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(key, NULL, 0, sig, &sigLen, msg_44, (word32)sizeof(msg_44), rnd_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(key, NULL, 0, sig, &sigLen, msg_44, (word32)sizeof(msg_44), rnd_44),
+        SEED_OK);
     ExpectIntEQ(sigLen, (word32)sizeof(sig_44_ctx0));
     ExpectIntEQ(XMEMCMP(sig, sig_44_ctx0, sizeof(sig_44_ctx0)), 0);
     wc_MlDsaKey_Free(key);
@@ -16768,7 +16772,8 @@ int test_mldsa_sign_ctx_kats(void)
     ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_44), 0);
     ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, sk_44, (word32)sizeof(sk_44)), 0);
     sigLen = MLDSA_MAX_SIG_SIZE;
-    ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(key, ctx_44, (byte)sizeof(ctx_44), sig, &sigLen, msg_44, (word32)sizeof(msg_44), rnd_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(key, ctx_44, (byte)sizeof(ctx_44), sig, &sigLen, msg_44, (word32)sizeof(msg_44), rnd_44),
+        SEED_OK);
     ExpectIntEQ(sigLen, (word32)sizeof(sig_44_ctx33));
     ExpectIntEQ(XMEMCMP(sig, sig_44_ctx33, sizeof(sig_44_ctx33)), 0);
     wc_MlDsaKey_Free(key);
@@ -16780,7 +16785,8 @@ int test_mldsa_sign_ctx_kats(void)
     ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_65), 0);
     ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, sk_65, (word32)sizeof(sk_65)), 0);
     sigLen = MLDSA_MAX_SIG_SIZE;
-    ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(key, NULL, 0, sig, &sigLen, msg_65, (word32)sizeof(msg_65), rnd_65), 0);
+    ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(key, NULL, 0, sig, &sigLen, msg_65, (word32)sizeof(msg_65), rnd_65),
+        SEED_OK);
     ExpectIntEQ(sigLen, (word32)sizeof(sig_65_ctx0));
     ExpectIntEQ(XMEMCMP(sig, sig_65_ctx0, sizeof(sig_65_ctx0)), 0);
     wc_MlDsaKey_Free(key);
@@ -16790,7 +16796,8 @@ int test_mldsa_sign_ctx_kats(void)
     ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_65), 0);
     ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, sk_65, (word32)sizeof(sk_65)), 0);
     sigLen = MLDSA_MAX_SIG_SIZE;
-    ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(key, ctx_65, (byte)sizeof(ctx_65), sig, &sigLen, msg_65, (word32)sizeof(msg_65), rnd_65), 0);
+    ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(key, ctx_65, (byte)sizeof(ctx_65), sig, &sigLen, msg_65, (word32)sizeof(msg_65), rnd_65),
+        SEED_OK);
     ExpectIntEQ(sigLen, (word32)sizeof(sig_65_ctx33));
     ExpectIntEQ(XMEMCMP(sig, sig_65_ctx33, sizeof(sig_65_ctx33)), 0);
     wc_MlDsaKey_Free(key);
@@ -16802,7 +16809,8 @@ int test_mldsa_sign_ctx_kats(void)
     ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_87), 0);
     ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, sk_87, (word32)sizeof(sk_87)), 0);
     sigLen = MLDSA_MAX_SIG_SIZE;
-    ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(key, NULL, 0, sig, &sigLen, msg_87, (word32)sizeof(msg_87), rnd_87), 0);
+    ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(key, NULL, 0, sig, &sigLen, msg_87, (word32)sizeof(msg_87), rnd_87),
+        SEED_OK);
     ExpectIntEQ(sigLen, (word32)sizeof(sig_87_ctx0));
     ExpectIntEQ(XMEMCMP(sig, sig_87_ctx0, sizeof(sig_87_ctx0)), 0);
     wc_MlDsaKey_Free(key);
@@ -16812,7 +16820,8 @@ int test_mldsa_sign_ctx_kats(void)
     ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_87), 0);
     ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, sk_87, (word32)sizeof(sk_87)), 0);
     sigLen = MLDSA_MAX_SIG_SIZE;
-    ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(key, ctx_87, (byte)sizeof(ctx_87), sig, &sigLen, msg_87, (word32)sizeof(msg_87), rnd_87), 0);
+    ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(key, ctx_87, (byte)sizeof(ctx_87), sig, &sigLen, msg_87, (word32)sizeof(msg_87), rnd_87),
+        SEED_OK);
     ExpectIntEQ(sigLen, (word32)sizeof(sig_87_ctx33));
     ExpectIntEQ(XMEMCMP(sig, sig_87_ctx33, sizeof(sig_87_ctx33)), 0);
     wc_MlDsaKey_Free(key);
@@ -27440,7 +27449,8 @@ int test_mldsa_sign_mu_kats(void)
     ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_44), 0);
     ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, sk_44_mu, (word32)sizeof(sk_44_mu)), 0);
     sigLen = MLDSA_MAX_SIG_SIZE;
-    ExpectIntEQ(wc_MlDsaKey_SignMuWithSeed(key, sig, &sigLen, mu_44, (word32)sizeof(mu_44), zeroSeed), 0);
+    ExpectIntEQ(wc_MlDsaKey_SignMuWithSeed(key, sig, &sigLen, mu_44, (word32)sizeof(mu_44), zeroSeed),
+        SEED_OK);
     ExpectIntEQ(sigLen, (word32)sizeof(sig_44_mu));
     ExpectIntEQ(XMEMCMP(sig, sig_44_mu, sizeof(sig_44_mu)), 0);
     wc_MlDsaKey_Free(key);
@@ -27451,7 +27461,8 @@ int test_mldsa_sign_mu_kats(void)
     ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_65), 0);
     ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, sk_65_mu, (word32)sizeof(sk_65_mu)), 0);
     sigLen = MLDSA_MAX_SIG_SIZE;
-    ExpectIntEQ(wc_MlDsaKey_SignMuWithSeed(key, sig, &sigLen, mu_65, (word32)sizeof(mu_65), zeroSeed), 0);
+    ExpectIntEQ(wc_MlDsaKey_SignMuWithSeed(key, sig, &sigLen, mu_65, (word32)sizeof(mu_65), zeroSeed),
+        SEED_OK);
     ExpectIntEQ(sigLen, (word32)sizeof(sig_65_mu));
     ExpectIntEQ(XMEMCMP(sig, sig_65_mu, sizeof(sig_65_mu)), 0);
     wc_MlDsaKey_Free(key);
@@ -27462,7 +27473,8 @@ int test_mldsa_sign_mu_kats(void)
     ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_87), 0);
     ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, sk_87_mu, (word32)sizeof(sk_87_mu)), 0);
     sigLen = MLDSA_MAX_SIG_SIZE;
-    ExpectIntEQ(wc_MlDsaKey_SignMuWithSeed(key, sig, &sigLen, mu_87, (word32)sizeof(mu_87), zeroSeed), 0);
+    ExpectIntEQ(wc_MlDsaKey_SignMuWithSeed(key, sig, &sigLen, mu_87, (word32)sizeof(mu_87), zeroSeed),
+        SEED_OK);
     ExpectIntEQ(sigLen, (word32)sizeof(sig_87_mu));
     ExpectIntEQ(XMEMCMP(sig, sig_87_mu, sizeof(sig_87_mu)), 0);
     wc_MlDsaKey_Free(key);
