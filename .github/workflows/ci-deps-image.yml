@@ -9,7 +9,18 @@ name: CI deps image
 # .github/ci-deps/ - every package plus the dependencies not already on the
 # matching runner image, so it is tied to that runner rather than being a
 # portable, self-contained closure - published to
-# ghcr.io/<owner>/wolfssl-ci-debs:<tag>.
+# ghcr.io/<owner>/wolfssl-ci-debs:<tag>. A matrix entry with `image` is tied to
+# a container image instead, and is resolved inside it; check-ci-deps.py holds
+# container jobs to those tags.
+#
+# Each bundle also carries its own apt index (Packages), and the consumer
+# resolves against only that. Without it the consumer resolved against the apt
+# lists frozen into the runner image while this job resolved against the live
+# archive, so every version published in between - routine for anything in
+# -updates/-security - made the offline install ask for a .deb the bundle did
+# not have and sent the whole set back to the mirror. 25% of PR jobs took that
+# path, and in 16 of 20 sampled cases the mirror then supplied zero bytes: the
+# bundle had been complete all along, only the index disagreed.
 #
 # Why: the apt mirror times out often enough to break PR CI. Resolving the
 # closure ONCE here (on master, where a slow mirror only delays this job and
@@ -24,19 +35,19 @@ name: CI deps image
 
 on:
   schedule:
-    # Weekly (Saturday) - the static bundles (-minimal/-full/-embedded).
-    # Refreshes them so they track base-image security updates. A mid-week
-    # package-list change waits for Saturday (or run this manually via
-    # workflow_dispatch); until then the offline install (a single
-    # --no-download install of the whole set) fails if any requested package
-    # is missing from the bundle, and install-apt-deps falls back to apt.
-    - cron: '0 2 * * 6'
-    # Daily - the kernel-tracking -linuxkm bundle only. linux-headers-$(uname
-    # -r) pins to the runner's running kernel (changes ~monthly); the linuxkm
-    # job rebuilds when uname -r or its package list differs from the
-    # published bundle, a cheap no-op otherwise. A mismatch mid-rollout just
-    # falls back to apt.
+    # Daily. A rebuild is a few minutes, and weekly left a window in which a
+    # merged package-list change was not yet bundled - every job needing the
+    # new package fell back to apt until Saturday.
+    - cron: '0 2 * * *'
+    # The kernel-tracking -linuxkm bundle below only.
     - cron: '0 3 * * *'
+  # Bundle a merged package-list change straight away.
+  push:
+    branches: [ master ]
+    paths:
+      - '.github/ci-deps/**'
+      - '.github/scripts/download-deb-closure.sh'
+      - '.github/workflows/ci-deps-image.yml'
   workflow_dispatch:
 
 concurrency:
@@ -50,11 +61,10 @@ permissions:
 jobs:
   build:
     name: build ${{ matrix.tag }}
-    # Static bundles: weekly cron or manual dispatch. Skip the daily cron,
-    # which exists only to refresh the kernel-tracking -linuxkm bundle below.
+    # The 03:00 cron exists only for the -linuxkm bundle below.
     if: >-
       github.repository_owner == 'wolfssl' &&
-      (github.event_name != 'schedule' || github.event.schedule == '0 2 * * 6')
+      (github.event_name != 'schedule' || github.event.schedule == '0 2 * * *')
     strategy:
       fail-fast: false
       matrix:
@@ -71,6 +81,16 @@ jobs:
           # tag so it does not bloat the -full pull for the interop workflows.
           - runner: ubuntu-24.04
             tag: ubuntu-24.04-embedded
+          # pq-all's ARM cross-toolchains (~118 MB). Its own tag for the same
+          # reason: -minimal is pulled by 19 workflows that do not cross-compile.
+          - runner: ubuntu-24.04
+            tag: ubuntu-24.04-cross
+          # Resolved inside the image the sssd workflow runs in (`image`),
+          # rather than on the runner - see the download step below. A handful
+          # of .debs: everything else that job needs, that image already has.
+          - runner: ubuntu-24.04
+            tag: ubuntu-24.04-sssd
+            image: quay.io/sssd/ci-client-devel:ubuntu-latest
           - runner: ubuntu-22.04
             tag: ubuntu-22.04-minimal
           - runner: ubuntu-22.04
@@ -85,35 +105,40 @@ jobs:
 
       - name: Resolve and download the .deb closure
         shell: bash
+        env:
+          IMAGE: ${{ matrix.image }}
         run: |
           set -euo pipefail
           LIST=".github/ci-deps/packages-${{ matrix.tag }}.txt"
-          mapfile -t PKGS < <(grep -vE '^[[:space:]]*#|^[[:space:]]*$' "$LIST")
-          echo "Packages (${#PKGS[@]}): ${PKGS[*]}"
-          export DEBIAN_FRONTEND=noninteractive
-          rm -rf debs && mkdir -p debs
-          sudo apt-get clean
-          # A single stalled mirror connection once hung -full for ~20 min (it
-          # normally finishes in a few). retry() only re-runs on a non-zero exit,
-          # so a hang never tripped it. Defend in depth: apt drops a stalled
-          # connection after 30s and retries it (Acquire timeouts), `timeout`
-          # hard-kills a wedged apt-get, then retry() re-runs from scratch.
-          APT_OPTS=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
-          retry() { local i; for i in 1 2 3 4 5; do "$@" && return 0; sleep $((2**i)); done; "$@"; }
-          retry sudo timeout -k 10 120 apt-get "${APT_OPTS[@]}" update -q
-          # Download each package's closure independently (requested package +
-          # any dependency not already installed) without installing. Per
-          # package, not one resolve of the whole list, so one unbundleable
-          # package - e.g. a conflict in the big -full union - cannot abort the
-          # rest; install-apt-deps falls back to apt for anything missing.
-          skipped=0
-          for pkg in "${PKGS[@]}"; do
-            retry sudo timeout -k 10 300 apt-get "${APT_OPTS[@]}" install -y --download-only "$pkg" \
-              || { echo "::warning::could not download $pkg"; skipped=$((skipped+1)); }
-          done
-          sudo cp /var/cache/apt/archives/*.deb debs/ 2>/dev/null || true
-          echo "Bundled $(ls debs/*.deb 2>/dev/null | wc -l) .deb files ($(du -sh debs | cut -f1)); ${skipped} skipped"
-          test -n "$(ls debs/*.deb 2>/dev/null)"  # fail if nothing was bundled
+          mkdir -p debs
+          if [ -n "$IMAGE" ]; then
+            # Resolve inside the image that consumes this bundle, not on the
+            # runner: the closure is relative to what is already installed, so
+            # a runner-resolved one is unusable in a container. --entrypoint
+            # because these images boot an init by default.
+            docker run --rm --entrypoint bash -v "$PWD:/w" -w /w "$IMAGE" \
+              .github/scripts/download-deb-closure.sh "$LIST" debs
+          else
+            sudo bash .github/scripts/download-deb-closure.sh "$LIST" debs
+          fi
+
+      - name: Index the bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          # This index is what makes the consumer resolve against these exact
+          # versions instead of the runner image's frozen lists. Both forms:
+          # apt probes for Packages.gz first and warns when it is missing.
+          # dpkg-scanpackages is from dpkg-dev, preinstalled on the runners.
+          ( cd debs && dpkg-scanpackages --multiversion . /dev/null > Packages )
+          gzip -9kf debs/Packages
+          # Not read by anything - it makes a fallback diagnosable from the
+          # consumer's log without cross-referencing this workflow's runs.
+          printf 'tag=%s\nimage=%s %s\nbuilt=%s\ndebs=%s\n' \
+            "${{ matrix.tag }}" "${ImageOS:-?}" "${ImageVersion:-?}" \
+            "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(ls debs/*.deb | wc -l)" \
+            > debs/bundle-info
+          cat debs/bundle-info
 
       - name: Build bundle image
         shell: bash
@@ -221,6 +246,12 @@ jobs:
           sudo cp /var/cache/apt/archives/*.deb debs/ 2>/dev/null || true
           echo "Bundled $(ls debs/*.deb 2>/dev/null | wc -l) .deb files"
           test -n "$(ls debs/*.deb 2>/dev/null)"  # headers are never preinstalled
+          # See the static build above: the consumer resolves against this.
+          ( cd debs && dpkg-scanpackages --multiversion . /dev/null > Packages )
+          gzip -9kf debs/Packages
+          printf 'tag=%s\nimage=%s %s\nkernel=%s\nbuilt=%s\n' \
+            "ubuntu-24.04-linuxkm" "${ImageOS:-?}" "${ImageVersion:-?}" "$K" \
+            "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > debs/bundle-info
 
       - name: Build and push bundle (labelled with the kernel and package set)
         if: steps.check.outputs.rebuild == 'true'
