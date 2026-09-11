@@ -713,6 +713,7 @@ static int test_wc_AesCbcEncryptDecrypt_BadArgs(Aes* aes, byte* key,
     ExpectIntEQ(wc_AesCbcEncrypt(NULL, cipher, plain, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
+#ifdef HAVE_AES_DECRYPT
     ExpectIntEQ(wc_AesSetKey(aes, key, keyLen, iv, AES_DECRYPTION), 0);
     ExpectIntEQ(wc_AesCbcDecrypt(NULL, NULL, NULL, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -751,6 +752,7 @@ static int test_wc_AesCbcEncryptDecrypt_BadArgs(Aes* aes, byte* key,
     ExpectIntEQ(wc_AesCbcDecryptWithKey(NULL, cipher,
         WC_AES_BLOCK_SIZE * 2, key, keyLen, iv),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif /* HAVE_AES_DECRYPT */
 
     return EXPECT_RESULT();
 }
