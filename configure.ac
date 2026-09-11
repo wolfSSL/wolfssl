@@ -13191,7 +13191,7 @@ then
 fi
 
 
-if test "$ENABLED_ARC4" == "yes"
+if test "$ENABLED_ARC4" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALLOW_RC4"
 fi

@@ -37,12 +37,8 @@
      * "fips_enabled" is only available in CONFIG_CRYPTO_FIPS kernels (otherwise
      * it's a macro hardcoding it to literal 0).
      */
-    #if defined(CONFIG_CRYPTO_FIPS) != defined(HAVE_FIPS)
-        #ifdef HAVE_FIPS
-            #error CONFIG_CRYPTO_MANAGER requires that CONFIG_CRYPTO_FIPS match HAVE_FIPS (CONFIG_CRYPTO_FIPS unset).
-        #else
-            #error CONFIG_CRYPTO_MANAGER requires that CONFIG_CRYPTO_FIPS match HAVE_FIPS (HAVE_FIPS unset).
-        #endif
+    #if defined(HAVE_FIPS) && !defined(CONFIG_CRYPTO_FIPS)
+        #error wolfCrypt HAVE_FIPS with kernel CONFIG_CRYPTO_MANAGER requires kernel CONFIG_CRYPTO_FIPS.
     #endif
 #endif
 
@@ -325,6 +321,13 @@ static int linuxkm_lkcapi_register(void)
     int ret = -1;
     int seen_err = 0;
     int current_linuxkm_lkcapi_registering_now = 0;
+
+#if defined(CONFIG_CRYPTO_FIPS) && !defined(HAVE_FIPS)
+    if (fips_enabled) {
+        pr_err("ERROR: can't load non-FIPS wolfCrypt module into fips_enabled kernel.\n");
+        return -ECANCELED;
+    }
+#endif
 
     if (! wolfSSL_Atomic_Int_CompareExchange(
             &linuxkm_lkcapi_registering_now,

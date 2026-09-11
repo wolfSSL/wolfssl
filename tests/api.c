@@ -11887,12 +11887,14 @@ static int test_wolfSSL_EVP_PKEY_ED25519_openssl(void)
         0x44, 0x49, 0xc5, 0x69, 0x7b, 0x32, 0x69, 0x19,
         0x70, 0x3b, 0xac, 0x03, 0x1c, 0xae, 0x7f, 0x60
     };
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
     static const unsigned char ed25519SeedPub[ED25519_PUB_KEY_SIZE] = {
         0xd7, 0x5a, 0x98, 0x01, 0x82, 0xb1, 0x0a, 0xb7,
         0xd5, 0x4b, 0xfe, 0xd3, 0xc9, 0x64, 0x07, 0x3a,
         0x0e, 0xe1, 0x72, 0xf3, 0xda, 0xa6, 0x23, 0x25,
         0xaf, 0x02, 0x1a, 0x68, 0xf7, 0x07, 0x51, 0x1a
     };
+#endif
     WOLFSSL_EVP_PKEY_CTX* ctx = NULL;
     WOLFSSL_EVP_PKEY* pkey = NULL;
     WOLFSSL_EVP_PKEY* certPub = NULL;
@@ -11954,7 +11956,9 @@ static int test_wolfSSL_EVP_PKEY_ED25519_openssl(void)
         unsigned char* rawSpki = NULL;
         unsigned char* privSpki = NULL;
         int rawSpkiSz = 0;
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
         int privSpkiSz = 0;
+#endif
         const int ed25519SpkiHdrSz = (int)sizeof(ed25519SpkiHdr);
 
         /* An Ed25519 SPKI is a fixed-size header followed by the raw public
@@ -11979,6 +11983,7 @@ static int test_wolfSSL_EVP_PKEY_ED25519_openssl(void)
         ExpectNotNull(rawPriv = wolfSSL_EVP_PKEY_new_raw_private_key(
             EVP_PKEY_ED25519, NULL, ed25519Seed, ED25519_KEY_SIZE));
 
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
         /* The raw input is only the seed, so the key must derive its public
          * half on import -- otherwise a key built this way is unusable with
          * i2d_PUBKEY / EVP_PKEY_cmp / signing, unlike the same key decoded
@@ -12004,6 +12009,7 @@ static int test_wolfSSL_EVP_PKEY_ED25519_openssl(void)
         ExpectIntEQ(wolfSSL_EVP_PKEY_cmp(rawPriv, seedPub), 0);
         ExpectIntEQ(wolfSSL_EVP_PKEY_cmp(rawPriv, rawPub), -1);
 #endif
+#endif /* !HAVE_FIPS || FIPS_VERSION3_GE(7,0,0) */
 
         /* A raw private key caches the bare 32-byte seed, not PKCS#8, so
          * pkcs8_encode() must build the PKCS#8 wrapper from the key object
@@ -12037,7 +12043,8 @@ static int test_wolfSSL_EVP_PKEY_ED25519_openssl(void)
     /* (3) Encode the private key as PKCS#8 PrivateKeyInfo and (7) decode it
      * back.  These compat helpers (EVP_PKEY2PKCS8, i2d_PKCS8_PKEY,
      * d2i_AutoPrivateKey) are only built with OPENSSL_ALL. */
-#if defined(OPENSSL_ALL) && !defined(NO_AES)
+#if defined(OPENSSL_ALL) && !defined(NO_AES) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     {
         WOLFSSL_PKCS8_PRIV_KEY_INFO* p8 = NULL;
         WOLFSSL_EVP_PKEY* decPriv = NULL;
@@ -12142,7 +12149,8 @@ static int test_wolfSSL_EVP_PKEY_ED25519_openssl(void)
         wolfSSL_EVP_PKEY_free(v2Priv);
         wc_ed25519_free(&v2Key);
     }
-#endif
+
+#endif /* OPENSSL_ALL && !NO_AES && (!HAVE_FIPS || FIPS_VERSION3_GE(7,0,0)) */
 
     /* (4)(5) Build an in-memory self-signed cert; Ed25519 signs with a NULL
      * digest (it carries its own hash). */
@@ -12288,7 +12296,7 @@ static int test_wolfSSL_EVP_PKEY_ED25519_openssl(void)
      * public-only key has no private half and must fail rather than emit its
      * raw public bytes wrapped as a bogus PKCS#8 private key. */
 #if defined(OPENSSL_ALL) && !defined(NO_BIO) && !defined(NO_PWDBASED) && \
-    defined(HAVE_PKCS8)
+    defined(HAVE_PKCS8) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     {
         WOLFSSL_BIO* pkcs8Bio = NULL;
 
@@ -32066,7 +32074,7 @@ static int test_wolfSSL_certs_clear(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) && \
-    !defined(NO_WOLFSSL_SERVER)
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
 #ifdef KEEP_OUR_CERT
