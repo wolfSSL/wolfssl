@@ -655,7 +655,7 @@ Keys that live in the ELS key store are referenced rather than exported.
 `wc_ElsPkc_CmacUseSlot()` attach a slot reference to a key, so the private
 key never leaves the hardware. They are the documented entry point:
 `wc_ElsPkc_MakeKeyRef()` is the lower-level primitive they build on, and for
-ECC the helper additionally pins the curve, which the offload requires.
+ECC the helper additionally pins the curve to P-256.
 
 ### Hardware behaviour worth knowing
 
@@ -696,9 +696,11 @@ finished before the last `wolfCrypt_Cleanup()`: with the device gone, wolfCrypt
 carries on in software from the engine's state, and a hash returns a wrong
 digest.
 
-ELS declines an ECDSA digest that is not a full 32 bytes - reachable, since
-`wc_ecc_sign_hash()` takes a digest of any length and a SHA-1 hash under
-P-256 is 20 bytes - but the PKC then serves it, so it stays in hardware.
+ELS takes a 32-byte ECDSA digest, so a longer one is truncated and a shorter
+one zero-extended, as FIPS 186-4 6.4 does for a 256-bit order. A SHA-1 or
+SHA-384 signature with a slot key therefore stays on ELS. ELS draws its own
+nonce, so an RFC 6979 or set-k signature with a slot key fails with
+`BAD_STATE_E`.
 
 **What the hardware declines**, so it runs in software instead: AES-192 (no
 ELS key size), any trailing partial block, and an AES-GCM IV other than 12
