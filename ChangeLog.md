@@ -2,6 +2,29 @@
 
 ## Behavioral Changes
 
+* **Behavioral change (`--disable-tlsv12` compiles TLS 1.2 out)**: the option
+  set the summary line and a few derived settings, but never defined
+  `WOLFSSL_NO_TLS12`, so the whole TLS 1.2 implementation was still built and a
+  peer could still negotiate it.  The only place the define was added is a FIPS
+  bundle, whose condition skips it when the user asked for the option, so no
+  autotools configuration reached it; the CMake `WOLFSSL_TLSV12=no` path was
+  unaffected.  The option now defines it, which is what the bundles that turn
+  the version off, `--enable-tinytls13` among them, have been documented as
+  doing.  A build that passes `--disable-tlsv12` and still expects to negotiate
+  TLS 1.2 has to stop passing it.  Because the pre-TLS-1.3 handshake is now
+  compiled out, configure rejects the combinations that depend on it:
+  `--enable-oldtls`, which builds on the TLS 1.2 handshake; TLS 1.3 off, which
+  would leave no version to negotiate; and DTLS without DTLS 1.3, for the same
+  reason on the datagram side; and multicast, which rides on DTLS 1.2 and its
+  NULL cipher suite.  CMake rejects the same four for `-DWOLFSSL_TLSV12=no`;
+  it used to accept `-DWOLFSSL_OLD_TLS=yes` beside it and define `NO_OLD_TLS`
+  anyway, so the reported option and the build disagreed.  The sniffer, the
+  examples and the test suite pick their code paths by version where they used
+  to assume TLS 1.2 was present, so `--disable-tlsv12`, that with
+  `--enable-ocspstapling --enable-opensslextra`, `--enable-sniffer
+  --disable-tlsv12` and `--enable-dtls --enable-dtls13 --enable-dtlscid
+  --enable-session-ticket --disable-tlsv12` now build and test cleanly.
+
 * **Behavioral change (`wc_PufReadSram` health tests the raw SRAM readout)**:
   the raw readout is now health tested before the context accepts it, and a
   readout that cannot be SRAM power-on noise is rejected with `PUF_READ_E`

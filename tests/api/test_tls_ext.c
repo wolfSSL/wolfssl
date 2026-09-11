@@ -929,8 +929,9 @@ int test_certificate_authorities_certificate_request(void) {
 #ifdef WOLFSSL_DTLS13
         {wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method, 1},
 #endif
-#if defined(WOLFSSL_DTLS) && (defined(OPENSSL_ALL) || \
-            defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY))
+#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) && \
+            (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
+             defined(HAVE_LIGHTY))
         {wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method, 1},
 #endif
     };
@@ -1074,7 +1075,8 @@ static int certificate_authorities_server_cb(WOLFSSL *ssl, void *_arg) {
 
 #if defined(HAVE_TRUSTED_CA) && !defined(NO_SHA) && \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
-    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT)
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(WOLFSSL_NO_TLS12)
 /* Walk the TLSX list to find an extension by type. Avoids calling the
  * WOLFSSL_LOCAL TLSX_Find which is not available in shared library builds. */
 static TLSX* test_TLSX_find_ext(TLSX* list, TLSX_Type type)
@@ -1093,7 +1095,8 @@ int test_TLSX_TCA_Find(void)
     EXPECT_DECLS;
 #if defined(HAVE_TRUSTED_CA) && !defined(NO_SHA) && \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
-    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT)
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(WOLFSSL_NO_TLS12)
     /* Two different 20-byte SHA1 ids */
     byte id_A[WC_SHA_DIGEST_SIZE];
     byte id_B[WC_SHA_DIGEST_SIZE];
