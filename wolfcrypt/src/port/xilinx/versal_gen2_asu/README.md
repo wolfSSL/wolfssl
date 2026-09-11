@@ -205,18 +205,18 @@ they use two different device ids:
 | Stage | Uses | On the ASU? |
 | --- | --- | --- |
 | ECDH shared secret | the key's devId | yes, via `asu_ecdh.c` |
-| HKDF-SHA256 KDF | none, always software | no |
+| HKDF-SHA256 KDF | the context devId | yes, via `asu_hmac.c` |
 | AES-GCM / AES-CBC DEM | the context devId | yes, via `asu_cipher.c` |
 | MAC HMAC | the context devId | yes, via `asu_hmac.c` |
 
-The ECDH, cipher and MAC need their device id set to reach the ASU, and the
-ECDH uses a different id from the other two. So a context with no device id
-does not mean "no hardware": the ECDH still lands on the ASU whenever the key
-carries the device id, while the cipher and MAC fall back to software.
+All four need their device id set to reach the ASU, and the first one uses a
+different id from the other three. So a context with no device id does not
+mean "no hardware": the ECDH still lands on the ASU whenever the key carries
+the device id, while the KDF, cipher and MAC fall back to software.
 
-The KDF step always runs in software whatever is set. It hands ECIES
-temporaries to the callback and ECIES cannot wait for a pending result, so it
-is never offloaded on this path.
+The X9.63 and plain-hash KDFs are the exception -- `wc_X963_KDF()` takes no
+device id, so `ecKDF_X963_*` and `ecKDF_*` stay in software whatever is set.
+The ASU path uses HKDF-SHA256, so this does not affect it.
 
 **The private key passed to encrypt is not used.** `wc_ecc_encrypt` takes a
 private key, and software derives the shared secret from it and puts its public

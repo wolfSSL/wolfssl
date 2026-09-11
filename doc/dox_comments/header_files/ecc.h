@@ -1900,8 +1900,7 @@ int wc_ecc_ctx_set_algo(ecEncCtx* ctx, byte encAlgo, byte kdfAlgo,
     starts at INVALID_DEVID, meaning software: ECIES does not copy the
     device from the private key, so this must be called for a crypto
     callback to be reached. The value is used both for the whole-operation
-    ECIES callback and for the AES/HMAC steps of the software path. The KDF
-    step always runs in software.
+    ECIES callback and for the KDF, AES and HMAC steps of the software path.
     Passing a NULL context to wc_ecc_encrypt() or wc_ecc_decrypt() always
     means software. When WOLF_CRYPTO_CB_FIND is defined, an unset device id
     still goes through the registered finder, as it does for every other

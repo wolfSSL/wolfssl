@@ -2474,6 +2474,7 @@ typedef struct EciesStepCount {
     int kdf;
     int cipher;
     int hmac;
+    int kdfPendOnce; /* answer the next KDF call with WC_PENDING_E */
 } EciesStepCount;
 
 static int myEciesStepCountCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
@@ -2483,8 +2484,13 @@ static int myEciesStepCountCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     (void)devIdArg;
 
     if (cnt != NULL) {
-        if (info->algo_type == WC_ALGO_TYPE_KDF)
+        if (info->algo_type == WC_ALGO_TYPE_KDF) {
             cnt->kdf++;
+            if (cnt->kdfPendOnce) {
+                cnt->kdfPendOnce = 0;
+                return WC_NO_ERR_TRACE(WC_PENDING_E);
+            }
+        }
         else if (info->algo_type == WC_ALGO_TYPE_CIPHER)
             cnt->cipher++;
         else if (info->algo_type == WC_ALGO_TYPE_HMAC)
@@ -2495,12 +2501,12 @@ static int myEciesStepCountCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 #endif
 
 /*
- * The software ECIES path hands the context devId to its cipher and MAC
- * steps, never to its KDF.  The other ECIES tests never see this: their
- * callbacks take the whole job and clear the devId.  Here the callback turns
- * down the whole job but counts the KDF, cipher and HMAC steps.  With a device
- * on the context the cipher and HMAC counts must go up and the KDF count must
- * stay at zero; without one they must all stay at zero.  Both HKDF hashes run.
+ * The software ECIES path hands the context devId to its KDF, cipher and MAC
+ * steps.  The other ECIES tests never see this: their callbacks take the whole
+ * job and clear the devId.  Here the callback turns down the whole job but
+ * counts the KDF, cipher and HMAC steps, and answers the first KDF call with
+ * WC_PENDING_E so the retry is covered too.  With a device on the context the
+ * counts must go up; without one they must stay at zero.  Both HKDF hashes run.
  */
 int test_wc_ecc_ecies_ctx_devid_steps(void)
 {
@@ -2602,13 +2608,16 @@ int test_wc_ecc_ecies_ctx_devid_steps(void)
 
             /* Count each direction on its own so neither can hide the other. */
             XMEMSET(&cnt, 0, sizeof(cnt));
+            cnt.kdfPendOnce = useDev;
             ExpectIntEQ(wc_ecc_encrypt(&cliKey, &srvKey, msg, sizeof(msg),
                 out, &outSz, cliCtx), 0);
-            ExpectIntEQ(cnt.kdf, 0);
             if (useDev) {
+                /* one pending answer, then the real one */
+                ExpectIntGT(cnt.kdf, 1);
                 ExpectIntGT(cnt.cipher, 0);
             }
             else {
+                ExpectIntEQ(cnt.kdf, 0);
                 ExpectIntEQ(cnt.cipher, 0);
             }
             if (useDev && !isGcm) {
@@ -2619,6 +2628,7 @@ int test_wc_ecc_ecies_ctx_devid_steps(void)
             }
 
             XMEMSET(&cnt, 0, sizeof(cnt));
+            cnt.kdfPendOnce = useDev;
         #ifdef WOLFSSL_ECIES_OLD
             ExpectIntEQ(wc_ecc_decrypt(&srvKey, &cliKey, out, outSz, plain,
                 &plainSz, srvCtx), 0);
@@ -2628,11 +2638,12 @@ int test_wc_ecc_ecies_ctx_devid_steps(void)
         #endif
             ExpectIntEQ(plainSz, sizeof(msg));
             ExpectIntEQ(XMEMCMP(plain, msg, sizeof(msg)), 0);
-            ExpectIntEQ(cnt.kdf, 0);
             if (useDev) {
+                ExpectIntGT(cnt.kdf, 1);
                 ExpectIntGT(cnt.cipher, 0);
             }
             else {
+                ExpectIntEQ(cnt.kdf, 0);
                 ExpectIntEQ(cnt.cipher, 0);
             }
             if (useDev && !isGcm) {

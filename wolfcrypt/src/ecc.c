@@ -15724,8 +15724,8 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     byte*        encKey = NULL;
     byte*        encIv = NULL;
     byte*        macKey = NULL;
-    /* Device for the ECIES callback and the AES/HMAC steps. It comes only
-     * from the context; unset means software, or the finder with CB_FIND. */
+    /* Device for the ECIES callback and the KDF/AES/HMAC steps. It comes
+     * only from the context; unset means software, or the CB_FIND finder. */
     int          eciesDevId = INVALID_DEVID;
 
     if (privKey == NULL || pubKey == NULL || msg == NULL || out == NULL ||
@@ -15873,18 +15873,23 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
         sharedSz += pubKeySz;
     #endif
         switch (ctx->kdfAlgo) {
-            /* The KDF hands ECIES temporaries to a callback and cannot wait
-             * for a pending result, so it always runs in software. */
+            /* A device may answer pending. Call again until it is done so
+             * the buffers it was given stay live for the whole operation. */
             case ecHKDF_SHA256 :
-                ret = wc_HKDF_ex(WC_SHA256, sharedSecret, sharedSz,
-                           ctx->kdfSalt, ctx->kdfSaltSz, ctx->kdfInfo,
-                           ctx->kdfInfoSz, keys, (word32)keysLen,
-                           privKey->heap, INVALID_DEVID);
+                do {
+                    ret = wc_HKDF_ex(WC_SHA256, sharedSecret, sharedSz,
+                               ctx->kdfSalt, ctx->kdfSaltSz, ctx->kdfInfo,
+                               ctx->kdfInfoSz, keys, (word32)keysLen,
+                               privKey->heap, eciesDevId);
+                } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
                 break;
             case ecHKDF_SHA1 :
-                ret = wc_HKDF_ex(WC_SHA, sharedSecret, sharedSz, ctx->kdfSalt,
-                           ctx->kdfSaltSz, ctx->kdfInfo, ctx->kdfInfoSz,
-                           keys, (word32)keysLen, privKey->heap, INVALID_DEVID);
+                do {
+                    ret = wc_HKDF_ex(WC_SHA, sharedSecret, sharedSz,
+                               ctx->kdfSalt, ctx->kdfSaltSz, ctx->kdfInfo,
+                               ctx->kdfInfoSz, keys, (word32)keysLen,
+                               privKey->heap, eciesDevId);
+                } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
                 break;
 #if defined(HAVE_X963_KDF) && !defined(NO_HASH_WRAPPER)
             case ecKDF_X963_SHA1 :
@@ -16181,8 +16186,8 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     byte*        encKey = NULL;
     const byte*  encIv = NULL;
     byte*        macKey = NULL;
-    /* Device for the ECIES callback and the AES/HMAC steps. It comes only
-     * from the context; unset means software, or the finder with CB_FIND. */
+    /* Device for the ECIES callback and the KDF/AES/HMAC steps. It comes
+     * only from the context; unset means software, or the CB_FIND finder. */
     int          eciesDevId = INVALID_DEVID;
 
 
@@ -16390,18 +16395,23 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
         sharedSz += pubKeySz;
     #endif
         switch (ctx->kdfAlgo) {
-            /* The KDF hands ECIES temporaries to a callback and cannot wait
-             * for a pending result, so it always runs in software. */
+            /* A device may answer pending. Call again until it is done so
+             * the buffers it was given stay live for the whole operation. */
             case ecHKDF_SHA256 :
-                ret = wc_HKDF_ex(WC_SHA256, sharedSecret, sharedSz,
-                           ctx->kdfSalt, ctx->kdfSaltSz, ctx->kdfInfo,
-                           ctx->kdfInfoSz, keys, (word32)keysLen,
-                           privKey->heap, INVALID_DEVID);
+                do {
+                    ret = wc_HKDF_ex(WC_SHA256, sharedSecret, sharedSz,
+                               ctx->kdfSalt, ctx->kdfSaltSz, ctx->kdfInfo,
+                               ctx->kdfInfoSz, keys, (word32)keysLen,
+                               privKey->heap, eciesDevId);
+                } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
                 break;
             case ecHKDF_SHA1 :
-                ret = wc_HKDF_ex(WC_SHA, sharedSecret, sharedSz, ctx->kdfSalt,
-                           ctx->kdfSaltSz, ctx->kdfInfo, ctx->kdfInfoSz,
-                           keys, (word32)keysLen, privKey->heap, INVALID_DEVID);
+                do {
+                    ret = wc_HKDF_ex(WC_SHA, sharedSecret, sharedSz,
+                               ctx->kdfSalt, ctx->kdfSaltSz, ctx->kdfInfo,
+                               ctx->kdfInfoSz, keys, (word32)keysLen,
+                               privKey->heap, eciesDevId);
+                } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
                 break;
 #if defined(HAVE_X963_KDF) && !defined(NO_HASH_WRAPPER)
             case ecKDF_X963_SHA1 :
