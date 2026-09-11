@@ -14334,48 +14334,65 @@ int GetHashId(const byte* id, int length, byte* hash, int hashAlg)
 /* Id for jurisdiction state. */
 #define ASN_JURIS_ST  0x202
 
+/* certNameSubject[] below is indexed by row, not by name component id: the
+ * ids it covers fall into two runs (2.5.4.3 - 2.5.4.18 and 2.5.4.41 -
+ * 2.5.4.46) with a gap between them. Callers map an id to a row with
+ * CertNameSubjectIdx() and pass the row index to the macros here. */
+
+/* Number of rows covering the first run of ids (2.5.4.3 - 2.5.4.18). */
+#define CERT_NAME_SUBJ_LOW_CNT  (ASN_USER_ID - ASN_COMMON_NAME + 1)
+/* Row index meaning "this id has no row in the table". */
+#define CERT_NAME_SUBJ_NO_IDX   (-1)
+
 /* Set the string for a name component into the subject name. */
-#define SetCertNameSubject(cert, id, val) \
-    *((const char**)(((byte *)(cert)) + certNameSubject[(id) - 3].data)) = \
+#define SetCertNameSubject(cert, idx, val) \
+    *((const char**)(((byte *)(cert)) + certNameSubject[idx].data)) = \
         (val)
 /* Set the string length for a name component into the subject name. */
-#define SetCertNameSubjectLen(cert, id, val) \
-    *((int*)(((byte *)(cert)) + certNameSubject[(id) - 3].len)) = (int)(val)
+#define SetCertNameSubjectLen(cert, idx, val) \
+    *((int*)(((byte *)(cert)) + certNameSubject[idx].len)) = (int)(val)
 /* Set the encoding for a name component into the subject name. */
-#define SetCertNameSubjectEnc(cert, id, val) \
-    *((byte*)(((byte *)(cert)) + certNameSubject[(id) - 3].enc)) = (val)
+#define SetCertNameSubjectEnc(cert, idx, val) \
+    *((byte*)(((byte *)(cert)) + certNameSubject[idx].enc)) = (val)
 
 /* Get the string of a name component from the subject name. */
 #ifdef WOLFSSL_NAMES_STATIC
-    #define GetCertNameSubjectStr(id) \
-        ((certNameSubject[(id) - 3].strLen) ? \
-         (certNameSubject[(id) - 3].str) : \
+    #define GetCertNameSubjectStr(idx) \
+        ((certNameSubject[idx].strLen) ? \
+         (certNameSubject[idx].str) : \
          NULL)
 #else
-    #define GetCertNameSubjectStr(id) \
-        (certNameSubject[(id) - 3].str)
+    #define GetCertNameSubjectStr(idx) \
+        (certNameSubject[idx].str)
 #endif
 /* Get the string length of a name component from the subject name. */
-#define GetCertNameSubjectStrLen(id) \
-    (certNameSubject[(id) - 3].strLen)
+#define GetCertNameSubjectStrLen(idx) \
+    (certNameSubject[idx].strLen)
 /* Get the NID of a name component from the subject name. */
-#define GetCertNameSubjectNID(id) \
-    (certNameSubject[(id) - 3].nid)
+#define GetCertNameSubjectNID(idx) \
+    (certNameSubject[idx].nid)
 
-#define ValidCertNameSubject(id) \
-    (((id) - 3) >= 0 && ((id) - 3) < certNameSubjectSz && \
-            (certNameSubject[(id) - 3].strLen > 0))
+/* Whether the row is one this build recognizes. Rows that only exist to keep
+ * the id runs contiguous have no type string. */
+#define ValidCertNameSubject(idx) \
+    (((idx) != CERT_NAME_SUBJ_NO_IDX) && (certNameSubject[idx].strLen > 0))
+
+/* Whether the row has somewhere in DecodedCert to put the subject/issuer
+ * component. A zero offset means there is no such field - offset 0 is
+ * DecodedCert's publicKey, never a name component. */
+#define StoreCertNameSubject(idx)  (certNameSubject[idx].data != 0)
+#define StoreCertNameIssuer(idx)   (certNameSubject[idx].dataI != 0)
 
 /* Set the string for a name component into the issuer name. */
-#define SetCertNameIssuer(cert, id, val) \
-    *((const char**)(((byte *)(cert)) + certNameSubject[(id) - 3].dataI)) = \
+#define SetCertNameIssuer(cert, idx, val) \
+    *((const char**)(((byte *)(cert)) + certNameSubject[idx].dataI)) = \
         (val)
 /* Set the string length for a name component into the issuer name. */
-#define SetCertNameIssuerLen(cert, id, val) \
-    *((int*)(((byte *)(cert)) + certNameSubject[(id) - 3].lenI)) = (int)(val)
+#define SetCertNameIssuerLen(cert, idx, val) \
+    *((int*)(((byte *)(cert)) + certNameSubject[idx].lenI)) = (int)(val)
 /* Set the encoding for a name component into the issuer name. */
-#define SetCertNameIssuerEnc(cert, id, val) \
-    *((byte*)(((byte *)(cert)) + certNameSubject[(id) - 3].encI)) = (val)
+#define SetCertNameIssuerEnc(cert, idx, val) \
+    *((byte*)(((byte *)(cert)) + certNameSubject[idx].encI)) = (val)
 
 
 /* Mapping of certificate name component to useful information. */
@@ -14740,6 +14757,41 @@ static const CertNameData certNameSubject[] = {
         WC_NID_initials
     #endif
     },
+    /* Generation Qualifier, id 44 - not stored, keeps ids contiguous */
+    {
+        EMPTY_STR, 0,
+    #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
+        0,
+        0,
+        0,
+#ifdef WOLFSSL_HAVE_ISSUER_NAMES
+        0,
+        0,
+        0,
+#endif
+    #endif
+    #ifdef WOLFSSL_X509_NAME_AVAILABLE
+        0,
+    #endif
+    },
+    /* X500 Unique Identifier, id 45 - handled by GetRDN() as its value is a
+     * BIT STRING rather than a DirectoryString. Row keeps ids contiguous. */
+    {
+        EMPTY_STR, 0,
+    #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
+        0,
+        0,
+        0,
+#ifdef WOLFSSL_HAVE_ISSUER_NAMES
+        0,
+        0,
+        0,
+#endif
+    #endif
+    #ifdef WOLFSSL_X509_NAME_AVAILABLE
+        0,
+    #endif
+    },
     /* DN Qualifier Name, id 46 */
     {
         "/dnQualifier=", 13,
@@ -14762,6 +14814,36 @@ static const CertNameData certNameSubject[] = {
 
 static const int certNameSubjectSz =
         (int) (sizeof(certNameSubject) / sizeof(CertNameData));
+
+/* Map a name component id (the last arc of an OID under 2.5.4) to a row of
+ * certNameSubject[].
+ *
+ * The table holds two runs of ids: 2.5.4.3 - 2.5.4.18 in the first rows and,
+ * when WOLFSSL_CERT_NAME_ALL is defined, 2.5.4.41 - 2.5.4.46 in the rows
+ * after them. Ids between and beyond the runs have no row.
+ *
+ * @param [in] id  Id of name component.
+ * @return  Index into certNameSubject[] for the id.
+ * @return  CERT_NAME_SUBJ_NO_IDX when the id is not in the table.
+ */
+static int CertNameSubjectIdx(int id)
+{
+    int idx = CERT_NAME_SUBJ_NO_IDX;
+
+    if ((id >= ASN_COMMON_NAME) && (id <= ASN_USER_ID)) {
+        idx = id - ASN_COMMON_NAME;
+    }
+    else if ((id >= ASN_NAME) && (id <= ASN_DNQUALIFIER)) {
+        idx = (id - ASN_NAME) + CERT_NAME_SUBJ_LOW_CNT;
+    }
+
+    /* Second run of rows is only compiled in with WOLFSSL_CERT_NAME_ALL. */
+    if (idx >= certNameSubjectSz) {
+        idx = CERT_NAME_SUBJ_NO_IDX;
+    }
+
+    return idx;
+}
 
 
 /* ASN.1 template for an RDN.
@@ -15170,6 +15252,9 @@ static int SetSubject(DecodedCert* cert, int id, const byte* str, int strLen,
                       byte tag)
 {
     int ret = 0;
+#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
+    int idx = CertNameSubjectIdx(id);
+#endif
 
     /* Put string and encoding into certificate. */
     if (id == ASN_COMMON_NAME) {
@@ -15178,11 +15263,13 @@ static int SetSubject(DecodedCert* cert, int id, const byte* str, int strLen,
         cert->subjectCNEnc = (char)tag;
     }
 #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
-    else if (id > ASN_COMMON_NAME && id <= ASN_USER_ID) {
-        /* Use table and offsets to put data into appropriate fields. */
-        SetCertNameSubject(cert, id, (const char*)str);
-        SetCertNameSubjectLen(cert, id, strLen);
-        SetCertNameSubjectEnc(cert, id, tag);
+    /* Use table and offsets to put data into appropriate fields. Rows for
+     * components this build has nowhere to store are skipped - writing
+     * through their zero offset would land on DecodedCert's first member. */
+    else if ((idx != CERT_NAME_SUBJ_NO_IDX) && StoreCertNameSubject(idx)) {
+        SetCertNameSubject(cert, idx, (const char*)str);
+        SetCertNameSubjectLen(cert, idx, strLen);
+        SetCertNameSubjectEnc(cert, idx, tag);
     }
 #endif
 #if !defined(IGNORE_NAME_CONSTRAINTS) || \
@@ -15224,6 +15311,7 @@ static int SetIssuer(DecodedCert* cert, int id, const byte* str, int strLen,
                       byte tag)
 {
     int ret = 0;
+    int idx = CertNameSubjectIdx(id);
 
     /* Put string and encoding into certificate. */
     if (id == ASN_COMMON_NAME) {
@@ -15231,11 +15319,13 @@ static int SetIssuer(DecodedCert* cert, int id, const byte* str, int strLen,
         cert->issuerCNLen = (int)strLen;
         cert->issuerCNEnc = (char)tag;
     }
-    else if (id > ASN_COMMON_NAME && id <= ASN_USER_ID) {
-        /* Use table and offsets to put data into appropriate fields. */
-        SetCertNameIssuer(cert, id, (const char*)str);
-        SetCertNameIssuerLen(cert, id, strLen);
-        SetCertNameIssuerEnc(cert, id, tag);
+    /* Use table and offsets to put data into appropriate fields. Many rows
+     * have no issuer fields in DecodedCert; writing through their zero offset
+     * would land on DecodedCert's first member. */
+    else if ((idx != CERT_NAME_SUBJ_NO_IDX) && StoreCertNameIssuer(idx)) {
+        SetCertNameIssuer(cert, idx, (const char*)str);
+        SetCertNameIssuerLen(cert, idx, strLen);
+        SetCertNameIssuerEnc(cert, idx, tag);
     }
     else if (id == ASN_EMAIL) {
         cert->issuerEmail = (const char*)str;
@@ -15275,18 +15365,22 @@ static int GetRDN(DecodedCert* cert, char* full, word32* idx, int* nid,
 
     /* v1 name types */
     if ((oidSz == 3) && (oid[0] == 0x55) && (oid[1] == 0x04)) {
+        int nameIdx;
+
         id = oid[2];
-        /* Check range of supported ids in table. */
-        if (ValidCertNameSubject(id)) {
+        /* Map id to a row of the table - unsupported ids have no row. */
+        nameIdx = CertNameSubjectIdx(id);
+        if (ValidCertNameSubject(nameIdx)) {
             /* Get the type string, length and NID from table. */
-            typeStr = GetCertNameSubjectStr(id);
-            typeStrLen = GetCertNameSubjectStrLen(id);
+            typeStr = GetCertNameSubjectStr(nameIdx);
+            typeStrLen = GetCertNameSubjectStrLen(nameIdx);
         #ifdef WOLFSSL_X509_NAME_AVAILABLE
-            *nid = GetCertNameSubjectNID(id);
+            *nid = GetCertNameSubjectNID(nameIdx);
         #endif
         }
         else if (id == ASN_X500_UNIQUE_ID) {
-            /* Not in the table as its id is outside the contiguous range. */
+            /* Its row is empty as the value is a BIT STRING rather than a
+             * DirectoryString, so it is handled here instead. */
             typeStr = WOLFSSL_X500_UNIQUE_ID;
             typeStrLen = sizeof(WOLFSSL_X500_UNIQUE_ID) - 1;
         #ifdef WOLFSSL_X509_NAME_AVAILABLE
