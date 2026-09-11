@@ -17514,15 +17514,22 @@ static wc_test_ret_t aes_xts_large_test_common(XtsAes *aes,
             /* a whole number of blocks, so the post-finalize guard is clear */
             stream.bytes_crypted_with_this_tweak = 0xFFFFFFF0U;
             before = stream.bytes_crypted_with_this_tweak;
-            XMEMSET(buf, 0, WC_AES_BLOCK_SIZE * 2);
+            XMEMSET(buf, 0x5A, WC_AES_BLOCK_SIZE * 2);
             ret = wc_AesXtsEncryptUpdate(aes, buf, plain,
                 WC_AES_BLOCK_SIZE * 2, &stream);
             /* The count can no longer advance, so the call must be refused
              * rather than run unaccounted. */
             if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
                 ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-            if (stream.bytes_crypted_with_this_tweak < before)
+            if (stream.bytes_crypted_with_this_tweak != before)
                 ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+            {
+                word32 b;
+                for (b = 0; b < (word32)WC_AES_BLOCK_SIZE * 2; b++) {
+                    if (buf[b] != 0x5A)
+                        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+                }
+            }
 
             /* Decrypt is held to the same rule: refuse rather than run
              * unaccounted once the count can no longer advance. */
@@ -17534,13 +17541,20 @@ static wc_test_ret_t aes_xts_large_test_common(XtsAes *aes,
                 ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
             stream.bytes_crypted_with_this_tweak = 0xFFFFFFF0U;
             before = stream.bytes_crypted_with_this_tweak;
-            XMEMSET(buf, 0, WC_AES_BLOCK_SIZE * 2);
+            XMEMSET(buf, 0x5A, WC_AES_BLOCK_SIZE * 2);
             ret = wc_AesXtsDecryptUpdate(aes, buf, ref,
                 WC_AES_BLOCK_SIZE * 2, &stream);
             if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
                 ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-            if (stream.bytes_crypted_with_this_tweak < before)
+            if (stream.bytes_crypted_with_this_tweak != before)
                 ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+            {
+                word32 b;
+                for (b = 0; b < (word32)WC_AES_BLOCK_SIZE * 2; b++) {
+                    if (buf[b] != 0x5A)
+                        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+                }
+            }
 
 #if FIPS_VERSION3_GE(6,0,0)
             /* SP800-38E caps a data unit at 2^20 blocks.  Decrypt is held to
