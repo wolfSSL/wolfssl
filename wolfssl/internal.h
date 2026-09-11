@@ -5513,6 +5513,9 @@ struct Options {
 #endif
     word16            partialWrite:1;     /* only one msg per write call */
     word16            quietShutdown:1;    /* don't send close notify */
+    word16            quietShutdownRestore:1; /* wolfSSL_SendUserCanceled()
+                                           * turned quietShutdown off until
+                                           * its close_notify is flushed */
     word16            certOnly:1;         /* stop once we get cert */
     word16            groupMessages:1;    /* group handshake messages */
     word16            saveArrays:1;       /* save array Memory for user get keys
