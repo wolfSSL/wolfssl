@@ -12,6 +12,9 @@
 # So the coupling is checked here instead:
 #   * every install-apt-deps call names a bundle tag
 #   * the tag exists and matches the runner's Ubuntu release
+#   * a job in a container names the bundle built inside that same image, and
+#     no other job names it: the closure a bundle holds is relative to what is
+#     already installed where it was resolved
 #   * every requested package is in that tag's list
 #   * the lists stay sorted and unique, and match ci-deps-image.yml's matrix
 #
@@ -65,6 +68,27 @@ def load_lists() -> dict:
     return lists
 
 
+def bundle_images() -> dict:
+    """tag -> the container image its closure is resolved inside, if any."""
+    try:
+        doc = yaml.safe_load(IMAGE_WORKFLOW.read_text())
+        include = doc["jobs"]["build"]["strategy"]["matrix"]["include"]
+    except (yaml.YAMLError, KeyError, TypeError):
+        return {}
+    return {e["tag"]: e["image"] for e in include
+            if isinstance(e, dict) and e.get("image")}
+
+
+def job_container(job: dict) -> str:
+    """The image a job runs in, '' for one running on the runner itself."""
+    container = job.get("container")
+    if isinstance(container, str):
+        return container
+    if isinstance(container, dict):
+        return str(container.get("image") or "")
+    return ""
+
+
 def matrix_values(job: dict, name: str) -> list:
     """Every literal value matrix.<name> can take in this job."""
     strategy = job.get("strategy")
@@ -105,6 +129,10 @@ def resolve(value: object, job: dict) -> list:
     return matrix_values(job, ref.group(1))
 
 
+def _where(image: str) -> str:
+    return f"in the container {image}" if image else "on the runner"
+
+
 def series(text: str) -> str:
     """The ubuntu-XX.YY prefix of a runner label or a bundle tag, or ''."""
     m = re.match(r"(ubuntu-\d+\.\d+)", text or "")
@@ -117,6 +145,7 @@ class Checker:
         # go to stderr there instead of corrupting it.
         self.stream = stream
         self.lists = lists
+        self.images = bundle_images()
         self.errors = 0
         self.warnings = 0
         self.checked = 0
@@ -138,10 +167,12 @@ class Checker:
         self.warnings += 1
 
     def check_call(self, where: str, tag: str, packages: str,
-                   runner: str) -> None:
+                   runner: str, container: str = "") -> None:
         """One (tag, packages) pair, both already resolved to literals."""
         self.checked += 1
+        image = self.images.get(tag, "")
         self.calls.append({"tag": tag, "runner": runner or series(tag),
+                           "image": image,
                            "packages": " ".join(PKG_TOKEN.findall(packages))})
         known = self.lists.get(tag)
         if known is None:
@@ -149,7 +180,21 @@ class Checker:
                               f"add .github/ci-deps/packages-{tag}.txt and a "
                               f"matching matrix entry in {IMAGE_WORKFLOW}")
             return
-        if runner and series(runner) and series(tag) \
+        if container or image:
+            # apt downloads only what is not already installed, so a bundle
+            # carries what was missing WHERE IT WAS RESOLVED and nowhere else.
+            # A container job installing a runner-resolved bundle gets an
+            # incomplete set and falls back - what sent sssd.yml to the mirror
+            # on every run - and the runs-on check below cannot see it, since
+            # the release that matters is the image's.
+            if container != image:
+                self.error(where,
+                           f"'{tag}' is resolved {_where(image)}, but this job "
+                           f"runs {_where(container)}: a bundle only holds "
+                           f"what is missing where it was resolved. Give the "
+                           f"tag an `image:` matrix entry in {IMAGE_WORKFLOW}, "
+                           f"or point this call at a bundle built for it.")
+        elif runner and series(runner) and series(tag) \
                 and series(runner) != series(tag):
             self.error(where, f"runs-on '{runner}' does not match "
                               f"ghcr-debs-tag '{tag}': the bundle holds .debs "
@@ -217,7 +262,8 @@ class Checker:
         # cross product is the conservative reading and costs nothing here.
         for tag in tags:
             for pkgs in packages:
-                self.check_call(f"{label}", tag, pkgs, runners[0])
+                self.check_call(f"{label}", tag, pkgs, runners[0],
+                                job_container(job))
         return tags
 
     def check_file(self, path: pathlib.Path) -> None:
@@ -320,6 +366,7 @@ def distinct_sets(checker: "Checker") -> dict:
     for call in checker.calls:
         entry = out.setdefault(call["tag"], {"tag": call["tag"],
                                              "runner": call["runner"],
+                                             "image": call["image"],
                                              "sets": []})
         if call["packages"] not in entry["sets"]:
             entry["sets"].append(call["packages"])
@@ -330,10 +377,15 @@ def distinct_sets(checker: "Checker") -> dict:
     return out
 
 
-def emit_matrix(checker: "Checker") -> None:
-    """The ci-deps-canary matrix: one entry per bundle tag."""
-    entries = [distinct_sets(checker)[t]
-               for t in sorted(distinct_sets(checker))]
+def emit_matrix(checker: "Checker", in_image: bool) -> None:
+    """The ci-deps-canary matrix: one entry per bundle tag.
+
+    Split in two, because a bundle resolved inside a container image has to be
+    proved inside that same image, which is a differently shaped canary job.
+    """
+    sets = distinct_sets(checker)
+    entries = [sets[t] for t in sorted(sets)
+               if bool(sets[t]["image"]) == in_image]
     for entry in entries:
         entry.pop("sets", None)
     print(json.dumps(entries))
@@ -352,7 +404,7 @@ def emit_sets(checker: "Checker", tag: str) -> int:
 
 def main() -> int:
     args = sys.argv[1:]
-    matrix = "--matrix" in args
+    matrix = "--matrix" in args or "--matrix-images" in args
     sets_for = args[args.index("--sets") + 1] if "--sets" in args else None
     if not CI_DEPS.is_dir():
         print(f"{CI_DEPS} not found - run from the repository root",
@@ -369,7 +421,7 @@ def main() -> int:
     checker.check_membrowse()
     if data_mode:
         if matrix:
-            emit_matrix(checker)
+            emit_matrix(checker, "--matrix-images" in args)
             rc = 0
         else:
             rc = emit_sets(checker, sets_for)

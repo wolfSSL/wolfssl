@@ -9,7 +9,9 @@ name: CI deps image
 # .github/ci-deps/ - every package plus the dependencies not already on the
 # matching runner image, so it is tied to that runner rather than being a
 # portable, self-contained closure - published to
-# ghcr.io/<owner>/wolfssl-ci-debs:<tag>.
+# ghcr.io/<owner>/wolfssl-ci-debs:<tag>. A matrix entry with `image` is tied to
+# a container image instead, and is resolved inside it; check-ci-deps.py holds
+# container jobs to those tags.
 #
 # Each bundle also carries its own apt index (Packages), and the consumer
 # resolves against only that. Without it the consumer resolved against the apt
@@ -44,6 +46,7 @@ on:
     branches: [ master ]
     paths:
       - '.github/ci-deps/**'
+      - '.github/scripts/download-deb-closure.sh'
       - '.github/workflows/ci-deps-image.yml'
   workflow_dispatch:
 
@@ -82,6 +85,12 @@ jobs:
           # reason: -minimal is pulled by 19 workflows that do not cross-compile.
           - runner: ubuntu-24.04
             tag: ubuntu-24.04-cross
+          # Resolved inside the image the sssd workflow runs in (`image`),
+          # rather than on the runner - see the download step below. A handful
+          # of .debs: everything else that job needs, that image already has.
+          - runner: ubuntu-24.04
+            tag: ubuntu-24.04-sssd
+            image: quay.io/sssd/ci-client-devel:ubuntu-latest
           - runner: ubuntu-22.04
             tag: ubuntu-22.04-minimal
           - runner: ubuntu-22.04
@@ -96,35 +105,22 @@ jobs:
 
       - name: Resolve and download the .deb closure
         shell: bash
+        env:
+          IMAGE: ${{ matrix.image }}
         run: |
           set -euo pipefail
           LIST=".github/ci-deps/packages-${{ matrix.tag }}.txt"
-          mapfile -t PKGS < <(grep -vE '^[[:space:]]*#|^[[:space:]]*$' "$LIST")
-          echo "Packages (${#PKGS[@]}): ${PKGS[*]}"
-          export DEBIAN_FRONTEND=noninteractive
-          rm -rf debs && mkdir -p debs
-          sudo apt-get clean
-          # A single stalled mirror connection once hung -full for ~20 min (it
-          # normally finishes in a few). retry() only re-runs on a non-zero exit,
-          # so a hang never tripped it. Defend in depth: apt drops a stalled
-          # connection after 30s and retries it (Acquire timeouts), `timeout`
-          # hard-kills a wedged apt-get, then retry() re-runs from scratch.
-          APT_OPTS=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
-          retry() { local i; for i in 1 2 3 4 5; do "$@" && return 0; sleep $((2**i)); done; "$@"; }
-          retry sudo timeout -k 10 120 apt-get "${APT_OPTS[@]}" update -q
-          # Download each package's closure independently (requested package +
-          # any dependency not already installed) without installing. Per
-          # package, not one resolve of the whole list, so one unbundleable
-          # package - e.g. a conflict in the big -full union - cannot abort the
-          # rest; install-apt-deps falls back to apt for anything missing.
-          skipped=0
-          for pkg in "${PKGS[@]}"; do
-            retry sudo timeout -k 10 300 apt-get "${APT_OPTS[@]}" install -y --download-only "$pkg" \
-              || { echo "::warning::could not download $pkg"; skipped=$((skipped+1)); }
-          done
-          sudo cp /var/cache/apt/archives/*.deb debs/ 2>/dev/null || true
-          echo "Bundled $(ls debs/*.deb 2>/dev/null | wc -l) .deb files ($(du -sh debs | cut -f1)); ${skipped} skipped"
-          test -n "$(ls debs/*.deb 2>/dev/null)"  # fail if nothing was bundled
+          mkdir -p debs
+          if [ -n "$IMAGE" ]; then
+            # Resolve inside the image that consumes this bundle, not on the
+            # runner: the closure is relative to what is already installed, so
+            # a runner-resolved one is unusable in a container. --entrypoint
+            # because these images boot an init by default.
+            docker run --rm --entrypoint bash -v "$PWD:/w" -w /w "$IMAGE" \
+              .github/scripts/download-deb-closure.sh "$LIST" debs
+          else
+            sudo bash .github/scripts/download-deb-closure.sh "$LIST" debs
+          fi
 
       - name: Index the bundle
         shell: bash

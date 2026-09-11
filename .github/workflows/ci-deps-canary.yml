@@ -14,6 +14,10 @@ name: CI deps canary
 # check-ci-deps.py enforces the same contract statically on every PR; this
 # workflow catches what static checking cannot - a dependency that is missing
 # from the bundle rather than a package name that is missing from the list.
+#
+# That distinction is the whole reason sssd.yml sat on the mirror: its packages
+# were all in the -full list, but the .debs behind two of them were not in the
+# bundle, because the runner it was resolved on already had them installed.
 
 on:
   # Right after ci-deps-image publishes, whatever triggered it.
@@ -40,6 +44,7 @@ jobs:
     timeout-minutes: 10
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
+      images: ${{ steps.matrix.outputs.images }}
     steps:
       - uses: actions/checkout@v5
 
@@ -53,13 +58,18 @@ jobs:
 
       # One entry per bundle tag, each carrying the widest set requested
       # against it. The per-tag job re-derives the rest of its sets itself.
+      # Bundles resolved inside a container image come out separately: they
+      # have to be proved inside that image, so they get their own job below.
       - name: Derive the bundle matrix from the workflows
         id: matrix
         run: |
           set -euo pipefail
           M=$(./.github/scripts/check-ci-deps.py --matrix)
+          I=$(./.github/scripts/check-ci-deps.py --matrix-images)
           echo "$M" | python3 -m json.tool
+          echo "$I" | python3 -m json.tool
           echo "matrix=$M" >> "$GITHUB_OUTPUT"
+          echo "images=$I" >> "$GITHUB_OUTPUT"
 
   contract:
     needs: load
@@ -129,3 +139,30 @@ jobs:
             fi
           done < sets.txt
           exit "$fail"
+
+  # Same contract, for the bundles resolved inside a container image: the
+  # proof has to run in that image, because that is what the closure is
+  # relative to. No simulation step - an image-tied bundle serves the one job
+  # that named it, and an arbitrary image has no python3-yaml to re-derive the
+  # sets with.
+  contract-in-image:
+    needs: load
+    if: needs.load.outputs.images != '[]'
+    name: ${{ matrix.tag }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.load.outputs.images) }}
+    runs-on: ${{ matrix.runner }}
+    container:
+      image: ${{ matrix.image }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Offline install of the widest set
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: ${{ matrix.probe }}
+          ghcr-debs-tag: ${{ matrix.tag }}
+          require-bundle: 'true'

@@ -14,7 +14,7 @@ inputs:
       as per-command deadlines, so a wedged mirror is reported by this action
       instead of the job being cancelled around it. The loop overshoots it by
       retry-delay plus 10s of SIGKILL grace, and the per-command floors make
-      values below retries*60 inert. This, plus pull-timeout, plus any
+      values below retries*80 inert. This, plus pull-timeout, plus any
       ccache-setup in the same job, has to fit the caller's timeout-minutes -
       the defaults need ~16 minutes.
     required: false
@@ -98,7 +98,19 @@ runs:
           exit 0
         }
 
-        command -v docker >/dev/null 2>&1 || fallback "docker unavailable"
+        # A bundle holds .debs for one Ubuntu release. check-ci-deps.py
+        # compares the tag against runs-on, but a container job installs into
+        # whatever the image is, which that check cannot see.
+        WANT=$(printf '%s' "${{ inputs.ghcr-debs-tag }}" \
+               | sed -n 's/^\(ubuntu-[0-9]*\.[0-9]*\).*/\1/p')
+        HAVE=""
+        if [ -r /etc/os-release ]; then
+          HAVE=$( . /etc/os-release
+                  printf '%s-%s' "${ID:-?}" "${VERSION_ID:-?}" )
+        fi
+        if [ -n "$WANT" ] && [ -n "$HAVE" ] && [ "$WANT" != "$HAVE" ]; then
+          fallback "holds .debs for $WANT, but this job runs on $HAVE"
+        fi
 
         BUNDLE="$RUNNER_TEMP/ghcr-debs"
         APTD="$RUNNER_TEMP/ghcr-apt"
@@ -108,13 +120,24 @@ runs:
         # The owner is hardcoded: ci-deps-image only ever publishes under
         # ghcr.io/wolfssl (it is gated to that org), so fork PRs read the same
         # public image rather than a nonexistent ghcr.io/<fork>/... one.
-        timeout -k 10 ${{ inputs.pull-timeout }} docker pull -q "$IMG" \
-          >/dev/null 2>&1 || fallback "pull failed or timed out"
-        cid=$(docker create "$IMG" 2>/dev/null) || fallback "cannot open the image"
-        # Not silenced: a half-copied bundle would look like one that is merely
-        # missing a package, and we would blame the wrong thing.
-        docker cp "$cid:/debs/." "$BUNDLE/" >/dev/null || fallback "unpacking failed"
-        docker rm "$cid" >/dev/null 2>&1 || true
+        if command -v docker >/dev/null 2>&1; then
+          timeout -k 10 ${{ inputs.pull-timeout }} docker pull -q "$IMG" \
+            >/dev/null 2>&1 || fallback "pull failed or timed out"
+          cid=$(docker create "$IMG" 2>/dev/null) || fallback "cannot open the image"
+          # Not silenced: a half-copied bundle would look like one that is
+          # merely missing a package, and we would blame the wrong thing.
+          docker cp "$cid:/debs/." "$BUNDLE/" >/dev/null \
+            || fallback "unpacking failed"
+          docker rm "$cid" >/dev/null 2>&1 || true
+        else
+          # A job running in a container (sssd.yml) has no docker CLI inside
+          # that container, so it used to skip the bundle and spend the job on
+          # the apt mirror - which is what failed it. Pulling the image from
+          # the registry needs only curl and tar.
+          timeout -k 10 ${{ inputs.pull-timeout }} \
+            "$GITHUB_ACTION_PATH/ghcr-pull.sh" "$IMG" debs "$BUNDLE" \
+            || fallback "registry pull failed or timed out"
+        fi
         ls "$BUNDLE"/*.deb >/dev/null 2>&1 || fallback "no .debs inside"
 
         # Makes a fallback diagnosable from this log alone.
@@ -197,21 +220,28 @@ runs:
         APT_OPTS=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30
                   -o Acquire::https::Timeout=30)
 
-        # Spend budget-seconds over the attempts rather than a fixed
-        # per-attempt deadline: a caller with a short timeout-minutes would
-        # otherwise be cancelled mid-attempt, before the loop could report
-        # the failure. update gets a sixth of an attempt, install the rest,
-        # with floors so a small budget still leaves apt time to work.
-        PER=$((BUDGET / RETRIES))
-        UPD=$((PER / 6))
-        [ "$UPD" -ge 20 ] || UPD=20
-        INS=$((PER - UPD))
-        [ "$INS" -ge 40 ] || INS=40
         DEADLINE=$(($(date +%s) + BUDGET))
 
         # sudo resets the environment, so DEBIAN_FRONTEND has to ride along
         # on each privileged command rather than being exported once.
         for i in $(seq 1 $RETRIES); do
+          # Split what is LEFT over the attempts still to come, rather than
+          # slicing the budget up front: an attempt that ends early hands its
+          # remainder to the next one instead of dropping it.
+          #
+          # update gets half of an attempt, capped at 90s because that is what
+          # apt's own Acquire ladder (3 retries x a 30s timeout) needs to work
+          # through a stalled mirror and move on; install gets the rest. A
+          # sixth of an attempt used to be 50s of the sssd job's 600s budget,
+          # so update was killed mid-transfer twice and the job failed with
+          # 80% of its budget unspent. The floors keep a small budget usable;
+          # they are what makes it overshoot.
+          PER=$(( (DEADLINE - $(date +%s)) / (RETRIES - i + 1) ))
+          UPD=$((PER / 2))
+          [ "$UPD" -le 90 ] || UPD=90
+          [ "$UPD" -ge 20 ] || UPD=20
+          INS=$((PER - UPD))
+          [ "$INS" -ge 40 ] || INS=40
           # A previous attempt killed mid-unpack leaves dpkg needing this.
           sudo dpkg --configure -a >/dev/null 2>&1 || true
           if sudo DEBIAN_FRONTEND=noninteractive timeout -k 10 $UPD \
