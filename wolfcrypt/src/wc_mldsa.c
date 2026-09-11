@@ -6352,8 +6352,7 @@ static sword32 mldsa_mont_red(sword64 a)
     (!defined(WOLFSSL_MLDSA_NO_SIGN) || \
      (defined(WOLFSSL_MLDSA_SMALL) && \
       (!defined(WOLFSSL_MLDSA_NO_MAKE_KEY) || \
-       (!defined(WOLFSSL_MLDSA_NO_VERIFY) && \
-        !defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM)) || \
+       !defined(WOLFSSL_MLDSA_NO_VERIFY) || \
        defined(WOLFSSL_MLDSA_CHECK_KEY))))
 /* Reduce 32-bit a modulo q. r = a mod q.
  *
@@ -8358,8 +8357,7 @@ static void mldsa_vec_mul(sword32* r, sword32* a, sword32* b, byte l)
 #if !defined(WOLFSSL_MLDSA_NO_SIGN) || \
     (defined(WOLFSSL_MLDSA_SMALL) && \
      (!defined(WOLFSSL_MLDSA_NO_MAKE_KEY) || \
-      (!defined(WOLFSSL_MLDSA_NO_VERIFY) && \
-       !defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM)) || \
+      !defined(WOLFSSL_MLDSA_NO_VERIFY) || \
       defined(WOLFSSL_MLDSA_CHECK_KEY)))
 /* Modulo reduce values in polynomial. Range (-2^31)..(2^31-1).
  *
@@ -8922,10 +8920,11 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
 
     /* Allocate memory for large intermediates. */
     if (ret == 0) {
-        /* s1-l, s2-k, t-k, a-1 */
+        /* s1-l, s2-k, t-k, a-1, h */
+        /* Note: t has same size as s2 */
         allocSz  = (unsigned int)params->s1Sz + params->s2Sz + params->s2Sz +
-                   (unsigned int)MLDSA_REJ_NTT_POLY_H_SIZE +
-                   (unsigned int)MLDSA_POLY_SIZE;
+                   (unsigned int)MLDSA_POLY_SIZE +
+                   (unsigned int)MLDSA_REJ_NTT_POLY_H_SIZE;
     #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
         /* t64 */
         allocSz += (unsigned int)MLDSA_POLY_SIZE * 2U;
@@ -8937,10 +8936,12 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
         else {
             s2 = s1 + params->s1Sz / sizeof(*s1);
             t  = s2 + params->s2Sz / sizeof(*s2);
-            h  = (byte*)(t  + params->s2Sz / sizeof(*t));
-            a  = (sword32*)(h + MLDSA_REJ_NTT_POLY_H_SIZE);
+            a  = t  + params->s2Sz / sizeof(*t);
         #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
             t64 = (sword64*)(a + MLDSA_N);
+            h  = (byte*)(t64 + MLDSA_N);
+        #else
+            h  = (byte*)(a + MLDSA_N);
         #endif
         }
     }
@@ -9698,12 +9699,12 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
 
     /* Allocate memory for large intermediates. */
     if (ret == 0) {
-        /* y-l, w0-k, w1-k, blocks, c-1, z-1, A-1 */
+        /* y-l, w0-k, w1-k, c-1, z-1, A-1, blocks */
         allocSz  = (unsigned int)params->s1Sz + params->s2Sz + params->s2Sz +
-                   (unsigned int)MLDSA_REJ_NTT_POLY_H_SIZE +
                    (unsigned int)MLDSA_POLY_SIZE +
                    (unsigned int)MLDSA_POLY_SIZE +
-                   (unsigned int)MLDSA_POLY_SIZE;
+                   (unsigned int)MLDSA_POLY_SIZE +
+                   (unsigned int)MLDSA_REJ_NTT_POLY_H_SIZE;
     #ifdef WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC
         allocSz += (unsigned int)params->s1Sz + params->s2Sz + params->s2Sz;
     #elif defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC_A)
@@ -9723,8 +9724,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
         #endif
             w0     = y  + params->s1Sz / sizeof(*y_ntt);
             w1     = w0 + params->s2Sz / sizeof(*w0);
-            blocks = (byte*)(w1 + params->s2Sz / sizeof(*w1));
-            c      = (sword32*)(blocks + MLDSA_REJ_NTT_POLY_H_SIZE);
+            c      = w1 + params->s2Sz / sizeof(*w1);
             z      = c  + MLDSA_N;
             a      = z  + MLDSA_N;
             ct0    = z;
@@ -9735,6 +9735,9 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
             t0     = z;
         #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
             t64    = (sword64*)(a + (1 + maxK * params->l) * MLDSA_N);
+            blocks = (byte*)(t64 + MLDSA_N);
+        #else
+            blocks = (byte*)(a + (1 + maxK * params->l) * MLDSA_N);
         #endif
     #elif defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC)
             y_ntt  = z;
@@ -9743,6 +9746,9 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
             t0     = s2 + params->s2Sz / sizeof(*s2);
         #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
             t64    = (sword64*)(t0 + params->s2Sz / sizeof(*t0));
+            blocks = (byte*)(t64 + MLDSA_N);
+        #else
+            blocks = (byte*)(t0 + params->s2Sz / sizeof(*t0));
         #endif
     #else
             y_ntt  = z;
@@ -9751,6 +9757,9 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
             t0     = z;
         #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
             t64    = (sword64*)(a + MLDSA_N);
+            blocks = (byte*)(t64 + MLDSA_N);
+        #else
+            blocks = (byte*)(a + MLDSA_N);
         #endif
     #endif
         }
@@ -9974,6 +9983,11 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                 for (e = 0; e < MLDSA_N; e++) {
                     wt[e] = mldsa_mont_red(t64[e]);
                 }
+            #endif
+            #ifdef WOLFSSL_MLDSA_SMALL
+                /* Reduce before invntt to avoid sword32 overflow, as
+                 * mldsa_make_key_from_seed() does with mldsa_vec_red(). */
+                mldsa_poly_red(wt);
             #endif
                 mldsa_invntt_full(wt);
                 /* Step 14, Step 22: Make values positive and decompose. */
@@ -10940,9 +10954,10 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
         /* z, c, w, t1, w1e. */
         unsigned int allocSz;
 
-        allocSz  = (unsigned int)params->s1Sz + params->w1EncSz +
+        allocSz  = (unsigned int)params->s1Sz +
                    3U * (unsigned int)MLDSA_POLY_SIZE +
-                   (unsigned int)MLDSA_REJ_NTT_POLY_H_SIZE;
+                   (unsigned int)MLDSA_REJ_NTT_POLY_H_SIZE +
+                   params->w1EncSz;
     #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
         allocSz += (unsigned int)MLDSA_POLY_SIZE * 2U;
     #endif
@@ -10955,12 +10970,14 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
             c     = z + params->s1Sz / sizeof(*t1);
             w     = c + MLDSA_N;
             t1    = w + MLDSA_N;
-            block = (byte*)(t1 + MLDSA_N);
-            w1e   = block + MLDSA_REJ_NTT_POLY_H_SIZE;
             aBuf  = t1;
         #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
-            t64   = (sword64*)(w1e + params->w1EncSz);
+            t64   = (sword64*)(t1 + MLDSA_N);
+            block = (byte*)(t64 + MLDSA_N);
+        #else
+            block = (byte*)(t1 + MLDSA_N);
         #endif
+            w1e   = block + MLDSA_REJ_NTT_POLY_H_SIZE;
         }
     }
 #else
@@ -11153,6 +11170,11 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
         #endif
 
             /* Step 10: w = NTT-1(A o NTT(z) - NTT(c) o NTT(t1)) */
+        #ifdef WOLFSSL_MLDSA_SMALL
+            /* Reduce before invntt to avoid sword32 overflow, as
+             * mldsa_make_key_from_seed() does with mldsa_vec_red(). */
+            mldsa_poly_red(w);
+        #endif
             mldsa_invntt_full(w);
 
         #ifndef WOLFSSL_NO_ML_DSA_44
