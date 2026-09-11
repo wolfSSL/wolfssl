@@ -15643,6 +15643,36 @@ static word32 ecc_ecies_total_size(word32 pubKeySz, int ivSz, word32 msgSz,
 #endif
 }
 
+#ifdef WOLF_CRYPTO_CB
+/* The device gets the whole HKDF and is called again while it answers
+ * pending. If it declines, software HKDF runs with no device at all. */
+static int ecc_ecies_hkdf(int type, const byte* secret, word32 secretSz,
+                          const ecEncCtx* ctx, byte* keys, word32 keysLen,
+                          void* heap, int devId)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+
+    if (devId != INVALID_DEVID) {
+        do {
+            ret = wc_CryptoCb_Hkdf(type, secret, secretSz, ctx->kdfSalt,
+                      ctx->kdfSaltSz, ctx->kdfInfo, ctx->kdfInfoSz, keys,
+                      keysLen, devId);
+        } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
+    }
+    if (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+        ret = wc_HKDF_ex(type, secret, secretSz, ctx->kdfSalt, ctx->kdfSaltSz,
+                  ctx->kdfInfo, ctx->kdfInfoSz, keys, keysLen, heap,
+                  INVALID_DEVID);
+    }
+    return ret;
+}
+#else
+#define ecc_ecies_hkdf(type, s, sSz, ctx, k, kSz, heap, devId) \
+    wc_HKDF_ex((type), (s), (sSz), (ctx)->kdfSalt, (ctx)->kdfSaltSz, \
+               (ctx)->kdfInfo, (ctx)->kdfInfoSz, (k), (kSz), (heap), \
+               INVALID_DEVID)
+#endif
+
 /* Validate and advance the single-use REQ/RESP protocol state for an encrypt.
  * A no-op for the default (non REQ/RESP) protocol.  Returns BAD_STATE_E if the
  * ctx is not in the state that permits an encrypt. */
@@ -15873,23 +15903,13 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
         sharedSz += pubKeySz;
     #endif
         switch (ctx->kdfAlgo) {
-            /* A device may answer pending. Call again until it is done so
-             * the buffers it was given stay live for the whole operation. */
             case ecHKDF_SHA256 :
-                do {
-                    ret = wc_HKDF_ex(WC_SHA256, sharedSecret, sharedSz,
-                               ctx->kdfSalt, ctx->kdfSaltSz, ctx->kdfInfo,
-                               ctx->kdfInfoSz, keys, (word32)keysLen,
-                               privKey->heap, eciesDevId);
-                } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
+                ret = ecc_ecies_hkdf(WC_SHA256, sharedSecret, sharedSz, ctx,
+                          keys, (word32)keysLen, privKey->heap, eciesDevId);
                 break;
             case ecHKDF_SHA1 :
-                do {
-                    ret = wc_HKDF_ex(WC_SHA, sharedSecret, sharedSz,
-                               ctx->kdfSalt, ctx->kdfSaltSz, ctx->kdfInfo,
-                               ctx->kdfInfoSz, keys, (word32)keysLen,
-                               privKey->heap, eciesDevId);
-                } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
+                ret = ecc_ecies_hkdf(WC_SHA, sharedSecret, sharedSz, ctx,
+                          keys, (word32)keysLen, privKey->heap, eciesDevId);
                 break;
 #if defined(HAVE_X963_KDF) && !defined(NO_HASH_WRAPPER)
             case ecKDF_X963_SHA1 :
@@ -16395,23 +16415,13 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
         sharedSz += pubKeySz;
     #endif
         switch (ctx->kdfAlgo) {
-            /* A device may answer pending. Call again until it is done so
-             * the buffers it was given stay live for the whole operation. */
             case ecHKDF_SHA256 :
-                do {
-                    ret = wc_HKDF_ex(WC_SHA256, sharedSecret, sharedSz,
-                               ctx->kdfSalt, ctx->kdfSaltSz, ctx->kdfInfo,
-                               ctx->kdfInfoSz, keys, (word32)keysLen,
-                               privKey->heap, eciesDevId);
-                } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
+                ret = ecc_ecies_hkdf(WC_SHA256, sharedSecret, sharedSz, ctx,
+                          keys, (word32)keysLen, privKey->heap, eciesDevId);
                 break;
             case ecHKDF_SHA1 :
-                do {
-                    ret = wc_HKDF_ex(WC_SHA, sharedSecret, sharedSz,
-                               ctx->kdfSalt, ctx->kdfSaltSz, ctx->kdfInfo,
-                               ctx->kdfInfoSz, keys, (word32)keysLen,
-                               privKey->heap, eciesDevId);
-                } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
+                ret = ecc_ecies_hkdf(WC_SHA, sharedSecret, sharedSz, ctx,
+                          keys, (word32)keysLen, privKey->heap, eciesDevId);
                 break;
 #if defined(HAVE_X963_KDF) && !defined(NO_HASH_WRAPPER)
             case ecKDF_X963_SHA1 :
