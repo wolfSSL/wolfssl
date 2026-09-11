@@ -70,7 +70,7 @@ At the base is the struct `WOLFSSL_QUIC_METHOD` which carries four callbacks:
 * `set_encryption_secrets()`: to forward generated secrets.
 * `add_handshake_data()`: to forward Handshake messages.
 * `flush_flight()`: to tell the QUIC protocol handler to flush any buffered data.
-* `send_alert()`: to forward SSL alerts.
+* `send_alert()`: to forward SSL alerts, or a `WOLFSSL_QUIC_ERR_*` transport error code where RFC 9001 requires a QUIC connection error (e.g. `PROTOCOL_VIOLATION`) instead of a TLS alert.
 
 A QUIC protocol handler installs these via `wolfSSL_CTX_set_quic_method()` or `wolfSSL_set_quic_method()`. When CRYPTO messages arrive from the peer, those are added via `wolfSSL_provide_quic_data()` to the `WOLFSSL*` instance:
 
