@@ -6570,6 +6570,9 @@ static WOLFSSL_EVP_PKEY* X509CachedPubKey(WOLFSSL_X509* x509)
     if (key == NULL) {
         key = X509DecodePubKey(x509);
         if (key != NULL) {
+            /* Set before publishing the pointer, so a reader that sees the
+             * key never sees an OID of 0 next to it. */
+            x509->key.pubKeyOID = x509->pubKeyOID;
         #ifdef WOLFSSL_ATOMIC_OPS
             WOLFSSL_EVP_PKEY* current = NULL;
             if (!wolfSSL_Atomic_Ptr_CompareExchange(
@@ -6580,7 +6583,6 @@ static WOLFSSL_EVP_PKEY* X509CachedPubKey(WOLFSSL_X509* x509)
         #else
             x509->key.pkey = key;
         #endif
-            x509->key.pubKeyOID = x509->pubKeyOID;
         }
     }
     return key;
@@ -6613,10 +6615,11 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
  * returns a pointer to the WOLFSSL_EVP_PKEY on success and NULL on fail.
  * The key is valid for the lifetime of x509 and must not be freed.
  */
-WOLFSSL_EVP_PKEY* wolfSSL_X509_get0_pubkey(WOLFSSL_X509* x509)
+WOLFSSL_EVP_PKEY* wolfSSL_X509_get0_pubkey(const WOLFSSL_X509* x509)
 {
     WOLFSSL_ENTER("wolfSSL_X509_get0_pubkey");
-    return X509CachedPubKey(x509);
+    /* The cache is the only thing written, like X509_get_X509_PUBKEY(). */
+    return X509CachedPubKey((WOLFSSL_X509*)x509);
 }
 #endif /* OPENSSL_EXTRA_X509_SMALL */
 
