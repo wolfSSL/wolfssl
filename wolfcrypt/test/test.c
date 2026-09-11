@@ -52,6 +52,13 @@
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
+    /* With NO_INLINE the misc.c implementations live in the library and are
+     * WOLFSSL_LOCAL, so they do not link from here. Use the exported wrapper
+     * for the one this file needs. WOLFSSL_NO_FORCE_ZERO means the user
+     * supplies ForceZero() with external linkage, so call it directly. */
+    #ifndef WOLFSSL_NO_FORCE_ZERO
+        #define ForceZero wc_ForceZero
+    #endif
 #else
     #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
@@ -474,6 +481,10 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
 #endif
 #ifdef WOLF_CRYPTO_CB
     #include <wolfssl/wolfcrypt/cryptocb.h>
+#ifdef WOLFSSL_SILABS_CRYPTOCB
+    /* For WOLFSSL_SILABS_WRAPPED_KEYS_API and the wc_SilabsSe_* prototypes. */
+    #include <wolfssl/wolfcrypt/port/silabs/silabs_cryptocb.h>
+#endif
     #ifdef HAVE_INTEL_QA_SYNC
         #include <wolfssl/wolfcrypt/port/intel/quickassist_sync.h>
     #endif
@@ -81421,6 +81432,14 @@ typedef struct {
     int hkdfPendArm;   /* pend the next this-many HKDF callback calls */
     int hkdfPendCount; /* pends issued; test asserts non-zero */
 #endif
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+    int chachaPolyEncCount; /* ChaCha20-Poly1305 encrypt cb invocations */
+    int chachaPolyDecCount; /* ChaCha20-Poly1305 decrypt cb invocations */
+#endif
+#if (defined(HAVE_PBKDF2) && !defined(NO_HMAC) && !defined(NO_PWDBASED))
+    int pbkdf2Count;      /* PBKDF2 callback invocations */
+    int pbkdf2Decline;    /* when set, decline so software fallback runs */
+#endif
 } myCryptoDevCtx;
 
 #ifdef WOLF_CRYPTO_CB_ONLY_RSA
@@ -83980,6 +83999,69 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         }
     #endif /* !NO_DES3 */
 #endif /* !NO_AES || !NO_DES3 */
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && \
+    !defined(WOLFSSL_NO_MALLOC)
+        if (info->cipher.type == WC_CIPHER_CHACHA) {
+            ChaCha*   chacha;
+            Poly1305* poly;
+
+            /* Poly1305 is near 1KB with the AVX-512 backend, and this frame
+             * sits under every nested software call the test makes, so keep
+             * both off the stack - see WOLFSSL_TEST_MAX_RELATIVE_STACK_BYTES. */
+            chacha = (ChaCha*)XMALLOC(sizeof(*chacha), HEAP_HINT,
+                DYNAMIC_TYPE_CIPHER);
+            poly = (Poly1305*)XMALLOC(sizeof(*poly), HEAP_HINT,
+                DYNAMIC_TYPE_CIPHER);
+            if (chacha == NULL || poly == NULL) {
+                XFREE(chacha, HEAP_HINT, DYNAMIC_TYPE_CIPHER);
+                XFREE(poly, HEAP_HINT, DYNAMIC_TYPE_CIPHER);
+                return MEMORY_E;
+            }
+
+            /* The one-shot AEAD carries no key object and so no devId to
+             * blank out. Forward through the _ex entry points, which have no
+             * callback hook, instead of recursing into the one-shot. */
+            if (info->cipher.enc) {
+                ret = wc_Chacha_SetKey(chacha,
+                    info->cipher.chacha20_poly1305_enc.inKey,
+                    CHACHA20_POLY1305_AEAD_KEYSIZE);
+                if (ret == 0) {
+                    ret = wc_ChaCha20Poly1305_Encrypt_ex(chacha, poly,
+                        info->cipher.chacha20_poly1305_enc.out,
+                        info->cipher.chacha20_poly1305_enc.in,
+                        info->cipher.chacha20_poly1305_enc.inSz,
+                        info->cipher.chacha20_poly1305_enc.inIV,
+                        info->cipher.chacha20_poly1305_enc.outAuthTag,
+                        info->cipher.chacha20_poly1305_enc.inAAD,
+                        info->cipher.chacha20_poly1305_enc.inAADSz);
+                }
+                if (ret == 0)
+                    myCtx->chachaPolyEncCount++;
+            }
+            else {
+                ret = wc_Chacha_SetKey(chacha,
+                    info->cipher.chacha20_poly1305_dec.inKey,
+                    CHACHA20_POLY1305_AEAD_KEYSIZE);
+                if (ret == 0) {
+                    ret = wc_ChaCha20Poly1305_Decrypt_ex(chacha, poly,
+                        info->cipher.chacha20_poly1305_dec.out,
+                        info->cipher.chacha20_poly1305_dec.in,
+                        info->cipher.chacha20_poly1305_dec.inSz,
+                        info->cipher.chacha20_poly1305_dec.inIV,
+                        info->cipher.chacha20_poly1305_dec.inAuthTag,
+                        info->cipher.chacha20_poly1305_dec.inAAD,
+                        info->cipher.chacha20_poly1305_dec.inAADSz);
+                }
+                if (ret == 0)
+                    myCtx->chachaPolyDecCount++;
+            }
+
+            ForceZero(chacha, sizeof(*chacha));
+            ForceZero(poly, sizeof(*poly));
+            XFREE(chacha, HEAP_HINT, DYNAMIC_TYPE_CIPHER);
+            XFREE(poly, HEAP_HINT, DYNAMIC_TYPE_CIPHER);
+        }
+#endif /* HAVE_CHACHA && HAVE_POLY1305 && !WOLFSSL_NO_MALLOC */
     }
 #if !defined(NO_SHA) || !defined(NO_SHA256) || \
     defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512)
@@ -85196,6 +85278,24 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
            NULL, INVALID_DEVID);
         }
     #endif /* HAVE_CMAC_KDF */
+    #if (defined(HAVE_PBKDF2) && !defined(NO_HMAC) && !defined(NO_PWDBASED))
+        if (info->kdf.type == WC_KDF_TYPE_PBKDF2) {
+            if (myCtx->pbkdf2Decline) {
+                /* Exercise the decline path: wc_PBKDF2_ex must fall through to
+                 * its own software implementation and still be correct. */
+                return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+            }
+            /* Redirect to software implementation for testing. Passing
+             * INVALID_DEVID keeps wc_PBKDF2_ex from dispatching back here. */
+            ret = wc_PBKDF2_ex(info->kdf.pbkdf2.output,
+                info->kdf.pbkdf2.passwd, info->kdf.pbkdf2.pLen,
+                info->kdf.pbkdf2.salt, info->kdf.pbkdf2.sLen,
+                info->kdf.pbkdf2.iterations, info->kdf.pbkdf2.kLen,
+                info->kdf.pbkdf2.hashType, NULL, INVALID_DEVID);
+            if (ret == 0)
+                myCtx->pbkdf2Count++;
+        }
+    #endif /* HAVE_PBKDF2 && !NO_HMAC && !NO_PWDBASED */
     }
 #if defined(WOLFSSL_SHE) && !defined(NO_AES)
     else if (info->algo_type == WC_ALGO_TYPE_SHE) {
@@ -85604,6 +85704,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     myCtx.hkdfPendArm = 0;
     myCtx.hkdfPendCount = 0;
 #endif
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+    myCtx.chachaPolyEncCount = 0;
+    myCtx.chachaPolyDecCount = 0;
+#endif
+#if (defined(HAVE_PBKDF2) && !defined(NO_HMAC) && !defined(NO_PWDBASED))
+    myCtx.pbkdf2Count = 0;
+    myCtx.pbkdf2Decline = 0;
+#endif
 
     /* set devId to something other than INVALID_DEVID */
     devId = 1;
@@ -85630,6 +85738,268 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
         ret = rsa_onlycb_test(&myCtx);
     PRIVATE_KEY_LOCK();
 #endif
+#if defined(WOLFSSL_SILABS_CRYPTOCB) && \
+    defined(WOLFSSL_SILABS_WRAPPED_KEYS_API) && \
+    defined(WOLFSSL_SILABS_CRYPTOCB_ECC) && defined(HAVE_ECC)
+    /* Binding a resident key over an ecc_key that held a software scalar must
+     * not leave it behind: the object stays typed ECC_PRIVATEKEY, so
+     * wc_ecc_export_private_only() would hand back the old secret. */
+    if (ret == 0) {
+        ecc_key vaultEcc;
+        WC_RNG  vaultRng;
+        byte    priv[MAX_ECC_BYTES];
+        word32  privSz = (word32)sizeof(priv);
+        byte    wrapped[256];
+        int     haveKey = 0;
+        int     haveRng = 0;
+
+        if (wc_InitRng_ex(&vaultRng, HEAP_HINT, devId) != 0)
+            ret = WC_TEST_RET_ENC_NC;
+        else
+            haveRng = 1;
+        if (ret == 0) {
+            if (wc_ecc_init_ex(&vaultEcc, HEAP_HINT, devId) != 0)
+                ret = WC_TEST_RET_ENC_NC;
+            else
+                haveKey = 1;
+        }
+        /* A real software P-256 private key first. */
+        if (ret == 0 && wc_ecc_make_key(&vaultRng, 32, &vaultEcc) != 0)
+            ret = WC_TEST_RET_ENC_NC;
+        if (ret == 0 &&
+            wc_ecc_export_private_only(&vaultEcc, priv, &privSz) != 0)
+            ret = WC_TEST_RET_ENC_NC;
+        if (ret == 0 && privSz == 0)
+            ret = WC_TEST_RET_ENC_NC;
+
+        /* Check both outcomes: a host shim declines the bind, real silicon
+         * accepts it.
+         *   succeeded -> the old scalar must be gone
+         *   declined  -> the object must be untouched, catching a scrub that
+         *                runs before the bind is known to succeed */
+        if (ret == 0) {
+            byte   after[MAX_ECC_BYTES];
+            word32 afterSz = (word32)sizeof(after);
+            int    bindRet;
+            int    exportRet;
+
+            XMEMSET(wrapped, 0, sizeof(wrapped));
+            XMEMSET(after, 0, sizeof(after));
+            bindRet = wc_SilabsSe_EccUseWrappedKey(&vaultEcc, wrapped,
+                sizeof(wrapped), ECC_SECP256R1);
+            exportRet = wc_ecc_export_private_only(&vaultEcc, after, &afterSz);
+
+            if (bindRet == 0) {
+                /* Either the export refuses, or it yields nothing resembling
+                 * the old scalar. Handing back the original is the failure. */
+                if (exportRet == 0 && afterSz == privSz &&
+                    XMEMCMP(after, priv, privSz) == 0) {
+                    ret = WC_TEST_RET_ENC_NC;
+                }
+            }
+            else {
+                /* A rejected bind must leave the key exactly as it was. */
+                if (exportRet != 0 || afterSz != privSz ||
+                    XMEMCMP(after, priv, privSz) != 0) {
+                    ret = WC_TEST_RET_ENC_NC;
+                }
+            }
+            ForceZero(after, sizeof(after));
+        }
+
+        if (haveKey)
+            wc_ecc_free(&vaultEcc);
+        if (haveRng)
+            wc_FreeRng(&vaultRng);
+        ForceZero(priv, sizeof(priv));
+    }
+#endif
+
+#if defined(WOLFSSL_SILABS_CRYPTOCB) && \
+    defined(WOLFSSL_SILABS_WRAPPED_KEYS_API) && \
+    defined(WOLFSSL_SILABS_CRYPTOCB_CIPHER) && !defined(NO_AES)
+    /* Argument handling of the Secure Vault key APIs. These run before the SE
+     * is consulted, so they are meaningful on a host build; the behavioural
+     * side needs real silicon and is covered on device. */
+    if (ret == 0) {
+        Aes    vaultAes;
+        word32 wrappedSz = 0;
+        byte   blob[64];
+
+        /* NULL out-size, and key sizes the SE has no type for. */
+        if (wc_SilabsSe_AesGetWrappedKeySize(256, NULL) !=
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ret = WC_TEST_RET_ENC_NC;
+        if (ret == 0 && wc_SilabsSe_AesGetWrappedKeySize(0, &wrappedSz) == 0)
+            ret = WC_TEST_RET_ENC_NC;
+        if (ret == 0 && wc_SilabsSe_AesGetWrappedKeySize(64, &wrappedSz) == 0)
+            ret = WC_TEST_RET_ENC_NC;
+        if (ret == 0 && wc_SilabsSe_AesGetWrappedKeySize(255, &wrappedSz) == 0)
+            ret = WC_TEST_RET_ENC_NC;
+
+        /* Binding rejects NULL arguments and an implausible blob length
+         * before it touches the Aes, so the object stays usable. */
+        if (ret == 0 && wc_AesInit(&vaultAes, HEAP_HINT, devId) != 0)
+            ret = WC_TEST_RET_ENC_NC;
+        if (ret == 0) {
+            if (wc_SilabsSe_AesUseWrappedKey(NULL, blob, sizeof(blob), 256)
+                    != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+                ret = WC_TEST_RET_ENC_NC;
+            if (ret == 0 &&
+                wc_SilabsSe_AesUseWrappedKey(&vaultAes, NULL, sizeof(blob),
+                    256) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+                ret = WC_TEST_RET_ENC_NC;
+            if (ret == 0 &&
+                wc_SilabsSe_AesUseWrappedKey(&vaultAes, blob, 1, 256) == 0)
+                ret = WC_TEST_RET_ENC_NC;
+            /* A rejected bind must not have marked the object resident. */
+            if (ret == 0 && vaultAes.ctx.keySet != 0)
+                ret = WC_TEST_RET_ENC_NC;
+            wc_AesFree(&vaultAes);
+        }
+    }
+#endif
+
+#ifndef NO_SHA256
+    /* Hash objects are initialised field by field, not by zeroing, so a port
+     * hanging lazy-init state off the object must clear it. Start from dirty
+     * storage: an unreset sentinel makes the device skip its own init. */
+    if (ret == 0) {
+        WOLFSSL_SMALL_STACK_STATIC const byte abc[] = { 0x61, 0x62, 0x63 };
+        WOLFSSL_SMALL_STACK_STATIC const byte abcHash[] = {
+            0xBA,0x78,0x16,0xBF,0x8F,0x01,0xCF,0xEA,
+            0x41,0x41,0x40,0xDE,0x5D,0xAE,0x22,0x23,
+            0xB0,0x03,0x61,0xA3,0x96,0x17,0x7A,0x9C,
+            0xB4,0x10,0xFF,0x61,0xF2,0x00,0x15,0xAD
+        };
+        wc_Sha256 dirty;
+        byte      digest[WC_SHA256_DIGEST_SIZE];
+
+        XMEMSET(&dirty, 0xA5, sizeof(dirty));
+        if (wc_InitSha256_ex(&dirty, HEAP_HINT, devId) != 0)
+            ret = WC_TEST_RET_ENC_NC;
+#ifdef WOLFSSL_SILABS_CRYPTOCB
+        /* Assert the sentinel directly: on a host build the shim declines
+         * every command so the flag is never set, and only real silicon would
+         * surface this through a wrong digest. */
+        if (ret == 0 && dirty.silabsCtx.started != 0)
+            ret = WC_TEST_RET_ENC_NC;
+#endif
+        if (ret == 0 && wc_Sha256Update(&dirty, abc, (word32)sizeof(abc)) != 0)
+            ret = WC_TEST_RET_ENC_NC;
+        if (ret == 0 && wc_Sha256Final(&dirty, digest) != 0)
+            ret = WC_TEST_RET_ENC_NC;
+        if (ret == 0 && XMEMCMP(digest, abcHash, sizeof(digest)) != 0)
+            ret = WC_TEST_RET_ENC_NC;
+        wc_Sha256Free(&dirty);
+    }
+#endif
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && \
+    !defined(WOLFSSL_NO_MALLOC)
+    /* chacha20_poly1305_aead_test() is not repeated here: it drives the legacy
+     * one-shot, which carries no devId and so never reaches the callback.
+     * AEAD decrypt must fail closed through the callback, not just in
+     * software. Corrupt each authenticated input in turn and require
+     * MAC_CMP_FAILED_E every time, with no plaintext left behind. */
+    if (ret == 0) {
+        WOLFSSL_SMALL_STACK_STATIC const byte cpKey[CHACHA20_POLY1305_AEAD_KEYSIZE] = {
+            0x80,0x81,0x82,0x83,0x84,0x85,0x86,0x87,
+            0x88,0x89,0x8a,0x8b,0x8c,0x8d,0x8e,0x8f,
+            0x90,0x91,0x92,0x93,0x94,0x95,0x96,0x97,
+            0x98,0x99,0x9a,0x9b,0x9c,0x9d,0x9e,0x9f
+        };
+        WOLFSSL_SMALL_STACK_STATIC const byte cpIV[CHACHA20_POLY1305_AEAD_IV_SIZE] = {
+            0x07,0x00,0x00,0x00,0x40,0x41,0x42,0x43,0x44,0x45,0x46,0x47
+        };
+        WOLFSSL_SMALL_STACK_STATIC const byte cpAAD[] = {
+            0x50,0x51,0x52,0x53,0xc0,0xc1,0xc2,0xc3,0xc4,0xc5,0xc6,0xc7
+        };
+        byte cpPlain[16];
+        byte cpCipher[16];
+        byte cpOut[16];
+        byte cpTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE];
+        ChaCha*   cpChacha;
+        Poly1305* cpPoly;
+        int  i;
+
+        /* Heap rather than stack: Poly1305 alone is near 1KB with the AVX-512
+         * backend, and the callback this reaches adds a frame of its own - see
+         * WOLFSSL_TEST_MAX_RELATIVE_STACK_BYTES. */
+        cpChacha = (ChaCha*)XMALLOC(sizeof(*cpChacha), HEAP_HINT,
+            DYNAMIC_TYPE_CIPHER);
+        cpPoly = (Poly1305*)XMALLOC(sizeof(*cpPoly), HEAP_HINT,
+            DYNAMIC_TYPE_CIPHER);
+        if (cpChacha == NULL || cpPoly == NULL)
+            ret = WC_TEST_RET_ENC_NC;
+
+        /* Bind the ChaCha context to this test's device, which is what routes
+         * the AEAD through the callback - the legacy one-shot carries no devId
+         * and deliberately stays in software. */
+        if (ret == 0) {
+            XMEMSET(cpChacha, 0, sizeof(*cpChacha));
+            XMEMSET(cpPoly, 0, sizeof(*cpPoly));
+            XMEMSET(cpPlain, 0xA5, sizeof(cpPlain));
+            ret = wc_Chacha_SetKey_ex(cpChacha, cpKey, sizeof(cpKey), HEAP_HINT,
+                devId);
+        }
+        if (ret == 0) {
+            ret = wc_ChaCha20Poly1305_Encrypt_ex(cpChacha, cpPoly, cpCipher,
+                cpPlain, sizeof(cpPlain), cpIV, cpTag, cpAAD, sizeof(cpAAD));
+        }
+        /* The encrypt above must have crossed the callback boundary. */
+        if (ret == 0 && myCtx.chachaPolyEncCount == 0)
+            ret = WC_TEST_RET_ENC_NC;
+
+        /* i = 0 tamper the tag, 1 the ciphertext, 2 the AAD */
+        for (i = 0; ret == 0 && i < 3; i++) {
+            byte badAAD[sizeof(cpAAD)];
+            byte badCipher[sizeof(cpCipher)];
+            byte badTag[sizeof(cpTag)];
+            int  decRet;
+
+            XMEMCPY(badAAD, cpAAD, sizeof(badAAD));
+            XMEMCPY(badCipher, cpCipher, sizeof(badCipher));
+            XMEMCPY(badTag, cpTag, sizeof(badTag));
+            if (i == 0)
+                badTag[0] ^= 0x01;
+            else if (i == 1)
+                badCipher[0] ^= 0x01;
+            else
+                badAAD[0] ^= 0x01;
+
+            XMEMSET(cpOut, 0x5A, sizeof(cpOut));
+            decRet = wc_Chacha_SetKey_ex(cpChacha, cpKey, sizeof(cpKey),
+                HEAP_HINT, devId);
+            if (decRet == 0) {
+                decRet = wc_ChaCha20Poly1305_Decrypt_ex(cpChacha, cpPoly,
+                    cpOut, badCipher, sizeof(badCipher), cpIV, badTag,
+                    badAAD, sizeof(badAAD));
+            }
+            if (decRet != WC_NO_ERR_TRACE(MAC_CMP_FAILED_E)) {
+                ret = WC_TEST_RET_ENC_NC;
+            }
+            else {
+                /* The whole buffer must be zeroed, not merely different from
+                 * the plaintext: leaving the sentinel untouched, or clearing
+                 * only part of it, is still a leak of unauthenticated data. */
+                word32 z;
+                for (z = 0; z < (word32)sizeof(cpOut); z++) {
+                    if (cpOut[z] != 0) {
+                        ret = WC_TEST_RET_ENC_NC;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (cpChacha != NULL)
+            ForceZero(cpChacha, sizeof(*cpChacha));
+        if (cpPoly != NULL)
+            ForceZero(cpPoly, sizeof(*cpPoly));
+        XFREE(cpChacha, HEAP_HINT, DYNAMIC_TYPE_CIPHER);
+        XFREE(cpPoly, HEAP_HINT, DYNAMIC_TYPE_CIPHER);
+    }
+#endif /* HAVE_CHACHA && HAVE_POLY1305 && !WOLFSSL_NO_MALLOC */
 #if defined(HAVE_ECC)
     PRIVATE_KEY_UNLOCK();
     if (ret == 0)
@@ -86099,6 +86469,34 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     PRIVATE_KEY_UNLOCK();
     if (ret == 0)
         ret = pbkdf2_test();
+    /* Confirm the derivation actually crossed the callback boundary. */
+    if (ret == 0 && myCtx.pbkdf2Count == 0)
+        ret = WC_TEST_RET_ENC_NC;
+    /* And that declining hands the work back to software: derive the same key
+     * with the device declining and with no device, and require a match. */
+    if (ret == 0) {
+        WOLFSSL_SMALL_STACK_STATIC const byte pwd[] = "passwordPASSWORD";
+        WOLFSSL_SMALL_STACK_STATIC const byte salt[] = "saltSALTsaltSALT";
+        byte viaCb[24];
+        byte viaSw[24];
+        int  cbRet;
+        int  swRet;
+
+        myCtx.pbkdf2Decline = 1;
+        cbRet = wc_PBKDF2_ex(viaCb, pwd, (int)XSTRLEN((const char*)pwd),
+            salt, (int)XSTRLEN((const char*)salt), 128, (int)sizeof(viaCb),
+            WC_SHA256, NULL, devId);
+        myCtx.pbkdf2Decline = 0;
+
+        swRet = wc_PBKDF2_ex(viaSw, pwd, (int)XSTRLEN((const char*)pwd),
+            salt, (int)XSTRLEN((const char*)salt), 128, (int)sizeof(viaSw),
+            WC_SHA256, NULL, INVALID_DEVID);
+
+        if (cbRet != 0 || swRet != 0)
+            ret = WC_TEST_RET_ENC_NC;
+        else if (XMEMCMP(viaCb, viaSw, sizeof(viaCb)) != 0)
+            ret = WC_TEST_RET_ENC_NC;
+    }
     PRIVATE_KEY_LOCK();
     #endif
 #endif

@@ -199,7 +199,8 @@ static const word32 tau[4] = {0x61707865, 0x3120646e, 0x79622d36, 0x6b206574};
 /**
   * Key setup. 8 word iv (nonce)
   */
-int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
+int wc_Chacha_SetKey_ex(ChaCha* ctx, const byte* key, word32 keySz,
+    void* heap, int devId)
 {
 #if (!defined(USE_ARM_CHACHA_SPEEDUP) || defined(WOLFSSL_ARM_CHACHA_NEED_C)) && \
     !defined(USE_RISCV_CHACHA_SPEEDUP)
@@ -276,7 +277,21 @@ int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
     ctx->left = 0; /* resets state */
     ctx->keySet = 1;
 
+#ifdef WOLF_CRYPTO_CB
+    /* A device takes the plaintext key, not the expanded state above. */
+    XMEMCPY(ctx->devKey, key, keySz);
+    ctx->devKeySz = keySz;
+    ctx->devId = devId;
+#endif
+    (void)heap;   /* nothing on this path allocates */
+    (void)devId;
+
     return 0;
+}
+
+int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
+{
+    return wc_Chacha_SetKey_ex(ctx, key, keySz, NULL, INVALID_DEVID);
 }
 
 #if (!defined(USE_INTEL_CHACHA_SPEEDUP) && !defined(USE_ARM_CHACHA_SPEEDUP) && \

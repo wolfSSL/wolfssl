@@ -99,6 +99,13 @@ typedef struct ChaCha {
     ALIGN8 word32 over[CHACHA_CHUNK_WORDS];
 #endif
     WC_BITFIELD keySet:1;                    /* set to 1 once a key is set */
+#ifdef WOLF_CRYPTO_CB
+    /* X[] holds expanded state, but a device is handed a plaintext key, so
+     * keep a copy as Aes.devKey does. Set by wc_Chacha_SetKey_ex(). */
+    byte devKey[CHACHA_MAX_KEY_SZ];
+    word32 devKeySz;
+    int devId;
+#endif
 } ChaCha;
 
 /**
@@ -111,6 +118,11 @@ WOLFSSL_API int wc_Chacha_Process(ChaCha* ctx, byte* cipher, const byte* plain,
                               word32 msglen);
 
 WOLFSSL_API int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz);
+/* As wc_Chacha_SetKey(), binding the context to a crypto callback device so
+ * wc_ChaCha20Poly1305_Encrypt_ex()/_Decrypt_ex() can offload it. Pass
+ * INVALID_DEVID for software; heap is unused. */
+WOLFSSL_API int wc_Chacha_SetKey_ex(ChaCha* ctx, const byte* key, word32 keySz,
+    void* heap, int devId);
 
 #ifdef HAVE_XCHACHA
 WOLFSSL_LOCAL void wc_Chacha_purge_current_block(ChaCha* ctx);
