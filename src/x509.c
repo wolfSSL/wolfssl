@@ -14210,6 +14210,7 @@ int wolfSSL_write_X509_CRL(WOLFSSL_X509_CRL* crl, const char* path, int type)
         const char* headerEnd = NULL;
         const char* footer = NULL;
         const char* footerEnd = NULL;
+        long searchPos = 0;
     #ifdef HAVE_CRL
         DerBuffer* der = NULL;
     #endif
@@ -14252,7 +14253,12 @@ int wolfSSL_write_X509_CRL(WOLFSSL_X509_CRL* crl, const char* path, int type)
         while (i < l && wolfSSL_BIO_read(bio, &pem[i], 1) == 1) {
             i++;
             if (!header) {
-                header = XSTRNSTR(pem, "-----BEGIN ", i);
+                header = XSTRNSTR(pem + searchPos, "-----BEGIN ",
+                        (size_t)(i - searchPos));
+                if (header == NULL) {
+                    searchPos = i > (long)(XSTR_SIZEOF("-----BEGIN ") - 1)
+                        ? i - (XSTR_SIZEOF("-----BEGIN ") - 1) : 0;
+                }
             }
             else if (!headerEnd) {
                 headerEnd = XSTRNSTR(header + XSTR_SIZEOF("-----BEGIN "),
@@ -14260,8 +14266,8 @@ int wolfSSL_write_X509_CRL(WOLFSSL_X509_CRL* crl, const char* path, int type)
                         i - (header + XSTR_SIZEOF("-----BEGIN ") - pem));
                 if (headerEnd) {
                     headerEnd += XSTR_SIZEOF("-----");
-                    /* Read in the newline */
-                    if (wolfSSL_BIO_read(bio, &pem[i], 1) != 1) {
+                    if (i >= l ||
+                            wolfSSL_BIO_read(bio, &pem[i], 1) != 1) {
                         WOLFSSL_MSG("wolfSSL_BIO_read error");
                         goto err;
                     }
@@ -14270,11 +14276,16 @@ int wolfSSL_write_X509_CRL(WOLFSSL_X509_CRL* crl, const char* path, int type)
                         WOLFSSL_MSG("Missing newline after header");
                         goto err;
                     }
+                    searchPos = headerEnd - pem;
                 }
             }
             else if (!footer) {
-                footer = XSTRNSTR(headerEnd, "-----END ",
-                        i - (headerEnd - pem));
+                footer = XSTRNSTR(pem + searchPos, "-----END ",
+                        (size_t)(i - searchPos));
+                if (footer == NULL) {
+                    if (i > (long)(XSTR_SIZEOF("-----END ") - 1))
+                        searchPos = i - (XSTR_SIZEOF("-----END ") - 1);
+                }
             }
             else if (!footerEnd) {
                 footerEnd = XSTRNSTR(footer + XSTR_SIZEOF("-----"),
