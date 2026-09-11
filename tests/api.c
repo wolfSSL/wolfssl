@@ -2667,9 +2667,12 @@ static int test_wolfSSL_set_cipher_list_tls13_with_version(void)
     #endif
 #endif
 
-#if defined(TEST_CIPHER_EXCLUDE_ANON) || defined(TEST_CIPHER_EXCLUDE_NULL)
-/* Does the parsed suite list on ssl contain the given suite bytes? */
-static int test_suites_contains(WOLFSSL* ssl, byte s0, byte s1)
+#if defined(TEST_CIPHER_EXCLUDE_ANON) || defined(TEST_CIPHER_EXCLUDE_NULL) || \
+    defined(BUILD_TLS_SHA256_SHA256)
+/* Does the parsed suite list on ssl contain the given suite bytes?
+ * WC_MAYBE_UNUSED: the TLS 1.3 null-cipher tests gate further inside their
+ * bodies, so some builds compile this helper without a caller. */
+static WC_MAYBE_UNUSED int test_suites_contains(WOLFSSL* ssl, byte s0, byte s1)
 {
     int i;
     const Suites* suites = (ssl != NULL) ? WOLFSSL_SUITES(ssl) : NULL;
