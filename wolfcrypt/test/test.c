@@ -7670,6 +7670,61 @@ exit:
 }
 #endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS_VERSION_GE(7, 0)) */
 
+#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && !defined(WC_C_DYNAMIC_FALLBACK)
+/* A refused vector-register claim must leave the context usable: the retry has
+ * to return the same digest, not one built from a half-absorbed state. */
+static wc_test_ret_t sha3_256_claim_retry_test(void)
+{
+    wc_Sha3 sha;
+    byte ref[WC_SHA3_256_DIGEST_SIZE];
+    byte got[WC_SHA3_256_DIGEST_SIZE];
+    wc_test_ret_t ret;
+    int inited = 0;
+
+    ret = wc_InitSha3_256(&sha, HEAP_HINT, devId);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    inited = 1;
+    ret = wc_Sha3_256_Update(&sha, (const byte*)"abc", 3);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_Sha3_256_Final(&sha, ref);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    wc_Sha3_256_Free(&sha);
+    inited = 0;
+
+    ret = wc_InitSha3_256(&sha, HEAP_HINT, devId);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    inited = 1;
+    ret = wc_Sha3_256_Update(&sha, (const byte*)"abc", 3);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    wc_debug_vector_registers_retval = WC_ACCEL_INHIBIT_E;
+    ret = wc_Sha3_256_Final(&sha, got);
+    wc_debug_vector_registers_retval = 0;
+    /* Nothing to test when this build selected a block that claims nothing;
+     * the refusal never happened, so do not report it as covered. */
+    if (ret == 0)
+        goto out;
+
+    ret = wc_Sha3_256_Final(&sha, got);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(got, ref, WC_SHA3_256_DIGEST_SIZE) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    ret = 0;
+
+out:
+    wc_debug_vector_registers_retval = 0;
+    if (inited)
+        wc_Sha3_256_Free(&sha);
+    return ret;
+}
+#endif /* DEBUG_VECTOR_REGISTER_ACCESS && !WC_C_DYNAMIC_FALLBACK */
+
 static wc_test_ret_t sha3_256_test(void)
 {
     wc_Sha3 sha;
@@ -7689,6 +7744,10 @@ static wc_test_ret_t sha3_256_test(void)
 #endif
 #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7, 0))
     if ((ret = sha3_256_copy_test(&sha, shaCopy)) != 0)
+        goto out;
+#endif
+#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && !defined(WC_C_DYNAMIC_FALLBACK)
+    if ((ret = sha3_256_claim_retry_test()) != 0)
         goto out;
 #endif
     ret = 0;
