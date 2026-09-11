@@ -656,6 +656,20 @@ int wc_RsaGetKeyId(RsaKey* key, word32* keyId)
 }
 #endif /* WOLFSSL_SE050 */
 
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
+static void RsaForceZeroPriv(RsaKey* key)
+{
+#if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM)
+    mp_forcezero(&key->u);
+    mp_forcezero(&key->dQ);
+    mp_forcezero(&key->dP);
+#endif
+    mp_forcezero(&key->q);
+    mp_forcezero(&key->p);
+    mp_forcezero(&key->d);
+}
+#endif
+
 int wc_FreeRsaKey(RsaKey* key)
 {
     int ret = 0;
@@ -673,8 +687,13 @@ int wc_FreeRsaKey(RsaKey* key)
                                WC_PK_TYPE_RSA, 0, key);
         /* If callback wants standard free, it returns CRYPTOCB_UNAVAILABLE.
          * Otherwise assume the callback handled cleanup. */
-        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            wc_RsaCleanup(key);
+        #ifndef WOLFSSL_RSA_PUBLIC_ONLY
+            RsaForceZeroPriv(key);
+        #endif
             return ret;
+        }
         /* fall-through to software cleanup */
         ret = 0;
     }
@@ -691,17 +710,8 @@ int wc_FreeRsaKey(RsaKey* key)
 #endif
 
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
-    /* Forcezero all private key fields that are present in this build
-     * configuration, since they may contain residual sensitive data even when
-     * key->type is not RSA_PRIVATE (e.g., after a partial key decode failure). */
-#if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM)
-    mp_forcezero(&key->u);
-    mp_forcezero(&key->dQ);
-    mp_forcezero(&key->dP);
-#endif
-    mp_forcezero(&key->q);
-    mp_forcezero(&key->p);
-    mp_forcezero(&key->d);
+    /* Private fields may hold residue even when type is not RSA_PRIVATE. */
+    RsaForceZeroPriv(key);
 #endif /* WOLFSSL_RSA_PUBLIC_ONLY */
 
     /* public part */
@@ -1183,6 +1193,17 @@ static int RsaMGF1(enum wc_HashType hType, byte* seed, word32 seedSz,
         ret = wc_Hash(hType, tmp, (seedSz + 4), tmp, tmpSz);
 #endif
         if (ret != 0) {
+            /* tmp holds the OAEP seed (ISO/IEC 19790:2012 7.9.7). */
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+            if (tmpF) {
+                ForceZero(tmp, tmpSz);
+            }
+            else {
+                ForceZero(tmpA, sizeof(tmpA));
+            }
+#else
+            ForceZero(tmp, sizeof(tmp));
+#endif
             /* check for if dynamic memory was needed, then free */
 #ifdef WOLFSSL_SMALL_STACK_CACHE
             wc_HashFree(hash, hType);
@@ -1201,6 +1222,17 @@ static int RsaMGF1(enum wc_HashType hType, byte* seed, word32 seedSz,
         }
         counter++;
     } while (idx < outSz);
+    /* tmp holds the OAEP seed (ISO/IEC 19790:2012 7.9.7). */
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    if (tmpF) {
+        ForceZero(tmp, tmpSz);
+    }
+    else {
+        ForceZero(tmpA, sizeof(tmpA));
+    }
+#else
+    ForceZero(tmp, sizeof(tmp));
+#endif
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     /* check for if dynamic memory was needed, then free */
     if (tmpF) {
@@ -1494,12 +1526,14 @@ static int RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
     }
 #else
     if (pkcsBlockLen - hLen - 1 > sizeof(dbMask)) {
+        ForceZero(seed, hLen);
         return MEMORY_E;
     }
 #endif
     XMEMSET(dbMask, 0, pkcsBlockLen - hLen - 1); /* help static analyzer */
     ret = RsaMGF(mgf, seed, hLen, dbMask, pkcsBlockLen - hLen - 1, heap);
     if (ret != 0) {
+            ForceZero(dbMask, pkcsBlockLen - hLen - 1);
             WC_FREE_VAR_EX(dbMask, heap, DYNAMIC_TYPE_RSA);
             WC_FREE_VAR_EX(lHash, heap, DYNAMIC_TYPE_RSA_BUFFER);
             ForceZero(seed, hLen);
@@ -1509,6 +1543,8 @@ static int RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
 
     xorbuf(pkcsBlock + hLen + 1, dbMask,pkcsBlockLen - hLen - 1);
 
+    /* dbMask is derived from the seed (ISO/IEC 19790:2012 7.9.7). */
+    ForceZero(dbMask, pkcsBlockLen - hLen - 1);
     WC_FREE_VAR_EX(dbMask, heap, DYNAMIC_TYPE_RSA);
 
     /* create maskedSeed from seedMask */
@@ -3983,6 +4019,10 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
                            hash, mgf, label, labelSz, saltLen,
                            mp_count_bits(&key->n), key->heap);
         if (ret < 0) {
+            if (rsa_type == RSA_PUBLIC_ENCRYPT) {
+                /* Padding failed with the secret already copied in. */
+                ForceZero(out, (word32)sz);
+            }
             break;
         }
 
@@ -3999,6 +4039,16 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
             key->state = RSA_STATE_ENCRYPT_RES;
         }
         if (ret < 0) {
+            /* out holds the padded secret (ISO/IEC 19790:2012 7.9.7); a
+             * pending or would-block result still needs it. */
+            if ((rsa_type == RSA_PUBLIC_ENCRYPT) &&
+                    (ret != WC_NO_ERR_TRACE(WC_PENDING_E))
+            #ifdef WC_RSA_NONBLOCK
+                    && (ret != FP_WOULDBLOCK)
+            #endif
+                    ) {
+                ForceZero(out, (word32)sz);
+            }
             break;
         }
 

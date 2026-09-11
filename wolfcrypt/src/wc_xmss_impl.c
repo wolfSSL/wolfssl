@@ -642,6 +642,9 @@ static WC_INLINE void wc_xmss_hash(XmssState* state, const byte* in,
         if (ret == 0) {
             XMEMCPY(out, buf, params->n);
         }
+        /* Prefix may be a WOTS+ secret element
+         * (ISO/IEC 19790:2012 7.9.7). */
+        ForceZero(buf, sizeof(buf));
     }
 #endif
     else

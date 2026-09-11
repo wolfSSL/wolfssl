@@ -282,6 +282,7 @@ int wc_PRF_TLSv1(byte* digest, word32 digLen, const byte* secret,
         }
     }
 
+    ForceZero(sha_result, MAX_PRF_DIG);
 #if defined(WOLFSSL_CHECK_MEM_ZERO)
     wc_MemZero_Check(sha_result, MAX_PRF_DIG);
 #endif
@@ -846,6 +847,8 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
                 ret = _HashFinal(enmhashId, &hash, lastBlock);
                 if (ret == 0)
                     XMEMCPY(key, lastBlock, remainder);
+                /* lastBlock held derived key material (ISO/IEC 19790 7.9). */
+                ForceZero(lastBlock, sizeof(lastBlock));
             }
         }
         else {
@@ -891,11 +894,15 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
                     ret = _HashFinal(enmhashId, &hash, lastBlock);
                 if (ret == 0)
                     XMEMCPY(key + runningKeySz, lastBlock, remainder);
+                /* lastBlock held derived key material (ISO/IEC 19790 7.9). */
+                ForceZero(lastBlock, sizeof(lastBlock));
             }
         }
     }
 
     _HashFree(enmhashId, &hash);
+    /* hash absorbed the shared secret K (ISO/IEC 19790:2012 7.9.7). */
+    ForceZero(&hash, sizeof(hash));
 
     return ret;
 }
@@ -994,6 +1001,8 @@ static int wc_srtp_kdf_derive_key(byte* block, int idxSz, byte label,
             /* Copy into key required amount. */
             XMEMCPY(key, enc, keySz);
         }
+        /* enc held a derived SRTP key block (ISO/IEC 19790 7.9). */
+        ForceZero(enc, sizeof(enc));
     }
     /* XOR out label. */
     block[WC_SRTP_MAX_SALT - idxSz - 1] ^= label;
@@ -1583,6 +1592,7 @@ int wc_KDA_KDF_twostep_cmac(const byte * salt, word32 salt_len,
 
     #ifdef WOLFSSL_SMALL_STACK
     if (cmac) {
+        ForceZero(cmac, sizeof(Cmac));
         XFREE(cmac, heap, DYNAMIC_TYPE_CMAC);
         cmac = NULL;
     }
@@ -1756,6 +1766,7 @@ int wc_KDA_KDF_PRF_cmac(const byte* Kin, word32 KinSz,
 
     #ifdef WOLFSSL_SMALL_STACK
     if (cmac) {
+        ForceZero(cmac, sizeof(Cmac));
         XFREE(cmac, heap, DYNAMIC_TYPE_CMAC);
         cmac = NULL;
     }

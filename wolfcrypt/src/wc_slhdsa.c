@@ -5227,6 +5227,8 @@ static int slhdsakey_hash_f_ti_x4(const byte* pk_seed, byte* addr, byte* node,
             slhdsakey_shake256_get_hash_x4(state, node, n);
         }
 
+        /* state holds four FORS secret leaves (ISO/IEC 19790:2012 7.9.7). */
+        ForceZero(state, sizeof(word64) * SLHDSA_SHAKE_X4_STATE_W);
         WC_FREE_VAR_EX(state, heap, DYNAMIC_TYPE_SLHDSA);
     }
 
@@ -5347,6 +5349,10 @@ static int slhdsakey_fors_node_x4_z0(SlhDsaKey* key, const byte* sk_seed,
         ret = HASH_F(key, pk_seed, adrs, node, n, node);
     }
 
+    if (ret != 0) {
+        /* node may still hold the FORS secret leaf. */
+        ForceZero(node, n);
+    }
     return ret;
 }
 
@@ -5419,6 +5425,8 @@ static int slhdsakey_fors_node_x4_z1(SlhDsaKey* key, const byte* sk_seed,
         ret = HASH_H(key, pk_seed, adrs, nodes, n, node);
     }
 
+    /* nodes held two FORS secret leaves (ISO/IEC 19790:2012 7.9.7). */
+    ForceZero(nodes, sizeof(nodes));
     return ret;
 }
 
@@ -5546,6 +5554,10 @@ static int slhdsakey_fors_node_x4_low(SlhDsaKey* key, const byte* sk_seed,
         ret = HASH_H(key, pk_seed, adrs, nodes, n, node);
     }
 
+    /* nodes may still hold FORS secret leaves (ISO/IEC 19790:2012 7.9.7). */
+    if (WC_VAR_OK(nodes)) {
+        ForceZero(nodes, (1 << SLHDSA_MAX_FORS_NODE_DEPTH) * SLHDSA_MAX_N);
+    }
     WC_FREE_VAR_EX(nodes, key->heap, DYNAMIC_TYPE_SLHDSA);
     return ret;
 }
@@ -5774,6 +5786,10 @@ static int slhdsakey_fors_node_c(SlhDsaKey* key, const byte* sk_seed, word32 i,
             /* Step 5: Compute node from public key seed, address and value. */
             ret = HASH_F(key, pk_seed, adrs, node, n, node);
         }
+        if (ret != 0) {
+            /* node may still hold the FORS secret leaf. */
+            ForceZero(node, n);
+        }
     }
     /* Step 6: Non leaf node. */
     else {
@@ -5843,6 +5859,11 @@ static int slhdsakey_fors_node_c(SlhDsaKey* key, const byte* sk_seed, word32 i,
             }
         }
 
+        /* nodes may still hold FORS secret leaves
+         * (ISO/IEC 19790:2012 7.9.7). */
+        if (WC_VAR_OK(nodes)) {
+            ForceZero(nodes, (SLHDSA_MAX_A + 1) * SLHDSA_MAX_N);
+        }
         WC_FREE_VAR_EX(nodes, key->heap, DYNAMIC_TYPE_SLHDSA);
     }
 
@@ -5898,6 +5919,10 @@ static int slhdsakey_fors_node_c(SlhDsaKey* key, const byte* sk_seed, word32 i,
             /* Step 5: Compute node from public key seed, address and value. */
             ret = HASH_F(key, pk_seed, adrs, node, n, node);
         }
+        if (ret != 0) {
+            /* node may still hold the FORS secret leaf. */
+            ForceZero(node, n);
+        }
     }
     else {
         byte nodes[2 * SLHDSA_MAX_N];
@@ -5918,6 +5943,8 @@ static int slhdsakey_fors_node_c(SlhDsaKey* key, const byte* sk_seed, word32 i,
             /* Step 11: Compute node from public key seed, address and nodes. */
             ret = HASH_H(key, pk_seed, adrs, nodes, n, node);
         }
+        /* nodes held two FORS secret leaves (ISO/IEC 19790:2012 7.9.7). */
+        ForceZero(nodes, sizeof(nodes));
     }
 
     return ret;
@@ -7198,11 +7225,17 @@ int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key, const byte* sk_seed,
         {
             /* The seeds are now staged in the key as the contiguous
              * SK.seed || SK.prf || PK.seed the callback expects. */
+            key->flags &= ~((int)WC_SLHDSA_FLAG_BOTH_KEYS);
             ret = wc_CryptoCb_MakePqcSignatureKeyEx(NULL,
                 WC_PQC_SIG_TYPE_SLHDSA, (int)key->params->param, key->sk,
                 3U * key->params->n, key);
-            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+                if ((key->flags & WC_SLHDSA_FLAG_PRIVATE) == 0) {
+                    /* Device owns the key (ISO/IEC 19790:2012 7.9.7). */
+                    ForceZero(key->sk, 2U * key->params->n);
+                }
                 return ret;
+            }
             /* fall-through when unavailable */
             ret = 0;
         }
@@ -7310,6 +7343,7 @@ static int slhdsakey_sign(SlhDsaKey* key, byte* md, byte* sig)
     word32 l;
     byte pk_fors[SLHDSA_MAX_N];
     byte n = key->params->n;
+    byte* sigFors = sig;
 
     /* Steps 1, 7-13: Set address based on message digest. */
     slhdsakey_set_ha_from_md(key, md, adrs, t, &l);
@@ -7327,6 +7361,11 @@ static int slhdsakey_sign(SlhDsaKey* key, byte* md, byte* sig)
         /* Steps 17-18: Hypertree sign FORS public key. */
         ret = slhdsakey_ht_sign(key, pk_fors, key->sk, key->sk + 2 * n, t, l,
             sig);
+    }
+    if (ret != 0) {
+        /* Unreleased FORS secrets may be in sig
+         * (ISO/IEC 19790:2012 7.9.7). */
+        ForceZero(sigFors, key->params->k * (1 + key->params->a) * n);
     }
 
     return ret;
