@@ -221,6 +221,9 @@ int wolfSSL_X509_STORE_CTX_init(WOLFSSL_X509_STORE_CTX* ctx,
 #ifdef HAVE_EX_DATA
         XMEMSET(&ctx->ex_data, 0, sizeof(ctx->ex_data));
 #endif
+        ctx->depth = 0;
+        ctx->depthSet = 0;
+
         ctx->userCtx = NULL;
         ctx->verify_cb = NULL;
         ctx->error = 0;
@@ -556,15 +559,13 @@ static WOLFSSL_X509_STORE_CTX_verify_cb X509StoreGetVerifyCb(
  * A caller must stop chain building when it is set: a veto must not be turned
  * into a retry with another issuer, and must not be cleared by the
  * partial-chain fallback in wolfSSL_X509_verify_cert(). */
-static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx, int* cbRejected)
+static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx, int* cbRejected,
+        WOLFSSL_X509_STORE_CTX_verify_cb verifyCb)
 {
     int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
-    WOLFSSL_X509_STORE_CTX_verify_cb verifyCb;
     WOLFSSL_ENTER("X509StoreVerifyCert");
 
     *cbRejected = 0;
-
-    verifyCb = X509StoreGetVerifyCb(ctx);
 
     if (ctx->current_cert != NULL && ctx->current_cert->derCert != NULL) {
         ret = wolfSSL_CertManagerVerifyBuffer(ctx->store->cm,
@@ -848,19 +849,17 @@ static int X509StoreCertIsTrusted(WOLFSSL_X509_STORE* store,
  *
  * Returns WOLFSSL_SUCCESS if the path satisfies every pathLenConstraint, or
  * WOLFSSL_FAILURE (with ctx->error set) on the first violation. */
-static int X509StoreCheckPathLen(WOLFSSL_X509_STORE_CTX* ctx)
+static int X509StoreCheckPathLen(WOLFSSL_X509_STORE_CTX* ctx,
+        WOLFSSL_X509_STORE_CTX_verify_cb verifyCb)
 {
     int num;
     int i;
     word32 maxPathLen = 0;
     byte haveConstraint = 0;
     WOLFSSL_X509* anchor;
-    WOLFSSL_X509_STORE_CTX_verify_cb verifyCb;
 
     if (ctx == NULL || ctx->chain == NULL)
         return WOLFSSL_SUCCESS;
-
-    verifyCb = X509StoreGetVerifyCb(ctx);
 
     num = wolfSSL_sk_X509_num(ctx->chain);
     /* A pathLen violation requires at least one intermediate between the leaf
@@ -926,6 +925,21 @@ static int X509StoreCheckPathLen(WOLFSSL_X509_STORE_CTX* ctx)
     return WOLFSSL_SUCCESS;
 }
 
+/* Returns 1 if X509_V_FLAG_PARTIAL_CHAIN is set on ctx or on its store,
+ * otherwise 0.  ctx and ctx->store must be non-NULL. */
+static int X509StoreCertIsPartialChain(WOLFSSL_X509_STORE_CTX* ctx)
+{
+    /* PARTIAL_CHAIN lets any trusted cert end the path */
+    if (ctx->flags & WOLFSSL_PARTIAL_CHAIN) {
+        return 1;
+    }
+    if (ctx->store->param != NULL &&
+            (ctx->store->param->flags & WOLFSSL_PARTIAL_CHAIN)) {
+        return 1;
+    }
+    return 0;
+}
+
 /* Verifies certificate chain using WOLFSSL_X509_STORE_CTX
  * returns 1 on success or <= 0 on failure.
  */
@@ -942,9 +956,7 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
     WOLF_STACK_OF(WOLFSSL_X509)* certsToUse = NULL;
     WOLF_STACK_OF(WOLFSSL_X509)* failedCerts = NULL;
     WOLF_STACK_OF(WOLFSSL_X509)* origTrustedSk = NULL;
-#ifndef WOLFSSL_X509_STORE_ALLOW_NON_CA_INTERMEDIATE
     WOLFSSL_X509_STORE_CTX_verify_cb verifyCb;
-#endif
     WOLFSSL_ENTER("wolfSSL_X509_verify_cert");
 
     if (ctx == NULL || ctx->store == NULL || ctx->store->cm == NULL
@@ -952,9 +964,7 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
         return WOLFSSL_FATAL_ERROR;
     }
 
-#ifndef WOLFSSL_X509_STORE_ALLOW_NON_CA_INTERMEDIATE
     verifyCb = X509StoreGetVerifyCb(ctx);
-#endif
 
     /* Chain building mutates the working stack: caller-supplied intermediates
      * are appended and X509VerifyCertSetupRetry moves failed certs out of it.
@@ -1018,9 +1028,17 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
         ret = WOLFSSL_FAILURE;
         goto exit;
     }
-
-    if (ctx->depth > 0) {
-        depth = ctx->depth + 1;
+    /* An explicit negative depth leaves no room for any chain,
+     * not even a trusted leaf: reject before building one. */
+    if (ctx->depthSet && ctx->depth < 0) {
+        SetupStoreCtxError_ex(ctx, WOLFSSL_X509_V_ERR_CERT_CHAIN_TOO_LONG, 0);
+        ret = WOLFSSL_FAILURE;
+        goto exit;
+    }
+    /* The struct is public, so also honor a positive depth written directly
+     * (no setter). Clamp so the + 1 can't overflow. */
+    if (ctx->depthSet || ctx->depth > 0) {
+        depth = (ctx->depth < INT_MAX) ? ctx->depth + 1 : INT_MAX;
     }
     else {
         depth = WOLFSSL_X509_STORE_DEFAULT_MAX_DEPTH + 1;
@@ -1031,9 +1049,12 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
     while(done == 0 && depth > 0) {
         issuer = NULL;
 
-        /* Try to find an untrusted issuer first */
-        ret = X509StoreGetIssuerEx(&issuer, certsToUse,
-                                               ctx->current_cert);
+        /* Try to find an untrusted issuer first. Skip certs already on the
+         * path so an issuer cycle (A <- B <- A) ends the search instead of
+         * running until the depth budget is spent. current_cert is not on
+         * ctx->chain yet, so a self-issued terminus is still found. */
+        ret = X509StoreGetIssuerSkip(&issuer, certsToUse,
+                                     ctx->current_cert, ctx->chain);
         if (ret == WOLFSSL_SUCCESS) {
             if (ctx->current_cert == issuer) {
                 X509StoreChainPush(ctx->chain, ctx->current_cert);
@@ -1078,7 +1099,7 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                     &depth, origDepth);
                 continue;
             }
-            ret = X509StoreVerifyCert(ctx, &cbRejected);
+            ret = X509StoreVerifyCert(ctx, &cbRejected, verifyCb);
             if (cbRejected) {
                 /* The application vetoed this certificate.  Stop instead of
                  * looking for another issuer: the decision is the
@@ -1112,7 +1133,7 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                 ret = WOLFSSL_FATAL_ERROR;
                 goto exit;
             }
-            ret = X509StoreVerifyCert(ctx, &cbRejected);
+            ret = X509StoreVerifyCert(ctx, &cbRejected, verifyCb);
             if (cbRejected) {
                 /* An application veto is final.  The partial-chain fallback
                  * below must not accept the chain here and clear ctx->error:
@@ -1124,9 +1145,7 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                 /* WOLFSSL_PARTIAL_CHAIN may only terminate the chain at a
                  * certificate the caller actually trusts, so verify that
                  * ctx->current_cert is itself in the original trust set. */
-                if (((ctx->flags & WOLFSSL_PARTIAL_CHAIN) ||
-                     (ctx->store->param != NULL &&
-                      (ctx->store->param->flags & WOLFSSL_PARTIAL_CHAIN))) &&
+                if (X509StoreCertIsPartialChain(ctx) &&
                     X509StoreCertIsTrusted(ctx->store, ctx->current_cert,
                         origTrustedSk)) {
                     X509StoreChainPush(ctx->chain, ctx->current_cert);
@@ -1188,22 +1207,47 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
     }
 
     /* Success requires the path to have reached a configured trust anchor
-     * (done == 1) or to have terminated at a caller-trusted self-signed
-     * certificate via the break above (done == 0 with depth still > 0).  A
-     * loop that instead ran out of its depth budget (depth <= 0) without
-     * completing must fail closed: ret may still be WOLFSSL_SUCCESS from the
-     * last link, but no trust anchor was reached. */
+     * (done == 1), to have terminated at a caller-trusted self-signed
+     * certificate via the break above (done == 0 with depth still > 0), or
+     * to have spent its depth budget exactly on a trust anchor (below).  A
+     * loop that ran out of its depth budget (depth <= 0) without completing
+     * must fail with CERT_CHAIN_TOO_LONG unless the cert it stopped on is
+     * caller-trusted and either self-issued or accepted by
+     * X509_V_FLAG_PARTIAL_CHAIN: the trust anchor never counts against depth.
+     * ret may still be WOLFSSL_SUCCESS from the last link, so it cannot be
+     * relied on here. */
     if (ret == WOLFSSL_SUCCESS && done == 0 && depth <= 0) {
-        SetupStoreCtxError_ex(ctx, WOLFSSL_X509_V_ERR_CERT_CHAIN_TOO_LONG,
-            wolfSSL_sk_X509_num(ctx->chain));
-        ret = WOLFSSL_FAILURE;
+        int anchorEndsPath = 0;
+
+        /* A trusted anchor from certsToUse is not an intermediate, so accept
+         * it here if it ends the path instead of counting it against depth. */
+        if (X509StoreCertIsTrusted(ctx->store, ctx->current_cert,
+                origTrustedSk)) {
+            /* self-issued anchor */
+            if (wolfSSL_X509_check_issued(ctx->current_cert,
+                        ctx->current_cert) == WOLFSSL_X509_V_OK) {
+                anchorEndsPath = 1;
+            }
+            if (X509StoreCertIsPartialChain(ctx)) {
+                anchorEndsPath = 1;
+            }
+        }
+
+        if (anchorEndsPath) {
+            ret = X509StoreChainPush(ctx->chain, ctx->current_cert);
+        }
+        else {
+            SetupStoreCtxError_ex(ctx, WOLFSSL_X509_V_ERR_CERT_CHAIN_TOO_LONG,
+                wolfSSL_sk_X509_num(ctx->chain));
+            ret = WOLFSSL_FAILURE;
+        }
     }
 
     /* RFC 5280 sec. 6.1.4: the per-certificate CertManager verification above
      * does not enforce the issuer's BasicConstraints pathLenConstraint on this
      * API path, so check it over the assembled path before reporting success. */
     if (ret == WOLFSSL_SUCCESS) {
-        ret = X509StoreCheckPathLen(ctx);
+        ret = X509StoreCheckPathLen(ctx, verifyCb);
     }
 
     /* Enforce hostname / IP verification from X509_VERIFY_PARAM if set.
@@ -1216,9 +1260,6 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
      * Without that call a callback installed to inspect or override
      * verification errors never sees a hostname or IP mismatch. */
     if (ctx->param != NULL) {
-        WOLFSSL_X509_STORE_CTX_verify_cb idVerifyCb =
-            X509StoreGetVerifyCb(ctx);
-
         if (ret == WOLFSSL_SUCCESS && ctx->param->hostName[0] != '\0') {
             if (wolfSSL_X509_check_host(orig,
                     ctx->param->hostName,
@@ -1227,7 +1268,7 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                 ctx->error = WOLFSSL_X509_V_ERR_HOSTNAME_MISMATCH;
                 ctx->error_depth = 0;
                 ctx->current_cert = orig;
-                if (idVerifyCb == NULL || idVerifyCb(0, ctx) != 1) {
+                if (verifyCb == NULL || verifyCb(0, ctx) != 1) {
                     ret = WOLFSSL_FAILURE;
                 }
             }
@@ -1239,7 +1280,7 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                 ctx->error = WOLFSSL_X509_V_ERR_IP_ADDRESS_MISMATCH;
                 ctx->error_depth = 0;
                 ctx->current_cert = orig;
-                if (idVerifyCb == NULL || idVerifyCb(0, ctx) != 1) {
+                if (verifyCb == NULL || verifyCb(0, ctx) != 1) {
                     ret = WOLFSSL_FAILURE;
                 }
             }
@@ -1444,11 +1485,17 @@ int wolfSSL_X509_STORE_CTX_set_ex_data_with_cleanup(
 #endif /* HAVE_EX_DATA_CLEANUP_HOOKS */
 
 #if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_EXTRA)
+/* Set the maximum number of intermediate CAs allowed between the leaf and the
+ * trust anchor; neither the leaf nor the anchor counts, so 0 allows none.
+ * A negative depth rejects every chain. X509_STORE_CTX_init() resets
+ * the depth, so call this after init. */
 void wolfSSL_X509_STORE_CTX_set_depth(WOLFSSL_X509_STORE_CTX* ctx, int depth)
 {
     WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_set_depth");
-    if (ctx)
+    if (ctx != NULL) {
         ctx->depth = depth;
+        ctx->depthSet = 1;
+    }
 }
 #endif
 

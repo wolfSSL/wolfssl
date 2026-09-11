@@ -19,6 +19,8 @@
 #                        trust anchor)
 #   int-ca-tampered      int-ca with the final byte of its signatureValue
 #                        flipped (valid TBSCertificate, broken outer signature)
+#   loop-a, loop-b       two CAs that issued each other (an issuer cycle that
+#                        never reaches a root); loop-leaf is issued by loop-a
 #
 # The certificates intentionally omit subjectKeyIdentifier /
 # authorityKeyIdentifier; the test relies on this, so the script aborts at the
@@ -42,7 +44,7 @@ RSA_BITS=2048
 
 CA_EXT=$(mktemp)
 LEAF_EXT=$(mktemp)
-trap 'rm -f "$CA_EXT" "$LEAF_EXT" *.csr *.srl' EXIT
+trap 'rm -f "$CA_EXT" "$LEAF_EXT" *.csr *.srl loop-*-seed.pem' EXIT
 
 # No pathlen so the first intermediate can still issue the second one in the
 # two-intermediate positive control; no key identifiers (see header).
@@ -107,6 +109,27 @@ genkey leaf-deep-key.pem
 signcert leaf-deep.csr leaf-deep-cert.pem int-ca2-cert.pem int-ca2-key.pem \
     "$LEAF_EXT"
 
+# Issuer cycle: loop-a is signed by loop-b's key and loop-b by loop-a's.  Each
+# is signed through a throwaway self-signed seed carrying the other's name and
+# key, since neither final cert exists yet. -----------------------------------
+genkey loop-a-key.pem
+genkey loop-b-key.pem
+genroot loop-a-key.pem loop-a-seed.pem "wolfSSL Untrusted-Anchor Test Loop A"
+genroot loop-b-key.pem loop-b-seed.pem "wolfSSL Untrusted-Anchor Test Loop B"
+"$OPENSSL" req -new -key loop-a-key.pem -sha256 \
+    -subj "/CN=wolfSSL Untrusted-Anchor Test Loop A" -out loop-a.csr
+"$OPENSSL" req -new -key loop-b-key.pem -sha256 \
+    -subj "/CN=wolfSSL Untrusted-Anchor Test Loop B" -out loop-b.csr
+signcert loop-a.csr loop-a-cert.pem loop-b-seed.pem loop-b-key.pem "$CA_EXT"
+signcert loop-b.csr loop-b-cert.pem loop-a-seed.pem loop-a-key.pem "$CA_EXT"
+
+# Leaf issued by loop-a -------------------------------------------------------
+genkey loop-leaf-key.pem
+"$OPENSSL" req -new -key loop-leaf-key.pem -sha256 \
+    -subj "/CN=www.example.test" -out loop-leaf.csr
+signcert loop-leaf.csr loop-leaf-cert.pem loop-a-cert.pem loop-a-key.pem \
+    "$LEAF_EXT"
+
 # Tampered intermediate: flip the final byte of the DER (last byte of the
 # signatureValue) so the TBSCertificate stays valid but the outer signature no
 # longer verifies.
@@ -121,7 +144,8 @@ rm -f int-ca.der int-ca-tampered.der
 
 # Guard: these test certificates must not carry key identifiers (see header).
 for c in root-ca-cert.pem alt-ca-cert.pem int-ca-cert.pem int-ca2-cert.pem \
-         leaf-cert.pem leaf-deep-cert.pem; do
+         leaf-cert.pem leaf-deep-cert.pem loop-a-cert.pem loop-b-cert.pem \
+         loop-leaf-cert.pem; do
     if "$OPENSSL" x509 -in "$c" -noout -text \
             | grep -q "Key Identifier"; then
         echo "ERROR: $c carries a subject/authority key identifier." >&2
