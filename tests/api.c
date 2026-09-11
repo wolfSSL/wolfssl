@@ -28372,6 +28372,62 @@ static int test_wolfSSL_X509_CRL_add_revoked_oversized_revocation_date(void)
 }
 #endif
 
+#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && defined(HAVE_CRL) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT)
+/* Ensure the cached revoked stack is rebuilt after a newer CRL replaces the
+ * entry it was built from. */
+static int test_wolfSSL_X509_CRL_get_REVOKED_after_update(void)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL_X509_STORE* store = NULL;
+    WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* objs = NULL;
+    WOLFSSL_X509_CRL* crl = NULL;
+    WOLFSSL_STACK* revokedSk = NULL;
+    WOLFSSL_X509_REVOKED* rev = NULL;
+    const WOLFSSL_ASN1_INTEGER* serial = NULL;
+    int i;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx, "./certs/ca-cert.pem",
+        NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_EnableCRL(ctx, WOLFSSL_CRL_CHECKALL),
+        WOLFSSL_SUCCESS);
+    /* CRL number 1, revoking serial 0x01 */
+    ExpectIntEQ(wolfSSL_CTX_LoadCRLFile(ctx, "./certs/crl/crl_reason.pem",
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+    /* The store hands out the manager's live CRL object */
+    ExpectNotNull(store = wolfSSL_CTX_get_cert_store(ctx));
+    ExpectNotNull(objs = wolfSSL_X509_STORE_get0_objects(store));
+    for (i = 0; (crl == NULL) && (i < wolfSSL_sk_X509_OBJECT_num(objs)); i++) {
+        crl = wolfSSL_X509_OBJECT_get0_X509_CRL(
+            (WOLFSSL_X509_OBJECT*)wolfSSL_sk_X509_OBJECT_value(objs, i));
+    }
+    ExpectNotNull(crl);
+
+    /* Build and cache the stack */
+    ExpectNotNull(revokedSk = wolfSSL_X509_CRL_get_REVOKED(crl));
+    ExpectIntEQ(wolfSSL_sk_X509_REVOKED_num(revokedSk), 1);
+
+    /* CRL number 2 from the same issuer replaces that entry and revokes
+     * serial 0x02 instead */
+    ExpectIntEQ(wolfSSL_CTX_LoadCRLFile(ctx, "./certs/crl/crl.pem",
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+    ExpectNotNull(revokedSk = wolfSSL_X509_CRL_get_REVOKED(crl));
+    ExpectIntEQ(wolfSSL_sk_X509_REVOKED_num(revokedSk), 1);
+    ExpectNotNull(rev = wolfSSL_sk_X509_REVOKED_value(revokedSk, 0));
+    ExpectNotNull(serial = wolfSSL_X509_REVOKED_get0_serial_number(rev));
+    ExpectIntEQ(serial->length, 1);
+    ExpectIntEQ(serial->data[0], 0x02);
+
+    wolfSSL_CTX_free(ctx);
+
+    return EXPECT_RESULT();
+}
+#endif
+
 #if (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && !defined(NO_CERTS) && \
     defined(HAVE_CRL) && !defined(NO_FILESYSTEM) && \
     !defined(NO_STDIO_FILESYSTEM)
@@ -41525,6 +41581,10 @@ TEST_CASE testCases[] = {
 #if (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && !defined(NO_CERTS) && \
     defined(HAVE_CRL) && defined(WOLFSSL_CERT_GEN) && !defined(NO_ASN_TIME)
     TEST_DECL(test_wolfSSL_X509_CRL_add_revoked_oversized_revocation_date),
+#endif
+#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && defined(HAVE_CRL) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT)
+    TEST_DECL(test_wolfSSL_X509_CRL_get_REVOKED_after_update),
 #endif
 #if (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && !defined(NO_CERTS) && \
     defined(HAVE_CRL) && !defined(NO_FILESYSTEM) && \
