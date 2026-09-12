@@ -1043,10 +1043,15 @@ int wc_RNG_DRBG_Reseed_Nonce(WC_RNG* rng, const byte* seed, word32 seedSz,
         return ret;
 
 #ifdef WC_RNG_HAVE_LOCK
-    /* Never allow an undersized seed to clear an invalidated state. */
+    /* Never allow an undersized seed to clear an invalidated state, and if
+     * invalidated, always assume potentially primary seed data -- test it with
+     * wc_RNG_TestSeed(). */
     if (WOLFSSL_ATOMIC_LOAD(rng->lock) & WC_RNG_LOCK_ENTROPY_INVALIDATED) {
         if (seedSz < WC_DRBG_SEED_SZ)
             return NEEDS_RECOVERY_E;
+        ret = wc_RNG_TestSeed(seed, seedSz);
+        if (ret != 0)
+            return ret;
     }
 #endif /* WC_RNG_HAVE_LOCK */
 
