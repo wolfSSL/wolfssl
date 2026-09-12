@@ -2865,7 +2865,7 @@ static int _InitRng(WC_RNG* rng, const byte* nonce, word32 nonceSz,
     }
 
     if (ret != 0) {
-    #ifndef NO_SHA256
+    #if defined(HAVE_HASHDRBG) && !defined(NO_SHA256)
         if (rng->drbgType == WC_DRBG_SHA256) {
             if (drbg_instantiated) {
                 (void)Hash_DRBG_Uninstantiate(
@@ -2886,8 +2886,8 @@ static int _InitRng(WC_RNG* rng, const byte* nonce, word32 nonceSz,
             rng->drbg_scratch = NULL;
             #endif /* WOLFSSL_SMALL_STACK_CACHE */
         }
-    #endif /* !NO_SHA256 */
-    #ifdef WOLFSSL_DRBG_SHA512
+    #endif /* HAVE_HASHDRBG && !NO_SHA256 */
+    #if defined(HAVE_HASHDRBG) && defined(WOLFSSL_DRBG_SHA512)
         if (rng->drbgType == WC_DRBG_SHA512) {
             if (drbg_instantiated) {
                 (void)Hash512_DRBG_Uninstantiate(
@@ -2907,7 +2907,7 @@ static int _InitRng(WC_RNG* rng, const byte* nonce, word32 nonceSz,
             rng->drbg512_scratch = NULL;
             #endif /* WOLFSSL_SMALL_STACK_CACHE */
         }
-    #endif
+    #endif /* HAVE_HASHDRBG && WOLFSSL_DRBG_SHA512 */
     #ifdef WOLFSSL_SMALL_STACK_CACHE
         XFREE(rng->newSeed_buf, rng->heap, DYNAMIC_TYPE_SEED);
         rng->newSeed_buf = NULL;
