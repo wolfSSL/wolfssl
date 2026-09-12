@@ -2445,6 +2445,7 @@ int wc_Sha512Drbg_IsDisabled(void)
  * latch is held) and frees the mutex.
  */
 static int _InitRng(WC_RNG* rng, const byte* nonce, word32 nonceSz,
+                    const byte *perso, word32 persoSz,
                     void* heap, int devId, WC_RNG* seedRng, word32 flags)
 {
     int ret = 0;
@@ -2463,6 +2464,8 @@ static int _InitRng(WC_RNG* rng, const byte* nonce, word32 nonceSz,
 
     (void)nonce;
     (void)nonceSz;
+    (void)perso;
+    (void)persoSz;
     /* seedRng is consumed only in the seed-acquisition arm; cast for
      * configurations that compile that arm out. */
     (void)seedRng;
@@ -2470,6 +2473,8 @@ static int _InitRng(WC_RNG* rng, const byte* nonce, word32 nonceSz,
     if (rng == NULL)
         return BAD_FUNC_ARG;
     if (nonce == NULL && nonceSz != 0)
+        return BAD_FUNC_ARG;
+    if (perso == NULL && persoSz != 0)
         return BAD_FUNC_ARG;
 
 #ifndef WC_RNG_HAVE_NEXT_SEED
@@ -2857,7 +2862,7 @@ static int _InitRng(WC_RNG* rng, const byte* nonce, word32 nonceSz,
                 #else
                             seed, seedSz,
                 #endif
-                            nonce, nonceSz, NULL, 0, rng->heap, devId);
+                            nonce, nonceSz, perso, persoSz, rng->heap, devId);
 #endif
 #ifdef WOLFSSL_DRBG_SHA512
             if (rng->drbgType == WC_DRBG_SHA512)
@@ -2868,7 +2873,7 @@ static int _InitRng(WC_RNG* rng, const byte* nonce, word32 nonceSz,
                 #else
                     seed, seedSz,
                 #endif
-                    nonce, nonceSz, NULL, 0, rng->heap, devId);
+                    nonce, nonceSz, perso, persoSz, rng->heap, devId);
 #endif
             if (ret == 0)
                 drbg_instantiated = 1;
@@ -3028,7 +3033,7 @@ int wc_rng_new_ex(WC_RNG **rng, byte* nonce, word32 nonceSz,
         return MEMORY_E;
     }
 
-    ret = _InitRng(*rng, nonce, nonceSz, heap, devId, NULL,
+    ret = _InitRng(*rng, nonce, nonceSz, NULL, 0, heap, devId, NULL,
                    WC_RNG_INIT_FLAGS_NONE);
     if (ret != 0) {
         XFREE(*rng, heap, DYNAMIC_TYPE_RNG);
@@ -3055,21 +3060,21 @@ void wc_rng_free(WC_RNG* rng)
 WOLFSSL_ABI
 int wc_InitRng(WC_RNG* rng)
 {
-    return _InitRng(rng, NULL, 0, NULL, INVALID_DEVID, NULL,
+    return _InitRng(rng, NULL, 0, NULL, 0, NULL, INVALID_DEVID, NULL,
                     WC_RNG_INIT_FLAGS_NONE);
 }
 
 
 int wc_InitRng_ex(WC_RNG* rng, void* heap, int devId)
 {
-    return _InitRng(rng, NULL, 0, heap, devId, NULL,
+    return _InitRng(rng, NULL, 0, NULL, 0, heap, devId, NULL,
                     WC_RNG_INIT_FLAGS_NONE);
 }
 
 
 int wc_InitRngNonce(WC_RNG* rng, const byte* nonce, word32 nonceSz)
 {
-    return _InitRng(rng, nonce, nonceSz, NULL, INVALID_DEVID, NULL,
+    return _InitRng(rng, nonce, nonceSz, NULL, 0, NULL, INVALID_DEVID, NULL,
                     WC_RNG_INIT_FLAGS_NONE);
 }
 
@@ -3077,19 +3082,21 @@ int wc_InitRngNonce(WC_RNG* rng, const byte* nonce, word32 nonceSz)
 int wc_InitRngNonce_ex(WC_RNG* rng, const byte* nonce, word32 nonceSz,
                        void* heap, int devId)
 {
-    return _InitRng(rng, nonce, nonceSz, heap, devId, NULL,
+    return _InitRng(rng, nonce, nonceSz, NULL, 0, heap, devId, NULL,
                     WC_RNG_INIT_FLAGS_NONE);
 }
 
 int wc_InitRng_ex2(WC_RNG* rng, void* heap, int devId, word32 flags)
 {
-    return _InitRng(rng, NULL, 0, heap, devId, NULL, flags);
+    return _InitRng(rng, NULL, 0, NULL, 0, heap, devId, NULL, flags);
 }
 
 int wc_InitRngNonce_ex2(WC_RNG* rng, const byte* nonce, word32 nonceSz,
+                        const byte *perso, word32 persoSz,
                         void* heap, int devId, word32 flags)
 {
-    return _InitRng(rng, nonce, nonceSz, heap, devId, NULL, flags);
+    return _InitRng(rng, nonce, nonceSz, perso, persoSz,
+                    heap, devId, NULL, flags);
 }
 
 #ifdef WC_RNG_HAVE_LOCK
@@ -3743,6 +3750,7 @@ int wc_RNG_Pool_Current(WC_RNG* rng, word32* n)
  */
 static int SpawnRngRBGC(WC_RNG* new_child_stack, WC_RNG** new_child_heap,
                         WC_RNG* parent, const byte* nonce, word32 nonceSz,
+                        const byte *perso, word32 persoSz,
                         word32 flags)
 {
     WC_RNG* child = new_child_stack;
@@ -3768,7 +3776,7 @@ static int SpawnRngRBGC(WC_RNG* new_child_stack, WC_RNG** new_child_heap,
         child = *new_child_heap;
     }
 
-    ret = _InitRng(child, nonce, nonceSz, parent->heap,
+    ret = _InitRng(child, nonce, nonceSz, perso, persoSz, parent->heap,
     #if defined(WOLF_CRYPTO_CB)
                    parent->devId,
     #else
@@ -3788,25 +3796,29 @@ static int SpawnRngRBGC(WC_RNG* new_child_stack, WC_RNG** new_child_heap,
 
 int wc_InitRngRBGC(WC_RNG* child, WC_RNG* parent, word32 flags)
 {
-    return SpawnRngRBGC(child, NULL, parent, NULL, 0, flags);
+    return SpawnRngRBGC(child, NULL, parent, NULL, 0, NULL, 0, flags);
 }
 
 int wc_InitRngNonceRBGC(WC_RNG* child, WC_RNG* parent, const byte* nonce,
-                        word32 nonceSz, word32 flags)
+                        word32 nonceSz, const byte *perso, word32 persoSz,
+                        word32 flags)
 {
-    return SpawnRngRBGC(child, NULL, parent, nonce, nonceSz, flags);
+    return SpawnRngRBGC(child, NULL, parent, nonce, nonceSz, perso, persoSz,
+                        flags);
 }
 
 #ifndef WC_NO_CONSTRUCTORS
 int wc_InitRngRBGC_New(WC_RNG** child, WC_RNG* parent, word32 flags)
 {
-    return SpawnRngRBGC(NULL, child, parent, NULL, 0, flags);
+    return SpawnRngRBGC(NULL, child, parent, NULL, 0, NULL, 0, flags);
 }
 
 int wc_InitRngNonceRBGC_New(WC_RNG** child, WC_RNG* parent, const byte* nonce,
-                            word32 nonceSz, word32 flags)
+                            word32 nonceSz, const byte *perso, word32 persoSz,
+                            word32 flags)
 {
-    return SpawnRngRBGC(NULL, child, parent, nonce, nonceSz, flags);
+    return SpawnRngRBGC(NULL, child, parent, nonce, nonceSz, perso, persoSz,
+                        flags);
 }
 #endif /* !WC_NO_CONSTRUCTORS */
 
@@ -3883,7 +3895,7 @@ static int wc_RNG_DRBG_ReseedRBGC_local(WC_RNG* rng, WC_RNG* root,
     ret = wc_RNG_GenerateBlock(root, seed, SEED_SZ);
     if (ret == 0) {
         if (credited) {
-            ret = wc_RNG_DRBG_Reseed_Nonce(rng, seed, SEED_SZ, nonce, nonceSz);
+            ret = Hash_DRBG_Reseed(rng, seed, SEED_SZ, nonce, nonceSz);
             if (ret == 0) {
                 rng->RBGCStratum = root->RBGCStratum + 1;
     #ifdef WC_RNG_DEBUG_STATS
@@ -4602,15 +4614,14 @@ int wc_RNG_DRBG_NextSeedNow(WC_RNG* rng) {
  * interleaved fragments of compatible provenance are harmless.  A full
  * accumulator publishes WC_DRBG_NEXT_SEED_READY (no health test -- no
  * claim is being made) and blocks further deposits until consumed. */
-int wc_RNG_DRBG_NextStirStore(WC_RNG* rng, const byte *nonce,
-                                        word32 nonceSz)
+int wc_RNG_DRBG_NextStirStore(WC_RNG* rng,
+                              const byte *nonce, word32 nonceSz)
 {
     if ((nonce == NULL) || (nonceSz == 0))
         return BAD_FUNC_ARG;
     /* _local's nonce arm only reads the buffer; the parameter is non-const
      * for the benefit of the other arms. */
-    return wc_RNG_DRBG_NextSeedGenerate_local(rng, NULL, nonce,
-                                              nonceSz);
+    return wc_RNG_DRBG_NextSeedGenerate_local(rng, NULL, nonce, nonceSz);
 }
 
 /* Consume a ready uncredited accumulator in an immediate uncredited

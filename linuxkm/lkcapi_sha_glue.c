@@ -2327,8 +2327,12 @@ static int wc_linuxkm_rng_state_invalidate(void) {
                 /* daemon-less bank: recover synchronously -- the
                  * FOR_RECOVERY claim path in wc_rng_bank_reseed_range()'s
                  * checkouts claims the quarantined instances. */
-                this_ret = wc_rng_bank_reseed_range(obj->bank, 0, -1,
+                unsigned long uncredited_nonce = random_get_entropy();
+                this_ret = wc_rng_bank_reseed_range(
+                    obj->bank, 0, -1,
+                    (byte *)&uncredited_nonce, (word32)sizeof uncredited_nonce,
                     WC_LINUXKM_INITRNG_TIMEOUT_SEC, WC_RNG_BANK_FLAG_CAN_WAIT);
+                ForceZero(&uncredited_nonce, (word32)sizeof uncredited_nonce);
                 if ((this_ret != 0) && (ret == 0))
                     ret = this_ret;
             }
@@ -2790,7 +2794,11 @@ static int wc_linuxkm_entropy_daemon(void *arg)
             if ((wc_RNG_lock_read(local_root, &root_lock_state) == 0) &&
                 (root_lock_state & WC_RNG_LOCK_ENTROPY_INVALIDATED))
             {
-                int inv_ret = wc_RNG_DRBG_Reseed_Now(local_root, NULL, 0);
+                unsigned long uncredited_nonce = random_get_entropy();
+                int inv_ret = wc_RNG_DRBG_Reseed_Now(
+                    local_root,
+                    (byte *)&uncredited_nonce, (word32)sizeof uncredited_nonce);
+                ForceZero(&uncredited_nonce, (word32)sizeof uncredited_nonce);
                 if (inv_ret != 0)
                     pr_err_ratelimited("wc_entropyd: post-invalidation "
                         "local_root reseed failed: %d\n", inv_ret);
@@ -2877,8 +2885,8 @@ static int wc_linuxkm_entropy_daemon(void *arg)
                 {
                     unsigned long uncredited_nonce = random_get_entropy();
                     (void)wc_RNG_DRBG_Stir(local_root,
-                                                        (byte *)&uncredited_nonce,
-                                                        (word32)sizeof uncredited_nonce);
+                                           (byte *)&uncredited_nonce,
+                                           (word32)sizeof uncredited_nonce);
                     ForceZero(&uncredited_nonce, (word32)sizeof uncredited_nonce);
                     ret = wc_RNG_Pool_Collect2(inst_rng, local_root,
                                                (word32)inst_rng->poolSize
@@ -3094,7 +3102,7 @@ static int wc_linuxkm_rng_bank_init(struct wc_rng_bank *ctx)
         flags | WC_RNG_BANK_FLAG_NO_CHECKOUT_REFCOUNTING | WC_RNG_BANK_FLAG_INIT_RBGC,
         WC_LINUXKM_INITRNG_TIMEOUT_SEC,
         NULL /* heap */, INVALID_DEVID,
-        (byte *)&uncredited_nonce, (word32)sizeof uncredited_nonce);
+        (byte *)&uncredited_nonce, (word32)sizeof uncredited_nonce, NULL, 0);
 
     if (ret == 0) {
         (void)wc_rng_bank_first_failover_inst_set(ctx, LINUXKM_RNG_BANK_FIRST_FAILOVER);
@@ -3367,7 +3375,11 @@ static struct wc_rng_bank_inst *linuxkm_get_drbg(struct wc_rng_bank *ctx) {
     if ((err == WC_NO_ERR_TRACE(NEEDS_RECOVERY_E)) && (ret != NULL)) {
         /* leased-but-quarantined per WC_RNG_BANK_FLAG_MAYBE_FOR_RECOVERY:
          * we own the recovery obligation. */
-        err = wc_RNG_DRBG_Reseed_Now(WC_RNG_BANK_INST_TO_RNG(ret), NULL, 0);
+        unsigned long uncredited_nonce = random_get_entropy();
+        err = wc_RNG_DRBG_Reseed_Now(
+            WC_RNG_BANK_INST_TO_RNG(ret),
+            (byte *)&uncredited_nonce, (word32)sizeof uncredited_nonce);
+        ForceZero(&uncredited_nonce, (word32)sizeof uncredited_nonce);
         if (err == 0)
             return ret;
         pr_err_ratelimited("ERROR: inline recovery reseed in "
@@ -3422,6 +3434,7 @@ WC_MAYBE_UNUSED static int linuxkm_InitRng_DefaultRBGC(WC_RNG* rng) {
     int can_sleep = wc_linuxkm_can_block();
     int ret = wc_rng_bank_spawn(NULL /* bank */, rng, (byte *)&uncredited_nonce,
                                 sizeof uncredited_nonce,
+                                NULL, 0,
                                 0 /* preferred_inst_offset */,
                                 0 /* timeout_secs */,
                                 WC_RNG_BANK_FLAG_CAN_FAIL_OVER_INST |
@@ -3812,8 +3825,10 @@ static int wc_linuxkm_drbg_seed(struct wc_rng_bank *ctx,
      * additional input, never crediting it as entropy).  Mix it into every
      * instance without credit; the reseed schedule stays governed solely by
      * the module's own seed source. */
-    ret = wc_rng_bank_seed_range(ctx, 0, LINUXKM_RNG_BANK_LAST_SAFELY_CONTENDABLE,
-                                 seed, slen, WC_LINUXKM_INITRNG_TIMEOUT_SEC,
+    ret = wc_rng_bank_seed_range(ctx, 0,
+                                 LINUXKM_RNG_BANK_LAST_SAFELY_CONTENDABLE,
+                                 seed, slen, NULL, 0,
+                                 WC_LINUXKM_INITRNG_TIMEOUT_SEC,
                                  WC_RNG_BANK_FLAG_CAN_WAIT |
                                  WC_RNG_BANK_FLAG_STIR);
     if (ret != 0) {
@@ -4158,6 +4173,7 @@ static int wc_crng_reseed(void) {
     struct wc_rng_bank *ctx;
     int can_sleep = wc_linuxkm_can_block();
     int ret = wc_rng_bank_default_checkout(&ctx);
+    unsigned long uncredited_nonce;
 
     if (ret) {
 #ifdef WC_VERBOSE_RNG
@@ -4167,14 +4183,18 @@ static int wc_crng_reseed(void) {
         return -EFAULT;
     }
 
+    uncredited_nonce = random_get_entropy();
     ret = wc_rng_bank_reseed_range(ctx, 0,
                                    LINUXKM_RNG_BANK_LAST_SAFELY_CONTENDABLE,
+                                   (byte *)&uncredited_nonce,
+                                   (word32)sizeof uncredited_nonce,
                                    WC_LINUXKM_INITRNG_TIMEOUT_SEC,
                                    can_sleep
                                    ?
                                    WC_RNG_BANK_FLAG_CAN_WAIT
                                    :
                                    WC_RNG_BANK_FLAG_NONE);
+    ForceZero(&uncredited_nonce, (word32)sizeof uncredited_nonce);
 
     (void)wc_rng_bank_default_checkin(&ctx);
 
