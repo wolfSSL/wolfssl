@@ -987,8 +987,11 @@ int wc_RNG_DRBG_Reseed_Nonce(WC_RNG* rng, const byte* seed, word32 seedSz,
 
     ret = Hash_DRBG_Reseed(rng, seed, seedSz, nonce, nonceSz);
 #ifdef WC_RNG_HAVE_RBGC
-    if (ret == 0)
-        rng->RBGCStratum = 0;
+    if (ret == 0) {
+        /* User-supplied entropy is of unknown provenance.  In RBGC builds,
+         * represent that fact using WC_RNG_RBGC_USER_SEED_STRATUM, preventing confusion with RNGs seeded by the ESV . */
+        rng->RBGCStratum = WC_RNG_RBGC_USER_SEED_STRATUM;
+    }
 #endif
 
     return ret;
@@ -2443,6 +2446,8 @@ static int _InitRng(WC_RNG* rng, const byte* nonce, word32 nonceSz,
     else {
         if (seedRng->RBGCStratum >= WC_MAX_SINT_OF(int))
             return SEQ_OVERFLOW_E;
+        else if (seedRng->RBGCStratum == WC_RNG_RBGC_USER_SEED_STRATUM - 1)
+            return SEQ_OVERFLOW_E;
         rng->RBGCStratum = seedRng->RBGCStratum + 1;
     }
 #endif
@@ -3761,9 +3766,21 @@ static int wc_RNG_DRBG_ReseedRBGC_local(WC_RNG* rng, WC_RNG* root,
     {
         return BAD_FUNC_ARG;
     }
+
     ret = rng_lock_required_check(rng);
     if (ret != 0)
         return ret;
+
+    ret = rng_lock_required_check(root);
+    if (ret != 0)
+        return ret;
+
+    if (credited) {
+        if (root->RBGCStratum >= WC_MAX_SINT_OF(int))
+            return SEQ_OVERFLOW_E;
+        else if (root->RBGCStratum == WC_RNG_RBGC_USER_SEED_STRATUM - 1)
+            return SEQ_OVERFLOW_E;
+    }
 
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     seed = rng->newSeed_buf;
@@ -4120,9 +4137,10 @@ static int wc_RNG_DRBG_NextSeedGenerate_local(WC_RNG* rng, WC_RNG *root,
         {
             return BAD_FUNC_ARG;
         }
-        ret = rng_lock_required_check(root);
-        if (ret != 0)
-            return ret;
+        if (root->RBGCStratum >= WC_MAX_SINT_OF(int))
+            return SEQ_OVERFLOW_E;
+        else if (root->RBGCStratum == WC_RNG_RBGC_USER_SEED_STRATUM - 1)
+            return SEQ_OVERFLOW_E;
 #else
         return NOT_COMPILED_IN;
 #endif

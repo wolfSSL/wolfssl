@@ -28816,14 +28816,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
 
 #ifndef WC_NO_CONSTRUCTORS
     /* heap spawn from the second instance */
-    ret = wc_rng_bank_spawn_new(bank, &spawned_rng, NULL, 0, 1, 0, 0);
+    ret = wc_rng_bank_spawn_new(bank, &spawned_rng, NULL, 0, NULL, 0, 1, 0, 0);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     if (spawned_rng == NULL)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
     ret = wc_RNG_DRBG_GetRBGCStratum(spawned_rng);
-    if (ret != 1)
+    if (ret != WC_RNG_RBGC_USER_SEED_STRATUM + 1)
         ERROR_OUT(WC_TEST_RET_ENC_I(ret), out);
 #endif
     ret = wc_RNG_GenerateBlock(spawned_rng, outbuf1, sizeof(outbuf1));

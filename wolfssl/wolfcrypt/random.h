@@ -456,6 +456,11 @@ enum wc_RngHealthState {
 #define WC_RNG_FLAG_BANKREF        (1U << 2)
 #define WC_RNG_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED (1U << 3)
 
+#ifndef WC_RNG_RBGC_USER_SEED_STRATUM
+    #define WC_RNG_RBGC_USER_SEED_STRATUM 65536
+#endif
+wc_static_assert(WC_RNG_RBGC_USER_SEED_STRATUM >= 256);
+
 #ifdef WC_RNG_WANT_DEBUG_STATS
     #define WC_RNG_DEBUG_STATS
 #endif
