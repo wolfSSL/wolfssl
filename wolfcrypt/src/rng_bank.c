@@ -1914,9 +1914,10 @@ WOLFSSL_API int wc_rng_bank_seed_range(struct wc_rng_bank *bank,
     int bank_is_default = 0;
 #endif
 
-    /* wc_rng_bank_seed() must walk every instance by explicit index -- forbid
-     * flags that would let wc_rng_bank_checkout() pick a different instance
-     * than requested.  Same restriction applies in wc_rng_bank_reseed().
+    /* wc_rng_bank_seed_range() must walk every instance in range by explicit
+     * index -- forbid flags that would let wc_rng_bank_checkout() pick a
+     * different instance than requested.  Same restriction applies in
+     * wc_rng_bank_reseed_range().
      */
     if (flags & (WC_RNG_BANK_FLAG_CAN_FAIL_OVER_INST |
                  WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST |
@@ -1926,6 +1927,15 @@ WOLFSSL_API int wc_rng_bank_seed_range(struct wc_rng_bank *bank,
 
     if (first_inst < 0)
         return BAD_INDEX_E;
+
+    if (((seedSz > 0) && (seed == NULL)) ||
+        ((nonceSz > 0) && (nonce == NULL)))
+    {
+        return BAD_FUNC_ARG;
+    }
+
+    if ((seedSz == 0) && (nonceSz > 0))
+        return BAD_FUNC_ARG;
 
     if (bank == NULL) {
 #ifdef WC_RNG_BANK_DEFAULT_SUPPORT
@@ -1971,52 +1981,81 @@ WOLFSSL_API int wc_rng_bank_seed_range(struct wc_rng_bank *bank,
     for (n = last_inst; n >= first_inst; --n) {
         struct wc_rng_bank_inst *drbg;
         ret = wc_rng_bank_checkout(bank, &drbg, n, timeout_secs,
-                                   flags & ~(word32)
-                                       (WC_RNG_BANK_FLAG_STIR |
-                                        WC_RNG_BANK_FLAG_CONSUME_NEXT_SEED));
+                                   flags & ~(word32)WC_RNG_BANK_FLAG_STIR);
         if (ret != 0) {
 #ifdef WC_VERBOSE_RNG
             if (! (bank->flags & WC_RNG_BANK_FLAG_QUIET))
                 WOLFSSL_DEBUG_PRINTF(
-                    "WARNING: wc_rng_bank_seed(): wc_rng_bank_checkout() for "
+                    "WARNING: wc_rng_bank_seed_range(): "
+                    "wc_rng_bank_checkout() for "
                     "inst#%d returned err %d.\n", n, ret);
 #endif
             break;
         }
-        /* Note that a NULL DRBG doesn't necessarily indicate failure:
-         * _InitRng() bypasses DRBG instantiation when the CPU has RDRAND
-         * (HAVE_INTEL_RDRAND), leaving a usable instance with drbg NULL and
-         * status WC_DRBG_OK.  wc_RNG_DRBG_Reseed() gracefully handles that case
-         * itself (random.c returns success for a NULL DRBG under RDRAND), so
-         * let it through rather than calling it an error.
-         */
         else if (wc_RNG_GetStatus(WC_RNG_BANK_INST_TO_RNG(drbg)) !=
                  WC_DRBG_OK)
         {
 #ifdef WC_VERBOSE_RNG
             if (! (bank->flags & WC_RNG_BANK_FLAG_QUIET))
                 WOLFSSL_DEBUG_PRINTF(
-                    "WARNING: wc_rng_bank_seed(): inst#%d is out of service "
+                    "WARNING: wc_rng_bank_seed_range(): inst#%d is out of service "
                     "(status %d).\n", n,
                     wc_RNG_GetStatus(WC_RNG_BANK_INST_TO_RNG(drbg)));
 #endif
             ret = BAD_STATE_E;
         }
-        else if ((ret = ((flags & WC_RNG_BANK_FLAG_STIR)
-                         ? wc_RNG_DRBG_Stir(
-                               WC_RNG_BANK_INST_TO_RNG(drbg), seed, seedSz)
-                         : wc_RNG_DRBG_Reseed(
-                               WC_RNG_BANK_INST_TO_RNG(drbg), seed, seedSz)))
-                 != 0)
-        {
+        else if (! wc_RNG_DRBG_Present(WC_RNG_BANK_INST_TO_RNG(drbg))) {
+            /* Note that a NULL DRBG doesn't necessarily indicate a degraded
+             * RNG: _InitRng() bypasses DRBG instantiation for
+             * HAVE_INTEL_RDRAND.  We just have no way to seed it, so don't
+             * pretend we can.
+             */
+            ret = NOT_COMPILED_IN;
+        }
+        else {
+            if (flags & WC_RNG_BANK_FLAG_STIR) {
+                ret = wc_RNG_DRBG_Stir_Nonce(
+                               WC_RNG_BANK_INST_TO_RNG(drbg), seed, seedSz,
+                               nonce, nonceSz);
 #ifdef WC_VERBOSE_RNG
-            WOLFSSL_DEBUG_PRINTF(
-                "WARNING: wc_rng_bank_seed(): Hash_DRBG_Reseed() for inst#%d "
-                "returned %d\n", n, ret);
+                if ((ret != 0) && (! (bank->flags & WC_RNG_BANK_FLAG_QUIET))) {
+                    WOLFSSL_DEBUG_PRINTF(
+                        "WARNING: wc_rng_bank_seed_range(): "
+                        "wc_RNG_DRBG_Stir_Nonce() for inst#%d "
+                        "returned %d\n", n, ret);
+                }
 #endif
+            }
+            else {
+                ret = wc_RNG_DRBG_Reseed_Nonce(
+                    WC_RNG_BANK_INST_TO_RNG(drbg), seed, seedSz,
+                    nonce, nonceSz);
+#ifdef WC_VERBOSE_RNG
+                if ((ret != 0) && (! (bank->flags & WC_RNG_BANK_FLAG_QUIET))) {
+                    WOLFSSL_DEBUG_PRINTF(
+                        "WARNING: wc_rng_bank_seed_range(): "
+                        "wc_RNG_DRBG_Reseed_Nonce() for inst#%d "
+                        "returned %d\n", n, ret);
+                }
+#endif
+            }
         }
 
-        (void)wc_rng_bank_checkin(bank, &drbg);
+        {
+            int checkin_ret = wc_rng_bank_checkin(bank, &drbg);
+            if (checkin_ret != 0) {
+                if (ret == 0)
+                    ret = checkin_ret;
+#ifdef WC_VERBOSE_RNG
+                if (! (bank->flags & WC_RNG_BANK_FLAG_QUIET)) {
+                    WOLFSSL_DEBUG_PRINTF(
+                        "WARNING: wc_rng_bank_seed_range(): "
+                        "wc_rng_bank_checkin() for "
+                        "inst#%d returned err %d.\n", n, checkin_ret);
+                }
+#endif
+            }
+        }
 
         if (ret != 0)
             break;
