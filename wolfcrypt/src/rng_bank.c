@@ -26,6 +26,26 @@
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/rng_bank.h>
 
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
+
+    /* backward-compat shim and helper declarations */
+
+    static int wc_rng_bank_inst_recovery_enter(
+        struct wc_rng_bank_inst *inst, int *recovering);
+    static int wc_rng_bank_inst_recovery_exit(
+        struct wc_rng_bank_inst *inst, int recovering, int ret);
+    static int wc_RNG_DRBG_Reseed_Nonce(WC_RNG* rng, const byte* seed,
+                                        word32 seedSz, const byte *nonce,
+                                        word32 nonceSz);
+    #if FIPS_VERSION3_NE(5,2,4)
+    static int wc_RNG_DRBG_GetReseedCtr(
+        const WC_RNG* rng, wc_drbg_reseed_ctr_t* reseedCtr);
+    #endif
+    static int wc_RNG_DRBG_Stir_Nonce(
+        WC_RNG* rng, const byte* seed, word32 seedSz, const byte *nonce,
+        word32 nonceSz);
+#endif /* HAVE_FIPS && FIPS_VERSION3_LT(7,0,0) */
+
 /* DRBG status and reseed-counter access, and reseed forcing, are via the
  * wc_RNG_GetStatus() / wc_RNG_DRBG_*() services in wolfcrypt/src/random.c
  * (FIPS v7+ and non-FIPS builds).  For pre-v7 FIPS boundaries, which lack
@@ -830,15 +850,26 @@ WOLFSSL_API int wc_rng_bank_checkout(
                  *       out under incumbent bare-targeted semantics --
                  *       identically to any other out-of-service instance.
                  */
-                if (wc_RNG_DRBG_NextSeedNow(
-                        WC_RNG_BANK_INST_TO_RNG(*rng_inst)) == 0)
-                {
 #ifndef WC_RNG_HAVE_LOCK
-                    /* consumption is a credited reseed; mirror the
-                     * in-boundary clear (see wc_rng_bank_reseed_range()). */
-                    (void)wc_rng_bank_inst_lock_clear_invalidated(*rng_inst);
-#endif
+                /* consumption is a credited reseed; mirror the in-boundary
+                 * _RECOVERING protocol (see wc_rng_bank_reseed_range()).  A
+                 * BUSY_E here just means another claimant is recovering the
+                 * instance -- nothing to do, and handled uniformly below. */
+                {
+                    int recovering;
+                    if (wc_rng_bank_inst_recovery_enter(*rng_inst,
+                                                        &recovering) == 0)
+                    {
+                        (void)wc_rng_bank_inst_recovery_exit(
+                            *rng_inst, recovering,
+                            wc_RNG_DRBG_NextSeedNow(
+                                WC_RNG_BANK_INST_TO_RNG(*rng_inst)));
+                    }
                 }
+#else
+                (void)wc_RNG_DRBG_NextSeedNow(
+                    WC_RNG_BANK_INST_TO_RNG(*rng_inst));
+#endif
             }
 #endif /* WC_RNG_HAVE_NEXT_SEED */
 
@@ -2174,14 +2205,42 @@ WOLFSSL_API int wc_rng_bank_reseed_range(struct wc_rng_bank *bank,
         if (flags & WC_RNG_BANK_FLAG_CAN_WAIT) {
             for (;;) {
                 time_t ts2;
+
+#ifndef WC_RNG_HAVE_LOCK
+                /* the pre-lock boundary can't see the inst-side latch:
+                 * mirror the in-boundary _RECOVERING protocol around the
+                 * reseed, so that a concurrent invalidation isn't swallowed
+                 * by the clear. */
+                {
+                    int recovering;
+                    ret = wc_rng_bank_inst_recovery_enter(drbg, &recovering);
+                    if (ret == 0) {
+    #if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
+                        (void)nonce;
+                        (void)nonceSz;
+                        ret = wc_RNG_DRBG_Reseed_Now(
+                            WC_RNG_BANK_INST_TO_RNG(drbg), NULL, 0);
+    #else
+                        ret = wc_RNG_DRBG_Reseed_Now(
+                            WC_RNG_BANK_INST_TO_RNG(drbg), nonce, nonceSz);
+    #endif
+                        ret = wc_rng_bank_inst_recovery_exit(drbg, recovering,
+                                                             ret);
+                    }
+                }
+#else /* WC_RNG_HAVE_LOCK */
+    #if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
+                (void)nonce;
+                (void)nonceSz;
                 ret = wc_RNG_DRBG_Reseed_Now(WC_RNG_BANK_INST_TO_RNG(drbg),
                                              NULL, 0);
+    #else
+                ret = wc_RNG_DRBG_Reseed_Now(WC_RNG_BANK_INST_TO_RNG(drbg),
+                                             nonce, nonceSz);
+    #endif
+#endif /* WC_RNG_HAVE_LOCK */
+
                 if (ret == 0) {
-#ifndef WC_RNG_HAVE_LOCK
-                    /* the pre-lock boundary can't see the inst-side latch:
-                     * mirror the in-boundary clear-on-credited-reseed. */
-                    (void)wc_rng_bank_inst_lock_clear_invalidated(drbg);
-#endif
                     break;
                 }
                 if ((timeout_secs == 0) ||

@@ -859,6 +859,38 @@ static int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz,
     cur_lock = WOLFSSL_ATOMIC_LOAD(rng->lock);
 #endif
 
+#ifdef WC_RNG_HAVE_LOCK
+    /* Never allow an undersized seed to clear an invalidated state. */
+    if ((cur_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED) &&
+        (seedSz < WC_DRBG_SEED_SZ))
+    {
+        /* Short-circuit return in case the _RECOVERING mutex below would have
+         * failed. */
+        return NEEDS_RECOVERY_E;
+    }
+
+    /* Iff _ENTROPY_INVALIDATED, assert the _ENTROPY_RECOVERING bit now -- if we
+     * are re-invalidated in the meantime, it will have been cleared by the
+     * invalidation at exit time, signaling that we are still invalidated. */
+    for (;;) {
+        if (! (cur_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED))
+            break;
+        if (cur_lock & WC_RNG_LOCK_ENTROPY_RECOVERING) {
+            /* Must short-circuit return here, so that we don't improperly clear
+             * the _RECOVERING bit. */
+            return BUSY_E;
+        }
+        if (wolfSSL_Atomic_Uint_CompareExchange(
+                &rng->lock, &cur_lock,
+                cur_lock | WC_RNG_LOCK_ENTROPY_RECOVERING))
+        {
+            /* We now have the _RECOVERING mutex -- record that fact. */
+            cur_lock |= WC_RNG_LOCK_ENTROPY_RECOVERING;
+            break;
+        }
+    }
+#endif /* WC_RNG_HAVE_LOCK */
+
 #if defined(WC_RNG_HAVE_LOCK) && defined(WC_RNG_HAVE_POOL)
     /* Purge the pool on credited reseeds.  A credited reseed is an epoch
      * boundary -- the pool must not serve output of a retired state
@@ -957,11 +989,36 @@ static int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz,
     out:
 
 #ifdef WC_RNG_HAVE_LOCK
-    if ((cur_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED) && (ret == 0)) {
+    /* The _RECOVERING bit functions as a mutex -- if it's set here, *we*
+     * set it, and must clear it.
+     *
+     * If we were invalidated on entry, and reseed succeeded, and provided we
+     * weren't re-invalidated in the meantime, clear the _INVALIDATED bit
+     * alongside the _RECOVERING bit.
+     *
+     * Otherwise, just clear the _RECOVERING bit (releasing the recovery mutex),
+     * and return with the success or failure code from above.
+     */
+    if ((ret == 0) && (cur_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED)) {
+        for (;;) {
+            if (! (cur_lock & WC_RNG_LOCK_ENTROPY_RECOVERING)) {
+                ret = NEEDS_RECOVERY_E;
+                break;
+            }
+            if (wolfSSL_Atomic_Uint_CompareExchange(
+                    &rng->lock, &cur_lock,
+                    cur_lock & ~(WC_RNG_LOCK_ENTROPY_INVALIDATED |
+                                 WC_RNG_LOCK_ENTROPY_RECOVERING)))
+            {
+                break;
+            }
+        }
+    }
+    else if (cur_lock & WC_RNG_LOCK_ENTROPY_RECOVERING) {
         for (;;) {
             if (wolfSSL_Atomic_Uint_CompareExchange(
                     &rng->lock, &cur_lock,
-                    cur_lock & ~WC_RNG_LOCK_ENTROPY_INVALIDATED))
+                    cur_lock & ~WC_RNG_LOCK_ENTROPY_RECOVERING))
             {
                 break;
             }
@@ -984,6 +1041,14 @@ int wc_RNG_DRBG_Reseed_Nonce(WC_RNG* rng, const byte* seed, word32 seedSz,
     ret = rng_lock_required_check(rng);
     if (ret != 0)
         return ret;
+
+#ifdef WC_RNG_HAVE_LOCK
+    /* Never allow an undersized seed to clear an invalidated state. */
+    if (WOLFSSL_ATOMIC_LOAD(rng->lock) & WC_RNG_LOCK_ENTROPY_INVALIDATED) {
+        if (seedSz < WC_DRBG_SEED_SZ)
+            return NEEDS_RECOVERY_E;
+    }
+#endif /* WC_RNG_HAVE_LOCK */
 
     ret = Hash_DRBG_Reseed(rng, seed, seedSz, nonce, nonceSz);
 #ifdef WC_RNG_HAVE_RBGC
@@ -3367,7 +3432,8 @@ WOLFSSL_API int wc_RNG_invalidate_entropy(WC_RNG* rng) {
     for (;;) {
         if (wolfSSL_Atomic_Uint_CompareExchange(
             &rng->lock, &cur_lock,
-            cur_lock | WC_RNG_LOCK_ENTROPY_INVALIDATED))
+            (cur_lock & ~WC_RNG_LOCK_ENTROPY_RECOVERING) |
+            WC_RNG_LOCK_ENTROPY_INVALIDATED))
         {
             break;
         }
@@ -3380,6 +3446,11 @@ WOLFSSL_API int wc_RNG_invalidate_entropy(WC_RNG* rng) {
      * If a lock is held, the holder will learn of the invalidation at unlock
      * time, and will implement its own mitigation strategy.  We do not force it
      * into a synchronous reseed.
+     *
+     * In either case, the state purges here are best effort.  With
+     * WC_RNG_HAVE_LOCK, these purges are repeated, strictly serialized against
+     * concurrent recovery attempts, in Hash_DRBG_Reseed() (the sole recovery
+     * path from _ENTROPY_INVALIDATED).
      */
     if (! (cur_lock & WC_RNG_LOCK_HELD))
         (void)wc_RNG_DRBG_ScheduleReseed(rng);
@@ -4126,6 +4197,9 @@ static int wc_RNG_DRBG_NextSeedGenerate_local(WC_RNG* rng, WC_RNG *root,
      */
 
     if (root) {
+        ret = rng_lock_required_check(root);
+        if (ret != 0)
+            return ret;
 #ifdef WC_RNG_HAVE_RBGC
         if ((root->RBGCStratum > 0)
     #ifndef WC_RNG_NO_RBGC_RESEED
