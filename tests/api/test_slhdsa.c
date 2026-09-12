@@ -660,7 +660,7 @@ int test_wc_slhdsa_make_key(void)
 
         ExpectIntEQ(wc_SlhDsaKey_MakeKeyWithRandom(&key, sk_seed,
             sizeof(sk_seed), sk_prf, sizeof(sk_prf), pk_seed, sizeof(pk_seed)),
-            0);
+            SEED_OK);
         wc_SlhDsaKey_Free(&key);
     }
 #endif
@@ -763,7 +763,7 @@ int test_wc_slhdsa_sign(void)
             msg, sizeof(msg), sig, &sigLen, NULL),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wc_SlhDsaKey_SignWithRandom(&key, ctx, sizeof(ctx),
-            msg, sizeof(msg), sig, &sigLen, addRnd), 0);
+            msg, sizeof(msg), sig, &sigLen, addRnd), SEED_OK);
         ExpectIntEQ(sigLen, expSigLen);
 
         wc_SlhDsaKey_Free(&key);
@@ -1174,7 +1174,8 @@ int test_wc_slhdsa_sign_hash(void)
             hash, TEST_SLHDSA_PH_SZ, TEST_SLHDSA_PH, sig, &sigLen, NULL),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wc_SlhDsaKey_SignHashWithRandom(&key, ctx, sizeof(ctx),
-            hash, TEST_SLHDSA_PH_SZ, TEST_SLHDSA_PH, sig, &sigLen, addRnd), 0);
+            hash, TEST_SLHDSA_PH_SZ, TEST_SLHDSA_PH, sig, &sigLen, addRnd),
+            SEED_OK);
         ExpectIntEQ(wc_SlhDsaKey_VerifyHash(&key, ctx, sizeof(ctx), hash,
             TEST_SLHDSA_PH_SZ, TEST_SLHDSA_PH, sig, sigLen), 0);
     }
@@ -1302,7 +1303,7 @@ int test_wc_slhdsa_sign_msg(void)
      * silently rely on the previous call having set it to params->sigLen. */
     sigLen = WC_SLHDSA_MAX_SIG_LEN;
     ExpectIntEQ(wc_SlhDsaKey_SignMsgWithRandom(&key, mprime, sizeof(mprime),
-        sig, &sigLen, addRnd), 0);
+        sig, &sigLen, addRnd), SEED_OK);
     ExpectIntEQ(wc_SlhDsaKey_VerifyMsg(&key, mprime, sizeof(mprime), sig,
         sigLen), 0);
 
@@ -1422,7 +1423,7 @@ int test_wc_slhdsa_sign_addrnd(void)
     ExpectIntEQ(wc_SlhDsaKey_Init(&key, TEST_SLHDSA_DEFAULT_PARAM, NULL,
         INVALID_DEVID), 0);
     ExpectIntEQ(wc_SlhDsaKey_MakeKeyWithRandom(&key, seed, n, seed + n, n,
-        seed + 2 * n, n), 0);
+        seed + 2 * n, n), SEED_OK);
 
     /* Deterministic: addRnd is PK.seed on both paths, so the two signatures
      * must be identical. */
@@ -1445,7 +1446,7 @@ int test_wc_slhdsa_sign_addrnd(void)
      * value is honoured rather than replaced with fresh randomness. */
     sigIntLen = WC_SLHDSA_MAX_SIG_LEN;
     ExpectIntEQ(wc_SlhDsaKey_SignWithRandom(&key, ctx, (byte)sizeof(ctx), msg,
-        (word32)sizeof(msg) - 1, sigInt, &sigIntLen, addRnd), 0);
+        (word32)sizeof(msg) - 1, sigInt, &sigIntLen, addRnd), SEED_OK);
     ExpectIntEQ(sigIntLen, sigExtLen);
     ExpectIntNE(XMEMCMP(sigInt, sigExt, sigExtLen), 0);
     ExpectIntEQ(wc_SlhDsaKey_Verify(&key, ctx, (byte)sizeof(ctx), msg,
@@ -1454,7 +1455,7 @@ int test_wc_slhdsa_sign_addrnd(void)
     /* The same explicit addRnd on the internal interface reproduces it. */
     sigExtLen = WC_SLHDSA_MAX_SIG_LEN;
     ExpectIntEQ(wc_SlhDsaKey_SignMsgWithRandom(&key, mprime, idx, sigExt,
-        &sigExtLen, addRnd), 0);
+        &sigExtLen, addRnd), SEED_OK);
     ExpectIntEQ(sigExtLen, sigIntLen);
     ExpectBufEQ(sigExt, sigInt, sigIntLen);
 
@@ -1558,12 +1559,12 @@ int test_wc_slhdsa_dev_only_key(void)
 
     sigLen = TEST_SLHDSA_DEFAULT_SIG_LEN;
     ExpectIntEQ(wc_SlhDsaKey_SignWithRandom(&key, ctx, (byte)sizeof(ctx), msg,
-        (word32)sizeof(msg) - 1, sig, &sigLen, addRnd), 0);
+        (word32)sizeof(msg) - 1, sig, &sigLen, addRnd), SEED_OK);
     ExpectIntEQ(calls, 2);
 
     sigLen = TEST_SLHDSA_DEFAULT_SIG_LEN;
     ExpectIntEQ(wc_SlhDsaKey_SignMsgWithRandom(&key, msg,
-        (word32)sizeof(msg) - 1, sig, &sigLen, addRnd), 0);
+        (word32)sizeof(msg) - 1, sig, &sigLen, addRnd), SEED_OK);
     ExpectIntEQ(calls, 3);
 
     /* MD5 is not an approved SLH-DSA pre-hash, so the host would reject it.
@@ -1576,7 +1577,7 @@ int test_wc_slhdsa_dev_only_key(void)
     sigLen = TEST_SLHDSA_DEFAULT_SIG_LEN;
     ExpectIntEQ(wc_SlhDsaKey_SignHashWithRandom(&key, ctx, (byte)sizeof(ctx),
         hash, (word32)sizeof(hash), WC_HASH_TYPE_MD5, sig, &sigLen, addRnd),
-        0);
+        SEED_OK);
     ExpectIntEQ(calls, 5);
 
     ExpectIntEQ(wc_SlhDsaKey_Verify(&key, ctx, (byte)sizeof(ctx), msg,
@@ -4259,6 +4260,36 @@ int test_slhdsa_cb_free(void)
     ExpectIntEQ(seen.frees, 2);
 
     wc_CryptoCb_UnRegisterDevice(TEST_SLHDSA_CB_FREE_DEVID);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* SLH-DSA keygen from caller seeds succeeds and returns SEED_OK, the service
+ * indicator for a seed-input call (api.h). */
+int test_wc_SlhDsaKey_seed_service_indicator(void)
+{
+    EXPECT_DECLS;
+/* wc_slhdsa.h declares wc_SlhDsaKey_MakeKeyWithRandom() only under
+ * #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY. */
+#if defined(WOLFSSL_HAVE_SLHDSA) && !defined(WOLFSSL_SLHDSA_VERIFY_ONLY)
+    SlhDsaKey key;
+    /* PK is PK.seed || PK.root, n bytes each (FIPS 205 sec 9.1), so n is half
+     * of PublicSize. */
+    byte seeds[3][WC_SLHDSA_N_256];  /* n is at most 32 */
+    int n = 0;
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(seeds, 0x5a, sizeof(seeds));
+
+    ExpectIntEQ(wc_SlhDsaKey_Init(&key, WC_SLHDSA_DEFAULT_PARAM, NULL,
+        INVALID_DEVID), 0);
+    ExpectIntGT(n = wc_SlhDsaKey_PublicSize(&key), 0);
+    n /= 2;
+    /* Valid key, valid randomness: performed, and reported non-approved. */
+    ExpectIntEQ(wc_SlhDsaKey_MakeKeyWithRandom(&key, seeds[0], (word32)n,
+        seeds[1], (word32)n, seeds[2], (word32)n), SEED_OK);
+
+    wc_SlhDsaKey_Free(&key);
 #endif
     return EXPECT_RESULT();
 }

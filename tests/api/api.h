@@ -39,6 +39,15 @@
 
 #include <wolfssl/wolfcrypt/hash.h>
 
+/* A successful PQ seed-input call returns WC_FIPS_NOT_APPROVED from v7 module
+ * wrappers whose fips.h defines WC_HAVE_FIPS_INDICATOR, and 0 otherwise. */
+#if defined(HAVE_FIPS) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    FIPS_VERSION3_GE(7,0,0) && !defined(FIPS_NO_WRAPPERS)
+    #define SEED_OK  WC_FIPS_NOT_APPROVED
+#else
+    #define SEED_OK  0
+#endif
+
 /* Old FIPS headers don't allow comparisons with WC_MIN_DIGEST_SIZE_FOR_SIGN by
  * the preprocessor, so we catch those builds with one of the first two
  * clauses.

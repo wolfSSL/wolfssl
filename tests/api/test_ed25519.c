@@ -1020,12 +1020,19 @@ int test_wc_ed25519_sign_verify_ctx_ph(void)
 
     /* Ed25519ctx round trip: type==Ed25519ctx true side, real context. */
     sigLen = sizeof(sig);
+#ifdef WC_FIPS_ED25519CTX_NOT_APPROVED
+    /* A module whose fips.h defines WC_FIPS_ED25519CTX_NOT_APPROVED rejects
+     * Ed25519ctx signing with SIG_TYPE_E. */
+    ExpectIntEQ(wc_ed25519ctx_sign_msg(msg, sizeof(msg), sig, &sigLen, &key,
+        ctx, sizeof(ctx)), WC_NO_ERR_TRACE(SIG_TYPE_E));
+#else
     ExpectIntEQ(wc_ed25519ctx_sign_msg(msg, sizeof(msg), sig, &sigLen, &key,
         ctx, sizeof(ctx)), 0);
     verify_ok = 0;
     ExpectIntEQ(wc_ed25519ctx_verify_msg(sig, sigLen, msg, sizeof(msg),
         &verify_ok, &key, ctx, sizeof(ctx)), 0);
     ExpectIntEQ(verify_ok, 1);
+#endif
 
     /* Ed25519ph round trip via hash and via full message, type==Ed25519ph
      * true side, WC_SHA512_DIGEST_SIZE length check false side (equal). */
