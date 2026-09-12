@@ -724,7 +724,7 @@ static int Hash256_DRBG_Reseed(DRBG_internal* drbg, const byte* seed,
 #endif
     XMEMSET(newV, 0, DRBG_SEED_LEN);
 #ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Add("Hash_DRBG_Reseed newV", newV, DRBG_SEED_LEN);
+    wc_MemZero_Add("Hash256_DRBG_Reseed newV", newV, DRBG_SEED_LEN);
 #endif
 
     ret = Hash_df(drbg, newV, DRBG_SEED_LEN, drbgReseed,
@@ -752,7 +752,7 @@ static int Hash256_DRBG_Reseed(DRBG_internal* drbg, const byte* seed,
 
     #ifdef WC_VERBOSE_RNG
     if (ret != 0)
-        WOLFSSL_DEBUG_PRINTF("ERROR: Hash_DRBG_Reseed failed with err %d.",
+        WOLFSSL_DEBUG_PRINTF("ERROR: Hash256_DRBG_Reseed failed with err %d.",
                              ret);
     #endif
 
@@ -4523,7 +4523,7 @@ int wc_RNG_DRBG_NextStirStore(WC_RNG* rng, const byte *nonce,
  * is unchanged -- a stir must never masquerade as recovery or promotion.
  * Use-once: the material is consumed (accumulation reopens) whether or not
  * the reseed succeeds.  The buffer is never zeroized (racy against
- * depositors, and always a net entropy loss). */
+ * depositors, and zeroing is always a net entropy loss). */
 int wc_RNG_DRBG_NextStirNow(WC_RNG* rng)
 {
     byte* seed;
