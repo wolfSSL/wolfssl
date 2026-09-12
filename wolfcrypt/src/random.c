@@ -1038,6 +1038,12 @@ int wc_RNG_DRBG_Reseed_Nonce(WC_RNG* rng, const byte* seed, word32 seedSz,
         return BAD_FUNC_ARG;
     }
 
+    /* Hash_df() skips a NULL input regardless of its stated length, so
+     * without this the caller's additional input would be dropped and
+     * success reported.  Matches _InitRng() and ReseedRBGC(). */
+    if ((nonce == NULL) && (nonceSz > 0))
+        return BAD_FUNC_ARG;
+
     ret = rng_lock_required_check(rng);
     if (ret != 0)
         return ret;
