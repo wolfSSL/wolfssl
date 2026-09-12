@@ -106,7 +106,9 @@ void wolfSSL_PKCS7_SIGNED_free(PKCS7_SIGNED* p7)
 
 /**
  * Convert DER/ASN.1 encoded signedData structure to internal PKCS7
- * structure. Note, does not support detached content.
+ * structure. An attached signature is verified while decoding. A detached
+ * signature is only decoded; verify it with wolfSSL_PKCS7_verify() and the
+ * content.
  *
  * p7 - pointer to set to address of newly created PKCS7 structure on return
  * in - pointer to pointer of DER/ASN.1 data
@@ -182,18 +184,42 @@ PKCS7* wolfSSL_d2i_PKCS7_ex(PKCS7** p7, const unsigned char** in, int len,
     pkcs7 = (WOLFSSL_PKCS7*)wolfSSL_d2i_PKCS7_only(p7, in, len, content,
             contentSz);
     if (pkcs7 != NULL) {
-        if (wc_PKCS7_VerifySignedData(&pkcs7->pkcs7, pkcs7->data, pkcs7->len)
+        if (wc_PKCS7_DecodeSignedData(&pkcs7->pkcs7, pkcs7->data, pkcs7->len)
                                                                          != 0) {
-            WOLFSSL_MSG("wc_PKCS7_VerifySignedData failed");
+            WOLFSSL_MSG("wc_PKCS7_DecodeSignedData failed");
             wolfSSL_PKCS7_free((PKCS7*)pkcs7);
             if (p7 != NULL) {
                 *p7 = NULL;
             }
             return NULL;
         }
+        pkcs7->type = SIGNED_DATA;
     }
 
     return (PKCS7*)pkcs7;
+}
+
+/* Returns 1 if the PKCS7 is a SignedData structure, otherwise 0. */
+int wolfSSL_PKCS7_type_is_signed(PKCS7* pkcs7)
+{
+    WOLFSSL_PKCS7* p7 = (WOLFSSL_PKCS7*)pkcs7;
+
+    if (p7 == NULL)
+        return 0;
+
+    return p7->type == SIGNED_DATA;
+}
+
+/* Returns 1 if the decoded SignedData carries no content (detached
+ * signature), otherwise 0. */
+int wolfSSL_PKCS7_get_detached(PKCS7* pkcs7)
+{
+    WOLFSSL_PKCS7* p7 = (WOLFSSL_PKCS7*)pkcs7;
+
+    if (p7 == NULL)
+        return 0;
+
+    return p7->pkcs7.detached != 0;
 }
 
 

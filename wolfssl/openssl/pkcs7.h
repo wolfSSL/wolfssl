@@ -62,6 +62,8 @@ WOLFSSL_API PKCS7* wolfSSL_d2i_PKCS7(PKCS7** p7, const unsigned char** in,
 WOLFSSL_LOCAL PKCS7* wolfSSL_d2i_PKCS7_ex(PKCS7** p7, const unsigned char** in,
     int len, byte* content, word32 contentSz);
 WOLFSSL_API PKCS7* wolfSSL_d2i_PKCS7_bio(WOLFSSL_BIO* bio, PKCS7** p7);
+WOLFSSL_API int wolfSSL_PKCS7_type_is_signed(PKCS7* p7);
+WOLFSSL_API int wolfSSL_PKCS7_get_detached(PKCS7* p7);
 WOLFSSL_API int wolfSSL_i2d_PKCS7_bio(WOLFSSL_BIO *bio, PKCS7 *p7);
 WOLFSSL_API int wolfSSL_i2d_PKCS7(PKCS7 *p7, unsigned char **out);
 WOLFSSL_API PKCS7* wolfSSL_PKCS7_sign(WOLFSSL_X509* signer,
@@ -88,6 +90,10 @@ WOLFSSL_API int wolfSSL_SMIME_write_PKCS7(WOLFSSL_BIO* out, PKCS7* pkcs7,
 #define PKCS7_SIGNED_free              wolfSSL_PKCS7_SIGNED_free
 #define d2i_PKCS7                      wolfSSL_d2i_PKCS7
 #define d2i_PKCS7_bio                  wolfSSL_d2i_PKCS7_bio
+#define PKCS7_type_is_signed           wolfSSL_PKCS7_type_is_signed
+#define PKCS7_get_detached             wolfSSL_PKCS7_get_detached
+#define PKCS7_is_detached(p7)          (wolfSSL_PKCS7_type_is_signed(p7) && \
+                                        wolfSSL_PKCS7_get_detached(p7))
 #define i2d_PKCS7_bio                  wolfSSL_i2d_PKCS7_bio
 #define i2d_PKCS7                      wolfSSL_i2d_PKCS7
 #define PKCS7_sign                     wolfSSL_PKCS7_sign
