@@ -2181,7 +2181,8 @@ static int linuxkm_affinity_unlock(void *arg) {
 
 #define WC_LINUXKM_ENTROPY_DAEMON_MAGIC 0x6f77666c
 
-#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+#if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    defined(WC_RNG_HAVE_FREE_HOOK) && defined(WC_RNG_HAVE_LOCK)
 
 #define WC_LINUXKM_HAVE_RNG_REGISTRY
 
@@ -2193,7 +2194,9 @@ static int linuxkm_affinity_unlock(void *arg) {
  * may gather entropy under it.
  *
  * Not usable on old FIPS because the mechanism fundamentally depends on
- * wc_RNG_register_free_hook().
+ * wc_RNG_register_free_hook(), nor under WC_RNG_NO_FREE_HOOK or
+ * WC_RNG_NO_LOCK, which remove wc_RNG_register_free_hook() and
+ * wc_RNG_invalidate_entropy() respectively.
  */
 struct linuxkm_rng_object {
     struct linuxkm_rng_object *prev, *next;
