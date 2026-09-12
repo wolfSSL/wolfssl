@@ -4715,6 +4715,16 @@
     #undef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
 #endif
 
+/* These lanes have no C fallback, so a refused save is an error by design. */
+#if (defined(_WC_BUILDING_SP_X86_64_C) || \
+     defined(_WC_BUILDING_WC_MLKEM_POLY_C) || \
+     defined(_WC_BUILDING_WC_MLDSA_C) || \
+     defined(_WC_BUILDING_WC_SLHDSA_C)) && \
+    defined(DEBUG_VECTOR_REGISTER_ACCESS_FUZZING) && \
+    !defined(DEBUG_FORCE_VECTOR_REGISTER_ACCESS_FUZZING)
+    #undef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
+#endif
+
 /* Make sure setting OPENSSL_ALL also sets OPENSSL_EXTRA. */
 #if defined(OPENSSL_ALL) && !defined(OPENSSL_EXTRA)
     #define OPENSSL_EXTRA
