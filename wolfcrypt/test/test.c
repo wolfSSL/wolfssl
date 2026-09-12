@@ -7528,6 +7528,23 @@ exit:
     /* this is a software only variant of SHA3 not supported by external
      * hardware devices */
 #if defined(WOLFSSL_HASH_FLAGS) && !defined(WOLFSSL_ASYNC_CRYPT)
+#if FIPS_VERSION3_GE(7,0,0)
+    {
+        /* Keccak-256 is a different hash from SHA3-256, so the module refuses
+         * the flag rather than accepting it and hashing with the other one
+         * (FIPS 202 6.1). */
+        wc_Sha3 ksha;
+
+        ret = wc_InitSha3_256(&ksha, HEAP_HINT, devId);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+        ret = wc_Sha3_SetFlags(&ksha, WC_HASH_SHA3_KECCAK256);
+        wc_Sha3_256_Free(&ksha);
+        if (ret != WC_NO_ERR_TRACE(FIPS_NOT_ALLOWED_E))
+            return WC_TEST_RET_ENC_EC(ret);
+        ret = 0;
+    }
+#else
     {
         /* test vector with hash of empty string */
         static const char* Keccak256EmptyOut =
@@ -7558,6 +7575,7 @@ exit:
     keccak_exit:
         wc_Sha3_256_Free(&ksha);
     }
+#endif /* !FIPS_VERSION3_GE(7,0,0) */
 #endif /* WOLFSSL_HASH_FLAGS && !WOLFSSL_ASYNC_CRYPT */
 
     return ret;
@@ -7652,6 +7670,76 @@ exit:
 }
 #endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS_VERSION_GE(7, 0)) */
 
+/* Only where a refusal is certain to be seen: the AVX2 lane pinned, no C
+ * fallback, and no fuzzer failing claims at random. */
+#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && \
+    !defined(DEBUG_VECTOR_REGISTER_ACCESS_FUZZING) && \
+    !defined(WC_C_DYNAMIC_FALLBACK) && defined(USE_INTEL_SPEEDUP) && \
+    !defined(WOLFSSL_X86_BUILD) && !defined(WC_SHA3_NO_ASM) && \
+    defined(WOLFSSL_SHA3_AVX2) && !defined(WOLFSSL_SHA3_NO_AVX2) && \
+    defined(__GNUC__)
+    #define SHA3_256_CLAIM_RETRY_TEST
+#endif
+
+#ifdef SHA3_256_CLAIM_RETRY_TEST
+/* A refused vector-register claim must leave the context usable: the retry has
+ * to return the same digest, not one built from a half-absorbed state. */
+static wc_test_ret_t sha3_256_claim_retry_test(void)
+{
+    wc_Sha3 sha;
+    byte ref[WC_SHA3_256_DIGEST_SIZE];
+    byte got[WC_SHA3_256_DIGEST_SIZE];
+    wc_test_ret_t ret;
+    int inited = 0;
+
+    /* Without AVX2 the pinned lane never runs, so no claim is made to refuse. */
+    if (!__builtin_cpu_supports("avx2"))
+        return 0;
+
+    ret = wc_InitSha3_256(&sha, HEAP_HINT, INVALID_DEVID);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    inited = 1;
+    ret = wc_Sha3_256_Update(&sha, (const byte*)"abc", 3);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_Sha3_256_Final(&sha, ref);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    wc_Sha3_256_Free(&sha);
+    inited = 0;
+
+    ret = wc_InitSha3_256(&sha, HEAP_HINT, INVALID_DEVID);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    inited = 1;
+    ret = wc_Sha3_256_Update(&sha, (const byte*)"abc", 3);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    wc_debug_vector_registers_retval = WC_ACCEL_INHIBIT_E;
+    ret = wc_Sha3_256_Final(&sha, got);
+    wc_debug_vector_registers_retval = 0;
+    if (ret == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if (ret != WC_NO_ERR_TRACE(WC_ACCEL_INHIBIT_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_Sha3_256_Final(&sha, got);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(got, ref, WC_SHA3_256_DIGEST_SIZE) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    ret = 0;
+
+out:
+    wc_debug_vector_registers_retval = 0;
+    if (inited)
+        wc_Sha3_256_Free(&sha);
+    return ret;
+}
+#endif /* SHA3_256_CLAIM_RETRY_TEST */
+
 static wc_test_ret_t sha3_256_test(void)
 {
     wc_Sha3 sha;
@@ -7671,6 +7759,10 @@ static wc_test_ret_t sha3_256_test(void)
 #endif
 #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7, 0))
     if ((ret = sha3_256_copy_test(&sha, shaCopy)) != 0)
+        goto out;
+#endif
+#ifdef SHA3_256_CLAIM_RETRY_TEST
+    if ((ret = sha3_256_claim_retry_test()) != 0)
         goto out;
 #endif
     ret = 0;
