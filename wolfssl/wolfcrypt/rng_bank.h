@@ -64,13 +64,16 @@
 #define WC_RNG_BANK_FLAG_PREDICTION_RESISTANCE     (1U << 15)
 #define WC_RNG_BANK_FLAG_SPAWN_RECOVER_AND_PROMOTE (1U << 16)
 
-#ifndef WC_RNG_HAVE_LOCK
+#ifdef WC_RNG_HAVE_LOCK
+    wc_static_assert(WC_RNG_LOCK_EXTRA_SHIFT == 4U);
+#else /* !WC_RNG_HAVE_LOCK */
     /* Definitions for backward-compat / WC_RNG_NO_LOCK */
     #define WC_RNG_LOCK_FREE 0
     #define WC_RNG_LOCK_HELD (1U<<0)
     #define WC_RNG_LOCK_REQUIRED (1U<<1)
     #define WC_RNG_LOCK_ENTROPY_INVALIDATED (1U<<2)
-    #define WC_RNG_LOCK_EXTRA_SHIFT 3U
+    #define WC_RNG_LOCK_ENTROPY_RECOVERING (1U<<3)
+    #define WC_RNG_LOCK_EXTRA_SHIFT 4U
     #ifdef WOLFSSL_NO_ATOMICS
         typedef word32 WC_RNG_lock_t;
         typedef word32 WC_RNG_lock_arg_t;
