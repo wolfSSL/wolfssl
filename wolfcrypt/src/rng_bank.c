@@ -2516,4 +2516,622 @@ WOLFSSL_API int wc_rng_bank_debug_stats_snap(
 
 #endif /* WC_RNG_DEBUG_STATS */
 
+#ifndef WC_RNG_HAVE_LOCK
+
+/* Backward compat: with a pre-v7 FIPS boundary (or WC_RNG_NO_LOCK), the
+ * latch lives in the bank instance rather than in the (frozen) WC_RNG.
+ * These are ports of the wc_RNG_lock_*() state machine, including
+ * WC_RNG_LOCK_ENTROPY_INVALIDATED quarantine/claim/report semantics.
+ * In every CAS below, the stored value derives only from the CAS-verified
+ * value and the caller's arguments -- never from a prior load. */
+
+WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_get(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits)
+{
+    WC_RNG_lock_arg_t cur_lock;
+
+    if (inst == NULL)
+        return BAD_FUNC_ARG;
+
+    extra_bits &= ~((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U) |
+        WC_RNG_LOCK_REQUIRED;
+
+    cur_lock = WOLFSSL_ATOMIC_LOAD(inst->lock);
+
+    if (cur_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED)
+        return NEEDS_RECOVERY_E;
+
+    if ((! (cur_lock & WC_RNG_LOCK_HELD)) &&
+        (wolfSSL_Atomic_Uint_CompareExchange(
+            &inst->lock, &cur_lock,
+            cur_lock | WC_RNG_LOCK_HELD | extra_bits)))
+    {
+        return 0;
+    }
+
+    if (cur_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED)
+        return NEEDS_RECOVERY_E;
+    else if (cur_lock & WC_RNG_LOCK_HELD)
+        return BUSY_E;
+    else
+        return UNEXPECTED_STATE_E;
+}
+
+WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_get_conditional(
+    struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t expected_extra_bits,
+    WC_RNG_lock_arg_t want_extra_bits)
+{
+    WC_RNG_lock_arg_t cur_lock, expected;
+
+    if (inst == NULL)
+        return BAD_FUNC_ARG;
+
+    expected_extra_bits &= ~((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U) |
+        WC_RNG_LOCK_REQUIRED | WC_RNG_LOCK_ENTROPY_INVALIDATED;
+    want_extra_bits &= ~((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U) |
+        WC_RNG_LOCK_REQUIRED;
+
+    cur_lock = WOLFSSL_ATOMIC_LOAD(inst->lock);
+
+    if ((cur_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED) &&
+        (! (expected_extra_bits & WC_RNG_LOCK_ENTROPY_INVALIDATED)))
+    {
+        return NEEDS_RECOVERY_E;
+    }
+
+    expected = (cur_lock & (((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U) &
+                            ~(WC_RNG_LOCK_HELD | WC_RNG_LOCK_ENTROPY_INVALIDATED))) |
+        expected_extra_bits;
+
+    if ((! (cur_lock & WC_RNG_LOCK_HELD)) &&
+        (wolfSSL_Atomic_Uint_CompareExchange(
+            &inst->lock, &expected,
+            expected | WC_RNG_LOCK_HELD | want_extra_bits)))
+    {
+        return 0;
+    }
+
+    if ((cur_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED) !=
+        (expected & WC_RNG_LOCK_ENTROPY_INVALIDATED))
+    {
+        return NEEDS_RECOVERY_E;
+    }
+    else if (expected & WC_RNG_LOCK_HELD)
+        return BUSY_E;
+    else
+        return UNEXPECTED_STATE_E;
+}
+
+WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_put(struct wc_rng_bank_inst *inst)
+{
+    WC_RNG_lock_arg_t cur_lock, new_lock;
+    if (inst == NULL)
+        return BAD_FUNC_ARG;
+    cur_lock = WOLFSSL_ATOMIC_LOAD(inst->lock);
+    if (! (cur_lock & WC_RNG_LOCK_HELD))
+        return OBJECT_NOT_LOCKED_E;
+
+    for (;;) {
+        new_lock = cur_lock &
+            ((((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U) & ~WC_RNG_LOCK_HELD));
+        if (wolfSSL_Atomic_Uint_CompareExchange(
+                &inst->lock, &cur_lock, new_lock))
+            break;
+    }
+
+    if (new_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED)
+        return NEEDS_RECOVERY_E;
+    else
+        return 0;
+}
+
+WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_put_conditional(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits)
+{
+    WC_RNG_lock_arg_t cur_lock, expected, new_lock;
+
+    if (inst == NULL)
+        return BAD_FUNC_ARG;
+
+    cur_lock = WOLFSSL_ATOMIC_LOAD(inst->lock);
+    if (! (cur_lock & WC_RNG_LOCK_HELD))
+        return OBJECT_NOT_LOCKED_E;
+
+    for (;;) {
+        new_lock = (cur_lock &
+            ((((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U) & ~WC_RNG_LOCK_HELD))) |
+            (extra_bits & WC_RNG_LOCK_REQUIRED);
+
+        expected = WC_RNG_LOCK_HELD | extra_bits |
+            (cur_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED);
+
+        if (wolfSSL_Atomic_Uint_CompareExchange(
+                &inst->lock, &expected, new_lock))
+        {
+            if (new_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED)
+                return NEEDS_RECOVERY_E;
+            else
+                return 0;
+        }
+        if ((expected & ((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U)) !=
+            (extra_bits & ((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U)))
+        {
+            break;
+        }
+        /* the CAS's failure feedback flows through expected; reseed the
+         * next reconstruction from it, else a concurrent invalidation
+         * loops forever. */
+        cur_lock = expected;
+    }
+    /* conditional release failed: the caller is still the holder. */
+    return UNEXPECTED_STATE_E;
+}
+
+WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_read(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t* state)
+{
+    if ((inst == NULL) || (state == NULL))
+        return BAD_FUNC_ARG;
+    *state = WOLFSSL_ATOMIC_LOAD(inst->lock);
+    return 0;
+}
+
+WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_set_extra(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits)
+{
+    WC_RNG_lock_arg_t cur_lock, new_lock;
+    if (inst == NULL)
+        return BAD_FUNC_ARG;
+    cur_lock = WOLFSSL_ATOMIC_LOAD(inst->lock);
+
+    for (;;) {
+        new_lock = cur_lock & ((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U);
+        extra_bits &= ~((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U) |
+            WC_RNG_LOCK_REQUIRED;
+        new_lock |= extra_bits;
+
+        if (wolfSSL_Atomic_Uint_CompareExchange(
+                &inst->lock, &cur_lock, new_lock))
+            break;
+    }
+    return 0;
+}
+
+WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_add_extra(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits)
+{
+    WC_RNG_lock_arg_t cur_lock;
+    if (inst == NULL)
+        return BAD_FUNC_ARG;
+    cur_lock = WOLFSSL_ATOMIC_LOAD(inst->lock);
+
+    extra_bits &= ~((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U) |
+        WC_RNG_LOCK_REQUIRED;
+
+    for (;;) {
+        if (wolfSSL_Atomic_Uint_CompareExchange(
+                &inst->lock, &cur_lock,
+                cur_lock | extra_bits))
+            break;
+    }
+    return 0;
+}
+
+WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_clear_extra(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits)
+{
+    WC_RNG_lock_arg_t cur_lock;
+    if (inst == NULL)
+        return BAD_FUNC_ARG;
+    if (extra_bits & WC_RNG_LOCK_REQUIRED) {
+        /* WC_RNG_LOCK_REQUIRED is sticky by contract */
+        return BAD_FUNC_ARG;
+    }
+    cur_lock = WOLFSSL_ATOMIC_LOAD(inst->lock);
+
+    extra_bits &= ~((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U);
+
+    for (;;) {
+        if (wolfSSL_Atomic_Uint_CompareExchange(
+                &inst->lock, &cur_lock,
+                cur_lock & ~extra_bits))
+            break;
+    }
+    return 0;
+}
+
+#ifdef HAVE_HASHDRBG
+
+/* Portable invalidation-recovery helpers.  With the in-boundary latch
+ * (WC_RNG_HAVE_LOCK), invalidation and clear-on-credited-reseed are
+ * module-enforced and these merely forward; with the bank-side latch,
+ * the bit is set and cleared out here, clearing only on credited
+ * reseeds, under the lease, mirroring the in-boundary semantics. */
+
+WOLFSSL_TEST_VIS int wc_rng_bank_inst_invalidate_entropy(
+    struct wc_rng_bank_inst *inst)
+{
+    WC_RNG_lock_arg_t cur_lock;
+
+    if (inst == NULL)
+        return BAD_FUNC_ARG;
+
+    cur_lock = WOLFSSL_ATOMIC_LOAD(inst->lock);
+    for (;;) {
+        /* Clearing _RECOVERING here is what makes it an epoch witness: an
+         * in-flight recovery discovers at exit that its seed predates this
+         * event, and leaves _INVALIDATED asserted.  Mirrors
+         * wc_RNG_invalidate_entropy(). */
+        if (wolfSSL_Atomic_Uint_CompareExchange(
+                &inst->lock, &cur_lock,
+                (cur_lock & ~WC_RNG_LOCK_ENTROPY_RECOVERING) |
+                WC_RNG_LOCK_ENTROPY_INVALIDATED))
+            break;
+    }
+
+    /* If no lock is held, the saturated reseedCtr is the only way to force
+     * invalidation semantics on a lock-free consumer; if a lock is held,
+     * the holder learns at unlock time. */
+    if (! (cur_lock & WC_RNG_LOCK_HELD))
+        (void)wc_RNG_DRBG_ScheduleReseed(WC_RNG_BANK_INST_TO_RNG(inst));
+
+    return 0;
+}
+
+/* Acquire the recovery mutex for a reseed that may clear _INVALIDATED.  The
+ * pre-lock boundary's Hash_DRBG_Reseed() can't see the inst-side latch, so the
+ * _RECOVERING protocol it implements in-boundary is reproduced here.
+ *
+ * Sets *recovering iff we asserted _RECOVERING and must therefore release it.
+ * Returns BUSY_E if another claimant is already recovering -- reachable
+ * whenever callers are not serialized, so never treat it as unreachable. */
+static int wc_rng_bank_inst_recovery_enter(
+    struct wc_rng_bank_inst *inst, int *recovering)
+{
+    WC_RNG_lock_arg_t cur_lock;
+
+    if ((inst == NULL) || (recovering == NULL))
+        return BAD_FUNC_ARG;
+
+    *recovering = 0;
+    cur_lock = WOLFSSL_ATOMIC_LOAD(inst->lock);
+    for (;;) {
+        if (! (cur_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED))
+            return 0;
+        if (cur_lock & WC_RNG_LOCK_ENTROPY_RECOVERING)
+            return BUSY_E;
+        if (wolfSSL_Atomic_Uint_CompareExchange(
+                &inst->lock, &cur_lock,
+                cur_lock | WC_RNG_LOCK_ENTROPY_RECOVERING))
+        {
+            /* We now have the _RECOVERING mutex -- record that fact. */
+            *recovering = 1;
+            return 0;
+        }
+    }
+}
+
+/* Release the recovery mutex, and report.  Must be called on every path out of
+ * a recovery_enter() that returned 0, or the instance is stuck at BUSY_E.
+ *
+ * On a successful reseed, clears _INVALIDATED alongside _RECOVERING -- unless
+ * _RECOVERING is already gone, which means wc_rng_bank_inst_invalidate_entropy()
+ * ran during the reseed: a new event our seed predates, so _INVALIDATED stands
+ * and we report NEEDS_RECOVERY_E.  On a failed reseed, releases the mutex and
+ * leaves _INVALIDATED asserted, preserving the incoming error. */
+static int wc_rng_bank_inst_recovery_exit(
+    struct wc_rng_bank_inst *inst, int recovering, int ret)
+{
+    WC_RNG_lock_arg_t cur_lock;
+
+    if (! recovering)
+        return ret;
+
+    cur_lock = WOLFSSL_ATOMIC_LOAD(inst->lock);
+    for (;;) {
+        if (! (cur_lock & WC_RNG_LOCK_ENTROPY_RECOVERING)) {
+            if (ret == 0)
+                ret = NEEDS_RECOVERY_E;
+            break;
+        }
+        if (wolfSSL_Atomic_Uint_CompareExchange(
+                &inst->lock, &cur_lock,
+                (ret == 0)
+                ? (cur_lock & ~(WC_RNG_LOCK_ENTROPY_INVALIDATED |
+                                WC_RNG_LOCK_ENTROPY_RECOVERING))
+                : (cur_lock & ~WC_RNG_LOCK_ENTROPY_RECOVERING)))
+        {
+            break;
+        }
+    }
+    return ret;
+}
+
+WOLFSSL_TEST_VIS int wc_rng_bank_inst_reseed_now(
+    struct wc_rng_bank_inst *inst, const byte* nonce, word32 nonceSz)
+{
+    int ret, recovering;
+    if (inst == NULL)
+        return BAD_FUNC_ARG;
+    ret = wc_rng_bank_inst_recovery_enter(inst, &recovering);
+    if (ret != 0)
+        return ret;
+    ret = wc_RNG_DRBG_Reseed_Now(WC_RNG_BANK_INST_TO_RNG(inst),
+                                 nonce, nonceSz);
+    return wc_rng_bank_inst_recovery_exit(inst, recovering, ret);
+}
+
+#ifdef WC_RNG_HAVE_RBGC
+WOLFSSL_TEST_VIS int wc_rng_bank_inst_reseed_rbgc(
+    struct wc_rng_bank_inst *inst, WC_RNG* root, const byte* nonce,
+    word32 nonceSz)
+{
+    int ret, recovering;
+    if (inst == NULL)
+        return BAD_FUNC_ARG;
+
+    ret = wc_rng_bank_inst_recovery_enter(inst, &recovering);
+    if (ret != 0)
+        return ret;
+
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
+    (void)nonce;
+    (void)nonceSz;
+    ret = wc_RNG_DRBG_ReseedRBGC(WC_RNG_BANK_INST_TO_RNG(inst), root);
+#else
+    ret = wc_RNG_DRBG_ReseedRBGC(WC_RNG_BANK_INST_TO_RNG(inst), root,
+                                 nonce, nonceSz);
+#endif
+
+    return wc_rng_bank_inst_recovery_exit(inst, recovering, ret);
+}
+#endif /* WC_RNG_HAVE_RBGC */
+
+#endif /* HAVE_HASHDRBG */
+
+#endif
+
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
+
+/* ---- Legacy FIPS boundary compatibility --------------------------------
+ *
+ * Pre-v7 FIPS boundaries do not export the DRBG accessor and reseed
+ * scheduling services that wolfcrypt/src/random.c supplies as of FIPS v7
+ * (wc_RNG_GetStatus(), wc_RNG_DRBG_Present(), wc_RNG_DRBG_GetReseedCtr(),
+ * wc_RNG_DRBG_ScheduleReseed(), wc_RNG_DRBG_Stir(), and
+ * wc_RNG_DRBG_Reseed_Now()).  Supply source-compatible static fallbacks
+ * here, implemented via the public DRBG struct definitions in the legacy
+ * random.h.  These fallbacks are the historic direct-access mechanism, now
+ * confined to frozen pre-v7 boundaries, which cannot gain new services;
+ * wherever the in-boundary services exist, they are used instead.
+ */
+
+/* WC_DRBG_OK predates some old FIPS editions, but is 1 in all of them -- force
+ * consistency. */
+#undef WC_DRBG_OK
+#define WC_DRBG_OK 1
+
+/* Helpers to access reseedCtr / null-check the active DRBG.  The shape of
+ * struct WC_RNG and the DRBG_*_internal types varies by which DRBGs are
+ * compiled in; random.h gates the SHA-256 side on !NO_SHA256 and the SHA-512
+ * side on WOLFSSL_DRBG_SHA512, so all three live combinations are handled
+ * separately here. */
+#if defined(WOLFSSL_DRBG_SHA512) && !defined(NO_SHA256)
+    /* Both DRBGs compiled in: dispatch on the runtime drbgType. */
+    #define WC_RNG_BANK_RESEED_CTR(rng_ptr) \
+        (((rng_ptr)->drbgType == WC_DRBG_SHA512) \
+            ? ((struct DRBG_SHA512_internal *)(rng_ptr)->drbg512)->reseedCtr \
+            : ((struct DRBG_internal *)(rng_ptr)->drbg)->reseedCtr)
+    #define WC_RNG_BANK_SET_RESEED_CTR(rng_ptr, val) \
+        do { \
+            if ((rng_ptr)->drbgType == WC_DRBG_SHA512) \
+                ((struct DRBG_SHA512_internal *)(rng_ptr)->drbg512)->reseedCtr \
+                    = (val); \
+            else \
+                ((struct DRBG_internal *)(rng_ptr)->drbg)->reseedCtr = (val); \
+        } while (0)
+    #define WC_RNG_BANK_DRBG_NULL(rng_ptr) \
+        ((rng_ptr)->drbg == NULL && (rng_ptr)->drbg512 == NULL)
+#elif defined(WOLFSSL_DRBG_SHA512)
+    /* SHA-512 DRBG only (NO_SHA256 defined); the SHA-256 struct and
+     * rng->drbg field do not exist in this build. */
+    #define WC_RNG_BANK_RESEED_CTR(rng_ptr) \
+        (((struct DRBG_SHA512_internal *)(rng_ptr)->drbg512)->reseedCtr)
+    #define WC_RNG_BANK_SET_RESEED_CTR(rng_ptr, val) \
+        do { \
+            ((struct DRBG_SHA512_internal *)(rng_ptr)->drbg512)->reseedCtr \
+                = (val); \
+        } while (0)
+    #define WC_RNG_BANK_DRBG_NULL(rng_ptr) \
+        ((rng_ptr)->drbg512 == NULL)
+#else
+    /* SHA-256 DRBG only (the historical default). */
+    #define WC_RNG_BANK_RESEED_CTR(rng_ptr) \
+        (((struct DRBG_internal *)(rng_ptr)->drbg)->reseedCtr)
+    #define WC_RNG_BANK_SET_RESEED_CTR(rng_ptr, val) \
+        do { \
+            ((struct DRBG_internal *)(rng_ptr)->drbg)->reseedCtr = (val); \
+        } while (0)
+    #define WC_RNG_BANK_DRBG_NULL(rng_ptr) \
+        ((rng_ptr)->drbg == NULL)
+#endif
+
+/* WC_RNG_BANK_SET_RESEED_CTR drives reseedCtr up to WC_RESEED_INTERVAL to
+ * force a reseed.  The SHA-256 DRBG's reseedCtr is 32-bit when
+ * WORD64_AVAILABLE is undefined (random.h), so a reseed interval above 2^32
+ * would truncate to 0 and silently defeat the forced reseed (SP 800-90A Rev1
+ * sec 9.3).  Fail the build rather than mis-reseed.  This is a compile-time
+ * assert rather than a preprocessor #if because WC_RESEED_INTERVAL may be
+ * defined with a (word64) cast (settings.h kernel path) that the preprocessor
+ * cannot evaluate; the outer #if uses only defined() so the 64-bit path skips
+ * it without expanding that cast. */
+#if defined(WC_RESEED_INTERVAL) && !defined(WORD64_AVAILABLE)
+    wc_static_assert((WC_RESEED_INTERVAL) <= 0xFFFFFFFFUL);
+#endif
+
+#ifdef WC_RNG_HAVE_RBGC
+
+/* Note, no perso/persoSz in backported wc_InitRngNonceRBGC() */
+#define wc_InitRngRBGC(leaf, root, flags) \
+    wc_InitRngNonceRBGC(leaf, root, NULL, 0, flags)
+
+WOLFSSL_TEST_VIS int wc_InitRngRBGC_New(WC_RNG** leaf, WC_RNG* root, word32 flags) {
+    if ((leaf == NULL) || (root == NULL))
+        return BAD_FUNC_ARG;
+    *leaf = (WC_RNG*)XMALLOC(sizeof(WC_RNG), root->heap, DYNAMIC_TYPE_RNG);
+    if (*leaf == NULL)
+        return MEMORY_E;
+    else
+        return wc_InitRngNonceRBGC(*leaf, root, NULL, 0, flags);
+}
+
+WOLFSSL_TEST_VIS int wc_InitRngNonceRBGC_New(WC_RNG** leaf, WC_RNG* root,
+                                             const byte* nonce, word32 nonceSz,
+                                             const byte *perso, word32 persoSz,
+                                             word32 flags)
+{
+    if ((leaf == NULL) || (root == NULL))
+        return BAD_FUNC_ARG;
+    (void)perso;
+    (void)persoSz;
+    *leaf = (WC_RNG*)XMALLOC(sizeof(WC_RNG), root->heap, DYNAMIC_TYPE_RNG);
+    if (*leaf == NULL)
+        return MEMORY_E;
+    else
+        return wc_InitRngNonceRBGC(*leaf, root, nonce, nonceSz, flags);
+}
+
+#endif /* WC_RNG_HAVE_RBGC */
+
+WOLFSSL_TEST_VIS int wc_RNG_GetStatus(const WC_RNG* rng)
+{
+    if (rng == NULL)
+        return BAD_FUNC_ARG;
+    return (int)rng->status;
+}
+
+WOLFSSL_TEST_VIS int wc_RNG_DRBG_Present(const WC_RNG* rng)
+{
+    return (rng != NULL) && (! WC_RNG_BANK_DRBG_NULL(rng));
+}
+
+static int wc_RNG_DRBG_Reseed_Nonce(
+    WC_RNG* rng, const byte* seed,
+    word32 seedSz, const byte *nonce,
+    word32 nonceSz)
+{
+    (void)nonce;
+    (void)nonceSz;
+    return wc_RNG_DRBG_Reseed(rng, seed, seedSz);
+}
+
+#if FIPS_VERSION3_NE(5,2,4)
+static int wc_RNG_DRBG_GetReseedCtr(
+    const WC_RNG* rng, wc_drbg_reseed_ctr_t* reseedCtr)
+{
+    if ((rng == NULL) || (reseedCtr == NULL))
+        return BAD_FUNC_ARG;
+    if (WC_RNG_BANK_DRBG_NULL(rng))
+        *reseedCtr = 0;
+    else
+        *reseedCtr = (wc_drbg_reseed_ctr_t)WC_RNG_BANK_RESEED_CTR(rng);
+    return 0;
+}
+#endif
+
+WOLFSSL_TEST_VIS int wc_RNG_DRBG_ScheduleReseed(WC_RNG* rng)
+{
+    if (rng == NULL)
+        return BAD_FUNC_ARG;
+    if (! WC_RNG_BANK_DRBG_NULL(rng))
+        WC_RNG_BANK_SET_RESEED_CTR(rng, WC_RESEED_INTERVAL);
+    return 0;
+}
+
+#if FIPS_VERSION3_EQ(5,2,4)
+
+static int wc_RNG_DRBG_Stir_Nonce(
+    WC_RNG* rng, const byte* seed, word32 seedSz, const byte *nonce, word32 nonceSz)
+{
+    (void)nonce;
+    (void)nonceSz;
+    return wc_RNG_DRBG_Reseed_Uncredited(rng, seed, seedSz);
+}
+
+WOLFSSL_TEST_VIS int wc_RNG_DRBG_Stir(
+    WC_RNG* rng, const byte* seed, word32 seedSz)
+{
+    return wc_RNG_DRBG_Reseed_Uncredited(rng, seed, seedSz);
+}
+
+#else /* FIPS_VERSION3_NE(5,2,4) */
+
+static int wc_RNG_DRBG_Stir_Nonce(
+    WC_RNG* rng, const byte* seed, word32 seedSz, const byte *nonce, word32 nonceSz)
+{
+    wc_drbg_reseed_ctr_t saved_ctr;
+    int ret;
+
+    (void)nonce;
+    (void)nonceSz;
+
+    if ((rng == NULL) || (seed == NULL))
+        return BAD_FUNC_ARG;
+    if (WC_RNG_BANK_DRBG_NULL(rng)) {
+        /* defer to wc_RNG_DRBG_Reseed()'s RDRAND-config handling. */
+        return wc_RNG_DRBG_Reseed(rng, seed, seedSz);
+    }
+    saved_ctr = (wc_drbg_reseed_ctr_t)WC_RNG_BANK_RESEED_CTR(rng);
+    ret = wc_RNG_DRBG_Reseed(rng, seed, seedSz);
+    /* wc_RNG_DRBG_Reseed() only resets the counter on success, so the
+     * unconditional restore is exact either way. */
+    WC_RNG_BANK_SET_RESEED_CTR(rng, saved_ctr);
+    return ret;
+}
+
+static int wc_RNG_DRBG_Reseed_Now(
+    WC_RNG* rng, const byte* nonce, word32 nonceSz)
+{
+    wc_drbg_reseed_ctr_t saved_ctr;
+    int ret;
+    byte scratch[4];
+
+    if (rng == NULL)
+        return BAD_FUNC_ARG;
+    if ((nonce == NULL) && (nonceSz > 0))
+        return BAD_FUNC_ARG;
+    if (wc_RNG_GetStatus(rng) != WC_DRBG_OK)
+        return RNG_FAILURE_E;
+    if (WC_RNG_BANK_DRBG_NULL(rng)) {
+        /* No DRBG instantiated -- nothing to reseed (RDRAND et al.). */
+        return 0;
+    }
+
+    saved_ctr = (wc_drbg_reseed_ctr_t)WC_RNG_BANK_RESEED_CTR(rng);
+    WC_RNG_BANK_SET_RESEED_CTR(rng, WC_RESEED_INTERVAL);
+
+    /* The legacy boundary has no direct reseed-from-source service; a
+     * minimal generate at the forced counter performs the module's own
+     * PollAndReSeed() in-boundary.  This consumes 4 bytes of output, so on
+     * success the fresh reseed counter is 2 rather than 1.  scratch holds
+     * only discarded output bytes; XMEMSET suffices for it here. */
+    ret = wc_RNG_GenerateBlock(rng, scratch, (word32)sizeof(scratch));
+    XMEMSET(scratch, 0, sizeof(scratch));
+
+    if ((ret == 0) && (nonce != NULL) && (nonceSz > 0)) {
+        /* On the legacy boundary, nonce incorporation is a separate
+         * (uncredited) transition following the reseed, rather than part of
+         * the same reseed derivation. */
+        ret = wc_RNG_DRBG_Stir(rng, nonce, nonceSz);
+    }
+
+    if ((ret != 0) &&
+        ((wc_drbg_reseed_ctr_t)WC_RNG_BANK_RESEED_CTR(rng) >=
+         (wc_drbg_reseed_ctr_t)WC_RESEED_INTERVAL))
+    {
+        /* The reseed did not occur -- restore the counter, leaving it
+         * unmodified as the contract requires. */
+        WC_RNG_BANK_SET_RESEED_CTR(rng, saved_ctr);
+    }
+
+    return ret;
+}
+#endif /* FIPS_VERSION3_NE(5,2,4) */
+
+#endif /* HAVE_FIPS && FIPS_VERSION3_LT(7,0,0) */
+
 #endif /* WC_RNG_BANK_SUPPORT */

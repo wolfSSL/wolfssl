@@ -378,608 +378,88 @@ WOLFSSL_API int wc_rng_new_bankref(struct wc_rng_bank *bank, WC_RNG **rng);
 #endif
 #endif /* WC_HAVE_RNG_BANKREF */
 
-#define WC_RNG_BANK_INST_TO_RNG(rng_inst) (&(rng_inst)->rng)
+#define WC_RNG_BANK_INST_TO_RNG(rng_inst) ((rng_inst) ? (&((struct wc_rng_bank_inst *)(rng_inst))->rng) : NULL)
 
 #ifdef WC_RNG_HAVE_LOCK
-
-    static WC_INLINE int wc_rng_bank_inst_lock_get(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits) {
-        return wc_RNG_lock_get(WC_RNG_BANK_INST_TO_RNG(inst), extra_bits);
-    }
-    static WC_INLINE int wc_rng_bank_inst_lock_put(struct wc_rng_bank_inst *inst) {
-        return wc_RNG_lock_put(WC_RNG_BANK_INST_TO_RNG(inst), 0);
-    }
-    static WC_INLINE int wc_rng_bank_inst_lock_put_conditional(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t expect_extra_bits) {
-        return wc_RNG_lock_put_conditional(WC_RNG_BANK_INST_TO_RNG(inst), expect_extra_bits, 0);
-    }
-    static WC_INLINE int wc_rng_bank_inst_lock_read(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t *state) {
-        return wc_RNG_lock_read(WC_RNG_BANK_INST_TO_RNG(inst), state);
-    }
-    static WC_INLINE int wc_rng_bank_inst_lock_set_extra(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits) {
-        return wc_RNG_lock_set_extra(WC_RNG_BANK_INST_TO_RNG(inst), extra_bits);
-    }
-    static WC_INLINE int wc_rng_bank_inst_lock_add_extra(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits) {
-        return wc_RNG_lock_add_extra(WC_RNG_BANK_INST_TO_RNG(inst), extra_bits);
-    }
-    static WC_INLINE int wc_rng_bank_inst_lock_clear_extra(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits) {
-        return wc_RNG_lock_clear_extra(WC_RNG_BANK_INST_TO_RNG(inst), extra_bits);
-    }
-    static WC_INLINE WC_MAYBE_UNUSED int wc_rng_bank_inst_lock_get_conditional(
-        struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t expected_extra_bits,
-        WC_RNG_lock_arg_t want_extra_bits)
-    {
-        return wc_RNG_lock_get_conditional(WC_RNG_BANK_INST_TO_RNG(inst),
-                                           expected_extra_bits, want_extra_bits);
-    }
-
-
+    /* Trivial shims to native lock facility in WC_RNG */
+    #define wc_rng_bank_inst_lock_get(inst, extra_bits) \
+        wc_RNG_lock_get(WC_RNG_BANK_INST_TO_RNG(inst), extra_bits)
+    #define wc_rng_bank_inst_lock_put(inst) \
+        wc_RNG_lock_put(WC_RNG_BANK_INST_TO_RNG(inst), 0)
+    #define wc_rng_bank_inst_lock_put_conditional(inst, expect_extra_bits) \
+        wc_RNG_lock_put_conditional(WC_RNG_BANK_INST_TO_RNG(inst), expect_extra_bits, 0)
+    #define wc_rng_bank_inst_lock_read(inst, state) \
+        wc_RNG_lock_read(WC_RNG_BANK_INST_TO_RNG(inst), state)
+    #define wc_rng_bank_inst_lock_set_extra(inst, extra_bits) \
+        wc_RNG_lock_set_extra(WC_RNG_BANK_INST_TO_RNG(inst), extra_bits)
+    #define wc_rng_bank_inst_lock_add_extra(inst, extra_bits) \
+        wc_RNG_lock_add_extra(WC_RNG_BANK_INST_TO_RNG(inst), extra_bits)
+    #define wc_rng_bank_inst_lock_clear_extra(inst, extra_bits) \
+        wc_RNG_lock_clear_extra(WC_RNG_BANK_INST_TO_RNG(inst), extra_bits)
+    #define wc_rng_bank_inst_lock_get_conditional(inst, expected_extra_bits, want_extra_bits) \
+        wc_RNG_lock_get_conditional(WC_RNG_BANK_INST_TO_RNG(inst), expected_extra_bits, want_extra_bits)
+    #ifdef HAVE_HASHDRBG
+    #define wc_rng_bank_inst_invalidate_entropy(inst) \
+        wc_RNG_invalidate_entropy(WC_RNG_BANK_INST_TO_RNG(inst))
+    #define wc_rng_bank_inst_reseed_now(inst, nonce, nonceSz) \
+        wc_RNG_DRBG_Reseed_Now(WC_RNG_BANK_INST_TO_RNG(inst), nonce, nonceSz);
+    #ifdef WC_RNG_HAVE_RBGC
+    #define wc_rng_bank_inst_reseed_rbgc(inst, root, nonce, nonceSz) \
+        wc_RNG_DRBG_ReseedRBGC(WC_RNG_BANK_INST_TO_RNG(inst), root, nonce, nonceSz)
+    #endif /* WC_RNG_HAVE_RBGC */
+    #endif /* HAVE_HASHDRBG */
 #else /* !WC_RNG_HAVE_LOCK */
-
-/* Backward compat: with a pre-v7 FIPS boundary (or WC_RNG_NO_LOCK), the
- * latch lives in the bank instance rather than in the (frozen) WC_RNG.
- * These are ports of the wc_RNG_lock_*() state machine, including
- * WC_RNG_LOCK_ENTROPY_INVALIDATED quarantine/claim/report semantics.
- * In every CAS below, the stored value derives only from the CAS-verified
- * value and the caller's arguments -- never from a prior load. */
-
-static WC_INLINE int wc_rng_bank_inst_lock_get(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits)
-{
-    WC_RNG_lock_arg_t cur_lock;
-
-    if (inst == NULL)
-        return BAD_FUNC_ARG;
-
-    extra_bits &= ~((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U) |
-        WC_RNG_LOCK_REQUIRED;
-
-    cur_lock = WOLFSSL_ATOMIC_LOAD(inst->lock);
-
-    if (cur_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED)
-        return NEEDS_RECOVERY_E;
-
-    if ((! (cur_lock & WC_RNG_LOCK_HELD)) &&
-        (wolfSSL_Atomic_Uint_CompareExchange(
-            &inst->lock, &cur_lock,
-            cur_lock | WC_RNG_LOCK_HELD | extra_bits)))
-    {
-        return 0;
-    }
-
-    if (cur_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED)
-        return NEEDS_RECOVERY_E;
-    else if (cur_lock & WC_RNG_LOCK_HELD)
-        return BUSY_E;
-    else
-        return UNEXPECTED_STATE_E;
-}
-
-static WC_INLINE WC_MAYBE_UNUSED int wc_rng_bank_inst_lock_get_conditional(
-    struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t expected_extra_bits,
-    WC_RNG_lock_arg_t want_extra_bits)
-{
-    WC_RNG_lock_arg_t cur_lock, expected;
-
-    if (inst == NULL)
-        return BAD_FUNC_ARG;
-
-    expected_extra_bits &= ~((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U) |
-        WC_RNG_LOCK_REQUIRED | WC_RNG_LOCK_ENTROPY_INVALIDATED;
-    want_extra_bits &= ~((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U) |
-        WC_RNG_LOCK_REQUIRED;
-
-    cur_lock = WOLFSSL_ATOMIC_LOAD(inst->lock);
-
-    if ((cur_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED) &&
-        (! (expected_extra_bits & WC_RNG_LOCK_ENTROPY_INVALIDATED)))
-    {
-        return NEEDS_RECOVERY_E;
-    }
-
-    expected = (cur_lock & (((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U) &
-                            ~(WC_RNG_LOCK_HELD | WC_RNG_LOCK_ENTROPY_INVALIDATED))) |
-        expected_extra_bits;
-
-    if ((! (cur_lock & WC_RNG_LOCK_HELD)) &&
-        (wolfSSL_Atomic_Uint_CompareExchange(
-            &inst->lock, &expected,
-            expected | WC_RNG_LOCK_HELD | want_extra_bits)))
-    {
-        return 0;
-    }
-
-    if ((cur_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED) !=
-        (expected & WC_RNG_LOCK_ENTROPY_INVALIDATED))
-    {
-        return NEEDS_RECOVERY_E;
-    }
-    else if (expected & WC_RNG_LOCK_HELD)
-        return BUSY_E;
-    else
-        return UNEXPECTED_STATE_E;
-}
-
-static WC_INLINE int wc_rng_bank_inst_lock_put(struct wc_rng_bank_inst *inst)
-{
-    WC_RNG_lock_arg_t cur_lock, new_lock;
-    if (inst == NULL)
-        return BAD_FUNC_ARG;
-    cur_lock = WOLFSSL_ATOMIC_LOAD(inst->lock);
-    if (! (cur_lock & WC_RNG_LOCK_HELD))
-        return OBJECT_NOT_LOCKED_E;
-
-    for (;;) {
-        new_lock = cur_lock &
-            ((((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U) & ~WC_RNG_LOCK_HELD));
-        if (wolfSSL_Atomic_Uint_CompareExchange(
-                &inst->lock, &cur_lock, new_lock))
-            break;
-    }
-
-    if (new_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED)
-        return NEEDS_RECOVERY_E;
-    else
-        return 0;
-}
-
-static WC_INLINE WC_MAYBE_UNUSED int wc_rng_bank_inst_lock_put_conditional(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits)
-{
-    WC_RNG_lock_arg_t cur_lock, expected, new_lock;
-
-    if (inst == NULL)
-        return BAD_FUNC_ARG;
-
-    cur_lock = WOLFSSL_ATOMIC_LOAD(inst->lock);
-    if (! (cur_lock & WC_RNG_LOCK_HELD))
-        return OBJECT_NOT_LOCKED_E;
-
-    for (;;) {
-        new_lock = (cur_lock &
-            ((((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U) & ~WC_RNG_LOCK_HELD))) |
-            (extra_bits & WC_RNG_LOCK_REQUIRED);
-
-        expected = WC_RNG_LOCK_HELD | extra_bits |
-            (cur_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED);
-
-        if (wolfSSL_Atomic_Uint_CompareExchange(
-                &inst->lock, &expected, new_lock))
-        {
-            if (new_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED)
-                return NEEDS_RECOVERY_E;
-            else
-                return 0;
-        }
-        if ((expected & ((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U)) !=
-            (extra_bits & ((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U)))
-        {
-            break;
-        }
-        /* the CAS's failure feedback flows through expected; reseed the
-         * next reconstruction from it, else a concurrent invalidation
-         * loops forever. */
-        cur_lock = expected;
-    }
-    /* conditional release failed: the caller is still the holder. */
-    return UNEXPECTED_STATE_E;
-}
-
-static WC_INLINE int wc_rng_bank_inst_lock_read(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t* state)
-{
-    if ((inst == NULL) || (state == NULL))
-        return BAD_FUNC_ARG;
-    *state = WOLFSSL_ATOMIC_LOAD(inst->lock);
-    return 0;
-}
-
-static WC_INLINE int wc_rng_bank_inst_lock_set_extra(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits)
-{
-    WC_RNG_lock_arg_t cur_lock, new_lock;
-    if (inst == NULL)
-        return BAD_FUNC_ARG;
-    cur_lock = WOLFSSL_ATOMIC_LOAD(inst->lock);
-
-    for (;;) {
-        new_lock = cur_lock & ((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U);
-        extra_bits &= ~((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U) |
-            WC_RNG_LOCK_REQUIRED;
-        new_lock |= extra_bits;
-
-        if (wolfSSL_Atomic_Uint_CompareExchange(
-                &inst->lock, &cur_lock, new_lock))
-            break;
-    }
-    return 0;
-}
-
-static WC_INLINE WC_MAYBE_UNUSED int wc_rng_bank_inst_lock_add_extra(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits)
-{
-    WC_RNG_lock_arg_t cur_lock;
-    if (inst == NULL)
-        return BAD_FUNC_ARG;
-    cur_lock = WOLFSSL_ATOMIC_LOAD(inst->lock);
-
-    extra_bits &= ~((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U) |
-        WC_RNG_LOCK_REQUIRED;
-
-    for (;;) {
-        if (wolfSSL_Atomic_Uint_CompareExchange(
-                &inst->lock, &cur_lock,
-                cur_lock | extra_bits))
-            break;
-    }
-    return 0;
-}
-
-static WC_INLINE WC_MAYBE_UNUSED int wc_rng_bank_inst_lock_clear_extra(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits)
-{
-    WC_RNG_lock_arg_t cur_lock;
-    if (inst == NULL)
-        return BAD_FUNC_ARG;
-    if (extra_bits & WC_RNG_LOCK_REQUIRED) {
-        /* WC_RNG_LOCK_REQUIRED is sticky by contract */
-        return BAD_FUNC_ARG;
-    }
-    cur_lock = WOLFSSL_ATOMIC_LOAD(inst->lock);
-
-    extra_bits &= ~((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U);
-
-    for (;;) {
-        if (wolfSSL_Atomic_Uint_CompareExchange(
-                &inst->lock, &cur_lock,
-                cur_lock & ~extra_bits))
-            break;
-    }
-    return 0;
-}
-
+    /* Prototypes for backward compat implementations in rng_bank.c */
+    WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_get(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits);
+    WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_get_conditional(
+        struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t expected_extra_bits,
+        WC_RNG_lock_arg_t want_extra_bits);
+    WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_put(struct wc_rng_bank_inst *inst);
+    WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_put_conditional(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits);
+    WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_read(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t* state);
+    WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_set_extra(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits);
+    WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_add_extra(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits);
+    WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_clear_extra(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits);
+    #ifdef HAVE_HASHDRBG
+    WOLFSSL_TEST_VIS int wc_rng_bank_inst_invalidate_entropy(
+        struct wc_rng_bank_inst *inst);
+    WOLFSSL_TEST_VIS int wc_rng_bank_inst_reseed_now(
+        struct wc_rng_bank_inst *inst, const byte* nonce, word32 nonceSz);
+    #ifdef WC_RNG_HAVE_RBGC
+    WOLFSSL_TEST_VIS int wc_rng_bank_inst_reseed_rbgc(
+        struct wc_rng_bank_inst *inst, WC_RNG* root, const byte* nonce,
+        word32 nonceSz);
+    #endif /* WC_RNG_HAVE_RBGC */
+    #endif /* HAVE_HASHDRBG */
 #endif /* !WC_RNG_HAVE_LOCK */
+
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
+    #ifndef WC_DRBG_RESEED_CTR_TYPE_DEFINED
+        #define WC_DRBG_RESEED_CTR_TYPE_DEFINED
+        #if defined(WORD64_AVAILABLE) && FIPS_VERSION3_GE(5,2,4)
+        typedef word64 wc_drbg_reseed_ctr_t;
+        #else
+        typedef word32 wc_drbg_reseed_ctr_t;
+        #endif
+    #endif
+
+    #define wc_InitRngRBGC(leaf, root, flags) \
+        wc_InitRngNonceRBGC(leaf, root, NULL, 0, flags)
+    WOLFSSL_TEST_VIS int wc_RNG_GetStatus(const WC_RNG* rng);
+    WOLFSSL_TEST_VIS int wc_RNG_DRBG_Stir(WC_RNG* rng, const byte* seed, word32 seedSz);
+    WOLFSSL_TEST_VIS int wc_RNG_DRBG_Present(const WC_RNG* rng);
+    WOLFSSL_TEST_VIS int wc_InitRngNonceRBGC_New(WC_RNG** leaf, WC_RNG* root,
+                                                const byte* nonce, word32 nonceSz,
+                                                const byte *perso, word32 persoSz,
+                                                word32 flags);
+    WOLFSSL_TEST_VIS int wc_InitRngRBGC_New(WC_RNG** leaf, WC_RNG* root, word32 flags);
+    WOLFSSL_TEST_VIS int wc_RNG_DRBG_ScheduleReseed(WC_RNG* rng);
+#endif /* HAVE_FIPS && FIPS_VERSION3_LT(7,0,0) */
 
 #ifdef WC_RNG_DEBUG_STATS
 WOLFSSL_API int wc_rng_bank_debug_stats_snap(struct wc_rng_debug_stats_snapshot *s,
                                              struct wc_rng_bank *bank);
 #endif
-
-/* ---- Legacy FIPS boundary compatibility --------------------------------
- *
- * Pre-v7 FIPS boundaries do not export the DRBG accessor and reseed
- * scheduling services that wolfcrypt/src/random.c supplies as of FIPS v7
- * (wc_RNG_GetStatus(), wc_RNG_DRBG_Present(), wc_RNG_DRBG_GetReseedCtr(),
- * wc_RNG_DRBG_ScheduleReseed(), wc_RNG_DRBG_Stir(), and
- * wc_RNG_DRBG_Reseed_Now()).  Supply source-compatible static fallbacks
- * here, implemented via the public DRBG struct definitions in the legacy
- * random.h.  These fallbacks are the historic direct-access mechanism, now
- * confined to frozen pre-v7 boundaries, which cannot gain new services;
- * wherever the in-boundary services exist, they are used instead.
- */
-#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
-
-#include <wolfssl/wolfcrypt/error-crypt.h>
-
-#ifndef WC_DRBG_RESEED_CTR_TYPE_DEFINED
-    #define WC_DRBG_RESEED_CTR_TYPE_DEFINED
-    #if defined(WORD64_AVAILABLE) && FIPS_VERSION3_GE(5,2,4)
-    typedef word64 wc_drbg_reseed_ctr_t;
-    #else
-    typedef word32 wc_drbg_reseed_ctr_t;
-    #endif
-#endif
-
-/* WC_DRBG_OK predates some old FIPS editions, but is 1 in all of them -- force
- * consistency. */
-#undef WC_DRBG_OK
-#define WC_DRBG_OK 1
-
-/* Helpers to access reseedCtr / null-check the active DRBG.  The shape of
- * struct WC_RNG and the DRBG_*_internal types varies by which DRBGs are
- * compiled in; random.h gates the SHA-256 side on !NO_SHA256 and the SHA-512
- * side on WOLFSSL_DRBG_SHA512, so all three live combinations are handled
- * separately here. */
-#if defined(WOLFSSL_DRBG_SHA512) && !defined(NO_SHA256)
-    /* Both DRBGs compiled in: dispatch on the runtime drbgType. */
-    #define WC_RNG_BANK_RESEED_CTR(rng_ptr) \
-        (((rng_ptr)->drbgType == WC_DRBG_SHA512) \
-            ? ((struct DRBG_SHA512_internal *)(rng_ptr)->drbg512)->reseedCtr \
-            : ((struct DRBG_internal *)(rng_ptr)->drbg)->reseedCtr)
-    #define WC_RNG_BANK_SET_RESEED_CTR(rng_ptr, val) \
-        do { \
-            if ((rng_ptr)->drbgType == WC_DRBG_SHA512) \
-                ((struct DRBG_SHA512_internal *)(rng_ptr)->drbg512)->reseedCtr \
-                    = (val); \
-            else \
-                ((struct DRBG_internal *)(rng_ptr)->drbg)->reseedCtr = (val); \
-        } while (0)
-    #define WC_RNG_BANK_DRBG_NULL(rng_ptr) \
-        ((rng_ptr)->drbg == NULL && (rng_ptr)->drbg512 == NULL)
-#elif defined(WOLFSSL_DRBG_SHA512)
-    /* SHA-512 DRBG only (NO_SHA256 defined); the SHA-256 struct and
-     * rng->drbg field do not exist in this build. */
-    #define WC_RNG_BANK_RESEED_CTR(rng_ptr) \
-        (((struct DRBG_SHA512_internal *)(rng_ptr)->drbg512)->reseedCtr)
-    #define WC_RNG_BANK_SET_RESEED_CTR(rng_ptr, val) \
-        do { \
-            ((struct DRBG_SHA512_internal *)(rng_ptr)->drbg512)->reseedCtr \
-                = (val); \
-        } while (0)
-    #define WC_RNG_BANK_DRBG_NULL(rng_ptr) \
-        ((rng_ptr)->drbg512 == NULL)
-#else
-    /* SHA-256 DRBG only (the historical default). */
-    #define WC_RNG_BANK_RESEED_CTR(rng_ptr) \
-        (((struct DRBG_internal *)(rng_ptr)->drbg)->reseedCtr)
-    #define WC_RNG_BANK_SET_RESEED_CTR(rng_ptr, val) \
-        do { \
-            ((struct DRBG_internal *)(rng_ptr)->drbg)->reseedCtr = (val); \
-        } while (0)
-    #define WC_RNG_BANK_DRBG_NULL(rng_ptr) \
-        ((rng_ptr)->drbg == NULL)
-#endif
-
-/* WC_RNG_BANK_SET_RESEED_CTR drives reseedCtr up to WC_RESEED_INTERVAL to
- * force a reseed.  The SHA-256 DRBG's reseedCtr is 32-bit when
- * WORD64_AVAILABLE is undefined (random.h), so a reseed interval above 2^32
- * would truncate to 0 and silently defeat the forced reseed (SP 800-90A Rev1
- * sec 9.3).  Fail the build rather than mis-reseed.  This is a compile-time
- * assert rather than a preprocessor #if because WC_RESEED_INTERVAL may be
- * defined with a (word64) cast (settings.h kernel path) that the preprocessor
- * cannot evaluate; the outer #if uses only defined() so the 64-bit path skips
- * it without expanding that cast. */
-#if defined(WC_RESEED_INTERVAL) && !defined(WORD64_AVAILABLE)
-    wc_static_assert((WC_RESEED_INTERVAL) <= 0xFFFFFFFFUL);
-#endif
-
-#ifdef WC_RNG_HAVE_RBGC
-
-#define wc_InitRngRBGC(leaf, root, flags) \
-    wc_InitRngNonceRBGC(leaf, root, NULL, 0, flags)
-
-WC_MAYBE_UNUSED static WC_INLINE int wc_InitRngRBGC_New(WC_RNG** leaf, WC_RNG* root, word32 flags) {
-    if ((leaf == NULL) || (root == NULL))
-        return BAD_FUNC_ARG;
-    *leaf = (WC_RNG*)XMALLOC(sizeof(WC_RNG), root->heap, DYNAMIC_TYPE_RNG);
-    if (*leaf == NULL)
-        return MEMORY_E;
-    else
-        return wc_InitRngNonceRBGC(*leaf, root, NULL, 0, flags);
-}
-
-WC_MAYBE_UNUSED static WC_INLINE int wc_InitRngNonceRBGC_New(WC_RNG** leaf, WC_RNG* root,
-                                                             const byte* nonce, word32 nonceSz,
-                                                             word32 flags)
-{
-    if ((leaf == NULL) || (root == NULL))
-        return BAD_FUNC_ARG;
-    *leaf = (WC_RNG*)XMALLOC(sizeof(WC_RNG), root->heap, DYNAMIC_TYPE_RNG);
-    if (*leaf == NULL)
-        return MEMORY_E;
-    else
-        return wc_InitRngNonceRBGC(*leaf, root, nonce, nonceSz, flags);
-}
-
-#endif /* WC_RNG_HAVE_RBGC */
-
-WC_MAYBE_UNUSED static WC_INLINE int wc_RNG_GetStatus(const WC_RNG* rng)
-{
-    if (rng == NULL)
-        return BAD_FUNC_ARG;
-    return (int)rng->status;
-}
-
-WC_MAYBE_UNUSED static WC_INLINE int wc_RNG_DRBG_Present(const WC_RNG* rng)
-{
-    return (rng != NULL) && (! WC_RNG_BANK_DRBG_NULL(rng));
-}
-
-#if FIPS_VERSION3_NE(5,2,4)
-WC_MAYBE_UNUSED static WC_INLINE int wc_RNG_DRBG_GetReseedCtr(
-    const WC_RNG* rng, wc_drbg_reseed_ctr_t* reseedCtr)
-{
-    if ((rng == NULL) || (reseedCtr == NULL))
-        return BAD_FUNC_ARG;
-    if (WC_RNG_BANK_DRBG_NULL(rng))
-        *reseedCtr = 0;
-    else
-        *reseedCtr = (wc_drbg_reseed_ctr_t)WC_RNG_BANK_RESEED_CTR(rng);
-    return 0;
-}
-#endif
-
-WC_MAYBE_UNUSED static WC_INLINE int wc_RNG_DRBG_ScheduleReseed(WC_RNG* rng)
-{
-    if (rng == NULL)
-        return BAD_FUNC_ARG;
-    if (! WC_RNG_BANK_DRBG_NULL(rng))
-        WC_RNG_BANK_SET_RESEED_CTR(rng, WC_RESEED_INTERVAL);
-    return 0;
-}
-
-#if FIPS_VERSION3_NE(5,2,4)
-WC_MAYBE_UNUSED static WC_INLINE int wc_RNG_DRBG_Stir(
-    WC_RNG* rng, const byte* seed, word32 seedSz)
-{
-    wc_drbg_reseed_ctr_t saved_ctr;
-    int ret;
-
-    if ((rng == NULL) || (seed == NULL))
-        return BAD_FUNC_ARG;
-    if (WC_RNG_BANK_DRBG_NULL(rng)) {
-        /* defer to wc_RNG_DRBG_Reseed()'s RDRAND-config handling. */
-        return wc_RNG_DRBG_Reseed(rng, seed, seedSz);
-    }
-    saved_ctr = (wc_drbg_reseed_ctr_t)WC_RNG_BANK_RESEED_CTR(rng);
-    ret = wc_RNG_DRBG_Reseed(rng, seed, seedSz);
-    /* wc_RNG_DRBG_Reseed() only resets the counter on success, so the
-     * unconditional restore is exact either way. */
-    WC_RNG_BANK_SET_RESEED_CTR(rng, saved_ctr);
-    return ret;
-}
-
-WC_MAYBE_UNUSED static WC_INLINE int wc_RNG_DRBG_Reseed_Now(
-    WC_RNG* rng, const byte* nonce, word32 nonceSz)
-{
-    wc_drbg_reseed_ctr_t saved_ctr;
-    int ret;
-    byte scratch[4];
-
-    if (rng == NULL)
-        return BAD_FUNC_ARG;
-    if ((nonce == NULL) && (nonceSz > 0))
-        return BAD_FUNC_ARG;
-    if (wc_RNG_GetStatus(rng) != WC_DRBG_OK)
-        return RNG_FAILURE_E;
-    if (WC_RNG_BANK_DRBG_NULL(rng)) {
-        /* No DRBG instantiated -- nothing to reseed (RDRAND et al.). */
-        return 0;
-    }
-
-    saved_ctr = (wc_drbg_reseed_ctr_t)WC_RNG_BANK_RESEED_CTR(rng);
-    WC_RNG_BANK_SET_RESEED_CTR(rng, WC_RESEED_INTERVAL);
-
-    /* The legacy boundary has no direct reseed-from-source service; a
-     * minimal generate at the forced counter performs the module's own
-     * PollAndReSeed() in-boundary.  This consumes 4 bytes of output, so on
-     * success the fresh reseed counter is 2 rather than 1.  scratch holds
-     * only discarded output bytes; XMEMSET suffices for it here. */
-    ret = wc_RNG_GenerateBlock(rng, scratch, (word32)sizeof(scratch));
-    XMEMSET(scratch, 0, sizeof(scratch));
-
-    if ((ret == 0) && (nonce != NULL) && (nonceSz > 0)) {
-        /* On the legacy boundary, nonce incorporation is a separate
-         * (uncredited) transition following the reseed, rather than part of
-         * the same reseed derivation. */
-        ret = wc_RNG_DRBG_Stir(rng, nonce, nonceSz);
-    }
-
-    if ((ret != 0) &&
-        ((wc_drbg_reseed_ctr_t)WC_RNG_BANK_RESEED_CTR(rng) >=
-         (wc_drbg_reseed_ctr_t)WC_RESEED_INTERVAL))
-    {
-        /* The reseed did not occur -- restore the counter, leaving it
-         * unmodified as the contract requires. */
-        WC_RNG_BANK_SET_RESEED_CTR(rng, saved_ctr);
-    }
-
-    return ret;
-}
-#endif /* FIPS_VERSION3_NE(5,2,4) */
-
-#endif /* HAVE_FIPS && FIPS_VERSION3_LT(7,0,0) */
-
-#ifdef HAVE_HASHDRBG
-
-/* Portable invalidation-recovery helpers.  With the in-boundary latch
- * (WC_RNG_HAVE_LOCK), invalidation and clear-on-credited-reseed are
- * module-enforced and these merely forward; with the bank-side latch,
- * the bit is set and cleared out here, clearing only on credited
- * reseeds, under the lease, mirroring the in-boundary semantics. */
-
-#ifdef WC_RNG_HAVE_LOCK
-
-static WC_INLINE WC_MAYBE_UNUSED int wc_rng_bank_inst_invalidate_entropy(
-    struct wc_rng_bank_inst *inst)
-{
-    if (inst == NULL)
-        return BAD_FUNC_ARG;
-    return wc_RNG_invalidate_entropy(WC_RNG_BANK_INST_TO_RNG(inst));
-}
-static WC_INLINE WC_MAYBE_UNUSED int wc_rng_bank_inst_reseed_now(
-    struct wc_rng_bank_inst *inst, const byte* nonce, word32 nonceSz)
-{
-    if (inst == NULL)
-        return BAD_FUNC_ARG;
-    return wc_RNG_DRBG_Reseed_Now(WC_RNG_BANK_INST_TO_RNG(inst),
-                                  nonce, nonceSz);
-}
-#ifdef WC_RNG_HAVE_RBGC
-static WC_INLINE WC_MAYBE_UNUSED int wc_rng_bank_inst_reseed_rbgc(
-    struct wc_rng_bank_inst *inst, WC_RNG* root, const byte* nonce,
-    word32 nonceSz)
-{
-    if (inst == NULL)
-        return BAD_FUNC_ARG;
-    return wc_RNG_DRBG_ReseedRBGC(WC_RNG_BANK_INST_TO_RNG(inst), root,
-                                  nonce, nonceSz);
-}
-#endif /* WC_RNG_HAVE_RBGC */
-
-#else /* !WC_RNG_HAVE_LOCK */
-
-static WC_INLINE WC_MAYBE_UNUSED int wc_rng_bank_inst_lock_clear_invalidated(
-    struct wc_rng_bank_inst *inst)
-{
-    WC_RNG_lock_arg_t cur_lock = WOLFSSL_ATOMIC_LOAD(inst->lock);
-    for (;;) {
-        if (wolfSSL_Atomic_Uint_CompareExchange(
-                &inst->lock, &cur_lock,
-                cur_lock & ~WC_RNG_LOCK_ENTROPY_INVALIDATED))
-            break;
-    }
-    return 0;
-}
-
-static WC_INLINE WC_MAYBE_UNUSED int wc_rng_bank_inst_invalidate_entropy(
-    struct wc_rng_bank_inst *inst)
-{
-    WC_RNG_lock_arg_t cur_lock;
-
-    if (inst == NULL)
-        return BAD_FUNC_ARG;
-
-    cur_lock = WOLFSSL_ATOMIC_LOAD(inst->lock);
-    for (;;) {
-        if (wolfSSL_Atomic_Uint_CompareExchange(
-                &inst->lock, &cur_lock,
-                cur_lock | WC_RNG_LOCK_ENTROPY_INVALIDATED))
-            break;
-    }
-
-    /* If no lock is held, the saturated reseedCtr is the only way to force
-     * invalidation semantics on a lock-free consumer; if a lock is held,
-     * the holder learns at unlock time. */
-    if (! (cur_lock & WC_RNG_LOCK_HELD))
-        (void)wc_RNG_DRBG_ScheduleReseed(WC_RNG_BANK_INST_TO_RNG(inst));
-
-    return 0;
-}
-
-static WC_INLINE WC_MAYBE_UNUSED int wc_rng_bank_inst_reseed_now(
-    struct wc_rng_bank_inst *inst, const byte* nonce, word32 nonceSz)
-{
-    int ret;
-    if (inst == NULL)
-        return BAD_FUNC_ARG;
-    ret = wc_RNG_DRBG_Reseed_Now(WC_RNG_BANK_INST_TO_RNG(inst),
-                                 nonce, nonceSz);
-    if (ret == 0)
-        (void)wc_rng_bank_inst_lock_clear_invalidated(inst);
-    return ret;
-}
-
-#ifdef WC_RNG_HAVE_RBGC
-static WC_INLINE WC_MAYBE_UNUSED int wc_rng_bank_inst_reseed_rbgc(
-    struct wc_rng_bank_inst *inst, WC_RNG* root, const byte* nonce,
-    word32 nonceSz)
-{
-    int ret;
-    if (inst == NULL)
-        return BAD_FUNC_ARG;
-#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
-    /* the pre-v7 boundary's wc_RNG_DRBG_ReseedRBGC() predates the nonce
-     * parameters; honest rejection, as with the boundary's Reseed_Now(). */
-    if (nonceSz > 0)
-        return NOT_COMPILED_IN;
-    (void)nonce;
-    ret = wc_RNG_DRBG_ReseedRBGC(WC_RNG_BANK_INST_TO_RNG(inst), root);
-#else
-    ret = wc_RNG_DRBG_ReseedRBGC(WC_RNG_BANK_INST_TO_RNG(inst), root,
-                                 nonce, nonceSz);
-#endif
-    if (ret == 0)
-        (void)wc_rng_bank_inst_lock_clear_invalidated(inst);
-    return ret;
-}
-#endif /* WC_RNG_HAVE_RBGC */
-
-#endif /* !WC_RNG_HAVE_LOCK */
-
-#endif /* HAVE_HASHDRBG */
 
 #endif /* WC_RNG_BANK_SUPPORT */
 
