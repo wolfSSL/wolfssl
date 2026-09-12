@@ -6037,6 +6037,11 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #error WC_C_DYNAMIC_FALLBACK requires WC_HAVE_VECTOR_SPEEDUPS
 #endif
 
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(HAVE_FIPS) && \
+    !defined(WOLFSSL_FIPS_DEV) && !defined(WOLFSSL_FIPS_DEV_NO_POST)
+    #error "No fallback in validated FIPS builds"
+#endif
+
 /* setup for opt-in DH in FIPS v7+ */
 #if FIPS_VERSION3_GE(7,0,0) && !defined(HAVE_DH) && !defined(NO_DH)
     #define NO_DH
