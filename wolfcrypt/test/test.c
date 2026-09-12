@@ -30762,8 +30762,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseedstest(void)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
 
 #if !defined(HAVE_INTEL_RDSEED) && !defined(HAVE_INTEL_RDRAND)
-        /* consumption is a stir, not an epoch: the reseed counter is not
-         * reset. */
+        /* consumption is a stir, not an epoch: the reseed counter advances
+         * by the stir's one generate, and is not reset. */
         {
             wc_drbg_reseed_ctr_t ctr_before = 0, ctr_after = 0;
             api_ret = wc_RNG_DRBG_GetReseedCtr(root, &ctr_before);
@@ -30775,7 +30775,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseedstest(void)
             api_ret = wc_RNG_DRBG_GetReseedCtr(root, &ctr_after);
             if (api_ret != 0)
                 ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
-            if (ctr_after < ctr_before)
+            /* A stir is one SP 800-90A 10.1.1.4 generate and no reseed, so
+             * the counter advances by exactly one: a reset to 1 would mean
+             * the stir had masqueraded as a credited reseed, and no change
+             * at all would mean it never ran. */
+            if (ctr_after != ctr_before + 1)
                 ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         }
 #else
