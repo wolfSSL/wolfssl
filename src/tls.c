@@ -1197,7 +1197,8 @@ static int Hmac_UpdateFinal_CT(Hmac* hmac, byte* digest, const byte* in,
 #endif
 
 #if defined(WOLFSSL_NO_HASH_RAW) || defined(HAVE_FIPS) || \
-    defined(HAVE_SELFTEST) || defined(HAVE_BLAKE2B)
+    defined(HAVE_SELFTEST) || defined(HAVE_BLAKE2B) || \
+    defined(WOLF_CRYPTO_CB)
 
 /* Calculate the HMAC of the header + message data.
  * Constant time implementation using normal hashing operations.
@@ -1467,6 +1468,24 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
         if (verify && padSz >= 0) {
 #if !defined(WOLFSSL_NO_HASH_RAW) && !defined(HAVE_FIPS) && \
     !defined(HAVE_SELFTEST)
+    #ifdef WOLF_CRYPTO_CB
+            /* A crypto-callback device may compute the MAC: the raw-hash
+             * constant-time path reads software hash state a device does not
+             * maintain. Any HMAC carrying a cryptocb devId can be serviced by
+             * a callback -- directly, or mapped from that id by the
+             * WOLF_CRYPTO_CB_FIND lookup -- so the software raw state cannot
+             * be relied on. Use the update/final variant for every such HMAC:
+             * the padding-time equalization (dummy blocks) is preserved and
+             * the timing profile is the device's, outside the Lucky13
+             * software threat model. A device that declines HMAC and falls
+             * through to software then runs the same update/final variant
+             * FIPS and selftest builds always use (see the #else branch). */
+            if (hmac->devId != INVALID_DEVID) {
+                ret = Hmac_UpdateFinal(hmac, digest, in,
+                        totalSz, myInner, innerSz);
+            }
+            else
+    #endif
     #ifdef HAVE_BLAKE2B
             if (wolfSSL_GetHmacType(ssl) == WC_HASH_TYPE_BLAKE2B) {
                 ret = Hmac_UpdateFinal(hmac, digest, in,
