@@ -4691,11 +4691,15 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
          * forced-reseed machinery. */
         int banked_stratum = wc_RNG_DRBG_GetNextSeedRBGCStratum(rng);
         if (banked_stratum >= 0) {
-            if ((WOLFSSL_ATOMIC_LOAD(rng->lock) &
-                 WC_RNG_LOCK_ENTROPY_INVALIDATED) ||
+            if (((WOLFSSL_ATOMIC_LOAD(rng->lock) &
+                  WC_RNG_LOCK_ENTROPY_INVALIDATED))
+                ||
                 ((rng->RBGCStratum > 0) && (banked_stratum == 0)))
             {
-                (void)wc_RNG_DRBG_NextSeedNow(rng);
+                if (wc_RNG_DRBG_NextSeedNow(rng) != 0) {
+                    rng->status = DRBG_FAILED;
+                    return RNG_FAILURE_E;
+                }
             }
         }
     }
