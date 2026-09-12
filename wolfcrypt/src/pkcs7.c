@@ -6654,6 +6654,9 @@ static int wc_PKCS7_HandleOctetStrings(wc_PKCS7* pkcs7, byte* in, word32 inSz,
             XMEMCPY(pkcs7->stream->content, pkcs7->content, pkcs7->contentSz);
             pkcs7->stream->contentSz = pkcs7->contentSz;
         }
+        /* drop the content copy left by a previous verify */
+        XFREE(pkcs7->contentDynamic, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        pkcs7->contentDynamic = NULL;
         return 0;
     }
 
