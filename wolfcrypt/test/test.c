@@ -47473,6 +47473,22 @@ done:
 #if defined(HAVE_ECC_ENCRYPT) && defined(HAVE_AES_CBC) && \
     (defined(WOLFSSL_AES_128) || defined(WOLFSSL_AES_256))
 
+/* ECIES takes its device from the context, not from the keys, so each context
+ * has to be told which device to use.  These tests build their keys with the
+ * global devId, which is a real device on ports that set WC_USE_DEVID or
+ * WOLFSSL_CAAM_DEVID.  Without this the tests below would quietly run in
+ * software there and never touch the hardware path.  Defined outside the
+ * guards below so every ECIES test in this file can use it. */
+#ifdef WOLF_CRYPTO_CB
+static wc_test_ret_t ecc_ctx_apply_devid(ecEncCtx* ctx)
+{
+    int ret = wc_ecc_ctx_set_dev_id(ctx, devId);
+    return (ret == 0) ? 0 : WC_TEST_RET_ENC_EC(ret);
+}
+#else
+#define ecc_ctx_apply_devid(ctx) (0)
+#endif
+
 #if !defined(WOLFSSL_NO_MALLOC)
 
 #if ((! defined(HAVE_FIPS)) || FIPS_VERSION_GE(5,3))
@@ -47550,6 +47566,11 @@ static wc_test_ret_t ecc_ctx_kdf_salt_test(WC_RNG* rng, ecc_key* a, ecc_key* b)
         if (bCtx == NULL)
             ret = WC_TEST_RET_ENC_NC;
     }
+
+    if (ret == 0)
+        ret = ecc_ctx_apply_devid(aCtx);
+    if (ret == 0)
+        ret = ecc_ctx_apply_devid(bCtx);
 
     /* set salt */
     if (ret == 0) {
@@ -47907,7 +47928,10 @@ static wc_test_ret_t ecc_encrypt_e2e_test(WC_RNG* rng, ecc_key* userA, ecc_key* 
     for (i = 0; i < (int)sizeof(msg); i++)
         msg[i] = i;
 
-    /* encrypt msg to B */
+    /* encrypt msg to B.  The NULL-context calls here and below run in software
+     * on purpose: ECIES takes its device from the context, so with no context
+     * there is nowhere to name one.  The context-based exchange further down
+     * covers the device path. */
     ret = wc_ecc_encrypt(userA, userB, msg, sizeof(msg), out, &outSz, NULL);
     if (ret != 0) {
         ret = WC_TEST_RET_ENC_EC(ret); goto done;
@@ -47949,6 +47973,12 @@ static wc_test_ret_t ecc_encrypt_e2e_test(WC_RNG* rng, ecc_key* userA, ecc_key* 
     if (cliCtx == NULL || srvCtx == NULL) {
         ret = WC_TEST_RET_ENC_ERRNO; goto done;
     }
+
+    ret = ecc_ctx_apply_devid(cliCtx);
+    if (ret == 0)
+        ret = ecc_ctx_apply_devid(srvCtx);
+    if (ret != 0)
+        goto done;
 
     ret = wc_ecc_ctx_set_algo(cliCtx, encAlgo, kdfAlgo, macAlgo);
     if (ret != 0)
@@ -48046,6 +48076,12 @@ static wc_test_ret_t ecc_encrypt_e2e_test(WC_RNG* rng, ecc_key* userA, ecc_key* 
         ret = WC_TEST_RET_ENC_ERRNO; goto done;
     }
 
+    ret = ecc_ctx_apply_devid(cliCtx);
+    if (ret == 0)
+        ret = ecc_ctx_apply_devid(srvCtx);
+    if (ret != 0)
+        goto done;
+
     ret = wc_ecc_ctx_set_algo(cliCtx, encAlgo, kdfAlgo, macAlgo);
     if (ret != 0)
         goto done;
@@ -48088,7 +48124,14 @@ static wc_test_ret_t ecc_encrypt_e2e_test(WC_RNG* rng, ecc_key* userA, ecc_key* 
     if (ret != 0)
         goto done;
 
-#ifndef WOLFSSL_ECIES_OLD
+#ifdef WOLFSSL_ECIES_OLD
+    /* tmpKey still holds B's public key from the reply above. */
+    tmpKey->dp = userA->dp;
+    ret = wc_ecc_copy_point(&userA->pubkey, &tmpKey->pubkey);
+    if (ret != 0) {
+        ret = WC_TEST_RET_ENC_EC(ret); goto done;
+    }
+#else
     wc_ecc_free(tmpKey);
 #endif
     /* B decrypts msg (request) from A - out has a compressed public key */
@@ -48325,6 +48368,8 @@ static wc_test_ret_t ecc_encrypt_gcm_kat_vec(WC_RNG* rng, byte encAlgo,
 
         srvCtx = wc_ecc_ctx_new(REQ_RESP_SERVER, rng);
         if (srvCtx == NULL) { ret = WC_TEST_RET_ENC_ERRNO; break; }
+        ret = ecc_ctx_apply_devid(srvCtx);
+        if (ret != 0) break;
         ret = wc_ecc_ctx_set_algo(srvCtx, encAlgo, kdfAlgo, ecHMAC_SHA256);
         if (ret == 0) {
             /* force our fixed own salt, then set the peer's fixed salt */
@@ -48480,9 +48525,10 @@ static wc_test_ret_t ecc_encrypt_gcm_kat(WC_RNG* rng)
 #endif /* GCM KAT guards */
 
 #if defined(WOLF_CRYPTO_CB) && !defined(WOLFSSL_NO_MALLOC)
-/* Minimal ECIES CryptoCb: with mode==1 it services the operation (forwarding to
- * software after clearing devId) and records that it was invoked; with mode==0
- * it returns CRYPTOCB_UNAVAILABLE so ECIES falls back to software. */
+/* Minimal ECIES CryptoCb: with mode==1 it handles the operation (by calling
+ * software after clearing the context devId) and records that it was called;
+ * with mode==0 it returns CRYPTOCB_UNAVAILABLE so ECIES falls back to
+ * software. */
 typedef struct EciesCbCtx {
     int mode;           /* 0 = force fallback, 1 = handle in callback */
     int encryptInvoked; /* set when the callback services an ECIES encrypt */
@@ -48499,8 +48545,13 @@ static int myEciesCryptoCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     EciesCbCtx* cbCtx = (EciesCbCtx*)ctx;
 
+    (void)devIdArg;
+
     if (info->algo_type == WC_ALGO_TYPE_PK) {
         if (info->pk.type == WC_PK_TYPE_ECIES_ENCRYPT) {
+            ecEncCtx* eCtx = info->pk.eciesencrypt.ctx;
+            int       savedDevId = INVALID_DEVID;
+
             if (cbCtx->mode == 0)
                 return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
             cbCtx->encryptInvoked = 1;
@@ -48517,24 +48568,38 @@ static int myEciesCryptoCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                 *info->pk.eciesencrypt.outSz = needed;
                 return 0;
             }
-            info->pk.eciesencrypt.privKey->devId = INVALID_DEVID;
+            /* ECIES picks its device from the context devId, so clear that,
+             * not the caller's key, so the call back into wolfSSL stays in
+             * software.  A NULL context is already software-only. */
+            if (eCtx != NULL) {
+                (void)wc_ecc_ctx_get_dev_id(eCtx, &savedDevId);
+                (void)wc_ecc_ctx_set_dev_id(eCtx, INVALID_DEVID);
+            }
             ret = wc_ecc_encrypt_ex(info->pk.eciesencrypt.privKey,
                 info->pk.eciesencrypt.pubKey, info->pk.eciesencrypt.msg,
                 info->pk.eciesencrypt.msgSz, info->pk.eciesencrypt.out,
                 info->pk.eciesencrypt.outSz, info->pk.eciesencrypt.ctx,
                 info->pk.eciesencrypt.compressed);
-            info->pk.eciesencrypt.privKey->devId = devIdArg;
+            if (eCtx != NULL)
+                (void)wc_ecc_ctx_set_dev_id(eCtx, savedDevId);
         }
         else if (info->pk.type == WC_PK_TYPE_ECIES_DECRYPT) {
+            ecEncCtx* eCtx = info->pk.eciesdecrypt.ctx;
+            int       savedDevId = INVALID_DEVID;
+
             if (cbCtx->mode == 0)
                 return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
             cbCtx->decryptInvoked = 1;
-            info->pk.eciesdecrypt.privKey->devId = INVALID_DEVID;
+            if (eCtx != NULL) {
+                (void)wc_ecc_ctx_get_dev_id(eCtx, &savedDevId);
+                (void)wc_ecc_ctx_set_dev_id(eCtx, INVALID_DEVID);
+            }
             ret = wc_ecc_decrypt(info->pk.eciesdecrypt.privKey,
                 info->pk.eciesdecrypt.pubKey, info->pk.eciesdecrypt.msg,
                 info->pk.eciesdecrypt.msgSz, info->pk.eciesdecrypt.out,
                 info->pk.eciesdecrypt.outSz, info->pk.eciesdecrypt.ctx);
-            info->pk.eciesdecrypt.privKey->devId = devIdArg;
+            if (eCtx != NULL)
+                (void)wc_ecc_ctx_set_dev_id(eCtx, savedDevId);
         }
     }
 
@@ -48610,6 +48675,13 @@ static wc_test_ret_t ecies_cryptocb_roundtrip(WC_RNG* rng, EciesCbCtx* cbCtx,
         ret = wc_ecc_ctx_set_algo(srvCtx, encAlgo, ecHKDF_SHA256, ecHMAC_SHA256);
     if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto rt_done; }
 
+    /* ECIES picks its device from the context devId, not the key's, so the
+     * device has to be set here or the callback is never reached. */
+    ret = wc_ecc_ctx_set_dev_id(cliCtx, ECIES_CB_TEST_DEVID);
+    if (ret == 0)
+        ret = wc_ecc_ctx_set_dev_id(srvCtx, ECIES_CB_TEST_DEVID);
+    if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto rt_done; }
+
     tmpSalt = wc_ecc_ctx_get_own_salt(cliCtx);
     if (tmpSalt == NULL) { ret = WC_TEST_RET_ENC_NC; goto rt_done; }
     XMEMCPY(cliSalt, tmpSalt, EXCHANGE_SALT_SZ);
@@ -48673,6 +48745,12 @@ static wc_test_ret_t ecies_cryptocb_state_test(WC_RNG* rng, EciesCbCtx* cbCtx,
         ret = WC_TEST_RET_ENC_NC; goto st_done;
     }
 
+    /* ECIES picks its device from the context devId, not the key's. */
+    ret = wc_ecc_ctx_set_dev_id(cliCtx, ECIES_CB_TEST_DEVID);
+    if (ret == 0)
+        ret = wc_ecc_ctx_set_dev_id(srvCtx, ECIES_CB_TEST_DEVID);
+    if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto st_done; }
+
     /* Salt exchange brings the client ctx to ecCLI_SALT_SET (encrypt-ready). */
     tmpSalt = wc_ecc_ctx_get_own_salt(cliCtx);
     if (tmpSalt == NULL) { ret = WC_TEST_RET_ENC_NC; goto st_done; }
@@ -48696,11 +48774,16 @@ static wc_test_ret_t ecies_cryptocb_state_test(WC_RNG* rng, EciesCbCtx* cbCtx,
     /* Second encrypt on the same ctx must be rejected: the hardware path must
      * have advanced the single-use state. */
     outSz = sizeof(out);
+    cbCtx->encryptInvoked = 0;
     ret = wc_ecc_encrypt(userA, userB, msg, sizeof(msg), out, &outSz, cliCtx);
     if (ret != WC_NO_ERR_TRACE(BAD_STATE_E)) {
         ret = (ret == 0) ? WC_TEST_RET_ENC_NC : WC_TEST_RET_ENC_EC(ret);
         goto st_done;
     }
+    /* The reject has to come from the single-use check after the hardware
+     * handled the call, not from the callback being skipped and software
+     * rejecting it.  Otherwise this passes for the wrong reason. */
+    if (cbCtx->encryptInvoked != 1) { ret = WC_TEST_RET_ENC_NC; goto st_done; }
     ret = 0;
 
 st_done:
@@ -82740,23 +82823,39 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         }
     #ifdef HAVE_ECC_ENCRYPT
         else if (info->pk.type == WC_PK_TYPE_ECIES_ENCRYPT) {
-            /* set devId to invalid so the software path runs */
-            info->pk.eciesencrypt.privKey->devId = INVALID_DEVID;
+            /* ECIES picks its device from the context devId, so clear that,
+             * not the caller's key, so the software path runs instead of
+             * calling straight back into this callback. */
+            ecEncCtx* eCtx = info->pk.eciesencrypt.ctx;
+            int       savedDevId = INVALID_DEVID;
+
+            if (eCtx != NULL) {
+                (void)wc_ecc_ctx_get_dev_id(eCtx, &savedDevId);
+                (void)wc_ecc_ctx_set_dev_id(eCtx, INVALID_DEVID);
+            }
             ret = wc_ecc_encrypt_ex(info->pk.eciesencrypt.privKey,
                 info->pk.eciesencrypt.pubKey, info->pk.eciesencrypt.msg,
                 info->pk.eciesencrypt.msgSz, info->pk.eciesencrypt.out,
                 info->pk.eciesencrypt.outSz, info->pk.eciesencrypt.ctx,
                 info->pk.eciesencrypt.compressed);
-            /* reset devId */
-            info->pk.eciesencrypt.privKey->devId = devIdArg;
+            /* put back the caller's device */
+            if (eCtx != NULL)
+                (void)wc_ecc_ctx_set_dev_id(eCtx, savedDevId);
         }
         else if (info->pk.type == WC_PK_TYPE_ECIES_DECRYPT) {
-            info->pk.eciesdecrypt.privKey->devId = INVALID_DEVID;
+            ecEncCtx* eCtx = info->pk.eciesdecrypt.ctx;
+            int       savedDevId = INVALID_DEVID;
+
+            if (eCtx != NULL) {
+                (void)wc_ecc_ctx_get_dev_id(eCtx, &savedDevId);
+                (void)wc_ecc_ctx_set_dev_id(eCtx, INVALID_DEVID);
+            }
             ret = wc_ecc_decrypt(info->pk.eciesdecrypt.privKey,
                 info->pk.eciesdecrypt.pubKey, info->pk.eciesdecrypt.msg,
                 info->pk.eciesdecrypt.msgSz, info->pk.eciesdecrypt.out,
                 info->pk.eciesdecrypt.outSz, info->pk.eciesdecrypt.ctx);
-            info->pk.eciesdecrypt.privKey->devId = devIdArg;
+            if (eCtx != NULL)
+                (void)wc_ecc_ctx_set_dev_id(eCtx, savedDevId);
         }
     #endif /* HAVE_ECC_ENCRYPT */
         else if (info->pk.type == WC_PK_TYPE_EC_GET_SIZE) {

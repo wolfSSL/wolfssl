@@ -1139,6 +1139,12 @@ WOLFSSL_API
 int wc_ecc_ctx_get_protocol(ecEncCtx* ctx, int* protocol);
 WOLFSSL_API
 int wc_ecc_ctx_get_rng(ecEncCtx* ctx, WC_RNG** rng);
+/* Device that ECIES runs on; never copied from the ECC key. Unset means
+ * software, or the WOLF_CRYPTO_CB_FIND finder. Kept across ctx reset. */
+WOLFSSL_API
+int wc_ecc_ctx_set_dev_id(ecEncCtx* ctx, int devId);
+WOLFSSL_API
+int wc_ecc_ctx_get_dev_id(ecEncCtx* ctx, int* devId);
 #endif /* WOLF_CRYPTO_CB */
 WOLFSSL_API
 const byte* wc_ecc_ctx_get_own_salt(ecEncCtx* ctx);

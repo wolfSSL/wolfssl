@@ -1680,7 +1680,8 @@ int test_wc_ecc_ctx_set_info(void)
 /*
  * Testing the crypto-callback context accessors wc_ecc_ctx_get_algo,
  * wc_ecc_ctx_get_kdf_salt, wc_ecc_ctx_get_info, wc_ecc_ctx_get_mac_salt,
- * wc_ecc_ctx_get_protocol and wc_ecc_ctx_get_rng (built only when
+ * wc_ecc_ctx_get_protocol, wc_ecc_ctx_get_rng and the
+ * wc_ecc_ctx_set_dev_id / wc_ecc_ctx_get_dev_id pair (built only when
  * WOLF_CRYPTO_CB is enabled).
  */
 int test_wc_ecc_ctx_getters(void)
@@ -1838,6 +1839,51 @@ int test_wc_ecc_ctx_getters(void)
         ExpectIntEQ(wc_ecc_ctx_get_rng(NULL, &gotRng),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wc_ecc_ctx_get_rng(ctx, NULL),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+
+    /* devId: the ECIES crypto callback and the AES/HMAC steps both use this,
+     * so a wrong value here sends the whole operation somewhere else. */
+    {
+        int gotDevId = 0;
+
+        /* A fresh context is software.  ecc_ctx_init() zeroes the struct and
+         * devId 0 is a real device, so INVALID_DEVID has to be written on
+         * purpose.  A 0 here means it was not. */
+        gotDevId = 0x5a5a;
+        ExpectIntEQ(wc_ecc_ctx_get_dev_id(ctx, &gotDevId), 0);
+        ExpectIntEQ(gotDevId, INVALID_DEVID);
+
+        ExpectIntEQ(wc_ecc_ctx_set_dev_id(ctx, 0x1234), 0);
+        gotDevId = 0;
+        ExpectIntEQ(wc_ecc_ctx_get_dev_id(ctx, &gotDevId), 0);
+        ExpectIntEQ(gotDevId, 0x1234);
+
+        /* devId 0 is a legal device and must not read back as "unset" */
+        ExpectIntEQ(wc_ecc_ctx_set_dev_id(ctx, 0), 0);
+        gotDevId = 0x5a5a;
+        ExpectIntEQ(wc_ecc_ctx_get_dev_id(ctx, &gotDevId), 0);
+        ExpectIntEQ(gotDevId, 0);
+
+        /* the device is the caller's setting and is kept across a reset */
+        ExpectIntEQ(wc_ecc_ctx_set_dev_id(ctx, 0x4d43), 0);
+        ExpectIntEQ(wc_ecc_ctx_reset(ctx, &rng), 0);
+        gotDevId = 0;
+        ExpectIntEQ(wc_ecc_ctx_get_dev_id(ctx, &gotDevId), 0);
+        ExpectIntEQ(gotDevId, 0x4d43);
+
+        /* and can be set back to software */
+        ExpectIntEQ(wc_ecc_ctx_set_dev_id(ctx, INVALID_DEVID), 0);
+        gotDevId = 0;
+        ExpectIntEQ(wc_ecc_ctx_get_dev_id(ctx, &gotDevId), 0);
+        ExpectIntEQ(gotDevId, INVALID_DEVID);
+
+        /* bad args: NULL ctx / NULL out-parameter */
+        ExpectIntEQ(wc_ecc_ctx_set_dev_id(NULL, 0x1234),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ecc_ctx_get_dev_id(NULL, &gotDevId),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ecc_ctx_get_dev_id(ctx, NULL),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     }
 
@@ -2093,6 +2139,7 @@ int test_wc_ecc_ecies_gcm(void)
 
 #if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && !defined(WC_NO_RNG) && \
     defined(WOLF_CRYPTO_CB) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(NO_SHA256) && \
     (defined(HAVE_AES_CBC) || \
      (defined(HAVE_AESGCM) && (defined(WOLFSSL_ECIES_GEN_IV) || \
         defined(WOLFSSL_ECIES_OLD) || \
@@ -2105,27 +2152,47 @@ static int myEciesApiCryptoCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 {
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     int* invoked = (int*)ctx;
+
+    (void)devIdArg;
+
     if (info->algo_type == WC_ALGO_TYPE_PK) {
         if (info->pk.type == WC_PK_TYPE_ECIES_ENCRYPT) {
+            ecEncCtx* eCtx = info->pk.eciesencrypt.ctx;
+            int       savedDevId = INVALID_DEVID;
+
             if (invoked != NULL)
                 *invoked = 1;
-            info->pk.eciesencrypt.privKey->devId = INVALID_DEVID;
+            /* ECIES picks its device from the context devId, so clear that,
+             * not the caller's key, so the call back into wolfSSL stays in
+             * software.  A NULL context is already software-only. */
+            if (eCtx != NULL) {
+                (void)wc_ecc_ctx_get_dev_id(eCtx, &savedDevId);
+                (void)wc_ecc_ctx_set_dev_id(eCtx, INVALID_DEVID);
+            }
             ret = wc_ecc_encrypt_ex(info->pk.eciesencrypt.privKey,
                 info->pk.eciesencrypt.pubKey, info->pk.eciesencrypt.msg,
                 info->pk.eciesencrypt.msgSz, info->pk.eciesencrypt.out,
                 info->pk.eciesencrypt.outSz, info->pk.eciesencrypt.ctx,
                 info->pk.eciesencrypt.compressed);
-            info->pk.eciesencrypt.privKey->devId = devIdArg;
+            if (eCtx != NULL)
+                (void)wc_ecc_ctx_set_dev_id(eCtx, savedDevId);
         }
         else if (info->pk.type == WC_PK_TYPE_ECIES_DECRYPT) {
+            ecEncCtx* eCtx = info->pk.eciesdecrypt.ctx;
+            int       savedDevId = INVALID_DEVID;
+
             if (invoked != NULL)
                 *invoked = 1;
-            info->pk.eciesdecrypt.privKey->devId = INVALID_DEVID;
+            if (eCtx != NULL) {
+                (void)wc_ecc_ctx_get_dev_id(eCtx, &savedDevId);
+                (void)wc_ecc_ctx_set_dev_id(eCtx, INVALID_DEVID);
+            }
             ret = wc_ecc_decrypt(info->pk.eciesdecrypt.privKey,
                 info->pk.eciesdecrypt.pubKey, info->pk.eciesdecrypt.msg,
                 info->pk.eciesdecrypt.msgSz, info->pk.eciesdecrypt.out,
                 info->pk.eciesdecrypt.outSz, info->pk.eciesdecrypt.ctx);
-            info->pk.eciesdecrypt.privKey->devId = devIdArg;
+            if (eCtx != NULL)
+                (void)wc_ecc_ctx_set_dev_id(eCtx, savedDevId);
         }
     }
     return ret;
@@ -2140,6 +2207,7 @@ int test_wc_ecc_ecies_cryptocb(void)
     EXPECT_DECLS;
 #if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && !defined(WC_NO_RNG) && \
     defined(WOLF_CRYPTO_CB) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(NO_SHA256) && \
     (defined(HAVE_AES_CBC) || \
      (defined(HAVE_AESGCM) && (defined(WOLFSSL_ECIES_GEN_IV) || \
         defined(WOLFSSL_ECIES_OLD) || \
@@ -2148,6 +2216,11 @@ int test_wc_ecc_ecies_cryptocb(void)
     ecc_key     cliKey;
     ecc_key     srvKey;
     WC_RNG      rng;
+    ecEncCtx*   cliCtx = NULL;
+    ecEncCtx*   srvCtx = NULL;
+    byte        cliSalt[EXCHANGE_SALT_SZ];
+    byte        srvSalt[EXCHANGE_SALT_SZ];
+    const byte* tmpSalt = NULL;
     byte        msg[32];
     byte        out[256];
     byte        plain[64];
@@ -2180,12 +2253,28 @@ int test_wc_ecc_ecies_cryptocb(void)
     ExpectIntEQ(wc_ecc_set_rng(&cliKey, &rng), 0);
     ExpectIntEQ(wc_ecc_set_rng(&srvKey, &rng), 0);
 #endif
+    /* The keys name the device too, but that no longer picks where ECIES
+     * runs.  The contexts below are what reach the callback.  Leaving these
+     * set shows the two are independent. */
     cliKey.devId = cbDevId;
     srvKey.devId = cbDevId;
 
+    ExpectNotNull(cliCtx = wc_ecc_ctx_new(REQ_RESP_CLIENT, &rng));
+    ExpectNotNull(srvCtx = wc_ecc_ctx_new(REQ_RESP_SERVER, &rng));
+    ExpectIntEQ(wc_ecc_ctx_set_dev_id(cliCtx, cbDevId), 0);
+    ExpectIntEQ(wc_ecc_ctx_set_dev_id(srvCtx, cbDevId), 0);
+    ExpectNotNull(tmpSalt = wc_ecc_ctx_get_own_salt(cliCtx));
+    if (tmpSalt != NULL)
+        XMEMCPY(cliSalt, tmpSalt, EXCHANGE_SALT_SZ);
+    ExpectNotNull(tmpSalt = wc_ecc_ctx_get_own_salt(srvCtx));
+    if (tmpSalt != NULL)
+        XMEMCPY(srvSalt, tmpSalt, EXCHANGE_SALT_SZ);
+    ExpectIntEQ(wc_ecc_ctx_set_peer_salt(cliCtx, srvSalt), 0);
+    ExpectIntEQ(wc_ecc_ctx_set_peer_salt(srvCtx, cliSalt), 0);
+
     cbInvoked = 0;
     ExpectIntEQ(wc_ecc_encrypt(&cliKey, &srvKey, msg, sizeof(msg), out, &outSz,
-        NULL), 0);
+        cliCtx), 0);
     /* callback must have serviced the encrypt */
     ExpectIntEQ(cbInvoked, 1);
 
@@ -2194,15 +2283,17 @@ int test_wc_ecc_ecies_cryptocb(void)
      * NULL and read the ephemeral key from the message. */
 #ifdef WOLFSSL_ECIES_OLD
     ExpectIntEQ(wc_ecc_decrypt(&srvKey, &cliKey, out, outSz, plain, &plainSz,
-        NULL), 0);
+        srvCtx), 0);
 #else
     ExpectIntEQ(wc_ecc_decrypt(&srvKey, NULL, out, outSz, plain, &plainSz,
-        NULL), 0);
+        srvCtx), 0);
 #endif
     ExpectIntEQ(cbInvoked, 1);
     ExpectIntEQ(plainSz, sizeof(msg));
     ExpectIntEQ(XMEMCMP(plain, msg, sizeof(msg)), 0);
 
+    wc_ecc_ctx_free(srvCtx);
+    wc_ecc_ctx_free(cliCtx);
     cliKey.devId = INVALID_DEVID;
     srvKey.devId = INVALID_DEVID;
     wc_ecc_free(&srvKey);
@@ -2213,6 +2304,367 @@ int test_wc_ecc_ecies_cryptocb(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_ecc_ecies_cryptocb */
+
+/*
+ * ECIES used to take its device from privKey->devId.  It now takes it from the
+ * context only.  Both checks below fail silently if this breaks: the call
+ * still succeeds, it just runs somewhere else.
+ *   1. a key with a device, and a context with none, runs in software;
+ *   2. a NULL context is software-only no matter what the key says.
+ * ECDH is unchanged and still uses the key's device; that is not tested here.
+ */
+int test_wc_ecc_ecies_devid_not_inherited(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && !defined(WC_NO_RNG) && \
+    defined(WOLF_CRYPTO_CB) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(NO_SHA256) && \
+    (defined(HAVE_AES_CBC) || \
+     (defined(HAVE_AESGCM) && (defined(WOLFSSL_ECIES_GEN_IV) || \
+        defined(WOLFSSL_ECIES_OLD) || \
+        defined(WOLFSSL_ECIES_STATIC_GCM_NONCE)))) && defined(WOLFSSL_AES_128)
+    const int   cbDevId = 0x45434231; /* 'ECB1' */
+    ecc_key     cliKey;
+    ecc_key     srvKey;
+    WC_RNG      rng;
+    ecEncCtx*   cliCtx = NULL;
+    ecEncCtx*   srvCtx = NULL;
+    byte        cliSalt[EXCHANGE_SALT_SZ];
+    byte        srvSalt[EXCHANGE_SALT_SZ];
+    const byte* tmpSalt = NULL;
+    byte        msg[32];
+    byte        out[256];
+    byte        plain[64];
+    word32      outSz   = (word32)sizeof(out);
+    word32      plainSz = (word32)sizeof(plain);
+    int         i;
+    int         registered = 0;
+    int         cbInvoked  = 0;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&cliKey, 0, sizeof(cliKey));
+    XMEMSET(&srvKey, 0, sizeof(srvKey));
+    for (i = 0; i < (int)sizeof(msg); i++)
+        msg[i] = (byte)i;
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(cbDevId, myEciesApiCryptoCb,
+        &cbInvoked), 0);
+    if (EXPECT_SUCCESS())
+        registered = 1;
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ecc_init(&cliKey), 0);
+    ExpectIntEQ(wc_ecc_init(&srvKey), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, KEY32, &cliKey), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, KEY32, &srvKey), 0);
+#if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
+    !defined(HAVE_SELFTEST)
+    ExpectIntEQ(wc_ecc_set_rng(&cliKey, &rng), 0);
+    ExpectIntEQ(wc_ecc_set_rng(&srvKey, &rng), 0);
+#endif
+    /* Both keys are bound to the device for the whole test. */
+    cliKey.devId = cbDevId;
+    srvKey.devId = cbDevId;
+
+    /* (1) contexts given, but no devId set: software, callback never called. */
+    ExpectNotNull(cliCtx = wc_ecc_ctx_new(REQ_RESP_CLIENT, &rng));
+    ExpectNotNull(srvCtx = wc_ecc_ctx_new(REQ_RESP_SERVER, &rng));
+    ExpectNotNull(tmpSalt = wc_ecc_ctx_get_own_salt(cliCtx));
+    if (tmpSalt != NULL)
+        XMEMCPY(cliSalt, tmpSalt, EXCHANGE_SALT_SZ);
+    ExpectNotNull(tmpSalt = wc_ecc_ctx_get_own_salt(srvCtx));
+    if (tmpSalt != NULL)
+        XMEMCPY(srvSalt, tmpSalt, EXCHANGE_SALT_SZ);
+    ExpectIntEQ(wc_ecc_ctx_set_peer_salt(cliCtx, srvSalt), 0);
+    ExpectIntEQ(wc_ecc_ctx_set_peer_salt(srvCtx, cliSalt), 0);
+
+    cbInvoked = 0;
+    ExpectIntEQ(wc_ecc_encrypt(&cliKey, &srvKey, msg, sizeof(msg), out, &outSz,
+        cliCtx), 0);
+    ExpectIntEQ(cbInvoked, 0);
+#ifdef WOLFSSL_ECIES_OLD
+    ExpectIntEQ(wc_ecc_decrypt(&srvKey, &cliKey, out, outSz, plain, &plainSz,
+        srvCtx), 0);
+#else
+    ExpectIntEQ(wc_ecc_decrypt(&srvKey, NULL, out, outSz, plain, &plainSz,
+        srvCtx), 0);
+#endif
+    ExpectIntEQ(cbInvoked, 0);
+    ExpectIntEQ(plainSz, sizeof(msg));
+    ExpectIntEQ(XMEMCMP(plain, msg, sizeof(msg)), 0);
+
+    /* (2) no context at all: still software. */
+    cbInvoked = 0;
+    XMEMSET(plain, 0, sizeof(plain));
+    outSz = (word32)sizeof(out);
+    plainSz = (word32)sizeof(plain);
+    ExpectIntEQ(wc_ecc_encrypt(&cliKey, &srvKey, msg, sizeof(msg), out, &outSz,
+        NULL), 0);
+    ExpectIntEQ(cbInvoked, 0);
+#ifdef WOLFSSL_ECIES_OLD
+    ExpectIntEQ(wc_ecc_decrypt(&srvKey, &cliKey, out, outSz, plain, &plainSz,
+        NULL), 0);
+#else
+    ExpectIntEQ(wc_ecc_decrypt(&srvKey, NULL, out, outSz, plain, &plainSz,
+        NULL), 0);
+#endif
+    ExpectIntEQ(cbInvoked, 0);
+    ExpectIntEQ(plainSz, sizeof(msg));
+    ExpectIntEQ(XMEMCMP(plain, msg, sizeof(msg)), 0);
+
+    /* (3) Check: same keys, device now set on the contexts.  Without this
+     * step, (1) and (2) would also pass if the callback were never
+     * registered at all. */
+    ExpectIntEQ(wc_ecc_ctx_reset(cliCtx, &rng), 0);
+    ExpectIntEQ(wc_ecc_ctx_reset(srvCtx, &rng), 0);
+    ExpectIntEQ(wc_ecc_ctx_set_dev_id(cliCtx, cbDevId), 0);
+    ExpectIntEQ(wc_ecc_ctx_set_dev_id(srvCtx, cbDevId), 0);
+    ExpectNotNull(tmpSalt = wc_ecc_ctx_get_own_salt(cliCtx));
+    if (tmpSalt != NULL)
+        XMEMCPY(cliSalt, tmpSalt, EXCHANGE_SALT_SZ);
+    ExpectNotNull(tmpSalt = wc_ecc_ctx_get_own_salt(srvCtx));
+    if (tmpSalt != NULL)
+        XMEMCPY(srvSalt, tmpSalt, EXCHANGE_SALT_SZ);
+    ExpectIntEQ(wc_ecc_ctx_set_peer_salt(cliCtx, srvSalt), 0);
+    ExpectIntEQ(wc_ecc_ctx_set_peer_salt(srvCtx, cliSalt), 0);
+
+    cbInvoked = 0;
+    outSz = (word32)sizeof(out);
+    plainSz = (word32)sizeof(plain);
+    ExpectIntEQ(wc_ecc_encrypt(&cliKey, &srvKey, msg, sizeof(msg), out, &outSz,
+        cliCtx), 0);
+    ExpectIntEQ(cbInvoked, 1);
+    cbInvoked = 0;
+    XMEMSET(plain, 0, sizeof(plain));
+#ifdef WOLFSSL_ECIES_OLD
+    ExpectIntEQ(wc_ecc_decrypt(&srvKey, &cliKey, out, outSz, plain, &plainSz,
+        srvCtx), 0);
+#else
+    ExpectIntEQ(wc_ecc_decrypt(&srvKey, NULL, out, outSz, plain, &plainSz,
+        srvCtx), 0);
+#endif
+    ExpectIntEQ(cbInvoked, 1);
+    ExpectIntEQ(plainSz, sizeof(msg));
+    ExpectIntEQ(XMEMCMP(plain, msg, sizeof(msg)), 0);
+
+    wc_ecc_ctx_free(srvCtx);
+    wc_ecc_ctx_free(cliCtx);
+    cliKey.devId = INVALID_DEVID;
+    srvKey.devId = INVALID_DEVID;
+    wc_ecc_free(&srvKey);
+    wc_ecc_free(&cliKey);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    if (registered)
+        wc_CryptoCb_UnRegisterDevice(cbDevId);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_ecies_devid_not_inherited */
+
+#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && !defined(WC_NO_RNG) && \
+    defined(WOLF_CRYPTO_CB) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(NO_SHA256) && \
+    (defined(HAVE_AES_CBC) || \
+     (defined(HAVE_AESGCM) && (defined(WOLFSSL_ECIES_GEN_IV) || \
+        defined(WOLFSSL_ECIES_OLD) || \
+        defined(WOLFSSL_ECIES_STATIC_GCM_NONCE)))) && defined(WOLFSSL_AES_128)
+/* Counts how often a device is asked to do a KDF, cipher or HMAC step.  It
+ * always says no, so each step then runs in software. */
+typedef struct EciesStepCount {
+    int kdf;
+    int cipher;
+    int hmac;
+    int kdfPendOnce; /* answer the next KDF call with WC_PENDING_E */
+} EciesStepCount;
+
+static int myEciesStepCountCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    EciesStepCount* cnt = (EciesStepCount*)ctx;
+
+    (void)devIdArg;
+
+    if (cnt != NULL) {
+        if (info->algo_type == WC_ALGO_TYPE_KDF) {
+            cnt->kdf++;
+            if (cnt->kdfPendOnce) {
+                cnt->kdfPendOnce = 0;
+                return WC_NO_ERR_TRACE(WC_PENDING_E);
+            }
+        }
+        else if (info->algo_type == WC_ALGO_TYPE_CIPHER)
+            cnt->cipher++;
+        else if (info->algo_type == WC_ALGO_TYPE_HMAC)
+            cnt->hmac++;
+    }
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif
+
+/*
+ * The software ECIES path hands the context devId to its KDF, cipher and MAC
+ * steps.  The other ECIES tests never see this: their callbacks take the whole
+ * job and clear the devId.  Here the callback turns down the whole job but
+ * counts the KDF, cipher and HMAC steps, and answers the first KDF call with
+ * WC_PENDING_E so the retry is covered too.  With a device on the context the
+ * counts must go up; without one they must stay at zero.  Both HKDF hashes run.
+ */
+int test_wc_ecc_ecies_ctx_devid_steps(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && !defined(WC_NO_RNG) && \
+    defined(WOLF_CRYPTO_CB) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(NO_SHA256) && \
+    (defined(HAVE_AES_CBC) || \
+     (defined(HAVE_AESGCM) && (defined(WOLFSSL_ECIES_GEN_IV) || \
+        defined(WOLFSSL_ECIES_OLD) || \
+        defined(WOLFSSL_ECIES_STATIC_GCM_NONCE)))) && defined(WOLFSSL_AES_128)
+    const int      cbDevId = 0x45434232; /* 'ECB2' */
+    const byte     kdfAlgos[] = {
+        ecHKDF_SHA256,
+    #ifndef NO_SHA
+        ecHKDF_SHA1,
+    #endif
+    };
+    EciesStepCount cnt;
+    ecc_key        cliKey;
+    ecc_key        srvKey;
+    WC_RNG         rng;
+    ecEncCtx*      cliCtx = NULL;
+    ecEncCtx*      srvCtx = NULL;
+    byte           cliSalt[EXCHANGE_SALT_SZ];
+    byte           srvSalt[EXCHANGE_SALT_SZ];
+    const byte*    tmpSalt = NULL;
+    byte           encAlgo = 0;
+    byte           macAlgo = 0;
+    byte           msg[32];
+    byte           out[256];
+    byte           plain[64];
+    word32         outSz;
+    word32         plainSz;
+    int            i;
+    int            k;
+    int            useDev;
+    int            isGcm = 0;
+    int            registered = 0;
+
+    XMEMSET(&cnt, 0, sizeof(cnt));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&cliKey, 0, sizeof(cliKey));
+    XMEMSET(&srvKey, 0, sizeof(srvKey));
+    for (i = 0; i < (int)sizeof(msg); i++)
+        msg[i] = (byte)i;
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(cbDevId, myEciesStepCountCb,
+        &cnt), 0);
+    if (EXPECT_SUCCESS())
+        registered = 1;
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    /* Keys stay in software so only the context can reach the device. */
+    ExpectIntEQ(wc_ecc_init(&cliKey), 0);
+    ExpectIntEQ(wc_ecc_init(&srvKey), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, KEY32, &cliKey), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, KEY32, &srvKey), 0);
+#if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
+    !defined(HAVE_SELFTEST)
+    ExpectIntEQ(wc_ecc_set_rng(&cliKey, &rng), 0);
+    ExpectIntEQ(wc_ecc_set_rng(&srvKey, &rng), 0);
+#endif
+    ExpectNotNull(cliCtx = wc_ecc_ctx_new(REQ_RESP_CLIENT, &rng));
+    ExpectNotNull(srvCtx = wc_ecc_ctx_new(REQ_RESP_SERVER, &rng));
+    /* keep the build's default cipher and MAC, only the KDF changes below */
+    ExpectIntEQ(wc_ecc_ctx_get_algo(cliCtx, &encAlgo, NULL, &macAlgo), 0);
+#ifdef HAVE_AESGCM
+    /* GCM authenticates on its own, so ECIES skips the HMAC step for it. */
+    isGcm = (encAlgo == ecAES_128_GCM || encAlgo == ecAES_256_GCM);
+#endif
+
+    for (k = 0; k < (int)sizeof(kdfAlgos) && EXPECT_SUCCESS(); k++) {
+        for (useDev = 1; useDev >= 0; useDev--) {
+            /* a context is single use, so start each message fresh */
+            ExpectIntEQ(wc_ecc_ctx_reset(cliCtx, &rng), 0);
+            ExpectIntEQ(wc_ecc_ctx_reset(srvCtx, &rng), 0);
+            ExpectIntEQ(wc_ecc_ctx_set_dev_id(cliCtx,
+                useDev ? cbDevId : INVALID_DEVID), 0);
+            ExpectIntEQ(wc_ecc_ctx_set_dev_id(srvCtx,
+                useDev ? cbDevId : INVALID_DEVID), 0);
+            ExpectIntEQ(wc_ecc_ctx_set_algo(cliCtx, encAlgo, kdfAlgos[k],
+                macAlgo), 0);
+            ExpectIntEQ(wc_ecc_ctx_set_algo(srvCtx, encAlgo, kdfAlgos[k],
+                macAlgo), 0);
+            ExpectNotNull(tmpSalt = wc_ecc_ctx_get_own_salt(cliCtx));
+            if (tmpSalt != NULL)
+                XMEMCPY(cliSalt, tmpSalt, EXCHANGE_SALT_SZ);
+            ExpectNotNull(tmpSalt = wc_ecc_ctx_get_own_salt(srvCtx));
+            if (tmpSalt != NULL)
+                XMEMCPY(srvSalt, tmpSalt, EXCHANGE_SALT_SZ);
+            ExpectIntEQ(wc_ecc_ctx_set_peer_salt(cliCtx, srvSalt), 0);
+            ExpectIntEQ(wc_ecc_ctx_set_peer_salt(srvCtx, cliSalt), 0);
+
+            XMEMSET(plain, 0, sizeof(plain));
+            outSz = (word32)sizeof(out);
+            plainSz = (word32)sizeof(plain);
+
+            /* Count each direction on its own so neither can hide the other. */
+            XMEMSET(&cnt, 0, sizeof(cnt));
+            cnt.kdfPendOnce = useDev;
+            ExpectIntEQ(wc_ecc_encrypt(&cliKey, &srvKey, msg, sizeof(msg),
+                out, &outSz, cliCtx), 0);
+            if (useDev) {
+                /* one pending answer, then the real one */
+                ExpectIntGT(cnt.kdf, 1);
+                ExpectIntGT(cnt.cipher, 0);
+            }
+            else {
+                ExpectIntEQ(cnt.kdf, 0);
+                ExpectIntEQ(cnt.cipher, 0);
+            }
+            if (useDev && !isGcm) {
+                ExpectIntGT(cnt.hmac, 0);
+            }
+            else {
+                ExpectIntEQ(cnt.hmac, 0);
+            }
+
+            XMEMSET(&cnt, 0, sizeof(cnt));
+            cnt.kdfPendOnce = useDev;
+        #ifdef WOLFSSL_ECIES_OLD
+            ExpectIntEQ(wc_ecc_decrypt(&srvKey, &cliKey, out, outSz, plain,
+                &plainSz, srvCtx), 0);
+        #else
+            ExpectIntEQ(wc_ecc_decrypt(&srvKey, NULL, out, outSz, plain,
+                &plainSz, srvCtx), 0);
+        #endif
+            ExpectIntEQ(plainSz, sizeof(msg));
+            ExpectIntEQ(XMEMCMP(plain, msg, sizeof(msg)), 0);
+            if (useDev) {
+                ExpectIntGT(cnt.kdf, 1);
+                ExpectIntGT(cnt.cipher, 0);
+            }
+            else {
+                ExpectIntEQ(cnt.kdf, 0);
+                ExpectIntEQ(cnt.cipher, 0);
+            }
+            if (useDev && !isGcm) {
+                ExpectIntGT(cnt.hmac, 0);
+            }
+            else {
+                ExpectIntEQ(cnt.hmac, 0);
+            }
+        }
+    }
+
+    wc_ecc_ctx_free(srvCtx);
+    wc_ecc_ctx_free(cliCtx);
+    wc_ecc_free(&srvKey);
+    wc_ecc_free(&cliKey);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    if (registered)
+        wc_CryptoCb_UnRegisterDevice(cbDevId);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_ecies_ctx_devid_steps */
 
 /*
  * The ECIES AES-GCM DEM needs an RNG only in GEN_IV mode, where it generates a

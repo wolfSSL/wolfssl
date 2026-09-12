@@ -13,12 +13,16 @@ Define this in `user_settings.h`:
 #define WOLFSSL_VERSAL_GEN2_ASU
 ```
 
-That is the whole setup. `wolfCrypt_Init()` registers the device and brings the
-ASU client up, so an application needs no ASU calls of its own:
+That is the whole setup for everything except ECIES. `wolfCrypt_Init()`
+registers the device and brings the ASU client up, so an application needs no
+ASU calls of its own:
 
 ```c
 ret = wolfCrypt_Init();     /* opens the mailbox, calls XAsu_ClientInit */
 ```
+
+ECIES is the one exception: it uses its own context's device id, which the
+application has to set. See "What ECIES needs to reach the ASU" below.
 
 The BSP must have the `xilasu` and `xilmailbox` libraries enabled.
 
@@ -35,7 +39,7 @@ The BSP must have the `xilasu` and `xilmailbox` libraries enabled.
 | EdDSA | plain Ed25519 and Ed448 sign and verify |
 | ECDH | the same curves as ECDSA |
 | X25519 / X448 | key agreement, Vitis 2026.1 and later |
-| ECIES | AES-GCM with HKDF-SHA256 |
+| ECIES | AES-GCM with HKDF-SHA256; needs a context device id, see below |
 | TRNG | seed and random block |
 
 Anything outside this list is declined and wolfSSL runs it in software. That
@@ -81,7 +85,9 @@ Other switches:
 
 The port sets `WOLF_CRYPTO_CB`, `WOLF_CRYPTO_CB_CMD`, `WOLF_CRYPTO_CB_COPY` and
 `WOLF_CRYPTO_CB_FREE` for you, and points `WC_USE_DEVID` at the ASU device so
-the unmodified wolfCrypt test and benchmark route through it.
+the unmodified wolfCrypt test and benchmark route through it. `WC_USE_DEVID`
+lands on keys and crypto objects at init; ECIES does not read it from there, so
+the test and benchmark hand it to each ECIES context themselves.
 
 ## Which Vitis release
 
@@ -130,6 +136,11 @@ declines to software however long the message is. Build the benchmark with
 `AES_AUTH_ADD_SZ` set to 16 to keep those rows on hardware; wolfSSL already
 does that for the first-generation Versal port for the same reason.
 
+**ECIES needs its own device id on the context.** A device id on the ECC key
+does not count for ECIES; without `wc_ecc_ctx_set_dev_id` it runs in software
+and gives no warning (with `WOLF_CRYPTO_CB_FIND` the finder still applies). See
+below.
+
 **ECIES needs the KDF context path.** See below.
 
 **ECIES needs `WOLFSSL_ECIES_GEN_IV`, and only offloads one direction.** See
@@ -146,6 +157,9 @@ Use `wc_ecc_ctx_set_kdf_salt`, not `wc_ecc_ctx_set_peer_salt`:
 ```c
 ecEncCtx* ctx = wc_ecc_ctx_new(REQ_RESP_CLIENT, &rng);
 
+/* Required: ECIES uses the context's device, not the key's. */
+wc_ecc_ctx_set_dev_id(ctx, WOLFSSL_VERSAL_GEN2_ASU_DEVID);
+
 wc_ecc_ctx_set_algo(ctx, ecAES_256_GCM, ecHKDF_SHA256, ecHMAC_SHA256);
 wc_ecc_ctx_set_kdf_salt(ctx, salt, saltSz);
 wc_ecc_ctx_set_info(ctx, info, infoSz);
@@ -159,12 +173,14 @@ context bytes, then calls `wc_ecc_decrypt`.
 The wolfCrypt benchmark keys ECIES the other way by default, so its ECIES rows
 run in software. Build the benchmark with `WC_BENCH_ECIES_KDF` to add a second
 set of rows, tagged `-kdf`, that use the context shown above and reach the ASU.
+The benchmark sets the context device id itself on its `-dev` rows.
 
 What the offload requires:
 
 | Setting | Value |
 | --- | --- |
 | Build | `WOLFSSL_ECIES_GEN_IV`, with neither `WOLFSSL_ECIES_OLD` nor `WOLFSSL_ECIES_ISO18033` |
+| Device | `wc_ecc_ctx_set_dev_id` on the context; the key's devId is not used |
 | RNG | one on the key or on the context, see below |
 | Scheme | `ecAES_128_GCM` or `ecAES_256_GCM` with `ecHKDF_SHA256` |
 | KDF salt | `wc_ecc_ctx_set_kdf_salt`, passed through as given |
@@ -179,8 +195,28 @@ authenticated data, which the ASU cannot accept, so the port declines and
 wolfSSL runs ECIES in software. There is no way around this from the port.
 
 Declining is not the same as running with no hardware. The software ECIES path
-still passes the device id to the AES and HMAC underneath, so those operations
-go to the ASU one at a time. Only the single-command ECIES is lost.
+still passes the context's device id to the AES and to the MAC HMAC underneath,
+so those operations go to the ASU one at a time. Only the single-command ECIES
+is lost.
+
+It helps to be exact about which pieces reach the ASU on that path, because
+they use two different device ids:
+
+| Stage | Uses | On the ASU? |
+| --- | --- | --- |
+| ECDH shared secret | the key's devId | yes, via `asu_ecdh.c` |
+| HKDF-SHA256 KDF | the context devId | yes, via `asu_hmac.c` |
+| AES-GCM / AES-CBC DEM | the context devId | yes, via `asu_cipher.c` |
+| MAC HMAC | the context devId | yes, via `asu_hmac.c` |
+
+All four need their device id set to reach the ASU, and the first one uses a
+different id from the other three. So a context with no device id does not
+mean "no hardware": the ECDH still lands on the ASU whenever the key carries
+the device id, while the KDF, cipher and MAC fall back to software.
+
+The X9.63 and plain-hash KDFs are the exception -- `wc_X963_KDF()` takes no
+device id, so `ecKDF_X963_*` and `ecKDF_*` stay in software whatever is set.
+The ASU path uses HKDF-SHA256, so this does not affect it.
 
 **The private key passed to encrypt is not used.** `wc_ecc_encrypt` takes a
 private key, and software derives the shared secret from it and puts its public
@@ -193,7 +229,14 @@ supply.
 
 ## What ECIES needs to reach the ASU
 
-Two things on top of the table above.
+Three things on top of the table above.
+
+**The context must carry the device id.** `wc_ecc_ctx_set_dev_id(ctx,
+WOLFSSL_VERSAL_GEN2_ASU_DEVID)`, on every context, in both directions. ECIES
+takes its device from the context and never from the ECC key, so a key opened
+with `wc_ecc_init_ex(&key, heap, WOLFSSL_VERSAL_GEN2_ASU_DEVID)` is not enough
+on its own. Miss it and ECIES still works, in software, with no warning,
+unless a `WOLF_CRYPTO_CB_FIND` finder routes it to a device.
 
 **The build must use `WOLFSSL_ECIES_GEN_IV`.** The ASU puts the GCM nonce in
 the message, which is what that mode does. `WOLFSSL_ECIES_OLD` and

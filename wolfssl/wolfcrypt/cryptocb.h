@@ -1076,11 +1076,15 @@ WOLFSSL_LOCAL int wc_CryptoCb_EccCheckPubKey(ecc_key* key, int checkOrder,
     int checkPriv);
 #endif
 #ifdef HAVE_ECC_ENCRYPT
-WOLFSSL_LOCAL int wc_CryptoCb_EciesEncrypt(ecc_key* privKey, ecc_key* pubKey,
-    const byte* msg, word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx,
-    int compressed);
-WOLFSSL_LOCAL int wc_CryptoCb_EciesDecrypt(ecc_key* privKey, ecc_key* pubKey,
-    const byte* msg, word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx);
+/* devId is the ECIES context's device (see wc_ecc_ctx_set_dev_id), not
+ * privKey->devId.  A key with a device does not by itself send ECIES to
+ * that device.  INVALID_DEVID means software. */
+WOLFSSL_LOCAL int wc_CryptoCb_EciesEncrypt(int devId, ecc_key* privKey,
+    ecc_key* pubKey, const byte* msg, word32 msgSz, byte* out, word32* outSz,
+    ecEncCtx* ctx, int compressed);
+WOLFSSL_LOCAL int wc_CryptoCb_EciesDecrypt(int devId, ecc_key* privKey,
+    ecc_key* pubKey, const byte* msg, word32 msgSz, byte* out, word32* outSz,
+    ecEncCtx* ctx);
 #endif
 #endif /* HAVE_ECC */
 
