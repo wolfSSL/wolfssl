@@ -774,8 +774,8 @@ WOLFSSL_API int wc_RNG_DRBG_Present(const WC_RNG* rng);
                                              word32 seedSz, const byte *nonce,
                                              word32 nonceSz);
     WOLFSSL_API int wc_RNG_DRBG_Stir(WC_RNG* rng,
-                                                  const byte* seed,
-                                                  word32 seedSz);
+                                     const byte* seed,
+                                     word32 seedSz);
     WOLFSSL_API int wc_RNG_DRBG_Stir_Nonce(
                                  WC_RNG* rng, const byte* seed, word32 seedSz,
                                  const byte *nonce, word32 nonceSz);
@@ -948,8 +948,7 @@ WOLFSSL_API int wc_RNG_DRBG_Present(const WC_RNG* rng);
                                                    word32 nonceSz);
     WOLFSSL_API int wc_RNG_DRBG_NextSeedNow(WC_RNG* rng);
     WOLFSSL_API int wc_RNG_DRBG_NextStirStore(WC_RNG* rng,
-                                                        const byte *nonce,
-                                                        word32 nonceSz);
+                                              const byte *nonce, word32 nonceSz);
     WOLFSSL_API int wc_RNG_DRBG_NextStirNow(WC_RNG* rng);
 
 #endif /* WC_RNG_HAVE_NEXT_SEED */
