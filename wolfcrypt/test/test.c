@@ -30530,6 +30530,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseedstest(void)
     int present;
     int root_inited = 0;
     int i;
+#if defined(WC_RNG_HAVE_LOCK) && defined(WC_RNG_HAVE_RBGC)
+    WC_RNG leaf;
+    int leaf_inited = 0;
+#endif
     WC_DECLARE_VAR(root, WC_RNG, 1, HEAP_HINT);
     WC_ATOMIC_INT_ARG cur = 0;
     WC_ATOMIC_INT_ARG prev = 0;
@@ -30819,7 +30823,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseedstest(void)
     /* a stir must never masquerade as recovery or promotion: consumption
      * preserves WC_RNG_LOCK_ENTROPY_INVALIDATED and RBGCStratum. */
     if (present) {
-        WC_RNG leaf;
         WC_RNG_lock_arg_t lock_state;
         byte frag64[WC_DRBG_NEXT_STIR_LEN];
         XMEMSET(frag64, 0x5e, sizeof(frag64));
@@ -30828,6 +30831,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseedstest(void)
                                       NULL, 0, WC_RNG_INIT_FLAGS_NONE);
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        leaf_inited = 1;
         api_ret = wc_RNG_invalidate_entropy(&leaf);
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
@@ -30854,6 +30858,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseedstest(void)
         api_ret = wc_RNG_DRBG_Reseed_Now(&leaf, NULL, 0);
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+        leaf_inited = 0;
         api_ret = wc_FreeRng(&leaf);
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
@@ -30861,6 +30866,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseedstest(void)
 #endif /* WC_RNG_HAVE_LOCK && WC_RNG_HAVE_RBGC */
 
 out:
+
+#if defined(WC_RNG_HAVE_LOCK) && defined(WC_RNG_HAVE_RBGC)
+    if (leaf_inited) {
+        int cleanup_ret = wc_FreeRng(&leaf);
+        if ((cleanup_ret != 0) && (ret == 0))
+            ret = WC_TEST_RET_ENC_EC(cleanup_ret);
+    }
+#endif
 
     if (root_inited) {
         int cleanup_ret = wc_FreeRng(root);
