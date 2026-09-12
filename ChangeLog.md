@@ -1,6 +1,11 @@
 # wolfSSL Release (unreleased)
 
 ## Behavioral Changes
+* **Behavioral change (`ForceZero()` issues no CPU fences)**: the wipe is
+  kept alive by a compiler barrier that takes the buffer address, which also
+  keeps it from being optimized away for buffers that never leave the inlined
+  code.  A caller that needs the zeroed memory to be visible to another core
+  must order it itself with a lock or an atomic release.
 
 * **Behavioral change (`--disable-tlsv12` compiles TLS 1.2 out)**: the option
   set the summary line and a few derived settings, but never defined
