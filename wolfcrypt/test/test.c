@@ -88092,7 +88092,7 @@ static wc_test_ret_t shake_cb_copy_free_test(myCryptoDevCtx* myCtx,
 
 #if defined(HAVE_HKDF) && !defined(NO_HMAC) && \
     !defined(NO_SHA256) && !defined(HAVE_SELFTEST) && \
-    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && \
+    !defined(HAVE_FIPS) && \
     !defined(WC_TEST_NO_CRYPTOCB_SW_TEST)
 
 /* Bound retries so a broken contract fails instead of spinning. */
@@ -88980,7 +88980,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     if (ret == 0)
         ret = hkdf_test();
 #if !defined(NO_SHA256) && !defined(HAVE_SELFTEST) && \
-    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0))
+    !defined(HAVE_FIPS)
     if (ret == 0)
         ret = hkdf_cryptocb_async_test(&myCtx);
 #endif
