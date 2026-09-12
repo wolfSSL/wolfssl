@@ -39065,6 +39065,7 @@ _wc_mldsa_vec_check_low_avx2:
         movd	%edx, %xmm3
         vpbroadcastd	%xmm2, %ymm2
         vpbroadcastd	%xmm3, %ymm3
+        vpxor	%ymm8, %ymm8, %ymm8
 L_mldsa_vec_check_low_vx2_start_256:
         vmovdqu	(%rdi), %ymm0
         vmovdqu	32(%rdi), %ymm1
@@ -39075,10 +39076,7 @@ L_mldsa_vec_check_low_vx2_start_256:
         vpor	%ymm5, %ymm4, %ymm4
         vpor	%ymm7, %ymm6, %ymm6
         vpor	%ymm6, %ymm4, %ymm4
-        vpmovmskb	%ymm4, %rax
-        cmp	$0x00, %rax
-        movq	$0x00, %rax
-        jne	L_mldsa_vec_check_low_vx2_done
+        vpor	%ymm4, %ymm8, %ymm8
         vmovdqu	64(%rdi), %ymm0
         vmovdqu	96(%rdi), %ymm1
         vpcmpgtd	%ymm2, %ymm0, %ymm4
@@ -39088,10 +39086,7 @@ L_mldsa_vec_check_low_vx2_start_256:
         vpor	%ymm5, %ymm4, %ymm4
         vpor	%ymm7, %ymm6, %ymm6
         vpor	%ymm6, %ymm4, %ymm4
-        vpmovmskb	%ymm4, %rax
-        cmp	$0x00, %rax
-        movq	$0x00, %rax
-        jne	L_mldsa_vec_check_low_vx2_done
+        vpor	%ymm4, %ymm8, %ymm8
         vmovdqu	128(%rdi), %ymm0
         vmovdqu	160(%rdi), %ymm1
         vpcmpgtd	%ymm2, %ymm0, %ymm4
@@ -39101,10 +39096,7 @@ L_mldsa_vec_check_low_vx2_start_256:
         vpor	%ymm5, %ymm4, %ymm4
         vpor	%ymm7, %ymm6, %ymm6
         vpor	%ymm6, %ymm4, %ymm4
-        vpmovmskb	%ymm4, %rax
-        cmp	$0x00, %rax
-        movq	$0x00, %rax
-        jne	L_mldsa_vec_check_low_vx2_done
+        vpor	%ymm4, %ymm8, %ymm8
         vmovdqu	192(%rdi), %ymm0
         vmovdqu	224(%rdi), %ymm1
         vpcmpgtd	%ymm2, %ymm0, %ymm4
@@ -39114,10 +39106,7 @@ L_mldsa_vec_check_low_vx2_start_256:
         vpor	%ymm5, %ymm4, %ymm4
         vpor	%ymm7, %ymm6, %ymm6
         vpor	%ymm6, %ymm4, %ymm4
-        vpmovmskb	%ymm4, %rax
-        cmp	$0x00, %rax
-        movq	$0x00, %rax
-        jne	L_mldsa_vec_check_low_vx2_done
+        vpor	%ymm4, %ymm8, %ymm8
         vmovdqu	256(%rdi), %ymm0
         vmovdqu	288(%rdi), %ymm1
         vpcmpgtd	%ymm2, %ymm0, %ymm4
@@ -39127,10 +39116,7 @@ L_mldsa_vec_check_low_vx2_start_256:
         vpor	%ymm5, %ymm4, %ymm4
         vpor	%ymm7, %ymm6, %ymm6
         vpor	%ymm6, %ymm4, %ymm4
-        vpmovmskb	%ymm4, %rax
-        cmp	$0x00, %rax
-        movq	$0x00, %rax
-        jne	L_mldsa_vec_check_low_vx2_done
+        vpor	%ymm4, %ymm8, %ymm8
         vmovdqu	320(%rdi), %ymm0
         vmovdqu	352(%rdi), %ymm1
         vpcmpgtd	%ymm2, %ymm0, %ymm4
@@ -39140,10 +39126,7 @@ L_mldsa_vec_check_low_vx2_start_256:
         vpor	%ymm5, %ymm4, %ymm4
         vpor	%ymm7, %ymm6, %ymm6
         vpor	%ymm6, %ymm4, %ymm4
-        vpmovmskb	%ymm4, %rax
-        cmp	$0x00, %rax
-        movq	$0x00, %rax
-        jne	L_mldsa_vec_check_low_vx2_done
+        vpor	%ymm4, %ymm8, %ymm8
         vmovdqu	384(%rdi), %ymm0
         vmovdqu	416(%rdi), %ymm1
         vpcmpgtd	%ymm2, %ymm0, %ymm4
@@ -39153,10 +39136,7 @@ L_mldsa_vec_check_low_vx2_start_256:
         vpor	%ymm5, %ymm4, %ymm4
         vpor	%ymm7, %ymm6, %ymm6
         vpor	%ymm6, %ymm4, %ymm4
-        vpmovmskb	%ymm4, %rax
-        cmp	$0x00, %rax
-        movq	$0x00, %rax
-        jne	L_mldsa_vec_check_low_vx2_done
+        vpor	%ymm4, %ymm8, %ymm8
         vmovdqu	448(%rdi), %ymm0
         vmovdqu	480(%rdi), %ymm1
         vpcmpgtd	%ymm2, %ymm0, %ymm4
@@ -39166,10 +39146,7 @@ L_mldsa_vec_check_low_vx2_start_256:
         vpor	%ymm5, %ymm4, %ymm4
         vpor	%ymm7, %ymm6, %ymm6
         vpor	%ymm6, %ymm4, %ymm4
-        vpmovmskb	%ymm4, %rax
-        cmp	$0x00, %rax
-        movq	$0x00, %rax
-        jne	L_mldsa_vec_check_low_vx2_done
+        vpor	%ymm4, %ymm8, %ymm8
         vmovdqu	512(%rdi), %ymm0
         vmovdqu	544(%rdi), %ymm1
         vpcmpgtd	%ymm2, %ymm0, %ymm4
@@ -39179,10 +39156,7 @@ L_mldsa_vec_check_low_vx2_start_256:
         vpor	%ymm5, %ymm4, %ymm4
         vpor	%ymm7, %ymm6, %ymm6
         vpor	%ymm6, %ymm4, %ymm4
-        vpmovmskb	%ymm4, %rax
-        cmp	$0x00, %rax
-        movq	$0x00, %rax
-        jne	L_mldsa_vec_check_low_vx2_done
+        vpor	%ymm4, %ymm8, %ymm8
         vmovdqu	576(%rdi), %ymm0
         vmovdqu	608(%rdi), %ymm1
         vpcmpgtd	%ymm2, %ymm0, %ymm4
@@ -39192,10 +39166,7 @@ L_mldsa_vec_check_low_vx2_start_256:
         vpor	%ymm5, %ymm4, %ymm4
         vpor	%ymm7, %ymm6, %ymm6
         vpor	%ymm6, %ymm4, %ymm4
-        vpmovmskb	%ymm4, %rax
-        cmp	$0x00, %rax
-        movq	$0x00, %rax
-        jne	L_mldsa_vec_check_low_vx2_done
+        vpor	%ymm4, %ymm8, %ymm8
         vmovdqu	640(%rdi), %ymm0
         vmovdqu	672(%rdi), %ymm1
         vpcmpgtd	%ymm2, %ymm0, %ymm4
@@ -39205,10 +39176,7 @@ L_mldsa_vec_check_low_vx2_start_256:
         vpor	%ymm5, %ymm4, %ymm4
         vpor	%ymm7, %ymm6, %ymm6
         vpor	%ymm6, %ymm4, %ymm4
-        vpmovmskb	%ymm4, %rax
-        cmp	$0x00, %rax
-        movq	$0x00, %rax
-        jne	L_mldsa_vec_check_low_vx2_done
+        vpor	%ymm4, %ymm8, %ymm8
         vmovdqu	704(%rdi), %ymm0
         vmovdqu	736(%rdi), %ymm1
         vpcmpgtd	%ymm2, %ymm0, %ymm4
@@ -39218,10 +39186,7 @@ L_mldsa_vec_check_low_vx2_start_256:
         vpor	%ymm5, %ymm4, %ymm4
         vpor	%ymm7, %ymm6, %ymm6
         vpor	%ymm6, %ymm4, %ymm4
-        vpmovmskb	%ymm4, %rax
-        cmp	$0x00, %rax
-        movq	$0x00, %rax
-        jne	L_mldsa_vec_check_low_vx2_done
+        vpor	%ymm4, %ymm8, %ymm8
         vmovdqu	768(%rdi), %ymm0
         vmovdqu	800(%rdi), %ymm1
         vpcmpgtd	%ymm2, %ymm0, %ymm4
@@ -39231,10 +39196,7 @@ L_mldsa_vec_check_low_vx2_start_256:
         vpor	%ymm5, %ymm4, %ymm4
         vpor	%ymm7, %ymm6, %ymm6
         vpor	%ymm6, %ymm4, %ymm4
-        vpmovmskb	%ymm4, %rax
-        cmp	$0x00, %rax
-        movq	$0x00, %rax
-        jne	L_mldsa_vec_check_low_vx2_done
+        vpor	%ymm4, %ymm8, %ymm8
         vmovdqu	832(%rdi), %ymm0
         vmovdqu	864(%rdi), %ymm1
         vpcmpgtd	%ymm2, %ymm0, %ymm4
@@ -39244,10 +39206,7 @@ L_mldsa_vec_check_low_vx2_start_256:
         vpor	%ymm5, %ymm4, %ymm4
         vpor	%ymm7, %ymm6, %ymm6
         vpor	%ymm6, %ymm4, %ymm4
-        vpmovmskb	%ymm4, %rax
-        cmp	$0x00, %rax
-        movq	$0x00, %rax
-        jne	L_mldsa_vec_check_low_vx2_done
+        vpor	%ymm4, %ymm8, %ymm8
         vmovdqu	896(%rdi), %ymm0
         vmovdqu	928(%rdi), %ymm1
         vpcmpgtd	%ymm2, %ymm0, %ymm4
@@ -39257,10 +39216,7 @@ L_mldsa_vec_check_low_vx2_start_256:
         vpor	%ymm5, %ymm4, %ymm4
         vpor	%ymm7, %ymm6, %ymm6
         vpor	%ymm6, %ymm4, %ymm4
-        vpmovmskb	%ymm4, %rax
-        cmp	$0x00, %rax
-        movq	$0x00, %rax
-        jne	L_mldsa_vec_check_low_vx2_done
+        vpor	%ymm4, %ymm8, %ymm8
         vmovdqu	960(%rdi), %ymm0
         vmovdqu	992(%rdi), %ymm1
         vpcmpgtd	%ymm2, %ymm0, %ymm4
@@ -39270,15 +39226,14 @@ L_mldsa_vec_check_low_vx2_start_256:
         vpor	%ymm5, %ymm4, %ymm4
         vpor	%ymm7, %ymm6, %ymm6
         vpor	%ymm6, %ymm4, %ymm4
-        vpmovmskb	%ymm4, %rax
-        cmp	$0x00, %rax
-        movq	$0x00, %rax
-        jne	L_mldsa_vec_check_low_vx2_done
+        vpor	%ymm4, %ymm8, %ymm8
         addq	$0x400, %rdi
         sub	$0x01, %rsi
         jne	L_mldsa_vec_check_low_vx2_start_256
-        movq	$0x01, %rax
-L_mldsa_vec_check_low_vx2_done:
+        vpmovmskb	%ymm8, %rax
+        cmpl	$0x00, %eax
+        sete	%al
+        movzbl	%al, %eax
         vzeroupper
         repz retq
 #ifndef __APPLE__
@@ -63501,6 +63456,7 @@ _wc_mldsa_vec_check_low_avx512:
         movd	%edx, %xmm3
         vpbroadcastd	%xmm2, %zmm2
         vpbroadcastd	%xmm3, %zmm3
+        kxorw	%k5, %k5, %k5
 L_mldsa_vec_check_low_avx512_start_256:
         vmovdqu64	(%rdi), %zmm0
         vmovdqu64	64(%rdi), %zmm1
@@ -63511,9 +63467,7 @@ L_mldsa_vec_check_low_avx512_start_256:
         korw	%k3, %k1, %k1
         korw	%k4, %k2, %k2
         korw	%k2, %k1, %k1
-        kortestw	%k1, %k1
-        movq	$0x00, %rax
-        jne	L_mldsa_vec_check_low_avx512_done
+        korw	%k1, %k5, %k5
         vmovdqu64	128(%rdi), %zmm0
         vmovdqu64	192(%rdi), %zmm1
         vpcmpgtd	%zmm2, %zmm0, %k1
@@ -63523,9 +63477,7 @@ L_mldsa_vec_check_low_avx512_start_256:
         korw	%k3, %k1, %k1
         korw	%k4, %k2, %k2
         korw	%k2, %k1, %k1
-        kortestw	%k1, %k1
-        movq	$0x00, %rax
-        jne	L_mldsa_vec_check_low_avx512_done
+        korw	%k1, %k5, %k5
         vmovdqu64	256(%rdi), %zmm0
         vmovdqu64	320(%rdi), %zmm1
         vpcmpgtd	%zmm2, %zmm0, %k1
@@ -63535,9 +63487,7 @@ L_mldsa_vec_check_low_avx512_start_256:
         korw	%k3, %k1, %k1
         korw	%k4, %k2, %k2
         korw	%k2, %k1, %k1
-        kortestw	%k1, %k1
-        movq	$0x00, %rax
-        jne	L_mldsa_vec_check_low_avx512_done
+        korw	%k1, %k5, %k5
         vmovdqu64	384(%rdi), %zmm0
         vmovdqu64	448(%rdi), %zmm1
         vpcmpgtd	%zmm2, %zmm0, %k1
@@ -63547,9 +63497,7 @@ L_mldsa_vec_check_low_avx512_start_256:
         korw	%k3, %k1, %k1
         korw	%k4, %k2, %k2
         korw	%k2, %k1, %k1
-        kortestw	%k1, %k1
-        movq	$0x00, %rax
-        jne	L_mldsa_vec_check_low_avx512_done
+        korw	%k1, %k5, %k5
         vmovdqu64	512(%rdi), %zmm0
         vmovdqu64	576(%rdi), %zmm1
         vpcmpgtd	%zmm2, %zmm0, %k1
@@ -63559,9 +63507,7 @@ L_mldsa_vec_check_low_avx512_start_256:
         korw	%k3, %k1, %k1
         korw	%k4, %k2, %k2
         korw	%k2, %k1, %k1
-        kortestw	%k1, %k1
-        movq	$0x00, %rax
-        jne	L_mldsa_vec_check_low_avx512_done
+        korw	%k1, %k5, %k5
         vmovdqu64	640(%rdi), %zmm0
         vmovdqu64	704(%rdi), %zmm1
         vpcmpgtd	%zmm2, %zmm0, %k1
@@ -63571,9 +63517,7 @@ L_mldsa_vec_check_low_avx512_start_256:
         korw	%k3, %k1, %k1
         korw	%k4, %k2, %k2
         korw	%k2, %k1, %k1
-        kortestw	%k1, %k1
-        movq	$0x00, %rax
-        jne	L_mldsa_vec_check_low_avx512_done
+        korw	%k1, %k5, %k5
         vmovdqu64	768(%rdi), %zmm0
         vmovdqu64	832(%rdi), %zmm1
         vpcmpgtd	%zmm2, %zmm0, %k1
@@ -63583,9 +63527,7 @@ L_mldsa_vec_check_low_avx512_start_256:
         korw	%k3, %k1, %k1
         korw	%k4, %k2, %k2
         korw	%k2, %k1, %k1
-        kortestw	%k1, %k1
-        movq	$0x00, %rax
-        jne	L_mldsa_vec_check_low_avx512_done
+        korw	%k1, %k5, %k5
         vmovdqu64	896(%rdi), %zmm0
         vmovdqu64	960(%rdi), %zmm1
         vpcmpgtd	%zmm2, %zmm0, %k1
@@ -63595,14 +63537,13 @@ L_mldsa_vec_check_low_avx512_start_256:
         korw	%k3, %k1, %k1
         korw	%k4, %k2, %k2
         korw	%k2, %k1, %k1
-        kortestw	%k1, %k1
-        movq	$0x00, %rax
-        jne	L_mldsa_vec_check_low_avx512_done
+        korw	%k1, %k5, %k5
         addq	$0x400, %rdi
         sub	$0x01, %rsi
         jne	L_mldsa_vec_check_low_avx512_start_256
-        movq	$0x01, %rax
-L_mldsa_vec_check_low_avx512_done:
+        kortestw	%k5, %k5
+        sete	%al
+        movzbl	%al, %eax
         vzeroupper
         repz retq
 #ifndef __APPLE__
