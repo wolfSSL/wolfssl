@@ -2939,13 +2939,19 @@ static int _InitRng(WC_RNG* rng, const byte* nonce, word32 nonceSz,
 #ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
         /* deliberately the last init step: no failure path can strand an
          * initialized mutex. */
-        if (wc_InitMutex(&rng->mutex) != 0)
-            return BAD_MUTEX_E;
-        rng->flags |= WC_RNG_FLAG_FULL_MUTEX;
-        if (flags & WC_RNG_INIT_FLAGS_LOCK_INITIALLY) {
-            /* born held at both layers: the constructor's caller holds
-             * the whole latch, mutex included. */
-            (void)wc_LockMutex(&rng->mutex);
+        if (wc_InitMutex(&rng->mutex) != 0) {
+            /* fall through to the common cleanup below rather than
+             * returning here: the DRBG is instantiated by this point, and
+             * V and C must not survive a failed _InitRng(). */
+            ret = BAD_MUTEX_E;
+        }
+        else {
+            rng->flags |= WC_RNG_FLAG_FULL_MUTEX;
+            if (flags & WC_RNG_INIT_FLAGS_LOCK_INITIALLY) {
+                /* born held at both layers: the constructor's caller holds
+                 * the whole latch, mutex included. */
+                (void)wc_LockMutex(&rng->mutex);
+            }
         }
 #endif
     }
