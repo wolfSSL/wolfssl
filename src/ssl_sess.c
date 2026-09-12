@@ -28,85 +28,7 @@
 #else
 
 #ifndef NO_SESSION_CACHE
-
-    /* basic config gives a cache with 33 sessions, adequate for clients and
-       embedded servers
-
-       TITAN_SESSION_CACHE allows just over 2 million sessions, for servers
-       with titanic amounts of memory with long session ID timeouts and high
-       levels of traffic.
-
-       ENABLE_SESSION_CACHE_ROW_LOCK: Allows row level locking for increased
-       performance with large session caches
-
-       HUGE_SESSION_CACHE yields 65,791 sessions, for servers under heavy load,
-       allows over 13,000 new sessions per minute or over 200 new sessions per
-       second
-
-       BIG_SESSION_CACHE yields 20,027 sessions
-
-       MEDIUM_SESSION_CACHE allows 1055 sessions, adequate for servers that
-       aren't under heavy load, basically allows 200 new sessions per minute
-
-       SMALL_SESSION_CACHE only stores 6 sessions, good for embedded clients
-       or systems where the default of is too much RAM.
-       SessionCache takes about 2K, ClientCache takes about 3Kbytes
-
-       MICRO_SESSION_CACHE only stores 1 session, good for embedded clients
-       or systems where memory is at a premium.
-       SessionCache takes about 400 bytes, ClientCache takes 576 bytes
-
-       default SESSION_CACHE stores 33 sessions (no XXX_SESSION_CACHE defined)
-       SessionCache takes about 13K bytes, ClientCache takes 17K bytes
-    */
-    #if defined(TITAN_SESSION_CACHE)
-        #define SESSIONS_PER_ROW 31
-        #define SESSION_ROWS 64937
-        #ifndef ENABLE_SESSION_CACHE_ROW_LOCK
-            #define ENABLE_SESSION_CACHE_ROW_LOCK
-        #endif
-    #elif defined(HUGE_SESSION_CACHE)
-        #define SESSIONS_PER_ROW 11
-        #define SESSION_ROWS 5981
-    #elif defined(BIG_SESSION_CACHE)
-        #define SESSIONS_PER_ROW 7
-        #define SESSION_ROWS 2861
-    #elif defined(MEDIUM_SESSION_CACHE)
-        #define SESSIONS_PER_ROW 5
-        #define SESSION_ROWS 211
-    #elif defined(SMALL_SESSION_CACHE)
-        #define SESSIONS_PER_ROW 2
-        #define SESSION_ROWS 3
-    #elif defined(MICRO_SESSION_CACHE)
-        #define SESSIONS_PER_ROW 1
-        #define SESSION_ROWS 1
-    #else
-        #define SESSIONS_PER_ROW 3
-        #define SESSION_ROWS 11
-    #endif
-    #define INVALID_SESSION_ROW (-1)
-
-    #ifdef NO_SESSION_CACHE_ROW_LOCK
-        #undef ENABLE_SESSION_CACHE_ROW_LOCK
-    #endif
-
-    typedef struct SessionRow {
-        int nextIdx;                           /* where to place next one   */
-        int totalCount;                        /* sessions ever on this row */
-#ifdef SESSION_CACHE_DYNAMIC_MEM
-        WOLFSSL_SESSION* Sessions[SESSIONS_PER_ROW];
-        void* heap;
-#else
-        WOLFSSL_SESSION Sessions[SESSIONS_PER_ROW];
-#endif
-
-    #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
-        /* not included in import/export */
-        wolfSSL_RwLock row_lock;
-        int lock_valid;
-    #endif
-    } SessionRow;
-    #define SIZEOF_SESSION_ROW (sizeof(WOLFSSL_SESSION) + (sizeof(int) * 2))
+    #include <wolfssl/ssl_sess.h>
 
     static WC_THREADSHARED SessionRow SessionCache[SESSION_ROWS];
 
@@ -127,54 +49,13 @@
     #endif
 
     #if !defined(NO_SESSION_CACHE_REF) && defined(NO_CLIENT_CACHE)
-    #error ClientCache is required when not using NO_SESSION_CACHE_REF
+        #error ClientCache is required when not using NO_SESSION_CACHE_REF
     #endif
 
     #ifndef NO_CLIENT_CACHE
-
-        #ifndef CLIENT_SESSIONS_MULTIPLIER
-            #ifdef NO_SESSION_CACHE_REF
-                #define CLIENT_SESSIONS_MULTIPLIER 1
-            #else
-                /* ClientSession objects are lightweight (compared to
-                 * WOLFSSL_SESSION) so to decrease chance that user will reuse
-                 * the wrong session, increase the ClientCache size. This will
-                 * make the entire ClientCache about the size of one
-                 * WOLFSSL_SESSION object. */
-                #define CLIENT_SESSIONS_MULTIPLIER 8
-            #endif
-        #endif
-        #define CLIENT_SESSIONS_PER_ROW \
-                                (SESSIONS_PER_ROW * CLIENT_SESSIONS_MULTIPLIER)
-        #define CLIENT_SESSION_ROWS (SESSION_ROWS * CLIENT_SESSIONS_MULTIPLIER)
-
-        #if CLIENT_SESSIONS_PER_ROW > 65535
-        #error CLIENT_SESSIONS_PER_ROW too big
-        #endif
-        #if CLIENT_SESSION_ROWS > 65535
-        #error CLIENT_SESSION_ROWS too big
-        #endif
-
-        struct ClientSession {
-            word16 serverRow;            /* SessionCache Row id */
-            word16 serverIdx;            /* SessionCache Idx (column) */
-            word32 sessionIDHash;
-        };
-    #ifndef WOLFSSL_CLIENT_SESSION_DEFINED
-        typedef struct ClientSession ClientSession;
-        #define WOLFSSL_CLIENT_SESSION_DEFINED
-    #endif
-
-        typedef struct ClientRow {
-            int nextIdx;                /* where to place next one   */
-            int totalCount;             /* sessions ever on this row */
-            ClientSession Clients[CLIENT_SESSIONS_PER_ROW];
-        } ClientRow;
-
         static WC_THREADSHARED ClientRow ClientCache[CLIENT_SESSION_ROWS];
                                                      /* Client Cache */
                                                      /* uses session mutex */
-
         /* ClientCache mutex */
         static WC_THREADSHARED wolfSSL_Mutex clisession_mutex
             WOLFSSL_MUTEX_INITIALIZER_CLAUSE(clisession_mutex);
@@ -185,31 +66,31 @@
 
     void EvictSessionFromCache(WOLFSSL_SESSION* session)
     {
-#ifdef HAVE_EX_DATA
+    #ifdef HAVE_EX_DATA
         byte save_ownExData = session->ownExData;
         session->ownExData = 1; /* Make sure ex_data access doesn't lead back
                                  * into the cache. */
-#endif
-#if defined(HAVE_EXT_CACHE) || defined(HAVE_EX_DATA)
+    #endif /* HAVE_EX_DATA */
+    #if defined(HAVE_EXT_CACHE) || defined(HAVE_EX_DATA)
         if (session->rem_sess_cb != NULL) {
             session->rem_sess_cb(NULL, session);
             session->rem_sess_cb = NULL;
         }
-#endif
+    #endif /* HAVE_EXT_CACHE || HAVE_EX_DATA */
         ForceZero(session->masterSecret, SECRET_LEN);
         XMEMSET(session->sessionID, 0, ID_LEN);
         session->sessionIDSz = 0;
-#ifdef HAVE_SESSION_TICKET
+    #ifdef HAVE_SESSION_TICKET
         if (session->ticketLenAlloc > 0) {
             XFREE(session->ticket, NULL, DYNAMIC_TYPE_SESSION_TICK);
             session->ticket = session->staticTicket;
             session->ticketLen = 0;
             session->ticketLenAlloc = 0;
         }
-#endif
-#ifdef HAVE_EX_DATA
+    #endif /* HAVE_SESSION_TICKET */
+    #ifdef HAVE_EX_DATA
         session->ownExData = save_ownExData;
-#endif
+    #endif /* HAVE_EX_DATA */
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) &&                  \
     defined(WOLFSSL_TICKET_NONCE_MALLOC) &&                                    \
@@ -392,38 +273,15 @@ int wolfSSL_SetServerID(WOLFSSL* ssl, const byte* id, int len, int newSession)
  */
 #if defined(PERSIST_SESSION_CACHE) && !defined(SESSION_CACHE_DYNAMIC_MEM)
 
-/* for persistence, if changes to layout need to increment and modify
-   save_session_cache() and restore_session_cache and memory versions too */
-#define WOLFSSL_CACHE_VERSION 2
-
-/* Session Cache Header information */
-typedef struct {
-    int version;     /* cache layout version id */
-    int rows;        /* session rows */
-    int columns;     /* session columns */
-    int sessionSz;   /* sizeof WOLFSSL_SESSION */
-} cache_header_t;
-
-/* current persistence layout is:
-
-   1) cache_header_t
-   2) SessionCache
-   3) ClientCache
-
-   update WOLFSSL_CACHE_VERSION if change layout for the following
-   PERSISTENT_SESSION_CACHE functions
-*/
-
 /* get how big the the session cache save buffer needs to be */
 int wolfSSL_get_session_cache_memsize(void)
 {
     int sz  = (int)(sizeof(SessionCache) + sizeof(cache_header_t));
-#ifndef NO_CLIENT_CACHE
+    #ifndef NO_CLIENT_CACHE
     sz += (int)(sizeof(ClientCache));
-#endif
+    #endif
     return sz;
 }
-
 
 /* Persist session cache to memory */
 int wolfSSL_memsave_session_cache(void* mem, int sz)
@@ -451,12 +309,12 @@ int wolfSSL_memsave_session_cache(void* mem, int sz)
     cache_header.sessionSz = (int)sizeof(WOLFSSL_SESSION);
     XMEMCPY(mem, &cache_header, sizeof(cache_header));
 
-#ifndef ENABLE_SESSION_CACHE_ROW_LOCK
+    #ifndef ENABLE_SESSION_CACHE_ROW_LOCK
     if (SESSION_ROW_RD_LOCK(row) != 0) {
         WOLFSSL_MSG("Session cache mutex lock failed");
         return BAD_MUTEX_E;
     }
-#endif
+    #endif
     for (i = 0; i < cache_header.rows; ++i) {
     #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
         if (SESSION_ROW_RD_LOCK(&SessionCache[i]) != 0) {
@@ -470,61 +328,122 @@ int wolfSSL_memsave_session_cache(void* mem, int sz)
         SESSION_ROW_UNLOCK(&SessionCache[i]);
     #endif
     }
-#ifndef ENABLE_SESSION_CACHE_ROW_LOCK
+    #ifndef ENABLE_SESSION_CACHE_ROW_LOCK
     SESSION_ROW_UNLOCK(row);
-#endif
+    #endif
 
-#ifndef NO_CLIENT_CACHE
+    #ifndef NO_CLIENT_CACHE
     if (wc_LockMutex(&clisession_mutex) != 0) {
         WOLFSSL_MSG("Client cache mutex lock failed");
         return BAD_MUTEX_E;
     }
     XMEMCPY(row, ClientCache, sizeof(ClientCache));
     wc_UnLockMutex(&clisession_mutex);
-#endif
+    #endif
 
     WOLFSSL_LEAVE("wolfSSL_memsave_session_cache", WOLFSSL_SUCCESS);
 
     return WOLFSSL_SUCCESS;
 }
 
-
-#if !defined(SESSION_CACHE_DYNAMIC_MEM) && \
-    (defined(HAVE_SESSION_TICKET) || \
-    (defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)))
-static void SessionSanityPointerSet(SessionRow* row)
+/* attempt to sanitize a restored session row:
+ *   - shallow copy pointers are nulled, and ex_data is zeroed.
+ *   - ticket len is clamped
+ *   - fields that cannot be meaningfully sanitized will error out if invalid.
+ *
+ * returns 0  on success
+ * returns -1 on error
+ * */
+static int SessionSanityPointerSet(SessionRow* row)
 {
+    int ret = 0;
     int j;
 
     /* Reset pointers to safe values after raw copy */
     for (j = 0; j < SESSIONS_PER_ROW; j++) {
         WOLFSSL_SESSION* s = &row->Sessions[j];
-#ifdef HAVE_SESSION_TICKET
+
+        s->type = WOLFSSL_SESSION_TYPE_CACHE;
+        #ifdef HAVE_SESSION_TICKET
         s->ticket = s->staticTicket;
         s->ticketLenAlloc = 0;
         if (s->ticketLen > SESSION_TICKET_LEN) {
             s->ticketLen = SESSION_TICKET_LEN;
         }
-#endif
-#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) &&                 \
-    defined(WOLFSSL_TICKET_NONCE_MALLOC) &&                                    \
-    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+        #endif /* HAVE_SESSION_TICKET */
+        #if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+            defined(WOLFSSL_TICKET_NONCE_MALLOC) && \
+            (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && \
+             FIPS_VERSION_GE(5,3)))
         s->ticketNonce.data = s->ticketNonce.dataStatic;
         if (s->ticketNonce.len > MAX_TICKET_NONCE_STATIC_SZ) {
             s->ticketNonce.len = MAX_TICKET_NONCE_STATIC_SZ;
         }
-#endif
-#if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
+        #endif /* WOLFSSL_TLS13 && HAVE_SESSION_TICKET && etc. */
+
+        #ifdef SESSION_CERTS
+        if (s->chain.count < 0 || s->chain.count > MAX_CHAIN_DEPTH) {
+            WOLFSSL_MSG_EX("session sanity: bad chain count: %d",
+                           s->chain.count);
+            ret = -1;
+            break;
+        }
+
+        if (s->chain.count) {
+            int k;
+            for (k = 0; k < s->chain.count; ++k) {
+                if (s->chain.certs[k].length < 0 ||
+                    s->chain.certs[k].length > MAX_X509_SIZE) {
+                    WOLFSSL_MSG_EX("session sanity: cert[%d] bad length: %d",
+                                   k, s->chain.count);
+                    ret = -1;
+                    break;
+                }
+            }
+        }
+        #endif /* SESSION_CERTS */
+
+        #ifdef WOLFSSL_SESSION_ID_CTX
+        /* sessionCtx is deep copied, but can't exceed ID_LEN. */
+        if (s->sessionCtxSz > ID_LEN) {
+            WOLFSSL_MSG_EX("session sanity: sessionCtxSz: %d",
+                           s->sessionCtxSz);
+            ret = -1;
+            break;
+        }
+        #endif /* WOLFSSL_SESSION_ID_CTX */
+
+        /* Sanitize the restored session: none of the following fields are
+         * meaningful after session restoration.
+         *
+         * We could null these instead in wolfSSL_[mem]save_session_cache(),
+         * but that would require an extra scratch copy (because we save from
+         * the live session). */
+        #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
         s->peer = NULL;
-#endif
+        #endif /* SESSION_CERTS && OPENSSL_EXTRA */
+        #if defined(HAVE_EXT_CACHE) || defined(HAVE_EX_DATA)
+        s->rem_sess_cb = NULL;
+        #endif /* HAVE_EXT_CACHE || HAVE_EX_DATA */
+        s->heap = NULL;
+        #ifdef HAVE_EX_DATA
+        XMEMSET(&s->ex_data, 0, sizeof(WOLFSSL_CRYPTO_EX_DATA));
+        s->ownExData = 1;
+        #endif /* HAVE_EX_DATA */
+
+        if (ret) {
+            break;
+        }
     }
+
+    return ret;
 }
-#endif
 
 /* Restore the persistent session cache from memory */
 int wolfSSL_memrestore_session_cache(const void* mem, int sz)
 {
     int    i;
+    int    ret = 0;
     cache_header_t cache_header;
     SessionRow*    row;
 
@@ -551,12 +470,12 @@ int wolfSSL_memrestore_session_cache(const void* mem, int sz)
         return CACHE_MATCH_ERROR;
     }
 
-#ifndef ENABLE_SESSION_CACHE_ROW_LOCK
+    #ifndef ENABLE_SESSION_CACHE_ROW_LOCK
     if (SESSION_ROW_WR_LOCK(&SessionCache[0]) != 0) {
         WOLFSSL_MSG("Session cache mutex lock failed");
         return BAD_MUTEX_E;
     }
-#endif
+    #endif
     for (i = 0; i < cache_header.rows; ++i) {
     #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
         if (SESSION_ROW_WR_LOCK(&SessionCache[i]) != 0) {
@@ -566,31 +485,33 @@ int wolfSSL_memrestore_session_cache(const void* mem, int sz)
     #endif
 
         XMEMCPY(&SessionCache[i], row++, SIZEOF_SESSION_ROW);
-    #if !defined(SESSION_CACHE_DYNAMIC_MEM) && \
-        (defined(HAVE_SESSION_TICKET) || \
-        (defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)))
-        SessionSanityPointerSet(&SessionCache[i]);
-    #endif
+        ret = SessionSanityPointerSet(&SessionCache[i]);
     #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
         SESSION_ROW_UNLOCK(&SessionCache[i]);
     #endif
+        if (ret) {
+            /* session data is corrupted */
+            break;
+        }
     }
-#ifndef ENABLE_SESSION_CACHE_ROW_LOCK
+    #ifndef ENABLE_SESSION_CACHE_ROW_LOCK
     SESSION_ROW_UNLOCK(&SessionCache[0]);
-#endif
+    #endif
 
-#ifndef NO_CLIENT_CACHE
-    if (wc_LockMutex(&clisession_mutex) != 0) {
-        WOLFSSL_MSG("Client cache mutex lock failed");
-        return BAD_MUTEX_E;
+    if (ret == 0) {
+        #ifndef NO_CLIENT_CACHE
+        if (wc_LockMutex(&clisession_mutex) != 0) {
+            WOLFSSL_MSG("Client cache mutex lock failed");
+            return BAD_MUTEX_E;
+        }
+        XMEMCPY(ClientCache, row, sizeof(ClientCache));
+        wc_UnLockMutex(&clisession_mutex);
+        #endif
     }
-    XMEMCPY(ClientCache, row, sizeof(ClientCache));
-    wc_UnLockMutex(&clisession_mutex);
-#endif
 
     WOLFSSL_LEAVE("wolfSSL_memrestore_session_cache", WOLFSSL_SUCCESS);
 
-    return WOLFSSL_SUCCESS;
+    return ret == 0 ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
 }
 
 #if !defined(NO_FILESYSTEM)
@@ -625,13 +546,13 @@ int wolfSSL_save_session_cache(const char *fname)
         return FWRITE_ERROR;
     }
 
-#ifndef ENABLE_SESSION_CACHE_ROW_LOCK
+    #ifndef ENABLE_SESSION_CACHE_ROW_LOCK
     if (SESSION_ROW_RD_LOCK(&SessionCache[0]) != 0) {
         WOLFSSL_MSG("Session cache mutex lock failed");
         XFCLOSE(file);
         return BAD_MUTEX_E;
     }
-#endif
+    #endif
     /* session cache */
     for (i = 0; i < cache_header.rows; ++i) {
     #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
@@ -652,11 +573,11 @@ int wolfSSL_save_session_cache(const char *fname)
             break;
         }
     }
-#ifndef ENABLE_SESSION_CACHE_ROW_LOCK
+    #ifndef ENABLE_SESSION_CACHE_ROW_LOCK
     SESSION_ROW_UNLOCK(&SessionCache[0]);
-#endif
+    #endif
 
-#ifndef NO_CLIENT_CACHE
+    #ifndef NO_CLIENT_CACHE
     /* client cache */
     if (wc_LockMutex(&clisession_mutex) != 0) {
         WOLFSSL_MSG("Client cache mutex lock failed");
@@ -669,14 +590,13 @@ int wolfSSL_save_session_cache(const char *fname)
         rc = FWRITE_ERROR;
     }
     wc_UnLockMutex(&clisession_mutex);
-#endif /* !NO_CLIENT_CACHE */
+    #endif /* !NO_CLIENT_CACHE */
 
     XFCLOSE(file);
     WOLFSSL_LEAVE("wolfSSL_save_session_cache", rc);
 
     return rc;
 }
-
 
 /* Restore the persistent session cache from file */
 /* doesn't use memstore because of additional memory use */
@@ -712,13 +632,13 @@ int wolfSSL_restore_session_cache(const char *fname)
         return CACHE_MATCH_ERROR;
     }
 
-#ifndef ENABLE_SESSION_CACHE_ROW_LOCK
+    #ifndef ENABLE_SESSION_CACHE_ROW_LOCK
     if (SESSION_ROW_WR_LOCK(&SessionCache[0]) != 0) {
         WOLFSSL_MSG("Session cache mutex lock failed");
         XFCLOSE(file);
         return BAD_MUTEX_E;
     }
-#endif
+    #endif
     /* session cache */
     for (i = 0; i < cache_header.rows; ++i) {
     #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
@@ -730,40 +650,49 @@ int wolfSSL_restore_session_cache(const char *fname)
     #endif
 
         ret = (int)XFREAD(&SessionCache[i], SIZEOF_SESSION_ROW, 1, file);
-    #if !defined(SESSION_CACHE_DYNAMIC_MEM) && \
-        (defined(HAVE_SESSION_TICKET) || \
-        (defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)))
-        SessionSanityPointerSet(&SessionCache[i]);
-    #endif
+        if (ret != 1) {
+            WOLFSSL_MSG_EX("Session cache member file read failed: %s: %d",
+                           file, ret);
+            XMEMSET(&SessionCache[i], 0, SIZEOF_SESSION_ROW);
+            rc = FREAD_ERROR;
+        }
+        else {
+            /* file read success. now sanitize the imported session row. */
+            ret = SessionSanityPointerSet(&SessionCache[i]);
+
+            if (ret) {
+                /* session data is corrupted */
+                rc = WOLFSSL_FAILURE;
+            }
+        }
     #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
         SESSION_ROW_UNLOCK(&SessionCache[i]);
     #endif
-        if (ret != 1) {
-            WOLFSSL_MSG("Session cache member file read failed");
-            XMEMSET(SessionCache, 0, sizeof SessionCache);
-            rc = FREAD_ERROR;
+        if (ret) {
             break;
         }
     }
-#ifndef ENABLE_SESSION_CACHE_ROW_LOCK
+    #ifndef ENABLE_SESSION_CACHE_ROW_LOCK
     SESSION_ROW_UNLOCK(&SessionCache[0]);
-#endif
+    #endif
 
-#ifndef NO_CLIENT_CACHE
-    /* client cache */
-    if (wc_LockMutex(&clisession_mutex) != 0) {
-        WOLFSSL_MSG("Client cache mutex lock failed");
-        XFCLOSE(file);
-        return BAD_MUTEX_E;
+    if (ret == 0) {
+        #ifndef NO_CLIENT_CACHE
+        /* client cache */
+        if (wc_LockMutex(&clisession_mutex) != 0) {
+            WOLFSSL_MSG("Client cache mutex lock failed");
+            XFCLOSE(file);
+            return BAD_MUTEX_E;
+        }
+        ret = (int)XFREAD(ClientCache, sizeof(ClientCache), 1, file);
+        if (ret != 1) {
+            WOLFSSL_MSG("Client cache member file read failed");
+            XMEMSET(ClientCache, 0, sizeof ClientCache);
+            rc = FREAD_ERROR;
+        }
+        wc_UnLockMutex(&clisession_mutex);
+        #endif /* !NO_CLIENT_CACHE */
     }
-    ret = (int)XFREAD(ClientCache, sizeof(ClientCache), 1, file);
-    if (ret != 1) {
-        WOLFSSL_MSG("Client cache member file read failed");
-        XMEMSET(ClientCache, 0, sizeof ClientCache);
-        rc = FREAD_ERROR;
-    }
-    wc_UnLockMutex(&clisession_mutex);
-#endif /* !NO_CLIENT_CACHE */
 
     XFCLOSE(file);
     WOLFSSL_LEAVE("wolfSSL_restore_session_cache", rc);
@@ -773,7 +702,6 @@ int wolfSSL_restore_session_cache(const char *fname)
 
 #endif /* !NO_FILESYSTEM */
 #endif /* PERSIST_SESSION_CACHE && !SESSION_CACHE_DYNAMIC_MEM */
-
 
 /* on by default if built in but allow user to turn off */
 WOLFSSL_ABI

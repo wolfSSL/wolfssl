@@ -171,6 +171,7 @@ INCL_TARGS := 	wolfssl/callbacks.h \
 	wolfssl/error-ssl.h \
 	wolfssl/include.am \
 	wolfssl/internal.h \
+	wolfssl/ssl_sess.h \
 	wolfssl/ocsp.h \
 	wolfssl/options.h \
 	wolfssl/options.h.in \
