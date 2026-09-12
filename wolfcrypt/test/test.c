@@ -30626,23 +30626,25 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseedstest(void)
          * then the ready sentinel appears */
         prev = cur;
         for (i = 0; i < 64; i++) {
-            api_ret = wc_RNG_DRBG_NextSeedGenerate(
+            int gen_ret = wc_RNG_DRBG_NextSeedGenerate(
                 root, (word32)(WC_DRBG_NEXT_SEED_LEN / 7));
+            if ((gen_ret != 0) &&
+                (gen_ret != WC_NO_ERR_TRACE(ALREADY_E)) &&
+                (gen_ret != WC_NO_ERR_TRACE(NOT_READY_E)) &&
+                (gen_ret != WC_NO_ERR_TRACE(ENTROPY_RT_E)) &&
+                (gen_ret != WC_NO_ERR_TRACE(ENTROPY_APT_E)))
+            {
+                ERROR_OUT(WC_TEST_RET_ENC_EC(gen_ret), out);
+            }
             api_ret = wc_RNG_DRBG_NextSeedCurrent(root, &cur);
             if (api_ret != 0)
                 ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
-            if ((api_ret == WC_NO_ERR_TRACE(ALREADY_E)) ||
+            if ((gen_ret == WC_NO_ERR_TRACE(ALREADY_E)) ||
                 (cur == WC_DRBG_NEXT_SEED_READY))
             {
                 break;
             }
-            if ((api_ret != 0) && (api_ret != WC_NO_ERR_TRACE(NOT_READY_E)) &&
-                (api_ret != WC_NO_ERR_TRACE(ENTROPY_RT_E)) &&
-                (api_ret != WC_NO_ERR_TRACE(ENTROPY_APT_E)))
-            {
-                ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
-            }
-            if (api_ret == 0) {
+            if (gen_ret == 0) {
                 if (cur <= prev)
                     ERROR_OUT(WC_TEST_RET_ENC_NC, out);
                 prev = cur;
