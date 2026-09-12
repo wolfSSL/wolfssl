@@ -45,10 +45,10 @@
 #endif
 
 /* One lock per WC_RNG so threads can share it.  WC_RNG_NO_LOCK opts out;
- * kernel modules have their own lock-free design.  Bank builds keep it: they
- * still hand out plain instances. */
+ * kernel modules have their own lock-free design and CMSIS-RTOS v1 has only
+ * a ten-mutex pool.  Bank builds keep it: they still hand out plain instances. */
 #if !defined(WC_RNG_NO_LOCK) && !defined(SINGLE_THREADED) && \
-    !defined(WC_NO_RNG) && \
+    !defined(WC_NO_RNG) && !defined(WOLFSSL_CMSIS_RTOS) && \
     !defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_BSDKM) && \
     defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
     !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))

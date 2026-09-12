@@ -436,7 +436,8 @@ extern "C" {
     #define CUSTOM_RAND_GENERATE_BLOCK  my_rng_gen_block
 #endif
 
-#if 0 /* Threaded build that never shares one WC_RNG between threads */
+#if 0 /* Threaded build that never shares one WC_RNG between threads.
+       * CMSIS-RTOS v1 builds have no lock already: a ten-mutex pool */
     #undef  WC_RNG_NO_LOCK
     #define WC_RNG_NO_LOCK
 #endif
