@@ -736,6 +736,7 @@ WOLFSSL_API int  wc_InitRngNonce(WC_RNG* rng, const byte* nonce, word32 nonceSz)
 WOLFSSL_API int  wc_InitRng_ex2(WC_RNG* rng, void* heap, int devId,
                                 word32 flags);
 WOLFSSL_API int  wc_InitRngNonce_ex2(WC_RNG* rng, const byte* nonce, word32 nonceSz,
+                                     const byte *perso, word32 persoSz,
                                      void* heap, int devId, word32 flags);
 WOLFSSL_API int  wc_InitRngNonce_ex(WC_RNG* rng, const byte* nonce, word32 nonceSz,
                                     void* heap, int devId);
@@ -749,7 +750,7 @@ WOLFSSL_API int  wc_FreeRng(WC_RNG* rng);
 #define wc_InitRngNonce(rng, n, s) NOT_COMPILED_IN
 #define wc_InitRngNonce_ex(rng, n, s, h, d) NOT_COMPILED_IN
 #define wc_InitRng_ex2(rng, h, d, f) NOT_COMPILED_IN
-#define wc_InitRngNonce_ex2(rng, n, s, h, d, f) NOT_COMPILED_IN
+#define wc_InitRngNonce_ex2(rng, n, s, p, ps, h, d, f) NOT_COMPILED_IN
 #if defined(__ghs__) || defined(WC_NO_RNG_SIMPLE)
 /* some older compilers do not like macro function in expression */
 #define wc_RNG_GenerateBlock(rng, b, s) NOT_COMPILED_IN
@@ -913,6 +914,7 @@ WOLFSSL_API int wc_RNG_DRBG_Present(const WC_RNG* rng);
     WOLFSSL_API int wc_InitRngRBGC(WC_RNG* child, WC_RNG* parent, word32 flags);
     WOLFSSL_API int wc_InitRngNonceRBGC(WC_RNG* child, WC_RNG* parent,
                                         const byte* nonce, word32 nonceSz,
+                                        const byte *perso, word32 persoSz,
                                         word32 flags);
     #ifndef WC_NO_CONSTRUCTORS
     /* Flags are per-object (WC_RNG_INIT_FLAGS_*), deliberately not
@@ -921,14 +923,15 @@ WOLFSSL_API int wc_RNG_DRBG_Present(const WC_RNG* rng);
                                        word32 flags);
     WOLFSSL_API int wc_InitRngNonceRBGC_New(WC_RNG** child, WC_RNG* parent,
                                             const byte* nonce, word32 nonceSz,
+                                            const byte *perso, word32 persoSz,
                                             word32 flags);
     #endif /* !WC_NO_CONSTRUCTORS */
     WOLFSSL_API int wc_RNG_DRBG_ReseedRBGC(WC_RNG* rng, WC_RNG* root,
                                            const byte* nonce, word32 nonceSz);
     WOLFSSL_API int wc_RNG_DRBG_StirRBGC(WC_RNG* rng,
-                                                      WC_RNG* root,
-                                                      const byte* nonce,
-                                                      word32 nonceSz);
+                                         WC_RNG* root,
+                                         const byte* nonce,
+                                         word32 nonceSz);
 #endif /* WC_RNG_HAVE_RBGC */
 
 #ifdef WC_RNG_HAVE_NEXT_SEED

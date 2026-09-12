@@ -63,8 +63,8 @@ WOLFSSL_API int wc_rng_bank_init_nonce(
     int timeout_secs,
     void *heap,
     int devId,
-    const byte *nonce,
-    word32 nonceSz)
+    const byte *nonce, word32 nonceSz,
+    const byte *perso, word32 persoSz)
 {
     int i;
     int ret;
@@ -103,13 +103,22 @@ WOLFSSL_API int wc_rng_bank_init_nonce(
 
 #ifdef WC_RNG_HAVE_RBGC
     if ((ret == 0) && (flags & WC_RNG_BANK_FLAG_INIT_RBGC)) {
+    #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+        ret = wc_InitRngNonce_ex2(&root, nonce, nonceSz, perso, persoSz, heap,
+                                  devId, WC_RNG_INIT_FLAGS_NONE);
+    #else
+        (void)perso;
+        (void)persoSz;
         ret = wc_InitRngNonce_ex(&root, nonce, nonceSz, heap, devId);
+    #endif
         if (ret == 0)
             root_inited = 1;
     }
 #else
     (void)nonce;
     (void)nonceSz;
+    (void)perso;
+    (void)persoSz;
 #endif
 
     if (ret == 0) {
@@ -137,6 +146,7 @@ WOLFSSL_API int wc_rng_bank_init_nonce(
                         &root,
                         (byte *)&rng_inst, sizeof(byte *)
 #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+                        , NULL, 0
                         , WC_RNG_INIT_FLAGS_LOCK_REQUIRED
 #else
                         , WC_RNG_INIT_FLAGS_NONE
@@ -149,7 +159,8 @@ WOLFSSL_API int wc_rng_bank_init_nonce(
 #ifdef WC_RNG_INIT_FLAGS_LOCK_REQUIRED
                     ret = wc_InitRngNonce_ex2(
                         WC_RNG_BANK_INST_TO_RNG(rng_inst),
-                        (byte *)&rng_inst, sizeof(byte *), heap, devId,
+                        (byte *)&rng_inst, sizeof(byte *),
+                        NULL, 0, heap, devId,
                         WC_RNG_INIT_FLAGS_LOCK_REQUIRED);
 #else
                     ret = wc_InitRngNonce_ex(
@@ -239,7 +250,7 @@ WOLFSSL_API int wc_rng_bank_init(
 {
 
     return wc_rng_bank_init_nonce(ctx, n_rngs, flags, timeout_secs, heap, devId,
-                                  NULL, 0);
+                                  NULL, 0, NULL, 0);
 }
 
 WOLFSSL_API int wc_rng_bank_first_failover_inst_set(
@@ -1649,6 +1660,7 @@ WOLFSSL_API int wc_rng_bank_inst_reinit(
 #ifdef WC_RNG_INIT_FLAGS_LOCK_REQUIRED
         ret = wc_InitRngNonce_ex2(WC_RNG_BANK_INST_TO_RNG(rng_inst),
                                   (byte *)&rng_inst, sizeof(byte *),
+                                  NULL, 0,
                                   bank->heap, devId,
                                   WC_RNG_INIT_FLAGS_LOCK_REQUIRED |
                                   WC_RNG_INIT_FLAGS_LOCK_INITIALLY);
@@ -1824,8 +1836,8 @@ static int rng_bank_spawn(
     struct wc_rng_bank *bank,
     WC_RNG *leaf_stack,
     WC_RNG **leaf_heap,
-    byte *nonce,
-    word32 nonceSz,
+    byte *nonce, word32 nonceSz,
+    const byte *perso, word32 persoSz,
     int preferred_inst_offset,
     int timeout_secs,
     word32 flags)
@@ -1833,6 +1845,11 @@ static int rng_bank_spawn(
     struct wc_rng_bank_inst *rng_inst = NULL;
     int ret;
     int checkin_ret;
+
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
+    (void)perso;
+    (void)persoSz;
+#endif
 
     if ((leaf_stack == NULL) == (leaf_heap == NULL))
         return BAD_FUNC_ARG;
@@ -1865,6 +1882,9 @@ static int rng_bank_spawn(
         ret = wc_InitRngNonceRBGC(leaf_stack,
                                   WC_RNG_BANK_INST_TO_RNG(rng_inst),
                                   nonce, nonceSz,
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+                                  perso, persoSz,
+#endif
                                   child_init_flags
                                  );
     }
@@ -1873,6 +1893,7 @@ static int rng_bank_spawn(
         ret = wc_InitRngNonceRBGC_New(leaf_heap,
                                       WC_RNG_BANK_INST_TO_RNG(rng_inst),
                                       nonce, nonceSz,
+                                      perso, persoSz,
                                       child_init_flags);
 #else
         /* Unreachable: wc_rng_bank_spawn_new() is absent under
@@ -1905,13 +1926,14 @@ static int rng_bank_spawn(
 WOLFSSL_API int wc_rng_bank_spawn(
     struct wc_rng_bank *bank,
     WC_RNG *leaf_rng,
-    byte *nonce,
-    word32 nonceSz,
+    byte *nonce, word32 nonceSz,
+    const byte *perso, word32 persoSz,
     int preferred_inst_offset,
     int timeout_secs,
     word32 flags)
 {
     return rng_bank_spawn(bank, leaf_rng, NULL, nonce, nonceSz,
+                          perso, persoSz,
                           preferred_inst_offset, timeout_secs, flags);
 }
 
@@ -1919,13 +1941,14 @@ WOLFSSL_API int wc_rng_bank_spawn(
 WOLFSSL_API int wc_rng_bank_spawn_new(
     struct wc_rng_bank *bank,
     WC_RNG **leaf_rng,
-    byte *nonce,
-    word32 nonceSz,
+    byte *nonce, word32 nonceSz,
+    const byte *perso, word32 persoSz,
     int preferred_inst_offset,
     int timeout_secs,
     word32 flags)
 {
     return rng_bank_spawn(bank, NULL, leaf_rng, nonce, nonceSz,
+                          perso, persoSz,
                           preferred_inst_offset, timeout_secs, flags);
 }
 #endif /* !WC_NO_CONSTRUCTORS */
@@ -1936,6 +1959,7 @@ WOLFSSL_API int wc_rng_bank_spawn_new(
 WOLFSSL_API int wc_rng_bank_seed_range(struct wc_rng_bank *bank,
                                        int first_inst, int last_inst,
                                        const byte* seed, word32 seedSz,
+                                       const byte *nonce, word32 nonceSz,
                                        int timeout_secs,
                                        word32 flags)
 {
@@ -2104,15 +2128,17 @@ out:
 
 WOLFSSL_API int wc_rng_bank_seed(struct wc_rng_bank *bank,
                                  const byte* seed, word32 seedSz,
+                                 const byte *nonce, word32 nonceSz,
                                  int timeout_secs,
                                  word32 flags)
 {
-    return wc_rng_bank_seed_range(bank, 0, -1, seed, seedSz, timeout_secs,
-                                  flags);
+    return wc_rng_bank_seed_range(bank, 0, -1, seed, seedSz, nonce, nonceSz,
+                                  timeout_secs, flags);
 }
 
 WOLFSSL_API int wc_rng_bank_reseed_range(struct wc_rng_bank *bank,
                                          int first_inst, int last_inst,
+                                         const byte *nonce, word32 nonceSz,
                                          int timeout_secs,
                                          word32 flags)
 {
@@ -2310,10 +2336,12 @@ out:
 }
 
 WOLFSSL_API int wc_rng_bank_reseed(struct wc_rng_bank *bank,
+                                   const byte *nonce, word32 nonceSz,
                                    int timeout_secs,
                                    word32 flags)
 {
-    return wc_rng_bank_reseed_range(bank, 0, -1, timeout_secs, flags);
+    return wc_rng_bank_reseed_range(bank, 0, -1, nonce, nonceSz,
+                                    timeout_secs, flags);
 }
 
 WOLFSSL_API int wc_rng_bank_invalidate_entropy(struct wc_rng_bank *bank,

@@ -181,8 +181,8 @@ WOLFSSL_API int wc_rng_bank_init_nonce(
     int timeout_secs,
     void *heap,
     int devId,
-    const byte *nonce,
-    word32 nonceSz);
+    const byte *nonce, word32 nonceSz,
+    const byte *perso, word32 persoSz);
 
 WOLFSSL_API int wc_rng_bank_first_failover_inst_set(
     struct wc_rng_bank *ctx,
@@ -308,8 +308,8 @@ WOLFSSL_API int wc_rng_bank_recover_inst(
 WOLFSSL_API int wc_rng_bank_spawn(
     struct wc_rng_bank *bank,
     WC_RNG *child_rng,
-    byte *nonce,
-    word32 nonceSz,
+    byte *nonce, word32 nonceSz,
+    const byte *perso, word32 persoSz,
     int preferred_inst_offset,
     int timeout_secs,
     word32 flags);
@@ -318,8 +318,8 @@ WOLFSSL_API int wc_rng_bank_spawn(
 WOLFSSL_API int wc_rng_bank_spawn_new(
     struct wc_rng_bank *bank,
     WC_RNG **child_rng,
-    byte *nonce,
-    word32 nonceSz,
+    byte *nonce, word32 nonceSz,
+    const byte *perso, word32 persoSz,
     int preferred_inst_offset,
     int timeout_secs,
     word32 flags);
@@ -331,21 +331,25 @@ WOLFSSL_API int wc_rng_bank_spawn_new(
 
 WOLFSSL_API int wc_rng_bank_seed(struct wc_rng_bank *bank,
                                  const byte* seed, word32 seedSz,
+                                 const byte *nonce, word32 nonceSz,
                                  int timeout_secs,
                                  word32 flags);
 
 WOLFSSL_API int wc_rng_bank_seed_range(struct wc_rng_bank *bank,
                                        int first_inst, int last_inst,
                                        const byte* seed, word32 seedSz,
+                                       const byte *nonce, word32 nonceSz,
                                        int timeout_secs,
                                        word32 flags);
 
 WOLFSSL_API int wc_rng_bank_reseed(struct wc_rng_bank *bank,
+                                   const byte *nonce, word32 nonceSz,
                                    int timeout_secs,
                                    word32 flags);
 
 WOLFSSL_API int wc_rng_bank_reseed_range(struct wc_rng_bank *bank,
                                          int first_inst, int last_inst,
+                                         const byte *nonce, word32 nonceSz,
                                          int timeout_secs,
                                          word32 flags);
 
