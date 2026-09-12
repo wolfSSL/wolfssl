@@ -15645,7 +15645,9 @@ static word32 ecc_ecies_total_size(word32 pubKeySz, int ivSz, word32 msgSz,
 
 #ifdef WOLF_CRYPTO_CB
 /* The device gets the whole HKDF and is called again while it answers
- * pending. If it declines, software HKDF runs with no device at all. */
+ * pending. If it declines, the software HKDF runs with the same device id, so
+ * a device that offloads HMAC but not the whole KDF still reaches hardware for
+ * the extract and expand steps. */
 static int ecc_ecies_hkdf(int type, const byte* secret, word32 secretSz,
                           const ecEncCtx* ctx, byte* keys, word32 keysLen,
                           void* heap, int devId)
@@ -15662,7 +15664,7 @@ static int ecc_ecies_hkdf(int type, const byte* secret, word32 secretSz,
     if (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
         ret = wc_HKDF_ex(type, secret, secretSz, ctx->kdfSalt, ctx->kdfSaltSz,
                   ctx->kdfInfo, ctx->kdfInfoSz, keys, keysLen, heap,
-                  INVALID_DEVID);
+                  devId);
     }
     return ret;
 }
