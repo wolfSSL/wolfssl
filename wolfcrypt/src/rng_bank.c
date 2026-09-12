@@ -2976,13 +2976,18 @@ WOLFSSL_TEST_VIS int wc_rng_bank_inst_reseed_rbgc(
     wc_InitRngNonceRBGC(leaf, root, NULL, 0, flags)
 
 WOLFSSL_TEST_VIS int wc_InitRngRBGC_New(WC_RNG** leaf, WC_RNG* root, word32 flags) {
+    int ret;
     if ((leaf == NULL) || (root == NULL))
         return BAD_FUNC_ARG;
     *leaf = (WC_RNG*)XMALLOC(sizeof(WC_RNG), root->heap, DYNAMIC_TYPE_RNG);
     if (*leaf == NULL)
         return MEMORY_E;
-    else
-        return wc_InitRngNonceRBGC(*leaf, root, NULL, 0, flags);
+    ret = wc_InitRngNonceRBGC(*leaf, root, NULL, 0, flags);
+    if (ret != 0) {
+        XFREE(*leaf, root->heap, DYNAMIC_TYPE_RNG);
+        *leaf = NULL;
+    }
+    return ret;
 }
 
 WOLFSSL_TEST_VIS int wc_InitRngNonceRBGC_New(WC_RNG** leaf, WC_RNG* root,
@@ -2990,6 +2995,7 @@ WOLFSSL_TEST_VIS int wc_InitRngNonceRBGC_New(WC_RNG** leaf, WC_RNG* root,
                                              const byte *perso, word32 persoSz,
                                              word32 flags)
 {
+    int ret;
     if ((leaf == NULL) || (root == NULL))
         return BAD_FUNC_ARG;
     (void)perso;
@@ -2997,8 +3003,12 @@ WOLFSSL_TEST_VIS int wc_InitRngNonceRBGC_New(WC_RNG** leaf, WC_RNG* root,
     *leaf = (WC_RNG*)XMALLOC(sizeof(WC_RNG), root->heap, DYNAMIC_TYPE_RNG);
     if (*leaf == NULL)
         return MEMORY_E;
-    else
-        return wc_InitRngNonceRBGC(*leaf, root, nonce, nonceSz, flags);
+    ret = wc_InitRngNonceRBGC(*leaf, root, nonce, nonceSz, flags);
+    if (ret != 0) {
+        XFREE(*leaf, root->heap, DYNAMIC_TYPE_RNG);
+        *leaf = NULL;
+    }
+    return ret;
 }
 
 #endif /* WC_RNG_HAVE_RBGC */
