@@ -58,7 +58,8 @@ int  wc_FreeNetRandom(void);
 
     One WC_RNG may be shared between threads: each generate and reseed holds
     the instance lock.  WC_RNG_NO_LOCK (configure --disable-rng-lock) leaves
-    the lock out.  Every backend but a crypto callback runs with the lock
+    the lock out; CMSIS-RTOS v1 builds have none, its mutex pool holds ten.
+    Every backend but a crypto callback runs with the lock
     held; a callback answers first, so it may fall back to the same instance.
     A seed callback runs with the lock held and must not use the RNG API.
     wc_InitRng*() and wc_FreeRng() do not lock; initialize only a new or
