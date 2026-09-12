@@ -77,6 +77,12 @@ WOLFSSL_API int wc_rng_bank_init_nonce(
     if ((ctx == NULL) || (n_rngs <= 0))
         return BAD_FUNC_ARG;
 
+    /* the allocation below is sizeof(*ctx->rngs) * n_rngs; on targets where
+     * size_t is narrow enough for that product to wrap, the initialization
+     * loop would then run off the end of an undersized array. */
+    if ((size_t)n_rngs > (SIZE_MAX / sizeof(*ctx->rngs)))
+        return BAD_LENGTH_E;
+
     XMEMSET(ctx, 0, sizeof(*ctx));
 
     wolfSSL_RefInit(&ctx->refcount, &ret);
