@@ -2340,10 +2340,6 @@ int wc_hash2mgf(enum wc_HashType hType)
 #else
         break;
 #endif
-    case WC_HASH_TYPE_MD2:
-    case WC_HASH_TYPE_MD4:
-    case WC_HASH_TYPE_MD5:
-    case WC_HASH_TYPE_MD5_SHA:
     case WC_HASH_TYPE_SHA3_224:
 #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_224)
         return WC_MGF1SHA3_224;
@@ -2368,9 +2364,14 @@ int wc_hash2mgf(enum wc_HashType hType)
 #else
         break;
 #endif
+    case WC_HASH_TYPE_MD2:
+    case WC_HASH_TYPE_MD4:
+    case WC_HASH_TYPE_MD5:
+    case WC_HASH_TYPE_MD5_SHA:
     case WC_HASH_TYPE_BLAKE2B:
     case WC_HASH_TYPE_BLAKE2S:
     case WC_HASH_TYPE_SM3:
+        /* no MGF1 identifier defined for these hashes */
         break;
 #ifdef WOLFSSL_SHAKE128
     case WC_HASH_TYPE_SHAKE128:
