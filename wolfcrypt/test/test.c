@@ -948,7 +948,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_svc_test(void);
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(5,2,4))
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_entropy_invalidate_test(void);
 #endif
-#ifdef WC_RNG_HAVE_RBGC
+#if defined(WC_RNG_HAVE_RBGC) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0) || \
+     defined(WC_RNG_BANK_SUPPORT))
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_rbgc_test(void);
 #endif
 #ifdef WC_RNG_HAVE_NEXT_SEED
@@ -2634,7 +2636,9 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     else
         TEST_PASS("RNGINVAL test passed!\n");
 #endif
-#ifdef WC_RNG_HAVE_RBGC
+#if defined(WC_RNG_HAVE_RBGC) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0) || \
+     defined(WC_RNG_BANK_SUPPORT))
     if ((ret = rng_drbg_rbgc_test()) != 0)
         TEST_FAIL("RNGRBGC  test failed!\n", ret);
     else
@@ -30341,14 +30345,9 @@ out:
     return ret;
 }
 
-#else /* HAVE_FIPS && FIPS_VERSION3_LT(7,0,0) */
+#elif defined(WC_RNG_BANK_SUPPORT)
 
-#ifndef WC_RNG_BANK_SUPPORT
-    /* needed for compat setup */
-    #define WC_RNG_BANK_SUPPORT
-    #include <wolfssl/wolfcrypt/rng_bank.h>
-    #undef WC_RNG_BANK_SUPPORT
-#endif
+/* On old FIPS, WC_RNG_BANK_SUPPORT is needed for RNG-level compat shims. */
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
 {
