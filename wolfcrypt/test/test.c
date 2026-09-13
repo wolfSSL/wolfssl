@@ -28803,8 +28803,16 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     leaf_rng_inited = 1;
 #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
     ret = wc_RNG_DRBG_GetRBGCStratum(leaf_rng);
+    /* the _NEXT_SEED section above reseeds the bank root -- otherwise it's a
+     * user seed. */
+#ifdef WC_RNG_HAVE_NEXT_SEED
     if (ret != 1)
+#else
+    if (ret != WC_RNG_RBGC_USER_SEED_STRATUM + 1)
+#endif
+    {
         ERROR_OUT(WC_TEST_RET_ENC_I(ret), out);
+    }
 #endif
     ret = wc_RNG_GenerateBlock(leaf_rng, outbuf1, sizeof(outbuf1));
     if (ret != 0)
@@ -28921,6 +28929,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
         ret = wc_RNG_DRBG_GetReseedCtr(
             WC_RNG_BANK_INST_TO_RNG(rng_inst), &ns_ctr);
         if ((ret != 0) || (ns_ctr != 1))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        if (WC_RNG_BANK_INST_TO_RNG(rng_inst) == NULL)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         /* take the instance out of service while holding it */
         WC_RNG_BANK_INST_TO_RNG(rng_inst)->status = WC_DRBG_FAILED;
