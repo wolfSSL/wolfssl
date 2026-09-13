@@ -26,14 +26,16 @@
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/rng_bank.h>
 
-#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
-
-    /* backward-compat shim and helper declarations */
-
+#ifndef WC_RNG_HAVE_LOCK
+    /* feature-gap helper declarations */
     static int wc_rng_bank_inst_recovery_enter(
         struct wc_rng_bank_inst *inst, int *recovering);
     static int wc_rng_bank_inst_recovery_exit(
         struct wc_rng_bank_inst *inst, int recovering, int ret);
+#endif
+
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
+    /* backward-compat shim and helper declarations */
     static int wc_RNG_DRBG_Reseed_Nonce(WC_RNG* rng, const byte* seed,
                                         word32 seedSz, const byte *nonce,
                                         word32 nonceSz);
@@ -69,13 +71,19 @@ WOLFSSL_API int wc_rng_bank_init_nonce(
     int i;
     int ret;
     int need_reenable_vec = 0;
-#ifdef WC_RNG_HAVE_RBGC
-    WC_RNG root;
-    int root_inited = 0;
-#endif
+    wc_static_assert(WC_DRBG_NOT_INIT == 0); /* make sure assumptions are met */
 
     if ((ctx == NULL) || (n_rngs <= 0))
         return BAD_FUNC_ARG;
+
+#ifndef WC_RNG_HAVE_RBGC
+    if (flags & WC_RNG_BANK_FLAG_RBGC)
+        return NOT_COMPILED_IN;
+    (void)nonce;
+    (void)nonceSz;
+    (void)perso;
+    (void)persoSz;
+#endif
 
     /* the allocation below is sizeof(*ctx->rngs) * n_rngs; on targets where
      * size_t is narrow enough for that product to wrap, the initialization
@@ -94,6 +102,7 @@ WOLFSSL_API int wc_rng_bank_init_nonce(
 #endif
     ctx->flags = flags | WC_RNG_BANK_FLAG_INITED;
     ctx->heap = heap;
+    ctx->devId = devId;
     ctx->first_failover_inst = -1;
 
 #ifdef WC_RNG_BANK_STATIC
@@ -108,23 +117,8 @@ WOLFSSL_API int wc_rng_bank_init_nonce(
 #endif
 
 #ifdef WC_RNG_HAVE_RBGC
-    if ((ret == 0) && (flags & WC_RNG_BANK_FLAG_INIT_RBGC)) {
-    #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
-        ret = wc_InitRngNonce_ex2(&root, nonce, nonceSz, perso, persoSz, heap,
-                                  devId, WC_RNG_INIT_FLAGS_NONE);
-    #else
-        (void)perso;
-        (void)persoSz;
-        ret = wc_InitRngNonce_ex(&root, nonce, nonceSz, heap, devId);
-    #endif
-        if (ret == 0)
-            root_inited = 1;
-    }
-#else
-    (void)nonce;
-    (void)nonceSz;
-    (void)perso;
-    (void)persoSz;
+    if ((ret == 0) && (flags & WC_RNG_BANK_FLAG_RBGC))
+        ret = wc_rng_bank_root_rng_init(ctx, nonce, nonceSz, perso, persoSz, 0);
 #endif
 
     if (ret == 0) {
@@ -146,10 +140,10 @@ WOLFSSL_API int wc_rng_bank_init_nonce(
                     need_reenable_vec = (DISABLE_VECTOR_REGISTERS() == 0);
 
 #ifdef WC_RNG_HAVE_RBGC
-                if (flags & WC_RNG_BANK_FLAG_INIT_RBGC) {
+                if (flags & WC_RNG_BANK_FLAG_RBGC) {
                     ret = wc_InitRngNonceRBGC(
                         WC_RNG_BANK_INST_TO_RNG(rng_inst),
-                        &root,
+                        &ctx->root_rng,
                         (byte *)&rng_inst, sizeof(byte *)
 #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
                         , NULL, 0
@@ -237,11 +231,6 @@ out:
 
     if (ret != 0)
         (void)wc_rng_bank_fini(ctx);
-
-#ifdef WC_RNG_HAVE_RBGC
-    if (root_inited)
-        wc_FreeRng(&root);
-#endif
 
     return ret;
 }
@@ -358,6 +347,20 @@ WOLFSSL_API int wc_rng_bank_fini(struct wc_rng_bank *ctx) {
         else
             return ret;
     }
+
+#if defined(WC_RNG_HAVE_RBGC) || defined(WC_RNG_HAVE_NEXT_SEED)
+    if (wc_RNG_GetStatus(&ctx->root_rng) != WC_DRBG_NOT_INIT) {
+        int free_ret = wc_FreeRng(&ctx->root_rng);
+        if (free_ret != 0) {
+#ifdef WC_VERBOSE_RNG
+            WOLFSSL_DEBUG_PRINTF(
+                "wc_rng_bank_fini(): wc_FreeRng() on root_rng returned "
+                "error %d.\n", free_ret);
+#endif
+            ++rng_free_failed;
+        }
+    }
+#endif
 
 #ifndef WC_RNG_BANK_STATIC
     if (ctx->rngs)
@@ -1303,23 +1306,46 @@ WOLFSSL_API int wc_rng_bank_daemon_release(struct wc_rng_bank *bank,
     return 0;
 }
 
-WOLFSSL_API int wc_rng_bank_daemon_root_set(struct wc_rng_bank *bank,
-                                            WC_RNG *daemon_root)
+#endif /* WC_RNG_BANK_HAVE_DAEMON_SUPPORT */
+
+#if defined(WC_RNG_HAVE_RBGC) || defined(WC_RNG_HAVE_NEXT_SEED)
+
+WOLFSSL_API int wc_rng_bank_root_rng_init(struct wc_rng_bank *bank,
+                                          const byte *nonce, word32 nonceSz,
+                                          const byte *perso, word32 persoSz,
+                                          word32 flags)
 {
     if (bank == NULL)
         return BAD_FUNC_ARG;
-    bank->daemon_root = daemon_root;
-    return 0;
+
+    if (wc_RNG_GetStatus(&bank->root_rng) != WC_DRBG_NOT_INIT)
+        return ALREADY_E;
+
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+    return wc_InitRngNonce_ex2(&bank->root_rng,
+                               nonce, nonceSz,
+                               perso, persoSz,
+                               bank->heap, bank->devId, flags);
+#else
+    (void)perso;
+    (void)persoSz;
+    if (flags != 0)
+        return NOT_COMPILED_IN;
+    return wc_InitRngNonce_ex(&bank->root_rng, nonce, nonceSz,
+                              bank->heap, bank->devId);
+#endif
 }
 
-WOLFSSL_API WC_RNG *wc_rng_bank_daemon_root_get(struct wc_rng_bank *bank)
+WOLFSSL_API WC_RNG *wc_rng_bank_root_rng_get(struct wc_rng_bank *bank)
 {
     if (bank == NULL)
         return NULL;
-    return bank->daemon_root;
+    if (wc_RNG_GetStatus(&bank->root_rng) == WC_DRBG_NOT_INIT)
+        return NULL;
+    return &bank->root_rng;
 }
 
-#endif /* WC_RNG_BANK_HAVE_DAEMON_SUPPORT */
+#endif /* WC_RNG_HAVE_RBGC || WC_RNG_HAVE_NEXT_SEED */
 
 #ifdef WC_HAVE_RNG_BANKREF
 /* wc_local_rng_bank_checkout_for_bankref() is the shim to the real WC_RNG when
@@ -1576,16 +1602,21 @@ static int wc_rng_bank_next_seed_generate_local(
     return ret;
 }
 
+#ifdef WC_RNG_HAVE_RBGC
 WOLFSSL_API int wc_rng_bank_next_seed_generate_rbgc(
     struct wc_rng_bank *bank,
     int inst_offset,
-    word32 n,
-    WC_RNG *root)
+    word32 n)
 {
-    if (root == NULL)
+    if (bank == NULL)
         return BAD_FUNC_ARG;
-    return wc_rng_bank_next_seed_generate_local(bank, inst_offset, n, root);
+
+    if (wc_RNG_GetStatus(&bank->root_rng) != WC_DRBG_OK)
+        return NOT_READY_E;
+
+    return wc_rng_bank_next_seed_generate_local(bank, inst_offset, n, &bank->root_rng);
 }
+#endif /* WC_RNG_HAVE_RBGC */
 
 WOLFSSL_API int wc_rng_bank_next_seed_generate(
     struct wc_rng_bank *bank,
@@ -2214,6 +2245,18 @@ WOLFSSL_API int wc_rng_bank_reseed_range(struct wc_rng_bank *bank,
         goto out;
     }
 
+#ifdef WC_RNG_HAVE_RBGC
+    if ((flags & WC_RNG_BANK_FLAG_RBGC) &&
+        (wc_RNG_GetStatus(&bank->root_rng) != WC_DRBG_OK))
+    {
+        ret = NOT_READY_E;
+        goto out;
+    }
+#else
+    if (flags & WC_RNG_BANK_FLAG_RBGC)
+        return NOT_COMPILED_IN;
+#endif
+
     if ((timeout_secs > 0) && (flags & WC_RNG_BANK_FLAG_CAN_WAIT))
         ts1 = XTIME(0);
 
@@ -2262,11 +2305,30 @@ WOLFSSL_API int wc_rng_bank_reseed_range(struct wc_rng_bank *bank,
     #if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
                         (void)nonce;
                         (void)nonceSz;
-                        ret = wc_RNG_DRBG_Reseed_Now(
-                            WC_RNG_BANK_INST_TO_RNG(drbg), NULL, 0);
+        #ifdef WC_RNG_HAVE_RBGC
+                        if (flags & WC_RNG_BANK_FLAG_RBGC) {
+                            ret = wc_RNG_DRBG_ReseedRBGC(
+                                WC_RNG_BANK_INST_TO_RNG(drbg), &bank->root_rng);
+                        }
+                        else
+        #endif
+                        {
+                            ret = wc_RNG_DRBG_Reseed_Now(
+                                WC_RNG_BANK_INST_TO_RNG(drbg), NULL, 0);
+                        }
     #else
-                        ret = wc_RNG_DRBG_Reseed_Now(
-                            WC_RNG_BANK_INST_TO_RNG(drbg), nonce, nonceSz);
+        #ifdef WC_RNG_HAVE_RBGC
+                        if (flags & WC_RNG_BANK_FLAG_RBGC) {
+                            ret = wc_RNG_DRBG_ReseedRBGC(
+                                WC_RNG_BANK_INST_TO_RNG(drbg), &bank->root_rng,
+                                NULL, 0);
+                        }
+                        else
+        #endif
+                        {
+                            ret = wc_RNG_DRBG_Reseed_Now(
+                                WC_RNG_BANK_INST_TO_RNG(drbg), nonce, nonceSz);
+                        }
     #endif
                         ret = wc_rng_bank_inst_recovery_exit(drbg, recovering,
                                                              ret);
@@ -2276,11 +2338,30 @@ WOLFSSL_API int wc_rng_bank_reseed_range(struct wc_rng_bank *bank,
     #if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
                 (void)nonce;
                 (void)nonceSz;
-                ret = wc_RNG_DRBG_Reseed_Now(WC_RNG_BANK_INST_TO_RNG(drbg),
-                                             NULL, 0);
+        #ifdef WC_RNG_HAVE_RBGC
+                if (flags & WC_RNG_BANK_FLAG_RBGC) {
+                    ret = wc_RNG_DRBG_ReseedRBGC(
+                        WC_RNG_BANK_INST_TO_RNG(inst), &bank->root_rng);
+                }
+                else
+        #endif
+                {
+                    ret = wc_RNG_DRBG_Reseed_Now(WC_RNG_BANK_INST_TO_RNG(drbg),
+                                                 NULL, 0);
+                }
     #else
-                ret = wc_RNG_DRBG_Reseed_Now(WC_RNG_BANK_INST_TO_RNG(drbg),
-                                             nonce, nonceSz);
+        #ifdef WC_RNG_HAVE_RBGC
+                if (flags & WC_RNG_BANK_FLAG_RBGC) {
+                    ret = wc_RNG_DRBG_ReseedRBGC(
+                        WC_RNG_BANK_INST_TO_RNG(drbg), &bank->root_rng,
+                        NULL, 0);
+                }
+                else
+        #endif
+                {
+                    ret = wc_RNG_DRBG_Reseed_Now(WC_RNG_BANK_INST_TO_RNG(drbg),
+                                                 nonce, nonceSz);
+                }
     #endif
 #endif /* WC_RNG_HAVE_LOCK */
 
@@ -2388,6 +2469,18 @@ WOLFSSL_API int wc_rng_bank_invalidate_entropy(struct wc_rng_bank *bank,
         if (! (bank->flags & WC_RNG_BANK_FLAG_INITED))
             return BAD_STATE_E;
     }
+
+#if defined(WC_RNG_HAVE_RBGC) || defined(WC_RNG_HAVE_NEXT_SEED)
+    {
+        if (wc_RNG_GetStatus(&bank->root_rng) != WC_DRBG_NOT_INIT) {
+        #if !defined(WC_RNG_HAVE_LOCK)
+            ret = wc_RNG_DRBG_ScheduleReseed(&bank->root_rng);
+        #else
+            ret = wc_RNG_invalidate_entropy(&bank->root_rng);
+        #endif
+        }
+    }
+#endif
 
     /* Best-effort-complete: an error on one instance must not leave the
      * rest un-flagged.  First error wins the return. */
