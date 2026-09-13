@@ -3111,6 +3111,60 @@ int wc_InitRngNonce_ex2(WC_RNG* rng, const byte* nonce, word32 nonceSz,
                     heap, devId, NULL, flags);
 }
 
+#if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
+
+#if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
+static int PollAndReSeed(WC_RNG* rng, const byte* additional,
+                         word32 additionalSz);
+#endif
+
+/* rng_pid_change_check() is used by wc_RNG_Pool_Extract(),
+ * wc_RNG_DRBG_NextSeedNow_Nonce(), and wc_RNG_GenerateBlock(), to assure that
+ * the RNG is freshly seeded after a fork(), to avoid seeding or generating from
+ * duplicated internal state.
+ */
+static int rng_pid_change_check(WC_RNG* rng) {
+    int ret;
+    int my_pid = getpid();
+
+    if (rng->pid == my_pid)
+        return 0;
+
+    rng->pid = my_pid;
+#if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
+    ret = PollAndReSeed(rng, NULL, 0);
+    if (ret != DRBG_SUCCESS) {
+        rng->status = DRBG_FAILED;
+        ret = RNG_FAILURE_E;
+    }
+#else
+    ret = 0;
+#endif
+
+#ifdef WC_RNG_HAVE_POOL
+    WOLFSSL_ATOMIC_STORE(rng->poolState, 0);
+#endif
+#ifdef WC_RNG_HAVE_NEXT_SEED
+    #ifndef NO_SHA256
+    if ((rng->drbgType == WC_DRBG_SHA256) && (rng->drbg != NULL)) {
+        NextSeedPurge(&((DRBG_internal *)rng->drbg)->nextSeedLen);
+        WOLFSSL_ATOMIC_STORE(((DRBG_internal *)rng->drbg)->nextStirLen,
+                             WC_DRBG_NEXT_SEED_EMPTY);
+    }
+    #endif
+    #ifdef WOLFSSL_DRBG_SHA512
+    if ((rng->drbgType == WC_DRBG_SHA512) && (rng->drbg512 != NULL)) {
+        NextSeedPurge(&((DRBG_SHA512_internal *)rng->drbg512)->nextSeedLen);
+        WOLFSSL_ATOMIC_STORE(((DRBG_SHA512_internal *)rng->drbg512)->nextStirLen,
+                             WC_DRBG_NEXT_SEED_EMPTY);
+    }
+    #endif
+#endif /* WC_RNG_HAVE_NEXT_SEED */
+
+    return ret;
+}
+#endif /* HAVE_GETPID && !WOLFSSL_NO_GETPID */
+
 #ifdef WC_RNG_HAVE_LOCK
 
 /* Note, in CAS updates here, the stored value derives only from expected and
@@ -3671,11 +3725,18 @@ int wc_RNG_Pool_Extract(WC_RNG* rng, byte* out, word32* n)
     if (rng->pool == NULL)
         return BAD_STATE_E;
 
-    /* Fail closed: no serving output on behalf of an out-of-service DRBG,
-     * and its pooled output is unusable material at rest -- burn it.  A
-     * concurrent writer's CAS fails against the store and abandons. */
+#if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
+    {
+        int ret = rng_pid_change_check(rng);
+        if (ret != 0)
+            return ret;
+    }
+#endif
+
+    /* Fail closed: no serving output on behalf of an out-of-service DRBG, and
+     * its pooled output is unusable material at rest.  A concurrent writer's
+     * CAS fails against the store and abandons. */
     if (wc_RNG_DRBG_Present(rng) && (rng->status != DRBG_OK)) {
-        ForceZero(rng->pool, rng->poolSize);
         WOLFSSL_ATOMIC_STORE(rng->poolState, 0);
         return RNG_FAILURE_E;
     }
@@ -4627,7 +4688,12 @@ int wc_RNG_DRBG_NextSeedNow_Nonce(WC_RNG* rng, const byte* nonce,
 
     /* Identical outcome mapping to the generate-path reseed. */
     if (ret == DRBG_SUCCESS) {
+#if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
+        /* Check for PID change after consuming the banked seed. */
+        ret = rng_pid_change_check(rng);
+#else
         ret = 0;
+#endif
     }
     else if (ret == WC_NO_ERR_TRACE(DRBG_CONT_FAILURE)) {
         ret = DRBG_CONT_FIPS_E;
@@ -4803,34 +4869,9 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 #endif
 
 #if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
-    if (rng->pid != getpid()) {
-        rng->pid = getpid();
-        ret = PollAndReSeed(rng, NULL, 0);
-        if (ret != DRBG_SUCCESS) {
-            rng->status = DRBG_FAILED;
-            return RNG_FAILURE_E;
-        }
-
-    #ifdef WC_RNG_HAVE_POOL
-        WOLFSSL_ATOMIC_STORE(rng->poolState, 0);
-    #endif
-    #ifdef WC_RNG_HAVE_NEXT_SEED
-        #ifndef NO_SHA256
-        if ((rng->drbgType == WC_DRBG_SHA256) && (rng->drbg != NULL)) {
-            NextSeedPurge(&((DRBG_internal *)rng->drbg)->nextSeedLen);
-            WOLFSSL_ATOMIC_STORE(((DRBG_internal *)rng->drbg)->nextStirLen,
-                                 WC_DRBG_NEXT_SEED_EMPTY);
-        }
-        #endif
-        #ifdef WOLFSSL_DRBG_SHA512
-        if ((rng->drbgType == WC_DRBG_SHA512) && (rng->drbg512 != NULL)) {
-            NextSeedPurge(&((DRBG_SHA512_internal *)rng->drbg512)->nextSeedLen);
-            WOLFSSL_ATOMIC_STORE(((DRBG_SHA512_internal *)rng->drbg512)->nextStirLen,
-                                 WC_DRBG_NEXT_SEED_EMPTY);
-        }
-        #endif
-    #endif /* WC_RNG_HAVE_NEXT_SEED */
-    }
+    ret = rng_pid_change_check(rng);
+    if (ret != 0)
+        return ret;
 #endif
 
 #if defined(WC_RNG_HAVE_NEXT_SEED) && defined(WC_RNG_HAVE_LOCK) && \
