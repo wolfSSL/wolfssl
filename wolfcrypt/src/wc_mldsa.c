@@ -10444,8 +10444,10 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                 }
             #endif
             #ifdef WOLFSSL_MLDSA_SIGN_CHECK_W0
-                valid = mldsa_vec_check_low(w0t,
-                    params->gamma2 - params->beta);
+                if (ret == 0) {
+                    ret = mldsa_vec_check_low(w0t, 1,
+                        params->gamma2 - params->beta, &valid);
+                }
             #endif
                 wt  += MLDSA_N;
                 w0t += MLDSA_N;
