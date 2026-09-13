@@ -4172,8 +4172,8 @@ static WC_INLINE int NextSeedPtrs(WC_RNG* rng, byte** seed, word32 *nextSeedSz,
 }
 
 static WC_INLINE int NextStirPtrs(WC_RNG* rng, byte** seed,
-                                            word32 *nextSeedSz,
-                                            wolfSSL_Atomic_Int** len)
+                                  word32 *nextSeedSz,
+                                  wolfSSL_Atomic_Int** len)
 {
 #ifndef NO_SHA256
     if ((rng->drbgType == WC_DRBG_SHA256) && (rng->drbg != NULL)) {
@@ -4650,6 +4650,7 @@ int wc_RNG_DRBG_NextStirNow(WC_RNG* rng)
     wolfSSL_Atomic_Int* lenp;
     word32 nextSeedSz;
     WC_ATOMIC_INT_ARG expected = WC_DRBG_NEXT_SEED_READY;
+    wc_drbg_reseed_ctr_t reseedCtr;
     int ret;
 
     if (rng == NULL)
@@ -4662,6 +4663,13 @@ int wc_RNG_DRBG_NextStirNow(WC_RNG* rng)
     /* Mirror wc_RNG_GenerateBlock(): only an in-service DRBG may reseed. */
     if (rng->status != DRBG_OK)
         return RNG_FAILURE_E;
+
+    /* If a reseed is due, the RNG is not ready for a stir. */
+    ret = wc_RNG_DRBG_GetReseedCtr(rng, &reseedCtr);
+    if (ret < 0)
+        return ret;
+    if (reseedCtr >= WC_RESEED_INTERVAL)
+        return NOT_READY_E;
 
     ret = NextStirPtrs(rng, &seed, &nextSeedSz, &lenp);
     if (ret != 0) {
