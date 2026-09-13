@@ -386,7 +386,7 @@ WOLFSSL_API int wc_rng_new_bankref(struct wc_rng_bank *bank, WC_RNG **rng);
 #define WC_RNG_BANK_INST_TO_RNG(rng_inst) \
     ((rng_inst) ? (&(rng_inst)->rng) : NULL)
 #define WC_RNG_BANK_OFFSET_TO_RNG(bank, n) \
-    ((((n) >= 0) && ((unsigned)(n) < (unsigned)(bank)->n_rngs)) ? \
+    ((((int)(n) >= 0) && ((int)(n) < (int)(bank)->n_rngs)) ? \
      WC_RNG_BANK_INST_TO_RNG(&(bank)->rngs[n]) : NULL)
 
 #ifdef WC_RNG_HAVE_LOCK
