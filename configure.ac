@@ -4845,7 +4845,10 @@ then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AESNI"
         if test "$KERNEL_MODE_DEFAULTS" = "yes"
         then
-                AM_CFLAGS="$AM_CFLAGS -DWC_C_DYNAMIC_FALLBACK"
+            # A run-time C fallback is only allowed outside validated FIPS.
+            AS_CASE([$FIPS_VERSION],
+                [none|disabled|dev|dev-no-post],
+                [AM_CFLAGS="$AM_CFLAGS -DWC_C_DYNAMIC_FALLBACK"])
         fi
         if test "$CC" != "icc"
         then
@@ -13717,6 +13720,13 @@ AM_CPPFLAGS="$AM_CPPFLAGS $EXTRA_CPPFLAGS"
 AM_CFLAGS="$AM_CFLAGS $EXTRA_CFLAGS"
 AM_CCASFLAGS="$AM_CCASFLAGS $EXTRA_CCASFLAGS"
 AM_LDFLAGS="$AM_LDFLAGS $EXTRA_LDFLAGS"
+
+# Validated FIPS never switches lanes at run time, however the define arrives.
+AS_CASE([$FIPS_VERSION],
+    [none|disabled|dev|dev-no-post],[],
+    [AS_CASE([" $AM_CPPFLAGS $AM_CFLAGS $CPPFLAGS $CFLAGS "],
+        [*-DWC_C_DYNAMIC_FALLBACK*],
+        [AC_MSG_ERROR([WC_C_DYNAMIC_FALLBACK is only allowed with --enable-fips=dev or --enable-fips=dev-no-post, not --enable-fips=$FIPS_VERSION])])])
 
 CREATE_HEX_VERSION
 AC_SUBST([AM_CPPFLAGS])

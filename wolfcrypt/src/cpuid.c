@@ -22,6 +22,10 @@
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #include <wolfssl/wolfcrypt/cpuid.h>
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
+    #include <wolfssl/wolfcrypt/fips.h>
+    #include <wolfssl/wolfcrypt/fips_test.h>
+#endif
 
 #if defined(HAVE_CPUID) || defined(HAVE_CPUID_INTEL) || \
     defined(HAVE_CPUID_AARCH64) || defined(HAVE_CPUID_ARM32) || \
@@ -947,25 +951,83 @@
         return WOLFSSL_ATOMIC_LOAD(cpuid_flags);
     }
 
+    /* Changing the flags means re-testing the lanes, and that takes locks and
+     * memory.  A caller that cannot block, such as an interrupt handler, would
+     * deadlock on its own CPU.  So refuse the whole request there before
+     * reading anything, and leave the flags alone: a caller that changed lanes
+     * without re-testing them would be worse.  Callers that can block are
+     * unaffected. */
+    static WC_INLINE int cpuid_may_recast(void)
+    {
+    #if defined(WOLFSSL_LINUXKM) && defined(HAVE_FIPS) && \
+        FIPS_VERSION3_GE(7,0,0)
+        if (! wc_linuxkm_can_block()) {
+            WOLFSSL_MSG("cpuid: refusing a feature change from a context that "
+                        "cannot block; flags unchanged");
+            return 0;
+        }
+    #endif
+        return 1;
+    }
+
+    /* A new feature set is a new operating environment: re-run the power-on
+     * self test, then run every CAST now instead of waiting for first use,
+     * which is what the kernel module does at load.  Signals
+     * stay suspended across both so a CAST cannot be cut short. */
+    static WC_INLINE void cpuid_recast(void)
+    {
+    #if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
+        int ret;
+        if (WC_SIG_IGNORE_BEGIN() < 0) {
+            WOLFSSL_MSG("cpuid: cannot suspend signals for the self test");
+            return;
+        }
+        ret = wolfCrypt_IntegrityTest_fips();
+        if (ret == 0)
+            ret = wc_RunAllCast_fips();
+        (void)WC_SIG_IGNORE_END();
+        if (ret != 0)
+            WOLFSSL_MSG("cpuid: self test failed after a feature change");
+    #endif
+    }
+
     void cpuid_select_flags(cpuid_flags_t flags)
     {
-        WOLFSSL_ATOMIC_STORE(cpuid_flags, flags);
+        cpuid_flags_t current_flags;
+        if (! cpuid_may_recast())
+            return;
+        current_flags = WOLFSSL_ATOMIC_LOAD(cpuid_flags);
+        while (! wolfSSL_Atomic_Uint_CompareExchange
+               (&cpuid_flags, &current_flags, flags))
+            WC_RELAX_LONG_LOOP();
+        if (current_flags != flags)
+            cpuid_recast();
     }
 
     void cpuid_set_flag(cpuid_flags_t flag)
     {
-        cpuid_flags_t current_flags = WOLFSSL_ATOMIC_LOAD(cpuid_flags);
+        cpuid_flags_t current_flags;
+        if (! cpuid_may_recast())
+            return;
+        current_flags = WOLFSSL_ATOMIC_LOAD(cpuid_flags);
         while (! wolfSSL_Atomic_Uint_CompareExchange
                (&cpuid_flags, &current_flags, current_flags | flag))
             WC_RELAX_LONG_LOOP();
+        if ((current_flags | flag) != current_flags)
+            cpuid_recast();
     }
 
     void cpuid_clear_flag(cpuid_flags_t flag)
     {
-        cpuid_flags_t current_flags = WOLFSSL_ATOMIC_LOAD(cpuid_flags);
+        cpuid_flags_t current_flags;
+        if (! cpuid_may_recast())
+            return;
+        current_flags = WOLFSSL_ATOMIC_LOAD(cpuid_flags);
         while (! wolfSSL_Atomic_Uint_CompareExchange
                (&cpuid_flags, &current_flags, current_flags & ~flag))
             WC_RELAX_LONG_LOOP();
+        if ((current_flags & ~flag) != current_flags)
+            cpuid_recast();
     }
 
 #endif /* HAVE_CPUID */
