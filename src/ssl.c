@@ -998,6 +998,14 @@ static int DupSSL(WOLFSSL* dup, WOLFSSL* ssl)
     dup->dupSide = WRITE_DUP_SIDE;
     ssl->dupSide = READ_DUP_SIDE;
 
+    /* options was copied wholesale above, so a "user_canceled" already sent
+     * carries its sentUserCanceled obligation into both objects. Neither can
+     * discharge it alone once the alert is only half out: the "close_notify"
+     * owed behind it can only be sent from the write side, while an alert
+     * record still queued stays in this side's output buffer, which the
+     * duplicate does not take with it. Complete the shutdown before
+     * duplicating rather than relying on either side to finish it. */
+
     return 0;
 }
 
@@ -5662,6 +5670,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->options.isClosed = 0;
         ssl->options.connReset = 0;
         ssl->options.sentNotify = 0;
+        ssl->options.sentUserCanceled = 0;
         ssl->options.closeNotify = 0;
         ssl->options.sendVerify = 0;
         ssl->options.serverState = NULL_STATE;
