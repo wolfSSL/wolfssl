@@ -53,11 +53,9 @@ const struct wolfssl_linuxkm_pie_redirect_table
     return &wolfssl_linuxkm_pie_redirect_table;
 }
 
-/* The compiler emits memcpy/memset calls no macro can catch, and the container
- * may hold no undefined symbol (linuxkm/Kbuild:301), so define them here.  On
- * arm64 the work goes to the kernel's own __memcpy()/__memset() through the
- * redirect table (arch/arm64/lib/memcpy.S:243, memset.S:206).  The loops below
- * run only before that table is filled, and on MIPS throughout. */
+/* The container may hold no undefined symbol (linuxkm/Kbuild:301), so define
+ * these here.  arm64 forwards to the kernel's __memcpy()/__memset()
+ * (arch/arm64/lib/memcpy.S:243, memset.S:206); the loops run before that. */
 #if defined(CONFIG_MIPS) || defined(CONFIG_ARM64)
     #undef memcpy
     void *memcpy(void *dest, const void *src, size_t n) {

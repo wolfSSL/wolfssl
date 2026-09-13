@@ -43,11 +43,9 @@
     #error DEBUG_VECTOR_REGISTER_ACCESS_FUZZING is not implemented by the arm64 vector register glue.
 #endif
 
-/* kernel_neon_begin() BUGs unless may_use_simd(), then takes this CPU's
- * FPSIMD context with bottom halves off (linux-6.6.99 fpsimd.c:1904 and :239,
- * simd.h:26).  So a claim can only nest inside its own context: one record per
- * CPU per context, task or softirq, counts the depth and the depth of an open
- * inhibit, inside which claims are refused.  Refusals go back to the caller. */
+/* kernel_neon_begin() BUGs unless may_use_simd(), then takes this CPU's FPSIMD
+ * context with bottom halves off (linux-6.6.99 fpsimd.c:1904 and :239,
+ * simd.h:26).  One record per CPU per context counts claim and inhibit depth. */
 
 struct wc_svr_arm64_ctx_state {
     unsigned int depth;      /* open claims in this context on this CPU */
@@ -162,10 +160,8 @@ __must_check int wc_save_vector_registers_x86(enum wc_svr_flags flags)
         return 0;
     }
 
-    /* Outermost claim.  The preempt_disable() above is carried to the
-     * matching release.  What holds the CPU on a kernel that builds
-     * preempt_disable() as a barrier is the bottom-half disable below, taken
-     * either by kernel_neon_begin() or by wc_svr_arm64_pin_bh(). */
+    /* Outermost claim.  The bottom-half disable below is what holds the CPU,
+     * taken by kernel_neon_begin() or wc_svr_arm64_pin_bh(). */
     if (flags & WC_SVR_FLAG_INHIBIT) {
         wc_svr_arm64_pin_bh(st);
         st->depth = 1;

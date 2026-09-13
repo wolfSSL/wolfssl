@@ -18079,10 +18079,8 @@ static wc_test_ret_t aes_xts_large_test_common(XtsAes *aes,
     }
 #endif /* HAVE_AES_DECRYPT */
 
-    /* Stream multi-block chunks and compare against the one-shot call.  The
-     * loops above pass one block at a time, so they never reach a multi-block
-     * path.  Pass 0 ends on a partial chunk, pass 1 on whole blocks, pass 2
-     * repeats pass 0 in place, which is what dm-crypt does. */
+    /* Stream multi-block chunks against the one-shot.  Pass 0 ends partial,
+     * pass 1 whole blocks, pass 2 repeats pass 0 in place. */
     {
 #define XTS_STREAM_SZ (WC_AES_BLOCK_SIZE * 19 + 5)
         /* 9 blocks runs the four-block loop twice; the last chunk adds a
@@ -18225,10 +18223,8 @@ static wc_test_ret_t aes_xts_large_test_common(XtsAes *aes,
 #endif /* HAVE_AES_DECRYPT */
         }
 
-        /* Two separate rejections.  Update() with a partial block is turned
-         * away by the public wrapper.  Final() with less than a block reaches
-         * the size check that keeps a short sz out of the assembly, which
-         * would otherwise read and write outside the caller's buffers. */
+        /* Update() rejects a partial block in the wrapper; Final() rejects a
+         * short sz before the assembly. */
         ret = wc_AesXtsSetKeyNoInit(aes, k1, k1Sz, AES_ENCRYPTION);
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -18272,11 +18268,8 @@ static wc_test_ret_t aes_xts_large_test_common(XtsAes *aes,
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif /* HAVE_AES_DECRYPT */
 
-        /* The per-stream byte count is 32 bits wide.  Whatever it does at the
-         * top of its range, it must never corrupt the data or run backwards:
-         * the tweak is 128-bit and advanced by the cipher, not by this count.
-         * A stream primed near the limit must either be refused outright or
-         * still agree with the one-shot. */
+        /* Near the top of the 32-bit count a stream must either be refused
+         * or still agree with the one-shot. */
 #ifndef WC_AESXTS_STREAM_NO_REQUEST_ACCOUNTING
         {
             word32 before;
