@@ -4783,6 +4783,13 @@ int wc_RNG_DRBG_NextStirNow(WC_RNG* rng)
         ++rng->_stats_nextstirs_redeemed;
 #endif
 
+    /* Always burn consumed data before releasing it, even if it's uncredited
+     * noise.  Unlike the seed aperture, the stir aperture has no producer
+     * claim: lease-free depositors xorbuf() into it at any time during
+     * _CONSUMING, so the burn here can only discard an incoming overflow
+     * fragment, after the full aperture has already been absorbed by
+     * the StirGenerate() above. */
+    ForceZero(seed, nextSeedSz);
     WOLFSSL_ATOMIC_STORE(*lenp, WC_DRBG_NEXT_SEED_EMPTY);
 
     return ret;
