@@ -3651,6 +3651,18 @@ int wc_RNG_Pool_Collect2(WC_RNG* rng_dest, WC_RNG* rng_src, word32 n)
         return BAD_FUNC_ARG;
     if (rng_dest->pool == NULL)
         return BAD_STATE_E;
+
+#ifdef WC_RNG_HAVE_RBGC
+    /* Pool data is served directly as DRBG output, via wc_RNG_Pool_Extract().
+     * To preserve the destination's provenance guarantee (SP 800-90C
+     * sect. 7.3.1 item 16, no output to a predecessor), the generator stratum
+     * must not be deeper than the destination stratum.  Contrast with stir data
+     * (wc_RNG_DRBG_ReseedRBGC_local() uncredited path), which has and imparts
+     * no provenance. */
+    if (rng_src->RBGCStratum > rng_dest->RBGCStratum)
+        return BAD_FUNC_ARG;
+#endif
+
     if (n == 0)
         return 0;
 
@@ -3942,6 +3954,9 @@ static int wc_RNG_DRBG_ReseedRBGC_local(WC_RNG* rng, WC_RNG* root,
         else if (root->RBGCStratum == WC_RNG_RBGC_USER_SEED_STRATUM - 1)
             return SEQ_OVERFLOW_E;
     }
+    /* else the RBGC strata are irrelevant -- stir data has no implication of
+     * provenance, and can legitimately be wall clock time or even strings of
+     * zeros. */
 
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     seed = rng->newSeed_buf;
