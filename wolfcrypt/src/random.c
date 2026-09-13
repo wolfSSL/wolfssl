@@ -4472,6 +4472,32 @@ static int wc_RNG_DRBG_NextSeedGenerate_local(WC_RNG* rng, WC_RNG *root,
              * both, and the health-test failure is the more
              * informative code and wins over the release's BUSY_E. */
             (void)NextSeedProducerRelease(lenp, WC_DRBG_NEXT_SEED_EMPTY);
+
+            /* The health-test failure belongs to the depositor's seed
+             * collection, not to the destination RNG.  The depositor collects
+             * via wc_GenerateSeed(), banks into rng's aperture, and tests
+             * before publishing; on failure the aperture is reset to _EMPTY,
+             * so nothing untested is ever visible to rng.  rng is a passive
+             * destination here -- it did not consume the material, and its
+             * state, status and reseed schedule are untouched.  Do not mark it
+             * failed.
+             *
+             * PollAndReSeed() looks similar and is not: there, rng is reseeding
+             * itself from its own seed source, the tested material is on the
+             * path into its own state, and a failure indeed means that that
+             * instance's source has failed.  DRBG_FAILED is correct there and
+             * wrong here.  Per-instance attribution is meaningful, not
+             * arbitrary: seed sources are frequently core-local (RDSEED among
+             * them), so one instance's source can fail while its siblings' are
+             * healthy.
+             *
+             * Bigger picture: An RCT/APT failure is an entropy-source event (SP
+             * 800-90B 4.4), and wc_RNG_TestSeed's cutoffs carry a designed
+             * false-positive rate.  A terminal response from a thread that is
+             * not the instance's owner would effectively be a remote kill
+             * primitive on a tuned statistical alarm.
+             */
+
             return ret;
         }
         else {
