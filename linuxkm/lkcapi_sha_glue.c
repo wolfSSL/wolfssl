@@ -2253,20 +2253,22 @@ static int wc_linuxkm_rng_registry_free_hook(const WC_RNG *rng, void *arg)
     return 0;
 }
 
-static void wc_linuxkm_rng_registry_add_rng(WC_RNG *rng)
+static WARN_UNUSED_RESULT int wc_linuxkm_rng_registry_add_rng(WC_RNG *rng)
 {
     struct linuxkm_rng_object *obj = kmalloc(sizeof(*obj), GFP_KERNEL);
+    int ret;
     if (obj == NULL)
-        return; /* best-effort: an unregistered leaf is merely unprotected */
+        return MEMORY_E;
     obj->is_bank = 0;
     obj->rng = rng;
-    if (wc_RNG_register_free_hook(rng, wc_linuxkm_rng_registry_free_hook,
-                                  obj) != 0)
-    {
+    ret = wc_RNG_register_free_hook(rng, wc_linuxkm_rng_registry_free_hook,
+                                    obj);
+    if (ret != 0) {
         kfree(obj);
-        return;
+        return ret;
     }
     wc_linuxkm_rng_registry_link(obj);
+    return 0;
 }
 
 static int wc_linuxkm_rng_registry_bank_free_hook(
@@ -2279,20 +2281,22 @@ static int wc_linuxkm_rng_registry_bank_free_hook(
     return 0;
 }
 
-static void wc_linuxkm_rng_registry_add_bank(struct wc_rng_bank *bank)
+static WARN_UNUSED_RESULT int wc_linuxkm_rng_registry_add_bank(struct wc_rng_bank *bank)
 {
     struct linuxkm_rng_object *obj = kmalloc(sizeof(*obj), GFP_KERNEL);
+    int ret;
     if (obj == NULL)
-        return; /* best-effort: an unregistered bank is merely unprotected */
+        return MEMORY_E;
     obj->is_bank = 1;
     obj->bank = bank;
-    if (wc_rng_bank_register_free_hook(bank,
-            wc_linuxkm_rng_registry_bank_free_hook, obj) != 0)
-    {
+    ret = wc_rng_bank_register_free_hook(
+        bank, wc_linuxkm_rng_registry_bank_free_hook, obj);
+    if (ret != 0) {
         kfree(obj);
-        return;
+        return ret;
     }
     wc_linuxkm_rng_registry_link(obj);
+    return 0;
 }
 
 /* platform announcement (VM fork/clone, resume from hibernation) that RNG
@@ -3068,6 +3072,18 @@ static int wc_linuxkm_rng_bank_init(struct wc_rng_bank *ctx)
         NULL /* heap */, INVALID_DEVID,
         (byte *)&uncredited_nonce, (word32)sizeof uncredited_nonce, NULL, 0);
 
+    #ifdef WC_LINUXKM_HAVE_RNG_REGISTRY
+    if (ret == 0) {
+        ret = wc_linuxkm_rng_registry_add_bank(ctx);
+        if (ret != 0) {
+            (void)wc_rng_bank_fini(ctx);
+            pr_err("ERROR: wc_linuxkm_rng_registry_add_bank() in "
+                           "wc_linuxkm_rng_bank_init() returned err %d\n", ret);
+            return ret;
+        }
+    }
+    #endif
+
     if (ret == 0) {
         (void)wc_rng_bank_first_failover_inst_set(ctx, LINUXKM_RNG_BANK_FIRST_FAILOVER);
         ret = wc_rng_bank_set_affinity_handlers(
@@ -3146,11 +3162,6 @@ static int wc_linuxkm_rng_bank_init(struct wc_rng_bank *ctx)
         else
             ret = -EINVAL;
     }
-
-#ifdef WC_LINUXKM_HAVE_RNG_REGISTRY
-    if (ret == 0)
-        wc_linuxkm_rng_registry_add_bank(ctx);
-#endif
 
     return ret;
 }
@@ -3417,9 +3428,12 @@ WC_MAYBE_UNUSED static int linuxkm_InitRng_DefaultRBGC(WC_RNG* rng) {
     if (ret == 0) {
         /* Long-lived process-context leaves join the invalidation registry;
          * atomic-born leaves are excluded by rule (and are transient by
-         * nature).  Registration is best-effort. */
-        if (can_sleep)
-            wc_linuxkm_rng_registry_add_rng(rng);
+         * nature). */
+        if (can_sleep) {
+            ret = wc_linuxkm_rng_registry_add_rng(rng);
+            if (ret != 0)
+                (void)wc_FreeRng(rng);
+        }
     }
 #endif
     return ret;
@@ -4098,14 +4112,26 @@ static int wc_mix_pool_bytes(const void *buf, size_t len) {
     {
         WC_RNG *stir_root = wc_rng_bank_root_rng_get(ctx);
 
+        /* Small input, fast path: lock-free XMEMCPY/xorbuf. */
         if (len <= WC_DRBG_NEXT_STIR_LEN) {
-            static DEFINE_PER_CPU(int, stir_index);
-            unsigned int this_index = this_cpu_inc_return(stir_index);
-            if (this_index >= (unsigned int)ctx->n_rngs) {
-                this_index = 0;
+            static DEFINE_PER_CPU(int, stir_index) = -2;
+            int this_index = this_cpu_inc_return(stir_index);
+            /* at startup, stagger them across the bank, to get wider spread and
+             * less contentious coverage. */
+            if (this_index < 0) {
+                int stride = ctx->n_rngs / nr_cpu_ids;
+                if (stride < 1)
+                    stride = 1;
+                this_index = raw_smp_processor_id() * stride;
+                this_cpu_write(stir_index, this_index);
+            }
+            /* Note, this_index can be >= ctx->n_rngs here even if this_index
+             * was < 0 on entry. */
+            if (this_index >= ctx->n_rngs) {
+                this_index %= ctx->n_rngs;
                 /* we may have been migrated since this_cpu_inc_return() --
                  * tolerate the harmless reset of a different counter. */
-                this_cpu_write(stir_index, 0);
+                this_cpu_write(stir_index, this_index);
             }
             (void)wc_RNG_DRBG_NextStirStore(
                 WC_RNG_BANK_OFFSET_TO_RNG(ctx, this_index), (const byte *)buf,
