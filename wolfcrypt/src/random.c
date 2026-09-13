@@ -5011,14 +5011,13 @@ int wc_FreeRng(WC_RNG* rng)
 {
     int ret = 0;
 
-    if (rng != NULL) {
-        ret = rng_lock_required_check(rng);
-        if (ret != 0)
-            return ret;
-    }
-
     if (rng == NULL)
         return BAD_FUNC_ARG;
+
+    /* Note, deallocation proceeds regardless of RNG lock status.  Lifecycle
+     * management is the caller's responsibility, and a lock inside the object
+     * cannot arbitrate deallocation.
+     */
 
 #ifdef WC_HAVE_RNG_BANKREF
     if (rng->flags & WC_RNG_FLAG_BANKREF)
