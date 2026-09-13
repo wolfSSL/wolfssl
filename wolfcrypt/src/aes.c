@@ -148,10 +148,8 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 
 #include <wolfssl/wolfcrypt/cpuid.h>
 
-/* aarch64 claim for the vector code plain C reaches: the NEON GHASH in the
- * GCM streaming path, and the block routine the XTS software helpers call.
- * wc_AesEncrypt() and wc_AesDecrypt() hold no claim of their own.  Every
- * other build expands these to nothing. */
+/* aarch64 claim for the NEON GHASH and the XTS block routine.  Other builds
+ * expand these to nothing. */
 /* gcmKeySet gates streaming GCM.  A failed claim leaves H underived, so the
  * flag must go back off or streaming would run with a stale H. */
 #ifdef WOLFSSL_AESGCM_STREAM
@@ -6337,9 +6335,8 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
 #elif defined(__aarch64__) && defined(WOLFSSL_ARMASM)
 
-/* aarch64: the mode-level claim the AES-NI build makes.  Every lane below is
- * vector code and the block routines hold no claim, so the per-block loops in
- * CCM, CFB, OFB, CMAC and key wrap claim once here.  A refusal ends the call. */
+/* aarch64: one mode-level claim for CCM, CFB, OFB, CMAC and key wrap.  A
+ * refusal ends the call. */
 #define VECTOR_REGISTERS_PUSH {                                              \
         if ((ret = SAVE_VECTOR_REGISTERS2()) != 0) {                         \
             return ret;                                                      \
@@ -17098,10 +17095,8 @@ static WARN_UNUSED_RESULT int AesCfbDecrypt_C(Aes* aes, byte* out,
                 if (blocks > WC_AES_CFB_DEC_BUF_BLOCKS)
                     blocks = WC_AES_CFB_DEC_BUF_BLOCKS;
                 nbytes = blocks * WC_AES_BLOCK_SIZE;
-                /* tmp[i] = E(C_i), read directly from the input.  Already inside
-                 * VECTOR_REGISTERS_PUSH; on x86-64 the inner ECB below avoids a
-                 * second claim.  Other targets call wc_AesEcbEncrypt(), which
-                 * claims again once per chunk (nested, no register traffic). */
+                /* tmp[i] = E(C_i) from the input, already inside
+                 * VECTOR_REGISTERS_PUSH. */
             #if defined(WOLFSSL_AESNI) && defined(WOLFSSL_X86_64_BUILD)
                 if (aes->use_aesni) {
                     AesEcbEncryptBlocks(in, tmp, nbytes, (byte*)aes->key,
@@ -19174,12 +19169,8 @@ int wc_AesXtsEncryptInit(XtsAes* xaes, const byte* i, word32 iSz,
  *
  * returns 0 on success
  */
-/* The byte count is written back only after the work succeeds.  A failed
- * vector-register claim processes no data, so the count must not move: an
- * earlier version added it up front, and a retry was then charged twice and
- * could be refused for passing the SP800-38E limit it never really reached.
- * Holding the new total in a local until the end leaves no error path with
- * anything to undo. */
+/* The byte count is written back only after the work succeeds, so a failed
+ * claim leaves nothing to undo. */
 static int AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 sz,
                            struct XtsAesStreamData *stream)
 {
@@ -19217,11 +19208,9 @@ static int AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
     }
 
 #ifndef WC_AESXTS_STREAM_NO_REQUEST_ACCOUNTING
-    /* A FIPS build is stopped by the SP800-38E check below at 16,777,216
-     * bytes, so this sum cannot reach the top of a word32 there.  Outside FIPS
-     * that limit is only a recommendation (SP800-38E p.2, on IEEE 1619 5.1),
-     * so a stream may run longer; refuse once the count can no longer advance
-     * rather than keep going unaccounted. */
+    /* Outside FIPS the cap is only a recommendation (SP800-38E p.2, on IEEE
+     * 1619 5.1), so a stream may run longer.  Refuse once the count can no
+     * longer advance. */
     if (! WC_SAFE_SUM_WORD32(stream->bytes_crypted_with_this_tweak, sz,
                              newTweakBytes))
     {
@@ -19803,12 +19792,8 @@ int wc_AesXtsDecryptInit(XtsAes* xaes, const byte* i, word32 iSz,
  *
  * returns 0 on success
  */
-/* The byte count is written back only after the work succeeds.  A failed
- * vector-register claim processes no data, so the count must not move: an
- * earlier version added it up front, and a retry was then charged twice and
- * could be refused for passing the SP800-38E limit it never really reached.
- * Holding the new total in a local until the end leaves no error path with
- * anything to undo. */
+/* The byte count is written back only after the work succeeds, so a failed
+ * claim leaves nothing to undo. */
 static int AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 sz,
                            struct XtsAesStreamData *stream)
 {
@@ -19850,11 +19835,9 @@ static int AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
     }
 
 #ifndef WC_AESXTS_STREAM_NO_REQUEST_ACCOUNTING
-    /* A FIPS build is stopped by the SP800-38E check below at 16,777,216
-     * bytes, so this sum cannot reach the top of a word32 there.  Outside FIPS
-     * that limit is only a recommendation (SP800-38E p.2, on IEEE 1619 5.1),
-     * so a stream may run longer; refuse once the count can no longer advance
-     * rather than keep going unaccounted. */
+    /* Outside FIPS the cap is only a recommendation (SP800-38E p.2, on IEEE
+     * 1619 5.1), so a stream may run longer.  Refuse once the count can no
+     * longer advance. */
     if (! WC_SAFE_SUM_WORD32(stream->bytes_crypted_with_this_tweak, sz,
                              newTweakBytes))
     {

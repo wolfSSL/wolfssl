@@ -813,9 +813,8 @@
         #define WOLFSSL_USE_SAVE_VECTOR_REGISTERS
     #endif
 
-    /* x86 and arm64 share one interface: the x86_vector_register_glue.c and
-     * arm64_vector_register_glue.c entry points keep the wc_*_x86 names so
-     * the callers and the PIE redirect table are the same on both. */
+    /* x86 and arm64 share one interface: both glue files keep the wc_*_x86
+     * names, so callers and the PIE redirect table are the same. */
     #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && \
         (defined(CONFIG_X86) || defined(CONFIG_ARM64))
 

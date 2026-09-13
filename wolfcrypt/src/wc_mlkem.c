@@ -95,10 +95,8 @@
 #include <wolfssl/wolfcrypt/hash.h>
 #include <wolfssl/wolfcrypt/memory.h>
 
-/* aarch64 claim around the NEON helpers in wc_mlkem_poly.c.  The result lands
- * in ret, the caller's status variable, and stmt runs only when it is 0, so
- * nothing may read what stmt writes without first testing ret.  Other builds
- * run stmt as is. */
+/* aarch64 claim around the NEON helpers in wc_mlkem_poly.c.  stmt runs only
+ * when ret is 0; other builds run stmt as is. */
 #if defined(__aarch64__) && defined(WOLFSSL_ARMASM)
     #define MLKEM_ARM64_SVR(stmt)                   \
         do {                                        \
