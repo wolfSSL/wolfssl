@@ -636,7 +636,6 @@ WOLFSSL_API int wc_rng_bank_checkout(
 #endif
     int maybe_recovery_claim = 0;
 
-
     if (rng_inst == NULL)
         return BAD_FUNC_ARG;
 

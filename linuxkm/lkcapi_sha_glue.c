@@ -68,6 +68,7 @@
 #endif
     #include <linux/acpi.h>
     #include <linux/io.h>
+    #include <linux/percpu.h>
     _Pragma("GCC diagnostic pop");
 #endif
 
@@ -2782,7 +2783,13 @@ static int wc_linuxkm_entropy_daemon(void *arg)
             break;
 
 #ifdef WC_LINUXKM_VMGENID_POLL
-        wc_linuxkm_vmgenid_poll(&vmgenid_poll_state, local_root);
+        wc_linuxkm_vmgenid_poll(&vmgenid_poll_state,
+    #if defined(WC_RNG_HAVE_POOL) || defined(WC_RNG_HAVE_NEXT_SEED)
+                                local_root
+    #else
+                                NULL
+    #endif
+            );
 #endif
 
 #if defined(WC_RNG_HAVE_LOCK) && \
@@ -4096,20 +4103,33 @@ static ssize_t wc_extract_crng_user(void __user *buf, size_t nbytes) {
 }
 
 /* Note, wc_mix_pool_bytes() only injects the supplied entropy into one RNG,
- * CPU-local when uncontended.  This routine can be pegged by unprivileged
- * users, so its impact needs to stay as CPU-local as possible. */
+ * selection dependent on WC_RNG_HAVE_NEXT_SEED and the size of the input.  This
+ * routine can be pegged by unprivileged users, so with large input, it tries to
+ * keep its impact as CPU-local as possible. */
 static int wc_mix_pool_bytes(const void *buf, size_t len) {
     int ret;
     struct wc_rng_bank *ctx = NULL;
-    word32 flags =
-        WC_RNG_BANK_FLAG_CAN_FAIL_OVER_INST |
-        WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST;
-    struct wc_rng_bank_inst *drbg = NULL;
+    unsigned long uncredited_nonce;
+    int can_sleep = wc_linuxkm_can_block();
 
     if (len > WC_MAX_UINT_OF(word32))
         return -EFBIG;
 
-    /* Continue even if len == 0 -- churning the DRBG is still meaningful. */
+    if (len == 0) {
+        uncredited_nonce = random_get_entropy();
+        buf = &uncredited_nonce;
+        len = sizeof uncredited_nonce;
+    }
+
+    if (! can_sleep) {
+#ifdef WC_RNG_HAVE_NEXT_SEED
+        if (len > WC_DRBG_NEXT_STIR_LEN)
+            len = WC_DRBG_NEXT_STIR_LEN;
+#else
+        if (len > 64)
+            len = 64;
+#endif
+    }
 
     ret = wc_rng_bank_default_checkout(&ctx);
     if (ret) {
@@ -4120,52 +4140,75 @@ static int wc_mix_pool_bytes(const void *buf, size_t len) {
         return -EFAULT;
     }
 
-    if (wc_linuxkm_can_block())
-        flags |= WC_RNG_BANK_FLAG_AFFINITY_LOCK;
+#ifdef WC_RNG_HAVE_NEXT_SEED
+    {
+        WC_RNG *stir_root = wc_rng_bank_daemon_root_get(ctx);
+
+        if (len <= WC_DRBG_NEXT_STIR_LEN) {
+            static DEFINE_PER_CPU(int, stir_index);
+            unsigned int this_index = this_cpu_inc_return(stir_index);
+            if (this_index >= (unsigned int)ctx->n_rngs) {
+                this_index = 0;
+                /* we may have been migrated since this_cpu_inc_return() --
+                 * tolerate the harmless reset of a different counter. */
+                this_cpu_write(stir_index, 0);
+            }
+            (void)wc_RNG_DRBG_NextStirStore(
+                WC_RNG_BANK_OFFSET_TO_RNG(ctx, this_index), (const byte *)buf,
+                (word32)len);
+        }
+
+        if (stir_root != NULL) {
+            /* note that input beyond WC_DRBG_NEXT_STIR_LEN is discarded. */
+            (void)wc_RNG_DRBG_NextStirStore(stir_root, (const byte *)buf,
+                                            (word32)len);
+        }
+    }
+
+    if (len > WC_DRBG_NEXT_STIR_LEN)
+#endif /* WC_RNG_HAVE_NEXT_SEED */
+    {
+        word32 flags =
+            WC_RNG_BANK_FLAG_CAN_FAIL_OVER_INST |
+            WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST;
+        struct wc_rng_bank_inst *drbg = NULL;
+
+        if (can_sleep)
+            flags |= WC_RNG_BANK_FLAG_AFFINITY_LOCK;
 #if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
-    else
-        flags |= WC_RNG_BANK_FLAG_NO_VECTOR_OPS;
+        else
+            flags |= WC_RNG_BANK_FLAG_NO_VECTOR_OPS;
 #endif
 
-    ret = wc_rng_bank_checkout(ctx, &drbg, 0, 0, flags);
-    if (ret != 0) {
-        ret = -EINVAL;
-        goto out;
+        ret = wc_rng_bank_checkout(ctx, &drbg, 0, 0, flags);
+        if (ret != 0) {
+            ret = -EINVAL;
+            goto out;
+        }
+
+        if (! wc_RNG_DRBG_Present(WC_RNG_BANK_INST_TO_RNG(drbg))) {
+            ret = 0; /* consistent with wc_RNG_DRBG_Reseed() behavior in RDRAND configs. */
+            goto out;
+        }
+
+        /* Mix without crediting the contributed entropy --
+         * wc_RNG_DRBG_Stir() leaves the reseed counter unmodified,
+         * so only the module's own seed source resets the reseed schedule. */
+        ret = wc_RNG_DRBG_Stir(WC_RNG_BANK_INST_TO_RNG(drbg), buf,
+                               (word32)len);
+
+    out:
+
+        if (drbg)
+            (void)wc_rng_bank_inst_checkin(&drbg);
     }
 
-    if (! wc_RNG_DRBG_Present(WC_RNG_BANK_INST_TO_RNG(drbg))) {
-        ret = 0; /* consistent with wc_RNG_DRBG_Reseed() behavior in RDRAND configs. */
-        goto out;
-    }
+    if (buf == &uncredited_nonce)
+        ForceZero(&uncredited_nonce, (word32)sizeof uncredited_nonce);
 
-    /* Mix without crediting the contributed entropy --
-     * wc_RNG_DRBG_Stir() leaves the reseed counter unmodified,
-     * so only the module's own seed source resets the reseed schedule. */
-    ret = wc_RNG_DRBG_Stir(WC_RNG_BANK_INST_TO_RNG(drbg), buf,
-                                        (word32)len);
-#ifdef WC_RNG_HAVE_NEXT_SEED
-    /* The leased instance was just stirred directly, above.  The daemon root --
-     * the one node the harvest wire otherwise never reaches -- is single-owner
-     * and can't be stirred from here; deposit the fragment into its uncredited
-     * accumulator instead (writer-safe without a lease: read-copy-store, see
-     * wc_RNG_DRBG_NextStirStore()), for consumption at the root's own
-     * next generate.  The supplied entropy is unconditionally absorbed by
-     * wc_RNG_DRBG_NextStirStore() -- if nextStirLen is
-     * already full, the absorption is by xorbuf(). */
-    if (len > 0) {
-        WC_RNG *stir_root = wc_rng_bank_daemon_root_get(ctx);
-        if (stir_root != NULL)
-            (void)wc_RNG_DRBG_NextStirStore(stir_root, (const byte *)buf,
-                                                      (word32)len);
-    }
-#endif /* WC_RNG_HAVE_NEXT_SEED */
     if (ret != 0)
         ret = -EINVAL;
 
-out:
-
-    if (drbg)
-        (void)wc_rng_bank_inst_checkin(&drbg);
     if (ctx)
         (void)wc_rng_bank_default_checkin(&ctx);
 
