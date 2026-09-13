@@ -330,6 +330,7 @@ WOLFSSL_API int wc_rng_bank_fini(struct wc_rng_bank *ctx) {
     int i;
     int ret;
     WC_ATOMIC_INT_ARG new_refcount;
+    int rng_free_failed = 0;
 
     if (ctx == NULL)
         return BAD_FUNC_ARG;
@@ -396,11 +397,10 @@ WOLFSSL_API int wc_rng_bank_fini(struct wc_rng_bank *ctx) {
         }
 
         for (i = 0; i < ctx->n_rngs; ++i) {
-            /* Lease-taking teardown: wc_FreeRng() on a _LOCK_REQUIRED
-             * instance is (correctly) refused without the lease, so take
-             * it -- structurally uncontended at refcount zero with the
-             * held-check above passed.  The latch dies held in dying
-             * memory, per the uncleared-on-free contract. */
+            /* Lease-taking teardown, for internal consistency checking --
+             * structurally uncontended at refcount zero with the held-check
+             * above passed.  The latch dies held in dying memory, per the
+             * lock-uncleared-on-free contract of wc_FreeRng(). */
             if ((wc_rng_bank_inst_lock_get(&ctx->rngs[i], 0) != 0) &&
                 (wc_rng_bank_inst_lock_get_conditional(&ctx->rngs[i],
                      WC_RNG_LOCK_ENTROPY_INVALIDATED, 0) != 0))
@@ -414,7 +414,17 @@ WOLFSSL_API int wc_rng_bank_fini(struct wc_rng_bank *ctx) {
                 ret = BAD_STATE_E;
                 continue;
             }
-            wc_FreeRng(&ctx->rngs[i].rng);
+            {
+                int free_ret = wc_FreeRng(&ctx->rngs[i].rng);
+                if (free_ret != 0) {
+#ifdef WC_VERBOSE_RNG
+                    WOLFSSL_DEBUG_PRINTF(
+                        "wc_rng_bank_fini(): wc_FreeRng() on RNG #%d returned "
+                        "error %d.\n", i, free_ret);
+#endif
+                    ++rng_free_failed;
+                }
+            }
         }
         if (ret == WC_NO_ERR_TRACE(BAD_STATE_E))
             return ret;
@@ -431,7 +441,10 @@ WOLFSSL_API int wc_rng_bank_fini(struct wc_rng_bank *ctx) {
     ctx->flags = WC_RNG_BANK_FLAG_NONE;
     ctx->cb_arg = NULL;
 
-    return 0;
+    if (rng_free_failed > 0)
+        return RNG_FAILURE_E;
+    else
+        return 0;
 }
 
 #ifndef WC_RNG_BANK_STATIC
