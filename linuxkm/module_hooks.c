@@ -1981,6 +1981,37 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_sha3_ro_sanity =
         &wolfCrypt_FIPS_sha3_ro_sanity;
 #endif
+/* PQ boundary members added in v7.0.0; see fips_test.c DoInCoreCheck. */
+#if defined(WOLFSSL_HAVE_MLKEM) && FIPS_VERSION3_GE(7,0,0)
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_MLKEM_sanity =
+        wolfCrypt_FIPS_MLKEM_sanity;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_mlkem_ro_sanity =
+        &wolfCrypt_FIPS_mlkem_ro_sanity;
+#endif
+#if defined(WOLFSSL_HAVE_MLDSA) && FIPS_VERSION3_GE(7,0,0)
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_MLDSA_sanity =
+        wolfCrypt_FIPS_MLDSA_sanity;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_mldsa_ro_sanity =
+        &wolfCrypt_FIPS_mldsa_ro_sanity;
+#endif
+#if defined(WOLFSSL_HAVE_SLHDSA) && FIPS_VERSION3_GE(7,0,0)
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_SLHDSA_sanity =
+        wolfCrypt_FIPS_SLHDSA_sanity;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_slhdsa_ro_sanity =
+        &wolfCrypt_FIPS_slhdsa_ro_sanity;
+#endif
+#if defined(WOLFSSL_HAVE_LMS) && FIPS_VERSION3_GE(7,0,0)
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_LMS_sanity =
+        wolfCrypt_FIPS_LMS_sanity;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_lms_ro_sanity =
+        &wolfCrypt_FIPS_lms_ro_sanity;
+#endif
+#if defined(WOLFSSL_HAVE_XMSS) && FIPS_VERSION3_GE(7,0,0)
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_XMSS_sanity =
+        wolfCrypt_FIPS_XMSS_sanity;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_xmss_ro_sanity =
+        &wolfCrypt_FIPS_xmss_ro_sanity;
+#endif
 
 #ifndef WOLFSSL_FIPS_DEV_NO_POST
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_FT_sanity =
