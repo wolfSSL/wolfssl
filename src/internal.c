@@ -42968,7 +42968,16 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             *id = ssl->session->altSessionID;
             *idSz = ID_LEN;
         }
-        else if (!IsAtLeastTLSv1_3(ssl->version) && ssl->arrays != NULL) {
+        else if (IsAtLeastTLSv1_3(ssl->version)) {
+            /* In TLS 1.3 ssl->session->sessionID only holds the client's
+             * legacy_session_id that we echo in the ServerHello. It is chosen
+             * by the peer and must not be used to identify the session in
+             * the ticket or the session cache. Report no ID so that
+             * SetupTicket generates a random one. */
+            *id = NULL;
+            *idSz = 0;
+        }
+        else if (ssl->arrays != NULL) {
             *id = ssl->arrays->sessionID;
             *idSz = ssl->arrays->sessionIDSz;
         }
