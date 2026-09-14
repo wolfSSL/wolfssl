@@ -809,17 +809,17 @@ static int Hash256_DRBG_Reseed(DRBG_internal* drbg, const byte* seed,
  * three-no-ops doctrine.) */
 static void NextSeedPurge(wolfSSL_Atomic_Int *lenp)
 {
-    WC_ATOMIC_INT_ARG cur = WOLFSSL_ATOMIC_LOAD(*lenp);
-    for (;;) {
-        WC_ATOMIC_INT_ARG want;
-        if (cur == WC_DRBG_NEXT_SEED_PURGED)
+    int ret;
+    WC_ATOMIC_INT_ARG cur_len, want_len;
+
+    WC_CAS_WITH_RETRY_BEGIN_INIT_CUR(lenp, cur_len, ret) {
+        if (cur_len == WC_DRBG_NEXT_SEED_PURGED)
             return; /* already handed off to a producer's unwind. */
-        want = (cur == WC_DRBG_NEXT_SEED_PRODUCING) ?
+        want_len = (cur_len == WC_DRBG_NEXT_SEED_PRODUCING) ?
             WC_DRBG_NEXT_SEED_PURGED : WC_DRBG_NEXT_SEED_EMPTY;
-        if (wolfSSL_Atomic_Int_CompareExchange(lenp, &cur, want))
-            return;
-        /* cur was reloaded by the failed exchange; re-evaluate. */
-    }
+        WC_CAS_WITH_RETRY_LOOP_FOREVER(wolfSSL_Atomic_Int_CompareExchange,
+                                      lenp, cur_len, want_len, ret);
+    } WC_CAS_WITH_RETRY_END;
 }
 
 /* Release a producer claim (PRODUCING) on the credited aperture,
@@ -874,23 +874,24 @@ static int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz,
     /* Iff _ENTROPY_INVALIDATED, assert the _ENTROPY_RECOVERING bit now -- if we
      * are re-invalidated in the meantime, it will have been cleared by the
      * invalidation at exit time, signaling that we are still invalidated. */
-    for (;;) {
-        if (! (cur_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED))
+
+    WC_CAS_WITH_RETRY_BEGIN(&rng->lock, cur_lock, ret) {
+        if (! (cur_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED)) {
+            ret = 0;
             break;
+        }
         if (cur_lock & WC_RNG_LOCK_ENTROPY_RECOVERING) {
             /* Must short-circuit return here, so that we don't improperly clear
              * the _RECOVERING bit. */
             return BUSY_E;
         }
-        if (wolfSSL_Atomic_Uint_CompareExchange(
-                &rng->lock, &cur_lock,
-                cur_lock | WC_RNG_LOCK_ENTROPY_RECOVERING))
-        {
-            /* We now have the _RECOVERING mutex -- record that fact. */
-            cur_lock |= WC_RNG_LOCK_ENTROPY_RECOVERING;
-            break;
-        }
-    }
+        WC_CAS_WITH_RETRY_LOOP_FOREVER(wolfSSL_Atomic_Uint_CompareExchange,
+                                      &rng->lock, cur_lock,
+                                      cur_lock | WC_RNG_LOCK_ENTROPY_RECOVERING,
+                                      ret);
+        /* We now have the _RECOVERING mutex -- record that fact. */
+        cur_lock |= WC_RNG_LOCK_ENTROPY_RECOVERING;
+    } WC_CAS_WITH_RETRY_END;
 #endif /* WC_RNG_HAVE_LOCK */
 
 #ifdef WC_RNG_HAVE_POOL
@@ -1014,29 +1015,27 @@ static int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz,
      * and return with the success or failure code from above.
      */
     if ((ret == 0) && (cur_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED)) {
-        for (;;) {
+        WC_CAS_WITH_RETRY_BEGIN(&rng->lock, cur_lock, ret) {
             if (! (cur_lock & WC_RNG_LOCK_ENTROPY_RECOVERING)) {
                 ret = NEEDS_RECOVERY_E;
                 break;
             }
-            if (wolfSSL_Atomic_Uint_CompareExchange(
-                    &rng->lock, &cur_lock,
-                    cur_lock & ~(WC_RNG_LOCK_ENTROPY_INVALIDATED |
-                                 WC_RNG_LOCK_ENTROPY_RECOVERING)))
-            {
-                break;
-            }
-        }
+            WC_CAS_WITH_RETRY_LOOP_FOREVER(
+                wolfSSL_Atomic_Uint_CompareExchange, &rng->lock, cur_lock,
+                cur_lock & ~(WC_RNG_LOCK_ENTROPY_INVALIDATED |
+                             WC_RNG_LOCK_ENTROPY_RECOVERING),
+                ret);
+        } WC_CAS_WITH_RETRY_END;
     }
     else if (cur_lock & WC_RNG_LOCK_ENTROPY_RECOVERING) {
-        for (;;) {
-            if (wolfSSL_Atomic_Uint_CompareExchange(
-                    &rng->lock, &cur_lock,
-                    cur_lock & ~WC_RNG_LOCK_ENTROPY_RECOVERING))
-            {
-                break;
-            }
-        }
+        /* ret carries the reseed's status here and must survive, so the
+         * release gets its own result variable. */
+        int release_ret;
+        WC_CAS_WITH_RETRY_BEGIN(&rng->lock, cur_lock, release_ret) {
+            WC_CAS_WITH_RETRY_LOOP_FOREVER(
+                wolfSSL_Atomic_Uint_CompareExchange, &rng->lock, cur_lock,
+                cur_lock & ~WC_RNG_LOCK_ENTROPY_RECOVERING, release_ret);
+        } WC_CAS_WITH_RETRY_END;
     }
 #endif /* WC_RNG_HAVE_LOCK */
 
@@ -3137,7 +3136,7 @@ static int PollAndReSeed(WC_RNG* rng, const byte* additional,
  * the RNG is freshly seeded after a fork(), to avoid seeding or generating from
  * duplicated internal state.
  */
-static int rng_pid_change_check(WC_RNG* rng) {
+static WC_MAYBE_UNUSED int rng_pid_change_check(WC_RNG* rng) {
     int ret;
     int my_pid = getpid();
 
@@ -3340,6 +3339,7 @@ int wc_RNG_lock_get_conditional(WC_RNG* rng,
 int wc_RNG_lock_put(WC_RNG* rng, WC_RNG_lock_arg_t extra_bits)
 {
     WC_RNG_lock_arg_t cur_lock, new_lock;
+    int cas_ret;
     if (rng == NULL)
         return BAD_FUNC_ARG;
     cur_lock = WOLFSSL_ATOMIC_LOAD(rng->lock);
@@ -3350,7 +3350,7 @@ int wc_RNG_lock_put(WC_RNG* rng, WC_RNG_lock_arg_t extra_bits)
     ++rng->_stats_locks_released;
     #endif
 
-    for (;;) {
+    WC_CAS_WITH_RETRY_BEGIN(&rng->lock, cur_lock, cas_ret) {
         new_lock = cur_lock & (((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U) &
                                ~WC_RNG_LOCK_HELD);
         /* extra_bits is allowed to assert WC_RNG_LOCK_REQUIRED, which is in the
@@ -3358,10 +3358,9 @@ int wc_RNG_lock_put(WC_RNG* rng, WC_RNG_lock_arg_t extra_bits)
         extra_bits &= ~((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U) |
             WC_RNG_LOCK_REQUIRED;
         new_lock |= extra_bits;
-        if (wolfSSL_Atomic_Uint_CompareExchange(
-                &rng->lock, &cur_lock, new_lock))
-            break;
-    }
+        WC_CAS_WITH_RETRY_LOOP_FOREVER(wolfSSL_Atomic_Uint_CompareExchange,
+                                      &rng->lock, cur_lock, new_lock, cas_ret);
+    } WC_CAS_WITH_RETRY_END;
 
 #ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
     if (rng->flags & WC_RNG_FLAG_FULL_MUTEX)
@@ -3378,6 +3377,8 @@ int wc_RNG_lock_put_conditional(WC_RNG* rng,
                                 WC_RNG_lock_arg_t expected_extra_bits,
                                 WC_RNG_lock_arg_t want_extra_bits)
 {
+    int cas_ret;
+    WC_CAS_WITH_RETRY_EXTRA_DECLS;
     WC_RNG_lock_arg_t cur_lock, expected, new_lock;
 
     if (rng == NULL)
@@ -3391,6 +3392,8 @@ int wc_RNG_lock_put_conditional(WC_RNG* rng,
     ++rng->_stats_locks_released;
     #endif
 
+    /* Note this CAS loop doesn't use WC_CAS_WITH_RETRY_*() (non-conformant code
+     * pattern), so the WC_CAS_WITH_RETRY_* hook macros are invoked directly. */
     for (;;) {
         new_lock = cur_lock & (((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U) &
                                ~WC_RNG_LOCK_HELD);
@@ -3427,6 +3430,11 @@ int wc_RNG_lock_put_conditional(WC_RNG* rng,
         }
 
         cur_lock = expected;
+
+        cas_ret = WC_CAS_WITH_RETRY_FOREVER_CLAUSE;
+        if (cas_ret != 0)
+            return cas_ret;
+        WC_CAS_WITH_RETRY_ITER_CLAUSE(&rng->lock, cur_lock, new_lock, cas_ret);
     }
 
     /* conditional release failed: the caller is still the holder, at both
@@ -3450,11 +3458,12 @@ int wc_RNG_lock_read(WC_RNG* rng, WC_RNG_lock_arg_t* state)
 int wc_RNG_lock_set_extra(WC_RNG* rng, WC_RNG_lock_arg_t extra_bits)
 {
     WC_RNG_lock_arg_t cur_lock, new_lock;
+    int cas_ret;
     if (rng == NULL)
         return BAD_FUNC_ARG;
     cur_lock = WOLFSSL_ATOMIC_LOAD(rng->lock);
 
-    for (;;) {
+    WC_CAS_WITH_RETRY_BEGIN(&rng->lock, cur_lock, cas_ret) {
         new_lock = cur_lock & ((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U);
         /* extra_bits is allowed to assert WC_RNG_LOCK_REQUIRED, which is in the
          * reserved section. */
@@ -3462,17 +3471,16 @@ int wc_RNG_lock_set_extra(WC_RNG* rng, WC_RNG_lock_arg_t extra_bits)
             WC_RNG_LOCK_REQUIRED;
         new_lock |= extra_bits;
 
-        if (wolfSSL_Atomic_Uint_CompareExchange(
-                &rng->lock, &cur_lock,
-                new_lock))
-            break;
-    }
+        WC_CAS_WITH_RETRY_LOOP_FOREVER(wolfSSL_Atomic_Uint_CompareExchange,
+                                      &rng->lock, cur_lock, new_lock, cas_ret);
+    } WC_CAS_WITH_RETRY_END;
     return 0;
 }
 
 int wc_RNG_lock_add_extra(WC_RNG* rng, WC_RNG_lock_arg_t extra_bits)
 {
     WC_RNG_lock_arg_t cur_lock;
+    int cas_ret;
     if (rng == NULL)
         return BAD_FUNC_ARG;
     cur_lock = WOLFSSL_ATOMIC_LOAD(rng->lock);
@@ -3482,18 +3490,18 @@ int wc_RNG_lock_add_extra(WC_RNG* rng, WC_RNG_lock_arg_t extra_bits)
     extra_bits &= ~((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U) |
         WC_RNG_LOCK_REQUIRED;
 
-    for (;;) {
-        if (wolfSSL_Atomic_Uint_CompareExchange(
-                &rng->lock, &cur_lock,
-                cur_lock | extra_bits))
-            break;
-    }
+    WC_CAS_WITH_RETRY_BEGIN(&rng->lock, cur_lock, cas_ret) {
+        WC_CAS_WITH_RETRY_LOOP_FOREVER(wolfSSL_Atomic_Uint_CompareExchange,
+                                      &rng->lock, cur_lock,
+                                      cur_lock | extra_bits, cas_ret);
+    } WC_CAS_WITH_RETRY_END;
     return 0;
 }
 
 int wc_RNG_lock_clear_extra(WC_RNG* rng, WC_RNG_lock_arg_t extra_bits)
 {
     WC_RNG_lock_arg_t cur_lock;
+    int cas_ret;
     if (rng == NULL)
         return BAD_FUNC_ARG;
     if (extra_bits & WC_RNG_LOCK_REQUIRED) {
@@ -3504,32 +3512,29 @@ int wc_RNG_lock_clear_extra(WC_RNG* rng, WC_RNG_lock_arg_t extra_bits)
 
     extra_bits &= ~((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U);
 
-    for (;;) {
-        if (wolfSSL_Atomic_Uint_CompareExchange(
-                &rng->lock, &cur_lock,
-                cur_lock & ~extra_bits))
-            break;
-    }
+    WC_CAS_WITH_RETRY_BEGIN(&rng->lock, cur_lock, cas_ret) {
+        WC_CAS_WITH_RETRY_LOOP_FOREVER(wolfSSL_Atomic_Uint_CompareExchange,
+                                      &rng->lock, cur_lock,
+                                      cur_lock & ~extra_bits, cas_ret);
+    } WC_CAS_WITH_RETRY_END;
     return 0;
 }
 
 #ifdef HAVE_HASHDRBG
 WOLFSSL_API int wc_RNG_invalidate_entropy(WC_RNG* rng) {
     WC_RNG_lock_arg_t cur_lock;
+    int cas_ret;
 
     if (rng == NULL)
         return BAD_FUNC_ARG;
 
-    cur_lock = WOLFSSL_ATOMIC_LOAD(rng->lock);
-    for (;;) {
-        if (wolfSSL_Atomic_Uint_CompareExchange(
-            &rng->lock, &cur_lock,
+    WC_CAS_WITH_RETRY_BEGIN_INIT_CUR(&rng->lock, cur_lock, cas_ret) {
+        WC_CAS_WITH_RETRY_LOOP_FOREVER(
+            wolfSSL_Atomic_Uint_CompareExchange, &rng->lock, cur_lock,
             (cur_lock & ~WC_RNG_LOCK_ENTROPY_RECOVERING) |
-            WC_RNG_LOCK_ENTROPY_INVALIDATED))
-        {
-            break;
-        }
-    }
+            WC_RNG_LOCK_ENTROPY_INVALIDATED,
+            cas_ret);
+    } WC_CAS_WITH_RETRY_END;
 
     /* If no lock is held, either the RNG is in use without a lock, in which
      * case the reseedCtr is the only way to force invalidation semantics on the
@@ -3706,14 +3711,15 @@ static WC_INLINE word32 PoolUsed(word32 head, word32 tail, word32 poolSize)
  * the counters are deliberately left alone. */
 static void PoolPurge(WC_RNG* rng)
 {
-    WC_ATOMIC_UINT_ARG cur = WOLFSSL_ATOMIC_LOAD(rng->poolHead);
-    for (;;) {
-        WC_ATOMIC_UINT_ARG want =
-            WC_RNG_POOL_PACK(WC_RNG_POOL_POS(cur), WC_RNG_POOL_EPOCH(cur) + 1U);
-        if (wolfSSL_Atomic_Uint_CompareExchange(&rng->poolHead, &cur, want))
-            return;
-        /* cur was reloaded by the failed exchange; re-evaluate. */
-    }
+    WC_ATOMIC_UINT_ARG cur, want;
+    int cas_ret;
+
+    WC_CAS_WITH_RETRY_BEGIN_INIT_CUR(&rng->poolHead, cur, cas_ret) {
+        want = WC_RNG_POOL_PACK(WC_RNG_POOL_POS(cur),
+                                WC_RNG_POOL_EPOCH(cur) + 1U);
+        WC_CAS_WITH_RETRY_LOOP_FOREVER(wolfSSL_Atomic_Uint_CompareExchange,
+                                      &rng->poolHead, cur, want, cas_ret);
+    } WC_CAS_WITH_RETRY_END;
 }
 
 int wc_RNG_Pool_Alloc(WC_RNG* rng, word32 size)
@@ -4419,6 +4425,7 @@ static WC_INLINE int NextStirPtrs(WC_RNG* rng, byte** seed,
 static int wc_RNG_DRBG_NextSeedGenerate_local(WC_RNG* rng, WC_RNG *root,
                                               const byte *nonce, word32 n)
 {
+    int claim_ret;
     byte* seed;
     wolfSSL_Atomic_Int* lenp;
     int *nextSeedRBGCStratum_p = NULL;
@@ -4494,7 +4501,7 @@ static int wc_RNG_DRBG_NextSeedGenerate_local(WC_RNG* rng, WC_RNG *root,
          * produce-side exclusivity a CAS, matching the consume side's
          * READY -> CONSUMING claim.  This lane only: the uncredited
          * accumulator above stays multi-writer by design. */
-        for (;;) {
+        WC_CAS_WITH_RETRY_BEGIN(lenp, cur, claim_ret) {
             if ((cur == WC_DRBG_NEXT_SEED_PRODUCING) ||
                 (cur == WC_DRBG_NEXT_SEED_PURGED))
             {
@@ -4508,11 +4515,11 @@ static int wc_RNG_DRBG_NextSeedGenerate_local(WC_RNG* rng, WC_RNG *root,
                 /* Ready or consuming -- nothing to do. */
                 return WC_NO_ERR_TRACE(ALREADY_E); /* not an error */
             }
-            if (wolfSSL_Atomic_Int_CompareExchange(lenp, &cur,
-                    WC_DRBG_NEXT_SEED_PRODUCING))
-                break;
-            /* cur was reloaded by the failed exchange; re-evaluate. */
-        }
+            WC_CAS_WITH_RETRY_LOOP_FOREVER(wolfSSL_Atomic_Int_CompareExchange,
+                                          lenp, cur,
+                                          WC_DRBG_NEXT_SEED_PRODUCING,
+                                          claim_ret);
+        } WC_CAS_WITH_RETRY_END;
         if (cur == (WC_ATOMIC_INT_ARG)nextSeedSz) {
             /* Complete but unpublished (interrupted between fill
              * completion and publication): retry the health test and
