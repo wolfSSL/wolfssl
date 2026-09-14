@@ -2745,7 +2745,7 @@ static void wb_decode_cert_req_version(void) { WB_NOTE("WOLFSSL_CERT_REQ off; sk
  * Section 26: ParseCert() RSA public key store [:23263-:23267]
  * (best-effort -- see file-header RESIDUAL note for operands 2/3).
  * ------------------------------------------------------------------------- */
-#if (!defined(WOLFSSL_NO_MALLOC) && !defined(NO_WOLFSSL_CM_VERIFY)) || \
+#if (!defined(WC_ASN_NO_HEAP) && !defined(NO_WOLFSSL_CM_VERIFY)) || \
     defined(WOLFSSL_DYN_CERT)
 static void wb_parse_cert_rsa_pubkey(void)
 {
@@ -2769,7 +2769,7 @@ static void wb_parse_cert_rsa_pubkey(void)
     FreeDecodedCert(&cert);
 }
 #else
-static void wb_parse_cert_rsa_pubkey(void) { WB_NOTE("WOLFSSL_NO_MALLOC build; ParseCert copy-out skipped"); }
+static void wb_parse_cert_rsa_pubkey(void) { WB_NOTE("WC_ASN_NO_HEAP build; ParseCert copy-out skipped"); }
 #endif
 
 /* ------------------------------------------------------------------------- *
