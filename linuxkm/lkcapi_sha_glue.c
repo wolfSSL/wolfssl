@@ -2894,10 +2894,13 @@ static int wc_linuxkm_entropy_daemon(void *arg)
                     if (ret == 0) {
                         progress = 1;
                     }
+#ifdef WC_VERBOSE_RNG
                     else if ((ret == WC_NO_ERR_TRACE(NOT_READY_E)) ||
-                             (ret == WC_NO_ERR_TRACE(BAD_STATE_E)))
+                             (ret == WC_NO_ERR_TRACE(BAD_STATE_E)) ||
+                             (ret == WC_NO_ERR_TRACE(BUSY_E)))
                     {
-                        /* contention (consumer active) or no pool --
+                        /* contention (other writer active), a purge landed
+                         * while the collector was generating, or no pool --
                          * nothing to do here this turn. */
                     }
                     else {
@@ -2905,6 +2908,7 @@ static int wc_linuxkm_entropy_daemon(void *arg)
                             "wc_entropyd: pool top-off on DRBG inst %d "
                             "returned %d\n", i, ret);
                     }
+#endif
                 }
             }
         }
