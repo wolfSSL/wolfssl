@@ -124,6 +124,8 @@ jobs:
 
       - name: Index the bundle
         shell: bash
+        env:
+          IMAGE: ${{ matrix.image }}
         run: |
           set -euo pipefail
           # This index is what makes the consumer resolve against these exact
@@ -134,8 +136,16 @@ jobs:
           gzip -9kf debs/Packages
           # Not read by anything - it makes a fallback diagnosable from the
           # consumer's log without cross-referencing this workflow's runs.
-          printf 'tag=%s\nimage=%s %s\nbuilt=%s\ndebs=%s\n' \
-            "${{ matrix.tag }}" "${ImageOS:-?}" "${ImageVersion:-?}" \
+          # Record what the closure was actually resolved against: the
+          # container for an `image` entry, else the runner.
+          if [ -n "$IMAGE" ]; then
+            RESOLVED_IN="$IMAGE"
+          else
+            RESOLVED_IN="${ImageOS:-?} ${ImageVersion:-?}"
+          fi
+          printf 'tag=%s\nresolved-in=%s\nrunner=%s %s\nbuilt=%s\ndebs=%s\n' \
+            "${{ matrix.tag }}" "$RESOLVED_IN" \
+            "${ImageOS:-?}" "${ImageVersion:-?}" \
             "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(ls debs/*.deb | wc -l)" \
             > debs/bundle-info
           cat debs/bundle-info
