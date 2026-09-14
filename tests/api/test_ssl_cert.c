@@ -2389,9 +2389,9 @@ static int test_eku_override_cb(int preverify, WOLFSSL_X509_STORE_CTX* store)
 static int test_eku_purpose_only_cb(int preverify,
     WOLFSSL_X509_STORE_CTX* store)
 {
-    if ((store->error == WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E))
+    if (store->error == WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E)
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-        || (store->error == WOLFSSL_X509_V_ERR_INVALID_PURPOSE)
+        || store->error == WOLFSSL_X509_V_ERR_INVALID_PURPOSE
 #endif
         ) {
         return 1;
