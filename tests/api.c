@@ -2650,6 +2650,46 @@ static int test_wolfSSL_set_cipher_list_tls13_with_version(void)
     return EXPECT_RESULT();
 }
 
+/* Test 5: a version range keeps both groups. SetMinVersion() below the
+ * SetVersion() maximum means both TLS 1.2 and TLS 1.3 can be negotiated, so
+ * setting a TLS 1.2 cipher list must not drop the TLS 1.3 suites. */
+static int test_wolfSSL_set_cipher_list_tls12_with_range(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_TLS13) && \
+    !defined(WOLFSSL_NO_TLS12) && \
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
+    defined(HAVE_ECC)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+
+#ifndef NO_WOLFSSL_CLIENT
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+#else
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+#endif
+
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* Ask for the range TLS 1.2 - TLS 1.3 */
+    ExpectIntEQ(wolfSSL_SetVersion(ssl, WOLFSSL_TLSV1_3), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_SetMinVersion(ssl, WOLFSSL_TLSV1_2), WOLFSSL_SUCCESS);
+
+    /* Set only a TLS 1.2 cipher suite */
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "ECDHE-RSA-AES128-GCM-SHA256"),
+                WOLFSSL_SUCCESS);
+
+    /* TLS 1.3 is still negotiable, so its suites must be kept */
+    ExpectNotNull(ssl->suites);
+    ExpectTrue(suites_has_tls13(ssl->suites->suites, ssl->suites->suiteSz));
+    ExpectTrue(suites_has_tls12(ssl->suites->suites, ssl->suites->suiteSz));
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Build gating for the cipher-list exclusion test. Each sub-test is gated only
  * on the BUILD_* macro of the suite it needs, so it cleanly skips (rather than
  * failing at runtime) in any build missing it - and the two are independent
@@ -6202,6 +6242,139 @@ static int test_wolfSSL_SetMinVersion(void)
     return res;
 
 } /* END test_wolfSSL_SetMinVersion */
+
+
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
+
+typedef struct HelloCapture {
+    byte   buf[WOLFSSL_MAX_16BIT];
+    word32 len;
+} HelloCapture;
+
+static int HelloCaptureSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
+{
+    HelloCapture* capture = (HelloCapture*)ctx;
+
+    (void)ssl;
+    if (capture->len + (word32)sz <= sizeof(capture->buf)) {
+        XMEMCPY(capture->buf + capture->len, buf, (size_t)sz);
+        capture->len += (word32)sz;
+    }
+    return sz;
+}
+
+static int HelloCaptureRecv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
+{
+    (void)ssl;
+    (void)buf;
+    (void)sz;
+    (void)ctx;
+    return WOLFSSL_CBIO_ERR_WANT_READ;
+}
+
+/* Collect the minor version bytes of the supported_versions extension from a
+ * captured ClientHello. Returns the number of versions found, or -1. */
+static int HelloGetSupportedVersions(const HelloCapture* capture, byte* minors,
+    int minorsSz)
+{
+    word32 idx;
+    word32 extEnd;
+    word16 len;
+    int    count = 0;
+
+    /* record header, handshake header, version and random */
+    idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ + VERSION_SZ + RAN_LEN;
+    if (idx >= capture->len)
+        return -1;
+
+    idx += ENUM_LEN + capture->buf[idx];             /* session id */
+    if (idx + OPAQUE16_LEN > capture->len)
+        return -1;
+    ato16(capture->buf + idx, &len);                 /* cipher suites */
+    idx += OPAQUE16_LEN + len;
+    if (idx >= capture->len)
+        return -1;
+    idx += ENUM_LEN + capture->buf[idx];             /* compression */
+    if (idx + OPAQUE16_LEN > capture->len)
+        return -1;
+    ato16(capture->buf + idx, &len);
+    idx += OPAQUE16_LEN;
+    extEnd = idx + len;
+    if (extEnd > capture->len)
+        return -1;
+
+    while (idx + (2 * OPAQUE16_LEN) <= extEnd) {
+        word16 type;
+        ato16(capture->buf + idx, &type);
+        ato16(capture->buf + idx + OPAQUE16_LEN, &len);
+        idx += 2 * OPAQUE16_LEN;
+        if (idx + len > extEnd)
+            return -1;
+        if (type == TLSX_SUPPORTED_VERSIONS) {
+            word32 i;
+            for (i = 1; i + OPAQUE16_LEN <= (word32)capture->buf[idx] + 1;
+                 i += OPAQUE16_LEN) {
+                if (count >= minorsSz)
+                    return -1;
+                minors[count++] = capture->buf[idx + i + 1];
+            }
+            return count;
+        }
+        idx += len;
+    }
+    return -1;
+}
+#endif
+
+/* wolfSSL_SetVersion() sets the maximum version. Paired with
+ * wolfSSL_SetMinVersion() the ClientHello must still offer the whole range. */
+static int test_wolfSSL_SetVersion_offers_range(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
+    WOLFSSL_CTX*  ctx = NULL;
+    WOLFSSL*      ssl = NULL;
+    HelloCapture* capture = NULL;
+    byte          minors[8];
+    int           count = 0;
+
+    capture = (HelloCapture*)XMALLOC(sizeof(*capture), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(capture);
+    if (capture != NULL)
+        capture->len = 0;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_NONE, NULL);
+    wolfSSL_SetIOSend(ctx, HelloCaptureSend);
+    wolfSSL_SetIORecv(ctx, HelloCaptureRecv);
+
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_SetVersion(ssl, WOLFSSL_TLSV1_3), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_SetMinVersion(ssl, WOLFSSL_TLSV1_2), WOLFSSL_SUCCESS);
+    wolfSSL_SetIOWriteCtx(ssl, capture);
+
+    ExpectIntNE(wolfSSL_connect(ssl), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+
+    ExpectIntGT(count = HelloGetSupportedVersions(capture, minors,
+        (int)sizeof(minors)), 1);
+    if (count > 1) {
+        ExpectIntEQ(minors[0], TLSv1_3_MINOR);
+        ExpectIntEQ(minors[1], TLSv1_2_MINOR);
+    }
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+    XFREE(capture, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
 
 
 #include <wolfssl/openssl/pem.h>
@@ -41779,6 +41952,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_set_cipher_list_tls13_keeps_tls12),
     TEST_DECL(test_wolfSSL_set_cipher_list_tls12_with_version),
     TEST_DECL(test_wolfSSL_set_cipher_list_tls13_with_version),
+    TEST_DECL(test_wolfSSL_set_cipher_list_tls12_with_range),
     TEST_DECL(test_wolfSSL_set_cipher_list_exclusions),
     TEST_DECL(test_wolfSSL_set_alpn_protos_default_fails),
     TEST_DECL(test_wolfSSL_CTX_use_certificate),
@@ -41853,6 +42027,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_tls_export),
 #endif
     TEST_DECL(test_wolfSSL_SetMinVersion),
+    TEST_DECL(test_wolfSSL_SetVersion_offers_range),
     TEST_DECL(test_wolfSSL_CTX_SetMinVersion),
 
     /* wolfSSL handshake APIs. */

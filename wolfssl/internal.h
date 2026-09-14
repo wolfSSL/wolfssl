@@ -5477,6 +5477,8 @@ struct Options {
     word16            failNoCertxPSK:1;   /* fail for no cert except with PSK */
     word16            failNoPSK:1;        /* fail if no PSK is negotiated */
     word16            downgrade:1;        /* allow downgrade of versions */
+    word16            versionSet:1;       /* max version set by SetVersion */
+    word16            minVersionSet:1;    /* min version set by SetMinVersion */
     word16            resuming:1;
 #ifdef HAVE_SECURE_RENEGOTIATION
     word16            resumed:1;          /* resuming may be reset on SCR */

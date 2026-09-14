@@ -2218,6 +2218,8 @@ int wolfSSL_CTX_SetMinVersion(WOLFSSL_CTX* ctx, int version)
 /* Set minimum downgrade version allowed, WOLFSSL_SUCCESS on ok */
 int wolfSSL_SetMinVersion(WOLFSSL* ssl, int version)
 {
+    int ret;
+
     WOLFSSL_ENTER("wolfSSL_SetMinVersion");
 
     if (ssl == NULL) {
@@ -2231,7 +2233,11 @@ int wolfSSL_SetMinVersion(WOLFSSL* ssl, int version)
     }
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 
-    return SetMinVersionHelper(&ssl->options.minDowngrade, version);
+    ret = SetMinVersionHelper(&ssl->options.minDowngrade, version);
+    if (ret == WOLFSSL_SUCCESS)
+        ssl->options.minVersionSet = 1;
+
+    return ret;
 }
 
 
@@ -2325,7 +2331,7 @@ int wolfSSL_SetVersion(WOLFSSL* ssl, int version)
             return BAD_FUNC_ARG;
     }
 
-    ssl->options.downgrade = 0;
+    ssl->options.versionSet = 1;
 
     #ifdef NO_RSA
         haveRSA = 0;
@@ -3137,10 +3143,13 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         if ((ctx != NULL && !IsAtLeastTLSv1_3(ctx->method->version) &&
                 !ctx->method->downgrade) ||
                 (ssl != NULL && !IsAtLeastTLSv1_3(ssl->version) &&
-                !ssl->options.downgrade)) {
+                (!ssl->options.downgrade || ssl->options.versionSet))) {
             /* Fail only for methods that can never reach TLS 1.3 (downgrade
-             * disabled). A version merely capped via set_max_proto_version()
-             * still silently ignores the list, matching OpenSSL. */
+             * disabled) or when SetVersion() put the maximum below TLS 1.3.
+             * A minimum version does not raise the maximum, so it is not
+             * considered here. A version merely capped via
+             * set_max_proto_version() still silently ignores the list,
+             * matching OpenSSL. */
             WOLFSSL_MSG("Cipher list has only TLS 1.3 suites but TLS 1.3 "
                         "is not negotiable");
             return WOLFSSL_FAILURE;
@@ -3178,10 +3187,12 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
      * Since we direct both API here we attempt to provide API compatibility. If
      * we only get suites from <= 1.2 or == 1.3 then we will only update those
      * suites and keep the suites from the other group.
-     * If downgrade is disabled, skip preserving the other group's suites. */
-    if ((ssl != NULL && !ssl->options.downgrade) ||
+     * If a single version is in use, skip preserving the other group's
+     * suites. A min version makes it a range again, so both groups are kept. */
+    if ((ssl != NULL && (!ssl->options.downgrade ||
+            (ssl->options.versionSet && !ssl->options.minVersionSet))) ||
         (ctx != NULL && !ctx->method->downgrade)) {
-        /* Downgrade disabled - don't preserve other group's suites */
+        /* One version only - don't preserve the other group's suites */
         WC_FREE_VAR_EX(suitesCpy, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return ret;
     }
