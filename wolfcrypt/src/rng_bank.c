@@ -2724,19 +2724,20 @@ WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_get_conditional(
 WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_put(struct wc_rng_bank_inst *inst)
 {
     WC_RNG_lock_arg_t cur_lock, new_lock;
+    int cas_ret;
     if (inst == NULL)
         return BAD_FUNC_ARG;
     cur_lock = WOLFSSL_ATOMIC_LOAD(inst->lock);
     if (! (cur_lock & WC_RNG_LOCK_HELD))
         return OBJECT_NOT_LOCKED_E;
 
-    for (;;) {
+    WC_CAS_WITH_RETRY_BEGIN(&inst->lock, cur_lock, cas_ret) {
         new_lock = cur_lock &
             ((((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U) & ~WC_RNG_LOCK_HELD));
-        if (wolfSSL_Atomic_Uint_CompareExchange(
-                &inst->lock, &cur_lock, new_lock))
-            break;
-    }
+        WC_CAS_WITH_RETRY_LOOP_FOREVER(wolfSSL_Atomic_Uint_CompareExchange,
+                                      &inst->lock, cur_lock, new_lock,
+                                      cas_ret);
+    } WC_CAS_WITH_RETRY_END;
 
     if (new_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED)
         return NEEDS_RECOVERY_E;
@@ -2746,6 +2747,8 @@ WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_put(struct wc_rng_bank_inst *inst)
 
 WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_put_conditional(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits)
 {
+    int cas_ret;
+    WC_CAS_WITH_RETRY_EXTRA_DECLS;
     WC_RNG_lock_arg_t cur_lock, expected, new_lock;
 
     if (inst == NULL)
@@ -2755,6 +2758,8 @@ WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_put_conditional(struct wc_rng_bank_in
     if (! (cur_lock & WC_RNG_LOCK_HELD))
         return OBJECT_NOT_LOCKED_E;
 
+    /* Note this CAS loop doesn't use WC_CAS_WITH_RETRY_*() (non-conformant code
+     * pattern), so the WC_CAS_WITH_RETRY_* hook macros are invoked directly. */
     for (;;) {
         new_lock = (cur_lock &
             ((((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U) & ~WC_RNG_LOCK_HELD))) |
@@ -2780,6 +2785,11 @@ WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_put_conditional(struct wc_rng_bank_in
          * next reconstruction from it, else a concurrent invalidation
          * loops forever. */
         cur_lock = expected;
+
+        cas_ret = WC_CAS_WITH_RETRY_FOREVER_CLAUSE;
+        if (cas_ret != 0)
+            return cas_ret;
+        WC_CAS_WITH_RETRY_ITER_CLAUSE(&inst->lock, cur_lock, new_lock, cas_ret);
     }
     /* conditional release failed: the caller is still the holder. */
     return UNEXPECTED_STATE_E;
@@ -2796,26 +2806,28 @@ WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_read(struct wc_rng_bank_inst *inst, W
 WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_set_extra(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits)
 {
     WC_RNG_lock_arg_t cur_lock, new_lock;
+    int cas_ret;
     if (inst == NULL)
         return BAD_FUNC_ARG;
     cur_lock = WOLFSSL_ATOMIC_LOAD(inst->lock);
 
-    for (;;) {
+    WC_CAS_WITH_RETRY_BEGIN(&inst->lock, cur_lock, cas_ret) {
         new_lock = cur_lock & ((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U);
         extra_bits &= ~((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U) |
             WC_RNG_LOCK_REQUIRED;
         new_lock |= extra_bits;
 
-        if (wolfSSL_Atomic_Uint_CompareExchange(
-                &inst->lock, &cur_lock, new_lock))
-            break;
-    }
+        WC_CAS_WITH_RETRY_LOOP_FOREVER(wolfSSL_Atomic_Uint_CompareExchange,
+                                      &inst->lock, cur_lock, new_lock,
+                                      cas_ret);
+    } WC_CAS_WITH_RETRY_END;
     return 0;
 }
 
 WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_add_extra(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits)
 {
     WC_RNG_lock_arg_t cur_lock;
+    int cas_ret;
     if (inst == NULL)
         return BAD_FUNC_ARG;
     cur_lock = WOLFSSL_ATOMIC_LOAD(inst->lock);
@@ -2823,18 +2835,18 @@ WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_add_extra(struct wc_rng_bank_inst *in
     extra_bits &= ~((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U) |
         WC_RNG_LOCK_REQUIRED;
 
-    for (;;) {
-        if (wolfSSL_Atomic_Uint_CompareExchange(
-                &inst->lock, &cur_lock,
-                cur_lock | extra_bits))
-            break;
-    }
+    WC_CAS_WITH_RETRY_BEGIN(&inst->lock, cur_lock, cas_ret) {
+        WC_CAS_WITH_RETRY_LOOP_FOREVER(wolfSSL_Atomic_Uint_CompareExchange,
+                                      &inst->lock, cur_lock,
+                                      cur_lock | extra_bits, cas_ret);
+    } WC_CAS_WITH_RETRY_END;
     return 0;
 }
 
 WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_clear_extra(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits)
 {
     WC_RNG_lock_arg_t cur_lock;
+    int cas_ret;
     if (inst == NULL)
         return BAD_FUNC_ARG;
     if (extra_bits & WC_RNG_LOCK_REQUIRED) {
@@ -2845,12 +2857,11 @@ WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_clear_extra(struct wc_rng_bank_inst *
 
     extra_bits &= ~((1U << WC_RNG_LOCK_EXTRA_SHIFT) - 1U);
 
-    for (;;) {
-        if (wolfSSL_Atomic_Uint_CompareExchange(
-                &inst->lock, &cur_lock,
-                cur_lock & ~extra_bits))
-            break;
-    }
+    WC_CAS_WITH_RETRY_BEGIN(&inst->lock, cur_lock, cas_ret) {
+        WC_CAS_WITH_RETRY_LOOP_FOREVER(wolfSSL_Atomic_Uint_CompareExchange,
+                                      &inst->lock, cur_lock,
+                                      cur_lock & ~extra_bits, cas_ret);
+    } WC_CAS_WITH_RETRY_END;
     return 0;
 }
 
@@ -2866,22 +2877,22 @@ WOLFSSL_TEST_VIS int wc_rng_bank_inst_invalidate_entropy(
     struct wc_rng_bank_inst *inst)
 {
     WC_RNG_lock_arg_t cur_lock;
+    int cas_ret;
 
     if (inst == NULL)
         return BAD_FUNC_ARG;
 
-    cur_lock = WOLFSSL_ATOMIC_LOAD(inst->lock);
-    for (;;) {
-        /* Clearing _RECOVERING here is what makes it an epoch witness: an
-         * in-flight recovery discovers at exit that its seed predates this
-         * event, and leaves _INVALIDATED asserted.  Mirrors
-         * wc_RNG_invalidate_entropy(). */
-        if (wolfSSL_Atomic_Uint_CompareExchange(
-                &inst->lock, &cur_lock,
-                (cur_lock & ~WC_RNG_LOCK_ENTROPY_RECOVERING) |
-                WC_RNG_LOCK_ENTROPY_INVALIDATED))
-            break;
-    }
+    /* Clearing _RECOVERING here is what makes it an epoch witness: an
+     * in-flight recovery discovers at exit that its seed predates this
+     * event, and leaves _INVALIDATED asserted.  Mirrors
+     * wc_RNG_invalidate_entropy(). */
+    WC_CAS_WITH_RETRY_BEGIN_INIT_CUR(&inst->lock, cur_lock, cas_ret) {
+        WC_CAS_WITH_RETRY_LOOP_FOREVER(
+            wolfSSL_Atomic_Uint_CompareExchange, &inst->lock, cur_lock,
+            (cur_lock & ~WC_RNG_LOCK_ENTROPY_RECOVERING) |
+            WC_RNG_LOCK_ENTROPY_INVALIDATED,
+            cas_ret);
+    } WC_CAS_WITH_RETRY_END;
 
     /* If no lock is held, the saturated reseedCtr is the only way to force
      * invalidation semantics on a lock-free consumer; if a lock is held,
@@ -2903,26 +2914,25 @@ static int wc_rng_bank_inst_recovery_enter(
     struct wc_rng_bank_inst *inst, int *recovering)
 {
     WC_RNG_lock_arg_t cur_lock;
+    int cas_ret;
 
     if ((inst == NULL) || (recovering == NULL))
         return BAD_FUNC_ARG;
 
     *recovering = 0;
-    cur_lock = WOLFSSL_ATOMIC_LOAD(inst->lock);
-    for (;;) {
+    WC_CAS_WITH_RETRY_BEGIN_INIT_CUR(&inst->lock, cur_lock, cas_ret) {
         if (! (cur_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED))
             return 0;
         if (cur_lock & WC_RNG_LOCK_ENTROPY_RECOVERING)
             return BUSY_E;
-        if (wolfSSL_Atomic_Uint_CompareExchange(
-                &inst->lock, &cur_lock,
-                cur_lock | WC_RNG_LOCK_ENTROPY_RECOVERING))
-        {
-            /* We now have the _RECOVERING mutex -- record that fact. */
-            *recovering = 1;
-            return 0;
-        }
-    }
+        WC_CAS_WITH_RETRY_LOOP_FOREVER(
+            wolfSSL_Atomic_Uint_CompareExchange, &inst->lock, cur_lock,
+            cur_lock | WC_RNG_LOCK_ENTROPY_RECOVERING, cas_ret);
+        /* success arm: we now have the _RECOVERING mutex -- record that. */
+        *recovering = 1;
+    } WC_CAS_WITH_RETRY_END;
+
+    return cas_ret;
 }
 
 /* Release the recovery mutex, and report.  Must be called on every path out of
@@ -2937,27 +2947,28 @@ static int wc_rng_bank_inst_recovery_exit(
     struct wc_rng_bank_inst *inst, int recovering, int ret)
 {
     WC_RNG_lock_arg_t cur_lock;
+    int cas_ret;
 
     if (! recovering)
         return ret;
 
-    cur_lock = WOLFSSL_ATOMIC_LOAD(inst->lock);
-    for (;;) {
+    /* ret is the caller's incoming status and must survive, so the release
+     * uses its own result variable. */
+    WC_CAS_WITH_RETRY_BEGIN_INIT_CUR(&inst->lock, cur_lock, cas_ret) {
         if (! (cur_lock & WC_RNG_LOCK_ENTROPY_RECOVERING)) {
             if (ret == 0)
                 ret = NEEDS_RECOVERY_E;
             break;
         }
-        if (wolfSSL_Atomic_Uint_CompareExchange(
-                &inst->lock, &cur_lock,
-                (ret == 0)
-                ? (cur_lock & ~(WC_RNG_LOCK_ENTROPY_INVALIDATED |
-                                WC_RNG_LOCK_ENTROPY_RECOVERING))
-                : (cur_lock & ~WC_RNG_LOCK_ENTROPY_RECOVERING)))
-        {
-            break;
-        }
-    }
+        WC_CAS_WITH_RETRY_LOOP_FOREVER(
+            wolfSSL_Atomic_Uint_CompareExchange, &inst->lock, cur_lock,
+            (ret == 0)
+            ? (cur_lock & ~(WC_RNG_LOCK_ENTROPY_INVALIDATED |
+                            WC_RNG_LOCK_ENTROPY_RECOVERING))
+            : (cur_lock & ~WC_RNG_LOCK_ENTROPY_RECOVERING),
+            cas_ret);
+    } WC_CAS_WITH_RETRY_END;
+
     return ret;
 }
 
