@@ -590,9 +590,20 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "wc_InitRsaKey", "rsa");
     check_cfg(&binding, "wc_RsaDirect", "rsa_direct");
     check_cfg(&binding, "wc_MakeRsaKey", "rsa_keygen");
-    check_cfg(&binding, "wc_RsaPSS_Sign", "rsa_pss");
+    /* wc_RsaPSS_Verify, not wc_RsaPSS_Sign: signing is additionally guarded
+     * out by the public-only and verify-only build options, so only the
+     * verify side tracks WC_RSA_PSS itself. */
+    check_cfg(&binding, "wc_RsaPSS_Verify", "rsa_pss");
     check_cfg(&binding, "wc_RsaPublicEncrypt_ex", "rsa_oaep");
     check_cfg(&binding, "wc_RsaSetRNG", "rsa_setrng");
+    /* The RSA "only" build options subtract API, so each cfg names what is
+     * left rather than the C macro: rsa_private is !WOLFSSL_RSA_PUBLIC_ONLY,
+     * rsa_sign is !WOLFSSL_RSA_VERIFY_ONLY and rsa_ssl_verify is
+     * !WOLFSSL_RSA_VERIFY_INLINE.  Each sentinel is a function guarded by
+     * exactly one of those macros. */
+    check_cfg(&binding, "wc_RsaPrivateDecrypt", "rsa_private");
+    check_cfg(&binding, "wc_RsaPublicEncrypt", "rsa_sign");
+    check_cfg(&binding, "wc_RsaSSL_Verify", "rsa_ssl_verify");
     check_cfg(&binding, "WC_MGF1SHA512_224", "rsa_mgf1sha512_224");
     check_cfg(&binding, "WC_MGF1SHA512_256", "rsa_mgf1sha512_256");
     // Detect whether wc_RsaExportKey takes a const first arg (new API) or non-const (old API)
