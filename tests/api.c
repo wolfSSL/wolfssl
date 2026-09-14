@@ -2686,6 +2686,81 @@ static int test_wolfSSL_set_cipher_list_tls12_with_range(void)
     return EXPECT_RESULT();
 }
 
+/* Test 6: the range may be expressed through any of the minimum setters, not
+ * just wolfSSL_SetMinVersion(). All of them must keep both groups. */
+static int test_wolfSSL_set_cipher_list_range_setters(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_TLS13) && \
+    !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(HAVE_RENEGOTIATION_INDICATION) && \
+    defined(HAVE_AESGCM) && defined(HAVE_ECC) && !defined(NO_RSA)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+
+    /* minimum inherited from the context */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_SetMinVersion(ctx, WOLFSSL_TLSV1_2),
+                WOLFSSL_SUCCESS);
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_SetVersion(ssl, WOLFSSL_TLSV1_3), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "ECDHE-RSA-AES128-GCM-SHA256"),
+                WOLFSSL_SUCCESS);
+    ExpectNotNull(ssl->suites);
+    ExpectTrue(suites_has_tls13(ssl->suites->suites, ssl->suites->suiteSz));
+    ExpectTrue(suites_has_tls12(ssl->suites->suites, ssl->suites->suiteSz));
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+
+    /* minimum through the compatibility API */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_set_min_proto_version(ssl, TLS1_2_VERSION),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_SetVersion(ssl, WOLFSSL_TLSV1_3), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "ECDHE-RSA-AES128-GCM-SHA256"),
+                WOLFSSL_SUCCESS);
+    ExpectNotNull(ssl->suites);
+    ExpectTrue(suites_has_tls13(ssl->suites->suites, ssl->suites->suiteSz));
+    ExpectTrue(suites_has_tls12(ssl->suites->suites, ssl->suites->suiteSz));
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test 7: with no minimum asked for, a single version stands and the other
+ * group is still dropped. Guards against a default minimum being mistaken for
+ * a range. */
+static int test_wolfSSL_set_cipher_list_no_range(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_TLS13) && \
+    !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(HAVE_RENEGOTIATION_INDICATION) && \
+    defined(HAVE_AESGCM) && defined(HAVE_ECC) && !defined(NO_RSA)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_SetVersion(ssl, WOLFSSL_TLSV1_3), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "ECDHE-RSA-AES128-GCM-SHA256"),
+                WOLFSSL_SUCCESS);
+    ExpectNotNull(ssl->suites);
+    ExpectFalse(suites_has_tls13(ssl->suites->suites, ssl->suites->suiteSz));
+    ExpectIntEQ(ssl->suites->suiteSz, 2);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Build gating for the cipher-list exclusion test. Each sub-test is gated only
  * on the BUILD_* macro of the suite it needs, so it cleanly skips (rather than
  * failing at runtime) in any build missing it - and the two are independent
@@ -6324,6 +6399,51 @@ static int HelloGetSupportedVersions(const HelloCapture* capture, byte* minors,
 }
 #endif
 
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
+/* Ask for the range TLS 1.2 - TLS 1.3, optionally pinning an earlier maximum
+ * first, and return the supported_versions list of the ClientHello sent. */
+static int RangeSupportedVersions(int firstVersion, byte* minors, int minorsSz)
+{
+    WOLFSSL_CTX*  ctx = NULL;
+    WOLFSSL*      ssl = NULL;
+    HelloCapture* capture;
+    int           count = -1;
+
+    capture = (HelloCapture*)XMALLOC(sizeof(*capture), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (capture == NULL)
+        return -1;
+    capture->len = 0;
+
+    ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+    if (ctx != NULL) {
+        wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_NONE, NULL);
+        wolfSSL_SetIOSend(ctx, HelloCaptureSend);
+        wolfSSL_SetIORecv(ctx, HelloCaptureRecv);
+        ssl = wolfSSL_new(ctx);
+    }
+    if (ssl != NULL) {
+        wolfSSL_SetIOWriteCtx(ssl, capture);
+        if (firstVersion == 0 ||
+                wolfSSL_SetVersion(ssl, firstVersion) == WOLFSSL_SUCCESS) {
+            if (wolfSSL_SetVersion(ssl, WOLFSSL_TLSV1_3) == WOLFSSL_SUCCESS &&
+                wolfSSL_SetMinVersion(ssl, WOLFSSL_TLSV1_2) ==
+                    WOLFSSL_SUCCESS) {
+                (void)wolfSSL_connect(ssl);
+                count = HelloGetSupportedVersions(capture, minors, minorsSz);
+            }
+        }
+    }
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+    XFREE(capture, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    return count;
+}
+#endif
+
 /* wolfSSL_SetVersion() sets the maximum version. Paired with
  * wolfSSL_SetMinVersion() the ClientHello must still offer the whole range. */
 static int test_wolfSSL_SetVersion_offers_range(void)
@@ -6332,70 +6452,44 @@ static int test_wolfSSL_SetVersion_offers_range(void)
 #if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_TLS12) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
     defined(HAVE_TLS_EXTENSIONS)
-    WOLFSSL_CTX*  ctx = NULL;
-    WOLFSSL*      ssl = NULL;
-    HelloCapture* capture = NULL;
-    byte          minors[8];
-    int           count = 0;
+    byte minors[8];
 
-    capture = (HelloCapture*)XMALLOC(sizeof(*capture), NULL,
-        DYNAMIC_TYPE_TMP_BUFFER);
-    ExpectNotNull(capture);
-    if (capture != NULL)
-        capture->len = 0;
-
-    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
-    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_NONE, NULL);
-    wolfSSL_SetIOSend(ctx, HelloCaptureSend);
-    wolfSSL_SetIORecv(ctx, HelloCaptureRecv);
-
-    ExpectNotNull(ssl = wolfSSL_new(ctx));
-    ExpectIntEQ(wolfSSL_SetVersion(ssl, WOLFSSL_TLSV1_3), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_SetMinVersion(ssl, WOLFSSL_TLSV1_2), WOLFSSL_SUCCESS);
-    wolfSSL_SetIOWriteCtx(ssl, capture);
-
-    ExpectIntNE(wolfSSL_connect(ssl), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_get_error(ssl, WOLFSSL_FATAL_ERROR),
-        WOLFSSL_ERROR_WANT_READ);
-
-    ExpectIntGT(count = HelloGetSupportedVersions(capture, minors,
-        (int)sizeof(minors)), 1);
-    if (count > 1) {
-        ExpectIntEQ(minors[0], TLSv1_3_MINOR);
-        ExpectIntEQ(minors[1], TLSv1_2_MINOR);
-    }
-
-    wolfSSL_free(ssl);
-    wolfSSL_CTX_free(ctx);
-    XFREE(capture, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectIntEQ(RangeSupportedVersions(0, minors, (int)sizeof(minors)), 2);
+    ExpectIntEQ(minors[0], TLSv1_3_MINOR);
+    ExpectIntEQ(minors[1], TLSv1_2_MINOR);
 #endif
     return EXPECT_RESULT();
 }
 
-/* wolfSSL_SetVersion() records the maximum it set in the option mask, so that
- * the version checks reading the mask see it. */
-static int test_wolfSSL_SetVersion_sets_mask(void)
+/* Raising the maximum with a second wolfSSL_SetVersion() call must leave no
+ * trace of the lower one, however many versions apart the two are. */
+static int test_wolfSSL_SetVersion_raise_max(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_TLS12) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
-    WOLFSSL_CTX* ctx = NULL;
-    WOLFSSL* ssl = NULL;
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
+    byte minors[8];
 
-    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
-    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(RangeSupportedVersions(WOLFSSL_TLSV1_2, minors,
+        (int)sizeof(minors)), 2);
+    ExpectIntEQ(minors[0], TLSv1_3_MINOR);
+    ExpectIntEQ(minors[1], TLSv1_2_MINOR);
 
-    /* a TLS 1.2 maximum rules TLS 1.3 out */
-    ExpectIntEQ(wolfSSL_SetVersion(ssl, WOLFSSL_TLSV1_2), WOLFSSL_SUCCESS);
-    ExpectIntNE(wolfSSL_get_options(ssl) & WOLFSSL_OP_NO_TLSv1_3, 0);
-    ExpectIntEQ(wolfSSL_get_options(ssl) & WOLFSSL_OP_NO_TLSv1_2, 0);
+#ifndef NO_OLD_TLS
+    /* more than one version apart */
+    ExpectIntEQ(RangeSupportedVersions(WOLFSSL_TLSV1_1, minors,
+        (int)sizeof(minors)), 2);
+    ExpectIntEQ(minors[0], TLSv1_3_MINOR);
+    ExpectIntEQ(minors[1], TLSv1_2_MINOR);
 
-    /* raising the maximum again puts TLS 1.3 back */
-    ExpectIntEQ(wolfSSL_SetVersion(ssl, WOLFSSL_TLSV1_3), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_get_options(ssl) & WOLFSSL_OP_NO_TLSv1_3, 0);
-
-    wolfSSL_free(ssl);
-    wolfSSL_CTX_free(ctx);
+#ifdef WOLFSSL_ALLOW_TLSV10
+    ExpectIntEQ(RangeSupportedVersions(WOLFSSL_TLSV1, minors,
+        (int)sizeof(minors)), 2);
+    ExpectIntEQ(minors[0], TLSv1_3_MINOR);
+    ExpectIntEQ(minors[1], TLSv1_2_MINOR);
+#endif
+#endif
 #endif
     return EXPECT_RESULT();
 }
@@ -42014,6 +42108,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_set_cipher_list_tls12_with_version),
     TEST_DECL(test_wolfSSL_set_cipher_list_tls13_with_version),
     TEST_DECL(test_wolfSSL_set_cipher_list_tls12_with_range),
+    TEST_DECL(test_wolfSSL_set_cipher_list_range_setters),
+    TEST_DECL(test_wolfSSL_set_cipher_list_no_range),
     TEST_DECL(test_wolfSSL_set_cipher_list_exclusions),
     TEST_DECL(test_wolfSSL_set_alpn_protos_default_fails),
     TEST_DECL(test_wolfSSL_CTX_use_certificate),
@@ -42089,7 +42185,7 @@ TEST_CASE testCases[] = {
 #endif
     TEST_DECL(test_wolfSSL_SetMinVersion),
     TEST_DECL(test_wolfSSL_SetVersion_offers_range),
-    TEST_DECL(test_wolfSSL_SetVersion_sets_mask),
+    TEST_DECL(test_wolfSSL_SetVersion_raise_max),
     TEST_DECL(test_wolfSSL_SetVersion_tls12_with_tls13_peer),
     TEST_DECL(test_wolfSSL_CTX_SetMinVersion),
 

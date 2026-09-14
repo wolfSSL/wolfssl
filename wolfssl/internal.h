@@ -4266,6 +4266,7 @@ struct WOLFSSL_CTX {
     byte        quietShutdown:1;  /* don't send close notify */
     byte        groupMessages:1;  /* group handshake messages before sending */
     byte        minDowngrade;     /* minimum downgrade version */
+    byte        minVersionSet:1;  /* minimum set by the user, not the default */
     byte        haveEMS:1;        /* have extended master secret extension */
     byte        useClientOrder:1; /* Use client's cipher preference order */
 #if defined(HAVE_SESSION_TICKET)
@@ -5704,6 +5705,8 @@ struct Options {
     byte            handShakeState;
     byte            handShakeDone;      /* at least one handshake complete */
     byte            minDowngrade;       /* minimum downgrade version */
+    byte            maxVersionMinor;    /* maximum set by SetVersion. Version
+                                         * negotiation does not change it. */
     byte            connectState;       /* nonblocking resume */
     byte            acceptState;        /* nonblocking resume */
     byte            asyncState;         /* sub-state for enum asyncState */

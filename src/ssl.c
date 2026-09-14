@@ -614,6 +614,10 @@ WOLFSSL_CTX* wolfSSL_CTX_new_ex(WOLFSSL_METHOD* method, void* heap)
             wolfSSL_CTX_free(ctx);
             ctx = NULL;
         }
+        else {
+            /* a default, not a minimum the user asked for */
+            ctx->minVersionSet = 0;
+        }
     }
 #endif
 
@@ -2198,6 +2202,8 @@ static int SetMinVersionHelper(byte* minVersion, int version)
 WOLFSSL_ABI
 int wolfSSL_CTX_SetMinVersion(WOLFSSL_CTX* ctx, int version)
 {
+    int ret;
+
     WOLFSSL_ENTER("wolfSSL_CTX_SetMinVersion");
 
     if (ctx == NULL) {
@@ -2211,7 +2217,11 @@ int wolfSSL_CTX_SetMinVersion(WOLFSSL_CTX* ctx, int version)
     }
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 
-    return SetMinVersionHelper(&ctx->minDowngrade, version);
+    ret = SetMinVersionHelper(&ctx->minDowngrade, version);
+    if (ret == WOLFSSL_SUCCESS)
+        ctx->minVersionSet = 1;
+
+    return ret;
 }
 
 
@@ -2281,45 +2291,6 @@ int wolfSSL_GetVersion(const WOLFSSL* ssl)
     return VERSION_ERROR;
 }
 
-/* Record the version set as the maximum in the option mask so that the checks
- * reading the mask agree with it. ssl->version alone will not do: version
- * negotiation overwrites it with the version agreed with the peer. */
-static void SetVersionMaxMask(WOLFSSL* ssl, int version)
-{
-    unsigned long above = 0;
-    unsigned long self;
-
-    switch (version) {
-        case WOLFSSL_TLSV1_3:
-            self = WOLFSSL_OP_NO_TLSv1_3;
-            break;
-        case WOLFSSL_TLSV1_2:
-            self = WOLFSSL_OP_NO_TLSv1_2;
-            above = WOLFSSL_OP_NO_TLSv1_3;
-            break;
-        case WOLFSSL_TLSV1_1:
-            self = WOLFSSL_OP_NO_TLSv1_1;
-            above = WOLFSSL_OP_NO_TLSv1_3 | WOLFSSL_OP_NO_TLSv1_2;
-            break;
-        case WOLFSSL_TLSV1:
-            self = WOLFSSL_OP_NO_TLSv1;
-            above = WOLFSSL_OP_NO_TLSv1_3 | WOLFSSL_OP_NO_TLSv1_2 |
-                    WOLFSSL_OP_NO_TLSv1_1;
-            break;
-        case WOLFSSL_SSLV3:
-            self = WOLFSSL_OP_NO_SSLv3;
-            above = WOLFSSL_OP_NO_TLSv1_3 | WOLFSSL_OP_NO_TLSv1_2 |
-                    WOLFSSL_OP_NO_TLSv1_1 | WOLFSSL_OP_NO_TLSv1;
-            break;
-        default:
-            return;
-    }
-
-    /* the version asked for is allowed, everything above it is not */
-    ssl->options.mask |= above;
-    ssl->options.mask &= ~self;
-}
-
 int wolfSSL_SetVersion(WOLFSSL* ssl, int version)
 {
     word16 haveRSA = 1;
@@ -2371,7 +2342,7 @@ int wolfSSL_SetVersion(WOLFSSL* ssl, int version)
     }
 
     ssl->options.versionSet = 1;
-    SetVersionMaxMask(ssl, version);
+    ssl->options.maxVersionMinor = ssl->version.minor;
 
     #ifdef NO_RSA
         haveRSA = 0;
@@ -5144,6 +5115,9 @@ int wolfSSL_CTX_set_min_proto_version(WOLFSSL_CTX* ctx, int version)
     }
 
     ret = Set_CTX_min_proto_version(ctx, proto);
+    if (ret == WOLFSSL_SUCCESS)
+        ctx->minVersionSet = 1;
+
     return ret;
 }
 
@@ -5281,6 +5255,7 @@ int wolfSSL_CTX_set_max_proto_version(WOLFSSL_CTX* ctx, int version)
     int i;
     int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     int minProto;
+    byte minVersionSet;
 
     WOLFSSL_ENTER("wolfSSL_CTX_set_max_proto_version");
 
@@ -5293,7 +5268,9 @@ int wolfSSL_CTX_set_max_proto_version(WOLFSSL_CTX* ctx, int version)
     wolfSSL_CTX_clear_options(ctx,
             WOLFSSL_OP_NO_TLSv1 | WOLFSSL_OP_NO_TLSv1_1 |
             WOLFSSL_OP_NO_TLSv1_2 | WOLFSSL_OP_NO_TLSv1_3);
+    minVersionSet = ctx->minVersionSet;
     wolfSSL_CTX_set_min_proto_version(ctx, minProto);
+    ctx->minVersionSet = minVersionSet; /* restoring, not setting, a minimum */
     if (version != 0) {
         ctx->maxProto = 0; /* turn max proto flag off */
         return Set_CTX_max_proto_version(ctx, version);
@@ -5408,15 +5385,19 @@ int wolfSSL_set_min_proto_version(WOLFSSL* ssl, int version)
         return WOLFSSL_FAILURE;
     }
     if (version != 0) {
-        return Set_SSL_min_proto_version(ssl, version);
+        ret = Set_SSL_min_proto_version(ssl, version);
+    }
+    else {
+        /* when 0 is specified as version, try to find out the min version */
+        for (i= 0; (unsigned)i < NUMBER_OF_PROTOCOLS; i++) {
+            ret = Set_SSL_min_proto_version(ssl, protoVerTbl[i]);
+            if (ret == WOLFSSL_SUCCESS)
+                break;
+        }
     }
 
-    /* when 0 is specified as version, try to find out the min version */
-    for (i= 0; (unsigned)i < NUMBER_OF_PROTOCOLS; i++) {
-        ret = Set_SSL_min_proto_version(ssl, protoVerTbl[i]);
-        if (ret == WOLFSSL_SUCCESS)
-            break;
-    }
+    if (ret == WOLFSSL_SUCCESS)
+        ssl->options.minVersionSet = 1;
 
     return ret;
 }
