@@ -1329,9 +1329,7 @@ int wolfSSL_BIO_supports_pending(const WOLFSSL_BIO *bio)
 /* Return the number of pending bytes in read and write buffers */
 size_t wolfSSL_BIO_ctrl_pending(WOLFSSL_BIO *bio)
 {
-#ifdef WOLFSSL_DEBUG_OPENSSL
-    WOLFSSL_ENTER("wolfSSL_BIO_ctrl_pending");
-#endif
+    WOLFSSL_ENTER_VERBOSE("wolfSSL_BIO_ctrl_pending");
 
     for (; bio != NULL; bio = bio->next) {
         if (bio->method != NULL && bio->method->ctrlCb != NULL) {
@@ -2352,9 +2350,7 @@ int wolfSSL_BIO_get_mem_data(WOLFSSL_BIO* bio, void* p)
 {
     WOLFSSL_BIO* mem_bio;
 
-#ifdef WOLFSSL_DEBUG_OPENSSL
-    WOLFSSL_ENTER("wolfSSL_BIO_get_mem_data");
-#endif
+    WOLFSSL_ENTER_VERBOSE("wolfSSL_BIO_get_mem_data");
 
     if (bio == NULL)
         return WOLFSSL_FATAL_ERROR;

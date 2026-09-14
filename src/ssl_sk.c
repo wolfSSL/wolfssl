@@ -55,7 +55,7 @@ WOLFSSL_STACK* wolfSSL_sk_new_node(void* heap)
 {
     WOLFSSL_STACK* node;
 
-    WOLFSSL_ENTER("wolfSSL_sk_new_node");
+    WOLFSSL_ENTER_VERBOSE("wolfSSL_sk_new_node");
 
     node = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK), heap,
         DYNAMIC_TYPE_OPENSSL);
@@ -596,7 +596,7 @@ WOLFSSL_STACK* wolfSSL_shallow_sk_dup(WOLFSSL_STACK* stack)
  */
 void wolfSSL_sk_free(WOLFSSL_STACK* stack)
 {
-    WOLFSSL_ENTER("wolfSSL_sk_free");
+    WOLFSSL_ENTER_VERBOSE("wolfSSL_sk_free");
 
     while (stack != NULL) {
         WOLFSSL_STACK* next = stack->next;
@@ -702,7 +702,7 @@ void* wolfSSL_sk_value(const WOLFSSL_STACK* sk, int i)
  */
 int wolfSSL_sk_push(WOLFSSL_STACK* stack, const void *data)
 {
-    WOLFSSL_ENTER("wolfSSL_sk_push");
+    WOLFSSL_ENTER_VERBOSE("wolfSSL_sk_push");
 
     return wolfSSL_sk_insert(stack, data, -1);
 }
@@ -719,7 +719,7 @@ int wolfSSL_sk_insert(WOLFSSL_STACK *stack, const void *data, int idx)
 {
     int ret;
     WOLFSSL_STACK* node;
-    WOLFSSL_ENTER("wolfSSL_sk_insert");
+    WOLFSSL_ENTER_VERBOSE("wolfSSL_sk_insert");
 
     /* Validate parameters. */
     if (stack == NULL) {
