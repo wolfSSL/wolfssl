@@ -16825,6 +16825,31 @@ PRAGMA_GCC_DIAG_POP
     /* get certificate buffer */
     cert = &args->certs[args->certIdx];
 
+#if defined(HAVE_RPK)
+    /* The certificate type negotiated with the peer: the received server cert
+     * type (client) or the selected client cert type (server). When no type
+     * was negotiated the default is X.509 (RFC 7250/8446). */
+    cType = WOLFSSL_CERT_TYPE_X509;
+    if (ssl->options.side == WOLFSSL_CLIENT_END) {
+        if (ssl->options.rpkState.received_ServerCertTypeCnt == 1)
+            cType = ssl->options.rpkState.received_ServerCertTypes[0];
+    }
+    else if (ssl->options.side == WOLFSSL_SERVER_END) {
+        if (ssl->options.rpkState.sending_ClientCertTypeCnt == 1)
+            cType = ssl->options.rpkState.sending_ClientCertTypes[0];
+    }
+
+    /* A raw public key (RFC 7250) has no chain, so ParseCertRelative() rejects
+     * it under any verifying mode: it cannot be verified against the
+     * CertManager. When RPK was negotiated for this peer, parse the leaf
+     * without chain verification; it is authenticated out of band by
+     * RpkIsTrusted() in ProcessPeerCerts(). An X.509 certificate sent in its
+     * place is still rejected by the type check below. */
+    if (cType == WOLFSSL_CERT_TYPE_RPK && certType == CERT_TYPE) {
+        verify = NO_VERIFY;
+    }
+#endif /* HAVE_RPK */
+
 #ifdef WOLFSSL_SMALL_CERT_VERIFY
     if (verify == VERIFY) {
         /* for small cert verify, release decoded cert during signature check to
@@ -16890,29 +16915,15 @@ PRAGMA_GCC_DIAG_POP
 
 #if defined(HAVE_RPK)
     /* Confirm the received certificate's form (X.509 vs raw public key) matches
-     * the type negotiated with the peer. A raw public key (RFC 7250) has no
-     * chain, so ParseCertRelative() accepts it without any trust verification;
-     * it must only be accepted when RPK was negotiated for this peer. When no
-     * type was negotiated the default is X.509 (RFC 7250/8446), so an
-     * un-negotiated bare key is rejected. The negotiated type is the received
-     * server cert type (client) or the selected client cert type (server). */
-    if (ret == 0) {
-        cType = WOLFSSL_CERT_TYPE_X509;
-        if (ssl->options.side == WOLFSSL_CLIENT_END) {
-            if (ssl->options.rpkState.received_ServerCertTypeCnt == 1)
-                cType = ssl->options.rpkState.received_ServerCertTypes[0];
-        }
-        else if (ssl->options.side == WOLFSSL_SERVER_END) {
-            if (ssl->options.rpkState.sending_ClientCertTypeCnt == 1)
-                cType = ssl->options.rpkState.sending_ClientCertTypes[0];
-        }
-
-        if ((cType == WOLFSSL_CERT_TYPE_RPK && !args->dCert->isRPK) ||
-            (cType != WOLFSSL_CERT_TYPE_RPK && args->dCert->isRPK)) {
-            /* cert type mismatch - includes an un-negotiated raw public key */
-            WOLFSSL_MSG("unsupported certificate type received");
-            ret = UNSUPPORTED_CERTIFICATE;
-        }
+     * the type negotiated with the peer. An un-negotiated bare key is reported
+     * as a type mismatch even though ParseCertRelative() already rejected it
+     * under a verifying mode (no signer), so that a verify callback accepting
+     * X.509 issuer-lookup errors cannot accept it. */
+    if ((cType == WOLFSSL_CERT_TYPE_RPK && ret == 0 && !args->dCert->isRPK) ||
+        (cType != WOLFSSL_CERT_TYPE_RPK && args->dCert->isRPK)) {
+        /* cert type mismatch - includes an un-negotiated raw public key */
+        WOLFSSL_MSG("unsupported certificate type received");
+        ret = UNSUPPORTED_CERTIFICATE;
     }
 #endif /* HAVE_RPK */
 
@@ -16931,15 +16942,9 @@ PRAGMA_GCC_DIAG_POP
     }
 
 #ifdef WOLFSSL_SMALL_CERT_VERIFY
-    /* get signature check failures from above; an RFC 7250 raw public key has
-     * no cert signature, so exempt it - but only for the leaf (CERT_TYPE),
-     * which is the only entry the RPK trust check runs on. A bare key sent as
-     * any other list entry keeps failing here. */
-    if (ret == 0
-    #if defined(HAVE_RPK)
-          && !(args->dCert->isRPK && certType == CERT_TYPE)
-    #endif
-        ) {
+    /* get signature check failures from above (a negotiated RPK leaf is parsed
+     * with NO_VERIFY, so no signature check was run for it) */
+    if (ret == 0) {
         ret = sigRet;
     }
 #endif
