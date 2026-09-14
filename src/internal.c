@@ -18317,6 +18317,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     ret = DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
                     if (ret == 0 && preCbRet != 0)
                         caIsTemp = 1;
+                    if (ret == 0 && args->dCert->ca != NULL &&
+                            args->dCert->ca->type == WOLFSSL_TEMP_CA)
+                        caIsTemp = 1;
                     if (ssl->options.verifyNone &&
                               (ret == WC_NO_ERR_TRACE(CRL_MISSING) ||
                                ret == WC_NO_ERR_TRACE(CRL_CERT_REVOKED) ||
