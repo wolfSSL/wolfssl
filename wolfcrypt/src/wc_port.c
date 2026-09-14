@@ -5752,13 +5752,24 @@ char* wolfSSL_strnstr(const char* s1, const char* s2, size_t n)
     #define SOCK_CLOEXEC 0
 #endif
 
-/* accept4(): glibc 2.10, uClibc-ng, bionic API 21, FreeBSD 10. */
-#if (defined(__linux__) || defined(__ANDROID__)) && defined(__USE_GNU) && \
-    ((defined(__GLIBC__) && \
-      (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 10))) || \
-     (defined(__UCLIBC_LINUX_SPECIFIC__) && (__UCLIBC_MAJOR__ >= 1)) || \
-     (defined(__ANDROID_API__) && (__ANDROID_API__ >= 21)))
-    #define WC_HAVE_ACCEPT4
+/* accept4(): the configure/CMake probe (HAVE_ACCEPT4) decides when config.h
+ * is in use; otherwise glibc 2.10, uClibc-ng, bionic API 21, and musl, which
+ * has no identifying macro (Linux that is neither glibc, uClibc nor bionic).
+ * FreeBSD 10. */
+#if defined(__linux__) || defined(__ANDROID__)
+    #ifdef HAVE_CONFIG_H
+        #ifdef HAVE_ACCEPT4
+            #define WC_HAVE_ACCEPT4
+        #endif
+    #elif (defined(__USE_GNU) && \
+           ((defined(__GLIBC__) && \
+             (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 10))) || \
+            (defined(__UCLIBC_LINUX_SPECIFIC__) && (__UCLIBC_MAJOR__ >= 1)) || \
+            (defined(__ANDROID_API__) && (__ANDROID_API__ >= 21)))) || \
+          (!defined(__GLIBC__) && !defined(__UCLIBC__) && \
+           !defined(__ANDROID__))
+        #define WC_HAVE_ACCEPT4
+    #endif
 #elif defined(__FreeBSD__) && defined(__BSD_VISIBLE) && __BSD_VISIBLE && \
     (__FreeBSD_version >= 1000000)
     #define WC_HAVE_ACCEPT4
