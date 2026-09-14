@@ -24,6 +24,7 @@
 
 int test_utils_memio_move_message(void);
 int test_tls12_unexpected_ccs(void);
+int test_tls12_early_server_ccs(void);
 int test_tls13_unexpected_ccs(void);
 int test_tls_record_overflow_alert(void);
 int test_tls12_curve_intersection(void);
@@ -70,6 +71,7 @@ int test_wolfSSL_get_shared_ciphers(void);
 #define TEST_TLS_DECLS                                                         \
         TEST_DECL_GROUP("tls", test_utils_memio_move_message),                 \
         TEST_DECL_GROUP("tls", test_tls12_unexpected_ccs),                     \
+        TEST_DECL_GROUP("tls", test_tls12_early_server_ccs),                   \
         TEST_DECL_GROUP("tls", test_tls13_unexpected_ccs),                     \
         TEST_DECL_GROUP("tls", test_tls_record_overflow_alert),                \
         TEST_DECL_GROUP("tls", test_tls12_curve_intersection),                 \

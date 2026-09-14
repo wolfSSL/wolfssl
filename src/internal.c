@@ -20324,6 +20324,14 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
                         WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
                         return OUT_OF_ORDER_E;
                    }
+                   /* Until ChangeCipherSpec is sent from server, the master
+                    * secret/keys have not been derived.  CCS is not sent until
+                    * after CKE. Avoid using non-derived/all-zero keys. */
+                   if (ssl->options.clientState < CLIENT_KEYEXCHANGE_COMPLETE) {
+                        WOLFSSL_MSG("No ClientKeyExchange before ChangeCipher");
+                        WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
+                        return OUT_OF_ORDER_E;
+                   }
                 }
             #ifdef HAVE_SESSION_TICKET
                 if (ssl->expect_session_ticket) {
