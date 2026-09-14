@@ -40382,15 +40382,46 @@ static int test_sniffer_chain_input_overflow(void)
 #define SNIFFER_IP_HDR_SZ   20
 #define SNIFFER_TCP_HDR_SZ  20
 
-/* Minimal IPv4/TCP packet, 10.0.0.9:50000 -> 127.0.0.1:443, with a filler
- * payload. Allocated at exactly the captured length so that a read past the
- * end of the frame faults under a sanitizer. */
-static byte* sniffer_tcp_packet(word32 seq, byte tcpFlags, int payloadSz,
-                                int* pktSz)
+/* A complete 100 byte TLS 1.2 ClientHello. The segments below carry slices of
+ * it, so the reassembled stream only parses if every slice is taken from the
+ * right offset and truncated to the right length. */
+static const byte sniffer_client_hello[] = {
+    /* record: handshake, 95 bytes */
+    0x16, 0x03, 0x01, 0x00, 0x5f,
+    /* handshake: client_hello, 91 bytes */
+    0x01, 0x00, 0x00, 0x5b,
+    /* client_version: TLS 1.2 */
+    0x03, 0x03,
+    /* random */
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+    0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+    0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+    /* session_id: empty */
+    0x00,
+    /* cipher_suites: TLS_RSA_WITH_AES_128_CBC_SHA */
+    0x00, 0x02, 0x00, 0x2f,
+    /* compression_methods: null */
+    0x01, 0x00,
+    /* extensions: one 44 byte padding extension */
+    0x00, 0x30,
+    0x00, 0x15, 0x00, 0x2c,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00
+};
+
+/* Minimal IPv4/TCP packet, 10.0.0.9:50000 -> 127.0.0.1:443, carrying payload.
+ * Allocated at exactly the captured length so that a read past the end of the
+ * frame faults under a sanitizer. */
+static byte* sniffer_tcp_packet(word32 seq, byte tcpFlags, const byte* payload,
+                                int payloadSz, int* pktSz)
 {
     int   total = SNIFFER_IP_HDR_SZ + SNIFFER_TCP_HDR_SZ + payloadSz;
     byte* p     = (byte*)XMALLOC((size_t)total, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    int   i;
 
     if (p == NULL)
         return NULL;
@@ -40412,8 +40443,10 @@ static byte* sniffer_tcp_packet(word32 seq, byte tcpFlags, int payloadSz,
     p[33] = tcpFlags;
     p[34] = 0xFF;                       /* window */
 
-    for (i = 0; i < payloadSz; i++)
-        p[SNIFFER_IP_HDR_SZ + SNIFFER_TCP_HDR_SZ + i] = (byte)(0xE0 + (i & 0xF));
+    if (payloadSz > 0) {
+        XMEMCPY(p + SNIFFER_IP_HDR_SZ + SNIFFER_TCP_HDR_SZ, payload,
+                (size_t)payloadSz);
+    }
 
     *pktSz = total;
     return p;
@@ -40428,19 +40461,22 @@ static int test_sniffer_reassembly_overlap(void)
     static const struct {
         word32 seq;
         byte   flags;
+        int    off;         /* slice of sniffer_client_hello carried */
         int    payloadSz;
     } segs[] = {
-        {  999, 0x02,  0 },  /* SYN, relative sequence starts at 1000 */
-        { 1004, 0x18, 64 },  /* out of order, held as [4, 67]         */
-        { 1000, 0x18, 72 },  /* in order, runs from 0 past 67         */
+        {  999, 0x02,  0,  0 }, /* SYN, relative sequence starts at 1000  */
+        { 1004, 0x18,  4, 64 }, /* out of order, held as [4, 67]          */
+        { 1000, 0x18,  0, 72 }, /* in order, overlaps it and runs past    */
+        { 1073, 0x18, 73, 27 }, /* out of order by one, so it stays held  */
     };
 #if defined(WOLFSSL_SESSION_STATS) && !defined(NO_SESSION_CACHE)
     /* Bytes left on the reassembly list after each segment. The out of order
-     * segment is held whole (64); the overlapping one makes the stream
-     * contiguous again, so the list drains. The middle value is what pins the
-     * segments as having reached AddToReassembly()/TrimAgainstReassembly()
-     * rather than being dropped at the header or session check. */
-    static const unsigned int expReassembly[] = { 0, 64, 0 };
+     * segment is held whole (64) and the overlapping one makes the stream
+     * contiguous again, so the list drains. The last segment starts one byte
+     * beyond where the overlapping one ended, so it has to stay held: if the
+     * overlap contributed one byte too many it would instead be contiguous
+     * and drain to 0. */
+    static const unsigned int expReassembly[] = { 0, 64, 0, 27 };
     unsigned int active = 0, total = 0, peak = 0, maxSessions = 0;
     unsigned int missedData = 0, reassemblyMem = 0;
 #endif
@@ -40456,13 +40492,18 @@ static int test_sniffer_reassembly_overlap(void)
         WOLFSSL_FILETYPE_PEM, NULL, error), 0);
 
     for (i = 0; i < (int)XELEM_CNT(segs); i++) {
-        pkt = sniffer_tcp_packet(segs[i].seq, segs[i].flags, segs[i].payloadSz,
-                                 &pktSz);
+        pkt = sniffer_tcp_packet(segs[i].seq, segs[i].flags,
+                                 sniffer_client_hello + segs[i].off,
+                                 segs[i].payloadSz, &pktSz);
         ExpectNotNull(pkt);
         if (pkt != NULL) {
             XMEMSET(error, 0, sizeof(error));
-            /* No application data is recovered, so each segment returns 0. */
+            /* No application data is recovered, so each segment returns 0.
+             * The record header only parses if the overlapping segment was
+             * sourced from the right offset; the queue sizes below pin the
+             * length it contributed. */
             ExpectIntEQ(ssl_DecodePacket(pkt, pktSz, &data, error), 0);
+            ExpectStrEQ(error, "");
             XFREE(pkt, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
 #if defined(WOLFSSL_SESSION_STATS) && !defined(NO_SESSION_CACHE)
