@@ -2267,6 +2267,13 @@ int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz);
     input, parses the private key, and uses it to generate an ecc_key object,
     which it stores in key.
 
+    When the encoding carries only the private scalar, the public point is
+    derived on a best-effort basis, changing key->type to ECC_PRIVATEKEY and
+    populating key->pubkey. This costs an additional scalar multiply, which is
+    blinded if an RNG was set via wc_ecc_set_rng(). Derivation is skipped if
+    a devId is set, and can be disabled completely by defining
+    WOLFSSL_NO_ECC_DERIVE_PUB_ON_DECODE.
+
     \return 0 On successfully decoding the private key and storing the result
     in the ecc_key struct
     \return ASN_PARSE_E: Returned if there is an error parsing the der file
