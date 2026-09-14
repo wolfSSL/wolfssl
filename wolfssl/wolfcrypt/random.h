@@ -93,9 +93,9 @@
     !defined(WC_RNG_NO_POOL)
     #define WC_RNG_HAVE_POOL
     #ifdef WOLFSSL_NO_ATOMICS
-        typedef word32 WC_RNG_pool_state_t;
+        typedef word32 WC_RNG_pool_pos_t;
     #else
-        typedef wolfSSL_Atomic_Uint WC_RNG_pool_state_t;
+        typedef wolfSSL_Atomic_Uint WC_RNG_pool_pos_t;
     #endif
 #else
     #undef WC_RNG_HAVE_POOL
@@ -512,7 +512,8 @@ struct WC_RNG {
 #ifdef WC_RNG_HAVE_POOL
     byte* pool;
     word16 poolSize;
-    WC_RNG_pool_state_t poolState;
+    WC_RNG_pool_pos_t poolHead; /* written by writer/purger only, CAS */
+    WC_RNG_pool_pos_t poolTail; /* written by reader only, plain. */
     #ifdef WC_RNG_DEBUG_STATS
         wc_rng_debug_counter_t _stats_pool_bytes_produced;
         wc_rng_debug_counter_t _stats_pool_bytes_missed;

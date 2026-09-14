@@ -365,6 +365,10 @@ int wc_RNG_DRBG_Present(const WC_RNG* rng)
     return 0;
 }
 
+#ifdef WC_RNG_HAVE_POOL
+static void PoolPurge(WC_RNG* rng);
+#endif
+
 /* Start NIST DRBG code */
 #ifdef HAVE_HASHDRBG
 
@@ -889,12 +893,24 @@ static int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz,
     }
 #endif /* WC_RNG_HAVE_LOCK */
 
-#if defined(WC_RNG_HAVE_LOCK) && defined(WC_RNG_HAVE_POOL)
-    /* Purge the pool on credited reseeds.  A credited reseed is an epoch
-     * boundary -- the pool must not serve output of a retired state
-     * (particularly pre-invalidation state). */
-    WOLFSSL_ATOMIC_STORE(rng->poolState, 0);
-#endif /* WC_RNG_HAVE_LOCK && WC_RNG_HAVE_POOL */
+#ifdef WC_RNG_HAVE_POOL
+    /* Purge the pool when recovering from invalidation, or if reseeding without
+     * locks (i.e. without an internal mechanism for tracking invalidation).
+     *
+     * The reseed counter tracks generates since the last reseed, and every
+     * pooled byte is itself a generate that incremented it. So the pool's
+     * contents are within the budget the counter enforces -- indeed they were
+     * authorized by the same accounting that later demanded the
+     * reseed. Discarding them treats output as retroactively over-budget when
+     * it was under-budget when produced.
+     */
+    #ifdef WC_RNG_HAVE_LOCK
+    if (cur_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED)
+    #endif
+    {
+        PoolPurge(rng);
+    }
+#endif /* WC_RNG_HAVE_POOL */
 
 #ifndef NO_SHA256
     if (rng->drbgType == WC_DRBG_SHA256) {
@@ -3140,7 +3156,7 @@ static int rng_pid_change_check(WC_RNG* rng) {
 #endif
 
 #ifdef WC_RNG_HAVE_POOL
-    WOLFSSL_ATOMIC_STORE(rng->poolState, 0);
+    PoolPurge(rng);
 #endif
 #ifdef WC_RNG_HAVE_NEXT_SEED
     #ifndef NO_SHA256
@@ -3531,7 +3547,7 @@ WOLFSSL_API int wc_RNG_invalidate_entropy(WC_RNG* rng) {
     if (! (cur_lock & WC_RNG_LOCK_HELD))
         (void)wc_RNG_DRBG_ScheduleReseed(rng);
 #ifdef WC_RNG_HAVE_POOL
-    WOLFSSL_ATOMIC_STORE(rng->poolState, 0);
+    PoolPurge(rng);
 #endif
 #ifdef WC_RNG_HAVE_NEXT_SEED
 #ifndef NO_SHA256
@@ -3572,79 +3588,153 @@ WOLFSSL_API int wc_RNG_register_free_hook(WC_RNG* rng,
 #endif /* WC_RNG_HAVE_FREE_HOOK */
 
 #ifdef WC_RNG_HAVE_POOL
-    /* In-boundary asynchronous DRBG output pool.  _Alloc() sizes the ring
-     * (2..65535 bytes; a second allocation is ALREADY_E).  _Collect() tops it
-     * up from rng's own DRBG; _Collect2() tops dest's ring up from an
-     * independent src instance, generating directly into the free span
-     * and publishing with a single CAS -- callable WITHOUT any lease on
-     * dest (contending writers regenerate on CAS failure; the final write
-     * of every published byte is certified DRBG output).  _Extract()
-     * (lease-holder only) delivers up to *n bytes destructively, burning
-     * each byte on the way out, and fails closed (burning the ring) on an
-     * out-of-service DRBG; *n = 0 on empty, for fall-through to a direct
-     * generate.  _Current() reports the published count (racy snapshot).
-     * No free API: the ring lives until wc_FreeRng(), eliminating
-     * deallocation races by construction. */
 
-    /* In-boundary DRBG output pool (wc_RNG_Pool_*()): a circular buffer of
-     * pre-generated output, held and zeroized under the module's CSP
-     * discipline and consumed destructively (each delivered or discarded
-     * byte is burned).  No internal synchronization: all pool operations
-     * require exclusive ownership of the instance (an rng_bank lease, or
-     * an intrinsically uncontended object). */
+    /* In-boundary asynchronous DRBG output pool (wc_RNG_Pool_*()): a circular
+     * buffer of pre-generated output, held and zeroized under the module's CSP
+     * discipline and consumed destructively (each delivered or discarded byte
+     * is burned).
+     *
+     * Writer state coherence is enforced with a CAS; reader exclusivity is
+     * enforced by the umbrella WC_RNG.lock, or absent that, by caller contract.
+     *
+     * The reader is lock-free -- two plain loads of {head, epoch} bracketing
+     * the copy, then a plain store of {tail, epoch} exclusively written by the
+     * reader.  The writer CASes its publication, carrying the epoch it read; a
+     * purge during its generate results in an epoch mismatch, whereupon BUSY_E
+     * is returned to the caller.
+     *
+     * _Alloc() sizes the ring (2..32767 bytes), with positions running in [0,
+     * 2*size) and packing into 16 bits.  _Collect() tops up the pool from rng's
+     * own DRBG; _Collect2() tops dest's ring up from an independent src
+     * instance, generating directly into the free span and publishing with a
+     * single CAS -- callable WITHOUT any lease on dest (contending writers
+     * return BUSY_E on CAS failure; the final write of every published byte is
+     * certified DRBG output).  _Extract() (lease-holder only) delivers up to *n
+     * bytes destructively, burning each byte on the way out, and fails closed
+     * on an out-of-service DRBG; *n = 0 on empty, for fall-through to a direct
+     * generate.  _Current() reports the published count (racy snapshot).  No
+     * special free API: the ring lives until wc_FreeRng(), eliminating
+     * deallocation races by construction.
+     *
+     * Two words track FIFO state:
+     *
+     *   poolHead = {head, epoch}   written by the writer (publish, CAS) and by
+     *                               PoolPurge() (epoch bump, CAS)
+     *   poolTail = {tail, epoch}   written by the reader alone, plain store
+     *
+     * Position and epoch share one word, so the pairs are always mutually
+     * consistent -- there is no torn snapshot to reason about.
+     *
+     * head and tail are free-running positions in [0, 2*poolSize), advanced by
+     * conditional subtraction -- no division, and no modulus constraint on
+     * poolSize.  The writer publishes only into free space, so head can never
+     * pass tail + poolSize and the two can never lap.
+     *
+     * wc_RNG_lock_put{,_conditional}() return NEEDS_RECOVERY_E to the reader if
+     * an invalidation occurred after lock but before release (contingent on
+     * WC_RNG_HAVE_LOCK).  State coherence for the lock-free writers and purgers
+     * hinges on the CAS and epoch counter protocol in PoolPurge() and
+     * wc_RNG_Pool_Collect2().
+     *
+     * The reader never writes poolHead and never CASes anything, leveraging
+     * exclusivity enforced by WC_RNG.lock or arranged by caller contract.  It
+     * brackets its copy with leading and trailing loads of poolHead and
+     * compares the epoch: a purge that landed anywhere in between is caught,
+     * providing for early, pre-unlock failure upon invalidation.  The epoch is
+     * 16 bits, so defeating this early failure requires exactly k * 65536
+     * purges (k a positive integer) inside one copy-and-burn of at most
+     * poolSize bytes (implausible).
+     *
+     * PoolPurge() bumps epoch and touches nothing else.  It does not reset the
+     * counters: leaving them monotonic keeps the reader's burn span [tail,
+     * tail+m) and the writer's generate span [head, head+m') disjoint across the
+     * event, so a purge can never cause one to erase the other's bytes.  Stale
+     * pre-purge material is discarded by the reader instead, which resynchronizes
+     * tail to head on any epoch change -- whether it observed the purge mid-serve
+     * or merely arrives afterwards.
+     *
+     * The writer still CASes, and its publication carries the epoch it read.  A
+     * purge during its generate makes that CAS fail, and it abandons rather
+     * than publishing material that predates the event.  This protocol is
+     * airtight in the same sense as the credited next-seed aperture
+     * (NextSeedPurge()): no invalidation can go unobserved by either side.
+     *
+     * If multiple writers simultaneously write to the pool, their inputs are
+     * unpredictably but benignly interspersed, with one of the writers
+     * successfully finalizing its write with a CAS, while the rest fail their
+     * CAS and return BUSY_E.  Because all writers are tested for provenance
+     * compatible with that of the destination RNG (particularly, by the stratum
+     * test in wc_RNG_Pool_Collect2()), this interspersal is intrinsically
+     * benign.  It can be trivially avoided by single-writer caller contract;
+     * the fundamental benefit of this arrangement is the avoidance of an
+     * initial frivolous CAS at entry to _Collect2().
+     */
 
-    /* Asynchronous pool aperture: the low half of poolState is the
-     * published byte count, the high half the read offset, packed in one
-     * atomic word so reader updates are single release stores and writer
-     * publications are single CASes -- no torn {current,offset} snapshot
-     * is observable.  Sole reader = the instance lease holder; writers
-     * (e.g. the entropy daemon via wc_RNG_Pool_Collect2()) never hold the
-     * instance. */
+#define WC_RNG_POOL_POS(w)   ((word32)((word32)(w) & 0xFFFFU))
+#define WC_RNG_POOL_EPOCH(w) ((word32)(((word32)(w) >> 16) & 0xFFFFU))
+#define WC_RNG_POOL_PACK(pos, epoch)                                     \
+    ((WC_ATOMIC_UINT_ARG)((((word32)(pos)) & 0xFFFFU) |                  \
+                          ((((word32)(epoch)) & 0xFFFFU) << 16)))
 
-/* Asynchronous in-boundary DRBG output pool.  See random.h for the
- * aperture encoding.  Protocol: the sole reader (instance lease holder)
- * loads a snapshot, copies out, ForceZero()s the consumed span, then
- * release-stores {current - m, offset + m}; writers load a snapshot,
- * generate certified output directly into the unpublished span, and
- * publish with one CAS of the whole word -- on CAS failure the written
- * material is burned and regenerated fresh (never reused: no DRBG output
- * may be deliverable twice).  A reader store may overwrite a concurrent
- * writer's publication; the loss is unidirectionally conservative (the
- * count only ever drops), so no reader can claim unpublished bytes, and
- * the clobbered bytes are benign unaccounted content awaiting
- * overwrite. */
+wc_static_assert(sizeof(WC_ATOMIC_UINT_ARG) >= 4);
 
-typedef union {
-    WC_ATOMIC_UINT_ARG state;
-    struct {
-        word16 current;
-        word16 offset;
-    } pool;
-} wc_rng_pool_state_u;
+/* position -> ring index.  Positions run in [0, 2*poolSize). */
+static WC_INLINE word32 PoolAt(word32 pos, word32 poolSize)
+{
+    return (pos >= poolSize) ? (pos - poolSize) : pos;
+}
+
+/* advance a position, wrapping at 2*poolSize. */
+static WC_INLINE word32 PoolAdvance(word32 pos, word32 by, word32 poolSize)
+{
+    word32 lim = poolSize * 2U;
+    pos += by;
+    return (pos >= lim) ? (pos - lim) : pos;
+}
+
+static WC_INLINE word32 PoolUsed(word32 head, word32 tail, word32 poolSize)
+{
+    /* Note, the modular subtraction is unambiguous because the only publisher
+     * (wc_RNG_Pool_Collect2()) carefully bounds itself to the free span, so
+     * head never passes tail + poolSize. */
+    return (head >= tail) ? (head - tail) : (head + (poolSize * 2U) - tail);
+}
+
+/* Retire pooled output: any event after which pre-event bytes must not be
+ * served -- state invalidation, fork, a credited reseed, the reader's
+ * fail-closed path.  Bumping epoch is the whole operation; see above for why
+ * the counters are deliberately left alone. */
+static void PoolPurge(WC_RNG* rng)
+{
+    WC_ATOMIC_UINT_ARG cur = WOLFSSL_ATOMIC_LOAD(rng->poolHead);
+    for (;;) {
+        WC_ATOMIC_UINT_ARG want =
+            WC_RNG_POOL_PACK(WC_RNG_POOL_POS(cur), WC_RNG_POOL_EPOCH(cur) + 1U);
+        if (wolfSSL_Atomic_Uint_CompareExchange(&rng->poolHead, &cur, want))
+            return;
+        /* cur was reloaded by the failed exchange; re-evaluate. */
+    }
+}
 
 int wc_RNG_Pool_Alloc(WC_RNG* rng, word32 size)
 {
-    if ((rng == NULL) || (size < 2) || (size > 65535U))
+    if ((rng == NULL) || (size < 2) || (size > 32767U))
         return BAD_FUNC_ARG; /* halves are word16; current in [0, size] */
-    if (rng->pool != NULL) {
-        /* the requested condition already holds -- distinct from the
-         * BAD_STATE_E that pool operations report for a MISSING pool */
+    if (rng->pool != NULL)
         return ALREADY_E;
-    }
 
     rng->pool = (byte*)XMALLOC(size, rng->heap, DYNAMIC_TYPE_RNG);
     if (rng->pool == NULL)
         return MEMORY_E;
     rng->poolSize = (word16)size;
-    wolfSSL_Atomic_Uint_Init(&rng->poolState, 0);
+    wolfSSL_Atomic_Uint_Init(&rng->poolHead, 0);
+    wolfSSL_Atomic_Uint_Init(&rng->poolTail, 0);
 
     return 0;
 }
 
 int wc_RNG_Pool_Collect2(WC_RNG* rng_dest, WC_RNG* rng_src, word32 n)
 {
-    int retries;
-
     if ((rng_dest == NULL) || (rng_src == NULL))
         return BAD_FUNC_ARG;
     if (rng_dest->pool == NULL)
@@ -3664,55 +3754,70 @@ int wc_RNG_Pool_Collect2(WC_RNG* rng_dest, WC_RNG* rng_src, word32 n)
     if (n == 0)
         return 0;
 
-    for (retries = 0; retries < 8; retries++) {
-        wc_rng_pool_state_u snap, next;
-        word32 m, done = 0;
+    /* Note, a second writer can read the same head, generate into the same
+     * span, then lose the publication CAS, having already overwritten part of
+     * the winner's published bytes.  This is benign -- every byte in the span
+     * is output of compatible provenance from one generate or the other, and
+     * the loser just returns BUSY_E, while no invalidation is lost either way.
+     *
+     * If interspersal of bytes from multiple producers is undesirable, the
+     * caller can simply arrange not to have multiple concurrent producxers --
+     * this is the arrangement in the wolfSSL kernel module, for example, which
+     * has a single daemon (wc_linuxkm_entropy_daemon()) that is the sole pool
+     * collector.
+     */
+    {
+        WC_ATOMIC_UINT_ARG snap;
+        word32 head, epoch, tail, free_sz, m, done = 0;
         int ret;
 
-        snap.state = WOLFSSL_ATOMIC_LOAD(rng_dest->poolState);
-        m = (word32)rng_dest->poolSize - (word32)snap.pool.current;
-        if (m == 0)
-            return 0; /* full: success no-op */
-        if (m > n)
-            m = n;
+        snap = WOLFSSL_ATOMIC_LOAD(rng_dest->poolHead);
+        head = WC_RNG_POOL_POS(snap);
+        epoch = WC_RNG_POOL_EPOCH(snap);
+        /* A stale-epoch tail is conservative: it can only understate the free
+         * span, never overstate it, so no unread byte is ever overwritten. */
+        tail = WC_RNG_POOL_POS(WOLFSSL_ATOMIC_LOAD(rng_dest->poolTail));
 
-        /* generate directly into the unpublished span (up to two
-         * contiguous segments), then publish the whole of it with one
-         * CAS */
+        free_sz = (word32)rng_dest->poolSize
+                  - PoolUsed(head, tail, (word32)rng_dest->poolSize);
+        if (free_sz == 0)
+            return 0; /* full: success no-op */
+        m = (free_sz > n) ? n : free_sz;
+
+        /* generate directly into the unpublished span (up to two contiguous
+         * segments), then publish the whole of it with one CAS. */
         while (done < m) {
-            word32 at = ((word32)snap.pool.offset + (word32)snap.pool.current
-                         + done) % (word32)rng_dest->poolSize;
+            word32 at = PoolAt(PoolAdvance(head, done, (word32)rng_dest->poolSize),
+                               (word32)rng_dest->poolSize);
             word32 chunk = (word32)rng_dest->poolSize - at;
             if (chunk > m - done)
                 chunk = m - done;
-            ret = wc_RNG_GenerateBlock(rng_src, rng_dest->pool + at,
-                                       (word32)chunk);
+            ret = wc_RNG_GenerateBlock(rng_src, rng_dest->pool + at, chunk);
             if (ret != 0) {
-                /* Abandon in place.  The written bytes MUST NOT be burned:
-                 * a competing writer may have published a span overlapping
-                 * them (final-write-wins), and zeroing published content
-                 * would deliver zeros as randomness.  Abandoned bytes are
-                 * benign in-boundary content awaiting overwrite. */
+                /* Abandon in place.  The written bytes lie beyond head and
+                 * are therefore unpublished -- benign in-boundary content
+                 * awaiting overwrite.  Not burned: the reader's burn span and
+                 * ours are disjoint, and zeroing here would be
+                 * indistinguishable from published zeros to the next writer. */
                 return ret;
             }
             done += chunk;
         }
 
-        next = snap;
-        next.pool.current = (word16)((word32)snap.pool.current + m);
-        if (wolfSSL_Atomic_Uint_CompareExchange(&rng_dest->poolState,
-                                                &snap.state, next.state))
+        if (wolfSSL_Atomic_Uint_CompareExchange(
+                &rng_dest->poolHead, &snap,
+                WC_RNG_POOL_PACK(
+                    PoolAdvance(head, m, (word32)rng_dest->poolSize), epoch)))
         {
             return 0;
         }
-
-        /* Lost the publication race: abandon in place (see above -- never
-         * burn a span we may no longer own) and regenerate fresh against a
-         * new snapshot (never republish the same output: no DRBG output
-         * may be deliverable twice). */
+        else {
+            /* Either we're competing with another writer, or the epoch changed
+             * (invalidation).  In either case, we return BUSY_E.
+             */
+            return BUSY_E;
+        }
     }
-
-    return NOT_READY_E; /* persistent contention: retry on a later cycle */
 }
 
 int wc_RNG_Pool_Collect(WC_RNG* rng, word32 n)
@@ -3722,8 +3827,8 @@ int wc_RNG_Pool_Collect(WC_RNG* rng, word32 n)
 
 int wc_RNG_Pool_Extract(WC_RNG* rng, byte* out, word32* n)
 {
-    wc_rng_pool_state_u snap, next;
-    word32 m, done = 0;
+    WC_ATOMIC_UINT_ARG w1, w2, tw;
+    word32 head, epoch, tail, avail, m, done = 0;
 
     if ((rng == NULL) || (out == NULL) || (n == NULL))
         return BAD_FUNC_ARG;
@@ -3744,43 +3849,71 @@ int wc_RNG_Pool_Extract(WC_RNG* rng, byte* out, word32* n)
 #endif
 
     /* Fail closed: no serving output on behalf of an out-of-service DRBG, and
-     * its pooled output is unusable material at rest.  A concurrent writer's
-     * CAS fails against the store and abandons. */
+     * its pooled output is unusable material at rest.  A writer mid-fill sees
+     * the epoch move and abandons rather than publishing. */
     if (wc_RNG_DRBG_Present(rng) && (rng->status != DRBG_OK)) {
-        WOLFSSL_ATOMIC_STORE(rng->poolState, 0);
+        PoolPurge(rng);
         return RNG_FAILURE_E;
     }
 
-    snap.state = WOLFSSL_ATOMIC_LOAD(rng->poolState);
-    if (snap.pool.current == 0) {
+    tw = WOLFSSL_ATOMIC_LOAD(rng->poolTail);
+    w1 = WOLFSSL_ATOMIC_LOAD(rng->poolHead);
+    head = WC_RNG_POOL_POS(w1);
+    epoch = WC_RNG_POOL_EPOCH(w1);
+
+    if (WC_RNG_POOL_EPOCH(tw) != epoch) {
+        /* A purge landed since our last visit.  Everything published before
+         * it is retired: resynchronize to head and report empty.  Anything
+         * the writer publishes after this point is post-event and stands. */
+        WOLFSSL_ATOMIC_STORE(rng->poolTail, WC_RNG_POOL_PACK(head, epoch));
 #ifdef WC_RNG_DEBUG_STATS
         rng->_stats_pool_bytes_missed += *n;
 #endif
         return NOT_READY_E;
     }
-    m = *n;
-    if (m > (word32)snap.pool.current)
-        m = (word32)snap.pool.current;
+
+    tail = WC_RNG_POOL_POS(tw);
+    avail = PoolUsed(head, tail, (word32)rng->poolSize);
+    if (avail == 0) {
+#ifdef WC_RNG_DEBUG_STATS
+        rng->_stats_pool_bytes_missed += *n;
+#endif
+        return NOT_READY_E;
+    }
+    m = (avail > *n) ? *n : avail;
 
     while (done < m) {
-        word32 at = ((word32)snap.pool.offset + done) %
-                    (word32)rng->poolSize;
+        word32 at = PoolAt(PoolAdvance(tail, done, (word32)rng->poolSize),
+                           (word32)rng->poolSize);
         word32 chunk = (word32)rng->poolSize - at;
         if (chunk > m - done)
             chunk = m - done;
         XMEMCPY(out + done, rng->pool + at, chunk);
-        /* burn on the way out the door, before the span is republished */
+        /* burn on the way out the door, before the span is republished.
+         * [tail, tail+m) and the writer's [head, head+m') are disjoint by
+         * construction, so this can never erase published bytes. */
         ForceZero(rng->pool + at, chunk);
         done += chunk;
     }
 
-    next.pool.current = (word16)((word32)snap.pool.current - m);
-    next.pool.offset = (word16)(((word32)snap.pool.offset + m) %
-                               (word32)rng->poolSize);
-    /* single release store: the burn above is visible before the space
-     * is.  May clobber a concurrent writer's publication -- benign and
-     * conservative (see the protocol comment). */
-    WOLFSSL_ATOMIC_STORE(rng->poolState, next.state);
+    /* The linearization point.  Both loads read head and epoch as one word,
+     * so a purge anywhere in our window is caught here -- epoch moves and
+     * never moves back.  Our bytes then predate the event and must not be
+     * served, so discard the whole pre-event span rather than advancing. */
+    w2 = WOLFSSL_ATOMIC_LOAD(rng->poolHead);
+    if (WC_RNG_POOL_EPOCH(w2) != epoch) {
+        WOLFSSL_ATOMIC_STORE(rng->poolTail,
+                             WC_RNG_POOL_PACK(WC_RNG_POOL_POS(w2),
+                                              WC_RNG_POOL_EPOCH(w2)));
+        *n = 0;
+        return BUSY_E;
+    }
+
+    /* Sole writer of poolTail: a plain store, no CAS on the reader path. */
+    WOLFSSL_ATOMIC_STORE(rng->poolTail,
+                         WC_RNG_POOL_PACK(
+                             PoolAdvance(tail, m, (word32)rng->poolSize),
+                             epoch));
 
 #ifdef WC_RNG_DEBUG_STATS
     rng->_stats_pool_bytes_produced += m;
@@ -3796,9 +3929,13 @@ int wc_RNG_Pool_Current(WC_RNG* rng, word32* n)
     if ((rng == NULL) || (n == NULL))
         return BAD_FUNC_ARG;
     if (rng->pool != NULL) {
-        wc_rng_pool_state_u snap;
-        snap.state = WOLFSSL_ATOMIC_LOAD(rng->poolState);
-        *n = (word32)snap.pool.current;
+        WC_ATOMIC_UINT_ARG w = WOLFSSL_ATOMIC_LOAD(rng->poolHead);
+        WC_ATOMIC_UINT_ARG tw = WOLFSSL_ATOMIC_LOAD(rng->poolTail);
+        /* a purge not yet observed by the reader retires everything
+         * published before it: report empty. */
+        *n = (WC_RNG_POOL_EPOCH(tw) != WC_RNG_POOL_EPOCH(w)) ? 0 :
+             PoolUsed(WC_RNG_POOL_POS(w), WC_RNG_POOL_POS(tw),
+                      (word32)rng->poolSize);
     }
     else {
         *n = 0;
@@ -5103,7 +5240,8 @@ int wc_FreeRng(WC_RNG* rng)
         XFREE(rng->pool, rng->heap, DYNAMIC_TYPE_RNG);
         rng->pool = NULL;
         rng->poolSize = 0;
-        WOLFSSL_ATOMIC_STORE(rng->poolState, 0);
+        WOLFSSL_ATOMIC_STORE(rng->poolHead, 0);
+        WOLFSSL_ATOMIC_STORE(rng->poolTail, 0);
     }
 #endif
 
