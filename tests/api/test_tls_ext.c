@@ -945,6 +945,118 @@ int test_tls_ems_disable_v23(void)
 }
 
 
+#if !defined(WOLFSSL_NO_TLS12) && defined(HAVE_EXTENDED_MASTER) && \
+        !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+        !defined(NO_SESSION_CACHE) && defined(HAVE_SECRET_CALLBACK) && \
+        defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+/* Supplies the captured session's master secret, as an EAP-FAST peer would. */
+static int test_tls_ems_secret_cb(WOLFSSL* ssl, void* secret, int* secretSz,
+                                  void* ctx)
+{
+    (void)ssl;
+    if (*secretSz < SECRET_LEN)
+        return -1;
+    XMEMCPY(secret, ((WOLFSSL_SESSION*)ctx)->masterSecret, SECRET_LEN);
+    *secretSz = SECRET_LEN;
+    return 0;
+}
+
+/* A session-secret callback (EAP-FAST) must not bypass a required EMS: the
+ * requiring side aborts with EXT_MASTER_SECRET_NEEDED_E before the callback
+ * can supply a secret for a non-EMS ticket resumption. serverSide selects
+ * which side has the callback and requires EMS. */
+static int test_tls_require_ems_secret_cb_ex(int serverSide)
+{
+    EXPECT_DECLS;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    WOLFSSL_SESSION *session = NULL;
+    int ret;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    /* Establish a ticket session that does not use EMS. */
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_UseSessionTicket(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_DisableExtendedMasterSecret(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectNotNull(session = wolfSSL_get1_session(ssl_c));
+    ExpectFalse(session->haveEMS);
+    ExpectIntGT(session->ticketLen, 0);
+
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    test_memio_clear_buffer(&test_ctx, 0);
+    test_memio_clear_buffer(&test_ctx, 1);
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    if (serverSide) {
+        ExpectIntEQ(wolfSSL_set_session_secret_cb(ssl_s,
+                test_tls_ems_secret_cb, session), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_RequireExtendedMasterSecret(ssl_s),
+                WOLFSSL_SUCCESS);
+        /* Client presents the non-EMS ticket without offering EMS. */
+        ExpectIntEQ(wolfSSL_DisableExtendedMasterSecret(ssl_c),
+                WOLFSSL_SUCCESS);
+    }
+    else {
+        ExpectIntEQ(wolfSSL_set_session_secret_cb(ssl_c,
+                test_tls_ems_secret_cb, session), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_RequireExtendedMasterSecret(ssl_c),
+                WOLFSSL_SUCCESS);
+        /* Server ignores the offered EMS and resumes the non-EMS ticket. */
+        ExpectIntEQ(wolfSSL_DisableExtendedMasterSecret(ssl_s),
+                WOLFSSL_SUCCESS);
+    }
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, session), WOLFSSL_SUCCESS);
+
+    ret = test_memio_do_handshake(ssl_c, ssl_s, 10, NULL);
+    ExpectIntNE(ret, 0);
+    if (serverSide) {
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, ret),
+                WC_NO_ERR_TRACE(EXT_MASTER_SECRET_NEEDED_E));
+        /* The ticket was accepted, so the callback branch was armed. */
+        ExpectIntEQ(ssl_s->options.useTicket, 1);
+    }
+    else {
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, ret),
+                WC_NO_ERR_TRACE(EXT_MASTER_SECRET_NEEDED_E));
+    }
+
+    wolfSSL_SESSION_free(session);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* Requiring EMS is enforced ahead of the session-secret callback on both the
+ * server and the client. */
+int test_tls_require_ems_secret_cb(void)
+{
+    EXPECT_DECLS;
+#if !defined(WOLFSSL_NO_TLS12) && defined(HAVE_EXTENDED_MASTER) && \
+        !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+        !defined(NO_SESSION_CACHE) && defined(HAVE_SECRET_CALLBACK) && \
+        defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+    ExpectIntEQ(test_tls_require_ems_secret_cb_ex(1), TEST_SUCCESS);
+    ExpectIntEQ(test_tls_require_ems_secret_cb_ex(0), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+
 #if !defined(WOLFSSL_NO_TLS12) && \
         defined(BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256) && \
         defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
