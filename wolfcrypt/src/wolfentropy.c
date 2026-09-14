@@ -1064,5 +1064,10 @@ static void Entropy_HealthTest_Reset(void)
     Entropy_HealthTest_Proportion_Reset();
 }
 
+const char* wc_Entropy_GetVersion(void)
+{
+    return "wolfEntropy v7.0.0m";
+}
+
 #endif /* HAVE_ENTROPY_MEMUSE */
 
