@@ -170,6 +170,13 @@ Threading/Mutex options:
     #include <wolfssl/wolfcrypt/mem_track.h>
 #endif
 
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
+
 #if defined(WOLFSSL_CAAM)
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 #endif
@@ -412,8 +419,42 @@ int wc_local_InitDownDone(wc_init_state_t *s)
 static WC_DECLARE_INIT_STATE(wolfcrypt_init_state);
 
 #if defined(__aarch64__) && defined(WOLFSSL_ARMASM_BARRIER_DETECT)
-int aarch64_use_sb = 0;
+WOLFSSL_API int aarch64_use_sb = 0;
 #endif
+
+/* No-op callee for the portable WC_BARRIER_DATA() fallback. */
+static void wc_BarrierDataSinkImpl(const void* p)
+{
+    (void)p;
+}
+/* const -> read-only section; do NOT add volatile (breaks placement). */
+static void (* const wc_BarrierDataSinkPtr)(const void*) =
+    wc_BarrierDataSinkImpl;
+
+WOLFSSL_API void wc_BarrierDataSink(const void* p)
+{
+    /* Volatile load defeats LTO devirtualization. */
+    void (*fn)(const void*) =
+        *(void (* const volatile *)(const void*))&wc_BarrierDataSinkPtr;
+    fn(p);
+}
+
+#ifndef WOLFSSL_NO_FORCE_ZERO
+/* Exported ForceZero(). Lives here because always compiled. */
+WOLFSSL_API void wc_ForceZero(void *mem, size_t len)
+{
+    ForceZero(mem, len);
+}
+#endif /* !WOLFSSL_NO_FORCE_ZERO */
+
+#ifndef WOLFSSL_NO_CONST_CMP
+/* Exported ConstantCompare(). Lives here because always compiled. */
+WOLFSSL_API int wc_ConstantCompare(const unsigned char* a,
+    const unsigned char* b, int length)
+{
+    return ConstantCompare(a, b, length);
+}
+#endif /* !WOLFSSL_NO_CONST_CMP */
 
 /* Used to initialize state for wolfcrypt
    return 0 on success
