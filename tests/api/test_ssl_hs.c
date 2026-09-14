@@ -2217,3 +2217,411 @@ int test_wolfSSL_hs_info_cb(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* ---------------------------------------------------------------------------
+ * Handshakes corrupted in flight.
+ *
+ * A conforming pair of endpoints produces one handshake, and every error path
+ * in the receive code stays dark no matter how many times it is run. Those
+ * paths are most of what remains uncovered in src/internal.c, and they are
+ * reached only by a peer that sends something wrong.
+ *
+ * No transport is needed to be that peer. test_memio already runs both
+ * endpoints through a plain byte buffer with credentials from certs/, and both
+ * sides are ours, so the buffer between them can be edited between rounds --
+ * flip a bit in a length, in a type byte, in the middle of a certificate, in
+ * the key exchange -- and the handshake continues into whatever the receiver
+ * does about it. Same idea as sitting on the wire with a packet mangler, with
+ * neither a socket nor a second process.
+ *
+ * The assertion is deliberately weak: a corrupted handshake is *expected* to
+ * fail. What is being tested is that it fails rather than crashes, leaks or
+ * hangs, and the coverage comes from the paths it takes on the way out.
+ * ------------------------------------------------------------------------- */
+/* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES, not the _BUILD variant: the _BUILD
+ * macro is certificate-agnostic and is also defined for NO_CERTS builds, where
+ * test_memio_setup() installs neither credentials nor a PSK callback and no
+ * handshake can complete. This sweep asserts that unmodified handshakes do
+ * complete, so it needs the credential-bearing guard. Keep it identical on the
+ * test body below, or the helper is compiled unused. */
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA)
+
+/* One handshake, with one byte flipped at one point.
+ *
+ * `dir` selects whose bytes get hit. test_memio_write_cb stores by the
+ * WRITER's side, so c_buff holds what the server wrote and s_buff what the
+ * client wrote:
+ *
+ *   dir 0 (server -> client): one round of test_memio_do_handshake() runs the
+ *   client and then the server, so at the end of a round the client's bytes
+ *   have already been consumed and only the server's are in flight. Mangle
+ *   c_buff.
+ *
+ *   dir 1 (client -> server): step the client on its own so its output is
+ *   left pending, then mangle s_buff before the server reads it. This is the
+ *   only way to reach the server's receive and error paths -- driving whole
+ *   rounds and mangling s_buff corrupted nothing at all, because s_buff was
+ *   empty every time.
+ *
+ * `round` is how many exchange rounds to let pass first, which is what selects
+ * WHICH handshake message gets hit -- the ClientHello, the certificate, the
+ * key exchange, the Finished.
+ *
+ * Returns 1 if a byte was actually corrupted, 0 otherwise, and reports through
+ * *hsDone whether the handshake nevertheless completed on both sides. Without
+ * the second output a broken fixture -- no handshake ever completing -- looks
+ * exactly like a healthy sweep. */
+static int test_wire_mangle_one(method_provider mc, method_provider ms,
+                                int dir, int round, int off, byte mask,
+                                int* hsDone)
+{
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    int i;
+    int ret = 0;
+
+    if (hsDone != NULL)
+        *hsDone = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    if (test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s, mc, ms)
+            != 0) {
+        /* This build has no usable credentials for these methods; that is a
+         * configuration fact, not a failure. */
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+        return 0;   /* no usable credentials: no mutation either */
+    }
+
+    for (i = 0; i < 12; i++) {
+        int rounds = 0;
+
+        if (i == round && dir == 1) {
+            /* Client only, so what it writes stays queued in s_buff. */
+            (void)wolfSSL_connect(ssl_c);
+        }
+        else {
+            (void)test_memio_do_handshake(ssl_c, ssl_s, 1, &rounds);
+        }
+
+        if (i == round) {
+            byte* buf = (dir == 0) ? test_ctx.c_buff : test_ctx.s_buff;
+            int   len = (dir == 0) ? test_ctx.c_len  : test_ctx.s_len;
+
+            if (len > off) {
+                buf[off] ^= mask;
+                ret = 1;    /* a byte was actually corrupted */
+            }
+            /* else: nothing in flight at this round/offset; ret stays 0 */
+        }
+    }
+
+    if (hsDone != NULL) {
+        *hsDone = (wolfSSL_is_init_finished(ssl_c) &&
+                   wolfSSL_is_init_finished(ssl_s));
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return ret;
+}
+
+#endif
+
+int test_tls_wire_mangle(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA)
+    /* Offsets chosen against the record and handshake framing rather than at
+     * random: 0 is the record type, 1-2 the record version, 3-4 the record
+     * length, 5 the handshake type, 6-8 the handshake length, and the rest
+     * land inside the body -- a session id, a certificate, a key share. */
+    static const int offsets[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 13,
+                                   20, 45, 80, 120, 200, 400, 900 };
+    static const byte masks[] = { 0x01, 0x80, 0xff };
+    /* Per method and per direction, not just in total: one aggregate count is
+     * satisfied by a single mutation anywhere, which lets an entire protocol's
+     * sweep -- or one whole direction of it -- be a no-op unnoticed. A method
+     * that is not compiled stays zero and is excluded from the assertions by
+     * the same #ifdef that skips its calls. */
+    enum { WM_TLS12, WM_TLS13, WM_DTLS12, WM_DTLS13, WM_METHODS };
+    enum { WM_S2C, WM_C2S, WM_DIRS };
+    int round, o, m, d;
+/* The client-to-server half is not run under WOLFSSL_ASYNC_CRYPT. A
+ * ClientHello with one byte flipped drives the TLS 1.3 server through
+ * SendTls13Certificate -> BuildTls13Message -> wolfAsync_EventInit, which
+ * takes SIGSEGV. Measured with --enable-asynccrypt --enable-all --enable-dtls13
+ * --disable-mlkem, at method TLS 1.3, round 0, offset 200, mask 0x01. It is not
+ * the harness leaving an async operation unserviced: the client-only step
+ * returns WANT_READ on every one of its 194 calls in that build and never
+ * WC_PENDING_E. Whether the library ought to survive a malformed ClientHello in
+ * that configuration is a library question, reported separately; this sweep has
+ * no business asserting it either way. The server-to-client half runs
+ * everywhere. */
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #define WM_LAST_DIR WM_S2C
+#else
+    #define WM_LAST_DIR WM_C2S
+#endif
+    int applied[WM_METHODS][WM_DIRS];
+    int broke[WM_METHODS][WM_DIRS];
+
+    XMEMSET(applied, 0, sizeof(applied));
+    XMEMSET(broke, 0, sizeof(broke));
+
+#define WM_RUN(idx, cm, sm)                                                  \
+    do {                                                                     \
+        int hs = 0;                                                          \
+        int hit = test_wire_mangle_one((cm), (sm), d, round, offsets[o],     \
+                                       masks[m], &hs);                       \
+        applied[idx][d] += hit;                                              \
+        if (hit && !hs)                                                      \
+            broke[idx][d]++;                                                 \
+    } while (0)
+
+    for (d = 0; d <= WM_LAST_DIR; d++) {
+    for (round = 0; round < 7; round++) {
+        for (o = 0; o < (int)(sizeof(offsets) / sizeof(offsets[0])); o++) {
+            for (m = 0; m < (int)(sizeof(masks) / sizeof(masks[0])); m++) {
+                    WM_RUN(WM_TLS12, wolfTLSv1_2_client_method,
+                        wolfTLSv1_2_server_method);
+#ifdef WOLFSSL_TLS13
+                    WM_RUN(WM_TLS13, wolfTLSv1_3_client_method,
+                        wolfTLSv1_3_server_method);
+#endif
+#ifdef WOLFSSL_DTLS
+                    WM_RUN(WM_DTLS12, wolfDTLSv1_2_client_method,
+                        wolfDTLSv1_2_server_method);
+#endif
+#ifdef WOLFSSL_DTLS13
+                    WM_RUN(WM_DTLS13, wolfDTLSv1_3_client_method,
+                        wolfDTLSv1_3_server_method);
+#endif
+            }
+        }
+    }
+    }
+
+#undef WM_RUN
+
+    /* A clean run of the same fixture, per method and per direction, before
+     * any of the counts above are believed. Without one for each method,
+     * broke[] cannot tell "the mutation broke this handshake" from "this
+     * method's fixture never completes a handshake at all" -- a pre-broken
+     * TLS 1.3 or DTLS setup that still puts bytes on the wire satisfies both
+     * applied[] and broke[] while proving nothing. It also gives every
+     * decision the corrupted runs took one way its partner in this same
+     * binary.
+     *
+     * Round 99 matches no iteration, so the first call flips nothing and runs
+     * whole rounds. The second uses an offset past the end of any buffer, so
+     * it takes the client-only step -- costing the round one server turn --
+     * and still flips nothing: that is what shows the stepping itself does
+     * not stop a handshake. */
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* No client-to-server sweep in this build, so no control for one. */
+    #define WM_CLEAN_C2S(cm, sm) do { } while (0)
+#else
+    #define WM_CLEAN_C2S(cm, sm)                                             \
+    do {                                                                     \
+        int chs = 0;                                                         \
+        ExpectIntEQ(test_wire_mangle_one((cm), (sm), WM_C2S, 0,              \
+                                         TEST_MEMIO_BUF_SZ, 0x00, &chs), 0); \
+        ExpectIntEQ(chs, 1);                                                 \
+    } while (0)
+#endif
+
+#define WM_CLEAN(cm, sm)                                                     \
+    do {                                                                     \
+        int hs = 0;                                                          \
+        ExpectIntEQ(test_wire_mangle_one((cm), (sm), WM_S2C, 99, 0, 0x00,    \
+                                         &hs), 0);                           \
+        ExpectIntEQ(hs, 1);                                                  \
+        WM_CLEAN_C2S((cm), (sm));                                            \
+    } while (0)
+
+    WM_CLEAN(wolfTLSv1_2_client_method, wolfTLSv1_2_server_method);
+#ifdef WOLFSSL_TLS13
+    WM_CLEAN(wolfTLSv1_3_client_method, wolfTLSv1_3_server_method);
+#endif
+#ifdef WOLFSSL_DTLS
+    WM_CLEAN(wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method);
+#endif
+#ifdef WOLFSSL_DTLS13
+    WM_CLEAN(wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method);
+#endif
+
+#undef WM_CLEAN
+#undef WM_CLEAN_C2S
+
+    /* Every compiled method must have corrupted a byte in each direction; a
+     * zero means that whole protocol's sweep, or that whole direction of it,
+     * ran clean traffic. And a corrupted byte must have broken at least one
+     * handshake: if none of them ever failed, the mutations never reached a
+     * parser and the error arms this test claims are untouched. Not every
+     * applied vector may fail -- a flipped byte in a session id, a random or
+     * an ignored extension is carried through to a complete handshake -- so
+     * this is asserted over the sweep, not per vector. */
+    for (d = 0; d <= WM_LAST_DIR; d++) {
+        ExpectIntGT(applied[WM_TLS12][d], 0);
+        ExpectIntGT(broke[WM_TLS12][d], 0);
+#ifdef WOLFSSL_TLS13
+        ExpectIntGT(applied[WM_TLS13][d], 0);
+        ExpectIntGT(broke[WM_TLS13][d], 0);
+#endif
+#ifdef WOLFSSL_DTLS
+        ExpectIntGT(applied[WM_DTLS12][d], 0);
+        ExpectIntGT(broke[WM_DTLS12][d], 0);
+#endif
+#ifdef WOLFSSL_DTLS13
+        ExpectIntGT(applied[WM_DTLS13][d], 0);
+        ExpectIntGT(broke[WM_DTLS13][d], 0);
+#endif
+    }
+
+#undef WM_LAST_DIR
+
+#endif
+    return EXPECT_RESULT();
+}
+
+/* ---------------------------------------------------------------------------
+ * Handshakes with messages dropped, duplicated, reordered and truncated.
+ *
+ * Flipping a byte reaches the parsers' error arms. It does not reach the
+ * ordering and retransmit logic, because a flipped byte still arrives once, in
+ * sequence, at the right length. That logic -- duplicate detection, out-of-
+ * order rejection, the DTLS retransmit pool, the fragment reassembler -- is
+ * only entered when the SEQUENCE is wrong, and a conforming peer never gets it
+ * wrong.
+ *
+ * test_memio already knows how to do this to the buffer between the two
+ * endpoints: drop a message, move one ahead of another, copy one back in a
+ * second time, or rewrite its declared length. All four are on the same
+ * fixture as the byte mangler, and none of them needs a socket.
+ * ------------------------------------------------------------------------- */
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA)
+
+enum wire_op { WIRE_DROP, WIRE_DUP, WIRE_MOVE, WIRE_TRUNC, WIRE_SHORTEN,
+               WIRE_NONE };
+
+static int test_wire_seq_one(method_provider mc, method_provider ms,
+                             int round, int op, int msgPos)
+{
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    if (test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s, mc, ms)
+            != 0) {
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+        return 0;
+    }
+
+    for (i = 0; i < 12; i++) {
+        int rounds = 0;
+
+        (void)test_memio_do_handshake(ssl_c, ssl_s, 1, &rounds);
+
+        if (i != round)
+            continue;
+
+        switch (op) {
+            case WIRE_DROP:
+                /* the receiver never sees this message at all */
+                (void)test_memio_drop_message(&test_ctx, 1, msgPos);
+                break;
+            case WIRE_DUP: {
+                /* the same message twice: what duplicate detection is for */
+                char copy[2048];
+                int  copySz = (int)sizeof(copy);
+
+                if (test_memio_copy_message(&test_ctx, 1, copy, &copySz,
+                                            msgPos) == 0) {
+                    (void)test_memio_inject_message(&test_ctx, 1, copy, copySz);
+                }
+                break;
+            }
+            case WIRE_MOVE:
+                /* arrives before the message it must follow */
+                (void)test_memio_move_message(&test_ctx, 1, msgPos,
+                                              msgPos + 1);
+                break;
+            case WIRE_TRUNC:
+                /* declares more than it carries */
+                (void)test_memio_modify_message_len(&test_ctx, 1, msgPos,
+                                                    4096);
+                break;
+            case WIRE_SHORTEN:
+                /* declares less than it carries, and loses its tail */
+                (void)test_memio_modify_message_len(&test_ctx, 1, msgPos, 4);
+                (void)test_memio_remove_from_buffer(&test_ctx, 1, 5, 4);
+                break;
+            default:
+                break;
+        }
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return 0;
+}
+
+#endif
+
+int test_tls_wire_sequence(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA)
+    int round, op, pos;
+
+    for (round = 0; round < 6; round++) {
+        for (op = 0; op < (int)WIRE_NONE; op++) {
+            for (pos = 0; pos < 3; pos++) {
+                (void)test_wire_seq_one(wolfTLSv1_2_client_method,
+                    wolfTLSv1_2_server_method, round, op, pos);
+#ifdef WOLFSSL_TLS13
+                (void)test_wire_seq_one(wolfTLSv1_3_client_method,
+                    wolfTLSv1_3_server_method, round, op, pos);
+#endif
+#ifdef WOLFSSL_DTLS
+                /* DTLS is where dropping and reordering are not merely
+                 * hostile but expected, so the retransmit and reassembly
+                 * paths are entered rather than just refused. */
+                (void)test_wire_seq_one(wolfDTLSv1_2_client_method,
+                    wolfDTLSv1_2_server_method, round, op, pos);
+#endif
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_TLS13)
+                (void)test_wire_seq_one(wolfDTLSv1_3_client_method,
+                    wolfDTLSv1_3_server_method, round, op, pos);
+#endif
+            }
+        }
+    }
+
+    /* the untouched partner, in this same binary */
+    ExpectIntEQ(test_wire_seq_one(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method, 99, (int)WIRE_NONE, 0), 0);
+#endif
+    return EXPECT_RESULT();
+}

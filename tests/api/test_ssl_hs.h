@@ -22,6 +22,9 @@
 #ifndef TESTS_API_SSL_HS_H
 #define TESTS_API_SSL_HS_H
 
+int test_tls_wire_mangle(void);
+int test_tls_wire_sequence(void);
+
 #include <tests/api/api_decl.h>
 
 int test_wolfSSL_state_string_long(void);
@@ -75,6 +78,8 @@ int test_wolfSSL_hs_info_cb(void);
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_hs_retry_alert_fail),           \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_connect_ex_no_side),            \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_hs_done_cb_error),              \
-        TEST_DECL_GROUP("ssl_hs", test_wolfSSL_hs_info_cb)
+        TEST_DECL_GROUP("ssl_hs", test_wolfSSL_hs_info_cb),                    \
+        TEST_DECL_GROUP("ssl_hs", test_tls_wire_mangle),                       \
+        TEST_DECL_GROUP("ssl_hs", test_tls_wire_sequence)
 
 #endif /* TESTS_API_SSL_HS_H */
