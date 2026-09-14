@@ -121,6 +121,7 @@ int test_tls13_fail_if_no_psk_no_cert_server(void);
 int test_tls13_fail_if_no_psk_dtls13_handshake(void);
 int test_tls13_fail_if_no_psk_dtls13_rejects_no_psk(void);
 int test_tls13_ticket_peer_cert_reverify(void);
+int test_tls13_legacy_session_id_peer_chain(void);
 int test_tls13_clear_preserves_psk_dhe(void);
 int test_tls13_cipher_fuzz_aes128_gcm_sha256(void);
 int test_tls13_cipher_fuzz_aes256_gcm_sha384(void);
@@ -253,6 +254,7 @@ int test_tls13_new_session_ticket_keeps_ems(void);
     TEST_DECL_GROUP("tls13", test_tls13_fail_if_no_psk_dtls13_handshake), \
     TEST_DECL_GROUP("tls13", test_tls13_fail_if_no_psk_dtls13_rejects_no_psk), \
     TEST_DECL_GROUP("tls13", test_tls13_ticket_peer_cert_reverify), \
+    TEST_DECL_GROUP("tls13", test_tls13_legacy_session_id_peer_chain), \
     TEST_DECL_GROUP("tls13", test_tls13_clear_preserves_psk_dhe), \
     TEST_DECL_GROUP("tls13", test_tls13_cipher_fuzz_aes128_gcm_sha256), \
     TEST_DECL_GROUP("tls13", test_tls13_cipher_fuzz_aes256_gcm_sha384), \
