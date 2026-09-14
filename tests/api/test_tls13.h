@@ -55,6 +55,13 @@ int test_key_share_mismatch(void);
 int test_key_share_mismatch_psk_dhe(void);
 int test_tls13_middlebox_compat_empty_session_id(void);
 int test_tls13_middlebox_compat_session_id(void);
+int test_tls13_middlebox_compat_server_ccs(void);
+int test_tls13_middlebox_compat_server_reuse(void);
+int test_tls13_middlebox_compat_hrr_ccs(void);
+int test_tls13_middlebox_compat_server_ccs_retry(void);
+int test_tls13_middlebox_compat_hrr_ccs_retry(void);
+int test_tls13_middlebox_compat_client_ccs_retry(void);
+int test_tls13_middlebox_compat_client_ccs_retry_early_data(void);
 int test_tls13_plaintext_alert(void);
 int test_tls13_warning_alert_is_fatal(void);
 int test_tls13_unknown_ext_rejected(void);
@@ -172,6 +179,14 @@ int test_tls13_cryptocb_async(void);
     TEST_DECL_GROUP("tls13", test_key_share_mismatch_psk_dhe),  \
     TEST_DECL_GROUP("tls13", test_tls13_middlebox_compat_empty_session_id), \
     TEST_DECL_GROUP("tls13", test_tls13_middlebox_compat_session_id), \
+    TEST_DECL_GROUP("tls13", test_tls13_middlebox_compat_server_ccs), \
+    TEST_DECL_GROUP("tls13", test_tls13_middlebox_compat_server_reuse), \
+    TEST_DECL_GROUP("tls13", test_tls13_middlebox_compat_hrr_ccs), \
+    TEST_DECL_GROUP("tls13", test_tls13_middlebox_compat_server_ccs_retry), \
+    TEST_DECL_GROUP("tls13", test_tls13_middlebox_compat_hrr_ccs_retry), \
+    TEST_DECL_GROUP("tls13", test_tls13_middlebox_compat_client_ccs_retry), \
+    TEST_DECL_GROUP("tls13",                                    \
+        test_tls13_middlebox_compat_client_ccs_retry_early_data), \
     TEST_DECL_GROUP("tls13", test_tls13_plaintext_alert),       \
     TEST_DECL_GROUP("tls13", test_tls13_warning_alert_is_fatal), \
     TEST_DECL_GROUP("tls13", test_tls13_cert_req_sigalgs),       \
