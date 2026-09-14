@@ -1,0 +1,69 @@
+#!/bin/sh
+#
+# check-forcezero-dse.test
+#
+# make-check wrapper for .github/scripts/check-forcezero-dse.sh.
+#
+# Runs probe for native gcc/clang build. Skip on unsupported platforms.
+# Cross builds covered by CI matrix.
+#
+# Skip Fil-C explicitly due to symbol renaming.
+#
+# Pass compiler flags to probe actual configuration.
+
+CC=${WCTEST_CC:-cc}
+SRCDIR=${WCTEST_SRCDIR:-.}
+BUILDDIR=${WCTEST_BUILDDIR:-.}
+CPPFLAGS=${WCTEST_CPPFLAGS:-}
+CFLAGS=${WCTEST_CFLAGS:-}
+SCRIPT="$SRCDIR/.github/scripts/check-forcezero-dse.sh"
+
+skip() {
+    echo "check-forcezero-dse.test: SKIP - $1"
+    exit 77
+}
+
+[ -f "$SCRIPT" ] || skip "probe script not found: $SCRIPT"
+
+CC_VERSION=$($CC --version 2>/dev/null | head -1)
+case "$CC_VERSION" in
+    *Fil-C*) skip "CC '$CC' is Fil-C, which renames probe symbols" ;;
+esac
+$CC -E -dM - </dev/null 2>/dev/null | grep -q '^#define __GNUC__' ||
+    skip "CC '$CC' is not a GCC/Clang-compatible compiler"
+
+command -v objdump >/dev/null 2>&1 || skip "objdump not found in PATH"
+
+case "$(uname -s 2>/dev/null)" in
+    Linux) : ;;
+    *) skip "probe assumes an ELF/GNU objdump toolchain (host: $(uname -s 2>/dev/null))" ;;
+esac
+
+# Reject obvious cross-compiles.
+CC_MACHINE=$($CC -dumpmachine 2>/dev/null)
+HOST_MACHINE=$(uname -m 2>/dev/null)
+# uname -m and GNU config triplets spell some arches differently.
+case "$HOST_MACHINE" in
+    armv*|arm)  HOST_MACHINE=arm ;;
+    i?86)       HOST_MACHINE=86 ;;
+    ppc64le)    HOST_MACHINE=powerpc64le ;;
+    ppc64)      HOST_MACHINE=powerpc64 ;;
+    ppc)        HOST_MACHINE=powerpc ;;
+esac
+if [ -n "$CC_MACHINE" ] && [ -n "$HOST_MACHINE" ]; then
+    case "$CC_MACHINE" in
+        *"$HOST_MACHINE"*-linux*) : ;;
+        *) skip "CC target '$CC_MACHINE' looks cross-compiled for host '$HOST_MACHINE'" ;;
+    esac
+fi
+
+# Default to -O2 only if build didn't pick an optimization level.
+case " $CFLAGS " in
+    *" -O0"*) skip "build is unoptimized (-O0); the DSE probe would be vacuous" ;;
+    *" -O"*) OPT= ;;
+    *)       OPT=-O2 ;;
+esac
+
+# shellcheck disable=SC2086
+exec "$SCRIPT" --builddir "$BUILDDIR" --srcdir "$SRCDIR" \
+    --skip-on-compile-fail "$CC" $CPPFLAGS $CFLAGS $OPT
