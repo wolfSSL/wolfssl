@@ -120,6 +120,8 @@ int test_dtls13_hrr_cookie_secret_secondary_replaced(void);
 int test_dtls13_hrr_cookie_secret_issue_uses_primary(void);
 int test_dtls13_hrr_cookie_secret_secondary_args(void);
 int test_dtls13_hrr_cookie_secret_secondary_disabled(void);
+int test_dtls12_frag_ch_no_cookie(void);
+int test_dtls_cookie_policy(void);
 int test_wolfSSL_dtls_export(void);
 int test_wolfSSL_dtls_export_peers(void);
 int test_wolfSSL_dtls_import_state_extra_window_words(void);
@@ -140,6 +142,13 @@ int test_wolfSSL_dtls_stateless_maxfrag(void);
 int test_wolfSSL_dtls_stateless_resume(void);
 int test_wolfSSL_dtls_stateless_downgrade(void);
 int test_WOLFSSL_dtls_version_alert(void);
+
+/* Shared with tests/api/test_dtls13.c. */
+#define TEST_DTLS13_FOUR_FRAG_CH_SZ 832
+extern const unsigned char
+    test_dtls13_four_frag_ch[TEST_DTLS13_FOUR_FRAG_CH_SZ];
+int test_dtls_no_cookie_ch_good(WOLFSSL* ssl, void* ctx);
+int test_dtls_no_cookie_ch_pause(WOLFSSL* ssl, void* ctx);
 
 #define TEST_DTLS_DECLS                                                        \
         TEST_DECL_GROUP("dtls", test_dtls12_basic_connection_id),              \
@@ -253,6 +262,8 @@ int test_WOLFSSL_dtls_version_alert(void);
         TEST_DECL_GROUP("dtls", test_dtls12_cookie_secret_same_as_primary),    \
         TEST_DECL_GROUP("dtls", test_dtls12_cookie_secret_secondary_replaced), \
         TEST_DECL_GROUP("dtls", test_dtls12_cookie_secret_issue_uses_primary), \
+        TEST_DECL_GROUP("dtls", test_dtls12_frag_ch_no_cookie),                \
+        TEST_DECL_GROUP("dtls", test_dtls_cookie_policy),                      \
         TEST_DECL_GROUP("dtls", test_dtls13_hrr_cookie_secret_secondary),      \
         TEST_DECL_GROUP("dtls", test_dtls13_hrr_cookie_secret_secondary_dropped), \
         TEST_DECL_GROUP("dtls", test_dtls13_hrr_cookie_secret_secondary_cleared), \

@@ -7863,6 +7863,385 @@ int test_dtls12_cookie_secret_issue_uses_primary(void)
     return EXPECT_RESULT();
 }
 
+/* Shared with tests/api/test_dtls13.c. */
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS)
+/* A DTLS 1.3 ClientHello without a cookie, split into four records. */
+const unsigned char test_dtls13_four_frag_ch[] = {
+    0x16, 0xfe, 0xfd, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0xda, 0x01, 0x00, 0x02, 0xdc, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0xce, 0xfe, 0xfd, 0xf3, 0x94, 0x01, 0x33, 0x2c, 0xcf, 0x2c, 0x47, 0xb1,
+    0xe5, 0xa1, 0x7b, 0x19, 0x3e, 0xac, 0x68, 0xdd, 0xe6, 0x17, 0x6b, 0x85,
+    0xad, 0x5f, 0xfc, 0x7f, 0x6e, 0xf0, 0xb9, 0xe0, 0x2e, 0xca, 0x47, 0x00,
+    0x00, 0x00, 0x36, 0x13, 0x01, 0x13, 0x02, 0x13, 0x03, 0xc0, 0x2c, 0xc0,
+    0x2b, 0xc0, 0x30, 0xc0, 0x2f, 0x00, 0x9f, 0x00, 0x9e, 0xcc, 0xa9, 0xcc,
+    0xa8, 0xcc, 0xaa, 0xc0, 0x27, 0xc0, 0x23, 0xc0, 0x28, 0xc0, 0x24, 0xc0,
+    0x0a, 0xc0, 0x09, 0xc0, 0x14, 0xc0, 0x13, 0x00, 0x6b, 0x00, 0x67, 0x00,
+    0x39, 0x00, 0x33, 0xcc, 0x14, 0xcc, 0x13, 0xcc, 0x15, 0x01, 0x00, 0x02,
+    0x7c, 0x00, 0x2b, 0x00, 0x03, 0x02, 0xfe, 0xfc, 0x00, 0x0d, 0x00, 0x20,
+    0x00, 0x1e, 0x06, 0x03, 0x05, 0x03, 0x04, 0x03, 0x02, 0x03, 0x08, 0x06,
+    0x08, 0x0b, 0x08, 0x05, 0x08, 0x0a, 0x08, 0x04, 0x08, 0x09, 0x06, 0x01,
+    0x05, 0x01, 0x04, 0x01, 0x03, 0x01, 0x02, 0x01, 0x00, 0x0a, 0x00, 0x0c,
+    0x00, 0x0a, 0x00, 0x19, 0x00, 0x18, 0x00, 0x17, 0x00, 0x15, 0x01, 0x00,
+    0x00, 0x16, 0x00, 0x00, 0x00, 0x33, 0x02, 0x39, 0x02, 0x37, 0x00, 0x17,
+    0x00, 0x41, 0x04, 0x94, 0xdf, 0x36, 0xd7, 0xb3, 0x90, 0x6d, 0x01, 0xa1,
+    0xe6, 0xed, 0x67, 0xf4, 0xd9, 0x9d, 0x2c, 0xac, 0x57, 0x74, 0xff, 0x19,
+    0xbe, 0x5a, 0xc9, 0x30, 0x11, 0xb7, 0x2b, 0x59, 0x47, 0x80, 0x7c, 0xa9,
+    0xb7, 0x31, 0x8c, 0x16, 0xfe, 0xfd, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x01, 0x00, 0xda, 0x01, 0x00, 0x02, 0xdc, 0x00, 0x00, 0x00, 0x00,
+    0xce, 0x00, 0x00, 0xce, 0x9e, 0x13, 0x74, 0x3b, 0x86, 0xba, 0x69, 0x1f,
+    0x12, 0xf7, 0xcd, 0x78, 0x53, 0xe8, 0x50, 0x4d, 0x71, 0x3f, 0x4b, 0x4e,
+    0xeb, 0x3e, 0xe5, 0x43, 0x54, 0x78, 0x17, 0x6d, 0x00, 0x18, 0x00, 0x61,
+    0x04, 0xd1, 0x99, 0x66, 0x4f, 0xda, 0xc7, 0x12, 0x3b, 0xff, 0xb2, 0xd6,
+    0x2f, 0x35, 0xb6, 0x17, 0x1f, 0xb3, 0xd0, 0xb6, 0x52, 0xff, 0x97, 0x8b,
+    0x01, 0xe8, 0xd9, 0x68, 0x71, 0x40, 0x02, 0xd5, 0x68, 0x3a, 0x58, 0xb2,
+    0x5d, 0xee, 0xa4, 0xe9, 0x5f, 0xf4, 0xaf, 0x3e, 0x30, 0x9c, 0x3e, 0x2b,
+    0xda, 0x61, 0x43, 0x99, 0x02, 0x35, 0x33, 0x9f, 0xcf, 0xb5, 0xd3, 0x28,
+    0x19, 0x9d, 0x1c, 0xbe, 0x69, 0x07, 0x9e, 0xfc, 0xe4, 0x8e, 0xcd, 0x86,
+    0x4a, 0x1b, 0xf0, 0xfc, 0x17, 0x94, 0x66, 0x53, 0xda, 0x24, 0x5e, 0xaf,
+    0xce, 0xec, 0x62, 0x4c, 0x06, 0xb4, 0x52, 0x94, 0xb1, 0x4a, 0x7a, 0x8c,
+    0x4f, 0x00, 0x19, 0x00, 0x85, 0x04, 0x00, 0x27, 0xeb, 0x99, 0x49, 0x7f,
+    0xcb, 0x2c, 0x46, 0x54, 0x2d, 0x93, 0x5d, 0x25, 0x92, 0x58, 0x5e, 0x06,
+    0xc3, 0x7c, 0xfb, 0x9a, 0xa7, 0xec, 0xcd, 0x9f, 0xe1, 0x6b, 0x2d, 0x78,
+    0xf5, 0x16, 0xa9, 0x20, 0x52, 0x48, 0x19, 0x0f, 0x1a, 0xd0, 0xce, 0xd8,
+    0x68, 0xb1, 0x4e, 0x7f, 0x33, 0x03, 0x7d, 0x0c, 0x39, 0xdb, 0x9c, 0x4b,
+    0xf4, 0xe7, 0xc2, 0xf5, 0xdd, 0x51, 0x9b, 0x03, 0xa8, 0x53, 0x2b, 0xe6,
+    0x00, 0x15, 0x4b, 0xff, 0xd2, 0xa0, 0x16, 0xfe, 0xfd, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0xda, 0x01, 0x00, 0x02, 0xdc, 0x00,
+    0x00, 0x00, 0x01, 0x9c, 0x00, 0x00, 0xce, 0x58, 0x30, 0x10, 0x3d, 0x46,
+    0xcc, 0xca, 0x1a, 0x44, 0xc8, 0x58, 0x9b, 0x27, 0x17, 0x67, 0x31, 0x96,
+    0x8a, 0x66, 0x39, 0xf4, 0xcc, 0xc1, 0x9f, 0x12, 0x1f, 0x01, 0x30, 0x50,
+    0x16, 0xd6, 0x89, 0x97, 0xa3, 0x66, 0xd7, 0x99, 0x50, 0x09, 0x6e, 0x80,
+    0x87, 0xe4, 0xa2, 0x88, 0xae, 0xb4, 0x23, 0x57, 0x2f, 0x12, 0x60, 0xe7,
+    0x7d, 0x44, 0x2d, 0xad, 0xbe, 0xe9, 0x0d, 0x01, 0x00, 0x01, 0x00, 0xd5,
+    0xdd, 0x62, 0xee, 0xf3, 0x0e, 0xd9, 0x30, 0x0e, 0x38, 0xf3, 0x48, 0xf4,
+    0xc9, 0x8f, 0x8c, 0x20, 0xf7, 0xd3, 0xa8, 0xb3, 0x87, 0x3c, 0x98, 0x5d,
+    0x70, 0xc5, 0x03, 0x76, 0xb7, 0xd5, 0x0b, 0x7b, 0x23, 0x97, 0x6b, 0xe3,
+    0xb5, 0x18, 0xeb, 0x64, 0x55, 0x18, 0xb2, 0x8a, 0x90, 0x1a, 0x8f, 0x0e,
+    0x15, 0xda, 0xb1, 0x8e, 0x7f, 0xee, 0x1f, 0xe0, 0x3b, 0xb9, 0xed, 0xfc,
+    0x4e, 0x3f, 0x78, 0x16, 0x39, 0x95, 0x5f, 0xb7, 0xcb, 0x65, 0x55, 0x72,
+    0x7b, 0x7d, 0x86, 0x2f, 0x8a, 0xe5, 0xee, 0xf7, 0x57, 0x40, 0xf3, 0xc4,
+    0x96, 0x4f, 0x11, 0x4d, 0x85, 0xf9, 0x56, 0xfa, 0x3d, 0xf0, 0xc9, 0xa4,
+    0xec, 0x1e, 0xaa, 0x47, 0x90, 0x53, 0xdf, 0xe1, 0xb7, 0x78, 0x18, 0xeb,
+    0xdd, 0x0d, 0x89, 0xb7, 0xf6, 0x15, 0x0e, 0x55, 0x12, 0xb3, 0x23, 0x17,
+    0x0b, 0x59, 0x6f, 0x83, 0x05, 0x6b, 0xa6, 0xf8, 0x6c, 0x3a, 0x9b, 0x1b,
+    0x50, 0x93, 0x51, 0xea, 0x95, 0x2d, 0x99, 0x96, 0x38, 0x16, 0xfe, 0xfd,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x7e, 0x01, 0x00,
+    0x02, 0xdc, 0x00, 0x00, 0x00, 0x02, 0x6a, 0x00, 0x00, 0x72, 0x2d, 0x66,
+    0x3e, 0xf2, 0x36, 0x5a, 0xf2, 0x23, 0x8f, 0x28, 0x09, 0xa9, 0x55, 0x8c,
+    0x8f, 0xc0, 0x0d, 0x61, 0x98, 0x33, 0x56, 0x87, 0x7a, 0xfd, 0xa7, 0x50,
+    0x71, 0x84, 0x2e, 0x41, 0x58, 0x00, 0x87, 0xd9, 0x27, 0xe5, 0x7b, 0xf4,
+    0x6d, 0x84, 0x4e, 0x2e, 0x0c, 0x80, 0x0c, 0xf3, 0x8a, 0x02, 0x4b, 0x99,
+    0x3a, 0x1f, 0x9f, 0x18, 0x7d, 0x1c, 0xec, 0xad, 0x60, 0x54, 0xa6, 0xa3,
+    0x2c, 0x82, 0x5e, 0xf8, 0x8f, 0xae, 0xe1, 0xc4, 0x82, 0x7e, 0x43, 0x43,
+    0xc5, 0x99, 0x49, 0x05, 0xd3, 0xf6, 0xdf, 0xa1, 0xb5, 0x2d, 0x0c, 0x13,
+    0x2f, 0x1e, 0xb6, 0x28, 0x7c, 0x5c, 0xa1, 0x02, 0x6b, 0x8d, 0xa3, 0xeb,
+    0xd4, 0x58, 0xe6, 0xa0, 0x7e, 0x6b, 0xaa, 0x09, 0x43, 0x67, 0x71, 0x87,
+    0xa5, 0xcb, 0x68, 0xf3
+};
+
+int test_dtls_no_cookie_ch_good(WOLFSSL* ssl, void* ctx)
+{
+    int* calls = (int*)ctx;
+    (void)ssl;
+    (*calls)++;
+    return 0;
+}
+
+int test_dtls_no_cookie_ch_pause(WOLFSSL* ssl, void* ctx)
+{
+    (void)test_dtls_no_cookie_ch_good(ssl, ctx);
+    return WANT_WRITE;
+}
+#endif
+
+/* DTLS 1.2 keeps dropping a fragmented first ClientHello with cookies
+ * disabled: the server is stateful from the start, but no fragment is stored,
+ * no reply is produced and the callback is not invoked. */
+int test_dtls12_frag_ch_no_cookie(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) \
+    && !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    const byte* rec = test_dtls13_four_frag_ch;
+    int len = (int)sizeof(test_dtls13_four_frag_ch);
+    int calls = 0;
+    int records = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, NULL, &ctx_s, NULL, &ssl_s,
+        NULL, wolfDTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_disable_cookie(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfDTLS_SetChGoodCb(ssl_s, test_dtls_no_cookie_ch_good,
+        &calls), WOLFSSL_SUCCESS);
+
+    while (len >= DTLS_RECORD_HEADER_SZ && EXPECT_SUCCESS()) {
+        word16 payloadLen;
+        int recLen;
+
+        ato16(rec + DTLS_RECORD_HEADER_SZ - OPAQUE16_LEN, &payloadLen);
+        recLen = DTLS_RECORD_HEADER_SZ + (int)payloadLen;
+        ExpectIntLE(recLen, len);
+        ExpectIntEQ(test_memio_inject_message(&test_ctx, 0, (const char*)rec,
+            recLen), 0);
+        ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+            WOLFSSL_ERROR_WANT_READ);
+        ExpectIntEQ(ssl_s->options.dtlsStateful, 1);
+        ExpectIntEQ(test_ctx.s_len, 0);
+        ExpectIntEQ(test_ctx.c_len, 0);
+        ExpectIntEQ(calls, 0);
+        ExpectNull(ssl_s->dtls_rx_msg_list);
+        rec += recLen;
+        len -= recLen;
+        records++;
+    }
+    ExpectIntEQ(records, 4);
+    ExpectIntEQ(len, 0);
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The cookie policy is independent of the negotiated DTLS version. */
+int test_dtls_cookie_policy(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    int version, mode;
+
+    ExpectIntEQ(wolfSSL_disable_cookie(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_enable_cookie(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
+    {
+        WOLFSSL_CTX* ctx = wolfSSL_CTX_new(wolfDTLS_method());
+        WOLFSSL* ssl = ctx == NULL ? NULL : wolfSSL_new(ctx);
+
+        ExpectNotNull(ctx);
+        ExpectNotNull(ssl);
+        if (ssl != NULL) {
+            ExpectIntEQ(wolfDTLS_accept_stateless(ssl), WOLFSSL_FATAL_ERROR);
+            ExpectIntEQ(wolfSSL_get_error(ssl, WOLFSSL_FATAL_ERROR),
+                WC_NO_ERR_TRACE(SIDE_ERROR));
+            wolfSSL_free(ssl);
+        }
+        wolfSSL_CTX_free(ctx);
+    }
+#endif
+    for (version = 0; version < 3 && EXPECT_SUCCESS(); version++) {
+#ifndef WOLFSSL_DTLS13
+        if (version != 0)
+            continue;
+#endif
+#ifdef WOLFSSL_NO_TLS12
+        if (version != 1)
+            continue;
+#endif
+        for (mode = 0; mode < 4 && EXPECT_SUCCESS(); mode++) {
+            WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+            WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+#ifndef WOLFSSL_NO_TLS12
+            method_provider cm = wolfDTLSv1_2_client_method;
+            method_provider sm = wolfDTLSv1_2_server_method;
+#else
+            method_provider cm = wolfDTLSv1_3_client_method;
+            method_provider sm = wolfDTLSv1_3_server_method;
+#endif
+            struct test_memio_ctx io;
+            int calls = 0;
+            int enabled = mode >= 2;
+
+#ifdef WOLFSSL_DTLS13
+            if (version == 1) {
+                cm = wolfDTLSv1_3_client_method;
+                sm = wolfDTLSv1_3_server_method;
+            }
+            else if (version == 2)
+                sm = wolfDTLS_server_method;
+#endif
+            XMEMSET(&io, 0, sizeof(io));
+            ExpectIntEQ(test_memio_setup(&io, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                cm, sm), 0);
+            ExpectIntEQ(wolfSSL_disable_cookie(ssl_c),
+                WC_NO_ERR_TRACE(SIDE_ERROR));
+            ExpectIntEQ(wolfSSL_enable_cookie(ssl_c),
+                WC_NO_ERR_TRACE(SIDE_ERROR));
+            ExpectIntEQ(ssl_s->options.sendCookie, 1);
+            /* Secrets are HMAC keys: FIPS needs HMAC_FIPS_MIN_KEY bytes. */
+            ExpectIntEQ(wolfSSL_DTLS_SetCookieSecret(ssl_s,
+                (const byte*)"primary-secret-1", 16), 0);
+            ExpectIntEQ(wolfSSL_DTLS_SetCookieSecretSecondary(ssl_s,
+                (const byte*)"secondary-secret", 16), 0);
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_SEND_HRR_COOKIE)
+            if (version != 0) {
+                ExpectIntEQ(wolfSSL_send_hrr_cookie(ssl_s,
+                    (const byte*)"primary-secret-1", 16), WOLFSSL_SUCCESS);
+                ExpectIntEQ(wolfSSL_set_hrr_cookie_secret_secondary(ssl_s,
+                    (const byte*)"secondary-secret", 16), WOLFSSL_SUCCESS);
+            }
+#endif
+            ExpectIntEQ(wolfSSL_enable_cookie(ssl_s), WOLFSSL_SUCCESS);
+            ExpectBufEQ(ssl_s->buffers.dtlsCookieSecret.buffer,
+                "primary-secret-1", 16);
+            ExpectBufEQ(ssl_s->buffers.dtlsCookieSecretSecondary.buffer,
+                "secondary-secret", 16);
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_SEND_HRR_COOKIE)
+            if (version != 0) {
+                ExpectBufEQ(ssl_s->buffers.tls13CookieSecret.buffer,
+                    "primary-secret-1", 16);
+                ExpectBufEQ(ssl_s->buffers.tls13CookieSecretSecondary.buffer,
+                    "secondary-secret", 16);
+            }
+#endif
+            ExpectIntEQ(wolfSSL_disable_cookie(ssl_s), WOLFSSL_SUCCESS);
+            ExpectNull(ssl_s->buffers.dtlsCookieSecret.buffer);
+            ExpectIntEQ(ssl_s->buffers.dtlsCookieSecret.length, 0);
+            ExpectNull(ssl_s->buffers.dtlsCookieSecretSecondary.buffer);
+            ExpectIntEQ(ssl_s->buffers.dtlsCookieSecretSecondary.length, 0);
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+            ExpectNull(ssl_s->buffers.tls13CookieSecret.buffer);
+            ExpectIntEQ(ssl_s->buffers.tls13CookieSecret.length, 0);
+            ExpectNull(ssl_s->buffers.tls13CookieSecretSecondary.buffer);
+            ExpectIntEQ(ssl_s->buffers.tls13CookieSecretSecondary.length, 0);
+#endif
+            ExpectIntEQ(wolfSSL_disable_cookie(ssl_s), WOLFSSL_SUCCESS);
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_SEND_HRR_COOKIE)
+            if (version != 0 && mode != 0) {
+                ExpectIntEQ(wolfSSL_disable_hrr_cookie(ssl_s), WOLFSSL_SUCCESS);
+                ExpectNull(ssl_s->buffers.tls13CookieSecret.buffer);
+                ExpectNull(ssl_s->buffers.tls13CookieSecretSecondary.buffer);
+            }
+#endif
+            if (enabled) {
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_SEND_HRR_COOKIE)
+                if (version != 0 && mode == 3) {
+                    /* Only the HRR secret is supplied: it is kept and the
+                     * missing DTLS 1.2 secret is generated. */
+                    ExpectIntEQ(wolfSSL_send_hrr_cookie(ssl_s,
+                        (const byte*)"custom13-secret!", 16), WOLFSSL_SUCCESS);
+                    ExpectBufEQ(ssl_s->buffers.tls13CookieSecret.buffer,
+                        "custom13-secret!", 16);
+                }
+                else
+#endif
+                {
+                    /* Only the DTLS 1.2 secret is supplied: it is kept and
+                     * any missing HRR secret is generated. */
+                    ExpectIntEQ(wolfSSL_DTLS_SetCookieSecret(ssl_s,
+                        (const byte*)"custom12-secret!", 16), 0);
+                    ExpectIntEQ(wolfSSL_enable_cookie(ssl_s),
+                        WOLFSSL_SUCCESS);
+                    ExpectBufEQ(ssl_s->buffers.dtlsCookieSecret.buffer,
+                        "custom12-secret!", 16);
+                }
+            }
+            /* Secrets must be ready before accept, not generated by it. */
+            if (enabled) {
+                ExpectNotNull(ssl_s->buffers.dtlsCookieSecret.buffer);
+                ExpectIntGT(ssl_s->buffers.dtlsCookieSecret.length, 0);
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_SEND_HRR_COOKIE)
+                if (version != 0) {
+                    ExpectNotNull(ssl_s->buffers.tls13CookieSecret.buffer);
+                    ExpectIntGT(ssl_s->buffers.tls13CookieSecret.length, 0);
+                }
+#endif
+            }
+            else {
+                ExpectNull(ssl_s->buffers.dtlsCookieSecret.buffer);
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+                ExpectNull(ssl_s->buffers.tls13CookieSecret.buffer);
+#endif
+            }
+            ExpectIntEQ(ssl_s->options.dtlsStateful, 0);
+            ExpectIntEQ(wolfDTLS_SetChGoodCb(ssl_s,
+                enabled ? test_dtls_no_cookie_ch_good :
+                    test_dtls_no_cookie_ch_pause, &calls), WOLFSSL_SUCCESS);
+            /* Empty nonblocking accept commits even with no CH bytes read. */
+#ifdef WOLFSSL_DTLS13
+            if (version == 1 && (mode & 1))
+                ExpectIntEQ(wolfSSL_accept_TLSv13(ssl_s), WOLFSSL_FATAL_ERROR);
+            else
+#endif
+                ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+            ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+                WOLFSSL_ERROR_WANT_READ);
+            ExpectIntEQ(ssl_s->options.dtlsStateful, !enabled);
+            ExpectIntEQ(calls, 0);
+            ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+            ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+                WOLFSSL_ERROR_WANT_READ);
+            if (enabled) {
+                /* A real cookie exchange, not just a flag toggle. */
+                ExpectIntEQ(wolfDTLS_accept_stateless(ssl_s), WOLFSSL_FAILURE);
+                ExpectIntEQ(calls, 0);
+                ExpectIntEQ(ssl_s->options.dtlsStateful, 0);
+                ExpectIntGT(io.c_len, DTLS_RECORD_HEADER_SZ);
+                if (version != 1)
+                    ExpectIntEQ((byte)io.c_buff[DTLS_RECORD_HEADER_SZ],
+                        hello_verify_request);
+                ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+                ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+                    WOLFSSL_ERROR_WANT_READ);
+                ExpectIntEQ(wolfDTLS_accept_stateless(ssl_s), WOLFSSL_SUCCESS);
+                ExpectIntEQ(calls, 1);
+            }
+            else {
+                int queued = io.s_len;
+                WOLFSSL* rejected = wolfSSL_new(ctx_s);
+                ExpectNotNull(rejected);
+                wolfSSL_SetIOReadCtx(rejected, &io);
+                ExpectIntEQ(wolfSSL_disable_cookie(rejected), WOLFSSL_SUCCESS);
+                ExpectIntEQ(wolfDTLS_SetChGoodCb(rejected,
+                    test_dtls_no_cookie_ch_good, &calls), WOLFSSL_SUCCESS);
+                ExpectIntEQ(wolfDTLS_accept_stateless(rejected),
+                    WOLFSSL_FATAL_ERROR);
+                ExpectIntEQ(wolfSSL_get_error(rejected, WOLFSSL_FATAL_ERROR),
+                    WC_NO_ERR_TRACE(BAD_STATE_E));
+                ExpectIntEQ(io.s_len, queued);
+                ExpectIntEQ(io.c_len, 0);
+                ExpectIntEQ(calls, 0);
+                ExpectTrue(rejected->chGoodCb == test_dtls_no_cookie_ch_good);
+                ExpectTrue(rejected->chGoodCtx == &calls);
+                ExpectIntEQ(rejected->options.disableRead, 0);
+                ExpectIntEQ(rejected->options.returnOnGoodCh, 0);
+                wolfSSL_free(rejected);
+                ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+                ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+                    WOLFSSL_ERROR_WANT_WRITE);
+                ExpectIntEQ(calls, 1);
+                ExpectIntEQ(io.c_len, 0);
+                /* Resume after the callback without supplying new input. */
+                ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+                ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+                    WOLFSSL_ERROR_WANT_READ);
+                ExpectIntEQ(calls, 1);
+                if (version != 1) {
+                    ExpectIntGT(io.c_len, DTLS_RECORD_HEADER_SZ);
+                    ExpectIntEQ((byte)io.c_buff[DTLS_RECORD_HEADER_SZ],
+                        server_hello);
+                }
+            }
+            ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 20, NULL), 0);
+            ExpectIntEQ(calls, 1); /* Includes a possible key-share CH2. */
+            ExpectIntEQ(ssl_s->options.dtlsStateful, 1);
+            ExpectIntEQ(ssl_s->options.chGoodCbDone, !enabled);
+            ExpectIntEQ(wolfSSL_clear(ssl_s), WOLFSSL_SUCCESS);
+            ExpectIntEQ(ssl_s->options.chGoodCbDone, 0);
+            wolfSSL_free(ssl_c);
+            wolfSSL_free(ssl_s);
+            wolfSSL_CTX_free(ctx_c);
+            wolfSSL_CTX_free(ctx_s);
+        }
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_dtls12_missing_finished(void)
 {
     EXPECT_DECLS;

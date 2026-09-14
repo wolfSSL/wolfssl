@@ -2437,6 +2437,7 @@ int InitSSL_Side(WOLFSSL* ssl, word16 side)
 #if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_SERVER)
     if (ssl->options.dtls && ssl->options.side == WOLFSSL_SERVER_END) {
         int ret;
+        ssl->options.sendCookie = 1;
         ret = wolfSSL_DTLS_SetCookieSecret(ssl, NULL, 0);
         if (ret != 0) {
             WOLFSSL_MSG("DTLS Cookie Secret error");
@@ -8566,6 +8567,7 @@ static int InitSSL_DtlsServer(WOLFSSL* ssl)
     int ret;
 
     if (ssl->options.dtls && ssl->options.side == WOLFSSL_SERVER_END) {
+        ssl->options.sendCookie = 1; /* Cookies enabled for every DTLS version. */
         /* Initialize both in case we allow downgrading. */
         ret = wolfSSL_DTLS_SetCookieSecret(ssl, NULL, 0);
         if (ret != 0) {

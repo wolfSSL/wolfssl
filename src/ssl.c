@@ -5745,6 +5745,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     #endif
     #ifdef WOLFSSL_DTLS
         ssl->options.dtlsStateful = 0;
+        ssl->options.chGoodCbDone = 0;
     #endif
     #ifdef WOLFSSL_TLS13
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
