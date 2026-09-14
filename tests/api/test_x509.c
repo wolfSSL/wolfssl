@@ -1237,3 +1237,78 @@ int test_x509_REQ_sign_mldsa(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* X509PrintReqAttributes() used to assemble each attribute line in an
+ * 80-byte scratch buffer and fail the whole print when it did not fit. A
+ * challengePassword near its CTC_NAME_SIZE limit pushes the line past that,
+ * so the value must now print in full. */
+int test_x509_REQ_print_long_attr(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_CERT_REQ) && defined(WOLFSSL_CERT_GEN) && \
+    defined(WOLFSSL_CERT_EXT) && !defined(NO_BIO) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && \
+    defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256) && !defined(NO_SHA256)
+    WOLFSSL_EVP_PKEY* priv = NULL;
+    WOLFSSL_EVP_PKEY* pub  = NULL;
+    WOLFSSL_X509*     req  = NULL;
+    WOLFSSL_X509_NAME* name = NULL;
+    WOLFSSL_BIO*      bio  = NULL;
+    const unsigned char* ecPriv = ecc_clikey_der_256;
+    const unsigned char* ecPub  = ecc_clikeypub_der_256;
+    char pw[CTC_NAME_SIZE];
+    /* 8 spaces of indent, the name padded to NAME_SZ/4 columns, ':', the
+     * value and a newline. */
+    char expected[8 + NAME_SZ/4 + 1 + CTC_NAME_SIZE + 2];
+    char* mem = NULL;
+    char* out = NULL;
+    int memSz = 0;
+
+    XMEMSET(pw, 'A', sizeof(pw));
+    pw[CTC_NAME_SIZE - 1] = '\0';
+    XSNPRINTF(expected, sizeof(expected), "        %-*s:%s\n", NAME_SZ/4,
+        "challengePassword", pw);
+
+    ExpectNotNull(priv = wolfSSL_d2i_PrivateKey(EVP_PKEY_EC, NULL, &ecPriv,
+                    (long)sizeof_ecc_clikey_der_256));
+    ExpectNotNull(pub = wolfSSL_d2i_PUBKEY(NULL, &ecPub,
+                    (long)sizeof_ecc_clikeypub_der_256));
+
+    ExpectNotNull(req = wolfSSL_X509_REQ_new());
+    ExpectNotNull(name = wolfSSL_X509_NAME_new());
+    ExpectIntEQ(wolfSSL_X509_NAME_add_entry_by_txt(name, "commonName",
+                    MBSTRING_UTF8, (const byte*)"Test", 4, -1, 0),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_REQ_set_subject_name(req, name), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_REQ_set_pubkey(req, pub), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_REQ_add1_attr_by_NID(req,
+                    WC_NID_pkcs9_challengePassword, WOLFSSL_MBSTRING_ASC,
+                    (const unsigned char*)pw, -1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_REQ_sign(req, priv, wolfSSL_EVP_sha256()),
+                WOLFSSL_SUCCESS);
+
+    ExpectNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
+    ExpectIntEQ(wolfSSL_X509_REQ_print(bio, req), WOLFSSL_SUCCESS);
+    ExpectIntGT(memSz = wolfSSL_BIO_get_mem_data(bio, &mem), 0);
+    if (EXPECT_SUCCESS() && mem != NULL) {
+        /* BIO data is not NUL terminated: copy before searching. Attribute
+         * lines end in '\n', so the whole line is a substring. */
+        ExpectIntGT(memSz, (int)XSTRLEN(expected));
+        ExpectNotNull(out = (char*)XMALLOC((size_t)memSz + 1, NULL,
+            DYNAMIC_TYPE_TMP_BUFFER));
+        if (out != NULL) {
+            XMEMCPY(out, mem, (size_t)memSz);
+            out[memSz] = '\0';
+            ExpectNotNull(XSTRSTR(out, expected));
+        }
+    }
+
+    XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_BIO_free(bio);
+    wolfSSL_X509_NAME_free(name);
+    wolfSSL_X509_free(req);
+    wolfSSL_EVP_PKEY_free(pub);
+    wolfSSL_EVP_PKEY_free(priv);
+#endif
+    return EXPECT_RESULT();
+}
