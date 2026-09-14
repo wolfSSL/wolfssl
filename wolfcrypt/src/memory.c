@@ -28,11 +28,16 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
-#ifdef NO_INLINE
-    #include <wolfssl/wolfcrypt/misc.h>
-#else
-    #define WOLFSSL_MISC_INCLUDED
-    #include <wolfcrypt/src/misc.c>
+/* Required for min()/max() in linuxkm_memory.c. Must track the condition
+ * that #includes linuxkm_memory.c below, not just WOLFSSL_LINUXKM. */
+#if defined(WOLFSSL_LINUXKM) || defined(WC_SYM_RELOC_TABLES) || \
+    defined(WC_SYM_RELOC_TABLES_SUPPORT)
+    #ifdef NO_INLINE
+        #include <wolfssl/wolfcrypt/misc.h>
+    #else
+        #define WOLFSSL_MISC_INCLUDED
+        #include <wolfcrypt/src/misc.c>
+    #endif
 #endif
 
 /*
@@ -1677,22 +1682,9 @@ void __attribute__((no_instrument_function))
 }
 #endif
 
-#ifndef WOLFSSL_NO_FORCE_ZERO
-/* Exported version of ForceZero(). */
-void wc_ForceZero(void *mem, size_t len)
-{
-    ForceZero(mem, len);
-}
-#endif
-
-#ifndef WOLFSSL_NO_CONST_CMP
-/* Exported version of ConstantCompare(). */
-int wc_ConstantCompare(const byte* a, const byte* b, int length)
-
-{
-    return ConstantCompare(a, b, length);
-}
-#endif
+/* wc_ForceZero() and wc_ConstantCompare() now live in wc_port.c; memory.c is
+ * excluded from some builds (--enable-leantls/-leanpsk/--disable-memory).
+ */
 
 #ifdef WC_DEBUG_CIPHER_LIFECYCLE
 static const byte wc_debug_cipher_lifecycle_tag_value[] =

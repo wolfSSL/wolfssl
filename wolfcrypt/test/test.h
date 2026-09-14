@@ -117,6 +117,12 @@ wc_static_assert(-(long)MIN_CODE_E < 0x7ffL);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  macro_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  error_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  octets_test(void);
+#ifndef WOLFSSL_NO_FORCE_ZERO
+extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  forcezero_test(void);
+#endif
+#ifndef WOLFSSL_NO_CONST_CMP
+extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  constantcompare_test(void);
+#endif
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  base64_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  base16_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  asn_test(void);
