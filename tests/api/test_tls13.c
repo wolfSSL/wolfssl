@@ -3962,6 +3962,61 @@ int test_tls13_rpk_handshake(void)
  * rejected instead of accepted without any chain verification (auth bypass).
  * Covers both directions: server presenting an RPK to the client, and client
  * presenting an RPK to the server. */
+static int rpk_waive_issuer_cb(int preverify, WOLFSSL_X509_STORE_CTX* store)
+{
+    (void)preverify;
+    /* the common "accept any issuer" pattern: waive issuer-lookup errors */
+    if (store->error == WC_NO_ERR_TRACE(ASN_NO_SIGNER_E))
+        return 1;
+    return 0;
+}
+
+int test_tls13_rpk_unnegotiated_not_overridable(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_RPK) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    char certType_s[MAX_CLIENT_CERT_TYPE_CNT];
+    int  typeCnt_s;
+    int  ret;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(
+        test_rpk_memio_setup(
+            &test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
+            cliCertFile,     CERT_FILETYPE,
+            svrRpkCertFile,  WOLFSSL_FILETYPE_ASN1,
+            cliKeyFile,      CERT_FILETYPE,
+            svrKeyFile,      CERT_FILETYPE )
+        , 0);
+
+    certType_s[0] = WOLFSSL_CERT_TYPE_X509;
+    certType_s[1] = -1;
+    typeCnt_s = 1;
+    ExpectIntEQ(wolfSSL_set_server_cert_type(ssl_c, certType_s, typeCnt_s),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_server_cert_type(ssl_s, certType_s, typeCnt_s),
+        WOLFSSL_SUCCESS);
+
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, rpk_waive_issuer_cb);
+
+    ret = test_memio_do_handshake(ssl_c, ssl_s, 10, NULL);
+    ExpectIntNE(ret, 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, ret),
+        WC_NO_ERR_TRACE(UNSUPPORTED_CERTIFICATE));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_tls13_rpk_handshake_no_negotiation(void)
 {
     EXPECT_DECLS;

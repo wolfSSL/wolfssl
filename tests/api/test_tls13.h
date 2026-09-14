@@ -30,6 +30,7 @@ int test_tls13_cipher_list_no_tls13_ctx(void);
 int test_tls13_bad_psk_binder(void);
 int test_tls13_rpk_handshake(void);
 int test_tls13_rpk_handshake_no_negotiation(void);
+int test_tls13_rpk_unnegotiated_not_overridable(void);
 int test_tls13_pha(void);
 int test_tls13_ctx_dh_rotation(void);
 int test_tls13_accept_state_dh_copy(void);
@@ -160,6 +161,7 @@ int test_tls13_new_session_ticket_keeps_ems(void);
     TEST_DECL_GROUP("tls13", test_tls13_bad_psk_binder),        \
     TEST_DECL_GROUP("tls13", test_tls13_rpk_handshake),         \
     TEST_DECL_GROUP("tls13", test_tls13_rpk_handshake_no_negotiation), \
+    TEST_DECL_GROUP("tls13", test_tls13_rpk_unnegotiated_not_overridable), \
     TEST_DECL_GROUP("tls13", test_tls13_pha),                   \
     TEST_DECL_GROUP("tls13", test_tls13_ctx_dh_rotation),       \
     TEST_DECL_GROUP("tls13", test_tls13_accept_state_dh_copy),  \
