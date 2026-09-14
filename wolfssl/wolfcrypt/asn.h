@@ -2404,6 +2404,7 @@ struct TrustedPeerCert {
     #endif
     word32 sigLen;
     byte*  sig;
+    byte   certHash[KEYID_SIZE];     /* hash of the whole certificate DER */
     struct TrustedPeerCert* next;
 };
 #endif /* WOLFSSL_TRUST_PEER_CERT */

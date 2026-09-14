@@ -3429,3 +3429,103 @@ int test_record_size_cache_invalidated_on_renegotiation(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* A trusted peer certificate is accepted as the peer without chain building
+ * and without a signature check, so the match has to identify the exact
+ * certificate that was loaded. Subject and issuer names, the key identifier
+ * and the signature bytes are all readable from the public certificate and
+ * can be carried over to another one, and the signature is never checked
+ * against the certificate carrying it. Present a copy of the pinned
+ * certificate whose serial number has been altered: nothing signed it any
+ * more, so it must fail verification like any other unsigned certificate. */
+int test_tls_trust_peer_cert_exact_match(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TRUST_PEER_CERT) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA) && !defined(NO_CERTS)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte genuine[2048];
+    byte altered[2048];
+    byte svrKey[2048];
+    int  genuineSz = 0;
+    int  svrKeySz = 0;
+    int  serialIdx = 0;
+    int  i;
+    XFILE f = XBADFILE;
+    /* end of the version [0] wrapper, then the serial number INTEGER */
+    WOLFSSL_SMALL_STACK_STATIC const byte verSerial[] = {
+        0xA0, 0x03, 0x02, 0x01, 0x02, 0x02
+    };
+
+    ExpectTrue((f = XFOPEN("./certs/server-cert.der", "rb")) != XBADFILE);
+    ExpectIntGT(genuineSz = (int)XFREAD(genuine, 1, sizeof(genuine), f), 0);
+    if (f != XBADFILE)
+        XFCLOSE(f);
+    f = XBADFILE;
+    ExpectTrue((f = XFOPEN("./certs/server-key.der", "rb")) != XBADFILE);
+    ExpectIntGT(svrKeySz = (int)XFREAD(svrKey, 1, sizeof(svrKey), f), 0);
+    if (f != XBADFILE)
+        XFCLOSE(f);
+
+    /* Same certificate with a different serial number. Names, extensions and
+     * signature bytes are untouched, the DER length is unchanged, and the
+     * public key still matches server-key.der. */
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(altered, genuine, (size_t)genuineSz);
+        serialIdx = -1;
+        for (i = 0; i + (int)sizeof(verSerial) < genuineSz; i++) {
+            if (XMEMCMP(genuine + i, verSerial, sizeof(verSerial)) == 0) {
+                serialIdx = i + (int)sizeof(verSerial);
+                break;
+            }
+        }
+        ExpectIntGT(serialIdx, 0);
+    }
+    if (EXPECT_SUCCESS()) {
+        int serialSz = altered[serialIdx];
+        ExpectIntGT(serialSz, 0);
+        ExpectIntLT(serialIdx + serialSz, genuineSz);
+        if (EXPECT_SUCCESS())
+            altered[serialIdx + serialSz] ^= 0x02;
+    }
+
+    /* Control: the pinned certificate itself is accepted. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup_ex(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method, NULL, 0,
+        genuine, genuineSz, svrKey, svrKeySz), 0);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_CTX_trust_peer_buffer(ctx_c, genuine, genuineSz,
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c);
+    ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s);
+    ctx_s = NULL;
+
+    /* The altered copy must not inherit the pin. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup_ex(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method, NULL, 0,
+        altered, genuineSz, svrKey, svrKeySz), 0);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_CTX_trust_peer_buffer(ctx_c, genuine, genuineSz,
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1),
+        WC_NO_ERR_TRACE(ASN_SIG_CONFIRM_E));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}

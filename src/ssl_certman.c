@@ -2818,6 +2818,8 @@ TrustedPeerCert* GetTrustedPeer(void* vp, DecodedCert* cert)
 
 int MatchTrustedPeer(TrustedPeerCert* tp, DecodedCert* cert)
 {
+    byte certHash[KEYID_SIZE];
+
     if (tp == NULL || cert == NULL)
         return BAD_FUNC_ARG;
 
@@ -2831,6 +2833,12 @@ int MatchTrustedPeer(TrustedPeerCert* tp, DecodedCert* cert)
         }
     }
     else {
+        return WOLFSSL_FAILURE;
+    }
+
+    if (cert->source == NULL || cert->maxIdx == 0 ||
+            CalcHashId(cert->source, cert->maxIdx, certHash) != 0 ||
+            XMEMCMP(tp->certHash, certHash, KEYID_SIZE) != 0) {
         return WOLFSSL_FAILURE;
     }
 
@@ -3037,6 +3045,15 @@ int AddTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int verify)
             return MEMORY_E;
         }
         XMEMCPY(peerCert->sig, cert->signature, cert->sigLength);
+
+        ret = CalcHashId(der->buffer, der->length, peerCert->certHash);
+        if (ret != 0) {
+            FreeDecodedCert(cert);
+            XFREE(cert, cm->heap, DYNAMIC_TYPE_DCERT);
+            FreeTrustedPeer(peerCert, cm->heap);
+            FreeDer(&der);
+            return ret;
+        }
 
         /* add trusted peer name */
         peerCert->nameLen = cert->subjectCNLen;
