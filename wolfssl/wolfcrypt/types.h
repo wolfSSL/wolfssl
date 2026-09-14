@@ -2436,6 +2436,14 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
                 wc_static_assert2(__builtin_choose_expr(                \
                                   WC_IS_CONSTEXPR(expr), expr, 1), msg)
         #endif
+    #elif defined(WOLFSSL_BSDKM)
+        /* from CTASSERT(9), FreeBSD Kernel Developer's Manual:
+         * The CTASSERT() macro is deprecated and the C11 standard
+         * _Static_assert() should be used instead. */
+        #define wc_static_assert(expr) _Static_assert(expr, #expr)
+        #ifndef wc_static_assert2
+            #define wc_static_assert2(expr, msg) _Static_assert(expr, msg)
+        #endif
     #else
         #ifdef __COUNTER__
             #define wc_static_assert(expr)                          \
