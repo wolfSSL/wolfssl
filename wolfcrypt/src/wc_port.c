@@ -441,18 +441,6 @@ WOLFSSL_ABI
 int wolfCrypt_Init(void)
 {
     int ret;
-#if defined(WOLFSSL_ALTERA_FCS) && defined(WOLF_CRYPTO_CB)
-    int alteraFcsRegistered = 0;
-    #define WOLFCRYPT_INIT_FCS_ROLLBACK() do {                         \
-        if (alteraFcsRegistered) {                                     \
-            (void)wc_AlteraFcsCryptoCb_UnRegisterDeviceEx(             \
-                WOLFSSL_ALTERA_FCS_DEVID);                             \
-            alteraFcsRegistered = 0;                                   \
-        }                                                              \
-    } while (0)
-#else
-    #define WOLFCRYPT_INIT_FCS_ROLLBACK() do { } while (0)
-#endif
 #if defined(HAVE_THREAD_LS) && !defined(NO_THREAD_LS) && defined(__GNUC__)
     /* If thread-local storage is available, use it to prevent deadlock on
      * recursion.  We only do this when __GNUC__ -- this code is known to cause
@@ -463,14 +451,12 @@ int wolfCrypt_Init(void)
     if (in_init)
         return DEADLOCK_AVERTED_E;
     #define WOLFCRYPT_INIT_RAISE_BAD_STATE() do {                \
-            WOLFCRYPT_INIT_FCS_ROLLBACK();                       \
             in_init = 0;                                         \
             WC_INIT_STATE_RAISE_BAD_STATE(wolfcrypt_init_state); \
             return ret;                                          \
     } while (0)
 #else
     #define WOLFCRYPT_INIT_RAISE_BAD_STATE() do {                \
-            WOLFCRYPT_INIT_FCS_ROLLBACK();                       \
             WC_INIT_STATE_RAISE_BAD_STATE(wolfcrypt_init_state); \
             return ret;                                          \
     } while (0)
@@ -614,20 +600,12 @@ int wolfCrypt_Init(void)
             WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
     #endif
-    /* Register the Agilex 5 SDM so wolfCrypt operations created with this
-     * devId route to the hardware. Registration is per-devId and opt-in by
-     * design: the device grants one session chip-wide, so routing every
-     * operation here would serialise the whole library. */
+    /* The Agilex 5 SDM is an optional accelerator: contexts on its devId use
+     * software when it is absent, and its device key APIs report the error. */
     #if defined(WOLFSSL_ALTERA_FCS) && defined(WOLF_CRYPTO_CB)
         ret = wc_AlteraFcsCryptoCb_RegisterDeviceMask(
                 WOLFSSL_ALTERA_FCS_DEVID, WOLFSSL_ALTERA_FCS_AUTO_MASK);
-        if (ret == 0) {
-            alteraFcsRegistered = 1;
-        }
-        else {
-            /* FCS is an optional accelerator. Explicit device-key APIs still
-             * report hardware errors, while ordinary wolfCrypt operations must
-             * remain available through their software implementations. */
+        if (ret != 0) {
             WOLFSSL_MSG("Altera FCS unavailable; using software fallback");
             ret = 0;
         }
@@ -826,7 +804,6 @@ int wolfCrypt_Init(void)
 
 
 #undef WOLFCRYPT_INIT_RAISE_BAD_STATE
-#undef WOLFCRYPT_INIT_FCS_ROLLBACK
 
 #if defined(HAVE_THREAD_LS) && !defined(NO_THREAD_LS) && defined(__GNUC__)
         in_init = 0;

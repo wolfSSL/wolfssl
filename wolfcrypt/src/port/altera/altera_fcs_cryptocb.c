@@ -30,10 +30,18 @@
 #ifndef WOLF_CRYPTO_CB
     #error "WOLFSSL_ALTERA_FCS requires WOLF_CRYPTO_CB"
 #endif
+#ifndef WOLF_CRYPTO_CB_CMD
+    #error "WOLFSSL_ALTERA_FCS requires WOLF_CRYPTO_CB_CMD for device setup"
+#endif
+
+static void wc_AlteraFcsCryptoCb_UnRegisterAll(void);
 
 /* Set at registration; operations outside the mask are declined so wolfSSL
  * uses its software path. */
 static word32 g_algoMask = WC_ALTERA_FCS_ALGO_ALL;
+/* Mask requested by the registration in progress, read by the REGISTER
+ * command handler. */
+static word32 g_pendingMask = WC_ALTERA_FCS_ALGO_ALL;
 static int    g_devId    = INVALID_DEVID;
 static int    g_unregisterPending = 0;
 static int    g_callbackCount = 0;
@@ -88,7 +96,7 @@ static void wc_AlteraFcs_CallbackEnd(void)
     }
     wc_UnLockMutex(&g_stateLock);
     if (finish) {
-        wc_CryptoCb_UnRegisterDevice(WOLFSSL_ALTERA_FCS_DEVID);
+        wc_AlteraFcsCryptoCb_UnRegisterAll();
     }
 }
 
@@ -115,6 +123,66 @@ int wc_AlteraFcs_RegisterActive(void)
     return active;
 }
 
+/* Device setup for the REGISTER command, so a failure unwinds the
+ * registration inside wc_CryptoCb_RegisterDevice() itself. */
+static int wc_AlteraFcsCryptoCb_Register(int devId)
+{
+    int ret;
+
+    ret = wc_AlteraFcs_Init();
+    if (ret != 0) {
+        /* The framework reads "unavailable" as "not implemented" and would
+         * register anyway, so an absent device has to be a hard error here. */
+        if (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE) ||
+            ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
+            ret = WC_HW_E;
+        }
+        return ret;
+    }
+    if (wc_LockMutex(&g_stateLock) != 0) {
+        (void)wc_AlteraFcs_Cleanup();
+        return BAD_MUTEX_E;
+    }
+    g_algoMask = g_pendingMask;
+    g_devId = devId;
+    g_unregisterPending = 0;
+    wc_UnLockMutex(&g_stateLock);
+    return 0;
+}
+
+#ifdef WOLFSSL_ALTERA_FCS_AES
+/* The key generation id accepts one request, an AES SETKEY with a NULL key.
+ * Anything else on it is a caller error and must not quietly do something
+ * else. Free and copy are declined so wolfSSL runs its own teardown. */
+static int wc_AlteraFcsCryptoDevCbKeyGen(wc_CryptoInfo* info)
+{
+    int ret = WC_HW_E;
+
+    switch (info->algo_type) {
+        case WC_ALGO_TYPE_SETKEY:
+            ret = wc_AlteraFcs_Aes(info);
+            break;
+        case WC_ALGO_TYPE_FREE:
+        case WC_ALGO_TYPE_COPY:
+            ret = CRYPTOCB_UNAVAILABLE;
+            break;
+    #ifdef WOLF_CRYPTO_CB_AES_SETKEY
+        case WC_ALGO_TYPE_CIPHER:
+            /* The per-algorithm key setup runs ahead of SETKEY and must be
+             * declined for the NULL key request to reach it. */
+            if (info->cipher.type == WC_CIPHER_AES) {
+                ret = CRYPTOCB_UNAVAILABLE;
+            }
+            break;
+    #endif
+        default:
+            WOLFSSL_MSG("Altera FCS AES key devId only generates keys");
+            break;
+    }
+    return ret;
+}
+#endif
+
 /* Dispatcher. Returning CRYPTOCB_UNAVAILABLE lets wolfCrypt fall back to
  * software, which is the required behaviour whenever the SDM is busy: the one
  * chip-wide session means a hard failure here would stall unrelated callers. */
@@ -123,7 +191,6 @@ static int wc_AlteraFcsCryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
     int ret = CRYPTOCB_UNAVAILABLE;
     word32 algoMask;
 
-    (void)devId;
     (void)ctx;
 
     if (info == NULL) {
@@ -133,8 +200,11 @@ static int wc_AlteraFcsCryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
 #ifdef WOLF_CRYPTO_CB_CMD
     if (info->algo_type == WC_ALGO_TYPE_NONE) {
         if (info->cmd.type == WC_CRYPTOCB_CMD_TYPE_UNREGISTER) {
-            ret = wc_AlteraFcsCryptoCb_UnRegisterDeviceEx(devId);
-            return (ret == 0) ? 0 : BUSY_E;
+            return wc_AlteraFcsCryptoCb_UnRegisterDeviceEx(devId);
+        }
+        if (info->cmd.type == WC_CRYPTOCB_CMD_TYPE_REGISTER &&
+            devId == WOLFSSL_ALTERA_FCS_DEVID) {
+            return wc_AlteraFcsCryptoCb_Register(devId);
         }
         return CRYPTOCB_UNAVAILABLE;
     }
@@ -143,6 +213,14 @@ static int wc_AlteraFcsCryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
     if (wc_AlteraFcs_CallbackBegin(&algoMask) != 0) {
         return ret;
     }
+
+#ifdef WOLFSSL_ALTERA_FCS_AES
+    if (devId == WOLFSSL_ALTERA_FCS_AES_KEY_DEVID) {
+        ret = wc_AlteraFcsCryptoDevCbKeyGen(info);
+        wc_AlteraFcs_CallbackEnd();
+        return ret;
+    }
+#endif
 
     switch (info->algo_type) {
         case WC_ALGO_TYPE_SEED:
@@ -213,6 +291,16 @@ static int wc_AlteraFcsCryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
     return ret;
 }
 
+/* Both ids are dropped together; the framework clears the key generation
+ * slot silently since its UNREGISTER handler has nothing to release. */
+static void wc_AlteraFcsCryptoCb_UnRegisterAll(void)
+{
+#ifdef WOLFSSL_ALTERA_FCS_AES
+    wc_CryptoCb_UnRegisterDevice(WOLFSSL_ALTERA_FCS_AES_KEY_DEVID);
+#endif
+    wc_CryptoCb_UnRegisterDevice(WOLFSSL_ALTERA_FCS_DEVID);
+}
+
 int wc_AlteraFcsCryptoCb_RegisterDeviceMask(int devId, word32 algoMask)
 {
     int ret;
@@ -240,28 +328,37 @@ int wc_AlteraFcsCryptoCb_RegisterDeviceMask(int devId, word32 algoMask)
         wc_UnLockMutex(&g_stateLock);
         return BUSY_E;
     }
+    g_pendingMask = algoMask;
     wc_UnLockMutex(&g_stateLock);
 
-    ret = wc_AlteraFcs_Init();
-    if (ret != 0) {
-        return ret;
-    }
-
+    /* The REGISTER command brings the device up and records the mask. A
+     * deferred unregister keeps the slot, so ALREADY_E there means the
+     * callback is still registered and only the state needs reviving. */
     ret = wc_CryptoCb_RegisterDevice(devId, wc_AlteraFcsCryptoDevCb, NULL);
-    if (wc_LockMutex(&g_stateLock) != 0) {
-        return BAD_MUTEX_E;
+    if (ret == ALREADY_E) {
+        if (wc_LockMutex(&g_stateLock) != 0) {
+            return BAD_MUTEX_E;
+        }
+        if (g_devId == devId || wasPending) {
+            g_algoMask = algoMask;
+            g_devId = devId;
+            g_unregisterPending = 0;
+            ret = 0;
+        }
+        wc_UnLockMutex(&g_stateLock);
     }
-    if (ret == 0 || (ret == ALREADY_E &&
-        (g_devId == devId || wasPending))) {
-        g_algoMask = algoMask;
-        g_devId = devId;
-        g_unregisterPending = 0;
-        ret = 0;
+#ifdef WOLFSSL_ALTERA_FCS_AES
+    if (ret == 0 && (algoMask & WC_ALTERA_FCS_ALGO_AES) != 0) {
+        ret = wc_CryptoCb_RegisterDevice(WOLFSSL_ALTERA_FCS_AES_KEY_DEVID,
+                                         wc_AlteraFcsCryptoDevCb, NULL);
+        if (ret == ALREADY_E) {
+            ret = 0;
+        }
+        if (ret != 0) {
+            wc_AlteraFcsCryptoCb_UnRegisterAll();
+        }
     }
-    wc_UnLockMutex(&g_stateLock);
-    if (ret != 0) {
-        (void)wc_AlteraFcs_Cleanup();
-    }
+#endif
     return ret;
 }
 
@@ -276,6 +373,10 @@ int wc_AlteraFcsCryptoCb_UnRegisterDeviceEx(int devId)
     int ret;
 
     if (g_stateLockInit == 0) {
+        return 0;
+    }
+    /* The key generation id owns no device state of its own. */
+    if (devId == WOLFSSL_ALTERA_FCS_AES_KEY_DEVID) {
         return 0;
     }
     if (wc_LockMutex(&g_stateLock) != 0) {
@@ -309,7 +410,12 @@ int wc_AlteraFcsCryptoCb_UnRegisterDeviceEx(int devId)
 
 void wc_AlteraFcsCryptoCb_UnRegisterDevice(int devId)
 {
-    wc_CryptoCb_UnRegisterDevice(devId);
+    if (devId == WOLFSSL_ALTERA_FCS_DEVID) {
+        wc_AlteraFcsCryptoCb_UnRegisterAll();
+    }
+    else {
+        wc_CryptoCb_UnRegisterDevice(devId);
+    }
 }
 
 void wc_AlteraFcsCryptoCb_UnRegisterPending(void)
@@ -322,7 +428,7 @@ void wc_AlteraFcsCryptoCb_UnRegisterPending(void)
         wc_UnLockMutex(&g_stateLock);
     }
     if (finish) {
-        wc_CryptoCb_UnRegisterDevice(WOLFSSL_ALTERA_FCS_DEVID);
+        wc_AlteraFcsCryptoCb_UnRegisterAll();
     }
 }
 
@@ -377,7 +483,7 @@ void wc_AlteraFcs_ResourceRemove(void)
         wc_UnLockMutex(&g_stateLock);
     }
     if (finish) {
-        wc_CryptoCb_UnRegisterDevice(WOLFSSL_ALTERA_FCS_DEVID);
+        wc_AlteraFcsCryptoCb_UnRegisterAll();
     }
 }
 

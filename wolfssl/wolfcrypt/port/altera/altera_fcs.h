@@ -64,15 +64,24 @@
     #define WOLFSSL_ALTERA_FCS_DEVID 0x4143
 #endif
 
-/* Largest single SDM transaction (FCS_CRYPTO_BLOCK_SZ in the kernel driver). */
+/* Device id that asks for an AES key to be generated inside the SDM. A context
+ * initialised on it accepts exactly one wc_AesSetKey() with a NULL key, whose
+ * length selects AES-128 or AES-256; the context is then moved to
+ * WOLFSSL_ALTERA_FCS_DEVID with the resident key attached. Real key material
+ * on this id is refused so it can never be silently discarded. */
+#ifndef WOLFSSL_ALTERA_FCS_AES_KEY_DEVID
+    #define WOLFSSL_ALTERA_FCS_AES_KEY_DEVID 0x4144
+#endif
+
+/* Largest single SDM transaction (CRYPTO_MAX_SZ in libfcs). Larger requests
+ * go through the libfcs streaming entry points, which split them. */
 #define WC_ALTERA_FCS_MAX_XFER (4 * 1024 * 1024)
 
-/* Requests below these configurable thresholds remain in software. */
-#ifndef WOLFSSL_ALTERA_FCS_HASH_MIN
-    #define WOLFSSL_ALTERA_FCS_HASH_MIN 4096
-#endif
-#ifndef WOLFSSL_ALTERA_FCS_AES_MIN
-    #define WOLFSSL_ALTERA_FCS_AES_MIN 4096
+/* A hash context accumulates its message in an anonymous memory file until
+ * final(), so this bounds the memory one context may hold. A longer message is
+ * completed in software instead. */
+#ifndef WOLFSSL_ALTERA_FCS_HASH_MAX
+    #define WOLFSSL_ALTERA_FCS_HASH_MAX (64 * 1024 * 1024)
 #endif
 
 /* Context id tagging every request this port makes. */
@@ -84,6 +93,48 @@
 #ifndef WOLFSSL_ALTERA_FCS_KEY_ID_BASE
     #define WOLFSSL_ALTERA_FCS_KEY_ID_BASE 0x57420001
 #endif
+
+/* Unprotected key object layout, as written by fcs_prepare. The two magic
+ * words are ASCII "CskO" and "Cskd" (crypto service key object / key data)
+ * and the SDM checks both before accepting an object. */
+#define WC_ALTERA_FCS_KEY_OBJ_MAGIC   0x43736B4FU
+#define WC_ALTERA_FCS_KEY_DATA_MAGIC  0x43736B64U
+#define WC_ALTERA_FCS_KEY_OBJ_VER     1
+#define WC_ALTERA_FCS_KEY_MAC_SZ      48
+#define WC_ALTERA_FCS_KEY_DATA_OFFSET 56
+#define WC_ALTERA_FCS_KEY_ALIGN       32
+#define WC_ALTERA_FCS_KEY_STATUS_SZ   64
+#define WC_ALTERA_FCS_KEY_TYPE_AES      1
+#define WC_ALTERA_FCS_KEY_TYPE_HMAC     2
+#define WC_ALTERA_FCS_KEY_TYPE_ECC_NIST 3
+#define WC_ALTERA_FCS_KEY_TYPE_ECC_BP   4
+/* Sign and Verify are exclusive with Exchange; combining them is refused
+ * with status 0x80. */
+#define WC_ALTERA_FCS_KEY_USAGE_ENC_DEC     0x3
+#define WC_ALTERA_FCS_KEY_USAGE_SIGN_VERIFY 0xC
+#define WC_ALTERA_FCS_KEY_USAGE_EXCHANGE    0x10
+/* Header, the largest padded key (512 bits), then the unused MAC field. */
+#define WC_ALTERA_FCS_KEY_OBJ_MAX_SZ \
+    (WC_ALTERA_FCS_KEY_DATA_OFFSET + 64 + WC_ALTERA_FCS_KEY_MAC_SZ)
+
+WOLFSSL_LOCAL void wc_AlteraFcs_Put32(byte* out, word32 val);
+WOLFSSL_LOCAL word32 wc_AlteraFcs_Get32(const byte* in);
+/* Encode a key object into out (WC_ALTERA_FCS_KEY_OBJ_MAX_SZ bytes). A NULL
+ * key leaves the data region zeroed so fcs_create_service_key generates the
+ * key inside the SDM. */
+WOLFSSL_LOCAL int  wc_AlteraFcs_KeyObject(byte* out, word32 keyId,
+                                          word32 keyType, word32 usage,
+                                          const byte* key, word32 keyBits,
+                                          word32* outSz);
+/* Anonymous memory file, named through /proc/self/fd for the libfcs
+ * streaming calls. Returns the descriptor or -1. */
+WOLFSSL_LOCAL int  wc_AlteraFcs_MemFd(void);
+WOLFSSL_LOCAL int  wc_AlteraFcs_MemFdWrite(int fd, const byte* in, word32 sz);
+WOLFSSL_LOCAL int  wc_AlteraFcs_MemFdRead(int fd, word32 off, byte* out,
+                                          word32 sz);
+WOLFSSL_LOCAL int  wc_AlteraFcs_MemFdSize(int fd, word32* sz);
+#define WC_ALTERA_FCS_FD_PATH_SZ 32
+WOLFSSL_LOCAL void wc_AlteraFcs_MemFdPath(int fd, char* path);
 
 WOLFSSL_LOCAL int  wc_AlteraFcs_Init(void);
 WOLFSSL_LOCAL int  wc_AlteraFcs_Cleanup(void);
@@ -175,15 +226,10 @@ WOLFSSL_LOCAL int wc_AlteraFcs_Hash(wc_CryptoInfo* info);
 
 #ifdef WOLFSSL_ALTERA_FCS_AES
 WOLFSSL_LOCAL int wc_AlteraFcs_Aes(wc_CryptoInfo* info);
-/* Device resident AES. The key is generated inside the SDM and never appears in
- * HPS memory, unlike wc_AesSetKey which stores a plaintext key the port can only
- * import. Created explicitly because an SDM key object commits to its usage at
- * creation. CBC and CTR are then offloaded by handle with no software fallback;
- * any other AES mode is refused, so callers that depend on key isolation should
- * assert IsDeviceKey. MakeKey requires a freshly initialized context: one that
- * already went through wc_AesSetKey is refused, and wc_AesSetKey,
- * wc_AesSetKeyDirect and wc_AesGetKeySize are not usable on the result. */
-WOLFSSL_API int wc_AlteraFcsAes_MakeKey(Aes* aes, int keyBits);
+/* Non-zero when the AES key was generated inside the SDM through
+ * WOLFSSL_ALTERA_FCS_AES_KEY_DEVID and never existed in HPS memory. CBC and
+ * CTR on such a context are offloaded by handle with no software fallback;
+ * any other mode, re-keying and wc_AesGetKeySize are refused. */
 WOLFSSL_API int wc_AlteraFcsAes_IsDeviceKey(const Aes* aes);
 #endif
 

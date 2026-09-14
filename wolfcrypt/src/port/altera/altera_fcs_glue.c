@@ -44,6 +44,9 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/file.h>
+#include <sys/stat.h>
+#include <sys/mman.h>
+#include <sys/syscall.h>
 #include <errno.h>
 #ifndef SINGLE_THREADED
     #include <pthread.h>
@@ -68,6 +71,9 @@ static int  g_sessionOpen = 0;
 static int  g_refCount   = 0;
 static int  g_cleanupPending = 0;
 static int  g_libReady   = 0;
+/* libfcs_init() leaves its own state at "in progress" when it fails and
+ * reports success on every later call, so the first failure is final. */
+static int  g_libInitErr = 0;
 static int  g_atexitDone = 0;
 static int  g_lockFd     = -1;
 static pid_t g_ownerPid  = 0;
@@ -94,6 +100,133 @@ static word32 g_nextKeyId = WOLFSSL_ALTERA_FCS_KEY_ID_BASE;
 static void wc_AlteraFcs_AtExit(void)
 {
     (void)wc_AlteraFcs_Cleanup();
+}
+
+void wc_AlteraFcs_Put32(byte* out, word32 val)
+{
+    out[0] = (byte)( val        & 0xFF);
+    out[1] = (byte)((val >>  8) & 0xFF);
+    out[2] = (byte)((val >> 16) & 0xFF);
+    out[3] = (byte)((val >> 24) & 0xFF);
+}
+
+word32 wc_AlteraFcs_Get32(const byte* in)
+{
+    return ((word32)in[0]) | ((word32)in[1] << 8) |
+           ((word32)in[2] << 16) | ((word32)in[3] << 24);
+}
+
+/* The size code is keyBits / 128 for every key type: 1 = 128, 2 = 256,
+ * 3 = 384, 4 = 512. Callers restrict the sizes their type accepts. */
+int wc_AlteraFcs_KeyObject(byte* out, word32 keyId, word32 keyType,
+                           word32 usage, const byte* key, word32 keyBits,
+                           word32* outSz)
+{
+    word32 keyLen;
+    word32 padded;
+    word32 objSz;
+
+    if (out == NULL || outSz == NULL || keyBits == 0 ||
+        (keyBits % 128) != 0 || keyBits > 512) {
+        return BAD_FUNC_ARG;
+    }
+
+    keyLen = keyBits / 8;
+    padded = keyLen;
+    if ((padded % WC_ALTERA_FCS_KEY_ALIGN) != 0) {
+        padded += WC_ALTERA_FCS_KEY_ALIGN - (padded % WC_ALTERA_FCS_KEY_ALIGN);
+    }
+
+    XMEMSET(out, 0, WC_ALTERA_FCS_KEY_OBJ_MAX_SZ);
+    wc_AlteraFcs_Put32(out,      WC_ALTERA_FCS_KEY_OBJ_MAGIC);
+    wc_AlteraFcs_Put32(out + 8,  keyId);
+    wc_AlteraFcs_Put32(out + 20, ((keyBits / 128) << 16) | (keyType << 24));
+    wc_AlteraFcs_Put32(out + 24, usage);
+    wc_AlteraFcs_Put32(out + 48, WC_ALTERA_FCS_KEY_DATA_MAGIC);
+    if (key != NULL) {
+        XMEMCPY(out + WC_ALTERA_FCS_KEY_DATA_OFFSET, key, keyLen);
+    }
+
+    /* The declared size covers the object but not the trailing MAC field. */
+    objSz = WC_ALTERA_FCS_KEY_DATA_OFFSET + padded;
+    wc_AlteraFcs_Put32(out + 4, ((word32)WC_ALTERA_FCS_KEY_OBJ_VER << 16) |
+                                (objSz & 0xFFFF));
+
+    *outSz = objSz + WC_ALTERA_FCS_KEY_MAC_SZ;
+    return 0;
+}
+
+#ifndef MFD_CLOEXEC
+    #define MFD_CLOEXEC 0x0001U
+#endif
+
+int wc_AlteraFcs_MemFd(void)
+{
+    int fd;
+
+#ifdef SYS_memfd_create
+    fd = (int)syscall(SYS_memfd_create, "wolfssl-fcs",
+                      (unsigned int)MFD_CLOEXEC);
+#else
+    fd = memfd_create("wolfssl-fcs", MFD_CLOEXEC);
+#endif
+    if (fd < 0) {
+        WOLFSSL_MSG("Altera FCS memfd_create failed");
+    }
+    return fd;
+}
+
+int wc_AlteraFcs_MemFdWrite(int fd, const byte* in, word32 sz)
+{
+    word32 done = 0;
+
+    while (done < sz) {
+        ssize_t n = write(fd, in + done, sz - done);
+
+        if (n < 0 && errno == EINTR) {
+            continue;
+        }
+        if (n <= 0) {
+            return WC_HW_E;
+        }
+        done += (word32)n;
+    }
+    return 0;
+}
+
+int wc_AlteraFcs_MemFdRead(int fd, word32 off, byte* out, word32 sz)
+{
+    word32 done = 0;
+
+    while (done < sz) {
+        ssize_t n = pread(fd, out + done, sz - done, (off_t)(off + done));
+
+        if (n < 0 && errno == EINTR) {
+            continue;
+        }
+        if (n <= 0) {
+            return WC_HW_E;
+        }
+        done += (word32)n;
+    }
+    return 0;
+}
+
+int wc_AlteraFcs_MemFdSize(int fd, word32* sz)
+{
+    struct stat st;
+
+    if (fstat(fd, &st) != 0 || st.st_size < 0 ||
+        (unsigned long long)st.st_size > 0xFFFFFFFFULL) {
+        return WC_HW_E;
+    }
+    *sz = (word32)st.st_size;
+    return 0;
+}
+
+void wc_AlteraFcs_MemFdPath(int fd, char* path)
+{
+    (void)XSNPRINTF(path, WC_ALTERA_FCS_FD_PATH_SZ, "/proc/self/fd/%d", fd);
 }
 
 static void wc_AlteraFcs_ResetForkChild(void)
@@ -200,16 +333,6 @@ int wc_AlteraFcs_Init(void)
 {
     int ret = 0;
 
-    if (g_processPid != 0 && g_processPid != getpid()) {
-        wc_AlteraFcs_ResetForkChild();
-    }
-    /* Session-scoped ECC and HMAC handles cannot be reconstructed safely in
-     * an inherited process. The child may use software, or exec a fresh image
-     * to initialize an independent FCS process state. */
-    if (g_forkChild) {
-        return CRYPTOCB_UNAVAILABLE;
-    }
-
     if (g_lockInit == 0) {
         if (wc_InitMutex(&g_lock) != 0) {
             return BAD_MUTEX_E;
@@ -232,11 +355,30 @@ int wc_AlteraFcs_Init(void)
         return BAD_MUTEX_E;
     }
 
+    /* pthread_atfork resets a threaded child; this covers SINGLE_THREADED
+     * builds and any fork that bypassed the handlers. */
+    if (g_processPid != 0 && g_processPid != getpid()) {
+        wc_AlteraFcs_ResetForkChild();
+    }
+    /* Session-scoped ECC and HMAC handles cannot be reconstructed safely in
+     * an inherited process. The child may use software, or exec a fresh image
+     * to initialize an independent FCS process state. */
+    if (g_forkChild) {
+        wc_UnLockMutex(&g_lock);
+        return CRYPTOCB_UNAVAILABLE;
+    }
+
+    if (g_libInitErr != 0) {
+        wc_UnLockMutex(&g_lock);
+        return g_libInitErr;
+    }
+
     if (g_libReady == 0) {
         ret = libfcs_init((FCS_OSAL_CHAR*)"error");
         if (ret != 0) {
             WOLFSSL_MSG("libfcs_init failed");
             ret = wc_AlteraFcs_MapError(ret);
+            g_libInitErr = ret;
         }
         else {
             g_libReady = 1;
@@ -263,12 +405,6 @@ int wc_AlteraFcs_SessionAcquire(void** sessionId)
 
     if (sessionId == NULL) {
         return BAD_FUNC_ARG;
-    }
-
-    /* pthread_atfork protects threaded builds from inheriting a locked mutex.
-     * The PID check also covers SINGLE_THREADED builds. */
-    if (g_ownerPid != 0 && g_ownerPid != getpid()) {
-        wc_AlteraFcs_ResetForkChild();
     }
 
     ret = wc_AlteraFcs_Init();
@@ -348,16 +484,17 @@ int wc_AlteraFcs_KeyIdNew(word32* keyId)
         return BAD_MUTEX_E;
     }
 
-    *keyId = g_nextKeyId;
     /* Key IDs are carried by a few legacy signed atomic trackers. Keep the
      * allocator below INT_MAX so those trackers never observe a negative ID;
-     * zero remains reserved for the orphan-key sweep. */
+     * zero remains reserved for the orphan-key sweep. Nothing tracks which
+     * ids are still live, so the space is never reused: refusing is safer
+     * than handing out an id that may collide with a key still in the SDM. */
     if (g_nextKeyId >= 0x7FFFFFFFU) {
-        g_nextKeyId = WOLFSSL_ALTERA_FCS_KEY_ID_BASE;
+        wc_UnLockMutex(&g_lock);
+        WOLFSSL_MSG("Altera FCS key id space exhausted");
+        return BAD_STATE_E;
     }
-    else {
-        g_nextKeyId++;
-    }
+    *keyId = g_nextKeyId++;
 
     wc_UnLockMutex(&g_lock);
     return 0;

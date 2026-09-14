@@ -149,3 +149,36 @@ FCS_OSAL_INT fcs_mac_verify(FCS_OSAL_UUID* sessionId,
     FCS_STUB_UNUSED(req);
     return -ENOTSUP;
 }
+
+FCS_OSAL_INT fcs_get_digest_streaming(FCS_OSAL_UUID* sessionId,
+    FCS_OSAL_U32 keyId, FCS_OSAL_U32 contextId,
+    struct fcs_digest_req_streaming* req)
+{
+    FCS_STUB_UNUSED(sessionId);
+    FCS_STUB_UNUSED(keyId);
+    FCS_STUB_UNUSED(contextId);
+    FCS_STUB_UNUSED(req);
+    return -ENOTSUP;
+}
+
+FCS_OSAL_INT fcs_aes_crypt_streaming(FCS_OSAL_UUID* sessionId,
+    FCS_OSAL_U32 keyId, FCS_OSAL_U32 contextId,
+    struct fcs_aes_req_streaming* req)
+{
+    FCS_STUB_UNUSED(sessionId);
+    FCS_STUB_UNUSED(keyId);
+    FCS_STUB_UNUSED(contextId);
+    FCS_STUB_UNUSED(req);
+    return -ENOTSUP;
+}
+
+FCS_OSAL_INT fcs_mac_verify_streaming(FCS_OSAL_UUID* sessionId,
+    FCS_OSAL_U32 keyId, FCS_OSAL_U32 contextId,
+    struct fcs_mac_verify_req_streaming* req)
+{
+    FCS_STUB_UNUSED(sessionId);
+    FCS_STUB_UNUSED(keyId);
+    FCS_STUB_UNUSED(contextId);
+    FCS_STUB_UNUSED(req);
+    return -ENOTSUP;
+}

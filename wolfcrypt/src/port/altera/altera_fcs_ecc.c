@@ -61,23 +61,6 @@
 #ifndef WOLF_CRYPTO_CB_FREE
     #error "WOLFSSL_ALTERA_FCS_ECC requires WOLF_CRYPTO_CB_FREE to release keys"
 #endif
-#define FCS_KEY_OBJ_MAGIC     0x43736B4FU
-#define FCS_KEY_DATA_MAGIC    0x43736B64U
-#define FCS_KEY_OBJ_VER       1
-#define FCS_KEY_TYPE_ECC_NIST 3
-#define FCS_KEY_TYPE_ECC_BP   4
-#define FCS_KEY_MAC_SZ        48
-#define FCS_KEY_DATA_OFFSET   56
-#define FCS_KEY_ALIGN         32
-#define FCS_KEY_STATUS_SZ     64
-
-/* Sign and Verify are exclusive with Exchange for an ECC key object, so an
- * ECDSA key cannot also serve ECDH. */
-#define FCS_KEY_USAGE_SIGN_VERIFY 0xC
-#define FCS_KEY_USAGE_EXCHANGE    0x10
-
-/* Largest object: 56 byte header, 64 byte padded P-384 scalar, 48 byte MAC. */
-#define WC_ALTERA_FCS_ECCOBJ_SZ (FCS_KEY_DATA_OFFSET + 64 + FCS_KEY_MAC_SZ)
 
 #define WC_ALTERA_FCS_ECC_MAX_SZ 48
 
@@ -97,13 +80,13 @@ typedef struct {
     void*  heap;
 } AlteraEccKey;
 
-/* The Agilex 5 kernel driver copies the entire ECDSA response into the address
- * supplied for dst_len instead of copying sizeof(FCS_OSAL_U32). Supply a
- * response-sized, aligned sink. The first word is the input capacity, but its
- * returned contents cannot be interpreted as a length with that driver. */
+/* The Agilex 5 kernel driver writes a whole response's worth of bytes (2 *
+ * keySz) at the address supplied for dst_len rather than one word, so a plain
+ * word32 there is a stack overrun. Measured on hardware: the first word is the
+ * correct length (64 for P-256, 96 for P-384), the rest is driver state. */
 typedef union {
     FCS_OSAL_U32 capacity;
-    byte         response[2 * WC_ALTERA_FCS_ECC_MAX_SZ];
+    byte         response[2 * WC_ALTERA_FCS_ECC_MAX_SZ + 32];
 } AlteraEccLengthSink;
 
 static AlteraEccKey* wc_AlteraFcs_EccCtx(const ecc_key* key)
@@ -124,14 +107,6 @@ static AlteraEccKey* wc_AlteraFcs_EccCtx(const ecc_key* key)
 
 #if (defined(HAVE_ECC_SIGN) && defined(HAVE_ECC_VERIFY)) || \
     defined(HAVE_ECC_DHE)
-static void wc_AlteraFcs_Put32(byte* out, word32 val)
-{
-    out[0] = (byte)( val        & 0xFF);
-    out[1] = (byte)((val >>  8) & 0xFF);
-    out[2] = (byte)((val >> 16) & 0xFF);
-    out[3] = (byte)((val >> 24) & 0xFF);
-}
-
 /* Map a wolfSSL curve to the device curve code and scalar size. */
 static int wc_AlteraFcs_EccCurve(int curveId, FCS_OSAL_U32* fcsCurve,
                                  int* keySz, word32* keyType)
@@ -142,23 +117,23 @@ static int wc_AlteraFcs_EccCurve(int curveId, FCS_OSAL_U32* fcsCurve,
         case ECC_SECP256R1:
             *fcsCurve = FCS_ECC_CURVE_NIST_P256;
             *keySz    = 32;
-            *keyType  = FCS_KEY_TYPE_ECC_NIST;
+            *keyType  = WC_ALTERA_FCS_KEY_TYPE_ECC_NIST;
             break;
         case ECC_SECP384R1:
             *fcsCurve = FCS_ECC_CURVE_NIST_P384;
             *keySz    = 48;
-            *keyType  = FCS_KEY_TYPE_ECC_NIST;
+            *keyType  = WC_ALTERA_FCS_KEY_TYPE_ECC_NIST;
             break;
     #ifdef HAVE_ECC_BRAINPOOL
         case ECC_BRAINPOOLP256R1:
             *fcsCurve = FCS_ECC_CURVE_BRAINPOOL_P256;
             *keySz    = 32;
-            *keyType  = FCS_KEY_TYPE_ECC_BP;
+            *keyType  = WC_ALTERA_FCS_KEY_TYPE_ECC_BP;
             break;
         case ECC_BRAINPOOLP384R1:
             *fcsCurve = FCS_ECC_CURVE_BRAINPOOL_P384;
             *keySz    = 48;
-            *keyType  = FCS_KEY_TYPE_ECC_BP;
+            *keyType  = WC_ALTERA_FCS_KEY_TYPE_ECC_BP;
             break;
     #endif
         default:
@@ -169,50 +144,7 @@ static int wc_AlteraFcs_EccCurve(int curveId, FCS_OSAL_U32* fcsCurve,
     return ret;
 }
 
-/* Build the key object. The data region must be declared even when the device
- * generates the key: an object without it is refused with status 0x80. */
-static int wc_AlteraFcs_EccKeyObject(byte* out, word32 keyId, word32 keyType,
-                                     int keySz, word32 usage, word32* outSz)
-{
-    word32 padded;
-    word32 objSz;
-    word32 sizeCode;
-
-    if (keySz == 32) {
-        sizeCode = 2;
-    }
-    else if (keySz == 48) {
-        sizeCode = 3;
-    }
-    else {
-        return CRYPTOCB_UNAVAILABLE;
-    }
-
-    padded = (word32)keySz;
-    if ((padded % FCS_KEY_ALIGN) != 0) {
-        padded += FCS_KEY_ALIGN - (padded % FCS_KEY_ALIGN);
-    }
-
-    XMEMSET(out, 0, WC_ALTERA_FCS_ECCOBJ_SZ);
-    wc_AlteraFcs_Put32(out,      FCS_KEY_OBJ_MAGIC);
-    wc_AlteraFcs_Put32(out + 8,  keyId);
-    wc_AlteraFcs_Put32(out + 20, (sizeCode << 16) | (keyType << 24));
-    wc_AlteraFcs_Put32(out + 24, usage);
-    wc_AlteraFcs_Put32(out + 48, FCS_KEY_DATA_MAGIC);
-
-    objSz = FCS_KEY_DATA_OFFSET + padded;
-    wc_AlteraFcs_Put32(out + 4, ((word32)FCS_KEY_OBJ_VER << 16) |
-                                (objSz & 0xFFFF));
-
-    *outSz = objSz + FCS_KEY_MAC_SZ;
-    return 0;
-}
 #endif
-
-static int wc_AlteraFcs_EccKeyRemove(word32 keyId)
-{
-    return wc_AlteraFcs_RemoveServiceKey(keyId);
-}
 
 static void wc_AlteraFcs_EccCtxFree(ecc_key* key)
 {
@@ -228,9 +160,7 @@ static void wc_AlteraFcs_EccCtxFree(ecc_key* key)
     }
 
     heap = keyCtx->heap;
-    if (wc_AlteraFcs_EccKeyRemove(keyCtx->keyId) != 0) {
-        (void)wc_AlteraFcs_OrphanKey(keyCtx->keyId);
-    }
+    wc_AlteraFcs_DiscardServiceKey(keyCtx->keyId);
     wc_AlteraFcs_ResourceRemove();
     ForceZero(keyCtx, sizeof(*keyCtx));
     XFREE(keyCtx, heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -240,13 +170,12 @@ static void wc_AlteraFcs_EccCtxFree(ecc_key* key)
 /* Generate the key inside the device and keep only the public point here. */
 #if (defined(HAVE_ECC_SIGN) && defined(HAVE_ECC_VERIFY)) || \
     defined(HAVE_ECC_DHE)
-static int wc_AlteraFcs_EccCreate(ecc_key* key, int curveId, int sizeHint,
-                                  word32 usage)
+static int wc_AlteraFcs_EccCreate(ecc_key* key, int curveId, word32 usage)
 {
     AlteraEccKey* keyCtx  = NULL;
     void*         session = NULL;
-    byte          obj[WC_ALTERA_FCS_ECCOBJ_SZ];
-    byte          status[FCS_KEY_STATUS_SZ];
+    byte          obj[WC_ALTERA_FCS_KEY_OBJ_MAX_SZ];
+    byte          status[WC_ALTERA_FCS_KEY_STATUS_SZ];
     byte          pub[2 * WC_ALTERA_FCS_ECC_MAX_SZ];
     FCS_OSAL_U32  pubLen   = (FCS_OSAL_U32)sizeof(pub);
     FCS_OSAL_U32  fcsCurve = 0;
@@ -278,21 +207,9 @@ static int wc_AlteraFcs_EccCreate(ecc_key* key, int curveId, int sizeHint,
         return BAD_FUNC_ARG;
     }
 
-    if (curveId == ECC_CURVE_DEF) {
-        if (sizeHint == 32) {
-            curveId = ECC_SECP256R1;
-        }
-        else if (sizeHint == 48) {
-            curveId = ECC_SECP384R1;
-        }
-    }
-
     ret = wc_AlteraFcs_EccCurve(curveId, &fcsCurve, &keySz, &keyType);
     if (ret != 0) {
         return ret;
-    }
-    if (sizeHint != 0 && sizeHint != keySz) {
-        return CRYPTOCB_UNAVAILABLE;
     }
 
     /* Past this point a failure must be reported as a failure. Returning
@@ -308,8 +225,10 @@ static int wc_AlteraFcs_EccCreate(ecc_key* key, int curveId, int sizeHint,
     }
     ret = wc_AlteraFcs_KeyIdNew(&newId);
     if (ret == 0) {
-        ret = wc_AlteraFcs_EccKeyObject(obj, newId, keyType, keySz, usage,
-                                        &objSz);
+        /* The data region must be declared even though the device generates
+         * the key: an object without it is refused with status 0x80. */
+        ret = wc_AlteraFcs_KeyObject(obj, newId, keyType, usage, NULL,
+                                     (word32)keySz * 8, &objSz);
     }
     if (ret == 0) {
         ret = wc_AlteraFcs_SessionAcquire(&session);
@@ -341,9 +260,7 @@ static int wc_AlteraFcs_EccCreate(ecc_key* key, int curveId, int sizeHint,
 
     if (ret != 0 || pubLen != (FCS_OSAL_U32)(2 * keySz)) {
         WOLFSSL_MSG("Altera FCS ECC public key retrieval failed");
-        if (wc_AlteraFcs_EccKeyRemove(newId) != 0) {
-            (void)wc_AlteraFcs_OrphanKey(newId);
-        }
+        wc_AlteraFcs_DiscardServiceKey(newId);
         wc_AlteraFcs_ResourceRemove();
         return WC_HW_E;
     }
@@ -354,9 +271,7 @@ static int wc_AlteraFcs_EccCreate(ecc_key* key, int curveId, int sizeHint,
     ret = wc_ecc_import_unsigned(key, pub, pub + keySz, NULL, curveId);
     key->devId = devId;
     if (ret != 0) {
-        if (wc_AlteraFcs_EccKeyRemove(newId) != 0) {
-            (void)wc_AlteraFcs_OrphanKey(newId);
-        }
+        wc_AlteraFcs_DiscardServiceKey(newId);
         wc_AlteraFcs_ResourceRemove();
         return ret;
     }
@@ -364,9 +279,7 @@ static int wc_AlteraFcs_EccCreate(ecc_key* key, int curveId, int sizeHint,
     keyCtx = (AlteraEccKey*)XMALLOC(sizeof(AlteraEccKey), key->heap,
                                     DYNAMIC_TYPE_TMP_BUFFER);
     if (keyCtx == NULL) {
-        if (wc_AlteraFcs_EccKeyRemove(newId) != 0) {
-            (void)wc_AlteraFcs_OrphanKey(newId);
-        }
+        wc_AlteraFcs_DiscardServiceKey(newId);
         wc_AlteraFcs_ResourceRemove();
         return MEMORY_E;
     }
@@ -390,8 +303,8 @@ int wc_AlteraFcsEcc_MakeSigningKey(ecc_key* key, int curveId)
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
-    return wc_AlteraFcs_EccCreate(key, curveId, 0,
-                                  FCS_KEY_USAGE_SIGN_VERIFY);
+    return wc_AlteraFcs_EccCreate(key, curveId,
+                                  WC_ALTERA_FCS_KEY_USAGE_SIGN_VERIFY);
 }
 #endif
 
@@ -401,7 +314,8 @@ int wc_AlteraFcsEcc_MakeExchangeKey(ecc_key* key, int curveId)
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
-    return wc_AlteraFcs_EccCreate(key, curveId, 0, FCS_KEY_USAGE_EXCHANGE);
+    return wc_AlteraFcs_EccCreate(key, curveId,
+                                  WC_ALTERA_FCS_KEY_USAGE_EXCHANGE);
 }
 #endif
 
@@ -442,7 +356,6 @@ static int wc_AlteraFcs_EccSign(wc_CryptoInfo* info)
     word32       keyType  = 0;
     word32       outCapacity;
     int          keySz    = 0;
-    int          verified = 0;
     int          ret;
 
     if (key == NULL || info->pk.eccsign.out == NULL ||
@@ -531,23 +444,16 @@ static int wc_AlteraFcs_EccSign(wc_CryptoInfo* info)
         ForceZero(&sigLen, sizeof(sigLen));
         return WC_HW_E;
     }
+    if (sigLen.capacity != (FCS_OSAL_U32)(2 * keySz)) {
+        WOLFSSL_MSG("Altera FCS ECDSA signature length unexpected");
+        ForceZero(sig, sizeof(sig));
+        ForceZero(&sigLen, sizeof(sigLen));
+        return WC_HW_E;
+    }
     /* The device returns raw r||s; wolfSSL callers expect DER. */
     ret = wc_ecc_rs_raw_to_sig(sig, (word32)keySz, sig + keySz,
                                (word32)keySz, info->pk.eccsign.out,
                                info->pk.eccsign.outlen);
-    if (ret == 0) {
-        /* The Agilex 5 Linux driver does not return a trustworthy response
-         * length. Verify against the device key's public point before any
-         * possibly short response is exposed to the caller. ECDSA verify is
-         * deliberately declined by this callback and completes in software. */
-        ret = wc_ecc_verify_hash(info->pk.eccsign.out,
-                                 *info->pk.eccsign.outlen,
-                                 info->pk.eccsign.in,
-                                 info->pk.eccsign.inlen, &verified, key);
-        if (ret == 0 && verified != 1) {
-            ret = WC_HW_E;
-        }
-    }
     if (ret != 0) {
         ForceZero(info->pk.eccsign.out, outCapacity);
         *info->pk.eccsign.outlen = 0;
@@ -590,7 +496,7 @@ static int wc_AlteraFcs_Ecdh(wc_CryptoInfo* info)
     /* A signing key cannot perform key exchange: the two usages are exclusive
      * in the key object, and the private scalar is not available here to fall
      * back with, so this has to be reported rather than declined. */
-    if (keyCtx->usage != FCS_KEY_USAGE_EXCHANGE) {
+    if (keyCtx->usage != WC_ALTERA_FCS_KEY_USAGE_EXCHANGE) {
         WOLFSSL_MSG("Altera FCS ECDH needs a key made for exchange usage");
         return WC_HW_E;
     }

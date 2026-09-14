@@ -81738,11 +81738,11 @@ static wc_test_ret_t altera_fcs_no_hardware_test(void)
     if (ret == 0) {
         Aes resAes;
 
-        ret = wc_AesInit(&resAes, HEAP_HINT, WOLFSSL_ALTERA_FCS_DEVID);
+        ret = wc_AesInit(&resAes, HEAP_HINT, WOLFSSL_ALTERA_FCS_AES_KEY_DEVID);
         if (ret == 0) {
             /* Without hardware a resident key must fail rather than let the
              * caller believe an isolated key exists. */
-            if (wc_AlteraFcsAes_MakeKey(&resAes, 256) == 0 ||
+            if (wc_AesSetKey(&resAes, NULL, 32, NULL, AES_ENCRYPTION) == 0 ||
                 wc_AlteraFcsAes_IsDeviceKey(&resAes) != 0) {
                 ret = WC_TEST_RET_ENC_NC;
             }
@@ -81832,17 +81832,19 @@ static wc_test_ret_t altera_fcs_hash_test(const byte* msg, word32 msgSz)
     int       hwInit = 0;
     int       swInit = 0;
     int       copyInit = 0;
-    word32    sizes[2];
+    word32    sizes[4];
     word32    sz;
     int       i;
 
-    wc_AlteraFcs_TestHwReset();
-    /* the large message exceeds the offload threshold, the small one takes
-     * the port's software completion path; both must match plain software */
-    sizes[0] = 64;
-    sizes[1] = msgSz;
-    for (i = 0; i < 2; i++) {
+    /* There is no minimum: every message whose length is a multiple of 8
+     * reaches the device, and each must match plain software */
+    sizes[0] = 8;
+    sizes[1] = 16;
+    sizes[2] = 64;
+    sizes[3] = msgSz;
+    for (i = 0; i < 4; i++) {
         sz = sizes[i];
+        wc_AlteraFcs_TestHwReset();
         ret = wc_InitSha256_ex(&hwSha, HEAP_HINT, WOLFSSL_ALTERA_FCS_DEVID);
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_hash);
@@ -81870,6 +81872,8 @@ static wc_test_ret_t altera_fcs_hash_test(const byte* msg, word32 msgSz)
 
         if (XMEMCMP(hwDig, swDig, sizeof(swDig)) != 0)
             ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_hash);
+        if ((wc_AlteraFcs_TestHwGet() & WC_ALTERA_FCS_TEST_HW_HASH) == 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_hash);
 
         /* Final resets a SHA context for reuse. The callback's software shadow
          * must follow the same contract. */
@@ -81896,9 +81900,43 @@ static wc_test_ret_t altera_fcs_hash_test(const byte* msg, word32 msgSz)
         hwInit = 0;
         swInit = 0;
     }
-    if (WOLFSSL_ALTERA_FCS_HASH_MIN <= 5000 &&
-        (wc_AlteraFcs_TestHwGet() & WC_ALTERA_FCS_TEST_HW_HASH) == 0)
-        ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_hash);
+
+    /* The device refuses an empty message and any length that is not a
+     * multiple of 8, so those digests are the software shadow's and must
+     * still be right. */
+    sizes[0] = 0;
+    sizes[1] = 1;
+    sizes[2] = 63;
+    sizes[3] = 4097;
+    for (i = 0; i < 4; i++) {
+        sz = sizes[i];
+        wc_AlteraFcs_TestHwReset();
+        ret = wc_InitSha256_ex(&hwSha, HEAP_HINT, WOLFSSL_ALTERA_FCS_DEVID);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_hash);
+        hwInit = 1;
+        ret = wc_InitSha256_ex(&swSha, HEAP_HINT, INVALID_DEVID);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_hash);
+        swInit = 1;
+        ret = wc_Sha256Update(&hwSha, msg, sz);
+        if (ret == 0)
+            ret = wc_Sha256Update(&swSha, msg, sz);
+        if (ret == 0)
+            ret = wc_Sha256Final(&hwSha, hwDig);
+        if (ret == 0)
+            ret = wc_Sha256Final(&swSha, swDig);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_hash);
+        if (XMEMCMP(hwDig, swDig, sizeof(swDig)) != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_hash);
+        if ((wc_AlteraFcs_TestHwGet() & WC_ALTERA_FCS_TEST_HW_HASH) != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_hash);
+        wc_Sha256Free(&hwSha);
+        wc_Sha256Free(&swSha);
+        hwInit = 0;
+        swInit = 0;
+    }
 
     /* A context updated while the callback is absent remains owned by the
      * software state even if the callback is registered before final. */
@@ -82033,13 +82071,15 @@ static wc_test_ret_t altera_fcs_hash_test(const byte* msg, word32 msgSz)
         swInit = 0;
     }
 
-    /* Cross the single-request limit, then copy and finalize the streaming
-     * software state owned by the callback. */
+    /* Cross the single-transaction limit: the message is streamed through
+     * the device rather than finished in software, and a copy taken past
+     * that point must finalize independently. */
     {
         byte      copyDig[WC_SHA256_DIGEST_SIZE];
         word32    chunks = (WC_ALTERA_FCS_MAX_XFER / msgSz) + 1;
         word32    j;
 
+        wc_AlteraFcs_TestHwReset();
         ret = wc_InitSha256_ex(&hwSha, HEAP_HINT,
                                WOLFSSL_ALTERA_FCS_DEVID);
         if (ret == 0) {
@@ -82087,6 +82127,8 @@ static wc_test_ret_t altera_fcs_hash_test(const byte* msg, word32 msgSz)
             XMEMCMP(copyDig, swDig, sizeof(swDig)) != 0) {
             ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_hash);
         }
+        if ((wc_AlteraFcs_TestHwGet() & WC_ALTERA_FCS_TEST_HW_HASH) == 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_hash);
     }
 
 exit_fcs_hash:
@@ -82102,6 +82144,67 @@ exit_fcs_hash:
 
 #if defined(WOLFSSL_ALTERA_FCS_AES) && !defined(NO_AES) && \
     defined(HAVE_AES_CBC)
+/* CBC and CTR past WC_ALTERA_FCS_MAX_XFER, device against software. */
+static wc_test_ret_t altera_fcs_aes_stream_test(Aes* hwAes, Aes* swAes,
+                                                const byte* key,
+                                                const byte* iv)
+{
+    wc_test_ret_t ret = 0;
+    word32 bigSz = WC_ALTERA_FCS_MAX_XFER + 4096;
+    byte*  bigIn;
+    byte*  bigOut1;
+    byte*  bigOut2;
+    word32 j;
+
+    bigIn   = (byte*)XMALLOC(bigSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    bigOut1 = (byte*)XMALLOC(bigSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    bigOut2 = (byte*)XMALLOC(bigSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (bigIn == NULL || bigOut1 == NULL || bigOut2 == NULL) {
+        ret = WC_TEST_RET_ENC_EC(MEMORY_E);
+    }
+    if (ret == 0) {
+        for (j = 0; j < bigSz; j++)
+            bigIn[j] = (byte)(j * 7 + 3);
+        wc_AlteraFcs_TestHwReset();
+        ret = wc_AesSetKey(swAes, key, AES_256_KEY_SIZE, iv, AES_ENCRYPTION);
+    }
+    if (ret == 0)
+        ret = wc_AesCbcEncrypt(swAes, bigOut2, bigIn, bigSz);
+    if (ret == 0)
+        ret = wc_AesSetKey(hwAes, key, AES_256_KEY_SIZE, iv, AES_ENCRYPTION);
+    if (ret == 0)
+        ret = wc_AesCbcEncrypt(hwAes, bigOut1, bigIn, bigSz);
+    if (ret == 0 && XMEMCMP(bigOut1, bigOut2, bigSz) != 0)
+        ret = WC_TEST_RET_ENC_NC;
+    if (ret == 0 &&
+        (wc_AlteraFcs_TestHwGet() & WC_ALTERA_FCS_TEST_HW_AES) == 0)
+        ret = WC_TEST_RET_ENC_NC;
+#ifdef HAVE_AES_DECRYPT
+    if (ret == 0)
+        ret = wc_AesSetKey(hwAes, key, AES_256_KEY_SIZE, iv, AES_DECRYPTION);
+    if (ret == 0)
+        ret = wc_AesCbcDecrypt(hwAes, bigOut1, bigOut1, bigSz);
+    if (ret == 0 && XMEMCMP(bigOut1, bigIn, bigSz) != 0)
+        ret = WC_TEST_RET_ENC_NC;
+#endif
+#ifdef WOLFSSL_AES_COUNTER
+    if (ret == 0)
+        ret = wc_AesSetKey(swAes, key, AES_256_KEY_SIZE, iv, AES_ENCRYPTION);
+    if (ret == 0)
+        ret = wc_AesCtrEncrypt(swAes, bigOut2, bigIn, bigSz);
+    if (ret == 0)
+        ret = wc_AesSetKey(hwAes, key, AES_256_KEY_SIZE, iv, AES_ENCRYPTION);
+    if (ret == 0)
+        ret = wc_AesCtrEncrypt(hwAes, bigOut1, bigIn, bigSz);
+    if (ret == 0 && XMEMCMP(bigOut1, bigOut2, bigSz) != 0)
+        ret = WC_TEST_RET_ENC_NC;
+#endif
+    XFREE(bigOut2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(bigOut1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(bigIn, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+
 static wc_test_ret_t altera_fcs_aes_test(const byte* pt, byte* out1,
                                          byte* out2)
 {
@@ -82155,8 +82258,7 @@ static wc_test_ret_t altera_fcs_aes_test(const byte* pt, byte* out1,
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_aes);
     if (XMEMCMP(out1, out2, 4096) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_aes);
-    if (WOLFSSL_ALTERA_FCS_AES_MIN <= 4096 &&
-        (wc_AlteraFcs_TestHwGet() & WC_ALTERA_FCS_TEST_HW_AES) == 0)
+    if ((wc_AlteraFcs_TestHwGet() & WC_ALTERA_FCS_TEST_HW_AES) == 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_aes);
 
     /* AES-128 uses a different SDM key-object size code than AES-256. */
@@ -82174,8 +82276,7 @@ static wc_test_ret_t altera_fcs_aes_test(const byte* pt, byte* out1,
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_aes);
     if (XMEMCMP(out1, out2, 4096) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_aes);
-    if (WOLFSSL_ALTERA_FCS_AES_MIN <= 4096 &&
-        (wc_AlteraFcs_TestHwGet() & WC_ALTERA_FCS_TEST_HW_AES) == 0)
+    if ((wc_AlteraFcs_TestHwGet() & WC_ALTERA_FCS_TEST_HW_AES) == 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_aes);
 
     /* IV chaining across calls. Both halves must be large enough to reach the
@@ -82196,8 +82297,7 @@ static wc_test_ret_t altera_fcs_aes_test(const byte* pt, byte* out1,
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_aes);
     if (XMEMCMP(out1, out2, 8192) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_aes);
-    if (WOLFSSL_ALTERA_FCS_AES_MIN <= 4096 &&
-        (wc_AlteraFcs_TestHwGet() & WC_ALTERA_FCS_TEST_HW_AES) == 0)
+    if ((wc_AlteraFcs_TestHwGet() & WC_ALTERA_FCS_TEST_HW_AES) == 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_aes);
 
     /* Re-key an already imported context: a stale device key id would encrypt
@@ -82215,12 +82315,11 @@ static wc_test_ret_t altera_fcs_aes_test(const byte* pt, byte* out1,
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_aes);
     if (XMEMCMP(out1, out2, 4096) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_aes);
-    if (WOLFSSL_ALTERA_FCS_AES_MIN <= 4096 &&
-        (wc_AlteraFcs_TestHwGet() & WC_ALTERA_FCS_TEST_HW_AES) == 0)
+    if ((wc_AlteraFcs_TestHwGet() & WC_ALTERA_FCS_TEST_HW_AES) == 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_aes);
 
     /* Re-keying must retire the imported key immediately, even when the new
-     * key is used only below the hardware threshold. Successful unregister
+     * key is used only for an SDM-ineligible length. Successful unregister
      * and re-register proves that no old device resource remains. */
     ret = wc_AesSetKey(&hwAes, keyShort, (word32)sizeof(keyShort), iv,
                        AES_ENCRYPTION);
@@ -82256,8 +82355,7 @@ static wc_test_ret_t altera_fcs_aes_test(const byte* pt, byte* out1,
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_aes);
     if (XMEMCMP(out1, out2, 4096) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_aes);
-    if (WOLFSSL_ALTERA_FCS_AES_MIN <= 4096 &&
-        (wc_AlteraFcs_TestHwGet() & WC_ALTERA_FCS_TEST_HW_AES) == 0)
+    if ((wc_AlteraFcs_TestHwGet() & WC_ALTERA_FCS_TEST_HW_AES) == 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_aes);
 #endif
 
@@ -82279,8 +82377,7 @@ static wc_test_ret_t altera_fcs_aes_test(const byte* pt, byte* out1,
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_aes);
     if (XMEMCMP(out2, pt, 8192) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_aes);
-    if (WOLFSSL_ALTERA_FCS_AES_MIN <= 4096 &&
-        (wc_AlteraFcs_TestHwGet() & WC_ALTERA_FCS_TEST_HW_AES) == 0)
+    if ((wc_AlteraFcs_TestHwGet() & WC_ALTERA_FCS_TEST_HW_AES) == 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_aes);
 #endif
 
@@ -82300,10 +82397,43 @@ static wc_test_ret_t altera_fcs_aes_test(const byte* pt, byte* out1,
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_aes);
     if (XMEMCMP(out1, out2, 8192) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_aes);
-    if (WOLFSSL_ALTERA_FCS_AES_MIN <= 4096 &&
-        (wc_AlteraFcs_TestHwGet() & WC_ALTERA_FCS_TEST_HW_AES) == 0)
+    if ((wc_AlteraFcs_TestHwGet() & WC_ALTERA_FCS_TEST_HW_AES) == 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_aes);
 #endif
+
+    /* There is no minimum: the smallest length the driver accepts must reach
+     * the device, while one block short of it stays in software. */
+    wc_AlteraFcs_TestHwReset();
+    ret = wc_AesSetKey(&swAes, key, (word32)sizeof(key), iv, AES_ENCRYPTION);
+    if (ret == 0)
+        ret = wc_AesCbcEncrypt(&swAes, out2, pt, 32);
+    if (ret == 0)
+        ret = wc_AesSetKey(&hwAes, key, (word32)sizeof(key), iv,
+                           AES_ENCRYPTION);
+    if (ret == 0)
+        ret = wc_AesCbcEncrypt(&hwAes, out1, pt, 32);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_aes);
+    if (XMEMCMP(out1, out2, 32) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_aes);
+    if ((wc_AlteraFcs_TestHwGet() & WC_ALTERA_FCS_TEST_HW_AES) == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_aes);
+    wc_AlteraFcs_TestHwReset();
+    ret = wc_AesCbcEncrypt(&swAes, out2, pt, 16);
+    if (ret == 0)
+        ret = wc_AesCbcEncrypt(&hwAes, out1, pt, 16);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_aes);
+    if (XMEMCMP(out1, out2, 16) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_aes);
+    if ((wc_AlteraFcs_TestHwGet() & WC_ALTERA_FCS_TEST_HW_AES) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_aes);
+
+    /* Past one SDM transaction the request is streamed through memory files;
+     * the chaining state must survive the split the library makes. */
+    ret = altera_fcs_aes_stream_test(&hwAes, &swAes, key, iv);
+    if (ret != 0)
+        ERROR_OUT(ret, exit_fcs_aes);
 
     /* An active device key must defer unregister until the context is freed. */
     wc_CryptoCb_UnRegisterDevice(WOLFSSL_ALTERA_FCS_DEVID);
@@ -82326,10 +82456,10 @@ exit_fcs_aes:
     return ret;
 }
 
-/* Device resident AES: the key is generated inside the SDM and cannot be
- * reproduced in software, so correctness is proven by round-trip plus the
- * resident hardware marker, and isolation by the context staying free of key
- * material. */
+/* Device resident AES: a NULL key on WOLFSSL_ALTERA_FCS_AES_KEY_DEVID asks the
+ * SDM to generate the key, which cannot be reproduced in software, so
+ * correctness is proven by round-trip plus the resident hardware marker, and
+ * isolation by the context staying free of key material. */
 static wc_test_ret_t altera_fcs_aes_resident_test(const byte* pt, byte* out1,
                                                   byte* out2)
 {
@@ -82354,21 +82484,28 @@ static wc_test_ret_t altera_fcs_aes_resident_test(const byte* pt, byte* out1,
     };
 
     wc_AlteraFcs_TestHwReset();
-    ret = wc_AesInit(&aes, HEAP_HINT, WOLFSSL_ALTERA_FCS_DEVID);
+    ret = wc_AesInit(&aes, HEAP_HINT, WOLFSSL_ALTERA_FCS_AES_KEY_DEVID);
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
     aesInit = 1;
 
-    /* The key object has no 192 bit code, and a second device key would
-     * strand the first slot; both must be refused. */
-    if (wc_AlteraFcsAes_MakeKey(&aes, 192) == 0)
+    /* The key object has no 192 bit code, and real key material on the key
+     * generation devId would be discarded; both must be refused. */
+    if (wc_AesSetKey(&aes, NULL, 24, iv, AES_ENCRYPTION) == 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
-    ret = wc_AlteraFcsAes_MakeKey(&aes, 256);
+    if (wc_AesSetKey(&aes, key, (word32)sizeof(key), iv,
+                     AES_ENCRYPTION) == 0 ||
+        wc_AlteraFcsAes_IsDeviceKey(&aes) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
+    ret = wc_AesSetKey(&aes, NULL, 32, iv, AES_ENCRYPTION);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_res);
-    if (wc_AlteraFcsAes_IsDeviceKey(&aes) != 1)
+    if (wc_AlteraFcsAes_IsDeviceKey(&aes) != 1 ||
+        aes.devId != WOLFSSL_ALTERA_FCS_DEVID)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
-    if (wc_AlteraFcsAes_MakeKey(&aes, 256) == 0)
+    /* The context now lives on the working devId, where a NULL key is a
+     * caller error and a second device key would strand the first slot. */
+    if (wc_AesSetKey(&aes, NULL, 32, iv, AES_ENCRYPTION) == 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
 
     /* No key material may appear in the context. */
@@ -82383,86 +82520,81 @@ static wc_test_ret_t altera_fcs_aes_resident_test(const byte* pt, byte* out1,
             ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
     }
 
-    if (WOLFSSL_ALTERA_FCS_AES_MIN <= 4096) {
-        ret = wc_AesSetIV(&aes, iv);
-        if (ret == 0)
-            ret = wc_AesCbcEncrypt(&aes, out1, pt, 4096);
-        if (ret != 0)
-            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_res);
-        if ((wc_AlteraFcs_TestHwGet() &
-             WC_ALTERA_FCS_TEST_HW_AES_RESIDENT) == 0)
-            ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
-        if (XMEMCMP(out1, pt, 4096) == 0)
-            ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
+    ret = wc_AesSetIV(&aes, iv);
+    if (ret == 0)
+        ret = wc_AesCbcEncrypt(&aes, out1, pt, 4096);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_res);
+    if ((wc_AlteraFcs_TestHwGet() &
+         WC_ALTERA_FCS_TEST_HW_AES_RESIDENT) == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
+    if (XMEMCMP(out1, pt, 4096) == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
 #ifdef HAVE_AES_DECRYPT
-        ret = wc_AesSetIV(&aes, iv);
-        if (ret == 0)
-            ret = wc_AesCbcDecrypt(&aes, out2, out1, 4096);
-        if (ret != 0)
-            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_res);
-        if (XMEMCMP(out2, pt, 4096) != 0)
-            ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
+    ret = wc_AesSetIV(&aes, iv);
+    if (ret == 0)
+        ret = wc_AesCbcDecrypt(&aes, out2, out1, 4096);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_res);
+    if (XMEMCMP(out2, pt, 4096) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
 #endif
 #ifdef WOLFSSL_AES_COUNTER
+    ret = wc_AesSetIV(&aes, iv);
+    if (ret == 0)
+        ret = wc_AesCtrEncrypt(&aes, out1, pt, 4096);
+    if (ret == 0)
         ret = wc_AesSetIV(&aes, iv);
-        if (ret == 0)
-            ret = wc_AesCtrEncrypt(&aes, out1, pt, 4096);
-        if (ret == 0)
-            ret = wc_AesSetIV(&aes, iv);
-        if (ret == 0)
-            ret = wc_AesCtrEncrypt(&aes, out2, out1, 4096);
-        if (ret != 0)
-            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_res);
-        if (XMEMCMP(out2, pt, 4096) != 0)
-            ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
+    if (ret == 0)
+        ret = wc_AesCtrEncrypt(&aes, out2, out1, 4096);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_res);
+    if (XMEMCMP(out2, pt, 4096) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
 #endif
-        /* The context must stay free of key material after use. */
-        ctxBytes = (const byte*)aes.devKey;
-        for (i = 0; i < (word32)sizeof(aes.devKey); i++) {
-            if (ctxBytes[i] != 0)
-                ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
-        }
-
-        /* Two device generated keys must produce different ciphertext, and
-         * neither may match the all-zero key the create object encodes,
-         * otherwise the device imported the zero data instead of generating
-         * a key. */
-        ret = wc_AesSetIV(&aes, iv);
-        if (ret == 0)
-            ret = wc_AesCbcEncrypt(&aes, out1, pt, 4096);
-        if (ret != 0)
-            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_res);
-        ret = wc_AesInit(&aes2, HEAP_HINT, WOLFSSL_ALTERA_FCS_DEVID);
-        if (ret != 0)
-            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_res);
-        aes2Init = 1;
-        ret = wc_AlteraFcsAes_MakeKey(&aes2, 256);
-        if (ret != 0)
-            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_res);
-        ret = wc_AesSetIV(&aes2, iv);
-        if (ret == 0)
-            ret = wc_AesCbcEncrypt(&aes2, out2, pt, 4096);
-        if (ret != 0)
-            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_res);
-        if (XMEMCMP(out1, out2, 4096) == 0)
+    /* The context must stay free of key material after use. */
+    ctxBytes = (const byte*)aes.devKey;
+    for (i = 0; i < (word32)sizeof(aes.devKey); i++) {
+        if (ctxBytes[i] != 0)
             ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
-        wc_AesFree(&aes2);
-        aes2Init = 0;
-        ret = wc_AesInit(&aes2, HEAP_HINT, INVALID_DEVID);
-        if (ret != 0)
-            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_res);
-        aes2Init = 1;
-        ret = wc_AesSetKey(&aes2, zeroKey, (word32)sizeof(zeroKey), iv,
-                           AES_ENCRYPTION);
-        if (ret == 0)
-            ret = wc_AesCbcEncrypt(&aes2, out2, pt, 4096);
-        if (ret != 0)
-            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_res);
-        if (XMEMCMP(out1, out2, 4096) == 0)
-            ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
-        wc_AesFree(&aes2);
-        aes2Init = 0;
     }
+
+    /* Two device generated keys must produce different ciphertext, and
+     * neither may match the all-zero key the create object encodes,
+     * otherwise the device imported the zero data instead of generating
+     * a key. */
+    ret = wc_AesSetIV(&aes, iv);
+    if (ret == 0)
+        ret = wc_AesCbcEncrypt(&aes, out1, pt, 4096);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_res);
+    ret = wc_AesInit(&aes2, HEAP_HINT, WOLFSSL_ALTERA_FCS_AES_KEY_DEVID);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_res);
+    aes2Init = 1;
+    ret = wc_AesSetKey(&aes2, NULL, 32, iv, AES_ENCRYPTION);
+    if (ret == 0)
+        ret = wc_AesCbcEncrypt(&aes2, out2, pt, 4096);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_res);
+    if (XMEMCMP(out1, out2, 4096) == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
+    wc_AesFree(&aes2);
+    aes2Init = 0;
+    ret = wc_AesInit(&aes2, HEAP_HINT, INVALID_DEVID);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_res);
+    aes2Init = 1;
+    ret = wc_AesSetKey(&aes2, zeroKey, (word32)sizeof(zeroKey), iv,
+                       AES_ENCRYPTION);
+    if (ret == 0)
+        ret = wc_AesCbcEncrypt(&aes2, out2, pt, 4096);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_res);
+    if (XMEMCMP(out1, out2, 4096) == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
+    wc_AesFree(&aes2);
+    aes2Init = 0;
 
     /* An SDM-ineligible length must fail rather than silently use
      * software: there is no plaintext key to fall back to. */
@@ -82473,8 +82605,9 @@ static wc_test_ret_t altera_fcs_aes_resident_test(const byte* pt, byte* out1,
     if (wc_AesCbcEncrypt(&aes, out1, out1, 48) == 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
 
-    /* A context already carrying a plaintext key must be refused: accepting
-     * it would report isolation while the key stays in HPS memory. */
+    /* A NULL key on the working devId is a caller error, never a request
+     * for a device key: accepting it would report isolation while the
+     * plaintext key stays in HPS memory. */
     ret = wc_AesInit(&aes2, HEAP_HINT, WOLFSSL_ALTERA_FCS_DEVID);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_res);
@@ -82482,7 +82615,7 @@ static wc_test_ret_t altera_fcs_aes_resident_test(const byte* pt, byte* out1,
     ret = wc_AesSetKey(&aes2, key, (word32)sizeof(key), iv, AES_ENCRYPTION);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_res);
-    if (wc_AlteraFcsAes_MakeKey(&aes2, 256) == 0 ||
+    if (wc_AesSetKey(&aes2, NULL, 32, iv, AES_ENCRYPTION) == 0 ||
         wc_AlteraFcsAes_IsDeviceKey(&aes2) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
     wc_AesFree(&aes2);
@@ -82505,13 +82638,11 @@ static wc_test_ret_t altera_fcs_aes_resident_test(const byte* pt, byte* out1,
          * must drop the device-key report and refuse device operations. */
         if (wc_AlteraFcsAes_IsDeviceKey(&aes) != 0)
             ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
-        if (WOLFSSL_ALTERA_FCS_AES_MIN <= 4096) {
-            ret = wc_AesSetIV(&aes, iv);
-            if (ret != 0)
-                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_res);
-            if (wc_AesCbcEncrypt(&aes, out1, pt, 4096) == 0)
-                ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
-        }
+        ret = wc_AesSetIV(&aes, iv);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_res);
+        if (wc_AesCbcEncrypt(&aes, out1, pt, 4096) == 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
     }
     else if (wc_AlteraFcsAes_IsDeviceKey(&aes) != 1) {
         /* Refused through the callback; the device key must survive. */
@@ -82526,35 +82657,33 @@ static wc_test_ret_t altera_fcs_aes_resident_test(const byte* pt, byte* out1,
     aesInit = 0;
     if (wc_AlteraFcsAes_IsDeviceKey(&aes) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
-    ret = wc_AesInit(&aes, HEAP_HINT, WOLFSSL_ALTERA_FCS_DEVID);
+    ret = wc_AesInit(&aes, HEAP_HINT, WOLFSSL_ALTERA_FCS_AES_KEY_DEVID);
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
     aesInit = 1;
-    ret = wc_AlteraFcsAes_MakeKey(&aes, 128);
+    ret = wc_AesSetKey(&aes, NULL, 16, NULL, AES_ENCRYPTION);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_res);
     if (wc_AlteraFcsAes_IsDeviceKey(&aes) != 1)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
-    if (WOLFSSL_ALTERA_FCS_AES_MIN <= 4096) {
-        wc_AlteraFcs_TestHwReset();
-        ret = wc_AesSetIV(&aes, iv);
-        if (ret == 0)
-            ret = wc_AesCbcEncrypt(&aes, out1, pt, 4096);
-        if (ret != 0)
-            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_res);
-        if ((wc_AlteraFcs_TestHwGet() &
-             WC_ALTERA_FCS_TEST_HW_AES_RESIDENT) == 0)
-            ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
+    wc_AlteraFcs_TestHwReset();
+    ret = wc_AesSetIV(&aes, iv);
+    if (ret == 0)
+        ret = wc_AesCbcEncrypt(&aes, out1, pt, 4096);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_res);
+    if ((wc_AlteraFcs_TestHwGet() &
+         WC_ALTERA_FCS_TEST_HW_AES_RESIDENT) == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
 #ifdef HAVE_AES_DECRYPT
-        ret = wc_AesSetIV(&aes, iv);
-        if (ret == 0)
-            ret = wc_AesCbcDecrypt(&aes, out2, out1, 4096);
-        if (ret != 0)
-            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_res);
-        if (XMEMCMP(out2, pt, 4096) != 0)
-            ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
+    ret = wc_AesSetIV(&aes, iv);
+    if (ret == 0)
+        ret = wc_AesCbcDecrypt(&aes, out2, out1, 4096);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_res);
+    if (XMEMCMP(out2, pt, 4096) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
 #endif
-    }
 
 exit_fcs_res:
     if (aes2Init)
@@ -82922,6 +83051,51 @@ static wc_test_ret_t altera_fcs_hmac_test(void)
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
             ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_hmac);
         }
+    }
+
+    /* Past one SDM transaction the message streams through memory files. */
+    if (hashCount > 0) {
+        word32 bigSz = WC_ALTERA_FCS_MAX_XFER + 4096;
+        byte*  big = (byte*)XMALLOC(bigSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+        if (big == NULL)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), exit_fcs_hmac);
+        for (i = 0; i < (int)bigSz; i++)
+            big[i] = (byte)(i * 7 + 3);
+        keyBits = keySizes[0];
+        ret = wc_AlteraFcs_HmacImportKey(key, keyBits, &keyId);
+        if (ret == 0) {
+            haveKey = 1;
+            ret = wc_HmacInit(&hmac, HEAP_HINT, INVALID_DEVID);
+        }
+        if (ret == 0) {
+            ret = wc_HmacSetKey(&hmac, hmacTypes[0], key, (word32)keyBits / 8);
+            if (ret == 0)
+                ret = wc_HmacUpdate(&hmac, big, bigSz);
+            if (ret == 0)
+                ret = wc_HmacFinal(&hmac, mac);
+            wc_HmacFree(&hmac);
+        }
+        if (ret == 0)
+            ret = wc_AlteraFcs_HmacVerify(keyId, hashTypes[0], big, bigSz,
+                                          mac, macSizes[0], &isValid);
+        if (ret == 0 && isValid != 1)
+            ret = WC_TEST_RET_ENC_NC;
+        if (ret == 0) {
+            big[bigSz - 1] ^= 0xFF;
+            ret = wc_AlteraFcs_HmacVerify(keyId, hashTypes[0], big, bigSz,
+                                          mac, macSizes[0], &isValid);
+            if (ret == 0 && isValid != 0)
+                ret = WC_TEST_RET_ENC_NC;
+        }
+        XFREE(big, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        if (haveKey) {
+            haveKey = 0;
+            if (wc_AlteraFcs_HmacRemoveKey(keyId) != 0 && ret == 0)
+                ret = WC_TEST_RET_ENC_NC;
+        }
+        if (ret != 0)
+            ERROR_OUT(ret, exit_fcs_hmac);
     }
 
     /* The generate branch takes a different libfcs call than import. */

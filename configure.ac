@@ -13614,7 +13614,6 @@ then
         fi
         if test "x$ENABLED_ALTERA_FCS_HASH" = "xyes"; then
             AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALTERA_FCS_HASH"
-            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA512_HASHTYPE"
         fi
         if test "x$ENABLED_ALTERA_FCS_AES" = "xyes"; then
             AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALTERA_FCS_AES"

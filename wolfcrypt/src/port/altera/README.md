@@ -8,8 +8,9 @@ Altera Agilex 5 devices through the FPGA Crypto Services stack: the
 The value of the SDM is key isolation, not throughput. Keys created inside the
 device never appear in HPS memory, can only be exported in wrapped form, and
 are used by handle. For bulk symmetric work the ARMv8 crypto extensions are
-faster than the SDM at every size, so the port keeps small operations in
-software and offers the device where it adds protection.
+faster than the SDM at every size, so a context is only sent to the device
+when it was created on the port's device id; everything on that id goes to
+the hardware whatever its size.
 
 ## Building
 
@@ -54,8 +55,8 @@ because doing so could strand state or device keys owned by the port.
 | Algorithm | On the SDM | Notes |
 |---|---|---|
 | RNG | yes | the TRNG seeds wolfSSL's DRBG; generate requests stay in the DRBG unless built with `WOLFSSL_ALTERA_FCS_RAW_RNG` |
-| SHA-256 | yes | messages from `WOLFSSL_ALTERA_FCS_HASH_MIN` (default 4096) through 4 MiB; other sizes complete in software |
-| AES-128/256 CBC, CTR | yes | length must be a multiple of 32 bytes and at least `WOLFSSL_ALTERA_FCS_AES_MIN` (default 4096); other requests fall back to software. Device resident keys are supported, see below |
+| SHA-256 | yes | any message whose length is a multiple of 8 bytes, the SDM refuses others; past 4 MiB it is streamed through libfcs. A message longer than `WOLFSSL_ALTERA_FCS_HASH_MAX` (default 64 MiB) completes in software |
+| AES-128/256 CBC, CTR | yes | the driver requires a multiple of 32 bytes; other lengths fall back to software. Past 4 MiB the request is streamed. Device resident keys are supported, see below |
 | AES-192 | software | the SDM key object has no 192 bit code |
 | AES-GCM | software | not offloaded by this port |
 | ECDSA sign | yes | device resident keys only, see below; verify always runs in software |
@@ -104,14 +105,23 @@ leaked slot lasts until the service session closes.
 
 An AES key handed to `wc_AesSetKey()` is already plaintext in HPS memory, so
 importing it buys SDM usage enforcement, not secrecy. For a key that never
-exists outside the device, create it inside the SDM:
+exists outside the device, initialise the context on the key generation
+device id and ask for a key with a NULL pointer; the length selects AES-128 or
+AES-256:
 
 ```c
-wc_AesInit(&aes, NULL, WOLFSSL_ALTERA_FCS_DEVID);
-wc_AlteraFcsAes_MakeKey(&aes, 256);                 /* or 128 */
-wc_AesSetIV(&aes, iv);
-wc_AesCbcEncrypt(&aes, out, in, sz);                /* or CTR */
+wc_AesInit(&aes, NULL, WOLFSSL_ALTERA_FCS_AES_KEY_DEVID);
+wc_AesSetKey(&aes, NULL, 32, iv, AES_ENCRYPTION);    /* or 16 */
+wc_AesCbcEncrypt(&aes, out, in, sz);                 /* or CTR */
 ```
+
+The device id is what asks for a key to be generated and the NULL pointer
+confirms it: real key material on `WOLFSSL_ALTERA_FCS_AES_KEY_DEVID` is
+refused with `BAD_FUNC_ARG`, so a caller's key can never be silently thrown
+away, and a NULL key on `WOLFSSL_ALTERA_FCS_DEVID` is refused the same way.
+On success the context is moved to `WOLFSSL_ALTERA_FCS_DEVID` with the
+resident key attached. Anything other than that one key setup on the key
+generation id fails with `WC_HW_E`.
 
 Properties of a resident AES key, mirroring ECC device keys:
 
@@ -132,19 +142,14 @@ Properties of a resident AES key, mirroring ECC device keys:
   rejected with `WC_HW_E`
 * the usage mask is fixed to encrypt/decrypt at creation; 192 bit keys are
   refused because the key object has no code for them
-* the context must be freshly initialized: a context that went through
-  `wc_AesSetKey()` is refused, since its plaintext key and schedule would
-  still be in HPS memory
 * `wc_AesGetKeySize()` is not supported on a resident context; the software
   key schedule it reads deliberately stays empty
 * `wc_AesFree()` releases the device slot
 
-The same 32-byte length multiple, the `WOLFSSL_ALTERA_FCS_AES_MIN` floor and
-the 4 MiB `WC_ALTERA_FCS_MAX_XFER` ceiling apply, but as hard requirements
-rather than fallback thresholds: split larger buffers at the caller. For CTR
-no partial keystream may be outstanding from an earlier call. Both plaintext
-data and ciphertext still pass through HPS memory; the protection is key
-custody, not data-path secrecy.
+The 32-byte length multiple applies as a hard requirement rather than a
+fallback condition. For CTR no partial keystream may be outstanding from an
+earlier call. Both plaintext data and ciphertext still pass through HPS
+memory; the protection is key custody, not data-path secrecy.
 
 ## HMAC verification with vault keys
 
@@ -161,7 +166,8 @@ wc_AlteraFcs_HmacRemoveKey(keyId);
 ```
 
 Key sizes 256, 384 and 512 bits; digests SHA-256/384/512. Tags produced by any
-standard HMAC implementation verify correctly.
+standard HMAC implementation verify correctly. Messages past 4 MiB are streamed
+through libfcs.
 
 The two key origins differ in what they protect. `wc_AlteraFcs_HmacImportKey()`
 starts from a plaintext key the HPS already held, so it provides usage
@@ -306,3 +312,12 @@ Test complete
   path against the device, including the explicit ECC and HMAC APIs. Building
   the test suite with `-DWC_USE_DEVID=0x4143` additionally routes the generic
   tests through the SDM.
+* Every SHA-256 on the port's device id costs a mailbox round trip of about
+  5 ms, whatever the message size. A DRBG created with that id hashes on the
+  device too, so seed the DRBG from the SDM with an automatic mask that leaves
+  hashing out (`WOLFSSL_ALTERA_FCS_AUTO_MASK`), or keep the DRBG on another
+  device id, unless that latency is acceptable.
+* Streaming and hashing use anonymous memory files (`memfd_create`) named
+  through `/proc/self/fd`, so `/proc` must be mounted. A hash context holds
+  its whole message in such a file until `wc_Sha256Final()`; the ceiling is
+  `WOLFSSL_ALTERA_FCS_HASH_MAX`.

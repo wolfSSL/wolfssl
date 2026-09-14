@@ -44,6 +44,8 @@
 #include <wolfssl/wolfcrypt/hash.h>
 
 #include <libfcs.h>
+#include <unistd.h>
+#include <errno.h>
 
 #define WC_ALTERA_FCS_HMAC_TRACK_MAX 32
 
@@ -106,39 +108,9 @@ static int wc_AlteraFcs_HmacTrackHas(word32 keyId)
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#define FCS_KEY_OBJ_MAGIC   0x43736B4FU
-#define FCS_KEY_DATA_MAGIC  0x43736B64U
-#define FCS_KEY_OBJ_VER     1
-#define FCS_KEY_TYPE_HMAC   2
-#define FCS_KEY_MAC_SZ      48
-#define FCS_KEY_DATA_OFFSET 56
-#define FCS_KEY_ALIGN       32
-#define FCS_KEY_STATUS_SZ   64
-
-/* Sign and Verify only. Setting the Exchange bit as well is refused with 0x80,
- * the same exclusivity the ECC key objects enforce. */
-#define FCS_KEY_USAGE_SIGN_VERIFY 0xC
-
-/* Largest object: header, 64 byte padded 512 bit key, unused MAC field. */
-#define WC_ALTERA_FCS_HMACOBJ_SZ (FCS_KEY_DATA_OFFSET + 64 + FCS_KEY_MAC_SZ)
-
 /* The device reports the outcome as a 32 bit word rather than a return code. */
 #define FCS_MAC_RESULT_SZ  4
 #define FCS_MAC_RESULT_OK  0x900DU
-
-static void wc_AlteraFcs_Put32(byte* out, word32 val)
-{
-    out[0] = (byte)( val        & 0xFF);
-    out[1] = (byte)((val >>  8) & 0xFF);
-    out[2] = (byte)((val >> 16) & 0xFF);
-    out[3] = (byte)((val >> 24) & 0xFF);
-}
-
-static word32 wc_AlteraFcs_Get32(const byte* in)
-{
-    return ((word32)in[0]) | ((word32)in[1] << 8) |
-           ((word32)in[2] << 16) | ((word32)in[3] << 24);
-}
 
 /* Map a wolfSSL hash type to the device digest selector and tag size. */
 static int wc_AlteraFcs_HmacDigest(int hashType, FCS_OSAL_U32* digSel,
@@ -173,58 +145,12 @@ static int wc_AlteraFcs_HmacDigest(int hashType, FCS_OSAL_U32* digSel,
     return ret;
 }
 
-static int wc_AlteraFcs_HmacKeyObject(byte* out, word32 keyId, int keyBits,
-                                      const byte* key, word32* outSz)
-{
-    word32 keyLen;
-    word32 padded;
-    word32 objSz;
-    word32 sizeCode;
-
-    if (keyBits == 256) {
-        sizeCode = 2;
-    }
-    else if (keyBits == 384) {
-        sizeCode = 3;
-    }
-    else if (keyBits == 512) {
-        sizeCode = 4;
-    }
-    else {
-        return BAD_FUNC_ARG;
-    }
-
-    keyLen = (word32)keyBits / 8;
-    padded = keyLen;
-    if ((padded % FCS_KEY_ALIGN) != 0) {
-        padded += FCS_KEY_ALIGN - (padded % FCS_KEY_ALIGN);
-    }
-
-    XMEMSET(out, 0, WC_ALTERA_FCS_HMACOBJ_SZ);
-    wc_AlteraFcs_Put32(out,      FCS_KEY_OBJ_MAGIC);
-    wc_AlteraFcs_Put32(out + 8,  keyId);
-    wc_AlteraFcs_Put32(out + 20, (sizeCode << 16) |
-                                 ((word32)FCS_KEY_TYPE_HMAC << 24));
-    wc_AlteraFcs_Put32(out + 24, FCS_KEY_USAGE_SIGN_VERIFY);
-    wc_AlteraFcs_Put32(out + 48, FCS_KEY_DATA_MAGIC);
-    if (key != NULL) {
-        XMEMCPY(out + FCS_KEY_DATA_OFFSET, key, keyLen);
-    }
-
-    objSz = FCS_KEY_DATA_OFFSET + padded;
-    wc_AlteraFcs_Put32(out + 4, ((word32)FCS_KEY_OBJ_VER << 16) |
-                                (objSz & 0xFFFF));
-
-    *outSz = objSz + FCS_KEY_MAC_SZ;
-    return 0;
-}
-
 /* Shared by import and generate; key == NULL means the device generates it. */
 static int wc_AlteraFcs_HmacKeyNew(const byte* key, int keyBits,
                                    word32* keyId)
 {
-    byte   obj[WC_ALTERA_FCS_HMACOBJ_SZ];
-    byte   status[FCS_KEY_STATUS_SZ];
+    byte   obj[WC_ALTERA_FCS_KEY_OBJ_MAX_SZ];
+    byte   status[WC_ALTERA_FCS_KEY_STATUS_SZ];
     FCS_OSAL_UINT statusLen = (FCS_OSAL_UINT)sizeof(status);
     void*  session = NULL;
     word32 objSz = 0;
@@ -236,6 +162,9 @@ static int wc_AlteraFcs_HmacKeyNew(const byte* key, int keyBits,
     if (keyId == NULL) {
         return BAD_FUNC_ARG;
     }
+    if (keyBits != 256 && keyBits != 384 && keyBits != 512) {
+        return BAD_FUNC_ARG;
+    }
     ret = wc_AlteraFcs_ResourceAcquire();
     if (ret != 0) {
         return WC_HW_E;
@@ -243,7 +172,10 @@ static int wc_AlteraFcs_HmacKeyNew(const byte* key, int keyBits,
 
     ret = wc_AlteraFcs_KeyIdNew(&newId);
     if (ret == 0) {
-        ret = wc_AlteraFcs_HmacKeyObject(obj, newId, keyBits, key, &objSz);
+        /* Sign and Verify only, the same exclusivity the ECC objects carry. */
+        ret = wc_AlteraFcs_KeyObject(obj, newId, WC_ALTERA_FCS_KEY_TYPE_HMAC,
+                                     WC_ALTERA_FCS_KEY_USAGE_SIGN_VERIFY,
+                                     key, (word32)keyBits, &objSz);
     }
     if (ret == 0) {
         ret = wc_AlteraFcs_SessionAcquire(&session);
@@ -333,20 +265,159 @@ int wc_AlteraFcs_HmacRemoveKey(word32 keyId)
     return ret;
 }
 
-/* The device wants the message and the tag contiguous, with user_data_sz giving
- * the length of the message part. A message only request is refused with 0x4. */
+/* One transaction. The device wants the message and the tag contiguous, with
+ * user_data_sz giving the length of the message part. A message only request
+ * is refused with 0x4. */
+static int wc_AlteraFcs_HmacVerifyOnce(word32 keyId, FCS_OSAL_U32 digSel,
+                                       const byte* data, word32 dataSz,
+                                       const byte* mac, word32 macSz,
+                                       byte* result)
+{
+    struct fcs_mac_verify_req req;
+    byte*        buf = NULL;
+    void*        session = NULL;
+    FCS_OSAL_U32 resultLen = FCS_MAC_RESULT_SZ;
+    word32       totalSz = dataSz + macSz;
+    int          ret;
+
+    buf = (byte*)XMALLOC(totalSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (buf == NULL) {
+        return MEMORY_E;
+    }
+    if (dataSz > 0) {
+        XMEMCPY(buf, data, dataSz);
+    }
+    XMEMCPY(buf + dataSz, mac, macSz);
+
+    ret = wc_AlteraFcs_SessionAcquire(&session);
+    if (ret == 0) {
+        XMEMSET(&req, 0, sizeof(req));
+        req.op_mode      = 0;
+        req.dig_sz       = digSel;
+        req.src          = (FCS_OSAL_CHAR*)buf;
+        req.src_sz       = (FCS_OSAL_U32)totalSz;
+        req.dst          = (FCS_OSAL_CHAR*)result;
+        req.dst_sz       = &resultLen;
+        req.user_data_sz = (FCS_OSAL_U32)dataSz;
+
+        ret = fcs_mac_verify((FCS_OSAL_UUID*)session,
+                             WOLFSSL_ALTERA_FCS_CTX_ID, (FCS_OSAL_U32)keyId,
+                             &req);
+        wc_AlteraFcs_SessionRelease();
+        if (ret != 0) {
+            WOLFSSL_MSG("Altera FCS HMAC verify request failed");
+            ret = WC_HW_E;
+        }
+        else if (resultLen != FCS_MAC_RESULT_SZ) {
+            WOLFSSL_MSG("Altera FCS HMAC verify result length unexpected");
+            ret = WC_HW_E;
+        }
+    }
+    else {
+        ret = WC_HW_E;
+    }
+
+    ForceZero(buf, totalSz);
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+
+/* Past one transaction the message and tag go through memory files and
+ * libfcs feeds the device in 4 MiB pieces. */
+static int wc_AlteraFcs_HmacVerifyStream(word32 keyId, FCS_OSAL_U32 digSel,
+                                         const byte* data, word32 dataSz,
+                                         const byte* mac, word32 macSz,
+                                         byte* result)
+{
+    struct fcs_mac_verify_req_streaming req;
+    char   dataPath[WC_ALTERA_FCS_FD_PATH_SZ];
+    char   macPath[WC_ALTERA_FCS_FD_PATH_SZ];
+    char   outPath[WC_ALTERA_FCS_FD_PATH_SZ];
+    void*  session = NULL;
+    word32 outSz = 0;
+    int    dataFd;
+    int    macFd = -1;
+    int    outFd = -1;
+    int    ret = 0;
+
+    dataFd = wc_AlteraFcs_MemFd();
+    if (dataFd < 0) {
+        return WC_HW_E;
+    }
+    macFd = wc_AlteraFcs_MemFd();
+    if (macFd >= 0) {
+        outFd = wc_AlteraFcs_MemFd();
+    }
+    if (macFd < 0 || outFd < 0) {
+        ret = WC_HW_E;
+    }
+    if (ret == 0) {
+        ret = wc_AlteraFcs_MemFdWrite(dataFd, data, dataSz);
+    }
+    if (ret == 0) {
+        ret = wc_AlteraFcs_MemFdWrite(macFd, mac, macSz);
+    }
+    if (ret == 0) {
+        ret = wc_AlteraFcs_SessionAcquire(&session);
+        if (ret != 0) {
+            ret = WC_HW_E;
+        }
+    }
+    if (ret == 0) {
+        wc_AlteraFcs_MemFdPath(dataFd, dataPath);
+        wc_AlteraFcs_MemFdPath(macFd, macPath);
+        wc_AlteraFcs_MemFdPath(outFd, outPath);
+        XMEMSET(&req, 0, sizeof(req));
+        req.op_mode     = 0;
+        req.dig_sz      = digSel;
+        req.filename1   = dataPath;
+        req.filename2   = macPath;
+        req.outfilename = outPath;
+
+        ret = fcs_mac_verify_streaming((FCS_OSAL_UUID*)session,
+                                       (FCS_OSAL_U32)keyId,
+                                       WOLFSSL_ALTERA_FCS_CTX_ID, &req);
+        wc_AlteraFcs_SessionRelease();
+        /* Unlike the one shot call, the streaming call reports a mismatch as
+         * -EIO while still writing the verdict word, so that case is read
+         * from the result file below. */
+        if (ret == -EIO) {
+            ret = 0;
+        }
+        else if (ret != 0) {
+            WOLFSSL_MSG("Altera FCS HMAC streamed verify request failed");
+            ret = WC_HW_E;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_AlteraFcs_MemFdSize(outFd, &outSz);
+    }
+    /* libfcs writes a 16 byte result file; the verdict is its first word. */
+    if (ret == 0 && outSz < FCS_MAC_RESULT_SZ) {
+        WOLFSSL_MSG("Altera FCS HMAC verify result length unexpected");
+        ret = WC_HW_E;
+    }
+    if (ret == 0) {
+        ret = wc_AlteraFcs_MemFdRead(outFd, 0, result, FCS_MAC_RESULT_SZ);
+    }
+
+    if (outFd >= 0) {
+        (void)close(outFd);
+    }
+    if (macFd >= 0) {
+        (void)close(macFd);
+    }
+    (void)close(dataFd);
+    return ret;
+}
+
 int wc_AlteraFcs_HmacVerify(word32 keyId, int hashType, const byte* data,
                             word32 dataSz, const byte* mac, word32 macSz,
                             int* isValid)
 {
-    struct fcs_mac_verify_req req;
-    byte*        buf = NULL;
     byte         result[FCS_MAC_RESULT_SZ];
-    void*        session = NULL;
-    FCS_OSAL_U32 resultLen = (FCS_OSAL_U32)sizeof(result);
     FCS_OSAL_U32 digSel = 0;
     word32       expectSz = 0;
-    word32       totalSz;
     int          ret;
 
     if ((data == NULL && dataSz != 0) || mac == NULL || isValid == NULL) {
@@ -364,54 +435,23 @@ int wc_AlteraFcs_HmacVerify(word32 keyId, int hashType, const byte* data,
     if (macSz != expectSz) {
         return BAD_FUNC_ARG;
     }
-    /* Checked before any arithmetic: dataSz is caller controlled and the sum
-     * would otherwise wrap, under allocating the buffer that is then filled
-     * with dataSz bytes. */
-    if (dataSz > WC_ALTERA_FCS_MAX_XFER - macSz) {
+
+    /* The device counts message and tag together in one 32 bit length. */
+    if (dataSz > 0xFFFFFFFFU - macSz) {
         return BAD_FUNC_ARG;
-    }
-    totalSz = dataSz + macSz;
-
-    buf = (byte*)XMALLOC(totalSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (buf == NULL) {
-        return MEMORY_E;
-    }
-    if (dataSz > 0) {
-        XMEMCPY(buf, data, dataSz);
-    }
-    XMEMCPY(buf + dataSz, mac, macSz);
-
-    ret = wc_AlteraFcs_SessionAcquire(&session);
-    if (ret != 0) {
-        ForceZero(buf, totalSz);
-        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        return WC_HW_E;
     }
 
     XMEMSET(result, 0, sizeof(result));
-    XMEMSET(&req, 0, sizeof(req));
-    req.op_mode      = 0;
-    req.dig_sz       = digSel;
-    req.src          = (FCS_OSAL_CHAR*)buf;
-    req.src_sz       = (FCS_OSAL_U32)totalSz;
-    req.dst          = (FCS_OSAL_CHAR*)result;
-    req.dst_sz       = &resultLen;
-    req.user_data_sz = (FCS_OSAL_U32)dataSz;
-
-    ret = fcs_mac_verify((FCS_OSAL_UUID*)session, WOLFSSL_ALTERA_FCS_CTX_ID,
-                         (FCS_OSAL_U32)keyId, &req);
-    wc_AlteraFcs_SessionRelease();
-
-    ForceZero(buf, totalSz);
-    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-
-    if (ret != 0) {
-        WOLFSSL_MSG("Altera FCS HMAC verify request failed");
-        return WC_HW_E;
+    if (dataSz <= WC_ALTERA_FCS_MAX_XFER - macSz) {
+        ret = wc_AlteraFcs_HmacVerifyOnce(keyId, digSel, data, dataSz, mac,
+                                          macSz, result);
     }
-    if (resultLen != FCS_MAC_RESULT_SZ) {
-        WOLFSSL_MSG("Altera FCS HMAC verify result length unexpected");
-        return WC_HW_E;
+    else {
+        ret = wc_AlteraFcs_HmacVerifyStream(keyId, digSel, data, dataSz, mac,
+                                            macSz, result);
+    }
+    if (ret != 0) {
+        return ret;
     }
 
     /* A mismatch is reported in the result word, not as a request failure, so

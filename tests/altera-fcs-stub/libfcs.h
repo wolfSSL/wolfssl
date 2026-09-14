@@ -88,6 +88,32 @@ struct fcs_mac_verify_req {
     FCS_OSAL_U32 user_data_sz;
 };
 
+struct fcs_digest_req_streaming {
+    FCS_OSAL_U32 sha_op_mode;
+    FCS_OSAL_U32 sha_digest_sz;
+    FCS_OSAL_CHAR* filename;
+    FCS_OSAL_CHAR* outfilename;
+};
+
+struct fcs_mac_verify_req_streaming {
+    FCS_OSAL_U32 op_mode;
+    FCS_OSAL_U32 dig_sz;
+    FCS_OSAL_CHAR* filename1;
+    FCS_OSAL_CHAR* filename2;
+    FCS_OSAL_CHAR* outfilename;
+};
+
+struct fcs_aes_req_streaming {
+    FCS_OSAL_U32 crypt_mode;
+    FCS_OSAL_U32 block_mode;
+    FCS_OSAL_U32 iv_source;
+    FCS_OSAL_CHAR* filename;
+    FCS_OSAL_CHAR* iv_file;
+    FCS_OSAL_CHAR* aad_file;
+    FCS_OSAL_CHAR* tag_file;
+    FCS_OSAL_CHAR* outfilename;
+};
+
 FCS_OSAL_INT libfcs_init(FCS_OSAL_CHAR* loglevel);
 FCS_OSAL_INT fcs_open_service_session(FCS_OSAL_UUID* sessionId);
 FCS_OSAL_INT fcs_close_service_session(FCS_OSAL_UUID* sessionId);
@@ -117,5 +143,14 @@ FCS_OSAL_INT fcs_ecdh_request(FCS_OSAL_UUID* sessionId,
 FCS_OSAL_INT fcs_mac_verify(FCS_OSAL_UUID* sessionId,
     FCS_OSAL_U32 contextId, FCS_OSAL_U32 keyId,
     struct fcs_mac_verify_req* req);
+FCS_OSAL_INT fcs_get_digest_streaming(FCS_OSAL_UUID* sessionId,
+    FCS_OSAL_U32 keyId, FCS_OSAL_U32 contextId,
+    struct fcs_digest_req_streaming* req);
+FCS_OSAL_INT fcs_aes_crypt_streaming(FCS_OSAL_UUID* sessionId,
+    FCS_OSAL_U32 keyId, FCS_OSAL_U32 contextId,
+    struct fcs_aes_req_streaming* req);
+FCS_OSAL_INT fcs_mac_verify_streaming(FCS_OSAL_UUID* sessionId,
+    FCS_OSAL_U32 keyId, FCS_OSAL_U32 contextId,
+    struct fcs_mac_verify_req_streaming* req);
 
 #endif /* WOLFSSL_TEST_ALTERA_FCS_LIBFCS_H */
