@@ -816,16 +816,27 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
             if (ret != 0)
                 goto dtls13_cleanup;
             if ((modes & (1 << PSK_DHE_KE)) &&
-                    !ssl->options.noPskDheKe) {
+                    !ssl->options.noPskDheKePolicy) {
                 if (!haveKS)
                     ERROR_OUT(PSK_KEY_ERROR, dtls13_cleanup);
                 doKE = 1;
+                usePSK = 1;
             }
-            else if ((modes & (1 << PSK_KE)) == 0 ||
-                    ssl->options.onlyPskDheKe) {
+            else if ((modes & (1 << PSK_KE)) != 0 &&
+                    !ssl->options.onlyPskDheKe) {
+                usePSK = 1;
+            }
+            else if (!haveKS || !haveSA || !haveSG) {
+                /* No usable mode and nothing to fall back to. */
                 ERROR_OUT(PSK_KEY_ERROR, dtls13_cleanup);
             }
-            usePSK = 1;
+            else {
+                /* RFC 9846 Section 4.3.11: ignore the PSK and do a full
+                 * handshake. Mirrors PskModesUsable() so this stateless reply
+                 * and the stateful ClientHello agree on the cipher suite. */
+                WOLFSSL_MSG("psk_key_exchange_modes offer no usable mode, "
+                            "ignoring PSK");
+            }
         }
     }
 #endif
@@ -857,6 +868,14 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
     else
 #endif /* defined(HAVE_SESSION_TICKET) || !defined(NO_PSK) */
     {
+#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+        /* Not using a PSK, so a key share is needed. DoTls13ClientHello() does
+         * the same for the stateful pass. Without it a no-(EC)DHE-with-PSK
+         * server omits key_share from the HelloRetryRequest while the cookie
+         * still records the group, and the two transcripts diverge. The
+         * configured policy is kept in noPskDheKePolicy. */
+        ((WOLFSSL*)ssl)->options.noPskDheKe = 0;
+#endif
         /* https://datatracker.ietf.org/doc/html/rfc8446#section-9.2 */
         if (!haveKS || !haveSA || !haveSG) {
             WOLFSSL_MSG("Client didn't send KeyShare or SigAlgs or "

@@ -292,15 +292,13 @@ int test_tls13_feat_psk_ke_no_dhe(void)
     return EXPECT_RESULT();
 }
 
-/* The rejecting partner of the vector above, for the
- *
- *   else if (onlyPskDheKe || (failNoPSK && !resumption))
- *
- * arms of CheckPreSharedKeys() and SetupPskKey(): a server that insists on
- * forward secrecy (wolfSSL_only_dhe_psk) facing a client that offers
- * psk_ke only. onlyPskDheKe had never been set on a live handshake -- the
- * group only exercised it through the argument-validation API test. */
-int test_tls13_feat_psk_only_dhe_rejects_psk_ke(void)
+/* The declining partner of the vector above, for the onlyPskDheKe arm of
+ * PskModesUsable(): a server that insists on forward secrecy
+ * (wolfSSL_only_dhe_psk) facing a client that offers psk_ke only. No mode is
+ * usable, so the PSK is ignored and a certificate handshake runs instead.
+ * onlyPskDheKe had never been set on a live handshake -- the group only
+ * exercised it through the argument-validation API test. */
+int test_tls13_feat_psk_only_dhe_ignores_psk_ke(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_PSK) && defined(HAVE_SUPPORTED_CURVES)
@@ -322,9 +320,11 @@ int test_tls13_feat_psk_only_dhe_rejects_psk_ke(void)
     ExpectIntEQ(wolfSSL_no_dhe_psk(ssl_c), 0);
     ExpectIntEQ(wolfSSL_only_dhe_psk(ssl_s), 0);
 
-    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
-    ExpectIntEQ(wolfSSL_get_error(ssl_s, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
-        WC_NO_ERR_TRACE(PSK_KEY_ERROR));
+    /* RFC 9846 Section 4.3.11: no advertised mode is usable, so the server
+     * ignores the PSK and runs a certificate handshake instead of aborting. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(ssl_c->options.pskNegotiated, 0);
+    ExpectIntEQ(ssl_s->options.pskNegotiated, 0);
 
     wolfSSL_free(ssl_c);
     wolfSSL_CTX_free(ctx_c);
@@ -1183,7 +1183,7 @@ int test_tls13_feat_psk_ke_no_dhe(void)
 {
     return TEST_SKIPPED;
 }
-int test_tls13_feat_psk_only_dhe_rejects_psk_ke(void)
+int test_tls13_feat_psk_only_dhe_ignores_psk_ke(void)
 {
     return TEST_SKIPPED;
 }
