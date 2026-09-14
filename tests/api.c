@@ -6419,7 +6419,7 @@ static int RangeSupportedVersions(int firstVersion, byte* minors, int minorsSz)
 
     ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
     if (ctx != NULL) {
-        wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_NONE, NULL);
+        /* the capture stops at the ClientHello, so no peer to verify */
         wolfSSL_SetIOSend(ctx, HelloCaptureSend);
         wolfSSL_SetIORecv(ctx, HelloCaptureRecv);
         ssl = wolfSSL_new(ctx);
