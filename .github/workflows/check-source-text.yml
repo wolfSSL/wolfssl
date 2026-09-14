@@ -9,6 +9,9 @@ name: Check Source Text
 #   * check-workflows.py: every `run:` step against GitHub's 21000
 #     character cap, past which GitHub stops loading the workflow file
 #     altogether and its runs fail in 0s with zero jobs.
+#   * check-ci-deps.py: every install-apt-deps call against the .deb bundle
+#     it names, since a package missing from the bundle costs that job the
+#     apt mirror without failing anything.
 #
 # Scope:
 #   * pull_request: only files changed in the PR (catches new violations
@@ -79,6 +82,11 @@ jobs:
       # line by a change to a file the PR does not otherwise touch.
       - name: Lint workflow files
         run: ./.github/scripts/check-workflows.py
+
+      # Same reasoning as above: over the whole set, because a package list
+      # and the workflow that consumes it are rarely touched by one PR.
+      - name: Check the ci-deps bundle contract
+        run: ./.github/scripts/check-ci-deps.py
 
       - name: Run check-source-text (PR changed files)
         if: github.event_name == 'pull_request' && steps.files.outputs.count != '0'

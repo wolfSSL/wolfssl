@@ -43,16 +43,23 @@ runs:
           echo "ccache already installed: $(ccache --version | head -1)"
         elif [ "${{ runner.os }}" = "Linux" ]; then
           export DEBIAN_FRONTEND=noninteractive
-          # install-apt-deps stages the WHOLE ghcr bundle into
-          # /var/cache/apt/archives, and ccache is in the -minimal/-full
-          # lists, so in a job that ran it first the .deb is already on disk.
-          # Take it offline (--no-download): no apt-get update, nothing to
-          # stall on. Every other path here reaches the mirror, which is what
-          # used to hang these jobs for 10-40 min after the bundle had
-          # already installed cleanly.
+          # install-apt-deps exports the ghcr bundle it unpacked as a local apt
+          # repository, and ccache is in every bundle's package list. Reuse it:
+          # same repository, same versions, no apt-get update, nothing to stall
+          # on. Every other path here reaches the mirror, which is what used to
+          # hang these jobs for 10-40 min after the bundle had already
+          # installed cleanly.
           sudo dpkg --configure -a >/dev/null 2>&1 || true
-          if sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-               --no-install-recommends --no-download ccache; then
+          if [ -n "${WOLFSSL_APT_BUNDLE_SOURCES:-}" ] && \
+             sudo DEBIAN_FRONTEND=noninteractive apt-get \
+               -o Dir::Etc::SourceList="$WOLFSSL_APT_BUNDLE_SOURCES" \
+               -o Dir::Etc::SourceParts=/dev/null \
+               -o Dir::State::Lists="$WOLFSSL_APT_BUNDLE_LISTS" \
+               -o Acquire::Languages=none -o Acquire::Retries=0 \
+               -o APT::Sandbox::User=root \
+               -o Acquire::http::Proxy=http://127.0.0.1:9 \
+               -o Acquire::https::Proxy=http://127.0.0.1:9 \
+               install -y --no-install-recommends ccache; then
             echo "ccache installed offline from the staged .deb bundle"
           else
             # Same defence in depth as install-apt-deps: Acquire timeouts drop

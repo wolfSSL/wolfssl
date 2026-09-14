@@ -1,5 +1,5 @@
 name: 'Install apt dependencies'
-description: 'Install apt packages with retry logic and an optional offline ghcr bundle'
+description: 'Install apt packages from a prebuilt ghcr .deb bundle, falling back to the apt mirror'
 inputs:
   packages:
     description: 'Space-separated list of apt packages to install'
@@ -14,7 +14,7 @@ inputs:
       as per-command deadlines, so a wedged mirror is reported by this action
       instead of the job being cancelled around it. The loop overshoots it by
       retry-delay plus 10s of SIGKILL grace, and the per-command floors make
-      values below retries*60 inert. This, plus pull-timeout, plus any
+      values below retries*80 inert. This, plus pull-timeout, plus any
       ccache-setup in the same job, has to fit the caller's timeout-minutes -
       the defaults need ~16 minutes.
     required: false
@@ -36,58 +36,164 @@ inputs:
   ghcr-debs-tag:
     description: >
       Tag of a prebuilt .deb bundle published to
-      ghcr.io/<owner>/wolfssl-ci-debs by the ci-deps-image workflow
+      ghcr.io/wolfssl/wolfssl-ci-debs by the ci-deps-image workflow
       (e.g. "ubuntu-24.04-minimal"). When set, the packages are installed
-      offline from that bundle and the apt path below is skipped; on
-      that happy path the apt mirror is not contacted. The offline install
-      is all-or-nothing (a single --no-download install of the whole set),
-      so any failure - bundle missing, not public, or not covering every
-      requested package - falls back to the apt path. Always safe to set;
-      leave empty to use apt only.
+      from that bundle with no network access at all and the apt path below
+      is skipped. The install is all-or-nothing, so any failure - bundle
+      missing, not public, or not covering every requested package - falls
+      back to the apt path. Always safe to set; leave empty to use apt only.
+      .github/scripts/check-ci-deps.py checks on every PR that the tag exists
+      and carries every package named above.
     required: false
     default: ''
+  require-bundle:
+    description: >
+      When 'true', a bundle that cannot satisfy the request fails the job
+      instead of falling back to the apt mirror. Used by ci-deps-canary.yml,
+      which exists to catch exactly that drift.
+    required: false
+    default: 'false'
 runs:
   using: 'composite'
   steps:
-    # Preferred path: install from a prebuilt .deb bundle pulled from ghcr,
-    # entirely offline (--no-download), so a flaky/timing-out apt mirror
-    # cannot break the build. Best-effort: on any failure we leave
-    # "satisfied" unset and the apt step below runs unchanged. The bundle
-    # image must be PUBLIC so anonymous `docker pull` works (including from
-    # fork PRs whose GITHUB_TOKEN cannot read private packages).
-    - name: Install from ghcr .deb bundle (offline)
+    # Preferred path. The bundle carries its own apt index (Packages) and we
+    # resolve against ONLY that: a private sources.list and lists dir, with the
+    # system's /var/lib/apt/lists left untouched so the fallback below still
+    # works.
+    #
+    # Why an index rather than --no-download against the runner's own lists:
+    # the bundle is resolved on master right after `apt-get update`, i.e.
+    # against the live archive, while a consumer resolves against the lists
+    # frozen into the runner image days earlier. Every version published in
+    # between - routine for anything in -updates/-security - made apt ask for a
+    # .deb the bundle did not carry, and the whole set fell back to the mirror.
+    # 25% of PR jobs took that path, and in 16 of 20 sampled cases the mirror
+    # then supplied zero bytes: the bundle had been complete all along, only
+    # the index disagreed. Resolving against the bundle's own index makes
+    # producer and consumer agree by construction, so only a package genuinely
+    # absent from the bundle falls back.
+    #
+    # The bundle image must be PUBLIC so anonymous `docker pull` works
+    # (including from fork PRs, whose GITHUB_TOKEN cannot read private
+    # packages).
+    - name: Install from the ghcr .deb bundle (offline)
       id: ghcr
       if: inputs.ghcr-debs-tag != ''
       shell: bash
       run: |
         set -u
-        command -v docker >/dev/null 2>&1 || { echo "::notice::docker unavailable; using apt"; exit 0; }
-        # Hardcode the upstream owner: the bundle is only ever published under
-        # ghcr.io/wolfssl by ci-deps-image (gated to the wolfssl org), so fork
-        # PRs read the public upstream image too rather than a nonexistent
-        # ghcr.io/<fork>/wolfssl-ci-debs.
         IMG="ghcr.io/wolfssl/wolfssl-ci-debs:${{ inputs.ghcr-debs-tag }}"
-        if ! timeout -k 10 ${{ inputs.pull-timeout }} docker pull -q "$IMG" >/dev/null 2>&1; then
-          echo "::notice::ghcr bundle $IMG unavailable; using apt"
+
+        # A fallback is never routine - it means this job is about to spend
+        # minutes on the mirror that the bundles exist to keep it off - so say
+        # so loudly rather than in a ::notice nobody reads.
+        fallback() {
+          if [ "${{ inputs.require-bundle }}" = "true" ]; then
+            echo "::error::$IMG: $1"
+            exit 1
+          fi
+          echo "::warning::$IMG: $1; falling back to the apt mirror"
+          echo "apt fallback: \`$IMG\`: $1" \
+            >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
           exit 0
+        }
+
+        # A bundle holds .debs for one Ubuntu release. check-ci-deps.py
+        # compares the tag against runs-on, but a container job installs into
+        # whatever the image is, which that check cannot see.
+        WANT=$(printf '%s' "${{ inputs.ghcr-debs-tag }}" \
+               | sed -n 's/^\(ubuntu-[0-9]*\.[0-9]*\).*/\1/p')
+        HAVE=""
+        if [ -r /etc/os-release ]; then
+          HAVE=$( . /etc/os-release
+                  printf '%s-%s' "${ID:-?}" "${VERSION_ID:-?}" )
         fi
-        cid=$(docker create "$IMG" 2>/dev/null) || { echo "::notice::cannot open bundle; using apt"; exit 0; }
-        rm -rf "$RUNNER_TEMP/ghcr-debs"; mkdir -p "$RUNNER_TEMP/ghcr-debs"
-        docker cp "$cid:/debs/." "$RUNNER_TEMP/ghcr-debs/" >/dev/null 2>&1 || true
-        docker rm "$cid" >/dev/null 2>&1 || true
-        ls "$RUNNER_TEMP"/ghcr-debs/*.deb >/dev/null 2>&1 || { echo "::notice::bundle had no .debs; using apt"; exit 0; }
-        sudo cp "$RUNNER_TEMP"/ghcr-debs/*.deb /var/cache/apt/archives/
+        if [ -n "$WANT" ] && [ -n "$HAVE" ] && [ "$WANT" != "$HAVE" ]; then
+          fallback "holds .debs for $WANT, but this job runs on $HAVE"
+        fi
+
+        BUNDLE="$RUNNER_TEMP/ghcr-debs"
+        APTD="$RUNNER_TEMP/ghcr-apt"
+        rm -rf "$BUNDLE" "$APTD"
+        mkdir -p "$BUNDLE" "$APTD/etc" "$APTD/lists/partial"
+
+        # The owner is hardcoded: ci-deps-image only ever publishes under
+        # ghcr.io/wolfssl (it is gated to that org), so fork PRs read the same
+        # public image rather than a nonexistent ghcr.io/<fork>/... one.
+        if command -v docker >/dev/null 2>&1; then
+          timeout -k 10 ${{ inputs.pull-timeout }} docker pull -q "$IMG" \
+            >/dev/null 2>&1 || fallback "pull failed or timed out"
+          cid=$(docker create "$IMG" 2>/dev/null) || fallback "cannot open the image"
+          # Not silenced: a half-copied bundle would look like one that is
+          # merely missing a package, and we would blame the wrong thing.
+          docker cp "$cid:/debs/." "$BUNDLE/" >/dev/null \
+            || fallback "unpacking failed"
+          docker rm "$cid" >/dev/null 2>&1 || true
+        else
+          # A job running in a container (sssd.yml) has no docker CLI inside
+          # that container, so it used to skip the bundle and spend the job on
+          # the apt mirror - which is what failed it. Pulling the image from
+          # the registry needs only curl and tar.
+          timeout -k 10 ${{ inputs.pull-timeout }} \
+            "$GITHUB_ACTION_PATH/ghcr-pull.sh" "$IMG" debs "$BUNDLE" \
+            || fallback "registry pull failed or timed out"
+        fi
+        ls "$BUNDLE"/*.deb >/dev/null 2>&1 || fallback "no .debs inside"
+
+        # Makes a fallback diagnosable from this log alone.
+        if [ -f "$BUNDLE/bundle-info" ]; then
+          echo "Bundle: $(tr '\n' ' ' < "$BUNDLE/bundle-info")"
+          echo "Runner: image ${ImageOS:-?} ${ImageVersion:-?}"
+        fi
+
+        # Bundles published before the index was added ship none, so build one
+        # here: this change then needs no rebuild to take effect.
+        if [ ! -s "$BUNDLE/Packages" ]; then
+          ( cd "$BUNDLE" && dpkg-scanpackages --multiversion . /dev/null \
+            > Packages ) 2>/dev/null \
+            || fallback "no Packages index and dpkg-scanpackages failed"
+        fi
+
+        printf 'deb [trusted=yes] file:%s ./\n' "$BUNDLE" > "$APTD/etc/sources.list"
+        # SourceParts=/dev/null drops sources.list.d, so the bundle is the only
+        # repository apt can see, and a private Dir::State::Lists keeps the
+        # system's lists (and therefore the fallback below) intact. The
+        # unroutable proxy is a tripwire: should a non-file: URI ever get in,
+        # it fails in milliseconds instead of hanging on the mirror, which is
+        # the failure mode this whole mechanism exists to remove.
+        APT_LOCAL=(-o Dir::Etc::SourceList="$APTD/etc/sources.list"
+                   -o Dir::Etc::SourceParts=/dev/null
+                   -o Dir::State::Lists="$APTD/lists"
+                   -o Acquire::Languages=none
+                   -o Acquire::Retries=0
+                   -o APT::Sandbox::User=root
+                   -o Acquire::http::Proxy=http://127.0.0.1:9
+                   -o Acquire::https::Proxy=http://127.0.0.1:9)
+
+        sudo apt-get "${APT_LOCAL[@]}" update >/dev/null 2>&1 \
+          || fallback "apt could not read the bundle index"
+
+        # ccache-setup installs from this same repository instead of
+        # re-deriving it, and ci-deps-canary simulates the other package sets
+        # against it.
+        {
+          echo "WOLFSSL_APT_BUNDLE_DIR=$BUNDLE"
+          echo "WOLFSSL_APT_BUNDLE_SOURCES=$APTD/etc/sources.list"
+          echo "WOLFSSL_APT_BUNDLE_LISTS=$APTD/lists"
+        } >> "$GITHUB_ENV"
+
         NO_REC=""
         if [ "${{ inputs.no-install-recommends }}" = "true" ]; then
           NO_REC="--no-install-recommends"
         fi
-        # --no-download forbids any network fetch: if the bundle is missing
-        # a package this fails cleanly (nothing installed) and we fall back.
-        if sudo DEBIAN_FRONTEND=noninteractive apt-get install -y $NO_REC --no-download ${{ inputs.packages }}; then
+        # A previous attempt killed mid-unpack leaves dpkg needing this.
+        sudo dpkg --configure -a >/dev/null 2>&1 || true
+        if sudo DEBIAN_FRONTEND=noninteractive apt-get "${APT_LOCAL[@]}" \
+             install -y $NO_REC ${{ inputs.packages }}; then
           echo "satisfied=true" >> "$GITHUB_OUTPUT"
-          echo "Installed offline from $IMG: ${{ inputs.packages }}"
+          echo "Installed offline from $IMG"
         else
-          echo "::notice::offline install incomplete for $IMG; using apt"
+          fallback "does not cover ${{ inputs.packages }}"
         fi
 
     - name: Install packages
@@ -114,21 +220,28 @@ runs:
         APT_OPTS=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30
                   -o Acquire::https::Timeout=30)
 
-        # Spend budget-seconds over the attempts rather than a fixed
-        # per-attempt deadline: a caller with a short timeout-minutes would
-        # otherwise be cancelled mid-attempt, before the loop could report
-        # the failure. update gets a sixth of an attempt, install the rest,
-        # with floors so a small budget still leaves apt time to work.
-        PER=$((BUDGET / RETRIES))
-        UPD=$((PER / 6))
-        [ "$UPD" -ge 20 ] || UPD=20
-        INS=$((PER - UPD))
-        [ "$INS" -ge 40 ] || INS=40
         DEADLINE=$(($(date +%s) + BUDGET))
 
         # sudo resets the environment, so DEBIAN_FRONTEND has to ride along
         # on each privileged command rather than being exported once.
         for i in $(seq 1 $RETRIES); do
+          # Split what is LEFT over the attempts still to come, rather than
+          # slicing the budget up front: an attempt that ends early hands its
+          # remainder to the next one instead of dropping it.
+          #
+          # update gets half of an attempt, capped at 90s because that is what
+          # apt's own Acquire ladder (3 retries x a 30s timeout) needs to work
+          # through a stalled mirror and move on; install gets the rest. A
+          # sixth of an attempt used to be 50s of the sssd job's 600s budget,
+          # so update was killed mid-transfer twice and the job failed with
+          # 80% of its budget unspent. The floors keep a small budget usable;
+          # they are what makes it overshoot.
+          PER=$(( (DEADLINE - $(date +%s)) / (RETRIES - i + 1) ))
+          UPD=$((PER / 2))
+          [ "$UPD" -le 90 ] || UPD=90
+          [ "$UPD" -ge 20 ] || UPD=20
+          INS=$((PER - UPD))
+          [ "$INS" -ge 40 ] || INS=40
           # A previous attempt killed mid-unpack leaves dpkg needing this.
           sudo dpkg --configure -a >/dev/null 2>&1 || true
           if sudo DEBIAN_FRONTEND=noninteractive timeout -k 10 $UPD \

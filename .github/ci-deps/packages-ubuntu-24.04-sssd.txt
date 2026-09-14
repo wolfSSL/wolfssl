@@ -1,0 +1,13 @@
+# sssd.yml's apt packages (the '-sssd' bundle:
+# ghcr.io/<owner>/wolfssl-ci-debs:ubuntu-24.04-sssd). That job runs in
+# quay.io/sssd/ci-client-devel:ubuntu-latest, which already carries most of
+# this, so the bundle is resolved inside that image and holds only the few
+# .debs it is missing - see the `image` entry in ci-deps-image.yml. Keep
+# sorted.
+autoconf
+bc
+build-essential
+libcap-dev
+libldb-dev
+libldb2
+python3-ldb

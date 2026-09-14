@@ -44,9 +44,10 @@ jobs:
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     # Generous for a cold ccache; warm reruns finish in a fraction.  The
-    # margin is deliberately wide: the "Install dependencies" step has been
-    # seen to spend 30 min pulling the cross-compilers from a slow archive
-    # mirror, which used up the whole budget before a single config built.
+    # margin is deliberately wide: before the -cross bundle, "Install
+    # dependencies" was seen to spend 30 min pulling the cross-compilers from a
+    # slow archive mirror, which used up the whole budget before a single
+    # config built.
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
@@ -56,13 +57,11 @@ jobs:
         uses: ./.github/actions/install-apt-deps
         with:
           packages: autoconf automake libtool build-essential bubblewrap crossbuild-essential-arm64 crossbuild-essential-armhf
-          ghcr-debs-tag: ubuntu-24.04-minimal
-          # crossbuild-essential-* are not in the -minimal bundle (only the
-          # 22.04 lists carry them), and the offline install is all-or-nothing,
-          # so this caller always takes the apt path - see the timeout-minutes
-          # note above. The default budget would cap each install attempt at
-          # 250s and hard-fail a download that merely runs slow; 1200 gives it
-          # 500s an attempt and still reports inside the 45-minute job.
+          ghcr-debs-tag: ubuntu-24.04-cross
+          # Kept for the apt path this no longer normally takes: the default
+          # budget caps each attempt at 250s and hard-fails a download that
+          # merely runs slow, and the cross-toolchains are ~118 MB. 1200 gives
+          # an attempt 500s and still reports inside the 45-minute job.
           budget-seconds: '1200'
 
       # ccache via the cross-platform composite; the script passes the
