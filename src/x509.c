@@ -6563,6 +6563,9 @@ static WOLFSSL_EVP_PKEY* X509DecodePubKey(WOLFSSL_X509* x509)
 static WOLFSSL_EVP_PKEY* X509CachedPubKey(WOLFSSL_X509* x509)
 {
     WOLFSSL_EVP_PKEY* key;
+#ifdef WOLFSSL_ATOMIC_OPS
+    WOLFSSL_EVP_PKEY* current = NULL;
+#endif
 
     if (x509 == NULL)
         return NULL;
@@ -6574,7 +6577,6 @@ static WOLFSSL_EVP_PKEY* X509CachedPubKey(WOLFSSL_X509* x509)
              * key never sees an OID of 0 next to it. */
             x509->key.pubKeyOID = x509->pubKeyOID;
         #ifdef WOLFSSL_ATOMIC_OPS
-            WOLFSSL_EVP_PKEY* current = NULL;
             if (!wolfSSL_Atomic_Ptr_CompareExchange(
                     (void* volatile*)&x509->key.pkey, (void**)&current, key)) {
                 wolfSSL_EVP_PKEY_free(key);
