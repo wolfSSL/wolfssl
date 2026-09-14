@@ -2658,17 +2658,13 @@ static int test_wolfSSL_set_cipher_list_tls12_with_range(void)
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_TLS13) && \
     !defined(WOLFSSL_NO_TLS12) && \
-    (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
-    defined(HAVE_ECC)
+    !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(HAVE_RENEGOTIATION_INDICATION) && \
+    defined(HAVE_AESGCM) && defined(HAVE_ECC) && !defined(NO_RSA)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
 
-#ifndef NO_WOLFSSL_CLIENT
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
-#else
-    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
-#endif
-
     ExpectNotNull(ssl = wolfSSL_new(ctx));
 
     /* Ask for the range TLS 1.2 - TLS 1.3 */
@@ -6372,6 +6368,71 @@ static int test_wolfSSL_SetVersion_offers_range(void)
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
     XFREE(capture, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* wolfSSL_SetVersion() records the maximum it set in the option mask, so that
+ * the version checks reading the mask see it. */
+static int test_wolfSSL_SetVersion_sets_mask(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* a TLS 1.2 maximum rules TLS 1.3 out */
+    ExpectIntEQ(wolfSSL_SetVersion(ssl, WOLFSSL_TLSV1_2), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_get_options(ssl) & WOLFSSL_OP_NO_TLSv1_3, 0);
+    ExpectIntEQ(wolfSSL_get_options(ssl) & WOLFSSL_OP_NO_TLSv1_2, 0);
+
+    /* raising the maximum again puts TLS 1.3 back */
+    ExpectIntEQ(wolfSSL_SetVersion(ssl, WOLFSSL_TLSV1_3), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_options(ssl) & WOLFSSL_OP_NO_TLSv1_3, 0);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    !defined(WOLFSSL_NO_TLS12)
+static int test_SetVersion_tls12_ssl_ready(WOLFSSL* ssl)
+{
+    EXPECT_DECLS;
+    ExpectIntEQ(wolfSSL_SetVersion(ssl, WOLFSSL_TLSV1_2), WOLFSSL_SUCCESS);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* A client held to TLS 1.2 by wolfSSL_SetVersion() never offers TLS 1.3, so a
+ * TLS 1.3 capable server answering with TLS 1.2 is not a downgrade attack and
+ * the handshake has to complete. */
+static int test_wolfSSL_SetVersion_tls12_with_tls13_peer(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    !defined(WOLFSSL_NO_TLS12)
+    test_ssl_cbf client_cbf;
+    test_ssl_cbf server_cbf;
+
+    XMEMSET(&client_cbf, 0, sizeof(client_cbf));
+    XMEMSET(&server_cbf, 0, sizeof(server_cbf));
+
+    /* both ends flexible, so the server is TLS 1.3 capable */
+    client_cbf.method = wolfSSLv23_client_method;
+    server_cbf.method = wolfSSLv23_server_method;
+    client_cbf.ssl_ready = test_SetVersion_tls12_ssl_ready;
+
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbf,
+        &server_cbf, NULL), TEST_SUCCESS);
+    ExpectIntEQ(client_cbf.return_code, TEST_SUCCESS);
+    ExpectIntEQ(server_cbf.return_code, TEST_SUCCESS);
 #endif
     return EXPECT_RESULT();
 }
@@ -42028,6 +42089,8 @@ TEST_CASE testCases[] = {
 #endif
     TEST_DECL(test_wolfSSL_SetMinVersion),
     TEST_DECL(test_wolfSSL_SetVersion_offers_range),
+    TEST_DECL(test_wolfSSL_SetVersion_sets_mask),
+    TEST_DECL(test_wolfSSL_SetVersion_tls12_with_tls13_peer),
     TEST_DECL(test_wolfSSL_CTX_SetMinVersion),
 
     /* wolfSSL handshake APIs. */

@@ -2281,6 +2281,45 @@ int wolfSSL_GetVersion(const WOLFSSL* ssl)
     return VERSION_ERROR;
 }
 
+/* Record the version set as the maximum in the option mask so that the checks
+ * reading the mask agree with it. ssl->version alone will not do: version
+ * negotiation overwrites it with the version agreed with the peer. */
+static void SetVersionMaxMask(WOLFSSL* ssl, int version)
+{
+    unsigned long above = 0;
+    unsigned long self;
+
+    switch (version) {
+        case WOLFSSL_TLSV1_3:
+            self = WOLFSSL_OP_NO_TLSv1_3;
+            break;
+        case WOLFSSL_TLSV1_2:
+            self = WOLFSSL_OP_NO_TLSv1_2;
+            above = WOLFSSL_OP_NO_TLSv1_3;
+            break;
+        case WOLFSSL_TLSV1_1:
+            self = WOLFSSL_OP_NO_TLSv1_1;
+            above = WOLFSSL_OP_NO_TLSv1_3 | WOLFSSL_OP_NO_TLSv1_2;
+            break;
+        case WOLFSSL_TLSV1:
+            self = WOLFSSL_OP_NO_TLSv1;
+            above = WOLFSSL_OP_NO_TLSv1_3 | WOLFSSL_OP_NO_TLSv1_2 |
+                    WOLFSSL_OP_NO_TLSv1_1;
+            break;
+        case WOLFSSL_SSLV3:
+            self = WOLFSSL_OP_NO_SSLv3;
+            above = WOLFSSL_OP_NO_TLSv1_3 | WOLFSSL_OP_NO_TLSv1_2 |
+                    WOLFSSL_OP_NO_TLSv1_1 | WOLFSSL_OP_NO_TLSv1;
+            break;
+        default:
+            return;
+    }
+
+    /* the version asked for is allowed, everything above it is not */
+    ssl->options.mask |= above;
+    ssl->options.mask &= ~self;
+}
+
 int wolfSSL_SetVersion(WOLFSSL* ssl, int version)
 {
     word16 haveRSA = 1;
@@ -2332,6 +2371,7 @@ int wolfSSL_SetVersion(WOLFSSL* ssl, int version)
     }
 
     ssl->options.versionSet = 1;
+    SetVersionMaxMask(ssl, version);
 
     #ifdef NO_RSA
         haveRSA = 0;
