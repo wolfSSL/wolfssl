@@ -818,13 +818,14 @@ enum DN_Tags {
     ASN_BUS_CAT       = 0x0f,   /* businessCategory */
     ASN_POSTAL_CODE   = 0x11,   /* postalCode */
     ASN_USER_ID       = 0x12,   /* UserID */
-    ASN_X500_UNIQUE_ID = 0x2d,  /* x500UniqueIdentifier (2.5.4.45) */
-#ifdef WOLFSSL_CERT_NAME_ALL
+    /* 2.5.4.41 - 2.5.4.46. Always defined - the name component table is
+     * indexed with these ids whether or not the components are stored. */
     ASN_NAME          = 0x29,   /* name */
     ASN_GIVEN_NAME    = 0x2a,   /* GN */
     ASN_INITIALS      = 0x2b,   /* initials */
+    ASN_GEN_QUALIFIER = 0x2c,   /* generationQualifier - not stored */
+    ASN_X500_UNIQUE_ID = 0x2d,  /* x500UniqueIdentifier (2.5.4.45) */
     ASN_DNQUALIFIER   = 0x2e,   /* dnQualifier */
-#endif /* WOLFSSL_CERT_NAME_ALL */
 
 
     ASN_CONTENT_TYPE  = 0x97, /* not actual OID (see attrPkcs9ContentTypeOid) */
