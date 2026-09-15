@@ -35,6 +35,9 @@
 #endif
 
 #if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
+    #ifndef WC_RNG_INIT_FLAGS_NONE
+        #define WC_RNG_INIT_FLAGS_NONE 0
+    #endif
     /* backward-compat shim and helper declarations */
     static int wc_RNG_DRBG_Reseed_Nonce(WC_RNG* rng, const byte* seed,
                                         word32 seedSz, const byte *nonce,
@@ -84,7 +87,7 @@ WOLFSSL_API int wc_rng_bank_init_nonce(
 #ifdef WC_RNG_INIT_FLAGS_LOCK_REQUIRED
     word32 rng_flags = WC_RNG_INIT_FLAGS_LOCK_REQUIRED;
 #else
-    word32 rng_flags = WC_RNG_INIT_FLAGS_NONE;
+    WC_MAYBE_UNUSED word32 rng_flags = WC_RNG_INIT_FLAGS_NONE;
 #endif
 
     if ((ctx == NULL) || (n_rngs <= 0))
@@ -1665,7 +1668,7 @@ WOLFSSL_API int wc_rng_bank_inst_reinit(
     word32 rng_flags = WC_RNG_INIT_FLAGS_LOCK_REQUIRED |
         WC_RNG_INIT_FLAGS_LOCK_INITIALLY;
 #else
-    word32 rng_flags = WC_RNG_INIT_FLAGS_NONE;
+    WC_MAYBE_UNUSED word32 rng_flags = WC_RNG_INIT_FLAGS_NONE;
 #endif
 
     if (rng_inst == NULL)

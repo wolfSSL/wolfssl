@@ -29553,7 +29553,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_entropy_invalidate_test(void)
     if (lock_state & WC_RNG_LOCK_HELD)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #if (!defined(HAVE_INTEL_RDSEED) && !defined(HAVE_INTEL_RDRAND)) && \
-    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(5,2,4))
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_EQ(5,2,4) || FIPS_VERSION3_GE(7,0,0))
     {
         wc_drbg_reseed_ctr_t reseed_ctr = 0;
         api_ret = wc_RNG_DRBG_GetReseedCtr(WC_RNG_BANK_INST_TO_RNG(held),
