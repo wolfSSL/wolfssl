@@ -2225,6 +2225,14 @@ int wolfSSL_CTX_SetMinVersion(WOLFSSL_CTX* ctx, int version)
 }
 
 
+/* A minimum version turns a single pinned version back into a range, so the
+ * method's downgrade setting applies again. */
+static void RestoreDowngrade(WOLFSSL* ssl)
+{
+    if (ssl->options.versionSet && ssl->ctx != NULL)
+        ssl->options.downgrade = (word16)(ssl->ctx->method->downgrade);
+}
+
 /* Set minimum downgrade version allowed, WOLFSSL_SUCCESS on ok */
 int wolfSSL_SetMinVersion(WOLFSSL* ssl, int version)
 {
@@ -2244,8 +2252,10 @@ int wolfSSL_SetMinVersion(WOLFSSL* ssl, int version)
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 
     ret = SetMinVersionHelper(&ssl->options.minDowngrade, version);
-    if (ret == WOLFSSL_SUCCESS)
+    if (ret == WOLFSSL_SUCCESS) {
         ssl->options.minVersionSet = 1;
+        RestoreDowngrade(ssl);
+    }
 
     return ret;
 }
@@ -2343,6 +2353,10 @@ int wolfSSL_SetVersion(WOLFSSL* ssl, int version)
 
     ssl->options.versionSet = 1;
     ssl->options.maxVersionMinor = ssl->version.minor;
+    if (!ssl->options.minVersionSet) {
+        /* no minimum asked for, so this version is the whole range */
+        ssl->options.downgrade = 0;
+    }
 
     #ifdef NO_RSA
         haveRSA = 0;
@@ -5396,8 +5410,10 @@ int wolfSSL_set_min_proto_version(WOLFSSL* ssl, int version)
         }
     }
 
-    if (ret == WOLFSSL_SUCCESS)
+    if (ret == WOLFSSL_SUCCESS) {
         ssl->options.minVersionSet = 1;
+        RestoreDowngrade(ssl);
+    }
 
     return ret;
 }
