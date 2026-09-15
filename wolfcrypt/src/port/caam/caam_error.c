@@ -24,7 +24,8 @@
 #endif
 
 #if (defined(__INTEGRITY) || defined(INTEGRITY)) || \
-    (defined(__QNX__) || defined(__QNXNTO__))
+    (defined(__QNX__) || defined(__QNXNTO__)) || \
+    defined(WOLFSSL_CAAM_LINUX)
 
 #include <wolfssl/wolfcrypt/port/caam/caam_driver.h>
 #include <wolfssl/wolfcrypt/port/caam/caam_error.h>

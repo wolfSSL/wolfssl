@@ -24,7 +24,8 @@
 #endif
 
 #if (defined(__INTEGRITY) || defined(INTEGRITY)) || \
-    (defined(__QNX__) || defined(__QNXNTO__))
+    (defined(__QNX__) || defined(__QNXNTO__)) || \
+    defined(WOLFSSL_CAAM_LINUX)
 
 #if defined(__QNX__) || defined(__QNXNTO__)
     #include <sys/mman.h>
@@ -182,7 +183,7 @@ static Error caamReset(void)
 
     /* make sure interrupts are masked in JRCFGR0_LS register */
     CAAM_WRITE(caam.ring.BaseAddr + JRCFGR_JR,
-        CAAM_READ(caam.ring.BaseAddr + JRCFGR_JR) | 1);
+        CAAM_READ(caam.ring.BaseAddr + JRCFGR_JR) | JRCFGR_IMSK);
 
     /* flush and reset job rings using JRCR0 register */
     CAAM_WRITE(caam.ring.BaseAddr + JRCR_JR, 1);
@@ -222,6 +223,7 @@ static Error caamReset(void)
 
 
 /* free the page and dealloc */
+#ifndef WOLFSSL_CAAM_NO_SM
 static Error caamFreePage(unsigned int page)
 {
     /* owns the page can dealloc it */
@@ -263,9 +265,11 @@ Error caamFreePart(unsigned int part)
     WOLFSSL_MSG("free'd partition");
     return Success;
 }
+#endif /* !WOLFSSL_CAAM_NO_SM */
 
 
 /* find all partitions we own and free them */
+#ifndef WOLFSSL_CAAM_NO_SM
 static Error caamFreeAllPart()
 {
     unsigned int SMPO;
@@ -281,11 +285,13 @@ static Error caamFreeAllPart()
 
     return 0;
 }
+#endif /* !WOLFSSL_CAAM_NO_SM */
 
 
 /* search through the partitions to find an unused one
  * returns negative value on failure, on success returns 0 or greater
  */
+#ifndef WOLFSSL_CAAM_NO_SM
 int caamFindUnusedPartition()
 {
     unsigned int SMPO;
@@ -302,11 +308,13 @@ int caamFindUnusedPartition()
 
     return ret;
 }
+#endif /* !WOLFSSL_CAAM_NO_SM */
 
 
 /* flag contains how the partition is set i.e CSP flag and read/write access
  *      it also contains if locked
  */
+#ifndef WOLFSSL_CAAM_NO_SM
 static Error caamCreatePartition(unsigned int* page, unsigned int par,
         unsigned int flag)
 {
@@ -363,9 +371,11 @@ static Error caamCreatePartition(unsigned int* page, unsigned int par,
 
     return Success;
 }
+#endif /* !WOLFSSL_CAAM_NO_SM */
 
 
 /* return a partitions physical address on success, returns 0 on fail */
+#ifndef WOLFSSL_CAAM_NO_SM
 CAAM_ADDRESS caamGetPartition(unsigned int part, int partSz, unsigned int flag)
 {
     int err;
@@ -382,6 +392,7 @@ CAAM_ADDRESS caamGetPartition(unsigned int part, int partSz, unsigned int flag)
 
     return (CAAM_ADDRESS)(CAAM_PAGE + (part << 12));
 }
+#endif /* !WOLFSSL_CAAM_NO_SM */
 
 
 /* Gets the status of a job. Returns CAAM_WAITING if no output jobs ready to be
@@ -447,7 +458,14 @@ static Error caamGetJob(struct CAAM_DEVICE* dev, unsigned int* status)
     }
     (void)dev;
 
-    CAAM_WRITE(baseAddr + JRCFGR_JR, 0);
+    /* Clear the ring configuration, but keep the interrupt mask as it was.
+     * Writing a flat zero here re-enables this ring's interrupt, which the
+     * Linux port masks on purpose: it takes the ring from a kernel driver
+     * that has been unbound but whose handler is still registered, so the
+     * next completion would be serviced against memory that driver has
+     * already freed. Ports that never set the bit still write zero. */
+    CAAM_WRITE(baseAddr + JRCFGR_JR,
+        CAAM_READ(baseAddr + JRCFGR_JR) & JRCFGR_IMSK);
     if (*status == 0) {
         return Success;
     }
@@ -1079,8 +1097,9 @@ static int caamAesInternal(DESCSTRUCT* desc,
             break;
 
         case CAAM_AESCTR:
+            /* states are the same as CBC, only the offset changes */
             ofst = 0x00001000;
-            /* fall through because states are the same only the offset changes */
+            /* fall through */
 
         case CAAM_AESCBC:
         {
@@ -1141,6 +1160,8 @@ int caamAes(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4])
 
     unsigned int keyPhy = 0, inPhy = 0, outPhy = 0, ivPhy = 0;
 
+    (void)args; /* the descriptor already carries the mode and key size */
+
     /* map and copy over key */
     key    = (void*)buf[idx].TheAddress;
     keySz  = buf[idx].Length;
@@ -1195,6 +1216,8 @@ int caamAesCombined(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4],
     int keySz, inSz, ivSz = 0, outSz;
     void* pt;
 
+    (void)args; /* the descriptor already carries the mode and key size */
+
     keySz = buf[idx].Length;
     pt    = (void*)buf[idx].TheAddress;
     idx++;
@@ -1247,11 +1270,13 @@ int caamAesCombined(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4],
 int caamECDSAMake(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4])
 {
     Error err;
-    unsigned int part = 0;
     unsigned int isBlackKey = 0;
     unsigned int pdECDSEL   = 0;
-    unsigned int phys;
     void *vaddr[2];
+#ifndef WOLFSSL_CAAM_NO_SM
+    unsigned int part = 0;
+    unsigned int phys;
+#endif
 
     if (args != NULL) {
         isBlackKey = args[0];
@@ -1262,6 +1287,10 @@ int caamECDSAMake(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4])
 
     desc->desc[desc->idx++] = pdECDSEL;
     if (isBlackKey == CAAM_BLACK_KEY_SM) {
+#ifdef WOLFSSL_CAAM_NO_SM
+        WOLFSSL_MSG("no secure memory block on this part");
+        return CAAM_ARGS_E;
+#else
         unsigned char* pt;
 
         /* create secure partition for private key out */
@@ -1287,6 +1316,7 @@ int caamECDSAMake(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4])
         pt[2] = (phys >> 8) & 0xFF;
         pt[3] = (phys) & 0xFF;
         desc->desc[desc->idx++] = phys;
+#endif /* WOLFSSL_CAAM_NO_SM */
     }
     else {
         vaddr[0] = CAAM_ADR_MAP(0, buf[0].Length, 0);
@@ -1314,11 +1344,13 @@ int caamECDSAMake(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4])
     } while (err == CAAM_WAITING);
 
     if (isBlackKey == CAAM_BLACK_KEY_SM) {
+#ifndef WOLFSSL_CAAM_NO_SM
         /* store partition number holding black keys */
         if (err != Success)
             caamFreePart(part);
         else
             args[2] = part;
+#endif
     }
     else {
         /* copy non black keys out to buffers */
@@ -1347,6 +1379,8 @@ int caamECDSAVerify(DESCSTRUCT* desc, CAAM_BUFFER* buf, int sz,
     int i = 0;
     Error err;
     void *vaddr[MAX_ECDSA_VERIFY_ADDR];
+
+    (void)buf; /* the buffers were already staged into desc->buf */
 
     if (args != NULL) {
         isBlackKey = args[0];
@@ -1844,17 +1878,30 @@ void caamDescInit(DESCSTRUCT* desc, int type, unsigned int args[4],
 
 static int SetupJobRing(struct JobRing* r)
 {
+    unsigned int descOfst, outOfst;
+
     /* get environment specific addresses to use for job rings */
     CAAM_SET_JOBRING_ADDR(&r->BaseAddr, &r->JobIn, &r->VirtualIn);
 
+    descOfst = CAAM_JOBRING_SIZE * (unsigned int)sizeof(unsigned int);
+    outOfst  = descOfst + (CAAM_DESC_MAX * CAAM_JOBRING_SIZE);
+
+    /* An output ring entry is a {descriptor address, status} pair and the
+     * engine requires the ring base to be aligned to that 8 bytes. The
+     * descriptor area above does not necessarily end on it, and a misaligned
+     * ORBAR makes the SEC refuse the completion write: JRINT reports
+     * "invalid write to output ring" (0x06), the entry is never posted, and
+     * every job times out. Round up instead of assuming. */
+    outOfst = (outOfst + 7U) & ~7U;
+
     /* register the in/out and sizes of job ring */
-    r->Desc     = r->JobIn + (CAAM_JOBRING_SIZE * sizeof(unsigned int));
-    r->JobOut   = r->Desc + (CAAM_DESC_MAX * CAAM_JOBRING_SIZE);
+    r->Desc     = r->JobIn + descOfst;
+    r->JobOut   = r->JobIn + outOfst;
 
     CAAM_INIT_MUTEX(&caam.ring.jr_lock);
 
-    r->VirtualDesc = r->VirtualIn  + (CAAM_JOBRING_SIZE * sizeof(unsigned int));
-    r->VirtualOut  = r->VirtualDesc + (CAAM_DESC_MAX * CAAM_JOBRING_SIZE);
+    r->VirtualDesc = (unsigned char*)r->VirtualIn + descOfst;
+    r->VirtualOut  = (unsigned char*)r->VirtualIn + outOfst;
 
     memset(r->VirtualIn,   0, CAAM_JOBRING_SIZE * sizeof(unsigned int));
     memset(r->VirtualDesc, 0, CAAM_DESC_MAX * CAAM_JOBRING_SIZE);
@@ -1977,7 +2024,9 @@ int InitCAAM(void)
 
 int CleanupCAAM()
 {
+#ifndef WOLFSSL_CAAM_NO_SM
     caamFreeAllPart();
+#endif
     CAAM_UNSET_JOBRING_ADDR(caam.ring.BaseAddr, caam.ring.JobIn,
         caam.ring.VirtualIn);
     CAAM_FREE_MUTEX(&caam.ring.jr_lock);
@@ -1985,4 +2034,5 @@ int CleanupCAAM()
     return 0;
 }
 
-#endif /* __INTEGRITY || INTEGRITY || __QNX__ || __QNXNTO__ */
+#endif /* __INTEGRITY || INTEGRITY || __QNX__ || __QNXNTO__ ||
+        * WOLFSSL_CAAM_LINUX */

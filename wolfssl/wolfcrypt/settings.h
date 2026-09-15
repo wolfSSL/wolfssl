@@ -3231,6 +3231,34 @@
 #endif
 
 /* OS specific support so far */
+#ifdef WOLFSSL_CAAM_LINUX
+    #undef  WOLFSSL_CAAM
+    #define WOLFSSL_CAAM
+    /* The driver core carries no hash descriptors, so hashing stays in
+     * software, the same as QNX. */
+    #undef  WOLFSSL_NO_CAAM_HASH
+    #define WOLFSSL_NO_CAAM_HASH
+    /* No i.MX style secure memory block, so no blobs or black keys. */
+    #undef  WOLFSSL_NO_CAAM_BLOB
+    #define WOLFSSL_NO_CAAM_BLOB
+    /* Public key is not dispatched by this port yet, so leave ECC in
+     * software rather than half offloading it. */
+    #undef  WOLFSSL_NO_CAAM_ECC
+    #define WOLFSSL_NO_CAAM_ECC
+    /* Only AES-CBC/CTR/ECB and the TRNG are dispatched, so do not advertise
+     * the AEAD and CMAC modes to the crypto callback layer. Routing them here
+     * only to answer CRYPTOCB_UNAVAILABLE is not free: wc_CAAM_AesCcmDecrypt()
+     * zeroes the caller's output on any non-zero return, which destroys the
+     * ciphertext of an in place decrypt before the software fallback reads
+     * it. */
+    #undef  WOLFSSL_LP_ONLY_CAAM_AES
+    #define WOLFSSL_LP_ONLY_CAAM_AES
+    #undef  WOLFSSL_NO_CAAM_AESCCM
+    #define WOLFSSL_NO_CAAM_AESCCM
+    #undef  WOLFSSL_NO_CAAM_CMAC
+    #define WOLFSSL_NO_CAAM_CMAC
+#endif
+
 #ifdef WOLFSSL_QNX_CAAM
     /* shim layer for QNX hashing not yet implemented */
     #define WOLFSSL_NO_CAAM_HASH
@@ -3246,10 +3274,14 @@
             #define WOLFSSL_CAAM_AESGCM
             #define WOLFSSL_CAAM_AESXTS
         #endif
-        #define WOLFSSL_CAAM_AESCCM
+        #ifndef WOLFSSL_NO_CAAM_AESCCM
+            #define WOLFSSL_CAAM_AESCCM
+        #endif
         #define WOLFSSL_CAAM_AESCTR
         #define WOLFSSL_CAAM_AESCBC
-        #define WOLFSSL_CAAM_CMAC
+        #ifndef WOLFSSL_NO_CAAM_CMAC
+            #define WOLFSSL_CAAM_CMAC
+        #endif
     #endif /* WOLFSSL_CAAM_CIPHER */
     #if defined(HAVE_AESGCM) || defined(WOLFSSL_AES_XTS) || \
             defined(WOLFSSL_CMAC)
