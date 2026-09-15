@@ -2383,6 +2383,13 @@ struct Signer {
 
 
 #ifdef WOLFSSL_TRUST_PEER_CERT
+/* A trusted peer is identified by a hash of its whole encoding, so that hash is
+ * fixed rather than following the build's configurable identifier hash. */
+#ifndef NO_SHA256
+    #define TP_CERT_HASH_SZ WC_SHA256_DIGEST_SIZE
+#else
+    #define TP_CERT_HASH_SZ KEYID_SIZE
+#endif
 /* used for having trusted peer certs rather then CA */
 struct TrustedPeerCert {
     int     nameLen;
@@ -2404,6 +2411,7 @@ struct TrustedPeerCert {
     #endif
     word32 sigLen;
     byte*  sig;
+    byte   certHash[TP_CERT_HASH_SZ]; /* hash of the whole certificate DER */
     struct TrustedPeerCert* next;
 };
 #endif /* WOLFSSL_TRUST_PEER_CERT */

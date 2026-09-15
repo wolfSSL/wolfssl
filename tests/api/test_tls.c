@@ -133,6 +133,54 @@ int test_tls12_unexpected_ccs(void)
     return EXPECT_RESULT();
 }
 
+/* A TLS 1.2 client must not accept the server's ChangeCipherSpec before it has
+ * sent ClientKeyExchange: no master secret exists yet, so the CCS would switch
+ * the read side to all-zero keys and the expected Finished would be computed
+ * from an all-zero master secret. Deliver the server's flight and a CCS in one
+ * buffer so the client sees the CCS right behind ServerHelloDone. */
+int test_tls12_early_server_ccs(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(WOLFSSL_NO_TLS12)
+    const byte ccs[] = {
+        0x14, /* ccs type */
+        0x03, 0x03, /* version */
+        0x00, 0x01, /* length */
+        0x01, /* ccs value */
+    };
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+    /* start handshake, send first ClientHello */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    /* send server's flight */
+    ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* hand the whole flight plus a CCS to the client in one go */
+    ExpectIntGT(test_ctx.c_len, 0);
+    ExpectIntEQ(wolfSSL_inject(ssl_c, test_ctx.c_buff, test_ctx.c_len),
+            WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_inject(ssl_c, ccs, sizeof(ccs)), WOLFSSL_SUCCESS);
+    test_memio_clear_buffer(&test_ctx, 1);
+
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), OUT_OF_ORDER_E);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_tls13_unexpected_ccs(void)
 {
     EXPECT_DECLS;
@@ -3373,6 +3421,106 @@ int test_record_size_cache_invalidated_on_renegotiation(void)
     sz = wolfssl_local_GetRecordSize(ssl_c, 256, 1);
     ExpectIntEQ(sz, BuildMessage(ssl_c, NULL, 0, NULL, 256,
             application_data, 0, 1, 0, CUR_ORDER));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A trusted peer certificate is accepted as the peer without chain building
+ * and without a signature check, so the match has to identify the exact
+ * certificate that was loaded. Subject and issuer names, the key identifier
+ * and the signature bytes are all readable from the public certificate and
+ * can be carried over to another one, and the signature is never checked
+ * against the certificate carrying it. Present a copy of the pinned
+ * certificate whose serial number has been altered: nothing signed it any
+ * more, so it must fail verification like any other unsigned certificate. */
+int test_tls_trust_peer_cert_exact_match(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TRUST_PEER_CERT) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA) && !defined(NO_CERTS)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte genuine[2048];
+    byte altered[2048];
+    byte svrKey[2048];
+    int  genuineSz = 0;
+    int  svrKeySz = 0;
+    int  serialIdx = 0;
+    int  i;
+    XFILE f = XBADFILE;
+    /* end of the version [0] wrapper, then the serial number INTEGER */
+    WOLFSSL_SMALL_STACK_STATIC const byte verSerial[] = {
+        0xA0, 0x03, 0x02, 0x01, 0x02, 0x02
+    };
+
+    ExpectTrue((f = XFOPEN("./certs/server-cert.der", "rb")) != XBADFILE);
+    ExpectIntGT(genuineSz = (int)XFREAD(genuine, 1, sizeof(genuine), f), 0);
+    if (f != XBADFILE)
+        XFCLOSE(f);
+    f = XBADFILE;
+    ExpectTrue((f = XFOPEN("./certs/server-key.der", "rb")) != XBADFILE);
+    ExpectIntGT(svrKeySz = (int)XFREAD(svrKey, 1, sizeof(svrKey), f), 0);
+    if (f != XBADFILE)
+        XFCLOSE(f);
+
+    /* Same certificate with a different serial number. Names, extensions and
+     * signature bytes are untouched, the DER length is unchanged, and the
+     * public key still matches server-key.der. */
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(altered, genuine, (size_t)genuineSz);
+        serialIdx = -1;
+        for (i = 0; i + (int)sizeof(verSerial) < genuineSz; i++) {
+            if (XMEMCMP(genuine + i, verSerial, sizeof(verSerial)) == 0) {
+                serialIdx = i + (int)sizeof(verSerial);
+                break;
+            }
+        }
+        ExpectIntGT(serialIdx, 0);
+    }
+    if (EXPECT_SUCCESS()) {
+        int serialSz = altered[serialIdx];
+        ExpectIntGT(serialSz, 0);
+        ExpectIntLT(serialIdx + serialSz, genuineSz);
+        if (EXPECT_SUCCESS())
+            altered[serialIdx + serialSz] ^= 0x02;
+    }
+
+    /* Control: the pinned certificate itself is accepted. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup_ex(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method, NULL, 0,
+        genuine, genuineSz, svrKey, svrKeySz), 0);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_CTX_trust_peer_buffer(ctx_c, genuine, genuineSz,
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c);
+    ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s);
+    ctx_s = NULL;
+
+    /* The altered copy must not inherit the pin. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup_ex(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method, NULL, 0,
+        altered, genuineSz, svrKey, svrKeySz), 0);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_CTX_trust_peer_buffer(ctx_c, genuine, genuineSz,
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1),
+        WC_NO_ERR_TRACE(ASN_SIG_CONFIRM_E));
 
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);

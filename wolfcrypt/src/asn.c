@@ -25072,6 +25072,32 @@ static int GeneratePreTBSBuffer(DecodedCert* cert, byte** derOut)
 }
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
 
+#if defined(HAVE_RPK)
+/* A Raw Public Key (RFC 7250) is only a SubjectPublicKeyInfo: it has no issuer
+ * and no signature, so there is no signer to look up and nothing to confirm.
+ * A caller that asked for verification against the CertManager - any verifying
+ * mode on a type the signer lookup and ConfirmSignature() apply to - must not
+ * be told the key verified, or a bare key would pass wherever a chained
+ * certificate is required (CertManager, X509_STORE, PKCS#7, OCSP, TSP). The
+ * TLS handshake parses a negotiated RPK with NO_VERIFY and authenticates it
+ * out of band (RpkIsTrusted()).
+ *
+ * @param [in] type    Type of certificate being parsed.
+ * @param [in] verify  Verification mode requested by the caller.
+ * @return  0 when no signer verification was requested.
+ * @return  ASN_NO_SIGNER_E when the caller requested signer verification.
+ */
+static int CheckRpkVerifyMode(int type, int verify)
+{
+    if (verify != NO_VERIFY && type != CA_TYPE && type != TRUSTED_PEER_TYPE) {
+        WOLFSSL_MSG("Raw Public Key has no signer to verify against");
+        WOLFSSL_ERROR_VERBOSE(ASN_NO_SIGNER_E);
+        return ASN_NO_SIGNER_E;
+    }
+    return 0;
+}
+#endif /* HAVE_RPK */
+
 int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
                       Signer *extraCAList)
 {
@@ -25152,6 +25178,10 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
                 return ASN_PARSE_E;
             }
 #endif /* !WOLFSSL_NO_ASN_STRICT */
+            /* No signer lookup or signature check is possible for an RPK. */
+            if (ret == 0) {
+                ret = CheckRpkVerifyMode(type, verify);
+            }
             return ret;
         }
 #endif /* HAVE_RPK */
@@ -25414,6 +25444,11 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
             }
 #if defined(HAVE_RPK)
             if (cert->isRPK) {
+                /* No signer lookup or signature check is possible for an
+                 * RPK. */
+                if (ret == 0) {
+                    ret = CheckRpkVerifyMode(type, verify);
+                }
                 return ret;
             }
 #endif /* HAVE_RPK */
