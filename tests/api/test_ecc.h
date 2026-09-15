@@ -56,6 +56,7 @@ int test_wc_ecc_ctx_set_peer_salt(void);
 int test_wc_ecc_ctx_set_info(void);
 int test_wc_ecc_ctx_getters(void);
 int test_wc_ecc_encryptDecrypt(void);
+int test_wc_ecc_decrypt_pubkey_preserved(void);
 int test_wc_ecc_ecies_gcm(void);
 int test_wc_ecc_ecies_gcm_no_rng(void);
 int test_wc_ecc_ecies_cryptocb(void);
@@ -106,6 +107,7 @@ int test_wc_EccDecisionCoverage4(void);
     TEST_DECL_GROUP("ecc", test_wc_ecc_ctx_set_info),                   \
     TEST_DECL_GROUP("ecc", test_wc_ecc_ctx_getters),                    \
     TEST_DECL_GROUP("ecc", test_wc_ecc_encryptDecrypt),                 \
+    TEST_DECL_GROUP("ecc", test_wc_ecc_decrypt_pubkey_preserved),       \
     TEST_DECL_GROUP("ecc", test_wc_ecc_ecies_gcm),                      \
     TEST_DECL_GROUP("ecc", test_wc_ecc_ecies_gcm_no_rng),               \
     TEST_DECL_GROUP("ecc", test_wc_ecc_ecies_cryptocb),                 \
