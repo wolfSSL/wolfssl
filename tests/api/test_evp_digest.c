@@ -222,7 +222,7 @@ int test_wolfSSL_EVP_get_digestbynid(void)
 int test_wolfSSL_EVP_Digest(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_SHA256) && !defined(NO_PWDBASED)
+#if defined(OPENSSL_EXTRA) && !defined(NO_SHA256)
     const char* in = "abc";
     int   inLen = (int)XSTRLEN(in);
     byte  out[WC_SHA256_DIGEST_SIZE];
