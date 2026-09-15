@@ -769,49 +769,37 @@ static WARN_UNUSED_RESULT int Hash256_DRBG_Reseed(DRBG_internal* drbg,
 
 #endif /* !NO_SHA256 */
 
-/* WC_RNG_DEBUG_STATS collection points.
- *
- * Placement doctrine: each counter is maintained at the single funnel that
- * owns the distinction it records --
- *   - reseed counts in Hash_DRBG_Reseed() (every reseed flavor routes
- *     through it: interval backstop, Reseed_Now, RBGC, banked redemption);
- *   - request/byte counts in the DRBG arm of wc_RNG_GenerateBlock()
- *     (hardware-offload arms -- RDRAND, Silabs, async, cryptocb, custom --
- *     are deliberately uncounted: these are DRBG-facility statistics);
- *   - banked-seed redemption provenance in wc_RNG_DRBG_NextSeedNow_Nonce();
- *   - seed health failures at the two sites that observe them per-instance
- *     (PollAndReSeed(), NextSeedGenerate);
- *   - chain-provenance bytes (RBGC_bytes_produced: output generated while
- *     the instance's own RBGCStratum > 0) in the same generate funnel;
- *   - pool byte accounting in wc_RNG_Pool_Extract(), under the consumer's
- *     instance lock: bytes produced by reading from the pool, and bytes
- *     requested but not fulfilled (empty-pool and partial-serve shortfall),
- *     so requested == produced + missed on the capacity paths.  The
- *     failed-DRBG burn path deliberately counts nothing: it is a failure
- *     event (visible via rng->status), not a capacity signal.
- *
- * Counters are plain (non-atomic) adds/increments, and update under the owner's
- * exclusive access (the lock contract shared by all WC_RNG operations) except
- * where labeled racy: those are unreliable under concurrency, by design.  Every
- * site carries its own #ifdef WC_RNG_DEBUG_STATS gate so the facility is
- * removable outright with unifdef. */
-
 #ifdef WC_RNG_HAVE_NEXT_SEED
-/* Purge the credited next-seed aperture.  A plain store would race an
- * in-flight producer: the producer's publish must lose against a purge,
- * never the reverse, or material generated before a state-invalidation
- * event could surface READY after it -- exactly the resurrection the
- * provenance guarantee forbids.  A producer mid-fill (PRODUCING) owns
- * the buffer, so the purge only repaints the sentinel (PRODUCING ->
- * PURGED); the producer's failed publish-CAS observes the repaint and
- * reopens the aperture EMPTY (see NextSeedProducerRelease()) -- the
- * sentinel alone suppresses the pre-event material; seed-aperture
- * buffers are never zeroized outside consumption.  All other states
- * purge directly to EMPTY.  (The uncredited stir aperture keeps its
- * plain-store purge:
- * stirs carry no claims, so resurrection there is benign by the
- * three-no-ops doctrine.) */
-static WARN_UNUSED_RESULT int NextSeedPurge(wolfSSL_Atomic_Int *lenp)
+/* Purge the credited next-seed aperture.  A plain store would race an in-flight
+ * producer: the producer's publish must lose against a purge, never the
+ * reverse, or material generated before a state-invalidation event could
+ * surface READY after it -- exactly the resurrection the provenance guarantee
+ * forbids.  A producer mid-fill (PRODUCING) owns the buffer, so the purge only
+ * repaints the sentinel (PRODUCING -> PURGED); the producer's failed
+ * publish-CAS observes the repaint and reopens the aperture EMPTY (see
+ * NextSeedProducerRelease()) -- the sentinel alone suppresses the pre-event
+ * material; abandoned seed-aperture buffers are zeroized as explained below.
+ * All other states purge directly to EMPTY.  (The uncredited stir aperture
+ * keeps its plain-store purge: stirs carry no claims, so resurrection there is
+ * benign by the three-no-ops doctrine.)
+ *
+ * Zeroization doctrine for purges: abandonment here is event-driven (fork,
+ * VM clone/resume, credited reseed), and the event that abandons bytes in
+ * this lineage is the same event that created a sibling lineage that may
+ * consume its identical copy of them.  Abandoned-here can be consumed-there,
+ * so purged material is treated as CSP and wiped -- under ownership only:
+ * READY or parked-fill words are claimed _CONSUMING first (the same CAS a
+ * consumer uses; producers claim only non-negative words, so the claim
+ * cannot collide), then wiped, then reopened EMPTY.  A _CONSUMING holder's
+ * material is left to that consumer's own burn-before-release, and a
+ * _PRODUCING holder's to its unwind (see NextSeedProducerRelease()).
+ * Contrast the health-test burn arm, which stays sentinel-only: RCT/APT
+ * are deterministic on the bytes, so every sibling rejects the same
+ * material identically and no lineage can have consumed it.
+ */
+static WARN_UNUSED_RESULT int NextSeedPurge(wolfSSL_Atomic_Int *lenp,
+                                            byte *seed_buf,
+                                            word32 seed_buf_sz)
 {
     int ret;
     WC_ATOMIC_INT_ARG cur_len, want_len;
@@ -819,10 +807,21 @@ static WARN_UNUSED_RESULT int NextSeedPurge(wolfSSL_Atomic_Int *lenp)
     WC_CAS_WITH_RETRY_BEGIN_INIT_CUR(lenp, cur_len, ret) {
         if (cur_len == WC_DRBG_NEXT_SEED_PURGED)
             return ALREADY_E; /* already handed off to a producer's unwind. */
-        want_len = (cur_len == WC_DRBG_NEXT_SEED_PRODUCING) ?
-            WC_DRBG_NEXT_SEED_PURGED : WC_DRBG_NEXT_SEED_EMPTY;
-        WC_CAS_WITH_RETRY_LOOP_FOREVER(wolfSSL_Atomic_Int_CompareExchange,
-                                      lenp, cur_len, want_len, ret);
+        if ((cur_len == WC_DRBG_NEXT_SEED_READY) || (cur_len > 0)) {
+            /* Published or parked bytes with no owner: claim, wipe as
+             * owner, reopen. */
+            WC_CAS_WITH_RETRY_LOOP_FOREVER(wolfSSL_Atomic_Int_CompareExchange,
+                                          lenp, cur_len,
+                                          WC_DRBG_NEXT_SEED_CONSUMING, ret);
+            ForceZero(seed_buf, seed_buf_sz);
+            WOLFSSL_ATOMIC_STORE(*lenp, WC_DRBG_NEXT_SEED_EMPTY);
+        }
+        else {
+            want_len = (cur_len == WC_DRBG_NEXT_SEED_PRODUCING) ?
+                WC_DRBG_NEXT_SEED_PURGED : WC_DRBG_NEXT_SEED_EMPTY;
+            WC_CAS_WITH_RETRY_LOOP_FOREVER(wolfSSL_Atomic_Int_CompareExchange,
+                                          lenp, cur_len, want_len, ret);
+        }
     } WC_CAS_WITH_RETRY_END;
 
     /* percolate the CAS result -- if the loop was aborted by user logic, the
@@ -839,16 +838,19 @@ static WARN_UNUSED_RESULT int NextSeedPurge(wolfSSL_Atomic_Int *lenp)
  * a claim).  The producer's material then predates the invalidation
  * event and must not surface: the aperture reopens EMPTY, which is
  * the whole suppression -- an EMPTY aperture is never consumed, and
- * the next fill overwrites from offset zero.  The buffer is never
- * zeroized (house rule for the seed apertures): zeroization buys
- * nothing here -- suppression is the sentinel's job, and a
- * fork-sibling clone holds the same bytes regardless. */
+ * the next fill overwrites from offset zero.  The bytes themselves are
+ * wiped before the reopen, while this producer still owns the buffer:
+ * the purge that repainted the claim marks an event that created a
+ * sibling lineage, and the sibling's copy of a completed fill may be
+ * consumed there (see the doctrine at NextSeedPurge()). */
 static int NextSeedProducerRelease(wolfSSL_Atomic_Int *lenp,
+                                   byte *seed_buf, word32 seed_buf_sz,
                                    WC_ATOMIC_INT_ARG val)
 {
     WC_ATOMIC_INT_ARG expected = WC_DRBG_NEXT_SEED_PRODUCING;
     if (wolfSSL_Atomic_Int_CompareExchange(lenp, &expected, val))
         return 0;
+    ForceZero(seed_buf, seed_buf_sz);
     WOLFSSL_ATOMIC_STORE(*lenp, WC_DRBG_NEXT_SEED_EMPTY);
     return BUSY_E;
 }
@@ -964,7 +966,8 @@ static WARN_UNUSED_RESULT int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed,
         if ((cur_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED) &&
             (! in_bracketed_consume))
         {
-            ret = NextSeedPurge(&drbg->nextSeedLen);
+            ret = NextSeedPurge(&drbg->nextSeedLen, drbg->nextSeed,
+                                (word32)sizeof(drbg->nextSeed));
             if ((ret != 0) &&
                 (ret != WC_NO_ERR_TRACE(ALREADY_E)))
             {
@@ -1014,7 +1017,8 @@ static WARN_UNUSED_RESULT int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed,
         if ((cur_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED) &&
             (! in_bracketed_consume))
         {
-            ret = NextSeedPurge(&drbg512->nextSeedLen);
+            ret = NextSeedPurge(&drbg512->nextSeedLen, drbg512->nextSeed,
+                                (word32)sizeof(drbg512->nextSeed));
             if ((ret != 0) &&
                 (ret != WC_NO_ERR_TRACE(ALREADY_E)))
             {
@@ -3241,7 +3245,9 @@ static WARN_UNUSED_RESULT WC_MAYBE_UNUSED int rng_pid_change_check(WC_RNG* rng) 
 #ifdef WC_RNG_HAVE_NEXT_SEED
     #ifndef NO_SHA256
     if ((rng->drbgType == WC_DRBG_SHA256) && (rng->drbg != NULL)) {
-        int ret2 = NextSeedPurge(&((DRBG_internal *)rng->drbg)->nextSeedLen);
+        int ret2 = NextSeedPurge(&((DRBG_internal *)rng->drbg)->nextSeedLen,
+            ((DRBG_internal *)rng->drbg)->nextSeed,
+            (word32)sizeof(((DRBG_internal *)rng->drbg)->nextSeed));
         if ((ret == 0) &&
             (ret2 != 0) &&
             (ret2 != WC_NO_ERR_TRACE(ALREADY_E)))
@@ -3255,7 +3261,9 @@ static WARN_UNUSED_RESULT WC_MAYBE_UNUSED int rng_pid_change_check(WC_RNG* rng) 
     #ifdef WOLFSSL_DRBG_SHA512
     if ((rng->drbgType == WC_DRBG_SHA512) && (rng->drbg512 != NULL)) {
         int ret2 =
-            NextSeedPurge(&((DRBG_SHA512_internal *)rng->drbg512)->nextSeedLen);
+            NextSeedPurge(&((DRBG_SHA512_internal *)rng->drbg512)->nextSeedLen,
+            ((DRBG_SHA512_internal *)rng->drbg512)->nextSeed,
+            (word32)sizeof(((DRBG_SHA512_internal *)rng->drbg512)->nextSeed));
         if ((ret == 0) &&
             (ret2 != 0) &&
             (ret2 != WC_NO_ERR_TRACE(ALREADY_E)))
@@ -3672,7 +3680,9 @@ WOLFSSL_API int wc_RNG_invalidate_entropy(WC_RNG* rng) {
 #ifdef WC_RNG_HAVE_NEXT_SEED
 #ifndef NO_SHA256
     if ((rng->drbgType == WC_DRBG_SHA256) && (rng->drbg != NULL)) {
-        int ret2 = NextSeedPurge(&((DRBG_internal *)rng->drbg)->nextSeedLen);
+        int ret2 = NextSeedPurge(&((DRBG_internal *)rng->drbg)->nextSeedLen,
+            ((DRBG_internal *)rng->drbg)->nextSeed,
+            (word32)sizeof(((DRBG_internal *)rng->drbg)->nextSeed));
         if ((ret2 != 0) &&
             (ret2 != WC_NO_ERR_TRACE(ALREADY_E)) &&
             (ret == 0))
@@ -3686,7 +3696,9 @@ WOLFSSL_API int wc_RNG_invalidate_entropy(WC_RNG* rng) {
 #ifdef WOLFSSL_DRBG_SHA512
     if ((rng->drbgType == WC_DRBG_SHA512) && (rng->drbg512 != NULL)) {
         int ret2 =
-            NextSeedPurge(&((DRBG_SHA512_internal *)rng->drbg512)->nextSeedLen);
+            NextSeedPurge(&((DRBG_SHA512_internal *)rng->drbg512)->nextSeedLen,
+            ((DRBG_SHA512_internal *)rng->drbg512)->nextSeed,
+            (word32)sizeof(((DRBG_SHA512_internal *)rng->drbg512)->nextSeed));
         if ((ret2 != 0) &&
             (ret2 != WC_NO_ERR_TRACE(ALREADY_E)) &&
             (ret == 0))
@@ -3872,6 +3884,25 @@ static WC_INLINE word32 PoolUsed(word32 head, word32 tail, word32 poolSize)
     return (head >= tail) ? (head - tail) : (head + (poolSize * 2U) - tail);
 }
 
+/* Wipe the retired span [tail, head): pooled bytes are finished DRBG output
+ * at rest, and a retiring event (invalidation, fork, credited reseed) has a
+ * sibling lineage that may serve its identical copy -- CSP by the doctrine
+ * at NextSeedPurge().  Race-free by ownership: the single reader is the
+ * only mover of tail, and writers write only past head. */
+static WC_INLINE void PoolWipeRetired(WC_RNG *rng, word32 tail, word32 head)
+{
+    word32 used = PoolUsed(head, tail, (word32)rng->poolSize);
+    word32 t = (tail >= (word32)rng->poolSize) ?
+        (tail - (word32)rng->poolSize) : tail;
+    word32 seg = (word32)rng->poolSize - t;
+    if (seg > used)
+        seg = used;
+    if (seg > 0)
+        ForceZero(rng->pool + t, seg);
+    if (used > seg)
+        ForceZero(rng->pool, used - seg);
+}
+
 /* Retire pooled output: any event after which pre-event bytes must not be
  * served -- state invalidation, fork, a credited reseed, the reader's
  * fail-closed path.  Bumping epoch is the whole operation; see above for why
@@ -4046,8 +4077,15 @@ int wc_RNG_Pool_Extract(WC_RNG* rng, byte* out, word32* n)
         int ret = PoolPurge(rng);
         if (ret != 0)
             return ret;
-        else
-            return RNG_FAILURE_E;
+        /* Reader-owned fail-closed wipe and resync of whatever was
+         * pending. */
+        tw = WOLFSSL_ATOMIC_LOAD(rng->poolTail);
+        w1 = WOLFSSL_ATOMIC_LOAD(rng->poolHead);
+        PoolWipeRetired(rng, WC_RNG_POOL_POS(tw), WC_RNG_POOL_POS(w1));
+        WOLFSSL_ATOMIC_STORE(rng->poolTail,
+                             WC_RNG_POOL_PACK(WC_RNG_POOL_POS(w1),
+                                              WC_RNG_POOL_EPOCH(w1)));
+        return RNG_FAILURE_E;
     }
 
     tw = WOLFSSL_ATOMIC_LOAD(rng->poolTail);
@@ -4059,6 +4097,7 @@ int wc_RNG_Pool_Extract(WC_RNG* rng, byte* out, word32* n)
         /* A purge landed since our last visit.  Everything published before
          * it is retired: resynchronize to head and report empty.  Anything
          * the writer publishes after this point is post-event and stands. */
+        PoolWipeRetired(rng, WC_RNG_POOL_POS(tw), head);
         WOLFSSL_ATOMIC_STORE(rng->poolTail, WC_RNG_POOL_PACK(head, epoch));
 #ifdef WC_RNG_DEBUG_STATS
         rng->_stats_pool_bytes_missed += *n;
@@ -4096,6 +4135,9 @@ int wc_RNG_Pool_Extract(WC_RNG* rng, byte* out, word32* n)
      * served, so discard the whole pre-event span rather than advancing. */
     w2 = WOLFSSL_ATOMIC_LOAD(rng->poolHead);
     if (WC_RNG_POOL_EPOCH(w2) != epoch) {
+        /* We own [tail, old head) exclusively; the purged span is wiped
+         * before it is skipped. */
+        PoolWipeRetired(rng, tail, head);
         WOLFSSL_ATOMIC_STORE(rng->poolTail,
                              WC_RNG_POOL_PACK(WC_RNG_POOL_POS(w2),
                                               WC_RNG_POOL_EPOCH(w2)));
@@ -4757,8 +4799,23 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedGenerate_local(
                 /* Partial bank preserved -- retry on a later cycle.
                  * (If a purge landed meanwhile, the release discards
                  * instead; the draw failure is the more informative
-                 * code and wins over the release's BUSY_E.) */
-                (void)NextSeedProducerRelease(lenp, cur);
+                 * code and wins over the release's BUSY_E.)
+                 *
+                 * Note, a failed release cannot brick the RNG and needs no
+                 * disposition at the several (void) sites below: its one cause
+                 * is a purge's _PURGED repaint (producers cannot claim a
+                 * PRODUCING word, consumers exchange only from READY, and the
+                 * purge is the sole other writer), and the BUSY arm is its own
+                 * compensation -- it wipes and reopens the aperture EMPTY
+                 * before returning.  Afterward the world is fully consistent:
+                 * aperture empty and healthy, rng->status untouched, recovery
+                 * proceeding through the event's normal channels.  BUSY_E is
+                 * information, not a condition awaiting action; the caller's
+                 * own error outranks it wherever one is in flight.  Cost of
+                 * swallowing it: at worst one silent refill from offset
+                 * zero.
+                 */
+                (void)NextSeedProducerRelease(lenp, seed, nextSeedSz, cur);
                 return ret;
             }
 
@@ -4805,7 +4862,7 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedGenerate_local(
                  * instead; the seed-gather failure is the more
                  * informative code and wins over the release's
                  * BUSY_E.) */
-                (void)NextSeedProducerRelease(lenp, cur);
+                (void)NextSeedProducerRelease(lenp, seed, nextSeedSz, cur);
                 return ret;
             }
 
@@ -4825,7 +4882,7 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedGenerate_local(
          * meanwhile discards instead, and the release's BUSY_E
          * percolates -- returning 0 would claim banked progress the
          * purge just evaporated. */
-        return NextSeedProducerRelease(lenp, cur);
+        return NextSeedProducerRelease(lenp, seed, nextSeedSz, cur);
     }
 
     if (cur == (WC_ATOMIC_INT_ARG)nextSeedSz) {
@@ -4840,7 +4897,8 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedGenerate_local(
         /* If RBGC bytes were used for the reseed, then we can skip
          * wc_RNG_TestSeed(). */
         if (*nextSeedRBGCStratum_p > 0) {
-            ret = NextSeedProducerRelease(lenp, WC_DRBG_NEXT_SEED_READY);
+            ret = NextSeedProducerRelease(lenp, seed, nextSeedSz,
+                                          WC_DRBG_NEXT_SEED_READY);
             if (ret != 0) {
                 /* Purged while producing (BUSY_E): nothing banked;
                  * post-event material wanted.  Retryable. */
@@ -4856,7 +4914,8 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedGenerate_local(
          * that wc_RNG_DRBG_NextSeedNow() is pure computation. */
         ret = wc_RNG_TestSeed(seed, nextSeedSz);
         if (ret == 0) {
-            ret = NextSeedProducerRelease(lenp, WC_DRBG_NEXT_SEED_READY);
+            ret = NextSeedProducerRelease(lenp, seed, nextSeedSz,
+                                          WC_DRBG_NEXT_SEED_READY);
             if (ret != 0) {
                 /* Purged while producing (BUSY_E): nothing banked;
                  * post-event material wanted.  Retryable. */
@@ -4872,7 +4931,7 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedGenerate_local(
              * dispositive.  Release complete-but-unpublished for a
              * later retry; a purge-discard's BUSY_E percolates (the
              * retry cause is then the purge, not the test). */
-            ret = NextSeedProducerRelease(lenp,
+            ret = NextSeedProducerRelease(lenp, seed, nextSeedSz,
                                           (WC_ATOMIC_INT_ARG)nextSeedSz);
             if (ret != 0)
                 return ret;
@@ -4892,7 +4951,11 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedGenerate_local(
              * purge-discard converge on EMPTY; the release handles
              * both, and the health-test failure is the more
              * informative code and wins over the release's BUSY_E. */
-            (void)NextSeedProducerRelease(lenp, WC_DRBG_NEXT_SEED_EMPTY);
+            /* Sentinel-only by doctrine: rejection here is deterministic
+             * on the bytes (RCT/APT), so every sibling lineage rejects the
+             * identical material -- no copy is ever consumed anywhere. */
+            (void)NextSeedProducerRelease(lenp, seed, nextSeedSz,
+                                          WC_DRBG_NEXT_SEED_EMPTY);
 
             /* The health-test failure belongs to the depositor's seed
              * collection, not to the destination RNG.  The depositor collects
@@ -4927,7 +4990,8 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedGenerate_local(
              * re-adjudicates.  The primary error is the more
              * informative code and wins over a purge-discard's
              * BUSY_E. */
-            (void)NextSeedProducerRelease(lenp, (WC_ATOMIC_INT_ARG)nextSeedSz);
+            (void)NextSeedProducerRelease(lenp, seed, nextSeedSz,
+                                          (WC_ATOMIC_INT_ARG)nextSeedSz);
             return ret;
         }
     }
@@ -9551,6 +9615,35 @@ int wc_hwrng_generate_block(byte *output, word32 sz)
 #endif
 
 #ifdef WC_RNG_DEBUG_STATS
+
+/* Note on WC_RNG_DEBUG_STATS collection points:
+ *
+ * Placement doctrine: each counter is maintained at the single funnel that
+ * owns the distinction it records --
+ *
+ *   - reseed counts in Hash_DRBG_Reseed() (every reseed flavor routes
+ *     through it: interval backstop, Reseed_Now, RBGC, banked redemption);
+ *   - request/byte counts in the DRBG arm of wc_RNG_GenerateBlock()
+ *     (hardware-offload arms -- RDRAND, Silabs, async, cryptocb, custom --
+ *     are deliberately uncounted: these are DRBG-facility statistics);
+ *   - banked-seed redemption provenance in wc_RNG_DRBG_NextSeedNow_Nonce();
+ *   - seed health failures at the two sites that observe them per-instance
+ *     (PollAndReSeed(), NextSeedGenerate);
+ *   - chain-provenance bytes (RBGC_bytes_produced: output generated while
+ *     the instance's own RBGCStratum > 0) in the same generate funnel;
+ *   - pool byte accounting in wc_RNG_Pool_Extract(), under the consumer's
+ *     instance lock: bytes produced by reading from the pool, and bytes
+ *     requested but not fulfilled (empty-pool and partial-serve shortfall),
+ *     so requested == produced + missed on the capacity paths.  The
+ *     failed-DRBG burn path deliberately counts nothing: it is a failure
+ *     event (visible via rng->status), not a capacity signal.
+ *
+ * Counters are plain (non-atomic) adds/increments, and update under the owner's
+ * exclusive access (the lock contract shared by all WC_RNG operations) except
+ * where labeled racy: those are unreliable under concurrency, by design.  Every
+ * site carries its own #ifdef WC_RNG_DEBUG_STATS gate so the facility is
+ * removable outright with unifdef.
+ */
 
 WOLFSSL_API int wc_rng_debug_stats_snap(struct wc_rng_debug_stats_snapshot *s,
                                         const WC_RNG *rng)
