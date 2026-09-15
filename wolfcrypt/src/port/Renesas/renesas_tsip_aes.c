@@ -935,8 +935,7 @@ int wc_tsip_AesGcmEncrypt(
 
             /* Once R_TSIP_AesxxxGcmEncryptInit or R_TSIP_AesxxxEncryptUpdate is
             * called, R_TSIP_AesxxxGcmEncryptFinal must be called regardless of
-            * the result of the previous call. Otherwise, TSIP can not come out
-            * from its error state and all the trailing APIs will fail.
+            * the result of the previous call.
             */
             dataLen = 0;
             err = finalFn(&hdl,
@@ -1133,14 +1132,19 @@ int wc_tsip_AesGcmDecrypt(
                 WOLFSSL_MSG("R_TSIP_AesXXXGcmDecryptUpdate: failed in decrypt");
                 ret = -1;
             }
-            if (err == TSIP_SUCCESS) {
-                dataLen = 0;
-                err = finalFn(&hdl,
-                        plainBuf + (sz / WC_AES_BLOCK_SIZE) * WC_AES_BLOCK_SIZE,
-                        &dataLen,
-                        aTagBuf,
-                        min(16, authTagSz)); /* TSIP accepts upto 16 byte */
-            }
+
+            /* Once R_TSIP_AesxxxGcmDecryptInit or R_TSIP_AesxxxGcmDecryptUpdate
+             * is called, R_TSIP_AesxxxGcmDecryptFinal must be called regardless
+             * of the result of the previous call. Otherwise, TSIP can not come
+             * out from its error state and all the trailing APIs will fail.
+             */
+            dataLen = 0;
+            err = finalFn(&hdl,
+                    plainBuf + (sz / WC_AES_BLOCK_SIZE) * WC_AES_BLOCK_SIZE,
+                    &dataLen,
+                    aTagBuf,
+                    min(16, authTagSz)); /* TSIP accepts upto 16 byte */
+
             if (err == TSIP_SUCCESS) {
                 /* copy plain data to out */
                 XMEMCPY(out, plainBuf, sz);
