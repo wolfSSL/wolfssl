@@ -62,7 +62,7 @@
 #define WC_RNG_BANK_FLAG_RBGC                      (1U << 13)
 #define WC_RNG_BANK_FLAG_DEFAULT_BANK              (1U << 14)
 #define WC_RNG_BANK_FLAG_PREDICTION_RESISTANCE     (1U << 15)
-#define WC_RNG_BANK_FLAG_SPAWN_RECOVER_AND_PROMOTE (1U << 16)
+#define WC_RNG_BANK_FLAG_AUTO_RECOVER_AND_PROMOTE  (1U << 16)
 
 #ifdef WC_RNG_HAVE_LOCK
     wc_static_assert(WC_RNG_LOCK_EXTRA_SHIFT == 4U);
@@ -396,6 +396,13 @@ WOLFSSL_API int wc_rng_new_bankref(struct wc_rng_bank *bank, WC_RNG **rng);
     {
         return wc_RNG_lock_get(WC_RNG_BANK_INST_TO_RNG(inst), extra_bits);
     }
+    static WC_INLINE int wc_rng_bank_inst_lock_get_conditional(
+        struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t expected_extra_bits,
+        WC_RNG_lock_arg_t want_extra_bits)
+    {
+        return wc_RNG_lock_get_conditional(
+            WC_RNG_BANK_INST_TO_RNG(inst), expected_extra_bits, want_extra_bits);
+    }
     static WC_INLINE int wc_rng_bank_inst_lock_put(
         struct wc_rng_bank_inst *inst)
     {
@@ -427,13 +434,6 @@ WOLFSSL_API int wc_rng_new_bankref(struct wc_rng_bank *bank, WC_RNG **rng);
     {
         return wc_RNG_lock_clear_extra(
             WC_RNG_BANK_INST_TO_RNG(inst), extra_bits);
-    }
-    static WC_INLINE int wc_rng_bank_inst_lock_get_conditional(
-        struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t expected_extra_bits,
-        WC_RNG_lock_arg_t want_extra_bits)
-    {
-        return wc_RNG_lock_get_conditional(
-            WC_RNG_BANK_INST_TO_RNG(inst), expected_extra_bits, want_extra_bits);
     }
     #ifdef HAVE_HASHDRBG
     static WC_INLINE int wc_rng_bank_inst_invalidate_entropy(
