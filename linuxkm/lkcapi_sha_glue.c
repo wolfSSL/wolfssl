@@ -3460,7 +3460,6 @@ int wc_linux_kernel_rng_is_wolfcrypt(struct crypto_rng *rng) {
 
 WC_MAYBE_UNUSED static int linuxkm_InitRng_DefaultRBGC(WC_RNG* rng) {
     unsigned long uncredited_nonce = random_get_entropy();
-    int can_sleep = wc_linuxkm_can_block();
     int ret = wc_rng_bank_spawn(NULL /* bank */, rng, (byte *)&uncredited_nonce,
                                 sizeof uncredited_nonce,
                                 NULL, 0,
@@ -3481,7 +3480,7 @@ WC_MAYBE_UNUSED static int linuxkm_InitRng_DefaultRBGC(WC_RNG* rng) {
         /* Long-lived process-context leaves join the invalidation registry;
          * atomic-born leaves are excluded by rule (and are transient by
          * nature). */
-        if (can_sleep) {
+        if (wc_linuxkm_can_block()) {
             ret = wc_linuxkm_rng_registry_add_rng(rng);
             if (ret != 0)
                 (void)wc_FreeRng(rng);
