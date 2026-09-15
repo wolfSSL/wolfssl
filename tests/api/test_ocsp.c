@@ -2882,6 +2882,605 @@ int test_ocsp_acked_no_leaf_staple_ocsp(void)
 #endif /* HAVE_OCSP && WOLFSSL_TLS13 && HAVE_CERTIFICATE_STATUS_REQUEST && */
        /* HAVE_SSL_MEMIO_TESTS_DEPENDENCIES && !NO_RSA && !NO_SHA */
 
+/* CHECKALL CRL client with stapling: each chain CRL verdict is held back for a
+ * staple, so an entry that no staple and no OCSP answer covered must get it. */
+#if defined(HAVE_OCSP) && defined(HAVE_CRL) && \
+    defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP) && \
+    !defined(NO_RSA) && !defined(NO_SHA) && \
+    ((defined(HAVE_CERTIFICATE_STATUS_REQUEST) && defined(WOLFSSL_TLS13)) || \
+     (defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && \
+      !defined(WOLFSSL_NO_TLS12)))
+
+static struct {
+    const char* crlFile;
+    int staple;
+    int checkAll;
+    int verifyNone;
+} test_ocsp_unstapled_chain_crl_opts;
+
+/* Index 1, intermediate1, is deliberately left unstapled. */
+static int test_ocsp_unstapled_chain_crl_status_cb(WOLFSSL* ssl, void* arg)
+{
+    unsigned char* leaf;
+
+    (void)arg;
+    if (!test_ocsp_unstapled_chain_crl_opts.staple)
+        return WOLFSSL_OCSP_STATUS_CB_NOACK;
+
+    leaf = (unsigned char*)XMALLOC(sizeof(resp_server1_cert), NULL, 0);
+    if (leaf == NULL)
+        return WOLFSSL_OCSP_STATUS_CB_ALERT_FATAL;
+    XMEMCPY(leaf, resp_server1_cert, sizeof(resp_server1_cert));
+    if (wolfSSL_set_tlsext_status_ocsp_resp_multi(ssl, leaf,
+            (int)sizeof(resp_server1_cert), 0) != WOLFSSL_SUCCESS) {
+        XFREE(leaf, NULL, 0);
+        return WOLFSSL_OCSP_STATUS_CB_ALERT_FATAL;
+    }
+
+    return WOLFSSL_OCSP_STATUS_CB_OK;
+}
+
+/* The leaf is good, the intermediate is unknown to the responder. */
+static int test_ocsp_unstapled_chain_crl_io_cb(void* ioCtx, const char* url,
+    int urlSz, unsigned char* req, int reqSz, unsigned char** response)
+{
+    int i;
+    int serial = -1;
+
+    (void)ioCtx;
+    (void)url;
+    (void)urlSz;
+
+    for (i = 0; i + 24 < reqSz; i++) {
+        if (req[i] == 0x04 && req[i + 1] == 0x14 && req[i + 22] == 0x02 &&
+                req[i + 23] == 0x01) {
+            serial = req[i + 24];
+            break;
+        }
+    }
+    if (serial == 0x05) {
+        *response = (unsigned char*)resp_server1_cert;
+        return (int)sizeof(resp_server1_cert);
+    }
+    if (serial == 0x01) {
+        *response = (unsigned char*)resp_cert_unknown;
+        return (int)sizeof(resp_cert_unknown);
+    }
+    return -1;
+}
+
+static int test_ocsp_unstapled_chain_crl_srv_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_set_tlsext_status_cb(ctx,
+            test_ocsp_unstapled_chain_crl_status_cb), WOLFSSL_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+
+static int test_ocsp_unstapled_chain_crl_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+    int options = WOLFSSL_OCSP_NO_NONCE;
+
+    if (test_ocsp_unstapled_chain_crl_opts.checkAll)
+        options |= WOLFSSL_OCSP_CHECKALL | WOLFSSL_OCSP_URL_OVERRIDE;
+
+    wolfSSL_CTX_set_verify(ctx, test_ocsp_unstapled_chain_crl_opts.verifyNone ?
+        WOLFSSL_VERIFY_NONE : WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSP(ctx, options), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx), WOLFSSL_SUCCESS);
+    if (test_ocsp_unstapled_chain_crl_opts.checkAll) {
+        ExpectIntEQ(wolfSSL_CTX_SetOCSP_OverrideURL(ctx, "http://dummy.test"),
+            WOLFSSL_SUCCESS);
+        /* After EnableOCSPStapling, which installs the built-in lookup. */
+        ExpectIntEQ(wolfSSL_CTX_SetOCSP_Cb(ctx,
+                test_ocsp_unstapled_chain_crl_io_cb, NULL, NULL),
+            WOLFSSL_SUCCESS);
+    }
+    ExpectIntEQ(wolfSSL_CTX_EnableCRL(ctx, WOLFSSL_CRL_CHECKALL),
+        WOLFSSL_SUCCESS);
+    /* The CRL signer has to be in the manager before its CRL loads. */
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx,
+            "./certs/ocsp/intermediate1-ca-cert.pem", NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_LoadCRLFile(ctx,
+            "./certs/ocsp/intermediate1-ca-crl.pem", WOLFSSL_FILETYPE_PEM),
+        WOLFSSL_SUCCESS);
+    if (test_ocsp_unstapled_chain_crl_opts.crlFile != NULL) {
+        ExpectIntEQ(wolfSSL_CTX_LoadCRLFile(ctx,
+                test_ocsp_unstapled_chain_crl_opts.crlFile,
+                WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    }
+
+    return EXPECT_RESULT();
+}
+
+int test_ocsp_unstapled_chain_crl(void)
+{
+    EXPECT_DECLS;
+    size_t i;
+    struct {
+        method_provider client_meth;
+        method_provider server_meth;
+        const char* desc;
+        int useV2;
+        int staple;
+        int checkAll;
+        const char* crlFile;
+        int expected;
+        int verifyNone;
+    } params[] = {
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && defined(WOLFSSL_TLS13)
+        { wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
+          "TLS 1.3, no CRL for the unstapled intermediate", 0, 1, 0,
+          NULL, WC_NO_ERR_TRACE(CRL_MISSING), 0 },
+        { wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
+          "TLS 1.3, a CRL that covers the unstapled intermediate", 0, 1, 0,
+          "./certs/ocsp/root-ca-crl.pem", 0, 0 },
+        { wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
+          "TLS 1.3, a CRL that revokes the unstapled intermediate", 0, 1, 0,
+          "./certs/ocsp/root-ca-crl-revoked.pem",
+          WC_NO_ERR_TRACE(CRL_CERT_REVOKED), 0 },
+        { wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
+          "TLS 1.3, the responder does not know the intermediate", 0, 1, 1,
+          "./certs/ocsp/root-ca-crl.pem", 0, 0 },
+        { wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
+          "TLS 1.3, neither the responder nor a CRL covers it", 0, 1, 1,
+          NULL, WC_NO_ERR_TRACE(CRL_MISSING), 0 },
+        { wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
+          "TLS 1.3, neither covers it and verification is off", 0, 1, 1,
+          NULL, 0, 1 },
+#endif
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && !defined(WOLFSSL_NO_TLS12)
+        { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method,
+          "TLS 1.2 ocsp_multi, no CRL for the unstapled intermediate", 1, 1, 0,
+          NULL, WC_NO_ERR_TRACE(CRL_MISSING), 0 },
+        { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method,
+          "TLS 1.2 ocsp_multi, a CRL that covers it", 1, 1, 0,
+          "./certs/ocsp/root-ca-crl.pem", 0, 0 },
+        { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method,
+          "TLS 1.2 ocsp_multi, no CertificateStatus at all", 1, 0, 1,
+          "./certs/ocsp/root-ca-crl.pem", 0, 0 },
+        { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method,
+          "TLS 1.2 ocsp_multi, neither the responder nor a CRL covers it",
+          1, 1, 1, NULL, WC_NO_ERR_TRACE(CRL_MISSING), 0 },
+        { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method,
+          "TLS 1.2 ocsp_multi, neither covers it and verification is off",
+          1, 1, 1, NULL, 0, 1 },
+#endif
+    };
+
+    for (i = 0; i < XELEM_CNT(params) && !EXPECT_FAIL(); i++) {
+        struct test_ssl_memio_ctx test_ctx;
+
+        XMEMSET(&test_ocsp_unstapled_chain_crl_opts, 0,
+            sizeof(test_ocsp_unstapled_chain_crl_opts));
+        test_ocsp_unstapled_chain_crl_opts.crlFile = params[i].crlFile;
+        test_ocsp_unstapled_chain_crl_opts.staple = params[i].staple;
+        test_ocsp_unstapled_chain_crl_opts.checkAll = params[i].checkAll;
+        test_ocsp_unstapled_chain_crl_opts.verifyNone = params[i].verifyNone;
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        test_ctx.s_cb.method = params[i].server_meth;
+        test_ctx.s_cb.certPemFile = "./certs/ocsp/server1-chain-noroot.pem";
+        test_ctx.s_cb.keyPemFile = "./certs/ocsp/server1-key.pem";
+        test_ctx.s_cb.ctx_ready = test_ocsp_unstapled_chain_crl_srv_ctx_ready;
+        test_ctx.c_cb.method = params[i].client_meth;
+        test_ctx.c_cb.caPemFile = "./certs/ocsp/root-ca-cert.pem";
+        test_ctx.c_cb.ctx_ready = test_ocsp_unstapled_chain_crl_ctx_ready;
+        ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+
+        if (params[i].useV2) {
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+            ExpectIntEQ(wolfSSL_UseOCSPStaplingV2(test_ctx.c_ssl,
+                WOLFSSL_CSR2_OCSP_MULTI, 0), WOLFSSL_SUCCESS);
+#endif
+        }
+        else {
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+            ExpectIntEQ(wolfSSL_UseOCSPStapling(test_ctx.c_ssl,
+                WOLFSSL_CSR_OCSP, 0), WOLFSSL_SUCCESS);
+#endif
+        }
+
+        if (params[i].expected == 0) {
+            ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL),
+                TEST_SUCCESS);
+        }
+        else {
+            ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL),
+                TEST_SUCCESS);
+            ExpectIntEQ(wolfSSL_get_error(test_ctx.c_ssl, 0),
+                params[i].expected);
+        }
+        if (EXPECT_FAIL()) {
+            fprintf(stderr, "case: %s\n", params[i].desc);
+        }
+
+        test_ssl_memio_cleanup(&test_ctx);
+    }
+
+    return EXPECT_RESULT();
+}
+
+#else
+int test_ocsp_unstapled_chain_crl(void)
+{
+    return TEST_SKIPPED;
+}
+#endif /* HAVE_OCSP && HAVE_CRL && HAVE_SSL_MEMIO_TESTS_DEPENDENCIES && */
+       /* !WOLFSSL_CRL_ALLOW_MISSING_CDP && !NO_RSA && !NO_SHA && */
+       /* ((CSR && TLS13) || (CSR_V2 && !NO_TLS12)) */
+
+/* CHECKALL client with stapling: the server staples its leaf only, so the
+ * client must look the unstapled intermediate up instead of skipping it. */
+#if defined(HAVE_OCSP) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_RSA) && !defined(NO_SHA) && \
+    ((defined(HAVE_CERTIFICATE_STATUS_REQUEST) && defined(WOLFSSL_TLS13)) || \
+     (defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && \
+      !defined(WOLFSSL_NO_TLS12)))
+
+static struct {
+    int staple;
+    int unknown;
+    int block;
+    int leafBlocked;
+    int intBlocked;
+    int leafLookups;
+    int intLookups;
+    int intNonce;
+} test_ocsp_checkall_staple_opts;
+
+/* 0 for a request without a nonce, 1 for a nonce, 2 for an all-zero one. */
+static int test_ocsp_checkall_staple_nonce(const unsigned char* req,
+    int reqSz)
+{
+    static const byte nonceOid[] = { 0x06, 0x09, 0x2B, 0x06, 0x01, 0x05, 0x05,
+                                     0x07, 0x30, 0x01, 0x02 };
+    int i;
+    int j;
+
+    for (i = 0; i + (int)sizeof(nonceOid) + 4 < reqSz; i++) {
+        if (XMEMCMP(req + i, nonceOid, sizeof(nonceOid)) == 0) {
+            const unsigned char* nonce = req + i + sizeof(nonceOid) + 4;
+            int nonceSz = req[i + sizeof(nonceOid) + 3];
+
+            if (nonce + nonceSz > req + reqSz)
+                return 0;
+            for (j = 0; j < nonceSz; j++) {
+                if (nonce[j] != 0)
+                    return 1;
+            }
+            return 2;
+        }
+    }
+    return 0;
+}
+
+static int test_ocsp_checkall_staple_status_cb(WOLFSSL* ssl, void* arg)
+{
+    byte* leaf;
+    (void)arg;
+
+    if (!test_ocsp_checkall_staple_opts.staple)
+        return WOLFSSL_OCSP_STATUS_CB_NOACK;
+
+    leaf = (byte*)XMALLOC(sizeof(resp_server1_cert), NULL, 0);
+    if (leaf == NULL)
+        return WOLFSSL_OCSP_STATUS_CB_ALERT_FATAL;
+    XMEMCPY(leaf, resp_server1_cert, sizeof(resp_server1_cert));
+    /* Index 1, intermediate1, is deliberately left unstapled. */
+    if (wolfSSL_set_tlsext_status_ocsp_resp_multi(ssl, leaf,
+            (int)sizeof(resp_server1_cert), 0) != WOLFSSL_SUCCESS) {
+        XFREE(leaf, NULL, 0);
+        return WOLFSSL_OCSP_STATUS_CB_ALERT_FATAL;
+    }
+    return WOLFSSL_OCSP_STATUS_CB_OK;
+}
+
+static int test_ocsp_checkall_staple_io_cb(void* ioCtx, const char* url,
+    int urlSz, unsigned char* req, int reqSz, unsigned char** response)
+{
+    int i;
+    int serial = -1;
+    (void)ioCtx;
+    (void)url;
+    (void)urlSz;
+
+    /* The CertID tail is 04 14 <20 byte issuerKeyHash> 02 01 <serial>. */
+    for (i = 0; i + 24 < reqSz; i++) {
+        if (req[i] == 0x04 && req[i + 1] == 0x14 && req[i + 22] == 0x02 &&
+                req[i + 23] == 0x01) {
+            serial = req[i + 24];
+            break;
+        }
+    }
+
+    /* Each certificate's first lookup would block before it is answered. */
+    if (test_ocsp_checkall_staple_opts.block) {
+        int* blocked = (serial == 0x05) ?
+            &test_ocsp_checkall_staple_opts.leafBlocked :
+            &test_ocsp_checkall_staple_opts.intBlocked;
+
+        if (!*blocked) {
+            *blocked = 1;
+            return WOLFSSL_CBIO_ERR_WANT_READ;
+        }
+    }
+
+    if (serial == 0x05) {
+        test_ocsp_checkall_staple_opts.leafLookups++;
+        *response = (unsigned char*)resp_server1_cert;
+        return (int)sizeof(resp_server1_cert);
+    }
+    if (serial == 0x01) {
+        test_ocsp_checkall_staple_opts.intLookups++;
+        test_ocsp_checkall_staple_opts.intNonce =
+            test_ocsp_checkall_staple_nonce(req, reqSz);
+        if (test_ocsp_checkall_staple_opts.unknown) {
+            *response = (unsigned char*)resp_cert_unknown;
+            return (int)sizeof(resp_cert_unknown);
+        }
+        *response = (unsigned char*)resp_intermediate1_cert;
+        return (int)sizeof(resp_intermediate1_cert);
+    }
+    return -1;
+}
+
+static int test_ocsp_checkall_staple_srv_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_set_tlsext_status_cb(ctx,
+            test_ocsp_checkall_staple_status_cb), WOLFSSL_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+
+/* Stapling lookups for the stock server: the leaf succeeds, the intermediate
+ * fails, which leaves a zero-length entry in the ocsp_multi list. */
+static int test_ocsp_checkall_staple_srv_io_cb(void* ioCtx, const char* url,
+    int urlSz, unsigned char* req, int reqSz, unsigned char** response)
+{
+    int i;
+    int serial = -1;
+    (void)ioCtx;
+    (void)url;
+    (void)urlSz;
+
+    for (i = 0; i + 24 < reqSz; i++) {
+        if (req[i] == 0x04 && req[i + 1] == 0x14 && req[i + 22] == 0x02 &&
+                req[i + 23] == 0x01) {
+            serial = req[i + 24];
+            break;
+        }
+    }
+    if (serial == 0x05) {
+        *response = (unsigned char*)resp_server1_cert;
+        return (int)sizeof(resp_server1_cert);
+    }
+    return -1;
+}
+
+static int test_ocsp_checkall_staple_srv_stock_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+
+    /* Added to the client CA the harness already loaded, so the server can
+     * verify the delegated responder that signs the responses it staples. */
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx,
+            "./certs/ocsp/root-ca-cert.pem", NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx,
+            "./certs/ocsp/intermediate1-ca-cert.pem", NULL), WOLFSSL_SUCCESS);
+    /* No EnableOCSP: the server must not OCSP check the client's own cert.
+     * The staple lookups reach the callback through the cert's AIA URL. */
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_SetOCSP_Cb(ctx,
+            test_ocsp_checkall_staple_srv_io_cb, NULL, NULL), WOLFSSL_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+
+static int test_ocsp_checkall_staple_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSP(ctx, WOLFSSL_OCSP_CHECKALL |
+            WOLFSSL_OCSP_URL_OVERRIDE | WOLFSSL_OCSP_NO_NONCE),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_SetOCSP_OverrideURL(ctx, "http://dummy.test"),
+        WOLFSSL_SUCCESS);
+    /* After EnableOCSPStapling, which installs the built-in lookup. */
+    ExpectIntEQ(wolfSSL_CTX_SetOCSP_Cb(ctx, test_ocsp_checkall_staple_io_cb,
+            NULL, NULL), WOLFSSL_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+
+/* The intermediate is already trusted, as after an earlier stapled handshake,
+ * so the ocsp item's leaf response verifies without the pending CA pool. */
+static int test_ocsp_checkall_staple_preload_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+
+    ExpectIntEQ(test_ocsp_checkall_staple_ctx_ready(ctx), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx,
+            "./certs/ocsp/intermediate1-ca-cert.pem", NULL), WOLFSSL_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+
+int test_ocsp_checkall_staple_missing_chain(void)
+{
+    EXPECT_DECLS;
+    size_t i;
+    int run;
+    int unknown;
+    int blocking;
+    struct {
+        method_provider client_meth;
+        method_provider server_meth;
+        const char* desc;
+        int useV2; /* -1 requests no stapling, 2 ocsp then ocsp_multi */
+        int staple;
+        int stock;
+        int nonce;
+    } params[] = {
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && !defined(WOLFSSL_NO_TLS12)
+        { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method,
+          "TLS 1.2 ocsp_multi, leaf stapled only", 1, 1, 0, 0 },
+        { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method,
+          "TLS 1.2 ocsp_multi, no CertificateStatus", 1, 0, 0, 0 },
+        { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method,
+          "TLS 1.2 ocsp_multi, zero-length entry for the intermediate",
+          1, 0, 1, 0 },
+        /* The server picks the ocsp item, which covers only the leaf. */
+        { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method,
+          "TLS 1.2 ocsp then ocsp_multi offered, ocsp chosen", 2, 1, 0, 0 },
+#ifdef WOLFSSL_DTLS
+        { wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method,
+          "DTLS 1.2 ocsp_multi, leaf stapled only", 1, 1, 0, 0 },
+#endif
+#endif
+#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12)
+        /* The Certificate spans several datagrams, so it is drained from the
+         * receive list. */
+        { wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method,
+          "DTLS 1.2 no stapling, reassembled Certificate", -1, 0, 0, 0 },
+#endif
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && defined(WOLFSSL_TLS13)
+        { wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
+          "TLS 1.3 status_request, leaf stapled only", 0, 1, 0, 0 },
+        { wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
+          "TLS 1.3 status_request with nonce, leaf stapled only", 0, 1, 0, 1 },
+#endif
+    };
+
+    for (i = 0; i < XELEM_CNT(params) && !EXPECT_FAIL(); i++) {
+        for (run = 0; run < 2 * (TEST_OCSP_NONBLOCK_MAX + 1) &&
+                !EXPECT_FAIL(); run++) {
+            struct test_ssl_memio_ctx test_ctx;
+
+            unknown = run % 2;
+            blocking = run / 2;
+
+            XMEMSET(&test_ocsp_checkall_staple_opts, 0,
+                sizeof(test_ocsp_checkall_staple_opts));
+            test_ocsp_checkall_staple_opts.staple = params[i].staple;
+            test_ocsp_checkall_staple_opts.unknown = unknown;
+            test_ocsp_checkall_staple_opts.block = blocking;
+
+            XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+            test_ctx.s_cb.method = params[i].server_meth;
+            test_ctx.s_cb.certPemFile = "./certs/ocsp/server1-chain-noroot.pem";
+            test_ctx.s_cb.keyPemFile = "./certs/ocsp/server1-key.pem";
+            test_ctx.s_cb.ctx_ready = params[i].stock ?
+                test_ocsp_checkall_staple_srv_stock_ctx_ready :
+                test_ocsp_checkall_staple_srv_ctx_ready;
+            test_ctx.c_cb.method = params[i].client_meth;
+            test_ctx.c_cb.caPemFile = "./certs/ocsp/root-ca-cert.pem";
+            test_ctx.c_cb.ctx_ready = params[i].useV2 == 2 ?
+                test_ocsp_checkall_staple_preload_ctx_ready :
+                test_ocsp_checkall_staple_ctx_ready;
+            ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+
+            if (params[i].useV2 >= 1) {
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+                if (params[i].useV2 == 2) {
+                    ExpectIntEQ(wolfSSL_UseOCSPStaplingV2(test_ctx.c_ssl,
+                        WOLFSSL_CSR2_OCSP, 0), WOLFSSL_SUCCESS);
+                }
+                ExpectIntEQ(wolfSSL_UseOCSPStaplingV2(test_ctx.c_ssl,
+                    WOLFSSL_CSR2_OCSP_MULTI, 0), WOLFSSL_SUCCESS);
+#endif
+            }
+            else if (params[i].useV2 == 0) {
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+                ExpectIntEQ(wolfSSL_UseOCSPStapling(test_ctx.c_ssl,
+                    WOLFSSL_CSR_OCSP, params[i].nonce ?
+                        WOLFSSL_CSR_OCSP_USE_NONCE : 0), WOLFSSL_SUCCESS);
+#endif
+            }
+
+            if (!unknown) {
+                ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 20, NULL),
+                    TEST_SUCCESS);
+            }
+            else {
+                ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 20, NULL),
+                    TEST_SUCCESS);
+                ExpectIntEQ(wolfSSL_get_error(test_ctx.c_ssl, 0),
+                    WC_NO_ERR_TRACE(OCSP_CERT_UNKNOWN));
+                /* The server is told, rather than left waiting. */
+#ifndef WOLFSSL_EXTRA_ALERTS
+                if (wolfSSL_version(test_ctx.c_ssl) == TLS1_3_VERSION)
+#endif
+                {
+                    ExpectIntEQ(wolfSSL_get_error(test_ctx.s_ssl, 0),
+                        WC_NO_ERR_TRACE(FATAL_ERROR));
+                }
+                /* The client's own lookup failed, not the staple it got. */
+                if (params[i].useV2 >= 1 &&
+                        (params[i].staple || params[i].stock) &&
+                        !wolfSSL_dtls(test_ctx.c_ssl)) {
+                    WOLFSSL_ALERT_HISTORY h;
+
+                    XMEMSET(&h, 0, sizeof(h));
+                    ExpectIntEQ(wolfSSL_get_alert_history(test_ctx.s_ssl, &h),
+                        WOLFSSL_SUCCESS);
+                    ExpectIntEQ(h.last_rx.level, alert_fatal);
+                    ExpectIntEQ(h.last_rx.code, bad_certificate);
+                }
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+                /* A rejected chain certificate must reach the compatibility
+                 * verify result too, not just the handshake error. */
+                if (params[i].useV2 != -1) {
+                    ExpectIntNE(wolfSSL_get_verify_result(test_ctx.c_ssl),
+                        WOLFSSL_X509_V_OK);
+                }
+#endif
+            }
+            /* The unstapled intermediate was looked up, and so was the leaf
+             * when the server stapled nothing at all. */
+            ExpectIntEQ(test_ocsp_checkall_staple_opts.intLookups, 1);
+            if (!unknown && (params[i].staple || params[i].stock)) {
+                ExpectIntEQ(test_ocsp_checkall_staple_opts.leafLookups, 0);
+            }
+            else if (!unknown) {
+                /* A retried ServerHelloDone repeats the leaf's own lookup. */
+                ExpectIntGE(test_ocsp_checkall_staple_opts.leafLookups, 1);
+                ExpectIntLE(test_ocsp_checkall_staple_opts.leafLookups,
+                    1 + blocking);
+            }
+            /* The chain request reuses the nonce the leaf's request carries. */
+            ExpectIntEQ(test_ocsp_checkall_staple_opts.intNonce,
+                params[i].nonce ? 1 : 0);
+            if (EXPECT_FAIL()) {
+                fprintf(stderr, "case: %s, unknown %d, block %d\n",
+                    params[i].desc, unknown, blocking);
+            }
+
+            test_ssl_memio_cleanup(&test_ctx);
+        }
+    }
+
+    return EXPECT_RESULT();
+}
+
+#else
+int test_ocsp_checkall_staple_missing_chain(void)
+{
+    return TEST_SKIPPED;
+}
+#endif /* HAVE_OCSP && HAVE_SSL_MEMIO_TESTS_DEPENDENCIES && !NO_RSA && */
+       /* !NO_SHA && ((CSR && TLS13) || (CSR_V2 && !NO_TLS12)) */
+
 #if defined(HAVE_OCSP) && defined(WOLFSSL_TLS13) &&                 \
     defined(WOLFSSL_NONBLOCK_OCSP) && defined(HAVE_MAX_FRAGMENT) && \
     defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) &&                   \

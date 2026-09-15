@@ -3620,6 +3620,11 @@ WOLFSSL_LOCAL int ProcessChainOCSPRequest(WOLFSSL* ssl);
 WOLFSSL_LOCAL int CreateOcspRequest(WOLFSSL* ssl, OcspRequest* request,
                              DecodedCert* cert, byte* certData, word32 length);
 #endif
+#if defined(HAVE_OCSP) && (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+                           defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
+WOLFSSL_LOCAL int CsrDoChainFallbackLookup(WOLFSSL* ssl, OcspRequest* request,
+                                           int idx);
+#endif
 /** Certificate Status Request v2 - RFC 6961 */
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
 
@@ -6976,6 +6981,9 @@ struct WOLFSSL {
          * ServerHelloDone only if no stapled response replaced it. */
         int  deferredCrlRet;
         byte deferredCrlDone;
+        /* Chain CRL verdicts, indexed like the staple list, applied at the
+         * fallback that runs for an entry no staple and no OCSP answered. */
+        int  deferredChainCrlRet[1 + MAX_CHAIN_DEPTH];
     #endif
     #if defined(HAVE_SECURE_RENEGOTIATION) \
         || defined(HAVE_SERVER_RENEGOTIATION_INFO)

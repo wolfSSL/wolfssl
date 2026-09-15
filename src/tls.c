@@ -4018,7 +4018,7 @@ int TLSX_CSR_InitRequest_ex(TLSX* extensions, DecodedCert* cert,
                         return ret;
 
                     /* restore nonce */
-                    XMEMCPY(csr->request.ocsp->nonce, nonce, (size_t)nonceSz);
+                    XMEMCPY(request->nonce, nonce, (size_t)nonceSz);
                     request->nonceSz = nonceSz;
                     csr->requests++;
                 }
@@ -4632,12 +4632,12 @@ int TLSX_CSR2_ForceRequest(WOLFSSL* ssl)
     TLSX* extension = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST_V2);
     CertificateStatusRequestItemV2* csr2 = extension ?
                         (CertificateStatusRequestItemV2*)extension->data : NULL;
+    CertificateStatusRequestItemV2* multi = TLSX_CSR2_GetMulti(ssl->extensions);
     int ret = 0;
 #ifdef HAVE_CRL
     int ocspAnswered = 0;
 #endif
 
-    /* forces only the first one */
     if (csr2) {
         switch (csr2->status_type) {
             case WOLFSSL_CSR2_OCSP:
@@ -4665,6 +4665,16 @@ int TLSX_CSR2_ForceRequest(WOLFSSL* ssl)
             #ifdef HAVE_CRL
                 ret = TLSX_CSR_LeafCrlCheck(ssl, ret, ocspAnswered);
             #endif
+                if (ret == 0 && multi != NULL) {
+                    int i;
+                    /* The chain certificates' own lookups were skipped in
+                     * favour of staples that never arrived. */
+                    for (i = (int)multi->requests - 2; ret == 0 && i >= 0; i--) {
+                        ret = CsrDoChainFallbackLookup(ssl,
+                                &multi->request.ocsp[i],
+                                (int)multi->requests - 1 - i);
+                    }
+                }
                 break;
         }
     }
