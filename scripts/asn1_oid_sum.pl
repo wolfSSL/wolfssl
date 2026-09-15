@@ -932,6 +932,12 @@ my @seps = (
     { name => "HW_NAME",                oid => \@sep_hw_name          },
 );
 
+# NOTE: SepHardwareName_Sum also carries BUNDLE_EID_OID (1.3.6.1.5.5.7.8.11,
+# id-on-bundleEID, RFC 9174).  It is maintained directly in oid_sum.h behind
+# "#ifdef WOLFSSL_DTN" rather than emitted here, since this generator has no
+# per-entry feature-guard support (same approach as ACME_IDENTIFIER_OID).
+# old sum = 86, new sum = 0x0e09012e.
+
 print_sum_enum("SepHardwareName", "_OID", \@seps);
 
 
