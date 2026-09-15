@@ -2249,7 +2249,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t nist_sp80056c_twostep_cmac(void)
 
 /* optional macro to add sleep between tests */
 #ifndef TEST_SLEEP
-#define TEST_SLEEP() WC_DO_NOTHING
+#define TEST_SLEEP() WC_RELAX_LONG_LOOP()
 #else
     #define TEST_PASS test_pass
     #include <stdarg.h> /* for var args */
