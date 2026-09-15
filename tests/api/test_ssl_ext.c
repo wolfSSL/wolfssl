@@ -1896,7 +1896,7 @@ int test_wolfSSL_api_null_operands(void)
     ExpectNotNull(ssl = wolfSSL_new(ctx));
 
     /* --- SetTmpDH: (ssl|ctx == NULL) || (p == NULL) || (g == NULL) ------ */
-#if !defined(NO_DH) && !defined(WOLFSSL_NO_TLS12)
+    #if !defined(NO_DH) && !defined(WOLFSSL_NO_TLS12)
     {
         static const byte p[] = { 0x00, 0x01 };
         static const byte g[] = { 0x02 };
@@ -1917,20 +1917,20 @@ int test_wolfSSL_api_null_operands(void)
         (void)wolfSSL_CTX_SetTmpDH(ctx, p, (int)sizeof(p), g, 0);
         (void)wolfSSL_CTX_SetTmpDH(ctx, p, (int)sizeof(p), g, (int)sizeof(g));
     }
-#endif
+    #endif /* !NO_DH && !WOLFSSL_NO_TLS12 */
 
     /* --- load_verify_locations_ex: ctx, then (file == NULL && path == NULL),
      * which is a compound operand a caller giving either one never takes --- */
-#ifndef NO_FILESYSTEM
+    #ifndef NO_FILESYSTEM
     (void)wolfSSL_CTX_load_verify_locations_ex(NULL, caCertFile, NULL, 0);
     (void)wolfSSL_CTX_load_verify_locations_ex(ctx, NULL, NULL, 0);
     (void)wolfSSL_CTX_load_verify_locations_ex(ctx, caCertFile, NULL, 0);
     (void)wolfSSL_CTX_load_verify_locations(NULL, caCertFile, NULL);
     (void)wolfSSL_CTX_load_verify_locations(ctx, NULL, NULL);
-#endif
+    #endif /* !NO_FILESYSTEM */
 
     /* --- export_keying_material: ssl, out, label, and the context pair --- */
-#ifdef HAVE_KEYING_MATERIAL
+    #ifdef HAVE_KEYING_MATERIAL
     (void)wolfSSL_export_keying_material(NULL, buf, sizeof(buf),
             "label", 5, NULL, 0, 0);
     (void)wolfSSL_export_keying_material(ssl, NULL, sizeof(buf),
@@ -1945,10 +1945,10 @@ int test_wolfSSL_api_null_operands(void)
             "label", 5, buf, 4, 1);
     (void)wolfSSL_export_keying_material(ssl, buf, sizeof(buf),
             "label", 5, NULL, 0, 0);
-#endif
+    #endif /* HAVE_KEYING_MATERIAL */
 
     /* --- SetServerID: ssl, id, then len <= 0 ---------------------------- */
-#ifndef NO_SESSION_CACHE
+    #if !defined(NO_SESSION_CACHE) && !defined(NO_CLIENT_CACHE)
     (void)wolfSSL_SetServerID(NULL, buf, iSz, 0);
     (void)wolfSSL_SetServerID(ssl, NULL, iSz, 0);
     (void)wolfSSL_SetServerID(ssl, buf, 0, 0);
@@ -1959,10 +1959,10 @@ int test_wolfSSL_api_null_operands(void)
      * from tests/api leaves an undefined reference in configurations that do
      * not export it. The public wolfSSL_set_session() is exercised above and
      * covers the same guard. */
-#endif
+    #endif /* !NO_SESSION_CACHE && !NO_CLIENT_CACHE */
 
     /* --- ALPN peer protocol: ssl, list, listSz -------------------------- */
-#ifdef HAVE_ALPN
+    #ifdef HAVE_ALPN
     {
         char* list = NULL;
         word16 listSz = 0;
@@ -1974,12 +1974,12 @@ int test_wolfSSL_api_null_operands(void)
         if (list != NULL)
             XFREE(list, NULL, DYNAMIC_TYPE_TLSX);
     }
-#endif
+    #endif /* HAVE_ALPN */
 
     /* --- SNI from a raw ClientHello buffer ------------------------------ */
     /* Server-side only: it parses what a client sent (HAVE_SNI &&
      * !NO_WOLFSSL_SERVER in src/ssl_api_ext.c). */
-#if defined(HAVE_SNI) && !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
+    #if defined(HAVE_SNI) && !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
     {
         byte hello[64];
         word32 outSz = (word32)sizeof(buf);
@@ -1998,25 +1998,25 @@ int test_wolfSSL_api_null_operands(void)
         (void)wolfSSL_SNI_GetFromBuffer(hello, (word32)sizeof(hello),
                 WOLFSSL_SNI_HOST_NAME, buf, &outSz);
     }
-#endif
+    #endif /* HAVE_SNI && !NO_WOLFSSL_SERVER && !NO_TLS */
 
     /* --- trusted CA: the (certId != NULL) || (certIdSz != 0) pair ------- */
-#ifdef HAVE_TRUSTED_CA
+    #ifdef HAVE_TRUSTED_CA
     (void)wolfSSL_UseTrustedCA(ssl, WOLFSSL_TRUSTED_CA_PRE_AGREED, buf, 0);
     (void)wolfSSL_UseTrustedCA(ssl, WOLFSSL_TRUSTED_CA_PRE_AGREED, NULL, 4);
     (void)wolfSSL_UseTrustedCA(ssl, WOLFSSL_TRUSTED_CA_KEY_SHA1, buf,
                                (word32)sizeof(buf));
-#endif
+    #endif /* HAVE_TRUSTED_CA */
 
     /* --- DTLS peer: `peer != NULL && peerSz != NULL` --------------------- */
-#ifdef WOLFSSL_DTLS
+    #ifdef WOLFSSL_DTLS
     bufSz = (word32)sizeof(buf);
     (void)wolfSSL_dtls_get_peer(ssl, NULL, &bufSz);
     (void)wolfSSL_dtls_get_peer(ssl, buf, NULL);
     (void)wolfSSL_dtls_get_peer(ssl, buf, &bufSz);
     /* got_timeout on a connection that is not DTLS: the second operand */
     (void)wolfSSL_dtls_got_timeout(ssl);
-#endif
+    #endif /* WOLFSSL_DTLS */
 
     /* --- cipher suite lookup by name: name, then the output pointers ---- */
     {
@@ -2036,7 +2036,7 @@ int test_wolfSSL_api_null_operands(void)
     (void)bufSz; (void)iSz;
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
-#endif
+#endif /* !NO_WOLFSSL_CLIENT && !NO_CERTS && !NO_TLS */
     return EXPECT_RESULT();
 }
 
