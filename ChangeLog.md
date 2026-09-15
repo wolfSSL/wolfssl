@@ -11,6 +11,7 @@
 ## Fixes
 
 * ML-KEM and ML-DSA now keep the key's device id on their internal SHAKE hashing, so a registered crypto callback sees the SHAKE-256 Update and Final calls. by @Frauschi (PR 11544)
+* SHA-3 crypto callbacks are now told the variant of each call instead of one cached on the context, which gave the wrong digest length when ML-KEM reused one object for SHA3-512 and SHA3-256. by @Frauschi (PR 11544)
 
 # wolfSSL Release 5.9.4 (Sep 25, 2026)
 

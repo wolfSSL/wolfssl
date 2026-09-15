@@ -1441,6 +1441,25 @@ static int wc_InitSha3(wc_Sha3* sha3, void* heap, int devId)
 
 #if !(defined(WOLFSSL_NOSHA3_224) && defined(WOLFSSL_NOSHA3_256) && \
       defined(WOLFSSL_NOSHA3_384) && defined(WOLFSSL_NOSHA3_512))
+#ifdef WOLF_CRYPTO_CB
+/* Hash type of a SHA-3 call, from its block count. */
+static int wc_Sha3HashType(word32 p)
+{
+    switch (p) {
+        case WC_SHA3_224_COUNT:
+            return WC_HASH_TYPE_SHA3_224;
+        case WC_SHA3_256_COUNT:
+            return WC_HASH_TYPE_SHA3_256;
+        case WC_SHA3_384_COUNT:
+            return WC_HASH_TYPE_SHA3_384;
+        case WC_SHA3_512_COUNT:
+            return WC_HASH_TYPE_SHA3_512;
+        default:
+            return WC_HASH_TYPE_NONE;
+    }
+}
+#endif
+
 /* Update the SHA-3 hash state with message data.
  *
  * sha3  wc_Sha3 object holding state.
@@ -1471,21 +1490,13 @@ static int wc_Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, word32 p)
     if (sha3->devId != INVALID_DEVID)
     #endif
     {
-        /* If the hash type is not set, determine it based on the p value */
-        /* We can skip the switch statement if the hash type set already */
-        if (sha3->hashType == WC_HASH_TYPE_NONE) {
-            switch (p) {
-                case WC_SHA3_224_COUNT:
-                    sha3->hashType = WC_HASH_TYPE_SHA3_224; break;
-                case WC_SHA3_256_COUNT:
-                    sha3->hashType = WC_HASH_TYPE_SHA3_256; break;
-                case WC_SHA3_384_COUNT:
-                    sha3->hashType = WC_HASH_TYPE_SHA3_384; break;
-                case WC_SHA3_512_COUNT:
-                    sha3->hashType = WC_HASH_TYPE_SHA3_512; break;
-                default: return BAD_FUNC_ARG;
-            }
-        }
+        int hashType = wc_Sha3HashType(p);
+
+        if (hashType == WC_HASH_TYPE_NONE)
+            return BAD_FUNC_ARG;
+        /* Derive from the block count every call: a Final the callback
+         * handles skips InitSha3, so a cached hashType outlives its op. */
+        sha3->hashType = hashType;
         ret = wc_CryptoCb_Sha3Hash(sha3, sha3->hashType, data, len, NULL);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
@@ -1532,21 +1543,13 @@ static int wc_Sha3Final(wc_Sha3* sha3, byte* hash, word32 p, word32 len)
     if (sha3->devId != INVALID_DEVID)
     #endif
     {
-        /* If the hash type is not set, determine it based on the p value */
-        /* We can skip the switch statement if the hash type is set already */
-        if (sha3->hashType == WC_HASH_TYPE_NONE) {
-            switch (p) {
-                case WC_SHA3_224_COUNT:
-                    sha3->hashType = WC_HASH_TYPE_SHA3_224; break;
-                case WC_SHA3_256_COUNT:
-                    sha3->hashType = WC_HASH_TYPE_SHA3_256; break;
-                case WC_SHA3_384_COUNT:
-                    sha3->hashType = WC_HASH_TYPE_SHA3_384; break;
-                case WC_SHA3_512_COUNT:
-                    sha3->hashType = WC_HASH_TYPE_SHA3_512; break;
-                default: return BAD_FUNC_ARG;
-            }
-        }
+        int hashType = wc_Sha3HashType(p);
+
+        if (hashType == WC_HASH_TYPE_NONE)
+            return BAD_FUNC_ARG;
+        /* Derive from the block count every call: a Final the callback
+         * handles skips InitSha3, so a cached hashType outlives its op. */
+        sha3->hashType = hashType;
         ret = wc_CryptoCb_Sha3Hash(sha3, sha3->hashType, NULL, 0, hash);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
