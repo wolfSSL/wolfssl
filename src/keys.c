@@ -2477,15 +2477,17 @@ int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     #endif
         if (side == WOLFSSL_CLIENT_END) {
             if (enc) {
-                chachaRet = wc_Chacha_SetKey(enc->chacha, keys->client_write_key,
-                                          specs->key_size);
+                chachaRet = wc_Chacha_SetKey_ex(enc->chacha,
+                                          keys->client_write_key,
+                                          specs->key_size, heap, devId);
                 XMEMCPY(keys->aead_enc_imp_IV, keys->client_write_IV,
                         CHACHA20_IMP_IV_SZ);
                 if (chachaRet != 0) return chachaRet;
             }
             if (dec) {
-                chachaRet = wc_Chacha_SetKey(dec->chacha, keys->server_write_key,
-                                          specs->key_size);
+                chachaRet = wc_Chacha_SetKey_ex(dec->chacha,
+                                          keys->server_write_key,
+                                          specs->key_size, heap, devId);
                 XMEMCPY(keys->aead_dec_imp_IV, keys->server_write_IV,
                         CHACHA20_IMP_IV_SZ);
                 if (chachaRet != 0) return chachaRet;
@@ -2493,15 +2495,17 @@ int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         }
         else {
             if (enc) {
-                chachaRet = wc_Chacha_SetKey(enc->chacha, keys->server_write_key,
-                                          specs->key_size);
+                chachaRet = wc_Chacha_SetKey_ex(enc->chacha,
+                                          keys->server_write_key,
+                                          specs->key_size, heap, devId);
                 XMEMCPY(keys->aead_enc_imp_IV, keys->server_write_IV,
                         CHACHA20_IMP_IV_SZ);
                 if (chachaRet != 0) return chachaRet;
             }
             if (dec) {
-                chachaRet = wc_Chacha_SetKey(dec->chacha, keys->client_write_key,
-                                          specs->key_size);
+                chachaRet = wc_Chacha_SetKey_ex(dec->chacha,
+                                          keys->client_write_key,
+                                          specs->key_size, heap, devId);
                 XMEMCPY(keys->aead_dec_imp_IV, keys->client_write_IV,
                         CHACHA20_IMP_IV_SZ);
                 if (chachaRet != 0) return chachaRet;

@@ -56,6 +56,19 @@
     #include <wolfssl/wolfcrypt/sm3.h>
 #endif
 
+/* Clear the Silicon Labs SE context carried alongside the software members of
+ * wc_Sha and wc_Sha256. That port uses its "started" flag as a lazy-init
+ * sentinel (wolfCrypt has no callback hook on wc_InitShaXXX), and the init
+ * paths set fields individually rather than zeroing, so a fresh object whose
+ * storage held a non-zero byte would skip SE init and hand an uninitialised
+ * context to update or final. Call it AFTER the NULL check, never before. */
+#ifdef WOLFSSL_SILABS_CRYPTOCB
+    #define WC_SILABS_CLEAR_HASH_CTX(h) \
+        XMEMSET(&(h)->silabsCtx, 0, sizeof((h)->silabsCtx))
+#else
+    #define WC_SILABS_CLEAR_HASH_CTX(h) WC_DO_NOTHING
+#endif
+
 
 #ifdef __cplusplus
     extern "C" {

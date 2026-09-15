@@ -155,6 +155,7 @@
             return BAD_FUNC_ARG;
         }
 
+        WC_SILABS_CLEAR_HASH_CTX(sha);
         (void)devId;
         (void)heap;
 
@@ -210,6 +211,7 @@
             return BAD_FUNC_ARG;
         }
 
+        WC_SILABS_CLEAR_HASH_CTX(sha);
         (void)devId;
         (void)heap;
 
@@ -387,6 +389,7 @@
         if (sha == NULL) {
             return BAD_FUNC_ARG;
         }
+        WC_SILABS_CLEAR_HASH_CTX(sha);
         (void)devId;
 
         return se050_hash_init(&sha->se050Ctx, heap);
@@ -579,6 +582,7 @@ int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
         return BAD_FUNC_ARG;
     }
 
+    WC_SILABS_CLEAR_HASH_CTX(sha);
     sha->heap = heap;
 #ifdef WOLF_CRYPTO_CB
     sha->devId = devId;
@@ -1251,7 +1255,7 @@ int wc_ShaCopy(wc_Sha* src, wc_Sha* dst)
     wc_ShaFree(dst);
     XMEMCPY(dst, src, sizeof(wc_Sha));
 
-#if defined(WOLFSSL_SILABS_SE_ACCEL) && defined(WOLFSSL_SILABS_SE_ACCEL_3)
+#if defined(WOLFSSL_SILABS_SE_TYPES) && defined(WOLFSSL_SILABS_SE_ACCEL_3)
     dst->silabsCtx.hash_ctx.cmd_ctx = &dst->silabsCtx.cmd_ctx;
     dst->silabsCtx.hash_ctx.hash_type_ctx = &dst->silabsCtx.hash_type_ctx;
 #endif
