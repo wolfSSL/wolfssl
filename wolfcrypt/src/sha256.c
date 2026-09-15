@@ -1304,12 +1304,26 @@ static WC_INLINE int Transform_Sha256_Len_aarch64(wc_Sha256* sha256,
     return (*Transform_Sha256_Len_p)(sha256, data, len);
 }
 
+/* Both transforms below run on v0-v31 and save d8-d15
+ * (port/arm/armv8-sha256-asm.S), so a kernel module must bracket them. */
+#if defined(__aarch64__) && defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS)
+    #define WC_SHA256_ARM64_SVR_BEGIN()                                     \
+        do { int _svr_ret = SAVE_VECTOR_REGISTERS2();                       \
+             if (_svr_ret != 0) return _svr_ret; } while (0)
+    #define WC_SHA256_ARM64_SVR_END()  RESTORE_VECTOR_REGISTERS()
+#else
+    #define WC_SHA256_ARM64_SVR_BEGIN() WC_DO_NOTHING
+    #define WC_SHA256_ARM64_SVR_END()   WC_DO_NOTHING
+#endif
+
 #if !defined(WOLFSSL_ARMASM_NO_NEON)
 #if !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
 static int Transform_Sha256_Len_crypto_aarch64(wc_Sha256* sha256,
     const byte* data, word32 len)
 {
+    WC_SHA256_ARM64_SVR_BEGIN();
     Transform_Sha256_Len_crypto(sha256, data, len);
+    WC_SHA256_ARM64_SVR_END();
     return 0;
 }
 #endif
@@ -1317,7 +1331,9 @@ static int Transform_Sha256_Len_crypto_aarch64(wc_Sha256* sha256,
 static int Transform_Sha256_Len_neon_aarch64(wc_Sha256* sha256,
     const byte* data, word32 len)
 {
+    WC_SHA256_ARM64_SVR_BEGIN();
     Transform_Sha256_Len_neon(sha256, data, len);
+    WC_SHA256_ARM64_SVR_END();
     return 0;
 }
 #endif
@@ -1421,6 +1437,44 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
     #define SHA256_ARM32_DISPATCH
 #endif
 
+/* The crypto and NEON transforms run on the q registers, so a kernel module
+ * must hold the vector registers around them; the base transform needs none. */
+#if !defined(WOLFSSL_ARMASM_THUMB2) && !defined(WOLFSSL_ARMASM_NO_NEON)
+#ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
+    #define WC_SHA256_ARM32_SVR_BEGIN()                                     \
+        do { int _svr_ret = SAVE_VECTOR_REGISTERS2();                       \
+             if (_svr_ret != 0) return _svr_ret; } while (0)
+    #define WC_SHA256_ARM32_SVR_END()  RESTORE_VECTOR_REGISTERS()
+#else
+    #define WC_SHA256_ARM32_SVR_BEGIN() WC_DO_NOTHING
+    #define WC_SHA256_ARM32_SVR_END()   WC_DO_NOTHING
+#endif
+#ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
+static WC_INLINE int Transform_Sha256_Len_crypto_arm32(wc_Sha256* sha256,
+    const byte* data, word32 len)
+{
+    WC_SHA256_ARM32_SVR_BEGIN();
+    Transform_Sha256_Len_crypto(sha256, data, len);
+    WC_SHA256_ARM32_SVR_END();
+    return 0;
+}
+#endif
+static WC_INLINE int Transform_Sha256_Len_neon_arm32(wc_Sha256* sha256,
+    const byte* data, word32 len)
+{
+    WC_SHA256_ARM32_SVR_BEGIN();
+    Transform_Sha256_Len_neon(sha256, data, len);
+    WC_SHA256_ARM32_SVR_END();
+    return 0;
+}
+#endif
+static WC_INLINE int Transform_Sha256_Len_base_arm32(wc_Sha256* sha256,
+    const byte* data, word32 len)
+{
+    Transform_Sha256_Len_base(sha256, data, len);
+    return 0;
+}
+
 #ifdef SHA256_ARM32_DISPATCH
 
 static int sha256_transform_check = 0;
@@ -1430,12 +1484,12 @@ static cpuid_flags_atomic_t sha256_cpuid_flags = WC_CPUID_ATOMIC_INITIALIZER;
  * requires no extension at all - so the pointer is safe to use even if read
  * before Sha256_SetTransform() runs. */
 #ifndef WOLFSSL_ARMASM_NO_BASE_IMPL
-    #define SHA256_ARM32_TRANSFORM_INIT     Transform_Sha256_Len_base
+    #define SHA256_ARM32_TRANSFORM_INIT     Transform_Sha256_Len_base_arm32
 #else
-    #define SHA256_ARM32_TRANSFORM_INIT     Transform_Sha256_Len_neon
+    #define SHA256_ARM32_TRANSFORM_INIT     Transform_Sha256_Len_neon_arm32
 #endif
 
-static void (*Transform_Sha256_Len_p)(wc_Sha256* sha256, const byte* data,
+static int (*Transform_Sha256_Len_p)(wc_Sha256* sha256, const byte* data,
     word32 len) = SHA256_ARM32_TRANSFORM_INIT;
 
 /* Select the crypto-extension transform when the CPU implements FEAT_SHA256,
@@ -1451,25 +1505,25 @@ static void Sha256_SetTransform(void)
     cpuid_get_flags_atomic(&sha256_cpuid_flags);
 
     if (IS_ARM32_SHA256(sha256_cpuid_flags)) {
-        Transform_Sha256_Len_p = Transform_Sha256_Len_crypto;
+        Transform_Sha256_Len_p = Transform_Sha256_Len_crypto_arm32;
     }
 #if !defined(WOLFSSL_ARMASM_NO_NEON_IMPL) && \
     !defined(WOLFSSL_ARMASM_NO_BASE_IMPL)
     else if (IS_ARM32_ASIMD(sha256_cpuid_flags)) {
-        Transform_Sha256_Len_p = Transform_Sha256_Len_neon;
+        Transform_Sha256_Len_p = Transform_Sha256_Len_neon_arm32;
     }
     else {
-        Transform_Sha256_Len_p = Transform_Sha256_Len_base;
+        Transform_Sha256_Len_p = Transform_Sha256_Len_base_arm32;
     }
 #elif !defined(WOLFSSL_ARMASM_NO_NEON_IMPL)
     /* Base dropped - a NEON build always implements Advanced SIMD. */
     else {
-        Transform_Sha256_Len_p = Transform_Sha256_Len_neon;
+        Transform_Sha256_Len_p = Transform_Sha256_Len_neon_arm32;
     }
 #else
     /* NEON implementation dropped - the base transform needs no extension. */
     else {
-        Transform_Sha256_Len_p = Transform_Sha256_Len_base;
+        Transform_Sha256_Len_p = Transform_Sha256_Len_base_arm32;
     }
 #endif
 
@@ -1514,15 +1568,15 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
 static WC_INLINE int Transform_Sha256(wc_Sha256* sha256, const byte* data)
 {
 #ifdef SHA256_ARM32_DISPATCH
-    (*Transform_Sha256_Len_p)(sha256, data, WC_SHA256_BLOCK_SIZE);
+    return (*Transform_Sha256_Len_p)(sha256, data, WC_SHA256_BLOCK_SIZE);
 #elif defined(WOLFSSL_ARMASM_THUMB2) || defined(WOLFSSL_ARMASM_NO_NEON)
-    Transform_Sha256_Len_base(sha256, data, WC_SHA256_BLOCK_SIZE);
+    return Transform_Sha256_Len_base_arm32(sha256, data, WC_SHA256_BLOCK_SIZE);
 #elif defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
-    Transform_Sha256_Len_neon(sha256, data, WC_SHA256_BLOCK_SIZE);
+    return Transform_Sha256_Len_neon_arm32(sha256, data, WC_SHA256_BLOCK_SIZE);
 #else
-    Transform_Sha256_Len_crypto(sha256, data, WC_SHA256_BLOCK_SIZE);
+    return Transform_Sha256_Len_crypto_arm32(sha256, data,
+        WC_SHA256_BLOCK_SIZE);
 #endif
-    return 0;
 }
 
 /* Multi-block form of Transform_Sha256() - see there for the selection. */
@@ -1530,15 +1584,14 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
     word32 len)
 {
 #ifdef SHA256_ARM32_DISPATCH
-    (*Transform_Sha256_Len_p)(sha256, data, len);
+    return (*Transform_Sha256_Len_p)(sha256, data, len);
 #elif defined(WOLFSSL_ARMASM_THUMB2) || defined(WOLFSSL_ARMASM_NO_NEON)
-    Transform_Sha256_Len_base(sha256, data, len);
+    return Transform_Sha256_Len_base_arm32(sha256, data, len);
 #elif defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
-    Transform_Sha256_Len_neon(sha256, data, len);
+    return Transform_Sha256_Len_neon_arm32(sha256, data, len);
 #else
-    Transform_Sha256_Len_crypto(sha256, data, len);
+    return Transform_Sha256_Len_crypto_arm32(sha256, data, len);
 #endif
-    return 0;
 }
 
 #define XTRANSFORM      Transform_Sha256
