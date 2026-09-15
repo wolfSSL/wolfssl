@@ -2674,6 +2674,171 @@ int test_wc_ecc_ecies_ctx_devid_steps(void)
     return EXPECT_RESULT();
 } /* END test_wc_ecc_ecies_ctx_devid_steps */
 
+#if defined(WOLF_CRYPTO_CB_FIND) && defined(HAVE_ECC) && \
+    defined(HAVE_ECC_ENCRYPT) && !defined(WC_NO_RNG) && \
+    defined(WOLF_CRYPTO_CB) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(NO_SHA256) && \
+    (defined(HAVE_AES_CBC) || \
+     (defined(HAVE_AESGCM) && (defined(WOLFSSL_ECIES_GEN_IV) || \
+        defined(WOLFSSL_ECIES_OLD) || \
+        defined(WOLFSSL_ECIES_STATIC_GCM_NONCE)))) && defined(WOLFSSL_AES_128)
+/* What the finder-routed callback saw: whether it ran and which devId the
+ * finder handed it. */
+typedef struct EciesFindSeen {
+    int invoked;
+    int devId;
+} EciesFindSeen;
+
+static int eciesFindArmed = 0;
+static int eciesFindDevId = INVALID_DEVID;
+
+/* Finder: send untagged public-key work to the test device, but only while
+ * armed, so the callback's own call back into software is not routed again. */
+static int myEciesFindCb(int devId, int algoType)
+{
+    if (eciesFindArmed && devId == INVALID_DEVID &&
+            algoType == WC_ALGO_TYPE_PK) {
+        return eciesFindDevId;
+    }
+    return devId;
+}
+
+static int myEciesFindCryptoCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    EciesFindSeen* seen = (EciesFindSeen*)ctx;
+    int ret;
+
+    if (info->algo_type != WC_ALGO_TYPE_PK ||
+            (info->pk.type != WC_PK_TYPE_ECIES_ENCRYPT &&
+             info->pk.type != WC_PK_TYPE_ECIES_DECRYPT)) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+    seen->devId = devIdArg;
+    eciesFindArmed = 0;
+    ret = myEciesApiCryptoCb(devIdArg, info, &seen->invoked);
+    eciesFindArmed = 1;
+    return ret;
+}
+#endif
+
+/*
+ * With WOLF_CRYPTO_CB_FIND a context that was never given a device is not
+ * software by itself: the registered finder is asked, and it can hand the
+ * ECIES job to a device.  Check that the callback is reached that way, with
+ * the finder's devId, and that it is not reached once the finder is gone.
+ */
+int test_wc_ecc_ecies_find_cb(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLF_CRYPTO_CB_FIND) && defined(HAVE_ECC) && \
+    defined(HAVE_ECC_ENCRYPT) && !defined(WC_NO_RNG) && \
+    defined(WOLF_CRYPTO_CB) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(NO_SHA256) && \
+    (defined(HAVE_AES_CBC) || \
+     (defined(HAVE_AESGCM) && (defined(WOLFSSL_ECIES_GEN_IV) || \
+        defined(WOLFSSL_ECIES_OLD) || \
+        defined(WOLFSSL_ECIES_STATIC_GCM_NONCE)))) && defined(WOLFSSL_AES_128)
+    const int     cbDevId = 0x45434233; /* 'ECB3' */
+    EciesFindSeen seen;
+    ecc_key       cliKey;
+    ecc_key       srvKey;
+    WC_RNG        rng;
+    ecEncCtx*     cliCtx = NULL;
+    ecEncCtx*     srvCtx = NULL;
+    byte          cliSalt[EXCHANGE_SALT_SZ];
+    byte          srvSalt[EXCHANGE_SALT_SZ];
+    const byte*   tmpSalt = NULL;
+    byte          msg[32];
+    byte          out[256];
+    byte          plain[64];
+    word32        outSz;
+    word32        plainSz;
+    int           i;
+    int           withFinder;
+    int           registered = 0;
+
+    XMEMSET(&seen, 0, sizeof(seen));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&cliKey, 0, sizeof(cliKey));
+    XMEMSET(&srvKey, 0, sizeof(srvKey));
+    for (i = 0; i < (int)sizeof(msg); i++)
+        msg[i] = (byte)i;
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(cbDevId, myEciesFindCryptoCb,
+        &seen), 0);
+    if (EXPECT_SUCCESS())
+        registered = 1;
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    /* Neither the keys nor the contexts ever get a device id. */
+    ExpectIntEQ(wc_ecc_init(&cliKey), 0);
+    ExpectIntEQ(wc_ecc_init(&srvKey), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, KEY32, &cliKey), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, KEY32, &srvKey), 0);
+#if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
+    !defined(HAVE_SELFTEST)
+    ExpectIntEQ(wc_ecc_set_rng(&cliKey, &rng), 0);
+    ExpectIntEQ(wc_ecc_set_rng(&srvKey, &rng), 0);
+#endif
+    ExpectNotNull(cliCtx = wc_ecc_ctx_new(REQ_RESP_CLIENT, &rng));
+    ExpectNotNull(srvCtx = wc_ecc_ctx_new(REQ_RESP_SERVER, &rng));
+
+    /* First with the finder in place, then without it. */
+    for (withFinder = 1; withFinder >= 0 && EXPECT_SUCCESS(); withFinder--) {
+        ExpectIntEQ(wc_ecc_ctx_reset(cliCtx, &rng), 0);
+        ExpectIntEQ(wc_ecc_ctx_reset(srvCtx, &rng), 0);
+        ExpectNotNull(tmpSalt = wc_ecc_ctx_get_own_salt(cliCtx));
+        if (tmpSalt != NULL)
+            XMEMCPY(cliSalt, tmpSalt, EXCHANGE_SALT_SZ);
+        ExpectNotNull(tmpSalt = wc_ecc_ctx_get_own_salt(srvCtx));
+        if (tmpSalt != NULL)
+            XMEMCPY(srvSalt, tmpSalt, EXCHANGE_SALT_SZ);
+        ExpectIntEQ(wc_ecc_ctx_set_peer_salt(cliCtx, srvSalt), 0);
+        ExpectIntEQ(wc_ecc_ctx_set_peer_salt(srvCtx, cliSalt), 0);
+
+        eciesFindDevId = cbDevId;
+        eciesFindArmed = withFinder;
+        wc_CryptoCb_SetDeviceFindCb(withFinder ? myEciesFindCb : NULL);
+
+        XMEMSET(&seen, 0, sizeof(seen));
+        seen.devId = INVALID_DEVID;
+        outSz = (word32)sizeof(out);
+        ExpectIntEQ(wc_ecc_encrypt(&cliKey, &srvKey, msg, sizeof(msg), out,
+            &outSz, cliCtx), 0);
+        ExpectIntEQ(seen.invoked, withFinder);
+        ExpectIntEQ(seen.devId, withFinder ? cbDevId : INVALID_DEVID);
+
+        XMEMSET(&seen, 0, sizeof(seen));
+        seen.devId = INVALID_DEVID;
+        XMEMSET(plain, 0, sizeof(plain));
+        plainSz = (word32)sizeof(plain);
+    #ifdef WOLFSSL_ECIES_OLD
+        ExpectIntEQ(wc_ecc_decrypt(&srvKey, &cliKey, out, outSz, plain,
+            &plainSz, srvCtx), 0);
+    #else
+        ExpectIntEQ(wc_ecc_decrypt(&srvKey, NULL, out, outSz, plain,
+            &plainSz, srvCtx), 0);
+    #endif
+        ExpectIntEQ(seen.invoked, withFinder);
+        ExpectIntEQ(seen.devId, withFinder ? cbDevId : INVALID_DEVID);
+        ExpectIntEQ(plainSz, sizeof(msg));
+        ExpectIntEQ(XMEMCMP(plain, msg, sizeof(msg)), 0);
+    }
+
+    wc_CryptoCb_SetDeviceFindCb(NULL);
+    eciesFindArmed = 0;
+    wc_ecc_ctx_free(srvCtx);
+    wc_ecc_ctx_free(cliCtx);
+    wc_ecc_free(&srvKey);
+    wc_ecc_free(&cliKey);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    if (registered)
+        wc_CryptoCb_UnRegisterDevice(cbDevId);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_ecies_find_cb */
+
 /*
  * The ECIES AES-GCM DEM needs an RNG only in GEN_IV mode, where it generates a
  * random per-message nonce (default mode uses a fixed nonce and OLD derives it
