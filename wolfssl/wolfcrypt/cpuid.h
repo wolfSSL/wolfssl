@@ -246,7 +246,8 @@ typedef word32 cpuid_flags_t;
             return 0;
     }
 
-    /* Public APIs to modify flags. */
+    /* Public APIs to modify flags.  In FIPS v7 a change re-runs the self tests;
+     * kernel callers that cannot block are refused.  Neither is reported. */
 
     #ifdef WOLFSSL_API_PREFIX_MAP
         #define cpuid_select_flags wc_cpuid_select_flags
