@@ -53,6 +53,7 @@ int test_wc_MakeCert_generalizedTimeValidity(void);
 int test_wc_DecodeKeyUsage_decipherOnly(void);
 int test_wc_DecodeExtKeyUsage_ssh(void);
 int test_wc_DecodeExtKeyUsage_ssh_oid_collision(void);
+int test_wc_DecodeExtKeyUsage_oidSumCollision(void);
 int test_wc_AsnDecisionCoverage(void);
 int test_wc_AsnFeatureCoverage(void);
 
@@ -86,6 +87,7 @@ int test_wc_AsnFeatureCoverage(void);
     TEST_DECL_GROUP("asn", test_wc_DecodeKeyUsage_decipherOnly),    \
     TEST_DECL_GROUP("asn", test_wc_DecodeExtKeyUsage_ssh),          \
     TEST_DECL_GROUP("asn", test_wc_DecodeExtKeyUsage_ssh_oid_collision), \
+    TEST_DECL_GROUP("asn", test_wc_DecodeExtKeyUsage_oidSumCollision), \
     TEST_DECL_GROUP("asn", test_wc_AsnDecisionCoverage),           \
     TEST_DECL_GROUP("asn", test_wc_AsnFeatureCoverage)
 
