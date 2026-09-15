@@ -64,4 +64,10 @@ EXTRA_DIST += \
          certs/intermediate/untrusted_anchor/leaf-cert.pem \
          certs/intermediate/untrusted_anchor/leaf-key.pem \
          certs/intermediate/untrusted_anchor/leaf-deep-cert.pem \
-         certs/intermediate/untrusted_anchor/leaf-deep-key.pem
+         certs/intermediate/untrusted_anchor/leaf-deep-key.pem \
+         certs/intermediate/untrusted_anchor/loop-a-cert.pem \
+         certs/intermediate/untrusted_anchor/loop-a-key.pem \
+         certs/intermediate/untrusted_anchor/loop-b-cert.pem \
+         certs/intermediate/untrusted_anchor/loop-b-key.pem \
+         certs/intermediate/untrusted_anchor/loop-leaf-cert.pem \
+         certs/intermediate/untrusted_anchor/loop-leaf-key.pem
