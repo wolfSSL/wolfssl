@@ -4475,14 +4475,13 @@ int test_wc_MakeCert_serial_encoding(void)
         }
 
         /* What wolfSSL emits, wolfSSL has to be able to parse back. */
-        ExpectIntGT(signedSz = wc_SignCert(bodySz, cert.sigType, body,
-            SIGN_CERT_SCRATCH_SZ,
 #ifdef TEST_SIGN_CERT_BOUNDS_RSA
-            &key, NULL,
+        ExpectIntGT(signedSz = wc_SignCert(bodySz, cert.sigType, body,
+            SIGN_CERT_SCRATCH_SZ, &key, NULL, &rng), 0);
 #else
-            NULL, &key,
+        ExpectIntGT(signedSz = wc_SignCert(bodySz, cert.sigType, body,
+            SIGN_CERT_SCRATCH_SZ, NULL, &key, &rng), 0);
 #endif
-            &rng), 0);
         if (EXPECT_SUCCESS()) {
             wc_InitDecodedCert(&decoded, body, (word32)signedSz, HEAP_HINT);
             ExpectIntEQ(wc_ParseCert(&decoded, CERT_TYPE, NO_VERIFY, NULL), 0);
