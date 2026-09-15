@@ -120,6 +120,10 @@
 /* Macros */
 #define INVALID_STATUS -256
 
+/* Largest cipher block/IV size used by the symmetric cipher operations
+ * (AES block size). Used to stage the next CBC IV. */
+#define QAT_CIPHER_MAX_IV_SZ 16
+
 
 #if !defined(NO_SHA256) || defined(WOLFSSL_SHA512) || \
     defined(WOLFSSL_SHA384) || !defined(NO_HMAC) || !defined(NO_MD5) || \
@@ -247,8 +251,13 @@ typedef struct IntelQaDev {
             CpaFlatBuffer flatBuffer;
             byte* authTag;
             word32 authTagSz;
+            /* caller IV buffer to update with the next IV on success */
             byte* iv;
             word32 ivSz;
+            /* next IV staged at submit time (decrypt only), committed to
+             * "iv" by the callback once the operation succeeds */
+            byte ivTmp[QAT_CIPHER_MAX_IV_SZ];
+            word32 ivTmpSz;
         } cipher;
     #endif
     #if defined(QAT_ENABLE_PKI) && defined(HAVE_ECC)
