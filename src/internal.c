@@ -20466,17 +20466,10 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
                         return csrRet;
                     }
                 }
-                /* Check that a status request extension was seen as the
-                 * CertificateStatus wasn't when an OCSP staple is required.
-                 */
-                if (
-#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
-                     !ssl->status_request &&
-#endif
-#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
-                     !ssl->status_request_v2 &&
-#endif
-                                                 SSL_CM(ssl)->ocspMustStaple) {
+                /* No CertificateStatus arrived, so a required staple is
+                 * missing whatever the fallback lookups returned. */
+                if (SSL_CM(ssl)->ocspMustStaple &&
+                        ssl->msgsReceived.got_certificate) {
                     WOLFSSL_ERROR_VERBOSE(OCSP_CERT_UNKNOWN);
                     return OCSP_CERT_UNKNOWN;
                 }
