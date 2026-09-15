@@ -1060,17 +1060,27 @@ struct Aes;
     #error "WOLFSSL_DHUK requires WOLF_CRYPTO_CB (crypto callback dispatch)"
 #endif
 
-#if defined(WOLFSSL_DHUK) && !defined(WOLFSSL_DHUK_DEVID)
+#if defined(WOLFSSL_DHUK)
     /* SAES / DHUK device IDs. wc_Stm32_Aes_Wrap selects the wrap-key source
      * by aes->devId (HW DHUK vs a software key). Transparent DHUK crypto
      * routes through the crypto-callback device registered at WC_DHUK_DEVID
-     * (see wc_Stm32_DhukRegister), not these markers. */
-    #define WOLFSSL_DHUK_DEVID              808
-    #define WOLFSSL_SAES_DEVID              807
+     * (see wc_Stm32_DhukRegister), not these markers.
+     *
+     * Each id is guarded separately. Defining one of them in user_settings.h
+     * must not suppress the others -- an earlier single #ifndef around the
+     * whole block meant that pre-defining WOLFSSL_DHUK_DEVID silently removed
+     * WC_DHUK_DEVID, WOLFSSL_SAES_DEVID and the WC_STM32_WRAP_ORDER_* macros
+     * as a side effect. */
+    #ifndef WOLFSSL_DHUK_DEVID
+        #define WOLFSSL_DHUK_DEVID          808
+    #endif
+    #ifndef WOLFSSL_SAES_DEVID
+        #define WOLFSSL_SAES_DEVID          807
+    #endif
     /* Crypto-callback device id for transparent DHUK crypto (same value as the
      * SAES/DHUK marker; override before include if it collides). */
     #ifndef WC_DHUK_DEVID
-        #define WC_DHUK_DEVID              808
+        #define WC_DHUK_DEVID              WOLFSSL_DHUK_DEVID
     #endif
 
     /* Blob word order for wc_Stm32_Aes_Wrap_ex()'s rawOrder argument.
@@ -1098,6 +1108,19 @@ struct Aes;
         #endif
     #endif
 
+    /* Chip-bound DHUK wrap (KEYSEL=HW, deterministic, out size == inSz).
+     *
+     * This is the inverse of the SAES wrapped-key load: a blob produced here
+     * in WC_STM32_WRAP_ORDER_RAW unwraps back to the key it wrapped, and is
+     * byte-identical to what ST's HAL_CRYPEx_WrapKey() produces on the same
+     * die. WC_STM32_WRAP_ORDER_LEGACY blobs are byte-reversed and do NOT
+     * round-trip -- they exist only to regenerate key material provisioned by
+     * wolfSSL 5.9.0 - 5.9.2, so use RAW for anything new.
+     *
+     * Note the blob is still not a key: handing it to wc_AesSetKey() on a
+     * WC_DHUK_DEVID Aes makes that device treat it as a derivation seed, which
+     * is exactly the unwrap, so the recovered key is the one that was wrapped.
+     */
     int wc_Stm32_Aes_Wrap(struct Aes* aes, const byte* in, word32 inSz, byte* out,
         word32* outSz, const byte* iv, int ivSz);
     int wc_Stm32_Aes_Wrap_ex(struct Aes* aes, const byte* in, word32 inSz,
@@ -1114,8 +1137,9 @@ struct Aes;
      * byte-identical on STM32U385). Input and output are NOT byte-reversed on
      * either build path.
      *
-     * NOT the inverse of wc_Stm32_Aes_Wrap: unwrapping a blob that
-     * wc_Stm32_Aes_Wrap produced from K does not put K in KEYR.
+     * This IS the inverse of wc_Stm32_Aes_Wrap: unwrapping a blob that
+     * wc_Stm32_Aes_Wrap produced from K (in WC_STM32_WRAP_ORDER_RAW) puts K
+     * back in KEYR.
      *
      * Returns CRYPTOCB_UNAVAILABLE unless built with
      * WOLFSSL_STM32_DHUK_UNWRAP. Not auto-routed -- call explicitly. */
