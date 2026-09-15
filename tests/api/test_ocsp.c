@@ -859,6 +859,77 @@ int test_ocsp_status_callback(void)
         !defined(WOLFSSL_NO_TLS12)                                             \
         && defined(OPENSSL_ALL) */
 
+#if defined(HAVE_OCSP) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) &&        \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST) && !defined(WOLFSSL_NO_TLS12) &&  \
+    defined(OPENSSL_ALL) && !defined(WOLFSSL_SMALL_CERT_VERIFY) &&             \
+    defined(HAVE_SECURE_RENEGOTIATION)
+/* A CertificateStatus sent during a renegotiation goes out encrypted. The
+ * length handed to the record layer then has to be the handshake body alone,
+ * with none of the cipher expansion slack the send buffer carries. */
+int test_ocsp_status_request_scr(void)
+{
+    EXPECT_DECLS;
+    const char* responseFile = "./certs/ocsp/test-leaf-response.der";
+    struct _test_ocsp_status_callback_ctx cb_ctx;
+    struct test_ssl_memio_ctx test_ctx;
+    XFILE f = XBADFILE;
+    byte data[4096];
+    char readBuf[16];
+
+    XMEMSET(&cb_ctx, 0, sizeof(cb_ctx));
+    /* Zeroed here, not just in the setup helper: the Expect macros below stop
+     * running once one fails, and the cleanup at the end is unconditional. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectTrue((f = XFOPEN(responseFile, "rb")) != XBADFILE);
+    if (f != XBADFILE) {
+        cb_ctx.ocsp_resp_sz = (int)XFREAD(data, 1, sizeof(data), f);
+        XFCLOSE(f);
+    }
+    cb_ctx.ocsp_resp = data;
+    ExpectIntGT(cb_ctx.ocsp_resp_sz, 0);
+
+    ExpectIntEQ(test_ocsp_status_callback_test_setup(&cb_ctx, &test_ctx,
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method),
+        TEST_SUCCESS);
+    ExpectIntEQ(SSL_CTX_set_tlsext_status_cb(test_ctx.s_ctx,
+            test_ocsp_status_callback_cb),
+        SSL_SUCCESS);
+    ExpectIntEQ(SSL_CTX_set_tlsext_status_arg(test_ctx.s_ctx, (void*)&cb_ctx),
+        SSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(test_ctx.c_ctx),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseOCSPStapling(test_ctx.c_ssl, WOLFSSL_CSR_OCSP, 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSecureRenegotiation(test_ctx.c_ssl),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSecureRenegotiation(test_ctx.s_ssl),
+        WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
+    ExpectIntEQ(cb_ctx.invoked, 1);
+
+    /* Renegotiate. The second CertificateStatus is the encrypted one. */
+    ExpectIntEQ(wolfSSL_Rehandshake(test_ctx.c_ssl),
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    ExpectIntEQ(wolfSSL_get_error(test_ctx.c_ssl, -1),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_read(test_ctx.s_ssl, readBuf, sizeof(readBuf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(test_ctx.s_ssl, -1),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
+    ExpectIntEQ(cb_ctx.invoked, 2);
+
+    test_ssl_memio_cleanup(&test_ctx);
+
+    return EXPECT_RESULT();
+}
+#else
+int test_ocsp_status_request_scr(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
+
 #if !defined(NO_SHA) && defined(OPENSSL_ALL) && defined(HAVE_OCSP) &&          \
     !defined(WOLFSSL_SM3) && !defined(WOLFSSL_SM2) && !defined(NO_RSA)
 int test_ocsp_certid_enc_dec(void)
