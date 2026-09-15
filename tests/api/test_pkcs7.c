@@ -7239,6 +7239,113 @@ int test_wc_PKCS7_VerifySignedData_DegenerateNonEmptyDigestAlgos(void)
 }
 
 /*
+ * Same bundle as test_wc_PKCS7_VerifySignedData_DegenerateNonEmptyDigestAlgos
+ * but carrying one certificate in the SignedData certificates field. Finding
+ * a certificate makes the verify state machine re-initialise the PKCS7
+ * structure around it, which must not drop the wc_PKCS7_AllowDegenerate(pkcs7,
+ * 0) setting before the signerInfos SET is checked. An unsigned bundle must
+ * be rejected whether or not it carries a certificate.
+ */
+int test_wc_PKCS7_VerifySignedData_DegenerateWithCert(void)
+{
+    EXPECT_DECLS;
+/* the bundle below names sha256 in digestAlgorithms */
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048)
+    PKCS7* pkcs7 = NULL;
+    /* version, digestAlgorithms { sha256 } and encapContentInfo with an
+     * attached 60 byte id-data eContent, as in the test above */
+    WOLFSSL_SMALL_STACK_STATIC const byte sdBody[] = {
+        /* version INTEGER 1 */
+        0x02, 0x01, 0x01,
+        /* digestAlgorithms SET (15 bytes content) -- one real
+         * AlgorithmIdentifier (sha256), not empty */
+        0x31, 0x0F,
+        0x30, 0x0D,
+        0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01,
+        0x05, 0x00,
+        /* encapContentInfo SEQUENCE (75 bytes content) */
+        0x30, 0x4B,
+        /* eContentType OID 1.2.840.113549.1.7.1 (data) */
+        0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x01,
+        /* eContent [0] EXPLICIT (62 bytes content) */
+        0xA0, 0x3E,
+        /* OCTET STRING (60 bytes content) */
+        0x04, 0x3C,
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+        0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F,
+        0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,
+        0x28, 0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x3A, 0x3B
+    };
+    /* contentType OID signedData */
+    WOLFSSL_SMALL_STACK_STATIC const byte sdOid[] = {
+        0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x02
+    };
+    /* signerInfos SET (empty -- genuinely degenerate) */
+    WOLFSSL_SMALL_STACK_STATIC const byte signerInfos[] = { 0x31, 0x00 };
+    /* tag + 2 byte long form length, 4 bytes per enclosing header */
+    byte   der[4 + sizeof(sdOid) + 4 + 4 + sizeof(sdBody) + 4 +
+               sizeof(client_cert_der_2048) + sizeof(signerInfos)];
+    word32 certSz = (word32)sizeof(client_cert_der_2048);
+    word32 sdSz = (word32)sizeof(sdBody) + 4 + certSz +
+                  (word32)sizeof(signerInfos);
+    word32 idx = 0;
+    int    i;
+    /* Enclosing headers, outermost first: ContentInfo SEQUENCE,
+     * [0] EXPLICIT, SignedData SEQUENCE. Each wraps a certificate so the
+     * lengths are all above 255 and the 2 byte long form is the DER form. */
+    struct {
+        byte   tag;
+        word32 len;
+    } hdr[3];
+
+    hdr[0].tag = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    hdr[0].len = (word32)sizeof(sdOid) + 4 + 4 + sdSz;
+    hdr[1].tag = ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED;
+    hdr[1].len = 4 + sdSz;
+    hdr[2].tag = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    hdr[2].len = sdSz;
+
+    for (i = 0; i < 3; i++) {
+        if (i == 1) {
+            XMEMCPY(der + idx, sdOid, sizeof(sdOid));
+            idx += (word32)sizeof(sdOid);
+        }
+        der[idx++] = hdr[i].tag;
+        der[idx++] = 0x82;
+        der[idx++] = (byte)(hdr[i].len >> 8);
+        der[idx++] = (byte)(hdr[i].len);
+    }
+    XMEMCPY(der + idx, sdBody, sizeof(sdBody));
+    idx += (word32)sizeof(sdBody);
+    /* certificates [0] IMPLICIT, one certificate */
+    der[idx++] = ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED;
+    der[idx++] = 0x82;
+    der[idx++] = (byte)(certSz >> 8);
+    der[idx++] = (byte)(certSz);
+    XMEMCPY(der + idx, client_cert_der_2048, certSz);
+    idx += certSz;
+    XMEMCPY(der + idx, signerInfos, sizeof(signerInfos));
+    idx += (word32)sizeof(signerInfos);
+    ExpectIntEQ(idx, (word32)sizeof(der));
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    wc_PKCS7_AllowDegenerate(pkcs7, 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, der, idx),
+        WC_NO_ERR_TRACE(PKCS7_NO_SIGNER_E));
+    wc_PKCS7_Free(pkcs7);
+
+#endif /* HAVE_PKCS7 && !NO_RSA && USE_CERT_BUFFERS_2048 */
+    return EXPECT_RESULT();
+}
+
+/*
  * A genuine, non-degenerate SignedData bundle with a real RSA signerInfos
  * entry must still verify successfully when the caller has called
  * wc_PKCS7_AllowDegenerate(pkcs7, 0). The degenerate flag computed from
