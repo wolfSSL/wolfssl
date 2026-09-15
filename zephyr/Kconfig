@@ -111,6 +111,17 @@ config WOLFCRYPT_FIPS_READY
 
 endchoice
 
+config WOLFSSL_CRYPTO_CB
+  bool "wolfCrypt crypto callbacks"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
+  default n
+  help
+    Enable the crypto callback interface (WOLF_CRYPTO_CB), through which an
+    application registers a device with wc_CryptoCb_RegisterDevice() and
+    routes wolfCrypt operations to it. Also enables key references
+    (WOLF_PRIVATE_KEY_ID), which is what lets a TLS key live on that device
+    instead of in the application's memory.
+
 config WOLFSSL_CRYPTO_ONLY
 	bool "Build wolfCrypt only (no TLS layer)"
 	depends on WOLFSSL_BUILTIN
@@ -203,6 +214,22 @@ config WOLFSSL_SESSION_CACHE
   default y
   help
     Enable the TLS session cache (SMALL_SESSION_CACHE; NO_SESSION_CACHE off).
+
+config WOLFSSL_OCSP
+  bool "wolfSSL OCSP certificate revocation checking"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
+  default n
+  help
+    Enable OCSP (HAVE_OCSP).
+
+config WOLFSSL_OCSP_STAPLING
+  bool "wolfSSL OCSP stapling"
+  depends on WOLFSSL_OCSP
+  default n
+  help
+    Enable the TLS certificate status request extension
+    (HAVE_CERTIFICATE_STATUS_REQUEST), with which a client asks the server
+    to staple an OCSP response for its own certificate to the handshake.
 
 config WOLFSSL_SESSION_TICKET
   bool "wolfSSL TLS session tickets"
