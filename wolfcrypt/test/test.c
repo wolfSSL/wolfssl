@@ -30361,6 +30361,10 @@ out:
 
 /* On old FIPS, WC_RNG_BANK_SUPPORT is needed for RNG-level compat shims. */
 
+#ifndef WC_RNG_INIT_FLAG_NONE
+    #define WC_RNG_INIT_FLAG_NONE 0
+#endif
+
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
 {
     wc_test_ret_t ret = 0;
