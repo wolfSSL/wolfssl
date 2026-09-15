@@ -3315,7 +3315,7 @@ int Dtls13RtxProcessingCertificate(WOLFSSL* ssl, byte* input, word32 inputSize)
 
 int wolfSSL_dtls13_has_pending_msg(WOLFSSL* ssl)
 {
-    return ssl->dtls13Rtx.rtxRecords != NULL;
+    return (ssl != NULL) && (ssl->dtls13Rtx.rtxRecords != NULL);
 }
 
 #ifndef WOLFSSL_TLS13_IGNORE_AEAD_LIMITS
@@ -3390,7 +3390,7 @@ int Dtls13CheckAEADFailLimit(WOLFSSL* ssl)
 #ifdef WOLFSSL_DTLS_CH_FRAG
 int wolfSSL_dtls13_allow_ch_frag(WOLFSSL *ssl, int enabled)
 {
-    if (ssl->options.side == WOLFSSL_CLIENT_END) {
+    if ((ssl == NULL) || (ssl->options.side == WOLFSSL_CLIENT_END)) {
         return WOLFSSL_FAILURE;
     }
     ssl->options.dtls13ChFrag = !!enabled;
@@ -3401,7 +3401,7 @@ int wolfSSL_dtls13_allow_ch_frag(WOLFSSL *ssl, int enabled)
 #ifdef WOLFSSL_DTLS13_NO_HRR_ON_RESUME
 int wolfSSL_dtls13_no_hrr_on_resume(WOLFSSL *ssl, int enabled)
 {
-    if (ssl->options.side == WOLFSSL_CLIENT_END) {
+    if ((ssl == NULL) || (ssl->options.side == WOLFSSL_CLIENT_END)) {
         return WOLFSSL_FAILURE;
     }
     ssl->options.dtls13NoHrrOnResume = !!enabled;

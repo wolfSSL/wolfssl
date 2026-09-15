@@ -1485,8 +1485,8 @@ int wc_LmsKey_Sign(LmsKey* key, byte* sig, word32* sigSz, const byte* msg,
      * readable stand-in so that downstream consumers -- hash updates and
      * crypto callbacks -- never see a NULL pointer. */
     if ((ret == 0) && (msg == NULL)) {
-        static const byte lms_empty_msg = 0;
-        msg = &lms_empty_msg;
+        static const byte lms_empty_msg[] = {0};
+        msg = lms_empty_msg;
     }
     /* Check state. */
     if ((ret == 0) && (key->state != WC_LMS_STATE_OK)) {
@@ -1978,8 +1978,8 @@ int wc_LmsKey_Verify(LmsKey* key, const byte* sig, word32 sigSz,
      * readable stand-in so that downstream consumers -- hash updates and
      * crypto callbacks -- never see a NULL pointer. */
     if ((ret == 0) && (msg == NULL)) {
-        static const byte lms_empty_msg = 0;
-        msg = &lms_empty_msg;
+        static const byte lms_empty_msg[] = {0};
+        msg = lms_empty_msg;
     }
     /* Check state. */
     if ((ret == 0) && (key->state != WC_LMS_STATE_OK) &&
