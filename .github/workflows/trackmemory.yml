@@ -79,46 +79,50 @@ jobs:
         run: |
           cat > "$RUNNER_TEMP/trackmemory-configs.json" <<'EOF'
           [
-          {"name": "all-noasm-wolfentropy", "minutes": 6.3,
+          {"name": "all-noasm-wolfentropy", "minutes": 14.4,
            "configure": ["--disable-asm", "--enable-wolfEntropy",
             "--enable-smallstackcache", "--enable-smallstack", "--enable-all",
             "CFLAGS=-DWC_RNG_SEED_CB -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY -DNO_WOLFSSL_CIPHER_SUITE_TEST"]},
-          {"name": "all-smallstack-cache-trace", "minutes": 4.1,
-           "configure": ["--enable-smallstackcache", "--enable-smallstack",
-            "--enable-all", "--enable-debug-trace-errcodes",
-            "CFLAGS=-DWC_RNG_SEED_CB  -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY"]},
-          {"name": "all-wolfentropy", "minutes": 4.1,
+          {"name": "all-wolfentropy", "minutes": 13.4,
            "comment": "smallstackcache coverage here is crucial for the Linux kernel module when targeting a kernel with the randomness patch (linuxkm/patches/) applied. Don't combine wolfEntropy with the full TLS cipher suite test - the implicit wc_InitRng()s in each suite have an enormous CPU footprint.",
            "configure": ["--enable-wolfEntropy", "--enable-smallstackcache",
             "--enable-smallstack", "--enable-all",
             "CFLAGS=-DWC_RNG_SEED_CB -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY -DNO_WOLFSSL_CIPHER_SUITE_TEST"]},
-          {"name": "all-trace-errcodes", "minutes": 3.9,
+          {"name": "all-smallstack-cache-trace", "minutes": 8.9,
+           "configure": ["--enable-smallstackcache", "--enable-smallstack",
+            "--enable-all", "--enable-debug-trace-errcodes",
+            "CFLAGS=-DWC_RNG_SEED_CB  -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY"]},
+          {"name": "all-trace-errcodes", "minutes": 8.8,
            "configure": ["--enable-all", "--enable-debug-trace-errcodes",
             "CFLAGS=-DWC_RNG_SEED_CB -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY"]},
-          {"name": "all-smallstack", "minutes": 3.9,
+          {"name": "all-smallstack", "minutes": 5.9,
            "configure": ["--enable-smallstack", "--enable-all",
             "CFLAGS=-DWC_RNG_SEED_CB  -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY"]},
-          {"name": "all-intelrdseed", "minutes": 2.5,
+          {"name": "all-intelrdseed", "minutes": 5.3,
            "configure": ["--enable-intelrdseed", "--enable-smallstackcache",
             "--enable-smallstack", "--enable-all",
             "CFLAGS=-DWC_RNG_SEED_CB -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY -DNO_WOLFSSL_CIPHER_SUITE_TEST"]},
-          {"name": "all-amdrand", "minutes": 2.5,
+          {"name": "all-amdrand", "minutes": 2.4,
            "configure": ["--enable-amdrand", "--enable-smallstackcache",
             "--enable-smallstack", "--enable-all",
             "CFLAGS=-DWC_RNG_SEED_CB -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY -DNO_WOLFSSL_CIPHER_SUITE_TEST"]}
           ]
           EOF
+          # --timeout catches a wedged config, not a slow one: the slowest
+          # on record took 21.8 min, a wedged one never finishes.
           .github/scripts/parallel-make-check.py \
             ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
             --private-dir=certs \
+            --timeout=30 \
             "$RUNNER_TEMP/trackmemory-configs.json"
 
       - name: ccache stats
         if: always()
         run: ccache -s || true
 
-      - name: Upload logs on failure
-        if: failure()
+      # A job that blows timeout-minutes is cancelled, not failed.
+      - name: Upload logs on failure or timeout
+        if: failure() || cancelled()
         uses: actions/upload-artifact@v6
         with:
           retention-days: 7

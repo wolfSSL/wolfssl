@@ -22,6 +22,12 @@ export DEBIAN_FRONTEND=noninteractive
 # Not rm -rf: in the container this directory is a bind mount.
 mkdir -p "$DEST" && rm -f "$DEST"/*.deb
 apt-get clean
+# No wolfSSL job installs from the runner's Google/Microsoft apt repos, and a
+# bad index on either fails apt-get update for everyone. Drop them. Already
+# root here, so no sudo; the container images carry neither repo, so this is a
+# no-op there.
+grep -rlE 'dl\.google\.com|packages\.microsoft\.com' \
+  /etc/apt/sources.list.d/ 2>/dev/null | xargs -r rm -vf || true
 # A single stalled mirror connection once hung -full for ~20 min (it normally
 # finishes in a few). retry() only re-runs on a non-zero exit, so a hang never
 # tripped it. Defend in depth: apt drops a stalled connection after 30s and
