@@ -2893,6 +2893,9 @@ typedef struct ProcPeerCertArgs {
     int    certIdx;
     int    lastErr;
     int    leafVerifyErr;
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+    int    csr2ReqIdx; /* 1 + certIdx of the last status_request_v2 request */
+#endif
 #ifdef WOLFSSL_TLS13
     byte   ctxSz;
 #endif
@@ -2904,6 +2907,9 @@ typedef struct ProcPeerCertArgs {
     word16 dCertInit:1;
 #ifdef WOLFSSL_TRUST_PEER_CERT
     word16 haveTrustPeer:1; /* was cert verified by loaded trusted peer cert */
+#endif
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+    word16 csrAcked:1; /* survives the staple checks clearing status_request */
 #endif
 } ProcPeerCertArgs;
 WOLFSSL_LOCAL int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
@@ -6963,6 +6969,13 @@ struct WOLFSSL {
     #endif
     #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
         byte status_request_v2;
+    #endif
+    #if defined(HAVE_CRL) && (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+                              defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
+        /* Leaf CRL verdict taken while the DecodedCert was alive, applied at
+         * ServerHelloDone only if no stapled response replaced it. */
+        int  deferredCrlRet;
+        byte deferredCrlDone;
     #endif
     #if defined(HAVE_SECURE_RENEGOTIATION) \
         || defined(HAVE_SERVER_RENEGOTIATION_INFO)
