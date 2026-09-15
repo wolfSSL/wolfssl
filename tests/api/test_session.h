@@ -31,6 +31,7 @@ int test_wolfSSL_CTX_add_session_ext_tls12(void);
 int test_wolfSSL_CTX_add_session_ext_dtls12(void);
 int test_wolfSSL_CTX_add_session_ext_tls11(void);
 int test_wolfSSL_CTX_add_session_ext_dtls1(void);
+int test_wolfSSL_CTX_sess_get_cb_default_copy(void);
 int test_wolfSSL_SESSION(void);
 int test_wolfSSL_SESSION_expire_downgrade(void);
 int test_wolfSSL_CTX_sess_set_remove_cb(void);
@@ -47,6 +48,7 @@ int test_wolfSSL_client_cache_id_prefix(void);
     TEST_DECL_GROUP("session", test_wolfSSL_CTX_add_session_ext_dtls12),       \
     TEST_DECL_GROUP("session", test_wolfSSL_CTX_add_session_ext_tls11),        \
     TEST_DECL_GROUP("session", test_wolfSSL_CTX_add_session_ext_dtls1),        \
+    TEST_DECL_GROUP("session", test_wolfSSL_CTX_sess_get_cb_default_copy),     \
     TEST_DECL_GROUP("session", test_wolfSSL_SESSION),                          \
     TEST_DECL_GROUP("session", test_wolfSSL_SESSION_expire_downgrade),         \
     TEST_DECL_GROUP("session", test_wolfSSL_CTX_sess_set_remove_cb),           \

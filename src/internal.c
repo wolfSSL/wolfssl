@@ -43855,14 +43855,18 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         XMEMSET(freeCtx, 0, sizeof(*freeCtx));
 #ifdef HAVE_EXT_CACHE
         if (ssl->ctx->get_sess_cb != NULL) {
-            int copy = 0;
+            int copy = 1;
             sess = ssl->ctx->get_sess_cb((WOLFSSL*)ssl,
                     id, ID_LEN, &copy);
             if (sess != NULL) {
-                freeCtx->extCache = 1;
-                /* If copy not set then free immediately */
-                if (!copy)
+                if (copy && wolfSSL_SESSION_up_ref((WOLFSSL_SESSION*)sess)
+                        != WOLFSSL_SUCCESS) {
+                    sess = NULL;
+                }
+                else {
+                    freeCtx->extCache = 1;
                     freeCtx->freeSess = 1;
+                }
             }
         }
 #endif
@@ -43886,8 +43890,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 #ifdef HAVE_EXT_CACHE
         if (freeCtx->extCache) {
             if (freeCtx->freeSess)
-                /* In this case sess is not longer const and the external cache
-                 * wants us to free it. */
+                /* Release the reference this lookup took. */
                 wolfSSL_FreeSession(ssl->ctx, (WOLFSSL_SESSION*)sess);
             return;
         }
