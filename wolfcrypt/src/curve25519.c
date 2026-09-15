@@ -704,6 +704,12 @@ static int wc_curve25519_make_key_nb(WC_RNG* rng, int keysize,
         if (ret == 0)  {
             key->pubSet = 1;
         }
+        else if (ret != FP_WOULDBLOCK) {
+            /* Public half failed: drop the scalar too
+             * (ISO/IEC 19790:2012 7.9.7). */
+            ForceZero(key->k, sizeof(key->k));
+            key->privSet = 0;
+        }
     }
 
     return ret;
@@ -717,7 +723,7 @@ int wc_curve25519_set_nonblock(curve25519_key* key, x25519_nb_ctx_t* ctx)
     /* If a different context is already set, clear it before replacing.
      * The caller is responsible for freeing any heap-allocated context. */
     if (key->nb_ctx != NULL && key->nb_ctx != ctx) {
-        XMEMSET(key->nb_ctx, 0, sizeof(x25519_nb_ctx_t));
+        ForceZero(key->nb_ctx, sizeof(x25519_nb_ctx_t));
     }
     if (ctx != NULL) {
         XMEMSET(ctx, 0, sizeof(x25519_nb_ctx_t));
@@ -792,6 +798,12 @@ int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key)
             }
 #endif
             key->pubSet = (ret == 0);
+            if (ret != 0) {
+                /* Public half failed: drop the scalar too
+                 * (ISO/IEC 19790:2012 7.9.7). */
+                ForceZero(key->k, sizeof(key->k));
+                key->privSet = 0;
+            }
         }
     }
 #endif /* !WOLFSSL_SE050 */
@@ -867,7 +879,7 @@ static int wc_curve25519_shared_secret_nb(curve25519_key* privKey,
     }
 
     if (ret != FP_WOULDBLOCK) {
-        XMEMSET(privKey->nb_ctx, 0, sizeof(x25519_nb_ctx_t));
+        ForceZero(privKey->nb_ctx, sizeof(x25519_nb_ctx_t));
     }
 
     return ret;
@@ -1420,7 +1432,6 @@ void wc_curve25519_free(curve25519_key* key)
 #ifdef WOLFSSL_SE050
     se050_curve25519_free_key(key);
 #endif
-
     ForceZero(key, sizeof(*key));
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
