@@ -6954,6 +6954,13 @@ struct WOLFSSL {
     #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
         byte status_request_v2;
     #endif
+    #if defined(HAVE_CRL) && (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+                              defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
+        /* Leaf CRL verdict taken while the DecodedCert was alive, applied at
+         * ServerHelloDone only if no stapled response replaced it. */
+        int  deferredCrlRet;
+        byte deferredCrlDone;
+    #endif
     #if defined(HAVE_SECURE_RENEGOTIATION) \
         || defined(HAVE_SERVER_RENEGOTIATION_INFO)
         int                  secure_rene_count;    /* how many times */

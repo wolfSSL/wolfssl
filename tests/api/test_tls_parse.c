@@ -1351,6 +1351,45 @@ int test_TLSX_CSR_parse(void)
     }
     wolfSSL_free(ssl);
     ssl = NULL;
+    if (ctx != NULL)
+        ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL) {
+        /* RFC 8446 4.4.2.1 defines OCSPResponse<1..2^24-1>, so a present
+         * but empty staple is not a response the peer may claim to send. */
+        const byte respEmpty[] = {
+            WOLFSSL_CSR_OCSP,
+            0x00, 0x00, 0x00
+        };
+        ExpectIntEQ(wolfSSL_UseOCSPStapling(ssl, WOLFSSL_CSR_OCSP, 0),
+                    WOLFSSL_SUCCESS);
+        ssl->options.tls1_3 = 1;
+        extLen = test_tls_parse_build_ext(ext, sizeof(ext), TLSXT_STATUS_REQUEST,
+                respEmpty, (word16)sizeof(respEmpty));
+        ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, certificate, NULL),
+                    WC_NO_ERR_TRACE(BAD_CERTIFICATE_STATUS_ERROR));
+    }
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    if (ctx != NULL)
+        ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL) {
+        /* A server's CertificateRequest also carries this extension. The
+         * client must ignore it rather than run the server-side branch,
+         * which would reject this body and replace its own request. */
+        Suites* suites = (Suites*)WOLFSSL_SUITES(ssl);
+        const byte truncatedReq[] = { WOLFSSL_CSR_OCSP };
+
+        ExpectIntEQ(wolfSSL_UseOCSPStapling(ssl, WOLFSSL_CSR_OCSP, 0),
+                    WOLFSSL_SUCCESS);
+        ssl->options.tls1_3 = 1;
+        extLen = test_tls_parse_build_ext(ext, sizeof(ext), TLSXT_STATUS_REQUEST,
+                truncatedReq, (word16)sizeof(truncatedReq));
+        ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, certificate_request, suites),
+                    0);
+        ExpectIntEQ(ssl->status_request, 0);
+    }
+    wolfSSL_free(ssl);
+    ssl = NULL;
 
     /* The response buffer allocation: response_idx is always 0 at this
      * point in a synthetic parse (no prior certificate chain was
