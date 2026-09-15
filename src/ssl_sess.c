@@ -3618,10 +3618,12 @@ int wolfSSL_send_session(WOLFSSL* ssl)
     /* if no error ret has size of buffer */
     ret = ssl->dtls_export(ssl, buf, ret, NULL);
     if (ret != WOLFSSL_SUCCESS) {
+        ForceZero(buf, bufSz);
         XFREE(buf, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return ret;
     }
 
+    ForceZero(buf, bufSz);
     XFREE(buf, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return 0;
 }
