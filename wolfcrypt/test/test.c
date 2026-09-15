@@ -34433,6 +34433,14 @@ static wc_test_ret_t rsa_even_mod_test(WC_RNG* rng, RsaKey* key)
     {
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_even_mod);
     }
+    /* The failed encrypt wipes out; check that, then give the decrypt an
+     * in-range value so it still reaches the even modulus private op. */
+    for (idx = 0; idx < outSz; idx++) {
+        if (out[idx] != 0) {
+            ERROR_OUT(WC_TEST_RET_ENC_NC, exit_rsa_even_mod);
+        }
+    }
+    XMEMSET(out, 0x01, outSz);
 #endif /* WOLFSSL_RSA_VERIFY_ONLY */
 
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY

@@ -1583,6 +1583,20 @@ static int wc_Sha3Final(wc_Sha3* sha3, byte* hash, word32 p, word32 len)
  * sha3  wc_Sha3 object holding state.
  * returns 0 on success.
  */
+/* Wipe the SSP-bearing state but keep the object usable: SLH-DSA reuses it
+ * after Free and the block function pointers live in it under
+ * WC_C_DYNAMIC_FALLBACK. */
+static void wc_Sha3Wipe(wc_Sha3* sha3)
+{
+#ifdef PSOC6_HASH_SHA3
+    ForceZero(sha3, sizeof(*sha3));
+#else
+    ForceZero(sha3->s, sizeof(sha3->s));
+    ForceZero(sha3->t, sizeof(sha3->t));
+    sha3->i = 0;
+#endif
+}
+
 static void wc_Sha3Free(wc_Sha3* sha3)
 {
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
@@ -1603,7 +1617,7 @@ static void wc_Sha3Free(wc_Sha3* sha3)
         /* via their callback setting devId to INVALID_DEVID */
         /* otherwise assume the callback handled it */
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
-            ForceZero(sha3, sizeof(*sha3));
+            wc_Sha3Wipe(sha3);
             return;
         }
         /* fall-through when unavailable */
@@ -1627,7 +1641,7 @@ static void wc_Sha3Free(wc_Sha3* sha3)
 
     /* s and t hold absorbed keys and seeds for Ed448, ML-KEM, ML-DSA,
      * SLH-DSA, LMS, XMSS and HMAC-SHA3 (ISO/IEC 19790:2012 7.9.7). */
-    ForceZero(sha3, sizeof(*sha3));
+    wc_Sha3Wipe(sha3);
 }
 
 /* Copy the state of the SHA3 operation.
