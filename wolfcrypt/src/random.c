@@ -1904,6 +1904,7 @@ int wc_Sha512Drbg_IsDisabled(void)
 
 
 static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
+                    const byte* fixedSeed, word32 fixedSeedSz,
                     void* heap, int devId)
 {
     int ret = 0;
@@ -1921,6 +1922,8 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 
     (void)nonce;
     (void)nonceSz;
+    (void)fixedSeed;
+    (void)fixedSeedSz;
 
     if (rng == NULL)
         return BAD_FUNC_ARG;
@@ -2189,6 +2192,14 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 #endif
     }
     else {
+#if FIPS_VERSION3_GE(7,0,0)
+            /* Fixed seed from wc_InitRngFixedSeed(), which checks its size. */
+            if (fixedSeed != NULL) {
+                XMEMCPY(seed, fixedSeed, fixedSeedSz);
+                seedSz = fixedSeedSz;
+            }
+            else
+#endif /* FIPS_VERSION3_GE(7,0,0) */
 #ifdef WC_RNG_SEED_CB
             if (seedCb == NULL) {
                 ret = DRBG_NO_SEED_CB;
@@ -2384,7 +2395,7 @@ int wc_rng_new_ex(WC_RNG **rng, byte* nonce, word32 nonceSz,
         return MEMORY_E;
     }
 
-    ret = _InitRng(*rng, nonce, nonceSz, heap, devId);
+    ret = _InitRng(*rng, nonce, nonceSz, NULL, 0, heap, devId);
     if (ret != 0) {
         XFREE(*rng, heap, DYNAMIC_TYPE_RNG);
         *rng = NULL;
@@ -2407,29 +2418,61 @@ void wc_rng_free(WC_RNG* rng)
     }
 }
 
+#if FIPS_VERSION3_GE(7,0,0) && defined(HAVE_HASHDRBG)
+/* Start a WC_RNG from a fixed seed so a known answer test gets the same answer
+ * every time.  Library internal; the FIPS self tests are the only caller. */
+int wc_InitRngFixedSeed(WC_RNG* rng, const byte* seed, word32 seedSz)
+{
+    int ret;
+
+    /* The first SEED_BLOCK_SZ bytes are the seed test block, not DRBG input. */
+    if ((rng == NULL) || (seed == NULL) || (seedSz <= SEED_BLOCK_SZ) ||
+        (seedSz > MAX_SEED_SZ)) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = _InitRng(rng, NULL, 0, seed, seedSz, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return ret;
+
+    /* Some builds, RDRAND for one, return 0 with no DRBG and would then
+     * generate without the seed. */
+#ifndef NO_SHA256
+    if ((rng->drbgType == WC_DRBG_SHA256) && (rng->drbg != NULL))
+        return 0;
+#endif
+#ifdef WOLFSSL_DRBG_SHA512
+    if ((rng->drbgType == WC_DRBG_SHA512) && (rng->drbg512 != NULL))
+        return 0;
+#endif
+    (void)wc_FreeRng(rng);
+    return BAD_STATE_E;
+}
+#endif /* FIPS_VERSION3_GE(7,0,0) && HAVE_HASHDRBG */
+
 WOLFSSL_ABI
 int wc_InitRng(WC_RNG* rng)
 {
-    return _InitRng(rng, NULL, 0, NULL, INVALID_DEVID);
+    return _InitRng(rng, NULL, 0, NULL, 0, NULL, INVALID_DEVID);
 }
 
 
 int wc_InitRng_ex(WC_RNG* rng, void* heap, int devId)
 {
-    return _InitRng(rng, NULL, 0, heap, devId);
+    return _InitRng(rng, NULL, 0, NULL, 0, heap, devId);
 }
 
 
 int wc_InitRngNonce(WC_RNG* rng, byte* nonce, word32 nonceSz)
 {
-    return _InitRng(rng, nonce, nonceSz, NULL, INVALID_DEVID);
+    return _InitRng(rng, nonce, nonceSz, NULL, 0, NULL, INVALID_DEVID);
 }
 
 
 int wc_InitRngNonce_ex(WC_RNG* rng, byte* nonce, word32 nonceSz,
                        void* heap, int devId)
 {
-    return _InitRng(rng, nonce, nonceSz, heap, devId);
+    return _InitRng(rng, nonce, nonceSz, NULL, 0, heap, devId);
 }
 
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
