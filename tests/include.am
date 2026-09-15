@@ -5,6 +5,7 @@
 
 if BUILD_TESTS
 noinst_PROGRAMS += tests/unit.test
+dist_noinst_SCRIPTS += tests/caam_qnx_blob.test
 tests_unit_test_SOURCES = \
                   tests/unit.c \
                   tests/api.c \
