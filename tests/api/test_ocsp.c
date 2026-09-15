@@ -1868,6 +1868,176 @@ int test_ocsp_no_url_policy(void)
 }
 #endif /* HAVE_OCSP && HAVE_SSL_MEMIO_TESTS_DEPENDENCIES */
 
+/* A server that acks status_request and then sends no CertificateStatus must
+ * fail a must-staple client whatever the CRL or OCSP fallbacks return. */
+#if defined(HAVE_OCSP) && defined(HAVE_CERTIFICATE_STATUS_REQUEST) && \
+    defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA) && !defined(NO_SHA)
+
+static struct {
+    int useCrl;
+    int useOcsp;
+    int anon;
+} test_ocsp_must_staple_opts;
+
+static int test_ocsp_must_staple_noack_cb(WOLFSSL* ssl, void* arg)
+{
+    (void)ssl;
+    (void)arg;
+    return WOLFSSL_OCSP_STATUS_CB_NOACK;
+}
+
+static int test_ocsp_must_staple_srv_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_set_tlsext_status_cb(ctx,
+            test_ocsp_must_staple_noack_cb), WOLFSSL_SUCCESS);
+#ifdef BUILD_TLS_DH_anon_WITH_AES_128_CBC_SHA
+    if (test_ocsp_must_staple_opts.anon) {
+        wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_NONE, NULL);
+        ExpectIntEQ(wolfSSL_CTX_allow_anon_cipher(ctx), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx, "ADH-AES128-SHA"),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_SetTmpDH_file(ctx, "./certs/dh2048.pem",
+            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    }
+#endif
+
+    return EXPECT_RESULT();
+}
+
+static int test_ocsp_must_staple_io_cb(void* ioCtx, const char* url,
+    int urlSz, unsigned char* req, int reqSz, unsigned char** response)
+{
+    (void)ioCtx;
+    (void)url;
+    (void)urlSz;
+    (void)req;
+    (void)reqSz;
+
+    *response = (unsigned char*)resp_server1_cert;
+    return (int)sizeof(resp_server1_cert);
+}
+
+static int test_ocsp_must_staple_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+
+    /* Peer verification alone already refuses an anonymous server. */
+    wolfSSL_CTX_set_verify(ctx, test_ocsp_must_staple_opts.anon ?
+        WOLFSSL_VERIFY_NONE : WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSPMustStaple(ctx), WOLFSSL_SUCCESS);
+    if (test_ocsp_must_staple_opts.useOcsp) {
+        ExpectIntEQ(wolfSSL_CTX_EnableOCSP(ctx, WOLFSSL_OCSP_URL_OVERRIDE |
+                WOLFSSL_OCSP_NO_NONCE), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_SetOCSP_OverrideURL(ctx, "http://dummy.test"),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_SetOCSP_Cb(ctx, test_ocsp_must_staple_io_cb,
+                NULL, NULL), WOLFSSL_SUCCESS);
+    }
+#ifdef HAVE_CRL
+    if (test_ocsp_must_staple_opts.useCrl) {
+        ExpectIntEQ(wolfSSL_CTX_EnableCRL(ctx, WOLFSSL_CRL_CHECK),
+            WOLFSSL_SUCCESS);
+        /* Issued by ca-cert and does not revoke server-cert, so the check
+         * comes back clean. */
+        ExpectIntEQ(wolfSSL_CTX_LoadCRLFile(ctx, "./certs/crl/crl.pem",
+                WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    }
+#endif
+#ifdef BUILD_TLS_DH_anon_WITH_AES_128_CBC_SHA
+    if (test_ocsp_must_staple_opts.anon) {
+        ExpectIntEQ(wolfSSL_CTX_allow_anon_cipher(ctx), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx, "ADH-AES128-SHA"),
+            WOLFSSL_SUCCESS);
+    }
+#endif
+
+    return EXPECT_RESULT();
+}
+
+int test_ocsp_must_staple_acked_no_status(void)
+{
+    EXPECT_DECLS;
+    size_t i;
+    struct {
+        const char* desc;
+        const char* caFile;
+        const char* certFile;
+        const char* keyFile;
+        int useCrl;
+        int useOcsp;
+        int anon;
+    } params[] = {
+        { "no fallback configured", "./certs/ca-cert.pem",
+          "./certs/server-cert.pem", "./certs/server-key.pem", 0, 0, 0 },
+#ifdef HAVE_CRL
+        { "clean CRL loaded", "./certs/ca-cert.pem",
+          "./certs/server-cert.pem", "./certs/server-key.pem", 1, 0, 0 },
+#endif
+        { "OCSP responder answers good", "./certs/ocsp/root-ca-cert.pem",
+          "./certs/ocsp/server1-chain-noroot.pem",
+          "./certs/ocsp/server1-key.pem", 0, 1, 0 },
+#if defined(BUILD_TLS_DH_anon_WITH_AES_128_CBC_SHA) && !defined(NO_DH)
+        /* No certificate to staple for, which an anonymous suite does not
+         * turn into a waiver. */
+        { "anonymous cipher suite", "./certs/ca-cert.pem",
+          "./certs/server-cert.pem", "./certs/server-key.pem", 0, 0, 1 },
+#endif
+    };
+
+    for (i = 0; i < XELEM_CNT(params) && !EXPECT_FAIL(); i++) {
+        struct test_ssl_memio_ctx test_ctx;
+
+        XMEMSET(&test_ocsp_must_staple_opts, 0,
+            sizeof(test_ocsp_must_staple_opts));
+        test_ocsp_must_staple_opts.useCrl = params[i].useCrl;
+        test_ocsp_must_staple_opts.useOcsp = params[i].useOcsp;
+        test_ocsp_must_staple_opts.anon = params[i].anon;
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        test_ctx.c_cb.method = wolfTLSv1_2_client_method;
+        test_ctx.s_cb.method = wolfTLSv1_2_server_method;
+        test_ctx.s_cb.certPemFile = params[i].certFile;
+        test_ctx.s_cb.keyPemFile = params[i].keyFile;
+        test_ctx.s_cb.ctx_ready = test_ocsp_must_staple_srv_ctx_ready;
+        test_ctx.c_cb.caPemFile = params[i].caFile;
+        test_ctx.c_cb.ctx_ready = test_ocsp_must_staple_ctx_ready;
+        ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+        /* Unrequested, so the anonymous server has nothing to acknowledge. */
+        if (!params[i].anon) {
+            ExpectIntEQ(wolfSSL_UseOCSPStapling(test_ctx.c_ssl,
+                WOLFSSL_CSR_OCSP, 0), WOLFSSL_SUCCESS);
+        }
+
+        /* The staple the client demanded never arrived. */
+        ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL),
+            TEST_SUCCESS);
+        if (params[i].anon) {
+            ExpectIntEQ(wolfSSL_get_error(test_ctx.c_ssl, 0),
+                WC_NO_ERR_TRACE(OCSP_CERT_UNKNOWN));
+        }
+        if (EXPECT_FAIL())
+            fprintf(stderr, "case: %s\n", params[i].desc);
+
+        test_ssl_memio_cleanup(&test_ctx);
+    }
+
+    return EXPECT_RESULT();
+}
+
+#else
+int test_ocsp_must_staple_acked_no_status(void)
+{
+    return TEST_SKIPPED;
+}
+#endif /* HAVE_OCSP && HAVE_CERTIFICATE_STATUS_REQUEST && */
+       /* HAVE_SSL_MEMIO_TESTS_DEPENDENCIES && !WOLFSSL_NO_TLS12 && */
+       /* !NO_RSA && !NO_SHA */
+
 #if defined(HAVE_OCSP) && defined(HAVE_CRL) && defined(WOLFSSL_TLS13) && \
     defined(HAVE_CERTIFICATE_STATUS_REQUEST) && \
     defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
@@ -2391,7 +2561,7 @@ int test_ocsp_acked_no_leaf_staple_crl(void)
     ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL),
         TEST_SUCCESS);
     ExpectIntEQ(wolfSSL_get_error(test_ctx.c_ssl, 0),
-        WC_NO_ERR_TRACE(OCSP_LOOKUP_FAIL));
+        WC_NO_ERR_TRACE(OCSP_CERT_UNKNOWN));
     test_ssl_memio_cleanup(&test_ctx);
 
     /* Same again with OCSP also enabled on the client. */
