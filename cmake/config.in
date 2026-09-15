@@ -13,6 +13,9 @@
 /* Define to 1 if you have the <errno.h> header file. */
 #cmakedefine HAVE_ERRNO_H @HAVE_ERRNO_H@
 
+/* Define to 1 if you have the `accept4' function. */
+#cmakedefine HAVE_ACCEPT4 @HAVE_ACCEPT4@
+
 /* Define to 1 if you have the `getaddrinfo' function. */
 #cmakedefine HAVE_GETADDRINFO @HAVE_GETADDRINFO@
 
