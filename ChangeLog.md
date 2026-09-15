@@ -374,6 +374,16 @@
   run on the Keccak state directly, stay in software.  Software-only builds
   are unchanged.
 
+* **Fix (SHA-3 crypto callback told the wrong variant)**: `wc_Sha3Update()`
+  and `wc_Sha3Final()` cached the SHA-3 variant on the context the first time
+  they dispatched to a callback, and kept it until the software path reset the
+  context.  A callback that handles the Final skips that reset, so a context
+  reused for another variant, as ML-KEM does with SHA3-512 and SHA3-256 on one
+  object, reached the callback labelled with the earlier variant.  A callback
+  honouring that type wrote 64 bytes into a 32 byte digest buffer, or left
+  half of it unwritten.  The variant is now derived on every call.  Only
+  builds with a registered SHA-3 crypto callback are affected.
+
 * **Fix (certificate manager left pointing at a released store)**:
   `wolfSSL_CTX_set_cert_store()` pairs the store handed to it with the
   context's certificate manager, which keeps a pointer back to that store.

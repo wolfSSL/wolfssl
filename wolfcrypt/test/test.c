@@ -90643,6 +90643,89 @@ static wc_test_ret_t cryptocb_nested_register_test(void)
 }
 #endif /* NESTED_CB_TEST */
 
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256) && \
+    !defined(WOLFSSL_NOSHA3_512) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(6, 0)) && \
+    !defined(WC_TEST_NO_CRYPTOCB_SW_TEST)
+#define SHA3_VARIANT_CB_TEST
+#define SHA3_VARIANT_CB_TEST_DEVID 0x53484133 /* 'SHA3' */
+
+/* Records each SHA-3 type it is told, and handles each Final without
+ * resetting the context, as a device does. types[0] is the last Update. */
+static int sha3VariantCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    int* types = (int*)ctx;
+
+    (void)devIdArg;
+
+    if (info->algo_type != WC_ALGO_TYPE_HASH)
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    if (info->hash.digest == NULL) {
+        types[0] = info->hash.type;
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+
+    if (info->hash.type == WC_HASH_TYPE_SHA3_512)
+        XMEMSET(info->hash.digest, 0, WC_SHA3_512_DIGEST_SIZE);
+    else if (info->hash.type == WC_HASH_TYPE_SHA3_256)
+        XMEMSET(info->hash.digest, 0, WC_SHA3_256_DIGEST_SIZE);
+    else
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+
+    types[1] = info->hash.type;
+    return 0;
+}
+
+/* A context reused for another SHA-3 variant must report the new one. */
+static wc_test_ret_t cryptocb_sha3_variant_test(void)
+{
+    wc_test_ret_t ret;
+    int     types[2] = { WC_HASH_TYPE_NONE, WC_HASH_TYPE_NONE };
+    int     sha3Init = 0;
+    byte    data[32];
+    byte    digest[WC_SHA3_512_DIGEST_SIZE];
+    wc_Sha3 sha3;
+
+    ret = wc_CryptoCb_RegisterDevice(SHA3_VARIANT_CB_TEST_DEVID,
+        sha3VariantCb, types);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    XMEMSET(data, 0xa5, sizeof(data));
+
+    ret = wc_InitSha3_512(&sha3, HEAP_HINT, SHA3_VARIANT_CB_TEST_DEVID);
+    if (ret == 0)
+        sha3Init = 1;
+    if (ret == 0)
+        ret = wc_Sha3_512_Update(&sha3, data, sizeof(data));
+    if (ret == 0)
+        ret = wc_Sha3_512_Final(&sha3, digest);
+    if (ret != 0)
+        ret = WC_TEST_RET_ENC_EC(ret);
+    else if ((types[0] != WC_HASH_TYPE_SHA3_512) ||
+             (types[1] != WC_HASH_TYPE_SHA3_512))
+        ret = WC_TEST_RET_ENC_NC;
+
+    if (ret == 0) {
+        types[0] = WC_HASH_TYPE_NONE;
+        types[1] = WC_HASH_TYPE_NONE;
+        ret = wc_Sha3_256_Update(&sha3, data, sizeof(data));
+        if (ret == 0)
+            ret = wc_Sha3_256_Final(&sha3, digest);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else if ((types[0] != WC_HASH_TYPE_SHA3_256) ||
+                 (types[1] != WC_HASH_TYPE_SHA3_256))
+            ret = WC_TEST_RET_ENC_NC;
+    }
+
+    if (sha3Init)
+        wc_Sha3_512_Free(&sha3);
+    wc_CryptoCb_UnRegisterDevice(SHA3_VARIANT_CB_TEST_DEVID);
+    return ret;
+}
+#endif /* SHA3_VARIANT_CB_TEST */
+
 #if ((defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM) && \
       !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
       !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
@@ -90673,6 +90756,14 @@ static int pqcHashDevInit(wc_Sha3* st, int type)
     switch (type) {
         case WC_HASH_TYPE_SHAKE256:
             return wc_InitShake256(st, HEAP_HINT, INVALID_DEVID);
+    #ifndef WOLFSSL_NOSHA3_256
+        case WC_HASH_TYPE_SHA3_256:
+            return wc_InitSha3_256(st, HEAP_HINT, INVALID_DEVID);
+    #endif
+    #ifndef WOLFSSL_NOSHA3_512
+        case WC_HASH_TYPE_SHA3_512:
+            return wc_InitSha3_512(st, HEAP_HINT, INVALID_DEVID);
+    #endif
         default:
             return WC_NO_ERR_TRACE(BAD_FUNC_ARG);
     }
@@ -90684,6 +90775,14 @@ static int pqcHashDevUpdate(wc_Sha3* st, int type, const byte* in,
     switch (type) {
         case WC_HASH_TYPE_SHAKE256:
             return wc_Shake256_Update(st, in, inSz);
+    #ifndef WOLFSSL_NOSHA3_256
+        case WC_HASH_TYPE_SHA3_256:
+            return wc_Sha3_256_Update(st, in, inSz);
+    #endif
+    #ifndef WOLFSSL_NOSHA3_512
+        case WC_HASH_TYPE_SHA3_512:
+            return wc_Sha3_512_Update(st, in, inSz);
+    #endif
         default:
             return WC_NO_ERR_TRACE(BAD_FUNC_ARG);
     }
@@ -90694,6 +90793,14 @@ static int pqcHashDevFinal(wc_Sha3* st, int type, byte* out, word32 outSz)
     switch (type) {
         case WC_HASH_TYPE_SHAKE256:
             return wc_Shake256_Final(st, out, outSz);
+    #ifndef WOLFSSL_NOSHA3_256
+        case WC_HASH_TYPE_SHA3_256:
+            return wc_Sha3_256_Final(st, out);
+    #endif
+    #ifndef WOLFSSL_NOSHA3_512
+        case WC_HASH_TYPE_SHA3_512:
+            return wc_Sha3_512_Final(st, out);
+    #endif
         default:
             return WC_NO_ERR_TRACE(BAD_FUNC_ARG);
     }
@@ -90752,8 +90859,11 @@ static int pqcHashDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     (void)devIdArg;
 
     if (info->algo_type == WC_ALGO_TYPE_HASH) {
-        if (info->hash.type == WC_HASH_TYPE_SHAKE256)
+        if ((info->hash.type == WC_HASH_TYPE_SHAKE256) ||
+                (info->hash.type == WC_HASH_TYPE_SHA3_256) ||
+                (info->hash.type == WC_HASH_TYPE_SHA3_512)) {
             return pqcHashDevOp(dev, info);
+        }
     }
 #ifdef WOLF_CRYPTO_CB_FREE
     else if ((info->algo_type == WC_ALGO_TYPE_FREE) &&
@@ -91835,6 +91945,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 #ifdef PQC_SHAKE_CB_TEST
     if (ret == 0)
         ret = cryptocb_pqc_shake_test();
+#endif
+#ifdef SHA3_VARIANT_CB_TEST
+    if (ret == 0)
+        ret = cryptocb_sha3_variant_test();
 #endif
 
     wc_CryptoCb_UnRegisterDevice(devId);
