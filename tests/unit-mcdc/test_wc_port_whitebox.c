@@ -74,23 +74,15 @@
 #endif
 
 /* The Linux half of wc_port.c's WC_HAVE_ACCEPT4 test; keep them identical. */
-#if defined(__linux__) || defined(__ANDROID__)
-    #ifdef HAVE_CONFIG_H
-        #ifdef HAVE_ACCEPT4
-            #define WB_HAVE_ACCEPT4_HOOK
-        #endif
-    #elif (defined(__USE_GNU) && \
-           ((defined(__GLIBC__) && \
-             (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 10))) || \
-            (defined(__UCLIBC_LINUX_SPECIFIC__) && (__UCLIBC_MAJOR__ >= 1)) || \
-            (defined(__ANDROID_API__) && (__ANDROID_API__ >= 21)))) || \
-          (!defined(__GLIBC__) && !defined(__UCLIBC__) && \
-           !defined(__ANDROID__))
-        #define WB_HAVE_ACCEPT4_HOOK
-    #endif
-#endif
+#if (defined(__linux__) || defined(__ANDROID__)) && \
+    (defined(HAVE_ACCEPT4) || \
+     (defined(__USE_GNU) && \
+      ((defined(__GLIBC__) && \
+        (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 10))) || \
+       (defined(__UCLIBC_LINUX_SPECIFIC__) && (__UCLIBC_MAJOR__ >= 1)) || \
+       (defined(__ANDROID_API__) && (__ANDROID_API__ >= 21)))))
+#define WB_HAVE_ACCEPT4_HOOK
 
-#ifdef WB_HAVE_ACCEPT4_HOOK
 /* 0 = pass through to the real accept4(); otherwise fail with this errno. */
 static int wb_accept4_errno = 0;
 
