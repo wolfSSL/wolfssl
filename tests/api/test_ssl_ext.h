@@ -65,6 +65,7 @@ int test_wolfSSL_ALPN_GetPeerProtocol_badlen_ext(void);
 int test_wolfSSL_get_secure_renegotiation_support_ext(void);
 int test_wolfSSL_set_alpn_protos_badlen_ext(void);
 int test_wolfSSL_ticket_key_cb_renew_ext(void);
+int test_wolfSSL_CTX_get_ciphers_ext(void);
 
 #define TEST_SSL_EXT_DECLS                                                     \
         TEST_DECL_GROUP("ssl_ext", test_wolfSSL_NoTicketTLSv12_ext),           \
@@ -124,6 +125,7 @@ int test_wolfSSL_ticket_key_cb_renew_ext(void);
         TEST_DECL_GROUP("ssl_ext", test_wolfSSL_session_null_burndown),        \
         TEST_DECL_GROUP("ssl_ext", test_wolfSSL_api_null_operands),            \
         TEST_DECL_GROUP("ssl_ext", test_wolfSSL_public_null_operands),         \
-        TEST_DECL_GROUP("ssl_ext", test_wolfSSL_session_lifecycle_guards)
+        TEST_DECL_GROUP("ssl_ext", test_wolfSSL_session_lifecycle_guards),     \
+        TEST_DECL_GROUP("ssl_ext", test_wolfSSL_CTX_get_ciphers_ext)
 
 #endif /* TESTS_API_SSL_EXT_H */

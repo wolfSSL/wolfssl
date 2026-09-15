@@ -66,6 +66,8 @@ int test_record_size_matches_build_message(void);
 int test_record_size_preserves_build_msg_state(void);
 int test_record_size_cache_invalidated_on_renegotiation(void);
 int test_wolfSSL_get_shared_ciphers(void);
+int test_wolfSSL_client_hello_cb(void);
+int test_wolfSSL_client_hello_cb_no_extensions(void);
 
 #define TEST_TLS_DECLS                                                         \
         TEST_DECL_GROUP("tls", test_utils_memio_move_message),                 \
@@ -114,6 +116,8 @@ int test_wolfSSL_get_shared_ciphers(void);
             test_record_size_preserves_build_msg_state),                       \
         TEST_DECL_GROUP("tls",                                                 \
             test_record_size_cache_invalidated_on_renegotiation),              \
-        TEST_DECL_GROUP("tls", test_wolfSSL_get_shared_ciphers)
+        TEST_DECL_GROUP("tls", test_wolfSSL_get_shared_ciphers),           \
+        TEST_DECL_GROUP("tls", test_wolfSSL_client_hello_cb),          \
+        TEST_DECL_GROUP("tls", test_wolfSSL_client_hello_cb_no_extensions)
 
 #endif /* TESTS_API_TEST_TLS_H */

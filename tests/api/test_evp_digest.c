@@ -183,6 +183,58 @@ int test_EVP_blake2(void)
     return EXPECT_RESULT();
 }
 
+/* Test the null message digest.
+ *
+ * openldap's RFC 5929 channel binding compares the certificate's signature
+ * digest against EVP_md_null()/EVP_md2()/EVP_md4()/EVP_md5() to downgrade weak
+ * digests to SHA-256, so the value must exist and be stable to compare.
+ */
+int test_wolfSSL_EVP_md_null(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA)
+    const EVP_MD* md = NULL;
+    EVP_MD_CTX* ctx = NULL;
+
+    ExpectNotNull(md = EVP_md_null());
+    /* Identity comparison is the whole point - the value must not change. */
+    ExpectPtrEq(EVP_md_null(), md);
+
+    /* Distinct from every real digest. */
+#ifndef NO_SHA
+    /* Only where SHA-1 is built: a lean build has no EVP_sha1() to compare
+     * against. */
+    ExpectPtrNE(md, EVP_sha1());
+#endif
+    ExpectPtrNE(md, EVP_sha256());
+#ifndef NO_MD5
+    ExpectPtrNE(md, EVP_md5());
+#endif
+#ifndef OPENSSL_NO_MD4
+    ExpectPtrNE(md, EVP_md4());
+#endif
+
+    /* Same answers OpenSSL gives: zero length, NID_undef. */
+    ExpectIntEQ(EVP_MD_size(md), 0);
+    ExpectIntEQ(EVP_MD_type(md), NID_undef);
+
+    /* Not reachable by name, so it cannot shadow a real digest. */
+    ExpectNull(EVP_get_digestbyname("NULL"));
+
+    /* Hashing with it is not supported, and is refused rather than quietly
+     * producing nothing. */
+    ExpectNotNull(ctx = EVP_MD_CTX_new());
+    ExpectIntNE(EVP_DigestInit_ex(ctx, md, NULL), 1);
+    EVP_MD_CTX_free(ctx);
+
+    /* MD2 has no EVP wrapper in wolfSSL, so callers must see it as absent. */
+#ifndef OPENSSL_NO_MD2
+    Fail(("OPENSSL_NO_MD2 to be defined"), ("it was not"));
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_EVP_md4(void)
 {
     EXPECT_DECLS;

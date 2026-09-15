@@ -21,7 +21,11 @@ pairs="rsapss/ecc-leaf-rsapss.pem rsapss/ca-rsapss.pem classic
 mldsa/ecc-leaf-mldsa44.pem mldsa/mldsa44-cert.pem mldsa
 server-cert-sha1.pem ca-cert.pem sha1
 client-cert-sha1.pem ca-cert.pem sha1
-server-cert-sha1-root.pem ca-cert.pem classic"
+server-cert-sha1-root.pem ca-cert.pem classic
+any-eku-cert.pem ca-cert.pem classic
+ns-cert-type-cert.pem ca-cert.pem classic
+ns-ca-only-cert.pem ca-cert.pem classic
+code-sign-cert.pem ca-cert.pem classic"
 
 failed=0
 

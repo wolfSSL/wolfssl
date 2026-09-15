@@ -2872,3 +2872,68 @@ int test_ASN1_strings(void)
     return EXPECT_RESULT();
 }
 
+/* Test writing an ASN.1 string to a BIO as hex.
+ *
+ * haproxy (src/ssl_ocsp.c) prints OCSP certificate ID fields this way. The
+ * wrapping and the empty-string form are matched to OpenSSL byte for byte.
+ */
+int test_wolfSSL_i2a_ASN1_STRING(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_BIO)
+    WOLFSSL_BIO* bio = NULL;
+    WOLFSSL_ASN1_STRING* str = NULL;
+    unsigned char data[71];
+    char out[256];
+    int i;
+
+    for (i = 0; i < (int)sizeof(data); i++) {
+        data[i] = (unsigned char)(i * 7 + 1);
+    }
+
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectNotNull(str = ASN1_STRING_new());
+
+    /* A NULL string writes nothing, a NULL BIO is an error. */
+    ExpectIntEQ(i2a_ASN1_STRING(bio, NULL, 0), 0);
+    ExpectIntEQ(i2a_ASN1_STRING(NULL, str, 0), -1);
+
+    /* An empty string is written as a single zero. */
+    ExpectIntEQ(ASN1_STRING_set(str, data, 0), 1);
+    ExpectIntEQ(i2a_ASN1_STRING(bio, str, 0), 1);
+    XMEMSET(out, 0, sizeof(out));
+    ExpectIntEQ(BIO_read(bio, out, sizeof(out) - 1), 1);
+    ExpectIntEQ(XMEMCMP(out, "0", 1), 0);
+
+    /* Two bytes become four upper case hex digits. */
+    ExpectIntEQ(ASN1_STRING_set(str, data, 2), 1);
+    ExpectIntEQ(i2a_ASN1_STRING(bio, str, 0), 4);
+    XMEMSET(out, 0, sizeof(out));
+    ExpectIntEQ(BIO_read(bio, out, sizeof(out) - 1), 4);
+    ExpectIntEQ(XMEMCMP(out, "0108", 4), 0);
+
+    /* 35 bytes is the last length that fits on one line. */
+    ExpectIntEQ(ASN1_STRING_set(str, data, 35), 1);
+    ExpectIntEQ(i2a_ASN1_STRING(bio, str, 0), 70);
+    XMEMSET(out, 0, sizeof(out));
+    ExpectIntEQ(BIO_read(bio, out, sizeof(out) - 1), 70);
+    ExpectNull(XSTRSTR(out, "\\"));
+
+    /* 36 bytes wraps once, adding a backslash and a newline. */
+    ExpectIntEQ(ASN1_STRING_set(str, data, 36), 1);
+    ExpectIntEQ(i2a_ASN1_STRING(bio, str, 0), 74);
+    XMEMSET(out, 0, sizeof(out));
+    ExpectIntEQ(BIO_read(bio, out, sizeof(out) - 1), 74);
+    ExpectIntEQ(XMEMCMP(out + 70, "\\\n", 2), 0);
+
+    /* 71 bytes wraps twice. */
+    ExpectIntEQ(ASN1_STRING_set(str, data, 71), 1);
+    ExpectIntEQ(i2a_ASN1_STRING(bio, str, 0), 146);
+    XMEMSET(out, 0, sizeof(out));
+    ExpectIntEQ(BIO_read(bio, out, sizeof(out) - 1), 146);
+
+    ASN1_STRING_free(str);
+    BIO_free(bio);
+#endif
+    return EXPECT_RESULT();
+}

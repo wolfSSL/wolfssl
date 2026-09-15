@@ -81,6 +81,20 @@
 #endif
 
 
+/* Feature macros for the digests OpenSSL can be built without. Callers use
+ * these to decide whether EVP_md2()/EVP_md4()/EVP_md5() may be referenced.
+ * MD2 has no EVP wrapper in wolfSSL at all, so it is always absent. */
+#ifndef OPENSSL_NO_MD2
+    #define OPENSSL_NO_MD2
+#endif
+#if defined(NO_MD4) && !defined(OPENSSL_NO_MD4)
+    #define OPENSSL_NO_MD4
+#endif
+#if defined(NO_MD5) && !defined(OPENSSL_NO_MD5)
+    #define OPENSSL_NO_MD5
+#endif
+
+WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_md_null(void);
 #ifndef NO_MD4
     WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_md4(void);
 #endif
@@ -135,6 +149,26 @@ WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_ofb(void);
 #ifdef WOLFSSL_AES_XTS
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_xts(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_xts(void);
+#endif
+/* The EVP AES key wrap ciphers are built on wc_AesKeyWrap_ex() and the other
+ * _ex entry points, which take an Aes already keyed with the KEK.  Those are
+ * recent additions that a frozen crypto module does not carry - neither the
+ * self-test build nor any released FIPS module - so the ciphers are left out
+ * of those builds rather than failing to link against them. */
+#if defined(HAVE_AES_KEYWRAP) && !defined(NO_AES) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    #define WOLFSSL_EVP_AES_KEYWRAP
+#endif
+
+#ifdef WOLFSSL_EVP_AES_KEYWRAP
+WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_wrap(void);
+WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_wrap(void);
+WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_wrap(void);
+#ifdef WOLFSSL_AES_KEYWRAP_PADDING
+WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_wrap_pad(void);
+WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_wrap_pad(void);
+WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_wrap_pad(void);
+#endif
 #endif
 #endif /* NO_AES */
 #if !defined(NO_AES) && defined(HAVE_AESGCM)
@@ -320,6 +354,12 @@ typedef union {
 #define WC_NID_aes_256_ofb                 428
 #define WC_NID_aes_128_xts                 913
 #define WC_NID_aes_256_xts                 914
+#define WC_NID_id_aes128_wrap              788
+#define WC_NID_id_aes192_wrap              789
+#define WC_NID_id_aes256_wrap              790
+#define WC_NID_id_aes128_wrap_pad          897
+#define WC_NID_id_aes192_wrap_pad          900
+#define WC_NID_id_aes256_wrap_pad          903
 #define WC_NID_camellia_128_cbc            751
 #define WC_NID_camellia_256_cbc            753
 #define WC_NID_chacha20_poly1305           1018
@@ -488,7 +528,13 @@ enum {
     WC_SM4_CCM_TYPE           = 47,
     WC_ARIA_128_GCM_TYPE      = 48,
     WC_ARIA_192_GCM_TYPE      = 49,
-    WC_ARIA_256_GCM_TYPE      = 50
+    WC_ARIA_256_GCM_TYPE      = 50,
+    WC_AES_128_WRAP_TYPE      = 51,
+    WC_AES_192_WRAP_TYPE      = 52,
+    WC_AES_256_WRAP_TYPE      = 53,
+    WC_AES_128_WRAP_PAD_TYPE  = 54,
+    WC_AES_192_WRAP_PAD_TYPE  = 55,
+    WC_AES_256_WRAP_PAD_TYPE  = 56
 };
 
 #define WOLFSSL_EVP_PKEY_PRINT_INDENT_MAX    128
@@ -556,6 +602,12 @@ enum {
 #define AES_128_XTS_TYPE WC_AES_128_XTS_TYPE
 #define AES_256_XTS_TYPE WC_AES_256_XTS_TYPE
 #define CHACHA20_POLY1305_TYPE WC_CHACHA20_POLY1305_TYPE
+#define AES_128_WRAP_TYPE WC_AES_128_WRAP_TYPE
+#define AES_192_WRAP_TYPE WC_AES_192_WRAP_TYPE
+#define AES_256_WRAP_TYPE WC_AES_256_WRAP_TYPE
+#define AES_128_WRAP_PAD_TYPE WC_AES_128_WRAP_PAD_TYPE
+#define AES_192_WRAP_PAD_TYPE WC_AES_192_WRAP_PAD_TYPE
+#define AES_256_WRAP_PAD_TYPE WC_AES_256_WRAP_PAD_TYPE
 #define CHACHA20_TYPE WC_CHACHA20_TYPE
 #define AES_128_CCM_TYPE WC_AES_128_CCM_TYPE
 #define AES_192_CCM_TYPE WC_AES_192_CCM_TYPE
@@ -582,6 +634,12 @@ enum {
 #define NID_aes_192_ctr WC_NID_aes_192_ctr
 #define NID_aes_256_ctr WC_NID_aes_256_ctr
 #define NID_aes_128_ecb WC_NID_aes_128_ecb
+#define NID_id_aes128_wrap WC_NID_id_aes128_wrap
+#define NID_id_aes192_wrap WC_NID_id_aes192_wrap
+#define NID_id_aes256_wrap WC_NID_id_aes256_wrap
+#define NID_id_aes128_wrap_pad WC_NID_id_aes128_wrap_pad
+#define NID_id_aes192_wrap_pad WC_NID_id_aes192_wrap_pad
+#define NID_id_aes256_wrap_pad WC_NID_id_aes256_wrap_pad
 #define NID_aes_192_ecb WC_NID_aes_192_ecb
 #define NID_aes_256_ecb WC_NID_aes_256_ecb
 #define NID_des_cbc WC_NID_des_cbc
@@ -772,6 +830,12 @@ struct WOLFSSL_EVP_CIPHER_CTX {
     WC_BITFIELD authIncIv:1;
 #endif
 #endif
+#ifdef WOLFSSL_EVP_AES_KEYWRAP
+    /* Whether an integrity check value was given at init.  Key wrap cannot
+     * read that from the value itself: an all-zero ICV is a legitimate
+     * choice, distinct from asking for the RFC default. */
+    WC_BITFIELD kwIvSupplied:1;
+#endif
 };
 
 struct WOLFSSL_EVP_PKEY_CTX {
@@ -932,6 +996,13 @@ WOLFSSL_API int  wolfSSL_EVP_CIPHER_CTX_set_iv(WOLFSSL_EVP_CIPHER_CTX* ctx, byte
                                                      int ivLen);
 WOLFSSL_API int  wolfSSL_EVP_CIPHER_CTX_get_iv(WOLFSSL_EVP_CIPHER_CTX* ctx, byte* iv,
                                                      int ivLen);
+#if !defined(NO_AES) || defined(WOLFSSL_SM4) || \
+    (defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) || !defined(NO_DES3)
+WOLFSSL_API const unsigned char* wolfSSL_EVP_CIPHER_CTX_iv(
+    const WOLFSSL_EVP_CIPHER_CTX* ctx);
+WOLFSSL_API unsigned char* wolfSSL_EVP_CIPHER_CTX_iv_noconst(
+    WOLFSSL_EVP_CIPHER_CTX* ctx);
+#endif
 WOLFSSL_API int  wolfSSL_EVP_Cipher(WOLFSSL_EVP_CIPHER_CTX* ctx,
                           unsigned char* dst, const unsigned char* src,
                           unsigned int len);
@@ -1017,6 +1088,10 @@ WOLFSSL_API WOLFSSL_EVP_PKEY *wolfSSL_EVP_PKEY_new(void);
 WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_ex(void* heap);
 WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_raw_public_key(int type,
     WOLFSSL_ENGINE* e, const unsigned char* pub, size_t len);
+WOLFSSL_API int wolfSSL_EVP_PKEY_get_raw_private_key(
+        const WOLFSSL_EVP_PKEY* pkey, unsigned char* priv, size_t* len);
+WOLFSSL_API int wolfSSL_EVP_PKEY_get_raw_public_key(
+        const WOLFSSL_EVP_PKEY* pkey, unsigned char* pub, size_t* len);
 WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_raw_private_key(int type,
     WOLFSSL_ENGINE* e, const unsigned char* priv, size_t len);
 WOLFSSL_API void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key);
@@ -1122,6 +1197,7 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_CTX_hkdf_mode(WOLFSSL_EVP_PKEY_CTX* ctx,
 #define WOLFSSL_EVP_CIPH_GCM_MODE           0x6
 #define WOLFSSL_EVP_CIPH_CCM_MODE           0x7
 #define WOLFSSL_EVP_CIPH_XTS_MODE          0x10
+#define WOLFSSL_EVP_CIPH_WRAP_MODE         0x40
 #define WOLFSSL_EVP_CIPH_FLAG_AEAD_CIPHER  0x20
 #define WOLFSSL_EVP_CIPH_NO_PADDING       0x100
 #define WOLFSSL_EVP_CIPH_VARIABLE_LENGTH  0x200
@@ -1221,9 +1297,11 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 #define EVP_CIPH_GCM_MODE         WOLFSSL_EVP_CIPH_GCM_MODE
 #define EVP_CIPH_CCM_MODE         WOLFSSL_EVP_CIPH_CCM_MODE
 #define EVP_CIPH_XTS_MODE         WOLFSSL_EVP_CIPH_XTS_MODE
+#define EVP_CIPH_WRAP_MODE        WOLFSSL_EVP_CIPH_WRAP_MODE
 
 #define EVP_CIPH_FLAG_AEAD_CIPHER WOLFSSL_EVP_CIPH_FLAG_AEAD_CIPHER
 
+#define EVP_md_null   wolfSSL_EVP_md_null
 #ifndef NO_MD4
     #define EVP_md4       wolfSSL_EVP_md4
 #endif
@@ -1270,6 +1348,12 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 #define EVP_aes_256_ofb       wolfSSL_EVP_aes_256_ofb
 #define EVP_aes_128_xts       wolfSSL_EVP_aes_128_xts
 #define EVP_aes_256_xts       wolfSSL_EVP_aes_256_xts
+#define EVP_aes_128_wrap      wolfSSL_EVP_aes_128_wrap
+#define EVP_aes_192_wrap      wolfSSL_EVP_aes_192_wrap
+#define EVP_aes_256_wrap      wolfSSL_EVP_aes_256_wrap
+#define EVP_aes_128_wrap_pad  wolfSSL_EVP_aes_128_wrap_pad
+#define EVP_aes_192_wrap_pad  wolfSSL_EVP_aes_192_wrap_pad
+#define EVP_aes_256_wrap_pad  wolfSSL_EVP_aes_256_wrap_pad
 #define EVP_aes_128_gcm       wolfSSL_EVP_aes_128_gcm
 #define EVP_aes_192_gcm       wolfSSL_EVP_aes_192_gcm
 #define EVP_aes_256_gcm       wolfSSL_EVP_aes_256_gcm
@@ -1438,6 +1522,8 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 #define EVP_PKEY_new                   wolfSSL_EVP_PKEY_new
 #define EVP_PKEY_new_raw_public_key    wolfSSL_EVP_PKEY_new_raw_public_key
 #define EVP_PKEY_new_raw_private_key   wolfSSL_EVP_PKEY_new_raw_private_key
+#define EVP_PKEY_get_raw_private_key   wolfSSL_EVP_PKEY_get_raw_private_key
+#define EVP_PKEY_get_raw_public_key    wolfSSL_EVP_PKEY_get_raw_public_key
 #define EVP_PKEY_free                  wolfSSL_EVP_PKEY_free
 #define EVP_PKEY_up_ref                wolfSSL_EVP_PKEY_up_ref
 #define EVP_PKEY_size                  wolfSSL_EVP_PKEY_size
@@ -1469,6 +1555,8 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 #define EVP_CIPHER_CTX_flags       wolfSSL_EVP_CIPHER_CTX_flags
 #define EVP_CIPHER_CTX_set_iv      wolfSSL_EVP_CIPHER_CTX_set_iv
 #define EVP_CIPHER_CTX_get_iv      wolfSSL_EVP_CIPHER_CTX_get_iv
+#define EVP_CIPHER_CTX_iv          wolfSSL_EVP_CIPHER_CTX_iv
+#define EVP_CIPHER_CTX_iv_noconst  wolfSSL_EVP_CIPHER_CTX_iv_noconst
 #define EVP_add_digest             wolfSSL_EVP_add_digest
 #define EVP_add_cipher             wolfSSL_EVP_add_cipher
 #define EVP_cleanup                wolfSSL_EVP_cleanup
