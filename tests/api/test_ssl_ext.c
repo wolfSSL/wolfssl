@@ -1864,7 +1864,7 @@ int test_wolfSSL_api_null_operands(void)
     (void)bufSz; (void)iSz;
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
-#endif /* !test_wolfSSL_api_null_operands && !NO_CERTS && !NO_TLS */
+#endif /* !NO_WOLFSSL_CLIENT && !NO_CERTS && !NO_TLS */
     return EXPECT_RESULT();
 }
 
