@@ -579,6 +579,22 @@ static int test_tlsext_debug_find_len(const struct test_tlsext_debug_data *d,
 }
 #endif /* helper lookup for the TLS ext debug handshake test */
 
+#if defined(OPENSSL_EXTRA) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+/* Declared with OpenSSL's spelling of the callback, to check that the compat
+ * macro accepts it without a cast. */
+static void test_tlsext_debug_ossl_cb(SSL *s, int client_server, int type,
+        const unsigned char *data, int len, void *arg)
+{
+    (void)s;
+    (void)client_server;
+    (void)type;
+    (void)data;
+    (void)len;
+    (void)arg;
+}
+#endif
+
 /* Test installing the TLS extension debug callback.
  *
  * @return  TEST_SUCCESS on success.
@@ -601,6 +617,12 @@ int test_wolfSSL_set_tlsext_debug_callback_ext(void)
         WOLFSSL_SUCCESS);
     /* Setting NULL disables the callback. */
     ExpectIntEQ(wolfSSL_set_tlsext_debug_callback(ssl, NULL),
+        WOLFSSL_SUCCESS);
+
+    /* The compat macro takes a callback spelled the OpenSSL way without a
+     * cast. A cast here would hide a signature mismatch and leave the call
+     * undefined. */
+    ExpectIntEQ(SSL_set_tlsext_debug_callback(ssl, test_tlsext_debug_ossl_cb),
         WOLFSSL_SUCCESS);
 
     wolfSSL_free(ssl);
