@@ -40489,7 +40489,14 @@ static int test_sniffer_reassembly_overlap(void)
     ssl_InitSniffer();
     XMEMSET(error, 0, sizeof(error));
     ExpectIntEQ(ssl_SetPrivateKey("127.0.0.1", 443, svrKeyFile,
-        WOLFSSL_FILETYPE_PEM, NULL, error), 0);
+        CERT_FILETYPE, NULL, error), 0);
+
+    /* Cap reassembly at exactly what these segments need: 64 held out of order
+     * plus the 4 the overlapping segment adds past them. A fragment queued one
+     * byte long trips the cap, which is reported in error and so is checked
+     * even where the queue sizes below are not compiled in. */
+    XMEMSET(error, 0, sizeof(error));
+    ExpectIntEQ(ssl_EnableRecovery(1, 64 + 4, error), 0);
 
     for (i = 0; i < (int)XELEM_CNT(segs); i++) {
         pkt = sniffer_tcp_packet(segs[i].seq, segs[i].flags,
@@ -40515,6 +40522,8 @@ static int test_sniffer_reassembly_overlap(void)
         }
     }
 
+    XMEMSET(error, 0, sizeof(error));
+    ssl_EnableRecovery(1, -1, error);
     ssl_FreeSniffer();
 
     return EXPECT_RESULT();
