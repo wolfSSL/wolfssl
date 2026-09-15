@@ -88,6 +88,12 @@
 #else
     #undef WC_RNG_HAVE_NEXT_SEED
 #endif
+#if defined(WC_RNG_HAVE_NEXT_SEED) && !defined(WC_RNG_HAVE_LOCK) && \
+    defined(HAVE_FIPS)
+    /* FIPS builds: pregenerated output requires the full invalidation/purge
+     * protocol, which rides the lock facility. */
+    #error WC_RNG_WANT_NEXT_SEED requires WC_RNG_WANT_LOCK in FIPS builds.
+#endif
 
 #if (defined(WC_RNG_EXTRAS) || defined(WC_RNG_WANT_POOL)) && \
     !defined(WC_RNG_NO_POOL)
@@ -99,6 +105,12 @@
     #endif
 #else
     #undef WC_RNG_HAVE_POOL
+#endif
+#if defined(WC_RNG_HAVE_POOL) && !defined(WC_RNG_HAVE_LOCK) && \
+    defined(HAVE_FIPS)
+    /* FIPS builds: pregenerated output requires the full invalidation/purge
+     * protocol, which rides the lock facility. */
+    #error WC_RNG_WANT_POOL requires WC_RNG_WANT_LOCK in FIPS builds.
 #endif
 
 #if (defined(WC_RNG_EXTRAS) || defined(WC_RNG_WANT_FREE_HOOK)) && \

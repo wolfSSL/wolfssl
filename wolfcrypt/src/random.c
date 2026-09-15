@@ -1129,6 +1129,13 @@ int wc_RNG_DRBG_Reseed_Nonce(WC_RNG* rng, const byte* seed, word32 seedSz,
     if (ret != 0)
         return ret;
 
+    /* A condemned instance does not accept a credited reseed: DRBG_FAILED's
+     * designed exit is wc_FreeRng()/wc_InitRng() (or the daemon's recovery
+     * pass), not in-place resurrection that would reset the counter, purge
+     * the pool, and clear quarantine on unvetted authority. */
+    if (rng->status != DRBG_OK)
+        return RNG_FAILURE_E;
+
 #ifdef WC_RNG_HAVE_LOCK
     /* Never allow an undersized seed to clear an invalidated state, and if
      * invalidated, always assume potentially primary seed data -- test it with
@@ -2204,7 +2211,8 @@ static int Hash512_DRBG_Uninstantiate(DRBG_SHA512_internal* drbg)
 /* Uncredited stirring, per SP 800-90A 10.1.1.4 generate with additional_input
  * (step 2: V += Hash(0x02 || V || additional_input)).  The generate is
  * zero-length: Hash_gen()'s (and Hash512_gen()'s) outSz==0 mode banks the
- * generated block for the continuous test, so the stir also primes CRNGT, and
+ * generated block for the continuous-test hook (its consumer is
+ * configuration-dependent; no comparison state lives in this file), and
  * out is never dereferenced.  The reseed counter is incremented as for any
  * generate, and quarantine/stratum are untouched, so the no-claims doctrine
  * holds as a theorem of the standard rather than a property of a custom
@@ -3904,7 +3912,8 @@ static WC_INLINE void PoolWipeRetired(WC_RNG *rng, word32 tail, word32 head)
 }
 
 /* Retire pooled output: any event after which pre-event bytes must not be
- * served -- state invalidation, fork, a credited reseed, the reader's
+ * served -- state invalidation, fork, a credited reseed recovering from
+ * invalidation, the reader's
  * fail-closed path.  Bumping epoch is the whole operation; see above for why
  * the counters are deliberately left alone. */
 static WARN_UNUSED_RESULT int PoolPurge(WC_RNG* rng)
