@@ -615,6 +615,10 @@ WOLFSSL_CTX* wolfSSL_CTX_new_ex(WOLFSSL_METHOD* method, void* heap)
             wolfSSL_CTX_free(ctx);
             ctx = NULL;
         }
+        else {
+            /* a default, not a minimum the user asked for */
+            ctx->minVersionSet = 0;
+        }
     }
 #endif
 
@@ -2207,6 +2211,8 @@ static int SetMinVersionHelper(byte* minVersion, int version)
 WOLFSSL_ABI
 int wolfSSL_CTX_SetMinVersion(WOLFSSL_CTX* ctx, int version)
 {
+    int ret;
+
     WOLFSSL_ENTER("wolfSSL_CTX_SetMinVersion");
 
     if (ctx == NULL) {
@@ -2220,13 +2226,27 @@ int wolfSSL_CTX_SetMinVersion(WOLFSSL_CTX* ctx, int version)
     }
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 
-    return SetMinVersionHelper(&ctx->minDowngrade, version);
+    ret = SetMinVersionHelper(&ctx->minDowngrade, version);
+    if (ret == WOLFSSL_SUCCESS)
+        ctx->minVersionSet = 1;
+
+    return ret;
 }
 
+
+/* A minimum version turns a single pinned version back into a range, so the
+ * method's downgrade setting applies again. */
+static void RestoreDowngrade(WOLFSSL* ssl)
+{
+    if (ssl->options.versionSet && ssl->ctx != NULL)
+        ssl->options.downgrade = (word16)(ssl->ctx->method->downgrade);
+}
 
 /* Set minimum downgrade version allowed, WOLFSSL_SUCCESS on ok */
 int wolfSSL_SetMinVersion(WOLFSSL* ssl, int version)
 {
+    int ret;
+
     WOLFSSL_ENTER("wolfSSL_SetMinVersion");
 
     if (ssl == NULL) {
@@ -2240,7 +2260,13 @@ int wolfSSL_SetMinVersion(WOLFSSL* ssl, int version)
     }
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 
-    return SetMinVersionHelper(&ssl->options.minDowngrade, version);
+    ret = SetMinVersionHelper(&ssl->options.minDowngrade, version);
+    if (ret == WOLFSSL_SUCCESS) {
+        ssl->options.minVersionSet = 1;
+        RestoreDowngrade(ssl);
+    }
+
+    return ret;
 }
 
 
@@ -2334,7 +2360,12 @@ int wolfSSL_SetVersion(WOLFSSL* ssl, int version)
             return BAD_FUNC_ARG;
     }
 
-    ssl->options.downgrade = 0;
+    ssl->options.versionSet = 1;
+    ssl->options.maxVersionMinor = ssl->version.minor;
+    if (!ssl->options.minVersionSet) {
+        /* no minimum asked for, so this version is the whole range */
+        ssl->options.downgrade = 0;
+    }
 
     #ifdef NO_RSA
         haveRSA = 0;
@@ -3146,10 +3177,13 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         if ((ctx != NULL && !IsAtLeastTLSv1_3(ctx->method->version) &&
                 !ctx->method->downgrade) ||
                 (ssl != NULL && !IsAtLeastTLSv1_3(ssl->version) &&
-                !ssl->options.downgrade)) {
+                (!ssl->options.downgrade || ssl->options.versionSet))) {
             /* Fail only for methods that can never reach TLS 1.3 (downgrade
-             * disabled). A version merely capped via set_max_proto_version()
-             * still silently ignores the list, matching OpenSSL. */
+             * disabled) or when SetVersion() put the maximum below TLS 1.3.
+             * A minimum version does not raise the maximum, so it is not
+             * considered here. A version merely capped via
+             * set_max_proto_version() still silently ignores the list,
+             * matching OpenSSL. */
             WOLFSSL_MSG("Cipher list has only TLS 1.3 suites but TLS 1.3 "
                         "is not negotiable");
             return WOLFSSL_FAILURE;
@@ -3187,10 +3221,12 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
      * Since we direct both API here we attempt to provide API compatibility. If
      * we only get suites from <= 1.2 or == 1.3 then we will only update those
      * suites and keep the suites from the other group.
-     * If downgrade is disabled, skip preserving the other group's suites. */
-    if ((ssl != NULL && !ssl->options.downgrade) ||
+     * If a single version is in use, skip preserving the other group's
+     * suites. A min version makes it a range again, so both groups are kept. */
+    if ((ssl != NULL && (!ssl->options.downgrade ||
+            (ssl->options.versionSet && !ssl->options.minVersionSet))) ||
         (ctx != NULL && !ctx->method->downgrade)) {
-        /* Downgrade disabled - don't preserve other group's suites */
+        /* One version only - don't preserve the other group's suites */
         WC_FREE_VAR_EX(suitesCpy, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return ret;
     }
@@ -5113,6 +5149,9 @@ int wolfSSL_CTX_set_min_proto_version(WOLFSSL_CTX* ctx, int version)
     }
 
     ret = Set_CTX_min_proto_version(ctx, proto);
+    if (ret == WOLFSSL_SUCCESS)
+        ctx->minVersionSet = 1;
+
     return ret;
 }
 
@@ -5250,6 +5289,7 @@ int wolfSSL_CTX_set_max_proto_version(WOLFSSL_CTX* ctx, int version)
     int i;
     int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     int minProto;
+    byte minVersionSet;
 
     WOLFSSL_ENTER("wolfSSL_CTX_set_max_proto_version");
 
@@ -5262,7 +5302,9 @@ int wolfSSL_CTX_set_max_proto_version(WOLFSSL_CTX* ctx, int version)
     wolfSSL_CTX_clear_options(ctx,
             WOLFSSL_OP_NO_TLSv1 | WOLFSSL_OP_NO_TLSv1_1 |
             WOLFSSL_OP_NO_TLSv1_2 | WOLFSSL_OP_NO_TLSv1_3);
+    minVersionSet = ctx->minVersionSet;
     wolfSSL_CTX_set_min_proto_version(ctx, minProto);
+    ctx->minVersionSet = minVersionSet; /* restoring, not setting, a minimum */
     if (version != 0) {
         ctx->maxProto = 0; /* turn max proto flag off */
         return Set_CTX_max_proto_version(ctx, version);
@@ -5377,14 +5419,20 @@ int wolfSSL_set_min_proto_version(WOLFSSL* ssl, int version)
         return WOLFSSL_FAILURE;
     }
     if (version != 0) {
-        return Set_SSL_min_proto_version(ssl, version);
+        ret = Set_SSL_min_proto_version(ssl, version);
+    }
+    else {
+        /* when 0 is specified as version, try to find out the min version */
+        for (i= 0; (unsigned)i < NUMBER_OF_PROTOCOLS; i++) {
+            ret = Set_SSL_min_proto_version(ssl, protoVerTbl[i]);
+            if (ret == WOLFSSL_SUCCESS)
+                break;
+        }
     }
 
-    /* when 0 is specified as version, try to find out the min version */
-    for (i= 0; (unsigned)i < NUMBER_OF_PROTOCOLS; i++) {
-        ret = Set_SSL_min_proto_version(ssl, protoVerTbl[i]);
-        if (ret == WOLFSSL_SUCCESS)
-            break;
+    if (ret == WOLFSSL_SUCCESS) {
+        ssl->options.minVersionSet = 1;
+        RestoreDowngrade(ssl);
     }
 
     return ret;

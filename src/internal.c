@@ -7941,6 +7941,7 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     }
     ssl->options.downgrade        = (word16)(ctx->method->downgrade);
     ssl->options.minDowngrade     = ctx->minDowngrade;
+    ssl->options.minVersionSet    = ctx->minVersionSet;
     ssl->options.haveRSA          = ctx->haveRSA;
     ssl->options.haveDH           = ctx->haveDH;
 #if  !defined(NO_CERTS) && !defined(NO_DH)
@@ -34343,6 +34344,14 @@ int DecodeAltPrivateKey(WOLFSSL *ssl, word32* sigLen)
 
         if (IsAtLeastTLSv1_3(ssl->ctx->method->version)) {
             ret = 1;
+        }
+
+        if (ssl->options.versionSet &&
+                ssl->options.maxVersionMinor < TLSv1_3_MINOR) {
+            /* wolfSSL_SetVersion() put the maximum below TLS 1.3. Checked
+             * instead of ssl->version, which holds the version negotiated
+             * with the peer once the ServerHello has been read. */
+            ret = 0;
         }
 
         if ((wolfSSL_get_options(ssl) & WOLFSSL_OP_NO_TLSv1_3)) {
