@@ -578,9 +578,20 @@ treat it as a prompt to connect a real entropy source on your hardware.
 | `HAVE_HPKE` | Hybrid Public Key Encryption (RFC 9180). Pulls in HKDF, and needs a KEM — ECC or Curve25519 | `--enable-hpke` |
 | `WOLFCRYPT_HAVE_SRP` | SRP password-authenticated key exchange (RFC 5054) | `--enable-srp` |
 | `HAVE_PKCS7` | PKCS#7 / CMS signing and enveloping, used for firmware signing and S/MIME | `--enable-pkcs7` |
+| `WOLFSSL_C509` | C509 (CBOR-encoded X.509) decode/verify (draft-ietf-cose-cbor-encoded-cert). Needs ASN.1 (a certificate public-key algorithm) | `--enable-c509` |
+| `WOLFSSL_C509_NO_TYPE3` | Compile out C509 type-3 (CBOR re-encoded X.509) reconstruction/verify and `wc_C509_ToDer`, leaving type-2 only. Must be defined identically for the library and the application | `--disable-c509-type3` |
+| `WC_C509_MAX_DER` | Tunable: sizes the suggested `wc_C509_ToDer` output buffer, caps the type-2 RSA signature length, and bounds the type-3 reconstruction buffer *only* on a no-dynamic-allocation build (a `WOLFSSL_SMALL_STACK` build sizes that buffer exactly, so a type-3 certificate verifies with no cap — except that any single reconstructed DER element must be under 64 KB on every build). The default is derived from the compiled-in algorithms, with a 1024-byte floor that fits the in-profile EC/EdDSA certificates the tests cover (the draft 3.6 secp521r1/ES512 type-3 certificate is 811 bytes): `max(1024, 512 + 2*(RSA_MAX_SIZE/8))` with RSA (so up to RSA-2048 and `NO_RSA` → 1024; 4096 → 1536; 8192 → 2560), so it tracks the build and the two sides agree without being set. Has no `--enable`/CMake option; a hand-set value must still match for the library and the application | n/a (CFLAGS) |
+| `WC_C509_RSA_MIN_BITS` | Tunable (RSA builds only): minimum RSA issuer-key modulus, in bits, the verifier accepts; an RSA issuer shorter than this fails with `BAD_FUNC_ARG`. The floor also rejects an EC `X||Y` key mistakenly supplied as an RSA modulus. Default 1024, raised to 2048 under `WOLFSSL_HARDEN_TLS` (≥ 112) and 3072 under `WOLFSSL_MAX_STRENGTH`, mirroring how those options raise the RSA minimum elsewhere. Define it to override. The in-tree test vectors assume the default floor | n/a (CFLAGS) |
 
 HPKE is what wolfSSL's Encrypted Client Hello support is built on, so enable it
 if you need ECH.
+
+`WOLFSSL_C509_NO_TYPE3` has a `--disable-c509-type3` (CMake `-DWOLFSSL_C509_TYPE3=no`)
+option and so is recorded in `wolfssl/options.h`. `WC_C509_MAX_DER` has no such
+option: it reaches a build only through `user_settings.h` or `CFLAGS`, neither of
+which is written to `wolfssl/options.h`. A `WOLFSSL_C509_NO_TYPE3` defined by hand
+the same way is likewise absent from `options.h`. So whenever either is set by
+hand, define it for both the library and the application so the two agree.
 
 ---
 

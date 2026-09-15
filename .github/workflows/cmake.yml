@@ -83,6 +83,7 @@ jobs:
             -DWOLFSSL_MLKEM:BOOL=yes -DWOLFSSL_LMS:BOOL=yes -DWOLFSSL_LMSSHA256192:BOOL=yes \
             -DWOLFSSL_XMSS:BOOL=yes \
             -DWOLFSSL_X963KDF:BOOL=yes -DWOLFSSL_DILITHIUM:BOOL=yes -DWOLFSSL_PKCS11:BOOL=yes \
+            -DWOLFSSL_C509:BOOL=yes \
             -DWOLFSSL_ECCSI:BOOL=yes -DWOLFSSL_SAKKE:BOOL=yes -DWOLFSSL_SIPHASH:BOOL=yes \
             -DWOLFSSL_WC_RSA_DIRECT:BOOL=yes -DWOLFSSL_PUBLIC_MP:BOOL=yes \
             -DWOLFSSL_CERT_WITH_EXTERN_PSK:BOOL=yes \
@@ -106,6 +107,26 @@ jobs:
             ..
         cmake --build .
         cmake --install .
+
+        # clean up
+        cd ..
+        rm -rf build
+
+# build wolfssl with C509 type-3 reconstruction/verify compiled out, the CMake
+# mirror of the autotools all-c509-no-type3 job: the NOT WOLFSSL_C509_TYPE3 ->
+# -DWOLFSSL_C509_NO_TYPE3 branch and its #cmakedefine must reach options.h, and
+# the wolfcrypttest ctest (c509_test's type-2-only cases) must pass.
+# --no-tests=error so a future test rename fails here instead of passing empty.
+    - name: Build wolfssl with C509 type-3 disabled
+      run: |
+        mkdir build
+        cd build
+        cmake -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON \
+            -DWOLFSSL_C509:BOOL=yes -DWOLFSSL_C509_TYPE3:BOOL=no \
+            ..
+        grep -q '^#define WOLFSSL_C509_NO_TYPE3$' wolfssl/options.h
+        cmake --build .
+        ctest -j $(nproc) --output-on-failure -R wolfcrypttest --no-tests=error
 
         # clean up
         cd ..

@@ -6297,6 +6297,48 @@ then
 fi
 
 
+# C509 (CBOR-encoded X.509) certificate decode/verify
+AC_ARG_ENABLE([c509],
+    [AS_HELP_STRING([--enable-c509],[Enable C509 (CBOR-encoded X.509, draft-ietf-cose-cbor-encoded-cert) certificate decode/verify (default: disabled)])],
+    [ ENABLED_C509=$enableval ],
+    [ ENABLED_C509=no ]
+    )
+
+# C509 type-3 (CBOR re-encoded X.509) reconstruction + verify sub-feature. On by
+# default with C509; --disable-c509-type3 compiles it out (leaving type-2 verify
+# and subject-public-key extraction), emitting -DWOLFSSL_C509_NO_TYPE3 so it is
+# recorded in wolfssl/options.h and library and application agree.
+AC_ARG_ENABLE([c509-type3],
+    [AS_HELP_STRING([--disable-c509-type3],[Disable C509 type-3 (CBOR re-encoded X.509) reconstruction and verify, leaving type-2 (natively signed) verify and public-key extraction (default: enabled with --enable-c509)])],
+    [ ENABLED_C509_TYPE3=$enableval ],
+    [ ENABLED_C509_TYPE3=yes ]
+    )
+
+if test "$ENABLED_C509" = "yes"
+then
+    # C509 needs ASN.1 (it builds/parses DER and reuses asn.c helpers such as
+    # wc_EncodeSignature). c509.c is itself only compiled under BUILD_ASN, so a
+    # build without a certificate public-key algorithm would define WOLFSSL_C509
+    # but leave the implementation out, breaking the link; c509.h also #errors
+    # on NO_ASN for user_settings builds. The conflict is checked in the
+    # "build-type conflicts" section below, after ENABLED_ASN is finalised
+    # (it can still be forced to "no" there when no cert algorithm is enabled).
+    # C509 type-3 verification verifies the reconstructed TBSCertificate with
+    # the same per-algorithm helpers as the type-2 path, so it does not force
+    # any extra cert-verify option (forcing WOLFSSL_SMALL_CERT_VERIFY would
+    # break OCSP stapling).
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_C509"
+
+    if test "$ENABLED_C509_TYPE3" = "no"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_C509_NO_TYPE3"
+    fi
+else
+    # Sub-feature is moot without C509; normalise for the summary.
+    ENABLED_C509_TYPE3=no
+fi
+
+
 # CERT SIGN CALLBACK
 AC_ARG_ENABLE([certsigncb],
     [AS_HELP_STRING([--enable-certsigncb],[Enable cert signing callback API for TPM/HSM (default: disabled)])],
@@ -13521,6 +13563,14 @@ AS_IF([test "x$ENABLED_SMIME" = "xyes" && \
        test "x$ENABLED_ASN" = "xno"],
        [AC_MSG_ERROR([please enable asn if enabling S/MIME.])])
 
+# C509 (CBOR-encoded X.509) builds/parses DER and reuses asn.c helpers, so it
+# needs ASN.1. ENABLED_ASN is only final here (it is forced "no" above when no
+# certificate public-key algorithm is enabled), so the check belongs with the
+# other asn conflicts rather than next to --enable-c509.
+AS_IF([test "x$ENABLED_C509" = "xyes" && \
+       test "x$ENABLED_ASN" = "xno"],
+      [AC_MSG_ERROR([--enable-c509 needs a certificate public-key algorithm (RSA, ECC, EdDSA, ML-DSA or SLH-DSA); do not use --disable-asn.])])
+
 AS_IF([test "x$ENABLED_OCSP" = "xyes" && \
        test "x$ENABLED_RSA" = "xno" && \
        test "x$ENABLED_ECC" = "xno"],
@@ -15154,6 +15204,8 @@ echo "   * certgen:                    $ENABLED_CERTGEN"
 echo "   * certreq:                    $ENABLED_CERTREQ"
 echo "   * certext:                    $ENABLED_CERTEXT"
 echo "   * certgencache:               $ENABLED_certgencache"
+echo "   * C509:                       $ENABLED_C509"
+echo "   * C509 type-3:                $ENABLED_C509_TYPE3"
 echo "   * CHACHA:                     $ENABLED_CHACHA"
 echo "   * XCHACHA:                    $ENABLED_XCHACHA"
 echo "   * Hash DRBG:                  $ENABLED_HASHDRBG"
