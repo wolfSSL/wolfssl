@@ -63,12 +63,7 @@ WOLFSSL_X509_STORE_CTX* wolfSSL_X509_STORE_CTX_new_ex(void* heap)
         XMEMSET(ctx, 0, sizeof(WOLFSSL_X509_STORE_CTX));
         ctx->heap = heap;
 #ifdef OPENSSL_EXTRA
-        if ((ctx->owned = wolfSSL_sk_X509_new_null()) == NULL) {
-            XFREE(ctx, heap, DYNAMIC_TYPE_X509_CTX);
-            ctx = NULL;
-        }
-        if (ctx != NULL &&
-            wolfSSL_X509_STORE_CTX_init(ctx, NULL, NULL, NULL) !=
+        if (wolfSSL_X509_STORE_CTX_init(ctx, NULL, NULL, NULL) !=
                 WOLFSSL_SUCCESS) {
             wolfSSL_X509_STORE_CTX_free(ctx);
             ctx = NULL;
@@ -219,6 +214,15 @@ int wolfSSL_X509_STORE_CTX_init(WOLFSSL_X509_STORE_CTX* ctx,
         if (ctx->chain != NULL) {
             wolfSSL_sk_X509_pop_free(ctx->chain, NULL);
             ctx->chain = NULL;
+        }
+        /* Release the issuers retained by the previous verification and start
+         * a fresh stack. X509StoreVerifyCert() drops the issuer it decodes
+         * when this is NULL, so the context must always carry one. */
+        wolfSSL_sk_X509_pop_free(ctx->owned, NULL);
+        ctx->owned = wolfSSL_sk_X509_new_null();
+        if (ctx->owned == NULL) {
+            WOLFSSL_MSG("wolfSSL_X509_STORE_CTX_init failed");
+            return WOLFSSL_FAILURE;
         }
 #ifdef SESSION_CERTS
         ctx->sesChain = NULL;
