@@ -3947,7 +3947,9 @@ int wc_RNG_Pool_Extract(WC_RNG* rng, byte* out, word32* n)
         WOLFSSL_ATOMIC_STORE(rng->poolTail,
                              WC_RNG_POOL_PACK(WC_RNG_POOL_POS(w2),
                                               WC_RNG_POOL_EPOCH(w2)));
-        *n = 0;
+#ifdef WC_RNG_DEBUG_STATS
+        rng->_stats_pool_bytes_missed += *n;
+#endif
         return BUSY_E;
     }
 
