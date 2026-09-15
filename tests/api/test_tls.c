@@ -641,6 +641,111 @@ int test_tls12_bad_cv_sig_content(void)
     return EXPECT_RESULT();
 }
 
+#if MAX_DHKEY_SZ >= 512
+    #define TEST_TLS12_DHE_PSK_DH_FILE "./certs/dh4096.pem"
+    #define TEST_TLS12_DHE_PSK_DH_SZ   512
+#elif MAX_DHKEY_SZ >= 384
+    #define TEST_TLS12_DHE_PSK_DH_FILE "./certs/dh3072.pem"
+    #define TEST_TLS12_DHE_PSK_DH_SZ   384
+#elif MAX_DHKEY_SZ >= 256
+    #define TEST_TLS12_DHE_PSK_DH_FILE "./certs/dh2048.pem"
+    #define TEST_TLS12_DHE_PSK_DH_SZ   256
+#endif
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_HARDEN_TLS) && \
+    defined(BUILD_TLS_DHE_PSK_WITH_AES_128_GCM_SHA256) && \
+    defined(TEST_TLS12_DHE_PSK_DH_FILE)
+
+static const char test_tls12_dhe_psk_id[] = "dhe_psk_client";
+
+static unsigned int test_tls12_dhe_psk_max_key(unsigned char* key,
+    unsigned int key_max_len)
+{
+    if (key_max_len < MAX_PSK_KEY_LEN)
+        return 0;
+    XMEMSET(key, 0x41, MAX_PSK_KEY_LEN);
+    return (unsigned int)MAX_PSK_KEY_LEN;
+}
+
+static unsigned int test_tls12_dhe_psk_client_cb(WOLFSSL* ssl,
+    const char* hint, char* identity, unsigned int id_max_len,
+    unsigned char* key, unsigned int key_max_len)
+{
+    (void)ssl;
+    (void)hint;
+    if (id_max_len <= XSTRLEN(test_tls12_dhe_psk_id))
+        return 0;
+    XSTRNCPY(identity, test_tls12_dhe_psk_id, id_max_len);
+    return test_tls12_dhe_psk_max_key(key, key_max_len);
+}
+
+static unsigned int test_tls12_dhe_psk_server_cb(WOLFSSL* ssl,
+    const char* id, unsigned char* key, unsigned int key_max_len)
+{
+    (void)ssl;
+    if (id == NULL || XSTRCMP(id, test_tls12_dhe_psk_id) != 0)
+        return 0;
+    return test_tls12_dhe_psk_max_key(key, key_max_len);
+}
+
+#endif
+
+/* A TLS 1.2 DHE-PSK handshake using the largest DH prime and the longest PSK
+ * the build accepts must assemble its pre-master secret without running past
+ * the ENCRYPT_LEN buffer it is written into. */
+int test_tls12_dhe_psk_max_pms(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_HARDEN_TLS) && \
+    defined(BUILD_TLS_DHE_PSK_WITH_AES_128_GCM_SHA256) && \
+    defined(TEST_TLS12_DHE_PSK_DH_FILE)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+#if defined(HAVE_SUPPORTED_CURVES) && defined(HAVE_ECC)
+    int groups[] = { WOLFSSL_ECC_SECP256R1 };
+#endif
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+    /* Registering a PSK callback re-runs InitSuites, so pin the suite after. */
+    wolfSSL_set_psk_client_callback(ssl_c, test_tls12_dhe_psk_client_cb);
+    wolfSSL_set_psk_server_callback(ssl_s, test_tls12_dhe_psk_server_cb);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, "DHE-PSK-AES128-GCM-SHA256"),
+                    WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, "DHE-PSK-AES128-GCM-SHA256"),
+                    WOLFSSL_SUCCESS);
+
+    /* Replace the harness' 2048-bit parameters with the largest prime
+     * GetDhPublicKey() accepts. */
+    ExpectIntEQ(wolfSSL_SetTmpDH_file(ssl_s, TEST_TLS12_DHE_PSK_DH_FILE,
+                    WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+#if defined(HAVE_SUPPORTED_CURVES) && defined(HAVE_ECC)
+    /* Offer no FFDHE group, so the server falls back to those parameters. */
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c, groups, 1), WOLFSSL_SUCCESS);
+#endif
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(ssl_c->options.dhKeySz, TEST_TLS12_DHE_PSK_DH_SZ);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+#if !defined(NO_PSK) && !defined(NO_DH) && !defined(WOLFSSL_NO_TLS12)
+    /* Checked last so the handshake above still runs, since that is what a
+     * sanitizer build needs to see the write itself. */
+    ExpectIntLE(OPAQUE16_LEN + MAX_DHKEY_SZ + OPAQUE16_LEN + MAX_PSK_KEY_LEN,
+                    ENCRYPT_LEN);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_tls13_curve_intersection(void) {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
