@@ -1,0 +1,135 @@
+name: "Nuvoton M2354 port"
+
+# Keeps the Nuvoton NuMicro M2354 crypto callback port compiling against the
+# real vendor BSP. The port has no autotools option and is not built by any
+# other job: an application compiles wolfcrypt/src/port/nuvoton/*.c into its own
+# project, the same way wolfcrypt/src/port/st/stm32.c is carried. Without this
+# guard a header rename in the BSP, or a refactor in aes.c, ecc.c or cryptocb.h,
+# would break the port silently until someone next built for the board.
+#
+# Nothing is faked. arm-none-eabi-gcc is a plain apt package and the BSP is a
+# public GitHub repository, so both legs compile against the genuine Nuvoton
+# StdDriver headers at a pinned commit.
+#
+#   secure       WOLFSSL_NUVOTON_SECURE, the whole port including nuvoton_hw.c
+#   nonsecure    WOLFSSL_NUVOTON_NSC, where nuvoton_hw.c compiles to nothing
+#                and the cmse_nonsecure_entry veneers supply the symbols
+#
+# The runnable example, including those veneers, lives in wolfssl-examples
+# under embedded/nuvoton_m2354. Functional correctness is validated on a
+# NuMaker-M2354, not here; see wolfcrypt/src/port/nuvoton/README.md.
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+    paths:
+      - 'wolfcrypt/src/port/nuvoton/**'
+      - 'wolfssl/wolfcrypt/port/nuvoton/**'
+      - '.github/workflows/nuvoton-m2354-compile.yml'
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ '**' ]
+    paths:
+      - 'wolfcrypt/src/**'
+      - 'wolfssl/wolfcrypt/**'
+      - '.github/workflows/nuvoton-m2354-compile.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+# END OF COMMON SECTION
+
+env:
+  # Pinned so a BSP change cannot break a PR that did not touch the port. Bump
+  # it deliberately.
+  BSP_REF: 3d423be763edabe1d8b3f27dea363b69e787f8f9
+
+jobs:
+  compile:
+    name: ${{ matrix.leg }} (Cortex-M23)
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - leg: secure
+            world: WOLFSSL_NUVOTON_SECURE
+          - leg: nonsecure
+            world: WOLFSSL_NUVOTON_NSC
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout wolfSSL
+
+      - name: Install the toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-arm-none-eabi
+
+      - name: Checkout the Nuvoton M2354 BSP
+        run: |
+          set -e
+          # The full repository is around 256 MB and almost none of it is
+          # needed, so take one commit and only the driver tree.
+          git clone --filter=blob:none --no-checkout --sparse \
+            https://github.com/OpenNuvoton/M2354BSP "$GITHUB_WORKSPACE/M2354BSP"
+          cd "$GITHUB_WORKSPACE/M2354BSP"
+          git sparse-checkout set \
+            Library/StdDriver/inc Library/Device Library/CMSIS
+          git fetch --depth 1 origin "$BSP_REF"
+          git checkout "$BSP_REF"
+
+      - name: Compile the port
+        run: |
+          set -e
+          BSP="$GITHUB_WORKSPACE/M2354BSP"
+          mkdir -p "$GITHUB_WORKSPACE/cfg"
+
+          # Minimal configuration: enough to reach every engine in the port.
+          # The example in wolfssl-examples carries a realistic one.
+          cat > "$GITHUB_WORKSPACE/cfg/user_settings.h" <<'EOF'
+          #ifndef CI_USER_SETTINGS_H
+          #define CI_USER_SETTINGS_H
+          #define WOLFSSL_NUVOTON_M2354
+          #define SINGLE_THREADED
+          #define NO_FILESYSTEM
+          #define WOLFSSL_SMALL_STACK
+          #define WOLFSSL_SHA224
+          #define WOLFSSL_SHA384
+          #define WOLFSSL_SHA512
+          #define HAVE_HASHDRBG
+          #define HAVE_AES_CBC
+          #define HAVE_AES_ECB
+          #define WOLFSSL_AES_DIRECT
+          #define WOLFSSL_AES_COUNTER
+          #define HAVE_AESGCM
+          #define HAVE_ECC
+          #define HAVE_ECC_DHE
+          #define HAVE_ECC_SIGN
+          #define HAVE_ECC_VERIFY
+          #define HAVE_ECC384
+          #define WOLFSSL_KEY_GEN
+          #define TFM_TIMING_RESISTANT
+          #define ECC_TIMING_RESISTANT
+          #define WC_RSA_BLINDING
+          #endif
+          EOF
+
+          CFLAGS="-mcpu=cortex-m23 -mthumb -Os -Wall -Wextra -Werror -c"
+          CFLAGS="$CFLAGS -I. -I$GITHUB_WORKSPACE/cfg -DWOLFSSL_USER_SETTINGS"
+          CFLAGS="$CFLAGS -D${{ matrix.world }}"
+          CFLAGS="$CFLAGS -I$BSP/Library/StdDriver/inc"
+          CFLAGS="$CFLAGS -I$BSP/Library/Device/Nuvoton/M2354/Include"
+          CFLAGS="$CFLAGS -I$BSP/Library/CMSIS/Include"
+
+          for f in wolfcrypt/src/port/nuvoton/*.c wolfcrypt/src/random.c; do
+              echo "  $f"
+              # shellcheck disable=SC2086
+              arm-none-eabi-gcc $CFLAGS -o /dev/null "$f"
+          done
