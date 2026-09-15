@@ -40,6 +40,14 @@ decouple library dependencies with standard string, memory and so on.
 library files.
 #endif
 
+#if defined(WOLF_CRYPTO_CB) && (defined(WOLFSSL_SM2) || \
+    defined(WOLFSSL_SM3) || defined(WOLFSSL_SM4))
+    /* Other crypto callbacks use WOLFSSL_CRYPTO_CB, but this one is temporatily
+     * added for SM crypto to enable clean merges of this feature between repos.
+     * It can be removed once the feature is fully integrated. */
+    #define WOLF_CRYPTO_CB_SM
+#endif
+
 #ifdef __APPLE__
     #include <AvailabilityMacros.h>
 #endif
@@ -1662,8 +1670,19 @@ enum wc_CipherType {
     WC_CIPHER_DES3 = 7,
     WC_CIPHER_DES = 8,
     WC_CIPHER_CHACHA = 9,
+    #define _WC_CIPHER_MAX WC_CIPHER_AES_KEYWRAP
+#ifdef WOLFSSL_SM4
+    WC_CIPHER_SM4_ECB = 16,
+    WC_CIPHER_SM4_CBC = 17,
+    WC_CIPHER_SM4_CTR = 18,
+    WC_CIPHER_SM4_GCM = 19,
+    WC_CIPHER_SM4_CCM = 20,
+    WC_CIPHER_SM4 = 21,
+    #undef _WC_CIPHER_MAX
+    #define _WC_CIPHER_MAX WC_CIPHER_SM4
+#endif
 
-    WC_CIPHER_MAX = WC_CIPHER_AES_CCM
+    WC_CIPHER_MAX = _WC_CIPHER_MAX
 };
 
 /* PK=public key (asymmetric) based algorithms */
@@ -1752,6 +1771,14 @@ enum wc_PkType {
     WC_PK_TYPE_PQC_SIG_KEYGEN_SEED = 49,
     #undef _WC_PK_TYPE_MAX
     #define _WC_PK_TYPE_MAX WC_PK_TYPE_PQC_SIG_KEYGEN_SEED
+#endif
+#ifdef WOLFSSL_SM2
+    WC_PK_TYPE_SM2_SIGN          = 50,
+    WC_PK_TYPE_SM2_VERIFY        = 51,
+    WC_PK_TYPE_SM2_SHARED_SECRET = 52,
+    WC_PK_TYPE_SM2_CREATE_DIGEST = 53,
+    #undef _WC_PK_TYPE_MAX
+    #define _WC_PK_TYPE_MAX WC_PK_TYPE_SM2_CREATE_DIGEST
 #endif
     WC_PK_TYPE_MAX = _WC_PK_TYPE_MAX
 };
