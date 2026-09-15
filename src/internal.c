@@ -17561,9 +17561,12 @@ static int ProcessPeerCertLeafRevocation(WOLFSSL* ssl, ProcPeerCertArgs* args,
             return 1;
         }
     #endif
+        /* Decide this before OcspNoUrlPolicy() maps OCSP_NO_URL onto the
+         * soft-fail 0, which is indistinguishable from a responder's good. */
+        doLookup = (ret == WC_NO_ERR_TRACE(OCSP_CERT_UNKNOWN) ||
+                    ret == WC_NO_ERR_TRACE(OCSP_NO_URL));
         if (ret == WC_NO_ERR_TRACE(OCSP_NO_URL))
             ret = OcspNoUrlPolicy(SSL_CM(ssl));
-        doLookup = (ret == WC_NO_ERR_TRACE(OCSP_CERT_UNKNOWN));
         if (ret != 0) {
             WOLFSSL_MSG("\tOCSP Lookup not ok");
             args->fatal = 0;
@@ -18485,6 +18488,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #endif /* WOLFSSL_TRUST_PEER_CERT */
                 ) {
                     int skipAddCA = 0;
+                #if defined(HAVE_OCSP) && defined(HAVE_CRL)
+                    int ocspNoUrl = 0;
+                    int ocspStapleDeferred = 0;
+                #endif
 
                     /* select last certificate */
                     args->certIdx = args->count - 1;
@@ -18577,6 +18584,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             ocspRet = TLSX_CSR2_InitRequests(ssl->extensions,
                                                     args->dCert, 0, ssl->heap);
                             addToPendingCAs = 1;
+                        #ifdef HAVE_CRL
+                            ocspStapleDeferred = 1;
+                        #endif
                         }
                         else /* skips OCSP and force CRL check */
                     #endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
@@ -18590,6 +18600,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                              */
                             ocspRet = TLSX_CSR_InitRequest_ex(ssl->extensions,
                                     args->dCert, ssl->heap, args->certIdx);
+                        #ifdef HAVE_CRL
+                            ocspStapleDeferred = 1;
+                        #endif
                         }
                         else
                     #endif
@@ -18605,8 +18618,12 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                 goto exit_ppc;
                             }
                         #endif
-                            if (ret == WC_NO_ERR_TRACE(OCSP_NO_URL))
+                            if (ret == WC_NO_ERR_TRACE(OCSP_NO_URL)) {
+                            #ifdef HAVE_CRL
+                                ocspNoUrl = 1;
+                            #endif
                                 ret = OcspNoUrlPolicy(SSL_CM(ssl));
+                            }
                             if (ret != 0) {
                                 WOLFSSL_ERROR_VERBOSE(ret);
                                 WOLFSSL_MSG("\tOCSP Lookup not ok");
@@ -18630,10 +18647,12 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             if (SSL_CM(ssl)->ocspEnabled &&
                                     SSL_CM(ssl)->ocspCheckAll) {
                                 /* If the cert status is unknown to the OCSP
-                                   responder, do a CRL lookup. If any other
-                                   error, skip the CRL lookup and fail the
-                                   certificate. */
-                                doCrlLookup = (ret == WC_NO_ERR_TRACE(OCSP_CERT_UNKNOWN));
+                                   responder, or the cert names no responder,
+                                   do a CRL lookup. If any other error, skip
+                                   the CRL lookup and fail the certificate. */
+                                doCrlLookup =
+                                    (ret == WC_NO_ERR_TRACE(OCSP_CERT_UNKNOWN))
+                                    || ocspNoUrl || ocspStapleDeferred;
                             }
                         #endif /* HAVE_OCSP */
 
@@ -18667,6 +18686,13 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                         args->fatal = 0;
                                     }
                                 }
+                            #ifdef HAVE_OCSP
+                                /* A staple answering this certificate can still
+                                 * arrive, so only a revocation is conclusive. */
+                                if (ocspStapleDeferred && ret !=
+                                        WC_NO_ERR_TRACE(CRL_CERT_REVOKED))
+                                    ret = 0;
+                            #endif
                             }
                         }
                 #endif /* HAVE_CRL */
