@@ -4632,12 +4632,12 @@ int TLSX_CSR2_ForceRequest(WOLFSSL* ssl)
     TLSX* extension = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST_V2);
     CertificateStatusRequestItemV2* csr2 = extension ?
                         (CertificateStatusRequestItemV2*)extension->data : NULL;
+    CertificateStatusRequestItemV2* multi = TLSX_CSR2_GetMulti(ssl->extensions);
     int ret = 0;
 #ifdef HAVE_CRL
     int doCrl = 1;
 #endif
 
-    /* forces only the first one */
     if (csr2) {
         switch (csr2->status_type) {
             case WOLFSSL_CSR2_OCSP:
@@ -4672,6 +4672,35 @@ int TLSX_CSR2_ForceRequest(WOLFSSL* ssl)
             #ifdef HAVE_CRL
                 ret = TLSX_CSR_LeafCrlCheck(ssl, ret, doCrl);
             #endif
+                if (ret == 0 && multi != NULL && SSL_CM(ssl)->ocspEnabled &&
+                        SSL_CM(ssl)->ocspCheckAll) {
+                    int i;
+                    /* The chain certificates' own lookups were skipped in
+                     * favour of staples that never arrived. */
+                    for (i = (int)multi->requests - 2; ret == 0 && i >= 0; i--) {
+                        ret = CheckOcspRequest(SSL_CM(ssl)->ocsp,
+                                &multi->request.ocsp[i], NULL, ssl);
+                    #ifdef WOLFSSL_NONBLOCK_OCSP
+                        /* A would-block lookup is retried, not a verdict. */
+                        if (ret == WC_NO_ERR_TRACE(OCSP_WANT_READ))
+                            return ret;
+                    #endif
+                        if (ret == WC_NO_ERR_TRACE(OCSP_NO_URL))
+                            ret = OcspNoUrlPolicy(SSL_CM(ssl));
+                        if (ret != 0) {
+                            WOLFSSL_ERROR_VERBOSE(ret);
+                            WOLFSSL_MSG("\tOCSP Lookup not ok");
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+                            if (ssl->peerVerifyRet == 0) {
+                                ssl->peerVerifyRet =
+                                    ret == WC_NO_ERR_TRACE(OCSP_CERT_REVOKED)
+                                        ? WOLFSSL_X509_V_ERR_CERT_REVOKED
+                                        : WOLFSSL_X509_V_ERR_CERT_REJECTED;
+                            }
+#endif
+                        }
+                    }
+                }
                 break;
         }
     }
