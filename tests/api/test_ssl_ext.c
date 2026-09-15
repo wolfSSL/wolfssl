@@ -1776,7 +1776,7 @@ int test_wolfSSL_api_null_operands(void)
 #endif
 
     /* --- SetServerID: ssl, id, then len <= 0 ---------------------------- */
-#ifndef NO_SESSION_CACHE
+#ifndef NO_CLIENT_CACHE
     (void)wolfSSL_SetServerID(NULL, buf, iSz, 0);
     (void)wolfSSL_SetServerID(ssl, NULL, iSz, 0);
     (void)wolfSSL_SetServerID(ssl, buf, 0, 0);
@@ -1787,7 +1787,7 @@ int test_wolfSSL_api_null_operands(void)
      * from tests/api leaves an undefined reference in configurations that do
      * not export it. The public wolfSSL_set_session() is exercised above and
      * covers the same guard. */
-#endif
+#endif /* !NO_CLIENT_CACHE */
 
     /* --- ALPN peer protocol: ssl, list, listSz -------------------------- */
 #ifdef HAVE_ALPN
