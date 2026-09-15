@@ -3045,8 +3045,14 @@
     #define HAVE_AESGCM
 #endif
 
-/* Detect Cortex M3 (no UMAAL) */
-#if defined(__ARM_ARCH_7M__) && !defined(WOLFSSL_ARM_ARCH_7M)
+/* Detect an M-profile core without UMAAL, which selects the UMAAL-free
+ * variants in sp_cortexm.c and the thumb2-* assembly. That is the Cortex-M3,
+ * and equally any ARMv8-M part built without the optional DSP extension - a
+ * case __ARM_ARCH_7M__ alone does not catch. Toolchains define
+ * __ARM_FEATURE_DSP exactly when the extension, and so UMAAL, is present. */
+#if !defined(WOLFSSL_ARM_ARCH_7M) && !defined(__ARM_FEATURE_DSP) && \
+    (defined(__ARM_ARCH_7M__) || \
+     (defined(__ARM_ARCH_PROFILE) && (__ARM_ARCH_PROFILE == 'M')))
     #define WOLFSSL_ARM_ARCH_7M
 #endif
 #if defined(WOLFSSL_SP_ARM_CORTEX_M_ASM) && defined(WOLFSSL_ARM_ARCH_7M)
@@ -3128,6 +3134,10 @@
 #endif /*(WOLFSSL_APACHE_MYNEWT)*/
 
 #ifdef WOLFSSL_ZEPHYR
+/* Assembly sources reach settings.h through libwolfssl_sources_asm.h and need
+ * only the feature macros. The Zephyr headers below, and the z_realloc
+ * prototype, are C - without this guard the assembler is handed <stdlib.h>. */
+#ifndef __ASSEMBLER__
     #ifdef __cplusplus
         }  /* extern "C" */
     #endif
@@ -3200,6 +3210,7 @@
     #define CONFIG_NET_SOCKETS_POSIX_NAMES
     #endif
     #endif
+#endif /* !__ASSEMBLER__ */
 #endif /* WOLFSSL_ZEPHYR */
 
 #ifdef WOLFSSL_IMX6
