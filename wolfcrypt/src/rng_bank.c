@@ -35,8 +35,8 @@
 #endif
 
 #if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
-    #ifndef WC_RNG_INIT_FLAGS_NONE
-        #define WC_RNG_INIT_FLAGS_NONE 0
+    #ifndef WC_RNG_INIT_FLAG_NONE
+        #define WC_RNG_INIT_FLAG_NONE 0
     #endif
     /* backward-compat shim and helper declarations */
     static int wc_RNG_DRBG_Reseed_Nonce(WC_RNG* rng, const byte* seed,
@@ -84,10 +84,10 @@ WOLFSSL_API int wc_rng_bank_init_nonce(
     int ret;
     int need_reenable_vec = 0;
     wc_static_assert(WC_DRBG_NOT_INIT == 0); /* make sure assumptions are met */
-#ifdef WC_RNG_INIT_FLAGS_LOCK_REQUIRED
-    word32 rng_flags = WC_RNG_INIT_FLAGS_LOCK_REQUIRED;
+#ifdef WC_RNG_INIT_FLAG_LOCK_REQUIRED
+    word32 rng_flags = WC_RNG_INIT_FLAG_LOCK_REQUIRED;
 #else
-    WC_MAYBE_UNUSED word32 rng_flags = WC_RNG_INIT_FLAGS_NONE;
+    WC_MAYBE_UNUSED word32 rng_flags = WC_RNG_INIT_FLAG_NONE;
 #endif
 
     if ((ctx == NULL) || (n_rngs <= 0))
@@ -118,9 +118,9 @@ WOLFSSL_API int wc_rng_bank_init_nonce(
     wolfSSL_Atomic_Int_Init(&ctx->inst_op_gate, 0);
 #endif
     ctx->flags = flags | WC_RNG_BANK_FLAG_INITED;
-#ifdef WC_RNG_INIT_FLAGS_RECOVER_AND_PROMOTE_FROM_NEXT_SEED
+#ifdef WC_RNG_INIT_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED
     if (flags & WC_RNG_BANK_FLAG_AUTO_RECOVER_AND_PROMOTE)
-        rng_flags |= WC_RNG_INIT_FLAGS_RECOVER_AND_PROMOTE_FROM_NEXT_SEED;
+        rng_flags |= WC_RNG_INIT_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED;
 #endif
     ctx->heap = heap;
     ctx->devId = devId;
@@ -175,7 +175,7 @@ WOLFSSL_API int wc_rng_bank_init_nonce(
                 else
 #endif
                 {
-#ifdef WC_RNG_INIT_FLAGS_LOCK_REQUIRED
+#ifdef WC_RNG_INIT_FLAG_LOCK_REQUIRED
                     ret = wc_InitRngNonce_ex2(
                         WC_RNG_BANK_INST_TO_RNG(rng_inst),
                         (byte *)&rng_inst, sizeof(byte *),
@@ -1664,11 +1664,11 @@ WOLFSSL_API int wc_rng_bank_inst_reinit(
     struct wc_rng_debug_stats_snapshot s;
     int stats_snap_ret;
 #endif
-#ifdef WC_RNG_INIT_FLAGS_LOCK_REQUIRED
-    word32 rng_flags = WC_RNG_INIT_FLAGS_LOCK_REQUIRED |
-        WC_RNG_INIT_FLAGS_LOCK_INITIALLY;
+#ifdef WC_RNG_INIT_FLAG_LOCK_REQUIRED
+    word32 rng_flags = WC_RNG_INIT_FLAG_LOCK_REQUIRED |
+        WC_RNG_INIT_FLAG_LOCK_INITIALLY;
 #else
-    WC_MAYBE_UNUSED word32 rng_flags = WC_RNG_INIT_FLAGS_NONE;
+    WC_MAYBE_UNUSED word32 rng_flags = WC_RNG_INIT_FLAG_NONE;
 #endif
 
     if (rng_inst == NULL)
@@ -1681,9 +1681,9 @@ WOLFSSL_API int wc_rng_bank_inst_reinit(
     if (ret < 0)
         return ret;
 
-#ifdef WC_RNG_INIT_FLAGS_RECOVER_AND_PROMOTE_FROM_NEXT_SEED
+#ifdef WC_RNG_INIT_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED
     if (flags & WC_RNG_BANK_FLAG_AUTO_RECOVER_AND_PROMOTE)
-        rng_flags |= WC_RNG_INIT_FLAGS_RECOVER_AND_PROMOTE_FROM_NEXT_SEED;
+        rng_flags |= WC_RNG_INIT_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED;
 #endif
 
     /* No DRBG-NULL rejection here.  wc_FreeRng() below nulls the DRBG, so an
@@ -1736,7 +1736,7 @@ WOLFSSL_API int wc_rng_bank_inst_reinit(
     wc_FreeRng(&rng_inst->rng);
 
     for (;;) {
-#ifdef WC_RNG_INIT_FLAGS_LOCK_REQUIRED
+#ifdef WC_RNG_INIT_FLAG_LOCK_REQUIRED
         ret = wc_InitRngNonce_ex2(WC_RNG_BANK_INST_TO_RNG(rng_inst),
                                   (byte *)&rng_inst, sizeof(byte *),
                                   NULL, 0, bank->heap, devId, rng_flags);
@@ -1966,11 +1966,11 @@ static int rng_bank_spawn(
         return ret;
 
     {
-        word32 child_init_flags = WC_RNG_INIT_FLAGS_NONE;
-#ifdef WC_RNG_INIT_FLAGS_RECOVER_AND_PROMOTE_FROM_NEXT_SEED
+        word32 child_init_flags = WC_RNG_INIT_FLAG_NONE;
+#ifdef WC_RNG_INIT_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED
         if (flags & WC_RNG_BANK_FLAG_AUTO_RECOVER_AND_PROMOTE)
             child_init_flags |=
-                WC_RNG_INIT_FLAGS_RECOVER_AND_PROMOTE_FROM_NEXT_SEED;
+                WC_RNG_INIT_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED;
 #endif
     if (leaf_stack != NULL) {
         ret = wc_InitRngNonceRBGC(leaf_stack,

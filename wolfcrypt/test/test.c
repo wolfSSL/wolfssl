@@ -29831,12 +29831,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_entropy_invalidate_test(void)
 
 #if defined(WC_RNG_HAVE_NEXT_SEED) && defined(WC_RNG_HAVE_RBGC) && \
     !defined(HAVE_INTEL_RDSEED) && !defined(HAVE_INTEL_RDRAND)
-    /* WC_RNG_INIT_FLAGS_RECOVER_AND_PROMOTE_FROM_NEXT_SEED:
+    /* WC_RNG_INIT_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED:
      * recovery-consumption and chain-promotion at generate. */
     {
         WC_RNG flag_rng;
         api_ret = wc_InitRng_ex2(&flag_rng, HEAP_HINT, INVALID_DEVID,
-                    WC_RNG_INIT_FLAGS_RECOVER_AND_PROMOTE_FROM_NEXT_SEED);
+                    WC_RNG_INIT_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED);
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
         /* recovery: invalidate (purges the aperture), bank a fresh primary
@@ -29872,7 +29872,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_entropy_invalidate_test(void)
             if (api_ret != 0)
                 ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
             api_ret = wc_InitRngNonceRBGC(&flag_rng, &proot, NULL, 0, NULL, 0,
-                    WC_RNG_INIT_FLAGS_RECOVER_AND_PROMOTE_FROM_NEXT_SEED);
+                    WC_RNG_INIT_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED);
             if (api_ret != 0)
                 ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
             api_ret = wc_RNG_DRBG_GetRBGCStratum(&flag_rng);
@@ -29893,7 +29893,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_entropy_invalidate_test(void)
                 ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
             /* negative: unflagged leaf keeps its stratum. */
             api_ret = wc_InitRngNonceRBGC(&flag_rng, &proot, NULL, 0,
-                                          NULL, 0, WC_RNG_INIT_FLAGS_NONE);
+                                          NULL, 0, WC_RNG_INIT_FLAG_NONE);
             if (api_ret != 0)
                 ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
             api_ret = wc_RNG_DRBG_NextSeedGenerate(&flag_rng,
@@ -30064,17 +30064,17 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
     present = wc_RNG_DRBG_Present(&root);
 
     /* spawn argument contracts */
-    api_ret = wc_InitRngRBGC(NULL, &root, WC_RNG_INIT_FLAGS_NONE);
+    api_ret = wc_InitRngRBGC(NULL, &root, WC_RNG_INIT_FLAG_NONE);
     if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
-    api_ret = wc_InitRngRBGC(&leaf, NULL, WC_RNG_INIT_FLAGS_NONE);
+    api_ret = wc_InitRngRBGC(&leaf, NULL, WC_RNG_INIT_FLAG_NONE);
     if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
-    api_ret = wc_InitRngRBGC(&root, &root, WC_RNG_INIT_FLAGS_NONE);
+    api_ret = wc_InitRngRBGC(&root, &root, WC_RNG_INIT_FLAG_NONE);
     if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
 #ifndef WC_NO_CONSTRUCTORS
-    api_ret = wc_InitRngRBGC_New(NULL, &root, WC_RNG_INIT_FLAGS_NONE);
+    api_ret = wc_InitRngRBGC_New(NULL, &root, WC_RNG_INIT_FLAG_NONE);
     if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
 #endif
@@ -30086,7 +30086,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     }
     RNG_STATS_SNAP(&root);
-    api_ret = wc_InitRngRBGC(&leaf, &root, WC_RNG_INIT_FLAGS_NONE);
+    api_ret = wc_InitRngRBGC(&leaf, &root, WC_RNG_INIT_FLAG_NONE);
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
     leaf_inited = 1;
@@ -30204,7 +30204,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
         /* long-chained init is allowed; chained reseeds are governed by the
          * no-downgrade rule probed below. */
-        ret = wc_InitRngRBGC_New(&pleaf, &extra, WC_RNG_INIT_FLAGS_NONE);
+        ret = wc_InitRngRBGC_New(&pleaf, &extra, WC_RNG_INIT_FLAG_NONE);
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
         if ((pleaf == NULL) || (wc_RNG_DRBG_GetRBGCStratum(pleaf) != 2))
@@ -30297,7 +30297,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
     }
 
     /* heap-allocated leaves, without and with a nonce */
-    api_ret = wc_InitRngRBGC_New(&pleaf, &root, WC_RNG_INIT_FLAGS_NONE);
+    api_ret = wc_InitRngRBGC_New(&pleaf, &root, WC_RNG_INIT_FLAG_NONE);
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
     if ((pleaf == NULL) || (wc_RNG_DRBG_GetRBGCStratum(pleaf) != 1))
@@ -30308,7 +30308,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
     wc_rng_free(pleaf);
     pleaf = NULL;
     api_ret = wc_InitRngNonceRBGC_New(&pleaf, &root, matter, 16,
-                                      NULL, 0, WC_RNG_INIT_FLAGS_NONE);
+                                      NULL, 0, WC_RNG_INIT_FLAG_NONE);
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
     if ((pleaf == NULL) || (wc_RNG_DRBG_GetRBGCStratum(pleaf) != 1))
@@ -30323,7 +30323,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
     api_ret = wc_InitRngNonceRBGC(&leaf, &root, matter, 16,
-                                  NULL, 0, WC_RNG_INIT_FLAGS_NONE);
+                                  NULL, 0, WC_RNG_INIT_FLAG_NONE);
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
     leaf_inited = 1;
@@ -30390,17 +30390,17 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
     present = wc_RNG_DRBG_Present(&root);
 
     /* spawn argument contracts */
-    if (wc_InitRngRBGC(NULL, &root, WC_RNG_INIT_FLAGS_NONE) !=
+    if (wc_InitRngRBGC(NULL, &root, WC_RNG_INIT_FLAG_NONE) !=
             WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-    if (wc_InitRngRBGC(&leaf, NULL, WC_RNG_INIT_FLAGS_NONE) !=
+    if (wc_InitRngRBGC(&leaf, NULL, WC_RNG_INIT_FLAG_NONE) !=
             WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-    if (wc_InitRngRBGC(&root, &root, WC_RNG_INIT_FLAGS_NONE) !=
+    if (wc_InitRngRBGC(&root, &root, WC_RNG_INIT_FLAG_NONE) !=
             WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #ifndef WC_NO_CONSTRUCTORS
-    if (wc_InitRngRBGC_New(NULL, &root, WC_RNG_INIT_FLAGS_NONE) !=
+    if (wc_InitRngRBGC_New(NULL, &root, WC_RNG_INIT_FLAG_NONE) !=
         WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
@@ -30411,7 +30411,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     }
-    api_ret = wc_InitRngRBGC(&leaf, &root, WC_RNG_INIT_FLAGS_NONE);
+    api_ret = wc_InitRngRBGC(&leaf, &root, WC_RNG_INIT_FLAG_NONE);
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
     leaf_inited = 1;
@@ -30468,7 +30468,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
         /* long-chained init is allowed, only chained reseed is forbidden. */
-        ret = wc_InitRngRBGC_New(&pleaf, &extra, WC_RNG_INIT_FLAGS_NONE);
+        ret = wc_InitRngRBGC_New(&pleaf, &extra, WC_RNG_INIT_FLAG_NONE);
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
         if (pleaf == NULL)
@@ -30478,7 +30478,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
     }
 
     /* heap-allocated leaves, without and with a nonce */
-    api_ret = wc_InitRngRBGC_New(&pleaf, &root, WC_RNG_INIT_FLAGS_NONE);
+    api_ret = wc_InitRngRBGC_New(&pleaf, &root, WC_RNG_INIT_FLAG_NONE);
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
     if (pleaf == NULL)
@@ -30489,7 +30489,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
     wc_rng_free(pleaf);
     pleaf = NULL;
     api_ret = wc_InitRngNonceRBGC_New(&pleaf, &root, matter, 16,
-                                      NULL, 0, WC_RNG_INIT_FLAGS_NONE);
+                                      NULL, 0, WC_RNG_INIT_FLAG_NONE);
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
     if (pleaf == NULL)
@@ -30504,7 +30504,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
     api_ret = wc_InitRngNonceRBGC(&leaf, &root, matter, 16,
-                                  WC_RNG_INIT_FLAGS_NONE);
+                                  WC_RNG_INIT_FLAG_NONE);
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
     leaf_inited = 1;
@@ -30852,7 +30852,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_nextseedstest(void)
         XMEMSET(frag64, 0x5e, sizeof(frag64));
 
         api_ret = wc_InitRngNonceRBGC(&leaf, root, NULL, 0,
-                                      NULL, 0, WC_RNG_INIT_FLAGS_NONE);
+                                      NULL, 0, WC_RNG_INIT_FLAG_NONE);
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
         leaf_inited = 1;

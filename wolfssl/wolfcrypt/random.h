@@ -723,16 +723,16 @@ WOLFSSL_ABI WOLFSSL_API int  wc_InitRng(WC_RNG* rng);
 WOLFSSL_API int  wc_InitRng_ex(WC_RNG* rng, void* heap, int devId);
 WOLFSSL_API int  wc_InitRngNonce(WC_RNG* rng, const byte* nonce, word32 nonceSz);
 
-#define WC_RNG_INIT_FLAGS_NONE            0
-#define WC_RNG_INIT_FLAGS_LOCK_REQUIRED   (1U << 0)
-#define WC_RNG_INIT_FLAGS_LOCK_INITIALLY  (1U << 1)
-#define WC_RNG_INIT_FLAGS_USE_FULL_MUTEX  (1U << 2)
+#define WC_RNG_INIT_FLAG_NONE            0
+#define WC_RNG_INIT_FLAG_LOCK_REQUIRED   (1U << 0)
+#define WC_RNG_INIT_FLAG_LOCK_INITIALLY  (1U << 1)
+#define WC_RNG_INIT_FLAG_USE_FULL_MUTEX  (1U << 2)
 /* At each generate, if a banked next seed is READY, consume it when the
  * instance is flagged _ENTROPY_INVALIDATED (recovery; any provenance), or
  * when the instance is chain-backed and the banked seed is primary
  * (promotion).  For externally-refreshed long-lived RNGs, e.g. the kernel
  * module's registered RBGC leaves. */
-#define WC_RNG_INIT_FLAGS_RECOVER_AND_PROMOTE_FROM_NEXT_SEED (1U << 3)
+#define WC_RNG_INIT_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED (1U << 3)
 
 WOLFSSL_API int  wc_InitRng_ex2(WC_RNG* rng, void* heap, int devId,
                                 word32 flags);
@@ -918,7 +918,7 @@ WOLFSSL_API int wc_RNG_DRBG_Present(const WC_RNG* rng);
                                         const byte *perso, word32 persoSz,
                                         word32 flags);
     #ifndef WC_NO_CONSTRUCTORS
-    /* Flags are per-object (WC_RNG_INIT_FLAGS_*), deliberately not
+    /* Flags are per-object (WC_RNG_INIT_FLAG_*), deliberately not
      * inherited from the parent: a child's lock policy is its own. */
     WOLFSSL_API int wc_InitRngRBGC_New(WC_RNG** child, WC_RNG* parent,
                                        word32 flags);
