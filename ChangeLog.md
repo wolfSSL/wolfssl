@@ -8,6 +8,10 @@
 * Made `wc_falcon_check_key()` constant time, and cut Falcon key generation's peak heap by about 20% with a constant-time inversion of f. by @Frauschi
 * Added `--enable-falcon=smallest-mem`, a Falcon signer working in 20*n bytes (12KB peak heap at Falcon-512, 22KB at Falcon-1024). by @Frauschi
 
+## Fixes
+
+* ML-KEM and ML-DSA now keep the key's device id on their internal SHAKE hashing, so a registered crypto callback sees the SHAKE-256 Update and Final calls. by @Frauschi (PR 11544)
+
 # wolfSSL Release 5.9.4 (Sep 25, 2026)
 
 Release 5.9.4 has been developed according to wolfSSL's development and QA
