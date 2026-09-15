@@ -3512,6 +3512,53 @@ int wolfSSL_CTX_GetDevId(WOLFSSL_CTX* ctx, WOLFSSL* ssl);
 long wolfSSL_CTX_set_session_cache_mode(WOLFSSL_CTX* ctx, long mode);
 
 /*!
+    \ingroup Setup
+
+    \brief This function registers the callback wolfSSL uses to look a session
+    up in an application managed (external) session cache. It is called on the
+    server side when a peer offers a session id to resume, before the internal
+    cache is consulted. Compatibility layer equivalent of
+    SSL_CTX_sess_set_get_cb().
+
+    \return none No return.
+
+    \param ctx pointer to the SSL context, created with wolfSSL_CTX_new().
+    \param f the lookup callback, or NULL to remove a previously registered
+    one. It is passed the WOLFSSL object being negotiated, the session id to
+    look up and its length, and a pointer to a copy flag. It returns the
+    matching WOLFSSL_SESSION, or NULL when the cache holds no session for that
+    id. wolfSSL sets the copy flag to 1 before the call. Left at 1, the
+    callback keeps its reference and wolfSSL never releases it, so the session
+    must stay valid while wolfSSL processes the lookup. For TLS 1.3 stateful
+    ticket resumption, which keeps the session longer, wolfSSL takes a
+    reference of its own and releases it when done; a session it cannot take a
+    reference on is then treated as no session found. Set to 0, the callback
+    hands its reference to wolfSSL, which releases it once done with the
+    session.
+
+    _Example_
+    \code
+    WOLFSSL_SESSION* myGetSession(WOLFSSL* ssl, const unsigned char* id,
+                                  int idLen, int* copy)
+    {
+        (void)ssl;
+        // The cache keeps its session, so leave copy alone.
+        return myCacheLookup(id, idLen);
+    }
+    ...
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    wolfSSL_CTX_sess_set_get_cb(ctx, myGetSession);
+    \endcode
+
+    \sa wolfSSL_CTX_set_session_cache_mode
+    \sa wolfSSL_get1_session
+    \sa wolfSSL_SESSION_free
+    \sa wolfSSL_flush_sessions
+*/
+void wolfSSL_CTX_sess_set_get_cb(WOLFSSL_CTX* ctx,
+    WOLFSSL_SESSION*(*f)(WOLFSSL* ssl, const unsigned char*, int, int*));
+
+/*!
     \brief This function sets the session secret callback function. The
     SessionSecretCb type has the signature: int (*SessionSecretCb)(WOLFSSL* ssl,
     void* secret, int* secretSz, void* ctx). The sessionSecretCb member of
