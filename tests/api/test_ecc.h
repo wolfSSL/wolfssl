@@ -67,6 +67,7 @@ int test_wc_ecc_mulmod(void);
 int test_wc_ecc_is_valid_idx(void);
 int test_wc_ecc_get_curve_id_from_oid(void);
 int test_wc_ecc_sig_size_calc(void);
+int test_wc_EccPublicKeyDecode_specifiedOverflow(void);
 int test_wc_EccPrivateKeyToDer(void);
 int test_wc_EccDecisionCoverage(void);
 int test_wc_EccDecisionCoverage2(void);
@@ -121,6 +122,7 @@ int test_wc_EccDecisionCoverage4(void);
     TEST_DECL_GROUP("ecc", test_wc_EccDecisionCoverage),               \
     TEST_DECL_GROUP("ecc", test_wc_EccDecisionCoverage2),              \
     TEST_DECL_GROUP("ecc", test_wc_EccDecisionCoverage3),              \
-    TEST_DECL_GROUP("ecc", test_wc_EccDecisionCoverage4)
+    TEST_DECL_GROUP("ecc", test_wc_EccDecisionCoverage4),             \
+    TEST_DECL_GROUP("ecc", test_wc_EccPublicKeyDecode_specifiedOverflow)
 
 #endif /* WOLFCRYPT_TEST_ECC_H */
