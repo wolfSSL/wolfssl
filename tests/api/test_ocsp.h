@@ -45,6 +45,7 @@ int test_ocsp_staple_crl_policy(void);
 int test_ocsp_acked_no_leaf_staple_ocsp(void);
 int test_ocsp_unstapled_chain_crl(void);
 int test_ocsp_checkall_staple_missing_chain(void);
+int test_ocsp_must_staple_acked_no_status(void);
 int test_tls13_nonblock_ocsp_low_mfl(void);
 int test_ocsp_ctx_request_cache(void);
 int test_ocsp_responder(void);

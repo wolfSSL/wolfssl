@@ -20597,6 +20597,18 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
                                      defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
             if (!ssl->msgsReceived.got_certificate_status) {
                 int csrRet = 0;
+                /* No CertificateStatus arrived, so a required staple is
+                 * missing and a fallback lookup would only tell a responder. */
+                if (SSL_CM(ssl)->ocspMustStaple &&
+                        (ssl->msgsReceived.got_certificate ||
+                         ssl->options.usingAnon_cipher)) {
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+                    if (ssl->status_request_v2)
+                        TLSX_CSR2_ClearPendingCA(ssl);
+#endif
+                    WOLFSSL_ERROR_VERBOSE(OCSP_CERT_UNKNOWN);
+                    return OCSP_CERT_UNKNOWN;
+                }
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
                 if (csrRet == 0 && ssl->status_request) {
                     WOLFSSL_MSG("No CertificateStatus before ServerHelloDone");
@@ -20641,20 +20653,6 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
                         ) {
                         return csrRet;
                     }
-                }
-                /* Check that a status request extension was seen as the
-                 * CertificateStatus wasn't when an OCSP staple is required.
-                 */
-                if (
-#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
-                     !ssl->status_request &&
-#endif
-#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
-                     !ssl->status_request_v2 &&
-#endif
-                                                 SSL_CM(ssl)->ocspMustStaple) {
-                    WOLFSSL_ERROR_VERBOSE(OCSP_CERT_UNKNOWN);
-                    return OCSP_CERT_UNKNOWN;
                 }
             }
 #ifdef HAVE_CRL
