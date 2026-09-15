@@ -2811,7 +2811,10 @@ static int dnb_buildRdn(byte* out, const byte* oidTlv, int oidTlvLen,
  * longer "/emailAddress=" prefix, and (under WOLFSSL_CERT_EXT) jurisdictionC
  * takes the JOI branch. Each attribute is checked on both boundary sides: at
  * the cap (dropped) and one byte under it (kept in full), so an over-tightening
- * off-by-one on any single guard is caught too. Runs under both ASN parsers. */
+ * off-by-one on any single guard is caught too. Every case is repeated with a
+ * value made of characters that are escaped in the one-line name, so the guards
+ * are also checked against the escaped length, not the raw DER length. Runs
+ * under both ASN parsers. */
 int test_ParseCert_dnBufferBoundary(void)
 {
     EXPECT_DECLS;
@@ -2848,6 +2851,9 @@ int test_ParseCert_dnBufferBoundary(void)
     byte  rdn1[16];
     int   numCases = 4;
     int   valLen;
+    int   escLen;
+    int   esc;
+    int   i;
     int   rdn1Len;
     int   rdn2Len;
     int   nameContentLen;
@@ -2906,70 +2912,115 @@ int test_ParseCert_dnBufferBoundary(void)
         DYNAMIC_TYPE_TMP_BUFFER));
     ExpectNotNull(der = (byte*)XMALLOC(2048, NULL, DYNAMIC_TYPE_TMP_BUFFER));
 
-    for (c = 0; (der != NULL) && (val2 != NULL) && (c < numCases); c++) {
-        valLen = cases[c].valLen;
-        XMEMSET(val2, 'B', (size_t)valLen);
+    /* Each case runs twice. The first pass fills the value with 'B' so the
+     * rendered length equals the raw length. The second pass fills it with
+     * characters that are escaped to two bytes ('/', '+' and, for IA5String,
+     * '\'), so the raw value is about half the rendered length and fits by the
+     * raw measure: only a guard using the escaped length gets the cutoff right.
+     * cases[c].valLen is the rendered value length in both passes. A leading
+     * 'B' pads odd lengths so the escaped value lands exactly on the boundary.
+     */
+    for (esc = 0; esc < 2; esc++) {
+        for (c = 0; (der != NULL) && (val2 != NULL) && (c < numCases); c++) {
+            escLen = cases[c].valLen;
+            if (!esc) {
+                valLen = escLen;
+                XMEMSET(val2, 'B', (size_t)valLen);
+            }
+            else {
+                const char* escChars = (cases[c].valTag == 0x16) ?
+                    "/+\\" : "/+";
+                int escCharsLen = (int)XSTRLEN(escChars);
 
-        /* Fixed leading fields: everything up to the subject Name. */
-        XMEMCPY(der, dnb_certPreIssuer, sizeof(dnb_certPreIssuer));
-        pos = (int)sizeof(dnb_certPreIssuer);
-        XMEMCPY(&der[pos], dnb_issuerCnTest, sizeof(dnb_issuerCnTest));
-        pos += (int)sizeof(dnb_issuerCnTest);
-        XMEMCPY(&der[pos], dnb_certValidity, sizeof(dnb_certValidity));
-        pos += (int)sizeof(dnb_certValidity);
+                valLen = escLen / 2 + escLen % 2;
+                i = 0;
+                if ((escLen % 2) != 0) {
+                    val2[i++] = 'B';
+                }
+                for (; i < valLen; i++) {
+                    val2[i] = (byte)escChars[i % escCharsLen];
+                }
+            }
 
-        /* First RDN: /CN=A (a short name that must survive). */
-        rdn1Len = dnb_buildRdn(rdn1, dnb_cnOid, (int)sizeof(dnb_cnOid), 0x13,
-            (const byte*)"A", 1);
+            /* Fixed leading fields: everything up to the subject Name. */
+            XMEMCPY(der, dnb_certPreIssuer, sizeof(dnb_certPreIssuer));
+            pos = (int)sizeof(dnb_certPreIssuer);
+            XMEMCPY(&der[pos], dnb_issuerCnTest, sizeof(dnb_issuerCnTest));
+            pos += (int)sizeof(dnb_issuerCnTest);
+            XMEMCPY(&der[pos], dnb_certValidity, sizeof(dnb_certValidity));
+            pos += (int)sizeof(dnb_certValidity);
 
-        /* Second RDN length, computed the same way dnb_buildRdn() lays it
-         * out. */
-        rdn2Len = 1 + dnb_lenSz(valLen) + valLen;          /* value TLV */
-        rdn2Len = cases[c].oidLen + rdn2Len;               /* SEQUENCE content */
-        rdn2Len = 1 + dnb_lenSz(rdn2Len) + rdn2Len;        /* SET content */
-        rdn2Len = 1 + dnb_lenSz(rdn2Len) + rdn2Len;        /* SET TLV */
-        nameContentLen = rdn1Len + rdn2Len;
+            /* First RDN: /CN=A (a short name that must survive). */
+            rdn1Len = dnb_buildRdn(rdn1, dnb_cnOid, (int)sizeof(dnb_cnOid),
+                0x13, (const byte*)"A", 1);
 
-        /* Subject Name SEQUENCE header, then the two RDNs in order. */
-        der[pos++] = 0x30;
-        pos += dnb_encodeLen(&der[pos], nameContentLen);
-        XMEMCPY(&der[pos], rdn1, (size_t)rdn1Len);
-        pos += rdn1Len;
-        pos += dnb_buildRdn(&der[pos], cases[c].oid, cases[c].oidLen,
-            cases[c].valTag, val2, valLen);
+            /* Second RDN length, computed the same way dnb_buildRdn() lays it
+             * out. */
+            rdn2Len = 1 + dnb_lenSz(valLen) + valLen;    /* value TLV */
+            rdn2Len = cases[c].oidLen + rdn2Len;         /* SEQUENCE content */
+            rdn2Len = 1 + dnb_lenSz(rdn2Len) + rdn2Len;  /* SET content */
+            rdn2Len = 1 + dnb_lenSz(rdn2Len) + rdn2Len;  /* SET TLV */
+            nameContentLen = rdn1Len + rdn2Len;
 
-        /* SubjectPublicKeyInfo. */
-        XMEMCPY(&der[pos], dnb_rsaSpki, sizeof(dnb_rsaSpki));
-        pos += (int)sizeof(dnb_rsaSpki);
+            /* Subject Name SEQUENCE header, then the two RDNs in order. */
+            der[pos++] = 0x30;
+            pos += dnb_encodeLen(&der[pos], nameContentLen);
+            XMEMCPY(&der[pos], rdn1, (size_t)rdn1Len);
+            pos += rdn1Len;
+            pos += dnb_buildRdn(&der[pos], cases[c].oid, cases[c].oidLen,
+                cases[c].valTag, val2, valLen);
 
-        /* tbsCertificate content spans from offset 8 to here. */
-        tbsContentLen = pos - 8;
+            /* SubjectPublicKeyInfo. */
+            XMEMCPY(&der[pos], dnb_rsaSpki, sizeof(dnb_rsaSpki));
+            pos += (int)sizeof(dnb_rsaSpki);
 
-        /* Outer signature algorithm and value. */
-        XMEMCPY(&der[pos], dnb_certSuffix, sizeof(dnb_certSuffix));
-        pos += (int)sizeof(dnb_certSuffix);
-        derSz = pos;
-        outerContentLen = derSz - 4;
+            /* tbsCertificate content spans from offset 8 to here. */
+            tbsContentLen = pos - 8;
 
-        /* Patch the two SEQUENCE lengths (both use the 0x82 long form). */
-        der[6] = (byte)(tbsContentLen >> 8);
-        der[7] = (byte)(tbsContentLen & 0xff);
-        der[2] = (byte)(outerContentLen >> 8);
-        der[3] = (byte)(outerContentLen & 0xff);
+            /* Outer signature algorithm and value. */
+            XMEMCPY(&der[pos], dnb_certSuffix, sizeof(dnb_certSuffix));
+            pos += (int)sizeof(dnb_certSuffix);
+            derSz = pos;
+            outerContentLen = derSz - 4;
 
-        wc_InitDecodedCert(&cert, der, (word32)derSz, NULL);
-        ExpectIntEQ(wc_ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL), 0);
-        if (cases[c].expectFull) {
-            /* Largest name that still fits: the second RDN is kept and the
-             * subject fills the buffer up to the in-bounds terminator. */
-            ExpectIntEQ((int)XSTRLEN(cert.subject), WC_ASN_NAME_MAX - 1);
+            /* Patch the two SEQUENCE lengths (both use the 0x82 long form). */
+            der[6] = (byte)(tbsContentLen >> 8);
+            der[7] = (byte)(tbsContentLen & 0xff);
+            der[2] = (byte)(outerContentLen >> 8);
+            der[3] = (byte)(outerContentLen & 0xff);
+
+            wc_InitDecodedCert(&cert, der, (word32)derSz, NULL);
+            ExpectIntEQ(wc_ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL), 0);
+            if (cases[c].expectFull) {
+                /* Largest name that still fits: the second RDN is kept and the
+                 * subject fills the buffer up to the in-bounds terminator. */
+                ExpectIntEQ((int)XSTRLEN(cert.subject), WC_ASN_NAME_MAX - 1);
+                if (esc && EXPECT_SUCCESS()) {
+                    /* The value ends the subject and must be escaped in
+                     * full. */
+                    const char* p = cert.subject + (WC_ASN_NAME_MAX - 1 -
+                            escLen);
+                    int match = 1;
+
+                    for (i = 0; match && (i < valLen); i++) {
+                        if (val2[i] == 'B') {
+                            match = (*p++ == 'B');
+                        }
+                        else {
+                            match = (p[0] == '\\') && (p[1] == (char)val2[i]);
+                            p += 2;
+                        }
+                    }
+                    ExpectIntEQ(match, 1);
+                }
+            }
+            else {
+                /* The boundary attribute is dropped so the terminator stays in
+                 * bounds; only the first RDN remains. */
+                ExpectStrEQ(cert.subject, "/CN=A");
+            }
+            wc_FreeDecodedCert(&cert);
         }
-        else {
-            /* The boundary attribute is dropped so the terminator stays in
-             * bounds; only the first RDN remains. */
-            ExpectStrEQ(cert.subject, "/CN=A");
-        }
-        wc_FreeDecodedCert(&cert);
     }
 
     XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
