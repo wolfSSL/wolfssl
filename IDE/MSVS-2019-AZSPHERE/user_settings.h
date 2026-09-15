@@ -60,6 +60,9 @@
 #define HAVE_ECC
 #define HAVE_SUPPORTED_CURVES
 #define HAVE_TLS_EXTENSIONS
+/* Acknowledge renegotiation_info (RFC 5746) without supporting renegotiation;
+ * TLS 1.2 clients require it on the initial handshake by default. */
+#define HAVE_SERVER_RENEGOTIATION_INFO
 #define HAVE_ONE_TIME_AUTH
 #define HAVE_TRUNCATED_HMAC
 #define HAVE_EXTENDED_MASTER
