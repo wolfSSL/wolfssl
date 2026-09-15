@@ -4128,7 +4128,17 @@ static int EchCalcAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
     headerSz = HANDSHAKE_HEADER_SZ;
 #endif
 
-    if (isHrr) {
+    /* input starts at the handshake header, so the confirmation bytes must lie
+     * inside the message that follows it */
+    if (acceptOffset < headerSz || helloSz < 0 ||
+            (helloSz + headerSz) < ECH_ACCEPT_CONFIRMATION_SZ ||
+            acceptOffset > (helloSz + headerSz) -
+                ECH_ACCEPT_CONFIRMATION_SZ) {
+        WOLFSSL_ERROR_VERBOSE(BUFFER_ERROR);
+        ret = BUFFER_ERROR;
+    }
+
+    if (ret == 0 && isHrr) {
         /* the transcript hash of ClientHelloInner1 */
         ret = GetMsgHash(ssl, clientHelloInnerHash);
         if (ret > 0) {
@@ -6181,21 +6191,32 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 return ret;
         }
         else {
+            const byte* hsMsg;
+            int acceptOffset;
+            word32 headerSz = HANDSHAKE_HEADER_SZ;
+        #ifdef WOLFSSL_DTLS13
+            if (ssl->options.dtls)
+                headerSz = DTLS13_HANDSHAKE_HEADER_SZ;
+        #endif
+            /* EchCheckAcceptance hashes from the handshake header, which
+             * always precedes input + args->begin (cf. HashInput) */
+            hsMsg = input + args->begin - headerSz;
             /* account for hrr extension instead of server random */
             if (args->extMsgType == hello_retry_request) {
-                args->acceptOffset =
-                    (word32)(((WOLFSSL_ECH*)args->echX->data)->confBuf - input);
+                acceptOffset =
+                    (int)(((WOLFSSL_ECH*)args->echX->data)->confBuf - hsMsg);
                 args->acceptLabel = (byte*)echHrrAcceptConfirmationLabel;
                 args->acceptLabelSz = ECH_HRR_ACCEPT_CONFIRMATION_LABEL_SZ;
             }
             else {
+                acceptOffset = (int)(input + args->acceptOffset - hsMsg);
                 args->acceptLabel = (byte*)echAcceptConfirmationLabel;
                 args->acceptLabelSz = ECH_ACCEPT_CONFIRMATION_LABEL_SZ;
             }
             /* check acceptance */
             if (ret == 0) {
                 ret = EchCheckAcceptance(ssl, args->acceptLabel,
-                    args->acceptLabelSz, input, args->acceptOffset, helloSz,
+                    args->acceptLabelSz, hsMsg, acceptOffset, helloSz,
                     args->extMsgType);
             }
             if (ret != 0)
