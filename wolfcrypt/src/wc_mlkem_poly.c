@@ -3553,7 +3553,7 @@ static int mlkem_xof_absorb(wc_Shake* shake128, const byte* seed, int len)
 {
     int ret;
 
-    ret = wc_InitShake128(shake128, NULL, INVALID_DEVID);
+    ret = wc_Shake128_Reset(shake128);
     if (ret == 0) {
         ret = wc_Shake128_Absorb(shake128, seed, (word32)len);
     }
@@ -3603,6 +3603,10 @@ int mlkem_hash_new(wc_Sha3* hash, void* heap, int devId)
  */
 void mlkem_hash_free(wc_Sha3* hash)
 {
+#if defined(WOLF_CRYPTO_CB) && !defined(PSOC6_HASH_SHA3)
+    /* G() leaves it typed SHA3-512; free it as created. */
+    hash->hashType = WC_HASH_TYPE_SHA3_256;
+#endif
     wc_Sha3_256_Free(hash);
 }
 
@@ -3667,13 +3671,15 @@ int mlkem_hash512(wc_Sha3* hash, const byte* data1, word32 data1Len,
     return ret;
 }
 
-/* Initialize SHAKE-256 object.
+/* Reset SHAKE-256 object, keeping its heap hint and device id.
  *
- * @param  [in, out]  prf  SHAKE-256 object.
+ * @param  [in, out]  prf  SHAKE-256 object created with mlkem_prf_new().
+ * @return  0 on success.
+ * @return  Other negative value when resetting the object fails.
  */
-void mlkem_prf_init(wc_Shake* prf)
+int mlkem_prf_reset(wc_Shake* prf)
 {
-    wc_InitShake256(prf, NULL, 0);
+    return wc_Shake256_Reset(prf);
 }
 #endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
         * !WOLFSSL_MLKEM_NO_DECAPSULATE */
@@ -3702,6 +3708,10 @@ int mlkem_prf_new(wc_Shake* prf, void* heap, int devId)
  */
 void mlkem_prf_free(wc_Shake* prf)
 {
+#if defined(WOLF_CRYPTO_CB) && !defined(PSOC6_HASH_SHA3)
+    /* Matrix generation leaves it typed SHAKE-128; free it as created. */
+    prf->hashType = WC_HASH_TYPE_SHAKE256;
+#endif
     wc_Shake256_Free(prf);
 }
 
@@ -3886,6 +3896,17 @@ int mlkem_kdf(const byte* seed, int seedLen, byte* out, int outLen)
 
 #ifndef WOLFSSL_NO_ML_KEM
 #ifndef WOLFSSL_MLKEM_NO_DECAPSULATE
+#ifdef USE_INTEL_SPEEDUP
+/* The Intel path fills the sponge directly, so no callback may see the PRF. */
+#if !defined(WOLF_CRYPTO_CB)
+    #define MLKEM_PRF_SW_ONLY(prf)      1
+#elif defined(WOLF_CRYPTO_CB_FIND)
+    #define MLKEM_PRF_SW_ONLY(prf)      0
+#else
+    #define MLKEM_PRF_SW_ONLY(prf)      ((prf)->devId == INVALID_DEVID)
+#endif
+#endif
+
 /* Derive the secret from z and cipher text.
  *
  * @param [in, out]  prf   SHAKE-256 object.
@@ -3902,23 +3923,18 @@ int mlkem_derive_secret(wc_Shake* prf, const byte* z, const byte* ct,
 {
     int ret;
 
+    ret = mlkem_prf_reset(prf);
 #ifdef USE_INTEL_SPEEDUP
-    ret = wc_InitShake256(prf, NULL, INVALID_DEVID);
-    if (ret != 0)
-        return ret;
-
-    XMEMCPY(prf->t, z, WC_ML_KEM_SYM_SZ);
-    XMEMCPY(prf->t + WC_ML_KEM_SYM_SZ, ct,
-        WC_SHA3_256_COUNT * 8 - WC_ML_KEM_SYM_SZ);
-    prf->i = WC_ML_KEM_SYM_SZ + WC_SHA3_256_COUNT * 8 - WC_ML_KEM_SYM_SZ;
-    ct += WC_SHA3_256_COUNT * 8 - WC_ML_KEM_SYM_SZ;
-    ctSz -= WC_SHA3_256_COUNT * 8 - WC_ML_KEM_SYM_SZ;
-    ret = wc_Shake256_Update(prf, ct, ctSz);
-    if (ret == 0) {
-        ret = wc_Shake256_Final(prf, ss, WC_ML_KEM_SS_SZ);
+    if ((ret == 0) && MLKEM_PRF_SW_ONLY(prf)) {
+        XMEMCPY(prf->t, z, WC_ML_KEM_SYM_SZ);
+        XMEMCPY(prf->t + WC_ML_KEM_SYM_SZ, ct,
+            WC_SHA3_256_COUNT * 8 - WC_ML_KEM_SYM_SZ);
+        prf->i = WC_ML_KEM_SYM_SZ + WC_SHA3_256_COUNT * 8 - WC_ML_KEM_SYM_SZ;
+        ct += WC_SHA3_256_COUNT * 8 - WC_ML_KEM_SYM_SZ;
+        ctSz -= WC_SHA3_256_COUNT * 8 - WC_ML_KEM_SYM_SZ;
     }
-#else
-    ret = wc_InitShake256(prf, NULL, INVALID_DEVID);
+    else
+#endif
     if (ret == 0) {
         ret = wc_Shake256_Update(prf, z, WC_ML_KEM_SYM_SZ);
     }
@@ -3928,7 +3944,6 @@ int mlkem_derive_secret(wc_Shake* prf, const byte* z, const byte* ct,
     if (ret == 0) {
         ret = wc_Shake256_Final(prf, ss, WC_ML_KEM_SS_SZ);
     }
-#endif
 
     return ret;
 }
@@ -5980,20 +5995,20 @@ static int mlkem_get_noise_i(MLKEM_PRF_T* prf, int k, sword16* vec2,
 {
     int ret;
 
-    /* Initialize the PRF (generating matrix A leaves it in uninitialized
-     * state). */
-    mlkem_prf_init(prf);
-
-    /* Set index of polynomial of second vector into seed. */
-    seed[WC_ML_KEM_SYM_SZ] = WC_OCTET(k + i);
+    /* Reset the PRF, which generating matrix A leaves mid-squeeze. */
+    ret = mlkem_prf_reset(prf);
+    if (ret == 0) {
+        /* Set index of polynomial of second vector into seed. */
+        seed[WC_ML_KEM_SYM_SZ] = WC_OCTET(k + i);
 #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512)
-    if ((k == WC_ML_KEM_512_K) && make) {
-        ret = mlkem_get_noise_eta1_c(prf, vec2, seed, MLKEM_CBD_ETA3);
-    }
-    else
+        if ((k == WC_ML_KEM_512_K) && make) {
+            ret = mlkem_get_noise_eta1_c(prf, vec2, seed, MLKEM_CBD_ETA3);
+        }
+        else
 #endif
-    {
-        ret = mlkem_get_noise_eta1_c(prf, vec2, seed, MLKEM_CBD_ETA2);
+        {
+            ret = mlkem_get_noise_eta1_c(prf, vec2, seed, MLKEM_CBD_ETA2);
+        }
     }
 
     (void)make;
