@@ -1184,7 +1184,7 @@ int wc_CryptoCb_EccCheckPubKey(ecc_key* key, int checkOrder, int checkPriv)
 #endif /* HAVE_ECC_CHECK_KEY */
 
 #ifdef HAVE_ECC_ENCRYPT
-int wc_CryptoCb_EciesEncrypt(ecc_key* privKey, ecc_key* pubKey,
+int wc_CryptoCb_EciesEncrypt(int devId, ecc_key* privKey, ecc_key* pubKey,
     const byte* msg, word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx,
     int compressed)
 {
@@ -1194,8 +1194,9 @@ int wc_CryptoCb_EciesEncrypt(ecc_key* privKey, ecc_key* pubKey,
     if (privKey == NULL)
         return ret;
 
-    /* locate registered callback */
-    dev = wc_CryptoCb_FindDevice(privKey->devId, WC_ALGO_TYPE_PK);
+    /* find the registered callback.  The device comes from the ECIES
+     * context, not from privKey->devId. */
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
     if (dev && dev->cb) {
         wc_CryptoInfo cryptoInfo;
         XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
@@ -1216,7 +1217,7 @@ int wc_CryptoCb_EciesEncrypt(ecc_key* privKey, ecc_key* pubKey,
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
 
-int wc_CryptoCb_EciesDecrypt(ecc_key* privKey, ecc_key* pubKey,
+int wc_CryptoCb_EciesDecrypt(int devId, ecc_key* privKey, ecc_key* pubKey,
     const byte* msg, word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx)
 {
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
@@ -1225,8 +1226,9 @@ int wc_CryptoCb_EciesDecrypt(ecc_key* privKey, ecc_key* pubKey,
     if (privKey == NULL)
         return ret;
 
-    /* locate registered callback */
-    dev = wc_CryptoCb_FindDevice(privKey->devId, WC_ALGO_TYPE_PK);
+    /* find the registered callback.  The device comes from the ECIES
+     * context, not from privKey->devId. */
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
     if (dev && dev->cb) {
         wc_CryptoInfo cryptoInfo;
         XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));

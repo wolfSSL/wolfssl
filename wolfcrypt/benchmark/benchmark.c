@@ -15093,6 +15093,22 @@ static void bench_eccEncryptEx(int useDeviceID, int curveId, int ctxMode)
             goto exit;
         }
 
+    #ifdef WOLF_CRYPTO_CB
+        /* ECIES picks its device from the context, not the keys.  Without
+         * this the -dev rows would time software but be labeled as device
+         * rows.  bench_ecies_prep() resets the contexts each round, and a
+         * reset keeps the devId. */
+        if (useDeviceID) {
+            if (wc_ecc_ctx_set_dev_id(cliCtx, devId) != 0 ||
+                wc_ecc_ctx_set_dev_id(srvCtx, devId) != 0) {
+                printf("bench_eccEncrypt ctx set dev id failed\n");
+                wc_ecc_ctx_free(cliCtx);
+                wc_ecc_ctx_free(srvCtx);
+                goto exit;
+            }
+        }
+    #endif
+
         for (c = 0; eciesCiphers[c].label != NULL; c++) {
             byte algo = eciesCiphers[c].algo;
             /* Tag the KDF rows so they do not read as the default ones. */
