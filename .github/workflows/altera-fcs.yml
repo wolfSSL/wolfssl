@@ -60,7 +60,7 @@ jobs:
         uses: ./.github/actions/install-apt-deps
         with:
           packages: autoconf automake libtool build-essential cmake
-          ghcr-debs-tag: ubuntu-24.04-minimal
+          ghcr-debs-tag: ubuntu-24.04-full
 
       - name: Build no-hardware dependency stubs
         run: |
