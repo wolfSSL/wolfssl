@@ -14581,6 +14581,154 @@ static wc_test_ret_t des3_cbc_test(Des3* enc, Des3* dec)
     return ret;
 }
 
+/* TODO: these 3DES ports do not carry the IV forward in des->reg between
+ * CBC calls, so split operations do not match a single call. Remove each
+ * guard once its port chains the IV:
+ *  - Cavium Octeon sync: IV is never read back from the hardware.
+ *  - PIC32MZ: wc_Pic32DesCrypt only loads the IV into the SA.
+ *  - Freescale LTC: LTC_DES3_*Cbc takes the IV as const.
+ *  - STM32 without HAL_V2: saves the last output block, which is plaintext
+ *    on decrypt. */
+#if !defined(HAVE_CAVIUM_OCTEON_SYNC) && !defined(WOLFSSL_PIC32MZ_CRYPT) && \
+    !defined(FREESCALE_LTC_DES) && \
+    !(defined(STM32_CRYPTO) && !defined(STM32_CRYPTO_AES_ONLY) && \
+      !defined(STM32_HAL_V2))
+    #define DES3_CBC_SPLIT_TEST
+#endif
+
+#ifdef DES3_CBC_SPLIT_TEST
+/* each piece must reach the async threshold so split calls use the hardware */
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_THRESH_DES3_CBC)
+    #define DES3_CBC_SPLIT_PIECE_SZ \
+        (((WC_ASYNC_THRESH_DES3_CBC + DES_BLOCK_SIZE - 1) / DES_BLOCK_SIZE) * \
+         DES_BLOCK_SIZE)
+#else
+    #define DES3_CBC_SPLIT_PIECE_SZ (2 * DES_BLOCK_SIZE)
+#endif
+
+/* Encrypting/decrypting in two calls on the same context must match a single
+ * call, so the IV has to chain between calls. */
+static wc_test_ret_t des3_cbc_split_test(Des3* enc, Des3* dec)
+{
+    WOLFSSL_SMALL_STACK_STATIC const byte key[] =
+    {
+        0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef,
+        0xfe,0xde,0xba,0x98,0x76,0x54,0x32,0x10,
+        0x89,0xab,0xcd,0xef,0x01,0x23,0x45,0x67
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte iv[] =
+    {
+        0x12,0x34,0x56,0x78,0x90,0xab,0xcd,0xef
+    };
+    const word32 piece = DES3_CBC_SPLIT_PIECE_SZ;
+    const word32 total = 2 * DES3_CBC_SPLIT_PIECE_SZ;
+    /* QAT builds always use the stack: a heap buffer passed as input can be
+     * reallocated, and so freed, by the QAT driver. */
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(HAVE_INTEL_QA)
+    byte* buf;
+#else
+    byte buf[4 * 2 * DES3_CBC_SPLIT_PIECE_SZ];
+#endif
+    byte* msg;
+    byte* one;
+    byte* two;
+    byte* plain;
+    word32 i;
+    wc_test_ret_t ret;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(HAVE_INTEL_QA)
+    buf = (byte*)XMALLOC(4 * total, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (buf == NULL)
+        return WC_TEST_RET_ENC_ERRNO;
+#endif
+    msg   = buf;
+    one   = buf + total;
+    two   = buf + 2 * total;
+    plain = buf + 3 * total;
+    for (i = 0; i < total; i++)
+        msg[i] = (byte)i;
+
+    /* single call encrypt */
+    ret = wc_Des3_SetKey(enc, key, iv, DES_ENCRYPTION);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_Des3_CbcEncrypt(enc, one, msg, total);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &enc->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* split encrypt */
+    ret = wc_Des3_SetKey(enc, key, iv, DES_ENCRYPTION);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_Des3_CbcEncrypt(enc, two, msg, piece);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &enc->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_Des3_CbcEncrypt(enc, two + piece, msg + piece, piece);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &enc->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(one, two, total))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    /* split decrypt */
+    ret = wc_Des3_SetKey(dec, key, iv, DES_DECRYPTION);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_Des3_CbcDecrypt(dec, plain, one, piece);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &dec->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_Des3_CbcDecrypt(dec, plain + piece, one + piece, piece);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &dec->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(plain, msg, total))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    /* split decrypt in-place, the next IV must be taken before the input is
+     * overwritten */
+    XMEMCPY(two, one, total);
+    ret = wc_Des3_SetKey(dec, key, iv, DES_DECRYPTION);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_Des3_CbcDecrypt(dec, two, two, piece);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &dec->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_Des3_CbcDecrypt(dec, two + piece, two + piece, piece);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &dec->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(two, msg, total))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+out:
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(HAVE_INTEL_QA)
+    XFREE(buf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return ret;
+}
+#endif /* DES3_CBC_SPLIT_TEST */
+
 #ifdef WOLFSSL_DES_ECB
 static wc_test_ret_t des3_ecb_test(Des3* enc, Des3* dec)
 {
@@ -14761,6 +14909,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t des3_test(void)
     ret = des3_cbc_test(&enc, &dec);
     if (ret != 0)
         goto out;
+#ifdef DES3_CBC_SPLIT_TEST
+    ret = des3_cbc_split_test(&enc, &dec);
+    if (ret != 0)
+        goto out;
+#endif
 #ifdef WOLFSSL_DES_ECB
     ret = des3_ecb_test(&enc, &dec);
     if (ret != 0)
@@ -18009,6 +18162,145 @@ out:
 }
 #endif /* WOLFSSL_AES_128 && !HAVE_RENESAS_SYNC */
 
+#if defined(WOLFSSL_AES_128) && !defined(HAVE_RENESAS_SYNC)
+/* each piece must reach the async threshold so split calls use the hardware */
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_THRESH_AES_CBC)
+    #define AES_CBC_SPLIT_PIECE_SZ \
+        (((WC_ASYNC_THRESH_AES_CBC + WC_AES_BLOCK_SIZE - 1) / \
+          WC_AES_BLOCK_SIZE) * WC_AES_BLOCK_SIZE)
+#else
+    #define AES_CBC_SPLIT_PIECE_SZ (2 * WC_AES_BLOCK_SIZE)
+#endif
+
+/* Encrypting/decrypting in two calls on the same context must match a single
+ * call, so the IV has to chain between calls. */
+static wc_test_ret_t aes_cbc_split_test(Aes* enc, Aes* dec)
+{
+    WOLFSSL_SMALL_STACK_STATIC const byte key[] = {
+        0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6,
+        0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte iv[] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
+    };
+    const word32 piece = AES_CBC_SPLIT_PIECE_SZ;
+    const word32 total = 2 * AES_CBC_SPLIT_PIECE_SZ;
+    /* QAT builds always use the stack: a heap buffer passed as input can be
+     * reallocated, and so freed, by the QAT driver. */
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(HAVE_INTEL_QA)
+    byte* buf;
+#else
+    byte buf[4 * 2 * AES_CBC_SPLIT_PIECE_SZ];
+#endif
+    byte* msg;
+    byte* one;
+    byte* two;
+#ifdef HAVE_AES_DECRYPT
+    byte* plain;
+#endif
+    word32 i;
+    wc_test_ret_t ret;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(HAVE_INTEL_QA)
+    buf = (byte*)XMALLOC(4 * total, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (buf == NULL)
+        return WC_TEST_RET_ENC_ERRNO;
+#endif
+    msg   = buf;
+    one   = buf + total;
+    two   = buf + 2 * total;
+#ifdef HAVE_AES_DECRYPT
+    plain = buf + 3 * total;
+#endif
+    for (i = 0; i < total; i++)
+        msg[i] = (byte)i;
+
+    /* single call encrypt */
+    ret = wc_AesSetKey(enc, key, sizeof(key), iv, AES_ENCRYPTION);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_AesCbcEncrypt(enc, one, msg, total);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &enc->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* split encrypt */
+    ret = wc_AesSetKey(enc, key, sizeof(key), iv, AES_ENCRYPTION);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_AesCbcEncrypt(enc, two, msg, piece);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &enc->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_AesCbcEncrypt(enc, two + piece, msg + piece, piece);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &enc->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(one, two, total))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+#ifdef HAVE_AES_DECRYPT
+    /* split decrypt */
+    ret = wc_AesSetKey(dec, key, sizeof(key), iv, AES_DECRYPTION);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_AesCbcDecrypt(dec, plain, one, piece);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &dec->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_AesCbcDecrypt(dec, plain + piece, one + piece, piece);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &dec->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(plain, msg, total))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    /* split decrypt in-place, the next IV must be taken before the input is
+     * overwritten */
+    XMEMCPY(two, one, total);
+    ret = wc_AesSetKey(dec, key, sizeof(key), iv, AES_DECRYPTION);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_AesCbcDecrypt(dec, two, two, piece);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &dec->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_AesCbcDecrypt(dec, two + piece, two + piece, piece);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &dec->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(two, msg, total))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#else
+    (void)dec;
+#endif /* HAVE_AES_DECRYPT */
+
+out:
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(HAVE_INTEL_QA)
+    XFREE(buf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return ret;
+}
+#endif /* WOLFSSL_AES_128 && !HAVE_RENESAS_SYNC */
+
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_cbc_test(void)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
@@ -18070,6 +18362,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_cbc_test(void)
     /* Test of AES IV state with encrypt/decrypt */
 #if defined(WOLFSSL_AES_128) && !defined(HAVE_RENESAS_SYNC)
     ret = aes_cbc_iv_state_test(enc, WC_TEST_AES_DEC(dec), cipher, plain);
+    if (ret != 0)
+        goto out;
+
+    ret = aes_cbc_split_test(enc, WC_TEST_AES_DEC(dec));
     if (ret != 0)
         goto out;
 
