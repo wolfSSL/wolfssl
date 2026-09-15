@@ -3213,14 +3213,26 @@ int wc_RNG_lock_get(WC_RNG* rng, WC_RNG_lock_arg_t extra_bits)
     cur_lock = WOLFSSL_ATOMIC_LOAD(rng->lock);
 
     if (cur_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED) {
-        #ifdef WC_RNG_DEBUG_STATS
-        ++rng->_stats_locks_refused; /* racy */
-        #endif
-#ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
-        if (rng->flags & WC_RNG_FLAG_FULL_MUTEX)
-            (void)wc_UnLockMutex(&rng->mutex);
+#ifdef WC_RNG_HAVE_NEXT_SEED
+        WC_ATOMIC_INT_ARG NextSeedCurrent;
+        if ((rng->flags & WC_RNG_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED) &&
+            (wc_RNG_DRBG_NextSeedCurrent(rng, &NextSeedCurrent) == 0) &&
+            (NextSeedCurrent == WC_DRBG_NEXT_SEED_READY))
+        {
+            /* cheap inline recovery available. */
+        }
+        else
 #endif
-        return NEEDS_RECOVERY_E;
+        {
+            #ifdef WC_RNG_DEBUG_STATS
+            ++rng->_stats_locks_refused; /* racy */
+            #endif
+#ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
+            if (rng->flags & WC_RNG_FLAG_FULL_MUTEX)
+                (void)wc_UnLockMutex(&rng->mutex);
+#endif
+            return NEEDS_RECOVERY_E;
+        }
     }
 
     if ((! (cur_lock & WC_RNG_LOCK_HELD)) &&
@@ -3231,6 +3243,15 @@ int wc_RNG_lock_get(WC_RNG* rng, WC_RNG_lock_arg_t extra_bits)
         #ifdef WC_RNG_DEBUG_STATS
         ++rng->_stats_locks_taken;
         #endif
+
+        /* If we arrived here via _RECOVER_AND_PROMOTE_FROM_NEXT_SEED with a pending
+         * NextSeed, there is a finite though minuscule chance that a second
+         * invalidation left the RNG without a banked seed to consume.  In that
+         * case, the holder's generate falls through to the regular inline
+         * forced-reseed machinery.  This is the same outcome as an invalidation
+         * landing immediately after a successful acquire.
+         */
+
         return 0;
     }
 
@@ -3245,10 +3266,10 @@ int wc_RNG_lock_get(WC_RNG* rng, WC_RNG_lock_arg_t extra_bits)
         (void)wc_UnLockMutex(&rng->mutex);
 #endif
 
-    if (cur_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED)
-        return NEEDS_RECOVERY_E;
-    else if (cur_lock & WC_RNG_LOCK_HELD)
+    if (cur_lock & WC_RNG_LOCK_HELD)
         return BUSY_E;
+    else if (cur_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED)
+        return NEEDS_RECOVERY_E;
     else /* not reachable */
         return UNEXPECTED_STATE_E;
 }
@@ -3777,12 +3798,27 @@ int wc_RNG_Pool_Collect2(WC_RNG* rng_dest, WC_RNG* rng_src, word32 n)
         word32 head, epoch, tail, free_sz, m, done = 0;
         int ret;
 
+        WC_ATOMIC_UINT_ARG tw;
+
         snap = WOLFSSL_ATOMIC_LOAD(rng_dest->poolHead);
         head = WC_RNG_POOL_POS(snap);
         epoch = WC_RNG_POOL_EPOCH(snap);
-        /* A stale-epoch tail is conservative: it can only understate the free
-         * span, never overstate it, so no unread byte is ever overwritten. */
-        tail = WC_RNG_POOL_POS(WOLFSSL_ATOMIC_LOAD(rng_dest->poolTail));
+        tw = WOLFSSL_ATOMIC_LOAD(rng_dest->poolTail);
+
+        if (WC_RNG_POOL_EPOCH(tw) != epoch) {
+            /* A purge landed and the reader has not yet acknowledged it.  Its
+             * resync discards everything published before the purge -- which
+             * would include anything we published now -- so there is no useful
+             * work here until a read happens.  Reporting NOT_READY_E rather
+             * than success also keeps a collector that polls fullness from
+             * spinning: wc_RNG_Pool_Current() reports empty across this
+             * window, while tail still describes the retired span, so a
+             * free-span computation from it would say full.  Those two
+             * disagree only here, and only until the reader resyncs. */
+            return NOT_READY_E;
+        }
+
+        tail = WC_RNG_POOL_POS(tw);
 
         free_sz = (word32)rng_dest->poolSize
                   - PoolUsed(head, tail, (word32)rng_dest->poolSize);
