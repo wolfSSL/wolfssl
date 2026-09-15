@@ -294,6 +294,114 @@ int test_wolfSSL_X509_LOOKUP_ctrl_hash_dir(void)
     return EXPECT_RESULT();
 }
 
+/* Check that a path element longer than the internal MAX_FILENAME_SZ buffer is
+ * rejected instead of overflowing it. */
+int test_wolfSSL_X509_LOOKUP_ctrl_dir_len(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
+    X509_STORE* str = NULL;
+    X509_LOOKUP* lookup = NULL;
+    char* longPath = NULL;
+    const int longPathCap = MAX_FILENAME_SZ + 5;
+
+    ExpectNotNull((longPath = (char*)XMALLOC(longPathCap, HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER)));
+
+    /* One Path One Over Max Size */
+    if (EXPECT_SUCCESS()) {
+        XMEMSET(longPath, 'a', MAX_FILENAME_SZ + 1);
+        XMEMSET(longPath + MAX_FILENAME_SZ + 1, '\0',
+                longPathCap - MAX_FILENAME_SZ - 1);
+    }
+
+    ExpectNotNull((str = X509_STORE_new()));
+    ExpectNotNull((lookup = X509_STORE_add_lookup(str,
+                    X509_LOOKUP_file())));
+
+    ExpectIntEQ(X509_LOOKUP_ctrl(lookup, X509_L_ADD_DIR,
+                longPath, SSL_FILETYPE_PEM, NULL), 0);
+
+    X509_STORE_free(str);
+    str = NULL;
+
+    ExpectNotNull((str = X509_STORE_new()));
+    ExpectNotNull((lookup = X509_STORE_add_lookup(str,
+                    X509_LOOKUP_file())));
+
+    /* One Path Max Size */
+    if (EXPECT_SUCCESS()) {
+        XMEMSET(longPath, 'a', MAX_FILENAME_SZ);
+        XMEMSET(longPath + MAX_FILENAME_SZ, '\0',
+                longPathCap - MAX_FILENAME_SZ);
+    }
+
+    ExpectIntEQ(X509_LOOKUP_ctrl(lookup, X509_L_ADD_DIR,
+                longPath, SSL_FILETYPE_PEM, NULL), WOLFSSL_SUCCESS);
+
+    X509_STORE_free(str);
+    str = NULL;
+
+    ExpectNotNull((str = X509_STORE_new()));
+    ExpectNotNull((lookup = X509_STORE_add_lookup(str,
+                    X509_LOOKUP_file())));
+
+    /* Second path one too long */
+    if (EXPECT_SUCCESS()) {
+        XMEMSET(longPath, 'a', longPathCap);
+        XMEMSET(longPath, 'b', 2);
+        longPath[2] = SEPARATOR_CHAR;
+        longPath[longPathCap-1] = '\0';
+    }
+
+    ExpectIntEQ(X509_LOOKUP_ctrl(lookup, X509_L_ADD_DIR,
+                longPath, SSL_FILETYPE_PEM, NULL), 0);
+
+    X509_STORE_free(str);
+    str = NULL;
+
+    ExpectNotNull((str = X509_STORE_new()));
+    ExpectNotNull((lookup = X509_STORE_add_lookup(str,
+                    X509_LOOKUP_file())));
+
+    /* Two Paths Correct Size */
+    if (EXPECT_SUCCESS()) {
+        XMEMSET(longPath, 'a', longPathCap);
+        XMEMSET(longPath, 'b', 2);
+        longPath[2] = SEPARATOR_CHAR;
+        longPath[longPathCap - 2] = '\0';
+    }
+
+    ExpectIntEQ(X509_LOOKUP_ctrl(lookup, X509_L_ADD_DIR,
+                longPath, SSL_FILETYPE_PEM, NULL), WOLFSSL_SUCCESS);
+
+    X509_STORE_free(str);
+    str = NULL;
+
+    ExpectNotNull((str = X509_STORE_new()));
+    ExpectNotNull((lookup = X509_STORE_add_lookup(str,
+                    X509_LOOKUP_file())));
+
+    /* path max size terminated by separator char */
+    if (EXPECT_SUCCESS()) {
+        XMEMSET(longPath, 'a', longPathCap);
+        longPath[MAX_FILENAME_SZ] = SEPARATOR_CHAR;
+        longPath[MAX_FILENAME_SZ + 1] = '\0';
+    }
+
+    ExpectIntEQ(X509_LOOKUP_ctrl(lookup, X509_L_ADD_DIR,
+                longPath, SSL_FILETYPE_PEM, NULL), WOLFSSL_SUCCESS);
+
+    X509_STORE_free(str);
+    str = NULL;
+
+    if (longPath != NULL) {
+        XFREE(longPath, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_X509_load_crl_file(void)
 {
     EXPECT_DECLS;
