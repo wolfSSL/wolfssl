@@ -7249,7 +7249,9 @@ int test_wc_PKCS7_VerifySignedData_DegenerateNonEmptyDigestAlgos(void)
 int test_wc_PKCS7_VerifySignedData_DegenerateWithCert(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_PKCS7) && !defined(NO_RSA) && defined(USE_CERT_BUFFERS_2048)
+/* the bundle below names sha256 in digestAlgorithms */
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048)
     PKCS7* pkcs7 = NULL;
     /* version, digestAlgorithms { sha256 } and encapContentInfo with an
      * attached 60 byte id-data eContent, as in the test above */
