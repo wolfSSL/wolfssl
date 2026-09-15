@@ -228,14 +228,14 @@ static int linuxkm_lkcapi_unregister(void);
 static int enabled_kernel_fips_enabled = 0;
 #endif
 
-static ssize_t install_algs_handler(struct kobject *kobj, struct kobj_attribute *attr,
+static ssize_t install_algs_handler(WC_MODULE_ATTR_CONST struct module_attribute *mattr, struct module_kobject *mk,
                               const char *buf, size_t count)
 {
     int arg;
     int ret;
 
-    (void)kobj;
-    (void)attr;
+    (void)mattr;
+    (void)mk;
 
     if (kstrtoint(buf, 10, &arg) || arg != 1)
         return -EINVAL;
@@ -249,14 +249,14 @@ static ssize_t install_algs_handler(struct kobject *kobj, struct kobj_attribute 
     return count;
 }
 
-static ssize_t deinstall_algs_handler(struct kobject *kobj, struct kobj_attribute *attr,
+static ssize_t deinstall_algs_handler(WC_MODULE_ATTR_CONST struct module_attribute *mattr, struct module_kobject *mk,
                               const char *buf, size_t count)
 {
     int arg;
     int ret;
 
-    (void)kobj;
-    (void)attr;
+    (void)mattr;
+    (void)mk;
 
     if (kstrtoint(buf, 10, &arg) || arg != 1)
         return -EINVAL;
@@ -279,22 +279,50 @@ static ssize_t deinstall_algs_handler(struct kobject *kobj, struct kobj_attribut
 
 /* create control channels at /sys/module/libwolfssl/{install_algs,deinstall_algs} */
 
-static struct kobj_attribute install_algs_attr = __ATTR(install_algs, 0220, NULL, install_algs_handler);
-static struct kobj_attribute deinstall_algs_attr = __ATTR(deinstall_algs, 0220, NULL, deinstall_algs_handler);
+static struct module_attribute install_algs_attr = __ATTR(install_algs, 0220, NULL, install_algs_handler);
+static struct module_attribute deinstall_algs_attr = __ATTR(deinstall_algs, 0220, NULL, deinstall_algs_handler);
 
 static int installed_sysfs_LKCAPI_files = 0;
 
 static int linuxkm_lkcapi_sysfs_install(void) {
     int ret;
     if (! installed_sysfs_LKCAPI_files) {
-        ret = linuxkm_lkcapi_sysfs_install_node(&install_algs_attr, NULL);
+        ret = linuxkm_sysfs_install_attr(&install_algs_attr.attr, NULL);
         if (ret)
             return ret;
-        ret = linuxkm_lkcapi_sysfs_install_node(&deinstall_algs_attr, NULL);
+        ret = linuxkm_sysfs_install_attr(&deinstall_algs_attr.attr, NULL);
         if (ret) {
-            (void)linuxkm_lkcapi_sysfs_deinstall_node(&install_algs_attr, NULL);
+            (void)linuxkm_sysfs_deinstall_attr(&install_algs_attr.attr, NULL);
             return ret;
         }
+
+#ifdef WC_LINUXKM_HAVE_RNG_STATE_INVALIDATE_HANDLER
+        ret = linuxkm_sysfs_install_attr(&wc_linuxkm_rng_state_invalidate_attr.attr,
+                                                NULL);
+        if (ret) {
+            (void)linuxkm_sysfs_deinstall_attr(&deinstall_algs_attr.attr,
+                                                      NULL);
+            (void)linuxkm_sysfs_deinstall_attr(&install_algs_attr.attr,
+                                                      NULL);
+            return ret;
+        }
+#endif
+#if defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT) && \
+    defined(WC_RNG_DEBUG_STATS)
+        ret = linuxkm_sysfs_install_attr(&wc_linuxkm_rng_stats_attr.attr,
+                                                NULL);
+        if (ret) {
+#ifdef WC_LINUXKM_HAVE_RNG_STATE_INVALIDATE_HANDLER
+            (void)linuxkm_sysfs_deinstall_attr(&wc_linuxkm_rng_state_invalidate_attr.attr,
+                                                      NULL);
+#endif
+            (void)linuxkm_sysfs_deinstall_attr(&deinstall_algs_attr.attr,
+                                                      NULL);
+            (void)linuxkm_sysfs_deinstall_attr(&install_algs_attr.attr,
+                                                      NULL);
+            return ret;
+        }
+#endif
         installed_sysfs_LKCAPI_files = 1;
     }
     return 0;
@@ -302,10 +330,27 @@ static int linuxkm_lkcapi_sysfs_install(void) {
 
 static int linuxkm_lkcapi_sysfs_deinstall(void) {
     if (installed_sysfs_LKCAPI_files) {
-        int ret = linuxkm_lkcapi_sysfs_deinstall_node(&install_algs_attr, NULL);
+        int ret;
+#if defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT) && \
+    defined(WC_RNG_DEBUG_STATS)
+        ret = linuxkm_sysfs_deinstall_attr(&wc_linuxkm_rng_stats_attr.attr,
+                                                  NULL);
         if (ret)
             return ret;
-        ret = linuxkm_lkcapi_sysfs_deinstall_node(&deinstall_algs_attr, NULL);
+#endif
+#ifdef WC_LINUXKM_HAVE_RNG_STATE_INVALIDATE_HANDLER
+        /* removed first (LIFO), and in any case before RNG teardown can
+         * begin: the store handler walks the registry and reaches the
+         * daemon root. */
+        ret = linuxkm_sysfs_deinstall_attr(&wc_linuxkm_rng_state_invalidate_attr.attr,
+                                                  NULL);
+        if (ret)
+            return ret;
+#endif
+        ret = linuxkm_sysfs_deinstall_attr(&install_algs_attr.attr, NULL);
+        if (ret)
+            return ret;
+        ret = linuxkm_sysfs_deinstall_attr(&deinstall_algs_attr.attr, NULL);
         if (ret)
             return ret;
         installed_sysfs_LKCAPI_files = 0;
