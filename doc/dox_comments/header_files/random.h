@@ -769,11 +769,11 @@ int wc_Sha512Drbg_IsDisabled(void);
 
     \brief Initialize a WC_RNG with instantiation-time security attributes.
     Identical to wc_InitRng_ex(), with a flags argument fixing attributes at
-    birth: WC_RNG_INIT_FLAGS_LOCK_REQUIRED latches the sticky lock-required
+    birth: WC_RNG_INIT_FLAG_LOCK_REQUIRED latches the sticky lock-required
     policy bit, so there is no reachable state in which the instance serves
-    without its lock policy; WC_RNG_INIT_FLAGS_LOCK_INITIALLY constructs into
+    without its lock policy; WC_RNG_INIT_FLAG_LOCK_INITIALLY constructs into
     a held lease, to be released with wc_RNG_lock_put();
-    WC_RNG_INIT_FLAGS_USE_FULL_MUTEX layers a blocking wolfSSL_Mutex
+    WC_RNG_INIT_FLAG_USE_FULL_MUTEX layers a blocking wolfSSL_Mutex
     outermost around the lock latch, for user-mode sharing of one instance
     among threads (requires WC_RNG_HAVE_LOCK_FULL_MUTEX).
 
@@ -784,14 +784,14 @@ int wc_Sha512Drbg_IsDisabled(void);
     \param rng The RNG object to initialize.
     \param heap Heap hint for dynamic allocation.
     \param devId Device id, or INVALID_DEVID.
-    \param flags Bitwise-or of WC_RNG_INIT_FLAGS_* attributes.
+    \param flags Bitwise-or of WC_RNG_INIT_FLAG_* attributes.
 
     _Example_
     \code
     WC_RNG rng;
     if (wc_InitRng_ex2(&rng, NULL, INVALID_DEVID,
-                       WC_RNG_INIT_FLAGS_LOCK_REQUIRED |
-                       WC_RNG_INIT_FLAGS_LOCK_INITIALLY) != 0) {
+                       WC_RNG_INIT_FLAG_LOCK_REQUIRED |
+                       WC_RNG_INIT_FLAG_LOCK_INITIALLY) != 0) {
         // error handling
     }
     // caller holds the lease from birth
@@ -820,7 +820,7 @@ int wc_InitRng_ex2(WC_RNG* rng, void* heap, int devId, word32 flags);
     \param nonceSz Length of nonce in bytes.
     \param heap Heap hint for dynamic allocation.
     \param devId Device id, or INVALID_DEVID.
-    \param flags Bitwise-or of WC_RNG_INIT_FLAGS_* attributes.
+    \param flags Bitwise-or of WC_RNG_INIT_FLAG_* attributes.
 
     \sa wc_InitRng_ex2
     \sa wc_InitRngNonce_ex
@@ -1016,13 +1016,13 @@ int wc_RNG_DRBG_Stir_Nonce(WC_RNG* rng, const byte* seed,
 
     \param child The caller-provided WC_RNG to instantiate (uninitialized).
     \param parent The chain parent to draw seed material from.
-    \param flags Bitwise-or of WC_RNG_INIT_FLAGS_* attributes for the child.
+    \param flags Bitwise-or of WC_RNG_INIT_FLAG_* attributes for the child.
 
     _Example_
     \code
     WC_RNG root, child;
     wc_InitRng(&root);
-    if (wc_InitRngRBGC(&child, &root, WC_RNG_INIT_FLAGS_NONE) == 0) {
+    if (wc_InitRngRBGC(&child, &root, WC_RNG_INIT_FLAG_NONE) == 0) {
         // child serves independently; release with wc_FreeRng(&child)
     }
     \endcode
@@ -1049,7 +1049,7 @@ int wc_InitRngRBGC(WC_RNG* child, WC_RNG* parent, word32 flags);
     \param parent The chain parent to draw seed material from.
     \param nonce Additional instantiation input.
     \param nonceSz Length of nonce in bytes.
-    \param flags Bitwise-or of WC_RNG_INIT_FLAGS_* attributes for the child.
+    \param flags Bitwise-or of WC_RNG_INIT_FLAG_* attributes for the child.
 
     \sa wc_InitRngRBGC
     \sa wc_InitRngNonceRBGC_New
@@ -1071,7 +1071,7 @@ int wc_InitRngNonceRBGC(WC_RNG* child, WC_RNG* parent, const byte* nonce,
 
     \param child Receives the allocated, instantiated WC_RNG.
     \param parent The chain parent to draw seed material from.
-    \param flags Bitwise-or of WC_RNG_INIT_FLAGS_* attributes for the child.
+    \param flags Bitwise-or of WC_RNG_INIT_FLAG_* attributes for the child.
 
     \sa wc_InitRngRBGC
     \sa wc_InitRngNonceRBGC_New
@@ -1093,7 +1093,7 @@ int wc_InitRngRBGC_New(WC_RNG** child, WC_RNG* parent, word32 flags);
     \param parent The chain parent to draw seed material from.
     \param nonce Additional instantiation input.
     \param nonceSz Length of nonce in bytes.
-    \param flags Bitwise-or of WC_RNG_INIT_FLAGS_* attributes for the child.
+    \param flags Bitwise-or of WC_RNG_INIT_FLAG_* attributes for the child.
 
     \sa wc_InitRngRBGC_New
     \sa wc_InitRngNonceRBGC

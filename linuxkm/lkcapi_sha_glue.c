@@ -2967,7 +2967,7 @@ static int wc_linuxkm_entropy_daemon(void *arg)
         /* registered-leaf pass: bank RBGC seeds from root_rng into
          * long-lived leaves that are invalidated or chain-backed, so their
          * next generate recovers/promotes in place
-         * (WC_RNG_INIT_FLAGS_RECOVER_AND_PROMOTE_FROM_NEXT_SEED).
+         * (WC_RNG_INIT_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED).
          * Sleepable-mutex context; entropy gathers are legal under it by
          * the atomic-born exclusion rule. */
         if (root_rng != NULL) {

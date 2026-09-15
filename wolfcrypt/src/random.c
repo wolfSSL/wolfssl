@@ -2497,29 +2497,29 @@ static int _InitRng(WC_RNG* rng, const byte* nonce, word32 nonceSz,
         return BAD_FUNC_ARG;
 
 #ifndef WC_RNG_HAVE_NEXT_SEED
-    if (flags & WC_RNG_INIT_FLAGS_RECOVER_AND_PROMOTE_FROM_NEXT_SEED)
+    if (flags & WC_RNG_INIT_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED)
         return NOT_COMPILED_IN;
 #endif
 #ifndef WC_RNG_HAVE_LOCK_FULL_MUTEX
-    if (flags & WC_RNG_INIT_FLAGS_USE_FULL_MUTEX)
+    if (flags & WC_RNG_INIT_FLAG_USE_FULL_MUTEX)
         return NOT_COMPILED_IN;
 #endif
 
 #ifdef WC_RNG_HAVE_LOCK
-    if (flags & (WC_RNG_INIT_FLAGS_LOCK_REQUIRED |
-                 WC_RNG_INIT_FLAGS_LOCK_INITIALLY))
+    if (flags & (WC_RNG_INIT_FLAG_LOCK_REQUIRED |
+                 WC_RNG_INIT_FLAG_LOCK_INITIALLY))
     {
         word32 initial_flags =
-            ((flags & WC_RNG_INIT_FLAGS_LOCK_REQUIRED) ?
+            ((flags & WC_RNG_INIT_FLAG_LOCK_REQUIRED) ?
              WC_RNG_LOCK_REQUIRED : 0) |
-            ((flags & WC_RNG_INIT_FLAGS_LOCK_INITIALLY) ?
+            ((flags & WC_RNG_INIT_FLAG_LOCK_INITIALLY) ?
              WC_RNG_LOCK_HELD : 0);
         XMEMSET(rng, 0, WC_OFFSETOF(WC_RNG, lock));
         XMEMSET((byte *)rng + WC_OFFSETOF(WC_RNG, lock) + sizeof(rng->lock), 0,
                 sizeof(*rng) -
                 (WC_OFFSETOF(WC_RNG, lock) + sizeof(rng->lock)));
         #ifdef WC_RNG_DEBUG_STATS
-        if (flags & WC_RNG_INIT_FLAGS_LOCK_INITIALLY)
+        if (flags & WC_RNG_INIT_FLAG_LOCK_INITIALLY)
             rng->_stats_locks_taken = 1;
         #endif
 #ifdef WOLFSSL_NO_ATOMICS
@@ -2943,12 +2943,12 @@ static int _InitRng(WC_RNG* rng, const byte* nonce, word32 nonceSz,
 
 #ifdef WC_RNG_HAVE_NEXT_SEED
     if ((ret == 0) &&
-        (flags & WC_RNG_INIT_FLAGS_RECOVER_AND_PROMOTE_FROM_NEXT_SEED))
+        (flags & WC_RNG_INIT_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED))
     {
         rng->flags |= WC_RNG_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED;
     }
 #endif
-    if ((ret == 0) && (flags & WC_RNG_INIT_FLAGS_USE_FULL_MUTEX)) {
+    if ((ret == 0) && (flags & WC_RNG_INIT_FLAG_USE_FULL_MUTEX)) {
 #ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
         /* deliberately the last init step: no failure path can strand an
          * initialized mutex. */
@@ -2960,7 +2960,7 @@ static int _InitRng(WC_RNG* rng, const byte* nonce, word32 nonceSz,
         }
         else {
             rng->flags |= WC_RNG_FLAG_FULL_MUTEX;
-            if (flags & WC_RNG_INIT_FLAGS_LOCK_INITIALLY) {
+            if (flags & WC_RNG_INIT_FLAG_LOCK_INITIALLY) {
                 /* born held at both layers: the constructor's caller holds
                  * the whole latch, mutex included. */
                 (void)wc_LockMutex(&rng->mutex);
@@ -3059,7 +3059,7 @@ int wc_rng_new_ex(WC_RNG **rng, byte* nonce, word32 nonceSz,
     }
 
     ret = _InitRng(*rng, nonce, nonceSz, NULL, 0, heap, devId, NULL,
-                   WC_RNG_INIT_FLAGS_NONE);
+                   WC_RNG_INIT_FLAG_NONE);
     if (ret != 0) {
         XFREE(*rng, heap, DYNAMIC_TYPE_RNG);
         *rng = NULL;
@@ -3086,21 +3086,21 @@ WOLFSSL_ABI
 int wc_InitRng(WC_RNG* rng)
 {
     return _InitRng(rng, NULL, 0, NULL, 0, NULL, INVALID_DEVID, NULL,
-                    WC_RNG_INIT_FLAGS_NONE);
+                    WC_RNG_INIT_FLAG_NONE);
 }
 
 
 int wc_InitRng_ex(WC_RNG* rng, void* heap, int devId)
 {
     return _InitRng(rng, NULL, 0, NULL, 0, heap, devId, NULL,
-                    WC_RNG_INIT_FLAGS_NONE);
+                    WC_RNG_INIT_FLAG_NONE);
 }
 
 
 int wc_InitRngNonce(WC_RNG* rng, const byte* nonce, word32 nonceSz)
 {
     return _InitRng(rng, nonce, nonceSz, NULL, 0, NULL, INVALID_DEVID, NULL,
-                    WC_RNG_INIT_FLAGS_NONE);
+                    WC_RNG_INIT_FLAG_NONE);
 }
 
 
@@ -3108,7 +3108,7 @@ int wc_InitRngNonce_ex(WC_RNG* rng, const byte* nonce, word32 nonceSz,
                        void* heap, int devId)
 {
     return _InitRng(rng, nonce, nonceSz, NULL, 0, heap, devId, NULL,
-                    WC_RNG_INIT_FLAGS_NONE);
+                    WC_RNG_INIT_FLAG_NONE);
 }
 
 int wc_InitRng_ex2(WC_RNG* rng, void* heap, int devId, word32 flags)
