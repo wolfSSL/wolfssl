@@ -1421,7 +1421,8 @@ static const bench_pq_hash_sig_alg bench_pq_hash_sig_opt[] = {
 
 #endif /* !WOLFSSL_BENCHMARK_ALL && !NO_MAIN_DRIVER */
 
-#if !defined(WOLFSSL_BENCHMARK_ALL) && !defined(MAIN_NO_ARGS)
+#if !defined(WOLFSSL_BENCHMARK_ALL) && !defined(MAIN_NO_ARGS) && \
+    !defined(NO_MAIN_DRIVER)
 #if defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_FRODOKEM) || \
     defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA)
 /* The post-quantum-specific mapping of command line option to bit values and

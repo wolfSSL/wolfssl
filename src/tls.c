@@ -1196,8 +1196,15 @@ static int Hmac_UpdateFinal_CT(Hmac* hmac, byte* digest, const byte* in,
 
 #endif
 
+/* A crypto-callback device that services the HMAC SETKEY operation owns the
+ * key: wc_HmacSetKey() returns before it derives the software ipad/opad, so it
+ * leaves hmac->keyRaw NULL and the raw-hash constant-time path no software
+ * state to read. keyRaw NULL is the exact signal for that case -- it also
+ * covers a WOLF_CRYPTO_CB_FIND device found by algorithm with no devId -- and
+ * only WOLF_CRYPTO_CB_SETKEY builds can reach it. */
 #if defined(WOLFSSL_NO_HASH_RAW) || defined(HAVE_FIPS) || \
-    defined(HAVE_SELFTEST) || defined(HAVE_BLAKE2B)
+    defined(HAVE_SELFTEST) || defined(HAVE_BLAKE2B) || \
+    (defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY))
 
 /* Calculate the HMAC of the header + message data.
  * Constant time implementation using normal hashing operations.
@@ -1467,6 +1474,20 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
         if (verify && padSz >= 0) {
 #if !defined(WOLFSSL_NO_HASH_RAW) && !defined(HAVE_FIPS) && \
     !defined(HAVE_SELFTEST)
+    #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY)
+            /* keyRaw NULL means a crypto-callback device owns the key and the
+             * software hash state the raw-hash path reads is uncomputed. Use
+             * the update/final variant: the padding-time equalization (dummy
+             * blocks) is preserved and the timing profile is the device's,
+             * outside the Lucky13 software threat model. When software holds
+             * the key (keyRaw set, incl. PK-only offload or a device that
+             * declined the HMAC) the raw-hash path below is kept. */
+            if (hmac->keyRaw == NULL) {
+                ret = Hmac_UpdateFinal(hmac, digest, in,
+                        totalSz, myInner, innerSz);
+            }
+            else
+    #endif
     #ifdef HAVE_BLAKE2B
             if (wolfSSL_GetHmacType(ssl) == WC_HASH_TYPE_BLAKE2B) {
                 ret = Hmac_UpdateFinal(hmac, digest, in,
