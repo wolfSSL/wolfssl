@@ -981,8 +981,9 @@ WOLFSSL_SESSION* wolfSSL_GetSessionClient(WOLFSSL* ssl, const byte* id, int len)
         WOLFSSL_SESSION* current;
         SessionRow* sessRow;
 
-        if (clSess[idx].serverRow >= SESSION_ROWS) {
-            WOLFSSL_MSG("Client cache serverRow invalid");
+        if (clSess[idx].serverRow >= SESSION_ROWS ||
+            clSess[idx].serverIdx >= SESSIONS_PER_ROW ) {
+            WOLFSSL_MSG("Client cache serverRow or serverIdx invalid");
             break;
         }
 
@@ -993,11 +994,11 @@ WOLFSSL_SESSION* wolfSSL_GetSessionClient(WOLFSSL* ssl, const byte* id, int len)
             break;
         }
 
-#ifdef SESSION_CACHE_DYNAMIC_MEM
+    #ifdef SESSION_CACHE_DYNAMIC_MEM
         current = sessRow->Sessions[clSess[idx].serverIdx];
-#else
+    #else
         current = &sessRow->Sessions[clSess[idx].serverIdx];
-#endif
+    #endif
         /* Require the same length as well as the same bytes. Comparing only
          * the requested length lets a short ID alias the prefix of a longer
          * cached one, mixing sessions the application meant to keep apart. */

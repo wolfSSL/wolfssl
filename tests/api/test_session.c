@@ -2015,6 +2015,7 @@ static int test_mem_session_cache(void)
     ClientRow *     c_rows = NULL;
     #endif /* !NO_CLIENT_CACHE */
     int             rst_err = 0;
+    int             i = 0;
 
     #if (defined(HAVE_EXT_CACHE) || defined(HAVE_EX_DATA))
     /* reset callback count */
@@ -2142,6 +2143,58 @@ static int test_mem_session_cache(void)
                        rst_err, CACHE_MATCH_ERROR);
         ret = -1;
         goto cleanup;
+    }
+
+    cache_mem->hdr.sessionSz = (int)(sizeof(WOLFSSL_SESSION));
+
+    /* test rejection of invalid session row */
+
+    for (i = 0; i < SESSION_ROWS; ++i) {
+        /* nextIdx is [0, SESSIONS_PER_ROW - 1] */
+        cache_mem->s_rows[0].nextIdx = -1;
+
+        if (ret) { goto cleanup; }
+        rst_err = wolfSSL_memrestore_session_cache(cache_mem, mem_sz);
+        if (rst_err != WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
+            WOLFSSL_MSG_EX("error: restore: nextIdx: got %d, expected %d",
+                           rst_err, WOLFSSL_FAILURE);
+            ret = -1;
+            goto cleanup;
+        }
+
+        cache_mem->s_rows[0].nextIdx = SESSIONS_PER_ROW;
+
+        if (ret) { goto cleanup; }
+        rst_err = wolfSSL_memrestore_session_cache(cache_mem, mem_sz);
+        if (rst_err != WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
+            WOLFSSL_MSG_EX("error: restore: nextIdx: got %d, expected %d",
+                           rst_err, WOLFSSL_FAILURE);
+            ret = -1;
+            goto cleanup;
+        }
+    }
+
+    for (i = 0; i < SESSION_ROWS; ++i) {
+        /* totalCount is [0, SESSIONS_PER_ROW] */
+        cache_mem->s_rows[0].totalCount = -1;
+
+        rst_err = wolfSSL_memrestore_session_cache(cache_mem, mem_sz);
+        if (rst_err != WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
+            WOLFSSL_MSG_EX("error: restore: totalCount: got %d, expected %d",
+                           rst_err, WOLFSSL_FAILURE);
+            ret = -1;
+            goto cleanup;
+        }
+
+        cache_mem->s_rows[0].totalCount = SESSIONS_PER_ROW + 1;
+
+        rst_err = wolfSSL_memrestore_session_cache(cache_mem, mem_sz);
+        if (rst_err != WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
+            WOLFSSL_MSG_EX("error: restore: totalCount: got %d, expected %d",
+                           rst_err, WOLFSSL_FAILURE);
+            ret = -1;
+            goto cleanup;
+        }
     }
 
 cleanup:
@@ -2284,6 +2337,7 @@ static int test_file_session_cache(void)
     ClientRow *    c_rows = NULL;
     #endif /* !NO_CLIENT_CACHE */
     int            rst_err = 0;
+    int            i = 0;
 
     #if (defined(HAVE_EXT_CACHE) || defined(HAVE_EX_DATA))
     /* reset callback count */
@@ -2428,6 +2482,64 @@ static int test_file_session_cache(void)
                        rst_err, CACHE_MATCH_ERROR);
         ret = -1;
         goto file_cleanup;
+    }
+
+    cache_mem->hdr.sessionSz = (int)(sizeof(WOLFSSL_SESSION));
+
+    /* test rejection of invalid session row */
+
+    for (i = 0; i < SESSION_ROWS; ++i) {
+        /* nextIdx is [0, SESSIONS_PER_ROW - 1] */
+        cache_mem->s_rows[0].nextIdx = -1;
+
+        ret = test_write_file(fname, cache_mem);
+        if (ret) { goto file_cleanup; }
+        rst_err = wolfSSL_restore_session_cache(fname);
+        if (rst_err != WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
+            WOLFSSL_MSG_EX("error: restore: nextIdx: got %d, expected %d",
+                           rst_err, WOLFSSL_FAILURE);
+            ret = -1;
+            goto file_cleanup;
+        }
+
+        cache_mem->s_rows[0].nextIdx = SESSIONS_PER_ROW;
+
+        ret = test_write_file(fname, cache_mem);
+        if (ret) { goto file_cleanup; }
+        rst_err = wolfSSL_restore_session_cache(fname);
+        if (rst_err != WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
+            WOLFSSL_MSG_EX("error: restore: nextIdx: got %d, expected %d",
+                           rst_err, WOLFSSL_FAILURE);
+            ret = -1;
+            goto file_cleanup;
+        }
+    }
+
+    for (i = 0; i < SESSION_ROWS; ++i) {
+        /* totalCount is [0, SESSIONS_PER_ROW] */
+        cache_mem->s_rows[0].totalCount = -1;
+
+        ret = test_write_file(fname, cache_mem);
+        if (ret) { goto file_cleanup; }
+        rst_err = wolfSSL_restore_session_cache(fname);
+        if (rst_err != WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
+            WOLFSSL_MSG_EX("error: restore: totalCount: got %d, expected %d",
+                           rst_err, WOLFSSL_FAILURE);
+            ret = -1;
+            goto file_cleanup;
+        }
+
+        cache_mem->s_rows[0].totalCount = SESSIONS_PER_ROW + 1;
+
+        ret = test_write_file(fname, cache_mem);
+        if (ret) { goto file_cleanup; }
+        rst_err = wolfSSL_restore_session_cache(fname);
+        if (rst_err != WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
+            WOLFSSL_MSG_EX("error: restore: totalCount: got %d, expected %d",
+                           rst_err, WOLFSSL_FAILURE);
+            ret = -1;
+            goto file_cleanup;
+        }
     }
 
 file_cleanup:
