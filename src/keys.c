@@ -90,6 +90,14 @@ int SetCipherSpecs(WOLFSSL* ssl)
            ssl->options.encThenMac = 0;
     #endif
 
+    #ifdef HAVE_LIBZ
+        /* TLS 1.3 removed record layer compression (RFC 8446 5.2).  A client
+         * that asked for it may still land on 1.3, so drop the request rather
+         * than compress records the peer will not decompress. */
+        if (IsAtLeastTLSv1_3(ssl->version))
+            ssl->options.usingCompression = 0;
+    #endif
+
     #if defined(WOLFSSL_DTLS)
         if (ssl->options.dtls && ssl->version.major == DTLS_MAJOR) {
         #ifndef WOLFSSL_AEAD_ONLY
