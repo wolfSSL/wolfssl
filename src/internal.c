@@ -41290,6 +41290,18 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             WOLFSSL_ERROR_VERBOSE(EXT_MASTER_SECRET_NEEDED_E);
             return EXT_MASTER_SECRET_NEEDED_E;
         }
+    #if defined(HAVE_SECRET_CALLBACK) && defined(HAVE_SESSION_TICKET)
+        /* An EMS ticket cannot be resumed without EMS (RFC 7627 5.3): under a
+         * local disable decline it ahead of the session-secret callback. */
+        if (ssl->options.disableEMS && ssl->options.useTicket &&
+                ssl->session->haveEMS) {
+            WOLFSSL_MSG("EMS disabled locally, declining resumption "
+                        "of an EMS ticket. Do full handshake.");
+            ssl->options.resuming = 0;
+            ssl->options.peerAuthGood = 0;
+            return ret;
+        }
+    #endif
 #endif /* HAVE_EXTENDED_MASTER */
 
 #ifdef HAVE_SECRET_CALLBACK

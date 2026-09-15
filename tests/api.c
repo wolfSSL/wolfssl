@@ -42147,6 +42147,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_tls_require_ems),
     TEST_DECL(test_tls_require_ems_resumption),
     TEST_DECL(test_tls_require_ems_secret_cb),
+    TEST_DECL(test_tls_ems_server_disable_secret_cb),
     TEST_DECL(test_tls12_chacha20_poly1305_bad_tag),
     TEST_DECL(test_tls13_null_cipher_bad_hmac),
     TEST_DECL(test_scr_verify_data_mismatch),

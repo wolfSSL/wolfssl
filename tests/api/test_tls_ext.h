@@ -34,6 +34,7 @@ int test_tls_ems_disable_v23(void);
 int test_tls_require_ems(void);
 int test_tls_require_ems_resumption(void);
 int test_tls_require_ems_secret_cb(void);
+int test_tls_ems_server_disable_secret_cb(void);
 int test_tls12_chacha20_poly1305_bad_tag(void);
 int test_tls13_null_cipher_bad_hmac(void);
 int test_scr_verify_data_mismatch(void);
