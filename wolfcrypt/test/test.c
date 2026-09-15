@@ -1517,6 +1517,18 @@ static WC_MAYBE_UNUSED Aes* test_AesGcmNew(void* heap, int declaredDevId,
 #ifdef WOLFSSL_STATIC_MEMORY
     #if defined(WOLFSSL_STATIC_MEMORY_TEST_SZ)
         static byte gTestMemory[WOLFSSL_STATIC_MEMORY_TEST_SZ];
+    #elif defined(WOLFSSL_NO_MALLOC) && defined(OPENSSL_EXTRA) && \
+          !defined(WOLFCRYPT_ONLY) && !defined(NO_RSA) && !defined(NO_SHA)
+        /* No malloc, so the compatibility layer's NULL-heap allocations come
+         * out of this pool on top of what the algorithm tests need. */
+        #ifdef BENCH_EMBEDDED
+            #error "openssl_pkey0_test() needs about 1MB of pool, far more \
+than BENCH_EMBEDDED implies: set WOLFSSL_STATIC_MEMORY_TEST_SZ explicitly"
+        #elif defined(WOLFSSL_HAVE_FRODOKEM) || defined(WOLFSSL_HAVE_MLDSA)
+            static byte gTestMemory[2048*1024];
+        #else
+            static byte gTestMemory[1024*1024];
+        #endif
     #elif defined(WOLFSSL_HAVE_FRODOKEM)
         /* FrodoKEM keys (~44 KB) and decaps matrices (~86 KB) are large. */
         static byte gTestMemory[1024*1024];
@@ -2354,8 +2366,9 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         printf("unable to load static memory.\n");
         EXIT_TEST(EXIT_FAILURE);
     }
-    #ifndef OPENSSL_EXTRA
-    wolfSSL_SetGlobalHeapHint(HEAP_HINT);
+    #if !defined(OPENSSL_EXTRA) || defined(WOLFSSL_NO_MALLOC)
+    if (wolfSSL_GetGlobalHeapHint() == NULL)
+        wolfSSL_SetGlobalHeapHint(HEAP_HINT);
     #endif
 #endif
 
@@ -3591,7 +3604,8 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 #endif
 
 #if defined(WOLFSSL_STATIC_MEMORY) && !defined(OPENSSL_EXTRA)
-    wolfSSL_SetGlobalHeapHint(NULL);
+    if (wolfSSL_GetGlobalHeapHint() == HEAP_HINT)
+        wolfSSL_SetGlobalHeapHint(NULL);
 #endif
     TEST_PASS("Test complete\n");
 
@@ -29694,6 +29708,15 @@ static wc_test_ret_t cert_no_malloc_test(void)
                 ((wc_ptr_t)dns->name >= (wc_ptr_t)cert.source + cert.maxIdx)) {
             ret = WC_TEST_RET_ENC_NC;
         }
+    }
+#elif !defined(NO_WOLFSSL_CM_VERIFY) || defined(WOLFSSL_DYN_CERT)
+    /* With an allocator the RSA key is copied out, so a Signer built from this
+     * cert keeps a public key of its own. */
+    if ((ret == 0) && ((cert.pubKeyStored != 1) ||
+                       (((wc_ptr_t)cert.publicKey >= (wc_ptr_t)cert.source) &&
+                        ((wc_ptr_t)cert.publicKey <
+                            (wc_ptr_t)cert.source + cert.maxIdx)))) {
+        ret = WC_TEST_RET_ENC_NC;
     }
 #endif
     FreeDecodedCert(&cert);

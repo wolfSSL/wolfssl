@@ -1835,6 +1835,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         WOLFSSL_MEM_STATS mem_stats;
     #endif
     #endif
+    WOLFSSL_HEAP_HINT *heap = NULL;
 #endif
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
     int onlyKeyShare = 0;
@@ -2826,9 +2827,19 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                                                   WOLFMEM_IO_POOL_FIXED));
     #endif /* DEBUG_WOLFSSL */
 
-    if (wolfSSL_CTX_load_static_memory(&ctx, method, memory, sizeof(memory),0,1)
-            != WOLFSSL_SUCCESS)
-        err_sys_ex(catastrophic, "unable to load static memory and create ctx");
+    if (wc_LoadStaticMemory(&heap, memory, sizeof(memory), 0, 1) != 0)
+        err_sys_ex(catastrophic, "unable to load static memory");
+
+#if defined(WOLFSSL_NO_MALLOC) && !defined(NO_MAIN_DRIVER)
+    /* only the standalone program may publish a pool of its own */
+    if (wolfSSL_GetGlobalHeapHint() == NULL)
+        wolfSSL_SetGlobalHeapHint(heap);
+#endif
+
+    if (method != NULL)
+        ctx = wolfSSL_CTX_new_ex(method(heap), heap);
+    if (ctx == NULL)
+        err_sys_ex(catastrophic, "unable to get ctx");
 
     /* load in a buffer for IO */
     if (wolfSSL_CTX_load_static_memory(&ctx, NULL, memoryIO, sizeof(memoryIO),
@@ -4249,6 +4260,13 @@ exit:
 #if defined(WOLFSSL_CALLBACKS) && defined(WOLFSSL_EARLY_DATA)
     (void) earlyData;
 #endif
+#if defined(WOLFSSL_STATIC_MEMORY) && defined(WOLFSSL_NO_MALLOC) && \
+    !defined(NO_MAIN_DRIVER)
+    /* the pool backing the hint is on this function's stack */
+    if (wolfSSL_GetGlobalHeapHint() == (void*)heap)
+        wolfSSL_SetGlobalHeapHint(NULL);
+#endif
+
     WOLFSSL_RETURN_FROM_THREAD(0);
 }
 

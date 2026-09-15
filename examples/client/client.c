@@ -3465,6 +3465,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         err_sys("unable to load static memory");
     }
 
+#if defined(WOLFSSL_NO_MALLOC) && !defined(NO_MAIN_DRIVER)
+    /* only the standalone program may publish a pool of its own */
+    if (wolfSSL_GetGlobalHeapHint() == NULL)
+        wolfSSL_SetGlobalHeapHint(heap);
+#endif
+
 #if defined(WOLFSSL_STATIC_MEMORY) && \
     defined(WOLFSSL_STATIC_MEMORY_DEBUG_CALLBACK)
     wolfSSL_SetDebugMemoryCb(ExampleDebugMemoryCb);
@@ -5155,6 +5161,13 @@ exit:
     (void) ourKey;
     (void) useVerifyCb;
     (void) customVerifyCert;
+
+#if defined(WOLFSSL_STATIC_MEMORY) && defined(WOLFSSL_NO_MALLOC) && \
+    !defined(NO_MAIN_DRIVER)
+    /* the pool backing the hint is on this function's stack */
+    if (wolfSSL_GetGlobalHeapHint() == (void*)heap)
+        wolfSSL_SetGlobalHeapHint(NULL);
+#endif
 
     WOLFSSL_RETURN_FROM_THREAD(0);
 }
