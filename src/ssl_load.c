@@ -3055,6 +3055,37 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
     return ret;
 }
 
+#if defined(WOLFSSL_TRUST_PEER_CERT)
+/* Load a trusted peer certificate from a file with the caller's verification
+ * setting.
+ *
+ * @param [in, out] ctx     SSL context object.
+ * @param [in]      file    Name of peer certificate file.
+ * @param [in]      format  Format of data: WOLFSSL_FILETYPE_PEM or
+ *                             WOLFSSL_FILETYPE_ASN1.
+ * @param [in]      verify  How to verify the certificate.
+ * @return  1 on success.
+ * @return  0 when ctx or file is NULL.
+ * @return  Negative on error.
+ */
+static int TrustPeerCertFile(WOLFSSL_CTX* ctx, const char* file, int format,
+    int verify)
+{
+    int ret;
+
+    /* Validate parameters. */
+    if ((ctx == NULL) || (file == NULL)) {
+        ret = 0;
+    }
+    else {
+        ret = ProcessFile(ctx, file, format, TRUSTED_PEER_TYPE, NULL, 0, NULL,
+            verify);
+    }
+
+    return ret;
+}
+#endif /* WOLFSSL_TRUST_PEER_CERT */
+
 #ifndef NO_WOLFSSL_DIR
 /* Load file when filename is in the path.
  *
@@ -3095,8 +3126,9 @@ static int wolfssl_ctx_load_path_file(WOLFSSL_CTX* ctx, const char* name,
     }
     else {
     #if defined(WOLFSSL_TRUST_PEER_CERT) && defined(OPENSSL_COMPATIBLE_DEFAULTS)
-        /* Try loading as a trusted peer certificate. */
-        ret = wolfSSL_CTX_trust_peer_cert(ctx, name, WOLFSSL_FILETYPE_PEM);
+        /* Try loading as a trusted peer certificate with the same
+         * verification setting as the CA load. */
+        ret = TrustPeerCertFile(ctx, name, WOLFSSL_FILETYPE_PEM, verify);
         if (ret != 1) {
             WOLFSSL_MSG("wolfSSL_CTX_trust_peer_cert error. "
                         "Ignoring this error.");
@@ -3260,14 +3292,21 @@ int wolfSSL_CTX_load_verify_locations_ex(WOLFSSL_CTX* ctx, const char* file,
             }
 #endif
 #if defined(WOLFSSL_TRUST_PEER_CERT) && defined(OPENSSL_COMPATIBLE_DEFAULTS)
-            /* Load CA as a trusted peer certificate. */
+            if (ret == 1) {
+                /* Load CA as a trusted peer certificate. The verification
+                 * setting computed above, including
+                 * WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY, applies to the trusted
+                 * peer copy too. */
 #ifdef WOLFSSL_PEM_TO_DER
-            ret = wolfSSL_CTX_trust_peer_cert(ctx, file, WOLFSSL_FILETYPE_PEM);
+                ret = TrustPeerCertFile(ctx, file, WOLFSSL_FILETYPE_PEM,
+                    verify);
 #else
-            ret = wolfSSL_CTX_trust_peer_cert(ctx, file, WOLFSSL_FILETYPE_ASN1);
+                ret = TrustPeerCertFile(ctx, file, WOLFSSL_FILETYPE_ASN1,
+                    verify);
 #endif
-            if (ret != 1) {
-                WOLFSSL_MSG("wolfSSL_CTX_trust_peer_cert error");
+                if (ret != 1) {
+                    WOLFSSL_MSG("wolfSSL_CTX_trust_peer_cert error");
+                }
             }
 #endif
         }
@@ -3366,8 +3405,7 @@ int wolfSSL_CTX_trust_peer_cert(WOLFSSL_CTX* ctx, const char* file, int format)
         ret = 0;
     }
     else {
-        ret = ProcessFile(ctx, file, format, TRUSTED_PEER_TYPE, NULL, 0, NULL,
-            GET_VERIFY_SETTING_CTX(ctx));
+        ret = TrustPeerCertFile(ctx, file, format, GET_VERIFY_SETTING_CTX(ctx));
     }
 
     return ret;
@@ -4224,6 +4262,48 @@ int wolfSSL_use_RSAPrivateKey_file(WOLFSSL* ssl, const char* file, int format)
 
 #endif /* OPENSSL_EXTRA */
 
+#if defined(WOLFSSL_TRUST_PEER_CERT)
+/* Load a buffer of certificate/s as trusted peer certificates with the
+ * caller's verification setting.
+ *
+ * @param [in, out] ctx     SSL context object.
+ * @param [in]      in      Buffer holding certificate/s.
+ * @param [in]      sz      Length of data in buffer in bytes.
+ * @param [in]      format  Format of data: WOLFSSL_FILETYPE_PEM or
+ *                             WOLFSSL_FILETYPE_ASN1.
+ * @param [in]      verify  How to verify the certificate/s.
+ * @return  1 on success.
+ * @return  0 on failure.
+ * @return  BAD_FUNC_ARG when ctx or in is NULL, or sz is less than zero.
+ * @return  Negative on error.
+ */
+static int TrustPeerCertBuffer(WOLFSSL_CTX* ctx, const unsigned char* in,
+    long sz, int format, int verify)
+{
+    int ret;
+
+    /* Validate parameters. */
+    if ((ctx == NULL) || (in == NULL) || (sz < 0)) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        /* When PEM, treat as certificate chain of trusted peer
+         * certificates. */
+        if (format == WOLFSSL_FILETYPE_PEM) {
+            ret = ProcessChainBuffer(ctx, NULL, in, sz, TRUSTED_PEER_TYPE,
+                verify, "peer");
+        }
+        /* When DER, load the trusted peer certificate. */
+        else {
+            ret = ProcessBuffer(ctx, in, sz, format, TRUSTED_PEER_TYPE, NULL,
+                NULL, 0, verify, "peer");
+        }
+    }
+
+    return ret;
+}
+#endif /* WOLFSSL_TRUST_PEER_CERT */
+
 /* Load a buffer of certificate/s into SSL context.
  *
  * @param [in, out] ctx        SSL context object.
@@ -4272,8 +4352,10 @@ int wolfSSL_CTX_load_verify_buffer_ex(WOLFSSL_CTX* ctx, const unsigned char* in,
     }
 #if defined(WOLFSSL_TRUST_PEER_CERT) && defined(OPENSSL_COMPATIBLE_DEFAULTS)
     if (ret == 1) {
-        /* Load certificate/s as trusted peer certificate. */
-        ret = wolfSSL_CTX_trust_peer_buffer(ctx, in, sz, format);
+        /* Load certificate/s as trusted peer certificate. The verification
+         * setting computed above, including WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY,
+         * applies to the trusted peer copy too. */
+        ret = TrustPeerCertBuffer(ctx, in, sz, format, verify);
     }
 #endif
 
@@ -4349,16 +4431,7 @@ int wolfSSL_CTX_trust_peer_buffer(WOLFSSL_CTX* ctx, const unsigned char* in,
         verify = GET_VERIFY_SETTING_CTX(ctx);
     #endif
 
-        /* When PEM, treat as certificate chain of trusted peer certificates. */
-        if (format == WOLFSSL_FILETYPE_PEM) {
-            ret = ProcessChainBuffer(ctx, NULL, in, sz, TRUSTED_PEER_TYPE,
-                verify, "peer");
-        }
-        /* When DER, load the trusted peer certificate. */
-        else {
-            ret = ProcessBuffer(ctx, in, sz, format, TRUSTED_PEER_TYPE, NULL,
-                NULL, 0, verify, "peer");
-        }
+        ret = TrustPeerCertBuffer(ctx, in, sz, format, verify);
     }
 
     return ret;
