@@ -485,7 +485,8 @@ WOLFSSL_API int wc_rng_new_bankref(struct wc_rng_bank *bank, WC_RNG **rng);
 #if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
     #ifndef WC_DRBG_RESEED_CTR_TYPE_DEFINED
         #define WC_DRBG_RESEED_CTR_TYPE_DEFINED
-        #if defined(WORD64_AVAILABLE) && FIPS_VERSION3_GE(5,2,4)
+        #if defined(WORD64_AVAILABLE) && FIPS_VERSION3_GE(5,2,4) && \
+            FIPS_VERSION3_NE(6,0,0)
         typedef word64 wc_drbg_reseed_ctr_t;
         #else
         typedef word32 wc_drbg_reseed_ctr_t;
