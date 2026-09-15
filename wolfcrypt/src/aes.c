@@ -5729,6 +5729,11 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
             }
             /* CRYPTOCB_UNAVAILABLE: fall through to software setup */
         #endif /* WOLF_CRYPTO_CB_SETKEY */
+            /* A device may generate its own key from a NULL request above;
+             * software has nothing to copy. */
+            if (userKey == NULL) {
+                return BAD_FUNC_ARG;
+            }
             /* Standard CryptoCB path - copy key to devKey */
             if (keylen > sizeof(aes->devKey)) {
                 return BAD_FUNC_ARG;
@@ -5736,6 +5741,9 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
             XMEMCPY(aes->devKey, userKey, keylen);
         }
     #endif
+        if (userKey == NULL) {
+            return BAD_FUNC_ARG;
+        }
 
     #ifdef WOLFSSL_MAXQ10XX_CRYPTO
         if (wc_MAXQ10XX_AesSetKey(aes, userKey, keylen) != 0) {

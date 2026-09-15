@@ -197,6 +197,9 @@ Threading/Mutex options:
 #if defined(WOLFSSL_VERSAL_GEN2_ASU)
     #include <wolfssl/wolfcrypt/port/xilinx/versal_gen2_asu/asu_cryptocb.h>
 #endif
+#if defined(WOLFSSL_ALTERA_FCS) && defined(WOLF_CRYPTO_CB)
+#include <wolfssl/wolfcrypt/port/altera/altera_fcs.h>
+#endif
 
 #ifdef HAVE_INTEL_QA_SYNC
     #include <wolfssl/wolfcrypt/port/intel/quickassist_sync.h>
@@ -409,6 +412,22 @@ int wc_local_InitDownDone(wc_init_state_t *s)
     return 0;
 }
 
+#ifdef WOLF_CRYPTO_CB
+static int wc_local_InitDownAbort(wc_init_state_t* s)
+{
+    union wc_init_state_bitfields cur_wc_init_state;
+
+    cur_wc_init_state.u = WOLFSSL_ATOMIC_LOAD(*s);
+    if (cur_wc_init_state.c.state != WC_INIT_STATE_CLEANING_UP ||
+        cur_wc_init_state.c.count != 1) {
+        return BAD_STATE_E;
+    }
+    cur_wc_init_state.c.state = WC_INIT_STATE_INITED;
+    WOLFSSL_ATOMIC_STORE(*s, cur_wc_init_state.u);
+    return 0;
+}
+#endif /* WOLF_CRYPTO_CB */
+
 static WC_DECLARE_INIT_STATE(wolfcrypt_init_state);
 
 #if defined(__aarch64__) && defined(WOLFSSL_ARMASM_BARRIER_DETECT)
@@ -579,6 +598,16 @@ int wolfCrypt_Init(void)
         ret = wc_AsuCryptoCb_RegisterDevice(WOLFSSL_VERSAL_GEN2_ASU_DEVID);
         if (ret != 0) {
             WOLFCRYPT_INIT_RAISE_BAD_STATE();
+        }
+    #endif
+    /* The Agilex 5 SDM is an optional accelerator: contexts on its devId use
+     * software when it is absent, and its device key APIs report the error. */
+    #if defined(WOLFSSL_ALTERA_FCS) && defined(WOLF_CRYPTO_CB)
+        ret = wc_AlteraFcsCryptoCb_RegisterDeviceMask(
+                WOLFSSL_ALTERA_FCS_DEVID, WOLFSSL_ALTERA_FCS_AUTO_MASK);
+        if (ret != 0) {
+            WOLFSSL_MSG("Altera FCS unavailable; using software fallback");
+            ret = 0;
         }
     #endif
     #if defined(MAX3266X_RTC)
@@ -821,6 +850,15 @@ int wolfCrypt_Cleanup(void)
     else if (ret == WC_INIT_STATE_INITED)
         return 0;
     else {
+#ifdef WOLF_CRYPTO_CB
+        /* Altera FCS unregisters through this loop too, so an abort on a
+         * different device's BUSY_E leaves its SDM session intact. */
+        ret = wc_CryptoCb_Cleanup();
+        if (ret != 0) {
+            int ret2 = wc_local_InitDownAbort(&wolfcrypt_init_state);
+            return (ret2 == 0) ? ret : ret2;
+        }
+#endif
         ret = 0;
 
         WOLFSSL_ENTER("wolfCrypt_Cleanup");
@@ -916,10 +954,6 @@ int wolfCrypt_Cleanup(void)
 
     #if defined(USE_WINDOWS_API) && defined(WIN_REUSE_CRYPT_HANDLE)
         wc_WinCryptHandleCleanup();
-    #endif
-
-    #ifdef WOLF_CRYPTO_CB
-        wc_CryptoCb_Cleanup();
     #endif
 
     #if defined(HAVE_HASHDRBG) && !defined(WC_NO_RNG) && \
