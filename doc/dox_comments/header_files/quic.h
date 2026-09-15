@@ -86,6 +86,7 @@ int (*send_alert)(WOLFSSL *ssl, WOLFSSL_ENCRYPTION_LEVEL level, uint8_t alert);
     It is not copied. All callbacks need to be provided.
 
     \return WOLFSSL_SUCCESS If successful.
+    \return WOLFSSL_FAILURE If not TLSv1.3 or a callback is missing.
 
     \param ctx - a pointer to a WOLFSSL_CTX structure, created using wolfSSL_CTX_new().
     \param quic_method - the callback structure
@@ -105,6 +106,7 @@ int wolfSSL_CTX_set_quic_method(WOLFSSL_CTX *ctx, const WOLFSSL_QUIC_METHOD *qui
     It is not copied. All callbacks need to be provided.
 
     \return WOLFSSL_SUCCESS If successful.
+    \return WOLFSSL_FAILURE If not TLSv1.3 or a callback is missing.
 
     \param ssl - a pointer to a WOLFSSL structure, created using wolfSSL_new().
     \param quic_method - the callback structure
@@ -120,6 +122,7 @@ int wolfSSL_set_quic_method(WOLFSSL *ssl, const WOLFSSL_QUIC_METHOD *quic_method
     \brief Check if QUIC has been activated in a WOLFSSL instance.
 
     \return 1 if WOLFSSL is using QUIC.
+    \return 0 otherwise.
 
     \param ssl - a pointer to a WOLFSSL structure, created using wolfSSL_new().
 
@@ -172,8 +175,6 @@ WOLFSSL_ENCRYPTION_LEVEL wolfSSL_quic_write_level(const WOLFSSL *ssl);
     the WOLFSSL will offer both (draft-27 and v1) to a server, resp. accept
     both from a client and negotiate the most recent one.
 
-    \return WOLFSSL_SUCCESS If successful.
-
     \param ssl - a pointer to a WOLFSSL structure, created using wolfSSL_new().
     \param use_legacy - true if draft-27 shall be used, 0 if only QUICv1 is used.
 
@@ -184,9 +185,8 @@ void wolfSSL_set_quic_use_legacy_codepoint(WOLFSSL *ssl, int use_legacy);
 /*!
     \ingroup QUIC
 
-    \brief Configure which QUIC version shall be used.
-
-    \return WOLFSSL_SUCCESS If successful.
+    \brief Configure which QUIC version shall be used. An unknown version is
+    ignored with a warning.
 
     \param ssl - a pointer to a WOLFSSL structure, created using wolfSSL_new().
     \param version - the TLS Extension defined for the QUIC version.
@@ -215,6 +215,7 @@ int wolfSSL_get_quic_transport_version(const WOLFSSL *ssl);
     \brief Set the QUIC transport parameters to use.
 
     \return WOLFSSL_SUCCESS If successful.
+    \return WOLFSSL_FAILURE If the parameters could not be stored.
 
     \param ssl - a pointer to a WOLFSSL structure, created using wolfSSL_new().
     \param params - the parameter bytes to use
@@ -294,6 +295,10 @@ size_t wolfSSL_quic_max_handshake_flight_len(const WOLFSSL *ssl, WOLFSSL_ENCRYPT
     level is accepted.
 
     \return WOLFSSL_SUCCESS If successful.
+    \return WOLFSSL_FAILURE On any error, the only other value returned, as
+    the quictls SSL_provide_quic_data() defines. Every failure path leaves a
+    reason that wolfSSL_get_error() returns. Not recoverable, the connection
+    has to be failed.
 
     \param ssl - a pointer to a WOLFSSL structure, created using wolfSSL_new().
     \param level - the level the data was encrypted at
@@ -314,6 +319,9 @@ int wolfSSL_provide_quic_data(WOLFSSL *ssl, WOLFSSL_ENCRYPTION_LEVEL level, cons
     has completed. Will fail if called before that.
 
     \return WOLFSSL_SUCCESS If successful.
+    \return WOLFSSL_FAILURE On any error, the only other value returned, as
+    the quictls SSL_process_quic_post_handshake() defines. Every failure path
+    leaves a reason that wolfSSL_get_error() returns.
 
     \param ssl - a pointer to a WOLFSSL structure, created using wolfSSL_new().
 
@@ -332,6 +340,10 @@ WOLFSSL_API int wolfSSL_process_quic_post_handshake(WOLFSSL *ssl);
     wolfSSL_process_quic_post_handshake().
 
     \return WOLFSSL_SUCCESS If successful.
+    \return WOLFSSL_FAILURE If not a QUIC WOLFSSL or the post-handshake
+    processing failed; use wolfSSL_get_error() for the reason.
+    \return Other values from wolfSSL_quic_do_handshake() while the handshake
+    is in progress; use wolfSSL_get_error() to tell WANT_READ from a failure.
 
     \param ssl - a pointer to a WOLFSSL structure, created using wolfSSL_new().
 
@@ -529,6 +541,7 @@ WOLFSSL_EVP_CIPHER_CTX *wolfSSL_quic_crypt_new(const WOLFSSL_EVP_CIPHER *cipher,
     \brief Encrypt the plain text in the given context.
 
     \return WOLFSSL_SUCCESS If successful.
+    \return WOLFSSL_FAILURE If the encryption failed.
 
     \param dest - destination where encrypted data is to be written
     \param aead_ctx - the cipher context to use
@@ -553,6 +566,7 @@ int wolfSSL_quic_aead_encrypt(uint8_t *dest, WOLFSSL_EVP_CIPHER_CTX *aead_ctx,
     \brief Decrypt the cipher text in the given context.
 
     \return WOLFSSL_SUCCESS If successful.
+    \return WOLFSSL_FAILURE If the decryption or the tag check failed.
 
     \param dest - destination where plain text is to be written
     \param ctx - the cipher context to use
@@ -577,6 +591,7 @@ int wolfSSL_quic_aead_decrypt(uint8_t *dest, WOLFSSL_EVP_CIPHER_CTX *ctx,
     \brief Extract a pseudo random key.
 
     \return WOLFSSL_SUCCESS If successful.
+    \return WOLFSSL_FAILURE If the extract failed.
 
     \param dest - destination where key is to be written
     \param md - message digest to use
@@ -598,6 +613,7 @@ int wolfSSL_quic_hkdf_extract(uint8_t *dest, const WOLFSSL_EVP_MD *md,
     \brief Expand a pseudo random key into a new key.
 
     \return WOLFSSL_SUCCESS If successful.
+    \return WOLFSSL_FAILURE If the expand failed.
 
     \param dest - destination where key is to be written
     \param destlen - length of the key to expand
@@ -621,6 +637,7 @@ int wolfSSL_quic_hkdf_expand(uint8_t *dest, size_t destlen,
     \brief Expand and Extract a pseudo random key.
 
     \return WOLFSSL_SUCCESS If successful.
+    \return WOLFSSL_FAILURE If the extract or the expand failed.
 
     \param dest - destination where key is to be written
     \param destlen - length of the key

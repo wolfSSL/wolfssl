@@ -84,6 +84,8 @@ A QUIC protocol handler installs these via `wolfSSL_CTX_set_quic_method()` or `w
   REPLY <--encrypt+send---+
 ```
 
+`wolfSSL_provide_quic_data()` returns `WOLFSSL_SUCCESS` or `WOLFSSL_FAILURE`, and on failure leaves the reason for `wolfSSL_get_error()`. A failure is fatal and cannot be recovered from: the connection has to be torn down, not continued with further data.
+
 The wolfSSL instance performs the common TLSv1.3 handshake processing with the significant change that it does not encrypt or decrypt messages itself. It computes all the secrets and MACs as usual, however.
 
 Encryption and Decryption is done by the QUIC protocol handler. Which is why it gets access to the secrets
