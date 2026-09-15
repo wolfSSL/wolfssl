@@ -4362,6 +4362,10 @@ static int test_cert_make_serial(Cert* cert, WC_RNG* rng, void* key,
     int ret;
     int copySz = serialSz;
 
+    /* The caller scans this buffer once the call returns, so leave it in a
+     * known state on the paths that bail out before the generator writes. */
+    XMEMSET(out, 0, outSz);
+
     ret = wc_InitCert(cert);
     if (ret != 0)
         return ret;
