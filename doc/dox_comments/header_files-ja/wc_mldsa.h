@@ -10,6 +10,7 @@
 
     \return 0 成功した場合に返されます。
     \return BAD_FUNC_ARG keyがNULLの場合に返されます。
+    \return その他の負の値 鍵のSHAKE-256オブジェクトの初期化に失敗した場合に返されます。
 
     \param [in,out] key 初期化するwc_MlDsaKeyへのポインタ。
     \param [in] heap 動的メモリ確保に使用するヒープヒント。NULLでも構いません。
