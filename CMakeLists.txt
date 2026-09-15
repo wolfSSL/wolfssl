@@ -1900,6 +1900,14 @@ add_option("WOLFSSL_CERTEXT"
     "Enable cert request extensions (default: disabled)"
     "no" "yes;no")
 
+add_option("WOLFSSL_C509"
+    "Enable C509 (CBOR-encoded X.509) certificate decode/verify (default: disabled)"
+    "no" "yes;no")
+
+add_option("WOLFSSL_C509_TYPE3"
+    "Enable C509 type-3 (CBOR re-encoded X.509) reconstruction and verify - off leaves type-2 verify and public-key extraction (default: enabled with C509)"
+    "yes" "yes;no")
+
 add_option("WOLFSSL_CERTGENCACHE"
     "Enable decoded cert caching (default: disabled)"
     "no" "yes;no")
@@ -3491,6 +3499,23 @@ if(WOLFSSL_CERTEXT)
 endif()
 if(WOLFSSL_CERTGENCACHE)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_CERT_GEN_CACHE")
+endif()
+if(WOLFSSL_C509)
+    # C509 needs ASN.1 (it builds/parses DER and reuses asn.c helpers); c509.c
+    # is only compiled when ASN is built, so WOLFSSL_C509 with ASN off would
+    # fail to link. Fail early. (c509.h also #errors on NO_ASN.)
+    if(NOT WOLFSSL_ASN)
+        message(FATAL_ERROR "WOLFSSL_C509 requires ASN.1 (WOLFSSL_ASN); do not disable ASN")
+    endif()
+    # C509 type-3 verify checks the reconstructed TBSCertificate with the same
+    # per-algorithm helpers as the type-2 path; it forces no extra cert-verify
+    # option (forcing WOLFSSL_SMALL_CERT_VERIFY breaks OCSP stapling).
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_C509")
+    if(NOT WOLFSSL_C509_TYPE3)
+        # Compile out type-3 reconstruction/verify; recorded in options.h so a
+        # consumer's c509.h agrees with the library.
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_C509_NO_TYPE3")
+    endif()
 endif()
 
 if(WOLFSSL_CRYPTOCB)

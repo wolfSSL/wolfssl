@@ -443,6 +443,7 @@
     <ClCompile Include="wolfcrypt\src\asn.c" />
     <ClCompile Include="wolfcrypt\src\blake2b.c" />
     <ClCompile Include="wolfcrypt\src\blake2s.c" />
+    <ClCompile Include="wolfcrypt\src\c509.c" />
     <ClCompile Include="wolfcrypt\src\camellia.c" />
     <ClCompile Include="wolfcrypt\src\chacha.c" />
     <ClCompile Include="wolfcrypt\src\chacha20_poly1305.c" />

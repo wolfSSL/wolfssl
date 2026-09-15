@@ -1990,6 +1990,7 @@ endif
 
 if BUILD_ASN
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/asn.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/c509.c
 endif
 
 if BUILD_HPKE
