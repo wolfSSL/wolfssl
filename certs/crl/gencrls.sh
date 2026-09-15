@@ -271,6 +271,38 @@ openssl crl -in ../ocsp/root-ca-crl-revoked.pem -text > tmp
 check_result $?
 mv tmp ../ocsp/root-ca-crl-revoked.pem
 
+# OCSP intermediate1-ca CRL (empty, no revocations)
+cp blank.index.txt demoCA/index.txt
+
+echo "Step 32 OCSP intermediate1-ca CRL"
+openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out ../ocsp/intermediate1-ca-crl.pem -keyfile ../ocsp/intermediate1-ca-key.pem -cert ../ocsp/intermediate1-ca-cert.pem
+check_result $?
+
+# metadata
+echo "Step 32 OCSP intermediate1-ca CRL metadata"
+openssl crl -in ../ocsp/intermediate1-ca-crl.pem -text > tmp
+check_result $?
+mv tmp ../ocsp/intermediate1-ca-crl.pem
+
+# OCSP intermediate1-ca CRL revoking server1
+cp blank.index.txt demoCA/index.txt
+
+echo "Step 32 OCSP intermediate1-ca CRL revoking server1"
+openssl ca -config ../renewcerts/wolfssl.cnf -revoke ../ocsp/server1-cert.pem -keyfile ../ocsp/intermediate1-ca-key.pem -cert ../ocsp/intermediate1-ca-cert.pem
+check_result $?
+
+echo "Step 32 OCSP intermediate1-ca CRL revoking server1, gencrl"
+openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out ../ocsp/intermediate1-ca-crl-revoked.pem -keyfile ../ocsp/intermediate1-ca-key.pem -cert ../ocsp/intermediate1-ca-cert.pem
+check_result $?
+
+# metadata
+echo "Step 32 OCSP intermediate1-ca CRL revoking server1, metadata"
+openssl crl -in ../ocsp/intermediate1-ca-crl-revoked.pem -text > tmp
+check_result $?
+mv tmp ../ocsp/intermediate1-ca-crl-revoked.pem
+
+cp blank.index.txt demoCA/index.txt
+
 echo "Step 33 larger CRL number( 57 octets )"
 python3 -c "print('4' * 114)" > crlnumber # 0x41 * 57 = 114 hex chars crlnumber
 openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out extra-crls/crlnum_57oct.pem -keyfile ../ca-key.pem -cert ../ca-cert.pem
