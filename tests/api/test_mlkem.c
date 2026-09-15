@@ -1454,7 +1454,7 @@ int test_wc_mlkem_make_key_kats(void)
 #ifndef WOLFSSL_NO_ML_KEM_512
     ExpectIntEQ(wc_MlKemKey_Init(key, WC_ML_KEM_512, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_MlKemKey_MakeKeyWithRandom(key, seed_512, sizeof(seed_512)),
-        0);
+        SEED_OK);
     ExpectIntEQ(wc_MlKemKey_EncodePublicKey(key, pubKey,
         WC_ML_KEM_512_PUBLIC_KEY_SIZE), 0);
     ExpectIntEQ(wc_MlKemKey_EncodePrivateKey(key, privKey,
@@ -1466,7 +1466,7 @@ int test_wc_mlkem_make_key_kats(void)
 #ifndef WOLFSSL_NO_ML_KEM_768
     ExpectIntEQ(wc_MlKemKey_Init(key, WC_ML_KEM_768, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_MlKemKey_MakeKeyWithRandom(key, seed_768, sizeof(seed_768)),
-        0);
+        SEED_OK);
     ExpectIntEQ(wc_MlKemKey_EncodePublicKey(key, pubKey,
         WC_ML_KEM_768_PUBLIC_KEY_SIZE), 0);
     ExpectIntEQ(wc_MlKemKey_EncodePrivateKey(key, privKey,
@@ -1478,7 +1478,7 @@ int test_wc_mlkem_make_key_kats(void)
 #ifndef WOLFSSL_NO_ML_KEM_1024
     ExpectIntEQ(wc_MlKemKey_Init(key, WC_ML_KEM_1024, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_MlKemKey_MakeKeyWithRandom(key, seed_1024,
-        sizeof(seed_1024)), 0);
+        sizeof(seed_1024)), SEED_OK);
     ExpectIntEQ(wc_MlKemKey_EncodePublicKey(key, pubKey,
         WC_ML_KEM_1024_PUBLIC_KEY_SIZE), 0);
     ExpectIntEQ(wc_MlKemKey_EncodePrivateKey(key, privKey,
@@ -2440,7 +2440,7 @@ int test_wc_mlkem_encapsulate_kats(void)
     ExpectIntEQ(wc_MlKemKey_Init(key, WC_ML_KEM_512, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_MlKemKey_DecodePublicKey(key, ek_512, sizeof(ek_512)), 0);
     ExpectIntEQ(wc_MlKemKey_EncapsulateWithRandom(key, ct, ss, seed_512,
-        sizeof(seed_512)), 0);
+        sizeof(seed_512)), SEED_OK);
     ExpectIntEQ(XMEMCMP(ct, c_512, WC_ML_KEM_512_CIPHER_TEXT_SIZE), 0);
     ExpectIntEQ(XMEMCMP(ss, k_512, WC_ML_KEM_SS_SZ), 0);
     wc_MlKemKey_Free(key);
@@ -2449,7 +2449,7 @@ int test_wc_mlkem_encapsulate_kats(void)
     ExpectIntEQ(wc_MlKemKey_Init(key, WC_ML_KEM_768, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_MlKemKey_DecodePublicKey(key, ek_768, sizeof(ek_768)), 0);
     ExpectIntEQ(wc_MlKemKey_EncapsulateWithRandom(key, ct, ss, seed_768,
-        sizeof(seed_768)), 0);
+        sizeof(seed_768)), SEED_OK);
     ExpectIntEQ(XMEMCMP(ct, c_768, WC_ML_KEM_768_CIPHER_TEXT_SIZE), 0);
     ExpectIntEQ(XMEMCMP(ss, k_768, WC_ML_KEM_SS_SZ), 0);
     wc_MlKemKey_Free(key);
@@ -2458,7 +2458,7 @@ int test_wc_mlkem_encapsulate_kats(void)
     ExpectIntEQ(wc_MlKemKey_Init(key, WC_ML_KEM_1024, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_MlKemKey_DecodePublicKey(key, ek_1024, sizeof(ek_1024)), 0);
     ExpectIntEQ(wc_MlKemKey_EncapsulateWithRandom(key, ct, ss, seed_1024,
-        sizeof(seed_1024)), 0);
+        sizeof(seed_1024)), SEED_OK);
     ExpectIntEQ(XMEMCMP(ct, c_1024, WC_ML_KEM_1024_CIPHER_TEXT_SIZE), 0);
     ExpectIntEQ(XMEMCMP(ss, k_1024, WC_ML_KEM_SS_SZ), 0);
     wc_MlKemKey_Free(key);
@@ -4649,6 +4649,36 @@ int test_wc_mlkem_encode_key_len_decision(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_mlkem_encode_key_len_decision */
+
+/* ML-KEM keygen from caller randomness succeeds and returns SEED_OK, the
+ * service indicator for a seed-input call (api.h). */
+int test_wc_MlKemKey_seed_service_indicator(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_NO_ML_KEM)
+    MlKemKey key;
+    byte rand[WC_ML_KEM_MAKEKEY_RAND_SZ];
+#ifndef WOLFSSL_NO_ML_KEM_768
+    const int mlkemType = WC_ML_KEM_768;
+#elif !defined(WOLFSSL_NO_ML_KEM_512)
+    const int mlkemType = WC_ML_KEM_512;
+#else
+    const int mlkemType = WC_ML_KEM_1024;
+#endif
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(rand, 0x5a, sizeof(rand));
+
+    ExpectIntEQ(wc_MlKemKey_Init(&key, mlkemType, NULL, INVALID_DEVID), 0);
+    /* Valid key, valid randomness: performed, and reported non-approved. */
+    ExpectIntEQ(wc_MlKemKey_MakeKeyWithRandom(&key, rand, (int)sizeof(rand)),
+        SEED_OK);
+
+    wc_MlKemKey_Free(&key);
+#endif
+    return EXPECT_RESULT();
+}
 
 #if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM) && \
     defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
