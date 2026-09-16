@@ -14,9 +14,12 @@ rendered by a Handlebars template through `cube codegen`, producing
 - `mx_wolfSSL_conf_template.h.hbs` - the Handlebars template that renders
   `mx_wolfSSL_conf.h`.
 
-`wolfssl/wolfcrypt/settings.h` picks the generated header up automatically
-via `__has_include("mx_wolfSSL_conf.h")` (HAL2 projects have no global
-define like HAL1's `USE_HAL_DRIVER`).
+`wolfssl/wolfcrypt/settings.h` includes the generated header when
+`WOLFSSL_MX2_CONF_INCLUDE` is defined. HAL2 projects have no global define
+like HAL1's `USE_HAL_DRIVER`, so the pack's configuration component declares
+that macro through the generated `Pre_Include_Global.h` that STM32CubeMX2
+force-includes. A project that adds these sources by hand, without the pack,
+must define `WOLFSSL_MX2_CONF_INCLUDE` itself.
 
 These files are packaged into the `wolfSSL.wolfSSL_middlewares` pack for
 STM32CubeMX2 by the wolfSSL pack tooling; the pack build prefers the copies
