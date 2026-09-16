@@ -347,9 +347,9 @@ int wc_RNG_GetStatus(const WC_RNG* rng)
     return (int)rng->status;
 }
 
-/* Returns 1 if rng has an instantiated DRBG, else 0.  An in-service WC_RNG
- * can lack one: _InitRng() bypasses DRBG instantiation when the CPU has
- * RDRAND (HAVE_INTEL_RDRAND). */
+/* Returns 1 if rng has an instantiated DRBG, else 0.  An in-service WC_RNG can
+ * lack one: _InitRng() in HAVE_INTEL_RDRAND configurations bypasses DRBG
+ * instantiation when the CPU has RDRAND (). */
 int wc_RNG_DRBG_Present(const WC_RNG* rng)
 {
     if (rng == NULL)
@@ -1229,17 +1229,24 @@ int wc_RNG_DRBG_GetReseedCtr(const WC_RNG* rng,
 {
     if ((rng == NULL) || (reseedCtr == NULL))
         return BAD_FUNC_ARG;
-    *reseedCtr = 0;
+    if (! wc_RNG_DRBG_Present(rng))
+        return WRONG_TYPE_OBJECT_E;
+    if (rng->status != DRBG_OK)
+        return BAD_STATE_E;
 #ifndef NO_SHA256
-    if ((rng->drbgType == WC_DRBG_SHA256) && (rng->drbg != NULL))
+    if ((rng->drbgType == WC_DRBG_SHA256) && (rng->drbg != NULL)) {
         *reseedCtr = ((const DRBG_internal *)rng->drbg)->reseedCtr;
+        return 0;
+    }
 #endif
 #ifdef WOLFSSL_DRBG_SHA512
-    if ((rng->drbgType == WC_DRBG_SHA512) && (rng->drbg512 != NULL))
+    if ((rng->drbgType == WC_DRBG_SHA512) && (rng->drbg512 != NULL)) {
         *reseedCtr = (wc_drbg_reseed_ctr_t)
             ((const DRBG_SHA512_internal *)rng->drbg512)->reseedCtr;
+        return 0;
+    }
 #endif
-    return 0;
+    return BAD_FUNC_ARG;
 }
 
 #if defined(WC_RESEED_INTERVAL) && !defined(WORD64_AVAILABLE)
@@ -2756,6 +2763,11 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
     #ifdef HAVE_HASHDRBG
         rng->status = DRBG_OK;
     #endif
+#ifdef WC_RNG_HAVE_RBGC
+        /* undo stratum increment */
+        if (seedRng != NULL)
+            rng->RBGCStratum = 0;
+#endif
         return 0;
     }
 #endif

@@ -2159,7 +2159,7 @@ WOLFSSL_API int wc_rng_bank_seed_range(struct wc_rng_bank *bank,
              * HAVE_INTEL_RDRAND.  We just have no way to seed it, so don't
              * pretend we can.
              */
-            ret = NOT_COMPILED_IN;
+            ret = WRONG_TYPE_OBJECT_E;
         }
         else {
             if (flags & WC_RNG_BANK_FLAG_STIR) {

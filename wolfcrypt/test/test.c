@@ -945,7 +945,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  noisesrc_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_svc_test(void);
 #endif
 #if defined(WC_RNG_BANK_SUPPORT) && defined(HAVE_HASHDRBG) && \
-    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(5,2,4))
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(5,2,4)) && \
+    !defined(HAVE_INTEL_RDRAND)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_entropy_invalidate_test(void);
 #endif
 #if defined(WC_RNG_HAVE_RBGC) && \
@@ -2630,7 +2631,8 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_PASS("RNGSVC   test passed!\n");
 #endif
 #if defined(WC_RNG_BANK_SUPPORT) && defined(HAVE_HASHDRBG) && \
-    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(5,2,4))
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(5,2,4)) && \
+    !defined(HAVE_INTEL_RDRAND)
     if ((ret = rng_entropy_invalidate_test()) != 0)
         TEST_FAIL("RNGINVAL test failed!\n", ret);
     else
@@ -28257,7 +28259,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
 
-#ifdef HAVE_HASHDRBG
+#if defined(HAVE_HASHDRBG) && !defined(HAVE_INTEL_RDRAND)
     ret = wc_rng_bank_reseed(NULL, NULL, 0, 10, WC_RNG_BANK_FLAG_NONE);
 #ifdef WC_RNG_BANK_DEFAULT_SUPPORT
     if (ret != WC_NO_ERR_TRACE(NO_DEFAULT_FOUND_E))
@@ -28271,26 +28273,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    for (i = 0; i < bank->n_rngs; ++i) {
-    #if defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
+    #if !defined(HAVE_SELFTEST) && \
         (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
-        word64 bankReseedCtr;
-        if (bank->rngs[i].rng.drbgType == WC_DRBG_SHA512)
-            bankReseedCtr = ((struct DRBG_SHA512_internal *)
-                bank->rngs[i].rng.drbg512)->reseedCtr;
-        else
-            bankReseedCtr = ((struct DRBG_internal *)
-                bank->rngs[i].rng.drbg)->reseedCtr;
+    for (i = 0; i < bank->n_rngs; ++i) {
+        wc_drbg_reseed_ctr_t bankReseedCtr;
+        ret = wc_RNG_DRBG_GetReseedCtr(&bank->rngs[i].rng, &bankReseedCtr);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
         if (bankReseedCtr != WC_RESEED_INTERVAL)
-    #else
-        if (((struct DRBG_internal *)bank->rngs[i].rng.drbg)
-            ->reseedCtr != WC_RESEED_INTERVAL)
-    #endif
-        {
-            ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
-        }
+            ERROR_OUT(WC_TEST_RET_ENC_I(bankReseedCtr), out);
     }
-#endif /* HAVE_HASHDRBG */
+    #endif
+#endif /* HAVE_HASHDRBG && !HAVE_INTEL_RDRAND */
 
     rng_bank_affinity_get_id_id = 0;
     /* WC_RNG_BANK_FLAG_CAN_WAIT needed to avoiding warning message that the
@@ -28320,7 +28314,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (XMEMCMP(outbuf1, outbuf2, sizeof(outbuf1)) == 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
-#ifdef HAVE_HASHDRBG
+#if defined(HAVE_HASHDRBG) && !defined(HAVE_INTEL_RDRAND)
     ret = wc_rng_bank_seed(bank, (byte *)bank_arg, (word32)sizeof(bank_arg), NULL, 0, 10, WC_RNG_BANK_FLAG_CAN_WAIT);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -28405,7 +28399,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-#endif /* HAVE_HASHDRBG */
+#endif /* HAVE_HASHDRBG && !HAVE_INTEL_RDRAND */
 
     ret = wc_rng_bank_checkout(NULL, &rng_inst, -1, 10, WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST | WC_RNG_BANK_FLAG_AFFINITY_LOCK);
 #ifdef WC_RNG_BANK_DEFAULT_SUPPORT
@@ -28482,7 +28476,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-#ifdef HAVE_HASHDRBG
+#if defined(HAVE_HASHDRBG) && !defined(HAVE_INTEL_RDRAND)
 
     ret = wc_rng_bank_seed(NULL, (byte *)bank_arg, (word32)sizeof(bank_arg), NULL, 0, 10, WC_RNG_BANK_FLAG_CAN_WAIT);
     if (ret != 0)
@@ -28496,20 +28490,20 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-#endif /* HAVE_HASHDRBG */
+#endif /* HAVE_HASHDRBG && !HAVE_INTEL_RDRAND */
 
     ret = wc_rng_bank_default_clear(bank);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-#ifdef HAVE_HASHDRBG
+#if defined(HAVE_HASHDRBG) && !defined(HAVE_INTEL_RDRAND)
 
     /* seedSz == 0 probe with no default bank set: NO_DEFAULT_FOUND_E. */
     ret = wc_rng_bank_seed(NULL, NULL, 0, NULL, 0, 10, WC_RNG_BANK_FLAG_CAN_WAIT);
     if (ret != WC_NO_ERR_TRACE(NO_DEFAULT_FOUND_E))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
-#endif /* HAVE_HASHDRBG */
+#endif /* HAVE_HASHDRBG && !HAVE_INTEL_RDRAND */
 
 #endif /* WC_RNG_BANK_DEFAULT_SUPPORT */
 
@@ -28550,7 +28544,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-#ifdef HAVE_HASHDRBG
+#if defined(HAVE_HASHDRBG) && !defined(HAVE_INTEL_RDRAND)
 
     ret = wc_rng_bank_seed(bank2, (byte *)bank_arg, (word32)sizeof(bank_arg), NULL, 0, 10, WC_RNG_BANK_FLAG_CAN_WAIT);
     if (ret != 0)
@@ -28605,7 +28599,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-#endif /* HAVE_HASHDRBG */
+#endif /* HAVE_HASHDRBG && !HAVE_INTEL_RDRAND */
 
 #if defined(WC_HAVE_RNG_BANKREF) && !defined(WC_NO_CONSTRUCTORS)
     ret = wc_rng_new_bankref(NULL, &rng2);
@@ -28801,7 +28795,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     leaf_rng_inited = 1;
-#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+#if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && !defined(HAVE_INTEL_RDRAND)
     ret = wc_RNG_DRBG_GetRBGCStratum(leaf_rng);
     /* the _NEXT_SEED section above reseeds the bank root -- otherwise it's a
      * user seed. */
@@ -28829,7 +28823,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     if (spawned_rng == NULL)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+#if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && !defined(HAVE_INTEL_RDRAND)
     ret = wc_RNG_DRBG_GetRBGCStratum(spawned_rng);
     if (ret != WC_RNG_RBGC_USER_SEED_STRATUM + 1)
         ERROR_OUT(WC_TEST_RET_ENC_I(ret), out);
@@ -28851,7 +28845,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     leaf_rng_inited = 1;
-#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+#if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && !defined(HAVE_INTEL_RDRAND)
     ret = wc_RNG_DRBG_GetRBGCStratum(leaf_rng);
     if (ret != 1)
         ERROR_OUT(WC_TEST_RET_ENC_I(ret), out);
@@ -29268,36 +29262,33 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_svc_test(void)
         api_ret = wc_RNG_DRBG_GetReseedCtr(root, &c1);
         if (api_ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-    }
-    api_ret = wc_RNG_DRBG_Stir(root, matter, sizeof(matter));
-    if (api_ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
-    if (present) {
+        api_ret = wc_RNG_DRBG_Stir(root, matter, sizeof(matter));
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
         api_ret = wc_RNG_DRBG_GetReseedCtr(root, &c2);
         if ((api_ret != 0) || (c2 != c1 + 1))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-    }
 
-    /* credited reseed resets the counter */
-    api_ret = wc_RNG_DRBG_Reseed(root, matter, sizeof(matter));
-    if (api_ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
-    if (present) {
+        /* credited reseed resets the counter */
+        api_ret = wc_RNG_DRBG_Reseed(root, matter, sizeof(matter));
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+
         api_ret = wc_RNG_DRBG_GetReseedCtr(root, &c1);
         if ((api_ret != 0) || (c1 != 1))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-    }
 
-    /* schedule-then-generate performs a source reseed */
-    api_ret = wc_RNG_DRBG_ScheduleReseed(root);
-    if (api_ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
-    if (present) {
+        /* schedule-then-generate performs a source reseed */
+        api_ret = wc_RNG_DRBG_ScheduleReseed(root);
+        if (api_ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
+
         api_ret = wc_RNG_DRBG_GetReseedCtr(root, &c1);
         if ((api_ret != 0) ||
             (c1 != (wc_drbg_reseed_ctr_t)WC_RESEED_INTERVAL))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     }
+
     RNG_STATS_SNAP(root);
     api_ret = wc_RNG_GenerateBlock(root, buf, sizeof(buf));
     if (api_ret != 0)
@@ -29449,7 +29440,8 @@ out:
        /* (!HAVE_FIPS || FIPS_VERSION3_GE(7,0,0))         */
 
 #if defined(WC_RNG_BANK_SUPPORT) && defined(HAVE_HASHDRBG) && \
-    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(5,2,4))
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(5,2,4)) && \
+    !defined(HAVE_INTEL_RDRAND)
 
 /* Unit coverage for WC_RNG_LOCK_ENTROPY_INVALIDATED and the
  * invalidation-recovery protocol (VM fork / resume), exercised through the
@@ -30022,7 +30014,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_entropy_invalidate_test(void)
 
     return ret;
 }
-#endif /* WC_RNG_BANK_SUPPORT && (!HAVE_FIPS || FIPS_VERSION3_GE(5,2,4)) */
+#endif /* WC_RNG_BANK_SUPPORT && (!HAVE_FIPS || FIPS_VERSION3_GE(5,2,4)) && */
+       /* !HAVE_INTEL_RDRAND                                                */
 
 #ifdef WC_RNG_HAVE_RBGC
 
@@ -30103,12 +30096,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
                                     _stats_total_bytes_produced,
                                     ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
     }
+#ifndef HAVE_INTEL_RDRAND
     api_ret = wc_RNG_DRBG_GetRBGCStratum(&leaf);
     if (api_ret != 1)
         ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
     api_ret = wc_RNG_DRBG_GetRBGCStratum(&root);
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
+#endif
     RNG_STATS_SNAP2(&leaf);
     api_ret = wc_RNG_GenerateBlock(&leaf, buf, sizeof(buf));
     if (api_ret != 0)
@@ -30122,6 +30117,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
                           ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
     }
 
+#ifndef HAVE_INTEL_RDRAND
     /* root(0) from leaf(1): refused -- no stratum downgrade. */
     api_ret = wc_RNG_DRBG_ReseedRBGC(&root, &leaf, NULL, 0);
     if (api_ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
@@ -30185,8 +30181,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
         RNG_STATS_EXPECT2(&leaf, _stats_RBGC_bytes_produced, 0,
                           ERROR_OUT(WC_TEST_RET_ENC_I((int)rng_stats_d_), out));
     }
+#endif /* !HAVE_INTEL_RDRAND */
 
-#if !defined(WC_NO_CONSTRUCTORS)
+#if !defined(WC_NO_CONSTRUCTORS) && !defined(HAVE_INTEL_RDRAND)
     /* chain-reseeding a source-born instance demotes it, one-way */
     api_ret = wc_InitRng(&extra);
     if (api_ret != 0)
@@ -30315,7 +30312,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     wc_rng_free(pleaf);
     pleaf = NULL;
-#endif /* !WC_NO_CONSTRUCTORS */
+#endif /* !WC_NO_CONSTRUCTORS && !HAVE_INTEL_RDRAND */
 
     /* nonce-bearing stack spawn */
     api_ret = wc_FreeRng(&leaf);
@@ -30327,9 +30324,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
     if (api_ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
     leaf_inited = 1;
+#ifndef HAVE_INTEL_RDRAND
     api_ret = wc_RNG_DRBG_GetRBGCStratum(&leaf);
     if (api_ret != 1)
         ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
+#endif
 
 out:
 
