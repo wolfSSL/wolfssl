@@ -260,6 +260,102 @@ int test_wolfSSL_X509_STORE_check_time(void)
     return EXPECT_RESULT();
 }
 
+#if defined(OPENSSL_EXTRA) && defined(HAVE_CRL) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_ASN_TIME) && \
+    !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
+/* 2021-01-01, before the test certificates become valid and well before the
+ * test CRL's nextUpdate. */
+#define TEST_CRL_DATE_BEFORE_NOTBEFORE 1609459200L
+/* 2027-01-01, inside the test certificates' validity period. */
+#define TEST_CRL_DATE_IN_VALIDITY      1798761600L
+
+static time_t test_crl_date_override_time_cb(time_t* t)
+{
+    if (t != NULL)
+        *t = (time_t)TEST_CRL_DATE_BEFORE_NOTBEFORE;
+    return (time_t)TEST_CRL_DATE_BEFORE_NOTBEFORE;
+}
+#endif
+
+int test_wolfSSL_X509_verify_cert_crl_date_override(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_CRL) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_ASN_TIME) && \
+    !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* storeCtx = NULL;
+    X509* ca = NULL;
+    X509* revoked = NULL;
+    X509_CRL* crl = NULL;
+    XFILE fp = XBADFILE;
+    const char caCert[] = "./certs/ca-cert.pem";
+    const char srvRevokedCert[] = "./certs/server-revoked-cert.pem";
+    const char crlRevoked[] = "./certs/crl/crl.revoked";
+
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectNotNull(ca = wolfSSL_X509_load_certificate_file(caCert,
+        SSL_FILETYPE_PEM));
+    ExpectIntEQ(X509_STORE_add_cert(store, ca), SSL_SUCCESS);
+    ExpectTrue((fp = XFOPEN(crlRevoked, "rb")) != XBADFILE);
+    ExpectNotNull(crl = (X509_CRL*)PEM_read_X509_CRL(fp, (X509_CRL**)NULL,
+        NULL, NULL));
+    if (fp != XBADFILE)
+        XFCLOSE(fp);
+    ExpectIntEQ(X509_STORE_add_crl(store, crl), SSL_SUCCESS);
+    ExpectIntEQ(X509_STORE_set_flags(store, X509_V_FLAG_CRL_CHECK),
+        SSL_SUCCESS);
+    ExpectNotNull(revoked = wolfSSL_X509_load_certificate_file(srvRevokedCert,
+        SSL_FILETYPE_PEM));
+    ExpectNotNull(storeCtx = X509_STORE_CTX_new());
+
+    /* The store's CRL is enforced while the certificate is in date. */
+    ExpectIntEQ(X509_STORE_CTX_init(storeCtx, store, revoked, NULL),
+        SSL_SUCCESS);
+    ExpectIntNE(X509_verify_cert(storeCtx), SSL_SUCCESS);
+    ExpectIntEQ(X509_STORE_CTX_get_error(storeCtx),
+        WOLFSSL_X509_V_ERR_CERT_REVOKED);
+
+    /* Put the clock before the certificate's notBefore. The CRL stays
+     * current: its nextUpdate is later than either date. */
+    ExpectIntEQ(wc_SetTimeCb(test_crl_date_override_time_cb), 0);
+
+    /* Out of date and no override: still rejected. */
+    ExpectIntEQ(X509_STORE_CTX_init(storeCtx, store, revoked, NULL),
+        SSL_SUCCESS);
+    ExpectIntNE(X509_verify_cert(storeCtx), SSL_SUCCESS);
+
+    /* Waiving the date check must not waive revocation. */
+    ExpectIntEQ(X509_VERIFY_PARAM_set_flags(X509_STORE_get0_param(store),
+        X509_V_FLAG_NO_CHECK_TIME), SSL_SUCCESS);
+    ExpectIntEQ(X509_STORE_CTX_init(storeCtx, store, revoked, NULL),
+        SSL_SUCCESS);
+    ExpectIntNE(X509_verify_cert(storeCtx), SSL_SUCCESS);
+    ExpectIntEQ(X509_STORE_CTX_get_error(storeCtx),
+        WOLFSSL_X509_V_ERR_CERT_REVOKED);
+    ExpectIntEQ(X509_VERIFY_PARAM_clear_flags(X509_STORE_get0_param(store),
+        X509_V_FLAG_NO_CHECK_TIME), SSL_SUCCESS);
+
+    /* Same for a check time that does fall inside the validity period. */
+    ExpectIntEQ(X509_STORE_CTX_init(storeCtx, store, revoked, NULL),
+        SSL_SUCCESS);
+    X509_STORE_CTX_set_time(storeCtx, 0, (time_t)TEST_CRL_DATE_IN_VALIDITY);
+    ExpectIntNE(X509_verify_cert(storeCtx), SSL_SUCCESS);
+    ExpectIntEQ(X509_STORE_CTX_get_error(storeCtx),
+        WOLFSSL_X509_V_ERR_CERT_REVOKED);
+
+    /* Restore the real time source even if an expectation above failed. */
+    wc_SetTimeCb(NULL);
+
+    X509_STORE_CTX_free(storeCtx);
+    X509_STORE_free(store);
+    X509_CRL_free(crl);
+    X509_free(revoked);
+    X509_free(ca);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_X509_STORE_CTX_get0_store(void)
 {
     EXPECT_DECLS;
