@@ -2039,6 +2039,8 @@ static int test_mem_session_cache(void)
         return -1;
     }
 
+    XMEMSET(cache_mem, 0, sizeof(sess_cache_t));
+
     #ifndef NO_CLIENT_CACHE
     /* allocate scratch ClientCache */
     c_rows = (ClientRow *)XMALLOC(sizeof(ClientRow) * CLIENT_SESSION_ROWS,

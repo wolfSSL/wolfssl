@@ -354,38 +354,43 @@ int wolfSSL_memsave_session_cache(void* mem, int sz)
  * returns 0  on success
  * returns -1 on error
  * */
-static int SessionSanityPointerSet(SessionRow* row)
+static int SessionSanityPointerSet(int row)
 {
-    int ret = 0;
-    int j;
+    SessionRow * srow = NULL;
+    int          ret = 0;
+    int          j;
 
-    if (row->nextIdx < 0 || row->nextIdx >= SESSIONS_PER_ROW) {
+    if (row < 0 || row >= SESSION_ROWS) {
+        WOLFSSL_MSG_EX("session sanity: bad row index: %d", row);
+        return -1;
+    }
+
+    srow = &SessionCache[row];
+
+    if (srow->nextIdx < 0 || srow->nextIdx >= SESSIONS_PER_ROW) {
         WOLFSSL_MSG_EX("session sanity: bad row cache index: %d",
-                       row->nextIdx);
-        row->nextIdx = 0;
+                       srow->nextIdx);
+        srow->nextIdx = 0;
         ret = -1;
     }
 
-    if (row->totalCount < 0 || row->totalCount > SESSIONS_PER_ROW) {
+    if (srow->totalCount < 0 || srow->totalCount > SESSIONS_PER_ROW) {
         WOLFSSL_MSG_EX("session sanity: bad row cotal count: %d",
-                       row->totalCount);
-        row->totalCount = 0;
+                       srow->totalCount);
+        srow->totalCount = 0;
         ret = -1;
     }
 
     /* Reset pointers to safe values after raw copy.
      * Don't break early on error, we always sanitize the entire row. */
     for (j = 0; j < SESSIONS_PER_ROW; j++) {
-        WOLFSSL_SESSION* s = &row->Sessions[j];
+        WOLFSSL_SESSION * s = &srow->Sessions[j];
 
-        if (s->cacheRow >= SESSION_ROWS) {
-            WOLFSSL_MSG_EX("session sanity: bad cacheRow: %d",
-                           s->cacheRow);
-            s->cacheRow = INVALID_SESSION_ROW;
-            ret = -1;
-        }
-
+        /* set type and cacheRow index */
         s->type = WOLFSSL_SESSION_TYPE_CACHE;
+        s->cacheRow = row;
+
+        /* clamp ticketLen */
         #ifdef HAVE_SESSION_TICKET
         s->ticket = s->staticTicket;
         s->ticketLenAlloc = 0;
@@ -417,7 +422,7 @@ static int SessionSanityPointerSet(SessionRow* row)
                 if (s->chain.certs[k].length < 0 ||
                     s->chain.certs[k].length > MAX_X509_SIZE) {
                     WOLFSSL_MSG_EX("session sanity: cert[%d] bad length: %d",
-                                   k, s->chain.count);
+                                   k, s->chain.certs[k].length);
                     ret = -1;
                 }
             }
@@ -501,7 +506,7 @@ int wolfSSL_memrestore_session_cache(const void* mem, int sz)
     #endif
 
         XMEMCPY(&SessionCache[i], row++, SIZEOF_SESSION_ROW);
-        ret = SessionSanityPointerSet(&SessionCache[i]);
+        ret = SessionSanityPointerSet(i);
     #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
         SESSION_ROW_UNLOCK(&SessionCache[i]);
     #endif
@@ -676,7 +681,7 @@ int wolfSSL_restore_session_cache(const char *fname)
         }
         else {
             /* file read success. now sanitize the imported session row. */
-            ret = SessionSanityPointerSet(&SessionCache[i]);
+            ret = SessionSanityPointerSet(i);
 
             if (ret) {
                 /* session data is corrupted */

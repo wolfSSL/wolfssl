@@ -35,7 +35,8 @@
   entire session cache, rather than just the first session member of each row.
   This changes the on-disk layout of the session cache, and therefore the
   `WOLFSSL_CACHE_VERSION` was bumped from v2 to v3 to reflect this change.
-  Session cache files previously saved with v2 are no longer restorable.
+  Session caches previously saved with v2 (both file and mem) are no longer
+  restorable.
 
 * **Behavioral change (`wc_PufReadSram` health tests the raw SRAM readout)**:
   the raw readout is now health tested before the context accepts it, and a
