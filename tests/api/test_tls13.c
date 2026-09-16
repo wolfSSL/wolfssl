@@ -4773,10 +4773,9 @@ static int test_rpk_x509_issuer_accept_cb(int preverify,
         WOLFSSL_X509_STORE_CTX* store)
 {
     (void)preverify;
-    if ((store->error == WC_NO_ERR_TRACE(ASN_NO_SIGNER_E))
+    if (store->error == WC_NO_ERR_TRACE(ASN_NO_SIGNER_E)
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-        || (store->error ==
-                WOLFSSL_X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY)
+        || store->error == WOLFSSL_X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY
 #endif
         ) {
         return 1; /* would wrongly accept an RPK that reused these codes */
