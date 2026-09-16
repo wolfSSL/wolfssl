@@ -2253,7 +2253,8 @@ int wolfSSL_get_chain_length(WOLFSSL_X509_CHAIN* chain, int idx)
  * @param [in] chain  Certificate chain object.
  * @param [in] idx    Index of the certificate in the chain.
  * @return  Buffer holding the DER certificate on success.
- * @return  0 when chain is NULL or idx is out of range.
+ * @return  0 when chain is NULL, idx is out of range or the certificate did
+ *          not fit its slot.
  */
 byte* wolfSSL_get_chain_cert(WOLFSSL_X509_CHAIN* chain, int idx)
 {
@@ -2261,7 +2262,8 @@ byte* wolfSSL_get_chain_cert(WOLFSSL_X509_CHAIN* chain, int idx)
 
     WOLFSSL_ENTER("wolfSSL_get_chain_cert");
 
-    if ((chain != NULL) && (idx >= 0) && (idx < chain->count)) {
+    if ((chain != NULL) && (idx >= 0) && (idx < chain->count) &&
+            (chain->certs[idx].length > 0)) {
         /* DER buffer of the certificate stored at the given index. */
         cert = chain->certs[idx].buffer;
     }
@@ -2289,7 +2291,8 @@ WOLFSSL_X509* wolfSSL_get_chain_X509(WOLFSSL_X509_CHAIN* chain, int idx)
 
     WOLFSSL_ENTER("wolfSSL_get_chain_X509");
 
-    if ((chain != NULL) && (idx >= 0) && (idx < chain->count)) {
+    if ((chain != NULL) && (idx >= 0) && (idx < chain->count) &&
+            (chain->certs[idx].length > 0)) {
         x509 = (WOLFSSL_X509*)XMALLOC(sizeof(WOLFSSL_X509), NULL,
             DYNAMIC_TYPE_X509);
         if (x509 == NULL) {
@@ -2334,7 +2337,8 @@ int  wolfSSL_get_chain_cert_pem(WOLFSSL_X509_CHAIN* chain, int idx,
 
     WOLFSSL_ENTER("wolfSSL_get_chain_cert_pem");
     if ((chain == NULL) || (outLen == NULL) || (idx < 0) ||
-            (idx >= wolfSSL_get_chain_count(chain))) {
+            (idx >= wolfSSL_get_chain_count(chain)) ||
+            (chain->certs[idx].length <= 0)) {
         ret = BAD_FUNC_ARG;
     }
     /* Delegate to wc_DerToPem when DER-to-PEM is available. */
@@ -2377,7 +2381,8 @@ int  wolfSSL_get_chain_cert_pem(WOLFSSL_X509_CHAIN* chain, int idx,
 
     WOLFSSL_ENTER("wolfSSL_get_chain_cert_pem");
     if ((chain == NULL) || (outLen == NULL) || (idx < 0) ||
-            (idx >= wolfSSL_get_chain_count(chain))) {
+            (idx >= wolfSSL_get_chain_count(chain)) ||
+            (chain->certs[idx].length <= 0)) {
         ret = BAD_FUNC_ARG;
     }
     if (ret == WOLFSSL_SUCCESS) {
@@ -3012,56 +3017,74 @@ static int PushCAx509Chain(WOLFSSL_CERT_MANAGER* cm,
 
 /* Decode one certificate of the session chain onto the stack.
  *
- * On the last certificate of a verified chain the CA chain known for it is
- * appended as well.
+ * A certificate that did not fit its slot holds an empty one. The peer's own
+ * certificate, index 0, is taken from the copy kept on the SSL/TLS object
+ * instead; any other is left out of the stack, as it was before it had a slot.
  *
- * @param [in]      ssl           SSL/TLS object.
- * @param [in]      idx           Index of the certificate in the chain.
- * @param [in]      verifiedFlag  Whether to append the known CA chain.
- * @param [in, out] sk            Stack to add the certificate to.
+ * @param [in]      ssl     SSL/TLS object.
+ * @param [in]      idx     Index of the certificate in the chain.
+ * @param [in, out] sk      Stack to add the certificate to.
+ * @param [out]     pushed  Certificate added to the stack, NULL when the slot
+ *                          was empty. Owned by the stack.
  * @return  0 on success.
  * @return  MEMORY_E when the certificate object cannot be created.
  * @return  Other negative value when the certificate cannot be decoded or
  *          stored.
  */
-static int PushPeerCertToChain(const WOLFSSL* ssl, int idx, int verifiedFlag,
-    WOLFSSL_STACK* sk)
+static int PushPeerCertToChain(const WOLFSSL* ssl, int idx, WOLFSSL_STACK* sk,
+    WOLFSSL_X509** pushed)
 {
-    int ret;
-    WOLFSSL_X509* x509 = wolfSSL_X509_new_ex(ssl->heap);
+    int ret = 0;
+    WOLFSSL_X509* x509 = NULL;
 
-    if (x509 == NULL) {
-        WOLFSSL_MSG("Error Creating X509");
-        ret = MEMORY_E;
+    *pushed = NULL;
+
+    if (ssl->session->chain.certs[idx].length == 0) {
+    #ifdef KEEP_PEER_CERT
+        if ((idx == 0) && (ssl->peerCert.issuer.sz > 0)) {
+            x509 = wolfSSL_X509_dup((WOLFSSL_X509*)&ssl->peerCert);
+            if (x509 == NULL) {
+                WOLFSSL_MSG("Error duplicating peer certificate");
+                ret = MEMORY_E;
+            }
+        }
+    #endif
+        if ((ret == 0) && (x509 == NULL)) {
+            /* An issuer must never slide into the leaf's slot. */
+            if (idx == 0) {
+                return WOLFSSL_FATAL_ERROR;
+            }
+            /* Nothing to add for this index. */
+            return 0;
+        }
     }
     else {
-        ret = DecodeToX509(x509, ssl->session->chain.certs[idx].buffer,
-            ssl->session->chain.certs[idx].length);
-        if (ret == 0) {
-            if (wolfSSL_sk_X509_push(sk, x509) <= 0) {
-                ret = WOLFSSL_FATAL_ERROR;
-            }
-            else {
-                if ((idx == ssl->session->chain.count - 1) &&
-                        (verifiedFlag)) {
-                    /* On the last certificate of a verified chain, append the
-                     * CA chain known for it. The certificate is needed to look
-                     * the issuers up, so this is done before the reference to
-                     * it is dropped below. */
-                    SSL_CM_WARNING(ssl);
-                    ret = PushCAx509Chain(SSL_CM(ssl), x509, sk);
-                }
-                /* The stack owns the certificate from here on. */
-                x509 = NULL;
-            }
+        x509 = wolfSSL_X509_new_ex(ssl->heap);
+        if (x509 == NULL) {
+            WOLFSSL_MSG("Error Creating X509");
+            ret = MEMORY_E;
         }
-        if (ret != 0) {
-            WOLFSSL_MSG("Error decoding cert");
-            /* NULL once the stack has taken ownership, and freeing NULL does
-             * nothing, so this only releases a certificate that never got
-             * there. */
-            wolfSSL_X509_free(x509);
+        else {
+            ret = DecodeToX509(x509, ssl->session->chain.certs[idx].buffer,
+                ssl->session->chain.certs[idx].length);
         }
+    }
+
+    if (ret == 0) {
+        if (wolfSSL_sk_X509_push(sk, x509) <= 0) {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+        else {
+            /* The stack owns the certificate from here on. */
+            *pushed = x509;
+            x509 = NULL;
+        }
+    }
+    if (ret != 0) {
+        WOLFSSL_MSG("Error decoding cert");
+        /* NULL once the stack has taken ownership, and freeing NULL does
+         * nothing, so this only releases a certificate that never got there. */
+        wolfSSL_X509_free(x509);
     }
 
     return ret;
@@ -3099,12 +3122,28 @@ static WOLF_STACK_OF(WOLFSSL_X509)* CreatePeerCertChain(const WOLFSSL* ssl,
     }
 
     if (!err) {
+        WOLFSSL_X509* last = NULL;
         int i;
 
         for (i = 0; i < ssl->session->chain.count; i++) {
-            if (PushPeerCertToChain(ssl, i, verifiedFlag, sk) != 0) {
+            WOLFSSL_X509* pushed = NULL;
+
+            if (PushPeerCertToChain(ssl, i, sk, &pushed) != 0) {
                 err = 1;
                 break;
+            }
+            if (pushed != NULL) {
+                last = pushed;
+            }
+        }
+
+        /* Append the CA chain known for the last certificate of a verified
+         * chain. It is owned by the stack, so it is still there to look the
+         * issuers up with. */
+        if ((!err) && verifiedFlag && (last != NULL)) {
+            SSL_CM_WARNING(ssl);
+            if (PushCAx509Chain(SSL_CM(ssl), last, sk) != 0) {
+                err = 1;
             }
         }
     }

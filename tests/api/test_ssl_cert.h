@@ -69,6 +69,8 @@ int test_wolfSSL_verify_tls13_failnocert_only(void);
 int test_wolfSSL_verify_empty_server_cert(void);
 int test_wolfSSL_verify_post_handshake_defers(void);
 int test_wolfSSL_chain_ca_ext_key_usage(void);
+int test_wolfSSL_session_chain_oversized_cert(void);
+int test_wolfSSL_session_ticket_oversized_peer_cert(void);
 int test_wolfSSL_small_cert_verify_sig_error(void);
 
 #define TEST_SSL_CERT_DECLS                                                    \
@@ -116,6 +118,10 @@ int test_wolfSSL_small_cert_verify_sig_error(void);
         TEST_DECL_GROUP("ssl_cert",                                            \
             test_wolfSSL_verify_post_handshake_defers),                        \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_chain_ca_ext_key_usage),      \
+        TEST_DECL_GROUP("ssl_cert",                                            \
+            test_wolfSSL_session_chain_oversized_cert),                        \
+        TEST_DECL_GROUP("ssl_cert",                                            \
+            test_wolfSSL_session_ticket_oversized_peer_cert),                  \
         TEST_DECL_GROUP("ssl_cert",                                            \
             test_wolfSSL_small_cert_verify_sig_error),                         \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_cert_api_arg_guards),         \

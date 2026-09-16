@@ -1513,6 +1513,7 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get_chain(WOLFSSL_X509_STORE_CTX* ctx)
     if (ctx->chain == NULL && ctx->sesChain != NULL) {
         int i;
         int error = 0;
+        int lastIdx = -1;
         WOLFSSL_X509_CHAIN* c = ctx->sesChain;
         WOLFSSL_STACK*     sk = wolfSSL_sk_new_node(ctx->heap);
 
@@ -1520,8 +1521,20 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get_chain(WOLFSSL_X509_STORE_CTX* ctx)
             return NULL;
 
         for (i = 0; i < c->count; i++) {
-            WOLFSSL_X509* x509 = wolfSSL_get_chain_X509(c, i);
+            WOLFSSL_X509* x509;
 
+            /* A certificate too large to keep leaves its slot empty. An
+             * issuer must never slide into the leaf's slot. */
+            if (c->certs[i].length == 0) {
+                if (i == 0) {
+                    WOLFSSL_MSG("Peer cert missing from session chain");
+                    error = 1;
+                    break;
+                }
+                continue;
+            }
+
+            x509 = wolfSSL_get_chain_X509(c, i);
             if (x509 == NULL) {
                 WOLFSSL_MSG("Unable to get x509 from chain");
                 error = 1;
@@ -1535,13 +1548,14 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get_chain(WOLFSSL_X509_STORE_CTX* ctx)
                 error = 1;
                 break;
             }
+            lastIdx = i;
         }
 
 #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
     defined(OPENSSL_EXTRA)
         /* add CA used to verify top of chain to the list */
-        if (!error && c->count > 0) {
-            WOLFSSL_X509* x509 = wolfSSL_get_chain_X509(c, c->count - 1);
+        if (!error && lastIdx >= 0) {
+            WOLFSSL_X509* x509 = wolfSSL_get_chain_X509(c, lastIdx);
             WOLFSSL_X509* issuer = NULL;
             if (x509 != NULL) {
                 if (wolfSSL_X509_STORE_CTX_get1_issuer(&issuer, ctx, x509)
