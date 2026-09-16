@@ -326,3 +326,46 @@ int test_wolfSSL_X509_VERIFY_PARAM_set1_host(void)
 #endif /* OPENSSL_EXTRA */
     return EXPECT_RESULT();
 }
+
+/* A verification flag must either take effect or be refused.
+ *
+ * X509_V_FLAG_X509_STRICT, ALLOW_PROXY_CERTS and TRUSTED_FIRST were all
+ * defined as 0, so setting them returned success, set nothing, and read
+ * back as nothing: a caller asking for stricter verification had no way
+ * to learn it was not getting it. */
+int test_wolfSSL_X509_VERIFY_PARAM_unsupported_flags(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
+    WOLFSSL_X509_VERIFY_PARAM* param = NULL;
+
+    ExpectNotNull(param = wolfSSL_X509_VERIFY_PARAM_new());
+
+    /* asking for verification that is not performed must fail, not be
+     * quietly dropped */
+    ExpectIntEQ(wolfSSL_X509_VERIFY_PARAM_set_flags(param,
+        X509_V_FLAG_X509_STRICT), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_X509_VERIFY_PARAM_get_flags(param) &
+        X509_V_FLAG_X509_STRICT, 0);
+
+    /* flags that are accepted must read back, so the request is visible */
+    ExpectIntEQ(wolfSSL_X509_VERIFY_PARAM_set_flags(param,
+        X509_V_FLAG_TRUSTED_FIRST), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_X509_VERIFY_PARAM_get_flags(param) &
+        X509_V_FLAG_TRUSTED_FIRST, 0);
+
+    ExpectIntEQ(wolfSSL_X509_VERIFY_PARAM_set_flags(param,
+        X509_V_FLAG_ALLOW_PROXY_CERTS), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_X509_VERIFY_PARAM_get_flags(param) &
+        X509_V_FLAG_ALLOW_PROXY_CERTS, 0);
+
+    /* an already supported flag is unaffected */
+    ExpectIntEQ(wolfSSL_X509_VERIFY_PARAM_set_flags(param,
+        X509_V_FLAG_PARTIAL_CHAIN), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_X509_VERIFY_PARAM_get_flags(param) &
+        X509_V_FLAG_PARTIAL_CHAIN, 0);
+
+    wolfSSL_X509_VERIFY_PARAM_free(param);
+#endif
+    return EXPECT_RESULT();
+}
