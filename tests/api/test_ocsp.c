@@ -1282,7 +1282,8 @@ static int test_ocsp_tls_cert_cb_ocsp_verify_cb(WOLFSSL* ssl, int err,
             goto cleanup;
 
         peerCerts = wolfSSL_get_peer_chain(ssl);
-        if (peerCerts == NULL || wolfSSL_get_chain_count(peerCerts) <= (int)idx)
+        if (peerCerts == NULL || wolfSSL_get_chain_count(peerCerts) <= (int)idx
+                || wolfSSL_get_chain_length(peerCerts, (int)idx) == 0)
             goto cleanup;
 
         /* Verify cert with CA */

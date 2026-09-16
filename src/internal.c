@@ -14983,14 +14983,21 @@ int CheckIPAddr(DecodedCert* dCert, const char* ipasc, size_t ipascLen)
 WC_MAYBE_UNUSED static void AddSessionCertToChain(WOLFSSL_X509_CHAIN* chain,
     byte* certBuf, word32 certSz)
 {
-   if (chain->count < MAX_CHAIN_DEPTH &&
-                               certSz < MAX_X509_SIZE) {
-        chain->certs[chain->count].length = (int)certSz;
-        XMEMCPY(chain->certs[chain->count].buffer, certBuf, certSz);
+    if (chain->count >= MAX_CHAIN_DEPTH) {
+        WOLFSSL_MSG("Couldn't store chain cert for session");
+    }
+    else if (certSz >= MAX_X509_SIZE) {
+        /* Take the slot without filling it: the chain is read positionally,
+         * with index 0 the peer's own certificate, so an issuer must not be
+         * able to slide into the place of a certificate left out here. */
+        WOLFSSL_MSG("Chain cert too big for session, leaving its slot empty");
+        chain->certs[chain->count].length = 0;
         chain->count++;
     }
     else {
-        WOLFSSL_MSG("Couldn't store chain cert for session");
+        chain->certs[chain->count].length = (int)certSz;
+        XMEMCPY(chain->certs[chain->count].buffer, certBuf, certSz);
+        chain->count++;
     }
 }
 
