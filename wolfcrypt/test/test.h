@@ -75,7 +75,7 @@ wc_static_assert(-(long)MIN_CODE_E < 0x7ffL);
 #define WC_TEST_RET_ENC_NC WC_TEST_RET_ENC(WC_TEST_RET_LN, 0, WC_TEST_RET_TAG_NC)
 
 /* encode positive integer */
-#define WC_TEST_RET_ENC_I(i) WC_TEST_RET_ENC(WC_TEST_RET_LN, (i > 0x7ff) ? 0x7ff : (i), WC_TEST_RET_TAG_I)
+#define WC_TEST_RET_ENC_I(i) WC_TEST_RET_ENC(WC_TEST_RET_LN, ((i) > 0x7ff) ? 0x7ff : (i), WC_TEST_RET_TAG_I)
 
 /* encode error code (negative integer) */
 #define WC_TEST_RET_ENC_EC(ec) WC_TEST_RET_ENC(WC_TEST_RET_LN, -(ec), WC_TEST_RET_TAG_EC)
