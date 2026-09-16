@@ -123,14 +123,20 @@
                  (void)RCC->MP_AHB5ENSETR; } while (0)
     #endif
 #elif defined(WOLFSSL_STM32L4)
-    #define WC_STM32_AES_CLK_ENABLE() \
-        WC_STM32_CLK_EN(AHB2ENR, RCC_AHB2ENR_AESEN)
-    #define WC_STM32_AES_CLK_DISABLE() \
-        WC_STM32_CLK_DIS(AHB2ENR, RCC_AHB2ENR_AESEN)
-    #define WC_STM32_HASH_CLK_ENABLE() \
-        WC_STM32_CLK_EN(AHB2ENR, RCC_AHB2ENR_HASHEN)
-    #define WC_STM32_HASH_CLK_DISABLE() \
-        WC_STM32_CLK_DIS(AHB2ENR, RCC_AHB2ENR_HASHEN)
+    /* L4: RNG everywhere, AES on L48x/L4Ax, HASH on L4Ax. Gate each on the
+     * CMSIS bit so a device header without the IP still compiles. */
+    #ifdef RCC_AHB2ENR_AESEN
+        #define WC_STM32_AES_CLK_ENABLE() \
+            WC_STM32_CLK_EN(AHB2ENR, RCC_AHB2ENR_AESEN)
+        #define WC_STM32_AES_CLK_DISABLE() \
+            WC_STM32_CLK_DIS(AHB2ENR, RCC_AHB2ENR_AESEN)
+    #endif
+    #ifdef RCC_AHB2ENR_HASHEN
+        #define WC_STM32_HASH_CLK_ENABLE() \
+            WC_STM32_CLK_EN(AHB2ENR, RCC_AHB2ENR_HASHEN)
+        #define WC_STM32_HASH_CLK_DISABLE() \
+            WC_STM32_CLK_DIS(AHB2ENR, RCC_AHB2ENR_HASHEN)
+    #endif
     #define WC_STM32_RNG_CLK_ENABLE() \
         WC_STM32_CLK_EN(AHB2ENR, RCC_AHB2ENR_RNGEN)
 #elif defined(WOLFSSL_STM32L5)
