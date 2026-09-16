@@ -5491,6 +5491,12 @@ static void FreeX509Contents(WOLFSSL_X509* x509)
 
     FreeX509Name(&x509->issuer);
     FreeX509Name(&x509->subject);
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    if (x509->pubKeyCache != NULL) {
+        wolfSSL_EVP_PKEY_free(x509->pubKeyCache);
+        x509->pubKeyCache = NULL;
+    }
+#endif
     if (x509->pubKey.buffer) {
         XFREE(x509->pubKey.buffer, x509->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         x509->pubKey.buffer = NULL;
