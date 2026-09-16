@@ -16841,6 +16841,19 @@ int LoadCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
 #endif
 
 
+#ifdef WOLFSSL_SMALL_CERT_VERIFY
+/* The errors ParseCertRelative() only reaches once ConfirmSignature() has
+ * passed, so a separate signature check outranks them. */
+static int IsPostSigParseErr(int ret)
+{
+    return ret == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E) ||
+           ret == WC_NO_ERR_TRACE(ASN_AFTER_DATE_E) ||
+           ret == WC_NO_ERR_TRACE(ASN_NAME_INVALID_E) ||
+           ret == WC_NO_ERR_TRACE(ASN_PATHLEN_SIZE_E) ||
+           ret == WC_NO_ERR_TRACE(ASN_CRIT_EXT_E);
+}
+#endif
+
 static int ProcessPeerCertParse(WOLFSSL* ssl, ProcPeerCertArgs* args,
     int certType, int verify, byte** pSubjectHash, int* pAlreadySigner)
 {
@@ -17005,7 +17018,7 @@ PRAGMA_GCC_DIAG_POP
      * no cert signature, so exempt it - but only for the leaf (CERT_TYPE),
      * which is the only entry the RPK trust check runs on. A bare key sent as
      * any other list entry keeps failing here. */
-    if (ret == 0
+    if ((ret == 0 || (sigRet != 0 && IsPostSigParseErr(ret)))
     #if defined(HAVE_RPK)
           && !(args->dCert->isRPK && certType == CERT_TYPE)
     #endif
