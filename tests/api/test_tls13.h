@@ -34,6 +34,7 @@ int test_tls13_pha(void);
 int test_tls13_ctx_dh_rotation(void);
 int test_tls13_accept_state_dh_copy(void);
 int test_tls13_pha_resumption(void);
+int test_tls13_pha_after_early_data(void);
 int test_tls13_pha_resumption_bare_finished(void);
 int test_tls13_pha_resumption_blank_cert(void);
 int test_tls13_psk_cert_request_in_handshake(void);
@@ -164,6 +165,7 @@ int test_tls13_new_session_ticket_keeps_ems(void);
     TEST_DECL_GROUP("tls13", test_tls13_ctx_dh_rotation),       \
     TEST_DECL_GROUP("tls13", test_tls13_accept_state_dh_copy),  \
     TEST_DECL_GROUP("tls13", test_tls13_pha_resumption),        \
+    TEST_DECL_GROUP("tls13", test_tls13_pha_after_early_data),  \
     TEST_DECL_GROUP("tls13", test_tls13_pha_resumption_bare_finished), \
     TEST_DECL_GROUP("tls13", test_tls13_pha_resumption_blank_cert), \
     TEST_DECL_GROUP("tls13", test_tls13_psk_cert_request_in_handshake), \

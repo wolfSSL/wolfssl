@@ -4221,6 +4221,111 @@ int test_tls13_pha_resumption(void)
 }
 
 
+/* Post-handshake auth on a connection whose 0-RTT data the server accepted.
+ * The client's record sequence number must keep counting: restarting it at 0
+ * would repeat AEAD nonces already spent under the application traffic key. */
+int test_tls13_pha_after_early_data(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    defined(WOLFSSL_POST_HANDSHAKE_AUTH) && defined(WOLFSSL_EARLY_DATA) && \
+    defined(HAVE_SESSION_TICKET) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_RSA) && !defined(NO_CERTS)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION* sess = NULL;
+    struct test_memio_ctx test_ctx;
+    char msg[] = "hello wolfssl!";
+    char buf[sizeof(msg)];
+    word32 seq = 0;
+    int written = 0;
+    int read = 0;
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_c, cliCertFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_c, cliKeyFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    /* PHA has to be offered in the ClientHello. */
+    ExpectIntEQ(wolfSSL_CTX_allow_post_handshake_auth(ctx_c), 0);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, cliCertFile, NULL),
+        WOLFSSL_SUCCESS);
+    wolfSSL_CTX_set_verify(ctx_s, WOLFSSL_VERIFY_NONE, NULL);
+    /* The ticket only advertises 0-RTT when the server is opted in already. */
+    ExpectIntGE(wolfSSL_CTX_set_max_early_data(ctx_s, MAX_EARLY_DATA_SZ), 0);
+    ExpectIntGE(wolfSSL_set_max_early_data(ssl_s, MAX_EARLY_DATA_SZ), 0);
+
+    /* First connection is only there to hand out a ticket. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+    ExpectIntGE(wolfSSL_set_max_early_data(ssl_s, MAX_EARLY_DATA_SZ), 0);
+
+    /* Resume with 0-RTT data that the server accepts. */
+    ExpectIntEQ(wolfSSL_write_early_data(ssl_c, msg, (int)sizeof(msg) - 1,
+        &written), (int)sizeof(msg) - 1);
+    ExpectIntEQ(wolfSSL_read_early_data(ssl_s, buf, sizeof(buf) - 1, &read),
+        (int)sizeof(msg) - 1);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_read_early_data(ssl_s, buf, sizeof(buf) - 1, &read), 0);
+    ExpectTrue(wolfSSL_is_init_finished(ssl_s));
+    ExpectIntEQ(wolfSSL_session_reused(ssl_c), 1);
+
+    /* Enough application records that a restart at 0 cannot be mistaken for
+     * normal progress. */
+    for (i = 0; i < 6 && EXPECT_SUCCESS(); i++) {
+        ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg) - 1),
+            (int)sizeof(msg) - 1);
+        ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf) - 1),
+            (int)sizeof(msg) - 1);
+    }
+    if (ssl_c != NULL)
+        seq = ssl_c->keys.sequence_number_lo;
+
+    if (EXPECT_SUCCESS()) {
+        wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER |
+            WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+        ExpectIntEQ(wolfSSL_request_certificate(ssl_s), WOLFSSL_SUCCESS);
+    }
+    /* Driven unchecked: the point of the test is the state left behind, and
+     * the unfixed client makes the server reject the flight. */
+    if (EXPECT_SUCCESS()) {
+        (void)wolfSSL_write(ssl_s, msg, (int)sizeof(msg) - 1);
+        (void)wolfSSL_read(ssl_c, buf, sizeof(buf) - 1);
+        (void)wolfSSL_read(ssl_s, buf, sizeof(buf) - 1);
+    }
+
+    if (ssl_c != NULL)
+        ExpectIntGT(ssl_c->keys.sequence_number_lo, seq);
+    if (ssl_s != NULL) {
+        ExpectIntEQ(ssl_s->options.havePeerCert, 1);
+        ExpectIntEQ(ssl_s->options.havePeerVerify, 1);
+    }
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* A context that gains DH parameters after a session already exists hands the
  * session its own copy when the session is turned into a server. */
 int test_tls13_accept_state_dh_copy(void)
