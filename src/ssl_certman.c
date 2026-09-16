@@ -852,9 +852,17 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
      }
 
 #ifdef HAVE_CRL
-    if ((ret == 0) && cm->crlEnabled) {
-        /* Check for a CRL for the CA and check validity of certificate. */
-        ret = CheckCertCRL(cm->crl, cert);
+    if (cm->crlEnabled && ((ret == 0) ||
+            (ret == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E)) ||
+            (ret == WC_NO_ERR_TRACE(ASN_AFTER_DATE_E)))) {
+        /* A caller may waive the date error, so only a revocation, never an
+         * inconclusive CRL result, may replace it. */
+        int crlRet;
+
+        crlRet = CheckCertCRL(cm->crl, cert);
+        if ((ret == 0) || (crlRet == WC_NO_ERR_TRACE(CRL_CERT_REVOKED))) {
+            ret = crlRet;
+        }
     }
 #endif
 
