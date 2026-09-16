@@ -16901,7 +16901,7 @@ static int ProcessPeerCertMakeChainSigner(WOLFSSL* ssl, buffer* cert, int type,
         ret = MEMORY_E;
         goto exit_mcs;
     });
-    InitDecodedCert(dCertAdd, cert->buffer, cert->length, ssl->heap);
+    InitDecodedCert(dCertAdd, cert->buffer, cert->length, SSL_CM(ssl)->heap);
     dCertAdd_inited = 1;
     ret = ParseCert(dCertAdd, CA_TYPE, NO_VERIFY, SSL_CM(ssl));
     if (ret != 0)
