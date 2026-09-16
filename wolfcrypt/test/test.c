@@ -28012,6 +28012,7 @@ static int rng_bank_affinity_unlock(void *arg) {
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
 {
+    struct wc_rng_bank_inst *held_inst = NULL;
     int ret;
     WC_DECLARE_VAR(bank, struct wc_rng_bank, 1, HEAP_HINT);
     struct wc_rng_bank_inst *rng_inst = NULL;
@@ -28193,7 +28194,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     {
         struct wc_rng_bank_inst *stale_inst = rng_inst;
-        struct wc_rng_bank_inst *held_inst = NULL;
+        /* held_inst hoisted to function scope (teardown checks in). */
         ret = wc_rng_bank_checkout(bank, &held_inst, 2, 10,
                                    WC_RNG_BANK_FLAG_NONE);
         if (ret != 0)
@@ -29125,6 +29126,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
 #endif /* WC_RNG_BANK_HAVE_DAEMON_SUPPORT */
 
 out:
+
+    if (held_inst != NULL)
+        (void)wc_rng_bank_inst_checkin(&held_inst);
 
     {
         int cleanup_ret;

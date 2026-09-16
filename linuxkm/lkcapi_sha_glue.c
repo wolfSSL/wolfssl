@@ -2182,6 +2182,12 @@ static int linuxkm_affinity_unlock(void *arg) {
 
 #define WC_LINUXKM_ENTROPY_DAEMON_MAGIC 0x6f77666c
 
+#ifdef WC_RNG_HAVE_RBGC
+    #define WC_LKM_BANK_RBGC_FLAG WC_RNG_BANK_FLAG_RBGC
+#else
+    #define WC_LKM_BANK_RBGC_FLAG WC_RNG_BANK_FLAG_NONE
+#endif
+
 #if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
     defined(WC_RNG_HAVE_FREE_HOOK) && defined(WC_RNG_HAVE_LOCK)
 
@@ -2336,7 +2342,7 @@ static int wc_linuxkm_rng_state_invalidate(void) {
                     obj->bank, 0, -1,
                     (byte *)&uncredited_nonce, (word32)sizeof uncredited_nonce,
                     WC_LINUXKM_INITRNG_TIMEOUT_SEC,
-                    WC_RNG_BANK_FLAG_CAN_WAIT | WC_RNG_BANK_FLAG_RBGC);
+                    WC_RNG_BANK_FLAG_CAN_WAIT | WC_LKM_BANK_RBGC_FLAG);
                 ForceZero(&uncredited_nonce, (word32)sizeof uncredited_nonce);
                 if ((this_ret != 0) && (ret == 0))
                     ret = this_ret;
@@ -2592,15 +2598,18 @@ static void wc_linuxkm_vmgenid_poll(struct wc_linuxkm_vmgenid_poll_state *st,
                                     WC_RNG *local_root)
 {
     if (st->state == 0) {
-        /* one-time discovery, in daemon task context.  The device's _CID
-         * is "VM_Gen_Counter" per the Microsoft spec (QEMU adds _HID
-         * "QEMUVGID"); acpi_get_devices() matches against both HID and
-         * CID lists. */
+        /* one-time discovery, in daemon task context.  ACPICA uppercases
+         * _HID/_CID strings when building the namespace, and
+         * acpi_get_devices() matches by strcmp, so the IDs here mirror
+         * the kernel vmgenid driver's own table verbatim: "VMGENCTR"
+         * (Microsoft spec _HID) and "VM_GEN_COUNTER" (the _CID as
+         * stored -- QEMU, Hyper-V, VMware all present it). */
         void *found = NULL;
-        (void)acpi_get_devices("VM_Gen_Counter", wc_linuxkm_vmgenid_acpi_cb,
+        (void)acpi_get_devices("VMGENCTR", wc_linuxkm_vmgenid_acpi_cb,
                                st, &found);
         if (found == NULL)
-            (void)acpi_get_devices("QEMUVGID", wc_linuxkm_vmgenid_acpi_cb,
+            (void)acpi_get_devices("VM_GEN_COUNTER",
+                                   wc_linuxkm_vmgenid_acpi_cb,
                                    st, &found);
         if (found != NULL) {
             memcpy(st->last, st->map, 16);
@@ -2845,7 +2854,7 @@ static int wc_linuxkm_entropy_daemon(void *arg)
                 continue;
             }
             ret = wc_rng_bank_recover_inst(bank, i, 0 /* timeout_secs */,
-                                           WC_RNG_BANK_FLAG_RBGC |
+                                           WC_LKM_BANK_RBGC_FLAG |
                                            WC_RNG_BANK_FLAG_AUTO_RECOVER_AND_PROMOTE);
             if (ret == 0) {
                 (void)wc_rng_bank_inst_flags_down(
@@ -3060,16 +3069,23 @@ static int wc_linuxkm_entropy_daemon(void *arg)
                     "    reseeds=" WC_RNG_STAT_FMT
                         " stirs=" WC_RNG_STAT_FMT
                         " seed_failures=" WC_RNG_STAT_FMT "\n"
+#ifdef WC_RNG_HAVE_NEXT_SEED
                     "    nextstirs_banked=" WC_RNG_STAT_FMT
-                        " nextstirs_redeemed=" WC_RNG_STAT_FMT "\n",
+                        " nextstirs_redeemed=" WC_RNG_STAT_FMT "\n"
+#endif
+                    ,
                     s._stats_total_bytes_requested,
                     s._stats_total_bytes_produced,
                     s._stats_total_requests,
                     s._stats_reseeds,
                     s._stats_stirs,
-                    s._stats_seed_failures,
+                    s._stats_seed_failures
+#ifdef WC_RNG_HAVE_NEXT_SEED
+                    ,
                     s._stats_nextstirs_banked,
-                    s._stats_nextstirs_redeemed);
+                    s._stats_nextstirs_redeemed
+#endif
+                    );
         }
 #endif /* WC_RNG_DEBUG_STATS */
 #ifdef WC_LINUXKM_VMGENID_POLL
@@ -3086,7 +3102,7 @@ static int wc_linuxkm_rng_bank_init(struct wc_rng_bank *ctx)
 {
     int ret;
     word32 flags = WC_RNG_BANK_FLAG_CAN_WAIT | WC_RNG_BANK_FLAG_AUTO_RECOVER_AND_PROMOTE |
-        WC_RNG_BANK_FLAG_NO_CHECKOUT_REFCOUNTING | WC_RNG_BANK_FLAG_RBGC;
+        WC_RNG_BANK_FLAG_NO_CHECKOUT_REFCOUNTING | WC_LKM_BANK_RBGC_FLAG;
     unsigned long uncredited_nonce = random_get_entropy();
 
     if (wc_linuxkm_rng_initing_default_bank_flag && (default_bank != NULL)) {
@@ -3240,16 +3256,23 @@ static void wc_linuxkm_rng_dump_stats(struct wc_rng_bank *ctx)
                     "    reseeds=" WC_RNG_STAT_FMT
                         " stirs=" WC_RNG_STAT_FMT
                         " seed_failures=" WC_RNG_STAT_FMT "\n"
+#ifdef WC_RNG_HAVE_NEXT_SEED
                     "    stirs_banked=" WC_RNG_STAT_FMT
-                        " stirs_redeemed=" WC_RNG_STAT_FMT "\n",
+                        " stirs_redeemed=" WC_RNG_STAT_FMT "\n"
+#endif
+                    ,
                     s._stats_total_bytes_requested,
                     s._stats_total_bytes_produced,
                     s._stats_total_requests,
                     s._stats_reseeds,
                     s._stats_stirs,
-                    s._stats_seed_failures,
+                    s._stats_seed_failures
+#ifdef WC_RNG_HAVE_NEXT_SEED
+                    ,
                     s._stats_nextstirs_banked,
-                    s._stats_nextstirs_redeemed);
+                    s._stats_nextstirs_redeemed
+#endif
+                    );
         }
     }
 
@@ -3653,6 +3676,16 @@ static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
             }
 #endif
 
+#ifndef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
+            /* The non-vector checkout hold is migrate_disable() +
+             * local_bh_disable().  Only BH-off blocks sleeping; drop it for
+             * the blockable reseed and retake it after.  The checkout's
+             * migrate_disable() legally persists across the sleep,
+             * preserving the CPU pinning preemptibly -- the same property
+             * the vector arm's migrate_disable() bracket provides. */
+            local_bh_enable();
+#endif
+
             /* Reseed synchronously.  wc_RNG_DRBG_Reseed_Now() resets the reseed
              * counter iff the reseed succeeds; on failure it leaves the counter
              * unmodified (the WC_RESEED_INTERVAL backstop still governs) and
@@ -3702,6 +3735,9 @@ static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
             #if defined(CONFIG_SMP) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
             migrate_enable();
             #endif
+#else /* !WOLFSSL_USE_SAVE_VECTOR_REGISTERS */
+            /* retake the checkout's BH-off hold. */
+            local_bh_disable();
 #endif
         }
     }
@@ -3760,6 +3796,12 @@ static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
                 if (lock_state & WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED)
                     RESTORE_VECTOR_REGISTERS_MAYBE_INHIBITED();
             }
+#else /* !WOLFSSL_USE_SAVE_VECTOR_REGISTERS */
+            /* The non-vector checkout hold is migrate_disable() +
+             * local_bh_disable().  Only BH-off blocks sleeping; drop it for
+             * the blockable reinit and retake it after (see the reseed leg
+             * above). */
+            local_bh_enable();
 #endif
 
             ret = wc_rng_bank_inst_reinit(NULL, drbg,
@@ -3795,6 +3837,9 @@ static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
             #if defined(CONFIG_SMP) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
             migrate_enable();
             #endif
+#else /* !WOLFSSL_USE_SAVE_VECTOR_REGISTERS */
+            /* retake the checkout's BH-off hold. */
+            local_bh_disable();
 #endif
 
             if (ret == 0) {

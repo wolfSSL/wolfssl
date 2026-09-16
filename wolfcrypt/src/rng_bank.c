@@ -105,7 +105,7 @@ WOLFSSL_API int wc_rng_bank_init_nonce(
     /* the allocation below is sizeof(*ctx->rngs) * n_rngs; on targets where
      * size_t is narrow enough for that product to wrap, the initialization
      * loop would then run off the end of an undersized array. */
-    if ((size_t)n_rngs > (SIZE_MAX / sizeof(*ctx->rngs)))
+    if ((size_t)n_rngs > ((size_t)(-1) / sizeof(*ctx->rngs)))
         return BAD_LENGTH_E;
 
     XMEMSET(ctx, 0, sizeof(*ctx));
@@ -353,6 +353,21 @@ WOLFSSL_API int wc_rng_bank_fini(struct wc_rng_bank *ctx) {
         return BUSY_E;
     else if (wolfSSL_RefCur(ctx->refcount) < 1)
         return BAD_STATE_E;
+
+#ifndef WC_RNG_BANK_STATIC
+    if (ctx->rngs)
+#endif
+    {
+        /* A held instance aborts finalization with the bank fully intact --
+         * refcount untouched, free hook unfired, root alive.  BUSY_E: another
+         * actor holds a lease, definitively retryable. */
+        for (i = 0; i < ctx->n_rngs; ++i) {
+            WC_RNG_lock_arg_t pre_lock_state = 0;
+            (void)wc_rng_bank_inst_lock_read(&ctx->rngs[i], &pre_lock_state);
+            if (pre_lock_state & WC_RNG_LOCK_HELD)
+                return BUSY_E;
+        }
+    }
 
     wolfSSL_RefDec_IfEquals(&ctx->refcount, 1, &new_refcount, &ret);
     if (ret != 0) {

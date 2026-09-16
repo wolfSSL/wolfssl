@@ -477,6 +477,10 @@ wc_static_assert(WC_RNG_RBGC_USER_SEED_STRATUM >= 256);
     #define WC_RNG_DEBUG_STATS
 #endif
 
+#if defined(WC_RNG_DEBUG_STATS) && !defined(WC_RNG_HAVE_LOCK)
+    #error WC_RNG_DEBUG_STATS requires the RNG lock facility (WC_RNG_WANT_LOCK).
+#endif
+
 #ifdef WC_RNG_DEBUG_STATS
     #ifdef WORD64_AVAILABLE
         typedef word64 wc_rng_debug_counter_t;

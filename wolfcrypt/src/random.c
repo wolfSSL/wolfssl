@@ -2304,6 +2304,8 @@ int wc_RNG_DRBG_Stir_Nonce(WC_RNG* rng,
 {
     if (rng == NULL || seed == NULL)
         return BAD_FUNC_ARG;
+    if ((nonce == NULL) && (nonceSz != 0))
+        return BAD_FUNC_ARG;
 
     if (rng->status != WC_DRBG_OK)
         return RNG_FAILURE_E;
@@ -4734,13 +4736,13 @@ static WARN_UNUSED_RESULT WC_INLINE int NextStirPtrs(WC_RNG* rng, byte** seed,
  * test's error, leaving an empty bank for the next cycle.  A gather failure
  * leaves the partial bank intact for retry. */
 static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedGenerate_local(
-                                              WC_RNG* rng, WC_RNG *root,
-                                              const byte *nonce, word32 n)
+                                              WC_RNG* rng, WC_RNG* root,
+                                              const byte* nonce, word32 n)
 {
     int claim_ret;
     byte* seed = NULL;
     wolfSSL_Atomic_Int* lenp = NULL;
-    int *nextSeedRBGCStratum_p = NULL;
+    int* nextSeedRBGCStratum_p = NULL;
     WC_ATOMIC_INT_ARG cur;
     word32 nextSeedSz = 0;
     int ret;
