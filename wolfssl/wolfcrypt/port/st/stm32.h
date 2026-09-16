@@ -1074,6 +1074,12 @@ struct Aes;
     #ifndef WOLFSSL_DHUK_DEVID
         #define WOLFSSL_DHUK_DEVID          808
     #endif
+    /* Wrap-key-source marker for wc_Stm32_Aes_Wrap[_ex](), NOT a device to
+     * register. That call uses the silicon DHUK when aes->devId is
+     * WOLFSSL_DHUK_DEVID and the Aes's own key otherwise, and this is the
+     * spelling for "otherwise". Passing it to wc_Stm32_DhukRegister() only
+     * registers a second copy of the DHUK device; for plaintext-key AES use
+     * wc_Stm32_AesRegister(WOLFSSL_STM32_AES_DEVID). */
     #ifndef WOLFSSL_SAES_DEVID
         #define WOLFSSL_SAES_DEVID          807
     #endif
@@ -1094,18 +1100,18 @@ struct Aes;
      *   implementation shipped in wolfSSL 5.9.0 - 5.9.2. Needed to read or
      *   regenerate blobs provisioned by those releases.
      *
-     * wc_Stm32_Aes_Wrap() keeps each build path's historical default --
-     * legacy on CubeMX, raw on bare-metal -- so blobs already in flash stay
-     * valid. Override WC_STM32_WRAP_DEFAULT_RAW_ORDER before include to change
-     * that default build-wide. */
+     * wc_Stm32_Aes_Wrap() defaults to RAW on both build paths. It used to
+     * default to LEGACY on CubeMX to keep blobs from 5.9.0 - 5.9.2
+     * reproducible, but a LEGACY blob does not unwrap back to its key, so that
+     * default handed CubeMX callers an unusable blob unless they knew to call
+     * wc_Stm32_Aes_Wrap_ex() instead. LEGACY stays reachable through _ex() for
+     * regenerating those older blobs offline. Override
+     * WC_STM32_WRAP_DEFAULT_RAW_ORDER before include to change the default
+     * build-wide. */
     #define WC_STM32_WRAP_ORDER_LEGACY  0
     #define WC_STM32_WRAP_ORDER_RAW     1
     #ifndef WC_STM32_WRAP_DEFAULT_RAW_ORDER
-        #ifdef WOLFSSL_STM32_CUBEMX
-            #define WC_STM32_WRAP_DEFAULT_RAW_ORDER WC_STM32_WRAP_ORDER_LEGACY
-        #else
-            #define WC_STM32_WRAP_DEFAULT_RAW_ORDER WC_STM32_WRAP_ORDER_RAW
-        #endif
+        #define WC_STM32_WRAP_DEFAULT_RAW_ORDER WC_STM32_WRAP_ORDER_RAW
     #endif
 
     /* Chip-bound DHUK wrap (KEYSEL=HW, deterministic, out size == inSz).

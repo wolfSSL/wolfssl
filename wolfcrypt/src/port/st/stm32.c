@@ -1791,8 +1791,8 @@ static int Stm32SaesDeriveKeyFromSeed(const byte* seed, word32 seedSz)
      * wolfCrypt byte buffer. CR.DATATYPE swapping applies to DINR but NOT to
      * the key deposited in KEYR, so the swap happens here and DATATYPE stays
      * 00 on this path. */
-    XMEMCPY(seedWords, seed, 32);
-    ByteReverseWords(seedWords, seedWords, 32);
+    XMEMCPY(seedWords, seed, seedSz);
+    ByteReverseWords(seedWords, seedWords, seedSz);
 
     /* Full reset first: the key-derivation pass silently produces a wrong key
      * if the IP carries state from a previous operation. */
@@ -1877,7 +1877,8 @@ static void Stm32SaesLoadIv(const byte* iv, int reverse)
 }
 #endif /* WOLFSSL_DHUK */
 
-#endif /* (WOLFSSL_DHUK || WOLFSSL_STM32_USE_SAES) && WOLFSSL_STM32_BARE */
+#endif /* (WOLFSSL_DHUK || WOLFSSL_STM32_USE_SAES) &&
+          (WOLFSSL_STM32_BARE || WOLFSSL_STM32_CUBEMX) */
 
 /* ---------------------------------------------------------------------------
  * DHUK / SAES key wrap and the explicit KEK primitive -- shared by the
@@ -1913,8 +1914,8 @@ static void Stm32SaesLoadIv(const byte* iv, int reverse)
  *        HAL_CRYPEx_WrapKey) produced in wolfSSL 5.9.0 - 5.9.2. Use this to
  *        read or regenerate blobs provisioned by those releases.
  *
- * wc_Stm32_Aes_Wrap() below passes each build path its own historical default,
- * so neither path's stored blobs change meaning. */
+ * wc_Stm32_Aes_Wrap() below passes WC_STM32_WRAP_DEFAULT_RAW_ORDER, which is
+ * the raw order on both build paths. */
 int wc_Stm32_Aes_Wrap_ex(struct Aes* aes, const byte* in, word32 inSz,
     byte* out, word32* outSz, const byte* iv, int ivSz, int rawOrder)
 {
@@ -2056,14 +2057,11 @@ exit:
     return ret;
 }
 
-/* Wrap with this build path's established blob word order, so key material
- * already provisioned by a released wolfSSL keeps unwrapping:
- *   CubeMX/HAL -- byte-reversed, as the HAL_CRYPEx_WrapKey implementation in
- *                 wolfSSL 5.9.0 - 5.9.2 produced.
- *   bare-metal -- raw, the only order this path has ever produced.
- * Call wc_Stm32_Aes_Wrap_ex() directly to pick the order explicitly; rawOrder
- * = 1 gives one blob format that both build paths (and wc_Stm32_Aes_DhukOp_ex
- * and the DHUK crypto-callback derive path) agree on. */
+/* Wrap in the raw blob word order on both build paths -- the only order that
+ * unwraps back to the key it wrapped, and the one wc_Stm32_Aes_DhukOp_ex() and
+ * the DHUK crypto-callback derive path consume. Call wc_Stm32_Aes_Wrap_ex()
+ * with WC_STM32_WRAP_ORDER_LEGACY to regenerate the byte-reversed blobs the
+ * CubeMX build produced in wolfSSL 5.9.0 - 5.9.2. */
 int wc_Stm32_Aes_Wrap(struct Aes* aes, const byte* in, word32 inSz,
     byte* out, word32* outSz, const byte* iv, int ivSz)
 {
@@ -4293,11 +4291,10 @@ done:
 /* wc_Stm32_Aes_Wrap had a separate HAL implementation here, built on
  * HAL_CRYPEx_WrapKey and byte-reversing its input and output. It now shares the
  * register implementation above with the bare build -- same silicon-validated
- * code on both paths instead of two drivers. The blob format is unchanged:
- * wc_Stm32_Aes_Wrap() on CubeMX still byte-reverses (rawOrder =
- * WC_STM32_WRAP_ORDER_LEGACY), so key material provisioned by wolfSSL
- * 5.9.0 - 5.9.2 still unwraps. Pass WC_STM32_WRAP_ORDER_RAW to
- * wc_Stm32_Aes_Wrap_ex() for the format both build paths share. */
+ * code on both paths instead of two drivers -- and produces the raw blob order
+ * on both. Pass WC_STM32_WRAP_ORDER_LEGACY to wc_Stm32_Aes_Wrap_ex() to
+ * regenerate the byte-reversed blobs this path produced in wolfSSL
+ * 5.9.0 - 5.9.2. */
 
 int wc_Stm32_Aes_Init(Aes* aes, CRYP_HandleTypeDef* hcryp, int useSaes)
 {
