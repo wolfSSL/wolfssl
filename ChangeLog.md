@@ -275,6 +275,14 @@
   `ASN_OID_ARC_TOO_BIG_E`, rather than returning `BUFFER_E` or being silently
   accepted.
 
+* **Behavioral change (`wolfSSL_X509_REQ_print` attribute output)**: CSR
+  attribute names and values are no longer capped at 80 columns and are no
+  longer truncated. Values are written by their `ASN1_STRING` length rather
+  than with `%s`, so an embedded NUL byte is emitted as data instead of
+  terminating the value early. `X509PrintReqAttributes()` can now fail with
+  `WOLFSSL_FAILURE` on an allocation failure when sizing a long attribute
+  name, a new error path.
+
 ## New Features
 
 * Added `WC_ALGO_TYPE_KEYSTORE`, a crypto callback algorithm type for lifetime operations on keys held in a hardware key store, with the public API in `wolfssl/wolfcrypt/wc_keystore.h` behind `--enable-cryptocbutils=keystore`. Seven operations - plaintext and wrapped import/export, derive, delete and get-info - address keys by an opaque device-defined reference that wolfCrypt copies through and never interprets, the same way it treats a key object's `id[]` blob. This lets a device create, wrap, derive and destroy keys that never appear in memory, which `WOLF_CRYPTO_CB_SETKEY` and `WOLF_CRYPTO_CB_EXPORT_KEY` cannot express because both are bound to a wolfCrypt key object holding material for its own use.

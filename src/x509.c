@@ -7990,18 +7990,42 @@ static int X509PrintReqAttributes(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
         attr = wolfSSL_X509_REQ_get_attr(x509, i);
         if (attr != NULL) {
             /* Sized for numeric-form OID instead of NAME_SZ/4 column width. */
-            char lName[MAX_OID_STRING_SZ];
-            int lNameSz = (int)sizeof(lName);
+            char lNameBuf[MAX_OID_STRING_SZ];
+            char* lName = lNameBuf;
+            char* lNameHeap = NULL;
+            int lNameLen;
+            int lNameSz;
             int padSz;
             const byte* data;
+            int dataLen;
+            int ok = 1;
 
-            lNameSz = wolfSSL_OBJ_obj2txt(lName, lNameSz, attr->object, 0);
-            if ((lNameSz == WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) ||
-                    (lNameSz >= (int)sizeof(lName))) {
+            /* Decode straight into the stack buffer; only re-decode into a
+             * heap buffer when the returned full length shows it did not
+             * fit. */
+            lNameSz = (int)sizeof(lNameBuf);
+            lNameLen = wolfSSL_OBJ_obj2txt(lName, lNameSz, attr->object, 0);
+            if (lNameLen >= lNameSz) {
+                lNameSz = lNameLen + 1;
+                lNameHeap = (char*)XMALLOC((size_t)lNameSz, x509->heap,
+                        DYNAMIC_TYPE_TMP_BUFFER);
+                if (lNameHeap == NULL) {
+                    return WOLFSSL_FAILURE;
+                }
+                lName = lNameHeap;
+                lNameLen = wolfSSL_OBJ_obj2txt(lName, lNameSz, attr->object,
+                        0);
+            }
+            /* Never write past what the buffer holds. */
+            if ((lNameLen > 0) && (lNameLen > (int)XSTRLEN(lName))) {
+                lNameLen = (int)XSTRLEN(lName);
+            }
+            if (lNameLen <= 0) {
+                XFREE(lNameHeap, x509->heap, DYNAMIC_TYPE_TMP_BUFFER);
                 return WOLFSSL_FAILURE;
             }
 
-            padSz = (NAME_SZ/4) - lNameSz;
+            padSz = (NAME_SZ/4) - lNameLen;
             if (padSz < 0) {
                 padSz = 0;
             }
@@ -8009,16 +8033,40 @@ static int X509PrintReqAttributes(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
                     attr->value->value.asn1_string);
             if (data == NULL) {
                 WOLFSSL_MSG("No REQ attribute found when expected");
+                XFREE(lNameHeap, x509->heap, DYNAMIC_TYPE_TMP_BUFFER);
                 return WOLFSSL_FAILURE;
             }
-            if ((scratchLen = XSNPRINTF(scratch, MAX_WIDTH,
-                          "%*s%s%*s:%s\n", indent+4, "",
-                          lName, padSz, "", data))
-                >= MAX_WIDTH)
-            {
-                return WOLFSSL_FAILURE;
+            dataLen = wolfSSL_ASN1_STRING_length(
+                    attr->value->value.asn1_string);
+
+            /* Write in pieces so name and value bypass scratch; a short
+             * write would truncate the line, so each must complete. */
+            scratchLen = XSNPRINTF(scratch, MAX_WIDTH, "%*s", indent + 4, "");
+            if ((scratchLen < 0) || (scratchLen >= MAX_WIDTH) ||
+                    (wolfSSL_BIO_write(bio, scratch, scratchLen) !=
+                        scratchLen)) {
+                ok = 0;
             }
-            if (wolfSSL_BIO_write(bio, scratch, scratchLen) <= 0) {
+            if (ok && (wolfSSL_BIO_write(bio, lName, lNameLen) != lNameLen)) {
+                ok = 0;
+            }
+            if (ok) {
+                scratchLen = XSNPRINTF(scratch, MAX_WIDTH, "%*s:", padSz, "");
+                if ((scratchLen < 0) || (scratchLen >= MAX_WIDTH) ||
+                        (wolfSSL_BIO_write(bio, scratch, scratchLen) !=
+                            scratchLen)) {
+                    ok = 0;
+                }
+            }
+            if (ok && (dataLen > 0) &&
+                    (wolfSSL_BIO_write(bio, data, dataLen) != dataLen)) {
+                ok = 0;
+            }
+            if (ok && (wolfSSL_BIO_write(bio, "\n", 1) != 1)) {
+                ok = 0;
+            }
+            XFREE(lNameHeap, x509->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            if (!ok) {
                 WOLFSSL_MSG("Error writing REQ attribute");
                 return WOLFSSL_FAILURE;
             }
