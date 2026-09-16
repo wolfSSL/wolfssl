@@ -11682,6 +11682,14 @@ static int _ecc_import_x963_ex2(const byte* in, word32 inLen, ecc_key* key,
         }
     }
 
+    /* Ordinates must be exactly the curve's size, as wc_ecc_set_curve() only
+     * bounds keysize by ECC_MAXSIZE when a curve id is given. */
+    if (err == MP_OKAY) {
+        if ((key->dp == NULL) || (keysize != key->dp->size)) {
+            err = ECC_BAD_ARG_E;
+        }
+    }
+
     /* read data */
     if (err == MP_OKAY)
         err = mp_read_unsigned_bin(key->pubkey.x, in, (word32)keysize);

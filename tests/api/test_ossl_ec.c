@@ -1699,6 +1699,82 @@ int test_ECDH_compute_key(void)
     return EXPECT_RESULT();
 }
 
+/*
+ * testing EC_POINT_point2hex() rejects a point whose ordinates are wider than
+ * the curve.
+ *
+ * The x-ordinate offset was computed as sz - mp_unsigned_bin_size(X) + 1,
+ * which goes negative once an ordinate exceeds the curve size, writing
+ * attacker-chosen bytes in front of the freshly allocated buffer.
+ */
+int test_wolfSSL_EC_POINT_point2hex_oversized(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
+    !defined(WOLFSSL_SP_MATH) && \
+    (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
+     (HAVE_FIPS_VERSION > 2)))
+    EC_GROUP* group = NULL;
+    EC_POINT* point = NULL;
+    BIGNUM* x = NULL;
+    BIGNUM* y = NULL;
+    char* hexStr = NULL;
+    /* P-256 point (5, y). */
+    static const byte smallX[32] = {
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05
+    };
+    static const byte smallY[32] = {
+        0x45, 0x92, 0x43, 0xB9, 0xAA, 0x58, 0x18, 0x06,
+        0xFE, 0x91, 0x3B, 0xCE, 0x99, 0x81, 0x7A, 0xDE,
+        0x11, 0xCA, 0x50, 0x3C, 0x64, 0xD9, 0xA3, 0xC5,
+        0x33, 0x41, 0x5C, 0x08, 0x32, 0x48, 0xFB, 0xCC
+    };
+    /* 64 bytes: twice the P-256 ordinate size. */
+    static const byte wideOrdinate[64] = {
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x00,
+        0x6B, 0x17, 0xD1, 0xF2, 0xE1, 0x2C, 0x42, 0x47,
+        0xF8, 0xBC, 0xE6, 0xE5, 0x63, 0xA4, 0x40, 0xF2,
+        0x77, 0x03, 0x7D, 0x81, 0x2D, 0xEB, 0x33, 0xA0,
+        0xF4, 0xA1, 0x39, 0x45, 0xD8, 0x98, 0xC2, 0x96
+    };
+
+    ExpectNotNull(group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1));
+    ExpectNotNull(point = EC_POINT_new(group));
+    ExpectNotNull(x = BN_bin2bn(smallX, (int)sizeof(smallX), NULL));
+    ExpectNotNull(y = BN_bin2bn(smallY, (int)sizeof(smallY), NULL));
+    ExpectIntEQ(EC_POINT_set_affine_coordinates_GFp(group, point, x, y, NULL),
+        1);
+
+    /* Control: a well-formed point converts. */
+    ExpectNotNull(hexStr = EC_POINT_point2hex(group, point,
+        POINT_CONVERSION_UNCOMPRESSED, NULL));
+    XFREE(hexStr, NULL, DYNAMIC_TYPE_ECC);
+    hexStr = NULL;
+
+    /* Widen the x-ordinate the way an over-long X9.63 import used to. */
+    ExpectNotNull(BN_bin2bn(wideOrdinate, (int)sizeof(wideOrdinate), point->X));
+    ExpectNull(hexStr = EC_POINT_point2hex(group, point,
+        POINT_CONVERSION_UNCOMPRESSED, NULL));
+    XFREE(hexStr, NULL, DYNAMIC_TYPE_ECC);
+    hexStr = NULL;
+    ExpectNull(hexStr = EC_POINT_point2hex(group, point,
+        POINT_CONVERSION_COMPRESSED, NULL));
+    XFREE(hexStr, NULL, DYNAMIC_TYPE_ECC);
+
+    BN_free(y);
+    BN_free(x);
+    EC_POINT_free(point);
+    EC_GROUP_free(group);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test that d2i_ECPrivateKey derives the public point when the optional
  * publicKey [1] field is absent from the RFC 5915 DER encoding.
  *
