@@ -147,6 +147,11 @@
   `WOLFSSL_FAILURE` on an allocation failure when sizing a long attribute
   name, a new error path.
 
+* **Behavioral change (`wolfSSL_X509_print` / `wolfSSL_X509_REQ_print` on
+  unprintable extension OIDs)**: printing now fails outright, rather than
+  printing a truncated OID, when an extension's OID cannot be rendered by
+  `wolfSSL_OBJ_obj2txt()` (e.g. non-minimal DER in strict builds).
+
 ## Post-Quantum Cryptography (PQC)
 
 * Added opt-in per-key Falcon signing caches (`--enable-falcon=cache-key`, `cache-basis`), roughly doubling signing speed with the default integer fpr backend. by @Frauschi
