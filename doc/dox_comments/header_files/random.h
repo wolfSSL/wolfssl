@@ -135,7 +135,7 @@ int  wc_InitRng(WC_RNG* rng);
     \sa wc_FreeRng
     \sa wc_RNG_HealthTest
 */
-int  wc_RNG_GenerateBlock(WC_RNG* rng, byte* b, word32 sz);
+int  wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz);
 
 /*!
     \ingroup Random
@@ -397,7 +397,7 @@ int wc_InitRng_ex(WC_RNG* rng, void* heap, int devId);
 
     \sa wc_InitRng
 */
-int wc_InitRngNonce(WC_RNG* rng, byte* nonce, word32 nonceSz);
+int wc_InitRngNonce(WC_RNG* rng, const byte* nonce, word32 nonceSz);
 
 /*!
     \ingroup Random
@@ -424,7 +424,7 @@ int wc_InitRngNonce(WC_RNG* rng, byte* nonce, word32 nonceSz);
 
     \sa wc_InitRngNonce
 */
-int wc_InitRngNonce_ex(WC_RNG* rng, byte* nonce, word32 nonceSz,
+int wc_InitRngNonce_ex(WC_RNG* rng, const byte* nonce, word32 nonceSz,
                       void* heap, int devId);
 
 /*!
@@ -820,12 +820,15 @@ int wc_InitRng_ex2(WC_RNG* rng, void* heap, int devId, word32 flags);
     \param nonceSz Length of nonce in bytes.
     \param heap Heap hint for dynamic allocation.
     \param devId Device id, or INVALID_DEVID.
+    \param perso Optional personalization string (may be null).
+    \param persoSz Length of perso in bytes.
     \param flags Bitwise-or of WC_RNG_INIT_FLAG_* attributes.
 
     \sa wc_InitRng_ex2
     \sa wc_InitRngNonce_ex
 */
 int wc_InitRngNonce_ex2(WC_RNG* rng, const byte* nonce, word32 nonceSz,
+                        const byte *perso, word32 persoSz,
                         void* heap, int devId, word32 flags);
 
 /*!
@@ -939,6 +942,9 @@ int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* nonce, word32 nonceSz);
     the reseed counter resets.
 
     \return 0 Success
+    \return RNG_FAILURE_E rng is condemned (status DRBG_FAILED): a
+    condemned instance does not accept a credited reseed; recover with
+    wc_FreeRng() then wc_InitRng*().
     \return BAD_FUNC_ARG rng or seed is null.
     \return WRONG_TYPE_OBJECT_E rng has no DRBG (RDRAND et al.).
 
@@ -1320,6 +1326,9 @@ int wc_RNG_DRBG_NextSeedNow(WC_RNG* rng);
     mixed in as uncredited additional input alongside the banked seed.
 
     \return 0 Success
+    \return NEEDS_RECOVERY_E A purge crossed the consume (an invalidation
+    epoch boundary): no material is adopted, the entropy-invalidated latch
+    is re-asserted, and a recovery reseed is scheduled.
     \return NOT_READY_E No bank is ready.
     \return BAD_FUNC_ARG rng is null, or nonce is null with nonceSz nonzero.
     \return MISSING_RNG_E rng has no DRBG (RDRAND et al.).
@@ -1368,10 +1377,15 @@ int wc_RNG_DRBG_NextStirStore(WC_RNG* rng, const byte *nonce,
     counter is not reset.  The caller must own the instance.
 
     \return 0 Success
-    \return NOT_READY_E The accumulator is empty.
+    \return NOT_READY_E The accumulator is empty or still accumulating, or
+    the stir is refused (reseed interval, entropy-invalidated quarantine).
+    \return BUSY_E The accumulator was claimed by a racing consumer -- the
+    stir is happening by another hand.
     \return BAD_FUNC_ARG rng is null.
     \return MISSING_RNG_E rng has no DRBG (RDRAND et al.).
-    \return RNG_FAILURE_E The DRBG is out of service.
+    \return RNG_FAILURE_E The DRBG is out of service, or its hash failed
+    mid-stir leaving a half-applied update -- the instance is then
+    condemned (status DRBG_FAILED).
 
     \param rng The RNG object to stir.
 
@@ -1563,12 +1577,21 @@ int wc_RNG_lock_clear_extra(WC_RNG* rng, WC_RNG_lock_arg_t extra_bits);
     \ingroup Random
 
     \brief Mark rng's seed material untrusted -- for VM fork/resume and
-    similar duplication events -- by latching the entropy-invalidated bit in
-    the lock word.  An invalidated instance refuses service
-    (NEEDS_RECOVERY_E) until recovery-reseeded.
+    similar duplication events -- opening a new invalidation epoch: banked
+    and pooled pre-event material is purged and wiped first, then the
+    entropy-invalidated bit is latched in the lock word.  An invalidated
+    instance refuses service (NEEDS_RECOVERY_E) until recovery-reseeded.
+    Latch or condemn: on any error return the latch is down, and the
+    instance is instead condemned (status DRBG_FAILED).  A condemned bank
+    instance is retired and recovered by the entropy daemon; a condemned
+    leaf gets no daemon rescue -- its owner sees RNG_FAILURE_E from
+    subsequent operations and recovers it with wc_FreeRng() then
+    wc_InitRng*().
 
-    \return 0 Success
+    \return 0 Success: purges complete, latch asserted.
     \return BAD_FUNC_ARG rng is null.
+    \return RNG_FAILURE_E (or other nonzero) A purge or the latch failed;
+    the instance is condemned as above.
 
     \param rng The RNG object to invalidate.
 
@@ -1683,7 +1706,7 @@ int wc_RNG_Pool_Collect2(WC_RNG* rng_dest, WC_RNG* rng_src, word32 n);
 
     \brief Drain up to *n bytes from rng's pool into out --
     atomic-context-safe.  On success *n reports the bytes actually
-    delivered.
+    delivered; on any error return *n is left unmodified.
 
     \return 0 Success
     \return NOT_READY_E The pool is empty or being filled.

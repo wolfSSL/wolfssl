@@ -89,12 +89,15 @@ int wc_rng_bank_init(struct wc_rng_bank *ctx, int n_rngs, word32 flags,
     \param devId Device id, or INVALID_DEVID.
     \param nonce Additional instantiation input.
     \param nonceSz Length of nonce in bytes.
+    \param perso Optional personalization string (may be null).
+    \param persoSz Length of perso in bytes.
 
     \sa wc_rng_bank_init
 */
-int wc_rng_bank_init_nonce(struct wc_rng_bank *ctx, int n_rngs, word32 flags,
-                           int timeout_secs, void *heap, int devId,
-                           const byte *nonce, word32 nonceSz);
+int wc_rng_bank_init_nonce(struct wc_rng_bank *ctx, int n_rngs,
+                           word32 flags, int timeout_secs, void *heap,
+                           int devId, const byte *nonce, word32 nonceSz,
+                           const byte *perso, word32 persoSz);
 
 /*!
     \ingroup Random
@@ -441,14 +444,12 @@ int wc_rng_bank_next_seed_generate(struct wc_rng_bank *bank, int inst_offset,
     \param bank The bank.
     \param inst_offset The instance to bank for.
     \param n Maximum bytes to bank this call.
-    \param root The chain parent to draw material from.
 
     \sa wc_rng_bank_next_seed_generate
     \sa wc_RNG_DRBG_NextSeedGenerate_RBGC
 */
 int wc_rng_bank_next_seed_generate_rbgc(struct wc_rng_bank *bank,
-                                        int inst_offset, word32 n,
-                                        WC_RNG *root);
+                                        int inst_offset, word32 n);
 
 /*!
     \ingroup Random
@@ -548,6 +549,8 @@ int wc_rng_bank_recover_inst(struct wc_rng_bank *bank, int inst_offset,
     \param child_rng The caller-provided WC_RNG to instantiate.
     \param nonce Optional additional instantiation input.
     \param nonceSz Length of nonce in bytes.
+    \param perso Optional personalization string (may be null).
+    \param persoSz Length of perso in bytes.
     \param preferred_inst_offset The preferred parent instance, or 0.
     \param timeout_secs Wait budget (with _CAN_WAIT).
     \param flags Bitwise-or of WC_RNG_BANK_FLAG_* per-call flags.
@@ -556,7 +559,9 @@ int wc_rng_bank_recover_inst(struct wc_rng_bank *bank, int inst_offset,
     \sa wc_InitRngNonceRBGC
 */
 int wc_rng_bank_spawn(struct wc_rng_bank *bank, WC_RNG *child_rng,
-                      byte *nonce, word32 nonceSz, int preferred_inst_offset,
+                      byte *nonce, word32 nonceSz,
+                      const byte *perso, word32 persoSz,
+                      int preferred_inst_offset,
                       int timeout_secs, word32 flags);
 
 /*!
@@ -575,6 +580,8 @@ int wc_rng_bank_spawn(struct wc_rng_bank *bank, WC_RNG *child_rng,
     \param child_rng Receives the allocated, instantiated WC_RNG.
     \param nonce Optional additional instantiation input.
     \param nonceSz Length of nonce in bytes.
+    \param perso Optional personalization string (may be null).
+    \param persoSz Length of perso in bytes.
     \param preferred_inst_offset The preferred parent instance, or 0.
     \param timeout_secs Wait budget (with _CAN_WAIT).
     \param flags Bitwise-or of WC_RNG_BANK_FLAG_* per-call flags.
@@ -583,6 +590,7 @@ int wc_rng_bank_spawn(struct wc_rng_bank *bank, WC_RNG *child_rng,
 */
 int wc_rng_bank_spawn_new(struct wc_rng_bank *bank, WC_RNG **child_rng,
                           byte *nonce, word32 nonceSz,
+                          const byte *perso, word32 persoSz,
                           int preferred_inst_offset, int timeout_secs,
                           word32 flags);
 
@@ -601,6 +609,8 @@ int wc_rng_bank_spawn_new(struct wc_rng_bank *bank, WC_RNG **child_rng,
     \param bank The bank to seed.
     \param seed Seed material.
     \param seedSz Length of seed in bytes.
+    \param nonce Optional per-instance nonce material (may be null).
+    \param nonceSz Length of nonce in bytes.
     \param timeout_secs Wait budget per instance.
     \param flags Bitwise-or of WC_RNG_BANK_FLAG_* flags.
 
@@ -608,7 +618,8 @@ int wc_rng_bank_spawn_new(struct wc_rng_bank *bank, WC_RNG **child_rng,
     \sa wc_rng_bank_reseed
 */
 int wc_rng_bank_seed(struct wc_rng_bank *bank, const byte* seed,
-                     word32 seedSz, int timeout_secs, word32 flags);
+                     word32 seedSz, const byte *nonce, word32 nonceSz,
+                     int timeout_secs, word32 flags);
 
 /*!
     \ingroup Random
@@ -630,6 +641,8 @@ int wc_rng_bank_seed(struct wc_rng_bank *bank, const byte* seed,
     \param last_inst The last instance offset.
     \param seed Seed material.
     \param seedSz Length of seed in bytes.
+    \param nonce Optional per-instance nonce material (may be null).
+    \param nonceSz Length of nonce in bytes.
     \param timeout_secs Wait budget per instance.
     \param flags Bitwise-or of WC_RNG_BANK_FLAG_* flags.
 
@@ -637,6 +650,7 @@ int wc_rng_bank_seed(struct wc_rng_bank *bank, const byte* seed,
 */
 int wc_rng_bank_seed_range(struct wc_rng_bank *bank, int first_inst,
                            int last_inst, const byte* seed, word32 seedSz,
+                           const byte *nonce, word32 nonceSz,
                            int timeout_secs, word32 flags);
 
 /*!
@@ -650,14 +664,17 @@ int wc_rng_bank_seed_range(struct wc_rng_bank *bank, int first_inst,
     timeout_secs.
 
     \param bank The bank to reseed.
+    \param nonce Optional per-instance nonce material (may be null).
+    \param nonceSz Length of nonce in bytes.
     \param timeout_secs Wait budget per instance.
     \param flags Bitwise-or of WC_RNG_BANK_FLAG_* flags.
 
     \sa wc_rng_bank_reseed_range
     \sa wc_rng_bank_seed
 */
-int wc_rng_bank_reseed(struct wc_rng_bank *bank, int timeout_secs,
-                       word32 flags);
+int wc_rng_bank_reseed(struct wc_rng_bank *bank,
+                       const byte *nonce, word32 nonceSz,
+                       int timeout_secs, word32 flags);
 
 /*!
     \ingroup Random
@@ -673,6 +690,8 @@ int wc_rng_bank_reseed(struct wc_rng_bank *bank, int timeout_secs,
     \return WC_TIMEOUT_E The walk exceeded timeout_secs.
 
     \param bank The bank to reseed.
+    \param nonce Optional per-instance nonce material (may be null).
+    \param nonceSz Length of nonce in bytes.
     \param first_inst The first instance offset.
     \param last_inst The last instance offset.
     \param timeout_secs Wait budget per instance.
@@ -681,7 +700,9 @@ int wc_rng_bank_reseed(struct wc_rng_bank *bank, int timeout_secs,
     \sa wc_rng_bank_reseed
 */
 int wc_rng_bank_reseed_range(struct wc_rng_bank *bank, int first_inst,
-                             int last_inst, int timeout_secs, word32 flags);
+                             int last_inst,
+                             const byte *nonce, word32 nonceSz,
+                             int timeout_secs, word32 flags);
 
 /*!
     \ingroup Random
@@ -803,39 +824,41 @@ int wc_rng_bank_daemon_release(struct wc_rng_bank *bank,
                                WC_ATOMIC_UINT_ARG magic);
 
 /*!
-    \ingroup Random
+    \ingroup RNGBank
 
-    \brief Bind the daemon's RBG-chain root to the bank, for chain-sourced
-    banking (wc_rng_bank_next_seed_generate_rbgc()) and harvest deposit
-    (wc_RNG_DRBG_NextStirStore() on the root).
+    \brief Initialize the bank's root RNG -- the primary-sourced parent
+    that seeds and recovers the bank's instances.
 
     \return 0 Success
     \return BAD_FUNC_ARG bank is null.
 
-    \param bank The bank.
-    \param daemon_root The daemon's root WC_RNG, or null to unbind.
+    \param bank The bank whose root to initialize.
+    \param nonce Optional instantiation nonce (may be null).
+    \param nonceSz Length of nonce in bytes.
+    \param perso Optional personalization string (may be null).
+    \param persoSz Length of perso in bytes.
+    \param flags Bitwise-or of WC_RNG_INIT_FLAG_* attributes.
 
-    \sa wc_rng_bank_daemon_root_get
-    \sa wc_rng_bank_daemon_reserve
-    \details The caller (the daemon) owns the ordering: bind after
-    successful root initialization, unbind before root teardown.
-
+    \sa wc_rng_bank_root_rng_get
 */
-int wc_rng_bank_daemon_root_set(struct wc_rng_bank *bank,
-                                WC_RNG *daemon_root);
+int wc_rng_bank_root_rng_init(struct wc_rng_bank *bank,
+                              const byte *nonce, word32 nonceSz,
+                              const byte *perso, word32 persoSz,
+                              word32 flags);
 
 /*!
-    \ingroup Random
+    \ingroup RNGBank
 
-    \brief Report the bank's bound daemon root.
+    \brief Report the bank's root RNG.
 
-    \return The daemon root, or null when none is bound or bank is null.
+    \return The root WC_RNG, or null when none is initialized or bank is
+    null.
 
     \param bank The bank to interrogate.
 
-    \sa wc_rng_bank_daemon_root_set
+    \sa wc_rng_bank_root_rng_init
 */
-WC_RNG *wc_rng_bank_daemon_root_get(struct wc_rng_bank *bank);
+WC_RNG *wc_rng_bank_root_rng_get(struct wc_rng_bank *bank);
 
 /*!
     \ingroup Random
