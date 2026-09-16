@@ -545,6 +545,10 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
     #endif
 #endif
 
+#ifdef WOLFSSL_TI_AM64X_A53_INTEGRITY
+    #include <wolfssl/wolfcrypt/port/ti/integrity/sa2ul_port.h>
+#endif
+
 #ifdef _MSC_VER
     /* 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy */
     #pragma warning(disable: 4996)
@@ -23371,6 +23375,8 @@ static wc_test_ret_t aesgcm_non12iv_test(Aes* enc, Aes* dec)
     XMEMSET(resultC, 0, sizeof(resultC));
     XMEMSET(resultP, 0, sizeof(resultP));
 
+    (void)t1;
+
 #ifdef WOLFSSL_AES_192
     wc_AesGcmSetKey(enc, k2, sizeof(k2));
     /* AES-GCM encrypt and decrypt both use AES encrypt internally */
@@ -23948,6 +23954,10 @@ static wc_test_ret_t aesgcm_aes256_large_test(Aes* enc, Aes* dec)
 
     (void)alen;
     (void)plen;
+    (void)t1;
+#ifdef HAVE_AES_DECRYPT
+    (void)c1;
+#endif
 
     ret = wc_AesGcmSetKey(enc, k1, (word32)k1Sz);
     if (ret != 0)
@@ -37906,7 +37916,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t memory_test(void)
     word32 size[] = { WOLFMEM_BUCKETS };
     word32 dist[] = { WOLFMEM_DIST };
     byte buffer[30000]; /* make large enough to involve many bucket sizes */
-    int pad = -(int)((wc_ptr_t)buffer) & (WOLFSSL_STATIC_ALIGN - 1);
+    int pad = (int)((0 - (wc_ptr_t)buffer) & (WOLFSSL_STATIC_ALIGN - 1));
               /* pad to account for if head of buffer is not at set memory
                * alignment when tests are ran */
 #endif

@@ -1,0 +1,16 @@
+# This file is not standalone - it is meant to be referenced by other .int
+# files with the %include "<path>/system_loader.int"
+
+AddressSpace				system_loader
+	Filename			system_loader
+	MemoryPoolSize			64M
+	MaximumPriority			255
+	MaximumWeight			32767 # half of max
+	Language			C
+	HeapSize			0x40000
+	Task				Initial
+		StartIt			true
+		TimeSlice		NONPREEMPTIBLE
+	EndTask
+EndAddressSpace
+
