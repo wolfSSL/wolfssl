@@ -50,6 +50,18 @@ int SetCipherSpecs(WOLFSSL* ssl)
                                 ssl->options.cipherSuite, &ssl->specs,
                                 &ssl->options);
     if (ret == 0) {
+    #ifdef WOLFSSL_TLS13
+        /* The client only checks that the ServerHello suite was offered, and
+         * the TLS 1.2 key block of TLS_SHA384_SHA384 exceeds MAX_PRF_DIG. */
+        if (ssl->specs.kea == any_kea && !IsAtLeastTLSv1_3(ssl->version)) {
+            WOLFSSL_MSG("TLS 1.3 cipher suite not valid for lower version");
+            WOLFSSL_ERROR_VERBOSE(UNSUPPORTED_SUITE);
+            /* GetCipherSpec already wrote the rejected suite's sizes. */
+            XMEMSET(&ssl->specs, 0, sizeof(ssl->specs));
+            return UNSUPPORTED_SUITE;
+        }
+    #endif /* WOLFSSL_TLS13 */
+
     #ifdef WOLFSSL_ALLOW_SSLV3
          /* SSLv3 (RFC 6101) defines MAC algorithms as MD5 and SHA-1. SHA-256
           * was introduced in TLS 1.2 (RFC 5246). SSL_hmac for old SSLv3
