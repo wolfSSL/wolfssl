@@ -37038,8 +37038,8 @@ static int test_override_alt_cert_chain(void)
 }
 #endif
 
-#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
-    !defined(WOLFSSL_ALT_CERT_CHAINS)
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_PEM_TO_DER) && !defined(WOLFSSL_ALT_CERT_CHAINS)
 static int test_chain_ca_no_persist_verify_cb(int preverify,
         WOLFSSL_X509_STORE_CTX* store)
 {
