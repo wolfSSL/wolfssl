@@ -17578,7 +17578,7 @@ static int ProcessPeerCertMakeChainSigner(WOLFSSL* ssl, buffer* cert, int type,
         ret = MEMORY_E;
         goto exit_mcs;
     });
-    InitDecodedCert(dCertAdd, cert->buffer, cert->length, ssl->heap);
+    InitDecodedCert(dCertAdd, cert->buffer, cert->length, SSL_CM(ssl)->heap);
     dCertAdd_inited = 1;
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     /* A signer doesn't keep the X509_NAMEs, don't build them. */
