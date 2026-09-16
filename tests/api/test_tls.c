@@ -867,7 +867,9 @@ int test_tls_get_negotiated_group(void)
 #endif
     ExpectNull(wolfSSL_group_to_name(NULL, 9999));
 
-#ifdef TEST_NEGOTIATED_GROUP_P256
+/* wolfSSLv23_client_method() is built under !NO_TLS && !NO_WOLFSSL_CLIENT. */
+#if defined(TEST_NEGOTIATED_GROUP_P256) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_CLIENT)
     /* SSL_CTX_set_tmp_ecdh() seeds ctx->ecdhCurveOID, which InitSSL() copies
      * into the SSL. That is a configured preference, not a negotiated group,
      * so it must not be reported before a handshake has run. */
