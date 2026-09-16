@@ -201,6 +201,7 @@ int wc_curve25519_set_nonblock(curve25519_key* key, x25519_nb_ctx_t* ctx);
 
 #endif /* WC_X25519_NONBLOCK */
 
+#ifdef HAVE_CURVE25519_SHARED_SECRET
 WOLFSSL_API
 int wc_curve25519_shared_secret(curve25519_key* private_key,
                                 curve25519_key* public_key,
@@ -210,6 +211,7 @@ WOLFSSL_API
 int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
                                    curve25519_key* public_key,
                                    byte* out, word32* outlen, int endian);
+#endif /* HAVE_CURVE25519_SHARED_SECRET */
 
 WOLFSSL_API
 int wc_curve25519_init(curve25519_key* key);
@@ -231,6 +233,7 @@ WOLFSSL_API
 int wc_curve25519_delete(curve25519_key* key, curve25519_key** key_p);
 #endif
 
+#ifdef HAVE_CURVE25519_KEY_IMPORT
 /* raw key helpers */
 WOLFSSL_API
 int wc_curve25519_import_private(const byte* priv, word32 privSz,
@@ -246,13 +249,18 @@ WOLFSSL_API
 int wc_curve25519_import_private_raw_ex(const byte* priv, word32 privSz,
                                         const byte* pub, word32 pubSz,
                                         curve25519_key* key, int endian);
+#endif /* HAVE_CURVE25519_KEY_IMPORT */
+
+#ifdef HAVE_CURVE25519_KEY_EXPORT
 WOLFSSL_API
 int wc_curve25519_export_private_raw(curve25519_key* key, byte* out,
                                      word32* outLen);
 WOLFSSL_API
 int wc_curve25519_export_private_raw_ex(curve25519_key* key, byte* out,
                                         word32* outLen, int endian);
+#endif /* HAVE_CURVE25519_KEY_EXPORT */
 
+#ifdef HAVE_CURVE25519_KEY_IMPORT
 WOLFSSL_API
 int wc_curve25519_import_public(const byte* in, word32 inLen,
                                 curve25519_key* key);
@@ -261,7 +269,9 @@ int wc_curve25519_import_public_ex(const byte* in, word32 inLen,
                                    curve25519_key* key, int endian);
 WOLFSSL_API
 int wc_curve25519_check_public(const byte* pub, word32 pubSz, int endian);
+#endif /* HAVE_CURVE25519_KEY_IMPORT */
 
+#ifdef HAVE_CURVE25519_KEY_EXPORT
 WOLFSSL_API
 int wc_curve25519_export_public(curve25519_key* key, byte* out, word32* outLen);
 WOLFSSL_API
@@ -277,6 +287,8 @@ int wc_curve25519_export_key_raw_ex(curve25519_key* key,
                                     byte* priv, word32 *privSz,
                                     byte* pub, word32 *pubSz,
                                     int endian);
+#endif /* HAVE_CURVE25519_KEY_EXPORT */
+
 /* size helper */
 WOLFSSL_API
 int wc_curve25519_size(curve25519_key* key);
