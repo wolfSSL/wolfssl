@@ -315,6 +315,40 @@ static int ed448_is_small_order(const byte p[ED448_PUB_KEY_SIZE])
     return 0;
 }
 
+/* Check the y-coordinate of an encoded Ed448 public key is in [0, p - 1]
+ * (RFC 8032 5.2.3). Only have y so check that ordinate.
+ * p = 2^448-2^224-1 = 0xff..fe..ff
+ *
+ * The decoder (fe448_from_bytes) reads bytes 0-55 modulo p and ignores bits
+ * 0-6 of byte 56, so an out of range y decodes to the same point as its
+ * canonical encoding and must be rejected here.
+ *
+ * @param [in] p  Encoded public key.
+ * @return  1 when y is in range.
+ * @return  0 when y >= p.
+ */
+static int ed448_pub_y_in_range(const byte p[ED448_PUB_KEY_SIZE])
+{
+    int i;
+
+    /* Last byte: bit 7 is the sign of x, bits 0-6 are the top bits of y and
+     * must be zero; when set y >= 2^448 > p. */
+    if ((p[ED448_PUB_KEY_SIZE - 1] & 0x7f) != 0)
+        return 0;
+
+    /* Check top part before 0xFE - skipping the sign byte. */
+    for (i = ED448_PUB_KEY_SIZE - 2; i > ED448_PUB_KEY_SIZE/2; i--) {
+        if (p[i] < 0xff)
+            return 1;
+    }
+    /* Every byte above this one is 0xff here, so y > p whenever this byte is
+     * 0xff, and y == p is then the only remaining encoding outside
+     * [0, p - 1]. It is rejected by ed448_is_small_order(), whose table
+     * carries y == p as a non-canonical encoding, so the low bytes need no
+     * check. */
+    return p[ED448_PUB_KEY_SIZE/2] <= 0xfe;
+}
+
 /* Mirror a derived public key into the key object, in the layout
  * wc_ed448_make_key() leaves: key->p, and a copy after the private key in
  * key->k.  Only ever called for a key with no public half yet - deriving into
@@ -878,9 +912,15 @@ static int ed448_verify_msg_final_with_sha(const byte* sig, word32 sigLen,
     if (i == -1)
         return BAD_FUNC_ARG;
 
-    /* Defence in depth: also catch small-order keys imported with trusted=1. */
+    /* Defence in depth: also catch small-order and non-canonical keys
+     * imported with trusted=1. */
     if (ed448_is_small_order(key->p)) {
         WOLFSSL_MSG("Ed448 small-order public key rejected during "
+                    "signature verification");
+        return BAD_FUNC_ARG;
+    }
+    if (!ed448_pub_y_in_range(key->p)) {
+        WOLFSSL_MSG("Ed448 public key with y >= p rejected during "
                     "signature verification");
         return BAD_FUNC_ARG;
     }
@@ -1602,29 +1642,9 @@ int wc_ed448_check_key(ed448_key* key)
     }
     /* No private key, check Y is valid. */
     else if (ret == 0) {
-        /* Verify that xQ and yQ are integers in the interval [0, p - 1].
-         * Only have yQ so check that ordinate.
-         * p = 2^448-2^224-1 = 0xff..fe..ff
-         */
-        int i;
-        ret = PUBLIC_KEY_E;
-
-        /* Check top part before 0xFE. */
-        for (i = ED448_PUB_KEY_SIZE - 1; i > ED448_PUB_KEY_SIZE/2; i--) {
-            if (key->p[i] < 0xff) {
-                ret = 0;
-                break;
-            }
-        }
-        if (ret == WC_NO_ERR_TRACE(PUBLIC_KEY_E)) {
-            /* Every byte above this one is 0xff here, so y > p whenever this
-             * byte is 0xff, and y == p is then the only remaining encoding
-             * outside [0, p - 1]. It is already rejected by
-             * ed448_is_small_order() above, whose table carries y == p as a
-             * non-canonical encoding, so the low bytes need no check. */
-            if (key->p[ED448_PUB_KEY_SIZE/2] <= 0xfe) {
-                ret = 0;
-            }
+        /* Verify that xQ and yQ are integers in the interval [0, p - 1]. */
+        if (!ed448_pub_y_in_range(key->p)) {
+            ret = PUBLIC_KEY_E;
         }
 
         if (ret == 0) {

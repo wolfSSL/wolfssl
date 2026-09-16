@@ -1248,6 +1248,151 @@ int test_wc_ed448_reject_small_order_keys(void)
     return EXPECT_RESULT();
 }
 
+/* Ed448 public keys whose y-coordinate is not in [0, p - 1] must be rejected
+ * (RFC 8032 5.2.3: "If the resulting value is >= p, decoding fails").
+ * fe448_from_bytes() reads bytes 0-55 modulo p and ignores bits 0-6 of byte
+ * 56, so without the range test in wc_ed448_check_key() every such encoding
+ * decodes to the same point as a canonical one and is accepted. */
+int test_wc_ed448_reject_noncanonical_y(void)
+{
+    EXPECT_DECLS;
+#if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
+    /* RFC 8032 section 7.4 "Blank" public key: y < p, x-sign bit set. */
+    static const byte canonical_key[ED448_PUB_KEY_SIZE] = {
+        0x5f,0xd7,0x44,0x9b,0x59,0xb4,0x61,0xfd,
+        0x2c,0xe7,0x87,0xec,0x61,0x6a,0xd4,0x6a,
+        0x1d,0xa1,0x34,0x24,0x85,0xa7,0x0e,0x1f,
+        0x8a,0x0e,0xa7,0x5d,0x80,0xe9,0x67,0x78,
+        0xed,0xf1,0x24,0x76,0x9b,0x46,0xc7,0x06,
+        0x1b,0xd6,0x78,0x3d,0xf1,0xe5,0x0f,0x6c,
+        0xd1,0xfa,0x1a,0xbe,0xaf,0xe8,0x25,0x61,
+        0x80
+    };
+    /* y = 3 is on the curve; its canonical encoding is the control. */
+    static const byte y3_key[ED448_PUB_KEY_SIZE] = {
+        0x03,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00
+    };
+    /* y = 3 + p: same point as y3_key but y >= p. Bytes 29-55 are all 0xff
+     * and byte 28 is 0xff > 0xfe, so the range test must reject it before
+     * decompression; p = 2^448 - 2^224 - 1. */
+    static const byte y3_plus_p_key[ED448_PUB_KEY_SIZE] = {
+        0x02,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0xff,0xff,0xff,0xff,
+        0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+        0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+        0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+        0x00
+    };
+    byte bad[ED448_PUB_KEY_SIZE];
+    ed448_key key;
+    word32 i;
+    int rc;
+
+    /* Controls: canonical encodings import. */
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_ed448_init(&key), 0);
+    ExpectIntEQ(wc_ed448_import_public(canonical_key, ED448_PUB_KEY_SIZE,
+        &key), 0);
+    wc_ed448_free(&key);
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_ed448_init(&key), 0);
+    ExpectIntEQ(wc_ed448_import_public(y3_key, ED448_PUB_KEY_SIZE, &key), 0);
+    wc_ed448_free(&key);
+
+    /* y + p encoding: rejected by untrusted import and by a direct
+     * wc_ed448_check_key() after a trusted import. */
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_ed448_init(&key), 0);
+    ExpectIntEQ(wc_ed448_import_public(y3_plus_p_key, ED448_PUB_KEY_SIZE,
+        &key), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+    wc_ed448_free(&key);
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_ed448_init(&key), 0);
+    ExpectIntEQ(wc_ed448_import_public_ex(y3_plus_p_key, ED448_PUB_KEY_SIZE,
+        &key, 1), 0);
+    ExpectIntEQ(wc_ed448_check_key(&key), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+    wc_ed448_free(&key);
+
+    /* Bits 448-454 (byte 56 bits 0-6) are part of y and must be zero. Set
+     * each one in turn on an otherwise valid key: y >= 2^448 > p. */
+    for (i = 0; i < 7; i++) {
+        XMEMCPY(bad, canonical_key, sizeof(bad));
+        bad[ED448_PUB_KEY_SIZE - 1] |= (byte)(1U << i);
+        XMEMSET(&key, 0, sizeof(key));
+        ExpectIntEQ(wc_ed448_init(&key), 0);
+        rc = wc_ed448_import_public(bad, ED448_PUB_KEY_SIZE, &key);
+        if (rc != WC_NO_ERR_TRACE(PUBLIC_KEY_E)) {
+            fprintf(stderr, "byte 56 bit %u set: import_public returned %d, "
+                "expected PUBLIC_KEY_E\n", (unsigned)i, rc);
+        }
+        ExpectIntEQ(rc, WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+        wc_ed448_free(&key);
+    }
+
+#ifndef NO_ED448_VERIFY
+    /* A trusted import bypasses wc_ed448_check_key(); wc_ed448_verify_msg()
+     * must still refuse to verify under a y >= p key. Signature bytes are
+     * arbitrary with S = 1 (below the group order) so the key check is what
+     * decides. */
+    {
+        static const byte sig[ED448_SIG_SIZE] = {
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,
+            0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00
+        };
+        const char* msg = "non-canonical key";
+        int verify_result = 1;
+
+        XMEMCPY(bad, canonical_key, sizeof(bad));
+        bad[ED448_PUB_KEY_SIZE - 1] |= 0x7f;
+        XMEMSET(&key, 0, sizeof(key));
+        ExpectIntEQ(wc_ed448_init(&key), 0);
+        ExpectIntEQ(wc_ed448_import_public_ex(bad, ED448_PUB_KEY_SIZE, &key,
+            1), 0);
+        ExpectIntEQ(wc_ed448_verify_msg(sig, sizeof(sig), (const byte*)msg,
+            (word32)XSTRLEN(msg), &verify_result, &key, NULL, 0),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(verify_result, 0);
+        wc_ed448_free(&key);
+
+        XMEMSET(&key, 0, sizeof(key));
+        ExpectIntEQ(wc_ed448_init(&key), 0);
+        ExpectIntEQ(wc_ed448_import_public_ex(y3_plus_p_key,
+            ED448_PUB_KEY_SIZE, &key, 1), 0);
+        ExpectIntEQ(wc_ed448_verify_msg(sig, sizeof(sig), (const byte*)msg,
+            (word32)XSTRLEN(msg), &verify_result, &key, NULL, 0),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(verify_result, 0);
+        wc_ed448_free(&key);
+    }
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
 /*
  * MC/DC decision coverage for wolfcrypt/src/ed448.c decisions the pre-existing
  * ed448 API tests never drive: the sign/verify (context == NULL && contextLen
