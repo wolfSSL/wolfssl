@@ -830,7 +830,26 @@ int wolfSSL_SendUserCanceled(WOLFSSL* ssl)
             WOLFSSL_ERROR(ssl->error);
         }
         else {
+            /* RFC 9846: user_canceled must be followed by close_notify. Quiet
+             * shutdown suppresses a standalone close_notify, but the alert just
+             * sent obligates the paired close_notify, so clear quiet shutdown
+             * across this shutdown call to guarantee it is sent, then restore
+             * the caller's setting. */
+            int quietShutdown = ssl->options.quietShutdown;
+            ssl->options.quietShutdown = 0;
             ret = wolfSSL_shutdown(ssl);
+            if (quietShutdown) {
+                if (ssl->error == WC_NO_ERR_TRACE(WANT_WRITE)) {
+                    /* The close_notify is still in the output buffer. Leave
+                     * quiet shutdown off so the caller's retry of
+                     * wolfSSL_shutdown() flushes it, and have that call give
+                     * the setting back once the flush reaches a decision. */
+                    ssl->options.quietShutdownRestore = 1;
+                }
+                else {
+                    ssl->options.quietShutdown = 1;
+                }
+            }
         }
     }
 
@@ -1104,6 +1123,15 @@ int wolfSSL_shutdown(WOLFSSL* ssl)
             }
             ret = WOLFSSL_FATAL_ERROR;
         }
+    }
+
+    /* wolfSSL_SendUserCanceled() turned quiet shutdown off so that the
+     * close_notify it left in the output buffer could be flushed here. Give
+     * the caller's setting back once the flush has reached a decision. */
+    if ((ssl != NULL) && ssl->options.quietShutdownRestore &&
+            (ssl->error != WC_NO_ERR_TRACE(WANT_WRITE))) {
+        ssl->options.quietShutdownRestore = 0;
+        ssl->options.quietShutdown = 1;
     }
 
     #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
