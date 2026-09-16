@@ -4703,11 +4703,11 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedGenerate_local(
                                               const byte *nonce, word32 n)
 {
     int claim_ret;
-    byte* seed;
-    wolfSSL_Atomic_Int* lenp;
+    byte* seed = NULL;
+    wolfSSL_Atomic_Int* lenp = NULL;
     int *nextSeedRBGCStratum_p = NULL;
     WC_ATOMIC_INT_ARG cur;
-    word32 nextSeedSz;
+    word32 nextSeedSz = 0;
     int ret;
 
     if ((rng == NULL) || (n == 0) || (rng == root))
