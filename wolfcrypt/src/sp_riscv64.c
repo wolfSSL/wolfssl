@@ -44734,6 +44734,7 @@ static int sp_256_ecc_is_point_4(const sp_point_256* point,
  * @return  MP_OKAY otherwise.
  * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  MP_VAL when the point is not on the curve.
+ * @return  ECC_OUT_OF_RANGE_E when an ordinate is not less than the modulus.
  */
 int sp_ecc_is_point_256(const mp_int* pX, const mp_int* pY)
 {
@@ -44741,12 +44742,28 @@ int sp_ecc_is_point_256(const mp_int* pX, const mp_int* pY)
     const byte one[1] = { 1 };
     int err = MP_OKAY;
 
+    /* Quick check the public key ordinates are not negative and their lengths
+     * are in range; proper check later. */
+    if ((mp_count_bits(pX) > 256) || (mp_count_bits(pY) > 256) ||
+            mp_isneg(pX) || mp_isneg(pY)) {
+        err = ECC_OUT_OF_RANGE_E;
+    }
+
     SP_ALLOC_VAR(sp_point_256, pub, 1, NULL, DYNAMIC_TYPE_ECC);
     if (err == MP_OKAY) {
         sp_256_from_mp(pub->x, 4, pX);
         sp_256_from_mp(pub->y, 4, pY);
         sp_256_from_bin(pub->z, 4, one, (int)sizeof(one));
+    }
 
+    /* Check range of X and Y */
+    if ((err == MP_OKAY) &&
+            ((sp_256_cmp_4(pub->x, p256_mod) >= 0) ||
+             (sp_256_cmp_4(pub->y, p256_mod) >= 0))) {
+        err = ECC_OUT_OF_RANGE_E;
+    }
+
+    if (err == MP_OKAY) {
         err = sp_256_ecc_is_point_4(pub, NULL);
     }
 
@@ -44781,12 +44798,12 @@ int sp_ecc_check_key_256(const mp_int* pX, const mp_int* pY,
     int err = MP_OKAY;
 
 
-    /* Quick check the lengs of public key ordinates and private key are in
-     * range. Proper check later.
-     */
+    /* Quick check the public key ordinates are not negative and that their
+     * lengths and the private key length are in range. Proper check later. */
     if (((mp_count_bits(pX) > 256) ||
         (mp_count_bits(pY) > 256) ||
-        ((privm != NULL) && (mp_count_bits(privm) > 256)))) {
+        ((privm != NULL) && (mp_count_bits(privm) > 256)) ||
+        mp_isneg(pX) || mp_isneg(pY))) {
         err = ECC_OUT_OF_RANGE_E;
     }
 
@@ -55036,6 +55053,7 @@ static int sp_384_ecc_is_point_6(const sp_point_384* point,
  * @return  MP_OKAY otherwise.
  * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  MP_VAL when the point is not on the curve.
+ * @return  ECC_OUT_OF_RANGE_E when an ordinate is not less than the modulus.
  */
 int sp_ecc_is_point_384(const mp_int* pX, const mp_int* pY)
 {
@@ -55043,12 +55061,28 @@ int sp_ecc_is_point_384(const mp_int* pX, const mp_int* pY)
     const byte one[1] = { 1 };
     int err = MP_OKAY;
 
+    /* Quick check the public key ordinates are not negative and their lengths
+     * are in range; proper check later. */
+    if ((mp_count_bits(pX) > 384) || (mp_count_bits(pY) > 384) ||
+            mp_isneg(pX) || mp_isneg(pY)) {
+        err = ECC_OUT_OF_RANGE_E;
+    }
+
     SP_ALLOC_VAR(sp_point_384, pub, 1, NULL, DYNAMIC_TYPE_ECC);
     if (err == MP_OKAY) {
         sp_384_from_mp(pub->x, 6, pX);
         sp_384_from_mp(pub->y, 6, pY);
         sp_384_from_bin(pub->z, 6, one, (int)sizeof(one));
+    }
 
+    /* Check range of X and Y */
+    if ((err == MP_OKAY) &&
+            ((sp_384_cmp_6(pub->x, p384_mod) >= 0) ||
+             (sp_384_cmp_6(pub->y, p384_mod) >= 0))) {
+        err = ECC_OUT_OF_RANGE_E;
+    }
+
+    if (err == MP_OKAY) {
         err = sp_384_ecc_is_point_6(pub, NULL);
     }
 
@@ -55083,12 +55117,12 @@ int sp_ecc_check_key_384(const mp_int* pX, const mp_int* pY,
     int err = MP_OKAY;
 
 
-    /* Quick check the lengs of public key ordinates and private key are in
-     * range. Proper check later.
-     */
+    /* Quick check the public key ordinates are not negative and that their
+     * lengths and the private key length are in range. Proper check later. */
     if (((mp_count_bits(pX) > 384) ||
         (mp_count_bits(pY) > 384) ||
-        ((privm != NULL) && (mp_count_bits(privm) > 384)))) {
+        ((privm != NULL) && (mp_count_bits(privm) > 384)) ||
+        mp_isneg(pX) || mp_isneg(pY))) {
         err = ECC_OUT_OF_RANGE_E;
     }
 
@@ -65604,6 +65638,7 @@ static int sp_521_ecc_is_point_9(const sp_point_521* point,
  * @return  MP_OKAY otherwise.
  * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  MP_VAL when the point is not on the curve.
+ * @return  ECC_OUT_OF_RANGE_E when an ordinate is not less than the modulus.
  */
 int sp_ecc_is_point_521(const mp_int* pX, const mp_int* pY)
 {
@@ -65611,12 +65646,28 @@ int sp_ecc_is_point_521(const mp_int* pX, const mp_int* pY)
     const byte one[1] = { 1 };
     int err = MP_OKAY;
 
+    /* Quick check the public key ordinates are not negative and their lengths
+     * are in range; proper check later. */
+    if ((mp_count_bits(pX) > 521) || (mp_count_bits(pY) > 521) ||
+            mp_isneg(pX) || mp_isneg(pY)) {
+        err = ECC_OUT_OF_RANGE_E;
+    }
+
     SP_ALLOC_VAR(sp_point_521, pub, 1, NULL, DYNAMIC_TYPE_ECC);
     if (err == MP_OKAY) {
         sp_521_from_mp(pub->x, 9, pX);
         sp_521_from_mp(pub->y, 9, pY);
         sp_521_from_bin(pub->z, 9, one, (int)sizeof(one));
+    }
 
+    /* Check range of X and Y */
+    if ((err == MP_OKAY) &&
+            ((sp_521_cmp_9(pub->x, p521_mod) >= 0) ||
+             (sp_521_cmp_9(pub->y, p521_mod) >= 0))) {
+        err = ECC_OUT_OF_RANGE_E;
+    }
+
+    if (err == MP_OKAY) {
         err = sp_521_ecc_is_point_9(pub, NULL);
     }
 
@@ -65651,12 +65702,12 @@ int sp_ecc_check_key_521(const mp_int* pX, const mp_int* pY,
     int err = MP_OKAY;
 
 
-    /* Quick check the lengs of public key ordinates and private key are in
-     * range. Proper check later.
-     */
+    /* Quick check the public key ordinates are not negative and that their
+     * lengths and the private key length are in range. Proper check later. */
     if (((mp_count_bits(pX) > 521) ||
         (mp_count_bits(pY) > 521) ||
-        ((privm != NULL) && (mp_count_bits(privm) > 521)))) {
+        ((privm != NULL) && (mp_count_bits(privm) > 521)) ||
+        mp_isneg(pX) || mp_isneg(pY))) {
         err = ECC_OUT_OF_RANGE_E;
     }
 
@@ -83001,6 +83052,7 @@ static int sp_1024_ecc_is_point_16(const sp_point_1024* point,
  * @return  MP_OKAY otherwise.
  * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  MP_VAL when the point is not on the curve.
+ * @return  ECC_OUT_OF_RANGE_E when an ordinate is not less than the modulus.
  */
 int sp_ecc_is_point_1024(const mp_int* pX, const mp_int* pY)
 {
@@ -83008,12 +83060,28 @@ int sp_ecc_is_point_1024(const mp_int* pX, const mp_int* pY)
     const byte one[1] = { 1 };
     int err = MP_OKAY;
 
+    /* Quick check the public key ordinates are not negative and their lengths
+     * are in range; proper check later. */
+    if ((mp_count_bits(pX) > 1024) || (mp_count_bits(pY) > 1024) ||
+            mp_isneg(pX) || mp_isneg(pY)) {
+        err = ECC_OUT_OF_RANGE_E;
+    }
+
     SP_ALLOC_VAR(sp_point_1024, pub, 1, NULL, DYNAMIC_TYPE_ECC);
     if (err == MP_OKAY) {
         sp_1024_from_mp(pub->x, 16, pX);
         sp_1024_from_mp(pub->y, 16, pY);
         sp_1024_from_bin(pub->z, 16, one, (int)sizeof(one));
+    }
 
+    /* Check range of X and Y */
+    if ((err == MP_OKAY) &&
+            ((sp_1024_cmp_16(pub->x, p1024_mod) >= 0) ||
+             (sp_1024_cmp_16(pub->y, p1024_mod) >= 0))) {
+        err = ECC_OUT_OF_RANGE_E;
+    }
+
+    if (err == MP_OKAY) {
         err = sp_1024_ecc_is_point_16(pub, NULL);
     }
 
@@ -83048,12 +83116,12 @@ int sp_ecc_check_key_1024(const mp_int* pX, const mp_int* pY,
     int err = MP_OKAY;
 
 
-    /* Quick check the lengs of public key ordinates and private key are in
-     * range. Proper check later.
-     */
+    /* Quick check the public key ordinates are not negative and that their
+     * lengths and the private key length are in range. Proper check later. */
     if (((mp_count_bits(pX) > 1024) ||
         (mp_count_bits(pY) > 1024) ||
-        ((privm != NULL) && (mp_count_bits(privm) > 1024)))) {
+        ((privm != NULL) && (mp_count_bits(privm) > 1024)) ||
+        mp_isneg(pX) || mp_isneg(pY))) {
         err = ECC_OUT_OF_RANGE_E;
     }
 
