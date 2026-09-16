@@ -156,7 +156,7 @@ A DHUK-protected key is driven by a per-key 256-bit seed. The SAES derives the d
 
 ### Migration from WOLFSSL_STM32U5_DHUK
 
-`WOLFSSL_STM32U5_DHUK` is now an alias for this `WOLFSSL_DHUK` crypto-callback model and requires `WOLF_CRYPTO_CB` (a `#error` fires otherwise). The previous experimental inline path -- wrapped-key AES handled directly inside `wc_AesEncrypt` / `wc_AesDecrypt` / `wc_AesCbcEncrypt` / `wc_AesCbcDecrypt`, plus `wc_Stm32_Aes_SetDHUK_IV()`, `wc_Stm32_Aes_UnWrap()`, and the `Aes.dhukIV` / `dhukIVLen` members -- has been removed (fail-loud: code referencing those symbols no longer compiles). Migrate to the devId model shown below: register the device, init with `WC_DHUK_DEVID`, and use the normal `wc_Aes*` / `wc_ecc_*` APIs. Note that transparent DHUK AES/GMAC is bare-only (`WOLFSSL_STM32_BARE`); on the CubeMX/HAL path the crypto callback covers CCB ECDSA sign/keygen only.
+`WOLFSSL_STM32U5_DHUK` is now an alias for this `WOLFSSL_DHUK` crypto-callback model and requires `WOLF_CRYPTO_CB` (a `#error` fires otherwise). The previous experimental inline path -- wrapped-key AES handled directly inside `wc_AesEncrypt` / `wc_AesDecrypt` / `wc_AesCbcEncrypt` / `wc_AesCbcDecrypt`, plus `wc_Stm32_Aes_SetDHUK_IV()`, `wc_Stm32_Aes_UnWrap()`, and the `Aes.dhukIV` / `dhukIVLen` members -- has been removed (fail-loud: code referencing those symbols no longer compiles). Migrate to the devId model shown below: register the device, init with `WC_DHUK_DEVID`, and use the normal `wc_Aes*` / `wc_ecc_*` APIs. The DHUK crypto-callback backend is one direct-register SAES implementation shared by both build paths, so transparent DHUK AES / AES-GCM / GMAC and DHUK ECDSA sign behave identically under `WOLFSSL_STM32_BARE` and `WOLFSSL_STM32_CUBEMX`. On the CubeMX/HAL path the same device additionally falls back to the HAL AES engine and the HW PKA when a key is an ordinary plaintext key rather than a DHUK seed.
 
 ### API
 
@@ -202,16 +202,46 @@ So the same key bytes give a standard AES-GCM result on `WOLFSSL_STM32_AES_DEVID
 
 ### Provisioning helper
 
-`wc_Stm32_Aes_Wrap()` performs a chip-bound DHUK wrap (KEYSEL=HW, deterministic output) and is retained for provisioning wrapped key material. `WOLFSSL_DHUK_DEVID` (808) / `WOLFSSL_SAES_DEVID` (807) select its wrap-key source.
+`wc_Stm32_Aes_Wrap()` performs a chip-bound DHUK wrap (KEYSEL=HW, deterministic output). `aes->devId` selects the wrap key: `WOLFSSL_DHUK_DEVID` (808) uses the silicon DHUK, anything else uses the `Aes`'s own key -- `WOLFSSL_SAES_DEVID` (807) is just the spelling for that second case, and is not a device to register.
 
-Both build paths now run the same register implementation, but the two have historically produced different blob word orders, so `wc_Stm32_Aes_Wrap()` keeps each path's established default and existing provisioned key material stays valid:
+> **Behaviour change:** correcting the wrapped-key load changes the key SAES derives from a given seed, so every DHUK-derived key differs from earlier revisions and data encrypted under the old behaviour will not decrypt. The DHUK crypto-callback device has only ever been on master, so no released version is affected.
 
-| Build | `wc_Stm32_Aes_Wrap()` order | Notes |
+**It is the inverse of the SAES wrapped-key load.** A blob produced with `WC_STM32_WRAP_ORDER_RAW` unwraps back to the key it wrapped, and is byte-identical to ST's `HAL_CRYPEx_WrapKey()` output on the same die, so blobs are interchangeable with ST's HAL. `WC_STM32_WRAP_ORDER_LEGACY` blobs are byte-reversed and do not round-trip; they exist only to regenerate key material provisioned by wolfSSL 5.9.0 - 5.9.2. RAW is the default on both build paths, so plain `wc_Stm32_Aes_Wrap()` produces a blob that round-trips.
+
+Recover a wrapped key by handing the blob to a `WC_DHUK_DEVID` `Aes` as its key: that device runs the wrapped-key load, so the key that comes back is the one that was wrapped.
+
+To protect an externally supplied AES key `K`, use the DHUK-derived key as a **key encryption key**. Store a 32-byte derivation seed (not secret -- it is worthless on any other die) next to the wrapped key:
+
+```c
+/* provisioning: wrap K under the seed-derived KEK */
+wc_AesInit(&aes, NULL, WC_DHUK_DEVID);
+wc_AesSetKey(&aes, seed, 32, NULL, AES_ENCRYPTION);   /* 32 bytes = SEED */
+wc_AesEcbEncrypt(&aes, blob, K, 32);
+wc_AesFree(&aes);
+
+/* runtime: recover K, then run it verbatim on the plaintext-key device */
+wc_AesInit(&aes, NULL, WC_DHUK_DEVID);
+wc_AesSetKey(&aes, seed, 32, NULL, AES_DECRYPTION);
+wc_AesEcbDecrypt(&aes, K, blob, 32);
+wc_AesFree(&aes);
+
+wc_AesInit(&aes, NULL, WOLFSSL_STM32_AES_DEVID);      /* key used verbatim */
+wc_AesSetKey(&aes, K, 32, NULL, AES_DECRYPTION);
+wc_AesEcbDecrypt(&aes, pt, ct, ctSz);
+wc_AesFree(&aes);
+ForceZero(K, 32);
+```
+
+`K` exists in RAM while in use, which is the unavoidable cost of using an externally chosen key. If the key does not have to be a specific value, skip the wrapping entirely and use the seed itself as the key on `WC_DHUK_DEVID` -- the working key is then derived in hardware on every use and never exists in software. Worked example: `dhuk_provision_example()` in [`STM32_Bare_Test/src/main_dhuk.c`](https://github.com/wolfSSL/wolfssl-examples-stm32/blob/master/STM32_Bare_Test/src/main_dhuk.c), flows A and B.
+
+`wc_Stm32_Aes_Wrap()` produces `WC_STM32_WRAP_ORDER_RAW` on both build paths. The CubeMX build used to default to `WC_STM32_WRAP_ORDER_LEGACY` so blobs from wolfSSL 5.9.0 - 5.9.2 stayed reproducible, but a LEGACY blob does not unwrap back to its key, so that default handed CubeMX callers an unusable blob unless they knew to reach for `wc_Stm32_Aes_Wrap_ex()`.
+
+| Order | Produced by | Round-trips |
 |---|---|---|
-| `WOLFSSL_STM32_CUBEMX` | `WC_STM32_WRAP_ORDER_LEGACY` | byte-reversed, matching the `HAL_CRYPEx_WrapKey` implementation shipped in wolfSSL 5.9.0 - 5.9.2 |
-| `WOLFSSL_STM32_BARE` | `WC_STM32_WRAP_ORDER_RAW` | raw, the only order this path has produced |
+| `WC_STM32_WRAP_ORDER_RAW` | `wc_Stm32_Aes_Wrap()`, both build paths | yes, and matches ST's `HAL_CRYPEx_WrapKey()` |
+| `WC_STM32_WRAP_ORDER_LEGACY` | `wc_Stm32_Aes_Wrap_ex()` only | no, byte-reversed; for regenerating 5.9.0 - 5.9.2 blobs offline |
 
-`wc_Stm32_Aes_Wrap_ex()` takes the order explicitly. Use `WC_STM32_WRAP_ORDER_RAW` for new provisioning: it is one format both build paths agree on, and the same format `wc_Stm32_Aes_DhukOp_ex()` and the DHUK crypto-callback derive path use, so a blob wrapped on one build is usable on the other.
+`wc_Stm32_Aes_Wrap_ex()` takes the order explicitly; `WC_STM32_WRAP_DEFAULT_RAW_ORDER` changes what the plain call does build-wide.
 
 ```c
 /* portable across CubeMX and bare-metal */
@@ -239,13 +269,17 @@ Measured on NUCLEO-U385RG-Q with the AES-256 wrap key `603deb10 15ca71be 2b73aef
 
 ### Current state
 
-- Validated on STM32U385 (TZEN=0): transparent GMAC, AES-ECB, and ECDSA sign all run through the crypto-callback path; the derived key is deterministic, AES round-trips, and ECDSA verifies with the public counterpart.
-- The SAES key-derivation/unwrap passes complete via `SR.BUSY` clearing plus `SR.KEYVALID`, NOT via `CCF` (which is only raised for data-output passes). Waiting on `CCF` for the key path was the original `WC_TIMEOUT_E`; the BUSY/KEYVALID completion is the fix.
+- Validated on STM32U385, STM32U545 and STM32C5A3 (TZEN=0), on both the bare-metal and CubeMX/HAL builds: transparent GMAC, AES-ECB, AES-CBC and ECDSA sign all run through the crypto-callback path, the derived key is deterministic, and a `WC_STM32_WRAP_ORDER_RAW` blob unwraps back to the key it wrapped. The other DHUK families (H5, WBA, H7S, N6) share this code path but were not re-run on silicon for the wrapped-key change.
+- The SAES key-derivation/unwrap passes signal completion via `CCF`, with `SR.KEYVALID` confirming the loaded key. The catch is that `CR` writes made while `SR.BUSY` is high are dropped: latching `KEYSEL = HW` starts the DHUK load and raises `BUSY`, so `BUSY` has to be waited out before `CR.EN` is set. Enabling too early is what previously made `CCF` never assert (the original `WC_TIMEOUT_E`) and, when the wait was on `BUSY` instead, silently loaded a wrong key.
 - STM32U585 under TZEN=1 secure state: the derive currently stalls (`SR.BUSY` does not clear) -- a secure-context concern (SAES RNG / GTZC) that is open work. DHUK does not otherwise require secure state.
 
-### Optional exact-key import (off by default)
+### Explicit KEK primitive (off by default)
 
-`wc_Stm32_Aes_DhukOp[_ex]()` unwraps a previously DHUK-wrapped key into SAES KEYR and runs AES ECB/CBC with it (importing an externally-chosen key, vs deriving one from a seed). It is compiled only with `WOLFSSL_STM32_DHUK_UNWRAP`, is called explicitly (not auto-routed), and is not re-validated on current hardware.
+`wc_Stm32_Aes_DhukOp[_ex]()` turns the 256-bit value in `aes->key` into a chip-bound key encryption key inside SAES `KEYR` and then runs AES ECB/CBC on the caller's buffer with it. It is compiled only with `WOLFSSL_STM32_DHUK_UNWRAP` and is called explicitly, never auto-routed.
+
+It shares its implementation with the `WC_DHUK_DEVID` crypto-callback device, so the two APIs cannot drift apart. It **is** the inverse of `wc_Stm32_Aes_Wrap()`: unwrapping a blob wrapped in `WC_STM32_WRAP_ORDER_RAW` puts the original key back in `KEYR`.
+
+Re-validated on STM32U385 and STM32U545 from non-secure state (TZEN=0): ECB and CBC both round-trip, and a `WC_STM32_WRAP_ORDER_RAW` blob unwraps back to the key it wrapped.
 
 
 ## STM32 CCB (Coupling and Chaining Bridge)
