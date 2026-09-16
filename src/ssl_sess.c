@@ -93,6 +93,7 @@
     typedef struct SessionRow {
         int nextIdx;                           /* where to place next one   */
         int totalCount;                        /* sessions ever on this row */
+        word32 cacheGen;                       /* next entry generation     */
 #ifdef SESSION_CACHE_DYNAMIC_MEM
         WOLFSSL_SESSION* Sessions[SESSIONS_PER_ROW];
         void* heap;
@@ -106,7 +107,8 @@
         int lock_valid;
     #endif
     } SessionRow;
-    #define SIZEOF_SESSION_ROW (sizeof(WOLFSSL_SESSION) + (sizeof(int) * 2))
+    #define SIZEOF_SESSION_ROW \
+        (WC_OFFSETOF(SessionRow, Sessions) + sizeof(WOLFSSL_SESSION))
 
     static WC_THREADSHARED SessionRow SessionCache[SESSION_ROWS];
 
@@ -159,6 +161,7 @@
             word16 serverRow;            /* SessionCache Row id */
             word16 serverIdx;            /* SessionCache Idx (column) */
             word32 sessionIDHash;
+            word32 cacheGen;             /* SessionCache entry generation */
         };
     #ifndef WOLFSSL_CLIENT_SESSION_DEFINED
         typedef struct ClientSession ClientSession;
@@ -394,7 +397,7 @@ int wolfSSL_SetServerID(WOLFSSL* ssl, const byte* id, int len, int newSession)
 
 /* for persistence, if changes to layout need to increment and modify
    save_session_cache() and restore_session_cache and memory versions too */
-#define WOLFSSL_CACHE_VERSION 2
+#define WOLFSSL_CACHE_VERSION 3
 
 /* Session Cache Header information */
 typedef struct {
@@ -525,6 +528,7 @@ static void SessionSanityPointerSet(SessionRow* row)
 int wolfSSL_memrestore_session_cache(const void* mem, int sz)
 {
     int    i;
+    word32 cacheGen;
     cache_header_t cache_header;
     SessionRow*    row;
 
@@ -565,7 +569,11 @@ int wolfSSL_memrestore_session_cache(const void* mem, int sz)
         }
     #endif
 
+        cacheGen = SessionCache[i].cacheGen;
         XMEMCPY(&SessionCache[i], row++, SIZEOF_SESSION_ROW);
+        /* Generations already handed to live handles must not be reissued. */
+        if (SessionCache[i].cacheGen < cacheGen)
+            SessionCache[i].cacheGen = cacheGen;
     #if !defined(SESSION_CACHE_DYNAMIC_MEM) && \
         (defined(HAVE_SESSION_TICKET) || \
         (defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)))
@@ -686,6 +694,7 @@ int wolfSSL_restore_session_cache(const char *fname)
     int    rc = WOLFSSL_SUCCESS;
     int    ret;
     int    i;
+    word32 cacheGen;
     cache_header_t cache_header;
 
     WOLFSSL_ENTER("wolfSSL_restore_session_cache");
@@ -729,7 +738,11 @@ int wolfSSL_restore_session_cache(const char *fname)
         }
     #endif
 
+        cacheGen = SessionCache[i].cacheGen;
         ret = (int)XFREAD(&SessionCache[i], SIZEOF_SESSION_ROW, 1, file);
+        /* Generations already handed to live handles must not be reissued. */
+        if (SessionCache[i].cacheGen < cacheGen)
+            SessionCache[i].cacheGen = cacheGen;
     #if !defined(SESSION_CACHE_DYNAMIC_MEM) && \
         (defined(HAVE_SESSION_TICKET) || \
         (defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)))
@@ -1675,7 +1688,8 @@ static int get_locked_session_stats(word32* active, word32* total,
 
 #ifndef NO_CLIENT_CACHE
 ClientSession* AddSessionToClientCache(int side, int row, int idx,
-    byte* serverID, word16 idLen, const byte* sessionID, word16 useTicket)
+    byte* serverID, word16 idLen, const byte* sessionID, word16 useTicket,
+    word32 cacheGen)
 {
     int error = -1;
     word32 clientRow = 0, clientIdx = 0;
@@ -1711,6 +1725,7 @@ ClientSession* AddSessionToClientCache(int side, int row, int idx,
                                                                 (word16)row;
                 ClientCache[clientRow].Clients[clientIdx].serverIdx =
                                                                 (word16)idx;
+                ClientCache[clientRow].Clients[clientIdx].cacheGen = cacheGen;
                 if (sessionID != NULL) {
                     word32 sessionIDHash = HashObject(sessionID, ID_LEN,
                                                       &error);
@@ -1826,6 +1841,13 @@ WOLFSSL_SESSION* ClientSessionToSession(const WOLFSSL_SESSION* session)
                 WOLFSSL_MSG("session ID hashes don't match");
         }
         if (error == 0) {
+            /* The peer picks the session ID, so a matching hash only says the
+             * entry carries that ID, not that it still holds this session. */
+            error = clientSession->cacheGen != cacheSession->cacheGen;
+            if (error != 0)
+                WOLFSSL_MSG("session cache entry was overwritten");
+        }
+        if (error == 0) {
             /* Hashes match */
             session = cacheSession;
             WOLFSSL_MSG("Found session cache matching client session object");
@@ -1874,10 +1896,12 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
     int row;
     int i;
     int overwrite = 0;
+    word32 cacheGen = 0;
     (void)ctx;
     (void)sessionIndex;
     (void)useTicket;
     (void)clientCacheEntry;
+    (void)cacheGen;
 
     WOLFSSL_ENTER("AddSessionToCache");
 
@@ -2017,6 +2041,12 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
 
     cacheSession->type = WOLFSSL_SESSION_TYPE_CACHE;
     cacheSession->cacheRow = row;
+    /* Only a re-add of the same session keeps existing references to this
+     * entry valid; any other write, same session ID or not, invalidates them. */
+    if (!overwrite || ConstantCompare(cacheSession->masterSecret,
+            addSession->masterSecret, SECRET_LEN) != 0)
+        cacheSession->cacheGen = ++sessRow->cacheGen;
+    cacheGen = cacheSession->cacheGen;
 
 #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
     /* Save the peer field to free after unlocking the row */
@@ -2130,7 +2160,8 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
 #ifndef NO_CLIENT_CACHE
     if (ret == 0 && clientCacheEntry != NULL) {
         ClientSession* clientCache = AddSessionToClientCache(side, row,
-            (int)idx, addSession->serverID, addSession->idLen, id, useTicket);
+            (int)idx, addSession->serverID, addSession->idLen, id, useTicket,
+            cacheGen);
         if (clientCache != NULL)
             *clientCacheEntry = clientCache;
     }
