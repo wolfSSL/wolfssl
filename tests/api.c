@@ -6402,9 +6402,12 @@ static int HelloGetSupportedVersions(const HelloCapture* capture, byte* minors,
 #if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_TLS12) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
     defined(HAVE_TLS_EXTENSIONS)
-/* Ask for the range TLS 1.2 - TLS 1.3, optionally pinning an earlier maximum
- * first, and return the supported_versions list of the ClientHello sent. */
-static int RangeSupportedVersions(int firstVersion, byte* minors, int minorsSz)
+/* Build a ClientHello for the version setup described and return its
+ * supported_versions list. firstVersion, when not 0, is a maximum set before
+ * the TLS 1.3 one, to check that raising it leaves no trace. minVersion, when
+ * not 0, is a minimum; minFirst asks for it before the maximum. */
+static int RangeSupportedVersions(int firstVersion, int minVersion,
+    int minFirst, byte* minors, int minorsSz)
 {
     WOLFSSL_CTX*  ctx = NULL;
     WOLFSSL*      ssl = NULL;
@@ -6425,15 +6428,20 @@ static int RangeSupportedVersions(int firstVersion, byte* minors, int minorsSz)
         ssl = wolfSSL_new(ctx);
     }
     if (ssl != NULL) {
+        int ok = 1;
+
         wolfSSL_SetIOWriteCtx(ssl, capture);
-        if (firstVersion == 0 ||
-                wolfSSL_SetVersion(ssl, firstVersion) == WOLFSSL_SUCCESS) {
-            if (wolfSSL_SetVersion(ssl, WOLFSSL_TLSV1_3) == WOLFSSL_SUCCESS &&
-                wolfSSL_SetMinVersion(ssl, WOLFSSL_TLSV1_2) ==
-                    WOLFSSL_SUCCESS) {
-                (void)wolfSSL_connect(ssl);
-                count = HelloGetSupportedVersions(capture, minors, minorsSz);
-            }
+        if (minFirst && minVersion != 0)
+            ok = wolfSSL_SetMinVersion(ssl, minVersion) == WOLFSSL_SUCCESS;
+        if (ok && firstVersion != 0)
+            ok = wolfSSL_SetVersion(ssl, firstVersion) == WOLFSSL_SUCCESS;
+        if (ok)
+            ok = wolfSSL_SetVersion(ssl, WOLFSSL_TLSV1_3) == WOLFSSL_SUCCESS;
+        if (ok && !minFirst && minVersion != 0)
+            ok = wolfSSL_SetMinVersion(ssl, minVersion) == WOLFSSL_SUCCESS;
+        if (ok) {
+            (void)wolfSSL_connect(ssl);
+            count = HelloGetSupportedVersions(capture, minors, minorsSz);
         }
     }
 
@@ -6454,7 +6462,39 @@ static int test_wolfSSL_SetVersion_offers_range(void)
     defined(HAVE_TLS_EXTENSIONS)
     byte minors[8];
 
-    ExpectIntEQ(RangeSupportedVersions(0, minors, (int)sizeof(minors)), 2);
+    ExpectIntEQ(RangeSupportedVersions(0, WOLFSSL_TLSV1_2, 0, minors,
+        (int)sizeof(minors)), 2);
+    ExpectIntEQ(minors[0], TLSv1_3_MINOR);
+    ExpectIntEQ(minors[1], TLSv1_2_MINOR);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* On its own wolfSSL_SetVersion() names the one version to use, so nothing
+ * below it may be offered. A minimum makes it a range again, whichever order
+ * the two are set in. */
+static int test_wolfSSL_SetVersion_pins_single(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
+    byte minors[8];
+
+    /* no minimum asked for - TLS 1.3 only */
+    ExpectIntEQ(RangeSupportedVersions(0, 0, 0, minors, (int)sizeof(minors)),
+        1);
+    ExpectIntEQ(minors[0], TLSv1_3_MINOR);
+
+    /* minimum set after the maximum */
+    ExpectIntEQ(RangeSupportedVersions(0, WOLFSSL_TLSV1_2, 0, minors,
+        (int)sizeof(minors)), 2);
+    ExpectIntEQ(minors[0], TLSv1_3_MINOR);
+    ExpectIntEQ(minors[1], TLSv1_2_MINOR);
+
+    /* minimum set before the maximum */
+    ExpectIntEQ(RangeSupportedVersions(0, WOLFSSL_TLSV1_2, 1, minors,
+        (int)sizeof(minors)), 2);
     ExpectIntEQ(minors[0], TLSv1_3_MINOR);
     ExpectIntEQ(minors[1], TLSv1_2_MINOR);
 #endif
@@ -6471,21 +6511,21 @@ static int test_wolfSSL_SetVersion_raise_max(void)
     defined(HAVE_TLS_EXTENSIONS)
     byte minors[8];
 
-    ExpectIntEQ(RangeSupportedVersions(WOLFSSL_TLSV1_2, minors,
-        (int)sizeof(minors)), 2);
+    ExpectIntEQ(RangeSupportedVersions(WOLFSSL_TLSV1_2, WOLFSSL_TLSV1_2, 0,
+        minors, (int)sizeof(minors)), 2);
     ExpectIntEQ(minors[0], TLSv1_3_MINOR);
     ExpectIntEQ(minors[1], TLSv1_2_MINOR);
 
 #ifndef NO_OLD_TLS
     /* more than one version apart */
-    ExpectIntEQ(RangeSupportedVersions(WOLFSSL_TLSV1_1, minors,
-        (int)sizeof(minors)), 2);
+    ExpectIntEQ(RangeSupportedVersions(WOLFSSL_TLSV1_1, WOLFSSL_TLSV1_2, 0,
+        minors, (int)sizeof(minors)), 2);
     ExpectIntEQ(minors[0], TLSv1_3_MINOR);
     ExpectIntEQ(minors[1], TLSv1_2_MINOR);
 
 #ifdef WOLFSSL_ALLOW_TLSV10
-    ExpectIntEQ(RangeSupportedVersions(WOLFSSL_TLSV1, minors,
-        (int)sizeof(minors)), 2);
+    ExpectIntEQ(RangeSupportedVersions(WOLFSSL_TLSV1, WOLFSSL_TLSV1_2, 0,
+        minors, (int)sizeof(minors)), 2);
     ExpectIntEQ(minors[0], TLSv1_3_MINOR);
     ExpectIntEQ(minors[1], TLSv1_2_MINOR);
 #endif
@@ -6500,6 +6540,13 @@ static int test_SetVersion_tls12_ssl_ready(WOLFSSL* ssl)
 {
     EXPECT_DECLS;
     ExpectIntEQ(wolfSSL_SetVersion(ssl, WOLFSSL_TLSV1_2), WOLFSSL_SUCCESS);
+    return EXPECT_RESULT();
+}
+
+static int test_SetVersion_tls12_on_result(WOLFSSL* ssl)
+{
+    EXPECT_DECLS;
+    ExpectStrEQ(wolfSSL_get_version(ssl), "TLSv1.2");
     return EXPECT_RESULT();
 }
 #endif
@@ -6522,6 +6569,9 @@ static int test_wolfSSL_SetVersion_tls12_with_tls13_peer(void)
     client_cbf.method = wolfSSLv23_client_method;
     server_cbf.method = wolfSSLv23_server_method;
     client_cbf.ssl_ready = test_SetVersion_tls12_ssl_ready;
+    /* the handshake completing is not enough: it has to be TLS 1.2 */
+    client_cbf.on_result = test_SetVersion_tls12_on_result;
+    server_cbf.on_result = test_SetVersion_tls12_on_result;
 
     ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbf,
         &server_cbf, NULL), TEST_SUCCESS);
@@ -42185,6 +42235,7 @@ TEST_CASE testCases[] = {
 #endif
     TEST_DECL(test_wolfSSL_SetMinVersion),
     TEST_DECL(test_wolfSSL_SetVersion_offers_range),
+    TEST_DECL(test_wolfSSL_SetVersion_pins_single),
     TEST_DECL(test_wolfSSL_SetVersion_raise_max),
     TEST_DECL(test_wolfSSL_SetVersion_tls12_with_tls13_peer),
     TEST_DECL(test_wolfSSL_CTX_SetMinVersion),
