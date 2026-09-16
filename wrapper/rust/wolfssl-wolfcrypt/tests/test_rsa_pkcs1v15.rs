@@ -1,11 +1,12 @@
-#![cfg(all(feature = "signature", rsa))]
+#![cfg(all(feature = "signature", rsa, rsa_sign))]
 
 mod common;
 
 use signature::Verifier;
-#[cfg(random)]
+/* Signing needs a generated key pair, which is only available with keygen. */
+#[cfg(all(random, rsa_keygen, any(sha256, sha384)))]
 use signature::{Keypair, SignerMut};
-#[cfg(random)]
+#[cfg(all(random, rsa_keygen, any(sha256, sha384)))]
 use wolfssl_wolfcrypt::random::RNG;
 
 #[test]
