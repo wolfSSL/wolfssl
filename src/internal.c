@@ -16862,6 +16862,19 @@ int LoadCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
 #endif
 
 
+#ifdef WOLFSSL_SMALL_CERT_VERIFY
+/* The errors ParseCertRelative() only reaches once ConfirmSignature() has
+ * passed, so a separate signature check outranks them. */
+static int IsPostSigParseErr(int ret)
+{
+    return ret == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E) ||
+           ret == WC_NO_ERR_TRACE(ASN_AFTER_DATE_E) ||
+           ret == WC_NO_ERR_TRACE(ASN_NAME_INVALID_E) ||
+           ret == WC_NO_ERR_TRACE(ASN_PATHLEN_SIZE_E) ||
+           ret == WC_NO_ERR_TRACE(ASN_CRIT_EXT_E);
+}
+#endif
+
 static int ProcessPeerCertParse(WOLFSSL* ssl, ProcPeerCertArgs* args,
     int certType, int verify, byte** pSubjectHash, int* pAlreadySigner)
 {
@@ -17035,7 +17048,7 @@ PRAGMA_GCC_DIAG_POP
 #ifdef WOLFSSL_SMALL_CERT_VERIFY
     /* get signature check failures from above (a negotiated RPK leaf is parsed
      * with NO_VERIFY, so no signature check was run for it) */
-    if (ret == 0) {
+    if (ret == 0 || (sigRet != 0 && IsPostSigParseErr(ret))) {
         ret = sigRet;
     }
 #endif
