@@ -49,6 +49,8 @@ int test_tls_version_error_alert_mapping(void);
 int test_tls12_etm_failed_resumption(void);
 int test_tls12_resume_ticket_wrong_suite(void);
 int test_tls12_resume_ticket_decline_fallback(void);
+int test_tls12_server_hello_tls13_suite(void);
+int test_tls12_client_hello_no_tls13_suites(void);
 int test_tls_set_session_min_downgrade(void);
 int test_tls12_session_id_resumption_sni_mismatch(void);
 int test_tls13_session_resumption_sni_mismatch(void);
@@ -96,6 +98,8 @@ int test_wolfSSL_get_shared_ciphers(void);
         TEST_DECL_GROUP("tls", test_tls12_etm_failed_resumption),              \
         TEST_DECL_GROUP("tls", test_tls12_resume_ticket_wrong_suite),          \
         TEST_DECL_GROUP("tls", test_tls12_resume_ticket_decline_fallback),     \
+        TEST_DECL_GROUP("tls", test_tls12_server_hello_tls13_suite),           \
+        TEST_DECL_GROUP("tls", test_tls12_client_hello_no_tls13_suites),       \
         TEST_DECL_GROUP("tls", test_tls_set_session_min_downgrade),            \
         TEST_DECL_GROUP("tls", test_tls12_session_id_resumption_sni_mismatch), \
         TEST_DECL_GROUP("tls", test_tls13_session_resumption_sni_mismatch),    \
