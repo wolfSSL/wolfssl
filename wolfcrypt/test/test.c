@@ -28283,6 +28283,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
         if (bankReseedCtr != WC_RESEED_INTERVAL)
             ERROR_OUT(WC_TEST_RET_ENC_I(bankReseedCtr), out);
     }
+    #else
+    (void)i;
     #endif
 #endif /* HAVE_HASHDRBG && !HAVE_INTEL_RDRAND */
 

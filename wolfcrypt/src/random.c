@@ -3097,6 +3097,14 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
     }
 
     if (ret != 0) {
+    #ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
+        if (rng->flags & WC_RNG_FLAG_FULL_MUTEX) {
+            /* covers wc_LockMutex() failure after successful
+             * wc_InitMutex() (WC_RNG_INIT_FLAG_LOCK_INITIALLY). */
+            (void)wc_FreeMutex(&rng->mutex);
+            rng->flags &= ~WC_RNG_FLAG_FULL_MUTEX;
+        }
+    #endif
     #if defined(HAVE_HASHDRBG) && !defined(NO_SHA256)
         if (rng->drbgType == WC_DRBG_SHA256) {
             if (drbg_instantiated) {
@@ -3535,6 +3543,14 @@ int wc_RNG_lock_put(WC_RNG* rng, WC_RNG_lock_arg_t extra_bits)
                                       &rng->lock, cur_lock, new_lock, cas_ret);
     } WC_CAS_WITH_RETRY_END;
 
+    if (cas_ret != 0) {
+        /* Aborted release (a port's retry clause): the latch is still ours
+         * and new_lock was never installed.  Keep ownership consistent --
+         * mutex included -- and percolate so the caller can retry the
+         * put. */
+        return cas_ret;
+    }
+
 #ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
     if (rng->flags & WC_RNG_FLAG_FULL_MUTEX)
         (void)wc_UnLockMutex(&rng->mutex);
@@ -3719,6 +3735,13 @@ WOLFSSL_API int wc_RNG_invalidate_entropy(WC_RNG* rng) {
      * path from _ENTROPY_INVALIDATED).
      */
     ret = wc_RNG_DRBG_ScheduleReseed(rng);
+    if (ret == WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E)) {
+        /* No DRBG (direct-RDRAND et al.): nothing to schedule, and nothing
+         * whose staleness the latch would mark -- not a condemnable
+         * failure.  Any applicable auxiliary-state purges below still
+         * run. */
+        ret = 0;
+    }
 
 #ifdef WC_RNG_HAVE_POOL
     {

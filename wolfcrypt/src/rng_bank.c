@@ -2386,7 +2386,7 @@ WOLFSSL_API int wc_rng_bank_reseed_range(struct wc_rng_bank *bank,
         #ifdef WC_RNG_HAVE_RBGC
                 if (flags & WC_RNG_BANK_FLAG_RBGC) {
                     ret = wc_RNG_DRBG_ReseedRBGC(
-                        WC_RNG_BANK_INST_TO_RNG(inst), &bank->root_rng);
+                        WC_RNG_BANK_INST_TO_RNG(drbg), &bank->root_rng);
                 }
                 else
         #endif
@@ -2775,6 +2775,13 @@ WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_put(struct wc_rng_bank_inst *inst)
                                       cas_ret);
     } WC_CAS_WITH_RETRY_END;
 
+    if (cas_ret != 0) {
+        /* Aborted release: the latch is still ours and new_lock was never
+         * installed; percolate so the caller can retry (see
+         * wc_RNG_lock_put()). */
+        return cas_ret;
+    }
+
     if (new_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED)
         return NEEDS_RECOVERY_E;
     else
@@ -2857,7 +2864,9 @@ WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_set_extra(struct wc_rng_bank_inst *in
                                       &inst->lock, cur_lock, new_lock,
                                       cas_ret);
     } WC_CAS_WITH_RETRY_END;
-    return 0;
+    /* 0 unless a port's retry clause aborted; the lock word is then
+     * untouched, so percolation is the whole handling. */
+    return cas_ret;
 }
 
 WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_add_extra(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits)
@@ -2876,7 +2885,8 @@ WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_add_extra(struct wc_rng_bank_inst *in
                                       &inst->lock, cur_lock,
                                       cur_lock | extra_bits, cas_ret);
     } WC_CAS_WITH_RETRY_END;
-    return 0;
+    /* see wc_rng_bank_inst_lock_set_extra() re nonzero cas_ret. */
+    return cas_ret;
 }
 
 WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_clear_extra(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits)
@@ -2898,7 +2908,8 @@ WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_clear_extra(struct wc_rng_bank_inst *
                                       &inst->lock, cur_lock,
                                       cur_lock & ~extra_bits, cas_ret);
     } WC_CAS_WITH_RETRY_END;
-    return 0;
+    /* see wc_rng_bank_inst_lock_set_extra() re nonzero cas_ret. */
+    return cas_ret;
 }
 
 #ifdef HAVE_HASHDRBG
@@ -2929,6 +2940,14 @@ WOLFSSL_TEST_VIS int wc_rng_bank_inst_invalidate_entropy(
             WC_RNG_LOCK_ENTROPY_INVALIDATED,
             cas_ret);
     } WC_CAS_WITH_RETRY_END;
+
+    if (cas_ret != 0) {
+        /* Latch or condemn, mirroring wc_RNG_invalidate_entropy(): an
+         * aborted latch leaves only the lost-update-racy counter guarding
+         * duplicated state. */
+        WC_RNG_BANK_INST_TO_RNG(inst)->status = WC_DRBG_FAILED;
+        return cas_ret;
+    }
 
     /* If no lock is held, the saturated reseedCtr is the only way to force
      * invalidation semantics on a lock-free consumer; if a lock is held,

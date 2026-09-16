@@ -4651,7 +4651,7 @@
             #define WC_RESEED_INTERVAL UINT_MAX
         #elif defined(__x86_64__) || defined(__ia64__) || \
               defined(__aarch64__) || defined(__mips64)
-            #define WC_RESEED_INTERVAL (1UL << 48UL)
+            #define WC_RESEED_INTERVAL (W64LIT(1) << 48)
         #else
             #define WC_RESEED_INTERVAL UINT_MAX
         #endif
