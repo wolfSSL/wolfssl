@@ -134,6 +134,19 @@
   `ASN_OID_ARC_TOO_BIG_E`, rather than returning `BUFFER_E` or being silently
   accepted.
 
+* **Behavioral change (signature algorithm line in `wolfSSL_X509_print`)**:
+  the algorithm name is no longer capped at 80 columns. A name longer than
+  the stack buffer is printed in full, and the print fails with
+  `WOLFSSL_FAILURE` if that allocation fails. CRL and attribute-certificate
+  printing use the same helper.
+
+* **Behavioral change (`wolfSSL_X509_REQ_print` attribute output)**: CSR
+  attribute names and values are no longer capped at 80 columns and are no
+  longer truncated. Values are written by their `ASN1_STRING` length with
+  control characters escaped, so a long value is no longer cut off. `X509PrintReqAttributes()` can now fail with
+  `WOLFSSL_FAILURE` on an allocation failure when sizing a long attribute
+  name, a new error path.
+
 ## Post-Quantum Cryptography (PQC)
 
 * Added opt-in per-key Falcon signing caches (`--enable-falcon=cache-key`, `cache-basis`), roughly doubling signing speed with the default integer fpr backend. by @Frauschi

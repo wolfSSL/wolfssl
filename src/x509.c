@@ -8657,59 +8657,82 @@ static int X509PrintReqAttributes(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
     do {
         attr = wolfSSL_X509_REQ_get_attr(x509, i);
         if (attr != NULL) {
-            /* Wider than the NAME_SZ/4 column so registered long names fit
-             * whole; a longer name (e.g. a numeric-form OID) is still only
-             * truncated, not an error. */
-            char lName[MAX_OID_STRING_SZ];
-            int lNameSz = (int)sizeof(lName);
+            /* Sized for numeric-form OID instead of NAME_SZ/4 column width. */
+            char lNameBuf[MAX_OID_STRING_SZ];
+            char* lName = lNameBuf;
+            char* lNameHeap = NULL;
+            int lNameLen;
+            int lNameSz;
             int padSz;
-            int room;
             const byte* data;
+            int dataLen;
+            int ok = 1;
 
-            lNameSz = wolfSSL_OBJ_obj2txt(lName, lNameSz, attr->object, 0);
-            if (lNameSz == WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
+            /* Decode straight into the stack buffer; only re-decode into a
+             * heap buffer when the returned full length shows it did not
+             * fit. */
+            lNameSz = (int)sizeof(lNameBuf);
+            lNameLen = wolfSSL_OBJ_obj2txt(lName, lNameSz, attr->object, 0);
+            if (lNameLen >= lNameSz) {
+                lNameSz = lNameLen + 1;
+                lNameHeap = (char*)XMALLOC((size_t)lNameSz, x509->heap,
+                        DYNAMIC_TYPE_TMP_BUFFER);
+                if (lNameHeap == NULL) {
+                    return WOLFSSL_FAILURE;
+                }
+                lName = lNameHeap;
+                lNameLen = wolfSSL_OBJ_obj2txt(lName, lNameSz, attr->object,
+                        0);
+            }
+            /* Never write past what the buffer holds. */
+            if ((lNameLen > 0) && (lNameLen > (int)XSTRLEN(lName))) {
+                lNameLen = (int)XSTRLEN(lName);
+            }
+            if (lNameLen <= 0) {
+                XFREE(lNameHeap, x509->heap, DYNAMIC_TYPE_TMP_BUFFER);
                 return WOLFSSL_FAILURE;
             }
-            /* obj2txt() returns the full length: use what it wrote. */
-            if (lNameSz >= (int)sizeof(lName)) {
-                lNameSz = (int)XSTRLEN(lName);
+
+            padSz = (NAME_SZ/4) - lNameLen;
+            if (padSz < 0) {
+                padSz = 0;
             }
 
             data = wolfSSL_ASN1_STRING_get0_data(
                     attr->value->value.asn1_string);
             if (data == NULL) {
                 WOLFSSL_MSG("No REQ attribute found when expected");
+                XFREE(lNameHeap, x509->heap, DYNAMIC_TYPE_TMP_BUFFER);
                 return WOLFSSL_FAILURE;
             }
+            dataLen = wolfSSL_ASN1_STRING_length(
+                    attr->value->value.asn1_string);
 
-            /* Keep the line inside scratch by truncating the name rather
-             * than failing the whole print: 2 bytes cover the ':' and the
-             * NUL. Never cut below the NAME_SZ/4 column, which is all the
-             * room a name had before. */
-            room = MAX_WIDTH - (indent + 4) - 2;
-            if (room < (NAME_SZ/4)) {
-                room = NAME_SZ/4;
+            /* Write in pieces so the name bypasses scratch; a short write
+             * would truncate the line, so each must complete. The value is
+             * written control-character escaped, by length. */
+            scratchLen = XSNPRINTF(scratch, MAX_WIDTH, "%*s", indent + 4, "");
+            if ((scratchLen < 0) || (scratchLen >= MAX_WIDTH) ||
+                    (wolfSSL_BIO_write(bio, scratch, scratchLen) !=
+                        scratchLen)) {
+                ok = 0;
             }
-            if (lNameSz > room) {
-                lNameSz = room;
-                lName[lNameSz] = '\0';
+            if (ok && (wolfSSL_BIO_write(bio, lName, lNameLen) != lNameLen)) {
+                ok = 0;
             }
-
-            padSz = (NAME_SZ/4) - lNameSz;
-            if (padSz < 0) {
-                padSz = 0;
+            if (ok) {
+                scratchLen = XSNPRINTF(scratch, MAX_WIDTH, "%*s:", padSz, "");
+                if ((scratchLen < 0) || (scratchLen >= MAX_WIDTH) ||
+                        (X509PrintEscStr(bio, scratch, (const char*)data,
+                            dataLen) != WOLFSSL_SUCCESS)) {
+                    ok = 0;
+                }
             }
-            if (XSNPRINTF(scratch, MAX_WIDTH,
-                          "%*s%s%*s:", indent+4, "",
-                          lName, padSz, "")
-                >= MAX_WIDTH)
-            {
-                return WOLFSSL_FAILURE;
+            if (ok && (wolfSSL_BIO_write(bio, "\n", 1) != 1)) {
+                ok = 0;
             }
-            if ((X509PrintEscStr(bio, scratch, (const char*)data,
-                    wolfSSL_ASN1_STRING_length(
-                        attr->value->value.asn1_string)) != WOLFSSL_SUCCESS) ||
-                (wolfSSL_BIO_write(bio, "\n", 1) <= 0)) {
+            XFREE(lNameHeap, x509->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            if (!ok) {
                 WOLFSSL_MSG("Error writing REQ attribute");
                 return WOLFSSL_FAILURE;
             }
