@@ -42,6 +42,7 @@ int test_wolfSSL_X509_get_ext_d2i_RID_SAN(void);
 int test_wolfSSL_X509_check_host_IP_only_SAN_CN_fallback(void);
 int test_wolfSSL_X509_check_host_URI_SAN_not_DNS_match(void);
 int test_wolfSSL_CertManagerCRL(void);
+int test_wolfSSL_CertManagerCheckCRL_out_of_date(void);
 int test_wolfSSL_CRL_reason_extensions_cleanup(void);
 int test_wolfSSL_CRL_static_revoked_list(void);
 int test_wolfSSL_CRL_static_revoked_list_dup(void);
@@ -105,6 +106,8 @@ int test_wolfSSL_CertManagerNameConstraint_skid_disambiguates(void);
     TEST_DECL_GROUP("certman",                                             \
         test_wolfSSL_CertManagerNameConstraint_valid_chain),                \
     TEST_DECL_GROUP("certman",                                             \
-        test_wolfSSL_CertManagerNameConstraint_skid_disambiguates)
+        test_wolfSSL_CertManagerNameConstraint_skid_disambiguates),         \
+    TEST_DECL_GROUP("certman",                                             \
+        test_wolfSSL_CertManagerCheckCRL_out_of_date)
 
 #endif /* WOLFCRYPT_TEST_CERTMAN_H */
