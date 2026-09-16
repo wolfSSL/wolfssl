@@ -3264,6 +3264,645 @@ int test_wolfSSL_small_cert_verify_sig_error(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
+    !defined(NO_TLS) && !defined(NO_SHA256) && !defined(NO_ASN_TIME) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    defined(WOLFSSL_ALT_NAMES) && defined(USE_CERT_BUFFERS_2048) && \
+    defined(SESSION_CERTS) && defined(OPENSSL_EXTRA) && \
+    defined(KEEP_PEER_CERT) && !defined(IGNORE_KEY_EXTENSIONS) && \
+    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_TLS13))
+
+#define TEST_CHAIN_BUF_SZ       (MAX_X509_SIZE + FOURK_BUF)
+#define TEST_CHAIN_SAN_NAME_SZ  120
+#define TEST_CHAIN_SAN_ENTRY_SZ (TEST_CHAIN_SAN_NAME_SZ + 2)
+
+/* Encode nameCnt dNSName entries as the GeneralNames sequence Cert.altNames
+ * holds. Returns the length used, or a negative value when it does not fit. */
+static int test_chain_altnames(byte* out, int outSz, int nameCnt)
+{
+    int contentSz = nameCnt * TEST_CHAIN_SAN_ENTRY_SZ;
+    int idx = 0;
+    int i;
+
+    /* The two-byte length form keeps the header size fixed. */
+    if ((contentSz < 256) || (contentSz > 0xFFFF) || (outSz < contentSz + 4)) {
+        return BUFFER_E;
+    }
+    out[idx++] = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    out[idx++] = ASN_LONG_LENGTH | 2;
+    out[idx++] = (byte)(contentSz >> 8);
+    out[idx++] = (byte)(contentSz & 0xFF);
+    for (i = 0; i < nameCnt; i++) {
+        out[idx++] = ASN_CONTEXT_SPECIFIC | ASN_DNS_TYPE;
+        out[idx++] = TEST_CHAIN_SAN_NAME_SZ;
+        XMEMSET(out + idx, 'a', TEST_CHAIN_SAN_NAME_SZ);
+        idx += TEST_CHAIN_SAN_NAME_SZ;
+    }
+
+    return idx;
+}
+
+/* Build a certificate signed by the given issuer. A non-zero minSz pads the
+ * certificate with subject alternative names until its DER reaches that size,
+ * which is how a certificate too large for a session chain slot is made.
+ * Returns the DER length, or < 0 on failure. */
+static int test_chain_gen_cert(byte* out, int outMax, RsaKey* subjKey,
+    const byte* issuerDer, int issuerDerSz, RsaKey* issuerKey, WC_RNG* rng,
+    const char* cn, int isCA, int minSz)
+{
+    Cert cert;
+    int  ret = 0;
+    int  nameCnt = 0;
+    int  tries;
+
+    for (tries = 0; tries < 8; tries++) {
+        if (wc_InitCert(&cert) != 0) {
+            return WOLFSSL_FATAL_ERROR;
+        }
+        cert.isCA    = isCA;
+        cert.sigType = CTC_SHA256wRSA;
+        XSTRNCPY(cert.subject.country, "US", CTC_NAME_SIZE - 1);
+        XSTRNCPY(cert.subject.org, "wolfSSL_test", CTC_NAME_SIZE - 1);
+        XSTRNCPY(cert.subject.commonName, cn, CTC_NAME_SIZE - 1);
+        if (nameCnt > 0) {
+            ret = test_chain_altnames(cert.altNames, (int)sizeof(cert.altNames),
+                nameCnt);
+            if (ret < 0) {
+                break;
+            }
+            cert.altNamesSz = ret;
+            ret = 0;
+        }
+        if (wc_SetSubjectKeyIdFromPublicKey(&cert, subjKey, NULL) != 0)
+            ret = WOLFSSL_FATAL_ERROR;
+        if (ret == 0 &&
+                wc_SetAuthKeyIdFromCert(&cert, issuerDer, issuerDerSz) != 0)
+            ret = WOLFSSL_FATAL_ERROR;
+        if (ret == 0 && wc_SetKeyUsage(&cert, isCA ?
+                "keyCertSign,cRLSign" : "digitalSignature,keyEncipherment") != 0)
+            ret = WOLFSSL_FATAL_ERROR;
+        if (ret == 0 && (!isCA) &&
+                wc_SetExtKeyUsage(&cert, "serverAuth,clientAuth") != 0)
+            ret = WOLFSSL_FATAL_ERROR;
+        if (ret == 0 && wc_SetIssuerBuffer(&cert, issuerDer, issuerDerSz) != 0)
+            ret = WOLFSSL_FATAL_ERROR;
+        if (ret == 0)
+            ret = wc_MakeCert(&cert, out, (word32)outMax, subjKey, NULL, rng);
+        if (ret >= 0)
+            ret = wc_SignCert(cert.bodySz, cert.sigType, out, (word32)outMax,
+                issuerKey, NULL, rng);
+#ifdef WOLFSSL_CERT_GEN_CACHE
+        wc_SetCert_Free(&cert);
+#endif
+        if ((ret < 0) || (ret >= minSz)) {
+            break;
+        }
+        nameCnt += (minSz - ret + TEST_CHAIN_SAN_ENTRY_SZ - 1) /
+            TEST_CHAIN_SAN_ENTRY_SZ + 1;
+    }
+
+    return ret;
+}
+
+/* One oversized-certificate scenario. */
+typedef struct test_chain_slot_case {
+    int oversizeLeaf;   /* the peer's own certificate does not fit a slot */
+    int oversizeInter;  /* the intermediate CA does not fit a slot */
+    int clientPresents; /* client sends the chain and the server reads it */
+} test_chain_slot_case;
+
+/* Compare an X509 against the DER it was built from. */
+static int test_chain_is_cert(WOLFSSL_X509* x509, const byte* der, int derSz)
+{
+    const byte* got = NULL;
+    int gotSz = 0;
+
+    if (x509 == NULL) {
+        return 0;
+    }
+    got = wolfSSL_X509_get_der(x509, &gotSz);
+
+    return (got != NULL) && (gotSz == derSz) && (XMEMCMP(got, der, (size_t)derSz) == 0);
+}
+
+/* What wolfSSL_X509_STORE_CTX_get_chain() published at index 0, captured from
+ * the verify callback where the store carries a session chain. */
+static struct {
+    const byte* leafDer;
+    int  leafSz;
+    int  ran;
+    int  leafAtZero;
+} test_chain_store_probe;
+
+static int test_chain_store_probe_cb(int preverify, WOLFSSL_X509_STORE_CTX* store)
+{
+    if ((store != NULL) && (store->sesChain != NULL)) {
+        WOLF_STACK_OF(WOLFSSL_X509)* sk =
+            wolfSSL_X509_STORE_CTX_get_chain(store);
+
+        test_chain_store_probe.ran = 1;
+        test_chain_store_probe.leafAtZero = (sk == NULL) ? -1 :
+            test_chain_is_cert(wolfSSL_sk_X509_value(sk, 0),
+                test_chain_store_probe.leafDer, test_chain_store_probe.leafSz);
+    }
+    return preverify;
+}
+
+/* Present [leaf, intermediate] to a client that trusts the test root and check
+ * which certificate each compatibility-layer chain getter names as the peer. */
+static int test_chain_slot_case_run(const test_chain_slot_case* tc,
+    method_provider method_c, method_provider method_s, RsaKey* caKey,
+    RsaKey* interKey, RsaKey* leafKey, WC_RNG* rng, byte* interDer,
+    byte* leafDer, byte* chainDer)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    WOLFSSL* ssl = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLF_STACK_OF(WOLFSSL_X509)* sk = NULL;
+    WOLFSSL_X509* peer = NULL;
+    WOLFSSL_X509* slotX509 = NULL;
+    int interSz = 0;
+    int leafSz = 0;
+    int pemSz = 0;
+    int i;
+
+    ExpectIntGT((interSz = test_chain_gen_cert(interDer, TEST_CHAIN_BUF_SZ,
+        interKey, ca_cert_der_2048, (int)sizeof_ca_cert_der_2048, caKey, rng,
+        "Slot Intermediate", 1,
+        tc->oversizeInter ? MAX_X509_SIZE : 0)), 0);
+    ExpectIntGT((leafSz = test_chain_gen_cert(leafDer, TEST_CHAIN_BUF_SZ,
+        leafKey, interDer, interSz, interKey, rng, "Slot Leaf", 0,
+        tc->oversizeLeaf ? MAX_X509_SIZE : 0)), 0);
+    ExpectIntEQ(interSz >= MAX_X509_SIZE, tc->oversizeInter);
+    ExpectIntEQ(leafSz >= MAX_X509_SIZE, tc->oversizeLeaf);
+    ExpectIntLE(leafSz + interSz, TEST_CHAIN_BUF_SZ);
+
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(chainDer, leafDer, (size_t)leafSz);
+        XMEMCPY(chainDer + leafSz, interDer, (size_t)interSz);
+    }
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    /* The server presents the generated chain either way, so one set of
+     * credentials covers both directions. */
+    ExpectIntEQ(test_memio_setup_ex(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        method_c, method_s,
+        (byte*)ca_cert_der_2048, (int)sizeof_ca_cert_der_2048,
+        chainDer, leafSz + interSz,
+        (byte*)client_key_der_2048, (int)sizeof_client_key_der_2048), 0);
+    XMEMSET(&test_chain_store_probe, 0, sizeof(test_chain_store_probe));
+    test_chain_store_probe.leafDer = leafDer;
+    test_chain_store_probe.leafSz = leafSz;
+    if (tc->clientPresents) {
+        /* Only the server's view of the client chain is under test. */
+        wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+        ExpectIntEQ(wolfSSL_use_certificate_chain_buffer_format(ssl_c, chainDer,
+            (long)(leafSz + interSz), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_use_PrivateKey_buffer(ssl_c, client_key_der_2048,
+            (long)sizeof_client_key_der_2048, WOLFSSL_FILETYPE_ASN1),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_load_verify_buffer(ctx_s, ca_cert_der_2048,
+            (long)sizeof_ca_cert_der_2048, WOLFSSL_FILETYPE_ASN1),
+            WOLFSSL_SUCCESS);
+        wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER |
+            WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, test_chain_store_probe_cb);
+        ssl = ssl_s;
+    }
+    else {
+        wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER,
+            test_chain_store_probe_cb);
+        ssl = ssl_c;
+    }
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_get_verify_result(ssl), WOLFSSL_X509_V_OK);
+
+    /* The handshake verifies and keeps the real peer certificate whatever its
+     * size, so it is what every chain getter has to agree with. */
+    ExpectNotNull(peer = wolfSSL_get_peer_certificate(ssl));
+    ExpectIntEQ(test_chain_is_cert(peer, leafDer, leafSz), 1);
+
+    /* A certificate too large for its slot must not let the one behind it take
+     * its index, which is what this getter reads as the peer. */
+    ExpectNotNull(sk = wolfSSL_get0_verified_chain(ssl));
+    ExpectIntEQ(test_chain_is_cert(wolfSSL_sk_X509_value(sk, 0), leafDer,
+        leafSz), 1);
+
+    ExpectIntEQ(wolfSSL_get_chain_count(wolfSSL_get_peer_chain(ssl)), 2);
+
+    /* The store-context getter reads the same positional chain, so it must
+     * name the same peer: the leaf, or nothing when the leaf was dropped. */
+    ExpectIntEQ(test_chain_store_probe.ran, 1);
+    ExpectIntEQ(test_chain_store_probe.leafAtZero, tc->oversizeLeaf ? -1 : 1);
+
+    /* An empty slot answers that it holds no certificate rather than handing
+     * out whatever its buffer happens to contain. */
+    for (i = 0; i < 2; i++) {
+        int empty = (i == 0) ? tc->oversizeLeaf : tc->oversizeInter;
+
+        ExpectIntEQ(wolfSSL_get_chain_length(
+            wolfSSL_get_peer_chain(ssl), i) == 0, empty);
+        ExpectIntEQ(wolfSSL_get_chain_cert(
+            wolfSSL_get_peer_chain(ssl), i) == NULL, empty);
+        slotX509 = wolfSSL_get_chain_X509(wolfSSL_get_peer_chain(ssl), i);
+        ExpectIntEQ(slotX509 == NULL, empty);
+        if (!empty) {
+            ExpectIntEQ(test_chain_is_cert(slotX509, (i == 0) ? leafDer :
+                interDer, (i == 0) ? leafSz : interSz), 1);
+        }
+        wolfSSL_X509_free(slotX509);
+        slotX509 = NULL;
+        ExpectIntEQ(wolfSSL_get_chain_cert_pem(wolfSSL_get_peer_chain(ssl), i,
+            NULL, 0, &pemSz), empty ? WC_NO_ERR_TRACE(BAD_FUNC_ARG) :
+            WC_NO_ERR_TRACE(LENGTH_ONLY_E));
+    }
+
+    /* The server moves the peer's own certificate out of the stack and keeps
+     * it as the session peer, so what is left there starts at the issuer. A
+     * dropped issuer is left out of the stack, as it was before it had a
+     * slot. */
+    ExpectNotNull(sk = wolfSSL_get_peer_cert_chain(ssl));
+    ExpectIntEQ(wolfSSL_sk_X509_num(sk),
+        (tc->clientPresents ? 0 : 1) + (tc->oversizeInter ? 0 : 1));
+    if (tc->clientPresents) {
+        ExpectNotNull(ssl_s);
+        if (ssl_s != NULL) {
+            ExpectIntEQ(test_chain_is_cert(ssl_s->session->peer, leafDer,
+                leafSz), 1);
+        }
+        if (!tc->oversizeInter) {
+            ExpectIntEQ(test_chain_is_cert(wolfSSL_sk_X509_value(sk, 0),
+                interDer, interSz), 1);
+        }
+    }
+    else {
+        ExpectIntEQ(test_chain_is_cert(wolfSSL_sk_X509_value(sk, 0), leafDer,
+            leafSz), 1);
+    }
+
+#ifdef SESSION_INDEX
+    /* Without access to the kept copy this one can only fail closed. On the
+     * server the session peer was set above and is answered from there. */
+    if (tc->oversizeLeaf && (!tc->clientPresents)) {
+        ExpectNull(wolfSSL_SESSION_get0_peer(wolfSSL_get_session(ssl)));
+    }
+    else {
+        ExpectIntEQ(test_chain_is_cert(
+            wolfSSL_SESSION_get0_peer(wolfSSL_get_session(ssl)), leafDer,
+            leafSz), 1);
+    }
+#endif
+
+    wolfSSL_X509_free(peer);
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
+
+    return EXPECT_RESULT();
+}
+#endif /* session chain slot test dependencies */
+
+/* Test that a certificate too large for a session chain slot does not let the
+ * certificate behind it be reported as the peer.
+ *
+ * The wire limit applies to the certificate list as a whole, so a single
+ * certificate of MAX_X509_SIZE bytes or more is accepted and verified while
+ * being too large for the session chain. The compatibility-layer getters read
+ * that chain positionally, taking index 0 to be the peer's own certificate, so
+ * dropping an entry there made them name the issuing CA as the peer.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_session_chain_oversized_cert(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
+    !defined(NO_TLS) && !defined(NO_SHA256) && !defined(NO_ASN_TIME) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    defined(WOLFSSL_ALT_NAMES) && defined(USE_CERT_BUFFERS_2048) && \
+    defined(SESSION_CERTS) && defined(OPENSSL_EXTRA) && \
+    defined(KEEP_PEER_CERT) && !defined(IGNORE_KEY_EXTENSIONS) && \
+    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_TLS13))
+    static const test_chain_slot_case cases[] = {
+        /* oversizeLeaf, oversizeInter, clientPresents */
+        { 0, 0, 0 },   /* control: both fit */
+        { 1, 0, 0 },   /* the peer's own certificate is dropped */
+        { 0, 1, 0 },   /* an issuer is dropped, the peer still fits */
+#ifndef WOLFSSL_NO_CLIENT_AUTH
+        /* The same in the client authentication direction, where an
+         * application decides what the peer is allowed to do. */
+        { 0, 0, 1 },
+        { 1, 0, 1 },
+        { 0, 1, 1 },
+#endif
+    };
+    /* The chain is recorded by ProcessPeerCerts(), which every Certificate
+     * handler goes through, datagram transports included. */
+    static const struct {
+        method_provider c;
+        method_provider s;
+    } methods[] = {
+#ifndef WOLFSSL_NO_TLS12
+        { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method },
+#endif
+#ifdef WOLFSSL_TLS13
+        { wolfTLSv1_3_client_method, wolfTLSv1_3_server_method },
+#endif
+#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12)
+        { wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method },
+#endif
+#ifdef WOLFSSL_DTLS13
+        { wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method },
+#endif
+    };
+    WC_RNG rng;
+    RsaKey caKey;
+    RsaKey interKey;
+    RsaKey leafKey;
+    byte* interDer = NULL;
+    byte* leafDer = NULL;
+    byte* chainDer = NULL;
+    int rngInit = 0;
+    int caInit = 0;
+    int interInit = 0;
+    int leafInit = 0;
+    word32 idx;
+    size_t i;
+    size_t m;
+
+    ExpectNotNull(interDer = (byte*)XMALLOC(TEST_CHAIN_BUF_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(leafDer = (byte*)XMALLOC(TEST_CHAIN_BUF_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(chainDer = (byte*)XMALLOC(2 * TEST_CHAIN_BUF_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) rngInit = 1;
+    ExpectIntEQ(wc_InitRsaKey(&caKey, NULL), 0);
+    if (EXPECT_SUCCESS()) caInit = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(ca_key_der_2048, &idx, &caKey,
+        (word32)sizeof_ca_key_der_2048), 0);
+    ExpectIntEQ(wc_InitRsaKey(&interKey, NULL), 0);
+    if (EXPECT_SUCCESS()) interInit = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(server_key_der_2048, &idx, &interKey,
+        (word32)sizeof_server_key_der_2048), 0);
+    ExpectIntEQ(wc_InitRsaKey(&leafKey, NULL), 0);
+    if (EXPECT_SUCCESS()) leafInit = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(client_key_der_2048, &idx, &leafKey,
+        (word32)sizeof_client_key_der_2048), 0);
+
+    for (m = 0; m < XELEM_CNT(methods) && EXPECT_SUCCESS(); m++) {
+        for (i = 0; i < XELEM_CNT(cases) && EXPECT_SUCCESS(); i++) {
+            ExpectIntEQ(test_chain_slot_case_run(&cases[i], methods[m].c,
+                methods[m].s, &caKey, &interKey, &leafKey, &rng, interDer,
+                leafDer, chainDer), TEST_SUCCESS);
+        }
+    }
+
+    if (rngInit)   wc_FreeRng(&rng);
+    if (caInit)    wc_FreeRsaKey(&caKey);
+    if (interInit) wc_FreeRsaKey(&interKey);
+    if (leafInit)  wc_FreeRsaKey(&leafKey);
+    XFREE(interDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(leafDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(chainDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
+    !defined(NO_TLS) && !defined(NO_SHA256) && !defined(NO_ASN_TIME) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    defined(WOLFSSL_ALT_NAMES) && defined(USE_CERT_BUFFERS_2048) && \
+    defined(SESSION_CERTS) && defined(OPENSSL_ALL) && \
+    defined(KEEP_PEER_CERT) && !defined(IGNORE_KEY_EXTENSIONS) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+    defined(WOLFSSL_TICKET_HAVE_ID) && !defined(NO_CERT_IN_TICKET) && \
+    !defined(NO_SESSION_CACHE) && !defined(WOLFSSL_NO_CLIENT_AUTH)
+
+/* Authenticate a client holding [leaf, intermediate] over TLS 1.3 with
+ * stateful tickets, then resume. The resumed handshake carries no Certificate
+ * message, so the peer certificate the server ends up with is whatever the
+ * ticket recorded. Returns that certificate through peerDer/peerDerSz. */
+static int test_chain_ticket_case_run(int oversizeLeaf, RsaKey* caKey,
+    RsaKey* interKey, RsaKey* leafKey, WC_RNG* rng, byte* interDer,
+    byte* leafDer, byte* chainDer, const byte** peerDer, int* peerDerSz,
+    int* leafSzOut, int* interSzOut)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    WOLFSSL_SESSION* sess = NULL;
+    WOLFSSL_X509* peer = NULL;
+    struct test_memio_ctx test_ctx;
+    char buf[64];
+    int interSz = 0;
+    int leafSz = 0;
+
+    *peerDer = NULL;
+    *peerDerSz = 0;
+
+    ExpectIntGT((interSz = test_chain_gen_cert(interDer, TEST_CHAIN_BUF_SZ,
+        interKey, ca_cert_der_2048, (int)sizeof_ca_cert_der_2048, caKey, rng,
+        "Ticket Intermediate", 1, 0)), 0);
+    ExpectIntGT((leafSz = test_chain_gen_cert(leafDer, TEST_CHAIN_BUF_SZ,
+        leafKey, interDer, interSz, interKey, rng, "Ticket Leaf", 0,
+        oversizeLeaf ? MAX_X509_SIZE : 0)), 0);
+    ExpectIntEQ(leafSz >= MAX_X509_SIZE, oversizeLeaf);
+    /* The ticket only records a certificate that fits its own limit, so the
+     * intermediate has to be within it for the shift to be observable. */
+    ExpectIntLE(interSz, MAX_TICKET_PEER_CERT_SZ);
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(chainDer, leafDer, (size_t)leafSz);
+        XMEMCPY(chainDer + leafSz, interDer, (size_t)interSz);
+    }
+    *leafSzOut = leafSz;
+    *interSzOut = interSz;
+
+    /* First connection: the client authenticates with the generated chain. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup_ex(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
+        (byte*)ca_cert_der_2048, (int)sizeof_ca_cert_der_2048,
+        chainDer, leafSz + interSz,
+        (byte*)client_key_der_2048, (int)sizeof_client_key_der_2048), 0);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+    ExpectIntEQ(wolfSSL_use_certificate_chain_buffer_format(ssl_c, chainDer,
+        (long)(leafSz + interSz), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_buffer(ssl_c, client_key_der_2048,
+        (long)sizeof_client_key_der_2048, WOLFSSL_FILETYPE_ASN1),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_buffer(ctx_s, ca_cert_der_2048,
+        (long)sizeof_ca_cert_der_2048, WOLFSSL_FILETYPE_ASN1),
+        WOLFSSL_SUCCESS);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER |
+        WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+    /* A ticket that is only a session identifier, resolved from the server's
+     * own cache on resumption. */
+    ExpectTrue(wolfSSL_set_options(ssl_s, WOLFSSL_OP_NO_TICKET) != 0);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    /* The handshake itself still sees the real client certificate. */
+    ExpectNotNull(peer = wolfSSL_get_peer_certificate(ssl_s));
+    ExpectIntEQ(test_chain_is_cert(peer, leafDer, leafSz), 1);
+    wolfSSL_X509_free(peer);
+    peer = NULL;
+
+    /* Let the client take delivery of the NewSessionTicket. */
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+    ExpectIntEQ(wolfSSL_SessionIsSetup(sess), 1);
+    if (sess != NULL) {
+        ExpectIntEQ(sess->ticketLen, ID_LEN);
+    }
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+
+    /* Second connection: resume. The client sends no certificate, so the
+     * server's peer certificate comes entirely from the ticket. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup_ex(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
+        (byte*)ca_cert_der_2048, (int)sizeof_ca_cert_der_2048,
+        chainDer, leafSz + interSz,
+        (byte*)client_key_der_2048, (int)sizeof_client_key_der_2048), 0);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+    ExpectTrue(wolfSSL_set_options(ssl_s, WOLFSSL_OP_NO_TICKET) != 0);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectTrue(wolfSSL_session_reused(ssl_s));
+
+    peer = wolfSSL_get_peer_certificate(ssl_s);
+    if (peer != NULL) {
+        *peerDer = wolfSSL_X509_get_der(peer, peerDerSz);
+    }
+    /* Copy out before the object goes away. */
+    if ((*peerDer != NULL) && (*peerDerSz > 0) &&
+            (*peerDerSz <= TEST_CHAIN_BUF_SZ)) {
+        XMEMCPY(chainDer, *peerDer, (size_t)*peerDerSz);
+        *peerDer = chainDer;
+    }
+    else {
+        *peerDer = NULL;
+        *peerDerSz = 0;
+    }
+    wolfSSL_X509_free(peer);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
+
+    return EXPECT_RESULT();
+}
+#endif /* session ticket peer certificate test dependencies */
+
+/* Test that a resumed session does not report the issuing CA as the peer.
+ *
+ * A TLS 1.3 stateful ticket records chain.certs[0] as the peer certificate,
+ * and the resumed handshake rebuilds the server's peer certificate from it
+ * without the client sending one. With the peer's own certificate dropped from
+ * the chain for size, that recorded certificate was the issuing CA, so on a
+ * resumed connection even wolfSSL_get_peer_certificate() named the CA.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_session_ticket_oversized_peer_cert(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
+    !defined(NO_TLS) && !defined(NO_SHA256) && !defined(NO_ASN_TIME) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    defined(WOLFSSL_ALT_NAMES) && defined(USE_CERT_BUFFERS_2048) && \
+    defined(SESSION_CERTS) && defined(OPENSSL_ALL) && \
+    defined(KEEP_PEER_CERT) && !defined(IGNORE_KEY_EXTENSIONS) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+    defined(WOLFSSL_TICKET_HAVE_ID) && !defined(NO_CERT_IN_TICKET) && \
+    !defined(NO_SESSION_CACHE) && !defined(WOLFSSL_NO_CLIENT_AUTH)
+    WC_RNG rng;
+    RsaKey caKey;
+    RsaKey interKey;
+    RsaKey leafKey;
+    byte* interDer = NULL;
+    byte* leafDer = NULL;
+    byte* chainDer = NULL;
+    const byte* peerDer = NULL;
+    int peerDerSz = 0;
+    int leafSz = 0;
+    int interSz = 0;
+    int rngInit = 0;
+    int caInit = 0;
+    int interInit = 0;
+    int leafInit = 0;
+    word32 idx;
+
+    ExpectNotNull(interDer = (byte*)XMALLOC(TEST_CHAIN_BUF_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(leafDer = (byte*)XMALLOC(TEST_CHAIN_BUF_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(chainDer = (byte*)XMALLOC(2 * TEST_CHAIN_BUF_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) rngInit = 1;
+    ExpectIntEQ(wc_InitRsaKey(&caKey, NULL), 0);
+    if (EXPECT_SUCCESS()) caInit = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(ca_key_der_2048, &idx, &caKey,
+        (word32)sizeof_ca_key_der_2048), 0);
+    ExpectIntEQ(wc_InitRsaKey(&interKey, NULL), 0);
+    if (EXPECT_SUCCESS()) interInit = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(server_key_der_2048, &idx, &interKey,
+        (word32)sizeof_server_key_der_2048), 0);
+    ExpectIntEQ(wc_InitRsaKey(&leafKey, NULL), 0);
+    if (EXPECT_SUCCESS()) leafInit = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(client_key_der_2048, &idx, &leafKey,
+        (word32)sizeof_client_key_der_2048), 0);
+
+    /* Control: the peer's own certificate fits, so the ticket records it and
+     * the resumed connection names it. */
+    ExpectIntEQ(test_chain_ticket_case_run(0, &caKey, &interKey, &leafKey,
+        &rng, interDer, leafDer, chainDer, &peerDer, &peerDerSz, &leafSz,
+        &interSz), TEST_SUCCESS);
+    ExpectNotNull(peerDer);
+    ExpectIntEQ(peerDerSz, leafSz);
+    if ((peerDer != NULL) && (peerDerSz == leafSz)) {
+        ExpectIntEQ(XMEMCMP(peerDer, leafDer, (size_t)leafSz), 0);
+    }
+
+    /* The peer's own certificate does not fit. The ticket must not record the
+     * issuing CA in its place; with no certificate to record it holds none. */
+    ExpectIntEQ(test_chain_ticket_case_run(1, &caKey, &interKey, &leafKey,
+        &rng, interDer, leafDer, chainDer, &peerDer, &peerDerSz, &leafSz,
+        &interSz), TEST_SUCCESS);
+    ExpectIntNE(peerDerSz, interSz);
+    ExpectNull(peerDer);
+
+    if (rngInit)   wc_FreeRng(&rng);
+    if (caInit)    wc_FreeRsaKey(&caKey);
+    if (interInit) wc_FreeRsaKey(&interKey);
+    if (leafInit)  wc_FreeRsaKey(&leafKey);
+    XFREE(interDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(leafDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(chainDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Compiled exactly when the body of test_wolfSSL_crl_io_mock() below is: the
  * mock has no other caller, so a wider condition here leaves it defined and
  * unused, which -Werror=unused-function rejects. Keep the two in step.
