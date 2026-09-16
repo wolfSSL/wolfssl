@@ -29,7 +29,7 @@
  * wc_ErrorString). error.c is a single large switch mapping every
  * wolfCrypt_ErrorCodes value to its string; decision coverage means taking
  * each case arm plus the default (unknown) arm. We sweep the whole error-code
- * numeric span (span 1: -97..-299, span 2: -1000..-1019) so every case is
+ * numeric span (span 1: -97..-299, span 2: -1000..WC_LAST_E) so every case is
  * taken, and also feed values outside every span so the default arm is taken.
  *
  * When NO_ERROR_STRINGS is defined the two symbols collapse to macros that
@@ -45,7 +45,7 @@ int test_wc_GetErrorStringDecisionCoverage(void)
     /* Sweep span 1 and the gap below it down through span 2, taking every
      * defined case arm and, on the undefined values in between, the default
      * arm. Every arm returns a non-NULL string. */
-    for (e = -1; e >= -1030; e--) {
+    for (e = -1; e >= WC_NO_ERR_TRACE(WC_LAST_E); e--) {
         ExpectNotNull(wc_GetErrorString(e));
     }
 
