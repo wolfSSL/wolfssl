@@ -16696,8 +16696,10 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
             if (ssl->options.certOnly)
                 return WOLFSSL_SUCCESS;
         #ifdef WOLFSSL_EARLY_DATA
+            /* Not on the post-handshake auth re-entry: a second
+             * EndOfEarlyData restarts the write sequence number at 0. */
             if (!ssl->options.dtls && ssl->earlyData != no_early_data
-                && !WOLFSSL_IS_QUIC(ssl)) {
+                && !TLS13_AFTER_HANDSHAKE(ssl) && !WOLFSSL_IS_QUIC(ssl)) {
                 if ((ssl->error = SendTls13EndOfEarlyData(ssl)) != 0) {
                     WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;
