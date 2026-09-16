@@ -227,14 +227,21 @@ fe_sub PROC
         sbb	r10, QWORD PTR [r8+16]
         sbb	r11, QWORD PTR [r8+24]
         sbb	r12, r12
-        shld	r12, r11, 1
-        imul	r12, -19
-        btr	r11, 63
-        ;   Add modulus (if underflow)
+        and	r12, 38
+        ;   Add 2*modulus (if underflow)
         sub	rax, r12
         sbb	r9, 0
         sbb	r10, 0
         sbb	r11, 0
+        mov	r12, 0
+        shld	r12, r11, 1
+        imul	r12, 19
+        btr	r11, 63
+        ;   Sub modulus (if bit 255 is set)
+        add	rax, r12
+        adc	r9, 0
+        adc	r10, 0
+        adc	r11, 0
         mov	QWORD PTR [rcx], rax
         mov	QWORD PTR [rcx+8], r9
         mov	QWORD PTR [rcx+16], r10
@@ -275,14 +282,23 @@ fe_add ENDP
 _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 fe_neg PROC
-        mov	rax, -19
+        mov	rax, -38
         mov	r8, -1
         mov	r9, -1
-        mov	r10, 9223372036854775807
+        mov	r10, -1
         sub	rax, QWORD PTR [rdx]
         sbb	r8, QWORD PTR [rdx+8]
         sbb	r9, QWORD PTR [rdx+16]
         sbb	r10, QWORD PTR [rdx+24]
+        mov	r11, 0
+        shld	r11, r10, 1
+        imul	r11, 19
+        btr	r10, 63
+        ;   Sub modulus (if bit 255 set)
+        add	rax, r11
+        adc	r8, 0
+        adc	r9, 0
+        adc	r10, 0
         mov	QWORD PTR [rcx], rax
         mov	QWORD PTR [rcx+8], r8
         mov	QWORD PTR [rcx+16], r9
@@ -2320,14 +2336,21 @@ L_curve25519_base_x64_bits:
         sbb	r11, QWORD PTR [rsp+112]
         sbb	r12, QWORD PTR [rsp+120]
         sbb	rbx, rbx
-        shld	rbx, r12, 1
-        imul	rbx, -19
-        btr	r12, 63
-        ;   Add modulus (if underflow)
+        and	rbx, 38
+        ;   Add 2*modulus (if underflow)
         sub	rcx, rbx
         sbb	r10, 0
         sbb	r11, 0
         sbb	r12, 0
+        mov	rbx, 0
+        shld	rbx, r12, 1
+        imul	rbx, 19
+        btr	r12, 63
+        ;   Sub modulus (if bit 255 is set)
+        add	rcx, rbx
+        adc	r10, 0
+        adc	r11, 0
+        adc	r12, 0
         mov	QWORD PTR [rsp+128], rcx
         mov	QWORD PTR [rsp+136], r10
         mov	QWORD PTR [rsp+144], r11
@@ -3189,14 +3212,21 @@ L_curve25519_base_x64_3:
         sbb	r11, QWORD PTR [rsp+112]
         sbb	r12, QWORD PTR [rsp+120]
         sbb	rbx, rbx
-        shld	rbx, r12, 1
-        imul	rbx, -19
-        btr	r12, 63
-        ;   Add modulus (if underflow)
+        and	rbx, 38
+        ;   Add 2*modulus (if underflow)
         sub	rcx, rbx
         sbb	r10, 0
         sbb	r11, 0
         sbb	r12, 0
+        mov	rbx, 0
+        shld	rbx, r12, 1
+        imul	rbx, 19
+        btr	r12, 63
+        ;   Sub modulus (if bit 255 is set)
+        add	rcx, rbx
+        adc	r10, 0
+        adc	r11, 0
+        adc	r12, 0
         mov	QWORD PTR [rsp+128], rcx
         mov	QWORD PTR [rsp+136], r10
         mov	QWORD PTR [rsp+144], r11
@@ -4567,14 +4597,21 @@ L_curve25519_x64_bits:
         sbb	r12, QWORD PTR [rsp+112]
         sbb	r13, QWORD PTR [rsp+120]
         sbb	rbp, rbp
-        shld	rbp, r13, 1
-        imul	rbp, -19
-        btr	r13, 63
-        ;   Add modulus (if underflow)
+        and	rbp, 38
+        ;   Add 2*modulus (if underflow)
         sub	rcx, rbp
         sbb	r11, 0
         sbb	r12, 0
         sbb	r13, 0
+        mov	rbp, 0
+        shld	rbp, r13, 1
+        imul	rbp, 19
+        btr	r13, 63
+        ;   Sub modulus (if bit 255 is set)
+        add	rcx, rbp
+        adc	r11, 0
+        adc	r12, 0
+        adc	r13, 0
         mov	QWORD PTR [rsp+128], rcx
         mov	QWORD PTR [rsp+136], r11
         mov	QWORD PTR [rsp+144], r12
@@ -5546,14 +5583,21 @@ L_curve25519_x64_3:
         sbb	r12, QWORD PTR [rsp+112]
         sbb	r13, QWORD PTR [rsp+120]
         sbb	rbp, rbp
-        shld	rbp, r13, 1
-        imul	rbp, -19
-        btr	r13, 63
-        ;   Add modulus (if underflow)
+        and	rbp, 38
+        ;   Add 2*modulus (if underflow)
         sub	rcx, rbp
         sbb	r11, 0
         sbb	r12, 0
         sbb	r13, 0
+        mov	rbp, 0
+        shld	rbp, r13, 1
+        imul	rbp, 19
+        btr	r13, 63
+        ;   Sub modulus (if bit 255 is set)
+        add	rcx, rbp
+        adc	r11, 0
+        adc	r12, 0
+        adc	r13, 0
         mov	QWORD PTR [rsp+128], rcx
         mov	QWORD PTR [rsp+136], r11
         mov	QWORD PTR [rsp+144], r12
@@ -7652,14 +7696,21 @@ ge_p2_dbl_x64 PROC
         sbb	r13, QWORD PTR [r8+16]
         sbb	r14, QWORD PTR [r8+24]
         sbb	r10, r10
-        shld	r10, r14, 1
-        imul	r10, -19
-        btr	r14, 63
-        ;   Add modulus (if underflow)
+        and	r10, 38
+        ;   Add 2*modulus (if underflow)
         sub	r11, r10
         sbb	r12, 0
         sbb	r13, 0
         sbb	r14, 0
+        mov	r10, 0
+        shld	r10, r14, 1
+        imul	r10, 19
+        btr	r14, 63
+        ;   Sub modulus (if bit 255 is set)
+        add	r11, r10
+        adc	r12, 0
+        adc	r13, 0
+        adc	r14, 0
         mov	QWORD PTR [rcx], r11
         mov	QWORD PTR [rcx+8], r12
         mov	QWORD PTR [rcx+16], r13
@@ -7788,14 +7839,21 @@ ge_p2_dbl_x64 PROC
         sbb	r13, QWORD PTR [r8+16]
         sbb	r14, QWORD PTR [r8+24]
         sbb	r10, r10
-        shld	r10, r14, 1
-        imul	r10, -19
-        btr	r14, 63
-        ;   Add modulus (if underflow)
+        and	r10, 38
+        ;   Add 2*modulus (if underflow)
         sub	r11, r10
         sbb	r12, 0
         sbb	r13, 0
         sbb	r14, 0
+        mov	r10, 0
+        shld	r10, r14, 1
+        imul	r10, 19
+        btr	r14, 63
+        ;   Sub modulus (if bit 255 is set)
+        add	r11, r10
+        adc	r12, 0
+        adc	r13, 0
+        adc	r14, 0
         mov	QWORD PTR [rcx], r11
         mov	QWORD PTR [rcx+8], r12
         mov	QWORD PTR [rcx+16], r13
@@ -12685,14 +12743,21 @@ L_curve25519_base_avx2_bits:
         sbb	r12, QWORD PTR [rsp+112]
         sbb	r13, QWORD PTR [rsp+120]
         sbb	rbx, rbx
-        shld	rbx, r13, 1
-        imul	rbx, -19
-        btr	r13, 63
-        ;   Add modulus (if underflow)
+        and	rbx, 38
+        ;   Add 2*modulus (if underflow)
         sub	r10, rbx
         sbb	r11, 0
         sbb	r12, 0
         sbb	r13, 0
+        mov	rbx, 0
+        shld	rbx, r13, 1
+        imul	rbx, 19
+        btr	r13, 63
+        ;   Sub modulus (if bit 255 is set)
+        add	r10, rbx
+        adc	r11, 0
+        adc	r12, 0
+        adc	r13, 0
         mov	QWORD PTR [rsp+128], r10
         mov	QWORD PTR [rsp+136], r11
         mov	QWORD PTR [rsp+144], r12
@@ -13371,14 +13436,21 @@ L_curve25519_base_avx2_last_3:
         sbb	r12, QWORD PTR [rsp+112]
         sbb	r13, QWORD PTR [rsp+120]
         sbb	rbx, rbx
-        shld	rbx, r13, 1
-        imul	rbx, -19
-        btr	r13, 63
-        ;   Add modulus (if underflow)
+        and	rbx, 38
+        ;   Add 2*modulus (if underflow)
         sub	r10, rbx
         sbb	r11, 0
         sbb	r12, 0
         sbb	r13, 0
+        mov	rbx, 0
+        shld	rbx, r13, 1
+        imul	rbx, 19
+        btr	r13, 63
+        ;   Sub modulus (if bit 255 is set)
+        add	r10, rbx
+        adc	r11, 0
+        adc	r12, 0
+        adc	r13, 0
         mov	QWORD PTR [rsp+128], r10
         mov	QWORD PTR [rsp+136], r11
         mov	QWORD PTR [rsp+144], r12
@@ -14542,14 +14614,21 @@ L_curve25519_avx2_bits:
         sbb	r13, QWORD PTR [rsp+112]
         sbb	r14, QWORD PTR [rsp+120]
         sbb	rbx, rbx
-        shld	rbx, r14, 1
-        imul	rbx, -19
-        btr	r14, 63
-        ;   Add modulus (if underflow)
+        and	rbx, 38
+        ;   Add 2*modulus (if underflow)
         sub	r11, rbx
         sbb	r12, 0
         sbb	r13, 0
         sbb	r14, 0
+        mov	rbx, 0
+        shld	rbx, r14, 1
+        imul	rbx, 19
+        btr	r14, 63
+        ;   Sub modulus (if bit 255 is set)
+        add	r11, rbx
+        adc	r12, 0
+        adc	r13, 0
+        adc	r14, 0
         mov	QWORD PTR [rsp+128], r11
         mov	QWORD PTR [rsp+136], r12
         mov	QWORD PTR [rsp+144], r13
@@ -15322,14 +15401,21 @@ L_curve25519_avx2_last_3:
         sbb	r13, QWORD PTR [rsp+112]
         sbb	r14, QWORD PTR [rsp+120]
         sbb	rbx, rbx
-        shld	rbx, r14, 1
-        imul	rbx, -19
-        btr	r14, 63
-        ;   Add modulus (if underflow)
+        and	rbx, 38
+        ;   Add 2*modulus (if underflow)
         sub	r11, rbx
         sbb	r12, 0
         sbb	r13, 0
         sbb	r14, 0
+        mov	rbx, 0
+        shld	rbx, r14, 1
+        imul	rbx, 19
+        btr	r14, 63
+        ;   Sub modulus (if bit 255 is set)
+        add	r11, rbx
+        adc	r12, 0
+        adc	r13, 0
+        adc	r14, 0
         mov	QWORD PTR [rsp+128], r11
         mov	QWORD PTR [rsp+136], r12
         mov	QWORD PTR [rsp+144], r13
@@ -17077,14 +17163,21 @@ ge_p2_dbl_avx2 PROC
         sbb	r14, QWORD PTR [rax+16]
         sbb	r15, QWORD PTR [rax+24]
         sbb	rdx, rdx
-        shld	rdx, r15, 1
-        imul	rdx, -19
-        btr	r15, 63
-        ;   Add modulus (if underflow)
+        and	rdx, 38
+        ;   Add 2*modulus (if underflow)
         sub	r12, rdx
         sbb	r13, 0
         sbb	r14, 0
         sbb	r15, 0
+        mov	rdx, 0
+        shld	rdx, r15, 1
+        imul	rdx, 19
+        btr	r15, 63
+        ;   Sub modulus (if bit 255 is set)
+        add	r12, rdx
+        adc	r13, 0
+        adc	r14, 0
+        adc	r15, 0
         mov	QWORD PTR [rcx], r12
         mov	QWORD PTR [rcx+8], r13
         mov	QWORD PTR [rcx+16], r14
@@ -17187,14 +17280,21 @@ ge_p2_dbl_avx2 PROC
         sbb	r14, QWORD PTR [rax+16]
         sbb	r15, QWORD PTR [rax+24]
         sbb	rdx, rdx
-        shld	rdx, r15, 1
-        imul	rdx, -19
-        btr	r15, 63
-        ;   Add modulus (if underflow)
+        and	rdx, 38
+        ;   Add 2*modulus (if underflow)
         sub	r12, rdx
         sbb	r13, 0
         sbb	r14, 0
         sbb	r15, 0
+        mov	rdx, 0
+        shld	rdx, r15, 1
+        imul	rdx, 19
+        btr	r15, 63
+        ;   Sub modulus (if bit 255 is set)
+        add	r12, rdx
+        adc	r13, 0
+        adc	r14, 0
+        adc	r15, 0
         mov	QWORD PTR [rcx], r12
         mov	QWORD PTR [rcx+8], r13
         mov	QWORD PTR [rcx+16], r14

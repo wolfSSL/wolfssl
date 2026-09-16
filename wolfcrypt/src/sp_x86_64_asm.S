@@ -65375,13 +65375,12 @@ L_1024_mont_reduce_16_loop:
         addq	$8, %rdi
         decq	%r8
         jnz	L_1024_mont_reduce_16_loop
-        movq	120(%rdi), %r12
+        movq	120(%rsi), %r12
         movq	%r13, (%rdi)
-        subq	120(%rsi), %r12
+        subq	120(%rdi), %r12
         movq	%r14, 8(%rdi)
         sbbq	%r12, %r12
         negq	%r15
-        notq	%r12
         orq	%r12, %r15
 #ifdef _WIN64
         movq	%rsi, %rdx
@@ -65479,10 +65478,10 @@ _sp_1024_mont_add_16:
         movq	%r9, 112(%rdi)
         movq	%r10, 120(%rdi)
         sbbq	$0x00, %r11
-        subq	120(%rcx), %r10
-        sbbq	%r10, %r10
-        notq	%r10
-        orq	%r10, %r11
+        movq	120(%rcx), %r9
+        subq	%r10, %r9
+        sbbq	%r9, %r9
+        orq	%r9, %r11
         movq	(%rcx), %r9
         movq	8(%rcx), %r10
         andq	%r11, %r9
@@ -65655,10 +65654,10 @@ _sp_1024_mont_dbl_16:
         movq	%r8, 112(%rdi)
         movq	%r9, 120(%rdi)
         sbbq	$0x00, %r10
-        subq	120(%rdx), %r9
-        sbbq	%r9, %r9
-        notq	%r9
-        orq	%r9, %r10
+        movq	120(%rdx), %r8
+        subq	%r9, %r8
+        sbbq	%r8, %r8
+        orq	%r8, %r10
         movq	(%rdx), %r8
         movq	8(%rdx), %r9
         andq	%r10, %r8
@@ -65831,10 +65830,10 @@ _sp_1024_mont_tpl_16:
         movq	%r8, 112(%rdi)
         movq	%r9, 120(%rdi)
         sbbq	$0x00, %r10
-        subq	120(%rdx), %r9
-        sbbq	%r9, %r9
-        notq	%r9
-        orq	%r9, %r10
+        movq	120(%rdx), %r8
+        subq	%r9, %r8
+        sbbq	%r8, %r8
+        orq	%r8, %r10
         movq	(%rdx), %r8
         movq	8(%rdx), %r9
         andq	%r10, %r8
@@ -65981,10 +65980,10 @@ _sp_1024_mont_tpl_16:
         movq	%r8, 112(%rdi)
         movq	%r9, 120(%rdi)
         sbbq	$0x00, %r10
-        subq	120(%rdx), %r9
-        sbbq	%r9, %r9
-        notq	%r9
-        orq	%r9, %r10
+        movq	120(%rdx), %r8
+        subq	%r9, %r8
+        sbbq	%r8, %r8
+        orq	%r8, %r10
         movq	(%rdx), %r8
         movq	8(%rdx), %r9
         andq	%r10, %r8
@@ -66664,12 +66663,12 @@ L_1024_mont_reduce_avx2_16_loop:
         subq	$2, %r9
         jnz	L_1024_mont_reduce_avx2_16_loop
         subq	$0x40, %rdi
-        subq	120(%rsi), %r10
+        movq	120(%rsi), %rax
+        subq	%r10, %rax
         movq	%rdi, %r8
-        sbbq	%r10, %r10
+        sbbq	%rax, %rax
         negq	%rbp
-        notq	%r10
-        orq	%r10, %rbp
+        orq	%rax, %rbp
         subq	$0x80, %rdi
         movq	(%rsi), %rcx
         movq	%r12, %rdx
@@ -66834,10 +66833,10 @@ _sp_1024_mont_add_avx2_16:
         movq	%r9, 112(%rdi)
         movq	%r10, 120(%rdi)
         sbbq	$0x00, %r11
-        subq	120(%rcx), %r10
-        sbbq	%r10, %r10
-        notq	%r10
-        orq	%r10, %r11
+        movq	120(%rcx), %r9
+        subq	%r10, %r9
+        sbbq	%r9, %r9
+        orq	%r9, %r11
         movq	(%rcx), %r9
         movq	8(%rcx), %r10
         movq	(%rdi), %rax
@@ -66994,10 +66993,10 @@ _sp_1024_mont_dbl_avx2_16:
         movq	%r8, 112(%rdi)
         movq	%r9, 120(%rdi)
         sbbq	$0x00, %r10
-        subq	120(%rdx), %r9
-        sbbq	%r9, %r9
-        notq	%r9
-        orq	%r9, %r10
+        movq	120(%rdx), %r8
+        subq	%r9, %r8
+        sbbq	%r8, %r8
+        orq	%r8, %r10
         movq	(%rdx), %r8
         movq	8(%rdx), %r9
         movq	(%rdi), %rax
@@ -67154,10 +67153,10 @@ _sp_1024_mont_tpl_avx2_16:
         movq	%r8, 112(%rdi)
         movq	%r9, 120(%rdi)
         sbbq	$0x00, %r10
-        subq	120(%rdx), %r9
-        sbbq	%r9, %r9
-        notq	%r9
-        orq	%r9, %r10
+        movq	120(%rdx), %r8
+        subq	%r9, %r8
+        sbbq	%r8, %r8
+        orq	%r8, %r10
         movq	(%rdx), %r8
         movq	8(%rdx), %r9
         movq	(%rdi), %rax
@@ -67288,10 +67287,10 @@ _sp_1024_mont_tpl_avx2_16:
         movq	%r8, 112(%rdi)
         movq	%r9, 120(%rdi)
         sbbq	$0x00, %r10
-        subq	120(%rdx), %r9
-        sbbq	%r9, %r9
-        notq	%r9
-        orq	%r9, %r10
+        movq	120(%rdx), %r8
+        subq	%r9, %r8
+        sbbq	%r8, %r8
+        orq	%r8, %r10
         movq	(%rdx), %r8
         movq	8(%rdx), %r9
         movq	(%rdi), %rax

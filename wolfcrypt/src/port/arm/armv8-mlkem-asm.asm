@@ -7848,7 +7848,7 @@ mlkem_to_mont_sqrdmlsh PROC
 	AREA	|.rodata|, DATA, READONLY, ALIGN=4
 	ALIGN	8
 L_mlkem_to_msg_low
-	DCW	0x0373, 0x0373, 0x0373, 0x0373, 0x0373, 0x0373, 0x0373, 0x0373
+	DCW	0x0341, 0x0341, 0x0341, 0x0341, 0x0341, 0x0341, 0x0341, 0x0341
 	AREA	|.rodata|, DATA, READONLY, ALIGN=4
 	ALIGN	8
 L_mlkem_to_msg_high

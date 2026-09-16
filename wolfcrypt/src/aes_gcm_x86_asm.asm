@@ -2817,7 +2817,6 @@ L_AES_GCM_decrypt_aesni_done_dec:
         mov	edi, DWORD PTR [esp+240]
         cmp	ebp, 16
         je	L_AES_GCM_decrypt_aesni_cmp_tag_16
-        sub	esp, 16
         xor	ecx, ecx
         xor	ebx, ebx
         movdqu	OWORD PTR [esp], xmm4
@@ -2830,7 +2829,6 @@ L_AES_GCM_decrypt_aesni_cmp_tag_loop:
         jne	L_AES_GCM_decrypt_aesni_cmp_tag_loop
         cmp	bl, 0
         sete	bl
-        add	esp, 16
         xor	ecx, ecx
         jmp	L_AES_GCM_decrypt_aesni_cmp_tag_done
 L_AES_GCM_decrypt_aesni_cmp_tag_16:
@@ -5009,7 +5007,6 @@ AES_GCM_decrypt_final_aesni PROC
         mov	edi, DWORD PTR [esp+64]
         cmp	DWORD PTR [esp+44], 16
         je	L_AES_GCM_decrypt_final_aesni_cmp_tag_16
-        sub	esp, 16
         xor	ecx, ecx
         xor	ebx, ebx
         movdqu	OWORD PTR [esp], xmm0
@@ -5022,7 +5019,6 @@ L_AES_GCM_decrypt_final_aesni_cmp_tag_loop:
         jne	L_AES_GCM_decrypt_final_aesni_cmp_tag_loop
         cmp	bl, 0
         sete	bl
-        add	esp, 16
         xor	ecx, ecx
         jmp	L_AES_GCM_decrypt_final_aesni_cmp_tag_done
 L_AES_GCM_decrypt_final_aesni_cmp_tag_16:
