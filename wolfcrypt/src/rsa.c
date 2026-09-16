@@ -157,25 +157,20 @@ static void wc_RsaCleanup(RsaKey* key)
     (!defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_VERIFY_INLINE)))
     if (key != NULL) {
     #ifndef WOLFSSL_RSA_PUBLIC_ONLY
-    #if FIPS_VERSION3_GE(7,0,0)
+        #if FIPS_VERSION3_GE(7,0,0)
         /* Erase the recovered plaintext on the way out, success or failure.
-         * SP 800-56B Rev2 sec 7.2.2.4.  Only a buffer we allocated: a
-         * caller-supplied one is the answer itself.  No key->type test:
-         * it never holds RSA_PRIVATE_DECRYPT/ENCRYPT, which belong to the
-         * operation-type half of that enum (rsa.h:176-183), so the old test
-         * was always false and the buffer was freed unwiped. */
+         * SP 800-56B Rev2 sec 7.2.2.4. Erase only a buffer we allocated. */
         if (key->dataIsAlloc && key->data != NULL && key->dataLen > 0) {
             ForceZero(key->data, key->dataLen);
         }
-    #else
-        /* if private operation zero temp buffer */
-        if ((key->data != NULL && key->dataLen > 0) &&
-            (key->type == RSA_PRIVATE_DECRYPT ||
-             key->type == RSA_PRIVATE_ENCRYPT)) {
+        #else
+        /* zero temp buffer if private key, and if we alloc'ed it. */
+        if (key->dataIsAlloc && key->data != NULL && key->dataLen > 0 &&
+            key->type == RSA_PRIVATE) {
             ForceZero(key->data, key->dataLen);
         }
-    #endif
-    #endif
+        #endif /* FIPS_VERSION3_GE(7,0,0) */
+    #endif /* !WOLFSSL_RSA_PUBLIC_ONLY */
         /* make sure any allocated memory is free'd */
         if (key->dataIsAlloc) {
             XFREE(key->data, key->heap, DYNAMIC_TYPE_WOLF_BIGINT);
