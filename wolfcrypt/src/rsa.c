@@ -156,20 +156,16 @@ static void wc_RsaCleanup(RsaKey* key)
 #if !defined(WOLFSSL_NO_MALLOC) && (defined(WOLFSSL_ASYNC_CRYPT) || \
     (!defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_VERIFY_INLINE)))
     if (key != NULL) {
+
     #ifndef WOLFSSL_RSA_PUBLIC_ONLY
-        #if FIPS_VERSION3_GE(7,0,0)
         /* Erase the recovered plaintext on the way out, success or failure.
          * SP 800-56B Rev2 sec 7.2.2.4. Erase only a buffer we allocated. */
         if (key->dataIsAlloc && key->data != NULL && key->dataLen > 0) {
             ForceZero(key->data, key->dataLen);
+            #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Check(key->data, key->dataLen);
+            #endif
         }
-        #else
-        /* zero temp buffer if private key, and if we alloc'ed it. */
-        if (key->dataIsAlloc && key->data != NULL && key->dataLen > 0 &&
-            key->type == RSA_PRIVATE) {
-            ForceZero(key->data, key->dataLen);
-        }
-        #endif /* FIPS_VERSION3_GE(7,0,0) */
     #endif /* !WOLFSSL_RSA_PUBLIC_ONLY */
         /* make sure any allocated memory is free'd */
         if (key->dataIsAlloc) {
@@ -4168,6 +4164,9 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
             }
             XMEMCPY(key->data, in, inLen);
             key->dataLen = inLen;
+            #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Add("key data in", key->data, key->dataLen);
+            #endif
         }
         else {
             key->dataIsAlloc = 0;
