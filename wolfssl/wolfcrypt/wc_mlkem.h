@@ -445,19 +445,26 @@ WOLFSSL_API int wc_MlKemKey_Init_Label(MlKemKey* key, int type,
     const char* label, void* heap, int devId);
 #endif
 
+#ifndef WOLFSSL_MLKEM_NO_MAKE_KEY
 WOLFSSL_API int wc_MlKemKey_MakeKey(MlKemKey* key, WC_RNG* rng);
 WOLFSSL_API int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key,
     const unsigned char* rand, int len);
+#endif
 
 WOLFSSL_API int wc_MlKemKey_CipherTextSize(MlKemKey* key, word32* len);
 WOLFSSL_API int wc_MlKemKey_SharedSecretSize(MlKemKey* key, word32* len);
 
+#ifndef WOLFSSL_MLKEM_NO_ENCAPSULATE
 WOLFSSL_API int wc_MlKemKey_Encapsulate(MlKemKey* key, unsigned char* ct,
     unsigned char* ss, WC_RNG* rng);
 WOLFSSL_API int wc_MlKemKey_EncapsulateWithRandom(MlKemKey* key,
     unsigned char* ct, unsigned char* ss, const unsigned char* rand, int len);
+#endif
+
+#ifndef WOLFSSL_MLKEM_NO_DECAPSULATE
 WOLFSSL_API int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
     const unsigned char* ct, word32 len);
+#endif
 
 WOLFSSL_API int wc_MlKemKey_DecodePrivateKey(MlKemKey* key,
     const unsigned char* in, word32 len);
