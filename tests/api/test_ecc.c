@@ -4136,3 +4136,165 @@ int test_wc_EccDecisionCoverage4(void)
 #endif /* HAVE_ECC && !WC_NO_RNG && !WOLF_CRYPTO_CB_ONLY_ECC */
     return EXPECT_RESULT();
 } /* END test_wc_EccDecisionCoverage4 */
+
+#if defined(HAVE_ECC) && defined(WOLFSSL_CUSTOM_CURVES) && \
+    defined(WOLFSSL_ASN_TEMPLATE) && defined(HAVE_ECC_KEY_IMPORT) && \
+    defined(HAVE_ECC_KEY_EXPORT) && !defined(NO_ASN)
+
+#define ECC_SPEC_COORD_SZ   MAX_ECC_BYTES
+#define ECC_SPEC_MAX_PRIME  300
+#define ECC_SPEC_BUF_SZ     ((ECC_SPEC_MAX_PRIME * 7) + 512)
+
+static void EccSpecFill(byte* buf, word32* idx, byte val, word32 len)
+{
+    *idx -= len;
+    XMEMSET(buf + *idx, val, len);
+}
+
+static void EccSpecHdr(byte* buf, word32* idx, byte tag, word32 len)
+{
+    if (len < 128) {
+        buf[--(*idx)] = (byte)len;
+    }
+    else if (len < 256) {
+        buf[--(*idx)] = (byte)len;
+        buf[--(*idx)] = 0x81;
+    }
+    else {
+        buf[--(*idx)] = (byte)len;
+        buf[--(*idx)] = (byte)(len >> 8);
+        buf[--(*idx)] = 0x82;
+    }
+    buf[--(*idx)] = tag;
+}
+
+/* Build an ecPublicKey SubjectPublicKeyInfo carrying explicit
+ * SpecifiedECDomain parameters with a prime of primeSz bytes. Encoded back to
+ * front, so each item is wrapped once its content is in place. */
+static word32 EccSpecifiedSpki(byte* buf, word32 primeSz)
+{
+    static const byte ecPubKeyOid[] = {
+        0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01
+    };
+    static const byte primeFldOid[] = {
+        0x2a, 0x86, 0x48, 0xce, 0x3d, 0x01, 0x01
+    };
+    word32 idx = ECC_SPEC_BUF_SZ;
+    word32 end = ECC_SPEC_BUF_SZ;
+    word32 domEnd;
+
+    /* Subject public key: BIT STRING of 0x04 <x> <y>. */
+    EccSpecFill(buf, &idx, 0x42, ECC_SPEC_COORD_SZ);
+    EccSpecFill(buf, &idx, 0x41, ECC_SPEC_COORD_SZ);
+    buf[--idx] = 0x04;
+    buf[--idx] = 0x00;
+    EccSpecHdr(buf, &idx, ASN_BIT_STRING, end - idx);
+    domEnd = idx;
+
+    /* SpecifiedECDomain: version, field, curve, base point, order. */
+    EccSpecFill(buf, &idx, 0x7f, primeSz);
+    EccSpecHdr(buf, &idx, ASN_INTEGER, primeSz);
+    end = idx;
+    EccSpecFill(buf, &idx, 0x03, primeSz * 2);
+    buf[--idx] = 0x04;
+    EccSpecHdr(buf, &idx, ASN_OCTET_STRING, end - idx);
+    end = idx;
+    EccSpecFill(buf, &idx, 0x02, primeSz);
+    EccSpecHdr(buf, &idx, ASN_OCTET_STRING, primeSz);
+    EccSpecFill(buf, &idx, 0x01, primeSz);
+    EccSpecHdr(buf, &idx, ASN_OCTET_STRING, primeSz);
+    EccSpecHdr(buf, &idx, ASN_SEQUENCE | ASN_CONSTRUCTED, end - idx);
+    end = idx;
+    EccSpecFill(buf, &idx, 0x7f, primeSz);
+    EccSpecHdr(buf, &idx, ASN_INTEGER, primeSz);
+    idx -= sizeof(primeFldOid);
+    XMEMCPY(buf + idx, primeFldOid, sizeof(primeFldOid));
+    EccSpecHdr(buf, &idx, ASN_OBJECT_ID, sizeof(primeFldOid));
+    EccSpecHdr(buf, &idx, ASN_SEQUENCE | ASN_CONSTRUCTED, end - idx);
+    buf[--idx] = 0x01;
+    EccSpecHdr(buf, &idx, ASN_INTEGER, 1);
+    EccSpecHdr(buf, &idx, ASN_SEQUENCE | ASN_CONSTRUCTED, domEnd - idx);
+
+    /* AlgorithmIdentifier and the enclosing SubjectPublicKeyInfo. */
+    idx -= sizeof(ecPubKeyOid);
+    XMEMCPY(buf + idx, ecPubKeyOid, sizeof(ecPubKeyOid));
+    EccSpecHdr(buf, &idx, ASN_OBJECT_ID, sizeof(ecPubKeyOid));
+    EccSpecHdr(buf, &idx, ASN_SEQUENCE | ASN_CONSTRUCTED, domEnd - idx);
+    EccSpecHdr(buf, &idx, ASN_SEQUENCE | ASN_CONSTRUCTED,
+        ECC_SPEC_BUF_SZ - idx);
+
+    XMEMMOVE(buf, buf + idx, ECC_SPEC_BUF_SZ - idx);
+    return ECC_SPEC_BUF_SZ - idx;
+}
+#endif
+
+int test_wc_EccPublicKeyDecode_explicit_curve_size(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(WOLFSSL_CUSTOM_CURVES) && \
+    defined(WOLFSSL_ASN_TEMPLATE) && defined(HAVE_ECC_KEY_IMPORT) && \
+    defined(HAVE_ECC_KEY_EXPORT) && !defined(NO_ASN)
+    ecc_key key;
+    byte*  der = NULL;
+    byte*  out = NULL;
+    word32 derSz;
+    word32 idx;
+#ifndef WOLFSSL_VALIDATE_ECC_IMPORT
+    word32 outSz;
+#endif
+
+    ExpectNotNull(der = (byte*)XMALLOC(ECC_SPEC_BUF_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(out = (byte*)XMALLOC((ECC_SPEC_MAX_PRIME * 2) + 1, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+
+#ifndef WOLFSSL_VALIDATE_ECC_IMPORT
+    /* A prime the ECC code is dimensioned for still decodes and exports. The
+     * fabricated point is not on the fabricated curve, so import validation
+     * would reject it. */
+    if (EXPECT_SUCCESS()) {
+        XMEMSET(&key, 0, sizeof(key));
+        derSz = EccSpecifiedSpki(der, MAX_ECC_BYTES);
+        idx = 0;
+        ExpectIntEQ(wc_ecc_init(&key), 0);
+        ExpectIntEQ(wc_EccPublicKeyDecode(der, &idx, &key, derSz), 0);
+        ExpectNotNull(key.dp);
+        ExpectIntEQ(key.dp != NULL ? key.dp->size : 0, MAX_ECC_BYTES);
+        outSz = (MAX_ECC_BYTES * 2) + 1;
+        ExpectIntEQ(wc_ecc_export_x963(&key, out, &outSz), 0);
+        ExpectIntEQ(outSz, (MAX_ECC_BYTES * 2) + 1);
+        wc_ecc_free(&key);
+    }
+#endif
+
+    /* A prime past MAX_ECC_BYTES must be rejected at decode: the curve size
+     * drives the padding offset into a fixed ECC_BUFSIZE stack buffer in
+     * _ecc_export_x963(). */
+    if (EXPECT_SUCCESS()) {
+        XMEMSET(&key, 0, sizeof(key));
+        derSz = EccSpecifiedSpki(der, ECC_SPEC_MAX_PRIME);
+        idx = 0;
+        ExpectIntEQ(wc_ecc_init(&key), 0);
+        ExpectIntEQ(wc_EccPublicKeyDecode(der, &idx, &key, derSz),
+            WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_ecc_free(&key);
+    }
+
+    /* The same bound applies to a custom curve set through the API. */
+    if (EXPECT_SUCCESS()) {
+        ecc_set_type dp;
+
+        XMEMSET(&key, 0, sizeof(key));
+        XMEMSET(&dp, 0, sizeof(dp));
+        dp.size = ECC_SPEC_MAX_PRIME;
+        ExpectIntEQ(wc_ecc_init(&key), 0);
+        ExpectIntEQ(wc_ecc_set_custom_curve(&key, &dp),
+            WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+        wc_ecc_free(&key);
+    }
+
+    XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_EccPublicKeyDecode_explicit_curve_size */
