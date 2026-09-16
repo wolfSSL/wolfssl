@@ -3679,6 +3679,8 @@ WOLFSSL_API WOLFSSL_X509* wolfSSL_d2i_X509_REQ_INFO(WOLFSSL_X509** req,
         const unsigned char** in, int len);
 #endif
 WOLFSSL_API int wolfSSL_i2d_X509(WOLFSSL_X509* x509, unsigned char** out);
+WOLFSSL_API WOLFSSL_X509_CRL *wolfSSL_d2i_X509_CRL_ex(WOLFSSL_X509_CRL **crl,
+        const unsigned char **in, long len);
 WOLFSSL_API WOLFSSL_X509_CRL *wolfSSL_d2i_X509_CRL(WOLFSSL_X509_CRL **crl,
                                                    const unsigned char *in, int len);
 #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
