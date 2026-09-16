@@ -1433,12 +1433,13 @@ int tsip_Tls13SendFinished(
         ret = tsip_Tls13GetHmacMessages(ssl, (byte*)&input[headerSz]);
     }
 
-    if (ret == 0) {
-       recordSz = WC_MAX_DIGEST_SIZE + DTLS_HANDSHAKE_HEADER_SZ + MAX_MSG_EXTRA;
-        /* check for available size */
-        ret = CheckAvailableSize(ssl, recordSz);
-        recordSz = 0;
-    }
+    /* Do not re-check/grow the output buffer here: the caller
+     * (SendTls13Finished) already sized it with CheckAvailableSize() before
+     * fetching `output`/`input` via GetOutputBuffer(). A grow here would
+     * reallocate ssl->buffers.outputBuffer.buffer without updating the
+     * caller's now-stale output/input pointers, so tsip_Tls13BuildMessage()
+     * below would encrypt into a freed buffer while SendBuffered() sends
+     * from the new, unwritten one. */
 
     if (ret == 0) {
         recordSz = tsip_Tls13BuildMessage(ssl,
