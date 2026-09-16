@@ -1,0 +1,43 @@
+# The SA2UL AES/SHA engine port needs two shared MemoryRegion Objects
+Kernel
+	Filename			myproject_kernel
+	MemoryPoolSize			$__INTEGRITY_KERNEL_MinimumMemoryPoolSize
+%if defined(WOLFSSL_SA2UL_DRIVER)
+	Object
+		MemoryRegion
+		Name		sa2ul_ctrl_phys
+		Length		1P    # struct Sa2ulCtrl (sa2ul_iodevice.h)
+	EndObject
+	Object
+		MemoryRegion
+		Name		sa2ul_data_phys
+		Length		1P    # struct Sa2ulData (sa2ul_iodevice.h)
+		                  # size matches SA2UL_MAX_BUF (one page)
+	EndObject
+%endif #WOLFSSL_SA2UL_DRIVER
+EndKernel
+
+AddressSpace				wolfssl_test_app
+	Filename			wolfssl_test_app
+	Language			C
+	Task Initial
+		# This is set high for benchmark.c.  Tune for other applications.
+		StackLength		0x10000
+	EndTask
+%if defined(WOLFSSL_SA2UL_DRIVER)
+	Object	12
+		MemoryRegion	wolfssl_test_app
+		Name		sa2ul_ctrl_local
+		MapTo		sa2ul_ctrl_phys
+		Length		1P
+	EndObject
+	Object	13
+		MemoryRegion	wolfssl_test_app
+		Name		sa2ul_data_local
+		MapTo		sa2ul_data_phys
+		Length		1P
+	EndObject
+%endif #WOLFSSL_SA2UL_DRIVER
+EndAddressSpace
+
+%include "system_loader.int"

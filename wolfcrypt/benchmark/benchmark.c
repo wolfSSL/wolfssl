@@ -222,6 +222,10 @@
     #endif
 #endif
 
+#ifdef WOLFSSL_TI_AM64X_A53_INTEGRITY
+    #include <wolfssl/wolfcrypt/port/ti/integrity/sa2ul_port.h>
+#endif
+
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
 #endif
@@ -19204,7 +19208,24 @@ out:
         static WC_INLINE word64 get_aarch64_cycles(void)
         {
             word64 ticks;
-        #if defined(_MSC_VER)
+        #if defined(WC_BENCH_CYCLES_FROM_CLOCK)
+            /* For targets whose CNTVCT_EL0 differs between cores (e.g. the
+             * AM64x's two A53s under INTEGRITY), a thread that migrates
+             * mid-test gets a meaningless delta. Derive the same count of
+             * counter ticks from the system-wide clock instead (elapsed
+             * time x counter frequency); scaled below like a counter read. */
+            {
+                struct timespec tv;
+
+                if (clock_gettime(CLOCK_REALTIME, &tv) == 0) {
+                    ticks = (word64)tv.tv_sec * tick_freq +
+                            ((word64)tv.tv_nsec * tick_freq) / 1000000000ULL;
+                }
+                else {
+                    ticks = 0;
+                }
+            }
+        #elif defined(_MSC_VER)
             /* MSVC/ARM64: no inline asm. Read CNTVCT_EL0 (3,3,14,0,2) via the
              * system register intrinsic. */
             __isb(_ARM64_BARRIER_SY);
