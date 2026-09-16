@@ -29366,7 +29366,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_svc_test(void)
             ERROR_OUT(api_ret, out);
     }
 #endif /* !NO_RSA */
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) && defined(ECC_TIMING_RESISTANT)
     {
         WC_DECLARE_VAR(eccKey, ecc_key, 1, HEAP_HINT);
         int eccKey_inited = 0;
@@ -29380,9 +29380,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_svc_test(void)
             eccKey_inited = 1;
             if ((wc_ecc_set_rng(eccKey, root) != 0) ||
                 (wc_ecc_clear_rng(eccKey) != 0)
-#ifdef ECC_TIMING_RESISTANT
                 || (wc_ecc_clear_rng(NULL) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-#endif
                )
             {
                 api_ret = WC_TEST_RET_ENC_NC;
@@ -29394,7 +29392,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_svc_test(void)
         if (api_ret != 0)
             ERROR_OUT(api_ret, out);
     }
-#endif /* HAVE_ECC */
+#endif /* HAVE_ECC && ECC_TIMING_RESISTANT */
 #if defined(HAVE_CURVE25519) && defined(WOLFSSL_CURVE25519_BLINDING)
     {
         WC_DECLARE_VAR(cvKey, curve25519_key, 1, HEAP_HINT);
