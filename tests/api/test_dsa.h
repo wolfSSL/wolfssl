@@ -39,6 +39,7 @@ int test_wc_DsaSign_bad_digestSz(void);
 int test_wc_DsaImportParamsRaw_individual_args(void);
 int test_wc_DsaExportParamsRaw_individual_args(void);
 int test_wc_DsaExportKeyRaw_individual_args(void);
+int test_wc_DsaVerify_cert_sig_narrower_than_q(void);
 
 #define TEST_DSA_DECLS                                          \
     TEST_DECL_GROUP("dsa", test_wc_InitDsaKey),                 \
@@ -55,6 +56,7 @@ int test_wc_DsaExportKeyRaw_individual_args(void);
     TEST_DECL_GROUP("dsa", test_wc_DsaSign_bad_digestSz),       \
     TEST_DECL_GROUP("dsa", test_wc_DsaImportParamsRaw_individual_args), \
     TEST_DECL_GROUP("dsa", test_wc_DsaExportParamsRaw_individual_args), \
-    TEST_DECL_GROUP("dsa", test_wc_DsaExportKeyRaw_individual_args)
+    TEST_DECL_GROUP("dsa", test_wc_DsaExportKeyRaw_individual_args),    \
+    TEST_DECL_GROUP("dsa", test_wc_DsaVerify_cert_sig_narrower_than_q)
 
 #endif /* WOLFCRYPT_TEST_DSA_H */

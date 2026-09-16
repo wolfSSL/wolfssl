@@ -109,9 +109,9 @@
  *     :24921/:24925 leading operands ARE reachable and are driven by the
  *     allocation sweep in section 24.
  *   - DecodeDsaAsn1Sig() :17348 both operands: the block is guarded by
- *     :17342, which has already rejected rSz + sSz > sigSz, and every
- *     caller passes a sigCpy of at least sigSz bytes, so both
- *     mp_to_unsigned_bin() calls write inside the buffer and cannot fail.
+ *     :17342, which has already rejected rSz > qSz || sSz > qSz, and every
+ *     caller passes a sigCpy of 2 * qSz bytes, so both
+ *     mp_to_unsigned_bin_len() calls write inside the buffer and cannot fail.
  *
  * the uncovered-condition report rows in the deep certificate chain-verification internals
  * (name-constraint enforcement, X.509 extension decoding/verification,
@@ -2567,25 +2567,25 @@ static byte* wb_read_pem_file(const char* path, long* outLen)
 
 /* ------------------------------------------------------------------------- *
  * Section 24b: ConfirmSignature() DSA signature-size dispatch (:17703).
- *   if (sigSz != DSA_160_SIG_SIZE && sigSz != DSA_256_SIG_SIZE)
- *       ret = DecodeDsaAsn1Sig(...);
- *   else
+ *   if (sigSz == 2 * qSz)
  *       XMEMCPY(sigCtx->sigCpy, sig, sigSz);
+ *   else
+ *       ret = DecodeDsaAsn1Sig(...);
  * A DSA-signed certificate carries an ASN.1 DSA-Sig-Value, so the raw-copy
- * arm (a signature that is exactly 40 or 64 bytes) is never taken from a
+ * arm (a signature that is exactly 2 * |q| bytes) is never taken from a
  * certificate parse. Calling ConfirmSignature() directly with a DSA public
- * key and three signature lengths drives all three rows. The signature bytes
+ * key and two signature lengths drives both rows. The signature bytes
  * themselves are irrelevant -- the call always ends in a verification
  * failure; the point is which arm the size dispatch picks.
  * ------------------------------------------------------------------------- */
 #if !defined(NO_DSA) && !defined(HAVE_SELFTEST) && !defined(NO_ASN_CRYPT)
 static void wb_confirm_signature_dsa_sigsz(void)
 {
-    static const word32 sizes[3] = { DSA_160_SIG_SIZE, DSA_256_SIG_SIZE, 50 };
-    static const char* names[3] = {
-        "sigSz == DSA_160_SIG_SIZE (1st operand false)",
-        "sigSz == DSA_256_SIG_SIZE (1st operand true, 2nd false)",
-        "sigSz neither (both operands true, ASN.1 decode path)"
+    /* certs/dsa2048.der has a 160-bit q, so 2 * qSz is DSA_160_SIG_SIZE. */
+    static const word32 sizes[2] = { DSA_160_SIG_SIZE, 50 };
+    static const char* names[2] = {
+        "sigSz == 2 * qSz (true, raw copy)",
+        "sigSz != 2 * qSz (false, ASN.1 decode path)"
     };
     byte* pem = NULL;
     long pemSz = 0;
@@ -2629,7 +2629,7 @@ static void wb_confirm_signature_dsa_sigsz(void)
     XMEMSET(sig, 0x5A, sizeof(sig));
     XMEMSET(tbs, 0x11, sizeof(tbs));
 
-    for (i = 0; i < 3; i++) {
+    for (i = 0; i < 2; i++) {
         SignatureCtx sigCtx;
         InitSignatureCtx(&sigCtx, NULL, INVALID_DEVID);
         ret = ConfirmSignature(&sigCtx, tbs, (word32)sizeof(tbs), pubDer,
@@ -2984,12 +2984,12 @@ static void wb_encoder_size_guards(void)
  * are two consecutive XMALLOCs, so failing from the first allocation drives
  * the 1st operand true and failing only the second drives the 2nd.
  *
- * RESIDUAL -- :17348 (`mp_to_unsigned_bin(r, sigCpy) != MP_OKAY ||
- * mp_to_unsigned_bin(s, sigCpy + rSz) != MP_OKAY`) has no reachable true
- * side: it is guarded by :17342, which has already rejected rSz + sSz >
- * sigSz, and every caller passes a sigCpy of at least sigSz bytes, so both
- * conversions write inside the buffer. mp_to_unsigned_bin() on an
- * initialised mp_int with a large enough output cannot fail.
+ * RESIDUAL -- :17348 (`mp_to_unsigned_bin_len(r, sigCpy, qSz) != MP_OKAY ||
+ * mp_to_unsigned_bin_len(s, sigCpy + qSz, qSz) != MP_OKAY`) has no reachable
+ * true side: it is guarded by :17342, which has already rejected rSz > qSz ||
+ * sSz > qSz, and every caller passes a sigCpy of 2 * qSz bytes, so both
+ * conversions write inside the buffer. mp_to_unsigned_bin_len() on an
+ * initialised mp_int that fits the requested length cannot fail.
  * ------------------------------------------------------------------------- */
 #if !defined(NO_DSA) && !defined(HAVE_SELFTEST)
 static void wb_decode_dsa_asn1_sig_alloc(void)
@@ -3002,15 +3002,16 @@ static void wb_decode_dsa_asn1_sig_alloc(void)
     WB_NOTE("DecodeDsaAsn1Sig(): r/s allocation guard [:17324]");
 
     XMEMSET(sigCpy, 0, sizeof(sigCpy));
-    ret = DecodeDsaAsn1Sig(sig, (word32)sizeof(sig), sigCpy, NULL);
+    /* qSz 1: r and s are one byte each, so sigCpy holds them unpadded. */
+    ret = DecodeDsaAsn1Sig(sig, (word32)sizeof(sig), sigCpy, 1, NULL);
     WB_CHECK(ret == 0, "well-formed DSA-Sig-Value (both operands false)");
 
     mcdc_fa_install();
     mcdc_fa_arm(1);
-    (void)DecodeDsaAsn1Sig(sig, (word32)sizeof(sig), sigCpy, NULL);
+    (void)DecodeDsaAsn1Sig(sig, (word32)sizeof(sig), sigCpy, 1, NULL);
     mcdc_fa_disarm();
     mcdc_fa_arm_only(2);
-    (void)DecodeDsaAsn1Sig(sig, (word32)sizeof(sig), sigCpy, NULL);
+    (void)DecodeDsaAsn1Sig(sig, (word32)sizeof(sig), sigCpy, 1, NULL);
     mcdc_fa_disarm();
     mcdc_fa_restore();
 }
