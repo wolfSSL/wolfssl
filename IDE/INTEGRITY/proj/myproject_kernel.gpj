@@ -1,0 +1,23 @@
+#!gbuild
+#component integrity_kernel_monolith
+[Program]
+    :optionsFile=${__OPTIONDEFS}\kernel_program.opt
+    -lres
+    -lvload_kernel_helper
+    -I${__WOLFSSL_DIR}
+    -I${__OS_DIR}\modules\ghs\bspsrc
+    -I${__OS_DIR}\modules\ghs\bspsrc\support
+    -I${__OS_DIR}\system
+    -I${__OS_DIR}\modules\ghs\bspsrc\driver
+tgt\default.ld
+myproject_kernel.c
+
+# SA2UL TRNG:
+${__WOLFSSL_DIR}\wolfcrypt\src\port\ti\integrity\rng_driver.c
+${__WOLFSSL_DIR}\wolfcrypt\src\port\ti\integrity\rng_devtree_driver.c
+${__WOLFSSL_DIR}\wolfcrypt\src\port\ti\integrity\rng_iodevice_server.c
+
+# SA2UL AES/SHA engine:
+{isdefined(WOLFSSL_SA2UL_DRIVER)} ${__WOLFSSL_DIR}\wolfcrypt\src\port\ti\integrity\sa2ul_driver.c
+{isdefined(WOLFSSL_SA2UL_DRIVER)} ${__WOLFSSL_DIR}\wolfcrypt\src\port\ti\integrity\sa2ul_devtree_driver.c
+{isdefined(WOLFSSL_SA2UL_DRIVER)} ${__WOLFSSL_DIR}\wolfcrypt\src\port\ti\integrity\sa2ul_iodevice_server.c

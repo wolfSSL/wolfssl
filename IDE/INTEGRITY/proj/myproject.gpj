@@ -1,0 +1,16 @@
+#!gbuild
+#component integrity_monolith
+[INTEGRITY Application]
+	:outputDir=${%option_value(:outputDir)}\proj
+	:binDir=${%option_value(:binDir)}\proj
+	-headerfiledir ${%option_value(-headerfiledir)}\proj
+	-I${%option_value(-headerfiledir)}
+	-non_shared
+	{isdefined(WOLFSSL_SA2UL_DRIVER)} -DWOLFSSL_SA2UL_DRIVER
+	{isdefined(WOLFSSL_SA2UL_DRIVER)} -intex_var WOLFSSL_SA2UL_DRIVER=1
+tgt\default.bsp
+myproject.int
+myproject_kernel.gpj		[Program]
+wolfssl_test_app.gpj		[Program]
+libwolfssl.gpj		[Library]
+system_loader.gpj		[Program]
