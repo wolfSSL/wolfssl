@@ -1821,7 +1821,7 @@ int test_wolfSSL_client_cache_id_prefix(void)
 
 #if defined(PERSIST_SESSION_CACHE) && !defined(NO_SESSION_CACHE) && \
     !defined(SESSION_CACHE_DYNAMIC_MEM) && !defined(TITAN_SESSION_CACHE) && \
-    !defined(HUGE_SESSION_CACHE) \
+    !defined(HUGE_SESSION_CACHE)
 /* Several tests to ensure persistent session cache is saved and restored
  * with expected behavior. */
 #include <wolfssl/ssl_sess.h>
@@ -2015,7 +2015,9 @@ static int test_mem_session_cache(void)
     ClientRow *     c_rows = NULL;
     #endif /* !NO_CLIENT_CACHE */
     int             rst_err = 0;
+    #if !defined(BIG_SESSION_CACHE) && !defined(MEDIUM_SESSION_CACHE)
     int             i = 0;
+    #endif /* !BIG_SESSION_CACHE && !MEDIUM_SESSION_CACHE */
 
     #if (defined(HAVE_EXT_CACHE) || defined(HAVE_EX_DATA))
     /* reset callback count */
@@ -2147,13 +2149,13 @@ static int test_mem_session_cache(void)
 
     cache_mem->hdr.sessionSz = (int)(sizeof(WOLFSSL_SESSION));
 
+    #if !defined(BIG_SESSION_CACHE) && !defined(MEDIUM_SESSION_CACHE)
     /* test rejection of invalid session row */
-
     for (i = 0; i < SESSION_ROWS; ++i) {
         /* nextIdx is [0, SESSIONS_PER_ROW - 1] */
-        cache_mem->s_rows[0].nextIdx = -1;
+        int nextIdx = cache_mem->s_rows[i].nextIdx;
+        cache_mem->s_rows[i].nextIdx = -1;
 
-        if (ret) { goto cleanup; }
         rst_err = wolfSSL_memrestore_session_cache(cache_mem, mem_sz);
         if (rst_err != WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
             WOLFSSL_MSG_EX("error: restore: nextIdx: got %d, expected %d",
@@ -2162,13 +2164,23 @@ static int test_mem_session_cache(void)
             goto cleanup;
         }
 
-        cache_mem->s_rows[0].nextIdx = SESSIONS_PER_ROW;
+        cache_mem->s_rows[i].nextIdx = SESSIONS_PER_ROW;
 
-        if (ret) { goto cleanup; }
         rst_err = wolfSSL_memrestore_session_cache(cache_mem, mem_sz);
         if (rst_err != WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
             WOLFSSL_MSG_EX("error: restore: nextIdx: got %d, expected %d",
                            rst_err, WOLFSSL_FAILURE);
+            ret = -1;
+            goto cleanup;
+        }
+
+        /* restore original value */
+        cache_mem->s_rows[i].nextIdx = nextIdx;
+
+        rst_err = wolfSSL_memrestore_session_cache(cache_mem, mem_sz);
+        if (rst_err != WC_NO_ERR_TRACE(WOLFSSL_SUCCESS)) {
+            WOLFSSL_MSG_EX("error: restore: nextIdx: got %d, expected %d",
+                           rst_err, WOLFSSL_SUCCESS);
             ret = -1;
             goto cleanup;
         }
@@ -2176,7 +2188,8 @@ static int test_mem_session_cache(void)
 
     for (i = 0; i < SESSION_ROWS; ++i) {
         /* totalCount is [0, SESSIONS_PER_ROW] */
-        cache_mem->s_rows[0].totalCount = -1;
+        int totalCount = cache_mem->s_rows[i].totalCount;
+        cache_mem->s_rows[i].totalCount = -1;
 
         rst_err = wolfSSL_memrestore_session_cache(cache_mem, mem_sz);
         if (rst_err != WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
@@ -2186,16 +2199,28 @@ static int test_mem_session_cache(void)
             goto cleanup;
         }
 
-        cache_mem->s_rows[0].totalCount = SESSIONS_PER_ROW + 1;
+        cache_mem->s_rows[i].totalCount = SESSIONS_PER_ROW + 1;
 
         rst_err = wolfSSL_memrestore_session_cache(cache_mem, mem_sz);
         if (rst_err != WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
             WOLFSSL_MSG_EX("error: restore: totalCount: got %d, expected %d",
                            rst_err, WOLFSSL_FAILURE);
+            ret = -1;
+            goto cleanup;
+        }
+
+        /* restore original value */
+        cache_mem->s_rows[i].totalCount = totalCount;
+
+        rst_err = wolfSSL_memrestore_session_cache(cache_mem, mem_sz);
+        if (rst_err != WC_NO_ERR_TRACE(WOLFSSL_SUCCESS)) {
+            WOLFSSL_MSG_EX("error: restore: totalCount: got %d, expected %d",
+                           rst_err, WOLFSSL_SUCCESS);
             ret = -1;
             goto cleanup;
         }
     }
+    #endif /* !BIG_SESSION_CACHE && !MEDIUM_SESSION_CACHE */
 
 cleanup:
     if (cache_mem != NULL) {
@@ -2337,7 +2362,9 @@ static int test_file_session_cache(void)
     ClientRow *    c_rows = NULL;
     #endif /* !NO_CLIENT_CACHE */
     int            rst_err = 0;
+    #if !defined(BIG_SESSION_CACHE) && !defined(MEDIUM_SESSION_CACHE)
     int            i = 0;
+    #endif /* !BIG_SESSION_CACHE && !MEDIUM_SESSION_CACHE */
 
     #if (defined(HAVE_EXT_CACHE) || defined(HAVE_EX_DATA))
     /* reset callback count */
@@ -2486,11 +2513,12 @@ static int test_file_session_cache(void)
 
     cache_mem->hdr.sessionSz = (int)(sizeof(WOLFSSL_SESSION));
 
+    #if !defined(BIG_SESSION_CACHE) && !defined(MEDIUM_SESSION_CACHE)
     /* test rejection of invalid session row */
-
     for (i = 0; i < SESSION_ROWS; ++i) {
         /* nextIdx is [0, SESSIONS_PER_ROW - 1] */
-        cache_mem->s_rows[0].nextIdx = -1;
+        int nextIdx = cache_mem->s_rows[i].nextIdx;
+        cache_mem->s_rows[i].nextIdx = -1;
 
         ret = test_write_file(fname, cache_mem);
         if (ret) { goto file_cleanup; }
@@ -2502,7 +2530,7 @@ static int test_file_session_cache(void)
             goto file_cleanup;
         }
 
-        cache_mem->s_rows[0].nextIdx = SESSIONS_PER_ROW;
+        cache_mem->s_rows[i].nextIdx = SESSIONS_PER_ROW;
 
         ret = test_write_file(fname, cache_mem);
         if (ret) { goto file_cleanup; }
@@ -2510,14 +2538,28 @@ static int test_file_session_cache(void)
         if (rst_err != WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
             WOLFSSL_MSG_EX("error: restore: nextIdx: got %d, expected %d",
                            rst_err, WOLFSSL_FAILURE);
+            ret = -1;
+            goto file_cleanup;
+        }
+
+        /* restore original value */
+        cache_mem->s_rows[i].nextIdx = nextIdx;
+        ret = test_write_file(fname, cache_mem);
+        if (ret) { goto file_cleanup; }
+
+        rst_err = wolfSSL_restore_session_cache(fname);
+        if (rst_err != WC_NO_ERR_TRACE(WOLFSSL_SUCCESS)) {
+            WOLFSSL_MSG_EX("error: restore: nextIdx: got %d, expected %d",
+                           rst_err, WOLFSSL_SUCCESS);
             ret = -1;
             goto file_cleanup;
         }
     }
 
     for (i = 0; i < SESSION_ROWS; ++i) {
+        int totalCount = cache_mem->s_rows[i].totalCount;
         /* totalCount is [0, SESSIONS_PER_ROW] */
-        cache_mem->s_rows[0].totalCount = -1;
+        cache_mem->s_rows[i].totalCount = -1;
 
         ret = test_write_file(fname, cache_mem);
         if (ret) { goto file_cleanup; }
@@ -2529,7 +2571,7 @@ static int test_file_session_cache(void)
             goto file_cleanup;
         }
 
-        cache_mem->s_rows[0].totalCount = SESSIONS_PER_ROW + 1;
+        cache_mem->s_rows[i].totalCount = SESSIONS_PER_ROW + 1;
 
         ret = test_write_file(fname, cache_mem);
         if (ret) { goto file_cleanup; }
@@ -2537,10 +2579,24 @@ static int test_file_session_cache(void)
         if (rst_err != WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
             WOLFSSL_MSG_EX("error: restore: totalCount: got %d, expected %d",
                            rst_err, WOLFSSL_FAILURE);
+            ret = -1;
+            goto file_cleanup;
+        }
+
+        /* restore original value */
+        cache_mem->s_rows[i].totalCount = totalCount;
+        ret = test_write_file(fname, cache_mem);
+        if (ret) { goto file_cleanup; }
+
+        rst_err = wolfSSL_restore_session_cache(fname);
+        if (rst_err != WC_NO_ERR_TRACE(WOLFSSL_SUCCESS)) {
+            WOLFSSL_MSG_EX("error: restore: totalCount: got %d, expected %d",
+                           rst_err, WOLFSSL_SUCCESS);
             ret = -1;
             goto file_cleanup;
         }
     }
+    #endif /* !BIG_SESSION_CACHE && !MEDIUM_SESSION_CACHE */
 
 file_cleanup:
     /* remove session cache file. the file existing and being removed
@@ -2595,4 +2651,5 @@ int test_wolfSSL_session_cache_restore(void)
     return TEST_SKIPPED;
 }
 #endif /* PERSIST_SESSION_CACHE && !NO_SESSION_CACHE &&
-        * !SESSION_CACHE_DYNAMIC_MEM && !TITAN_SESSION_CACHE */
+        * !SESSION_CACHE_DYNAMIC_MEM && !TITAN_SESSION_CACHE &&
+        * !HUGE_SESSION_CACHE */
