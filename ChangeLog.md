@@ -246,6 +246,48 @@
   through `WOLFSSL_SS_SERVER_CHANGECIPHERSPEC` or
   `WOLFSSL_SS_CLIENT_CHANGECIPHERSPEC` on a TLS 1.3 connection.
 
+* **Behavioral change (certificate policies that cannot be represented)**: a
+  `certificatePolicies` entry whose OID is valid DER but cannot be represented
+  is now dropped from `DecodedCert.extCertPolicies`, instead of failing to parse
+  or parsing incorrectly. Applications can detect this with
+  `wc_GetDecodedCertPoliciesTruncated()` or
+  `wolfSSL_X509_get_certPoliciesTruncated()`. Invalid DER policy OIDs now
+  explicitly fail to parse.
+
+* **Behavioral change (`wolfSSL_X509_add_ext` custom extension OIDs)**: custom-OID
+  extensions whose DER OID exceeds `MAX_OID_SZ` (32) content bytes are now
+  rejected immediately by `wolfSSL_X509_add_ext()` with `WOLFSSL_FAILURE`.
+
+* **Behavioral change (single-byte OIDs)**: an OID whose DER content is one
+  byte (like `2.5`) is now successfully decoded instead of failing.
+
+* **API (`DecodePolicyOID` and `EncodePolicyOID` visibility)**: internal helpers
+  are now `WOLFSSL_TEST_VIS` instead of `WOLFSSL_LOCAL` so they can be exported
+  for unit tests. They are not public API.
+
+* **Behavioral change (`wolfSSL_OBJ_obj2txt` and `wolfSSL_i2t_ASN1_OBJECT` output)**:
+  a buffer too small for the text now follows OpenSSL behavior: the output is
+  truncated to `buf_len - 1` characters plus NUL and the full length is returned.
+  Numeric OID arcs 2.40-2.47 now render correctly per X.690.
+
+* **API (`wc_SetExtKeyUsageOID` and `wc_SetCustomExtension` return codes)**:
+  malformed OID strings are now rejected and reported as `ASN_OBJECT_ID_E` or
+  `ASN_OID_ARC_TOO_BIG_E`, rather than returning `BUFFER_E` or being silently
+  accepted.
+
+* **Behavioral change (`wolfSSL_X509_REQ_print` attribute output)**: CSR
+  attribute names and values are no longer capped at 80 columns and are no
+  longer truncated. Values are written by their `ASN1_STRING` length rather
+  than with `%s`, so an embedded NUL byte is emitted as data instead of
+  terminating the value early. `X509PrintReqAttributes()` can now fail with
+  `WOLFSSL_FAILURE` on an allocation failure when sizing a long attribute
+  name, a new error path.
+
+* **Behavioral change (`wolfSSL_X509_print` / `wolfSSL_X509_REQ_print` on
+  unprintable extension OIDs)**: printing now fails outright, rather than
+  printing a truncated OID, when an extension's OID cannot be rendered by
+  `wolfSSL_OBJ_obj2txt()` (e.g. non-minimal DER in strict builds).
+
 ## New Features
 
 * Added `WC_ALGO_TYPE_KEYSTORE`, a crypto callback algorithm type for lifetime operations on keys held in a hardware key store, with the public API in `wolfssl/wolfcrypt/wc_keystore.h` behind `--enable-cryptocbutils=keystore`. Seven operations - plaintext and wrapped import/export, derive, delete and get-info - address keys by an opaque device-defined reference that wolfCrypt copies through and never interprets, the same way it treats a key object's `id[]` blob. This lets a device create, wrap, derive and destroy keys that never appear in memory, which `WOLF_CRYPTO_CB_SETKEY` and `WOLF_CRYPTO_CB_EXPORT_KEY` cannot express because both are bound to a wolfCrypt key object holding material for its own use.
@@ -411,6 +453,11 @@
   `psk_key_exchange_modes`, `early_data`, `cookie`, `post_handshake_auth` and
   the certificate type extensions, and more generally any malformed handshake
   message reported with `BUFFER_E`.
+
+* **Fix (OID strings whose first two arcs combine to 128 or more)**: correctly
+  base-128 encode the X.690 combined first identifier (`40*X+Y`) instead of
+  writing it as a single byte. The decoder is also updated to match and is
+  stricter about arcs.
 
 # wolfSSL Release 5.9.2 (Jun 23, 2026)
 

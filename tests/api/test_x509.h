@@ -32,6 +32,11 @@ int test_x509_ReqCertFromX509_skid_overflow(void);
 int test_x509_ReqCertFromX509_skid_boundary(void);
 int test_x509_ReqCertFromX509_ext_critical(void);
 int test_x509_REQ_sign_mldsa(void);
+int test_x509_REQ_print_unknown_attr_oid(void);
+int test_x509_REQ_print_long_attr(void);
+int test_x509_REQ_print_long_attr_oid(void);
+int test_x509_REQ_print_attr_embedded_nul(void);
+int test_wolfSSL_X509_print_long_ext_oid(void);
 
 #define TEST_X509_DECLS                                                        \
     TEST_DECL_GROUP("x509", test_x509_rfc2818_verification_callback),          \
@@ -43,6 +48,11 @@ int test_x509_REQ_sign_mldsa(void);
     TEST_DECL_GROUP("x509", test_x509_ReqCertFromX509_skid_overflow),          \
     TEST_DECL_GROUP("x509", test_x509_ReqCertFromX509_skid_boundary),          \
     TEST_DECL_GROUP("x509", test_x509_ReqCertFromX509_ext_critical),           \
-    TEST_DECL_GROUP("x509", test_x509_REQ_sign_mldsa)
+    TEST_DECL_GROUP("x509", test_x509_REQ_sign_mldsa),                         \
+    TEST_DECL_GROUP("x509", test_x509_REQ_print_unknown_attr_oid),             \
+    TEST_DECL_GROUP("x509", test_x509_REQ_print_long_attr),                    \
+    TEST_DECL_GROUP("x509", test_x509_REQ_print_long_attr_oid),                \
+    TEST_DECL_GROUP("x509", test_x509_REQ_print_attr_embedded_nul),           \
+    TEST_DECL_GROUP("x509", test_wolfSSL_X509_print_long_ext_oid)
 
 #endif /* WOLFCRYPT_TEST_X509_H */

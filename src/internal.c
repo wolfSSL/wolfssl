@@ -5482,10 +5482,10 @@ void InitX509(WOLFSSL_X509* x509, int dynamicFlag, void* heap)
 /* Free the contents of an X509, leaving the ref untouched */
 static void FreeX509Contents(WOLFSSL_X509* x509)
 {
-    #if defined(WOLFSSL_CERT_REQ) && defined(OPENSSL_ALL) \
-    &&  defined( WOLFSSL_CUSTOM_OID)
+    #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+        defined(WOLFSSL_CUSTOM_OID)
     int idx;
-    #endif /* WOLFSSL_CERT_REQ && OPENSSL_ALL && WOLFSSL_CUSTOM_OID */
+    #endif
     if (x509 == NULL)
         return;
 
@@ -5560,15 +5560,17 @@ static void FreeX509Contents(WOLFSSL_X509* x509)
         if (x509->reqAttributes) {
             wolfSSL_sk_pop_free(x509->reqAttributes, NULL);
         }
-    #ifdef WOLFSSL_CUSTOM_OID
+    #endif /* WOLFSSL_CERT_REQ && OPENSSL_ALL */
+    #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+        defined(WOLFSSL_CUSTOM_OID)
+        /* Same guard as the custom_exts members and wolfSSL_X509_add_ext() */
         for (idx = 0; idx < x509->customExtCount; idx++) {
             XFREE(x509->custom_exts[idx].oid, x509->heap,
                   DYNAMIC_TYPE_X509_EXT);
             XFREE(x509->custom_exts[idx].val, x509->heap,
                   DYNAMIC_TYPE_X509_EXT);
         }
-    #endif /* WOLFSSL_CUSTOM_OID */
-    #endif /* WOLFSSL_CERT_REQ && OPENSSL_ALL */
+    #endif /* (OPENSSL_EXTRA || X509_SMALL) && WOLFSSL_CUSTOM_OID */
     if (x509->altNames) {
         FreeAltNames(x509->altNames, x509->heap);
         x509->altNames = NULL;
@@ -15772,16 +15774,18 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
         x509->certPolicySet = dCert->extCertPolicySet;
         x509->certPolicyCrit = dCert->extCertPolicyCrit;
     #endif
-    #ifdef WOLFSSL_CERT_EXT
-        {
-            int i;
-            for (i = 0; i < dCert->extCertPoliciesNb && i < MAX_CERTPOL_NB; i++)
-                XMEMCPY(x509->certPolicies[i], dCert->extCertPolicies[i],
-                                                                MAX_CERTPOL_SZ);
-            x509->certPoliciesNb = dCert->extCertPoliciesNb;
-        }
-    #endif /* WOLFSSL_CERT_EXT */
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+#ifdef WOLFSSL_CERT_EXT
+    /* Available to KEEP_PEER_CERT / SESSION_CERTS builds outside OPENSSL_EXTRA */
+    {
+        int i;
+        for (i = 0; i < dCert->extCertPoliciesNb && i < MAX_CERTPOL_NB; i++)
+            XMEMCPY(x509->certPolicies[i], dCert->extCertPolicies[i],
+                                                            MAX_CERTPOL_SZ);
+        x509->certPoliciesNb = dCert->extCertPoliciesNb;
+        x509->certPoliciesTruncated = dCert->extCertPoliciesTruncated;
+    }
+#endif /* WOLFSSL_CERT_EXT */
 #ifdef OPENSSL_ALL
     if (dCert->extSubjAltNameSrc != NULL && dCert->extSubjAltNameSz != 0) {
         x509->subjAltNameSrc = (byte*)XMALLOC(dCert->extSubjAltNameSz, x509->heap,

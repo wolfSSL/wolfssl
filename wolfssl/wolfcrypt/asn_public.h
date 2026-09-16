@@ -693,6 +693,8 @@ WOLFSSL_API int wc_SetAcmeIdentifierExt(Cert *cert,
 #ifdef WOLFSSL_EKU_OID
 /* Set ExtendedKeyUsage with unique OID
  * oid is expected to be in byte representation
+ *
+ * returns 0 on success, otherwise error
  */
 WOLFSSL_API int wc_SetExtKeyUsageOID(Cert *cert, const char *oid, word32 sz,
                                      byte idx, void* heap);
@@ -1012,6 +1014,10 @@ WOLFSSL_API int wc_GetDecodedCertIssuer(const struct DecodedCert* cert,
                                         char* buf, word32* bufSz);
 WOLFSSL_API int wc_GetDecodedCertSerial(const struct DecodedCert* cert,
                                         byte* buf, word32* bufSz);
+#ifdef WOLFSSL_CERT_EXT
+WOLFSSL_API int wc_GetDecodedCertPoliciesTruncated(
+    const struct DecodedCert* cert, int* truncated);
+#endif
 
 #ifdef WOLFSSL_FPKI
 WOLFSSL_API int wc_GetUUIDFromCert(struct DecodedCert* cert,

@@ -1594,16 +1594,17 @@ static void wb_dsa_key_ints_to_der(void) { WB_NOTE("NO_DSA on; DsaKeyIntsToDer s
 #endif
 
 /* ========================================================================
- * Section B1: EncodePolicyOID() NULL/size guard [:32527].
+ * Section B1: EncodePolicyOID() NULL/size guard [:33764].
  * ===================================================================== */
-#if !defined(NO_CERTS) && (defined(WOLFSSL_CERT_EXT) || defined(OPENSSL_EXTRA))
+#if !defined(NO_CERTS) && (defined(WOLFSSL_CERT_EXT) || defined(OPENSSL_EXTRA) \
+        || defined(OPENSSL_EXTRA_X509_SMALL))
 static void wb_encode_policy_oid(void)
 {
     byte out[32];
     word32 outSz;
     int ret;
 
-    WB_NOTE("EncodePolicyOID(): out/outSz/in NULL, *outSz<2 OR [:32527]");
+    WB_NOTE("EncodePolicyOID(): out/outSz/in NULL, *outSz<2 OR [:33764]");
     outSz = sizeof(out);
     ret = EncodePolicyOID(NULL, &outSz, "1.2.3", NULL);
     WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "out==NULL");
