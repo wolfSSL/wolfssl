@@ -7420,7 +7420,6 @@ static int X509PrintExtensions(WOLFSSL_BIO* bio, WOLFSSL_X509* x509, int indent)
     const int scratchSz = sizeof(scratch);
     int scratchLen;
     int  count, i;
-    char* buf = NULL;
 
     if (indent < 0) indent = 0;
     if (indent > MAX_INDENT) indent = MAX_INDENT;
@@ -7448,11 +7447,6 @@ static int X509PrintExtensions(WOLFSSL_BIO* bio, WOLFSSL_X509* x509, int indent)
         return WOLFSSL_FAILURE;
     }
 
-    buf = (char*)XMALLOC(MAX_WIDTH, x509->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (buf == NULL) {
-        return WOLFSSL_FAILURE;
-    }
-
     for (i = 0; (i < count) && (ret != WC_NO_ERR_TRACE(WOLFSSL_FAILURE)); i++) {
         WOLFSSL_X509_EXTENSION* ext;
 
@@ -7463,31 +7457,67 @@ static int X509PrintExtensions(WOLFSSL_BIO* bio, WOLFSSL_X509* x509, int indent)
             char val[6];
             int valLen;
             word32 j;
+            /* Sized for numeric-form OID instead of MAX_WIDTH column width.
+             */
+            char nameBuf[MAX_OID_STRING_SZ];
+            char* name = nameBuf;
+            char* nameHeap = NULL;
+            int nameLen;
+            int nameSz;
+            const char* suffix;
+            int ok = 1;
 
             obj = wolfSSL_X509_EXTENSION_get_object(ext);
             if (obj == NULL) {
                 ret = WOLFSSL_FAILURE;
                 break;
             }
-            if (wolfSSL_OBJ_obj2txt(buf, MAX_WIDTH, obj, 0)
-                == WC_NO_ERR_TRACE(WOLFSSL_FAILURE))
-            {
-                ret = WOLFSSL_FAILURE;
-                break;
+
+            /* Decode straight into the stack buffer; only re-decode into a
+             * heap buffer when the returned full length shows it did not
+             * fit. */
+            nameSz = (int)sizeof(nameBuf);
+            nameLen = wolfSSL_OBJ_obj2txt(name, nameSz, obj, 0);
+            if (nameLen >= nameSz) {
+                nameSz = nameLen + 1;
+                nameHeap = (char*)XMALLOC((size_t)nameSz, x509->heap,
+                        DYNAMIC_TYPE_TMP_BUFFER);
+                if (nameHeap == NULL) {
+                    ret = WOLFSSL_FAILURE;
+                    break;
+                }
+                name = nameHeap;
+                nameLen = wolfSSL_OBJ_obj2txt(name, nameSz, obj, 0);
             }
-            if ((scratchLen = XSNPRINTF(
-                     scratch, MAX_WIDTH, "%*s%s%s\n", indent + 4, "",
-                     buf,
-                     (wolfSSL_X509_EXTENSION_get_critical(ext)
-                      ? ": critical"
-                      : ": ")))
-                >= MAX_WIDTH)
-            {
+            if ((nameLen > 0) && (nameLen > (int)XSTRLEN(name))) {
+                nameLen = (int)XSTRLEN(name);
+            }
+            if (nameLen <= 0) {
+                XFREE(nameHeap, x509->heap, DYNAMIC_TYPE_TMP_BUFFER);
                 ret = WOLFSSL_FAILURE;
                 break;
             }
 
-            if (wolfSSL_BIO_write(bio, scratch, scratchLen) <= 0) {
+            suffix = wolfSSL_X509_EXTENSION_get_critical(ext) ?
+                    ": critical\n" : ": \n";
+
+            /* Write in pieces so the OID text bypasses scratch; a short
+             * write would truncate the line, so each must complete. */
+            scratchLen = XSNPRINTF(scratch, MAX_WIDTH, "%*s", indent + 4, "");
+            if ((scratchLen < 0) || (scratchLen >= MAX_WIDTH) ||
+                    (wolfSSL_BIO_write(bio, scratch, scratchLen) !=
+                        scratchLen)) {
+                ok = 0;
+            }
+            if (ok && (wolfSSL_BIO_write(bio, name, nameLen) != nameLen)) {
+                ok = 0;
+            }
+            if (ok && (wolfSSL_BIO_write(bio, suffix,
+                    (int)XSTRLEN(suffix)) != (int)XSTRLEN(suffix))) {
+                ok = 0;
+            }
+            XFREE(nameHeap, x509->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            if (!ok) {
                 ret = WOLFSSL_FAILURE;
                 break;
             }
@@ -7648,8 +7678,6 @@ static int X509PrintExtensions(WOLFSSL_BIO* bio, WOLFSSL_X509* x509, int indent)
             }
         }
     }
-
-    XFREE(buf, x509->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }

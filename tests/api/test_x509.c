@@ -1392,12 +1392,13 @@ int test_x509_REQ_print_long_attr(void)
     return EXPECT_RESULT();
 }
 
-/* Guard of test_x509_REQ_print_long_attr_oid() plus what
- * wolfSSL_SetAllocators() needs; helpers and use site share it. */
-#if defined(WOLFSSL_CERT_REQ) && defined(WOLFSSL_CERT_GEN) && \
-    defined(WOLFSSL_CERT_EXT) && !defined(NO_BIO) && \
+/* Guard of test_x509_REQ_print_long_attr_oid() and
+ * test_wolfSSL_X509_print_long_ext_oid(), plus what wolfSSL_SetAllocators()
+ * needs; helpers and use sites share it. Callers add their own
+ * cert/req-specific requirements (WOLFSSL_CERT_REQ, key type, ...) on top. */
+#if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    !defined(NO_BIO) && \
     (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && \
-    defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256) && \
     !defined(NO_SHA256) && !defined(WOLFSSL_STATIC_MEMORY) && \
     !defined(WOLFSSL_DEBUG_MEMORY) && !defined(WOLFSSL_NO_MALLOC) && \
     defined(USE_WOLFSSL_MEMORY)
@@ -1654,6 +1655,142 @@ int test_x509_REQ_print_attr_embedded_nul(void)
     wolfSSL_X509_NAME_free(name);
     wolfSSL_X509_free(req);
     wolfSSL_EVP_PKEY_free(pub);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A 113-character extension OID exceeds the MAX_OID_STRING_SZ stack buffer
+ * in X509PrintExtensions(); the printer must size a buffer from obj2txt's
+ * return and print it in full, mirroring
+ * test_x509_REQ_print_long_attr_oid() for X509PrintReqAttributes(). */
+int test_wolfSSL_X509_print_long_ext_oid(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    defined(WOLFSSL_CUSTOM_OID) && defined(HAVE_OID_ENCODING) && \
+    !defined(NO_RSA) && !defined(NO_BIO) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && \
+    !defined(NO_ASN_TIME) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048) && !defined(HAVE_FIPS)
+    RsaKey key;
+    WC_RNG rng;
+    Cert cert;
+    byte* der = NULL;
+    int derSz = 0;
+    WOLFSSL_X509* x509 = NULL;
+    WOLFSSL_BIO* bio = NULL;
+    char* mem = NULL;
+    char* out = NULL;
+    int memSz = 0;
+    word32 idx = 0;
+    /* Same 32-content-byte OID fixture used in test_x509.c's REQ attribute
+     * test and test_ossl_asn1.c's i2a_ASN1_OBJECT test. */
+    char oid[] = "1.3.6.1.4.1.99999"
+        ".127.127.127.127.127.127.127.127.127.127.127.127"
+        ".127.127.127.127.127.127.127.127.127.127.127.127";
+    const byte extDer[] = { 0x04, 0x01, 0x2a };
+    const char expected[] = "            1.3.6.1.4.1.99999"
+        ".127.127.127.127.127.127.127.127.127.127.127.127"
+        ".127.127.127.127.127.127.127.127.127.127.127.127: \n";
+
+    ExpectNotNull(der = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRsaKey(&key, HEAP_HINT), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(client_key_der_2048, &idx, &key,
+                sizeof_client_key_der_2048), 0);
+
+    ExpectIntEQ(wc_InitCert(&cert), 0);
+    cert.isCA = 0;
+    cert.sigType = CTC_SHA256wRSA;
+    XSTRNCPY(cert.subject.commonName, "www.wolfssl.com", CTC_NAME_SIZE - 1);
+    ExpectIntEQ(wc_SetCustomExtension(&cert, 0, oid, extDer,
+                (word32)sizeof(extDer)), 0);
+
+    if (der != NULL) {
+        ExpectIntGT(derSz = wc_MakeSelfCert(&cert, der, FOURK_BUF, &key,
+                    &rng), 0);
+    }
+    if (derSz > 0) {
+        ExpectNotNull(x509 = wolfSSL_X509_d2i(NULL, der, derSz));
+    }
+
+    ExpectNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
+    ExpectIntEQ(wolfSSL_X509_print(bio, x509), WOLFSSL_SUCCESS);
+    ExpectIntGT(memSz = wolfSSL_BIO_get_mem_data(bio, &mem), 0);
+    if (EXPECT_SUCCESS() && mem != NULL) {
+        ExpectNotNull(out = (char*)XMALLOC((size_t)memSz + 1, NULL,
+            DYNAMIC_TYPE_TMP_BUFFER));
+        if (out != NULL) {
+            XMEMCPY(out, mem, (size_t)memSz);
+            out[memSz] = '\0';
+            ExpectNotNull(XSTRSTR(out, expected));
+        }
+    }
+    wolfSSL_BIO_free(bio);
+    bio = NULL;
+
+#ifdef TEST_X509_OOM
+    /* Refuse only the name buffer (113 + NUL bytes, one-shot): the print
+     * must fail cleanly, and the refusal must have happened. */
+    {
+        wolfSSL_Malloc_cb prevM = NULL;
+        wolfSSL_Free_cb prevF = NULL;
+        wolfSSL_Realloc_cb prevR = NULL;
+        int installed = 0;
+
+        ExpectNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
+        ExpectIntEQ(wolfSSL_GetAllocators(&prevM, &prevF, &prevR), 0);
+        if (EXPECT_SUCCESS()) {
+            test_x509_prev_malloc = prevM;
+            test_x509_prev_free = prevF;
+            test_x509_prev_realloc = prevR;
+            test_x509_refuse_size = XSTRLEN(oid) + 1;
+            test_x509_refused = 0;
+            installed = (wolfSSL_SetAllocators(test_x509_size_malloc,
+                test_x509_pass_free, test_x509_pass_realloc) == 0);
+            ExpectIntEQ(installed, 1);
+        }
+        if (installed) {
+            char* oomMem = NULL;
+            char* oomOut = NULL;
+            int oomMemSz = 0;
+
+            ExpectIntEQ(wolfSSL_X509_print(bio, x509),
+                WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+            ExpectIntEQ(test_x509_refused, 1);
+            ExpectIntEQ(test_x509_refuse_size, 0);
+            (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
+
+            /* Confirm the refused allocation was the OID name buffer, not
+             * some other 114-byte allocation earlier in the print: the OID
+             * text must never have made it into the output. BIO mem data
+             * is not NUL terminated, so copy it out first -- scanning it
+             * directly with XSTRSTR() would read past the valid bytes. */
+            oomMemSz = wolfSSL_BIO_get_mem_data(bio, &oomMem);
+            if ((oomMemSz > 0) && (oomMem != NULL)) {
+                ExpectNotNull(oomOut = (char*)XMALLOC((size_t)oomMemSz + 1,
+                    NULL, DYNAMIC_TYPE_TMP_BUFFER));
+                if (oomOut != NULL) {
+                    XMEMCPY(oomOut, oomMem, (size_t)oomMemSz);
+                    oomOut[oomMemSz] = '\0';
+                    ExpectNull(XSTRSTR(oomOut, oid));
+                }
+                XFREE(oomOut, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            }
+        }
+    }
+#endif
+
+    XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_BIO_free(bio);
+    wolfSSL_X509_free(x509);
+    wc_FreeRng(&rng);
+    wc_FreeRsaKey(&key);
+    XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return EXPECT_RESULT();
 }

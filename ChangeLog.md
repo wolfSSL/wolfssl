@@ -283,6 +283,11 @@
   `WOLFSSL_FAILURE` on an allocation failure when sizing a long attribute
   name, a new error path.
 
+* **Behavioral change (`wolfSSL_X509_print` / `wolfSSL_X509_REQ_print` on
+  unprintable extension OIDs)**: printing now fails outright, rather than
+  printing a truncated OID, when an extension's OID cannot be rendered by
+  `wolfSSL_OBJ_obj2txt()` (e.g. non-minimal DER in strict builds).
+
 ## New Features
 
 * Added `WC_ALGO_TYPE_KEYSTORE`, a crypto callback algorithm type for lifetime operations on keys held in a hardware key store, with the public API in `wolfssl/wolfcrypt/wc_keystore.h` behind `--enable-cryptocbutils=keystore`. Seven operations - plaintext and wrapped import/export, derive, delete and get-info - address keys by an opaque device-defined reference that wolfCrypt copies through and never interprets, the same way it treats a key object's `id[]` blob. This lets a device create, wrap, derive and destroy keys that never appear in memory, which `WOLF_CRYPTO_CB_SETKEY` and `WOLF_CRYPTO_CB_EXPORT_KEY` cannot express because both are bound to a wolfCrypt key object holding material for its own use.
