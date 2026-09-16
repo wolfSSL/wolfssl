@@ -1,0 +1,101 @@
+# __STAGING_PLATFORM_JACINTO7
+#
+# Target description File for the Integrate utility for use with the
+# INTEGRITY real-time operating system by Green Hills Software.
+# Before editing this file, refer to your Integrate documentation.
+# default.bsp is appropriate for INTEGRITY applications which are
+# fully linked with the kernel (for RAM or ROM) or dynamically downloaded.
+#
+# MinimumAddress must match the value of .ramend in the linker directives
+# file used for the KernelSpace program - see default.ld for more info.
+# The MaximumAddress used here allows memory mappings to be specified
+# for up to the 16 MB mark in RAM.   Intex will not permit programs
+# that require more memory for its mappings.    If the board has less
+# memory,  this number can be reduced by the user.
+#
+# To create your own default.bsp, perform the same %include's as below and then
+# provide your own project-specific settings.
+
+Target
+
+#-----------------------------------------------------------------------------#
+#%include "common.bspinc"
+#-----------------------------------------------------------------------------#
+# __STAGING_PLATFORM_JACINTO7
+# Target description include File for the Integrate utility for use with the
+# INTEGRITY real-time operating system by Green Hills Software.
+#
+# This file contains the ASP/BSP-agnostic settings common to a system running
+# INTEGRITY. This file should be the first included by a default.bsp
+
+        MinimumAddress                          .ramend
+        MaximumAddress                          .ramlimit
+        DefaultMaxPriority                      250
+        DefaultPriority                         127
+        DefaultWeight                           1
+        DefaultMaxWeight                        255
+        DefaultStartIt                          false
+        DefaultStackSize                        0x2000
+        DefaultMemoryRegionSize                 0x40000
+
+        Clock                                   StandardTick
+        EndClock
+        Clock                                   HighResTimer
+        EndClock
+        DefaultHeapSize                         0x20000
+        IODevice                                "BootTimeLogIODevice"
+        ReadExecuteIndependent                  true
+
+#-----------------------------------------------------------------------------#
+#-- End common.bspinc --------------------------------------------------------#
+#%include "default.bspinc"
+#-----------------------------------------------------------------------------#
+# __STAGING_PLATFORM_JACINTO7
+# Target description include File for the Integrate utility for use with the
+# INTEGRITY real-time operating system by Green Hills Software.
+#
+# This file contains all of the ASP-specific and BSP-specific settings that are
+# shared among all targets that use this BSP. This file should be included after
+# common.bspinc in the default.bsp.
+
+        IODevice                                "CpuHotplugIODevice"
+        IODevice                                "SerialDev0"
+        InitialKernelObjects                    1000
+
+        # ARM64 Architecture Common Definitions
+        SizeOfAddress                           8
+        LastVirtualAddress                      0x0000007fffffffff
+        PageSize                                0x1000
+        ArchitectedPageSize                     0x1000
+        ArchitectedPageSize                     0x10000
+        ArchitectedPageSize                     0x200000
+        ArchitectedPageSize                     0x2000000
+        ArchitectedPageSize                     0x40000000
+
+#-- End default.bspinc -------------------------------------------------------#
+        # A MinimumDeviceAddress/MaximumDeviceAddress pair covering OP-TEE's
+        # static reserved-SHM pool (physical 0x9fc00000-0x9fffffff) was
+        # tried here and reverted: Integrate accepted it fine at build
+        # time, but the kernel failed to boot ("Initial Objects...139 /
+        # CheckSuccess failed with error 171",
+        # SegmentIsNotInAnyMemoryRegion). That address isn't genuine MMIO
+        # hardware -- it's a software-only carve-out inside this board's
+        # ordinary DRAM bank that OP-TEE claims by convention, not by any
+        # separate physical bus/decode range. This BSP's own compiled-in
+        # physical memory table (not something this project has source
+        # for) almost certainly registers the whole DRAM bank as one
+        # RAM_MemoryType PhysicalRange, with no separate Device-type
+        # registration for any sub-range of it -- so a Device address
+        # range here was never backed by anything the kernel could
+        # actually map at runtime, regardless of what Integrate allowed
+        # at build time. See rng_driver.c and myproject.int for the
+        # current approach instead.
+        IODevice        "AM654_MAILBOX0"
+        IODevice        "AM654_MAILBOX1"
+        IODevice        "AM654_MAILBOX2"
+        IODevice        "AM654_MAILBOX3"
+        IODevice        "AM654_MAILBOX4"
+        IODevice        "AM654_SPINLOCK"
+        IODevice        "CSI_IODEVICE"
+EndTarget
+

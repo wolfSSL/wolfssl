@@ -1,0 +1,15 @@
+#!gbuild
+[Program]
+    -I${__WOLFSSL_DIR}
+    -I${__WOLFSSL_DIR}\IDE\INTEGRITY
+    -DWOLFSSL_USER_SETTINGS
+    -lsocket
+    -lposix
+    -L${%option_value(:binDir)}
+    -lwolfssl
+tgt\INTEGRITY.ld
+wolfssl_test.c
+${__WOLFSSL_DIR}\wolfcrypt\test\test.c
+    -DNO_MAIN_DRIVER
+${__WOLFSSL_DIR}\wolfcrypt\benchmark\benchmark.c
+    -DNO_MAIN_DRIVER

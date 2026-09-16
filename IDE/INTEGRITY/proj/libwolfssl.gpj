@@ -1,0 +1,53 @@
+#!gbuild
+[Library]
+    :sourceDir=${__WOLFSSL_DIR}
+    -I${__WOLFSSL_DIR}
+    -I${__WOLFSSL_DIR}\IDE\INTEGRITY
+    -DWOLFSSL_USER_SETTINGS
+    -o libwolfssl.a
+
+src/internal.c
+src/keys.c
+src/ssl.c
+src/tls.c
+src/tls13.c
+src/wolfio.c
+src/crl.c
+src/ocsp.c
+
+wolfcrypt/src/aes.c
+wolfcrypt/src/asn.c
+wolfcrypt/src/chacha.c
+wolfcrypt/src/chacha20_poly1305.c
+wolfcrypt/src/cmac.c
+wolfcrypt/src/coding.c
+wolfcrypt/src/cpuid.c
+wolfcrypt/src/cryptocb.c
+wolfcrypt/src/ecc.c
+wolfcrypt/src/ecc_fp.c
+wolfcrypt/src/error.c
+wolfcrypt/src/hash.c
+wolfcrypt/src/hmac.c
+wolfcrypt/src/kdf.c
+wolfcrypt/src/logging.c
+wolfcrypt/src/memory.c
+wolfcrypt/src/poly1305.c
+wolfcrypt/src/random.c
+wolfcrypt/src/sha.c
+wolfcrypt/src/sha256.c
+wolfcrypt/src/sha512.c
+wolfcrypt/src/signature.c
+wolfcrypt/src/sp_arm64.c
+wolfcrypt/src/sp_int.c
+wolfcrypt/src/wc_encrypt.c
+wolfcrypt/src/wc_port.c
+wolfcrypt/src/wolfentropy.c
+wolfcrypt/src/wolfmath.c
+
+wolfcrypt/src/port/arm/armv8-aes-asm_c.c
+wolfcrypt/src/port/arm/armv8-chacha-asm_c.c
+wolfcrypt/src/port/arm/armv8-sha256-asm_c.c
+wolfcrypt/src/port/arm/armv8-sha512-asm_c.c
+
+wolfcrypt/src/port/ti/integrity/rng_port.c
+wolfcrypt/src/port/ti/integrity/sa2ul_port.c

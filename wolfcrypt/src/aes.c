@@ -4021,7 +4021,8 @@ WC_ALL_ARGS_NOT_NULL static WARN_UNUSED_RESULT int wc_AesEncrypt(
                                     outBlock, (unsigned int)keySize);
     }
 #endif
-#if (defined(WOLFSSL_TI_AM64X_R5) || defined(MAX3266X_CB)) && defined(HAVE_AES_ECB)
+#if (defined(WOLFSSL_TI_AM64X_A53_INTEGRITY) || defined(WOLFSSL_TI_AM64X_R5) \
+        || defined(MAX3266X_CB)) && defined(HAVE_AES_ECB)
     #ifndef WOLF_CRYPTO_CB_FIND
     if (aes->devId != INVALID_DEVID)
     #endif
@@ -4877,7 +4878,8 @@ WC_ALL_ARGS_NOT_NULL static WARN_UNUSED_RESULT int wc_AesDecrypt(
     }
 #endif
 
-#if (defined(WOLFSSL_TI_AM64X_R5) || defined(MAX3266X_CB)) && defined(HAVE_AES_ECB)
+#if (defined(WOLFSSL_TI_AM64X_A53_INTEGRITY) || defined(WOLFSSL_TI_AM64X_R5) \
+        || defined(MAX3266X_CB)) && defined(HAVE_AES_ECB)
     #ifndef WOLF_CRYPTO_CB_FIND
     if (aes->devId != INVALID_DEVID)
     #endif
