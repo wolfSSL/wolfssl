@@ -204,16 +204,24 @@ static void wb_hash_drbg_init_df_chain(void)
     /* Vector (F, -): the first Hash_df fails on its very first primitive
      * call, so the && short-circuits and never calls the second one. */
     mcdc_fh_arm(1);
-    (void)Hash_DRBG_Instantiate(&drbg, seed, (word32)sizeof(seed),
+    ret = Hash_DRBG_Instantiate(&drbg, seed, (word32)sizeof(seed),
             nonce, (word32)sizeof(nonce), NULL, 0, NULL, INVALID_DEVID);
+    if (ret == DRBG_SUCCESS) {
+        WB_NOTE("armed Hash_DRBG_Instantiate unexpectedly succeeded");
+        wb_fail = 1;
+    }
     mcdc_fh_disarm();
     (void)Hash_DRBG_Uninstantiate(&drbg);
 
     /* Vector (T, F): the first Hash_df's n1 primitive calls all succeed;
      * every call from n1+1 on -- the whole second Hash_df -- fails. */
     mcdc_fh_arm(n1 + 1);
-    (void)Hash_DRBG_Instantiate(&drbg, seed, (word32)sizeof(seed),
+    ret = Hash_DRBG_Instantiate(&drbg, seed, (word32)sizeof(seed),
             nonce, (word32)sizeof(nonce), NULL, 0, NULL, INVALID_DEVID);
+    if (ret == DRBG_SUCCESS) {
+        WB_NOTE("armed Hash_DRBG_Instantiate unexpectedly succeeded");
+        wb_fail = 1;
+    }
     mcdc_fh_disarm();
     (void)Hash_DRBG_Uninstantiate(&drbg);
 
@@ -270,15 +278,23 @@ static void wb_hash512_drbg_init_df_chain(void)
 
     /* Vector (F, -). */
     mcdc_fh_arm(1);
-    (void)Hash512_DRBG_Instantiate(&drbg, seed, (word32)sizeof(seed),
+    ret = Hash512_DRBG_Instantiate(&drbg, seed, (word32)sizeof(seed),
             nonce, (word32)sizeof(nonce), NULL, 0, NULL, INVALID_DEVID);
+    if (ret == DRBG_SUCCESS) {
+        WB_NOTE("armed Hash512_DRBG_Instantiate unexpectedly succeeded");
+        wb_fail = 1;
+    }
     mcdc_fh_disarm();
     (void)Hash512_DRBG_Uninstantiate(&drbg);
 
     /* Vector (T, F). */
     mcdc_fh_arm(n1 + 1);
-    (void)Hash512_DRBG_Instantiate(&drbg, seed, (word32)sizeof(seed),
+    ret = Hash512_DRBG_Instantiate(&drbg, seed, (word32)sizeof(seed),
             nonce, (word32)sizeof(nonce), NULL, 0, NULL, INVALID_DEVID);
+    if (ret == DRBG_SUCCESS) {
+        WB_NOTE("armed Hash512_DRBG_Instantiate unexpectedly succeeded");
+        wb_fail = 1;
+    }
     mcdc_fh_disarm();
     (void)Hash512_DRBG_Uninstantiate(&drbg);
 
