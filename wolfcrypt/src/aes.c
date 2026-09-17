@@ -5102,12 +5102,14 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
     int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
         const byte* iv, int dir)
     {
+#ifdef WC_DEBUG_CIPHER_LIFECYCLE
         int ret;
+#endif
 
         (void)dir;
         (void)iv;
 
-        if (aes == NULL || keylen != 16)
+        if (aes == NULL || userKey == NULL || keylen != 16)
             return BAD_FUNC_ARG;
 
 #ifdef WC_DEBUG_CIPHER_LIFECYCLE
@@ -5116,19 +5118,21 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
             return ret;
 #endif
 
+        /* Only cache the key in the context. The ECB peripheral holds one key
+         * for all contexts, so wc_AesEncrypt() programs it from aes->key while
+         * holding the crypto hardware mutex. Programming it here would race
+         * with an encrypt in progress on another context. */
         aes->keylen = keylen;
         aes->keyInstalled = 1;
         aes->rounds = keylen/4 + 6;
         XMEMCPY(aes->key, userKey, keylen);
-        ret = nrf51_aes_set_key(userKey);
-
     #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
         defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS) || \
         defined(WOLFSSL_AES_CTS)
         aes->left = 0;
     #endif
 
-        return ret;
+        return 0;
     }
 
     int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
