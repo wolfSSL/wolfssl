@@ -13295,7 +13295,9 @@ static THREAD_LS_T fp_cache_t fp_cache[FP_ENTRIES];
 #endif
 #endif /* HAVE_THREAD_LS */
 
-/* simple table to help direct the generation of the LUT */
+#if !defined(ECC_TIMING_RESISTANT) || defined(ECC_SHAMIR)
+/* simple table to help direct the generation of the LUT; only build_lut()
+ * consumes this, so keep it guarded the same way. */
 static const struct {
    int ham, terma, termb;
 } lut_orders[] = {
@@ -13824,6 +13826,7 @@ static const struct {
 #endif
 #endif
 };
+#endif /* !ECC_TIMING_RESISTANT || ECC_SHAMIR */
 
 
 /* find a hole and free as required, return -1 if no hole found */
@@ -13901,6 +13904,10 @@ static int add_entry(int idx, ecc_point *g)
       return MP_MEM;
    }
 
+#if !defined(ECC_TIMING_RESISTANT) || defined(ECC_SHAMIR)
+   /* Only allocate the LUT points when something can actually build/use
+    * the LUT (see build_lut() below); otherwise this cache entry is just
+    * the base point and the LUT array stays all-NULL. */
    for (x = 0; x < (1U<<FP_LUT); x++) {
       fp_cache[idx].LUT[x] = wc_ecc_new_point();
       if (fp_cache[idx].LUT[x] == NULL) {
@@ -13914,6 +13921,10 @@ static int add_entry(int idx, ecc_point *g)
          return MP_MEM;
       }
    }
+#else
+   (void)x;
+   (void)y;
+#endif
 
    fp_cache[idx].LUT_set   = 0;
    fp_cache[idx].lru_count = 0;
@@ -13923,6 +13934,7 @@ static int add_entry(int idx, ecc_point *g)
 #endif
 
 #if !defined(WOLFSSL_SP_MATH)
+#if !defined(ECC_TIMING_RESISTANT) || defined(ECC_SHAMIR)
 /* build the LUT by spacing the bits of the input by #modulus/FP_LUT bits apart
  *
  * The algorithm builds patterns in increasing bit order by first making all
@@ -14079,8 +14091,11 @@ static int build_lut(int idx, mp_int* a, mp_int* modulus, mp_digit mp,
 
    return err;
 }
+#endif /* !ECC_TIMING_RESISTANT || ECC_SHAMIR */
 
-/* perform a fixed point ECC mulmod */
+#ifndef ECC_TIMING_RESISTANT
+/* perform a fixed point ECC mulmod. Not constant-time; do not use with
+ * secret scalars. */
 static int accel_fp_mul(int idx, const mp_int* k, ecc_point *R, mp_int* a,
                         mp_int* modulus, mp_digit mp, int map)
 {
@@ -14260,6 +14275,7 @@ done:
 
    return err;
 }
+#endif /* !ECC_TIMING_RESISTANT */
 #endif
 
 #ifdef ECC_SHAMIR
@@ -14764,6 +14780,7 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
       }
 
 
+#ifndef ECC_TIMING_RESISTANT
       if (err == MP_OKAY) {
         /* if it's 2 build the LUT, if it's higher just use the LUT */
         if (idx >= 0 && fp_cache[idx].lru_count >= 2 && !fp_cache[idx].LUT_set) {
@@ -14794,6 +14811,15 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
            err = normal_ecc_mulmod(k, G, R, a, modulus, NULL, map, heap);
         }
       }
+#else
+      /* No RNG here, so FP-cache LUT can't be blinded; skip building/using
+       * it and always take the constant-time ladder. */
+      if (err == MP_OKAY) {
+         err = normal_ecc_mulmod(k, G, R, a, modulus, NULL, map, heap);
+      }
+#endif
+      (void)mp;
+      (void)mpSetup;
 
   out:
 
@@ -14924,6 +14950,10 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
       }
 
 
+#ifndef ECC_TIMING_RESISTANT
+      /* Build/refresh the FP-cache LUT for this point; skipped when
+       * timing-resistant since this function always falls through to the
+       * constant-time ladder in that case. */
       if (err == MP_OKAY) {
         /* if it's 2 build the LUT, if it's higher just use the LUT */
         if (idx >= 0 && fp_cache[idx].lru_count >= 2 && !fp_cache[idx].LUT_set) {
@@ -14941,7 +14971,16 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
              err = build_lut(idx, a, modulus, mp, mu);
         }
       }
+#endif
 
+#ifdef ECC_TIMING_RESISTANT
+      if (err == MP_OKAY) {
+        /* accel_fp_mul is not safe for secret scalars. Fall back to ladder. */
+        (void)mpSetup;
+        (void)mp;
+        err = normal_ecc_mulmod(k, G, R, a, modulus, rng, map, heap);
+      }
+#else
       if (err == MP_OKAY) {
         if (idx >= 0 && fp_cache[idx].LUT_set) {
            if (mpSetup == 0) {
@@ -14954,6 +14993,7 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
           err = normal_ecc_mulmod(k, G, R, a, modulus, rng, map, heap);
         }
       }
+#endif
 
   out:
 

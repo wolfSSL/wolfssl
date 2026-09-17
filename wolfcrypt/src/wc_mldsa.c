@@ -10880,7 +10880,8 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
     }
     if ((ret == 0) && valid) {
         /* Step 13: Compare commit. */
-        valid = (XMEMCMP(commit, commit_calc, params->lambda / 4) == 0);
+        valid = (ConstantCompare(commit, commit_calc,
+            (int)(params->lambda / 4)) == 0);
     }
 
     *res = valid;
@@ -11186,7 +11187,8 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
     }
     if ((ret == 0) && valid) {
         /* Step 13: Compare commit. */
-        valid = (XMEMCMP(commit, commit_calc, params->lambda / 4) == 0);
+        valid = (ConstantCompare(commit, commit_calc,
+            (int)(params->lambda / 4)) == 0);
     }
 
     *res = valid;
