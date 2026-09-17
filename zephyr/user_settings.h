@@ -603,7 +603,16 @@ extern "C" {
 
     /* Default is ARMv8 */
 
-    #if 0 /* ARMv7 */
+    #ifdef CONFIG_WOLFCRYPT_ARMASM_THUMB2
+        /* Cortex-M and Cortex-R. zephyr/CMakeLists.txt compiles the thumb2-*
+         * ports for this, and they export different symbol names than the
+         * ARMv8 and AArch32 ones, so the C side has to be told as well or the
+         * link fails. Matches what configure sets for --enable-armasm on a
+         * Thumb-2 target. */
+        #define WOLFSSL_ARMASM_THUMB2
+        #define WOLFSSL_ARMASM_NO_HW_CRYPTO
+        #define WOLFSSL_ARM_ARCH 7
+    #elif 0 /* ARMv7 */
         #define WOLFSSL_ARM_ARCH 7
         #define WOLFSSL_ARMASM_NO_HW_CRYPTO /* enable if processor does not support aes/sha instructions */
     #endif
