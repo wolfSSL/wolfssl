@@ -1275,7 +1275,7 @@ WOLFSSL_API int wc_rng_bank_daemon_register(struct wc_rng_bank *bank,
     if (bank->daemon != NULL)
         return ALREADY_E;
 
-    if (WOLFSSL_ATOMIC_LOAD(bank->daemon_magic) != magic)
+    if (WOLFSSL_ATOMIC_LOAD_UINT(bank->daemon_magic) != magic)
         return WRONG_TYPE_OBJECT_E;
 
     bank->daemon = daemon;
@@ -1293,7 +1293,7 @@ WOLFSSL_API int wc_rng_bank_daemon_unregister(struct wc_rng_bank *bank,
         return BAD_FUNC_ARG;
     }
 
-    if (WOLFSSL_ATOMIC_LOAD(bank->daemon_magic) != magic)
+    if (WOLFSSL_ATOMIC_LOAD_UINT(bank->daemon_magic) != magic)
         return WRONG_TYPE_OBJECT_E;
 
     if (bank->daemon == NULL)
@@ -1314,7 +1314,7 @@ WOLFSSL_API int wc_rng_bank_daemon_release(struct wc_rng_bank *bank,
     if ((bank == NULL) || (magic == WC_RNG_BANK_DAEMON_MAGIC_FREE))
         return BAD_FUNC_ARG;
 
-    if (WOLFSSL_ATOMIC_LOAD(bank->daemon_magic) != magic)
+    if (WOLFSSL_ATOMIC_LOAD_UINT(bank->daemon_magic) != magic)
         return WRONG_TYPE_OBJECT_E;
 
     if (bank->daemon != NULL)

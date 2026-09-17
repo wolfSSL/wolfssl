@@ -641,6 +641,11 @@
     #define WOLFSSL_ATOMIC_COERCE_UINT(x) ((WC_ATOMIC_UINT_ARG)(x))
 #endif
 
+#ifndef WOLFSSL_ATOMIC_LOAD_UINT
+    #define WOLFSSL_ATOMIC_LOAD_UINT(x) \
+        WOLFSSL_ATOMIC_COERCE_UINT(WOLFSSL_ATOMIC_LOAD(x))
+#endif
+
 #ifdef WOLFSSL_USER_DEFINED_ATOMICS
     /* user-supplied bindings for wolfSSL_Atomic_Int_Init(),
      * wolfSSL_Atomic_Int_FetchAdd(), etc.
