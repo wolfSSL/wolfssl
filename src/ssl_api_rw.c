@@ -1116,9 +1116,12 @@ static int wolfssl_shutdown_internal(WOLFSSL* ssl, int allowInInit)
      * handShakeDone, not handShakeState, so a renegotiation in flight does not
      * block shutdown. A handshake that already failed is not in flight - the
      * caller is tearing down and the peer still has to be told, otherwise it
-     * sees a truncated connection instead of an alert. */
+     * sees a truncated connection instead of an alert. Once sentNotify is set
+     * the shutdown is already under way - wolfSSL_SendUserCanceled() may have
+     * started it - and the retry that flushes a buffered close_notify has to
+     * get through. */
     else if ((!allowInInit) && (!ssl->options.handShakeDone) &&
-             (!wolfssl_handshake_failed(ssl))) {
+             (!ssl->options.sentNotify) && (!wolfssl_handshake_failed(ssl))) {
         WOLFSSL_MSG("Shutdown called before the handshake completed");
         /* Queue NOT_READY_ERROR but leave ssl->error alone. ssl->error is a
          * single slot that also gates handshake progress and drives
