@@ -410,7 +410,7 @@ int wc_CmacFree(Cmac* cmac)
     return 0;
 }
 
-#ifndef NO_AES
+#ifdef WOLFSSL_CMAC_TAG_ASSOCIATION
 /* first use of the key fixes the length, per SP 800-38B 5.4
  */
 static int CmacAssociateTagSz(Cmac* cmac, word32 tagSz)
@@ -434,7 +434,7 @@ static int CmacAssociateTagSz(Cmac* cmac, word32 tagSz)
 #endif
 
 
-#ifndef NO_AES
+#ifdef WOLFSSL_CMAC_TAG_ASSOCIATION
 /* One tag length per key, per SP 800-38B 5.4, which gives a range not a
  * list. Pass WC_NO_TAG_ASSOCIATION to clear it.
  */
@@ -464,7 +464,7 @@ int wc_CmacFinalNoFree(Cmac* cmac, byte* out, word32* outSz)
     if (*outSz < WC_CMAC_TAG_MIN_SZ || *outSz > WC_CMAC_TAG_MAX_SZ) {
         return BUFFER_E;
     }
-#ifndef NO_AES
+#ifdef WOLFSSL_CMAC_TAG_ASSOCIATION
     if (CmacAssociateTagSz(cmac, *outSz) != 0) {
         return BAD_FUNC_ARG;
     }
@@ -568,7 +568,7 @@ int wc_AesCmacGenerate_ex(Cmac* cmac,
     if (devId != INVALID_DEVID)
     #endif
     {
-    #ifndef NO_AES
+    #ifdef WOLFSSL_CMAC_TAG_ASSOCIATION
         /* this path returns without reaching wc_CmacFinal() */
         if (key == NULL && outSz != NULL &&
                 CmacAssociateTagSz(cmac, *outSz) != 0) {
@@ -672,11 +672,13 @@ int wc_AesCmacVerify_ex(Cmac* cmac,
         return BAD_FUNC_ARG;
     }
 
+#ifdef WOLFSSL_CMAC_TAG_ASSOCIATION
     /* only tie a length when the caller hands in a keyed cmac, a key here
      * means this call sets the key and clears any association */
     if (key == NULL && CmacAssociateTagSz(cmac, checkSz) != 0) {
         return BAD_FUNC_ARG;
     }
+#endif
 
     aSz = checkSz;
     XMEMSET(a, 0, sizeof(a));
