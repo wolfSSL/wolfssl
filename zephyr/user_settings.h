@@ -263,7 +263,7 @@ extern "C" {
     #define HAVE_ALPN
 #endif
 
-#if defined(CONFIG_WOLFSSL_MAX_FRAGMENT_LEN)
+#if defined(CONFIG_WOLFSSL_MAX_FRAGMENT)
     #define HAVE_MAX_FRAGMENT
 #endif
 

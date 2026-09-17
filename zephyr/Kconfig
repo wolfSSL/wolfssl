@@ -305,14 +305,12 @@ config WOLFSSL_SESSION_TICKET
   help
     Enable TLS session tickets (HAVE_SESSION_TICKET, TLS 1.3 resumption).
 
-config WOLFSSL_MAX_FRAGMENT_LEN
-  int
+config WOLFSSL_MAX_FRAGMENT
+  bool "wolfSSL max_fragment_length extension"
   depends on !WOLFSSL_HAS_SETTINGS_FILE
-  default 3
-  range 1 6
+  default y
   help
-    Sets the maximum fragment length wolfSSL will use, values 1-6 correspond to enum values
-    WOLFSSL_MFL_* in ssl.h
+    Enable the RFC 6066 max_fragment_length extension (HAVE_MAX_FRAGMENT).
 
 config WOLFSSL_SESSION_EXPORT
   bool "wolfSSL session export support"
