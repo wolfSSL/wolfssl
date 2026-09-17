@@ -3,16 +3,46 @@ setlocal
 
 REM --- These paths are tied to a specific e2studio/CCRX install (plugin version, CCRX
 REM version, platform ID) and will not exist as-is on a different machine or a different
-REM e2studio/CCRX version. Set MAKE/CCRX_BIN/E2_UTILS in the environment before calling
-REM build.bat to override the defaults below for your install. ---
-if not defined MAKE set MAKE=C:\Renesas\e2_studio\eclipse\plugins\com.renesas.ide.exttools.gnumake.win32.x86_64_4.3.1.v20240909-0854\mk\make.exe
-if not defined CCRX_BIN set CCRX_BIN=C:\PROGRA~2\Renesas\RX\3_6_0\bin
-if not defined E2_UTILS set E2_UTILS=%USERPROFILE%\.eclipse\com.renesas.platform_1435879475\Utilities\ccrx
-set PATH=%CCRX_BIN%;%E2_UTILS%;%PATH%
+REM e2studio/CCRX version. Set MAKE/CCRX_BIN/E2_UTILS/E2_BUSYBOX in the environment before
+REM calling build.bat to override the defaults below for your install. ---
+set USING_DEFAULTS=
+if not defined MAKE (
+    set MAKE=C:\Renesas\e2_studio\eclipse\plugins\com.renesas.ide.exttools.gnumake.win32.x86_64_4.3.1.v20240909-0854\mk\make.exe
+    set USING_DEFAULTS=1
+)
+if not defined CCRX_BIN (
+    set CCRX_BIN=C:\PROGRA~2\Renesas\RX\3_6_0\bin
+    set USING_DEFAULTS=1
+)
+if not defined E2_UTILS (
+    set E2_UTILS=%USERPROFILE%\.eclipse\com.renesas.platform_1435879475\Utilities\ccrx
+    set USING_DEFAULTS=1
+)
+REM Generated makefiles call BusyBox "sed"/"rm" directly (not via a shell), so this
+REM directory must be on PATH or the linker/clean recipes fail with
+REM "process_begin: CreateProcess(NULL, sed ...) failed".
+if not defined E2_BUSYBOX (
+    set E2_BUSYBOX=C:\Renesas\e2_studio\eclipse\plugins\com.renesas.ide.exttools.busybox.win32.x86_64_1.3.6.v20230615-0931\bin
+    set USING_DEFAULTS=1
+)
+if defined USING_DEFAULTS (
+    echo [NOTICE] MAKE/CCRX_BIN/E2_UTILS/E2_BUSYBOX is not set. Using default paths below;
+    echo these are tied to one specific e2studio/CCRX install and will likely not exist
+    echo on a different machine or install. Please adjust the paths for your environment
+    echo by setting these variables before running build.bat.
+    echo   MAKE       = %MAKE%
+    echo   CCRX_BIN   = %CCRX_BIN%
+    echo   E2_UTILS   = %E2_UTILS%
+    echo   E2_BUSYBOX = %E2_BUSYBOX%
+    echo.
+    pause
+)
+set PATH=%CCRX_BIN%;%E2_UTILS%;%E2_BUSYBOX%;%PATH%
 set BASEDIR=%~dp0
 
 set TARGET=all
 set MODE=
+set FORCE_WOLFSSL_REBUILD=
 if /i "%1"=="clean" (
     set TARGET=clean
 ) else if /i "%1"=="crypt" (
@@ -21,12 +51,22 @@ if /i "%1"=="clean" (
     set MODE=bench
 ) else if /i "%1"=="TLSClient" (
     set MODE=TLSClient
+) else if /i "%1"=="wolfssl" (
+    set FORCE_WOLFSSL_REBUILD=1
 ) else if not "%1"=="" (
     echo [ERROR] Unknown argument "%1".
-    echo Usage: build.bat [clean^|crypt^|bench^|TLSClient]
+    echo Usage: build.bat [clean^|crypt^|bench^|TLSClient^|wolfssl]
     echo   crypt      -^> enables #define CRYPT_TEST in wolfssl_simple_demo.h
     echo   bench      -^> enables #define BENCHMARK
     echo   TLSClient  -^> enables #define SIMPLE_TLS_TSIP_CLIENT
+    echo   wolfssl    -^> force-rebuild files that depend on user_settings.h
+    echo                ^(and other shared wolfSSL headers^) after editing it.
+    echo                The generated makefiles only track each .c's own
+    echo                mtime, not the headers it includes, so plain
+    echo                incremental "build.bat" silently keeps stale objects;
+    echo                "build.bat clean" catches it too but also nukes and
+    echo                recompiles the untouched smc_gen driver/stack code,
+    echo                which takes far longer than the wolfSSL side alone.
     exit /b 1
 )
 
@@ -64,10 +104,22 @@ if not exist "%BASEDIR%test\src\smc_gen" (
     exit /b 1
 )
 
-echo ============================================================
-echo  wolfssl library  [%TARGET%]
-echo ============================================================
-cd /d "%BASEDIR%wolfssl\Debug"
+if defined FORCE_WOLFSSL_REBUILD (
+    echo ============================================================
+    echo  wolfssl library  [clean rebuild: only 73 objects, stays fast]
+    echo ============================================================
+    cd /d "%BASEDIR%wolfssl\Debug"
+    "%MAKE%" clean
+    if %ERRORLEVEL% neq 0 (
+        echo [ERROR] wolfssl clean failed.
+        exit /b %ERRORLEVEL%
+    )
+) else (
+    echo ============================================================
+    echo  wolfssl library  [%TARGET%]
+    echo ============================================================
+    cd /d "%BASEDIR%wolfssl\Debug"
+)
 "%MAKE%" %TARGET%
 if %ERRORLEVEL% neq 0 (
     echo [ERROR] wolfssl build failed.
@@ -75,10 +127,32 @@ if %ERRORLEVEL% neq 0 (
 )
 
 echo.
-echo ============================================================
-echo  test application  [%TARGET%]
-echo ============================================================
-cd /d "%BASEDIR%test\HardwareDebug"
+if defined FORCE_WOLFSSL_REBUILD (
+    echo ============================================================
+    echo  test application  [selective rebuild: wolfSSL-facing sources only,
+    echo  smc_gen driver/stack objects left untouched]
+    echo ============================================================
+    cd /d "%BASEDIR%test\HardwareDebug"
+    for %%F in (
+        src\client\simple_tcp_client.obj
+        src\client\simple_tls_tsip_client.obj
+        src\server\simple_tcp_server.obj
+        src\server\simple_tls_server.obj
+        src\key_data\key_data.obj
+        src\test\benchmark.obj
+        src\test\test.obj
+        src\test\wolfssl_dummy.obj
+        src\test_main.obj
+        src\wolfssl_tsip_unit_test.obj
+    ) do (
+        if exist "%%F" del /f /q "%%F"
+    )
+) else (
+    echo ============================================================
+    echo  test application  [%TARGET%]
+    echo ============================================================
+    cd /d "%BASEDIR%test\HardwareDebug"
+)
 "%MAKE%" %TARGET%
 if %ERRORLEVEL% neq 0 (
     echo [ERROR] test build failed.
