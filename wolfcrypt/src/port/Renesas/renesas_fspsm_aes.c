@@ -483,43 +483,41 @@ int  wc_fspsm_AesGcmEncrypt(struct Aes* aes, byte* out,
                 ret = -1;
             }
 
-            if (ret == FSP_SUCCESS) {
-                /* Once R_SCE_AesxxxGcmEncryptInit or R_SCE_AesxxxEncryptUpdate is
-                * called, R_SCE_AesxxxGcmEncryptFinal must be called regardless of
-                * the result of the previous call. Otherwise, SCE can not come out
-                * from its error state and all the trailing APIs will fail.
-                */
-                dataLen = 0;
-                out_len_tmp = 0;
-                ret = finalFn(&_handle,
-                           cipherBuf + (sz + delta - WC_AES_BLOCK_SIZE),
-                #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
-                              &out_len_tmp,
-                #else
-                              &dataLen,
-                #endif
-                              aTagBuf);
+            /* Once R_SCE_AesxxxGcmEncryptInit or R_SCE_AesxxxEncryptUpdate is
+             * called, R_SCE_AesxxxGcmEncryptFinal must be called regardless of
+             * the result of the previous call. Otherwise, SCE can not come out
+             * from its error state and all the trailing APIs will fail.
+             */
+            dataLen = 0;
+            out_len_tmp = 0;
+            ret = finalFn(&_handle,
+                       cipherBuf + (sz + delta - WC_AES_BLOCK_SIZE),
+            #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
+                          &out_len_tmp,
+            #else
+                          &dataLen,
+            #endif
+                          aTagBuf);
 
-                if (ret == FSP_SUCCESS) {
-                #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
-                    out_len += out_len_tmp;
-                    dataLen = out_len;
-                #endif
-                   /* copy encrypted data to out */
-                    if (sz != dataLen) {
-                        WOLFSSL_MSG("sz is not equal to dataLen!!!!");
-                        ret = -1;
-                    } else {
-                        XMEMCPY(out, cipherBuf, dataLen);
-                        /* copy auth tag to caller's buffer */
-                        XMEMCPY((void*)authTag, (void*)aTagBuf,
-                                    min(authTagSz, SCE_AES_GCM_AUTH_TAG_SIZE ));
-                    }
-                }
-                else {
-                    WOLFSSL_MSG("R_SCE_AesxxxGcmEncryptFinal: failed");
+            if (ret == FSP_SUCCESS) {
+            #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
+                out_len += out_len_tmp;
+                dataLen = out_len;
+            #endif
+               /* copy encrypted data to out */
+                if (sz != dataLen) {
+                    WOLFSSL_MSG("sz is not equal to dataLen!!!!");
                     ret = -1;
+                } else {
+                    XMEMCPY(out, cipherBuf, dataLen);
+                    /* copy auth tag to caller's buffer */
+                    XMEMCPY((void*)authTag, (void*)aTagBuf,
+                                min(authTagSz, SCE_AES_GCM_AUTH_TAG_SIZE ));
                 }
+            }
+            else {
+                WOLFSSL_MSG("R_SCE_AesxxxGcmEncryptFinal: failed");
+                ret = -1;
             }
         }
 
@@ -710,37 +708,40 @@ int  wc_fspsm_AesGcmDecrypt(struct Aes* aes, byte* out,
                 ret = -1;
             }
 
-            if (ret == FSP_SUCCESS) {
-                dataLen = 0;
-                out_len_tmp = 0;
-                ret = finalFn(&_handle,
-                                  plainBuf + (sz + delta - WC_AES_BLOCK_SIZE),
-                #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
-                            &out_len_tmp,
-                #else
-                            &dataLen,
-                #endif
-                            aTagBuf,
-                            min(16, authTagSz));
+            /* Once R_SCE_AesxxxGcmDecryptInit or R_SCE_AesxxxGcmDecryptUpdate
+             * is called, R_SCE_AesxxxGcmDecryptFinal must be called regardless
+             * of the result of the previous call. Otherwise, SCE can not come
+             * out from its error state and all the trailing APIs will fail.
+             */
+            dataLen = 0;
+            out_len_tmp = 0;
+            ret = finalFn(&_handle,
+                              plainBuf + (sz + delta - WC_AES_BLOCK_SIZE),
+            #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
+                        &out_len_tmp,
+            #else
+                        &dataLen,
+            #endif
+                        aTagBuf,
+                        min(16, authTagSz));
 
-                if (ret == FSP_SUCCESS) {
-                #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
-                    out_len += out_len_tmp;
-                    dataLen = out_len;
-                #endif
-                    /* copy plain data to out */
-                    if (sz != dataLen) {
-                        WOLFSSL_MSG("sz is not equal to dataLen!!!!");
-                        ret = -1;
-                    }
-                    else {
-                        XMEMCPY(out, plainBuf, dataLen);
-                    }
-                }
-                else {
-                    WOLFSSL_MSG("R_XXXX_AesXXXGcmDecryptFinal: failed");
+            if (ret == FSP_SUCCESS) {
+            #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
+                out_len += out_len_tmp;
+                dataLen = out_len;
+            #endif
+                /* copy plain data to out */
+                if (sz != dataLen) {
+                    WOLFSSL_MSG("sz is not equal to dataLen!!!!");
                     ret = -1;
                 }
+                else {
+                    XMEMCPY(out, plainBuf, dataLen);
+                }
+            }
+            else {
+                WOLFSSL_MSG("R_XXXX_AesXXXGcmDecryptFinal: failed");
+                ret = -1;
             }
         }
 
