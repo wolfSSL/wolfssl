@@ -3826,6 +3826,155 @@ int test_wc_PKCS7_DecodeAuthEnvelopedData_truncated(void)
 } /* END test_wc_PKCS7_DecodeAuthEnvelopedData_truncated() */
 
 
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_AES) && \
+    defined(WOLFSSL_AES_128) && (defined(HAVE_AESGCM) || defined(HAVE_AESCCM))
+/* Encode an AuthEnvelopedData bundle, then cut its tag down to tagSz bytes
+ * and fix up the stated tag size and the outer lengths. Returns the new size. */
+static int pkcs7_shortTagBundle(byte* out, word32 outSz, int encryptOID,
+    word32 tagSz, int contentOID)
+{
+    PKCS7* pkcs7 = NULL;
+    byte   data[] = "short authTag authEnvelopedData test";
+    int    encSz;
+    word32 cut;
+    word32 lenIdx[3];
+    word32 found = 0;
+    word32 i;
+    word32 n;
+    word32 len;
+
+    if (tagSz == 0 || tagSz > (word32)WC_AES_BLOCK_SIZE)
+        return -1;
+    cut = (word32)WC_AES_BLOCK_SIZE - tagSz;
+
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId);
+    if (pkcs7 == NULL)
+        return -1;
+    if (wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+            sizeof_client_cert_der_2048) != 0) {
+        wc_PKCS7_Free(pkcs7);
+        return -1;
+    }
+    pkcs7->content    = data;
+    pkcs7->contentSz  = (word32)sizeof(data);
+    /* a contentOID other than DATA makes the encoder add authenticated
+     * attributes, which the decoder walks in its own state */
+    pkcs7->contentOID = contentOID;
+    pkcs7->encryptOID = encryptOID;
+    encSz = wc_PKCS7_EncodeAuthEnvelopedData(pkcs7, out, outSz);
+    wc_PKCS7_Free(pkcs7);
+    if (encSz <= 32)
+        return -1;
+
+    /* Tag is last: 04 10 <16 bytes>. Keep only its first tagSz bytes. */
+    if (out[encSz - (WC_AES_BLOCK_SIZE + 2)] != ASN_OCTET_STRING ||
+            out[encSz - (WC_AES_BLOCK_SIZE + 1)] != WC_AES_BLOCK_SIZE)
+        return -1;
+    out[encSz - (WC_AES_BLOCK_SIZE + 1)] = (byte)tagSz;
+    encSz -= (int)cut;
+
+    /* Tag size field follows the nonce: 04 <n> <nonce> 02 01 10 */
+    for (i = 0; i + 20 < (word32)encSz; i++) {
+        n = out[i + 1];
+        /* 04 <n> <nonce> 02 01 10, then the encryptedContent [0] tag */
+        if (out[i] == 0x04 && n >= 7 && n <= 13 &&
+                out[i + n + 2] == 0x02 && out[i + n + 3] == 0x01 &&
+                out[i + n + 4] == 0x10 &&
+                (out[i + n + 5] == 0x80 || out[i + n + 5] == 0xA0)) {
+            out[i + n + 4] = (byte)tagSz;
+            found = 1;
+            break;
+        }
+    }
+    if (!found)
+        return -1;
+
+    /* Outer SEQUENCE, [0] and inner SEQUENCE lengths are 82 hi lo. */
+    lenIdx[0] = 1;
+    lenIdx[1] = 6 + (word32)out[5] + 1;
+    lenIdx[2] = lenIdx[1] + 4;
+    for (i = 0; i < 3; i++) {
+        if (out[lenIdx[i]] != 0x82)
+            return -1;
+        len = ((word32)out[lenIdx[i] + 1] << 8) | out[lenIdx[i] + 2];
+        len -= cut;
+        out[lenIdx[i] + 1] = (byte)(len >> 8);
+        out[lenIdx[i] + 2] = (byte)len;
+    }
+
+    return encSz;
+}
+
+/* Decode a bundle whose tag was cut short, expecting it to be refused. */
+static int pkcs7_decodeShortTag(byte* enveloped, int encSz)
+{
+    PKCS7* pkcs7 = NULL;
+    byte   decoded[256];
+    int    ret;
+
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId);
+    if (pkcs7 == NULL)
+        return -1;
+    if (wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+            sizeof_client_cert_der_2048) != 0) {
+        wc_PKCS7_Free(pkcs7);
+        return -1;
+    }
+    pkcs7->privateKey   = (byte*)client_key_der_2048;
+    pkcs7->privateKeySz = sizeof_client_key_der_2048;
+    ret = wc_PKCS7_DecodeAuthEnvelopedData(pkcs7, enveloped, (word32)encSz,
+        decoded, sizeof(decoded));
+    wc_PKCS7_Free(pkcs7);
+
+    return ret;
+}
+#endif
+
+
+/* A GCM tag under 12 bytes must be refused, even when the build allows
+ * short tags for plain AES-GCM calls. */
+int test_wc_PKCS7_DecodeAuthEnvelopedData_shortTag(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && defined(HAVE_AESGCM) && !defined(NO_RSA) && \
+    !defined(NO_AES) && defined(WOLFSSL_AES_128)
+    byte enveloped[2048];
+    int  encSz = 0;
+
+    ExpectIntGT(encSz = pkcs7_shortTagBundle(enveloped, sizeof(enveloped),
+        AES128GCMb, 8, DATA), 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(pkcs7_decodeShortTag(enveloped, encSz),
+            WC_NO_ERR_TRACE(ASN_PARSE_E));
+    }
+
+/* These accept a truncated tag, which needs the in-tree AES-GCM. A v5, v6 or
+ * selftest build pins an older aes.c, so they are left out there. */
+#if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && !defined(HAVE_SELFTEST)
+#if WOLFSSL_MIN_AUTH_TAG_SZ <= 12
+    /* a tag at the floor still decodes, a GCM tag being the leading bytes
+     * of the full one */
+    ExpectIntGT(encSz = pkcs7_shortTagBundle(enveloped, sizeof(enveloped),
+        AES128GCMb, 12, DATA), 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntGT(pkcs7_decodeShortTag(enveloped, encSz), 0);
+    }
+#endif
+#if WOLFSSL_MIN_AUTH_TAG_SZ <= 13
+    /* SP 800-38D section 5.2.1.2 approves 104 bits, so an odd GCM ICV is
+     * allowed here where the CCM list has none */
+    ExpectIntGT(encSz = pkcs7_shortTagBundle(enveloped, sizeof(enveloped),
+        AES128GCMb, 13, DATA), 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntGT(pkcs7_decodeShortTag(enveloped, encSz), 0);
+    }
+#endif
+#endif /* in-tree AES-GCM */
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_PKCS7_DecodeAuthEnvelopedData_shortTag() */
+
+
 /* Tearing down a PKCS7 whose AuthEnvelopedData decode stopped part-way must
  * not leak the encryptedContent buffer.
  *
