@@ -61,10 +61,6 @@
     #define WC_RNG_LOCK_ATFORK
 #endif
 
-#ifdef WC_RNG_LOCK_ATFORK
-    #include <semaphore.h>   /* outside extern "C" */
-#endif
-
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -189,23 +185,6 @@
     #endif
 #endif
 
-#ifdef WC_RNG_LOCK_ATFORK
-/* On the heap so a memset of the WC_RNG cannot break the fork registry.  An
- * unnamed semaphore: fork() copies it and sem_post() is the one unlock a
- * child handler may call.  macOS has only named ones, so no handlers there. */
-typedef struct WC_RNG_LOCK {
-    sem_t sem;
-    void* heap;
-    struct WC_RNG_LOCK* next;
-    struct WC_RNG_LOCK** prev;   /* the link that leads here */
-    void* drbg;                  /* states a fork child must reseed */
-    void* drbg512;
-    int broken;   /* fails closed; set only by a lone child or on a dead sem */
-    int cancel;   /* the holder's cancel state, back on exit */
-} WC_RNG_LOCK;
-WOLFSSL_LOCAL int wc_RngAtForkInit(void);   /* from wolfCrypt_Init */
-WOLFSSL_LOCAL void wc_RngPinImage(void* fn);   /* keeps fn's image mapped */
-#endif
 
 
 /* avoid redefinition of structs */
@@ -662,7 +641,7 @@ struct WC_RNG {
     /* NULL until wc_InitRng succeeds.  Initialize only a new or freed WC_RNG:
      * wc_InitRng over a live one leaks this and grows the fork registry that
      * every fork() walks. */
-    WC_RNG_LOCK* autoLock;
+    struct wc_ForkLock* autoLock;   /* defined in wc_port.c */
 #elif defined(WC_RNG_HAVE_AUTO_LOCK)
     #ifndef WC_RNG_HAVE_LOCK_FULL_MUTEX
     /* One RNG mutex: the full mutex build declares it above, so it is

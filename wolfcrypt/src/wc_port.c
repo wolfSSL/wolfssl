@@ -127,7 +127,10 @@ Threading/Mutex options:
     /* random.h defines HAVE_HASHDRBG itself, so no HAVE_HASHDRBG test here */
     #include <wolfssl/wolfcrypt/random.h>
     #ifdef WC_RNG_LOCK_ATFORK
-        #include <dlfcn.h>   /* the pin, which the handlers require */
+        #include <dlfcn.h>      /* the pin, which the handlers require */
+        #include <pthread.h>    /* pthread_atfork, cancel state */
+        #include <semaphore.h>  /* the one unlock a fork child may call */
+        #include <errno.h>      /* EINTR from sem_wait */
     #endif
 #endif
 
@@ -444,6 +447,199 @@ WOLFSSL_LOCAL void wc_RngPinImage(void* fn)
         WOLFSSL_MSG("RNG fork handlers: no dlopen handle, nothing to pin");
     }
 }
+
+/* One lock per object, held with an unnamed semaphore so a fork child can
+ * release it: sem_post() is async-signal-safe, pthread_mutex_unlock() is not. */
+struct wc_ForkLock {
+    sem_t sem;
+    void* heap;
+    struct wc_ForkLock* next;
+    struct wc_ForkLock** prev;   /* the link that leads here */
+    int broken;   /* fails closed; set only by a lone child or a dead sem */
+    int cancel;   /* the holder's cancel state, back on exit */
+};
+
+static wc_ForkLock* forkList = NULL;   /* every live lock, under forkListSem */
+static sem_t forkListSem;
+static int forkListDead = 0;   /* registry unusable: every handler backs off */
+static pthread_once_t forkOnce = PTHREAD_ONCE_INIT;
+static int forkOnceRet = 0;
+
+/* sem_wait() is a cancellation point; a cancel here would strand the lock. */
+static int ForkSemWait(sem_t* s)
+{
+    int ret = 0;
+    int old = PTHREAD_CANCEL_ENABLE;
+    (void)pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &old);
+    while (sem_wait(s) != 0) {
+        if (errno != EINTR) {
+            ret = BAD_MUTEX_E;
+            break;
+        }
+    }
+    (void)pthread_setcancelstate(old, NULL);
+    return ret;
+}
+
+/* Before fork(): the forking thread takes the registry and every lock. */
+static void ForkPrepare(void)
+{
+    wc_ForkLock* n;
+    if (forkListDead)
+        return;
+    if (ForkSemWait(&forkListSem) != 0) {
+        forkListDead = 1;   /* nothing held, and never again */
+        return;
+    }
+    for (n = forkList; n != NULL; n = n->next) {
+        if (!n->broken && ForkSemWait(&n->sem) != 0)
+            n->broken = 1;
+    }
+}
+
+/* After fork() in the parent: give back what prepare took. */
+static void ForkParent(void)
+{
+    wc_ForkLock* n;
+    if (forkListDead)
+        return;
+    for (n = forkList; n != NULL; n = n->next) {
+        if (!n->broken)
+            (void)sem_post(&n->sem);
+    }
+    (void)sem_post(&forkListSem);
+}
+
+/* Child after fork(): stores and sem_post() only, all POSIX allows here.
+ * If prepare held nothing, everything fails closed. */
+static void ForkChild(void)
+{
+    wc_ForkLock* n;
+    for (n = forkList; n != NULL; n = n->next) {   /* forward links stay whole */
+        if (forkListDead) {
+            n->broken = 1;
+            continue;
+        }
+        if (!n->broken)
+            (void)sem_post(&n->sem);
+    }
+    if (!forkListDead)
+        (void)sem_post(&forkListSem);
+}
+
+static void ForkLockInitOnce(void)
+{
+    /* pin first: the handlers can never be unregistered */
+    wc_RngPinImage((void*)(wc_ptr_t)ForkPrepare);
+    forkOnceRet = (sem_init(&forkListSem, 0, 1) == 0) ? 0 : BAD_MUTEX_E;
+    if (forkOnceRet == 0 &&
+        pthread_atfork(ForkPrepare, ForkParent, ForkChild) != 0)
+    {
+        (void)sem_destroy(&forkListSem);
+        forkOnceRet = MEMORY_E;
+    }
+}
+
+WOLFSSL_LOCAL int wc_ForkLockInit(void)
+{
+    (void)pthread_once(&forkOnce, ForkLockInitOnce);
+    return forkOnceRet;
+}
+
+WOLFSSL_LOCAL int wc_ForkLock_New(wc_ForkLock** lock, void* heap)
+{
+    wc_ForkLock* n;
+    int ret = wc_ForkLockInit();
+    if (ret != 0)
+        return ret;
+    if (forkListDead) {
+        WOLFSSL_MSG("wc_ForkLock_New: registry dead since a fork");
+        return BAD_MUTEX_E;
+    }
+    n = (wc_ForkLock*)XMALLOC(sizeof(*n), heap, DYNAMIC_TYPE_RNG);
+    if (n == NULL)
+        return MEMORY_E;
+    XMEMSET(n, 0, sizeof(*n));
+    n->heap = heap;
+    if (ForkSemWait(&forkListSem) != 0) {
+        XFREE(n, heap, DYNAMIC_TYPE_RNG);
+        return BAD_MUTEX_E;
+    }
+    ret = (sem_init(&n->sem, 0, 1) == 0) ? 0 : BAD_MUTEX_E;
+    if (ret == 0) {
+        n->next = forkList;
+        n->prev = &forkList;
+        if (forkList != NULL)
+            forkList->prev = &n->next;
+        forkList = n;
+    }
+    (void)sem_post(&forkListSem);
+    if (ret != 0) {
+        XFREE(n, heap, DYNAMIC_TYPE_RNG);
+        return ret;
+    }
+    *lock = n;
+    return 0;
+}
+
+/* Safe on a NULL lock that was never created. */
+WOLFSSL_LOCAL void wc_ForkLock_Free(wc_ForkLock** lock)
+{
+    wc_ForkLock* n;
+    if (lock == NULL || *lock == NULL)
+        return;
+    n = *lock;
+    if (forkListDead || ForkSemWait(&forkListSem) != 0) {
+        /* No registry to unlink under, so the node stays on the list and
+         * is leaked; broken keeps every later handler off it. */
+        n->broken = 1;
+        WOLFSSL_MSG("wc_ForkLock_Free: registry unavailable, node leaked");
+        *lock = NULL;
+        return;
+    }
+    *n->prev = n->next;
+    if (n->next != NULL)
+        n->next->prev = n->prev;
+    (void)sem_post(&forkListSem);
+    (void)sem_destroy(&n->sem);
+    XFREE(n, n->heap, DYNAMIC_TYPE_RNG);
+    *lock = NULL;
+}
+
+/* Cancellation stays off while the lock is held: a reseed reads a device,
+ * a cancellation point, and a cancelled holder would strand every fork(). */
+WOLFSSL_API int wc_ForkLock_Enter(wc_ForkLock* lock)
+{
+    int old = PTHREAD_CANCEL_ENABLE;
+    int ret;
+    if (lock == NULL)
+        return 0;
+    if (lock->broken)
+        return BAD_MUTEX_E;
+    (void)pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &old);
+    ret = ForkSemWait(&lock->sem);
+    if (ret != 0)
+        (void)pthread_setcancelstate(old, NULL);
+    else
+        lock->cancel = old;
+    return ret;
+}
+
+WOLFSSL_API   void wc_ForkLock_Exit(wc_ForkLock* lock)
+{
+    int old;
+    if (lock == NULL)
+        return;
+    old = lock->cancel;
+    (void)sem_post(&lock->sem);
+    (void)pthread_setcancelstate(old, NULL);
+}
+
+WOLFSSL_API   void wc_ForkLock_SetBroken(wc_ForkLock* lock, int broken)
+{
+    if (lock != NULL)
+        lock->broken = broken;
+}
 #endif
 
 /* Used to initialize state for wolfcrypt
@@ -588,7 +784,7 @@ int wolfCrypt_Init(void)
     #endif
     #ifdef WC_RNG_LOCK_ATFORK
         /* here, before the app has threads, so no fork can race it */
-        ret = wc_RngAtForkInit();
+        ret = wc_ForkLockInit();
         if (ret != 0) {
             WOLFSSL_MSG("RNG fork handler registration failed");
             WOLFCRYPT_INIT_RAISE_BAD_STATE();

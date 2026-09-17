@@ -566,219 +566,36 @@ static int UnlockDrbgState(void)
 #endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS v7+) */
 
 #ifdef WC_RNG_LOCK_ATFORK
-static WC_RNG_LOCK* rngList = NULL;   /* every live lock, under rngListSem */
-static sem_t rngListSem;
-static int rngAtForkSet = 0;    /* handlers registered, never unregistered */
-static int rngImagePinned = 0; /* so a failed registration does not re-pin */
-static int rngListDead = 0;    /* registry unusable: every handler backs off */
-
-/* sem_wait() is a cancellation point; a cancel here would strand the lock. */
-static int RngSemWait(sem_t* s)
-{
-    int ret = 0;
-    int old = PTHREAD_CANCEL_ENABLE;
-    (void)pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &old);
-    while (sem_wait(s) != 0) {
-        if (errno != EINTR) {
-            ret = BAD_MUTEX_E;
-            break;
-        }
-    }
-    (void)pthread_setcancelstate(old, NULL);
-    return ret;
-}
-
-/* Before fork(): the forking thread takes the registry and every lock. */
-static void RngAtForkPrepare(void)
-{
-    WC_RNG_LOCK* n;
-    if (rngListDead)
-        return;
-    if (RngSemWait(&rngListSem) != 0) {
-        rngListDead = 1;   /* nothing held, and never again */
-        return;
-    }
-    for (n = rngList; n != NULL; n = n->next) {
-        if (!n->broken && RngSemWait(&n->sem) != 0)
-            n->broken = 1;
-    }
-}
-
-/* After fork() in the parent: give back what prepare took. */
-static void RngAtForkParent(void)
-{
-    WC_RNG_LOCK* n;
-    if (rngListDead)
-        return;
-    for (n = rngList; n != NULL; n = n->next) {
-        if (!n->broken)
-            (void)sem_post(&n->sem);
-    }
-    (void)sem_post(&rngListSem);
-}
-
-/* Child after fork(): stores and sem_post() only, all POSIX allows here.
- * Every DRBG reseeds next; if prepare held nothing, everything fails closed. */
-static void RngAtForkChild(void)
-{
-    WC_RNG_LOCK* n;
-    for (n = rngList; n != NULL; n = n->next) {   /* forward links stay whole */
-        if (rngListDead) {
-            n->broken = 1;
-            continue;
-        }
-    #ifndef NO_SHA256
-        if (n->drbg != NULL)
-            ((DRBG_internal*)n->drbg)->reseedCtr = WC_RESEED_INTERVAL;
-    #endif
-    #ifdef WOLFSSL_DRBG_SHA512
-        if (n->drbg512 != NULL)
-            ((DRBG_SHA512_internal*)n->drbg512)->reseedCtr =
-                WC_RESEED_INTERVAL;
-    #endif
-        if (!n->broken)
-            (void)sem_post(&n->sem);
-    }
-    if (!rngListDead)
-        (void)sem_post(&rngListSem);
-}
-
-/* Registers the handlers once; the pin runs outside drbgStateMutex. */
-WOLFSSL_LOCAL int wc_RngAtForkInit(void)
-{
-    int ret = LockDrbgState();
-    if (ret != 0)
-        return ret;
-    if (!rngAtForkSet && !rngImagePinned) {
-        /* pin outside the lock: dlopen() takes the loader lock.  Racing
-         * first callers may both pin, which is harmless. */
-        (void)UnlockDrbgState();
-        wc_RngPinImage((void*)(wc_ptr_t)RngAtForkPrepare);
-        ret = LockDrbgState();
-        if (ret != 0)
-            return ret;
-        rngImagePinned = 1;
-    }
-    if (!rngAtForkSet) {
-        ret = (sem_init(&rngListSem, 0, 1) == 0) ? 0 : BAD_MUTEX_E;
-        if (ret == 0 && pthread_atfork(RngAtForkPrepare, RngAtForkParent,
-                                       RngAtForkChild) != 0) {
-            (void)sem_destroy(&rngListSem);
-            ret = MEMORY_E;
-        }
-        if (ret == 0)
-            rngAtForkSet = 1;
-    }
-    (void)UnlockDrbgState();
-    return ret;
-}
-
-/* Creates the lock under the registry and links the node. */
-static int RngRegister(WC_RNG_LOCK* n)
-{
-    int ret = wc_RngAtForkInit();
-    if (ret != 0)
-        return ret;
-    if (rngListDead) {
-        WOLFSSL_MSG("RngRegister: registry dead since a fork");
-        return BAD_MUTEX_E;
-    }
-    if (RngSemWait(&rngListSem) != 0)
-        return BAD_MUTEX_E;
-    ret = (sem_init(&n->sem, 0, 1) == 0) ? 0 : BAD_MUTEX_E;
-    if (ret == 0) {
-        n->next = rngList;
-        n->prev = &rngList;
-        if (rngList != NULL)
-            rngList->prev = &n->next;
-        rngList = n;
-    }
-    (void)sem_post(&rngListSem);
-    return ret;
-}
-
-/* Without the registry the node is leaked, broken and pointing at nothing. */
-static int RngUnregister(WC_RNG_LOCK* n)
-{
-    if (rngListDead || RngSemWait(&rngListSem) != 0) {
-        n->broken = 1;
-        n->drbg = NULL;
-        n->drbg512 = NULL;
-        WOLFSSL_MSG("RngUnregister: registry unavailable, node leaked");
-        return BAD_MUTEX_E;
-    }
-    *n->prev = n->next;
-    if (n->next != NULL)
-        n->next->prev = n->prev;
-    (void)sem_post(&rngListSem);
-    return 0;
-}
-
-/* Allocates the node and registers it. */
+/* The lock and its fork handlers live in wc_port.c, outside the FIPS module
+ * boundary.  Only the DRBG's reaction to a fork belongs in here. */
 static int RngLockInit(WC_RNG* rng)
 {
-    int ret;
-    WC_RNG_LOCK* n = (WC_RNG_LOCK*)XMALLOC(sizeof(*n), rng->heap,
-                                           DYNAMIC_TYPE_RNG);
-    if (n == NULL)
-        return MEMORY_E;
-    XMEMSET(n, 0, sizeof(*n));
-    n->heap = rng->heap;
-#ifndef NO_SHA256
-    n->drbg = rng->drbg;
+#ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
+    /* A full mutex instance is locked by its caller for the whole call, so
+     * the automatic lock leaves that instance alone, as it does without the
+     * fork handlers.  Such an instance is not fork covered either. */
+    if (rng->flags & WC_RNG_FLAG_FULL_MUTEX)
+        return 0;
 #endif
-#ifdef WOLFSSL_DRBG_SHA512
-    n->drbg512 = rng->drbg512;
-#endif
-    ret = RngRegister(n);
-    if (ret != 0) {
-        XFREE(n, rng->heap, DYNAMIC_TYPE_RNG);
-        return ret;
-    }
-    rng->autoLock = n;
-    return 0;
+    return wc_ForkLock_New(&rng->autoLock, rng->heap);
 }
 
 /* Safe on a zeroed WC_RNG that never got a lock. */
 static void RngLockFree(WC_RNG* rng)
 {
-    WC_RNG_LOCK* n = rng->autoLock;
-    if (n == NULL)
-        return;
-    if (RngUnregister(n) == 0) {
-        (void)sem_destroy(&n->sem);
-        XFREE(n, n->heap, DYNAMIC_TYPE_RNG);
-    }
-    rng->autoLock = NULL;
+    wc_ForkLock_Free(&rng->autoLock);
 }
 
-/* Cancellation stays off while the lock is held: a reseed reads a device,
- * a cancellation point, and a cancelled holder would strand every fork(). */
+/* The child's stale DRBG state is dealt with by rng_pid_change_check() on
+ * the generate path, which the fork handlers require. */
 static int RngLockEnter(WC_RNG* rng)
 {
-    int old = PTHREAD_CANCEL_ENABLE;
-    int ret;
-    if (rng->autoLock == NULL)
-        return 0;
-    if (rng->autoLock->broken)
-        return BAD_MUTEX_E;
-    (void)pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &old);
-    ret = RngSemWait(&rng->autoLock->sem);
-    if (ret != 0)
-        (void)pthread_setcancelstate(old, NULL);
-    else
-        rng->autoLock->cancel = old;
-    return ret;
+    return wc_ForkLock_Enter(rng->autoLock);
 }
 
 static void RngLockExit(WC_RNG* rng)
 {
-    int old;
-    if (rng->autoLock == NULL)
-        return;
-    old = rng->autoLock->cancel;
-    (void)sem_post(&rng->autoLock->sem);
-    (void)pthread_setcancelstate(old, NULL);
+    wc_ForkLock_Exit(rng->autoLock);
 }
 #elif defined(WC_RNG_HAVE_AUTO_LOCK)
 /* Without fork handlers the lock lives in the WC_RNG itself: no heap. */
