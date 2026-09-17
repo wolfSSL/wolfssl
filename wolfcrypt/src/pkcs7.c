@@ -128,8 +128,10 @@ struct PKCS7SignerInfo {
     #define WOLFSSL_PKCS7_MAX_DECOMPRESSION 1031
 #endif
 
-/* RFC 5084 section 3.2: smallest ICV AES-GCM may carry in a bundle. */
+/* RFC 5084 section 3.2 and SP 800-38C appendix B.2: smallest ICV each mode
+ * may carry in a bundle. */
 #define PKCS7_GCM_MIN_ICV_SZ 12
+#define PKCS7_CCM_MIN_ICV_SZ 8
 
 #ifndef NO_PKCS7_STREAM
 
@@ -16332,11 +16334,16 @@ authenv_atrbend:
                 WOLFSSL_MSG("AuthEnvelopedData GCM authTag invalid size");
                 ret = ASN_PARSE_E;
             }
+            /* RFC 5084 section 3.1 lists even ICV sizes only, and SP 800-38C
+             * appendix B.2 wants 8 bytes or more. The floor is raised to the
+             * build minimum when that is larger. */
             if (ret == 0 &&
                     (encOID == AES128CCMb || encOID == AES192CCMb ||
                      encOID == AES256CCMb) &&
-                     authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ) {
-                WOLFSSL_MSG("AuthEnvelopedData CCM authTag too small");
+                    (authTagSz < PKCS7_CCM_MIN_ICV_SZ ||
+                     authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ ||
+                     (authTagSz & 1) != 0)) {
+                WOLFSSL_MSG("AuthEnvelopedData CCM authTag invalid size");
                 ret = ASN_PARSE_E;
             }
 

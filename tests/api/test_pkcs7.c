@@ -3975,6 +3975,46 @@ int test_wc_PKCS7_DecodeAuthEnvelopedData_shortTag(void)
 } /* END test_wc_PKCS7_DecodeAuthEnvelopedData_shortTag() */
 
 
+/* A CCM tag under 8 bytes must be refused, even when the build allows
+ * short tags for plain AES-CCM calls. */
+int test_wc_PKCS7_DecodeAuthEnvelopedData_shortTagCcm(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && defined(HAVE_AESCCM) && !defined(NO_RSA) && \
+    !defined(NO_AES) && defined(WOLFSSL_AES_128)
+    byte enveloped[2048];
+    int  encSz = 0;
+
+    ExpectIntGT(encSz = pkcs7_shortTagBundle(enveloped, sizeof(enveloped),
+        AES128CCMb, 6, DATA), 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(pkcs7_decodeShortTag(enveloped, encSz),
+            WC_NO_ERR_TRACE(ASN_PARSE_E));
+    }
+
+/* Odd sizes are the only way to reach the parity rule, and RFC 5084 section
+ * 3.1 stops at 16, so 13 and 15 are the only candidates. */
+#if WOLFSSL_MIN_AUTH_TAG_SZ <= 13
+    #define PKCS7_TEST_CCM_ODD_SZ 13
+#elif WOLFSSL_MIN_AUTH_TAG_SZ <= 15
+    #define PKCS7_TEST_CCM_ODD_SZ 15
+#endif
+
+#ifdef PKCS7_TEST_CCM_ODD_SZ
+    /* RFC 5084 section 3.1 has no odd ICV size, so this is refused while
+     * parsing rather than later by the cipher */
+    ExpectIntGT(encSz = pkcs7_shortTagBundle(enveloped, sizeof(enveloped),
+        AES128CCMb, PKCS7_TEST_CCM_ODD_SZ, DATA), 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(pkcs7_decodeShortTag(enveloped, encSz),
+            WC_NO_ERR_TRACE(ASN_PARSE_E));
+    }
+#endif
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_PKCS7_DecodeAuthEnvelopedData_shortTagCcm() */
+
+
 /* Tearing down a PKCS7 whose AuthEnvelopedData decode stopped part-way must
  * not leak the encryptedContent buffer.
  *
