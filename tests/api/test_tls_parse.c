@@ -682,14 +682,16 @@ int test_TLSX_EncryptThenMac_parse(void)
 int test_TLSX_MFL_parse(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_MAX_FRAGMENT) && !defined(WOLFSSL_OLD_UNSUPPORTED_EXTENSION)  && !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) && \
-    defined(HAVE_TLS_EXTENSIONS) && \
-    !defined(WOLFSSL_NO_TLS12)
+#if defined(HAVE_MAX_FRAGMENT) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_CLIENT) && defined(HAVE_TLS_EXTENSIONS) && \
+    ((!defined(WOLFSSL_OLD_UNSUPPORTED_EXTENSION) && \
+      !defined(WOLFSSL_NO_TLS12)) || defined(WOLFSSL_TLS13))
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte ext[8];
     word16 extLen;
 
+#if !defined(WOLFSSL_OLD_UNSUPPORTED_EXTENSION) && !defined(WOLFSSL_NO_TLS12)
     /* Client did not request MFL: any server_hello response is flagged as
      * an unrequested extension before the value is even looked at. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
@@ -726,6 +728,53 @@ int test_TLSX_MFL_parse(void)
     }
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
+#endif /* !WOLFSSL_OLD_UNSUPPORTED_EXTENSION && !WOLFSSL_NO_TLS12 */
+
+#ifdef WOLFSSL_TLS13
+    /* TLS 1.3 (RFC 8446 Section 4.2): a response the client did not request
+     * is rejected in encrypted_extensions, also when the legacy TLS 1.2
+     * handling is compiled in. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL) {
+        const byte resp[] = { WOLFSSL_MFL_2_9 };
+        extLen = test_tls_parse_build_ext(ext, sizeof(ext),
+                TLSXT_MAX_FRAGMENT_LENGTH, resp, (word16)sizeof(resp));
+        ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, encrypted_extensions, NULL),
+                    WC_NO_ERR_TRACE(UNSUPPORTED_EXTENSION));
+        ExpectIntEQ(ssl->max_fragment, MAX_RECORD_SIZE);
+    }
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+
+    /* Client requested MFL_2_9: a mismatching response is rejected and
+     * leaves the fragment size alone, the same value is applied. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL) {
+        const byte mismatch[] = { WOLFSSL_MFL_2_10 };
+        const byte match[] = { WOLFSSL_MFL_2_9 };
+
+        ExpectIntEQ(wolfSSL_UseMaxFragment(ssl, WOLFSSL_MFL_2_9),
+                    WOLFSSL_SUCCESS);
+
+        extLen = test_tls_parse_build_ext(ext, sizeof(ext),
+                TLSXT_MAX_FRAGMENT_LENGTH, mismatch, (word16)sizeof(mismatch));
+        ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, encrypted_extensions, NULL),
+                    WC_NO_ERR_TRACE(UNKNOWN_MAX_FRAG_LEN_E));
+        ExpectIntEQ(ssl->max_fragment, MAX_RECORD_SIZE);
+
+        extLen = test_tls_parse_build_ext(ext, sizeof(ext),
+                TLSXT_MAX_FRAGMENT_LENGTH, match, (word16)sizeof(match));
+        ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, encrypted_extensions, NULL),
+                    0);
+        ExpectIntEQ(ssl->max_fragment, 512);
+    }
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif /* WOLFSSL_TLS13 */
 #endif
     return EXPECT_RESULT();
 }
