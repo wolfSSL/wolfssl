@@ -2067,6 +2067,7 @@ int test_wc_frodokem_cert_verify(void)
 }
 
 #if defined(WOLFSSL_HAVE_FRODOKEM) && defined(WOLF_CRYPTO_CB) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) && \
     !defined(WC_NO_RNG) && !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_FRODOKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_FRODOKEM_NO_DECAPSULATE)
