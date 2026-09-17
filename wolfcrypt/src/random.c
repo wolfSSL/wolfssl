@@ -37,7 +37,7 @@ This library contains implementation for the random number generator.
  * WC_RNG_SEED_CB:           Use custom seed callback function    default: off
  * WC_HAVE_RNG_BANKREF:      Enable RNG bank indirect RNG         default: off
  *                            support
- * WC_RNG_NO_LOCK:           Leave out the lock that lets threads default: off
+ * WC_RNG_NO_AUTO_LOCK:      Leave out the lock that lets threads default: off
  *                            share one WC_RNG (lock on unless set)
  * WC_RNG_ATFORK:            pthread_atfork handlers so a forked  default: on
  *                            child can keep using its WC_RNG     where found
@@ -784,7 +784,13 @@ static void RngLockExit(WC_RNG* rng)
 /* Without fork handlers the lock lives in the WC_RNG itself: no heap. */
 static int RngLockInit(WC_RNG* rng)
 {
-    if (wc_InitMutex(&rng->autoLock) != 0)
+#ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
+    /* A full mutex instance is locked by its caller, which holds rng->mutex
+     * for the whole call, so the automatic lock leaves that instance alone. */
+    if (rng->flags & WC_RNG_FLAG_FULL_MUTEX)
+        return 0;
+#endif
+    if (wc_InitMutex(&rng->mutex) != 0)
         return BAD_MUTEX_E;
     rng->autoLockInited = 1;
     return 0;
@@ -794,7 +800,7 @@ static int RngLockInit(WC_RNG* rng)
 static void RngLockFree(WC_RNG* rng)
 {
     if (rng->autoLockInited) {
-        (void)wc_FreeMutex(&rng->autoLock);
+        (void)wc_FreeMutex(&rng->mutex);
         rng->autoLockInited = 0;
     }
 }
@@ -811,7 +817,7 @@ static int RngLockEnter(WC_RNG* rng)
 #ifdef PTHREAD_CANCEL_DISABLE
     (void)pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &old);
 #endif
-    if (wc_LockMutex(&rng->autoLock) != 0) {
+    if (wc_LockMutex(&rng->mutex) != 0) {
     #ifdef PTHREAD_CANCEL_DISABLE
         (void)pthread_setcancelstate(old, NULL);
     #endif
@@ -833,7 +839,7 @@ static void RngLockExit(WC_RNG* rng)
 #ifdef PTHREAD_CANCEL_DISABLE
     old = rng->autoLockCancel;   /* read before the unlock hands the slot on */
 #endif
-    (void)wc_UnLockMutex(&rng->autoLock);
+    (void)wc_UnLockMutex(&rng->mutex);
 #ifdef PTHREAD_CANCEL_DISABLE
     (void)pthread_setcancelstate(old, NULL);
 #endif
@@ -1272,11 +1278,7 @@ static WARN_UNUSED_RESULT int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed,
         (void)in_bracketed_consume;
 #endif
 
-        ret = RngLockEnter(rng);
-        if (ret != 0)
-            goto out;
         ret = Hash256_DRBG_Reseed(drbg, seed, seedSz, additional, additionalSz);
-        RngLockExit(rng);
 #ifdef WC_RNG_DEBUG_STATS
         if (ret == 0) {
             ++rng->_stats_reseeds;
@@ -1320,12 +1322,8 @@ static WARN_UNUSED_RESULT int Hash_DRBG_Reseed(WC_RNG* rng, const byte* seed,
         }
 #endif
 
-        ret = RngLockEnter(rng);
-        if (ret != 0)
-            goto out;
         ret = Hash512_DRBG_Reseed(drbg512, seed, seedSz,
                                   additional, additionalSz);
-        RngLockExit(rng);
 #ifdef WC_RNG_DEBUG_STATS
         if (ret == 0) {
             ++rng->_stats_reseeds;
@@ -1443,6 +1441,12 @@ int wc_RNG_DRBG_Reseed_Nonce(WC_RNG* rng, const byte* seed, word32 seedSz,
     }
 #endif /* WC_RNG_HAVE_LOCK */
 
+    /* The internal reseed paths run with the lock already held, so it is
+     * taken here, at the public entry, and not in Hash_DRBG_Reseed(). */
+    ret = RngLockEnter(rng);
+    if (ret != 0)
+        return ret;
+
     ret = Hash_DRBG_Reseed(rng, seed, seedSz, nonce, nonceSz,
                            0 /* in_bracketed_consume */);
 #ifdef WC_RNG_HAVE_RBGC
@@ -1453,6 +1457,7 @@ int wc_RNG_DRBG_Reseed_Nonce(WC_RNG* rng, const byte* seed, word32 seedSz,
     }
 #endif
 
+    RngLockExit(rng);
     return ret;
 }
 
@@ -4904,6 +4909,12 @@ int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* nonce, word32 nonceSz)
         return 0;
     }
 
+    /* Not reached from the generate path, so it can take the lock here and
+     * shares an instance with a generating thread. */
+    ret = RngLockEnter(rng);
+    if (ret != 0)
+        return ret;
+
     ret = PollAndReSeed(rng, nonce, nonceSz);
 
     /* Identical outcome mapping to the generate-path reseed. */
@@ -4919,6 +4930,7 @@ int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* nonce, word32 nonceSz)
         rng->status = DRBG_FAILED;
     }
 
+    RngLockExit(rng);
     return ret;
 }
 
@@ -5747,6 +5759,7 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
         WOLFSSL_DEBUG_PRINTF(
             "ERROR: CUSTOM_RAND_GENERATE_BLOCK failed with err %d.", ret);
     #endif
+    RngLockExit(rng);   /* a no-op here today; the gate excludes this build */
 #else
 
 #ifdef HAVE_HASHDRBG
@@ -5900,6 +5913,7 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 
     /* if we get here then there is an RNG configuration error */
     ret = RNG_FAILURE_E;
+    RngLockExit(rng);   /* a no-op here today; the gate excludes this build */
 
 #endif /* HAVE_HASHDRBG */
 #endif /* CUSTOM_RAND_GENERATE_BLOCK */

@@ -34,23 +34,13 @@
     #include <wolfssl/wolfcrypt/fips.h>
 #endif /* HAVE_FIPS_VERSION >= 2 */
 
-/* make sure Hash DRBG is enabled, unless WC_NO_HASHDRBG is defined
-    or CUSTOM_RAND_GENERATE_BLOCK is defined */
-#if !defined(WC_NO_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
-    #undef  HAVE_HASHDRBG
-    #define HAVE_HASHDRBG
-    #ifndef WC_RESEED_INTERVAL
-        #define WC_RESEED_INTERVAL (1000000)
-    #endif
-#endif
-
-/* One lock per WC_RNG so threads can share it.  WC_RNG_NO_LOCK opts out;
+/* One lock per WC_RNG so threads can share it.  WC_RNG_NO_AUTO_LOCK opts out;
  * kernel modules have their own lock-free design and CMSIS-RTOS v1 has only
  * a ten-mutex pool.  Bank builds keep it: they still hand out plain instances. */
-#if !defined(WC_RNG_NO_LOCK) && !defined(SINGLE_THREADED) && \
+#if !defined(WC_RNG_NO_AUTO_LOCK) && !defined(SINGLE_THREADED) && \
     !defined(WC_NO_RNG) && !defined(WOLFSSL_CMSIS_RTOS) && \
     !defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_BSDKM) && \
-    defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(WC_NO_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
     !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     #define WC_RNG_HAVE_AUTO_LOCK
 #endif
@@ -58,11 +48,14 @@
 /* pthread_atfork handlers so a forked child can keep using its WC_RNG.
  * configure and CMake define WC_RNG_ATFORK where the dlclose pin, unnamed
  * semaphores and thread cancellation exist; builds whose locks the handlers
- * cannot cover are left out. */
+ * cannot cover are left out.  getpid() is required alongside them: it is
+ * what makes the child throw away the pooled and banked bytes it inherited,
+ * which the handlers themselves do not touch. */
 #if defined(WC_RNG_HAVE_AUTO_LOCK) && defined(WOLFSSL_PTHREADS) && \
     defined(WC_RNG_ATFORK) && !defined(__APPLE__) && \
+    defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID) && \
     !defined(WOLFSSL_NO_MALLOC) && !defined(HAVE_ENTROPY_MEMUSE) && \
-    !defined(WC_HAVE_RNG_BANKREF) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(WC_RNG_BANK_SUPPORT) && !defined(WOLFSSL_STATIC_MEMORY) && \
     !defined(HAVE_WNR) && !defined(WOLFSSL_CHECK_MEM_ZERO) && \
     !defined(WOLFSSL_TRACK_MEMORY) && !defined(WOLFSSL_MEM_FAIL_COUNT)
     #define WC_RNG_LOCK_ATFORK
@@ -184,6 +177,16 @@
 #if !defined(CUSTOM_RAND_TYPE)
     /* To maintain compatibility the default is byte */
     #define CUSTOM_RAND_TYPE    byte
+#endif
+
+/* make sure Hash DRBG is enabled, unless WC_NO_HASHDRBG is defined
+    or CUSTOM_RAND_GENERATE_BLOCK is defined */
+#if !defined(WC_NO_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
+    #undef  HAVE_HASHDRBG
+    #define HAVE_HASHDRBG
+    #ifndef WC_RESEED_INTERVAL
+        #define WC_RESEED_INTERVAL 1000000
+    #endif
 #endif
 
 #ifdef WC_RNG_LOCK_ATFORK
@@ -661,7 +664,11 @@ struct WC_RNG {
      * every fork() walks. */
     WC_RNG_LOCK* autoLock;
 #elif defined(WC_RNG_HAVE_AUTO_LOCK)
-    wolfSSL_Mutex autoLock;   /* serializes generate and reseed */
+    #ifndef WC_RNG_HAVE_LOCK_FULL_MUTEX
+    /* One RNG mutex: the full mutex build declares it above, so it is
+     * declared here only when that build did not. */
+    wolfSSL_Mutex mutex;
+    #endif
     byte autoLockInited;      /* nonzero once lock exists */
     int autoLockCancel;       /* the holder's cancel state, back on exit */
 #endif

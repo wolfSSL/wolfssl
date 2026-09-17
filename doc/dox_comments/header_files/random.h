@@ -56,11 +56,23 @@ int  wc_FreeNetRandom(void);
     (deterministic random bit generator) allocated (should be deallocated
     with wc_FreeRng).  This is a blocking operation.
 
-    One WC_RNG may be shared between threads: each generate and reseed holds
-    the instance lock.  WC_RNG_NO_LOCK (configure --disable-rng-lock) leaves
-    the lock out; CMSIS-RTOS v1 builds have none, its mutex pool holds ten.
-    Every backend but a crypto callback runs with the lock
-    held; a callback answers first, so it may fall back to the same instance.
+    One WC_RNG may be shared between threads for generating and reseeding:
+    wc_RNG_GenerateBlock(), wc_RNG_DRBG_Reseed(), wc_RNG_DRBG_Reseed_Nonce()
+    and wc_RNG_DRBG_Reseed_Now() each hold the instance lock.
+
+    The DRBG management calls do not hold it and are not safe to call while
+    another thread is using the same instance: wc_RNG_DRBG_Stir(),
+    wc_RNG_DRBG_Stir_Nonce() and wc_RNG_DRBG_ScheduleReseed(), and in
+    --enable-rng-extras builds wc_RNG_DRBG_NextStirNow(),
+    wc_RNG_DRBG_NextSeedNow() and wc_RNG_DRBG_ReseedRBGC().  They run inside
+    the lock on the generate path, so they cannot take it at their own entry.
+    A caller that needs them on a shared instance stops the other threads
+    first.
+
+    WC_RNG_NO_AUTO_LOCK (configure --disable-rng-lock) leaves the lock out;
+    CMSIS-RTOS v1 builds have none, its mutex pool holds ten.  Every backend
+    but a crypto callback runs with the lock held; a callback answers first,
+    so it may fall back to the same instance.
     A seed callback runs with the lock held and must not use the RNG API.
     wc_InitRng*() and wc_FreeRng() do not lock; initialize only a new or
     freed WC_RNG, with no other thread using it.
@@ -79,7 +91,10 @@ int  wc_FreeNetRandom(void);
     so the library pins itself against dlclose().  They cover WC_RNG locks
     only, not clone(), vfork() or _Fork().  A fork() from inside a seed or
     hash callback deadlocks.  Builds without them, macOS among them, leave a
-    forked child only exec().
+    forked child only exec(): a child that calls the RNG instead blocks for
+    good if any thread held the instance lock at fork() time.  A fork() from
+    a single threaded process is unaffected, since no lock can be held by a
+    thread the child does not have.
 
     \return 0 on success.
     \return MEMORY_E XMALLOC or the fork handler registration failed
@@ -92,7 +107,7 @@ int  wc_FreeNetRandom(void);
     \return RNG_FAILURE_E wc_RNG_GenerateBlock: Default error.  rng’s
     status originally not ok, or set to DRBG_FAILED
     \return BAD_MUTEX_E the lock that lets threads share this rng could not
-    be created; define WC_RNG_NO_LOCK to build without it
+    be created; define WC_RNG_NO_AUTO_LOCK to build without it
 
     \param rng random number generator to be initialized for use
     with a seed and key cipher

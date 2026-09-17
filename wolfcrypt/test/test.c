@@ -28106,9 +28106,9 @@ static THREAD_RETURN WOLFSSL_THREAD rng_fork_test_holder(void* arg)
     byte go = 0;
     int rc = -1;
 
-    if (a->rng->lock != NULL) {
+    if (a->rng->autoLock != NULL) {
         do {
-            rc = sem_wait(&a->rng->lock->sem);
+            rc = sem_wait(&a->rng->autoLock->sem);
         } while (rc != 0 && errno == EINTR);
     }
     if (rc == 0) {
@@ -28120,7 +28120,7 @@ static THREAD_RETURN WOLFSSL_THREAD rng_fork_test_holder(void* arg)
                     break;
             } while (rng_test_elapsed_ns(&start, &now) < WC_RNG_FORK_HOLD_NS);
         }
-        (void)sem_post(&a->rng->lock->sem);
+        (void)sem_post(&a->rng->autoLock->sem);
     }
     close(a->fd);   /* EOF if the lock was never held */
     close(a->rfd);
@@ -28403,15 +28403,15 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
     {
         byte seed[16];
         XMEMSET(seed, 0xa5, sizeof(seed));
-        rng->lock->broken = 1;
+        rng->autoLock->broken = 1;
         ret = wc_RNG_GenerateBlock(rng, out, WC_RNG_THREAD_TEST_BLKSZ);
         if (ret != WC_NO_ERR_TRACE(BAD_MUTEX_E)) {
-            rng->lock->broken = 0;
+            rng->autoLock->broken = 0;
             ERROR_OUT(ret == 0 ? WC_TEST_RET_ENC_NC : WC_TEST_RET_ENC_EC(ret),
                       out_free);
         }
         ret = wc_RNG_DRBG_Reseed(rng, seed, (word32)sizeof(seed));
-        rng->lock->broken = 0;
+        rng->autoLock->broken = 0;
         if (ret != WC_NO_ERR_TRACE(BAD_MUTEX_E)) {
             ERROR_OUT(ret == 0 ? WC_TEST_RET_ENC_NC : WC_TEST_RET_ENC_EC(ret),
                       out_free);

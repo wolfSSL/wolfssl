@@ -2840,7 +2840,7 @@ then
 fi
 if test "$ENABLED_RNG_LOCK" = "no"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWC_RNG_NO_LOCK"
+    AM_CFLAGS="$AM_CFLAGS -DWC_RNG_NO_AUTO_LOCK"
 fi
 
 # RNG fork handlers (a forked child keeps using its WC_RNG); decided below
@@ -2854,11 +2854,12 @@ case "$ENABLED_RNG_ATFORK" in
     yes|no) ;;
     *) AC_MSG_ERROR([--enable-rng-atfork takes yes or no]) ;;
 esac
-if test "$ENABLED_RNG" = "no" || test "$ENABLED_RNG_LOCK" = "no"
+if test "$ENABLED_RNG" = "no" || test "$ENABLED_RNG_LOCK" = "no" || \
+   test "$ac_cv_func_getpid" != "yes"
 then
     if test "x$enable_rng_atfork" = "xyes"
     then
-        AC_MSG_ERROR([--enable-rng-atfork requires --enable-rng and --enable-rng-lock])
+        AC_MSG_ERROR([--enable-rng-atfork requires --enable-rng, --enable-rng-lock and getpid])
     fi
     ENABLED_RNG_ATFORK=no
 fi

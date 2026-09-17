@@ -3832,7 +3832,7 @@ add_option("WOLFSSL_RNG_LOCK"
     "yes" "yes;no")
 # the header leaves the lock out where threads or the RNG are absent
 if(NOT WOLFSSL_RNG_LOCK)
-    list(APPEND WOLFSSL_DEFINITIONS "-DWC_RNG_NO_LOCK")
+    list(APPEND WOLFSSL_DEFINITIONS "-DWC_RNG_NO_AUTO_LOCK")
 endif()
 
 # Valgrind (for unit tests)
@@ -4077,6 +4077,13 @@ if(WOLFSSL_RNG_ATFORK)
     elseif(NOT WOLFSSL_RNG OR NOT WOLFSSL_RNG_LOCK OR NOT WOLFSSL_HASH_DRBG OR
            WOLFSSL_RNG_BANK OR WOLFSSL_STATICMEMORY)
         set(RNG_ATFORK_NEEDS "the RNG, its lock and the Hash DRBG, and no RNG bank or static memory")
+    elseif(NOT HAVE_GETPID)
+        # the header gate wants it too: it is what makes the child throw away
+        # the pooled and banked bytes it inherited
+        set(RNG_ATFORK_NEEDS "getpid")
+    elseif(NOT WOLFSSL_MEMTEST STREQUAL "no" OR
+           NOT WOLFSSL_TRACKMEMORY STREQUAL "no")
+        set(RNG_ATFORK_NEEDS "a build without memory tracking")
     else()
         # real link tests: a toolchain whose try-compile only builds a static
         # library reports every function as found

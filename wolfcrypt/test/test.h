@@ -25,7 +25,7 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 #ifndef WC_NO_RNG
-    /* for WC_RNG_HAVE_LOCK and WC_RNG_LOCK_ATFORK; above extern "C" */
+    /* for WC_RNG_HAVE_AUTO_LOCK and WC_RNG_LOCK_ATFORK; above extern "C" */
     #include <wolfssl/wolfcrypt/random.h>
 #endif
 
@@ -44,7 +44,7 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
 /* Needs the lock, threads it can start, and a heap for the compare buffer. */
-#if defined(WC_RNG_HAVE_LOCK) && !defined(WOLFSSL_ASYNC_CRYPT) && \
+#if defined(WC_RNG_HAVE_AUTO_LOCK) && !defined(WOLFSSL_ASYNC_CRYPT) && \
     !defined(HAVE_INTEL_RDRAND) && !defined(WOLF_CRYPTO_CB_FIND) && \
     !(defined(WOLFSSL_SILABS_SE_ACCEL) && defined(WOLFSSL_SILABS_TRNG)) && \
     !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_NO_MALLOC) && \
