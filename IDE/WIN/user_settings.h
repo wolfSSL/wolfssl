@@ -84,12 +84,26 @@
                 #define USE_INTEL_POLY1305_SPEEDUP
             #endif
 
-            /* Single Precision Support for RSA/DH 1024/2048/3072 and
-             * ECC P-256/P-384 */
+            /* Single Precision Support.  Sizes always assembled are
+             * RSA/DH 2048 and 3072 and ECC P-256. */
             #define WOLFSSL_SP
             #define WOLFSSL_HAVE_SP_ECC
             #define WOLFSSL_HAVE_SP_DH
             #define WOLFSSL_HAVE_SP_RSA
+
+            /* Opt in Single Precision sizes.  ml64.exe cannot read this
+             * header, so each size must also be assembled.  The project files
+             * assemble 384 and 4096; 521 and 1024 need /p:WolfSSLSpAsmDefs.
+             * 4096 is in that default because HAVE_FFDHE_4096 above makes
+             * settings.h define WOLFSSL_SP_4096 whenever SP DH is on. */
+            #if 0
+                #define WOLFSSL_SP_384
+                #define WOLFSSL_SP_4096
+                #if 0
+                    #define WOLFSSL_SP_521
+                    #define WOLFSSL_SP_1024
+                #endif
+            #endif
 
             #ifdef _WIN64
                 /* Old versions of MASM compiler do not recognize newer
