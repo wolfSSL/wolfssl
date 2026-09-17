@@ -337,10 +337,12 @@ int test_wc_CmacSetTagLen(void)
     && !defined(HAVE_SELFTEST) \
     && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     Cmac   cmac;
-    byte   key[16];
-    byte   msg[16];
-    byte   tag[16];
+    byte   key[WC_AES_BLOCK_SIZE];
+    byte   msg[WC_AES_BLOCK_SIZE];
+    byte   tag[WC_AES_BLOCK_SIZE];
     word32 tagSz;
+    /* smallest length CMAC allows, so it never equals the one tied below */
+    word32 otherSz = WC_CMAC_TAG_MIN_SZ;
 
     XMEMSET(key, 0, sizeof(key));
     XMEMSET(msg, 0, sizeof(msg));
@@ -348,17 +350,18 @@ int test_wc_CmacSetTagLen(void)
     /* generate side: only the associated size is taken */
     ExpectIntEQ(wc_InitCmac(&cmac, key, sizeof(key), WC_CMAC_AES, NULL), 0);
     if (EXPECT_SUCCESS()) {
-        ExpectIntEQ(wc_CmacSetTagLen(NULL, 16), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_CmacSetTagLen(NULL, (word32)sizeof(tag)),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wc_CmacSetTagLen(&cmac, WC_CMAC_TAG_MAX_SZ + 1),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-        ExpectIntEQ(wc_CmacSetTagLen(&cmac, 16), 0);
+        ExpectIntEQ(wc_CmacSetTagLen(&cmac, (word32)sizeof(tag)), 0);
         ExpectIntEQ(wc_CmacUpdate(&cmac, msg, sizeof(msg)), 0);
-        tagSz = 8;
+        tagSz = otherSz;
         ExpectIntEQ(wc_CmacFinalNoFree(&cmac, tag, &tagSz),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-        tagSz = sizeof(tag);
+        tagSz = (word32)sizeof(tag);
         ExpectIntEQ(wc_CmacFinalNoFree(&cmac, tag, &tagSz), 0);
-        ExpectIntEQ(tagSz, 16);
+        ExpectIntEQ(tagSz, (word32)sizeof(tag));
         /* NoFree leaves the cmac to us */
         wc_CmacFree(&cmac);
     }
@@ -366,10 +369,10 @@ int test_wc_CmacSetTagLen(void)
     /* verify side: a check value of another size is refused */
     ExpectIntEQ(wc_InitCmac(&cmac, key, sizeof(key), WC_CMAC_AES, NULL), 0);
     if (EXPECT_SUCCESS()) {
-        ExpectIntEQ(wc_CmacSetTagLen(&cmac, 16), 0);
+        ExpectIntEQ(wc_CmacSetTagLen(&cmac, (word32)sizeof(tag)), 0);
         /* key NULL keeps the cmac that was just keyed, so it applies */
-        ExpectIntEQ(wc_AesCmacVerify_ex(&cmac, tag, 8, msg, sizeof(msg), NULL,
-            0, HEAP_HINT, testDevId), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_AesCmacVerify_ex(&cmac, tag, otherSz, msg, sizeof(msg),
+            NULL, 0, HEAP_HINT, testDevId), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         /* refused before any work, so the cmac is still ours to free */
         wc_CmacFree(&cmac);
     }
