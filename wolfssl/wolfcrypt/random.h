@@ -274,6 +274,13 @@ struct DRBG_internal {
                                 */
 #endif
 
+#define WC_RNG_HAVE_RBGC
+
+#ifndef WC_RNG_RBGC_USER_SEED_STRATUM
+    #define WC_RNG_RBGC_USER_SEED_STRATUM 65536
+#endif
+wc_static_assert(WC_RNG_RBGC_USER_SEED_STRATUM >= 256);
+
 /* RNG context */
 struct WC_RNG {
     struct OS_Seed seed;
@@ -321,6 +328,9 @@ struct WC_RNG {
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
     int devId;
 #endif
+#ifdef WC_RNG_HAVE_RBGC
+    int RBGCStratum;
+#endif
 };
 
 #endif /* NO FIPS or have FIPS v2*/
@@ -354,7 +364,6 @@ WOLFSSL_API int  wc_InitRng_ex(WC_RNG* rng, void* heap, int devId);
 WOLFSSL_API int  wc_InitRngNonce(WC_RNG* rng, const byte* nonce, word32 nonceSz);
 WOLFSSL_API int  wc_InitRngNonce_ex(WC_RNG* rng, const byte* nonce, word32 nonceSz,
                                     void* heap, int devId);
-#define WC_RNG_HAVE_RBGC
 #define WC_RNG_INIT_FLAG_NONE 0
 WOLFSSL_API int wc_InitRngNonceRBGC(WC_RNG* leaf, WC_RNG* root, const byte* nonce,
                                     word32 nonceSz, word32 flags);

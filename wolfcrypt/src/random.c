@@ -440,7 +440,17 @@ int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz)
     #endif
     }
 
-    return Hash_DRBG_Reseed((DRBG_internal *)rng->drbg, seed, seedSz);
+    {
+        int ret = Hash_DRBG_Reseed((DRBG_internal *)rng->drbg, seed, seedSz);
+#ifdef WC_RNG_HAVE_RBGC
+        if (ret == 0) {
+            /* User-supplied entropy is of unknown provenance.  In RBGC builds,
+             * represent that fact using WC_RNG_RBGC_USER_SEED_STRATUM, preventing confusion with RNGs seeded by the ESV . */
+            rng->RBGCStratum = WC_RNG_RBGC_USER_SEED_STRATUM;
+        }
+#endif
+        return ret;
+    }
 }
 
 static int Hash_DRBG_Generate(DRBG_internal* drbg, byte* out, word32 outSz,
@@ -872,6 +882,7 @@ static int _InitRng(WC_RNG* rng, const byte* nonce, word32 nonceSz,
 #ifdef HAVE_HASHDRBG
     word32 seedSz = SEED_SZ + SEED_BLOCK_SZ;
     WC_DECLARE_VAR(seed, byte, MAX_SEED_SZ, rng->heap);
+    int drbg_instantiated = 0;
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     int drbg_scratch_instantiated = 0;
 #endif
@@ -887,6 +898,18 @@ static int _InitRng(WC_RNG* rng, const byte* nonce, word32 nonceSz,
         return BAD_FUNC_ARG;
 
     XMEMSET(rng, 0, sizeof(*rng));
+
+#ifdef WC_RNG_HAVE_RBGC
+    if (seedRng == NULL)
+        rng->RBGCStratum = 0;
+    else {
+        if (seedRng->RBGCStratum >= WC_MAX_SINT_OF(int))
+            return SEQ_OVERFLOW_E;
+        else if (seedRng->RBGCStratum == WC_RNG_RBGC_USER_SEED_STRATUM - 1)
+            return SEQ_OVERFLOW_E;
+        rng->RBGCStratum = seedRng->RBGCStratum + 1;
+    }
+#endif
 
 #ifdef WOLFSSL_HEAP_TEST
     rng->heap = (void*)WOLFSSL_HEAP_TEST;
@@ -938,6 +961,11 @@ static int _InitRng(WC_RNG* rng, const byte* nonce, word32 nonceSz,
     if (IS_INTEL_RDRAND(intel_flags)) {
     #ifdef HAVE_HASHDRBG
         rng->status = DRBG_OK;
+    #endif
+    #ifdef WC_RNG_HAVE_RBGC
+        /* undo stratum increment */
+        if (seedRng != NULL)
+            rng->RBGCStratum = 0;
     #endif
         return 0;
     }
@@ -1093,10 +1121,13 @@ static int _InitRng(WC_RNG* rng, const byte* nonce, word32 nonceSz,
     #endif
             }
 
-            if (ret == DRBG_SUCCESS)
+            if (ret == DRBG_SUCCESS) {
                 ret = Hash_DRBG_Instantiate((DRBG_internal *)rng->drbg,
                             seed + SEED_BLOCK_SZ, seedSz - SEED_BLOCK_SZ,
                             nonce, nonceSz, rng->heap, devId);
+                if (ret == DRBG_SUCCESS)
+                    drbg_instantiated = 1;
+            }
     } /* ret == 0 */
 
     #ifdef WOLFSSL_SMALL_STACK
@@ -1108,6 +1139,8 @@ static int _InitRng(WC_RNG* rng, const byte* nonce, word32 nonceSz,
     WC_FREE_VAR_EX(seed, rng->heap, DYNAMIC_TYPE_SEED);
 
     if (ret != DRBG_SUCCESS) {
+        if (drbg_instantiated)
+            (void)Hash_DRBG_Uninstantiate((DRBG_internal *)rng->drbg);
     #if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_STATIC_MEMORY)
         XFREE(rng->drbg, rng->heap, DYNAMIC_TYPE_RNG);
     #endif
@@ -1416,6 +1449,16 @@ int wc_RNG_DRBG_ReseedRBGC(WC_RNG* leaf, WC_RNG* root)
     if ((leaf == NULL) || (root == NULL) || (leaf == root))
         return BAD_FUNC_ARG;
 
+#ifdef WC_RNG_HAVE_RBGC
+    if (root->RBGCStratum >= WC_MAX_SINT_OF(int))
+        return SEQ_OVERFLOW_E;
+    else if (root->RBGCStratum == WC_RNG_RBGC_USER_SEED_STRATUM - 1)
+        return SEQ_OVERFLOW_E;
+
+    if ((root->RBGCStratum > 0) && (root->RBGCStratum >= leaf->RBGCStratum))
+        return BAD_FUNC_ARG;
+#endif
+
     /* Mirror wc_RNG_DRBG_Reseed_Now(): only an in-service DRBG may
      * reseed, and with no DRBG instantiated (RDRAND et al.) there is
      * nothing to reseed. */
@@ -1434,8 +1477,13 @@ int wc_RNG_DRBG_ReseedRBGC(WC_RNG* leaf, WC_RNG* root)
 #endif
 
     ret = wc_RNG_GenerateBlock(root, seed, SEED_SZ);
-    if (ret == 0)
-        ret = wc_RNG_DRBG_Reseed(leaf, seed, SEED_SZ);
+    if (ret == 0) {
+        ret = Hash_DRBG_Reseed((DRBG_internal *)leaf->drbg, seed, SEED_SZ);
+#ifdef WC_RNG_HAVE_RBGC
+        if (ret == 0)
+            leaf->RBGCStratum = root->RBGCStratum + 1;
+#endif
+    }
     ForceZero(seed, SEED_SZ);
 
     return ret;
