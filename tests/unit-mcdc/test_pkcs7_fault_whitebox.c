@@ -586,15 +586,16 @@ static void wb_ktri_recipinfos(void)
         WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "out==NULL true");
     }
 
-    WB_NOTE("wc_PKCS7_DecryptRecipientInfos(): 6-operand OR guard -- the"
+    WB_NOTE("wc_PKCS7_DecryptRecipientInfos(): 7-operand OR guard -- the"
             " other file only NULL-tests pkcs7/in/idx; decryptedKey,"
-            " decryptedKeySz, recipFound plus the all-false baseline are"
-            " added here (stream must be created first: the post-switch"
+            " decryptedKeySz, recipFound, setEnd plus the all-false baseline"
+            " are added here (stream must be created first: the post-switch"
             " path unconditionally reads pkcs7->stream->length)");
     {
         byte in[8] = { 0x30, 0x06, 1,2,3,4,5,6 };
         byte decKey[32];
         word32 idx, decKeySz;
+        word32 setEndWb;
         int recipFound;
 
 #ifndef NO_PKCS7_STREAM
@@ -602,35 +603,40 @@ static void wb_ktri_recipinfos(void)
         WB_CHECK(ret == 0, "CreateStream for DecryptRecipientInfos baseline");
 #endif
         idx = 0; decKeySz = sizeof(decKey); recipFound = 0;
+        setEndWb = 0;
         ret = wc_PKCS7_DecryptRecipientInfos(&pkcs7, in, sizeof(in), &idx,
-                decKey, &decKeySz, &recipFound);
+                decKey, &decKeySz, &recipFound, &setEndWb);
         WB_CHECK(ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG),
                 "baseline (all false): proceeds past the guard"
                 " (state==WC_PKCS7_START -> not-decrypting no-op, ret==0)");
 
         idx = 0;
         ret = wc_PKCS7_DecryptRecipientInfos(NULL, in, sizeof(in), &idx,
-                decKey, &decKeySz, &recipFound);
+                decKey, &decKeySz, &recipFound, &setEndWb);
         WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "pkcs7==NULL true");
         ret = wc_PKCS7_DecryptRecipientInfos(&pkcs7, NULL, sizeof(in), &idx,
-                decKey, &decKeySz, &recipFound);
+                decKey, &decKeySz, &recipFound, &setEndWb);
         WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "in==NULL true");
         ret = wc_PKCS7_DecryptRecipientInfos(&pkcs7, in, sizeof(in), NULL,
-                decKey, &decKeySz, &recipFound);
+                decKey, &decKeySz, &recipFound, &setEndWb);
         WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "idx==NULL true");
         idx = 0;
         ret = wc_PKCS7_DecryptRecipientInfos(&pkcs7, in, sizeof(in), &idx,
-                NULL, &decKeySz, &recipFound);
+                NULL, &decKeySz, &recipFound, &setEndWb);
         WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "decryptedKey==NULL true");
         idx = 0;
         ret = wc_PKCS7_DecryptRecipientInfos(&pkcs7, in, sizeof(in), &idx,
-                decKey, NULL, &recipFound);
+                decKey, NULL, &recipFound, &setEndWb);
         WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG),
                 "decryptedKeySz==NULL true");
         idx = 0;
         ret = wc_PKCS7_DecryptRecipientInfos(&pkcs7, in, sizeof(in), &idx,
-                decKey, &decKeySz, NULL);
+                decKey, &decKeySz, NULL, &setEndWb);
         WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "recipFound==NULL true");
+        idx = 0;
+        ret = wc_PKCS7_DecryptRecipientInfos(&pkcs7, in, sizeof(in), &idx,
+                decKey, &decKeySz, &recipFound, NULL);
+        WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "setEnd==NULL true");
 
 #ifndef NO_PKCS7_STREAM
         wc_PKCS7_FreeStream(&pkcs7);
