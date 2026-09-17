@@ -16841,6 +16841,36 @@ int LoadCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
 #endif
 
 
+#ifdef WOLFSSL_TRUST_PEER_CERT
+/* Helper function to check peer certificate dates since the standard
+ * checks and parsing are skipped for trusted peer certificates. */
+static int CheckTrustedPeerDates(DecodedCert* cert)
+{
+    if (cert == NULL)
+        return BAD_FUNC_ARG;
+
+#ifndef NO_ASN_TIME
+    if (wc_AsnGetSkipDateCheck())
+        return 0;
+
+    if ((cert->beforeDate != NULL) && (cert->beforeDateLen > 2) &&
+            (wc_ValidateDate(&cert->beforeDate[2], cert->beforeDate[0],
+                ASN_BEFORE, cert->beforeDate[1]) == 0)) {
+        WOLFSSL_MSG("Trusted peer cert is not yet valid");
+        return ASN_BEFORE_DATE_E;
+    }
+
+    if ((cert->afterDate != NULL) && (cert->afterDateLen > 2) &&
+            (wc_ValidateDate(&cert->afterDate[2], cert->afterDate[0],
+                ASN_AFTER, cert->afterDate[1]) == 0)) {
+        WOLFSSL_MSG("Trusted peer cert has expired");
+        return ASN_AFTER_DATE_E;
+    }
+#endif
+    return 0;
+}
+#endif /* WOLFSSL_TRUST_PEER_CERT */
+
 static int ProcessPeerCertParse(WOLFSSL* ssl, ProcPeerCertArgs* args,
     int certType, int verify, byte** pSubjectHash, int* pAlreadySigner)
 {
@@ -18458,6 +18488,27 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                     if (tp && MatchTrustedPeer(tp, args->dCert)) {
                         WOLFSSL_MSG("Found matching trusted peer cert");
+                        ret = CheckTrustedPeerDates(args->dCert);
+                        if (ret != 0) {
+                        #if defined(OPENSSL_EXTRA) || \
+                            defined(OPENSSL_EXTRA_X509_SMALL)
+                            /* report as the chain path would have */
+                            if (ssl->peerVerifyRet == 0) {
+                                if (ret ==
+                                        WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E)) {
+                                    ssl->peerVerifyRet = (unsigned long)
+                                        WOLFSSL_X509_V_ERR_CERT_NOT_YET_VALID;
+                                }
+                                else if (ret ==
+                                        WC_NO_ERR_TRACE(ASN_AFTER_DATE_E)) {
+                                    ssl->peerVerifyRet = (unsigned long)
+                                        WOLFSSL_X509_V_ERR_CERT_HAS_EXPIRED;
+                                }
+                            }
+                        #endif
+                            WOLFSSL_ERROR_VERBOSE(ret);
+                            goto exit_ppc;
+                        }
                         args->haveTrustPeer = 1;
                     }
                     else if (tp == NULL) {
