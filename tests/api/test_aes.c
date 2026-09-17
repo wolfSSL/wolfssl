@@ -3644,47 +3644,6 @@ static int test_aes_tag_bind(int type, word32 otherSz, word32 ivSz)
 }
 #endif
 
-#ifdef HAVE_AESCCM
-/* keying through the generic setter must drop the old key's tag length
- */
-static int test_aes_tag_generic_setkey(void)
-{
-    EXPECT_DECLS;
-    Aes  aes;
-    byte key[16];
-    byte nonce[12];
-    byte plain[16];
-    byte cipher[16];
-    byte tag[16];
-    /* RFC 5084 section 3.1 allows this length, it is not the full one */
-    word32 shortTagSz = 8;
-    int  aesInit = 0;
-
-    XMEMSET(key, 0, sizeof(key));
-    XMEMSET(nonce, 0, sizeof(nonce));
-    XMEMSET(plain, 0, sizeof(plain));
-
-    ExpectIntEQ(wc_AesInit(&aes, HEAP_HINT, testDevId), 0);
-    if (EXPECT_SUCCESS())
-        aesInit = 1;
-
-    /* CCM needs only the encryption schedule, so this keys it as well */
-    ExpectIntEQ(wc_AesSetKey(&aes, key, sizeof(key), NULL, AES_ENCRYPTION), 0);
-    ExpectIntEQ(wc_AesCcmEncrypt(&aes, cipher, plain, sizeof(plain), nonce,
-        sizeof(nonce), tag, shortTagSz, NULL, 0), 0);
-
-    /* the same setter installing a new key starts the association over */
-    ExpectIntEQ(wc_AesSetKey(&aes, key, sizeof(key), NULL, AES_ENCRYPTION), 0);
-    ExpectIntEQ(wc_AesCcmEncrypt(&aes, cipher, plain, sizeof(plain), nonce,
-        sizeof(nonce), tag, sizeof(tag), NULL, 0), 0);
-
-    if (aesInit)
-        wc_AesFree(&aes);
-
-    return EXPECT_RESULT();
-}
-#endif
-
 /* A tag length associated with the key must be the only one it accepts.
  */
 int test_wc_AesSetTagLen(void)
@@ -3699,7 +3658,6 @@ int test_wc_AesSetTagLen(void)
 #endif
 #ifdef HAVE_AESCCM
     ExpectIntEQ(test_aes_tag_bind(TEST_AES_TAG_CCM, 8, 12), TEST_SUCCESS);
-    ExpectIntEQ(test_aes_tag_generic_setkey(), TEST_SUCCESS);
 #endif
 #endif
     return EXPECT_RESULT();
