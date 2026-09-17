@@ -288,6 +288,9 @@ fi
     #include <sys/random.h>
 #endif
 ]])
+# accept4() is declared under _GNU_SOURCE, which wc_port.c defines itself, so
+# linkability alone is decisive.
+AC_CHECK_FUNCS([accept4])
 
 AC_PROG_INSTALL
 AC_TYPE_SIZE_T

@@ -89,6 +89,11 @@ Threading/Mutex options:
  * WOLFSSL_USER_DEFINED_ATOMICS: User-provided atomic impl     default: off
  * WOLFSSL_HAVE_ATOMIC_H: Has C11 atomic.h header              default: off
  *
+ * Socket options:
+ * HAVE_ACCEPT4:        Use accept4() for close-on-exec accept  default: auto
+ *                      (configure/CMake detect it; set it for
+ *                      musl or another unrecognised libc)
+ *
  * General options:
  * WOLFCRYPT_ONLY:      Exclude TLS/SSL, wolfCrypt only build   default: off
  * WOLFSSL_LEANPSK:     Lean PSK build, minimal features        default: off
@@ -5752,6 +5757,22 @@ char* wolfSSL_strnstr(const char* s1, const char* s2, size_t n)
     #define SOCK_CLOEXEC 0
 #endif
 
+/* accept4(): HAVE_ACCEPT4 is set by the configure/CMake probe, or in
+ * user_settings.h for a libc not recognised here, such as musl. Recognised:
+ * glibc 2.10, uClibc-ng, bionic API 21, FreeBSD 10. */
+#if (defined(__linux__) || defined(__ANDROID__)) && \
+    (defined(HAVE_ACCEPT4) || \
+     (defined(__USE_GNU) && \
+      ((defined(__GLIBC__) && \
+        (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 10))) || \
+       (defined(__UCLIBC_LINUX_SPECIFIC__) && (__UCLIBC_MAJOR__ >= 1)) || \
+       (defined(__ANDROID_API__) && (__ANDROID_API__ >= 21)))))
+    #define WC_HAVE_ACCEPT4
+#elif defined(__FreeBSD__) && defined(__BSD_VISIBLE) && __BSD_VISIBLE && \
+    (__FreeBSD_version >= 1000000)
+    #define WC_HAVE_ACCEPT4
+#endif
+
 void wc_set_cloexec(int fd)
 {
 #ifdef FD_CLOEXEC
@@ -5831,9 +5852,7 @@ int wc_socket_cloexec(int domain, int type, int protocol)
 int wc_accept_cloexec(int sockfd, void* addr, void* addrlen)
 {
     int fd;
-#if (defined(__USE_GNU) && (defined(__linux__) || defined(__ANDROID__))) || \
-    (defined(__FreeBSD__) && defined(__BSD_VISIBLE) && __BSD_VISIBLE && \
-     (__FreeBSD_version >= 1000000))
+#ifdef WC_HAVE_ACCEPT4
     fd = accept4(sockfd, (struct sockaddr*)addr, (socklen_t*)addrlen,
                  SOCK_CLOEXEC);
     if (fd >= 0)
