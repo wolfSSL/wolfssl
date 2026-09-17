@@ -37038,6 +37038,81 @@ static int test_override_alt_cert_chain(void)
 }
 #endif
 
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_PEM_TO_DER) && !defined(WOLFSSL_ALT_CERT_CHAINS)
+static int test_chain_ca_no_persist_verify_cb(int preverify,
+        WOLFSSL_X509_STORE_CTX* store)
+{
+    (void)preverify;
+    (void)store;
+    return 1;
+}
+
+static int test_chain_ca_no_persist_client_ctx(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+
+    ExpectIntEQ(wolfSSL_CertManagerUnloadCAs(wolfSSL_CTX_GetCertManager(ctx)),
+        WOLFSSL_SUCCESS);
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER,
+        test_chain_ca_no_persist_verify_cb);
+
+    return EXPECT_RESULT();
+}
+
+static int test_chain_ca_no_persist_server_ctx(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_file(ctx,
+        "./certs/intermediate/server-chain.pem"), WOLFSSL_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+
+static int test_chain_ca_no_persist_result(WOLFSSL* ssl)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+
+    ExpectNotNull(cm = wolfSSL_CTX_GetCertManager(wolfSSL_get_SSL_CTX(ssl)));
+    /* The CA trusted via callback must not be usable as a signer afterwards */
+    ExpectIntNE(wolfSSL_CertManagerVerify(cm,
+        "./certs/intermediate/ca-int2-cert.pem", WOLFSSL_FILETYPE_PEM),
+        WOLFSSL_SUCCESS);
+    /* Nor the CA that only verified because the aforementioned one vouched for
+     * it */
+    ExpectIntNE(wolfSSL_CertManagerVerify(cm,
+        "./certs/intermediate/server-int-cert.pem", WOLFSSL_FILETYPE_PEM),
+        WOLFSSL_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+
+static int test_chain_ca_no_persist(void)
+{
+    EXPECT_DECLS;
+    test_ssl_cbf client_cbs, server_cbs;
+
+    XMEMSET(&client_cbs, 0, sizeof(client_cbs));
+    XMEMSET(&server_cbs, 0, sizeof(server_cbs));
+
+    client_cbs.ctx_ready = test_chain_ca_no_persist_client_ctx;
+    client_cbs.on_result = test_chain_ca_no_persist_result;
+    server_cbs.ctx_ready = test_chain_ca_no_persist_server_ctx;
+
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbs,
+        &server_cbs, NULL), TEST_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+#else
+static int test_chain_ca_no_persist(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
+
 static int test_rpk_set_xxx_cert_type(void)
 {
     EXPECT_DECLS;
@@ -42451,6 +42526,7 @@ TEST_CASE testCases[] = {
     /* Can't memory test as client/server Asserts. */
     TEST_DECL(test_harden_no_secure_renegotiation),
     TEST_DECL(test_override_alt_cert_chain),
+    TEST_DECL(test_chain_ca_no_persist),
     TEST_DECL(test_rpk_set_xxx_cert_type),
     TEST_DECL(test_short_session_id),
     /* Can't memory test as client/server hangs. */

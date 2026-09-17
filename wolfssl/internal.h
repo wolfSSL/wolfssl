@@ -2881,6 +2881,7 @@ typedef struct ProcPeerCertArgs {
 #endif
 #ifndef NO_ASN
     DecodedCert* dCert;
+    Signer* waivedCAs; /* chain CAs the verify callback waived */
 #endif
     word32 idx;
     word32 begin;
