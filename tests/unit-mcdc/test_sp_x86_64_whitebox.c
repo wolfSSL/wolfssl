@@ -151,25 +151,15 @@
  *     from this file's fixed/small-scalar inputs.
  */
 
-/* The richest dispatches here are four operands:
- *
- *     IS_INTEL_BMI2(f) && IS_INTEL_ADX(f) && IS_INTEL_AVX2(f) &&
- *         (SAVE_VECTOR_REGISTERS2() == 0)
- *
- * The feature bits are handled by the one-at-a-time masks in main(), but the
- * save operand cannot be flipped that way: in a userspace build types.h
- * resolves SAVE_VECTOR_REGISTERS2() to the literal 0, so "(0 == 0)" is
- * structurally true and has no false side at all. It is real where the save
- * can be refused (the kernel-module build). WC_CHECK_FOR_INTR_SIGNALS is the
- * #ifndef extension point types.h offers for that, so defining it here --
- * before the .c below pulls in any wolfSSL header -- routes every
- * SAVE_VECTOR_REGISTERS2() site through a variable this file controls. Same
- * arrangement as test_wc_mlkem_poly_whitebox.c. */
 /* Sweep depth for the allocation-failure pass. Each index repeats the
  * whole dispatch+crafted driving, and TEST_TIMEOUT is wall clock under
  * MAXPAR, so this stays modest. */
 #define WB_FAULT_MAX_N 20
 
+/* CPUID alone picks each lane; the lane then takes the vector-register save
+ * and a refused save is an error, never a switch of lane.  Userspace resolves
+ * SAVE_VECTOR_REGISTERS2() to 0, so WC_CHECK_FOR_INTR_SIGNALS is defined here,
+ * before any wolfSSL header, to let this file refuse the save on demand. */
 static int wb_intr_ret = 0;
 #define WC_CHECK_FOR_INTR_SIGNALS() (wb_intr_ret)
 
@@ -199,6 +189,20 @@ static int wb_intr_ret = 0;
 #include <stdio.h>
 
 static int wb_fail = 0;
+/* Set while the save is refused.  Every driven operation must fail then, so
+ * these two counters turn that pass from a coverage sweep into a check. */
+static int wb_expect_refusal = 0;
+static int wb_contract_fail = 0;  /* a refused save failed to stop a call */
+static long wb_observed = 0;      /* instrumented calls compiled in here */
+static long wb_refused_ok = 0;    /* failed as required */
+static long wb_refused_bad = 0;   /* succeeded despite a refused save */
+#define WB_OUTCOME(ret) do {                                    \
+    wb_observed++;                                              \
+    if (wb_expect_refusal) {                                    \
+        if ((ret) == 0) wb_refused_bad++; else wb_refused_ok++;  \
+    } } while (0)
+/* Evaluates the call once, records its outcome, yields it to the caller. */
+#define WB_CHECK(call) __extension__ ({ int wb_r_ = (call); WB_OUTCOME(wb_r_); wb_r_; })
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
 
 /* Crafted-input driver shared with the sp_c64.c/sp_c32.c white-boxes: the
@@ -270,12 +274,12 @@ static void wb_run_ecc_curve(int curve_id, int fieldSz, const char* label)
         return;
     }
 
-    if (wc_ecc_make_key_ex(&rng, fieldSz, &keyA, curve_id) != 0) {
+    if (WB_CHECK(wc_ecc_make_key_ex(&rng, fieldSz, &keyA, curve_id)) != 0) {
         WB_NOTE("wc_ecc_make_key_ex(keyA) failed");
         wb_fail = 1;
         ok = 0;
     }
-    if (ok && wc_ecc_make_key_ex(&rng, fieldSz, &keyB, curve_id) != 0) {
+    if (ok && WB_CHECK(wc_ecc_make_key_ex(&rng, fieldSz, &keyB, curve_id)) != 0) {
         WB_NOTE("wc_ecc_make_key_ex(keyB) failed");
         wb_fail = 1;
         ok = 0;
@@ -283,20 +287,20 @@ static void wb_run_ecc_curve(int curve_id, int fieldSz, const char* label)
 
     if (ok) {
         sigLen = (word32)sizeof(sig);
-        if (wc_ecc_sign_hash(wb_digest, (word32)sizeof(wb_digest), sig,
-                &sigLen, &rng, &keyA) != 0) {
+        if (WB_CHECK(wc_ecc_sign_hash(wb_digest, (word32)sizeof(wb_digest), sig,
+                &sigLen, &rng, &keyA)) != 0) {
             WB_NOTE("wc_ecc_sign_hash failed");
             wb_fail = 1;
         }
-        else if (wc_ecc_verify_hash(sig, sigLen, wb_digest,
-                (word32)sizeof(wb_digest), &verifyRes, &keyA) != 0) {
+        else if (WB_CHECK(wc_ecc_verify_hash(sig, sigLen, wb_digest,
+                (word32)sizeof(wb_digest), &verifyRes, &keyA)) != 0) {
             WB_NOTE("wc_ecc_verify_hash failed");
             wb_fail = 1;
         }
 
         PRIVATE_KEY_UNLOCK();
         secretALen = (word32)sizeof(secretA);
-        if (wc_ecc_shared_secret(&keyA, &keyB, secretA, &secretALen) != 0) {
+        if (WB_CHECK(wc_ecc_shared_secret(&keyA, &keyB, secretA, &secretALen)) != 0) {
             WB_NOTE("wc_ecc_shared_secret(A,B) failed");
             wb_fail = 1;
         }
@@ -1154,7 +1158,7 @@ static void wb_run_dispatch_256(void)
         XMEMSET(tmp2, 0, sizeof(tmp2));
         pp1.x[0] = 1; pp1.y[0] = 1; pp1.z[0] = 1;
         pp2.x[0] = 1; pp2.y[0] = 1; pp2.z[0] = 1;
-        sp_256_add_points_4(&pp1, &pp2, tmp2);
+        (void)sp_256_add_points_4(&pp1, &pp2, tmp2);
     }
     {
         sp_point_256 pt;
@@ -1291,7 +1295,7 @@ static void wb_run_dispatch_384(void)
         XMEMSET(tmp2, 0, sizeof(tmp2));
         pp1.x[0] = 1; pp1.y[0] = 1; pp1.z[0] = 1;
         pp2.x[0] = 1; pp2.y[0] = 1; pp2.z[0] = 1;
-        sp_384_add_points_6(&pp1, &pp2, tmp2);
+        (void)sp_384_add_points_6(&pp1, &pp2, tmp2);
     }
     {
         sp_point_384 pt;
@@ -1428,7 +1432,7 @@ static void wb_run_dispatch_521(void)
         XMEMSET(tmp2, 0, sizeof(tmp2));
         pp1.x[0] = 1; pp1.y[0] = 1; pp1.z[0] = 1;
         pp2.x[0] = 1; pp2.y[0] = 1; pp2.z[0] = 1;
-        sp_521_add_points_9(&pp1, &pp2, tmp2);
+        (void)sp_521_add_points_9(&pp1, &pp2, tmp2);
     }
     {
         sp_point_521 pt;
@@ -1589,12 +1593,12 @@ static void wb_run_crafted_curve(int curve_id, int fieldSz,
         return;
     }
 
-    if (wc_ecc_make_key_ex(&rng, fieldSz, &keyA, curve_id) != 0) {
+    if (WB_CHECK(wc_ecc_make_key_ex(&rng, fieldSz, &keyA, curve_id)) != 0) {
         WB_NOTE("wc_ecc_make_key_ex(keyA) failed (crafted)");
         wb_fail = 1;
         ok = 0;
     }
-    if (ok && wc_ecc_make_key_ex(&rng, fieldSz, &keyB, curve_id) != 0) {
+    if (ok && WB_CHECK(wc_ecc_make_key_ex(&rng, fieldSz, &keyB, curve_id)) != 0) {
         WB_NOTE("wc_ecc_make_key_ex(keyB) failed (crafted)");
         wb_fail = 1;
         ok = 0;
@@ -1995,17 +1999,39 @@ int main(void)
         wb_run_crafted();
         wb_spc_all();
 
-        /* Fourth operand: every feature present but the vector-register save
-         * refused, so each chain falls through on its last condition. */
+        /* Refused save: every lane returns its error instead of running, so
+         * the drivers report failures here by design.  The counters turn that
+         * into a check: a call that SUCCEEDS with the save refused means the
+         * dispatch found another way to run, which is what this file exists
+         * to keep out. */
         cpuid_select_flags(real);
         wb_intr_ret = 1;
+        wb_expect_refusal = 1;
         wb_run_ecc();
         wb_run_rsa_signverify();
         wb_run_dh();
         wb_run_dispatch();
         wb_run_crafted();
         wb_spc_all();
+        wb_expect_refusal = 0;
         wb_intr_ret = 0;
+
+        printf("  [wb] refused save: %ld calls failed as required, %ld ran anyway\n",
+               wb_refused_ok, wb_refused_bad);
+        if (wb_refused_bad != 0) {
+            printf("  [wb] FAIL: a refused vector-register save did not stop the call\n");
+            wb_contract_fail = 1;
+        }
+        /* The refusal pass compiles for SP RSA or DH too, but the instrumented
+         * calls are all ECC.  In a build without them there is nothing to
+         * check, which is not the same as a check that failed. */
+        if (wb_observed == 0) {
+            printf("  [wb] no instrumented call in this configuration; nothing to check\n");
+        }
+        else if (wb_refused_ok == 0) {
+            printf("  [wb] FAIL: nothing was seen failing, so this check proves nothing\n");
+            wb_contract_fail = 1;
+        }
 
         wb_run_rsa_free();
 
@@ -2052,5 +2078,6 @@ int main(void)
     printf("  no SP feature; nothing to exercise\n");
 #endif
     (void)wb_fail;
-    return 0;
+    /* Coverage sweeps stay advisory; the fail-closed contract does not. */
+    return wb_contract_fail;
 }
