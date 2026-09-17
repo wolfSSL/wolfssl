@@ -410,6 +410,50 @@ int wc_CmacFree(Cmac* cmac)
     return 0;
 }
 
+#ifndef NO_AES
+/* first use of the key fixes the length, per SP 800-38B 5.4
+ */
+static int CmacAssociateTagSz(Cmac* cmac, word32 tagSz)
+{
+    if (cmac == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (cmac->aes.tagLen == WC_NO_TAG_ASSOCIATION) {
+        cmac->aes.tagLen = tagSz;
+        return 0;
+    }
+
+    if (tagSz != cmac->aes.tagLen) {
+        WOLFSSL_MSG("CMAC tag size differs from the one associated with the key");
+        return BAD_FUNC_ARG;
+    }
+
+    return 0;
+}
+#endif
+
+
+#ifndef NO_AES
+/* One tag length per key, per SP 800-38B 5.4, which gives a range not a
+ * list. Pass WC_NO_TAG_ASSOCIATION to clear it.
+ */
+int wc_CmacSetTagLen(Cmac* cmac, word32 tagLen)
+{
+    if (cmac == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (tagLen != WC_NO_TAG_ASSOCIATION &&
+            (tagLen < WC_CMAC_TAG_MIN_SZ || tagLen > WC_CMAC_TAG_MAX_SZ)) {
+        return BAD_FUNC_ARG;
+    }
+
+    return wc_AesSetTagLen(&cmac->aes, tagLen);
+}
+#endif
+
+
 int wc_CmacFinalNoFree(Cmac* cmac, byte* out, word32* outSz)
 {
     int ret = 0;
@@ -420,6 +464,11 @@ int wc_CmacFinalNoFree(Cmac* cmac, byte* out, word32* outSz)
     if (*outSz < WC_CMAC_TAG_MIN_SZ || *outSz > WC_CMAC_TAG_MAX_SZ) {
         return BUFFER_E;
     }
+#ifndef NO_AES
+    if (CmacAssociateTagSz(cmac, *outSz) != 0) {
+        return BAD_FUNC_ARG;
+    }
+#endif
 
 #ifdef WOLF_CRYPTO_CB
     #ifndef WOLF_CRYPTO_CB_FIND
@@ -519,6 +568,13 @@ int wc_AesCmacGenerate_ex(Cmac* cmac,
     if (devId != INVALID_DEVID)
     #endif
     {
+    #ifndef NO_AES
+        /* this path returns without reaching wc_CmacFinal() */
+        if (key == NULL && outSz != NULL &&
+                CmacAssociateTagSz(cmac, *outSz) != 0) {
+            return BAD_FUNC_ARG;
+        }
+    #endif
         ret = wc_CryptoCb_Cmac(cmac, key, keySz, in, inSz, out, outSz,
                 WC_CMAC_AES, NULL);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
@@ -613,6 +669,12 @@ int wc_AesCmacVerify_ex(Cmac* cmac,
 
     if (cmac == NULL || check == NULL || checkSz < WC_CMAC_TAG_MIN_SZ ||
             checkSz > WC_AES_BLOCK_SIZE || (in == NULL && inSz != 0)) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* only tie a length when the caller hands in a keyed cmac, a key here
+     * means this call sets the key and clears any association */
+    if (key == NULL && CmacAssociateTagSz(cmac, checkSz) != 0) {
         return BAD_FUNC_ARG;
     }
 

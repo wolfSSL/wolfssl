@@ -128,6 +128,11 @@ int wc_InitCmac(Cmac* cmac,
                 const byte* key, word32 keySz,
                 int type, void* unused);
 
+#ifndef NO_AES
+WOLFSSL_API
+int wc_CmacSetTagLen(Cmac* cmac, word32 tagLen);
+#endif
+
 WOLFSSL_API
 int wc_InitCmac_ex(Cmac* cmac,
                 const byte* key, word32 keySz,

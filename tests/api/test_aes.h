@@ -47,6 +47,8 @@ int test_wc_AesCtrCounterOverflow(void);
 int test_wc_AesGcmSetKey(void);
 int test_wc_AesGcmEncryptDecrypt_Sizes(void);
 int test_wc_AesGcmEncryptDecrypt(void);
+int test_wc_AesSetTagLen(void);
+int test_wc_AesGcmStreamTagLen(void);
 int test_wc_AesGcmEncryptDecrypt_InPlace(void);
 int test_wc_AesGcmEncryptDecrypt_UnalignedBuffers(void);
 int test_wc_AesGcm_CrossCipher(void);
@@ -208,6 +210,8 @@ int test_wc_CryptoCb_AesKeyWrapEcbCompose(void);
     TEST_DECL_GROUP("aes", test_wc_AesGcmSetKey),               \
     TEST_DECL_GROUP("aes", test_wc_AesGcmEncryptDecrypt_Sizes), \
     TEST_DECL_GROUP("aes", test_wc_AesGcmEncryptDecrypt),        \
+    TEST_DECL_GROUP("aes", test_wc_AesSetTagLen),                \
+    TEST_DECL_GROUP("aes", test_wc_AesGcmStreamTagLen),          \
     TEST_DECL_GROUP("aes", test_wc_AesGcmEncryptDecrypt_InPlace),            \
     TEST_DECL_GROUP("aes", test_wc_AesGcmEncryptDecrypt_UnalignedBuffers),  \
     TEST_DECL_GROUP("aes", test_wc_AesGcm_CrossCipher),                    \

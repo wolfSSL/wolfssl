@@ -537,6 +537,11 @@ struct Aes {
      * path, which is exactly the case that would otherwise encrypt with an
      * all-zero key. */
     WC_BITFIELD keyInstalled:1;
+
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || defined(WOLFSSL_CMAC)
+    /* tag length this key is tied to, at the end so offsets do not move */
+    word32 tagLen;
+#endif
 };
 
 #ifndef WC_AES_TYPE_DEFINED
@@ -621,6 +626,16 @@ typedef int (*wc_AesAuthDecryptFunc)(Aes* aes, byte* out,
                                    const byte* iv, word32 ivSz,
                                    const byte* authTag, word32 authTagSz,
                                    const byte* authIn, word32 authInSz);
+
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || defined(WOLFSSL_CMAC)
+/* no tag length is tied to the key yet, also pass to wc_AesSetTagLen() or
+ * wc_CmacSetTagLen() to clear one */
+enum {
+    WC_NO_TAG_ASSOCIATION = 0
+};
+
+WOLFSSL_API int  wc_AesSetTagLen(Aes* aes, word32 tagLen);
+#endif
 
 /* AES-CBC */
 WOLFSSL_API int  wc_AesSetKey(Aes* aes, const byte* key, word32 len,

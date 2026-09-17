@@ -328,6 +328,55 @@ int test_wc_AesCmacGenerate(void)
 
 } /* END test_wc_AesCmacGenerate */
 
+
+/* A tag length associated with the key must be the only one it accepts. */
+int test_wc_CmacSetTagLen(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_CMAC) && !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT) \
+    && !defined(HAVE_SELFTEST) \
+    && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    Cmac   cmac;
+    byte   key[16];
+    byte   msg[16];
+    byte   tag[16];
+    word32 tagSz;
+
+    XMEMSET(key, 0, sizeof(key));
+    XMEMSET(msg, 0, sizeof(msg));
+
+    /* generate side: only the associated size is taken */
+    ExpectIntEQ(wc_InitCmac(&cmac, key, sizeof(key), WC_CMAC_AES, NULL), 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wc_CmacSetTagLen(NULL, 16), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_CmacSetTagLen(&cmac, WC_CMAC_TAG_MAX_SZ + 1),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_CmacSetTagLen(&cmac, 16), 0);
+        ExpectIntEQ(wc_CmacUpdate(&cmac, msg, sizeof(msg)), 0);
+        tagSz = 8;
+        ExpectIntEQ(wc_CmacFinalNoFree(&cmac, tag, &tagSz),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        tagSz = sizeof(tag);
+        ExpectIntEQ(wc_CmacFinalNoFree(&cmac, tag, &tagSz), 0);
+        ExpectIntEQ(tagSz, 16);
+        /* NoFree leaves the cmac to us */
+        wc_CmacFree(&cmac);
+    }
+
+    /* verify side: a check value of another size is refused */
+    ExpectIntEQ(wc_InitCmac(&cmac, key, sizeof(key), WC_CMAC_AES, NULL), 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wc_CmacSetTagLen(&cmac, 16), 0);
+        /* key NULL keeps the cmac that was just keyed, so it applies */
+        ExpectIntEQ(wc_AesCmacVerify_ex(&cmac, tag, 8, msg, sizeof(msg), NULL,
+            0, HEAP_HINT, testDevId), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* refused before any work, so the cmac is still ours to free */
+        wc_CmacFree(&cmac);
+    }
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_CmacSetTagLen */
+
 /*
  * MC/DC: wc_CMAC_Grow()'s (cmac == NULL) || (in == NULL && inSz != 0)
  * guard. Compiled out entirely unless WOLFSSL_HASH_KEEP is defined.
