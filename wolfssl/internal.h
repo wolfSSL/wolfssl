@@ -2552,6 +2552,11 @@ WOLFSSL_TEST_VIS void InitSuitesHashSigAlgo(byte* hashSigAlgo, int have,
 WOLFSSL_LOCAL int AllocateCtxSuites(WOLFSSL_CTX* ctx);
 WOLFSSL_LOCAL int InitCtxSuitesWithMutex(WOLFSSL_CTX* ctx);
 WOLFSSL_LOCAL int AllocateSuites(WOLFSSL* ssl);
+#if defined(HAVE_ECC) && \
+    ((defined(WOLFSSL_TLS13) && !defined(NO_CERTS)) || \
+     defined(USE_ECDSA_KEYSZ_HASH_ALGO))
+WOLFSSL_LOCAL int CmpEccStrength(int hashAlgo, int curveSz);
+#endif
 WOLFSSL_LOCAL void InitSuites(Suites* suites, ProtocolVersion pv, int keySz,
                               word16 haveRSA, word16 havePSK, word16 haveDH,
                               word16 haveECDSAsig, word16 haveECC,

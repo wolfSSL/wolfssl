@@ -33028,7 +33028,7 @@ static int MatchSigAlgo(WOLFSSL* ssl, int hashAlgo, int sigAlgo)
 #if defined(HAVE_ECC) && \
     ((defined(WOLFSSL_TLS13) && !defined(NO_CERTS)) || \
      defined(USE_ECDSA_KEYSZ_HASH_ALGO))
-static int CmpEccStrength(int hashAlgo, int curveSz)
+int CmpEccStrength(int hashAlgo, int curveSz)
 {
     int dgstSz = GetMacDigestSize((byte)hashAlgo);
     if (dgstSz <= 0)

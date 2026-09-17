@@ -12408,6 +12408,20 @@ static void FreeDcv13Args(WOLFSSL* ssl, void* pArgs)
     (void)ssl;
 }
 
+#ifdef HAVE_ECC
+/* An ECDSA SignatureScheme names a curve as well as a hash, so the peer key
+ * has to be on the curve the announced scheme names (RFC 8446 4.4.3).
+ *
+ * returns 1 when the peer key's group agrees with the announced hash. */
+static int EccPeerCurveMatchesSigAlgo(WOLFSSL* ssl)
+{
+    if ((ssl->peerEccDsaKey == NULL) || (ssl->peerEccDsaKey->dp == NULL))
+        return 0;
+    return CmpEccStrength(ssl->options.peerHashAlgo,
+                          ssl->peerEccDsaKey->dp->size) == 0;
+}
+#endif /* HAVE_ECC */
+
 #ifdef WOLFSSL_DUAL_ALG_CERTS
 #ifndef NO_RSA
 /* ssl->peerCert->sapkiDer is the alternative public key. Hopefully it is a
@@ -12816,14 +12830,16 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
             if (ssl->options.peerSigAlgo == ecc_dsa_sa_algo) {
                 WOLFSSL_MSG("Peer sent ECC sig");
                 validSigAlgo = (ssl->peerEccDsaKey != NULL) &&
-                                                      ssl->peerEccDsaKeyPresent;
+                               ssl->peerEccDsaKeyPresent &&
+                               EccPeerCurveMatchesSigAlgo(ssl);
             }
         #endif
         #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
             if (ssl->options.peerSigAlgo == sm2_sa_algo) {
                 WOLFSSL_MSG("Peer sent SM2 sig");
                 validSigAlgo = (ssl->peerEccDsaKey != NULL) &&
-                                                      ssl->peerEccDsaKeyPresent;
+                               ssl->peerEccDsaKeyPresent &&
+                               EccPeerCurveMatchesSigAlgo(ssl);
             }
         #endif
         #ifdef HAVE_FALCON
@@ -13248,6 +13264,9 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 if ((args->altSigAlgo == ecc_dsa_sa_algo) &&
                     (ssl->peerEccDsaKeyPresent)) {
                     WOLFSSL_MSG("Doing ECC peer cert alt verify");
+                    if (!EccPeerCurveMatchesSigAlgo(ssl)) {
+                        ERROR_OUT(SIG_VERIFY_E, exit_dcv);
+                    }
                     ret = EccVerify(ssl, sig, args->altSignatureSz,
                                 args->altSigData, args->altSigDataSz,
                                 ssl->peerEccDsaKey,
