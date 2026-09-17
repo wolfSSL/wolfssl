@@ -1304,12 +1304,26 @@ static WC_INLINE int Transform_Sha256_Len_aarch64(wc_Sha256* sha256,
     return (*Transform_Sha256_Len_p)(sha256, data, len);
 }
 
+/* Both transforms below run on v0-v31 and save d8-d15
+ * (port/arm/armv8-sha256-asm.S), so a kernel module must bracket them. */
+#if defined(__aarch64__) && defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS)
+    #define WC_SHA256_ARM64_SVR_BEGIN()                                     \
+        do { int _svr_ret = SAVE_VECTOR_REGISTERS2();                       \
+             if (_svr_ret != 0) return _svr_ret; } while (0)
+    #define WC_SHA256_ARM64_SVR_END()  RESTORE_VECTOR_REGISTERS()
+#else
+    #define WC_SHA256_ARM64_SVR_BEGIN() WC_DO_NOTHING
+    #define WC_SHA256_ARM64_SVR_END()   WC_DO_NOTHING
+#endif
+
 #if !defined(WOLFSSL_ARMASM_NO_NEON)
 #if !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
 static int Transform_Sha256_Len_crypto_aarch64(wc_Sha256* sha256,
     const byte* data, word32 len)
 {
+    WC_SHA256_ARM64_SVR_BEGIN();
     Transform_Sha256_Len_crypto(sha256, data, len);
+    WC_SHA256_ARM64_SVR_END();
     return 0;
 }
 #endif
@@ -1317,7 +1331,9 @@ static int Transform_Sha256_Len_crypto_aarch64(wc_Sha256* sha256,
 static int Transform_Sha256_Len_neon_aarch64(wc_Sha256* sha256,
     const byte* data, word32 len)
 {
+    WC_SHA256_ARM64_SVR_BEGIN();
     Transform_Sha256_Len_neon(sha256, data, len);
+    WC_SHA256_ARM64_SVR_END();
     return 0;
 }
 #endif
