@@ -351,9 +351,13 @@ WOLFSSL_ABI WOLFSSL_API void wc_rng_free(WC_RNG* rng);
 #ifndef WC_NO_RNG
 WOLFSSL_ABI WOLFSSL_API int  wc_InitRng(WC_RNG* rng);
 WOLFSSL_API int  wc_InitRng_ex(WC_RNG* rng, void* heap, int devId);
-WOLFSSL_API int  wc_InitRngNonce(WC_RNG* rng, byte* nonce, word32 nonceSz);
-WOLFSSL_API int  wc_InitRngNonce_ex(WC_RNG* rng, byte* nonce, word32 nonceSz,
+WOLFSSL_API int  wc_InitRngNonce(WC_RNG* rng, const byte* nonce, word32 nonceSz);
+WOLFSSL_API int  wc_InitRngNonce_ex(WC_RNG* rng, const byte* nonce, word32 nonceSz,
                                     void* heap, int devId);
+#define WC_RNG_HAVE_RBGC
+#define WC_RNG_INIT_FLAG_NONE 0
+WOLFSSL_API int wc_InitRngNonceRBGC(WC_RNG* leaf, WC_RNG* root, const byte* nonce,
+                                    word32 nonceSz, word32 flags);
 WOLFSSL_ABI WOLFSSL_API int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz);
 WOLFSSL_API int  wc_RNG_GenerateByte(WC_RNG* rng, byte* b);
 WOLFSSL_API int  wc_FreeRng(WC_RNG* rng);
@@ -385,6 +389,18 @@ WOLFSSL_API int  wc_FreeRng(WC_RNG* rng);
 #ifdef HAVE_HASHDRBG
     WOLFSSL_API int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed,
                                        word32 seedSz);
+    WOLFSSL_API int wc_RNG_DRBG_Reseed_Uncredited(
+        WC_RNG* rng, const byte* seed, word32 seedSz);
+    WOLFSSL_API int wc_RNG_DRBG_ReseedRBGC(WC_RNG* leaf, WC_RNG* root);
+    #ifdef WORD64_AVAILABLE
+    WOLFSSL_API int wc_RNG_DRBG_GetReseedCtr(const WC_RNG* rng,
+                                             word64* reseedCtr);
+    #else
+    WOLFSSL_API int wc_RNG_DRBG_GetReseedCtr(const WC_RNG* rng,
+                                             word32* reseedCtr);
+    #endif
+    WOLFSSL_API int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* nonce,
+                                           word32 nonceSz);
     WOLFSSL_API int wc_RNG_TestSeed(const byte* seed, word32 seedSz);
     WOLFSSL_API int wc_RNG_HealthTest(int reseed,
                                         const byte* seedA, word32 seedASz,
