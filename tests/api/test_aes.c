@@ -3522,7 +3522,10 @@ int test_wc_AesGcmEncryptDecrypt(void)
 } /* END test_wc_AesGcmEncryptDecrypt */
 
 
-#if (defined(HAVE_AESGCM) || defined(HAVE_AESCCM)) && !defined(NO_AES) && \
+/* must match the call sites in test_wc_AesSetTagLen(), a build that compiles
+ * these helpers without calling them fails -Wunused-function */
+#if ((defined(HAVE_AESGCM) && WOLFSSL_MIN_AUTH_TAG_SZ <= 12) || \
+     defined(HAVE_AESCCM)) && !defined(NO_AES) && \
     defined(WOLFSSL_AES_128) && !defined(HAVE_SELFTEST) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
 
