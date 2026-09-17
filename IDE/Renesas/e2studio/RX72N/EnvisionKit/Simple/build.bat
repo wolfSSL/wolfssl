@@ -110,9 +110,15 @@ if defined FORCE_WOLFSSL_REBUILD (
     echo ============================================================
     cd /d "%BASEDIR%wolfssl\Debug"
     "%MAKE%" clean
-    if %ERRORLEVEL% neq 0 (
+    REM %ERRORLEVEL% would be expanded once when this whole if-block is
+    REM parsed, before "%MAKE%" clean has even run, always reading as
+    REM whatever it was beforehand (0) and silently ignoring a failed
+    REM clean. "if errorlevel 1" tests the real, current errorlevel at
+    REM this point instead; the exit code below is a literal for the same
+    REM reason.
+    if errorlevel 1 (
         echo [ERROR] wolfssl clean failed.
-        exit /b %ERRORLEVEL%
+        exit /b 1
     )
 ) else (
     echo ============================================================
