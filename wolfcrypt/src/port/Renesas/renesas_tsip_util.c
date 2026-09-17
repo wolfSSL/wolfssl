@@ -1268,7 +1268,11 @@ static int tsipTls13VerifyHandshake(struct WOLFSSL* ssl,
  *  ssl       WOLFSSL object
  *  input     the buffer holding decrypted finished message, type and padding
  *  inOutIdx  On entry, the index into the message content of Finished.
- *            On exit, the index of byte after the Finished message and padding.
+ *            On exit, the index of byte after the Finished message body.
+ *            padSz (type and padding) is added once by the caller
+ *            (ProcessReply, internal.c) after it sees the record's content
+ *            fully consumed -- this function must not add it too, or the
+ *            index ends up one padSz past the true record boundary.
  *  size      Length of message content(excluding type and padding)
  *  totalSz   Length in the record header. means message + type + pad.
  *  return    0, on success, others on failure.
