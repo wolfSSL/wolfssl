@@ -3521,6 +3521,235 @@ int test_wc_AesGcmEncryptDecrypt(void)
 
 } /* END test_wc_AesGcmEncryptDecrypt */
 
+
+#if (defined(HAVE_AESGCM) || defined(HAVE_AESCCM)) && !defined(NO_AES) && \
+    defined(WOLFSSL_AES_128) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+
+#define TEST_AES_TAG_GCM 1
+#define TEST_AES_TAG_CCM 2
+
+/* The three calls below are the only difference between the two modes.
+ */
+static int test_aes_tag_setkey(int type, Aes* aes, const byte* key, word32 len)
+{
+#ifdef HAVE_AESGCM
+    if (type == TEST_AES_TAG_GCM)
+        return wc_AesGcmSetKey(aes, key, len);
+#endif
+#ifdef HAVE_AESCCM
+    if (type == TEST_AES_TAG_CCM)
+        return wc_AesCcmSetKey(aes, key, len);
+#endif
+    return NOT_COMPILED_IN;
+}
+
+static int test_aes_tag_enc(int type, Aes* aes, byte* out, const byte* in,
+    word32 sz, const byte* iv, word32 ivSz, byte* tag, word32 tagSz)
+{
+#ifdef HAVE_AESGCM
+    if (type == TEST_AES_TAG_GCM)
+        return wc_AesGcmEncrypt(aes, out, in, sz, iv, ivSz, tag, tagSz,
+            NULL, 0);
+#endif
+#ifdef HAVE_AESCCM
+    if (type == TEST_AES_TAG_CCM)
+        return wc_AesCcmEncrypt(aes, out, in, sz, iv, ivSz, tag, tagSz,
+            NULL, 0);
+#endif
+    return NOT_COMPILED_IN;
+}
+
+/* aes.c only defines these decrypt entry points when the build keeps them
+ */
+#ifdef HAVE_AES_DECRYPT
+static int test_aes_tag_dec(int type, Aes* aes, byte* out, const byte* in,
+    word32 sz, const byte* iv, word32 ivSz, const byte* tag, word32 tagSz)
+{
+#ifdef HAVE_AESGCM
+    if (type == TEST_AES_TAG_GCM)
+        return wc_AesGcmDecrypt(aes, out, in, sz, iv, ivSz, tag, tagSz,
+            NULL, 0);
+#endif
+#ifdef HAVE_AESCCM
+    if (type == TEST_AES_TAG_CCM)
+        return wc_AesCcmDecrypt(aes, out, in, sz, iv, ivSz, tag, tagSz,
+            NULL, 0);
+#endif
+    return NOT_COMPILED_IN;
+}
+#endif
+
+/* Runs the same checks for either mode, otherSz being a size it allows
+ */
+static int test_aes_tag_bind(int type, word32 otherSz, word32 ivSz)
+{
+    EXPECT_DECLS;
+    Aes  aes;
+    byte key[16];
+    byte iv[GCM_NONCE_MID_SZ];
+    byte plain[16];
+    byte cipher[16];
+    byte tag[16];
+    int  aesInit = 0;
+
+    XMEMSET(key, 0, sizeof(key));
+    XMEMSET(iv, 0, sizeof(iv));
+    XMEMSET(plain, 0, sizeof(plain));
+
+    ExpectIntEQ(wc_AesInit(&aes, HEAP_HINT, testDevId), 0);
+    if (EXPECT_SUCCESS())
+        aesInit = 1;
+    ExpectIntEQ(test_aes_tag_setkey(type, &aes, key, sizeof(key)), 0);
+
+    /* nothing associated yet, so this first use fixes the length */
+    ExpectIntEQ(test_aes_tag_enc(type, &aes, cipher, plain, sizeof(plain), iv,
+        ivSz, tag, otherSz), 0);
+    ExpectIntEQ(test_aes_tag_enc(type, &aes, cipher, plain, sizeof(plain), iv,
+        ivSz, tag, sizeof(tag)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    ExpectIntEQ(wc_AesSetTagLen(NULL, sizeof(tag)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesSetTagLen(&aes, WC_AES_BLOCK_SIZE + 1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* associate the full length with this key, then otherSz must fail both
+     * ways */
+    ExpectIntEQ(wc_AesSetTagLen(&aes, sizeof(tag)), 0);
+    ExpectIntEQ(test_aes_tag_enc(type, &aes, cipher, plain, sizeof(plain), iv,
+        ivSz, tag, sizeof(tag)), 0);
+    ExpectIntEQ(test_aes_tag_enc(type, &aes, cipher, plain, sizeof(plain), iv,
+        ivSz, tag, otherSz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#ifdef HAVE_AES_DECRYPT
+    ExpectIntEQ(test_aes_tag_dec(type, &aes, plain, cipher, sizeof(cipher), iv,
+        ivSz, tag, otherSz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+
+    /* resetting the association drops it, and so does a new key */
+    ExpectIntEQ(wc_AesSetTagLen(&aes, WC_NO_TAG_ASSOCIATION), 0);
+    ExpectIntEQ(test_aes_tag_enc(type, &aes, cipher, plain, sizeof(plain), iv,
+        ivSz, tag, otherSz), 0);
+    ExpectIntEQ(wc_AesSetTagLen(&aes, sizeof(tag)), 0);
+    ExpectIntEQ(test_aes_tag_setkey(type, &aes, key, sizeof(key)), 0);
+    ExpectIntEQ(test_aes_tag_enc(type, &aes, cipher, plain, sizeof(plain), iv,
+        ivSz, tag, otherSz), 0);
+
+    if (aesInit)
+        wc_AesFree(&aes);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+#ifdef HAVE_AESCCM
+/* keying through the generic setter must drop the old key's tag length
+ */
+static int test_aes_tag_generic_setkey(void)
+{
+    EXPECT_DECLS;
+    Aes  aes;
+    byte key[16];
+    byte nonce[12];
+    byte plain[16];
+    byte cipher[16];
+    byte tag[16];
+    /* RFC 5084 section 3.1 allows this length, it is not the full one */
+    word32 shortTagSz = 8;
+    int  aesInit = 0;
+
+    XMEMSET(key, 0, sizeof(key));
+    XMEMSET(nonce, 0, sizeof(nonce));
+    XMEMSET(plain, 0, sizeof(plain));
+
+    ExpectIntEQ(wc_AesInit(&aes, HEAP_HINT, testDevId), 0);
+    if (EXPECT_SUCCESS())
+        aesInit = 1;
+
+    /* CCM needs only the encryption schedule, so this keys it as well */
+    ExpectIntEQ(wc_AesSetKey(&aes, key, sizeof(key), NULL, AES_ENCRYPTION), 0);
+    ExpectIntEQ(wc_AesCcmEncrypt(&aes, cipher, plain, sizeof(plain), nonce,
+        sizeof(nonce), tag, shortTagSz, NULL, 0), 0);
+
+    /* the same setter installing a new key starts the association over */
+    ExpectIntEQ(wc_AesSetKey(&aes, key, sizeof(key), NULL, AES_ENCRYPTION), 0);
+    ExpectIntEQ(wc_AesCcmEncrypt(&aes, cipher, plain, sizeof(plain), nonce,
+        sizeof(nonce), tag, sizeof(tag), NULL, 0), 0);
+
+    if (aesInit)
+        wc_AesFree(&aes);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/* A tag length associated with the key must be the only one it accepts.
+ */
+int test_wc_AesSetTagLen(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && defined(WOLFSSL_AES_128) && \
+    !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+#if defined(HAVE_AESGCM) && WOLFSSL_MIN_AUTH_TAG_SZ <= 12
+    ExpectIntEQ(test_aes_tag_bind(TEST_AES_TAG_GCM, 12, GCM_NONCE_MID_SZ),
+        TEST_SUCCESS);
+#endif
+#ifdef HAVE_AESCCM
+    ExpectIntEQ(test_aes_tag_bind(TEST_AES_TAG_CCM, 8, 12), TEST_SUCCESS);
+    ExpectIntEQ(test_aes_tag_generic_setkey(), TEST_SUCCESS);
+#endif
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_AesSetTagLen */
+
+
+/* Streaming final must honour the length and still reject a NULL aes
+ */
+int test_wc_AesGcmStreamTagLen(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_AESGCM) && defined(WOLFSSL_AESGCM_STREAM) && \
+    !defined(NO_AES) && defined(WOLFSSL_AES_128) && \
+    !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    Aes  aes;
+    byte key[16];
+    byte iv[GCM_NONCE_MID_SZ];
+    byte plain[16];
+    byte cipher[16];
+    byte tag[16];
+    word32 shortTagSz = 12;
+    int  aesInit = 0;
+
+    XMEMSET(key, 0, sizeof(key));
+    XMEMSET(iv, 0, sizeof(iv));
+    XMEMSET(plain, 0, sizeof(plain));
+
+    ExpectIntEQ(wc_AesInit(&aes, HEAP_HINT, testDevId), 0);
+    if (EXPECT_SUCCESS())
+        aesInit = 1;
+    ExpectIntEQ(wc_AesGcmInit(&aes, key, sizeof(key), iv, sizeof(iv)), 0);
+    ExpectIntEQ(wc_AesSetTagLen(&aes, sizeof(tag)), 0);
+    ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, cipher, plain, sizeof(plain),
+        NULL, 0), 0);
+    /* RFC 5084 section 3.2 allows this length, but the key is tied to the
+     * full one */
+    ExpectIntEQ(wc_AesGcmEncryptFinal(&aes, tag, shortTagSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesGcmEncryptFinal(&aes, tag, sizeof(tag)), 0);
+
+    /* a NULL aes is an argument error, never a read through the pointer */
+    ExpectIntEQ(wc_AesGcmEncryptFinal(NULL, tag, sizeof(tag)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesGcmDecryptFinal(NULL, tag, sizeof(tag)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    if (aesInit)
+        wc_AesFree(&aes);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_AesGcmStreamTagLen */
+
 /*******************************************************************************
  * AES-GCM overlapping (in-place) buffers
  ******************************************************************************/
@@ -5177,6 +5406,19 @@ int test_wc_GmacUpdate(void)
     ExpectIntEQ(wc_GmacUpdate(&gmac, iv, sizeof(iv), authIn, sizeof(authIn),
         tagOut, sizeof(tag1)), 0);
     ExpectIntEQ(XMEMCMP(tag1, tagOut, sizeof(tag1)), 0);
+#if !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    /* a gmac holds an aes, so a tag length associates the same way */
+    ExpectIntEQ(wc_AesSetTagLen(&gmac.aes, sizeof(tag1)), 0);
+    ExpectIntEQ(wc_GmacUpdate(&gmac, iv, sizeof(iv), authIn, sizeof(authIn),
+        tagOut, sizeof(tag1)), 0);
+    ExpectIntEQ(wc_GmacUpdate(&gmac, iv, sizeof(iv), authIn, sizeof(authIn),
+        tagOut, sizeof(tag1) - 4), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* a new key resets the association */
+    ExpectIntEQ(wc_GmacSetKey(&gmac, key16, sizeof(key16)), 0);
+    ExpectIntEQ(wc_GmacUpdate(&gmac, iv, sizeof(iv), authIn, sizeof(authIn),
+        tagOut, sizeof(tag1) - 4), 0);
+#endif
     wc_AesFree(&gmac.aes);
 #endif
 
@@ -8968,7 +9210,9 @@ int test_wc_AesFeatureCoverage(void)
             ccmTag, 16, ccmAad, sizeof(ccmAad)), 0);
         ExpectBufEQ(ccmRecovered, ccmPlain, sizeof(ccmPlain));
 
-        /* 7-byte nonce, 8-byte tag, no AAD. */
+        /* 7-byte nonce, 8-byte tag, no AAD. A different tag length means a
+         * different key, per SP 800-38C section 5.3. */
+        ExpectIntEQ(wc_AesCcmSetKey(&aes, ccmKey, sizeof(ccmKey)), 0);
         ExpectIntEQ(wc_AesCcmEncrypt(&aes, ccmCipher, ccmPlain,
             sizeof(ccmPlain), ccmNonce7, sizeof(ccmNonce7),
             ccmTag, 8, NULL, 0), 0);
@@ -8983,7 +9227,9 @@ int test_wc_AesFeatureCoverage(void)
             sizeof(ccmPlain), ccmNonce7, sizeof(ccmNonce7),
             ccmTag, 8, NULL, 0), 0);
 
-        /* Empty plaintext: AAD-only authentication. */
+        /* Empty plaintext: AAD-only authentication. Back to a 16-byte tag,
+         * so set the key again. */
+        ExpectIntEQ(wc_AesCcmSetKey(&aes, ccmKey, sizeof(ccmKey)), 0);
         ExpectIntEQ(wc_AesCcmEncrypt(&aes, NULL, NULL, 0,
             ccmNonce13, sizeof(ccmNonce13),
             ccmTag, 16, ccmAad, sizeof(ccmAad)), 0);

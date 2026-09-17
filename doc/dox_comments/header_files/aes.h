@@ -362,6 +362,45 @@ int  wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len);
 
 /*!
     \ingroup AES
+    \brief This function associates one tag length with the key held by an
+    AES object, as SP 800-38D section 5.2.1.2 and SP 800-38C section 5.3
+    require. Once set, AES-GCM and AES-CCM calls with that key accept only
+    that tag length. Setting a key clears the association. The mode still
+    applies its own list of allowed tag lengths on top of this.
+
+    The first use of a key fixes its tag length even without this call. Set
+    the key again, or pass WC_NO_TAG_ASSOCIATION, to clear it. Ports that
+    replace the AES-GCM or AES-CCM entry points enforce their own tag rules,
+    and such a build would be validated as a hybrid module.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG Returned if aes is NULL, or the length is larger
+    than the AES block size.
+
+    \param aes pointer to the AES object holding the key
+    \param tagLen tag length to associate with the key, or
+    WC_NO_TAG_ASSOCIATION to clear it
+
+    _Example_
+    \code
+    Aes enc;
+    byte key[] = { some 16, 24, 32 byte key };
+    if (wc_AesGcmSetKey(&enc, key, sizeof(key)) != 0) {
+        // failed to set aes key
+    }
+    if (wc_AesSetTagLen(&enc, 16) != 0) {
+        // failed to associate the tag length
+    }
+    \endcode
+
+    \sa wc_AesGcmSetKey
+    \sa wc_AesCcmSetKey
+    \sa wc_CmacSetTagLen
+*/
+int  wc_AesSetTagLen(Aes* aes, word32 tagLen);
+
+/*!
+    \ingroup AES
     \brief This function encrypts the input message, held in the buffer in,
     and stores the resulting cipher text in the output buffer out. It
     requires a new iv (initialization vector) for each call to encrypt.
