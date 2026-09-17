@@ -7766,7 +7766,7 @@ void mlkem_to_mont_sqrdmlsh(sword16* p)
 
 #endif /* WOLFSSL_AARCH64_NO_SQRDMLSH */
 XALIGNED(4) static const word16 L_mlkem_to_msg_low[] = {
-    0x0373, 0x0373, 0x0373, 0x0373, 0x0373, 0x0373, 0x0373, 0x0373,
+    0x0341, 0x0341, 0x0341, 0x0341, 0x0341, 0x0341, 0x0341, 0x0341,
 };
 
 XALIGNED(4) static const word16 L_mlkem_to_msg_high[] = {

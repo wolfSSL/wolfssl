@@ -2790,7 +2790,6 @@ L_AES_GCM_decrypt_aesni_done_dec:
         movl	240(%esp), %edi
         cmpl	$16, %ebp
         je	L_AES_GCM_decrypt_aesni_cmp_tag_16
-        subl	$16, %esp
         xorl	%ecx, %ecx
         xorl	%ebx, %ebx
         movdqu	%xmm4, (%esp)
@@ -2803,7 +2802,6 @@ L_AES_GCM_decrypt_aesni_cmp_tag_loop:
         jne	L_AES_GCM_decrypt_aesni_cmp_tag_loop
         cmpb	$0x00, %bl
         sete	%bl
-        addl	$16, %esp
         xorl	%ecx, %ecx
         jmp	L_AES_GCM_decrypt_aesni_cmp_tag_done
 L_AES_GCM_decrypt_aesni_cmp_tag_16:
@@ -5006,7 +5004,6 @@ AES_GCM_decrypt_final_aesni:
         movl	64(%esp), %edi
         cmpl	$16, 44(%esp)
         je	L_AES_GCM_decrypt_final_aesni_cmp_tag_16
-        subl	$16, %esp
         xorl	%ecx, %ecx
         xorl	%ebx, %ebx
         movdqu	%xmm0, (%esp)
@@ -5019,7 +5016,6 @@ L_AES_GCM_decrypt_final_aesni_cmp_tag_loop:
         jne	L_AES_GCM_decrypt_final_aesni_cmp_tag_loop
         cmpb	$0x00, %bl
         sete	%bl
-        addl	$16, %esp
         xorl	%ecx, %ecx
         jmp	L_AES_GCM_decrypt_final_aesni_cmp_tag_done
 L_AES_GCM_decrypt_final_aesni_cmp_tag_16:

@@ -14813,8 +14813,8 @@ L_mlkem_to_msg_avx2_hqs:
 .p2align	4
 #endif /* __APPLE__ */
 L_mlkem_to_msg_avx2_hhqs:
-.short	0xfcc1,0xfcc1,0xfcc1,0xfcc1,0xfcc1,0xfcc1,0xfcc1,0xfcc1
-.short	0xfcc1,0xfcc1,0xfcc1,0xfcc1,0xfcc1,0xfcc1,0xfcc1,0xfcc1
+.short	0xfcc0,0xfcc0,0xfcc0,0xfcc0,0xfcc0,0xfcc0,0xfcc0,0xfcc0
+.short	0xfcc0,0xfcc0,0xfcc0,0xfcc0,0xfcc0,0xfcc0,0xfcc0,0xfcc0
 #ifndef __APPLE__
 .text
 .globl	mlkem_to_msg_avx2
@@ -33291,7 +33291,7 @@ _mlkem_to_msg_avx512:
         movq	$0x680, %rdx
         vmovd	%edx, %xmm0
         vpbroadcastw	%xmm0, %zmm0
-        movq	$0xfcc1, %rax
+        movq	$0xfcc0, %rax
         vmovd	%eax, %xmm1
         vpbroadcastw	%xmm1, %zmm1
         vpsubw	(%rsi), %zmm0, %zmm2
