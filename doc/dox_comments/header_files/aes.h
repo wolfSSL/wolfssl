@@ -365,11 +365,14 @@ int  wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len);
     \brief This function associates one tag length with the key held by an
     AES object, as SP 800-38D section 5.2.1.2 and SP 800-38C section 5.3
     require. Once set, AES-GCM and AES-CCM calls with that key accept only
-    that tag length. Setting a key clears the association. The mode still
-    applies its own list of allowed tag lengths on top of this.
+    that tag length. wc_AesGcmSetKey() and wc_AesCcmSetKey() clear the
+    association. The mode still applies its own list of allowed tag lengths
+    on top of this.
 
     The first use of a key fixes its tag length even without this call. Set
-    the key again, or pass WC_NO_TAG_ASSOCIATION, to clear it. Ports that
+    the key again through one of those two, or pass WC_NO_TAG_ASSOCIATION, to
+    clear it. wc_AesSetKey() clears it as well on builds that use the software
+    key schedule, but a backend with its own key setter does not. Ports that
     replace the AES-GCM or AES-CCM entry points enforce their own tag rules,
     and such a build would be validated as a hybrid module.
 
