@@ -40,30 +40,81 @@
     #error WC_RNG_BANK_SUPPORT requires RNG support.
 #endif
 
-#define WC_RNG_BANK_FLAG_NONE                     0
-#define WC_RNG_BANK_FLAG_INITED               (1<<0)
-#define WC_RNG_BANK_FLAG_CAN_FAIL_OVER_INST   (1<<1)
-#define WC_RNG_BANK_FLAG_CAN_WAIT             (1<<2)
-#define WC_RNG_BANK_FLAG_NO_VECTOR_OPS        (1<<3)
-#define WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST (1<<4)
-#define WC_RNG_BANK_FLAG_AFFINITY_LOCK        (1<<5)
+#if !defined(WOLFSSL_NO_ATOMICS) && !defined(WC_RNG_BANK_NO_DAEMON_SUPPORT)
+    #define WC_RNG_BANK_HAVE_DAEMON_SUPPORT
+    #define WC_RNG_BANK_DAEMON_MAGIC_FREE 0U
+#endif
 
-#define WC_RNG_BANK_INST_LOCK_FREE                0
-#define WC_RNG_BANK_INST_LOCK_HELD            (1<<0)
-#define WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED (1<<1)
-#define WC_RNG_BANK_INST_LOCK_VEC_OPS_INH     (1<<2)
+#define WC_RNG_BANK_FLAG_NONE                      0
+#define WC_RNG_BANK_FLAG_INITED                    (1U << 0)
+#define WC_RNG_BANK_FLAG_CAN_FAIL_OVER_INST        (1U << 1)
+#define WC_RNG_BANK_FLAG_CAN_WAIT                  (1U << 2)
+#define WC_RNG_BANK_FLAG_NO_VECTOR_OPS             (1U << 3)
+#define WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST      (1U << 4)
+#define WC_RNG_BANK_FLAG_AFFINITY_LOCK             (1U << 5)
+#define WC_RNG_BANK_FLAG_STIR                      (1U << 6)
+#define WC_RNG_BANK_FLAG_CONSUME_NEXT_SEED         (1U << 7)
+#define WC_RNG_BANK_FLAG_FOR_RECOVERY              (1U << 8)
+#define WC_RNG_BANK_FLAG_MAYBE_FOR_RECOVERY        (1U << 9)
+#define WC_RNG_BANK_FLAG_ERROR_ON_RNG_FAILED       (1U << 10)
+#define WC_RNG_BANK_FLAG_QUIET                     (1U << 11)
+#define WC_RNG_BANK_FLAG_NO_CHECKOUT_REFCOUNTING   (1U << 12)
+#define WC_RNG_BANK_FLAG_RBGC                      (1U << 13)
+#define WC_RNG_BANK_FLAG_DEFAULT_BANK              (1U << 14)
+#define WC_RNG_BANK_FLAG_PREDICTION_RESISTANCE     (1U << 15)
+#define WC_RNG_BANK_FLAG_AUTO_RECOVER_AND_PROMOTE  (1U << 16)
+
+#ifdef WC_RNG_HAVE_LOCK
+    wc_static_assert(WC_RNG_LOCK_EXTRA_SHIFT == 4U);
+#else /* !WC_RNG_HAVE_LOCK */
+    /* Definitions for backward-compat / WC_RNG_NO_LOCK */
+    #define WC_RNG_LOCK_FREE 0
+    #define WC_RNG_LOCK_HELD (1U<<0)
+    #define WC_RNG_LOCK_REQUIRED (1U<<1)
+    #define WC_RNG_LOCK_ENTROPY_INVALIDATED (1U<<2)
+    #define WC_RNG_LOCK_ENTROPY_RECOVERING (1U<<3)
+    #define WC_RNG_LOCK_EXTRA_SHIFT 4U
+    #ifdef WOLFSSL_NO_ATOMICS
+        typedef word32 WC_RNG_lock_t;
+        typedef word32 WC_RNG_lock_arg_t;
+    #else
+        typedef wolfSSL_Atomic_Uint WC_RNG_lock_t;
+        typedef WC_ATOMIC_UINT_ARG WC_RNG_lock_arg_t;
+    #endif
+#endif
+
+/* When WC_RNG_HAVE_LOCK, base lock states are in random.h and the lock word
+ * itself is in WC_RNG.lock; these annotation bits ride above the base bits via
+ * wc_RNG_lock_get() / _set_extra() / _clear_extra(). */
+#define WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED (1U<<(WC_RNG_LOCK_EXTRA_SHIFT+0))
+#define WC_RNG_BANK_INST_LOCK_VEC_OPS_INH     (1U<<(WC_RNG_LOCK_EXTRA_SHIFT+1))
 
 typedef int (*wc_affinity_lock_fn_t)(void *arg);
 typedef int (*wc_affinity_get_id_fn_t)(void *arg, int *id);
 typedef int (*wc_affinity_unlock_fn_t)(void *arg);
 
+struct wc_rng_bank;
+
+typedef int (*wc_rng_bank_free_hook_cb_t)(const struct wc_rng_bank *bank,
+                                          void *arg);
+
+#define WC_RNG_BANK_INST_FLAG_NONE 0
+#define WC_RNG_BANK_INST_FLAG_ALREADY_WARNED (1U << 0)
+
 struct wc_rng_bank_inst {
-#ifdef WOLFSSL_NO_ATOMICS
-    int lock;
-#else
-    wolfSSL_Atomic_Int lock;
-#endif
+    #ifdef WC_RNG_HAVE_LOCK
+        /* the exclusivity latch lives in WC_RNG.lock (wc_RNG_lock_*()) --
+         * in-FIPS-boundary, module-enforced. */
+    #else
+        #ifdef WOLFSSL_NO_ATOMICS
+            word32 lock;
+        #else
+            wolfSSL_Atomic_Uint lock;
+        #endif
+    #endif
+    struct wc_rng_bank *bank;
     WC_RNG rng;
+    volatile word32 flags;
 };
 
 #if defined(WOLFSSL_NO_MALLOC) && defined(NO_WOLFSSL_MEMORY) && \
@@ -78,16 +129,31 @@ struct wc_rng_bank_inst {
 struct wc_rng_bank {
     wolfSSL_Ref refcount;
     void *heap;
+    int devId;
     word32 flags;
+    wc_rng_bank_free_hook_cb_t free_hook;
+    void *free_hook_arg;
     wc_affinity_lock_fn_t affinity_lock_cb;
     wc_affinity_get_id_fn_t affinity_get_id_cb;
     wc_affinity_unlock_fn_t affinity_unlock_cb;
     void *cb_arg; /* if mutable, caller is responsible for thread safety. */
     int n_rngs;
+    int first_failover_inst;
+#ifdef WC_RNG_HAVE_NEXT_SEED
+    wolfSSL_Atomic_Int inst_op_gate;
+#endif
 #ifdef WC_RNG_BANK_STATIC
     struct wc_rng_bank_inst rngs[WC_RNG_BANK_STATIC_SIZE];
 #else
-    struct wc_rng_bank_inst *rngs; /* typically one per CPU ID, plus a few */
+    struct wc_rng_bank_inst *rngs;
+#endif
+#ifdef WC_RNG_BANK_HAVE_DAEMON_SUPPORT
+    wolfSSL_Atomic_Uint daemon_magic;
+    void *daemon; /* e.g. a task_struct* for a wc_linuxkm_entropy_daemon() */
+#endif
+#if defined(WC_RNG_HAVE_RBGC) || defined(WC_RNG_HAVE_NEXT_SEED) || \
+    defined(WC_RNG_HAVE_POOL)
+    WC_RNG root_rng;
 #endif
 };
 
@@ -108,6 +174,20 @@ WOLFSSL_API int wc_rng_bank_init(
     int timeout_secs,
     void *heap,
     int devId);
+
+WOLFSSL_API int wc_rng_bank_init_nonce(
+    struct wc_rng_bank *ctx,
+    int n_rngs,
+    word32 flags,
+    int timeout_secs,
+    void *heap,
+    int devId,
+    const byte *nonce, word32 nonceSz,
+    const byte *perso, word32 persoSz);
+
+WOLFSSL_API int wc_rng_bank_first_failover_inst_set(
+    struct wc_rng_bank *ctx,
+    int first_failover_inst);
 
 WOLFSSL_API int wc_rng_bank_set_affinity_handlers(
     struct wc_rng_bank *ctx,
@@ -141,13 +221,77 @@ WOLFSSL_API int wc_rng_bank_checkout(
     int timeout_secs,
     word32 flags);
 
+#ifdef WC_RNG_BANK_HAVE_DAEMON_SUPPORT
+/* Note, these APIs must be called in order, _reserve -> _register ->
+ * _unregister -> _release, for lifecycle hygiene.  A registered daemon must be
+ * _unregister()ed, and the bank _release()d, before wc_rng_bank_fini(),
+ * otherwise _fini() will return BUSY_E. */
+WOLFSSL_API int wc_rng_bank_daemon_reserve(struct wc_rng_bank *bank,
+                                           WC_ATOMIC_UINT_ARG magic);
+WOLFSSL_API int wc_rng_bank_daemon_register(struct wc_rng_bank *bank,
+                                            void *daemon,
+                                            WC_ATOMIC_UINT_ARG magic);
+WOLFSSL_API int wc_rng_bank_daemon_unregister(struct wc_rng_bank *bank,
+                                              void **daemon,
+                                              WC_ATOMIC_UINT_ARG magic);
+WOLFSSL_API int wc_rng_bank_daemon_release(struct wc_rng_bank *bank,
+                                           WC_ATOMIC_UINT_ARG magic);
+#endif /* WC_RNG_BANK_HAVE_DAEMON_SUPPORT */
+
+#if defined(WC_DRBG_BANKREF) && !defined(WC_HAVE_RNG_BANKREF)
+    /* forward compat for FIPS v5.2.4 random.h */
+    #define WC_HAVE_RNG_BANKREF
+#endif
+
+#ifdef WC_HAVE_RNG_BANKREF
 WOLFSSL_LOCAL int wc_local_rng_bank_checkout_for_bankref(
     struct wc_rng_bank *bank,
     struct wc_rng_bank_inst **rng_inst);
+#endif
+
+WOLFSSL_API int wc_rng_bank_get_inst_id(struct wc_rng_bank_inst *rng_inst);
+
+static WC_INLINE int WC_ARG_NOT_NULL(1) wc_rng_bank_inst_flags_up(
+    struct wc_rng_bank_inst *rng_inst, word32 flags)
+{
+    if (! (rng_inst->flags & flags)) {
+        rng_inst->flags = rng_inst->flags | flags;
+        return 1;
+    }
+    else
+        return 0;
+}
+
+static WC_INLINE int WC_ARG_NOT_NULL(1) wc_rng_bank_inst_flags_down(
+    struct wc_rng_bank_inst *rng_inst, word32 flags)
+{
+    if (rng_inst->flags & flags) {
+        rng_inst->flags = rng_inst->flags & ~flags;
+        return 1;
+    }
+    else
+        return 0;
+}
 
 WOLFSSL_API int wc_rng_bank_checkin(
     struct wc_rng_bank *bank,
     struct wc_rng_bank_inst **rng_inst);
+
+WOLFSSL_API int wc_rng_bank_inst_checkin(
+    struct wc_rng_bank_inst **rng_inst);
+
+#ifdef WC_RNG_HAVE_NEXT_SEED
+WOLFSSL_API int wc_rng_bank_next_seed_generate(
+    struct wc_rng_bank *bank,
+    int inst_offset,
+    word32 n);
+#ifdef WC_RNG_HAVE_RBGC
+WOLFSSL_API int wc_rng_bank_next_seed_generate_rbgc(
+    struct wc_rng_bank *bank,
+    int inst_offset,
+    word32 n);
+#endif
+#endif
 
 WOLFSSL_API int wc_rng_bank_inst_reinit(
     struct wc_rng_bank *bank,
@@ -155,19 +299,78 @@ WOLFSSL_API int wc_rng_bank_inst_reinit(
     int timeout_secs,
     word32 flags);
 
+WOLFSSL_API int wc_rng_bank_recover_inst(
+    struct wc_rng_bank *bank,
+    int inst_offset,
+    int timeout_secs,
+    word32 flags);
+
+#ifdef WC_RNG_HAVE_RBGC
+
+WOLFSSL_API int wc_rng_bank_spawn(
+    struct wc_rng_bank *bank,
+    WC_RNG *child_rng,
+    byte *nonce, word32 nonceSz,
+    const byte *perso, word32 persoSz,
+    int preferred_inst_offset,
+    int timeout_secs,
+    word32 flags);
+
+#ifndef WC_NO_CONSTRUCTORS
+WOLFSSL_API int wc_rng_bank_spawn_new(
+    struct wc_rng_bank *bank,
+    WC_RNG **child_rng,
+    byte *nonce, word32 nonceSz,
+    const byte *perso, word32 persoSz,
+    int preferred_inst_offset,
+    int timeout_secs,
+    word32 flags);
+#endif /* !WC_NO_CONSTRUCTORS */
+
+#endif /* WC_RNG_HAVE_RBGC */
+
+#ifdef HAVE_HASHDRBG
+
 WOLFSSL_API int wc_rng_bank_seed(struct wc_rng_bank *bank,
                                  const byte* seed, word32 seedSz,
+                                 const byte *nonce, word32 nonceSz,
                                  int timeout_secs,
                                  word32 flags);
 
+WOLFSSL_API int wc_rng_bank_seed_range(struct wc_rng_bank *bank,
+                                       int first_inst, int last_inst,
+                                       const byte* seed, word32 seedSz,
+                                       const byte *nonce, word32 nonceSz,
+                                       int timeout_secs,
+                                       word32 flags);
+
 WOLFSSL_API int wc_rng_bank_reseed(struct wc_rng_bank *bank,
+                                   const byte *nonce, word32 nonceSz,
                                    int timeout_secs,
                                    word32 flags);
 
-#if defined(WC_DRBG_BANKREF) && !defined(WC_HAVE_RNG_BANKREF)
-    /* forward compat for FIPS v5.2.4 random.h */
-    #define WC_HAVE_RNG_BANKREF
+WOLFSSL_API int wc_rng_bank_reseed_range(struct wc_rng_bank *bank,
+                                         int first_inst, int last_inst,
+                                         const byte *nonce, word32 nonceSz,
+                                         int timeout_secs,
+                                         word32 flags);
+
+WOLFSSL_API int wc_rng_bank_invalidate_entropy(struct wc_rng_bank *bank,
+                                               word32 flags);
+
+#endif /* HAVE_HASHDRBG */
+
+#if defined(WC_RNG_HAVE_RBGC) || defined(WC_RNG_HAVE_NEXT_SEED) || \
+    defined(WC_RNG_HAVE_POOL)
+WOLFSSL_API int wc_rng_bank_root_rng_init(struct wc_rng_bank *bank,
+                                          const byte *nonce, word32 nonceSz,
+                                          const byte *perso, word32 persoSz,
+                                          word32 flags);
+WOLFSSL_API WC_RNG *wc_rng_bank_root_rng_get(struct wc_rng_bank *bank);
 #endif
+
+WOLFSSL_API int wc_rng_bank_register_free_hook(struct wc_rng_bank *bank,
+    wc_rng_bank_free_hook_cb_t free_hook, void *arg);
 
 #ifdef WC_HAVE_RNG_BANKREF
 WOLFSSL_API int wc_InitRng_BankRef(struct wc_rng_bank *bank, WC_RNG *rng);
@@ -180,7 +383,133 @@ WOLFSSL_API int wc_rng_new_bankref(struct wc_rng_bank *bank, WC_RNG **rng);
 #endif
 #endif /* WC_HAVE_RNG_BANKREF */
 
-#define WC_RNG_BANK_INST_TO_RNG(rng_inst) (&(rng_inst)->rng)
+#define WC_RNG_BANK_INST_TO_RNG(rng_inst) \
+    ((rng_inst) ? (&(rng_inst)->rng) : NULL)
+#define WC_RNG_BANK_OFFSET_TO_RNG(bank, n) \
+    ((((int)(n) >= 0) && ((int)(n) < (int)(bank)->n_rngs)) ? \
+     WC_RNG_BANK_INST_TO_RNG(&(bank)->rngs[n]) : NULL)
+
+#ifdef WC_RNG_HAVE_LOCK
+    /* Trivial shims to native lock facility in WC_RNG */
+    static WC_INLINE int wc_rng_bank_inst_lock_get(
+        struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits)
+    {
+        return wc_RNG_lock_get(WC_RNG_BANK_INST_TO_RNG(inst), extra_bits);
+    }
+    static WC_INLINE int wc_rng_bank_inst_lock_get_conditional(
+        struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t expected_extra_bits,
+        WC_RNG_lock_arg_t want_extra_bits)
+    {
+        return wc_RNG_lock_get_conditional(
+            WC_RNG_BANK_INST_TO_RNG(inst), expected_extra_bits, want_extra_bits);
+    }
+    static WC_INLINE int wc_rng_bank_inst_lock_put(
+        struct wc_rng_bank_inst *inst)
+    {
+        return wc_RNG_lock_put(WC_RNG_BANK_INST_TO_RNG(inst), 0);
+    }
+    static WC_INLINE int wc_rng_bank_inst_lock_put_conditional(
+        struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t expect_extra_bits)
+    {
+        return wc_RNG_lock_put_conditional(
+            WC_RNG_BANK_INST_TO_RNG(inst), expect_extra_bits, 0);
+    }
+    static WC_INLINE int wc_rng_bank_inst_lock_read(
+        struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t *state)
+    {
+        return wc_RNG_lock_read(WC_RNG_BANK_INST_TO_RNG(inst), state);
+    }
+    static WC_INLINE int wc_rng_bank_inst_lock_set_extra(
+        struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits)
+    {
+        return wc_RNG_lock_set_extra(WC_RNG_BANK_INST_TO_RNG(inst), extra_bits);
+    }
+    static WC_INLINE int wc_rng_bank_inst_lock_add_extra(
+        struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits)
+    {
+        return wc_RNG_lock_add_extra(WC_RNG_BANK_INST_TO_RNG(inst), extra_bits);
+    }
+    static WC_INLINE int wc_rng_bank_inst_lock_clear_extra(
+        struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits)
+    {
+        return wc_RNG_lock_clear_extra(
+            WC_RNG_BANK_INST_TO_RNG(inst), extra_bits);
+    }
+    #ifdef HAVE_HASHDRBG
+    static WC_INLINE int wc_rng_bank_inst_invalidate_entropy(
+        struct wc_rng_bank_inst *inst)
+    {
+        return wc_RNG_invalidate_entropy(WC_RNG_BANK_INST_TO_RNG(inst));
+    }
+    static WC_INLINE int wc_rng_bank_inst_reseed_now(
+        struct wc_rng_bank_inst *inst, const byte *nonce, word32 nonceSz)
+    {
+        return wc_RNG_DRBG_Reseed_Now(
+            WC_RNG_BANK_INST_TO_RNG(inst), nonce, nonceSz);
+    }
+    #ifdef WC_RNG_HAVE_RBGC
+    static WC_INLINE int wc_rng_bank_inst_reseed_rbgc(
+        struct wc_rng_bank_inst *inst, WC_RNG *root,
+        const byte *nonce, word32 nonceSz)
+    {
+        return wc_RNG_DRBG_ReseedRBGC(
+            WC_RNG_BANK_INST_TO_RNG(inst), root, nonce, nonceSz);
+    }
+    #endif /* WC_RNG_HAVE_RBGC */
+    #endif /* HAVE_HASHDRBG */
+#else /* !WC_RNG_HAVE_LOCK */
+    /* Prototypes for backward compat implementations in rng_bank.c */
+    WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_get(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits);
+    WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_get_conditional(
+        struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t expected_extra_bits,
+        WC_RNG_lock_arg_t want_extra_bits);
+    WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_put(struct wc_rng_bank_inst *inst);
+    WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_put_conditional(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits);
+    WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_read(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t* state);
+    WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_set_extra(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits);
+    WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_add_extra(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits);
+    WOLFSSL_TEST_VIS int wc_rng_bank_inst_lock_clear_extra(struct wc_rng_bank_inst *inst, WC_RNG_lock_arg_t extra_bits);
+    #ifdef HAVE_HASHDRBG
+    WOLFSSL_TEST_VIS int wc_rng_bank_inst_invalidate_entropy(
+        struct wc_rng_bank_inst *inst);
+    WOLFSSL_TEST_VIS int wc_rng_bank_inst_reseed_now(
+        struct wc_rng_bank_inst *inst, const byte* nonce, word32 nonceSz);
+    #ifdef WC_RNG_HAVE_RBGC
+    WOLFSSL_TEST_VIS int wc_rng_bank_inst_reseed_rbgc(
+        struct wc_rng_bank_inst *inst, WC_RNG* root, const byte* nonce,
+        word32 nonceSz);
+    #endif /* WC_RNG_HAVE_RBGC */
+    #endif /* HAVE_HASHDRBG */
+#endif /* !WC_RNG_HAVE_LOCK */
+
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
+    #ifndef WC_DRBG_RESEED_CTR_TYPE_DEFINED
+        #define WC_DRBG_RESEED_CTR_TYPE_DEFINED
+        #if defined(WORD64_AVAILABLE) && FIPS_VERSION3_GE(5,2,4) && \
+            FIPS_VERSION3_NE(6,0,0)
+        typedef word64 wc_drbg_reseed_ctr_t;
+        #else
+        typedef word32 wc_drbg_reseed_ctr_t;
+        #endif
+    #endif
+
+    #define wc_InitRngRBGC(leaf, root, flags) \
+        wc_InitRngNonceRBGC(leaf, root, NULL, 0, flags)
+    WOLFSSL_TEST_VIS int wc_RNG_GetStatus(const WC_RNG* rng);
+    WOLFSSL_TEST_VIS int wc_RNG_DRBG_Stir(WC_RNG* rng, const byte* seed, word32 seedSz);
+    WOLFSSL_TEST_VIS int wc_RNG_DRBG_Present(const WC_RNG* rng);
+    WOLFSSL_TEST_VIS int wc_InitRngNonceRBGC_New(WC_RNG** leaf, WC_RNG* root,
+                                                const byte* nonce, word32 nonceSz,
+                                                const byte *perso, word32 persoSz,
+                                                word32 flags);
+    WOLFSSL_TEST_VIS int wc_InitRngRBGC_New(WC_RNG** leaf, WC_RNG* root, word32 flags);
+    WOLFSSL_TEST_VIS int wc_RNG_DRBG_ScheduleReseed(WC_RNG* rng);
+#endif /* HAVE_FIPS && FIPS_VERSION3_LT(7,0,0) */
+
+#ifdef WC_RNG_DEBUG_STATS
+WOLFSSL_API int wc_rng_bank_debug_stats_snap(struct wc_rng_debug_stats_snapshot *s,
+                                             struct wc_rng_bank *bank);
+#endif
 
 #endif /* WC_RNG_BANK_SUPPORT */
 

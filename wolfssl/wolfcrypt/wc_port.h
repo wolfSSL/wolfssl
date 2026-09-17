@@ -620,8 +620,11 @@
 #endif /* !WOLFSSL_NO_ATOMICS */
 
 #ifdef WOLFSSL_NO_ATOMICS
-    typedef volatile int wolfSSL_Atomic_Int;
-    typedef volatile unsigned int wolfSSL_Atomic_Uint;
+    /* Note, not volatile.  _NO_ATOMICS configs promise no concurrent mutation
+     * (single-threaded, or externally serialized); volatile would imply
+     * protection these types do not and cannot provide here. */
+    typedef int wolfSSL_Atomic_Int;
+    typedef unsigned int wolfSSL_Atomic_Uint;
     #define WOLFSSL_ATOMIC_INITIALIZER(x) (x)
     #define WOLFSSL_ATOMIC_LOAD(x) (x)
     #define WOLFSSL_ATOMIC_STORE(x, val) (x) = (val)
@@ -786,6 +789,88 @@
         }
     }
 #endif
+
+/*** Macro abstractions for compare-and-exchange retry loops, allowing ***/
+/*** platform-specific instrumentation and failure paths.              ***/
+
+/* WC_CAS_WITH_RETRY_EXTRA_DECLS allows declaration and initialization of
+ * variables (e.g. a counter) just above the retry loop in
+ * WC_CAS_WITH_RETRY_BEGIN().
+ */
+#ifndef WC_CAS_WITH_RETRY_EXTRA_DECLS
+    #define WC_CAS_WITH_RETRY_EXTRA_DECLS \
+        struct wc_cas_with_retry_dummy_struct
+#endif
+
+/* Note that freeform code after WC_CAS_WITH_RETRY_BEGIN() and before
+ * WC_CAS_WITH_RETRY_LOOP_UNTIL() sits inside the loop -- continue
+ * in that span omits the refresh of cur_var by the CAS (potentially inducing an
+ * infinite loop), and break in that span without setting result_var leaves it
+ * at WC_FAILURE.  return and goto both behave normally in the freeform span.
+ */
+#define WC_CAS_WITH_RETRY_BEGIN(targetvar_p, cur_var, result_var)              \
+    do {                                                                       \
+        int WC_CAS_WITH_RETRY_keep_looping = 1;                                \
+        WC_CAS_WITH_RETRY_EXTRA_DECLS;                                         \
+                                                                               \
+        (result_var) = WC_NO_ERR_TRACE(WC_FAILURE);                            \
+                                                                               \
+        while (WC_CAS_WITH_RETRY_keep_looping)
+
+#define WC_CAS_WITH_RETRY_BEGIN_INIT_CUR(targetvar_p, cur_var, result_var)     \
+    do {                                                                       \
+        int WC_CAS_WITH_RETRY_keep_looping = 1;                                \
+        WC_CAS_WITH_RETRY_EXTRA_DECLS;                                         \
+                                                                               \
+        (cur_var) = WOLFSSL_ATOMIC_LOAD(*(targetvar_p));                       \
+        (result_var) = WC_NO_ERR_TRACE(WC_FAILURE);                            \
+                                                                               \
+        while (WC_CAS_WITH_RETRY_keep_looping)
+
+#ifndef WC_CAS_WITH_RETRY_ITER_CLAUSE
+    #define WC_CAS_WITH_RETRY_ITER_CLAUSE(targetvar_p, cur_var,                \
+                                         want_val, result_var) WC_DO_NOTHING
+#endif
+
+/* The "until_clause" should be portable logic of overriding salience, used in
+ * situ by the direct (portable) user code.  The _ITER_CLAUSE is for
+ * non-portable logic, such as CPU/scheduler relaxation/yield or deadlock
+ * detection, and is free to set result_var and break as it sees fit.
+ *
+ * Freeform code can appear between WC_CAS_WITH_RETRY_LOOP_UNTIL() and
+ * WC_CAS_WITH_RETRY_END(), and will be evaluated iff the CAS succeeds.
+ */
+#define WC_CAS_WITH_RETRY_LOOP_UNTIL(cmpxchg_method, targetvar_p, cur_var,     \
+                                         want_val, result_var, until_clause)   \
+            if (! cmpxchg_method(targetvar_p, &(cur_var), want_val)) {         \
+                (result_var) = (until_clause);                                 \
+                if ((result_var) != 0)                                         \
+                    break;                                                     \
+                {                                                              \
+                    WC_CAS_WITH_RETRY_ITER_CLAUSE(targetvar_p, cur_var,        \
+                                             want_val, result_var);            \
+                }                                                              \
+                continue;                                                      \
+            }                                                                  \
+            else {                                                             \
+                (result_var) = 0;                                              \
+                WC_CAS_WITH_RETRY_keep_looping = 0;                            \
+            }                                                                  \
+            WC_DO_NOTHING
+
+#ifndef WC_CAS_WITH_RETRY_FOREVER_CLAUSE
+    #define WC_CAS_WITH_RETRY_FOREVER_CLAUSE 0
+#endif
+
+#define WC_CAS_WITH_RETRY_LOOP_FOREVER(cmpxchg_method, targetvar_p,            \
+                                       cur_var, want_val, result_var)          \
+    WC_CAS_WITH_RETRY_LOOP_UNTIL(cmpxchg_method, targetvar_p, cur_var,         \
+                                 want_val, result_var,                         \
+                                 WC_CAS_WITH_RETRY_FOREVER_CLAUSE)
+
+/* Note, WC_CAS_WITH_RETRY_END() has no side effects -- it's just the success
+ * arm that ends the loop. */
+#define WC_CAS_WITH_RETRY_END } while (0)
 
 /* Reference counting. */
 typedef struct wolfSSL_RefWithMutex {
@@ -1582,11 +1667,18 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #endif
 
 #elif defined(TIME_OVERRIDES)
-    /* Override XTIME() and XGMTIME() functionality.
-       Requires user to provide these functions:
-        time_t XTIME(time_t * timer) {}
-        struct tm* XGMTIME(const time_t* timer, struct tm* tmp) {}
-    */
+    /* User-supplied override XTIME() and XGMTIME() functionality.
+     *
+     * Requires user-supplied macro definitions for XTIME() and XGMTIME(),
+     * mapping to function with signatures time_t time_f(time_t * timer) and
+     * struct tm* gmtime_f(const time_t* timer, struct tm* tmp) respectively.
+     */
+    #ifndef XTIME
+            #error TIME_OVERRIDES requires a user-supplied XTIME definition.
+    #endif
+    #ifndef XGMTIME
+            #error TIME_OVERRIDES requires a user-supplied XGMTIME definition.
+    #endif
     #ifndef HAVE_TIME_T_TYPE
         #define USE_WOLF_TIME_T
     #endif

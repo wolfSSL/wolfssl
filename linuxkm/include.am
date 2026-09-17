@@ -35,4 +35,5 @@ EXTRA_DIST += m4/ax_linuxkm.m4 \
 	      linuxkm/patches/6.1.73/WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS-6v1v73.patch \
 	      linuxkm/patches/6.12/WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS-6v12.patch \
 	      linuxkm/patches/6.15/WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS-6v15.patch \
-	      linuxkm/patches/7.0/WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS-7v0.patch
+	      linuxkm/patches/7.0/WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS-7v0.patch \
+	      linuxkm/patches/7.3/WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS-7v3.patch
