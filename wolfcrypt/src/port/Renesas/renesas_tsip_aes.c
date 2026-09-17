@@ -853,24 +853,32 @@ int wc_tsip_AesGcmEncrypt(
 
         /* allocate buffers for plaintext, ciphertext, authTag and aad to make
          * sure those buffers 32bit aligned as TSIP requests.
+         * sz/authInSz may legally be 0 (empty payload/AAD); XMALLOC(0, ...)
+         * is implementation-defined and may return NULL, so skip allocating
+         * (and later copying into) a buffer whose size is 0 rather than
+         * treating that NULL as an allocation failure.
          */
-        plainBuf  = XMALLOC(sz, aes->heap, DYNAMIC_TYPE_AES);
+        if (sz != 0)
+            plainBuf = XMALLOC(sz, aes->heap, DYNAMIC_TYPE_AES);
         cipherBuf = XMALLOC(cipherBufSz, aes->heap, DYNAMIC_TYPE_AES);
         aTagBuf   = XMALLOC(TSIP_AES_GCM_AUTH_TAG_SIZE, aes->heap,
                                                         DYNAMIC_TYPE_AES);
-        aadBuf    = XMALLOC(authInSz, aes->heap, DYNAMIC_TYPE_AES);
+        if (authInSz != 0)
+            aadBuf = XMALLOC(authInSz, aes->heap, DYNAMIC_TYPE_AES);
 
-        if (plainBuf == NULL || cipherBuf == NULL || aTagBuf == NULL ||
-                                                      aadBuf == NULL ) {
+        if ((sz != 0 && plainBuf == NULL) || cipherBuf == NULL ||
+                aTagBuf == NULL || (authInSz != 0 && aadBuf == NULL)) {
             WOLFSSL_MSG("wc_tsip_AesGcmEncrypt: buffer allocation failed");
             ret = -1;
         }
 
         if (ret == 0) {
-            XMEMCPY(plainBuf, in, sz);
+            if (sz != 0)
+                XMEMCPY(plainBuf, in, sz);
             ForceZero(cipherBuf, cipherBufSz);
             ForceZero(authTag, authTagSz);
-            XMEMCPY(aadBuf, authIn, authInSz);
+            if (authInSz != 0)
+                XMEMCPY(aadBuf, authIn, authInSz);
         }
 
     #if defined(WOLFSSL_RENESAS_TSIP_TLS)
@@ -944,8 +952,10 @@ int wc_tsip_AesGcmEncrypt(
                           aTagBuf); /* aad of 16 bytes will be output */
 
             if (err == TSIP_SUCCESS) {
-                /* copy encrypted data to out */
-                XMEMCPY(out, cipherBuf, sz);
+                /* copy encrypted data to out (sz may be 0, and out may then
+                 * legally be NULL per the argument validation above) */
+                if (sz != 0)
+                    XMEMCPY(out, cipherBuf, sz);
 
                 /* copy auth tag to caller's buffer */
                 XMEMCPY((void*)authTag, (void*)aTagBuf,
@@ -1051,15 +1061,22 @@ int wc_tsip_AesGcmDecrypt(
 
         /* allocate buffers for plaintext, cipher-text, authTag and AAD.
          * TSIP requests those buffers 32bit aligned.
+         * authInSz may legally be 0 (no AAD); XMALLOC(0, ...) is
+         * implementation-defined and may return NULL, so skip allocating
+         * (and later copying into) aadBuf when there is no AAD, rather than
+         * treating that NULL as an allocation failure. (sz == 0 is already
+         * rejected by the argument validation above, so cipherBuf/plainBuf
+         * are never zero-size here.)
          */
         cipherBuf = XMALLOC(sz, aes->heap, DYNAMIC_TYPE_AES);
         plainBuf  = XMALLOC(plainBufSz, aes->heap, DYNAMIC_TYPE_AES);
         aTagBuf   = XMALLOC(TSIP_AES_GCM_AUTH_TAG_SIZE, aes->heap,
                                                         DYNAMIC_TYPE_AES);
-        aadBuf    = XMALLOC(authInSz, aes->heap, DYNAMIC_TYPE_AES);
+        if (authInSz != 0)
+            aadBuf = XMALLOC(authInSz, aes->heap, DYNAMIC_TYPE_AES);
 
         if (plainBuf == NULL || cipherBuf == NULL || aTagBuf == NULL ||
-                                                        aadBuf == NULL) {
+                (authInSz != 0 && aadBuf == NULL)) {
             ret = -1;
         }
 
@@ -1068,7 +1085,8 @@ int wc_tsip_AesGcmDecrypt(
             XMEMCPY(cipherBuf, in, sz);
             ForceZero(aTagBuf, TSIP_AES_GCM_AUTH_TAG_SIZE);
             XMEMCPY(aTagBuf,authTag,min(authTagSz, TSIP_AES_GCM_AUTH_TAG_SIZE));
-            XMEMCPY(aadBuf, authIn, authInSz);
+            if (authInSz != 0)
+                XMEMCPY(aadBuf, authIn, authInSz);
         }
 
     #if defined(WOLFSSL_RENESAS_TSIP_TLS)
