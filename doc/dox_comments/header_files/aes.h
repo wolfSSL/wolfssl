@@ -374,7 +374,13 @@ int  wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len);
     clear it. wc_AesSetKey() clears it as well on builds that use the software
     key schedule, but a backend with its own key setter does not. Ports that
     replace the AES-GCM or AES-CCM entry points enforce their own tag rules,
-    and such a build would be validated as a hybrid module.
+    and such a build would be validated as a hybrid module. Work handed to a
+    crypto callback is left to the device, the check runs only on the paths
+    this file performs itself.
+
+    An OpenSSL-compat EVP context re-initialized without a new key keeps the
+    association, so a later message asking for a different tag length fails.
+    That is the one key one tag length rule, not a caller error.
 
     \return 0 On success.
     \return BAD_FUNC_ARG Returned if aes is NULL, or the length is larger

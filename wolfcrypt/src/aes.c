@@ -11644,10 +11644,6 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         return FIPS_BAD_VALUE_E;
 #endif
 
-    if (AesAssociateTagSz(aes, authTagSz) != 0) {
-        return BAD_FUNC_ARG;
-    }
-
 #ifdef WOLF_CRYPTO_CB
     #ifndef WOLF_CRYPTO_CB_FIND
     if (aes->devId != INVALID_DEVID)
@@ -11661,6 +11657,10 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         /* fall-through when unavailable */
     }
 #endif
+
+    if (AesAssociateTagSz(aes, authTagSz) != 0) {
+        return BAD_FUNC_ARG;
+    }
 
     /* Software/HW key schedule (and hash subkey H) required from here on. */
     if (!WC_AES_KEY_IS_SET(aes)) {
@@ -12507,9 +12507,6 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     ret = wc_local_AesGcmCheckTagSz(authTagSz);
     if (ret != 0)
         return ret;
-    if (AesAssociateTagSz(aes, authTagSz) != 0) {
-        return BAD_FUNC_ARG;
-    }
 
     /* No FIPS check on ivSz in decrypt mode -- SP 800-38D IV
      * construction requirements bind encryption only; decryption must
@@ -12529,6 +12526,10 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         /* fall-through when unavailable */
     }
 #endif
+
+    if (AesAssociateTagSz(aes, authTagSz) != 0) {
+        return BAD_FUNC_ARG;
+    }
 
     /* Software/HW key schedule (and hash subkey H) required from here on. */
     if (!WC_AES_KEY_IS_SET(aes)) {
@@ -15902,10 +15903,6 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         return AES_CCM_OVERFLOW_E;
     }
 
-    if (AesAssociateTagSz(aes, authTagSz) != 0) {
-        return BAD_FUNC_ARG;
-    }
-
 #ifdef WOLF_CRYPTO_CB
     #ifndef WOLF_CRYPTO_CB_FIND
     if (aes->devId != INVALID_DEVID)
@@ -15919,6 +15916,10 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         /* fall-through when unavailable */
     }
 #endif
+
+    if (AesAssociateTagSz(aes, authTagSz) != 0) {
+        return BAD_FUNC_ARG;
+    }
 
     /* Software/HW key schedule required from here on. */
     if (!WC_AES_KEY_IS_SET(aes)) {
@@ -16076,10 +16077,6 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         return AES_CCM_OVERFLOW_E;
     }
 
-    if (AesAssociateTagSz(aes, authTagSz) != 0) {
-        return BAD_FUNC_ARG;
-    }
-
 #ifdef WOLF_CRYPTO_CB
     #ifndef WOLF_CRYPTO_CB_FIND
     if (aes->devId != INVALID_DEVID)
@@ -16093,6 +16090,10 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         /* fall-through when unavailable */
     }
 #endif
+
+    if (AesAssociateTagSz(aes, authTagSz) != 0) {
+        return BAD_FUNC_ARG;
+    }
 
     /* Software/HW key schedule required from here on. */
     if (!WC_AES_KEY_IS_SET(aes)) {
