@@ -609,8 +609,14 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "wc_MlDsaKey_SignCtx", "mldsa_sign");
     check_cfg(&binding, "wc_MlDsaKey_SignCtxWithSeed", "mldsa_sign_with_seed");
     check_cfg(&binding, "wc_MlDsaKey_VerifyCtx", "mldsa_verify");
-    check_cfg(&binding, "wc_MlDsaKey_ImportPubRaw", "mldsa_import");
-    check_cfg(&binding, "wc_MlDsaKey_ExportPubRaw", "mldsa_export");
+    check_cfg(&binding, "wc_MlDsaKey_Size", "mldsa_size");
+    check_cfg(&binding, "wc_MlDsaKey_PrivSize", "mldsa_priv_size");
+    check_cfg(&binding, "wc_MlDsaKey_PubSize", "mldsa_pub_size");
+    check_cfg(&binding, "wc_MlDsaKey_SigSize", "mldsa_sig_size");
+    check_cfg(&binding, "wc_MlDsaKey_ImportPubRaw", "mldsa_import_public");
+    check_cfg(&binding, "wc_MlDsaKey_ImportPrivRaw", "mldsa_import_private");
+    check_cfg(&binding, "wc_MlDsaKey_ExportPubRaw", "mldsa_export_public");
+    check_cfg(&binding, "wc_MlDsaKey_ExportPrivRaw", "mldsa_export_private");
     check_cfg(&binding, "wc_MlDsaKey_CheckKey", "mldsa_check_key");
     check_cfg(&binding, "WC_MLDSA_44_KEY_SIZE", "mldsa_level2");
     check_cfg(&binding, "WC_MLDSA_65_KEY_SIZE", "mldsa_level3");

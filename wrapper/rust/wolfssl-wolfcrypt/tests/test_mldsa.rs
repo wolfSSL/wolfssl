@@ -64,7 +64,8 @@ fn test_new_ex() {
 /// Verify the runtime size queries match the compile-time constants for
 /// ML-DSA-44.
 #[test]
-#[cfg(all(mldsa_make_key, mldsa_level2))]
+#[cfg(all(mldsa_make_key, mldsa_level2, mldsa_size, mldsa_priv_size,
+          mldsa_pub_size, mldsa_sig_size))]
 fn test_sizes_level44() {
     common::setup();
     let mut rng = RNG::new().expect("Error creating RNG");
@@ -79,7 +80,8 @@ fn test_sizes_level44() {
 /// Verify the runtime size queries match the compile-time constants for
 /// ML-DSA-65.
 #[test]
-#[cfg(all(mldsa_make_key, mldsa_level3))]
+#[cfg(all(mldsa_make_key, mldsa_level3, mldsa_size, mldsa_priv_size,
+          mldsa_pub_size, mldsa_sig_size))]
 fn test_sizes_level65() {
     common::setup();
     let mut rng = RNG::new().expect("Error creating RNG");
@@ -94,7 +96,8 @@ fn test_sizes_level65() {
 /// Verify the runtime size queries match the compile-time constants for
 /// ML-DSA-87.
 #[test]
-#[cfg(all(mldsa_make_key, mldsa_level5))]
+#[cfg(all(mldsa_make_key, mldsa_level5, mldsa_size, mldsa_priv_size,
+          mldsa_pub_size, mldsa_sig_size))]
 fn test_sizes_level87() {
     common::setup();
     let mut rng = RNG::new().expect("Error creating RNG");
@@ -237,7 +240,9 @@ fn test_sign_ctx_verify_level44() {
 /// - the re-imported private key can sign messages that verify with the
 ///   original public key.
 #[test]
-#[cfg(all(mldsa_make_key, mldsa_import, mldsa_export, mldsa_sign, mldsa_verify))]
+#[cfg(all(mldsa_make_key, mldsa_size, mldsa_pub_size, mldsa_sig_size,
+          mldsa_import_public, mldsa_import_private, mldsa_export_public,
+          mldsa_export_private, mldsa_sign, mldsa_verify))]
 fn test_import_export_level44() {
     common::setup();
     let mut rng = RNG::new().expect("Error creating RNG");
@@ -292,7 +297,9 @@ fn test_import_export_level44() {
 /// Export both keys, import them together via `import_key()`, then sign and
 /// verify using the re-imported key pair.
 #[test]
-#[cfg(all(mldsa_make_key, mldsa_import, mldsa_export, mldsa_sign, mldsa_verify))]
+#[cfg(all(mldsa_make_key, mldsa_size, mldsa_pub_size, mldsa_sig_size,
+          mldsa_import_public, mldsa_import_private, mldsa_export_public,
+          mldsa_export_private, mldsa_sign, mldsa_verify))]
 fn test_import_key_level44() {
     common::setup();
     let mut rng = RNG::new().expect("Error creating RNG");
@@ -323,7 +330,8 @@ fn test_import_key_level44() {
 /// Verify that `generate_from_seed()` is deterministic: the same seed
 /// produces the same key pair on repeated calls.
 #[test]
-#[cfg(all(mldsa_make_key_from_seed, mldsa_export))]
+#[cfg(all(mldsa_make_key_from_seed, mldsa_size, mldsa_pub_size,
+          mldsa_export_public, mldsa_export_private))]
 fn test_generate_from_seed_determinism() {
     common::setup();
     // MLDSA_SEED_SZ = 32 bytes
