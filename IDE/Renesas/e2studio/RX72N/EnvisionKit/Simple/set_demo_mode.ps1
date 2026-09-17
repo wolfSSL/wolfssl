@@ -42,9 +42,11 @@ $content = Get-Content -Raw -Path $file
 # Pass 1: normalize all three macros to the uncommented ("#define X") form,
 # regardless of their current state, so pass 2's substring replace can't
 # double-wrap an already-commented line (e.g. match "#define X" inside
-# "/*#define X*/").
+# "/*#define X*/"). Whitespace inside the comment markers varies between
+# macros (e.g. "/* #define CRYPT_TEST */" vs "/*#define BENCHMARK*/"), so
+# match with a regex instead of a literal string.
 foreach ($m in $macroMap.Values) {
-    $content = $content.Replace("/*#define $m*/", "#define $m")
+    $content = $content -replace "/\*\s*#define\s+$m\s*\*/", "#define $m"
 }
 
 # Pass 2: comment out every macro except the selected one.
