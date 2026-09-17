@@ -292,3 +292,37 @@ int wc_AesCmacVerify_ex(Cmac* cmac, const byte* check, word32 checkSz,
                        const byte* in, word32 inSz,
                        const byte* key, word32 keySz,
                        void* heap, int devId);
+
+/*!
+    \ingroup CMAC
+    \brief This function associates one tag length with the key held by a
+    Cmac object, as SP 800-38B section 5.4 requires. Once set, the final and
+    verify calls for that key accept only that tag length. Starting a new
+    Cmac clears the association. The length is kept on the AES object the
+    Cmac already holds.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG Returned if cmac is NULL, or the length is outside
+    WC_CMAC_TAG_MIN_SZ to WC_CMAC_TAG_MAX_SZ.
+
+    \param cmac pointer to the Cmac object holding the key
+    \param tagLen tag length to associate with the key, or
+    WC_NO_TAG_ASSOCIATION to clear it
+
+    _Example_
+    \code
+    Cmac cmac;
+    byte key[] = { some 16, 24, 32 byte key };
+    if (wc_InitCmac(&cmac, key, sizeof(key), WC_CMAC_AES, NULL) != 0) {
+        // failed to set up cmac
+    }
+    if (wc_CmacSetTagLen(&cmac, 16) != 0) {
+        // failed to associate the tag length
+    }
+    \endcode
+
+    \sa wc_InitCmac
+    \sa wc_CmacFinal
+    \sa wc_AesSetTagLen
+*/
+int wc_CmacSetTagLen(Cmac* cmac, word32 tagLen);

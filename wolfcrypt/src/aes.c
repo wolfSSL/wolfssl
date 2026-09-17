@@ -238,6 +238,66 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 #endif
 #endif
 
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || defined(WOLFSSL_CMAC)
+
+/* One tag length per key, per SP 800-38D 5.2.1.2, SP 800-38C 5.3 and
+ * SP 800-38B 5.4. Pass WC_NO_TAG_ASSOCIATION to clear it.
+ */
+int wc_AesSetTagLen(Aes* aes, word32 tagLen)
+{
+    if (aes == NULL || tagLen > WC_AES_BLOCK_SIZE) {
+        return BAD_FUNC_ARG;
+    }
+
+    aes->tagLen = tagLen;
+
+    return 0;
+}
+
+#endif /* HAVE_AESGCM || HAVE_AESCCM || WOLFSSL_CMAC */
+
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
+
+/* Ports that bring their own entry points enforce their own tag rules. */
+
+/* only where aes.c itself implements a GCM or CCM entry point, the ports
+ * below carry their own
+ */
+#if !defined(WOLFSSL_TI_CRYPT) && \
+    ((defined(HAVE_AESGCM) && !defined(WOLFSSL_AFALG) && \
+      !defined(WOLFSSL_KCAPI_AES) && !defined(WOLFSSL_DEVCRYPTO_AES) && \
+      !defined(WOLFSSL_XILINX_CRYPT) && !defined(WOLFSSL_AFALG_XILINX_AES)) || \
+     (defined(HAVE_AESCCM) && \
+      !(defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES) && \
+        !defined(WOLFSSL_QNX_CAAM))))
+
+/* ties the length to the key on first use, then requires a match
+ */
+static int AesAssociateTagSz(Aes* aes, word32 authTagSz)
+{
+    if (aes == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* first use of the key fixes the length, per SP 800-38D 5.2.1.2,
+     * SP 800-38C 5.3 and SP 800-38B 5.4 */
+    if (aes->tagLen == WC_NO_TAG_ASSOCIATION) {
+        aes->tagLen = authTagSz;
+        return 0;
+    }
+
+    if (authTagSz != aes->tagLen) {
+        WOLFSSL_MSG("AES tag size differs from the one associated with the key");
+        return BAD_FUNC_ARG;
+    }
+
+    return 0;
+}
+
+#endif /* aes.c implements a GCM or CCM entry point */
+
+#endif /* HAVE_AESGCM || HAVE_AESCCM */
+
 #if defined(WOLFSSL_TI_CRYPT)
     #include <wolfcrypt/src/port/ti/ti-aes.c>
 
@@ -5875,6 +5935,14 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
         ret = AesSetKeyLocal_body(aes, userKey, keylen, iv, dir, checkKeyLen);
         aes->keyInstalled = (ret == 0) ? 1 : 0;
 
+/* A new key drops the old one's tag length. Built out entirely unless a mode
+ * that carries one is on, so plain AES pays nothing. */
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || defined(WOLFSSL_CMAC)
+        if (ret == 0) {
+            aes->tagLen = WC_NO_TAG_ASSOCIATION;
+        }
+#endif
+
         return ret;
     }
 
@@ -9112,6 +9180,10 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 #endif
     XMEMSET(iv, 0, WC_AES_BLOCK_SIZE);
     ret = wc_AesSetKey(aes, key, len, iv, AES_ENCRYPTION);
+    /* new key, so the tag length of the old one no longer applies */
+    if (ret == 0) {
+        aes->tagLen = WC_NO_TAG_ASSOCIATION;
+    }
 #ifdef WOLF_CRYPTO_CB_ONLY_AES
     /* do key scheduling so that ECB-only devices can still do GCM */
     if (ret == 0) {
@@ -11247,6 +11319,10 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     if (status)
         return status;
 
+    if (AesAssociateTagSz(aes, authTagSz) != 0) {
+        return BAD_FUNC_ARG;
+    }
+
     status = wolfSSL_CryptHwMutexLock();
     if (status != 0)
         return status;
@@ -11862,6 +11938,10 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         return FIPS_BAD_VALUE_E;
 #endif
 
+    if (AesAssociateTagSz(aes, authTagSz) != 0) {
+        return BAD_FUNC_ARG;
+    }
+
 #ifdef WOLF_CRYPTO_CB
     #ifndef WOLF_CRYPTO_CB_FIND
     if (aes->devId != INVALID_DEVID)
@@ -12137,6 +12217,10 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     ret = wc_AesGetKeySize(aes, &keySize);
     if (ret != 0) {
         return ret;
+    }
+
+    if (AesAssociateTagSz(aes, authTagSz) != 0) {
+        return BAD_FUNC_ARG;
     }
 
     status = wolfSSL_CryptHwMutexLock();
@@ -12720,6 +12804,9 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     ret = wc_local_AesGcmCheckTagSz(authTagSz);
     if (ret != 0)
         return ret;
+    if (AesAssociateTagSz(aes, authTagSz) != 0) {
+        return BAD_FUNC_ARG;
+    }
 
     /* No FIPS check on ivSz in decrypt mode -- SP 800-38D IV
      * construction requirements bind encryption only; decryption must
@@ -15272,6 +15359,10 @@ int wc_AesGcmEncryptFinal(Aes* aes, byte* authTag, word32 authTagSz)
 #endif
 
     if (ret == 0) {
+        ret = AesAssociateTagSz(aes, authTagSz);
+    }
+
+    if (ret == 0) {
         /* Calculate authentication tag. */
     #ifdef WC_AESNI_GCM
         if (aes->use_aesni) {
@@ -15432,6 +15523,10 @@ int wc_AesGcmDecryptFinal(Aes* aes, const byte* authTag, word32 authTagSz)
     /* Check IV has been set. */
     if ((ret == 0) && (!aes->nonceSet)) {
         ret = MISSING_IV;
+    }
+
+    if (ret == 0) {
+        ret = AesAssociateTagSz(aes, authTagSz);
     }
 
     if (ret == 0) {
@@ -15723,10 +15818,18 @@ int wc_GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
 
 int wc_AesCcmSetKey(Aes* aes, const byte* key, word32 keySz)
 {
+    int ret;
+
     if (!((keySz == 16) || (keySz == 24) || (keySz == 32)))
         return BAD_FUNC_ARG;
 
-    return wc_AesSetKey(aes, key, keySz, NULL, AES_ENCRYPTION);
+    ret = wc_AesSetKey(aes, key, keySz, NULL, AES_ENCRYPTION);
+    /* new key, so the tag length of the old one no longer applies */
+    if (ret == 0) {
+        aes->tagLen = WC_NO_TAG_ASSOCIATION;
+    }
+
+    return ret;
 }
 
 
@@ -15758,6 +15861,14 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
                    byte* authTag, word32 authTagSz,
                    const byte* authIn, word32 authInSz)
 {
+    if (wc_AesCcmCheckTagSize((int)authTagSz) != 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (AesAssociateTagSz(aes, authTagSz) != 0) {
+        return BAD_FUNC_ARG;
+    }
+
     return wc_AesCcmEncrypt_silabs(
         aes, out, in, inSz,
         nonce, nonceSz,
@@ -15771,6 +15882,14 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
                    const byte* authTag, word32 authTagSz,
                    const byte* authIn, word32 authInSz)
 {
+    if (wc_AesCcmCheckTagSize((int)authTagSz) != 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (AesAssociateTagSz(aes, authTagSz) != 0) {
+        return BAD_FUNC_ARG;
+    }
+
     return wc_AesCcmDecrypt_silabs(
         aes, out, in, inSz,
         nonce, nonceSz,
@@ -15823,6 +15942,10 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         }
     }
 
+    if (AesAssociateTagSz(aes, authTagSz) != 0) {
+        return BAD_FUNC_ARG;
+    }
+
     status = wolfSSL_CryptHwMutexLock();
     if (status != 0)
         return status;
@@ -15850,6 +15973,11 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         return BAD_FUNC_ARG;
     }
 
+    if (wc_AesCcmCheckTagSize((int)authTagSz) != 0) {
+        return BAD_FUNC_ARG;
+    }
+
+
     key = (byte*)aes->key;
 
     status = wc_AesGetKeySize(aes, &keySize);
@@ -15867,6 +15995,10 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         {
             return AES_CCM_OVERFLOW_E;
         }
+    }
+
+    if (AesAssociateTagSz(aes, authTagSz) != 0) {
+        return BAD_FUNC_ARG;
     }
 
     status = wolfSSL_CryptHwMutexLock();
@@ -16079,6 +16211,10 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         return AES_CCM_OVERFLOW_E;
     }
 
+    if (AesAssociateTagSz(aes, authTagSz) != 0) {
+        return BAD_FUNC_ARG;
+    }
+
 #ifdef WOLF_CRYPTO_CB
     #ifndef WOLF_CRYPTO_CB_FIND
     if (aes->devId != INVALID_DEVID)
@@ -16247,6 +16383,10 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         (inSz >= ((word32)1 << (lenSz * 8))))
     {
         return AES_CCM_OVERFLOW_E;
+    }
+
+    if (AesAssociateTagSz(aes, authTagSz) != 0) {
+        return BAD_FUNC_ARG;
     }
 
 #ifdef WOLF_CRYPTO_CB
