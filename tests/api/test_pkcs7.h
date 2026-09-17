@@ -78,6 +78,7 @@ int test_wc_PKCS7_DecodeEnvelopedData_constructedDefiniteOctet(void);
 int test_wc_PKCS7_DecodeAuthEnvelopedData_truncated(void);
 int test_wc_PKCS7_DecodeAuthEnvelopedData_shortTag(void);
 int test_wc_PKCS7_DecodeAuthEnvelopedData_shortTagCcm(void);
+int test_wc_PKCS7_DecodeAuthEnvelopedData_shortTagChunked(void);
 int test_wc_PKCS7_AuthEnvelopedData_stream_leak(void);
 int test_wc_PKCS7_VerifySignedData_PKCS7ContentSeq(void);
 int test_wc_PKCS7_VerifySignedData_IndefLenOOB(void);
@@ -175,6 +176,7 @@ int test_wc_PKCS7_VerifySignedData_NoDigestParams(void);
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeAuthEnvelopedData_truncated), \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeAuthEnvelopedData_shortTag), \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeAuthEnvelopedData_shortTagCcm), \
+    TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeAuthEnvelopedData_shortTagChunked), \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_AuthEnvelopedData_stream_leak)
 
 #define TEST_PKCS7_SIGNED_ENCRYPTED_DATA_DECLS                              \

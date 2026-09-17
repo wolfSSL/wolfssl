@@ -4015,6 +4015,53 @@ int test_wc_PKCS7_DecodeAuthEnvelopedData_shortTagCcm(void)
 } /* END test_wc_PKCS7_DecodeAuthEnvelopedData_shortTagCcm() */
 
 
+/* Feeding the bundle in chunks makes the decoder come back in at the tag
+ * state, where it must still refuse a short tag. */
+int test_wc_PKCS7_DecodeAuthEnvelopedData_shortTagChunked(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && defined(HAVE_AESGCM) && !defined(NO_RSA) && \
+    !defined(NO_AES) && defined(WOLFSSL_AES_128) && !defined(NO_PKCS7_STREAM)
+    PKCS7* pkcs7 = NULL;
+    byte   enveloped[2048];
+    byte   decoded[256];
+    int    encSz = 0;
+    int    ret = 0;
+    int    idx;
+    int    chunk = 1;
+
+    /* authenticated attributes plus one byte at a time make the decoder stop
+     * in its own state, so it comes back in at the tag state instead of
+     * falling through to it with the cipher still in hand */
+    ExpectIntGT(encSz = pkcs7_shortTagBundle(enveloped, sizeof(enveloped),
+        AES128GCMb, 8, FIRMWARE_PKG_DATA), 0);
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+        sizeof_client_cert_der_2048), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->privateKey   = (byte*)client_key_der_2048;
+        pkcs7->privateKeySz = sizeof_client_key_der_2048;
+    }
+
+    if (EXPECT_SUCCESS()) {
+        for (idx = 0; idx < encSz; idx += chunk) {
+            int sz = (encSz - idx < chunk) ? encSz - idx : chunk;
+
+            ret = wc_PKCS7_DecodeAuthEnvelopedData(pkcs7, enveloped + idx,
+                (word32)sz, decoded, sizeof(decoded));
+            if (ret != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E))
+                break;
+        }
+        ExpectIntEQ(ret, WC_NO_ERR_TRACE(ASN_PARSE_E));
+    }
+
+    wc_PKCS7_Free(pkcs7);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_PKCS7_DecodeAuthEnvelopedData_shortTagChunked() */
+
+
 /* Tearing down a PKCS7 whose AuthEnvelopedData decode stopped part-way must
  * not leak the encryptedContent buffer.
  *

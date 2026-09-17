@@ -16294,6 +16294,8 @@ authenv_atrbend:
                 encodedAttribs  = pkcs7->stream->aad;
             }
             macSz = (int)pkcs7->stream->icvSz;
+            /* re-entry here skips the earlier states, so get the cipher back */
+            wc_PKCS7_StreamGetVar(pkcs7, &encOID, NULL, NULL);
         #endif
 
 
