@@ -31,13 +31,18 @@ jobs:
   # (do not set AM_BWRAPPED here - that would disable it).
   make_check:
     name: make check
+    strategy:
+      fail-fast: false
+      matrix:
+        # Split the configs into two VMs (each with 4 cores). The 'all' config
+        # below is the long pole and takes roughly 19 min, and the rest of the
+        # configs can complete in under that when run in parallel. There is
+        # nothing to gain (currently) by adding another VM/shard.
+        shard: [1, 2]
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
-    # Generous for a cold ccache; warm reruns finish in a fraction. The
-    # configs alone take ~14 min of wall time on the 4 CPUs of a standard
-    # runner, so this leaves room for a cold cache rather than just clearing
-    # the warm case.
-    timeout-minutes: 30
+    # Generous for a cold ccache; warm reruns finish in a fraction of this.
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v5
         name: Checkout wolfSSL
@@ -54,6 +59,7 @@ jobs:
         uses: ./.github/actions/ccache-setup
         with:
           workflow-id: cryptocb-only
+          config-hash: shard-${{ matrix.shard }}
           read-only: ${{ github.event_name == 'pull_request' }}
           max-size: 200M
 
@@ -127,10 +133,10 @@ jobs:
           {"name": "curve448-no-ed448", "minutes": 4.0,
            "comment": "Same as curve448 but with ed448 off. ed448 is the only other user of the fe448 math, so without it the strip is complete and nothing must pull the math back in. The curve448 entry above keeps ed448 enabled, which leaves fe_448.c compiled and would hide such a regression at link time.",
            "configure": ["--disable-ed448", "CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_CURVE448"]},
-          {"name": "curve448-onlycb-no-swdev", "minutes": 2.5,
+          {"name": "curve448-onlycb-no-swdev", "minutes": 0.7,
            "comment": "CB_ONLY_CURVE448 without swdev: runs curve448_onlycb_test, the only coverage of the cb-handled/cb-delegated (exampleVar 99/1) dispatch incl. make_pub/generic. cryptonly drops TLS so make check needs no software X448 provider.",
            "configure": ["--disable-swdev", "--enable-cryptonly", "CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_CURVE448"]},
-          {"name": "slhdsa", "minutes": 6,
+          {"name": "slhdsa", "minutes": 18,
            "comment": "WOLF_CRYPTO_CB_ONLY_SLHDSA: strips software SLH-DSA (hashes, WOTS+, XMSS, hypertree, FORS); swdev provides the software path via cryptocb. slhdsa is enabled per-entry rather than in the base because signing the 's' parameter sets is slow and only this entry and 'all' need it.",
            "configure": ["--enable-slhdsa=yes,sha2", "CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_SLHDSA"]},
           {"name": "slhdsa-verify-only", "minutes": 2,
@@ -145,7 +151,7 @@ jobs:
           {"name": "mldsa-no-verify", "minutes": 4.0,
            "comment": "WOLF_CRYPTO_CB_ONLY_MLDSA against a sign-only ML-DSA build (WOLFSSL_MLDSA_NO_VERIFY), the mirror of the verify-only entry.",
            "configure": ["--enable-mldsa=sign", "CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_MLDSA"]},
-          {"name": "all", "minutes": 7,
+          {"name": "all", "minutes": 19,
            "comment": "All nine ONLY_* macros that can share a build: every supported software primitive is stripped and dispatched through cryptocb. Catches any cross-algorithm call that a single-strip entry would still resolve via the remaining software paths. MLDSA is not here because this entry also enables SLH-DSA, and the TLS 1.3 suite then runs an SLH-DSA root with an ML-DSA-44 entity certificate: with the ML-DSA software path gone that handshake needs a registered device, which swdev does not provide yet. The all-mldsa entry below covers MLDSA alongside the rest.",
            "configure": ["--enable-slhdsa=yes,sha2", "CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_ECC -DWOLF_CRYPTO_CB_ONLY_RSA -DWOLF_CRYPTO_CB_ONLY_SHA256 -DWOLF_CRYPTO_CB_ONLY_SHA512 -DWOLF_CRYPTO_CB_ONLY_AES -DWOLF_CRYPTO_CB_ONLY_ED25519 -DWOLF_CRYPTO_CB_ONLY_CURVE25519 -DWOLF_CRYPTO_CB_ONLY_CURVE448 -DWOLF_CRYPTO_CB_ONLY_SLHDSA"]},
           {"name": "all-mldsa", "minutes": 4.5,
@@ -158,6 +164,7 @@ jobs:
           EOF
           .github/scripts/parallel-make-check.py \
             ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
+            --shard "${{ matrix.shard }}/${{ strategy.job-total }}" \
             --private-dir=certs \
             "$RUNNER_TEMP/cryptocb-only-configs.json"
 
