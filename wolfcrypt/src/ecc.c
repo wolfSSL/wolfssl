@@ -349,33 +349,24 @@ ECC Curve Sizes:
     #define HAVE_ECC_CHECK_PUBKEY_ORDER
 #endif
 
-#if defined(WOLFSSL_SP_MATH_ALL) && SP_INT_BITS < MAX_ECC_BITS_NEEDED
+/* MAX_ECC_BITS is the largest curve compiled in unless the user raised it, and
+ * ecc.h rejects a smaller one.  MAX_ECC_BITS_EXTRA is the bit ECC_KEY_MAX_BITS
+ * adds below, so the working values need room for it too. */
+#if defined(WOLFSSL_SP_MATH_ALL) && \
+    SP_INT_BITS < (MAX_ECC_BITS + MAX_ECC_BITS_EXTRA)
 #define MAX_ECC_BITS_USE    SP_INT_BITS
 #else
-#define MAX_ECC_BITS_USE    MAX_ECC_BITS_NEEDED
+#define MAX_ECC_BITS_USE    (MAX_ECC_BITS + MAX_ECC_BITS_EXTRA)
 #endif
 
-#if !defined(WOLFSSL_CUSTOM_CURVES) && (ECC_MIN_KEY_SZ > 160) && \
-    (!defined(HAVE_ECC_KOBLITZ) || (ECC_MIN_KEY_SZ > 224))
-
+/* MAX_ECC_BITS_EXTRA (ecc.h) is the one bit the builds whose order can be a bit
+ * greater than the prime need, and the ceiling is sized from the same macro. */
 #define ECC_KEY_MAX_BITS(key)                                       \
     ((((key) == NULL) || ((key)->dp == NULL)) ? MAX_ECC_BITS_USE :  \
-        ((unsigned)((key)->dp->size * 8)))
+        ((unsigned)((key)->dp->size * 8 + MAX_ECC_BITS_EXTRA)))
 #define ECC_KEY_MAX_BITS_NONULLCHECK(key)                           \
     (((key)->dp == NULL) ? MAX_ECC_BITS_USE :                       \
-        ((unsigned)((key)->dp->size * 8)))
-
-#else
-
-/* Add one bit for cases when order is a bit greater than prime. */
-#define ECC_KEY_MAX_BITS(key)                                       \
-    ((((key) == NULL) || ((key)->dp == NULL)) ? MAX_ECC_BITS_USE :  \
-        ((unsigned)((key)->dp->size * 8 + 1)))
-#define ECC_KEY_MAX_BITS_NONULLCHECK(key)                           \
-    (((key)->dp == NULL) ? MAX_ECC_BITS_USE :                       \
-        ((unsigned)((key)->dp->size * 8 + 1)))
-
-#endif
+        ((unsigned)((key)->dp->size * 8 + MAX_ECC_BITS_EXTRA)))
 
 #ifdef WOLFSSL_ECC_BLIND_K
 /* Number of digits covered by the fixed-width XORs below. */
@@ -7964,10 +7955,10 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
 {
     int ret = 0;
 #ifndef WOLFSSL_SMALL_STACK
-    byte h1[MAX_ECC_BYTES];
+    byte h1[MAX_ECC_ORDER_BYTES];
     byte V[WC_MAX_DIGEST_SIZE];
     byte K[WC_MAX_DIGEST_SIZE];
-    byte x[MAX_ECC_BYTES];
+    byte x[MAX_ECC_ORDER_BYTES];
     mp_int z1[1];
 #else
     byte *h1 = NULL;
@@ -8005,13 +7996,19 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
         }
     }
 
-    if (mp_unsigned_bin_size(priv) > MAX_ECC_BYTES) {
+    if (mp_unsigned_bin_size(priv) > MAX_ECC_ORDER_BYTES) {
         WOLFSSL_MSG("private key larger than max expected!");
         return BAD_FUNC_ARG;
     }
 
+    /* x and h1 below are written to the order's length. */
+    if (mp_unsigned_bin_size(order) > MAX_ECC_ORDER_BYTES) {
+        WOLFSSL_MSG("order larger than max expected!");
+        return BAD_FUNC_ARG;
+    }
+
 #ifdef WOLFSSL_SMALL_STACK
-    h1 = (byte*)XMALLOC(MAX_ECC_BYTES, heap, DYNAMIC_TYPE_DIGEST);
+    h1 = (byte*)XMALLOC(MAX_ECC_ORDER_BYTES, heap, DYNAMIC_TYPE_DIGEST);
     if (h1 == NULL) {
         ret = MEMORY_E;
     }
@@ -8029,7 +8026,8 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
     }
 
     if (ret == 0) {
-        x = (byte*)XMALLOC(MAX_ECC_BYTES, heap, DYNAMIC_TYPE_PRIVATE_KEY);
+        x = (byte*)XMALLOC(MAX_ECC_ORDER_BYTES, heap,
+                           DYNAMIC_TYPE_PRIVATE_KEY);
         if (x == NULL)
             ret = MEMORY_E;
     }
@@ -8090,7 +8088,7 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
 
     /* bits2octets on h1 */
     if (ret == 0) {
-        XMEMSET(h1, 0, MAX_ECC_BYTES);
+        XMEMSET(h1, 0, MAX_ECC_ORDER_BYTES);
 
     #if !defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
         /* mod reduce by order using conditional subtract
@@ -8102,7 +8100,7 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
 
             mp_sub(z1, order, z1);
             z1Sz = mp_unsigned_bin_size(z1);
-            if (z1Sz < 0 || z1Sz > MAX_ECC_BYTES) {
+            if (z1Sz < 0 || z1Sz > MAX_ECC_ORDER_BYTES) {
                 ret = BUFFER_E;
             }
             else {
@@ -8205,7 +8203,7 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
         } while (ret == 0 && err != 0);
     }
 
-    ForceZero(x, MAX_ECC_BYTES);
+    ForceZero(x, MAX_ECC_ORDER_BYTES);
     ForceZero(K, WC_MAX_DIGEST_SIZE);
     ForceZero(V, WC_MAX_DIGEST_SIZE);
 #ifdef WOLFSSL_SMALL_STACK
@@ -8215,7 +8213,7 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
     XFREE(V, heap, DYNAMIC_TYPE_ECC_BUFFER);
     XFREE(h1, heap, DYNAMIC_TYPE_DIGEST);
 #elif defined(WOLFSSL_CHECK_MEM_ZERO)
-    wc_MemZero_Check(x, MAX_ECC_BYTES);
+    wc_MemZero_Check(x, MAX_ECC_ORDER_BYTES);
     wc_MemZero_Check(K, WC_MAX_DIGEST_SIZE);
     wc_MemZero_Check(V, WC_MAX_DIGEST_SIZE);
 #endif

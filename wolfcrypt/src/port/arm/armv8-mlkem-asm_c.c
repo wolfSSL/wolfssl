@@ -34,13 +34,13 @@
 #ifdef WOLFSSL_ARMASM
 #ifdef __aarch64__
 #ifdef WOLFSSL_ARMASM_INLINE
+#include <wolfssl/wolfcrypt/wc_mlkem.h>
+
+#ifdef WOLFSSL_HAVE_MLKEM
 XALIGNED(4) static const word16 L_mlkem_aarch64_consts[] = {
     0x0d01, 0xf301, 0x4ebf, 0x0549, 0x5049, 0x0000, 0x0000, 0x0000,
 };
 
-#include <wolfssl/wolfcrypt/wc_mlkem.h>
-
-#ifdef WOLFSSL_HAVE_MLKEM
 XALIGNED(4) static const word16 L_mlkem_aarch64_zetas[] = {
     0x08ed, 0x0a0b, 0x0b9a, 0x0714, 0x05d5, 0x058e, 0x011f, 0x00ca,
     0x0c56, 0x026e, 0x0629, 0x00b6, 0x03c2, 0x084f, 0x073f, 0x05bc,
@@ -9124,6 +9124,7 @@ void mlkem_sha3_blocksx3_crypto(word64* state)
 {
     const word64* r = L_sha3_aarch64_r;
     __asm__ __volatile__ (
+    ".arch_extension sha3\n\t"
         "stp	x29, x30, [sp, #-64]!\n\t"
         "add	x29, sp, #0\n\t"
         "str	%x[state], [x29, #40]\n\t"
@@ -9423,6 +9424,7 @@ void mlkem_shake128_blocksx3_seed_crypto(word64* state, byte* seed)
 {
     const word64* r = L_sha3_aarch64_r;
     __asm__ __volatile__ (
+    ".arch_extension sha3\n\t"
         "stp	x29, x30, [sp, #-64]!\n\t"
         "add	x29, sp, #0\n\t"
         "str	%x[state], [x29, #40]\n\t"
@@ -9744,6 +9746,7 @@ void mlkem_shake256_blocksx3_seed_crypto(word64* state, byte* seed)
 {
     const word64* r = L_sha3_aarch64_r;
     __asm__ __volatile__ (
+    ".arch_extension sha3\n\t"
         "stp	x29, x30, [sp, #-64]!\n\t"
         "add	x29, sp, #0\n\t"
         "str	%x[state], [x29, #40]\n\t"

@@ -1050,6 +1050,7 @@ void Transform_Sha256_Len_crypto(wc_Sha256* sha256, const byte* data,
 {
     const word32* k = L_SHA256_trans_crypto_len_k;
     __asm__ __volatile__ (
+    ".arch_extension crypto\n\t"
         /* Load K into vector registers */
         "ld1	{v8.4s, v9.4s, v10.4s, v11.4s}, [%[k]], #0x40\n\t"
         "ld1	{v12.4s, v13.4s, v14.4s, v15.4s}, [%[k]], #0x40\n\t"

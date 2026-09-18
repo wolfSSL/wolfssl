@@ -85,6 +85,20 @@
         #define cpuid(a,b,c) __cpuidex((int*)a,b,c)
     #endif /* _MSC_VER */
 
+    /* Read XCR0. Only valid once CPUID.1:ECX.OSXSAVE[27] is known set. */
+    #ifndef _MSC_VER
+        static WC_INLINE word32 cpuid_xgetbv0(void)
+        {
+            word32 eax, edx;
+            __asm__ __volatile__ ("xgetbv"
+                : "=a" (eax), "=d" (edx) : "c" (0));
+            (void)edx;
+            return eax;
+        }
+    #else
+        #define cpuid_xgetbv0() ((word32)_xgetbv(0))
+    #endif /* _MSC_VER */
+
     #define EAX 0
     #define EBX 1
     #define ECX 2
@@ -116,6 +130,31 @@
                 XMEMCMP((char *)&(reg[ECX]), "cAMD", 4) == 0);
     }
 
+    /* XCR0 state-component masks. AVX needs the SSE and AVX regions; AVX-512
+     * also needs opmask, ZMM_Hi256 and Hi16_ZMM on top of them. */
+    #define WC_XCR0_AVX     0x06
+    #define WC_XCR0_AVX512  0xe6
+
+    /* Return 1 when the OS has enabled XSAVE and every state component in
+     * 'mask'. CPUID's feature bits only say the silicon has the unit;
+     * executing the instruction also needs CR4.OSXSAVE and the matching XCR0
+     * bits, which an OS that does not context-switch those registers leaves
+     * clear. Without this test wolfSSL dispatches the vector code on such a
+     * system and it faults with #UD. */
+    static int cpuid_os_state_enabled(word32 mask)
+    {
+        unsigned int reg[5];
+
+        XMEMSET(reg, '\0', sizeof(reg));
+        cpuid(reg, 1, 0);
+
+        /* CPUID.1:ECX.OSXSAVE[27] - XGETBV is illegal when this is clear. */
+        if (((reg[ECX] >> 27) & 0x1) == 0)
+            return 0;
+
+        return (cpuid_xgetbv0() & mask) == mask;
+    }
+
     static cpuid_flags_t cpuid_flag(word32 leaf, word32 sub, word32 num,
         word32 bit)
     {
@@ -139,8 +178,13 @@
         #endif
             cpuid_flags_t new_cpuid_flags = 0,
                 old_cpuid_flags = WC_CPUID_INITIALIZER;
-            if (cpuid_flag(1, 0, ECX, 28)) { new_cpuid_flags |= CPUID_AVX1  ; }
-            if (cpuid_flag(7, 0, EBX,  5)) { new_cpuid_flags |= CPUID_AVX2  ; }
+            int os_avx    = cpuid_os_state_enabled(WC_XCR0_AVX);
+            int os_avx512 = cpuid_os_state_enabled(WC_XCR0_AVX512);
+
+            if (os_avx) {
+                if (cpuid_flag(1, 0, ECX, 28)) { new_cpuid_flags |= CPUID_AVX1; }
+                if (cpuid_flag(7, 0, EBX,  5)) { new_cpuid_flags |= CPUID_AVX2; }
+            }
             if (cpuid_flag(7, 0, EBX,  8)) { new_cpuid_flags |= CPUID_BMI2  ; }
             if (cpuid_flag(1, 0, ECX, 30)) { new_cpuid_flags |= CPUID_RDRAND; }
             if (cpuid_flag(7, 0, EBX, 18)) { new_cpuid_flags |= CPUID_RDSEED; }
@@ -149,25 +193,30 @@
             if (cpuid_flag(1, 0, ECX, 22)) { new_cpuid_flags |= CPUID_MOVBE ; }
             if (cpuid_flag(7, 0, EBX,  3)) { new_cpuid_flags |= CPUID_BMI1  ; }
             if (cpuid_flag(7, 0, EBX, 29)) { new_cpuid_flags |= CPUID_SHA   ; }
-            if (cpuid_flag(7, 0, ECX,  9)) { new_cpuid_flags |= CPUID_VAES  ; }
-            if (cpuid_flag(7, 0, EBX, 16)) { new_cpuid_flags |= CPUID_AVX512; }
-            if (cpuid_flag(7, 0, ECX,  1)) {
-                new_cpuid_flags |= CPUID_AVX512_VBMI;
+            /* VAES is VEX/EVEX encoded, so it needs the AVX state too. */
+            if (os_avx && cpuid_flag(7, 0, ECX, 9)) {
+                new_cpuid_flags |= CPUID_VAES;
             }
-            if (cpuid_flag(7, 0, ECX,  6)) {
-                new_cpuid_flags |= CPUID_AVX512_VBMI2;
-            }
-            if (cpuid_flag(7, 0, EBX, 21)) {
-                new_cpuid_flags |= CPUID_AVX512_IFMA;
-            }
-            if (cpuid_flag(7, 0, EBX, 31)) {
-                new_cpuid_flags |= CPUID_AVX512_VL;
-            }
-            if (cpuid_flag(7, 0, EBX, 17)) {
-                new_cpuid_flags |= CPUID_AVX512_DQ;
-            }
-            if (cpuid_flag(7, 0, EBX, 30)) {
-                new_cpuid_flags |= CPUID_AVX512_BW;
+            if (os_avx512) {
+                if (cpuid_flag(7, 0, EBX, 16)) { new_cpuid_flags |= CPUID_AVX512; }
+                if (cpuid_flag(7, 0, ECX,  1)) {
+                    new_cpuid_flags |= CPUID_AVX512_VBMI;
+                }
+                if (cpuid_flag(7, 0, ECX,  6)) {
+                    new_cpuid_flags |= CPUID_AVX512_VBMI2;
+                }
+                if (cpuid_flag(7, 0, EBX, 21)) {
+                    new_cpuid_flags |= CPUID_AVX512_IFMA;
+                }
+                if (cpuid_flag(7, 0, EBX, 31)) {
+                    new_cpuid_flags |= CPUID_AVX512_VL;
+                }
+                if (cpuid_flag(7, 0, EBX, 17)) {
+                    new_cpuid_flags |= CPUID_AVX512_DQ;
+                }
+                if (cpuid_flag(7, 0, EBX, 30)) {
+                    new_cpuid_flags |= CPUID_AVX512_BW;
+                }
             }
             if (cpuid_is_intel())          { new_cpuid_flags |= CPUID_INTEL ; }
             if (cpuid_is_amd())            { new_cpuid_flags |= CPUID_AMD   ; }
