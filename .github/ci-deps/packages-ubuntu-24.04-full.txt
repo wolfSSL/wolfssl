@@ -81,6 +81,7 @@ libuv1-dev
 linux-libc-dev
 make
 man2html
+memcached
 meson
 mono-complete
 nghttp2

@@ -1217,7 +1217,8 @@ int TlsSessionCacheGetAndWrLock(const byte *id, WOLFSSL_SESSION **sess,
             lockedRow, 0, side);
 }
 
-int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
+static int GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output,
+        byte internalOnly)
 {
     const WOLFSSL_SESSION* sess = NULL;
     const byte*  id = NULL;
@@ -1235,7 +1236,9 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
     byte         bogusID[ID_LEN];
     byte         bogusIDSz = 0;
 
-    WOLFSSL_ENTER("wolfSSL_GetSessionFromCache");
+    WOLFSSL_ENTER("GetSessionFromCache");
+
+    (void)internalOnly;
 
     if (output == NULL) {
         WOLFSSL_MSG("NULL output");
@@ -1270,7 +1273,7 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
 
 
 #ifdef HAVE_EXT_CACHE
-    if (ssl->ctx->get_sess_cb != NULL) {
+    if (!internalOnly && ssl->ctx->get_sess_cb != NULL) {
         int copy = 0;
         int found = 0;
         WOLFSSL_SESSION* extSess;
@@ -1497,6 +1500,18 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
 #endif
 
     return error;
+}
+
+int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
+{
+    return GetSessionFromCache(ssl, output, 0);
+}
+
+/* Lookup by the ID carried in a decrypted ticket without calling the
+ * external cache callback. */
+int wolfSSL_GetSessionFromInternalCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
+{
+    return GetSessionFromCache(ssl, output, 1);
 }
 
 WOLFSSL_SESSION* wolfSSL_GetSession(WOLFSSL* ssl, byte* masterSecret,

@@ -5193,6 +5193,8 @@ WOLFSSL_LOCAL int TlsSessionCacheGetAndWrLock(const byte *id,
     WOLFSSL_SESSION **sess, word32 *lockedRow, byte side);
 WOLFSSL_LOCAL void EvictSessionFromCache(WOLFSSL_SESSION* session);
 WOLFSSL_TEST_VIS int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output);
+WOLFSSL_LOCAL int wolfSSL_GetSessionFromInternalCache(WOLFSSL* ssl,
+    WOLFSSL_SESSION* output);
 WOLFSSL_LOCAL int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session);
 WOLFSSL_LOCAL void wolfSSL_FreeSession(WOLFSSL_CTX* ctx,
         WOLFSSL_SESSION* session);

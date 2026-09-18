@@ -12308,6 +12308,13 @@ yes) AM_CFLAGS="$AM_CFLAGS -DHAVE_EX_DATA"
    ;;
 esac
 
+# nginx 1.31 and the OpenResty Lua modules need six ex_data slots per object.
+if test "$ENABLED_NGINX" = "yes" && \
+   (test "$ENABLED_EX_DATA" = "no" || test "$ENABLED_EX_DATA" = "yes")
+then
+    AM_CFLAGS="$AM_CFLAGS -DMAX_EX_DATA=10"
+fi
+
 # IoT-Safe support
 AC_ARG_ENABLE([iotsafe],
     [AS_HELP_STRING([--enable-iotsafe],[Enables support for IoT-Safe secure applet (default: disabled)])],

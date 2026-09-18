@@ -976,6 +976,8 @@ int test_ocsp_resp_find_status_serial_prefix(void)
     OcspEntry    requestedId;
     CertStatus   requestedStatus;
     int          status;
+    WOLFSSL_ASN1_TIME* thisupd = NULL;
+    WOLFSSL_ASN1_TIME* nextupd = NULL;
 
     XMEMSET(&response, 0, sizeof(response));
     XMEMSET(&single, 0, sizeof(single));
@@ -1008,6 +1010,21 @@ int test_ocsp_resp_find_status_serial_prefix(void)
                     NULL, NULL, NULL, NULL), WOLFSSL_SUCCESS);
     ExpectIntEQ(status, CERT_GOOD);
 
+    /* No update times parsed: both must come back NULL. */
+    ExpectIntEQ(wolfSSL_OCSP_resp_find_status(&response, &requestedId, &status,
+                    NULL, NULL, &thisupd, &nextupd), WOLFSSL_SUCCESS);
+    ExpectNull(thisupd);
+    ExpectNull(nextupd);
+#ifdef WOLFSSL_OCSP_PARSE_STATUS
+    /* thisUpdate present, nextUpdate absent. */
+    responseStatus.thisDateParsed.length = 15;
+    nextupd = &responseStatus.nextDateParsed;
+    ExpectIntEQ(wolfSSL_OCSP_resp_find_status(&response, &requestedId, &status,
+                    NULL, NULL, &thisupd, &nextupd), WOLFSSL_SUCCESS);
+    ExpectPtrEq(thisupd, &responseStatus.thisDateParsed);
+    ExpectNull(nextupd);
+#endif
+
     /* Request serial 01:02:03 (3 bytes) shares the 01:02 prefix of the
      * response serial.
      * The lookup must not bind the good response to this longer and
@@ -1019,6 +1036,43 @@ int test_ocsp_resp_find_status_serial_prefix(void)
     status = -1;
     ExpectIntEQ(wolfSSL_OCSP_resp_find_status(&response, &requestedId, &status,
                     NULL, NULL, NULL, NULL), WOLFSSL_FAILURE);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The test responses carry thisUpdate only. */
+int test_ocsp_resp_times(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_OCSP) && defined(OPENSSL_EXTRA) && !defined(NO_SHA) && \
+    !defined(NO_RSA)
+    const unsigned char* ptr = (const unsigned char*)resp;
+    OcspResponse* response = NULL;
+    WOLFSSL_OCSP_BASICRESP* bs = NULL;
+    WOLFSSL_OCSP_SINGLERESP* single = NULL;
+    WOLFSSL_ASN1_TIME* thisupd = NULL;
+    WOLFSSL_ASN1_TIME* nextupd = NULL;
+    int reason = -1;
+
+    ExpectNotNull(response = wolfSSL_d2i_OCSP_RESPONSE(NULL, &ptr,
+        sizeof(resp)));
+    ExpectNotNull(bs = wolfSSL_OCSP_response_get1_basic(response));
+    ExpectNotNull(single = wolfSSL_OCSP_resp_get0(bs, 0));
+    ExpectIntEQ(wolfSSL_OCSP_single_get0_status(single, &reason, NULL,
+        &thisupd, &nextupd), CERT_GOOD);
+#ifdef WOLFSSL_OCSP_PARSE_STATUS
+    ExpectNotNull(thisupd);
+    if (thisupd != NULL) {
+        ExpectIntEQ(thisupd->type, ASN_GENERALIZED_TIME);
+        ExpectIntGT(thisupd->length, 0);
+    }
+#else
+    ExpectNull(thisupd);
+#endif
+    ExpectNull(nextupd);
+
+    wolfSSL_OCSP_BASICRESP_free(bs);
+    wolfSSL_OCSP_RESPONSE_free(response);
 #endif
     return EXPECT_RESULT();
 }
