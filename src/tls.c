@@ -8320,6 +8320,7 @@ defined(WOLFSSL_CERT_COMPRESSION)
  * stored in wire order ready to use
  *
  * These are also our order of preference */
+/* TODO: allow for custom ordering */
 static const byte TLSX_CertCompression_Supported_Algs[] = {
 #ifdef HAVE_CUSTOM_COMPRESSION
     /* split the word16 over 2 bytes */

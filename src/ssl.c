@@ -5831,7 +5831,9 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 #endif
 #ifdef WOLFSSL_CERT_COMPRESSION
         wc_CompressionData_Free(ssl->compressedCert);
+        XFREE(ssl->compressedCert, ssl->heap, DYNAMIC_TYPE_SSL);
         ssl->compressedCert = NULL;
+        ssl->peerCertCompressionAlg = WC_NO_COMPRESSION;
 #endif
         ssl->options.processReply = 0; /* doProcessInit */
         ssl->options.havePeerVerify = 0;

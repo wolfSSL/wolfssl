@@ -1649,6 +1649,7 @@ enum Misc {
     DTLS13_HANDSHAKE_HEADER_SZ   = 12, /* sizeof(Dtls13HandshakeHeader) */
     RECORD_HEADER_SZ      = 5,  /* type + version + len(2) */
     CERT_HEADER_SZ        = 3,  /* always 3 bytes          */
+    COMP_CERT_HEADER_SZ   = 8,  /* alg<2> + uncompSz <3> + compSz <3> */
     REQ_HEADER_SZ         = 2,  /* cert request header sz  */
     HINT_LEN_SZ           = 2,  /* length of hint size field */
     TRUNCATED_HMAC_SZ     = 10, /* length of hmac w/ truncated hmac extension */
