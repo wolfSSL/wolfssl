@@ -436,9 +436,11 @@ int aarch64_use_sb = 0;
  */
 WOLFSSL_LOCAL int wc_CancelDisable(void)
 {
-    int old = 0;
 #ifdef PTHREAD_CANCEL_DISABLE
+    int old = PTHREAD_CANCEL_ENABLE;   /* what a failed call leaves behind */
     (void)pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &old);
+#else
+    int old = 0;
 #endif
     return old;
 }
