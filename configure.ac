@@ -2823,45 +2823,45 @@ fi
 
 
 # RNG lock (share one WC_RNG between threads)
-AC_ARG_ENABLE([rng-lock],
-    [AS_HELP_STRING([--enable-rng-lock],[Enable the lock that lets one WC_RNG be shared between threads (default: enabled where the build supports it)])],
-    [ ENABLED_RNG_LOCK=$enableval ],
-    [ ENABLED_RNG_LOCK=yes ]
+AC_ARG_ENABLE([rng-autolock],
+    [AS_HELP_STRING([--enable-rng-autolock],[Enable the lock that lets one WC_RNG be shared between threads (default: enabled where the build supports it)])],
+    [ ENABLED_RNG_AUTOLOCK=$enableval ],
+    [ ENABLED_RNG_AUTOLOCK=yes ]
     )
 
-case "$ENABLED_RNG_LOCK" in
+case "$ENABLED_RNG_AUTOLOCK" in
     yes|no) ;;
-    *) AC_MSG_ERROR([--enable-rng-lock takes yes or no]) ;;
+    *) AC_MSG_ERROR([--enable-rng-autolock takes yes or no]) ;;
 esac
 # only an explicit ask is an error: the default is yes
-if test "x$enable_rng_lock" = "xyes" && test "$ENABLED_RNG" = "no"
+if test "x$enable_rng_autolock" = "xyes" && test "$ENABLED_RNG" = "no"
 then
-    AC_MSG_ERROR([--enable-rng-lock requires --enable-rng])
+    AC_MSG_ERROR([--enable-rng-autolock requires --enable-rng])
 fi
-if test "$ENABLED_RNG_LOCK" = "no"
+if test "$ENABLED_RNG_AUTOLOCK" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DWC_RNG_NO_AUTO_LOCK"
 fi
 
 # RNG fork handlers (a forked child keeps using its WC_RNG); decided below
-AC_ARG_ENABLE([rng-atfork],
-    [AS_HELP_STRING([--enable-rng-atfork],[Enable pthread_atfork handlers so a forked child can keep using a WC_RNG (default: enabled where supported)])],
-    [ ENABLED_RNG_ATFORK=$enableval ],
-    [ ENABLED_RNG_ATFORK=yes ]
+AC_ARG_ENABLE([rng-autofork],
+    [AS_HELP_STRING([--enable-rng-autofork],[Enable pthread_atfork handlers so a forked child can keep using a WC_RNG (default: enabled where supported)])],
+    [ ENABLED_RNG_AUTOFORK=$enableval ],
+    [ ENABLED_RNG_AUTOFORK=yes ]
     )
 
-case "$ENABLED_RNG_ATFORK" in
+case "$ENABLED_RNG_AUTOFORK" in
     yes|no) ;;
-    *) AC_MSG_ERROR([--enable-rng-atfork takes yes or no]) ;;
+    *) AC_MSG_ERROR([--enable-rng-autofork takes yes or no]) ;;
 esac
-if test "$ENABLED_RNG" = "no" || test "$ENABLED_RNG_LOCK" = "no" || \
+if test "$ENABLED_RNG" = "no" || test "$ENABLED_RNG_AUTOLOCK" = "no" || \
    test "$ac_cv_func_getpid" != "yes"
 then
-    if test "x$enable_rng_atfork" = "xyes"
+    if test "x$enable_rng_autofork" = "xyes"
     then
-        AC_MSG_ERROR([--enable-rng-atfork requires --enable-rng, --enable-rng-lock and getpid])
+        AC_MSG_ERROR([--enable-rng-autofork requires --enable-rng, --enable-rng-autolock and getpid])
     fi
-    ENABLED_RNG_ATFORK=no
+    ENABLED_RNG_AUTOFORK=no
 fi
 
 
@@ -13422,70 +13422,70 @@ fi
 # RNG lock and fork handlers need threads; the handlers need everything the
 # WC_RNG_LOCK_ATFORK gate in random.h asks for
 case "$AM_CFLAGS $CPPFLAGS $CFLAGS $EXTRA_CFLAGS" in
-    *-DSINGLE_THREADED*) ENABLED_RNG_LOCK_THREADS=no ;;
-    *) ENABLED_RNG_LOCK_THREADS=yes ;;
+    *-DSINGLE_THREADED*) ENABLED_RNG_AUTOLOCK_THREADS=no ;;
+    *) ENABLED_RNG_AUTOLOCK_THREADS=yes ;;
 esac
 if test "$ENABLED_SINGLETHREADED" = "yes"
 then
-    ENABLED_RNG_LOCK_THREADS=no
+    ENABLED_RNG_AUTOLOCK_THREADS=no
 fi
-if test "x$enable_rng_lock" = "xyes" && test "$ENABLED_RNG_LOCK_THREADS" = "no"
+if test "x$enable_rng_autolock" = "xyes" && test "$ENABLED_RNG_AUTOLOCK_THREADS" = "no"
 then
-    AC_MSG_ERROR([--enable-rng-lock requires threads])
+    AC_MSG_ERROR([--enable-rng-autolock requires threads])
 fi
 case "$AM_CFLAGS $CPPFLAGS $CFLAGS $EXTRA_CFLAGS" in
-    *-DCUSTOM_RAND_GENERATE_BLOCK*) ENABLED_RNG_LOCK_CUSTOM=yes ;;
-    *) ENABLED_RNG_LOCK_CUSTOM=no ;;
+    *-DCUSTOM_RAND_GENERATE_BLOCK*) ENABLED_RNG_AUTOLOCK_CUSTOM=yes ;;
+    *) ENABLED_RNG_AUTOLOCK_CUSTOM=no ;;
 esac
-if test "$ENABLED_RNG_LOCK_THREADS" = "no" || test "$ENABLED_RNG" = "no" || \
-   test "$ENABLED_RNG_LOCK_CUSTOM" = "yes" || \
+if test "$ENABLED_RNG_AUTOLOCK_THREADS" = "no" || test "$ENABLED_RNG" = "no" || \
+   test "$ENABLED_RNG_AUTOLOCK_CUSTOM" = "yes" || \
    test "$ENABLED_SELFTEST" = "yes" || test "x$ENABLED_HASHDRBG" != "xyes" || \
    test "$ENABLED_LINUXKM" = "yes" || test "$ENABLED_BSDKM" = "yes" || \
    { test "$ENABLED_FIPS" = "yes" && test "${HAVE_FIPS_VERSION_MAJOR:-0}" -lt 7; }
 then
-    if test "x$enable_rng_lock" = "xyes"
+    if test "x$enable_rng_autolock" = "xyes"
     then
-        AC_MSG_ERROR([--enable-rng-lock requires threads and the Hash DRBG, and none of selftest, FIPS before v7, a kernel module or a custom rand block])
+        AC_MSG_ERROR([--enable-rng-autolock requires threads and the Hash DRBG, and none of selftest, FIPS before v7, a kernel module or a custom rand block])
     fi
-    ENABLED_RNG_LOCK=no
+    ENABLED_RNG_AUTOLOCK=no
 fi
 # a build that cannot carry the handlers drops them, unless asked explicitly
-if test "$ENABLED_RNG_ATFORK" = "yes"
+if test "$ENABLED_RNG_AUTOFORK" = "yes"
 then
-    RNG_ATFORK_NEEDS=""
+    RNG_AUTOFORK_NEEDS=""
     if test "$ENABLED_USERSETTINGS" = "yes"
     then
         # user_settings.h owns every define in that mode
-        RNG_ATFORK_NEEDS="user_settings.h to define WC_RNG_ATFORK"
+        RNG_AUTOFORK_NEEDS="user_settings.h to define WC_RNG_AUTOFORK"
     fi
-    if test "$ENABLED_RNG_LOCK_THREADS" = "no" || \
+    if test "$ENABLED_RNG_AUTOLOCK_THREADS" = "no" || \
        test "$ENABLED_LINUXKM" = "yes" || test "$ENABLED_BSDKM" = "yes"
     then
-        RNG_ATFORK_NEEDS="${RNG_ATFORK_NEEDS:+$RNG_ATFORK_NEEDS, and }threads and no kernel module"
+        RNG_AUTOFORK_NEEDS="${RNG_AUTOFORK_NEEDS:+$RNG_AUTOFORK_NEEDS, and }threads and no kernel module"
     fi
     case "$AM_CFLAGS $CPPFLAGS $CFLAGS $EXTRA_CFLAGS" in
         *-DWOLFSSL_STATIC_MEMORY*|*-DWOLFSSL_NO_MALLOC*|*-DCUSTOM_RAND_GENERATE_BLOCK*|*-DWOLFSSL_CHECK_MEM_ZERO*|*-DWOLFSSL_TRACK_MEMORY*|*-DWOLFSSL_MEM_FAIL_COUNT*|*-DWOLFSSL_USER_MUTEX*|*-DWOLFSSL_NO_GETPID*)
-            ENABLED_RNG_ATFORK_FLAGS=no ;;
-        *) ENABLED_RNG_ATFORK_FLAGS=yes ;;
+            ENABLED_RNG_AUTOFORK_FLAGS=no ;;
+        *) ENABLED_RNG_AUTOFORK_FLAGS=yes ;;
     esac
     if test "$ENABLED_SELFTEST" = "yes" || test "x$ENABLED_HASHDRBG" != "xyes" || \
        test "$ENABLED_ENTROPY_MEMUSE" != "no" || test "$ENABLED_RNG_BANK" = "yes" || \
-       test "$ENABLED_RNG_ATFORK_FLAGS" = "no" || test "$ENABLED_WNR" = "yes" || \
+       test "$ENABLED_RNG_AUTOFORK_FLAGS" = "no" || test "$ENABLED_WNR" = "yes" || \
        { test "$ENABLED_FIPS" = "yes" && test "${HAVE_FIPS_VERSION_MAJOR:-0}" -lt 7; }
     then
-        RNG_ATFORK_NEEDS="${RNG_ATFORK_NEEDS:+$RNG_ATFORK_NEEDS, and }getpid and the Hash DRBG with a heap, and none of selftest, FIPS before v7, entropy-memuse, rng-bank, static memory, netRandom, memory zero checking or memory tracking"
+        RNG_AUTOFORK_NEEDS="${RNG_AUTOFORK_NEEDS:+$RNG_AUTOFORK_NEEDS, and }getpid and the Hash DRBG with a heap, and none of selftest, FIPS before v7, entropy-memuse, rng-bank, static memory, netRandom, memory zero checking or memory tracking"
     fi
-    if test -z "$RNG_ATFORK_NEEDS"
+    if test -z "$RNG_AUTOFORK_NEEDS"
     then
         saved_LIBS="$LIBS"
         AC_SEARCH_LIBS([pthread_atfork], [pthread])
         LIBS="$saved_LIBS"   # detection only: AX_PTHREAD already added the library
         if test "$ac_cv_search_pthread_atfork" = "no"
         then
-            RNG_ATFORK_NEEDS="pthread_atfork"
+            RNG_AUTOFORK_NEEDS="pthread_atfork"
         fi
     fi
-    if test -z "$RNG_ATFORK_NEEDS"
+    if test -z "$RNG_AUTOFORK_NEEDS"
     then
         # link the real pin: a bare symbol probe passes where the header
         # hides dladdr or lacks the RTLD flags
@@ -13521,22 +13521,22 @@ then
             ]])],
             [AC_MSG_RESULT([yes])],
             [AC_MSG_RESULT([no])
-             RNG_ATFORK_NEEDS="dladdr, dlopen, unnamed semaphores and thread cancellation"])
+             RNG_AUTOFORK_NEEDS="dladdr, dlopen, unnamed semaphores and thread cancellation"])
         LIBS="$saved_LIBS"
     fi
-    if test -n "$RNG_ATFORK_NEEDS"
+    if test -n "$RNG_AUTOFORK_NEEDS"
     then
-        if test "x$enable_rng_atfork" = "xyes"
+        if test "x$enable_rng_autofork" = "xyes"
         then
-            AC_MSG_ERROR([--enable-rng-atfork requires $RNG_ATFORK_NEEDS])
+            AC_MSG_ERROR([--enable-rng-autofork requires $RNG_AUTOFORK_NEEDS])
         fi
-        AC_MSG_NOTICE([RNG fork handlers off: they need $RNG_ATFORK_NEEDS])
-        ENABLED_RNG_ATFORK=no
+        AC_MSG_NOTICE([RNG fork handlers off: they need $RNG_AUTOFORK_NEEDS])
+        ENABLED_RNG_AUTOFORK=no
     fi
 fi
-if test "$ENABLED_RNG_ATFORK" = "yes"
+if test "$ENABLED_RNG_AUTOFORK" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWC_RNG_ATFORK"
+    AM_CFLAGS="$AM_CFLAGS -DWC_RNG_AUTOFORK"
     case "$ac_cv_search_dladdr" in   # -ldl where dladdr needed it
         -l*) LIBS="$ac_cv_search_dladdr $LIBS"
              PC_LIBS_PRIVATE="$PC_LIBS_PRIVATE $ac_cv_search_dladdr" ;;
@@ -14324,8 +14324,8 @@ echo "   * XCHACHA:                    $ENABLED_XCHACHA"
 echo "   * Hash DRBG:                  $ENABLED_HASHDRBG"
 echo "   * SHA-256 Hash DRBG:          $ENABLED_SHA256_DRBG"
 echo "   * SHA-512 Hash DRBG:          $ENABLED_SHA512_DRBG"
-echo "   * RNG lock:                   $ENABLED_RNG_LOCK"
-echo "   * RNG fork handlers:          $ENABLED_RNG_ATFORK"
+echo "   * RNG lock:                   $ENABLED_RNG_AUTOLOCK"
+echo "   * RNG fork handlers:          $ENABLED_RNG_AUTOFORK"
 echo "   * MmemUse Entropy:"
 echo "   * (AKA: wolfEntropy):         $ENABLED_ENTROPY_MEMUSE"
 echo "   * PWDBASED:                   $ENABLED_PWDBASED"

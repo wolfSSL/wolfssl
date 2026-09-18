@@ -3827,11 +3827,11 @@ if(WOLFSSL_RNG_BANK)
 endif()
 
 # RNG lock (share one WC_RNG between threads)
-add_option("WOLFSSL_RNG_LOCK"
+add_option("WOLFSSL_RNG_AUTOLOCK"
     "Enable the lock that lets one WC_RNG be shared between threads (default: enabled where the build supports it)"
     "yes" "yes;no")
 # the header leaves the lock out where threads or the RNG are absent
-if(NOT WOLFSSL_RNG_LOCK)
+if(NOT WOLFSSL_RNG_AUTOLOCK)
     list(APPEND WOLFSSL_DEFINITIONS "-DWC_RNG_NO_AUTO_LOCK")
 endif()
 
@@ -4065,30 +4065,30 @@ endif()
 
 # RNG fork handlers (a forked child keeps using its WC_RNG); a build that
 # cannot carry them drops them.  After the static memory option: it reads it.
-add_option("WOLFSSL_RNG_ATFORK"
+add_option("WOLFSSL_RNG_AUTOFORK"
     "Enable pthread_atfork handlers so a forked child can keep using a WC_RNG (default: enabled where supported)"
     "yes" "yes;no")
-if(WOLFSSL_RNG_ATFORK)
-    set(RNG_ATFORK_NEEDS "")
+if(WOLFSSL_RNG_AUTOFORK)
+    set(RNG_AUTOFORK_NEEDS "")
     if(WOLFSSL_USER_SETTINGS)
-        set(RNG_ATFORK_NEEDS "user_settings.h to define them")
+        set(RNG_AUTOFORK_NEEDS "user_settings.h to define them")
     elseif(WOLFSSL_SINGLE_THREADED OR WOLFSSL_LINUX_KM)
-        set(RNG_ATFORK_NEEDS "threads and no kernel module")
-    elseif(NOT WOLFSSL_RNG OR NOT WOLFSSL_RNG_LOCK OR NOT WOLFSSL_HASH_DRBG OR
+        set(RNG_AUTOFORK_NEEDS "threads and no kernel module")
+    elseif(NOT WOLFSSL_RNG OR NOT WOLFSSL_RNG_AUTOLOCK OR NOT WOLFSSL_HASH_DRBG OR
            WOLFSSL_RNG_BANK OR WOLFSSL_STATICMEMORY)
-        set(RNG_ATFORK_NEEDS "the RNG, its lock and the Hash DRBG, and no RNG bank or static memory")
+        set(RNG_AUTOFORK_NEEDS "the RNG, its lock and the Hash DRBG, and no RNG bank or static memory")
     elseif(NOT HAVE_GETPID)
         # the header gate wants it too: it is what makes the child throw away
         # the pooled and banked bytes it inherited
-        set(RNG_ATFORK_NEEDS "getpid")
+        set(RNG_AUTOFORK_NEEDS "getpid")
     elseif(NOT WOLFSSL_MEMTEST STREQUAL "no" OR
            NOT WOLFSSL_TRACKMEMORY STREQUAL "no")
-        set(RNG_ATFORK_NEEDS "a build without memory tracking")
+        set(RNG_AUTOFORK_NEEDS "a build without memory tracking")
     else()
         # real link tests: a toolchain whose try-compile only builds a static
         # library reports every function as found
-        set(RNG_ATFORK_SAVED_LIBS "${CMAKE_REQUIRED_LIBRARIES}")
-        set(RNG_ATFORK_SAVED_TARGET "${CMAKE_TRY_COMPILE_TARGET_TYPE}")
+        set(RNG_AUTOFORK_SAVED_LIBS "${CMAKE_REQUIRED_LIBRARIES}")
+        set(RNG_AUTOFORK_SAVED_TARGET "${CMAKE_TRY_COMPILE_TARGET_TYPE}")
         set(CMAKE_TRY_COMPILE_TARGET_TYPE EXECUTABLE)
         set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_THREAD_LIBS_INIT})
         check_function_exists("pthread_atfork" WOLFSSL_HAVE_PTHREAD_ATFORK)
@@ -4121,18 +4121,18 @@ if(WOLFSSL_RNG_ATFORK)
                 }
                 return 0;
             }" WOLFSSL_HAVE_DLADDR_PIN)
-        set(CMAKE_REQUIRED_LIBRARIES "${RNG_ATFORK_SAVED_LIBS}")
-        set(CMAKE_TRY_COMPILE_TARGET_TYPE "${RNG_ATFORK_SAVED_TARGET}")
+        set(CMAKE_REQUIRED_LIBRARIES "${RNG_AUTOFORK_SAVED_LIBS}")
+        set(CMAKE_TRY_COMPILE_TARGET_TYPE "${RNG_AUTOFORK_SAVED_TARGET}")
         if(NOT WOLFSSL_HAVE_PTHREAD_ATFORK)
-            set(RNG_ATFORK_NEEDS "pthread_atfork")
+            set(RNG_AUTOFORK_NEEDS "pthread_atfork")
         elseif(NOT WOLFSSL_HAVE_DLADDR_PIN)
-            set(RNG_ATFORK_NEEDS "dladdr, dlopen, unnamed semaphores and thread cancellation")
+            set(RNG_AUTOFORK_NEEDS "dladdr, dlopen, unnamed semaphores and thread cancellation")
         endif()
     endif()
-    if(RNG_ATFORK_NEEDS)
-        message(STATUS "RNG fork handlers off: they need ${RNG_ATFORK_NEEDS}")
+    if(RNG_AUTOFORK_NEEDS)
+        message(STATUS "RNG fork handlers off: they need ${RNG_AUTOFORK_NEEDS}")
     else()
-        list(APPEND WOLFSSL_DEFINITIONS "-DWC_RNG_ATFORK")
+        list(APPEND WOLFSSL_DEFINITIONS "-DWC_RNG_AUTOFORK")
         list(APPEND WOLFSSL_LINK_LIBS ${CMAKE_DL_LIBS})
     endif()
 endif()

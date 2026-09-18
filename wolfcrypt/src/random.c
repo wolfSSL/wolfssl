@@ -39,7 +39,7 @@ This library contains implementation for the random number generator.
  *                            support
  * WC_RNG_NO_AUTO_LOCK:      Leave out the lock that lets threads default: off
  *                            share one WC_RNG (lock on unless set)
- * WC_RNG_ATFORK:            pthread_atfork handlers so a forked  default: on
+ * WC_RNG_AUTOFORK:            pthread_atfork handlers so a forked  default: on
  *                            child can keep using its WC_RNG     where found
  * WOLFSSL_RNG_USE_FULL_SEED: Use full-length seed for DRBG       default: off
  * WOLFSSL_GENSEED_FORTEST:  Use deterministic seed for testing   default: off

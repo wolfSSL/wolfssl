@@ -457,7 +457,7 @@ WOLFSSL_LOCAL void wc_CancelRestore(int state)
 
 #ifdef WC_RNG_LOCK_ATFORK
 #if !defined(RTLD_NOLOAD) || !defined(RTLD_NODELETE)
-    #error "WC_RNG_ATFORK needs RTLD_NOLOAD and RTLD_NODELETE"
+    #error "WC_RNG_AUTOFORK needs RTLD_NOLOAD and RTLD_NODELETE"
 #endif
 /* The fork handlers can never be unregistered, so the image that holds them
  * is pinned against dlclose() before they are registered. */

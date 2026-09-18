@@ -450,8 +450,8 @@ extern "C" {
      * handlers cannot be removed.  Left out with SINGLE_THREADED,
      * entropy-memuse, the RNG bank, netRandom, selftest, FIPS before v7,
      * memory zero checking, memory tracking or failure counting */
-    #undef  WC_RNG_ATFORK
-    #define WC_RNG_ATFORK
+    #undef  WC_RNG_AUTOFORK
+    #define WC_RNG_AUTOFORK
 #endif
 
 

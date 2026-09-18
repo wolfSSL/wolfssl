@@ -943,7 +943,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  srp_test(void);
 #ifndef WC_NO_RNG
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_flag_abi_test(void);
-#ifdef WC_TEST_RNG_LOCK
+#ifdef WC_TEST_RNG_AUTOLOCK
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_thread_test(void);
 #endif
 #ifdef WC_RNG_BANK_SUPPORT
@@ -2627,7 +2627,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_FAIL("RNGFLAG  test failed!\n", ret);
     else
         TEST_PASS("RNGFLAG  test passed!\n");
-#ifdef WC_TEST_RNG_LOCK
+#ifdef WC_TEST_RNG_AUTOLOCK
     if ((ret = random_thread_test()) != 0)
         TEST_FAIL("RNGTHRD  test failed!\n", ret);
     else
@@ -28102,7 +28102,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t noisesrc_test(void)
 
 #endif /* WOLFSSL_NOISE_SRC && !WC_NO_RNG */
 
-#ifdef WC_TEST_RNG_LOCK
+#ifdef WC_TEST_RNG_AUTOLOCK
 
 #define WC_RNG_THREAD_TEST_THREADS 4
 #define WC_RNG_THREAD_TEST_DRAWS   96
@@ -28237,7 +28237,7 @@ static THREAD_RETURN WOLFSSL_THREAD rng_fork_test_holder(void* arg)
     WOLFSSL_RETURN_FROM_THREAD(0);
 }
 
-#ifdef WC_TEST_RNG_FORK
+#ifdef WC_TEST_RNG_AUTOFORK
 /* fork() while another thread holds the lock: the child must finish with a
  * different next block.  The hold is best effort; the checks hold anyway. */
 static wc_test_ret_t rng_fork_test(WC_RNG* rng)
@@ -28354,7 +28354,7 @@ done:
     WC_FREE_VAR(child, HEAP_HINT);
     return ret;
 }
-#endif /* WC_TEST_RNG_FORK */
+#endif /* WC_TEST_RNG_AUTOFORK */
 
 /* Which entry point a round of rng_lock_wait_test() checks. */
 enum {
@@ -28492,7 +28492,7 @@ done:
     return ret;
 }
 
-#ifdef WC_TEST_RNG_FORK
+#ifdef WC_TEST_RNG_AUTOFORK
 struct rng_fork_flip_args {
     wc_ForkLock* first;
     wc_ForkLock* last;
@@ -28648,7 +28648,7 @@ static THREAD_RETURN WOLFSSL_THREAD rng_fork_test_churn(void* arg)
     WOLFSSL_RETURN_FROM_THREAD(0);
 }
 
-#endif /* WC_TEST_RNG_FORK */
+#endif /* WC_TEST_RNG_AUTOFORK */
 #endif /* WC_TEST_RNG_HOLD */
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
@@ -28718,7 +28718,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
     }
 #endif /* WC_TEST_RNG_HOLD */
 
-#ifdef WC_TEST_RNG_FORK
+#ifdef WC_TEST_RNG_AUTOFORK
     {
         /* Three registered, the middle one freed, then a fork for each
          * survivor. */
@@ -28780,7 +28780,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
         if (ret != 0)
             goto out_free;
     }
-#endif /* WC_TEST_RNG_FORK */
+#endif /* WC_TEST_RNG_AUTOFORK */
 
 #ifdef WC_RNG_LOCK_ATFORK
     /* A lock marked broken fails closed. */
@@ -28856,7 +28856,7 @@ out_free:
     return ret;
 }
 
-#endif /* WC_TEST_RNG_LOCK */
+#endif /* WC_TEST_RNG_AUTOLOCK */
 
 #ifdef WC_RNG_BANK_SUPPORT
 

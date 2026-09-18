@@ -51,16 +51,16 @@
     !defined(WOLFSSL_XILINX_CRYPT_VERSAL) && \
     (defined(WOLFSSL_PTHREADS) || \
      (defined(USE_WINDOWS_API) && !defined(_WIN32_WCE)))
-    #define WC_TEST_RNG_LOCK
+    #define WC_TEST_RNG_AUTOLOCK
 #endif
 /* A lock the test can hold, plus the POSIX parts the timing tests use. */
-#if defined(WC_TEST_RNG_LOCK) && !defined(__STRICT_ANSI__) && \
+#if defined(WC_TEST_RNG_AUTOLOCK) && !defined(__STRICT_ANSI__) && \
     (defined(__unix__) || defined(__linux__) || defined(__APPLE__))
     #define WC_TEST_RNG_HOLD
 #endif
 /* The fork test needs a real process model on top of the handlers. */
 #if defined(WC_TEST_RNG_HOLD) && defined(WC_RNG_LOCK_ATFORK)
-    #define WC_TEST_RNG_FORK
+    #define WC_TEST_RNG_AUTOFORK
 #endif
 
 #ifdef HAVE_STACK_SIZE
@@ -281,7 +281,7 @@ extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  srp_test(void);
 #ifndef WC_NO_RNG
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_flag_abi_test(void);
-#ifdef WC_TEST_RNG_LOCK
+#ifdef WC_TEST_RNG_AUTOLOCK
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_thread_test(void);
 #endif
 #ifdef WC_RNG_BANK_SUPPORT

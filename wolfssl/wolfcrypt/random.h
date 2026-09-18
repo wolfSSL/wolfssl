@@ -52,13 +52,13 @@
 #endif
 
 /* pthread_atfork handlers so a forked child can keep using its WC_RNG.
- * configure and CMake define WC_RNG_ATFORK where the dlclose pin, unnamed
+ * configure and CMake define WC_RNG_AUTOFORK where the dlclose pin, unnamed
  * semaphores and thread cancellation exist; builds whose locks the handlers
  * cannot cover are left out.  getpid() is required alongside them: it is
  * what makes the child throw away the pooled and banked bytes it inherited,
  * which the handlers themselves do not touch. */
 #if defined(WC_RNG_HAVE_AUTO_LOCK) && defined(WOLFSSL_PTHREADS) && \
-    defined(WC_RNG_ATFORK) && !defined(__APPLE__) && \
+    defined(WC_RNG_AUTOFORK) && !defined(__APPLE__) && \
     defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID) && \
     !defined(WOLFSSL_NO_MALLOC) && !defined(HAVE_ENTROPY_MEMUSE) && \
     !defined(WC_RNG_BANK_SUPPORT) && !defined(WOLFSSL_STATIC_MEMORY) && \

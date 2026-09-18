@@ -71,7 +71,7 @@ int  wc_FreeNetRandom(void);
     other could then wait on each other for good.  A caller that needs them
     on a shared instance stops the other threads first.
 
-    WC_RNG_NO_AUTO_LOCK (configure --disable-rng-lock) leaves the lock out;
+    WC_RNG_NO_AUTO_LOCK (configure --disable-rng-autolock) leaves the lock out;
     CMSIS-RTOS v1 builds have none, its mutex pool holds ten.  Every backend
     but a crypto callback runs with the lock held; a callback answers first,
     so it may fall back to the same instance.
@@ -85,8 +85,8 @@ int  wc_FreeNetRandom(void);
     every lock across fork() and the child releases them and reseeds, so
     each fork() waits for every live instance's generate in flight.  The
     child should use an instance it already has: wc_InitRng() there still
-    waits on a mutex the handlers do not cover.  --disable-rng-atfork leaves
-    them out; a user_settings build defines WC_RNG_ATFORK to turn them on.
+    waits on a mutex the handlers do not cover.  --disable-rng-autofork leaves
+    them out; a user_settings build defines WC_RNG_AUTOFORK to turn them on.
     The child's reseed uses the configured allocator and seed source, which
     must therefore work after fork().  wolfCrypt_Init() or the first
     wc_InitRng() registers them; they can never be unregistered,
