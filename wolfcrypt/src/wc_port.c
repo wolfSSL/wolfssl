@@ -463,6 +463,58 @@ struct wc_ForkLock {
     int cancel;   /* the holder's cancel state, back on exit */
 };
 
+/* Real thread local storage, not the do-nothing THREAD_LS_T fallback. */
+#if defined(HAVE_THREAD_LS) && !defined(NO_THREAD_LS) && \
+    !defined(FREERTOS) && !defined(FREERTOS_TCP) && !defined(WOLFSSL_ZEPHYR)
+    #define WC_FORK_LOCK_HAVE_TLS
+#endif
+
+#ifdef WC_FORK_LOCK_HAVE_TLS
+/* What this thread holds.  Only the owning thread reads or writes it, so
+ * there is nothing shared to tear and no atomics are needed.  Nesting
+ * deeper than this is not recorded, and prepare then waits as it used to. */
+#define WC_FORK_MINE_MAX 4
+static THREAD_LS_T wc_ForkLock* forkMine[WC_FORK_MINE_MAX];
+
+static void ForkMineAdd(wc_ForkLock* lock)
+{
+    int i;
+    for (i = 0; i < WC_FORK_MINE_MAX; i++) {
+        if (forkMine[i] == NULL) {
+            forkMine[i] = lock;
+            return;
+        }
+    }
+}
+
+static void ForkMineDrop(wc_ForkLock* lock)
+{
+    int i;
+    for (i = 0; i < WC_FORK_MINE_MAX; i++) {
+        if (forkMine[i] == lock) {
+            forkMine[i] = NULL;
+            return;
+        }
+    }
+}
+
+/* Does the calling thread hold this one? */
+static int ForkMineHeld(const wc_ForkLock* lock)
+{
+    int i;
+    for (i = 0; i < WC_FORK_MINE_MAX; i++) {
+        if (forkMine[i] == lock) {
+            return 1;
+        }
+    }
+    return 0;
+}
+#else
+#define ForkMineAdd(lock)  WC_DO_NOTHING
+#define ForkMineDrop(lock) WC_DO_NOTHING
+#define ForkMineHeld(lock) 0
+#endif
+
 static wc_ForkLock* forkList = NULL;   /* every live lock, under forkListSem */
 static sem_t forkListSem;
 static wolfSSL_Atomic_Int forkListDead =
@@ -498,6 +550,11 @@ static void ForkPrepare(void)
     }
     for (n = forkList; n != NULL; n = n->next) {
         if (WOLFSSL_ATOMIC_LOAD(n->broken)) {
+            continue;
+        }
+        /* Waiting on one this thread already holds would never return.  The
+         * child's only thread is this one, and it releases it as usual. */
+        if (ForkMineHeld(n)) {
             continue;
         }
         if (ForkSemWait(&n->sem) != 0) {
@@ -634,10 +691,13 @@ WOLFSSL_API int wc_ForkLock_Enter(wc_ForkLock* lock)
         return BAD_MUTEX_E;
     (void)pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &old);
     ret = ForkSemWait(&lock->sem);
-    if (ret != 0)
+    if (ret != 0) {
         (void)pthread_setcancelstate(old, NULL);
-    else
+    }
+    else {
         lock->cancel = old;
+        ForkMineAdd(lock);
+    }
     return ret;
 }
 
@@ -647,6 +707,7 @@ WOLFSSL_API   void wc_ForkLock_Exit(wc_ForkLock* lock)
     if (lock == NULL)
         return;
     old = lock->cancel;
+    ForkMineDrop(lock);
     (void)sem_post(&lock->sem);
     (void)pthread_setcancelstate(old, NULL);
 }
