@@ -34736,6 +34736,267 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
     return ret;
 }
 
+/* Devid for the test devices' internal reference HMACs; unregistered, so they
+ * run in software. INVALID_DEVID would recurse under WOLF_CRYPTO_CB_FIND (the
+ * find callback maps it back onto the test device). */
+#define TEST_CRYPTOCB_UNREG_DEVID 0x6e6f6465 /* 'n' 'o' 'd' 'e' */
+
+#if !defined(NO_HMAC) && !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA) && \
+    defined(HAVE_ECC) && defined(HAVE_AES_CBC) && !defined(NO_SHA256) && \
+    defined(HAVE_ENCRYPT_THEN_MAC) && defined(WOLF_CRYPTO_CB) && \
+    defined(WOLF_CRYPTO_CB_SETKEY) && defined(HAVE_IO_TESTS_DEPENDENCIES)
+#define TEST_CRYPTOCB_HMAC_DEV
+
+/* Device state on an Hmac's devCtx: the owned key plus buffered message. The
+ * key outlives a final (the TLS 1.2 PRF keys once then runs many update/final
+ * cycles on one Hmac). Accumulators are chained off the device context and
+ * freed at teardown. */
+typedef struct HmacDevAccum {
+    struct HmacDevAccum* next;
+    byte   key[WC_MAX_BLOCK_SIZE];
+    word32 keyLen;
+    int    macType;
+    byte*  buf;
+    word32 len;
+    word32 cap;
+} HmacDevAccum;
+
+/* Per-device context: private key file for delegated PK ops, plus the
+ * accumulators handed out. One device per connection side, single-threaded. */
+typedef struct HmacDevCtx {
+    const char*   privKeyFile;
+    HmacDevAccum* list;
+} HmacDevCtx;
+
+static void test_CryptoCb_HmacDev_Cleanup(HmacDevCtx* devCtx)
+{
+    HmacDevAccum* a = devCtx->list;
+
+    while (a != NULL) {
+        HmacDevAccum* next = a->next;
+        XFREE(a->buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(a, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        a = next;
+    }
+    devCtx->list = NULL;
+}
+
+/* Callback modelling an HMAC engine that owns the key: it services HMAC SETKEY
+ * (so wc_HmacSetKey never derives the software ipad/opad) and computes the MAC
+ * itself, leaving the raw-hash state empty -- which makes Hmac_UpdateFinal_CT()
+ * produce a wrong MAC unless verify routes through update/final. Needs
+ * WOLF_CRYPTO_CB_SETKEY; non-HMAC ops go to test_CryptoCb_Func for the PK. */
+static int test_CryptoCb_HmacDev_Func(int thisDevId, wc_CryptoInfo* info,
+    void* ctx)
+{
+    HmacDevCtx* devCtx = (HmacDevCtx*)ctx;
+
+    if (info != NULL && info->algo_type == WC_ALGO_TYPE_SETKEY &&
+            info->setkey.type == WC_SETKEY_HMAC) {
+        Hmac*         hmac = (Hmac*)info->setkey.obj;
+        HmacDevAccum* a;
+
+        if (hmac == NULL || devCtx == NULL ||
+                info->setkey.keySz > (word32)sizeof(a->key)) {
+            /* cannot hold this key: let software handle it */
+            return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+        }
+        a = (HmacDevAccum*)XMALLOC(sizeof(*a), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (a == NULL) {
+            return WC_NO_ERR_TRACE(MEMORY_E);
+        }
+        XMEMSET(a, 0, sizeof(*a));
+        if (info->setkey.key != NULL && info->setkey.keySz > 0) {
+            XMEMCPY(a->key, info->setkey.key, info->setkey.keySz);
+        }
+        a->keyLen  = info->setkey.keySz;
+        a->macType = hmac->macType;
+        a->next      = devCtx->list;
+        devCtx->list = a;
+        hmac->devCtx = a;
+        return 0; /* handled: software ipad/opad are not computed */
+    }
+
+    if (info != NULL && info->algo_type == WC_ALGO_TYPE_HMAC) {
+        Hmac*         hmac = info->hmac.hmac;
+        HmacDevAccum* a;
+        int           ret = 0;
+
+        if (hmac == NULL) {
+            return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+        }
+        a = (HmacDevAccum*)hmac->devCtx;
+        if (a == NULL) {
+            /* not a key this device owns: let software handle it */
+            return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+        }
+
+        /* update: buffer the data, leave the software hash state untouched */
+        if (info->hmac.in != NULL && info->hmac.inSz > 0) {
+            word32 need = a->len + info->hmac.inSz;
+            if (need > a->cap) {
+                word32 cap = (a->cap == 0) ? 256 : a->cap;
+                byte*  nb;
+                while (cap < need) {
+                    cap *= 2;
+                }
+                nb = (byte*)XMALLOC(cap, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                if (nb == NULL) {
+                    return WC_NO_ERR_TRACE(MEMORY_E);
+                }
+                if (a->len > 0) {
+                    XMEMCPY(nb, a->buf, a->len);
+                }
+                XFREE(a->buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                a->buf = nb;
+                a->cap = cap;
+            }
+            XMEMCPY(a->buf + a->len, info->hmac.in, info->hmac.inSz);
+            a->len = need;
+        }
+
+        /* final: MAC the buffered message with a fresh software HMAC keyed
+         * from the device's key */
+        if (info->hmac.digest != NULL) {
+            Hmac tmp;
+
+            ret = wc_HmacInit(&tmp, NULL, TEST_CRYPTOCB_UNREG_DEVID);
+            if (ret == 0) {
+                ret = wc_HmacSetKey(&tmp, a->macType, a->key, a->keyLen);
+                if (ret == 0 && a->len > 0) {
+                    ret = wc_HmacUpdate(&tmp, a->buf, a->len);
+                }
+                if (ret == 0) {
+                    ret = wc_HmacFinal(&tmp, info->hmac.digest);
+                }
+                wc_HmacFree(&tmp);
+            }
+            /* key stays loaded for the next update/final cycle on this Hmac */
+            a->len = 0;
+        }
+        return ret;
+    }
+    return test_CryptoCb_Func(thisDevId, info,
+        (devCtx != NULL) ? (void*)devCtx->privKeyFile : NULL);
+}
+
+/* Cleared by test_CryptoCb_cbcMtE_ctx_ready() if forcing the CBC MtE suite
+ * fails, so the test rejects a run that silently negotiated another suite. */
+static int test_CryptoCb_cbcMtE_ready_ok = 1;
+
+/* Force a TLS 1.2 MAC-then-Encrypt CBC-SHA256 suite so the record MAC runs
+ * through the Lucky13 constant-time verify path exercised by the fix. */
+static void test_CryptoCb_cbcMtE_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    if (wolfSSL_CTX_set_cipher_list(ctx, "ECDHE-RSA-AES128-SHA256")
+            != WOLFSSL_SUCCESS ||
+        wolfSSL_CTX_AllowEncryptThenMac(ctx, 0) != WOLFSSL_SUCCESS) {
+        test_CryptoCb_cbcMtE_ready_ok = 0;
+    }
+}
+#endif /* HMAC && !NO_TLS12 && !NO_RSA && HAVE_ECC && HAVE_AES_CBC &&
+        * !NO_SHA256 && HAVE_ENCRYPT_THEN_MAC */
+
+#if !defined(NO_HMAC) && !defined(NO_SHA256) && defined(WOLF_CRYPTO_CB) && \
+    defined(WOLF_CRYPTO_CB_SETKEY) && defined(WOLF_CRYPTO_CB_FIND)
+#define TEST_CRYPTOCB_HMAC_FIND
+/* Registered, but never named by the caller; the find callback steers
+ * INVALID_DEVID ops onto it. */
+#define TEST_CRYPTOCB_HMAC_FIND_DEVID 7
+
+/* Key-owning HMAC engine for the find-mapping test; fixed-size, no alloc. */
+typedef struct HmacFindDev {
+    byte   key[WC_MAX_BLOCK_SIZE];
+    word32 keyLen;
+    int    macType;
+    byte   buf[128];
+    word32 len;
+    int    setKeyCount;
+    int    hmacCount;
+} HmacFindDev;
+
+/* Services HMAC SETKEY (claiming the key) plus update/final. */
+static int test_CryptoCb_HmacFind_Func(int thisDevId, wc_CryptoInfo* info,
+    void* ctx)
+{
+    HmacFindDev* dev = (HmacFindDev*)ctx;
+
+    (void)thisDevId;
+
+    if (info == NULL || dev == NULL) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+
+    if (info->algo_type == WC_ALGO_TYPE_SETKEY &&
+            info->setkey.type == WC_SETKEY_HMAC) {
+        Hmac* hmac = (Hmac*)info->setkey.obj;
+
+        if (hmac == NULL || info->setkey.keySz > (word32)sizeof(dev->key)) {
+            return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+        }
+        if (info->setkey.key != NULL && info->setkey.keySz > 0) {
+            XMEMCPY(dev->key, info->setkey.key, info->setkey.keySz);
+        }
+        dev->keyLen  = info->setkey.keySz;
+        dev->macType = hmac->macType;
+        dev->len     = 0;
+        dev->setKeyCount++;
+        hmac->devCtx = dev;
+        return 0; /* handled: software ipad/opad are not computed */
+    }
+
+    if (info->algo_type == WC_ALGO_TYPE_HMAC) {
+        Hmac* hmac = info->hmac.hmac;
+        int   ret  = 0;
+
+        if (hmac == NULL || hmac->devCtx != (void*)dev) {
+            /* not a key this device owns (the reference HMAC below) */
+            return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+        }
+        dev->hmacCount++;
+
+        if (info->hmac.in != NULL && info->hmac.inSz > 0) {
+            if (info->hmac.inSz > (word32)sizeof(dev->buf) - dev->len) {
+                return WC_NO_ERR_TRACE(BUFFER_E);
+            }
+            XMEMCPY(dev->buf + dev->len, info->hmac.in, info->hmac.inSz);
+            dev->len += info->hmac.inSz;
+        }
+
+        if (info->hmac.digest != NULL) {
+            Hmac tmp;
+
+            ret = wc_HmacInit(&tmp, NULL, TEST_CRYPTOCB_UNREG_DEVID);
+            if (ret == 0) {
+                ret = wc_HmacSetKey(&tmp, dev->macType, dev->key, dev->keyLen);
+                if (ret == 0 && dev->len > 0) {
+                    ret = wc_HmacUpdate(&tmp, dev->buf, dev->len);
+                }
+                if (ret == 0) {
+                    ret = wc_HmacFinal(&tmp, info->hmac.digest);
+                }
+                wc_HmacFree(&tmp);
+            }
+            /* key stays loaded, as on the TLS device above */
+            dev->len = 0;
+        }
+        return ret;
+    }
+
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+
+/* Map no-devid ops onto the HMAC engine, as wc_swdev's find callback does. */
+static int test_CryptoCb_HmacFind_FindCb(int currentId, int algoType)
+{
+    (void)algoType;
+    if (currentId == INVALID_DEVID) {
+        return TEST_CRYPTOCB_HMAC_FIND_DEVID;
+    }
+    return currentId;
+}
+#endif /* TEST_CRYPTOCB_HMAC_FIND */
+
 /* These callback helpers are only referenced by test_wc_CryptoCb_registry,
  * whose body is compiled only under WOLF_CRYPTO_CB + WOLFSSL_TEST_STATIC_BUILD
  * (it calls WOLFSSL_LOCAL cryptocb helpers). Match that guard so they are not
@@ -35286,6 +35547,137 @@ static int test_wc_CryptoCb(void)
     #endif
 #endif /* HAVE_IO_TESTS_DEPENDENCIES */
 #endif /* WOLF_CRYPTO_CB */
+    return EXPECT_RESULT();
+}
+
+/* Regression: a TLS 1.2 CBC MtE handshake whose record MAC is computed by a
+ * callback that leaves the software hash state empty. Without routing
+ * device-backed verify through update/final, TLS_hmac() reads that empty state
+ * and the handshake fails with a decrypt error. */
+static int test_wc_CryptoCb_TLS_CBC_HMAC(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_CRYPTOCB_HMAC_DEV
+    callback_functions client_cbf;
+    callback_functions server_cbf;
+    HmacDevCtx        client_dev;
+    HmacDevCtx        server_dev;
+
+    XMEMSET(&client_cbf, 0, sizeof(client_cbf));
+    XMEMSET(&server_cbf, 0, sizeof(server_cbf));
+    XMEMSET(&client_dev, 0, sizeof(client_dev));
+    XMEMSET(&server_dev, 0, sizeof(server_dev));
+    client_dev.privKeyFile = cliKeyFile;
+    server_dev.privKeyFile = svrKeyFile;
+
+    client_cbf.method = wolfTLSv1_2_client_method;
+    server_cbf.method = wolfTLSv1_2_server_method;
+
+    /* RSA creds; private key served via the callback (as test_wc_CryptoCb_TLS). */
+    client_cbf.caPemFile   = svrCertFile;
+    client_cbf.certPemFile = cliCertFile;
+    client_cbf.keyPemFile  = cliKeyPubFile;
+    server_cbf.caPemFile   = cliCertFile;
+    server_cbf.certPemFile = svrCertFile;
+    server_cbf.keyPemFile  = svrKeyPubFile;
+
+    client_cbf.ctx_ready = test_CryptoCb_cbcMtE_ctx_ready;
+    server_cbf.ctx_ready = test_CryptoCb_cbcMtE_ctx_ready;
+    test_CryptoCb_cbcMtE_ready_ok = 1;
+
+    client_cbf.devId = 1;
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(client_cbf.devId,
+        test_CryptoCb_HmacDev_Func, &client_dev), 0);
+    server_cbf.devId = 2;
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(server_cbf.devId,
+        test_CryptoCb_HmacDev_Func, &server_dev), 0);
+
+    test_wolfSSL_client_server(&client_cbf, &server_cbf);
+    /* both ctx forced the CBC MtE suite; else a GCM/EtM run could pass without
+     * exercising the raw-hash verify path */
+    ExpectIntEQ(test_CryptoCb_cbcMtE_ready_ok, 1);
+    ExpectIntEQ(server_cbf.return_code, TEST_SUCCESS);
+    ExpectIntEQ(client_cbf.return_code, TEST_SUCCESS);
+
+    wc_CryptoCb_UnRegisterDevice(client_cbf.devId);
+    wc_CryptoCb_UnRegisterDevice(server_cbf.devId);
+
+    test_CryptoCb_HmacDev_Cleanup(&client_dev);
+    test_CryptoCb_HmacDev_Cleanup(&server_dev);
+#else
+    return TEST_SKIPPED;
+#endif /* TEST_CRYPTOCB_HMAC_DEV */
+    return EXPECT_RESULT();
+}
+
+/* Regression: with WOLF_CRYPTO_CB_FIND a find callback maps an INVALID_DEVID op
+ * onto a device, and wc_HmacSetKey() honors it. wc_HmacUpdate()/wc_HmacFinal()
+ * must dispatch on the same terms; a plain devId != INVALID_DEVID check let the
+ * device claim the key while the message hashed in software against ipad/opad
+ * never derived -- a wrong MAC. */
+static int test_wc_CryptoCb_Hmac_Find(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_CRYPTOCB_HMAC_FIND
+    HmacFindDev dev;
+    Hmac        hmac;
+    int         hmacInit = 0;
+    byte        expected[WC_SHA256_DIGEST_SIZE];
+    byte        mac[WC_SHA256_DIGEST_SIZE];
+    const byte  key[] = "cryptocb find regression key";
+    const byte  msg[] = "cryptocb find regression message";
+    word32      keySz = (word32)XSTRLEN((const char*)key);
+    word32      msgSz = (word32)XSTRLEN((const char*)msg);
+
+    XMEMSET(&dev, 0, sizeof(dev));
+    XMEMSET(expected, 0, sizeof(expected));
+    XMEMSET(mac, 0, sizeof(mac));
+
+    /* software reference, computed with no device in reach */
+    ExpectIntEQ(wc_HmacInit(&hmac, NULL, TEST_CRYPTOCB_UNREG_DEVID), 0);
+    if (EXPECT_SUCCESS()) {
+        hmacInit = 1;
+    }
+    ExpectIntEQ(wc_HmacSetKey(&hmac, WC_SHA256, key, keySz), 0);
+    ExpectIntEQ(wc_HmacUpdate(&hmac, msg, msgSz), 0);
+    ExpectIntEQ(wc_HmacFinal(&hmac, expected), 0);
+    if (hmacInit) {
+        wc_HmacFree(&hmac);
+        hmacInit = 0;
+    }
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_HMAC_FIND_DEVID,
+        test_CryptoCb_HmacFind_Func, &dev), 0);
+    if (EXPECT_SUCCESS()) {
+        wc_CryptoCb_SetDeviceFindCb(test_CryptoCb_HmacFind_FindCb);
+    }
+
+    /* no device id: only the find callback puts this on the device */
+    ExpectIntEQ(wc_HmacInit(&hmac, NULL, INVALID_DEVID), 0);
+    if (EXPECT_SUCCESS()) {
+        hmacInit = 1;
+    }
+    ExpectIntEQ(wc_HmacSetKey(&hmac, WC_SHA256, key, keySz), 0);
+    /* the device claimed the key, so nothing else may compute this MAC */
+    ExpectIntEQ(dev.setKeyCount, 1);
+    ExpectIntEQ(wc_HmacUpdate(&hmac, msg, msgSz), 0);
+    ExpectIntEQ(wc_HmacFinal(&hmac, mac), 0);
+    ExpectIntGE(dev.hmacCount, 2);
+    ExpectBufEQ(mac, expected, sizeof(expected));
+    if (hmacInit) {
+        wc_HmacFree(&hmac);
+    }
+
+    /* restore whatever find callback the harness installed */
+#ifdef WOLFSSL_SWDEV
+    wc_CryptoCb_SetDeviceFindCb(wc_SwDev_FindCb);
+#else
+    wc_CryptoCb_SetDeviceFindCb(NULL);
+#endif
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_HMAC_FIND_DEVID);
+#else
+    return TEST_SKIPPED;
+#endif /* TEST_CRYPTOCB_HMAC_FIND */
     return EXPECT_RESULT();
 }
 
@@ -42782,6 +43174,9 @@ TEST_CASE testCases[] = {
     /* Unconditional shell (body self-guards on WOLF_CRYPTO_CB &&
      * WOLF_CRYPTO_CB_CMD and a big-enough callback table). */
     TEST_DECL(test_wc_CryptoCb_nested_register),
+    /* Unconditional shells (bodies self-guard on their feature macros). */
+    TEST_DECL(test_wc_CryptoCb_TLS_CBC_HMAC),
+    TEST_DECL(test_wc_CryptoCb_Hmac_Find),
     /* Can't memory test as client/server hangs. */
     TEST_DECL(test_wolfSSL_CTX_StaticMemory),
 #if !defined(NO_FILESYSTEM) &&                                                 \
