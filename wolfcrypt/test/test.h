@@ -53,9 +53,13 @@
      (defined(USE_WINDOWS_API) && !defined(_WIN32_WCE)))
     #define WC_TEST_RNG_LOCK
 #endif
+/* A lock the test can hold, plus the POSIX parts the timing tests use. */
+#if defined(WC_TEST_RNG_LOCK) && !defined(__STRICT_ANSI__) && \
+    (defined(__unix__) || defined(__linux__) || defined(__APPLE__))
+    #define WC_TEST_RNG_HOLD
+#endif
 /* The fork test needs a real process model on top of the handlers. */
-#if defined(WC_TEST_RNG_LOCK) && defined(WC_RNG_LOCK_ATFORK) && \
-    !defined(__STRICT_ANSI__) && (defined(__unix__) || defined(__linux__))
+#if defined(WC_TEST_RNG_HOLD) && defined(WC_RNG_LOCK_ATFORK)
     #define WC_TEST_RNG_FORK
 #endif
 

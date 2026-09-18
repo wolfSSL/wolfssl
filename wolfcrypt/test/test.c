@@ -178,7 +178,7 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
     #include "wolfcrypt/test/test.h"
 #endif
 
-#ifdef WC_TEST_RNG_FORK
+#ifdef WC_TEST_RNG_HOLD
     #include <unistd.h>
     #include <sys/wait.h>
     #include <errno.h>
@@ -28076,8 +28076,35 @@ static THREAD_RETURN WOLFSSL_THREAD rng_thread_test_worker(void* arg)
     WOLFSSL_RETURN_FROM_THREAD(0);
 }
 
-#ifdef WC_TEST_RNG_FORK
+#ifdef WC_TEST_RNG_HOLD
 #define WC_RNG_FORK_HOLD_NS 50000000L
+
+/* Takes whichever automatic lock this build has, with public API only:
+ * the fork builds keep it on the heap, the rest keep it in the WC_RNG.
+ */
+static int rng_test_lock_take(WC_RNG* rng)
+{
+#ifdef WC_RNG_LOCK_ATFORK
+    if (rng->autoLock == NULL)
+        return BAD_MUTEX_E;
+    /* wc_ForkLock_Enter() retries EINTR itself and leaves errno alone,
+     * so a failure here is final. */
+    return wc_ForkLock_Enter(rng->autoLock);
+#else
+    if (!rng->autoLockInited)
+        return BAD_MUTEX_E;
+    return wc_LockMutex(&rng->mutex);
+#endif
+}
+
+static void rng_test_lock_give(WC_RNG* rng)
+{
+#ifdef WC_RNG_LOCK_ATFORK
+    wc_ForkLock_Exit(rng->autoLock);
+#else
+    (void)wc_UnLockMutex(&rng->mutex);
+#endif
+}
 
 /* Elapsed nanoseconds, capped at two seconds so nothing overflows. */
 static long rng_test_elapsed_ns(const struct timespec* a,
@@ -28104,13 +28131,9 @@ static THREAD_RETURN WOLFSSL_THREAD rng_fork_test_holder(void* arg)
     struct timespec start, now;
     byte held = 1;
     byte go = 0;
-    int rc = -1;
+    int rc;
 
-    if (a->rng->autoLock != NULL) {
-        /* wc_ForkLock_Enter() retries EINTR itself and leaves errno alone,
-         * so a failure here is final. */
-        rc = wc_ForkLock_Enter(a->rng->autoLock);
-    }
+    rc = rng_test_lock_take(a->rng);
     if (rc == 0) {
         /* hold for the full time only once the tester says it is timing */
         if (write(a->fd, &held, 1) == 1 && read(a->rfd, &go, 1) == 1 &&
@@ -28120,13 +28143,14 @@ static THREAD_RETURN WOLFSSL_THREAD rng_fork_test_holder(void* arg)
                     break;
             } while (rng_test_elapsed_ns(&start, &now) < WC_RNG_FORK_HOLD_NS);
         }
-        wc_ForkLock_Exit(a->rng->autoLock);
+        rng_test_lock_give(a->rng);
     }
     close(a->fd);   /* EOF if the lock was never held */
     close(a->rfd);
     WOLFSSL_RETURN_FROM_THREAD(0);
 }
 
+#ifdef WC_TEST_RNG_FORK
 /* fork() while another thread holds the lock: the child must finish with a
  * different next block.  The hold is best effort; the checks hold anyway. */
 static wc_test_ret_t rng_fork_test(WC_RNG* rng)
@@ -28242,6 +28266,8 @@ done:
     WC_FREE_VAR(child, HEAP_HINT);
     return ret;
 }
+#endif /* WC_TEST_RNG_FORK */
+
 /* A generate on a held instance must not finish until the holder lets go. */
 static wc_test_ret_t rng_lock_wait_test(WC_RNG* rng)
 {
@@ -28316,10 +28342,9 @@ static THREAD_RETURN WOLFSSL_THREAD rng_lock_fail_holder(void* arg)
     byte held = 1;
     byte go = 0;
     int failed = 0;
-    int rc = -1;
+    int rc;
 
-    if (a->rng->autoLock != NULL)
-        rc = wc_ForkLock_Enter(a->rng->autoLock);
+    rc = rng_test_lock_take(a->rng);
     if (rc == 0) {
         if (write(a->fd, &held, 1) == 1 && read(a->rfd, &go, 1) == 1 &&
             clock_gettime(CLOCK_MONOTONIC, &start) == 0) {
@@ -28333,7 +28358,7 @@ static THREAD_RETURN WOLFSSL_THREAD rng_lock_fail_holder(void* arg)
                 }
             } while (rng_test_elapsed_ns(&start, &now) < a->ns);
         }
-        wc_ForkLock_Exit(a->rng->autoLock);
+        rng_test_lock_give(a->rng);
     }
     close(a->fd);   /* EOF if the lock was never held */
     close(a->rfd);
@@ -28402,6 +28427,7 @@ done:
     return ret;
 }
 
+#ifdef WC_TEST_RNG_FORK
 struct rng_fork_flip_args {
     wc_ForkLock* first;
     wc_ForkLock* last;
@@ -28560,6 +28586,7 @@ static THREAD_RETURN WOLFSSL_THREAD rng_fork_test_churn(void* arg)
 }
 
 #endif /* WC_TEST_RNG_FORK */
+#endif /* WC_TEST_RNG_HOLD */
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
 {
@@ -28585,6 +28612,31 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
     if (out == NULL || args == NULL || rng == NULL)
         ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out_free);
 
+#ifdef WC_TEST_RNG_HOLD
+    /* Deterministic checks that only need a lock this test can hold, so
+     * they cover the plain mutex builds as well as the fork ones. */
+    {
+        int useNow;
+        ret = rng_lock_wait_test(rng);
+        if (ret != 0)
+            goto out_free;
+        /* One throwaway instance per reseed entry: each ends up condemned,
+         * which is the point. */
+        for (useNow = 0; (useNow < 2) && (ret == 0); useNow++) {
+            WC_RNG* doomed = NULL;
+            (void)wc_rng_new_ex(&doomed, NULL, 0, HEAP_HINT, INVALID_DEVID);
+            if (doomed == NULL) {
+                ret = WC_TEST_RET_ENC_EC(MEMORY_E);
+                break;
+            }
+            ret = rng_reseed_status_test(doomed, useNow);
+            wc_rng_free(doomed);
+        }
+        if (ret != 0)
+            goto out_free;
+    }
+#endif /* WC_TEST_RNG_HOLD */
+
 #ifdef WC_TEST_RNG_FORK
     {
         /* Three registered, the middle one freed, then a fork for each
@@ -28604,7 +28656,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out_free);
         }
         wc_rng_free(mid);   /* the middle of three leaves the registry */
-        ret = rng_lock_wait_test(rng);
+        ret = rng_lock_wait_test(rng);   /* still sound after that removal */
         if (ret != 0) {
             wc_rng_free(third);
             goto out_free;
@@ -28642,22 +28694,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
                 wc_rng_free(blocker);
             if (last != NULL)
                 wc_rng_free(last);
-        }
-        if (ret == 0) {
-            /* One throwaway instance per reseed entry: each ends up
-             * condemned, which is the point. */
-            int useNow;
-            for (useNow = 0; (useNow < 2) && (ret == 0); useNow++) {
-                WC_RNG* doomed = NULL;
-                (void)wc_rng_new_ex(&doomed, NULL, 0, HEAP_HINT,
-                                    INVALID_DEVID);
-                if (doomed == NULL) {
-                    ret = WC_TEST_RET_ENC_EC(MEMORY_E);
-                    break;
-                }
-                ret = rng_reseed_status_test(doomed, useNow);
-                wc_rng_free(doomed);
-            }
         }
         wc_rng_free(third);
         if (ret != 0)
