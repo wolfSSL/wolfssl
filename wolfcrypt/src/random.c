@@ -5547,23 +5547,20 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
     }
 #endif
 
-    ret = RngLockEnter(rng);   /* held across every other backend */
-    if (ret != 0)
-        return ret;
-
+    /* These read a device, not this instance, so a lock protects nothing here.
+     * On RDRAND hardware wc_InitRng() creates no lock at all, as tested. */
 #ifdef HAVE_INTEL_RDRAND
-    if (IS_INTEL_RDRAND(intel_flags)) {
-        ret = wc_GenerateRand_IntelRD(NULL, output, sz);
-        RngLockExit(rng);
-        return ret;
-    }
+    if (IS_INTEL_RDRAND(intel_flags))
+        return wc_GenerateRand_IntelRD(NULL, output, sz);
 #endif
 
 #if defined(WOLFSSL_SILABS_SE_ACCEL) && defined(WOLFSSL_SILABS_TRNG)
-    ret = silabs_GenerateRand(output, sz);
-    RngLockExit(rng);
-    return ret;
+    return silabs_GenerateRand(output, sz);
 #endif
+
+    ret = RngLockEnter(rng);   /* held across every other backend */
+    if (ret != 0)
+        return ret;
 
 #if defined(WOLFSSL_ASYNC_CRYPT)
     if (rng->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RNG) {
