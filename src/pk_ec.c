@@ -4383,6 +4383,11 @@ int SetECKeyExternal(WOLFSSL_EC_KEY* eckey)
                 WOLFSSL_MSG("SetECKeyExternal ec_point_external_set failed");
                 ret = WOLFSSL_FATAL_ERROR;
             }
+            /* Both sides of the point match now, so readers of a shared key
+             * do not rebuild the internal one. */
+            if (ret == 1) {
+                eckey->pub_key->inSet = 1;
+            }
         }
 
         /* set the external privkey */
