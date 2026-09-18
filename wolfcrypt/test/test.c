@@ -27186,14 +27186,16 @@ static wc_test_ret_t rng_zeroed_free_test(void)
  * A failure here means an ABI break landed.  Updating these numbers hides
  * it, and deleting this test leaves nothing to report it at all.
  */
+/* A FIPS build compiles a frozen random.h that predates these flags, so
+ * unlike an #ifdef on an unconditional macro, these can really be false. */
+#ifdef WC_RNG_INIT_FLAG_LOCK_REQUIRED
 wc_static_assert(WC_RNG_INIT_FLAG_NONE            == 0);
 wc_static_assert(WC_RNG_INIT_FLAG_LOCK_REQUIRED   == (1U << 0));
 wc_static_assert(WC_RNG_INIT_FLAG_LOCK_INITIALLY  == (1U << 1));
 wc_static_assert(WC_RNG_INIT_FLAG_USE_FULL_MUTEX  == (1U << 2));
 wc_static_assert(WC_RNG_INIT_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED
                                                   == (1U << 3));
-/* #ifdef on a flag macro says nothing where the macro is unconditional.
- * It is valid here: WC_RNG_FLAG_* sits behind a FIPS version condition. */
+#endif
 #ifdef WC_RNG_FLAG_FULL_MUTEX
 wc_static_assert(WC_RNG_FLAG_NONE                 == 0);
 wc_static_assert(WC_RNG_FLAG_RBGC_NEXT_SEED       == (1U << 0));
@@ -27209,6 +27211,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_flag_abi_test(void)
 {
     WOLFSSL_ENTER("rng_flag_abi_test");
 
+#ifdef WC_RNG_INIT_FLAG_LOCK_REQUIRED
     if (WC_RNG_INIT_FLAG_NONE != 0)
         return WC_TEST_RET_ENC_NC;
     if (WC_RNG_INIT_FLAG_LOCK_REQUIRED != (1U << 0))
@@ -27219,6 +27222,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_flag_abi_test(void)
         return WC_TEST_RET_ENC_NC;
     if (WC_RNG_INIT_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED != (1U << 3))
         return WC_TEST_RET_ENC_NC;
+#endif
 #ifdef WC_RNG_FLAG_FULL_MUTEX
     if (WC_RNG_FLAG_NONE != 0)
         return WC_TEST_RET_ENC_NC;
