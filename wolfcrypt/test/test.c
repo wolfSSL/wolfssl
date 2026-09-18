@@ -942,6 +942,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  srp_test(void);
 #endif
 #ifndef WC_NO_RNG
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_test(void);
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_flag_abi_test(void);
 #ifdef WC_TEST_RNG_LOCK
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_thread_test(void);
 #endif
@@ -2622,6 +2623,10 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_FAIL("RANDOM   test failed!\n", ret);
     else
         TEST_PASS("RANDOM   test passed!\n");
+    if ((ret = rng_flag_abi_test()) != 0)
+        TEST_FAIL("RNGFLAG  test failed!\n", ret);
+    else
+        TEST_PASS("RNGFLAG  test passed!\n");
 #ifdef WC_TEST_RNG_LOCK
     if ((ret = random_thread_test()) != 0)
         TEST_FAIL("RNGTHRD  test failed!\n", ret);
@@ -27169,6 +27174,75 @@ static wc_test_ret_t rng_zeroed_free_test(void)
 #else
 #define rng_zeroed_free_test() ((wc_test_ret_t)0)
 #endif
+
+/* The public RNG flag bits are ABI: a caller compiles the name into a number
+ * and the library reads that number back.  Renumbering one silently changes
+ * what every already-compiled caller is asking for, with no error anywhere,
+ * so these values are pinned here and must not move.
+ *
+ * This library also depends on WC_RNG_FLAG_FULL_MUTEX itself: the automatic
+ * RNG lock reads it to decide whether an instance already carries a full
+ * mutex it should reuse rather than create a second lock over.  If that bit
+ * comes to mean something else, instances get either two locks or none, and
+ * re-initializing an already-initialized mutex is undefined behavior.
+ *
+ * If a rebase makes this fail, DO NOT update the numbers here to match.  The
+ * failure is the point: it says an ABI break landed and that every caller
+ * built against the old header now means something different.  Decide what
+ * to do about the break first; changing this test only hides it.  Deleting
+ * the test removes the only thing that reports the break at all, because a
+ * renumbering compiles and runs cleanly in every other respect.
+ */
+wc_static_assert(WC_RNG_INIT_FLAG_NONE            == 0);
+wc_static_assert(WC_RNG_INIT_FLAG_LOCK_REQUIRED   == (1U << 0));
+wc_static_assert(WC_RNG_INIT_FLAG_LOCK_INITIALLY  == (1U << 1));
+wc_static_assert(WC_RNG_INIT_FLAG_USE_FULL_MUTEX  == (1U << 2));
+wc_static_assert(WC_RNG_INIT_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED
+                                                  == (1U << 3));
+/* Testing a flag macro with #ifdef is wrong where the macro is defined
+ * unconditionally, because the test is then always true.  Here it is right:
+ * the WC_RNG_FLAG_* names are behind a FIPS version condition and really can
+ * be absent. */
+#ifdef WC_RNG_FLAG_FULL_MUTEX
+wc_static_assert(WC_RNG_FLAG_NONE                 == 0);
+wc_static_assert(WC_RNG_FLAG_RBGC_NEXT_SEED       == (1U << 0));
+wc_static_assert(WC_RNG_FLAG_FULL_MUTEX           == (1U << 1));
+wc_static_assert(WC_RNG_FLAG_BANKREF              == (1U << 2));
+wc_static_assert(WC_RNG_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED
+                                                  == (1U << 3));
+#endif
+
+/* The same pins at run time, for builds where wc_static_assert() compiles to
+ * nothing (no C11 static_assert and no compiler extension for it).  There the
+ * checks above are silently absent, and this is the only guard left. */
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_flag_abi_test(void)
+{
+    WOLFSSL_ENTER("rng_flag_abi_test");
+
+    if (WC_RNG_INIT_FLAG_NONE != 0)
+        return WC_TEST_RET_ENC_NC;
+    if (WC_RNG_INIT_FLAG_LOCK_REQUIRED != (1U << 0))
+        return WC_TEST_RET_ENC_NC;
+    if (WC_RNG_INIT_FLAG_LOCK_INITIALLY != (1U << 1))
+        return WC_TEST_RET_ENC_NC;
+    if (WC_RNG_INIT_FLAG_USE_FULL_MUTEX != (1U << 2))
+        return WC_TEST_RET_ENC_NC;
+    if (WC_RNG_INIT_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED != (1U << 3))
+        return WC_TEST_RET_ENC_NC;
+#ifdef WC_RNG_FLAG_FULL_MUTEX
+    if (WC_RNG_FLAG_NONE != 0)
+        return WC_TEST_RET_ENC_NC;
+    if (WC_RNG_FLAG_RBGC_NEXT_SEED != (1U << 0))
+        return WC_TEST_RET_ENC_NC;
+    if (WC_RNG_FLAG_FULL_MUTEX != (1U << 1))
+        return WC_TEST_RET_ENC_NC;
+    if (WC_RNG_FLAG_BANKREF != (1U << 2))
+        return WC_TEST_RET_ENC_NC;
+    if (WC_RNG_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED != (1U << 3))
+        return WC_TEST_RET_ENC_NC;
+#endif
+    return 0;
+}
 
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
     !defined(HAVE_INTEL_RDRAND)
