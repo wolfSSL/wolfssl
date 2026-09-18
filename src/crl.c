@@ -473,8 +473,19 @@ static int VerifyCRLE(const WOLFSSL_CRL* crl, CRL_Entry* crle,
 #ifndef NO_SKID
     if (crle->extAuthKeyIdSet)
         ca = GetCA(cm, crle->extAuthKeyId);
-    if (ca == NULL)
+    /* The AKID only picks out a key. Without a matching name the CRL belongs
+     * to another issuer and this CA cannot speak for it. */
+    if ((ca != NULL) && (XMEMCMP(crle->issuerHash, ca->subjectNameHash,
+            CRL_DIGEST_SIZE) != 0)) {
+        ca = NULL;
+    }
+    if (ca == NULL) {
         ca = GetCAByName(cm, crle->issuerHash);
+        if ((ca != NULL) && crle->extAuthKeyIdSet) {
+            WOLFSSL_MSG("CA SKID doesn't match AKID");
+            ca = NULL;
+        }
+    }
 #else /* NO_SKID */
     ca = GetCA(cm, crle->issuerHash);
 #endif /* NO_SKID */
