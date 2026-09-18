@@ -440,6 +440,12 @@ int test_wolfSSL_cmp_peer_cert_to_file(void)
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
         wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+    /* Should fail gracefully before handshake. */
+    ExpectIntEQ(wolfSSL_cmp_peer_cert_to_file(ssl_c, svrCertFile),
+                WOLFSSL_FATAL_ERROR);
+
+    /* do the handshake */
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
     /* NULL arguments report failure. */
