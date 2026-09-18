@@ -4166,3 +4166,57 @@ int test_wolfSSL_CertManagerNameConstraint_skid_disambiguates(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* A certificate loaded as a trusted peer must still be subject to its own
+ * validity period. The trusted peer match skips chain processing, so the
+ * date check that the chain would have applied has to be made on that path
+ * as well; without it an expired pinned certificate is accepted. */
+int test_wolfSSL_trust_peer_cert_expired(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TRUST_PEER_CERT) && !defined(NO_ASN_TIME) && \
+    !defined(NO_RSA) && !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) && \
+    defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
+    test_ssl_cbf client_cb;
+    test_ssl_cbf server_cb;
+    int ret;
+
+    XMEMSET(&client_cb, 0, sizeof(client_cb));
+    XMEMSET(&server_cb, 0, sizeof(server_cb));
+
+    /* the server presents a certificate that expired in 2018 */
+    server_cb.certPemFile = "certs/test/expired/expired-cert.pem";
+    server_cb.keyPemFile  = "certs/server-key.pem";
+
+    client_cb.ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+    ExpectNotNull(client_cb.ctx);
+    client_cb.isSharedCtx = 1;
+
+    /* The client pins that same expired certificate and loads no CA, so a
+     * trusted peer match is the only way the handshake could succeed.
+     *
+     * Whether the certificate can be loaded at all depends on the build:
+     * where WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS carries
+     * WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY the store takes it and the date has
+     * to be applied during the handshake, which is what this covers.
+     * Elsewhere the load itself refuses it, which is an equally good
+     * refusal. Either way the expired certificate must not authenticate a
+     * peer. */
+    ret = wolfSSL_CTX_trust_peer_cert(client_cb.ctx,
+        "certs/test/expired/expired-cert.pem", WOLFSSL_FILETYPE_PEM);
+    if (ret == WOLFSSL_SUCCESS) {
+        wolfSSL_CTX_set_verify(client_cb.ctx, WOLFSSL_VERIFY_PEER, NULL);
+
+        /* the pin must not revive an expired certificate */
+        ExpectIntNE(test_wolfSSL_client_server_nofail_memio(&client_cb,
+            &server_cb, NULL), TEST_SUCCESS);
+        ExpectIntEQ(client_cb.last_err, WC_NO_ERR_TRACE(ASN_AFTER_DATE_E));
+    }
+    else {
+        ExpectIntEQ(ret, WC_NO_ERR_TRACE(ASN_AFTER_DATE_E));
+    }
+
+    wolfSSL_CTX_free(client_cb.ctx);
+#endif
+    return EXPECT_RESULT();
+}
