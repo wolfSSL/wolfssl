@@ -548,9 +548,14 @@ struct WC_RNG {
 #endif
 #ifdef WC_RNG_HAVE_LOCK
     WC_RNG_lock_t lock;
-    #ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
+#endif
+    /* Both lock facilities use this one mutex, so it is declared once here.
+     * The fork handler build holds a wc_ForkLock instead and needs no mutex. */
+#if defined(WC_RNG_HAVE_LOCK_FULL_MUTEX) || \
+    (defined(WC_RNG_HAVE_AUTO_LOCK) && !defined(WC_RNG_LOCK_ATFORK))
     wolfSSL_Mutex mutex;
-    #endif
+#endif
+#ifdef WC_RNG_HAVE_LOCK
     #ifdef WC_RNG_DEBUG_STATS
         wc_rng_debug_counter_t _stats_locks_taken;
         wc_rng_debug_counter_t _stats_locks_released;
@@ -651,11 +656,6 @@ struct WC_RNG {
      * every fork() walks. */
     struct wc_ForkLock* autoLock;   /* defined in wc_port.c */
 #elif defined(WC_RNG_HAVE_AUTO_LOCK)
-    #ifndef WC_RNG_HAVE_LOCK_FULL_MUTEX
-    /* One RNG mutex: the full mutex build declares it above, so it is
-     * declared here only when that build did not. */
-    wolfSSL_Mutex mutex;
-    #endif
     byte autoLockInited;      /* nonzero once lock exists */
     int autoLockCancel;       /* the holder's cancel state, back on exit */
 #endif
