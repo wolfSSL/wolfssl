@@ -52,7 +52,11 @@ jobs:
   smoke:
     # Only run from the wolfssl org to avoid burning forks' CI minutes.
     if: github.repository_owner == 'wolfssl'
-    runs-on: ubuntu-24.04
+    # ubuntu-22.04, not 24.04: in September 2026 jobs on the 24.04 label
+    # queued for a median of 13 minutes and up to 4.5 hours on busy
+    # afternoons, while 22.04 jobs started in about 3 minutes. The Jenkins
+    # PRB gate waits on this job, so its queue time is PRB latency.
+    runs-on: ubuntu-22.04
     timeout-minutes: 60
     env:
       CCACHE_MAXSIZE: 2G
@@ -94,11 +98,12 @@ jobs:
         uses: ./.github/actions/install-apt-deps
         with:
           packages: autoconf automake libtool build-essential bubblewrap ccache
-          ghcr-debs-tag: ubuntu-24.04-minimal
+          ghcr-debs-tag: ubuntu-22.04-minimal
 
       # Ubuntu 24.04 can restrict unprivileged user namespaces via AppArmor,
       # which would stop the test scripts from re-execing under
-      # bwrap --unshare-net (their port-isolation mechanism).
+      # bwrap --unshare-net (their port-isolation mechanism). A no-op on
+      # 22.04 (the sysctl does not exist there); kept for a move back.
       - name: Allow unprivileged user namespaces (for bwrap)
         if: steps.merge_check.outputs.skip != 'true'
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
@@ -134,7 +139,17 @@ jobs:
       # errors). Every config builds with -Werror unless it sets its own
       # cflags: sanitize-asan replaces it with AddressSanitizer flags (UBSAN
       # excluded - current master has known left-shift UB in auto-generated
-      # SP math). --private-dir=certs gives every build dir its own certs/
+      # SP math). --append-flags adds these to the CFLAGS configure chose
+      # rather than replacing them, so wolfSSL's own warning set (-Wall
+      # -Wextra -Wmaybe-uninitialized ...) stays in force under -Werror; a
+      # make-time CFLAGS= alone would silently drop it, and most of what
+      # the Jenkins PRB catches are exactly those warnings.
+      # -Wdeclaration-after-statement catches the C89 breaks that otherwise
+      # surface only in the MSVC and clang-tidy PRB jobs. enable-all adds
+      # -pedantic (PRB's medium-runtime list builds it that way), and the
+      # two build-only configs at the end, all-Og and savesession, are the
+      # PRB single-flag entries behind the September 2026 misses.
+      # --private-dir=certs gives every build dir its own certs/
       # copy: crl-gen-openssl.test writes generated CRLs under certs/crl/,
       # which would race through the shared VPATH certs symlink.
       #
@@ -149,7 +164,8 @@ jobs:
       - name: Build and make check all configs (parallel, out-of-tree)
         if: steps.merge_check.outputs.skip != 'true'
         run: |
-          .github/scripts/parallel-make-check.py ${{ github.event_name == 'schedule' && '--build-only' || '' }} --cflags=-Werror \
+          .github/scripts/parallel-make-check.py ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
+            --append-flags "--cflags=-Werror -Wdeclaration-after-statement" \
             --private-dir=certs .github/configs/smoke-test.json
 
       # Seed (master pushes + the weekday cron) writes the master-scoped
