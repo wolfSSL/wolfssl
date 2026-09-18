@@ -322,13 +322,46 @@ static void dump_ssl_buffers(WOLFSSL *ssl, FILE *fp)
     }
 }
 
+/* SSL_provide_quic_data() and SSL_process_quic_post_handshake() return 1 or
+ * 0, so anything else reads as success to a boolean caller. Assert the exact
+ * value; "not WOLFSSL_SUCCESS" is what let BUFFER_E go unnoticed.
+ * wolfSSL_quic_do_handshake() and wolfSSL_quic_read_write() are exempt. */
+static int quic_ret_conforms(const char *fname, int ret)
+{
+    if (ret != WOLFSSL_SUCCESS && ret != WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
+        fprintf(stderr, "%s: non-conforming return %d, expected "
+                "WOLFSSL_SUCCESS (1) or WOLFSSL_FAILURE (0)\n", fname, ret);
+        return 0;
+    }
+    return 1;
+}
+
+/* quic_record_append() derives the room left from qr->len, so a scratch
+ * record claiming more than its buffer holds makes the next append copy past
+ * the allocation. */
+static int quic_scratch_consistent(WOLFSSL *ssl)
+{
+    QuicRecord *qr = (ssl != NULL) ? ssl->quic.scratch : NULL;
+
+    if (qr != NULL && qr->len > qr->capacity) {
+        fprintf(stderr, "scratch record inconsistent: len=%u capacity=%u - "
+                "a later append would copy past the allocation\n",
+                (unsigned)qr->len, (unsigned)qr->capacity);
+        return 0;
+    }
+    return 1;
+}
+
 static int provide_data(WOLFSSL *ssl, WOLFSSL_ENCRYPTION_LEVEL level,
                         const uint8_t *data, size_t len, int excpect_fail)
 {
-    int ret;
+    int ret = wolfSSL_provide_quic_data(ssl, level, data, len);
 
-    ret = (wolfSSL_provide_quic_data(ssl, level, data, len) == WOLFSSL_SUCCESS);
-    if (!!ret != !excpect_fail) {
+    if (!quic_ret_conforms("wolfSSL_provide_quic_data", ret)) {
+        dump_ssl_buffers(ssl, stdout);
+        return 0;
+    }
+    if ((ret == WOLFSSL_SUCCESS) != !excpect_fail) {
         dump_ssl_buffers(ssl, stdout);
         return 0;
     }
@@ -456,6 +489,226 @@ static int test_quic_record_cap(void) {
         XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     printf("    test_quic_record_cap: %s\n", (EXPECT_SUCCESS()) ? pass : fail);
+    return EXPECT_RESULT();
+}
+
+/* Every failure path of wolfSSL_provide_quic_data() has to answer with
+ * exactly WOLFSSL_FAILURE, see quic_ret_conforms(), and leave the reason
+ * where wolfSSL_get_error() finds it, as the documentation promises. */
+static int test_quic_provide_data_return(void) {
+    EXPECT_DECLS;
+    WOLFSSL_CTX * ctx = NULL;
+    WOLFSSL_CTX * plain_ctx = NULL;
+    WOLFSSL *     ssl = NULL;
+    WOLFSSL *     plain_ssl = NULL;
+    uint8_t       lbuffer[1024];
+    uint8_t       hdr[4];
+    word32        rlen;
+    size_t        len;
+
+    XMEMSET(lbuffer, 0, sizeof(lbuffer));
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectTrue(wolfSSL_CTX_set_quic_method(ctx, &dummy_method)
+               == WOLFSSL_SUCCESS);
+
+    /* not a QUIC WOLFSSL at all */
+    ExpectNotNull(plain_ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(plain_ssl = wolfSSL_new(plain_ctx));
+    len = fake_record(1, 100, lbuffer);
+    ExpectIntEQ(wolfSSL_provide_quic_data(plain_ssl,
+                wolfssl_encryption_initial, lbuffer, len), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_get_error(plain_ssl, 0),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    wolfSSL_free(plain_ssl);
+    wolfSSL_CTX_free(plain_ctx);
+
+    /* a NULL WOLFSSL has nowhere to keep a reason, but must still not crash
+     * and must still answer WOLFSSL_FAILURE */
+    len = fake_record(1, 100, lbuffer);
+    ExpectIntEQ(wolfSSL_provide_quic_data(NULL, wolfssl_encryption_initial,
+                lbuffer, len), WOLFSSL_FAILURE);
+
+    /* encryption level going backwards */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    len = fake_record(1, 100, lbuffer);
+    ExpectIntEQ(wolfSSL_provide_quic_data(ssl, wolfssl_encryption_handshake,
+                lbuffer, len), WOLFSSL_SUCCESS);
+    len = fake_record(1, 100, lbuffer);
+    ExpectIntEQ(wolfSSL_provide_quic_data(ssl, wolfssl_encryption_initial,
+                lbuffer, len), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_get_error(ssl, 0),
+                WC_NO_ERR_TRACE(QUIC_WRONG_ENC_LEVEL));
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    /* level raised while the record in the scratch is still incomplete */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    len = fake_record(1, 100, lbuffer);
+    ExpectIntEQ(wolfSSL_provide_quic_data(ssl, wolfssl_encryption_initial,
+                lbuffer, len - 10), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_provide_quic_data(ssl, wolfssl_encryption_handshake,
+                lbuffer, 4), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_get_error(ssl, 0),
+                WC_NO_ERR_TRACE(QUIC_WRONG_ENC_LEVEL));
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    rlen = (word32)WOLFSSL_QUIC_MAX_RECORD_CAPACITY + 16U - 4U;
+    hdr[0] = 0x16;
+    hdr[1] = (byte)(rlen >> 16);
+    hdr[2] = (byte)(rlen >> 8);
+    hdr[3] = (byte)rlen;
+
+    /* over-cap length, whole header in one call, rejected by
+     * quic_record_make() */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_provide_quic_data(ssl, wolfssl_encryption_initial,
+                hdr, 4), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_get_error(ssl, 0), WC_NO_ERR_TRACE(BUFFER_E));
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    /* the same length with the header split, rejected by
+     * quic_record_append() */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_provide_quic_data(ssl, wolfssl_encryption_initial,
+                hdr, 2), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_provide_quic_data(ssl, wolfssl_encryption_initial,
+                hdr + 2, 2), WOLFSSL_FAILURE);
+    /* the reason has to stay retrievable */
+    ExpectIntEQ(wolfSSL_get_error(ssl, 0), WC_NO_ERR_TRACE(BUFFER_E));
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    /* over-cap early data, rejected by quic_record_make() */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_provide_quic_data(ssl, wolfssl_encryption_early_data,
+                lbuffer, (size_t)WOLFSSL_QUIC_MAX_RECORD_CAPACITY + 1U),
+                WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_get_error(ssl, 0), WC_NO_ERR_TRACE(BUFFER_E));
+    wolfSSL_free(ssl);
+
+    wolfSSL_CTX_free(ctx);
+
+    printf("    test_quic_provide_data_return: %s\n",
+           (EXPECT_SUCCESS()) ? pass : fail);
+    return EXPECT_RESULT();
+}
+
+/* The same for wolfSSL_process_quic_post_handshake(). Its ProcessReply() and
+ * SendBuffered() paths are covered by test_quic_key_update_rejected() and
+ * test_quic_cert_req_rejected(). */
+static int test_quic_post_handshake_return(void) {
+    EXPECT_DECLS;
+    WOLFSSL_CTX * ctx = NULL;
+    WOLFSSL_CTX * plain_ctx = NULL;
+    WOLFSSL *     ssl = NULL;
+    WOLFSSL *     plain_ssl = NULL;
+
+    /* not a QUIC WOLFSSL at all */
+    ExpectNotNull(plain_ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(plain_ssl = wolfSSL_new(plain_ctx));
+    ExpectIntEQ(wolfSSL_process_quic_post_handshake(plain_ssl),
+                WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_get_error(plain_ssl, 0),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    wolfSSL_free(plain_ssl);
+    wolfSSL_CTX_free(plain_ctx);
+
+    /* a NULL WOLFSSL has nowhere to keep a reason, but must still not crash
+     * and must still answer WOLFSSL_FAILURE */
+    ExpectIntEQ(wolfSSL_process_quic_post_handshake(NULL), WOLFSSL_FAILURE);
+
+    /* a QUIC WOLFSSL whose handshake has not finished */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectTrue(wolfSSL_CTX_set_quic_method(ctx, &dummy_method)
+               == WOLFSSL_SUCCESS);
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_process_quic_post_handshake(ssl), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_get_error(ssl, 0), WC_NO_ERR_TRACE(NOT_READY_ERROR));
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+
+    printf("    test_quic_post_handshake_return: %s\n",
+           (EXPECT_SUCCESS()) ? pass : fail);
+    return EXPECT_RESULT();
+}
+
+/* An over-cap length in a header split across two calls is rejected by
+ * quic_record_append(), which keeps the record. The rejected length must not
+ * be left on it, or the next call copies past the 2k default buffer. */
+static int test_quic_record_cap_split(void) {
+    EXPECT_DECLS;
+    WOLFSSL_CTX * ctx = NULL;
+    WOLFSSL *     ssl = NULL;
+    uint8_t       hdr[4];
+    uint8_t       body[512];
+    word32        rlen;
+    size_t        split;
+
+    XMEMSET(body, 0x41, sizeof(body));
+
+    /* the +4 for the header itself puts this over the cap */
+    rlen = (word32)WOLFSSL_QUIC_MAX_RECORD_CAPACITY + 16U - 4U;
+    hdr[0] = 0x16;
+    hdr[1] = (byte)(rlen >> 16);
+    hdr[2] = (byte)(rlen >> 8);
+    hdr[3] = (byte)rlen;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectTrue(wolfSSL_CTX_set_quic_method(ctx, &dummy_method)
+               == WOLFSSL_SUCCESS);
+
+    /* every way a peer can split the header across two calls */
+    for (split = 1; split <= 3; split++) {
+        ssl = NULL;
+        ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+        /* too few bytes to read the length yet */
+        ExpectIntEQ(wolfSSL_provide_quic_data(ssl, wolfssl_encryption_initial,
+                    hdr, split), WOLFSSL_SUCCESS);
+        ExpectTrue(quic_scratch_consistent(ssl));
+
+        /* completes the header, over the cap, rejected */
+        ExpectIntNE(wolfSSL_provide_quic_data(ssl, wolfssl_encryption_initial,
+                    hdr + split, 4 - split), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_get_error(ssl, 0), WC_NO_ERR_TRACE(BUFFER_E));
+        ExpectTrue(quic_scratch_consistent(ssl));
+
+        /* only safe once the record is known to be consistent: against a
+         * library that kept the length, this is the call that overflows */
+        if (ssl != NULL && quic_scratch_consistent(ssl)) {
+            ExpectIntNE(wolfSSL_provide_quic_data(ssl,
+                        wolfssl_encryption_initial, body, sizeof(body)),
+                        WOLFSSL_SUCCESS);
+            ExpectTrue(quic_scratch_consistent(ssl));
+        }
+
+        wolfSSL_free(ssl);
+        ssl = NULL;
+    }
+
+    /* a legal length split the same way still works, buffer grow included */
+    rlen = 4000;
+    hdr[1] = (byte)(rlen >> 16);
+    hdr[2] = (byte)(rlen >> 8);
+    hdr[3] = (byte)rlen;
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_provide_quic_data(ssl, wolfssl_encryption_initial,
+                hdr, 2), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_provide_quic_data(ssl, wolfssl_encryption_initial,
+                hdr + 2, 2), WOLFSSL_SUCCESS);
+    ExpectTrue(quic_scratch_consistent(ssl));
+    ExpectIntEQ(wolfSSL_provide_quic_data(ssl, wolfssl_encryption_initial,
+                body, sizeof(body)), WOLFSSL_SUCCESS);
+    ExpectTrue(quic_scratch_consistent(ssl));
+    wolfSSL_free(ssl);
+
+    wolfSSL_CTX_free(ctx);
+
+    printf("    test_quic_record_cap_split: %s\n",
+           (EXPECT_SUCCESS()) ? pass : fail);
     return EXPECT_RESULT();
 }
 
@@ -1819,7 +2072,9 @@ static int test_quic_key_update_rejected(int verbose) {
     ExpectIntEQ(wolfSSL_provide_quic_data(tserver.ssl,
                 wolfssl_encryption_application, lbuffer, len), WOLFSSL_SUCCESS);
     ret = wolfSSL_process_quic_post_handshake(tserver.ssl);
-    ExpectIntEQ(ret, WC_NO_ERR_TRACE(SANITY_MSG_E));
+    ExpectIntEQ(ret, WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_get_error(tserver.ssl, 0),
+                WC_NO_ERR_TRACE(SANITY_MSG_E));
 
     QuicTestContext_free(&tclient);
     QuicTestContext_free(&tserver);
@@ -1864,7 +2119,9 @@ static int test_quic_cert_req_rejected(int verbose) {
     ExpectIntEQ(wolfSSL_provide_quic_data(tclient.ssl,
                 wolfssl_encryption_application, lbuffer, len), WOLFSSL_SUCCESS);
     ret = wolfSSL_process_quic_post_handshake(tclient.ssl);
-    ExpectIntEQ(ret, WC_NO_ERR_TRACE(OUT_OF_ORDER_E));
+    ExpectIntEQ(ret, WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_get_error(tclient.ssl, 0),
+                WC_NO_ERR_TRACE(OUT_OF_ORDER_E));
 
     QuicTestContext_free(&tclient);
     QuicTestContext_free(&tserver);
@@ -2502,6 +2759,9 @@ int QuicTest(void)
 #ifndef NO_WOLFSSL_CLIENT
     if ((ret = test_provide_quic_data()) != TEST_SUCCESS) goto leave;
     if ((ret = test_quic_record_cap()) != TEST_SUCCESS) goto leave;
+    if ((ret = test_quic_record_cap_split()) != TEST_SUCCESS) goto leave;
+    if ((ret = test_quic_provide_data_return()) != TEST_SUCCESS) goto leave;
+    if ((ret = test_quic_post_handshake_return()) != TEST_SUCCESS) goto leave;
     if ((ret = test_quic_record_split()) != TEST_SUCCESS) goto leave;
     if ((ret = test_quic_crypt()) != TEST_SUCCESS) goto leave;
     if ((ret = test_quic_client_hello(verbose)) != TEST_SUCCESS) goto leave;
