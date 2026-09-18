@@ -1143,7 +1143,7 @@ WOLFSSL_API   int  wc_ForkLock_Enter(wc_ForkLock* lock);
 WOLFSSL_API   void wc_ForkLock_Exit(wc_ForkLock* lock);
 /* For tests: force the lock to fail closed. */
 WOLFSSL_API   void wc_ForkLock_SetBroken(wc_ForkLock* lock, int broken);
-WOLFSSL_LOCAL void wc_RngPinImage(void* fn);       /* keeps fn's image mapped */
+WOLFSSL_LOCAL void wc_PinImage(void* fn);          /* keeps fn's image mapped */
 WOLFSSL_API wolfSSL_Mutex* wc_InitAndAllocMutex(void);
 #ifndef WOLFSSL_MUTEX_INITIALIZER
     /* Election state for wc_local_InitMutexOnce(). Define objects with

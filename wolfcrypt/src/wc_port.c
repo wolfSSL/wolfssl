@@ -436,7 +436,7 @@ int aarch64_use_sb = 0;
 #endif
 /* The fork handlers can never be unregistered, so the image that holds them
  * is pinned against dlclose() before they are registered. */
-WOLFSSL_LOCAL void wc_RngPinImage(void* fn)
+WOLFSSL_LOCAL void wc_PinImage(void* fn)
 {
     Dl_info info;
     const char* name;   /* a pointer on most libcs, an array on Cygwin */
@@ -604,7 +604,7 @@ static void ForkChild(void)
 static void ForkLockInitOnce(void)
 {
     /* pin first: the handlers can never be unregistered */
-    wc_RngPinImage((void*)(wc_ptr_t)ForkPrepare);
+    wc_PinImage((void*)(wc_ptr_t)ForkPrepare);
     forkOnceRet = (sem_init(&forkListSem, 0, 1) == 0) ? 0 : BAD_MUTEX_E;
     if (forkOnceRet == 0 &&
         pthread_atfork(ForkPrepare, ForkParent, ForkChild) != 0)
