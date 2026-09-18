@@ -28297,6 +28297,111 @@ done:
     return ret;
 }
 
+struct rng_fail_args {
+    WC_RNG* rng;
+    int     fd;       /* gets one byte once the lock is held */
+    int     rfd;      /* the go byte arrives here */
+    long    ns;       /* how long to hold after the go byte */
+    long    failNs;   /* when to condemn the instance, inside the hold */
+};
+
+/* Holds the lock, then condemns the instance partway through, the way a
+ * failing generate does.  Busy-waits rather than sleeping, as the other
+ * holder does.
+ */
+static THREAD_RETURN WOLFSSL_THREAD rng_lock_fail_holder(void* arg)
+{
+    struct rng_fail_args* a = (struct rng_fail_args*)arg;
+    struct timespec start, now;
+    byte held = 1;
+    byte go = 0;
+    int failed = 0;
+    int rc = -1;
+
+    if (a->rng->autoLock != NULL)
+        rc = wc_ForkLock_Enter(a->rng->autoLock);
+    if (rc == 0) {
+        if (write(a->fd, &held, 1) == 1 && read(a->rfd, &go, 1) == 1 &&
+            clock_gettime(CLOCK_MONOTONIC, &start) == 0) {
+            do {
+                if (clock_gettime(CLOCK_MONOTONIC, &now) != 0)
+                    break;
+                if (!failed &&
+                    rng_test_elapsed_ns(&start, &now) >= a->failNs) {
+                    a->rng->status = WC_DRBG_FAILED;
+                    failed = 1;
+                }
+            } while (rng_test_elapsed_ns(&start, &now) < a->ns);
+        }
+        wc_ForkLock_Exit(a->rng->autoLock);
+    }
+    close(a->fd);   /* EOF if the lock was never held */
+    close(a->rfd);
+    WOLFSSL_RETURN_FROM_THREAD(0);
+}
+
+/* A reseed must not act on a health status it read before taking the lock.
+ * The holder condemns the instance while the reseed waits for the lock, so
+ * a reseed that looked early would report success on a dead instance.
+ * useNow picks wc_RNG_DRBG_Reseed_Now() over wc_RNG_DRBG_Reseed().
+ */
+static wc_test_ret_t rng_reseed_status_test(WC_RNG* rng, int useNow)
+{
+    struct rng_fail_args* a = NULL;
+    THREAD_TYPE holder = INVALID_THREAD_VAL;   /* joined only if started */
+    wc_test_ret_t ret = 0;
+    byte seed[32];
+    int hfd[2] = { -1, -1 };
+    int gfd[2] = { -1, -1 };
+    int started = 0;
+    int rc;
+    byte held = 0;
+    byte go = 1;
+
+    XMEMSET(seed, 0x5c, sizeof(seed));
+    a = (struct rng_fail_args*)XMALLOC(sizeof(*a), HEAP_HINT,
+                                       DYNAMIC_TYPE_TMP_BUFFER);
+    if (a == NULL || pipe(hfd) != 0 || pipe(gfd) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), done);
+
+    a->rng = rng;
+    a->fd = hfd[1];
+    a->rfd = gfd[0];
+    a->ns = WC_RNG_FORK_HOLD_NS;
+    a->failNs = WC_RNG_FORK_HOLD_NS / 5;   /* well inside the hold */
+    if (wolfSSL_NewThread(&holder, &rng_lock_fail_holder, a) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+    started = 1;
+    if (read(hfd[0], &held, 1) != 1)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+    if (write(gfd[1], &go, 1) != 1)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+
+    /* Still healthy here, and condemned by the time the lock is free. */
+    if (useNow)
+        rc = wc_RNG_DRBG_Reseed_Now(rng, NULL, 0);
+    else
+        rc = wc_RNG_DRBG_Reseed(rng, seed, (word32)sizeof(seed));
+    if (rc != WC_NO_ERR_TRACE(RNG_FAILURE_E))
+        ERROR_OUT(rc == 0 ? WC_TEST_RET_ENC_NC : WC_TEST_RET_ENC_EC(rc), done);
+
+done:
+    if (gfd[1] >= 0)
+        close(gfd[1]);   /* EOF frees a holder still waiting for go */
+    if (started && (wolfSSL_JoinThread(holder) != 0) && ret == 0)
+        ret = WC_TEST_RET_ENC_NC;
+    if (hfd[0] >= 0)
+        close(hfd[0]);
+    if (!started) {
+        if (hfd[1] >= 0)
+            close(hfd[1]);
+        if (gfd[0] >= 0)
+            close(gfd[0]);
+    }
+    XFREE(a, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+
 struct rng_fork_flip_args {
     wc_ForkLock* first;
     wc_ForkLock* last;
@@ -28537,6 +28642,22 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
                 wc_rng_free(blocker);
             if (last != NULL)
                 wc_rng_free(last);
+        }
+        if (ret == 0) {
+            /* One throwaway instance per reseed entry: each ends up
+             * condemned, which is the point. */
+            int useNow;
+            for (useNow = 0; (useNow < 2) && (ret == 0); useNow++) {
+                WC_RNG* doomed = NULL;
+                (void)wc_rng_new_ex(&doomed, NULL, 0, HEAP_HINT,
+                                    INVALID_DEVID);
+                if (doomed == NULL) {
+                    ret = WC_TEST_RET_ENC_EC(MEMORY_E);
+                    break;
+                }
+                ret = rng_reseed_status_test(doomed, useNow);
+                wc_rng_free(doomed);
+            }
         }
         wc_rng_free(third);
         if (ret != 0)

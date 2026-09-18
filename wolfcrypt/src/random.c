@@ -1238,31 +1238,37 @@ int wc_RNG_DRBG_Reseed_Nonce(WC_RNG* rng, const byte* seed, word32 seedSz,
     if (ret != 0)
         return ret;
 
+    /* The checks below read state that a generate writes under the lock, so
+     * the lock comes first.  The internal reseed paths run with it already
+     * held, so it is taken here, at the public entry, and not in
+     * Hash_DRBG_Reseed(). */
+    ret = RngLockEnter(rng);
+    if (ret != 0)
+        return ret;
+
     /* A condemned instance does not accept a credited reseed: DRBG_FAILED's
      * designed exit is wc_FreeRng()/wc_InitRng() (or the daemon's recovery
      * pass), not in-place resurrection that would reset the counter, purge
      * the pool, and clear quarantine on unvetted authority. */
-    if (rng->status != DRBG_OK)
-        return RNG_FAILURE_E;
+    if (rng->status != DRBG_OK) {
+        ret = RNG_FAILURE_E;
+        goto out;
+    }
 
 #ifdef WC_RNG_HAVE_LOCK
     /* Never allow an undersized seed to clear an invalidated state, and if
      * invalidated, always assume potentially primary seed data -- test it with
      * wc_RNG_TestSeed(). */
     if (WOLFSSL_ATOMIC_LOAD(rng->lock) & WC_RNG_LOCK_ENTROPY_INVALIDATED) {
-        if (seedSz < WC_DRBG_SEED_SZ)
-            return NEEDS_RECOVERY_E;
+        if (seedSz < WC_DRBG_SEED_SZ) {
+            ret = NEEDS_RECOVERY_E;
+            goto out;
+        }
         ret = wc_RNG_TestSeed(seed, seedSz);
         if (ret != 0)
-            return ret;
+            goto out;
     }
 #endif /* WC_RNG_HAVE_LOCK */
-
-    /* The internal reseed paths run with the lock already held, so it is
-     * taken here, at the public entry, and not in Hash_DRBG_Reseed(). */
-    ret = RngLockEnter(rng);
-    if (ret != 0)
-        return ret;
 
     ret = Hash_DRBG_Reseed(rng, seed, seedSz, nonce, nonceSz,
                            0 /* in_bracketed_consume */);
@@ -1273,6 +1279,8 @@ int wc_RNG_DRBG_Reseed_Nonce(WC_RNG* rng, const byte* seed, word32 seedSz,
         rng->RBGCStratum = WC_RNG_RBGC_USER_SEED_STRATUM;
     }
 #endif
+
+    out:
 
     RngLockExit(rng);
     return ret;
@@ -4717,20 +4725,24 @@ int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* nonce, word32 nonceSz)
     if (ret != 0)
         return ret;
 
-    /* Mirror wc_RNG_GenerateBlock(): only an in-service DRBG may reseed. */
-    if (rng->status != DRBG_OK)
-        return RNG_FAILURE_E;
-
-    if (! wc_RNG_DRBG_Present(rng)) {
-        /* No DRBG instantiated -- nothing to reseed (RDRAND et al.). */
-        return 0;
-    }
-
     /* Not reached from the generate path, so it can take the lock here and
-     * shares an instance with a generating thread. */
+     * shares an instance with a generating thread.  The checks below read
+     * state that a generate writes under the lock, so they follow it. */
     ret = RngLockEnter(rng);
     if (ret != 0)
         return ret;
+
+    /* Mirror wc_RNG_GenerateBlock(): only an in-service DRBG may reseed. */
+    if (rng->status != DRBG_OK) {
+        ret = RNG_FAILURE_E;
+        goto out;
+    }
+
+    if (! wc_RNG_DRBG_Present(rng)) {
+        /* No DRBG instantiated -- nothing to reseed (RDRAND et al.). */
+        ret = 0;
+        goto out;
+    }
 
     ret = PollAndReSeed(rng, nonce, nonceSz);
 
@@ -4746,6 +4758,8 @@ int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* nonce, word32 nonceSz)
         ret = RNG_FAILURE_E;
         rng->status = DRBG_FAILED;
     }
+
+    out:
 
     RngLockExit(rng);
     return ret;
