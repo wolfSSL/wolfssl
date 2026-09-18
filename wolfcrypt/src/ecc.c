@@ -8307,10 +8307,13 @@ int wc_ecc_sign_set_k(const byte* k, word32 klen, ecc_key* key)
  * at sign time it is decrypted into a short-lived buffer. The devId is NOT set
  * here -- enable the device by setting devId at init
  * (wc_ecc_init_ex(&key, heap, WC_DHUK_DEVID)). See ecc.h for the contract. */
-int wc_ecc_import_wrapped_private(ecc_key* key, const byte* seed, word32 seedSz,
+int wc_ecc_import_wrapped_private(ecc_key* key, int curve_id,
+                                  const byte* seed, word32 seedSz,
                                   const byte* wrapped, word32 wrappedLen,
                                   word32 plainLen)
 {
+    int ret;
+
     if (key == NULL || seed == NULL || wrapped == NULL) {
         return BAD_FUNC_ARG;
     }
@@ -8335,6 +8338,25 @@ int wc_ecc_import_wrapped_private(ecc_key* key, const byte* seed, word32 seedSz,
     if (wrappedLen > ((plainLen + 15u) & ~15u)) {
         return BAD_FUNC_ARG;
     }
+    /* Validate the scalar size against the curve before touching the key, so a
+     * rejected import leaves no curve behind on a key that has no blob. */
+    ret = wc_ecc_get_curve_size_from_id(curve_id);
+    if (ret < 0) {
+        return ret;
+    }
+    if ((word32)ret != plainLen) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* The sign path needs the domain parameters to drive the PKA and returns
+     * ECC_BAD_ARG_E without them, and a caller starting from a bare
+     * wc_ecc_init() has no other way to supply them for a key that never holds
+     * its scalar in software. */
+    ret = wc_ecc_set_curve(key, (int)plainLen, curve_id);
+    if (ret != 0) {
+        return ret;
+    }
+
     XMEMCPY(key->dhuk_wrapped_priv, wrapped, wrappedLen);
     XMEMCPY(key->dhuk_seed, seed, seedSz);
     key->dhuk_wrapped_priv_len = wrappedLen;
