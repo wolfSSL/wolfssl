@@ -6554,6 +6554,31 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
     }
     return key;
 }
+
+
+/* Get the certificate's public key without transferring ownership.
+ *
+ * The get0 form returns a pointer into the certificate which the caller must
+ * not free, It is released with the rest of the certificate's contents.
+ *
+ * Note: the first call on a given certificate should not race another; the
+ * cache is built without a lock, as elsewhere in this layer.
+ *
+ * @param [in] x509  Certificate.
+ * @return  Public key on success, NULL on error.
+ */
+WOLFSSL_EVP_PKEY* wolfSSL_X509_get0_pubkey(WOLFSSL_X509* x509)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_get0_pubkey");
+
+    if (x509 == NULL)
+        return NULL;
+
+    if (x509->pubKeyCache == NULL)
+        x509->pubKeyCache = wolfSSL_X509_get_pubkey(x509);
+
+    return x509->pubKeyCache;
+}
 #endif /* OPENSSL_EXTRA_X509_SMALL */
 
 /* End of smaller subset of X509 compatibility functions. Avoid increasing the

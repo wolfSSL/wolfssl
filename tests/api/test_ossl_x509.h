@@ -58,6 +58,7 @@ int test_wolfSSL_X509_max_name_constraints(void);
 int test_wolfSSL_X509_check_ca(void);
 int test_X509_get_signature_nid(void);
 int test_wolfSSL_X509_cmp(void);
+int test_wolfSSL_X509_get0_pubkey(void);
 
 #define TEST_OSSL_X509_DECLS                                                   \
     TEST_DECL_GROUP("ossl_x509", test_x509_get_key_id),                        \
@@ -93,6 +94,7 @@ int test_wolfSSL_X509_cmp(void);
     TEST_DECL_GROUP("ossl_x509", test_wolfSSL_X509_max_name_constraints),      \
     TEST_DECL_GROUP("ossl_x509", test_wolfSSL_X509_check_ca),                  \
     TEST_DECL_GROUP("ossl_x509", test_X509_get_signature_nid),                 \
-    TEST_DECL_GROUP("ossl_x509", test_wolfSSL_X509_cmp)
+    TEST_DECL_GROUP("ossl_x509", test_wolfSSL_X509_cmp),                       \
+    TEST_DECL_GROUP("ossl_x509", test_wolfSSL_X509_get0_pubkey)
 
 #endif /* WOLFCRYPT_TEST_OSSL_X509_H */
