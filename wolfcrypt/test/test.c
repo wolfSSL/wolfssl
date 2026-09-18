@@ -27175,23 +27175,16 @@ static wc_test_ret_t rng_zeroed_free_test(void)
 #define rng_zeroed_free_test() ((wc_test_ret_t)0)
 #endif
 
-/* The public RNG flag bits are ABI: a caller compiles the name into a number
- * and the library reads that number back.  Renumbering one silently changes
- * what every already-compiled caller is asking for, with no error anywhere,
- * so these values are pinned here and must not move.
+/* These bits are ABI: a caller compiles the name into a number, and the
+ * library reads that number back.  Renumbering one changes what every
+ * already-compiled caller asks for, with no error anywhere.
  *
- * This library also depends on WC_RNG_FLAG_FULL_MUTEX itself: the automatic
- * RNG lock reads it to decide whether an instance already carries a full
- * mutex it should reuse rather than create a second lock over.  If that bit
- * comes to mean something else, instances get either two locks or none, and
- * re-initializing an already-initialized mutex is undefined behavior.
+ * Our own lock reads WC_RNG_FLAG_FULL_MUTEX to decide whether an instance
+ * already carries a mutex to reuse.  If that bit moves, instances get two
+ * locks or none, and re-initializing a live mutex is undefined behavior.
  *
- * If a rebase makes this fail, DO NOT update the numbers here to match.  The
- * failure is the point: it says an ABI break landed and that every caller
- * built against the old header now means something different.  Decide what
- * to do about the break first; changing this test only hides it.  Deleting
- * the test removes the only thing that reports the break at all, because a
- * renumbering compiles and runs cleanly in every other respect.
+ * A failure here means an ABI break landed.  Updating these numbers hides
+ * it, and deleting this test leaves nothing to report it at all.
  */
 wc_static_assert(WC_RNG_INIT_FLAG_NONE            == 0);
 wc_static_assert(WC_RNG_INIT_FLAG_LOCK_REQUIRED   == (1U << 0));
@@ -27199,10 +27192,8 @@ wc_static_assert(WC_RNG_INIT_FLAG_LOCK_INITIALLY  == (1U << 1));
 wc_static_assert(WC_RNG_INIT_FLAG_USE_FULL_MUTEX  == (1U << 2));
 wc_static_assert(WC_RNG_INIT_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED
                                                   == (1U << 3));
-/* Testing a flag macro with #ifdef is wrong where the macro is defined
- * unconditionally, because the test is then always true.  Here it is right:
- * the WC_RNG_FLAG_* names are behind a FIPS version condition and really can
- * be absent. */
+/* #ifdef on a flag macro says nothing where the macro is unconditional.
+ * It is valid here: WC_RNG_FLAG_* sits behind a FIPS version condition. */
 #ifdef WC_RNG_FLAG_FULL_MUTEX
 wc_static_assert(WC_RNG_FLAG_NONE                 == 0);
 wc_static_assert(WC_RNG_FLAG_RBGC_NEXT_SEED       == (1U << 0));
@@ -27212,9 +27203,8 @@ wc_static_assert(WC_RNG_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED
                                                   == (1U << 3));
 #endif
 
-/* The same pins at run time, for builds where wc_static_assert() compiles to
- * nothing (no C11 static_assert and no compiler extension for it).  There the
- * checks above are silently absent, and this is the only guard left. */
+/* The same pins at run time: where wc_static_assert() compiles to nothing,
+ * the checks above are absent and this is the only guard left. */
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_flag_abi_test(void)
 {
     WOLFSSL_ENTER("rng_flag_abi_test");
@@ -28405,9 +28395,8 @@ struct rng_fail_args {
     long    failNs;   /* when to condemn the instance, inside the hold */
 };
 
-/* Holds the lock, then condemns the instance partway through, the way a
- * failing generate does.  Busy-waits rather than sleeping, as the other
- * holder does.
+/* Holds the lock, then condemns the instance partway through, as a failing
+ * generate does.  Busy-waits rather than sleeping, like the other holder.
  */
 static THREAD_RETURN WOLFSSL_THREAD rng_lock_fail_holder(void* arg)
 {
@@ -28439,10 +28428,8 @@ static THREAD_RETURN WOLFSSL_THREAD rng_lock_fail_holder(void* arg)
     WOLFSSL_RETURN_FROM_THREAD(0);
 }
 
-/* A reseed must not act on a health status it read before taking the lock.
- * The holder condemns the instance while the reseed waits for the lock, so
- * a reseed that looked early would report success on a dead instance.
- * useNow picks wc_RNG_DRBG_Reseed_Now() over wc_RNG_DRBG_Reseed().
+/* A reseed must not act on a status it read before taking the lock: the
+ * holder condemns the instance while it waits.  useNow picks _Reseed_Now().
  */
 static wc_test_ret_t rng_reseed_status_test(WC_RNG* rng, int useNow)
 {
@@ -28508,9 +28495,8 @@ struct rng_fork_flip_args {
     long         ns;     /* how long to wait before clearing the flags */
 };
 
-/* Clears "broken" while the forking thread sits in the prepare handler,
- * waiting on the held lock.  Busy-waits instead of sleeping, as the holder
- * does, so a thread checker's sleep hook stays out of it.
+/* Clears "broken" while the forking thread sits in prepare.  Busy-waits
+ * instead of sleeping, so a thread checker's sleep hook stays out of it.
  */
 static THREAD_RETURN WOLFSSL_THREAD rng_fork_test_flip(void* arg)
 {
@@ -28528,11 +28514,9 @@ static THREAD_RETURN WOLFSSL_THREAD rng_fork_test_flip(void* arg)
     WOLFSSL_RETURN_FROM_THREAD(0);
 }
 
-/* The prepare handler skips a lock marked broken, so the parent handler has
- * to skip the same one.  Clearing the flag in between used to make the
- * parent give back a lock prepare never took, leaving room for two holders.
- * Holding the blocker parks prepare where the flip is sure to land, and
- * marking both ends of the registry covers either walk order.
+/* Prepare skips a lock marked broken, so the parent must skip the same one:
+ * clearing the flag in between used to leave two holders at once.  The
+ * blocker parks prepare where the flip lands, on both ends of the registry.
  */
 static wc_test_ret_t rng_fork_broken_flip_test(WC_RNG* first, WC_RNG* blocker,
                                                WC_RNG* last)

@@ -470,9 +470,8 @@ struct wc_ForkLock {
 #endif
 
 #ifdef WC_FORK_LOCK_HAVE_TLS
-/* What this thread holds.  Only the owning thread reads or writes it, so
- * there is nothing shared to tear and no atomics are needed.  Nesting
- * deeper than this is not recorded, and prepare then waits as it used to. */
+/* What this thread holds.  Only this thread touches it, so no atomics.
+ * Deeper nesting goes unrecorded, and prepare then waits as it used to. */
 #define WC_FORK_MINE_MAX 4
 static THREAD_LS_T wc_ForkLock* forkMine[WC_FORK_MINE_MAX];
 
@@ -585,8 +584,7 @@ static void ForkParent(void)
 }
 
 /* Child after fork(): stores and sem_post() only, all POSIX allows here.
- * A lock prepare neither took nor found owned has an unknown count, so it
- * fails closed; an owned one is held by this very thread, which frees it. */
+ * An untaken lock fails closed; an owned one is freed by this thread. */
 static void ForkChild(void)
 {
     wc_ForkLock* n;

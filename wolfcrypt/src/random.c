@@ -1238,10 +1238,8 @@ int wc_RNG_DRBG_Reseed_Nonce(WC_RNG* rng, const byte* seed, word32 seedSz,
     if (ret != 0)
         return ret;
 
-    /* The checks below read state that a generate writes under the lock, so
-     * the lock comes first.  The internal reseed paths run with it already
-     * held, so it is taken here, at the public entry, and not in
-     * Hash_DRBG_Reseed(). */
+    /* These checks read state a generate writes under the lock, so the lock
+     * comes first.  The internal reseed paths already hold it. */
     ret = RngLockEnter(rng);
     if (ret != 0)
         return ret;
@@ -4725,9 +4723,8 @@ int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* nonce, word32 nonceSz)
     if (ret != 0)
         return ret;
 
-    /* Not reached from the generate path, so it can take the lock here and
-     * shares an instance with a generating thread.  The checks below read
-     * state that a generate writes under the lock, so they follow it. */
+    /* Not reached from the generate path, so it takes the lock here.  The
+     * checks below read state a generate writes under it, so they follow. */
     ret = RngLockEnter(rng);
     if (ret != 0)
         return ret;
