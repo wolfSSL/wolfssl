@@ -1268,7 +1268,11 @@ static int tsipTls13VerifyHandshake(struct WOLFSSL* ssl,
  *  ssl       WOLFSSL object
  *  input     the buffer holding decrypted finished message, type and padding
  *  inOutIdx  On entry, the index into the message content of Finished.
- *            On exit, the index of byte after the Finished message and padding.
+ *            On exit, the index of byte after the Finished message body.
+ *            padSz (type and padding) is added once by the caller
+ *            (ProcessReply, internal.c) after it sees the record's content
+ *            fully consumed -- this function must not add it too, or the
+ *            index ends up one padSz past the true record boundary.
  *  size      Length of message content(excluding type and padding)
  *  totalSz   Length in the record header. means message + type + pad.
  *  return    0, on success, others on failure.
@@ -1293,8 +1297,15 @@ int tsip_Tls13HandleFinished(
     }
 
     if (ret == 0) {
-        /* Force input exhaustion at ProcessReply by consuming padSz. */
-        *inOutIdx += size + ssl->keys.padSz;
+        /* Advance past the Finished body only, matching the software
+         * DoTls13Finished path (`*inOutIdx += size;`, tls13.c). padSz (AEAD
+         * tag + inner content type) is added once, generically, by
+         * ProcessReply once it sees the record's content fully consumed
+         * (internal.c) -- adding it here too double-counts it and pushes
+         * inOutIdx past the true record boundary, corrupting the position
+         * the next record (NewSessionTicket/application data) is parsed
+         * from. Same bug/fix as tsip_Tls13CertificateVerify above. */
+        *inOutIdx += size;
 
         ssl->options.serverState = SERVER_FINISHED_COMPLETE;
     }
@@ -1433,12 +1444,13 @@ int tsip_Tls13SendFinished(
         ret = tsip_Tls13GetHmacMessages(ssl, (byte*)&input[headerSz]);
     }
 
-    if (ret == 0) {
-       recordSz = WC_MAX_DIGEST_SIZE + DTLS_HANDSHAKE_HEADER_SZ + MAX_MSG_EXTRA;
-        /* check for available size */
-        ret = CheckAvailableSize(ssl, recordSz);
-        recordSz = 0;
-    }
+    /* Do not re-check/grow the output buffer here: the caller
+     * (SendTls13Finished) already sized it with CheckAvailableSize() before
+     * fetching `output`/`input` via GetOutputBuffer(). A grow here would
+     * reallocate ssl->buffers.outputBuffer.buffer without updating the
+     * caller's now-stale output/input pointers, so tsip_Tls13BuildMessage()
+     * below would encrypt into a freed buffer while SendBuffered() sends
+     * from the new, unwritten one. */
 
     if (ret == 0) {
         recordSz = tsip_Tls13BuildMessage(ssl,
@@ -1576,8 +1588,13 @@ int tsip_Tls13CertificateVerify(struct WOLFSSL* ssl,
 
             if (err == TSIP_SUCCESS) {
 
+                /* Advance past the CertificateVerify body only. padSz (AEAD
+                 * tag + inner content type) is added once, generically, by
+                 * ProcessReply once it sees the record's content fully
+                 * consumed -- adding it here too double-counts it and pushes
+                 * inOutIdx past the true record boundary, corrupting the
+                 * position the next record (Finished) is parsed from. */
                 *inOutIdx += totalSz;
-                *inOutIdx += ssl->keys.padSz;
                 ssl->options.peerAuthGood = 1;
                 ssl->options.havePeerVerify = 1;
             #if !defined(NO_WOLFSSL_CLIENT)

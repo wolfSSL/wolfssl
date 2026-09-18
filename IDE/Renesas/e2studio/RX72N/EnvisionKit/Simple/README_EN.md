@@ -307,3 +307,22 @@ The above limitations 1 through 4 are expected to be improved by TSIP from the n
 # 11. Support
 
 For support inquiries and questions, please email support@wolfssl.com. Feel free to reach out to info@wolfssl.jp as well.
+
+## Appendix: Command-line build & flash (build.bat / debug_run.bat)
+
+This folder also includes two helper batch files for building and flashing
+from the command line instead of driving e2studio interactively. Both wrap
+the same Renesas toolchain the IDE uses, and assume the `wolfssl`/`test`
+projects and `smc_gen` sources already exist (sections 3-6 above).
+
+- `build.bat [clean|crypt|bench|TLSClient|wolfssl]` builds the `wolfssl`
+  and `test` projects. The `wolfssl` mode force-rebuilds just the
+  wolfSSL-dependent sources after editing `user_settings.h`, without a slow
+  full `clean`.
+- `debug_run.bat [restart]` flashes `test.x` to the board via Renesas Flash
+  Programmer (rfp-cli) and runs it. `restart` resets and reruns the
+  already-flashed image without reprogramming it.
+
+Each script's default paths are tied to one specific e2studio/CCRX install;
+see the comments at the top of each file for the environment variables to
+override for your setup.
