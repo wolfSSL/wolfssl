@@ -28135,6 +28135,18 @@ static THREAD_RETURN WOLFSSL_THREAD rng_thread_test_worker(void* arg)
             if (ret != 0)
                 break;
         }
+        /* Stir runs against the generates too, so a thread checker sees any
+         * future unlocking of it as a race.  NOT_READY_E is its documented
+         * refusal while a credited reseed is due, so it is not a failure. */
+        if (args->reseeder && ((i % 8) == 3)) {
+            byte mix[16];
+            XMEMSET(mix, 0x5a, sizeof(mix));
+            ret = wc_RNG_DRBG_Stir(args->rng, mix, (word32)sizeof(mix));
+            if (ret == WC_NO_ERR_TRACE(NOT_READY_E))
+                ret = 0;
+            if (ret != 0)
+                break;
+        }
     }
     args->ret = ret;
     WOLFSSL_RETURN_FROM_THREAD(0);
@@ -28340,8 +28352,18 @@ done:
 }
 #endif /* WC_TEST_RNG_FORK */
 
-/* A generate on a held instance must not finish until the holder lets go. */
-static wc_test_ret_t rng_lock_wait_test(WC_RNG* rng)
+/* Which entry point a round of rng_lock_wait_test() checks. */
+enum {
+    WC_RNG_LOCK_OP_GENERATE = 0,
+    WC_RNG_LOCK_OP_STIR     = 1,
+    WC_RNG_LOCK_OP_SCHEDULE = 2
+};
+
+/* Any of these on a held instance must not finish until the holder lets go.
+ * They all mutate the same DRBG state, so one slipping through unlocked is a
+ * data race on the reseed counter and hash context, which ThreadSanitizer
+ * reports and which no output check reliably catches. */
+static wc_test_ret_t rng_lock_wait_test(WC_RNG* rng, int op)
 {
     WC_DECLARE_VAR(blk, byte, WC_RNG_THREAD_TEST_BLKSZ, HEAP_HINT);
     struct rng_fork_holder_args* h = NULL;
@@ -28371,7 +28393,18 @@ static wc_test_ret_t rng_lock_wait_test(WC_RNG* rng)
     (void)clock_gettime(CLOCK_MONOTONIC, &t0);   /* before the go byte */
     if (write(gfd[1], &go, 1) != 1)
         ERROR_OUT(WC_TEST_RET_ENC_NC, done);
-    ret = wc_RNG_GenerateBlock(rng, blk, WC_RNG_THREAD_TEST_BLKSZ);
+    /* Whichever entry point this round is checking, it must wait. */
+    if (op == WC_RNG_LOCK_OP_STIR) {
+        byte mix[16];
+        XMEMSET(mix, 0x3c, sizeof(mix));
+        ret = wc_RNG_DRBG_Stir(rng, mix, (word32)sizeof(mix));
+    }
+    else if (op == WC_RNG_LOCK_OP_SCHEDULE) {
+        ret = wc_RNG_DRBG_ScheduleReseed(rng);
+    }
+    else {
+        ret = wc_RNG_GenerateBlock(rng, blk, WC_RNG_THREAD_TEST_BLKSZ);
+    }
     (void)clock_gettime(CLOCK_MONOTONIC, &t1);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
@@ -28578,9 +28611,9 @@ done:
     XFREE(h, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     /* One holder at a time, still, on both of them. */
     if (ret == 0)
-        ret = rng_lock_wait_test(first);
+        ret = rng_lock_wait_test(first, WC_RNG_LOCK_OP_GENERATE);
     if (ret == 0)
-        ret = rng_lock_wait_test(last);
+        ret = rng_lock_wait_test(last, WC_RNG_LOCK_OP_GENERATE);
     return ret;
 }
 
@@ -28643,7 +28676,25 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
      * they cover the plain mutex builds as well as the fork ones. */
     {
         int useNow;
-        ret = rng_lock_wait_test(rng);
+        ret = rng_lock_wait_test(rng, WC_RNG_LOCK_OP_GENERATE);
+        if (ret != 0)
+            goto out_free;
+        /* The DRBG management entries lock too, on their own instance so
+         * the checks after this are not disturbed. */
+        {
+            int op;
+            for (op = WC_RNG_LOCK_OP_STIR;
+                 (op <= WC_RNG_LOCK_OP_SCHEDULE) && (ret == 0); op++) {
+                WC_RNG* mut = NULL;
+                (void)wc_rng_new_ex(&mut, NULL, 0, HEAP_HINT, INVALID_DEVID);
+                if (mut == NULL) {
+                    ret = WC_TEST_RET_ENC_EC(MEMORY_E);
+                    break;
+                }
+                ret = rng_lock_wait_test(mut, op);
+                wc_rng_free(mut);
+            }
+        }
         if (ret != 0)
             goto out_free;
         /* One throwaway instance per reseed entry: each ends up condemned,
@@ -28682,7 +28733,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out_free);
         }
         wc_rng_free(mid);   /* the middle of three leaves the registry */
-        ret = rng_lock_wait_test(rng);   /* still sound after that removal */
+        ret = rng_lock_wait_test(rng, WC_RNG_LOCK_OP_GENERATE);
         if (ret != 0) {
             wc_rng_free(third);
             goto out_free;

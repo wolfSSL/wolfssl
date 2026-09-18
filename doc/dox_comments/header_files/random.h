@@ -58,16 +58,18 @@ int  wc_FreeNetRandom(void);
 
     One WC_RNG may be shared between threads for generating and reseeding:
     wc_RNG_GenerateBlock(), wc_RNG_DRBG_Reseed(), wc_RNG_DRBG_Reseed_Nonce()
-    and wc_RNG_DRBG_Reseed_Now() each hold the instance lock.
+    and wc_RNG_DRBG_Reseed_Now() each hold the instance lock.  So do the DRBG
+    management calls: wc_RNG_DRBG_Stir(), wc_RNG_DRBG_Stir_Nonce() and
+    wc_RNG_DRBG_ScheduleReseed(), and in --enable-rng-extras builds
+    wc_RNG_DRBG_NextStirNow(), wc_RNG_DRBG_NextSeedNow() and
+    wc_RNG_DRBG_NextSeedNow_Nonce().  The generate path calls their internal
+    cores, which already run under the lock.
 
-    The DRBG management calls do not hold it and are not safe to call while
-    another thread is using the same instance: wc_RNG_DRBG_Stir(),
-    wc_RNG_DRBG_Stir_Nonce() and wc_RNG_DRBG_ScheduleReseed(), and in
-    --enable-rng-extras builds wc_RNG_DRBG_NextStirNow(),
-    wc_RNG_DRBG_NextSeedNow() and wc_RNG_DRBG_ReseedRBGC().  They run inside
-    the lock on the generate path, so they cannot take it at their own entry.
-    A caller that needs them on a shared instance stops the other threads
-    first.
+    wc_RNG_DRBG_ReseedRBGC() and wc_RNG_DRBG_StirRBGC() are the exception:
+    they draw from a second instance, so locking both would put two instance
+    locks in play at once, and two threads reseeding each other from the
+    other could then wait on each other for good.  A caller that needs them
+    on a shared instance stops the other threads first.
 
     WC_RNG_NO_AUTO_LOCK (configure --disable-rng-lock) leaves the lock out;
     CMSIS-RTOS v1 builds have none, its mutex pool holds ten.  Every backend
