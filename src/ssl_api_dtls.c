@@ -1719,6 +1719,19 @@ int wolfDTLS_accept_stateless(WOLFSSL* ssl)
     if (ssl == NULL)
         return WOLFSSL_FATAL_ERROR;
 
+    if (ssl->options.side != WOLFSSL_SERVER_END) {
+        WOLFSSL_MSG("wolfDTLS_accept_stateless requires a server-side object");
+        ssl->error = SIDE_ERROR;
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    if (ssl->options.dtls && !ssl->options.sendCookie) {
+        WOLFSSL_MSG("wolfDTLS_accept_stateless requires cookies enabled; "
+                    "use wolfSSL_accept");
+        ssl->error = BAD_STATE_E;
+        return WOLFSSL_FATAL_ERROR;
+    }
+
     /* Save this to restore it later */
     disableRead = (byte)ssl->options.disableRead;
     cb.userCb = ssl->chGoodCb;
@@ -1752,7 +1765,8 @@ int wolfDTLS_accept_stateless(WOLFSSL* ssl)
     return ret;
 }
 
-/* Set the callback to call when a ClientHello with a valid cookie is received.
+/* Notify after cookie verification, or, with cookies disabled, after complete
+ * successful ClientHello processing (once per connection).
  *
  * WC_NO_INLINE: wolfDTLS_accept_stateless passes the address of a stack-local
  * context here; the restore call before return clears it again. Preventing
@@ -1777,6 +1791,32 @@ int wolfDTLS_SetChGoodCb(WOLFSSL* ssl, ClientHelloGoodCb cb, void* user_ctx)
     ssl->chGoodCtx = user_ctx;
 
     return WOLFSSL_SUCCESS;
+}
+
+/* Notify the ClientHello good callback once when cookies are disabled.
+ *
+ * Called by the accept functions at the first ClientHello transition, after
+ * a complete ClientHello has been processed. With cookies enabled the callback
+ * is invoked from the stateless ClientHello processing instead.
+ *
+ * @param [in, out] ssl  SSL/TLS object.
+ * @return  0 when the callback is not called or succeeds.
+ * @return  The callback's negative error code otherwise.
+ */
+int DtlsNoCookieChGood(WOLFSSL* ssl)
+{
+    int ret = 0;
+
+    if (ssl->options.dtls && !ssl->options.sendCookie &&
+            ssl->chGoodCb != NULL && !ssl->options.chGoodCbDone) {
+        /* Record before calling so an error cannot repeat the callback. */
+        ssl->options.chGoodCbDone = 1;
+        ret = ssl->chGoodCb(ssl, ssl->chGoodCtx);
+        if (ret > 0)
+            ret = 0;
+    }
+
+    return ret;
 }
 
 /* Set a secondary DTLS 1.2 cookie secret used only when verifying a received
@@ -1849,6 +1889,99 @@ int wolfSSL_DTLS_SetCookieSecretSecondary(WOLFSSL* ssl,
 }
 
 #endif /* WOLFSSL_DTLS && !NO_WOLFSSL_SERVER */
+
+#if (defined(WOLFSSL_DTLS) || defined(WOLFSSL_SEND_HRR_COOKIE)) && \
+    !defined(NO_WOLFSSL_SERVER)
+static int CheckCookieSide(WOLFSSL* ssl)
+{
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+#ifdef WOLFSSL_DTLS
+    if (!ssl->options.dtls)
+#endif
+    {
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+        if (!IsAtLeastTLSv1_3(ssl->version))
+#endif
+            return BAD_FUNC_ARG;
+    }
+    if (ssl->options.side != WOLFSSL_SERVER_END)
+        return SIDE_ERROR;
+    return WOLFSSL_SUCCESS;
+}
+
+/* Securely erase and free a cookie secret.
+ *
+ * @param [in]      ssl     SSL/TLS object.
+ * @param [in, out] secret  Cookie secret buffer, left empty.
+ */
+void FreeCookieSecret(WOLFSSL* ssl, buffer* secret)
+{
+    if (secret->buffer != NULL) {
+        ForceZero(secret->buffer, secret->length);
+        XFREE(secret->buffer, ssl->heap, DYNAMIC_TYPE_COOKIE_PWD);
+        secret->buffer = NULL;
+        secret->length = 0;
+    }
+}
+
+int wolfSSL_disable_cookie(WOLFSSL* ssl)
+{
+    int ret;
+
+    WOLFSSL_ENTER("wolfSSL_disable_cookie");
+
+    ret = CheckCookieSide(ssl);
+    if (ret != WOLFSSL_SUCCESS)
+        return ret;
+
+#ifdef WOLFSSL_DTLS
+    if (ssl->options.dtls) {
+        FreeCookieSecret(ssl, &ssl->buffers.dtlsCookieSecret);
+        FreeCookieSecret(ssl, &ssl->buffers.dtlsCookieSecretSecondary);
+    }
+#endif
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+    FreeCookieSecret(ssl, &ssl->buffers.tls13CookieSecret);
+    FreeCookieSecret(ssl, &ssl->buffers.tls13CookieSecretSecondary);
+#endif
+    ssl->options.sendCookie = 0;
+    return WOLFSSL_SUCCESS;
+}
+
+/* Prepare missing secrets without replacing application-supplied secrets. */
+int wolfSSL_enable_cookie(WOLFSSL* ssl)
+{
+    int ret;
+
+    WOLFSSL_ENTER("wolfSSL_enable_cookie");
+
+    ret = CheckCookieSide(ssl);
+    if (ret != WOLFSSL_SUCCESS)
+        return ret;
+
+#ifdef WOLFSSL_DTLS
+    /* DTLS 1.3 also needs this secret for DTLS 1.2 fallback. */
+    if (ssl->options.dtls && ssl->buffers.dtlsCookieSecret.buffer == NULL) {
+        ret = wolfSSL_DTLS_SetCookieSecret(ssl, NULL, 0);
+        if (ret != 0) {
+            FreeCookieSecret(ssl, &ssl->buffers.dtlsCookieSecret);
+            return ret;
+        }
+    }
+#endif
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+    if (IsAtLeastTLSv1_3(ssl->version) &&
+            ssl->buffers.tls13CookieSecret.buffer == NULL) {
+        ret = Tls13SetCookieSecret(ssl, NULL, 0);
+        if (ret != WOLFSSL_SUCCESS)
+            return ret;
+    }
+#endif
+    ssl->options.sendCookie = 1;
+    return WOLFSSL_SUCCESS;
+}
+#endif /* (WOLFSSL_DTLS || WOLFSSL_SEND_HRR_COOKIE) && !NO_WOLFSSL_SERVER */
 
 #endif /* !WOLFCRYPT_ONLY */
 

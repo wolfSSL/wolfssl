@@ -7989,8 +7989,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     /* do not change state in the SSL object before the next region of code
      * to be able to statelessly compute a DTLS cookie */
 #if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_SEND_HRR_COOKIE)
-    /* Update the ssl->options.dtlsStateful setting `if` statement in
-     * wolfSSL_accept_TLSv13 when changing this one. */
+    /* No-cookie accepts are already stateful before the first read. */
     if (IsDtlsNotSctpMode(ssl) && ssl->options.sendCookie &&
             !ssl->options.dtlsStateful) {
         DtlsSetSeqNumForReply(ssl);
@@ -16841,26 +16840,13 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
 #endif
 
 #if defined(WOLFSSL_SEND_HRR_COOKIE)
-/* Send a cookie with the HelloRetryRequest to avoid storing state.
- *
- * ssl       SSL/TLS object.
- * secret    Secret to use when generating integrity check for cookie.
- *           A value of NULL indicates to generate a new random secret.
- * secretSz  Size of secret data in bytes.
- *           Use a value of 0 to indicate use of default size.
- * returns BAD_FUNC_ARG when ssl is NULL or not using TLS v1.3, SIDE_ERROR when
- * called on a client; WOLFSSL_SUCCESS on success and otherwise failure.
- */
-int wolfSSL_send_hrr_cookie(WOLFSSL* ssl, const unsigned char* secret,
-                            unsigned int secretSz)
+#ifndef NO_WOLFSSL_SERVER
+/* Replace or regenerate the HRR secret without changing cookie policy.
+ * The caller validates the protocol and server side. */
+int Tls13SetCookieSecret(WOLFSSL* ssl, const unsigned char* secret,
+                        unsigned int secretSz)
 {
     int ret;
-
-    if (ssl == NULL || !IsAtLeastTLSv1_3(ssl->version))
-        return BAD_FUNC_ARG;
- #ifndef NO_WOLFSSL_SERVER
-    if (ssl->options.side == WOLFSSL_CLIENT_END)
-        return SIDE_ERROR;
 
     if (secretSz == 0) {
     #ifndef NO_SHA256
@@ -16907,23 +16893,50 @@ int wolfSSL_send_hrr_cookie(WOLFSSL* ssl, const unsigned char* secret,
     if (secret == NULL) {
         ret = wc_RNG_GenerateBlock(ssl->rng,
                                ssl->buffers.tls13CookieSecret.buffer, secretSz);
-        if (ret < 0)
+        if (ret < 0) {
+            FreeCookieSecret(ssl, &ssl->buffers.tls13CookieSecret);
             return ret;
+        }
     }
     else
         XMEMCPY(ssl->buffers.tls13CookieSecret.buffer, secret, secretSz);
 
-    ssl->options.sendCookie = 1;
+    return WOLFSSL_SUCCESS;
+}
+#endif /* !NO_WOLFSSL_SERVER */
 
-    ret = WOLFSSL_SUCCESS;
+/* Send a cookie with the HelloRetryRequest to avoid storing state.
+ *
+ * ssl       SSL/TLS object.
+ * secret    Secret to use when generating integrity check for cookie.
+ *           A value of NULL indicates to generate a new random secret.
+ * secretSz  Size of secret data in bytes.
+ *           Use a value of 0 to indicate use of default size.
+ * returns BAD_FUNC_ARG when ssl is NULL or not using TLS v1.3, SIDE_ERROR when
+ * called on a client; WOLFSSL_SUCCESS on success and otherwise failure.
+ */
+int wolfSSL_send_hrr_cookie(WOLFSSL* ssl, const unsigned char* secret,
+                            unsigned int secretSz)
+{
+#ifndef NO_WOLFSSL_SERVER
+    int ret;
+#endif
+
+    if (ssl == NULL || !IsAtLeastTLSv1_3(ssl->version))
+        return BAD_FUNC_ARG;
+#ifndef NO_WOLFSSL_SERVER
+    if (ssl->options.side == WOLFSSL_CLIENT_END)
+        return SIDE_ERROR;
+
+    ret = Tls13SetCookieSecret(ssl, secret, secretSz);
+    if (ret != WOLFSSL_SUCCESS)
+        return ret;
+    return wolfSSL_enable_cookie(ssl);
 #else
     (void)secret;
     (void)secretSz;
-
-    ret = SIDE_ERROR;
+    return SIDE_ERROR;
 #endif
-
-    return ret;
 }
 
 int wolfSSL_disable_hrr_cookie(WOLFSSL* ssl)
@@ -16934,29 +16947,7 @@ int wolfSSL_disable_hrr_cookie(WOLFSSL* ssl)
 #ifdef NO_WOLFSSL_SERVER
     return SIDE_ERROR;
 #else
-    if (ssl->options.side == WOLFSSL_CLIENT_END)
-        return SIDE_ERROR;
-
-    if (ssl->buffers.tls13CookieSecret.buffer != NULL) {
-        ForceZero(ssl->buffers.tls13CookieSecret.buffer,
-            ssl->buffers.tls13CookieSecret.length);
-        XFREE(ssl->buffers.tls13CookieSecret.buffer, ssl->heap,
-            DYNAMIC_TYPE_COOKIE_PWD);
-        ssl->buffers.tls13CookieSecret.buffer = NULL;
-        ssl->buffers.tls13CookieSecret.length = 0;
-    }
-
-    if (ssl->buffers.tls13CookieSecretSecondary.buffer != NULL) {
-        ForceZero(ssl->buffers.tls13CookieSecretSecondary.buffer,
-            ssl->buffers.tls13CookieSecretSecondary.length);
-        XFREE(ssl->buffers.tls13CookieSecretSecondary.buffer, ssl->heap,
-            DYNAMIC_TYPE_COOKIE_PWD);
-        ssl->buffers.tls13CookieSecretSecondary.buffer = NULL;
-        ssl->buffers.tls13CookieSecretSecondary.length = 0;
-    }
-
-    ssl->options.sendCookie = 0;
-    return WOLFSSL_SUCCESS;
+    return wolfSSL_disable_cookie(ssl);
 #endif /* NO_WOLFSSL_SERVER */
 }
 
@@ -17791,7 +17782,9 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 #ifdef WOLFSSL_DTLS
     if (ssl->version.major == DTLS_MAJOR) {
         ssl->options.dtls   = 1;
-        if (!IsDtlsNotSctpMode(ssl) || !ssl->options.sendCookie)
+        if (!ssl->options.sendCookie)
+            ssl->options.dtlsStateful = 1;
+        if (!IsDtlsNotSctpMode(ssl))
             ssl->options.dtlsStateful = 1;
     }
 #endif
@@ -17965,6 +17958,16 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 
             }
 
+#ifdef WOLFSSL_DTLS13
+            /* Notify once at the first CH transition, not while reassembling
+             * or processing the second CH after a key-share HRR. */
+            if (ssl->options.acceptState == TLS13_ACCEPT_BEGIN) {
+                if ((ssl->error = DtlsNoCookieChGood(ssl)) < 0) {
+                    WOLFSSL_ERROR(ssl->error);
+                    return WOLFSSL_FATAL_ERROR;
+                }
+            }
+#endif
             ssl->options.acceptState = TLS13_ACCEPT_CLIENT_HELLO_DONE;
             WOLFSSL_MSG("accept state ACCEPT_CLIENT_HELLO_DONE");
             if (!IsAtLeastTLSv1_3(ssl->version))

@@ -292,14 +292,39 @@ int test_tls13_apis(void)
         WC_NO_ERR_TRACE(SIDE_ERROR));
 #endif
 #ifndef NO_WOLFSSL_SERVER
+    ExpectIntEQ(wolfSSL_enable_cookie(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_disable_cookie(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#ifndef NO_WOLFSSL_CLIENT
+    ExpectIntEQ(wolfSSL_enable_cookie(clientSsl), WC_NO_ERR_TRACE(SIDE_ERROR));
+    ExpectIntEQ(wolfSSL_disable_cookie(clientSsl), WC_NO_ERR_TRACE(SIDE_ERROR));
+#endif
 #ifndef WOLFSSL_NO_TLS12
     ExpectIntEQ(wolfSSL_send_hrr_cookie(serverTls12Ssl, NULL, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_enable_cookie(serverTls12Ssl),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_disable_cookie(serverTls12Ssl),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
 
+    ExpectIntEQ(wolfSSL_enable_cookie(serverSsl), WOLFSSL_SUCCESS);
+    ExpectIntEQ(serverSsl->options.sendCookie, 1);
+    ExpectNotNull(serverSsl->buffers.tls13CookieSecret.buffer);
     ExpectIntEQ(wolfSSL_send_hrr_cookie(serverSsl, NULL, 0), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_send_hrr_cookie(serverSsl, fixedKey, sizeof(fixedKey)),
         WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_enable_cookie(serverSsl), WOLFSSL_SUCCESS);
+    ExpectIntEQ(serverSsl->buffers.tls13CookieSecret.length, sizeof(fixedKey));
+    ExpectBufEQ(serverSsl->buffers.tls13CookieSecret.buffer, fixedKey,
+        sizeof(fixedKey));
+    ExpectIntEQ(wolfSSL_disable_cookie(serverSsl), WOLFSSL_SUCCESS);
+    ExpectIntEQ(serverSsl->options.sendCookie, 0);
+    ExpectNull(serverSsl->buffers.tls13CookieSecret.buffer);
+    ExpectIntEQ(serverSsl->buffers.tls13CookieSecret.length, 0);
+    ExpectIntEQ(wolfSSL_disable_cookie(serverSsl), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_enable_cookie(serverSsl), WOLFSSL_SUCCESS);
+    ExpectIntEQ(serverSsl->options.sendCookie, 1);
+    ExpectNotNull(serverSsl->buffers.tls13CookieSecret.buffer);
 #endif
 #endif
 

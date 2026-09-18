@@ -32,6 +32,7 @@
 #include <wolfssl/internal.h>
 #include <tests/api/api.h>
 #include <tests/utils.h>
+#include <tests/api/test_dtls.h>
 #include <tests/api/test_dtls13.h>
 
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13)
@@ -317,6 +318,93 @@ int test_dtls13_frag_ch_pq_no_cookie(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
+    && ((defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_SEND_HRR_COOKIE)) \
+    || (defined(HAVE_SESSION_TICKET) && \
+        defined(WOLFSSL_DTLS13_ECHO_LEGACY_SESSION_ID) && defined(HAVE_ECC)))
+/* RFC 8446 Section 4.1.3: an HRR is a ServerHello carrying this magic random.
+ * Used to assert a real ServerHello was captured, not an HRR. */
+static const byte hrrRandom[RAN_LEN] = {
+    0xCF, 0x21, 0xAD, 0x74, 0xE5, 0x9A, 0x61, 0x11,
+    0xBE, 0x1D, 0x8C, 0x02, 0x1E, 0x65, 0xB8, 0x91,
+    0xC2, 0xA2, 0x11, 0x16, 0x7A, 0xBB, 0x8C, 0x5E,
+    0x07, 0x9E, 0x09, 0xE2, 0xC8, 0xA8, 0x33, 0x9C
+};
+#endif
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
+    && defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_SEND_HRR_COOKIE)
+/* Whether the first record the server has queued for the client is a plaintext
+ * handshake record holding a ServerHello. When it is, *isHrr reports whether
+ * its random is the HelloRetryRequest value. */
+static int test_dtls13_reply_is_server_hello(
+        const struct test_memio_ctx* test_ctx, int* isHrr)
+{
+    const int randomOff = DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ +
+        OPAQUE16_LEN;
+    const char* msg = NULL;
+    int msgSz = 0;
+
+    *isHrr = 0;
+    if (test_memio_get_message(test_ctx, 1, &msg, &msgSz, 0) != 0)
+        return 0;
+    if (msgSz < randomOff + RAN_LEN)
+        return 0;
+    if ((byte)msg[0] != handshake ||
+            (byte)msg[DTLS_RECORD_HEADER_SZ] != server_hello)
+        return 0;
+    *isHrr = XMEMCMP(msg + randomOff, hrrRandom, RAN_LEN) == 0;
+    return 1;
+}
+#endif
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
+    && defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_DTLS_MTU) \
+    && defined(WOLFSSL_AES_256)
+/* Deliver test_dtls13_four_frag_ch to the server one record per datagram and
+ * run the server until it has consumed every datagram. Whether a reply was
+ * produced is for the caller to check in test_ctx->c_len. */
+static int test_dtls13_inject_four_frag_ch(struct test_memio_ctx* test_ctx,
+        WOLFSSL* ssl_s)
+{
+    EXPECT_DECLS;
+    const unsigned char* rec = test_dtls13_four_frag_ch;
+    int len = (int)sizeof(test_dtls13_four_frag_ch);
+    int records = 0;
+
+    test_memio_clear_buffer(test_ctx, 0);
+    while (len >= DTLS_RECORD_HEADER_SZ && EXPECT_SUCCESS()) {
+        word16 payloadLen;
+        int recLen;
+
+        ato16(rec + DTLS_RECORD_HEADER_SZ - OPAQUE16_LEN, &payloadLen);
+        recLen = DTLS_RECORD_HEADER_SZ + (int)payloadLen;
+        ExpectIntLE(recLen, len);
+        ExpectIntEQ(test_memio_inject_message(test_ctx, 0, (const char*)rec,
+            recLen), 0);
+        rec += recLen;
+        len -= recLen;
+        records++;
+    }
+    ExpectIntEQ(records, 4);
+    ExpectIntEQ(test_ctx->s_len, sizeof(test_dtls13_four_frag_ch));
+    /* wolfSSL_accept(), not wolfSSL_negotiate(): applications enter through
+     * the generic accept path and it decides whether the server starts out
+     * stateful. */
+    while (test_ctx->s_len > 0 && EXPECT_SUCCESS()) {
+        int s_len = test_ctx->s_len;
+        ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+            WOLFSSL_ERROR_WANT_READ);
+        /* Fail if we didn't advance the buffer to avoid infinite loops */
+        ExpectIntLT(test_ctx->s_len, s_len);
+    }
+    /* Expect all fragments read */
+    ExpectIntEQ(test_ctx->s_len, 0);
+    return EXPECT_RESULT();
+}
+#endif
+
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) \
     && defined(WOLFSSL_DTLS_MTU) && defined(WOLFSSL_DTLS_CH_FRAG) && \
     defined(WOLFSSL_AES_256)
@@ -350,79 +438,6 @@ int test_dtls_frag_ch(void)
     WOLFSSL *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
     static unsigned int DUMMY_MTU = 256;
-    unsigned int len;
-    unsigned char four_frag_CH[] = {
-      0x16, 0xfe, 0xfd, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0xda, 0x01, 0x00, 0x02, 0xdc, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0xce, 0xfe, 0xfd, 0xf3, 0x94, 0x01, 0x33, 0x2c, 0xcf, 0x2c, 0x47, 0xb1,
-      0xe5, 0xa1, 0x7b, 0x19, 0x3e, 0xac, 0x68, 0xdd, 0xe6, 0x17, 0x6b, 0x85,
-      0xad, 0x5f, 0xfc, 0x7f, 0x6e, 0xf0, 0xb9, 0xe0, 0x2e, 0xca, 0x47, 0x00,
-      0x00, 0x00, 0x36, 0x13, 0x01, 0x13, 0x02, 0x13, 0x03, 0xc0, 0x2c, 0xc0,
-      0x2b, 0xc0, 0x30, 0xc0, 0x2f, 0x00, 0x9f, 0x00, 0x9e, 0xcc, 0xa9, 0xcc,
-      0xa8, 0xcc, 0xaa, 0xc0, 0x27, 0xc0, 0x23, 0xc0, 0x28, 0xc0, 0x24, 0xc0,
-      0x0a, 0xc0, 0x09, 0xc0, 0x14, 0xc0, 0x13, 0x00, 0x6b, 0x00, 0x67, 0x00,
-      0x39, 0x00, 0x33, 0xcc, 0x14, 0xcc, 0x13, 0xcc, 0x15, 0x01, 0x00, 0x02,
-      0x7c, 0x00, 0x2b, 0x00, 0x03, 0x02, 0xfe, 0xfc, 0x00, 0x0d, 0x00, 0x20,
-      0x00, 0x1e, 0x06, 0x03, 0x05, 0x03, 0x04, 0x03, 0x02, 0x03, 0x08, 0x06,
-      0x08, 0x0b, 0x08, 0x05, 0x08, 0x0a, 0x08, 0x04, 0x08, 0x09, 0x06, 0x01,
-      0x05, 0x01, 0x04, 0x01, 0x03, 0x01, 0x02, 0x01, 0x00, 0x0a, 0x00, 0x0c,
-      0x00, 0x0a, 0x00, 0x19, 0x00, 0x18, 0x00, 0x17, 0x00, 0x15, 0x01, 0x00,
-      0x00, 0x16, 0x00, 0x00, 0x00, 0x33, 0x02, 0x39, 0x02, 0x37, 0x00, 0x17,
-      0x00, 0x41, 0x04, 0x94, 0xdf, 0x36, 0xd7, 0xb3, 0x90, 0x6d, 0x01, 0xa1,
-      0xe6, 0xed, 0x67, 0xf4, 0xd9, 0x9d, 0x2c, 0xac, 0x57, 0x74, 0xff, 0x19,
-      0xbe, 0x5a, 0xc9, 0x30, 0x11, 0xb7, 0x2b, 0x59, 0x47, 0x80, 0x7c, 0xa9,
-      0xb7, 0x31, 0x8c, 0x16, 0xfe, 0xfd, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x01, 0x00, 0xda, 0x01, 0x00, 0x02, 0xdc, 0x00, 0x00, 0x00, 0x00,
-      0xce, 0x00, 0x00, 0xce, 0x9e, 0x13, 0x74, 0x3b, 0x86, 0xba, 0x69, 0x1f,
-      0x12, 0xf7, 0xcd, 0x78, 0x53, 0xe8, 0x50, 0x4d, 0x71, 0x3f, 0x4b, 0x4e,
-      0xeb, 0x3e, 0xe5, 0x43, 0x54, 0x78, 0x17, 0x6d, 0x00, 0x18, 0x00, 0x61,
-      0x04, 0xd1, 0x99, 0x66, 0x4f, 0xda, 0xc7, 0x12, 0x3b, 0xff, 0xb2, 0xd6,
-      0x2f, 0x35, 0xb6, 0x17, 0x1f, 0xb3, 0xd0, 0xb6, 0x52, 0xff, 0x97, 0x8b,
-      0x01, 0xe8, 0xd9, 0x68, 0x71, 0x40, 0x02, 0xd5, 0x68, 0x3a, 0x58, 0xb2,
-      0x5d, 0xee, 0xa4, 0xe9, 0x5f, 0xf4, 0xaf, 0x3e, 0x30, 0x9c, 0x3e, 0x2b,
-      0xda, 0x61, 0x43, 0x99, 0x02, 0x35, 0x33, 0x9f, 0xcf, 0xb5, 0xd3, 0x28,
-      0x19, 0x9d, 0x1c, 0xbe, 0x69, 0x07, 0x9e, 0xfc, 0xe4, 0x8e, 0xcd, 0x86,
-      0x4a, 0x1b, 0xf0, 0xfc, 0x17, 0x94, 0x66, 0x53, 0xda, 0x24, 0x5e, 0xaf,
-      0xce, 0xec, 0x62, 0x4c, 0x06, 0xb4, 0x52, 0x94, 0xb1, 0x4a, 0x7a, 0x8c,
-      0x4f, 0x00, 0x19, 0x00, 0x85, 0x04, 0x00, 0x27, 0xeb, 0x99, 0x49, 0x7f,
-      0xcb, 0x2c, 0x46, 0x54, 0x2d, 0x93, 0x5d, 0x25, 0x92, 0x58, 0x5e, 0x06,
-      0xc3, 0x7c, 0xfb, 0x9a, 0xa7, 0xec, 0xcd, 0x9f, 0xe1, 0x6b, 0x2d, 0x78,
-      0xf5, 0x16, 0xa9, 0x20, 0x52, 0x48, 0x19, 0x0f, 0x1a, 0xd0, 0xce, 0xd8,
-      0x68, 0xb1, 0x4e, 0x7f, 0x33, 0x03, 0x7d, 0x0c, 0x39, 0xdb, 0x9c, 0x4b,
-      0xf4, 0xe7, 0xc2, 0xf5, 0xdd, 0x51, 0x9b, 0x03, 0xa8, 0x53, 0x2b, 0xe6,
-      0x00, 0x15, 0x4b, 0xff, 0xd2, 0xa0, 0x16, 0xfe, 0xfd, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0xda, 0x01, 0x00, 0x02, 0xdc, 0x00,
-      0x00, 0x00, 0x01, 0x9c, 0x00, 0x00, 0xce, 0x58, 0x30, 0x10, 0x3d, 0x46,
-      0xcc, 0xca, 0x1a, 0x44, 0xc8, 0x58, 0x9b, 0x27, 0x17, 0x67, 0x31, 0x96,
-      0x8a, 0x66, 0x39, 0xf4, 0xcc, 0xc1, 0x9f, 0x12, 0x1f, 0x01, 0x30, 0x50,
-      0x16, 0xd6, 0x89, 0x97, 0xa3, 0x66, 0xd7, 0x99, 0x50, 0x09, 0x6e, 0x80,
-      0x87, 0xe4, 0xa2, 0x88, 0xae, 0xb4, 0x23, 0x57, 0x2f, 0x12, 0x60, 0xe7,
-      0x7d, 0x44, 0x2d, 0xad, 0xbe, 0xe9, 0x0d, 0x01, 0x00, 0x01, 0x00, 0xd5,
-      0xdd, 0x62, 0xee, 0xf3, 0x0e, 0xd9, 0x30, 0x0e, 0x38, 0xf3, 0x48, 0xf4,
-      0xc9, 0x8f, 0x8c, 0x20, 0xf7, 0xd3, 0xa8, 0xb3, 0x87, 0x3c, 0x98, 0x5d,
-      0x70, 0xc5, 0x03, 0x76, 0xb7, 0xd5, 0x0b, 0x7b, 0x23, 0x97, 0x6b, 0xe3,
-      0xb5, 0x18, 0xeb, 0x64, 0x55, 0x18, 0xb2, 0x8a, 0x90, 0x1a, 0x8f, 0x0e,
-      0x15, 0xda, 0xb1, 0x8e, 0x7f, 0xee, 0x1f, 0xe0, 0x3b, 0xb9, 0xed, 0xfc,
-      0x4e, 0x3f, 0x78, 0x16, 0x39, 0x95, 0x5f, 0xb7, 0xcb, 0x65, 0x55, 0x72,
-      0x7b, 0x7d, 0x86, 0x2f, 0x8a, 0xe5, 0xee, 0xf7, 0x57, 0x40, 0xf3, 0xc4,
-      0x96, 0x4f, 0x11, 0x4d, 0x85, 0xf9, 0x56, 0xfa, 0x3d, 0xf0, 0xc9, 0xa4,
-      0xec, 0x1e, 0xaa, 0x47, 0x90, 0x53, 0xdf, 0xe1, 0xb7, 0x78, 0x18, 0xeb,
-      0xdd, 0x0d, 0x89, 0xb7, 0xf6, 0x15, 0x0e, 0x55, 0x12, 0xb3, 0x23, 0x17,
-      0x0b, 0x59, 0x6f, 0x83, 0x05, 0x6b, 0xa6, 0xf8, 0x6c, 0x3a, 0x9b, 0x1b,
-      0x50, 0x93, 0x51, 0xea, 0x95, 0x2d, 0x99, 0x96, 0x38, 0x16, 0xfe, 0xfd,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x7e, 0x01, 0x00,
-      0x02, 0xdc, 0x00, 0x00, 0x00, 0x02, 0x6a, 0x00, 0x00, 0x72, 0x2d, 0x66,
-      0x3e, 0xf2, 0x36, 0x5a, 0xf2, 0x23, 0x8f, 0x28, 0x09, 0xa9, 0x55, 0x8c,
-      0x8f, 0xc0, 0x0d, 0x61, 0x98, 0x33, 0x56, 0x87, 0x7a, 0xfd, 0xa7, 0x50,
-      0x71, 0x84, 0x2e, 0x41, 0x58, 0x00, 0x87, 0xd9, 0x27, 0xe5, 0x7b, 0xf4,
-      0x6d, 0x84, 0x4e, 0x2e, 0x0c, 0x80, 0x0c, 0xf3, 0x8a, 0x02, 0x4b, 0x99,
-      0x3a, 0x1f, 0x9f, 0x18, 0x7d, 0x1c, 0xec, 0xad, 0x60, 0x54, 0xa6, 0xa3,
-      0x2c, 0x82, 0x5e, 0xf8, 0x8f, 0xae, 0xe1, 0xc4, 0x82, 0x7e, 0x43, 0x43,
-      0xc5, 0x99, 0x49, 0x05, 0xd3, 0xf6, 0xdf, 0xa1, 0xb5, 0x2d, 0x0c, 0x13,
-      0x2f, 0x1e, 0xb6, 0x28, 0x7c, 0x5c, 0xa1, 0x02, 0x6b, 0x8d, 0xa3, 0xeb,
-      0xd4, 0x58, 0xe6, 0xa0, 0x7e, 0x6b, 0xaa, 0x09, 0x43, 0x67, 0x71, 0x87,
-      0xa5, 0xcb, 0x68, 0xf3
-    };
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
@@ -455,27 +470,8 @@ int test_dtls_frag_ch(void)
     ExpectIntEQ(wolfSSL_dtls13_allow_ch_frag(ssl_s, 1), WOLFSSL_SUCCESS);
 
     /* Reject fragmented first CH */
-    ExpectIntEQ(test_dtls_frag_ch_count_records(four_frag_CH,
-            sizeof(four_frag_CH)), 4);
-    len = sizeof(four_frag_CH);
-    test_memio_clear_buffer(&test_ctx, 0);
-    while (len > 0 && EXPECT_SUCCESS()) {
-        unsigned int inj_len = len > DUMMY_MTU ? DUMMY_MTU : len;
-        unsigned char *idx = four_frag_CH + sizeof(four_frag_CH) - len;
-        ExpectIntEQ(test_memio_inject_message(&test_ctx, 0, (const char *)idx,
-            inj_len), 0);
-        len -= inj_len;
-    }
-    ExpectIntEQ(test_ctx.s_len, sizeof(four_frag_CH));
-    while (test_ctx.s_len > 0 && EXPECT_SUCCESS()) {
-        int s_len = test_ctx.s_len;
-        ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
-        ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
-        /* Fail if we didn't advance the buffer to avoid infinite loops */
-        ExpectIntLT(test_ctx.s_len, s_len);
-    }
-    /* Expect all fragments read */
-    ExpectIntEQ(test_ctx.s_len, 0);
+    ExpectIntEQ(test_dtls13_inject_four_frag_ch(&test_ctx, ssl_s),
+        TEST_SUCCESS);
     /* Expect quietly dropping fragmented first CH */
     ExpectIntEQ(test_ctx.c_len, 0);
 
@@ -518,6 +514,181 @@ int test_dtls_frag_ch(void)
     wolfSSL_CTX_free(ctx_s);
     ssl_c = ssl_s = NULL;
     ctx_c = ctx_s = NULL;
+#endif
+    return EXPECT_RESULT();
+}
+
+/* No-cookie accept is stateful before input, but notifies only on a complete
+ * valid ClientHello. Retries and retransmitted fragments do not notify
+ * again. */
+int test_dtls13_frag_ch1_no_cookie(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
+    && defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_SEND_HRR_COOKIE)
+    int mode;
+
+    for (mode = 0; mode < 16 && EXPECT_SUCCESS(); mode++) {
+        WOLFSSL_CTX *ctx_s = NULL;
+        WOLFSSL *ssl_s = NULL;
+        struct test_memio_ctx test_ctx;
+        int calls = 0;
+        int records;
+        int isHrr = 1;
+        int offsets[5] = {0};
+        int i;
+
+        for (i = 0; i < 4; i++) {
+            word16 payloadLen;
+            ato16(test_dtls13_four_frag_ch + offsets[i] +
+                DTLS_RECORD_HEADER_SZ - OPAQUE16_LEN, &payloadLen);
+            offsets[i + 1] = offsets[i] + DTLS_RECORD_HEADER_SZ + payloadLen;
+        }
+        ExpectIntEQ(offsets[4], (int)sizeof(test_dtls13_four_frag_ch));
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, NULL, &ctx_s, NULL, &ssl_s,
+            NULL, wolfDTLSv1_3_server_method), 0);
+        ExpectIntEQ(wolfSSL_dtls13_allow_ch_frag(ssl_s, 1), WOLFSSL_SUCCESS);
+        ExpectIntEQ((mode & 1) ? wolfSSL_disable_hrr_cookie(ssl_s) :
+            wolfSSL_disable_cookie(ssl_s), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfDTLS_SetChGoodCb(ssl_s, (mode & 8) ?
+            test_dtls_no_cookie_ch_pause : test_dtls_no_cookie_ch_good,
+            &calls), WOLFSSL_SUCCESS);
+        /* Exercise both the generic and direct TLS 1.3 accept dispatch. */
+        if (EXPECT_SUCCESS() && (mode & 2))
+            ssl_s->options.tls1_3 = 1;
+
+        ExpectIntEQ((mode & 2) ? wolfSSL_accept_TLSv13(ssl_s) :
+            wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+            WOLFSSL_ERROR_WANT_READ);
+        ExpectIntEQ(calls, 0);
+        ExpectIntEQ(ssl_s->options.dtlsStateful, 1);
+
+        for (records = 0; records < 4 && EXPECT_SUCCESS(); records++) {
+            const byte* rec;
+            int recLen;
+
+            /* Also accept a nonzero-offset fragment first. */
+            i = records ^ ((mode & 4) ? 1 : 0);
+            rec = test_dtls13_four_frag_ch + offsets[i];
+            recLen = offsets[i + 1] - offsets[i];
+            ExpectIntEQ(test_memio_inject_message(&test_ctx, 0,
+                (const char*)rec, recLen), 0);
+            if ((mode & 8) && records == 3) {
+                ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+                ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+                    WOLFSSL_ERROR_WANT_WRITE);
+                ExpectIntEQ(calls, 1);
+                /* Retry without new input: continue, but do not notify
+                 * again. */
+                ExpectIntEQ(test_ctx.c_len, 0);
+            }
+            ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+            ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+                WOLFSSL_ERROR_WANT_READ);
+            ExpectIntEQ(calls, records == 3 ? 1 : 0);
+            ExpectIntEQ(ssl_s->options.dtlsStateful, 1);
+            ExpectIntEQ(test_ctx.s_len, 0);
+            if (records == 0) {
+                ExpectNotNull(ssl_s->dtls_rx_msg_list);
+                ExpectIntEQ(test_ctx.c_len, 0);
+                ExpectIntEQ(ssl_s->keys.dtls_expected_peer_handshake_number, 0);
+                /* A retransmitted first fragment must not notify. */
+                ExpectIntEQ(test_memio_inject_message(&test_ctx, 0,
+                    (const char*)rec, recLen), 0);
+                ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+                ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+                    WOLFSSL_ERROR_WANT_READ);
+                ExpectIntEQ(calls, 0);
+            }
+        }
+        ExpectIntGT(test_ctx.c_len, 0);
+        ExpectIntEQ(test_dtls13_reply_is_server_hello(&test_ctx, &isHrr), 1);
+        ExpectIntEQ(isHrr, 0);
+        ExpectIntEQ(ssl_s->keys.dtls_expected_peer_handshake_number, 1);
+        ExpectIntEQ(ssl_s->keys.dtls_peer_handshake_number, 0);
+
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_s);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Stateless accept rejects no-cookie mode without consuming input or changing
+ * callbacks. Ordinary accept processes the complete CH and finishes
+ * normally. */
+int test_dtls13_no_cookie_handoff(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
+    && defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES) \
+    && defined(WOLFSSL_SEND_HRR_COOKIE)
+    int mode;
+
+    for (mode = 0; mode < 8 && EXPECT_SUCCESS(); mode++) {
+        WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+        WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+        struct test_memio_ctx test_ctx;
+        int calls = 0;
+        int group = WOLFSSL_ECC_SECP256R1;
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+        /* Exercise both a direct handshake and a key-share-only HRR/CH2. */
+        ExpectIntEQ(wolfSSL_set_groups(ssl_c, &group, 1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set_groups(ssl_s, &group, 1), WOLFSSL_SUCCESS);
+        if (mode & 4)
+            ExpectIntEQ(wolfSSL_NoKeyShares(ssl_c), WOLFSSL_SUCCESS);
+        else
+            ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, group), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_disable_hrr_cookie(ssl_s), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfDTLS_SetChGoodCb(ssl_s, test_dtls_no_cookie_ch_good,
+            &calls), WOLFSSL_SUCCESS);
+        if (EXPECT_SUCCESS() && (mode & 2))
+            ssl_s->options.tls1_3 = 1;
+        ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+            WOLFSSL_ERROR_WANT_READ);
+        if (mode & 1) {
+            int queued = test_ctx.s_len;
+            /* A fatal stateless rejection requires a separate SSL object. */
+            WOLFSSL* rejected = wolfSSL_new(ctx_s);
+            ExpectNotNull(rejected);
+            wolfSSL_SetIOReadCtx(rejected, &test_ctx);
+            ExpectIntEQ(wolfSSL_disable_hrr_cookie(rejected), WOLFSSL_SUCCESS);
+            ExpectIntEQ(wolfDTLS_SetChGoodCb(rejected,
+                test_dtls_no_cookie_ch_good, &calls), WOLFSSL_SUCCESS);
+            ExpectIntEQ(wolfDTLS_accept_stateless(rejected),
+                WOLFSSL_FATAL_ERROR);
+            ExpectIntEQ(wolfSSL_get_error(rejected, WOLFSSL_FATAL_ERROR),
+                WC_NO_ERR_TRACE(BAD_STATE_E));
+            ExpectIntEQ(test_ctx.s_len, queued);
+            ExpectIntEQ(test_ctx.c_len, 0);
+            ExpectIntEQ(calls, 0);
+            ExpectIntEQ(rejected->options.dtlsStateful, 0);
+            ExpectTrue(rejected->chGoodCb == test_dtls_no_cookie_ch_good);
+            ExpectTrue(rejected->chGoodCtx == &calls);
+            ExpectIntEQ(rejected->options.disableRead, 0);
+            ExpectIntEQ(rejected->options.returnOnGoodCh, 0);
+            wolfSSL_free(rejected);
+        }
+        ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+            WOLFSSL_ERROR_WANT_READ);
+        ExpectIntEQ(calls, 1);
+        ExpectIntEQ(ssl_s->options.dtlsStateful, 1);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 20, NULL), 0);
+        ExpectIntEQ(calls, 1);
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+    }
 #endif
     return EXPECT_RESULT();
 }
@@ -1788,19 +1959,6 @@ int test_dtls13_no_session_id_echo(void)
 #endif
     return EXPECT_RESULT();
 }
-
-#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) && \
-    defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_DTLS13_ECHO_LEGACY_SESSION_ID) && \
-    defined(HAVE_ECC)
-/* RFC 8446 Section 4.1.3: an HRR is a ServerHello carrying this magic random.
- * Used to assert a real ServerHello was captured, not an HRR. */
-static const byte hrrRandom[RAN_LEN] = {
-    0xCF, 0x21, 0xAD, 0x74, 0xE5, 0x9A, 0x61, 0x11,
-    0xBE, 0x1D, 0x8C, 0x02, 0x1E, 0x65, 0xB8, 0x91,
-    0xC2, 0xA2, 0x11, 0x16, 0x7A, 0xBB, 0x8C, 0x5E,
-    0x07, 0x9E, 0x09, 0xE2, 0xC8, 0xA8, 0x33, 0x9C
-};
-#endif
 
 /*-- 5_9_0_compat (test_dtls.c lines 3049,3170) ---*/
 int test_dtls13_5_9_0_compat(void)

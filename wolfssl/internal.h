@@ -2294,6 +2294,14 @@ WOLFSSL_LOCAL int  HandleTlsResumption(WOLFSSL* ssl, Suites* clSuites);
 #ifdef WOLFSSL_TLS13
 WOLFSSL_LOCAL byte SuiteMac(const byte* suite);
 #endif
+#if defined(WOLFSSL_SEND_HRR_COOKIE) && !defined(NO_WOLFSSL_SERVER)
+WOLFSSL_LOCAL int Tls13SetCookieSecret(WOLFSSL* ssl, const unsigned char* secret,
+                                     unsigned int secretSz);
+#endif
+#if (defined(WOLFSSL_DTLS) || defined(WOLFSSL_SEND_HRR_COOKIE)) && \
+    !defined(NO_WOLFSSL_SERVER)
+WOLFSSL_LOCAL void FreeCookieSecret(WOLFSSL* ssl, buffer* secret);
+#endif
 WOLFSSL_LOCAL int  DoClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                              word32 helloSz);
 #ifdef WOLFSSL_TLS13
@@ -5613,8 +5621,9 @@ struct Options {
     word16            verifyPostHandshake:1; /* Only send client cert req post
                                               * handshake, not also during */
 #endif
-#if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_SERVER)
-    word16            sendCookie:1;       /* Server creates a Cookie in HRR */
+#if (defined(WOLFSSL_TLS13) || defined(WOLFSSL_DTLS)) && \
+    !defined(NO_WOLFSSL_SERVER)
+    word16            sendCookie:1;       /* DTLS cookies / TLS 1.3 HRR cookie */
 #endif
 #ifdef WOLFSSL_ALT_CERT_CHAINS
     word16            usingAltCertChain:1;/* Alternate cert chain was used */
@@ -5696,6 +5705,9 @@ struct Options {
 #endif
     word16            hrrSentKeyShare:1;  /* HRR sent with key share */
     word16            shSentKeyShare:1;   /* SH sent with key share */
+#endif
+#ifdef WOLFSSL_DTLS
+    word16            chGoodCbDone:1;    /* No-cookie CH callback was invoked */
 #endif
     word16            returnOnGoodCh:1;
     word16            disableRead:1;
@@ -7957,6 +7969,9 @@ WOLFSSL_LOCAL int DtlsUpdateWindow(WOLFSSL* ssl);
 WOLFSSL_LOCAL void DtlsResetState(WOLFSSL *ssl);
 WOLFSSL_LOCAL int DtlsIgnoreError(int err);
 WOLFSSL_LOCAL void DtlsSetSeqNumForReply(WOLFSSL* ssl);
+#ifndef NO_WOLFSSL_SERVER
+WOLFSSL_LOCAL int DtlsNoCookieChGood(WOLFSSL* ssl);
+#endif
 #endif
 
 #ifdef WOLFSSL_DTLS13

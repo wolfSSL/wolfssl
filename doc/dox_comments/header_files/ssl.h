@@ -1882,7 +1882,15 @@ int wolfSSL_set_dtls_fd_connected(WOLFSSL* ssl, int fd);
            the listener for new connections and being able to isolate the
            WOLFSSL object once the ClientHello is verified (either through a
            cookie exchange or just checking if the ClientHello had the correct
-           format).
+           format). With DTLS cookies disabled, the callback is invoked once,
+           only after complete successful ClientHello processing, not on its
+           first fragment. The object is already stateful before input is read,
+           but the peer's return-routability has not been verified. Retries and
+           a second ClientHello do not repeat this no-cookie notification,
+           even if the callback returns a negative error code. A callback may
+           return WANT_READ or WANT_WRITE to pause the handshake; the next
+           accept call resumes after the notification. Other non-retryable
+           errors require abandoning the handshake.
            DTLS 1.2:
            https://datatracker.ietf.org/doc/html/rfc6347#section-4.2.1
            DTLS 1.3:
@@ -2414,8 +2422,13 @@ int  wolfSSL_accept(WOLFSSL* ssl);
 /*!
     \ingroup IO
 
-    \brief This function is called on the server side and statelessly listens
-    for an SSL client to initiate the DTLS handshake.
+    \brief This function is called on a server-side object and statelessly
+    listens for an SSL client to initiate the DTLS handshake. A general-purpose
+    object must first be made server-side with wolfSSL_set_accept_state().
+    Cookies must be enabled. A cookie-disabled DTLS object is rejected before
+    I/O or callback changes:
+    WOLFSSL_FATAL_ERROR is returned and wolfSSL_get_error() reports BAD_STATE_E.
+    Use wolfSSL_accept() for cookie-disabled connections instead.
 
     \return WOLFSSL_SUCCESS ClientHello containing a valid cookie was received.
     The connection can be continued with wolfSSL_accept().
@@ -2452,6 +2465,48 @@ int  wolfSSL_accept(WOLFSSL* ssl);
     \sa wolfSSL_connect
 */
 int  wolfDTLS_accept_stateless(WOLFSSL* ssl);
+
+/*!
+    \ingroup Setup
+
+    \brief Disable server cookies for DTLS 1.2, DTLS 1.3 and TLS 1.3, including
+    DTLS 1.2 fallback from DTLS 1.3. Cookies are enabled by default for DTLS.
+    For DTLS, ordinary
+    wolfSSL_accept() or wolfSSL_accept_TLSv13() commits it to stateful processing
+    before the first read, even if a nonblocking accept has no input available.
+    The application must isolate/demultiplex the peer before accepting; disabling
+    cookies removes return-routability verification and exposes the server to
+    DoS/amplification attacks. wolfDTLS_accept_stateless() cannot be used.
+
+    Primary and secondary cookie secrets for the applicable protocols are
+    securely erased and freed.
+
+    \param ssl DTLS or TLS 1.3 server session created with wolfSSL_new().
+    \return WOLFSSL_SUCCESS on success (including an unchanged mode).
+    \return BAD_FUNC_ARG if ssl is NULL or uses an unsupported protocol (TLS 1.2).
+    \return SIDE_ERROR if ssl is not a server.
+    \sa wolfSSL_enable_cookie
+    \sa wolfDTLS_SetChGoodCb
+*/
+int wolfSSL_disable_cookie(WOLFSSL* ssl);
+
+/*!
+    \ingroup Setup
+    \brief Enable server cookies for DTLS 1.2, DTLS 1.3 and TLS 1.3.
+    Like wolfSSL_disable_cookie(), this does not change stateful processing.
+    It can undo a disable before accept begins, including
+    wolfSSL_disable_hrr_cookie(). Missing primary cookie secrets are randomly
+    generated immediately; existing primary and secondary secrets are preserved.
+
+    \param ssl DTLS or TLS 1.3 server session created with wolfSSL_new().
+    \return WOLFSSL_SUCCESS on success (including an unchanged mode).
+    \return BAD_FUNC_ARG if ssl is NULL or uses an unsupported protocol (TLS 1.2).
+    \return SIDE_ERROR if ssl is not a server.
+    \return MEMORY_ERROR if secret allocation fails, or another negative error
+    if random secret generation fails.
+    \sa wolfSSL_disable_cookie
+*/
+int wolfSSL_enable_cookie(WOLFSSL* ssl);
 
 /*!
     \ingroup Setup
@@ -14563,7 +14618,11 @@ int  wolfSSL_connect(WOLFSSL* ssl);
     exchange is enabled by default. The Cookie holds a hash of the current
     transcript so that another server process can handle the ClientHello in
     reply.  The secret is used when generating the integrity check on the Cookie
-    data.
+    data. This replaces or regenerates the HRR secret, then delegates to
+    wolfSSL_enable_cookie(). Changing
+    cookie mode after handshake processing starts is unsupported; rotating a
+    secret while cookies are already enabled remains supported. DTLS 1.2-only callers
+    should use wolfSSL_enable_cookie() and wolfSSL_DTLS_SetCookieSecret().
 
     \param [in,out] ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
     \param [in] secret a pointer to a buffer holding the secret.
@@ -14651,6 +14710,11 @@ int  wolfSSL_set_hrr_cookie_secret_secondary(WOLFSSL* ssl,
     protocol DTLS v1.3, a cookie exchange will not be included in the
     handshake. Please note that not doing a cookie exchange when using protocol
     DTLS v1.3 can make the server susceptible to DoS/Amplification attacks.
+    This delegates to wolfSSL_disable_cookie(), including its
+    DTLS 1.2 fallback policy. Cookie mode changes after handshake processing
+    starts are unsupported. On
+    success the primary and secondary HRR secrets are erased as before.
+    TLS 1.3 over a reliable transport is unchanged.
 
     \param [in,out] ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
 
@@ -14658,6 +14722,7 @@ int  wolfSSL_set_hrr_cookie_secret_secondary(WOLFSSL* ssl,
     \return BAD_FUNC_ARG if ssl is NULL or not using TLS v1.3
     \return SIDE_ERROR if invoked on client
 
+    \sa wolfSSL_disable_cookie
     \sa wolfSSL_send_hrr_cookie
 */
 int wolfSSL_disable_hrr_cookie(WOLFSSL* ssl);
