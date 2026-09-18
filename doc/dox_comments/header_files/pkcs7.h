@@ -397,6 +397,50 @@ int wc_PKCS7_EncodeSignedData_ex(wc_PKCS7* pkcs7, const byte* hashBuf,
 int  wc_PKCS7_VerifySignedData(wc_PKCS7* pkcs7,
                                        byte* pkiMsg, word32 pkiMsgSz);
 
+/*!
+    \ingroup PKCS7
+
+    \brief This function decodes a PKCS7 SignedData message without requiring
+    its content. Certificates, the signer information and the content type are
+    parsed and stored in the PKCS7 structure like wc_PKCS7_VerifySignedData()
+    does. A message with attached content is verified while decoding. A
+    detached message whose content has not been set is only decoded:
+    pkcs7->detached is set and the signature is verified later by calling
+    wc_PKCS7_VerifySignedData() once the content is available.
+
+    \return 0 Returned on successfully decoding the message
+    \return BAD_FUNC_ARG Returned if pkcs7 is NULL
+    \return Any error returned by wc_PKCS7_VerifySignedData() on a malformed
+    message, or on a failed verification of attached content
+
+    \param pkcs7 pointer to the PKCS7 structure in which to store the parsed
+    certificates and signer information
+    \param pkiMsg pointer to the buffer containing the signed message to decode
+    \param pkiMsgSz size of the signed message
+
+    _Example_
+    \code
+    PKCS7 pkcs7;
+    int ret;
+    byte pkcs7Buff[] = {}; // the PKCS7 signature
+    byte content[] = {};   // the detached content
+
+    wc_PKCS7_InitWithCert(&pkcs7, NULL, 0);
+    ret = wc_PKCS7_DecodeSignedData(&pkcs7, pkcs7Buff, sizeof(pkcs7Buff));
+    if (ret == 0 && pkcs7.detached) {
+        pkcs7.content = content;
+        pkcs7.contentSz = sizeof(content);
+        ret = wc_PKCS7_VerifySignedData(&pkcs7, pkcs7Buff, sizeof(pkcs7Buff));
+    }
+    wc_PKCS7_Free(&pkcs7);
+    \endcode
+
+    \sa wc_PKCS7_VerifySignedData
+    \sa wc_PKCS7_InitWithCert
+*/
+int  wc_PKCS7_DecodeSignedData(wc_PKCS7* pkcs7,
+                                       byte* pkiMsg, word32 pkiMsgSz);
+
 
 /*!
     \ingroup PKCS7
