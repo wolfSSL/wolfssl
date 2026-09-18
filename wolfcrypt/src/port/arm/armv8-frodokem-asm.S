@@ -32,7 +32,7 @@
 #ifdef WOLFSSL_ARMASM
 #ifdef __aarch64__
 #ifndef WOLFSSL_ARMASM_INLINE
-#ifdef WOLFSSL_HAVE_FRODOKEM
+#if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM)
 #ifndef __APPLE__
 	.text
 	.section	.rodata
@@ -1500,8 +1500,8 @@ L_frodokem_mul_add_sb_plus_e_neon_j:
 #ifndef __APPLE__
 	.size	frodokem_mul_add_sb_plus_e_neon,.-frodokem_mul_add_sb_plus_e_neon
 #endif /* __APPLE__ */
-#endif /* WOLFSSL_HAVE_FRODOKEM */
-#ifdef WOLFSSL_HAVE_FRODOKEM
+#endif /* WOLFSSL_HAVE_FRODOKEM && !WOLF_CRYPTO_CB_ONLY_FRODOKEM */
+#if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM)
 	.arch	armv8-a+crypto
 #ifndef __APPLE__
 .text
@@ -1825,8 +1825,8 @@ L_frodokem_gen_a_rows_aes_arm64_done:
 #ifndef __APPLE__
 	.size	frodokem_gen_a_rows_aes_arm64,.-frodokem_gen_a_rows_aes_arm64
 #endif /* __APPLE__ */
-#endif /* WOLFSSL_HAVE_FRODOKEM */
-#ifdef WOLFSSL_HAVE_FRODOKEM
+#endif /* WOLFSSL_HAVE_FRODOKEM && !WOLF_CRYPTO_CB_ONLY_FRODOKEM */
+#if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM)
 #ifdef WOLFSSL_FRODOKEM_SVE
 	.arch	armv9-a+sve2
 #ifndef __APPLE__
@@ -2217,8 +2217,8 @@ L_frodokem_add_sve_k:
 	.size	frodokem_add_sve,.-frodokem_add_sve
 #endif /* __APPLE__ */
 #endif /* WOLFSSL_FRODOKEM_SVE */
-#endif /* WOLFSSL_HAVE_FRODOKEM */
-#ifdef WOLFSSL_HAVE_FRODOKEM
+#endif /* WOLFSSL_HAVE_FRODOKEM && !WOLF_CRYPTO_CB_ONLY_FRODOKEM */
+#if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM)
 #ifdef WOLFSSL_FRODOKEM_SME
 	.arch	armv9-a+sve2+sme+sme2
 #ifndef __APPLE__
@@ -2378,7 +2378,7 @@ L_frodokem_as_accum_sme_k:
 	.size	frodokem_as_accum_sme,.-frodokem_as_accum_sme
 #endif /* __APPLE__ */
 #endif /* WOLFSSL_FRODOKEM_SME */
-#endif /* WOLFSSL_HAVE_FRODOKEM */
+#endif /* WOLFSSL_HAVE_FRODOKEM && !WOLF_CRYPTO_CB_ONLY_FRODOKEM */
 #endif /* __aarch64__ */
 #endif /* WOLFSSL_ARMASM */
 
