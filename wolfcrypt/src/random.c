@@ -568,7 +568,7 @@ static int UnlockDrbgState(void)
 #ifdef WC_RNG_LOCK_ATFORK
 /* The lock and its fork handlers live in wc_port.c, outside the FIPS module
  * boundary.  Only the DRBG's reaction to a fork belongs in here. */
-static int RngLockInit(WC_RNG* rng)
+static int RngAutoLockInit(WC_RNG* rng)
 {
 #ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
     /* A full mutex instance is locked by its caller for the whole call, so
@@ -581,25 +581,25 @@ static int RngLockInit(WC_RNG* rng)
 }
 
 /* Safe on a zeroed WC_RNG that never got a lock. */
-static void RngLockFree(WC_RNG* rng)
+static void RngAutoLockFree(WC_RNG* rng)
 {
     wc_ForkLock_Free(&rng->autoLock);
 }
 
 /* The child's stale DRBG state is dealt with by rng_pid_change_check() on
  * the generate path, which the fork handlers require. */
-static int RngLockEnter(WC_RNG* rng)
+static int RngAutoLockEnter(WC_RNG* rng)
 {
     return wc_ForkLock_Enter(rng->autoLock);
 }
 
-static void RngLockExit(WC_RNG* rng)
+static void RngAutoLockExit(WC_RNG* rng)
 {
     wc_ForkLock_Exit(rng->autoLock);
 }
 #elif defined(WC_RNG_HAVE_AUTO_LOCK)
 /* Without fork handlers the lock lives in the WC_RNG itself: no heap. */
-static int RngLockInit(WC_RNG* rng)
+static int RngAutoLockInit(WC_RNG* rng)
 {
 #ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
     /* A full mutex instance is locked by its caller, which holds rng->mutex
@@ -614,7 +614,7 @@ static int RngLockInit(WC_RNG* rng)
 }
 
 /* Safe on a zeroed WC_RNG that never got a lock. */
-static void RngLockFree(WC_RNG* rng)
+static void RngAutoLockFree(WC_RNG* rng)
 {
     if (rng->autoLockInited) {
         (void)wc_FreeMutex(&rng->mutex);
@@ -624,7 +624,7 @@ static void RngLockFree(WC_RNG* rng)
 
 /* Cancellation stays off while the lock is held: a reseed reads a device,
  * which is a cancellation point.  wc_port.c owns the platform side. */
-static int RngLockEnter(WC_RNG* rng)
+static int RngAutoLockEnter(WC_RNG* rng)
 {
     int old;
     if (!rng->autoLockInited)
@@ -638,7 +638,7 @@ static int RngLockEnter(WC_RNG* rng)
     return 0;
 }
 
-static void RngLockExit(WC_RNG* rng)
+static void RngAutoLockExit(WC_RNG* rng)
 {
     int old;
     if (!rng->autoLockInited)
@@ -648,8 +648,8 @@ static void RngLockExit(WC_RNG* rng)
     wc_CancelRestore(old);
 }
 #else
-#define RngLockEnter(rng) 0
-#define RngLockExit(rng)  WC_DO_NOTHING
+#define RngAutoLockEnter(rng) 0
+#define RngAutoLockExit(rng)  WC_DO_NOTHING
 #endif /* WC_RNG_HAVE_AUTO_LOCK */
 
 static WARN_UNUSED_RESULT int wc_RNG_HealthTestLocal(WC_RNG* rng, int reseed,
@@ -1226,7 +1226,7 @@ int wc_RNG_DRBG_Reseed_Nonce(WC_RNG* rng, const byte* seed, word32 seedSz,
 
     /* These checks read state a generate writes under the lock, so the lock
      * comes first.  The internal reseed paths already hold it. */
-    ret = RngLockEnter(rng);
+    ret = RngAutoLockEnter(rng);
     if (ret != 0)
         return ret;
 
@@ -1266,7 +1266,7 @@ int wc_RNG_DRBG_Reseed_Nonce(WC_RNG* rng, const byte* seed, word32 seedSz,
 
     out:
 
-    RngLockExit(rng);
+    RngAutoLockExit(rng);
     return ret;
 }
 
@@ -1402,11 +1402,11 @@ int wc_RNG_DRBG_ScheduleReseed(WC_RNG* rng)
 
     if (rng == NULL)
         return BAD_FUNC_ARG;
-    ret = RngLockEnter(rng);
+    ret = RngAutoLockEnter(rng);
     if (ret != 0)
         return ret;
     ret = wc_RNG_DRBG_ScheduleReseed_local(rng);
-    RngLockExit(rng);
+    RngAutoLockExit(rng);
     return ret;
 }
 
@@ -2466,11 +2466,11 @@ int wc_RNG_DRBG_Stir_Nonce(WC_RNG* rng,
 
     if (rng == NULL)
         return BAD_FUNC_ARG;
-    ret = RngLockEnter(rng);
+    ret = RngAutoLockEnter(rng);
     if (ret != 0)
         return ret;
     ret = wc_RNG_DRBG_Stir_Nonce_local(rng, seed, seedSz, nonce, nonceSz);
-    RngLockExit(rng);
+    RngAutoLockExit(rng);
     return ret;
 }
 
@@ -2717,8 +2717,8 @@ int wc_Sha512Drbg_IsDisabled(void)
 #endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS v7+) */
 #else
     /* no Hash DRBG, so no lock for the backends to hold */
-    #define RngLockEnter(rng) 0
-    #define RngLockExit(rng)  WC_DO_NOTHING
+    #define RngAutoLockEnter(rng) 0
+    #define RngAutoLockExit(rng)  WC_DO_NOTHING
 #endif /* HAVE_HASHDRBG */
 /* End NIST DRBG Code */
 
@@ -3308,7 +3308,7 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
 
 #ifdef WC_RNG_HAVE_AUTO_LOCK
     if (ret == 0) {
-        ret = RngLockInit(rng);
+        ret = RngAutoLockInit(rng);
         if (ret != 0)
             (void)wc_FreeRng(rng);
     }
@@ -4750,7 +4750,7 @@ int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* nonce, word32 nonceSz)
 
     /* Not reached from the generate path, so it takes the lock here.  The
      * checks below read state a generate writes under it, so they follow. */
-    ret = RngLockEnter(rng);
+    ret = RngAutoLockEnter(rng);
     if (ret != 0)
         return ret;
 
@@ -4783,7 +4783,7 @@ int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* nonce, word32 nonceSz)
 
     out:
 
-    RngLockExit(rng);
+    RngAutoLockExit(rng);
     return ret;
 }
 
@@ -5443,11 +5443,11 @@ int wc_RNG_DRBG_NextSeedNow_Nonce(WC_RNG* rng, const byte* nonce,
 
     if (rng == NULL)
         return BAD_FUNC_ARG;
-    ret = RngLockEnter(rng);
+    ret = RngAutoLockEnter(rng);
     if (ret != 0)
         return ret;
     ret = wc_RNG_DRBG_NextSeedNow_Nonce_local(rng, nonce, nonceSz);
-    RngLockExit(rng);
+    RngAutoLockExit(rng);
     return ret;
 }
 
@@ -5557,11 +5557,11 @@ int wc_RNG_DRBG_NextStirNow(WC_RNG* rng)
 
     if (rng == NULL)
         return BAD_FUNC_ARG;
-    ret = RngLockEnter(rng);
+    ret = RngAutoLockEnter(rng);
     if (ret != 0)
         return ret;
     ret = wc_RNG_DRBG_NextStirNow_local(rng);
-    RngLockExit(rng);
+    RngAutoLockExit(rng);
     return ret;
 }
 
@@ -5615,7 +5615,7 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
     return silabs_GenerateRand(output, sz);
 #endif
 
-    ret = RngLockEnter(rng);   /* held across every other backend */
+    ret = RngAutoLockEnter(rng);   /* held across every other backend */
     if (ret != 0)
         return ret;
 
@@ -5624,11 +5624,11 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
         /* these are blocking */
     #ifdef HAVE_CAVIUM
         ret = NitroxRngGenerateBlock(rng, output, sz);
-        RngLockExit(rng);
+        RngAutoLockExit(rng);
         return ret;
     #elif defined(HAVE_INTEL_QA) && defined(QAT_ENABLE_RNG)
         ret = IntelQaDrbg(&rng->asyncDev, output, sz);
-        RngLockExit(rng);
+        RngAutoLockExit(rng);
         return ret;
     #else
         /* simulator not supported */
@@ -5644,17 +5644,17 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
         WOLFSSL_DEBUG_PRINTF(
             "ERROR: CUSTOM_RAND_GENERATE_BLOCK failed with err %d.", ret);
     #endif
-    RngLockExit(rng);   /* a no-op here today; the gate excludes this build */
+    RngAutoLockExit(rng);   /* a no-op here today; the gate excludes this build */
 #else
 
 #ifdef HAVE_HASHDRBG
     if (sz > RNG_MAX_BLOCK_LEN) {
-        RngLockExit(rng);
+        RngAutoLockExit(rng);
         return BAD_FUNC_ARG;
     }
 
     if (rng->status != DRBG_OK) {
-        RngLockExit(rng);
+        RngAutoLockExit(rng);
         return RNG_FAILURE_E;
     }
 
@@ -5666,7 +5666,7 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 #if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
     ret = rng_pid_change_check(rng);
     if (ret != 0) {
-        RngLockExit(rng);
+        RngAutoLockExit(rng);
         return ret;
     }
 #endif
@@ -5690,7 +5690,7 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
             {
                 if (wc_RNG_DRBG_NextSeedNow_local(rng) != 0) {
                     rng->status = DRBG_FAILED;
-                    RngLockExit(rng);
+                    RngAutoLockExit(rng);
                     return RNG_FAILURE_E;
                 }
             }
@@ -5726,7 +5726,7 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
             int stir_ret = wc_RNG_DRBG_NextStirNow_local(rng);
             if (stir_ret == WC_NO_ERR_TRACE(RNG_FAILURE_E)) {
                 /* The DRBG broke while we were stirring it. */
-                RngLockExit(rng);
+                RngAutoLockExit(rng);
                 return stir_ret;
             }
         }
@@ -5737,7 +5737,7 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
     if (WOLFSSL_ATOMIC_LOAD(rng->lock) & WC_RNG_LOCK_ENTROPY_INVALIDATED) {
         if (PollAndReSeed(rng, NULL, 0) != DRBG_SUCCESS) {
             rng->status = DRBG_FAILED;
-            RngLockExit(rng);
+            RngAutoLockExit(rng);
             return RNG_FAILURE_E;
         }
     }
@@ -5793,12 +5793,12 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
         ret = RNG_FAILURE_E;
         rng->status = DRBG_FAILED;
     }
-    RngLockExit(rng);
+    RngAutoLockExit(rng);
 #else
 
     /* if we get here then there is an RNG configuration error */
     ret = RNG_FAILURE_E;
-    RngLockExit(rng);   /* a no-op here today; the gate excludes this build */
+    RngAutoLockExit(rng);   /* a no-op here today; the gate excludes this build */
 
 #endif /* HAVE_HASHDRBG */
 #endif /* CUSTOM_RAND_GENERATE_BLOCK */
@@ -5896,7 +5896,7 @@ int wc_FreeRng(WC_RNG* rng)
 #endif
 
 #ifdef WC_RNG_HAVE_AUTO_LOCK
-    RngLockFree(rng);
+    RngAutoLockFree(rng);
 #endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT)
