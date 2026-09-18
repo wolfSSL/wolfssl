@@ -494,21 +494,27 @@ struct wc_ForkLock {
     #define WC_FORK_LOCK_HAVE_TLS
 #endif
 
-#ifdef WC_FORK_LOCK_HAVE_TLS
+#ifndef WC_FORK_LOCK_HAVE_TLS
+    /* Without it the prepare handler cannot tell which locks this thread
+     * holds, and a fork() from a seed callback would wait on itself. */
+    #error "the RNG fork handlers need thread local storage"
+#endif
 /* What this thread holds.  Only this thread touches it, so no atomics.
  * The library never nests these; the spare slots cover a callback that does. */
-#define WC_FORK_MINE_MAX 4   /* past this, prepare waits as it used to */
+#define WC_FORK_MINE_MAX 4   /* past this, taking the lock is refused */
 static THREAD_LS_T wc_ForkLock* forkMine[WC_FORK_MINE_MAX];
 
-static void ForkMineAdd(wc_ForkLock* lock)
+/* Returns 0 when there is no slot left to record it in. */
+static int ForkMineAdd(wc_ForkLock* lock)
 {
     int i;
     for (i = 0; i < WC_FORK_MINE_MAX; i++) {
         if (forkMine[i] == NULL) {
             forkMine[i] = lock;
-            return;
+            return 1;
         }
     }
+    return 0;
 }
 
 static void ForkMineDrop(wc_ForkLock* lock)
@@ -533,11 +539,6 @@ static int ForkMineHeld(const wc_ForkLock* lock)
     }
     return 0;
 }
-#else
-#define ForkMineAdd(lock)  WC_DO_NOTHING
-#define ForkMineDrop(lock) WC_DO_NOTHING
-#define ForkMineHeld(lock) 0
-#endif
 
 static wc_ForkLock* forkList = NULL;   /* every live lock, under forkListSem */
 static sem_t forkListSem;
@@ -720,9 +721,15 @@ WOLFSSL_API int wc_ForkLock_Enter(wc_ForkLock* lock)
     if (ret != 0) {
         (void)pthread_setcancelstate(old, NULL);
     }
+    else if (!ForkMineAdd(lock)) {
+        /* Unrecorded means prepare would wait on a lock this thread holds,
+         * so refuse it here rather than hand back a fork() that hangs. */
+        (void)sem_post(&lock->sem);
+        (void)pthread_setcancelstate(old, NULL);
+        ret = BAD_MUTEX_E;
+    }
     else {
         lock->cancel = old;
-        ForkMineAdd(lock);
     }
     return ret;
 }

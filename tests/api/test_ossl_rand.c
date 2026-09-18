@@ -241,8 +241,9 @@ int test_wolfSSL_RAND_bytes(void)
         ExpectIntEQ(RAND_bytes(randbuf, sizeof(randbuf)), 1);
         ExpectIntEQ(read(pipefds[0], childrand, sizeof(childrand)),
             sizeof(childrand));
-    #if defined(WOLFSSL_NO_GETPID) && !defined(WC_RNG_LOCK_ATFORK)
-        /* nothing reseeds the child: neither the pid check nor the handlers */
+    #if defined(WOLFSSL_NO_GETPID)
+        /* Nothing reseeds the child: the handlers need getpid() too, so
+         * without it neither the pid check nor the handlers are there. */
         ExpectBufEQ(randbuf, childrand, sizeof(randbuf));
     #else
         ExpectBufNE(randbuf, childrand, sizeof(randbuf));

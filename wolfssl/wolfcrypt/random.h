@@ -59,6 +59,7 @@
  * which the handlers themselves do not touch. */
 #if defined(WC_RNG_HAVE_AUTO_LOCK) && defined(WOLFSSL_PTHREADS) && \
     defined(WC_RNG_AUTOFORK) && !defined(__APPLE__) && \
+    defined(HAVE_THREAD_LS) && !defined(NO_THREAD_LS) && \
     defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID) && \
     !defined(WOLFSSL_NO_MALLOC) && !defined(HAVE_ENTROPY_MEMUSE) && \
     !defined(WC_RNG_BANK_SUPPORT) && !defined(WOLFSSL_STATIC_MEMORY) && \

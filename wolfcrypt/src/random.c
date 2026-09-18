@@ -5467,10 +5467,14 @@ int wc_RNG_DRBG_NextSeedNow_Nonce(WC_RNG* rng, const byte* nonce,
     return ret;
 }
 
-/* For the generate path, which holds the lock already. */
+#if defined(WC_RNG_HAVE_NEXT_SEED) && defined(WC_RNG_HAVE_LOCK) && \
+    defined(WC_RNG_HAVE_RBGC)
+/* For the generate path, which holds the lock already.  Guarded to match
+ * its one call site, which needs the lock and RBGC builds as well. */
 static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedNow_local(WC_RNG* rng) {
     return wc_RNG_DRBG_NextSeedNow_Nonce_local(rng, NULL, 0);
 }
+#endif
 
 int wc_RNG_DRBG_NextSeedNow(WC_RNG* rng) {
     return wc_RNG_DRBG_NextSeedNow_Nonce(rng, NULL, 0);
