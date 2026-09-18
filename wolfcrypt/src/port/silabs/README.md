@@ -49,6 +49,8 @@ From autotools, cross compiling for the part, the same thing:
 
 The SDK include path has to come from you: wolfSSL does not ship it and cannot guess where it is. A bare `--enable-silabs-cryptocb` is the host compile test described below, not a target build.
 
+There is no CMake option for this port. Build it with autotools (`--enable-silabs-cryptocb`) or by adding `wolfcrypt/src/port/silabs/*.c` to your own project (a `user_settings.h` or IDE build), the same way the direct port is carried; autotools `include.am` is the only build system wired for it.
+
 By default every supported engine is offloaded. To offload a subset, define one
 or more of these instead, in which case only those are used:
 

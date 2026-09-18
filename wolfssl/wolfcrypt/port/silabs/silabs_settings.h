@@ -77,14 +77,30 @@
     !defined(WOLFSSL_SILABS_CRYPTOCB_CMAC)   && \
     !defined(WOLFSSL_SILABS_CRYPTOCB_ECC)    && \
     !defined(WOLFSSL_SILABS_CRYPTOCB_KDF)
-    #define WOLFSSL_SILABS_CRYPTOCB_TRNG
-    #define WOLFSSL_SILABS_CRYPTOCB_HASH
-    #define WOLFSSL_SILABS_CRYPTOCB_CIPHER
-    #define WOLFSSL_SILABS_CRYPTOCB_CMAC
+    /* Enable each engine only when its wc_CryptoInfo union member exists
+     * (see cryptocb.h); a reduced build (min-ECC, WC_NO_RNG, no hash, no KDF)
+     * otherwise references a member that is compiled out. */
+    #ifndef WC_NO_RNG
+        #define WOLFSSL_SILABS_CRYPTOCB_TRNG
+    #endif
+    #if !defined(NO_SHA) || !defined(NO_SHA256) || \
+        defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512) || \
+        defined(WOLFSSL_SHA3)
+        #define WOLFSSL_SILABS_CRYPTOCB_HASH
+    #endif
+    #if !defined(NO_AES) || (defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
+        #define WOLFSSL_SILABS_CRYPTOCB_CIPHER
+    #endif
+    #ifdef WOLFSSL_CMAC
+        #define WOLFSSL_SILABS_CRYPTOCB_CMAC
+    #endif
     #ifdef HAVE_ECC
         #define WOLFSSL_SILABS_CRYPTOCB_ECC
     #endif
-    #define WOLFSSL_SILABS_CRYPTOCB_KDF
+    #if defined(HAVE_HKDF) || \
+        (defined(HAVE_PBKDF2) && !defined(NO_HMAC) && !defined(NO_PWDBASED))
+        #define WOLFSSL_SILABS_CRYPTOCB_KDF
+    #endif
 #endif
 
 

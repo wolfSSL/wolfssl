@@ -66,17 +66,35 @@ static int silabs_kdf_hkdf(wc_CryptoInfo* info)
     sl_se_key_descriptor_t outKey;
     sl_status_t status;
     int seHash;
+    int hLen;
 
     if (info->kdf.hkdf.out == NULL) {
         return BAD_FUNC_ARG;
     }
-    /* wc_HKDF accepts zero-length keying material with a NULL pointer, which
-     * an SE key descriptor cannot express - decline rather than reject a call
-     * the public API allows. NULL with a non-zero length is a real error. */
-    if (info->kdf.hkdf.inKey == NULL) {
-        if (info->kdf.hkdf.inKeySz != 0) {
-            return BAD_FUNC_ARG;
-        }
+    /* Mirror wc_HKDF_ex: salt and info may be NULL only for a zero length, and
+     * RFC 5869 caps the output at 255 * HashLen. */
+    if (info->kdf.hkdf.info == NULL && info->kdf.hkdf.infoSz != 0) {
+        return BAD_FUNC_ARG;
+    }
+    if (info->kdf.hkdf.salt == NULL && info->kdf.hkdf.saltSz != 0) {
+        return BAD_FUNC_ARG;
+    }
+    hLen = wc_HmacSizeByType(info->kdf.hkdf.hashType);
+    if (hLen <= 0) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+    if (info->kdf.hkdf.outSz > (word32)(255 * hLen)) {
+        return BAD_FUNC_ARG;
+    }
+    /* NULL with a non-zero length is a real error. */
+    if (info->kdf.hkdf.inKey == NULL && info->kdf.hkdf.inKeySz != 0) {
+        return BAD_FUNC_ARG;
+    }
+    /* wc_HKDF accepts zero-length keying material, which an SE key descriptor
+     * cannot express - decline rather than reject a call the public API
+     * allows, and do it here rather than leaning on the SE to reject a
+     * zero-size descriptor. */
+    if (info->kdf.hkdf.inKeySz == 0) {
         return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     }
 
@@ -113,6 +131,9 @@ static int silabs_kdf_pbkdf2(wc_CryptoInfo* info)
     if (info->kdf.pbkdf2.passwd == NULL && info->kdf.pbkdf2.pLen != 0) {
         return BAD_FUNC_ARG;
     }
+    if (info->kdf.pbkdf2.salt == NULL && info->kdf.pbkdf2.sLen != 0) {
+        return BAD_FUNC_ARG;
+    }
     /* kLen == 0 is not an error for the software API, only for this engine. */
     if (info->kdf.pbkdf2.pLen < 0 || info->kdf.pbkdf2.sLen < 0 ||
         info->kdf.pbkdf2.kLen < 0 || info->kdf.pbkdf2.iterations <= 0) {
@@ -121,7 +142,8 @@ static int silabs_kdf_pbkdf2(wc_CryptoInfo* info)
     /* An empty password or a zero-length result are both accepted by
      * wc_PBKDF2_ex but cannot be handed to the SE; decline so software keeps
      * the existing contract. */
-    if (info->kdf.pbkdf2.passwd == NULL || info->kdf.pbkdf2.kLen == 0) {
+    if (info->kdf.pbkdf2.passwd == NULL || info->kdf.pbkdf2.pLen == 0 ||
+        info->kdf.pbkdf2.kLen == 0) {
         return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     }
 

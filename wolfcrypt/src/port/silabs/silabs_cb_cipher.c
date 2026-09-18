@@ -318,12 +318,13 @@ static int silabs_cipher_dispatch(wc_CryptoInfo* info)
                     WC_AES_BLOCK_SIZE) {
                 return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
             }
-            /* GMAC authenticates AAD with no plaintext, so wolfCrypt passes a
-             * zero length and NULL in/out. The SE helper requires both, so
-             * leave that case to software. */
-            if (info->cipher.aesgcm_enc.sz == 0 ||
-                info->cipher.aesgcm_enc.in == NULL ||
-                info->cipher.aesgcm_enc.out == NULL) {
+            /* GMAC authenticates AAD with no plaintext (zero length, NULL
+             * in/out). The SE helper substitutes a dummy buffer for that, and
+             * a resident key cannot fall back to software, so let sz == 0
+             * through and reject a non-empty payload with a NULL buffer. */
+            if (info->cipher.aesgcm_enc.sz != 0 &&
+                (info->cipher.aesgcm_enc.in == NULL ||
+                 info->cipher.aesgcm_enc.out == NULL)) {
                 return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
             }
             /* The SE accepts only a 96-bit GCM IV. Decline anything else
@@ -352,9 +353,9 @@ static int silabs_cipher_dispatch(wc_CryptoInfo* info)
                     WC_AES_BLOCK_SIZE) {
                 return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
             }
-            if (info->cipher.aesgcm_dec.sz == 0 ||
-                info->cipher.aesgcm_dec.in == NULL ||
-                info->cipher.aesgcm_dec.out == NULL) {
+            if (info->cipher.aesgcm_dec.sz != 0 &&
+                (info->cipher.aesgcm_dec.in == NULL ||
+                 info->cipher.aesgcm_dec.out == NULL)) {
                 return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
             }
             if (info->cipher.aesgcm_dec.ivSz != GCM_NONCE_MID_SZ) {
@@ -383,9 +384,9 @@ static int silabs_cipher_dispatch(wc_CryptoInfo* info)
 #ifdef HAVE_AESCCM
     case WC_CIPHER_AES_CCM:
         if (info->cipher.enc) {
-            if (info->cipher.aesccm_enc.sz == 0 ||
-                info->cipher.aesccm_enc.in == NULL ||
-                info->cipher.aesccm_enc.out == NULL) {
+            if (info->cipher.aesccm_enc.sz != 0 &&
+                (info->cipher.aesccm_enc.in == NULL ||
+                 info->cipher.aesccm_enc.out == NULL)) {
                 return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
             }
             ret = silabs_cipher_setkey(info->cipher.aesccm_enc.aes);
@@ -405,9 +406,9 @@ static int silabs_cipher_dispatch(wc_CryptoInfo* info)
             }
         }
         else {
-            if (info->cipher.aesccm_dec.sz == 0 ||
-                info->cipher.aesccm_dec.in == NULL ||
-                info->cipher.aesccm_dec.out == NULL) {
+            if (info->cipher.aesccm_dec.sz != 0 &&
+                (info->cipher.aesccm_dec.in == NULL ||
+                 info->cipher.aesccm_dec.out == NULL)) {
                 return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
             }
             ret = silabs_cipher_setkey(info->cipher.aesccm_dec.aes);
