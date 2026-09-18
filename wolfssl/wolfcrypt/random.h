@@ -37,12 +37,18 @@
 /* One lock per WC_RNG so threads can share it.  WC_RNG_NO_AUTO_LOCK opts out;
  * kernel modules have their own lock-free design and CMSIS-RTOS v1 has only
  * a ten-mutex pool.  Bank builds keep it: they still hand out plain instances. */
-#if !defined(WC_RNG_NO_AUTO_LOCK) && !defined(SINGLE_THREADED) && \
-    !defined(WC_NO_RNG) && !defined(WOLFSSL_CMSIS_RTOS) && \
-    !defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_BSDKM) && \
+/* WC_RNG_WANT_AUTO_LOCK forces the lock on where policy would skip it.  The
+ * tests below it are hard prerequisites and nothing can override those. */
+#if (defined(WC_RNG_WANT_AUTO_LOCK) || \
+     (!defined(SINGLE_THREADED) && !defined(WOLFSSL_CMSIS_RTOS) && \
+      !defined(WOLFSSL_KERNEL_MODE) && \
+      !defined(WOLFSSL_KERNEL_MODE_DEFAULTS))) && \
+    !defined(WC_RNG_NO_AUTO_LOCK) && !defined(WC_NO_RNG) && \
     !defined(WC_NO_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
     !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     #define WC_RNG_HAVE_AUTO_LOCK
+#else
+    #undef WC_RNG_HAVE_AUTO_LOCK
 #endif
 
 /* pthread_atfork handlers so a forked child can keep using its WC_RNG.
@@ -59,6 +65,8 @@
     !defined(HAVE_WNR) && !defined(WOLFSSL_CHECK_MEM_ZERO) && \
     !defined(WOLFSSL_TRACK_MEMORY) && !defined(WOLFSSL_MEM_FAIL_COUNT)
     #define WC_RNG_LOCK_ATFORK
+#else
+    #undef WC_RNG_LOCK_ATFORK
 #endif
 
 #ifdef __cplusplus
