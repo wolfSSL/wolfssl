@@ -5800,6 +5800,9 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->options.pskKeModes = 0;
         ssl->options.pskKeModesRecvd = 0;
         #endif
+        #if defined(WOLFSSL_EARLY_DATA) && !defined(NO_SESSION_CACHE)
+        ssl->options.ticketCacheHit = 0;
+        #endif
         #endif
         ssl->options.rejectTicket = 0;
     #endif
