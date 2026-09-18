@@ -838,7 +838,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define X509_LOOKUP_file                wolfSSL_X509_LOOKUP_file
 #define X509_LOOKUP_ctrl                wolfSSL_X509_LOOKUP_ctrl
 
-#define d2i_X509_CRL                    wolfSSL_d2i_X509_CRL
+#define d2i_X509_CRL                    wolfSSL_d2i_X509_CRL_ex
 #define d2i_X509_CRL_fp                 wolfSSL_d2i_X509_CRL_fp
 #define i2d_X509_CRL                    wolfSSL_i2d_X509_CRL
 #define PEM_read_X509_CRL               wolfSSL_PEM_read_X509_CRL

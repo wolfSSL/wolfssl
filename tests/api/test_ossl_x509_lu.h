@@ -30,6 +30,7 @@ int test_wolfSSL_X509_LOOKUP_ctrl_hash_dir(void);
 int test_wolfSSL_X509_LOOKUP_ctrl_dir_len(void);
 int test_wolfSSL_X509_load_crl_file(void);
 int test_X509_LOOKUP_add_dir(void);
+int test_wolfSSL_d2i_X509_CRL_advances(void);
 
 #define TEST_OSSL_X509_LOOKUP_DECLS                                            \
     TEST_DECL_GROUP("ossl_x509_lu", test_wolfSSL_X509_LOOKUP_load_file),       \
@@ -37,6 +38,7 @@ int test_X509_LOOKUP_add_dir(void);
     TEST_DECL_GROUP("ossl_x509_lu", test_wolfSSL_X509_LOOKUP_ctrl_hash_dir),   \
     TEST_DECL_GROUP("ossl_x509_lu", test_wolfSSL_X509_LOOKUP_ctrl_dir_len),    \
     TEST_DECL_GROUP("ossl_x509_lu", test_wolfSSL_X509_load_crl_file),          \
-    TEST_DECL_GROUP("ossl_x509_lu", test_X509_LOOKUP_add_dir)
+    TEST_DECL_GROUP("ossl_x509_lu", test_X509_LOOKUP_add_dir),                 \
+    TEST_DECL_GROUP("ossl_x509_lu", test_wolfSSL_d2i_X509_CRL_advances)
 
 #endif /* WOLFCRYPT_TEST_OSSL_X509_LU_H */

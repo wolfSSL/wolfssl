@@ -28298,8 +28298,11 @@ static int test_sk_X509_CRL_decode(void)
         XFCLOSE(fp);
         fp = XBADFILE;
     }
-    ExpectNull(crl = d2i_X509_CRL((X509_CRL **)NULL, NULL, len));
-    ExpectNotNull(crl = d2i_X509_CRL((X509_CRL **)NULL, buff, len));
+    {
+        const unsigned char* p = buff;
+        ExpectNull(crl = d2i_X509_CRL((X509_CRL **)NULL, NULL, len));
+        ExpectNotNull(crl = d2i_X509_CRL((X509_CRL **)NULL, &p, len));
+    }
     ExpectNotNull(rev = crl->crlList->certs);
 
     ExpectNull(wolfSSL_X509_CRL_get_issuer_name(NULL));
@@ -29036,7 +29039,8 @@ static int test_wc_MakeCRL_max_crlnum(void)
 
     /* --- Decode the CRL and verify CRL number --- */
     if (EXPECT_SUCCESS()) {
-        ExpectNotNull(decodedCrl = d2i_X509_CRL(NULL, crlBuf, crlSz));
+        const unsigned char* p = crlBuf;
+        ExpectNotNull(decodedCrl = d2i_X509_CRL(NULL, &p, crlSz));
     }
     if (decodedCrl != NULL && decodedCrl->crlList != NULL) {
         ExpectTrue(decodedCrl->crlList->crlNumberSet);
@@ -29075,7 +29079,8 @@ static int test_wc_MakeCRL_max_crlnum(void)
     }
     /* Decoding the patched CRL must fail - the CRL number is negative. */
     if (EXPECT_SUCCESS()) {
-        decodedCrl = d2i_X509_CRL(NULL, crlBuf, crlSz);
+        const unsigned char* p = crlBuf;
+        decodedCrl = d2i_X509_CRL(NULL, &p, crlSz);
         ExpectNull(decodedCrl);
         wolfSSL_X509_CRL_free(decodedCrl);
     }

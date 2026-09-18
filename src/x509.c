@@ -9529,6 +9529,51 @@ int wolfSSL_X509_load_crl_file(WOLFSSL_X509_LOOKUP *ctx,
 #endif /* !NO_FILESYSTEM */
 
 
+/* Decode a DER encoded CRL, following the OpenSSL d2i contract.
+ *
+ * The OpenSSL form takes a pointer to the buffer pointer and advances it
+ * past the object that was decoded, which is how a caller walks a buffer
+ * holding more than one object. wolfSSL_d2i_X509_CRL() takes the buffer
+ * directly and cannot report what it consumed, so an OpenSSL caller
+ * passing &p would hand it the address of its own pointer variable.
+ *
+ * @param [in, out] crl  CRL object to return, may be NULL.
+ * @param [in, out] in   Pointer to the buffer pointer; advanced on success.
+ * @param [in]      len  Length of data in the buffer.
+ * @return  CRL object on success, NULL on error.
+ */
+WOLFSSL_X509_CRL* wolfSSL_d2i_X509_CRL_ex(WOLFSSL_X509_CRL** crl,
+        const unsigned char** in, long len)
+{
+    WOLFSSL_X509_CRL* ret;
+    const unsigned char* p;
+    long objLen = 0;
+    int tag = 0;
+    int cls = 0;
+
+    WOLFSSL_ENTER("wolfSSL_d2i_X509_CRL_ex");
+
+    if ((in == NULL) || (*in == NULL) || (len <= 0)) {
+        WOLFSSL_MSG("Bad argument value");
+        return NULL;
+    }
+
+    ret = wolfSSL_d2i_X509_CRL(crl, *in, (int)len);
+    if (ret == NULL) {
+        return NULL;
+    }
+
+    /* Advance past the object just decoded. The header parsed once already
+     * to get here, so a failure now leaves the caller's pointer alone
+     * rather than moving it somewhere unknown. */
+    p = *in;
+    if ((wolfSSL_ASN1_get_object(&p, &objLen, &tag, &cls, len) & 0x80) == 0) {
+        *in = p + objLen;
+    }
+
+    return ret;
+}
+
 WOLFSSL_X509_CRL* wolfSSL_d2i_X509_CRL(WOLFSSL_X509_CRL** crl,
         const unsigned char* in, int len)
 {
