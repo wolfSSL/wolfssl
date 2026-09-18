@@ -471,8 +471,8 @@ struct wc_ForkLock {
 
 #ifdef WC_FORK_LOCK_HAVE_TLS
 /* What this thread holds.  Only this thread touches it, so no atomics.
- * Deeper nesting goes unrecorded, and prepare then waits as it used to. */
-#define WC_FORK_MINE_MAX 4
+ * The library never nests these; the spare slots cover a callback that does. */
+#define WC_FORK_MINE_MAX 4   /* past this, prepare waits as it used to */
 static THREAD_LS_T wc_ForkLock* forkMine[WC_FORK_MINE_MAX];
 
 static void ForkMineAdd(wc_ForkLock* lock)
