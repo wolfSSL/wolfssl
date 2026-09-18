@@ -4270,6 +4270,7 @@ struct WOLFSSL_CTX {
     byte        quietShutdown:1;  /* don't send close notify */
     byte        groupMessages:1;  /* group handshake messages before sending */
     byte        minDowngrade;     /* minimum downgrade version */
+    byte        minVersionSet:1;  /* minimum set by the user, not the default */
     byte        haveEMS:1;        /* have extended master secret extension */
 #ifdef HAVE_EXTENDED_MASTER
     byte        disableEMS:1;     /* user disabled extended master secret,
@@ -5502,6 +5503,8 @@ struct Options {
     word16            failNoCertxPSK:1;   /* fail for no cert except with PSK */
     word16            failNoPSK:1;        /* fail if no PSK is negotiated */
     word16            downgrade:1;        /* allow downgrade of versions */
+    word16            versionSet:1;       /* max version set by SetVersion */
+    word16            minVersionSet:1;    /* min version set by SetMinVersion */
     word16            resuming:1;
 #ifdef HAVE_SECURE_RENEGOTIATION
     word16            resumed:1;          /* resuming may be reset on SCR */
@@ -5745,6 +5748,8 @@ struct Options {
     byte            handShakeState;
     byte            handShakeDone;      /* at least one handshake complete */
     byte            minDowngrade;       /* minimum downgrade version */
+    byte            maxVersionMinor;    /* maximum set by SetVersion. Version
+                                         * negotiation does not change it. */
     byte            connectState;       /* nonblocking resume */
     byte            acceptState;        /* nonblocking resume */
     byte            asyncState;         /* sub-state for enum asyncState */
