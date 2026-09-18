@@ -339,6 +339,16 @@ static int wolfSSL_write_internal(WOLFSSL* ssl, const void* data, size_t sz)
     }
     #endif
 
+    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_ASYNC_CRYPT)
+    /* Refuse real data (sz > 0) if a cover traffic build is pending,
+     * as reusing its resume point would silently drop the data. */
+    if ((ret == 0) && (sz > 0) && ssl->options.coverTrafficPending) {
+        WOLFSSL_MSG("A suspended cover traffic record must be resumed via "
+                    "wolfSSL_send_cover_traffic_TLSv13() before writing");
+        ret = BAD_STATE_E;
+    }
+    #endif
+
     if (ret == 0) {
         #ifdef HAVE_ERRNO_H
         errno = 0;
@@ -388,6 +398,147 @@ int wolfSSL_write(WOLFSSL* ssl, const void* data, int sz)
     }
 
     return ret;
+}
+
+/* Send a TLS 1.3 application data record containing only padding.
+ *
+ * Generates cover traffic (RFC 8446 Appendix E). The request applies
+ * to the next record only.
+ *
+ * Arms and clears the request, except when async build is pending.
+ * If still armed after write, no record was built (e.g. TLS 1.2 downgrade).
+ * Completes any in-progress handshake.
+ *
+ * On WANT_WRITE the request is not left armed: the record was either
+ * already queued (and gets flushed by the next write) or dropped. Calling
+ * this function again is safe, but may put a second cover traffic record
+ * on the wire if the first one had been queued.
+ *
+ * @param [in, out] ssl       SSL/TLS object.
+ * @param [in]      paddingSz Length of padding in bytes.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when arguments are invalid or the session is not
+ *          stream TLS 1.3.
+ * @return  BAD_STATE_E when an application write or an unrelated asynchronous
+ *          operation is pending, or when no record was built (e.g. the
+ *          handshake completed with a TLS 1.2 downgrade). ssl->error is
+ *          left untouched in this case; the connection is otherwise healthy.
+ * @return  WOLFSSL_FATAL_ERROR when the write itself fails. Call
+ *          wolfSSL_get_error() for the reason.
+ * @return  WRITE_DUP_WRITE_E on the read side of a wolfSSL_write_dup()
+ *          pair; only the write side may send cover traffic.
+ * @return  BAD_MUTEX_E when the write duplicate could not be locked.
+ * @return  NOT_COMPILED_IN when ssl is non-NULL, paddingSz is non-negative,
+ *          and TLS 1.3 support is not built in.
+ */
+int wolfSSL_send_cover_traffic_TLSv13(WOLFSSL* ssl, int paddingSz)
+{
+#ifdef WOLFSSL_TLS13
+    int ret = 0;
+    int maxFrag;
+    char dummy = 0;
+#ifdef WOLFSSL_ASYNC_CRYPT
+    int resuming = 0;
+#endif
+#endif
+
+    WOLFSSL_ENTER("wolfSSL_send_cover_traffic_TLSv13");
+
+    if (ssl == NULL || paddingSz < 0)
+        return BAD_FUNC_ARG;
+
+#ifdef WOLFSSL_TLS13
+    /* DTLS 1.3 pads to its own minimum length and is unsupported. */
+    if (!IsAtLeastTLSv1_3(ssl->version) || ssl->options.dtls) {
+        WOLFSSL_MSG("Cover traffic needs a stream TLS 1.3 session");
+        ret = BAD_FUNC_ARG;
+    }
+
+#ifdef HAVE_WRITE_DUP
+    /* Check up front, before arming the request below: only the write side
+     * of a wolfSSL_write_dup() pair may send cover traffic, and this call
+     * must be a no-op (no ssl->options mutation) on the read side. */
+    if (ret == 0 && ssl->dupSide == READ_DUP_SIDE) {
+        WOLFSSL_MSG("Read dup side cannot send cover traffic");
+        ret = WRITE_DUP_WRITE_E;
+    }
+#endif
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* Use coverTrafficPending to detect our own resume. On resume,
+     * ssl->options.coverTrafficPadSz is used; paddingSz is ignored. */
+    if (ret == 0 && ssl->options.coverTrafficPending) {
+        resuming = 1;
+    }
+    else if (ret == 0 && ssl->error == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+        WOLFSSL_MSG("Cover traffic blocked by pending async op");
+        ret = BAD_STATE_E;
+    }
+#endif
+
+    if (ret == 0
+    #ifdef WOLFSSL_ASYNC_CRYPT
+            && !resuming
+    #endif
+            ) {
+        /* The record also carries the content type byte, so padding equal
+         * to the fragment size would overflow the plaintext limit. */
+        maxFrag = wolfSSL_GetMaxFragSize(ssl);
+        if (paddingSz >= maxFrag) {
+            WOLFSSL_MSG(
+                    "Cover traffic padding larger than the max fragment size");
+            ret = BAD_FUNC_ARG;
+        }
+        /* Disallow if an application write is pending to avoid losing
+         * data. */
+        else if (ssl->buffers.plainSz > 0) {
+            WOLFSSL_MSG(
+                    "Cover traffic needs the pending write to finish first");
+            ret = BAD_STATE_E;
+        }
+        else {
+            ssl->options.coverTrafficPadSz = (word16)paddingSz;
+            ssl->options.sendCoverTraffic = 1;
+        }
+    }
+
+    if (ret == 0) {
+        /* Use the internal helper, not the public wolfSSL_write(): the
+         * latter fires the application's info callback (WOLFSSL_CB_WRITE)
+         * for a write the caller never made. */
+        ret = wolfSSL_write_internal(ssl, &dummy, 0);
+        if (ret < 0) {
+            /* Clear the request unless our own build is pending. */
+            Tls13ClearCoverTrafficUnlessPending(ssl);
+        }
+        else if (ret == 0 && ssl->error != 0 &&
+                ssl->error != WC_NO_ERR_TRACE(WANT_READ) &&
+                ssl->error != WC_NO_ERR_TRACE(WANT_WRITE) &&
+                ssl->error != WC_NO_ERR_TRACE(WC_PENDING_E)) {
+            /* Write returned 0 with a hard error in ssl->error. Genuine
+             * failure: preserve ssl->error for wolfSSL_get_error(). */
+            Tls13ClearCoverTraffic(ssl);
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+        else if (ssl->options.sendCoverTraffic) {
+            /* Request still armed but no record was built. Leave ssl->error
+             * untouched to avoid failing subsequent unrelated calls. */
+            Tls13ClearCoverTraffic(ssl);
+            ret = BAD_STATE_E;
+        }
+        else {
+            /* SendData() returns the ciphertext length under
+             * WOLFSSL_THREADED_CRYPT, not 0. Normalize to the documented
+             * contract. */
+            ret = 0;
+        }
+    }
+
+    return ret;
+#else
+    (void)paddingSz;
+    return NOT_COMPILED_IN;
+#endif /* WOLFSSL_TLS13 */
 }
 
 /* Inject data into the input buffer as if it was received from the peer.
@@ -824,6 +975,17 @@ int wolfSSL_SendUserCanceled(WOLFSSL* ssl)
     int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     WOLFSSL_ENTER("wolfSSL_SendUserCanceled");
 
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_ASYNC_CRYPT)
+    if (ssl != NULL && ssl->options.coverTrafficPending) {
+        /* See the matching check in wolfSSL_shutdown(): this calls
+         * SendAlert() directly, ahead of that check. */
+        WOLFSSL_MSG("A suspended cover traffic record must be resumed via "
+                    "wolfSSL_send_cover_traffic_TLSv13() first");
+        WOLFSSL_LEAVE("wolfSSL_SendUserCanceled", ret);
+        return ret;
+    }
+#endif
+
     if (ssl != NULL) {
         ssl->error = SendAlert(ssl, alert_warning, user_canceled);
         if (ssl->error < 0) {
@@ -1071,6 +1233,15 @@ int wolfSSL_shutdown(WOLFSSL* ssl)
         WOLFSSL_MSG("quiet shutdown, no close notify sent");
         ret = WOLFSSL_SUCCESS;
     }
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_ASYNC_CRYPT)
+    else if (ssl->options.coverTrafficPending) {
+        /* Refuse to interleave: SendAlert() would overwrite the shared
+         * buildMsgState/encrypt.state of the suspended cover traffic build. */
+        WOLFSSL_MSG("A suspended cover traffic record must be resumed via "
+                    "wolfSSL_send_cover_traffic_TLSv13() before shutdown");
+        ret = WOLFSSL_FATAL_ERROR;
+    }
+#endif
     else {
         int done;
 
