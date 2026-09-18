@@ -1122,6 +1122,8 @@ WOLFSSL_LOCAL void wolfSSL_RefWithMutexDec_IfEquals(wolfSSL_RefWithMutex* ref,
     WOLFSSL_API int wc_LockMutex(wolfSSL_Mutex* m);
     WOLFSSL_API int wc_UnLockMutex(wolfSSL_Mutex* m);
 
+#endif /* !WC_MUTEX_OPS_INLINE */
+
 /* A lock that survives fork().  It is held with a POSIX unnamed semaphore
  * because sem_post() is the only unlock a fork child may legally call
  * (signal-safety(7); fork(2) limits the child to async-signal-safe calls).
@@ -1135,7 +1137,6 @@ WOLFSSL_API   void wc_ForkLock_Exit(wc_ForkLock* lock);
 /* For tests: force the lock to fail closed. */
 WOLFSSL_API   void wc_ForkLock_SetBroken(wc_ForkLock* lock, int broken);
 WOLFSSL_LOCAL void wc_RngPinImage(void* fn);       /* keeps fn's image mapped */
-#endif
 WOLFSSL_API wolfSSL_Mutex* wc_InitAndAllocMutex(void);
 #ifndef WOLFSSL_MUTEX_INITIALIZER
     /* Election state for wc_local_InitMutexOnce(). Define objects with

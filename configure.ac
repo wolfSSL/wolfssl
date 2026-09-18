@@ -13464,7 +13464,7 @@ then
         RNG_ATFORK_NEEDS="${RNG_ATFORK_NEEDS:+$RNG_ATFORK_NEEDS, and }threads and no kernel module"
     fi
     case "$AM_CFLAGS $CPPFLAGS $CFLAGS $EXTRA_CFLAGS" in
-        *-DWOLFSSL_STATIC_MEMORY*|*-DWOLFSSL_NO_MALLOC*|*-DCUSTOM_RAND_GENERATE_BLOCK*|*-DWOLFSSL_CHECK_MEM_ZERO*|*-DWOLFSSL_TRACK_MEMORY*|*-DWOLFSSL_MEM_FAIL_COUNT*|*-DWOLFSSL_USER_MUTEX*)
+        *-DWOLFSSL_STATIC_MEMORY*|*-DWOLFSSL_NO_MALLOC*|*-DCUSTOM_RAND_GENERATE_BLOCK*|*-DWOLFSSL_CHECK_MEM_ZERO*|*-DWOLFSSL_TRACK_MEMORY*|*-DWOLFSSL_MEM_FAIL_COUNT*|*-DWOLFSSL_USER_MUTEX*|*-DWOLFSSL_NO_GETPID*)
             ENABLED_RNG_ATFORK_FLAGS=no ;;
         *) ENABLED_RNG_ATFORK_FLAGS=yes ;;
     esac
@@ -13473,7 +13473,7 @@ then
        test "$ENABLED_RNG_ATFORK_FLAGS" = "no" || test "$ENABLED_WNR" = "yes" || \
        { test "$ENABLED_FIPS" = "yes" && test "${HAVE_FIPS_VERSION_MAJOR:-0}" -lt 7; }
     then
-        RNG_ATFORK_NEEDS="${RNG_ATFORK_NEEDS:+$RNG_ATFORK_NEEDS, and }the Hash DRBG with a heap and none of selftest, FIPS before v7, entropy-memuse, rng-bank, static memory, netRandom, memory zero checking or memory tracking"
+        RNG_ATFORK_NEEDS="${RNG_ATFORK_NEEDS:+$RNG_ATFORK_NEEDS, and }getpid and the Hash DRBG with a heap, and none of selftest, FIPS before v7, entropy-memuse, rng-bank, static memory, netRandom, memory zero checking or memory tracking"
     fi
     if test -z "$RNG_ATFORK_NEEDS"
     then
