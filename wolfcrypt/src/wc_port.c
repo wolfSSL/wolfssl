@@ -455,13 +455,16 @@ struct wc_ForkLock {
     void* heap;
     struct wc_ForkLock* next;
     struct wc_ForkLock** prev;   /* the link that leads here */
-    int broken;   /* fails closed; set only by a lone child or a dead sem */
+    /* Read once per lock acquire, written once per fork: a load, never a
+     * read-modify-write, so no contended line and no bus traffic. */
+    wolfSSL_Atomic_Int broken;   /* fails closed; a lone child or dead sem */
     int cancel;   /* the holder's cancel state, back on exit */
 };
 
 static wc_ForkLock* forkList = NULL;   /* every live lock, under forkListSem */
 static sem_t forkListSem;
-static int forkListDead = 0;   /* registry unusable: every handler backs off */
+static wolfSSL_Atomic_Int forkListDead =
+    WOLFSSL_ATOMIC_INITIALIZER(0);   /* registry unusable: handlers back off */
 static pthread_once_t forkOnce = PTHREAD_ONCE_INIT;
 static int forkOnceRet = 0;
 
@@ -485,15 +488,15 @@ static int ForkSemWait(sem_t* s)
 static void ForkPrepare(void)
 {
     wc_ForkLock* n;
-    if (forkListDead)
+    if (WOLFSSL_ATOMIC_LOAD(forkListDead))
         return;
     if (ForkSemWait(&forkListSem) != 0) {
-        forkListDead = 1;   /* nothing held, and never again */
+        WOLFSSL_ATOMIC_STORE(forkListDead, 1); /* nothing held, and never again */
         return;
     }
     for (n = forkList; n != NULL; n = n->next) {
-        if (!n->broken && ForkSemWait(&n->sem) != 0)
-            n->broken = 1;
+        if (!WOLFSSL_ATOMIC_LOAD(n->broken) && ForkSemWait(&n->sem) != 0)
+            WOLFSSL_ATOMIC_STORE(n->broken, 1);
     }
 }
 
@@ -501,10 +504,10 @@ static void ForkPrepare(void)
 static void ForkParent(void)
 {
     wc_ForkLock* n;
-    if (forkListDead)
+    if (WOLFSSL_ATOMIC_LOAD(forkListDead))
         return;
     for (n = forkList; n != NULL; n = n->next) {
-        if (!n->broken)
+        if (!WOLFSSL_ATOMIC_LOAD(n->broken))
             (void)sem_post(&n->sem);
     }
     (void)sem_post(&forkListSem);
@@ -516,14 +519,14 @@ static void ForkChild(void)
 {
     wc_ForkLock* n;
     for (n = forkList; n != NULL; n = n->next) {   /* forward links stay whole */
-        if (forkListDead) {
-            n->broken = 1;
+        if (WOLFSSL_ATOMIC_LOAD(forkListDead)) {
+            WOLFSSL_ATOMIC_STORE(n->broken, 1);
             continue;
         }
-        if (!n->broken)
+        if (!WOLFSSL_ATOMIC_LOAD(n->broken))
             (void)sem_post(&n->sem);
     }
-    if (!forkListDead)
+    if (!WOLFSSL_ATOMIC_LOAD(forkListDead))
         (void)sem_post(&forkListSem);
 }
 
@@ -552,7 +555,7 @@ WOLFSSL_LOCAL int wc_ForkLock_New(wc_ForkLock** lock, void* heap)
     int ret = wc_ForkLockInit();
     if (ret != 0)
         return ret;
-    if (forkListDead) {
+    if (WOLFSSL_ATOMIC_LOAD(forkListDead)) {
         WOLFSSL_MSG("wc_ForkLock_New: registry dead since a fork");
         return BAD_MUTEX_E;
     }
@@ -589,10 +592,10 @@ WOLFSSL_LOCAL void wc_ForkLock_Free(wc_ForkLock** lock)
     if (lock == NULL || *lock == NULL)
         return;
     n = *lock;
-    if (forkListDead || ForkSemWait(&forkListSem) != 0) {
+    if (WOLFSSL_ATOMIC_LOAD(forkListDead) || ForkSemWait(&forkListSem) != 0) {
         /* No registry to unlink under, so the node stays on the list and
          * is leaked; broken keeps every later handler off it. */
-        n->broken = 1;
+        WOLFSSL_ATOMIC_STORE(n->broken, 1);
         WOLFSSL_MSG("wc_ForkLock_Free: registry unavailable, node leaked");
         *lock = NULL;
         return;
@@ -614,7 +617,7 @@ WOLFSSL_API int wc_ForkLock_Enter(wc_ForkLock* lock)
     int ret;
     if (lock == NULL)
         return 0;
-    if (lock->broken)
+    if (WOLFSSL_ATOMIC_LOAD(lock->broken))
         return BAD_MUTEX_E;
     (void)pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &old);
     ret = ForkSemWait(&lock->sem);
@@ -638,7 +641,7 @@ WOLFSSL_API   void wc_ForkLock_Exit(wc_ForkLock* lock)
 WOLFSSL_API   void wc_ForkLock_SetBroken(wc_ForkLock* lock, int broken)
 {
     if (lock != NULL)
-        lock->broken = broken;
+        WOLFSSL_ATOMIC_STORE(lock->broken, broken);
 }
 #endif
 
