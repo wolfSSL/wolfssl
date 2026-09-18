@@ -168,10 +168,12 @@
     #include "wolfssl/internal.h"
 #endif
 
-#if defined(WOLFSSL_SNIFFER) && defined(WOLFSSL_SNIFFER_CHAIN_INPUT)
+#ifdef WOLFSSL_SNIFFER
     #include <wolfssl/sniffer.h>
     #include <wolfssl/sniffer_error.h>
-    #include <sys/uio.h>
+    #ifdef WOLFSSL_SNIFFER_CHAIN_INPUT
+        #include <sys/uio.h>
+    #endif
 #endif
 
 #ifdef WOLFSSL_HAVE_MLDSA
@@ -40713,6 +40715,159 @@ static int test_sniffer_chain_input_overflow(void)
 }
 #endif /* WOLFSSL_SNIFFER && WOLFSSL_SNIFFER_CHAIN_INPUT */
 
+#if defined(WOLFSSL_SNIFFER) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+
+#define SNIFFER_IP_HDR_SZ   20
+#define SNIFFER_TCP_HDR_SZ  20
+
+/* A complete 100 byte TLS 1.2 ClientHello. The segments below carry slices of
+ * it, so the reassembled stream only parses if every slice is taken from the
+ * right offset and truncated to the right length. */
+static const byte sniffer_client_hello[] = {
+    /* record: handshake, 95 bytes */
+    0x16, 0x03, 0x01, 0x00, 0x5f,
+    /* handshake: client_hello, 91 bytes */
+    0x01, 0x00, 0x00, 0x5b,
+    /* client_version: TLS 1.2 */
+    0x03, 0x03,
+    /* random */
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+    0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+    0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+    /* session_id: empty */
+    0x00,
+    /* cipher_suites: TLS_RSA_WITH_AES_128_CBC_SHA */
+    0x00, 0x02, 0x00, 0x2f,
+    /* compression_methods: null */
+    0x01, 0x00,
+    /* extensions: one 44 byte padding extension */
+    0x00, 0x30,
+    0x00, 0x15, 0x00, 0x2c,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00
+};
+
+/* Minimal IPv4/TCP packet, 10.0.0.9:50000 -> 127.0.0.1:443, carrying payload.
+ * Allocated at exactly the captured length so that a read past the end of the
+ * frame faults under a sanitizer. */
+static byte* sniffer_tcp_packet(word32 seq, byte tcpFlags, const byte* payload,
+                                int payloadSz, int* pktSz)
+{
+    int   total = SNIFFER_IP_HDR_SZ + SNIFFER_TCP_HDR_SZ + payloadSz;
+    byte* p     = (byte*)XMALLOC((size_t)total, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    if (p == NULL)
+        return NULL;
+    XMEMSET(p, 0, (size_t)total);
+
+    p[0]  = 0x45;                       /* IPv4, 5 word header */
+    p[2]  = (byte)(total >> 8);
+    p[3]  = (byte)(total & 0xFF);
+    p[6]  = 0x40;                       /* don't fragment */
+    p[8]  = 64;                         /* ttl */
+    p[9]  = 6;                          /* TCP */
+    p[12] = 10;  p[13] = 0; p[14] = 0; p[15] = 9;   /* 10.0.0.9 */
+    p[16] = 127; p[17] = 0; p[18] = 0; p[19] = 1;   /* 127.0.0.1 */
+
+    p[20] = 0xC3; p[21] = 0x50;         /* source port 50000 */
+    p[22] = 0x01; p[23] = 0xBB;         /* destination port 443 */
+    c32toa(seq, p + 24);
+    p[32] = 0x50;                       /* data offset, 5 words */
+    p[33] = tcpFlags;
+    p[34] = 0xFF;                       /* window */
+
+    if (payloadSz > 0) {
+        XMEMCPY(p + SNIFFER_IP_HDR_SZ + SNIFFER_TCP_HDR_SZ, payload,
+                (size_t)payloadSz);
+    }
+
+    *pktSz = total;
+    return p;
+}
+
+/* An in-order segment that overlaps a segment already held on the reassembly
+ * list is split into the part before the held segment and the part past it.
+ * Both parts have to be sourced from where they actually sit in the frame. */
+static int test_sniffer_reassembly_overlap(void)
+{
+    EXPECT_DECLS;
+    static const struct {
+        word32 seq;
+        byte   flags;
+        int    off;         /* slice of sniffer_client_hello carried */
+        int    payloadSz;
+    } segs[] = {
+        {  999, 0x02,  0,  0 }, /* SYN, relative sequence starts at 1000  */
+        { 1004, 0x18,  4, 64 }, /* out of order, held as [4, 67]          */
+        { 1000, 0x18,  0, 72 }, /* in order, overlaps it and runs past    */
+        { 1073, 0x18, 73, 27 }, /* out of order by one, so it stays held  */
+    };
+#if defined(WOLFSSL_SESSION_STATS) && !defined(NO_SESSION_CACHE)
+    /* Bytes left on the reassembly list after each segment. The out of order
+     * segment is held whole (64) and the overlapping one makes the stream
+     * contiguous again, so the list drains. The last segment starts one byte
+     * beyond where the overlapping one ended, so it has to stay held: if the
+     * overlap contributed one byte too many it would instead be contiguous
+     * and drain to 0. */
+    static const unsigned int expReassembly[] = { 0, 64, 0, 27 };
+    unsigned int active = 0, total = 0, peak = 0, maxSessions = 0;
+    unsigned int missedData = 0, reassemblyMem = 0;
+#endif
+    char  error[WOLFSSL_MAX_ERROR_SZ];
+    byte* data = NULL;
+    byte* pkt;
+    int   pktSz = 0;
+    int   i;
+
+    ssl_InitSniffer();
+    XMEMSET(error, 0, sizeof(error));
+    ExpectIntEQ(ssl_SetPrivateKey("127.0.0.1", 443, svrKeyFile,
+        CERT_FILETYPE, NULL, error), 0);
+
+    /* Cap reassembly at exactly what these segments need: 64 held out of order
+     * plus the 4 the overlapping segment adds past them. A fragment queued one
+     * byte long trips the cap, which is reported in error and so is checked
+     * even where the queue sizes below are not compiled in. */
+    XMEMSET(error, 0, sizeof(error));
+    ExpectIntEQ(ssl_EnableRecovery(1, 64 + 4, error), 0);
+
+    for (i = 0; i < (int)XELEM_CNT(segs); i++) {
+        pkt = sniffer_tcp_packet(segs[i].seq, segs[i].flags,
+                                 sniffer_client_hello + segs[i].off,
+                                 segs[i].payloadSz, &pktSz);
+        ExpectNotNull(pkt);
+        if (pkt != NULL) {
+            XMEMSET(error, 0, sizeof(error));
+            /* No application data is recovered, so each segment returns 0.
+             * The record header only parses if the overlapping segment was
+             * sourced from the right offset; the queue sizes below pin the
+             * length it contributed. */
+            ExpectIntEQ(ssl_DecodePacket(pkt, pktSz, &data, error), 0);
+            ExpectStrEQ(error, "");
+            XFREE(pkt, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+#if defined(WOLFSSL_SESSION_STATS) && !defined(NO_SESSION_CACHE)
+            XMEMSET(error, 0, sizeof(error));
+            ExpectIntEQ(ssl_GetSessionStats(&active, &total, &peak,
+                &maxSessions, &missedData, &reassemblyMem, error), 0);
+            ExpectIntEQ(reassemblyMem, expReassembly[i]);
+#endif
+        }
+    }
+
+    XMEMSET(error, 0, sizeof(error));
+    ssl_EnableRecovery(1, -1, error);
+    ssl_FreeSniffer();
+
+    return EXPECT_RESULT();
+}
+#endif /* WOLFSSL_SNIFFER && !NO_RSA && !NO_FILESYSTEM */
+
 /* Test: wc_DhAgree must reject p-1 as peer public key.
  * ffdhe2048 p ends with ...FFFFFFFFFFFFFFFF so p-1 ends ...FFFFFFFFFFFFFFFE */
 static int test_DhAgree_rejects_p_minus_1(void)
@@ -42706,6 +42861,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_inject),
     TEST_DECL(test_wolfSSL_inject_partial_record),
     TEST_DECL(test_ocsp_status_callback),
+    TEST_DECL(test_ocsp_status_request_scr),
     TEST_DECL_GROUP("ocsp", test_ocsp_basic_verify),
     TEST_DECL_GROUP("ocsp", test_ocsp_ancestor_responder_rejected),
     TEST_DECL_GROUP("ocsp", test_ocsp_forged_responder_cert_rejected),
@@ -42745,6 +42901,9 @@ TEST_CASE testCases[] = {
 
 #if defined(WOLFSSL_SNIFFER) && defined(WOLFSSL_SNIFFER_CHAIN_INPUT)
     TEST_DECL(test_sniffer_chain_input_overflow),
+#endif
+#if defined(WOLFSSL_SNIFFER) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+    TEST_DECL(test_sniffer_reassembly_overlap),
 #endif
 
     /* This test needs to stay at the end to clean up any caches allocated. */
