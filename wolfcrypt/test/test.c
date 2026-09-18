@@ -28297,6 +28297,136 @@ done:
     return ret;
 }
 
+struct rng_fork_flip_args {
+    wc_ForkLock* first;
+    wc_ForkLock* last;
+    long         ns;     /* how long to wait before clearing the flags */
+};
+
+/* Clears "broken" while the forking thread sits in the prepare handler,
+ * waiting on the held lock.  Busy-waits instead of sleeping, as the holder
+ * does, so a thread checker's sleep hook stays out of it.
+ */
+static THREAD_RETURN WOLFSSL_THREAD rng_fork_test_flip(void* arg)
+{
+    struct rng_fork_flip_args* f = (struct rng_fork_flip_args*)arg;
+    struct timespec start, now;
+
+    if (clock_gettime(CLOCK_MONOTONIC, &start) == 0) {
+        do {
+            if (clock_gettime(CLOCK_MONOTONIC, &now) != 0)
+                break;
+        } while (rng_test_elapsed_ns(&start, &now) < f->ns);
+    }
+    wc_ForkLock_SetBroken(f->first, 0);
+    wc_ForkLock_SetBroken(f->last, 0);
+    WOLFSSL_RETURN_FROM_THREAD(0);
+}
+
+/* The prepare handler skips a lock marked broken, so the parent handler has
+ * to skip the same one.  Clearing the flag in between used to make the
+ * parent give back a lock prepare never took, leaving room for two holders.
+ * Holding the blocker parks prepare where the flip is sure to land, and
+ * marking both ends of the registry covers either walk order.
+ */
+static wc_test_ret_t rng_fork_broken_flip_test(WC_RNG* first, WC_RNG* blocker,
+                                               WC_RNG* last)
+{
+    struct rng_fork_holder_args* h = NULL;
+    struct rng_fork_flip_args* f = NULL;
+    THREAD_TYPE holder = INVALID_THREAD_VAL;    /* joined only if started */
+    THREAD_TYPE flipper = INVALID_THREAD_VAL;
+    struct timespec t0, t1;
+    wc_test_ret_t ret = 0;
+    int hfd[2] = { -1, -1 };
+    int gfd[2] = { -1, -1 };
+    int started = 0;
+    int flipping = 0;
+    pid_t pid = -1;
+    byte held = 0;
+    byte go = 1;
+
+    h = (struct rng_fork_holder_args*)XMALLOC(sizeof(*h), HEAP_HINT,
+                                              DYNAMIC_TYPE_TMP_BUFFER);
+    f = (struct rng_fork_flip_args*)XMALLOC(sizeof(*f), HEAP_HINT,
+                                            DYNAMIC_TYPE_TMP_BUFFER);
+    if (h == NULL || f == NULL || pipe(hfd) != 0 || pipe(gfd) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), done);
+
+    wc_ForkLock_SetBroken(first->autoLock, 1);
+    wc_ForkLock_SetBroken(last->autoLock, 1);
+
+    h->rng = blocker;
+    h->fd = hfd[1];
+    h->rfd = gfd[0];
+    if (wolfSSL_NewThread(&holder, &rng_fork_test_holder, h) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+    started = 1;
+    if (read(hfd[0], &held, 1) != 1)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+
+    f->first = first->autoLock;
+    f->last = last->autoLock;
+    f->ns = WC_RNG_FORK_HOLD_NS / 5;   /* well inside the hold */
+    if (wolfSSL_NewThread(&flipper, &rng_fork_test_flip, f) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+    flipping = 1;
+
+    (void)clock_gettime(CLOCK_MONOTONIC, &t0);   /* before the go byte */
+    if (write(gfd[1], &go, 1) != 1)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+    pid = fork();
+    (void)clock_gettime(CLOCK_MONOTONIC, &t1);
+    if (pid == 0) {
+        /* exec so a thread checker does not blame the child for the
+         * parent's threads */
+        execl("/bin/true", "true", (char*)NULL);
+        execl("/usr/bin/true", "true", (char*)NULL);
+        _exit(0);
+    }
+    if (pid < 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+    if (waitpid(pid, NULL, 0) != pid)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+    pid = -1;
+    /* prepare waited on the blocker, so the flip fell between the prepare
+     * and the parent handler.  A short fork means it did not, which leaves
+     * the checks below to pass on their own. */
+    if (rng_test_elapsed_ns(&t0, &t1) < WC_RNG_FORK_HOLD_NS / 2)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+
+done:
+    if (pid > 0) {
+        (void)kill(pid, SIGKILL);
+        (void)waitpid(pid, NULL, 0);
+    }
+    if (gfd[1] >= 0)
+        close(gfd[1]);   /* EOF frees a holder still waiting for go */
+    if (started && (wolfSSL_JoinThread(holder) != 0) && ret == 0)
+        ret = WC_TEST_RET_ENC_NC;
+    if (flipping && (wolfSSL_JoinThread(flipper) != 0) && ret == 0)
+        ret = WC_TEST_RET_ENC_NC;
+    if (hfd[0] >= 0)
+        close(hfd[0]);
+    if (!started) {
+        if (hfd[1] >= 0)
+            close(hfd[1]);
+        if (gfd[0] >= 0)
+            close(gfd[0]);
+    }
+    /* clear them again in case the flipper never ran */
+    wc_ForkLock_SetBroken(first->autoLock, 0);
+    wc_ForkLock_SetBroken(last->autoLock, 0);
+    XFREE(f, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(h, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    /* One holder at a time, still, on both of them. */
+    if (ret == 0)
+        ret = rng_lock_wait_test(first);
+    if (ret == 0)
+        ret = rng_lock_wait_test(last);
+    return ret;
+}
+
 struct rng_churn_args {
     int  ret;   /* first failure, if any */
     long ns;    /* how long to keep registering and freeing */
@@ -28392,6 +28522,22 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
         else if (ret == 0 && (!churning || c->ret != 0))
             ret = churning ? WC_TEST_RET_ENC_EC(c->ret) : WC_TEST_RET_ENC_NC;
         XFREE(c, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        if (ret == 0) {
+            /* third, then blocker, then last, so one of the two victims
+             * lands on each side of the blocker either way round. */
+            WC_RNG* blocker = NULL;
+            WC_RNG* last = NULL;
+            (void)wc_rng_new_ex(&blocker, NULL, 0, HEAP_HINT, INVALID_DEVID);
+            (void)wc_rng_new_ex(&last, NULL, 0, HEAP_HINT, INVALID_DEVID);
+            if (blocker == NULL || last == NULL)
+                ret = WC_TEST_RET_ENC_EC(MEMORY_E);
+            else
+                ret = rng_fork_broken_flip_test(third, blocker, last);
+            if (blocker != NULL)
+                wc_rng_free(blocker);
+            if (last != NULL)
+                wc_rng_free(last);
+        }
         wc_rng_free(third);
         if (ret != 0)
             goto out_free;
