@@ -127,6 +127,85 @@ int test_wc_CompressDecisionCoverage(void)
     return EXPECT_RESULT();
 }
 
+int test_wc_CompressionData(void)
+{
+    EXPECT_DECLS;
+#ifdef HAVE_LIBZ
+    byte msg[512];
+    byte comp[1024];
+    int compSz = 0;
+    wc_CompressionData* cd = NULL;
+    word32 i;
+
+    for (i = 0; i < (word32)sizeof(msg); i++)
+        msg[i] = (byte)(i % 7);
+    ExpectIntGT(compSz = wc_Compress(comp, sizeof(comp), msg, sizeof(msg), 0),
+                0);
+
+    wc_CompressionData_Free(NULL);
+    ExpectIntEQ(wc_isCompressionAlgSupported(WC_ZLIB), 1);
+    ExpectIntEQ(wc_isCompressionAlgSupported(WC_NO_COMPRESSION), 0);
+#ifndef HAVE_BROTLI
+    ExpectIntEQ(wc_isCompressionAlgSupported(WC_BROTLI), 0);
+    ExpectNull(wc_CompressionData_newCompressed(comp, (word32)compSz,
+            sizeof(msg), WC_BROTLI, NULL));
+#endif
+    ExpectNull(wc_CompressionData_newCompressed(NULL, (word32)compSz,
+            sizeof(msg), WC_ZLIB, NULL));
+    ExpectIntEQ(wc_DeCompressData(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_CompressData(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    ExpectNotNull(cd = wc_CompressionData_newCompressed(comp, (word32)compSz,
+            sizeof(msg), WC_ZLIB, NULL));
+    ExpectIntEQ(wc_DeCompressData(cd), 0);
+    if (cd != NULL) {
+        ExpectIntEQ(cd->uncompressedSz, sizeof(msg));
+        ExpectIntEQ(cd->isCompressed, 0);
+        ExpectBufEQ(cd->data, msg, sizeof(msg));
+    }
+    ExpectIntEQ(wc_DeCompressData(cd), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    wc_CompressionData_Free(cd);
+    cd = NULL;
+
+    ExpectNotNull(cd = wc_CompressionData_newCompressed(comp, (word32)compSz,
+            sizeof(msg) + 16, WC_ZLIB, NULL));
+    ExpectIntEQ(wc_DeCompressData(cd), 0);
+    if (cd != NULL) {
+        ExpectIntEQ(cd->uncompressedSz, sizeof(msg));
+        ExpectBufEQ(cd->data, msg, sizeof(msg));
+    }
+    wc_CompressionData_Free(cd);
+    cd = NULL;
+
+    ExpectNotNull(cd = wc_CompressionData_newCompressed(comp, (word32)compSz,
+            sizeof(msg) - 1, WC_ZLIB, NULL));
+    ExpectIntLT(wc_DeCompressData(cd), 0);
+    if (cd != NULL) {
+        ExpectIntEQ(cd->isCompressed, 1);
+        ExpectPtrEq(cd->data, comp);
+    }
+    wc_CompressionData_Free(cd);
+    cd = NULL;
+
+    ExpectNotNull(cd = wc_CompressionData_newUnCompressed(msg, sizeof(msg),
+            WC_ZLIB, NULL));
+    ExpectIntEQ(wc_CompressData(cd), 0);
+    if (cd != NULL) {
+        ExpectIntEQ(cd->isCompressed, 1);
+        ExpectIntGT(cd->compressedSz, 0);
+        ExpectIntLT(cd->compressedSz, sizeof(msg));
+        cd->uncompressedSz = sizeof(msg);
+    }
+    ExpectIntEQ(wc_DeCompressData(cd), 0);
+    if (cd != NULL) {
+        ExpectIntEQ(cd->uncompressedSz, sizeof(msg));
+        ExpectBufEQ(cd->data, msg, sizeof(msg));
+    }
+    wc_CompressionData_Free(cd);
+#endif /* HAVE_LIBZ */
+    return EXPECT_RESULT();
+}
+
 #ifdef TEST_TLS_COMPRESSION_ANY
 static int test_tls_compression_ssl_ready(WOLFSSL* ssl)
 {

@@ -70,6 +70,7 @@ int test_tls_msgtype_tca_parse_gates(void);
 int test_tls_msgtype_tca_find(void);
 int test_tls_msgtype_tca_new_alloc(void);
 int test_tls_msgtype_psk_write_chosen(void);
+int test_tls_msgtype_cert_compression(void);
 
 #define TEST_TLS_MSGTYPE_DECLS                                               \
         TEST_DECL_GROUP("tls", test_tls_msgtype_arg_guard),                 \
@@ -119,6 +120,7 @@ int test_tls_msgtype_psk_write_chosen(void);
         TEST_DECL_GROUP("tls", test_tls_msgtype_tca_parse_gates),          \
         TEST_DECL_GROUP("tls", test_tls_msgtype_tca_find),                 \
         TEST_DECL_GROUP("tls", test_tls_msgtype_tca_new_alloc),          \
-        TEST_DECL_GROUP("tls", test_tls_msgtype_psk_write_chosen)
+        TEST_DECL_GROUP("tls", test_tls_msgtype_psk_write_chosen),        \
+        TEST_DECL_GROUP("tls", test_tls_msgtype_cert_compression)
 
 #endif /* TESTS_API_TEST_TLS_MSGTYPE_H */

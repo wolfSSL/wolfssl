@@ -10075,6 +10075,10 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
 #ifdef HAVE_TLS_EXTENSIONS
     FreeSSL_Extensions(ssl);
 #endif /* HAVE_TLS_EXTENSIONS */
+#ifdef WOLFSSL_CERT_COMPRESSION
+    wc_CompressionData_Free(ssl->compressedCert);
+    ssl->compressedCert = NULL;
+#endif
 #if defined(WOLFSSL_APACHE_MYNEWT) && !defined(WOLFSSL_LWIP)
     if (ssl->mnCtx) {
         mynewt_ctx_clear(ssl->mnCtx);
@@ -10426,6 +10430,11 @@ void FreeHandshakeResources(WOLFSSL* ssl)
 #endif /* !HAVE_SNI && && !HAVE_ALPN && !WOLFSSL_DTLS_CID &&
         * !WOLFSSL_POST_HANDSHAKE_AUTH */
 #endif /* HAVE_TLS_EXTENSIONS && !NO_TLS */
+
+#ifdef WOLFSSL_CERT_COMPRESSION
+    wc_CompressionData_Free(ssl->compressedCert);
+    ssl->compressedCert = NULL;
+#endif
 
 #if defined(HAVE_OCSP)
     {
@@ -12961,6 +12970,7 @@ int MsgCheckEncryption(WOLFSSL* ssl, byte type, byte encrypted)
             case finished:
             case certificate_status:
             case key_update:
+            case compressed_certificate:
             case request_connection_id:
             case new_connection_id:
                 if (!encrypted) {
@@ -12990,6 +13000,7 @@ int MsgCheckEncryption(WOLFSSL* ssl, byte type, byte encrypted)
             case hello_verify_request:
             case hello_retry_request:
             case certificate:
+            case compressed_certificate:
             case server_key_exchange:
             case certificate_request:
             case server_hello_done:
@@ -13072,6 +13083,7 @@ static int MsgCheckBoundary(const WOLFSSL* ssl, byte type,
                 case client_key_exchange:
                 case certificate_status:
                 case key_update:
+                case compressed_certificate:
                 case change_cipher_hs:
                 case request_connection_id:
                 case new_connection_id:
@@ -13100,6 +13112,7 @@ static int MsgCheckBoundary(const WOLFSSL* ssl, byte type,
                 case session_ticket:
                 case end_of_early_data:
                 case certificate:
+                case compressed_certificate:
                 case server_key_exchange:
                 case certificate_request:
                 case server_hello_done:
@@ -13140,6 +13153,7 @@ static int MsgCheckBoundary(const WOLFSSL* ssl, byte type,
             case hello_retry_request:
             case encrypted_extensions:
             case certificate:
+            case compressed_certificate:
             case server_key_exchange:
             case certificate_request:
             case server_hello_done:

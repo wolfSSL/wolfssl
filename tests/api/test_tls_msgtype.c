@@ -2629,3 +2629,66 @@ int test_tls_msgtype_psk_write_chosen(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* ---- compress_certificate (RFC 8879) message-type gates ------------------ */
+/* RFC 8879 Section 3 permits the extension in ClientHello and
+ * CertificateRequest only. Every other handshake message must be refused. */
+int test_tls_msgtype_cert_compression(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_CERT_COMPRESSION) && \
+    !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    byte buf[16];
+    word16 len;
+    Suites suites;
+    /* A structurally valid single-algorithm list, so the message-type gate is
+     * what decides the result rather than a length check. */
+    const byte body[] = { 0x02, 0x00, 0x01 };
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    XMEMSET(&suites, 0, sizeof(suites));
+
+    /* Allowed. */
+    len = build_ext_with_body(buf, TLSXT_CERT_COMPRESSION, body,
+            (word16)sizeof(body));
+    ExpectIntEQ(TLSX_Parse(ssl, buf, len, client_hello, &suites), 0);
+
+    len = build_ext_with_body(buf, TLSXT_CERT_COMPRESSION, body,
+            (word16)sizeof(body));
+    ExpectIntEQ(TLSX_Parse(ssl, buf, len, certificate_request, &suites), 0);
+
+    /* Refused everywhere else. */
+    len = build_ext_with_body(buf, TLSXT_CERT_COMPRESSION, body,
+            (word16)sizeof(body));
+    ExpectIntEQ(TLSX_Parse(ssl, buf, len, server_hello, NULL),
+                WC_NO_ERR_TRACE(EXT_NOT_ALLOWED));
+
+    len = build_ext_with_body(buf, TLSXT_CERT_COMPRESSION, body,
+            (word16)sizeof(body));
+    ExpectIntEQ(TLSX_Parse(ssl, buf, len, encrypted_extensions, NULL),
+                WC_NO_ERR_TRACE(EXT_NOT_ALLOWED));
+
+    /* A Certificate message is refused a step earlier: RFC 8446 4.4.2 requires
+     * its extensions to correspond to ones we offered, and this client never
+     * offered compress_certificate, so the "not requested" gate fires before
+     * the per-extension message-type gate is reached. */
+    len = build_ext_with_body(buf, TLSXT_CERT_COMPRESSION, body,
+            (word16)sizeof(body));
+    ExpectIntEQ(TLSX_Parse(ssl, buf, len, certificate, NULL),
+                WC_NO_ERR_TRACE(UNSUPPORTED_EXTENSION));
+
+    len = build_ext_with_body(buf, TLSXT_CERT_COMPRESSION, body,
+            (word16)sizeof(body));
+    ExpectIntEQ(TLSX_Parse(ssl, buf, len, finished, NULL),
+                WC_NO_ERR_TRACE(EXT_NOT_ALLOWED));
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}

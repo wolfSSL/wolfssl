@@ -5821,6 +5821,10 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->buffers.certVerifyMsg.length = 0;
         ssl->fragOffset = 0;
 #endif
+#ifdef WOLFSSL_CERT_COMPRESSION
+        wc_CompressionData_Free(ssl->compressedCert);
+        ssl->compressedCert = NULL;
+#endif
         ssl->options.processReply = 0; /* doProcessInit */
         ssl->options.havePeerVerify = 0;
         ssl->options.havePeerCert = 0;
