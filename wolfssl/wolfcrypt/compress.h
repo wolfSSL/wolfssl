@@ -55,7 +55,7 @@ enum wc_CompressionAlgs {
  * @param alg alg you want to check is supported or not
  * @return 1 if is supported 0 of not
  */
-WOLFSSL_API byte wc_isCompressionAlgSupported(word16 alg);
+WOLFSSL_API byte wc_isCompressionAlgSupported(enum wc_CompressionAlgs alg);
 
 
 #define COMPRESS_FIXED 1
@@ -68,27 +68,50 @@ WOLFSSL_API byte wc_isCompressionAlgSupported(word16 alg);
  * decompressed */
 typedef struct wc_CompressionData {
     byte* data;
+    /* this is the heap that all allocated data that CompressionData is
+     * related too will used
+     * ie. heap use to alloc self, heap used to alloc buffer for comp/decomp */
     void* heap;
     word32 compressedSz;
     word32 uncompressedSz;
     enum wc_CompressionAlgs compressionAlg; /* 0 is no compression is set */
-    /* is this a buffer that was allocated during comp/decomp */
+    /* if true then the data buffer is freed when replaced by
+     * new compressed/uncompressed data when wc_[De]CompressData is called
+     *
+     * This also determines if the data buffer will be freed when
+     * ComperssionData_Free is called */
     byte dataIsOwned;
     /* is the data compressed */
     byte isCompressed;
+    /* TODO: add compression configs here? */
 }wc_CompressionData;
 
 /* These are a set of highlevel functions that dispactch to prefered default
  * settings for avaible compression algorithm "backends"
  *
  * Current they are used in TLS cert compression */
-WOLFSSL_API wc_CompressionData* wc_CompressionData_newCompressed(byte* data,
-        word32 compressedSz, word32 uncompressedSz, word32 alg, void* heap);
-WOLFSSL_API wc_CompressionData* wc_CompressionData_newUnCompressed(
-        byte* data, word32 dataSz, word32 alg, void* heap);
+
+/* Init a new wc_CompressionData object from compressed data */
+WOLFSSL_API int wc_CompressionData_InitDeComp(wc_CompressionData* cd, byte* data,
+        word32 compressedSz, word32 uncompSz,
+        enum wc_CompressionAlgs alg);
+
+/* Init a new wc_CompressionData object with uncompressed data */
+WOLFSSL_API int wc_CompressionData_InitComp(wc_CompressionData* cd,
+        byte* data, word32 uncompSz, enum wc_CompressionAlgs alg);
+
+WOLFSSL_API int wc_CompressionData_SetHeap(wc_CompressionData* cd,
+        void* heap);
+
 WOLFSSL_API void wc_CompressionData_Free(wc_CompressionData* cd);
-WOLFSSL_API int wc_CompressData(wc_CompressionData* data);
-WOLFSSL_API int wc_DeCompressData(wc_CompressionData* data);
+
+WOLFSSL_API int wc_CompressionData_Compress(wc_CompressionData* data);
+WOLFSSL_API int wc_CompressionData_CompressToTarget(wc_CompressionData* data,
+        byte* out, word32 outSz);
+
+WOLFSSL_API int wc_CompressionData_Decompress(wc_CompressionData* data);
+WOLFSSL_API int wc_CompressionData_DecompressToTarget(wc_CompressionData* data,
+        byte* out, word32 outSz);
 
 #ifdef HAVE_LIBZ
 

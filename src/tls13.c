@@ -10260,22 +10260,34 @@ static word32 AddCertExt(WOLFSSL* ssl, byte* cert, word32 len, word16 extSz,
 
     return i;
 }
+/* Layout of a TLS v1.3 Certificate message */
+typedef struct Tls13CertMsg {
+    byte*  certReqCtx;
+    word32 certSz;
+    word32 certChainSz;
+    word32 headerSz;
+    word32 listSz;
+    word32 totalextSz;
+    word32 payloadSz;
+    word16 extSz[MAX_CERT_EXTENSIONS];
+    byte   certReqCtxLen;
+} Tls13CertMsg;
 
 /* Write the start of a TLS v1.3 Certificate message body: the request
  * context, the certificate list length and, when sending a certificate, the
  * leaf certificate's length.
  *
- * output         The buffer to write to.
- * certReqCtx     The certificate request context.
- * certReqCtxLen  The length of the certificate request context.
- * listSz         The length of the certificate list.
- * certSz         The length of the leaf certificate. 0 when there is none.
+ * output  The buffer to write to.
+ * msg     The layout of the Certificate message.
  * returns the number of bytes written.
  */
-static word32 WriteTls13CertHeader(byte* output, const byte* certReqCtx,
-                                   byte certReqCtxLen, word32 listSz,
-                                   word32 certSz)
+static word32 WriteTls13CertHeader(byte* output, const Tls13CertMsg* msg)
 {
+    const byte* certReqCtx = msg->certReqCtx;
+    byte certReqCtxLen = msg->certReqCtxLen;
+    word32 listSz = msg->listSz;
+    word32 certSz = msg->certSz;
+
     word32 i = 0;
 
     output[i++] = certReqCtxLen;
@@ -10306,8 +10318,7 @@ static word32 WriteTls13CertHeader(byte* output, const byte* certReqCtx,
  * outSz        The maximum number of bytes to write.
  * returns the number of bytes written.
  */
-static word32 WriteTls13CertEntries(WOLFSSL* ssl, word32 certSz,
-                                    word32 certChainSz, const word16* extSz,
+static word32 WriteTls13CertEntries(WOLFSSL* ssl, const Tls13CertMsg* msg,
                                     word32 pos, byte* output, word32 outSz)
 {
     word32 written = 0;
@@ -10319,17 +10330,17 @@ static word32 WriteTls13CertEntries(WOLFSSL* ssl, word32 certSz,
     word16 extIdx = 0;
     byte*  cert;
 
-    if (certSz == 0)
+    if (msg->certSz == 0)
         return 0;
 
     cert = ssl->buffers.certificate->buffer;
-    len = certSz;
+    len = msg->certSz;
     for (;;) {
-        entrySz = len + extSz[extIdx];
+        entrySz = len + msg->extSz[extIdx];
         if (pos < start + entrySz) {
             if (written == outSz)
                 break;
-            l = AddCertExt(ssl, cert, len, extSz[extIdx], pos - start,
+            l = AddCertExt(ssl, cert, len, msg->extSz[extIdx], pos - start,
                            outSz - written, output + written, extIdx);
             written += l;
             pos += l;
@@ -10341,7 +10352,7 @@ static word32 WriteTls13CertEntries(WOLFSSL* ssl, word32 certSz,
     #endif
         start += entrySz;
 
-        if (certChainSz == 0)
+        if (msg->certChainSz == 0)
             break;
         cert = ssl->buffers.certChain->buffer + idx;
         len = NextCert(ssl->buffers.certChain->buffer,
@@ -10656,49 +10667,33 @@ static int CheckCertChainSigAlgo(WOLFSSL* ssl)
 }
 #endif /* !NO_CERTS && !WOLFSSL_NO_SIGALG */
 
-/* handle generation TLS v1.3 certificate (11) */
-/* Send the certificate for this end and any CAs that help with validation.
- * This message is always encrypted in TLS v1.3.
+
+/* Pick the certificate to send and work out the layout of the Certificate
+ * message.
  *
  * ssl  The SSL/TLS object.
+ * msg  The layout, filled in.
  * returns 0 on success, otherwise failure.
  */
-static int SendTls13Certificate(WOLFSSL* ssl)
+static int Tls13CertMsgSetup(WOLFSSL* ssl, Tls13CertMsg* msg)
 {
-/* TODO: make this work for compressed cert if we do it or not should be
- * in ssl peerCertCompressionAlg
- *
- * need to read the certs into a buffer and compress that */
     int    ret = 0;
-    word32 certSz, certChainSz, headerSz, listSz, payloadSz;
-    word16 extSz[MAX_CERT_EXTENSIONS];
-    word16 extIdx = 0;
-    word32 maxFragment;
-    word32 totalextSz = 0;
-    word32 copySz;
-    byte*  certReqCtx = NULL;
-    byte   certReqCtxLen = 0;
+    word16 extIdx;
     sword32 length;
 #ifndef WOLFSSL_NO_SIGALG
     int    chainRet;
 #endif
-
 #ifdef OPENSSL_EXTRA
     WOLFSSL_X509* x509 = NULL;
     WOLFSSL_EVP_PKEY* pkey = NULL;
 #endif
 
-    WOLFSSL_START(WC_FUNC_CERTIFICATE_SEND);
-    WOLFSSL_ENTER("SendTls13Certificate");
-
-    XMEMSET(extSz, 0, sizeof(extSz));
-
-    ssl->options.buildingMsg = 1;
+    XMEMSET(msg, 0, sizeof(*msg));
 
 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
     if (ssl->options.side == WOLFSSL_CLIENT_END && ssl->certReqCtx != NULL) {
-        certReqCtxLen = ssl->certReqCtx->len;
-        certReqCtx = &ssl->certReqCtx->ctx;
+        msg->certReqCtxLen = ssl->certReqCtx->len;
+        msg->certReqCtx = &ssl->certReqCtx->ctx;
     }
 #endif
 
@@ -10757,11 +10752,11 @@ static int SendTls13Certificate(WOLFSSL* ssl)
 #endif
 
     if (ssl->options.sendVerify == SEND_BLANK_CERT) {
-        certSz = 0;
-        certChainSz = 0;
-        headerSz = OPAQUE8_LEN + certReqCtxLen + CERT_HEADER_SZ;
-        length = (sword32)headerSz;
-        listSz = 0;
+        msg->certSz = 0;
+        msg->certChainSz = 0;
+        msg->headerSz = OPAQUE8_LEN + msg->certReqCtxLen + CERT_HEADER_SZ;
+        length = (sword32)msg->headerSz;
+        msg->listSz = 0;
     }
     else {
         if (!ssl->buffers.certificate || !ssl->buffers.certificate->buffer) {
@@ -10769,17 +10764,17 @@ static int SendTls13Certificate(WOLFSSL* ssl)
             return NO_CERT_ERROR;
         }
         /* Certificate Data */
-        certSz = ssl->buffers.certificate->length;
+        msg->certSz = ssl->buffers.certificate->length;
         if (ssl->buffers.certChainCnt > MAX_CHAIN_DEPTH) {
             WOLFSSL_MSG("Certificate chain count exceeds maximum depth");
             return MAX_CHAIN_ERROR;
         }
         /* Cert Req Ctx Len | Cert Req Ctx | Cert List Len | Cert Data Len */
-        headerSz = OPAQUE8_LEN + certReqCtxLen + CERT_HEADER_SZ +
-                   CERT_HEADER_SZ;
+        msg->headerSz = OPAQUE8_LEN + msg->certReqCtxLen + CERT_HEADER_SZ +
+                        CERT_HEADER_SZ;
         /* set empty extension as default */
-        for (extIdx = 0; extIdx < (word16)XELEM_CNT(extSz); extIdx++)
-            extSz[extIdx] = OPAQUE16_LEN;
+        for (extIdx = 0; extIdx < (word16)XELEM_CNT(msg->extSz); extIdx++)
+            msg->extSz[extIdx] = OPAQUE16_LEN;
 
     #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && !defined(NO_WOLFSSL_SERVER)
         /* Staple our own OCSP response with the Certificate. Normally only the
@@ -10804,47 +10799,87 @@ static int SendTls13Certificate(WOLFSSL* ssl)
             if ((1 + ssl->buffers.certChainCnt) > MAX_CERT_EXTENSIONS)
                 ret = MAX_CERT_EXTENSIONS_ERR;
             if (ret == 0)
-                ret = WriteCSRToBuffer(ssl, &ssl->buffers.certExts[0], &extSz[0],
+                ret = WriteCSRToBuffer(ssl, &ssl->buffers.certExts[0],
+                        &msg->extSz[0],
                         1 /* +1 for leaf */ + (word16)ssl->buffers.certChainCnt);
             if (ret < 0)
                 return ret;
-            totalextSz += ret;
+            msg->totalextSz += (word32)ret;
             ret = 0; /* Clear to signal no error */
         }
         else
     #endif
         {
             /* Leaf cert empty extension size */
-            totalextSz += OPAQUE16_LEN;
+            msg->totalextSz += OPAQUE16_LEN;
             /* chain cert empty extension size */
-            totalextSz += OPAQUE16_LEN * ssl->buffers.certChainCnt;
+            msg->totalextSz += OPAQUE16_LEN * ssl->buffers.certChainCnt;
         }
 
         /* Length of message data with one certificate and extensions. */
-        length = (sword32)(headerSz + certSz + totalextSz);
+        length = (sword32)(msg->headerSz + msg->certSz + msg->totalextSz);
         /* Length of list data with one certificate and extensions. */
-        listSz = CERT_HEADER_SZ + certSz + totalextSz;
+        msg->listSz = CERT_HEADER_SZ + msg->certSz + msg->totalextSz;
 
         /* Send rest of chain if sending cert (chain has leading size/s). */
-        if (certSz > 0 && ssl->buffers.certChainCnt > 0) {
+        if (msg->certSz > 0 && ssl->buffers.certChainCnt > 0) {
             /* Chain length including extensions. */
-            certChainSz = ssl->buffers.certChain->length;
+            msg->certChainSz = ssl->buffers.certChain->length;
 
-            length += certChainSz;
-            listSz += certChainSz;
+            length += (sword32)msg->certChainSz;
+            msg->listSz += msg->certChainSz;
         }
         else
-            certChainSz = 0;
+            msg->certChainSz = 0;
     }
 
-    payloadSz = (word32)length;
+    msg->payloadSz = (word32)length;
+
+    return ret;
+}
+
+/* Finish sending a TLS v1.3 Certificate, or the message sent in its place.
+ *
+ * ssl  The SSL/TLS object.
+ * ret  The result of sending the message.
+ */
+static void Tls13CertificateSendDone(WOLFSSL* ssl, int ret)
+{
+    if (ret != WC_NO_ERR_TRACE(WANT_WRITE)) {
+        /* Clean up the fragment offset. */
+        ssl->options.buildingMsg = 0;
+        ssl->fragOffset = 0;
+        if (ssl->options.side == WOLFSSL_SERVER_END)
+            ssl->options.serverState = SERVER_CERT_COMPLETE;
+    }
+
+#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+    if (ssl->options.side == WOLFSSL_CLIENT_END && ssl->certReqCtx != NULL) {
+        CertReqCtx* ctx = ssl->certReqCtx;
+        ssl->certReqCtx = ssl->certReqCtx->next;
+        XFREE(ctx, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif
+}
+
+/* Write a TLS v1.3 Certificate message into records and send them. Resumes
+ * from ssl->fragOffset after a WANT_WRITE.
+ *
+ * ssl  The SSL object.
+ * msg  The layout of the message.
+ * returns 0 on success, otherwise failure.
+ */
+static int SendTls13CertificateRecords(WOLFSSL* ssl, const Tls13CertMsg* msg)
+{
+    int    ret = 0;
+    word32 maxFragment;
+    word32 copySz;
+    sword32 length = (sword32)msg->payloadSz;
 
     if (ssl->fragOffset != 0)
-        length -= (ssl->fragOffset + headerSz);
+        length -= (sword32)(ssl->fragOffset + msg->headerSz);
 
     maxFragment = (word32)wolfssl_local_GetMaxPlaintextSize(ssl);
-
-    extIdx = 0;
 
     while (length > 0 && ret == 0) {
         byte*  output = NULL;
@@ -10860,15 +10895,14 @@ static int SendTls13Certificate(WOLFSSL* ssl)
 #endif /* WOLFSSL_DTLS13 */
 
         if (ssl->fragOffset == 0) {
-            if (headerSz + certSz + totalextSz + certChainSz <=
-                                            maxFragment - HANDSHAKE_HEADER_SZ) {
-                fragSz = headerSz + certSz + totalextSz + certChainSz;
+            if (msg->payloadSz <= maxFragment - HANDSHAKE_HEADER_SZ) {
+                fragSz = msg->payloadSz;
             }
 #ifdef WOLFSSL_DTLS13
             else if (ssl->options.dtls){
                 /* short-circuit the fragmentation logic here. DTLS
                    fragmentation will be done in dtls13HandshakeSend() */
-                fragSz = headerSz + certSz + totalextSz + certChainSz;
+                fragSz = msg->payloadSz;
             }
 #endif /* WOLFSSL_DTLS13 */
             else {
@@ -10899,10 +10933,10 @@ static int SendTls13Certificate(WOLFSSL* ssl)
         output = GetOutputBuffer(ssl);
 
         if (ssl->fragOffset == 0) {
-            AddTls13FragHeaders(output, fragSz, 0, payloadSz, certificate, ssl);
+            AddTls13FragHeaders(output, fragSz, 0, msg->payloadSz, certificate,
+                                ssl);
 
-            copySz = WriteTls13CertHeader(output + i, certReqCtx,
-                                          certReqCtxLen, listSz, certSz);
+            copySz = WriteTls13CertHeader(output + i, msg);
             i += copySz;
             length -= (sword32)copySz;
             fragSz -= copySz;
@@ -10910,8 +10944,8 @@ static int SendTls13Certificate(WOLFSSL* ssl)
         else
             AddTls13RecordHeader(output, fragSz, handshake, ssl);
 
-        copySz = WriteTls13CertEntries(ssl, certSz, certChainSz, extSz,
-                                       ssl->fragOffset, output + i, fragSz);
+        copySz = WriteTls13CertEntries(ssl, msg, ssl->fragOffset, output + i,
+                                       fragSz);
         i += copySz;
         ssl->fragOffset += copySz;
         length -= (sword32)copySz;
@@ -10921,10 +10955,6 @@ static int SendTls13Certificate(WOLFSSL* ssl)
             WOLFSSL_MSG("Send Cert bad inputSz");
             return BUFFER_E;
         }
-
-#ifdef WOLFSSL_CERT_COMPRESSION
-
-#endif
 
 #ifdef WOLFSSL_DTLS13
         if (ssl->options.dtls) {
@@ -10967,27 +10997,278 @@ static int SendTls13Certificate(WOLFSSL* ssl)
         }
     }
 
-    if (ret != WC_NO_ERR_TRACE(WANT_WRITE)) {
-        /* Clean up the fragment offset. */
-        ssl->options.buildingMsg = 0;
-        ssl->fragOffset = 0;
-        if (ssl->options.side == WOLFSSL_SERVER_END)
-            ssl->options.serverState = SERVER_CERT_COMPLETE;
-    }
+    Tls13CertificateSendDone(ssl, ret);
 
-#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
-    if (ssl->options.side == WOLFSSL_CLIENT_END && ssl->certReqCtx != NULL) {
-        CertReqCtx* ctx = ssl->certReqCtx;
-        ssl->certReqCtx = ssl->certReqCtx->next;
-        XFREE(ctx, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-#endif
+    return ret;
+}
+
+/* handle generation TLS v1.3 cmpressed_certificate (25) */
+/* Send the certificate for this end and any CAs that help with validation.
+ * This message is always encrypted in TLS v1.3.
+ *
+ * ssl  The SSL/TLS object.
+ * returns 0 on success, otherwise failure.
+ */
+static int SendTls13Certificate(WOLFSSL* ssl)
+{
+    int ret;
+    Tls13CertMsg msg;
+
+    WOLFSSL_START(WC_FUNC_CERTIFICATE_SEND);
+    WOLFSSL_ENTER("SendTls13Certificate");
+
+    ssl->options.buildingMsg = 1;
+
+    ret = Tls13CertMsgSetup(ssl, &msg);
+    if (ret != 0)
+        return ret;
+
+    ret = SendTls13CertificateRecords(ssl, &msg);
 
     WOLFSSL_LEAVE("SendTls13Certificate", ret);
     WOLFSSL_END(WC_FUNC_CERTIFICATE_SEND);
 
     return ret;
 }
+
+#ifdef WOLFSSL_CERT_COMPRESSION
+static int BuildAndCompressCertificateMsg(WOLFSSL* ssl,
+        const Tls13CertMsg* msg)
+{
+    int ret = 0;
+    struct {
+        byte* certMsg;
+        word32 certMsgLen;
+    } certMsgToComp = {0};
+    /* Calculate full size of cert msg */
+    /* calc header len */
+    certMsgToComp.certMsgLen = msg->payloadSz;
+    certMsgToComp.certMsg = XMALLOC(certMsgToComp.certMsgLen, ssl->heap,
+            DYNAMIC_TYPE_SSL);
+
+    if(certMsgToComp.certMsg == NULL) {
+        ret = MEMORY_ERROR;
+    }
+
+    /* build cert message that we will be compressing */
+    if (ret == 0 && msg->headerSz !=
+            WriteTls13CertHeader(certMsgToComp.certMsg, msg)) {
+        WOLFSSL_MSG("Did not write expected header sz into compression buffer");
+        ret = BUFFER_ERROR;
+    }
+    if (ret == 0 && msg->payloadSz - msg->headerSz !=
+                        WriteTls13CertEntries(ssl, msg, 0,
+                            certMsgToComp.certMsg + msg->headerSz,
+                            certMsgToComp.certMsgLen)) {
+        WOLFSSL_MSG("Did not write entire cert msg into compression buffer");
+        ret = BUFFER_ERROR;
+    }
+
+    /* create out compression object */
+    if (ret == 0 && wc_CompressionData_InitComp(ssl->compressedCert,
+                certMsgToComp.certMsg, certMsgToComp.certMsgLen,
+                ssl->peerCertCompressionAlg) != 0) {
+        WOLFSSL_MSG("Could not create compression object");
+        ret = BUFFER_ERROR;
+    }
+
+    if (ret == 0 && wc_CompressionData_Compress(ssl->compressedCert) != 0) {
+        WOLFSSL_MSG("Could not compress cert msg");
+        ret = BUFFER_ERROR;
+    }
+
+    if (certMsgToComp.certMsg != NULL) {
+        XFREE(certMsgToComp.certMsg, ssl->heap, DYNAMIC_TYPE_SSL);
+    }
+
+   return ret;
+}
+
+static int SendTls13CompressedCertificate(WOLFSSL* ssl)
+{
+    int ret;
+    Tls13CertMsg msg;
+    word32 maxFragmentSz;
+    word32 fullCompCertMsgSz = 0;
+
+    WOLFSSL_START(WC_FUNC_CERTIFICATE_SEND);
+    WOLFSSL_ENTER("SendTls13CompressedCertificate");
+
+    ssl->options.buildingMsg = 1;
+
+    ret = Tls13CertMsgSetup(ssl, &msg);
+    if (ret != 0)
+        return ret;
+
+    /* Nothing to compress fallback to uncompressed path */
+    if (msg.certSz == 0) {
+        WOLFSSL_LEAVE("SendTls13CompressedCertificate", ret);
+        WOLFSSL_END(WC_FUNC_CERTIFICATE_SEND);
+        return SendTls13CertificateRecords(ssl, &msg);
+    }
+
+    /* refresh the compressed cert object when starting new message */
+    if (ssl->fragOffset == 0) {
+        /* reuse our compression data object if we can */
+        if (ssl->compressedCert != NULL) {
+            wc_CompressionData_Free(ssl->compressedCert);
+        }
+        /* else make a new object */
+        else {
+            ssl->compressedCert = XMALLOC(sizeof(*ssl->compressedCert),
+                    ssl->heap, DYNAMIC_TYPE_SSL);
+            if (ssl->compressedCert == NULL)
+                return MEMORY_ERROR;
+        }
+        wc_CompressionData_SetHeap(ssl->compressedCert, ssl->heap);
+        if (BuildAndCompressCertificateMsg(ssl, &msg) != 0) {
+            WOLFSSL_MSG("Could not compress Certificate falling back "
+                    "to sending plain cert");
+            wc_CompressionData_Free(ssl->compressedCert);
+            XFREE(ssl->compressedCert, ssl->heap, DYNAMIC_TYPE_SSL);
+            ssl->compressedCert = NULL;
+            return SendTls13CertificateRecords(ssl, &msg);
+        }
+    }
+
+    maxFragmentSz = (word32)wolfssl_local_GetMaxPlaintextSize(ssl);
+
+    /* calc size of compressed_certificate msg */
+    fullCompCertMsgSz += ssl->compressedCert->compressedSz - ssl->fragOffset;
+    if (ssl->fragOffset == 0) {
+        fullCompCertMsgSz += COMP_CERT_HEADER_SZ;
+    }
+
+    while (fullCompCertMsgSz > 0 && ret == 0) {
+        byte* output = NULL;
+        word32 fragSz = 0;
+        word32 idx = RECORD_HEADER_SZ;
+        int sendSz = RECORD_HEADER_SZ;
+
+#ifdef WOLFSSL_DTLS13
+        if (ssl->options.dtls) {
+            idx = Dtls13GetRlHeaderLength(ssl, 1);
+            sendSz = (int)idx;
+        }
+#endif
+        if (ssl->fragOffset == 0) {
+            if (fullCompCertMsgSz <= maxFragmentSz - HANDSHAKE_HEADER_SZ) {
+                fragSz = fullCompCertMsgSz;
+            }
+            else {
+                fragSz = maxFragmentSz - HANDSHAKE_HEADER_SZ;
+            }
+
+#ifdef WOLFSSL_DTLS13
+            if (ssl->options.dtls) {
+                fragSz = fullCompCertMsgSz;
+                sendSz += DTLS_HANDSHAKE_EXTRA;
+                idx += DTLS_HANDSHAKE_EXTRA;
+            }
+#endif
+            sendSz += fragSz + HANDSHAKE_HEADER_SZ;
+            idx += HANDSHAKE_HEADER_SZ;
+        }
+        else {
+            fragSz = min((word32) fullCompCertMsgSz, maxFragmentSz);
+            sendSz += fragSz;
+        }
+
+        sendSz += MAX_MSG_EXTRA;
+
+        if ((ret = CheckAvailableSize(ssl, sendSz)) != 0) {
+            return ret;
+        }
+
+        output = GetOutputBuffer(ssl);
+
+        if (ssl->fragOffset == 0) {
+            AddTls13FragHeaders(output, fragSz, 0, fullCompCertMsgSz,
+                    compressed_certificate, ssl);
+            /* add alg id */
+            c16toa((word16)ssl->compressedCert->compressionAlg, output + idx);
+            idx += OPAQUE16_LEN;
+            c32to24(ssl->compressedCert->uncompressedSz, output + idx);
+            idx += OPAQUE24_LEN;
+            c32to24(ssl->compressedCert->compressedSz, output + idx);
+            idx += OPAQUE24_LEN;
+            fragSz -= COMP_CERT_HEADER_SZ;
+            fullCompCertMsgSz -= COMP_CERT_HEADER_SZ;
+        }
+        else {
+            AddTls13RecordHeader(output, fragSz, handshake, ssl);
+        }
+
+        /* just keep sending compressed bytes */
+        XMEMCPY(output + idx, ssl->compressedCert->data + ssl->fragOffset,
+                fragSz);
+
+        fullCompCertMsgSz -= fragSz;
+        idx += fragSz;
+        ssl->fragOffset += fragSz;
+
+        if ((int)idx - RECORD_HEADER_SZ < 0) {
+            WOLFSSL_MSG("Send Cert bad inputSz");
+            return BUFFER_E;
+        }
+
+#ifdef WOLFSSL_DTLS13
+        if (ssl->options.dtls) {
+            ssl->options.buildingMsg = 0;
+            ssl->fragOffset = 0;
+            if ((word32)sendSz > WOLFSSL_MAX_16BIT || idx > WOLFSSL_MAX_16BIT) {
+                WOLFSSL_MSG("Send Cert DTLS size exceeds word16");
+                return BUFFER_E;
+            }
+            ret = Dtls13HandshakeSend(ssl, output, (word16)sendSz, (word16)idx,
+                                      compressed_certificate, 1);
+        }
+        else
+#endif
+        {
+            sendSz = BuildTls13Message(ssl, output, sendSz,
+                    output + RECORD_HEADER_SZ, (int)(idx - RECORD_HEADER_SZ),
+                    handshake, 1, 0, 0);
+            if (sendSz < 0)
+                return sendSz;
+#if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
+            if (ssl->hsInfoOn)
+                AddPacketName(ssl, "CompressedCertificate");
+            if (ssl->toInfoOn) {
+                ret = AddPacketInfo(ssl, "CompressedCertificate", handshake,
+                        output, sendSz, WRITE_PROTO, 0, ssl->heap);
+                if (ret != 0)
+                    return ret;
+            }
+#endif
+            ssl->buffers.outputBuffer.length += (word32)sendSz;
+            ssl->options.buildingMsg = 0;
+            if (!ssl->options.groupMessages)
+                ret = SendBuffered(ssl);
+        }
+    }
+
+    Tls13CertificateSendDone(ssl, ret);
+
+    if (ret != WC_NO_ERR_TRACE(WANT_WRITE)
+#ifdef WOLFSSL_DTLS13
+        /* Dtls13HandshakeSend has sent the entire message so we want
+         * to free no matter what */
+        || ssl->options.dtls
+#endif
+            ) {
+        wc_CompressionData_Free(ssl->compressedCert);
+        XFREE(ssl->compressedCert, ssl->heap, DYNAMIC_TYPE_SSL);
+        ssl->compressedCert = NULL;
+        ssl->peerCertCompressionAlg = WC_NO_COMPRESSION;
+    }
+
+    WOLFSSL_LEAVE("SendTls13CompressedCertificate", ret);
+    WOLFSSL_END(WC_FUNC_CERTIFICATE_SEND);
+
+    return ret;
+}
+#endif
 
 #if (!defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
      defined(HAVE_ED448) || defined(HAVE_FALCON) || \
@@ -12404,7 +12685,6 @@ static int DoTls13CompressedCertificate(WOLFSSL* ssl, byte* input,
     word32 uncompSz;
     word32 compSz;
     word32 certIdx = 0;
-    wc_CompressionData* cd;
 
     WOLFSSL_START(WC_FUNC_CERTIFICATE_DO);
     WOLFSSL_ENTER("DoTls13CompressedCertificate");
@@ -12426,40 +12706,46 @@ static int DoTls13CompressedCertificate(WOLFSSL* ssl, byte* input,
      * this also doubles as our if check to see if the alg we got back
      * was what we requested because we send all of out support compression
      * algs as options for compression */
-    if (!wc_isCompressionAlgSupported(alg))
+    if (!wc_isCompressionAlgSupported(alg)) {
+        WOLFSSL_MSG("Alg sent was not expected");
+        SendAlert(ssl, alert_fatal, bad_certificate);
         ERROR_OUT(BAD_FUNC_ARG, exit_dcc);
+    }
 
-    cd = ssl->compressedCert;
-
-    /* if not NULLwe already have the decompressed cert in hand and just
+    /* if not NULL we already have the decompressed cert in hand and just
      * needed to recall this func due to a pending or want read */
-    if (cd == NULL) {
+    if (ssl->compressedCert == NULL) {
         if (uncompSz == 0 || uncompSz > MAX_CERTIFICATE_SZ) {
             WOLFSSL_MSG("CompressedCertificate uncompressed_length too big");
             SendAlert(ssl, alert_fatal, bad_certificate);
             ERROR_OUT(DECOMPRESS_E, exit_dcc);
         }
 
-        cd = wc_CompressionData_newCompressed(input + idx, compSz, uncompSz,
-                alg, ssl->heap);
-        if (cd == NULL)
-            ERROR_OUT(MEMORY_E, exit_dcc);
+        ssl->compressedCert = (wc_CompressionData*)XMALLOC(
+                sizeof(wc_CompressionData), ssl->heap, DYNAMIC_TYPE_SSL);
 
-        ret = wc_DeCompressData(cd);
-        if (ret == 0 && cd->uncompressedSz != uncompSz) {
-            WOLFSSL_MSG("CompressedCertificate uncompressed_length mismatch");
+        if (ssl->compressedCert == NULL) {
+            ERROR_OUT(MEMORY_ERROR, exit_dcc);
+        }
+
+        if (wc_CompressionData_InitDeComp(ssl->compressedCert, input + idx,
+                    compSz, uncompSz, alg) != 0) {
+            WOLFSSL_MSG("Could not create compression object");
             SendAlert(ssl, alert_fatal, bad_certificate);
-            ret = DECOMPRESS_E;
+            ERROR_OUT(DECOMPRESS_E, exit_dcc);
         }
-        if (ret != 0) {
-            wc_CompressionData_Free(cd);
-            if (ret != WC_NO_ERR_TRACE(MEMORY_E)) {
-                SendAlert(ssl, alert_fatal, bad_certificate);
-                ret = DECOMPRESS_E;
-            }
-            goto exit_dcc;
+
+        if (wc_CompressionData_Decompress(ssl->compressedCert) != 0) {
+            WOLFSSL_MSG("Could not decompress cert");
+            SendAlert(ssl, alert_fatal, bad_certificate);
+            ERROR_OUT(DECOMPRESS_E, exit_dcc);
         }
-        ssl->compressedCert = cd;
+
+        if (ssl->compressedCert->isCompressed ||
+                ssl->compressedCert->uncompressedSz != uncompSz) {
+            SendAlert(ssl, alert_fatal, bad_certificate);
+            ERROR_OUT(DECOMPRESS_E, exit_dcc);
+        }
     }
 
     ret = DoTls13Certificate(ssl, ssl->compressedCert->data, &certIdx,
@@ -12473,12 +12759,20 @@ static int DoTls13CompressedCertificate(WOLFSSL* ssl, byte* input,
 #endif
 
     wc_CompressionData_Free(ssl->compressedCert);
+    XFREE(ssl->compressedCert, ssl->heap, DYNAMIC_TYPE_SSL);
     ssl->compressedCert = NULL;
 
     if (ret == 0)
         *inOutIdx = idx + compSz;
 
 exit_dcc:
+
+    if (ret != 0 && ssl->compressedCert != NULL) {
+        wc_CompressionData_Free(ssl->compressedCert);
+        XFREE(ssl->compressedCert, ssl->heap, DYNAMIC_TYPE_SSL);
+        ssl->compressedCert = NULL;
+    }
+
     WOLFSSL_LEAVE("DoTls13CompressedCertificate", ret);
     WOLFSSL_END(WC_FUNC_CERTIFICATE_DO);
 
@@ -16866,13 +17160,22 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
         #ifndef NO_CERTS
             if ((!ssl->options.resuming || TLS13_AFTER_HANDSHAKE(ssl)) &&
                     ssl->options.sendVerify) {
-                ssl->error = SendTls13Certificate(ssl);
+#ifdef WOLFSSL_CERT_COMPRESSION
+                if (wc_isCompressionAlgSupported(ssl->peerCertCompressionAlg)) {
+                    ssl->error = SendTls13CompressedCertificate(ssl);
+                    WOLFSSL_MSG("sent: compressed_certificate");
+                }
+                else
+#endif
+                {
+                    ssl->error = SendTls13Certificate(ssl);
+                    WOLFSSL_MSG("sent: certificate");
+                }
                 if (ssl->error != 0) {
                     wolfssl_local_MaybeCheckAlertOnErr(ssl, ssl->error);
                     WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;
                 }
-                WOLFSSL_MSG("sent: certificate");
             }
         #endif
 
@@ -18165,7 +18468,17 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
         case TLS13_CERT_REQ_SENT :
 #ifndef NO_CERTS
             if (!ssl->options.resuming && ssl->options.sendVerify) {
-                if ((ssl->error = SendTls13Certificate(ssl)) != 0) {
+#ifdef WOLFSSL_CERT_COMPRESSION
+                if (wc_isCompressionAlgSupported(ssl->peerCertCompressionAlg)) {
+                    ssl->error = SendTls13CompressedCertificate(ssl);
+                }
+                else
+#endif
+                {
+                    ssl->error = SendTls13Certificate(ssl);
+                }
+
+                if (ssl->error != 0) {
                     WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;
                 }

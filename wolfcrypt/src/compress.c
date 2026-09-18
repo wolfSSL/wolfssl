@@ -344,55 +344,43 @@ int wc_DeCompressDynamic(byte** out, int maxSz, int memoryType,
 
     return result;
 }
+#endif /* HAVE_LIBZ */
 
-wc_CompressionData* wc_CompressionData_newCompressed(byte* data,
-        word32 compressedSz, word32 uncompressedSz, word32 alg, void* heap)
+/* Start of compression object interfaces */
+int wc_CompressionData_InitDeComp(wc_CompressionData* cd, byte* data,
+        word32 compressedSz, word32 uncompressedSz,
+        enum wc_CompressionAlgs alg)
 {
-    wc_CompressionData* out;
-
-    if (data == NULL || alg > 0xFFFF ||
-            !wc_isCompressionAlgSupported((word16)alg)) {
-        return NULL;
+    if (cd == NULL || data == NULL || alg > 0xFFFF || uncompressedSz == 0 ||
+            !wc_isCompressionAlgSupported(alg)) {
+        return BAD_FUNC_ARG;
     }
 
-    out = (wc_CompressionData*)XMALLOC(sizeof(*out), heap,
-            DYNAMIC_TYPE_TMP_BUFFER);
-    if (out == NULL)
-        return NULL;
+    XMEMSET(cd, 0, sizeof(*cd));
 
-    out->compressionAlg = (enum wc_CompressionAlgs)alg;
-    out->compressedSz = compressedSz;
-    out->uncompressedSz = uncompressedSz;
-    out->data = data;
-    out->dataIsOwned = 0;
-    out->isCompressed = 1;
-    out->heap = heap;
-    return out;
+    cd->compressionAlg = (enum wc_CompressionAlgs)alg;
+    cd->compressedSz = compressedSz;
+    cd->uncompressedSz = uncompressedSz;
+    cd->data = data;
+    cd->isCompressed = 1;
+    return 0;
 }
 
-wc_CompressionData* wc_CompressionData_newUnCompressed(byte* data,
-        word32 dataSz, word32 alg, void* heap)
+int wc_CompressionData_InitComp(wc_CompressionData* cd, byte* data,
+        word32 dataSz, enum wc_CompressionAlgs alg)
 {
-    wc_CompressionData* out;
 
-    if (data == NULL || alg > 0xFFFF ||
+    if (cd == NULL || data == NULL || alg > 0xFFFF || dataSz == 0 ||
             !wc_isCompressionAlgSupported((word16)alg)) {
-        return NULL;
+        return BAD_FUNC_ARG;
     }
 
-    out = (wc_CompressionData*)XMALLOC(sizeof(*out), heap,
-            DYNAMIC_TYPE_TMP_BUFFER);
-    if (out == NULL)
-        return NULL;
+    XMEMSET(cd, 0, sizeof(*cd));
 
-    out->compressionAlg = (enum wc_CompressionAlgs)alg;
-    out->compressedSz = 0;
-    out->uncompressedSz = dataSz;
-    out->data = data;
-    out->dataIsOwned = 0;
-    out->isCompressed = 0;
-    out->heap = heap;
-    return out;
+    cd->compressionAlg = (enum wc_CompressionAlgs)alg;
+    cd->uncompressedSz = dataSz;
+    cd->data = data;
+    return 0;
 }
 
 void wc_CompressionData_Free(wc_CompressionData* cd)
@@ -403,13 +391,17 @@ void wc_CompressionData_Free(wc_CompressionData* cd)
         return;
 
     heap = cd->heap;
-    if (cd->dataIsOwned)
-        XFREE(cd->data, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(cd, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    (void)heap;
+    if (cd->dataIsOwned) {
+        if (cd->data != NULL) {
+            wc_ForceZero(cd->data, cd->isCompressed ? cd->compressedSz :
+                                                      cd->uncompressedSz);
+            XFREE(cd->data, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+    }
+    wc_ForceZero(cd, sizeof(wc_CompressionData));
 }
 
-int wc_CompressData(wc_CompressionData* data)
+int wc_CompressionData_Compress(wc_CompressionData* data)
 {
     int ret;
     byte* out;
@@ -431,9 +423,11 @@ int wc_CompressData(wc_CompressionData* data)
 
     switch (data->compressionAlg) {
         case WC_ZLIB:
+#ifdef HAVE_LIBZ
             ret = wc_Compress(out, data->uncompressedSz,
                     data->data, data->uncompressedSz, Z_DEFAULT_STRATEGY);
             break;
+#endif
 
         /* impliment more compression algs here */
         case WC_NO_COMPRESSION:
@@ -467,7 +461,7 @@ int wc_CompressData(wc_CompressionData* data)
     return 0;
 }
 
-int wc_DeCompressData(wc_CompressionData* data)
+int wc_CompressionData_Decompress(wc_CompressionData* data)
 {
     int ret;
     byte* out;
@@ -488,9 +482,11 @@ int wc_DeCompressData(wc_CompressionData* data)
 
     switch (data->compressionAlg) {
         case WC_ZLIB:
+#ifdef HAVE_LIBZ
             ret = wc_DeCompress(out, data->uncompressedSz,
                     data->data, data->compressedSz);
             break;
+#endif
 
         /* impliment more compression algs here */
         case WC_NO_COMPRESSION:
@@ -517,11 +513,18 @@ int wc_DeCompressData(wc_CompressionData* data)
     return 0;
 }
 
-#endif /* HAVE_LIBZ */
-
-byte wc_isCompressionAlgSupported(word16 alg)
+/* compression data setters and getters */
+WC_INLINE int wc_CompressionData_SetHeap(wc_CompressionData* cd, void* heap)
 {
-    switch (alg) {
+    cd->heap = heap;
+    return 1;
+}
+
+
+WC_INLINE byte wc_isCompressionAlgSupported(enum wc_CompressionAlgs alg)
+{
+    /* cast to remove warnings about incomplete switch case */
+    switch ((word16)alg) {
 #ifdef HAVE_LIBZ
         case WC_ZLIB:
 #endif
