@@ -143,7 +143,9 @@ EXTRA_DIST += \
              certs/server-ecc-self.der \
              certs/server-ecc-rsa.der \
              certs/server-cert-chain.der \
-             certs/client-cert-ext.der
+             certs/client-cert-ext.der \
+             certs/bundle-eid-cert.der \
+             certs/hwname-cert.der
 
 # ECC CA prime256v1
 EXTRA_DIST += \
