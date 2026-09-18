@@ -898,9 +898,16 @@ struct WOLFSSL_X509_STORE {
 };
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
-#define WOLFSSL_USE_CHECK_TIME 0x2
-#define WOLFSSL_NO_CHECK_TIME  0x200000
-#define WOLFSSL_PARTIAL_CHAIN  0x80000
+#define WOLFSSL_USE_CHECK_TIME      0x2
+#define WOLFSSL_X509_STRICT         0x20
+#define WOLFSSL_ALLOW_PROXY_CERTS   0x40
+#define WOLFSSL_TRUSTED_FIRST       0x8000
+#define WOLFSSL_NO_CHECK_TIME       0x200000
+#define WOLFSSL_PARTIAL_CHAIN       0x80000
+
+/* Mask of unsupported flags which, if accepted, would leave verification
+ * weaker than the caller asked for. */
+#define WOLFSSL_VPARAM_UNSUPPORTED_FLAGS WOLFSSL_X509_STRICT
 
 #define WOLFSSL_VPARAM_DEFAULT          0x1
 #define WOLFSSL_VPARAM_OVERWRITE        0x2
