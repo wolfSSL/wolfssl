@@ -90,10 +90,11 @@ int  wc_FreeNetRandom(void);
     wc_InitRng() registers them; they can never be unregistered,
     so the library pins itself against dlclose().  They cover WC_RNG locks
     only, not clone(), vfork() or _Fork().  A fork() from inside a seed or
-    hash callback deadlocks.  A fork() called from a signal handler is not
-    covered either: the handler that runs before the fork waits on a
-    semaphore, which POSIX does not allow there, though the two that run
-    after it only post one, which it does.
+    hash callback works: that thread already holds the lock, so the handler
+    leaves it alone and the child's copy of that thread frees it.  A fork()
+    called from a signal handler is not covered: the handler that runs before
+    the fork waits on a semaphore, which POSIX does not allow there, though
+    the two that run after it only post one, which it does.
 
     Builds without the handlers, macOS among them, leave a forked child only
     exec(): a child that calls the RNG instead blocks for good if any thread

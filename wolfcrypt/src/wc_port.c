@@ -459,7 +459,7 @@ struct wc_ForkLock {
      * read-modify-write, so no contended line and no bus traffic. */
     wolfSSL_Atomic_Int broken;   /* fails closed; a lone child or dead sem */
     /* Set by prepare, cleared by parent and child: no other thread reads it. */
-    int heldAtFork;   /* prepare took this one, so give it back */
+    int forkState;   /* one of the WC_FORK_LOCK_* values */
     int cancel;   /* the holder's cancel state, back on exit */
 };
 
@@ -555,13 +555,14 @@ static void ForkPrepare(void)
         /* Waiting on one this thread already holds would never return.  The
          * child's only thread is this one, and it releases it as usual. */
         if (ForkMineHeld(n)) {
+            n->forkState = WC_FORK_LOCK_OWNED;
             continue;
         }
         if (ForkSemWait(&n->sem) != 0) {
             WOLFSSL_ATOMIC_STORE(n->broken, 1);
         }
         else {
-            n->heldAtFork = 1;
+            n->forkState = WC_FORK_LOCK_TAKEN;
         }
     }
 }
@@ -574,27 +575,29 @@ static void ForkParent(void)
     if (WOLFSSL_ATOMIC_LOAD(forkListDead))
         return;
     for (n = forkList; n != NULL; n = n->next) {
-        if (n->heldAtFork) {
-            n->heldAtFork = 0;
+        if (n->forkState == WC_FORK_LOCK_TAKEN) {
             (void)sem_post(&n->sem);
         }
+        /* An owned one needs nothing: its holder still has it. */
+        n->forkState = WC_FORK_LOCK_UNTAKEN;
     }
     (void)sem_post(&forkListSem);
 }
 
 /* Child after fork(): stores and sem_post() only, all POSIX allows here.
- * Anything prepare did not hold has an unknown count, so it fails closed. */
+ * A lock prepare neither took nor found owned has an unknown count, so it
+ * fails closed; an owned one is held by this very thread, which frees it. */
 static void ForkChild(void)
 {
     wc_ForkLock* n;
     for (n = forkList; n != NULL; n = n->next) {   /* forward links stay whole */
-        if (n->heldAtFork) {
-            n->heldAtFork = 0;
+        if (n->forkState == WC_FORK_LOCK_TAKEN) {
             (void)sem_post(&n->sem);
         }
-        else {
+        else if (n->forkState == WC_FORK_LOCK_UNTAKEN) {
             WOLFSSL_ATOMIC_STORE(n->broken, 1);
         }
+        n->forkState = WC_FORK_LOCK_UNTAKEN;
     }
     if (!WOLFSSL_ATOMIC_LOAD(forkListDead))
         (void)sem_post(&forkListSem);

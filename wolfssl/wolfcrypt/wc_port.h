@@ -1129,6 +1129,13 @@ WOLFSSL_LOCAL void wolfSSL_RefWithMutexDec_IfEquals(wolfSSL_RefWithMutex* ref,
  * (signal-safety(7); fork(2) limits the child to async-signal-safe calls).
  * The object is opaque: callers hold only a pointer. */
 typedef struct wc_ForkLock wc_ForkLock;
+/* What the prepare handler did with one lock, so the parent and child
+ * handlers finish exactly that and no more. */
+enum {
+    WC_FORK_LOCK_UNTAKEN = 0,   /* prepare left it alone */
+    WC_FORK_LOCK_TAKEN   = 1,   /* prepare took it, so give it back */
+    WC_FORK_LOCK_OWNED   = 2    /* the forking thread was already holding it */
+};
 WOLFSSL_LOCAL int  wc_ForkLockInit(void);          /* from wolfCrypt_Init */
 WOLFSSL_LOCAL int  wc_ForkLock_New(wc_ForkLock** lock, void* heap);
 WOLFSSL_LOCAL void wc_ForkLock_Free(wc_ForkLock** lock);
