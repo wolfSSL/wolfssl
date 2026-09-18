@@ -39,7 +39,13 @@
 
 /* Map an SE Manager status to a wolfCrypt error. SL_STATUS_NOT_SUPPORTED and
  * SL_STATUS_INVALID_PARAMETER become CRYPTOCB_UNAVAILABLE so that a request the
- * SE cannot service falls back to software instead of failing the caller. */
+ * SE cannot service falls back to software instead of failing the caller.
+ *
+ * Treating INVALID_PARAMETER as safe-to-retry assumes the SE Manager validates
+ * its arguments before touching the caller's output, context or IV, so the
+ * software retry re-runs from clean inputs. The SE Manager commands validate up
+ * front, so this holds; a command that mutated output before rejecting an
+ * argument would need its own handling rather than this blanket mapping. */
 int silabs_cb_status(int slStatus)
 {
     /* The raw-status helpers return a negative wolfCrypt error for argument

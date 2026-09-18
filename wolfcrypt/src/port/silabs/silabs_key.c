@@ -312,6 +312,36 @@ int wc_SilabsSe_AesUseBuiltInKey(Aes* aes, int slot, int keyBits)
 
 #if defined(HAVE_ECC) && defined(WOLFSSL_SILABS_CRYPTOCB_ECC)
 
+/* Read the public point of a resident (wrapped or built-in) private key into
+ * key->pubkey, so a bound key can verify and export its public half without a
+ * separate step, matching the generate path. key->key_raw is used as scratch
+ * for the exported point, which is public, not secret. */
+static int silabs_ecc_bind_pubkey(ecc_key* key, sl_se_key_type_t type,
+    word32 keySz)
+{
+    sl_se_command_context_t pc = SL_SE_COMMAND_CONTEXT_INIT;
+    sl_se_key_descriptor_t  pubDesc;
+    int ret;
+
+    XMEMSET(&pubDesc, 0, sizeof(pubDesc));
+    pubDesc.type = type;
+    pubDesc.flags = SL_SE_KEY_FLAG_ASYMMETRIC_BUFFER_HAS_PUBLIC_KEY;
+    pubDesc.size = keySz;
+    pubDesc.storage.method = SL_SE_KEY_STORAGE_EXTERNAL_PLAINTEXT;
+    pubDesc.storage.location.buffer.pointer = key->key_raw;
+    pubDesc.storage.location.buffer.size = sizeof(key->key_raw);
+
+    ret = silabs_cb_status(
+        (int)sl_se_export_public_key(&pc, &key->key, &pubDesc));
+    if (ret == 0) {
+        ret = mp_read_unsigned_bin(key->pubkey.x, key->key_raw, keySz);
+    }
+    if (ret == 0) {
+        ret = mp_read_unsigned_bin(key->pubkey.y, key->key_raw + keySz, keySz);
+    }
+    return ret;
+}
+
 #ifdef WOLFSSL_SILABS_WRAPPED_KEYS
 int wc_SilabsSe_EccGetWrappedKeySize(int curveId, word32* outSz)
 {
@@ -466,7 +496,7 @@ int wc_SilabsSe_EccUseWrappedKey(ecc_key* key, const byte* wrapped,
     ecc_forcezero_k(key);
     key->silabsKeySet = 1;
 
-    return 0;
+    return silabs_ecc_bind_pubkey(key, type, keySz);
 }
 #endif /* WOLFSSL_SILABS_WRAPPED_KEYS */
 
@@ -510,7 +540,7 @@ int wc_SilabsSe_EccUseBuiltInKey(ecc_key* key, int slot, int curveId)
     ecc_forcezero_k(key);
     key->silabsKeySet = 1;
 
-    return 0;
+    return silabs_ecc_bind_pubkey(key, type, keySz);
 }
 
 #endif /* HAVE_ECC && WOLFSSL_SILABS_CRYPTOCB_ECC */

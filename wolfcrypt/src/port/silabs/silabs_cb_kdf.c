@@ -66,8 +66,21 @@ static int silabs_kdf_hkdf(wc_CryptoInfo* info)
     sl_se_key_descriptor_t outKey;
     sl_status_t status;
     int seHash;
+    int hLen;
 
     if (info->kdf.hkdf.out == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    /* Mirror wc_HKDF_ex: info may be NULL only for a zero length, and RFC 5869
+     * caps the output at 255 * HashLen. */
+    if (info->kdf.hkdf.info == NULL && info->kdf.hkdf.infoSz != 0) {
+        return BAD_FUNC_ARG;
+    }
+    hLen = wc_HmacSizeByType(info->kdf.hkdf.hashType);
+    if (hLen <= 0) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+    if (info->kdf.hkdf.outSz > (word32)(255 * hLen)) {
         return BAD_FUNC_ARG;
     }
     /* wc_HKDF accepts zero-length keying material with a NULL pointer, which
@@ -111,6 +124,9 @@ static int silabs_kdf_pbkdf2(wc_CryptoInfo* info)
         return BAD_FUNC_ARG;
     }
     if (info->kdf.pbkdf2.passwd == NULL && info->kdf.pbkdf2.pLen != 0) {
+        return BAD_FUNC_ARG;
+    }
+    if (info->kdf.pbkdf2.salt == NULL && info->kdf.pbkdf2.sLen != 0) {
         return BAD_FUNC_ARG;
     }
     /* kLen == 0 is not an error for the software API, only for this engine. */
