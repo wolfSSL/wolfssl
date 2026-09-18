@@ -622,44 +622,30 @@ static void RngLockFree(WC_RNG* rng)
     }
 }
 
-/* Cancellation stays off while the lock is held, where the platform has
- * cancellation at all: a reseed reads a device, a cancellation point. */
+/* Cancellation stays off while the lock is held: a reseed reads a device,
+ * which is a cancellation point.  wc_port.c owns the platform side. */
 static int RngLockEnter(WC_RNG* rng)
 {
-#ifdef PTHREAD_CANCEL_DISABLE
-    int old = PTHREAD_CANCEL_ENABLE;
-#endif
+    int old;
     if (!rng->autoLockInited)
         return 0;
-#ifdef PTHREAD_CANCEL_DISABLE
-    (void)pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &old);
-#endif
+    old = wc_CancelDisable();
     if (wc_LockMutex(&rng->mutex) != 0) {
-    #ifdef PTHREAD_CANCEL_DISABLE
-        (void)pthread_setcancelstate(old, NULL);
-    #endif
+        wc_CancelRestore(old);
         return BAD_MUTEX_E;
     }
-#ifdef PTHREAD_CANCEL_DISABLE
     rng->autoLockCancel = old;
-#endif
     return 0;
 }
 
 static void RngLockExit(WC_RNG* rng)
 {
-#ifdef PTHREAD_CANCEL_DISABLE
     int old;
-#endif
     if (!rng->autoLockInited)
         return;
-#ifdef PTHREAD_CANCEL_DISABLE
     old = rng->autoLockCancel;   /* read before the unlock hands the slot on */
-#endif
     (void)wc_UnLockMutex(&rng->mutex);
-#ifdef PTHREAD_CANCEL_DISABLE
-    (void)pthread_setcancelstate(old, NULL);
-#endif
+    wc_CancelRestore(old);
 }
 #else
 #define RngLockEnter(rng) 0

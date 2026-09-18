@@ -430,6 +430,29 @@ static WC_DECLARE_INIT_STATE(wolfcrypt_init_state);
 int aarch64_use_sb = 0;
 #endif
 
+#ifdef WC_RNG_HAVE_AUTO_LOCK
+/* Cancellation off while a lock is held, so a cancel cannot strand it.  Where
+ * the platform has no cancellation both are empty and the value is unused.
+ */
+WOLFSSL_LOCAL int wc_CancelDisable(void)
+{
+    int old = 0;
+#ifdef PTHREAD_CANCEL_DISABLE
+    (void)pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &old);
+#endif
+    return old;
+}
+
+WOLFSSL_LOCAL void wc_CancelRestore(int state)
+{
+#ifdef PTHREAD_CANCEL_DISABLE
+    (void)pthread_setcancelstate(state, NULL);
+#else
+    (void)state;
+#endif
+}
+#endif /* WC_RNG_HAVE_AUTO_LOCK */
+
 #ifdef WC_RNG_LOCK_ATFORK
 #if !defined(RTLD_NOLOAD) || !defined(RTLD_NODELETE)
     #error "WC_RNG_ATFORK needs RTLD_NOLOAD and RTLD_NODELETE"

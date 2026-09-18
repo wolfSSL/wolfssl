@@ -1144,6 +1144,10 @@ WOLFSSL_API   void wc_ForkLock_Exit(wc_ForkLock* lock);
 /* For tests: force the lock to fail closed. */
 WOLFSSL_API   void wc_ForkLock_SetBroken(wc_ForkLock* lock, int broken);
 WOLFSSL_LOCAL void wc_PinImage(void* fn);          /* keeps fn's image mapped */
+/* Cancellation off while a lock is held: a reseed reads a device, which is a
+ * cancellation point.  Both are no-ops where the platform has no cancel. */
+WOLFSSL_LOCAL int  wc_CancelDisable(void);         /* returns the old state */
+WOLFSSL_LOCAL void wc_CancelRestore(int state);
 WOLFSSL_API wolfSSL_Mutex* wc_InitAndAllocMutex(void);
 #ifndef WOLFSSL_MUTEX_INITIALIZER
     /* Election state for wc_local_InitMutexOnce(). Define objects with
