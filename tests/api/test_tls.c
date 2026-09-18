@@ -133,6 +133,54 @@ int test_tls12_unexpected_ccs(void)
     return EXPECT_RESULT();
 }
 
+/* A TLS 1.2 client must not accept the server's ChangeCipherSpec before it has
+ * sent ClientKeyExchange: no master secret exists yet, so the CCS would switch
+ * the read side to all-zero keys and the expected Finished would be computed
+ * from an all-zero master secret. Deliver the server's flight and a CCS in one
+ * buffer so the client sees the CCS right behind ServerHelloDone. */
+int test_tls12_early_server_ccs(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(WOLFSSL_NO_TLS12)
+    const byte ccs[] = {
+        0x14, /* ccs type */
+        0x03, 0x03, /* version */
+        0x00, 0x01, /* length */
+        0x01, /* ccs value */
+    };
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+    /* start handshake, send first ClientHello */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    /* send server's flight */
+    ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* hand the whole flight plus a CCS to the client in one go */
+    ExpectIntGT(test_ctx.c_len, 0);
+    ExpectIntEQ(wolfSSL_inject(ssl_c, test_ctx.c_buff, test_ctx.c_len),
+            WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_inject(ssl_c, ccs, sizeof(ccs)), WOLFSSL_SUCCESS);
+    test_memio_clear_buffer(&test_ctx, 1);
+
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), OUT_OF_ORDER_E);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_tls13_unexpected_ccs(void)
 {
     EXPECT_DECLS;

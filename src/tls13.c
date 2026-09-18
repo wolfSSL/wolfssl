@@ -15172,6 +15172,21 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
                 WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
                 return OUT_OF_ORDER_E;
             }
+        #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+            /* RFC 8446 4.4.2: the client only sends this in response to a
+             * CertificateRequest, which a server authenticating with a PSK
+             * does not send in the main handshake (but may post-handshake). */
+            if (ssl->options.side == WOLFSSL_SERVER_END &&
+                ssl->options.pskNegotiated && !TLS13_AFTER_HANDSHAKE(ssl)
+#ifdef WOLFSSL_CERT_WITH_EXTERN_PSK
+                && !ssl->options.certWithExternPsk
+#endif
+               ) {
+                WOLFSSL_MSG("Certificate received while using PSK - Server");
+                WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
+                return SANITY_MSG_E;
+            }
+        #endif
     #endif
             /* Check previously seen. */
             if (ssl->msgsReceived.got_certificate) {
@@ -15436,16 +15451,16 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
                     WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
                     return OUT_OF_ORDER_E;
                 }
-                /* Must have received a valid CertificateVerify if verifying
-                 * peer and got a peer certificate.
-                 */
-                if ((ssl->options.mutualAuth || ssl->options.verifyPeer) &&
-                    ssl->options.havePeerCert && !ssl->options.havePeerVerify) {
-                    WOLFSSL_MSG("Finished received out of order - "
-                                "Certificate message but no CertificateVerify");
-                    WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
-                    return OUT_OF_ORDER_E;
-                }
+            }
+            /* Must have received a valid CertificateVerify if got a peer
+             * certificate. A certificate without proof of possession is never
+             * acceptable, regardless of how the handshake was authenticated.
+             */
+            if (ssl->options.havePeerCert && !ssl->options.havePeerVerify) {
+                WOLFSSL_MSG("Finished received out of order - "
+                            "Certificate message but no CertificateVerify");
+                WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
+                return OUT_OF_ORDER_E;
             }
             /* Check previously seen. */
             if (ssl->msgsReceived.got_finished) {
