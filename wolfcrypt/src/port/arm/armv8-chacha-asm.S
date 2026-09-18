@@ -117,7 +117,7 @@ _wc_chacha_crypt_bytes:
 	# Load state to encrypt
 	ld1	{v16.4s, v17.4s, v18.4s, v19.4s}, [x0]
 	cmp	x3, #0x140
-	blt	L_chacha_crypt_bytes_arm64_lt_320
+	b.lt	L_chacha_crypt_bytes_arm64_lt_320
 	mov	w25, #4
 L_chacha_crypt_bytes_arm64_loop_320:
 	# Move state into regular register
@@ -380,7 +380,7 @@ L_chacha_crypt_bytes_arm64_round_start_320:
 	sri	v6.4s, v21.4s, #25
 	sri	v7.4s, v22.4s, #25
 	sri	v4.4s, v23.4s, #25
-	bne	L_chacha_crypt_bytes_arm64_round_start_320
+	b.ne	L_chacha_crypt_bytes_arm64_round_start_320
 	# Add counter now rather than after transposed
 	add	v12.4s, v12.4s, v28.4s
 	add	w21, w21, w25
@@ -489,11 +489,11 @@ L_chacha_crypt_bytes_arm64_round_start_320:
 	st1	{v0.4s, v1.4s, v2.4s, v3.4s}, [x1], #0x40
 	cmp	x3, #0x140
 	add	v19.4s, v19.4s, v29.4s
-	bge	L_chacha_crypt_bytes_arm64_loop_320
+	b.ge	L_chacha_crypt_bytes_arm64_loop_320
 	# Done doing 320 bytes at a time
 L_chacha_crypt_bytes_arm64_lt_320:
 	cmp	x3, #0x100
-	blt	L_chacha_crypt_bytes_arm64_lt_256
+	b.lt	L_chacha_crypt_bytes_arm64_lt_256
 	# Move state into vector registers
 	dup	v0.4s, v16.s[0]
 	dup	v1.4s, v16.s[1]
@@ -639,7 +639,7 @@ L_chacha_crypt_bytes_arm64_round_start_256:
 	sri	v6.4s, v21.4s, #25
 	sri	v7.4s, v22.4s, #25
 	sri	v4.4s, v23.4s, #25
-	bne	L_chacha_crypt_bytes_arm64_round_start_256
+	b.ne	L_chacha_crypt_bytes_arm64_round_start_256
 	mov	x26, #4
 	# Add counter now rather than after transposed
 	add	v12.4s, v12.4s, v28.4s
@@ -724,7 +724,7 @@ L_chacha_crypt_bytes_arm64_round_start_256:
 	# Done 256-byte block
 L_chacha_crypt_bytes_arm64_lt_256:
 	cmp	x3, #0x80
-	blt	L_chacha_crypt_bytes_arm64_lt_128
+	b.lt	L_chacha_crypt_bytes_arm64_lt_128
 	ld1	{v24.16b, v25.16b, v26.16b, v27.16b}, [x2], #0x40
 	# Move state into vector registers
 	mov	v4.16b, v16.16b
@@ -819,7 +819,7 @@ L_chacha_crypt_bytes_arm64_round_start_128:
 	ext	v5.16b, v5.16b, v5.16b, #12
 	ext	v2.16b, v2.16b, v2.16b, #8
 	ext	v6.16b, v6.16b, v6.16b, #8
-	bne	L_chacha_crypt_bytes_arm64_round_start_128
+	b.ne	L_chacha_crypt_bytes_arm64_round_start_128
 	# Add back state, XOR in message and store (load next block)
 	add	v0.4s, v0.4s, v16.4s
 	add	v1.4s, v1.4s, v17.4s
@@ -846,7 +846,7 @@ L_chacha_crypt_bytes_arm64_round_start_128:
 	# Done 128-byte block
 L_chacha_crypt_bytes_arm64_lt_128:
 	cmp	x3, #0
-	beq	L_chacha_crypt_bytes_arm64_done_all
+	b.eq	L_chacha_crypt_bytes_arm64_done_all
 	mov	w5, #0x40
 L_chacha_crypt_bytes_arm64_loop_64:
 	# Move state into vector registers
@@ -902,7 +902,7 @@ L_chacha_crypt_bytes_arm64_round_64:
 	ext	v3.16b, v3.16b, v3.16b, #4
 	ext	v1.16b, v1.16b, v1.16b, #12
 	ext	v2.16b, v2.16b, v2.16b, #8
-	bne	L_chacha_crypt_bytes_arm64_round_64
+	b.ne	L_chacha_crypt_bytes_arm64_round_64
 	# Add back state
 	add	v0.4s, v0.4s, v16.4s
 	add	v1.4s, v1.4s, v17.4s
@@ -911,7 +911,7 @@ L_chacha_crypt_bytes_arm64_round_64:
 	# Check if data is less than 64 bytes - store in over
 	cmp	x3, #0x40
 	add	v19.4s, v19.4s, v31.4s
-	blt	L_chacha_crypt_bytes_arm64_lt_64
+	b.lt	L_chacha_crypt_bytes_arm64_lt_64
 	# Encipher 64 bytes
 	ld1	{v24.16b, v25.16b, v26.16b, v27.16b}, [x2], #0x40
 	eor	v24.16b, v24.16b, v0.16b
@@ -921,7 +921,7 @@ L_chacha_crypt_bytes_arm64_round_64:
 	st1	{v24.16b, v25.16b, v26.16b, v27.16b}, [x1], #0x40
 	# Check for more bytes to be enciphered
 	subs	x3, x3, #0x40
-	bne	L_chacha_crypt_bytes_arm64_loop_64
+	b.ne	L_chacha_crypt_bytes_arm64_loop_64
 	b	L_chacha_crypt_bytes_arm64_done
 L_chacha_crypt_bytes_arm64_lt_64:
 	# Calculate bytes left in block not used
@@ -931,7 +931,7 @@ L_chacha_crypt_bytes_arm64_lt_64:
 	str	w5, [x0, #64]
 	# Encipher 32 bytes
 	cmp	x3, #32
-	blt	L_chacha_crypt_bytes_arm64_lt_32
+	b.lt	L_chacha_crypt_bytes_arm64_lt_32
 	ld1	{v24.16b, v25.16b}, [x2], #32
 	eor	v24.16b, v24.16b, v0.16b
 	eor	v25.16b, v25.16b, v1.16b
@@ -939,27 +939,27 @@ L_chacha_crypt_bytes_arm64_lt_64:
 	subs	x3, x3, #32
 	mov	v0.16b, v2.16b
 	mov	v1.16b, v3.16b
-	beq	L_chacha_crypt_bytes_arm64_done
+	b.eq	L_chacha_crypt_bytes_arm64_done
 L_chacha_crypt_bytes_arm64_lt_32:
 	cmp	x3, #16
-	blt	L_chacha_crypt_bytes_arm64_lt_16
+	b.lt	L_chacha_crypt_bytes_arm64_lt_16
 	# Encipher 16 bytes
 	ld1	{v24.16b}, [x2], #16
 	eor	v24.16b, v24.16b, v0.16b
 	st1	{v24.16b}, [x1], #16
 	subs	x3, x3, #16
 	mov	v0.16b, v1.16b
-	beq	L_chacha_crypt_bytes_arm64_done
+	b.eq	L_chacha_crypt_bytes_arm64_done
 L_chacha_crypt_bytes_arm64_lt_16:
 	cmp	x3, #8
-	blt	L_chacha_crypt_bytes_arm64_lt_8
+	b.lt	L_chacha_crypt_bytes_arm64_lt_8
 	# Encipher 8 bytes
 	ld1	{v24.8b}, [x2], #8
 	eor	v24.8b, v24.8b, v0.8b
 	st1	{v24.8b}, [x1], #8
 	subs	x3, x3, #8
 	mov	v0.d[0], v0.d[1]
-	beq	L_chacha_crypt_bytes_arm64_done
+	b.eq	L_chacha_crypt_bytes_arm64_done
 L_chacha_crypt_bytes_arm64_lt_8:
 	mov	x5, v0.d[0]
 L_chacha_crypt_bytes_arm64_loop_lt_8:
@@ -969,7 +969,7 @@ L_chacha_crypt_bytes_arm64_loop_lt_8:
 	strb	w6, [x1], #1
 	subs	x3, x3, #1
 	lsr	x5, x5, #8
-	bgt	L_chacha_crypt_bytes_arm64_loop_lt_8
+	b.gt	L_chacha_crypt_bytes_arm64_loop_lt_8
 L_chacha_crypt_bytes_arm64_done:
 L_chacha_crypt_bytes_arm64_done_all:
 	st1	{v16.4s, v17.4s, v18.4s, v19.4s}, [x0]
@@ -1058,7 +1058,7 @@ _wc_chacha_setkey:
 #endif /* BIG_ENDIAN_ORDER */
 	st1	{v0.4s}, [x0], #16
 	st1	{v1.4s}, [x0], #16
-	beq	L_chacha_setkey_arm64_done
+	b.eq	L_chacha_setkey_arm64_done
 	ld1	{v1.16b}, [x1]
 #ifdef BIG_ENDIAN_ORDER
 	rev32	v1.8h, v1.8h
@@ -1085,25 +1085,25 @@ _wc_chacha_use_over:
 #endif /* __APPLE__ */
 L_chacha_use_over_arm64_16byte_loop:
 	cmp	x3, #16
-	blt	L_chacha_use_over_arm64_word_loop
+	b.lt	L_chacha_use_over_arm64_word_loop
 	# 16 bytes of state XORed into message.
 	ld1	{v0.16b}, [x0], #16
 	ld1	{v1.16b}, [x2], #16
 	eor	v1.16b, v1.16b, v0.16b
 	subs	x3, x3, #16
 	st1	{v1.16b}, [x1], #16
-	beq	L_chacha_use_over_arm64_done
+	b.eq	L_chacha_use_over_arm64_done
 	b	L_chacha_use_over_arm64_16byte_loop
 L_chacha_use_over_arm64_word_loop:
 	cmp	x3, #4
-	blt	L_chacha_use_over_arm64_byte_loop
+	b.lt	L_chacha_use_over_arm64_byte_loop
 	# 4 bytes of state XORed into message.
 	ldr	w4, [x0], #4
 	ldr	w5, [x2], #4
 	eor	w5, w5, w4
 	subs	x3, x3, #4
 	str	w5, [x1], #4
-	beq	L_chacha_use_over_arm64_done
+	b.eq	L_chacha_use_over_arm64_done
 	b	L_chacha_use_over_arm64_word_loop
 L_chacha_use_over_arm64_byte_loop:
 	# 1 bytes of state XORed into message.
@@ -1112,7 +1112,7 @@ L_chacha_use_over_arm64_byte_loop:
 	eor	w5, w5, w4
 	subs	x3, x3, #1
 	strb	w5, [x1], #1
-	bne	L_chacha_use_over_arm64_byte_loop
+	b.ne	L_chacha_use_over_arm64_byte_loop
 L_chacha_use_over_arm64_done:
 	ret
 #ifndef __APPLE__

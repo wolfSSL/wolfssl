@@ -619,7 +619,7 @@ L_sha512_len_neon_start
 	add	x8, x8, x4
 	add	x4, x4, x14
 	subs	x27, x27, #1
-	bne	L_sha512_len_neon_start
+	b.ne	L_sha512_len_neon_start
 	; Round 0
 	mov	x13, V0.D[0]
 	ldr	x15, [x3], #8
@@ -982,7 +982,7 @@ L_sha512_len_neon_start
 	add	x4, x4, x19
 	subs	w2, w2, #0x80
 	sub	x3, x3, #0x280
-	bne	L_sha512_len_neon_begin
+	b.ne	L_sha512_len_neon_begin
 	stp	x4, x5, [x0]
 	stp	x6, x7, [x0, #16]
 	stp	x8, x9, [x0, #32]
@@ -1556,7 +1556,7 @@ L_sha512_len_crypto_begin
 	add	V25.2D, V25.2D, V29.2D
 	add	V24.2D, V24.2D, V28.2D
 	subs	w2, w2, #0x80
-	bne	L_sha512_len_crypto_begin
+	b.ne	L_sha512_len_crypto_begin
 	; Store digest back
 	st1	{V24.2D, V25.2D, V26.2D, V27.2D}, [x0]
 	ldp	D8, D9, [x29, #16]
