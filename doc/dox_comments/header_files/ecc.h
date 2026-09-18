@@ -1326,31 +1326,35 @@ int wc_ecc_import_private_key(const byte* priv, word32 privSz, const byte* pub,
     a chip-bound wrapped blob together with the 256-bit derivation seed; the
     plaintext scalar is never imported. The key must be bound to the STM32 DHUK
     crypto-callback device (init with wc_ecc_init_ex(&key, heap, WC_DHUK_DEVID)
-    after registering the device with wc_Stm32_DhukRegister). Available only on
+    after registering the device with wc_Stm32_DhukRegister). The curve is set
+    from curve_id, so the key is ready to sign on return. Available only on
     STM32 builds with WOLFSSL_DHUK and a DHUK-capable SAES (WC_STM32_HAS_DHUK).
 
     \return 0 Returned on success.
     \return BAD_FUNC_ARG Returned if key, seed, or wrapped is NULL; if seedSz is
     not 32; if wrappedLen is zero or not a multiple of the AES block size; if
     wrappedLen exceeds the on-key blob buffer; if plainLen is zero or larger
-    than wrappedLen; or if wrappedLen is larger than plainLen padded to a full
-    AES block.
+    than wrappedLen; if wrappedLen is larger than plainLen padded to a full
+    AES block; or if plainLen does not match the scalar size of curve_id.
+    \return <0 An error from the curve lookup if curve_id is not supported.
 
     \param key pointer to the ecc_key (bound to WC_DHUK_DEVID) to import into.
+    \param curve_id curve the scalar belongs to, e.g. ECC_SECP256R1.
     \param seed pointer to the 256-bit (32-byte) per-key DHUK derivation seed.
     \param seedSz length of seed in bytes; must be 32.
     \param wrapped pointer to the DHUK-wrapped private scalar blob.
     \param wrappedLen length of the wrapped blob; a non-zero multiple of the AES
     block size, no larger than the on-key buffer.
-    \param plainLen length in bytes of the plaintext scalar inside the blob.
+    \param plainLen length in bytes of the plaintext scalar inside the blob;
+    must equal the scalar size of curve_id (32 for P-256, 48 for P-384).
 
     _Example_
     \code
     ecc_key key;
     wc_Stm32_DhukRegister(WC_DHUK_DEVID);
     wc_ecc_init_ex(&key, NULL, WC_DHUK_DEVID);
-    if (wc_ecc_import_wrapped_private(&key, seed, 32, wrapped, wrappedLen,
-            plainLen) == 0) {
+    if (wc_ecc_import_wrapped_private(&key, ECC_SECP256R1, seed, 32, wrapped,
+            wrappedLen, plainLen) == 0) {
         wc_ecc_sign_hash(hash, hashLen, sig, &sigLen, &rng, &key);
     }
     wc_ecc_free(&key);
@@ -1360,7 +1364,8 @@ int wc_ecc_import_private_key(const byte* priv, word32 privSz, const byte* pub,
     \sa wc_ecc_sign_hash
     \sa wc_ecc_init_ex
 */
-int wc_ecc_import_wrapped_private(ecc_key* key, const byte* seed, word32 seedSz,
+int wc_ecc_import_wrapped_private(ecc_key* key, int curve_id,
+                                  const byte* seed, word32 seedSz,
                                   const byte* wrapped, word32 wrappedLen,
                                   word32 plainLen);
 

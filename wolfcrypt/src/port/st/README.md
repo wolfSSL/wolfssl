@@ -174,7 +174,7 @@ wc_AesFree(&aes);
 wc_Stm32_DhukUnRegister(WC_DHUK_DEVID);
 ```
 
-ECDSA mirrors this: init the key with `wc_ecc_init_ex(&key, NULL, WC_DHUK_DEVID)`, import the wrapped private scalar plus its derivation seed with `wc_ecc_import_wrapped_private(&key, seed, seedSz, wrapped, wrappedLen, plainLen)`, then call the normal `wc_ecc_sign_hash()`; verification uses the in-clear public key unchanged. The seed reaches the device as the AES key bytes (`aes->devKey`, set by the normal `wc_AesSetKey` / `wc_AesGcmSetKey`) or, for ECC, on the `ecc_key`; the STM32 callback reads it and derives the working key inside SAES.
+ECDSA mirrors this: init the key with `wc_ecc_init_ex(&key, NULL, WC_DHUK_DEVID)`, import the wrapped private scalar plus its derivation seed with `wc_ecc_import_wrapped_private(&key, ECC_SECP256R1, seed, seedSz, wrapped, wrappedLen, plainLen)`, then call the normal `wc_ecc_sign_hash()`. The curve argument is required: it is what gives the sign path the domain parameters to drive the PKA, and the key is ready to sign on return. Verification uses the in-clear public key unchanged. The seed reaches the device as the AES key bytes (`aes->devKey`, set by the normal `wc_AesSetKey` / `wc_AesGcmSetKey`) or, for ECC, on the `ecc_key`; the STM32 callback reads it and derives the working key inside SAES.
 
 Worked example: [`STM32_Bare_Test/src/main_dhuk.c`](https://github.com/wolfSSL/wolfssl-examples-stm32/blob/master/STM32_Bare_Test/src/main_dhuk.c) drives `wc_Stm32_DhukRegister` through transparent GMAC, AES-ECB, and ECDSA, and exercises the `wc_ecc_import_wrapped_private` argument validation in its `test_ecc_dhuk_setter()` block.
 

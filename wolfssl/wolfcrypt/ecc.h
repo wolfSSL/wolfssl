@@ -801,22 +801,29 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 #if defined(WOLFSSL_DHUK) && defined(WC_STM32_HAS_DHUK) && \
     (defined(WOLFSSL_STM32_BARE) || defined(WOLFSSL_STM32_CUBEMX))
 /* DHUK ECC sign: import a hardware-wrapped ECC private scalar + its derivation
- * seed onto the ecc_key for the crypto-callback sign path. The caller MUST also
- * populate key->pubkey (via wc_ecc_import_x963) so verify can use the
- * in-clear public counterpart, and enable the device by setting devId at init
- * (wc_ecc_init_ex(&key, heap, WC_DHUK_DEVID)).
+ * seed onto the ecc_key for the crypto-callback sign path. Sets the curve, so
+ * the key is ready to sign on return. Enable the device by setting devId at
+ * init (wc_ecc_init_ex(&key, heap, WC_DHUK_DEVID)). To verify with this same
+ * key, also populate key->pubkey (via wc_ecc_import_x963) -- verify uses the
+ * in-clear public counterpart and does not touch the wrapped scalar.
+ *   curve_id    -- curve the scalar belongs to (e.g. ECC_SECP256R1); without
+ *                  it the sign path has no parameters to drive the PKA and
+ *                  returns ECC_BAD_ARG_E
  *   seed        -- 256-bit derivation seed (mixed with the silicon DHUK to
  *                  derive the key that unwraps the scalar)
  *   seedSz      -- seed length, must be 32
  *   wrapped     -- ECC scalar AES-encrypted with the SAES-derived device key;
  *                  length is a multiple of 16, <= 96
  *   wrappedLen  -- length of the wrapped blob
- *   plainLen    -- actual scalar size (e.g. 32 for P-256)
+ *   plainLen    -- actual scalar size, and must match the curve (32 for
+ *                  P-256, 48 for P-384)
  *
- * On success: stores seed + blob + lengths, returns 0 (does NOT set devId).
- * On failure: BAD_FUNC_ARG. */
+ * On success: sets the curve, stores seed + blob + lengths, returns 0 (does
+ * NOT set devId).
+ * On failure: BAD_FUNC_ARG, or an error from the curve lookup. */
 WOLFSSL_API
-int wc_ecc_import_wrapped_private(ecc_key* key, const byte* seed, word32 seedSz,
+int wc_ecc_import_wrapped_private(ecc_key* key, int curve_id,
+                                  const byte* seed, word32 seedSz,
                                   const byte* wrapped, word32 wrappedLen,
                                   word32 plainLen);
 #endif
