@@ -1159,6 +1159,8 @@ static int sp_2048_div_17(const sp_digit* a, const sp_digit* d,
             t1[17 + i - 1] &= 0x1fffffffffffffffL;
             r1 = sp_2048_div_word_17(-t1[17 + i], -t1[17 + i - 1], dv);
             r1 -= t1[17 + i];
+            /* When r1 is negative then it is really 0. */
+            r1 &= (sp_digit)((sp_uint64)-1 + ((sp_uint64)r1 >> 63));
             sp_2048_mul_d_17(t2, sd, r1);
             (void)sp_2048_add_17(&t1[i], &t1[i], t2);
             t1[17 + i] += t1[17 + i - 1] >> 61;
@@ -1978,6 +1980,8 @@ static int sp_2048_div_34(const sp_digit* a, const sp_digit* d,
             t1[34 + i - 1] &= 0x1fffffffffffffffL;
             r1 = sp_2048_div_word_34(-t1[34 + i], -t1[34 + i - 1], dv);
             r1 -= t1[34 + i];
+            /* When r1 is negative then it is really 0. */
+            r1 &= (sp_digit)((sp_uint64)-1 + ((sp_uint64)r1 >> 63));
             sp_2048_mul_d_34(t2, sd, r1);
             (void)sp_2048_add_34(&t1[i], &t1[i], t2);
             t1[34 + i] += t1[34 + i - 1] >> 61;
@@ -5066,6 +5070,8 @@ static int sp_2048_div_18(const sp_digit* a, const sp_digit* d,
             t1[18 + i - 1] &= 0x1ffffffffffffffL;
             r1 = sp_2048_div_word_18(-t1[18 + i], -t1[18 + i - 1], dv);
             r1 -= t1[18 + i];
+            /* When r1 is negative then it is really 0. */
+            r1 &= (sp_digit)((sp_uint64)-1 + ((sp_uint64)r1 >> 63));
             sp_2048_mul_d_18(t2, sd, r1);
             (void)sp_2048_add_18(&t1[i], &t1[i], t2);
             t1[18 + i] += t1[18 + i - 1] >> 57;
@@ -5946,6 +5952,8 @@ static int sp_2048_div_36(const sp_digit* a, const sp_digit* d,
             t1[36 + i - 1] &= 0x1ffffffffffffffL;
             r1 = sp_2048_div_word_36(-t1[36 + i], -t1[36 + i - 1], dv);
             r1 -= t1[36 + i];
+            /* When r1 is negative then it is really 0. */
+            r1 &= (sp_digit)((sp_uint64)-1 + ((sp_uint64)r1 >> 63));
             sp_2048_mul_d_36(t2, sd, r1);
             (void)sp_2048_add_36(&t1[i], &t1[i], t2);
             t1[36 + i] += t1[36 + i - 1] >> 57;
@@ -8371,6 +8379,8 @@ static int sp_3072_div_26(const sp_digit* a, const sp_digit* d,
             t1[26 + i - 1] &= 0xfffffffffffffffL;
             r1 = sp_3072_div_word_26(-t1[26 + i], -t1[26 + i - 1], dv);
             r1 -= t1[26 + i];
+            /* When r1 is negative then it is really 0. */
+            r1 &= (sp_digit)((sp_uint64)-1 + ((sp_uint64)r1 >> 63));
             sp_3072_mul_d_26(t2, sd, r1);
             (void)sp_3072_add_26(&t1[i], &t1[i], t2);
             t1[26 + i] += t1[26 + i - 1] >> 60;
@@ -9196,6 +9206,8 @@ static int sp_3072_div_52(const sp_digit* a, const sp_digit* d,
             t1[52 + i - 1] &= 0xfffffffffffffffL;
             r1 = sp_3072_div_word_52(-t1[52 + i], -t1[52 + i - 1], dv);
             r1 -= t1[52 + i];
+            /* When r1 is negative then it is really 0. */
+            r1 &= (sp_digit)((sp_uint64)-1 + ((sp_uint64)r1 >> 63));
             sp_3072_mul_d_52(t2, sd, r1);
             (void)sp_3072_add_52(&t1[i], &t1[i], t2);
             t1[52 + i] += t1[52 + i - 1] >> 60;
@@ -11532,6 +11544,8 @@ SP_NOINLINE static int sp_3072_add_18(sp_digit* r, const sp_digit* a,
 
 /* Multiply a and b into r. (r = a * b)
  *
+ * Algorithm is TOOM-3.
+ *
  * @param [out] r  A single precision integer.
  * @param [in]  a  A single precision integer.
  * @param [in]  b  A single precision integer.
@@ -11576,7 +11590,11 @@ SP_NOINLINE static void sp_3072_mul_27(sp_digit* r, const sp_digit* a,
     (void)sp_3072_add_18(r, r, p0);
     (void)sp_3072_add_18(&r[9], &r[9], t1);
     (void)sp_3072_add_18(&r[18], &r[18], t2);
+    r[36] = r[35] >> 57;
+    r[35] = r[35] & 0x1ffffffffffffffL;
     (void)sp_3072_add_18(&r[27], &r[27], t0);
+    r[45] = r[44] >> 57;
+    r[44] = r[44] & 0x1ffffffffffffffL;
     (void)sp_3072_add_18(&r[36], &r[36], p4);
 }
 
@@ -11773,6 +11791,8 @@ SP_NOINLINE static void sp_3072_sqr_9(sp_digit* r, const sp_digit* a)
 
 /* Square a into r. (r = a * a)
  *
+ * Algorithm is TOOM-3.
+ *
  * @param [out] r  A single precision integer.
  * @param [in]  a  A single precision integer.
  */
@@ -11809,7 +11829,11 @@ SP_NOINLINE static void sp_3072_sqr_27(sp_digit* r, const sp_digit* a)
     (void)sp_3072_add_18(r, r, p0);
     (void)sp_3072_add_18(&r[9], &r[9], t1);
     (void)sp_3072_add_18(&r[18], &r[18], t2);
+    r[36] = r[35] >> 57;
+    r[35] = r[35] & 0x1ffffffffffffffL;
     (void)sp_3072_add_18(&r[27], &r[27], t0);
+    r[45] = r[44] >> 57;
+    r[44] = r[44] & 0x1ffffffffffffffL;
     (void)sp_3072_add_18(&r[36], &r[36], p4);
 }
 
@@ -12422,6 +12446,8 @@ static int sp_3072_div_27(const sp_digit* a, const sp_digit* d,
             t1[27 + i - 1] &= 0x1ffffffffffffffL;
             r1 = sp_3072_div_word_27(-t1[27 + i], -t1[27 + i - 1], dv);
             r1 -= t1[27 + i];
+            /* When r1 is negative then it is really 0. */
+            r1 &= (sp_digit)((sp_uint64)-1 + ((sp_uint64)r1 >> 63));
             sp_3072_mul_d_27(t2, sd, r1);
             (void)sp_3072_add_27(&t1[i], &t1[i], t2);
             t1[27 + i] += t1[27 + i - 1] >> 57;
@@ -13313,6 +13339,8 @@ static int sp_3072_div_54(const sp_digit* a, const sp_digit* d,
             t1[54 + i - 1] &= 0x1ffffffffffffffL;
             r1 = sp_3072_div_word_54(-t1[54 + i], -t1[54 + i - 1], dv);
             r1 -= t1[54 + i];
+            /* When r1 is negative then it is really 0. */
+            r1 &= (sp_digit)((sp_uint64)-1 + ((sp_uint64)r1 >> 63));
             sp_3072_mul_d_54(t2, sd, r1);
             (void)sp_3072_add_54(&t1[i], &t1[i], t2);
             t1[54 + i] += t1[54 + i - 1] >> 57;
@@ -15780,6 +15808,8 @@ static int sp_4096_div_35(const sp_digit* a, const sp_digit* d,
             t1[35 + i - 1] &= 0x7ffffffffffffffL;
             r1 = sp_4096_div_word_35(-t1[35 + i], -t1[35 + i - 1], dv);
             r1 -= t1[35 + i];
+            /* When r1 is negative then it is really 0. */
+            r1 &= (sp_digit)((sp_uint64)-1 + ((sp_uint64)r1 >> 63));
             sp_4096_mul_d_35(t2, sd, r1);
             (void)sp_4096_add_35(&t1[i], &t1[i], t2);
             t1[35 + i] += t1[35 + i - 1] >> 59;
@@ -16600,6 +16630,8 @@ static int sp_4096_div_70(const sp_digit* a, const sp_digit* d,
             t1[70 + i - 1] &= 0x7ffffffffffffffL;
             r1 = sp_4096_div_word_70(-t1[70 + i], -t1[70 + i - 1], dv);
             r1 -= t1[70 + i];
+            /* When r1 is negative then it is really 0. */
+            r1 &= (sp_digit)((sp_uint64)-1 + ((sp_uint64)r1 >> 63));
             sp_4096_mul_d_70(t2, sd, r1);
             (void)sp_4096_add_70(&t1[i], &t1[i], t2);
             t1[70 + i] += t1[70 + i - 1] >> 59;
@@ -18943,6 +18975,8 @@ SP_NOINLINE static int sp_4096_add_26(sp_digit* r, const sp_digit* a,
 
 /* Multiply a and b into r. (r = a * b)
  *
+ * Algorithm is TOOM-3.
+ *
  * @param [out] r  A single precision integer.
  * @param [in]  a  A single precision integer.
  * @param [in]  b  A single precision integer.
@@ -18987,7 +19021,11 @@ SP_NOINLINE static void sp_4096_mul_39(sp_digit* r, const sp_digit* a,
     (void)sp_4096_add_26(r, r, p0);
     (void)sp_4096_add_26(&r[13], &r[13], t1);
     (void)sp_4096_add_26(&r[26], &r[26], t2);
+    r[52] = r[51] >> 53;
+    r[51] = r[51] & 0x1fffffffffffffL;
     (void)sp_4096_add_26(&r[39], &r[39], t0);
+    r[65] = r[64] >> 53;
+    r[64] = r[64] & 0x1fffffffffffffL;
     (void)sp_4096_add_26(&r[52], &r[52], p4);
 }
 
@@ -19242,6 +19280,8 @@ SP_NOINLINE static void sp_4096_sqr_13(sp_digit* r, const sp_digit* a)
 
 /* Square a into r. (r = a * a)
  *
+ * Algorithm is TOOM-3.
+ *
  * @param [out] r  A single precision integer.
  * @param [in]  a  A single precision integer.
  */
@@ -19278,7 +19318,11 @@ SP_NOINLINE static void sp_4096_sqr_39(sp_digit* r, const sp_digit* a)
     (void)sp_4096_add_26(r, r, p0);
     (void)sp_4096_add_26(&r[13], &r[13], t1);
     (void)sp_4096_add_26(&r[26], &r[26], t2);
+    r[52] = r[51] >> 53;
+    r[51] = r[51] & 0x1fffffffffffffL;
     (void)sp_4096_add_26(&r[39], &r[39], t0);
+    r[65] = r[64] >> 53;
+    r[64] = r[64] & 0x1fffffffffffffL;
     (void)sp_4096_add_26(&r[52], &r[52], p4);
 }
 
@@ -19924,6 +19968,8 @@ static int sp_4096_div_39(const sp_digit* a, const sp_digit* d,
             t1[39 + i - 1] &= 0x1fffffffffffffL;
             r1 = sp_4096_div_word_39(-t1[39 + i], -t1[39 + i - 1], dv);
             r1 -= t1[39 + i];
+            /* When r1 is negative then it is really 0. */
+            r1 &= (sp_digit)((sp_uint64)-1 + ((sp_uint64)r1 >> 63));
             sp_4096_mul_d_39(t2, sd, r1);
             (void)sp_4096_add_39(&t1[i], &t1[i], t2);
             t1[39 + i] += t1[39 + i - 1] >> 53;
@@ -20816,6 +20862,8 @@ static int sp_4096_div_78(const sp_digit* a, const sp_digit* d,
             t1[78 + i - 1] &= 0x1fffffffffffffL;
             r1 = sp_4096_div_word_78(-t1[78 + i], -t1[78 + i - 1], dv);
             r1 -= t1[78 + i];
+            /* When r1 is negative then it is really 0. */
+            r1 &= (sp_digit)((sp_uint64)-1 + ((sp_uint64)r1 >> 63));
             sp_4096_mul_d_78(t2, sd, r1);
             (void)sp_4096_add_78(&t1[i], &t1[i], t2);
             t1[78 + i] += t1[78 + i - 1] >> 53;
@@ -44657,6 +44705,8 @@ static int sp_1024_div_18(const sp_digit* a, const sp_digit* d,
             t1[18 + i - 1] &= 0x1ffffffffffffffL;
             r1 = sp_1024_div_word_18(-t1[18 + i], -t1[18 + i - 1], dv);
             r1 -= t1[18 + i];
+            /* When r1 is negative then it is really 0. */
+            r1 &= (sp_digit)((sp_uint64)-1 + ((sp_uint64)r1 >> 63));
             sp_1024_mul_d_18(t2, sd, r1);
             (void)sp_1024_add_18(&t1[i], &t1[i], t2);
             t1[18 + i] += t1[18 + i - 1] >> 57;

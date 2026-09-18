@@ -2119,17 +2119,20 @@ static int eccsi_calc_y(EccsiKey* key, ecc_point* pvt, mp_digit mp,
         ecc_point* y)
 {
     int err;
-    mp_int* hs = &key->ssk;
+    mp_int* hs = &key->tmp;
 
-    err = mp_read_unsigned_bin(hs, key->idHash, key->idHashSz);
 #ifndef WOLFSSL_HAVE_SP_ECC
+    err = eccsi_kpak_to_mont(key);
     /* Need KPAK in montgomery form. */
     if (err == 0) {
-        err = eccsi_kpak_to_mont(key);
+        err = mp_read_unsigned_bin(hs, key->idHash, key->idHashSz);
     }
+#else
+    err = mp_read_unsigned_bin(hs, key->idHash, key->idHashSz);
 #endif
-    /* [HS]PVT + KPAK */
-    if (err == 0) {
+    if (err == 0)
+    {
+        /* [HS]PVT + KPAK */
         ecc_point* kpak = &key->ecc.pubkey;
         err = eccsi_mulmod_point_add(key, hs, pvt, kpak, y, mp, 1);
     }

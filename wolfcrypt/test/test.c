@@ -54935,6 +54935,30 @@ static wc_test_ret_t curve448_kat_test(WC_RNG* rng,
         0x95, 0xcc, 0xc6, 0x1a, 0x18, 0xf4, 0xff, 0x07,
     };
 
+    /* peer public key u = 2^224: valid (less than p, not small order) and
+     * the ladder's first step produces values within 2^224 + 1 of 2^448, which
+     * exercises the carry out of the 2^448 = 2^224 + 1 reduction fold. */
+    byte pu[] = {
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    };
+
+    /* expected shared key for party a's secret key and u = 2^224 */
+    byte su[] = {
+        0xfb, 0x59, 0x49, 0x06, 0x7a, 0x91, 0xac, 0xbd,
+        0x90, 0x1a, 0x58, 0x7f, 0x60, 0x17, 0x1d, 0x06,
+        0x82, 0x33, 0x4f, 0x93, 0x54, 0xbd, 0xea, 0x60,
+        0x36, 0xe6, 0xce, 0xee, 0x2f, 0xe7, 0x7a, 0xab,
+        0xcb, 0xbf, 0xbf, 0xa5, 0xc1, 0xd9, 0x21, 0x69,
+        0x82, 0xbd, 0x06, 0xe4, 0xb3, 0x1b, 0x9f, 0x80,
+        0x8c, 0xe6, 0xf8, 0xb1, 0x82, 0xe6, 0xe2, 0x66,
+    };
+
     /* import RFC test vectors and compare shared key */
     ret = wc_curve448_import_private_raw(sa, sizeof(sa), pa, sizeof(pa), userA);
     if (ret != 0)
@@ -54962,6 +54986,20 @@ static wc_test_ret_t curve448_kat_test(WC_RNG* rng,
         return WC_TEST_RET_ENC_EC(ret);
 
     if (XMEMCMP(ss, sharedB, y))
+        return WC_TEST_RET_ENC_NC;
+
+    /* test against peer public key u = 2^224 */
+    ret = wc_curve448_import_public(pu, sizeof(pu), userB);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    XMEMSET(sharedB, 0, sizeof(sharedB));
+    y = sizeof(sharedB);
+    ret = wc_curve448_shared_secret(userA, userB, sharedB, &y);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    if (XMEMCMP(su, sharedB, y))
         return WC_TEST_RET_ENC_NC;
 
     /* test with 1 generated key and 1 from known test vector */
@@ -70640,6 +70678,19 @@ static wc_test_ret_t eccsi_sign_verify_test(EccsiKey* priv, EccsiKey* pub, WC_RN
     if (!verified)
         return WC_TEST_RET_ENC_NC;
 
+    /* Check that verifying has not destroyed the SSK - sign again. */
+    sigSz = sizeof(sig);
+    ret = wc_SignEccsiHash(priv, rng, WC_HASH_TYPE_SHA256, msg, msgSz, sig,
+            &sigSz);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_VerifyEccsiHash(pub, WC_HASH_TYPE_SHA256, msg, msgSz, sig, sigSz,
+            &verified);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (!verified)
+        return WC_TEST_RET_ENC_NC;
+
     /* Check that the KPAK is converted from montgomery form. */
     ret = eccsi_imp_exp_key_test(priv);
     if (ret != 0)
@@ -82943,6 +82994,66 @@ static wc_test_ret_t mp_test_exptmod(mp_int* b, mp_int* e, mp_int* m, mp_int* r,
     if (mp_cmp(r, t) != MP_EQ) {
         return WC_TEST_RET_ENC_NC;
     }
+
+#if defined(SP_INT_BITS) && (SP_INT_BITS >= 2048)
+    /* Odd moduli of RSA/DH sizes with a power of two top word and nearly
+     * empty words below it: m = 2^1023 + 2^900 + 1 and 2^2047 + 2^1900 + 1.
+     * Reducing (m-1)^2 by them has a partial remainder whose top word equals
+     * the divisor's top word, which the fixed size SP division used to
+     * mis-correct.  (m-1)^3 mod m == m-1. */
+    for (k = 0; k < 2; k++) {
+        int mbits = (k == 0) ? 1023 : 2047;
+        if ((ret = mp_set(m, 1)) != MP_OKAY ||
+                (ret = mp_mul_2d(m, mbits, m)) != MP_OKAY ||
+                (ret = mp_set(t, 1)) != MP_OKAY ||
+                (ret = mp_mul_2d(t, mbits - 123, t)) != MP_OKAY ||
+                (ret = mp_add(m, t, m)) != MP_OKAY ||
+                (ret = mp_add_d(m, 1, m)) != MP_OKAY ||
+                (ret = mp_sub_d(m, 1, b)) != MP_OKAY ||
+                (ret = mp_set(e, 3)) != MP_OKAY ||
+                (ret = mp_exptmod_ex(b, e, (int)e->used, m, r)) != MP_OKAY) {
+            return WC_TEST_RET_ENC_EC(ret);
+        }
+        if (mp_cmp(r, b) != MP_EQ) {
+            return WC_TEST_RET_ENC_NC;
+        }
+        if ((ret = mp_exptmod_nct(b, e, m, r)) != MP_OKAY) {
+            return WC_TEST_RET_ENC_EC(ret);
+        }
+        if (mp_cmp(r, b) != MP_EQ) {
+            return WC_TEST_RET_ENC_NC;
+        }
+    }
+#endif
+
+#if SP_INT_BITS >= 2048
+    /* m = 2^2048 - 1, b = m - 2^600 (== -2^600 mod m), e = 2:
+     *   b^e mod m == 2^1200.
+     * Exercises the size-specific 2048-bit multiplication with an operand
+     * whose low and high halves sum past 2^1044 - the 32-bit C SP code used
+     * to overflow a word in its Toom-3 level for such inputs. */
+    if ((ret = mp_set(m, 1)) != MP_OKAY ||
+            (ret = mp_mul_2d(m, 2048, m)) != MP_OKAY ||
+            (ret = mp_sub_d(m, 1, m)) != MP_OKAY ||
+            (ret = mp_set(b, 1)) != MP_OKAY ||
+            (ret = mp_mul_2d(b, 600, b)) != MP_OKAY ||
+            (ret = mp_sub(m, b, b)) != MP_OKAY ||
+            (ret = mp_set(e, 2)) != MP_OKAY ||
+            (ret = mp_set(t, 1)) != MP_OKAY ||
+            (ret = mp_mul_2d(t, 1200, t)) != MP_OKAY ||
+            (ret = mp_exptmod_ex(b, e, (int)e->used, m, r)) != MP_OKAY) {
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+    if (mp_cmp(r, t) != MP_EQ) {
+        return WC_TEST_RET_ENC_NC;
+    }
+    if ((ret = mp_exptmod_nct(b, e, m, r)) != MP_OKAY) {
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+    if (mp_cmp(r, t) != MP_EQ) {
+        return WC_TEST_RET_ENC_NC;
+    }
+#endif /* SP_INT_BITS >= 2048 */
 #endif /* WOLFSSL_SP_MATH_ALL */
 
     return 0;
