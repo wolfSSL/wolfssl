@@ -51,6 +51,14 @@
     #undef WC_RNG_HAVE_AUTO_LOCK
 #endif
 
+/* Whether an instance gets the lock when the caller names neither
+ * WC_RNG_INIT_FLAG_USE_AUTO_LOCK nor WC_RNG_INIT_FLAG_NO_AUTO_LOCK. */
+#if defined(WC_RNG_HAVE_AUTO_LOCK) && defined(WC_RNG_AUTO_LOCK_DEFAULT_OFF)
+    #define WC_RNG_AUTO_LOCK_DEFAULT 0
+#else
+    #define WC_RNG_AUTO_LOCK_DEFAULT 1
+#endif
+
 /* pthread_atfork handlers so a forked child can keep using its WC_RNG.
  * configure and CMake define WC_RNG_AUTOFORK where the dlclose pin, unnamed
  * semaphores and thread cancellation exist; builds whose locks the handlers

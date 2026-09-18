@@ -2843,6 +2843,27 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWC_RNG_NO_AUTO_LOCK"
 fi
 
+# Whether an instance gets that lock when wc_InitRng_ex2() is given neither
+# WC_RNG_INIT_FLAG_USE_AUTO_LOCK nor WC_RNG_INIT_FLAG_NO_AUTO_LOCK.
+AC_ARG_ENABLE([rng-autolock-default],
+    [AS_HELP_STRING([--enable-rng-autolock-default],[Give each WC_RNG the lock unless the caller says otherwise; with no, the lock is built in but only used when asked for per instance (default: enabled)])],
+    [ ENABLED_RNG_AUTOLOCK_DEFAULT=$enableval ],
+    [ ENABLED_RNG_AUTOLOCK_DEFAULT=yes ]
+    )
+
+case "$ENABLED_RNG_AUTOLOCK_DEFAULT" in
+    yes|no) ;;
+    *) AC_MSG_ERROR([--enable-rng-autolock-default takes yes or no]) ;;
+esac
+if test "$ENABLED_RNG_AUTOLOCK_DEFAULT" = "no"
+then
+    if test "$ENABLED_RNG_AUTOLOCK" = "no"
+    then
+        AC_MSG_ERROR([--disable-rng-autolock-default needs the lock built in])
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DWC_RNG_AUTO_LOCK_DEFAULT_OFF"
+fi
+
 # RNG fork handlers (a forked child keeps using its WC_RNG); decided below
 AC_ARG_ENABLE([rng-autofork],
     [AS_HELP_STRING([--enable-rng-autofork],[Enable pthread_atfork handlers so a forked child can keep using a WC_RNG (default: enabled where supported)])],
@@ -14325,6 +14346,7 @@ echo "   * Hash DRBG:                  $ENABLED_HASHDRBG"
 echo "   * SHA-256 Hash DRBG:          $ENABLED_SHA256_DRBG"
 echo "   * SHA-512 Hash DRBG:          $ENABLED_SHA512_DRBG"
 echo "   * RNG lock:                   $ENABLED_RNG_AUTOLOCK"
+echo "   * RNG lock on by default:     $ENABLED_RNG_AUTOLOCK_DEFAULT"
 echo "   * RNG fork handlers:          $ENABLED_RNG_AUTOFORK"
 echo "   * MmemUse Entropy:"
 echo "   * (AKA: wolfEntropy):         $ENABLED_ENTROPY_MEMUSE"

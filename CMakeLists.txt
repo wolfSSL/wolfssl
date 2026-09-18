@@ -3835,6 +3835,14 @@ if(NOT WOLFSSL_RNG_AUTOLOCK)
     list(APPEND WOLFSSL_DEFINITIONS "-DWC_RNG_NO_AUTO_LOCK")
 endif()
 
+# Whether each instance gets that lock without the caller asking for it
+add_option("WOLFSSL_RNG_AUTOLOCK_DEFAULT"
+    "Give each WC_RNG the lock unless the caller says otherwise (default: enabled)"
+    "yes" "yes;no")
+if(NOT WOLFSSL_RNG_AUTOLOCK_DEFAULT)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWC_RNG_AUTO_LOCK_DEFAULT_OFF")
+endif()
+
 # Valgrind (for unit tests)
 add_option("WOLFSSL_VALGRIND"
     "Enable valgrind for unit tests (default: disabled)"

@@ -3323,7 +3323,9 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
     }
 
 #ifdef WC_RNG_HAVE_AUTO_LOCK
-    if ((ret == 0) && !(flags & WC_RNG_INIT_FLAG_NO_AUTO_LOCK)) {
+    if ((ret == 0) && !(flags & WC_RNG_INIT_FLAG_NO_AUTO_LOCK) &&
+        (WC_RNG_AUTO_LOCK_DEFAULT ||
+         (flags & WC_RNG_INIT_FLAG_USE_AUTO_LOCK))) {
         ret = RngAutoLockInit(rng);
         if (ret != 0)
             (void)wc_FreeRng(rng);

@@ -27289,6 +27289,19 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_flag_abi_test(void)
         if (wc_FreeRng(&r) != 0)
             return WC_TEST_RET_ENC_NC;
 
+        /* With no flag at all the instance follows the build's default.
+         * Only the off direction is guaranteed: a direct RDRAND instance
+         * holds no DRBG state, so it gets no lock even when on by default. */
+        ret = wc_InitRng_ex2(&r, HEAP_HINT, devId, WC_RNG_INIT_FLAG_NONE);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+        if (!WC_RNG_AUTO_LOCK_DEFAULT && !RNG_AUTO_LOCK_ABSENT(&r)) {
+            (void)wc_FreeRng(&r);
+            return WC_TEST_RET_ENC_NC;
+        }
+        if (wc_FreeRng(&r) != 0)
+            return WC_TEST_RET_ENC_NC;
+
         /* Turning it off leaves a working instance with no lock on it. */
         ret = wc_InitRng_ex2(&r, HEAP_HINT, devId,
                              WC_RNG_INIT_FLAG_NO_AUTO_LOCK);

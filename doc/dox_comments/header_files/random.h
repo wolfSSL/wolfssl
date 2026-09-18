@@ -855,6 +855,13 @@ int wc_Sha512Drbg_IsDisabled(void);
     Setting both, or the first alongside WC_RNG_INIT_FLAG_USE_FULL_MUTEX,
     is BAD_FUNC_ARG in every build.
 
+    Naming neither leaves it to the build: on by default, or off where
+    --disable-rng-autolock-default (WC_RNG_AUTO_LOCK_DEFAULT_OFF) built the
+    lock in without switching it on.  In such a build only the two flag
+    forms, wc_InitRng_ex2() and wc_InitRngNonce_ex2(), can ask for the lock;
+    wc_InitRng(), wc_InitRng_ex(), wc_rng_new() and wc_rng_new_ex() take no
+    flags, so their instances go unlocked and cannot opt in.
+
     \return 0 Success
     \return BAD_FUNC_ARG rng is null, or the flags contradict each other.
     \return NOT_COMPILED_IN A requested flag is not compiled in.

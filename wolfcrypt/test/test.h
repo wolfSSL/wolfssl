@@ -43,8 +43,11 @@
 
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
-/* Needs the lock, threads it can start, and a heap for the compare buffer. */
-#if defined(WC_RNG_HAVE_AUTO_LOCK) && !defined(WOLFSSL_ASYNC_CRYPT) && \
+/* Needs the lock, threads it can start, and a heap for the compare buffer.
+ * WC_RNG_AUTO_LOCK_DEFAULT: the shared instance comes from wc_rng_new_ex(),
+ * which takes no flags, so a default-off build cannot give it a lock. */
+#if defined(WC_RNG_HAVE_AUTO_LOCK) && WC_RNG_AUTO_LOCK_DEFAULT && \
+    !defined(WOLFSSL_ASYNC_CRYPT) && \
     !defined(HAVE_INTEL_RDRAND) && !defined(WOLF_CRYPTO_CB_FIND) && \
     !(defined(WOLFSSL_SILABS_SE_ACCEL) && defined(WOLFSSL_SILABS_TRNG)) && \
     !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_NO_MALLOC) && \
