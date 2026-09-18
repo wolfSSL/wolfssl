@@ -25111,6 +25111,8 @@ static int test_wolfSSL_OCSP_single_get0_status(void)
         certStatus.thisDateParsed.data[i] = i;
         certStatus.nextDateParsed.data[i] = i;
     }
+    certStatus.thisDateParsed.length = CTC_DATE_SIZE;
+    certStatus.nextDateParsed.length = CTC_DATE_SIZE;
     certStatus.status = CERT_GOOD;
     single.status = &certStatus;
 
@@ -25119,6 +25121,16 @@ static int test_wolfSSL_OCSP_single_get0_status(void)
     ExpectIntEQ(ret, CERT_GOOD);
     ExpectPtrEq(thisDate, &certStatus.thisDateParsed);
     ExpectPtrEq(nextDate, &certStatus.nextDateParsed);
+
+    /* nextUpdate is optional. Absent gives NULL like OpenSSL. */
+    certStatus.nextDateParsed.length = 0;
+    thisDate = NULL;
+    nextDate = &certStatus.nextDateParsed;
+    ret = wolfSSL_OCSP_single_get0_status(&single, NULL, NULL, &thisDate,
+                                          &nextDate);
+    ExpectIntEQ(ret, CERT_GOOD);
+    ExpectPtrEq(thisDate, &certStatus.thisDateParsed);
+    ExpectNull(nextDate);
 
     ExpectIntEQ(wolfSSL_OCSP_single_get0_status(NULL, NULL, NULL, NULL, NULL),
         -1);
@@ -42714,6 +42726,7 @@ TEST_CASE testCases[] = {
     TEST_DECL_GROUP("ocsp", test_ocsp_certid_enc_dec),
     TEST_DECL_GROUP("ocsp", test_ocsp_certid_dup),
     TEST_DECL_GROUP("ocsp", test_ocsp_resp_find_status_serial_prefix),
+    TEST_DECL_GROUP("ocsp", test_ocsp_resp_times),
     TEST_DECL(test_ocsp_tls_cert_cb),
     TEST_DECL_GROUP("ocsp", test_ocsp_status_request_v2_multi_revoked_single),
     TEST_DECL_GROUP("ocsp", test_ocsp_cert_unknown_crl_fallback),

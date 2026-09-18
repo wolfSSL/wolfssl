@@ -1,0 +1,230 @@
+name: OpenResty Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'release/**' ]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+# END OF COMMON SECTION
+
+jobs:
+  build_wolfssl:
+    name: Build wolfSSL
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    # Just to keep it the same as the testing target
+    runs-on: ubuntu-24.04
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 5
+    steps:
+      - name: Build wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          path: wolfssl
+          configure: >-
+            --enable-openresty --enable-curve25519 --enable-ed25519
+          install: true
+
+      - name: tar build-dir
+        run: tar -zcf build-dir.tgz build-dir
+
+      - name: Upload built lib
+        uses: actions/upload-artifact@v6
+        with:
+          name: wolf-install-openresty
+          path: build-dir.tgz
+          retention-days: 5
+
+  openresty_check:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The SSL test files of the bundled Lua modules. The port patch and
+          # the tests patch come from the OSP repo.
+          #
+          # Not run (cannot work with wolfSSL, the tests patch makes them
+          # skip): ssl_client_hello_by_lua* files (ngx_lua 166, 187; stream
+          # 162, 163; lua-resty-core ssl-client-hello.t) need
+          # SSL_CTX_set_client_hello_cb; proxy_ssl_*_by_lua* files (ngx_lua
+          # 169, 170-proxy-ssl-cert; stream 164, 165-proxy-ssl-cert-by;
+          # lua-resty-core proxy-ssl*.t) need SSL_set_retry_verify; FFI into
+          # libcrypto (ngx_lua 193, stream 171, lua-resty-core
+          # socket-tcp-settrustedstore.t) needs OpenSSL symbol names.
+          # Not run (need the network): ngx_lua and stream 129-ssl-socket.t
+          # and 170-ssl-session-reuse.t.
+          - ref: 1.31.1.1
+            sha256: 65b78baadd3f0984055de89bf13f4a1932e5bfe9c31932037a134ea2b1a0ce42
+            osp-repo: julek-dev/osp
+            osp-ref: openresty-1.31.1.1
+            ngx-lua-tests: >-
+              139-ssl-cert-by.t 140-ssl-c-api.t 142-ssl-session-store.t
+              143-ssl-session-fetch.t 155-tls13.t 162-socket-tls-handshake.t
+            stream-lua-tests: >-
+              139-ssl-cert-by.t 140-ssl-c-api.t 165-serversslhandshake.t
+              166-serversslhandshake-starttls.t
+              167-serversslhandshake-errors.t
+            resty-core-tests: >-
+              ssl.t stream/ssl.t ocsp.t ssl-session-store.t
+              ssl-session-fetch.t
+    name: ${{ matrix.ref }}
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ubuntu-24.04
+    # Test::Nginx restarts nginx for every block, so the suites take a while.
+    timeout-minutes: 45
+    needs: build_wolfssl
+    env:
+      OR_PREFIX: ${{ github.workspace }}/or-install
+      TEST_NGINX_BINARY: ${{ github.workspace }}/or-install/nginx/sbin/nginx
+      TEST_NGINX_USE_WOLFSSL: 1
+      TEST_NGINX_NO_SHUFFLE: 1
+      TEST_NGINX_SLEEP: 0.05
+      TEST_NGINX_MEMCACHED_PORT: 11211
+    steps:
+      - name: Checkout wolfSSL CI actions
+        uses: actions/checkout@v5
+        with:
+          sparse-checkout: .github/actions
+          fetch-depth: 1
+
+      - name: Install test dependencies
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: libpcre2-dev zlib1g-dev memcached
+          ghcr-debs-tag: ubuntu-24.04-full
+
+      - name: Download lib
+        uses: actions/download-artifact@v7
+        with:
+          name: wolf-install-openresty
+
+      - name: untar build-dir
+        run: tar -xf build-dir.tgz
+
+      - name: Setup Perl environment
+        uses: shogo82148/actions-setup-perl@v1
+        with:
+          perl-version: '5.38.2'
+
+      - name: Install Test::Nginx
+        run: cpanm --notest Test::Nginx@0.32
+
+      - name: Checkout OSP
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ matrix.osp-repo }}
+          ref: ${{ matrix.osp-ref }}
+          path: osp
+          sparse-checkout: openresty
+
+      - name: Download OpenResty
+        run: |
+          curl -fsSL -o openresty.tar.gz \
+            https://openresty.org/download/openresty-${{ matrix.ref }}.tar.gz
+          echo "${{ matrix.sha256 }}  openresty.tar.gz" | sha256sum -c
+          tar -xf openresty.tar.gz
+
+      - name: Apply OSP patches
+        working-directory: openresty-${{ matrix.ref }}
+        run: |
+          patch -p1 < ../osp/openresty/${{ matrix.ref }}.patch
+          patch -p1 < ../osp/openresty/${{ matrix.ref }}-tests.patch
+
+      # --with-debug: the tests check the debug log.
+      - name: Build OpenResty
+        working-directory: openresty-${{ matrix.ref }}
+        run: |
+          ./configure --prefix=$OR_PREFIX \
+            --with-wolfssl=$GITHUB_WORKSPACE/build-dir --with-http_ssl_module \
+            --with-stream --with-stream_ssl_module \
+            --with-stream_ssl_preread_module --with-http_v2_module \
+            --with-mail --with-mail_ssl_module --with-debug -j$(nproc)
+          make -j$(nproc)
+          make install
+
+      - name: Confirm OpenResty built with wolfSSL
+        run: |
+          ldd $TEST_NGINX_BINARY | grep wolfssl
+          $TEST_NGINX_BINARY -V 2>&1 | grep 'built with wolfSSL'
+
+      # Short paths: the tests listen on unix sockets under t/servroot.
+      # lua-resty-core expects its sibling lua-resty-lrucache by that name.
+      - name: Prepare test directories
+        working-directory: openresty-${{ matrix.ref }}/bundle
+        run: |
+          mkdir -p /tmp/ort
+          mv ngx_lua-* /tmp/ort/ngx_lua
+          mv ngx_stream_lua-* /tmp/ort/ngx_stream_lua
+          mv lua-resty-core-* /tmp/ort/lua-resty-core
+          mv lua-resty-lrucache-* /tmp/ort/lua-resty-lrucache
+          mv encrypted-session-nginx-module-* /tmp/ort/encrypted-session
+          mv set-misc-nginx-module-* /tmp/ort/set-misc
+
+      # Some blocks talk to memcached over UDP.
+      - name: Start memcached
+        run: |
+          pkill -x memcached || true
+          memcached -d -p 11211 -U 11211 -l 127.0.0.1
+
+      - if: ${{ runner.debug }}
+        name: Verbose prove
+        run: echo "prove_flags=-v" >> $GITHUB_ENV
+
+      - name: Run ngx_lua tests
+        working-directory: /tmp/ort/ngx_lua
+        env:
+          LD_LIBRARY_PATH: ${{ github.workspace }}/build-dir/lib:${{ github.workspace }}/or-install/luajit/lib
+        run: |
+          prove ${{ env.prove_flags }} -I. \
+            $(for t in ${{ matrix.ngx-lua-tests }}; do echo t/$t; done)
+
+      - if: ${{ !cancelled() }}
+        name: Run ngx_stream_lua tests
+        working-directory: /tmp/ort/ngx_stream_lua
+        env:
+          LD_LIBRARY_PATH: ${{ github.workspace }}/build-dir/lib:${{ github.workspace }}/or-install/luajit/lib
+        run: |
+          prove ${{ env.prove_flags }} -I. \
+            $(for t in ${{ matrix.stream-lua-tests }}; do echo t/$t; done)
+
+      - if: ${{ !cancelled() }}
+        name: Run lua-resty-core tests
+        working-directory: /tmp/ort/lua-resty-core
+        env:
+          LD_LIBRARY_PATH: ${{ github.workspace }}/build-dir/lib:${{ github.workspace }}/or-install/luajit/lib
+        run: |
+          prove ${{ env.prove_flags }} -I. \
+            $(for t in ${{ matrix.resty-core-tests }}; do echo t/$t; done)
+
+      # These two modules use the OpenSSL compatibility layer directly.
+      - if: ${{ !cancelled() }}
+        name: Run encrypted-session tests
+        working-directory: /tmp/ort/encrypted-session
+        env:
+          LD_LIBRARY_PATH: ${{ github.workspace }}/build-dir/lib:${{ github.workspace }}/or-install/luajit/lib
+        run: prove ${{ env.prove_flags }} -I. t/sanity.t
+
+      - if: ${{ !cancelled() }}
+        name: Run set-misc tests
+        working-directory: /tmp/ort/set-misc
+        env:
+          LD_LIBRARY_PATH: ${{ github.workspace }}/build-dir/lib:${{ github.workspace }}/or-install/luajit/lib
+        run: prove ${{ env.prove_flags }} -I. t/hmac.t
+
+      - if: ${{ failure() }}
+        name: Upload nginx logs
+        uses: actions/upload-artifact@v6
+        with:
+          name: openresty-${{ matrix.ref }}-logs
+          path: |
+            /tmp/ort/*/t/servroot*/logs/*.log
+            /tmp/ort/*/t/servroot*/conf/nginx.conf
+          retention-days: 5

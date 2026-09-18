@@ -8937,6 +8937,11 @@ static WOLFSSL_X509* d2i_X509orX509REQ_bio(WOLFSSL_BIO* bio,
     WOLFSSL_X509* localX509 = NULL;
     byte* mem  = NULL;
     int    size;
+    int    derSz;
+    int    hdrSz = 2;
+    int    len = 0;
+    word32 idx = 1;
+    byte   hdr[6];
 
     WOLFSSL_ENTER("wolfSSL_d2i_X509_bio");
 
@@ -8952,12 +8957,35 @@ static WOLFSSL_X509* d2i_X509orX509REQ_bio(WOLFSSL_BIO* bio,
         return NULL;
     }
 
-    if (!(mem = (byte*)XMALLOC(size, NULL, DYNAMIC_TYPE_OPENSSL))) {
+    /* Consume only the first DER object. A BIO holding a chain is then
+     * decoded one certificate per call, as with OpenSSL. */
+    if (wolfSSL_BIO_read(bio, hdr, hdrSz) != hdrSz) {
+        WOLFSSL_MSG("wolfSSL_BIO_read error");
+        return NULL;
+    }
+    if (hdr[1] & ASN_LONG_LENGTH) {
+        int n = hdr[1] & 0x7F;
+        if (n < 1 || n > 4 || wolfSSL_BIO_read(bio, hdr + hdrSz, n) != n) {
+            WOLFSSL_MSG("Bad DER length");
+            return NULL;
+        }
+        hdrSz += n;
+    }
+    if (hdr[0] != (ASN_SEQUENCE | ASN_CONSTRUCTED) ||
+            GetLength_ex(hdr, &idx, &len, (word32)hdrSz, 0) < 0 ||
+            len < 0 || (int)idx + len > size) {
+        WOLFSSL_MSG("Bad DER header");
+        return NULL;
+    }
+    derSz = (int)idx + len;
+
+    if (!(mem = (byte*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_OPENSSL))) {
         WOLFSSL_MSG("malloc error");
         return NULL;
     }
-
-    if ((size = wolfSSL_BIO_read(bio, mem, size)) == 0) {
+    XMEMCPY(mem, hdr, hdrSz);
+    if (derSz > hdrSz && wolfSSL_BIO_read(bio, mem + hdrSz, derSz - hdrSz) !=
+            derSz - hdrSz) {
         WOLFSSL_MSG("wolfSSL_BIO_read error");
         XFREE(mem, NULL, DYNAMIC_TYPE_OPENSSL);
         return NULL;
@@ -8965,13 +8993,13 @@ static WOLFSSL_X509* d2i_X509orX509REQ_bio(WOLFSSL_BIO* bio,
 
     if (req) {
 #ifdef WOLFSSL_CERT_REQ
-        localX509 = wolfSSL_X509_REQ_d2i(NULL, mem, size);
+        localX509 = wolfSSL_X509_REQ_d2i(NULL, mem, derSz);
 #else
         WOLFSSL_MSG("CSR not compiled in");
 #endif
     }
     else {
-        localX509 = wolfSSL_X509_d2i_ex(NULL, mem, size, bio->heap);
+        localX509 = wolfSSL_X509_d2i_ex(NULL, mem, derSz, bio->heap);
     }
     if (localX509 == NULL) {
         WOLFSSL_MSG("wolfSSL_X509_d2i error");
