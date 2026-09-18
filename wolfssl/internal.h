@@ -175,6 +175,10 @@
     #include "zlib.h"
 #endif
 
+#ifdef WOLFSSL_CERT_COMPRESSION
+    #include <wolfssl/wolfcrypt/compress.h>
+#endif
+
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
 #endif
@@ -2087,6 +2091,12 @@ WOLFSSL_LOCAL int NamedGroupIsPqcHybrid(int group);
     #endif
 #endif
 
+/* TLS 1.3 Certificate Compression (RFC 8879) needs TLS 1.3 and zlib */
+#if defined(WOLFSSL_CERT_COMPRESSION) && \
+    (!defined(WOLFSSL_TLS13) || !defined(HAVE_LIBZ))
+    #error WOLFSSL_CERT_COMPRESSION needs WOLFSSL_TLS13 and HAVE_LIBZ.
+#endif
+
 /* Max certificate extensions in TLS1.3 */
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
     /* Number of extensions to set each OCSP response */
@@ -3245,6 +3255,7 @@ typedef struct Options Options;
 #define TLSXT_SERVER_CERTIFICATE         0x0014 /* RFC8446 */
 #define TLSXT_ENCRYPT_THEN_MAC           0x0016 /* RFC 7366 */
 #define TLSXT_EXTENDED_MASTER_SECRET     0x0017 /* HELLO_EXT_EXTMS */
+#define TLSXT_CERT_COMPRESSION           0x001b /* RFC 8879 */
 #define TLSXT_CERT_WITH_EXTERN_PSK       0x0021 /* RFC 9973 */
 #define TLSXT_SESSION_TICKET             0x0023
 #define TLSXT_PRE_SHARED_KEY             0x0029
@@ -3294,6 +3305,9 @@ typedef enum {
     TLSX_EXTENDED_MASTER_SECRET     = TLSXT_EXTENDED_MASTER_SECRET,
     TLSX_SESSION_TICKET             = TLSXT_SESSION_TICKET,
 #ifdef WOLFSSL_TLS13
+    #ifdef WOLFSSL_CERT_COMPRESSION
+    TLSX_CERT_COMPRESSION           = TLSXT_CERT_COMPRESSION,
+    #endif
     #ifdef WOLFSSL_EARLY_DATA
     TLSX_EARLY_DATA                 = TLSXT_EARLY_DATA,
     #endif
@@ -7212,6 +7226,11 @@ struct WOLFSSL {
     word32 earlyDataSz;
     byte earlyDataStatus;
 #endif
+#ifdef WOLFSSL_CERT_COMPRESSION
+    /* RFC 8879 algorithm ID; WC_NO_COMPRESSION = none negotiated */
+    enum wc_CompressionAlgs peerCertCompressionAlg;
+    wc_CompressionData* compressedCert;
+#endif
 #if defined(OPENSSL_EXTRA)
     WOLFSSL_STACK* supportedCiphers; /* Used in wolfSSL_get_ciphers_compat */
     WOLFSSL_STACK* peerCertChain;    /* Used in wolfSSL_get_peer_cert_chain */
@@ -7477,26 +7496,27 @@ typedef struct DtlsHandShakeHeader {
 
 
 enum HandShakeType {
-    hello_request        =   0,
-    client_hello         =   1,
-    server_hello         =   2,
-    hello_verify_request =   3,    /* DTLS addition */
-    session_ticket       =   4,
-    end_of_early_data    =   5,
-    hello_retry_request  =   6,
-    encrypted_extensions =   8,
-    request_connection_id =  9,    /* DTLS v1.3 addition (RFC 9147) */
-    new_connection_id    =  10,    /* DTLS v1.3 addition (RFC 9147) */
-    certificate          =  11,
-    server_key_exchange  =  12,
-    certificate_request  =  13,
-    server_hello_done    =  14,
-    certificate_verify   =  15,
-    client_key_exchange  =  16,
-    finished             =  20,
-    certificate_status   =  22,
-    key_update           =  24,
-    change_cipher_hs     =  55,    /* simulate unique handshake type for sanity
+    hello_request          =  0,
+    client_hello           =  1,
+    server_hello           =  2,
+    hello_verify_request   =  3,    /* DTLS addition */
+    session_ticket         =  4,
+    end_of_early_data      =  5,
+    hello_retry_request    =  6,
+    encrypted_extensions   =  8,
+    request_connection_id  =  9,    /* DTLS v1.3 addition (RFC 9147) */
+    new_connection_id      =  10,   /* DTLS v1.3 addition (RFC 9147) */
+    certificate            =  11,
+    server_key_exchange    =  12,
+    certificate_request    =  13,
+    server_hello_done      =  14,
+    certificate_verify     =  15,
+    client_key_exchange    =  16,
+    finished               =  20,
+    certificate_status     =  22,
+    key_update             =  24,
+    compressed_certificate =  25,  /* RFC 8879 TLS1.3 > only */
+    change_cipher_hs       =  55,  /* simulate unique handshake type for sanity
                                       checks.  record layer change_cipher
                                       conflicts with handshake finished */
     message_hash         = 254,    /* synthetic message type for TLS v1.3 */

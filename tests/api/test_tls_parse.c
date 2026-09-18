@@ -29,6 +29,9 @@
 #ifndef NO_DH
 #include <wolfssl/wolfcrypt/dh.h>
 #endif
+#ifdef WOLFSSL_CERT_COMPRESSION
+#include <wolfssl/wolfcrypt/compress.h>
+#endif
 
 /* Several helpers below are called only from test bodies whose feature guards
  * differ, so a configuration can compile in none of their callers. */
@@ -106,6 +109,24 @@ static word16 test_tls_parse_build_ext(byte* out, word16 outCap,
     if (bodyLen > 0 && body != NULL)
         XMEMCPY(out + 4, body, bodyLen);
     return (word16)(4 + bodyLen);
+}
+
+/* Returns a pointer to the first occurrence of 'needle' within 'hay', or NULL.
+ * Used to locate one extension record inside a written extensions block
+ * without depending on where the writer happened to place it. */
+TEST_TLS_PARSE_UNUSED
+static const byte* test_tls_parse_find_bytes(const byte* hay, word16 hayLen,
+        const byte* needle, word16 needleLen)
+{
+    word16 i;
+
+    if (needleLen == 0 || hayLen < needleLen)
+        return NULL;
+    for (i = 0; i <= (word16)(hayLen - needleLen); i++) {
+        if (XMEMCMP(hay + i, needle, needleLen) == 0)
+            return hay + i;
+    }
+    return NULL;
 }
 
 /* A small counting allocator used to force a single, targeted malloc
@@ -3243,6 +3264,195 @@ int test_TLSX_KeyShare_process(void)
     wolfSSL_CTX_free(ctx);
     ctx = NULL;
 #endif /* !NO_DH && HAVE_FFDHE_2048 */
+#endif
+    return EXPECT_RESULT();
+}
+
+/* ---- Certificate Compression (RFC 8879) ---------------------------------- */
+/* The extension's own machinery only: which algorithm a peer's list selects,
+ * and that a well-formed list survives a size/write round trip. Nothing here
+ * compresses or decompresses a certificate. */
+int test_TLSX_CertCompression_parse(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_CERT_COMPRESSION) && \
+    !defined(NO_CERTS) && !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && defined(HAVE_TLS_EXTENSIONS)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    byte ext[16];
+    word16 extLen;
+
+    /* CertificateCompressionAlgorithms: algorithms<2..2^8-2>, i.e. a 1-byte
+     * length in bytes followed by that many bytes of 2-byte algorithm IDs. */
+    const byte zlibOnly[]    = { 0x02, 0x00, 0x01 };
+    /* brotli and zstd: registered, but not implemented by this build. */
+    const byte unsupported[] = { 0x04, 0x00, 0x02, 0x00, 0x03 };
+    /* The list OpenSSL 3.x actually offers. An unsupported algorithm sits
+     * ahead of zlib, which is what catches an index mix-up between the peer's
+     * list and our own supported list. */
+    const byte opensslList[] = { 0x06, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03 };
+
+    /* Malformed bodies, each rejected before any algorithm is looked at. */
+    const byte truncated[]   = { 0x02, 0x00 };             /* shorter than 3 */
+    const byte emptyList[]   = { 0x00 };                   /* no algorithms */
+    const byte oddLen[]      = { 0x03, 0x00, 0x01, 0x00 }; /* len not even */
+    const byte lenMismatch[] = { 0x04, 0x00, 0x01 };       /* len > body */
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL) {
+        Suites* suites = (Suites*)WOLFSSL_SUITES(ssl);
+
+        /* Nothing negotiated until a list has been parsed. */
+        ExpectIntEQ(ssl->peerCertCompressionAlg, WC_NO_COMPRESSION);
+
+        /* A list naming only zlib selects zlib. */
+        extLen = test_tls_parse_build_ext(ext, sizeof(ext),
+                TLSXT_CERT_COMPRESSION, zlibOnly, (word16)sizeof(zlibOnly));
+        ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, client_hello, suites), 0);
+        ExpectIntEQ(ssl->peerCertCompressionAlg, WC_ZLIB);
+
+        /* RFC 8879 Section 3 makes the extension advisory: a list naming only
+         * algorithms we do not implement is accepted, and simply selects
+         * nothing. It must not fail the handshake. */
+        ssl->peerCertCompressionAlg = WC_NO_COMPRESSION;
+        extLen = test_tls_parse_build_ext(ext, sizeof(ext),
+                TLSXT_CERT_COMPRESSION, unsupported,
+                (word16)sizeof(unsupported));
+        ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, client_hello, suites), 0);
+        ExpectIntEQ(ssl->peerCertCompressionAlg, WC_NO_COMPRESSION);
+
+        /* zlib is found even when an unsupported algorithm precedes it. */
+        ssl->peerCertCompressionAlg = WC_NO_COMPRESSION;
+        extLen = test_tls_parse_build_ext(ext, sizeof(ext),
+                TLSXT_CERT_COMPRESSION, opensslList,
+                (word16)sizeof(opensslList));
+        ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, client_hello, suites), 0);
+        ExpectIntEQ(ssl->peerCertCompressionAlg, WC_ZLIB);
+
+        /* Malformed lists are rejected, and leave the selection alone. */
+        ssl->peerCertCompressionAlg = WC_NO_COMPRESSION;
+
+        extLen = test_tls_parse_build_ext(ext, sizeof(ext),
+                TLSXT_CERT_COMPRESSION, truncated, (word16)sizeof(truncated));
+        ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, client_hello, suites),
+                    WC_NO_ERR_TRACE(BUFFER_ERROR));
+
+        extLen = test_tls_parse_build_ext(ext, sizeof(ext),
+                TLSXT_CERT_COMPRESSION, emptyList, (word16)sizeof(emptyList));
+        ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, client_hello, suites),
+                    WC_NO_ERR_TRACE(BUFFER_ERROR));
+
+        extLen = test_tls_parse_build_ext(ext, sizeof(ext),
+                TLSXT_CERT_COMPRESSION, oddLen, (word16)sizeof(oddLen));
+        ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, client_hello, suites),
+                    WC_NO_ERR_TRACE(BUFFER_ERROR));
+
+        extLen = test_tls_parse_build_ext(ext, sizeof(ext),
+                TLSXT_CERT_COMPRESSION, lenMismatch,
+                (word16)sizeof(lenMismatch));
+        ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, client_hello, suites),
+                    WC_NO_ERR_TRACE(BUFFER_ERROR));
+
+        ExpectIntEQ(ssl->peerCertCompressionAlg, WC_NO_COMPRESSION);
+
+        /* The server's other legal slot, CertificateRequest, parses the same
+         * list the same way. */
+        extLen = test_tls_parse_build_ext(ext, sizeof(ext),
+                TLSXT_CERT_COMPRESSION, zlibOnly, (word16)sizeof(zlibOnly));
+        ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, certificate_request, suites),
+                    0);
+        ExpectIntEQ(ssl->peerCertCompressionAlg, WC_ZLIB);
+    }
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_TLSX_CertCompression_write(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TEST_STATIC_BUILD) && defined(WOLFSSL_TLS13) && \
+    defined(WOLFSSL_CERT_COMPRESSION) && !defined(NO_CERTS) && \
+    !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_FILESYSTEM) && \
+    defined(HAVE_TLS_EXTENSIONS)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    byte out[2048];
+    word32 len;
+    word32 off;
+    /* type(2) + length(2) + body: list length 2, then zlib. */
+    const byte wire[] = { 0x00, 0x1B, 0x00, 0x03, 0x02, 0x00, 0x01 };
+
+    /* Client: the extension goes into the ClientHello. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL) {
+        ExpectIntEQ(TLSX_PopulateExtensions(ssl, 0), 0);
+        ExpectNotNull(TLSX_Find(ssl->extensions, TLSX_CERT_COMPRESSION));
+
+        len = 0;
+        ExpectIntEQ(TLSX_GetRequestSize(ssl, client_hello, &len), 0);
+        ExpectIntGT(len, 0);
+        ExpectIntLE(len, sizeof(out));
+
+        off = 0;
+        XMEMSET(out, 0, sizeof(out));
+        ExpectIntEQ(TLSX_WriteRequest(ssl, out, client_hello, &off), 0);
+        /* The size pass and the write pass must agree, or every extension
+         * after this one lands at the wrong offset. */
+        ExpectIntEQ(off, len);
+        ExpectNotNull(test_tls_parse_find_bytes(out, (word16)off, wire,
+                    (word16)sizeof(wire)));
+    }
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+
+    /* Server: the extension's only other legal slot is CertificateRequest,
+     * and only when we will actually ask the client for a certificate. */
+    ExpectNotNull(ctx = test_tls_parse_server_ctx(wolfTLSv1_3_server_method()));
+    if (ctx != NULL)
+        wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL) {
+        ExpectIntEQ(TLSX_PopulateExtensions(ssl, 1), 0);
+        ExpectNotNull(TLSX_Find(ssl->extensions, TLSX_CERT_COMPRESSION));
+
+        len = 0;
+        ExpectIntEQ(TLSX_GetRequestSize(ssl, certificate_request, &len), 0);
+        ExpectIntGT(len, 0);
+        ExpectIntLE(len, sizeof(out));
+
+        off = 0;
+        XMEMSET(out, 0, sizeof(out));
+        ExpectIntEQ(TLSX_WriteRequest(ssl, out, certificate_request, &off), 0);
+        ExpectIntEQ(off, len);
+        /* The certificate_request semaphore is deny-by-default, so this also
+         * covers the extension being explicitly re-enabled there. */
+        ExpectNotNull(test_tls_parse_find_bytes(out, (word16)off, wire,
+                    (word16)sizeof(wire)));
+    }
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+
+    /* A server that will not request a client certificate has nothing to
+     * advertise, so it must not offer the extension at all. */
+    ExpectNotNull(ctx = test_tls_parse_server_ctx(wolfTLSv1_3_server_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL) {
+        ExpectIntEQ(ssl->options.verifyPeer, 0);
+        ExpectIntEQ(TLSX_PopulateExtensions(ssl, 1), 0);
+        ExpectNull(TLSX_Find(ssl->extensions, TLSX_CERT_COMPRESSION));
+    }
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
 #endif
     return EXPECT_RESULT();
 }
