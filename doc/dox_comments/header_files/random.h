@@ -843,8 +843,20 @@ int wc_Sha512Drbg_IsDisabled(void);
     outermost around the lock latch, for user-mode sharing of one instance
     among threads (requires WC_RNG_HAVE_LOCK_FULL_MUTEX).
 
+    WC_RNG_INIT_FLAG_USE_AUTO_LOCK and WC_RNG_INIT_FLAG_NO_AUTO_LOCK decide,
+    for this instance alone, whether the automatic per-call lock is created,
+    whatever --enable-rng-autolock settled for the build.  Use the first when
+    the instance will be shared between threads: a build without that lock
+    refuses with NOT_COMPILED_IN rather than returning an instance the caller
+    would wrongly believe is serialized.  Use the second to drop the per-call
+    cost on an instance one thread owns; such an instance behaves as it does
+    with the lock left out of the build, so sharing it between threads is a
+    data race and, where the fork handlers exist, it is not fork covered.
+    Setting both, or the first alongside WC_RNG_INIT_FLAG_USE_FULL_MUTEX,
+    is BAD_FUNC_ARG in every build.
+
     \return 0 Success
-    \return BAD_FUNC_ARG rng is null.
+    \return BAD_FUNC_ARG rng is null, or the flags contradict each other.
     \return NOT_COMPILED_IN A requested flag is not compiled in.
 
     \param rng The RNG object to initialize.

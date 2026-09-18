@@ -27196,6 +27196,10 @@ wc_static_assert(WC_RNG_INIT_FLAG_USE_FULL_MUTEX  == (1U << 2));
 wc_static_assert(WC_RNG_INIT_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED
                                                   == (1U << 3));
 #endif
+#ifdef WC_RNG_INIT_FLAG_USE_AUTO_LOCK
+wc_static_assert(WC_RNG_INIT_FLAG_USE_AUTO_LOCK   == (1U << 4));
+wc_static_assert(WC_RNG_INIT_FLAG_NO_AUTO_LOCK    == (1U << 5));
+#endif
 #ifdef WC_RNG_FLAG_FULL_MUTEX
 wc_static_assert(WC_RNG_FLAG_NONE                 == 0);
 wc_static_assert(WC_RNG_FLAG_RBGC_NEXT_SEED       == (1U << 0));
@@ -27203,6 +27207,13 @@ wc_static_assert(WC_RNG_FLAG_FULL_MUTEX           == (1U << 1));
 wc_static_assert(WC_RNG_FLAG_BANKREF              == (1U << 2));
 wc_static_assert(WC_RNG_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED
                                                   == (1U << 3));
+#endif
+
+/* Where the lock lives differs by build, so ask the right field. */
+#ifdef WC_RNG_LOCK_ATFORK
+    #define RNG_AUTO_LOCK_ABSENT(r) ((r)->autoLock == NULL)
+#elif defined(WC_RNG_HAVE_AUTO_LOCK)
+    #define RNG_AUTO_LOCK_ABSENT(r) ((r)->autoLockInited == 0)
 #endif
 
 /* The same pins at run time: where wc_static_assert() compiles to nothing,
@@ -27235,6 +27246,68 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_flag_abi_test(void)
     if (WC_RNG_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED != (1U << 3))
         return WC_TEST_RET_ENC_NC;
 #endif
+#ifdef WC_RNG_INIT_FLAG_USE_AUTO_LOCK
+    if (WC_RNG_INIT_FLAG_USE_AUTO_LOCK != (1U << 4))
+        return WC_TEST_RET_ENC_NC;
+    if (WC_RNG_INIT_FLAG_NO_AUTO_LOCK != (1U << 5))
+        return WC_TEST_RET_ENC_NC;
+    {
+        WC_RNG r;
+        byte b[16];
+        int ret;
+
+        /* Contradictions are refused the same way in every build. */
+        ret = wc_InitRng_ex2(&r, HEAP_HINT, devId,
+                             WC_RNG_INIT_FLAG_USE_AUTO_LOCK |
+                             WC_RNG_INIT_FLAG_NO_AUTO_LOCK);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            return WC_TEST_RET_ENC_NC;
+        ret = wc_InitRng_ex2(&r, HEAP_HINT, devId,
+                             WC_RNG_INIT_FLAG_USE_AUTO_LOCK |
+                             WC_RNG_INIT_FLAG_USE_FULL_MUTEX);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            return WC_TEST_RET_ENC_NC;
+
+        /* Asking for a lock this build has not got must fail, not hand back
+         * an instance the caller would wrongly believe is serialized. */
+        ret = wc_InitRng_ex2(&r, HEAP_HINT, devId,
+                             WC_RNG_INIT_FLAG_USE_AUTO_LOCK);
+#ifndef WC_RNG_HAVE_AUTO_LOCK
+        if (ret != WC_NO_ERR_TRACE(NOT_COMPILED_IN))
+            return WC_TEST_RET_ENC_NC;
+#else
+        /* Not checked for a lock object here on purpose: a direct RDRAND
+         * instance holds no DRBG state, so wc_InitRng() gives it none and
+         * the generate path returns before the lock.  It is shareable
+         * either way, which is what the flag actually promises. */
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+        if (wc_RNG_GenerateBlock(&r, b, (word32)sizeof(b)) != 0) {
+            (void)wc_FreeRng(&r);
+            return WC_TEST_RET_ENC_NC;
+        }
+        if (wc_FreeRng(&r) != 0)
+            return WC_TEST_RET_ENC_NC;
+
+        /* Turning it off leaves a working instance with no lock on it. */
+        ret = wc_InitRng_ex2(&r, HEAP_HINT, devId,
+                             WC_RNG_INIT_FLAG_NO_AUTO_LOCK);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+        if (!RNG_AUTO_LOCK_ABSENT(&r)) {
+            (void)wc_FreeRng(&r);
+            return WC_TEST_RET_ENC_NC;
+        }
+        if (wc_RNG_GenerateBlock(&r, b, (word32)sizeof(b)) != 0) {
+            (void)wc_FreeRng(&r);
+            return WC_TEST_RET_ENC_NC;
+        }
+        if (wc_FreeRng(&r) != 0)
+            return WC_TEST_RET_ENC_NC;
+#endif /* WC_RNG_HAVE_AUTO_LOCK */
+        (void)b;
+    }
+#endif /* WC_RNG_INIT_FLAG_USE_AUTO_LOCK */
     return 0;
 }
 

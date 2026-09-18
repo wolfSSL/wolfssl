@@ -39,7 +39,9 @@ This library contains implementation for the random number generator.
  *                            support
  * WC_RNG_NO_AUTO_LOCK:      Leave out the lock that lets threads default: off
  *                            share one WC_RNG (lock on unless set)
- * WC_RNG_AUTOFORK:            pthread_atfork handlers so a forked  default: on
+ * WC_RNG_WANT_AUTO_LOCK:    Keep that lock even where this build default: off
+ *                            would otherwise skip it
+ * WC_RNG_AUTOFORK:          pthread_atfork handlers so a forked  default: on
  *                            child can keep using its WC_RNG     where found
  * WOLFSSL_RNG_USE_FULL_SEED: Use full-length seed for DRBG       default: off
  * WOLFSSL_GENSEED_FORTEST:  Use deterministic seed for testing   default: off
@@ -2774,12 +2776,26 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
     if (perso == NULL && persoSz != 0)
         return BAD_FUNC_ARG;
 
+    /* Checked before the build tests below, so a contradictory request is
+     * refused the same way everywhere rather than depending on the build. */
+    if ((flags & WC_RNG_INIT_FLAG_USE_AUTO_LOCK) &&
+        (flags & (WC_RNG_INIT_FLAG_NO_AUTO_LOCK |
+                  WC_RNG_INIT_FLAG_USE_FULL_MUTEX)))
+    {
+        return BAD_FUNC_ARG;
+    }
 #ifndef WC_RNG_HAVE_NEXT_SEED
     if (flags & WC_RNG_INIT_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED)
         return NOT_COMPILED_IN;
 #endif
 #ifndef WC_RNG_HAVE_LOCK_FULL_MUTEX
     if (flags & WC_RNG_INIT_FLAG_USE_FULL_MUTEX)
+        return NOT_COMPILED_IN;
+#endif
+#ifndef WC_RNG_HAVE_AUTO_LOCK
+    /* Refuse rather than return an instance the caller believes is locked.
+     * Turning it off where there is none to turn off stays a no-op. */
+    if (flags & WC_RNG_INIT_FLAG_USE_AUTO_LOCK)
         return NOT_COMPILED_IN;
 #endif
 
@@ -3307,7 +3323,7 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
     }
 
 #ifdef WC_RNG_HAVE_AUTO_LOCK
-    if (ret == 0) {
+    if ((ret == 0) && !(flags & WC_RNG_INIT_FLAG_NO_AUTO_LOCK)) {
         ret = RngAutoLockInit(rng);
         if (ret != 0)
             (void)wc_FreeRng(rng);

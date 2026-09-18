@@ -802,6 +802,10 @@ WOLFSSL_API int  wc_InitRngNonce(WC_RNG* rng, const byte* nonce, word32 nonceSz)
  * (promotion).  For externally-refreshed long-lived RNGs, e.g. the kernel
  * module's registered RBGC leaves. */
 #define WC_RNG_INIT_FLAG_RECOVER_AND_PROMOTE_FROM_NEXT_SEED (1U << 3)
+/* Force the per-call lock on or off for this one instance, whatever the
+ * build default is.  Asking for one the build has not got is an error. */
+#define WC_RNG_INIT_FLAG_USE_AUTO_LOCK   (1U << 4)
+#define WC_RNG_INIT_FLAG_NO_AUTO_LOCK    (1U << 5)
 
 WOLFSSL_API int  wc_InitRng_ex2(WC_RNG* rng, void* heap, int devId,
                                 word32 flags);
