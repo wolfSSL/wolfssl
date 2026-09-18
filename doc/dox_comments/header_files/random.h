@@ -91,10 +91,11 @@ int  wc_FreeNetRandom(void);
     so the library pins itself against dlclose().  They cover WC_RNG locks
     only, not clone(), vfork() or _Fork().  A fork() from inside a seed or
     hash callback works: that thread holds the lock, so the handler leaves
-    it alone and the child frees it as usual.  A fork()
-    called from a signal handler is not covered: the handler that runs before
-    the fork waits on a semaphore, which POSIX does not allow there, though
-    the two that run after it only post one, which it does.
+    it alone and the child frees it as usual.  A fork() called from a signal
+    handler can hang the caller, if the signal caught a thread part-way
+    through taking or releasing a lock; POSIX does not allow fork() from a
+    signal handler with handlers like these anyway.  Values stay safe either
+    way, with or without the handlers: the child reseeds on its pid change.
 
     Builds without the handlers, macOS among them, leave a forked child only
     exec(): a child that calls the RNG instead blocks for good if any thread
