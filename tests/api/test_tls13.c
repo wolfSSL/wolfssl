@@ -13214,6 +13214,10 @@ int test_tls13_ecdsa_scheme_curve_binding(void)
     const char* p521Cert = "./certs/p521/server-p521.pem";
     const char* p521Key  = "./certs/p521/server-p521-priv.pem";
     const char* p521Ca   = "./certs/p521/ca-p521.pem";
+#ifdef HAVE_ECC_BRAINPOOL
+    const char* bpCert   = "./certs/ecc/server-bp256r1-cert.pem";
+    const char* bpKey    = "./certs/ecc/bp256r1-key.pem";
+#endif
 
     /* Sanity: the P-256 server certificate authenticates under the scheme that
      * names its own curve, ecdsa_secp256r1_sha256. */
@@ -13350,6 +13354,53 @@ int test_tls13_ecdsa_scheme_curve_binding(void)
     wolfSSL_free(ssl_s);     ssl_s = NULL;
     wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
     wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+#ifdef HAVE_ECC_BRAINPOOL
+    /* Same-size curves are not interchangeable: brainpoolP256r1 has schemes of
+     * its own (RFC 8734), so it must not be accepted under
+     * ecdsa_secp256r1_sha256. Overriding the curve the sender reports for its
+     * own key is what makes it use the plain ECDSA scheme. The digest length
+     * matches the group here, so only the curve check can reject it. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c, bpCert, NULL),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_certificate_file(ssl_s, bpCert,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_s, bpKey,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_c, "ECDSA+SHA256"),
+        WOLFSSL_SUCCESS);
+    if (EXPECT_SUCCESS())
+        ssl_s->pkCurveOID = ECC_SECP256R1_OID;
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(ssl_c->error, WC_NO_ERR_TRACE(SIG_VERIFY_E));
+    ExpectIntEQ(ssl_c->options.peerAuthGood, 0);
+
+    wolfSSL_free(ssl_c);     ssl_c = NULL;
+    wolfSSL_free(ssl_s);     ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+    /* Control: the same certificate under its own scheme is accepted. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c, bpCert, NULL),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_certificate_file(ssl_s, bpCert,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_s, bpKey,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(ssl_c->options.peerAuthGood, 1);
+
+    wolfSSL_free(ssl_c);     ssl_c = NULL;
+    wolfSSL_free(ssl_s);     ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+#endif /* HAVE_ECC_BRAINPOOL */
 #endif
     return EXPECT_RESULT();
 }
