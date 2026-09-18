@@ -8816,8 +8816,8 @@ int wc_falcon_sign_msg(const byte* in, word32 inLen,
      * readable stand-in so that downstream consumers -- hash updates and
      * crypto callbacks -- never see a NULL pointer. */
     if (in == NULL) {
-        static const byte falcon_empty_msg = 0;
-        in = &falcon_empty_msg;
+        static const byte falcon_empty_msg[] = {0};
+        in = falcon_empty_msg;
     }
 
 #ifdef WOLF_CRYPTO_CB
@@ -8885,8 +8885,8 @@ int wc_falcon_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
      * readable stand-in so that downstream consumers -- hash updates and
      * crypto callbacks -- never see a NULL pointer. */
     if (msg == NULL) {
-        static const byte falcon_empty_msg = 0;
-        msg = &falcon_empty_msg;
+        static const byte falcon_empty_msg[] = {0};
+        msg = falcon_empty_msg;
     }
 
 #ifdef WOLF_CRYPTO_CB

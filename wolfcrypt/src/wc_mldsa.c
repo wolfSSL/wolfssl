@@ -11473,8 +11473,8 @@ int wc_MlDsaKey_SignCtx(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
      * readable stand-in so that downstream consumers -- hash updates and
      * crypto callbacks -- never see a NULL pointer. */
     if ((ret == 0) && (msg == NULL)) {
-        static const byte mldsa_empty_msg = 0;
-        msg = &mldsa_empty_msg;
+        static const byte mldsa_empty_msg[] = {0};
+        msg = mldsa_empty_msg;
     }
     if ((ret == 0) && (ctx == NULL) && (ctxLen > 0)) {
         ret = BAD_FUNC_ARG;
@@ -11540,8 +11540,8 @@ int wc_MlDsaKey_Sign(wc_MlDsaKey* key, byte* sig, word32 *sigLen,
      * readable stand-in so that downstream consumers -- hash updates and
      * crypto callbacks -- never see a NULL pointer. */
     if ((ret == 0) && (msg == NULL)) {
-        static const byte mldsa_empty_msg = 0;
-        msg = &mldsa_empty_msg;
+        static const byte mldsa_empty_msg[] = {0};
+        msg = mldsa_empty_msg;
     }
 
 #ifdef WOLF_CRYPTO_CB
@@ -11662,8 +11662,8 @@ int wc_MlDsaKey_SignCtxWithSeed(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
      * readable stand-in so that downstream consumers -- hash updates and
      * crypto callbacks -- never see a NULL pointer. */
     if ((ret == 0) && (msg == NULL)) {
-        static const byte mldsa_empty_msg = 0;
-        msg = &mldsa_empty_msg;
+        static const byte mldsa_empty_msg[] = {0};
+        msg = mldsa_empty_msg;
     }
     if ((ret == 0) && (ctx == NULL) && (ctxLen > 0)) {
         ret = BAD_FUNC_ARG;
@@ -11710,8 +11710,8 @@ int wc_MlDsaKey_SignWithSeed(wc_MlDsaKey* key, byte* sig, word32 *sigLen,
      * readable stand-in so that downstream consumers -- hash updates and
      * crypto callbacks -- never see a NULL pointer. */
     if ((ret == 0) && (msg == NULL)) {
-        static const byte mldsa_empty_msg = 0;
-        msg = &mldsa_empty_msg;
+        static const byte mldsa_empty_msg[] = {0};
+        msg = mldsa_empty_msg;
     }
     if ((ret == 0) && (!key->prvKeySet)) {
         ret = BAD_FUNC_ARG;
@@ -11854,8 +11854,8 @@ int wc_MlDsaKey_VerifyCtx(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
      * readable stand-in so that downstream consumers -- hash updates and
      * crypto callbacks -- never see a NULL pointer. */
     if ((ret == 0) && (msg == NULL)) {
-        static const byte mldsa_empty_msg = 0;
-        msg = &mldsa_empty_msg;
+        static const byte mldsa_empty_msg[] = {0};
+        msg = mldsa_empty_msg;
     }
     if ((ret == 0) && (ctx == NULL) && (ctxLen > 0)) {
         ret = BAD_FUNC_ARG;
@@ -11919,8 +11919,8 @@ int wc_MlDsaKey_Verify(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
      * readable stand-in so that downstream consumers -- hash updates and
      * crypto callbacks -- never see a NULL pointer. */
     if ((ret == 0) && (msg == NULL)) {
-        static const byte mldsa_empty_msg = 0;
-        msg = &mldsa_empty_msg;
+        static const byte mldsa_empty_msg[] = {0};
+        msg = mldsa_empty_msg;
     }
 
 #ifdef WOLF_CRYPTO_CB

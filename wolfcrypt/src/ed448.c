@@ -482,8 +482,8 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
      * readable stand-in so that downstream consumers -- hash updates and
      * crypto callbacks -- never see a NULL pointer. */
     if ((ret == 0) && (in == NULL)) {
-        static const byte ed448_empty_msg = 0;
-        in = &ed448_empty_msg;
+        static const byte ed448_empty_msg[] = {0};
+        in = ed448_empty_msg;
     }
 
     if ((ret == 0) && (type == Ed448ph) && (inLen != ED448_PREHASH_SIZE)) {
@@ -978,8 +978,8 @@ int wc_ed448_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
      * readable stand-in so that downstream consumers -- hash updates and
      * crypto callbacks -- never see a NULL pointer. */
     if (msg == NULL) {
-        static const byte ed448_empty_msg = 0;
-        msg = &ed448_empty_msg;
+        static const byte ed448_empty_msg[] = {0};
+        msg = ed448_empty_msg;
     }
 
     if ((type == Ed448ph) &&
