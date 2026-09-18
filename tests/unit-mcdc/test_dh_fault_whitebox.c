@@ -920,7 +920,9 @@ static void test_agree_nonblock(void)
 
     /* 2162 idx1 FALSE with idx0 TRUE: a prime that is none of the three SP
      * sizes leaves "dispatched" clear all the way through the chain, which
-     * is the only way the 4096 test is reached and false. */
+     * is the only way the 4096 test is reached and false. The only source of
+     * a non-SP-size prime here is a generated one. */
+#ifndef WOLFSSL_NO_DH_GEN_PARAMS
     XMEMSET(&nb, 0, sizeof(nb));
     wc_InitDhKey(&key);
     mcdc_sr_arm(WB_DH_SEED);
@@ -944,6 +946,7 @@ static void test_agree_nonblock(void)
         wc_DhSetNonBlock(&key, NULL);
     }
     wc_FreeDhKey(&key);
+#endif /* !WOLFSSL_NO_DH_GEN_PARAMS */
 
     wc_FreeRng(&rng);
 }
@@ -962,6 +965,7 @@ static void test_agree_nonblock(void)
  * The rows this function cannot produce -- the mp_set guard actually
  * failing, and the g-search do-while actually repeating -- are driven by
  * test_generate_params_levers() below, in this same binary. */
+#ifndef WOLFSSL_NO_DH_GEN_PARAMS
 static void test_generate_params(void)
 {
     WC_RNG rng;
@@ -985,6 +989,7 @@ static void test_generate_params(void)
 
     wc_FreeRng(&rng);
 }
+#endif /* !WOLFSSL_NO_DH_GEN_PARAMS */
 
 /* ---- _DhSetKey init guard, dh.c:2771 --------------------------------------
  * if (ret == 0 && mp_init(&key->g) != MP_OKAY)
@@ -1016,6 +1021,7 @@ static void test_setkey_init_fault(void)
     wc_FreeDhKey(&key);
 }
 
+#ifndef WOLFSSL_NO_DH_GEN_PARAMS
 /* ---- wc_DhGenerateParams tail guards, dh.c:3365/3374 ----------------------
  * if ((ret == 0) && (mp_set(&dh->g, 1) != MP_OKAY))                   (3365)
  * } while (ret == 0 && mp_cmp_d(tmp, 1) == MP_EQ);                    (3374)
@@ -1303,6 +1309,7 @@ static void test_mp_fault_sweeps(void)
     wc_FreeRng(&rng);
     WB_NOTE("big-integer fault sweeps done");
 }
+#endif /* !WOLFSSL_NO_DH_GEN_PARAMS */
 
 int main(void)
 {
@@ -1333,10 +1340,17 @@ int main(void)
     WB_NOTE("WC_DH_NONBLOCK not built; nb cache decisions "
             "(2070/2085/2098/2116) skipped");
 #endif
+#ifndef WOLFSSL_NO_DH_GEN_PARAMS
     test_generate_params();
+#else
+    WB_NOTE("WOLFSSL_NO_DH_GEN_PARAMS built; parameter generation decisions "
+            "(3293/3299) skipped");
+#endif
     test_setkey_init_fault();
+#ifndef WOLFSSL_NO_DH_GEN_PARAMS
     test_generate_params_levers();
     test_mp_fault_sweeps();
+#endif
 
     printf("done (%s)\n", wb_fail ? "FAILURES" : "ok");
     return 0;
