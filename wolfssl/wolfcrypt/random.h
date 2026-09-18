@@ -40,9 +40,10 @@
 /* WC_RNG_WANT_AUTO_LOCK forces the lock on where policy would skip it.  The
  * tests below it are hard prerequisites and nothing can override those. */
 #if (defined(WC_RNG_WANT_AUTO_LOCK) || \
-     (!defined(SINGLE_THREADED) && !defined(WOLFSSL_CMSIS_RTOS) && \
+     (!defined(WOLFSSL_CMSIS_RTOS) && \
       !defined(WOLFSSL_KERNEL_MODE) && \
       !defined(WOLFSSL_KERNEL_MODE_DEFAULTS))) && \
+    !defined(SINGLE_THREADED) && \
     !defined(WC_RNG_NO_AUTO_LOCK) && !defined(WC_NO_RNG) && \
     !defined(WC_NO_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
     !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))

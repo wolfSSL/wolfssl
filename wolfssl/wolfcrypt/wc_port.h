@@ -1139,6 +1139,9 @@ enum {
 WOLFSSL_LOCAL int  wc_ForkLockInit(void);          /* from wolfCrypt_Init */
 WOLFSSL_LOCAL int  wc_ForkLock_New(wc_ForkLock** lock, void* heap);
 WOLFSSL_LOCAL void wc_ForkLock_Free(wc_ForkLock** lock);
+/* Exit() is for a caller whose Enter() returned 0, once.  Calling it after a
+ * failed Enter() posts a lock this caller never took, so two threads could
+ * then hold it at the same time. */
 WOLFSSL_API   int  wc_ForkLock_Enter(wc_ForkLock* lock);
 WOLFSSL_API   void wc_ForkLock_Exit(wc_ForkLock* lock);
 /* For tests: force the lock to fail closed. */
