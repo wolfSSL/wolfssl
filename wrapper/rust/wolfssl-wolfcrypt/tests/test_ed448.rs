@@ -353,11 +353,11 @@ fn test_signature_traits() {
 
     common::setup();
 
-    let mut rng = RNG::new().expect("Error creating RNG");
-    let mut ed = Ed448::generate(&mut rng).expect("Error with generate()");
+    let rng = RNG::new().expect("Error creating RNG");
+    let mut sk = SigningKey::generate(&rng).expect("Error with SigningKey::generate()");
 
     let message = b"message to sign via RustCrypto signature trait";
-    let sig: Signature = ed.sign(message);
+    let sig: Signature = sk.sign(message);
 
     // Round-trip the signature bytes through the SignatureEncoding machinery.
     let bytes = sig.to_bytes();
@@ -369,7 +369,7 @@ fn test_signature_traits() {
     assert!(Signature::try_from(&bytes[..bytes.len() - 1]).is_err());
 
     // VerifyingKey obtained via the Keypair trait verifies this signature.
-    let vk: VerifyingKey = ed.verifying_key();
+    let vk: VerifyingKey = sk.verifying_key();
     vk.verify(message, &sig).expect("Verifier::verify failed");
 
     // A tampered message must fail verification.
@@ -381,6 +381,55 @@ fn test_signature_traits() {
     let vk_bytes = vk.to_bytes();
     let vk2 = VerifyingKey::try_from(vk_bytes.as_ref()).expect("VerifyingKey::try_from bytes");
     assert_eq!(vk, vk2);
+}
+
+#[test]
+#[cfg(all(feature = "signature", ed448_import, ed448_export, ed448_sign, ed448_verify, random))]
+fn test_signing_key_from_incomplete_key() {
+    use signature::{Keypair, SignerMut, Verifier};
+
+    common::setup();
+
+    let rng = RNG::new().expect("Error creating RNG");
+    let ed = Ed448::generate(&rng).expect("Error with generate()");
+    let mut private = [0u8; Ed448::KEY_SIZE];
+    let mut public = [0u8; Ed448::PUB_KEY_SIZE];
+    ed.export_private_only(&mut private).expect("Error with export_private_only()");
+    ed.export_public(&mut public).expect("Error with export_public()");
+
+    // A key with no public key at all cannot become a SigningKey.
+    let empty = Ed448::new().expect("Error with new()");
+    assert!(SigningKey::from_key(empty).is_err());
+
+    // Nor can one holding only the private scalar.
+    let mut private_only = Ed448::new().expect("Error with new()");
+    private_only.import_private_only(&private).expect("Error with import_private_only()");
+    assert!(SigningKey::from_key(private_only).is_err());
+
+    // Nor can a public-only key, which could never sign.
+    let mut public_only = Ed448::new().expect("Error with new()");
+    public_only.import_public(&public).expect("Error with import_public()");
+    assert!(SigningKey::from_key(public_only).is_err());
+
+    // from_private_only() derives the public key instead of failing.
+    let mut sk = SigningKey::from_private_only(&private)
+        .expect("Error with SigningKey::from_private_only()");
+    assert_eq!(sk.verifying_key().to_bytes(), public);
+
+    // As does importing the pair, and both agree on signatures.
+    let mut sk2 = SigningKey::from_keypair(&private, &public)
+        .expect("Error with SigningKey::from_keypair()");
+    assert_eq!(sk2.verifying_key(), sk.verifying_key());
+
+    let message = b"message signed by a derived signing key";
+    let sig: Signature = sk.sign(message);
+    assert_eq!(sig, sk2.sign(message));
+    sk.verifying_key().verify(message, &sig).expect("Verifier::verify failed");
+
+    // A public key that does not match the private key is rejected.
+    let mut wrong_public = public;
+    wrong_public[0] ^= 0x01;
+    assert!(SigningKey::from_keypair(&private, &wrong_public).is_err());
 }
 
 #[test]
