@@ -17535,9 +17535,9 @@ static int HashForSignature(const byte* buf, word32 bufSz, word32 sigOID,
 #endif /* !NO_ASN_CRYPT && !NO_HASH_WRAPPER */
 
 #if !defined(NO_DSA) && !defined(HAVE_SELFTEST)
-/* Try to parse as ASN.1 bitstring */
+/* Parse as an ASN.1 bitstring into sigCpy as r||s, each zero padded to qSz. */
 static int DecodeDsaAsn1Sig(const byte* sig, word32 sigSz, byte* sigCpy,
-    void* heap)
+    int qSz, void* heap)
 {
     int ret = 0;
     int rSz = 0, sSz = 0, mpinit = 0;
@@ -17570,14 +17570,14 @@ static int DecodeDsaAsn1Sig(const byte* sig, word32 sigSz, byte* sigCpy,
     if (ret == 0) {
         rSz = mp_unsigned_bin_size(r);
         sSz = mp_unsigned_bin_size(s);
-        if (rSz + sSz > (int)sigSz) {
+        if (rSz > qSz || sSz > qSz) {
             WOLFSSL_MSG("DSA sig size invalid");
             ret = ASN_SIG_CONFIRM_E;
         }
     }
     if (ret == 0) {
-        if (mp_to_unsigned_bin(r, sigCpy) != MP_OKAY ||
-            mp_to_unsigned_bin(s, sigCpy + rSz) != MP_OKAY) {
+        if (mp_to_unsigned_bin_len(r, sigCpy, qSz) != MP_OKAY ||
+            mp_to_unsigned_bin_len(s, sigCpy + qSz, qSz) != MP_OKAY) {
             WOLFSSL_MSG("DSA sig to unsigned bin failed!");
             ret = ASN_SIG_CONFIRM_E;
         }
@@ -17898,6 +17898,7 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                 case DSAk:
                 {
                     word32 idx = 0;
+                    int qSz;
 
                     if (sigSz < DSA_MIN_SIG_SIZE) {
                         WOLFSSL_MSG("Verify Signature is too small");
@@ -17918,26 +17919,33 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                         WOLFSSL_MSG("wc_InitDsaKey_h error");
                         goto exit_cs;
                     }
-                #ifndef WOLFSSL_NO_MALLOC
-                    sigCtx->sigCpy = (byte*)XMALLOC(sigSz,
-                                         sigCtx->heap, DYNAMIC_TYPE_SIGNATURE);
-                    if (sigCtx->sigCpy == NULL) {
-                        ERROR_OUT(MEMORY_E, exit_cs);
-                    }
-                #endif
                     if ((ret = wc_DsaPublicKeyDecode(key, &idx, sigCtx->key.dsa,
                                                                  keySz)) != 0) {
                         WOLFSSL_MSG("ASN Key decode error DSA");
                         WOLFSSL_ERROR_VERBOSE(ret);
                         goto exit_cs;
                     }
-                    if (sigSz != DSA_160_SIG_SIZE &&
-                        sigSz != DSA_256_SIG_SIZE) {
-                        ret = DecodeDsaAsn1Sig(sig, sigSz, sigCtx->sigCpy,
-                            sigCtx->heap);
+                    /* wc_DsaVerify() reads 2 * |q| bytes from sigCpy, so size
+                     * the copy from the key and reject any |q| the DSA code
+                     * cannot produce a signature for. */
+                    qSz = mp_unsigned_bin_size(&sigCtx->key.dsa->q);
+                    if (qSz < DSA_MIN_HALF_SIZE || qSz > DSA_MAX_HALF_SIZE) {
+                        WOLFSSL_MSG("Verify DSA key q size invalid");
+                        ERROR_OUT(ASN_SIG_CONFIRM_E, exit_cs);
+                    }
+                #ifndef WOLFSSL_NO_MALLOC
+                    sigCtx->sigCpy = (byte*)XMALLOC((word32)(2 * qSz),
+                                         sigCtx->heap, DYNAMIC_TYPE_SIGNATURE);
+                    if (sigCtx->sigCpy == NULL) {
+                        ERROR_OUT(MEMORY_E, exit_cs);
+                    }
+                #endif
+                    if (sigSz == (word32)(2 * qSz)) {
+                        XMEMCPY(sigCtx->sigCpy, sig, sigSz);
                     }
                     else {
-                        XMEMCPY(sigCtx->sigCpy, sig, sigSz);
+                        ret = DecodeDsaAsn1Sig(sig, sigSz, sigCtx->sigCpy, qSz,
+                            sigCtx->heap);
                     }
                     break;
                 }
