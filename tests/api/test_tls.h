@@ -31,6 +31,7 @@ int test_tls12_curve_intersection(void);
 int test_tls12_dhe_rsa_pss_sigalg(void);
 int test_tls12_ske_sig_param_binding(void);
 int test_tls12_bad_cv_sig_content(void);
+int test_tls12_dhe_psk_max_pms(void);
 int test_tls13_curve_intersection(void);
 int test_tls_certreq_order(void);
 int test_tls12_certreq_odd_sigalgs(void);
@@ -79,6 +80,7 @@ int test_tls12_aesgcm_record_nonce_unique(void);
         TEST_DECL_GROUP("tls", test_tls12_dhe_rsa_pss_sigalg),                 \
         TEST_DECL_GROUP("tls", test_tls12_ske_sig_param_binding),              \
         TEST_DECL_GROUP("tls", test_tls12_bad_cv_sig_content),                 \
+        TEST_DECL_GROUP("tls", test_tls12_dhe_psk_max_pms),                    \
         TEST_DECL_GROUP("tls", test_tls13_curve_intersection),                 \
         TEST_DECL_GROUP("tls", test_tls_certreq_order),                        \
         TEST_DECL_GROUP("tls", test_tls12_certreq_odd_sigalgs),                \

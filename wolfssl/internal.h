@@ -1561,7 +1561,11 @@ enum Misc {
 #endif
 #endif
 #ifndef NO_PSK
-    ENCRYPT_LEN     = (ENCRYPT_BASE_BITS / 8) + MAX_PSK_KEY_LEN + 2,
+#if !defined(NO_DH) && (MAX_DHKEY_SZ > (ENCRYPT_BASE_BITS / 8))
+    ENCRYPT_LEN     = MAX_DHKEY_SZ + 2 + MAX_PSK_KEY_LEN + 2,
+#else
+    ENCRYPT_LEN     = (ENCRYPT_BASE_BITS / 8) + 2 + MAX_PSK_KEY_LEN + 2,
+#endif
 #else
     ENCRYPT_LEN     = (ENCRYPT_BASE_BITS / 8),
 #endif
