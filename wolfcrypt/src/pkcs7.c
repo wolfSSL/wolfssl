@@ -128,6 +128,11 @@ struct PKCS7SignerInfo {
     #define WOLFSSL_PKCS7_MAX_DECOMPRESSION 1031
 #endif
 
+/* RFC 5084 section 3.2 and SP 800-38C appendix B.2: smallest ICV each mode
+ * may carry in a bundle. */
+#define PKCS7_GCM_MIN_ICV_SZ 12
+#define PKCS7_CCM_MIN_ICV_SZ 8
+
 #ifndef NO_PKCS7_STREAM
 
 /* Hard upper bound on a single PKCS7 streaming buffer allocation. Guards
@@ -16295,6 +16300,8 @@ authenv_atrbend:
                 encodedAttribs  = pkcs7->stream->aad;
             }
             macSz = (int)pkcs7->stream->icvSz;
+            /* re-entry here skips the earlier states, so get the cipher back */
+            wc_PKCS7_StreamGetVar(pkcs7, &encOID, NULL, NULL);
         #endif
 
 
@@ -16324,28 +16331,27 @@ authenv_atrbend:
                 WOLFSSL_MSG("AuthEnvelopedData authTag size mismatch");
                 ret = ASN_PARSE_E;
             }
+            /* RFC 5084 section 3.2: AES-GCM ICV is 12 to 16 bytes, and macSz
+             * already bounds the top. The floor is raised to the build minimum
+             * when that is larger. */
             if (ret == 0 &&
                     (encOID == AES128GCMb || encOID == AES192GCMb ||
-                     encOID == AES256GCMb)) {
-    #if (defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)) || \
-        defined(HAVE_SELFTEST) || !defined(HAVE_AESGCM)
-                if (authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ) {
-                    WOLFSSL_MSG("AuthEnvelopedData GCM authTag too small");
-                    ret = ASN_PARSE_E;
-                }
-    #else
-                ret = wc_local_AesGcmCheckTagSz(authTagSz);
-                if (ret != 0) {
-                    ret = ASN_PARSE_E;
-                    WOLFSSL_MSG("AuthEnvelopedData GCM authTag invalid size");
-                }
-    #endif
+                     encOID == AES256GCMb) &&
+                    (authTagSz < PKCS7_GCM_MIN_ICV_SZ ||
+                     authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ)) {
+                WOLFSSL_MSG("AuthEnvelopedData GCM authTag invalid size");
+                ret = ASN_PARSE_E;
             }
+            /* RFC 5084 section 3.1 lists even ICV sizes only, and SP 800-38C
+             * appendix B.2 wants 8 bytes or more. The floor is raised to the
+             * build minimum when that is larger. */
             if (ret == 0 &&
                     (encOID == AES128CCMb || encOID == AES192CCMb ||
                      encOID == AES256CCMb) &&
-                     authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ) {
-                WOLFSSL_MSG("AuthEnvelopedData CCM authTag too small");
+                    (authTagSz < PKCS7_CCM_MIN_ICV_SZ ||
+                     authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ ||
+                     (authTagSz & 1) != 0)) {
+                WOLFSSL_MSG("AuthEnvelopedData CCM authTag invalid size");
                 ret = ASN_PARSE_E;
             }
 
