@@ -246,6 +246,40 @@
   through `WOLFSSL_SS_SERVER_CHANGECIPHERSPEC` or
   `WOLFSSL_SS_CLIENT_CHANGECIPHERSPEC` on a TLS 1.3 connection.
 
+* **API (`secure_zero_memory` removed from `blake2-impl.h`)**: the BLAKE2 code
+  now zeroizes with `ForceZero()`, which wipes a word at a time and routes
+  through the same barrier-hardened path as the rest of wolfCrypt, instead of
+  a one-off, byte-at-a-time helper.  No public
+  header includes `blake2-impl.h` - `blake2.h` includes `blake2-int.h` - so
+  only code that named the file directly is affected, and because the helper
+  was `static` there is no ABI change.  Such code should call `wc_ForceZero()`.
+
+* **API (`XFENCE()` now clobbers `"memory"`)**: All inline-asm arms of
+  `XFENCE()` now append a `"memory"` clobber via `XASM_VOLATILE_MB()`.
+  Toolchains rejecting the clobber list can opt out with `XASM_VOLATILE_NO_CLOBBER`.
+  The MSVC/ARM64 intrinsic arm (`_M_ARM64`) is bracketed with
+  `_ReadWriteBarrier()` for the same effect, since `__isb()` alone is a
+  hardware-only fence with no compiler-barrier semantics of its own.
+
+* **API (new exported symbols `wc_BarrierDataSink()` and `aarch64_use_sb`)**:
+  `wc_BarrierDataSink()` backs the portable `WC_BARRIER_DATA()` fallback.
+  `aarch64_use_sb` is now exported under `WOLFSSL_ARMASM_BARRIER_DETECT`.
+
+* **`XASM_VOLATILE()` compiler checks**: IAR/KEIL checks now precede `WOLF_C99`,
+  ensuring correct asm keywords in C99 mode.
+
+* **`wc_ForceZero()`/`wc_ConstantCompare()` relocation**: Moved from `memory.c`
+  to `wc_port.c` to fix unavailability when `memory.c` is excluded from the build.
+
+* **`ForceZero()` no longer emits a hardware fence**: it now uses
+  `WC_BARRIER_DATA()` (a compiler-only barrier) instead of the
+  two `XFENCE()` calls it previously bracketed the wipe with, which on most
+  targets compiled to a real fence instruction (`lfence`, `isb`,
+  `atomic_thread_fence`). `WC_BARRIER_DATA()` is what actually defeats DSE;
+  the fence was never load-bearing for that. Code relying on `ForceZero()`
+  also acting as a memory barrier across threads should call `XFENCE()`
+  explicitly.
+
 ## New Features
 
 * Added `WC_ALGO_TYPE_KEYSTORE`, a crypto callback algorithm type for lifetime operations on keys held in a hardware key store, with the public API in `wolfssl/wolfcrypt/wc_keystore.h` behind `--enable-cryptocbutils=keystore`. Seven operations - plaintext and wrapped import/export, derive, delete and get-info - address keys by an opaque device-defined reference that wolfCrypt copies through and never interprets, the same way it treats a key object's `id[]` blob. This lets a device create, wrap, derive and destroy keys that never appear in memory, which `WOLF_CRYPTO_CB_SETKEY` and `WOLF_CRYPTO_CB_EXPORT_KEY` cannot express because both are bound to a wolfCrypt key object holding material for its own use.

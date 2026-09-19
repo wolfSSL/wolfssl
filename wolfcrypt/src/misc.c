@@ -789,7 +789,6 @@ WC_MISC_STATIC WC_INLINE void xorbuf(void* buf, const void* mask, word32 count)
 WC_MISC_STATIC WC_INLINE void ForceZero(void* mem, size_t len)
 {
     byte *zb = (byte *)mem;
-    unsigned long *zl;
 
     /* Make the compiler put the buffer's current contents at mem, so the
      * wipe below hits the memory that holds them and not a copy. */
@@ -797,20 +796,23 @@ WC_MISC_STATIC WC_INLINE void ForceZero(void* mem, size_t len)
 
     /* No early return here: a short unaligned buffer must still reach the
      * trailing barrier, or its wipe can be dropped as a dead store. */
-    while ((len != 0) &&
-            ((wc_ptr_t)zb & (wc_ptr_t)(sizeof(unsigned long) - 1U))) {
+    while (len > 0 &&
+           (((wc_ptr_t)zb & (wc_ptr_t)(sizeof(unsigned long) - 1U)) != 0)) {
         *zb++ = 0;
         --len;
     }
 
-    zl = (unsigned long *)zb;
+    /* zb is aligned and safe to convert. */
+    if (len >= sizeof(unsigned long)) {
+        unsigned long *zl = (unsigned long *)zb;
 
-    while (len >= sizeof(unsigned long)) {
-        *zl++ = 0;
-        len -= sizeof(unsigned long);
+        do {
+            *zl++ = 0;
+            len -= sizeof(unsigned long);
+        } while (len >= sizeof(unsigned long));
+
+        zb = (byte *)zl;
     }
-
-    zb = (byte *)zl;
 
     while (len) {
         *zb++ = 0;
@@ -822,7 +824,9 @@ WC_MISC_STATIC WC_INLINE void ForceZero(void* mem, size_t len)
      * opaque code. No CPU fence is needed for that. */
     WC_BARRIER_DATA(mem);
 }
-#endif
+
+/* wc_ForceZero() wrapper moved to wc_port.c. */
+#endif /* !WOLFSSL_NO_FORCE_ZERO */
 
 
 #ifndef WOLFSSL_NO_CONST_CMP

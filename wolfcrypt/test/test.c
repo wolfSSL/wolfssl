@@ -786,6 +786,13 @@ typedef struct testVector {
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  macro_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  error_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  octets_test(void);
+#ifndef WOLFSSL_NO_FORCE_ZERO
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  forcezero_test(void);
+#endif
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  barrierdatasink_test(void);
+#ifndef WOLFSSL_NO_CONST_CMP
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  constantcompare_test(void);
+#endif
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  base64_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  base16_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  asn_test(void);
@@ -2491,6 +2498,25 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_FAIL("error    test failed!\n", ret);
     else
         TEST_PASS("error    test passed!\n");
+
+#ifndef WOLFSSL_NO_FORCE_ZERO
+    if ( (ret = forcezero_test()) != 0)
+        TEST_FAIL("forcezero test failed!\n", ret);
+    else
+        TEST_PASS("forcezero test passed!\n");
+#endif
+
+    if ( (ret = barrierdatasink_test()) != 0)
+        TEST_FAIL("barrierdatasink test failed!\n", ret);
+    else
+        TEST_PASS("barrierdatasink test passed!\n");
+
+#ifndef WOLFSSL_NO_CONST_CMP
+    if ( (ret = constantcompare_test()) != 0)
+        TEST_FAIL("constantcompare test failed!\n", ret);
+    else
+        TEST_PASS("constantcompare test passed!\n");
+#endif
 
     if ( (ret = memory_test()) != 0)
         TEST_FAIL("MEMORY   test failed!\n", ret);
@@ -4494,6 +4520,175 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t octets_test(void)
 
     return 0;
 }
+
+#ifndef WOLFSSL_NO_FORCE_ZERO
+
+typedef void (*forcezero_fn)(void* mem, size_t len);
+
+/* Sweep offset/length. */
+static wc_test_ret_t forcezero_sweep(forcezero_fn forceZero, const char* name)
+{
+    byte buf[8 * sizeof(unsigned long) + 2];
+    word32 i;
+    word32 off;
+    word32 len;
+
+    /* NULL, len == 0: must not dereference. */
+    forceZero(NULL, 0);
+
+    /* len == 0: untouched. */
+    XMEMSET(buf, 0xA5, sizeof(buf));
+    forceZero(buf, 0);
+    for (i = 0; i < sizeof(buf); i++) {
+        if (buf[i] != 0xA5) {
+            printf("%s failed: len=0 modified index %u "
+                   "(expected 0xA5, got 0x%02X)\n", name, i, buf[i]);
+            return WC_TEST_RET_ENC_I((int)i);
+        }
+    }
+
+    /* Cover word-at-a-time loop iterations. */
+    for (off = 0; off < sizeof(unsigned long); off++) {
+        for (len = 0; len <= 6 * sizeof(unsigned long) + 3 &&
+                      off + len <= sizeof(buf); len++) {
+            XMEMSET(buf, 0xA5, sizeof(buf));
+
+            forceZero(buf + off, len);
+
+            for (i = 0; i < off; i++) {
+                if (buf[i] != 0xA5) {
+                    printf("%s failed: wrote before start. "
+                           "off=%u len=%u i=%u (expected 0xA5, got 0x%02X)\n",
+                           name, off, len, i, buf[i]);
+                    return WC_TEST_RET_ENC_I((int)i);
+                }
+            }
+            for (i = off; i < off + len; i++) {
+                if (buf[i] != 0x00) {
+                    printf("%s failed: missed zeroing. "
+                           "off=%u len=%u i=%u (expected 0x00, got 0x%02X)\n",
+                           name, off, len, i, buf[i]);
+                    return WC_TEST_RET_ENC_I((int)i);
+                }
+            }
+            for (i = off + len; i < sizeof(buf); i++) {
+                if (buf[i] != 0xA5) {
+                    printf("%s failed: wrote past end. "
+                           "off=%u len=%u i=%u (expected 0xA5, got 0x%02X)\n",
+                           name, off, len, i, buf[i]);
+                    return WC_TEST_RET_ENC_I((int)i);
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+/* Test ForceZero. */
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t forcezero_test(void)
+{
+    wc_test_ret_t ret;
+
+    WOLFSSL_ENTER("forcezero_test");
+
+#ifndef NO_INLINE
+    /* Inline copy from misc.c. */
+    ret = forcezero_sweep(ForceZero, "ForceZero");
+    if (ret != 0)
+        return ret;
+#endif
+
+    /* Exported wrapper. */
+    ret = forcezero_sweep(wc_ForceZero, "wc_ForceZero");
+    if (ret != 0)
+        return ret;
+
+    return 0;
+}
+
+#endif /* !WOLFSSL_NO_FORCE_ZERO */
+
+/* Smoke test for wc_BarrierDataSink(). DSE resistance is tested in dse_probe.c. */
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t barrierdatasink_test(void)
+{
+    byte sinkBuf[8] = { 0 };
+
+    WOLFSSL_ENTER("barrierdatasink_test");
+
+    wc_BarrierDataSink(sinkBuf);
+    wc_BarrierDataSink(NULL);
+
+    return 0;
+}
+
+#ifndef WOLFSSL_NO_CONST_CMP
+
+typedef int (*constantcompare_fn)(const byte* a, const byte* b, int length);
+
+/* Check equal buffers, 1-bit diffs, diffs after length, and length 0.
+ * Run once per ConstantCompare() entry point. */
+static wc_test_ret_t constantcompare_sweep(constantcompare_fn cmp,
+    const char* name)
+{
+    byte a[9] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
+    byte b[9];
+    int i;
+    int length = (int)sizeof(a) - 1; /* leave a[8]/b[8] out of range */
+
+    XMEMCPY(b, a, sizeof(a));
+    if (cmp(a, b, length) != 0) {
+        printf("%s failed: equal buffers compared unequal\n", name);
+        return WC_TEST_RET_ENC_NC;
+    }
+
+    if (cmp(a, b, 0) != 0) {
+        printf("%s failed: length 0 compared unequal\n", name);
+        return WC_TEST_RET_ENC_NC;
+    }
+
+    for (i = 0; i < length; i++) {
+        XMEMCPY(b, a, sizeof(a));
+        b[i] ^= 0x01;
+        if (cmp(a, b, length) == 0) {
+            printf("%s failed: missed difference at index %d\n", name, i);
+            return WC_TEST_RET_ENC_I(i);
+        }
+    }
+
+    /* Explicitly check that differences at/after length are ignored. */
+    XMEMCPY(b, a, sizeof(a));
+    b[length] ^= 0x01;
+    if (cmp(a, b, length) != 0) {
+        printf("%s failed: read past length\n", name);
+        return WC_TEST_RET_ENC_NC;
+    }
+
+    return 0;
+}
+
+/* Test ConstantCompare(). */
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t constantcompare_test(void)
+{
+    wc_test_ret_t ret;
+
+    WOLFSSL_ENTER("constantcompare_test");
+
+#ifndef NO_INLINE
+    /* Inline copy from misc.c. */
+    ret = constantcompare_sweep(ConstantCompare, "ConstantCompare");
+    if (ret != 0)
+        return ret;
+#endif
+
+    /* Exported wrapper. */
+    ret = constantcompare_sweep(wc_ConstantCompare, "wc_ConstantCompare");
+    if (ret != 0)
+        return ret;
+
+    return 0;
+}
+#endif /* !WOLFSSL_NO_CONST_CMP */
 
 #ifndef NO_CODING
 
