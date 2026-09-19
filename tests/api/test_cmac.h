@@ -28,6 +28,7 @@ int test_wc_InitCmac(void);
 int test_wc_CmacUpdate(void);
 int test_wc_CmacFinal(void);
 int test_wc_AesCmacGenerate(void);
+int test_wc_CmacSetTagLen(void);
 int test_wc_CMAC_Grow(void);
 int test_wc_InitCmac_Id(void);
 int test_wc_InitCmac_Label(void);
@@ -41,6 +42,7 @@ int test_wc_CryptoCb_CmacFree(void);
     TEST_DECL_GROUP("cmac", test_wc_CmacUpdate),        \
     TEST_DECL_GROUP("cmac", test_wc_CmacFinal),         \
     TEST_DECL_GROUP("cmac", test_wc_AesCmacGenerate),   \
+    TEST_DECL_GROUP("cmac", test_wc_CmacSetTagLen),     \
     TEST_DECL_GROUP("cmac", test_wc_CMAC_Grow),         \
     TEST_DECL_GROUP("cmac", test_wc_InitCmac_Id),       \
     TEST_DECL_GROUP("cmac", test_wc_InitCmac_Label),    \
