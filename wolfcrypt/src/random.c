@@ -3552,6 +3552,30 @@ int wc_InitRngNonce_ex2(WC_RNG* rng, const byte* nonce, word32 nonceSz,
                     heap, devId, NULL, flags);
 }
 
+#if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
+/* Map a failed generate or reseed to the return code and rng->status.
+ * A failed SP 800-90A health test returns DRBG_CONT_FIPS_E. */
+static int RngGenerateFailure(WC_RNG* rng, int ret)
+{
+    if (ret == WC_NO_ERR_TRACE(DRBG_CONT_FAILURE)) {
+        rng->status = DRBG_CONT_FAILED;
+        return DRBG_CONT_FIPS_E;
+    }
+
+    rng->status = DRBG_FAILED;
+
+#if FIPS_VERSION3_GE(7,0,0)
+    /* SP 800-90B RCT and APT failures keep their own code. */
+    if ((ret == WC_NO_ERR_TRACE(ENTROPY_RT_E)) ||
+        (ret == WC_NO_ERR_TRACE(ENTROPY_APT_E))) {
+        return ret;
+    }
+#endif
+
+    return RNG_FAILURE_E;
+}
+#endif
+
 #if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
 
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
@@ -3576,8 +3600,7 @@ static WARN_UNUSED_RESULT WC_MAYBE_UNUSED int rng_pid_change_check(WC_RNG* rng) 
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
     ret = PollAndReSeed(rng, NULL, 0);
     if (ret != DRBG_SUCCESS) {
-        rng->status = DRBG_FAILED;
-        ret = RNG_FAILURE_E;
+        ret = RngGenerateFailure(rng, ret);
     }
 #endif
 
@@ -4756,6 +4779,21 @@ int wc_RNG_DRBG_StirRBGC(WC_RNG* rng, WC_RNG* root,
 
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
 
+/* A failed seed source reports DRBG_FAILURE, except an SP 800-90B RCT or APT
+ * failure, which keeps its own code. */
+static int ReseedSourceFailure(int ret)
+{
+#if FIPS_VERSION3_GE(7,0,0)
+    if ((ret == WC_NO_ERR_TRACE(ENTROPY_RT_E)) ||
+        (ret == WC_NO_ERR_TRACE(ENTROPY_APT_E))) {
+        return ret;
+    }
+#else
+    (void)ret;
+#endif
+    return DRBG_FAILURE;
+}
+
 static WARN_UNUSED_RESULT int PollAndReSeed(WC_RNG* rng, const byte* additional,
                          word32 additionalSz)
 {
@@ -4805,6 +4843,7 @@ static WARN_UNUSED_RESULT int PollAndReSeed(WC_RNG* rng, const byte* additional,
                     "ERROR: wc_GenerateSeed() in PollAndReSeed() failed with "
                     "err %d", ret);
     #endif
+                ret = ReseedSourceFailure(ret);
             }
         #endif
         }
@@ -5860,11 +5899,13 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
                 ((rng->RBGCStratum > 0) && (banked_stratum == 0)))
             {
                 ret = wc_RNG_DRBG_NextSeedNow_local(rng);
-                if ((ret == WC_NO_ERR_TRACE(DRBG_CONT_FIPS_E)) ||
-                    (ret == WC_NO_ERR_TRACE(RNG_FAILURE_E)))
-                {
+                /* Key the bail on the instance state, not on a list of codes:
+                 * this leg can now also see ENTROPY_RT_E / ENTROPY_APT_E, and
+                 * falling through would let a later generate overwrite ret and
+                 * report success for a call that already condemned the DRBG. */
+                if (rng->status != DRBG_OK) {
                     RngAutoLockExit(rng);
-                    return ret;
+                    return (ret != 0) ? ret : RNG_FAILURE_E;
                 }
             }
         }
@@ -5889,10 +5930,11 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 
 #ifdef WC_RNG_HAVE_LOCK
     if (WOLFSSL_ATOMIC_LOAD(rng->lock) & WC_RNG_LOCK_ENTROPY_INVALIDATED) {
-        if (PollAndReSeed(rng, NULL, 0) != DRBG_SUCCESS) {
-            rng->status = DRBG_FAILED;
+        int reseed_ret = PollAndReSeed(rng, NULL, 0);
+        if (reseed_ret != DRBG_SUCCESS) {
+            reseed_ret = RngGenerateFailure(rng, reseed_ret);
             RngAutoLockExit(rng);
-            return RNG_FAILURE_E;
+            return reseed_ret;
         }
     }
 #endif
@@ -5959,12 +6001,15 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
         rng->status = DRBG_CONT_FAILED;
     }
     else {
-        ret = RNG_FAILURE_E;
-        /* Note, Hash_DRBG_Generate() always leaves the DRBG in a
-         * self-consistent state, success or failure, and can fail for retryable
-         * causes (e.g. failed memory allocation), so we only update rng->status
-         * above.
-         */
+        /* A mandatory reseed above can leave a seed health verdict in ret, and
+         * that arm has already set rng->status, so keep the SP 800-90B code
+         * rather than flattening it.  Everything else is unchanged:
+         * Hash_DRBG_Generate() stays self-consistent and can fail for
+         * retryable causes such as an allocation, so it is not condemned. */
+        if ((ret != WC_NO_ERR_TRACE(ENTROPY_RT_E)) &&
+            (ret != WC_NO_ERR_TRACE(ENTROPY_APT_E))) {
+            ret = RNG_FAILURE_E;
+        }
     }
     RngAutoLockExit(rng);
 #else
