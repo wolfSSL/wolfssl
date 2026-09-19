@@ -34107,29 +34107,6 @@ int DecodeECC_DSA_Sig_Ex(const byte* sig, word32 sigLen, mp_int* r, mp_int* s,
 
 #ifdef WOLFSSL_ASN_TEMPLATE
 #if defined(HAVE_ECC) && defined(WOLFSSL_CUSTOM_CURVES)
-/* Convert data to hex string.
- *
- * Big-endian byte array is converted to big-endian hexadecimal string.
- *
- * @param [in]  input  Buffer containing data.
- * @param [in]  inSz   Size of data in buffer.
- * @param [out] out    Buffer to hold hex string.
- */
-static void DataToHexString(const byte* input, word32 inSz, char* out)
-{
-    static const char hexChar[] = { '0', '1', '2', '3', '4', '5', '6', '7',
-                                    '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
-    word32 i;
-
-    /* Converting a byte of data at a time to two hex characters. */
-    for (i = 0; i < inSz; i++) {
-        out[i*2 + 0] = hexChar[input[i] >> 4];
-        out[i*2 + 1] = hexChar[input[i] & 0xf];
-    }
-    /* NUL terminate string. */
-    out[i * 2] = '\0';
-}
-
 #ifndef WOLFSSL_ECC_CURVE_STATIC
 /* Convert data to hex string and place in allocated buffer.
  *
@@ -34156,7 +34133,7 @@ static int DataToHexStringAlloc(const byte* input, word32 inSz, char** out,
     }
     else {
         /* Convert to hex string. */
-        DataToHexString(input, inSz, str);
+        wc_DataToHexString(input, inSz, str);
         *out = str;
     }
 
@@ -34359,23 +34336,23 @@ static int EccSpecifiedECDomainDecode(const byte* input, word32 inSz,
     #else
     if (ret == 0) {
         /* Base X-ordinate */
-        DataToHexString(base + 1, (word32)curve->size, (char *)curve->Gx);
+        wc_DataToHexString(base + 1, (word32)curve->size, (char *)curve->Gx);
         /* Base Y-ordinate */
-        DataToHexString(base + 1 + curve->size, (word32)curve->size, (char *)curve->Gy);
+        wc_DataToHexString(base + 1 + curve->size, (word32)curve->size, (char *)curve->Gy);
         /* Prime */
-        DataToHexString(dataASN[ECCSPECIFIEDASN_IDX_PRIME_P].data.ref.data,
+        wc_DataToHexString(dataASN[ECCSPECIFIEDASN_IDX_PRIME_P].data.ref.data,
                         dataASN[ECCSPECIFIEDASN_IDX_PRIME_P].data.ref.length,
                         (char *)curve->prime);
         /* Parameter A */
-        DataToHexString(dataASN[ECCSPECIFIEDASN_IDX_PARAM_A].data.ref.data,
+        wc_DataToHexString(dataASN[ECCSPECIFIEDASN_IDX_PARAM_A].data.ref.data,
                         dataASN[ECCSPECIFIEDASN_IDX_PARAM_A].data.ref.length,
                         (char *)curve->Af);
         /* Parameter B */
-        DataToHexString(dataASN[ECCSPECIFIEDASN_IDX_PARAM_B].data.ref.data,
+        wc_DataToHexString(dataASN[ECCSPECIFIEDASN_IDX_PARAM_B].data.ref.data,
                         dataASN[ECCSPECIFIEDASN_IDX_PARAM_B].data.ref.length,
                         (char *)curve->Bf);
         /* Order of curve */
-        DataToHexString(dataASN[ECCSPECIFIEDASN_IDX_ORDER].data.ref.data,
+        wc_DataToHexString(dataASN[ECCSPECIFIEDASN_IDX_ORDER].data.ref.data,
                         dataASN[ECCSPECIFIEDASN_IDX_ORDER].data.ref.length,
                         (char *)curve->order);
     }
@@ -40859,6 +40836,44 @@ int wc_Asn1_PrintAll(Asn1* asn1, Asn1PrintOptions* opts, unsigned char* data,
 #endif /* !NO_ASN */
 
 /* Functions that parse, but are not using ASN.1 */
+
+#ifdef WOLFSSL_ASN_HEX_STRING
+/* Outside the gate above on purpose: this converts bytes to characters and
+ * uses no ASN.1, and the hardware ports that reuse it are buildable with
+ * ASN.1 turned off. asn.h is only included above when ASN.1 is on, so pick up
+ * the prototype here. */
+#include <wolfssl/wolfcrypt/asn.h>
+
+/* Convert data to hex string.
+ *
+ * Big-endian byte array is converted to big-endian hexadecimal string.
+ *
+ * Written for the custom ECC curve parameters, which SEC 1 carries as byte
+ * arrays and ecc_set_type holds as strings. Hardware ports whose driver takes
+ * key material the same way reuse it rather than growing their own copy; see
+ * WOLFSSL_ASN_HEX_STRING in asn.h. Base16_Decode() goes the other way and
+ * accepts either case, so the two pair up.
+ *
+ * @param [in]  input  Buffer containing data.
+ * @param [in]  inSz   Size of data in buffer.
+ * @param [out] out    Buffer to hold hex string. Needs inSz * 2 + 1 bytes.
+ */
+void wc_DataToHexString(const byte* input, word32 inSz, char* out)
+{
+    static const char hexChar[] = { '0', '1', '2', '3', '4', '5', '6', '7',
+                                    '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
+    word32 i;
+
+    /* Converting a byte of data at a time to two hex characters. */
+    for (i = 0; i < inSz; i++) {
+        out[i*2 + 0] = hexChar[input[i] >> 4];
+        out[i*2 + 1] = hexChar[input[i] & 0xf];
+    }
+    /* NUL terminate string. */
+    out[i * 2] = '\0';
+}
+#endif /* WOLFSSL_ASN_HEX_STRING */
+
 #if !defined(NO_RSA) && (!defined(NO_BIG_INT) || defined(WOLFSSL_SP_MATH))
 /* Software-only import of RSA public key elements (n, e) into RsaKey.
  * This internal helper avoids recursion when called from the SETKEY path. */
