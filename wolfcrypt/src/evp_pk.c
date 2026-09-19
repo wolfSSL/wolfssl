@@ -234,8 +234,10 @@ static int d2iTryEccKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
 
     /* Try decoding data as an ECC private/public key. */
     if (priv) {
+        /* Skip public point derivation since this is purely a type probe;
+         * the key is freed below. */
         isEccKey =
-            (wc_EccPrivateKeyDecode(mem, &keyIdx, ecc, (word32)memSz) == 0);
+            (EccPrivateKeyDecodeEx(mem, &keyIdx, ecc, (word32)memSz, 0) == 0);
     }
     else {
         isEccKey =
