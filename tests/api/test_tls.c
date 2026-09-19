@@ -2282,6 +2282,214 @@ int test_tls12_resume_ticket_decline_fallback(void)
     return EXPECT_RESULT();
 }
 
+/* A TLS 1.2 ServerHello must not be able to select a TLS 1.3-only suite. The
+ * suite was offered, so DoServerHello() accepted it, and the TLS 1.2 key block
+ * of TLS_SHA384_SHA384 (2 * (48 + 48 + 48)) overran key_dig[MAX_PRF_DIG] in
+ * DeriveTlsKeys(). Resume a TLS 1.2 session, rewrite the suite in the server's
+ * resuming ServerHello and expect UNSUPPORTED_SUITE before any key derivation. */
+int test_tls12_server_hello_tls13_suite(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(WOLFSSL_TLS13) && \
+    !defined(NO_SESSION_CACHE) && !defined(NO_RSA) && defined(HAVE_ECC) && \
+    !defined(NO_AES) && defined(HAVE_AESGCM) && !defined(NO_SHA256) && \
+    !defined(WOLFSSL_NO_STRICT_CIPHER_SUITE) && \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) && \
+    defined(BUILD_TLS_AES_128_GCM_SHA256)
+    const char* suite12 = "ECDHE-RSA-AES128-GCM-SHA256";
+    const char* suites_c =
+#if defined(HAVE_NULL_CIPHER) && defined(BUILD_TLS_SHA384_SHA384)
+        "TLS13-SHA384-SHA384:"
+#endif
+        "TLS13-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256";
+    const byte tls13Suites[][SUITE_LEN] = {
+#if defined(HAVE_NULL_CIPHER) && defined(BUILD_TLS_SHA384_SHA384)
+        { ECC_BYTE, TLS_SHA384_SHA384 },
+#endif
+        { TLS13_BYTE, TLS_AES_128_GCM_SHA256 },
+    };
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    struct test_memio_ctx test_ctx;
+    word32 i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfSSLv23_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, suites_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, suite12), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+
+    for (i = 0; i < sizeof(tls13Suites) / sizeof(tls13Suites[0]); i++) {
+        int sidOff = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ + VERSION_SZ +
+                     RAN_LEN;
+        int suiteOff = 0;
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                        &ssl_s, wolfSSLv23_client_method,
+                        wolfTLSv1_2_server_method), 0);
+        ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, suites_c), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, suite12), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+                    WOLFSSL_ERROR_WANT_READ);
+        ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+                    WOLFSSL_ERROR_WANT_READ);
+
+        ExpectIntGT(test_ctx.c_len, sidOff + ENUM_LEN);
+        ExpectIntEQ(test_ctx.c_buff[0], handshake);
+        ExpectIntEQ(test_ctx.c_buff[RECORD_HEADER_SZ], server_hello);
+        if (EXPECT_SUCCESS()) {
+            suiteOff = sidOff + ENUM_LEN + test_ctx.c_buff[sidOff];
+            ExpectIntGT(test_ctx.c_len, suiteOff + SUITE_LEN);
+        }
+        if (EXPECT_SUCCESS()) {
+            ExpectIntEQ(test_ctx.c_buff[suiteOff], ECC_BYTE);
+            ExpectIntEQ(test_ctx.c_buff[suiteOff + 1],
+                        TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256);
+            test_ctx.c_buff[suiteOff]     = tls13Suites[i][0];
+            test_ctx.c_buff[suiteOff + 1] = tls13Suites[i][1];
+        }
+
+        ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+                    WC_NO_ERR_TRACE(UNSUPPORTED_SUITE));
+
+        wolfSSL_free(ssl_c);
+        ssl_c = NULL;
+        wolfSSL_free(ssl_s);
+        ssl_s = NULL;
+    }
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(WOLFSSL_TLS13) && \
+    !defined(NO_SESSION_CACHE) && !defined(NO_RSA) && defined(HAVE_ECC) && \
+    !defined(NO_AES) && defined(HAVE_AESGCM) && !defined(NO_SHA256) && \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) && \
+    defined(BUILD_TLS_AES_128_GCM_SHA256)
+/* Count occurrences of suite in the cipher_suites list of the ClientHello in
+ * buf, or -1 if the message is not a parseable ClientHello. */
+static int test_client_hello_count_suite(const byte* buf, int len,
+    const byte* suite)
+{
+    int idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ + VERSION_SZ + RAN_LEN;
+    int suiteSz;
+    int found = 0;
+
+    if (len < idx + ENUM_LEN || buf[0] != handshake ||
+            buf[RECORD_HEADER_SZ] != client_hello) {
+        return -1;
+    }
+    idx += ENUM_LEN + buf[idx];
+    if (len < idx + OPAQUE16_LEN)
+        return -1;
+    suiteSz = (buf[idx] << 8) | buf[idx + 1];
+    idx += OPAQUE16_LEN;
+    if (suiteSz <= 0 || len < idx + suiteSz)
+        return -1;
+
+    for (; suiteSz >= SUITE_LEN; suiteSz -= SUITE_LEN, idx += SUITE_LEN) {
+        if (buf[idx] == suite[0] && buf[idx + 1] == suite[1])
+            found++;
+    }
+    return found;
+}
+#endif
+
+/* A ClientHello pinned below TLS 1.3 by wolfSSL_set_session() must not offer
+ * TLS 1.3-only suites, which the server can only answer with a suite the
+ * negotiated version cannot use. */
+int test_tls12_client_hello_no_tls13_suites(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(WOLFSSL_TLS13) && \
+    !defined(NO_SESSION_CACHE) && !defined(NO_RSA) && defined(HAVE_ECC) && \
+    !defined(NO_AES) && defined(HAVE_AESGCM) && !defined(NO_SHA256) && \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) && \
+    defined(BUILD_TLS_AES_128_GCM_SHA256)
+    const char* suite12 = "ECDHE-RSA-AES128-GCM-SHA256";
+    const char* suites_c =
+#if defined(HAVE_NULL_CIPHER) && defined(BUILD_TLS_SHA384_SHA384)
+        "TLS13-SHA384-SHA384:"
+#endif
+        "TLS13-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256";
+    const byte suite13[SUITE_LEN] = { TLS13_BYTE, TLS_AES_128_GCM_SHA256 };
+#if defined(HAVE_NULL_CIPHER) && defined(BUILD_TLS_SHA384_SHA384)
+    const byte suiteNull[SUITE_LEN] = { ECC_BYTE, TLS_SHA384_SHA384 };
+#endif
+    const byte suiteEcc[SUITE_LEN] =
+        { ECC_BYTE, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 };
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfSSLv23_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, suites_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, suite12), WOLFSSL_SUCCESS);
+    /* Not pinned: the TLS 1.3 suites are offered. */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+                WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_client_hello_count_suite(test_ctx.s_buff, test_ctx.s_len,
+                    suite13), 1);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfSSLv23_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, suites_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, suite12), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+                WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_client_hello_count_suite(test_ctx.s_buff, test_ctx.s_len,
+                    suite13), 0);
+#if defined(HAVE_NULL_CIPHER) && defined(BUILD_TLS_SHA384_SHA384)
+    ExpectIntEQ(test_client_hello_count_suite(test_ctx.s_buff, test_ctx.s_len,
+                    suiteNull), 0);
+#endif
+    ExpectIntEQ(test_client_hello_count_suite(test_ctx.s_buff, test_ctx.s_len,
+                    suiteEcc), 1);
+    /* The resumption itself must still work. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_c), 1);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* wolfSSL_set_session() must reject a TLS 1.2 session when minDowngrade is
  * set to TLS 1.3. */
 int test_tls_set_session_min_downgrade(void)

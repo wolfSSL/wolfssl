@@ -6984,6 +6984,255 @@ int test_tls13_duplicate_ech_extension(void)
     return EXPECT_RESULT();
 }
 
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH) && defined(HAVE_SNI) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+
+#define ECH_TEST_PUB_NAME  "ech-public-name.com"
+#define ECH_TEST_PRIV_NAME "ech-private-name.com"
+
+/* Bring an ECH client and server up to the point where the server has written
+ * a genuine, ECH-accepting HelloRetryRequest into the client's memio buffer. */
+static int EchHrrSetup(struct test_memio_ctx* test_ctx, WOLFSSL_CTX** ctx_c,
+    WOLFSSL_CTX** ctx_s, WOLFSSL** ssl_c, WOLFSSL** ssl_s)
+{
+    EXPECT_DECLS;
+    byte configs[512];
+    word32 configsLen = (word32)sizeof(configs);
+
+    XMEMSET(test_ctx, 0, sizeof(*test_ctx));
+    ExpectIntEQ(test_memio_setup(test_ctx, ctx_c, ctx_s, ssl_c, ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    if (EXPECT_FAIL())
+        return EXPECT_RESULT();
+
+    wolfSSL_set_verify(*ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+    ExpectIntEQ(wolfSSL_CTX_GenerateEchConfig(*ctx_s, ECH_TEST_PUB_NAME, 0, 0,
+        0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_GetEchConfigs(*ctx_s, configs, &configsLen),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_SetEchConfigs(*ssl_c, configs, configsLen),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSNI(*ssl_c, WOLFSSL_SNI_HOST_NAME,
+        ECH_TEST_PRIV_NAME, (word16)XSTRLEN(ECH_TEST_PRIV_NAME)),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSNI(*ssl_s, WOLFSSL_SNI_HOST_NAME,
+        ECH_TEST_PRIV_NAME, (word16)XSTRLEN(ECH_TEST_PRIV_NAME)),
+        WOLFSSL_SUCCESS);
+
+    /* No key share in ClientHello1, so the server answers with a
+     * HelloRetryRequest that carries a valid ECH confirmation. */
+    ExpectIntEQ(wolfSSL_NoKeyShares(*ssl_c), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_connect(*ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(*ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_accept(*ssl_s), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(*ssl_s, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_memio_msg_is_hello_retry_request(test_ctx), 1);
+
+    return EXPECT_RESULT();
+}
+
+/* Build a ServerHello handshake message that echoes the session id and cipher
+ * suite of the HelloRetryRequest record in hrr, so the client's pre-ECH checks
+ * pass. Returns the message length, or -1. */
+static int EchBuildServerHello(const byte* hrr, int hrrSz, byte* out,
+    int outSz)
+{
+    int sessIdSz;
+    int csOff;
+    int bodySz;
+    int idx = 0;
+
+    /* record header (5) + handshake header (4) + legacy_version (2) +
+     * random (32) is where the HelloRetryRequest's session id length sits. */
+    if (hrrSz < 5 + 4 + 2 + RAN_LEN + 1)
+        return -1;
+    sessIdSz = hrr[5 + 4 + 2 + RAN_LEN];
+    csOff = 5 + 4 + 2 + RAN_LEN + 1 + sessIdSz;
+    if (hrrSz < csOff + 2)
+        return -1;
+
+    /* version + random + session id + cipher suite + compression +
+     * a 6-byte supported_versions extension block */
+    bodySz = 2 + RAN_LEN + 1 + sessIdSz + 2 + 1 + 2 + 6;
+    if (outSz < bodySz + 4)
+        return -1;
+
+    out[idx++] = server_hello;
+    out[idx++] = 0x00;
+    out[idx++] = (byte)(bodySz >> 8);
+    out[idx++] = (byte)bodySz;
+    out[idx++] = SSLv3_MAJOR;
+    out[idx++] = TLSv1_2_MINOR;
+    XMEMSET(out + idx, 0x41, RAN_LEN);
+    idx += RAN_LEN;
+    out[idx++] = (byte)sessIdSz;
+    XMEMCPY(out + idx, hrr + 5 + 4 + 2 + RAN_LEN + 1, (size_t)sessIdSz);
+    idx += sessIdSz;
+    out[idx++] = hrr[csOff];
+    out[idx++] = hrr[csOff + 1];
+    out[idx++] = 0x00;
+    out[idx++] = 0x00;
+    out[idx++] = 0x06;
+    out[idx++] = 0x00;
+    out[idx++] = TLSX_SUPPORTED_VERSIONS;
+    out[idx++] = 0x00;
+    out[idx++] = 0x02;
+    out[idx++] = SSLv3_MAJOR;
+    out[idx++] = TLSv1_3_MINOR;
+
+    return idx;
+}
+#endif
+
+/* A ServerHello coalesced after the HelloRetryRequest in one record: the ECH
+ * acceptance check used to take its offsets from the record base, so the
+ * trailing hash length went negative and ran off the end of the record. */
+int test_tls13_ech_hrr_coalesced_server_hello(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH) && defined(HAVE_SNI) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    const char* hrr = NULL;
+    int hrrSz = 0;
+    byte sh[128];
+    int shSz = 0;
+    byte rec[512];
+    int recLen;
+
+    ExpectIntEQ(EchHrrSetup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s),
+        TEST_SUCCESS);
+    ExpectIntEQ(test_memio_get_message(&test_ctx, 1, &hrr, &hrrSz, 0), 0);
+    ExpectIntGT(shSz = EchBuildServerHello((const byte*)hrr, hrrSz, sh,
+        (int)sizeof(sh)), 0);
+    ExpectIntLE(hrrSz + shSz, (int)sizeof(rec));
+
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(rec, hrr, (size_t)hrrSz);
+        XMEMCPY(rec + hrrSz, sh, (size_t)shSz);
+        /* patch the record length to cover both handshake messages */
+        recLen = ((rec[3] << 8) | rec[4]) + shSz;
+        rec[3] = (byte)(recLen >> 8);
+        rec[4] = (byte)recLen;
+
+        test_memio_clear_buffer(&test_ctx, 1);
+        ExpectIntEQ(test_memio_inject_message(&test_ctx, 1, (const char*)rec,
+            hrrSz + shSz), 0);
+    }
+
+    /* RFC 9849 6.1.5: the confirmation fails on the appended ServerHello, so
+     * ECH is rejected after the HelloRetryRequest accepted it. */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WC_NO_ERR_TRACE(INVALID_PARAMETER));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The same offsets against a ServerHello reassembled from two records, where
+ * input points at the message body: ECH acceptance used to read 4 bytes past
+ * ssl->pendingMsg and report a rejection the server never sent. */
+int test_tls13_ech_fragmented_server_hello(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH) && defined(HAVE_SNI) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte configs[512];
+    word32 configsLen = (word32)sizeof(configs);
+    byte buf[TEST_MEMIO_BUF_SZ];
+    int len = 0;
+    int shLen = 0;
+    int frag1 = 16;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+
+    ExpectIntEQ(wolfSSL_CTX_GenerateEchConfig(ctx_s, ECH_TEST_PUB_NAME, 0, 0,
+        0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_GetEchConfigs(ctx_s, configs, &configsLen),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_SetEchConfigs(ssl_c, configs, configsLen),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSNI(ssl_c, WOLFSSL_SNI_HOST_NAME,
+        ECH_TEST_PRIV_NAME, (word16)XSTRLEN(ECH_TEST_PRIV_NAME)),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSNI(ssl_s, WOLFSSL_SNI_HOST_NAME,
+        ECH_TEST_PRIV_NAME, (word16)XSTRLEN(ECH_TEST_PRIV_NAME)),
+        WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+
+    /* Record 0 of the server's flight is the plaintext ServerHello; split it
+     * into two records so the client has to reassemble it. */
+    ExpectIntGT(test_ctx.c_len, 5);
+    if (EXPECT_SUCCESS()) {
+        shLen = (test_ctx.c_buff[3] << 8) | test_ctx.c_buff[4];
+        ExpectIntGT(shLen, frag1);
+    }
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(buf, test_ctx.c_buff, 5);
+        buf[3] = (byte)(frag1 >> 8);
+        buf[4] = (byte)frag1;
+        len = 5;
+        XMEMCPY(buf + len, test_ctx.c_buff + 5, (size_t)frag1);
+        len += frag1;
+        XMEMCPY(buf + len, test_ctx.c_buff, 5);
+        buf[len + 3] = (byte)((shLen - frag1) >> 8);
+        buf[len + 4] = (byte)(shLen - frag1);
+        len += 5;
+        XMEMCPY(buf + len, test_ctx.c_buff + 5 + frag1,
+            (size_t)(shLen - frag1));
+        len += shLen - frag1;
+        XMEMCPY(buf + len, test_ctx.c_buff + 5 + shLen,
+            (size_t)(test_ctx.c_len - 5 - shLen));
+        len += test_ctx.c_len - 5 - shLen;
+
+        test_memio_clear_buffer(&test_ctx, 1);
+        ExpectIntEQ(test_memio_inject_message(&test_ctx, 1, (const char*)buf,
+            len), 0);
+    }
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 20, NULL), 0);
+    ExpectIntEQ(wolfSSL_GetEchStatus(ssl_c), WOLFSSL_ECH_STATUS_ACCEPTED);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 
 int test_key_share_mismatch(void)
 {
