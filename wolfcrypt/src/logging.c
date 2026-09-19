@@ -1107,10 +1107,18 @@ int wc_LoggingInit(void)
         return BAD_MUTEX_E;
     }
 #endif
+    if (ERRQ_LOCK() != 0) {
+        WOLFSSL_MSG("Lock debug mutex failed");
+#ifndef WOLFSSL_MUTEX_INITIALIZER
+        (void)ERRQ_MUTEX_FREE();
+#endif
+        return BAD_MUTEX_E;
+    }
     wc_errors_count = 0;
     wc_errors          = NULL;
     wc_current_node    = NULL;
     wc_last_node       = NULL;
+    ERRQ_UNLOCK();
     return 0;
 }
 
