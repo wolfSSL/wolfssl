@@ -34,8 +34,8 @@
 
 #ifdef WOLFSSL_NXP_HWPUF
     #define HWPUF_ACTIVATION_CODE_SIZE 1192
-    /* keyCode size is 52 for key sizes of 16, 24, or 32 */
-    #define HWPUF_KEY_SIZE_TO_KEY_CODE_SIZE(keysz) 52
+    /* keyCode size is 52 for all valid key sizes (16, 24, 32) */
+    #define HWPUF_KEY_SIZE_TO_KEY_CODE_SIZE(keysz) (52)
 #else
     #error HWPUF: No valid port defined
 #endif
@@ -69,6 +69,10 @@ typedef struct wc_HWPUF {
     void* heap;
 } wc_HWPUF;
 
+/* NOTE: the HWPUF peripheral is a singleton. Only one wc_HWPUF context may be
+ * registered at a time; a second wc_HWPUF_Register() fails with
+ * HWPUF_REGISTER_E until the first is unregistered, and
+ * wc_HWPUF_Unregister() on any other context returns BAD_FUNC_ARG. */
 WOLFSSL_API int wc_HWPUF_Register(wc_HWPUF* hwpuf, void* heap, int devId);
 WOLFSSL_API int wc_HWPUF_Unregister(wc_HWPUF* hwpuf);
 

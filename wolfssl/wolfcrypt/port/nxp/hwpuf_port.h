@@ -30,7 +30,7 @@
 #define WOLFSSL_NXP_HWPUF_DEVID 5569
 
 #define HWPUF_KEY_SIZE_IS_VALID(keysz) \
-    (keysz == 16 || keysz == 24 || keysz == 32)
+    ((keysz) == 16 || (keysz) == 24 || (keysz) == 32)
 
 WOLFSSL_API int nxp_hwpuf_RegisterDevice(wc_HWPUF* hwpuf);
 WOLFSSL_API int nxp_hwpuf_UnregisterDevice(wc_HWPUF* hwpuf);

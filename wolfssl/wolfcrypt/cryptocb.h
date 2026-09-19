@@ -822,7 +822,6 @@ typedef struct wc_CryptoInfo {
     struct {
         wc_HWPUF*   hwpuf;      /* wc_HWPUF* context */
         int         type;       /* enum wc_HwpufType - discriminator */
-        const void* ctx;        /* read-only caller context */
         union {
             struct {
                 byte*   actCode;

@@ -361,7 +361,7 @@ enum wolfCrypt_ErrorCodes {
     HWPUF_INIT_E        = -1036, /* HWPUF initialization failed */
     HWPUF_ENROLL_E      = -1037, /* HWPUF enrollment failed */
     HWPUF_START_E       = -1038, /* HWPUF start failed */
-    HWPUF_GENERATE_KEY_E= -1039, /* HWPUF generate key failed */
+    HWPUF_GENERATE_KEY_E = -1039, /* HWPUF generate key failed */
     HWPUF_GET_KEY_E     = -1040, /* HWPUF get key failed */
     HWPUF_ZEROIZE_E     = -1041, /* HWPUF zeroize failed */
 

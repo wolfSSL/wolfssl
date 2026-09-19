@@ -26407,11 +26407,24 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t puf_test(void)
 #endif /* WOLFSSL_PUF */
 
 #ifdef WOLFSSL_HWPUF
+static byte activationCode[HWPUF_ACTIVATION_CODE_SIZE];
+
+/* returns 1 if all bytes of buf are zero */
+static int hwpuf_test_is_zero(const byte* buf, word32 sz)
+{
+    word32 i;
+    for (i = 0; i < sz; i++) {
+        if (buf[i] != 0)
+            return 0;
+    }
+    return 1;
+}
+
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hwpuf_test(void)
 {
     wc_test_ret_t ret = 0;
+    wc_test_ret_t ret2 = 0;
     wc_HWPUF hwpuf;
-    byte activationCode[HWPUF_ACTIVATION_CODE_SIZE];
     byte keyCode16[HWPUF_KEY_SIZE_TO_KEY_CODE_SIZE(16)];
     byte key16_1[16];
     byte key16_2[16];
@@ -26428,151 +26441,193 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hwpuf_test(void)
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
 
+    /* ---- Test 0: calls before Init fail ---- */
+    if (wc_HWPUF_Enroll(&hwpuf, activationCode, sizeof(activationCode))
+            != WC_NO_ERR_TRACE(HWPUF_INIT_E))
+        { ret = WC_TEST_RET_ENC_NC; goto out; }
+    if (wc_HWPUF_Start(&hwpuf, activationCode, sizeof(activationCode))
+            != WC_NO_ERR_TRACE(HWPUF_INIT_E))
+        { ret = WC_TEST_RET_ENC_NC; goto out; }
+
     /* ---- Test 1: Init ---- */
     ret = wc_HWPUF_Init(&hwpuf);
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        { ret = WC_TEST_RET_ENC_EC(ret); goto out; }
 
-    /* ---- Test 2: Enroll ---- */
+    /* ---- Test 2: GenerateKey/GetKey before Start fail ---- */
+    if (wc_HWPUF_GenerateKey(&hwpuf, 1, 32, keyCode32, sizeof(keyCode32))
+            != WC_NO_ERR_TRACE(HWPUF_START_E))
+        { ret = WC_TEST_RET_ENC_NC; goto out; }
+    if (wc_HWPUF_GetKey(&hwpuf, keyCode32, sizeof(keyCode32), key32_1,
+            sizeof(key32_1)) != WC_NO_ERR_TRACE(HWPUF_START_E))
+        { ret = WC_TEST_RET_ENC_NC; goto out; }
+
+    /* ---- Test 3: Enroll ---- */
     ret = wc_HWPUF_Enroll(&hwpuf, activationCode, sizeof(activationCode));
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        { ret = WC_TEST_RET_ENC_EC(ret); goto out; }
+    /* double Enroll fails */
+    if (wc_HWPUF_Enroll(&hwpuf, activationCode, sizeof(activationCode))
+            != WC_NO_ERR_TRACE(HWPUF_ENROLL_E))
+        { ret = WC_TEST_RET_ENC_NC; goto out; }
 
     /* hw puf requires a deinit/init cycle after enroll */
     (void)wc_HWPUF_Deinit(&hwpuf);
     (void)wc_HWPUF_Init(&hwpuf);
 
-    /* ---- Test 3: Start ---- */
+    /* ---- Test 4: Start ---- */
     ret = wc_HWPUF_Start(&hwpuf, activationCode, sizeof(activationCode));
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        { ret = WC_TEST_RET_ENC_EC(ret); goto out; }
 
-    /* ---- Test 4: Generate keys of size 16, 24, 32 bytes ---- */
+    /* ---- Test 5: Generate keys of size 16, 24, 32 bytes ---- */
     /* generate a 16-byte key and get a keyCode */
     ret = wc_HWPUF_GenerateKey(&hwpuf, 1, 16, keyCode16, sizeof(keyCode16));
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        { ret = WC_TEST_RET_ENC_EC(ret); goto out; }
     /* get key from keyCode */
     ret = wc_HWPUF_GetKey(&hwpuf, keyCode16, sizeof(keyCode16), key16_1, sizeof(key16_1));
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        { ret = WC_TEST_RET_ENC_EC(ret); goto out; }
     /* generate a 24-byte key and get a keyCode */
     ret = wc_HWPUF_GenerateKey(&hwpuf, 1, 24, keyCode24, sizeof(keyCode24));
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        { ret = WC_TEST_RET_ENC_EC(ret); goto out; }
     /* get key from keyCode */
     ret = wc_HWPUF_GetKey(&hwpuf, keyCode24, sizeof(keyCode24), key24_1, sizeof(key24_1));
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        { ret = WC_TEST_RET_ENC_EC(ret); goto out; }
     /* generate a 32-byte key and get a keyCode */
     ret = wc_HWPUF_GenerateKey(&hwpuf, 1, 32, keyCode32, sizeof(keyCode32));
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        { ret = WC_TEST_RET_ENC_EC(ret); goto out; }
     /* get key from keyCode */
     ret = wc_HWPUF_GetKey(&hwpuf, keyCode32, sizeof(keyCode32), key32_1, sizeof(key32_1));
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        { ret = WC_TEST_RET_ENC_EC(ret); goto out; }
 
-    /* ---- Test 5: restart and derive the same 3 keys ---- */
+    /* keys must be non-zero and differ from each other, so an implementation
+     * that returns zeroed keys can't pass */
+    if (hwpuf_test_is_zero(key16_1, sizeof(key16_1)) ||
+            hwpuf_test_is_zero(key24_1, sizeof(key24_1)) ||
+            hwpuf_test_is_zero(key32_1, sizeof(key32_1)))
+        { ret = WC_TEST_RET_ENC_NC; goto out; }
+    if (XMEMCMP(key16_1, key24_1, sizeof(key16_1)) == 0 ||
+            XMEMCMP(key16_1, key32_1, sizeof(key16_1)) == 0 ||
+            XMEMCMP(key24_1, key32_1, sizeof(key24_1)) == 0)
+        { ret = WC_TEST_RET_ENC_NC; goto out; }
+
+    /* ---- Test 6: restart and derive the same 3 keys ---- */
     (void)wc_HWPUF_Deinit(&hwpuf);
     (void)wc_HWPUF_Init(&hwpuf);
     ret = wc_HWPUF_Start(&hwpuf, activationCode, sizeof(activationCode));
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        { ret = WC_TEST_RET_ENC_EC(ret); goto out; }
     /* 16-byte */
     ret = wc_HWPUF_GetKey(&hwpuf, keyCode16, sizeof(keyCode16), key16_2, sizeof(key16_2));
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        { ret = WC_TEST_RET_ENC_EC(ret); goto out; }
     /* 24-byte */
     ret = wc_HWPUF_GetKey(&hwpuf, keyCode24, sizeof(keyCode24), key24_2, sizeof(key24_2));
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        { ret = WC_TEST_RET_ENC_EC(ret); goto out; }
     /* 32-byte */
     ret = wc_HWPUF_GetKey(&hwpuf, keyCode32, sizeof(keyCode32), key32_2, sizeof(key32_2));
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        { ret = WC_TEST_RET_ENC_EC(ret); goto out; }
 
     /* all keys match? */
     if (XMEMCMP(key16_1, key16_2, 16) != 0)
-        return WC_TEST_RET_ENC_NC;
+        { ret = WC_TEST_RET_ENC_NC; goto out; }
     if (XMEMCMP(key24_1, key24_2, 24) != 0)
-        return WC_TEST_RET_ENC_NC;
+        { ret = WC_TEST_RET_ENC_NC; goto out; }
     if (XMEMCMP(key32_1, key32_2, 32) != 0)
-        return WC_TEST_RET_ENC_NC;
+        { ret = WC_TEST_RET_ENC_NC; goto out; }
 
-    /* ---- Test 6: generate a key and send directly to hw bus ---- */
+    /* ---- Test 7: generate a key and send directly to hw bus ---- */
     ret = wc_HWPUF_GenerateKey(&hwpuf, 0, 32, keyCode32, sizeof(keyCode32));
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        { ret = WC_TEST_RET_ENC_EC(ret); goto out; }
     /* get key from keyCode */
     ret = wc_HWPUF_GetKey(&hwpuf, keyCode32, sizeof(keyCode32), key32_2, sizeof(key32_2));
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
-    { /* key1 should be zeroed */
-        word32 idx;
-        for (idx = 0; idx < sizeof(key32_2); ++idx) {
-            if (key32_2[idx])
-                return WC_TEST_RET_ENC_NC;
-        }
-    }
+        { ret = WC_TEST_RET_ENC_EC(ret); goto out; }
+    /* key32_2 should be zeroed */
+    if (!hwpuf_test_is_zero(key32_2, sizeof(key32_2)))
+        { ret = WC_TEST_RET_ENC_NC; goto out; }
 
-    /* ---- Test 7: Bad argument checks ---- */
+    /* ---- Test 8: Bad argument checks ---- */
     /* null hwpuf */
     if (wc_HWPUF_Init(NULL) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_NC;
+        { ret = WC_TEST_RET_ENC_NC; goto out; }
     if (wc_HWPUF_Deinit(NULL) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_NC;
+        { ret = WC_TEST_RET_ENC_NC; goto out; }
     if (wc_HWPUF_Enroll(NULL, NULL, 0) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_NC;
+        { ret = WC_TEST_RET_ENC_NC; goto out; }
     if (wc_HWPUF_Zeroize(NULL) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_NC;
+        { ret = WC_TEST_RET_ENC_NC; goto out; }
+    if (wc_HWPUF_Register(NULL, NULL, INVALID_DEVID)
+            != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        { ret = WC_TEST_RET_ENC_NC; goto out; }
+    if (wc_HWPUF_Unregister(NULL) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        { ret = WC_TEST_RET_ENC_NC; goto out; }
+    if (wc_HWPUF_Start(NULL, activationCode, sizeof(activationCode))
+            != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        { ret = WC_TEST_RET_ENC_NC; goto out; }
+    if (wc_HWPUF_GenerateKey(NULL, 1, 32, keyCode32, sizeof(keyCode32))
+            != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        { ret = WC_TEST_RET_ENC_NC; goto out; }
+    if (wc_HWPUF_GetKey(NULL, keyCode32, sizeof(keyCode32), key32_1,
+            sizeof(key32_1)) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        { ret = WC_TEST_RET_ENC_NC; goto out; }
     /* out of bounds key index */
     if (wc_HWPUF_GenerateKey(&hwpuf, 16, 32, keyCode32, sizeof(keyCode32))
             != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_NC;
+        { ret = WC_TEST_RET_ENC_NC; goto out; }
     /* invalid key code storage size */
     if (wc_HWPUF_GenerateKey(&hwpuf, 1, 32, keyCode32, 99)
             != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_NC;
+        { ret = WC_TEST_RET_ENC_NC; goto out; }
     /* null key code storage */
     if (wc_HWPUF_GenerateKey(&hwpuf, 1, 32, NULL, sizeof(keyCode32))
             != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_NC;
+        { ret = WC_TEST_RET_ENC_NC; goto out; }
     /* invalid key storage size */
     ret = wc_HWPUF_GenerateKey(&hwpuf, 7, 32, keyCode32, sizeof(keyCode32));
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        { ret = WC_TEST_RET_ENC_EC(ret); goto out; }
     if (wc_HWPUF_GetKey(&hwpuf, keyCode32, sizeof(keyCode32), key32_1, sizeof(key16_1))
             != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_NC;
+        { ret = WC_TEST_RET_ENC_NC; goto out; }
     /* null key storage */
     if (wc_HWPUF_GetKey(&hwpuf, keyCode32, sizeof(keyCode32), NULL, sizeof(key32_1))
             != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        return WC_TEST_RET_ENC_NC;
+        { ret = WC_TEST_RET_ENC_NC; goto out; }
 
-    /* ---- Test 8: Zeroize ---- */
+    /* ---- Test 9: Zeroize ---- */
     ret = wc_HWPUF_GetKey(&hwpuf, keyCode24, sizeof(keyCode24), key24_1, sizeof(key24_1));
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        { ret = WC_TEST_RET_ENC_EC(ret); goto out; }
     ret = wc_HWPUF_Zeroize(&hwpuf);
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        { ret = WC_TEST_RET_ENC_EC(ret); goto out; }
     if (wc_HWPUF_GetKey(&hwpuf, keyCode24, sizeof(keyCode24), key24_2, sizeof(key24_2))
             != WC_NO_ERR_TRACE(HWPUF_START_E))
-        return WC_TEST_RET_ENC_NC;
+        { ret = WC_TEST_RET_ENC_NC; goto out; }
 
-    /* ---- Test 9: double register fails ---- */
+    /* ---- Test 10: double register fails ---- */
     if (wc_HWPUF_Register(&hwpuf, NULL, INVALID_DEVID)
             != WC_NO_ERR_TRACE(HWPUF_REGISTER_E))
-        return WC_TEST_RET_ENC_NC;
+        { ret = WC_TEST_RET_ENC_NC; goto out; }
 
-    /* ---- clean up ---- */
+    ret = 0;
+
+out:
     (void)wc_HWPUF_Deinit(&hwpuf);
-    ret = wc_HWPUF_Unregister(&hwpuf);
-    if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
-
-    return 0;
+    ret2 = wc_HWPUF_Unregister(&hwpuf);
+    if (ret == 0 && ret2 != 0)
+        ret = WC_TEST_RET_ENC_EC(ret2);
+    return ret;
 }
 #endif /* WOLFSSL_HWPUF */
 

@@ -43,6 +43,14 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+/* The public HWPUF_KEY_SIZE_TO_KEY_CODE_SIZE() must agree with the SDK's key
+ * code size, since buffer sizes are validated against the SDK macro. */
+wc_static_assert2(
+    HWPUF_KEY_SIZE_TO_KEY_CODE_SIZE(16) == PUF_GET_KEY_CODE_SIZE_FOR_KEY_SIZE(16) &&
+    HWPUF_KEY_SIZE_TO_KEY_CODE_SIZE(24) == PUF_GET_KEY_CODE_SIZE_FOR_KEY_SIZE(24) &&
+    HWPUF_KEY_SIZE_TO_KEY_CODE_SIZE(32) == PUF_GET_KEY_CODE_SIZE_FOR_KEY_SIZE(32),
+    "HWPUF_KEY_SIZE_TO_KEY_CODE_SIZE does not match NXP SDK key code size");
+
 typedef enum nxp_hwpuf_keytype {
     nxp_hwpuf_keytype_user = 0,
     nxp_hwpuf_keytype_intrinsic = 1,
@@ -131,7 +139,7 @@ static int nxp_hwpuf_Enroll(wc_HWPUF* hwpuf, byte* actCode, word32 actCodeSz)
     }
 
     /* wipe ctx if enroll succeeded (re-enroll will render ctx moot) */
-    XMEMSET(&ctx, 0, sizeof(ctx));
+    ForceZero(&ctx, sizeof(ctx));
 
     return 0;
 }
@@ -199,13 +207,13 @@ static int nxp_hwpuf_GetKey(wc_HWPUF* hwpuf, byte* keyCode, word32 keyCodeSz,
         return BAD_FUNC_ARG;
 
     ret = keyCodeCheck(keyCode, &keytype, &keyidx, &keysize);
-    if (ret != kStatus_Success)
+    if (ret != 0)
         return BAD_FUNC_ARG;
 
     kcSz = PUF_GET_KEY_CODE_SIZE_FOR_KEY_SIZE(keysize);
-    if (kcSz != keyCodeSz)
+    if (kcSz != keyCodeSz || keysize != keySz)
         return BAD_FUNC_ARG;
-    if (keyidx != kPUF_KeyIndex_00 && (key == NULL || keysize != keySz))
+    if (keyidx != kPUF_KeyIndex_00 && key == NULL)
         return BAD_FUNC_ARG;
 
     /* keyidx 0 means key is sent directly on hw bus, never exposed */
@@ -216,12 +224,14 @@ static int nxp_hwpuf_GetKey(wc_HWPUF* hwpuf, byte* keyCode, word32 keyCodeSz,
         if (ret != kStatus_Success)
             return HWPUF_GET_KEY_E;
         if (key)
-            XMEMSET(key, 0, keySz); /* no key to return, zero out */
+            ForceZero(key, keySz); /* no key to return, zero out */
     }
     else {
         ret = PUF_GetKey(PUF, keyCode, keyCodeSz, key, keySz);
-        if (ret != kStatus_Success)
+        if (ret != kStatus_Success) {
+            ForceZero(key, keySz);
             return HWPUF_GET_KEY_E;
+        }
     }
     return 0;
 }

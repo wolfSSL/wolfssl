@@ -38,7 +38,10 @@
     #include <wolfssl/wolfcrypt/port/nxp/hwpuf_port.h>
 #endif
 
+/* The HWPUF peripheral is a singleton: only one context can be registered at
+ * a time. Track which one so Unregister only tears down its own device. */
 static int hwpuf_registered = 0;
+static wc_HWPUF* hwpuf_registered_ctx = NULL;
 
 WOLFSSL_API int wc_HWPUF_Register(wc_HWPUF* hwpuf, void* heap, int devId)
 {
@@ -64,6 +67,7 @@ WOLFSSL_API int wc_HWPUF_Register(wc_HWPUF* hwpuf, void* heap, int devId)
         return ret;
     }
     hwpuf_registered = 1;
+    hwpuf_registered_ctx = hwpuf;
     return ret;
 }
 
@@ -75,6 +79,10 @@ WOLFSSL_API int wc_HWPUF_Unregister(wc_HWPUF* hwpuf)
         return BAD_FUNC_ARG;
     if (!hwpuf_registered)
         return 0;
+    /* never tear down a device on behalf of a context that isn't the
+     * registered one */
+    if (hwpuf != hwpuf_registered_ctx)
+        return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_NXP_HWPUF
     ret = nxp_hwpuf_UnregisterDevice(hwpuf);
@@ -82,6 +90,7 @@ WOLFSSL_API int wc_HWPUF_Unregister(wc_HWPUF* hwpuf)
 
     ForceZero(hwpuf, sizeof(wc_HWPUF));
     hwpuf_registered = 0;
+    hwpuf_registered_ctx = NULL;
     return ret;
 }
 

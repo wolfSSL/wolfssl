@@ -39,7 +39,7 @@ int wc_HWPUF_Register(wc_HWPUF* hwpuf, void* heap, int devId);
     \brief Unregister the CryptoCb device and zero the wc_HWPUF context.
 
     \return 0 on success, or if not registered
-    \return BAD_FUNC_ARG if hwpuf is NULL
+    \return BAD_FUNC_ARG if hwpuf is NULL or not the one registered
     \return CRYPTOCB_UNAVAILABLE if nothing to unregister
 
     \param hwpuf pointer to wc_HWPUF context
