@@ -66,8 +66,7 @@ else
         | grep -vE '^wolfssl/wolfcrypt/port/caam/(caam_driver|caam_qnx|wolfcaam_hash)\.h$' \
         | grep -vE '^wolfssl/wolfcrypt/port/kcapi/' \
         | grep -vE '^wolfssl/wolfcrypt/port/nxp/(dcp_port|se050_port)\.h$' \
-        | grep -vE '^wolfssl/wolfcrypt/port/Renesas/(renesas_fspsm_internal|renesas-rx64-hw-crypt|renesas-tsip-crypt|renesas_tsip_internal)\.h$' \
-        | grep -vE '^wolfssl/wolfcrypt/port/silabs/silabs_aes\.h$'
+        | grep -vE '^wolfssl/wolfcrypt/port/Renesas/(renesas_fspsm_internal|renesas-rx64-hw-crypt|renesas-tsip-crypt|renesas_tsip_internal)\.h$'
     )
 fi
 
