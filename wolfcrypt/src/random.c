@@ -2592,18 +2592,11 @@ int wc_RNG_DRBG_Stir(WC_RNG* rng, const byte* seed, word32 seedSz)
     return wc_RNG_DRBG_Stir_Nonce(rng, seed, seedSz, NULL, 0);
 }
 
-/* FIPS 140-3 IG 10.3.A / SP800-90B Health Tests for Seed Data
- *
- * These tests replace the older FIPS 140-2 Continuous Random Number Generator
- * Test (CRNGT) with more mathematically robust statistical tests per
- * ISO 19790 / SP800-90B requirements.
- *
- * When HAVE_ENTROPY_MEMUSE is defined, the wolfentropy.c jitter-based TRNG
- * performs another set of these health tests, but those are on the noise not
- * the conditioned output so we still need to retest here even in that case
- * to evaluate the conditioned output for the same behavior. These tests ensure
- * the seed data meets basic entropy requirements regardless of the source.
- */
+/* SP800-90B 4.4 health tests run over conditioned seed material, which makes
+ * them the developer-defined additional tests 4.3 Req 1c allows: 4.2 puts the
+ * noise source's own tests in that source, not here.  A seed shorter than the
+ * 512 byte window is one window of its own length, with the cutoff for that
+ * length. */
 
 /* SP800-90B 4.4.1 - Repetition Count Test
  * Detects if the noise source becomes "stuck" producing repeated output.
@@ -2611,7 +2604,10 @@ int wc_RNG_DRBG_Stir(WC_RNG* rng, const byte* seed, word32 seedSz)
  * C = 1 + ceil(-log2(alpha) / H)
  * For alpha = 2^-30 (false positive probability) and H = 1 (min entropy):
  * C = 1 + ceil(30 / 1) = 31
- */
+ *
+ * H = 1 bit per byte is a deliberate floor, recorded in the Security Policy:
+ * the seed source is a build choice and the module is not told the assessed
+ * rate of the one in use, so it assumes the weakest. */
 #ifndef WC_RNG_SEED_RCT_CUTOFF
     #define WC_RNG_SEED_RCT_CUTOFF 31
 #endif
@@ -2628,8 +2624,69 @@ int wc_RNG_DRBG_Stir(WC_RNG* rng, const byte* seed, word32 seedSz)
 #ifndef WC_RNG_SEED_APT_WINDOW
     #define WC_RNG_SEED_APT_WINDOW 512
 #endif
+#if (WC_RNG_SEED_APT_WINDOW > 512) || (WC_RNG_SEED_APT_WINDOW < 1)
+    #error WC_RNG_SEED_APT_WINDOW must be 1 to 512
+#endif
 #ifndef WC_RNG_SEED_APT_CUTOFF
+    /* No caller-supplied cutoff: take one per window size from the table.
+     * A caller-supplied cutoff also turns off the all-values test below. */
+    #define WC_RNG_SEED_APT_CUTOFF_PER_WINDOW
+    /* The published W = 512 value, kept for readers and for tests. */
     #define WC_RNG_SEED_APT_CUTOFF 325
+#endif
+
+#ifdef WC_RNG_SEED_APT_CUTOFF_PER_WINDOW
+/* C for every window size, not only 512: a seed shorter than the window is one
+ * window of its own length, and 325 can never be reached in 132 or 196 bytes.
+ * 1 + CRITBINOM(W, 2^-H, 1-alpha), H = 1, alpha = 2^-30, W = 1..512. */
+static const word16 aptCutoffTable[512] = {
+    2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
+    14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
+    26, 27, 28, 29, 30, 30, 31, 32, 33, 34, 35, 35,
+    36, 37, 38, 38, 39, 40, 41, 41, 42, 43, 44, 44,
+    45, 46, 47, 47, 48, 49, 49, 50, 51, 52, 52, 53,
+    54, 54, 55, 56, 57, 57, 58, 59, 59, 60, 61, 61,
+    62, 63, 63, 64, 65, 65, 66, 67, 68, 68, 69, 70,
+    70, 71, 72, 72, 73, 74, 74, 75, 76, 76, 77, 77,
+    78, 79, 79, 80, 81, 81, 82, 83, 83, 84, 85, 85,
+    86, 87, 87, 88, 89, 89, 90, 91, 91, 92, 92, 93,
+    94, 94, 95, 96, 96, 97, 98, 98, 99, 99, 100, 101,
+    101, 102, 103, 103, 104, 105, 105, 106, 106, 107, 108, 108,
+    109, 110, 110, 111, 111, 112, 113, 113, 114, 115, 115, 116,
+    116, 117, 118, 118, 119, 120, 120, 121, 121, 122, 123, 123,
+    124, 124, 125, 126, 126, 127, 128, 128, 129, 129, 130, 131,
+    131, 132, 132, 133, 134, 134, 135, 136, 136, 137, 137, 138,
+    139, 139, 140, 140, 141, 142, 142, 143, 143, 144, 145, 145,
+    146, 146, 147, 148, 148, 149, 150, 150, 151, 151, 152, 153,
+    153, 154, 154, 155, 156, 156, 157, 157, 158, 159, 159, 160,
+    160, 161, 162, 162, 163, 163, 164, 165, 165, 166, 166, 167,
+    168, 168, 169, 169, 170, 171, 171, 172, 172, 173, 174, 174,
+    175, 175, 176, 177, 177, 178, 178, 179, 179, 180, 181, 181,
+    182, 182, 183, 184, 184, 185, 185, 186, 187, 187, 188, 188,
+    189, 190, 190, 191, 191, 192, 193, 193, 194, 194, 195, 195,
+    196, 197, 197, 198, 198, 199, 200, 200, 201, 201, 202, 203,
+    203, 204, 204, 205, 205, 206, 207, 207, 208, 208, 209, 210,
+    210, 211, 211, 212, 212, 213, 214, 214, 215, 215, 216, 217,
+    217, 218, 218, 219, 220, 220, 221, 221, 222, 222, 223, 224,
+    224, 225, 225, 226, 227, 227, 228, 228, 229, 229, 230, 231,
+    231, 232, 232, 233, 233, 234, 235, 235, 236, 236, 237, 238,
+    238, 239, 239, 240, 240, 241, 242, 242, 243, 243, 244, 244,
+    245, 246, 246, 247, 247, 248, 249, 249, 250, 250, 251, 251,
+    252, 253, 253, 254, 254, 255, 255, 256, 257, 257, 258, 258,
+    259, 259, 260, 261, 261, 262, 262, 263, 264, 264, 265, 265,
+    266, 266, 267, 268, 268, 269, 269, 270, 270, 271, 272, 272,
+    273, 273, 274, 274, 275, 276, 276, 277, 277, 278, 278, 279,
+    280, 280, 281, 281, 282, 282, 283, 284, 284, 285, 285, 286,
+    286, 287, 288, 288, 289, 289, 290, 290, 291, 292, 292, 293,
+    293, 294, 294, 295, 296, 296, 297, 297, 298, 298, 299, 300,
+    300, 301, 301, 302, 302, 303, 304, 304, 305, 305, 306, 306,
+    307, 308, 308, 309, 309, 310, 310, 311, 312, 312, 313, 313,
+    314, 314, 315, 316, 316, 317, 317, 318, 318, 319, 319, 320,
+    321, 321, 322, 322, 323, 323, 324, 325
+};
+    #define WC_RNG_SEED_APT_CUTOFF_FOR(w) ((word32)aptCutoffTable[(w) - 1])
+#else
+    #define WC_RNG_SEED_APT_CUTOFF_FOR(w) ((word32)WC_RNG_SEED_APT_CUTOFF)
 #endif
 
 int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
@@ -2668,64 +2725,37 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
         }
     }
 
-    /* SP800-90B 4.4.2 - Adaptive Proportion Test (APT)
-     * Check that no single byte value appears too frequently within
-     * a sliding window. This detects bias in the entropy source.
-     *
-     * For seeds smaller than the window size, we test the entire seed.
-     * For larger seeds, we use a sliding window approach.
-     *
-     * Constant-time implementation: always process full seed and check
-     * all counts to prevent timing side-channels.
-     */
+    /* SP800-90B 4.4.2 Adaptive Proportion Test: the first byte of each
+     * non-overlapping window is the reference value, and a window fails when
+     * matches reach the cutoff for that window size.  Bias toward any other
+     * value is caught by the all-values test below. */
     {
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SMALL_STACK_CACHE)
-        word16* byteCounts = NULL;
-    #else
-        word16 byteCounts[MAX_ENTROPY_BITS];
-    #endif
-        word32 windowSize = min(seedSz, (word32)WC_RNG_SEED_APT_WINDOW);
-        word32 windowStart = 0;
-        word32 newIdx;
+        word32 start;
+        word32 window = min(seedSz, (word32)WC_RNG_SEED_APT_WINDOW);
+        word32 cutoff = WC_RNG_SEED_APT_CUTOFF_FOR(window);
 
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SMALL_STACK_CACHE)
-        byteCounts = (word16*)XMALLOC(MAX_ENTROPY_BITS * sizeof(word16), NULL,
-                                      DYNAMIC_TYPE_TMP_BUFFER);
-        if (byteCounts == NULL)
-            return MEMORY_E;
-    #endif
-        XMEMSET(byteCounts, 0, MAX_ENTROPY_BITS * sizeof(word16));
+        /* A cutoff above the window can never be reached (IG D.K Res 16); that
+         * is every window under 30 bytes at alpha 2^-30, and such a seed gets
+         * no APT and rests on the RCT above. */
+        if (cutoff <= window) {
+            /* Constant time: every window is scanned in full, no early exit. */
+            for (start = 0; start < seedSz; start += window) {
+                word32 matches = 1;
+                byte refByte;
 
-        /* Indices are WC_OCTET-masked: byteCounts has 256 entries, but a
-         * byte cell can exceed 255 where CHAR_BIT != 8, so an unmasked seed
-         * value would index out of bounds. */
-        for (i = 0; i < windowSize; i++) {
-            byteCounts[WC_OCTET(seed[i])]++;
+                /* A trailing piece shorter than the window slides back to a
+                 * full window instead of forming a short one. */
+                if ((seedSz - start) < window)
+                    start = seedSz - window;
+
+                refByte = seed[start];
+                for (i = 1; i < window; i++) {
+                    matches += (word32)(seed[start + i] == refByte);
+                }
+
+                aptFailed |= (matches >= cutoff);
+            }
         }
-
-        /* Check first window - scan all 256 counts */
-        for (i = 0; i < MAX_ENTROPY_BITS; i++) {
-            aptFailed |= (byteCounts[i] >= WC_RNG_SEED_APT_CUTOFF);
-        }
-
-        /* Slide window through remaining seed data */
-        while ((windowStart + windowSize) < seedSz) {
-            /* Remove byte leaving the window */
-            byteCounts[WC_OCTET(seed[windowStart])]--;
-            windowStart++;
-
-            /* Add byte entering the window */
-            newIdx = windowStart + windowSize - 1;
-            byteCounts[WC_OCTET(seed[newIdx])]++;
-
-            /* Accumulate failure flag for new byte's count */
-            aptFailed |= (byteCounts[WC_OCTET(seed[newIdx])] >=
-                          WC_RNG_SEED_APT_CUTOFF);
-        }
-
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SMALL_STACK_CACHE)
-        XFREE(byteCounts, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
     }
 
     /* Set return code based on accumulated failure flags */
@@ -3564,13 +3594,11 @@ static int RngGenerateFailure(WC_RNG* rng, int ret)
 
     rng->status = DRBG_FAILED;
 
-#if FIPS_VERSION3_GE(7,0,0)
     /* SP 800-90B RCT and APT failures keep their own code. */
     if ((ret == WC_NO_ERR_TRACE(ENTROPY_RT_E)) ||
         (ret == WC_NO_ERR_TRACE(ENTROPY_APT_E))) {
         return ret;
     }
-#endif
 
     return RNG_FAILURE_E;
 }
@@ -4780,17 +4808,13 @@ int wc_RNG_DRBG_StirRBGC(WC_RNG* rng, WC_RNG* root,
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
 
 /* A failed seed source reports DRBG_FAILURE, except an SP 800-90B RCT or APT
- * failure, which keeps its own code. */
+ * verdict, which keeps its own code so the caller can tell the two apart. */
 static int ReseedSourceFailure(int ret)
 {
-#if FIPS_VERSION3_GE(7,0,0)
     if ((ret == WC_NO_ERR_TRACE(ENTROPY_RT_E)) ||
         (ret == WC_NO_ERR_TRACE(ENTROPY_APT_E))) {
         return ret;
     }
-#else
-    (void)ret;
-#endif
     return DRBG_FAILURE;
 }
 
@@ -5305,17 +5329,6 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedGenerate_local(
             ++rng->_stats_nextseedsbanked;
             #endif
             return 0;
-        }
-        else if (ret == WC_NO_ERR_TRACE(MEMORY_E)) {
-            /* wc_RNG_TestSeed() did nothing with the data -- not
-             * dispositive.  Release complete-but-unpublished for a
-             * later retry; a purge-discard's BUSY_E percolates (the
-             * retry cause is then the purge, not the test). */
-            ret = NextSeedProducerRelease(lenp, seed, nextSeedSz,
-                                          (WC_ATOMIC_INT_ARG)nextSeedSz);
-            if (ret != 0)
-                return ret;
-            return NOT_READY_E;
         }
         else if ((ret == WC_NO_ERR_TRACE(ENTROPY_RT_E)) ||
                  (ret == WC_NO_ERR_TRACE(ENTROPY_APT_E)))
