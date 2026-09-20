@@ -443,6 +443,62 @@ static int test_random_apt_window(byte* s, word32 start, word32 win, byte ref,
     }
     return (placed == m) ? 0 : -1;
 }
+
+/* Build one window whose majority value is NOT its reference sample, so the
+ * 4.4.2 test stays quiet and only the all-values test can fire. */
+static int test_random_allvals_window(byte* s, word32 win, byte ref, byte val,
+    word32 m)
+{
+    word32 i, placed = 0, run = 0;
+    byte filler = 0;
+
+    for (i = 0; i < win; i++) {
+        if (++filler == val)
+            filler++;
+        s[i] = filler;
+    }
+    s[0] = ref;
+    for (i = 1; (i < win) && (placed < m); i++) {
+        if (run >= 29) {
+            run = 0;
+            continue;
+        }
+        s[i] = val;
+        placed++;
+        run++;
+    }
+    return (placed == m) ? 0 : -1;
+}
+
+/* Smallest match count that trips the APT at this window, discovered through
+ * the public API; 0 when the window cannot reach its cutoff. */
+static word32 test_random_apt_cutoff(byte* buf, word32 win, int allValues)
+{
+    word32 lo = 2, hi = win, best = 0;
+
+    while (lo <= hi) {
+        word32 mid = lo + ((hi - lo) / 2);
+        int built;
+
+        if (allValues)
+            built = test_random_allvals_window(buf, win, 0x01, 0x99, mid);
+        else
+            built = test_random_apt_window(buf, 0, win, 0x11, mid - 1);
+
+        if ((built != 0) ||
+            (wc_RNG_TestSeed(buf, win) != WC_NO_ERR_TRACE(ENTROPY_APT_E))) {
+            if (built != 0)
+                hi = mid - 1;
+            else
+                lo = mid + 1;
+        }
+        else {
+            best = mid;
+            hi = mid - 1;
+        }
+    }
+    return best;
+}
 #endif
 
 int test_wc_RNG_TestSeed(void)
@@ -561,6 +617,65 @@ int test_wc_RNG_TestSeed(void)
              * and a short all-same seed is left to the RCT */
             XMEMSET(buf, 0x5a, 20);
             ExpectIntEQ(wc_RNG_TestSeed(buf, 20), 0);
+
+            /* Sweep the windows a seed can actually present.  seedSz is at
+             * least SEED_BLOCK_SZ, and no cutoff is reachable below W = 30
+             * (38 for the all-values table), so smaller windows are visited
+             * but only the reachable ones are asserted.  That still covers far
+             * more of the 1024 constants than the few sizes one build uses. */
+            {
+                word32 w;
+                word32 prev = 0, prevAll = 0;
+                word32 firstFire = 0, firstFireAll = 0;
+                int bad = 0, badAll = 0;
+
+                for (w = 4; w <= 512; w++) {
+                    word32 c = test_random_apt_cutoff(buf, w, 0);
+                    word32 a2 = test_random_apt_cutoff(buf, w, 1);
+
+                    if (c != 0) {
+                        if (firstFire == 0)
+                            firstFire = w;
+                        /* reachable, and a strict majority of the window */
+                        if ((c > w) || (c <= (w / 2)))
+                            bad = (bad != 0) ? bad : (int)w;
+                        /* C(W) rises by 0 or 1 as the window grows */
+                        if ((prev != 0) && ((c < prev) || ((c - prev) > 1)))
+                            bad = (bad != 0) ? bad : (int)w;
+                        prev = c;
+                    }
+                    if (a2 != 0) {
+                        if (firstFireAll == 0)
+                            firstFireAll = w;
+                        if ((a2 > w) || (a2 <= (w / 2)))
+                            badAll = (badAll != 0) ? badAll : (int)w;
+                        if ((prevAll != 0) &&
+                            ((a2 < prevAll) || ((a2 - prevAll) > 1)))
+                            badAll = (badAll != 0) ? badAll : (int)w;
+                        /* alpha/256 is stricter, so it never sits lower */
+                        if ((c != 0) && (a2 < c))
+                            badAll = (badAll != 0) ? badAll : (int)w;
+                        prevAll = a2;
+                    }
+                }
+                /* the failing window, not just "something broke" */
+                ExpectIntEQ(bad, 0);
+                ExpectIntEQ(badAll, 0);
+                /* Nothing fires below the window where alpha 2^-30 first
+                 * makes a cutoff reachable.  This is one-sided on purpose:
+                 * the densest window these helpers can build still keeps
+                 * runs under the RCT cutoff, so the smallest window they can
+                 * actually trip sits above the table's own floor. */
+                ExpectIntGE((int)firstFire, 30);
+                ExpectIntGE((int)firstFireAll, 38);
+                /* and the anchors the derivation is quoted against */
+                ExpectIntEQ((int)test_random_apt_cutoff(buf, 132, 0), 101);
+                ExpectIntEQ((int)test_random_apt_cutoff(buf, 196, 0), 140);
+                ExpectIntEQ((int)test_random_apt_cutoff(buf, 512, 0), 325);
+                ExpectIntEQ((int)test_random_apt_cutoff(buf, 132, 1), 105);
+                ExpectIntEQ((int)test_random_apt_cutoff(buf, 196, 1), 146);
+                ExpectIntEQ((int)test_random_apt_cutoff(buf, 512, 1), 334);
+            }
         }
         XFREE(buf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     }
