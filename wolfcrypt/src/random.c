@@ -2624,15 +2624,19 @@ int wc_RNG_DRBG_Stir(WC_RNG* rng, const byte* seed, word32 seedSz)
 #ifndef WC_RNG_SEED_APT_WINDOW
     #define WC_RNG_SEED_APT_WINDOW 512
 #endif
-#if (WC_RNG_SEED_APT_WINDOW > 512) || (WC_RNG_SEED_APT_WINDOW < 1)
-    #error WC_RNG_SEED_APT_WINDOW must be 1 to 512
+#if WC_RNG_SEED_APT_WINDOW < 1
+    #error WC_RNG_SEED_APT_WINDOW must be at least 1
 #endif
 #ifndef WC_RNG_SEED_APT_CUTOFF
-    /* No caller-supplied cutoff: take one per window size from the table.
-     * A caller-supplied cutoff also turns off the all-values test below. */
+    /* No caller-supplied cutoff: take one per window size from the table. */
     #define WC_RNG_SEED_APT_CUTOFF_PER_WINDOW
     /* The published W = 512 value, kept for readers and for tests. */
     #define WC_RNG_SEED_APT_CUTOFF 325
+#endif
+/* Only the tables cap the window; a caller-supplied cutoff has no such
+ * limit, so this bound belongs to the table build alone. */
+#if defined(WC_RNG_SEED_APT_CUTOFF_PER_WINDOW) && (WC_RNG_SEED_APT_WINDOW > 512)
+    #error WC_RNG_SEED_APT_WINDOW must be 1 to 512 unless WC_RNG_SEED_APT_CUTOFF is set
 #endif
 
 #ifdef WC_RNG_SEED_APT_CUTOFF_PER_WINDOW
@@ -2718,7 +2722,10 @@ static const byte aptAllCutoffDelta[512] = {
     #define WC_RNG_SEED_APT_ALL_CUTOFF_FOR(w) \
         (((word32)(w) / 2) + (word32)aptAllCutoffDelta[(w) - 1])
 #else
+    /* A caller-supplied cutoff is a threshold, so it serves both tests; the
+     * all-values scan still runs only where its majority precondition holds. */
     #define WC_RNG_SEED_APT_CUTOFF_FOR(w) ((word32)WC_RNG_SEED_APT_CUTOFF)
+    #define WC_RNG_SEED_APT_ALL_CUTOFF_FOR(w) ((word32)WC_RNG_SEED_APT_CUTOFF)
 #endif
 
 int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
@@ -2790,7 +2797,6 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
         }
     }
 
-#ifdef WC_RNG_SEED_APT_CUTOFF_PER_WINDOW
     /* Additional developer-defined test (SP800-90B 4.3 Req 1c): 4.4.2 watches
      * only the window's first byte, this watches every value.  Its cutoff uses
      * alpha/256 for the alphabet and always lands above half the window. */
@@ -2828,7 +2834,6 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
             }
         }
     }
-#endif
 
     /* Set return code based on accumulated failure flags */
     if (rctFailed) {
@@ -2954,6 +2959,15 @@ int wc_Sha512Drbg_IsDisabled(void)
  * _LOCK_INITIALLY (born held at both layers).  wc_FreeRng() releases (if the
  * latch is held) and frees the mutex.
  */
+static int ReseedSourceFailure(int ret)
+{
+    if ((ret == WC_NO_ERR_TRACE(ENTROPY_RT_E)) ||
+        (ret == WC_NO_ERR_TRACE(ENTROPY_APT_E))) {
+        return ret;
+    }
+    return DRBG_FAILURE;
+}
+
 static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
                     const byte* nonce, word32 nonceSz,
                     const byte *perso, word32 persoSz,
@@ -3344,7 +3358,8 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
                         "ERROR: seedCb in _InitRng() failed with err = %d",
                         ret);
 #endif
-                    ret = DRBG_FAILURE;
+                    /* mapped once, by the shared arm every seed path falls
+                     * into below */
                 }
             }
 #else
@@ -3365,7 +3380,9 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
                 "ERROR: seed acquisition in _InitRng() failed with err %d",
                 ret);
     #endif
-            ret = DRBG_FAILURE;
+            /* A verdict from the source survives here as it does on the
+             * reseed path, so instantiate and reseed classify it alike. */
+            ret = ReseedSourceFailure(ret);
             rng->status = DRBG_FAILED;
         }
 
@@ -4881,15 +4898,6 @@ int wc_RNG_DRBG_StirRBGC(WC_RNG* rng, WC_RNG* root,
 
 /* A failed seed source reports DRBG_FAILURE, except an SP 800-90B RCT or APT
  * verdict, which keeps its own code so the caller can tell the two apart. */
-static int ReseedSourceFailure(int ret)
-{
-    if ((ret == WC_NO_ERR_TRACE(ENTROPY_RT_E)) ||
-        (ret == WC_NO_ERR_TRACE(ENTROPY_APT_E))) {
-        return ret;
-    }
-    return DRBG_FAILURE;
-}
-
 static WARN_UNUSED_RESULT int PollAndReSeed(WC_RNG* rng, const byte* additional,
                          word32 additionalSz)
 {
@@ -5070,9 +5078,9 @@ int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* nonce, word32 nonceSz)
     /* Banked-next-seed services.  _NextSeedGenerate() banks up to n more
      * bytes from the module's seed source (clamped to the space remaining;
      * ALREADY_E when the bank is ready or being consumed), health-testing
-     * and publishing the bank when it completes (NOT_READY_E when the health
-     * test could not run and the call should simply be retried); a
-     * scheduling daemon may call it without owning the instance.
+     * and publishing the bank when it completes, burning it on a failed
+     * health test (ENTROPY_RT_E / ENTROPY_APT_E); a scheduling daemon may
+     * call it without owning the instance.
      * _NextSeedCurrent() reports the raw aperture value (racy snapshot).
      * _NextSeedNow() claims a ready bank and performs a source-free
      * credited reseed with it -- safe in atomic context -- or returns

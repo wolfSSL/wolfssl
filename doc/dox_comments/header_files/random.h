@@ -1306,7 +1306,8 @@ int wc_RNG_DRBG_GetNextSeedRBGCStratum(const WC_RNG* rng);
 
     \return 0 Bytes were banked (bank may or may not yet be complete).
     \return ALREADY_E The bank is ready or being consumed.
-    \return NOT_READY_E The bank could not be completed; simply retry.
+    \return ENTROPY_RT_E or ENTROPY_APT_E The SP 800-90B seed health test
+    rejected the banked material, which is burned.
     \return BAD_FUNC_ARG rng is null or n is 0.
     \return MISSING_RNG_E rng has no DRBG (RDRAND et al.).
 
@@ -1337,7 +1338,8 @@ int wc_RNG_DRBG_NextSeedGenerate(WC_RNG* rng, word32 n);
 
     \return 0 Bytes were banked.
     \return ALREADY_E The bank is ready or being consumed.
-    \return NOT_READY_E The bank could not be completed; simply retry.
+    \return ENTROPY_RT_E or ENTROPY_APT_E The SP 800-90B seed health test
+    rejected the banked material, which is burned.
     \return BAD_FUNC_ARG rng or root is null, or n is 0.
     \return MISSING_RNG_E rng has no DRBG (RDRAND et al.).
     \return SEQ_OVERFLOW_E root's stratum is at the representable maximum.

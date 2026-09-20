@@ -2747,10 +2747,6 @@ static void wc_linuxkm_vmgenid_poll_teardown(
  * draining nextSeeds as fast as it can.  Per-turn classification of
  * wc_rng_bank_next_seed_generate() returns:
  *   0        gathered/published -- progress;
- *   NOT_READY_E  transient (incl. a burned bank, which is refill-eligible
- *            now, and an environmental TestSeed miss with the aperture
- *            preserved) -- progress, so a forced burn can never induce
- *            a nap;
  *   ALREADY_E  ready or consuming -- no work on this instance;
  *   BUSY_E   instance-op gate held by a reinit -- no progress here,
  *            but the gate holder is making it;
@@ -3219,7 +3215,7 @@ static int wc_linuxkm_entropy_daemon(void *arg)
 
             ret = wc_rng_bank_next_seed_generate(
                 bank, i, WC_LINUXKM_ENTROPY_DAEMON_GRANULE);
-            if ((ret == 0) || (ret == WC_NO_ERR_TRACE(NOT_READY_E))) {
+            if (ret == 0) {
                 progress = 1;
             }
             else if ((ret == WC_NO_ERR_TRACE(ALREADY_E)) ||
