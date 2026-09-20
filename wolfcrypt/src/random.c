@@ -2685,6 +2685,57 @@ static const word16 aptCutoffTable[512] = {
     321, 321, 322, 322, 323, 323, 324, 325
 };
     #define WC_RNG_SEED_APT_CUTOFF_FOR(w) ((word32)aptCutoffTable[(w) - 1])
+
+/* Cutoff for the all-values test below, at alpha/256 so that scanning the
+ * whole alphabet keeps the same 2^-30 budget per window.
+ * 1 + CRITBINOM(W, 2^-H, 1-alpha/256), H = 1, alpha = 2^-30, W = 1..512. */
+static const word16 aptAllCutoffTable[512] = {
+    2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
+    14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
+    26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37,
+    38, 38, 39, 40, 41, 42, 43, 43, 44, 45, 46, 47,
+    47, 48, 49, 50, 50, 51, 52, 53, 53, 54, 55, 56,
+    56, 57, 58, 59, 59, 60, 61, 62, 62, 63, 64, 64,
+    65, 66, 67, 67, 68, 69, 69, 70, 71, 71, 72, 73,
+    74, 74, 75, 76, 76, 77, 78, 78, 79, 80, 80, 81,
+    82, 83, 83, 84, 85, 85, 86, 87, 87, 88, 89, 89,
+    90, 91, 91, 92, 93, 93, 94, 95, 95, 96, 97, 97,
+    98, 99, 99, 100, 101, 101, 102, 103, 103, 104, 105, 105,
+    106, 106, 107, 108, 108, 109, 110, 110, 111, 112, 112, 113,
+    114, 114, 115, 116, 116, 117, 117, 118, 119, 119, 120, 121,
+    121, 122, 123, 123, 124, 125, 125, 126, 126, 127, 128, 128,
+    129, 130, 130, 131, 132, 132, 133, 133, 134, 135, 135, 136,
+    137, 137, 138, 138, 139, 140, 140, 141, 142, 142, 143, 143,
+    144, 145, 145, 146, 147, 147, 148, 148, 149, 150, 150, 151,
+    152, 152, 153, 153, 154, 155, 155, 156, 157, 157, 158, 158,
+    159, 160, 160, 161, 162, 162, 163, 163, 164, 165, 165, 166,
+    166, 167, 168, 168, 169, 170, 170, 171, 171, 172, 173, 173,
+    174, 174, 175, 176, 176, 177, 177, 178, 179, 179, 180, 181,
+    181, 182, 182, 183, 184, 184, 185, 185, 186, 187, 187, 188,
+    188, 189, 190, 190, 191, 191, 192, 193, 193, 194, 195, 195,
+    196, 196, 197, 198, 198, 199, 199, 200, 201, 201, 202, 202,
+    203, 204, 204, 205, 205, 206, 207, 207, 208, 208, 209, 210,
+    210, 211, 211, 212, 213, 213, 214, 214, 215, 216, 216, 217,
+    217, 218, 219, 219, 220, 220, 221, 222, 222, 223, 223, 224,
+    225, 225, 226, 226, 227, 228, 228, 229, 229, 230, 230, 231,
+    232, 232, 233, 233, 234, 235, 235, 236, 236, 237, 238, 238,
+    239, 239, 240, 241, 241, 242, 242, 243, 244, 244, 245, 245,
+    246, 246, 247, 248, 248, 249, 249, 250, 251, 251, 252, 252,
+    253, 254, 254, 255, 255, 256, 257, 257, 258, 258, 259, 259,
+    260, 261, 261, 262, 262, 263, 264, 264, 265, 265, 266, 267,
+    267, 268, 268, 269, 269, 270, 271, 271, 272, 272, 273, 274,
+    274, 275, 275, 276, 276, 277, 278, 278, 279, 279, 280, 281,
+    281, 282, 282, 283, 283, 284, 285, 285, 286, 286, 287, 288,
+    288, 289, 289, 290, 290, 291, 292, 292, 293, 293, 294, 295,
+    295, 296, 296, 297, 297, 298, 299, 299, 300, 300, 301, 302,
+    302, 303, 303, 304, 304, 305, 306, 306, 307, 307, 308, 309,
+    309, 310, 310, 311, 311, 312, 313, 313, 314, 314, 315, 315,
+    316, 317, 317, 318, 318, 319, 320, 320, 321, 321, 322, 322,
+    323, 324, 324, 325, 325, 326, 326, 327, 328, 328, 329, 329,
+    330, 330, 331, 332, 332, 333, 333, 334
+};
+    #define WC_RNG_SEED_APT_ALL_CUTOFF_FOR(w) \
+        ((word32)aptAllCutoffTable[(w) - 1])
 #else
     #define WC_RNG_SEED_APT_CUTOFF_FOR(w) ((word32)WC_RNG_SEED_APT_CUTOFF)
 #endif
@@ -2757,6 +2808,46 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
             }
         }
     }
+
+#ifdef WC_RNG_SEED_APT_CUTOFF_PER_WINDOW
+    /* Additional developer-defined test (SP800-90B 4.3 Req 1c): 4.4.2 watches
+     * only the window's first byte, this watches every value.  Its cutoff uses
+     * alpha/256 for the alphabet and always lands above half the window. */
+    {
+        word32 start;
+        word32 window = min(seedSz, (word32)WC_RNG_SEED_APT_WINDOW);
+        word32 cutoff = WC_RNG_SEED_APT_ALL_CUTOFF_FOR(window);
+
+        if ((cutoff <= window) && (cutoff > (window / 2))) {
+            for (start = 0; start < seedSz; start += window) {
+                byte cand = 0;
+                word32 votes = 0;
+                word32 count = 0;
+
+                if ((seedSz - start) < window)
+                    start = seedSz - window;
+
+                /* A count above half the window makes that value the window's
+                 * majority, which this vote finds without a histogram. */
+                for (i = 0; i < window; i++) {
+                    word32 take = (word32)(votes == 0);
+                    word32 same;
+
+                    cand = (byte)((take * seed[start + i]) +
+                                  ((1 - take) * cand));
+                    same = (word32)(seed[start + i] == cand);
+                    votes = (same * (votes + 1)) + ((1 - same) * (votes - 1));
+                }
+
+                for (i = 0; i < window; i++) {
+                    count += (word32)(seed[start + i] == cand);
+                }
+
+                aptFailed |= (count >= cutoff);
+            }
+        }
+    }
+#endif
 
     /* Set return code based on accumulated failure flags */
     if (rctFailed) {
