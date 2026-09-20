@@ -24953,12 +24953,8 @@ static Signer* FindSignerByAkidOrName(void* cm, Signer* extraCAList,
                                       Signer* cert)
 {
     Signer* signer = NULL;
-#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
-    #ifndef NO_SKID
+#ifndef NO_SKID
     Signer* exCaSigner;
-    #endif
-#else
-    (void)extraCAList;
 #endif
 
 #ifndef NO_SKID
@@ -24979,7 +24975,6 @@ static Signer* FindSignerByAkidOrName(void* cm, Signer* extraCAList,
     signer = GetCA(cm, cert->issuerNameHash);
 #endif
 
-#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
     if (signer == NULL && extraCAList != NULL) {
     #ifndef NO_SKID
         if (cert->authKeyIdSet) {
@@ -25004,7 +24999,6 @@ static Signer* FindSignerByAkidOrName(void* cm, Signer* extraCAList,
         signer = findSignerByName(extraCAList, cert->issuerNameHash);
     #endif
     }
-#endif
 
     return signer;
 }
@@ -25552,11 +25546,30 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
         if (!cert->selfSigned || (verify != NO_VERIFY && type != CA_TYPE &&
                                                    type != TRUSTED_PEER_TYPE)) {
             cert->ca = NULL;
-#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
-        if (extraCAList != NULL) {
-            cert->ca = findSignerByName(extraCAList, cert->issuerHash);
-        }
-#endif
+            if (extraCAList != NULL) {
+        #ifndef NO_SKID
+                if (cert->extAuthKeyIdSet) {
+                    Signer* exCa;
+
+                    for (exCa = extraCAList; exCa != NULL; exCa = exCa->next) {
+                        if (XMEMCMP(exCa->subjectKeyIdHash,
+                                    cert->extAuthKeyId,
+                                    SIGNER_DIGEST_SIZE) == 0 &&
+                            XMEMCMP(exCa->subjectNameHash, cert->issuerHash,
+                                    SIGNER_DIGEST_SIZE) == 0) {
+                            cert->ca = exCa;
+                            break;
+                        }
+                    }
+                    /* AKID is authoritative; do not fall back to name. */
+                }
+                else
+        #endif
+                {
+                    cert->ca = findSignerByName(extraCAList,
+                                                cert->issuerHash);
+                }
+            }
     #ifndef NO_SKID
             if (cert->ca == NULL && cert->extAuthKeyIdSet) {
                 cert->ca = GetCA(cm, cert->extAuthKeyId);

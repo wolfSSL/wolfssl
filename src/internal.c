@@ -16635,11 +16635,125 @@ void DoCrlCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
 }
 #endif
 
+#ifndef NO_ASN
+/* Parse a chain certificate as a CA and return it as a filled signer. */
+static int ProcessPeerCertMakeChainSigner(WOLFSSL* ssl, buffer* cert, int type,
+                                          Signer** out)
+{
+    int ret = 0;
+    WC_DECLARE_VAR(dCertAdd, DecodedCert, 1, 0);
+    int dCertAdd_inited = 0;
+    DerBuffer* derBuffer = NULL;
+    Signer* s = NULL;
+
+    *out = NULL;
+
+    WC_ALLOC_VAR_EX(dCertAdd, DecodedCert, 1, ssl->heap,
+        DYNAMIC_TYPE_TMP_BUFFER,
+    {
+        ret = MEMORY_E;
+        goto exit_mcs;
+    });
+    InitDecodedCert(dCertAdd, cert->buffer, cert->length, SSL_CM(ssl)->heap);
+    dCertAdd_inited = 1;
+    ret = ParseCert(dCertAdd, CA_TYPE, NO_VERIFY, SSL_CM(ssl));
+    if (ret != 0)
+        goto exit_mcs;
+
+    if (!dCertAdd->isCA) {
+        WOLFSSL_MSG("Chain cert is not a CA, not usable as a signer");
+        goto exit_mcs;
+    }
+#ifndef ALLOW_INVALID_CERTSIGN
+    /* Per RFC 5280 an absent Key Usage extension implies all usages, so only
+     * enforce certificate signing when the extension is actually present.
+     * AddCA() rejects such a certificate outright, so report the same error. */
+    if (!dCertAdd->selfSigned && dCertAdd->extKeyUsageSet &&
+            (dCertAdd->extKeyUsage & KEYUSE_KEY_CERT_SIGN) == 0) {
+        WOLFSSL_MSG("Chain cert doesn't have key usage certificate signing");
+        ret = NOT_CA_ERROR;
+        goto exit_mcs;
+    }
+#endif
+    /* The Extended Key Usage purpose check is deliberately not repeated here.
+     * ProcessPeerCerts() applies it to this same certificate before offering it
+     * to a signer, and AddCA() does not apply it either, so repeating it would
+     * only take effect after a verify callback had already overridden the
+     * rejection, silently undoing that decision. */
+
+    ret = AllocDer(&derBuffer, cert->length, CA_TYPE, ssl->heap);
+    if (ret != 0 || derBuffer == NULL)
+        goto exit_mcs;
+    XMEMCPY(derBuffer->buffer, cert->buffer, cert->length);
+
+    s = MakeSigner(SSL_CM(ssl)->heap);
+    if (s == NULL) {
+        ret = MEMORY_E;
+        goto exit_mcs;
+    }
+    ret = FillSigner(s, dCertAdd, type, derBuffer);
+    if (ret != 0)
+        goto exit_mcs;
+
+    *out = s;
+    s = NULL;
+
+exit_mcs:
+    if (s != NULL)
+        FreeSigner(s, SSL_CM(ssl)->heap);
+    if (derBuffer != NULL)
+        FreeDer(&derBuffer);
+    if (dCertAdd_inited)
+        FreeDecodedCert(dCertAdd);
+    WC_FREE_VAR_EX(dCertAdd, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+
+/* Add a chain CA the verify callback accepted to a list owned by this
+ * Certificate message. */
+static int ProcessPeerCertAddWaivedCA(WOLFSSL* ssl, ProcPeerCertArgs* args,
+                                      buffer* cert)
+{
+    Signer* s = NULL;
+    int ret;
+
+    ret = ProcessPeerCertMakeChainSigner(ssl, cert, WOLFSSL_TEMP_CA, &s);
+    if (ret == 0 && s != NULL) {
+        s->next = args->waivedCAs;
+        args->waivedCAs = s;
+    }
+
+    return ret;
+}
+
+static int ProcessPeerCertIsWaivedCA(ProcPeerCertArgs* args, const Signer* ca)
+{
+    const Signer* s;
+
+    for (s = args->waivedCAs; s != NULL; s = s->next) {
+        if (s == ca)
+            return 1;
+    }
+
+    return 0;
+}
+#endif /* !NO_ASN */
+
 static void FreeProcPeerCertArgs(WOLFSSL* ssl, void* pArgs)
 {
     ProcPeerCertArgs* args = (ProcPeerCertArgs*)pArgs;
 
     (void)ssl;
+
+#ifndef NO_ASN
+    while (args->waivedCAs != NULL) {
+        Signer* s = args->waivedCAs;
+
+        args->waivedCAs = s->next;
+        FreeSigner(s, SSL_CM(ssl)->heap);
+    }
+#endif
 
     XFREE(args->certs, ssl->heap, DYNAMIC_TYPE_DER);
     args->certs = NULL;
@@ -16870,6 +16984,7 @@ static int ProcessPeerCertParse(WOLFSSL* ssl, ProcPeerCertArgs* args,
     byte* subjectHash = NULL;
     int alreadySigner = 0;
     Signer *extraSigners = NULL;
+    Signer *waivedTail = NULL;
 #if defined(HAVE_RPK)
     int cType;
 #endif
@@ -17002,7 +17117,18 @@ PRAGMA_GCC_DIAG_POP
     }
 #endif
     /* Parse Certificate */
+    if (args->waivedCAs != NULL) {
+        waivedTail = args->waivedCAs;
+        while (waivedTail->next != NULL)
+            waivedTail = waivedTail->next;
+        waivedTail->next = extraSigners;
+        extraSigners = args->waivedCAs;
+    }
+
     ret = ParseCertRelative(args->dCert, certType, verify, SSL_CM(ssl), extraSigners);
+
+    if (waivedTail != NULL)
+        waivedTail->next = NULL;
 
 #if defined(HAVE_RPK)
     /* Confirm the received certificate's form (X.509 vs raw public key) matches
@@ -17437,86 +17563,20 @@ static int CheckChainCAExtKeyUsage(const WOLFSSL* ssl, const DecodedCert* cert)
  * for Certificate Status Request v2. */
 static int ProcessPeerCertAddPendingCA(WOLFSSL* ssl, buffer* cert)
 {
-    int ret = 0;
-    WC_DECLARE_VAR(dCertAdd, DecodedCert, 1, 0);
-    int dCertAdd_inited = 0;
-    DerBuffer *derBuffer = NULL;
-    Signer *s = NULL;
+    Signer* s = NULL;
+    int ret;
 
-    WC_ALLOC_VAR_EX(dCertAdd, DecodedCert, 1, ssl->heap,
-        DYNAMIC_TYPE_TMP_BUFFER,
-    {
-        ret=MEMORY_E;
-        goto exit_req_v2;
-    });
-    InitDecodedCert(dCertAdd, cert->buffer, cert->length,
-                    ssl->heap);
-    dCertAdd_inited = 1;
-    ret = ParseCert(dCertAdd, CA_TYPE, NO_VERIFY,
-                    SSL_CM(ssl));
-    if (ret != 0) {
-        goto exit_req_v2;
-    }
-    /* Only a certificate that is actually usable as a CA may enter the pending
-     * signer pool. ParseCertRelative() consults that pool ahead of the
-     * certificate manager and uses the signer as a verification key without
-     * further checks, so admission has to enforce the same capabilities AddCA()
-     * requires of a chain CA.
-     *
-     * A non-CA is skipped rather than reported as an error, because
-     * ProcessPeerCerts() only offers a chain cert to AddCA() when isCA is set:
-     * such a certificate is already left out of the certificate manager without
-     * failing the handshake. */
-    if (!dCertAdd->isCA) {
-        WOLFSSL_MSG("Chain cert is not a CA, not adding as pending CA");
-        goto exit_req_v2;
-    }
-#ifndef ALLOW_INVALID_CERTSIGN
-    /* Per RFC 5280 an absent Key Usage extension implies all usages, so only
-     * enforce certificate signing when the extension is actually present.
-     * AddCA() rejects such a certificate outright, so report the same error
-     * here rather than quietly leaving it out of the pool. */
-    if (!dCertAdd->selfSigned && dCertAdd->extKeyUsageSet &&
-            (dCertAdd->extKeyUsage & KEYUSE_KEY_CERT_SIGN) == 0) {
-        WOLFSSL_MSG("Chain cert doesn't have key usage certificate signing");
-        ret = NOT_CA_ERROR;
-        goto exit_req_v2;
-    }
-#endif
-    /* The Extended Key Usage purpose check is deliberately not repeated here.
-     * ProcessPeerCerts() applies it to this same certificate before offering it
-     * to the pool, and AddCA() does not apply it either, so repeating it would
-     * only take effect after a verify callback had already overridden the
-     * rejection, silently undoing that decision in CSR v2 builds alone. */
-    ret = AllocDer(&derBuffer, cert->length, CA_TYPE, ssl->heap);
-    if (ret != 0 || derBuffer == NULL) {
-        goto exit_req_v2;
-    }
-    XMEMCPY(derBuffer->buffer, cert->buffer, cert->length);
-    s = MakeSigner(SSL_CM(ssl)->heap);
-    if (s == NULL) {
-        ret = MEMORY_E;
-        goto exit_req_v2;
-    }
-    /* WOLFSSL_CHAIN_CA, not CA_TYPE: TLSX_CSR2_MergePendingCA() promotes this
-     * signer into the certificate manager, and the unload path
+    /* WOLFSSL_CHAIN_CA, not WOLFSSL_TEMP_CA: TLSX_CSR2_MergePendingCA()
+     * promotes this signer into the certificate manager, and the unload path
      * (wolfSSL_CertManagerUnloadIntermediateCerts()) selects entries by that
      * type. AddCA() records chain CAs the same way. */
-    ret = FillSigner(s, dCertAdd, WOLFSSL_CHAIN_CA, derBuffer);
-    if (ret != 0) {
-        goto exit_req_v2;
+    ret = ProcessPeerCertMakeChainSigner(ssl, cert, WOLFSSL_CHAIN_CA, &s);
+    if (ret == 0 && s != NULL) {
+        ret = TLSX_CSR2_AddPendingSigner(ssl->extensions, s);
+        if (ret != 0)
+            FreeSigner(s, SSL_CM(ssl)->heap);
     }
-    ret = TLSX_CSR2_AddPendingSigner(ssl->extensions, s);
 
-exit_req_v2:
-    if (s && (ret != 0))
-        FreeSigner(s, SSL_CM(ssl)->heap);
-    if (derBuffer)
-        FreeDer(&derBuffer);
-    if (dCertAdd_inited)
-        FreeDecodedCert(dCertAdd);
-    WC_FREE_VAR_EX(dCertAdd, ssl->heap,
-        DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 #endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
@@ -18511,6 +18571,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #endif /* WOLFSSL_TRUST_PEER_CERT */
                 ) {
                     int skipAddCA = 0;
+                    int preCbRet;
+                    int caIsTemp = 0;
 
                     /* select last certificate */
                     args->certIdx = args->count - 1;
@@ -18796,7 +18858,13 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #endif /* defined(__APPLE__) && defined(WOLFSSL_SYS_CA_CERTS) */
 
                     /* Do verify callback */
+                    preCbRet = ret;
                     ret = DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
+                    if (ret == 0 && preCbRet != 0)
+                        caIsTemp = 1;
+                    if (ret == 0 && args->dCert->ca != NULL &&
+                            ProcessPeerCertIsWaivedCA(args, args->dCert->ca))
+                        caIsTemp = 1;
                     if (ssl->options.verifyNone &&
                               (ret == WC_NO_ERR_TRACE(CRL_MISSING) ||
                                ret == WC_NO_ERR_TRACE(CRL_CERT_REVOKED) ||
@@ -18813,7 +18881,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #endif
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
                     if (ret == 0 && addToPendingCAs && !alreadySigner &&
-                            !ssl->options.verifyNone && !skipAddCA) {
+                            !ssl->options.verifyNone && !skipAddCA &&
+                            !caIsTemp) {
                         /* The verifyNone and skipAddCA conditions mirror the
                          * guards on the AddCA() call below. A certificate the
                          * surrounding code has already declined to admit as a
@@ -18848,7 +18917,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                 cert->buffer, cert->length);
                         }
                     #endif /* SESSION_CERTS && WOLFSSL_ALT_CERT_CHAINS */
-                        if (!alreadySigner) {
+                        if (caIsTemp) {
+                            ret = ProcessPeerCertAddWaivedCA(ssl, args, cert);
+                        }
+                        else if (!alreadySigner) {
                             DerBuffer* add = NULL;
                             ret = AllocDer(&add, cert->length, CA_TYPE, ssl->heap);
                             if (ret < 0)
