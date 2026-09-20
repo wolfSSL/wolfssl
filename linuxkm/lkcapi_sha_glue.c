@@ -3956,7 +3956,12 @@ static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
         if (ret == 0)
             continue;
 
-        if (unlikely(ret == WC_NO_ERR_TRACE(RNG_FAILURE_E))) {
+        /* A seed health-test alarm now arrives as its own SP 800-90B code;
+         * it is the same recoverable condition as RNG_FAILURE_E. */
+        if (unlikely((ret == WC_NO_ERR_TRACE(RNG_FAILURE_E)) ||
+                     (ret == WC_NO_ERR_TRACE(ENTROPY_RT_E)) ||
+                     (ret == WC_NO_ERR_TRACE(ENTROPY_APT_E))))
+        {
             if (slen > 0)
                 break;
 
@@ -4035,13 +4040,13 @@ static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
 
             if (ret == 0) {
                 pr_warn_ratelimited("WARNING: reinitialized DRBG #%d after "
-                                    "RNG_FAILURE_E from wc_RNG_GenerateBlock().\n",
+                                    "a seed health or RNG failure from wc_RNG_GenerateBlock().\n",
                                     wc_rng_bank_get_inst_id(drbg));
                 continue;
             }
             else {
                 pr_err_ratelimited("ERROR: reinitialization of DRBG #%d after "
-                                   "RNG_FAILURE_E failed with ret %d.\n",
+                                   "a seed health or RNG failure failed with ret %d.\n",
                                    wc_rng_bank_get_inst_id(drbg), ret);
                 break;
             }
