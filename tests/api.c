@@ -6534,6 +6534,92 @@ static int test_wolfSSL_SetVersion_raise_max(void)
     return EXPECT_RESULT();
 }
 
+/* Version 0 asks the library to pick the minimum, so it is not a minimum the
+ * user asked for and must not turn a pinned version into a range. */
+static int test_wolfSSL_SetVersion_auto_min(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_TLS13) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_TLS)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+
+    /* picked after the version is pinned */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_SetVersion(ssl, WOLFSSL_TLSV1_3), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_min_proto_version(ssl, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(ssl->options.downgrade, 0);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+
+    /* picked before the version is pinned */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_set_min_proto_version(ssl, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_SetVersion(ssl, WOLFSSL_TLSV1_3), WOLFSSL_SUCCESS);
+    ExpectIntEQ(ssl->options.downgrade, 0);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+
+    /* picked on the context, then inherited by a new SSL */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_set_min_proto_version(ctx, 0), WOLFSSL_SUCCESS);
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_SetVersion(ssl, WOLFSSL_TLSV1_3), WOLFSSL_SUCCESS);
+    ExpectIntEQ(ssl->options.downgrade, 0);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+
+    /* a minimum the user did ask for still makes a range */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_SetVersion(ssl, WOLFSSL_TLSV1_3), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_min_proto_version(ssl, TLS1_2_VERSION),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(ssl->options.downgrade, 1);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+
+    /* version 0 after a real minimum clears it again, so the result does not
+     * depend on the order the context was configured in */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_set_min_proto_version(ctx, TLS1_2_VERSION),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(ctx->minVersionSet, 1);
+    ExpectIntEQ(wolfSSL_CTX_set_min_proto_version(ctx, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(ctx->minVersionSet, 0);
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_SetVersion(ssl, WOLFSSL_TLSV1_3), WOLFSSL_SUCCESS);
+    ExpectIntEQ(ssl->options.downgrade, 0);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+
+    /* setting a maximum reapplies the minimum internally, which must not
+     * disturb the flag */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_set_min_proto_version(ctx, TLS1_2_VERSION),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_set_max_proto_version(ctx, TLS1_3_VERSION),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(ctx->minVersionSet, 1);
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
     !defined(WOLFSSL_NO_TLS12)
 static int test_SetVersion_tls12_ssl_ready(WOLFSSL* ssl)
@@ -42237,6 +42323,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_SetVersion_offers_range),
     TEST_DECL(test_wolfSSL_SetVersion_pins_single),
     TEST_DECL(test_wolfSSL_SetVersion_raise_max),
+    TEST_DECL(test_wolfSSL_SetVersion_auto_min),
     TEST_DECL(test_wolfSSL_SetVersion_tls12_with_tls13_peer),
     TEST_DECL(test_wolfSSL_CTX_SetMinVersion),
 

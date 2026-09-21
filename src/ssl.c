@@ -5135,8 +5135,10 @@ int wolfSSL_CTX_set_min_proto_version(WOLFSSL_CTX* ctx, int version)
     }
 
     ret = Set_CTX_min_proto_version(ctx, proto);
-    if (ret == WOLFSSL_SUCCESS)
-        ctx->minVersionSet = 1;
+    if (ret == WOLFSSL_SUCCESS) {
+        /* Version 0 picks the lowest, so the user set no minimum */
+        ctx->minVersionSet = (version != 0);
+    }
 
     return ret;
 }
@@ -5416,7 +5418,8 @@ int wolfSSL_set_min_proto_version(WOLFSSL* ssl, int version)
         }
     }
 
-    if (ret == WOLFSSL_SUCCESS) {
+    /* Version 0 picks the lowest, so the user set no minimum */
+    if (ret == WOLFSSL_SUCCESS && version != 0) {
         ssl->options.minVersionSet = 1;
         RestoreDowngrade(ssl);
     }
