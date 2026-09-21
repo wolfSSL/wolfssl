@@ -9554,6 +9554,16 @@ static int PopulateRSAEvpPkeyDer(WOLFSSL_EVP_PKEY *pkey)
                     XFREE(keyBuf, pkey->heap, DYNAMIC_TYPE_DER);
                     pkey->pkey.ptr = (char*)derBuf;
                     pkey->pkey_sz  = (int)pkcs8Sz;
+                    if (ret > 0) {
+                        word32 hdrIdx = 0;
+                        word32 hdrAlg = 0;
+                        /* Locate the header in the DER just built. */
+                        ret = ToTraditionalInline_ex(derBuf, &hdrIdx, sz,
+                            &hdrAlg);
+                        if (ret >= 0) {
+                            pkey->pkcs8HeaderSz = (word16)hdrIdx;
+                        }
+                    }
                 }
                 else {
                     /* The encoding is abandoned but keyBuf stays on the pkey,
@@ -10040,7 +10050,16 @@ static int ECC_populate_EVP_PKEY(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
                 derBuf = (byte*)XMALLOC((size_t)derSz, pkey->heap,
                     DYNAMIC_TYPE_OPENSSL);
                 if (derBuf) {
-                    if (wc_EccKeyToPKCS8(ecc, derBuf, &derSzOut) >= 0) {
+                    word32 hdrIdx = 0;
+                    word32 hdrAlg = 0;
+                    /* Encode key as PKCS#8. */
+                    if (wc_EccKeyToPKCS8(ecc, derBuf, &derSzOut) < 0) {
+                        XFREE(derBuf, pkey->heap, DYNAMIC_TYPE_OPENSSL);
+                        derBuf = NULL;
+                    }
+                    /* Locate the PKCS#8 header in the DER just built. */
+                    else if (ToTraditionalInline_ex(derBuf, &hdrIdx, derSzOut,
+                                 &hdrAlg) >= 0) {
                         derSz = (int)derSzOut;
                         if (pkey->pkey.ptr) {
                             /* The outgoing buffer can hold a private key
@@ -10054,10 +10073,12 @@ static int ECC_populate_EVP_PKEY(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
                         }
                         pkey->pkey_sz = (int)derSz;
                         pkey->pkey.ptr = (char*)derBuf;
-                        pkey->pkcs8HeaderSz = key->pkcs8HeaderSz;
+                        pkey->pkcs8HeaderSz = (word16)hdrIdx;
                         return WOLFSSL_SUCCESS;
                     }
                     else {
+                        /* The buffer can hold a private key encoding. */
+                        ForceZero(derBuf, (word32)derSz);
                         XFREE(derBuf, pkey->heap, DYNAMIC_TYPE_OPENSSL);
                         derBuf = NULL;
                     }
