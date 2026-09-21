@@ -2225,11 +2225,14 @@ int wolfSSL_CTX_SetMinVersion(WOLFSSL_CTX* ctx, int version)
 }
 
 
+/* Work out whether the version set by wolfSSL_SetVersion() is one pinned
+ * version or the top of a range. */
 static void RestoreDowngrade(WOLFSSL* ssl)
 {
     if (ssl->options.versionSet && ssl->ctx != NULL) {
-        if (ssl->options.failNoPSK) {
-            /* PSK requirement is TLS 1.3 only, so keep the version pinned */
+        if (ssl->options.failNoPSK || !ssl->options.minVersionSet) {
+            /* A PSK requirement is TLS 1.3 only, and with no minimum there is
+             * one version, so both keep the version pinned */
             ssl->options.downgrade = 0;
         }
         else {
@@ -5418,9 +5421,9 @@ int wolfSSL_set_min_proto_version(WOLFSSL* ssl, int version)
         }
     }
 
-    /* Version 0 picks the lowest, so the user set no minimum */
-    if (ret == WOLFSSL_SUCCESS && version != 0) {
-        ssl->options.minVersionSet = 1;
+    if (ret == WOLFSSL_SUCCESS) {
+        /* Version 0 picks the lowest, so the user set no minimum */
+        ssl->options.minVersionSet = (version != 0);
         RestoreDowngrade(ssl);
     }
 

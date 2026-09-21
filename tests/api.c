@@ -6606,6 +6606,36 @@ static int test_wolfSSL_SetVersion_auto_min(void)
     wolfSSL_CTX_free(ctx);
     ctx = NULL;
 
+    /* the SSL setter resets in the same way as the context one, so the same
+     * sequence ends in the same state whichever level it was done at */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_SetVersion(ssl, WOLFSSL_TLSV1_3), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_min_proto_version(ssl, TLS1_2_VERSION),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(ssl->options.minVersionSet, 1);
+    ExpectIntEQ(ssl->options.downgrade, 1);
+    ExpectIntEQ(wolfSSL_set_min_proto_version(ssl, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(ssl->options.minVersionSet, 0);
+    ExpectIntEQ(ssl->options.downgrade, 0);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+
+    /* a required PSK still wins over a minimum being set */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_require_psk(ssl), 0);
+    ExpectIntEQ(wolfSSL_SetVersion(ssl, WOLFSSL_TLSV1_3), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_min_proto_version(ssl, TLS1_2_VERSION),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(ssl->options.downgrade, 0);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+
     /* setting a maximum reapplies the minimum internally, which must not
      * disturb the flag */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
