@@ -2126,6 +2126,7 @@ static int test_mem_session_cache(void)
     int             ret = -1;
     int             mem_sz = 0;
     sess_cache_t *  cache_mem = NULL;
+    int             expected_mem_sz = 0;
     #ifndef NO_CLIENT_CACHE
     ClientRow *     c_rows = NULL;
     #endif /* !NO_CLIENT_CACHE */
@@ -2139,22 +2140,27 @@ static int test_mem_session_cache(void)
     test_rem_sess_cb_count = 0;
     #endif /* HAVE_EXT_CACHE || HAVE_EX_DATA */
 
-    /* get session cache size, and allocate scratch copy */
-    mem_sz = wolfSSL_get_session_cache_memsize();
-    if (mem_sz != sizeof(sess_cache_t)) {
-        WOLFSSL_MSG_EX("error: got mem_sz %d, expected %zu\n", mem_sz,
-                       sizeof(sess_cache_t));
-        return -1;
-    }
-
-    cache_mem = (sess_cache_t *)XMALLOC((size_t)mem_sz, NULL,
+    /* allocate scratch copy */
+    cache_mem = (sess_cache_t *)XMALLOC(sizeof(sess_cache_t), NULL,
                                         DYNAMIC_TYPE_TMP_BUFFER);
     if (cache_mem == NULL) {
         WOLFSSL_MSG_EX("error: xmalloc(%zu) failed", (size_t) mem_sz);
         return -1;
     }
-
     XMEMSET(cache_mem, 0, sizeof(sess_cache_t));
+
+    expected_mem_sz = (int)(sizeof(cache_mem->s_rows) + sizeof(cache_mem->hdr));
+    #ifndef NO_CLIENT_CACHE
+    expected_mem_sz += (int)sizeof(cache_mem->c_rows);
+    #endif /* NO_CLIENT_CACHE */
+
+    /* get session cache size, compare to expected result */
+    mem_sz = wolfSSL_get_session_cache_memsize();
+    if (mem_sz != expected_mem_sz) {
+        WOLFSSL_MSG_EX("error: got mem_sz %d, expected %zu\n", mem_sz,
+                       expected_mem_sz);
+        return -1;
+    }
 
     #ifndef NO_CLIENT_CACHE
     /* allocate scratch ClientCache */
@@ -2473,6 +2479,7 @@ static int test_file_session_cache(void)
 {
     int            ret = -1;
     int            mem_sz = 0;
+    int            expected_mem_sz = 0;
     sess_cache_t * cache_mem = NULL;
     const char *   fname = "tmp_test_session_cache.bin";
     #ifndef NO_CLIENT_CACHE
@@ -2488,18 +2495,25 @@ static int test_file_session_cache(void)
     test_rem_sess_cb_count = 0;
     #endif /* HAVE_EXT_CACHE || HAVE_EX_DATA */
 
-    /* get session cache size, and allocate scratch copy */
-    mem_sz = wolfSSL_get_session_cache_memsize();
-    if (mem_sz != sizeof(sess_cache_t)) {
-        WOLFSSL_MSG_EX("error: got mem_sz %d, expected %zu\n", mem_sz,
-                       sizeof(sess_cache_t));
-        return -1;
-    }
-
-    cache_mem = (sess_cache_t *)XMALLOC((size_t)mem_sz, NULL,
+    /* allocate scratch copy */
+    cache_mem = (sess_cache_t *)XMALLOC(sizeof(sess_cache_t), NULL,
                                         DYNAMIC_TYPE_TMP_BUFFER);
     if (cache_mem == NULL) {
         WOLFSSL_MSG_EX("error: xmalloc(%zu) failed", (size_t) mem_sz);
+        return -1;
+    }
+    XMEMSET(cache_mem, 0, sizeof(sess_cache_t));
+
+    expected_mem_sz = (int)(sizeof(cache_mem->s_rows) + sizeof(cache_mem->hdr));
+    #ifndef NO_CLIENT_CACHE
+    expected_mem_sz += (int)sizeof(cache_mem->c_rows);
+    #endif /* NO_CLIENT_CACHE */
+
+    /* get session cache size, compare to expected result */
+    mem_sz = wolfSSL_get_session_cache_memsize();
+    if (mem_sz != expected_mem_sz) {
+        WOLFSSL_MSG_EX("error: got mem_sz %d, expected %zu\n", mem_sz,
+                       expected_mem_sz);
         return -1;
     }
 
