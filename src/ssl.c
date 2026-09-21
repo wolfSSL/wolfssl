@@ -2225,12 +2225,18 @@ int wolfSSL_CTX_SetMinVersion(WOLFSSL_CTX* ctx, int version)
 }
 
 
-/* A minimum version turns a single pinned version back into a range, so the
- * method's downgrade setting applies again. */
 static void RestoreDowngrade(WOLFSSL* ssl)
 {
-    if (ssl->options.versionSet && ssl->ctx != NULL)
-        ssl->options.downgrade = (word16)(ssl->ctx->method->downgrade);
+    if (ssl->options.versionSet && ssl->ctx != NULL) {
+        if (ssl->options.failNoPSK) {
+            /* PSK requirement is TLS 1.3 only, so keep the version pinned */
+            ssl->options.downgrade = 0;
+        }
+        else {
+            /* Set the connection's downgrade option to the context's default */
+            ssl->options.downgrade = (word16)(ssl->ctx->method->downgrade);
+        }
+    }
 }
 
 /* Set minimum downgrade version allowed, WOLFSSL_SUCCESS on ok */
