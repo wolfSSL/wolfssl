@@ -91,6 +91,12 @@
   `--disable-memory --enable-falcon` failed to link.  They now live in
   `wc_port.c`, which is always compiled, and their declarations moved from
   `memory.h` to `wc_port.h`.  No caller change and no ABI change.
+* **Fix (`WOLFSSL_NO_FORCE_ZERO` auto-defined for BLAKE2 and Argon2)**: the
+  `settings.h` heuristic that defines it for very small `WOLFCRYPT_ONLY`
+  configurations did not exclude BLAKE2 or Argon2, which call `ForceZero()`,
+  so those builds failed to link unless the integrator supplied one.  BLAKE2
+  also drops the static `secure_zero_memory()` from the installed
+  `blake2-impl.h`; callers of that helper should use `wc_ForceZero()`.
 
 # wolfSSL Release 5.9.4 (Sep 25, 2026)
 
