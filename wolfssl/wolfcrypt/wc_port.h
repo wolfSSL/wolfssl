@@ -2055,19 +2055,37 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #endif
 #endif
 
+/* NOLINTBEGIN(bugprone-macro-parentheses) */
 /* IAR/KEIL are checked before WOLF_C99: both accept -std=c99, but neither
  * spells inline asm __asm__.  Both get __asm; IAR also has asm(), but only
  * __asm survives --strict. */
 #if defined(__IAR_SYSTEMS_ICC__)
+    /* IAR's __asm() accepts a GNU-style clobber list. */
     #define XASM_VOLATILE(a) __asm volatile(a)
 #elif defined(__KEIL__)
+    /* KEIL's __asm() accepts a "memory" clobber. */
     #define XASM_VOLATILE(a) __asm volatile(a)
 #elif defined(WOLF_C99)
     /* use alternate keyword for compatibility with -std=c99 */
     #define XASM_VOLATILE(a) __asm__ volatile(a)
 #else
+    /* GNU extended-asm syntax supports clobber list. */
     #define XASM_VOLATILE(a) __asm__ __volatile__(a)
 #endif
+
+/* XASM_VOLATILE() + a "memory" clobber: orders the code generator as well as
+ * the CPU.  Extended asm templates are scanned for operand substitution, so
+ * all in-tree XFENCE() strings must be percent-free.
+ *
+ * Porting hook: define XASM_VOLATILE_NO_CLOBBER if your assembler dialect
+ * rejects a clobber list.  Doing so drops the code-generator ordering, so
+ * supply your own XFENCE() or WC_BARRIER_DATA() if you need it back. */
+#ifdef XASM_VOLATILE_NO_CLOBBER
+    #define XASM_VOLATILE_MB(a) XASM_VOLATILE(a)
+#else
+    #define XASM_VOLATILE_MB(a) XASM_VOLATILE(a ::: "memory")
+#endif
+/* NOLINTEND(bugprone-macro-parentheses) */
 
 #ifndef WOLFSSL_NO_FENCE
     #ifdef XFENCE
@@ -2088,33 +2106,37 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #elif defined(WOLFSSL_NO_ASM)
         #define XFENCE() WC_DO_NOTHING
     #elif defined (__i386__) || defined(__x86_64__)
-        #define XFENCE() XASM_VOLATILE("lfence")
+        #define XFENCE() XASM_VOLATILE_MB("lfence")
     #elif defined (__arm__) && (__ARM_ARCH > 6)
-        #define XFENCE() XASM_VOLATILE("isb")
+        #define XFENCE() XASM_VOLATILE_MB("isb")
     #elif defined(_MSC_VER) && defined(_M_ARM64)
-        /* MSVC on ARM64 has no __asm__; use the ISB intrinsic barrier. */
+        /* MSVC on ARM64 has no __asm__.  __isb() is a hardware-only fence
+         * with no compiler-barrier semantics of its own, so bracket it with
+         * _ReadWriteBarrier() to match the clobber the asm arms get. */
         #include <intrin.h>
-        #define XFENCE() __isb(_ARM64_BARRIER_SY)
+        #define XFENCE() do { _ReadWriteBarrier();             \
+                              __isb(_ARM64_BARRIER_SY);        \
+                              _ReadWriteBarrier(); } while (0)
     #elif defined(__aarch64__)
         /* Change ".inst 0xd50330ff" to "sb" when compilers support it. */
         #ifdef WOLFSSL_ARMASM_BARRIER_SB
-            #define XFENCE() XASM_VOLATILE(".inst 0xd50330ff")
+            #define XFENCE() XASM_VOLATILE_MB(".inst 0xd50330ff")
         #elif defined(WOLFSSL_ARMASM_BARRIER_DETECT)
             extern int aarch64_use_sb;
             #define XFENCE()                                \
                 do {                                        \
                     if (aarch64_use_sb)                     \
-                        XASM_VOLATILE(".inst 0xd50330ff");  \
+                        XASM_VOLATILE_MB(".inst 0xd50330ff");  \
                     else                                    \
-                        XASM_VOLATILE("isb");               \
+                        XASM_VOLATILE_MB("isb");               \
                 } while (0)
         #else
-            #define XFENCE() XASM_VOLATILE("isb")
+            #define XFENCE() XASM_VOLATILE_MB("isb")
         #endif
     #elif defined(__riscv)
-        #define XFENCE() XASM_VOLATILE("fence")
+        #define XFENCE() XASM_VOLATILE_MB("fence")
     #elif defined(__PPC__) || defined(__POWERPC__)
-        #define XFENCE() XASM_VOLATILE("isync; sync")
+        #define XFENCE() XASM_VOLATILE_MB("isync; sync")
     #else
         #define XFENCE() WC_DO_NOTHING
     #endif
