@@ -156,9 +156,11 @@ typedef word32 cpuid_flags_t;
     #define CPUID_ASIMD       0x0200    /* ASIMD - NEON */
     #define CPUID_SVE         0x0400    /* Scalable Vector Extension */
     #define CPUID_SME         0x0800    /* Scalable Matrix Extension */
+    #define CPUID_SHA1        0x1000    /* SHA-1 digest */
 
     #define IS_AARCH64_AES(f)     (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AES)
     #define IS_AARCH64_PMULL(f)   (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_PMULL)
+    #define IS_AARCH64_SHA1(f)    (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_SHA1)
     #define IS_AARCH64_SHA256(f)  (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_SHA256)
     #define IS_AARCH64_SHA512(f)  (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_SHA512)
     #define IS_AARCH64_RDM(f)     (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_RDM)

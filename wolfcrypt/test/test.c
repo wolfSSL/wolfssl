@@ -5576,6 +5576,49 @@ exit:
 }
 #endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS_VERSION_GE(7, 0)) */
 
+#if !defined(NO_SHA) && defined(WOLFSSL_ARMASM) && defined(__aarch64__)
+#include <wolfssl/wolfcrypt/cpuid.h>
+#ifdef HAVE_CPUID_AARCH64
+#define WC_TEST_SHA_ARMASM_VARIANTS
+
+/* Run the SHA-1 known-answer tests against each AArch64 block transform.
+ *
+ * wc_InitSha_ex() picks the transform from the CPU id every time, so narrowing
+ * the id with cpuid_select_flags() reaches the implementations this CPU would
+ * not otherwise choose: without CPUID_SHA1 the NEON one, and without
+ * CPUID_ASIMD as well the base one - or the C fallback, when the build left
+ * the base implementation out.  Without this, every machine with the Armv8
+ * crypto extension - which is every machine CI runs on - would only ever
+ * exercise Transform_Sha_Len_crypto, and a fault in the other two would ship
+ * undetected on exactly the parts that need them.
+ *
+ * The id is put back with WC_CPUID_INITIALIZER, its "not yet detected" value,
+ * so the next read runs detection against the real CPU again.  Only SHA-1 is
+ * exercised while the id is narrowed, so no other algorithm can latch a
+ * selection made from it. */
+static wc_test_ret_t sha_armasm_variant_test(wc_Sha* sha, wc_Sha* shaCopy)
+{
+    static const cpuid_flags_t variant[] = {
+        (cpuid_flags_t)CPUID_ASIMD, /* no SHA-1: NEON, else base */
+        (cpuid_flags_t)0            /* no SIMD:   base, else C fallback */
+    };
+    wc_test_ret_t ret = 0;
+    size_t i;
+
+    for (i = 0; i < sizeof(variant) / sizeof(variant[0]); i++) {
+        cpuid_select_flags(variant[i]);
+        ret = sha_kat_test(sha, shaCopy);
+        if (ret != 0)
+            break;
+    }
+
+    cpuid_select_flags((cpuid_flags_t)WC_CPUID_INITIALIZER);
+
+    return ret;
+}
+#endif /* HAVE_CPUID_AARCH64 */
+#endif /* !NO_SHA && WOLFSSL_ARMASM && __aarch64__ */
+
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha_test(void)
 {
     wc_Sha sha, shaCopy;
@@ -5589,6 +5632,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha_test(void)
 #endif
 #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7, 0))
     if ((ret = sha_copy_test(&sha, &shaCopy)) != 0)
+        return ret;
+#endif
+#ifdef WC_TEST_SHA_ARMASM_VARIANTS
+    if ((ret = sha_armasm_variant_test(&sha, &shaCopy)) != 0)
         return ret;
 #endif
     return 0;

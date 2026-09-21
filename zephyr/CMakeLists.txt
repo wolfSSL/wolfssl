@@ -158,6 +158,11 @@ if(CONFIG_WOLFSSL)
         # curve25519 is the one port whose file has no "-asm" infix.
         zephyr_library_sources(
           ${WOLF_ARM_ASM_DIR}/${WOLF_ARM_ASM_PREFIX}-curve25519_c.c)
+        # SHA-1 has an AArch64 port only, so it cannot join the loop above -
+        # there is no thumb2-sha1-asm_c.c or armv8-32-sha1-asm_c.c.
+        if(CONFIG_ARM64)
+          zephyr_library_sources(${WOLF_ARM_ASM_DIR}/armv8-sha1-asm_c.c)
+        endif()
       elseif(CONFIG_X86_64)
         # fe_x25519_asm.S, wc_mlkem_asm.S and wc_mldsa_asm.S are here because
         # curve25519.c, wc_mlkem_poly.c and wc_mldsa.c all take the Intel path
