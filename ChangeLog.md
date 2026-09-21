@@ -254,6 +254,7 @@
   through `WOLFSSL_SS_SERVER_CHANGECIPHERSPEC` or
   `WOLFSSL_SS_CLIENT_CHANGECIPHERSPEC` on a TLS 1.3 connection.
 
+
 * **API (new internal symbol `wc_BarrierDataSink()`)**: exists only on the
   portable `WC_BARRIER_DATA()` arm - every compiler without `__GNUC__` (MSVC,
   IAR, Keil armcc5, most embedded toolchains) and GCC or clang with
@@ -449,6 +450,13 @@
   affected too; GCC and clang without `WOLFSSL_NO_ASM` were not.  That arm no
   longer emits `XFENCE()` (two `__isb()` per `ForceZero()` on MSVC ARM64), so
   callers needing cross-thread ordering must call it themselves.
+
+* **Fix (`wc_ForceZero()`/`wc_ConstantCompare()` undefined without
+  `memory.c`)**: both lived in `memory.c`, which `--disable-memory`,
+  `--enable-leanpsk` and `--enable-leantls` all exclude, so for example
+  `--disable-memory --enable-falcon` failed to link.  They now live in
+  `wc_port.c`, which is always compiled, and their declarations moved from
+  `memory.h` to `wc_port.h`.  No caller change and no ABI change.
 
 # wolfSSL Release 5.9.2 (Jun 23, 2026)
 

@@ -44,6 +44,10 @@
 
 
 /* GENERIC INCLUDE SECTION */
+#ifndef NO_STDDEF_H
+    #include <stddef.h> /* for size_t, used by wc_ForceZero() below */
+#endif
+
 #if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
     #include <mqx.h>
     #if (defined(MQX_USE_IO_OLD) && MQX_USE_IO_OLD) || \
@@ -2158,6 +2162,21 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
      */
     #define WC_BARRIER() do { volatile byte _xfence = 0; (void)_xfence; XFENCE(); \
         } while(0)
+#endif
+
+/* Defined in wc_port.c. */
+#ifndef WOLFSSL_NO_FORCE_ZERO
+/* Zero len bytes at mem. mem may be NULL when len is 0. */
+WOLFSSL_API void wc_ForceZero(void *mem, size_t len);
+#endif
+
+#ifndef WOLFSSL_NO_CONST_CMP
+/* Compare length bytes of a and b in constant time.  Returns 0 when equal,
+ * positive otherwise.  A length of 0 or less compares nothing and returns 0,
+ * so callers must validate length before reading 0 as "equal".
+ * unsigned char: byte is not yet typedef'd when this header is included. */
+WOLFSSL_API int wc_ConstantCompare(const unsigned char* a,
+    const unsigned char* b, int length);
 #endif
 
 /* Compiler barrier that also treats the memory at p as read, so a wipe of
