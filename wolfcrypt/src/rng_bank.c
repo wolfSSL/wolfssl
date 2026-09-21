@@ -42,12 +42,6 @@
     static int wc_RNG_DRBG_Reseed_Nonce(WC_RNG* rng, const byte* seed,
                                         word32 seedSz, const byte *nonce,
                                         word32 nonceSz);
-    #if FIPS_VERSION3_NE(5,2,4)
-    static int wc_RNG_DRBG_Reseed_Now(
-        WC_RNG* rng, const byte* nonce, word32 nonceSz);
-    static int wc_RNG_DRBG_GetReseedCtr(
-        const WC_RNG* rng, wc_drbg_reseed_ctr_t* reseedCtr);
-    #endif
     static int wc_RNG_DRBG_Stir_Nonce(
         WC_RNG* rng, const byte* seed, word32 seedSz, const byte *nonce,
         word32 nonceSz);
@@ -58,6 +52,8 @@
     #define WC_DRBG_NOT_INIT 0
     #undef WC_DRBG_OK
     #define WC_DRBG_OK 1
+    #undef WC_DRBG_FAILED
+    #define WC_DRBG_FAILED 2
 #endif /* HAVE_FIPS && FIPS_VERSION3_LT(7,0,0) */
 
 /* DRBG status and reseed-counter access, and reseed forcing, are via the
@@ -3231,7 +3227,7 @@ static int wc_RNG_DRBG_Reseed_Nonce(
 }
 
 #if FIPS_VERSION3_NE(5,2,4)
-static int wc_RNG_DRBG_GetReseedCtr(
+WOLFSSL_TEST_VIS int wc_RNG_DRBG_GetReseedCtr(
     const WC_RNG* rng, wc_drbg_reseed_ctr_t* reseedCtr)
 {
     if ((rng == NULL) || (reseedCtr == NULL))
@@ -3300,7 +3296,7 @@ WOLFSSL_TEST_VIS int wc_RNG_DRBG_Stir(
     return wc_RNG_DRBG_Stir_Nonce(rng, seed, seedSz, NULL, 0);
 }
 
-static int wc_RNG_DRBG_Reseed_Now(
+WOLFSSL_TEST_VIS int wc_RNG_DRBG_Reseed_Now(
     WC_RNG* rng, const byte* nonce, word32 nonceSz)
 {
     wc_drbg_reseed_ctr_t saved_ctr;

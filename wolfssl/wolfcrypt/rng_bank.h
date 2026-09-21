@@ -491,6 +491,8 @@ WOLFSSL_API int wc_rng_new_bankref(struct wc_rng_bank *bank, WC_RNG **rng);
         #else
         typedef word32 wc_drbg_reseed_ctr_t;
         #endif
+        wc_static_assert(sizeof(wc_drbg_reseed_ctr_t) ==
+                         sizeof(((struct DRBG_internal *)NULL)->reseedCtr));
     #endif
 
     #define wc_InitRngRBGC(leaf, root, flags) \
@@ -504,6 +506,12 @@ WOLFSSL_API int wc_rng_new_bankref(struct wc_rng_bank *bank, WC_RNG **rng);
                                                 word32 flags);
     WOLFSSL_TEST_VIS int wc_InitRngRBGC_New(WC_RNG** leaf, WC_RNG* root, word32 flags);
     WOLFSSL_TEST_VIS int wc_RNG_DRBG_ScheduleReseed(WC_RNG* rng);
+    #if FIPS_VERSION3_NE(5,2,4)
+    WOLFSSL_TEST_VIS int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* nonce,
+                                                word32 nonceSz);
+    WOLFSSL_TEST_VIS int wc_RNG_DRBG_GetReseedCtr(const WC_RNG* rng,
+                                                  wc_drbg_reseed_ctr_t* reseedCtr);
+    #endif
 #endif /* HAVE_FIPS && FIPS_VERSION3_LT(7,0,0) */
 
 #ifdef WC_RNG_DEBUG_STATS
