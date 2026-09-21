@@ -1,5 +1,12 @@
 # wolfSSL Release (unreleased)
 
+## Behavioral Changes
+
+* **API (`XFENCE()` now clobbers `"memory"`)**: every inline-asm arm appends a
+  `"memory"` clobber.  Define `XASM_VOLATILE_NO_CLOBBER` if your toolchain
+  rejects a clobber list.  A user-supplied `XFENCE()` is unaffected.  Note the
+  clobber makes this extended asm, so a `%` in a template must be written `%%`.
+
 ## Post-Quantum Cryptography (PQC)
 
 * Added opt-in per-key Falcon signing caches (`--enable-falcon=cache-key`, `cache-basis`), roughly doubling signing speed with the default integer fpr backend. by @Frauschi
