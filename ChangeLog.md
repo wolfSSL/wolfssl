@@ -38,6 +38,12 @@
   affected too; GCC and clang without `WOLFSSL_NO_ASM` were not.  That arm no
   longer emits `XFENCE()` (two `__isb()` per `ForceZero()` on MSVC ARM64), so
   callers needing cross-thread ordering must call it themselves.
+* **Fix (`wc_ForceZero()`/`wc_ConstantCompare()` undefined without
+  `memory.c`)**: both lived in `memory.c`, which `--disable-memory`,
+  `--enable-leanpsk` and `--enable-leantls` all exclude, so for example
+  `--disable-memory --enable-falcon` failed to link.  They now live in
+  `wc_port.c`, which is always compiled, and their declarations moved from
+  `memory.h` to `wc_port.h`.  No caller change and no ABI change.
 
 # wolfSSL Release 5.9.4 (Sep 25, 2026)
 
