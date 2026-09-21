@@ -245,18 +245,16 @@ int wolfSSL_X509_STORE_CTX_init(WOLFSSL_X509_STORE_CTX* ctx,
                 WOLFSSL_MSG("wolfSSL_X509_STORE_CTX_init failed");
                 return WOLFSSL_FAILURE;
             }
-            XMEMSET(ctx->param, 0, sizeof(*ctx->param));
         }
+        XMEMSET(ctx->param, 0, sizeof(*ctx->param));
 
-        /* Copy check_time from store parameters if available */
+        /* Inherit the store's parameters, including the hostname / IP the
+         * caller expects the peer to present. */
         if (store != NULL && store->param != NULL) {
-            if ((store->param->flags & WOLFSSL_USE_CHECK_TIME) != 0 &&
-                store->param->check_time != 0) {
-                ctx->param->check_time = store->param->check_time;
-                ctx->param->flags |= WOLFSSL_USE_CHECK_TIME;
-            }
-            if ((store->param->flags & WOLFSSL_NO_CHECK_TIME) != 0) {
-                ctx->param->flags |= WOLFSSL_NO_CHECK_TIME;
+            if (wolfSSL_X509_VERIFY_PARAM_set1(ctx->param, store->param)
+                    != WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("wolfSSL_X509_STORE_CTX_init failed");
+                return WOLFSSL_FAILURE;
             }
         }
 
