@@ -843,7 +843,8 @@ int wc_MlDsaKey_ImportKey(wc_MlDsaKey* key, const byte* priv, word32 privSz,
     size of out; on success it is updated to the bytes written.
 
     \return 0 on success.
-    \return BAD_FUNC_ARG if any required pointer is NULL.
+    \return BAD_FUNC_ARG if any required pointer is NULL, or the public
+    key is not set.
     \return BUFFER_E if *outLen is smaller than the public key size.
 
     \param [in] key Pointer to a wc_MlDsaKey with a public key.
@@ -851,6 +852,7 @@ int wc_MlDsaKey_ImportKey(wc_MlDsaKey* key, const byte* priv, word32 privSz,
     \param [in,out] outLen In: size of out. Out: bytes written.
 
     \sa wc_MlDsaKey_ImportPubRaw
+    \sa wc_MlDsaKey_MakePublicKey
 */
 int wc_MlDsaKey_ExportPubRaw(wc_MlDsaKey* key, byte* out, word32* outLen);
 
@@ -904,6 +906,9 @@ int wc_MlDsaKey_ExportKey(wc_MlDsaKey* key, byte* priv, word32 *privSz,
 
     Only available when WOLFSSL_MLDSA_NO_ASN1 is not defined.
 
+    A private-only encoding leaves the public key unset; derive it with
+    wc_MlDsaKey_MakePublicKey() before exporting.
+
     \return 0 on success.
     \return BAD_FUNC_ARG if any required pointer is NULL.
     \return ASN_PARSE_E on malformed encoding.
@@ -916,6 +921,7 @@ int wc_MlDsaKey_ExportKey(wc_MlDsaKey* key, byte* priv, word32 *privSz,
 
     \sa wc_MlDsaKey_PrivateKeyToDer
     \sa wc_MlDsaKey_PublicKeyDecode
+    \sa wc_MlDsaKey_MakePublicKey
 */
 int wc_MlDsaKey_PrivateKeyDecode(wc_MlDsaKey* key, const byte* input,
     word32 inSz, word32* inOutIdx);
@@ -954,8 +960,8 @@ int wc_MlDsaKey_PublicKeyDecode(wc_MlDsaKey* key, const byte* input,
     Pass NULL as output to query the required buffer size.
 
     \return Size of the encoded DER in bytes on success.
-    \return BAD_FUNC_ARG if key is NULL or no parameter set is
-    selected.
+    \return BAD_FUNC_ARG if key is NULL, no parameter set is selected,
+    or the public key is not set.
     \return BUFFER_E if output is non-NULL and inLen is smaller than
     the required size.
 
@@ -968,6 +974,7 @@ int wc_MlDsaKey_PublicKeyDecode(wc_MlDsaKey* key, const byte* input,
 
     \sa wc_MlDsaKey_PublicKeyDecode
     \sa wc_MlDsaKey_KeyToDer
+    \sa wc_MlDsaKey_MakePublicKey
 */
 int wc_MlDsaKey_PublicKeyToDer(wc_MlDsaKey* key, byte* output,
     word32 inLen, int withAlg);
@@ -980,9 +987,8 @@ int wc_MlDsaKey_PublicKeyToDer(wc_MlDsaKey* key, byte* output,
     the required buffer size.
 
     \return Size of the encoded DER in bytes on success.
-    \return BAD_FUNC_ARG if key is NULL or no parameter set is
-    selected.
-    \return MISSING_KEY if the private key has not been set.
+    \return BAD_FUNC_ARG if key is NULL, no parameter set is selected,
+    the private key has not been set, or the public key is not set.
     \return BUFFER_E if output is non-NULL and inLen is too small.
 
     \param [in] key Pointer to a wc_MlDsaKey with the private key.
@@ -993,6 +999,7 @@ int wc_MlDsaKey_PublicKeyToDer(wc_MlDsaKey* key, byte* output,
     \sa wc_MlDsaKey_PrivateKeyDecode
     \sa wc_MlDsaKey_PrivateKeyToDer
     \sa wc_MlDsaKey_PublicKeyToDer
+    \sa wc_MlDsaKey_MakePublicKey
 */
 int wc_MlDsaKey_KeyToDer(wc_MlDsaKey* key, byte* output, word32 inLen);
 

@@ -13375,7 +13375,8 @@ int wc_MlDsaKey_CheckKey(wc_MlDsaKey* key)
  * @param [in, out] outLen  On in, the number of bytes in array.
  *                          On out, the number bytes put into array.
  * @return  0 on success.
- * @return  BAD_FUNC_ARG when a parameter is NULL.
+ * @return  BAD_FUNC_ARG when a parameter is NULL, or when the public key is
+ *          not set.
  * @return  BUFFER_E when outLen is less than WC_MLDSA_44_PUB_KEY_SIZE.
  */
 int wc_MlDsaKey_ExportPubRaw(wc_MlDsaKey* key, byte* out, word32* outLen)
@@ -14629,7 +14630,7 @@ int wc_MlDsaKey_PublicKeyDecode(wc_MlDsaKey* key, const byte* input,
  * @param [in]  len      Size of buffer in bytes.
  * @param [in]  withAlg  Whether to use SubjectPublicKeyInfo format.
  * @return  Size of encoded data in bytes on success.
- * @return  BAD_FUNC_ARG when key is NULL.
+ * @return  BAD_FUNC_ARG when key is NULL, or when the public key is not set.
  * @return  MEMORY_E when dynamic memory allocation failed.
  */
 int wc_MlDsaKey_PublicKeyToDer(wc_MlDsaKey* key, byte* output, word32 len,
@@ -14712,7 +14713,8 @@ int wc_MlDsaKey_PublicKeyToDer(wc_MlDsaKey* key, byte* output, word32 len,
  * @param [out] output  Buffer to put encoded data in.
  * @param [in]  len     Size of buffer in bytes.
  * @return  Size of encoded data in bytes on success.
- * @return  BAD_FUNC_ARG when key is NULL.
+ * @return  BAD_FUNC_ARG when key is NULL, or when the public or private key
+ *          is not set.
  * @return  MEMORY_E when dynamic memory allocation failed.
  */
 int wc_MlDsaKey_KeyToDer(wc_MlDsaKey* key, byte* output, word32 len)
