@@ -2568,10 +2568,19 @@ int wolfSSL_X509_CRL_add_revoked(WOLFSSL_X509_CRL* crl,
     }
 
     {
-        const byte* serial = rev->serialNumber->data;
-        int serialSz = rev->serialNumber->length;
+        const byte* serial;
+        word32 serialIdx = 0;
+        int serialSz = 0;
         int i;
         int allZero = 1;
+
+        /* Take the value octets whichever layout the object records. A
+         * caller-built revoked entry may hold either. */
+        if (wolfssl_asn1_integer_value(rev->serialNumber, &serialIdx,
+                &serialSz) != 1) {
+            return BAD_FUNC_ARG;
+        }
+        serial = rev->serialNumber->data + serialIdx;
 
         if (serial == NULL || serialSz <= 0) {
             return BAD_FUNC_ARG;
@@ -2711,6 +2720,8 @@ int wolfSSL_X509_CRL_add_revoked_cert(WOLFSSL_X509_CRL* crl,
 
     XMEMCPY(serialInt->data, cert->serial, cert->serialSz);
     serialInt->length = cert->serialSz;
+    /* The certificate's serial is the value, with no DER tag or length. */
+    serialInt->dataIsRaw = 1;
 
     XMEMSET(&revoked, 0, sizeof(revoked));
     revoked.serialNumber = serialInt;

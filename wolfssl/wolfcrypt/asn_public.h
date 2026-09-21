@@ -347,8 +347,20 @@ typedef struct WOLFSSL_ASN1_INTEGER {
     unsigned char* data;
     unsigned int   dataMax;   /* max size of data buffer */
     WC_BITFIELD    isDynamic:1; /* flag for if data pointer dynamic (1 is yes 0 is no) */
+    /* How data is laid out: the value octets on their own when 1, a DER
+     * INTEGER - tag, length then value - when 0. Set by whoever fills the
+     * object in; the value octets must never be inspected to work it out,
+     * because a value may legitimately be byte-identical to a DER INTEGER
+     * encoding.
+     *
+     * Zero - and so a zero-filled object - means DER, which is what the
+     * intData comment above describes and what every producer here writes.
+     * The exceptions set it: X509_CRL_get_REVOKED() serial numbers, and
+     * X509_get_serialNumber() under WOLFSSL_QT or WOLFSSL_HAPROXY. */
+    WC_BITFIELD    dataIsRaw:1;
 
-    int length;   /* Length of DER encoding. */
+    int length;   /* Length of data: of the value octets when dataIsRaw is set,
+                   * of the DER encoding when it is not. */
     int type;     /* ASN.1 type. Includes negative flag. */
 } WOLFSSL_ASN1_INTEGER;
 
