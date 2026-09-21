@@ -420,6 +420,11 @@
   the certificate type extensions, and more generally any malformed handshake
   message reported with `BUFFER_E`.
 
+* **Fix (`XASM_VOLATILE()` on IAR and KEIL in C99 mode)**: the `WOLF_C99` arm
+  was checked first and handed both compilers `__asm__`, which their assembler
+  dialects reject.  IAR and KEIL are now checked first, and both get `__asm`,
+  the spelling IAR keeps available under `--strict`.
+
 # wolfSSL Release 5.9.2 (Jun 23, 2026)
 
 Release 5.9.2 has been developed according to wolfSSL's development and QA
