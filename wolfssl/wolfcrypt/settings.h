@@ -5111,7 +5111,12 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     !defined(WOLFSSL_SHA512) && defined(WC_NO_RNG) && \
     !defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL) \
     && !defined(USE_FAST_MATH) && defined(NO_SHA256) && \
+    !defined(HAVE_ARGON2) && !defined(HAVE_BLAKE2) && \
+    !defined(HAVE_BLAKE2B) && !defined(HAVE_BLAKE2S) && \
     !defined(WOLFSSL_USE_FORCE_ZERO)
+    /* BLAKE2 burns its key block with ForceZero(), so it must not have the
+     * definition taken away by this heuristic.  HAVE_ARGON2 counts too: it
+     * implies HAVE_BLAKE2B, but only further down in this file. */
     #undef  WOLFSSL_NO_FORCE_ZERO
     #define WOLFSSL_NO_FORCE_ZERO
 #endif
