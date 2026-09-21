@@ -44,6 +44,10 @@
 
 
 /* GENERIC INCLUDE SECTION */
+#ifndef NO_STDDEF_H
+    #include <stddef.h> /* for size_t */
+#endif
+
 #if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
     #include <mqx.h>
     #if (defined(MQX_USE_IO_OLD) && MQX_USE_IO_OLD) || \
@@ -2041,7 +2045,6 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 
 #if (!defined(WOLFSSL_LEANPSK) && !defined(STRING_USER)) || \
     defined(USE_WOLF_STRNSTR)
-    /* size_t comes from the <stddef.h> at the top of this file. */
     WOLFSSL_TEST_VIS char* wolfSSL_strnstr(const char* s1, const char* s2, size_t n);
 #endif
 
@@ -2161,6 +2164,26 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
      */
     #define WC_BARRIER() do { volatile byte _xfence = 0; (void)_xfence; XFENCE(); \
         } while(0)
+#endif
+
+/* Defined in wc_port.c. */
+#ifdef WOLFSSL_NO_FORCE_ZERO
+    /* The application supplies ForceZero(); wc_ForceZero() maps onto it.
+     * Same tokens as misc.h. */
+    /* NOLINTNEXTLINE(readability-redundant-declaration) */
+    void ForceZero(void* mem, size_t len);
+    #undef wc_ForceZero
+    #define wc_ForceZero ForceZero
+#else
+    /* Zero len bytes at mem. mem may be NULL when len is 0. */
+    /* NOLINTNEXTLINE(readability-redundant-declaration) */
+    WOLFSSL_API void wc_ForceZero(void *mem, size_t len);
+#endif
+
+#if !defined(WOLFSSL_NO_CONST_CMP) && !defined(WC_NO_CONST_CMP_API)
+/* unsigned char: byte is not typedef'd yet. */
+WOLFSSL_API int wc_ConstantCompare(const unsigned char* a,
+    const unsigned char* b, int length);
 #endif
 
 /* Compiler barrier that also treats the memory at ptr as read, so a wipe of

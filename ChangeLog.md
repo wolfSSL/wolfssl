@@ -174,6 +174,11 @@
   now list `WOLFSSL_CRYPTOCELL` alongside the other ports that replace the
   software curve arithmetic.
 
+* **Fix (`wc_ForceZero()`/`wc_ConstantCompare()` undefined without
+  `memory.c`)**: `--disable-memory`, `--enable-leanpsk` and `--enable-leantls`
+  builds could not link them.  Both moved to `wc_port.c`, declared in
+  `wc_port.h`.  No ABI change.
+
 ## Fixes
 
 * ML-KEM and ML-DSA now keep the key's device id on their internal SHAKE hashing, so a registered crypto callback sees the SHAKE-256 Update and Final calls. by @Frauschi (PR 11544)
