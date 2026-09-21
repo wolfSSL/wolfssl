@@ -254,6 +254,10 @@
   through `WOLFSSL_SS_SERVER_CHANGECIPHERSPEC` or
   `WOLFSSL_SS_CLIENT_CHANGECIPHERSPEC` on a TLS 1.3 connection.
 
+* **API (`aarch64_use_sb` renamed to `wc_aarch64_use_sb`)**: an implementation
+  detail of `XFENCE()` under `WOLFSSL_ARMASM_BARRIER_DETECT`.  Affects only code
+  that names the symbol directly.
+
 * **API (`XFENCE()` now clobbers `"memory"`)**: every inline-asm arm appends a
   `"memory"` clobber.  Define `XASM_VOLATILE_NO_CLOBBER` if your toolchain
   rejects a clobber list.  A user-supplied `XFENCE()` is unaffected.  Note the

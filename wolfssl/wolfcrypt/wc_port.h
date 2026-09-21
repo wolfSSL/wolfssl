@@ -2087,6 +2087,12 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 #endif
 /* NOLINTEND(bugprone-macro-parentheses) */
 
+#if defined(__aarch64__) && defined(WOLFSSL_ARMASM_BARRIER_DETECT)
+    /* Implementation detail of XFENCE() under BARRIER_DETECT.  Plain
+     * WOLFSSL_API: application TUs that expand XFENCE() read it. */
+    WOLFSSL_API extern int wc_aarch64_use_sb;
+#endif
+
 #ifndef WOLFSSL_NO_FENCE
     #ifdef XFENCE
         /* use user-supplied XFENCE definition. */
@@ -2122,13 +2128,13 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
         #ifdef WOLFSSL_ARMASM_BARRIER_SB
             #define XFENCE() XASM_VOLATILE_MB(".inst 0xd50330ff")
         #elif defined(WOLFSSL_ARMASM_BARRIER_DETECT)
-            extern int aarch64_use_sb;
-            #define XFENCE()                                \
-                do {                                        \
-                    if (aarch64_use_sb)                     \
-                        XASM_VOLATILE_MB(".inst 0xd50330ff");  \
-                    else                                    \
-                        XASM_VOLATILE_MB("isb");               \
+            /* wc_aarch64_use_sb is declared above. */
+            #define XFENCE()                                        \
+                do {                                                \
+                    if (wc_aarch64_use_sb)                          \
+                        XASM_VOLATILE_MB(".inst 0xd50330ff");       \
+                    else                                            \
+                        XASM_VOLATILE_MB("isb");                    \
                 } while (0)
         #else
             #define XFENCE() XASM_VOLATILE_MB("isb")

@@ -427,7 +427,7 @@ int wc_local_InitDownDone(wc_init_state_t *s)
 static WC_DECLARE_INIT_STATE(wolfcrypt_init_state);
 
 #if defined(__aarch64__) && defined(WOLFSSL_ARMASM_BARRIER_DETECT)
-int aarch64_use_sb = 0;
+int wc_aarch64_use_sb = 0;
 #endif
 
 #ifdef WC_RNG_HAVE_AUTO_LOCK
@@ -793,7 +793,7 @@ int wolfCrypt_Init(void)
 #endif
 
     #if defined(__aarch64__) && defined(WOLFSSL_ARMASM_BARRIER_DETECT)
-        aarch64_use_sb = IS_AARCH64_SB(cpuid_get_flags());
+        wc_aarch64_use_sb = IS_AARCH64_SB(cpuid_get_flags());
     #endif
 
     #ifdef WOLFSSL_CHECK_MEM_ZERO
