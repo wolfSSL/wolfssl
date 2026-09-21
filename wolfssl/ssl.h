@@ -1504,9 +1504,18 @@ WOLFSSL_API int  wolfSSL_CTX_set1_groups(WOLFSSL_CTX* ctx, int* groups,
                                         int count);
 WOLFSSL_API int  wolfSSL_set1_groups(WOLFSSL* ssl, int* groups, int count);
 
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448) || \
+    !defined(NO_DH)
 WOLFSSL_API int  wolfSSL_CTX_set1_groups_list(WOLFSSL_CTX *ctx, const char *list);
 WOLFSSL_API int  wolfSSL_set1_groups_list(WOLFSSL *ssl, const char *list);
+#endif
+#endif
+
+#if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448) || \
+    !defined(NO_DH)
+WOLFSSL_API int  wolfSSL_get_negotiated_group(const WOLFSSL* ssl);
+WOLFSSL_API const char* wolfSSL_group_to_name(const WOLFSSL* ssl, int id);
 #endif
 #endif
 
