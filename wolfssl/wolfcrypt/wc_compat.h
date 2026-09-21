@@ -69,22 +69,8 @@
 
     #define wc_AesGcmEncrypt wc_AesGcmEncrypt_compat_shim
 
-    /* Reachable (via types.h) before memory.h's body when an application
-     * includes memory.h first: its include guard defers the body, so declare
-     * the exported zeroizer here for the inline shims below.  Redeclaration
-     * with identical tokens is harmless. */
-    #ifdef WOLFSSL_NO_FORCE_ZERO
-        /* The application-supplied zeroizer -- same tokens as misc.h, which
-         * no include path can have parsed yet (misc.h includes types.h,
-         * which reaches this header first). */
-        /* NOLINTNEXTLINE(readability-redundant-declaration) */
-        void ForceZero(void* mem, size_t len);
-        #undef wc_ForceZero
-        #define wc_ForceZero ForceZero
-    #else
-        /* NOLINTNEXTLINE(readability-redundant-declaration) */
-        WOLFSSL_API void wc_ForceZero(void *mem, size_t len);
-    #endif
+    /* wc_ForceZero() for the shims below is declared in wc_port.h, which
+     * types.h includes before anything that reaches this header. */
 
     #ifdef WOLFSSL_AESGCM_STREAM
 

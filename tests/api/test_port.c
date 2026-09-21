@@ -236,3 +236,47 @@ int test_wc_PortDecisionCoverage(void)
 
     return EXPECT_RESULT();
 }
+
+/* The exported wrappers live in wc_port.c so builds without memory.c link
+ * them; calling them here checks that. */
+int test_wc_ForceZero_ConstantCompare(void)
+{
+    EXPECT_DECLS;
+
+#ifndef WOLFSSL_NO_FORCE_ZERO
+    {
+        /* 34 bytes at u.b + 1 (u.b word-aligned) run the head, word loop
+         * and tail; the guard bytes catch overruns. */
+        union {
+            unsigned long align;
+            byte b[36];
+        } u;
+        byte zero[sizeof(u.b) - 2];
+
+        XMEMSET(u.b, 0xA5, sizeof(u.b));
+        XMEMSET(zero, 0, sizeof(zero));
+        wc_ForceZero(u.b + 1, sizeof(u.b) - 2);
+        ExpectIntEQ(u.b[0], 0xA5);
+        ExpectIntEQ(u.b[sizeof(u.b) - 1], 0xA5);
+        ExpectIntEQ(XMEMCMP(u.b + 1, zero, sizeof(zero)), 0);
+
+        /* NULL is allowed when len is 0. */
+        wc_ForceZero(NULL, 0);
+    }
+#endif /* !WOLFSSL_NO_FORCE_ZERO */
+
+#ifndef WOLFSSL_NO_CONST_CMP
+    {
+        static const unsigned char a[] = { 0x01, 0x02, 0x03 };
+        static const unsigned char b[] = { 0x01, 0x02, 0x04 };
+
+        ExpectIntEQ(wc_ConstantCompare(a, a, (int)sizeof(a)), 0);
+        ExpectIntNE(wc_ConstantCompare(a, b, (int)sizeof(a)), 0);
+    }
+#endif /* !WOLFSSL_NO_CONST_CMP */
+
+    /* Exported on every build; asm-arm builds never call it, so link it. */
+    wc_BarrierDataSink(NULL);
+
+    return EXPECT_RESULT();
+}

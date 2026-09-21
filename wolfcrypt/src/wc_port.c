@@ -189,6 +189,13 @@ Threading/Mutex options:
     #include <wolfssl/wolfcrypt/mem_track.h>
 #endif
 
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
+
 #if defined(WOLFSSL_CAAM)
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 #endif
@@ -800,6 +807,22 @@ WC_NO_INLINE void wc_BarrierDataSink(void* p)
         *(void (* const volatile *)(void*))&wc_BarrierDataSinkPtr;
     fn(p);
 }
+
+/* Exported wrappers; here rather than memory.c, which some builds omit. */
+#ifndef WOLFSSL_NO_FORCE_ZERO
+void wc_ForceZero(void *mem, size_t len)
+{
+    ForceZero(mem, len);
+}
+#endif /* !WOLFSSL_NO_FORCE_ZERO */
+
+#ifndef WOLFSSL_NO_CONST_CMP
+int wc_ConstantCompare(const unsigned char* a,
+    const unsigned char* b, int length)
+{
+    return ConstantCompare(a, b, length);
+}
+#endif /* !WOLFSSL_NO_CONST_CMP */
 
 /* Used to initialize state for wolfcrypt
    return 0 on success
