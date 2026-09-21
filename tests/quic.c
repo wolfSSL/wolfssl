@@ -2530,6 +2530,8 @@ static int test_quic_ticket_max_early_data(int verbose) {
         wolfssl_encryption_application, ticket, sizeof(ticket)),
         WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_process_quic_post_handshake(tclient.ssl),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_get_error(tclient.ssl, 0),
         WC_NO_ERR_TRACE(INVALID_PARAMETER));
     ExpectIntEQ(tclient.alert, WOLFSSL_QUIC_ERR_PROTOCOL_VIOLATION);
     ExpectIntEQ(tclient.alert_count, 1);
