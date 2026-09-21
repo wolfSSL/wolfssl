@@ -8944,11 +8944,11 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
         }
         XMEMSET(ssl->param, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM));
 
-        /* pass on PARAM flags value from ctx to ssl */
-        if (wolfSSL_X509_VERIFY_PARAM_set_flags(wolfSSL_get0_param(ssl),
-            (unsigned long)wolfSSL_X509_VERIFY_PARAM_get_flags(
-            wolfSSL_CTX_get0_param(ctx))) != WOLFSSL_SUCCESS) {
-            WOLFSSL_MSG("ssl->param set flags error");
+        /* pass on PARAM values from ctx to ssl, including the expected
+         * hostname / IP */
+        if (wolfSSL_X509_VERIFY_PARAM_set1(ssl->param,
+                wolfSSL_CTX_get0_param(ctx)) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("ssl->param set error");
             return BAD_STATE_E;
         }
 #endif
