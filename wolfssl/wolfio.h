@@ -505,6 +505,10 @@
         #define SEND_FUNCTION send
         #define RECV_FUNCTION recv
     #endif
+    #if defined(HAVE_HTTP_CLIENT) && !defined(HAVE_SOCKADDR) && \
+        !defined(WOLFSSL_NO_SOCK)
+        #define HAVE_SOCKADDR
+    #endif
 #elif defined(WOLFSSL_LINUXKM)
     #define SEND_FUNCTION linuxkm_send
     #define RECV_FUNCTION linuxkm_recv
@@ -578,6 +582,9 @@
     #endif /* HAVE_SOCKADDR */
 
     #if defined(WOLFSSL_ZEPHYR)
+        #ifndef HAVE_GETADDRINFO
+            #define HAVE_GETADDRINFO
+        #endif
         typedef struct zsock_addrinfo   ADDRINFO;
         #define getaddrinfo             zsock_getaddrinfo
         #define freeaddrinfo            zsock_freeaddrinfo
